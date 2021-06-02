@@ -1,4 +1,4 @@
-# See docs/devel/tracing.txt for syntax documentation.
+# See docs/devel/tracing.rst for syntax documentation.
 
 # vhost.c
 vhost_commit(bool started, bool changed) "Started: %d Changed: %d"

@@ -407,7 +407,6 @@ gnutls="$default_feature"
 nettle="$default_feature"
 nettle_xts="no"
 gcrypt="$default_feature"
-gcrypt_hmac="no"
 gcrypt_xts="no"
 qemu_private_xts="yes"
 auth_pam="$default_feature"
@@ -2057,17 +2056,17 @@ fi
 cat > $TMPC << EOF
 #if defined(__clang_major__) && defined(__clang_minor__)
 # ifdef __apple_build_version__
-#  if __clang_major__ < 5 || (__clang_major__ == 5 && __clang_minor__ < 1)
-#   error You need at least XCode Clang v5.1 to compile QEMU
+#  if __clang_major__ < 10 || (__clang_major__ == 10 && __clang_minor__ < 0)
+#   error You need at least XCode Clang v10.0 to compile QEMU
 #  endif
 # else
-#  if __clang_major__ < 3 || (__clang_major__ == 3 && __clang_minor__ < 4)
-#   error You need at least Clang v3.4 to compile QEMU
+#  if __clang_major__ < 6 || (__clang_major__ == 6 && __clang_minor__ < 0)
+#   error You need at least Clang v6.0 to compile QEMU
 #  endif
 # endif
 #elif defined(__GNUC__) && defined(__GNUC_MINOR__)
-# if __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 8)
-#  error You need at least GCC v4.8 to compile QEMU
+# if __GNUC__ < 7 || (__GNUC__ == 7 && __GNUC_MINOR__ < 5)
+#  error You need at least GCC v7.5.0 to compile QEMU
 # endif
 #else
 # error You either need GCC or Clang to compiler QEMU
@@ -2075,7 +2074,7 @@ cat > $TMPC << EOF
 int main (void) { return 0; }
 EOF
 if ! compile_prog "" "" ; then
-    error_exit "You need at least GCC v4.8 or Clang v3.4 (or XCode Clang v5.1)"
+    error_exit "You need at least GCC v7.5 or Clang v6.0 (or XCode Clang v10.0)"
 fi
 
 # Accumulate -Wfoo and -Wno-bar separately.
@@ -2802,7 +2801,7 @@ fi
 
 if test "$gnutls" != "no"; then
     pass="no"
-    if $pkg_config --exists "gnutls >= 3.1.18"; then
+    if $pkg_config --exists "gnutls >= 3.5.18"; then
         gnutls_cflags=$($pkg_config --cflags gnutls)
         gnutls_libs=$($pkg_config --libs gnutls)
         # Packaging for the static libraries is not always correct.
@@ -2860,7 +2859,7 @@ has_libgcrypt() {
     maj=`libgcrypt-config --version | awk -F . '{print $1}'`
     min=`libgcrypt-config --version | awk -F . '{print $2}'`
 
-    if test $maj != 1 || test $min -lt 5
+    if test $maj != 1 || test $min -lt 8
     then
        return 1
     fi
@@ -2871,10 +2870,9 @@ has_libgcrypt() {
 
 if test "$nettle" != "no"; then
     pass="no"
-    if $pkg_config --exists "nettle >= 2.7.1"; then
+    if $pkg_config --exists "nettle >= 3.4"; then
         nettle_cflags=$($pkg_config --cflags nettle)
         nettle_libs=$($pkg_config --libs nettle)
-        nettle_version=$($pkg_config --modversion nettle)
         # Link test to make sure the given libraries work (e.g for static).
         write_c_skeleton
         if compile_prog "" "$nettle_libs" ; then
@@ -2925,18 +2923,6 @@ if test "$gcrypt" != "no"; then
     fi
     if test "$pass" = "yes"; then
         gcrypt="yes"
-        cat > $TMPC << EOF
-#include <gcrypt.h>
-int main(void) {
-  gcry_mac_hd_t handle;
-  gcry_mac_open(&handle, GCRY_MAC_HMAC_MD5,
-                GCRY_MAC_FLAG_SECURE, NULL);
-  return 0;
-}
-EOF
-        if compile_prog "$gcrypt_cflags" "$gcrypt_libs" ; then
-            gcrypt_hmac=yes
-        fi
         cat > $TMPC << EOF
 #include <gcrypt.h>
 int main(void) {
@@ -3321,7 +3307,7 @@ done
 ##########################################
 # glib support probe
 
-glib_req_ver=2.48
+glib_req_ver=2.56
 glib_modules=gthread-2.0
 if test "$modules" = yes; then
     glib_modules="$glib_modules gmodule-export-2.0"
@@ -3529,7 +3515,7 @@ fi
 ##########################################
 # libssh probe
 if test "$libssh" != "no" ; then
-  if $pkg_config --exists libssh; then
+  if $pkg_config --exists "libssh >= 0.8.7"; then
     libssh_cflags=$($pkg_config libssh --cflags)
     libssh_libs=$($pkg_config libssh --libs)
     libssh=yes
@@ -3538,23 +3524,6 @@ if test "$libssh" != "no" ; then
       error_exit "libssh required for --enable-libssh"
     fi
     libssh=no
-  fi
-fi
-
-##########################################
-# Check for libssh 0.8
-# This is done like this instead of using the LIBSSH_VERSION_* and
-# SSH_VERSION_* macros because some distributions in the past shipped
-# snapshots of the future 0.8 from Git, and those snapshots did not
-# have updated version numbers (still referring to 0.7.0).
-
-if test "$libssh" = "yes"; then
-  cat > $TMPC <<EOF
-#include <libssh/libssh.h>
-int main(void) { return ssh_get_server_publickey(NULL, NULL); }
-EOF
-  if compile_prog "$libssh_cflags" "$libssh_libs"; then
-    libssh_cflags="-DHAVE_LIBSSH_0_8 $libssh_cflags"
   fi
 fi
 
@@ -5739,15 +5708,11 @@ if test "$gnutls" = "yes" ; then
 fi
 if test "$gcrypt" = "yes" ; then
   echo "CONFIG_GCRYPT=y" >> $config_host_mak
-  if test "$gcrypt_hmac" = "yes" ; then
-    echo "CONFIG_GCRYPT_HMAC=y" >> $config_host_mak
-  fi
   echo "GCRYPT_CFLAGS=$gcrypt_cflags" >> $config_host_mak
   echo "GCRYPT_LIBS=$gcrypt_libs" >> $config_host_mak
 fi
 if test "$nettle" = "yes" ; then
   echo "CONFIG_NETTLE=y" >> $config_host_mak
-  echo "CONFIG_NETTLE_VERSION_MAJOR=${nettle_version%%.*}" >> $config_host_mak
   echo "NETTLE_CFLAGS=$nettle_cflags" >> $config_host_mak
   echo "NETTLE_LIBS=$nettle_libs" >> $config_host_mak
 fi

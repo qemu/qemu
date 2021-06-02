@@ -1,4 +1,4 @@
-# See docs/devel/tracing.txt for syntax documentation.
+# See docs/devel/tracing.rst for syntax documentation.
 
 # translate.c
 mips_translate_c0(const char *instr, const char *rn, int reg, int sel) "%s %s (reg %d sel %d)"

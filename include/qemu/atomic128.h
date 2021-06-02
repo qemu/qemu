@@ -6,7 +6,7 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  *
- * See docs/devel/atomics.txt for discussion about the guarantees each
+ * See docs/devel/atomics.rst for discussion about the guarantees each
  * atomic primitive is meant to provide.
  */
 

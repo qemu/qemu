@@ -1,4 +1,4 @@
-# See docs/devel/tracing.txt for syntax documentation.
+# See docs/devel/tracing.rst for syntax documentation.
 
 # grackle.c
 grackle_set_irq(int irq_num, int level) "set_irq num %d level %d"

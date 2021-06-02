@@ -1,4 +1,4 @@
-# See docs/devel/tracing.txt for syntax documentation.
+# See docs/devel/tracing.rst for syntax documentation.
 
 # announce.c
 qemu_announce_self_iter(const char *id, const char *name, const char *mac, int skip) "%s:%s:%s skip: %d"

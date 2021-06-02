@@ -1,4 +1,4 @@
-# See docs/devel/tracing.txt for syntax documentation.
+# See docs/devel/tracing.rst for syntax documentation.
 
 # hmp.c
 handle_hmp_command(void *mon, const char *cmdline) "mon %p cmdline: %s"

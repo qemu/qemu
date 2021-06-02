@@ -1,4 +1,4 @@
-# See docs/devel/tracing.txt for syntax documentation.
+# See docs/devel/tracing.rst for syntax documentation.
 
 # pci.c
 vfio_intx_interrupt(const char *name, char line) " (%s) Pin %c"

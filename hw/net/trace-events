@@ -1,4 +1,4 @@
-# See docs/devel/tracing.txt for syntax documentation.
+# See docs/devel/tracing.rst for syntax documentation.
 
 # allwinner-sun8i-emac.c
 allwinner_sun8i_emac_mii_write_reg(uint32_t reg, uint32_t value) "MII write: reg=0x%" PRIx32 " value=0x%" PRIx32

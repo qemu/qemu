@@ -1,4 +1,4 @@
-# See docs/devel/tracing.txt for syntax documentation.
+# See docs/devel/tracing.rst for syntax documentation.
 
 # 9p.c
 v9fs_rcancel(uint16_t tag, uint8_t id) "tag %d id %d"

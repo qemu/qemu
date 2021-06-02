@@ -1,4 +1,4 @@
-# See docs/devel/tracing.txt for syntax documentation.
+# See docs/devel/tracing.rst for syntax documentation.
 
 # pvrdma_main.c
 pvrdma_regs_read(uint64_t addr, uint64_t val) "pvrdma.regs[0x%"PRIx64"]=0x%"PRIx64
