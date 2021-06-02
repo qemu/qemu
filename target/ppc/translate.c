@@ -4320,8 +4320,7 @@ static void gen_lookup_and_goto_ptr(DisasContext *ctx)
         if (sse & GDBSTUB_SINGLE_STEP) {
             gen_debug_exception(ctx);
         } else if (sse & (CPU_SINGLE_STEP | CPU_BRANCH_STEP)) {
-            uint32_t excp = gen_prep_dbgex(ctx);
-            gen_exception(ctx, excp);
+            gen_helper_raise_exception(cpu_env, tcg_constant_i32(gen_prep_dbgex(ctx)));
         } else {
             tcg_gen_exit_tb(NULL, 0);
         }
@@ -8672,7 +8671,7 @@ static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         }
         /* else CPU_SINGLE_STEP... */
         if (nip <= 0x100 || nip > 0xf00) {
-            gen_exception(ctx, gen_prep_dbgex(ctx));
+            gen_helper_raise_exception(cpu_env, tcg_constant_i32(gen_prep_dbgex(ctx)));
             return;
         }
     }
