@@ -96,6 +96,7 @@ class BaseVM(object):
         self._genisoimage = args.genisoimage
         self._build_path = args.build_path
         self._efi_aarch64 = args.efi_aarch64
+        self._source_path = args.source_path
         # Allow input config to override defaults.
         self._config = DEFAULT_CONFIG.copy()
         if config != None:
@@ -591,6 +592,9 @@ def parse_args(vmcls):
     parser.add_argument("--build-path", default=None,
                         help="Path of build directory, "\
                         "for using build tree QEMU binary. ")
+    parser.add_argument("--source-path", default=None,
+                        help="Path of source directory, "\
+                        "for finding additional files. ")
     parser.add_argument("--interactive", "-I", action="store_true",
                         help="Interactively run command")
     parser.add_argument("--snapshot", "-s", action="store_true",
