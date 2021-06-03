@@ -425,7 +425,7 @@ vdi=${default_feature:-yes}
 vvfat=${default_feature:-yes}
 qed=${default_feature:-yes}
 parallels=${default_feature:-yes}
-libxml2="$default_feature"
+libxml2="auto"
 debug_mutex="no"
 libpmem="auto"
 default_devices="true"
@@ -1419,9 +1419,9 @@ for opt do
   ;;
   --enable-numa) numa="yes"
   ;;
-  --disable-libxml2) libxml2="no"
+  --disable-libxml2) libxml2="disabled"
   ;;
-  --enable-libxml2) libxml2="yes"
+  --enable-libxml2) libxml2="enabled"
   ;;
   --disable-tcmalloc) tcmalloc="no"
   ;;
@@ -3407,21 +3407,6 @@ EOF
     opengl_libs=""
     opengl=no
   fi
-fi
-
-##########################################
-# libxml2 probe
-if test "$libxml2" != "no" ; then
-    if $pkg_config --exists libxml-2.0; then
-        libxml2="yes"
-        libxml2_cflags=$($pkg_config --cflags libxml-2.0)
-        libxml2_libs=$($pkg_config --libs libxml-2.0)
-    else
-        if test "$libxml2" = "yes"; then
-            feature_not_found "libxml2" "Install libxml2 devel"
-        fi
-        libxml2="no"
-    fi
 fi
 
 # Check for inotify functions when we are building linux-user
@@ -5636,12 +5621,6 @@ if test "$have_rtnetlink" = "yes" ; then
   echo "CONFIG_RTNETLINK=y" >> $config_host_mak
 fi
 
-if test "$libxml2" = "yes" ; then
-  echo "CONFIG_LIBXML2=y" >> $config_host_mak
-  echo "LIBXML2_CFLAGS=$libxml2_cflags" >> $config_host_mak
-  echo "LIBXML2_LIBS=$libxml2_libs" >> $config_host_mak
-fi
-
 if test "$replication" = "yes" ; then
   echo "CONFIG_REPLICATION=y" >> $config_host_mak
 fi
@@ -6050,7 +6029,7 @@ if test "$skip_meson" = no; then
         -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt -Dbrlapi=$brlapi \
         -Dcurl=$curl -Dglusterfs=$glusterfs -Dbzip2=$bzip2 -Dlibiscsi=$libiscsi \
         -Dlibnfs=$libnfs -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
-        -Drbd=$rbd -Dlzo=$lzo -Dsnappy=$snappy -Dlzfse=$lzfse \
+        -Drbd=$rbd -Dlzo=$lzo -Dsnappy=$snappy -Dlzfse=$lzfse -Dlibxml2=$libxml2 \
         -Dlibdaxctl=$libdaxctl -Dlibpmem=$libpmem -Dlinux_io_uring=$linux_io_uring \
         -Dgnutls=$gnutls -Dnettle=$nettle -Dgcrypt=$gcrypt -Dauth_pam=$auth_pam \
         -Dzstd=$zstd -Dseccomp=$seccomp -Dvirtfs=$virtfs -Dcap_ng=$cap_ng \

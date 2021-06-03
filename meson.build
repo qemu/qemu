@@ -334,9 +334,9 @@ if not get_option('linux_io_uring').auto() or have_block
                               method: 'pkg-config', kwargs: static_kwargs)
 endif
 libxml2 = not_found
-if 'CONFIG_LIBXML2' in config_host
-  libxml2 = declare_dependency(compile_args: config_host['LIBXML2_CFLAGS'].split(),
-                               link_args: config_host['LIBXML2_LIBS'].split())
+if not get_option('libxml2').auto() or have_block
+  libxml2 = dependency('libxml-2.0', required: get_option('libxml2'),
+                       method: 'pkg-config', kwargs: static_kwargs)
 endif
 libnfs = not_found
 if not get_option('libnfs').auto() or have_block
@@ -2821,7 +2821,7 @@ summary_info += {'bzip2 support':     libbzip2.found()}
 summary_info += {'lzfse support':     liblzfse.found()}
 summary_info += {'zstd support':      zstd.found()}
 summary_info += {'NUMA host support': config_host.has_key('CONFIG_NUMA')}
-summary_info += {'libxml2':           config_host.has_key('CONFIG_LIBXML2')}
+summary_info += {'libxml2':           libxml2.found()}
 summary_info += {'capstone':          capstone_opt == 'disabled' ? false : capstone_opt}
 summary_info += {'libpmem support':   libpmem.found()}
 summary_info += {'libdaxctl support': libdaxctl.found()}
