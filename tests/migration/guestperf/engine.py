@@ -153,7 +153,7 @@ class Engine(object):
                            max_bandwidth=scenario._bandwidth * 1024 * 1024)
 
         resp = src.command("migrate-set-parameters",
-                           downtime_limit=scenario._downtime / 1024.0)
+                           downtime_limit=scenario._downtime)
 
         if scenario._compression_mt:
             resp = src.command("migrate-set-capabilities",
