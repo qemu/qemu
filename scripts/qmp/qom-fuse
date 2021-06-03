@@ -7,11 +7,19 @@ may be browsed, queried and edited using traditional shell tooling.
 
 This script requires the 'fusepy' python package.
 
-ENV:
-    QMP_SOCKET: Path to the QMP server socket
 
-Usage:
-    qom-fuse /mount/to/here
+usage: qom-fuse [-h] [--socket SOCKET] <mount>
+
+Mount a QOM tree as a FUSE filesystem
+
+positional arguments:
+  <mount>               Mount point
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --socket SOCKET, -s SOCKET
+                        QMP socket path or address (addr:port). May also be
+                        set via QMP_SOCKET environment variable.
 """
 ##
 # Copyright IBM, Corp. 2012
@@ -25,29 +33,55 @@ Usage:
 # See the COPYING file in the top-level directory.
 ##
 
+import argparse
 from errno import ENOENT, EPERM
 import os
 import stat
 import sys
+from typing import Dict
 
 import fuse
 from fuse import FUSE, FuseOSError, Operations
 
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
-from qemu.qmp import QEMUMonitorProtocol, QMPResponseError
+from qemu.qmp import QMPResponseError
+from qemu.qmp.qom_common import QOMCommand
 
 
 fuse.fuse_python_api = (0, 2)
 
 
-class QOMFS(Operations):
-    """QOMFS implements fuse.Operations to provide a QOM filesystem."""
-    def __init__(self, qmp):
-        self.qmp = qmp
-        self.qmp.connect()
-        self.ino_map = {}
+class QOMFuse(QOMCommand, Operations):
+    """
+    QOMFuse implements both fuse.Operations and QOMCommand.
+
+    Operations implements the FS, and QOMCommand implements the CLI command.
+    """
+    name = 'fuse'
+    help = 'Mount a QOM tree as a FUSE filesystem'
+    fuse: FUSE
+
+    @classmethod
+    def configure_parser(cls, parser: argparse.ArgumentParser) -> None:
+        super().configure_parser(parser)
+        parser.add_argument(
+            'mount',
+            metavar='<mount>',
+            action='store',
+            help="Mount point",
+        )
+
+    def __init__(self, args: argparse.Namespace):
+        super().__init__(args)
+        self.mount = args.mount
+        self.ino_map: Dict[str, int] = {}
         self.ino_count = 1
+
+    def run(self) -> int:
+        print(f"Mounting QOMFS to '{self.mount}'", file=sys.stderr)
+        self.fuse = FUSE(self, self.mount, foreground=True)
+        return 0
 
     def get_ino(self, path):
         """Get an inode number for a given QOM path."""
@@ -171,5 +205,4 @@ class QOMFS(Operations):
 
 
 if __name__ == '__main__':
-    fuse = FUSE(QOMFS(QEMUMonitorProtocol(os.environ['QMP_SOCKET'])),
-                sys.argv[1], foreground=True)
+    sys.exit(QOMFuse.entry_point())
