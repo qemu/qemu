@@ -58,8 +58,6 @@
 #include "sysemu/runstate.h"
 #include "qemu/guest-random.h"
 
-#include "hvf-accel-ops.h"
-
 HVFState *hvf_state;
 
 /* Memory slots */

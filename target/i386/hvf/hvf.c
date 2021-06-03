@@ -73,8 +73,6 @@
 #include "qemu/accel.h"
 #include "target/i386/cpu.h"
 
-#include "hvf-accel-ops.h"
-
 void vmx_update_tpr(CPUState *cpu)
 {
     /* TODO: need integrate APIC handling */
