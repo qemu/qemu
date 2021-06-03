@@ -1268,6 +1268,15 @@ config_host_data.set('HAVE_SYS_KCOV_H', cc.has_header('sys/kcov.h'))
 config_host_data.set('CONFIG_PREADV', cc.has_function('preadv', prefix: '#include <sys/uio.h>'))
 config_host_data.set('HAVE_SYSTEM_FUNCTION', cc.has_function('system', prefix: '#include <stdlib.h>'))
 
+# Some versions of Mac OS X incorrectly define SIZE_MAX
+config_host_data.set('HAVE_BROKEN_SIZE_MAX', not cc.compiles('''
+    #include <stdint.h>
+    #include <stdio.h>
+    int main(int argc, char *argv[]) {
+        return printf("%zu", SIZE_MAX);
+    }''', args: ['-Werror']))
+
+
 ignored = ['CONFIG_QEMU_INTERP_PREFIX'] # actually per-target
 arrays = ['CONFIG_AUDIO_DRIVERS', 'CONFIG_BDRV_RW_WHITELIST', 'CONFIG_BDRV_RO_WHITELIST']
 strings = ['HOST_DSOSUF', 'CONFIG_IASL']

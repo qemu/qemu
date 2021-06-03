@@ -2376,20 +2376,6 @@ if test "$softmmu" = "no"; then
 fi
 
 ##########################################
-# Some versions of Mac OS X incorrectly define SIZE_MAX
-cat > $TMPC << EOF
-#include <stdint.h>
-#include <stdio.h>
-int main(int argc, char *argv[]) {
-    return printf("%zu", SIZE_MAX);
-}
-EOF
-have_broken_size_max=no
-if ! compile_object -Werror ; then
-    have_broken_size_max=yes
-fi
-
-##########################################
 # L2TPV3 probe
 
 cat > $TMPC <<EOF
@@ -5360,9 +5346,6 @@ if test "$gdbus_codegen" != "" ; then
     echo "GDBUS_CODEGEN=$gdbus_codegen" >> $config_host_mak
 fi
 echo "CONFIG_TLS_PRIORITY=\"$tls_priority\"" >> $config_host_mak
-if test "$have_broken_size_max" = "yes" ; then
-    echo "HAVE_BROKEN_SIZE_MAX=y" >> $config_host_mak
-fi
 if test "$have_openpty" = "yes" ; then
     echo "HAVE_OPENPTY=y" >> $config_host_mak
 fi
