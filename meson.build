@@ -1051,10 +1051,12 @@ endif
 
 # Check whether the glibc provides statx()
 
-statx_test = '''
+gnu_source_prefix = '''
   #ifndef _GNU_SOURCE
   #define _GNU_SOURCE
   #endif
+'''
+statx_test = gnu_source_prefix + '''
   #include <sys/stat.h>
   int main(void) {
     struct statx statxbuf;
@@ -1257,6 +1259,7 @@ config_host_data.set('QEMU_VERSION_MICRO', meson.project_version().split('.')[2]
 config_host_data.set('HAVE_HOST_BLOCK_DEVICE', have_host_block_device)
 
 # has_header
+config_host_data.set('CONFIG_EPOLL', cc.has_header('sys/epoll.h'))
 config_host_data.set('HAVE_BTRFS_H', cc.has_header('linux/btrfs.h'))
 config_host_data.set('HAVE_DRM_H', cc.has_header('libdrm/drm.h'))
 config_host_data.set('HAVE_PTY_H', cc.has_header('pty.h'))
@@ -1265,8 +1268,44 @@ config_host_data.set('HAVE_SYS_IOCCOM_H', cc.has_header('sys/ioccom.h'))
 config_host_data.set('HAVE_SYS_KCOV_H', cc.has_header('sys/kcov.h'))
 
 # has_function
+config_host_data.set('CONFIG_CLOCK_ADJTIME', cc.has_function('clock_adjtime'))
+config_host_data.set('CONFIG_DUP3', cc.has_function('dup3'))
+config_host_data.set('CONFIG_FALLOCATE', cc.has_function('fallocate'))
+config_host_data.set('CONFIG_POSIX_FALLOCATE', cc.has_function('posix_fallocate'))
+config_host_data.set('CONFIG_PPOLL', cc.has_function('ppoll'))
 config_host_data.set('CONFIG_PREADV', cc.has_function('preadv', prefix: '#include <sys/uio.h>'))
+config_host_data.set('CONFIG_SENDFILE', cc.has_function('sendfile'))
+config_host_data.set('CONFIG_SETNS', cc.has_function('setns') and cc.has_function('unshare'))
+config_host_data.set('CONFIG_SYNCFS', cc.has_function('syncfs'))
+config_host_data.set('CONFIG_SYNC_FILE_RANGE', cc.has_function('sync_file_range'))
+config_host_data.set('CONFIG_TIMERFD', cc.has_function('timerfd_create'))
+config_host_data.set('HAVE_OPENPTY', cc.has_function('openpty', dependencies: util))
 config_host_data.set('HAVE_SYSTEM_FUNCTION', cc.has_function('system', prefix: '#include <stdlib.h>'))
+
+# has_header_symbol
+config_host_data.set('CONFIG_BYTESWAP_H',
+                     cc.has_header_symbol('byteswap.h', 'bswap_32'))
+config_host_data.set('CONFIG_EPOLL_CREATE1',
+                     cc.has_header_symbol('sys/epoll.h', 'epoll_create1'))
+config_host_data.set('CONFIG_FALLOCATE_PUNCH_HOLE',
+                     cc.has_header_symbol('linux/falloc.h', 'FALLOC_FL_PUNCH_HOLE') and
+                     cc.has_header_symbol('linux/falloc.h', 'FALLOC_FL_KEEP_SIZE'))
+config_host_data.set('CONFIG_FALLOCATE_ZERO_RANGE',
+                     cc.has_header_symbol('linux/falloc.h', 'FALLOC_FL_ZERO_RANGE'))
+config_host_data.set('CONFIG_FIEMAP',
+                     cc.has_header('linux/fiemap.h') and
+                     cc.has_header_symbol('linux/fs.h', 'FS_IOC_FIEMAP'))
+config_host_data.set('CONFIG_MACHINE_BSWAP_H',
+                     cc.has_header_symbol('machine/bswap.h', 'bswap32',
+                                          prefix: '''#include <sys/endian.h>
+                                                     #include <sys/types.h>'''))
+config_host_data.set('CONFIG_PRCTL_PR_SET_TIMERSLACK',
+                     cc.has_header_symbol('sys/prctl.h', 'PR_SET_TIMERSLACK'))
+
+# has_member
+config_host_data.set('HAVE_SIGEV_NOTIFY_THREAD_ID',
+                     cc.has_member('struct sigevent', 'sigev_notify_thread_id',
+                                   prefix: '#include <signal.h>'))
 
 # Some versions of Mac OS X incorrectly define SIZE_MAX
 config_host_data.set('HAVE_BROKEN_SIZE_MAX', not cc.compiles('''
