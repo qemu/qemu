@@ -1,7 +1,7 @@
 """
 QEMU Object Model testing tools.
 
-usage: qom [-h] {set,get,list,tree} ...
+usage: qom [-h] {set,get,list,tree,fuse} ...
 
 Query and manipulate QOM data
 
@@ -9,11 +9,12 @@ optional arguments:
   -h, --help           show this help message and exit
 
 QOM commands:
-  {set,get,list,tree}
+  {set,get,list,tree,fuse}
     set                Set a QOM property value
     get                Get a QOM property value
     list               List QOM properties at a given path
     tree               Show QOM tree from a given path
+    fuse               Mount a QOM tree as a FUSE filesystem
 """
 ##
 # Copyright John Snow 2020, for Red Hat, Inc.
@@ -33,6 +34,15 @@ import argparse
 
 from . import QMPResponseError
 from .qom_common import QOMCommand
+
+
+try:
+    from .qom_fuse import QOMFuse
+except ModuleNotFoundError as err:
+    if err.name != 'fuse':
+        raise
+else:
+    assert issubclass(QOMFuse, QOMCommand)
 
 
 class QOMSet(QOMCommand):
