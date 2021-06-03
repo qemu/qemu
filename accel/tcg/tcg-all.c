@@ -32,6 +32,7 @@
 #include "qemu/error-report.h"
 #include "qemu/accel.h"
 #include "qapi/qapi-builtin-visit.h"
+#include "qemu/units.h"
 #include "internal.h"
 
 struct TCGState {
@@ -115,7 +116,7 @@ static int tcg_init_machine(MachineState *ms)
 
     page_init();
     tb_htable_init();
-    tcg_init(s->tb_size * 1024 * 1024, s->splitwx_enabled);
+    tcg_init(s->tb_size * MiB, s->splitwx_enabled);
 
 #if defined(CONFIG_SOFTMMU)
     /*
