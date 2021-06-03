@@ -992,10 +992,12 @@ if 'CONFIG_USB_REDIR' in config_host
                                 link_args: config_host['USB_REDIR_LIBS'].split())
 endif
 libusb = not_found
-if 'CONFIG_USB_LIBUSB' in config_host
-  libusb = declare_dependency(compile_args: config_host['LIBUSB_CFLAGS'].split(),
-                              link_args: config_host['LIBUSB_LIBS'].split())
+if not get_option('libusb').auto() or have_system
+  libusb = dependency('libusb-1.0', required: get_option('libusb'),
+                      version: '>=1.0.13', method: 'pkg-config',
+                      kwargs: static_kwargs)
 endif
+
 libpmem = not_found
 if 'CONFIG_LIBPMEM' in config_host
   libpmem = declare_dependency(compile_args: config_host['LIBPMEM_CFLAGS'].split(),
@@ -1211,6 +1213,7 @@ config_host_data.set('CONFIG_SDL', sdl.found())
 config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
 config_host_data.set('CONFIG_SECCOMP', seccomp.found())
 config_host_data.set('CONFIG_SNAPPY', snappy.found())
+config_host_data.set('CONFIG_USB_LIBUSB', libusb.found())
 config_host_data.set('CONFIG_VHOST_USER_BLK_SERVER', have_vhost_user_blk_server)
 config_host_data.set('CONFIG_VNC', vnc.found())
 config_host_data.set('CONFIG_VNC_JPEG', jpeg.found())
@@ -2780,7 +2783,7 @@ summary_info += {'rbd support':       rbd.found()}
 summary_info += {'xfsctl support':    config_host.has_key('CONFIG_XFS')}
 summary_info += {'smartcard support': config_host.has_key('CONFIG_SMARTCARD')}
 summary_info += {'U2F support':       u2f.found()}
-summary_info += {'libusb':            config_host.has_key('CONFIG_USB_LIBUSB')}
+summary_info += {'libusb':            libusb.found()}
 summary_info += {'usb net redir':     config_host.has_key('CONFIG_USB_REDIR')}
 summary_info += {'OpenGL support':    config_host.has_key('CONFIG_OPENGL')}
 summary_info += {'GBM':               config_host.has_key('CONFIG_GBM')}
