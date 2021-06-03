@@ -89,8 +89,6 @@ class QMPCompleter(list):
 class QMPShellError(Exception):
     pass
 
-class QMPShellBadPort(QMPShellError):
-    pass
 
 class FuzzyJSON(ast.NodeTransformer):
     '''This extension of ast.NodeTransformer filters literal "true/false/null"
@@ -109,7 +107,7 @@ class FuzzyJSON(ast.NodeTransformer):
 #       _execute_cmd()). Let's design a better one.
 class QMPShell(qmp.QEMUMonitorProtocol):
     def __init__(self, address, pretty=False):
-        super(QMPShell, self).__init__(self.__get_address(address))
+        super(QMPShell, self).__init__(self.parse_address(address))
         self._greeting = None
         self._completer = None
         self._pretty = pretty
@@ -117,21 +115,6 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         self._actions = list()
         self._histfile = os.path.join(os.path.expanduser('~'),
                                       '.qmp-shell_history')
-
-    def __get_address(self, arg):
-        """
-        Figure out if the argument is in the port:host form, if it's not it's
-        probably a file path.
-        """
-        addr = arg.split(':')
-        if len(addr) == 2:
-            try:
-                port = int(addr[1])
-            except ValueError:
-                raise QMPShellBadPort
-            return ( addr[0], port )
-        # socket path
-        return arg
 
     def _fill_completion(self):
         cmds = self.cmd('query-commands')
@@ -437,7 +420,7 @@ def main():
 
         if qemu is None:
             fail_cmdline()
-    except QMPShellBadPort:
+    except qmp.QMPBadPortError:
         die('bad port number in command-line')
 
     try:
