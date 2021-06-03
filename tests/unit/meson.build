@@ -94,7 +94,7 @@ if have_block
       'test-io-channel-tls': ['io-channel-helpers.c', 'crypto-tls-x509-helpers.c', 'pkix_asn1_tab.c',
                               tasn1, io, crypto, gnutls]}
   endif
-  if 'CONFIG_AUTH_PAM' in config_host
+  if pam.found()
     tests += {'test-authz-pam': [authz]}
   endif
   if xts == 'private'

@@ -6,4 +6,4 @@ authz_ss.add(files(
   'simple.c',
 ))
 
-authz_ss.add(when: ['CONFIG_AUTH_PAM', pam], if_true: files('pamacct.c'))
+authz_ss.add(when: pam, if_true: files('pamacct.c'))
