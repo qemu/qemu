@@ -1,0 +1,126 @@
+#
+# Power ISA decode for 32-bit insns (opcode space 0)
+#
+# Copyright (c) 2021 Instituto de Pesquisas Eldorado (eldorado.org.br)
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, see <http://www.gnu.org/licenses/>.
+#
+
+&D              rt ra si:int64_t
+@D              ...... rt:5 ra:5 si:s16                 &D
+
+&D_bf           bf l:bool ra imm
+@D_bfs          ...... bf:3 - l:1 ra:5 imm:s16          &D_bf
+@D_bfu          ...... bf:3 - l:1 ra:5 imm:16           &D_bf
+
+%ds_si          2:s14  !function=times_4
+@DS             ...... rt:5 ra:5 .............. ..      &D si=%ds_si
+
+&DX             rt d
+%dx_d           6:s10 16:5 0:1
+@DX             ...... rt:5  ..... .......... ..... .   &DX d=%dx_d
+
+&VX             vrt vra vrb
+@VX             ...... vrt:5 vra:5 vrb:5 .......... .   &VX
+
+&X              rt ra rb
+@X              ...... rt:5 ra:5 rb:5 .......... .      &X
+
+&X_bi           rt bi
+@X_bi           ...... rt:5 bi:5 ----- .......... -     &X_bi
+
+&X_bfl          bf l:bool ra rb
+@X_bfl          ...... bf:3 - l:1 ra:5 rb:5 ..........- &X_bfl
+
+### Fixed-Point Load Instructions
+
+LBZ             100010 ..... ..... ................     @D
+LBZU            100011 ..... ..... ................     @D
+LBZX            011111 ..... ..... ..... 0001010111 -   @X
+LBZUX           011111 ..... ..... ..... 0001110111 -   @X
+
+LHZ             101000 ..... ..... ................     @D
+LHZU            101001 ..... ..... ................     @D
+LHZX            011111 ..... ..... ..... 0100010111 -   @X
+LHZUX           011111 ..... ..... ..... 0100110111 -   @X
+
+LHA             101010 ..... ..... ................     @D
+LHAU            101011 ..... ..... ................     @D
+LHAX            011111 ..... ..... ..... 0101010111 -   @X
+LHAXU           011111 ..... ..... ..... 0101110111 -   @X
+
+LWZ             100000 ..... ..... ................     @D
+LWZU            100001 ..... ..... ................     @D
+LWZX            011111 ..... ..... ..... 0000010111 -   @X
+LWZUX           011111 ..... ..... ..... 0000110111 -   @X
+
+LWA             111010 ..... ..... ..............10     @DS
+LWAX            011111 ..... ..... ..... 0101010101 -   @X
+LWAUX           011111 ..... ..... ..... 0101110101 -   @X
+
+LD              111010 ..... ..... ..............00     @DS
+LDU             111010 ..... ..... ..............01     @DS
+LDX             011111 ..... ..... ..... 0000010101 -   @X
+LDUX            011111 ..... ..... ..... 0000110101 -   @X
+
+### Fixed-Point Store Instructions
+
+STB             100110 ..... ..... ................     @D
+STBU            100111 ..... ..... ................     @D
+STBX            011111 ..... ..... ..... 0011010111 -   @X
+STBUX           011111 ..... ..... ..... 0011110111 -   @X
+
+STH             101100 ..... ..... ................     @D
+STHU            101101 ..... ..... ................     @D
+STHX            011111 ..... ..... ..... 0110010111 -   @X
+STHUX           011111 ..... ..... ..... 0110110111 -   @X
+
+STW             100100 ..... ..... ................     @D
+STWU            100101 ..... ..... ................     @D
+STWX            011111 ..... ..... ..... 0010010111 -   @X
+STWUX           011111 ..... ..... ..... 0010110111 -   @X
+
+STD             111110 ..... ..... ..............00     @DS
+STDU            111110 ..... ..... ..............01     @DS
+STDX            011111 ..... ..... ..... 0010010101 -   @X
+STDUX           011111 ..... ..... ..... 0010110101 -   @X
+
+### Fixed-Point Compare Instructions
+
+CMP             011111 ... - . ..... ..... 0000000000 - @X_bfl
+CMPL            011111 ... - . ..... ..... 0000100000 - @X_bfl
+CMPI            001011 ... - . ..... ................   @D_bfs
+CMPLI           001010 ... - . ..... ................   @D_bfu
+
+### Fixed-Point Arithmetic Instructions
+
+ADDI            001110 ..... ..... ................     @D
+ADDIS           001111 ..... ..... ................     @D
+
+ADDPCIS         010011 ..... ..... .......... 00010 .   @DX
+
+## Fixed-Point Logical Instructions
+
+CFUGED          011111 ..... ..... ..... 0011011100 -   @X
+
+### Move To/From System Register Instructions
+
+SETBC           011111 ..... ..... ----- 0110000000 -   @X_bi
+SETBCR          011111 ..... ..... ----- 0110100000 -   @X_bi
+SETNBC          011111 ..... ..... ----- 0111000000 -   @X_bi
+SETNBCR         011111 ..... ..... ----- 0111100000 -   @X_bi
+
+## Vector Bit Manipulation Instruction
+
+VCFUGED         000100 ..... ..... ..... 10101001101    @VX

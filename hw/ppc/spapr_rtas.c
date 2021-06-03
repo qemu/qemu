@@ -132,8 +132,8 @@ static void rtas_start_cpu(PowerPCCPU *callcpu, SpaprMachineState *spapr,
     target_ulong id, start, r3;
     PowerPCCPU *newcpu;
     CPUPPCState *env;
-    PowerPCCPUClass *pcc;
     target_ulong lpcr;
+    target_ulong caller_lpcr;
 
     if (nargs != 3 || nret != 1) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
@@ -152,7 +152,6 @@ static void rtas_start_cpu(PowerPCCPU *callcpu, SpaprMachineState *spapr,
     }
 
     env = &newcpu->env;
-    pcc = POWERPC_CPU_GET_CLASS(newcpu);
 
     if (!CPU(newcpu)->halted) {
         rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
@@ -164,11 +163,15 @@ static void rtas_start_cpu(PowerPCCPU *callcpu, SpaprMachineState *spapr,
     env->msr = (1ULL << MSR_SF) | (1ULL << MSR_ME);
     hreg_compute_hflags(env);
 
-    /* Enable Power-saving mode Exit Cause exceptions for the new CPU */
+    caller_lpcr = callcpu->env.spr[SPR_LPCR];
     lpcr = env->spr[SPR_LPCR];
-    if (!pcc->interrupts_big_endian(callcpu)) {
-        lpcr |= LPCR_ILE;
-    }
+
+    /* Set ILE the same way */
+    lpcr = (lpcr & ~LPCR_ILE) | (caller_lpcr & LPCR_ILE);
+
+    /* Set AIL the same way */
+    lpcr = (lpcr & ~LPCR_AIL) | (caller_lpcr & LPCR_AIL);
+
     if (env->mmu_model == POWERPC_MMU_3_00) {
         /*
          * New cpus are expected to start in the same radix/hash mode

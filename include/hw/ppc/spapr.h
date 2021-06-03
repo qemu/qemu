@@ -223,6 +223,9 @@ struct SpaprMachineState {
     int fwnmi_machine_check_interlock;
     QemuCond fwnmi_machine_check_interlock_cond;
 
+    /* Set by -boot */
+    char *boot_device;
+
     /*< public >*/
     char *kvm_type;
     char *host_model;

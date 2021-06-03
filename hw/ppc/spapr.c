@@ -1005,7 +1005,7 @@ static void spapr_dt_chosen(SpaprMachineState *spapr, void *fdt, bool reset)
     _FDT(chosen = fdt_add_subnode(fdt, 0, "chosen"));
 
     if (reset) {
-        const char *boot_device = machine->boot_order;
+        const char *boot_device = spapr->boot_device;
         char *stdout_path = spapr_vio_stdout_path(spapr->vio_bus);
         size_t cb = 0;
         char *bootlist = get_boot_devices_list(&cb);
@@ -2376,8 +2376,10 @@ static SaveVMHandlers savevm_htab_handlers = {
 static void spapr_boot_set(void *opaque, const char *boot_device,
                            Error **errp)
 {
-    MachineState *machine = MACHINE(opaque);
-    machine->boot_order = g_strdup(boot_device);
+    SpaprMachineState *spapr = SPAPR_MACHINE(opaque);
+
+    g_free(spapr->boot_device);
+    spapr->boot_device = g_strdup(boot_device);
 }
 
 static void spapr_create_lmb_dr_connectors(SpaprMachineState *spapr)

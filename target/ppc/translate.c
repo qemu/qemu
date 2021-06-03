@@ -47,7 +47,6 @@
 
 /* Include definitions for instructions classes and implementations flags */
 /* #define PPC_DEBUG_DISAS */
-/* #define DO_PPC_STATISTICS */
 
 #ifdef PPC_DEBUG_DISAS
 #  define LOG_DISAS(...) qemu_log_mask(CPU_LOG_TB_IN_ASM, ## __VA_ARGS__)
@@ -217,12 +216,6 @@ struct opc_handler_t {
     uint64_t type2;
     /* handler */
     void (*handler)(DisasContext *ctx);
-#if defined(DO_PPC_STATISTICS) || defined(PPC_DUMP_CPU)
-    const char *oname;
-#endif
-#if defined(DO_PPC_STATISTICS)
-    uint64_t count;
-#endif
 };
 
 /* SPR load/store helpers */
@@ -1345,84 +1338,6 @@ typedef struct opcode_t {
 /*****************************************************************************/
 /* PowerPC instructions table                                                */
 
-#if defined(DO_PPC_STATISTICS)
-#define GEN_OPCODE(name, op1, op2, op3, invl, _typ, _typ2)                    \
-{                                                                             \
-    .opc1 = op1,                                                              \
-    .opc2 = op2,                                                              \
-    .opc3 = op3,                                                              \
-    .opc4 = 0xff,                                                             \
-    .handler = {                                                              \
-        .inval1  = invl,                                                      \
-        .type = _typ,                                                         \
-        .type2 = _typ2,                                                       \
-        .handler = &gen_##name,                                               \
-        .oname = stringify(name),                                             \
-    },                                                                        \
-    .oname = stringify(name),                                                 \
-}
-#define GEN_OPCODE_DUAL(name, op1, op2, op3, invl1, invl2, _typ, _typ2)       \
-{                                                                             \
-    .opc1 = op1,                                                              \
-    .opc2 = op2,                                                              \
-    .opc3 = op3,                                                              \
-    .opc4 = 0xff,                                                             \
-    .handler = {                                                              \
-        .inval1  = invl1,                                                     \
-        .inval2  = invl2,                                                     \
-        .type = _typ,                                                         \
-        .type2 = _typ2,                                                       \
-        .handler = &gen_##name,                                               \
-        .oname = stringify(name),                                             \
-    },                                                                        \
-    .oname = stringify(name),                                                 \
-}
-#define GEN_OPCODE2(name, onam, op1, op2, op3, invl, _typ, _typ2)             \
-{                                                                             \
-    .opc1 = op1,                                                              \
-    .opc2 = op2,                                                              \
-    .opc3 = op3,                                                              \
-    .opc4 = 0xff,                                                             \
-    .handler = {                                                              \
-        .inval1  = invl,                                                      \
-        .type = _typ,                                                         \
-        .type2 = _typ2,                                                       \
-        .handler = &gen_##name,                                               \
-        .oname = onam,                                                        \
-    },                                                                        \
-    .oname = onam,                                                            \
-}
-#define GEN_OPCODE3(name, op1, op2, op3, op4, invl, _typ, _typ2)              \
-{                                                                             \
-    .opc1 = op1,                                                              \
-    .opc2 = op2,                                                              \
-    .opc3 = op3,                                                              \
-    .opc4 = op4,                                                              \
-    .handler = {                                                              \
-        .inval1  = invl,                                                      \
-        .type = _typ,                                                         \
-        .type2 = _typ2,                                                       \
-        .handler = &gen_##name,                                               \
-        .oname = stringify(name),                                             \
-    },                                                                        \
-    .oname = stringify(name),                                                 \
-}
-#define GEN_OPCODE4(name, onam, op1, op2, op3, op4, invl, _typ, _typ2)        \
-{                                                                             \
-    .opc1 = op1,                                                              \
-    .opc2 = op2,                                                              \
-    .opc3 = op3,                                                              \
-    .opc4 = op4,                                                              \
-    .handler = {                                                              \
-        .inval1  = invl,                                                      \
-        .type = _typ,                                                         \
-        .type2 = _typ2,                                                       \
-        .handler = &gen_##name,                                               \
-        .oname = onam,                                                        \
-    },                                                                        \
-    .oname = onam,                                                            \
-}
-#else
 #define GEN_OPCODE(name, op1, op2, op3, invl, _typ, _typ2)                    \
 {                                                                             \
     .opc1 = op1,                                                              \
@@ -1494,7 +1409,6 @@ typedef struct opcode_t {
     },                                                                        \
     .oname = onam,                                                            \
 }
-#endif
 
 /* Invalid instruction */
 static void gen_invalid(DisasContext *ctx)
@@ -1572,54 +1486,6 @@ static inline void gen_set_Rc0(DisasContext *ctx, TCGv reg)
         gen_op_cmpi32(reg, 0, 1, 0);
     } else {
         gen_op_cmpi(reg, 0, 1, 0);
-    }
-}
-
-/* cmp */
-static void gen_cmp(DisasContext *ctx)
-{
-    if ((ctx->opcode & 0x00200000) && (ctx->insns_flags & PPC_64B)) {
-        gen_op_cmp(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
-                   1, crfD(ctx->opcode));
-    } else {
-        gen_op_cmp32(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
-                     1, crfD(ctx->opcode));
-    }
-}
-
-/* cmpi */
-static void gen_cmpi(DisasContext *ctx)
-{
-    if ((ctx->opcode & 0x00200000) && (ctx->insns_flags & PPC_64B)) {
-        gen_op_cmpi(cpu_gpr[rA(ctx->opcode)], SIMM(ctx->opcode),
-                    1, crfD(ctx->opcode));
-    } else {
-        gen_op_cmpi32(cpu_gpr[rA(ctx->opcode)], SIMM(ctx->opcode),
-                      1, crfD(ctx->opcode));
-    }
-}
-
-/* cmpl */
-static void gen_cmpl(DisasContext *ctx)
-{
-    if ((ctx->opcode & 0x00200000) && (ctx->insns_flags & PPC_64B)) {
-        gen_op_cmp(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
-                   0, crfD(ctx->opcode));
-    } else {
-        gen_op_cmp32(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
-                     0, crfD(ctx->opcode));
-    }
-}
-
-/* cmpli */
-static void gen_cmpli(DisasContext *ctx)
-{
-    if ((ctx->opcode & 0x00200000) && (ctx->insns_flags & PPC_64B)) {
-        gen_op_cmpi(cpu_gpr[rA(ctx->opcode)], UIMM(ctx->opcode),
-                    0, crfD(ctx->opcode));
-    } else {
-        gen_op_cmpi32(cpu_gpr[rA(ctx->opcode)], UIMM(ctx->opcode),
-                      0, crfD(ctx->opcode));
     }
 }
 
@@ -1846,19 +1712,6 @@ GEN_INT_ARITH_ADD(addex, 0x05, cpu_ov, 1, 1, 0);
 /* addze  addze.  addzeo  addzeo.*/
 GEN_INT_ARITH_ADD_CONST(addze, 0x06, 0, cpu_ca, 1, 1, 0)
 GEN_INT_ARITH_ADD_CONST(addzeo, 0x16, 0, cpu_ca, 1, 1, 1)
-/* addi */
-static void gen_addi(DisasContext *ctx)
-{
-    target_long simm = SIMM(ctx->opcode);
-
-    if (rA(ctx->opcode) == 0) {
-        /* li case */
-        tcg_gen_movi_tl(cpu_gpr[rD(ctx->opcode)], simm);
-    } else {
-        tcg_gen_addi_tl(cpu_gpr[rD(ctx->opcode)],
-                        cpu_gpr[rA(ctx->opcode)], simm);
-    }
-}
 /* addic  addic.*/
 static inline void gen_op_addic(DisasContext *ctx, bool compute_rc0)
 {
@@ -1876,28 +1729,6 @@ static void gen_addic(DisasContext *ctx)
 static void gen_addic_(DisasContext *ctx)
 {
     gen_op_addic(ctx, 1);
-}
-
-/* addis */
-static void gen_addis(DisasContext *ctx)
-{
-    target_long simm = SIMM(ctx->opcode);
-
-    if (rA(ctx->opcode) == 0) {
-        /* lis case */
-        tcg_gen_movi_tl(cpu_gpr[rD(ctx->opcode)], simm << 16);
-    } else {
-        tcg_gen_addi_tl(cpu_gpr[rD(ctx->opcode)],
-                        cpu_gpr[rA(ctx->opcode)], simm << 16);
-    }
-}
-
-/* addpcis */
-static void gen_addpcis(DisasContext *ctx)
-{
-    target_long d = DX(ctx->opcode);
-
-    tcg_gen_movi_tl(cpu_gpr[rD(ctx->opcode)], ctx->base.pc_next + (d << 16));
 }
 
 static inline void gen_op_arith_divw(DisasContext *ctx, TCGv ret, TCGv arg1,
@@ -3412,7 +3243,9 @@ static void glue(gen_qemu_, stop)(DisasContext *ctx,                    \
     tcg_gen_qemu_st_tl(val, addr, ctx->mem_idx, op);                    \
 }
 
+#if defined(TARGET_PPC64) || !defined(CONFIG_USER_ONLY)
 GEN_QEMU_STORE_TL(st8,  DEF_MEMOP(MO_UB))
+#endif
 GEN_QEMU_STORE_TL(st16, DEF_MEMOP(MO_UW))
 GEN_QEMU_STORE_TL(st32, DEF_MEMOP(MO_UL))
 
@@ -3436,54 +3269,6 @@ GEN_QEMU_STORE_64(st64, DEF_MEMOP(MO_Q))
 GEN_QEMU_STORE_64(st64r, BSWAP_MEMOP(MO_Q))
 #endif
 
-#define GEN_LD(name, ldop, opc, type)                                         \
-static void glue(gen_, name)(DisasContext *ctx)                               \
-{                                                                             \
-    TCGv EA;                                                                  \
-    gen_set_access_type(ctx, ACCESS_INT);                                     \
-    EA = tcg_temp_new();                                                      \
-    gen_addr_imm_index(ctx, EA, 0);                                           \
-    gen_qemu_##ldop(ctx, cpu_gpr[rD(ctx->opcode)], EA);                       \
-    tcg_temp_free(EA);                                                        \
-}
-
-#define GEN_LDU(name, ldop, opc, type)                                        \
-static void glue(gen_, name##u)(DisasContext *ctx)                            \
-{                                                                             \
-    TCGv EA;                                                                  \
-    if (unlikely(rA(ctx->opcode) == 0 ||                                      \
-                 rA(ctx->opcode) == rD(ctx->opcode))) {                       \
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);                   \
-        return;                                                               \
-    }                                                                         \
-    gen_set_access_type(ctx, ACCESS_INT);                                     \
-    EA = tcg_temp_new();                                                      \
-    if (type == PPC_64B)                                                      \
-        gen_addr_imm_index(ctx, EA, 0x03);                                    \
-    else                                                                      \
-        gen_addr_imm_index(ctx, EA, 0);                                       \
-    gen_qemu_##ldop(ctx, cpu_gpr[rD(ctx->opcode)], EA);                       \
-    tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);                             \
-    tcg_temp_free(EA);                                                        \
-}
-
-#define GEN_LDUX(name, ldop, opc2, opc3, type)                                \
-static void glue(gen_, name##ux)(DisasContext *ctx)                           \
-{                                                                             \
-    TCGv EA;                                                                  \
-    if (unlikely(rA(ctx->opcode) == 0 ||                                      \
-                 rA(ctx->opcode) == rD(ctx->opcode))) {                       \
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);                   \
-        return;                                                               \
-    }                                                                         \
-    gen_set_access_type(ctx, ACCESS_INT);                                     \
-    EA = tcg_temp_new();                                                      \
-    gen_addr_reg_index(ctx, EA);                                              \
-    gen_qemu_##ldop(ctx, cpu_gpr[rD(ctx->opcode)], EA);                       \
-    tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);                             \
-    tcg_temp_free(EA);                                                        \
-}
-
 #define GEN_LDX_E(name, ldop, opc2, opc3, type, type2, chk)                   \
 static void glue(gen_, name##x)(DisasContext *ctx)                            \
 {                                                                             \
@@ -3501,21 +3286,6 @@ static void glue(gen_, name##x)(DisasContext *ctx)                            \
 
 #define GEN_LDX_HVRM(name, ldop, opc2, opc3, type)                            \
     GEN_LDX_E(name, ldop, opc2, opc3, type, PPC_NONE, CHK_HVRM)
-
-#define GEN_LDS(name, ldop, op, type)                                         \
-GEN_LD(name, ldop, op | 0x20, type);                                          \
-GEN_LDU(name, ldop, op | 0x21, type);                                         \
-GEN_LDUX(name, ldop, 0x17, op | 0x01, type);                                  \
-GEN_LDX(name, ldop, 0x17, op | 0x00, type)
-
-/* lbz lbzu lbzux lbzx */
-GEN_LDS(lbz, ld8u, 0x02, PPC_INTEGER);
-/* lha lhau lhaux lhax */
-GEN_LDS(lha, ld16s, 0x0A, PPC_INTEGER);
-/* lhz lhzu lhzux lhzx */
-GEN_LDS(lhz, ld16u, 0x08, PPC_INTEGER);
-/* lwz lwzu lwzux lwzx */
-GEN_LDS(lwz, ld32u, 0x00, PPC_INTEGER);
 
 #define GEN_LDEPX(name, ldop, opc2, opc3)                                     \
 static void glue(gen_, name##epx)(DisasContext *ctx)                          \
@@ -3537,46 +3307,11 @@ GEN_LDEPX(ld, DEF_MEMOP(MO_Q), 0x1D, 0x00)
 #endif
 
 #if defined(TARGET_PPC64)
-/* lwaux */
-GEN_LDUX(lwa, ld32s, 0x15, 0x0B, PPC_64B);
-/* lwax */
-GEN_LDX(lwa, ld32s, 0x15, 0x0A, PPC_64B);
-/* ldux */
-GEN_LDUX(ld, ld64_i64, 0x15, 0x01, PPC_64B);
-/* ldx */
-GEN_LDX(ld, ld64_i64, 0x15, 0x00, PPC_64B);
-
 /* CI load/store variants */
 GEN_LDX_HVRM(ldcix, ld64_i64, 0x15, 0x1b, PPC_CILDST)
 GEN_LDX_HVRM(lwzcix, ld32u, 0x15, 0x15, PPC_CILDST)
 GEN_LDX_HVRM(lhzcix, ld16u, 0x15, 0x19, PPC_CILDST)
 GEN_LDX_HVRM(lbzcix, ld8u, 0x15, 0x1a, PPC_CILDST)
-
-static void gen_ld(DisasContext *ctx)
-{
-    TCGv EA;
-    if (Rc(ctx->opcode)) {
-        if (unlikely(rA(ctx->opcode) == 0 ||
-                     rA(ctx->opcode) == rD(ctx->opcode))) {
-            gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
-            return;
-        }
-    }
-    gen_set_access_type(ctx, ACCESS_INT);
-    EA = tcg_temp_new();
-    gen_addr_imm_index(ctx, EA, 0x03);
-    if (ctx->opcode & 0x02) {
-        /* lwa (lwau is undefined) */
-        gen_qemu_ld32s(ctx, cpu_gpr[rD(ctx->opcode)], EA);
-    } else {
-        /* ld - ldu */
-        gen_qemu_ld64_i64(ctx, cpu_gpr[rD(ctx->opcode)], EA);
-    }
-    if (Rc(ctx->opcode)) {
-        tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);
-    }
-    tcg_temp_free(EA);
-}
 
 /* lq */
 static void gen_lq(DisasContext *ctx)
@@ -3643,52 +3378,6 @@ static void gen_lq(DisasContext *ctx)
 #endif
 
 /***                              Integer store                            ***/
-#define GEN_ST(name, stop, opc, type)                                         \
-static void glue(gen_, name)(DisasContext *ctx)                               \
-{                                                                             \
-    TCGv EA;                                                                  \
-    gen_set_access_type(ctx, ACCESS_INT);                                     \
-    EA = tcg_temp_new();                                                      \
-    gen_addr_imm_index(ctx, EA, 0);                                           \
-    gen_qemu_##stop(ctx, cpu_gpr[rS(ctx->opcode)], EA);                       \
-    tcg_temp_free(EA);                                                        \
-}
-
-#define GEN_STU(name, stop, opc, type)                                        \
-static void glue(gen_, stop##u)(DisasContext *ctx)                            \
-{                                                                             \
-    TCGv EA;                                                                  \
-    if (unlikely(rA(ctx->opcode) == 0)) {                                     \
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);                   \
-        return;                                                               \
-    }                                                                         \
-    gen_set_access_type(ctx, ACCESS_INT);                                     \
-    EA = tcg_temp_new();                                                      \
-    if (type == PPC_64B)                                                      \
-        gen_addr_imm_index(ctx, EA, 0x03);                                    \
-    else                                                                      \
-        gen_addr_imm_index(ctx, EA, 0);                                       \
-    gen_qemu_##stop(ctx, cpu_gpr[rS(ctx->opcode)], EA);                       \
-    tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);                             \
-    tcg_temp_free(EA);                                                        \
-}
-
-#define GEN_STUX(name, stop, opc2, opc3, type)                                \
-static void glue(gen_, name##ux)(DisasContext *ctx)                           \
-{                                                                             \
-    TCGv EA;                                                                  \
-    if (unlikely(rA(ctx->opcode) == 0)) {                                     \
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);                   \
-        return;                                                               \
-    }                                                                         \
-    gen_set_access_type(ctx, ACCESS_INT);                                     \
-    EA = tcg_temp_new();                                                      \
-    gen_addr_reg_index(ctx, EA);                                              \
-    gen_qemu_##stop(ctx, cpu_gpr[rS(ctx->opcode)], EA);                       \
-    tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);                             \
-    tcg_temp_free(EA);                                                        \
-}
-
 #define GEN_STX_E(name, stop, opc2, opc3, type, type2, chk)                   \
 static void glue(gen_, name##x)(DisasContext *ctx)                            \
 {                                                                             \
@@ -3705,19 +3394,6 @@ static void glue(gen_, name##x)(DisasContext *ctx)                            \
 
 #define GEN_STX_HVRM(name, stop, opc2, opc3, type)                            \
     GEN_STX_E(name, stop, opc2, opc3, type, PPC_NONE, CHK_HVRM)
-
-#define GEN_STS(name, stop, op, type)                                         \
-GEN_ST(name, stop, op | 0x20, type);                                          \
-GEN_STU(name, stop, op | 0x21, type);                                         \
-GEN_STUX(name, stop, 0x17, op | 0x01, type);                                  \
-GEN_STX(name, stop, 0x17, op | 0x00, type)
-
-/* stb stbu stbux stbx */
-GEN_STS(stb, st8, 0x06, PPC_INTEGER);
-/* sth sthu sthux sthx */
-GEN_STS(sth, st16, 0x0C, PPC_INTEGER);
-/* stw stwu stwux stwx */
-GEN_STS(stw, st32, 0x04, PPC_INTEGER);
 
 #define GEN_STEPX(name, stop, opc2, opc3)                                     \
 static void glue(gen_, name##epx)(DisasContext *ctx)                          \
@@ -3740,8 +3416,6 @@ GEN_STEPX(std, DEF_MEMOP(MO_Q), 0x1d, 0x04)
 #endif
 
 #if defined(TARGET_PPC64)
-GEN_STUX(std, st64_i64, 0x15, 0x05, PPC_64B);
-GEN_STX(std, st64_i64, 0x15, 0x04, PPC_64B);
 GEN_STX_HVRM(stdcix, st64_i64, 0x15, 0x1f, PPC_CILDST)
 GEN_STX_HVRM(stwcix, st32, 0x15, 0x1c, PPC_CILDST)
 GEN_STX_HVRM(sthcix, st16, 0x15, 0x1d, PPC_CILDST)
@@ -4646,8 +4320,7 @@ static void gen_lookup_and_goto_ptr(DisasContext *ctx)
         if (sse & GDBSTUB_SINGLE_STEP) {
             gen_debug_exception(ctx);
         } else if (sse & (CPU_SINGLE_STEP | CPU_BRANCH_STEP)) {
-            uint32_t excp = gen_prep_dbgex(ctx);
-            gen_exception(ctx, excp);
+            gen_helper_raise_exception(cpu_env, tcg_constant_i32(gen_prep_dbgex(ctx)));
         } else {
             tcg_gen_exit_tb(NULL, 0);
         }
@@ -7750,11 +7423,65 @@ static inline void set_avr64(int regno, TCGv_i64 src, bool high)
     tcg_gen_st_i64(src, cpu_env, avr64_offset(regno, high));
 }
 
+/*
+ * Helpers for decodetree used by !function for decoding arguments.
+ */
+static int times_4(DisasContext *ctx, int x)
+{
+    return x * 4;
+}
+
+/*
+ * Helpers for trans_* functions to check for specific insns flags.
+ * Use token pasting to ensure that we use the proper flag with the
+ * proper variable.
+ */
+#define REQUIRE_INSNS_FLAGS(CTX, NAME) \
+    do {                                                \
+        if (((CTX)->insns_flags & PPC_##NAME) == 0) {   \
+            return false;                               \
+        }                                               \
+    } while (0)
+
+#define REQUIRE_INSNS_FLAGS2(CTX, NAME) \
+    do {                                                \
+        if (((CTX)->insns_flags2 & PPC2_##NAME) == 0) { \
+            return false;                               \
+        }                                               \
+    } while (0)
+
+/* Then special-case the check for 64-bit so that we elide code for ppc32. */
+#if TARGET_LONG_BITS == 32
+# define REQUIRE_64BIT(CTX)  return false
+#else
+# define REQUIRE_64BIT(CTX)  REQUIRE_INSNS_FLAGS(CTX, 64B)
+#endif
+
+/*
+ * Helpers for implementing sets of trans_* functions.
+ * Defer the implementation of NAME to FUNC, with optional extra arguments.
+ */
+#define TRANS(NAME, FUNC, ...) \
+    static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a) \
+    { return FUNC(ctx, a, __VA_ARGS__); }
+
+#define TRANS64(NAME, FUNC, ...) \
+    static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a) \
+    { REQUIRE_64BIT(ctx); return FUNC(ctx, a, __VA_ARGS__); }
+
+/* TODO: More TRANS* helpers for extra insn_flags checks. */
+
+
+#include "decode-insn32.c.inc"
+#include "decode-insn64.c.inc"
+#include "translate/fixedpoint-impl.c.inc"
+
 #include "translate/fp-impl.c.inc"
 
 #include "translate/vmx-impl.c.inc"
 
 #include "translate/vsx-impl.c.inc"
+#include "translate/vector-impl.c.inc"
 
 #include "translate/dfp-impl.c.inc"
 
@@ -7863,21 +7590,14 @@ GEN_HANDLER_E(brw, 0x1F, 0x1B, 0x04, 0x0000F801, PPC_NONE, PPC2_ISA310),
 GEN_HANDLER_E(brh, 0x1F, 0x1B, 0x06, 0x0000F801, PPC_NONE, PPC2_ISA310),
 #endif
 GEN_HANDLER(invalid, 0x00, 0x00, 0x00, 0xFFFFFFFF, PPC_NONE),
-GEN_HANDLER(cmp, 0x1F, 0x00, 0x00, 0x00400000, PPC_INTEGER),
-GEN_HANDLER(cmpi, 0x0B, 0xFF, 0xFF, 0x00400000, PPC_INTEGER),
-GEN_HANDLER(cmpl, 0x1F, 0x00, 0x01, 0x00400001, PPC_INTEGER),
-GEN_HANDLER(cmpli, 0x0A, 0xFF, 0xFF, 0x00400000, PPC_INTEGER),
 #if defined(TARGET_PPC64)
 GEN_HANDLER_E(cmpeqb, 0x1F, 0x00, 0x07, 0x00600000, PPC_NONE, PPC2_ISA300),
 #endif
 GEN_HANDLER_E(cmpb, 0x1F, 0x1C, 0x0F, 0x00000001, PPC_NONE, PPC2_ISA205),
 GEN_HANDLER_E(cmprb, 0x1F, 0x00, 0x06, 0x00400001, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER(isel, 0x1F, 0x0F, 0xFF, 0x00000001, PPC_ISEL),
-GEN_HANDLER(addi, 0x0E, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(addic, 0x0C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER2(addic_, "addic.", 0x0D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
-GEN_HANDLER(addis, 0x0F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
-GEN_HANDLER_E(addpcis, 0x13, 0x2, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER(mulhw, 0x1F, 0x0B, 0x02, 0x00000400, PPC_INTEGER),
 GEN_HANDLER(mulhwu, 0x1F, 0x0B, 0x00, 0x00000400, PPC_INTEGER),
 GEN_HANDLER(mullw, 0x1F, 0x0B, 0x07, 0x00000000, PPC_INTEGER),
@@ -7932,7 +7652,6 @@ GEN_HANDLER2_E(extswsli1, "extswsli", 0x1F, 0x1B, 0x1B, 0x00000000,
                PPC_NONE, PPC2_ISA300),
 #endif
 #if defined(TARGET_PPC64)
-GEN_HANDLER(ld, 0x3A, 0xFF, 0xFF, 0x00000000, PPC_64B),
 GEN_HANDLER(lq, 0x38, 0xFF, 0xFF, 0x00000000, PPC_64BX),
 GEN_HANDLER(std, 0x3E, 0xFF, 0xFF, 0x00000000, PPC_64B),
 #endif
@@ -8298,34 +8017,11 @@ GEN_PPC64_R2(rldcr, 0x1E, 0x09),
 GEN_PPC64_R4(rldimi, 0x1E, 0x06),
 #endif
 
-#undef GEN_LD
-#undef GEN_LDU
-#undef GEN_LDUX
 #undef GEN_LDX_E
-#undef GEN_LDS
-#define GEN_LD(name, ldop, opc, type)                                         \
-GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type),
-#define GEN_LDU(name, ldop, opc, type)                                        \
-GEN_HANDLER(name##u, opc, 0xFF, 0xFF, 0x00000000, type),
-#define GEN_LDUX(name, ldop, opc2, opc3, type)                                \
-GEN_HANDLER(name##ux, 0x1F, opc2, opc3, 0x00000001, type),
 #define GEN_LDX_E(name, ldop, opc2, opc3, type, type2, chk)                   \
 GEN_HANDLER_E(name##x, 0x1F, opc2, opc3, 0x00000001, type, type2),
-#define GEN_LDS(name, ldop, op, type)                                         \
-GEN_LD(name, ldop, op | 0x20, type)                                           \
-GEN_LDU(name, ldop, op | 0x21, type)                                          \
-GEN_LDUX(name, ldop, 0x17, op | 0x01, type)                                   \
-GEN_LDX(name, ldop, 0x17, op | 0x00, type)
 
-GEN_LDS(lbz, ld8u, 0x02, PPC_INTEGER)
-GEN_LDS(lha, ld16s, 0x0A, PPC_INTEGER)
-GEN_LDS(lhz, ld16u, 0x08, PPC_INTEGER)
-GEN_LDS(lwz, ld32u, 0x00, PPC_INTEGER)
 #if defined(TARGET_PPC64)
-GEN_LDUX(lwa, ld32s, 0x15, 0x0B, PPC_64B)
-GEN_LDX(lwa, ld32s, 0x15, 0x0A, PPC_64B)
-GEN_LDUX(ld, ld64_i64, 0x15, 0x01, PPC_64B)
-GEN_LDX(ld, ld64_i64, 0x15, 0x00, PPC_64B)
 GEN_LDX_E(ldbr, ld64ur_i64, 0x14, 0x10, PPC_NONE, PPC2_DBRX, CHK_NONE)
 
 /* HV/P7 and later only */
@@ -8350,31 +8046,11 @@ GEN_LDEPX(lw, DEF_MEMOP(MO_UL), 0x1F, 0x00)
 GEN_LDEPX(ld, DEF_MEMOP(MO_Q), 0x1D, 0x00)
 #endif
 
-#undef GEN_ST
-#undef GEN_STU
-#undef GEN_STUX
 #undef GEN_STX_E
-#undef GEN_STS
-#define GEN_ST(name, stop, opc, type)                                         \
-GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type),
-#define GEN_STU(name, stop, opc, type)                                        \
-GEN_HANDLER(stop##u, opc, 0xFF, 0xFF, 0x00000000, type),
-#define GEN_STUX(name, stop, opc2, opc3, type)                                \
-GEN_HANDLER(name##ux, 0x1F, opc2, opc3, 0x00000001, type),
 #define GEN_STX_E(name, stop, opc2, opc3, type, type2, chk)                   \
 GEN_HANDLER_E(name##x, 0x1F, opc2, opc3, 0x00000000, type, type2),
-#define GEN_STS(name, stop, op, type)                                         \
-GEN_ST(name, stop, op | 0x20, type)                                           \
-GEN_STU(name, stop, op | 0x21, type)                                          \
-GEN_STUX(name, stop, 0x17, op | 0x01, type)                                   \
-GEN_STX(name, stop, 0x17, op | 0x00, type)
 
-GEN_STS(stb, st8, 0x06, PPC_INTEGER)
-GEN_STS(sth, st16, 0x0C, PPC_INTEGER)
-GEN_STS(stw, st32, 0x04, PPC_INTEGER)
 #if defined(TARGET_PPC64)
-GEN_STUX(std, st64_i64, 0x15, 0x05, PPC_64B)
-GEN_STX(std, st64_i64, 0x15, 0x04, PPC_64B)
 GEN_STX_E(stdbr, st64r_i64, 0x14, 0x14, PPC_NONE, PPC2_DBRX, CHK_NONE)
 GEN_STX_HVRM(stdcix, st64_i64, 0x15, 0x1f, PPC_CILDST)
 GEN_STX_HVRM(stwcix, st32, 0x15, 0x1c, PPC_CILDST)
@@ -8546,10 +8222,6 @@ static int register_direct_insn(opc_handler_t **ppc_opcodes,
     if (insert_in_table(ppc_opcodes, idx, handler) < 0) {
         printf("*** ERROR: opcode %02x already assigned in main "
                "opcode table\n", idx);
-#if defined(DO_PPC_STATISTICS) || defined(PPC_DUMP_CPU)
-        printf("           Registered handler '%s' - new handler '%s'\n",
-               ppc_opcodes[idx]->oname, handler->oname);
-#endif
         return -1;
     }
 
@@ -8570,10 +8242,6 @@ static int register_ind_in_table(opc_handler_t **table,
         if (!is_indirect_opcode(table[idx1])) {
             printf("*** ERROR: idx %02x already assigned to a direct "
                    "opcode\n", idx1);
-#if defined(DO_PPC_STATISTICS) || defined(PPC_DUMP_CPU)
-            printf("           Registered handler '%s' - new handler '%s'\n",
-                   ind_table(table[idx1])[idx2]->oname, handler->oname);
-#endif
             return -1;
         }
     }
@@ -8581,10 +8249,6 @@ static int register_ind_in_table(opc_handler_t **table,
         insert_in_table(ind_table(table[idx1]), idx2, handler) < 0) {
         printf("*** ERROR: opcode %02x already assigned in "
                "opcode table %02x\n", idx2, idx1);
-#if defined(DO_PPC_STATISTICS) || defined(PPC_DUMP_CPU)
-        printf("           Registered handler '%s' - new handler '%s'\n",
-               ind_table(table[idx1])[idx2]->oname, handler->oname);
-#endif
         return -1;
     }
 
@@ -8766,96 +8430,6 @@ void destroy_ppc_opcodes(PowerPCCPU *cpu)
     }
 }
 
-#if defined(PPC_DUMP_CPU)
-static void dump_ppc_insns(CPUPPCState *env)
-{
-    opc_handler_t **table, *handler;
-    const char *p, *q;
-    uint8_t opc1, opc2, opc3, opc4;
-
-    printf("Instructions set:\n");
-    /* opc1 is 6 bits long */
-    for (opc1 = 0x00; opc1 < PPC_CPU_OPCODES_LEN; opc1++) {
-        table = env->opcodes;
-        handler = table[opc1];
-        if (is_indirect_opcode(handler)) {
-            /* opc2 is 5 bits long */
-            for (opc2 = 0; opc2 < PPC_CPU_INDIRECT_OPCODES_LEN; opc2++) {
-                table = env->opcodes;
-                handler = env->opcodes[opc1];
-                table = ind_table(handler);
-                handler = table[opc2];
-                if (is_indirect_opcode(handler)) {
-                    table = ind_table(handler);
-                    /* opc3 is 5 bits long */
-                    for (opc3 = 0; opc3 < PPC_CPU_INDIRECT_OPCODES_LEN;
-                            opc3++) {
-                        handler = table[opc3];
-                        if (is_indirect_opcode(handler)) {
-                            table = ind_table(handler);
-                            /* opc4 is 5 bits long */
-                            for (opc4 = 0; opc4 < PPC_CPU_INDIRECT_OPCODES_LEN;
-                                 opc4++) {
-                                handler = table[opc4];
-                                if (handler->handler != &gen_invalid) {
-                                    printf("INSN: %02x %02x %02x %02x -- "
-                                           "(%02d %04d %02d) : %s\n",
-                                           opc1, opc2, opc3, opc4,
-                                           opc1, (opc3 << 5) | opc2, opc4,
-                                           handler->oname);
-                                }
-                            }
-                        } else {
-                            if (handler->handler != &gen_invalid) {
-                                /* Special hack to properly dump SPE insns */
-                                p = strchr(handler->oname, '_');
-                                if (p == NULL) {
-                                    printf("INSN: %02x %02x %02x (%02d %04d) : "
-                                           "%s\n",
-                                           opc1, opc2, opc3, opc1,
-                                           (opc3 << 5) | opc2,
-                                           handler->oname);
-                                } else {
-                                    q = "speundef";
-                                    if ((p - handler->oname) != strlen(q)
-                                        || (memcmp(handler->oname, q, strlen(q))
-                                            != 0)) {
-                                        /* First instruction */
-                                        printf("INSN: %02x %02x %02x"
-                                               "(%02d %04d) : %.*s\n",
-                                               opc1, opc2 << 1, opc3, opc1,
-                                               (opc3 << 6) | (opc2 << 1),
-                                               (int)(p - handler->oname),
-                                               handler->oname);
-                                    }
-                                    if (strcmp(p + 1, q) != 0) {
-                                        /* Second instruction */
-                                        printf("INSN: %02x %02x %02x "
-                                               "(%02d %04d) : %s\n", opc1,
-                                               (opc2 << 1) | 1, opc3, opc1,
-                                               (opc3 << 6) | (opc2 << 1) | 1,
-                                               p + 1);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    if (handler->handler != &gen_invalid) {
-                        printf("INSN: %02x %02x -- (%02d %04d) : %s\n",
-                               opc1, opc2, opc1, opc2, handler->oname);
-                    }
-                }
-            }
-        } else {
-            if (handler->handler != &gen_invalid) {
-                printf("INSN: %02x -- -- (%02d ----) : %s\n",
-                       opc1, opc1, handler->oname);
-            }
-        }
-    }
-}
-#endif
 int ppc_fixup_cpu(PowerPCCPU *cpu)
 {
     CPUPPCState *env = &cpu->env;
@@ -8879,57 +8453,6 @@ int ppc_fixup_cpu(PowerPCCPU *cpu)
     env->insns_flags &= PPC_TCG_INSNS;
     env->insns_flags2 &= PPC_TCG_INSNS2;
     return 0;
-}
-
-
-void ppc_cpu_dump_statistics(CPUState *cs, int flags)
-{
-#if defined(DO_PPC_STATISTICS)
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
-    opc_handler_t **t1, **t2, **t3, *handler;
-    int op1, op2, op3;
-
-    t1 = cpu->env.opcodes;
-    for (op1 = 0; op1 < 64; op1++) {
-        handler = t1[op1];
-        if (is_indirect_opcode(handler)) {
-            t2 = ind_table(handler);
-            for (op2 = 0; op2 < 32; op2++) {
-                handler = t2[op2];
-                if (is_indirect_opcode(handler)) {
-                    t3 = ind_table(handler);
-                    for (op3 = 0; op3 < 32; op3++) {
-                        handler = t3[op3];
-                        if (handler->count == 0) {
-                            continue;
-                        }
-                        qemu_printf("%02x %02x %02x (%02x %04d) %16s: "
-                                    "%016" PRIx64 " %" PRId64 "\n",
-                                    op1, op2, op3, op1, (op3 << 5) | op2,
-                                    handler->oname,
-                                    handler->count, handler->count);
-                    }
-                } else {
-                    if (handler->count == 0) {
-                        continue;
-                    }
-                    qemu_printf("%02x %02x    (%02x %04d) %16s: "
-                                "%016" PRIx64 " %" PRId64 "\n",
-                                op1, op2, op1, op2, handler->oname,
-                                handler->count, handler->count);
-                }
-            }
-        } else {
-            if (handler->count == 0) {
-                continue;
-            }
-            qemu_printf("%02x       (%02x     ) %16s: %016" PRIx64
-                        " %" PRId64 "\n",
-                        op1, op1, handler->oname,
-                        handler->count, handler->count);
-        }
-    }
-#endif
 }
 
 static bool decode_legacy(PowerPCCPU *cpu, DisasContext *ctx, uint32_t insn)
@@ -9034,9 +8557,6 @@ static void ppc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 
     if (ctx->singlestep_enabled & (CPU_SINGLE_STEP | GDBSTUB_SINGLE_STEP)) {
         ctx->base.max_insns = 1;
-    } else {
-        int bound = -(ctx->base.pc_first | TARGET_PAGE_MASK) / 4;
-        ctx->base.max_insns = MIN(ctx->base.max_insns, bound);
     }
 }
 
@@ -9066,11 +8586,18 @@ static bool ppc_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
     return true;
 }
 
+static bool is_prefix_insn(DisasContext *ctx, uint32_t insn)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    return opc1(insn) == 1;
+}
+
 static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = cs->env_ptr;
+    target_ulong pc;
     uint32_t insn;
     bool ok;
 
@@ -9078,18 +8605,34 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     LOG_DISAS("nip=" TARGET_FMT_lx " super=%d ir=%d\n",
               ctx->base.pc_next, ctx->mem_idx, (int)msr_ir);
 
-    ctx->cia = ctx->base.pc_next;
-    insn = translator_ldl_swap(env, ctx->base.pc_next, need_byteswap(ctx));
-    ctx->base.pc_next += 4;
+    ctx->cia = pc = ctx->base.pc_next;
+    insn = translator_ldl_swap(env, pc, need_byteswap(ctx));
+    ctx->base.pc_next = pc += 4;
 
-    ok = decode_legacy(cpu, ctx, insn);
+    if (!is_prefix_insn(ctx, insn)) {
+        ok = (decode_insn32(ctx, insn) ||
+              decode_legacy(cpu, ctx, insn));
+    } else if ((pc & 63) == 0) {
+        /*
+         * Power v3.1, section 1.9 Exceptions:
+         * attempt to execute a prefixed instruction that crosses a
+         * 64-byte address boundary (system alignment error).
+         */
+        gen_exception_err(ctx, POWERPC_EXCP_ALIGN, POWERPC_EXCP_ALIGN_INSN);
+        ok = true;
+    } else {
+        uint32_t insn2 = translator_ldl_swap(env, pc, need_byteswap(ctx));
+        ctx->base.pc_next = pc += 4;
+        ok = decode_insn64(ctx, deposit64(insn2, 32, 32, insn));
+    }
     if (!ok) {
         gen_invalid(ctx);
     }
 
-#if defined(DO_PPC_STATISTICS)
-    handler->count++;
-#endif
+    /* End the TB when crossing a page boundary. */
+    if (ctx->base.is_jmp == DISAS_NEXT && !(pc & ~TARGET_PAGE_MASK)) {
+        ctx->base.is_jmp = DISAS_TOO_MANY;
+    }
 
     translator_loop_temp_check(&ctx->base);
 }
@@ -9128,7 +8671,7 @@ static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         }
         /* else CPU_SINGLE_STEP... */
         if (nip <= 0x100 || nip > 0xf00) {
-            gen_exception(ctx, gen_prep_dbgex(ctx));
+            gen_helper_raise_exception(cpu_env, tcg_constant_i32(gen_prep_dbgex(ctx)));
             return;
         }
     }

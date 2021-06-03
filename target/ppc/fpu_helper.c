@@ -383,247 +383,35 @@ static inline void float_inexact_excp(CPUPPCState *env)
     }
 }
 
-static inline void fpscr_set_rounding_mode(CPUPPCState *env)
-{
-    int rnd_type;
-
-    /* Set rounding mode */
-    switch (fpscr_rn) {
-    case 0:
-        /* Best approximation (round to nearest) */
-        rnd_type = float_round_nearest_even;
-        break;
-    case 1:
-        /* Smaller magnitude (round toward zero) */
-        rnd_type = float_round_to_zero;
-        break;
-    case 2:
-        /* Round toward +infinite */
-        rnd_type = float_round_up;
-        break;
-    default:
-    case 3:
-        /* Round toward -infinite */
-        rnd_type = float_round_down;
-        break;
-    }
-    set_float_rounding_mode(rnd_type, &env->fp_status);
-}
-
 void helper_fpscr_clrbit(CPUPPCState *env, uint32_t bit)
 {
-    int prev;
-
-    prev = (env->fpscr >> bit) & 1;
-    env->fpscr &= ~(1 << bit);
-    if (prev == 1) {
-        switch (bit) {
-        case FPSCR_RN1:
-        case FPSCR_RN0:
-            fpscr_set_rounding_mode(env);
-            break;
-        case FPSCR_VXSNAN:
-        case FPSCR_VXISI:
-        case FPSCR_VXIDI:
-        case FPSCR_VXZDZ:
-        case FPSCR_VXIMZ:
-        case FPSCR_VXVC:
-        case FPSCR_VXSOFT:
-        case FPSCR_VXSQRT:
-        case FPSCR_VXCVI:
-            if (!fpscr_ix) {
-                /* Set VX bit to zero */
-                env->fpscr &= ~FP_VX;
-            }
-            break;
-        case FPSCR_OX:
-        case FPSCR_UX:
-        case FPSCR_ZX:
-        case FPSCR_XX:
-        case FPSCR_VE:
-        case FPSCR_OE:
-        case FPSCR_UE:
-        case FPSCR_ZE:
-        case FPSCR_XE:
-            if (!fpscr_eex) {
-                /* Set the FEX bit */
-                env->fpscr &= ~FP_FEX;
-            }
-            break;
-        default:
-            break;
-        }
+    uint32_t mask = 1u << bit;
+    if (env->fpscr & mask) {
+        ppc_store_fpscr(env, env->fpscr & ~(target_ulong)mask);
     }
 }
 
 void helper_fpscr_setbit(CPUPPCState *env, uint32_t bit)
 {
-    CPUState *cs = env_cpu(env);
-    int prev;
-
-    prev = (env->fpscr >> bit) & 1;
-    env->fpscr |= 1 << bit;
-    if (prev == 0) {
-        switch (bit) {
-        case FPSCR_VX:
-            env->fpscr |= FP_FX;
-            if (fpscr_ve) {
-                goto raise_ve;
-            }
-            break;
-        case FPSCR_OX:
-            env->fpscr |= FP_FX;
-            if (fpscr_oe) {
-                goto raise_oe;
-            }
-            break;
-        case FPSCR_UX:
-            env->fpscr |= FP_FX;
-            if (fpscr_ue) {
-                goto raise_ue;
-            }
-            break;
-        case FPSCR_ZX:
-            env->fpscr |= FP_FX;
-            if (fpscr_ze) {
-                goto raise_ze;
-            }
-            break;
-        case FPSCR_XX:
-            env->fpscr |= FP_FX;
-            if (fpscr_xe) {
-                goto raise_xe;
-            }
-            break;
-        case FPSCR_VXSNAN:
-        case FPSCR_VXISI:
-        case FPSCR_VXIDI:
-        case FPSCR_VXZDZ:
-        case FPSCR_VXIMZ:
-        case FPSCR_VXVC:
-        case FPSCR_VXSOFT:
-        case FPSCR_VXSQRT:
-        case FPSCR_VXCVI:
-            env->fpscr |= FP_VX;
-            env->fpscr |= FP_FX;
-            if (fpscr_ve != 0) {
-                goto raise_ve;
-            }
-            break;
-        case FPSCR_VE:
-            if (fpscr_vx != 0) {
-            raise_ve:
-                env->error_code = POWERPC_EXCP_FP;
-                if (fpscr_vxsnan) {
-                    env->error_code |= POWERPC_EXCP_FP_VXSNAN;
-                }
-                if (fpscr_vxisi) {
-                    env->error_code |= POWERPC_EXCP_FP_VXISI;
-                }
-                if (fpscr_vxidi) {
-                    env->error_code |= POWERPC_EXCP_FP_VXIDI;
-                }
-                if (fpscr_vxzdz) {
-                    env->error_code |= POWERPC_EXCP_FP_VXZDZ;
-                }
-                if (fpscr_vximz) {
-                    env->error_code |= POWERPC_EXCP_FP_VXIMZ;
-                }
-                if (fpscr_vxvc) {
-                    env->error_code |= POWERPC_EXCP_FP_VXVC;
-                }
-                if (fpscr_vxsoft) {
-                    env->error_code |= POWERPC_EXCP_FP_VXSOFT;
-                }
-                if (fpscr_vxsqrt) {
-                    env->error_code |= POWERPC_EXCP_FP_VXSQRT;
-                }
-                if (fpscr_vxcvi) {
-                    env->error_code |= POWERPC_EXCP_FP_VXCVI;
-                }
-                goto raise_excp;
-            }
-            break;
-        case FPSCR_OE:
-            if (fpscr_ox != 0) {
-            raise_oe:
-                env->error_code = POWERPC_EXCP_FP | POWERPC_EXCP_FP_OX;
-                goto raise_excp;
-            }
-            break;
-        case FPSCR_UE:
-            if (fpscr_ux != 0) {
-            raise_ue:
-                env->error_code = POWERPC_EXCP_FP | POWERPC_EXCP_FP_UX;
-                goto raise_excp;
-            }
-            break;
-        case FPSCR_ZE:
-            if (fpscr_zx != 0) {
-            raise_ze:
-                env->error_code = POWERPC_EXCP_FP | POWERPC_EXCP_FP_ZX;
-                goto raise_excp;
-            }
-            break;
-        case FPSCR_XE:
-            if (fpscr_xx != 0) {
-            raise_xe:
-                env->error_code = POWERPC_EXCP_FP | POWERPC_EXCP_FP_XX;
-                goto raise_excp;
-            }
-            break;
-        case FPSCR_RN1:
-        case FPSCR_RN0:
-            fpscr_set_rounding_mode(env);
-            break;
-        default:
-            break;
-        raise_excp:
-            /* Update the floating-point enabled exception summary */
-            env->fpscr |= FP_FEX;
-            /* We have to update Rc1 before raising the exception */
-            cs->exception_index = POWERPC_EXCP_PROGRAM;
-            break;
-        }
+    uint32_t mask = 1u << bit;
+    if (!(env->fpscr & mask)) {
+        ppc_store_fpscr(env, env->fpscr | mask);
     }
 }
 
-void helper_store_fpscr(CPUPPCState *env, uint64_t arg, uint32_t mask)
+void helper_store_fpscr(CPUPPCState *env, uint64_t val, uint32_t nibbles)
 {
-    CPUState *cs = env_cpu(env);
-    target_ulong prev, new;
+    target_ulong mask = 0;
     int i;
 
-    prev = env->fpscr;
-    new = (target_ulong)arg;
-    new &= ~(FP_FEX | FP_VX);
-    new |= prev & (FP_FEX | FP_VX);
+    /* TODO: push this extension back to translation time */
     for (i = 0; i < sizeof(target_ulong) * 2; i++) {
-        if (mask & (1 << i)) {
-            env->fpscr &= ~(0xFLL << (4 * i));
-            env->fpscr |= new & (0xFLL << (4 * i));
+        if (nibbles & (1 << i)) {
+            mask |= (target_ulong) 0xf << (4 * i);
         }
     }
-    /* Update VX and FEX */
-    if (fpscr_ix != 0) {
-        env->fpscr |= FP_VX;
-    } else {
-        env->fpscr &= ~FP_VX;
-    }
-    if ((fpscr_ex & fpscr_eex) != 0) {
-        env->fpscr |= FP_FEX;
-        cs->exception_index = POWERPC_EXCP_PROGRAM;
-        /* XXX: we should compute it properly */
-        env->error_code = POWERPC_EXCP_FP;
-    } else {
-        env->fpscr &= ~FP_FEX;
-    }
-    fpscr_set_rounding_mode(env);
-}
-
-void store_fpscr(CPUPPCState *env, uint64_t arg, uint32_t mask)
-{
-    helper_store_fpscr(env, arg, mask);
+    val = (val & mask) | (env->fpscr & ~mask);
+    ppc_store_fpscr(env, val);
 }
 
 static void do_float_check_status(CPUPPCState *env, uintptr_t raddr)
@@ -822,6 +610,7 @@ static inline uint64_t do_fri(CPUPPCState *env, uint64_t arg,
                               int rounding_mode)
 {
     CPU_DoubleU farg;
+    FloatRoundMode old_rounding_mode = get_float_rounding_mode(&env->fp_status);
 
     farg.ll = arg;
 
@@ -834,8 +623,7 @@ static inline uint64_t do_fri(CPUPPCState *env, uint64_t arg,
                       float_flag_inexact;
         set_float_rounding_mode(rounding_mode, &env->fp_status);
         farg.ll = float64_round_to_int(farg.d, &env->fp_status);
-        /* Restore rounding mode from FPSCR */
-        fpscr_set_rounding_mode(env);
+        set_float_rounding_mode(old_rounding_mode, &env->fp_status);
 
         /* fri* does not set FPSCR[XX] */
         if (!inexact) {
@@ -3136,8 +2924,10 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)       \
 {                                                                      \
     ppc_vsr_t t = *xt;                                                 \
     int i;                                                             \
+    FloatRoundMode curr_rounding_mode;                                 \
                                                                        \
     if (rmode != FLOAT_ROUND_CURRENT) {                                \
+        curr_rounding_mode = get_float_rounding_mode(&env->fp_status); \
         set_float_rounding_mode(rmode, &env->fp_status);               \
     }                                                                  \
                                                                        \
@@ -3160,7 +2950,7 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)       \
      * mode from FPSCR                                                 \
      */                                                                \
     if (rmode != FLOAT_ROUND_CURRENT) {                                \
-        fpscr_set_rounding_mode(env);                                  \
+        set_float_rounding_mode(curr_rounding_mode, &env->fp_status);  \
         env->fp_status.float_exception_flags &= ~float_flag_inexact;   \
     }                                                                  \
                                                                        \

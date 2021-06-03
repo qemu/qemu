@@ -1,0 +1,124 @@
+#
+# Power ISA decode for 64-bit prefixed insns (opcode space 0 and 1)
+#
+# Copyright (c) 2021 Instituto de Pesquisas Eldorado (eldorado.org.br)
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, see <http://www.gnu.org/licenses/>.
+#
+
+# Format MLS:D and 8LS:D
+&PLS_D          rt ra si:int64_t r:bool
+%pls_si         32:s18 0:16
+@PLS_D          ...... .. ... r:1 .. .................. \
+                ...... rt:5 ra:5 ................       \
+                &PLS_D si=%pls_si
+
+### Fixed-Point Load Instructions
+
+PLBZ            000001 10 0--.-- .................. \
+                100010 ..... ..... ................     @PLS_D
+PLHZ            000001 10 0--.-- .................. \
+                101000 ..... ..... ................     @PLS_D
+PLHA            000001 10 0--.-- .................. \
+                101010 ..... ..... ................     @PLS_D
+PLWZ            000001 10 0--.-- .................. \
+                100000 ..... ..... ................     @PLS_D
+PLWA            000001 00 0--.-- .................. \
+                101001 ..... ..... ................     @PLS_D
+PLD             000001 00 0--.-- .................. \
+                111001 ..... ..... ................     @PLS_D
+
+### Fixed-Point Store Instructions
+
+PSTW            000001 10 0--.-- .................. \
+                100100 ..... ..... ................     @PLS_D
+PSTB            000001 10 0--.-- .................. \
+                100110 ..... ..... ................     @PLS_D
+PSTH            000001 10 0--.-- .................. \
+                101100 ..... ..... ................     @PLS_D
+
+PSTD            000001 00 0--.-- .................. \
+                111101 ..... ..... ................     @PLS_D
+
+### Fixed-Point Arithmetic Instructions
+
+PADDI           000001 10 0--.-- ..................     \
+                001110 ..... ..... ................     @PLS_D
+
+### Prefixed No-operation Instruction
+
+@PNOP           000001 11 0000-- 000000000000000000     \
+                ................................
+
+{
+  [
+    ## Invalid suffixes: Branch instruction
+    # bc[l][a]
+    INVALID     ................................        \
+                010000--------------------------        @PNOP
+    # b[l][a]
+    INVALID     ................................        \
+                010010--------------------------        @PNOP
+    # bclr[l]
+    INVALID     ................................        \
+                010011---------------0000010000-        @PNOP
+    # bcctr[l]
+    INVALID     ................................        \
+                010011---------------1000010000-        @PNOP
+    # bctar[l]
+    INVALID     ................................        \
+                010011---------------1000110000-        @PNOP
+
+    ## Invalid suffixes: rfebb
+    INVALID     ................................        \
+                010011---------------0010010010-        @PNOP
+
+    ## Invalid suffixes: context synchronizing other than isync
+    # sc
+    INVALID     ................................        \
+                010001------------------------1-        @PNOP
+    # scv
+    INVALID     ................................        \
+                010001------------------------01        @PNOP
+    # rfscv
+    INVALID     ................................        \
+                010011---------------0001010010-        @PNOP
+    # rfid
+    INVALID     ................................        \
+                010011---------------0000010010-        @PNOP
+    # hrfid
+    INVALID     ................................        \
+                010011---------------0100010010-        @PNOP
+    # urfid
+    INVALID     ................................        \
+                010011---------------0100110010-        @PNOP
+    # stop
+    INVALID     ................................        \
+                010011---------------0101110010-        @PNOP
+    # mtmsr w/ L=0
+    INVALID     ................................        \
+                011111---------0-----0010010010-        @PNOP
+    # mtmsrd w/ L=0
+    INVALID     ................................        \
+                011111---------0-----0010110010-        @PNOP
+
+    ## Invalid suffixes: Service Processor Attention
+    INVALID     ................................        \
+                000000----------------100000000-        @PNOP
+  ]
+
+  ## Valid suffixes
+  PNOP          ................................        \
+                --------------------------------        @PNOP
+}

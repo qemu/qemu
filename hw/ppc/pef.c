@@ -41,7 +41,7 @@ struct PefGuest {
     ConfidentialGuestSupport parent_obj;
 };
 
-static int kvmppc_svm_init(Error **errp)
+static int kvmppc_svm_init(ConfidentialGuestSupport *cgs, Error **errp)
 {
 #ifdef CONFIG_KVM
     static Error *pef_mig_blocker;
@@ -64,6 +64,8 @@ static int kvmppc_svm_init(Error **errp)
     error_setg(&pef_mig_blocker, "PEF: Migration is not implemented");
     /* NB: This can fail if --only-migratable is used */
     migrate_add_blocker(pef_mig_blocker, &error_fatal);
+
+    cgs->ready = true;
 
     return 0;
 #else
@@ -102,7 +104,7 @@ int pef_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
         return -1;
     }
 
-    return kvmppc_svm_init(errp);
+    return kvmppc_svm_init(cgs, errp);
 }
 
 int pef_kvm_reset(ConfidentialGuestSupport *cgs, Error **errp)

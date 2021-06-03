@@ -23,6 +23,7 @@
 #include "exec/helper-proto.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
+#include "mmu-book3s-v3.h"
 
 #include "helper_regs.h"
 
@@ -116,7 +117,28 @@ void helper_store_sdr1(CPUPPCState *env, target_ulong val)
 void helper_store_ptcr(CPUPPCState *env, target_ulong val)
 {
     if (env->spr[SPR_PTCR] != val) {
-        ppc_store_ptcr(env, val);
+        PowerPCCPU *cpu = env_archcpu(env);
+        target_ulong ptcr_mask = PTCR_PATB | PTCR_PATS;
+        target_ulong patbsize = val & PTCR_PATS;
+
+        qemu_log_mask(CPU_LOG_MMU, "%s: " TARGET_FMT_lx "\n", __func__, val);
+
+        assert(!cpu->vhyp);
+        assert(env->mmu_model & POWERPC_MMU_3_00);
+
+        if (val & ~ptcr_mask) {
+            error_report("Invalid bits 0x"TARGET_FMT_lx" set in PTCR",
+                         val & ~ptcr_mask);
+            val &= ptcr_mask;
+        }
+
+        if (patbsize > 24) {
+            error_report("Invalid Partition Table size 0x" TARGET_FMT_lx
+                         " stored in PTCR", patbsize);
+            return;
+        }
+
+        env->spr[SPR_PTCR] = val;
         tlb_flush(env_cpu(env));
     }
 }
@@ -254,22 +276,6 @@ target_ulong helper_clcs(CPUPPCState *env, uint32_t arg)
 
 /*****************************************************************************/
 /* Special registers manipulation */
-
-/* GDBstub can read and write MSR... */
-void ppc_store_msr(CPUPPCState *env, target_ulong value)
-{
-    hreg_store_msr(env, value, 0);
-}
-
-void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
-{
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
-    CPUPPCState *env = &cpu->env;
-
-    env->spr[SPR_LPCR] = val & pcc->lpcr_mask;
-    /* The gtse bit affects hflags */
-    hreg_compute_hflags(env);
-}
 
 /*
  * This code is lifted from MacOnLinux. It is called whenever THRM1,2

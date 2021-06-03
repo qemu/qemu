@@ -20,13 +20,11 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "cpu.h"
-#include "exec/helper-proto.h"
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "mmu-hash64.h"
 #include "mmu-hash32.h"
 #include "exec/exec-all.h"
-#include "exec/cpu_ldst.h"
 #include "exec/log.h"
 #include "helper_regs.h"
 #include "qemu/error-report.h"
@@ -36,6 +34,10 @@
 #include "mmu-book3s-v3.h"
 #include "mmu-radix64.h"
 
+#ifdef CONFIG_TCG
+#include "exec/helper-proto.h"
+#include "exec/cpu_ldst.h"
+#endif
 /* #define DEBUG_MMU */
 /* #define DEBUG_BATS */
 /* #define DEBUG_SOFTWARE_TLB */
@@ -268,6 +270,7 @@ static inline void ppc6xx_tlb_invalidate_virt(CPUPPCState *env,
     ppc6xx_tlb_invalidate_virt2(env, eaddr, is_code, 0);
 }
 
+#ifdef CONFIG_TCG
 static void ppc6xx_tlb_store(CPUPPCState *env, target_ulong EPN, int way,
                              int is_code, target_ulong pte0, target_ulong pte1)
 {
@@ -286,6 +289,7 @@ static void ppc6xx_tlb_store(CPUPPCState *env, target_ulong EPN, int way,
     /* Store last way for LRU mechanism */
     env->last_way = way;
 }
+#endif
 
 static int ppc6xx_tlb_check(CPUPPCState *env, mmu_ctx_t *ctx,
                             target_ulong eaddr, MMUAccessType access_type)
@@ -626,6 +630,7 @@ static int ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
     return 0;
 }
 
+#ifdef CONFIG_TCG
 /* Generic TLB search function for PowerPC embedded implementations */
 static int ppcemb_tlb_search(CPUPPCState *env, target_ulong address,
                              uint32_t pid)
@@ -646,6 +651,7 @@ static int ppcemb_tlb_search(CPUPPCState *env, target_ulong address,
 
     return ret;
 }
+#endif
 
 /* Helpers specific to PowerPC 40x implementations */
 static inline void ppc4xx_tlb_invalidate_all(CPUPPCState *env)
@@ -1420,12 +1426,14 @@ static int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
     return ret;
 }
 
+#ifdef CONFIG_TCG
 static int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
                                 target_ulong eaddr, MMUAccessType access_type,
                                 int type)
 {
     return get_physical_address_wtlb(env, ctx, eaddr, access_type, type, 0);
 }
+#endif
 
 hwaddr ppc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
@@ -1752,6 +1760,7 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
     return ret;
 }
 
+#ifdef CONFIG_TCG
 /*****************************************************************************/
 /* BATs management */
 #if !defined(FLUSH_ALL_TLBS)
@@ -1941,6 +1950,7 @@ void helper_store_601_batl(CPUPPCState *env, uint32_t nr, target_ulong value)
 #endif
     }
 }
+#endif
 
 /*****************************************************************************/
 /* TLB management */
@@ -1986,6 +1996,7 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
     }
 }
 
+#ifdef CONFIG_TCG
 void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
 {
 #if !defined(FLUSH_ALL_TLBS)
@@ -2030,34 +2041,6 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
 
 /*****************************************************************************/
 /* Special registers manipulation */
-#if defined(TARGET_PPC64)
-void ppc_store_ptcr(CPUPPCState *env, target_ulong value)
-{
-    PowerPCCPU *cpu = env_archcpu(env);
-    target_ulong ptcr_mask = PTCR_PATB | PTCR_PATS;
-    target_ulong patbsize = value & PTCR_PATS;
-
-    qemu_log_mask(CPU_LOG_MMU, "%s: " TARGET_FMT_lx "\n", __func__, value);
-
-    assert(!cpu->vhyp);
-    assert(env->mmu_model & POWERPC_MMU_3_00);
-
-    if (value & ~ptcr_mask) {
-        error_report("Invalid bits 0x"TARGET_FMT_lx" set in PTCR",
-                     value & ~ptcr_mask);
-        value &= ptcr_mask;
-    }
-
-    if (patbsize > 24) {
-        error_report("Invalid Partition Table size 0x" TARGET_FMT_lx
-                     " stored in PTCR", patbsize);
-        return;
-    }
-
-    env->spr[SPR_PTCR] = value;
-}
-
-#endif /* defined(TARGET_PPC64) */
 
 /* Segment registers load and store */
 target_ulong helper_load_sr(CPUPPCState *env, target_ulong sr_num)
@@ -2955,6 +2938,7 @@ void helper_check_tlb_flush_global(CPUPPCState *env)
 {
     check_tlb_flush(env, true);
 }
+#endif /* CONFIG_TCG */
 
 /*****************************************************************************/
 

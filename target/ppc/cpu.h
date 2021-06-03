@@ -144,6 +144,7 @@ enum {
     POWERPC_EXCP_ALIGN_PROT    = 0x04,  /* Access cross protection boundary  */
     POWERPC_EXCP_ALIGN_BAT     = 0x05,  /* Access cross a BAT/seg boundary   */
     POWERPC_EXCP_ALIGN_CACHE   = 0x06,  /* Impossible dcbz access            */
+    POWERPC_EXCP_ALIGN_INSN    = 0x07,  /* Pref. insn x-ing 64-byte boundary */
     /* Exception subtypes for POWERPC_EXCP_PROGRAM                           */
     /* FP exceptions                                                         */
     POWERPC_EXCP_FP            = 0x10,
@@ -675,11 +676,11 @@ enum {
 #define fpscr_ni     (((env->fpscr) >> FPSCR_NI)     & 0x1)
 #define fpscr_rn     (((env->fpscr) >> FPSCR_RN0)    & 0x3)
 /* Invalid operation exception summary */
-#define fpscr_ix ((env->fpscr) & ((1 << FPSCR_VXSNAN) | (1 << FPSCR_VXISI)  | \
-                                  (1 << FPSCR_VXIDI)  | (1 << FPSCR_VXZDZ)  | \
-                                  (1 << FPSCR_VXIMZ)  | (1 << FPSCR_VXVC)   | \
-                                  (1 << FPSCR_VXSOFT) | (1 << FPSCR_VXSQRT) | \
-                                  (1 << FPSCR_VXCVI)))
+#define FPSCR_IX     ((1 << FPSCR_VXSNAN) | (1 << FPSCR_VXISI)  | \
+                      (1 << FPSCR_VXIDI)  | (1 << FPSCR_VXZDZ)  | \
+                      (1 << FPSCR_VXIMZ)  | (1 << FPSCR_VXVC)   | \
+                      (1 << FPSCR_VXSOFT) | (1 << FPSCR_VXSQRT) | \
+                      (1 << FPSCR_VXCVI))
 /* exception summary */
 #define fpscr_ex  (((env->fpscr) >> FPSCR_XX) & 0x1F)
 /* enabled exception summary */
@@ -1256,7 +1257,6 @@ DECLARE_OBJ_CHECKERS(PPCVirtualHypervisor, PPCVirtualHypervisorClass,
 void ppc_cpu_do_interrupt(CPUState *cpu);
 bool ppc_cpu_exec_interrupt(CPUState *cpu, int int_req);
 void ppc_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
-void ppc_cpu_dump_statistics(CPUState *cpu, int flags);
 hwaddr ppc_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 int ppc_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int ppc_cpu_gdb_read_register_apple(CPUState *cpu, GByteArray *buf, int reg);
@@ -1290,7 +1290,6 @@ bool ppc_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 
 #if !defined(CONFIG_USER_ONLY)
 void ppc_store_sdr1(CPUPPCState *env, target_ulong value);
-void ppc_store_ptcr(CPUPPCState *env, target_ulong value);
 #endif /* !defined(CONFIG_USER_ONLY) */
 void ppc_store_msr(CPUPPCState *env, target_ulong value);
 void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val);
@@ -1334,7 +1333,7 @@ void cpu_ppc_set_vhyp(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp);
 #endif
 #endif
 
-void store_fpscr(CPUPPCState *env, uint64_t arg, uint32_t mask);
+void ppc_store_fpscr(CPUPPCState *env, target_ulong val);
 void helper_hfscr_facility_check(CPUPPCState *env, uint32_t bit,
                                  const char *caller, uint32_t cause);
 

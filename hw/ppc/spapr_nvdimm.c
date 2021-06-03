@@ -35,6 +35,18 @@
 /* SCM device is unable to persist memory contents */
 #define PAPR_PMEM_UNARMED PPC_BIT(0)
 
+/*
+ * The nvdimm size should be aligned to SCM block size.
+ * The SCM block size should be aligned to SPAPR_MEMORY_BLOCK_SIZE
+ * in order to have SCM regions not to overlap with dimm memory regions.
+ * The SCM devices can have variable block sizes. For now, fixing the
+ * block size to the minimum value.
+ */
+#define SPAPR_MINIMUM_SCM_BLOCK_SIZE SPAPR_MEMORY_BLOCK_SIZE
+
+/* Have an explicit check for alignment */
+QEMU_BUILD_BUG_ON(SPAPR_MINIMUM_SCM_BLOCK_SIZE % SPAPR_MEMORY_BLOCK_SIZE);
+
 bool spapr_nvdimm_validate(HotplugHandler *hotplug_dev, NVDIMMDevice *nvdimm,
                            uint64_t size, Error **errp)
 {
@@ -163,11 +175,11 @@ int spapr_pmem_dt_populate(SpaprDrc *drc, SpaprMachineState *spapr,
 
 void spapr_dt_persistent_memory(SpaprMachineState *spapr, void *fdt)
 {
-    int offset = fdt_subnode_offset(fdt, 0, "persistent-memory");
+    int offset = fdt_subnode_offset(fdt, 0, "ibm,persistent-memory");
     GSList *iter, *nvdimms = nvdimm_get_device_list();
 
     if (offset < 0) {
-        offset = fdt_add_subnode(fdt, 0, "persistent-memory");
+        offset = fdt_add_subnode(fdt, 0, "ibm,persistent-memory");
         _FDT(offset);
         _FDT((fdt_setprop_cell(fdt, offset, "#address-cells", 0x1)));
         _FDT((fdt_setprop_cell(fdt, offset, "#size-cells", 0x0)));

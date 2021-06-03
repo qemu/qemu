@@ -24,6 +24,8 @@
 #include "exec/log.h"
 #include "fpu/softfloat-helpers.h"
 #include "mmu-hash64.h"
+#include "helper_regs.h"
+#include "sysemu/tcg.h"
 
 target_ulong cpu_read_xer(CPUPPCState *env)
 {
@@ -77,13 +79,13 @@ void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
         target_ulong htabsize = value & SDR_64_HTABSIZE;
 
         if (value & ~sdr_mask) {
-            error_report("Invalid bits 0x"TARGET_FMT_lx" set in SDR1",
-                         value & ~sdr_mask);
+            qemu_log_mask(LOG_GUEST_ERROR, "Invalid bits 0x"TARGET_FMT_lx
+                     " set in SDR1", value & ~sdr_mask);
             value &= sdr_mask;
         }
         if (htabsize > 28) {
-            error_report("Invalid HTABSIZE 0x" TARGET_FMT_lx" stored in SDR1",
-                         htabsize);
+            qemu_log_mask(LOG_GUEST_ERROR, "Invalid HTABSIZE 0x" TARGET_FMT_lx
+                     " stored in SDR1", htabsize);
             return;
         }
     }
@@ -92,3 +94,61 @@ void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
     env->spr[SPR_SDR1] = value;
 }
 #endif /* CONFIG_SOFTMMU */
+
+/* GDBstub can read and write MSR... */
+void ppc_store_msr(CPUPPCState *env, target_ulong value)
+{
+    hreg_store_msr(env, value, 0);
+}
+
+void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    CPUPPCState *env = &cpu->env;
+
+    env->spr[SPR_LPCR] = val & pcc->lpcr_mask;
+    /* The gtse bit affects hflags */
+    hreg_compute_hflags(env);
+}
+
+static inline void fpscr_set_rounding_mode(CPUPPCState *env)
+{
+    int rnd_type;
+
+    /* Set rounding mode */
+    switch (fpscr_rn) {
+    case 0:
+        /* Best approximation (round to nearest) */
+        rnd_type = float_round_nearest_even;
+        break;
+    case 1:
+        /* Smaller magnitude (round toward zero) */
+        rnd_type = float_round_to_zero;
+        break;
+    case 2:
+        /* Round toward +infinite */
+        rnd_type = float_round_up;
+        break;
+    default:
+    case 3:
+        /* Round toward -infinite */
+        rnd_type = float_round_down;
+        break;
+    }
+    set_float_rounding_mode(rnd_type, &env->fp_status);
+}
+
+void ppc_store_fpscr(CPUPPCState *env, target_ulong val)
+{
+    val &= ~(FP_VX | FP_FEX);
+    if (val & FPSCR_IX) {
+        val |= FP_VX;
+    }
+    if ((val >> FPSCR_XX) & (val >> FPSCR_XE) & 0x1f) {
+        val |= FP_FEX;
+    }
+    env->fpscr = val;
+    if (tcg_enabled()) {
+        fpscr_set_rounding_mode(env);
+    }
+}
