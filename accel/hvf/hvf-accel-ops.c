@@ -363,6 +363,36 @@ static void hvf_type_init(void)
 
 type_init(hvf_type_init);
 
+static void hvf_vcpu_destroy(CPUState *cpu)
+{
+    hv_return_t ret = hv_vcpu_destroy(cpu->hvf_fd);
+    assert_hvf_ok(ret);
+
+    hvf_arch_vcpu_destroy(cpu);
+}
+
+static int hvf_init_vcpu(CPUState *cpu)
+{
+    int r;
+
+    /* init cpu signals */
+    sigset_t set;
+    struct sigaction sigact;
+
+    memset(&sigact, 0, sizeof(sigact));
+    sigact.sa_handler = dummy_signal;
+    sigaction(SIG_IPI, &sigact, NULL);
+
+    pthread_sigmask(SIG_BLOCK, NULL, &set);
+    sigdelset(&set, SIG_IPI);
+
+    r = hv_vcpu_create((hv_vcpuid_t *)&cpu->hvf_fd, HV_VCPU_DEFAULT);
+    cpu->vcpu_dirty = 1;
+    assert_hvf_ok(r);
+
+    return hvf_arch_init_vcpu(cpu);
+}
+
 /*
  * The HVF-specific vCPU thread function. This one should only run when the host
  * CPU supports the VMX "unrestricted guest" feature.

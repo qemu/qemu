@@ -158,14 +158,12 @@ static bool ept_emulation_fault(hvf_slot *slot, uint64_t gpa, uint64_t ept_qual)
     return false;
 }
 
-void hvf_vcpu_destroy(CPUState *cpu)
+void hvf_arch_vcpu_destroy(CPUState *cpu)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
 
-    hv_return_t ret = hv_vcpu_destroy((hv_vcpuid_t)cpu->hvf_fd);
     g_free(env->hvf_mmio_buf);
-    assert_hvf_ok(ret);
 }
 
 static void init_tsc_freq(CPUX86State *env)
@@ -210,23 +208,10 @@ static inline bool apic_bus_freq_is_known(CPUX86State *env)
     return env->apic_bus_freq != 0;
 }
 
-int hvf_init_vcpu(CPUState *cpu)
+int hvf_arch_init_vcpu(CPUState *cpu)
 {
-
     X86CPU *x86cpu = X86_CPU(cpu);
     CPUX86State *env = &x86cpu->env;
-    int r;
-
-    /* init cpu signals */
-    sigset_t set;
-    struct sigaction sigact;
-
-    memset(&sigact, 0, sizeof(sigact));
-    sigact.sa_handler = dummy_signal;
-    sigaction(SIG_IPI, &sigact, NULL);
-
-    pthread_sigmask(SIG_BLOCK, NULL, &set);
-    sigdelset(&set, SIG_IPI);
 
     init_emu();
     init_decoder();
@@ -242,10 +227,6 @@ int hvf_init_vcpu(CPUState *cpu)
             error_report("vmware-cpuid-freq: feature couldn't be enabled");
         }
     }
-
-    r = hv_vcpu_create((hv_vcpuid_t *)&cpu->hvf_fd, HV_VCPU_DEFAULT);
-    cpu->vcpu_dirty = 1;
-    assert_hvf_ok(r);
 
     if (hv_vmx_read_capability(HV_VMX_CAP_PINBASED,
         &hvf_state->hvf_caps->vmx_cap_pinbased)) {

@@ -44,6 +44,8 @@ struct HVFState {
 extern HVFState *hvf_state;
 
 void assert_hvf_ok(hv_return_t ret);
+int hvf_arch_init_vcpu(CPUState *cpu);
+void hvf_arch_vcpu_destroy(CPUState *cpu);
 hvf_slot *hvf_find_overlap_slot(uint64_t, uint64_t);
 int hvf_put_registers(CPUState *);
 int hvf_get_registers(CPUState *);
