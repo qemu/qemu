@@ -1232,7 +1232,7 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
         int ret = sg_get_max_transfer_length(s->fd);
 
         if (ret > 0 && ret <= BDRV_REQUEST_MAX_BYTES) {
-            bs->bl.max_transfer = pow2floor(ret);
+            bs->bl.max_hw_transfer = pow2floor(ret);
         }
 
         ret = sg_get_max_segments(s->fd);
