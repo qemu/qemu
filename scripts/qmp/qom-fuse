@@ -1,7 +1,19 @@
 #!/usr/bin/env python3
+"""
+QEMU Object Model FUSE filesystem tool
+
+This script offers a simple FUSE filesystem within which the QOM tree
+may be browsed, queried and edited using traditional shell tooling.
+
+This script requires the 'fusepy' python package.
+
+ENV:
+    QMP_SOCKET: Path to the QMP server socket
+
+Usage:
+    qom-fuse /mount/to/here
+"""
 ##
-# QEMU Object Model test tools
-#
 # Copyright IBM, Corp. 2012
 # Copyright (C) 2020 Red Hat, Inc.
 #
@@ -30,6 +42,7 @@ fuse.fuse_python_api = (0, 2)
 
 
 class QOMFS(Operations):
+    """QOMFS implements fuse.Operations to provide a QOM filesystem."""
     def __init__(self, qmp):
         self.qmp = qmp
         self.qmp.connect()
@@ -37,6 +50,7 @@ class QOMFS(Operations):
         self.ino_count = 1
 
     def get_ino(self, path):
+        """Get an inode number for a given QOM path."""
         if path in self.ino_map:
             return self.ino_map[path]
         self.ino_map[path] = self.ino_count
@@ -44,6 +58,7 @@ class QOMFS(Operations):
         return self.ino_map[path]
 
     def is_object(self, path):
+        """Is the given QOM path an object?"""
         try:
             self.qmp.command('qom-list', path=path)
             return True
@@ -51,6 +66,7 @@ class QOMFS(Operations):
             return False
 
     def is_property(self, path):
+        """Is the given QOM path a property?"""
         path, prop = path.rsplit('/', 1)
         if path == '':
             path = '/'
@@ -63,6 +79,7 @@ class QOMFS(Operations):
             return False
 
     def is_link(self, path):
+        """Is the given QOM path a link?"""
         path, prop = path.rsplit('/', 1)
         if path == '':
             path = '/'
