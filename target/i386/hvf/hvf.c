@@ -51,6 +51,7 @@
 #include "qemu/error-report.h"
 
 #include "sysemu/hvf.h"
+#include "sysemu/hvf_int.h"
 #include "sysemu/runstate.h"
 #include "hvf-i386.h"
 #include "vmcs.h"
@@ -75,38 +76,6 @@
 #include "hvf-accel-ops.h"
 
 HVFState *hvf_state;
-
-static void assert_hvf_ok(hv_return_t ret)
-{
-    if (ret == HV_SUCCESS) {
-        return;
-    }
-
-    switch (ret) {
-    case HV_ERROR:
-        error_report("Error: HV_ERROR");
-        break;
-    case HV_BUSY:
-        error_report("Error: HV_BUSY");
-        break;
-    case HV_BAD_ARGUMENT:
-        error_report("Error: HV_BAD_ARGUMENT");
-        break;
-    case HV_NO_RESOURCES:
-        error_report("Error: HV_NO_RESOURCES");
-        break;
-    case HV_NO_DEVICE:
-        error_report("Error: HV_NO_DEVICE");
-        break;
-    case HV_UNSUPPORTED:
-        error_report("Error: HV_UNSUPPORTED");
-        break;
-    default:
-        error_report("Unknown Error");
-    }
-
-    abort();
-}
 
 /* Memory slots */
 hvf_slot *hvf_find_overlap_slot(uint64_t start, uint64_t size)
