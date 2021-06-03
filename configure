@@ -409,7 +409,7 @@ nettle="auto"
 gcrypt="auto"
 auth_pam="auto"
 vte="auto"
-virglrenderer="$default_feature"
+virglrenderer="auto"
 tpm="$default_feature"
 libssh="$default_feature"
 live_block_migration=${default_feature:-yes}
@@ -1399,9 +1399,9 @@ for opt do
   ;;
   --enable-vte) vte="enabled"
   ;;
-  --disable-virglrenderer) virglrenderer="no"
+  --disable-virglrenderer) virglrenderer="disabled"
   ;;
-  --enable-virglrenderer) virglrenderer="yes"
+  --enable-virglrenderer) virglrenderer="enabled"
   ;;
   --disable-tpm) tpm="no"
   ;;
@@ -4037,28 +4037,6 @@ EOF
 fi
 
 ##########################################
-# virgl renderer probe
-
-if test "$virglrenderer" != "no" ; then
-  cat > $TMPC << EOF
-#include <virglrenderer.h>
-int main(void) { virgl_renderer_poll(); return 0; }
-EOF
-  virgl_cflags=$($pkg_config --cflags virglrenderer 2>/dev/null)
-  virgl_libs=$($pkg_config --libs virglrenderer 2>/dev/null)
-  virgl_version=$($pkg_config --modversion virglrenderer 2>/dev/null)
-  if $pkg_config virglrenderer >/dev/null 2>&1 && \
-     compile_prog "$virgl_cflags" "$virgl_libs" ; then
-    virglrenderer="yes"
-  else
-    if test "$virglrenderer" = "yes" ; then
-      feature_not_found "virglrenderer"
-    fi
-    virglrenderer="no"
-  fi
-fi
-
-##########################################
 # capstone
 
 case "$capstone" in
@@ -5466,11 +5444,6 @@ fi
 if test "$have_copy_file_range" = "yes" ; then
     echo "HAVE_COPY_FILE_RANGE=y" >> $config_host_mak
 fi
-if test "$virglrenderer" = "yes" ; then
-  echo "CONFIG_VIRGL=y" >> $config_host_mak
-  echo "VIRGL_CFLAGS=$virgl_cflags" >> $config_host_mak
-  echo "VIRGL_LIBS=$virgl_libs" >> $config_host_mak
-fi
 if test "$xen" = "enabled" ; then
   echo "CONFIG_XEN_BACKEND=y" >> $config_host_mak
   echo "CONFIG_XEN_CTRL_INTERFACE_VERSION=$xen_ctrl_version" >> $config_host_mak
@@ -6137,7 +6110,7 @@ if test "$skip_meson" = no; then
         -Drbd=$rbd -Dlzo=$lzo -Dsnappy=$snappy -Dlzfse=$lzfse \
         -Dgnutls=$gnutls -Dnettle=$nettle -Dgcrypt=$gcrypt -Dauth_pam=$auth_pam \
         -Dzstd=$zstd -Dseccomp=$seccomp -Dvirtfs=$virtfs -Dcap_ng=$cap_ng \
-        -Dattr=$attr -Ddefault_devices=$default_devices \
+        -Dattr=$attr -Ddefault_devices=$default_devices -Dvirglrenderer=$virglrenderer \
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         -Dvhost_user_blk_server=$vhost_user_blk_server -Dmultiprocess=$multiprocess \
         -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek -Dguest_agent_msi=$guest_agent_msi -Dbpf=$bpf\

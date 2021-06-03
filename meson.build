@@ -471,9 +471,11 @@ if 'CONFIG_GBM' in config_host
                            link_args: config_host['GBM_LIBS'].split())
 endif
 virgl = not_found
-if 'CONFIG_VIRGL' in config_host
-  virgl = declare_dependency(compile_args: config_host['VIRGL_CFLAGS'].split(),
-                             link_args: config_host['VIRGL_LIBS'].split())
+if not get_option('virglrenderer').auto() or have_system
+  virgl = dependency('virglrenderer',
+                     method: 'pkg-config',
+                     required: get_option('virglrenderer'),
+                     kwargs: static_kwargs)
 endif
 curl = not_found
 if not get_option('curl').auto() or have_block
@@ -2768,7 +2770,7 @@ summary_info += {'PAM':               pam.found()}
 summary_info += {'iconv support':     iconv.found()}
 summary_info += {'curses support':    curses.found()}
 # TODO: add back version
-summary_info += {'virgl support':     config_host.has_key('CONFIG_VIRGL')}
+summary_info += {'virgl support':     virgl.found()}
 summary_info += {'curl support':      curl.found()}
 summary_info += {'Multipath support': mpathpersist.found()}
 summary_info += {'VNC support':       vnc.found()}
