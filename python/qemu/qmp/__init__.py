@@ -44,7 +44,7 @@ from typing import (
 QMPMessage = Dict[str, Any]
 QMPReturnValue = Dict[str, Any]
 
-InternetAddrT = Tuple[str, str]
+InternetAddrT = Tuple[str, int]
 UnixAddrT = str
 SocketAddrT = Union[InternetAddrT, UnixAddrT]
 
