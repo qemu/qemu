@@ -38,7 +38,14 @@ from errno import ENOENT, EPERM
 import os
 import stat
 import sys
-from typing import Dict
+from typing import (
+    IO,
+    Dict,
+    Iterator,
+    Mapping,
+    Optional,
+    Union,
+)
 
 import fuse
 from fuse import FUSE, FuseOSError, Operations
@@ -83,7 +90,7 @@ class QOMFuse(QOMCommand, Operations):
         self.fuse = FUSE(self, self.mount, foreground=True)
         return 0
 
-    def get_ino(self, path):
+    def get_ino(self, path: str) -> int:
         """Get an inode number for a given QOM path."""
         if path in self.ino_map:
             return self.ino_map[path]
@@ -91,7 +98,7 @@ class QOMFuse(QOMCommand, Operations):
         self.ino_count += 1
         return self.ino_map[path]
 
-    def is_object(self, path):
+    def is_object(self, path: str) -> bool:
         """Is the given QOM path an object?"""
         try:
             self.qom_list(path)
@@ -99,7 +106,7 @@ class QOMFuse(QOMCommand, Operations):
         except QMPResponseError:
             return False
 
-    def is_property(self, path):
+    def is_property(self, path: str) -> bool:
         """Is the given QOM path a property?"""
         path, prop = path.rsplit('/', 1)
         if path == '':
@@ -112,7 +119,7 @@ class QOMFuse(QOMCommand, Operations):
         except QMPResponseError:
             return False
 
-    def is_link(self, path):
+    def is_link(self, path: str) -> bool:
         """Is the given QOM path a link?"""
         path, prop = path.rsplit('/', 1)
         if path == '':
@@ -125,7 +132,7 @@ class QOMFuse(QOMCommand, Operations):
         except QMPResponseError:
             return False
 
-    def read(self, path, size, offset, fh):
+    def read(self, path: str, size: int, offset: int, fh: IO[bytes]) -> bytes:
         if not self.is_property(path):
             raise FuseOSError(ENOENT)
 
@@ -143,7 +150,7 @@ class QOMFuse(QOMCommand, Operations):
 
         return bytes(data[offset:][:size], encoding='utf-8')
 
-    def readlink(self, path):
+    def readlink(self, path: str) -> Union[bool, str]:
         if not self.is_link(path):
             return False
         path, prop = path.rsplit('/', 1)
@@ -151,7 +158,8 @@ class QOMFuse(QOMCommand, Operations):
         return prefix + str(self.qmp.command('qom-get', path=path,
                                              property=prop))
 
-    def getattr(self, path, fh=None):
+    def getattr(self, path: str,
+                fh: Optional[IO[bytes]] = None) -> Mapping[str, object]:
         if self.is_link(path):
             value = {
                 'st_mode': 0o755 | stat.S_IFLNK,
@@ -195,7 +203,7 @@ class QOMFuse(QOMCommand, Operations):
             raise FuseOSError(ENOENT)
         return value
 
-    def readdir(self, path, fh):
+    def readdir(self, path: str, fh: IO[bytes]) -> Iterator[str]:
         yield '.'
         yield '..'
         for item in self.qom_list(path):
