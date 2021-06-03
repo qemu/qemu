@@ -9,13 +9,12 @@
 #  Anthony Liguori   <aliguori@us.ibm.com>
 #  Markus Armbruster <armbru@redhat.com>
 #
-# This work is licensed under the terms of the GNU GPL, version 2 or later.  See
-# the COPYING file in the top-level directory.
+# This work is licensed under the terms of the GNU GPL, version 2 or later.
+# See the COPYING file in the top-level directory.
 ##
 
-from errno import *
+from errno import ENOENT, EPERM
 import os
-import posix
 import stat
 import sys
 
@@ -28,6 +27,7 @@ from qemu.qmp import QEMUMonitorProtocol
 
 
 fuse.fuse_python_api = (0, 2)
+
 
 class QOMFS(Operations):
     def __init__(self, qmp):
@@ -45,7 +45,7 @@ class QOMFS(Operations):
 
     def is_object(self, path):
         try:
-            items = self.qmp.command('qom-list', path=path)
+            self.qmp.command('qom-list', path=path)
             return True
         except:
             return False
@@ -85,7 +85,7 @@ class QOMFS(Operations):
             path = '/'
         try:
             data = self.qmp.command('qom-get', path=path, property=prop)
-            data += '\n' # make values shell friendly
+            data += '\n'  # make values shell friendly
         except:
             raise FuseOSError(EPERM)
 
@@ -104,38 +104,44 @@ class QOMFS(Operations):
 
     def getattr(self, path, fh=None):
         if self.is_link(path):
-            value = { 'st_mode': 0o755 | stat.S_IFLNK,
-                      'st_ino': self.get_ino(path),
-                      'st_dev': 0,
-                      'st_nlink': 2,
-                      'st_uid': 1000,
-                      'st_gid': 1000,
-                      'st_size': 4096,
-                      'st_atime': 0,
-                      'st_mtime': 0,
-                      'st_ctime': 0 }
+            value = {
+                'st_mode': 0o755 | stat.S_IFLNK,
+                'st_ino': self.get_ino(path),
+                'st_dev': 0,
+                'st_nlink': 2,
+                'st_uid': 1000,
+                'st_gid': 1000,
+                'st_size': 4096,
+                'st_atime': 0,
+                'st_mtime': 0,
+                'st_ctime': 0
+            }
         elif self.is_object(path):
-            value = { 'st_mode': 0o755 | stat.S_IFDIR,
-                      'st_ino': self.get_ino(path),
-                      'st_dev': 0,
-                      'st_nlink': 2,
-                      'st_uid': 1000,
-                      'st_gid': 1000,
-                      'st_size': 4096,
-                      'st_atime': 0,
-                      'st_mtime': 0,
-                      'st_ctime': 0 }
+            value = {
+                'st_mode': 0o755 | stat.S_IFDIR,
+                'st_ino': self.get_ino(path),
+                'st_dev': 0,
+                'st_nlink': 2,
+                'st_uid': 1000,
+                'st_gid': 1000,
+                'st_size': 4096,
+                'st_atime': 0,
+                'st_mtime': 0,
+                'st_ctime': 0
+            }
         elif self.is_property(path):
-            value = { 'st_mode': 0o644 | stat.S_IFREG,
-                      'st_ino': self.get_ino(path),
-                      'st_dev': 0,
-                      'st_nlink': 1,
-                      'st_uid': 1000,
-                      'st_gid': 1000,
-                      'st_size': 4096,
-                      'st_atime': 0,
-                      'st_mtime': 0,
-                      'st_ctime': 0 }
+            value = {
+                'st_mode': 0o644 | stat.S_IFREG,
+                'st_ino': self.get_ino(path),
+                'st_dev': 0,
+                'st_nlink': 1,
+                'st_uid': 1000,
+                'st_gid': 1000,
+                'st_size': 4096,
+                'st_atime': 0,
+                'st_mtime': 0,
+                'st_ctime': 0
+            }
         else:
             raise FuseOSError(ENOENT)
         return value
@@ -146,8 +152,7 @@ class QOMFS(Operations):
         for item in self.qmp.command('qom-list', path=path):
             yield str(item['name'])
 
-if __name__ == '__main__':
-    import os
 
+if __name__ == '__main__':
     fuse = FUSE(QOMFS(QEMUMonitorProtocol(os.environ['QMP_SOCKET'])),
                 sys.argv[1], foreground=True)
