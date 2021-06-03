@@ -1006,9 +1006,9 @@ if not get_option('libusb').auto() or have_system
 endif
 
 libpmem = not_found
-if 'CONFIG_LIBPMEM' in config_host
-  libpmem = declare_dependency(compile_args: config_host['LIBPMEM_CFLAGS'].split(),
-                               link_args: config_host['LIBPMEM_LIBS'].split())
+if not get_option('libpmem').auto() or have_system
+  libpmem = dependency('libpmem', required: get_option('libpmem'),
+                       method: 'pkg-config', kwargs: static_kwargs)
 endif
 libdaxctl = not_found
 if not get_option('libdaxctl').auto() or have_system
@@ -2822,7 +2822,7 @@ summary_info += {'zstd support':      zstd.found()}
 summary_info += {'NUMA host support': config_host.has_key('CONFIG_NUMA')}
 summary_info += {'libxml2':           config_host.has_key('CONFIG_LIBXML2')}
 summary_info += {'capstone':          capstone_opt == 'disabled' ? false : capstone_opt}
-summary_info += {'libpmem support':   config_host.has_key('CONFIG_LIBPMEM')}
+summary_info += {'libpmem support':   libpmem.found()}
 summary_info += {'libdaxctl support': libdaxctl.found()}
 summary_info += {'libudev':           libudev.found()}
 summary_info += {'FUSE lseek':        fuse_lseek.found()}

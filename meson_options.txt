@@ -86,6 +86,8 @@ option('gcrypt', type : 'feature', value : 'auto',
        description: 'libgcrypt cryptography support')
 option('libdaxctl', type : 'feature', value : 'auto',
        description: 'libdaxctl support')
+option('libpmem', type : 'feature', value : 'auto',
+       description: 'libpmem support')
 option('libudev', type : 'feature', value : 'auto',
        description: 'Use libudev to enumerate host devices')
 option('libusb', type : 'feature', value : 'auto',

@@ -427,7 +427,7 @@ qed=${default_feature:-yes}
 parallels=${default_feature:-yes}
 libxml2="$default_feature"
 debug_mutex="no"
-libpmem="$default_feature"
+libpmem="auto"
 default_devices="true"
 plugins="no"
 fuzzing="no"
@@ -1504,9 +1504,9 @@ for opt do
   ;;
   --disable-debug-mutex) debug_mutex=no
   ;;
-  --enable-libpmem) libpmem=yes
+  --enable-libpmem) libpmem=disabled
   ;;
-  --disable-libpmem) libpmem=no
+  --disable-libpmem) libpmem=enabled
   ;;
   --enable-xkbcommon) xkbcommon="enabled"
   ;;
@@ -4934,22 +4934,6 @@ EOF
 fi
 
 ##########################################
-# check for libpmem
-
-if test "$libpmem" != "no"; then
-	if $pkg_config --exists "libpmem"; then
-		libpmem="yes"
-		libpmem_libs=$($pkg_config --libs libpmem)
-		libpmem_cflags=$($pkg_config --cflags libpmem)
-	else
-		if test "$libpmem" = "yes" ; then
-			feature_not_found "libpmem" "Install nvml or pmdk"
-		fi
-		libpmem="no"
-	fi
-fi
-
-##########################################
 # check for slirp
 
 case "$slirp" in
@@ -6087,7 +6071,7 @@ if test "$skip_meson" = no; then
         -Dcurl=$curl -Dglusterfs=$glusterfs -Dbzip2=$bzip2 -Dlibiscsi=$libiscsi \
         -Dlibnfs=$libnfs -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
         -Drbd=$rbd -Dlzo=$lzo -Dsnappy=$snappy -Dlzfse=$lzfse \
-        -Dlibdaxctl=$libdaxctl \
+        -Dlibdaxctl=$libdaxctl -Dlibpmem=$libpmem \
         -Dgnutls=$gnutls -Dnettle=$nettle -Dgcrypt=$gcrypt -Dauth_pam=$auth_pam \
         -Dzstd=$zstd -Dseccomp=$seccomp -Dvirtfs=$virtfs -Dcap_ng=$cap_ng \
         -Dattr=$attr -Ddefault_devices=$default_devices -Dvirglrenderer=$virglrenderer \
