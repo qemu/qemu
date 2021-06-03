@@ -988,9 +988,10 @@ if have_system
                    kwargs: static_kwargs)
 endif
 usbredir = not_found
-if 'CONFIG_USB_REDIR' in config_host
-  usbredir = declare_dependency(compile_args: config_host['USB_REDIR_CFLAGS'].split(),
-                                link_args: config_host['USB_REDIR_LIBS'].split())
+if not get_option('usb_redir').auto() or have_system
+  usbredir = dependency('libusbredirparser-0.5', required: get_option('usb_redir'),
+                        version: '>=0.6', method: 'pkg-config',
+                        kwargs: static_kwargs)
 endif
 libusb = not_found
 if not get_option('libusb').auto() or have_system
@@ -2785,7 +2786,7 @@ summary_info += {'xfsctl support':    config_host.has_key('CONFIG_XFS')}
 summary_info += {'smartcard support': cacard.found()}
 summary_info += {'U2F support':       u2f.found()}
 summary_info += {'libusb':            libusb.found()}
-summary_info += {'usb net redir':     config_host.has_key('CONFIG_USB_REDIR')}
+summary_info += {'usb net redir':     usbredir.found()}
 summary_info += {'OpenGL support':    config_host.has_key('CONFIG_OPENGL')}
 summary_info += {'GBM':               config_host.has_key('CONFIG_GBM')}
 summary_info += {'libiscsi support':  libiscsi.found()}

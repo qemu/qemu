@@ -64,7 +64,7 @@ if u2f.found()
 endif
 
 # usb redirect
-if config_host.has_key('CONFIG_USB_REDIR')
+if usbredir.found()
   usbredir_ss = ss.source_set()
   usbredir_ss.add(when: 'CONFIG_USB',
                   if_true: [usbredir, files('redirect.c', 'quirks.c')])
