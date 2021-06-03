@@ -1260,6 +1260,8 @@ config_host_data.set('HAVE_HOST_BLOCK_DEVICE', have_host_block_device)
 
 # has_header
 config_host_data.set('CONFIG_EPOLL', cc.has_header('sys/epoll.h'))
+config_host_data.set('CONFIG_LINUX_MAGIC_H', cc.has_header('linux/magic.h'))
+config_host_data.set('CONFIG_VALGRIND_H', cc.has_header('valgrind/valgrind.h'))
 config_host_data.set('HAVE_BTRFS_H', cc.has_header('linux/btrfs.h'))
 config_host_data.set('HAVE_DRM_H', cc.has_header('libdrm/drm.h'))
 config_host_data.set('HAVE_PTY_H', cc.has_header('pty.h'))
@@ -1292,6 +1294,8 @@ config_host_data.set('CONFIG_BYTESWAP_H',
                      cc.has_header_symbol('byteswap.h', 'bswap_32'))
 config_host_data.set('CONFIG_EPOLL_CREATE1',
                      cc.has_header_symbol('sys/epoll.h', 'epoll_create1'))
+config_host_data.set('CONFIG_HAS_ENVIRON',
+                     cc.has_header_symbol('unistd.h', 'environ', prefix: gnu_source_prefix))
 config_host_data.set('CONFIG_FALLOCATE_PUNCH_HOLE',
                      cc.has_header_symbol('linux/falloc.h', 'FALLOC_FL_PUNCH_HOLE') and
                      cc.has_header_symbol('linux/falloc.h', 'FALLOC_FL_KEEP_SIZE'))
@@ -1350,6 +1354,13 @@ config_host_data.set('CONFIG_MADVISE', cc.compiles(gnu_source_prefix + '''
 config_host_data.set('CONFIG_MEMFD', cc.compiles(gnu_source_prefix + '''
   #include <sys/mman.h>
   int main(void) { return memfd_create("foo", MFD_ALLOW_SEALING); }'''))
+config_host_data.set('CONFIG_OPEN_BY_HANDLE', cc.compiles(gnu_source_prefix + '''
+  #include <fcntl.h>
+  #if !defined(AT_EMPTY_PATH)
+  # error missing definition
+  #else
+  int main(void) { struct file_handle fh; return open_by_handle_at(0, &fh, 0); }
+  #endif'''))
 config_host_data.set('CONFIG_PIPE2', cc.compiles(gnu_source_prefix + '''
   #include <unistd.h>
   #include <fcntl.h>

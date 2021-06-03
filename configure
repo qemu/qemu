@@ -3763,65 +3763,6 @@ else # "$safe_stack" = ""
 fi
 fi
 
-##########################################
-# check if we have open_by_handle_at
-
-open_by_handle_at=no
-cat > $TMPC << EOF
-#include <fcntl.h>
-#if !defined(AT_EMPTY_PATH)
-# error missing definition
-#else
-int main(void) { struct file_handle fh; return open_by_handle_at(0, &fh, 0); }
-#endif
-EOF
-if compile_prog "" "" ; then
-    open_by_handle_at=yes
-fi
-
-########################################
-# check if we have linux/magic.h
-
-linux_magic_h=no
-cat > $TMPC << EOF
-#include <linux/magic.h>
-int main(void) {
-  return 0;
-}
-EOF
-if compile_prog "" "" ; then
-    linux_magic_h=yes
-fi
-
-########################################
-# check if we have valgrind/valgrind.h
-
-valgrind_h=no
-cat > $TMPC << EOF
-#include <valgrind/valgrind.h>
-int main(void) {
-  return 0;
-}
-EOF
-if compile_prog "" "" ; then
-    valgrind_h=yes
-fi
-
-########################################
-# check if environ is declared
-
-has_environ=no
-cat > $TMPC << EOF
-#include <unistd.h>
-int main(void) {
-    environ = 0;
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-    has_environ=yes
-fi
-
 ########################################
 # check if cpuid.h is usable.
 
@@ -4761,28 +4702,12 @@ if test "$crypto_afalg" = "yes" ; then
   echo "CONFIG_AF_ALG=y" >> $config_host_mak
 fi
 
-if test "$open_by_handle_at" = "yes" ; then
-  echo "CONFIG_OPEN_BY_HANDLE=y" >> $config_host_mak
-fi
-
-if test "$linux_magic_h" = "yes" ; then
-  echo "CONFIG_LINUX_MAGIC_H=y" >> $config_host_mak
-fi
-
-if test "$valgrind_h" = "yes" ; then
-  echo "CONFIG_VALGRIND_H=y" >> $config_host_mak
-fi
-
 if test "$have_asan_iface_fiber" = "yes" ; then
     echo "CONFIG_ASAN_IFACE_FIBER=y" >> $config_host_mak
 fi
 
 if test "$have_tsan" = "yes" && test "$have_tsan_iface_fiber" = "yes" ; then
     echo "CONFIG_TSAN=y" >> $config_host_mak
-fi
-
-if test "$has_environ" = "yes" ; then
-  echo "CONFIG_HAS_ENVIRON=y" >> $config_host_mak
 fi
 
 if test "$cpuid_h" = "yes" ; then
