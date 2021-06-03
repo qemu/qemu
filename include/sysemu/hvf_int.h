@@ -13,6 +13,10 @@
 
 #include <Hypervisor/hv.h>
 
+void hvf_set_phys_mem(MemoryRegionSection *, bool);
 void assert_hvf_ok(hv_return_t ret);
+hvf_slot *hvf_find_overlap_slot(uint64_t, uint64_t);
+int hvf_put_registers(CPUState *);
+int hvf_get_registers(CPUState *);
 
 #endif
