@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 QEMU Object Model FUSE filesystem tool
 
@@ -35,7 +34,6 @@ optional arguments:
 
 import argparse
 from errno import ENOENT, EPERM
-import os
 import stat
 import sys
 from typing import (
@@ -50,10 +48,8 @@ from typing import (
 import fuse
 from fuse import FUSE, FuseOSError, Operations
 
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
-from qemu.qmp import QMPResponseError
-from qemu.qmp.qom_common import QOMCommand
+from . import QMPResponseError
+from .qom_common import QOMCommand
 
 
 fuse.fuse_python_api = (0, 2)
@@ -208,7 +204,3 @@ class QOMFuse(QOMCommand, Operations):
         yield '..'
         for item in self.qom_list(path):
             yield item.name
-
-
-if __name__ == '__main__':
-    sys.exit(QOMFuse.entry_point())
