@@ -947,7 +947,7 @@ static void aspeed_machine_ast2600_evb_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
 
-    mc->desc       = "Aspeed AST2600 EVB (Cortex A7)";
+    mc->desc       = "Aspeed AST2600 EVB (Cortex-A7)";
     amc->soc_name  = "ast2600-a1";
     amc->hw_strap1 = AST2600_EVB_HW_STRAP1;
     amc->hw_strap2 = AST2600_EVB_HW_STRAP2;
@@ -966,7 +966,7 @@ static void aspeed_machine_tacoma_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
 
-    mc->desc       = "OpenPOWER Tacoma BMC (Cortex A7)";
+    mc->desc       = "OpenPOWER Tacoma BMC (Cortex-A7)";
     amc->soc_name  = "ast2600-a1";
     amc->hw_strap1 = TACOMA_BMC_HW_STRAP1;
     amc->hw_strap2 = TACOMA_BMC_HW_STRAP2;
@@ -1003,7 +1003,7 @@ static void aspeed_machine_rainier_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
 
-    mc->desc       = "IBM Rainier BMC (Cortex A7)";
+    mc->desc       = "IBM Rainier BMC (Cortex-A7)";
     amc->soc_name  = "ast2600-a1";
     amc->hw_strap1 = RAINIER_BMC_HW_STRAP1;
     amc->hw_strap2 = RAINIER_BMC_HW_STRAP2;

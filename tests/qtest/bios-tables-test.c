@@ -489,10 +489,14 @@ static void test_acpi_asl(test_data *data)
                                                  exp_sdt->asl_file, sdt->asl_file);
                     int out = dup(STDOUT_FILENO);
                     int ret G_GNUC_UNUSED;
+                    int dupret;
 
-                    dup2(STDERR_FILENO, STDOUT_FILENO);
+                    g_assert(out >= 0);
+                    dupret = dup2(STDERR_FILENO, STDOUT_FILENO);
+                    g_assert(dupret >= 0);
                     ret = system(diff) ;
-                    dup2(out, STDOUT_FILENO);
+                    dupret = dup2(out, STDOUT_FILENO);
+                    g_assert(dupret >= 0);
                     close(out);
                     g_free(diff);
                 }

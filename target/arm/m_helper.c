@@ -2601,10 +2601,7 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
             limit = is_psp ? env->v7m.psplim[false] : env->v7m.msplim[false];
 
             if (val < limit) {
-                CPUState *cs = env_cpu(env);
-
-                cpu_restore_state(cs, GETPC(), true);
-                raise_exception(env, EXCP_STKOF, 0, 1);
+                raise_exception_ra(env, EXCP_STKOF, 0, 1, GETPC());
             }
 
             if (is_psp) {

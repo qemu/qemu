@@ -10,7 +10,7 @@ Supported devices
 
 The SABRE Lite machine supports the following devices:
 
- * Up to 4 Cortex A9 cores
+ * Up to 4 Cortex-A9 cores
  * Generic Interrupt Controller
  * 1 Clock Controller Module
  * 1 System Reset Controller

@@ -296,6 +296,15 @@ static bool trans_VUSDOT(DisasContext *s, arg_VUSDOT *a)
                         gen_helper_gvec_usdot_b);
 }
 
+static bool trans_VDOT_b16(DisasContext *s, arg_VDOT_b16 *a)
+{
+    if (!dc_isar_feature(aa32_bf16, s)) {
+        return false;
+    }
+    return do_neon_ddda(s, a->q * 7, a->vd, a->vn, a->vm, 0,
+                        gen_helper_gvec_bfdot);
+}
+
 static bool trans_VFML(DisasContext *s, arg_VFML *a)
 {
     int opr_sz;
@@ -379,6 +388,15 @@ static bool trans_VSUDOT_scalar(DisasContext *s, arg_VSUDOT_scalar *a)
     }
     return do_neon_ddda(s, a->q * 6, a->vd, a->vn, a->vm, a->index,
                         gen_helper_gvec_sudot_idx_b);
+}
+
+static bool trans_VDOT_b16_scal(DisasContext *s, arg_VDOT_b16_scal *a)
+{
+    if (!dc_isar_feature(aa32_bf16, s)) {
+        return false;
+    }
+    return do_neon_ddda(s, a->q * 6, a->vd, a->vn, a->vm, a->index,
+                        gen_helper_gvec_bfdot_idx);
 }
 
 static bool trans_VFML_scalar(DisasContext *s, arg_VFML_scalar *a)
@@ -3422,6 +3440,51 @@ static bool trans_VSHLL(DisasContext *s, arg_2misc *a)
     return true;
 }
 
+static bool trans_VCVT_B16_F32(DisasContext *s, arg_2misc *a)
+{
+    TCGv_ptr fpst;
+    TCGv_i64 tmp;
+    TCGv_i32 dst0, dst1;
+
+    if (!dc_isar_feature(aa32_bf16, s)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vm & 1) || (a->size != 1)) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    fpst = fpstatus_ptr(FPST_STD);
+    tmp = tcg_temp_new_i64();
+    dst0 = tcg_temp_new_i32();
+    dst1 = tcg_temp_new_i32();
+
+    read_neon_element64(tmp, a->vm, 0, MO_64);
+    gen_helper_bfcvt_pair(dst0, tmp, fpst);
+
+    read_neon_element64(tmp, a->vm, 1, MO_64);
+    gen_helper_bfcvt_pair(dst1, tmp, fpst);
+
+    write_neon_element32(dst0, a->vd, 0, MO_32);
+    write_neon_element32(dst1, a->vd, 1, MO_32);
+
+    tcg_temp_free_i64(tmp);
+    tcg_temp_free_i32(dst0);
+    tcg_temp_free_i32(dst1);
+    tcg_temp_free_ptr(fpst);
+    return true;
+}
+
 static bool trans_VCVT_F16_F32(DisasContext *s, arg_2misc *a)
 {
     TCGv_ptr fpst;
@@ -4062,4 +4125,32 @@ static bool trans_VUSMMLA(DisasContext *s, arg_VUSMMLA *a)
     }
     return do_neon_ddda(s, 7, a->vd, a->vn, a->vm, 0,
                         gen_helper_gvec_usmmla_b);
+}
+
+static bool trans_VMMLA_b16(DisasContext *s, arg_VMMLA_b16 *a)
+{
+    if (!dc_isar_feature(aa32_bf16, s)) {
+        return false;
+    }
+    return do_neon_ddda(s, 7, a->vd, a->vn, a->vm, 0,
+                        gen_helper_gvec_bfmmla);
+}
+
+static bool trans_VFMA_b16(DisasContext *s, arg_VFMA_b16 *a)
+{
+    if (!dc_isar_feature(aa32_bf16, s)) {
+        return false;
+    }
+    return do_neon_ddda_fpst(s, 7, a->vd, a->vn, a->vm, a->q, FPST_STD,
+                             gen_helper_gvec_bfmlal);
+}
+
+static bool trans_VFMA_b16_scal(DisasContext *s, arg_VFMA_b16_scal *a)
+{
+    if (!dc_isar_feature(aa32_bf16, s)) {
+        return false;
+    }
+    return do_neon_ddda_fpst(s, 6, a->vd, a->vn, a->vm,
+                             (a->index << 1) | a->q, FPST_STD,
+                             gen_helper_gvec_bfmlal_idx);
 }

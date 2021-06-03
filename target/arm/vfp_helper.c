@@ -195,8 +195,10 @@ uint32_t vfp_get_fpscr(CPUARMState *env)
 
 void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
 {
+    ARMCPU *cpu = env_archcpu(env);
+
     /* When ARMv8.2-FP16 is not supported, FZ16 is RES0.  */
-    if (!cpu_isar_feature(any_fp16, env_archcpu(env))) {
+    if (!cpu_isar_feature(any_fp16, cpu)) {
         val &= ~FPCR_FZ16;
     }
 
@@ -210,11 +212,12 @@ void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
          * because in v7A no-short-vector-support cores still had to
          * allow Stride/Len to be written with the only effect that
          * some insns are required to UNDEF if the guest sets them.
-         *
-         * TODO: if M-profile MVE implemented, set LTPSIZE.
          */
         env->vfp.vec_len = extract32(val, 16, 3);
         env->vfp.vec_stride = extract32(val, 20, 2);
+    } else if (cpu_isar_feature(aa32_mve, cpu)) {
+        env->v7m.ltpsize = extract32(val, FPCR_LTPSIZE_SHIFT,
+                                     FPCR_LTPSIZE_LENGTH);
     }
 
     if (arm_feature(env, ARM_FEATURE_NEON)) {
@@ -406,6 +409,18 @@ float64 VFP_HELPER(fcvtd, s)(float32 x, CPUARMState *env)
 float32 VFP_HELPER(fcvts, d)(float64 x, CPUARMState *env)
 {
     return float64_to_float32(x, &env->vfp.fp_status);
+}
+
+uint32_t HELPER(bfcvt)(float32 x, void *status)
+{
+    return float32_to_bfloat16(x, status);
+}
+
+uint32_t HELPER(bfcvt_pair)(uint64_t pair, void *status)
+{
+    bfloat16 lo = float32_to_bfloat16(extract64(pair, 0, 32), status);
+    bfloat16 hi = float32_to_bfloat16(extract64(pair, 32, 32), status);
+    return deposit32(lo, 16, 16, hi);
 }
 
 /*

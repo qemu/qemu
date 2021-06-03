@@ -127,7 +127,7 @@ static bool test_pt_entry(struct CPUState *cpu, struct gpt_translation *pt,
         pt->err_code |= MMU_PAGE_PT;
     }
 
-    uint32_t cr0 = rvmcs(cpu->hvf_fd, VMCS_GUEST_CR0);
+    uint32_t cr0 = rvmcs(cpu->hvf->fd, VMCS_GUEST_CR0);
     /* check protection */
     if (cr0 & CR0_WP) {
         if (pt->write_access && !pte_write_access(pte)) {
@@ -172,7 +172,7 @@ static bool walk_gpt(struct CPUState *cpu, target_ulong addr, int err_code,
 {
     int top_level, level;
     bool is_large = false;
-    target_ulong cr3 = rvmcs(cpu->hvf_fd, VMCS_GUEST_CR3);
+    target_ulong cr3 = rvmcs(cpu->hvf->fd, VMCS_GUEST_CR3);
     uint64_t page_mask = pae ? PAE_PTE_PAGE_MASK : LEGACY_PTE_PAGE_MASK;
     
     memset(pt, 0, sizeof(*pt));

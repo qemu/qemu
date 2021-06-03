@@ -563,7 +563,8 @@ typedef struct CPUARMState {
         uint32_t fpdscr[M_REG_NUM_BANKS];
         uint32_t cpacr[M_REG_NUM_BANKS];
         uint32_t nsacr;
-        int ltpsize;
+        uint32_t ltpsize;
+        uint32_t vpr;
     } v7m;
 
     /* Information associated with an exception about to be taken:
@@ -868,6 +869,8 @@ struct ARMCPU {
 
     /* For v8M, initial value of the Secure VTOR */
     uint32_t init_svtor;
+    /* For v8M, initial value of the Non-secure VTOR */
+    uint32_t init_nsvtor;
 
     /* [QEMU_]KVM_ARM_TARGET_* constant for this CPU, or
      * QEMU_KVM_ARM_TARGET_NONE if the kernel doesn't support this CPU type.
@@ -1561,6 +1564,7 @@ void vfp_set_fpscr(CPUARMState *env, uint32_t val);
 
 #define FPCR_LTPSIZE_SHIFT 16   /* LTPSIZE, M-profile only */
 #define FPCR_LTPSIZE_MASK (7 << FPCR_LTPSIZE_SHIFT)
+#define FPCR_LTPSIZE_LENGTH 3
 
 #define FPCR_NZCV_MASK (FPCR_N | FPCR_Z | FPCR_C | FPCR_V)
 #define FPCR_NZCVQC_MASK (FPCR_NZCV_MASK | FPCR_QC)
@@ -1760,6 +1764,11 @@ FIELD(V7M_FPCCR, ASPEN, 31, 1)
      R_V7M_FPCCR_SPLIMVIOL_MASK |               \
      R_V7M_FPCCR_UFRDY_MASK |                   \
      R_V7M_FPCCR_ASPEN_MASK)
+
+/* v7M VPR bits */
+FIELD(V7M_VPR, P0, 0, 16)
+FIELD(V7M_VPR, MASK01, 16, 4)
+FIELD(V7M_VPR, MASK23, 20, 4)
 
 /*
  * System register ID fields.
@@ -3783,6 +3792,11 @@ static inline bool isar_feature_aa32_predinv(const ARMISARegisters *id)
     return FIELD_EX32(id->id_isar6, ID_ISAR6, SPECRES) != 0;
 }
 
+static inline bool isar_feature_aa32_bf16(const ARMISARegisters *id)
+{
+    return FIELD_EX32(id->id_isar6, ID_ISAR6, BF16) != 0;
+}
+
 static inline bool isar_feature_aa32_i8mm(const ARMISARegisters *id)
 {
     return FIELD_EX32(id->id_isar6, ID_ISAR6, I8MM) != 0;
@@ -3815,6 +3829,28 @@ static inline bool isar_feature_aa32_fp16_arith(const ARMISARegisters *id)
     } else {
         return FIELD_EX32(id->mvfr1, MVFR1, FPHP) >= 3;
     }
+}
+
+static inline bool isar_feature_aa32_mve(const ARMISARegisters *id)
+{
+    /*
+     * Return true if MVE is supported (either integer or floating point).
+     * We must check for M-profile as the MVFR1 field means something
+     * else for A-profile.
+     */
+    return isar_feature_aa32_mprofile(id) &&
+        FIELD_EX32(id->mvfr1, MVFR1, MVE) > 0;
+}
+
+static inline bool isar_feature_aa32_mve_fp(const ARMISARegisters *id)
+{
+    /*
+     * Return true if MVE is supported (either integer or floating point).
+     * We must check for M-profile as the MVFR1 field means something
+     * else for A-profile.
+     */
+    return isar_feature_aa32_mprofile(id) &&
+        FIELD_EX32(id->mvfr1, MVFR1, MVE) >= 2;
 }
 
 static inline bool isar_feature_aa32_vfp_simd(const ARMISARegisters *id)
@@ -4122,6 +4158,11 @@ static inline bool isar_feature_aa64_dcpodp(const ARMISARegisters *id)
     return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, DPB) >= 2;
 }
 
+static inline bool isar_feature_aa64_bf16(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, BF16) != 0;
+}
+
 static inline bool isar_feature_aa64_fp_simd(const ARMISARegisters *id)
 {
     /* We always set the AdvSIMD and FP fields identically.  */
@@ -4264,6 +4305,11 @@ static inline bool isar_feature_aa64_sve2_pmull128(const ARMISARegisters *id)
 static inline bool isar_feature_aa64_sve2_bitperm(const ARMISARegisters *id)
 {
     return FIELD_EX64(id->id_aa64zfr0, ID_AA64ZFR0, BITPERM) != 0;
+}
+
+static inline bool isar_feature_aa64_sve_bf16(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64zfr0, ID_AA64ZFR0, BFLOAT16) != 0;
 }
 
 static inline bool isar_feature_aa64_sve2_sha3(const ARMISARegisters *id)

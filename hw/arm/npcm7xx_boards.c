@@ -299,7 +299,7 @@ static void npcm750_evb_machine_class_init(ObjectClass *oc, void *data)
 
     npcm7xx_set_soc_type(nmc, TYPE_NPCM750);
 
-    mc->desc = "Nuvoton NPCM750 Evaluation Board (Cortex A9)";
+    mc->desc = "Nuvoton NPCM750 Evaluation Board (Cortex-A9)";
     mc->init = npcm750_evb_init;
     mc->default_ram_size = 512 * MiB;
 };
@@ -311,7 +311,7 @@ static void gsj_machine_class_init(ObjectClass *oc, void *data)
 
     npcm7xx_set_soc_type(nmc, TYPE_NPCM730);
 
-    mc->desc = "Quanta GSJ (Cortex A9)";
+    mc->desc = "Quanta GSJ (Cortex-A9)";
     mc->init = quanta_gsj_init;
     mc->default_ram_size = 512 * MiB;
 };

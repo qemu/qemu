@@ -123,14 +123,10 @@ void tpm_test_swtpm_migration_test(const char *src_tpm_path,
     qtest_quit(src_qemu);
 
     tpm_util_swtpm_kill(dst_tpm_pid);
-    if (dst_tpm_addr) {
-        g_unlink(dst_tpm_addr->u.q_unix.path);
-        qapi_free_SocketAddress(dst_tpm_addr);
-    }
+    g_unlink(dst_tpm_addr->u.q_unix.path);
+    qapi_free_SocketAddress(dst_tpm_addr);
 
     tpm_util_swtpm_kill(src_tpm_pid);
-    if (src_tpm_addr) {
-        g_unlink(src_tpm_addr->u.q_unix.path);
-        qapi_free_SocketAddress(src_tpm_addr);
-    }
+    g_unlink(src_tpm_addr->u.q_unix.path);
+    qapi_free_SocketAddress(src_tpm_addr);
 }

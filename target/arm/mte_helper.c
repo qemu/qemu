@@ -563,20 +563,14 @@ static void mte_check_fail(CPUARMState *env, uint32_t desc,
 
     switch (tcf) {
     case 1:
-        /*
-         * Tag check fail causes a synchronous exception.
-         *
-         * In restore_state_to_opc, we set the exception syndrome
-         * for the load or store operation.  Unwind first so we
-         * may overwrite that with the syndrome for the tag check.
-         */
-        cpu_restore_state(env_cpu(env), ra, true);
+        /* Tag check fail causes a synchronous exception. */
         env->exception.vaddress = dirty_ptr;
 
         is_write = FIELD_EX32(desc, MTEDESC, WRITE);
         syn = syn_data_abort_no_iss(arm_current_el(env) != 0, 0, 0, 0, 0,
                                     is_write, 0x11);
-        raise_exception(env, EXCP_DATA_ABORT, syn, exception_target_el(env));
+        raise_exception_ra(env, EXCP_DATA_ABORT, syn,
+                           exception_target_el(env), ra);
         /* noreturn, but fall through to the assert anyway */
 
     case 0:

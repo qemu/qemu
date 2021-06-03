@@ -318,6 +318,25 @@ static const VMStateDescription vmstate_m_fp = {
     }
 };
 
+static bool mve_needed(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+
+    return cpu_isar_feature(aa32_mve, cpu);
+}
+
+static const VMStateDescription vmstate_m_mve = {
+    .name = "cpu/m/mve",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = mve_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(env.v7m.vpr, ARMCPU),
+        VMSTATE_UINT32(env.v7m.ltpsize, ARMCPU),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_m = {
     .name = "cpu/m",
     .version_id = 4,
@@ -344,6 +363,7 @@ static const VMStateDescription vmstate_m = {
         &vmstate_m_other_sp,
         &vmstate_m_v8m,
         &vmstate_m_fp,
+        &vmstate_m_mve,
         NULL
     }
 };

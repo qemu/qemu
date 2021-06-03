@@ -35,7 +35,7 @@
 #define NPCM7XX_CLOCK_REF_HZ            (25000000)
 
 /* Register Field Definitions */
-#define NPCM7XX_CLK_WDRCR_CA9C  BIT(0) /* Cortex A9 Cores */
+#define NPCM7XX_CLK_WDRCR_CA9C  BIT(0) /* Cortex-A9 Cores */
 
 #define PLLCON_LOKI     BIT(31)
 #define PLLCON_LOKS     BIT(30)

@@ -62,7 +62,7 @@ static void load_state_from_tss32(CPUState *cpu, struct x86_tss_segment32 *tss)
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
 
-    wvmcs(cpu->hvf_fd, VMCS_GUEST_CR3, tss->cr3);
+    wvmcs(cpu->hvf->fd, VMCS_GUEST_CR3, tss->cr3);
 
     env->eip = tss->eip;
     env->eflags = tss->eflags | 2;
@@ -111,11 +111,11 @@ static int task_switch_32(CPUState *cpu, x68_segment_selector tss_sel, x68_segme
 
 void vmx_handle_task_switch(CPUState *cpu, x68_segment_selector tss_sel, int reason, bool gate_valid, uint8_t gate, uint64_t gate_type)
 {
-    uint64_t rip = rreg(cpu->hvf_fd, HV_X86_RIP);
+    uint64_t rip = rreg(cpu->hvf->fd, HV_X86_RIP);
     if (!gate_valid || (gate_type != VMCS_INTR_T_HWEXCEPTION &&
                         gate_type != VMCS_INTR_T_HWINTR &&
                         gate_type != VMCS_INTR_T_NMI)) {
-        int ins_len = rvmcs(cpu->hvf_fd, VMCS_EXIT_INSTRUCTION_LENGTH);
+        int ins_len = rvmcs(cpu->hvf->fd, VMCS_EXIT_INSTRUCTION_LENGTH);
         macvm_set_rip(cpu, rip + ins_len);
         return;
     }
@@ -174,12 +174,12 @@ void vmx_handle_task_switch(CPUState *cpu, x68_segment_selector tss_sel, int rea
         //ret = task_switch_16(cpu, tss_sel, old_tss_sel, old_tss_base, &next_tss_desc);
         VM_PANIC("task_switch_16");
 
-    macvm_set_cr0(cpu->hvf_fd, rvmcs(cpu->hvf_fd, VMCS_GUEST_CR0) | CR0_TS);
+    macvm_set_cr0(cpu->hvf->fd, rvmcs(cpu->hvf->fd, VMCS_GUEST_CR0) | CR0_TS);
     x86_segment_descriptor_to_vmx(cpu, tss_sel, &next_tss_desc, &vmx_seg);
     vmx_write_segment_descriptor(cpu, &vmx_seg, R_TR);
 
     store_regs(cpu);
 
-    hv_vcpu_invalidate_tlb(cpu->hvf_fd);
-    hv_vcpu_flush(cpu->hvf_fd);
+    hv_vcpu_invalidate_tlb(cpu->hvf->fd);
+    hv_vcpu_flush(cpu->hvf->fd);
 }
