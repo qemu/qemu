@@ -5037,11 +5037,6 @@ if test "$mingw32" = "yes" ; then
     done
 fi
 
-# We can only support ivshmem if we have eventfd
-if [ "$eventfd" = "yes" ]; then
-  ivshmem=yes
-fi
-
 # Probe for guest agent support/options
 
 if [ "$guest_agent" != "no" ]; then
@@ -5638,9 +5633,6 @@ if test "$have_utmpx" = "yes" ; then
 fi
 if test "$have_getrandom" = "yes" ; then
   echo "CONFIG_GETRANDOM=y" >> $config_host_mak
-fi
-if test "$ivshmem" = "yes" ; then
-  echo "CONFIG_IVSHMEM=y" >> $config_host_mak
 fi
 if test "$debug_mutex" = "yes" ; then
   echo "CONFIG_DEBUG_MUTEX=y" >> $config_host_mak
