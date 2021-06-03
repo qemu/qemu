@@ -94,7 +94,7 @@ class QOMFuse(QOMCommand, Operations):
     def is_object(self, path):
         """Is the given QOM path an object?"""
         try:
-            self.qmp.command('qom-list', path=path)
+            self.qom_list(path)
             return True
         except QMPResponseError:
             return False
@@ -105,8 +105,8 @@ class QOMFuse(QOMCommand, Operations):
         if path == '':
             path = '/'
         try:
-            for item in self.qmp.command('qom-list', path=path):
-                if item['name'] == prop:
+            for item in self.qom_list(path):
+                if item.name == prop:
                     return True
             return False
         except QMPResponseError:
@@ -118,11 +118,9 @@ class QOMFuse(QOMCommand, Operations):
         if path == '':
             path = '/'
         try:
-            for item in self.qmp.command('qom-list', path=path):
-                if item['name'] == prop:
-                    if item['type'].startswith('link<'):
-                        return True
-                    return False
+            for item in self.qom_list(path):
+                if item.name == prop and item.link:
+                    return True
             return False
         except QMPResponseError:
             return False
@@ -200,8 +198,8 @@ class QOMFuse(QOMCommand, Operations):
     def readdir(self, path, fh):
         yield '.'
         yield '..'
-        for item in self.qmp.command('qom-list', path=path):
-            yield str(item['name'])
+        for item in self.qom_list(path):
+            yield item.name
 
 
 if __name__ == '__main__':
