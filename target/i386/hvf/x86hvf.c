@@ -26,13 +26,12 @@
 #include "cpu.h"
 #include "x86_descr.h"
 #include "x86_decode.h"
+#include "sysemu/hw_accel.h"
 
 #include "hw/i386/apic_internal.h"
 
 #include <Hypervisor/hv.h>
 #include <Hypervisor/hv_vmx.h>
-
-#include "accel/hvf/hvf-accel-ops.h"
 
 void hvf_set_segment(struct CPUState *cpu, struct vmx_segment *vmx_seg,
                      SegmentCache *qseg, bool is_tr)
@@ -437,7 +436,7 @@ int hvf_process_events(CPUState *cpu_state)
     env->eflags = rreg(cpu_state->hvf_fd, HV_X86_RFLAGS);
 
     if (cpu_state->interrupt_request & CPU_INTERRUPT_INIT) {
-        hvf_cpu_synchronize_state(cpu_state);
+        cpu_synchronize_state(cpu_state);
         do_cpu_init(cpu);
     }
 
@@ -451,12 +450,12 @@ int hvf_process_events(CPUState *cpu_state)
         cpu_state->halted = 0;
     }
     if (cpu_state->interrupt_request & CPU_INTERRUPT_SIPI) {
-        hvf_cpu_synchronize_state(cpu_state);
+        cpu_synchronize_state(cpu_state);
         do_cpu_sipi(cpu);
     }
     if (cpu_state->interrupt_request & CPU_INTERRUPT_TPR) {
         cpu_state->interrupt_request &= ~CPU_INTERRUPT_TPR;
-        hvf_cpu_synchronize_state(cpu_state);
+        cpu_synchronize_state(cpu_state);
         apic_handle_tpr_access_report(cpu->apic_state, env->eip,
                                       env->tpr_access_type);
     }

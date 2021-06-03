@@ -200,7 +200,7 @@ static void do_hvf_cpu_synchronize_state(CPUState *cpu, run_on_cpu_data arg)
     }
 }
 
-void hvf_cpu_synchronize_state(CPUState *cpu)
+static void hvf_cpu_synchronize_state(CPUState *cpu)
 {
     if (!cpu->vcpu_dirty) {
         run_on_cpu(cpu, do_hvf_cpu_synchronize_state, RUN_ON_CPU_NULL);
