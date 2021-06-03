@@ -3511,59 +3511,6 @@ elif test "$jemalloc" = "yes" ; then
     malloc=jemalloc
 fi
 
-##########################################
-# signalfd probe
-signalfd="no"
-cat > $TMPC << EOF
-#include <unistd.h>
-#include <sys/syscall.h>
-#include <signal.h>
-int main(void) { return syscall(SYS_signalfd, -1, NULL, _NSIG / 8); }
-EOF
-
-if compile_prog "" "" ; then
-  signalfd=yes
-fi
-
-# check if optreset global is declared by <getopt.h>
-optreset="no"
-cat > $TMPC << EOF
-#include <getopt.h>
-int main(void) { return optreset; }
-EOF
-
-if compile_prog "" "" ; then
-  optreset=yes
-fi
-
-# check if eventfd is supported
-eventfd=no
-cat > $TMPC << EOF
-#include <sys/eventfd.h>
-
-int main(void)
-{
-    return eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
-}
-EOF
-if compile_prog "" "" ; then
-  eventfd=yes
-fi
-
-# check if memfd is supported
-memfd=no
-cat > $TMPC << EOF
-#include <sys/mman.h>
-
-int main(void)
-{
-    return memfd_create("foo", MFD_ALLOW_SEALING);
-}
-EOF
-if compile_prog "" "" ; then
-  memfd=yes
-fi
-
 # check for usbfs
 have_usbfs=no
 if test "$linux_user" = "yes"; then
@@ -3710,66 +3657,6 @@ case "$capstone" in
     git_submodules="${git_submodules} capstone"
     ;;
 esac
-
-##########################################
-# check if we have fdatasync
-
-fdatasync=no
-cat > $TMPC << EOF
-#include <unistd.h>
-int main(void) {
-#if defined(_POSIX_SYNCHRONIZED_IO) && _POSIX_SYNCHRONIZED_IO > 0
-return fdatasync(0);
-#else
-#error Not supported
-#endif
-}
-EOF
-if compile_prog "" "" ; then
-    fdatasync=yes
-fi
-
-##########################################
-# check if we have madvise
-
-madvise=no
-cat > $TMPC << EOF
-#include <sys/types.h>
-#include <sys/mman.h>
-#include <stddef.h>
-int main(void) { return madvise(NULL, 0, MADV_DONTNEED); }
-EOF
-if compile_prog "" "" ; then
-    madvise=yes
-fi
-
-##########################################
-# check if we have posix_madvise
-
-posix_madvise=no
-cat > $TMPC << EOF
-#include <sys/mman.h>
-#include <stddef.h>
-int main(void) { return posix_madvise(NULL, 0, POSIX_MADV_DONTNEED); }
-EOF
-if compile_prog "" "" ; then
-    posix_madvise=yes
-fi
-
-##########################################
-# check if we have posix_memalign()
-
-posix_memalign=no
-cat > $TMPC << EOF
-#include <stdlib.h>
-int main(void) {
-    void *p;
-    return posix_memalign(&p, 8, 8);
-}
-EOF
-if compile_prog "" "" ; then
-    posix_memalign=yes
-fi
 
 ##########################################
 # check if we have posix_syslog
@@ -4842,12 +4729,6 @@ fi
 if test "$splice" = "yes" ; then
   echo "CONFIG_SPLICE=y" >> $config_host_mak
 fi
-if test "$eventfd" = "yes" ; then
-  echo "CONFIG_EVENTFD=y" >> $config_host_mak
-fi
-if test "$memfd" = "yes" ; then
-  echo "CONFIG_MEMFD=y" >> $config_host_mak
-fi
 if test "$have_usbfs" = "yes" ; then
   echo "CONFIG_USBFS=y" >> $config_host_mak
 fi
@@ -4922,26 +4803,8 @@ fi
 if test "$membarrier" = "yes" ; then
   echo "CONFIG_MEMBARRIER=y" >> $config_host_mak
 fi
-if test "$signalfd" = "yes" ; then
-  echo "CONFIG_SIGNALFD=y" >> $config_host_mak
-fi
-if test "$optreset" = "yes" ; then
-  echo "HAVE_OPTRESET=y" >> $config_host_mak
-fi
 if test "$tcg" = "enabled" -a "$tcg_interpreter" = "true" ; then
   echo "CONFIG_TCG_INTERPRETER=y" >> $config_host_mak
-fi
-if test "$fdatasync" = "yes" ; then
-  echo "CONFIG_FDATASYNC=y" >> $config_host_mak
-fi
-if test "$madvise" = "yes" ; then
-  echo "CONFIG_MADVISE=y" >> $config_host_mak
-fi
-if test "$posix_madvise" = "yes" ; then
-  echo "CONFIG_POSIX_MADVISE=y" >> $config_host_mak
-fi
-if test "$posix_memalign" = "yes" ; then
-  echo "CONFIG_POSIX_MEMALIGN=y" >> $config_host_mak
 fi
 
 if test "$spice_protocol" = "yes" ; then

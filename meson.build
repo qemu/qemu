@@ -1272,6 +1272,7 @@ config_host_data.set('CONFIG_CLOCK_ADJTIME', cc.has_function('clock_adjtime'))
 config_host_data.set('CONFIG_DUP3', cc.has_function('dup3'))
 config_host_data.set('CONFIG_FALLOCATE', cc.has_function('fallocate'))
 config_host_data.set('CONFIG_POSIX_FALLOCATE', cc.has_function('posix_fallocate'))
+config_host_data.set('CONFIG_POSIX_MEMALIGN', cc.has_function('posix_memalign'))
 config_host_data.set('CONFIG_PPOLL', cc.has_function('ppoll'))
 config_host_data.set('CONFIG_PREADV', cc.has_function('preadv', prefix: '#include <sys/uio.h>'))
 config_host_data.set('CONFIG_SEM_TIMEDWAIT', cc.has_function('sem_timedwait', dependencies: threads))
@@ -1311,6 +1312,8 @@ config_host_data.set('CONFIG_RTNETLINK',
                      cc.has_header_symbol('linux/rtnetlink.h', 'IFLA_PROTO_DOWN'))
 config_host_data.set('CONFIG_SYSMACROS',
                      cc.has_header_symbol('sys/sysmacros.h', 'makedev'))
+config_host_data.set('HAVE_OPTRESET',
+                     cc.has_header_symbol('getopt.h', 'optreset'))
 config_host_data.set('HAVE_UTMPX',
                      cc.has_header_symbol('utmpx.h', 'struct utmpx'))
 
@@ -1321,6 +1324,36 @@ config_host_data.set('HAVE_SIGEV_NOTIFY_THREAD_ID',
 config_host_data.set('HAVE_STRUCT_STAT_ST_ATIM',
                      cc.has_member('struct stat', 'st_atim',
                                    prefix: '#include <sys/stat.h>'))
+
+config_host_data.set('CONFIG_EVENTFD', cc.compiles('''
+  #include <sys/eventfd.h>
+  int main(void) { return eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC); }'''))
+config_host_data.set('CONFIG_FDATASYNC', cc.compiles(gnu_source_prefix + '''
+  #include <unistd.h>
+  int main(void) {
+  #if defined(_POSIX_SYNCHRONIZED_IO) && _POSIX_SYNCHRONIZED_IO > 0
+  return fdatasync(0);
+  #else
+  #error Not supported
+  #endif
+  }'''))
+config_host_data.set('CONFIG_MADVISE', cc.compiles(gnu_source_prefix + '''
+  #include <sys/types.h>
+  #include <sys/mman.h>
+  #include <stddef.h>
+  int main(void) { return madvise(NULL, 0, MADV_DONTNEED); }'''))
+config_host_data.set('CONFIG_MEMFD', cc.compiles(gnu_source_prefix + '''
+  #include <sys/mman.h>
+  int main(void) { return memfd_create("foo", MFD_ALLOW_SEALING); }'''))
+config_host_data.set('CONFIG_POSIX_MADVISE', cc.compiles(gnu_source_prefix + '''
+  #include <sys/mman.h>
+  #include <stddef.h>
+  int main(void) { return posix_madvise(NULL, 0, POSIX_MADV_DONTNEED); }'''))
+config_host_data.set('CONFIG_SIGNALFD', cc.compiles(gnu_source_prefix + '''
+  #include <unistd.h>
+  #include <sys/syscall.h>
+  #include <signal.h>
+  int main(void) { return syscall(SYS_signalfd, -1, NULL, _NSIG / 8); }'''))
 
 # Some versions of Mac OS X incorrectly define SIZE_MAX
 config_host_data.set('HAVE_BROKEN_SIZE_MAX', not cc.compiles('''
@@ -1398,7 +1431,7 @@ if link_language == 'cpp'
   }
 endif
 
-have_ivshmem = config_host.has_key('CONFIG_EVENTFD')
+have_ivshmem = config_host_data.get('CONFIG_EVENTFD')
 host_kconfig = \
   ('CONFIG_TPM' in config_host ? ['CONFIG_TPM=y'] : []) + \
   ('CONFIG_SPICE' in config_host ? ['CONFIG_SPICE=y'] : []) + \
@@ -2711,10 +2744,6 @@ summary_info += {'PIE':               get_option('b_pie')}
 summary_info += {'static build':      config_host.has_key('CONFIG_STATIC')}
 summary_info += {'malloc trim support': has_malloc_trim}
 summary_info += {'membarrier':        config_host.has_key('CONFIG_MEMBARRIER')}
-summary_info += {'fdatasync':         config_host.has_key('CONFIG_FDATASYNC')}
-summary_info += {'madvise':           config_host.has_key('CONFIG_MADVISE')}
-summary_info += {'posix_madvise':     config_host.has_key('CONFIG_POSIX_MADVISE')}
-summary_info += {'posix_memalign':    config_host.has_key('CONFIG_POSIX_MEMALIGN')}
 summary_info += {'debug stack usage': config_host.has_key('CONFIG_DEBUG_STACK_USAGE')}
 summary_info += {'mutex debugging':   config_host.has_key('CONFIG_DEBUG_MUTEX')}
 summary_info += {'memory allocator':  get_option('malloc')}
