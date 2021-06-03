@@ -13,13 +13,19 @@
 # the COPYING file in the top-level directory.
 ##
 
-import fuse, stat
-from fuse import FUSE, FuseOSError, Operations
-import os, posix, sys
 from errno import *
+import os
+import posix
+import stat
+import sys
+
+import fuse
+from fuse import FUSE, FuseOSError, Operations
+
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu.qmp import QEMUMonitorProtocol
+
 
 fuse.fuse_python_api = (0, 2)
 
