@@ -408,7 +408,7 @@ gnutls="auto"
 nettle="auto"
 gcrypt="auto"
 auth_pam="auto"
-vte="$default_feature"
+vte="auto"
 virglrenderer="$default_feature"
 tpm="$default_feature"
 libssh="$default_feature"
@@ -1395,9 +1395,9 @@ for opt do
   ;;
   --disable-pvrdma) pvrdma="no"
   ;;
-  --disable-vte) vte="no"
+  --disable-vte) vte="disabled"
   ;;
-  --enable-vte) vte="yes"
+  --enable-vte) vte="enabled"
   ;;
   --disable-virglrenderer) virglrenderer="no"
   ;;
@@ -2797,22 +2797,6 @@ EOF
       fi
     fi
   fi
-fi
-
-##########################################
-# VTE probe
-
-if test "$vte" != "no"; then
-    if $pkg_config --exists "vte-2.91"; then
-        vte_cflags=$($pkg_config --cflags vte-2.91)
-        vte_libs=$($pkg_config --libs vte-2.91)
-        vteversion=$($pkg_config --modversion vte-2.91)
-        vte="yes"
-    elif test "$vte" = "yes"; then
-        feature_not_found "vte" "Install libvte-2.91 devel"
-    else
-        vte="no"
-    fi
 fi
 
 ##########################################
@@ -5482,11 +5466,6 @@ fi
 if test "$have_copy_file_range" = "yes" ; then
     echo "HAVE_COPY_FILE_RANGE=y" >> $config_host_mak
 fi
-if test "$vte" = "yes" ; then
-  echo "CONFIG_VTE=y" >> $config_host_mak
-  echo "VTE_CFLAGS=$vte_cflags" >> $config_host_mak
-  echo "VTE_LIBS=$vte_libs" >> $config_host_mak
-fi
 if test "$virglrenderer" = "yes" ; then
   echo "CONFIG_VIRGL=y" >> $config_host_mak
   echo "VIRGL_CFLAGS=$virgl_cflags" >> $config_host_mak
@@ -6149,7 +6128,7 @@ if test "$skip_meson" = no; then
         -Dkvm=$kvm -Dhax=$hax -Dwhpx=$whpx -Dhvf=$hvf -Dnvmm=$nvmm \
         -Dxen=$xen -Dxen_pci_passthrough=$xen_pci_passthrough -Dtcg=$tcg \
         -Dcocoa=$cocoa -Dgtk=$gtk -Dmpath=$mpath -Dsdl=$sdl -Dsdl_image=$sdl_image \
-        -Dlibusb=$libusb -Dsmartcard=$smartcard -Dusb_redir=$usb_redir \
+        -Dlibusb=$libusb -Dsmartcard=$smartcard -Dusb_redir=$usb_redir -Dvte=$vte \
         -Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
         -Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f -Dvirtiofsd=$virtiofsd \
         -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt -Dbrlapi=$brlapi \

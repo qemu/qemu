@@ -118,6 +118,8 @@ option('vnc_png', type : 'feature', value : 'auto',
        description: 'PNG compression for VNC server')
 option('vnc_sasl', type : 'feature', value : 'auto',
        description: 'SASL authentication for VNC server')
+option('vte', type : 'feature', value : 'auto',
+       description: 'vte support for the gtk UI')
 option('xkbcommon', type : 'feature', value : 'auto',
        description: 'xkbcommon support')
 option('zstd', type : 'feature', value : 'auto',

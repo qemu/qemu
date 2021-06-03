@@ -860,6 +860,7 @@ endif
 
 gtk = not_found
 gtkx11 = not_found
+vte = not_found
 if not get_option('gtk').auto() or (have_system and not cocoa.found())
   gtk = dependency('gtk+-3.0', version: '>=3.22.0',
                    method: 'pkg-config',
@@ -871,14 +872,16 @@ if not get_option('gtk').auto() or (have_system and not cocoa.found())
                         required: false,
                         kwargs: static_kwargs)
     gtk = declare_dependency(dependencies: [gtk, gtkx11])
+
+    if not get_option('vte').auto() or have_system
+      vte = dependency('vte-2.91',
+                       method: 'pkg-config',
+                       required: get_option('vte'),
+                       kwargs: static_kwargs)
+    endif
   endif
 endif
 
-vte = not_found
-if 'CONFIG_VTE' in config_host
-  vte = declare_dependency(compile_args: config_host['VTE_CFLAGS'].split(),
-                           link_args: config_host['VTE_LIBS'].split())
-endif
 x11 = not_found
 if gtkx11.found()
   x11 = dependency('x11', method: 'pkg-config', required: gtkx11.found(),
@@ -1208,6 +1211,7 @@ if glusterfs.found()
   config_host_data.set('CONFIG_GLUSTERFS_IOCB_HAS_STAT', glusterfs_iocb_has_stat)
 endif
 config_host_data.set('CONFIG_GTK', gtk.found())
+config_host_data.set('CONFIG_VTE', vte.found())
 config_host_data.set('CONFIG_LIBATTR', have_old_libattr)
 config_host_data.set('CONFIG_LIBCAP_NG', libcap_ng.found())
 config_host_data.set('CONFIG_EBPF', libbpf.found())
@@ -2756,7 +2760,7 @@ summary_info += {'SDL image support': sdl_image.found()}
 summary_info += {'GTK support':       gtk.found()}
 summary_info += {'pixman':            pixman.found()}
 # TODO: add back version
-summary_info += {'VTE support':       config_host.has_key('CONFIG_VTE')}
+summary_info += {'VTE support':       vte.found()}
 # TODO: add back version
 summary_info += {'slirp support':     slirp_opt == 'disabled' ? false : slirp_opt}
 summary_info += {'libtasn1':          tasn1.found()}
