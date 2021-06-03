@@ -114,7 +114,7 @@ static int do_hvf_set_memory(hvf_slot *slot, hv_memory_flags_t flags)
     return 0;
 }
 
-void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
+static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
 {
     hvf_slot *mem;
     MemoryRegion *area = section->mr;
