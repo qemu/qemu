@@ -406,9 +406,7 @@ gtk="auto"
 tls_priority="NORMAL"
 gnutls="$default_feature"
 nettle="$default_feature"
-nettle_xts="no"
 gcrypt="$default_feature"
-gcrypt_xts="no"
 qemu_private_xts="yes"
 auth_pam="$default_feature"
 vte="$default_feature"
@@ -2897,7 +2895,6 @@ int main(void) {
 }
 EOF
         if compile_prog "$nettle_cflags" "$nettle_libs" ; then
-            nettle_xts=yes
             qemu_private_xts=no
         fi
     fi
@@ -2938,7 +2935,6 @@ int main(void) {
 }
 EOF
         if compile_prog "$gcrypt_cflags" "$gcrypt_libs" ; then
-            gcrypt_xts=yes
             qemu_private_xts=no
         fi
     elif test "$gcrypt" = "yes"; then
