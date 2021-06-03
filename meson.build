@@ -1011,8 +1011,10 @@ if 'CONFIG_LIBPMEM' in config_host
                                link_args: config_host['LIBPMEM_LIBS'].split())
 endif
 libdaxctl = not_found
-if 'CONFIG_LIBDAXCTL' in config_host
-  libdaxctl = declare_dependency(link_args: config_host['LIBDAXCTL_LIBS'].split())
+if not get_option('libdaxctl').auto() or have_system
+  libdaxctl = dependency('libdaxctl', required: get_option('libdaxctl'),
+                         version: '>=57', method: 'pkg-config',
+                         kwargs: static_kwargs)
 endif
 tasn1 = not_found
 if gnutls.found()
@@ -2821,7 +2823,7 @@ summary_info += {'NUMA host support': config_host.has_key('CONFIG_NUMA')}
 summary_info += {'libxml2':           config_host.has_key('CONFIG_LIBXML2')}
 summary_info += {'capstone':          capstone_opt == 'disabled' ? false : capstone_opt}
 summary_info += {'libpmem support':   config_host.has_key('CONFIG_LIBPMEM')}
-summary_info += {'libdaxctl support': config_host.has_key('CONFIG_LIBDAXCTL')}
+summary_info += {'libdaxctl support': libdaxctl.found()}
 summary_info += {'libudev':           libudev.found()}
 summary_info += {'FUSE lseek':        fuse_lseek.found()}
 summary(summary_info, bool_yn: true, section: 'Dependencies')
