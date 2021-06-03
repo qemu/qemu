@@ -76,6 +76,12 @@ option('iconv', type : 'feature', value : 'auto',
        description: 'Font glyph conversion support')
 option('curses', type : 'feature', value : 'auto',
        description: 'curses UI')
+option('gnutls', type : 'feature', value : 'auto',
+       description: 'GNUTLS cryptography support')
+option('nettle', type : 'feature', value : 'auto',
+       description: 'nettle cryptography support')
+option('gcrypt', type : 'feature', value : 'auto',
+       description: 'libgcrypt cryptography support')
 option('libudev', type : 'feature', value : 'auto',
        description: 'Use libudev to enumerate host devices')
 option('lzfse', type : 'feature', value : 'auto',

@@ -83,7 +83,7 @@ if have_block
     'test-crypto-afsplit': [io],
     'test-crypto-block': [io],
   }
-  if 'CONFIG_GNUTLS' in config_host and \
+  if gnutls.found() and \
      'CONFIG_TASN1' in config_host and \
      'CONFIG_POSIX' in config_host
     tests += {
@@ -97,7 +97,7 @@ if have_block
   if 'CONFIG_AUTH_PAM' in config_host
     tests += {'test-authz-pam': [authz]}
   endif
-  if 'CONFIG_QEMU_PRIVATE_XTS' in config_host
+  if xts == 'private'
     tests += {'test-crypto-xts': [crypto, io]}
   endif
   if 'CONFIG_POSIX' in config_host
@@ -106,7 +106,7 @@ if have_block
   if 'CONFIG_REPLICATION' in config_host
     tests += {'test-replication': [testblock]}
   endif
-  if 'CONFIG_NETTLE' in config_host or 'CONFIG_GCRYPT' in config_host
+  if nettle.found() or gcrypt.found()
     tests += {'test-crypto-pbkdf': [io]}
   endif
   if 'CONFIG_EPOLL_CREATE1' in config_host
