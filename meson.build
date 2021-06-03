@@ -1274,12 +1274,14 @@ config_host_data.set('CONFIG_FALLOCATE', cc.has_function('fallocate'))
 config_host_data.set('CONFIG_POSIX_FALLOCATE', cc.has_function('posix_fallocate'))
 config_host_data.set('CONFIG_PPOLL', cc.has_function('ppoll'))
 config_host_data.set('CONFIG_PREADV', cc.has_function('preadv', prefix: '#include <sys/uio.h>'))
+config_host_data.set('CONFIG_SEM_TIMEDWAIT', cc.has_function('sem_timedwait', dependencies: threads))
 config_host_data.set('CONFIG_SENDFILE', cc.has_function('sendfile'))
 config_host_data.set('CONFIG_SETNS', cc.has_function('setns') and cc.has_function('unshare'))
 config_host_data.set('CONFIG_SYNCFS', cc.has_function('syncfs'))
 config_host_data.set('CONFIG_SYNC_FILE_RANGE', cc.has_function('sync_file_range'))
 config_host_data.set('CONFIG_TIMERFD', cc.has_function('timerfd_create'))
 config_host_data.set('HAVE_OPENPTY', cc.has_function('openpty', dependencies: util))
+config_host_data.set('HAVE_STRCHRNUL', cc.has_function('strchrnul'))
 config_host_data.set('HAVE_SYSTEM_FUNCTION', cc.has_function('system', prefix: '#include <stdlib.h>'))
 
 # has_header_symbol
@@ -1306,6 +1308,9 @@ config_host_data.set('CONFIG_PRCTL_PR_SET_TIMERSLACK',
 config_host_data.set('HAVE_SIGEV_NOTIFY_THREAD_ID',
                      cc.has_member('struct sigevent', 'sigev_notify_thread_id',
                                    prefix: '#include <signal.h>'))
+config_host_data.set('HAVE_STRUCT_STAT_ST_ATIM',
+                     cc.has_member('struct stat', 'st_atim',
+                                   prefix: '#include <sys/stat.h>'))
 
 # Some versions of Mac OS X incorrectly define SIZE_MAX
 config_host_data.set('HAVE_BROKEN_SIZE_MAX', not cc.compiles('''

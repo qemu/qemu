@@ -3784,46 +3784,6 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
-# check if we have sem_timedwait
-
-sem_timedwait=no
-cat > $TMPC << EOF
-#include <semaphore.h>
-int main(void) { sem_t s; struct timespec t = {0}; return sem_timedwait(&s, &t); }
-EOF
-if compile_prog "" "" ; then
-    sem_timedwait=yes
-fi
-
-##########################################
-# check if we have strchrnul
-
-strchrnul=no
-cat > $TMPC << EOF
-#include <string.h>
-int main(void);
-// Use a haystack that the compiler shouldn't be able to constant fold
-char *haystack = (char*)&main;
-int main(void) { return strchrnul(haystack, 'x') != &haystack[6]; }
-EOF
-if compile_prog "" "" ; then
-    strchrnul=yes
-fi
-
-#########################################
-# check if we have st_atim
-
-st_atim=no
-cat > $TMPC << EOF
-#include <sys/stat.h>
-#include <stddef.h>
-int main(void) { return offsetof(struct stat, st_atim); }
-EOF
-if compile_prog "" "" ; then
-    st_atim=yes
-fi
-
-##########################################
 # check if trace backend exists
 
 $python "$source_path/scripts/tracetool.py" "--backends=$trace_backends" --check-backends  > /dev/null 2> /dev/null
@@ -4966,15 +4926,6 @@ if test "$inotify" = "yes" ; then
 fi
 if test "$inotify1" = "yes" ; then
   echo "CONFIG_INOTIFY1=y" >> $config_host_mak
-fi
-if test "$sem_timedwait" = "yes" ; then
-  echo "CONFIG_SEM_TIMEDWAIT=y" >> $config_host_mak
-fi
-if test "$strchrnul" = "yes" ; then
-  echo "HAVE_STRCHRNUL=y" >> $config_host_mak
-fi
-if test "$st_atim" = "yes" ; then
-  echo "HAVE_STRUCT_STAT_ST_ATIM=y" >> $config_host_mak
 fi
 if test "$gio" = "yes" ; then
     echo "CONFIG_GIO=y" >> $config_host_mak
