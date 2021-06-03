@@ -84,7 +84,7 @@ if have_block
     'test-crypto-block': [io],
   }
   if gnutls.found() and \
-     'CONFIG_TASN1' in config_host and \
+     tasn1.found() and \
      'CONFIG_POSIX' in config_host
     tests += {
       'test-crypto-tlscredsx509': ['crypto-tls-x509-helpers.c', 'pkix_asn1_tab.c',
