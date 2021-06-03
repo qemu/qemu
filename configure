@@ -4293,20 +4293,6 @@ if test "$fortify_source" != "no"; then
   fi
 fi
 
-###############################################
-# Check if copy_file_range is provided by glibc
-have_copy_file_range=no
-cat > $TMPC << EOF
-#include <unistd.h>
-int main(void) {
-  copy_file_range(0, NULL, 0, NULL, 0, 0);
-  return 0;
-}
-EOF
-if compile_prog "" "" ; then
-    have_copy_file_range=yes
-fi
-
 ##########################################
 # check if struct fsxattr is available via linux/fs.h
 
@@ -4351,19 +4337,6 @@ else
     # Do not enable it by default even for Mingw32, because it doesn't
     # work on Wine.
     membarrier=no
-fi
-
-##########################################
-# check if rtnetlink.h exists and is useful
-have_rtnetlink=no
-cat > $TMPC << EOF
-#include <linux/rtnetlink.h>
-int main(void) {
-  return IFLA_PROTO_DOWN;
-}
-EOF
-if compile_prog "" "" ; then
-    have_rtnetlink=yes
 fi
 
 ##########################################
@@ -4418,49 +4391,6 @@ then
     fi
 fi
 
-
-#################################################
-# check for sysmacros.h
-
-have_sysmacros=no
-cat > $TMPC << EOF
-#include <sys/sysmacros.h>
-int main(void) {
-    return makedev(0, 0);
-}
-EOF
-if compile_prog "" "" ; then
-    have_sysmacros=yes
-fi
-
-##########################################
-# check for utmpx.h, it is missing e.g. on OpenBSD
-
-have_utmpx=no
-cat > $TMPC << EOF
-#include <utmpx.h>
-struct utmpx user_info;
-int main(void) {
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-    have_utmpx=yes
-fi
-
-##########################################
-# check for getrandom()
-
-have_getrandom=no
-cat > $TMPC << EOF
-#include <sys/random.h>
-int main(void) {
-    return getrandom(0, 0, GRND_NONBLOCK);
-}
-EOF
-if compile_prog "" "" ; then
-    have_getrandom=yes
-fi
 
 ##########################################
 # checks for sanitizers
@@ -4944,9 +4874,6 @@ echo "CONFIG_TLS_PRIORITY=\"$tls_priority\"" >> $config_host_mak
 if test "$have_fsxattr" = "yes" ; then
     echo "HAVE_FSXATTR=y" >> $config_host_mak
 fi
-if test "$have_copy_file_range" = "yes" ; then
-    echo "HAVE_COPY_FILE_RANGE=y" >> $config_host_mak
-fi
 if test "$xen" = "enabled" ; then
   echo "CONFIG_XEN_BACKEND=y" >> $config_host_mak
   echo "CONFIG_XEN_CTRL_INTERFACE_VERSION=$xen_ctrl_version" >> $config_host_mak
@@ -5182,10 +5109,6 @@ if test "$pvrdma" = "yes" ; then
   echo "CONFIG_PVRDMA=y" >> $config_host_mak
 fi
 
-if test "$have_rtnetlink" = "yes" ; then
-  echo "CONFIG_RTNETLINK=y" >> $config_host_mak
-fi
-
 if test "$replication" = "yes" ; then
   echo "CONFIG_REPLICATION=y" >> $config_host_mak
 fi
@@ -5194,16 +5117,6 @@ if test "$have_af_vsock" = "yes" ; then
   echo "CONFIG_AF_VSOCK=y" >> $config_host_mak
 fi
 
-if test "$have_sysmacros" = "yes" ; then
-  echo "CONFIG_SYSMACROS=y" >> $config_host_mak
-fi
-
-if test "$have_utmpx" = "yes" ; then
-  echo "HAVE_UTMPX=y" >> $config_host_mak
-fi
-if test "$have_getrandom" = "yes" ; then
-  echo "CONFIG_GETRANDOM=y" >> $config_host_mak
-fi
 if test "$debug_mutex" = "yes" ; then
   echo "CONFIG_DEBUG_MUTEX=y" >> $config_host_mak
 fi
