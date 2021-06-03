@@ -327,10 +327,11 @@ if have_system or have_tools
 endif
 libaio = cc.find_library('aio', required: false)
 zlib = dependency('zlib', required: true, kwargs: static_kwargs)
+
 linux_io_uring = not_found
-if 'CONFIG_LINUX_IO_URING' in config_host
-  linux_io_uring = declare_dependency(compile_args: config_host['LINUX_IO_URING_CFLAGS'].split(),
-                                      link_args: config_host['LINUX_IO_URING_LIBS'].split())
+if not get_option('linux_io_uring').auto() or have_block
+  linux_io_uring = dependency('liburing', required: get_option('linux_io_uring'),
+                              method: 'pkg-config', kwargs: static_kwargs)
 endif
 libxml2 = not_found
 if 'CONFIG_LIBXML2' in config_host
@@ -2785,7 +2786,7 @@ summary_info += {'brlapi support':    brlapi.found()}
 summary_info += {'vde support':       config_host.has_key('CONFIG_VDE')}
 summary_info += {'netmap support':    config_host.has_key('CONFIG_NETMAP')}
 summary_info += {'Linux AIO support': config_host.has_key('CONFIG_LINUX_AIO')}
-summary_info += {'Linux io_uring support': config_host.has_key('CONFIG_LINUX_IO_URING')}
+summary_info += {'Linux io_uring support': linux_io_uring.found()}
 summary_info += {'ATTR/XATTR support': libattr.found()}
 summary_info += {'RDMA support':      config_host.has_key('CONFIG_RDMA')}
 summary_info += {'PVRDMA support':    config_host.has_key('CONFIG_PVRDMA')}
