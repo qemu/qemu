@@ -23,7 +23,7 @@ from fuse import FUSE, FuseOSError, Operations
 
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
-from qemu.qmp import QEMUMonitorProtocol
+from qemu.qmp import QEMUMonitorProtocol, QMPResponseError
 
 
 fuse.fuse_python_api = (0, 2)
@@ -47,7 +47,7 @@ class QOMFS(Operations):
         try:
             self.qmp.command('qom-list', path=path)
             return True
-        except:
+        except QMPResponseError:
             return False
 
     def is_property(self, path):
@@ -59,7 +59,7 @@ class QOMFS(Operations):
                 if item['name'] == prop:
                     return True
             return False
-        except:
+        except QMPResponseError:
             return False
 
     def is_link(self, path):
@@ -73,10 +73,10 @@ class QOMFS(Operations):
                         return True
                     return False
             return False
-        except:
+        except QMPResponseError:
             return False
 
-    def read(self, path, length, offset, fh):
+    def read(self, path, size, offset, fh):
         if not self.is_property(path):
             return -ENOENT
 
@@ -86,13 +86,13 @@ class QOMFS(Operations):
         try:
             data = self.qmp.command('qom-get', path=path, property=prop)
             data += '\n'  # make values shell friendly
-        except:
-            raise FuseOSError(EPERM)
+        except QMPResponseError as err:
+            raise FuseOSError(EPERM) from err
 
         if offset > len(data):
             return ''
 
-        return bytes(data[offset:][:length], encoding='utf-8')
+        return bytes(data[offset:][:size], encoding='utf-8')
 
     def readlink(self, path):
         if not self.is_link(path):
