@@ -35,14 +35,19 @@ from typing import (
 )
 
 
-# QMPMessage is a QMP Message of any kind.
-# e.g. {'yee': 'haw'}
-#
-# QMPReturnValue is the inner value of return values only.
-# {'return': {}} is the QMPMessage,
-# {} is the QMPReturnValue.
+#: QMPMessage is an entire QMP message of any kind.
 QMPMessage = Dict[str, Any]
-QMPReturnValue = Dict[str, Any]
+
+#: QMPReturnValue is the 'return' value of a command.
+QMPReturnValue = object
+
+# QMPMessage can be outgoing commands or incoming events/returns.
+# QMPReturnValue is usually a dict/json object, but due to QAPI's
+# 'returns-whitelist', it can actually be anything.
+#
+# {'return': {}} is a QMPMessage,
+# {} is the QMPReturnValue.
+
 
 InternetAddrT = Tuple[str, int]
 UnixAddrT = str
@@ -297,8 +302,8 @@ class QEMUMonitorProtocol:
         return resp
 
     def cmd(self, name: str,
-            args: Optional[Dict[str, Any]] = None,
-            cmd_id: Optional[Any] = None) -> QMPMessage:
+            args: Optional[Dict[str, object]] = None,
+            cmd_id: Optional[object] = None) -> QMPMessage:
         """
         Build a QMP command and send it to the QMP Monitor.
 
@@ -313,7 +318,7 @@ class QEMUMonitorProtocol:
             qmp_cmd['id'] = cmd_id
         return self.cmd_obj(qmp_cmd)
 
-    def command(self, cmd: str, **kwds: Any) -> QMPReturnValue:
+    def command(self, cmd: str, **kwds: object) -> QMPReturnValue:
         """
         Build and send a QMP command to the monitor, report errors if any
         """
