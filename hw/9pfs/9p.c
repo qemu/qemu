@@ -1707,10 +1707,7 @@ static bool name_is_illegal(const char *name)
 
 static bool not_same_qid(const V9fsQID *qid1, const V9fsQID *qid2)
 {
-    return
-        qid1->type != qid2->type ||
-        qid1->version != qid2->version ||
-        qid1->path != qid2->path;
+    return qid1->path != qid2->path;
 }
 
 static void coroutine_fn v9fs_walk(void *opaque)
