@@ -56,8 +56,6 @@ class QemuGuestAgent(qmp.QEMUMonitorProtocol):
 
 
 class QemuGuestAgentClient:
-    error = QemuGuestAgent.error
-
     def __init__(self, address):
         self.qga = QemuGuestAgent(address)
         self.qga.connect(negotiate=False)
@@ -137,7 +135,7 @@ class QemuGuestAgentClient:
         self.qga.settimeout(timeout)
         try:
             self.qga.ping()
-        except self.qga.timeout:
+        except TimeoutError:
             return False
         return True
 
@@ -269,11 +267,11 @@ def main(address, cmd, args):
 
     try:
         client = QemuGuestAgentClient(address)
-    except QemuGuestAgent.error as e:
+    except OSError as err:
         import errno
 
-        print(e)
-        if e.errno == errno.ECONNREFUSED:
+        print(err)
+        if err.errno == errno.ECONNREFUSED:
             print('Hint: qemu is not running?')
         sys.exit(1)
 
