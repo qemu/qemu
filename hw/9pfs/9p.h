@@ -355,7 +355,6 @@ struct V9fsState {
     int32_t root_fid;
     Error *migration_blocker;
     V9fsConf fsconf;
-    V9fsQID root_qid;
     struct stat root_st;
     dev_t dev_id;
     struct qht qpd_table;
