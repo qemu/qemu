@@ -1696,9 +1696,9 @@ static bool name_is_illegal(const char *name)
     return !*name || strchr(name, '/') != NULL;
 }
 
-static bool not_same_qid(const V9fsQID *qid1, const V9fsQID *qid2)
+static bool same_stat_id(const struct stat *a, const struct stat *b)
 {
-    return qid1->path != qid2->path;
+    return a->st_dev == b->st_dev && a->st_ino == b->st_ino;
 }
 
 static void coroutine_fn v9fs_walk(void *opaque)
@@ -1771,7 +1771,7 @@ static void coroutine_fn v9fs_walk(void *opaque)
     v9fs_path_copy(&dpath, &fidp->path);
     v9fs_path_copy(&path, &fidp->path);
     for (name_idx = 0; name_idx < nwnames; name_idx++) {
-        if (not_same_qid(&pdu->s->root_qid, &qid) ||
+        if (!same_stat_id(&pdu->s->root_st, &stbuf) ||
             strcmp("..", wnames[name_idx].data)) {
             err = v9fs_co_name_to_path(pdu, &dpath, wnames[name_idx].data,
                                        &path);
