@@ -36,10 +36,11 @@
 # See also: https://wiki.qemu.org/Features/QAPI/GuestAgent
 #
 
-import os
-import sys
 import base64
+import os
 import random
+import sys
+
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu import qmp
@@ -279,9 +280,9 @@ def main(address, cmd, args):
 
 
 if __name__ == '__main__':
-    import sys
-    import os
     import optparse
+    import os
+    import sys
 
     address = os.environ['QGA_CLIENT_ADDRESS'] if 'QGA_CLIENT_ADDRESS' in os.environ else None
 
