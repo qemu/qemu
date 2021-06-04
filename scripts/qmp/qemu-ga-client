@@ -37,8 +37,8 @@
 # See also: https://wiki.qemu.org/Features/QAPI/GuestAgent
 #
 
+import argparse
 import base64
-import optparse
 import os
 import random
 import sys
@@ -255,7 +255,7 @@ def _cmd_reboot(client, args):
 commands = [m.replace('_cmd_', '') for m in dir() if '_cmd_' in m]
 
 
-def main(address, cmd, args):
+def send_command(address, cmd, args):
     if not os.path.exists(address):
         print('%s not found' % address)
         sys.exit(1)
@@ -283,25 +283,23 @@ def main(address, cmd, args):
     globals()['_cmd_' + cmd](client, args)
 
 
-if __name__ == '__main__':
+def main():
     address = os.environ.get('QGA_CLIENT_ADDRESS')
 
-    usage = ("%prog [--address=<unix_path>|<ipv4_address>]"
-             " <command> [args...]\n")
-    usage += '<command>: ' + ', '.join(commands)
-    parser = optparse.OptionParser(usage=usage)
-    parser.add_option('--address', action='store', type='string',
-                      default=address,
-                      help='Specify a ip:port pair or a unix socket path')
-    options, args = parser.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--address', action='store',
+                        default=address,
+                        help='Specify a ip:port pair or a unix socket path')
+    parser.add_argument('command', choices=commands)
+    parser.add_argument('args', nargs='*')
 
-    address = options.address
-    if address is None:
+    args = parser.parse_args()
+    if args.address is None:
         parser.error('address is not specified')
         sys.exit(1)
 
-    if len(args) == 0:
-        parser.error('Less argument')
-        sys.exit(1)
+    send_command(args.address, args.command, args.args)
 
-    main(address, args[0], args[1:])
+
+if __name__ == '__main__':
+    main()
