@@ -1400,6 +1400,7 @@ static void coroutine_fn v9fs_attach(void *opaque)
     size_t offset = 7;
     V9fsQID qid;
     ssize_t err;
+    struct stat stbuf;
 
     v9fs_string_init(&uname);
     v9fs_string_init(&aname);
@@ -1422,7 +1423,13 @@ static void coroutine_fn v9fs_attach(void *opaque)
         clunk_fid(s, fid);
         goto out;
     }
-    err = fid_to_qid(pdu, fidp, &qid);
+    err = v9fs_co_lstat(pdu, &fidp->path, &stbuf);
+    if (err < 0) {
+        err = -EINVAL;
+        clunk_fid(s, fid);
+        goto out;
+    }
+    err = stat_to_qid(pdu, &stbuf, &qid);
     if (err < 0) {
         err = -EINVAL;
         clunk_fid(s, fid);
@@ -1455,6 +1462,7 @@ static void coroutine_fn v9fs_attach(void *opaque)
     err += offset;
 
     memcpy(&s->root_qid, &qid, sizeof(qid));
+    memcpy(&s->root_st, &stbuf, sizeof(stbuf));
     trace_v9fs_attach_return(pdu->tag, pdu->id,
                              qid.type, qid.version, qid.path);
 out:
