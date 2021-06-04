@@ -643,7 +643,7 @@ WRAP_CMP80(qemu_extF80M_eq, floatx80_eq_quiet)
 WRAP_CMP80(qemu_extF80M_le, floatx80_le)
 WRAP_CMP80(qemu_extF80M_lt, floatx80_lt)
 WRAP_CMP80(qemu_extF80M_le_quiet, floatx80_le_quiet)
-WRAP_CMP80(qemu_extF80M_lt_quiet, floatx80_le_quiet)
+WRAP_CMP80(qemu_extF80M_lt_quiet, floatx80_lt_quiet)
 #undef WRAP_CMP80
 
 #define WRAP_CMP128(name, func)                                         \

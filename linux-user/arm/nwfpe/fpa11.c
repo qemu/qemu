@@ -97,37 +97,38 @@ void SetRoundingMode(const unsigned int opcode)
 
 void SetRoundingPrecision(const unsigned int opcode)
 {
-    int rounding_precision;
-   FPA11 *fpa11 = GET_FPA11();
+    FloatX80RoundPrec rounding_precision;
+    FPA11 *fpa11 = GET_FPA11();
 #ifdef MAINTAIN_FPCR
-   fpa11->fpcr &= ~MASK_ROUNDING_PRECISION;
+    fpa11->fpcr &= ~MASK_ROUNDING_PRECISION;
 #endif
-   switch (opcode & MASK_ROUNDING_PRECISION)
-   {
-      case ROUND_SINGLE:
-         rounding_precision = 32;
+    switch (opcode & MASK_ROUNDING_PRECISION) {
+    case ROUND_SINGLE:
+        rounding_precision = floatx80_precision_s;
 #ifdef MAINTAIN_FPCR
-         fpa11->fpcr |= ROUND_SINGLE;
+        fpa11->fpcr |= ROUND_SINGLE;
 #endif
-      break;
+        break;
 
-      case ROUND_DOUBLE:
-         rounding_precision = 64;
+    case ROUND_DOUBLE:
+        rounding_precision = floatx80_precision_d;
 #ifdef MAINTAIN_FPCR
-         fpa11->fpcr |= ROUND_DOUBLE;
+        fpa11->fpcr |= ROUND_DOUBLE;
 #endif
-      break;
+        break;
 
-      case ROUND_EXTENDED:
-         rounding_precision = 80;
+    case ROUND_EXTENDED:
+        rounding_precision = floatx80_precision_x;
 #ifdef MAINTAIN_FPCR
-         fpa11->fpcr |= ROUND_EXTENDED;
+        fpa11->fpcr |= ROUND_EXTENDED;
 #endif
-      break;
+        break;
 
-      default: rounding_precision = 80;
-  }
-   set_floatx80_rounding_precision(rounding_precision, &fpa11->fp_status);
+    default:
+        rounding_precision = floatx80_precision_x;
+        break;
+    }
+    set_floatx80_rounding_precision(rounding_precision, &fpa11->fp_status);
 }
 
 /* Emulate the instruction in the opcode. */

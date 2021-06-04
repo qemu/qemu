@@ -745,4 +745,38 @@ static inline bool ne128(uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1)
     return a0 != b0 || a1 != b1;
 }
 
+/*
+ * Similarly, comparisons of 192-bit values.
+ */
+
+static inline bool eq192(uint64_t a0, uint64_t a1, uint64_t a2,
+                         uint64_t b0, uint64_t b1, uint64_t b2)
+{
+    return ((a0 ^ b0) | (a1 ^ b1) | (a2 ^ b2)) == 0;
+}
+
+static inline bool le192(uint64_t a0, uint64_t a1, uint64_t a2,
+                         uint64_t b0, uint64_t b1, uint64_t b2)
+{
+    if (a0 != b0) {
+        return a0 < b0;
+    }
+    if (a1 != b1) {
+        return a1 < b1;
+    }
+    return a2 <= b2;
+}
+
+static inline bool lt192(uint64_t a0, uint64_t a1, uint64_t a2,
+                         uint64_t b0, uint64_t b1, uint64_t b2)
+{
+    if (a0 != b0) {
+        return a0 < b0;
+    }
+    if (a1 != b1) {
+        return a1 < b1;
+    }
+    return a2 < b2;
+}
+
 #endif

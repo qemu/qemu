@@ -556,7 +556,9 @@ softfloat_conv_tests = {
                       'extF80_to_f64 extF80_to_f128 ' +
                       'f128_to_f16',
     'int-to-float': 'i32_to_f16 i64_to_f16 i32_to_f32 i64_to_f32 ' +
-                    'i32_to_f64 i64_to_f64 i32_to_f128 i64_to_f128',
+                    'i32_to_f64 i64_to_f64 ' +
+                    'i32_to_extF80 i64_to_extF80 ' +
+                    'i32_to_f128 i64_to_f128',
     'uint-to-float': 'ui32_to_f16 ui64_to_f16 ui32_to_f32 ui64_to_f32 ' +
                      'ui32_to_f64 ui64_to_f64 ui64_to_f128 ' +
                      'ui32_to_extF80 ui64_to_extF80',
@@ -581,7 +583,7 @@ softfloat_conv_tests = {
                      'extF80_to_ui64 extF80_to_ui64_r_minMag ' +
                      'f128_to_ui64 f128_to_ui64_r_minMag',
     'round-to-integer': 'f16_roundToInt f32_roundToInt ' +
-                        'f64_roundToInt f128_roundToInt'
+                        'f64_roundToInt extF80_roundToInt f128_roundToInt'
 }
 softfloat_tests = {
     'eq_signaling' : 'compare',
@@ -602,24 +604,20 @@ fptest_args = ['-s', '-l', '1']
 fptest_rounding_args = ['-r', 'all']
 
 # Conversion Routines:
-# FIXME: i32_to_extF80 (broken), i64_to_extF80 (broken)
-#        extF80_roundToInt (broken)
 foreach k, v : softfloat_conv_tests
   test('fp-test-' + k, fptest,
        args: fptest_args + fptest_rounding_args + v.split(),
        suite: ['softfloat', 'softfloat-conv'])
 endforeach
 
-# FIXME: extF80_{lt_quiet, rem} (broken),
-#        extF80_{mulAdd} (missing)
 foreach k, v : softfloat_tests
-  extF80_broken = ['lt_quiet', 'rem'].contains(k)
   test('fp-test-' + k, fptest,
        args: fptest_args + fptest_rounding_args +
-             ['f16_' + k, 'f32_' + k, 'f64_' + k, 'f128_' + k] +
-             (extF80_broken ? [] : ['extF80_' + k]),
+             ['f16_' + k, 'f32_' + k, 'f64_' + k, 'f128_' + k, 'extF80_' + k],
        suite: ['softfloat', 'softfloat-' + v])
 endforeach
+
+# FIXME: extF80_{mulAdd} (missing)
 test('fp-test-mulAdd', fptest,
      # no fptest_rounding_args
      args: fptest_args +
@@ -634,3 +632,14 @@ fpbench = executable(
   include_directories: [sfinc, include_directories(tfdir)],
   c_args: fpcflags,
 )
+
+fptestlog2 = executable(
+  'fp-test-log2',
+  ['fp-test-log2.c', '../../fpu/softfloat.c'],
+  link_with: [libsoftfloat],
+  dependencies: [qemuutil],
+  include_directories: [sfinc],
+  c_args: fpcflags,
+)
+test('fp-test-log2', fptestlog2,
+     suite: ['softfloat', 'softfloat-ops'])

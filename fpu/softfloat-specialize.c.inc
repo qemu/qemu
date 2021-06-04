@@ -257,14 +257,6 @@ const floatx80 floatx80_infinity
     = make_floatx80_init(floatx80_infinity_high, floatx80_infinity_low);
 
 /*----------------------------------------------------------------------------
-| Internal canonical NaN format.
-*----------------------------------------------------------------------------*/
-typedef struct {
-    bool sign;
-    uint64_t high, low;
-} commonNaNT;
-
-/*----------------------------------------------------------------------------
 | Returns 1 if the half-precision floating-point value `a' is a quiet
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
@@ -376,46 +368,6 @@ bool float32_is_signaling_nan(float32 a_, float_status *status)
         } else {
             return (((a >> 22) & 0x1FF) == 0x1FE) && (a & 0x003FFFFF);
         }
-    }
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the single-precision floating-point NaN
-| `a' to the canonical NaN format.  If `a' is a signaling NaN, the invalid
-| exception is raised.
-*----------------------------------------------------------------------------*/
-
-static commonNaNT float32ToCommonNaN(float32 a, float_status *status)
-{
-    commonNaNT z;
-
-    if (float32_is_signaling_nan(a, status)) {
-        float_raise(float_flag_invalid, status);
-    }
-    z.sign = float32_val(a) >> 31;
-    z.low = 0;
-    z.high = ((uint64_t)float32_val(a)) << 41;
-    return z;
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the canonical NaN `a' to the single-
-| precision floating-point format.
-*----------------------------------------------------------------------------*/
-
-static float32 commonNaNToFloat32(commonNaNT a, float_status *status)
-{
-    uint32_t mantissa = a.high >> 41;
-
-    if (status->default_nan_mode) {
-        return float32_default_nan(status);
-    }
-
-    if (mantissa) {
-        return make_float32(
-            (((uint32_t)a.sign) << 31) | 0x7F800000 | (a.high >> 41));
-    } else {
-        return float32_default_nan(status);
     }
 }
 
@@ -690,62 +642,6 @@ static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
 }
 
 /*----------------------------------------------------------------------------
-| Takes two single-precision floating-point values `a' and `b', one of which
-| is a NaN, and returns the appropriate NaN result.  If either `a' or `b' is a
-| signaling NaN, the invalid exception is raised.
-*----------------------------------------------------------------------------*/
-
-static float32 propagateFloat32NaN(float32 a, float32 b, float_status *status)
-{
-    bool aIsLargerSignificand;
-    uint32_t av, bv;
-    FloatClass a_cls, b_cls;
-
-    /* This is not complete, but is good enough for pickNaN.  */
-    a_cls = (!float32_is_any_nan(a)
-             ? float_class_normal
-             : float32_is_signaling_nan(a, status)
-             ? float_class_snan
-             : float_class_qnan);
-    b_cls = (!float32_is_any_nan(b)
-             ? float_class_normal
-             : float32_is_signaling_nan(b, status)
-             ? float_class_snan
-             : float_class_qnan);
-
-    av = float32_val(a);
-    bv = float32_val(b);
-
-    if (is_snan(a_cls) || is_snan(b_cls)) {
-        float_raise(float_flag_invalid, status);
-    }
-
-    if (status->default_nan_mode) {
-        return float32_default_nan(status);
-    }
-
-    if ((uint32_t)(av << 1) < (uint32_t)(bv << 1)) {
-        aIsLargerSignificand = 0;
-    } else if ((uint32_t)(bv << 1) < (uint32_t)(av << 1)) {
-        aIsLargerSignificand = 1;
-    } else {
-        aIsLargerSignificand = (av < bv) ? 1 : 0;
-    }
-
-    if (pickNaN(a_cls, b_cls, aIsLargerSignificand, status)) {
-        if (is_snan(b_cls)) {
-            return float32_silence_nan(b, status);
-        }
-        return b;
-    } else {
-        if (is_snan(a_cls)) {
-            return float32_silence_nan(a, status);
-        }
-        return a;
-    }
-}
-
-/*----------------------------------------------------------------------------
 | Returns 1 if the double-precision floating-point value `a' is a quiet
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
@@ -782,104 +678,6 @@ bool float64_is_signaling_nan(float64 a_, float_status *status)
             return (((a >> 51) & 0xFFF) == 0xFFE)
                 && (a & UINT64_C(0x0007FFFFFFFFFFFF));
         }
-    }
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the double-precision floating-point NaN
-| `a' to the canonical NaN format.  If `a' is a signaling NaN, the invalid
-| exception is raised.
-*----------------------------------------------------------------------------*/
-
-static commonNaNT float64ToCommonNaN(float64 a, float_status *status)
-{
-    commonNaNT z;
-
-    if (float64_is_signaling_nan(a, status)) {
-        float_raise(float_flag_invalid, status);
-    }
-    z.sign = float64_val(a) >> 63;
-    z.low = 0;
-    z.high = float64_val(a) << 12;
-    return z;
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the canonical NaN `a' to the double-
-| precision floating-point format.
-*----------------------------------------------------------------------------*/
-
-static float64 commonNaNToFloat64(commonNaNT a, float_status *status)
-{
-    uint64_t mantissa = a.high >> 12;
-
-    if (status->default_nan_mode) {
-        return float64_default_nan(status);
-    }
-
-    if (mantissa) {
-        return make_float64(
-              (((uint64_t) a.sign) << 63)
-            | UINT64_C(0x7FF0000000000000)
-            | (a.high >> 12));
-    } else {
-        return float64_default_nan(status);
-    }
-}
-
-/*----------------------------------------------------------------------------
-| Takes two double-precision floating-point values `a' and `b', one of which
-| is a NaN, and returns the appropriate NaN result.  If either `a' or `b' is a
-| signaling NaN, the invalid exception is raised.
-*----------------------------------------------------------------------------*/
-
-static float64 propagateFloat64NaN(float64 a, float64 b, float_status *status)
-{
-    bool aIsLargerSignificand;
-    uint64_t av, bv;
-    FloatClass a_cls, b_cls;
-
-    /* This is not complete, but is good enough for pickNaN.  */
-    a_cls = (!float64_is_any_nan(a)
-             ? float_class_normal
-             : float64_is_signaling_nan(a, status)
-             ? float_class_snan
-             : float_class_qnan);
-    b_cls = (!float64_is_any_nan(b)
-             ? float_class_normal
-             : float64_is_signaling_nan(b, status)
-             ? float_class_snan
-             : float_class_qnan);
-
-    av = float64_val(a);
-    bv = float64_val(b);
-
-    if (is_snan(a_cls) || is_snan(b_cls)) {
-        float_raise(float_flag_invalid, status);
-    }
-
-    if (status->default_nan_mode) {
-        return float64_default_nan(status);
-    }
-
-    if ((uint64_t)(av << 1) < (uint64_t)(bv << 1)) {
-        aIsLargerSignificand = 0;
-    } else if ((uint64_t)(bv << 1) < (uint64_t)(av << 1)) {
-        aIsLargerSignificand = 1;
-    } else {
-        aIsLargerSignificand = (av < bv) ? 1 : 0;
-    }
-
-    if (pickNaN(a_cls, b_cls, aIsLargerSignificand, status)) {
-        if (is_snan(b_cls)) {
-            return float64_silence_nan(b, status);
-        }
-        return b;
-    } else {
-        if (is_snan(a_cls)) {
-            return float64_silence_nan(a, status);
-        }
-        return a;
     }
 }
 
@@ -944,55 +742,6 @@ floatx80 floatx80_silence_nan(floatx80 a, float_status *status)
     assert(!snan_bit_is_one(status));
     a.low |= UINT64_C(0xC000000000000000);
     return a;
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the extended double-precision floating-
-| point NaN `a' to the canonical NaN format.  If `a' is a signaling NaN, the
-| invalid exception is raised.
-*----------------------------------------------------------------------------*/
-
-static commonNaNT floatx80ToCommonNaN(floatx80 a, float_status *status)
-{
-    floatx80 dflt;
-    commonNaNT z;
-
-    if (floatx80_is_signaling_nan(a, status)) {
-        float_raise(float_flag_invalid, status);
-    }
-    if (a.low >> 63) {
-        z.sign = a.high >> 15;
-        z.low = 0;
-        z.high = a.low << 1;
-    } else {
-        dflt = floatx80_default_nan(status);
-        z.sign = dflt.high >> 15;
-        z.low = 0;
-        z.high = dflt.low << 1;
-    }
-    return z;
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the canonical NaN `a' to the extended
-| double-precision floating-point format.
-*----------------------------------------------------------------------------*/
-
-static floatx80 commonNaNToFloatx80(commonNaNT a, float_status *status)
-{
-    floatx80 z;
-
-    if (status->default_nan_mode) {
-        return floatx80_default_nan(status);
-    }
-
-    if (a.high >> 1) {
-        z.low = UINT64_C(0x8000000000000000) | a.high >> 1;
-        z.high = (((uint16_t)a.sign) << 15) | 0x7FFF;
-    } else {
-        z = floatx80_default_nan(status);
-    }
-    return z;
 }
 
 /*----------------------------------------------------------------------------
@@ -1084,94 +833,5 @@ bool float128_is_signaling_nan(float128 a, float_status *status)
             return (((a.high >> 47) & 0xFFFF) == 0xFFFE)
                 && (a.low || (a.high & UINT64_C(0x00007FFFFFFFFFFF)));
         }
-    }
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the quadruple-precision floating-point NaN
-| `a' to the canonical NaN format.  If `a' is a signaling NaN, the invalid
-| exception is raised.
-*----------------------------------------------------------------------------*/
-
-static commonNaNT float128ToCommonNaN(float128 a, float_status *status)
-{
-    commonNaNT z;
-
-    if (float128_is_signaling_nan(a, status)) {
-        float_raise(float_flag_invalid, status);
-    }
-    z.sign = a.high >> 63;
-    shortShift128Left(a.high, a.low, 16, &z.high, &z.low);
-    return z;
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the canonical NaN `a' to the quadruple-
-| precision floating-point format.
-*----------------------------------------------------------------------------*/
-
-static float128 commonNaNToFloat128(commonNaNT a, float_status *status)
-{
-    float128 z;
-
-    if (status->default_nan_mode) {
-        return float128_default_nan(status);
-    }
-
-    shift128Right(a.high, a.low, 16, &z.high, &z.low);
-    z.high |= (((uint64_t)a.sign) << 63) | UINT64_C(0x7FFF000000000000);
-    return z;
-}
-
-/*----------------------------------------------------------------------------
-| Takes two quadruple-precision floating-point values `a' and `b', one of
-| which is a NaN, and returns the appropriate NaN result.  If either `a' or
-| `b' is a signaling NaN, the invalid exception is raised.
-*----------------------------------------------------------------------------*/
-
-static float128 propagateFloat128NaN(float128 a, float128 b,
-                                     float_status *status)
-{
-    bool aIsLargerSignificand;
-    FloatClass a_cls, b_cls;
-
-    /* This is not complete, but is good enough for pickNaN.  */
-    a_cls = (!float128_is_any_nan(a)
-             ? float_class_normal
-             : float128_is_signaling_nan(a, status)
-             ? float_class_snan
-             : float_class_qnan);
-    b_cls = (!float128_is_any_nan(b)
-             ? float_class_normal
-             : float128_is_signaling_nan(b, status)
-             ? float_class_snan
-             : float_class_qnan);
-
-    if (is_snan(a_cls) || is_snan(b_cls)) {
-        float_raise(float_flag_invalid, status);
-    }
-
-    if (status->default_nan_mode) {
-        return float128_default_nan(status);
-    }
-
-    if (lt128(a.high << 1, a.low, b.high << 1, b.low)) {
-        aIsLargerSignificand = 0;
-    } else if (lt128(b.high << 1, b.low, a.high << 1, a.low)) {
-        aIsLargerSignificand = 1;
-    } else {
-        aIsLargerSignificand = (a.high < b.high) ? 1 : 0;
-    }
-
-    if (pickNaN(a_cls, b_cls, aIsLargerSignificand, status)) {
-        if (is_snan(b_cls)) {
-            return float128_silence_nan(b, status);
-        }
-        return b;
-    } else {
-        if (is_snan(a_cls)) {
-            return float128_silence_nan(a, status);
-        }
-        return a;
     }
 }

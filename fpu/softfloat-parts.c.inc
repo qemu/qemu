@@ -140,20 +140,156 @@ static void partsN(canonicalize)(FloatPartsN *p, float_status *status,
  * fraction; these bits will be removed. The exponent will be biased
  * by EXP_BIAS and must be bounded by [EXP_MAX-1, 0].
  */
-static void partsN(uncanon)(FloatPartsN *p, float_status *s,
-                            const FloatFmt *fmt)
+static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
+                                   const FloatFmt *fmt)
 {
     const int exp_max = fmt->exp_max;
     const int frac_shift = fmt->frac_shift;
-    const uint64_t frac_lsb = fmt->frac_lsb;
-    const uint64_t frac_lsbm1 = fmt->frac_lsbm1;
     const uint64_t round_mask = fmt->round_mask;
-    const uint64_t roundeven_mask = fmt->roundeven_mask;
+    const uint64_t frac_lsb = round_mask + 1;
+    const uint64_t frac_lsbm1 = round_mask ^ (round_mask >> 1);
+    const uint64_t roundeven_mask = round_mask | frac_lsb;
     uint64_t inc;
-    bool overflow_norm;
+    bool overflow_norm = false;
     int exp, flags = 0;
 
-    if (unlikely(p->cls != float_class_normal)) {
+    switch (s->float_rounding_mode) {
+    case float_round_nearest_even:
+        if (N > 64 && frac_lsb == 0) {
+            inc = ((p->frac_hi & 1) || (p->frac_lo & round_mask) != frac_lsbm1
+                   ? frac_lsbm1 : 0);
+        } else {
+            inc = ((p->frac_lo & roundeven_mask) != frac_lsbm1
+                   ? frac_lsbm1 : 0);
+        }
+        break;
+    case float_round_ties_away:
+        inc = frac_lsbm1;
+        break;
+    case float_round_to_zero:
+        overflow_norm = true;
+        inc = 0;
+        break;
+    case float_round_up:
+        inc = p->sign ? 0 : round_mask;
+        overflow_norm = p->sign;
+        break;
+    case float_round_down:
+        inc = p->sign ? round_mask : 0;
+        overflow_norm = !p->sign;
+        break;
+    case float_round_to_odd:
+        overflow_norm = true;
+        /* fall through */
+    case float_round_to_odd_inf:
+        if (N > 64 && frac_lsb == 0) {
+            inc = p->frac_hi & 1 ? 0 : round_mask;
+        } else {
+            inc = p->frac_lo & frac_lsb ? 0 : round_mask;
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    exp = p->exp + fmt->exp_bias;
+    if (likely(exp > 0)) {
+        if (p->frac_lo & round_mask) {
+            flags |= float_flag_inexact;
+            if (frac_addi(p, p, inc)) {
+                frac_shr(p, 1);
+                p->frac_hi |= DECOMPOSED_IMPLICIT_BIT;
+                exp++;
+            }
+            p->frac_lo &= ~round_mask;
+        }
+
+        if (fmt->arm_althp) {
+            /* ARM Alt HP eschews Inf and NaN for a wider exponent.  */
+            if (unlikely(exp > exp_max)) {
+                /* Overflow.  Return the maximum normal.  */
+                flags = float_flag_invalid;
+                exp = exp_max;
+                frac_allones(p);
+                p->frac_lo &= ~round_mask;
+            }
+        } else if (unlikely(exp >= exp_max)) {
+            flags |= float_flag_overflow | float_flag_inexact;
+            if (overflow_norm) {
+                exp = exp_max - 1;
+                frac_allones(p);
+                p->frac_lo &= ~round_mask;
+            } else {
+                p->cls = float_class_inf;
+                exp = exp_max;
+                frac_clear(p);
+            }
+        }
+        frac_shr(p, frac_shift);
+    } else if (s->flush_to_zero) {
+        flags |= float_flag_output_denormal;
+        p->cls = float_class_zero;
+        exp = 0;
+        frac_clear(p);
+    } else {
+        bool is_tiny = s->tininess_before_rounding || exp < 0;
+
+        if (!is_tiny) {
+            FloatPartsN discard;
+            is_tiny = !frac_addi(&discard, p, inc);
+        }
+
+        frac_shrjam(p, 1 - exp);
+
+        if (p->frac_lo & round_mask) {
+            /* Need to recompute round-to-even/round-to-odd. */
+            switch (s->float_rounding_mode) {
+            case float_round_nearest_even:
+                if (N > 64 && frac_lsb == 0) {
+                    inc = ((p->frac_hi & 1) ||
+                           (p->frac_lo & round_mask) != frac_lsbm1
+                           ? frac_lsbm1 : 0);
+                } else {
+                    inc = ((p->frac_lo & roundeven_mask) != frac_lsbm1
+                           ? frac_lsbm1 : 0);
+                }
+                break;
+            case float_round_to_odd:
+            case float_round_to_odd_inf:
+                if (N > 64 && frac_lsb == 0) {
+                    inc = p->frac_hi & 1 ? 0 : round_mask;
+                } else {
+                    inc = p->frac_lo & frac_lsb ? 0 : round_mask;
+                }
+                break;
+            default:
+                break;
+            }
+            flags |= float_flag_inexact;
+            frac_addi(p, p, inc);
+            p->frac_lo &= ~round_mask;
+        }
+
+        exp = (p->frac_hi & DECOMPOSED_IMPLICIT_BIT) != 0;
+        frac_shr(p, frac_shift);
+
+        if (is_tiny && (flags & float_flag_inexact)) {
+            flags |= float_flag_underflow;
+        }
+        if (exp == 0 && frac_eqz(p)) {
+            p->cls = float_class_zero;
+        }
+    }
+    p->exp = exp;
+    float_raise(flags, s);
+}
+
+static void partsN(uncanon)(FloatPartsN *p, float_status *s,
+                            const FloatFmt *fmt)
+{
+    if (likely(p->cls == float_class_normal)) {
+        parts_uncanon_normal(p, s, fmt);
+    } else {
         switch (p->cls) {
         case float_class_zero:
             p->exp = 0;
@@ -175,113 +311,6 @@ static void partsN(uncanon)(FloatPartsN *p, float_status *s,
         }
         g_assert_not_reached();
     }
-
-    overflow_norm = false;
-    switch (s->float_rounding_mode) {
-    case float_round_nearest_even:
-        inc = ((p->frac_lo & roundeven_mask) != frac_lsbm1 ? frac_lsbm1 : 0);
-        break;
-    case float_round_ties_away:
-        inc = frac_lsbm1;
-        break;
-    case float_round_to_zero:
-        overflow_norm = true;
-        inc = 0;
-        break;
-    case float_round_up:
-        inc = p->sign ? 0 : round_mask;
-        overflow_norm = p->sign;
-        break;
-    case float_round_down:
-        inc = p->sign ? round_mask : 0;
-        overflow_norm = !p->sign;
-        break;
-    case float_round_to_odd:
-        overflow_norm = true;
-        /* fall through */
-    case float_round_to_odd_inf:
-        inc = p->frac_lo & frac_lsb ? 0 : round_mask;
-        break;
-    default:
-        g_assert_not_reached();
-    }
-
-    exp = p->exp + fmt->exp_bias;
-    if (likely(exp > 0)) {
-        if (p->frac_lo & round_mask) {
-            flags |= float_flag_inexact;
-            if (frac_addi(p, p, inc)) {
-                frac_shr(p, 1);
-                p->frac_hi |= DECOMPOSED_IMPLICIT_BIT;
-                exp++;
-            }
-        }
-        frac_shr(p, frac_shift);
-
-        if (fmt->arm_althp) {
-            /* ARM Alt HP eschews Inf and NaN for a wider exponent.  */
-            if (unlikely(exp > exp_max)) {
-                /* Overflow.  Return the maximum normal.  */
-                flags = float_flag_invalid;
-                exp = exp_max;
-                frac_allones(p);
-            }
-        } else if (unlikely(exp >= exp_max)) {
-            flags |= float_flag_overflow | float_flag_inexact;
-            if (overflow_norm) {
-                exp = exp_max - 1;
-                frac_allones(p);
-            } else {
-                p->cls = float_class_inf;
-                exp = exp_max;
-                frac_clear(p);
-            }
-        }
-    } else if (s->flush_to_zero) {
-        flags |= float_flag_output_denormal;
-        p->cls = float_class_zero;
-        exp = 0;
-        frac_clear(p);
-    } else {
-        bool is_tiny = s->tininess_before_rounding || exp < 0;
-
-        if (!is_tiny) {
-            FloatPartsN discard;
-            is_tiny = !frac_addi(&discard, p, inc);
-        }
-
-        frac_shrjam(p, 1 - exp);
-
-        if (p->frac_lo & round_mask) {
-            /* Need to recompute round-to-even/round-to-odd. */
-            switch (s->float_rounding_mode) {
-            case float_round_nearest_even:
-                inc = ((p->frac_lo & roundeven_mask) != frac_lsbm1
-                       ? frac_lsbm1 : 0);
-                break;
-            case float_round_to_odd:
-            case float_round_to_odd_inf:
-                inc = p->frac_lo & frac_lsb ? 0 : round_mask;
-                break;
-            default:
-                break;
-            }
-            flags |= float_flag_inexact;
-            frac_addi(p, p, inc);
-        }
-
-        exp = (p->frac_hi & DECOMPOSED_IMPLICIT_BIT) != 0;
-        frac_shr(p, frac_shift);
-
-        if (is_tiny && (flags & float_flag_inexact)) {
-            flags |= float_flag_underflow;
-        }
-        if (exp == 0 && frac_eqz(p)) {
-            p->cls = float_class_zero;
-        }
-    }
-    p->exp = exp;
-    float_raise(flags, s);
 }
 
 /*
@@ -598,6 +627,246 @@ static FloatPartsN *partsN(div)(FloatPartsN *a, FloatPartsN *b,
 }
 
 /*
+ * Floating point remainder, per IEC/IEEE, or modulus.
+ */
+static FloatPartsN *partsN(modrem)(FloatPartsN *a, FloatPartsN *b,
+                                   uint64_t *mod_quot, float_status *s)
+{
+    int ab_mask = float_cmask(a->cls) | float_cmask(b->cls);
+
+    if (likely(ab_mask == float_cmask_normal)) {
+        frac_modrem(a, b, mod_quot);
+        return a;
+    }
+
+    if (mod_quot) {
+        *mod_quot = 0;
+    }
+
+    /* All the NaN cases */
+    if (unlikely(ab_mask & float_cmask_anynan)) {
+        return parts_pick_nan(a, b, s);
+    }
+
+    /* Inf % N; N % 0 */
+    if (a->cls == float_class_inf || b->cls == float_class_zero) {
+        float_raise(float_flag_invalid, s);
+        parts_default_nan(a, s);
+        return a;
+    }
+
+    /* N % Inf; 0 % N */
+    g_assert(b->cls == float_class_inf || a->cls == float_class_zero);
+    return a;
+}
+
+/*
+ * Square Root
+ *
+ * The base algorithm is lifted from
+ * https://git.musl-libc.org/cgit/musl/tree/src/math/sqrtf.c
+ * https://git.musl-libc.org/cgit/musl/tree/src/math/sqrt.c
+ * https://git.musl-libc.org/cgit/musl/tree/src/math/sqrtl.c
+ * and is thus MIT licenced.
+ */
+static void partsN(sqrt)(FloatPartsN *a, float_status *status,
+                         const FloatFmt *fmt)
+{
+    const uint32_t three32 = 3u << 30;
+    const uint64_t three64 = 3ull << 62;
+    uint32_t d32, m32, r32, s32, u32;            /* 32-bit computation */
+    uint64_t d64, m64, r64, s64, u64;            /* 64-bit computation */
+    uint64_t dh, dl, rh, rl, sh, sl, uh, ul;     /* 128-bit computation */
+    uint64_t d0h, d0l, d1h, d1l, d2h, d2l;
+    uint64_t discard;
+    bool exp_odd;
+    size_t index;
+
+    if (unlikely(a->cls != float_class_normal)) {
+        switch (a->cls) {
+        case float_class_snan:
+        case float_class_qnan:
+            parts_return_nan(a, status);
+            return;
+        case float_class_zero:
+            return;
+        case float_class_inf:
+            if (unlikely(a->sign)) {
+                goto d_nan;
+            }
+            return;
+        default:
+            g_assert_not_reached();
+        }
+    }
+
+    if (unlikely(a->sign)) {
+        goto d_nan;
+    }
+
+    /*
+     * Argument reduction.
+     * x = 4^e frac; with integer e, and frac in [1, 4)
+     * m = frac fixed point at bit 62, since we're in base 4.
+     * If base-2 exponent is odd, exchange that for multiply by 2,
+     * which results in no shift.
+     */
+    exp_odd = a->exp & 1;
+    index = extract64(a->frac_hi, 57, 6) | (!exp_odd << 6);
+    if (!exp_odd) {
+        frac_shr(a, 1);
+    }
+
+    /*
+     * Approximate r ~= 1/sqrt(m) and s ~= sqrt(m) when m in [1, 4).
+     *
+     * Initial estimate:
+     * 7-bit lookup table (1-bit exponent and 6-bit significand).
+     *
+     * The relative error (e = r0*sqrt(m)-1) of a linear estimate
+     * (r0 = a*m + b) is |e| < 0.085955 ~ 0x1.6p-4 at best;
+     * a table lookup is faster and needs one less iteration.
+     * The 7-bit table gives |e| < 0x1.fdp-9.
+     *
+     * A Newton-Raphson iteration for r is
+     *   s = m*r
+     *   d = s*r
+     *   u = 3 - d
+     *   r = r*u/2
+     *
+     * Fixed point representations:
+     *   m, s, d, u, three are all 2.30; r is 0.32
+     */
+    m64 = a->frac_hi;
+    m32 = m64 >> 32;
+
+    r32 = rsqrt_tab[index] << 16;
+    /* |r*sqrt(m) - 1| < 0x1.FDp-9 */
+
+    s32 = ((uint64_t)m32 * r32) >> 32;
+    d32 = ((uint64_t)s32 * r32) >> 32;
+    u32 = three32 - d32;
+
+    if (N == 64) {
+        /* float64 or smaller */
+
+        r32 = ((uint64_t)r32 * u32) >> 31;
+        /* |r*sqrt(m) - 1| < 0x1.7Bp-16 */
+
+        s32 = ((uint64_t)m32 * r32) >> 32;
+        d32 = ((uint64_t)s32 * r32) >> 32;
+        u32 = three32 - d32;
+
+        if (fmt->frac_size <= 23) {
+            /* float32 or smaller */
+
+            s32 = ((uint64_t)s32 * u32) >> 32;  /* 3.29 */
+            s32 = (s32 - 1) >> 6;               /* 9.23 */
+            /* s < sqrt(m) < s + 0x1.08p-23 */
+
+            /* compute nearest rounded result to 2.23 bits */
+            uint32_t d0 = (m32 << 16) - s32 * s32;
+            uint32_t d1 = s32 - d0;
+            uint32_t d2 = d1 + s32 + 1;
+            s32 += d1 >> 31;
+            a->frac_hi = (uint64_t)s32 << (64 - 25);
+
+            /* increment or decrement for inexact */
+            if (d2 != 0) {
+                a->frac_hi += ((int32_t)(d1 ^ d2) < 0 ? -1 : 1);
+            }
+            goto done;
+        }
+
+        /* float64 */
+
+        r64 = (uint64_t)r32 * u32 * 2;
+        /* |r*sqrt(m) - 1| < 0x1.37-p29; convert to 64-bit arithmetic */
+        mul64To128(m64, r64, &s64, &discard);
+        mul64To128(s64, r64, &d64, &discard);
+        u64 = three64 - d64;
+
+        mul64To128(s64, u64, &s64, &discard);  /* 3.61 */
+        s64 = (s64 - 2) >> 9;                  /* 12.52 */
+
+        /* Compute nearest rounded result */
+        uint64_t d0 = (m64 << 42) - s64 * s64;
+        uint64_t d1 = s64 - d0;
+        uint64_t d2 = d1 + s64 + 1;
+        s64 += d1 >> 63;
+        a->frac_hi = s64 << (64 - 54);
+
+        /* increment or decrement for inexact */
+        if (d2 != 0) {
+            a->frac_hi += ((int64_t)(d1 ^ d2) < 0 ? -1 : 1);
+        }
+        goto done;
+    }
+
+    r64 = (uint64_t)r32 * u32 * 2;
+    /* |r*sqrt(m) - 1| < 0x1.7Bp-16; convert to 64-bit arithmetic */
+
+    mul64To128(m64, r64, &s64, &discard);
+    mul64To128(s64, r64, &d64, &discard);
+    u64 = three64 - d64;
+    mul64To128(u64, r64, &r64, &discard);
+    r64 <<= 1;
+    /* |r*sqrt(m) - 1| < 0x1.a5p-31 */
+
+    mul64To128(m64, r64, &s64, &discard);
+    mul64To128(s64, r64, &d64, &discard);
+    u64 = three64 - d64;
+    mul64To128(u64, r64, &rh, &rl);
+    add128(rh, rl, rh, rl, &rh, &rl);
+    /* |r*sqrt(m) - 1| < 0x1.c001p-59; change to 128-bit arithmetic */
+
+    mul128To256(a->frac_hi, a->frac_lo, rh, rl, &sh, &sl, &discard, &discard);
+    mul128To256(sh, sl, rh, rl, &dh, &dl, &discard, &discard);
+    sub128(three64, 0, dh, dl, &uh, &ul);
+    mul128To256(uh, ul, sh, sl, &sh, &sl, &discard, &discard);  /* 3.125 */
+    /* -0x1p-116 < s - sqrt(m) < 0x3.8001p-125 */
+
+    sub128(sh, sl, 0, 4, &sh, &sl);
+    shift128Right(sh, sl, 13, &sh, &sl);  /* 16.112 */
+    /* s < sqrt(m) < s + 1ulp */
+
+    /* Compute nearest rounded result */
+    mul64To128(sl, sl, &d0h, &d0l);
+    d0h += 2 * sh * sl;
+    sub128(a->frac_lo << 34, 0, d0h, d0l, &d0h, &d0l);
+    sub128(sh, sl, d0h, d0l, &d1h, &d1l);
+    add128(sh, sl, 0, 1, &d2h, &d2l);
+    add128(d2h, d2l, d1h, d1l, &d2h, &d2l);
+    add128(sh, sl, 0, d1h >> 63, &sh, &sl);
+    shift128Left(sh, sl, 128 - 114, &sh, &sl);
+
+    /* increment or decrement for inexact */
+    if (d2h | d2l) {
+        if ((int64_t)(d1h ^ d2h) < 0) {
+            sub128(sh, sl, 0, 1, &sh, &sl);
+        } else {
+            add128(sh, sl, 0, 1, &sh, &sl);
+        }
+    }
+    a->frac_lo = sl;
+    a->frac_hi = sh;
+
+ done:
+    /* Convert back from base 4 to base 2. */
+    a->exp >>= 1;
+    if (!(a->frac_hi & DECOMPOSED_IMPLICIT_BIT)) {
+        frac_add(a, a, a);
+    } else {
+        a->exp += 1;
+    }
+    return;
+
+ d_nan:
+    float_raise(float_flag_invalid, status);
+    parts_default_nan(a, status);
+}
+
+/*
  * Rounds the floating-point value `a' to an integer, and returns the
  * result as a floating-point value. The operation is performed
  * according to the IEC/IEEE Standard for Binary Floating-Point
@@ -763,7 +1032,7 @@ static void partsN(round_to_int)(FloatPartsN *a, FloatRoundMode rmode,
  * the largest positive integer is returned. Otherwise, if the
  * conversion overflows, the largest integer with the same sign as `a'
  * is returned.
-*/
+ */
 static int64_t partsN(float_to_sint)(FloatPartsN *p, FloatRoundMode rmode,
                                      int scale, int64_t min, int64_t max,
                                      float_status *s)
@@ -816,4 +1085,408 @@ static int64_t partsN(float_to_sint)(FloatPartsN *p, FloatRoundMode rmode,
 
     float_raise(flags, s);
     return r;
+}
+
+/*
+ *  Returns the result of converting the floating-point value `a' to
+ *  the unsigned integer format. The conversion is performed according
+ *  to the IEC/IEEE Standard for Binary Floating-Point
+ *  Arithmetic---which means in particular that the conversion is
+ *  rounded according to the current rounding mode. If `a' is a NaN,
+ *  the largest unsigned integer is returned. Otherwise, if the
+ *  conversion overflows, the largest unsigned integer is returned. If
+ *  the 'a' is negative, the result is rounded and zero is returned;
+ *  values that do not round to zero will raise the inexact exception
+ *  flag.
+ */
+static uint64_t partsN(float_to_uint)(FloatPartsN *p, FloatRoundMode rmode,
+                                      int scale, uint64_t max, float_status *s)
+{
+    int flags = 0;
+    uint64_t r;
+
+    switch (p->cls) {
+    case float_class_snan:
+    case float_class_qnan:
+        flags = float_flag_invalid;
+        r = max;
+        break;
+
+    case float_class_inf:
+        flags = float_flag_invalid;
+        r = p->sign ? 0 : max;
+        break;
+
+    case float_class_zero:
+        return 0;
+
+    case float_class_normal:
+        /* TODO: N - 2 is frac_size for rounding; could use input fmt. */
+        if (parts_round_to_int_normal(p, rmode, scale, N - 2)) {
+            flags = float_flag_inexact;
+            if (p->cls == float_class_zero) {
+                r = 0;
+                break;
+            }
+        }
+
+        if (p->sign) {
+            flags = float_flag_invalid;
+            r = 0;
+        } else if (p->exp > DECOMPOSED_BINARY_POINT) {
+            flags = float_flag_invalid;
+            r = max;
+        } else {
+            r = p->frac_hi >> (DECOMPOSED_BINARY_POINT - p->exp);
+            if (r > max) {
+                flags = float_flag_invalid;
+                r = max;
+            }
+        }
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+
+    float_raise(flags, s);
+    return r;
+}
+
+/*
+ * Integer to float conversions
+ *
+ * Returns the result of converting the two's complement integer `a'
+ * to the floating-point format. The conversion is performed according
+ * to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+ */
+static void partsN(sint_to_float)(FloatPartsN *p, int64_t a,
+                                  int scale, float_status *s)
+{
+    uint64_t f = a;
+    int shift;
+
+    memset(p, 0, sizeof(*p));
+
+    if (a == 0) {
+        p->cls = float_class_zero;
+        return;
+    }
+
+    p->cls = float_class_normal;
+    if (a < 0) {
+        f = -f;
+        p->sign = true;
+    }
+    shift = clz64(f);
+    scale = MIN(MAX(scale, -0x10000), 0x10000);
+
+    p->exp = DECOMPOSED_BINARY_POINT - shift + scale;
+    p->frac_hi = f << shift;
+}
+
+/*
+ * Unsigned Integer to float conversions
+ *
+ * Returns the result of converting the unsigned integer `a' to the
+ * floating-point format. The conversion is performed according to the
+ * IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+ */
+static void partsN(uint_to_float)(FloatPartsN *p, uint64_t a,
+                                  int scale, float_status *status)
+{
+    memset(p, 0, sizeof(*p));
+
+    if (a == 0) {
+        p->cls = float_class_zero;
+    } else {
+        int shift = clz64(a);
+        scale = MIN(MAX(scale, -0x10000), 0x10000);
+        p->cls = float_class_normal;
+        p->exp = DECOMPOSED_BINARY_POINT - shift + scale;
+        p->frac_hi = a << shift;
+    }
+}
+
+/*
+ * Float min/max.
+ */
+static FloatPartsN *partsN(minmax)(FloatPartsN *a, FloatPartsN *b,
+                                   float_status *s, int flags)
+{
+    int ab_mask = float_cmask(a->cls) | float_cmask(b->cls);
+    int a_exp, b_exp, cmp;
+
+    if (unlikely(ab_mask & float_cmask_anynan)) {
+        /*
+         * For minnum/maxnum, if one operand is a QNaN, and the other
+         * operand is numerical, then return numerical argument.
+         */
+        if ((flags & minmax_isnum)
+            && !(ab_mask & float_cmask_snan)
+            && (ab_mask & ~float_cmask_qnan)) {
+            return is_nan(a->cls) ? b : a;
+        }
+        return parts_pick_nan(a, b, s);
+    }
+
+    a_exp = a->exp;
+    b_exp = b->exp;
+
+    if (unlikely(ab_mask != float_cmask_normal)) {
+        switch (a->cls) {
+        case float_class_normal:
+            break;
+        case float_class_inf:
+            a_exp = INT16_MAX;
+            break;
+        case float_class_zero:
+            a_exp = INT16_MIN;
+            break;
+        default:
+            g_assert_not_reached();
+            break;
+        }
+        switch (b->cls) {
+        case float_class_normal:
+            break;
+        case float_class_inf:
+            b_exp = INT16_MAX;
+            break;
+        case float_class_zero:
+            b_exp = INT16_MIN;
+            break;
+        default:
+            g_assert_not_reached();
+            break;
+        }
+    }
+
+    /* Compare magnitudes. */
+    cmp = a_exp - b_exp;
+    if (cmp == 0) {
+        cmp = frac_cmp(a, b);
+    }
+
+    /*
+     * Take the sign into account.
+     * For ismag, only do this if the magnitudes are equal.
+     */
+    if (!(flags & minmax_ismag) || cmp == 0) {
+        if (a->sign != b->sign) {
+            /* For differing signs, the negative operand is less. */
+            cmp = a->sign ? -1 : 1;
+        } else if (a->sign) {
+            /* For two negative operands, invert the magnitude comparison. */
+            cmp = -cmp;
+        }
+    }
+
+    if (flags & minmax_ismin) {
+        cmp = -cmp;
+    }
+    return cmp < 0 ? b : a;
+}
+
+/*
+ * Floating point compare
+ */
+static FloatRelation partsN(compare)(FloatPartsN *a, FloatPartsN *b,
+                                     float_status *s, bool is_quiet)
+{
+    int ab_mask = float_cmask(a->cls) | float_cmask(b->cls);
+    int cmp;
+
+    if (likely(ab_mask == float_cmask_normal)) {
+        if (a->sign != b->sign) {
+            goto a_sign;
+        }
+        if (a->exp != b->exp) {
+            cmp = a->exp < b->exp ? -1 : 1;
+        } else {
+            cmp = frac_cmp(a, b);
+        }
+        if (a->sign) {
+            cmp = -cmp;
+        }
+        return cmp;
+    }
+
+    if (unlikely(ab_mask & float_cmask_anynan)) {
+        if (!is_quiet || (ab_mask & float_cmask_snan)) {
+            float_raise(float_flag_invalid, s);
+        }
+        return float_relation_unordered;
+    }
+
+    if (ab_mask & float_cmask_zero) {
+        if (ab_mask == float_cmask_zero) {
+            return float_relation_equal;
+        } else if (a->cls == float_class_zero) {
+            goto b_sign;
+        } else {
+            goto a_sign;
+        }
+    }
+
+    if (ab_mask == float_cmask_inf) {
+        if (a->sign == b->sign) {
+            return float_relation_equal;
+        }
+    } else if (b->cls == float_class_inf) {
+        goto b_sign;
+    } else {
+        g_assert(a->cls == float_class_inf);
+    }
+
+ a_sign:
+    return a->sign ? float_relation_less : float_relation_greater;
+ b_sign:
+    return b->sign ? float_relation_greater : float_relation_less;
+}
+
+/*
+ * Multiply A by 2 raised to the power N.
+ */
+static void partsN(scalbn)(FloatPartsN *a, int n, float_status *s)
+{
+    switch (a->cls) {
+    case float_class_snan:
+    case float_class_qnan:
+        parts_return_nan(a, s);
+        break;
+    case float_class_zero:
+    case float_class_inf:
+        break;
+    case float_class_normal:
+        a->exp += MIN(MAX(n, -0x10000), 0x10000);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+/*
+ * Return log2(A)
+ */
+static void partsN(log2)(FloatPartsN *a, float_status *s, const FloatFmt *fmt)
+{
+    uint64_t a0, a1, r, t, ign;
+    FloatPartsN f;
+    int i, n, a_exp, f_exp;
+
+    if (unlikely(a->cls != float_class_normal)) {
+        switch (a->cls) {
+        case float_class_snan:
+        case float_class_qnan:
+            parts_return_nan(a, s);
+            return;
+        case float_class_zero:
+            /* log2(0) = -inf */
+            a->cls = float_class_inf;
+            a->sign = 1;
+            return;
+        case float_class_inf:
+            if (unlikely(a->sign)) {
+                goto d_nan;
+            }
+            return;
+        default:
+            break;
+        }
+        g_assert_not_reached();
+    }
+    if (unlikely(a->sign)) {
+        goto d_nan;
+    }
+
+    /* TODO: This algorithm looses bits too quickly for float128. */
+    g_assert(N == 64);
+
+    a_exp = a->exp;
+    f_exp = -1;
+
+    r = 0;
+    t = DECOMPOSED_IMPLICIT_BIT;
+    a0 = a->frac_hi;
+    a1 = 0;
+
+    n = fmt->frac_size + 2;
+    if (unlikely(a_exp == -1)) {
+        /*
+         * When a_exp == -1, we're computing the log2 of a value [0.5,1.0).
+         * When the value is very close to 1.0, there are lots of 1's in
+         * the msb parts of the fraction.  At the end, when we subtract
+         * this value from -1.0, we can see a catastrophic loss of precision,
+         * as 0x800..000 - 0x7ff..ffx becomes 0x000..00y, leaving only the
+         * bits of y in the final result.  To minimize this, compute as many
+         * digits as we can.
+         * ??? This case needs another algorithm to avoid this.
+         */
+        n = fmt->frac_size * 2 + 2;
+        /* Don't compute a value overlapping the sticky bit */
+        n = MIN(n, 62);
+    }
+
+    for (i = 0; i < n; i++) {
+        if (a1) {
+            mul128To256(a0, a1, a0, a1, &a0, &a1, &ign, &ign);
+        } else if (a0 & 0xffffffffull) {
+            mul64To128(a0, a0, &a0, &a1);
+        } else if (a0 & ~DECOMPOSED_IMPLICIT_BIT) {
+            a0 >>= 32;
+            a0 *= a0;
+        } else {
+            goto exact;
+        }
+
+        if (a0 & DECOMPOSED_IMPLICIT_BIT) {
+            if (unlikely(a_exp == 0 && r == 0)) {
+                /*
+                 * When a_exp == 0, we're computing the log2 of a value
+                 * [1.0,2.0).  When the value is very close to 1.0, there
+                 * are lots of 0's in the msb parts of the fraction.
+                 * We need to compute more digits to produce a correct
+                 * result -- restart at the top of the fraction.
+                 * ??? This is likely to lose precision quickly, as for
+                 * float128; we may need another method.
+                 */
+                f_exp -= i;
+                t = r = DECOMPOSED_IMPLICIT_BIT;
+                i = 0;
+            } else {
+                r |= t;
+            }
+        } else {
+            add128(a0, a1, a0, a1, &a0, &a1);
+        }
+        t >>= 1;
+    }
+
+    /* Set sticky for inexact. */
+    r |= (a1 || a0 & ~DECOMPOSED_IMPLICIT_BIT);
+
+ exact:
+    parts_sint_to_float(a, a_exp, 0, s);
+    if (r == 0) {
+        return;
+    }
+
+    memset(&f, 0, sizeof(f));
+    f.cls = float_class_normal;
+    f.frac_hi = r;
+    f.exp = f_exp - frac_normalize(&f);
+
+    if (a_exp < 0) {
+        parts_sub_normal(a, &f);
+    } else if (a_exp > 0) {
+        parts_add_normal(a, &f);
+    } else {
+        *a = f;
+    }
+    return;
+
+ d_nan:
+    float_raise(float_flag_invalid, s);
+    parts_default_nan(a, s);
 }
