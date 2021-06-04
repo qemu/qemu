@@ -350,8 +350,8 @@ vg_resource_create_2d(VuGpu *g,
     if (!res->image) {
         g_critical("%s: resource creation failed %d %d %d",
                    __func__, c2d.resource_id, c2d.width, c2d.height);
-        g_free(res);
         vugbm_buffer_destroy(&res->buffer);
+        g_free(res);
         cmd->error = VIRTIO_GPU_RESP_ERR_OUT_OF_MEMORY;
         return;
     }
