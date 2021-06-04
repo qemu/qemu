@@ -610,12 +610,6 @@ static void virtio_gpu_do_set_scanout(VirtIOGPU *g,
     struct virtio_gpu_scanout *scanout;
     uint8_t *data;
 
-    if (scanout_id >= g->parent_obj.conf.max_outputs) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal scanout id specified %d",
-                      __func__, scanout_id);
-        *error = VIRTIO_GPU_RESP_ERR_INVALID_SCANOUT_ID;
-        return;
-    }
     scanout = &g->parent_obj.scanout[scanout_id];
 
     if (r->x > fb->width ||
@@ -694,6 +688,13 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
     trace_virtio_gpu_cmd_set_scanout(ss.scanout_id, ss.resource_id,
                                      ss.r.width, ss.r.height, ss.r.x, ss.r.y);
 
+    if (ss.scanout_id >= g->parent_obj.conf.max_outputs) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal scanout id specified %d",
+                      __func__, ss.scanout_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_SCANOUT_ID;
+        return;
+    }
+
     if (ss.resource_id == 0) {
         virtio_gpu_disable_scanout(g, ss.scanout_id);
         return;
@@ -729,6 +730,13 @@ static void virtio_gpu_set_scanout_blob(VirtIOGPU *g,
     trace_virtio_gpu_cmd_set_scanout_blob(ss.scanout_id, ss.resource_id,
                                           ss.r.width, ss.r.height, ss.r.x,
                                           ss.r.y);
+
+    if (ss.scanout_id >= g->parent_obj.conf.max_outputs) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal scanout id specified %d",
+                      __func__, ss.scanout_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_SCANOUT_ID;
+        return;
+    }
 
     if (ss.resource_id == 0) {
         virtio_gpu_disable_scanout(g, ss.scanout_id);
