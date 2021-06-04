@@ -8091,6 +8091,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         case 2:
         case 3:
         case 4:
+        case 8:
             break;
         default:
             goto unknown_op;

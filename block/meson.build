@@ -71,19 +71,19 @@ block_modules = {}
 
 modsrc = []
 foreach m : [
-  [curl, 'curl', [curl, glib], 'curl.c'],
-  [glusterfs, 'gluster', glusterfs, 'gluster.c'],
-  [libiscsi, 'iscsi', libiscsi, 'iscsi.c'],
-  [libnfs, 'nfs', libnfs, 'nfs.c'],
-  [libssh, 'ssh', libssh, 'ssh.c'],
-  [rbd, 'rbd', rbd, 'rbd.c'],
+  [curl, 'curl', files('curl.c')],
+  [glusterfs, 'gluster', files('gluster.c')],
+  [libiscsi, 'iscsi', [files('iscsi.c'), libm]],
+  [libnfs, 'nfs', files('nfs.c')],
+  [libssh, 'ssh', files('ssh.c')],
+  [rbd, 'rbd', files('rbd.c')],
 ]
   if m[0].found()
-    if enable_modules
-      modsrc += files(m[3])
-    endif
     module_ss = ss.source_set()
-    module_ss.add(when: m[2], if_true: files(m[3]))
+    module_ss.add(when: m[0], if_true: m[2])
+    if enable_modules
+      modsrc += module_ss.all_sources()
+    endif
     block_modules += {m[1] : module_ss}
   endif
 endforeach

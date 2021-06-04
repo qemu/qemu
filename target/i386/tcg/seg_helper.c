@@ -277,11 +277,10 @@ static void switch_tss_ra(CPUX86State *env, int tss_selector,
         new_eip = cpu_lduw_kernel_ra(env, tss_base + 0x0e, retaddr);
         new_eflags = cpu_lduw_kernel_ra(env, tss_base + 0x10, retaddr);
         for (i = 0; i < 8; i++) {
-            new_regs[i] = cpu_lduw_kernel_ra(env, tss_base + (0x12 + i * 2),
-                                             retaddr) | 0xffff0000;
+            new_regs[i] = cpu_lduw_kernel_ra(env, tss_base + (0x12 + i * 2), retaddr);
         }
         for (i = 0; i < 4; i++) {
-            new_segs[i] = cpu_lduw_kernel_ra(env, tss_base + (0x22 + i * 4),
+            new_segs[i] = cpu_lduw_kernel_ra(env, tss_base + (0x22 + i * 2),
                                              retaddr);
         }
         new_ldt = cpu_lduw_kernel_ra(env, tss_base + 0x2a, retaddr);
@@ -320,7 +319,7 @@ static void switch_tss_ra(CPUX86State *env, int tss_selector,
     }
 
     /* save the current state in the old TSS */
-    if (type & 8) {
+    if (old_type & 8) {
         /* 32 bit */
         cpu_stl_kernel_ra(env, env->tr.base + 0x20, next_eip, retaddr);
         cpu_stl_kernel_ra(env, env->tr.base + 0x24, old_eflags, retaddr);
@@ -349,7 +348,7 @@ static void switch_tss_ra(CPUX86State *env, int tss_selector,
         cpu_stw_kernel_ra(env, env->tr.base + (0x12 + 6 * 2), env->regs[R_ESI], retaddr);
         cpu_stw_kernel_ra(env, env->tr.base + (0x12 + 7 * 2), env->regs[R_EDI], retaddr);
         for (i = 0; i < 4; i++) {
-            cpu_stw_kernel_ra(env, env->tr.base + (0x22 + i * 4),
+            cpu_stw_kernel_ra(env, env->tr.base + (0x22 + i * 2),
                               env->segs[i].selector, retaddr);
         }
     }
@@ -391,19 +390,17 @@ static void switch_tss_ra(CPUX86State *env, int tss_selector,
     env->eip = new_eip;
     eflags_mask = TF_MASK | AC_MASK | ID_MASK |
         IF_MASK | IOPL_MASK | VM_MASK | RF_MASK | NT_MASK;
-    if (!(type & 8)) {
-        eflags_mask &= 0xffff;
+    if (type & 8) {
+        cpu_load_eflags(env, new_eflags, eflags_mask);
+        for (i = 0; i < 8; i++) {
+            env->regs[i] = new_regs[i];
+        }
+    } else {
+        cpu_load_eflags(env, new_eflags, eflags_mask & 0xffff);
+        for (i = 0; i < 8; i++) {
+            env->regs[i] = (env->regs[i] & 0xffff0000) | new_regs[i];
+        }
     }
-    cpu_load_eflags(env, new_eflags, eflags_mask);
-    /* XXX: what to do in 16 bit case? */
-    env->regs[R_EAX] = new_regs[0];
-    env->regs[R_ECX] = new_regs[1];
-    env->regs[R_EDX] = new_regs[2];
-    env->regs[R_EBX] = new_regs[3];
-    env->regs[R_ESP] = new_regs[4];
-    env->regs[R_EBP] = new_regs[5];
-    env->regs[R_ESI] = new_regs[6];
-    env->regs[R_EDI] = new_regs[7];
     if (new_eflags & VM_MASK) {
         for (i = 0; i < 6; i++) {
             load_seg_vm(env, i, new_segs[i]);
