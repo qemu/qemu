@@ -52,8 +52,6 @@ from typing import (
     Sequence,
 )
 
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu import qmp
 from qemu.qmp import SocketAddrT
 
