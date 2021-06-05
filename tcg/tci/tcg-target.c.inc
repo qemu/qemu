@@ -789,11 +789,9 @@ static inline bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
 }
 
 /* Test if a constant matches the constraint. */
-static int tcg_target_const_match(tcg_target_long val, TCGType type,
-                                  const TCGArgConstraint *arg_ct)
+static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
 {
-    /* No need to return 0 or 1, 0 or != 0 is good enough. */
-    return arg_ct->ct & TCG_CT_CONST;
+    return ct & TCG_CT_CONST;
 }
 
 static void tcg_target_init(TCGContext *s)
