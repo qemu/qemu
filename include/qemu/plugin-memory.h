@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef _PLUGIN_MEMORY_H_
-#define _PLUGIN_MEMORY_H_
+#ifndef PLUGIN_MEMORY_H
+#define PLUGIN_MEMORY_H
 
 struct qemu_plugin_hwaddr {
     bool is_io;

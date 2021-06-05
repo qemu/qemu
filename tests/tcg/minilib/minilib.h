@@ -9,8 +9,8 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef _MINILIB_H_
-#define _MINILIB_H_
+#ifndef MINILIB_H
+#define MINILIB_H
 
 /*
  * Provided by the individual arch
