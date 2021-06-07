@@ -14,7 +14,7 @@ QEMU_FUZZ_ARGS="-machine q35,accel=qtest" QEMU_FUZZ_OBJECTS="*" \
         /path/to/crash 2> qtest_log_output
 scripts/oss-fuzz/reorder_fuzzer_qtest_trace.py qtest_log_output > qtest_trace
 ./i386-softmmu/qemu-fuzz-i386 -machine q35,accel=qtest \
-        -qtest stdin < qtest_trace
+        -qtest stdio < qtest_trace
 
 ### Details ###
 

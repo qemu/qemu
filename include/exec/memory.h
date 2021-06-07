@@ -571,7 +571,7 @@ struct MemoryListener {
      * @log_start:
      *
      * Called during an address space update transaction, after
-     * one of #MemoryListener.region_add(),#MemoryListener.region_del() or
+     * one of #MemoryListener.region_add(), #MemoryListener.region_del() or
      * #MemoryListener.region_nop(), if dirty memory logging clients have
      * become active since the last transaction.
      *

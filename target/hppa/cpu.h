@@ -22,7 +22,6 @@
 
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
-#include "exec/memory.h"
 
 /* PA-RISC 1.x processors have a strong memory model.  */
 /* ??? While we do not yet implement PA-RISC 2.0, those processors have

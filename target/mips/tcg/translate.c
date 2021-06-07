@@ -12238,7 +12238,7 @@ static void gen_compute_compact_branch(DisasContext *ctx, uint32_t opc,
     }
 
     if (bcond_compute == 0) {
-        /* Uncoditional compact branch */
+        /* Unconditional compact branch */
         switch (opc) {
         case OPC_JIALC:
             tcg_gen_movi_tl(cpu_gpr[31], ctx->base.pc_next + 4 + m16_lowbit);
@@ -19092,7 +19092,7 @@ static void gen_compute_imm_branch(DisasContext *ctx, uint32_t opc,
     ctx->base.is_jmp = DISAS_NORETURN;
 
     if (cond == TCG_COND_ALWAYS) {
-        /* Uncoditional compact branch */
+        /* Unconditional compact branch */
         gen_goto_tb(ctx, 0, ctx->btarget);
     } else {
         /* Conditional compact branch */
@@ -19201,7 +19201,7 @@ static void gen_compute_compact_branch_nm(DisasContext *ctx, uint32_t opc,
     }
 
     if (bcond_compute == 0) {
-        /* Uncoditional compact branch */
+        /* Unconditional compact branch */
         switch (opc) {
         case OPC_BC:
             gen_goto_tb(ctx, 0, ctx->btarget);

@@ -450,6 +450,7 @@ static void macfb_nubus_class_init(ObjectClass *klass, void *data)
     dc->desc = "Nubus Macintosh framebuffer";
     dc->reset = macfb_nubus_reset;
     dc->vmsd = &vmstate_macfb;
+    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     device_class_set_props(dc, macfb_nubus_properties);
 }
 

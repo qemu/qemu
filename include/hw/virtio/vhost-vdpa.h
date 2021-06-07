@@ -21,5 +21,4 @@ typedef struct vhost_vdpa {
     struct vhost_dev *dev;
 } VhostVDPA;
 
-extern AddressSpace address_space_memory;
 #endif
