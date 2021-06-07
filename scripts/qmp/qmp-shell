@@ -389,8 +389,8 @@ class HMPShell(QMPShell):
             print('%s: %s' % (resp['error']['class'], resp['error']['desc']))
         return True
 
-    def show_banner(self):
-        QMPShell.show_banner(self, msg='Welcome to the HMP shell!')
+    def show_banner(self, msg='Welcome to the HMP shell!'):
+        QMPShell.show_banner(self, msg)
 
 
 def die(msg):
