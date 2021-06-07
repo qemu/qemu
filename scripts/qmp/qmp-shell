@@ -67,6 +67,7 @@
 import argparse
 import ast
 import json
+import logging
 import os
 import re
 import readline
@@ -83,6 +84,9 @@ from typing import (
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu import qmp
 from qemu.qmp import QMPMessage
+
+
+LOG = logging.getLogger(__name__)
 
 
 class QMPCompleter:
@@ -167,13 +171,15 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         except FileNotFoundError:
             pass
         except IOError as err:
-            print(f"Failed to read history '{self._histfile}': {err!s}")
+            msg = f"Failed to read history '{self._histfile}': {err!s}"
+            LOG.warning(msg)
 
     def _save_history(self) -> None:
         try:
             readline.write_history_file(self._histfile)
         except IOError as err:
-            print(f"Failed to save history file '{self._histfile}': {err!s}")
+            msg = f"Failed to save history file '{self._histfile}': {err!s}"
+            LOG.warning(msg)
 
     @classmethod
     def __parse_value(cls, val: str) -> object:
