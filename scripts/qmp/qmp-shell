@@ -195,13 +195,13 @@ class QMPShell(qmp.QEMUMonitorProtocol):
             for path in optpath[:-1]:
                 curpath.append(path)
                 obj = parent.get(path, {})
-                if type(obj) is not dict:
+                if not isinstance(obj, dict):
                     msg = 'Cannot use "{:s}" as both leaf and non-leaf key'
                     raise QMPShellError(msg.format('.'.join(curpath)))
                 parent[path] = obj
                 parent = obj
             if optpath[-1] in parent:
-                if type(parent[optpath[-1]]) is dict:
+                if isinstance(parent[optpath[-1]], dict):
                     msg = 'Cannot use "{:s}" as both leaf and non-leaf key'
                     raise QMPShellError(msg.format('.'.join(curpath)))
                 raise QMPShellError(f'Cannot set "{key}" multiple times')
