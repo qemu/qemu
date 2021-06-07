@@ -106,15 +106,20 @@ LOG = logging.getLogger(__name__)
 
 
 class QMPCompleter:
+    """
+    QMPCompleter provides a readline library tab-complete behavior.
+    """
     # NB: Python 3.9+ will probably allow us to subclass list[str] directly,
     # but pylint as of today does not know that List[str] is simply 'list'.
     def __init__(self) -> None:
         self._matches: List[str] = []
 
     def append(self, value: str) -> None:
+        """Append a new valid completion to the list of possibilities."""
         return self._matches.append(value)
 
     def complete(self, text: str, state: int) -> Optional[str]:
+        """readline.set_completer() callback implementation."""
         for cmd in self._matches:
             if cmd.startswith(text):
                 if state == 0:
@@ -124,7 +129,9 @@ class QMPCompleter:
 
 
 class QMPShellError(qmp.QMPError):
-    pass
+    """
+    QMP Shell Base error class.
+    """
 
 
 class FuzzyJSON(ast.NodeTransformer):
@@ -137,6 +144,9 @@ class FuzzyJSON(ast.NodeTransformer):
     @classmethod
     def visit_Name(cls,  # pylint: disable=invalid-name
                    node: ast.Name) -> ast.AST:
+        """
+        Transform Name nodes with certain values into Constant (keyword) nodes.
+        """
         if node.id == 'true':
             return ast.Constant(value=True)
         if node.id == 'false':
@@ -147,6 +157,13 @@ class FuzzyJSON(ast.NodeTransformer):
 
 
 class QMPShell(qmp.QEMUMonitorProtocol):
+    """
+    QMPShell provides a basic readline-based QMP shell.
+
+    :param address: Address of the QMP server.
+    :param pretty: Pretty-print QMP messages.
+    :param verbose: Echo outgoing QMP messages to console.
+    """
     def __init__(self, address: qmp.SocketAddrT,
                  pretty: bool = False, verbose: bool = False):
         super().__init__(address)
@@ -333,6 +350,9 @@ class QMPShell(qmp.QEMUMonitorProtocol):
 
     def show_banner(self,
                     msg: str = 'Welcome to the QMP low-level shell!') -> None:
+        """
+        Print to stdio a greeting, and the QEMU version if available.
+        """
         print(msg)
         if not self._greeting:
             print('Connected')
@@ -342,6 +362,9 @@ class QMPShell(qmp.QEMUMonitorProtocol):
 
     @property
     def prompt(self) -> str:
+        """
+        Return the current shell prompt, including a trailing space.
+        """
         if self._transmode:
             return 'TRANS> '
         return '(QEMU) '
@@ -367,6 +390,9 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         return self._execute_cmd(cmdline)
 
     def repl(self) -> Iterator[None]:
+        """
+        Return an iterator that implements the REPL.
+        """
         self.show_banner()
         while self.read_exec_command():
             yield
@@ -374,6 +400,13 @@ class QMPShell(qmp.QEMUMonitorProtocol):
 
 
 class HMPShell(QMPShell):
+    """
+    HMPShell provides a basic readline-based HMP shell, tunnelled via QMP.
+
+    :param address: Address of the QMP server.
+    :param pretty: Pretty-print QMP messages.
+    :param verbose: Echo outgoing QMP messages to console.
+    """
     def __init__(self, address: qmp.SocketAddrT,
                  pretty: bool = False, verbose: bool = False):
         super().__init__(address, pretty, verbose)
@@ -451,11 +484,15 @@ class HMPShell(QMPShell):
 
 
 def die(msg: str) -> NoReturn:
+    """Write an error to stderr, then exit with a return code of 1."""
     sys.stderr.write('ERROR: %s\n' % msg)
     sys.exit(1)
 
 
 def main() -> None:
+    """
+    qmp-shell entry point: parse command line arguments and start the REPL.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('-H', '--hmp', action='store_true',
                         help='Use HMP interface')
