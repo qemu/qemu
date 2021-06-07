@@ -30,6 +30,7 @@ from typing import (
     TextIO,
     Tuple,
     Type,
+    TypeVar,
     Union,
     cast,
 )
@@ -220,7 +221,9 @@ class QEMUMonitorProtocol:
             if ret is None:
                 raise QMPConnectError("Error while reading from socket")
 
-    def __enter__(self) -> 'QEMUMonitorProtocol':
+    T = TypeVar('T')
+
+    def __enter__(self: T) -> T:
         # Implement context manager enter function.
         return self
 
