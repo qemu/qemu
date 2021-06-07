@@ -95,18 +95,19 @@ class QMPShellError(Exception):
 class FuzzyJSON(ast.NodeTransformer):
     """
     This extension of ast.NodeTransformer filters literal "true/false/null"
-    values in an AST and replaces them by proper "True/False/None" values that
-    Python can properly evaluate.
+    values in a Python AST and replaces them by proper "True/False/None" values
+    that Python can properly evaluate.
     """
 
     @classmethod
-    def visit_Name(cls, node):  # pylint: disable=invalid-name
+    def visit_Name(cls,  # pylint: disable=invalid-name
+                   node: ast.Name) -> ast.AST:
         if node.id == 'true':
-            node.id = 'True'
+            return ast.Constant(value=True)
         if node.id == 'false':
-            node.id = 'False'
+            return ast.Constant(value=False)
         if node.id == 'null':
-            node.id = 'None'
+            return ast.Constant(value=None)
         return node
 
 
@@ -174,10 +175,9 @@ class QMPShell(qmp.QEMUMonitorProtocol):
             # Try once again as FuzzyJSON:
             try:
                 tree = ast.parse(val, mode='eval')
-                return ast.literal_eval(FuzzyJSON().visit(tree))
-            except SyntaxError:
-                pass
-            except ValueError:
+                transformed = FuzzyJSON().visit(tree)
+                return ast.literal_eval(transformed)
+            except (SyntaxError, ValueError):
                 pass
         return val
 
