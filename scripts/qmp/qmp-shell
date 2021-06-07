@@ -125,7 +125,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
     def __init__(self, address, pretty=False, verbose=False):
         super().__init__(self.parse_address(address))
         self._greeting = None
-        self._completer = None
+        self._completer = QMPCompleter()
         self._pretty = pretty
         self._transmode = False
         self._actions = list()
