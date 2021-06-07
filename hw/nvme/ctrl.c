@@ -5860,6 +5860,10 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
                        "invalid write to PMRCAP register, ignored");
         return;
     case 0xe04: /* PMRCTL */
+        if (!NVME_CAP_PMRS(n->bar.cap)) {
+            return;
+        }
+
         n->bar.pmrctl = data;
         if (NVME_PMRCTL_EN(data)) {
             memory_region_set_enabled(&n->pmr.dev->mr, true);
