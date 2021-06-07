@@ -101,7 +101,7 @@ class FuzzyJSON(ast.NodeTransformer):
     """
 
     @classmethod
-    def visit_Name(cls, node):
+    def visit_Name(cls, node):  # pylint: disable=invalid-name
         if node.id == 'true':
             node.id = 'True'
         if node.id == 'false':
