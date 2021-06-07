@@ -291,10 +291,13 @@ class QMPShell(qmp.QEMUMonitorProtocol):
     def _execute_cmd(self, cmdline: str) -> bool:
         try:
             qmpcmd = self.__build_cmd(cmdline)
-        except Exception as err:
-            print('Error while parsing command line: %s' % err)
-            print('command format: <command-name> ', end=' ')
-            print('[arg-name1=arg1] ... [arg-nameN=argN]')
+        except QMPShellError as err:
+            print(
+                f"Error while parsing command line: {err!s}\n"
+                "command format: <command-name> "
+                "[arg-name1=arg1] ... [arg-nameN=argN",
+                file=sys.stderr
+            )
             return True
         # For transaction mode, we may have just cached the action:
         if qmpcmd is None:
