@@ -135,11 +135,11 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         super().__init__(address)
         self._greeting: Optional[QMPMessage] = None
         self._completer = QMPCompleter()
-        self._pretty = pretty
         self._transmode = False
         self._actions: List[QMPMessage] = []
         self._histfile = os.path.join(os.path.expanduser('~'),
                                       '.qmp-shell_history')
+        self.pretty = pretty
         self.verbose = verbose
 
     def _fill_completion(self) -> None:
@@ -274,10 +274,9 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         return qmpcmd
 
     def _print(self, qmp_message: object) -> None:
-        indent = None
-        if self._pretty:
-            indent = 4
-        jsobj = json.dumps(qmp_message, indent=indent, sort_keys=self._pretty)
+        jsobj = json.dumps(qmp_message,
+                           indent=4 if self.pretty else None,
+                           sort_keys=self.pretty)
         print(str(jsobj))
 
     def _execute_cmd(self, cmdline: str) -> bool:
