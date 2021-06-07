@@ -130,9 +130,9 @@ class FuzzyJSON(ast.NodeTransformer):
 # TODO: QMPShell's interface is a bit ugly (eg. _fill_completion() and
 #       _execute_cmd()). Let's design a better one.
 class QMPShell(qmp.QEMUMonitorProtocol):
-    def __init__(self, address: str, pretty: bool = False,
-                 verbose: bool = False):
-        super().__init__(self.parse_address(address))
+    def __init__(self, address: qmp.SocketAddrT,
+                 pretty: bool = False, verbose: bool = False):
+        super().__init__(address)
         self._greeting: Optional[QMPMessage] = None
         self._completer = QMPCompleter()
         self._pretty = pretty
@@ -347,7 +347,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
 
 
 class HMPShell(QMPShell):
-    def __init__(self, address: str,
+    def __init__(self, address: qmp.SocketAddrT,
                  pretty: bool = False, verbose: bool = False):
         super().__init__(address, pretty, verbose)
         self.__cpu_index = 0
@@ -450,10 +450,12 @@ def main() -> None:
 
     shell_class = HMPShell if args.hmp else QMPShell
     try:
-        qemu = shell_class(args.qmp_server, args.pretty, args.verbose)
+        address = shell_class.parse_address(args.qmp_server)
     except qmp.QMPBadPortError:
         parser.error(f"Bad port number: {args.qmp_server}")
         return  # pycharm doesn't know error() is noreturn
+
+    qemu = shell_class(address, args.pretty, args.verbose)
 
     try:
         qemu.connect(negotiate=not args.skip_negotiation)
