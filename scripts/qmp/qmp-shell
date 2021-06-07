@@ -120,6 +120,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         self._actions = list()
         self._histfile = os.path.join(os.path.expanduser('~'),
                                       '.qmp-shell_history')
+        self._verbose = False
 
     def _fill_completion(self):
         cmds = self.cmd('query-commands')
