@@ -222,10 +222,10 @@ for target in $target_list; do
 
   got_cross_cc=no
 
-  if eval test "x\${cross_cc_$arch}" != xyes; then
-      eval "target_compiler=\${cross_cc_$arch}"
+  if eval test "x\"\${cross_cc_$arch}\"" != xyes; then
+      eval "target_compiler=\"\${cross_cc_$arch}\""
 
-      if has "$target_compiler"; then
+      if has $target_compiler; then
           if test "$supress_clang" = yes &&
                   $target_compiler --version | grep -qi "clang"; then
               got_cross_cc=no
