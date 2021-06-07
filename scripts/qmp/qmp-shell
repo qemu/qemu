@@ -94,9 +94,12 @@ class QMPShellError(Exception):
 
 
 class FuzzyJSON(ast.NodeTransformer):
-    '''This extension of ast.NodeTransformer filters literal "true/false/null"
+    """
+    This extension of ast.NodeTransformer filters literal "true/false/null"
     values in an AST and replaces them by proper "True/False/None" values that
-    Python can properly evaluate.'''
+    Python can properly evaluate.
+    """
+
     @classmethod
     def visit_Name(cls, node):
         if node.id == 'true':
