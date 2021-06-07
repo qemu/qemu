@@ -318,6 +318,12 @@ class QMPShell(qmp.QEMUMonitorProtocol):
 
         return self._execute_cmd(cmdline)
 
+    def repl(self):
+        self.show_banner()
+        while self.read_exec_command():
+            yield
+        self.close()
+
 
 class HMPShell(QMPShell):
     def __init__(self, address, pretty=False, verbose=False):
@@ -435,10 +441,8 @@ def main():
     except OSError as err:
         die(f"Couldn't connect to {args.qmp_server}: {err!s}")
 
-    qemu.show_banner()
-    while qemu.read_exec_command():
+    for _ in qemu.repl():
         pass
-    qemu.close()
 
 
 if __name__ == '__main__':
