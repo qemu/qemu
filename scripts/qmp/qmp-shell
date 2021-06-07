@@ -244,11 +244,14 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         cmdargs = re.findall(argument_regex, cmdline)
         qmpcmd: QMPMessage
 
-        # Transactional CLI entry/exit:
-        if cmdargs[0] == 'transaction(':
+        # Transactional CLI entry:
+        if cmdargs and cmdargs[0] == 'transaction(':
             self._transmode = True
+            self._actions = []
             cmdargs.pop(0)
-        elif cmdargs[0] == ')' and self._transmode:
+
+        # Transactional CLI exit:
+        if cmdargs and cmdargs[0] == ')' and self._transmode:
             self._transmode = False
             if len(cmdargs) > 1:
                 msg = 'Unexpected input after close of Transaction sub-shell'
@@ -257,15 +260,14 @@ class QMPShell(qmp.QEMUMonitorProtocol):
                 'execute': 'transaction',
                 'arguments': {'actions': self._actions}
             }
-            self._actions = list()
             return qmpcmd
 
-        # Nothing to process?
+        # No args, or no args remaining
         if not cmdargs:
             return None
 
-        # Parse and then cache this Transactional Action
         if self._transmode:
+            # Parse and cache this Transactional Action
             finalize = False
             action = {'type': cmdargs[0], 'data': {}}
             if cmdargs[-1] == ')':
