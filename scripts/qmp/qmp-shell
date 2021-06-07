@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 #
-# Low-level QEMU shell on top of QMP.
-#
 # Copyright (C) 2009, 2010 Red Hat Inc.
 #
 # Authors:
@@ -10,60 +8,78 @@
 # This work is licensed under the terms of the GNU GPL, version 2.  See
 # the COPYING file in the top-level directory.
 #
-# Usage:
-#
-# Start QEMU with:
-#
-# # qemu [...] -qmp unix:./qmp-sock,server
-#
-# Run the shell:
-#
-# $ qmp-shell ./qmp-sock
-#
-# Commands have the following format:
-#
-#    < command-name > [ arg-name1=arg1 ] ... [ arg-nameN=argN ]
-#
-# For example:
-#
-# (QEMU) device_add driver=e1000 id=net1
-# {u'return': {}}
-# (QEMU)
-#
-# key=value pairs also support Python or JSON object literal subset notations,
-# without spaces. Dictionaries/objects {} are supported as are arrays [].
-#
-#    example-command arg-name1={'key':'value','obj'={'prop':"value"}}
-#
-# Both JSON and Python formatting should work, including both styles of
-# string literal quotes. Both paradigms of literal values should work,
-# including null/true/false for JSON and None/True/False for Python.
-#
-#
-# Transactions have the following multi-line format:
-#
-#    transaction(
-#    action-name1 [ arg-name1=arg1 ] ... [arg-nameN=argN ]
-#    ...
-#    action-nameN [ arg-name1=arg1 ] ... [arg-nameN=argN ]
-#    )
-#
-# One line transactions are also supported:
-#
-#    transaction( action-name1 ... )
-#
-# For example:
-#
-#     (QEMU) transaction(
-#     TRANS> block-dirty-bitmap-add node=drive0 name=bitmap1
-#     TRANS> block-dirty-bitmap-clear node=drive0 name=bitmap0
-#     TRANS> )
-#     {"return": {}}
-#     (QEMU)
-#
-# Use the -v and -p options to activate the verbose and pretty-print options,
-# which will echo back the properly formatted JSON-compliant QMP that is being
-# sent to QEMU, which is useful for debugging and documentation generation.
+
+"""
+Low-level QEMU shell on top of QMP.
+
+usage: qmp-shell [-h] [-H] [-N] [-v] [-p] qmp_server
+
+positional arguments:
+  qmp_server            < UNIX socket path | TCP address:port >
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -H, --hmp             Use HMP interface
+  -N, --skip-negotiation
+                        Skip negotiate (for qemu-ga)
+  -v, --verbose         Verbose (echo commands sent and received)
+  -p, --pretty          Pretty-print JSON
+
+
+Start QEMU with:
+
+# qemu [...] -qmp unix:./qmp-sock,server
+
+Run the shell:
+
+$ qmp-shell ./qmp-sock
+
+Commands have the following format:
+
+   < command-name > [ arg-name1=arg1 ] ... [ arg-nameN=argN ]
+
+For example:
+
+(QEMU) device_add driver=e1000 id=net1
+{'return': {}}
+(QEMU)
+
+key=value pairs also support Python or JSON object literal subset notations,
+without spaces. Dictionaries/objects {} are supported as are arrays [].
+
+   example-command arg-name1={'key':'value','obj'={'prop':"value"}}
+
+Both JSON and Python formatting should work, including both styles of
+string literal quotes. Both paradigms of literal values should work,
+including null/true/false for JSON and None/True/False for Python.
+
+
+Transactions have the following multi-line format:
+
+   transaction(
+   action-name1 [ arg-name1=arg1 ] ... [arg-nameN=argN ]
+   ...
+   action-nameN [ arg-name1=arg1 ] ... [arg-nameN=argN ]
+   )
+
+One line transactions are also supported:
+
+   transaction( action-name1 ... )
+
+For example:
+
+    (QEMU) transaction(
+    TRANS> block-dirty-bitmap-add node=drive0 name=bitmap1
+    TRANS> block-dirty-bitmap-clear node=drive0 name=bitmap0
+    TRANS> )
+    {"return": {}}
+    (QEMU)
+
+Use the -v and -p options to activate the verbose and pretty-print options,
+which will echo back the properly formatted JSON-compliant QMP that is being
+sent to QEMU, which is useful for debugging and documentation generation.
+"""
+
 import argparse
 import ast
 import json
