@@ -171,7 +171,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         for cmd in cmds['return']:
             self._completer.append(cmd['name'])
 
-    def __completer_setup(self) -> None:
+    def _completer_setup(self) -> None:
         self._completer = QMPCompleter()
         self._fill_completion()
         readline.set_history_length(1024)
@@ -196,7 +196,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
             LOG.warning(msg)
 
     @classmethod
-    def __parse_value(cls, val: str) -> object:
+    def _parse_value(cls, val: str) -> object:
         try:
             return int(val)
         except ValueError:
@@ -221,9 +221,9 @@ class QMPShell(qmp.QEMUMonitorProtocol):
                 pass
         return val
 
-    def __cli_expr(self,
-                   tokens: Sequence[str],
-                   parent: qmp.QMPObject) -> None:
+    def _cli_expr(self,
+                  tokens: Sequence[str],
+                  parent: qmp.QMPObject) -> None:
         for arg in tokens:
             (key, sep, val) = arg.partition('=')
             if sep != '=':
@@ -231,7 +231,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
                     f"Expected a key=value pair, got '{arg!s}'"
                 )
 
-            value = self.__parse_value(val)
+            value = self._parse_value(val)
             optpath = key.split('.')
             curpath = []
             for path in optpath[:-1]:
@@ -249,7 +249,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
                 raise QMPShellError(f'Cannot set "{key}" multiple times')
             parent[optpath[-1]] = value
 
-    def __build_cmd(self, cmdline: str) -> Optional[QMPMessage]:
+    def _build_cmd(self, cmdline: str) -> Optional[QMPMessage]:
         """
         Build a QMP input object from a user provided command-line in the
         following format:
@@ -289,13 +289,13 @@ class QMPShell(qmp.QEMUMonitorProtocol):
             if cmdargs[-1] == ')':
                 cmdargs.pop(-1)
                 finalize = True
-            self.__cli_expr(cmdargs[1:], action['data'])
+            self._cli_expr(cmdargs[1:], action['data'])
             self._actions.append(action)
-            return self.__build_cmd(')') if finalize else None
+            return self._build_cmd(')') if finalize else None
 
         # Standard command: parse and return it to be executed.
         qmpcmd = {'execute': cmdargs[0], 'arguments': {}}
-        self.__cli_expr(cmdargs[1:], qmpcmd['arguments'])
+        self._cli_expr(cmdargs[1:], qmpcmd['arguments'])
         return qmpcmd
 
     def _print(self, qmp_message: object) -> None:
@@ -306,7 +306,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
 
     def _execute_cmd(self, cmdline: str) -> bool:
         try:
-            qmpcmd = self.__build_cmd(cmdline)
+            qmpcmd = self._build_cmd(cmdline)
         except QMPShellError as err:
             print(
                 f"Error while parsing command line: {err!s}\n"
@@ -329,7 +329,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
 
     def connect(self, negotiate: bool = True) -> None:
         self._greeting = super().connect(negotiate)
-        self.__completer_setup()
+        self._completer_setup()
 
     def show_banner(self,
                     msg: str = 'Welcome to the QMP low-level shell!') -> None:
@@ -377,10 +377,10 @@ class HMPShell(QMPShell):
     def __init__(self, address: qmp.SocketAddrT,
                  pretty: bool = False, verbose: bool = False):
         super().__init__(address, pretty, verbose)
-        self.__cpu_index = 0
+        self._cpu_index = 0
 
-    def __cmd_completion(self) -> None:
-        for cmd in self.__cmd_passthrough('help')['return'].split('\r\n'):
+    def _cmd_completion(self) -> None:
+        for cmd in self._cmd_passthrough('help')['return'].split('\r\n'):
             if cmd and cmd[0] != '[' and cmd[0] != '\t':
                 name = cmd.split()[0]  # drop help text
                 if name == 'info':
@@ -396,22 +396,22 @@ class HMPShell(QMPShell):
                 self._completer.append(name)
                 self._completer.append('help ' + name)  # help completion
 
-    def __info_completion(self) -> None:
-        for cmd in self.__cmd_passthrough('info')['return'].split('\r\n'):
+    def _info_completion(self) -> None:
+        for cmd in self._cmd_passthrough('info')['return'].split('\r\n'):
             if cmd:
                 self._completer.append('info ' + cmd.split()[1])
 
-    def __other_completion(self) -> None:
+    def _other_completion(self) -> None:
         # special cases
         self._completer.append('help info')
 
     def _fill_completion(self) -> None:
-        self.__cmd_completion()
-        self.__info_completion()
-        self.__other_completion()
+        self._cmd_completion()
+        self._info_completion()
+        self._other_completion()
 
-    def __cmd_passthrough(self, cmdline: str,
-                          cpu_index: int = 0) -> QMPMessage:
+    def _cmd_passthrough(self, cmdline: str,
+                         cpu_index: int = 0) -> QMPMessage:
         return self.cmd_obj({
             'execute': 'human-monitor-command',
             'arguments': {
@@ -425,14 +425,14 @@ class HMPShell(QMPShell):
             # trap the cpu command, it requires special setting
             try:
                 idx = int(cmdline.split()[1])
-                if 'return' not in self.__cmd_passthrough('info version', idx):
+                if 'return' not in self._cmd_passthrough('info version', idx):
                     print('bad CPU index')
                     return True
-                self.__cpu_index = idx
+                self._cpu_index = idx
             except ValueError:
                 print('cpu command takes an integer argument')
                 return True
-        resp = self.__cmd_passthrough(cmdline, self.__cpu_index)
+        resp = self._cmd_passthrough(cmdline, self._cpu_index)
         if resp is None:
             print('Disconnected')
             return False
