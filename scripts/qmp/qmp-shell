@@ -251,11 +251,11 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         self.__cli_expr(cmdargs[1:], qmpcmd['arguments'])
         return qmpcmd
 
-    def _print(self, qmp):
+    def _print(self, qmp_message):
         indent = None
         if self._pretty:
             indent = 4
-        jsobj = json.dumps(qmp, indent=indent, sort_keys=self._pretty)
+        jsobj = json.dumps(qmp_message, indent=indent, sort_keys=self._pretty)
         print(str(jsobj))
 
     def _execute_cmd(self, cmdline):
