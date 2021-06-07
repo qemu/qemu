@@ -67,7 +67,6 @@
 
 import ast
 import atexit
-import errno
 import json
 import os
 import re
@@ -143,19 +142,17 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         readline.set_completer_delims('')
         try:
             readline.read_history_file(self._histfile)
-        except Exception as e:
-            if isinstance(e, IOError) and e.errno == errno.ENOENT:
-                # File not found. No problem.
-                pass
-            else:
-                print("Failed to read history '%s'; %s" % (self._histfile, e))
+        except FileNotFoundError:
+            pass
+        except IOError as err:
+            print(f"Failed to read history '{self._histfile}': {err!s}")
         atexit.register(self.__save_history)
 
     def __save_history(self):
         try:
             readline.write_history_file(self._histfile)
-        except Exception as e:
-            print("Failed to save history file '%s'; %s" % (self._histfile, e))
+        except IOError as err:
+            print(f"Failed to save history file '{self._histfile}': {err!s}")
 
     @classmethod
     def __parse_value(cls, val):
