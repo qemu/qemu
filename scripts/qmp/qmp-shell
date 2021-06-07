@@ -113,7 +113,7 @@ class FuzzyJSON(ast.NodeTransformer):
 # TODO: QMPShell's interface is a bit ugly (eg. _fill_completion() and
 #       _execute_cmd()). Let's design a better one.
 class QMPShell(qmp.QEMUMonitorProtocol):
-    def __init__(self, address, pretty=False):
+    def __init__(self, address, pretty=False, verbose=False):
         super().__init__(self.parse_address(address))
         self._greeting = None
         self._completer = None
@@ -122,7 +122,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         self._actions = list()
         self._histfile = os.path.join(os.path.expanduser('~'),
                                       '.qmp-shell_history')
-        self._verbose = False
+        self.verbose = verbose
 
     def _fill_completion(self):
         cmds = self.cmd('query-commands')
@@ -271,7 +271,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         # For transaction mode, we may have just cached the action:
         if qmpcmd is None:
             return True
-        if self._verbose:
+        if self.verbose:
             self._print(qmpcmd)
         resp = self.cmd_obj(qmpcmd)
         if resp is None:
@@ -317,13 +317,10 @@ class QMPShell(qmp.QEMUMonitorProtocol):
 
         return self._execute_cmd(cmdline)
 
-    def set_verbosity(self, verbose):
-        self._verbose = verbose
-
 
 class HMPShell(QMPShell):
-    def __init__(self, address, pretty=False):
-        super().__init__(address, pretty)
+    def __init__(self, address, pretty=False, verbose=False):
+        super().__init__(address, pretty, verbose)
         self.__cpu_index = 0
 
     def __cmd_completion(self):
@@ -423,7 +420,7 @@ def main():
 
     shell_class = HMPShell if args.hmp else QMPShell
     try:
-        qemu = shell_class(args.qmp_server, args.pretty)
+        qemu = shell_class(args.qmp_server, args.pretty, args.verbose)
     except qmp.QMPBadPortError:
         parser.error(f"Bad port number: {args.qmp_server}")
         return  # pycharm doesn't know error() is noreturn
@@ -438,7 +435,6 @@ def main():
         die(f"Couldn't connect to {args.qmp_server}: {err!s}")
 
     qemu.show_banner()
-    qemu.set_verbosity(args.verbose)
     while qemu.read_exec_command(qemu.get_prompt()):
         pass
     qemu.close()
