@@ -176,8 +176,8 @@ class QMPShell(qmp.QEMUMonitorProtocol):
                 pass
             # Try once again as FuzzyJSON:
             try:
-                st = ast.parse(val, mode='eval')
-                return ast.literal_eval(FuzzyJSON().visit(st))
+                tree = ast.parse(val, mode='eval')
+                return ast.literal_eval(FuzzyJSON().visit(tree))
             except SyntaxError:
                 pass
             except ValueError:
@@ -195,14 +195,14 @@ class QMPShell(qmp.QEMUMonitorProtocol):
             value = self.__parse_value(val)
             optpath = key.split('.')
             curpath = []
-            for p in optpath[:-1]:
-                curpath.append(p)
-                d = parent.get(p, {})
-                if type(d) is not dict:
+            for path in optpath[:-1]:
+                curpath.append(path)
+                obj = parent.get(path, {})
+                if type(obj) is not dict:
                     msg = 'Cannot use "{:s}" as both leaf and non-leaf key'
                     raise QMPShellError(msg.format('.'.join(curpath)))
-                parent[p] = d
-                parent = d
+                parent[path] = obj
+                parent = obj
             if optpath[-1] in parent:
                 if type(parent[optpath[-1]]) is dict:
                     msg = 'Cannot use "{:s}" as both leaf and non-leaf key'
@@ -267,8 +267,8 @@ class QMPShell(qmp.QEMUMonitorProtocol):
     def _execute_cmd(self, cmdline):
         try:
             qmpcmd = self.__build_cmd(cmdline)
-        except Exception as e:
-            print('Error while parsing command line: %s' % e)
+        except Exception as err:
+            print('Error while parsing command line: %s' % err)
             print('command format: <command-name> ', end=' ')
             print('[arg-name1=arg1] ... [arg-nameN=argN]')
             return True
@@ -313,8 +313,8 @@ class QMPShell(qmp.QEMUMonitorProtocol):
             print()
             return False
         if cmdline == '':
-            for ev in self.get_events():
-                print(ev)
+            for event in self.get_events():
+                print(event)
             self.clear_events()
             return True
         else:
