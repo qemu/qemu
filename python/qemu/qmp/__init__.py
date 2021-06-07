@@ -41,6 +41,9 @@ QMPMessage = Dict[str, Any]
 #: QMPReturnValue is the 'return' value of a command.
 QMPReturnValue = object
 
+#: QMPObject is any object in a QMP message.
+QMPObject = Dict[str, object]
+
 # QMPMessage can be outgoing commands or incoming events/returns.
 # QMPReturnValue is usually a dict/json object, but due to QAPI's
 # 'returns-whitelist', it can actually be anything.
