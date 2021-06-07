@@ -97,7 +97,8 @@ class FuzzyJSON(ast.NodeTransformer):
     '''This extension of ast.NodeTransformer filters literal "true/false/null"
     values in an AST and replaces them by proper "True/False/None" values that
     Python can properly evaluate.'''
-    def visit_Name(self, node):
+    @classmethod
+    def visit_Name(cls, node):
         if node.id == 'true':
             node.id = 'True'
         if node.id == 'false':
@@ -152,7 +153,8 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         except Exception as e:
             print("Failed to save history file '%s'; %s" % (self._histfile, e))
 
-    def __parse_value(self, val):
+    @classmethod
+    def __parse_value(cls, val):
         try:
             return int(val)
         except ValueError:
