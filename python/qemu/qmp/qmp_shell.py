@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 #
 # Copyright (C) 2009, 2010 Red Hat Inc.
 #
@@ -96,8 +95,6 @@ from typing import (
     Sequence,
 )
 
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu import qmp
 from qemu.qmp import QMPMessage
 
