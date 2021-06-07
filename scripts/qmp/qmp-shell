@@ -452,7 +452,7 @@ def main():
         die('Didn\'t get QMP greeting message')
     except qmp.QMPCapabilitiesError:
         die('Could not negotiate capabilities')
-    except qemu.error:
+    except OSError:
         die('Could not connect to %s' % addr)
 
     qemu.show_banner()
