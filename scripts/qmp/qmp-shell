@@ -298,14 +298,14 @@ class QMPShell(qmp.QEMUMonitorProtocol):
             return 'TRANS> '
         return '(QEMU) '
 
-    def read_exec_command(self, prompt):
+    def read_exec_command(self):
         """
         Read and execute a command.
 
         @return True if execution was ok, return False if disconnected.
         """
         try:
-            cmdline = input(prompt)
+            cmdline = input(self.prompt)
         except EOFError:
             print()
             return False
@@ -436,7 +436,7 @@ def main():
         die(f"Couldn't connect to {args.qmp_server}: {err!s}")
 
     qemu.show_banner()
-    while qemu.read_exec_command(qemu.prompt):
+    while qemu.read_exec_command():
         pass
     qemu.close()
 
