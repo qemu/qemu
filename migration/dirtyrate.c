@@ -20,6 +20,9 @@
 #include "ram.h"
 #include "trace.h"
 #include "dirtyrate.h"
+#include "monitor/hmp.h"
+#include "monitor/monitor.h"
+#include "qapi/qmp/qdict.h"
 
 static int CalculatingState = DIRTY_RATE_STATUS_UNSTARTED;
 static struct DirtyRateStat DirtyStat;
@@ -446,4 +449,48 @@ void qmp_calc_dirty_rate(int64_t calc_time, bool has_sample_pages,
 struct DirtyRateInfo *qmp_query_dirty_rate(Error **errp)
 {
     return query_dirty_rate_info();
+}
+
+void hmp_info_dirty_rate(Monitor *mon, const QDict *qdict)
+{
+    DirtyRateInfo *info = query_dirty_rate_info();
+
+    monitor_printf(mon, "Status: %s\n",
+                   DirtyRateStatus_str(info->status));
+    monitor_printf(mon, "Start Time: %"PRIi64" (ms)\n",
+                   info->start_time);
+    monitor_printf(mon, "Sample Pages: %"PRIu64" (per GB)\n",
+                   info->sample_pages);
+    monitor_printf(mon, "Period: %"PRIi64" (sec)\n",
+                   info->calc_time);
+    monitor_printf(mon, "Dirty rate: ");
+    if (info->has_dirty_rate) {
+        monitor_printf(mon, "%"PRIi64" (MB/s)\n", info->dirty_rate);
+    } else {
+        monitor_printf(mon, "(not ready)\n");
+    }
+    g_free(info);
+}
+
+void hmp_calc_dirty_rate(Monitor *mon, const QDict *qdict)
+{
+    int64_t sec = qdict_get_try_int(qdict, "second", 0);
+    int64_t sample_pages = qdict_get_try_int(qdict, "sample_pages_per_GB", -1);
+    bool has_sample_pages = (sample_pages != -1);
+    Error *err = NULL;
+
+    if (!sec) {
+        monitor_printf(mon, "Incorrect period length specified!\n");
+        return;
+    }
+
+    qmp_calc_dirty_rate(sec, has_sample_pages, sample_pages, &err);
+    if (err) {
+        hmp_handle_error(mon, err);
+        return;
+    }
+
+    monitor_printf(mon, "Starting dirty rate measurement with period %"PRIi64
+                   " seconds\n", sec);
+    monitor_printf(mon, "[Please use 'info dirty_rate' to check results]\n");
 }
