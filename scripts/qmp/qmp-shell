@@ -83,10 +83,10 @@ class QMPCompleter(list):
     def complete(self, text, state):
         for cmd in self:
             if cmd.startswith(text):
-                if not state:
+                if state == 0:
                     return cmd
-                else:
-                    state -= 1
+                state -= 1
+        return None
 
 
 class QMPShellError(Exception):
