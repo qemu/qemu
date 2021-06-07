@@ -130,8 +130,6 @@ class FuzzyJSON(ast.NodeTransformer):
         return node
 
 
-# TODO: QMPShell's interface is a bit ugly (eg. _fill_completion() and
-#       _execute_cmd()). Let's design a better one.
 class QMPShell(qmp.QEMUMonitorProtocol):
     def __init__(self, address: qmp.SocketAddrT,
                  pretty: bool = False, verbose: bool = False):
