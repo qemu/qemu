@@ -65,17 +65,19 @@
 # which will echo back the properly formatted JSON-compliant QMP that is being
 # sent to QEMU, which is useful for debugging and documentation generation.
 
-import json
 import ast
+import atexit
+import errno
+import json
+import os
+import re
 import readline
 import sys
-import os
-import errno
-import atexit
-import re
+
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu import qmp
+
 
 class QMPCompleter(list):
     def complete(self, text, state):
