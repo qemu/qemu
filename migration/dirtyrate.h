@@ -15,7 +15,6 @@
 
 /*
  * Sample 512 pages per GB as default.
- * TODO: Make it configurable.
  */
 #define DIRTYRATE_DEFAULT_SAMPLE_PAGES            512
 
@@ -34,6 +33,12 @@
  */
 #define MIN_FETCH_DIRTYRATE_TIME_SEC              1
 #define MAX_FETCH_DIRTYRATE_TIME_SEC              60
+
+/*
+ * Take 1/16 pages in 1G as the maxmum sample page count
+ */
+#define MIN_SAMPLE_PAGE_COUNT                     128
+#define MAX_SAMPLE_PAGE_COUNT                     16384
 
 struct DirtyRateConfig {
     uint64_t sample_pages_per_gigabytes; /* sample pages per GB */
@@ -63,6 +68,7 @@ struct DirtyRateStat {
     int64_t dirty_rate; /* dirty rate in MB/s */
     int64_t start_time; /* calculation start time in units of second */
     int64_t calc_time; /* time duration of two sampling in units of second */
+    uint64_t sample_pages; /* sample pages per GB */
 };
 
 void *get_dirtyrate_thread(void *arg);
