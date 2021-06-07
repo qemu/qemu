@@ -278,7 +278,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         self._print(resp)
         return True
 
-    def connect(self, negotiate):
+    def connect(self, negotiate: bool = True):
         self._greeting = super(QMPShell, self).connect(negotiate)
         self.__completer_setup()
 
