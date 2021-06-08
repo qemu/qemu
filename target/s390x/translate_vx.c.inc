@@ -2965,14 +2965,33 @@ static DisasJumpType op_vftci(DisasContext *s, DisasOps *o)
     const uint16_t i3 = get_field(s, i3);
     const uint8_t fpf = get_field(s, m4);
     const uint8_t m5 = get_field(s, m5);
+    gen_helper_gvec_2_ptr *fn = NULL;
 
-    if (fpf != FPF_LONG || extract32(m5, 0, 3)) {
+    switch (fpf) {
+    case FPF_SHORT:
+        if (s390_has_feat(S390_FEAT_VECTOR_ENH)) {
+            fn = gen_helper_gvec_vftci32;
+        }
+        break;
+    case FPF_LONG:
+        fn = gen_helper_gvec_vftci64;
+        break;
+    case FPF_EXT:
+        if (s390_has_feat(S390_FEAT_VECTOR_ENH)) {
+            fn = gen_helper_gvec_vftci128;
+        }
+        break;
+    default:
+        break;
+    }
+
+    if (!fn || extract32(m5, 0, 3)) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
 
     gen_gvec_2_ptr(get_field(s, v1), get_field(s, v2), cpu_env,
-                   deposit32(m5, 4, 12, i3), gen_helper_gvec_vftci64);
+                   deposit32(m5, 4, 12, i3), fn);
     set_cc_static(s);
     return DISAS_NEXT;
 }

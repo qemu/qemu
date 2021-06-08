@@ -622,6 +622,36 @@ void HELPER(gvec_##NAME##BITS)(void *v1, const void *v2, const void *v3,       \
 DEF_GVEC_VFMA(vfma, 0)
 DEF_GVEC_VFMA(vfms, float_muladd_negate_c)
 
+void HELPER(gvec_vftci32)(void *v1, const void *v2, CPUS390XState *env,
+                          uint32_t desc)
+{
+    uint16_t i3 = extract32(simd_data(desc), 4, 12);
+    bool s = extract32(simd_data(desc), 3, 1);
+    int i, match = 0;
+
+    for (i = 0; i < 4; i++) {
+        float32 a = s390_vec_read_float32(v2, i);
+
+        if (float32_dcmask(env, a) & i3) {
+            match++;
+            s390_vec_write_element32(v1, i, -1u);
+        } else {
+            s390_vec_write_element32(v1, i, 0);
+        }
+        if (s) {
+            break;
+        }
+    }
+
+    if (match == 4 || (s && match)) {
+        env->cc_op = 0;
+    } else if (match) {
+        env->cc_op = 1;
+    } else {
+        env->cc_op = 3;
+    }
+}
+
 void HELPER(gvec_vftci64)(void *v1, const void *v2, CPUS390XState *env,
                           uint32_t desc)
 {
@@ -649,5 +679,22 @@ void HELPER(gvec_vftci64)(void *v1, const void *v2, CPUS390XState *env,
         env->cc_op = 1;
     } else {
         env->cc_op = 3;
+    }
+}
+
+void HELPER(gvec_vftci128)(void *v1, const void *v2, CPUS390XState *env,
+                           uint32_t desc)
+{
+    const float128 a = s390_vec_read_float128(v2);
+    uint16_t i3 = extract32(simd_data(desc), 4, 12);
+
+    if (float128_dcmask(env, a) & i3) {
+        env->cc_op = 0;
+        s390_vec_write_element64(v1, 0, -1ull);
+        s390_vec_write_element64(v1, 1, -1ull);
+    } else {
+        env->cc_op = 3;
+        s390_vec_write_element64(v1, 0, 0);
+        s390_vec_write_element64(v1, 1, 0);
     }
 }
