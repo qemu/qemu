@@ -1714,6 +1714,7 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
+    state->bs = bs;
     /* Paired with .clean() */
     bdrv_drained_begin(bs);
 
@@ -1812,8 +1813,6 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
             goto unref;
         }
     }
-
-    state->bs = bs;
 
     state->job = do_backup_common(qapi_DriveBackup_base(backup),
                                   bs, target_bs, aio_context,
