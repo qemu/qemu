@@ -88,7 +88,7 @@ static void s390_vec_write_float64(S390Vector *v, uint8_t enr, float64 data)
     return s390_vec_write_element64(v, enr, data);
 }
 
-typedef uint64_t (*vop64_2_fn)(uint64_t a, float_status *s);
+typedef float64 (*vop64_2_fn)(float64 a, float_status *s);
 static void vop64_2(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
                     bool s, bool XxC, uint8_t erm, vop64_2_fn fn,
                     uintptr_t retaddr)
@@ -99,9 +99,9 @@ static void vop64_2(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
 
     old_mode = s390_swap_bfp_rounding_mode(env, erm);
     for (i = 0; i < 2; i++) {
-        const uint64_t a = s390_vec_read_element64(v2, i);
+        const float64 a = s390_vec_read_float64(v2, i);
 
-        s390_vec_write_element64(&tmp, i, fn(a, &env->fpu_status));
+        s390_vec_write_float64(&tmp, i, fn(a, &env->fpu_status));
         vxc = check_ieee_exc(env, i, XxC, &vec_exc);
         if (s || vxc) {
             break;
@@ -111,6 +111,54 @@ static void vop64_2(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
     handle_ieee_exc(env, vxc, vec_exc, retaddr);
     *v1 = tmp;
 }
+
+static float64 vcdg64(float64 a, float_status *s)
+{
+    return int64_to_float64(a, s);
+}
+
+static float64 vcdlg64(float64 a, float_status *s)
+{
+    return uint64_to_float64(a, s);
+}
+
+static float64 vcgd64(float64 a, float_status *s)
+{
+    const float64 tmp = float64_to_int64(a, s);
+
+    return float64_is_any_nan(a) ? INT64_MIN : tmp;
+}
+
+static float64 vclgd64(float64 a, float_status *s)
+{
+    const float64 tmp = float64_to_uint64(a, s);
+
+    return float64_is_any_nan(a) ? 0 : tmp;
+}
+
+#define DEF_GVEC_VOP2_FN(NAME, FN, BITS)                                       \
+void HELPER(gvec_##NAME##BITS)(void *v1, const void *v2, CPUS390XState *env,   \
+                               uint32_t desc)                                  \
+{                                                                              \
+    const uint8_t erm = extract32(simd_data(desc), 4, 4);                      \
+    const bool se = extract32(simd_data(desc), 3, 1);                          \
+    const bool XxC = extract32(simd_data(desc), 2, 1);                         \
+                                                                               \
+    vop##BITS##_2(v1, v2, env, se, XxC, erm, FN, GETPC());                     \
+}
+
+#define DEF_GVEC_VOP2_64(NAME)                                                 \
+DEF_GVEC_VOP2_FN(NAME, NAME##64, 64)
+
+#define DEF_GVEC_VOP2(NAME, OP)                                                \
+DEF_GVEC_VOP2_FN(NAME, float64_##OP, 64)
+
+DEF_GVEC_VOP2_64(vcdg)
+DEF_GVEC_VOP2_64(vcdlg)
+DEF_GVEC_VOP2_64(vcgd)
+DEF_GVEC_VOP2_64(vclgd)
+DEF_GVEC_VOP2(vfi, round_to_int)
+DEF_GVEC_VOP2(vfsq, sqrt)
 
 typedef float64 (*vop64_3_fn)(float64 a, float64 b, float_status *s);
 static void vop64_3(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
@@ -285,125 +333,6 @@ void HELPER(gvec_vfche64s_cc)(void *v1, const void *v2, const void *v3,
     env->cc_op = vfc64(v1, v2, v3, env, true, float64_le_quiet, GETPC());
 }
 
-static uint64_t vcdg64(uint64_t a, float_status *s)
-{
-    return int64_to_float64(a, s);
-}
-
-void HELPER(gvec_vcdg64)(void *v1, const void *v2, CPUS390XState *env,
-                         uint32_t desc)
-{
-    const uint8_t erm = extract32(simd_data(desc), 4, 4);
-    const bool XxC = extract32(simd_data(desc), 2, 1);
-
-    vop64_2(v1, v2, env, false, XxC, erm, vcdg64, GETPC());
-}
-
-void HELPER(gvec_vcdg64s)(void *v1, const void *v2, CPUS390XState *env,
-                          uint32_t desc)
-{
-    const uint8_t erm = extract32(simd_data(desc), 4, 4);
-    const bool XxC = extract32(simd_data(desc), 2, 1);
-
-    vop64_2(v1, v2, env, true, XxC, erm, vcdg64, GETPC());
-}
-
-static uint64_t vcdlg64(uint64_t a, float_status *s)
-{
-    return uint64_to_float64(a, s);
-}
-
-void HELPER(gvec_vcdlg64)(void *v1, const void *v2, CPUS390XState *env,
-                          uint32_t desc)
-{
-    const uint8_t erm = extract32(simd_data(desc), 4, 4);
-    const bool XxC = extract32(simd_data(desc), 2, 1);
-
-    vop64_2(v1, v2, env, false, XxC, erm, vcdlg64, GETPC());
-}
-
-void HELPER(gvec_vcdlg64s)(void *v1, const void *v2, CPUS390XState *env,
-                           uint32_t desc)
-{
-    const uint8_t erm = extract32(simd_data(desc), 4, 4);
-    const bool XxC = extract32(simd_data(desc), 2, 1);
-
-    vop64_2(v1, v2, env, true, XxC, erm, vcdlg64, GETPC());
-}
-
-static uint64_t vcgd64(uint64_t a, float_status *s)
-{
-    const uint64_t tmp = float64_to_int64(a, s);
-
-    return float64_is_any_nan(a) ? INT64_MIN : tmp;
-}
-
-void HELPER(gvec_vcgd64)(void *v1, const void *v2, CPUS390XState *env,
-                         uint32_t desc)
-{
-    const uint8_t erm = extract32(simd_data(desc), 4, 4);
-    const bool XxC = extract32(simd_data(desc), 2, 1);
-
-    vop64_2(v1, v2, env, false, XxC, erm, vcgd64, GETPC());
-}
-
-void HELPER(gvec_vcgd64s)(void *v1, const void *v2, CPUS390XState *env,
-                          uint32_t desc)
-{
-    const uint8_t erm = extract32(simd_data(desc), 4, 4);
-    const bool XxC = extract32(simd_data(desc), 2, 1);
-
-    vop64_2(v1, v2, env, true, XxC, erm, vcgd64, GETPC());
-}
-
-static uint64_t vclgd64(uint64_t a, float_status *s)
-{
-    const uint64_t tmp = float64_to_uint64(a, s);
-
-    return float64_is_any_nan(a) ? 0 : tmp;
-}
-
-void HELPER(gvec_vclgd64)(void *v1, const void *v2, CPUS390XState *env,
-                          uint32_t desc)
-{
-    const uint8_t erm = extract32(simd_data(desc), 4, 4);
-    const bool XxC = extract32(simd_data(desc), 2, 1);
-
-    vop64_2(v1, v2, env, false, XxC, erm, vclgd64, GETPC());
-}
-
-void HELPER(gvec_vclgd64s)(void *v1, const void *v2, CPUS390XState *env,
-                           uint32_t desc)
-{
-    const uint8_t erm = extract32(simd_data(desc), 4, 4);
-    const bool XxC = extract32(simd_data(desc), 2, 1);
-
-    vop64_2(v1, v2, env, true, XxC, erm, vclgd64, GETPC());
-}
-
-static uint64_t vfi64(uint64_t a, float_status *s)
-{
-    return float64_round_to_int(a, s);
-}
-
-void HELPER(gvec_vfi64)(void *v1, const void *v2, CPUS390XState *env,
-                        uint32_t desc)
-{
-    const uint8_t erm = extract32(simd_data(desc), 4, 4);
-    const bool XxC = extract32(simd_data(desc), 2, 1);
-
-    vop64_2(v1, v2, env, false, XxC, erm, vfi64, GETPC());
-}
-
-void HELPER(gvec_vfi64s)(void *v1, const void *v2, CPUS390XState *env,
-                         uint32_t desc)
-{
-    const uint8_t erm = extract32(simd_data(desc), 4, 4);
-    const bool XxC = extract32(simd_data(desc), 2, 1);
-
-    vop64_2(v1, v2, env, true, XxC, erm, vfi64, GETPC());
-}
-
 static void vfll32(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
                    bool s, uintptr_t retaddr)
 {
@@ -528,23 +457,6 @@ void HELPER(gvec_vfms64s)(void *v1, const void *v2, const void *v3,
                          const void *v4, CPUS390XState *env, uint32_t desc)
 {
     vfma64(v1, v2, v3, v4, env, true, float_muladd_negate_c, GETPC());
-}
-
-static uint64_t vfsq64(uint64_t a, float_status *s)
-{
-    return float64_sqrt(a, s);
-}
-
-void HELPER(gvec_vfsq64)(void *v1, const void *v2, CPUS390XState *env,
-                         uint32_t desc)
-{
-    vop64_2(v1, v2, env, false, false, 0, vfsq64, GETPC());
-}
-
-void HELPER(gvec_vfsq64s)(void *v1, const void *v2, CPUS390XState *env,
-                          uint32_t desc)
-{
-    vop64_2(v1, v2, env, true, false, 0, vfsq64, GETPC());
 }
 
 static int vftci64(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,

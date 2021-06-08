@@ -2558,19 +2558,19 @@ static DisasJumpType op_vcdg(DisasContext *s, DisasOps *o)
 
     switch (s->fields.op2) {
     case 0xc3:
-        fn = se ? gen_helper_gvec_vcdg64s : gen_helper_gvec_vcdg64;
+        fn = gen_helper_gvec_vcdg64;
         break;
     case 0xc1:
-        fn = se ? gen_helper_gvec_vcdlg64s : gen_helper_gvec_vcdlg64;
+        fn = gen_helper_gvec_vcdlg64;
         break;
     case 0xc2:
-        fn = se ? gen_helper_gvec_vcgd64s : gen_helper_gvec_vcgd64;
+        fn = gen_helper_gvec_vcgd64;
         break;
     case 0xc0:
-        fn = se ? gen_helper_gvec_vclgd64s : gen_helper_gvec_vclgd64;
+        fn = gen_helper_gvec_vclgd64;
         break;
     case 0xc7:
-        fn = se ? gen_helper_gvec_vfi64s : gen_helper_gvec_vfi64;
+        fn = gen_helper_gvec_vfi64;
         break;
     case 0xc5:
         fn = se ? gen_helper_gvec_vflr64s : gen_helper_gvec_vflr64;
@@ -2681,18 +2681,14 @@ static DisasJumpType op_vfsq(DisasContext *s, DisasOps *o)
 {
     const uint8_t fpf = get_field(s, m3);
     const uint8_t m4 = get_field(s, m4);
-    gen_helper_gvec_2_ptr *fn = gen_helper_gvec_vfsq64;
 
     if (fpf != FPF_LONG || extract32(m4, 0, 3)) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
 
-    if (extract32(m4, 3, 1)) {
-        fn = gen_helper_gvec_vfsq64s;
-    }
-    gen_gvec_2_ptr(get_field(s, v1), get_field(s, v2), cpu_env,
-                   0, fn);
+    gen_gvec_2_ptr(get_field(s, v1), get_field(s, v2), cpu_env, m4,
+                   gen_helper_gvec_vfsq64);
     return DISAS_NEXT;
 }
 
