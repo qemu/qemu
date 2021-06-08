@@ -2497,7 +2497,6 @@ static DisasJumpType op_vfc(DisasContext *s, DisasOps *o)
     const uint8_t fpf = get_field(s, m4);
     const uint8_t m5 = get_field(s, m5);
     const uint8_t m6 = get_field(s, m6);
-    const bool se = extract32(m5, 3, 1);
     const bool cs = extract32(m6, 0, 1);
     gen_helper_gvec_3_ptr *fn;
 
@@ -2506,37 +2505,21 @@ static DisasJumpType op_vfc(DisasContext *s, DisasOps *o)
         return DISAS_NORETURN;
     }
 
-    if (cs) {
-        switch (s->fields.op2) {
-        case 0xe8:
-            fn = se ? gen_helper_gvec_vfce64s_cc : gen_helper_gvec_vfce64_cc;
-            break;
-        case 0xeb:
-            fn = se ? gen_helper_gvec_vfch64s_cc : gen_helper_gvec_vfch64_cc;
-            break;
-        case 0xea:
-            fn = se ? gen_helper_gvec_vfche64s_cc : gen_helper_gvec_vfche64_cc;
-            break;
-        default:
-            g_assert_not_reached();
-        }
-    } else {
-        switch (s->fields.op2) {
-        case 0xe8:
-            fn = se ? gen_helper_gvec_vfce64s : gen_helper_gvec_vfce64;
-            break;
-        case 0xeb:
-            fn = se ? gen_helper_gvec_vfch64s : gen_helper_gvec_vfch64;
-            break;
-        case 0xea:
-            fn = se ? gen_helper_gvec_vfche64s : gen_helper_gvec_vfche64;
-            break;
-        default:
-            g_assert_not_reached();
-        }
+    switch (s->fields.op2) {
+    case 0xe8:
+        fn = cs ? gen_helper_gvec_vfce64_cc : gen_helper_gvec_vfce64;
+        break;
+    case 0xeb:
+        fn = cs ? gen_helper_gvec_vfch64_cc : gen_helper_gvec_vfch64;
+        break;
+    case 0xea:
+        fn = cs ? gen_helper_gvec_vfche64_cc : gen_helper_gvec_vfche64;
+        break;
+    default:
+        g_assert_not_reached();
     }
-    gen_gvec_3_ptr(get_field(s, v1), get_field(s, v2),
-                   get_field(s, v3), cpu_env, 0, fn);
+    gen_gvec_3_ptr(get_field(s, v1), get_field(s, v2), get_field(s, v3),
+                   cpu_env, m5, fn);
     if (cs) {
         set_cc_static(s);
     }
