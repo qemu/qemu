@@ -2443,7 +2443,6 @@ static DisasJumpType op_vfa(DisasContext *s, DisasOps *o)
 {
     const uint8_t fpf = get_field(s, m4);
     const uint8_t m5 = get_field(s, m5);
-    const bool se = extract32(m5, 3, 1);
     gen_helper_gvec_3_ptr *fn;
 
     if (fpf != FPF_LONG || extract32(m5, 0, 3)) {
@@ -2453,22 +2452,22 @@ static DisasJumpType op_vfa(DisasContext *s, DisasOps *o)
 
     switch (s->fields.op2) {
     case 0xe3:
-        fn = se ? gen_helper_gvec_vfa64s : gen_helper_gvec_vfa64;
+        fn = gen_helper_gvec_vfa64;
         break;
     case 0xe5:
-        fn = se ? gen_helper_gvec_vfd64s : gen_helper_gvec_vfd64;
+        fn = gen_helper_gvec_vfd64;
         break;
     case 0xe7:
-        fn = se ? gen_helper_gvec_vfm64s : gen_helper_gvec_vfm64;
+        fn = gen_helper_gvec_vfm64;
         break;
     case 0xe2:
-        fn = se ? gen_helper_gvec_vfs64s : gen_helper_gvec_vfs64;
+        fn = gen_helper_gvec_vfs64;
         break;
     default:
         g_assert_not_reached();
     }
     gen_gvec_3_ptr(get_field(s, v1), get_field(s, v2),
-                   get_field(s, v3), cpu_env, 0, fn);
+                   get_field(s, v3), cpu_env, m5, fn);
     return DISAS_NEXT;
 }
 
