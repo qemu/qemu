@@ -582,6 +582,30 @@ void HELPER(gvec_vflr128)(void *v1, const void *v2, CPUS390XState *env,
     s390_vec_write_float64(v1, 0, ret);
 }
 
+static void vfma32(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
+                   const S390Vector *v4, CPUS390XState *env, bool s, int flags,
+                   uintptr_t retaddr)
+{
+    uint8_t vxc, vec_exc = 0;
+    S390Vector tmp = {};
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        const float32 a = s390_vec_read_float32(v2, i);
+        const float32 b = s390_vec_read_float32(v3, i);
+        const float32 c = s390_vec_read_float32(v4, i);
+        float32 ret = float32_muladd(a, b, c, flags, &env->fpu_status);
+
+        s390_vec_write_float32(&tmp, i, ret);
+        vxc = check_ieee_exc(env, i, false, &vec_exc);
+        if (s || vxc) {
+            break;
+        }
+    }
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);
+    *v1 = tmp;
+}
+
 static void vfma64(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
                    const S390Vector *v4, CPUS390XState *env, bool s, int flags,
                    uintptr_t retaddr)
@@ -606,6 +630,22 @@ static void vfma64(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
     *v1 = tmp;
 }
 
+static void vfma128(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
+                    const S390Vector *v4, CPUS390XState *env, bool s, int flags,
+                    uintptr_t retaddr)
+{
+    const float128 a = s390_vec_read_float128(v2);
+    const float128 b = s390_vec_read_float128(v3);
+    const float128 c = s390_vec_read_float128(v4);
+    uint8_t vxc, vec_exc = 0;
+    float128 ret;
+
+    ret = float128_muladd(a, b, c, flags, &env->fpu_status);
+    vxc = check_ieee_exc(env, 0, false, &vec_exc);
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);
+    s390_vec_write_float128(v1, ret);
+}
+
 #define DEF_GVEC_VFMA_B(NAME, FLAGS, BITS)                                     \
 void HELPER(gvec_##NAME##BITS)(void *v1, const void *v2, const void *v3,       \
                                const void *v4, CPUS390XState *env,             \
@@ -617,7 +657,9 @@ void HELPER(gvec_##NAME##BITS)(void *v1, const void *v2, const void *v3,       \
 }
 
 #define DEF_GVEC_VFMA(NAME, FLAGS)                                             \
-    DEF_GVEC_VFMA_B(NAME, FLAGS, 64)
+    DEF_GVEC_VFMA_B(NAME, FLAGS, 32)                                           \
+    DEF_GVEC_VFMA_B(NAME, FLAGS, 64)                                           \
+    DEF_GVEC_VFMA_B(NAME, FLAGS, 128)
 
 DEF_GVEC_VFMA(vfma, 0)
 DEF_GVEC_VFMA(vfms, float_muladd_negate_c)
