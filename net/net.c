@@ -52,6 +52,7 @@
 #include "qapi/error.h"
 #include "qapi/opts-visitor.h"
 #include "sysemu/runstate.h"
+#include "net/colo-compare.h"
 #include "net/filter.h"
 #include "qapi/string-output-visitor.h"
 
@@ -1401,6 +1402,9 @@ static void net_vm_change_state_handler(void *opaque, bool running,
 void net_cleanup(void)
 {
     NetClientState *nc;
+
+    /*cleanup colo compare module for COLO*/
+    colo_compare_cleanup();
 
     /* We may del multiple entries during qemu_del_net_client(),
      * so QTAILQ_FOREACH_SAFE() is also not safe here.
