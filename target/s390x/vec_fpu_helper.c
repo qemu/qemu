@@ -110,6 +110,30 @@ static void s390_vec_write_float128(S390Vector *v, float128 data)
     s390_vec_write_element64(v, 1, data.low);
 }
 
+typedef float32 (*vop32_2_fn)(float32 a, float_status *s);
+static void vop32_2(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
+                    bool s, bool XxC, uint8_t erm, vop32_2_fn fn,
+                    uintptr_t retaddr)
+{
+    uint8_t vxc, vec_exc = 0;
+    S390Vector tmp = {};
+    int i, old_mode;
+
+    old_mode = s390_swap_bfp_rounding_mode(env, erm);
+    for (i = 0; i < 4; i++) {
+        const float32 a = s390_vec_read_float32(v2, i);
+
+        s390_vec_write_float32(&tmp, i, fn(a, &env->fpu_status));
+        vxc = check_ieee_exc(env, i, XxC, &vec_exc);
+        if (s || vxc) {
+            break;
+        }
+    }
+    s390_restore_bfp_rounding_mode(env, old_mode);
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);
+    *v1 = tmp;
+}
+
 typedef float64 (*vop64_2_fn)(float64 a, float_status *s);
 static void vop64_2(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
                     bool s, bool XxC, uint8_t erm, vop64_2_fn fn,
@@ -129,6 +153,24 @@ static void vop64_2(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
             break;
         }
     }
+    s390_restore_bfp_rounding_mode(env, old_mode);
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);
+    *v1 = tmp;
+}
+
+typedef float128 (*vop128_2_fn)(float128 a, float_status *s);
+static void vop128_2(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
+                    bool s, bool XxC, uint8_t erm, vop128_2_fn fn,
+                    uintptr_t retaddr)
+{
+    const float128 a = s390_vec_read_float128(v2);
+    uint8_t vxc, vec_exc = 0;
+    S390Vector tmp = {};
+    int old_mode;
+
+    old_mode = s390_swap_bfp_rounding_mode(env, erm);
+    s390_vec_write_float128(&tmp, fn(a, &env->fpu_status));
+    vxc = check_ieee_exc(env, 0, XxC, &vec_exc);
     s390_restore_bfp_rounding_mode(env, old_mode);
     handle_ieee_exc(env, vxc, vec_exc, retaddr);
     *v1 = tmp;
@@ -173,7 +215,9 @@ void HELPER(gvec_##NAME##BITS)(void *v1, const void *v2, CPUS390XState *env,   \
 DEF_GVEC_VOP2_FN(NAME, NAME##64, 64)
 
 #define DEF_GVEC_VOP2(NAME, OP)                                                \
-DEF_GVEC_VOP2_FN(NAME, float64_##OP, 64)
+DEF_GVEC_VOP2_FN(NAME, float32_##OP, 32)                                       \
+DEF_GVEC_VOP2_FN(NAME, float64_##OP, 64)                                       \
+DEF_GVEC_VOP2_FN(NAME, float128_##OP, 128)
 
 DEF_GVEC_VOP2_64(vcdg)
 DEF_GVEC_VOP2_64(vcdlg)
