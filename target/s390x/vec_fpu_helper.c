@@ -340,6 +340,38 @@ void HELPER(gvec_##NAME##BITS)(const void *v1, const void *v2,                 \
 DEF_GVEC_WFC(wfc, false)
 DEF_GVEC_WFC(wfk, true)
 
+typedef bool (*vfc32_fn)(float32 a, float32 b, float_status *status);
+static int vfc32(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
+                 CPUS390XState *env, bool s, vfc32_fn fn, uintptr_t retaddr)
+{
+    uint8_t vxc, vec_exc = 0;
+    S390Vector tmp = {};
+    int match = 0;
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        const float32 a = s390_vec_read_float32(v2, i);
+        const float32 b = s390_vec_read_float32(v3, i);
+
+        /* swap the order of the parameters, so we can use existing functions */
+        if (fn(b, a, &env->fpu_status)) {
+            match++;
+            s390_vec_write_element32(&tmp, i, -1u);
+        }
+        vxc = check_ieee_exc(env, i, false, &vec_exc);
+        if (s || vxc) {
+            break;
+        }
+    }
+
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);
+    *v1 = tmp;
+    if (match) {
+        return s || match == 4 ? 0 : 1;
+    }
+    return 3;
+}
+
 typedef bool (*vfc64_fn)(float64 a, float64 b, float_status *status);
 static int vfc64(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
                  CPUS390XState *env, bool s, vfc64_fn fn, uintptr_t retaddr)
@@ -372,12 +404,35 @@ static int vfc64(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
     return 3;
 }
 
+typedef bool (*vfc128_fn)(float128 a, float128 b, float_status *status);
+static int vfc128(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
+                 CPUS390XState *env, bool s, vfc128_fn fn, uintptr_t retaddr)
+{
+    const float128 a = s390_vec_read_float128(v2);
+    const float128 b = s390_vec_read_float128(v3);
+    uint8_t vxc, vec_exc = 0;
+    S390Vector tmp = {};
+    bool match = false;
+
+    /* swap the order of the parameters, so we can use existing functions */
+    if (fn(b, a, &env->fpu_status)) {
+        match = true;
+        s390_vec_write_element64(&tmp, 0, -1ull);
+        s390_vec_write_element64(&tmp, 1, -1ull);
+    }
+    vxc = check_ieee_exc(env, 0, false, &vec_exc);
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);
+    *v1 = tmp;
+    return match ? 0 : 3;
+}
+
 #define DEF_GVEC_VFC_B(NAME, OP, BITS)                                         \
 void HELPER(gvec_##NAME##BITS)(void *v1, const void *v2, const void *v3,       \
                                CPUS390XState *env, uint32_t desc)              \
 {                                                                              \
     const bool se = extract32(simd_data(desc), 3, 1);                          \
-    vfc##BITS##_fn fn = float##BITS##_##OP##_quiet;                            \
+    const bool sq = extract32(simd_data(desc), 2, 1);                          \
+    vfc##BITS##_fn fn = sq ? float##BITS##_##OP : float##BITS##_##OP##_quiet;  \
                                                                                \
     vfc##BITS(v1, v2, v3, env, se, fn, GETPC());                               \
 }                                                                              \
@@ -386,13 +441,16 @@ void HELPER(gvec_##NAME##BITS##_cc)(void *v1, const void *v2, const void *v3,  \
                                     CPUS390XState *env, uint32_t desc)         \
 {                                                                              \
     const bool se = extract32(simd_data(desc), 3, 1);                          \
-    vfc##BITS##_fn fn = float##BITS##_##OP##_quiet;                            \
+    const bool sq = extract32(simd_data(desc), 2, 1);                          \
+    vfc##BITS##_fn fn = sq ? float##BITS##_##OP : float##BITS##_##OP##_quiet;  \
                                                                                \
     env->cc_op = vfc##BITS(v1, v2, v3, env, se, fn, GETPC());                  \
 }
 
 #define DEF_GVEC_VFC(NAME, OP)                                                 \
-DEF_GVEC_VFC_B(NAME, OP, 64)
+DEF_GVEC_VFC_B(NAME, OP, 32)                                                   \
+DEF_GVEC_VFC_B(NAME, OP, 64)                                                   \
+DEF_GVEC_VFC_B(NAME, OP, 128)                                                  \
 
 DEF_GVEC_VFC(vfce, eq)
 DEF_GVEC_VFC(vfch, lt)

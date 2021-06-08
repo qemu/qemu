@@ -2621,26 +2621,65 @@ static DisasJumpType op_vfc(DisasContext *s, DisasOps *o)
     const uint8_t m5 = get_field(s, m5);
     const uint8_t m6 = get_field(s, m6);
     const bool cs = extract32(m6, 0, 1);
-    gen_helper_gvec_3_ptr *fn;
-
-    if (fpf != FPF_LONG || extract32(m5, 0, 3) || extract32(m6, 1, 3)) {
-        gen_program_exception(s, PGM_SPECIFICATION);
-        return DISAS_NORETURN;
-    }
+    const bool sq = extract32(m5, 2, 1);
+    gen_helper_gvec_3_ptr *fn = NULL;
 
     switch (s->fields.op2) {
     case 0xe8:
-        fn = cs ? gen_helper_gvec_vfce64_cc : gen_helper_gvec_vfce64;
+        switch (fpf) {
+        case FPF_SHORT:
+            fn = cs ? gen_helper_gvec_vfce32_cc : gen_helper_gvec_vfce32;
+            break;
+        case FPF_LONG:
+            fn = cs ? gen_helper_gvec_vfce64_cc : gen_helper_gvec_vfce64;
+            break;
+        case FPF_EXT:
+            fn = cs ? gen_helper_gvec_vfce128_cc : gen_helper_gvec_vfce128;
+            break;
+        default:
+            break;
+        }
         break;
     case 0xeb:
-        fn = cs ? gen_helper_gvec_vfch64_cc : gen_helper_gvec_vfch64;
+        switch (fpf) {
+        case FPF_SHORT:
+            fn = cs ? gen_helper_gvec_vfch32_cc : gen_helper_gvec_vfch32;
+            break;
+        case FPF_LONG:
+            fn = cs ? gen_helper_gvec_vfch64_cc : gen_helper_gvec_vfch64;
+            break;
+        case FPF_EXT:
+            fn = cs ? gen_helper_gvec_vfch128_cc : gen_helper_gvec_vfch128;
+            break;
+        default:
+            break;
+        }
         break;
     case 0xea:
-        fn = cs ? gen_helper_gvec_vfche64_cc : gen_helper_gvec_vfche64;
+        switch (fpf) {
+        case FPF_SHORT:
+            fn = cs ? gen_helper_gvec_vfche32_cc : gen_helper_gvec_vfche32;
+            break;
+        case FPF_LONG:
+            fn = cs ? gen_helper_gvec_vfche64_cc : gen_helper_gvec_vfche64;
+            break;
+        case FPF_EXT:
+            fn = cs ? gen_helper_gvec_vfche128_cc : gen_helper_gvec_vfche128;
+            break;
+        default:
+            break;
+        }
         break;
     default:
         g_assert_not_reached();
     }
+
+    if (!fn || extract32(m5, 0, 2) || extract32(m6, 1, 3) ||
+        (!s390_has_feat(S390_FEAT_VECTOR_ENH) && (fpf != FPF_LONG || sq))) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
     gen_gvec_3_ptr(get_field(s, v1), get_field(s, v2), get_field(s, v3),
                    cpu_env, m5, fn);
     if (cs) {
