@@ -2531,7 +2531,6 @@ static DisasJumpType op_vcdg(DisasContext *s, DisasOps *o)
     const uint8_t fpf = get_field(s, m3);
     const uint8_t m4 = get_field(s, m4);
     const uint8_t erm = get_field(s, m5);
-    const bool se = extract32(m4, 3, 1);
     gen_helper_gvec_2_ptr *fn;
 
     if (fpf != FPF_LONG || extract32(m4, 0, 2) || erm > 7 || erm == 2) {
@@ -2556,7 +2555,7 @@ static DisasJumpType op_vcdg(DisasContext *s, DisasOps *o)
         fn = gen_helper_gvec_vfi64;
         break;
     case 0xc5:
-        fn = se ? gen_helper_gvec_vflr64s : gen_helper_gvec_vflr64;
+        fn = gen_helper_gvec_vflr64;
         break;
     default:
         g_assert_not_reached();
