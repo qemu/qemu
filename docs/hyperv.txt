@@ -170,7 +170,7 @@ Recommended: hv-frequencies
 3.16. hv-evmcs
 ===============
 The enlightenment is nested specific, it targets Hyper-V on KVM guests. When
-enabled, it provides Enlightened VMCS feature to the guest. The feature
+enabled, it provides Enlightened VMCS version 1 feature to the guest. The feature
 implements paravirtualized protocol between L0 (KVM) and L1 (Hyper-V)
 hypervisors making L2 exits to the hypervisor faster. The feature is Intel-only.
 Note: some virtualization features (e.g. Posted Interrupts) are disabled when

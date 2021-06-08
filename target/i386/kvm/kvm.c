@@ -1409,6 +1409,21 @@ static int hyperv_fill_cpuids(CPUState *cs,
 static Error *hv_passthrough_mig_blocker;
 static Error *hv_no_nonarch_cs_mig_blocker;
 
+/* Checks that the exposed eVMCS version range is supported by KVM */
+static bool evmcs_version_supported(uint16_t evmcs_version,
+                                    uint16_t supported_evmcs_version)
+{
+    uint8_t min_version = evmcs_version & 0xff;
+    uint8_t max_version = evmcs_version >> 8;
+    uint8_t min_supported_version = supported_evmcs_version & 0xff;
+    uint8_t max_supported_version = supported_evmcs_version >> 8;
+
+    return (min_version >= min_supported_version) &&
+        (max_version <= max_supported_version);
+}
+
+#define DEFAULT_EVMCS_VERSION ((1 << 8) | 1)
+
 static int hyperv_init_vcpu(X86CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
@@ -1488,15 +1503,31 @@ static int hyperv_init_vcpu(X86CPU *cpu)
     }
 
     if (hyperv_feat_enabled(cpu, HYPERV_FEAT_EVMCS)) {
-        uint16_t evmcs_version;
+        uint16_t evmcs_version = DEFAULT_EVMCS_VERSION;
+        uint16_t supported_evmcs_version;
 
         ret = kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_ENLIGHTENED_VMCS, 0,
-                                  (uintptr_t)&evmcs_version);
+                                  (uintptr_t)&supported_evmcs_version);
 
+        /*
+         * KVM is required to support EVMCS ver.1. as that's what 'hv-evmcs'
+         * option sets. Note: we hardcode the maximum supported eVMCS version
+         * to '1' as well so 'hv-evmcs' feature is migratable even when (and if)
+         * ver.2 is implemented. A new option (e.g. 'hv-evmcs=2') will then have
+         * to be added.
+         */
         if (ret < 0) {
-            fprintf(stderr, "Hyper-V %s is not supported by kernel\n",
-                    kvm_hyperv_properties[HYPERV_FEAT_EVMCS].desc);
+            error_report("Hyper-V %s is not supported by kernel",
+                         kvm_hyperv_properties[HYPERV_FEAT_EVMCS].desc);
             return ret;
+        }
+
+        if (!evmcs_version_supported(evmcs_version, supported_evmcs_version)) {
+            error_report("eVMCS version range [%d..%d] is not supported by "
+                         "kernel (supported: [%d..%d])", evmcs_version & 0xff,
+                         evmcs_version >> 8, supported_evmcs_version & 0xff,
+                         supported_evmcs_version >> 8);
+            return -ENOTSUP;
         }
 
         cpu->hyperv_nested[0] = evmcs_version;
