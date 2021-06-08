@@ -78,14 +78,36 @@ static void handle_ieee_exc(CPUS390XState *env, uint8_t vxc, uint8_t vec_exc,
     }
 }
 
+static float32 s390_vec_read_float32(const S390Vector *v, uint8_t enr)
+{
+    return make_float32(s390_vec_read_element32(v, enr));
+}
+
 static float64 s390_vec_read_float64(const S390Vector *v, uint8_t enr)
 {
     return make_float64(s390_vec_read_element64(v, enr));
 }
 
+static float128 s390_vec_read_float128(const S390Vector *v)
+{
+    return make_float128(s390_vec_read_element64(v, 0),
+                         s390_vec_read_element64(v, 1));
+}
+
+static void s390_vec_write_float32(S390Vector *v, uint8_t enr, float32 data)
+{
+    return s390_vec_write_element32(v, enr, data);
+}
+
 static void s390_vec_write_float64(S390Vector *v, uint8_t enr, float64 data)
 {
     return s390_vec_write_element64(v, enr, data);
+}
+
+static void s390_vec_write_float128(S390Vector *v, float128 data)
+{
+    s390_vec_write_element64(v, 0, data.high);
+    s390_vec_write_element64(v, 1, data.low);
 }
 
 typedef float64 (*vop64_2_fn)(float64 a, float_status *s);
@@ -160,6 +182,29 @@ DEF_GVEC_VOP2_64(vclgd)
 DEF_GVEC_VOP2(vfi, round_to_int)
 DEF_GVEC_VOP2(vfsq, sqrt)
 
+typedef float32 (*vop32_3_fn)(float32 a, float32 b, float_status *s);
+static void vop32_3(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
+                    CPUS390XState *env, bool s, vop32_3_fn fn,
+                    uintptr_t retaddr)
+{
+    uint8_t vxc, vec_exc = 0;
+    S390Vector tmp = {};
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        const float32 a = s390_vec_read_float32(v2, i);
+        const float32 b = s390_vec_read_float32(v3, i);
+
+        s390_vec_write_float32(&tmp, i, fn(a, b, &env->fpu_status));
+        vxc = check_ieee_exc(env, i, false, &vec_exc);
+        if (s || vxc) {
+            break;
+        }
+    }
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);
+    *v1 = tmp;
+}
+
 typedef float64 (*vop64_3_fn)(float64 a, float64 b, float_status *s);
 static void vop64_3(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
                     CPUS390XState *env, bool s, vop64_3_fn fn,
@@ -183,14 +228,35 @@ static void vop64_3(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
     *v1 = tmp;
 }
 
-#define DEF_GVEC_VOP3(NAME, OP)                                                \
-void HELPER(gvec_##NAME##64)(void *v1, const void *v2, const void *v3,         \
-                             CPUS390XState *env, uint32_t desc)                \
+typedef float128 (*vop128_3_fn)(float128 a, float128 b, float_status *s);
+static void vop128_3(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
+                     CPUS390XState *env, bool s, vop128_3_fn fn,
+                     uintptr_t retaddr)
+{
+    const float128 a = s390_vec_read_float128(v2);
+    const float128 b = s390_vec_read_float128(v3);
+    uint8_t vxc, vec_exc = 0;
+    S390Vector tmp = {};
+
+    s390_vec_write_float128(&tmp, fn(a, b, &env->fpu_status));
+    vxc = check_ieee_exc(env, 0, false, &vec_exc);
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);
+    *v1 = tmp;
+}
+
+#define DEF_GVEC_VOP3_B(NAME, OP, BITS)                                        \
+void HELPER(gvec_##NAME##BITS)(void *v1, const void *v2, const void *v3,       \
+                              CPUS390XState *env, uint32_t desc)               \
 {                                                                              \
     const bool se = extract32(simd_data(desc), 3, 1);                          \
                                                                                \
-    vop64_3(v1, v2, v3, env, se, float64_##OP, GETPC());                       \
+    vop##BITS##_3(v1, v2, v3, env, se, float##BITS##_##OP, GETPC());           \
 }
+
+#define DEF_GVEC_VOP3(NAME, OP)                                                \
+DEF_GVEC_VOP3_B(NAME, OP, 32)                                                  \
+DEF_GVEC_VOP3_B(NAME, OP, 64)                                                  \
+DEF_GVEC_VOP3_B(NAME, OP, 128)
 
 DEF_GVEC_VOP3(vfa, add)
 DEF_GVEC_VOP3(vfs, sub)
