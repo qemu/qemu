@@ -326,7 +326,9 @@ void HELPER(gvec_vcdlg64s)(void *v1, const void *v2, CPUS390XState *env,
 
 static uint64_t vcgd64(uint64_t a, float_status *s)
 {
-    return float64_to_int64(a, s);
+    const uint64_t tmp = float64_to_int64(a, s);
+
+    return float64_is_any_nan(a) ? INT64_MIN : tmp;
 }
 
 void HELPER(gvec_vcgd64)(void *v1, const void *v2, CPUS390XState *env,
@@ -349,7 +351,9 @@ void HELPER(gvec_vcgd64s)(void *v1, const void *v2, CPUS390XState *env,
 
 static uint64_t vclgd64(uint64_t a, float_status *s)
 {
-    return float64_to_uint64(a, s);
+    const uint64_t tmp = float64_to_uint64(a, s);
+
+    return float64_is_any_nan(a) ? 0 : tmp;
 }
 
 void HELPER(gvec_vclgd64)(void *v1, const void *v2, CPUS390XState *env,
