@@ -287,9 +287,10 @@ DEF_GVEC_VFC(vfce, eq)
 DEF_GVEC_VFC(vfch, lt)
 DEF_GVEC_VFC(vfche, le)
 
-static void vfll32(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
-                   bool s, uintptr_t retaddr)
+void HELPER(gvec_vfll32)(void *v1, const void *v2, CPUS390XState *env,
+                         uint32_t desc)
 {
+    const bool s = extract32(simd_data(desc), 3, 1);
     uint8_t vxc, vec_exc = 0;
     S390Vector tmp = {};
     int i;
@@ -306,20 +307,8 @@ static void vfll32(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
             break;
         }
     }
-    handle_ieee_exc(env, vxc, vec_exc, retaddr);
-    *v1 = tmp;
-}
-
-void HELPER(gvec_vfll32)(void *v1, const void *v2, CPUS390XState *env,
-                         uint32_t desc)
-{
-    vfll32(v1, v2, env, false, GETPC());
-}
-
-void HELPER(gvec_vfll32s)(void *v1, const void *v2, CPUS390XState *env,
-                          uint32_t desc)
-{
-    vfll32(v1, v2, env, true, GETPC());
+    handle_ieee_exc(env, vxc, vec_exc, GETPC());
+    *(S390Vector *)v1 = tmp;
 }
 
 static void vflr64(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
