@@ -307,6 +307,26 @@ DEF_GVEC_VOP3(vfs, sub)
 DEF_GVEC_VOP3(vfd, div)
 DEF_GVEC_VOP3(vfm, mul)
 
+static int wfc32(const S390Vector *v1, const S390Vector *v2,
+                 CPUS390XState *env, bool signal, uintptr_t retaddr)
+{
+    /* only the zero-indexed elements are compared */
+    const float32 a = s390_vec_read_float32(v1, 0);
+    const float32 b = s390_vec_read_float32(v2, 0);
+    uint8_t vxc, vec_exc = 0;
+    int cmp;
+
+    if (signal) {
+        cmp = float32_compare(a, b, &env->fpu_status);
+    } else {
+        cmp = float32_compare_quiet(a, b, &env->fpu_status);
+    }
+    vxc = check_ieee_exc(env, 0, false, &vec_exc);
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);
+
+    return float_comp_to_cc(env, cmp);
+}
+
 static int wfc64(const S390Vector *v1, const S390Vector *v2,
                  CPUS390XState *env, bool signal, uintptr_t retaddr)
 {
@@ -327,6 +347,26 @@ static int wfc64(const S390Vector *v1, const S390Vector *v2,
     return float_comp_to_cc(env, cmp);
 }
 
+static int wfc128(const S390Vector *v1, const S390Vector *v2,
+                  CPUS390XState *env, bool signal, uintptr_t retaddr)
+{
+    /* only the zero-indexed elements are compared */
+    const float128 a = s390_vec_read_float128(v1);
+    const float128 b = s390_vec_read_float128(v2);
+    uint8_t vxc, vec_exc = 0;
+    int cmp;
+
+    if (signal) {
+        cmp = float128_compare(a, b, &env->fpu_status);
+    } else {
+        cmp = float128_compare_quiet(a, b, &env->fpu_status);
+    }
+    vxc = check_ieee_exc(env, 0, false, &vec_exc);
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);
+
+    return float_comp_to_cc(env, cmp);
+}
+
 #define DEF_GVEC_WFC_B(NAME, SIGNAL, BITS)                                     \
 void HELPER(gvec_##NAME##BITS)(const void *v1, const void *v2,                 \
                                CPUS390XState *env, uint32_t desc)              \
@@ -335,7 +375,9 @@ void HELPER(gvec_##NAME##BITS)(const void *v1, const void *v2,                 \
 }
 
 #define DEF_GVEC_WFC(NAME, SIGNAL)                                             \
-     DEF_GVEC_WFC_B(NAME, SIGNAL, 64)
+     DEF_GVEC_WFC_B(NAME, SIGNAL, 32)                                          \
+     DEF_GVEC_WFC_B(NAME, SIGNAL, 64)                                          \
+     DEF_GVEC_WFC_B(NAME, SIGNAL, 128)
 
 DEF_GVEC_WFC(wfc, false)
 DEF_GVEC_WFC(wfk, true)

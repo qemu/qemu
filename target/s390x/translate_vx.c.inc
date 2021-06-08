@@ -2598,19 +2598,41 @@ static DisasJumpType op_wfc(DisasContext *s, DisasOps *o)
 {
     const uint8_t fpf = get_field(s, m3);
     const uint8_t m4 = get_field(s, m4);
+    gen_helper_gvec_2_ptr *fn = NULL;
 
-    if (fpf != FPF_LONG || m4) {
+    switch (fpf) {
+    case FPF_SHORT:
+        if (s390_has_feat(S390_FEAT_VECTOR_ENH)) {
+            fn = gen_helper_gvec_wfk32;
+            if (s->fields.op2 == 0xcb) {
+                fn = gen_helper_gvec_wfc32;
+            }
+        }
+        break;
+    case FPF_LONG:
+        fn = gen_helper_gvec_wfk64;
+        if (s->fields.op2 == 0xcb) {
+            fn = gen_helper_gvec_wfc64;
+        }
+        break;
+    case FPF_EXT:
+        if (s390_has_feat(S390_FEAT_VECTOR_ENH)) {
+            fn = gen_helper_gvec_wfk128;
+            if (s->fields.op2 == 0xcb) {
+                fn = gen_helper_gvec_wfc128;
+            }
+        }
+        break;
+    default:
+        break;
+    };
+
+    if (!fn || m4) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
 
-    if (s->fields.op2 == 0xcb) {
-        gen_gvec_2_ptr(get_field(s, v1), get_field(s, v2),
-                       cpu_env, 0, gen_helper_gvec_wfc64);
-    } else {
-        gen_gvec_2_ptr(get_field(s, v1), get_field(s, v2),
-                       cpu_env, 0, gen_helper_gvec_wfk64);
-    }
+    gen_gvec_2_ptr(get_field(s, v1), get_field(s, v2), cpu_env, 0, fn);
     set_cc_static(s);
     return DISAS_NEXT;
 }
