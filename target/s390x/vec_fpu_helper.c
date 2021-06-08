@@ -522,6 +522,19 @@ void HELPER(gvec_vfll32)(void *v1, const void *v2, CPUS390XState *env,
     *(S390Vector *)v1 = tmp;
 }
 
+void HELPER(gvec_vfll64)(void *v1, const void *v2, CPUS390XState *env,
+                         uint32_t desc)
+{
+    /* load from even element */
+    const float128 ret = float64_to_float128(s390_vec_read_float64(v2, 0),
+                                             &env->fpu_status);
+    uint8_t vxc, vec_exc = 0;
+
+    vxc = check_ieee_exc(env, 0, false, &vec_exc);
+    handle_ieee_exc(env, vxc, vec_exc, GETPC());
+    s390_vec_write_float128(v1, ret);
+}
+
 void HELPER(gvec_vflr64)(void *v1, const void *v2, CPUS390XState *env,
                          uint32_t desc)
 {
