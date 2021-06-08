@@ -663,6 +663,8 @@ void HELPER(gvec_##NAME##BITS)(void *v1, const void *v2, const void *v3,       \
 
 DEF_GVEC_VFMA(vfma, 0)
 DEF_GVEC_VFMA(vfms, float_muladd_negate_c)
+DEF_GVEC_VFMA(vfnma, float_muladd_negate_result)
+DEF_GVEC_VFMA(vfnms, float_muladd_negate_c | float_muladd_negate_result)
 
 void HELPER(gvec_vftci32)(void *v1, const void *v2, CPUS390XState *env,
                           uint32_t desc)

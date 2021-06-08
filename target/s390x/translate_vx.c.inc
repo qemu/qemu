@@ -2820,7 +2820,8 @@ static DisasJumpType op_vfma(DisasContext *s, DisasOps *o)
     const uint8_t fpf = get_field(s, m6);
     gen_helper_gvec_4_ptr *fn = NULL;
 
-    if (s->fields.op2 == 0x8f) {
+    switch (s->fields.op2) {
+    case 0x8f:
         switch (fpf) {
         case FPF_SHORT:
             if (s390_has_feat(S390_FEAT_VECTOR_ENH)) {
@@ -2838,7 +2839,8 @@ static DisasJumpType op_vfma(DisasContext *s, DisasOps *o)
         default:
             break;
         }
-    } else {
+        break;
+    case 0x8e:
         switch (fpf) {
         case FPF_SHORT:
             if (s390_has_feat(S390_FEAT_VECTOR_ENH)) {
@@ -2856,6 +2858,39 @@ static DisasJumpType op_vfma(DisasContext *s, DisasOps *o)
         default:
             break;
         }
+        break;
+    case 0x9f:
+        switch (fpf) {
+        case FPF_SHORT:
+            fn = gen_helper_gvec_vfnma32;
+            break;
+        case FPF_LONG:
+            fn = gen_helper_gvec_vfnma64;
+            break;
+        case FPF_EXT:
+            fn = gen_helper_gvec_vfnma128;
+            break;
+        default:
+            break;
+        }
+        break;
+    case 0x9e:
+        switch (fpf) {
+        case FPF_SHORT:
+            fn = gen_helper_gvec_vfnms32;
+            break;
+        case FPF_LONG:
+            fn = gen_helper_gvec_vfnms64;
+            break;
+        case FPF_EXT:
+            fn = gen_helper_gvec_vfnms128;
+            break;
+        default:
+            break;
+        }
+        break;
+    default:
+        g_assert_not_reached();
     }
 
     if (!fn || extract32(m5, 0, 3)) {
