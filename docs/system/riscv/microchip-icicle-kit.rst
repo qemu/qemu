@@ -15,33 +15,53 @@ Supported devices
 
 The ``microchip-icicle-kit`` machine supports the following devices:
 
- * 1 E51 core
- * 4 U54 cores
- * Core Level Interruptor (CLINT)
- * Platform-Level Interrupt Controller (PLIC)
- * L2 Loosely Integrated Memory (L2-LIM)
- * DDR memory controller
- * 5 MMUARTs
- * 1 DMA controller
- * 2 GEM Ethernet controllers
- * 1 SDHC storage controller
+* 1 E51 core
+* 4 U54 cores
+* Core Level Interruptor (CLINT)
+* Platform-Level Interrupt Controller (PLIC)
+* L2 Loosely Integrated Memory (L2-LIM)
+* DDR memory controller
+* 5 MMUARTs
+* 1 DMA controller
+* 2 GEM Ethernet controllers
+* 1 SDHC storage controller
 
 Boot options
 ------------
 
 The ``microchip-icicle-kit`` machine can start using the standard -bios
 functionality for loading its BIOS image, aka Hart Software Services (HSS_).
-HSS loads the second stage bootloader U-Boot from an SD card. It does not
-support direct kernel loading via the -kernel option. One has to load kernel
-from U-Boot.
+HSS loads the second stage bootloader U-Boot from an SD card. Then a kernel
+can be loaded from U-Boot. It also supports direct kernel booting via the
+-kernel option along with the device tree blob via -dtb. When direct kernel
+boot is used, the OpenSBI fw_dynamic BIOS image is used to boot a payload
+like U-Boot or OS kernel directly.
+
+The user provided DTB should have the following requirements:
+
+* The /cpus node should contain at least one subnode for E51 and the number
+  of subnodes should match QEMU's ``-smp`` option
+* The /memory reg size should match QEMU’s selected ram_size via ``-m``
+* Should contain a node for the CLINT device with a compatible string
+  "riscv,clint0"
+
+QEMU follows below truth table to select which payload to execute:
+
+=====  ========== =======
+-bios     -kernel payload
+=====  ========== =======
+    N           N     HSS
+    Y  don't care     HSS
+    N           Y  kernel
+=====  ========== =======
 
 The memory is set to 1537 MiB by default which is the minimum required high
 memory size by HSS. A sanity check on ram size is performed in the machine
 init routine to prompt user to increase the RAM size to > 1537 MiB when less
 than 1537 MiB ram is detected.
 
-Boot the machine
-----------------
+Running HSS
+-----------
 
 HSS 2020.12 release is tested at the time of writing. To build an HSS image
 that can be booted by the ``microchip-icicle-kit`` machine, type the following

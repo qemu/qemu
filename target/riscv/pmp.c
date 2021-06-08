@@ -402,6 +402,8 @@ bool pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
                     case 15:
                         *allowed_privs = PMP_READ;
                         break;
+                    default:
+                        g_assert_not_reached();
                     }
                 } else {
                     switch (epmp_operation) {
@@ -433,6 +435,8 @@ bool pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
                     case 7:
                         *allowed_privs = PMP_READ | PMP_WRITE | PMP_EXEC;
                         break;
+                    default:
+                        g_assert_not_reached();
                     }
                 }
             }

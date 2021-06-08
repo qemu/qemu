@@ -51,6 +51,7 @@
 #include "hw/riscv/microchip_pfsoc.h"
 #include "hw/intc/sifive_clint.h"
 #include "hw/intc/sifive_plic.h"
+#include "sysemu/device_tree.h"
 #include "sysemu/sysemu.h"
 
 /*
@@ -460,6 +461,12 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
     MemoryRegion *mem_high = g_new(MemoryRegion, 1);
     MemoryRegion *mem_high_alias = g_new(MemoryRegion, 1);
     uint64_t mem_high_size;
+    hwaddr firmware_load_addr;
+    const char *firmware_name;
+    bool kernel_as_payload = false;
+    target_ulong firmware_end_addr, kernel_start_addr;
+    uint64_t kernel_entry;
+    uint32_t fdt_load_addr;
     DriveInfo *dinfo = drive_get_next(IF_SD);
 
     /* Sanity check on RAM size */
@@ -504,9 +511,6 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
                                 memmap[MICROCHIP_PFSOC_DRAM_HI_ALIAS].base,
                                 mem_high_alias);
 
-    /* Load the firmware */
-    riscv_find_and_load_firmware(machine, BIOS_FILENAME, RESET_VECTOR, NULL);
-
     /* Attach an SD card */
     if (dinfo) {
         CadenceSDHCIState *sdhci = &(s->soc.sdhci);
@@ -515,6 +519,77 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
         qdev_prop_set_drive_err(card, "drive", blk_by_legacy_dinfo(dinfo),
                                 &error_fatal);
         qdev_realize_and_unref(card, sdhci->bus, &error_fatal);
+    }
+
+    /*
+     * We follow the following table to select which payload we execute.
+     *
+     *  -bios |    -kernel | payload
+     * -------+------------+--------
+     *      N |          N | HSS
+     *      Y | don't care | HSS
+     *      N |          Y | kernel
+     *
+     * This ensures backwards compatibility with how we used to expose -bios
+     * to users but allows them to run through direct kernel booting as well.
+     *
+     * When -kernel is used for direct boot, -dtb must be present to provide
+     * a valid device tree for the board, as we don't generate device tree.
+     */
+
+    if (machine->kernel_filename && machine->dtb) {
+        int fdt_size;
+        machine->fdt = load_device_tree(machine->dtb, &fdt_size);
+        if (!machine->fdt) {
+            error_report("load_device_tree() failed");
+            exit(1);
+        }
+
+        firmware_name = RISCV64_BIOS_BIN;
+        firmware_load_addr = memmap[MICROCHIP_PFSOC_DRAM_LO].base;
+        kernel_as_payload = true;
+    }
+
+    if (!kernel_as_payload) {
+        firmware_name = BIOS_FILENAME;
+        firmware_load_addr = RESET_VECTOR;
+    }
+
+    /* Load the firmware */
+    firmware_end_addr = riscv_find_and_load_firmware(machine, firmware_name,
+                                                     firmware_load_addr, NULL);
+
+    if (kernel_as_payload) {
+        kernel_start_addr = riscv_calc_kernel_start_addr(&s->soc.u_cpus,
+                                                         firmware_end_addr);
+
+        kernel_entry = riscv_load_kernel(machine->kernel_filename,
+                                         kernel_start_addr, NULL);
+
+        if (machine->initrd_filename) {
+            hwaddr start;
+            hwaddr end = riscv_load_initrd(machine->initrd_filename,
+                                           machine->ram_size, kernel_entry,
+                                           &start);
+            qemu_fdt_setprop_cell(machine->fdt, "/chosen",
+                                  "linux,initrd-start", start);
+            qemu_fdt_setprop_cell(machine->fdt, "/chosen",
+                                  "linux,initrd-end", end);
+        }
+
+        if (machine->kernel_cmdline) {
+            qemu_fdt_setprop_string(machine->fdt, "/chosen",
+                                    "bootargs", machine->kernel_cmdline);
+        }
+
+        /* Compute the fdt load address in dram */
+        fdt_load_addr = riscv_load_fdt(memmap[MICROCHIP_PFSOC_DRAM_LO].base,
+                                       machine->ram_size, machine->fdt);
+        /* Load the reset vector */
+        riscv_setup_rom_reset_vec(machine, &s->soc.u_cpus, firmware_load_addr,
+                                  memmap[MICROCHIP_PFSOC_ENVM_DATA].base,
+                                  memmap[MICROCHIP_PFSOC_ENVM_DATA].size,
+                                  kernel_entry, fdt_load_addr, machine->fdt);
     }
 }
 
