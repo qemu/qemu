@@ -413,13 +413,15 @@ void HELPER(gvec_vfms64s)(void *v1, const void *v2, const void *v3,
     vfma64(v1, v2, v3, v4, env, true, float_muladd_negate_c, GETPC());
 }
 
-static int vftci64(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
-                   bool s, uint16_t i3)
+void HELPER(gvec_vftci64)(void *v1, const void *v2, CPUS390XState *env,
+                          uint32_t desc)
 {
+    const uint16_t i3 = extract32(simd_data(desc), 4, 12);
+    const bool s = extract32(simd_data(desc), 3, 1);
     int i, match = 0;
 
     for (i = 0; i < 2; i++) {
-        float64 a = s390_vec_read_element64(v2, i);
+        const float64 a = s390_vec_read_float64(v2, i);
 
         if (float64_dcmask(env, a) & i3) {
             match++;
@@ -432,20 +434,11 @@ static int vftci64(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
         }
     }
 
-    if (match) {
-        return s || match == 2 ? 0 : 1;
+    if (match == 2 || (s && match)) {
+        env->cc_op = 0;
+    } else if (match) {
+        env->cc_op = 1;
+    } else {
+        env->cc_op = 3;
     }
-    return 3;
-}
-
-void HELPER(gvec_vftci64)(void *v1, const void *v2, CPUS390XState *env,
-                          uint32_t desc)
-{
-    env->cc_op = vftci64(v1, v2, env, false, simd_data(desc));
-}
-
-void HELPER(gvec_vftci64s)(void *v1, const void *v2, CPUS390XState *env,
-                           uint32_t desc)
-{
-    env->cc_op = vftci64(v1, v2, env, true, simd_data(desc));
 }
