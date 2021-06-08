@@ -201,8 +201,8 @@ static int wfc64(const S390Vector *v1, const S390Vector *v2,
                  CPUS390XState *env, bool signal, uintptr_t retaddr)
 {
     /* only the zero-indexed elements are compared */
-    const float64 a = s390_vec_read_element64(v1, 0);
-    const float64 b = s390_vec_read_element64(v2, 0);
+    const float64 a = s390_vec_read_float64(v1, 0);
+    const float64 b = s390_vec_read_float64(v2, 0);
     uint8_t vxc, vec_exc = 0;
     int cmp;
 
@@ -217,17 +217,18 @@ static int wfc64(const S390Vector *v1, const S390Vector *v2,
     return float_comp_to_cc(env, cmp);
 }
 
-void HELPER(gvec_wfc64)(const void *v1, const void *v2, CPUS390XState *env,
-                        uint32_t desc)
-{
-    env->cc_op = wfc64(v1, v2, env, false, GETPC());
+#define DEF_GVEC_WFC_B(NAME, SIGNAL, BITS)                                     \
+void HELPER(gvec_##NAME##BITS)(const void *v1, const void *v2,                 \
+                               CPUS390XState *env, uint32_t desc)              \
+{                                                                              \
+    env->cc_op = wfc##BITS(v1, v2, env, SIGNAL, GETPC());                      \
 }
 
-void HELPER(gvec_wfk64)(const void *v1, const void *v2, CPUS390XState *env,
-                        uint32_t desc)
-{
-    env->cc_op = wfc64(v1, v2, env, true, GETPC());
-}
+#define DEF_GVEC_WFC(NAME, SIGNAL)                                             \
+     DEF_GVEC_WFC_B(NAME, SIGNAL, 64)
+
+DEF_GVEC_WFC(wfc, false)
+DEF_GVEC_WFC(wfk, true)
 
 typedef bool (*vfc64_fn)(float64 a, float64 b, float_status *status);
 static int vfc64(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
