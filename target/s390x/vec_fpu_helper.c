@@ -742,3 +742,331 @@ void HELPER(gvec_vftci128)(void *v1, const void *v2, CPUS390XState *env,
         s390_vec_write_element64(v1, 1, 0);
     }
 }
+
+typedef enum S390MinMaxType {
+    S390_MINMAX_TYPE_IEEE = 0,
+    S390_MINMAX_TYPE_JAVA,
+    S390_MINMAX_TYPE_C_MACRO,
+    S390_MINMAX_TYPE_CPP,
+    S390_MINMAX_TYPE_F,
+} S390MinMaxType;
+
+typedef enum S390MinMaxRes {
+    S390_MINMAX_RES_MINMAX = 0,
+    S390_MINMAX_RES_A,
+    S390_MINMAX_RES_B,
+    S390_MINMAX_RES_SILENCE_A,
+    S390_MINMAX_RES_SILENCE_B,
+} S390MinMaxRes;
+
+static S390MinMaxRes vfmin_res(uint16_t dcmask_a, uint16_t dcmask_b,
+                               S390MinMaxType type, float_status *s)
+{
+    const bool neg_a = dcmask_a & DCMASK_NEGATIVE;
+    const bool nan_a = dcmask_a & DCMASK_NAN;
+    const bool nan_b = dcmask_b & DCMASK_NAN;
+
+    g_assert(type > S390_MINMAX_TYPE_IEEE && type <= S390_MINMAX_TYPE_F);
+
+    if (unlikely((dcmask_a | dcmask_b) & DCMASK_NAN)) {
+        const bool sig_a = dcmask_a & DCMASK_SIGNALING_NAN;
+        const bool sig_b = dcmask_b & DCMASK_SIGNALING_NAN;
+
+        if ((dcmask_a | dcmask_b) & DCMASK_SIGNALING_NAN) {
+            s->float_exception_flags |= float_flag_invalid;
+        }
+        switch (type) {
+        case S390_MINMAX_TYPE_JAVA:
+            if (sig_a) {
+                return S390_MINMAX_RES_SILENCE_A;
+            } else if (sig_b) {
+                return S390_MINMAX_RES_SILENCE_B;
+            }
+            return nan_a ? S390_MINMAX_RES_A : S390_MINMAX_RES_B;
+        case S390_MINMAX_TYPE_F:
+            return nan_b ? S390_MINMAX_RES_A : S390_MINMAX_RES_B;
+        case S390_MINMAX_TYPE_C_MACRO:
+            s->float_exception_flags |= float_flag_invalid;
+            return S390_MINMAX_RES_B;
+        case S390_MINMAX_TYPE_CPP:
+            s->float_exception_flags |= float_flag_invalid;
+            return S390_MINMAX_RES_A;
+        default:
+            g_assert_not_reached();
+        }
+    } else if (unlikely(dcmask_a & dcmask_b & DCMASK_ZERO)) {
+        switch (type) {
+        case S390_MINMAX_TYPE_JAVA:
+            return neg_a ? S390_MINMAX_RES_A : S390_MINMAX_RES_B;
+        case S390_MINMAX_TYPE_C_MACRO:
+            return S390_MINMAX_RES_B;
+        case S390_MINMAX_TYPE_F:
+            return !neg_a ? S390_MINMAX_RES_B : S390_MINMAX_RES_A;
+        case S390_MINMAX_TYPE_CPP:
+            return S390_MINMAX_RES_A;
+        default:
+            g_assert_not_reached();
+        }
+    }
+    return S390_MINMAX_RES_MINMAX;
+}
+
+static S390MinMaxRes vfmax_res(uint16_t dcmask_a, uint16_t dcmask_b,
+                               S390MinMaxType type, float_status *s)
+{
+    g_assert(type > S390_MINMAX_TYPE_IEEE && type <= S390_MINMAX_TYPE_F);
+
+    if (unlikely((dcmask_a | dcmask_b) & DCMASK_NAN)) {
+        const bool sig_a = dcmask_a & DCMASK_SIGNALING_NAN;
+        const bool sig_b = dcmask_b & DCMASK_SIGNALING_NAN;
+        const bool nan_a = dcmask_a & DCMASK_NAN;
+        const bool nan_b = dcmask_b & DCMASK_NAN;
+
+        if ((dcmask_a | dcmask_b) & DCMASK_SIGNALING_NAN) {
+            s->float_exception_flags |= float_flag_invalid;
+        }
+        switch (type) {
+        case S390_MINMAX_TYPE_JAVA:
+            if (sig_a) {
+                return S390_MINMAX_RES_SILENCE_A;
+            } else if (sig_b) {
+                return S390_MINMAX_RES_SILENCE_B;
+            }
+            return nan_a ? S390_MINMAX_RES_A : S390_MINMAX_RES_B;
+        case S390_MINMAX_TYPE_F:
+            return nan_b ? S390_MINMAX_RES_A : S390_MINMAX_RES_B;
+        case S390_MINMAX_TYPE_C_MACRO:
+            s->float_exception_flags |= float_flag_invalid;
+            return S390_MINMAX_RES_B;
+        case S390_MINMAX_TYPE_CPP:
+            s->float_exception_flags |= float_flag_invalid;
+            return S390_MINMAX_RES_A;
+        default:
+            g_assert_not_reached();
+        }
+    } else if (unlikely(dcmask_a & dcmask_b & DCMASK_ZERO)) {
+        const bool neg_a = dcmask_a & DCMASK_NEGATIVE;
+
+        switch (type) {
+        case S390_MINMAX_TYPE_JAVA:
+        case S390_MINMAX_TYPE_F:
+            return neg_a ? S390_MINMAX_RES_B : S390_MINMAX_RES_A;
+        case S390_MINMAX_TYPE_C_MACRO:
+            return S390_MINMAX_RES_B;
+        case S390_MINMAX_TYPE_CPP:
+            return S390_MINMAX_RES_A;
+        default:
+            g_assert_not_reached();
+        }
+    }
+    return S390_MINMAX_RES_MINMAX;
+}
+
+static S390MinMaxRes vfminmax_res(uint16_t dcmask_a, uint16_t dcmask_b,
+                                  S390MinMaxType type, bool is_min,
+                                  float_status *s)
+{
+    return is_min ? vfmin_res(dcmask_a, dcmask_b, type, s) :
+                    vfmax_res(dcmask_a, dcmask_b, type, s);
+}
+
+static void vfminmax32(S390Vector *v1, const S390Vector *v2,
+                       const S390Vector *v3, CPUS390XState *env,
+                       S390MinMaxType type, bool is_min, bool is_abs, bool se,
+                       uintptr_t retaddr)
+{
+    float_status *s = &env->fpu_status;
+    uint8_t vxc, vec_exc = 0;
+    S390Vector tmp = {};
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        float32 a = s390_vec_read_float32(v2, i);
+        float32 b = s390_vec_read_float32(v3, i);
+        float32 result;
+
+        if (type != S390_MINMAX_TYPE_IEEE) {
+            S390MinMaxRes res;
+
+            if (is_abs) {
+                a = float32_abs(a);
+                b = float32_abs(b);
+            }
+
+            res = vfminmax_res(float32_dcmask(env, a), float32_dcmask(env, b),
+                               type, is_min, s);
+            switch (res) {
+            case S390_MINMAX_RES_MINMAX:
+                result = is_min ? float32_min(a, b, s) : float32_max(a, b, s);
+                break;
+            case S390_MINMAX_RES_A:
+                result = a;
+                break;
+            case S390_MINMAX_RES_B:
+                result = b;
+                break;
+            case S390_MINMAX_RES_SILENCE_A:
+                result = float32_silence_nan(a, s);
+                break;
+            case S390_MINMAX_RES_SILENCE_B:
+                result = float32_silence_nan(b, s);
+                break;
+            default:
+                g_assert_not_reached();
+            }
+        } else if (!is_abs) {
+            result = is_min ? float32_minnum(a, b, &env->fpu_status) :
+                              float32_maxnum(a, b, &env->fpu_status);
+        } else {
+            result = is_min ? float32_minnummag(a, b, &env->fpu_status) :
+                              float32_maxnummag(a, b, &env->fpu_status);
+        }
+
+        s390_vec_write_float32(&tmp, i, result);
+        vxc = check_ieee_exc(env, i, false, &vec_exc);
+        if (se || vxc) {
+            break;
+        }
+    }
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);
+    *v1 = tmp;
+}
+
+static void vfminmax64(S390Vector *v1, const S390Vector *v2,
+                       const S390Vector *v3, CPUS390XState *env,
+                       S390MinMaxType type, bool is_min, bool is_abs, bool se,
+                       uintptr_t retaddr)
+{
+    float_status *s = &env->fpu_status;
+    uint8_t vxc, vec_exc = 0;
+    S390Vector tmp = {};
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        float64 a = s390_vec_read_float64(v2, i);
+        float64 b = s390_vec_read_float64(v3, i);
+        float64 result;
+
+        if (type != S390_MINMAX_TYPE_IEEE) {
+            S390MinMaxRes res;
+
+            if (is_abs) {
+                a = float64_abs(a);
+                b = float64_abs(b);
+            }
+
+            res = vfminmax_res(float64_dcmask(env, a), float64_dcmask(env, b),
+                               type, is_min, s);
+            switch (res) {
+            case S390_MINMAX_RES_MINMAX:
+                result = is_min ? float64_min(a, b, s) : float64_max(a, b, s);
+                break;
+            case S390_MINMAX_RES_A:
+                result = a;
+                break;
+            case S390_MINMAX_RES_B:
+                result = b;
+                break;
+            case S390_MINMAX_RES_SILENCE_A:
+                result = float64_silence_nan(a, s);
+                break;
+            case S390_MINMAX_RES_SILENCE_B:
+                result = float64_silence_nan(b, s);
+                break;
+            default:
+                g_assert_not_reached();
+            }
+        } else if (!is_abs) {
+            result = is_min ? float64_minnum(a, b, &env->fpu_status) :
+                              float64_maxnum(a, b, &env->fpu_status);
+        } else {
+            result = is_min ? float64_minnummag(a, b, &env->fpu_status) :
+                              float64_maxnummag(a, b, &env->fpu_status);
+        }
+
+        s390_vec_write_float64(&tmp, i, result);
+        vxc = check_ieee_exc(env, i, false, &vec_exc);
+        if (se || vxc) {
+            break;
+        }
+    }
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);
+    *v1 = tmp;
+}
+
+static void vfminmax128(S390Vector *v1, const S390Vector *v2,
+                        const S390Vector *v3, CPUS390XState *env,
+                        S390MinMaxType type, bool is_min, bool is_abs, bool se,
+                        uintptr_t retaddr)
+{
+    float128 a = s390_vec_read_float128(v2);
+    float128 b = s390_vec_read_float128(v3);
+    float_status *s = &env->fpu_status;
+    uint8_t vxc, vec_exc = 0;
+    float128 result;
+
+    if (type != S390_MINMAX_TYPE_IEEE) {
+        S390MinMaxRes res;
+
+        if (is_abs) {
+            a = float128_abs(a);
+            b = float128_abs(b);
+        }
+
+        res = vfminmax_res(float128_dcmask(env, a), float128_dcmask(env, b),
+                           type, is_min, s);
+        switch (res) {
+        case S390_MINMAX_RES_MINMAX:
+            result = is_min ? float128_min(a, b, s) : float128_max(a, b, s);
+            break;
+        case S390_MINMAX_RES_A:
+            result = a;
+            break;
+        case S390_MINMAX_RES_B:
+            result = b;
+            break;
+        case S390_MINMAX_RES_SILENCE_A:
+            result = float128_silence_nan(a, s);
+            break;
+        case S390_MINMAX_RES_SILENCE_B:
+            result = float128_silence_nan(b, s);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    } else if (!is_abs) {
+        result = is_min ? float128_minnum(a, b, &env->fpu_status) :
+                          float128_maxnum(a, b, &env->fpu_status);
+    } else {
+        result = is_min ? float128_minnummag(a, b, &env->fpu_status) :
+                          float128_maxnummag(a, b, &env->fpu_status);
+    }
+
+    vxc = check_ieee_exc(env, 0, false, &vec_exc);
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);
+    s390_vec_write_float128(v1, result);
+}
+
+#define DEF_GVEC_VFMINMAX_B(NAME, IS_MIN, BITS)                                \
+void HELPER(gvec_##NAME##BITS)(void *v1, const void *v2, const void *v3,       \
+                               CPUS390XState *env, uint32_t desc)              \
+{                                                                              \
+    const bool se = extract32(simd_data(desc), 3, 1);                          \
+    uint8_t type = extract32(simd_data(desc), 4, 4);                           \
+    bool is_abs = false;                                                       \
+                                                                               \
+    if (type >= 8) {                                                           \
+        is_abs = true;                                                         \
+        type -= 8;                                                             \
+    }                                                                          \
+                                                                               \
+    vfminmax##BITS(v1, v2, v3, env, type, IS_MIN, is_abs, se, GETPC());        \
+}
+
+#define DEF_GVEC_VFMINMAX(NAME, IS_MIN)                                        \
+    DEF_GVEC_VFMINMAX_B(NAME, IS_MIN, 32)                                      \
+    DEF_GVEC_VFMINMAX_B(NAME, IS_MIN, 64)                                      \
+    DEF_GVEC_VFMINMAX_B(NAME, IS_MIN, 128)
+
+DEF_GVEC_VFMINMAX(vfmax, false)
+DEF_GVEC_VFMINMAX(vfmin, true)

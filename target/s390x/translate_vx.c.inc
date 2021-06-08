@@ -2814,6 +2814,50 @@ static DisasJumpType op_vfll(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
+static DisasJumpType op_vfmax(DisasContext *s, DisasOps *o)
+{
+    const uint8_t fpf = get_field(s, m4);
+    const uint8_t m6 = get_field(s, m6);
+    const uint8_t m5 = get_field(s, m5);
+    gen_helper_gvec_3_ptr *fn;
+
+    if (m6 == 5 || m6 == 6 || m6 == 7 || m6 > 13) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    switch (fpf) {
+    case FPF_SHORT:
+        if (s->fields.op2 == 0xef) {
+            fn = gen_helper_gvec_vfmax32;
+        } else {
+            fn = gen_helper_gvec_vfmin32;
+        }
+        break;
+    case FPF_LONG:
+        if (s->fields.op2 == 0xef) {
+            fn = gen_helper_gvec_vfmax64;
+        } else {
+            fn = gen_helper_gvec_vfmin64;
+        }
+        break;
+    case FPF_EXT:
+        if (s->fields.op2 == 0xef) {
+            fn = gen_helper_gvec_vfmax128;
+        } else {
+            fn = gen_helper_gvec_vfmin128;
+        }
+        break;
+    default:
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    gen_gvec_3_ptr(get_field(s, v1), get_field(s, v2), get_field(s, v3),
+                   cpu_env, deposit32(m5, 4, 4, m6), fn);
+    return DISAS_NEXT;
+}
+
 static DisasJumpType op_vfma(DisasContext *s, DisasOps *o)
 {
     const uint8_t m5 = get_field(s, m5);
