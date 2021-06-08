@@ -724,7 +724,16 @@ static void vfio_vmstate_change(void *opaque, bool running, RunState state)
          * _RUNNING bit
          */
         mask = ~VFIO_DEVICE_STATE_RUNNING;
-        value = 0;
+
+        /*
+         * When VM state transition to stop for savevm command, device should
+         * start saving data.
+         */
+        if (state == RUN_STATE_SAVE_VM) {
+            value = VFIO_DEVICE_STATE_SAVING;
+        } else {
+            value = 0;
+        }
     }
 
     ret = vfio_migration_set_state(vbasedev, mask, value);
