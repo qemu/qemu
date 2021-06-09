@@ -1147,6 +1147,10 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
     uint32_t val = 0;
     int i;
 
+    if (vdev == NULL) {
+        return UINT64_MAX;
+    }
+
     switch (addr) {
     case VIRTIO_PCI_COMMON_DFSELECT:
         val = proxy->dfselect;
@@ -1229,6 +1233,10 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
 {
     VirtIOPCIProxy *proxy = opaque;
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+
+    if (vdev == NULL) {
+        return;
+    }
 
     switch (addr) {
     case VIRTIO_PCI_COMMON_DFSELECT:
