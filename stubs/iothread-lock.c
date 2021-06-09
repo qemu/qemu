@@ -3,7 +3,7 @@
 
 bool qemu_mutex_iothread_locked(void)
 {
-    return true;
+    return false;
 }
 
 void qemu_mutex_lock_iothread_impl(const char *file, int line)
