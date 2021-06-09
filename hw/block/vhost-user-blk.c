@@ -423,6 +423,36 @@ static void vhost_user_blk_event(void *opaque, QEMUChrEvent event)
     }
 }
 
+static int vhost_user_blk_realize_connect(VHostUserBlk *s, Error **errp)
+{
+    DeviceState *dev = &s->parent_obj.parent_obj;
+    int ret;
+
+    s->connected = false;
+
+    ret = qemu_chr_fe_wait_connected(&s->chardev, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = vhost_user_blk_connect(dev, errp);
+    if (ret < 0) {
+        qemu_chr_fe_disconnect(&s->chardev);
+        return ret;
+    }
+    assert(s->connected);
+
+    ret = vhost_dev_get_config(&s->dev, (uint8_t *)&s->blkcfg,
+                               sizeof(struct virtio_blk_config), errp);
+    if (ret < 0) {
+        qemu_chr_fe_disconnect(&s->chardev);
+        vhost_dev_cleanup(&s->dev);
+        return ret;
+    }
+
+    return 0;
+}
+
 static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -467,22 +497,10 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
 
     s->inflight = g_new0(struct vhost_inflight, 1);
     s->vhost_vqs = g_new0(struct vhost_virtqueue, s->num_queues);
-    s->connected = false;
 
-    if (qemu_chr_fe_wait_connected(&s->chardev, errp) < 0) {
-        goto virtio_err;
-    }
-
-    if (vhost_user_blk_connect(dev, errp) < 0) {
-        qemu_chr_fe_disconnect(&s->chardev);
-        goto virtio_err;
-    }
-    assert(s->connected);
-
-    ret = vhost_dev_get_config(&s->dev, (uint8_t *)&s->blkcfg,
-                               sizeof(struct virtio_blk_config), errp);
+    ret = vhost_user_blk_realize_connect(s, errp);
     if (ret < 0) {
-        goto vhost_err;
+        goto virtio_err;
     }
 
     /* we're fully initialized, now we can operate, so add the handler */
@@ -491,8 +509,6 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
                              NULL, true);
     return;
 
-vhost_err:
-    vhost_dev_cleanup(&s->dev);
 virtio_err:
     g_free(s->vhost_vqs);
     s->vhost_vqs = NULL;
