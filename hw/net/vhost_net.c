@@ -22,6 +22,7 @@
 #include "standard-headers/linux/vhost_types.h"
 #include "hw/virtio/virtio-net.h"
 #include "net/vhost_net.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 
@@ -157,6 +158,7 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
     bool backend_kernel = options->backend_type == VHOST_BACKEND_TYPE_KERNEL;
     struct vhost_net *net = g_new0(struct vhost_net, 1);
     uint64_t features = 0;
+    Error *local_err = NULL;
 
     if (!options->net_backend) {
         fprintf(stderr, "vhost-net requires net backend to be setup\n");
@@ -187,8 +189,10 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
     }
 
     r = vhost_dev_init(&net->dev, options->opaque,
-                       options->backend_type, options->busyloop_timeout);
+                       options->backend_type, options->busyloop_timeout,
+                       &local_err);
     if (r < 0) {
+        error_report_err(local_err);
         goto fail;
     }
     if (backend_kernel) {
