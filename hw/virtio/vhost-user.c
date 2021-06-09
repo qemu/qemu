@@ -2117,7 +2117,7 @@ static void vhost_user_set_iotlb_callback(struct vhost_dev *dev, int enabled)
 }
 
 static int vhost_user_get_config(struct vhost_dev *dev, uint8_t *config,
-                                 uint32_t config_len)
+                                 uint32_t config_len, Error **errp)
 {
     VhostUserMsg msg = {
         .hdr.request = VHOST_USER_GET_CONFIG,
@@ -2127,32 +2127,32 @@ static int vhost_user_get_config(struct vhost_dev *dev, uint8_t *config,
 
     if (!virtio_has_feature(dev->protocol_features,
                 VHOST_USER_PROTOCOL_F_CONFIG)) {
-        return -1;
+        error_setg(errp, "VHOST_USER_PROTOCOL_F_CONFIG not supported");
+        return -EINVAL;
     }
 
-    if (config_len > VHOST_USER_MAX_CONFIG_SIZE) {
-        return -1;
-    }
+    assert(config_len <= VHOST_USER_MAX_CONFIG_SIZE);
 
     msg.payload.config.offset = 0;
     msg.payload.config.size = config_len;
     if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
-        return -1;
+        return -EPROTO;
     }
 
     if (vhost_user_read(dev, &msg) < 0) {
-        return -1;
+        return -EPROTO;
     }
 
     if (msg.hdr.request != VHOST_USER_GET_CONFIG) {
-        error_report("Received unexpected msg type. Expected %d received %d",
-                     VHOST_USER_GET_CONFIG, msg.hdr.request);
-        return -1;
+        error_setg(errp,
+                   "Received unexpected msg type. Expected %d received %d",
+                   VHOST_USER_GET_CONFIG, msg.hdr.request);
+        return -EINVAL;
     }
 
     if (msg.hdr.size != VHOST_USER_CONFIG_HDR_SIZE + config_len) {
-        error_report("Received bad msg size.");
-        return -1;
+        error_setg(errp, "Received bad msg size.");
+        return -EINVAL;
     }
 
     memcpy(config, msg.payload.config.region, config_len);

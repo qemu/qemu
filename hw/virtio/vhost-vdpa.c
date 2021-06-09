@@ -523,7 +523,7 @@ static int vhost_vdpa_set_config(struct vhost_dev *dev, const uint8_t *data,
 }
 
 static int vhost_vdpa_get_config(struct vhost_dev *dev, uint8_t *config,
-                                   uint32_t config_len)
+                                   uint32_t config_len, Error **errp)
 {
     struct vhost_vdpa_config *v_config;
     unsigned long config_size = offsetof(struct vhost_vdpa_config, buf);

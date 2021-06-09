@@ -91,11 +91,13 @@ static int vhost_user_blk_handle_config_change(struct vhost_dev *dev)
     int ret;
     struct virtio_blk_config blkcfg;
     VHostUserBlk *s = VHOST_USER_BLK(dev->vdev);
+    Error *local_err = NULL;
 
     ret = vhost_dev_get_config(dev, (uint8_t *)&blkcfg,
-                               sizeof(struct virtio_blk_config));
+                               sizeof(struct virtio_blk_config),
+                               &local_err);
     if (ret < 0) {
-        error_report("get config space failed");
+        error_report_err(local_err);
         return -1;
     }
 
@@ -478,9 +480,8 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     assert(s->connected);
 
     ret = vhost_dev_get_config(&s->dev, (uint8_t *)&s->blkcfg,
-                               sizeof(struct virtio_blk_config));
+                               sizeof(struct virtio_blk_config), errp);
     if (ret < 0) {
-        error_setg(errp, "vhost-user-blk: get block config failed");
         goto vhost_err;
     }
 

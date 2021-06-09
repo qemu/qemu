@@ -117,7 +117,7 @@ uint64_t vhost_net_get_features(struct vhost_net *net, uint64_t features)
 int vhost_net_get_config(struct vhost_net *net,  uint8_t *config,
                          uint32_t config_len)
 {
-    return vhost_dev_get_config(&net->dev, config, config_len);
+    return vhost_dev_get_config(&net->dev, config, config_len, NULL);
 }
 int vhost_net_set_config(struct vhost_net *net, const uint8_t *data,
                          uint32_t offset, uint32_t size, uint32_t flags)
