@@ -1856,7 +1856,8 @@ static int vhost_user_postcopy_notifier(NotifierWithReturn *notifier,
     return 0;
 }
 
-static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque)
+static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
+                                   Error **errp)
 {
     uint64_t features, protocol_features, ram_slots;
     struct vhost_user *u;
@@ -1871,7 +1872,7 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque)
 
     err = vhost_user_get_features(dev, &features);
     if (err < 0) {
-        return err;
+        return -EPROTO;
     }
 
     if (virtio_has_feature(features, VHOST_USER_F_PROTOCOL_FEATURES)) {
@@ -1880,7 +1881,7 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque)
         err = vhost_user_get_u64(dev, VHOST_USER_GET_PROTOCOL_FEATURES,
                                  &protocol_features);
         if (err < 0) {
-            return err;
+            return -EPROTO;
         }
 
         dev->protocol_features =
@@ -1891,14 +1892,14 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque)
             dev->protocol_features &= ~(1ULL << VHOST_USER_PROTOCOL_F_CONFIG);
         } else if (!(protocol_features &
                     (1ULL << VHOST_USER_PROTOCOL_F_CONFIG))) {
-            error_report("Device expects VHOST_USER_PROTOCOL_F_CONFIG "
-                    "but backend does not support it.");
-            return -1;
+            error_setg(errp, "Device expects VHOST_USER_PROTOCOL_F_CONFIG "
+                       "but backend does not support it.");
+            return -EINVAL;
         }
 
         err = vhost_user_set_protocol_features(dev, dev->protocol_features);
         if (err < 0) {
-            return err;
+            return -EPROTO;
         }
 
         /* query the max queues we support if backend supports Multiple Queue */
@@ -1906,12 +1907,12 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque)
             err = vhost_user_get_u64(dev, VHOST_USER_GET_QUEUE_NUM,
                                      &dev->max_queues);
             if (err < 0) {
-                return err;
+                return -EPROTO;
             }
         }
         if (dev->num_queues && dev->max_queues < dev->num_queues) {
-            error_report("The maximum number of queues supported by the "
-                         "backend is %" PRIu64, dev->max_queues);
+            error_setg(errp, "The maximum number of queues supported by the "
+                       "backend is %" PRIu64, dev->max_queues);
             return -EINVAL;
         }
 
@@ -1920,9 +1921,9 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque)
                     VHOST_USER_PROTOCOL_F_SLAVE_REQ) &&
                  virtio_has_feature(dev->protocol_features,
                     VHOST_USER_PROTOCOL_F_REPLY_ACK))) {
-            error_report("IOMMU support requires reply-ack and "
-                         "slave-req protocol features.");
-            return -1;
+            error_setg(errp, "IOMMU support requires reply-ack and "
+                       "slave-req protocol features.");
+            return -EINVAL;
         }
 
         /* get max memory regions if backend supports configurable RAM slots */
@@ -1932,15 +1933,15 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque)
         } else {
             err = vhost_user_get_max_memslots(dev, &ram_slots);
             if (err < 0) {
-                return err;
+                return -EPROTO;
             }
 
             if (ram_slots < u->user->memory_slots) {
-                error_report("The backend specified a max ram slots limit "
-                             "of %" PRIu64", when the prior validated limit was %d. "
-                             "This limit should never decrease.", ram_slots,
-                             u->user->memory_slots);
-                return -1;
+                error_setg(errp, "The backend specified a max ram slots limit "
+                           "of %" PRIu64", when the prior validated limit was "
+                           "%d. This limit should never decrease.", ram_slots,
+                           u->user->memory_slots);
+                return -EINVAL;
             }
 
             u->user->memory_slots = MIN(ram_slots, VHOST_USER_MAX_RAM_SLOTS);
@@ -1958,7 +1959,7 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque)
     if (dev->vq_index == 0) {
         err = vhost_setup_slave_channel(dev);
         if (err < 0) {
-            return err;
+            return -EPROTO;
         }
     }
 

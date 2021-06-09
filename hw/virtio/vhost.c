@@ -1289,9 +1289,9 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    VhostBackendType backend_type, uint32_t busyloop_timeout,
                    Error **errp)
 {
+    ERRP_GUARD();
     uint64_t features;
     int i, r, n_initialized_vqs = 0;
-    Error *local_err = NULL;
 
     hdev->vdev = NULL;
     hdev->migration_blocker = NULL;
@@ -1299,9 +1299,11 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     r = vhost_set_backend_type(hdev, backend_type);
     assert(r >= 0);
 
-    r = hdev->vhost_ops->vhost_backend_init(hdev, opaque);
+    r = hdev->vhost_ops->vhost_backend_init(hdev, opaque, errp);
     if (r < 0) {
-        error_setg(errp, "vhost_backend_init failed");
+        if (!*errp) {
+            error_setg_errno(errp, -r, "vhost_backend_init failed");
+        }
         goto fail;
     }
 
@@ -1369,9 +1371,8 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     }
 
     if (hdev->migration_blocker != NULL) {
-        r = migrate_add_blocker(hdev->migration_blocker, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        r = migrate_add_blocker(hdev->migration_blocker, errp);
+        if (*errp) {
             error_free(hdev->migration_blocker);
             goto fail_busyloop;
         }
