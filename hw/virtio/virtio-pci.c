@@ -1349,6 +1349,11 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
 static uint64_t virtio_pci_notify_read(void *opaque, hwaddr addr,
                                        unsigned size)
 {
+    VirtIOPCIProxy *proxy = opaque;
+    if (virtio_bus_get_device(&proxy->bus) == NULL) {
+        return UINT64_MAX;
+    }
+
     return 0;
 }
 
@@ -1386,7 +1391,7 @@ static uint64_t virtio_pci_isr_read(void *opaque, hwaddr addr,
     uint64_t val;
 
     if (vdev == NULL) {
-        return 0;
+        return UINT64_MAX;
     }
 
     val = qatomic_xchg(&vdev->isr, 0);
@@ -1407,7 +1412,7 @@ static uint64_t virtio_pci_device_read(void *opaque, hwaddr addr,
     uint64_t val;
 
     if (vdev == NULL) {
-        return 0;
+        return UINT64_MAX;
     }
 
     switch (size) {
