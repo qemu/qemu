@@ -1353,7 +1353,11 @@ static int vhost_user_get_u64(struct vhost_dev *dev, int request, uint64_t *u64)
 
 static int vhost_user_get_features(struct vhost_dev *dev, uint64_t *features)
 {
-    return vhost_user_get_u64(dev, VHOST_USER_GET_FEATURES, features);
+    if (vhost_user_get_u64(dev, VHOST_USER_GET_FEATURES, features) < 0) {
+        return -EPROTO;
+    }
+
+    return 0;
 }
 
 static int vhost_user_set_owner(struct vhost_dev *dev)
@@ -1364,7 +1368,7 @@ static int vhost_user_set_owner(struct vhost_dev *dev)
     };
 
     if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
-        return -1;
+        return -EPROTO;
     }
 
     return 0;
@@ -1872,7 +1876,7 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
 
     err = vhost_user_get_features(dev, &features);
     if (err < 0) {
-        return -EPROTO;
+        return err;
     }
 
     if (virtio_has_feature(features, VHOST_USER_F_PROTOCOL_FEATURES)) {
