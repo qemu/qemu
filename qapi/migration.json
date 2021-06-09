@@ -1740,6 +1740,9 @@
 #
 # @calc-time: time in units of second for sample dirty pages
 #
+# @sample-pages: page count per GB for sample dirty pages
+#                the default value is 512 (since 6.1)
+#
 # Since: 5.2
 #
 ##
@@ -1747,7 +1750,8 @@
   'data': {'*dirty-rate': 'int64',
            'status': 'DirtyRateStatus',
            'start-time': 'int64',
-           'calc-time': 'int64'} }
+           'calc-time': 'int64',
+           'sample-pages': 'uint64'} }
 
 ##
 # @calc-dirty-rate:
@@ -1756,13 +1760,18 @@
 #
 # @calc-time: time in units of second for sample dirty pages
 #
+# @sample-pages: page count per GB for sample dirty pages
+#                the default value is 512 (since 6.1)
+#
 # Since: 5.2
 #
 # Example:
-#   {"command": "calc-dirty-rate", "data": {"calc-time": 1} }
+#   {"command": "calc-dirty-rate", "data": {"calc-time": 1,
+#                                           'sample-pages': 512} }
 #
 ##
-{ 'command': 'calc-dirty-rate', 'data': {'calc-time': 'int64'} }
+{ 'command': 'calc-dirty-rate', 'data': {'calc-time': 'int64',
+                                         '*sample-pages': 'int'} }
 
 ##
 # @query-dirty-rate:

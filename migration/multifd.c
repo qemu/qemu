@@ -987,7 +987,8 @@ int multifd_load_cleanup(Error **errp)
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
 
-        if (object_dynamic_cast(OBJECT(p->c), TYPE_QIO_CHANNEL_SOCKET)
+        if ((object_dynamic_cast(OBJECT(p->c), TYPE_QIO_CHANNEL_SOCKET) ||
+             object_dynamic_cast(OBJECT(p->c), TYPE_QIO_CHANNEL_TLS))
             && OBJECT(p->c)->ref == 1) {
             yank_unregister_function(MIGRATION_YANK_INSTANCE,
                                      migration_yank_iochannel,
@@ -1163,6 +1164,11 @@ bool multifd_recv_all_channels_created(void)
 
     if (!migrate_use_multifd()) {
         return true;
+    }
+
+    if (!multifd_recv_state) {
+        /* Called before any connections created */
+        return false;
     }
 
     return thread_count == qatomic_read(&multifd_recv_state->count);
