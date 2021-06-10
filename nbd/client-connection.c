@@ -35,6 +35,7 @@ struct NBDClientConnection {
     QCryptoTLSCreds *tlscreds;
     NBDExportInfo initial_info;
     bool do_negotiation;
+    bool do_retry;
 
     QemuMutex mutex;
 
@@ -60,6 +61,15 @@ struct NBDClientConnection {
      */
     Coroutine *wait_co;
 };
+
+/*
+ * The function isn't protected by any mutex, only call it when the client
+ * connection attempt has not yet started.
+ */
+void nbd_client_connection_enable_retry(NBDClientConnection *conn)
+{
+    conn->do_retry = true;
+}
 
 NBDClientConnection *nbd_client_connection_new(const SocketAddress *saddr,
                                                bool do_negotiation,
@@ -155,23 +165,43 @@ static void *connect_thread_func(void *opaque)
     NBDClientConnection *conn = opaque;
     int ret;
     bool do_free;
+    uint64_t timeout = 1;
+    uint64_t max_timeout = 16;
 
-    conn->sioc = qio_channel_socket_new();
+    while (true) {
+        conn->sioc = qio_channel_socket_new();
 
-    error_free(conn->err);
-    conn->err = NULL;
-    conn->updated_info = conn->initial_info;
+        error_free(conn->err);
+        conn->err = NULL;
+        conn->updated_info = conn->initial_info;
 
-    ret = nbd_connect(conn->sioc, conn->saddr,
-                      conn->do_negotiation ? &conn->updated_info : NULL,
-                      conn->tlscreds, &conn->ioc, &conn->err);
-    if (ret < 0) {
-        object_unref(OBJECT(conn->sioc));
-        conn->sioc = NULL;
+        ret = nbd_connect(conn->sioc, conn->saddr,
+                          conn->do_negotiation ? &conn->updated_info : NULL,
+                          conn->tlscreds, &conn->ioc, &conn->err);
+
+        /*
+         * conn->updated_info will finally be returned to the user. Clear the
+         * pointers to our internally allocated strings, which are IN parameters
+         * of nbd_receive_negotiate() and therefore nbd_connect(). Caller
+         * shoudn't be interested in these fields.
+         */
+        conn->updated_info.x_dirty_bitmap = NULL;
+        conn->updated_info.name = NULL;
+
+        if (ret < 0) {
+            object_unref(OBJECT(conn->sioc));
+            conn->sioc = NULL;
+            if (conn->do_retry) {
+                sleep(timeout);
+                if (timeout < max_timeout) {
+                    timeout *= 2;
+                }
+                continue;
+            }
+        }
+
+        break;
     }
-
-    conn->updated_info.x_dirty_bitmap = NULL;
-    conn->updated_info.name = NULL;
 
     qemu_mutex_lock(&conn->mutex);
 
