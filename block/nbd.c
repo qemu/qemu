@@ -87,12 +87,6 @@ typedef enum NBDConnectThreadState {
 typedef struct NBDConnectThread {
     /* Initialization constants */
     SocketAddress *saddr; /* address to connect to */
-    /*
-     * Bottom half to schedule on completion. Scheduled only if bh_ctx is not
-     * NULL
-     */
-    QEMUBHFunc *bh_func;
-    void *bh_opaque;
 
     /*
      * Result of last attempt. Valid in FAIL and SUCCESS states.
@@ -101,10 +95,15 @@ typedef struct NBDConnectThread {
     QIOChannelSocket *sioc;
     Error *err;
 
-    /* state and bh_ctx are protected by mutex */
     QemuMutex mutex;
+    /* All further fields are protected by mutex */
     NBDConnectThreadState state; /* current state of the thread */
-    AioContext *bh_ctx; /* where to schedule bh (NULL means don't schedule) */
+
+    /*
+     * wait_co: if non-NULL, which coroutine to wake in
+     * nbd_co_establish_connection() after yield()
+     */
+    Coroutine *wait_co;
 } NBDConnectThread;
 
 typedef struct BDRVNBDState {
@@ -138,7 +137,6 @@ typedef struct BDRVNBDState {
     char *x_dirty_bitmap;
     bool alloc_depth;
 
-    bool wait_connect;
     NBDConnectThread *connect_thread;
 } BDRVNBDState;
 
@@ -370,15 +368,6 @@ static bool nbd_client_connecting_wait(BDRVNBDState *s)
     return qatomic_load_acquire(&s->state) == NBD_CLIENT_CONNECTING_WAIT;
 }
 
-static void connect_bh(void *opaque)
-{
-    BDRVNBDState *state = opaque;
-
-    assert(state->wait_connect);
-    state->wait_connect = false;
-    aio_co_wake(state->connection_co);
-}
-
 static void nbd_init_connect_thread(BDRVNBDState *s)
 {
     s->connect_thread = g_new(NBDConnectThread, 1);
@@ -386,8 +375,6 @@ static void nbd_init_connect_thread(BDRVNBDState *s)
     *s->connect_thread = (NBDConnectThread) {
         .saddr = QAPI_CLONE(SocketAddress, s->saddr),
         .state = CONNECT_THREAD_NONE,
-        .bh_func = connect_bh,
-        .bh_opaque = s,
     };
 
     qemu_mutex_init(&s->connect_thread->mutex);
@@ -427,11 +414,9 @@ static void *connect_thread_func(void *opaque)
     switch (thr->state) {
     case CONNECT_THREAD_RUNNING:
         thr->state = ret < 0 ? CONNECT_THREAD_FAIL : CONNECT_THREAD_SUCCESS;
-        if (thr->bh_ctx) {
-            aio_bh_schedule_oneshot(thr->bh_ctx, thr->bh_func, thr->bh_opaque);
-
-            /* play safe, don't reuse bh_ctx on further connection attempts */
-            thr->bh_ctx = NULL;
+        if (thr->wait_co) {
+            aio_co_wake(thr->wait_co);
+            thr->wait_co = NULL;
         }
         break;
     case CONNECT_THREAD_RUNNING_DETACHED:
@@ -485,20 +470,14 @@ nbd_co_establish_connection(BlockDriverState *bs, Error **errp)
         abort();
     }
 
-    thr->bh_ctx = qemu_get_current_aio_context();
+    thr->wait_co = qemu_coroutine_self();
 
     qemu_mutex_unlock(&thr->mutex);
-
 
     /*
      * We are going to wait for connect-thread finish, but
      * nbd_client_co_drain_begin() can interrupt.
-     *
-     * Note that wait_connect variable is not visible for connect-thread. It
-     * doesn't need mutex protection, it used only inside home aio context of
-     * bs.
      */
-    s->wait_connect = true;
     qemu_coroutine_yield();
 
     qemu_mutex_lock(&thr->mutex);
@@ -553,23 +532,19 @@ static void nbd_co_establish_connection_cancel(BlockDriverState *bs)
 {
     BDRVNBDState *s = bs->opaque;
     NBDConnectThread *thr = s->connect_thread;
-    bool wake = false;
+    Coroutine *wait_co = NULL;
 
     qemu_mutex_lock(&thr->mutex);
 
     if (thr->state == CONNECT_THREAD_RUNNING) {
         /* We can cancel only in running state, when bh is not yet scheduled */
-        thr->bh_ctx = NULL;
-        if (s->wait_connect) {
-            s->wait_connect = false;
-            wake = true;
-        }
+        wait_co = g_steal_pointer(&thr->wait_co);
     }
 
     qemu_mutex_unlock(&thr->mutex);
 
-    if (wake) {
-        aio_co_wake(s->connection_co);
+    if (wait_co) {
+        aio_co_wake(wait_co);
     }
 }
 
