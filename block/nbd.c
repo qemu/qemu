@@ -1889,6 +1889,8 @@ static int nbd_client_handshake(BlockDriverState *bs, Error **errp)
                                  nbd_yank, bs);
         object_unref(OBJECT(s->sioc));
         s->sioc = NULL;
+        object_unref(OBJECT(s->ioc));
+        s->ioc = NULL;
 
         return ret;
     }
