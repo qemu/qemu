@@ -266,6 +266,8 @@ void nbd_client_connection_release(NBDClientConnection *conn)
  *   otherwise the thread is not running, so start a thread and wait for
  *     completion
  *
+ * If @blocking is false, don't wait for the thread, return immediately.
+ *
  * If @info is not NULL, also do nbd-negotiation after successful connection.
  * In this case info is used only as out parameter, and is fully initialized by
  * nbd_co_establish_connection(). "IN" fields of info as well as related only to
@@ -274,7 +276,7 @@ void nbd_client_connection_release(NBDClientConnection *conn)
  */
 QIOChannel *coroutine_fn
 nbd_co_establish_connection(NBDClientConnection *conn, NBDExportInfo *info,
-                            Error **errp)
+                            bool blocking, Error **errp)
 {
     QemuThread thread;
 
@@ -313,6 +315,10 @@ nbd_co_establish_connection(NBDClientConnection *conn, NBDExportInfo *info,
             conn->err = NULL;
             qemu_thread_create(&thread, "nbd-connect",
                                connect_thread_func, conn, QEMU_THREAD_DETACHED);
+        }
+
+        if (!blocking) {
+            return NULL;
         }
 
         conn->wait_co = qemu_coroutine_self();

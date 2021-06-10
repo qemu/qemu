@@ -364,7 +364,7 @@ static int coroutine_fn nbd_co_do_establish_connection(BlockDriverState *bs,
 
     assert(!s->ioc);
 
-    s->ioc = nbd_co_establish_connection(s->conn, &s->info, errp);
+    s->ioc = nbd_co_establish_connection(s->conn, &s->info, true, errp);
     if (!s->ioc) {
         return -ECONNREFUSED;
     }

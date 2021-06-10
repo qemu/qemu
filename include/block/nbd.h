@@ -420,7 +420,7 @@ void nbd_client_connection_release(NBDClientConnection *conn);
 
 QIOChannel *coroutine_fn
 nbd_co_establish_connection(NBDClientConnection *conn, NBDExportInfo *info,
-                            Error **errp);
+                            bool blocking, Error **errp);
 
 void coroutine_fn nbd_co_establish_connection_cancel(NBDClientConnection *conn);
 
