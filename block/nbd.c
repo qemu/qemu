@@ -408,6 +408,8 @@ static void *connect_thread_func(void *opaque)
         thr->sioc = NULL;
     }
 
+    qio_channel_set_delay(QIO_CHANNEL(thr->sioc), false);
+
     qemu_mutex_lock(&thr->mutex);
 
     switch (thr->state) {
