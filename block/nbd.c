@@ -381,6 +381,7 @@ static void nbd_free_connect_thread(NBDConnectThread *thr)
 {
     if (thr->sioc) {
         qio_channel_close(QIO_CHANNEL(thr->sioc), NULL);
+        object_unref(OBJECT(thr->sioc));
     }
     error_free(thr->err);
     qapi_free_SocketAddress(thr->saddr);
