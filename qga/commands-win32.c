@@ -2459,7 +2459,7 @@ GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
             continue;
         }
         for (j = 0; hw_ids[j] != NULL; j++) {
-            GMatchInfo *match_info;
+            g_autoptr(GMatchInfo) match_info;
             GuestDeviceIdPCI *id;
             if (!g_regex_match(device_pci_re, hw_ids[j], 0, &match_info)) {
                 continue;
@@ -2476,7 +2476,6 @@ GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
             id->vendor_id = g_ascii_strtoull(vendor_id, NULL, 16);
             id->device_id = g_ascii_strtoull(device_id, NULL, 16);
 
-            g_match_info_free(match_info);
             break;
         }
         if (skip) {
