@@ -111,4 +111,15 @@ SocketAddress *socket_remote_address(int fd, Error **errp);
  */
 SocketAddress *socket_address_flatten(SocketAddressLegacy *addr);
 
+/**
+ * socket_address_parse_named_fd:
+ *
+ * Modify @addr, replacing a named fd by its corresponding number.
+ * Needed for callers that plan to pass @addr to a context where the
+ * current monitor is not available.
+ *
+ * Return 0 on success.
+ */
+int socket_address_parse_named_fd(SocketAddress *addr, Error **errp);
+
 #endif /* QEMU_SOCKETS_H */
