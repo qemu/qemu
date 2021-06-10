@@ -997,8 +997,6 @@ QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict,
         return NULL;
     }
 
-    assert(opts != NULL);
-
     for (entry = qdict_first(qdict);
          entry;
          entry = qdict_next(qdict, entry)) {
