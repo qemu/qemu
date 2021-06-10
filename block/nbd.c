@@ -362,6 +362,7 @@ static int nbd_handle_updated_info(BlockDriverState *bs, Error **errp)
 static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
 {
     int ret;
+    AioContext *aio_context = bdrv_get_aio_context(s->bs);
 
     if (!nbd_client_connecting(s)) {
         return;
@@ -402,30 +403,44 @@ static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
         s->ioc = NULL;
     }
 
-    s->sioc = nbd_co_establish_connection(s->conn, NULL, NULL, NULL);
+    s->sioc = nbd_co_establish_connection(s->conn, &s->info, &s->ioc, NULL);
     if (!s->sioc) {
         ret = -ECONNREFUSED;
         goto out;
     }
 
+    qio_channel_set_blocking(QIO_CHANNEL(s->sioc), false, NULL);
+    qio_channel_attach_aio_context(QIO_CHANNEL(s->sioc), aio_context);
+    if (s->ioc) {
+        qio_channel_set_blocking(QIO_CHANNEL(s->ioc), false, NULL);
+        qio_channel_attach_aio_context(QIO_CHANNEL(s->ioc), aio_context);
+    } else {
+        s->ioc = QIO_CHANNEL(s->sioc);
+        object_ref(OBJECT(s->ioc));
+    }
+
     yank_register_function(BLOCKDEV_YANK_INSTANCE(s->bs->node_name), nbd_yank,
                            s->bs);
 
-    bdrv_dec_in_flight(s->bs);
+    ret = nbd_handle_updated_info(s->bs, NULL);
+    if (ret < 0) {
+        /*
+         * We have connected, but must fail for other reasons.
+         * Send NBD_CMD_DISC as a courtesy to the server.
+         */
+        NBDRequest request = { .type = NBD_CMD_DISC };
 
-    ret = nbd_client_handshake(s->bs, NULL);
+        nbd_send_request(s->ioc, &request);
 
-    if (s->drained) {
-        s->wait_drained_end = true;
-        while (s->drained) {
-            /*
-             * We may be entered once from nbd_client_attach_aio_context_bh
-             * and then from nbd_client_co_drain_end. So here is a loop.
-             */
-            qemu_coroutine_yield();
-        }
+        yank_unregister_function(BLOCKDEV_YANK_INSTANCE(s->bs->node_name),
+                                 nbd_yank, s->bs);
+        object_unref(OBJECT(s->sioc));
+        s->sioc = NULL;
+        object_unref(OBJECT(s->ioc));
+        s->ioc = NULL;
+
+        return;
     }
-    bdrv_inc_in_flight(s->bs);
 
 out:
     if (ret >= 0) {
@@ -2051,7 +2066,8 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    s->conn = nbd_client_connection_new(s->saddr, false, NULL, NULL, NULL);
+    s->conn = nbd_client_connection_new(s->saddr, true, s->export,
+                                        s->x_dirty_bitmap, s->tlscreds);
 
     /*
      * establish TCP connection, return error if it fails
