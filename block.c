@@ -4308,19 +4308,7 @@ static int bdrv_reopen_parse_backing(BDRVReopenState *reopen_state,
                        "an implicit backing file", bs->node_name);
             return -EPERM;
         }
-        /*
-         * Check if the backing link that we want to replace is frozen.
-         * Note that
-         * bdrv_filter_or_cow_child(overlay_bs) == overlay_bs->backing,
-         * because we know that overlay_bs == bs, and that @bs
-         * either is a filter that uses ->backing or a COW format BDS
-         * with bs->drv->supports_backing == true.
-         */
-        if (bdrv_is_backing_chain_frozen(overlay_bs,
-                                         child_bs(overlay_bs->backing), errp))
-        {
-            return -EPERM;
-        }
+
         reopen_state->replace_backing_bs = true;
         reopen_state->old_backing_bs = bs->backing ? bs->backing->bs : NULL;
         ret = bdrv_set_backing_noperm(bs, new_backing_bs, set_backings_tran,
