@@ -357,7 +357,7 @@ static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
         s->ioc = NULL;
     }
 
-    s->sioc = nbd_co_establish_connection(s->conn, NULL);
+    s->sioc = nbd_co_establish_connection(s->conn, NULL, NULL, NULL);
     if (!s->sioc) {
         ret = -ECONNREFUSED;
         goto out;
@@ -2035,7 +2035,7 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    s->conn = nbd_client_connection_new(s->saddr);
+    s->conn = nbd_client_connection_new(s->saddr, false, NULL, NULL, NULL);
 
     /*
      * establish TCP connection, return error if it fails

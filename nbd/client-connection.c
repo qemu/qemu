@@ -30,8 +30,11 @@
 #include "qapi/clone-visitor.h"
 
 struct NBDClientConnection {
-    /* Initialization constants */
+    /* Initialization constants, never change */
     SocketAddress *saddr; /* address to connect to */
+    QCryptoTLSCreds *tlscreds;
+    NBDExportInfo initial_info;
+    bool do_negotiation;
 
     QemuMutex mutex;
 
@@ -42,7 +45,9 @@ struct NBDClientConnection {
      * nbd_co_establish_connection then steals these pointers while
      * under the mutex.
      */
+    NBDExportInfo updated_info;
     QIOChannelSocket *sioc;
+    QIOChannel *ioc;
     Error *err;
 
     /* All further fields are accessed only under mutex */
@@ -56,12 +61,25 @@ struct NBDClientConnection {
     Coroutine *wait_co;
 };
 
-NBDClientConnection *nbd_client_connection_new(const SocketAddress *saddr)
+NBDClientConnection *nbd_client_connection_new(const SocketAddress *saddr,
+                                               bool do_negotiation,
+                                               const char *export_name,
+                                               const char *x_dirty_bitmap,
+                                               QCryptoTLSCreds *tlscreds)
 {
     NBDClientConnection *conn = g_new(NBDClientConnection, 1);
 
+    object_ref(OBJECT(tlscreds));
     *conn = (NBDClientConnection) {
         .saddr = QAPI_CLONE(SocketAddress, saddr),
+        .tlscreds = tlscreds,
+        .do_negotiation = do_negotiation,
+
+        .initial_info.request_sizes = true,
+        .initial_info.structured_reply = true,
+        .initial_info.base_allocation = true,
+        .initial_info.x_dirty_bitmap = g_strdup(x_dirty_bitmap),
+        .initial_info.name = g_strdup(export_name ?: "")
     };
 
     qemu_mutex_init(&conn->mutex);
@@ -77,7 +95,59 @@ static void nbd_client_connection_do_free(NBDClientConnection *conn)
     }
     error_free(conn->err);
     qapi_free_SocketAddress(conn->saddr);
+    object_unref(OBJECT(conn->tlscreds));
+    g_free(conn->initial_info.x_dirty_bitmap);
+    g_free(conn->initial_info.name);
     g_free(conn);
+}
+
+/*
+ * Connect to @addr and do NBD negotiation if @info is not null. If @tlscreds
+ * are given @outioc is returned. @outioc is provided only on success.  The call
+ * may be cancelled from other thread by simply qio_channel_shutdown(sioc).
+ */
+static int nbd_connect(QIOChannelSocket *sioc, SocketAddress *addr,
+                       NBDExportInfo *info, QCryptoTLSCreds *tlscreds,
+                       QIOChannel **outioc, Error **errp)
+{
+    int ret;
+
+    if (outioc) {
+        *outioc = NULL;
+    }
+
+    ret = qio_channel_socket_connect_sync(sioc, addr, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    qio_channel_set_delay(QIO_CHANNEL(sioc), false);
+
+    if (!info) {
+        return 0;
+    }
+
+    ret = nbd_receive_negotiate(NULL, QIO_CHANNEL(sioc), tlscreds,
+                                tlscreds ? addr->u.inet.host : NULL,
+                                outioc, info, errp);
+    if (ret < 0) {
+        /*
+         * nbd_receive_negotiate() may setup tls ioc and return it even on
+         * failure path. In this case we should use it instead of original
+         * channel.
+         */
+        if (outioc && *outioc) {
+            qio_channel_close(QIO_CHANNEL(*outioc), NULL);
+            object_unref(OBJECT(*outioc));
+            *outioc = NULL;
+        } else {
+            qio_channel_close(QIO_CHANNEL(sioc), NULL);
+        }
+
+        return ret;
+    }
+
+    return 0;
 }
 
 static void *connect_thread_func(void *opaque)
@@ -90,13 +160,18 @@ static void *connect_thread_func(void *opaque)
 
     error_free(conn->err);
     conn->err = NULL;
-    ret = qio_channel_socket_connect_sync(conn->sioc, conn->saddr, &conn->err);
+    conn->updated_info = conn->initial_info;
+
+    ret = nbd_connect(conn->sioc, conn->saddr,
+                      conn->do_negotiation ? &conn->updated_info : NULL,
+                      conn->tlscreds, &conn->ioc, &conn->err);
     if (ret < 0) {
         object_unref(OBJECT(conn->sioc));
         conn->sioc = NULL;
     }
 
-    qio_channel_set_delay(QIO_CHANNEL(conn->sioc), false);
+    conn->updated_info.x_dirty_bitmap = NULL;
+    conn->updated_info.name = NULL;
 
     qemu_mutex_lock(&conn->mutex);
 
@@ -146,11 +221,23 @@ void nbd_client_connection_release(NBDClientConnection *conn)
  *     result, just return it now
  *   otherwise the thread is not running, so start a thread and wait for
  *     completion
+ *
+ * If @info is not NULL, also do nbd-negotiation after successful connection.
+ * In this case info is used only as out parameter, and is fully initialized by
+ * nbd_co_establish_connection(). "IN" fields of info as well as related only to
+ * nbd_receive_export_list() would be zero (see description of NBDExportInfo in
+ * include/block/nbd.h).
  */
 QIOChannelSocket *coroutine_fn
-nbd_co_establish_connection(NBDClientConnection *conn, Error **errp)
+nbd_co_establish_connection(NBDClientConnection *conn, NBDExportInfo *info,
+                            QIOChannel **ioc, Error **errp)
 {
     QemuThread thread;
+
+    if (conn->do_negotiation) {
+        assert(info);
+        assert(ioc);
+    }
 
     WITH_QEMU_LOCK_GUARD(&conn->mutex) {
         /*
@@ -162,6 +249,10 @@ nbd_co_establish_connection(NBDClientConnection *conn, Error **errp)
         if (!conn->running) {
             if (conn->sioc) {
                 /* Previous attempt finally succeeded in background */
+                if (conn->do_negotiation) {
+                    *ioc = g_steal_pointer(&conn->ioc);
+                    memcpy(info, &conn->updated_info, sizeof(*info));
+                }
                 return g_steal_pointer(&conn->sioc);
             }
 
@@ -194,6 +285,10 @@ nbd_co_establish_connection(NBDClientConnection *conn, Error **errp)
         } else {
             error_propagate(errp, conn->err);
             conn->err = NULL;
+            if (conn->sioc && conn->do_negotiation) {
+                *ioc = g_steal_pointer(&conn->ioc);
+                memcpy(info, &conn->updated_info, sizeof(*info));
+            }
             return g_steal_pointer(&conn->sioc);
         }
     }
