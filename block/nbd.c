@@ -358,15 +358,18 @@ static bool nbd_client_connecting_wait(BDRVNBDState *s)
     return qatomic_load_acquire(&s->state) == NBD_CLIENT_CONNECTING_WAIT;
 }
 
-static void nbd_init_connect_thread(BDRVNBDState *s)
+static NBDClientConnection *
+nbd_client_connection_new(const SocketAddress *saddr)
 {
-    s->conn = g_new(NBDClientConnection, 1);
+    NBDClientConnection *conn = g_new(NBDClientConnection, 1);
 
-    *s->conn = (NBDClientConnection) {
-        .saddr = QAPI_CLONE(SocketAddress, s->saddr),
+    *conn = (NBDClientConnection) {
+        .saddr = QAPI_CLONE(SocketAddress, saddr),
     };
 
-    qemu_mutex_init(&s->conn->mutex);
+    qemu_mutex_init(&conn->mutex);
+
+    return conn;
 }
 
 static void nbd_free_connect_thread(NBDClientConnection *conn)
@@ -2230,7 +2233,7 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    nbd_init_connect_thread(s);
+    s->conn = nbd_client_connection_new(s->saddr);
 
     /*
      * establish TCP connection, return error if it fails
