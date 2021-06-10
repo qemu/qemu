@@ -67,8 +67,7 @@ typedef enum NBDClientState {
 } NBDClientState;
 
 typedef struct BDRVNBDState {
-    QIOChannelSocket *sioc; /* The master data channel */
-    QIOChannel *ioc; /* The current I/O channel which may differ (eg TLS) */
+    QIOChannel *ioc; /* The current I/O channel */
     NBDExportInfo info;
 
     CoMutex send_mutex;
@@ -100,9 +99,11 @@ typedef struct BDRVNBDState {
     NBDClientConnection *conn;
 } BDRVNBDState;
 
-static int nbd_establish_connection(BlockDriverState *bs, SocketAddress *saddr,
-                                    Error **errp);
-static int nbd_client_handshake(BlockDriverState *bs, Error **errp);
+static QIOChannelSocket *nbd_establish_connection(BlockDriverState *bs,
+                                                  SocketAddress *saddr,
+                                                  Error **errp);
+static int nbd_client_handshake(BlockDriverState *bs, QIOChannelSocket *sioc,
+                                Error **errp);
 static void nbd_yank(void *opaque);
 
 static void nbd_clear_bdrvstate(BlockDriverState *bs)
@@ -359,6 +360,7 @@ static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
 {
     int ret;
     AioContext *aio_context = bdrv_get_aio_context(s->bs);
+    QIOChannelSocket *sioc;
 
     if (!nbd_client_connecting(s)) {
         return;
@@ -393,27 +395,26 @@ static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
         qio_channel_detach_aio_context(QIO_CHANNEL(s->ioc));
         yank_unregister_function(BLOCKDEV_YANK_INSTANCE(s->bs->node_name),
                                  nbd_yank, s->bs);
-        object_unref(OBJECT(s->sioc));
-        s->sioc = NULL;
         object_unref(OBJECT(s->ioc));
         s->ioc = NULL;
     }
 
-    s->sioc = nbd_co_establish_connection(s->conn, &s->info, &s->ioc, NULL);
-    if (!s->sioc) {
+    sioc = nbd_co_establish_connection(s->conn, &s->info, &s->ioc, NULL);
+    if (!sioc) {
         ret = -ECONNREFUSED;
         goto out;
     }
 
-    qio_channel_set_blocking(QIO_CHANNEL(s->sioc), false, NULL);
-    qio_channel_attach_aio_context(QIO_CHANNEL(s->sioc), aio_context);
     if (s->ioc) {
-        qio_channel_set_blocking(QIO_CHANNEL(s->ioc), false, NULL);
-        qio_channel_attach_aio_context(QIO_CHANNEL(s->ioc), aio_context);
+        /* sioc is referenced by s->ioc */
+        object_unref(OBJECT(sioc));
     } else {
-        s->ioc = QIO_CHANNEL(s->sioc);
-        object_ref(OBJECT(s->ioc));
+        s->ioc = QIO_CHANNEL(sioc);
     }
+    sioc = NULL;
+
+    qio_channel_set_blocking(QIO_CHANNEL(s->ioc), false, NULL);
+    qio_channel_attach_aio_context(QIO_CHANNEL(s->ioc), aio_context);
 
     yank_register_function(BLOCKDEV_YANK_INSTANCE(s->bs->node_name), nbd_yank,
                            s->bs);
@@ -430,8 +431,6 @@ static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
 
         yank_unregister_function(BLOCKDEV_YANK_INSTANCE(s->bs->node_name),
                                  nbd_yank, s->bs);
-        object_unref(OBJECT(s->sioc));
-        s->sioc = NULL;
         object_unref(OBJECT(s->ioc));
         s->ioc = NULL;
 
@@ -566,8 +565,6 @@ static coroutine_fn void nbd_connection_entry(void *opaque)
         qio_channel_detach_aio_context(QIO_CHANNEL(s->ioc));
         yank_unregister_function(BLOCKDEV_YANK_INSTANCE(s->bs->node_name),
                                  nbd_yank, s->bs);
-        object_unref(OBJECT(s->sioc));
-        s->sioc = NULL;
         object_unref(OBJECT(s->ioc));
         s->ioc = NULL;
     }
@@ -1566,7 +1563,7 @@ static void nbd_yank(void *opaque)
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
 
     qatomic_store_release(&s->state, NBD_CLIENT_QUIT);
-    qio_channel_shutdown(QIO_CHANNEL(s->sioc), QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
+    qio_channel_shutdown(QIO_CHANNEL(s->ioc), QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
 }
 
 static void nbd_client_close(BlockDriverState *bs)
@@ -1581,56 +1578,63 @@ static void nbd_client_close(BlockDriverState *bs)
     nbd_teardown_connection(bs);
 }
 
-static int nbd_establish_connection(BlockDriverState *bs,
-                                    SocketAddress *saddr,
-                                    Error **errp)
+static QIOChannelSocket *nbd_establish_connection(BlockDriverState *bs,
+                                                  SocketAddress *saddr,
+                                                  Error **errp)
 {
     ERRP_GUARD();
-    BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
+    QIOChannelSocket *sioc;
 
-    s->sioc = qio_channel_socket_new();
-    qio_channel_set_name(QIO_CHANNEL(s->sioc), "nbd-client");
+    sioc = qio_channel_socket_new();
+    qio_channel_set_name(QIO_CHANNEL(sioc), "nbd-client");
 
-    qio_channel_socket_connect_sync(s->sioc, saddr, errp);
+    qio_channel_socket_connect_sync(sioc, saddr, errp);
     if (*errp) {
-        object_unref(OBJECT(s->sioc));
-        s->sioc = NULL;
-        return -1;
+        object_unref(OBJECT(sioc));
+        return NULL;
     }
 
     yank_register_function(BLOCKDEV_YANK_INSTANCE(bs->node_name), nbd_yank, bs);
-    qio_channel_set_delay(QIO_CHANNEL(s->sioc), false);
+    qio_channel_set_delay(QIO_CHANNEL(sioc), false);
 
-    return 0;
+    return sioc;
 }
 
-/* nbd_client_handshake takes ownership on s->sioc. On failure it's unref'ed. */
-static int nbd_client_handshake(BlockDriverState *bs, Error **errp)
+/* nbd_client_handshake takes ownership on sioc. */
+static int nbd_client_handshake(BlockDriverState *bs, QIOChannelSocket *sioc,
+                                Error **errp)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
     AioContext *aio_context = bdrv_get_aio_context(bs);
     int ret;
 
     trace_nbd_client_handshake(s->export);
-    qio_channel_set_blocking(QIO_CHANNEL(s->sioc), false, NULL);
-    qio_channel_attach_aio_context(QIO_CHANNEL(s->sioc), aio_context);
+    qio_channel_set_blocking(QIO_CHANNEL(sioc), false, NULL);
+    qio_channel_attach_aio_context(QIO_CHANNEL(sioc), aio_context);
 
     s->info.request_sizes = true;
     s->info.structured_reply = true;
     s->info.base_allocation = true;
     s->info.x_dirty_bitmap = g_strdup(s->x_dirty_bitmap);
     s->info.name = g_strdup(s->export ?: "");
-    ret = nbd_receive_negotiate(aio_context, QIO_CHANNEL(s->sioc), s->tlscreds,
+    ret = nbd_receive_negotiate(aio_context, QIO_CHANNEL(sioc), s->tlscreds,
                                 s->hostname, &s->ioc, &s->info, errp);
     g_free(s->info.x_dirty_bitmap);
     g_free(s->info.name);
     if (ret < 0) {
         yank_unregister_function(BLOCKDEV_YANK_INSTANCE(bs->node_name),
                                  nbd_yank, bs);
-        object_unref(OBJECT(s->sioc));
-        s->sioc = NULL;
+        object_unref(OBJECT(sioc));
         return ret;
     }
+
+    if (s->ioc) {
+        /* sioc is referenced by s->ioc */
+        object_unref(OBJECT(sioc));
+    } else {
+        s->ioc = QIO_CHANNEL(sioc);
+    }
+    sioc = NULL;
 
     ret = nbd_handle_updated_info(bs, errp);
     if (ret < 0) {
@@ -1640,21 +1644,13 @@ static int nbd_client_handshake(BlockDriverState *bs, Error **errp)
          */
         NBDRequest request = { .type = NBD_CMD_DISC };
 
-        nbd_send_request(s->ioc ?: QIO_CHANNEL(s->sioc), &request);
+        nbd_send_request(s->ioc, &request);
 
         yank_unregister_function(BLOCKDEV_YANK_INSTANCE(bs->node_name),
                                  nbd_yank, bs);
-        object_unref(OBJECT(s->sioc));
-        s->sioc = NULL;
         object_unref(OBJECT(s->ioc));
         s->ioc = NULL;
-
         return ret;
-    }
-
-    if (!s->ioc) {
-        s->ioc = QIO_CHANNEL(s->sioc);
-        object_ref(OBJECT(s->ioc));
     }
 
     return 0;
@@ -2048,6 +2044,7 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
 {
     int ret;
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
+    QIOChannelSocket *sioc;
 
     s->bs = bs;
     qemu_co_mutex_init(&s->send_mutex);
@@ -2069,12 +2066,13 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
      * establish TCP connection, return error if it fails
      * TODO: Configurable retry-until-timeout behaviour.
      */
-    if (nbd_establish_connection(bs, s->saddr, errp) < 0) {
+    sioc = nbd_establish_connection(bs, s->saddr, errp);
+    if (!sioc) {
         ret = -ECONNREFUSED;
         goto fail;
     }
 
-    ret = nbd_client_handshake(bs, errp);
+    ret = nbd_client_handshake(bs, sioc, errp);
     if (ret < 0) {
         goto fail;
     }
