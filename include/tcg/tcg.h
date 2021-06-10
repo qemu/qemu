@@ -1095,7 +1095,8 @@ TCGv_vec tcg_const_ones_vec_matching(TCGv_vec);
 
 /*
  * Locate or create a read-only temporary that is a constant.
- * This kind of temporary need not and should not be freed.
+ * This kind of temporary need not be freed, but for convenience
+ * will be silently ignored by tcg_temp_free_*.
  */
 TCGTemp *tcg_constant_internal(TCGType type, int64_t val);
 
