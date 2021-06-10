@@ -272,15 +272,14 @@ void nbd_client_connection_release(NBDClientConnection *conn)
  * nbd_receive_export_list() would be zero (see description of NBDExportInfo in
  * include/block/nbd.h).
  */
-QIOChannelSocket *coroutine_fn
+QIOChannel *coroutine_fn
 nbd_co_establish_connection(NBDClientConnection *conn, NBDExportInfo *info,
-                            QIOChannel **ioc, Error **errp)
+                            Error **errp)
 {
     QemuThread thread;
 
     if (conn->do_negotiation) {
         assert(info);
-        assert(ioc);
     }
 
     WITH_QEMU_LOCK_GUARD(&conn->mutex) {
@@ -294,10 +293,19 @@ nbd_co_establish_connection(NBDClientConnection *conn, NBDExportInfo *info,
             if (conn->sioc) {
                 /* Previous attempt finally succeeded in background */
                 if (conn->do_negotiation) {
-                    *ioc = g_steal_pointer(&conn->ioc);
                     memcpy(info, &conn->updated_info, sizeof(*info));
+                    if (conn->ioc) {
+                        /* TLS channel now has own reference to parent */
+                        object_unref(OBJECT(conn->sioc));
+                        conn->sioc = NULL;
+
+                        return g_steal_pointer(&conn->ioc);
+                    }
                 }
-                return g_steal_pointer(&conn->sioc);
+
+                assert(!conn->ioc);
+
+                return QIO_CHANNEL(g_steal_pointer(&conn->sioc));
             }
 
             conn->running = true;
@@ -329,11 +337,23 @@ nbd_co_establish_connection(NBDClientConnection *conn, NBDExportInfo *info,
         } else {
             error_propagate(errp, conn->err);
             conn->err = NULL;
-            if (conn->sioc && conn->do_negotiation) {
-                *ioc = g_steal_pointer(&conn->ioc);
-                memcpy(info, &conn->updated_info, sizeof(*info));
+            if (!conn->sioc) {
+                return NULL;
             }
-            return g_steal_pointer(&conn->sioc);
+            if (conn->do_negotiation) {
+                memcpy(info, &conn->updated_info, sizeof(*info));
+                if (conn->ioc) {
+                    /* TLS channel now has own reference to parent */
+                    object_unref(OBJECT(conn->sioc));
+                    conn->sioc = NULL;
+
+                    return g_steal_pointer(&conn->ioc);
+                }
+            }
+
+            assert(!conn->ioc);
+
+            return QIO_CHANNEL(g_steal_pointer(&conn->sioc));
         }
     }
 

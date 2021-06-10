@@ -360,7 +360,6 @@ static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
 {
     int ret;
     AioContext *aio_context = bdrv_get_aio_context(s->bs);
-    QIOChannelSocket *sioc;
 
     if (!nbd_client_connecting(s)) {
         return;
@@ -399,19 +398,11 @@ static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
         s->ioc = NULL;
     }
 
-    sioc = nbd_co_establish_connection(s->conn, &s->info, &s->ioc, NULL);
-    if (!sioc) {
+    s->ioc = nbd_co_establish_connection(s->conn, &s->info, NULL);
+    if (!s->ioc) {
         ret = -ECONNREFUSED;
         goto out;
     }
-
-    if (s->ioc) {
-        /* sioc is referenced by s->ioc */
-        object_unref(OBJECT(sioc));
-    } else {
-        s->ioc = QIO_CHANNEL(sioc);
-    }
-    sioc = NULL;
 
     qio_channel_set_blocking(QIO_CHANNEL(s->ioc), false, NULL);
     qio_channel_attach_aio_context(QIO_CHANNEL(s->ioc), aio_context);
