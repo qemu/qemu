@@ -221,7 +221,7 @@ static int esp_select(ESPState *s)
 
     /*
      * Note that we deliberately don't raise the IRQ here: this will be done
-     * either in do_busid_cmd() for DATA OUT transfers or by the deferred
+     * either in do_command_phase() for DATA OUT transfers or by the deferred
      * IRQ mechanism in esp_transfer_data() for DATA IN transfers
      */
     s->rregs[ESP_RINTR] |= INTR_FC;
@@ -272,24 +272,22 @@ static uint32_t get_cmd(ESPState *s, uint32_t maxlen)
     return dmalen;
 }
 
-static void do_busid_cmd(ESPState *s, uint8_t busid)
+static void do_command_phase(ESPState *s)
 {
     uint32_t cmdlen;
     int32_t datalen;
-    int lun;
     SCSIDevice *current_lun;
     uint8_t buf[ESP_CMDFIFO_SZ];
 
-    trace_esp_do_busid_cmd(busid);
-    lun = busid & 7;
+    trace_esp_do_command_phase(s->lun);
     cmdlen = fifo8_num_used(&s->cmdfifo);
     if (!cmdlen || !s->current_dev) {
         return;
     }
     esp_fifo_pop_buf(&s->cmdfifo, buf, cmdlen);
 
-    current_lun = scsi_device_find(&s->bus, 0, s->current_dev->id, lun);
-    s->current_req = scsi_req_new(current_lun, 0, lun, buf, s);
+    current_lun = scsi_device_find(&s->bus, 0, s->current_dev->id, s->lun);
+    s->current_req = scsi_req_new(current_lun, 0, s->lun, buf, s);
     datalen = scsi_req_enqueue(s->current_req);
     s->ti_size = datalen;
     fifo8_reset(&s->cmdfifo);
@@ -316,21 +314,29 @@ static void do_busid_cmd(ESPState *s, uint8_t busid)
     }
 }
 
-static void do_cmd(ESPState *s)
+static void do_message_phase(ESPState *s)
 {
-    uint8_t busid = esp_fifo_pop(&s->cmdfifo);
-    int len;
+    if (s->cmdfifo_cdb_offset) {
+        uint8_t message = esp_fifo_pop(&s->cmdfifo);
 
-    s->cmdfifo_cdb_offset--;
+        trace_esp_do_identify(message);
+        s->lun = message & 7;
+        s->cmdfifo_cdb_offset--;
+    }
 
     /* Ignore extended messages for now */
     if (s->cmdfifo_cdb_offset) {
-        len = MIN(s->cmdfifo_cdb_offset, fifo8_num_used(&s->cmdfifo));
+        int len = MIN(s->cmdfifo_cdb_offset, fifo8_num_used(&s->cmdfifo));
         esp_fifo_pop_buf(&s->cmdfifo, NULL, len);
         s->cmdfifo_cdb_offset = 0;
     }
+}
 
-    do_busid_cmd(s, busid);
+static void do_cmd(ESPState *s)
+{
+    do_message_phase(s);
+    assert(s->cmdfifo_cdb_offset == 0);
+    do_command_phase(s);
 }
 
 static void satn_pdma_cb(ESPState *s)
@@ -369,7 +375,7 @@ static void s_without_satn_pdma_cb(ESPState *s)
     if (!esp_get_tc(s) && !fifo8_is_empty(&s->cmdfifo)) {
         s->cmdfifo_cdb_offset = 0;
         s->do_cmd = 0;
-        do_busid_cmd(s, 0);
+        do_cmd(s);
     }
 }
 
@@ -386,7 +392,7 @@ static void handle_s_without_atn(ESPState *s)
     if (cmdlen > 0) {
         s->cmdfifo_cdb_offset = 0;
         s->do_cmd = 0;
-        do_busid_cmd(s, 0);
+        do_cmd(s);
     } else if (cmdlen == 0) {
         s->do_cmd = 1;
         /* Target present, but no cmd yet - switch to command phase */
@@ -1131,6 +1137,14 @@ static bool esp_is_version_5(void *opaque, int version_id)
     return version_id >= 5;
 }
 
+static bool esp_is_version_6(void *opaque, int version_id)
+{
+    ESPState *s = ESP(opaque);
+
+    version_id = MIN(version_id, s->mig_version_id);
+    return version_id >= 6;
+}
+
 int esp_pre_save(void *opaque)
 {
     ESPState *s = ESP(object_resolve_path_component(
@@ -1168,7 +1182,7 @@ static int esp_post_load(void *opaque, int version_id)
 
 const VMStateDescription vmstate_esp = {
     .name = "esp",
-    .version_id = 5,
+    .version_id = 6,
     .minimum_version_id = 3,
     .post_load = esp_post_load,
     .fields = (VMStateField[]) {
@@ -1197,6 +1211,7 @@ const VMStateDescription vmstate_esp = {
         VMSTATE_FIFO8_TEST(fifo, ESPState, esp_is_version_5),
         VMSTATE_FIFO8_TEST(cmdfifo, ESPState, esp_is_version_5),
         VMSTATE_UINT8_TEST(ti_cmd, ESPState, esp_is_version_5),
+        VMSTATE_UINT8_TEST(lun, ESPState, esp_is_version_6),
         VMSTATE_END_OF_LIST()
     },
 };
