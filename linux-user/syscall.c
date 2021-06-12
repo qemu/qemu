@@ -4603,6 +4603,7 @@ static inline abi_ulong target_shmlba(CPUArchState *cpu_env)
 static inline abi_ulong do_shmat(CPUArchState *cpu_env,
                                  int shmid, abi_ulong shmaddr, int shmflg)
 {
+    CPUState *cpu = env_cpu(cpu_env);
     abi_long raddr;
     void *host_raddr;
     struct shmid_ds shm_info;
@@ -4632,6 +4633,17 @@ static inline abi_ulong do_shmat(CPUArchState *cpu_env,
     }
 
     mmap_lock();
+
+    /*
+     * We're mapping shared memory, so ensure we generate code for parallel
+     * execution and flush old translations.  This will work up to the level
+     * supported by the host -- anything that requires EXCP_ATOMIC will not
+     * be atomic with respect to an external process.
+     */
+    if (!(cpu->tcg_cflags & CF_PARALLEL)) {
+        cpu->tcg_cflags |= CF_PARALLEL;
+        tb_flush(cpu);
+    }
 
     if (shmaddr)
         host_raddr = shmat(shmid, (void *)g2h_untagged(shmaddr), shmflg);
