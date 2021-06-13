@@ -295,19 +295,25 @@ ext32u_i64 t0, t1
 
 8, 16 or 32 bit sign/zero extension (both operands must have the same type)
 
-* bswap16_i32/i64 t0, t1
+* bswap16_i32/i64 t0, t1, flags
 
-16 bit byte swap on a 32/64 bit value. It assumes that the two/six high order
-bytes are set to zero.
+16 bit byte swap on the low bits of a 32/64 bit input.
+If flags & TCG_BSWAP_IZ, then t1 is known to be zero-extended from bit 15.
+If flags & TCG_BSWAP_OZ, then t0 will be zero-extended from bit 15.
+If flags & TCG_BSWAP_OS, then t0 will be sign-extended from bit 15.
+If neither TCG_BSWAP_OZ nor TCG_BSWAP_OS are set, then the bits of
+t0 above bit 15 may contain any value.
 
-* bswap32_i32/i64 t0, t1
+* bswap32_i64 t0, t1, flags
 
-32 bit byte swap on a 32/64 bit value. With a 64 bit value, it assumes that
-the four high order bytes are set to zero.
+32 bit byte swap on a 64-bit value.  The flags are the same as for bswap16,
+except they apply from bit 31 instead of bit 15.
 
-* bswap64_i64 t0, t1
+* bswap32_i32 t0, t1, flags
+* bswap64_i64 t0, t1, flags
 
-64 bit byte swap
+32/64 bit byte swap.  The flags are ignored, but still present
+for consistency with the other bswap opcodes.
 
 * discard_i32/i64 t0
 
