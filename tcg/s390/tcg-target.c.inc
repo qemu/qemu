@@ -1951,14 +1951,36 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tgen_ext16u(s, TCG_TYPE_I32, args[0], args[1]);
         break;
 
-    OP_32_64(bswap16):
-        /* The TCG bswap definition requires bits 0-47 already be zero.
-           Thus we don't need the G-type insns to implement bswap16_i64.  */
-        tcg_out_insn(s, RRE, LRVR, args[0], args[1]);
-        tcg_out_sh32(s, RS_SRL, args[0], TCG_REG_NONE, 16);
+    case INDEX_op_bswap16_i32:
+        a0 = args[0], a1 = args[1], a2 = args[2];
+        tcg_out_insn(s, RRE, LRVR, a0, a1);
+        if (a2 & TCG_BSWAP_OS) {
+            tcg_out_sh32(s, RS_SRA, a0, TCG_REG_NONE, 16);
+        } else {
+            tcg_out_sh32(s, RS_SRL, a0, TCG_REG_NONE, 16);
+        }
         break;
-    OP_32_64(bswap32):
+    case INDEX_op_bswap16_i64:
+        a0 = args[0], a1 = args[1], a2 = args[2];
+        tcg_out_insn(s, RRE, LRVGR, a0, a1);
+        if (a2 & TCG_BSWAP_OS) {
+            tcg_out_sh64(s, RSY_SRAG, a0, a0, TCG_REG_NONE, 48);
+        } else {
+            tcg_out_sh64(s, RSY_SRLG, a0, a0, TCG_REG_NONE, 48);
+        }
+        break;
+
+    case INDEX_op_bswap32_i32:
         tcg_out_insn(s, RRE, LRVR, args[0], args[1]);
+        break;
+    case INDEX_op_bswap32_i64:
+        a0 = args[0], a1 = args[1], a2 = args[2];
+        tcg_out_insn(s, RRE, LRVR, a0, a1);
+        if (a2 & TCG_BSWAP_OS) {
+            tgen_ext32s(s, a0, a0);
+        } else if ((a2 & (TCG_BSWAP_IZ | TCG_BSWAP_OZ)) == TCG_BSWAP_OZ) {
+            tgen_ext32u(s, a0, a0);
+        }
         break;
 
     case INDEX_op_add2_i32:
