@@ -354,9 +354,7 @@ void gen_rev16(TCGv_i32 dest, TCGv_i32 var)
 /* Byteswap low halfword and sign extend.  */
 static void gen_revsh(TCGv_i32 dest, TCGv_i32 var)
 {
-    tcg_gen_ext16u_i32(var, var);
-    tcg_gen_bswap16_i32(var, var, TCG_BSWAP_IZ | TCG_BSWAP_OZ);
-    tcg_gen_ext16s_i32(dest, var);
+    tcg_gen_bswap16_i32(var, var, TCG_BSWAP_OS);
 }
 
 /* Dual 16-bit add.  Result placed in t0 and t1 is marked as dead.
