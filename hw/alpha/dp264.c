@@ -76,9 +76,12 @@ static void clipper_init(MachineState *machine)
     cpus[0]->env.trap_arg1 = 0;
     cpus[0]->env.trap_arg2 = smp_cpus;
 
-    /* Init the chipset.  */
+    /*
+     * Init the chipset.  Because we're using CLIPPER IRQ mappings,
+     * the minimum PCI device IdSel is 1.
+     */
     pci_bus = typhoon_init(machine->ram, &isa_bus, &rtc_irq, cpus,
-                           clipper_pci_map_irq);
+                           clipper_pci_map_irq, PCI_DEVFN(1, 0));
 
     /* Since we have an SRM-compatible PALcode, use the SRM epoch.  */
     mc146818_rtc_init(isa_bus, 1900, rtc_irq);

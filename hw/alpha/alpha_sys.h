@@ -11,7 +11,7 @@
 
 
 PCIBus *typhoon_init(MemoryRegion *, ISABus **, qemu_irq *, AlphaCPU *[4],
-                     pci_map_irq_fn);
+                     pci_map_irq_fn, uint8_t devfn_min);
 
 /* alpha_pci.c.  */
 extern const MemoryRegionOps alpha_pci_ignore_ops;
