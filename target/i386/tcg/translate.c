@@ -7203,7 +7203,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         {
             gen_op_mov_v_reg(s, MO_32, s->T0, reg);
             tcg_gen_ext32u_tl(s->T0, s->T0);
-            tcg_gen_bswap32_tl(s->T0, s->T0);
+            tcg_gen_bswap32_tl(s->T0, s->T0, TCG_BSWAP_IZ | TCG_BSWAP_OZ);
             gen_op_mov_reg_v(s, MO_32, reg, s->T0);
         }
         break;
