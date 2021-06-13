@@ -1013,50 +1013,71 @@ static inline void tcg_out_ext16u(TCGContext *s, int cond,
     }
 }
 
-static inline void tcg_out_bswap16s(TCGContext *s, int cond, int rd, int rn)
+static void tcg_out_bswap16(TCGContext *s, int cond, int rd, int rn, int flags)
 {
     if (use_armv6_instructions) {
-        /* revsh */
-        tcg_out32(s, 0x06ff0fb0 | (cond << 28) | (rd << 12) | rn);
-    } else {
-        tcg_out_dat_reg(s, cond, ARITH_MOV,
-                        TCG_REG_TMP, 0, rn, SHIFT_IMM_LSL(24));
-        tcg_out_dat_reg(s, cond, ARITH_MOV,
-                        TCG_REG_TMP, 0, TCG_REG_TMP, SHIFT_IMM_ASR(16));
-        tcg_out_dat_reg(s, cond, ARITH_ORR,
-                        rd, TCG_REG_TMP, rn, SHIFT_IMM_LSR(8));
-    }
-}
+        if (flags & TCG_BSWAP_OS) {
+            /* revsh */
+            tcg_out32(s, 0x06ff0fb0 | (cond << 28) | (rd << 12) | rn);
+            return;
+        }
 
-static inline void tcg_out_bswap16(TCGContext *s, int cond, int rd, int rn)
-{
-    if (use_armv6_instructions) {
         /* rev16 */
         tcg_out32(s, 0x06bf0fb0 | (cond << 28) | (rd << 12) | rn);
-    } else {
-        tcg_out_dat_reg(s, cond, ARITH_MOV,
-                        TCG_REG_TMP, 0, rn, SHIFT_IMM_LSL(24));
-        tcg_out_dat_reg(s, cond, ARITH_MOV,
-                        TCG_REG_TMP, 0, TCG_REG_TMP, SHIFT_IMM_LSR(16));
-        tcg_out_dat_reg(s, cond, ARITH_ORR,
-                        rd, TCG_REG_TMP, rn, SHIFT_IMM_LSR(8));
+        if ((flags & (TCG_BSWAP_IZ | TCG_BSWAP_OZ)) == TCG_BSWAP_OZ) {
+            /* uxth */
+            tcg_out32(s, 0x06ff0070 | (cond << 28) | (rd << 12) | rd);
+        }
+        return;
     }
-}
 
-/* swap the two low bytes assuming that the two high input bytes and the
-   two high output bit can hold any value. */
-static inline void tcg_out_bswap16st(TCGContext *s, int cond, int rd, int rn)
-{
-    if (use_armv6_instructions) {
-        /* rev16 */
-        tcg_out32(s, 0x06bf0fb0 | (cond << 28) | (rd << 12) | rn);
-    } else {
+    if (flags == 0) {
+        /*
+         * For stores, no input or output extension:
+         *                              rn  = xxAB
+         * lsr tmp, rn, #8              tmp = 0xxA
+         * and tmp, tmp, #0xff          tmp = 000A
+         * orr rd, tmp, rn, lsl #8      rd  = xABA
+         */
         tcg_out_dat_reg(s, cond, ARITH_MOV,
                         TCG_REG_TMP, 0, rn, SHIFT_IMM_LSR(8));
         tcg_out_dat_imm(s, cond, ARITH_AND, TCG_REG_TMP, TCG_REG_TMP, 0xff);
         tcg_out_dat_reg(s, cond, ARITH_ORR,
                         rd, TCG_REG_TMP, rn, SHIFT_IMM_LSL(8));
+        return;
     }
+
+    /*
+     * Byte swap, leaving the result at the top of the register.
+     * We will then shift down, zero or sign-extending.
+     */
+    if (flags & TCG_BSWAP_IZ) {
+        /*
+         *                              rn  = 00AB
+         * ror tmp, rn, #8              tmp = B00A
+         * orr tmp, tmp, tmp, lsl #16   tmp = BA00
+         */
+        tcg_out_dat_reg(s, cond, ARITH_MOV,
+                        TCG_REG_TMP, 0, rn, SHIFT_IMM_ROR(8));
+        tcg_out_dat_reg(s, cond, ARITH_ORR,
+                        TCG_REG_TMP, TCG_REG_TMP, TCG_REG_TMP,
+                        SHIFT_IMM_LSL(16));
+    } else {
+        /*
+         *                              rn  = xxAB
+         * and tmp, rn, #0xff00         tmp = 00A0
+         * lsl tmp, tmp, #8             tmp = 0A00
+         * orr tmp, tmp, rn, lsl #24    tmp = BA00
+         */
+        tcg_out_dat_rI(s, cond, ARITH_AND, TCG_REG_TMP, rn, 0xff00, 1);
+        tcg_out_dat_reg(s, cond, ARITH_MOV,
+                        TCG_REG_TMP, 0, TCG_REG_TMP, SHIFT_IMM_LSL(8));
+        tcg_out_dat_reg(s, cond, ARITH_ORR,
+                        TCG_REG_TMP, TCG_REG_TMP, rn, SHIFT_IMM_LSL(24));
+    }
+    tcg_out_dat_reg(s, cond, ARITH_MOV, rd, 0, TCG_REG_TMP,
+                    (flags & TCG_BSWAP_OS
+                     ? SHIFT_IMM_ASR(8) : SHIFT_IMM_LSR(8)));
 }
 
 static inline void tcg_out_bswap32(TCGContext *s, int cond, int rd, int rn)
@@ -1705,13 +1726,15 @@ static inline void tcg_out_qemu_ld_index(TCGContext *s, MemOp opc,
     case MO_UW:
         tcg_out_ld16u_r(s, COND_AL, datalo, addrlo, addend);
         if (bswap) {
-            tcg_out_bswap16(s, COND_AL, datalo, datalo);
+            tcg_out_bswap16(s, COND_AL, datalo, datalo,
+                            TCG_BSWAP_IZ | TCG_BSWAP_OZ);
         }
         break;
     case MO_SW:
         if (bswap) {
             tcg_out_ld16u_r(s, COND_AL, datalo, addrlo, addend);
-            tcg_out_bswap16s(s, COND_AL, datalo, datalo);
+            tcg_out_bswap16(s, COND_AL, datalo, datalo,
+                            TCG_BSWAP_IZ | TCG_BSWAP_OS);
         } else {
             tcg_out_ld16s_r(s, COND_AL, datalo, addrlo, addend);
         }
@@ -1766,13 +1789,15 @@ static inline void tcg_out_qemu_ld_direct(TCGContext *s, MemOp opc,
     case MO_UW:
         tcg_out_ld16u_8(s, COND_AL, datalo, addrlo, 0);
         if (bswap) {
-            tcg_out_bswap16(s, COND_AL, datalo, datalo);
+            tcg_out_bswap16(s, COND_AL, datalo, datalo,
+                            TCG_BSWAP_IZ | TCG_BSWAP_OZ);
         }
         break;
     case MO_SW:
         if (bswap) {
             tcg_out_ld16u_8(s, COND_AL, datalo, addrlo, 0);
-            tcg_out_bswap16s(s, COND_AL, datalo, datalo);
+            tcg_out_bswap16(s, COND_AL, datalo, datalo,
+                            TCG_BSWAP_IZ | TCG_BSWAP_OS);
         } else {
             tcg_out_ld16s_8(s, COND_AL, datalo, addrlo, 0);
         }
@@ -1862,7 +1887,7 @@ static inline void tcg_out_qemu_st_index(TCGContext *s, int cond, MemOp opc,
         break;
     case MO_16:
         if (bswap) {
-            tcg_out_bswap16st(s, cond, TCG_REG_R0, datalo);
+            tcg_out_bswap16(s, cond, TCG_REG_R0, datalo, 0);
             tcg_out_st16_r(s, cond, TCG_REG_R0, addrlo, addend);
         } else {
             tcg_out_st16_r(s, cond, datalo, addrlo, addend);
@@ -1907,7 +1932,7 @@ static inline void tcg_out_qemu_st_direct(TCGContext *s, MemOp opc,
         break;
     case MO_16:
         if (bswap) {
-            tcg_out_bswap16st(s, COND_AL, TCG_REG_R0, datalo);
+            tcg_out_bswap16(s, COND_AL, TCG_REG_R0, datalo, 0);
             tcg_out_st16_8(s, COND_AL, TCG_REG_R0, addrlo, 0);
         } else {
             tcg_out_st16_8(s, COND_AL, datalo, addrlo, 0);
@@ -2245,7 +2270,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_bswap16_i32:
-        tcg_out_bswap16(s, COND_AL, args[0], args[1]);
+        tcg_out_bswap16(s, COND_AL, args[0], args[1], args[2]);
         break;
     case INDEX_op_bswap32_i32:
         tcg_out_bswap32(s, COND_AL, args[0], args[1]);
