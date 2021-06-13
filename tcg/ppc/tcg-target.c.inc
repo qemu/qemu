@@ -768,6 +768,12 @@ static inline void tcg_out_shli64(TCGContext *s, TCGReg dst, TCGReg src, int c)
     tcg_out_rld(s, RLDICR, dst, src, c, 63 - c);
 }
 
+static inline void tcg_out_sari32(TCGContext *s, TCGReg dst, TCGReg src, int c)
+{
+    /* Limit immediate shift count lest we create an illegal insn.  */
+    tcg_out32(s, SRAWI | RA(dst) | RS(src) | SH(c & 31));
+}
+
 static inline void tcg_out_shri32(TCGContext *s, TCGReg dst, TCGReg src, int c)
 {
     tcg_out_rlw(s, RLWINM, dst, src, 32 - c, c, 31);
@@ -776,6 +782,11 @@ static inline void tcg_out_shri32(TCGContext *s, TCGReg dst, TCGReg src, int c)
 static inline void tcg_out_shri64(TCGContext *s, TCGReg dst, TCGReg src, int c)
 {
     tcg_out_rld(s, RLDICL, dst, src, 64 - c, c);
+}
+
+static inline void tcg_out_sari64(TCGContext *s, TCGReg dst, TCGReg src, int c)
+{
+    tcg_out32(s, SRADI | RA(dst) | RS(src) | SH(c & 0x1f) | ((c >> 4) & 2));
 }
 
 /* Emit a move into ret of arg, if it can be done in one insn.  */
@@ -2601,8 +2612,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_sar_i32:
         if (const_args[2]) {
-            /* Limit immediate shift count lest we create an illegal insn.  */
-            tcg_out32(s, SRAWI | RS(args[1]) | RA(args[0]) | SH(args[2] & 31));
+            tcg_out_sari32(s, args[0], args[1], args[2]);
         } else {
             tcg_out32(s, SRAW | SAB(args[1], args[0], args[2]));
         }
@@ -2690,8 +2700,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_sar_i64:
         if (const_args[2]) {
-            int sh = SH(args[2] & 0x1f) | (((args[2] >> 5) & 1) << 1);
-            tcg_out32(s, SRADI | RA(args[0]) | RS(args[1]) | sh);
+            tcg_out_sari64(s, args[0], args[1], args[2]);
         } else {
             tcg_out32(s, SRAD | SAB(args[1], args[0], args[2]));
         }
