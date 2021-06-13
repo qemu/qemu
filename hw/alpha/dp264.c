@@ -72,9 +72,19 @@ static void clipper_init(MachineState *machine)
         cpus[i] = ALPHA_CPU(cpu_create(machine->cpu_type));
     }
 
+    /*
+     * arg0 -> memory size
+     * arg1 -> kernel entry point
+     * arg2 -> config word
+     *
+     * Config word: bits 0-5 -> ncpus
+     *              bit  6   -> nographics option (for HWRPB CTB)
+     *
+     * See init_hwrpb() in the PALcode.
+     */
     cpus[0]->env.trap_arg0 = ram_size;
     cpus[0]->env.trap_arg1 = 0;
-    cpus[0]->env.trap_arg2 = smp_cpus;
+    cpus[0]->env.trap_arg2 = smp_cpus | (!machine->enable_graphics << 6);
 
     /*
      * Init the chipset.  Because we're using CLIPPER IRQ mappings,
