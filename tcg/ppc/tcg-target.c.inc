@@ -738,6 +738,21 @@ static inline void tcg_out_rlw(TCGContext *s, int op, TCGReg ra, TCGReg rs,
     tcg_out32(s, op | RA(ra) | RS(rs) | SH(sh) | MB(mb) | ME(me));
 }
 
+static inline void tcg_out_ext8s(TCGContext *s, TCGReg dst, TCGReg src)
+{
+    tcg_out32(s, EXTSB | RA(dst) | RS(src));
+}
+
+static inline void tcg_out_ext16s(TCGContext *s, TCGReg dst, TCGReg src)
+{
+    tcg_out32(s, EXTSH | RA(dst) | RS(src));
+}
+
+static inline void tcg_out_ext32s(TCGContext *s, TCGReg dst, TCGReg src)
+{
+    tcg_out32(s, EXTSW | RA(dst) | RS(src));
+}
+
 static inline void tcg_out_ext32u(TCGContext *s, TCGReg dst, TCGReg src)
 {
     tcg_out_rld(s, RLDICL, dst, src, 0, 32);
@@ -2322,7 +2337,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                        const int const_args[TCG_MAX_OP_ARGS])
 {
     TCGArg a0, a1, a2;
-    int c;
 
     switch (opc) {
     case INDEX_op_exit_tb:
@@ -2390,7 +2404,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_ld8s_i32:
     case INDEX_op_ld8s_i64:
         tcg_out_mem_long(s, LBZ, LBZX, args[0], args[1], args[2]);
-        tcg_out32(s, EXTSB | RS(args[0]) | RA(args[0]));
+        tcg_out_ext8s(s, args[0], args[0]);
         break;
     case INDEX_op_ld16u_i32:
     case INDEX_op_ld16u_i64:
@@ -2728,18 +2742,15 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_ext8s_i32:
     case INDEX_op_ext8s_i64:
-        c = EXTSB;
-        goto gen_ext;
+        tcg_out_ext8s(s, args[0], args[1]);
+        break;
     case INDEX_op_ext16s_i32:
     case INDEX_op_ext16s_i64:
-        c = EXTSH;
-        goto gen_ext;
+        tcg_out_ext16s(s, args[0], args[1]);
+        break;
     case INDEX_op_ext_i32_i64:
     case INDEX_op_ext32s_i64:
-        c = EXTSW;
-        goto gen_ext;
-    gen_ext:
-        tcg_out32(s, c | RS(args[1]) | RA(args[0]));
+        tcg_out_ext32s(s, args[0], args[1]);
         break;
     case INDEX_op_extu_i32_i64:
         tcg_out_ext32u(s, args[0], args[1]);
