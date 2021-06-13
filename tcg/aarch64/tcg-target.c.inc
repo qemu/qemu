@@ -2177,12 +2177,24 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_rev(s, TCG_TYPE_I64, MO_64, a0, a1);
         break;
     case INDEX_op_bswap32_i64:
+        tcg_out_rev(s, TCG_TYPE_I32, MO_32, a0, a1);
+        if (a2 & TCG_BSWAP_OS) {
+            tcg_out_sxt(s, TCG_TYPE_I64, MO_32, a0, a0);
+        }
+        break;
     case INDEX_op_bswap32_i32:
         tcg_out_rev(s, TCG_TYPE_I32, MO_32, a0, a1);
         break;
     case INDEX_op_bswap16_i64:
     case INDEX_op_bswap16_i32:
         tcg_out_rev(s, TCG_TYPE_I32, MO_16, a0, a1);
+        if (a2 & TCG_BSWAP_OS) {
+            /* Output must be sign-extended. */
+            tcg_out_sxt(s, ext, MO_16, a0, a0);
+        } else if ((a2 & (TCG_BSWAP_IZ | TCG_BSWAP_OZ)) == TCG_BSWAP_OZ) {
+            /* Output must be zero-extended, but input isn't. */
+            tcg_out_uxt(s, MO_16, a0, a0);
+        }
         break;
 
     case INDEX_op_ext8s_i64:
