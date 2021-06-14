@@ -81,6 +81,10 @@ There are a number of parameters available:
   Set the UUID of the namespace. This will be reported as a "Namespace UUID"
   descriptor in the Namespace Identification Descriptor List.
 
+``eui64``
+  Set the EUI-64 of the namespace. This will be reported as a "IEEE Extended
+  Unique Identifier" descriptor in the Namespace Identification Descriptor List.
+
 ``bus``
   If there are more ``nvme`` devices defined, this parameter may be used to
   attach the namespace to a specific ``nvme`` device (identified by an ``id``

@@ -83,6 +83,7 @@ typedef struct NvmeNamespaceParams {
     bool     shared;
     uint32_t nsid;
     QemuUUID uuid;
+    uint64_t eui64;
 
     uint16_t ms;
     uint8_t  mset;

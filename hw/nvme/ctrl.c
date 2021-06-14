@@ -4426,19 +4426,19 @@ static uint16_t nvme_identify_ns_descr_list(NvmeCtrl *n, NvmeRequest *req)
     NvmeIdentify *c = (NvmeIdentify *)&req->cmd;
     uint32_t nsid = le32_to_cpu(c->nsid);
     uint8_t list[NVME_IDENTIFY_DATA_SIZE] = {};
-
-    struct data {
-        struct {
-            NvmeIdNsDescr hdr;
-            uint8_t v[NVME_NIDL_UUID];
-        } uuid;
-        struct {
-            NvmeIdNsDescr hdr;
-            uint8_t v;
-        } csi;
-    };
-
-    struct data *ns_descrs = (struct data *)list;
+    uint8_t *pos = list;
+    struct {
+        NvmeIdNsDescr hdr;
+        uint8_t v[NVME_NIDL_UUID];
+    } QEMU_PACKED uuid;
+    struct {
+        NvmeIdNsDescr hdr;
+        uint64_t v;
+    } QEMU_PACKED eui64;
+    struct {
+        NvmeIdNsDescr hdr;
+        uint8_t v;
+    } QEMU_PACKED csi;
 
     trace_pci_nvme_identify_ns_descr_list(nsid);
 
@@ -4452,17 +4452,29 @@ static uint16_t nvme_identify_ns_descr_list(NvmeCtrl *n, NvmeRequest *req)
     }
 
     /*
-     * Because the NGUID and EUI64 fields are 0 in the Identify Namespace data
-     * structure, a Namespace UUID (nidt = 3h) must be reported in the
-     * Namespace Identification Descriptor. Add the namespace UUID here.
+     * If the EUI-64 field is 0 and the NGUID field is 0, the namespace must
+     * provide a valid Namespace UUID in the Namespace Identification Descriptor
+     * data structure. QEMU does not yet support setting NGUID.
      */
-    ns_descrs->uuid.hdr.nidt = NVME_NIDT_UUID;
-    ns_descrs->uuid.hdr.nidl = NVME_NIDL_UUID;
-    memcpy(&ns_descrs->uuid.v, ns->params.uuid.data, NVME_NIDL_UUID);
+    uuid.hdr.nidt = NVME_NIDT_UUID;
+    uuid.hdr.nidl = NVME_NIDL_UUID;
+    memcpy(uuid.v, ns->params.uuid.data, NVME_NIDL_UUID);
+    memcpy(pos, &uuid, sizeof(uuid));
+    pos += sizeof(uuid);
 
-    ns_descrs->csi.hdr.nidt = NVME_NIDT_CSI;
-    ns_descrs->csi.hdr.nidl = NVME_NIDL_CSI;
-    ns_descrs->csi.v = ns->csi;
+    if (ns->params.eui64) {
+        eui64.hdr.nidt = NVME_NIDT_EUI64;
+        eui64.hdr.nidl = NVME_NIDL_EUI64;
+        eui64.v = cpu_to_be64(ns->params.eui64);
+        memcpy(pos, &eui64, sizeof(eui64));
+        pos += sizeof(eui64);
+    }
+
+    csi.hdr.nidt = NVME_NIDT_CSI;
+    csi.hdr.nidl = NVME_NIDL_CSI;
+    csi.v = ns->csi;
+    memcpy(pos, &csi, sizeof(csi));
+    pos += sizeof(csi);
 
     return nvme_c2h(n, list, sizeof(list), req);
 }
