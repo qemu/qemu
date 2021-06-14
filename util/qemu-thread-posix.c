@@ -139,9 +139,9 @@ int qemu_rec_mutex_trylock_impl(QemuRecMutex *mutex, const char *file, int line)
     return qemu_mutex_trylock_impl(mutex, file, line);
 }
 
-void qemu_rec_mutex_unlock(QemuRecMutex *mutex)
+void qemu_rec_mutex_unlock_impl(QemuRecMutex *mutex, const char *file, int line)
 {
-    qemu_mutex_unlock(mutex);
+    qemu_mutex_unlock_impl(mutex, file, line);
 }
 
 void qemu_cond_init(QemuCond *cond)
