@@ -40,7 +40,6 @@
 
 typedef struct BDRVBlkdebugState {
     int state;
-    int new_state;
     uint64_t align;
     uint64_t max_transfer;
     uint64_t opt_write_zero;
@@ -792,7 +791,7 @@ static void suspend_request(BlockDriverState *bs, BlkdebugRule *rule)
 }
 
 static void process_rule(BlockDriverState *bs, struct BlkdebugRule *rule,
-                         int *action_count)
+                         int *action_count, int *new_state)
 {
     BDRVBlkdebugState *s = bs->opaque;
 
@@ -812,7 +811,7 @@ static void process_rule(BlockDriverState *bs, struct BlkdebugRule *rule,
         break;
 
     case ACTION_SET_STATE:
-        s->new_state = rule->options.set_state.new_state;
+        *new_state = rule->options.set_state.new_state;
         break;
 
     case ACTION_SUSPEND:
@@ -825,21 +824,21 @@ static void blkdebug_debug_event(BlockDriverState *bs, BlkdebugEvent event)
 {
     BDRVBlkdebugState *s = bs->opaque;
     struct BlkdebugRule *rule, *next;
+    int new_state;
     int actions_count[ACTION__MAX] = { 0 };
 
     assert((int)event >= 0 && event < BLKDBG__MAX);
 
-    s->new_state = s->state;
+    new_state = s->state;
     QLIST_FOREACH_SAFE(rule, &s->rules[event], next, next) {
-        process_rule(bs, rule, actions_count);
+        process_rule(bs, rule, actions_count, &new_state);
     }
+    s->state = new_state;
 
     while (actions_count[ACTION_SUSPEND] > 0) {
         qemu_coroutine_yield();
         actions_count[ACTION_SUSPEND]--;
     }
-
-    s->state = s->new_state;
 }
 
 static int blkdebug_debug_breakpoint(BlockDriverState *bs, const char *event,
