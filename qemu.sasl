@@ -19,26 +19,23 @@ mech_list: gssapi
 
 # If using TLS with VNC, or a UNIX socket only, it is possible to
 # enable plugins which don't provide session encryption. The
-# 'scram-sha-1' plugin allows plain username/password authentication
+# 'scram-sha-256' plugin allows plain username/password authentication
 # to be performed
 #
-#mech_list: scram-sha-1
+#mech_list: scram-sha-256
 
 # You can also list many mechanisms at once, and the VNC server will
 # negotiate which to use by considering the list enabled on the VNC
 # client.
-#mech_list: scram-sha-1 gssapi
+#mech_list: scram-sha-256 gssapi
 
-# Some older builds of MIT kerberos on Linux ignore this option &
-# instead need KRB5_KTNAME env var.
-# For modern Linux, and other OS, this should be sufficient
-#
 # This file needs to be populated with the service principal that
 # was created on the Kerberos v5 server. If switching to a non-gssapi
 # mechanism this can be commented out.
 keytab: /etc/qemu/krb5.tab
 
-# If using scram-sha-1 for username/passwds, then this is the file
+# If using scram-sha-256 for username/passwds, then this is the file
 # containing the passwds. Use 'saslpasswd2 -a qemu [username]'
-# to add entries, and 'sasldblistusers2 -f [sasldb_path]' to browse it
+# to add entries, and 'sasldblistusers2 -f [sasldb_path]' to browse it.
+# Note that this file stores passwords in clear text.
 #sasldb_path: /etc/qemu/passwd.db
