@@ -313,10 +313,10 @@ static void mcf_fec_reset(DeviceState *dev)
     s->rfsr = 0x500;
 }
 
-#define MMFR_WRITE_OP	(1 << 28)
-#define MMFR_READ_OP	(2 << 28)
-#define MMFR_PHYADDR(v)	(((v) >> 23) & 0x1f)
-#define MMFR_REGNUM(v)	(((v) >> 18) & 0x1f)
+#define MMFR_WRITE_OP   (1 << 28)
+#define MMFR_READ_OP    (2 << 28)
+#define MMFR_PHYADDR(v) (((v) >> 23) & 0x1f)
+#define MMFR_REGNUM(v)  (((v) >> 18) & 0x1f)
 
 static uint64_t mcf_fec_read_mdio(mcf_fec_state *s)
 {
