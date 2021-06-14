@@ -180,8 +180,8 @@ static bool full_vfp_access_check(DisasContext *s, bool ignore_vfp_enabled)
 
         if (s->v7m_new_fp_ctxt_needed) {
             /*
-             * Create new FP context by updating CONTROL.FPCA, CONTROL.SFPA
-             * and the FPSCR.
+             * Create new FP context by updating CONTROL.FPCA, CONTROL.SFPA,
+             * the FPSCR, and VPR.
              */
             TCGv_i32 control, fpscr;
             uint32_t bits = R_V7M_CONTROL_FPCA_MASK;
@@ -189,6 +189,11 @@ static bool full_vfp_access_check(DisasContext *s, bool ignore_vfp_enabled)
             fpscr = load_cpu_field(v7m.fpdscr[s->v8m_secure]);
             gen_helper_vfp_set_fpscr(cpu_env, fpscr);
             tcg_temp_free_i32(fpscr);
+            if (dc_isar_feature(aa32_mve, s)) {
+                TCGv_i32 z32 = tcg_const_i32(0);
+                store_cpu_field(z32, v7m.vpr);
+            }
+
             /*
              * We don't need to arrange to end the TB, because the only
              * parts of FPSCR which we cache in the TB flags are the VECLEN
