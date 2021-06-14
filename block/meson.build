@@ -13,6 +13,7 @@ block_ss.add(files(
   'commit.c',
   'copy-on-read.c',
   'preallocate.c',
+  'progress_meter.c',
   'create.c',
   'crypto.c',
   'dirty-bitmap.c',
