@@ -44,6 +44,7 @@ long vfp_reg_offset(bool dp, unsigned reg);
 long neon_full_reg_offset(unsigned reg);
 long neon_element_offset(int reg, int element, MemOp memop);
 void gen_rev16(TCGv_i32 dest, TCGv_i32 var);
+void clear_eci_state(DisasContext *s);
 
 static inline TCGv_i32 load_cpu_offset(int offset)
 {
