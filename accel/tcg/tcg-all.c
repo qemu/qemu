@@ -32,6 +32,11 @@
 #include "qemu/error-report.h"
 #include "qemu/accel.h"
 #include "qapi/qapi-builtin-visit.h"
+#include "qemu/units.h"
+#if !defined(CONFIG_USER_ONLY)
+#include "hw/boards.h"
+#endif
+#include "internal.h"
 
 struct TCGState {
     AccelState parent_obj;
@@ -105,22 +110,29 @@ static void tcg_accel_instance_init(Object *obj)
 
 bool mttcg_enabled;
 
-static int tcg_init(MachineState *ms)
+static int tcg_init_machine(MachineState *ms)
 {
     TCGState *s = TCG_STATE(current_accel());
+#ifdef CONFIG_USER_ONLY
+    unsigned max_cpus = 1;
+#else
+    unsigned max_cpus = ms->smp.max_cpus;
+#endif
 
-    tcg_exec_init(s->tb_size * 1024 * 1024, s->splitwx_enabled);
+    tcg_allowed = true;
     mttcg_enabled = s->mttcg_enabled;
 
+    page_init();
+    tb_htable_init();
+    tcg_init(s->tb_size * MiB, s->splitwx_enabled, max_cpus);
+
+#if defined(CONFIG_SOFTMMU)
     /*
-     * Initialize TCG regions only for softmmu.
-     *
-     * This needs to be done later for user mode, because the prologue
-     * generation needs to be delayed so that GUEST_BASE is already set.
+     * There's no guest base to take into account, so go ahead and
+     * initialize the prologue now.
      */
-#ifndef CONFIG_USER_ONLY
-    tcg_region_init();
-#endif /* !CONFIG_USER_ONLY */
+    tcg_prologue_init(tcg_ctx);
+#endif
 
     return 0;
 }
@@ -200,7 +212,7 @@ static void tcg_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
     ac->name = "tcg";
-    ac->init_machine = tcg_init;
+    ac->init_machine = tcg_init_machine;
     ac->allowed = &tcg_allowed;
 
     object_class_property_add_str(oc, "thread",
