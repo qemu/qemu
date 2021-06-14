@@ -70,9 +70,9 @@ A detailed command line would be:
 
 [qemu-bin + storage options] \
 -m 2G \
--device pcie-root-port,bus=pcie.0,id=rp1 \
--device pcie-root-port,bus=pcie.0,id=rp2 \
--device pcie-root-port,bus=pcie.0,id=rp3,bus-reserve=1 \
+-device pcie-root-port,bus=pcie.0,id=rp1,slot=1 \
+-device pcie-root-port,bus=pcie.0,id=rp2,slot=2 \
+-device pcie-root-port,bus=pcie.0,id=rp3,slot=3,bus-reserve=1 \
 -device pcie-pci-bridge,id=br1,bus=rp1 \
 -device pcie-pci-bridge,id=br2,bus=rp2 \
 -device e1000,bus=br1,addr=8
