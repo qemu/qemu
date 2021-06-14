@@ -11,6 +11,11 @@ static inline Int128 int128_make64(uint64_t a)
     return a;
 }
 
+static inline Int128 int128_makes64(int64_t a)
+{
+    return a;
+}
+
 static inline Int128 int128_make128(uint64_t lo, uint64_t hi)
 {
     return (__uint128_t)hi << 64 | lo;
@@ -165,6 +170,11 @@ struct Int128 {
 static inline Int128 int128_make64(uint64_t a)
 {
     return (Int128) { a, 0 };
+}
+
+static inline Int128 int128_makes64(int64_t a)
+{
+    return (Int128) { a, a >> 63 };
 }
 
 static inline Int128 int128_make128(uint64_t lo, uint64_t hi)
