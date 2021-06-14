@@ -17,6 +17,7 @@ config ISA_SUPERIO
     bool
     select ISA_BUS
     select PCKBD
+    select FDC
 
 config PC87312
     bool
