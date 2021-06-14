@@ -124,6 +124,26 @@ void qemu_rec_mutex_init(QemuRecMutex *mutex)
     mutex->initialized = true;
 }
 
+void qemu_rec_mutex_destroy(QemuRecMutex *mutex)
+{
+    qemu_mutex_destroy(mutex);
+}
+
+void qemu_rec_mutex_lock_impl(QemuRecMutex *mutex, const char *file, int line)
+{
+    qemu_mutex_lock_impl(mutex, file, line);
+}
+
+int qemu_rec_mutex_trylock_impl(QemuRecMutex *mutex, const char *file, int line)
+{
+    return qemu_mutex_trylock_impl(mutex, file, line);
+}
+
+void qemu_rec_mutex_unlock(QemuRecMutex *mutex)
+{
+    qemu_mutex_unlock(mutex);
+}
+
 void qemu_cond_init(QemuCond *cond)
 {
     int err;
