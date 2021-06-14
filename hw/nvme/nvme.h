@@ -26,6 +26,7 @@
 
 #define NVME_MAX_CONTROLLERS 32
 #define NVME_MAX_NAMESPACES  256
+#define NVME_EUI64_DEFAULT ((uint64_t)0x5254000000000000)
 
 typedef struct NvmeCtrl NvmeCtrl;
 typedef struct NvmeNamespace NvmeNamespace;
@@ -84,6 +85,7 @@ typedef struct NvmeNamespaceParams {
     uint32_t nsid;
     QemuUUID uuid;
     uint64_t eui64;
+    bool     eui64_default;
 
     uint16_t ms;
     uint8_t  mset;
