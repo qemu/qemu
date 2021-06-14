@@ -6,7 +6,7 @@ config SUN4U
     imply PARALLEL
     select M48T59
     select ISA_BUS
-    select FDC
+    select FDC_ISA
     select SERIAL_ISA
     select PCI_SABRE
     select IDE_CMD646

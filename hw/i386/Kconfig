@@ -24,7 +24,7 @@ config PC
     imply VGA_PCI
     imply VIRTIO_VGA
     imply NVDIMM
-    select FDC
+    select FDC_ISA
     select I8259
     select I8254
     select PCKBD
