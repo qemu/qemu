@@ -4,8 +4,6 @@
 #include <pthread.h>
 #include <semaphore.h>
 
-typedef QemuMutex QemuRecMutex;
-
 struct QemuMutex {
     pthread_mutex_t lock;
 #ifdef CONFIG_DEBUG_MUTEX
@@ -14,6 +12,14 @@ struct QemuMutex {
 #endif
     bool initialized;
 };
+
+/*
+ * QemuRecMutex cannot be a typedef of QemuMutex lest we have two
+ * compatible cases in _Generic.  See qemu/lockable.h.
+ */
+typedef struct QemuRecMutex {
+    QemuMutex m;
+} QemuRecMutex;
 
 struct QemuCond {
     pthread_cond_t cond;
