@@ -589,8 +589,8 @@ DO_DOT_IDX(gvec_sdot_idx_b, int32_t, int8_t, int8_t, H4)
 DO_DOT_IDX(gvec_udot_idx_b, uint32_t, uint8_t, uint8_t, H4)
 DO_DOT_IDX(gvec_sudot_idx_b, int32_t, int8_t, uint8_t, H4)
 DO_DOT_IDX(gvec_usdot_idx_b, int32_t, uint8_t, int8_t, H4)
-DO_DOT_IDX(gvec_sdot_idx_h, int64_t, int16_t, int16_t, )
-DO_DOT_IDX(gvec_udot_idx_h, uint64_t, uint16_t, uint16_t, )
+DO_DOT_IDX(gvec_sdot_idx_h, int64_t, int16_t, int16_t, H8)
+DO_DOT_IDX(gvec_udot_idx_h, uint64_t, uint16_t, uint16_t, H8)
 
 void HELPER(gvec_fcaddh)(void *vd, void *vn, void *vm,
                          void *vfpst, uint32_t desc)
@@ -1226,7 +1226,7 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc) \
 
 DO_MUL_IDX(gvec_mul_idx_h, uint16_t, H2)
 DO_MUL_IDX(gvec_mul_idx_s, uint32_t, H4)
-DO_MUL_IDX(gvec_mul_idx_d, uint64_t, )
+DO_MUL_IDX(gvec_mul_idx_d, uint64_t, H8)
 
 #undef DO_MUL_IDX
 
@@ -1248,11 +1248,11 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, void *va, uint32_t desc)   \
 
 DO_MLA_IDX(gvec_mla_idx_h, uint16_t, +, H2)
 DO_MLA_IDX(gvec_mla_idx_s, uint32_t, +, H4)
-DO_MLA_IDX(gvec_mla_idx_d, uint64_t, +,   )
+DO_MLA_IDX(gvec_mla_idx_d, uint64_t, +, H8)
 
 DO_MLA_IDX(gvec_mls_idx_h, uint16_t, -, H2)
 DO_MLA_IDX(gvec_mls_idx_s, uint32_t, -, H4)
-DO_MLA_IDX(gvec_mls_idx_d, uint64_t, -,   )
+DO_MLA_IDX(gvec_mls_idx_d, uint64_t, -, H8)
 
 #undef DO_MLA_IDX
 
@@ -1279,7 +1279,7 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, void *stat, uint32_t desc) \
 
 DO_FMUL_IDX(gvec_fmul_idx_h, nop, float16, H2)
 DO_FMUL_IDX(gvec_fmul_idx_s, nop, float32, H4)
-DO_FMUL_IDX(gvec_fmul_idx_d, nop, float64, )
+DO_FMUL_IDX(gvec_fmul_idx_d, nop, float64, H8)
 
 /*
  * Non-fused multiply-accumulate operations, for Neon. NB that unlike
@@ -1317,7 +1317,7 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, void *va,                  \
 
 DO_FMLA_IDX(gvec_fmla_idx_h, float16, H2)
 DO_FMLA_IDX(gvec_fmla_idx_s, float32, H4)
-DO_FMLA_IDX(gvec_fmla_idx_d, float64, )
+DO_FMLA_IDX(gvec_fmla_idx_d, float64, H8)
 
 #undef DO_FMLA_IDX
 
