@@ -26,15 +26,13 @@
 #ifndef QEMU_CO_SHARED_RESOURCE_H
 #define QEMU_CO_SHARED_RESOURCE_H
 
-
+/* Accesses to co-shared-resource API are thread-safe */
 typedef struct SharedResource SharedResource;
 
 /*
  * Create SharedResource structure
  *
  * @total: total amount of some resource to be shared between clients
- *
- * Note: this API is not thread-safe.
  */
 SharedResource *shres_create(uint64_t total);
 
