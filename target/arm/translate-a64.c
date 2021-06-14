@@ -8291,7 +8291,6 @@ static void disas_simd_mod_imm(DisasContext *s, uint32_t insn)
         }
         break;
     default:
-        fprintf(stderr, "%s: cmode_3_1: %x\n", __func__, cmode_3_1);
         g_assert_not_reached();
     }
 
