@@ -50,6 +50,9 @@
 #define H8(x)   (x)
 #define H1_8(x) (x)
 
+/* Data for expanding active predicate bits to bytes, for byte elements. */
+extern const uint64_t expand_pred_b_data[256];
+
 static inline void clear_tail(void *vd, uintptr_t opr_sz, uintptr_t max_sz)
 {
     uint64_t *d = vd + opr_sz;
