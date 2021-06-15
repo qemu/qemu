@@ -66,33 +66,6 @@ typedef enum NBDClientState {
     NBD_CLIENT_QUIT
 } NBDClientState;
 
-typedef struct NBDClientConnection {
-    /* Initialization constants */
-    SocketAddress *saddr; /* address to connect to */
-
-    QemuMutex mutex;
-
-    /*
-     * @sioc and @err represent a connection attempt.  While running
-     * is true, they are only used by the connection thread, and mutex
-     * locking is not needed.  Once the thread finishes,
-     * nbd_co_establish_connection then steals these pointers while
-     * under the mutex.
-     */
-    QIOChannelSocket *sioc;
-    Error *err;
-
-    /* All further fields are accessed only under mutex */
-    bool running; /* thread is running now */
-    bool detached; /* thread is detached and should cleanup the state */
-
-    /*
-     * wait_co: if non-NULL, which coroutine to wake in
-     * nbd_co_establish_connection() after yield()
-     */
-    Coroutine *wait_co;
-} NBDClientConnection;
-
 typedef struct BDRVNBDState {
     QIOChannelSocket *sioc; /* The master data channel */
     QIOChannel *ioc; /* The current I/O channel which may differ (eg TLS) */
@@ -127,12 +100,8 @@ typedef struct BDRVNBDState {
     NBDClientConnection *conn;
 } BDRVNBDState;
 
-static void nbd_client_connection_release(NBDClientConnection *conn);
 static int nbd_establish_connection(BlockDriverState *bs, SocketAddress *saddr,
                                     Error **errp);
-static coroutine_fn QIOChannelSocket *
-nbd_co_establish_connection(NBDClientConnection *conn, Error **errp);
-static void nbd_co_establish_connection_cancel(NBDClientConnection *conn);
 static int nbd_client_handshake(BlockDriverState *bs, Error **errp);
 static void nbd_yank(void *opaque);
 
@@ -343,182 +312,6 @@ static bool nbd_client_connecting(BDRVNBDState *s)
 static bool nbd_client_connecting_wait(BDRVNBDState *s)
 {
     return qatomic_load_acquire(&s->state) == NBD_CLIENT_CONNECTING_WAIT;
-}
-
-static NBDClientConnection *
-nbd_client_connection_new(const SocketAddress *saddr)
-{
-    NBDClientConnection *conn = g_new(NBDClientConnection, 1);
-
-    *conn = (NBDClientConnection) {
-        .saddr = QAPI_CLONE(SocketAddress, saddr),
-    };
-
-    qemu_mutex_init(&conn->mutex);
-
-    return conn;
-}
-
-static void nbd_client_connection_do_free(NBDClientConnection *conn)
-{
-    if (conn->sioc) {
-        qio_channel_close(QIO_CHANNEL(conn->sioc), NULL);
-        object_unref(OBJECT(conn->sioc));
-    }
-    error_free(conn->err);
-    qapi_free_SocketAddress(conn->saddr);
-    g_free(conn);
-}
-
-static void *connect_thread_func(void *opaque)
-{
-    NBDClientConnection *conn = opaque;
-    int ret;
-    bool do_free;
-
-    conn->sioc = qio_channel_socket_new();
-
-    error_free(conn->err);
-    conn->err = NULL;
-    ret = qio_channel_socket_connect_sync(conn->sioc, conn->saddr, &conn->err);
-    if (ret < 0) {
-        object_unref(OBJECT(conn->sioc));
-        conn->sioc = NULL;
-    }
-
-    qio_channel_set_delay(QIO_CHANNEL(conn->sioc), false);
-
-    qemu_mutex_lock(&conn->mutex);
-
-    assert(conn->running);
-    conn->running = false;
-    if (conn->wait_co) {
-        aio_co_wake(conn->wait_co);
-        conn->wait_co = NULL;
-    }
-    do_free = conn->detached;
-
-    qemu_mutex_unlock(&conn->mutex);
-
-    if (do_free) {
-        nbd_client_connection_do_free(conn);
-    }
-
-    return NULL;
-}
-
-static void nbd_client_connection_release(NBDClientConnection *conn)
-{
-    bool do_free = false;
-
-    if (!conn) {
-        return;
-    }
-
-    qemu_mutex_lock(&conn->mutex);
-    assert(!conn->detached);
-    if (conn->running) {
-        conn->detached = true;
-    } else {
-        do_free = true;
-    }
-    qemu_mutex_unlock(&conn->mutex);
-
-    if (do_free) {
-        nbd_client_connection_do_free(conn);
-    }
-}
-
-/*
- * Get a new connection in context of @conn:
- *   if the thread is running, wait for completion
- *   if the thread already succeeded in the background, and user didn't get the
- *     result, just return it now
- *   otherwise the thread is not running, so start a thread and wait for
- *     completion
- */
-static coroutine_fn QIOChannelSocket *
-nbd_co_establish_connection(NBDClientConnection *conn, Error **errp)
-{
-    QIOChannelSocket *sioc = NULL;
-    QemuThread thread;
-
-    qemu_mutex_lock(&conn->mutex);
-
-    /*
-     * Don't call nbd_co_establish_connection() in several coroutines in
-     * parallel. Only one call at once is supported.
-     */
-    assert(!conn->wait_co);
-
-    if (!conn->running) {
-        if (conn->sioc) {
-            /* Previous attempt finally succeeded in background */
-            sioc = g_steal_pointer(&conn->sioc);
-            qemu_mutex_unlock(&conn->mutex);
-
-            return sioc;
-        }
-
-        conn->running = true;
-        error_free(conn->err);
-        conn->err = NULL;
-        qemu_thread_create(&thread, "nbd-connect",
-                           connect_thread_func, conn, QEMU_THREAD_DETACHED);
-    }
-
-    conn->wait_co = qemu_coroutine_self();
-
-    qemu_mutex_unlock(&conn->mutex);
-
-    /*
-     * We are going to wait for connect-thread finish, but
-     * nbd_co_establish_connection_cancel() can interrupt.
-     */
-    qemu_coroutine_yield();
-
-    qemu_mutex_lock(&conn->mutex);
-
-    if (conn->running) {
-        /*
-         * The connection attempt was canceled and the coroutine resumed
-         * before the connection thread finished its job.  Report the
-         * attempt as failed, but leave the connection thread running,
-         * to reuse it for the next connection attempt.
-         */
-        error_setg(errp, "Connection attempt cancelled by other operation");
-    } else {
-        error_propagate(errp, conn->err);
-        conn->err = NULL;
-        sioc = g_steal_pointer(&conn->sioc);
-    }
-
-    qemu_mutex_unlock(&conn->mutex);
-
-    return sioc;
-}
-
-/*
- * nbd_co_establish_connection_cancel
- * Cancel nbd_co_establish_connection() asynchronously.
- *
- * Note that this function neither directly stops the thread nor closes the
- * socket, but rather safely wakes nbd_co_establish_connection() which is
- * sleeping in yield()
- */
-static void nbd_co_establish_connection_cancel(NBDClientConnection *conn)
-{
-    Coroutine *wait_co;
-
-    qemu_mutex_lock(&conn->mutex);
-
-    wait_co = g_steal_pointer(&conn->wait_co);
-
-    qemu_mutex_unlock(&conn->mutex);
-
-    if (wait_co) {
-        aio_co_wake(wait_co);
-    }
 }
 
 static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
