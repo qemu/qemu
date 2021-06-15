@@ -2707,7 +2707,6 @@ TPM
 M: Stefan Berger <stefanb@linux.ibm.com>
 S: Maintained
 F: tpm.c
-F: stubs/tpm.c
 F: hw/tpm/*
 F: include/hw/acpi/tpm.h
 F: include/sysemu/tpm*
