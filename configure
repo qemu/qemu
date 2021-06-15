@@ -2803,19 +2803,13 @@ fi
 # VTE probe
 
 if test "$vte" != "no"; then
-    vteminversion="0.32.0"
     if $pkg_config --exists "vte-2.91"; then
-      vtepackage="vte-2.91"
-    else
-      vtepackage="vte-2.90"
-    fi
-    if $pkg_config --exists "$vtepackage >= $vteminversion"; then
-        vte_cflags=$($pkg_config --cflags $vtepackage)
-        vte_libs=$($pkg_config --libs $vtepackage)
-        vteversion=$($pkg_config --modversion $vtepackage)
+        vte_cflags=$($pkg_config --cflags vte-2.91)
+        vte_libs=$($pkg_config --libs vte-2.91)
+        vteversion=$($pkg_config --modversion vte-2.91)
         vte="yes"
     elif test "$vte" = "yes"; then
-        feature_not_found "vte" "Install libvte-2.90/2.91 devel"
+        feature_not_found "vte" "Install libvte-2.91 devel"
     else
         vte="no"
     fi
