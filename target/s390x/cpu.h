@@ -845,6 +845,9 @@ int s390_cpu_pv_mem_rw(S390CPU *cpu, unsigned int offset, void *hostbuf,
 int s390_cpu_restart(S390CPU *cpu);
 void s390_init_sigp(void);
 
+/* helper.c */
+void s390_cpu_set_psw(CPUS390XState *env, uint64_t mask, uint64_t addr);
+uint64_t s390_cpu_get_psw_mask(CPUS390XState *env);
 
 /* outside of target/s390x/ */
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);

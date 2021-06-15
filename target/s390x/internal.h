@@ -235,10 +235,6 @@ int s390_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
 const char *cc_name(enum cc_op cc_op);
 uint32_t calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
                  uint64_t vr);
-#ifndef CONFIG_USER_ONLY
-void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr);
-#endif /* CONFIG_USER_ONLY */
-
 
 /* cpu.c */
 #ifndef CONFIG_USER_ONLY
@@ -312,7 +308,6 @@ void s390_cpu_gdb_init(CPUState *cs);
 void s390_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 void do_restart_interrupt(CPUS390XState *env);
 #ifndef CONFIG_USER_ONLY
-uint64_t get_psw_mask(CPUS390XState *env);
 void s390_cpu_recompute_watchpoints(CPUState *cs);
 void s390x_tod_timer(void *opaque);
 void s390x_cpu_timer(void *opaque);
