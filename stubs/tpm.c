@@ -33,7 +33,3 @@ TpmModelList *qmp_query_tpm_models(Error **errp)
 {
     return NULL;
 }
-
-void tpm_build_ppi_acpi(TPMIf *tpm, Aml *dev)
-{
-}
