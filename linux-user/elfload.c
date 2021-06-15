@@ -944,6 +944,12 @@ const char *elf_hwcap2_str(uint32_t bit)
 
 #undef GET_FEATURE_ID
 
+#if TARGET_BIG_ENDIAN
+# define VDSO_HEADER  "vdso-be.c.inc"
+#else
+# define VDSO_HEADER  "vdso-le.c.inc"
+#endif
+
 #endif /* not TARGET_AARCH64 */
 #endif /* TARGET_ARM */
 
