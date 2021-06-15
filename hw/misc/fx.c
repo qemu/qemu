@@ -21,11 +21,11 @@ DECLARE_INSTANCE_CHECKER(FxState, FX,
 
 #define ID_REGISTER                 0x00
 #define CARD_LIVENESS_REGISTER      0x04
-#define ADDR_REGISTER               0x08
+#define SCHEDULE_NEXT_REGISTER      0x08
 #define INTERRUPT_STATUS_REGISTER   0x24
+#define START_THREAD_REGISTER       0x30
 #define INTERRUPT_RAISE_REGISTER    0x60
 #define INTERRUPT_ACK_REGISTER      0x64
-#define PROTECT_IDT_CMD             0x80
 
 struct FxState {
     PCIDevice pdev;
@@ -131,7 +131,12 @@ static void fx_mmio_write(void *opaque, hwaddr addr, uint64_t val,
         return;
 
     switch (addr) {
-    case ADDR_REGISTER:
+    case START_THREAD_REGISTER:
+        qemu_mutex_lock(&fx->thr_mutex);
+        qemu_cond_signal(&fx->thr_cond);
+        qemu_mutex_unlock(&fx->thr_mutex);
+        break;
+    case SCHEDULE_NEXT_REGISTER:
         qemu_mutex_lock(&fx->thr_mutex);
         fx->addr_lsb = val;
         qemu_cond_signal(&fx->thr_cond);
@@ -142,12 +147,19 @@ static void fx_mmio_write(void *opaque, hwaddr addr, uint64_t val,
         break;
     case INTERRUPT_ACK_REGISTER:
         fx_lower_irq(fx, val);
-        break;
-    case PROTECT_IDT_CMD:
-        
+        break;        
     default:
         break;
     }
+}
+
+static void *wait_device_driver(void *opaque)
+{
+    FxState *fx = opaque;
+    qemu_mutex_lock(&fx->thr_mutex);
+    qemu_cond_wait(&fx->thr_cond, &fx->thr_mutex);
+    qemu_mutex_unlock(&fx->thr_mutex);
+    return fx_forcer_thread(opaque);
 }
 
 static void *fx_forcer_thread(void *opaque)
@@ -156,8 +168,8 @@ static void *fx_forcer_thread(void *opaque)
 
     while (1) {
 
-        g_usleep(10 * G_USEC_PER_SEC);
-
+        
+        g_usleep((rand() % 10 + 5) * G_USEC_PER_SEC);
         qemu_mutex_lock(&fx->thr_mutex);
         fx_raise_irq(fx, 0x1);
         while((qatomic_read(&fx->addr_lsb) == 0)){
@@ -191,7 +203,7 @@ static void pci_fx_realize(PCIDevice *pdev, Error **errp)
 
     qemu_mutex_init(&fx->thr_mutex);
     qemu_cond_init(&fx->thr_cond);
-    qemu_thread_create(&fx->thread, "fx", fx_forcer_thread,
+    qemu_thread_create(&fx->thread, "fx", wait_device_driver,
                        fx, QEMU_THREAD_JOINABLE);
 
     memory_region_init_io(&fx->mmio, OBJECT(fx), &fx_mmio_ops, fx,

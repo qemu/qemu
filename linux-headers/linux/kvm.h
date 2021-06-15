@@ -9,7 +9,7 @@
  */
 
 #include <linux/types.h>
-
+//#include <linux/compiler.h>
 #include <linux/ioctl.h>
 #include <asm/kvm.h>
 
@@ -251,6 +251,7 @@ struct kvm_hyperv_exit {
 #define KVM_EXIT_X86_RDMSR        29
 #define KVM_EXIT_X86_WRMSR        30
 #define KVM_EXIT_DIRTY_RING_FULL  31
+#define KVM_EXIT_AP_RESET_HOLD    32
 
 /* For KVM_EXIT_INTERNAL_ERROR */
 /* Emulate instruction failed. */
@@ -532,6 +533,16 @@ struct kvm_dirty_log {
 	};
 };
 
+/* for KVM_GET_ACCESS_LOG */
+struct kvm_access_log {
+	__u32 slot; /* in */
+	__u32 accessed_pages; /* out */
+	union {
+		void *access_bitmap; /* out, one bit per page */
+		__u64 padding1;
+	};
+};
+
 /* for KVM_CLEAR_DIRTY_LOG */
 struct kvm_clear_dirty_log {
 	__u32 slot;
@@ -573,6 +584,7 @@ struct kvm_vapic_addr {
 #define KVM_MP_STATE_CHECK_STOP        6
 #define KVM_MP_STATE_OPERATING         7
 #define KVM_MP_STATE_LOAD              8
+#define KVM_MP_STATE_AP_RESET_HOLD     9
 
 struct kvm_mp_state {
 	__u32 mp_state;
@@ -826,6 +838,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_GET_API_VERSION       _IO(KVMIO,   0x00)
 #define KVM_CREATE_VM             _IO(KVMIO,   0x01) /* returns a VM fd */
 #define KVM_GET_MSR_INDEX_LIST    _IOWR(KVMIO, 0x02, struct kvm_msr_list)
+#define KVM_TEST				  _IO(KVMIO,   0x0f)
 
 #define KVM_S390_ENABLE_SIE       _IO(KVMIO,   0x06)
 /*
@@ -1311,6 +1324,9 @@ struct kvm_vfio_spapr_tce {
 					struct kvm_userspace_memory_region)
 #define KVM_SET_TSS_ADDR          _IO(KVMIO,   0x47)
 #define KVM_SET_IDENTITY_MAP_ADDR _IOW(KVMIO,  0x48, __u64)
+
+#define KVM_CLEAR_ACCESS_LOG	  _IO(KVMIO,   0x49)	
+#define KVM_GET_ACCESS_LOG	  _IOWR(KVMIO, 0x4a, struct kvm_access_log)
 
 /* enable ucontrol for s390 */
 struct kvm_s390_ucas_mapping {

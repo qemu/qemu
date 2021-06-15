@@ -166,6 +166,14 @@ static hwaddr kvm_max_slot_size = ~0;
  ****************************************************************************** 
 ******************************************************************************/
 
+enum recording_state {
+    PRE_RECORDING, 
+    RECORDING, 
+    POST_RECORDING
+};
+enum recording_state recording_state = PRE_RECORDING;
+struct kvm_access_log kvm_access_log;
+
 static void reload_saved_memory_chunks(void);
 
 MemoryRegion *fx_mr = NULL;
@@ -394,7 +402,7 @@ void *kvm_physical_memory_addr_to_host(KVMState *s, hwaddr guest_physical)
                 guest_physical < mem->start_addr + mem->memory_size){
             
             host_virtual = (void *)
-                (mem->ram + guest_physical - mem->start_addr);
+                ((char *)mem->ram + guest_physical - mem->start_addr);
             break;
         }
     }
@@ -1457,19 +1465,33 @@ int kvm_set_irq(KVMState *s, int irq, int level)
 {
     struct kvm_irq_level event;
     int ret;
+    static bool cleared = false;
+    static bool reload = false; 
 
     assert(kvm_async_interrupts_enabled());
 
     event.level = level;
     event.irq = irq;
+
+    if(irq == fx_irq_line && level == 1){
+        if(recording_state == POST_RECORDING)
+            if(reload == false)
+                reload = true;
+            else 
+            reload_saved_memory_chunks();
+        else if(recording_state == RECORDING){
+            if(!cleared){
+                kvm_vm_ioctl(s, KVM_CLEAR_ACCESS_LOG);
+                cleared = true;
+            }
+        }
+    }
+
     ret = kvm_vm_ioctl(s, s->irq_set_ioctl, &event);
     if (ret < 0) {
         perror("kvm_set_irq");
         abort();
     }
-
-    if(irq == fx_irq_line && level == 1)
-        reload_saved_memory_chunks();
 
     return (s->irq_set_ioctl == KVM_IRQ_LINE) ? 1 : event.status;
 }
@@ -2157,6 +2179,7 @@ static int kvm_init(MachineState *ms)
     }
 
     do {
+        kvm_ioctl(s, KVM_TEST, type);
         ret = kvm_ioctl(s, KVM_CREATE_VM, type);
     } while (ret == -EINTR);
 
@@ -2645,6 +2668,10 @@ static void add_saved_memory_chunk(void *hva,
     smc->hva = hva;
     smc->size = size;
     smc->saved = g_malloc0(size);
+    if(!smc->saved){
+        DBG("Cannot allocate memory in add_saved_memory_chunk\n");
+        abort();
+    }
     memcpy(smc->saved, hva, size);
     if(smc_head == NULL){
         smc_head = smc;
@@ -2829,13 +2856,96 @@ static void do_start_monitor_hypercall(CPUState *cpu)
     kernel_invariants.idt_physical_addr = kvm_translate(cpu, sregs.idt.base);
     start_monitor = true;
 }
+
+static void do_end_recording_hypercall(CPUState *cpu)
+{
+    KVMState *s = kvm_state;
+    KVMMemoryListener *kml = &s->memory_listener;
+    struct kvm_access_log al;
+    int i = 0;
+    int n_pages;
+    bool *bitmap_iter;
+
+    kvm_slots_lock(kml);
+
+    /* iterate all the slots */
+    for (i = 0; i < s->nr_slots; i++) {
+        KVMSlot slot = kml->slots[i];
+        
+        if (slot.memory_size == 0) 
+            continue;
+        
+        
+        assert((slot.memory_size % PAGE_SIZE) == 0);
+        n_pages = (slot.memory_size / PAGE_SIZE);
+
+        /* prepare KVM_GET_ACCESS_LOG vm ioctl */
+        memset(&al, 0, sizeof(kvm_access_log));
+        al.slot = slot.slot;
+        al.access_bitmap =  g_malloc0(n_pages); 
+        if(al.access_bitmap == NULL){
+            DBG("cannot allocate memory\n");
+            DBG("Slot number: %d, n_pages: %d\n", (int)slot.slot, n_pages);
+            continue;
+        }
+
+        kvm_vm_ioctl(s, KVM_GET_ACCESS_LOG, &al);
+        DBG("Slot %02d,\taccessed pages: %u,\tstarting address: %p\t,size: %lx\t, #pages: %d\n", 
+            (int)slot.slot, 
+            (unsigned int)al.accessed_pages,
+            (void *)slot.start_addr, 
+            slot.memory_size, 
+            n_pages);
+
+        /* save accessed pages */
+        if(al.accessed_pages == 0)
+            continue;
+
+        bitmap_iter = (bool *)al.access_bitmap;
+        for(int j = 0; j < n_pages; j++){
+            if(bitmap_iter[j]){
+                hwaddr gpa = slot.start_addr + j * PAGE_SIZE;
+                DBG("gfn 0x%lx\n", gpa >> 12);
+                /* kvm_physical_memory_addr_to_host cannot be used since
+                we already hold the lock on the slots. Do that here. */
+                //void *hva = (void *)((char *)slot.ram + gpa - slot.start_addr); 
+                /*if((gpa >> 12) < 0x1f400)
+                    add_saved_memory_chunk(hva, PAGE_SIZE, true);
+                else    
+                    add_saved_memory_chunk(hva, PAGE_SIZE, false);*/
+            }
+        }
+
+        g_free(al.access_bitmap);
+    }
+
+    kvm_slots_unlock(kml);
+
+}
  
-#define AGENT_HYPERCALL             1   /* To be deprecated? Maybe it can be used the generic one */
-#define PROTECT_MEMORY_HYPERCALL    2
-#define SAVE_MEMORY_HYPERCALL       3
-#define COMPARE_MEMORY_HYPERCALL    4
-#define SET_IRQ_LINE_HYPERCALL      5
-#define START_MONITOR_HYPERCALL     6
+
+#define AGENT_HYPERCALL             1   /* DEPRECATED HYPERCALL*/
+
+/* Protect a memory area */
+#define PROTECT_MEMORY_HYPERCALL    2   
+
+/* Save a memory area. It could be for automatic injection or later comparison */
+#define SAVE_MEMORY_HYPERCALL       3   
+
+/* Compare a previously saved memory area */
+#define COMPARE_MEMORY_HYPERCALL    4   
+
+/* Used by the module when it has finished its initialization. It allows set irq hook */
+#define SET_IRQ_LINE_HYPERCALL      5   
+
+/* Start monitoring kernel invariants */
+#define START_MONITOR_HYPERCALL     6   
+
+/* End the recording of accessed pages */
+#define END_RECORDING_HYPERCALL     7   
+
+/* Call clear access log, testing experiment */
+/* #define CLEAR_ACCESS_LOG_HYPERCALL  8 */
 
 /* function for generic hypercall. It acts as a dispatcher by looking
     at the type of hypercall */
@@ -2846,10 +2956,10 @@ static void execute_hypercall(CPUState *cpu)
 
     memset(&regs, 0, sizeof(regs));
     kvm_vcpu_ioctl(cpu, KVM_GET_REGS, &regs);
-    DBG("Hypercall type: %llx"
+    /*DBG("Hypercall type: %llx"
             "\taddress: %llx "
             "\tsize: %llx"
-            "\tflag: %llx\n", regs.r10, regs.r8, regs.r9, regs.r12);
+            "\tflag: %llx\n", regs.r10, regs.r8, regs.r9, regs.r12);*/
     type = regs.r10;
     switch(type){
     case AGENT_HYPERCALL:
@@ -2871,10 +2981,27 @@ static void execute_hypercall(CPUState *cpu)
     case SET_IRQ_LINE_HYPERCALL:
         DBG("IRQ LINE = %d\n", (int)regs.r8);
         fx_irq_line = (int)regs.r8;
+        DBG("State goes to RECORDING\n");
+        recording_state = RECORDING;
+
         break;
     case START_MONITOR_HYPERCALL:
         do_start_monitor_hypercall(cpu);
         break;
+    case END_RECORDING_HYPERCALL: 
+    /* in case the recording already took place, do nothing */
+        if(recording_state != RECORDING)
+            break;
+        recording_state = POST_RECORDING;
+        /* collect access log */
+        do_end_recording_hypercall(cpu);
+        break;
+    /*
+    case CLEAR_ACCESS_LOG_HYPERCALL:
+        DBG("CLEARING HYPERCALL");
+        kvm_vm_ioctl(kvm_state, KVM_CLEAR_ACCESS_LOG);
+        break;
+    */
     default:
         DBG("Hypercall not recognized\n");
         break;

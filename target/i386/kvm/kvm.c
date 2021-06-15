@@ -62,6 +62,15 @@
     do { } while (0)
 #endif
 
+#define CUSTOM_DEBUG
+#ifdef CUSTOM_DEBUG
+#define DBG(fmt, ...) \
+    do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
+#else
+#define DBG(fmt, ...) \
+    do { } while (0)
+#endif
+
 /* From arch/x86/kvm/lapic.h */
 #define KVM_APIC_BUS_CYCLE_NS       1
 #define KVM_APIC_BUS_FREQUENCY      (1000000000ULL / KVM_APIC_BUS_CYCLE_NS)
@@ -2750,7 +2759,7 @@ static int kvm_buf_set_msrs(X86CPU *cpu)
                      (uint32_t)e->index, (uint64_t)e->data);
     }
 
-    assert(ret == cpu->kvm_msr_buf->nmsrs);
+    //assert(ret == cpu->kvm_msr_buf->nmsrs);
     return 0;
 }
 
@@ -4469,6 +4478,7 @@ static int kvm_handle_debug(X86CPU *cpu,
                 if (arch_info->dr6 & (1 << n)) {
                     switch ((arch_info->dr7 >> (16 + n*4)) & 0x3) {
                     case 0x0:
+
                         ret = EXCP_DEBUG;
                         break;
                     case 0x1:
@@ -4586,6 +4596,7 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         break;
     case KVM_EXIT_DEBUG:
         DPRINTF("kvm_exit_debug\n");
+        DBG("EXIT DEBUG\n");
         qemu_mutex_lock_iothread();
         ret = kvm_handle_debug(cpu, &run->debug.arch);
         qemu_mutex_unlock_iothread();
