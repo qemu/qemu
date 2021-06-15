@@ -321,12 +321,12 @@ uint64_t s390_cpu_get_psw_mask(CPUS390XState *env)
     uint64_t r = env->psw.mask;
 
     if (tcg_enabled()) {
-        env->cc_op = calc_cc(env, env->cc_op, env->cc_src, env->cc_dst,
-                             env->cc_vr);
+        uint64_t cc = calc_cc(env, env->cc_op, env->cc_src,
+                              env->cc_dst, env->cc_vr);
 
+        assert(cc <= 3);
         r &= ~PSW_MASK_CC;
-        assert(!(env->cc_op & ~3));
-        r |= (uint64_t)env->cc_op << 44;
+        r |= cc << 44;
     }
 
     return r;
