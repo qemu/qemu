@@ -338,12 +338,14 @@ void s390_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     CPUS390XState *env = &cpu->env;
     int i;
 
-    if (env->cc_op > 3) {
-        qemu_fprintf(f, "PSW=mask %016" PRIx64 " addr %016" PRIx64 " cc %15s\n",
-                     env->psw.mask, env->psw.addr, cc_name(env->cc_op));
+    qemu_fprintf(f, "PSW=mask %016" PRIx64 " addr %016" PRIx64,
+                 s390_cpu_get_psw_mask(env), env->psw.addr);
+    if (!tcg_enabled()) {
+        qemu_fprintf(f, "\n");
+    } else if (env->cc_op > 3) {
+        qemu_fprintf(f, " cc %15s\n", cc_name(env->cc_op));
     } else {
-        qemu_fprintf(f, "PSW=mask %016" PRIx64 " addr %016" PRIx64 " cc %02x\n",
-                     env->psw.mask, env->psw.addr, env->cc_op);
+        qemu_fprintf(f, " cc %02x\n", env->cc_op);
     }
 
     for (i = 0; i < 16; i++) {
