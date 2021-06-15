@@ -1130,9 +1130,16 @@
 #
 ##
 { 'enum'    : 'DisplayType',
-  'data'    : [ 'default', 'none', 'gtk', 'sdl',
-                'egl-headless', 'curses', 'cocoa',
-                'spice-app'] }
+  'data'    : [
+    { 'name': 'default' },
+    { 'name': 'none' },
+    { 'name': 'gtk', 'if': 'defined(CONFIG_GTK)' },
+    { 'name': 'sdl', 'if': 'defined(CONFIG_SDL)' },
+    { 'name': 'egl-headless',
+              'if': 'defined(CONFIG_OPENGL) && defined(CONFIG_GBM)' },
+    { 'name': 'curses', 'if': 'defined(CONFIG_CURSES)' },
+    { 'name': 'cocoa', 'if': 'defined(CONFIG_COCOA)' },
+    { 'name': 'spice-app', 'if': 'defined(CONFIG_SPICE)'} ] }
 
 ##
 # @DisplayOptions:
@@ -1156,9 +1163,13 @@
                 '*show-cursor'   : 'bool',
                 '*gl'            : 'DisplayGLMode' },
   'discriminator' : 'type',
-  'data'    : { 'gtk'            : 'DisplayGTK',
-                'curses'         : 'DisplayCurses',
-                'egl-headless'   : 'DisplayEGLHeadless'} }
+  'data'    : {
+      'gtk': { 'type': 'DisplayGTK', 'if': 'defined(CONFIG_GTK)' },
+      'curses': { 'type': 'DisplayCurses', 'if': 'defined(CONFIG_CURSES)' },
+      'egl-headless': { 'type': 'DisplayEGLHeadless',
+                        'if': 'defined(CONFIG_OPENGL) && defined(CONFIG_GBM)' }
+  }
+}
 
 ##
 # @query-display-options:
