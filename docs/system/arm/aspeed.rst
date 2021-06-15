@@ -13,6 +13,7 @@ etc.
 AST2400 SoC based machines :
 
 - ``palmetto-bmc``         OpenPOWER Palmetto POWER8 BMC
+- ``quanta-q71l-bmc``      OpenBMC Quanta BMC
 
 AST2500 SoC based machines :
 
