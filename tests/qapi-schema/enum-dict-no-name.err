@@ -1,0 +1,2 @@
+enum-dict-no-name.json: In enum 'Enum':
+enum-dict-no-name.json:2: 'data' member misses key 'name'
