@@ -412,6 +412,43 @@ void helper_clgi(CPUX86State *env)
     env->hflags2 &= ~HF2_GIF_MASK;
 }
 
+bool cpu_svm_has_intercept(CPUX86State *env, uint32_t type)
+{
+    switch (type) {
+    case SVM_EXIT_READ_CR0 ... SVM_EXIT_READ_CR0 + 8:
+        if (env->intercept_cr_read & (1 << (type - SVM_EXIT_READ_CR0))) {
+            return true;
+        }
+        break;
+    case SVM_EXIT_WRITE_CR0 ... SVM_EXIT_WRITE_CR0 + 8:
+        if (env->intercept_cr_write & (1 << (type - SVM_EXIT_WRITE_CR0))) {
+            return true;
+        }
+        break;
+    case SVM_EXIT_READ_DR0 ... SVM_EXIT_READ_DR0 + 7:
+        if (env->intercept_dr_read & (1 << (type - SVM_EXIT_READ_DR0))) {
+            return true;
+        }
+        break;
+    case SVM_EXIT_WRITE_DR0 ... SVM_EXIT_WRITE_DR0 + 7:
+        if (env->intercept_dr_write & (1 << (type - SVM_EXIT_WRITE_DR0))) {
+            return true;
+        }
+        break;
+    case SVM_EXIT_EXCP_BASE ... SVM_EXIT_EXCP_BASE + 31:
+        if (env->intercept_exceptions & (1 << (type - SVM_EXIT_EXCP_BASE))) {
+            return true;
+        }
+        break;
+    default:
+        if (env->intercept & (1ULL << (type - SVM_EXIT_INTR))) {
+            return true;
+        }
+        break;
+    }
+    return false;
+}
+
 void cpu_svm_check_intercept_param(CPUX86State *env, uint32_t type,
                                    uint64_t param, uintptr_t retaddr)
 {
@@ -420,72 +457,46 @@ void cpu_svm_check_intercept_param(CPUX86State *env, uint32_t type,
     if (likely(!(env->hflags & HF_GUEST_MASK))) {
         return;
     }
-    switch (type) {
-    case SVM_EXIT_READ_CR0 ... SVM_EXIT_READ_CR0 + 8:
-        if (env->intercept_cr_read & (1 << (type - SVM_EXIT_READ_CR0))) {
-            cpu_vmexit(env, type, param, retaddr);
-        }
-        break;
-    case SVM_EXIT_WRITE_CR0 ... SVM_EXIT_WRITE_CR0 + 8:
-        if (env->intercept_cr_write & (1 << (type - SVM_EXIT_WRITE_CR0))) {
-            cpu_vmexit(env, type, param, retaddr);
-        }
-        break;
-    case SVM_EXIT_READ_DR0 ... SVM_EXIT_READ_DR0 + 7:
-        if (env->intercept_dr_read & (1 << (type - SVM_EXIT_READ_DR0))) {
-            cpu_vmexit(env, type, param, retaddr);
-        }
-        break;
-    case SVM_EXIT_WRITE_DR0 ... SVM_EXIT_WRITE_DR0 + 7:
-        if (env->intercept_dr_write & (1 << (type - SVM_EXIT_WRITE_DR0))) {
-            cpu_vmexit(env, type, param, retaddr);
-        }
-        break;
-    case SVM_EXIT_EXCP_BASE ... SVM_EXIT_EXCP_BASE + 31:
-        if (env->intercept_exceptions & (1 << (type - SVM_EXIT_EXCP_BASE))) {
-            cpu_vmexit(env, type, param, retaddr);
-        }
-        break;
-    case SVM_EXIT_MSR:
-        if (env->intercept & (1ULL << (SVM_EXIT_MSR - SVM_EXIT_INTR))) {
-            /* FIXME: this should be read in at vmrun (faster this way?) */
-            uint64_t addr = x86_ldq_phys(cs, env->vm_vmcb +
-                                     offsetof(struct vmcb,
-                                              control.msrpm_base_pa));
-            uint32_t t0, t1;
 
-            switch ((uint32_t)env->regs[R_ECX]) {
-            case 0 ... 0x1fff:
-                t0 = (env->regs[R_ECX] * 2) % 8;
-                t1 = (env->regs[R_ECX] * 2) / 8;
-                break;
-            case 0xc0000000 ... 0xc0001fff:
-                t0 = (8192 + env->regs[R_ECX] - 0xc0000000) * 2;
-                t1 = (t0 / 8);
-                t0 %= 8;
-                break;
-            case 0xc0010000 ... 0xc0011fff:
-                t0 = (16384 + env->regs[R_ECX] - 0xc0010000) * 2;
-                t1 = (t0 / 8);
-                t0 %= 8;
-                break;
-            default:
-                cpu_vmexit(env, type, param, retaddr);
-                t0 = 0;
-                t1 = 0;
-                break;
-            }
-            if (x86_ldub_phys(cs, addr + t1) & ((1 << param) << t0)) {
-                cpu_vmexit(env, type, param, retaddr);
-            }
+    if (!cpu_svm_has_intercept(env, type)) {
+        return;
+    }
+
+    if (type == SVM_EXIT_MSR) {
+        /* FIXME: this should be read in at vmrun (faster this way?) */
+        uint64_t addr = x86_ldq_phys(cs, env->vm_vmcb +
+                                    offsetof(struct vmcb,
+                                            control.msrpm_base_pa));
+        uint32_t t0, t1;
+
+        switch ((uint32_t)env->regs[R_ECX]) {
+        case 0 ... 0x1fff:
+            t0 = (env->regs[R_ECX] * 2) % 8;
+            t1 = (env->regs[R_ECX] * 2) / 8;
+            break;
+        case 0xc0000000 ... 0xc0001fff:
+            t0 = (8192 + env->regs[R_ECX] - 0xc0000000) * 2;
+            t1 = (t0 / 8);
+            t0 %= 8;
+            break;
+        case 0xc0010000 ... 0xc0011fff:
+            t0 = (16384 + env->regs[R_ECX] - 0xc0010000) * 2;
+            t1 = (t0 / 8);
+            t0 %= 8;
+            break;
+        default:
+            cpu_vmexit(env, type, param, retaddr);
+            t0 = 0;
+            t1 = 0;
+            break;
         }
-        break;
-    default:
-        if (env->intercept & (1ULL << (type - SVM_EXIT_INTR))) {
+        if (x86_ldub_phys(cs, addr + t1) & ((1 << param) << t0)) {
             cpu_vmexit(env, type, param, retaddr);
         }
-        break;
+        return;
     }
+
+    cpu_vmexit(env, type, param, retaddr);
 }
 
 void helper_svm_check_intercept(CPUX86State *env, uint32_t type)

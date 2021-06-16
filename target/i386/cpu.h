@@ -2149,9 +2149,13 @@ static inline void
 cpu_svm_check_intercept_param(CPUX86State *env1, uint32_t type,
                               uint64_t param, uintptr_t retaddr)
 { /* no-op */ }
+static inline bool
+cpu_svm_has_intercept(CPUX86State *env, uint32_t type)
+{ return false; }
 #else
 void cpu_svm_check_intercept_param(CPUX86State *env1, uint32_t type,
                                    uint64_t param, uintptr_t retaddr);
+bool cpu_svm_has_intercept(CPUX86State *env, uint32_t type);
 #endif
 
 /* apic.c */
