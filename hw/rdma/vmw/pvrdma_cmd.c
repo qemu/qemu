@@ -38,6 +38,13 @@ static void *pvrdma_map_to_pdir(PCIDevice *pdev, uint64_t pdir_dma,
         return NULL;
     }
 
+    length = ROUND_UP(length, TARGET_PAGE_SIZE);
+    if (nchunks * TARGET_PAGE_SIZE != length) {
+        rdma_error_report("Invalid nchunks/length (%u, %lu)", nchunks,
+                          (unsigned long)length);
+        return NULL;
+    }
+
     dir = rdma_pci_dma_map(pdev, pdir_dma, TARGET_PAGE_SIZE);
     if (!dir) {
         rdma_error_report("Failed to map to page directory");
