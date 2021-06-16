@@ -6,8 +6,6 @@
 #include "qemu/osdep.h"
 #include "crypto-tls-x509-helpers.h"
 
-#ifdef QCRYPTO_HAVE_TLS_TEST_SUPPORT
-
 const asn1_static_node pkix_asn1_tab[] = {
   {"PKIX1", 536875024, 0},
   {0, 1073741836, 0},
@@ -1105,4 +1103,3 @@ const asn1_static_node pkix_asn1_tab[] = {
   {0, 1048586, "2"},
   {0, 0, 0}
 };
-#endif /* QCRYPTO_HAVE_TLS_TEST_SUPPORT */

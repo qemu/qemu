@@ -23,14 +23,7 @@
 
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
-
-#if !(defined WIN32) && \
-    defined(CONFIG_TASN1)
-# define QCRYPTO_HAVE_TLS_TEST_SUPPORT
-#endif
-
-#ifdef QCRYPTO_HAVE_TLS_TEST_SUPPORT
-# include <libtasn1.h>
+#include <libtasn1.h>
 
 
 /*
@@ -126,7 +119,5 @@ void test_tls_cleanup(const char *keyfile);
     test_tls_generate_cert(&varname, NULL)
 
 extern const asn1_static_node pkix_asn1_tab[];
-
-#endif /* QCRYPTO_HAVE_TLS_TEST_SUPPORT */
 
 #endif
