@@ -1957,12 +1957,12 @@ uint32_t blk_get_request_alignment(BlockBackend *blk)
 uint32_t blk_get_max_transfer(BlockBackend *blk)
 {
     BlockDriverState *bs = blk_bs(blk);
-    uint32_t max = 0;
+    uint32_t max = INT_MAX;
 
     if (bs) {
-        max = bs->bl.max_transfer;
+        max = MIN_NON_ZERO(max, bs->bl.max_transfer);
     }
-    return MIN_NON_ZERO(max, INT_MAX);
+    return ROUND_DOWN(max, blk_get_request_alignment(blk));
 }
 
 int blk_get_max_iov(BlockBackend *blk)
