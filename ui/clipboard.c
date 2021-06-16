@@ -73,7 +73,7 @@ void qemu_clipboard_set_data(QemuClipboardPeer *peer,
                              QemuClipboardInfo *info,
                              QemuClipboardType type,
                              uint32_t size,
-                             void *data,
+                             const void *data,
                              bool update)
 {
     if (!info ||
