@@ -752,7 +752,8 @@ void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
                 val == VBE_DISPI_ID1 ||
                 val == VBE_DISPI_ID2 ||
                 val == VBE_DISPI_ID3 ||
-                val == VBE_DISPI_ID4) {
+                val == VBE_DISPI_ID4 ||
+                val == VBE_DISPI_ID5) {
                 s->vbe_regs[s->vbe_index] = val;
             }
             break;
