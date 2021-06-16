@@ -2327,39 +2327,37 @@ static int64_t raw_getlength(BlockDriverState *bs)
 again:
 #endif
     if (!fstat(fd, &sb) && (S_IFCHR & sb.st_mode)) {
+        size = 0;
 #ifdef DIOCGMEDIASIZE
-        if (ioctl(fd, DIOCGMEDIASIZE, (off_t *)&size))
-#elif defined(DIOCGPART)
-        {
-                struct partinfo pi;
-                if (ioctl(fd, DIOCGPART, &pi) == 0)
-                        size = pi.media_size;
-                else
-                        size = 0;
+        if (ioctl(fd, DIOCGMEDIASIZE, (off_t *)&size)) {
+            size = 0;
         }
-        if (size == 0)
+#endif
+#ifdef DIOCGPART
+        if (size == 0) {
+            struct partinfo pi;
+            if (ioctl(fd, DIOCGPART, &pi) == 0) {
+                size = pi.media_size;
+            }
+        }
 #endif
 #if defined(__APPLE__) && defined(__MACH__)
-        {
+        if (size == 0) {
             uint64_t sectors = 0;
             uint32_t sector_size = 0;
 
             if (ioctl(fd, DKIOCGETBLOCKCOUNT, &sectors) == 0
                && ioctl(fd, DKIOCGETBLOCKSIZE, &sector_size) == 0) {
                 size = sectors * sector_size;
-            } else {
-                size = lseek(fd, 0LL, SEEK_END);
-                if (size < 0) {
-                    return -errno;
-                }
             }
         }
-#else
-        size = lseek(fd, 0LL, SEEK_END);
+#endif
+        if (size == 0) {
+            size = lseek(fd, 0LL, SEEK_END);
+        }
         if (size < 0) {
             return -errno;
         }
-#endif
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
         switch(s->type) {
         case FTYPE_CD:
