@@ -84,6 +84,15 @@ void helper_write_crN(CPUX86State *env, int reg, target_ulong t0)
 {
     switch (reg) {
     case 0:
+        /*
+        * If we reach this point, the CR0 write intercept is disabled.
+        * But we could still exit if the hypervisor has requested the selective
+        * intercept for bits other than TS and MP
+        */
+        if (cpu_svm_has_intercept(env, SVM_EXIT_CR0_SEL_WRITE) &&
+            ((env->cr[0] ^ t0) & ~(CR0_TS_MASK | CR0_MP_MASK))) {
+            cpu_vmexit(env, SVM_EXIT_CR0_SEL_WRITE, 0, GETPC());
+        }
         cpu_x86_update_cr0(env, t0);
         break;
     case 3:
