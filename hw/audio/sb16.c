@@ -115,6 +115,9 @@ struct SB16State {
     PortioList portio_list;
 };
 
+#define SAMPLE_RATE_MIN 5000
+#define SAMPLE_RATE_MAX 45000
+
 static void SB_audio_callback (void *opaque, int free);
 
 static int magic_of_irq (int irq)
@@ -240,6 +243,17 @@ static void dma_cmd8 (SB16State *s, int mask, int dma_len)
     else {
         int tmp = (256 - s->time_const);
         s->freq = (1000000 + (tmp / 2)) / tmp;
+    }
+    if (s->freq < SAMPLE_RATE_MIN) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "sampling range too low: %d, increasing to %u\n",
+                      s->freq, SAMPLE_RATE_MIN);
+        s->freq = SAMPLE_RATE_MIN;
+    } else if (s->freq > SAMPLE_RATE_MAX) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "sampling range too high: %d, decreasing to %u\n",
+                      s->freq, SAMPLE_RATE_MAX);
+        s->freq = SAMPLE_RATE_MAX;
     }
 
     if (dma_len != -1) {
