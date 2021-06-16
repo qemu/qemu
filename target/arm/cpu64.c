@@ -683,7 +683,7 @@ static void aarch64_max_initfn(Object *obj)
          * during realize if the board provides no tag memory, much like
          * we do for EL2 with the virtualization=on property.
          */
-        t = FIELD_DP64(t, ID_AA64PFR1, MTE, 2);
+        t = FIELD_DP64(t, ID_AA64PFR1, MTE, 3);
         cpu->isar.id_aa64pfr1 = t;
 
         t = cpu->isar.id_aa64mmfr0;
