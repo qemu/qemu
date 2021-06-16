@@ -15,9 +15,7 @@
 #include "qemu/error-report.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/ide/pci.h"
-#include "hw/timer/i8254.h"
 #include "hw/isa/superio.h"
-#include "hw/dma/i8257.h"
 #include "net/net.h"
 #include "qemu/cutils.h"
 #include "qemu/datadir.h"
@@ -58,8 +56,10 @@ static void clipper_init(MachineState *machine)
     AlphaCPU *cpus[4];
     PCIBus *pci_bus;
     PCIDevice *pci_dev;
+    DeviceState *i82378_dev;
     ISABus *isa_bus;
     qemu_irq rtc_irq;
+    qemu_irq isa_irq;
     long size, i;
     char *palcode_filename;
     uint64_t palcode_entry;
@@ -90,13 +90,38 @@ static void clipper_init(MachineState *machine)
      * Init the chipset.  Because we're using CLIPPER IRQ mappings,
      * the minimum PCI device IdSel is 1.
      */
-    pci_bus = typhoon_init(machine->ram, &isa_bus, &rtc_irq, cpus,
+    pci_bus = typhoon_init(machine->ram, &isa_irq, &rtc_irq, cpus,
                            clipper_pci_map_irq, PCI_DEVFN(1, 0));
+
+    /*
+     * Init the PCI -> ISA bridge.
+     *
+     * Technically, PCI-based Alphas shipped with one of three different
+     * PCI-ISA bridges:
+     *
+     * - Intel i82378 SIO
+     * - Cypress CY82c693UB
+     * - ALI M1533
+     *
+     * (An Intel i82375 PCI-EISA bridge was also used on some models.)
+     *
+     * For simplicity, we model an i82378 here, even though it wouldn't
+     * have been on any Tsunami/Typhoon systems; it's close enough, and
+     * we don't want to deal with modelling the CY82c693UB (which has
+     * incompatible edge/level control registers, plus other peripherals
+     * like IDE and USB) or the M1533 (which also has IDE and USB).
+     *
+     * Importantly, we need to provide a PCI device node for it, otherwise
+     * some operating systems won't notice there's an ISA bus to configure.
+     */
+    i82378_dev = DEVICE(pci_create_simple(pci_bus, PCI_DEVFN(7, 0), "i82378"));
+    isa_bus = ISA_BUS(qdev_get_child_bus(i82378_dev, "isa.0"));
+
+    /* Connect the ISA PIC to the Typhoon IRQ used for ISA interrupts. */
+    qdev_connect_gpio_out(i82378_dev, 0, isa_irq);
 
     /* Since we have an SRM-compatible PALcode, use the SRM epoch.  */
     mc146818_rtc_init(isa_bus, 1900, rtc_irq);
-
-    i8254_pit_init(isa_bus, 0x40, 0, NULL);
 
     /* VGA setup.  Don't bother loading the bios.  */
     pci_vga_init(pci_bus);
@@ -105,9 +130,6 @@ static void clipper_init(MachineState *machine)
     for (i = 0; i < nb_nics; i++) {
         pci_nic_init_nofail(&nd_table[i], pci_bus, "e1000", NULL);
     }
-
-    /* 2 82C37 (dma) */
-    isa_create_simple(isa_bus, "i82374");
 
     /* Super I/O */
     isa_create_simple(isa_bus, TYPE_SMC37C669_SUPERIO);

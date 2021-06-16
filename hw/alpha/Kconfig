@@ -3,9 +3,7 @@ config DP264
     imply PCI_DEVICES
     imply TEST_DEVICES
     imply E1000_PCI
-    select I82374
-    select I8254
-    select I8259
+    select I82378
     select IDE_CMD646
     select MC146818RTC
     select PCI
