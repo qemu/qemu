@@ -2941,12 +2941,6 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
 
 static void armv7m_nvic_instance_init(Object *obj)
 {
-    /* We have a different default value for the num-irq property
-     * than our superclass. This function runs after qdev init
-     * has set the defaults from the Property array and before
-     * any user-specified property setting, so just modify the
-     * value in the GICState struct.
-     */
     DeviceState *dev = DEVICE(obj);
     NVICState *nvic = NVIC(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);

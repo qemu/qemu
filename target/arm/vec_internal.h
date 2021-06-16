@@ -42,7 +42,16 @@
 #define H2(x)   (x)
 #define H4(x)   (x)
 #endif
+/*
+ * Access to 64-bit elements isn't host-endian dependent; we provide H8
+ * and H1_8 so that when a function is being generated from a macro we
+ * can pass these rather than an empty macro argument, for clarity.
+ */
+#define H8(x)   (x)
+#define H1_8(x) (x)
 
+/* Data for expanding active predicate bits to bytes, for byte elements. */
+extern const uint64_t expand_pred_b_data[256];
 
 static inline void clear_tail(void *vd, uintptr_t opr_sz, uintptr_t max_sz)
 {

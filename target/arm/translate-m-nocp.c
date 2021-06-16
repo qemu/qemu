@@ -75,8 +75,12 @@ static bool trans_VLLDM_VLSTM(DisasContext *s, arg_VLLDM_VLSTM *a)
         unallocated_encoding(s);
         return true;
     }
+
+    s->eci_handled = true;
+
     /* If no fpu, NOP. */
     if (!dc_isar_feature(aa32_vfp, s)) {
+        clear_eci_state(s);
         return true;
     }
 
@@ -87,6 +91,8 @@ static bool trans_VLLDM_VLSTM(DisasContext *s, arg_VLLDM_VLSTM *a)
         gen_helper_v7m_vlstm(cpu_env, fptr);
     }
     tcg_temp_free_i32(fptr);
+
+    clear_eci_state(s);
 
     /* End the TB, because we have updated FP control bits */
     s->base.is_jmp = DISAS_UPDATE_EXIT;
@@ -110,8 +116,11 @@ static bool trans_VSCCLRM(DisasContext *s, arg_VSCCLRM *a)
         return true;
     }
 
+    s->eci_handled = true;
+
     if (!dc_isar_feature(aa32_vfp_simd, s)) {
         /* NOP if we have neither FP nor MVE */
+        clear_eci_state(s);
         return true;
     }
 
@@ -173,7 +182,12 @@ static bool trans_VSCCLRM(DisasContext *s, arg_VSCCLRM *a)
         btmreg++;
     }
     assert(btmreg == topreg + 1);
-    /* TODO: when MVE is implemented, zero VPR here */
+    if (dc_isar_feature(aa32_mve, s)) {
+        TCGv_i32 z32 = tcg_const_i32(0);
+        store_cpu_field(z32, v7m.vpr);
+    }
+
+    clear_eci_state(s);
     return true;
 }
 

@@ -103,108 +103,13 @@ uint32_t HELPER(sve_predtest)(void *vd, void *vg, uint32_t words)
     return flags;
 }
 
-/* Expand active predicate bits to bytes, for byte elements.
- *  for (i = 0; i < 256; ++i) {
- *      unsigned long m = 0;
- *      for (j = 0; j < 8; j++) {
- *          if ((i >> j) & 1) {
- *              m |= 0xfful << (j << 3);
- *          }
- *      }
- *      printf("0x%016lx,\n", m);
- *  }
+/*
+ * Expand active predicate bits to bytes, for byte elements.
+ * (The data table itself is in vec_helper.c as MVE also needs it.)
  */
 static inline uint64_t expand_pred_b(uint8_t byte)
 {
-    static const uint64_t word[256] = {
-        0x0000000000000000, 0x00000000000000ff, 0x000000000000ff00,
-        0x000000000000ffff, 0x0000000000ff0000, 0x0000000000ff00ff,
-        0x0000000000ffff00, 0x0000000000ffffff, 0x00000000ff000000,
-        0x00000000ff0000ff, 0x00000000ff00ff00, 0x00000000ff00ffff,
-        0x00000000ffff0000, 0x00000000ffff00ff, 0x00000000ffffff00,
-        0x00000000ffffffff, 0x000000ff00000000, 0x000000ff000000ff,
-        0x000000ff0000ff00, 0x000000ff0000ffff, 0x000000ff00ff0000,
-        0x000000ff00ff00ff, 0x000000ff00ffff00, 0x000000ff00ffffff,
-        0x000000ffff000000, 0x000000ffff0000ff, 0x000000ffff00ff00,
-        0x000000ffff00ffff, 0x000000ffffff0000, 0x000000ffffff00ff,
-        0x000000ffffffff00, 0x000000ffffffffff, 0x0000ff0000000000,
-        0x0000ff00000000ff, 0x0000ff000000ff00, 0x0000ff000000ffff,
-        0x0000ff0000ff0000, 0x0000ff0000ff00ff, 0x0000ff0000ffff00,
-        0x0000ff0000ffffff, 0x0000ff00ff000000, 0x0000ff00ff0000ff,
-        0x0000ff00ff00ff00, 0x0000ff00ff00ffff, 0x0000ff00ffff0000,
-        0x0000ff00ffff00ff, 0x0000ff00ffffff00, 0x0000ff00ffffffff,
-        0x0000ffff00000000, 0x0000ffff000000ff, 0x0000ffff0000ff00,
-        0x0000ffff0000ffff, 0x0000ffff00ff0000, 0x0000ffff00ff00ff,
-        0x0000ffff00ffff00, 0x0000ffff00ffffff, 0x0000ffffff000000,
-        0x0000ffffff0000ff, 0x0000ffffff00ff00, 0x0000ffffff00ffff,
-        0x0000ffffffff0000, 0x0000ffffffff00ff, 0x0000ffffffffff00,
-        0x0000ffffffffffff, 0x00ff000000000000, 0x00ff0000000000ff,
-        0x00ff00000000ff00, 0x00ff00000000ffff, 0x00ff000000ff0000,
-        0x00ff000000ff00ff, 0x00ff000000ffff00, 0x00ff000000ffffff,
-        0x00ff0000ff000000, 0x00ff0000ff0000ff, 0x00ff0000ff00ff00,
-        0x00ff0000ff00ffff, 0x00ff0000ffff0000, 0x00ff0000ffff00ff,
-        0x00ff0000ffffff00, 0x00ff0000ffffffff, 0x00ff00ff00000000,
-        0x00ff00ff000000ff, 0x00ff00ff0000ff00, 0x00ff00ff0000ffff,
-        0x00ff00ff00ff0000, 0x00ff00ff00ff00ff, 0x00ff00ff00ffff00,
-        0x00ff00ff00ffffff, 0x00ff00ffff000000, 0x00ff00ffff0000ff,
-        0x00ff00ffff00ff00, 0x00ff00ffff00ffff, 0x00ff00ffffff0000,
-        0x00ff00ffffff00ff, 0x00ff00ffffffff00, 0x00ff00ffffffffff,
-        0x00ffff0000000000, 0x00ffff00000000ff, 0x00ffff000000ff00,
-        0x00ffff000000ffff, 0x00ffff0000ff0000, 0x00ffff0000ff00ff,
-        0x00ffff0000ffff00, 0x00ffff0000ffffff, 0x00ffff00ff000000,
-        0x00ffff00ff0000ff, 0x00ffff00ff00ff00, 0x00ffff00ff00ffff,
-        0x00ffff00ffff0000, 0x00ffff00ffff00ff, 0x00ffff00ffffff00,
-        0x00ffff00ffffffff, 0x00ffffff00000000, 0x00ffffff000000ff,
-        0x00ffffff0000ff00, 0x00ffffff0000ffff, 0x00ffffff00ff0000,
-        0x00ffffff00ff00ff, 0x00ffffff00ffff00, 0x00ffffff00ffffff,
-        0x00ffffffff000000, 0x00ffffffff0000ff, 0x00ffffffff00ff00,
-        0x00ffffffff00ffff, 0x00ffffffffff0000, 0x00ffffffffff00ff,
-        0x00ffffffffffff00, 0x00ffffffffffffff, 0xff00000000000000,
-        0xff000000000000ff, 0xff0000000000ff00, 0xff0000000000ffff,
-        0xff00000000ff0000, 0xff00000000ff00ff, 0xff00000000ffff00,
-        0xff00000000ffffff, 0xff000000ff000000, 0xff000000ff0000ff,
-        0xff000000ff00ff00, 0xff000000ff00ffff, 0xff000000ffff0000,
-        0xff000000ffff00ff, 0xff000000ffffff00, 0xff000000ffffffff,
-        0xff0000ff00000000, 0xff0000ff000000ff, 0xff0000ff0000ff00,
-        0xff0000ff0000ffff, 0xff0000ff00ff0000, 0xff0000ff00ff00ff,
-        0xff0000ff00ffff00, 0xff0000ff00ffffff, 0xff0000ffff000000,
-        0xff0000ffff0000ff, 0xff0000ffff00ff00, 0xff0000ffff00ffff,
-        0xff0000ffffff0000, 0xff0000ffffff00ff, 0xff0000ffffffff00,
-        0xff0000ffffffffff, 0xff00ff0000000000, 0xff00ff00000000ff,
-        0xff00ff000000ff00, 0xff00ff000000ffff, 0xff00ff0000ff0000,
-        0xff00ff0000ff00ff, 0xff00ff0000ffff00, 0xff00ff0000ffffff,
-        0xff00ff00ff000000, 0xff00ff00ff0000ff, 0xff00ff00ff00ff00,
-        0xff00ff00ff00ffff, 0xff00ff00ffff0000, 0xff00ff00ffff00ff,
-        0xff00ff00ffffff00, 0xff00ff00ffffffff, 0xff00ffff00000000,
-        0xff00ffff000000ff, 0xff00ffff0000ff00, 0xff00ffff0000ffff,
-        0xff00ffff00ff0000, 0xff00ffff00ff00ff, 0xff00ffff00ffff00,
-        0xff00ffff00ffffff, 0xff00ffffff000000, 0xff00ffffff0000ff,
-        0xff00ffffff00ff00, 0xff00ffffff00ffff, 0xff00ffffffff0000,
-        0xff00ffffffff00ff, 0xff00ffffffffff00, 0xff00ffffffffffff,
-        0xffff000000000000, 0xffff0000000000ff, 0xffff00000000ff00,
-        0xffff00000000ffff, 0xffff000000ff0000, 0xffff000000ff00ff,
-        0xffff000000ffff00, 0xffff000000ffffff, 0xffff0000ff000000,
-        0xffff0000ff0000ff, 0xffff0000ff00ff00, 0xffff0000ff00ffff,
-        0xffff0000ffff0000, 0xffff0000ffff00ff, 0xffff0000ffffff00,
-        0xffff0000ffffffff, 0xffff00ff00000000, 0xffff00ff000000ff,
-        0xffff00ff0000ff00, 0xffff00ff0000ffff, 0xffff00ff00ff0000,
-        0xffff00ff00ff00ff, 0xffff00ff00ffff00, 0xffff00ff00ffffff,
-        0xffff00ffff000000, 0xffff00ffff0000ff, 0xffff00ffff00ff00,
-        0xffff00ffff00ffff, 0xffff00ffffff0000, 0xffff00ffffff00ff,
-        0xffff00ffffffff00, 0xffff00ffffffffff, 0xffffff0000000000,
-        0xffffff00000000ff, 0xffffff000000ff00, 0xffffff000000ffff,
-        0xffffff0000ff0000, 0xffffff0000ff00ff, 0xffffff0000ffff00,
-        0xffffff0000ffffff, 0xffffff00ff000000, 0xffffff00ff0000ff,
-        0xffffff00ff00ff00, 0xffffff00ff00ffff, 0xffffff00ffff0000,
-        0xffffff00ffff00ff, 0xffffff00ffffff00, 0xffffff00ffffffff,
-        0xffffffff00000000, 0xffffffff000000ff, 0xffffffff0000ff00,
-        0xffffffff0000ffff, 0xffffffff00ff0000, 0xffffffff00ff00ff,
-        0xffffffff00ffff00, 0xffffffff00ffffff, 0xffffffffff000000,
-        0xffffffffff0000ff, 0xffffffffff00ff00, 0xffffffffff00ffff,
-        0xffffffffffff0000, 0xffffffffffff00ff, 0xffffffffffffff00,
-        0xffffffffffffffff,
-    };
-    return word[byte];
+    return expand_pred_b_data[byte];
 }
 
 /* Similarly for half-word elements.
@@ -245,26 +150,6 @@ static inline uint64_t expand_pred_s(uint8_t byte)
         [0x11] = 0xffffffffffffffffull,
     };
     return word[byte & 0x11];
-}
-
-/* Swap 16-bit words within a 32-bit word.  */
-static inline uint32_t hswap32(uint32_t h)
-{
-    return rol32(h, 16);
-}
-
-/* Swap 16-bit words within a 64-bit word.  */
-static inline uint64_t hswap64(uint64_t h)
-{
-    uint64_t m = 0x0000ffff0000ffffull;
-    h = rol64(h, 32);
-    return ((h & m) << 16) | ((h >> 16) & m);
-}
-
-/* Swap 32-bit words within a 64-bit word.  */
-static inline uint64_t wswap64(uint64_t h)
-{
-    return rol64(h, 32);
 }
 
 #define LOGICAL_PPPP(NAME, FUNC) \
@@ -905,23 +790,23 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, void *vg,               \
 
 DO_ZPZZ_PAIR_FP(sve2_faddp_zpzz_h, float16, H1_2, float16_add)
 DO_ZPZZ_PAIR_FP(sve2_faddp_zpzz_s, float32, H1_4, float32_add)
-DO_ZPZZ_PAIR_FP(sve2_faddp_zpzz_d, float64,     , float64_add)
+DO_ZPZZ_PAIR_FP(sve2_faddp_zpzz_d, float64, H1_8, float64_add)
 
 DO_ZPZZ_PAIR_FP(sve2_fmaxnmp_zpzz_h, float16, H1_2, float16_maxnum)
 DO_ZPZZ_PAIR_FP(sve2_fmaxnmp_zpzz_s, float32, H1_4, float32_maxnum)
-DO_ZPZZ_PAIR_FP(sve2_fmaxnmp_zpzz_d, float64,     , float64_maxnum)
+DO_ZPZZ_PAIR_FP(sve2_fmaxnmp_zpzz_d, float64, H1_8, float64_maxnum)
 
 DO_ZPZZ_PAIR_FP(sve2_fminnmp_zpzz_h, float16, H1_2, float16_minnum)
 DO_ZPZZ_PAIR_FP(sve2_fminnmp_zpzz_s, float32, H1_4, float32_minnum)
-DO_ZPZZ_PAIR_FP(sve2_fminnmp_zpzz_d, float64,     , float64_minnum)
+DO_ZPZZ_PAIR_FP(sve2_fminnmp_zpzz_d, float64, H1_8, float64_minnum)
 
 DO_ZPZZ_PAIR_FP(sve2_fmaxp_zpzz_h, float16, H1_2, float16_max)
 DO_ZPZZ_PAIR_FP(sve2_fmaxp_zpzz_s, float32, H1_4, float32_max)
-DO_ZPZZ_PAIR_FP(sve2_fmaxp_zpzz_d, float64,     , float64_max)
+DO_ZPZZ_PAIR_FP(sve2_fmaxp_zpzz_d, float64, H1_8, float64_max)
 
 DO_ZPZZ_PAIR_FP(sve2_fminp_zpzz_h, float16, H1_2, float16_min)
 DO_ZPZZ_PAIR_FP(sve2_fminp_zpzz_s, float32, H1_4, float32_min)
-DO_ZPZZ_PAIR_FP(sve2_fminp_zpzz_d, float64,     , float64_min)
+DO_ZPZZ_PAIR_FP(sve2_fminp_zpzz_d, float64, H1_8, float64_min)
 
 #undef DO_ZPZZ_PAIR_FP
 
@@ -1171,35 +1056,35 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc)          \
 
 DO_ZZZ_TB(sve2_saddl_h, int16_t, int8_t, H1_2, H1, DO_ADD)
 DO_ZZZ_TB(sve2_saddl_s, int32_t, int16_t, H1_4, H1_2, DO_ADD)
-DO_ZZZ_TB(sve2_saddl_d, int64_t, int32_t,     , H1_4, DO_ADD)
+DO_ZZZ_TB(sve2_saddl_d, int64_t, int32_t, H1_8, H1_4, DO_ADD)
 
 DO_ZZZ_TB(sve2_ssubl_h, int16_t, int8_t, H1_2, H1, DO_SUB)
 DO_ZZZ_TB(sve2_ssubl_s, int32_t, int16_t, H1_4, H1_2, DO_SUB)
-DO_ZZZ_TB(sve2_ssubl_d, int64_t, int32_t,     , H1_4, DO_SUB)
+DO_ZZZ_TB(sve2_ssubl_d, int64_t, int32_t, H1_8, H1_4, DO_SUB)
 
 DO_ZZZ_TB(sve2_sabdl_h, int16_t, int8_t, H1_2, H1, DO_ABD)
 DO_ZZZ_TB(sve2_sabdl_s, int32_t, int16_t, H1_4, H1_2, DO_ABD)
-DO_ZZZ_TB(sve2_sabdl_d, int64_t, int32_t,     , H1_4, DO_ABD)
+DO_ZZZ_TB(sve2_sabdl_d, int64_t, int32_t, H1_8, H1_4, DO_ABD)
 
 DO_ZZZ_TB(sve2_uaddl_h, uint16_t, uint8_t, H1_2, H1, DO_ADD)
 DO_ZZZ_TB(sve2_uaddl_s, uint32_t, uint16_t, H1_4, H1_2, DO_ADD)
-DO_ZZZ_TB(sve2_uaddl_d, uint64_t, uint32_t,     , H1_4, DO_ADD)
+DO_ZZZ_TB(sve2_uaddl_d, uint64_t, uint32_t, H1_8, H1_4, DO_ADD)
 
 DO_ZZZ_TB(sve2_usubl_h, uint16_t, uint8_t, H1_2, H1, DO_SUB)
 DO_ZZZ_TB(sve2_usubl_s, uint32_t, uint16_t, H1_4, H1_2, DO_SUB)
-DO_ZZZ_TB(sve2_usubl_d, uint64_t, uint32_t,     , H1_4, DO_SUB)
+DO_ZZZ_TB(sve2_usubl_d, uint64_t, uint32_t, H1_8, H1_4, DO_SUB)
 
 DO_ZZZ_TB(sve2_uabdl_h, uint16_t, uint8_t, H1_2, H1, DO_ABD)
 DO_ZZZ_TB(sve2_uabdl_s, uint32_t, uint16_t, H1_4, H1_2, DO_ABD)
-DO_ZZZ_TB(sve2_uabdl_d, uint64_t, uint32_t,     , H1_4, DO_ABD)
+DO_ZZZ_TB(sve2_uabdl_d, uint64_t, uint32_t, H1_8, H1_4, DO_ABD)
 
 DO_ZZZ_TB(sve2_smull_zzz_h, int16_t, int8_t, H1_2, H1, DO_MUL)
 DO_ZZZ_TB(sve2_smull_zzz_s, int32_t, int16_t, H1_4, H1_2, DO_MUL)
-DO_ZZZ_TB(sve2_smull_zzz_d, int64_t, int32_t,     , H1_4, DO_MUL)
+DO_ZZZ_TB(sve2_smull_zzz_d, int64_t, int32_t, H1_8, H1_4, DO_MUL)
 
 DO_ZZZ_TB(sve2_umull_zzz_h, uint16_t, uint8_t, H1_2, H1, DO_MUL)
 DO_ZZZ_TB(sve2_umull_zzz_s, uint32_t, uint16_t, H1_4, H1_2, DO_MUL)
-DO_ZZZ_TB(sve2_umull_zzz_d, uint64_t, uint32_t,     , H1_4, DO_MUL)
+DO_ZZZ_TB(sve2_umull_zzz_d, uint64_t, uint32_t, H1_8, H1_4, DO_MUL)
 
 /* Note that the multiply cannot overflow, but the doubling can. */
 static inline int16_t do_sqdmull_h(int16_t n, int16_t m)
@@ -1222,7 +1107,7 @@ static inline int64_t do_sqdmull_d(int64_t n, int64_t m)
 
 DO_ZZZ_TB(sve2_sqdmull_zzz_h, int16_t, int8_t, H1_2, H1, do_sqdmull_h)
 DO_ZZZ_TB(sve2_sqdmull_zzz_s, int32_t, int16_t, H1_4, H1_2, do_sqdmull_s)
-DO_ZZZ_TB(sve2_sqdmull_zzz_d, int64_t, int32_t,     , H1_4, do_sqdmull_d)
+DO_ZZZ_TB(sve2_sqdmull_zzz_d, int64_t, int32_t, H1_8, H1_4, do_sqdmull_d)
 
 #undef DO_ZZZ_TB
 
@@ -1240,19 +1125,19 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc) \
 
 DO_ZZZ_WTB(sve2_saddw_h, int16_t, int8_t, H1_2, H1, DO_ADD)
 DO_ZZZ_WTB(sve2_saddw_s, int32_t, int16_t, H1_4, H1_2, DO_ADD)
-DO_ZZZ_WTB(sve2_saddw_d, int64_t, int32_t,     , H1_4, DO_ADD)
+DO_ZZZ_WTB(sve2_saddw_d, int64_t, int32_t, H1_8, H1_4, DO_ADD)
 
 DO_ZZZ_WTB(sve2_ssubw_h, int16_t, int8_t, H1_2, H1, DO_SUB)
 DO_ZZZ_WTB(sve2_ssubw_s, int32_t, int16_t, H1_4, H1_2, DO_SUB)
-DO_ZZZ_WTB(sve2_ssubw_d, int64_t, int32_t,     , H1_4, DO_SUB)
+DO_ZZZ_WTB(sve2_ssubw_d, int64_t, int32_t, H1_8, H1_4, DO_SUB)
 
 DO_ZZZ_WTB(sve2_uaddw_h, uint16_t, uint8_t, H1_2, H1, DO_ADD)
 DO_ZZZ_WTB(sve2_uaddw_s, uint32_t, uint16_t, H1_4, H1_2, DO_ADD)
-DO_ZZZ_WTB(sve2_uaddw_d, uint64_t, uint32_t,     , H1_4, DO_ADD)
+DO_ZZZ_WTB(sve2_uaddw_d, uint64_t, uint32_t, H1_8, H1_4, DO_ADD)
 
 DO_ZZZ_WTB(sve2_usubw_h, uint16_t, uint8_t, H1_2, H1, DO_SUB)
 DO_ZZZ_WTB(sve2_usubw_s, uint32_t, uint16_t, H1_4, H1_2, DO_SUB)
-DO_ZZZ_WTB(sve2_usubw_d, uint64_t, uint32_t,     , H1_4, DO_SUB)
+DO_ZZZ_WTB(sve2_usubw_d, uint64_t, uint32_t, H1_8, H1_4, DO_SUB)
 
 #undef DO_ZZZ_WTB
 
@@ -1272,7 +1157,7 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc)          \
 DO_ZZZ_NTB(sve2_eoril_b, uint8_t, H1, DO_EOR)
 DO_ZZZ_NTB(sve2_eoril_h, uint16_t, H1_2, DO_EOR)
 DO_ZZZ_NTB(sve2_eoril_s, uint32_t, H1_4, DO_EOR)
-DO_ZZZ_NTB(sve2_eoril_d, uint64_t,     , DO_EOR)
+DO_ZZZ_NTB(sve2_eoril_d, uint64_t, H1_8, DO_EOR)
 
 #undef DO_ZZZ_NTB
 
@@ -1291,29 +1176,29 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, void *va, uint32_t desc) \
 
 DO_ZZZW_ACC(sve2_sabal_h, int16_t, int8_t, H1_2, H1, DO_ABD)
 DO_ZZZW_ACC(sve2_sabal_s, int32_t, int16_t, H1_4, H1_2, DO_ABD)
-DO_ZZZW_ACC(sve2_sabal_d, int64_t, int32_t,     , H1_4, DO_ABD)
+DO_ZZZW_ACC(sve2_sabal_d, int64_t, int32_t, H1_8, H1_4, DO_ABD)
 
 DO_ZZZW_ACC(sve2_uabal_h, uint16_t, uint8_t, H1_2, H1, DO_ABD)
 DO_ZZZW_ACC(sve2_uabal_s, uint32_t, uint16_t, H1_4, H1_2, DO_ABD)
-DO_ZZZW_ACC(sve2_uabal_d, uint64_t, uint32_t,     , H1_4, DO_ABD)
+DO_ZZZW_ACC(sve2_uabal_d, uint64_t, uint32_t, H1_8, H1_4, DO_ABD)
 
 DO_ZZZW_ACC(sve2_smlal_zzzw_h, int16_t, int8_t, H1_2, H1, DO_MUL)
 DO_ZZZW_ACC(sve2_smlal_zzzw_s, int32_t, int16_t, H1_4, H1_2, DO_MUL)
-DO_ZZZW_ACC(sve2_smlal_zzzw_d, int64_t, int32_t,     , H1_4, DO_MUL)
+DO_ZZZW_ACC(sve2_smlal_zzzw_d, int64_t, int32_t, H1_8, H1_4, DO_MUL)
 
 DO_ZZZW_ACC(sve2_umlal_zzzw_h, uint16_t, uint8_t, H1_2, H1, DO_MUL)
 DO_ZZZW_ACC(sve2_umlal_zzzw_s, uint32_t, uint16_t, H1_4, H1_2, DO_MUL)
-DO_ZZZW_ACC(sve2_umlal_zzzw_d, uint64_t, uint32_t,     , H1_4, DO_MUL)
+DO_ZZZW_ACC(sve2_umlal_zzzw_d, uint64_t, uint32_t, H1_8, H1_4, DO_MUL)
 
 #define DO_NMUL(N, M)  -(N * M)
 
 DO_ZZZW_ACC(sve2_smlsl_zzzw_h, int16_t, int8_t, H1_2, H1, DO_NMUL)
 DO_ZZZW_ACC(sve2_smlsl_zzzw_s, int32_t, int16_t, H1_4, H1_2, DO_NMUL)
-DO_ZZZW_ACC(sve2_smlsl_zzzw_d, int64_t, int32_t,     , H1_4, DO_NMUL)
+DO_ZZZW_ACC(sve2_smlsl_zzzw_d, int64_t, int32_t, H1_8, H1_4, DO_NMUL)
 
 DO_ZZZW_ACC(sve2_umlsl_zzzw_h, uint16_t, uint8_t, H1_2, H1, DO_NMUL)
 DO_ZZZW_ACC(sve2_umlsl_zzzw_s, uint32_t, uint16_t, H1_4, H1_2, DO_NMUL)
-DO_ZZZW_ACC(sve2_umlsl_zzzw_d, uint64_t, uint32_t,     , H1_4, DO_NMUL)
+DO_ZZZW_ACC(sve2_umlsl_zzzw_d, uint64_t, uint32_t, H1_8, H1_4, DO_NMUL)
 
 #undef DO_ZZZW_ACC
 
@@ -1425,14 +1310,14 @@ DO_SQDMLAL(sve2_sqdmlal_zzzw_h, int16_t, int8_t, H1_2, H1,
            do_sqdmull_h, DO_SQADD_H)
 DO_SQDMLAL(sve2_sqdmlal_zzzw_s, int32_t, int16_t, H1_4, H1_2,
            do_sqdmull_s, DO_SQADD_S)
-DO_SQDMLAL(sve2_sqdmlal_zzzw_d, int64_t, int32_t,     , H1_4,
+DO_SQDMLAL(sve2_sqdmlal_zzzw_d, int64_t, int32_t, H1_8, H1_4,
            do_sqdmull_d, do_sqadd_d)
 
 DO_SQDMLAL(sve2_sqdmlsl_zzzw_h, int16_t, int8_t, H1_2, H1,
            do_sqdmull_h, DO_SQSUB_H)
 DO_SQDMLAL(sve2_sqdmlsl_zzzw_s, int32_t, int16_t, H1_4, H1_2,
            do_sqdmull_s, DO_SQSUB_S)
-DO_SQDMLAL(sve2_sqdmlsl_zzzw_d, int64_t, int32_t,     , H1_4,
+DO_SQDMLAL(sve2_sqdmlsl_zzzw_d, int64_t, int32_t, H1_8, H1_4,
            do_sqdmull_d, do_sqsub_d)
 
 #undef DO_SQDMLAL
@@ -1460,7 +1345,7 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, void *va, uint32_t desc) \
 DO_CMLA_FUNC(sve2_cmla_zzzz_b, uint8_t, H1, DO_CMLA)
 DO_CMLA_FUNC(sve2_cmla_zzzz_h, uint16_t, H2, DO_CMLA)
 DO_CMLA_FUNC(sve2_cmla_zzzz_s, uint32_t, H4, DO_CMLA)
-DO_CMLA_FUNC(sve2_cmla_zzzz_d, uint64_t,   , DO_CMLA)
+DO_CMLA_FUNC(sve2_cmla_zzzz_d, uint64_t, H8, DO_CMLA)
 
 #define DO_SQRDMLAH_B(N, M, A, S) \
     do_sqrdmlah_b(N, M, A, S, true)
@@ -1474,7 +1359,7 @@ DO_CMLA_FUNC(sve2_cmla_zzzz_d, uint64_t,   , DO_CMLA)
 DO_CMLA_FUNC(sve2_sqrdcmlah_zzzz_b, int8_t, H1, DO_SQRDMLAH_B)
 DO_CMLA_FUNC(sve2_sqrdcmlah_zzzz_h, int16_t, H2, DO_SQRDMLAH_H)
 DO_CMLA_FUNC(sve2_sqrdcmlah_zzzz_s, int32_t, H4, DO_SQRDMLAH_S)
-DO_CMLA_FUNC(sve2_sqrdcmlah_zzzz_d, int64_t,   , DO_SQRDMLAH_D)
+DO_CMLA_FUNC(sve2_sqrdcmlah_zzzz_d, int64_t, H8, DO_SQRDMLAH_D)
 
 #define DO_CMLA_IDX_FUNC(NAME, TYPE, H, OP) \
 void HELPER(NAME)(void *vd, void *vn, void *vm, void *va, uint32_t desc)    \
@@ -1632,7 +1517,7 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, void *va, uint32_t desc) \
 
 DO_ZZXZ(sve2_sqrdmlah_idx_h, int16_t, H2, DO_SQRDMLAH_H)
 DO_ZZXZ(sve2_sqrdmlah_idx_s, int32_t, H4, DO_SQRDMLAH_S)
-DO_ZZXZ(sve2_sqrdmlah_idx_d, int64_t,   , DO_SQRDMLAH_D)
+DO_ZZXZ(sve2_sqrdmlah_idx_d, int64_t, H8, DO_SQRDMLAH_D)
 
 #define DO_SQRDMLSH_H(N, M, A) \
     ({ uint32_t discard; do_sqrdmlah_h(N, M, A, true, true, &discard); })
@@ -1642,7 +1527,7 @@ DO_ZZXZ(sve2_sqrdmlah_idx_d, int64_t,   , DO_SQRDMLAH_D)
 
 DO_ZZXZ(sve2_sqrdmlsh_idx_h, int16_t, H2, DO_SQRDMLSH_H)
 DO_ZZXZ(sve2_sqrdmlsh_idx_s, int32_t, H4, DO_SQRDMLSH_S)
-DO_ZZXZ(sve2_sqrdmlsh_idx_d, int64_t,   , DO_SQRDMLSH_D)
+DO_ZZXZ(sve2_sqrdmlsh_idx_d, int64_t, H8, DO_SQRDMLSH_D)
 
 #undef DO_ZZXZ
 
@@ -1665,28 +1550,28 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, void *va, uint32_t desc)  \
 #define DO_MLA(N, M, A)  (A + N * M)
 
 DO_ZZXW(sve2_smlal_idx_s, int32_t, int16_t, H1_4, H1_2, DO_MLA)
-DO_ZZXW(sve2_smlal_idx_d, int64_t, int32_t,     , H1_4, DO_MLA)
+DO_ZZXW(sve2_smlal_idx_d, int64_t, int32_t, H1_8, H1_4, DO_MLA)
 DO_ZZXW(sve2_umlal_idx_s, uint32_t, uint16_t, H1_4, H1_2, DO_MLA)
-DO_ZZXW(sve2_umlal_idx_d, uint64_t, uint32_t,     , H1_4, DO_MLA)
+DO_ZZXW(sve2_umlal_idx_d, uint64_t, uint32_t, H1_8, H1_4, DO_MLA)
 
 #define DO_MLS(N, M, A)  (A - N * M)
 
 DO_ZZXW(sve2_smlsl_idx_s, int32_t, int16_t, H1_4, H1_2, DO_MLS)
-DO_ZZXW(sve2_smlsl_idx_d, int64_t, int32_t,     , H1_4, DO_MLS)
+DO_ZZXW(sve2_smlsl_idx_d, int64_t, int32_t, H1_8, H1_4, DO_MLS)
 DO_ZZXW(sve2_umlsl_idx_s, uint32_t, uint16_t, H1_4, H1_2, DO_MLS)
-DO_ZZXW(sve2_umlsl_idx_d, uint64_t, uint32_t,     , H1_4, DO_MLS)
+DO_ZZXW(sve2_umlsl_idx_d, uint64_t, uint32_t, H1_8, H1_4, DO_MLS)
 
 #define DO_SQDMLAL_S(N, M, A)  DO_SQADD_S(A, do_sqdmull_s(N, M))
 #define DO_SQDMLAL_D(N, M, A)  do_sqadd_d(A, do_sqdmull_d(N, M))
 
 DO_ZZXW(sve2_sqdmlal_idx_s, int32_t, int16_t, H1_4, H1_2, DO_SQDMLAL_S)
-DO_ZZXW(sve2_sqdmlal_idx_d, int64_t, int32_t,     , H1_4, DO_SQDMLAL_D)
+DO_ZZXW(sve2_sqdmlal_idx_d, int64_t, int32_t, H1_8, H1_4, DO_SQDMLAL_D)
 
 #define DO_SQDMLSL_S(N, M, A)  DO_SQSUB_S(A, do_sqdmull_s(N, M))
 #define DO_SQDMLSL_D(N, M, A)  do_sqsub_d(A, do_sqdmull_d(N, M))
 
 DO_ZZXW(sve2_sqdmlsl_idx_s, int32_t, int16_t, H1_4, H1_2, DO_SQDMLSL_S)
-DO_ZZXW(sve2_sqdmlsl_idx_d, int64_t, int32_t,     , H1_4, DO_SQDMLSL_D)
+DO_ZZXW(sve2_sqdmlsl_idx_d, int64_t, int32_t, H1_8, H1_4, DO_SQDMLSL_D)
 
 #undef DO_MLA
 #undef DO_MLS
@@ -1708,13 +1593,13 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc)            \
 }
 
 DO_ZZX(sve2_sqdmull_idx_s, int32_t, int16_t, H1_4, H1_2, do_sqdmull_s)
-DO_ZZX(sve2_sqdmull_idx_d, int64_t, int32_t,     , H1_4, do_sqdmull_d)
+DO_ZZX(sve2_sqdmull_idx_d, int64_t, int32_t, H1_8, H1_4, do_sqdmull_d)
 
 DO_ZZX(sve2_smull_idx_s, int32_t, int16_t, H1_4, H1_2, DO_MUL)
-DO_ZZX(sve2_smull_idx_d, int64_t, int32_t,     , H1_4, DO_MUL)
+DO_ZZX(sve2_smull_idx_d, int64_t, int32_t, H1_8, H1_4, DO_MUL)
 
 DO_ZZX(sve2_umull_idx_s, uint32_t, uint16_t, H1_4, H1_2, DO_MUL)
-DO_ZZX(sve2_umull_idx_d, uint64_t, uint32_t,     , H1_4, DO_MUL)
+DO_ZZX(sve2_umull_idx_d, uint64_t, uint32_t, H1_8, H1_4, DO_MUL)
 
 #undef DO_ZZX
 
@@ -1824,12 +1709,12 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc)  \
 DO_CADD(sve2_cadd_b, int8_t, H1, DO_ADD, DO_SUB)
 DO_CADD(sve2_cadd_h, int16_t, H1_2, DO_ADD, DO_SUB)
 DO_CADD(sve2_cadd_s, int32_t, H1_4, DO_ADD, DO_SUB)
-DO_CADD(sve2_cadd_d, int64_t,     , DO_ADD, DO_SUB)
+DO_CADD(sve2_cadd_d, int64_t, H1_8, DO_ADD, DO_SUB)
 
 DO_CADD(sve2_sqcadd_b, int8_t, H1, DO_SQADD_B, DO_SQSUB_B)
 DO_CADD(sve2_sqcadd_h, int16_t, H1_2, DO_SQADD_H, DO_SQSUB_H)
 DO_CADD(sve2_sqcadd_s, int32_t, H1_4, DO_SQADD_S, DO_SQSUB_S)
-DO_CADD(sve2_sqcadd_d, int64_t,     , do_sqadd_d, do_sqsub_d)
+DO_CADD(sve2_sqcadd_d, int64_t, H1_8, do_sqadd_d, do_sqsub_d)
 
 #undef DO_CADD
 
@@ -1847,11 +1732,11 @@ void HELPER(NAME)(void *vd, void *vn, uint32_t desc)           \
 
 DO_ZZI_SHLL(sve2_sshll_h, int16_t, int8_t, H1_2, H1)
 DO_ZZI_SHLL(sve2_sshll_s, int32_t, int16_t, H1_4, H1_2)
-DO_ZZI_SHLL(sve2_sshll_d, int64_t, int32_t,     , H1_4)
+DO_ZZI_SHLL(sve2_sshll_d, int64_t, int32_t, H1_8, H1_4)
 
 DO_ZZI_SHLL(sve2_ushll_h, uint16_t, uint8_t, H1_2, H1)
 DO_ZZI_SHLL(sve2_ushll_s, uint32_t, uint16_t, H1_4, H1_2)
-DO_ZZI_SHLL(sve2_ushll_d, uint64_t, uint32_t,     , H1_4)
+DO_ZZI_SHLL(sve2_ushll_d, uint64_t, uint32_t, H1_8, H1_4)
 
 #undef DO_ZZI_SHLL
 
@@ -2289,7 +2174,7 @@ DO_SHRNB(sve2_shrnb_d, uint64_t, uint32_t, DO_SHR)
 
 DO_SHRNT(sve2_shrnt_h, uint16_t, uint8_t, H1_2, H1, DO_SHR)
 DO_SHRNT(sve2_shrnt_s, uint32_t, uint16_t, H1_4, H1_2, DO_SHR)
-DO_SHRNT(sve2_shrnt_d, uint64_t, uint32_t,     , H1_4, DO_SHR)
+DO_SHRNT(sve2_shrnt_d, uint64_t, uint32_t, H1_8, H1_4, DO_SHR)
 
 DO_SHRNB(sve2_rshrnb_h, uint16_t, uint8_t, do_urshr)
 DO_SHRNB(sve2_rshrnb_s, uint32_t, uint16_t, do_urshr)
@@ -2297,7 +2182,7 @@ DO_SHRNB(sve2_rshrnb_d, uint64_t, uint32_t, do_urshr)
 
 DO_SHRNT(sve2_rshrnt_h, uint16_t, uint8_t, H1_2, H1, do_urshr)
 DO_SHRNT(sve2_rshrnt_s, uint32_t, uint16_t, H1_4, H1_2, do_urshr)
-DO_SHRNT(sve2_rshrnt_d, uint64_t, uint32_t,     , H1_4, do_urshr)
+DO_SHRNT(sve2_rshrnt_d, uint64_t, uint32_t, H1_8, H1_4, do_urshr)
 
 #define DO_SQSHRUN_H(x, sh) do_sat_bhs((int64_t)(x) >> sh, 0, UINT8_MAX)
 #define DO_SQSHRUN_S(x, sh) do_sat_bhs((int64_t)(x) >> sh, 0, UINT16_MAX)
@@ -2310,7 +2195,7 @@ DO_SHRNB(sve2_sqshrunb_d, int64_t, uint32_t, DO_SQSHRUN_D)
 
 DO_SHRNT(sve2_sqshrunt_h, int16_t, uint8_t, H1_2, H1, DO_SQSHRUN_H)
 DO_SHRNT(sve2_sqshrunt_s, int32_t, uint16_t, H1_4, H1_2, DO_SQSHRUN_S)
-DO_SHRNT(sve2_sqshrunt_d, int64_t, uint32_t,     , H1_4, DO_SQSHRUN_D)
+DO_SHRNT(sve2_sqshrunt_d, int64_t, uint32_t, H1_8, H1_4, DO_SQSHRUN_D)
 
 #define DO_SQRSHRUN_H(x, sh) do_sat_bhs(do_srshr(x, sh), 0, UINT8_MAX)
 #define DO_SQRSHRUN_S(x, sh) do_sat_bhs(do_srshr(x, sh), 0, UINT16_MAX)
@@ -2322,7 +2207,7 @@ DO_SHRNB(sve2_sqrshrunb_d, int64_t, uint32_t, DO_SQRSHRUN_D)
 
 DO_SHRNT(sve2_sqrshrunt_h, int16_t, uint8_t, H1_2, H1, DO_SQRSHRUN_H)
 DO_SHRNT(sve2_sqrshrunt_s, int32_t, uint16_t, H1_4, H1_2, DO_SQRSHRUN_S)
-DO_SHRNT(sve2_sqrshrunt_d, int64_t, uint32_t,     , H1_4, DO_SQRSHRUN_D)
+DO_SHRNT(sve2_sqrshrunt_d, int64_t, uint32_t, H1_8, H1_4, DO_SQRSHRUN_D)
 
 #define DO_SQSHRN_H(x, sh) do_sat_bhs(x >> sh, INT8_MIN, INT8_MAX)
 #define DO_SQSHRN_S(x, sh) do_sat_bhs(x >> sh, INT16_MIN, INT16_MAX)
@@ -2334,7 +2219,7 @@ DO_SHRNB(sve2_sqshrnb_d, int64_t, uint32_t, DO_SQSHRN_D)
 
 DO_SHRNT(sve2_sqshrnt_h, int16_t, uint8_t, H1_2, H1, DO_SQSHRN_H)
 DO_SHRNT(sve2_sqshrnt_s, int32_t, uint16_t, H1_4, H1_2, DO_SQSHRN_S)
-DO_SHRNT(sve2_sqshrnt_d, int64_t, uint32_t,     , H1_4, DO_SQSHRN_D)
+DO_SHRNT(sve2_sqshrnt_d, int64_t, uint32_t, H1_8, H1_4, DO_SQSHRN_D)
 
 #define DO_SQRSHRN_H(x, sh) do_sat_bhs(do_srshr(x, sh), INT8_MIN, INT8_MAX)
 #define DO_SQRSHRN_S(x, sh) do_sat_bhs(do_srshr(x, sh), INT16_MIN, INT16_MAX)
@@ -2346,7 +2231,7 @@ DO_SHRNB(sve2_sqrshrnb_d, int64_t, uint32_t, DO_SQRSHRN_D)
 
 DO_SHRNT(sve2_sqrshrnt_h, int16_t, uint8_t, H1_2, H1, DO_SQRSHRN_H)
 DO_SHRNT(sve2_sqrshrnt_s, int32_t, uint16_t, H1_4, H1_2, DO_SQRSHRN_S)
-DO_SHRNT(sve2_sqrshrnt_d, int64_t, uint32_t,     , H1_4, DO_SQRSHRN_D)
+DO_SHRNT(sve2_sqrshrnt_d, int64_t, uint32_t, H1_8, H1_4, DO_SQRSHRN_D)
 
 #define DO_UQSHRN_H(x, sh) MIN(x >> sh, UINT8_MAX)
 #define DO_UQSHRN_S(x, sh) MIN(x >> sh, UINT16_MAX)
@@ -2358,7 +2243,7 @@ DO_SHRNB(sve2_uqshrnb_d, uint64_t, uint32_t, DO_UQSHRN_D)
 
 DO_SHRNT(sve2_uqshrnt_h, uint16_t, uint8_t, H1_2, H1, DO_UQSHRN_H)
 DO_SHRNT(sve2_uqshrnt_s, uint32_t, uint16_t, H1_4, H1_2, DO_UQSHRN_S)
-DO_SHRNT(sve2_uqshrnt_d, uint64_t, uint32_t,     , H1_4, DO_UQSHRN_D)
+DO_SHRNT(sve2_uqshrnt_d, uint64_t, uint32_t, H1_8, H1_4, DO_UQSHRN_D)
 
 #define DO_UQRSHRN_H(x, sh) MIN(do_urshr(x, sh), UINT8_MAX)
 #define DO_UQRSHRN_S(x, sh) MIN(do_urshr(x, sh), UINT16_MAX)
@@ -2370,7 +2255,7 @@ DO_SHRNB(sve2_uqrshrnb_d, uint64_t, uint32_t, DO_UQRSHRN_D)
 
 DO_SHRNT(sve2_uqrshrnt_h, uint16_t, uint8_t, H1_2, H1, DO_UQRSHRN_H)
 DO_SHRNT(sve2_uqrshrnt_s, uint32_t, uint16_t, H1_4, H1_2, DO_UQRSHRN_S)
-DO_SHRNT(sve2_uqrshrnt_d, uint64_t, uint32_t,     , H1_4, DO_UQRSHRN_D)
+DO_SHRNT(sve2_uqrshrnt_d, uint64_t, uint32_t, H1_8, H1_4, DO_UQRSHRN_D)
 
 #undef DO_SHRNB
 #undef DO_SHRNT
@@ -2408,7 +2293,7 @@ DO_BINOPNB(sve2_addhnb_d, uint64_t, uint32_t, 32, DO_ADDHN)
 
 DO_BINOPNT(sve2_addhnt_h, uint16_t, uint8_t, 8, H1_2, H1, DO_ADDHN)
 DO_BINOPNT(sve2_addhnt_s, uint32_t, uint16_t, 16, H1_4, H1_2, DO_ADDHN)
-DO_BINOPNT(sve2_addhnt_d, uint64_t, uint32_t, 32,     , H1_4, DO_ADDHN)
+DO_BINOPNT(sve2_addhnt_d, uint64_t, uint32_t, 32, H1_8, H1_4, DO_ADDHN)
 
 DO_BINOPNB(sve2_raddhnb_h, uint16_t, uint8_t, 8, DO_RADDHN)
 DO_BINOPNB(sve2_raddhnb_s, uint32_t, uint16_t, 16, DO_RADDHN)
@@ -2416,7 +2301,7 @@ DO_BINOPNB(sve2_raddhnb_d, uint64_t, uint32_t, 32, DO_RADDHN)
 
 DO_BINOPNT(sve2_raddhnt_h, uint16_t, uint8_t, 8, H1_2, H1, DO_RADDHN)
 DO_BINOPNT(sve2_raddhnt_s, uint32_t, uint16_t, 16, H1_4, H1_2, DO_RADDHN)
-DO_BINOPNT(sve2_raddhnt_d, uint64_t, uint32_t, 32,     , H1_4, DO_RADDHN)
+DO_BINOPNT(sve2_raddhnt_d, uint64_t, uint32_t, 32, H1_8, H1_4, DO_RADDHN)
 
 DO_BINOPNB(sve2_subhnb_h, uint16_t, uint8_t, 8, DO_SUBHN)
 DO_BINOPNB(sve2_subhnb_s, uint32_t, uint16_t, 16, DO_SUBHN)
@@ -2424,7 +2309,7 @@ DO_BINOPNB(sve2_subhnb_d, uint64_t, uint32_t, 32, DO_SUBHN)
 
 DO_BINOPNT(sve2_subhnt_h, uint16_t, uint8_t, 8, H1_2, H1, DO_SUBHN)
 DO_BINOPNT(sve2_subhnt_s, uint32_t, uint16_t, 16, H1_4, H1_2, DO_SUBHN)
-DO_BINOPNT(sve2_subhnt_d, uint64_t, uint32_t, 32,     , H1_4, DO_SUBHN)
+DO_BINOPNT(sve2_subhnt_d, uint64_t, uint32_t, 32, H1_8, H1_4, DO_SUBHN)
 
 DO_BINOPNB(sve2_rsubhnb_h, uint16_t, uint8_t, 8, DO_RSUBHN)
 DO_BINOPNB(sve2_rsubhnb_s, uint32_t, uint16_t, 16, DO_RSUBHN)
@@ -2432,7 +2317,7 @@ DO_BINOPNB(sve2_rsubhnb_d, uint64_t, uint32_t, 32, DO_RSUBHN)
 
 DO_BINOPNT(sve2_rsubhnt_h, uint16_t, uint8_t, 8, H1_2, H1, DO_RSUBHN)
 DO_BINOPNT(sve2_rsubhnt_s, uint32_t, uint16_t, 16, H1_4, H1_2, DO_RSUBHN)
-DO_BINOPNT(sve2_rsubhnt_d, uint64_t, uint32_t, 32,     , H1_4, DO_RSUBHN)
+DO_BINOPNT(sve2_rsubhnt_d, uint64_t, uint32_t, 32, H1_8, H1_4, DO_RSUBHN)
 
 #undef DO_RSUBHN
 #undef DO_SUBHN
@@ -3040,7 +2925,7 @@ void HELPER(NAME)(void *vd, void *vn, uint64_t val, uint32_t desc) \
 DO_INSR(sve_insr_b, uint8_t, H1)
 DO_INSR(sve_insr_h, uint16_t, H1_2)
 DO_INSR(sve_insr_s, uint32_t, H1_4)
-DO_INSR(sve_insr_d, uint64_t, )
+DO_INSR(sve_insr_d, uint64_t, H1_8)
 
 #undef DO_INSR
 
@@ -3159,7 +3044,7 @@ void HELPER(sve2_tbx_##SUFF)(void *vd, void *vn, void *vm, uint32_t desc) \
 DO_TB(b, uint8_t, H1)
 DO_TB(h, uint16_t, H2)
 DO_TB(s, uint32_t, H4)
-DO_TB(d, uint64_t,   )
+DO_TB(d, uint64_t, H8)
 
 #undef DO_TB
 
@@ -3180,11 +3065,11 @@ void HELPER(NAME)(void *vd, void *vn, uint32_t desc)           \
 
 DO_UNPK(sve_sunpk_h, int16_t, int8_t, H2, H1)
 DO_UNPK(sve_sunpk_s, int32_t, int16_t, H4, H2)
-DO_UNPK(sve_sunpk_d, int64_t, int32_t, , H4)
+DO_UNPK(sve_sunpk_d, int64_t, int32_t, H8, H4)
 
 DO_UNPK(sve_uunpk_h, uint16_t, uint8_t, H2, H1)
 DO_UNPK(sve_uunpk_s, uint32_t, uint16_t, H4, H2)
-DO_UNPK(sve_uunpk_d, uint64_t, uint32_t, , H4)
+DO_UNPK(sve_uunpk_d, uint64_t, uint32_t, H8, H4)
 
 #undef DO_UNPK
 
@@ -3519,7 +3404,7 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc)       \
 DO_ZIP(sve_zip_b, uint8_t, H1)
 DO_ZIP(sve_zip_h, uint16_t, H1_2)
 DO_ZIP(sve_zip_s, uint32_t, H1_4)
-DO_ZIP(sve_zip_d, uint64_t, )
+DO_ZIP(sve_zip_d, uint64_t, H1_8)
 DO_ZIP(sve2_zip_q, Int128, )
 
 #define DO_UZP(NAME, TYPE, H) \
@@ -3548,7 +3433,7 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc)         \
 DO_UZP(sve_uzp_b, uint8_t, H1)
 DO_UZP(sve_uzp_h, uint16_t, H1_2)
 DO_UZP(sve_uzp_s, uint32_t, H1_4)
-DO_UZP(sve_uzp_d, uint64_t, )
+DO_UZP(sve_uzp_d, uint64_t, H1_8)
 DO_UZP(sve2_uzp_q, Int128, )
 
 #define DO_TRN(NAME, TYPE, H) \
@@ -3571,7 +3456,7 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc)         \
 DO_TRN(sve_trn_b, uint8_t, H1)
 DO_TRN(sve_trn_h, uint16_t, H1_2)
 DO_TRN(sve_trn_s, uint32_t, H1_4)
-DO_TRN(sve_trn_d, uint64_t, )
+DO_TRN(sve_trn_d, uint64_t, H1_8)
 DO_TRN(sve2_trn_q, Int128, )
 
 #undef DO_ZIP
@@ -3766,7 +3651,7 @@ uint32_t HELPER(NAME)(void *vd, void *vn, void *vm, void *vg, uint32_t desc) \
 #define DO_CMP_PPZZ_S(NAME, TYPE, OP) \
     DO_CMP_PPZZ(NAME, TYPE, OP, H1_4, 0x1111111111111111ull)
 #define DO_CMP_PPZZ_D(NAME, TYPE, OP) \
-    DO_CMP_PPZZ(NAME, TYPE, OP,     , 0x0101010101010101ull)
+    DO_CMP_PPZZ(NAME, TYPE, OP, H1_8, 0x0101010101010101ull)
 
 DO_CMP_PPZZ_B(sve_cmpeq_ppzz_b, uint8_t,  ==)
 DO_CMP_PPZZ_H(sve_cmpeq_ppzz_h, uint16_t, ==)
@@ -3911,7 +3796,7 @@ uint32_t HELPER(NAME)(void *vd, void *vn, void *vg, uint32_t desc)   \
 #define DO_CMP_PPZI_S(NAME, TYPE, OP) \
     DO_CMP_PPZI(NAME, TYPE, OP, H1_4, 0x1111111111111111ull)
 #define DO_CMP_PPZI_D(NAME, TYPE, OP) \
-    DO_CMP_PPZI(NAME, TYPE, OP,     , 0x0101010101010101ull)
+    DO_CMP_PPZI(NAME, TYPE, OP, H1_8, 0x0101010101010101ull)
 
 DO_CMP_PPZI_B(sve_cmpeq_ppzi_b, uint8_t,  ==)
 DO_CMP_PPZI_H(sve_cmpeq_ppzi_h, uint16_t, ==)
@@ -4331,24 +4216,24 @@ uint64_t HELPER(NAME)(void *vn, void *vg, void *vs, uint32_t desc)    \
 
 DO_REDUCE(sve_faddv_h, float16, H1_2, add, float16_zero)
 DO_REDUCE(sve_faddv_s, float32, H1_4, add, float32_zero)
-DO_REDUCE(sve_faddv_d, float64,     , add, float64_zero)
+DO_REDUCE(sve_faddv_d, float64, H1_8, add, float64_zero)
 
 /* Identity is floatN_default_nan, without the function call.  */
 DO_REDUCE(sve_fminnmv_h, float16, H1_2, minnum, 0x7E00)
 DO_REDUCE(sve_fminnmv_s, float32, H1_4, minnum, 0x7FC00000)
-DO_REDUCE(sve_fminnmv_d, float64,     , minnum, 0x7FF8000000000000ULL)
+DO_REDUCE(sve_fminnmv_d, float64, H1_8, minnum, 0x7FF8000000000000ULL)
 
 DO_REDUCE(sve_fmaxnmv_h, float16, H1_2, maxnum, 0x7E00)
 DO_REDUCE(sve_fmaxnmv_s, float32, H1_4, maxnum, 0x7FC00000)
-DO_REDUCE(sve_fmaxnmv_d, float64,     , maxnum, 0x7FF8000000000000ULL)
+DO_REDUCE(sve_fmaxnmv_d, float64, H1_8, maxnum, 0x7FF8000000000000ULL)
 
 DO_REDUCE(sve_fminv_h, float16, H1_2, min, float16_infinity)
 DO_REDUCE(sve_fminv_s, float32, H1_4, min, float32_infinity)
-DO_REDUCE(sve_fminv_d, float64,     , min, float64_infinity)
+DO_REDUCE(sve_fminv_d, float64, H1_8, min, float64_infinity)
 
 DO_REDUCE(sve_fmaxv_h, float16, H1_2, max, float16_chs(float16_infinity))
 DO_REDUCE(sve_fmaxv_s, float32, H1_4, max, float32_chs(float32_infinity))
-DO_REDUCE(sve_fmaxv_d, float64,     , max, float64_chs(float64_infinity))
+DO_REDUCE(sve_fmaxv_d, float64, H1_8, max, float64_chs(float64_infinity))
 
 #undef DO_REDUCE
 
@@ -4432,35 +4317,35 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, void *vg,       \
 
 DO_ZPZZ_FP(sve_fadd_h, uint16_t, H1_2, float16_add)
 DO_ZPZZ_FP(sve_fadd_s, uint32_t, H1_4, float32_add)
-DO_ZPZZ_FP(sve_fadd_d, uint64_t,     , float64_add)
+DO_ZPZZ_FP(sve_fadd_d, uint64_t, H1_8, float64_add)
 
 DO_ZPZZ_FP(sve_fsub_h, uint16_t, H1_2, float16_sub)
 DO_ZPZZ_FP(sve_fsub_s, uint32_t, H1_4, float32_sub)
-DO_ZPZZ_FP(sve_fsub_d, uint64_t,     , float64_sub)
+DO_ZPZZ_FP(sve_fsub_d, uint64_t, H1_8, float64_sub)
 
 DO_ZPZZ_FP(sve_fmul_h, uint16_t, H1_2, float16_mul)
 DO_ZPZZ_FP(sve_fmul_s, uint32_t, H1_4, float32_mul)
-DO_ZPZZ_FP(sve_fmul_d, uint64_t,     , float64_mul)
+DO_ZPZZ_FP(sve_fmul_d, uint64_t, H1_8, float64_mul)
 
 DO_ZPZZ_FP(sve_fdiv_h, uint16_t, H1_2, float16_div)
 DO_ZPZZ_FP(sve_fdiv_s, uint32_t, H1_4, float32_div)
-DO_ZPZZ_FP(sve_fdiv_d, uint64_t,     , float64_div)
+DO_ZPZZ_FP(sve_fdiv_d, uint64_t, H1_8, float64_div)
 
 DO_ZPZZ_FP(sve_fmin_h, uint16_t, H1_2, float16_min)
 DO_ZPZZ_FP(sve_fmin_s, uint32_t, H1_4, float32_min)
-DO_ZPZZ_FP(sve_fmin_d, uint64_t,     , float64_min)
+DO_ZPZZ_FP(sve_fmin_d, uint64_t, H1_8, float64_min)
 
 DO_ZPZZ_FP(sve_fmax_h, uint16_t, H1_2, float16_max)
 DO_ZPZZ_FP(sve_fmax_s, uint32_t, H1_4, float32_max)
-DO_ZPZZ_FP(sve_fmax_d, uint64_t,     , float64_max)
+DO_ZPZZ_FP(sve_fmax_d, uint64_t, H1_8, float64_max)
 
 DO_ZPZZ_FP(sve_fminnum_h, uint16_t, H1_2, float16_minnum)
 DO_ZPZZ_FP(sve_fminnum_s, uint32_t, H1_4, float32_minnum)
-DO_ZPZZ_FP(sve_fminnum_d, uint64_t,     , float64_minnum)
+DO_ZPZZ_FP(sve_fminnum_d, uint64_t, H1_8, float64_minnum)
 
 DO_ZPZZ_FP(sve_fmaxnum_h, uint16_t, H1_2, float16_maxnum)
 DO_ZPZZ_FP(sve_fmaxnum_s, uint32_t, H1_4, float32_maxnum)
-DO_ZPZZ_FP(sve_fmaxnum_d, uint64_t,     , float64_maxnum)
+DO_ZPZZ_FP(sve_fmaxnum_d, uint64_t, H1_8, float64_maxnum)
 
 static inline float16 abd_h(float16 a, float16 b, float_status *s)
 {
@@ -4479,7 +4364,7 @@ static inline float64 abd_d(float64 a, float64 b, float_status *s)
 
 DO_ZPZZ_FP(sve_fabd_h, uint16_t, H1_2, abd_h)
 DO_ZPZZ_FP(sve_fabd_s, uint32_t, H1_4, abd_s)
-DO_ZPZZ_FP(sve_fabd_d, uint64_t,     , abd_d)
+DO_ZPZZ_FP(sve_fabd_d, uint64_t, H1_8, abd_d)
 
 static inline float64 scalbn_d(float64 a, int64_t b, float_status *s)
 {
@@ -4489,11 +4374,11 @@ static inline float64 scalbn_d(float64 a, int64_t b, float_status *s)
 
 DO_ZPZZ_FP(sve_fscalbn_h, int16_t, H1_2, float16_scalbn)
 DO_ZPZZ_FP(sve_fscalbn_s, int32_t, H1_4, float32_scalbn)
-DO_ZPZZ_FP(sve_fscalbn_d, int64_t,     , scalbn_d)
+DO_ZPZZ_FP(sve_fscalbn_d, int64_t, H1_8, scalbn_d)
 
 DO_ZPZZ_FP(sve_fmulx_h, uint16_t, H1_2, helper_advsimd_mulxh)
 DO_ZPZZ_FP(sve_fmulx_s, uint32_t, H1_4, helper_vfp_mulxs)
-DO_ZPZZ_FP(sve_fmulx_d, uint64_t,     , helper_vfp_mulxd)
+DO_ZPZZ_FP(sve_fmulx_d, uint64_t, H1_8, helper_vfp_mulxd)
 
 #undef DO_ZPZZ_FP
 
@@ -4521,15 +4406,15 @@ void HELPER(NAME)(void *vd, void *vn, void *vg, uint64_t scalar,  \
 
 DO_ZPZS_FP(sve_fadds_h, float16, H1_2, float16_add)
 DO_ZPZS_FP(sve_fadds_s, float32, H1_4, float32_add)
-DO_ZPZS_FP(sve_fadds_d, float64,     , float64_add)
+DO_ZPZS_FP(sve_fadds_d, float64, H1_8, float64_add)
 
 DO_ZPZS_FP(sve_fsubs_h, float16, H1_2, float16_sub)
 DO_ZPZS_FP(sve_fsubs_s, float32, H1_4, float32_sub)
-DO_ZPZS_FP(sve_fsubs_d, float64,     , float64_sub)
+DO_ZPZS_FP(sve_fsubs_d, float64, H1_8, float64_sub)
 
 DO_ZPZS_FP(sve_fmuls_h, float16, H1_2, float16_mul)
 DO_ZPZS_FP(sve_fmuls_s, float32, H1_4, float32_mul)
-DO_ZPZS_FP(sve_fmuls_d, float64,     , float64_mul)
+DO_ZPZS_FP(sve_fmuls_d, float64, H1_8, float64_mul)
 
 static inline float16 subr_h(float16 a, float16 b, float_status *s)
 {
@@ -4548,23 +4433,23 @@ static inline float64 subr_d(float64 a, float64 b, float_status *s)
 
 DO_ZPZS_FP(sve_fsubrs_h, float16, H1_2, subr_h)
 DO_ZPZS_FP(sve_fsubrs_s, float32, H1_4, subr_s)
-DO_ZPZS_FP(sve_fsubrs_d, float64,     , subr_d)
+DO_ZPZS_FP(sve_fsubrs_d, float64, H1_8, subr_d)
 
 DO_ZPZS_FP(sve_fmaxnms_h, float16, H1_2, float16_maxnum)
 DO_ZPZS_FP(sve_fmaxnms_s, float32, H1_4, float32_maxnum)
-DO_ZPZS_FP(sve_fmaxnms_d, float64,     , float64_maxnum)
+DO_ZPZS_FP(sve_fmaxnms_d, float64, H1_8, float64_maxnum)
 
 DO_ZPZS_FP(sve_fminnms_h, float16, H1_2, float16_minnum)
 DO_ZPZS_FP(sve_fminnms_s, float32, H1_4, float32_minnum)
-DO_ZPZS_FP(sve_fminnms_d, float64,     , float64_minnum)
+DO_ZPZS_FP(sve_fminnms_d, float64, H1_8, float64_minnum)
 
 DO_ZPZS_FP(sve_fmaxs_h, float16, H1_2, float16_max)
 DO_ZPZS_FP(sve_fmaxs_s, float32, H1_4, float32_max)
-DO_ZPZS_FP(sve_fmaxs_d, float64,     , float64_max)
+DO_ZPZS_FP(sve_fmaxs_d, float64, H1_8, float64_max)
 
 DO_ZPZS_FP(sve_fmins_h, float16, H1_2, float16_min)
 DO_ZPZS_FP(sve_fmins_s, float32, H1_4, float32_min)
-DO_ZPZS_FP(sve_fmins_d, float64,     , float64_min)
+DO_ZPZS_FP(sve_fmins_d, float64, H1_8, float64_min)
 
 /* Fully general two-operand expander, controlled by a predicate,
  * With the extra float_status parameter.
@@ -4709,58 +4594,58 @@ static inline uint64_t vfp_float64_to_uint64_rtz(float64 f, float_status *s)
 DO_ZPZ_FP(sve_fcvt_sh, uint32_t, H1_4, sve_f32_to_f16)
 DO_ZPZ_FP(sve_fcvt_hs, uint32_t, H1_4, sve_f16_to_f32)
 DO_ZPZ_FP(sve_bfcvt,   uint32_t, H1_4, float32_to_bfloat16)
-DO_ZPZ_FP(sve_fcvt_dh, uint64_t,     , sve_f64_to_f16)
-DO_ZPZ_FP(sve_fcvt_hd, uint64_t,     , sve_f16_to_f64)
-DO_ZPZ_FP(sve_fcvt_ds, uint64_t,     , float64_to_float32)
-DO_ZPZ_FP(sve_fcvt_sd, uint64_t,     , float32_to_float64)
+DO_ZPZ_FP(sve_fcvt_dh, uint64_t, H1_8, sve_f64_to_f16)
+DO_ZPZ_FP(sve_fcvt_hd, uint64_t, H1_8, sve_f16_to_f64)
+DO_ZPZ_FP(sve_fcvt_ds, uint64_t, H1_8, float64_to_float32)
+DO_ZPZ_FP(sve_fcvt_sd, uint64_t, H1_8, float32_to_float64)
 
 DO_ZPZ_FP(sve_fcvtzs_hh, uint16_t, H1_2, vfp_float16_to_int16_rtz)
 DO_ZPZ_FP(sve_fcvtzs_hs, uint32_t, H1_4, helper_vfp_tosizh)
 DO_ZPZ_FP(sve_fcvtzs_ss, uint32_t, H1_4, helper_vfp_tosizs)
-DO_ZPZ_FP(sve_fcvtzs_hd, uint64_t,     , vfp_float16_to_int64_rtz)
-DO_ZPZ_FP(sve_fcvtzs_sd, uint64_t,     , vfp_float32_to_int64_rtz)
-DO_ZPZ_FP(sve_fcvtzs_ds, uint64_t,     , helper_vfp_tosizd)
-DO_ZPZ_FP(sve_fcvtzs_dd, uint64_t,     , vfp_float64_to_int64_rtz)
+DO_ZPZ_FP(sve_fcvtzs_hd, uint64_t, H1_8, vfp_float16_to_int64_rtz)
+DO_ZPZ_FP(sve_fcvtzs_sd, uint64_t, H1_8, vfp_float32_to_int64_rtz)
+DO_ZPZ_FP(sve_fcvtzs_ds, uint64_t, H1_8, helper_vfp_tosizd)
+DO_ZPZ_FP(sve_fcvtzs_dd, uint64_t, H1_8, vfp_float64_to_int64_rtz)
 
 DO_ZPZ_FP(sve_fcvtzu_hh, uint16_t, H1_2, vfp_float16_to_uint16_rtz)
 DO_ZPZ_FP(sve_fcvtzu_hs, uint32_t, H1_4, helper_vfp_touizh)
 DO_ZPZ_FP(sve_fcvtzu_ss, uint32_t, H1_4, helper_vfp_touizs)
-DO_ZPZ_FP(sve_fcvtzu_hd, uint64_t,     , vfp_float16_to_uint64_rtz)
-DO_ZPZ_FP(sve_fcvtzu_sd, uint64_t,     , vfp_float32_to_uint64_rtz)
-DO_ZPZ_FP(sve_fcvtzu_ds, uint64_t,     , helper_vfp_touizd)
-DO_ZPZ_FP(sve_fcvtzu_dd, uint64_t,     , vfp_float64_to_uint64_rtz)
+DO_ZPZ_FP(sve_fcvtzu_hd, uint64_t, H1_8, vfp_float16_to_uint64_rtz)
+DO_ZPZ_FP(sve_fcvtzu_sd, uint64_t, H1_8, vfp_float32_to_uint64_rtz)
+DO_ZPZ_FP(sve_fcvtzu_ds, uint64_t, H1_8, helper_vfp_touizd)
+DO_ZPZ_FP(sve_fcvtzu_dd, uint64_t, H1_8, vfp_float64_to_uint64_rtz)
 
 DO_ZPZ_FP(sve_frint_h, uint16_t, H1_2, helper_advsimd_rinth)
 DO_ZPZ_FP(sve_frint_s, uint32_t, H1_4, helper_rints)
-DO_ZPZ_FP(sve_frint_d, uint64_t,     , helper_rintd)
+DO_ZPZ_FP(sve_frint_d, uint64_t, H1_8, helper_rintd)
 
 DO_ZPZ_FP(sve_frintx_h, uint16_t, H1_2, float16_round_to_int)
 DO_ZPZ_FP(sve_frintx_s, uint32_t, H1_4, float32_round_to_int)
-DO_ZPZ_FP(sve_frintx_d, uint64_t,     , float64_round_to_int)
+DO_ZPZ_FP(sve_frintx_d, uint64_t, H1_8, float64_round_to_int)
 
 DO_ZPZ_FP(sve_frecpx_h, uint16_t, H1_2, helper_frecpx_f16)
 DO_ZPZ_FP(sve_frecpx_s, uint32_t, H1_4, helper_frecpx_f32)
-DO_ZPZ_FP(sve_frecpx_d, uint64_t,     , helper_frecpx_f64)
+DO_ZPZ_FP(sve_frecpx_d, uint64_t, H1_8, helper_frecpx_f64)
 
 DO_ZPZ_FP(sve_fsqrt_h, uint16_t, H1_2, float16_sqrt)
 DO_ZPZ_FP(sve_fsqrt_s, uint32_t, H1_4, float32_sqrt)
-DO_ZPZ_FP(sve_fsqrt_d, uint64_t,     , float64_sqrt)
+DO_ZPZ_FP(sve_fsqrt_d, uint64_t, H1_8, float64_sqrt)
 
 DO_ZPZ_FP(sve_scvt_hh, uint16_t, H1_2, int16_to_float16)
 DO_ZPZ_FP(sve_scvt_sh, uint32_t, H1_4, int32_to_float16)
 DO_ZPZ_FP(sve_scvt_ss, uint32_t, H1_4, int32_to_float32)
-DO_ZPZ_FP(sve_scvt_sd, uint64_t,     , int32_to_float64)
-DO_ZPZ_FP(sve_scvt_dh, uint64_t,     , int64_to_float16)
-DO_ZPZ_FP(sve_scvt_ds, uint64_t,     , int64_to_float32)
-DO_ZPZ_FP(sve_scvt_dd, uint64_t,     , int64_to_float64)
+DO_ZPZ_FP(sve_scvt_sd, uint64_t, H1_8, int32_to_float64)
+DO_ZPZ_FP(sve_scvt_dh, uint64_t, H1_8, int64_to_float16)
+DO_ZPZ_FP(sve_scvt_ds, uint64_t, H1_8, int64_to_float32)
+DO_ZPZ_FP(sve_scvt_dd, uint64_t, H1_8, int64_to_float64)
 
 DO_ZPZ_FP(sve_ucvt_hh, uint16_t, H1_2, uint16_to_float16)
 DO_ZPZ_FP(sve_ucvt_sh, uint32_t, H1_4, uint32_to_float16)
 DO_ZPZ_FP(sve_ucvt_ss, uint32_t, H1_4, uint32_to_float32)
-DO_ZPZ_FP(sve_ucvt_sd, uint64_t,     , uint32_to_float64)
-DO_ZPZ_FP(sve_ucvt_dh, uint64_t,     , uint64_to_float16)
-DO_ZPZ_FP(sve_ucvt_ds, uint64_t,     , uint64_to_float32)
-DO_ZPZ_FP(sve_ucvt_dd, uint64_t,     , uint64_to_float64)
+DO_ZPZ_FP(sve_ucvt_sd, uint64_t, H1_8, uint32_to_float64)
+DO_ZPZ_FP(sve_ucvt_dh, uint64_t, H1_8, uint64_to_float16)
+DO_ZPZ_FP(sve_ucvt_ds, uint64_t, H1_8, uint64_to_float32)
+DO_ZPZ_FP(sve_ucvt_dd, uint64_t, H1_8, uint64_to_float64)
 
 static int16_t do_float16_logb_as_int(float16 a, float_status *s)
 {
@@ -4848,7 +4733,7 @@ static int64_t do_float64_logb_as_int(float64 a, float_status *s)
 
 DO_ZPZ_FP(flogb_h, float16, H1_2, do_float16_logb_as_int)
 DO_ZPZ_FP(flogb_s, float32, H1_4, do_float32_logb_as_int)
-DO_ZPZ_FP(flogb_d, float64,     , do_float64_logb_as_int)
+DO_ZPZ_FP(flogb_d, float64, H1_8, do_float64_logb_as_int)
 
 #undef DO_ZPZ_FP
 
@@ -5026,7 +4911,7 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, void *vg,               \
 #define DO_FPCMP_PPZZ_S(NAME, OP) \
     DO_FPCMP_PPZZ(NAME##_s, float32, H1_4, OP)
 #define DO_FPCMP_PPZZ_D(NAME, OP) \
-    DO_FPCMP_PPZZ(NAME##_d, float64,     , OP)
+    DO_FPCMP_PPZZ(NAME##_d, float64, H1_8, OP)
 
 #define DO_FPCMP_PPZZ_ALL(NAME, OP) \
     DO_FPCMP_PPZZ_H(NAME, OP)   \
@@ -5087,7 +4972,7 @@ void HELPER(NAME)(void *vd, void *vn, void *vg,            \
 #define DO_FPCMP_PPZ0_S(NAME, OP) \
     DO_FPCMP_PPZ0(NAME##_s, float32, H1_4, OP)
 #define DO_FPCMP_PPZ0_D(NAME, OP) \
-    DO_FPCMP_PPZ0(NAME##_d, float64,     , OP)
+    DO_FPCMP_PPZ0(NAME##_d, float64, H1_8, OP)
 
 #define DO_FPCMP_PPZ0_ALL(NAME, OP) \
     DO_FPCMP_PPZ0_H(NAME, OP)   \
@@ -5467,8 +5352,8 @@ DO_LD_PRIM_1(ld1bhu, H1_2, uint16_t, uint8_t)
 DO_LD_PRIM_1(ld1bhs, H1_2, uint16_t,  int8_t)
 DO_LD_PRIM_1(ld1bsu, H1_4, uint32_t, uint8_t)
 DO_LD_PRIM_1(ld1bss, H1_4, uint32_t,  int8_t)
-DO_LD_PRIM_1(ld1bdu,     , uint64_t, uint8_t)
-DO_LD_PRIM_1(ld1bds,     , uint64_t,  int8_t)
+DO_LD_PRIM_1(ld1bdu, H1_8, uint64_t, uint8_t)
+DO_LD_PRIM_1(ld1bds, H1_8, uint64_t,  int8_t)
 
 #define DO_ST_PRIM_1(NAME, H, TE, TM)                   \
     DO_ST_HOST(st1##NAME, H, TE, TM, stb_p)             \
@@ -5477,7 +5362,7 @@ DO_LD_PRIM_1(ld1bds,     , uint64_t,  int8_t)
 DO_ST_PRIM_1(bb,   H1,  uint8_t, uint8_t)
 DO_ST_PRIM_1(bh, H1_2, uint16_t, uint8_t)
 DO_ST_PRIM_1(bs, H1_4, uint32_t, uint8_t)
-DO_ST_PRIM_1(bd,     , uint64_t, uint8_t)
+DO_ST_PRIM_1(bd, H1_8, uint64_t, uint8_t)
 
 #define DO_LD_PRIM_2(NAME, H, TE, TM, LD) \
     DO_LD_HOST(ld1##NAME##_be, H, TE, TM, LD##_be_p)    \
@@ -5494,22 +5379,22 @@ DO_ST_PRIM_1(bd,     , uint64_t, uint8_t)
 DO_LD_PRIM_2(hh,  H1_2, uint16_t, uint16_t, lduw)
 DO_LD_PRIM_2(hsu, H1_4, uint32_t, uint16_t, lduw)
 DO_LD_PRIM_2(hss, H1_4, uint32_t,  int16_t, lduw)
-DO_LD_PRIM_2(hdu,     , uint64_t, uint16_t, lduw)
-DO_LD_PRIM_2(hds,     , uint64_t,  int16_t, lduw)
+DO_LD_PRIM_2(hdu, H1_8, uint64_t, uint16_t, lduw)
+DO_LD_PRIM_2(hds, H1_8, uint64_t,  int16_t, lduw)
 
 DO_ST_PRIM_2(hh, H1_2, uint16_t, uint16_t, stw)
 DO_ST_PRIM_2(hs, H1_4, uint32_t, uint16_t, stw)
-DO_ST_PRIM_2(hd,     , uint64_t, uint16_t, stw)
+DO_ST_PRIM_2(hd, H1_8, uint64_t, uint16_t, stw)
 
 DO_LD_PRIM_2(ss,  H1_4, uint32_t, uint32_t, ldl)
-DO_LD_PRIM_2(sdu,     , uint64_t, uint32_t, ldl)
-DO_LD_PRIM_2(sds,     , uint64_t,  int32_t, ldl)
+DO_LD_PRIM_2(sdu, H1_8, uint64_t, uint32_t, ldl)
+DO_LD_PRIM_2(sds, H1_8, uint64_t,  int32_t, ldl)
 
 DO_ST_PRIM_2(ss, H1_4, uint32_t, uint32_t, stl)
-DO_ST_PRIM_2(sd,     , uint64_t, uint32_t, stl)
+DO_ST_PRIM_2(sd, H1_8, uint64_t, uint32_t, stl)
 
-DO_LD_PRIM_2(dd,     , uint64_t, uint64_t, ldq)
-DO_ST_PRIM_2(dd,     , uint64_t, uint64_t, stq)
+DO_LD_PRIM_2(dd, H1_8, uint64_t, uint64_t, ldq)
+DO_ST_PRIM_2(dd, H1_8, uint64_t, uint64_t, stq)
 
 #undef DO_LD_TLB
 #undef DO_ST_TLB
@@ -7743,7 +7628,7 @@ void HELPER(NAME)(void *vd, void *vn, void *vg, void *status, uint32_t desc)  \
 
 DO_FCVTNT(sve_bfcvtnt,    uint32_t, uint16_t, H1_4, H1_2, float32_to_bfloat16)
 DO_FCVTNT(sve2_fcvtnt_sh, uint32_t, uint16_t, H1_4, H1_2, sve_f32_to_f16)
-DO_FCVTNT(sve2_fcvtnt_ds, uint64_t, uint32_t,     , H1_4, float64_to_float32)
+DO_FCVTNT(sve2_fcvtnt_ds, uint64_t, uint32_t, H1_8, H1_4, float64_to_float32)
 
 #define DO_FCVTLT(NAME, TYPEW, TYPEN, HW, HN, OP)                             \
 void HELPER(NAME)(void *vd, void *vn, void *vg, void *status, uint32_t desc)  \
@@ -7763,7 +7648,7 @@ void HELPER(NAME)(void *vd, void *vn, void *vg, void *status, uint32_t desc)  \
 }
 
 DO_FCVTLT(sve2_fcvtlt_hs, uint32_t, uint16_t, H1_4, H1_2, sve_f16_to_f32)
-DO_FCVTLT(sve2_fcvtlt_sd, uint64_t, uint32_t,     , H1_4, float32_to_float64)
+DO_FCVTLT(sve2_fcvtlt_sd, uint64_t, uint32_t, H1_8, H1_4, float32_to_float64)
 
 #undef DO_FCVTLT
 #undef DO_FCVTNT

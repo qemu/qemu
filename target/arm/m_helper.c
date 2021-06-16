@@ -378,7 +378,7 @@ void HELPER(v7m_preserve_fp_state)(CPUARMState *env)
             uint32_t shi = extract64(dn, 32, 32);
 
             if (i >= 16) {
-                faddr += 8; /* skip the slot for the FPSCR */
+                faddr += 8; /* skip the slot for the FPSCR/VPR */
             }
             stacked_ok = stacked_ok &&
                 v7m_stack_write(cpu, faddr, slo, mmu_idx, STACK_LAZYFP) &&
@@ -388,6 +388,11 @@ void HELPER(v7m_preserve_fp_state)(CPUARMState *env)
         stacked_ok = stacked_ok &&
             v7m_stack_write(cpu, fpcar + 0x40,
                             vfp_get_fpscr(env), mmu_idx, STACK_LAZYFP);
+        if (cpu_isar_feature(aa32_mve, cpu)) {
+            stacked_ok = stacked_ok &&
+                v7m_stack_write(cpu, fpcar + 0x44,
+                                env->v7m.vpr, mmu_idx, STACK_LAZYFP);
+        }
     }
 
     /*
@@ -410,16 +415,19 @@ void HELPER(v7m_preserve_fp_state)(CPUARMState *env)
     env->v7m.fpccr[is_secure] &= ~R_V7M_FPCCR_LSPACT_MASK;
 
     if (ts) {
-        /* Clear s0 to s31 and the FPSCR */
+        /* Clear s0 to s31 and the FPSCR and VPR */
         int i;
 
         for (i = 0; i < 32; i += 2) {
             *aa32_vfp_dreg(env, i / 2) = 0;
         }
         vfp_set_fpscr(env, 0);
+        if (cpu_isar_feature(aa32_mve, cpu)) {
+            env->v7m.vpr = 0;
+        }
     }
     /*
-     * Otherwise s0 to s15 and FPSCR are UNKNOWN; we choose to leave them
+     * Otherwise s0 to s15, FPSCR and VPR are UNKNOWN; we choose to leave them
      * unchanged.
      */
 }
@@ -1044,6 +1052,7 @@ static void v7m_update_fpccr(CPUARMState *env, uint32_t frameptr,
 void HELPER(v7m_vlstm)(CPUARMState *env, uint32_t fptr)
 {
     /* fptr is the value of Rn, the frame pointer we store the FP regs to */
+    ARMCPU *cpu = env_archcpu(env);
     bool s = env->v7m.fpccr[M_REG_S] & R_V7M_FPCCR_S_MASK;
     bool lspact = env->v7m.fpccr[s] & R_V7M_FPCCR_LSPACT_MASK;
     uintptr_t ra = GETPC();
@@ -1092,9 +1101,12 @@ void HELPER(v7m_vlstm)(CPUARMState *env, uint32_t fptr)
             cpu_stl_data_ra(env, faddr + 4, shi, ra);
         }
         cpu_stl_data_ra(env, fptr + 0x40, vfp_get_fpscr(env), ra);
+        if (cpu_isar_feature(aa32_mve, cpu)) {
+            cpu_stl_data_ra(env, fptr + 0x44, env->v7m.vpr, ra);
+        }
 
         /*
-         * If TS is 0 then s0 to s15 and FPSCR are UNKNOWN; we choose to
+         * If TS is 0 then s0 to s15, FPSCR and VPR are UNKNOWN; we choose to
          * leave them unchanged, matching our choice in v7m_preserve_fp_state.
          */
         if (ts) {
@@ -1102,6 +1114,9 @@ void HELPER(v7m_vlstm)(CPUARMState *env, uint32_t fptr)
                 *aa32_vfp_dreg(env, i / 2) = 0;
             }
             vfp_set_fpscr(env, 0);
+            if (cpu_isar_feature(aa32_mve, cpu)) {
+                env->v7m.vpr = 0;
+            }
         }
     } else {
         v7m_update_fpccr(env, fptr, false);
@@ -1112,6 +1127,7 @@ void HELPER(v7m_vlstm)(CPUARMState *env, uint32_t fptr)
 
 void HELPER(v7m_vlldm)(CPUARMState *env, uint32_t fptr)
 {
+    ARMCPU *cpu = env_archcpu(env);
     uintptr_t ra = GETPC();
 
     /* fptr is the value of Rn, the frame pointer we load the FP regs from */
@@ -1144,7 +1160,7 @@ void HELPER(v7m_vlldm)(CPUARMState *env, uint32_t fptr)
             uint32_t faddr = fptr + 4 * i;
 
             if (i >= 16) {
-                faddr += 8; /* skip the slot for the FPSCR */
+                faddr += 8; /* skip the slot for the FPSCR and VPR */
             }
 
             slo = cpu_ldl_data_ra(env, faddr, ra);
@@ -1155,6 +1171,9 @@ void HELPER(v7m_vlldm)(CPUARMState *env, uint32_t fptr)
         }
         fpscr = cpu_ldl_data_ra(env, fptr + 0x40, ra);
         vfp_set_fpscr(env, fpscr);
+        if (cpu_isar_feature(aa32_mve, cpu)) {
+            env->v7m.vpr = cpu_ldl_data_ra(env, fptr + 0x44, ra);
+        }
     }
 
     env->v7m.control[M_REG_S] |= R_V7M_CONTROL_FPCA_MASK;
@@ -1298,7 +1317,7 @@ static bool v7m_push_stack(ARMCPU *cpu)
                     uint32_t shi = extract64(dn, 32, 32);
 
                     if (i >= 16) {
-                        faddr += 8; /* skip the slot for the FPSCR */
+                        faddr += 8; /* skip the slot for the FPSCR and VPR */
                     }
                     stacked_ok = stacked_ok &&
                         v7m_stack_write(cpu, faddr, slo,
@@ -1309,11 +1328,19 @@ static bool v7m_push_stack(ARMCPU *cpu)
                 stacked_ok = stacked_ok &&
                     v7m_stack_write(cpu, frameptr + 0x60,
                                     vfp_get_fpscr(env), mmu_idx, STACK_NORMAL);
+                if (cpu_isar_feature(aa32_mve, cpu)) {
+                    stacked_ok = stacked_ok &&
+                        v7m_stack_write(cpu, frameptr + 0x64,
+                                        env->v7m.vpr, mmu_idx, STACK_NORMAL);
+                }
                 if (cpacr_pass) {
                     for (i = 0; i < ((framesize == 0xa8) ? 32 : 16); i += 2) {
                         *aa32_vfp_dreg(env, i / 2) = 0;
                     }
                     vfp_set_fpscr(env, 0);
+                    if (cpu_isar_feature(aa32_mve, cpu)) {
+                        env->v7m.vpr = 0;
+                    }
                 }
             } else {
                 /* Lazy stacking enabled, save necessary info to stack later */
@@ -1536,13 +1563,16 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
                     v7m_exception_taken(cpu, excret, true, false);
                 }
             }
-            /* Clear s0..s15 and FPSCR; TODO also VPR when MVE is implemented */
+            /* Clear s0..s15, FPSCR and VPR */
             int i;
 
             for (i = 0; i < 16; i += 2) {
                 *aa32_vfp_dreg(env, i / 2) = 0;
             }
             vfp_set_fpscr(env, 0);
+            if (cpu_isar_feature(aa32_mve, cpu)) {
+                env->v7m.vpr = 0;
+            }
         }
     }
 
@@ -1771,7 +1801,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
                     uint32_t faddr = frameptr + 0x20 + 4 * i;
 
                     if (i >= 16) {
-                        faddr += 8; /* Skip the slot for the FPSCR */
+                        faddr += 8; /* Skip the slot for the FPSCR and VPR */
                     }
 
                     pop_ok = pop_ok &&
@@ -1790,6 +1820,11 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
                 if (pop_ok) {
                     vfp_set_fpscr(env, fpscr);
                 }
+                if (cpu_isar_feature(aa32_mve, cpu)) {
+                    pop_ok = pop_ok &&
+                        v7m_stack_read(cpu, &env->v7m.vpr,
+                                       frameptr + 0x64, mmu_idx);
+                }
                 if (!pop_ok) {
                     /*
                      * These regs are 0 if security extension present;
@@ -1799,6 +1834,9 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
                         *aa32_vfp_dreg(env, i / 2) = 0;
                     }
                     vfp_set_fpscr(env, 0);
+                    if (cpu_isar_feature(aa32_mve, cpu)) {
+                        env->v7m.vpr = 0;
+                    }
                 }
             }
         }

@@ -21,6 +21,15 @@ typedef struct DisasContext {
     /* Thumb-2 conditional execution bits.  */
     int condexec_mask;
     int condexec_cond;
+    /* M-profile ECI/ICI exception-continuable instruction state */
+    int eci;
+    /*
+     * trans_ functions for insns which are continuable should set this true
+     * after decode (ie after any UNDEF checks)
+     */
+    bool eci_handled;
+    /* TCG op to rewind to if this turns out to be an invalid ECI state */
+    TCGOp *insn_eci_rewind;
     int thumb;
     int sctlr_b;
     MemOp be_data;
