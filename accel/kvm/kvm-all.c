@@ -167,14 +167,16 @@ static hwaddr kvm_max_slot_size = ~0;
 ******************************************************************************/
 
 enum recording_state {
-    PRE_RECORDING, 
-    RECORDING, 
-    POST_RECORDING
+    PRE_RECORDING, /* initial state */
+    RECORDING, /* when the device driver is configured */
+    UPDATING, /* updates the state after the first interrupt */
+    POST_RECORDING /* end state */
 };
 enum recording_state recording_state = PRE_RECORDING;
 struct kvm_access_log kvm_access_log;
 
 static void reload_saved_memory_chunks(void);
+static void update_saved_memory_chunks(void);
 
 MemoryRegion *fx_mr = NULL;
 int fx_irq_line = -1;
@@ -189,6 +191,7 @@ struct protected_memory_chunk {
 };
 struct saved_memory_chunk {
     bool inject_before_interrupt;
+    bool access_log; /* chunks deriving from access log */
     void *hva;
     hwaddr size;
     void *saved;
@@ -1465,8 +1468,16 @@ int kvm_set_irq(KVMState *s, int irq, int level)
 {
     struct kvm_irq_level event;
     int ret;
+
+    /* These variables are needed only because of the way this
+        function is called, twice with the same values */
+
+    /* Cleared is true is KVM_CLEAR_ACCESS_LOG was called */
     static bool cleared = false;
-    static bool reload = false; 
+    /* Need update of saved memory chunk */
+    static bool updated = false; 
+    /* Whether the chunks were reloaded */
+    static bool reloaded = false;
 
     assert(kvm_async_interrupts_enabled());
 
@@ -1474,16 +1485,31 @@ int kvm_set_irq(KVMState *s, int irq, int level)
     event.irq = irq;
 
     if(irq == fx_irq_line && level == 1){
-        if(recording_state == POST_RECORDING)
-            if(reload == false)
-                reload = true;
-            else 
-            reload_saved_memory_chunks();
-        else if(recording_state == RECORDING){
-            if(!cleared){
-                kvm_vm_ioctl(s, KVM_CLEAR_ACCESS_LOG);
-                cleared = true;
-            }
+        DBG("irq level %d\n", level);
+        switch(recording_state){
+            case PRE_RECORDING:
+                break;
+            case RECORDING:
+                if(!cleared){
+                    DBG("Clearing access log\n");
+                    kvm_vm_ioctl(s, KVM_CLEAR_ACCESS_LOG);
+                    cleared = true;
+                }
+                break;
+            case UPDATING: 
+                if(!updated){
+                    DBG("Updating saved memory chunks\n");
+                    update_saved_memory_chunks();
+                    updated = true;
+                } else updated = false;
+                break;
+            case POST_RECORDING:
+                if(!reloaded){
+                    DBG("Reloaded saved memory chunks\n");
+                    reload_saved_memory_chunks();
+                    reloaded = true;
+                } else reloaded = false;
+                break;
         }
     }
 
@@ -2659,12 +2685,14 @@ static int check_within_pmc(hwaddr target)
 
 static void add_saved_memory_chunk(void *hva, 
                                         hwaddr size, 
-                                        bool automatic_injection)
+                                        bool automatic_injection,
+                                        bool access_log)
 {
     struct saved_memory_chunk *smc = 
         g_malloc0(sizeof(struct saved_memory_chunk));
 
     smc->inject_before_interrupt = automatic_injection;
+    smc->access_log = access_log;
     smc->hva = hva;
     smc->size = size;
     smc->saved = g_malloc0(size);
@@ -2718,6 +2746,18 @@ static struct saved_memory_chunk *find_saved_memory_chunk(void *hva,
         smc = smc->next;
     }
     return NULL;
+}
+
+/* update the saved memory area of a saved memory chunk. It takes into account
+only the ones with automatic injection property */
+static void update_saved_memory_chunks(void)
+{
+    struct saved_memory_chunk *smc = smc_head;
+    while(smc != NULL){
+        if(smc->inject_before_interrupt && smc->access_log)
+            memcpy(smc->saved, smc->hva, smc->size);
+        smc = smc->next;
+    }
 }
 
 /* Ensure to pass aligned addresses */
@@ -2820,7 +2860,7 @@ static void do_save_memory_hypercall(CPUState *cpu, struct kvm_regs *regs)
     automatic_injection = (regs->r12 != 0) ? true : false;
     DBG("addr: %p, size %x\n", (void *)regs->r8, size);
     DBG("Automatic injection: %d\n", (automatic_injection ? 1:0));
-    add_saved_memory_chunk(hva, size, automatic_injection); 
+    add_saved_memory_chunk(hva, size, automatic_injection, false); 
 }
 
 static int do_compare_memory_hypercall(CPUState *cpu, struct kvm_regs *regs)
@@ -2849,7 +2889,6 @@ static void do_start_monitor_hypercall(CPUState *cpu)
 {
     struct kvm_sregs sregs;
 
-    DBG("Start monitor hypercall\n");
     memset(&sregs, 0, sizeof(sregs));
     kvm_vcpu_ioctl(cpu, KVM_GET_SREGS, &sregs);
     kernel_invariants.gdt_physical_addr = kvm_translate(cpu, sregs.gdt.base);
@@ -2865,6 +2904,8 @@ static void do_end_recording_hypercall(CPUState *cpu)
     int i = 0;
     int n_pages;
     bool *bitmap_iter;
+
+    DBG("Do end recording \n");
 
     kvm_slots_lock(kml);
 
@@ -2906,13 +2947,12 @@ static void do_end_recording_hypercall(CPUState *cpu)
             if(bitmap_iter[j]){
                 hwaddr gpa = slot.start_addr + j * PAGE_SIZE;
                 DBG("gfn 0x%lx\n", gpa >> 12);
+
                 /* kvm_physical_memory_addr_to_host cannot be used since
                 we already hold the lock on the slots. Do that here. */
-                //void *hva = (void *)((char *)slot.ram + gpa - slot.start_addr); 
-                /*if((gpa >> 12) < 0x1f400)
-                    add_saved_memory_chunk(hva, PAGE_SIZE, true);
-                else    
-                    add_saved_memory_chunk(hva, PAGE_SIZE, false);*/
+                void *hva = (void *)((char *)slot.ram + gpa - slot.start_addr); 
+                /* Add with auto injection and tell that it comes from access_log */
+                add_saved_memory_chunk(hva, PAGE_SIZE, true, true);
             }
         }
 
@@ -2948,7 +2988,7 @@ static void do_end_recording_hypercall(CPUState *cpu)
 /* #define CLEAR_ACCESS_LOG_HYPERCALL  8 */
 
 /* function for generic hypercall. It acts as a dispatcher by looking
-    at the type of hypercall */
+    at the type of hypercall. It also updates the recording state */
 static void execute_hypercall(CPUState *cpu)
 {
     struct kvm_regs regs;
@@ -2979,29 +3019,25 @@ static void execute_hypercall(CPUState *cpu)
             memory if the comparison fails. */
         break;
     case SET_IRQ_LINE_HYPERCALL:
-        DBG("IRQ LINE = %d\n", (int)regs.r8);
         fx_irq_line = (int)regs.r8;
-        DBG("State goes to RECORDING\n");
         recording_state = RECORDING;
-
         break;
     case START_MONITOR_HYPERCALL:
         do_start_monitor_hypercall(cpu);
         break;
-    case END_RECORDING_HYPERCALL: 
+    case END_RECORDING_HYPERCALL: {
     /* in case the recording already took place, do nothing */
-        if(recording_state != RECORDING)
-            break;
-        recording_state = POST_RECORDING;
-        /* collect access log */
-        do_end_recording_hypercall(cpu);
+        static unsigned int counter_update = 5;
+        if(recording_state == RECORDING){
+            recording_state = UPDATING;
+            do_end_recording_hypercall(cpu);
+        }
+        else if(recording_state == UPDATING)
+            counter_update--;
+            if(!counter_update)
+                recording_state = POST_RECORDING;
         break;
-    /*
-    case CLEAR_ACCESS_LOG_HYPERCALL:
-        DBG("CLEARING HYPERCALL");
-        kvm_vm_ioctl(kvm_state, KVM_CLEAR_ACCESS_LOG);
-        break;
-    */
+    }
     default:
         DBG("Hypercall not recognized\n");
         break;
