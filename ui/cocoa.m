@@ -518,6 +518,43 @@ QemuCocoaView *cocoaView;
     }
 }
 
+- (void) updateUIInfo
+{
+    NSSize frameSize;
+    QemuUIInfo info;
+
+    if (!qemu_console_is_graphic(dcl.con)) {
+        return;
+    }
+
+    if ([self window]) {
+        NSDictionary *description = [[[self window] screen] deviceDescription];
+        CGDirectDisplayID display = [[description objectForKey:@"NSScreenNumber"] unsignedIntValue];
+        NSSize screenSize = [[[self window] screen] frame].size;
+        CGSize screenPhysicalSize = CGDisplayScreenSize(display);
+
+        frameSize = isFullscreen ? screenSize : [self frame].size;
+        info.width_mm = frameSize.width / screenSize.width * screenPhysicalSize.width;
+        info.height_mm = frameSize.height / screenSize.height * screenPhysicalSize.height;
+    } else {
+        frameSize = [self frame].size;
+        info.width_mm = 0;
+        info.height_mm = 0;
+    }
+
+    info.xoff = 0;
+    info.yoff = 0;
+    info.width = frameSize.width;
+    info.height = frameSize.height;
+
+    dpy_set_ui_info(dcl.con, &info);
+}
+
+- (void)viewDidMoveToWindow
+{
+    [self updateUIInfo];
+}
+
 - (void) switchSurface:(pixman_image_t *)image
 {
     COCOA_DEBUG("QemuCocoaView: switchSurface\n");
@@ -1170,6 +1207,16 @@ QemuCocoaView *cocoaView;
 {
     COCOA_DEBUG("QemuCocoaAppController: applicationShouldTerminate\n");
     return [self verifyQuit];
+}
+
+- (void)windowDidChangeScreen:(NSNotification *)notification
+{
+    [cocoaView updateUIInfo];
+}
+
+- (void)windowDidResize:(NSNotification *)notification
+{
+    [cocoaView updateUIInfo];
 }
 
 /* Called when the user clicks on a window's close button */
@@ -1835,6 +1882,8 @@ static void cocoa_switch(DisplayChangeListener *dcl,
     pixman_image_t *image = surface->image;
 
     COCOA_DEBUG("qemu_cocoa: cocoa_switch\n");
+
+    [cocoaView updateUIInfo];
 
     // The DisplaySurface will be freed as soon as this callback returns.
     // We take a reference to the underlying pixman image here so it does
