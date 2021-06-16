@@ -72,6 +72,7 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     uint64_t nested_ctl;
     uint32_t event_inj;
     uint32_t int_ctl;
+    uint32_t asid;
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_VMRUN, 0, GETPC());
 
@@ -154,8 +155,17 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
 
     nested_ctl = x86_ldq_phys(cs, env->vm_vmcb + offsetof(struct vmcb,
                                                           control.nested_ctl));
+    asid = x86_ldq_phys(cs, env->vm_vmcb + offsetof(struct vmcb,
+                                                          control.asid));
 
     env->nested_pg_mode = 0;
+
+    if (!cpu_svm_has_intercept(env, SVM_EXIT_VMRUN)) {
+        cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
+    }
+    if (asid == 0) {
+        cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
+    }
 
     if (nested_ctl & SVM_NPT_ENABLED) {
         env->nested_cr3 = x86_ldq_phys(cs,
