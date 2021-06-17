@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/input/lm832x.h"
 #include "hw/i2c/i2c.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
