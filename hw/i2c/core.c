@@ -114,8 +114,11 @@ bool i2c_scan_bus(I2CBus *bus, uint8_t address, bool broadcast,
  * protocol uses a start transfer to switch from write to read mode
  * without releasing the bus.  If that fails, the bus is still
  * in a transaction.
+ *
+ * @event must be I2C_START_RECV or I2C_START_SEND.
  */
-int i2c_start_transfer(I2CBus *bus, uint8_t address, bool is_recv)
+static int i2c_do_start_transfer(I2CBus *bus, uint8_t address,
+                                 enum i2c_event event)
 {
     I2CSlaveClass *sc;
     I2CNode *node;
@@ -157,7 +160,7 @@ int i2c_start_transfer(I2CBus *bus, uint8_t address, bool is_recv)
 
         if (sc->event) {
             trace_i2c_event("start", s->address);
-            rv = sc->event(s, is_recv ? I2C_START_RECV : I2C_START_SEND);
+            rv = sc->event(s, event);
             if (rv && !bus->broadcast) {
                 if (bus_scanned) {
                     /* First call, terminate the transfer. */
@@ -168,6 +171,13 @@ int i2c_start_transfer(I2CBus *bus, uint8_t address, bool is_recv)
         }
     }
     return 0;
+}
+
+int i2c_start_transfer(I2CBus *bus, uint8_t address, bool is_recv)
+{
+    return i2c_do_start_transfer(bus, address, is_recv
+                                               ? I2C_START_RECV
+                                               : I2C_START_SEND);
 }
 
 void i2c_end_transfer(I2CBus *bus)
