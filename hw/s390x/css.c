@@ -1335,7 +1335,7 @@ static void copy_schib_to_guest(SCHIB *dest, const SCHIB *src)
     }
 }
 
-static void copy_esw_to_guest(ESW *dest, const ESW *src)
+void copy_esw_to_guest(ESW *dest, const ESW *src)
 {
     dest->word0 = cpu_to_be32(src->word0);
     dest->erw = cpu_to_be32(src->erw);
@@ -1648,6 +1648,20 @@ static void build_irb_sense_data(SubchDev *sch, IRB *irb)
     for (i = 0; i < ARRAY_SIZE(irb->ecw); i++) {
         irb->ecw[i] = be32_to_cpu(irb->ecw[i]);
     }
+}
+
+void build_irb_passthrough(SubchDev *sch, IRB *irb)
+{
+    /* Copy ESW from hardware */
+    irb->esw = sch->esw;
+
+    /*
+     * If (irb->esw.erw & ESW_ERW_SENSE) is true, then the contents
+     * of the ECW is sense data. If false, then it is model-dependent
+     * information. Either way, copy it into the IRB for the guest to
+     * read/decide what to do with.
+     */
+    build_irb_sense_data(sch, irb);
 }
 
 void build_irb_virtual(SubchDev *sch, IRB *irb)
