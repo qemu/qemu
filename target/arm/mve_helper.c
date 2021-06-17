@@ -343,6 +343,12 @@ DO_1OP(vfnegs, 8, uint64_t, DO_FNEGS)
     DO_2OP(OP##h, 2, uint16_t, FN)              \
     DO_2OP(OP##w, 4, uint32_t, FN)
 
+/* provide signed 2-op helpers for all sizes */
+#define DO_2OP_S(OP, FN)                        \
+    DO_2OP(OP##b, 1, int8_t, FN)                \
+    DO_2OP(OP##h, 2, int16_t, FN)               \
+    DO_2OP(OP##w, 4, int32_t, FN)
+
 #define DO_AND(N, M)  ((N) & (M))
 #define DO_BIC(N, M)  ((N) & ~(M))
 #define DO_ORR(N, M)  ((N) | (M))
@@ -410,3 +416,11 @@ DO_2OP(vrmulhsw, 4, int32_t, do_rmulh_w)
 DO_2OP(vrmulhub, 1, uint8_t, do_rmulh_b)
 DO_2OP(vrmulhuh, 2, uint16_t, do_rmulh_h)
 DO_2OP(vrmulhuw, 4, uint32_t, do_rmulh_w)
+
+#define DO_MAX(N, M)  ((N) >= (M) ? (N) : (M))
+#define DO_MIN(N, M)  ((N) >= (M) ? (M) : (N))
+
+DO_2OP_S(vmaxs, DO_MAX)
+DO_2OP_U(vmaxu, DO_MAX)
+DO_2OP_S(vmins, DO_MIN)
+DO_2OP_U(vminu, DO_MIN)
