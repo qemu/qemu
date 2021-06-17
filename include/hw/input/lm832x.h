@@ -21,6 +21,8 @@
 #ifndef HW_INPUT_LM832X
 #define HW_INPUT_LM832X
 
+#define TYPE_LM8323 "lm8323"
+
 void lm832x_key_event(DeviceState *dev, int key, int state);
 
 #endif
