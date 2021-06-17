@@ -79,7 +79,6 @@ struct I2CBus {
 };
 
 I2CBus *i2c_init_bus(DeviceState *parent, const char *name);
-void i2c_set_slave_address(I2CSlave *dev, uint8_t address);
 int i2c_bus_busy(I2CBus *bus);
 int i2c_start_transfer(I2CBus *bus, uint8_t address, int recv);
 void i2c_end_transfer(I2CBus *bus);
@@ -140,6 +139,13 @@ I2CSlave *i2c_slave_create_simple(I2CBus *bus, const char *name, uint8_t addr);
  * had any code that wanted it.)
  */
 bool i2c_slave_realize_and_unref(I2CSlave *dev, I2CBus *bus, Error **errp);
+
+/**
+ * Set the I2C bus address of a slave device
+ * @dev: I2C slave device
+ * @address: I2C address of the slave when put on a bus
+ */
+void i2c_slave_set_address(I2CSlave *dev, uint8_t address);
 
 extern const VMStateDescription vmstate_i2c_slave;
 

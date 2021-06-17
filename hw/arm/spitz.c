@@ -769,9 +769,9 @@ static void spitz_wm8750_addr(void *opaque, int line, int level)
 {
     I2CSlave *wm = (I2CSlave *) opaque;
     if (level)
-        i2c_set_slave_address(wm, SPITZ_WM_ADDRH);
+        i2c_slave_set_address(wm, SPITZ_WM_ADDRH);
     else
-        i2c_set_slave_address(wm, SPITZ_WM_ADDRL);
+        i2c_slave_set_address(wm, SPITZ_WM_ADDRL);
 }
 
 static void spitz_i2c_setup(PXA2xxState *cpu)

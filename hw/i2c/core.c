@@ -66,7 +66,7 @@ I2CBus *i2c_init_bus(DeviceState *parent, const char *name)
     return bus;
 }
 
-void i2c_set_slave_address(I2CSlave *dev, uint8_t address)
+void i2c_slave_set_address(I2CSlave *dev, uint8_t address)
 {
     dev->address = address;
 }
