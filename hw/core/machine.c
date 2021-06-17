@@ -746,6 +746,10 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
     unsigned cores   = config->has_cores ? config->cores : 0;
     unsigned threads = config->has_threads ? config->threads : 0;
 
+    if (config->has_dies && config->dies != 0 && config->dies != 1) {
+        error_setg(errp, "dies not supported by this machine's CPU topology");
+    }
+
     /* compute missing values, prefer sockets over cores over threads */
     if (cpus == 0 || sockets == 0) {
         cores = cores > 0 ? cores : 1;
