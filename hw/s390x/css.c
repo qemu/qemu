@@ -1639,6 +1639,17 @@ static void copy_irb_to_guest(IRB *dest, const IRB *src, const PMCW *pmcw,
     *irb_len = sizeof(*dest);
 }
 
+static void build_irb_sense_data(SubchDev *sch, IRB *irb)
+{
+    int i;
+
+    /* Attention: sense_data is already BE! */
+    memcpy(irb->ecw, sch->sense_data, sizeof(sch->sense_data));
+    for (i = 0; i < ARRAY_SIZE(irb->ecw); i++) {
+        irb->ecw[i] = be32_to_cpu(irb->ecw[i]);
+    }
+}
+
 int css_do_tsch_get_irb(SubchDev *sch, IRB *target_irb, int *irb_len)
 {
     SCHIB *schib = &sch->curr_status;
@@ -1669,14 +1680,8 @@ int css_do_tsch_get_irb(SubchDev *sch, IRB *target_irb, int *irb_len)
         /* If a unit check is pending, copy sense data. */
         if ((schib->scsw.dstat & SCSW_DSTAT_UNIT_CHECK) &&
             (schib->pmcw.chars & PMCW_CHARS_MASK_CSENSE)) {
-            int i;
-
             irb.scsw.flags |= SCSW_FLAGS_MASK_ESWF | SCSW_FLAGS_MASK_ECTL;
-            /* Attention: sense_data is already BE! */
-            memcpy(irb.ecw, sch->sense_data, sizeof(sch->sense_data));
-            for (i = 0; i < ARRAY_SIZE(irb.ecw); i++) {
-                irb.ecw[i] = be32_to_cpu(irb.ecw[i]);
-            }
+            build_irb_sense_data(sch, &irb);
             irb.esw.erw = ESW_ERW_SENSE | (sizeof(sch->sense_data) << 8);
         }
     }
