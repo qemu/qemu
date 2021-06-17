@@ -318,9 +318,9 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUX86State *en
         }                                               \
     } while (0)
 
-#define VDSO_HEADER "vdso.c.inc"
-
 #endif /* TARGET_X86_64 */
+
+#define VDSO_HEADER "vdso.c.inc"
 
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE       4096

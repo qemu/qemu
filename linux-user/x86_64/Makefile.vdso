@@ -1,0 +1,11 @@
+include $(BUILD_DIR)/tests/tcg/x86_64-linux-user/config-target.mak
+
+SUBDIR = $(SRC_PATH)/linux-user/x86_64
+VPATH += $(SUBDIR)
+
+all: $(SUBDIR)/vdso.so
+
+$(SUBDIR)/vdso.so: vdso.S vdso.ld
+	$(CC) -o $@ -nostdlib -shared -Wl,-h,linux-vdso.so.1 \
+	  -Wl,--build-id=sha1 -Wl,--hash-style=both \
+	  -Wl,-T,$(SUBDIR)/vdso.ld $<
