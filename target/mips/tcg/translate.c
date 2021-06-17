@@ -20298,6 +20298,10 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
         gen_reserved_instruction(ctx);
         break;
     }
+
+    tcg_temp_free(v2_t);
+    tcg_temp_free(v1_t);
+    tcg_temp_free(t0);
 }
 
 static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
