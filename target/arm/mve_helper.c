@@ -257,6 +257,13 @@ static void mergemask_sq(int64_t *d, int64_t r, uint16_t mask)
         mve_advance_vpt(env);                                           \
     }
 
+#define DO_CLS_B(N)   (clrsb32(N) - 24)
+#define DO_CLS_H(N)   (clrsb32(N) - 16)
+
+DO_1OP(vclsb, 1, int8_t, DO_CLS_B)
+DO_1OP(vclsh, 2, int16_t, DO_CLS_H)
+DO_1OP(vclsw, 4, int32_t, clrsb32)
+
 #define DO_CLZ_B(N)   (clz32(N) - 24)
 #define DO_CLZ_H(N)   (clz32(N) - 16)
 
