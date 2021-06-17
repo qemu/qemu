@@ -18,3 +18,25 @@
 #
 # This file is processed by scripts/decodetree.py
 #
+
+%qd 22:1 13:3
+
+&vldr_vstr rn qd imm p a w size l
+
+@vldr_vstr ....... . . . . l:1 rn:4 ... ...... imm:7 &vldr_vstr qd=%qd
+
+# Vector loads and stores
+
+# Non-widening loads/stores (P=0 W=0 is 'related encoding')
+VLDR_VSTR        1110110 0 a:1 . 1   . .... ... 111100 .......   @vldr_vstr \
+                 size=0 p=0 w=1
+VLDR_VSTR        1110110 0 a:1 . 1   . .... ... 111101 .......   @vldr_vstr \
+                 size=1 p=0 w=1
+VLDR_VSTR        1110110 0 a:1 . 1   . .... ... 111110 .......   @vldr_vstr \
+                 size=2 p=0 w=1
+VLDR_VSTR        1110110 1 a:1 . w:1 . .... ... 111100 .......   @vldr_vstr \
+                 size=0 p=1
+VLDR_VSTR        1110110 1 a:1 . w:1 . .... ... 111101 .......   @vldr_vstr \
+                 size=1 p=1
+VLDR_VSTR        1110110 1 a:1 . w:1 . .... ... 111110 .......   @vldr_vstr \
+                 size=2 p=1

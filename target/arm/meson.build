@@ -23,6 +23,7 @@ arm_ss.add(files(
   'helper.c',
   'iwmmxt_helper.c',
   'm_helper.c',
+  'mve_helper.c',
   'neon_helper.c',
   'op_helper.c',
   'tlb_helper.c',

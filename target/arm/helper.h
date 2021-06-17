@@ -1019,3 +1019,5 @@ DEF_HELPER_FLAGS_6(gvec_bfmlal_idx, TCG_CALL_NO_RWG,
 #include "helper-a64.h"
 #include "helper-sve.h"
 #endif
+
+#include "helper-mve.h"
