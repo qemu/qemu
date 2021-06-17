@@ -322,3 +322,29 @@ DO_1OP(vnegw, 4, int32_t, DO_NEG)
 /* We can do these 64 bits at a time */
 DO_1OP(vfnegh, 8, uint64_t, DO_FNEGH)
 DO_1OP(vfnegs, 8, uint64_t, DO_FNEGS)
+
+#define DO_2OP(OP, ESIZE, TYPE, FN)                                     \
+    void HELPER(glue(mve_, OP))(CPUARMState *env,                       \
+                                void *vd, void *vn, void *vm)           \
+    {                                                                   \
+        TYPE *d = vd, *n = vn, *m = vm;                                 \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            mergemask(&d[H##ESIZE(e)],                                  \
+                      FN(n[H##ESIZE(e)], m[H##ESIZE(e)]), mask);        \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_AND(N, M)  ((N) & (M))
+#define DO_BIC(N, M)  ((N) & ~(M))
+#define DO_ORR(N, M)  ((N) | (M))
+#define DO_ORN(N, M)  ((N) | ~(M))
+#define DO_EOR(N, M)  ((N) ^ (M))
+
+DO_2OP(vand, 8, uint64_t, DO_AND)
+DO_2OP(vbic, 8, uint64_t, DO_BIC)
+DO_2OP(vorr, 8, uint64_t, DO_ORR)
+DO_2OP(vorn, 8, uint64_t, DO_ORN)
+DO_2OP(veor, 8, uint64_t, DO_EOR)
