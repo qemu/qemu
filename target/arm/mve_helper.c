@@ -294,3 +294,15 @@ DO_1OP(vabsw, 4, int32_t, DO_ABS)
 /* We can do these 64 bits at a time */
 DO_1OP(vfabsh, 8, uint64_t, DO_FABSH)
 DO_1OP(vfabss, 8, uint64_t, DO_FABSS)
+
+#define DO_NEG(N)    (-(N))
+#define DO_FNEGH(N) ((N) ^ dup_const(MO_16, 0x8000))
+#define DO_FNEGS(N) ((N) ^ dup_const(MO_32, 0x80000000))
+
+DO_1OP(vnegb, 1, int8_t, DO_NEG)
+DO_1OP(vnegh, 2, int16_t, DO_NEG)
+DO_1OP(vnegw, 4, int32_t, DO_NEG)
+
+/* We can do these 64 bits at a time */
+DO_1OP(vfnegh, 8, uint64_t, DO_FNEGH)
+DO_1OP(vfnegs, 8, uint64_t, DO_FNEGS)
