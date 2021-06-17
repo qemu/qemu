@@ -1691,6 +1691,29 @@ static uint16_t nvme_zrm_close(NvmeNamespace *ns, NvmeZone *zone)
     }
 }
 
+static uint16_t nvme_zrm_reset(NvmeNamespace *ns, NvmeZone *zone)
+{
+    switch (nvme_get_zone_state(zone)) {
+    case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+    case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+        nvme_aor_dec_open(ns);
+        /* fallthrough */
+    case NVME_ZONE_STATE_CLOSED:
+        nvme_aor_dec_active(ns);
+        /* fallthrough */
+    case NVME_ZONE_STATE_FULL:
+        zone->w_ptr = zone->d.zslba;
+        zone->d.wp = zone->w_ptr;
+        nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_EMPTY);
+        /* fallthrough */
+    case NVME_ZONE_STATE_EMPTY:
+        return NVME_SUCCESS;
+
+    default:
+        return NVME_ZONE_INVAL_TRANSITION;
+    }
+}
+
 static void nvme_zrm_auto_transition_zone(NvmeNamespace *ns)
 {
     NvmeZone *zone;
@@ -2018,79 +2041,6 @@ static void nvme_verify_mdata_in_cb(void *opaque, int ret)
 
 out:
     nvme_verify_cb(ctx, ret);
-}
-
-struct nvme_zone_reset_ctx {
-    NvmeRequest *req;
-    NvmeZone    *zone;
-};
-
-static void nvme_aio_zone_reset_complete_cb(void *opaque, int ret)
-{
-    struct nvme_zone_reset_ctx *ctx = opaque;
-    NvmeRequest *req = ctx->req;
-    NvmeNamespace *ns = req->ns;
-    NvmeZone *zone = ctx->zone;
-    uintptr_t *resets = (uintptr_t *)&req->opaque;
-
-    if (ret) {
-        nvme_aio_err(req, ret);
-        goto out;
-    }
-
-    switch (nvme_get_zone_state(zone)) {
-    case NVME_ZONE_STATE_EXPLICITLY_OPEN:
-    case NVME_ZONE_STATE_IMPLICITLY_OPEN:
-        nvme_aor_dec_open(ns);
-        /* fall through */
-    case NVME_ZONE_STATE_CLOSED:
-        nvme_aor_dec_active(ns);
-        /* fall through */
-    case NVME_ZONE_STATE_FULL:
-        zone->w_ptr = zone->d.zslba;
-        zone->d.wp = zone->w_ptr;
-        nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_EMPTY);
-        /* fall through */
-    default:
-        break;
-    }
-
-out:
-    g_free(ctx);
-
-    (*resets)--;
-
-    if (*resets) {
-        return;
-    }
-
-    nvme_enqueue_req_completion(nvme_cq(req), req);
-}
-
-static void nvme_aio_zone_reset_cb(void *opaque, int ret)
-{
-    struct nvme_zone_reset_ctx *ctx = opaque;
-    NvmeRequest *req = ctx->req;
-    NvmeNamespace *ns = req->ns;
-    NvmeZone *zone = ctx->zone;
-
-    trace_pci_nvme_aio_zone_reset_cb(nvme_cid(req), zone->d.zslba);
-
-    if (ret) {
-        goto out;
-    }
-
-    if (ns->lbaf.ms) {
-        int64_t offset = nvme_moff(ns, zone->d.zslba);
-
-        blk_aio_pwrite_zeroes(ns->blkconf.blk, offset,
-                              nvme_m2b(ns, ns->zone_size), BDRV_REQ_MAY_UNMAP,
-                              nvme_aio_zone_reset_complete_cb, ctx);
-        return;
-    }
-
-out:
-    nvme_aio_zone_reset_complete_cb(opaque, ret);
 }
 
 struct nvme_compare_ctx {
@@ -3395,41 +3345,6 @@ static uint16_t nvme_finish_zone(NvmeNamespace *ns, NvmeZone *zone,
     return nvme_zrm_finish(ns, zone);
 }
 
-static uint16_t nvme_reset_zone(NvmeNamespace *ns, NvmeZone *zone,
-                                NvmeZoneState state, NvmeRequest *req)
-{
-    uintptr_t *resets = (uintptr_t *)&req->opaque;
-    struct nvme_zone_reset_ctx *ctx;
-
-    switch (state) {
-    case NVME_ZONE_STATE_EMPTY:
-        return NVME_SUCCESS;
-    case NVME_ZONE_STATE_EXPLICITLY_OPEN:
-    case NVME_ZONE_STATE_IMPLICITLY_OPEN:
-    case NVME_ZONE_STATE_CLOSED:
-    case NVME_ZONE_STATE_FULL:
-        break;
-    default:
-        return NVME_ZONE_INVAL_TRANSITION;
-    }
-
-    /*
-     * The zone reset aio callback needs to know the zone that is being reset
-     * in order to transition the zone on completion.
-     */
-    ctx = g_new(struct nvme_zone_reset_ctx, 1);
-    ctx->req = req;
-    ctx->zone = zone;
-
-    (*resets)++;
-
-    blk_aio_pwrite_zeroes(ns->blkconf.blk, nvme_l2b(ns, zone->d.zslba),
-                          nvme_l2b(ns, ns->zone_size), BDRV_REQ_MAY_UNMAP,
-                          nvme_aio_zone_reset_cb, ctx);
-
-    return NVME_NO_COMPLETE;
-}
-
 static uint16_t nvme_offline_zone(NvmeNamespace *ns, NvmeZone *zone,
                                   NvmeZoneState state, NvmeRequest *req)
 {
@@ -3558,12 +3473,144 @@ out:
     return status;
 }
 
+typedef struct NvmeZoneResetAIOCB {
+    BlockAIOCB common;
+    BlockAIOCB *aiocb;
+    NvmeRequest *req;
+    QEMUBH *bh;
+    int ret;
+
+    bool all;
+    int idx;
+    NvmeZone *zone;
+} NvmeZoneResetAIOCB;
+
+static void nvme_zone_reset_cancel(BlockAIOCB *aiocb)
+{
+    NvmeZoneResetAIOCB *iocb = container_of(aiocb, NvmeZoneResetAIOCB, common);
+    NvmeRequest *req = iocb->req;
+    NvmeNamespace *ns = req->ns;
+
+    iocb->idx = ns->num_zones;
+
+    iocb->ret = -ECANCELED;
+
+    if (iocb->aiocb) {
+        blk_aio_cancel_async(iocb->aiocb);
+        iocb->aiocb = NULL;
+    }
+}
+
+static const AIOCBInfo nvme_zone_reset_aiocb_info = {
+    .aiocb_size = sizeof(NvmeZoneResetAIOCB),
+    .cancel_async = nvme_zone_reset_cancel,
+};
+
+static void nvme_zone_reset_bh(void *opaque)
+{
+    NvmeZoneResetAIOCB *iocb = opaque;
+
+    iocb->common.cb(iocb->common.opaque, iocb->ret);
+
+    qemu_bh_delete(iocb->bh);
+    iocb->bh = NULL;
+    qemu_aio_unref(iocb);
+}
+
+static void nvme_zone_reset_cb(void *opaque, int ret);
+
+static void nvme_zone_reset_epilogue_cb(void *opaque, int ret)
+{
+    NvmeZoneResetAIOCB *iocb = opaque;
+    NvmeRequest *req = iocb->req;
+    NvmeNamespace *ns = req->ns;
+    int64_t moff;
+    int count;
+
+    if (ret < 0) {
+        nvme_zone_reset_cb(iocb, ret);
+        return;
+    }
+
+    if (!ns->lbaf.ms) {
+        nvme_zone_reset_cb(iocb, 0);
+        return;
+    }
+
+    moff = nvme_moff(ns, iocb->zone->d.zslba);
+    count = nvme_m2b(ns, ns->zone_size);
+
+    iocb->aiocb = blk_aio_pwrite_zeroes(ns->blkconf.blk, moff, count,
+                                        BDRV_REQ_MAY_UNMAP,
+                                        nvme_zone_reset_cb, iocb);
+    return;
+}
+
+static void nvme_zone_reset_cb(void *opaque, int ret)
+{
+    NvmeZoneResetAIOCB *iocb = opaque;
+    NvmeRequest *req = iocb->req;
+    NvmeNamespace *ns = req->ns;
+
+    if (ret < 0) {
+        iocb->ret = ret;
+        goto done;
+    }
+
+    if (iocb->zone) {
+        nvme_zrm_reset(ns, iocb->zone);
+
+        if (!iocb->all) {
+            goto done;
+        }
+    }
+
+    while (iocb->idx < ns->num_zones) {
+        NvmeZone *zone = &ns->zone_array[iocb->idx++];
+
+        switch (nvme_get_zone_state(zone)) {
+        case NVME_ZONE_STATE_EMPTY:
+            if (!iocb->all) {
+                goto done;
+            }
+
+            continue;
+
+        case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+        case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+        case NVME_ZONE_STATE_CLOSED:
+        case NVME_ZONE_STATE_FULL:
+            iocb->zone = zone;
+            break;
+
+        default:
+            continue;
+        }
+
+        trace_pci_nvme_zns_zone_reset(zone->d.zslba);
+
+        iocb->aiocb = blk_aio_pwrite_zeroes(ns->blkconf.blk,
+                                            nvme_l2b(ns, zone->d.zslba),
+                                            nvme_l2b(ns, ns->zone_size),
+                                            BDRV_REQ_MAY_UNMAP,
+                                            nvme_zone_reset_epilogue_cb,
+                                            iocb);
+        return;
+    }
+
+done:
+    iocb->aiocb = NULL;
+    if (iocb->bh) {
+        qemu_bh_schedule(iocb->bh);
+    }
+}
+
 static uint16_t nvme_zone_mgmt_send(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeCmd *cmd = (NvmeCmd *)&req->cmd;
     NvmeNamespace *ns = req->ns;
     NvmeZone *zone;
-    uintptr_t *resets;
+    NvmeZoneResetAIOCB *iocb;
     uint8_t *zd_ext;
     uint32_t dw13 = le32_to_cpu(cmd->cdw13);
     uint64_t slba = 0;
@@ -3574,7 +3621,7 @@ static uint16_t nvme_zone_mgmt_send(NvmeCtrl *n, NvmeRequest *req)
     enum NvmeZoneProcessingMask proc_mask = NVME_PROC_CURRENT_ZONE;
 
     action = dw13 & 0xff;
-    all = dw13 & 0x100;
+    all = !!(dw13 & 0x100);
 
     req->status = NVME_SUCCESS;
 
@@ -3618,21 +3665,22 @@ static uint16_t nvme_zone_mgmt_send(NvmeCtrl *n, NvmeRequest *req)
         break;
 
     case NVME_ZONE_ACTION_RESET:
-        resets = (uintptr_t *)&req->opaque;
-
-        if (all) {
-            proc_mask = NVME_PROC_OPENED_ZONES | NVME_PROC_CLOSED_ZONES |
-                NVME_PROC_FULL_ZONES;
-        }
         trace_pci_nvme_reset_zone(slba, zone_idx, all);
 
-        *resets = 1;
+        iocb = blk_aio_get(&nvme_zone_reset_aiocb_info, ns->blkconf.blk,
+                           nvme_misc_cb, req);
 
-        status = nvme_do_zone_op(ns, zone, proc_mask, nvme_reset_zone, req);
+        iocb->req = req;
+        iocb->bh = qemu_bh_new(nvme_zone_reset_bh, iocb);
+        iocb->ret = 0;
+        iocb->all = all;
+        iocb->idx = zone_idx;
+        iocb->zone = NULL;
 
-        (*resets)--;
+        req->aiocb = &iocb->common;
+        nvme_zone_reset_cb(iocb, 0);
 
-        return *resets ? NVME_NO_COMPLETE : req->status;
+        return NVME_NO_COMPLETE;
 
     case NVME_ZONE_ACTION_OFFLINE:
         if (all) {
