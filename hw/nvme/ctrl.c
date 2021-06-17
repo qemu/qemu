@@ -1968,7 +1968,7 @@ static void nvme_verify_cb(void *opaque, int ret)
 
         req->status = nvme_dif_check(ns, ctx->data.bounce, ctx->data.iov.size,
                                      ctx->mdata.bounce, ctx->mdata.iov.size,
-                                     ctrl, slba, apptag, appmask, reftag);
+                                     ctrl, slba, apptag, appmask, &reftag);
     }
 
 out:
@@ -2204,7 +2204,7 @@ static void nvme_copy_in_complete(NvmeRequest *req)
             reftag = le32_to_cpu(range->reftag);
 
             status = nvme_dif_check(ns, buf, len, mbuf, mlen, prinfor, slba,
-                                    apptag, appmask, reftag);
+                                    apptag, appmask, &reftag);
             if (status) {
                 goto invalid;
             }
@@ -2227,10 +2227,10 @@ static void nvme_copy_in_complete(NvmeRequest *req)
             }
 
             nvme_dif_pract_generate_dif(ns, ctx->bounce, len, ctx->mbounce,
-                                        mlen, apptag, reftag);
+                                        mlen, apptag, &reftag);
         } else {
             status = nvme_dif_check(ns, ctx->bounce, len, ctx->mbounce, mlen,
-                                    prinfow, sdlba, apptag, appmask, reftag);
+                                    prinfow, sdlba, apptag, appmask, &reftag);
             if (status) {
                 goto invalid;
             }
@@ -2370,7 +2370,7 @@ static void nvme_compare_mdata_cb(void *opaque, int ret)
 
         status = nvme_dif_check(ns, ctx->data.bounce, ctx->data.iov.size,
                                 ctx->mdata.bounce, ctx->mdata.iov.size, ctrl,
-                                slba, apptag, appmask, reftag);
+                                slba, apptag, appmask, &reftag);
         if (status) {
             req->status = status;
             goto out;
