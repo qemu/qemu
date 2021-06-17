@@ -138,6 +138,7 @@ struct SubchDev {
     int (*ccw_cb) (SubchDev *, CCW1);
     void (*disable_cb)(SubchDev *);
     IOInstEnding (*do_subchannel_work) (SubchDev *);
+    void (*irb_cb)(SubchDev *, IRB *);
     SenseId id;
     void *driver_data;
 };
@@ -215,6 +216,7 @@ void css_clear_sei_pending(void);
 IOInstEnding s390_ccw_cmd_request(SubchDev *sch);
 IOInstEnding do_subchannel_work_virtual(SubchDev *sub);
 IOInstEnding do_subchannel_work_passthrough(SubchDev *sub);
+void build_irb_virtual(SubchDev *sch, IRB *irb);
 
 int s390_ccw_halt(SubchDev *sch);
 int s390_ccw_clear(SubchDev *sch);

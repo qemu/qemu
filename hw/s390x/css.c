@@ -1650,6 +1650,30 @@ static void build_irb_sense_data(SubchDev *sch, IRB *irb)
     }
 }
 
+void build_irb_virtual(SubchDev *sch, IRB *irb)
+{
+    SCHIB *schib = &sch->curr_status;
+    uint16_t stctl = schib->scsw.ctrl & SCSW_CTRL_MASK_STCTL;
+
+    if (stctl & SCSW_STCTL_STATUS_PEND) {
+        if (schib->scsw.cstat & (SCSW_CSTAT_DATA_CHECK |
+                        SCSW_CSTAT_CHN_CTRL_CHK |
+                        SCSW_CSTAT_INTF_CTRL_CHK)) {
+            irb->scsw.flags |= SCSW_FLAGS_MASK_ESWF;
+            irb->esw.word0 = 0x04804000;
+        } else {
+            irb->esw.word0 = 0x00800000;
+        }
+        /* If a unit check is pending, copy sense data. */
+        if ((schib->scsw.dstat & SCSW_DSTAT_UNIT_CHECK) &&
+            (schib->pmcw.chars & PMCW_CHARS_MASK_CSENSE)) {
+            irb->scsw.flags |= SCSW_FLAGS_MASK_ESWF | SCSW_FLAGS_MASK_ECTL;
+            build_irb_sense_data(sch, irb);
+            irb->esw.erw = ESW_ERW_SENSE | (sizeof(sch->sense_data) << 8);
+        }
+    }
+}
+
 int css_do_tsch_get_irb(SubchDev *sch, IRB *target_irb, int *irb_len)
 {
     SCHIB *schib = &sch->curr_status;
@@ -1668,23 +1692,12 @@ int css_do_tsch_get_irb(SubchDev *sch, IRB *target_irb, int *irb_len)
 
     /* Copy scsw from current status. */
     irb.scsw = schib->scsw;
-    if (stctl & SCSW_STCTL_STATUS_PEND) {
-        if (schib->scsw.cstat & (SCSW_CSTAT_DATA_CHECK |
-                        SCSW_CSTAT_CHN_CTRL_CHK |
-                        SCSW_CSTAT_INTF_CTRL_CHK)) {
-            irb.scsw.flags |= SCSW_FLAGS_MASK_ESWF;
-            irb.esw.word0 = 0x04804000;
-        } else {
-            irb.esw.word0 = 0x00800000;
-        }
-        /* If a unit check is pending, copy sense data. */
-        if ((schib->scsw.dstat & SCSW_DSTAT_UNIT_CHECK) &&
-            (schib->pmcw.chars & PMCW_CHARS_MASK_CSENSE)) {
-            irb.scsw.flags |= SCSW_FLAGS_MASK_ESWF | SCSW_FLAGS_MASK_ECTL;
-            build_irb_sense_data(sch, &irb);
-            irb.esw.erw = ESW_ERW_SENSE | (sizeof(sch->sense_data) << 8);
-        }
+
+    /* Build other IRB data, if necessary */
+    if (sch->irb_cb) {
+        sch->irb_cb(sch, &irb);
     }
+
     /* Store the irb to the guest. */
     p = schib->pmcw;
     copy_irb_to_guest(target_irb, &irb, &p, irb_len);

@@ -129,6 +129,7 @@ static void emulated_ccw_3270_realize(DeviceState *ds, Error **errp)
                                 EMULATED_CCW_3270_CHPID_TYPE);
     sch->do_subchannel_work = do_subchannel_work_virtual;
     sch->ccw_cb = emulated_ccw_3270_cb;
+    sch->irb_cb = build_irb_virtual;
 
     ck->init(dev, &err);
     if (err) {
