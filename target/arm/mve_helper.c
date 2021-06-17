@@ -246,6 +246,22 @@ static void mergemask_sq(int64_t *d, int64_t r, uint16_t mask)
              uint64_t *: mergemask_uq,          \
              int64_t *:  mergemask_sq)(D, R, M)
 
+void HELPER(mve_vdup)(CPUARMState *env, void *vd, uint32_t val)
+{
+    /*
+     * The generated code already replicated an 8 or 16 bit constant
+     * into the 32-bit value, so we only need to write the 32-bit
+     * value to all elements of the Qreg, allowing for predication.
+     */
+    uint32_t *d = vd;
+    uint16_t mask = mve_element_mask(env);
+    unsigned e;
+    for (e = 0; e < 16 / 4; e++, mask >>= 4) {
+        mergemask(&d[H4(e)], val, mask);
+    }
+    mve_advance_vpt(env);
+}
+
 #define DO_1OP(OP, ESIZE, TYPE, FN)                                     \
     void HELPER(mve_##OP)(CPUARMState *env, void *vd, void *vm)         \
     {                                                                   \
