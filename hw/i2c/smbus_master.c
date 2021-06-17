@@ -29,7 +29,7 @@ int smbus_receive_byte(I2CBus *bus, uint8_t addr)
 {
     uint8_t data;
 
-    if (i2c_start_transfer(bus, addr, 1)) {
+    if (i2c_start_recv(bus, addr)) {
         return -1;
     }
     data = i2c_recv(bus);
@@ -40,7 +40,7 @@ int smbus_receive_byte(I2CBus *bus, uint8_t addr)
 
 int smbus_send_byte(I2CBus *bus, uint8_t addr, uint8_t data)
 {
-    if (i2c_start_transfer(bus, addr, 0)) {
+    if (i2c_start_send(bus, addr)) {
         return -1;
     }
     i2c_send(bus, data);
@@ -51,11 +51,11 @@ int smbus_send_byte(I2CBus *bus, uint8_t addr, uint8_t data)
 int smbus_read_byte(I2CBus *bus, uint8_t addr, uint8_t command)
 {
     uint8_t data;
-    if (i2c_start_transfer(bus, addr, 0)) {
+    if (i2c_start_send(bus, addr)) {
         return -1;
     }
     i2c_send(bus, command);
-    if (i2c_start_transfer(bus, addr, 1)) {
+    if (i2c_start_recv(bus, addr)) {
         i2c_end_transfer(bus);
         return -1;
     }
@@ -67,7 +67,7 @@ int smbus_read_byte(I2CBus *bus, uint8_t addr, uint8_t command)
 
 int smbus_write_byte(I2CBus *bus, uint8_t addr, uint8_t command, uint8_t data)
 {
-    if (i2c_start_transfer(bus, addr, 0)) {
+    if (i2c_start_send(bus, addr)) {
         return -1;
     }
     i2c_send(bus, command);
@@ -79,11 +79,11 @@ int smbus_write_byte(I2CBus *bus, uint8_t addr, uint8_t command, uint8_t data)
 int smbus_read_word(I2CBus *bus, uint8_t addr, uint8_t command)
 {
     uint16_t data;
-    if (i2c_start_transfer(bus, addr, 0)) {
+    if (i2c_start_send(bus, addr)) {
         return -1;
     }
     i2c_send(bus, command);
-    if (i2c_start_transfer(bus, addr, 1)) {
+    if (i2c_start_recv(bus, addr)) {
         i2c_end_transfer(bus);
         return -1;
     }
@@ -96,7 +96,7 @@ int smbus_read_word(I2CBus *bus, uint8_t addr, uint8_t command)
 
 int smbus_write_word(I2CBus *bus, uint8_t addr, uint8_t command, uint16_t data)
 {
-    if (i2c_start_transfer(bus, addr, 0)) {
+    if (i2c_start_send(bus, addr)) {
         return -1;
     }
     i2c_send(bus, command);
@@ -113,12 +113,12 @@ int smbus_read_block(I2CBus *bus, uint8_t addr, uint8_t command, uint8_t *data,
     int i;
 
     if (send_cmd) {
-        if (i2c_start_transfer(bus, addr, 0)) {
+        if (i2c_start_send(bus, addr)) {
             return -1;
         }
         i2c_send(bus, command);
     }
-    if (i2c_start_transfer(bus, addr, 1)) {
+    if (i2c_start_recv(bus, addr)) {
         if (send_cmd) {
             i2c_end_transfer(bus);
         }
@@ -149,7 +149,7 @@ int smbus_write_block(I2CBus *bus, uint8_t addr, uint8_t command, uint8_t *data,
         len = 32;
     }
 
-    if (i2c_start_transfer(bus, addr, 0)) {
+    if (i2c_start_send(bus, addr)) {
         return -1;
     }
     i2c_send(bus, command);

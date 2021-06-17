@@ -88,9 +88,33 @@ int i2c_bus_busy(I2CBus *bus);
  * @address: address of the slave
  * @is_recv: indicates the transfer direction
  *
+ * When @is_recv is a known boolean constant, use the
+ * i2c_start_recv() or i2c_start_send() helper instead.
+ *
  * Returns: 0 on success, -1 on error
  */
 int i2c_start_transfer(I2CBus *bus, uint8_t address, bool is_recv);
+
+/**
+ * i2c_start_recv: start a 'receive' transfer on an I2C bus.
+ *
+ * @bus: #I2CBus to be used
+ * @address: address of the slave
+ *
+ * Returns: 0 on success, -1 on error
+ */
+int i2c_start_recv(I2CBus *bus, uint8_t address);
+
+/**
+ * i2c_start_send: start a 'send' transfer on an I2C bus.
+ *
+ * @bus: #I2CBus to be used
+ * @address: address of the slave
+ *
+ * Returns: 0 on success, -1 on error
+ */
+int i2c_start_send(I2CBus *bus, uint8_t address);
+
 void i2c_end_transfer(I2CBus *bus);
 void i2c_nack(I2CBus *bus);
 int i2c_send(I2CBus *bus, uint8_t data);
