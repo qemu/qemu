@@ -1438,17 +1438,14 @@ static inline uint16_t nvme_check_bounds(NvmeNamespace *ns, uint64_t slba,
     return NVME_SUCCESS;
 }
 
-static uint16_t nvme_check_dulbe(NvmeNamespace *ns, uint64_t slba,
-                                 uint32_t nlb)
+static int nvme_block_status_all(NvmeNamespace *ns, uint64_t slba,
+                                 uint32_t nlb, int flags)
 {
     BlockDriverState *bs = blk_bs(ns->blkconf.blk);
 
     int64_t pnum = 0, bytes = nvme_l2b(ns, nlb);
     int64_t offset = nvme_l2b(ns, slba);
-    bool zeroed;
     int ret;
-
-    Error *local_err = NULL;
 
     /*
      * `pnum` holds the number of bytes after offset that shares the same
@@ -1461,22 +1458,40 @@ static uint16_t nvme_check_dulbe(NvmeNamespace *ns, uint64_t slba,
 
         ret = bdrv_block_status(bs, offset, bytes, &pnum, NULL, NULL);
         if (ret < 0) {
-            error_setg_errno(&local_err, -ret, "unable to get block status");
-            error_report_err(local_err);
-
-            return NVME_INTERNAL_DEV_ERROR;
+            return ret;
         }
 
-        zeroed = !!(ret & BDRV_BLOCK_ZERO);
 
-        trace_pci_nvme_block_status(offset, bytes, pnum, ret, zeroed);
+        trace_pci_nvme_block_status(offset, bytes, pnum, ret,
+                                    !!(ret & BDRV_BLOCK_ZERO));
 
-        if (zeroed) {
-            return NVME_DULB;
+        if (!(ret & flags)) {
+            return 1;
         }
 
         offset += pnum;
     } while (pnum != bytes);
+
+    return 0;
+}
+
+static uint16_t nvme_check_dulbe(NvmeNamespace *ns, uint64_t slba,
+                                 uint32_t nlb)
+{
+    int ret;
+    Error *err = NULL;
+
+    ret = nvme_block_status_all(ns, slba, nlb, BDRV_BLOCK_DATA);
+    if (ret) {
+        if (ret < 0) {
+            error_setg_errno(&err, -ret, "unable to get block status");
+            error_report_err(err);
+
+            return NVME_INTERNAL_DEV_ERROR;
+        }
+
+        return NVME_DULB;
+    }
 
     return NVME_SUCCESS;
 }
