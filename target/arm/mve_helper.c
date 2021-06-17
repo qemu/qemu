@@ -617,6 +617,8 @@ void HELPER(mve_vsbci)(CPUARMState *env, void *vd, void *vn, void *vm)
 
 DO_VCADD_ALL(vcadd90, DO_SUB, DO_ADD)
 DO_VCADD_ALL(vcadd270, DO_ADD, DO_SUB)
+DO_VCADD_ALL(vhcadd90, do_vhsub_s, do_vhadd_s)
+DO_VCADD_ALL(vhcadd270, do_vhadd_s, do_vhsub_s)
 
 static inline int32_t do_sat_bhw(int64_t val, int64_t min, int64_t max, bool *s)
 {
