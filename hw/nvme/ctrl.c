@@ -1542,7 +1542,10 @@ static inline NvmeZone *nvme_get_zone_by_slba(NvmeNamespace *ns, uint64_t slba)
 {
     uint32_t zone_idx = nvme_zone_idx(ns, slba);
 
-    assert(zone_idx < ns->num_zones);
+    if (zone_idx >= ns->num_zones) {
+        return NULL;
+    }
+
     return &ns->zone_array[zone_idx];
 }
 
@@ -1619,10 +1622,15 @@ static uint16_t nvme_check_zone_state_for_read(NvmeZone *zone)
 static uint16_t nvme_check_zone_read(NvmeNamespace *ns, uint64_t slba,
                                      uint32_t nlb)
 {
-    NvmeZone *zone = nvme_get_zone_by_slba(ns, slba);
-    uint64_t bndry = nvme_zone_rd_boundary(ns, zone);
-    uint64_t end = slba + nlb;
+    NvmeZone *zone;
+    uint64_t bndry, end;
     uint16_t status;
+
+    zone = nvme_get_zone_by_slba(ns, slba);
+    assert(zone);
+
+    bndry = nvme_zone_rd_boundary(ns, zone);
+    end = slba + nlb;
 
     status = nvme_check_zone_state_for_read(zone);
     if (status) {
@@ -1790,6 +1798,7 @@ static void nvme_finalize_zoned_write(NvmeNamespace *ns, NvmeRequest *req)
     slba = le64_to_cpu(rw->slba);
     nlb = le16_to_cpu(rw->nlb) + 1;
     zone = nvme_get_zone_by_slba(ns, slba);
+    assert(zone);
 
     nvme_advance_zone_wp(ns, zone, nlb);
 }
@@ -3186,6 +3195,7 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
 
     if (ns->params.zoned) {
         zone = nvme_get_zone_by_slba(ns, slba);
+        assert(zone);
 
         if (append) {
             bool piremap = !!(ctrl & NVME_RW_PIREMAP);
