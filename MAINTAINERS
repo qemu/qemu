@@ -898,6 +898,7 @@ M: Alexandre Iooss <erdnaxe@crans.org>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/stm32vldiscovery.c
+F: docs/system/arm/stm32.rst
 
 Versatile Express
 M: Peter Maydell <peter.maydell@linaro.org>
