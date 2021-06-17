@@ -1335,6 +1335,14 @@ static void copy_schib_to_guest(SCHIB *dest, const SCHIB *src)
     }
 }
 
+static void copy_esw_to_guest(ESW *dest, const ESW *src)
+{
+    dest->word0 = cpu_to_be32(src->word0);
+    dest->erw = cpu_to_be32(src->erw);
+    dest->word2 = cpu_to_be64(src->word2);
+    dest->word4 = cpu_to_be32(src->word4);
+}
+
 IOInstEnding css_do_stsch(SubchDev *sch, SCHIB *schib)
 {
     int ret;
@@ -1604,9 +1612,8 @@ static void copy_irb_to_guest(IRB *dest, const IRB *src, const PMCW *pmcw,
 
     copy_scsw_to_guest(&dest->scsw, &src->scsw);
 
-    for (i = 0; i < ARRAY_SIZE(dest->esw); i++) {
-        dest->esw[i] = cpu_to_be32(src->esw[i]);
-    }
+    copy_esw_to_guest(&dest->esw, &src->esw);
+
     for (i = 0; i < ARRAY_SIZE(dest->ecw); i++) {
         dest->ecw[i] = cpu_to_be32(src->ecw[i]);
     }
@@ -1655,9 +1662,9 @@ int css_do_tsch_get_irb(SubchDev *sch, IRB *target_irb, int *irb_len)
                         SCSW_CSTAT_CHN_CTRL_CHK |
                         SCSW_CSTAT_INTF_CTRL_CHK)) {
             irb.scsw.flags |= SCSW_FLAGS_MASK_ESWF;
-            irb.esw[0] = 0x04804000;
+            irb.esw.word0 = 0x04804000;
         } else {
-            irb.esw[0] = 0x00800000;
+            irb.esw.word0 = 0x00800000;
         }
         /* If a unit check is pending, copy sense data. */
         if ((schib->scsw.dstat & SCSW_DSTAT_UNIT_CHECK) &&
@@ -1670,7 +1677,7 @@ int css_do_tsch_get_irb(SubchDev *sch, IRB *target_irb, int *irb_len)
             for (i = 0; i < ARRAY_SIZE(irb.ecw); i++) {
                 irb.ecw[i] = be32_to_cpu(irb.ecw[i]);
             }
-            irb.esw[1] = 0x01000000 | (sizeof(sch->sense_data) << 8);
+            irb.esw.erw = ESW_ERW_SENSE | (sizeof(sch->sense_data) << 8);
         }
     }
     /* Store the irb to the guest. */
