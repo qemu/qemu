@@ -99,6 +99,12 @@ undocumented; you can get a complete list by running
    arm/virt
    arm/xlnx-versal-virt
 
+Emulated CPU architecture support
+=================================
+
+.. toctree::
+   arm/emulation
+
 Arm CPU features
 ================
 
