@@ -1290,6 +1290,8 @@ static void nvme_enqueue_req_completion(NvmeCQueue *cq, NvmeRequest *req)
 {
     assert(cq->cqid == req->sq->cqid);
     trace_pci_nvme_enqueue_req_completion(nvme_cid(req), cq->cqid,
+                                          le32_to_cpu(req->cqe.result),
+                                          le32_to_cpu(req->cqe.dw1),
                                           req->status);
 
     if (req->status) {
