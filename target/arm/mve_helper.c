@@ -522,3 +522,8 @@ DO_LDAV(vmlaldavxsw, 4, int32_t, true, +=, +=)
 
 DO_LDAV(vmlaldavuh, 2, uint16_t, false, +=, +=)
 DO_LDAV(vmlaldavuw, 4, uint32_t, false, +=, +=)
+
+DO_LDAV(vmlsldavsh, 2, int16_t, false, +=, -=)
+DO_LDAV(vmlsldavxsh, 2, int16_t, true, +=, -=)
+DO_LDAV(vmlsldavsw, 4, int32_t, false, +=, -=)
+DO_LDAV(vmlsldavxsw, 4, int32_t, true, +=, -=)
