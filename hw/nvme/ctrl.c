@@ -2015,26 +2015,6 @@ out:
     nvme_verify_cb(ctx, ret);
 }
 
-static void nvme_aio_discard_cb(void *opaque, int ret)
-{
-    NvmeRequest *req = opaque;
-    uintptr_t *discards = (uintptr_t *)&req->opaque;
-
-    trace_pci_nvme_aio_discard_cb(nvme_cid(req));
-
-    if (ret) {
-        nvme_aio_err(req, ret);
-    }
-
-    (*discards)--;
-
-    if (*discards) {
-        return;
-    }
-
-    nvme_enqueue_req_completion(nvme_cq(req), req);
-}
-
 struct nvme_zone_reset_ctx {
     NvmeRequest *req;
     NvmeZone    *zone;
@@ -2495,75 +2475,182 @@ out:
     nvme_enqueue_req_completion(nvme_cq(req), req);
 }
 
+typedef struct NvmeDSMAIOCB {
+    BlockAIOCB common;
+    BlockAIOCB *aiocb;
+    NvmeRequest *req;
+    QEMUBH *bh;
+    int ret;
+
+    NvmeDsmRange *range;
+    unsigned int nr;
+    unsigned int idx;
+} NvmeDSMAIOCB;
+
+static void nvme_dsm_cancel(BlockAIOCB *aiocb)
+{
+    NvmeDSMAIOCB *iocb = container_of(aiocb, NvmeDSMAIOCB, common);
+
+    /* break nvme_dsm_cb loop */
+    iocb->idx = iocb->nr;
+    iocb->ret = -ECANCELED;
+
+    if (iocb->aiocb) {
+        blk_aio_cancel_async(iocb->aiocb);
+        iocb->aiocb = NULL;
+    } else {
+        /*
+         * We only reach this if nvme_dsm_cancel() has already been called or
+         * the command ran to completion and nvme_dsm_bh is scheduled to run.
+         */
+        assert(iocb->idx == iocb->nr);
+    }
+}
+
+static const AIOCBInfo nvme_dsm_aiocb_info = {
+    .aiocb_size   = sizeof(NvmeDSMAIOCB),
+    .cancel_async = nvme_dsm_cancel,
+};
+
+static void nvme_dsm_bh(void *opaque)
+{
+    NvmeDSMAIOCB *iocb = opaque;
+
+    iocb->common.cb(iocb->common.opaque, iocb->ret);
+
+    qemu_bh_delete(iocb->bh);
+    iocb->bh = NULL;
+    qemu_aio_unref(iocb);
+}
+
+static void nvme_dsm_cb(void *opaque, int ret);
+
+static void nvme_dsm_md_cb(void *opaque, int ret)
+{
+    NvmeDSMAIOCB *iocb = opaque;
+    NvmeRequest *req = iocb->req;
+    NvmeNamespace *ns = req->ns;
+    NvmeDsmRange *range;
+    uint64_t slba;
+    uint32_t nlb;
+
+    if (ret < 0) {
+        iocb->ret = ret;
+        goto done;
+    }
+
+    if (!ns->lbaf.ms) {
+        nvme_dsm_cb(iocb, 0);
+        return;
+    }
+
+    range = &iocb->range[iocb->idx - 1];
+    slba = le64_to_cpu(range->slba);
+    nlb = le32_to_cpu(range->nlb);
+
+    /*
+     * Check that all block were discarded (zeroed); otherwise we do not zero
+     * the metadata.
+     */
+
+    ret = nvme_block_status_all(ns, slba, nlb, BDRV_BLOCK_ZERO);
+    if (ret) {
+        if (ret < 0) {
+            iocb->ret = ret;
+            goto done;
+        }
+
+        nvme_dsm_cb(iocb, 0);
+    }
+
+    iocb->aiocb = blk_aio_pwrite_zeroes(ns->blkconf.blk, nvme_moff(ns, slba),
+                                        nvme_m2b(ns, nlb), BDRV_REQ_MAY_UNMAP,
+                                        nvme_dsm_cb, iocb);
+    return;
+
+done:
+    iocb->aiocb = NULL;
+    qemu_bh_schedule(iocb->bh);
+}
+
+static void nvme_dsm_cb(void *opaque, int ret)
+{
+    NvmeDSMAIOCB *iocb = opaque;
+    NvmeRequest *req = iocb->req;
+    NvmeCtrl *n = nvme_ctrl(req);
+    NvmeNamespace *ns = req->ns;
+    NvmeDsmRange *range;
+    uint64_t slba;
+    uint32_t nlb;
+
+    if (ret < 0) {
+        iocb->ret = ret;
+        goto done;
+    }
+
+next:
+    if (iocb->idx == iocb->nr) {
+        goto done;
+    }
+
+    range = &iocb->range[iocb->idx++];
+    slba = le64_to_cpu(range->slba);
+    nlb = le32_to_cpu(range->nlb);
+
+    trace_pci_nvme_dsm_deallocate(slba, nlb);
+
+    if (nlb > n->dmrsl) {
+        trace_pci_nvme_dsm_single_range_limit_exceeded(nlb, n->dmrsl);
+        goto next;
+    }
+
+    if (nvme_check_bounds(ns, slba, nlb)) {
+        trace_pci_nvme_err_invalid_lba_range(slba, nlb,
+                                             ns->id_ns.nsze);
+        goto next;
+    }
+
+    iocb->aiocb = blk_aio_pdiscard(ns->blkconf.blk, nvme_l2b(ns, slba),
+                                   nvme_l2b(ns, nlb),
+                                   nvme_dsm_md_cb, iocb);
+    return;
+
+done:
+    iocb->aiocb = NULL;
+    qemu_bh_schedule(iocb->bh);
+}
+
 static uint16_t nvme_dsm(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeNamespace *ns = req->ns;
     NvmeDsmCmd *dsm = (NvmeDsmCmd *) &req->cmd;
-
     uint32_t attr = le32_to_cpu(dsm->attributes);
     uint32_t nr = (le32_to_cpu(dsm->nr) & 0xff) + 1;
-
     uint16_t status = NVME_SUCCESS;
 
-    trace_pci_nvme_dsm(nvme_cid(req), nvme_nsid(ns), nr, attr);
+    trace_pci_nvme_dsm(nr, attr);
 
     if (attr & NVME_DSMGMT_AD) {
-        int64_t offset;
-        size_t len;
-        NvmeDsmRange range[nr];
-        uintptr_t *discards = (uintptr_t *)&req->opaque;
+        NvmeDSMAIOCB *iocb = blk_aio_get(&nvme_dsm_aiocb_info, ns->blkconf.blk,
+                                         nvme_misc_cb, req);
 
-        status = nvme_h2c(n, (uint8_t *)range, sizeof(range), req);
+        iocb->req = req;
+        iocb->bh = qemu_bh_new(nvme_dsm_bh, iocb);
+        iocb->ret = 0;
+        iocb->range = g_new(NvmeDsmRange, nr);
+        iocb->nr = nr;
+        iocb->idx = 0;
+
+        status = nvme_h2c(n, (uint8_t *)iocb->range, sizeof(NvmeDsmRange) * nr,
+                          req);
         if (status) {
             return status;
         }
 
-        /*
-         * AIO callbacks may be called immediately, so initialize discards to 1
-         * to make sure the the callback does not complete the request before
-         * all discards have been issued.
-         */
-        *discards = 1;
+        req->aiocb = &iocb->common;
+        nvme_dsm_cb(iocb, 0);
 
-        for (int i = 0; i < nr; i++) {
-            uint64_t slba = le64_to_cpu(range[i].slba);
-            uint32_t nlb = le32_to_cpu(range[i].nlb);
-
-            if (nvme_check_bounds(ns, slba, nlb)) {
-                continue;
-            }
-
-            trace_pci_nvme_dsm_deallocate(nvme_cid(req), nvme_nsid(ns), slba,
-                                          nlb);
-
-            if (nlb > n->dmrsl) {
-                trace_pci_nvme_dsm_single_range_limit_exceeded(nlb, n->dmrsl);
-            }
-
-            offset = nvme_l2b(ns, slba);
-            len = nvme_l2b(ns, nlb);
-
-            while (len) {
-                size_t bytes = MIN(BDRV_REQUEST_MAX_BYTES, len);
-
-                (*discards)++;
-
-                blk_aio_pdiscard(ns->blkconf.blk, offset, bytes,
-                                 nvme_aio_discard_cb, req);
-
-                offset += bytes;
-                len -= bytes;
-            }
-        }
-
-        /* account for the 1-initialization */
-        (*discards)--;
-
-        if (*discards) {
-            status = NVME_NO_COMPLETE;
-        } else {
-            status = req->status;
-        }
+        return NVME_NO_COMPLETE;
     }
 
     return status;
