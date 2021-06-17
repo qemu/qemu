@@ -1331,7 +1331,6 @@ uint64_t dup_const(unsigned vece, uint64_t c);
         : (qemu_build_not_reached_always(), 0))                    \
      : dup_const(VECE, C))
 
-
 /*
  * Memory helpers that will be used by TCG generated code.
  */
