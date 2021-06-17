@@ -1010,16 +1010,12 @@ static uint16_t nvme_map_data(NvmeCtrl *n, uint32_t nlb, NvmeRequest *req)
 {
     NvmeNamespace *ns = req->ns;
     NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
-    uint16_t ctrl = le16_to_cpu(rw->control);
+    bool pi = !!NVME_ID_NS_DPS_TYPE(ns->id_ns.dps);
+    bool pract = !!(le16_to_cpu(rw->control) & NVME_RW_PRINFO_PRACT);
     size_t len = nvme_l2b(ns, nlb);
     uint16_t status;
 
-    if (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps) &&
-        (ctrl & NVME_RW_PRINFO_PRACT && ns->lbaf.ms == 8)) {
-        goto out;
-    }
-
-    if (nvme_ns_ext(ns)) {
+    if (nvme_ns_ext(ns) && !(pi && pract && ns->lbaf.ms == 8)) {
         NvmeSg sg;
 
         len += nvme_m2b(ns, nlb);
@@ -1036,7 +1032,6 @@ static uint16_t nvme_map_data(NvmeCtrl *n, uint32_t nlb, NvmeRequest *req)
         return NVME_SUCCESS;
     }
 
-out:
     return nvme_map_dptr(n, &req->sg, len, &req->cmd);
 }
 
@@ -1195,10 +1190,10 @@ uint16_t nvme_bounce_data(NvmeCtrl *n, uint8_t *ptr, uint32_t len,
 {
     NvmeNamespace *ns = req->ns;
     NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
-    uint16_t ctrl = le16_to_cpu(rw->control);
+    bool pi = !!NVME_ID_NS_DPS_TYPE(ns->id_ns.dps);
+    bool pract = !!(le16_to_cpu(rw->control) & NVME_RW_PRINFO_PRACT);
 
-    if (nvme_ns_ext(ns) &&
-        !(ctrl & NVME_RW_PRINFO_PRACT && ns->lbaf.ms == 8)) {
+    if (nvme_ns_ext(ns) && !(pi && pract && ns->lbaf.ms == 8)) {
         return nvme_tx_interleaved(n, &req->sg, ptr, len, ns->lbasz,
                                    ns->lbaf.ms, 0, dir);
     }
@@ -1950,14 +1945,13 @@ static void nvme_verify_cb(void *opaque, int ret)
     BlockAcctStats *stats = blk_get_stats(blk);
     NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
     uint64_t slba = le64_to_cpu(rw->slba);
-    uint16_t ctrl = le16_to_cpu(rw->control);
+    uint8_t prinfo = NVME_RW_PRINFO(le16_to_cpu(rw->control));
     uint16_t apptag = le16_to_cpu(rw->apptag);
     uint16_t appmask = le16_to_cpu(rw->appmask);
     uint32_t reftag = le32_to_cpu(rw->reftag);
     uint16_t status;
 
-    trace_pci_nvme_verify_cb(nvme_cid(req), NVME_RW_PRINFO(ctrl), apptag,
-                             appmask, reftag);
+    trace_pci_nvme_verify_cb(nvme_cid(req), prinfo, apptag, appmask, reftag);
 
     if (ret) {
         block_acct_failed(stats, acct);
@@ -1977,7 +1971,7 @@ static void nvme_verify_cb(void *opaque, int ret)
 
         req->status = nvme_dif_check(ns, ctx->data.bounce, ctx->data.iov.size,
                                      ctx->mdata.bounce, ctx->mdata.iov.size,
-                                     ctrl, slba, apptag, appmask, &reftag);
+                                     prinfo, slba, apptag, appmask, &reftag);
     }
 
 out:
@@ -2183,8 +2177,8 @@ static void nvme_copy_in_complete(NvmeRequest *req)
     block_acct_done(blk_get_stats(ns->blkconf.blk), &req->acct);
 
     if (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps)) {
-        uint16_t prinfor = (copy->control[0] >> 4) & 0xf;
-        uint16_t prinfow = (copy->control[2] >> 2) & 0xf;
+        uint8_t prinfor = (copy->control[0] >> 4) & 0xf;
+        uint8_t prinfow = (copy->control[2] >> 2) & 0xf;
         uint16_t nr = copy->nr + 1;
         NvmeCopySourceRange *range;
         uint64_t slba;
@@ -2194,13 +2188,6 @@ static void nvme_copy_in_complete(NvmeRequest *req)
         uint8_t *buf = ctx->bounce, *mbuf = ctx->mbounce;
         size_t len, mlen;
         int i;
-
-        /*
-         * The dif helpers expects prinfo to be similar to the control field of
-         * the NvmeRwCmd, so shift by 10 to fake it.
-         */
-        prinfor = prinfor << 10;
-        prinfow = prinfow << 10;
 
         for (i = 0; i < nr; i++) {
             range = &ctx->ranges[i];
@@ -2342,7 +2329,7 @@ static void nvme_compare_mdata_cb(void *opaque, int ret)
     NvmeNamespace *ns = req->ns;
     NvmeCtrl *n = nvme_ctrl(req);
     NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
-    uint16_t ctrl = le16_to_cpu(rw->control);
+    uint8_t prinfo = NVME_RW_PRINFO(le16_to_cpu(rw->control));
     uint16_t apptag = le16_to_cpu(rw->apptag);
     uint16_t appmask = le16_to_cpu(rw->appmask);
     uint32_t reftag = le32_to_cpu(rw->reftag);
@@ -2378,7 +2365,7 @@ static void nvme_compare_mdata_cb(void *opaque, int ret)
         int16_t pil = 0;
 
         status = nvme_dif_check(ns, ctx->data.bounce, ctx->data.iov.size,
-                                ctx->mdata.bounce, ctx->mdata.iov.size, ctrl,
+                                ctx->mdata.bounce, ctx->mdata.iov.size, prinfo,
                                 slba, apptag, appmask, &reftag);
         if (status) {
             req->status = status;
@@ -2674,7 +2661,7 @@ static uint16_t nvme_verify(NvmeCtrl *n, NvmeRequest *req)
     uint32_t nlb = le16_to_cpu(rw->nlb) + 1;
     size_t len = nvme_l2b(ns, nlb);
     int64_t offset = nvme_l2b(ns, slba);
-    uint16_t ctrl = le16_to_cpu(rw->control);
+    uint8_t prinfo = NVME_RW_PRINFO(le16_to_cpu(rw->control));
     uint32_t reftag = le32_to_cpu(rw->reftag);
     NvmeBounceContext *ctx = NULL;
     uint16_t status;
@@ -2682,12 +2669,12 @@ static uint16_t nvme_verify(NvmeCtrl *n, NvmeRequest *req)
     trace_pci_nvme_verify(nvme_cid(req), nvme_nsid(ns), slba, nlb);
 
     if (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps)) {
-        status = nvme_check_prinfo(ns, ctrl, slba, reftag);
+        status = nvme_check_prinfo(ns, prinfo, slba, reftag);
         if (status) {
             return status;
         }
 
-        if (ctrl & NVME_RW_PRINFO_PRACT) {
+        if (prinfo & NVME_PRINFO_PRACT) {
             return NVME_INVALID_PROT_INFO | NVME_DNR;
         }
     }
@@ -2731,13 +2718,8 @@ static uint16_t nvme_copy(NvmeCtrl *n, NvmeRequest *req)
 
     uint16_t nr = copy->nr + 1;
     uint8_t format = copy->control[0] & 0xf;
-
-    /*
-     * Shift the PRINFOR/PRINFOW values by 10 to allow reusing the
-     * NVME_RW_PRINFO constants.
-     */
-    uint16_t prinfor = ((copy->control[0] >> 4) & 0xf) << 10;
-    uint16_t prinfow = ((copy->control[2] >> 2) & 0xf) << 10;
+    uint8_t prinfor = (copy->control[0] >> 4) & 0xf;
+    uint8_t prinfow = (copy->control[2] >> 2) & 0xf;
 
     uint32_t nlb = 0;
     uint8_t *bounce = NULL, *bouncep = NULL;
@@ -2749,7 +2731,7 @@ static uint16_t nvme_copy(NvmeCtrl *n, NvmeRequest *req)
     trace_pci_nvme_copy(nvme_cid(req), nvme_nsid(ns), nr, format);
 
     if (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps) &&
-        ((prinfor & NVME_RW_PRINFO_PRACT) != (prinfow & NVME_RW_PRINFO_PRACT))) {
+        ((prinfor & NVME_PRINFO_PRACT) != (prinfow & NVME_PRINFO_PRACT))) {
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
@@ -2886,7 +2868,7 @@ static uint16_t nvme_compare(NvmeCtrl *n, NvmeRequest *req)
     BlockBackend *blk = ns->blkconf.blk;
     uint64_t slba = le64_to_cpu(rw->slba);
     uint32_t nlb = le16_to_cpu(rw->nlb) + 1;
-    uint16_t ctrl = le16_to_cpu(rw->control);
+    uint8_t prinfo = NVME_RW_PRINFO(le16_to_cpu(rw->control));
     size_t data_len = nvme_l2b(ns, nlb);
     size_t len = data_len;
     int64_t offset = nvme_l2b(ns, slba);
@@ -2895,7 +2877,7 @@ static uint16_t nvme_compare(NvmeCtrl *n, NvmeRequest *req)
 
     trace_pci_nvme_compare(nvme_cid(req), nvme_nsid(ns), slba, nlb);
 
-    if (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps) && (ctrl & NVME_RW_PRINFO_PRACT)) {
+    if (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps) && (prinfo & NVME_PRINFO_PRACT)) {
         return NVME_INVALID_PROT_INFO | NVME_DNR;
     }
 
@@ -3083,7 +3065,7 @@ static uint16_t nvme_read(NvmeCtrl *n, NvmeRequest *req)
     NvmeNamespace *ns = req->ns;
     uint64_t slba = le64_to_cpu(rw->slba);
     uint32_t nlb = (uint32_t)le16_to_cpu(rw->nlb) + 1;
-    uint16_t ctrl = le16_to_cpu(rw->control);
+    uint8_t prinfo = NVME_RW_PRINFO(le16_to_cpu(rw->control));
     uint64_t data_size = nvme_l2b(ns, nlb);
     uint64_t mapped_size = data_size;
     uint64_t data_offset;
@@ -3094,7 +3076,7 @@ static uint16_t nvme_read(NvmeCtrl *n, NvmeRequest *req)
         mapped_size += nvme_m2b(ns, nlb);
 
         if (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps)) {
-            bool pract = ctrl & NVME_RW_PRINFO_PRACT;
+            bool pract = prinfo & NVME_PRINFO_PRACT;
 
             if (pract && ns->lbaf.ms == 8) {
                 mapped_size = data_size;
@@ -3158,6 +3140,7 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
     uint64_t slba = le64_to_cpu(rw->slba);
     uint32_t nlb = (uint32_t)le16_to_cpu(rw->nlb) + 1;
     uint16_t ctrl = le16_to_cpu(rw->control);
+    uint8_t prinfo = NVME_RW_PRINFO(ctrl);
     uint64_t data_size = nvme_l2b(ns, nlb);
     uint64_t mapped_size = data_size;
     uint64_t data_offset;
@@ -3170,7 +3153,7 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
         mapped_size += nvme_m2b(ns, nlb);
 
         if (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps)) {
-            bool pract = ctrl & NVME_RW_PRINFO_PRACT;
+            bool pract = prinfo & NVME_PRINFO_PRACT;
 
             if (pract && ns->lbaf.ms == 8) {
                 mapped_size -= nvme_m2b(ns, nlb);
