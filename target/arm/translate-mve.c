@@ -451,6 +451,43 @@ static bool trans_VQDMULLT(DisasContext *s, arg_2op *a)
     return do_2op(s, a, fns[a->size]);
 }
 
+/*
+ * VADC and VSBC: these perform an add-with-carry or subtract-with-carry
+ * of the 32-bit elements in each lane of the input vectors, where the
+ * carry-out of each add is the carry-in of the next.  The initial carry
+ * input is either fixed (0 for VADCI, 1 for VSBCI) or is from FPSCR.C
+ * (for VADC and VSBC); the carry out at the end is written back to FPSCR.C.
+ * These insns are subject to beat-wise execution.  Partial execution
+ * of an I=1 (initial carry input fixed) insn which does not
+ * execute the first beat must start with the current FPSCR.NZCV
+ * value, not the fixed constant input.
+ */
+static bool trans_VADC(DisasContext *s, arg_2op *a)
+{
+    return do_2op(s, a, gen_helper_mve_vadc);
+}
+
+static bool trans_VADCI(DisasContext *s, arg_2op *a)
+{
+    if (mve_skip_first_beat(s)) {
+        return trans_VADC(s, a);
+    }
+    return do_2op(s, a, gen_helper_mve_vadci);
+}
+
+static bool trans_VSBC(DisasContext *s, arg_2op *a)
+{
+    return do_2op(s, a, gen_helper_mve_vsbc);
+}
+
+static bool trans_VSBCI(DisasContext *s, arg_2op *a)
+{
+    if (mve_skip_first_beat(s)) {
+        return trans_VSBC(s, a);
+    }
+    return do_2op(s, a, gen_helper_mve_vsbci);
+}
+
 static bool do_2op_scalar(DisasContext *s, arg_2scalar *a,
                           MVEGenTwoOpScalarFn fn)
 {

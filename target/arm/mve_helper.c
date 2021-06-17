@@ -537,6 +537,58 @@ DO_2OP_U(vrshlu, DO_VRSHLU)
 DO_2OP_S(vrhadds, DO_RHADD_S)
 DO_2OP_U(vrhaddu, DO_RHADD_U)
 
+static void do_vadc(CPUARMState *env, uint32_t *d, uint32_t *n, uint32_t *m,
+                    uint32_t inv, uint32_t carry_in, bool update_flags)
+{
+    uint16_t mask = mve_element_mask(env);
+    unsigned e;
+
+    /* If any additions trigger, we will update flags. */
+    if (mask & 0x1111) {
+        update_flags = true;
+    }
+
+    for (e = 0; e < 16 / 4; e++, mask >>= 4) {
+        uint64_t r = carry_in;
+        r += n[H4(e)];
+        r += m[H4(e)] ^ inv;
+        if (mask & 1) {
+            carry_in = r >> 32;
+        }
+        mergemask(&d[H4(e)], r, mask);
+    }
+
+    if (update_flags) {
+        /* Store C, clear NZV. */
+        env->vfp.xregs[ARM_VFP_FPSCR] &= ~FPCR_NZCV_MASK;
+        env->vfp.xregs[ARM_VFP_FPSCR] |= carry_in * FPCR_C;
+    }
+    mve_advance_vpt(env);
+}
+
+void HELPER(mve_vadc)(CPUARMState *env, void *vd, void *vn, void *vm)
+{
+    bool carry_in = env->vfp.xregs[ARM_VFP_FPSCR] & FPCR_C;
+    do_vadc(env, vd, vn, vm, 0, carry_in, false);
+}
+
+void HELPER(mve_vsbc)(CPUARMState *env, void *vd, void *vn, void *vm)
+{
+    bool carry_in = env->vfp.xregs[ARM_VFP_FPSCR] & FPCR_C;
+    do_vadc(env, vd, vn, vm, -1, carry_in, false);
+}
+
+
+void HELPER(mve_vadci)(CPUARMState *env, void *vd, void *vn, void *vm)
+{
+    do_vadc(env, vd, vn, vm, 0, 0, true);
+}
+
+void HELPER(mve_vsbci)(CPUARMState *env, void *vd, void *vn, void *vm)
+{
+    do_vadc(env, vd, vn, vm, -1, 1, true);
+}
+
 static inline int32_t do_sat_bhw(int64_t val, int64_t min, int64_t max, bool *s)
 {
     if (val > max) {
