@@ -136,6 +136,11 @@ static inline int negate(DisasContext *s, int x)
     return -x;
 }
 
+static inline int plus_1(DisasContext *s, int x)
+{
+    return x + 1;
+}
+
 static inline int plus_2(DisasContext *s, int x)
 {
     return x + 2;
@@ -149,6 +154,11 @@ static inline int times_2(DisasContext *s, int x)
 static inline int times_4(DisasContext *s, int x)
 {
     return x * 4;
+}
+
+static inline int times_2_plus_1(DisasContext *s, int x)
+{
+    return x * 2 + 1;
 }
 
 static inline int arm_dc_feature(DisasContext *dc, int feature)

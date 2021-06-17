@@ -488,3 +488,37 @@ DO_2OP_S(vhadds, do_vhadd_s)
 DO_2OP_U(vhaddu, do_vhadd_u)
 DO_2OP_S(vhsubs, do_vhsub_s)
 DO_2OP_U(vhsubu, do_vhsub_u)
+
+
+/*
+ * Multiply add long dual accumulate ops.
+ */
+#define DO_LDAV(OP, ESIZE, TYPE, XCHG, EVENACC, ODDACC)                 \
+    uint64_t HELPER(glue(mve_, OP))(CPUARMState *env, void *vn,         \
+                                    void *vm, uint64_t a)               \
+    {                                                                   \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        TYPE *n = vn, *m = vm;                                          \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            if (mask & 1) {                                             \
+                if (e & 1) {                                            \
+                    a ODDACC                                            \
+                        (int64_t)n[H##ESIZE(e - 1 * XCHG)] * m[H##ESIZE(e)]; \
+                } else {                                                \
+                    a EVENACC                                           \
+                        (int64_t)n[H##ESIZE(e + 1 * XCHG)] * m[H##ESIZE(e)]; \
+                }                                                       \
+            }                                                           \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+        return a;                                                       \
+    }
+
+DO_LDAV(vmlaldavsh, 2, int16_t, false, +=, +=)
+DO_LDAV(vmlaldavxsh, 2, int16_t, true, +=, +=)
+DO_LDAV(vmlaldavsw, 4, int32_t, false, +=, +=)
+DO_LDAV(vmlaldavxsw, 4, int32_t, true, +=, +=)
+
+DO_LDAV(vmlaldavuh, 2, uint16_t, false, +=, +=)
+DO_LDAV(vmlaldavuw, 4, uint32_t, false, +=, +=)
