@@ -57,7 +57,7 @@ static bool mve_check_qreg_bank(DisasContext *s, int qmask)
     return qmask < 8;
 }
 
-static bool mve_eci_check(DisasContext *s)
+bool mve_eci_check(DisasContext *s)
 {
     /*
      * This is a beatwise insn: check that ECI is valid (not a
@@ -91,7 +91,7 @@ static void mve_update_eci(DisasContext *s)
     }
 }
 
-static void mve_update_and_store_eci(DisasContext *s)
+void mve_update_and_store_eci(DisasContext *s)
 {
     /*
      * For insns which don't call a helper function that will call
