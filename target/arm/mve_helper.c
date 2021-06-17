@@ -337,6 +337,12 @@ DO_1OP(vfnegs, 8, uint64_t, DO_FNEGS)
         mve_advance_vpt(env);                                           \
     }
 
+/* provide unsigned 2-op helpers for all sizes */
+#define DO_2OP_U(OP, FN)                        \
+    DO_2OP(OP##b, 1, uint8_t, FN)               \
+    DO_2OP(OP##h, 2, uint16_t, FN)              \
+    DO_2OP(OP##w, 4, uint32_t, FN)
+
 #define DO_AND(N, M)  ((N) & (M))
 #define DO_BIC(N, M)  ((N) & ~(M))
 #define DO_ORR(N, M)  ((N) | (M))
@@ -348,3 +354,11 @@ DO_2OP(vbic, 8, uint64_t, DO_BIC)
 DO_2OP(vorr, 8, uint64_t, DO_ORR)
 DO_2OP(vorn, 8, uint64_t, DO_ORN)
 DO_2OP(veor, 8, uint64_t, DO_EOR)
+
+#define DO_ADD(N, M) ((N) + (M))
+#define DO_SUB(N, M) ((N) - (M))
+#define DO_MUL(N, M) ((N) * (M))
+
+DO_2OP_U(vadd, DO_ADD)
+DO_2OP_U(vsub, DO_SUB)
+DO_2OP_U(vmul, DO_MUL)
