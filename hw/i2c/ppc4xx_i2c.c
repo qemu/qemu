@@ -1,6 +1,8 @@
 /*
  * PPC4xx I2C controller emulation
  *
+ * Documentation: PPC405GP User's Manual, Chapter 22. IIC Bus Interface
+ *
  * Copyright (c) 2007 Jocelyn Mayer
  * Copyright (c) 2012 François Revol
  * Copyright (c) 2016-2018 BALATON Zoltan
