@@ -146,3 +146,17 @@ static bool trans_VLDR_VSTR(DisasContext *s, arg_VLDR_VSTR *a)
     };
     return do_ldst(s, a, ldstfns[a->size][a->l]);
 }
+
+#define DO_VLDST_WIDE_NARROW(OP, SLD, ULD, ST)                  \
+    static bool trans_##OP(DisasContext *s, arg_VLDR_VSTR *a)   \
+    {                                                           \
+        static MVEGenLdStFn * const ldstfns[2][2] = {           \
+            { gen_helper_mve_##ST, gen_helper_mve_##SLD },      \
+            { NULL, gen_helper_mve_##ULD },                     \
+        };                                                      \
+        return do_ldst(s, a, ldstfns[a->u][a->l]);              \
+    }
+
+DO_VLDST_WIDE_NARROW(VLDSTB_H, vldrb_sh, vldrb_uh, vstrb_h)
+DO_VLDST_WIDE_NARROW(VLDSTB_W, vldrb_sw, vldrb_uw, vstrb_w)
+DO_VLDST_WIDE_NARROW(VLDSTH_W, vldrh_sw, vldrh_uw, vstrh_w)

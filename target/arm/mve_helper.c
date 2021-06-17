@@ -168,5 +168,16 @@ DO_VSTR(vstrb, 1, stb, 1, uint8_t)
 DO_VSTR(vstrh, 2, stw, 2, uint16_t)
 DO_VSTR(vstrw, 4, stl, 4, uint32_t)
 
+DO_VLDR(vldrb_sh, 1, ldsb, 2, int16_t)
+DO_VLDR(vldrb_sw, 1, ldsb, 4, int32_t)
+DO_VLDR(vldrb_uh, 1, ldub, 2, uint16_t)
+DO_VLDR(vldrb_uw, 1, ldub, 4, uint32_t)
+DO_VLDR(vldrh_sw, 2, ldsw, 4, int32_t)
+DO_VLDR(vldrh_uw, 2, lduw, 4, uint32_t)
+
+DO_VSTR(vstrb_h, 1, stb, 2, int16_t)
+DO_VSTR(vstrb_w, 1, stb, 4, int32_t)
+DO_VSTR(vstrh_w, 2, stw, 4, int32_t)
+
 #undef DO_VLDR
 #undef DO_VSTR
