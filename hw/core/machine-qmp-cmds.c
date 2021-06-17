@@ -157,6 +157,7 @@ void qmp_set_numa_node(NumaOptions *cmd, Error **errp)
 
 static int query_memdev(Object *obj, void *opaque)
 {
+    Error *err = NULL;
     MemdevList **list = opaque;
     Memdev *m;
     QObject *host_nodes;
@@ -172,6 +173,13 @@ static int query_memdev(Object *obj, void *opaque)
         m->merge = object_property_get_bool(obj, "merge", &error_abort);
         m->dump = object_property_get_bool(obj, "dump", &error_abort);
         m->prealloc = object_property_get_bool(obj, "prealloc", &error_abort);
+        m->share = object_property_get_bool(obj, "share", &error_abort);
+        m->reserve = object_property_get_bool(obj, "reserve", &err);
+        if (err) {
+            error_free_or_abort(&err);
+        } else {
+            m->has_reserve = true;
+        }
         m->policy = object_property_get_enum(obj, "policy", "HostMemPolicy",
                                              &error_abort);
         host_nodes = object_property_get_qobject(obj,

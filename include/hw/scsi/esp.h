@@ -37,6 +37,7 @@ struct ESPState {
     SCSIRequest *current_req;
     Fifo8 cmdfifo;
     uint8_t cmdfifo_cdb_offset;
+    uint8_t lun;
     uint32_t do_cmd;
 
     bool data_in_ready;
