@@ -188,32 +188,19 @@ static void gen_update_fp_context(DisasContext *s)
 }
 
 /*
- * Check that VFP access is enabled. If it is, do the necessary
- * M-profile lazy-FP handling and then return true.
- * If not, emit code to generate an appropriate exception and
- * return false.
+ * Check that VFP access is enabled, A-profile specific version.
+ *
+ * If VFP is enabled, return true. If not, emit code to generate an
+ * appropriate exception and return false.
  * The ignore_vfp_enabled argument specifies that we should ignore
- * whether VFP is enabled via FPEXC[EN]: this should be true for FMXR/FMRX
+ * whether VFP is enabled via FPEXC.EN: this should be true for FMXR/FMRX
  * accesses to FPSID, FPEXC, MVFR0, MVFR1, MVFR2, and false for all other insns.
  */
-static bool full_vfp_access_check(DisasContext *s, bool ignore_vfp_enabled)
+static bool vfp_access_check_a(DisasContext *s, bool ignore_vfp_enabled)
 {
     if (s->fp_excp_el) {
-        if (arm_dc_feature(s, ARM_FEATURE_M)) {
-            /*
-             * M-profile mostly catches the "FPU disabled" case early, in
-             * disas_m_nocp(), but a few insns (eg LCTP, WLSTP, DLSTP)
-             * which do coprocessor-checks are outside the large ranges of
-             * the encoding space handled by the patterns in m-nocp.decode,
-             * and for them we may need to raise NOCP here.
-             */
-            gen_exception_insn(s, s->pc_curr, EXCP_NOCP,
-                               syn_uncategorized(), s->fp_excp_el);
-        } else {
-            gen_exception_insn(s, s->pc_curr, EXCP_UDEF,
-                               syn_fp_access_trap(1, 0xe, false),
-                               s->fp_excp_el);
-        }
+        gen_exception_insn(s, s->pc_curr, EXCP_UDEF,
+                           syn_fp_access_trap(1, 0xe, false), s->fp_excp_el);
         return false;
     }
 
@@ -222,16 +209,38 @@ static bool full_vfp_access_check(DisasContext *s, bool ignore_vfp_enabled)
         unallocated_encoding(s);
         return false;
     }
+    return true;
+}
 
-    if (arm_dc_feature(s, ARM_FEATURE_M)) {
-        /* Handle M-profile lazy FP state mechanics */
-
-        /* Trigger lazy-state preservation if necessary */
-        gen_preserve_fp_state(s);
-
-        /* Update ownership of FP context and create new FP context if needed */
-        gen_update_fp_context(s);
+/*
+ * Check that VFP access is enabled, M-profile specific version.
+ *
+ * If VFP is enabled, do the necessary M-profile lazy-FP handling and then
+ * return true. If not, emit code to generate an appropriate exception and
+ * return false.
+ */
+static bool vfp_access_check_m(DisasContext *s)
+{
+    if (s->fp_excp_el) {
+        /*
+         * M-profile mostly catches the "FPU disabled" case early, in
+         * disas_m_nocp(), but a few insns (eg LCTP, WLSTP, DLSTP)
+         * which do coprocessor-checks are outside the large ranges of
+         * the encoding space handled by the patterns in m-nocp.decode,
+         * and for them we may need to raise NOCP here.
+         */
+        gen_exception_insn(s, s->pc_curr, EXCP_NOCP,
+                           syn_uncategorized(), s->fp_excp_el);
+        return false;
     }
+
+    /* Handle M-profile lazy FP state mechanics */
+
+    /* Trigger lazy-state preservation if necessary */
+    gen_preserve_fp_state(s);
+
+    /* Update ownership of FP context and create new FP context if needed */
+    gen_update_fp_context(s);
 
     return true;
 }
@@ -242,7 +251,11 @@ static bool full_vfp_access_check(DisasContext *s, bool ignore_vfp_enabled)
  */
 bool vfp_access_check(DisasContext *s)
 {
-    return full_vfp_access_check(s, false);
+    if (arm_dc_feature(s, ARM_FEATURE_M)) {
+        return vfp_access_check_m(s);
+    } else {
+        return vfp_access_check_a(s, false);
+    }
 }
 
 static bool trans_VSEL(DisasContext *s, arg_VSEL *a)
@@ -732,7 +745,11 @@ static bool trans_VMSR_VMRS(DisasContext *s, arg_VMSR_VMRS *a)
         return false;
     }
 
-    if (!full_vfp_access_check(s, ignore_vfp_enabled)) {
+    /*
+     * Call vfp_access_check_a() directly, because we need to tell
+     * it to ignore FPEXC.EN for some register accesses.
+     */
+    if (!vfp_access_check_a(s, ignore_vfp_enabled)) {
         return true;
     }
 
