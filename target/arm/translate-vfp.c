@@ -132,6 +132,62 @@ void gen_preserve_fp_state(DisasContext *s)
 }
 
 /*
+ * Generate code for M-profile FP context handling: update the
+ * ownership of the FP context, and create a new context if
+ * necessary. This corresponds to the parts of the pseudocode
+ * ExecuteFPCheck() after the inital PreserveFPState() call.
+ */
+static void gen_update_fp_context(DisasContext *s)
+{
+    /* Update ownership of FP context: set FPCCR.S to match current state */
+    if (s->v8m_fpccr_s_wrong) {
+        TCGv_i32 tmp;
+
+        tmp = load_cpu_field(v7m.fpccr[M_REG_S]);
+        if (s->v8m_secure) {
+            tcg_gen_ori_i32(tmp, tmp, R_V7M_FPCCR_S_MASK);
+        } else {
+            tcg_gen_andi_i32(tmp, tmp, ~R_V7M_FPCCR_S_MASK);
+        }
+        store_cpu_field(tmp, v7m.fpccr[M_REG_S]);
+        /* Don't need to do this for any further FP insns in this TB */
+        s->v8m_fpccr_s_wrong = false;
+    }
+
+    if (s->v7m_new_fp_ctxt_needed) {
+        /*
+         * Create new FP context by updating CONTROL.FPCA, CONTROL.SFPA,
+         * the FPSCR, and VPR.
+         */
+        TCGv_i32 control, fpscr;
+        uint32_t bits = R_V7M_CONTROL_FPCA_MASK;
+
+        fpscr = load_cpu_field(v7m.fpdscr[s->v8m_secure]);
+        gen_helper_vfp_set_fpscr(cpu_env, fpscr);
+        tcg_temp_free_i32(fpscr);
+        if (dc_isar_feature(aa32_mve, s)) {
+            TCGv_i32 z32 = tcg_const_i32(0);
+            store_cpu_field(z32, v7m.vpr);
+        }
+
+        /*
+         * We don't need to arrange to end the TB, because the only
+         * parts of FPSCR which we cache in the TB flags are the VECLEN
+         * and VECSTRIDE, and those don't exist for M-profile.
+         */
+
+        if (s->v8m_secure) {
+            bits |= R_V7M_CONTROL_SFPA_MASK;
+        }
+        control = load_cpu_field(v7m.control[M_REG_S]);
+        tcg_gen_ori_i32(control, control, bits);
+        store_cpu_field(control, v7m.control[M_REG_S]);
+        /* Don't need to do this for any further FP insns in this TB */
+        s->v7m_new_fp_ctxt_needed = false;
+    }
+}
+
+/*
  * Check that VFP access is enabled. If it is, do the necessary
  * M-profile lazy-FP handling and then return true.
  * If not, emit code to generate an appropriate exception and
@@ -173,52 +229,8 @@ static bool full_vfp_access_check(DisasContext *s, bool ignore_vfp_enabled)
         /* Trigger lazy-state preservation if necessary */
         gen_preserve_fp_state(s);
 
-        /* Update ownership of FP context: set FPCCR.S to match current state */
-        if (s->v8m_fpccr_s_wrong) {
-            TCGv_i32 tmp;
-
-            tmp = load_cpu_field(v7m.fpccr[M_REG_S]);
-            if (s->v8m_secure) {
-                tcg_gen_ori_i32(tmp, tmp, R_V7M_FPCCR_S_MASK);
-            } else {
-                tcg_gen_andi_i32(tmp, tmp, ~R_V7M_FPCCR_S_MASK);
-            }
-            store_cpu_field(tmp, v7m.fpccr[M_REG_S]);
-            /* Don't need to do this for any further FP insns in this TB */
-            s->v8m_fpccr_s_wrong = false;
-        }
-
-        if (s->v7m_new_fp_ctxt_needed) {
-            /*
-             * Create new FP context by updating CONTROL.FPCA, CONTROL.SFPA,
-             * the FPSCR, and VPR.
-             */
-            TCGv_i32 control, fpscr;
-            uint32_t bits = R_V7M_CONTROL_FPCA_MASK;
-
-            fpscr = load_cpu_field(v7m.fpdscr[s->v8m_secure]);
-            gen_helper_vfp_set_fpscr(cpu_env, fpscr);
-            tcg_temp_free_i32(fpscr);
-            if (dc_isar_feature(aa32_mve, s)) {
-                TCGv_i32 z32 = tcg_const_i32(0);
-                store_cpu_field(z32, v7m.vpr);
-            }
-
-            /*
-             * We don't need to arrange to end the TB, because the only
-             * parts of FPSCR which we cache in the TB flags are the VECLEN
-             * and VECSTRIDE, and those don't exist for M-profile.
-             */
-
-            if (s->v8m_secure) {
-                bits |= R_V7M_CONTROL_SFPA_MASK;
-            }
-            control = load_cpu_field(v7m.control[M_REG_S]);
-            tcg_gen_ori_i32(control, control, bits);
-            store_cpu_field(control, v7m.control[M_REG_S]);
-            /* Don't need to do this for any further FP insns in this TB */
-            s->v7m_new_fp_ctxt_needed = false;
-        }
+        /* Update ownership of FP context and create new FP context if needed */
+        gen_update_fp_context(s);
     }
 
     return true;
