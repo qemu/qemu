@@ -109,7 +109,7 @@ static inline long vfp_f16_offset(unsigned reg, bool top)
  * Generate code for M-profile lazy FP state preservation if needed;
  * this corresponds to the pseudocode PreserveFPState() function.
  */
-void gen_preserve_fp_state(DisasContext *s)
+static void gen_preserve_fp_state(DisasContext *s)
 {
     if (s->v7m_lspact) {
         /*
@@ -218,8 +218,9 @@ static bool vfp_access_check_a(DisasContext *s, bool ignore_vfp_enabled)
  * If VFP is enabled, do the necessary M-profile lazy-FP handling and then
  * return true. If not, emit code to generate an appropriate exception and
  * return false.
+ * skip_context_update is true to skip the "update FP context" part of this.
  */
-static bool vfp_access_check_m(DisasContext *s)
+bool vfp_access_check_m(DisasContext *s, bool skip_context_update)
 {
     if (s->fp_excp_el) {
         /*
@@ -239,8 +240,10 @@ static bool vfp_access_check_m(DisasContext *s)
     /* Trigger lazy-state preservation if necessary */
     gen_preserve_fp_state(s);
 
-    /* Update ownership of FP context and create new FP context if needed */
-    gen_update_fp_context(s);
+    if (!skip_context_update) {
+        /* Update ownership of FP context and create new FP context if needed */
+        gen_update_fp_context(s);
+    }
 
     return true;
 }
@@ -252,7 +255,7 @@ static bool vfp_access_check_m(DisasContext *s)
 bool vfp_access_check(DisasContext *s)
 {
     if (arm_dc_feature(s, ARM_FEATURE_M)) {
-        return vfp_access_check_m(s);
+        return vfp_access_check_m(s, false);
     } else {
         return vfp_access_check_a(s, false);
     }

@@ -371,9 +371,7 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
          * otherwise PreserveFPState(), and then FPCXT_NS writes
          * behave the same as FPCXT_S writes.
          */
-        if (s->fp_excp_el) {
-            gen_exception_insn(s, s->pc_curr, EXCP_NOCP,
-                               syn_uncategorized(), s->fp_excp_el);
+        if (!vfp_access_check_m(s, true)) {
             /*
              * This was only a conditional exception, so override
              * gen_exception_insn()'s default to DISAS_NORETURN
@@ -381,7 +379,6 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
             s->base.is_jmp = DISAS_NEXT;
             break;
         }
-        gen_preserve_fp_state(s);
     }
     /* fall through */
     case ARM_VFP_FPCXT_S:
@@ -527,9 +524,7 @@ static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
          * otherwise PreserveFPState(), and then FPCXT_NS
          * reads the same as FPCXT_S.
          */
-        if (s->fp_excp_el) {
-            gen_exception_insn(s, s->pc_curr, EXCP_NOCP,
-                               syn_uncategorized(), s->fp_excp_el);
+        if (!vfp_access_check_m(s, true)) {
             /*
              * This was only a conditional exception, so override
              * gen_exception_insn()'s default to DISAS_NORETURN
@@ -537,7 +532,6 @@ static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
             s->base.is_jmp = DISAS_NEXT;
             break;
         }
-        gen_preserve_fp_state(s);
         tmp = tcg_temp_new_i32();
         sfpa = tcg_temp_new_i32();
         fpscr = tcg_temp_new_i32();
