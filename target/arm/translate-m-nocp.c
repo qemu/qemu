@@ -207,14 +207,20 @@ static bool trans_VSCCLRM(DisasContext *s, arg_VSCCLRM *a)
 
 /*
  * Emit code to store the sysreg to its final destination; frees the
- * TCG temp 'value' it is passed.
+ * TCG temp 'value' it is passed. do_access is true to do the store,
+ * and false to skip it and only perform side-effects like base
+ * register writeback.
  */
-typedef void fp_sysreg_storefn(DisasContext *s, void *opaque, TCGv_i32 value);
+typedef void fp_sysreg_storefn(DisasContext *s, void *opaque, TCGv_i32 value,
+                               bool do_access);
 /*
  * Emit code to load the value to be copied to the sysreg; returns
- * a new TCG temporary
+ * a new TCG temporary. do_access is true to do the store,
+ * and false to skip it and only perform side-effects like base
+ * register writeback.
  */
-typedef TCGv_i32 fp_sysreg_loadfn(DisasContext *s, void *opaque);
+typedef TCGv_i32 fp_sysreg_loadfn(DisasContext *s, void *opaque,
+                                  bool do_access);
 
 /* Common decode/access checks for fp sysreg read/write */
 typedef enum FPSysRegCheckResult {
@@ -318,7 +324,7 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
 
     switch (regno) {
     case ARM_VFP_FPSCR:
-        tmp = loadfn(s, opaque);
+        tmp = loadfn(s, opaque, true);
         gen_helper_vfp_set_fpscr(cpu_env, tmp);
         tcg_temp_free_i32(tmp);
         gen_lookup_tb(s);
@@ -326,7 +332,7 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
     case ARM_VFP_FPSCR_NZCVQC:
     {
         TCGv_i32 fpscr;
-        tmp = loadfn(s, opaque);
+        tmp = loadfn(s, opaque, true);
         if (dc_isar_feature(aa32_mve, s)) {
             /* QC is only present for MVE; otherwise RES0 */
             TCGv_i32 qc = tcg_temp_new_i32();
@@ -347,9 +353,19 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
         break;
     }
     case ARM_VFP_FPCXT_NS:
+    {
+        TCGLabel *lab_active = gen_new_label();
+
         lab_end = gen_new_label();
-        /* fpInactive case: write is a NOP, so branch to end */
-        gen_branch_fpInactive(s, TCG_COND_NE, lab_end);
+        gen_branch_fpInactive(s, TCG_COND_EQ, lab_active);
+        /*
+         * fpInactive case: write is a NOP, so only do side effects
+         * like register writeback before we branch to end
+         */
+        loadfn(s, opaque, false);
+        tcg_gen_br(lab_end);
+
+        gen_set_label(lab_active);
         /*
          * !fpInactive: if FPU disabled, take NOCP exception;
          * otherwise PreserveFPState(), and then FPCXT_NS writes
@@ -366,7 +382,8 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
             break;
         }
         gen_preserve_fp_state(s);
-        /* fall through */
+    }
+    /* fall through */
     case ARM_VFP_FPCXT_S:
     {
         TCGv_i32 sfpa, control;
@@ -374,7 +391,7 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
          * Set FPSCR and CONTROL.SFPA from value; the new FPSCR takes
          * bits [27:0] from value and zeroes bits [31:28].
          */
-        tmp = loadfn(s, opaque);
+        tmp = loadfn(s, opaque, true);
         sfpa = tcg_temp_new_i32();
         tcg_gen_shri_i32(sfpa, tmp, 31);
         control = load_cpu_field(v7m.control[M_REG_S]);
@@ -390,15 +407,16 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
     case ARM_VFP_VPR:
         /* Behaves as NOP if not privileged */
         if (IS_USER(s)) {
+            loadfn(s, opaque, false);
             break;
         }
-        tmp = loadfn(s, opaque);
+        tmp = loadfn(s, opaque, true);
         store_cpu_field(tmp, v7m.vpr);
         break;
     case ARM_VFP_P0:
     {
         TCGv_i32 vpr;
-        tmp = loadfn(s, opaque);
+        tmp = loadfn(s, opaque, true);
         vpr = load_cpu_field(v7m.vpr);
         tcg_gen_deposit_i32(vpr, vpr, tmp,
                             R_V7M_VPR_P0_SHIFT, R_V7M_VPR_P0_LENGTH);
@@ -442,13 +460,13 @@ static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
     case ARM_VFP_FPSCR:
         tmp = tcg_temp_new_i32();
         gen_helper_vfp_get_fpscr(tmp, cpu_env);
-        storefn(s, opaque, tmp);
+        storefn(s, opaque, tmp, true);
         break;
     case ARM_VFP_FPSCR_NZCVQC:
         tmp = tcg_temp_new_i32();
         gen_helper_vfp_get_fpscr(tmp, cpu_env);
         tcg_gen_andi_i32(tmp, tmp, FPCR_NZCVQC_MASK);
-        storefn(s, opaque, tmp);
+        storefn(s, opaque, tmp, true);
         break;
     case QEMU_VFP_FPSCR_NZCV:
         /*
@@ -457,7 +475,7 @@ static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
          */
         tmp = load_cpu_field(vfp.xregs[ARM_VFP_FPSCR]);
         tcg_gen_andi_i32(tmp, tmp, FPCR_NZCV_MASK);
-        storefn(s, opaque, tmp);
+        storefn(s, opaque, tmp, true);
         break;
     case ARM_VFP_FPCXT_S:
     {
@@ -476,7 +494,7 @@ static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
          * Store result before updating FPSCR etc, in case
          * it is a memory write which causes an exception.
          */
-        storefn(s, opaque, tmp);
+        storefn(s, opaque, tmp, true);
         /*
          * Now we must reset FPSCR from FPDSCR_NS, and clear
          * CONTROL.SFPA; so we'll end the TB here.
@@ -499,7 +517,7 @@ static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
         gen_branch_fpInactive(s, TCG_COND_EQ, lab_active);
         /* fpInactive case: reads as FPDSCR_NS */
         TCGv_i32 tmp = load_cpu_field(v7m.fpdscr[M_REG_NS]);
-        storefn(s, opaque, tmp);
+        storefn(s, opaque, tmp, true);
         lab_end = gen_new_label();
         tcg_gen_br(lab_end);
 
@@ -531,7 +549,7 @@ static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
         tcg_gen_or_i32(tmp, tmp, sfpa);
         tcg_temp_free_i32(control);
         /* Store result before updating FPSCR, in case it faults */
-        storefn(s, opaque, tmp);
+        storefn(s, opaque, tmp, true);
         /* If SFPA is zero then set FPSCR from FPDSCR_NS */
         fpdscr = load_cpu_field(v7m.fpdscr[M_REG_NS]);
         zero = tcg_const_i32(0);
@@ -546,15 +564,16 @@ static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
     case ARM_VFP_VPR:
         /* Behaves as NOP if not privileged */
         if (IS_USER(s)) {
+            storefn(s, opaque, NULL, false);
             break;
         }
         tmp = load_cpu_field(v7m.vpr);
-        storefn(s, opaque, tmp);
+        storefn(s, opaque, tmp, true);
         break;
     case ARM_VFP_P0:
         tmp = load_cpu_field(v7m.vpr);
         tcg_gen_extract_i32(tmp, tmp, R_V7M_VPR_P0_SHIFT, R_V7M_VPR_P0_LENGTH);
-        storefn(s, opaque, tmp);
+        storefn(s, opaque, tmp, true);
         break;
     default:
         g_assert_not_reached();
@@ -569,9 +588,14 @@ static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
     return true;
 }
 
-static void fp_sysreg_to_gpr(DisasContext *s, void *opaque, TCGv_i32 value)
+static void fp_sysreg_to_gpr(DisasContext *s, void *opaque, TCGv_i32 value,
+                             bool do_access)
 {
     arg_VMSR_VMRS *a = opaque;
+
+    if (!do_access) {
+        return;
+    }
 
     if (a->rt == 15) {
         /* Set the 4 flag bits in the CPSR */
@@ -582,10 +606,13 @@ static void fp_sysreg_to_gpr(DisasContext *s, void *opaque, TCGv_i32 value)
     }
 }
 
-static TCGv_i32 gpr_to_fp_sysreg(DisasContext *s, void *opaque)
+static TCGv_i32 gpr_to_fp_sysreg(DisasContext *s, void *opaque, bool do_access)
 {
     arg_VMSR_VMRS *a = opaque;
 
+    if (!do_access) {
+        return NULL;
+    }
     return load_reg(s, a->rt);
 }
 
@@ -614,7 +641,8 @@ static bool trans_VMSR_VMRS(DisasContext *s, arg_VMSR_VMRS *a)
     }
 }
 
-static void fp_sysreg_to_memory(DisasContext *s, void *opaque, TCGv_i32 value)
+static void fp_sysreg_to_memory(DisasContext *s, void *opaque, TCGv_i32 value,
+                                bool do_access)
 {
     arg_vldr_sysreg *a = opaque;
     uint32_t offset = a->imm;
@@ -622,6 +650,10 @@ static void fp_sysreg_to_memory(DisasContext *s, void *opaque, TCGv_i32 value)
 
     if (!a->a) {
         offset = -offset;
+    }
+
+    if (!do_access && !a->w) {
+        return;
     }
 
     addr = load_reg(s, a->rn);
@@ -633,9 +665,11 @@ static void fp_sysreg_to_memory(DisasContext *s, void *opaque, TCGv_i32 value)
         gen_helper_v8m_stackcheck(cpu_env, addr);
     }
 
-    gen_aa32_st_i32(s, value, addr, get_mem_index(s),
-                    MO_UL | MO_ALIGN | s->be_data);
-    tcg_temp_free_i32(value);
+    if (do_access) {
+        gen_aa32_st_i32(s, value, addr, get_mem_index(s),
+                        MO_UL | MO_ALIGN | s->be_data);
+        tcg_temp_free_i32(value);
+    }
 
     if (a->w) {
         /* writeback */
@@ -648,15 +682,20 @@ static void fp_sysreg_to_memory(DisasContext *s, void *opaque, TCGv_i32 value)
     }
 }
 
-static TCGv_i32 memory_to_fp_sysreg(DisasContext *s, void *opaque)
+static TCGv_i32 memory_to_fp_sysreg(DisasContext *s, void *opaque,
+                                    bool do_access)
 {
     arg_vldr_sysreg *a = opaque;
     uint32_t offset = a->imm;
     TCGv_i32 addr;
-    TCGv_i32 value = tcg_temp_new_i32();
+    TCGv_i32 value = NULL;
 
     if (!a->a) {
         offset = -offset;
+    }
+
+    if (!do_access && !a->w) {
+        return NULL;
     }
 
     addr = load_reg(s, a->rn);
@@ -668,8 +707,11 @@ static TCGv_i32 memory_to_fp_sysreg(DisasContext *s, void *opaque)
         gen_helper_v8m_stackcheck(cpu_env, addr);
     }
 
-    gen_aa32_ld_i32(s, value, addr, get_mem_index(s),
-                    MO_UL | MO_ALIGN | s->be_data);
+    if (do_access) {
+        value = tcg_temp_new_i32();
+        gen_aa32_ld_i32(s, value, addr, get_mem_index(s),
+                        MO_UL | MO_ALIGN | s->be_data);
+    }
 
     if (a->w) {
         /* writeback */
