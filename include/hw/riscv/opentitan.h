@@ -22,6 +22,7 @@
 #include "hw/riscv/riscv_hart.h"
 #include "hw/intc/ibex_plic.h"
 #include "hw/char/ibex_uart.h"
+#include "hw/timer/ibex_timer.h"
 #include "qom/object.h"
 
 #define TYPE_RISCV_IBEX_SOC "riscv.lowrisc.ibex.soc"
@@ -35,6 +36,7 @@ struct LowRISCIbexSoCState {
     RISCVHartArrayState cpus;
     IbexPlicState plic;
     IbexUartState uart;
+    IbexTimerState timer;
 
     MemoryRegion flash_mem;
     MemoryRegion rom;
@@ -57,7 +59,7 @@ enum {
     IBEX_DEV_SPI,
     IBEX_DEV_I2C,
     IBEX_DEV_PATTGEN,
-    IBEX_DEV_RV_TIMER,
+    IBEX_DEV_TIMER,
     IBEX_DEV_SENSOR_CTRL,
     IBEX_DEV_OTP_CTRL,
     IBEX_DEV_PWRMGR,
@@ -82,6 +84,7 @@ enum {
 };
 
 enum {
+    IBEX_TIMER_TIMEREXPIRED0_0 = 125,
     IBEX_UART0_RX_PARITY_ERR_IRQ = 8,
     IBEX_UART0_RX_TIMEOUT_IRQ = 7,
     IBEX_UART0_RX_BREAK_ERR_IRQ = 6,
