@@ -1929,6 +1929,8 @@ static inline void init_thread(struct target_pt_regs *regs,
 #define STACK_GROWS_DOWN 0
 #define STACK_ALIGNMENT  64
 
+#define VDSO_HEADER "vdso.c.inc"
+
 static inline void init_thread(struct target_pt_regs *regs,
                                struct image_info *infop)
 {
