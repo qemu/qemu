@@ -2,7 +2,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
-#include "qemu-common.h"
 #include "audio.h"
 #include "qapi/opts-visitor.h"
 
@@ -463,10 +462,7 @@ static pa_stream *qpa_simple_new (
 
     pa_stream_set_state_callback(stream, stream_state_cb, c);
 
-    flags =
-        PA_STREAM_INTERPOLATE_TIMING
-        | PA_STREAM_AUTO_TIMING_UPDATE
-        | PA_STREAM_EARLY_REQUESTS;
+    flags = PA_STREAM_EARLY_REQUESTS;
 
     if (dev) {
         /* don't move the stream if the user specified a sink/source */
@@ -756,7 +752,6 @@ static int qpa_validate_per_direction_opts(Audiodev *dev,
 /* common */
 static void *qpa_conn_init(const char *server)
 {
-    const char *vm_name;
     PAConnection *c = g_malloc0(sizeof(PAConnection));
     QTAILQ_INSERT_TAIL(&pa_conns, c, list);
 
@@ -765,9 +760,8 @@ static void *qpa_conn_init(const char *server)
         goto fail;
     }
 
-    vm_name = qemu_get_vm_name();
     c->context = pa_context_new(pa_threaded_mainloop_get_api(c->mainloop),
-                                vm_name ? vm_name : "qemu");
+                                audio_application_name());
     if (!c->context) {
         goto fail;
     }

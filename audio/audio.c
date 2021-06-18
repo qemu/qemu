@@ -32,6 +32,7 @@
 #include "qapi/qapi-visit-audio.h"
 #include "qemu/cutils.h"
 #include "qemu/module.h"
+#include "qemu-common.h"
 #include "sysemu/replay.h"
 #include "sysemu/runstate.h"
 #include "ui/qemu-spice.h"
@@ -704,7 +705,7 @@ static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t size)
 
     if (live == hwsamples) {
 #ifdef DEBUG_OUT
-        dolog ("%s is full %d\n", sw->name, live);
+        dolog ("%s is full %zu\n", sw->name, live);
 #endif
         return 0;
     }
@@ -994,7 +995,7 @@ static size_t audio_get_avail (SWVoiceIn *sw)
     }
 
     ldebug (
-        "%s: get_avail live %d ret %" PRId64 "\n",
+        "%s: get_avail live %zu ret %" PRId64 "\n",
         SW_NAME (sw),
         live, (((int64_t) live << 32) / sw->ratio) * sw->info.bytes_per_frame
         );
@@ -1021,7 +1022,7 @@ static size_t audio_get_free(SWVoiceOut *sw)
     dead = sw->hw->mix_buf->size - live;
 
 #ifdef DEBUG_OUT
-    dolog ("%s: get_free live %d dead %d ret %" PRId64 "\n",
+    dolog ("%s: get_free live %zu dead %zu ret %" PRId64 "\n",
            SW_NAME (sw),
            live, dead, (((int64_t) dead << 32) / sw->ratio) *
            sw->info.bytes_per_frame);
@@ -2170,6 +2171,14 @@ const char *audio_get_id(QEMUSoundCard *card)
     } else {
         return "";
     }
+}
+
+const char *audio_application_name(void)
+{
+    const char *vm_name;
+
+    vm_name = qemu_get_vm_name();
+    return vm_name ? vm_name : "qemu";
 }
 
 void audio_rate_start(RateCtl *rate)

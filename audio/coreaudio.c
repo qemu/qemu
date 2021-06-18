@@ -39,7 +39,6 @@ typedef struct coreaudioVoiceOut {
     int frameSizeSetting;
     uint32_t bufferCount;
     UInt32 audioDevicePropertyBufferFrameSize;
-    AudioStreamBasicDescription outputStreamBasicDescription;
     AudioDeviceIOProcID ioprocid;
     bool enabled;
 } coreaudioVoiceOut;
@@ -112,24 +111,6 @@ static OSStatus coreaudio_set_framesize(AudioDeviceID id, UInt32 *framesize)
                                       NULL,
                                       size,
                                       framesize);
-}
-
-static OSStatus coreaudio_get_streamformat(AudioDeviceID id,
-                                           AudioStreamBasicDescription *d)
-{
-    UInt32 size = sizeof(*d);
-    AudioObjectPropertyAddress addr = {
-        kAudioDevicePropertyStreamFormat,
-        kAudioDevicePropertyScopeOutput,
-        kAudioObjectPropertyElementMaster
-    };
-
-    return AudioObjectGetPropertyData(id,
-                                      &addr,
-                                      0,
-                                      NULL,
-                                      &size,
-                                      d);
 }
 
 static OSStatus coreaudio_set_streamformat(AudioDeviceID id,
@@ -373,6 +354,17 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
     OSStatus status;
     AudioValueRange frameRange;
 
+    AudioStreamBasicDescription streamBasicDescription = {
+        .mBitsPerChannel = core->hw.info.bits,
+        .mBytesPerFrame = core->hw.info.bytes_per_frame,
+        .mBytesPerPacket = core->hw.info.bytes_per_frame,
+        .mChannelsPerFrame = core->hw.info.nchannels,
+        .mFormatFlags = kLinearPCMFormatFlagIsFloat,
+        .mFormatID = kAudioFormatLinearPCM,
+        .mFramesPerPacket = 1,
+        .mSampleRate = core->hw.info.freq
+    };
+
     status = coreaudio_get_voice(&core->outputDeviceID);
     if (status != kAudioHardwareNoError) {
         coreaudio_playback_logerr (status,
@@ -432,29 +424,16 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
     }
     core->hw.samples = core->bufferCount * core->audioDevicePropertyBufferFrameSize;
 
-    /* get StreamFormat */
-    status = coreaudio_get_streamformat(core->outputDeviceID,
-                                        &core->outputStreamBasicDescription);
-    if (status == kAudioHardwareBadObjectError) {
-        return 0;
-    }
-    if (status != kAudioHardwareNoError) {
-        coreaudio_playback_logerr (status,
-                                    "Could not get Device Stream properties\n");
-        core->outputDeviceID = kAudioDeviceUnknown;
-        return status;
-    }
-
     /* set Samplerate */
     status = coreaudio_set_streamformat(core->outputDeviceID,
-                                        &core->outputStreamBasicDescription);
+                                        &streamBasicDescription);
     if (status == kAudioHardwareBadObjectError) {
         return 0;
     }
     if (status != kAudioHardwareNoError) {
         coreaudio_playback_logerr (status,
                                    "Could not set samplerate %lf\n",
-                                   core->outputStreamBasicDescription.mSampleRate);
+                                   streamBasicDescription.mSampleRate);
         core->outputDeviceID = kAudioDeviceUnknown;
         return status;
     }
@@ -598,7 +577,6 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
         qapi_AudiodevCoreaudioPerDirectionOptions_base(cpdo), as, 11610);
 
     core->bufferCount = cpdo->has_buffer_count ? cpdo->buffer_count : 4;
-    core->outputStreamBasicDescription.mSampleRate = (Float64) as->freq;
 
     status = AudioObjectAddPropertyListener(kAudioObjectSystemObject,
                                             &voice_addr, handle_voice_change,
