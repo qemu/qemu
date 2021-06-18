@@ -34,12 +34,36 @@
 
 &nocp cp
 
+# M-profile VLDR/VSTR to sysreg
+%vldr_sysreg 22:1 13:3
+%imm7_0x4 0:7 !function=times_4
+
+&vldr_sysreg rn reg imm a w p
+@vldr_sysreg .... ... . a:1 . . . rn:4 ... . ... .. ....... \
+             reg=%vldr_sysreg imm=%imm7_0x4 &vldr_sysreg
+
 {
   # Special cases which do not take an early NOCP: VLLDM and VLSTM
   VLLDM_VLSTM  1110 1100 001 l:1 rn:4 0000 1010 op:1 000 0000
   # VSCCLRM (new in v8.1M) is similar:
   VSCCLRM      1110 1100 1.01 1111 .... 1011 imm:7 0   vd=%vd_dp size=3
   VSCCLRM      1110 1100 1.01 1111 .... 1010 imm:8     vd=%vd_sp size=2
+
+  # FP system register accesses: these are a special case because accesses
+  # to FPCXT_NS succeed even if the FPU is disabled. We therefore need
+  # to handle them before the big NOCP blocks. Note that within these
+  # insns NOCP still has higher priority than UNDEFs; this is implemented
+  # by their returning 'false' for UNDEF so as to fall through into the
+  # NOCP check (in contrast to VLLDM etc, which call unallocated_encoding()
+  # for the UNDEFs there that must take precedence over NOCP.)
+
+  VMSR_VMRS    ---- 1110 111 l:1 reg:4 rt:4 1010 0001 0000
+
+  # P=0 W=0 is SEE "Related encodings", so split into two patterns
+  VLDR_sysreg  ---- 110 1 . . w:1 1 .... ... 0 111 11 ....... @vldr_sysreg p=1
+  VLDR_sysreg  ---- 110 0 . . 1   1 .... ... 0 111 11 ....... @vldr_sysreg p=0 w=1
+  VSTR_sysreg  ---- 110 1 . . w:1 0 .... ... 0 111 11 ....... @vldr_sysreg p=1
+  VSTR_sysreg  ---- 110 0 . . 1   0 .... ... 0 111 11 ....... @vldr_sysreg p=0 w=1
 
   NOCP         111- 1110 ---- ---- ---- cp:4 ---- ---- &nocp
   NOCP         111- 110- ---- ---- ---- cp:4 ---- ---- &nocp
