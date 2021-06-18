@@ -821,7 +821,21 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
         lab_end = gen_new_label();
         /* fpInactive case: write is a NOP, so branch to end */
         gen_branch_fpInactive(s, TCG_COND_NE, lab_end);
-        /* !fpInactive: PreserveFPState(), and reads same as FPCXT_S */
+        /*
+         * !fpInactive: if FPU disabled, take NOCP exception;
+         * otherwise PreserveFPState(), and then FPCXT_NS writes
+         * behave the same as FPCXT_S writes.
+         */
+        if (s->fp_excp_el) {
+            gen_exception_insn(s, s->pc_curr, EXCP_NOCP,
+                               syn_uncategorized(), s->fp_excp_el);
+            /*
+             * This was only a conditional exception, so override
+             * gen_exception_insn()'s default to DISAS_NORETURN
+             */
+            s->base.is_jmp = DISAS_NEXT;
+            break;
+        }
         gen_preserve_fp_state(s);
         /* fall through */
     case ARM_VFP_FPCXT_S:
@@ -961,7 +975,21 @@ static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
         tcg_gen_br(lab_end);
 
         gen_set_label(lab_active);
-        /* !fpInactive: Reads the same as FPCXT_S, but side effects differ */
+        /*
+         * !fpInactive: if FPU disabled, take NOCP exception;
+         * otherwise PreserveFPState(), and then FPCXT_NS
+         * reads the same as FPCXT_S.
+         */
+        if (s->fp_excp_el) {
+            gen_exception_insn(s, s->pc_curr, EXCP_NOCP,
+                               syn_uncategorized(), s->fp_excp_el);
+            /*
+             * This was only a conditional exception, so override
+             * gen_exception_insn()'s default to DISAS_NORETURN
+             */
+            s->base.is_jmp = DISAS_NEXT;
+            break;
+        }
         gen_preserve_fp_state(s);
         tmp = tcg_temp_new_i32();
         sfpa = tcg_temp_new_i32();
