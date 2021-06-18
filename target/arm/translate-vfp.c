@@ -771,9 +771,8 @@ static void gen_branch_fpInactive(DisasContext *s, TCGCond cond,
 }
 
 static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
-
                                   fp_sysreg_loadfn *loadfn,
-                                 void *opaque)
+                                  void *opaque)
 {
     /* Do a write to an M-profile floating point system register */
     TCGv_i32 tmp;
@@ -874,8 +873,8 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
 }
 
 static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
-                                fp_sysreg_storefn *storefn,
-                                void *opaque)
+                                 fp_sysreg_storefn *storefn,
+                                 void *opaque)
 {
     /* Do a read from an M-profile floating point system register */
     TCGv_i32 tmp;
@@ -1207,7 +1206,7 @@ static void fp_sysreg_to_memory(DisasContext *s, void *opaque, TCGv_i32 value)
     TCGv_i32 addr;
 
     if (!a->a) {
-        offset = - offset;
+        offset = -offset;
     }
 
     addr = load_reg(s, a->rn);
@@ -1242,7 +1241,7 @@ static TCGv_i32 memory_to_fp_sysreg(DisasContext *s, void *opaque)
     TCGv_i32 value = tcg_temp_new_i32();
 
     if (!a->a) {
-        offset = - offset;
+        offset = -offset;
     }
 
     addr = load_reg(s, a->rn);
