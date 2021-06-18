@@ -44,3 +44,4 @@ Contents:
    block-coroutine-wrapper
    multi-process
    ebpf_rss
+   vfio-migration
