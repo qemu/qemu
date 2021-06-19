@@ -3038,7 +3038,11 @@ static void temp_allocate_frame(TCGContext *s, TCGTemp *ts)
 
     assert(align <= TCG_TARGET_STACK_ALIGN);
     off = ROUND_UP(s->current_frame_offset, align);
-    assert(off + size <= s->frame_end);
+
+    /* If we've exhausted the stack frame, restart with a smaller TB. */
+    if (off + size > s->frame_end) {
+        tcg_raise_tb_overflow(s);
+    }
     s->current_frame_offset = off + size;
 
     ts->mem_offset = off;
