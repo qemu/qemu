@@ -753,7 +753,8 @@ static void handle_instruction(DisasContext *dc, CPUNios2State *env)
     op = get_opcode(code);
 
     if (unlikely(op >= ARRAY_SIZE(i_type_instructions))) {
-        goto illegal_op;
+        t_gen_helper_raise_exception(dc, EXCP_ILLEGAL);
+        return;
     }
 
     dc->zero = NULL;
@@ -764,11 +765,6 @@ static void handle_instruction(DisasContext *dc, CPUNios2State *env)
     if (dc->zero) {
         tcg_temp_free(dc->zero);
     }
-
-    return;
-
-illegal_op:
-    t_gen_helper_raise_exception(dc, EXCP_ILLEGAL);
 }
 
 static const char * const regnames[] = {
