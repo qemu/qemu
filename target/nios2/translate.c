@@ -97,7 +97,6 @@
     }
 
 typedef struct DisasContext {
-    TCGv_ptr          cpu_env;
     TCGv             *cpu_R;
     TCGv_i32          zero;
     int               is_jmp;
@@ -147,7 +146,7 @@ static void t_gen_helper_raise_exception(DisasContext *dc,
     TCGv_i32 tmp = tcg_const_i32(index);
 
     tcg_gen_movi_tl(dc->cpu_R[R_PC], dc->pc);
-    gen_helper_raise_exception(dc->cpu_env, tmp);
+    gen_helper_raise_exception(cpu_env, tmp);
     tcg_temp_free_i32(tmp);
     dc->is_jmp = DISAS_NORETURN;
 }
@@ -474,7 +473,7 @@ static void rdctl(DisasContext *dc, uint32_t code, uint32_t flags)
             tcg_gen_mov_tl(dc->cpu_R[instr.c], dc->cpu_R[instr.imm5 + CR_BASE]);
 #ifdef DEBUG_MMU
             TCGv_i32 tmp = tcg_const_i32(instr.imm5 + CR_BASE);
-            gen_helper_mmu_read_debug(dc->cpu_R[instr.c], dc->cpu_env, tmp);
+            gen_helper_mmu_read_debug(dc->cpu_R[instr.c], cpu_env, tmp);
             tcg_temp_free_i32(tmp);
 #endif
         }
@@ -504,7 +503,7 @@ static void wrctl(DisasContext *dc, uint32_t code, uint32_t flags)
     {
 #if !defined(CONFIG_USER_ONLY)
         TCGv_i32 tmp = tcg_const_i32(instr.imm5 + CR_BASE);
-        gen_helper_mmu_write(dc->cpu_env, tmp, load_gpr(dc, instr.a));
+        gen_helper_mmu_write(cpu_env, tmp, load_gpr(dc, instr.a));
         tcg_temp_free_i32(tmp);
 #endif
         break;
@@ -521,7 +520,7 @@ static void wrctl(DisasContext *dc, uint32_t code, uint32_t flags)
         if (tb_cflags(dc->tb) & CF_USE_ICOUNT) {
             gen_io_start();
         }
-        gen_helper_check_interrupts(dc->cpu_env);
+        gen_helper_check_interrupts(cpu_env);
         dc->is_jmp = DISAS_UPDATE;
     }
 #endif
@@ -817,7 +816,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     int num_insns;
 
     /* Initialize DC */
-    dc->cpu_env = cpu_env;
     dc->cpu_R   = cpu_R;
     dc->is_jmp  = DISAS_NEXT;
     dc->pc      = tb->pc;
