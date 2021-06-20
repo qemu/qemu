@@ -61,6 +61,7 @@ static inline void cris_illegal_insn(DisasContext *dc)
 {
     qemu_log_mask(LOG_GUEST_ERROR, "illegal insn at pc=%x\n", dc->pc);
     t_gen_raise_exception(EXCP_BREAK);
+    dc->base.is_jmp = DISAS_NORETURN;
 }
 
 static void gen_store_v10_conditional(DisasContext *dc, TCGv addr, TCGv val,
@@ -1169,7 +1170,7 @@ static unsigned int dec10_ind(CPUCRISState *env, DisasContext *dc)
                     t_gen_mov_env_TN(trap_vector, c);
                     tcg_temp_free(c);
                     t_gen_raise_exception(EXCP_BREAK);
-                    dc->base.is_jmp = DISAS_UPDATE;
+                    dc->base.is_jmp = DISAS_NORETURN;
                     return insn_len;
                 }
                 LOG_DIS("%d: jump.%d %d r%d r%d\n", __LINE__, size,
