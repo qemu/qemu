@@ -80,7 +80,7 @@ typedef struct DisasContext DisasContext;
 
 /* This is the state at translation time. */
 struct DisasContext {
-    TranslationBlock *tb;
+    DisasContextBase base;
 
     CPUAVRState *env;
     CPUState *cs;
@@ -90,8 +90,6 @@ struct DisasContext {
 
     /* Routine used to access memory */
     int memidx;
-    int bstate;
-    int singlestep;
 
     /*
      * some AVR instructions can make the following instruction to be skipped
@@ -191,7 +189,7 @@ static bool avr_have_feature(DisasContext *ctx, int feature)
 {
     if (!avr_feature(ctx->env, feature)) {
         gen_helper_unsupported(cpu_env);
-        ctx->bstate = DISAS_NORETURN;
+        ctx->base.is_jmp = DISAS_NORETURN;
         return false;
     }
     return true;
@@ -1011,13 +1009,13 @@ static void gen_jmp_ez(DisasContext *ctx)
 {
     tcg_gen_deposit_tl(cpu_pc, cpu_r[30], cpu_r[31], 8, 8);
     tcg_gen_or_tl(cpu_pc, cpu_pc, cpu_eind);
-    ctx->bstate = DISAS_LOOKUP;
+    ctx->base.is_jmp = DISAS_LOOKUP;
 }
 
 static void gen_jmp_z(DisasContext *ctx)
 {
     tcg_gen_deposit_tl(cpu_pc, cpu_r[30], cpu_r[31], 8, 8);
-    ctx->bstate = DISAS_LOOKUP;
+    ctx->base.is_jmp = DISAS_LOOKUP;
 }
 
 static void gen_push_ret(DisasContext *ctx, int ret)
@@ -1083,9 +1081,9 @@ static void gen_pop_ret(DisasContext *ctx, TCGv ret)
 
 static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 {
-    TranslationBlock *tb = ctx->tb;
+    const TranslationBlock *tb = ctx->base.tb;
 
-    if (ctx->singlestep == 0) {
+    if (!ctx->base.singlestep_enabled) {
         tcg_gen_goto_tb(n);
         tcg_gen_movi_i32(cpu_pc, dest);
         tcg_gen_exit_tb(tb, n);
@@ -1094,7 +1092,7 @@ static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
         gen_helper_debug(cpu_env);
         tcg_gen_exit_tb(NULL, 0);
     }
-    ctx->bstate = DISAS_NORETURN;
+    ctx->base.is_jmp = DISAS_NORETURN;
 }
 
 /*
@@ -1254,7 +1252,7 @@ static bool trans_RET(DisasContext *ctx, arg_RET *a)
 {
     gen_pop_ret(ctx, cpu_pc);
 
-    ctx->bstate = DISAS_LOOKUP;
+    ctx->base.is_jmp = DISAS_LOOKUP;
     return true;
 }
 
@@ -1272,7 +1270,7 @@ static bool trans_RETI(DisasContext *ctx, arg_RETI *a)
     tcg_gen_movi_tl(cpu_If, 1);
 
     /* Need to return to main loop to re-evaluate interrupts.  */
-    ctx->bstate = DISAS_EXIT;
+    ctx->base.is_jmp = DISAS_EXIT;
     return true;
 }
 
@@ -1484,7 +1482,7 @@ static bool trans_BRBC(DisasContext *ctx, arg_BRBC *a)
     gen_goto_tb(ctx, 0, ctx->npc + a->imm);
     gen_set_label(not_taken);
 
-    ctx->bstate = DISAS_CHAIN;
+    ctx->base.is_jmp = DISAS_CHAIN;
     return true;
 }
 
@@ -1533,7 +1531,7 @@ static bool trans_BRBS(DisasContext *ctx, arg_BRBS *a)
     gen_goto_tb(ctx, 0, ctx->npc + a->imm);
     gen_set_label(not_taken);
 
-    ctx->bstate = DISAS_CHAIN;
+    ctx->base.is_jmp = DISAS_CHAIN;
     return true;
 }
 
@@ -1610,7 +1608,7 @@ static TCGv gen_get_zaddr(void)
  */
 static void gen_data_store(DisasContext *ctx, TCGv data, TCGv addr)
 {
-    if (ctx->tb->flags & TB_FLAGS_FULL_ACCESS) {
+    if (ctx->base.tb->flags & TB_FLAGS_FULL_ACCESS) {
         gen_helper_fullwr(cpu_env, data, addr);
     } else {
         tcg_gen_qemu_st8(data, addr, MMU_DATA_IDX); /* mem[addr] = data */
@@ -1619,7 +1617,7 @@ static void gen_data_store(DisasContext *ctx, TCGv data, TCGv addr)
 
 static void gen_data_load(DisasContext *ctx, TCGv data, TCGv addr)
 {
-    if (ctx->tb->flags & TB_FLAGS_FULL_ACCESS) {
+    if (ctx->base.tb->flags & TB_FLAGS_FULL_ACCESS) {
         gen_helper_fullrd(data, cpu_env, addr);
     } else {
         tcg_gen_qemu_ld8u(data, addr, MMU_DATA_IDX); /* data = mem[addr] */
@@ -2793,7 +2791,7 @@ static bool trans_BREAK(DisasContext *ctx, arg_BREAK *a)
 #ifdef BREAKPOINT_ON_BREAK
     tcg_gen_movi_tl(cpu_pc, ctx->npc - 1);
     gen_helper_debug(cpu_env);
-    ctx->bstate = DISAS_EXIT;
+    ctx->base.is_jmp = DISAS_EXIT;
 #else
     /* NOP */
 #endif
@@ -2819,7 +2817,7 @@ static bool trans_NOP(DisasContext *ctx, arg_NOP *a)
 static bool trans_SLEEP(DisasContext *ctx, arg_SLEEP *a)
 {
     gen_helper_sleep(cpu_env);
-    ctx->bstate = DISAS_NORETURN;
+    ctx->base.is_jmp = DISAS_NORETURN;
     return true;
 }
 
@@ -2850,7 +2848,7 @@ static void translate(DisasContext *ctx)
 
     if (!decode_insn(ctx, opcode)) {
         gen_helper_unsupported(cpu_env);
-        ctx->bstate = DISAS_NORETURN;
+        ctx->base.is_jmp = DISAS_NORETURN;
     }
 }
 
@@ -2903,13 +2901,15 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
 {
     CPUAVRState *env = cs->env_ptr;
     DisasContext ctx = {
-        .tb = tb,
+        .base.tb = tb,
+        .base.is_jmp = DISAS_NEXT,
+        .base.pc_first = tb->pc,
+        .base.pc_next = tb->pc,
+        .base.singlestep_enabled = cs->singlestep_enabled,
         .cs = cs,
         .env = env,
         .memidx = 0,
-        .bstate = DISAS_NEXT,
         .skip_cond = TCG_COND_NEVER,
-        .singlestep = cs->singlestep_enabled,
     };
     target_ulong pc_start = tb->pc / 2;
     int num_insns = 0;
@@ -2921,7 +2921,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
          */
         max_insns = 1;
     }
-    if (ctx.singlestep) {
+    if (ctx.base.singlestep_enabled) {
         max_insns = 1;
     }
 
@@ -2946,7 +2946,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
          * b main   - sets breakpoint at address 0x00000100 (code)
          * b *0x100 - sets breakpoint at address 0x00800100 (data)
          */
-        if (unlikely(!ctx.singlestep &&
+        if (unlikely(!ctx.base.singlestep_enabled &&
                 (cpu_breakpoint_test(cs, OFFSET_CODE + ctx.npc * 2, BP_ANY) ||
                  cpu_breakpoint_test(cs, OFFSET_DATA + ctx.npc * 2, BP_ANY)))) {
             canonicalize_skip(&ctx);
@@ -2989,11 +2989,11 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
         if (skip_label) {
             canonicalize_skip(&ctx);
             gen_set_label(skip_label);
-            if (ctx.bstate == DISAS_NORETURN) {
-                ctx.bstate = DISAS_CHAIN;
+            if (ctx.base.is_jmp == DISAS_NORETURN) {
+                ctx.base.is_jmp = DISAS_CHAIN;
             }
         }
-    } while (ctx.bstate == DISAS_NEXT
+    } while (ctx.base.is_jmp == DISAS_NEXT
              && num_insns < max_insns
              && (ctx.npc - pc_start) * 2 < TARGET_PAGE_SIZE - 4
              && !tcg_op_buf_full());
@@ -3004,7 +3004,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
 
     bool nonconst_skip = canonicalize_skip(&ctx);
 
-    switch (ctx.bstate) {
+    switch (ctx.base.is_jmp) {
     case DISAS_NORETURN:
         assert(!nonconst_skip);
         break;
@@ -3019,13 +3019,13 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
         tcg_gen_movi_tl(cpu_pc, ctx.npc);
         /* fall through */
     case DISAS_LOOKUP:
-        if (!ctx.singlestep) {
+        if (!ctx.base.singlestep_enabled) {
             tcg_gen_lookup_and_goto_ptr();
             break;
         }
         /* fall through */
     case DISAS_EXIT:
-        if (ctx.singlestep) {
+        if (ctx.base.singlestep_enabled) {
             gen_helper_debug(cpu_env);
         } else {
             tcg_gen_exit_tb(NULL, 0);
