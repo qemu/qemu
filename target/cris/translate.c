@@ -546,7 +546,7 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
         tcg_gen_exit_tb(dc->base.tb, n);
     } else {
         tcg_gen_movi_tl(env_pc, dest);
-        tcg_gen_exit_tb(NULL, 0);
+        tcg_gen_lookup_and_goto_ptr();
     }
 }
 
@@ -3354,6 +3354,8 @@ static void cris_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         tcg_gen_movi_tl(env_pc, npc);
         /* fall through */
     case DISAS_JUMP:
+        tcg_gen_lookup_and_goto_ptr();
+        break;
     case DISAS_UPDATE:
         /* Indicate that interupts must be re-evaluated before the next TB. */
         tcg_gen_exit_tb(NULL, 0);
