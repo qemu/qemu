@@ -61,6 +61,8 @@
 #define DISAS_UPDATE        DISAS_TARGET_1
 /* Cpu state was modified dynamically, excluding pc -- use npc */
 #define DISAS_UPDATE_NEXT   DISAS_TARGET_2
+/* PC update for delayed branch, see cpustate_changed otherwise */
+#define DISAS_DBRANCH       DISAS_TARGET_3
 
 /* Used by the decoder.  */
 #define EXTRACT_FIELD(src, start, end) \
@@ -3230,50 +3232,22 @@ static void cris_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     dc->cpustate_changed |= dc->flags_x != (dc->base.tb->flags & X_FLAG);
 
     /*
-     * Check for delayed branches here.  If we do it before
-     * actually generating any host code, the simulator will just
-     * loop doing nothing for on this program location.
+     * All branches are delayed branches, handled immediately below.
+     * We don't expect to see odd combinations of exit conditions.
      */
+    assert(dc->base.is_jmp == DISAS_NEXT || dc->cpustate_changed);
+
     if (dc->delayed_branch && --dc->delayed_branch == 0) {
-        if (dc->base.tb->flags & 7) {
-            t_gen_movi_env_TN(dslot, 0);
-        }
+        dc->base.is_jmp = DISAS_DBRANCH;
+        return;
+    }
 
-        if (dc->cpustate_changed) {
-            cris_store_direct_jmp(dc);
-        }
-
-        if (dc->clear_locked_irq) {
-            dc->clear_locked_irq = 0;
-            t_gen_movi_env_TN(locked_irq, 0);
-        }
-
-        if (dc->jmp == JMP_DIRECT_CC) {
-            TCGLabel *l1 = gen_new_label();
-            cris_evaluate_flags(dc);
-
-            /* Conditional jmp.  */
-            tcg_gen_brcondi_tl(TCG_COND_EQ, env_btaken, 0, l1);
-            gen_goto_tb(dc, 1, dc->jmp_pc);
-            gen_set_label(l1);
-            gen_goto_tb(dc, 0, dc->pc);
-            dc->base.is_jmp = DISAS_NORETURN;
-            dc->jmp = JMP_NOJMP;
-        } else if (dc->jmp == JMP_DIRECT) {
-            cris_evaluate_flags(dc);
-            gen_goto_tb(dc, 0, dc->jmp_pc);
-            dc->base.is_jmp = DISAS_NORETURN;
-            dc->jmp = JMP_NOJMP;
-        } else {
-            TCGv c = tcg_const_tl(dc->pc);
-            t_gen_cc_jmp(env_btarget, c);
-            tcg_temp_free(c);
-            dc->base.is_jmp = DISAS_JUMP;
-        }
+    if (dc->base.is_jmp != DISAS_NEXT) {
+        return;
     }
 
     /* Force an update if the per-tb cpu state has changed.  */
-    if (dc->base.is_jmp == DISAS_NEXT && dc->cpustate_changed) {
+    if (dc->cpustate_changed) {
         dc->base.is_jmp = DISAS_UPDATE_NEXT;
         return;
     }
@@ -3283,8 +3257,7 @@ static void cris_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
      * If we can detect the length of the next insn easily, we should.
      * In the meantime, simply stop when we do cross.
      */
-    if (dc->base.is_jmp == DISAS_NEXT
-        && ((dc->pc ^ dc->base.pc_first) & TARGET_PAGE_MASK) != 0) {
+    if ((dc->pc ^ dc->base.pc_first) & TARGET_PAGE_MASK) {
         dc->base.is_jmp = DISAS_TOO_MANY;
     }
 }
@@ -3313,6 +3286,49 @@ static void cris_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
     }
 
     cris_evaluate_flags(dc);
+
+    /* Evaluate delayed branch destination and fold to another is_jmp case. */
+    if (is_jmp == DISAS_DBRANCH) {
+        if (dc->base.tb->flags & 7) {
+            t_gen_movi_env_TN(dslot, 0);
+        }
+
+        switch (dc->jmp) {
+        case JMP_DIRECT:
+            npc = dc->jmp_pc;
+            is_jmp = dc->cpustate_changed ? DISAS_UPDATE_NEXT : DISAS_TOO_MANY;
+            break;
+
+        case JMP_DIRECT_CC:
+            /*
+             * Use a conditional branch if either taken or not-taken path
+             * can use goto_tb.  If neither can, then treat it as indirect.
+             */
+            if (likely(!dc->base.singlestep_enabled)
+                && likely(!dc->cpustate_changed)
+                && (use_goto_tb(dc, dc->jmp_pc) || use_goto_tb(dc, npc))) {
+                TCGLabel *not_taken = gen_new_label();
+
+                tcg_gen_brcondi_tl(TCG_COND_EQ, env_btaken, 0, not_taken);
+                gen_goto_tb(dc, 1, dc->jmp_pc);
+                gen_set_label(not_taken);
+
+                /* not-taken case handled below. */
+                is_jmp = DISAS_TOO_MANY;
+                break;
+            }
+            tcg_gen_movi_tl(env_btarget, dc->jmp_pc);
+            /* fall through */
+
+        case JMP_INDIRECT:
+            t_gen_cc_jmp(env_btarget, tcg_constant_tl(npc));
+            is_jmp = dc->cpustate_changed ? DISAS_UPDATE : DISAS_JUMP;
+            break;
+
+        default:
+            g_assert_not_reached();
+        }
+    }
 
     if (unlikely(dc->base.singlestep_enabled)) {
         switch (is_jmp) {
