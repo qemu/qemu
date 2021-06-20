@@ -85,6 +85,8 @@ static TCGv env_pc;
 
 /* This is the state at translation time.  */
 typedef struct DisasContext {
+    DisasContextBase base;
+
     CRISCPU *cpu;
     target_ulong pc, ppc;
 
@@ -121,7 +123,6 @@ typedef struct DisasContext {
     int clear_locked_irq; /* Clear the irq lockout.  */
     int cpustate_changed;
     unsigned int tb_flags; /* tb dependent flags.  */
-    int is_jmp;
 
 #define JMP_NOJMP     0
 #define JMP_DIRECT    1
@@ -131,9 +132,6 @@ typedef struct DisasContext {
     uint32_t jmp_pc;
 
     int delayed_branch;
-
-    TranslationBlock *tb;
-    int singlestep_enabled;
 } DisasContext;
 
 static void gen_BUG(DisasContext *dc, const char *file, int line)
@@ -531,7 +529,7 @@ static void t_gen_cc_jmp(TCGv pc_true, TCGv pc_false)
 static inline bool use_goto_tb(DisasContext *dc, target_ulong dest)
 {
 #ifndef CONFIG_USER_ONLY
-    return (dc->tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK) ||
+    return (dc->base.pc_first & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK) ||
            (dc->ppc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK);
 #else
     return true;
@@ -543,7 +541,7 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
     if (use_goto_tb(dc, dest)) {
         tcg_gen_goto_tb(n);
         tcg_gen_movi_tl(env_pc, dest);
-        tcg_gen_exit_tb(dc->tb, n);
+        tcg_gen_exit_tb(dc->base.tb, n);
     } else {
         tcg_gen_movi_tl(env_pc, dest);
         tcg_gen_exit_tb(NULL, 0);
@@ -2037,14 +2035,14 @@ static int dec_setclrf(CPUCRISState *env, DisasContext *dc)
     /* Break the TB if any of the SPI flag changes.  */
     if (flags & (P_FLAG | S_FLAG)) {
         tcg_gen_movi_tl(env_pc, dc->pc + 2);
-        dc->is_jmp = DISAS_UPDATE;
+        dc->base.is_jmp = DISAS_UPDATE;
         dc->cpustate_changed = 1;
     }
 
     /* For the I flag, only act on posedge.  */
     if ((flags & I_FLAG)) {
         tcg_gen_movi_tl(env_pc, dc->pc + 2);
-        dc->is_jmp = DISAS_UPDATE;
+        dc->base.is_jmp = DISAS_UPDATE;
         dc->cpustate_changed = 1;
     }
 
@@ -2886,14 +2884,14 @@ static int dec_rfe_etc(CPUCRISState *env, DisasContext *dc)
         LOG_DIS("rfe\n");
         cris_evaluate_flags(dc);
         gen_helper_rfe(cpu_env);
-        dc->is_jmp = DISAS_UPDATE;
+        dc->base.is_jmp = DISAS_UPDATE;
         break;
     case 5:
         /* rfn.  */
         LOG_DIS("rfn\n");
         cris_evaluate_flags(dc);
         gen_helper_rfn(cpu_env);
-        dc->is_jmp = DISAS_UPDATE;
+        dc->base.is_jmp = DISAS_UPDATE;
         break;
     case 6:
         LOG_DIS("break %d\n", dc->op1);
@@ -2904,7 +2902,7 @@ static int dec_rfe_etc(CPUCRISState *env, DisasContext *dc)
         /* Breaks start at 16 in the exception vector.  */
         t_gen_movi_env_TN(trap_vector, dc->op1 + 16);
         t_gen_raise_exception(EXCP_BREAK);
-        dc->is_jmp = DISAS_UPDATE;
+        dc->base.is_jmp = DISAS_UPDATE;
         break;
     default:
         printf("op2=%x\n", dc->op2);
@@ -3146,13 +3144,16 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
      * delayslot, like in real hw.
      */
     pc_start = tb->pc & ~1;
-    dc->cpu = env_archcpu(env);
-    dc->tb = tb;
 
-    dc->is_jmp = DISAS_NEXT;
+    dc->base.tb = tb;
+    dc->base.pc_first = pc_start;
+    dc->base.pc_next = pc_start;
+    dc->base.is_jmp = DISAS_NEXT;
+    dc->base.singlestep_enabled = cs->singlestep_enabled;
+
+    dc->cpu = env_archcpu(env);
     dc->ppc = pc_start;
     dc->pc = pc_start;
-    dc->singlestep_enabled = cs->singlestep_enabled;
     dc->flags_uptodate = 1;
     dc->flagx_known = 1;
     dc->flags_x = tb->flags & X_FLAG;
@@ -3189,7 +3190,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
             cris_evaluate_flags(dc);
             tcg_gen_movi_tl(env_pc, dc->pc);
             t_gen_raise_exception(EXCP_DEBUG);
-            dc->is_jmp = DISAS_UPDATE;
+            dc->base.is_jmp = DISAS_UPDATE;
             /* The address covered by the breakpoint must be included in
                [tb->pc, tb->pc + tb->size) in order to for it to be
                properly cleared -- thus we increment the PC here so that
@@ -3242,18 +3243,18 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
                     gen_goto_tb(dc, 1, dc->jmp_pc);
                     gen_set_label(l1);
                     gen_goto_tb(dc, 0, dc->pc);
-                    dc->is_jmp = DISAS_TB_JUMP;
+                    dc->base.is_jmp = DISAS_TB_JUMP;
                     dc->jmp = JMP_NOJMP;
                 } else if (dc->jmp == JMP_DIRECT) {
                     cris_evaluate_flags(dc);
                     gen_goto_tb(dc, 0, dc->jmp_pc);
-                    dc->is_jmp = DISAS_TB_JUMP;
+                    dc->base.is_jmp = DISAS_TB_JUMP;
                     dc->jmp = JMP_NOJMP;
                 } else {
                     TCGv c = tcg_const_tl(dc->pc);
                     t_gen_cc_jmp(env_btarget, c);
                     tcg_temp_free(c);
-                    dc->is_jmp = DISAS_JUMP;
+                    dc->base.is_jmp = DISAS_JUMP;
                 }
                 break;
             }
@@ -3264,7 +3265,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
         if (!(tb->pc & 1) && cs->singlestep_enabled) {
             break;
         }
-    } while (!dc->is_jmp && !dc->cpustate_changed
+    } while (!dc->base.is_jmp && !dc->cpustate_changed
             && !tcg_op_buf_full()
             && !singlestep
             && (dc->pc - page_start < TARGET_PAGE_SIZE)
@@ -3277,10 +3278,10 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     npc = dc->pc;
 
     /* Force an update if the per-tb cpu state has changed.  */
-    if (dc->is_jmp == DISAS_NEXT
+    if (dc->base.is_jmp == DISAS_NEXT
         && (dc->cpustate_changed || !dc->flagx_known
         || (dc->flags_x != (tb->flags & X_FLAG)))) {
-        dc->is_jmp = DISAS_UPDATE;
+        dc->base.is_jmp = DISAS_UPDATE;
         tcg_gen_movi_tl(env_pc, npc);
     }
     /* Broken branch+delayslot sequence.  */
@@ -3293,12 +3294,12 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     cris_evaluate_flags(dc);
 
     if (unlikely(cs->singlestep_enabled)) {
-        if (dc->is_jmp == DISAS_NEXT) {
+        if (dc->base.is_jmp == DISAS_NEXT) {
             tcg_gen_movi_tl(env_pc, npc);
         }
         t_gen_raise_exception(EXCP_DEBUG);
     } else {
-        switch (dc->is_jmp) {
+        switch (dc->base.is_jmp) {
         case DISAS_NEXT:
             gen_goto_tb(dc, 1, npc);
             break;

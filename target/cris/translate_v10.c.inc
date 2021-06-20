@@ -1169,7 +1169,7 @@ static unsigned int dec10_ind(CPUCRISState *env, DisasContext *dc)
                     t_gen_mov_env_TN(trap_vector, c);
                     tcg_temp_free(c);
                     t_gen_raise_exception(EXCP_BREAK);
-                    dc->is_jmp = DISAS_UPDATE;
+                    dc->base.is_jmp = DISAS_UPDATE;
                     return insn_len;
                 }
                 LOG_DIS("%d: jump.%d %d r%d r%d\n", __LINE__, size,
@@ -1277,7 +1277,7 @@ static unsigned int crisv10_decoder(CPUCRISState *env, DisasContext *dc)
     if (dc->clear_prefix && dc->tb_flags & PFIX_FLAG) {
         dc->tb_flags &= ~PFIX_FLAG;
         tcg_gen_andi_tl(cpu_PR[PR_CCS], cpu_PR[PR_CCS], ~PFIX_FLAG);
-        if (dc->tb_flags != dc->tb->flags) {
+        if (dc->tb_flags != dc->base.tb->flags) {
             dc->cpustate_changed = 1;
         }
     }
