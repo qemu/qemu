@@ -696,12 +696,7 @@ static bool use_goto_tb(DisasContext *s, uint64_t dest)
     if (unlikely(use_exit_tb(s))) {
         return false;
     }
-#ifndef CONFIG_USER_ONLY
-    return (dest & TARGET_PAGE_MASK) == (s->base.tb->pc & TARGET_PAGE_MASK) ||
-           (dest & TARGET_PAGE_MASK) == (s->base.pc_next & TARGET_PAGE_MASK);
-#else
-    return true;
-#endif
+    return translator_use_goto_tb(&s->base, dest);
 }
 
 static void account_noninline_branch(DisasContext *s, int cc_op)
