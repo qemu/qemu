@@ -440,12 +440,7 @@ static DisasJumpType gen_store_conditional(DisasContext *ctx, int ra, int rb,
 
 static bool use_goto_tb(DisasContext *ctx, uint64_t dest)
 {
-#ifndef CONFIG_USER_ONLY
-    /* Check for the dest on the same page as the start of the TB.  */
-    return ((ctx->base.tb->pc ^ dest) & TARGET_PAGE_MASK) == 0;
-#else
-    return true;
-#endif
+    return translator_use_goto_tb(&ctx->base, dest);
 }
 
 static DisasJumpType gen_bdirect(DisasContext *ctx, int ra, int32_t disp)
