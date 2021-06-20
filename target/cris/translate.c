@@ -522,17 +522,6 @@ static void t_gen_swapr(TCGv d, TCGv s)
     tcg_temp_free(org_s);
 }
 
-static void t_gen_cc_jmp(TCGv pc_true, TCGv pc_false)
-{
-    TCGLabel *l1 = gen_new_label();
-
-    /* Conditional jmp.  */
-    tcg_gen_mov_tl(env_pc, pc_false);
-    tcg_gen_brcondi_tl(TCG_COND_EQ, env_btaken, 0, l1);
-    tcg_gen_mov_tl(env_pc, pc_true);
-    gen_set_label(l1);
-}
-
 static bool use_goto_tb(DisasContext *dc, target_ulong dest)
 {
     return ((dest ^ dc->base.pc_first) & TARGET_PAGE_MASK) == 0;
@@ -3321,8 +3310,17 @@ static void cris_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
             /* fall through */
 
         case JMP_INDIRECT:
-            t_gen_cc_jmp(env_btarget, tcg_constant_tl(npc));
+            tcg_gen_movcond_tl(TCG_COND_NE, env_pc,
+                               env_btaken, tcg_constant_tl(0),
+                               env_btarget, tcg_constant_tl(npc));
             is_jmp = dc->cpustate_changed ? DISAS_UPDATE : DISAS_JUMP;
+
+            /*
+             * We have now consumed btaken and btarget.  Hint to the
+             * tcg compiler that the writeback to env may be dropped.
+             */
+            tcg_gen_discard_tl(env_btaken);
+            tcg_gen_discard_tl(env_btarget);
             break;
 
         default:
