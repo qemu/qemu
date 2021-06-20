@@ -104,7 +104,7 @@ struct DisasContext {
      * used in the following manner (sketch)
      *
      * TCGLabel *skip_label = NULL;
-     * if (ctx.skip_cond != TCG_COND_NEVER) {
+     * if (ctx->skip_cond != TCG_COND_NEVER) {
      *     skip_label = gen_new_label();
      *     tcg_gen_brcond_tl(skip_cond, skip_var0, skip_var1, skip_label);
      * }
@@ -114,7 +114,7 @@ struct DisasContext {
      *     free_skip_var0 = false;
      * }
      *
-     * translate(&ctx);
+     * translate(ctx);
      *
      * if (skip_label) {
      *     gen_set_label(skip_label);
@@ -2900,7 +2900,7 @@ static bool canonicalize_skip(DisasContext *ctx)
 void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
 {
     CPUAVRState *env = cs->env_ptr;
-    DisasContext ctx = {
+    DisasContext ctx1 = {
         .base.tb = tb,
         .base.is_jmp = DISAS_NEXT,
         .base.pc_first = tb->pc,
@@ -2911,6 +2911,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
         .memidx = 0,
         .skip_cond = TCG_COND_NEVER,
     };
+    DisasContext *ctx = &ctx1;
     target_ulong pc_start = tb->pc / 2;
     int num_insns = 0;
 
@@ -2921,23 +2922,23 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
          */
         max_insns = 1;
     }
-    if (ctx.base.singlestep_enabled) {
+    if (ctx->base.singlestep_enabled) {
         max_insns = 1;
     }
 
     gen_tb_start(tb);
 
-    ctx.npc = pc_start;
+    ctx->npc = pc_start;
     if (tb->flags & TB_FLAGS_SKIP) {
-        ctx.skip_cond = TCG_COND_ALWAYS;
-        ctx.skip_var0 = cpu_skip;
+        ctx->skip_cond = TCG_COND_ALWAYS;
+        ctx->skip_var0 = cpu_skip;
     }
 
     do {
         TCGLabel *skip_label = NULL;
 
         /* translate current instruction */
-        tcg_gen_insn_start(ctx.npc);
+        tcg_gen_insn_start(ctx->npc);
         num_insns++;
 
         /*
@@ -2946,65 +2947,66 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
          * b main   - sets breakpoint at address 0x00000100 (code)
          * b *0x100 - sets breakpoint at address 0x00800100 (data)
          */
-        if (unlikely(!ctx.base.singlestep_enabled &&
-                (cpu_breakpoint_test(cs, OFFSET_CODE + ctx.npc * 2, BP_ANY) ||
-                 cpu_breakpoint_test(cs, OFFSET_DATA + ctx.npc * 2, BP_ANY)))) {
-            canonicalize_skip(&ctx);
-            tcg_gen_movi_tl(cpu_pc, ctx.npc);
+        if (unlikely(!ctx->base.singlestep_enabled &&
+            (cpu_breakpoint_test(cs, OFFSET_CODE + ctx->npc * 2, BP_ANY) ||
+             cpu_breakpoint_test(cs, OFFSET_DATA + ctx->npc * 2, BP_ANY)))) {
+            canonicalize_skip(ctx);
+            tcg_gen_movi_tl(cpu_pc, ctx->npc);
             gen_helper_debug(cpu_env);
             goto done_generating;
         }
 
         /* Conditionally skip the next instruction, if indicated.  */
-        if (ctx.skip_cond != TCG_COND_NEVER) {
+        if (ctx->skip_cond != TCG_COND_NEVER) {
             skip_label = gen_new_label();
-            if (ctx.skip_var0 == cpu_skip) {
+            if (ctx->skip_var0 == cpu_skip) {
                 /*
                  * Copy cpu_skip so that we may zero it before the branch.
                  * This ensures that cpu_skip is non-zero after the label
                  * if and only if the skipped insn itself sets a skip.
                  */
-                ctx.free_skip_var0 = true;
-                ctx.skip_var0 = tcg_temp_new();
-                tcg_gen_mov_tl(ctx.skip_var0, cpu_skip);
+                ctx->free_skip_var0 = true;
+                ctx->skip_var0 = tcg_temp_new();
+                tcg_gen_mov_tl(ctx->skip_var0, cpu_skip);
                 tcg_gen_movi_tl(cpu_skip, 0);
             }
-            if (ctx.skip_var1 == NULL) {
-                tcg_gen_brcondi_tl(ctx.skip_cond, ctx.skip_var0, 0, skip_label);
+            if (ctx->skip_var1 == NULL) {
+                tcg_gen_brcondi_tl(ctx->skip_cond, ctx->skip_var0,
+                                   0, skip_label);
             } else {
-                tcg_gen_brcond_tl(ctx.skip_cond, ctx.skip_var0,
-                                  ctx.skip_var1, skip_label);
-                ctx.skip_var1 = NULL;
+                tcg_gen_brcond_tl(ctx->skip_cond, ctx->skip_var0,
+                                  ctx->skip_var1, skip_label);
+                ctx->skip_var1 = NULL;
             }
-            if (ctx.free_skip_var0) {
-                tcg_temp_free(ctx.skip_var0);
-                ctx.free_skip_var0 = false;
+            if (ctx->free_skip_var0) {
+                tcg_temp_free(ctx->skip_var0);
+                ctx->free_skip_var0 = false;
             }
-            ctx.skip_cond = TCG_COND_NEVER;
-            ctx.skip_var0 = NULL;
+            ctx->skip_cond = TCG_COND_NEVER;
+            ctx->skip_var0 = NULL;
         }
 
-        translate(&ctx);
+        translate(ctx);
 
         if (skip_label) {
-            canonicalize_skip(&ctx);
+            canonicalize_skip(ctx);
             gen_set_label(skip_label);
-            if (ctx.base.is_jmp == DISAS_NORETURN) {
-                ctx.base.is_jmp = DISAS_CHAIN;
+            if (ctx->base.is_jmp == DISAS_NORETURN) {
+                ctx->base.is_jmp = DISAS_CHAIN;
             }
         }
-    } while (ctx.base.is_jmp == DISAS_NEXT
+    } while (ctx->base.is_jmp == DISAS_NEXT
              && num_insns < max_insns
-             && (ctx.npc - pc_start) * 2 < TARGET_PAGE_SIZE - 4
+             && (ctx->npc - pc_start) * 2 < TARGET_PAGE_SIZE - 4
              && !tcg_op_buf_full());
 
     if (tb->cflags & CF_LAST_IO) {
         gen_io_end();
     }
 
-    bool nonconst_skip = canonicalize_skip(&ctx);
+    bool nonconst_skip = canonicalize_skip(ctx);
 
-    switch (ctx.base.is_jmp) {
+    switch (ctx->base.is_jmp) {
     case DISAS_NORETURN:
         assert(!nonconst_skip);
         break;
@@ -3013,19 +3015,19 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     case DISAS_CHAIN:
         if (!nonconst_skip) {
             /* Note gen_goto_tb checks singlestep.  */
-            gen_goto_tb(&ctx, 1, ctx.npc);
+            gen_goto_tb(ctx, 1, ctx->npc);
             break;
         }
-        tcg_gen_movi_tl(cpu_pc, ctx.npc);
+        tcg_gen_movi_tl(cpu_pc, ctx->npc);
         /* fall through */
     case DISAS_LOOKUP:
-        if (!ctx.base.singlestep_enabled) {
+        if (!ctx->base.singlestep_enabled) {
             tcg_gen_lookup_and_goto_ptr();
             break;
         }
         /* fall through */
     case DISAS_EXIT:
-        if (ctx.base.singlestep_enabled) {
+        if (ctx->base.singlestep_enabled) {
             gen_helper_debug(cpu_env);
         } else {
             tcg_gen_exit_tb(NULL, 0);
@@ -3038,7 +3040,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
 done_generating:
     gen_tb_end(tb, num_insns);
 
-    tb->size = (ctx.npc - pc_start) * 2;
+    tb->size = (ctx->npc - pc_start) * 2;
     tb->icount = num_insns;
 
 #ifdef DEBUG_DISAS
