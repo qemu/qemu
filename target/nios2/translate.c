@@ -740,14 +740,15 @@ static void handle_instruction(DisasContext *dc, CPUNios2State *env)
     uint32_t code;
     uint8_t op;
     const Nios2Instruction *instr;
+
 #if defined(CONFIG_USER_ONLY)
     /* FIXME: Is this needed ? */
     if (dc->pc >= 0x1000 && dc->pc < 0x2000) {
-        env->regs[R_PC] = dc->pc;
         t_gen_helper_raise_exception(dc, 0xaa);
         return;
     }
 #endif
+
     code = cpu_ldl_code(env, dc->pc);
     op = get_opcode(code);
 
