@@ -406,4 +406,22 @@ const char *nbd_info_lookup(uint16_t info);
 const char *nbd_cmd_lookup(uint16_t info);
 const char *nbd_err_lookup(int err);
 
+/* nbd/client-connection.c */
+typedef struct NBDClientConnection NBDClientConnection;
+
+void nbd_client_connection_enable_retry(NBDClientConnection *conn);
+
+NBDClientConnection *nbd_client_connection_new(const SocketAddress *saddr,
+                                               bool do_negotiation,
+                                               const char *export_name,
+                                               const char *x_dirty_bitmap,
+                                               QCryptoTLSCreds *tlscreds);
+void nbd_client_connection_release(NBDClientConnection *conn);
+
+QIOChannel *coroutine_fn
+nbd_co_establish_connection(NBDClientConnection *conn, NBDExportInfo *info,
+                            bool blocking, Error **errp);
+
+void coroutine_fn nbd_co_establish_connection_cancel(NBDClientConnection *conn);
+
 #endif

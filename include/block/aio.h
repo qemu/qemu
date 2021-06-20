@@ -691,9 +691,12 @@ void aio_co_enter(AioContext *ctx, struct Coroutine *co);
  * Return the AioContext whose event loop runs in the current thread.
  *
  * If called from an IOThread this will be the IOThread's AioContext.  If
- * called from another thread it will be the main loop AioContext.
+ * called from the main thread or with the "big QEMU lock" taken it
+ * will be the main loop AioContext.
  */
 AioContext *qemu_get_current_aio_context(void);
+
+void qemu_set_current_aio_context(AioContext *ctx);
 
 /**
  * aio_context_setup:

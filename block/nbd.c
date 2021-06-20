@@ -44,6 +44,7 @@
 #include "block/qdict.h"
 #include "block/nbd.h"
 #include "block/block_int.h"
+#include "block/coroutines.h"
 
 #include "qemu/yank.h"
 
@@ -66,50 +67,8 @@ typedef enum NBDClientState {
     NBD_CLIENT_QUIT
 } NBDClientState;
 
-typedef enum NBDConnectThreadState {
-    /* No thread, no pending results */
-    CONNECT_THREAD_NONE,
-
-    /* Thread is running, no results for now */
-    CONNECT_THREAD_RUNNING,
-
-    /*
-     * Thread is running, but requestor exited. Thread should close
-     * the new socket and free the connect state on exit.
-     */
-    CONNECT_THREAD_RUNNING_DETACHED,
-
-    /* Thread finished, results are stored in a state */
-    CONNECT_THREAD_FAIL,
-    CONNECT_THREAD_SUCCESS
-} NBDConnectThreadState;
-
-typedef struct NBDConnectThread {
-    /* Initialization constants */
-    SocketAddress *saddr; /* address to connect to */
-    /*
-     * Bottom half to schedule on completion. Scheduled only if bh_ctx is not
-     * NULL
-     */
-    QEMUBHFunc *bh_func;
-    void *bh_opaque;
-
-    /*
-     * Result of last attempt. Valid in FAIL and SUCCESS states.
-     * If you want to steal error, don't forget to set pointer to NULL.
-     */
-    QIOChannelSocket *sioc;
-    Error *err;
-
-    /* state and bh_ctx are protected by mutex */
-    QemuMutex mutex;
-    NBDConnectThreadState state; /* current state of the thread */
-    AioContext *bh_ctx; /* where to schedule bh (NULL means don't schedule) */
-} NBDConnectThread;
-
 typedef struct BDRVNBDState {
-    QIOChannelSocket *sioc; /* The master data channel */
-    QIOChannel *ioc; /* The current I/O channel which may differ (eg TLS) */
+    QIOChannel *ioc; /* The current I/O channel */
     NBDExportInfo info;
 
     CoMutex send_mutex;
@@ -121,8 +80,6 @@ typedef struct BDRVNBDState {
     bool wait_drained_end;
     int in_flight;
     NBDClientState state;
-    int connect_status;
-    Error *connect_err;
     bool wait_in_flight;
 
     QEMUTimer *reconnect_delay_timer;
@@ -140,20 +97,20 @@ typedef struct BDRVNBDState {
     char *x_dirty_bitmap;
     bool alloc_depth;
 
-    bool wait_connect;
-    NBDConnectThread *connect_thread;
+    NBDClientConnection *conn;
 } BDRVNBDState;
 
-static int nbd_establish_connection(BlockDriverState *bs, SocketAddress *saddr,
-                                    Error **errp);
-static int nbd_co_establish_connection(BlockDriverState *bs, Error **errp);
-static void nbd_co_establish_connection_cancel(BlockDriverState *bs,
-                                               bool detach);
-static int nbd_client_handshake(BlockDriverState *bs, Error **errp);
 static void nbd_yank(void *opaque);
 
-static void nbd_clear_bdrvstate(BDRVNBDState *s)
+static void nbd_clear_bdrvstate(BlockDriverState *bs)
 {
+    BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
+
+    nbd_client_connection_release(s->conn);
+    s->conn = NULL;
+
+    yank_unregister_instance(BLOCKDEV_YANK_INSTANCE(bs->node_name));
+
     object_unref(OBJECT(s->tlscreds));
     qapi_free_SocketAddress(s->saddr);
     s->saddr = NULL;
@@ -165,15 +122,20 @@ static void nbd_clear_bdrvstate(BDRVNBDState *s)
     s->x_dirty_bitmap = NULL;
 }
 
+static bool nbd_client_connected(BDRVNBDState *s)
+{
+    return qatomic_load_acquire(&s->state) == NBD_CLIENT_CONNECTED;
+}
+
 static void nbd_channel_error(BDRVNBDState *s, int ret)
 {
     if (ret == -EIO) {
-        if (qatomic_load_acquire(&s->state) == NBD_CLIENT_CONNECTED) {
+        if (nbd_client_connected(s)) {
             s->state = s->reconnect_delay ? NBD_CLIENT_CONNECTING_WAIT :
                                             NBD_CLIENT_CONNECTING_NOWAIT;
         }
     } else {
-        if (qatomic_load_acquire(&s->state) == NBD_CLIENT_CONNECTED) {
+        if (nbd_client_connected(s)) {
             qio_channel_shutdown(s->ioc, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
         }
         s->state = NBD_CLIENT_QUIT;
@@ -188,6 +150,7 @@ static void nbd_recv_coroutines_wake_all(BDRVNBDState *s)
         NBDClientRequest *req = &s->requests[i];
 
         if (req->coroutine && req->receiving) {
+            req->receiving = false;
             aio_co_wake(req->coroutine);
         }
     }
@@ -271,7 +234,7 @@ static void nbd_client_attach_aio_context(BlockDriverState *bs,
      * s->connection_co is either yielded from nbd_receive_reply or from
      * nbd_co_reconnect_loop()
      */
-    if (qatomic_load_acquire(&s->state) == NBD_CLIENT_CONNECTED) {
+    if (nbd_client_connected(s)) {
         qio_channel_attach_aio_context(QIO_CHANNEL(s->ioc), new_context);
     }
 
@@ -291,7 +254,7 @@ static void coroutine_fn nbd_client_co_drain_begin(BlockDriverState *bs)
     s->drained = true;
     qemu_co_sleep_wake(&s->reconnect_sleep);
 
-    nbd_co_establish_connection_cancel(bs, false);
+    nbd_co_establish_connection_cancel(s->conn);
 
     reconnect_delay_timer_del(s);
 
@@ -320,16 +283,12 @@ static void nbd_teardown_connection(BlockDriverState *bs)
     if (s->ioc) {
         /* finish any pending coroutines */
         qio_channel_shutdown(s->ioc, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
-    } else if (s->sioc) {
-        /* abort negotiation */
-        qio_channel_shutdown(QIO_CHANNEL(s->sioc), QIO_CHANNEL_SHUTDOWN_BOTH,
-                             NULL);
     }
 
     s->state = NBD_CLIENT_QUIT;
     if (s->connection_co) {
         qemu_co_sleep_wake(&s->reconnect_sleep);
-        nbd_co_establish_connection_cancel(bs, true);
+        nbd_co_establish_connection_cancel(s->conn);
     }
     if (qemu_in_coroutine()) {
         s->teardown_co = qemu_coroutine_self();
@@ -354,239 +313,95 @@ static bool nbd_client_connecting_wait(BDRVNBDState *s)
     return qatomic_load_acquire(&s->state) == NBD_CLIENT_CONNECTING_WAIT;
 }
 
-static void connect_bh(void *opaque)
-{
-    BDRVNBDState *state = opaque;
-
-    assert(state->wait_connect);
-    state->wait_connect = false;
-    aio_co_wake(state->connection_co);
-}
-
-static void nbd_init_connect_thread(BDRVNBDState *s)
-{
-    s->connect_thread = g_new(NBDConnectThread, 1);
-
-    *s->connect_thread = (NBDConnectThread) {
-        .saddr = QAPI_CLONE(SocketAddress, s->saddr),
-        .state = CONNECT_THREAD_NONE,
-        .bh_func = connect_bh,
-        .bh_opaque = s,
-    };
-
-    qemu_mutex_init(&s->connect_thread->mutex);
-}
-
-static void nbd_free_connect_thread(NBDConnectThread *thr)
-{
-    if (thr->sioc) {
-        qio_channel_close(QIO_CHANNEL(thr->sioc), NULL);
-    }
-    error_free(thr->err);
-    qapi_free_SocketAddress(thr->saddr);
-    g_free(thr);
-}
-
-static void *connect_thread_func(void *opaque)
-{
-    NBDConnectThread *thr = opaque;
-    int ret;
-    bool do_free = false;
-
-    thr->sioc = qio_channel_socket_new();
-
-    error_free(thr->err);
-    thr->err = NULL;
-    ret = qio_channel_socket_connect_sync(thr->sioc, thr->saddr, &thr->err);
-    if (ret < 0) {
-        object_unref(OBJECT(thr->sioc));
-        thr->sioc = NULL;
-    }
-
-    qemu_mutex_lock(&thr->mutex);
-
-    switch (thr->state) {
-    case CONNECT_THREAD_RUNNING:
-        thr->state = ret < 0 ? CONNECT_THREAD_FAIL : CONNECT_THREAD_SUCCESS;
-        if (thr->bh_ctx) {
-            aio_bh_schedule_oneshot(thr->bh_ctx, thr->bh_func, thr->bh_opaque);
-
-            /* play safe, don't reuse bh_ctx on further connection attempts */
-            thr->bh_ctx = NULL;
-        }
-        break;
-    case CONNECT_THREAD_RUNNING_DETACHED:
-        do_free = true;
-        break;
-    default:
-        abort();
-    }
-
-    qemu_mutex_unlock(&thr->mutex);
-
-    if (do_free) {
-        nbd_free_connect_thread(thr);
-    }
-
-    return NULL;
-}
-
-static int coroutine_fn
-nbd_co_establish_connection(BlockDriverState *bs, Error **errp)
-{
-    int ret;
-    QemuThread thread;
-    BDRVNBDState *s = bs->opaque;
-    NBDConnectThread *thr = s->connect_thread;
-
-    if (!thr) {
-        /* detached */
-        return -1;
-    }
-
-    qemu_mutex_lock(&thr->mutex);
-
-    switch (thr->state) {
-    case CONNECT_THREAD_FAIL:
-    case CONNECT_THREAD_NONE:
-        error_free(thr->err);
-        thr->err = NULL;
-        thr->state = CONNECT_THREAD_RUNNING;
-        qemu_thread_create(&thread, "nbd-connect",
-                           connect_thread_func, thr, QEMU_THREAD_DETACHED);
-        break;
-    case CONNECT_THREAD_SUCCESS:
-        /* Previous attempt finally succeeded in background */
-        thr->state = CONNECT_THREAD_NONE;
-        s->sioc = thr->sioc;
-        thr->sioc = NULL;
-        yank_register_function(BLOCKDEV_YANK_INSTANCE(bs->node_name),
-                               nbd_yank, bs);
-        qemu_mutex_unlock(&thr->mutex);
-        return 0;
-    case CONNECT_THREAD_RUNNING:
-        /* Already running, will wait */
-        break;
-    default:
-        abort();
-    }
-
-    thr->bh_ctx = qemu_get_current_aio_context();
-
-    qemu_mutex_unlock(&thr->mutex);
-
-
-    /*
-     * We are going to wait for connect-thread finish, but
-     * nbd_client_co_drain_begin() can interrupt.
-     *
-     * Note that wait_connect variable is not visible for connect-thread. It
-     * doesn't need mutex protection, it used only inside home aio context of
-     * bs.
-     */
-    s->wait_connect = true;
-    qemu_coroutine_yield();
-
-    if (!s->connect_thread) {
-        /* detached */
-        return -1;
-    }
-    assert(thr == s->connect_thread);
-
-    qemu_mutex_lock(&thr->mutex);
-
-    switch (thr->state) {
-    case CONNECT_THREAD_SUCCESS:
-    case CONNECT_THREAD_FAIL:
-        thr->state = CONNECT_THREAD_NONE;
-        error_propagate(errp, thr->err);
-        thr->err = NULL;
-        s->sioc = thr->sioc;
-        thr->sioc = NULL;
-        if (s->sioc) {
-            yank_register_function(BLOCKDEV_YANK_INSTANCE(bs->node_name),
-                                   nbd_yank, bs);
-        }
-        ret = (s->sioc ? 0 : -1);
-        break;
-    case CONNECT_THREAD_RUNNING:
-    case CONNECT_THREAD_RUNNING_DETACHED:
-        /*
-         * Obviously, drained section wants to start. Report the attempt as
-         * failed. Still connect thread is executing in background, and its
-         * result may be used for next connection attempt.
-         */
-        ret = -1;
-        error_setg(errp, "Connection attempt cancelled by other operation");
-        break;
-
-    case CONNECT_THREAD_NONE:
-        /*
-         * Impossible. We've seen this thread running. So it should be
-         * running or at least give some results.
-         */
-        abort();
-
-    default:
-        abort();
-    }
-
-    qemu_mutex_unlock(&thr->mutex);
-
-    return ret;
-}
-
 /*
- * nbd_co_establish_connection_cancel
- * Cancel nbd_co_establish_connection asynchronously: it will finish soon, to
- * allow drained section to begin.
- *
- * If detach is true, also cleanup the state (or if thread is running, move it
- * to CONNECT_THREAD_RUNNING_DETACHED state). s->connect_thread becomes NULL if
- * detach is true.
+ * Update @bs with information learned during a completed negotiation process.
+ * Return failure if the server's advertised options are incompatible with the
+ * client's needs.
  */
-static void nbd_co_establish_connection_cancel(BlockDriverState *bs,
-                                               bool detach)
+static int nbd_handle_updated_info(BlockDriverState *bs, Error **errp)
 {
-    BDRVNBDState *s = bs->opaque;
-    NBDConnectThread *thr = s->connect_thread;
-    bool wake = false;
-    bool do_free = false;
+    BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
+    int ret;
 
-    qemu_mutex_lock(&thr->mutex);
-
-    if (thr->state == CONNECT_THREAD_RUNNING) {
-        /* We can cancel only in running state, when bh is not yet scheduled */
-        thr->bh_ctx = NULL;
-        if (s->wait_connect) {
-            s->wait_connect = false;
-            wake = true;
+    if (s->x_dirty_bitmap) {
+        if (!s->info.base_allocation) {
+            error_setg(errp, "requested x-dirty-bitmap %s not found",
+                       s->x_dirty_bitmap);
+            return -EINVAL;
         }
-        if (detach) {
-            thr->state = CONNECT_THREAD_RUNNING_DETACHED;
-            s->connect_thread = NULL;
+        if (strcmp(s->x_dirty_bitmap, "qemu:allocation-depth") == 0) {
+            s->alloc_depth = true;
         }
-    } else if (detach) {
-        do_free = true;
     }
 
-    qemu_mutex_unlock(&thr->mutex);
-
-    if (do_free) {
-        nbd_free_connect_thread(thr);
-        s->connect_thread = NULL;
+    if (s->info.flags & NBD_FLAG_READ_ONLY) {
+        ret = bdrv_apply_auto_read_only(bs, "NBD export is read-only", errp);
+        if (ret < 0) {
+            return ret;
+        }
     }
 
-    if (wake) {
-        aio_co_wake(s->connection_co);
+    if (s->info.flags & NBD_FLAG_SEND_FUA) {
+        bs->supported_write_flags = BDRV_REQ_FUA;
+        bs->supported_zero_flags |= BDRV_REQ_FUA;
     }
+
+    if (s->info.flags & NBD_FLAG_SEND_WRITE_ZEROES) {
+        bs->supported_zero_flags |= BDRV_REQ_MAY_UNMAP;
+        if (s->info.flags & NBD_FLAG_SEND_FAST_ZERO) {
+            bs->supported_zero_flags |= BDRV_REQ_NO_FALLBACK;
+        }
+    }
+
+    trace_nbd_client_handshake_success(s->export);
+
+    return 0;
+}
+
+int coroutine_fn nbd_co_do_establish_connection(BlockDriverState *bs,
+                                                Error **errp)
+{
+    BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
+    int ret;
+
+    assert(!s->ioc);
+
+    s->ioc = nbd_co_establish_connection(s->conn, &s->info, true, errp);
+    if (!s->ioc) {
+        return -ECONNREFUSED;
+    }
+
+    ret = nbd_handle_updated_info(s->bs, NULL);
+    if (ret < 0) {
+        /*
+         * We have connected, but must fail for other reasons.
+         * Send NBD_CMD_DISC as a courtesy to the server.
+         */
+        NBDRequest request = { .type = NBD_CMD_DISC };
+
+        nbd_send_request(s->ioc, &request);
+
+        object_unref(OBJECT(s->ioc));
+        s->ioc = NULL;
+
+        return ret;
+    }
+
+    qio_channel_set_blocking(s->ioc, false, NULL);
+    qio_channel_attach_aio_context(s->ioc, bdrv_get_aio_context(bs));
+
+    yank_register_function(BLOCKDEV_YANK_INSTANCE(s->bs->node_name), nbd_yank,
+                           bs);
+
+    /* successfully connected */
+    s->state = NBD_CLIENT_CONNECTED;
+    qemu_co_queue_restart_all(&s->free_sema);
+
+    return 0;
 }
 
 static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
 {
-    int ret;
-    Error *local_err = NULL;
-
     if (!nbd_client_connecting(s)) {
         return;
     }
@@ -620,44 +435,11 @@ static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
         qio_channel_detach_aio_context(QIO_CHANNEL(s->ioc));
         yank_unregister_function(BLOCKDEV_YANK_INSTANCE(s->bs->node_name),
                                  nbd_yank, s->bs);
-        object_unref(OBJECT(s->sioc));
-        s->sioc = NULL;
         object_unref(OBJECT(s->ioc));
         s->ioc = NULL;
     }
 
-    if (nbd_co_establish_connection(s->bs, &local_err) < 0) {
-        ret = -ECONNREFUSED;
-        goto out;
-    }
-
-    bdrv_dec_in_flight(s->bs);
-
-    ret = nbd_client_handshake(s->bs, &local_err);
-
-    if (s->drained) {
-        s->wait_drained_end = true;
-        while (s->drained) {
-            /*
-             * We may be entered once from nbd_client_attach_aio_context_bh
-             * and then from nbd_client_co_drain_end. So here is a loop.
-             */
-            qemu_coroutine_yield();
-        }
-    }
-    bdrv_inc_in_flight(s->bs);
-
-out:
-    s->connect_status = ret;
-    error_free(s->connect_err);
-    s->connect_err = NULL;
-    error_propagate(&s->connect_err, local_err);
-
-    if (ret >= 0) {
-        /* successfully connected */
-        s->state = NBD_CLIENT_CONNECTED;
-        qemu_co_queue_restart_all(&s->free_sema);
-    }
+    nbd_co_do_establish_connection(s->bs, NULL);
 }
 
 static coroutine_fn void nbd_co_reconnect_loop(BDRVNBDState *s)
@@ -723,7 +505,7 @@ static coroutine_fn void nbd_connection_entry(void *opaque)
             nbd_co_reconnect_loop(s);
         }
 
-        if (qatomic_load_acquire(&s->state) != NBD_CLIENT_CONNECTED) {
+        if (!nbd_client_connected(s)) {
             continue;
         }
 
@@ -767,6 +549,7 @@ static coroutine_fn void nbd_connection_entry(void *opaque)
          *   connection_co happens through a bottom half, which can only
          *   run after we yield.
          */
+        s->requests[i].receiving = false;
         aio_co_wake(s->requests[i].coroutine);
         qemu_coroutine_yield();
     }
@@ -780,8 +563,6 @@ static coroutine_fn void nbd_connection_entry(void *opaque)
         qio_channel_detach_aio_context(QIO_CHANNEL(s->ioc));
         yank_unregister_function(BLOCKDEV_YANK_INSTANCE(s->bs->node_name),
                                  nbd_yank, s->bs);
-        object_unref(OBJECT(s->sioc));
-        s->sioc = NULL;
         object_unref(OBJECT(s->ioc));
         s->ioc = NULL;
     }
@@ -804,7 +585,7 @@ static int nbd_co_send_request(BlockDriverState *bs,
         qemu_co_queue_wait(&s->free_sema, &s->send_mutex);
     }
 
-    if (qatomic_load_acquire(&s->state) != NBD_CLIENT_CONNECTED) {
+    if (!nbd_client_connected(s)) {
         rc = -EIO;
         goto err;
     }
@@ -831,8 +612,7 @@ static int nbd_co_send_request(BlockDriverState *bs,
     if (qiov) {
         qio_channel_set_cork(s->ioc, true);
         rc = nbd_send_request(s->ioc, request);
-        if (qatomic_load_acquire(&s->state) == NBD_CLIENT_CONNECTED &&
-            rc >= 0) {
+        if (nbd_client_connected(s) && rc >= 0) {
             if (qio_channel_writev_all(s->ioc, qiov->iov, qiov->niov,
                                        NULL) < 0) {
                 rc = -EIO;
@@ -1156,8 +936,8 @@ static coroutine_fn int nbd_co_do_receive_one_chunk(
     /* Wait until we're woken up by nbd_connection_entry.  */
     s->requests[i].receiving = true;
     qemu_coroutine_yield();
-    s->requests[i].receiving = false;
-    if (qatomic_load_acquire(&s->state) != NBD_CLIENT_CONNECTED) {
+    assert(!s->requests[i].receiving);
+    if (!nbd_client_connected(s)) {
         error_setg(errp, "Connection closed");
         return -EIO;
     }
@@ -1316,7 +1096,7 @@ static bool nbd_reply_chunk_iter_receive(BDRVNBDState *s,
     NBDReply local_reply;
     NBDStructuredReplyChunk *chunk;
     Error *local_err = NULL;
-    if (qatomic_load_acquire(&s->state) != NBD_CLIENT_CONNECTED) {
+    if (!nbd_client_connected(s)) {
         error_setg(&local_err, "Connection closed");
         nbd_iter_channel_error(iter, -EIO, &local_err);
         goto break_loop;
@@ -1341,8 +1121,7 @@ static bool nbd_reply_chunk_iter_receive(BDRVNBDState *s,
     }
 
     /* Do not execute the body of NBD_FOREACH_REPLY_CHUNK for simple reply. */
-    if (nbd_reply_is_simple(reply) ||
-        qatomic_load_acquire(&s->state) != NBD_CLIENT_CONNECTED) {
+    if (nbd_reply_is_simple(reply) || !nbd_client_connected(s)) {
         goto break_loop;
     }
 
@@ -1780,7 +1559,7 @@ static void nbd_yank(void *opaque)
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
 
     qatomic_store_release(&s->state, NBD_CLIENT_QUIT);
-    qio_channel_shutdown(QIO_CHANNEL(s->sioc), QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
+    qio_channel_shutdown(QIO_CHANNEL(s->ioc), QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
 }
 
 static void nbd_client_close(BlockDriverState *bs)
@@ -1795,111 +1574,6 @@ static void nbd_client_close(BlockDriverState *bs)
     nbd_teardown_connection(bs);
 }
 
-static int nbd_establish_connection(BlockDriverState *bs,
-                                    SocketAddress *saddr,
-                                    Error **errp)
-{
-    ERRP_GUARD();
-    BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
-
-    s->sioc = qio_channel_socket_new();
-    qio_channel_set_name(QIO_CHANNEL(s->sioc), "nbd-client");
-
-    qio_channel_socket_connect_sync(s->sioc, saddr, errp);
-    if (*errp) {
-        object_unref(OBJECT(s->sioc));
-        s->sioc = NULL;
-        return -1;
-    }
-
-    yank_register_function(BLOCKDEV_YANK_INSTANCE(bs->node_name), nbd_yank, bs);
-    qio_channel_set_delay(QIO_CHANNEL(s->sioc), false);
-
-    return 0;
-}
-
-/* nbd_client_handshake takes ownership on s->sioc. On failure it's unref'ed. */
-static int nbd_client_handshake(BlockDriverState *bs, Error **errp)
-{
-    BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
-    AioContext *aio_context = bdrv_get_aio_context(bs);
-    int ret;
-
-    trace_nbd_client_handshake(s->export);
-    qio_channel_set_blocking(QIO_CHANNEL(s->sioc), false, NULL);
-    qio_channel_attach_aio_context(QIO_CHANNEL(s->sioc), aio_context);
-
-    s->info.request_sizes = true;
-    s->info.structured_reply = true;
-    s->info.base_allocation = true;
-    s->info.x_dirty_bitmap = g_strdup(s->x_dirty_bitmap);
-    s->info.name = g_strdup(s->export ?: "");
-    ret = nbd_receive_negotiate(aio_context, QIO_CHANNEL(s->sioc), s->tlscreds,
-                                s->hostname, &s->ioc, &s->info, errp);
-    g_free(s->info.x_dirty_bitmap);
-    g_free(s->info.name);
-    if (ret < 0) {
-        yank_unregister_function(BLOCKDEV_YANK_INSTANCE(bs->node_name),
-                                 nbd_yank, bs);
-        object_unref(OBJECT(s->sioc));
-        s->sioc = NULL;
-        return ret;
-    }
-    if (s->x_dirty_bitmap) {
-        if (!s->info.base_allocation) {
-            error_setg(errp, "requested x-dirty-bitmap %s not found",
-                       s->x_dirty_bitmap);
-            ret = -EINVAL;
-            goto fail;
-        }
-        if (strcmp(s->x_dirty_bitmap, "qemu:allocation-depth") == 0) {
-            s->alloc_depth = true;
-        }
-    }
-    if (s->info.flags & NBD_FLAG_READ_ONLY) {
-        ret = bdrv_apply_auto_read_only(bs, "NBD export is read-only", errp);
-        if (ret < 0) {
-            goto fail;
-        }
-    }
-    if (s->info.flags & NBD_FLAG_SEND_FUA) {
-        bs->supported_write_flags = BDRV_REQ_FUA;
-        bs->supported_zero_flags |= BDRV_REQ_FUA;
-    }
-    if (s->info.flags & NBD_FLAG_SEND_WRITE_ZEROES) {
-        bs->supported_zero_flags |= BDRV_REQ_MAY_UNMAP;
-        if (s->info.flags & NBD_FLAG_SEND_FAST_ZERO) {
-            bs->supported_zero_flags |= BDRV_REQ_NO_FALLBACK;
-        }
-    }
-
-    if (!s->ioc) {
-        s->ioc = QIO_CHANNEL(s->sioc);
-        object_ref(OBJECT(s->ioc));
-    }
-
-    trace_nbd_client_handshake_success(s->export);
-
-    return 0;
-
- fail:
-    /*
-     * We have connected, but must fail for other reasons.
-     * Send NBD_CMD_DISC as a courtesy to the server.
-     */
-    {
-        NBDRequest request = { .type = NBD_CMD_DISC };
-
-        nbd_send_request(s->ioc ?: QIO_CHANNEL(s->sioc), &request);
-
-        yank_unregister_function(BLOCKDEV_YANK_INSTANCE(bs->node_name),
-                                 nbd_yank, bs);
-        object_unref(OBJECT(s->sioc));
-        s->sioc = NULL;
-
-        return ret;
-    }
-}
 
 /*
  * Parse nbd_open options
@@ -2133,6 +1807,12 @@ static SocketAddress *nbd_config(BDRVNBDState *s, QDict *options,
         goto done;
     }
 
+    if (socket_address_parse_named_fd(saddr, errp) < 0) {
+        qapi_free_SocketAddress(saddr);
+        saddr = NULL;
+        goto done;
+    }
+
 done:
     qobject_unref(addr);
     visit_free(iv);
@@ -2274,9 +1954,6 @@ static int nbd_process_options(BlockDriverState *bs, QDict *options,
     ret = 0;
 
  error:
-    if (ret < 0) {
-        nbd_clear_bdrvstate(s);
-    }
     qemu_opts_del(opts);
     return ret;
 }
@@ -2287,11 +1964,6 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     int ret;
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
 
-    ret = nbd_process_options(bs, options, errp);
-    if (ret < 0) {
-        return ret;
-    }
-
     s->bs = bs;
     qemu_co_mutex_init(&s->send_mutex);
     qemu_co_queue_init(&s->free_sema);
@@ -2300,31 +1972,29 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
         return -EEXIST;
     }
 
-    /*
-     * establish TCP connection, return error if it fails
-     * TODO: Configurable retry-until-timeout behaviour.
-     */
-    if (nbd_establish_connection(bs, s->saddr, errp) < 0) {
-        yank_unregister_instance(BLOCKDEV_YANK_INSTANCE(bs->node_name));
-        return -ECONNREFUSED;
-    }
-
-    ret = nbd_client_handshake(bs, errp);
+    ret = nbd_process_options(bs, options, errp);
     if (ret < 0) {
-        yank_unregister_instance(BLOCKDEV_YANK_INSTANCE(bs->node_name));
-        nbd_clear_bdrvstate(s);
-        return ret;
+        goto fail;
     }
-    /* successfully connected */
-    s->state = NBD_CLIENT_CONNECTED;
 
-    nbd_init_connect_thread(s);
+    s->conn = nbd_client_connection_new(s->saddr, true, s->export,
+                                        s->x_dirty_bitmap, s->tlscreds);
+
+    /* TODO: Configurable retry-until-timeout behaviour. */
+    ret = nbd_do_establish_connection(bs, errp);
+    if (ret < 0) {
+        goto fail;
+    }
 
     s->connection_co = qemu_coroutine_create(nbd_connection_entry, s);
     bdrv_inc_in_flight(bs);
     aio_co_schedule(bdrv_get_aio_context(bs), s->connection_co);
 
     return 0;
+
+fail:
+    nbd_clear_bdrvstate(bs);
+    return ret;
 }
 
 static int nbd_co_flush(BlockDriverState *bs)
@@ -2368,11 +2038,8 @@ static void nbd_refresh_limits(BlockDriverState *bs, Error **errp)
 
 static void nbd_close(BlockDriverState *bs)
 {
-    BDRVNBDState *s = bs->opaque;
-
     nbd_client_close(bs);
-    yank_unregister_instance(BLOCKDEV_YANK_INSTANCE(bs->node_name));
-    nbd_clear_bdrvstate(s);
+    nbd_clear_bdrvstate(bs);
 }
 
 /*

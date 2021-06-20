@@ -30,13 +30,6 @@ struct IOThread {
     bool stopping;
 };
 
-static __thread IOThread *my_iothread;
-
-AioContext *qemu_get_current_aio_context(void)
-{
-    return my_iothread ? my_iothread->ctx : qemu_get_aio_context();
-}
-
 static void iothread_init_gcontext(IOThread *iothread)
 {
     GSource *source;
@@ -54,9 +47,9 @@ static void *iothread_run(void *opaque)
 
     rcu_register_thread();
 
-    my_iothread = iothread;
     qemu_mutex_lock(&iothread->init_done_lock);
     iothread->ctx = aio_context_new(&error_abort);
+    qemu_set_current_aio_context(iothread->ctx);
 
     /*
      * We must connect the ctx to a GMainContext, because in older versions
