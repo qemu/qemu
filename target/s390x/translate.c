@@ -684,16 +684,9 @@ static void gen_op_calc_cc(DisasContext *s)
     set_cc_static(s);
 }
 
-static bool use_exit_tb(DisasContext *s)
-{
-    return s->base.singlestep_enabled ||
-            (tb_cflags(s->base.tb) & CF_LAST_IO) ||
-            (s->base.tb->flags & FLAG_MASK_PER);
-}
-
 static bool use_goto_tb(DisasContext *s, uint64_t dest)
 {
-    if (unlikely(use_exit_tb(s))) {
+    if (unlikely(s->base.tb->flags & FLAG_MASK_PER)) {
         return false;
     }
     return translator_use_goto_tb(&s->base, dest);
@@ -6633,7 +6626,7 @@ static void s390x_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         /* Exit the TB, either by raising a debug exception or by return.  */
         if (dc->do_debug) {
             gen_exception(EXCP_DEBUG);
-        } else if (use_exit_tb(dc) ||
+        } else if ((dc->base.tb->flags & FLAG_MASK_PER) ||
                    dc->base.is_jmp == DISAS_PC_STALE_NOCHAIN) {
             tcg_gen_exit_tb(NULL, 0);
         } else {
