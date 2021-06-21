@@ -475,9 +475,7 @@ typedef enum {
     /* Data-processing (1 source) instructions.  */
     I3507_CLZ       = 0x5ac01000,
     I3507_RBIT      = 0x5ac00000,
-    I3507_REV16     = 0x5ac00400,
-    I3507_REV32     = 0x5ac00800,
-    I3507_REV64     = 0x5ac00c00,
+    I3507_REV       = 0x5ac00000, /* + size << 10 */
 
     /* Data-processing (2 source) instructions.  */
     I3508_LSLV      = 0x1ac02000,
@@ -1417,19 +1415,11 @@ static void tcg_out_brcond(TCGContext *s, TCGType ext, TCGCond c, TCGArg a,
     }
 }
 
-static inline void tcg_out_rev64(TCGContext *s, TCGReg rd, TCGReg rn)
+static inline void tcg_out_rev(TCGContext *s, int ext, MemOp s_bits,
+                               TCGReg rd, TCGReg rn)
 {
-    tcg_out_insn(s, 3507, REV64, TCG_TYPE_I64, rd, rn);
-}
-
-static inline void tcg_out_rev32(TCGContext *s, TCGReg rd, TCGReg rn)
-{
-    tcg_out_insn(s, 3507, REV32, TCG_TYPE_I32, rd, rn);
-}
-
-static inline void tcg_out_rev16(TCGContext *s, TCGReg rd, TCGReg rn)
-{
-    tcg_out_insn(s, 3507, REV16, TCG_TYPE_I32, rd, rn);
+    /* REV, REV16, REV32 */
+    tcg_out_insn_3507(s, I3507_REV | (s_bits << 10), ext, rd, rn);
 }
 
 static inline void tcg_out_sxt(TCGContext *s, TCGType ext, MemOp s_bits,
@@ -1737,13 +1727,13 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, MemOp memop, TCGType ext,
     case MO_UW:
         tcg_out_ldst_r(s, I3312_LDRH, data_r, addr_r, otype, off_r);
         if (bswap) {
-            tcg_out_rev16(s, data_r, data_r);
+            tcg_out_rev(s, TCG_TYPE_I32, MO_16, data_r, data_r);
         }
         break;
     case MO_SW:
         if (bswap) {
             tcg_out_ldst_r(s, I3312_LDRH, data_r, addr_r, otype, off_r);
-            tcg_out_rev16(s, data_r, data_r);
+            tcg_out_rev(s, TCG_TYPE_I32, MO_16, data_r, data_r);
             tcg_out_sxt(s, ext, MO_16, data_r, data_r);
         } else {
             tcg_out_ldst_r(s, (ext ? I3312_LDRSHX : I3312_LDRSHW),
@@ -1753,13 +1743,13 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, MemOp memop, TCGType ext,
     case MO_UL:
         tcg_out_ldst_r(s, I3312_LDRW, data_r, addr_r, otype, off_r);
         if (bswap) {
-            tcg_out_rev32(s, data_r, data_r);
+            tcg_out_rev(s, TCG_TYPE_I32, MO_32, data_r, data_r);
         }
         break;
     case MO_SL:
         if (bswap) {
             tcg_out_ldst_r(s, I3312_LDRW, data_r, addr_r, otype, off_r);
-            tcg_out_rev32(s, data_r, data_r);
+            tcg_out_rev(s, TCG_TYPE_I32, MO_32, data_r, data_r);
             tcg_out_sxt(s, TCG_TYPE_I64, MO_32, data_r, data_r);
         } else {
             tcg_out_ldst_r(s, I3312_LDRSWX, data_r, addr_r, otype, off_r);
@@ -1768,7 +1758,7 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, MemOp memop, TCGType ext,
     case MO_Q:
         tcg_out_ldst_r(s, I3312_LDRX, data_r, addr_r, otype, off_r);
         if (bswap) {
-            tcg_out_rev64(s, data_r, data_r);
+            tcg_out_rev(s, TCG_TYPE_I64, MO_64, data_r, data_r);
         }
         break;
     default:
@@ -1788,21 +1778,21 @@ static void tcg_out_qemu_st_direct(TCGContext *s, MemOp memop,
         break;
     case MO_16:
         if (bswap && data_r != TCG_REG_XZR) {
-            tcg_out_rev16(s, TCG_REG_TMP, data_r);
+            tcg_out_rev(s, TCG_TYPE_I32, MO_16, TCG_REG_TMP, data_r);
             data_r = TCG_REG_TMP;
         }
         tcg_out_ldst_r(s, I3312_STRH, data_r, addr_r, otype, off_r);
         break;
     case MO_32:
         if (bswap && data_r != TCG_REG_XZR) {
-            tcg_out_rev32(s, TCG_REG_TMP, data_r);
+            tcg_out_rev(s, TCG_TYPE_I32, MO_32, TCG_REG_TMP, data_r);
             data_r = TCG_REG_TMP;
         }
         tcg_out_ldst_r(s, I3312_STRW, data_r, addr_r, otype, off_r);
         break;
     case MO_64:
         if (bswap && data_r != TCG_REG_XZR) {
-            tcg_out_rev64(s, TCG_REG_TMP, data_r);
+            tcg_out_rev(s, TCG_TYPE_I64, MO_64, TCG_REG_TMP, data_r);
             data_r = TCG_REG_TMP;
         }
         tcg_out_ldst_r(s, I3312_STRX, data_r, addr_r, otype, off_r);
@@ -2184,15 +2174,15 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_bswap64_i64:
-        tcg_out_rev64(s, a0, a1);
+        tcg_out_rev(s, TCG_TYPE_I64, MO_64, a0, a1);
         break;
     case INDEX_op_bswap32_i64:
     case INDEX_op_bswap32_i32:
-        tcg_out_rev32(s, a0, a1);
+        tcg_out_rev(s, TCG_TYPE_I32, MO_32, a0, a1);
         break;
     case INDEX_op_bswap16_i64:
     case INDEX_op_bswap16_i32:
-        tcg_out_rev16(s, a0, a1);
+        tcg_out_rev(s, TCG_TYPE_I32, MO_16, a0, a1);
         break;
 
     case INDEX_op_ext8s_i64:
