@@ -463,10 +463,10 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
  *              | = On        | Process Scoped |    Scoped     |
  *              +-------------+----------------+---------------+
  */
-static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr,
-                             MMUAccessType access_type,
-                             hwaddr *raddr, int *psizep, int *protp,
-                             bool guest_visible)
+static bool ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr,
+                              MMUAccessType access_type,
+                              hwaddr *raddr, int *psizep, int *protp,
+                              bool guest_visible)
 {
     CPUPPCState *env = &cpu->env;
     uint64_t lpid, pid;
@@ -492,7 +492,7 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr,
         }
         *protp = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         *psizep = TARGET_PAGE_BITS;
-        return 0;
+        return true;
     }
 
     /*
@@ -510,7 +510,7 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr,
         if (guest_visible) {
             ppc_radix64_raise_segi(cpu, access_type, eaddr);
         }
-        return 1;
+        return false;
     }
 
     /* Get Process Table */
@@ -523,13 +523,13 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr,
             if (guest_visible) {
                 ppc_radix64_raise_si(cpu, access_type, eaddr, DSISR_NOPTE);
             }
-            return 1;
+            return false;
         }
         if (!validate_pate(cpu, lpid, &pate)) {
             if (guest_visible) {
                 ppc_radix64_raise_si(cpu, access_type, eaddr, DSISR_R_BADCONFIG);
             }
-            return 1;
+            return false;
         }
     }
 
@@ -549,7 +549,7 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr,
                                                    pate, &g_raddr, &prot,
                                                    &psize, guest_visible);
         if (ret) {
-            return ret;
+            return false;
         }
         *psizep = MIN(*psizep, psize);
         *protp &= prot;
@@ -573,7 +573,7 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr,
                                                      &prot, &psize, false,
                                                      guest_visible);
             if (ret) {
-                return ret;
+                return false;
             }
             *psizep = MIN(*psizep, psize);
             *protp &= prot;
@@ -582,7 +582,7 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr,
         }
     }
 
-    return 0;
+    return true;
 }
 
 int ppc_radix64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
@@ -593,8 +593,8 @@ int ppc_radix64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
     hwaddr raddr;
 
     /* Translate eaddr to raddr (where raddr is addr qemu needs for access) */
-    if (ppc_radix64_xlate(cpu, eaddr, access_type, &raddr,
-                          &page_size, &prot, true)) {
+    if (!ppc_radix64_xlate(cpu, eaddr, access_type, &raddr,
+                           &page_size, &prot, true)) {
         return 1;
     }
 
@@ -608,8 +608,8 @@ hwaddr ppc_radix64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong eaddr)
     int psize, prot;
     hwaddr raddr;
 
-    if (ppc_radix64_xlate(cpu, eaddr, MMU_DATA_LOAD, &raddr,
-                          &psize, &prot, false)) {
+    if (!ppc_radix64_xlate(cpu, eaddr, MMU_DATA_LOAD, &raddr,
+                           &psize, &prot, false)) {
         return -1;
     }
 
