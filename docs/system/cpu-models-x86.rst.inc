@@ -39,6 +39,28 @@ CPU, as they would with "Host passthrough", but gives much of the
 benefit of passthrough, while making live migration safe.
 
 
+ABI compatibility levels for CPU models
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The x86_64 architecture has a number of `ABI compatibility levels`_
+defined. Traditionally most operating systems and toolchains would
+only target the original baseline ABI. It is expected that in
+future OS and toolchains are likely to target newer ABIs. The
+table that follows illustrates which ABI compatibility levels
+can be satisfied by the QEMU CPU models. Note that the table only
+lists the long term stable CPU model versions (eg Haswell-v4).
+In addition to whats listed, there are also many CPU model
+aliases which resolve to a different CPU model version,
+depending on the machine type is in use.
+
+.. _ABI compatibility levels: https://gitlab.com/x86-psABIs/x86-64-ABI/
+
+.. csv-table:: x86-64 ABI compatibility levels
+   :file: cpu-models-x86-abi.csv
+   :widths: 40,15,15,15,15
+   :header-rows: 2
+
+
 Preferred CPU models for Intel x86 hosts
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

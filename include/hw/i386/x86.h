@@ -74,12 +74,20 @@ struct X86MachineState {
      * will be translated to MSI messages in the address space.
      */
     AddressSpace *ioapic_as;
+
+    /*
+     * Ratelimit enforced on detected bus locks in guest.
+     * The default value of the bus_lock_ratelimit is 0 per second,
+     * which means no limitation on the guest's bus locks.
+     */
+    uint64_t bus_lock_ratelimit;
 };
 
 #define X86_MACHINE_SMM              "smm"
 #define X86_MACHINE_ACPI             "acpi"
 #define X86_MACHINE_OEM_ID           "x-oem-id"
 #define X86_MACHINE_OEM_TABLE_ID     "x-oem-table-id"
+#define X86_MACHINE_BUS_LOCK_RATELIMIT  "bus-lock-ratelimit"
 
 #define TYPE_X86_MACHINE   MACHINE_TYPE_NAME("x86")
 OBJECT_DECLARE_TYPE(X86MachineState, X86MachineClass, X86_MACHINE)
