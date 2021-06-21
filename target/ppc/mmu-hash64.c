@@ -874,7 +874,7 @@ static int build_vrma_slbe(PowerPCCPU *cpu, ppc_slb_t *slb)
 }
 
 int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
-                                int rwx, int mmu_idx)
+                                MMUAccessType access_type, int mmu_idx)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
@@ -884,12 +884,8 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
     hwaddr ptex;
     ppc_hash_pte64_t pte;
     int exec_prot, pp_prot, amr_prot, prot;
-    MMUAccessType access_type;
     int need_prot;
     hwaddr raddr;
-
-    assert((rwx == 0) || (rwx == 1) || (rwx == 2));
-    access_type = rwx;
 
     /*
      * Note on LPCR usage: 970 uses HID4, but our special variant of
