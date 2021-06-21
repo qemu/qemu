@@ -2947,14 +2947,30 @@ bool ppc_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
                       bool probe, uintptr_t retaddr)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
     CPUPPCState *env = &cpu->env;
     int ret;
 
-    if (pcc->handle_mmu_fault) {
-        ret = pcc->handle_mmu_fault(cpu, addr, access_type, mmu_idx);
-    } else {
+    switch (env->mmu_model) {
+#if defined(TARGET_PPC64)
+    case POWERPC_MMU_64B:
+    case POWERPC_MMU_2_03:
+    case POWERPC_MMU_2_06:
+    case POWERPC_MMU_2_07:
+        ret = ppc_hash64_handle_mmu_fault(cpu, addr, access_type, mmu_idx);
+        break;
+    case POWERPC_MMU_3_00:
+        ret = ppc64_v3_handle_mmu_fault(cpu, addr, access_type, mmu_idx);
+        break;
+#endif
+
+    case POWERPC_MMU_32B:
+    case POWERPC_MMU_601:
+        ret = ppc_hash32_handle_mmu_fault(cpu, addr, access_type, mmu_idx);
+        break;
+
+    default:
         ret = cpu_ppc_handle_mmu_fault(env, addr, access_type, mmu_idx);
+        break;
     }
     if (unlikely(ret != 0)) {
         if (probe) {
