@@ -463,10 +463,9 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
  *              | = On        | Process Scoped |    Scoped     |
  *              +-------------+----------------+---------------+
  */
-static bool ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr,
-                              MMUAccessType access_type,
-                              hwaddr *raddr, int *psizep, int *protp,
-                              bool guest_visible)
+bool ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
+                       hwaddr *raddr, int *psizep, int *protp,
+                       bool guest_visible)
 {
     CPUPPCState *env = &cpu->env;
     uint64_t lpid, pid;
@@ -583,35 +582,4 @@ static bool ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr,
     }
 
     return true;
-}
-
-int ppc_radix64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
-                                 MMUAccessType access_type, int mmu_idx)
-{
-    CPUState *cs = CPU(cpu);
-    int page_size, prot;
-    hwaddr raddr;
-
-    /* Translate eaddr to raddr (where raddr is addr qemu needs for access) */
-    if (!ppc_radix64_xlate(cpu, eaddr, access_type, &raddr,
-                           &page_size, &prot, true)) {
-        return 1;
-    }
-
-    tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
-                 prot, mmu_idx, 1UL << page_size);
-    return 0;
-}
-
-hwaddr ppc_radix64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong eaddr)
-{
-    int psize, prot;
-    hwaddr raddr;
-
-    if (!ppc_radix64_xlate(cpu, eaddr, MMU_DATA_LOAD, &raddr,
-                           &psize, &prot, false)) {
-        return -1;
-    }
-
-    return raddr & TARGET_PAGE_MASK;
 }

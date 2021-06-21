@@ -424,10 +424,9 @@ static hwaddr ppc_hash32_pte_raddr(target_ulong sr, ppc_hash_pte32_t pte,
     return (rpn & ~mask) | (eaddr & mask);
 }
 
-static bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr,
-                             MMUAccessType access_type,
-                             hwaddr *raddrp, int *psizep, int *protp,
-                             bool guest_visible)
+bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
+                      hwaddr *raddrp, int *psizep, int *protp,
+                      bool guest_visible)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
@@ -568,35 +567,4 @@ static bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr,
     *raddrp = ppc_hash32_pte_raddr(sr, pte, eaddr);
     *protp = prot;
     return true;
-}
-
-int ppc_hash32_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
-                                MMUAccessType access_type, int mmu_idx)
-{
-    CPUState *cs = CPU(cpu);
-    int page_size, prot;
-    hwaddr raddr;
-
-    /* Translate eaddr to raddr (where raddr is addr qemu needs for access) */
-    if (!ppc_hash32_xlate(cpu, eaddr, access_type, &raddr,
-                           &page_size, &prot, true)) {
-        return 1;
-    }
-
-    tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
-                 prot, mmu_idx, 1UL << page_size);
-    return 0;
-}
-
-hwaddr ppc_hash32_get_phys_page_debug(PowerPCCPU *cpu, target_ulong eaddr)
-{
-    int psize, prot;
-    hwaddr raddr;
-
-    if (!ppc_hash32_xlate(cpu, eaddr, MMU_DATA_LOAD, &raddr,
-                           &psize, &prot, false)) {
-        return -1;
-    }
-
-    return raddr & TARGET_PAGE_MASK;
 }

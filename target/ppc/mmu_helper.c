@@ -2899,98 +2899,72 @@ void helper_check_tlb_flush_global(CPUPPCState *env)
 
 /*****************************************************************************/
 
-static int cpu_ppc_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
-                                    MMUAccessType access_type, int mmu_idx)
+static bool ppc_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
+                      hwaddr *raddrp, int *psizep, int *protp,
+                      int mmu_idx, bool guest_visible)
 {
-    CPUState *cs = CPU(cpu);
-    int page_size, prot;
-    hwaddr raddr;
+    switch (cpu->env.mmu_model) {
+#if defined(TARGET_PPC64)
+    case POWERPC_MMU_3_00:
+        if (ppc64_v3_radix(cpu)) {
+            return ppc_radix64_xlate(cpu, eaddr, access_type,
+                                     raddrp, psizep, protp, guest_visible);
+        }
+        /* fall through */
+    case POWERPC_MMU_64B:
+    case POWERPC_MMU_2_03:
+    case POWERPC_MMU_2_06:
+    case POWERPC_MMU_2_07:
+        return ppc_hash64_xlate(cpu, eaddr, access_type,
+                                raddrp, psizep, protp, guest_visible);
+#endif
 
-    if (!ppc_jumbo_xlate(cpu, eaddr, access_type, &raddr,
-                         &page_size, &prot, mmu_idx, true)) {
-        return 1;
+    case POWERPC_MMU_32B:
+    case POWERPC_MMU_601:
+        return ppc_hash32_xlate(cpu, eaddr, access_type,
+                                raddrp, psizep, protp, guest_visible);
+
+    default:
+        return ppc_jumbo_xlate(cpu, eaddr, access_type, raddrp,
+                               psizep, protp, mmu_idx, guest_visible);
     }
-
-    tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
-                 prot, mmu_idx, 1UL << page_size);
-    return 0;
 }
 
 hwaddr ppc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
-    CPUPPCState *env = &cpu->env;
     hwaddr raddr;
     int s, p;
-
-    switch (env->mmu_model) {
-#if defined(TARGET_PPC64)
-    case POWERPC_MMU_64B:
-    case POWERPC_MMU_2_03:
-    case POWERPC_MMU_2_06:
-    case POWERPC_MMU_2_07:
-        return ppc_hash64_get_phys_page_debug(cpu, addr);
-    case POWERPC_MMU_3_00:
-        return ppc64_v3_get_phys_page_debug(cpu, addr);
-#endif
-
-    case POWERPC_MMU_32B:
-    case POWERPC_MMU_601:
-        return ppc_hash32_get_phys_page_debug(cpu, addr);
-
-    default:
-        ;
-    }
 
     /*
      * Some MMUs have separate TLBs for code and data. If we only
      * try an MMU_DATA_LOAD, we may not be able to read instructions
      * mapped by code TLBs, so we also try a MMU_INST_FETCH.
      */
-    if (ppc_jumbo_xlate(cpu, addr, MMU_DATA_LOAD, &raddr, &s, &p, 0, false) ||
-        ppc_jumbo_xlate(cpu, addr, MMU_INST_FETCH, &raddr, &s, &p, 0, false)) {
+    if (ppc_xlate(cpu, addr, MMU_DATA_LOAD, &raddr, &s, &p, 0, false) ||
+        ppc_xlate(cpu, addr, MMU_INST_FETCH, &raddr, &s, &p, 0, false)) {
         return raddr & TARGET_PAGE_MASK;
     }
     return -1;
 }
 
-
-bool ppc_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
+bool ppc_cpu_tlb_fill(CPUState *cs, vaddr eaddr, int size,
                       MMUAccessType access_type, int mmu_idx,
                       bool probe, uintptr_t retaddr)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
-    CPUPPCState *env = &cpu->env;
-    int ret;
+    hwaddr raddr;
+    int page_size, prot;
 
-    switch (env->mmu_model) {
-#if defined(TARGET_PPC64)
-    case POWERPC_MMU_64B:
-    case POWERPC_MMU_2_03:
-    case POWERPC_MMU_2_06:
-    case POWERPC_MMU_2_07:
-        ret = ppc_hash64_handle_mmu_fault(cpu, addr, access_type, mmu_idx);
-        break;
-    case POWERPC_MMU_3_00:
-        ret = ppc64_v3_handle_mmu_fault(cpu, addr, access_type, mmu_idx);
-        break;
-#endif
-
-    case POWERPC_MMU_32B:
-    case POWERPC_MMU_601:
-        ret = ppc_hash32_handle_mmu_fault(cpu, addr, access_type, mmu_idx);
-        break;
-
-    default:
-        ret = cpu_ppc_handle_mmu_fault(cpu, addr, access_type, mmu_idx);
-        break;
+    if (ppc_xlate(cpu, eaddr, access_type, &raddr,
+                  &page_size, &prot, mmu_idx, !probe)) {
+        tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
+                     prot, mmu_idx, 1UL << page_size);
+        return true;
     }
-    if (unlikely(ret != 0)) {
-        if (probe) {
-            return false;
-        }
-        raise_exception_err_ra(env, cs->exception_index, env->error_code,
-                               retaddr);
+    if (probe) {
+        return false;
     }
-    return true;
+    raise_exception_err_ra(&cpu->env, cs->exception_index,
+                           cpu->env.error_code, retaddr);
 }
