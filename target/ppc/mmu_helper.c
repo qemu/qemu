@@ -2948,6 +2948,7 @@ hwaddr ppc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     return -1;
 }
 
+#ifdef CONFIG_TCG
 bool ppc_cpu_tlb_fill(CPUState *cs, vaddr eaddr, int size,
                       MMUAccessType access_type, int mmu_idx,
                       bool probe, uintptr_t retaddr)
@@ -2968,3 +2969,4 @@ bool ppc_cpu_tlb_fill(CPUState *cs, vaddr eaddr, int size,
     raise_exception_err_ra(&cpu->env, cs->exception_index,
                            cpu->env.error_code, retaddr);
 }
+#endif
