@@ -873,8 +873,10 @@ static int build_vrma_slbe(PowerPCCPU *cpu, ppc_slb_t *slb)
     return -1;
 }
 
-int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
-                                MMUAccessType access_type, int mmu_idx)
+static bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr,
+                             MMUAccessType access_type,
+                             hwaddr *raddrp, int *psizep, int *protp,
+                             bool guest_visible)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
@@ -918,9 +920,11 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
             slb = &vrma_slbe;
             if (build_vrma_slbe(cpu, slb) != 0) {
                 /* Invalid VRMA setup, machine check */
-                cs->exception_index = POWERPC_EXCP_MCHECK;
-                env->error_code = 0;
-                return 1;
+                if (guest_visible) {
+                    cs->exception_index = POWERPC_EXCP_MCHECK;
+                    env->error_code = 0;
+                }
+                return false;
             }
 
             goto skip_slb_search;
@@ -929,6 +933,9 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
 
             /* Emulated old-style RMO mode, bounds check against RMLS */
             if (raddr >= limit) {
+                if (!guest_visible) {
+                    return false;
+                }
                 switch (access_type) {
                 case MMU_INST_FETCH:
                     ppc_hash64_set_isi(cs, SRR1_PROTFAULT);
@@ -943,15 +950,16 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
                 default:
                     g_assert_not_reached();
                 }
-                return 1;
+                return false;
             }
 
             raddr |= env->spr[SPR_RMOR];
         }
-        tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
-                     PAGE_READ | PAGE_WRITE | PAGE_EXEC, mmu_idx,
-                     TARGET_PAGE_SIZE);
-        return 0;
+
+        *raddrp = raddr;
+        *protp = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        *psizep = TARGET_PAGE_BITS;
+        return true;
     }
 
     /* 2. Translation is on, so look up the SLB */
@@ -964,6 +972,9 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
             exit(1);
         }
         /* Segment still not found, generate the appropriate interrupt */
+        if (!guest_visible) {
+            return false;
+        }
         switch (access_type) {
         case MMU_INST_FETCH:
             cs->exception_index = POWERPC_EXCP_ISEG;
@@ -978,20 +989,25 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
         default:
             g_assert_not_reached();
         }
-        return 1;
+        return false;
     }
 
-skip_slb_search:
+ skip_slb_search:
 
     /* 3. Check for segment level no-execute violation */
     if (access_type == MMU_INST_FETCH && (slb->vsid & SLB_VSID_N)) {
-        ppc_hash64_set_isi(cs, SRR1_NOEXEC_GUARD);
-        return 1;
+        if (guest_visible) {
+            ppc_hash64_set_isi(cs, SRR1_NOEXEC_GUARD);
+        }
+        return false;
     }
 
     /* 4. Locate the PTE in the hash table */
     ptex = ppc_hash64_htab_lookup(cpu, slb, eaddr, &pte, &apshift);
     if (ptex == -1) {
+        if (!guest_visible) {
+            return false;
+        }
         switch (access_type) {
         case MMU_INST_FETCH:
             ppc_hash64_set_isi(cs, SRR1_NOPTE);
@@ -1005,7 +1021,7 @@ skip_slb_search:
         default:
             g_assert_not_reached();
         }
-        return 1;
+        return false;
     }
     qemu_log_mask(CPU_LOG_MMU,
                   "found PTE at index %08" HWADDR_PRIx "\n", ptex);
@@ -1021,6 +1037,9 @@ skip_slb_search:
     if (need_prot & ~prot) {
         /* Access right violation */
         qemu_log_mask(CPU_LOG_MMU, "PTE access rejected\n");
+        if (!guest_visible) {
+            return false;
+        }
         if (access_type == MMU_INST_FETCH) {
             int srr1 = 0;
             if (PAGE_EXEC & ~exec_prot) {
@@ -1045,7 +1064,7 @@ skip_slb_search:
             }
             ppc_hash64_set_dsi(cs, eaddr, dsisr);
         }
-        return 1;
+        return false;
     }
 
     qemu_log_mask(CPU_LOG_MMU, "PTE access granted !\n");
@@ -1069,66 +1088,40 @@ skip_slb_search:
 
     /* 7. Determine the real address from the PTE */
 
-    raddr = deposit64(pte.pte1 & HPTE64_R_RPN, 0, apshift, eaddr);
+    *raddrp = deposit64(pte.pte1 & HPTE64_R_RPN, 0, apshift, eaddr);
+    *protp = prot;
+    *psizep = apshift;
+    return true;
+}
+
+int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
+                                MMUAccessType access_type, int mmu_idx)
+{
+    CPUState *cs = CPU(cpu);
+    int page_size, prot;
+    hwaddr raddr;
+
+    if (!ppc_hash64_xlate(cpu, eaddr, access_type, &raddr,
+                          &page_size, &prot, true)) {
+        return 1;
+    }
 
     tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
-                 prot, mmu_idx, 1ULL << apshift);
-
+                 prot, mmu_idx, 1UL << page_size);
     return 0;
 }
 
-hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
+hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong eaddr)
 {
-    CPUPPCState *env = &cpu->env;
-    ppc_slb_t vrma_slbe;
-    ppc_slb_t *slb;
-    hwaddr ptex, raddr;
-    ppc_hash_pte64_t pte;
-    unsigned apshift;
+    int psize, prot;
+    hwaddr raddr;
 
-    /* Handle real mode */
-    if (msr_dr == 0) {
-        /* In real mode the top 4 effective address bits are ignored */
-        raddr = addr & 0x0FFFFFFFFFFFFFFFULL;
-
-        if (cpu->vhyp) {
-            /*
-             * In virtual hypervisor mode, there's nothing to do:
-             *   EA == GPA == qemu guest address
-             */
-            return raddr;
-        } else if ((msr_hv || !env->has_hv_mode) && !(addr >> 63)) {
-            /* In HV mode, add HRMOR if top EA bit is clear */
-            return raddr | env->spr[SPR_HRMOR];
-        } else if (ppc_hash64_use_vrma(env)) {
-            /* Emulated VRMA mode */
-            slb = &vrma_slbe;
-            if (build_vrma_slbe(cpu, slb) != 0) {
-                return -1;
-            }
-        } else {
-            target_ulong limit = rmls_limit(cpu);
-
-            /* Emulated old-style RMO mode, bounds check against RMLS */
-            if (raddr >= limit) {
-                return -1;
-            }
-            return raddr | env->spr[SPR_RMOR];
-        }
-    } else {
-        slb = slb_lookup(cpu, addr);
-        if (!slb) {
-            return -1;
-        }
-    }
-
-    ptex = ppc_hash64_htab_lookup(cpu, slb, addr, &pte, &apshift);
-    if (ptex == -1) {
+    if (!ppc_hash64_xlate(cpu, eaddr, MMU_DATA_LOAD, &raddr,
+                          &psize, &prot, false)) {
         return -1;
     }
 
-    return deposit64(pte.pte1 & HPTE64_R_RPN, 0, apshift, addr)
-        & TARGET_PAGE_MASK;
+    return raddr & TARGET_PAGE_MASK;
 }
 
 void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu, target_ulong ptex,
