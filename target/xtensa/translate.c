@@ -405,11 +405,7 @@ static void gen_jump(DisasContext *dc, TCGv dest)
 
 static int adjust_jump_slot(DisasContext *dc, uint32_t dest, int slot)
 {
-    if (((dc->base.pc_first ^ dest) & TARGET_PAGE_MASK) != 0) {
-        return -1;
-    } else {
-        return slot;
-    }
+    return translator_use_goto_tb(&dc->base, dest) ? slot : -1;
 }
 
 static void gen_jumpi(DisasContext *dc, uint32_t dest, int slot)
