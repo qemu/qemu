@@ -16,6 +16,8 @@ virtual size: 4 MiB (4194304 bytes)
 
 === Test host-key-check options ===
 
+--- no host key checking --
+
 {"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "ssh", "location": {"host-key-check": {"mode": "none"}, "path": "TEST_DIR/PID-t.img", "server": {"host": "127.0.0.1", "port": "22"}}, "size": 8388608}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
@@ -25,6 +27,8 @@ image: TEST_IMG
 file format: IMGFMT
 virtual size: 8 MiB (8388608 bytes)
 
+--- known_hosts key checking --
+
 {"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "ssh", "location": {"host-key-check": {"mode": "known_hosts"}, "path": "TEST_DIR/PID-t.img", "server": {"host": "127.0.0.1", "port": "22"}}, "size": 4194304}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
@@ -33,6 +37,8 @@ virtual size: 8 MiB (8388608 bytes)
 image: TEST_IMG
 file format: IMGFMT
 virtual size: 4 MiB (4194304 bytes)
+
+--- explicit md5 key checking --
 
 {"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "ssh", "location": {"host-key-check": {"hash": "wrong", "mode": "hash", "type": "md5"}, "path": "TEST_DIR/PID-t.img", "server": {"host": "127.0.0.1", "port": "22"}}, "size": 2097152}}}
 {"return": {}}
@@ -49,6 +55,8 @@ image: TEST_IMG
 file format: IMGFMT
 virtual size: 8 MiB (8388608 bytes)
 
+--- explicit sha1 key checking --
+
 {"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "ssh", "location": {"host-key-check": {"hash": "wrong", "mode": "hash", "type": "sha1"}, "path": "TEST_DIR/PID-t.img", "server": {"host": "127.0.0.1", "port": "22"}}, "size": 2097152}}}
 {"return": {}}
 Job failed: remote host key does not match host_key_check 'wrong'
@@ -56,6 +64,23 @@ Job failed: remote host key does not match host_key_check 'wrong'
 {"return": {}}
 
 {"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "ssh", "location": {"host-key-check": {"hash": "HASH", "mode": "hash", "type": "sha1"}, "path": "TEST_DIR/PID-t.img", "server": {"host": "127.0.0.1", "port": "22"}}, "size": 4194304}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 4 MiB (4194304 bytes)
+
+--- explicit sha256 key checking --
+
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "ssh", "location": {"host-key-check": {"hash": "wrong", "mode": "hash", "type": "sha256"}, "path": "TEST_DIR/PID-t.img", "server": {"host": "127.0.0.1", "port": "22"}}, "size": 2097152}}}
+{"return": {}}
+Job failed: remote host key does not match host_key_check 'wrong'
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "ssh", "location": {"host-key-check": {"hash": "HASH", "mode": "hash", "type": "sha256"}, "path": "TEST_DIR/PID-t.img", "server": {"host": "127.0.0.1", "port": "22"}}, "size": 4194304}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}

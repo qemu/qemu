@@ -3190,11 +3190,12 @@
 #
 # @md5: The given hash is an md5 hash
 # @sha1: The given hash is an sha1 hash
+# @sha256: The given hash is an sha256 hash
 #
 # Since: 2.12
 ##
 { 'enum': 'SshHostKeyCheckHashType',
-  'data': [ 'md5', 'sha1' ] }
+  'data': [ 'md5', 'sha1', 'sha256' ] }
 
 ##
 # @SshHostKeyHash:
