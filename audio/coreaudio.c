@@ -26,6 +26,7 @@
 #include <CoreAudio/CoreAudio.h>
 #include <pthread.h>            /* pthread_X */
 
+#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "audio.h"
 
@@ -34,7 +35,7 @@
 
 typedef struct coreaudioVoiceOut {
     HWVoiceOut hw;
-    pthread_mutex_t mutex;
+    pthread_mutex_t buf_mutex;
     AudioDeviceID outputDeviceID;
     int frameSizeSetting;
     uint32_t bufferCount;
@@ -241,11 +242,11 @@ static void GCC_FMT_ATTR (3, 4) coreaudio_logerr2 (
 #define coreaudio_playback_logerr(status, ...) \
     coreaudio_logerr2(status, "playback", __VA_ARGS__)
 
-static int coreaudio_lock (coreaudioVoiceOut *core, const char *fn_name)
+static int coreaudio_buf_lock (coreaudioVoiceOut *core, const char *fn_name)
 {
     int err;
 
-    err = pthread_mutex_lock (&core->mutex);
+    err = pthread_mutex_lock (&core->buf_mutex);
     if (err) {
         dolog ("Could not lock voice for %s\nReason: %s\n",
                fn_name, strerror (err));
@@ -254,11 +255,11 @@ static int coreaudio_lock (coreaudioVoiceOut *core, const char *fn_name)
     return 0;
 }
 
-static int coreaudio_unlock (coreaudioVoiceOut *core, const char *fn_name)
+static int coreaudio_buf_unlock (coreaudioVoiceOut *core, const char *fn_name)
 {
     int err;
 
-    err = pthread_mutex_unlock (&core->mutex);
+    err = pthread_mutex_unlock (&core->buf_mutex);
     if (err) {
         dolog ("Could not unlock voice for %s\nReason: %s\n",
                fn_name, strerror (err));
@@ -273,13 +274,13 @@ static int coreaudio_unlock (coreaudioVoiceOut *core, const char *fn_name)
         coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;     \
         ret_type ret;                                           \
                                                                 \
-        if (coreaudio_lock(core, "coreaudio_" #name)) {         \
+        if (coreaudio_buf_lock(core, "coreaudio_" #name)) {         \
             return 0;                                           \
         }                                                       \
                                                                 \
         ret = glue(audio_generic_, name)args;                   \
                                                                 \
-        coreaudio_unlock(core, "coreaudio_" #name);             \
+        coreaudio_buf_unlock(core, "coreaudio_" #name);             \
         return ret;                                             \
     }
 COREAUDIO_WRAPPER_FUNC(get_buffer_out, void *, (HWVoiceOut *hw, size_t *size),
@@ -291,7 +292,10 @@ COREAUDIO_WRAPPER_FUNC(write, size_t, (HWVoiceOut *hw, void *buf, size_t size),
                        (hw, buf, size))
 #undef COREAUDIO_WRAPPER_FUNC
 
-/* callback to feed audiooutput buffer */
+/*
+ * callback to feed audiooutput buffer. called without iothread lock.
+ * allowed to lock "buf_mutex", but disallowed to have any other locks.
+ */
 static OSStatus audioDeviceIOProc(
     AudioDeviceID inDevice,
     const AudioTimeStamp *inNow,
@@ -307,13 +311,13 @@ static OSStatus audioDeviceIOProc(
     coreaudioVoiceOut *core = (coreaudioVoiceOut *) hwptr;
     size_t len;
 
-    if (coreaudio_lock (core, "audioDeviceIOProc")) {
+    if (coreaudio_buf_lock (core, "audioDeviceIOProc")) {
         inInputTime = 0;
         return 0;
     }
 
     if (inDevice != core->outputDeviceID) {
-        coreaudio_unlock (core, "audioDeviceIOProc(old device)");
+        coreaudio_buf_unlock (core, "audioDeviceIOProc(old device)");
         return 0;
     }
 
@@ -323,7 +327,7 @@ static OSStatus audioDeviceIOProc(
     /* if there are not enough samples, set signal and return */
     if (pending_frames < frameCount) {
         inInputTime = 0;
-        coreaudio_unlock (core, "audioDeviceIOProc(empty)");
+        coreaudio_buf_unlock (core, "audioDeviceIOProc(empty)");
         return 0;
     }
 
@@ -345,7 +349,7 @@ static OSStatus audioDeviceIOProc(
         out += write_len;
     }
 
-    coreaudio_unlock (core, "audioDeviceIOProc");
+    coreaudio_buf_unlock (core, "audioDeviceIOProc");
     return 0;
 }
 
@@ -438,7 +442,16 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
         return status;
     }
 
-    /* set Callback */
+    /*
+     * set Callback.
+     *
+     * On macOS 11.3.1, Core Audio calls AudioDeviceIOProc after calling an
+     * internal function named HALB_Mutex::Lock(), which locks a mutex in
+     * HALB_IOThread::Entry(void*). HALB_Mutex::Lock() is also called in
+     * AudioObjectGetPropertyData, which is called by coreaudio driver.
+     * Therefore, the specified callback must be designed to avoid a deadlock
+     * with the callers of AudioObjectGetPropertyData.
+     */
     core->ioprocid = NULL;
     status = AudioDeviceCreateIOProcID(core->outputDeviceID,
                                        audioDeviceIOProc,
@@ -521,6 +534,7 @@ static void update_device_playback_state(coreaudioVoiceOut *core)
     }
 }
 
+/* called without iothread lock. */
 static OSStatus handle_voice_change(
     AudioObjectID in_object_id,
     UInt32 in_number_addresses,
@@ -530,9 +544,7 @@ static OSStatus handle_voice_change(
     OSStatus status;
     coreaudioVoiceOut *core = in_client_data;
 
-    if (coreaudio_lock(core, __func__)) {
-        abort();
-    }
+    qemu_mutex_lock_iothread();
 
     if (core->outputDeviceID) {
         fini_out_device(core);
@@ -543,7 +555,7 @@ static OSStatus handle_voice_change(
         update_device_playback_state(core);
     }
 
-    coreaudio_unlock (core, __func__);
+    qemu_mutex_unlock_iothread();
     return status;
 }
 
@@ -558,14 +570,10 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
     struct audsettings obt_as;
 
     /* create mutex */
-    err = pthread_mutex_init(&core->mutex, NULL);
+    err = pthread_mutex_init(&core->buf_mutex, NULL);
     if (err) {
         dolog("Could not create mutex\nReason: %s\n", strerror (err));
-        goto mutex_error;
-    }
-
-    if (coreaudio_lock(core, __func__)) {
-        goto lock_error;
+        return -1;
     }
 
     obt_as = *as;
@@ -584,37 +592,21 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
     if (status != kAudioHardwareNoError) {
         coreaudio_playback_logerr (status,
                                    "Could not listen to voice property change\n");
-        goto listener_error;
+        return -1;
     }
 
     if (init_out_device(core)) {
-        goto device_error;
+        status = AudioObjectRemovePropertyListener(kAudioObjectSystemObject,
+                                                   &voice_addr,
+                                                   handle_voice_change,
+                                                   core);
+        if (status != kAudioHardwareNoError) {
+            coreaudio_playback_logerr(status,
+                                      "Could not remove voice property change listener\n");
+        }
     }
 
-    coreaudio_unlock(core, __func__);
     return 0;
-
-device_error:
-    status = AudioObjectRemovePropertyListener(kAudioObjectSystemObject,
-                                               &voice_addr,
-                                               handle_voice_change,
-                                               core);
-    if (status != kAudioHardwareNoError) {
-        coreaudio_playback_logerr(status,
-                                  "Could not remove voice property change listener\n");
-    }
-
-listener_error:
-    coreaudio_unlock(core, __func__);
-
-lock_error:
-    err = pthread_mutex_destroy(&core->mutex);
-    if (err) {
-        dolog("Could not destroy mutex\nReason: %s\n", strerror (err));
-    }
-
-mutex_error:
-    return -1;
 }
 
 static void coreaudio_fini_out (HWVoiceOut *hw)
@@ -622,10 +614,6 @@ static void coreaudio_fini_out (HWVoiceOut *hw)
     OSStatus status;
     int err;
     coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;
-
-    if (coreaudio_lock(core, __func__)) {
-        abort();
-    }
 
     status = AudioObjectRemovePropertyListener(kAudioObjectSystemObject,
                                                &voice_addr,
@@ -637,10 +625,8 @@ static void coreaudio_fini_out (HWVoiceOut *hw)
 
     fini_out_device(core);
 
-    coreaudio_unlock(core, __func__);
-
     /* destroy mutex */
-    err = pthread_mutex_destroy(&core->mutex);
+    err = pthread_mutex_destroy(&core->buf_mutex);
     if (err) {
         dolog("Could not destroy mutex\nReason: %s\n", strerror (err));
     }
@@ -650,14 +636,8 @@ static void coreaudio_enable_out(HWVoiceOut *hw, bool enable)
 {
     coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;
 
-    if (coreaudio_lock(core, __func__)) {
-        abort();
-    }
-
     core->enabled = enable;
     update_device_playback_state(core);
-
-    coreaudio_unlock(core, __func__);
 }
 
 static void *coreaudio_audio_init(Audiodev *dev)
