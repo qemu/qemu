@@ -3162,9 +3162,6 @@ static void cris_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
         cris_clear_x_flag(dc);
     }
 
-    /* Fold unhandled changes to X_FLAG into cpustate_changed. */
-    dc->cpustate_changed |= dc->flags_x != (dc->base.tb->flags & X_FLAG);
-
     /*
      * All branches are delayed branches, handled immediately below.
      * We don't expect to see odd combinations of exit conditions.
