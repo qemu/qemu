@@ -38,7 +38,9 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
  * Signal number 0 is reserved for use as kill(pid, 0), to test whether
  * a process exists without sending it a signal.
  */
+#ifdef __SIGRTMAX
 QEMU_BUILD_BUG_ON(__SIGRTMAX + 1 != _NSIG);
+#endif
 static uint8_t host_to_target_signal_table[_NSIG] = {
     [SIGHUP] = TARGET_SIGHUP,
     [SIGINT] = TARGET_SIGINT,
@@ -851,7 +853,11 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 
     trace_signal_do_sigaction_guest(sig, TARGET_NSIG);
 
-    if (sig < 1 || sig > TARGET_NSIG || sig == TARGET_SIGKILL || sig == TARGET_SIGSTOP) {
+    if (sig < 1 || sig > TARGET_NSIG) {
+        return -TARGET_EINVAL;
+    }
+
+    if (act && (sig == TARGET_SIGKILL || sig == TARGET_SIGSTOP)) {
         return -TARGET_EINVAL;
     }
 
