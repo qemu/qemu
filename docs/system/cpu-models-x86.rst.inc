@@ -227,7 +227,7 @@ features are included if using "Host passthrough" or "Host model".
 Preferred CPU models for AMD x86 hosts
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The following CPU models are preferred for use on Intel hosts.
+The following CPU models are preferred for use on AMD hosts.
 Administrators / applications are recommended to use the CPU model that
 matches the generation of the host CPUs in use. In a deployment with a
 mixture of host CPU models between machines, if live migration
