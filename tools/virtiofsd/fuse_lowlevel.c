@@ -1425,8 +1425,13 @@ static void do_setxattr(fuse_req_t req, fuse_ino_t nodeid,
     struct fuse_setxattr_in *arg;
     const char *name;
     const char *value;
+    bool setxattr_ext = req->se->conn.want & FUSE_CAP_SETXATTR_EXT;
 
-    arg = fuse_mbuf_iter_advance(iter, sizeof(*arg));
+    if (setxattr_ext) {
+        arg = fuse_mbuf_iter_advance(iter, sizeof(*arg));
+    } else {
+        arg = fuse_mbuf_iter_advance(iter, FUSE_COMPAT_SETXATTR_IN_SIZE);
+    }
     name = fuse_mbuf_iter_advance_str(iter);
     if (!arg || !name) {
         fuse_reply_err(req, EINVAL);
