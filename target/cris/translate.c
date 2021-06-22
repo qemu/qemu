@@ -52,9 +52,15 @@
 #define BUG() (gen_BUG(dc, __FILE__, __LINE__))
 #define BUG_ON(x) ({if (x) BUG();})
 
-/* is_jmp field values */
-#define DISAS_JUMP    DISAS_TARGET_0 /* only pc was modified dynamically */
-#define DISAS_UPDATE  DISAS_TARGET_1 /* cpu state was modified dynamically */
+/*
+ * Target-specific is_jmp field values
+ */
+/* Only pc was modified dynamically */
+#define DISAS_JUMP          DISAS_TARGET_0
+/* Cpu state was modified dynamically, including pc */
+#define DISAS_UPDATE        DISAS_TARGET_1
+/* Cpu state was modified dynamically, excluding pc -- use npc */
+#define DISAS_UPDATE_NEXT   DISAS_TARGET_2
 
 /* Used by the decoder.  */
 #define EXTRACT_FIELD(src, start, end) \
@@ -3268,8 +3274,8 @@ static void cris_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 
     /* Force an update if the per-tb cpu state has changed.  */
     if (dc->base.is_jmp == DISAS_NEXT && dc->cpustate_changed) {
-        dc->base.is_jmp = DISAS_UPDATE;
-        tcg_gen_movi_tl(env_pc, dc->pc);
+        dc->base.is_jmp = DISAS_UPDATE_NEXT;
+        return;
     }
 
     /*
@@ -3311,6 +3317,7 @@ static void cris_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
     if (unlikely(dc->base.singlestep_enabled)) {
         switch (is_jmp) {
         case DISAS_TOO_MANY:
+        case DISAS_UPDATE_NEXT:
             tcg_gen_movi_tl(env_pc, npc);
             /* fall through */
         case DISAS_JUMP:
@@ -3327,6 +3334,9 @@ static void cris_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
     case DISAS_TOO_MANY:
         gen_goto_tb(dc, 0, npc);
         break;
+    case DISAS_UPDATE_NEXT:
+        tcg_gen_movi_tl(env_pc, npc);
+        /* fall through */
     case DISAS_JUMP:
     case DISAS_UPDATE:
         /* Indicate that interupts must be re-evaluated before the next TB. */
