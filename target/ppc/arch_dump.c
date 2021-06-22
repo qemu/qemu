@@ -227,22 +227,20 @@ int cpu_get_dump_info(ArchDumpInfo *info,
                       const struct GuestPhysBlockList *guest_phys_blocks)
 {
     PowerPCCPU *cpu;
-    PowerPCCPUClass *pcc;
 
     if (first_cpu == NULL) {
         return -1;
     }
 
     cpu = POWERPC_CPU(first_cpu);
-    pcc = POWERPC_CPU_GET_CLASS(cpu);
 
     info->d_machine = PPC_ELF_MACHINE;
     info->d_class = ELFCLASS;
 
-    if ((*pcc->interrupts_big_endian)(cpu)) {
-        info->d_endian = ELFDATA2MSB;
-    } else {
+    if (ppc_interrupts_little_endian(cpu)) {
         info->d_endian = ELFDATA2LSB;
+    } else {
+        info->d_endian = ELFDATA2MSB;
     }
     /* 64KB is the max page size for pseries kernel */
     if (strncmp(object_get_typename(qdev_get_machine()),

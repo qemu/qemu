@@ -2643,6 +2643,21 @@ static inline bool ppc_has_spr(PowerPCCPU *cpu, int spr)
     return cpu->env.spr_cb[spr].name != NULL;
 }
 
+static inline bool ppc_interrupts_little_endian(PowerPCCPU *cpu)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+
+    /*
+     * Only models that have an LPCR and know about LPCR_ILE can do little
+     * endian.
+     */
+    if (pcc->lpcr_mask & LPCR_ILE) {
+        return !!(cpu->env.spr[SPR_LPCR] & LPCR_ILE);
+    }
+
+    return false;
+}
+
 void dump_mmu(CPUPPCState *env);
 
 void ppc_maybe_bswap_register(CPUPPCState *env, uint8_t *mem_buf, int len);
