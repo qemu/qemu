@@ -21,6 +21,11 @@
 #include "hw/virtio/vhost-vsock.h"
 #include "monitor/monitor.h"
 
+const int feature_bits[] = {
+    VIRTIO_VSOCK_F_SEQPACKET,
+    VHOST_INVALID_FEATURE_BIT
+};
+
 static void vhost_vsock_get_config(VirtIODevice *vdev, uint8_t *config)
 {
     VHostVSock *vsock = VHOST_VSOCK(vdev);
@@ -108,8 +113,11 @@ static uint64_t vhost_vsock_get_features(VirtIODevice *vdev,
                                          uint64_t requested_features,
                                          Error **errp)
 {
-    /* No feature bits used yet */
-    return requested_features;
+    VHostVSockCommon *vvc = VHOST_VSOCK_COMMON(vdev);
+
+    virtio_add_feature(&requested_features, VIRTIO_VSOCK_F_SEQPACKET);
+    return vhost_get_features(&vvc->vhost_dev, feature_bits,
+                                requested_features);
 }
 
 static const VMStateDescription vmstate_virtio_vhost_vsock = {
