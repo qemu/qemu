@@ -39,8 +39,6 @@ struct FxState {
 
     uint32_t irq_status;
     uint32_t card_liveness;
-    uint32_t addr_lsb; 
-    uint32_t addr_msb; 
 };
 
 static bool fx_msi_enabled(FxState *);
@@ -138,7 +136,6 @@ static void fx_mmio_write(void *opaque, hwaddr addr, uint64_t val,
         break;
     case SCHEDULE_NEXT_REGISTER:
         qemu_mutex_lock(&fx->thr_mutex);
-        fx->addr_lsb = val;
         qemu_cond_signal(&fx->thr_cond);
         qemu_mutex_unlock(&fx->thr_mutex);
         break;
@@ -172,16 +169,13 @@ static void *fx_forcer_thread(void *opaque)
         g_usleep(3 * G_USEC_PER_SEC);
         qemu_mutex_lock(&fx->thr_mutex);
         fx_raise_irq(fx, 0x1);
-        while((qatomic_read(&fx->addr_lsb) == 0)){
-            qemu_cond_wait(&fx->thr_cond, &fx->thr_mutex);
-        }
+
+        qemu_cond_wait(&fx->thr_cond, &fx->thr_mutex);
 
         if(fx->stopping){
             qemu_mutex_unlock(&fx->thr_mutex);
             break;
         }
-
-        //printf("thread read fx->addr_lsb = 0x%x\n", fx->addr_lsb);
 
         qemu_mutex_unlock(&fx->thr_mutex);
 
@@ -232,8 +226,7 @@ static void pci_fx_uninit(PCIDevice *pdev)
 static void fx_instance_init(Object *obj)
 {
     FxState *fx = FX(obj);
-
-    fx->addr_lsb = 0;
+    fx->card_liveness = 0xdeadbeef;
 }
 
 static void fx_class_init(ObjectClass *class, void *data)
