@@ -23,10 +23,12 @@ This is what TCI (Tiny Code Interpreter) does.
 Like each TCG host frontend, TCI implements the code generator in
 tcg-target.c.inc, tcg-target.h. Both files are in directory tcg/tci.
 
-The additional file tcg/tci.c adds the interpreter.
+The additional file tcg/tci.c adds the interpreter and disassembler.
 
-The bytecode consists of opcodes (same numeric values as those used by
-TCG), command length and arguments of variable size and number.
+The bytecode consists of opcodes (with only a few exceptions, with
+the same same numeric values and semantics as used by TCG), and up
+to six arguments packed into a 32-bit integer.  See comments in tci.c
+for details on the encoding.
 
 3) Usage
 
@@ -38,11 +40,6 @@ If configure is called without --enable-tcg-interpreter, it will
 suggest using this option. Setting it automatically would need
 additional code in configure which must be fixed when new native TCG
 implementations are added.
-
-System emulation should work on any 32 or 64 bit host.
-User mode emulation might work. Maybe a new linker script (*.ld)
-is needed. Byte order might be wrong (on big endian hosts)
-and need fixes in configure.
 
 For hosts with native TCG, the interpreter TCI can be enabled by
 
@@ -117,13 +114,6 @@ u1 = linux-user-test works
 * Some TCG opcodes are either missing in the code generator and/or
   in the interpreter. These opcodes raise a runtime exception, so it is
   possible to see where code must be added.
-
-* The pseudo code is not optimized and still ugly. For hosts with special
-  alignment requirements, it needs some fixes (maybe aligned bytecode
-  would also improve speed for hosts which support byte alignment).
-
-* A better disassembler for the pseudo code would be nice (a very primitive
-  disassembler is included in tcg-target.c.inc).
 
 * It might be useful to have a runtime option which selects the native TCG
   or TCI, so QEMU would have to include two TCGs. Today, selecting TCI

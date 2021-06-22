@@ -18,6 +18,7 @@ ENV PACKAGES \
     mingw64-glib2 \
     mingw64-gmp \
     mingw64-gtk3 \
+    mingw64-libffi \
     mingw64-libjpeg-turbo \
     mingw64-libpng \
     mingw64-libtasn1 \

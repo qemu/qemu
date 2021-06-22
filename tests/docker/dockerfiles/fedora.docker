@@ -33,6 +33,7 @@ ENV PACKAGES \
     libepoxy-devel \
     libfdt-devel \
     libbpf-devel \
+    libffi-devel \
     libiscsi-devel \
     libjpeg-devel \
     libpmem-devel \

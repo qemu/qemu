@@ -60,6 +60,10 @@
 #include "exec/log.h"
 #include "tcg-internal.h"
 
+#ifdef CONFIG_TCG_INTERPRETER
+#include <ffi.h>
+#endif
+
 /* Forward declarations for functions declared in tcg-target.c.inc and
    used here. */
 static void tcg_target_init(TCGContext *s);
@@ -143,7 +147,12 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
                        intptr_t arg2);
 static bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
                         TCGReg base, intptr_t ofs);
+#ifdef CONFIG_TCG_INTERPRETER
+static void tcg_out_call(TCGContext *s, const tcg_insn_unit *target,
+                         ffi_cif *cif);
+#else
 static void tcg_out_call(TCGContext *s, const tcg_insn_unit *target);
+#endif
 static bool tcg_target_const_match(int64_t val, TCGType type, int ct);
 #ifdef TCG_TARGET_NEED_LDST_LABELS
 static int tcg_out_ldst_finalize(TCGContext *s);
@@ -532,19 +541,25 @@ void tcg_pool_reset(TCGContext *s)
     s->pool_current = NULL;
 }
 
-typedef struct TCGHelperInfo {
-    void *func;
-    const char *name;
-    unsigned flags;
-    unsigned sizemask;
-} TCGHelperInfo;
-
 #include "exec/helper-proto.h"
 
 static const TCGHelperInfo all_helpers[] = {
 #include "exec/helper-tcg.h"
 };
 static GHashTable *helper_table;
+
+#ifdef CONFIG_TCG_INTERPRETER
+static GHashTable *ffi_table;
+
+static ffi_type * const typecode_to_ffi[8] = {
+    [dh_typecode_void] = &ffi_type_void,
+    [dh_typecode_i32]  = &ffi_type_uint32,
+    [dh_typecode_s32]  = &ffi_type_sint32,
+    [dh_typecode_i64]  = &ffi_type_uint64,
+    [dh_typecode_s64]  = &ffi_type_sint64,
+    [dh_typecode_ptr]  = &ffi_type_pointer,
+};
+#endif
 
 static int indirect_reg_alloc_order[ARRAY_SIZE(tcg_target_reg_alloc_order)];
 static void process_op_defs(TCGContext *s);
@@ -588,6 +603,47 @@ static void tcg_context_init(unsigned max_cpus)
         g_hash_table_insert(helper_table, (gpointer)all_helpers[i].func,
                             (gpointer)&all_helpers[i]);
     }
+
+#ifdef CONFIG_TCG_INTERPRETER
+    /* g_direct_hash/equal for direct comparisons on uint32_t.  */
+    ffi_table = g_hash_table_new(NULL, NULL);
+    for (i = 0; i < ARRAY_SIZE(all_helpers); ++i) {
+        struct {
+            ffi_cif cif;
+            ffi_type *args[];
+        } *ca;
+        uint32_t typemask = all_helpers[i].typemask;
+        gpointer hash = (gpointer)(uintptr_t)typemask;
+        ffi_status status;
+        int nargs;
+
+        if (g_hash_table_lookup(ffi_table, hash)) {
+            continue;
+        }
+
+        /* Ignoring the return type, find the last non-zero field. */
+        nargs = 32 - clz32(typemask >> 3);
+        nargs = DIV_ROUND_UP(nargs, 3);
+
+        ca = g_malloc0(sizeof(*ca) + nargs * sizeof(ffi_type *));
+        ca->cif.rtype = typecode_to_ffi[typemask & 7];
+        ca->cif.nargs = nargs;
+
+        if (nargs != 0) {
+            ca->cif.arg_types = ca->args;
+            for (i = 0; i < nargs; ++i) {
+                int typecode = extract32(typemask, (i + 1) * 3, 3);
+                ca->args[i] = typecode_to_ffi[typecode];
+            }
+        }
+
+        status = ffi_prep_cif(&ca->cif, FFI_DEFAULT_ABI, nargs,
+                              ca->cif.rtype, ca->cif.arg_types);
+        assert(status == FFI_OK);
+
+        g_hash_table_insert(ffi_table, hash, (gpointer)&ca->cif);
+    }
+#endif
 
     tcg_target_init(s);
     process_op_defs(s);
@@ -729,10 +785,16 @@ void tcg_prologue_init(TCGContext *s)
     }
 #endif
 
-    /* Assert that goto_ptr is implemented completely.  */
+#ifndef CONFIG_TCG_INTERPRETER
+    /*
+     * Assert that goto_ptr is implemented completely, setting an epilogue.
+     * For tci, we use NULL as the signal to return from the interpreter,
+     * so skip this check.
+     */
     if (TCG_TARGET_HAS_goto_ptr) {
         tcg_debug_assert(tcg_code_gen_epilogue != NULL);
     }
+#endif
 }
 
 void tcg_func_start(TCGContext *s)
@@ -1395,13 +1457,12 @@ bool tcg_op_supported(TCGOpcode op)
 void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
 {
     int i, real_args, nb_rets, pi;
-    unsigned sizemask, flags;
-    TCGHelperInfo *info;
+    unsigned typemask;
+    const TCGHelperInfo *info;
     TCGOp *op;
 
     info = g_hash_table_lookup(helper_table, (gpointer)func);
-    flags = info->flags;
-    sizemask = info->sizemask;
+    typemask = info->typemask;
 
 #ifdef CONFIG_PLUGIN
     /* detect non-plugin helpers */
@@ -1414,36 +1475,41 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
     && !defined(CONFIG_TCG_INTERPRETER)
     /* We have 64-bit values in one register, but need to pass as two
        separate parameters.  Split them.  */
-    int orig_sizemask = sizemask;
+    int orig_typemask = typemask;
     int orig_nargs = nargs;
     TCGv_i64 retl, reth;
     TCGTemp *split_args[MAX_OPC_PARAM];
 
     retl = NULL;
     reth = NULL;
-    if (sizemask != 0) {
-        for (i = real_args = 0; i < nargs; ++i) {
-            int is_64bit = sizemask & (1 << (i+1)*2);
-            if (is_64bit) {
-                TCGv_i64 orig = temp_tcgv_i64(args[i]);
-                TCGv_i32 h = tcg_temp_new_i32();
-                TCGv_i32 l = tcg_temp_new_i32();
-                tcg_gen_extr_i64_i32(l, h, orig);
-                split_args[real_args++] = tcgv_i32_temp(h);
-                split_args[real_args++] = tcgv_i32_temp(l);
-            } else {
-                split_args[real_args++] = args[i];
-            }
+    typemask = 0;
+    for (i = real_args = 0; i < nargs; ++i) {
+        int argtype = extract32(orig_typemask, (i + 1) * 3, 3);
+        bool is_64bit = (argtype & ~1) == dh_typecode_i64;
+
+        if (is_64bit) {
+            TCGv_i64 orig = temp_tcgv_i64(args[i]);
+            TCGv_i32 h = tcg_temp_new_i32();
+            TCGv_i32 l = tcg_temp_new_i32();
+            tcg_gen_extr_i64_i32(l, h, orig);
+            split_args[real_args++] = tcgv_i32_temp(h);
+            typemask |= dh_typecode_i32 << (real_args * 3);
+            split_args[real_args++] = tcgv_i32_temp(l);
+            typemask |= dh_typecode_i32 << (real_args * 3);
+        } else {
+            split_args[real_args++] = args[i];
+            typemask |= argtype << (real_args * 3);
         }
-        nargs = real_args;
-        args = split_args;
-        sizemask = 0;
     }
+    nargs = real_args;
+    args = split_args;
 #elif defined(TCG_TARGET_EXTEND_ARGS) && TCG_TARGET_REG_BITS == 64
     for (i = 0; i < nargs; ++i) {
-        int is_64bit = sizemask & (1 << (i+1)*2);
-        int is_signed = sizemask & (2 << (i+1)*2);
-        if (!is_64bit) {
+        int argtype = extract32(typemask, (i + 1) * 3, 3);
+        bool is_32bit = (argtype & ~1) == dh_typecode_i32;
+        bool is_signed = argtype & 1;
+
+        if (is_32bit) {
             TCGv_i64 temp = tcg_temp_new_i64();
             TCGv_i64 orig = temp_tcgv_i64(args[i]);
             if (is_signed) {
@@ -1462,7 +1528,7 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
     if (ret != NULL) {
 #if defined(__sparc__) && !defined(__arch64__) \
     && !defined(CONFIG_TCG_INTERPRETER)
-        if (orig_sizemask & 1) {
+        if ((typemask & 6) == dh_typecode_i64) {
             /* The 32-bit ABI is going to return the 64-bit value in
                the %o0/%o1 register pair.  Prepare for this by using
                two return temporaries, and reassemble below.  */
@@ -1476,7 +1542,7 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
             nb_rets = 1;
         }
 #else
-        if (TCG_TARGET_REG_BITS < 64 && (sizemask & 1)) {
+        if (TCG_TARGET_REG_BITS < 64 && (typemask & 6) == dh_typecode_i64) {
 #ifdef HOST_WORDS_BIGENDIAN
             op->args[pi++] = temp_arg(ret + 1);
             op->args[pi++] = temp_arg(ret);
@@ -1497,25 +1563,39 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
 
     real_args = 0;
     for (i = 0; i < nargs; i++) {
-        int is_64bit = sizemask & (1 << (i+1)*2);
-        if (TCG_TARGET_REG_BITS < 64 && is_64bit) {
-#ifdef TCG_TARGET_CALL_ALIGN_ARGS
-            /* some targets want aligned 64 bit args */
-            if (real_args & 1) {
-                op->args[pi++] = TCG_CALL_DUMMY_ARG;
-                real_args++;
-            }
+        int argtype = extract32(typemask, (i + 1) * 3, 3);
+        bool is_64bit = (argtype & ~1) == dh_typecode_i64;
+        bool want_align = false;
+
+#if defined(CONFIG_TCG_INTERPRETER)
+        /*
+         * Align all arguments, so that they land in predictable places
+         * for passing off to ffi_call.
+         */
+        want_align = true;
+#elif defined(TCG_TARGET_CALL_ALIGN_ARGS)
+        /* Some targets want aligned 64 bit args */
+        want_align = is_64bit;
 #endif
-           /* If stack grows up, then we will be placing successive
-              arguments at lower addresses, which means we need to
-              reverse the order compared to how we would normally
-              treat either big or little-endian.  For those arguments
-              that will wind up in registers, this still works for
-              HPPA (the only current STACK_GROWSUP target) since the
-              argument registers are *also* allocated in decreasing
-              order.  If another such target is added, this logic may
-              have to get more complicated to differentiate between
-              stack arguments and register arguments.  */
+
+        if (TCG_TARGET_REG_BITS < 64 && want_align && (real_args & 1)) {
+            op->args[pi++] = TCG_CALL_DUMMY_ARG;
+            real_args++;
+        }
+
+        if (TCG_TARGET_REG_BITS < 64 && is_64bit) {
+            /*
+             * If stack grows up, then we will be placing successive
+             * arguments at lower addresses, which means we need to
+             * reverse the order compared to how we would normally
+             * treat either big or little-endian.  For those arguments
+             * that will wind up in registers, this still works for
+             * HPPA (the only current STACK_GROWSUP target) since the
+             * argument registers are *also* allocated in decreasing
+             * order.  If another such target is added, this logic may
+             * have to get more complicated to differentiate between
+             * stack arguments and register arguments.
+             */
 #if defined(HOST_WORDS_BIGENDIAN) != defined(TCG_TARGET_STACK_GROWSUP)
             op->args[pi++] = temp_arg(args[i] + 1);
             op->args[pi++] = temp_arg(args[i]);
@@ -1531,7 +1611,7 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
         real_args++;
     }
     op->args[pi++] = (uintptr_t)func;
-    op->args[pi++] = flags;
+    op->args[pi++] = (uintptr_t)info;
     TCGOP_CALLI(op) = real_args;
 
     /* Make sure the fields didn't overflow.  */
@@ -1542,7 +1622,9 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
     && !defined(CONFIG_TCG_INTERPRETER)
     /* Free all of the parts we allocated above.  */
     for (i = real_args = 0; i < orig_nargs; ++i) {
-        int is_64bit = orig_sizemask & (1 << (i+1)*2);
+        int argtype = extract32(orig_typemask, (i + 1) * 3, 3);
+        bool is_64bit = (argtype & ~1) == dh_typecode_i64;
+
         if (is_64bit) {
             tcg_temp_free_internal(args[real_args++]);
             tcg_temp_free_internal(args[real_args++]);
@@ -1550,7 +1632,7 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
             real_args++;
         }
     }
-    if (orig_sizemask & 1) {
+    if ((orig_typemask & 6) == dh_typecode_i64) {
         /* The 32-bit ABI returned two 32-bit pieces.  Re-assemble them.
            Note that describing these as TCGv_i64 eliminates an unnecessary
            zero-extension that tcg_gen_concat_i32_i64 would create.  */
@@ -1560,8 +1642,10 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
     }
 #elif defined(TCG_TARGET_EXTEND_ARGS) && TCG_TARGET_REG_BITS == 64
     for (i = 0; i < nargs; ++i) {
-        int is_64bit = sizemask & (1 << (i+1)*2);
-        if (!is_64bit) {
+        int argtype = extract32(typemask, (i + 1) * 3, 3);
+        bool is_32bit = (argtype & ~1) == dh_typecode_i32;
+
+        if (is_32bit) {
             tcg_temp_free_internal(args[i]);
         }
     }
@@ -1644,19 +1728,6 @@ static char *tcg_get_arg_str(TCGContext *s, char *buf,
                              int buf_size, TCGArg arg)
 {
     return tcg_get_arg_str_ptr(s, buf, buf_size, arg_temp(arg));
-}
-
-/* Find helper name.  */
-static inline const char *tcg_find_helper(TCGContext *s, uintptr_t val)
-{
-    const char *ret = NULL;
-    if (helper_table) {
-        TCGHelperInfo *info = g_hash_table_lookup(helper_table, (gpointer)val);
-        if (info) {
-            ret = info->name;
-        }
-    }
-    return ret;
 }
 
 static const char * const cond_name[] =
@@ -1749,15 +1820,28 @@ static void tcg_dump_ops(TCGContext *s, bool have_prefs)
                 col += qemu_log(" " TARGET_FMT_lx, a);
             }
         } else if (c == INDEX_op_call) {
+            const TCGHelperInfo *info = tcg_call_info(op);
+            void *func = tcg_call_func(op);
+
             /* variable number of arguments */
             nb_oargs = TCGOP_CALLO(op);
             nb_iargs = TCGOP_CALLI(op);
             nb_cargs = def->nb_cargs;
 
-            /* function name, flags, out args */
-            col += qemu_log(" %s %s,$0x%" TCG_PRIlx ",$%d", def->name,
-                            tcg_find_helper(s, op->args[nb_oargs + nb_iargs]),
-                            op->args[nb_oargs + nb_iargs + 1], nb_oargs);
+            col += qemu_log(" %s ", def->name);
+
+            /*
+             * Print the function name from TCGHelperInfo, if available.
+             * Note that plugins have a template function for the info,
+             * but the actual function pointer comes from the plugin.
+             */
+            if (func == info->func) {
+                col += qemu_log("%s", info->name);
+            } else {
+                col += qemu_log("plugin(%p)", func);
+            }
+
+            col += qemu_log("$0x%x,$%d", info->flags, nb_oargs);
             for (i = 0; i < nb_oargs; i++) {
                 col += qemu_log(",%s", tcg_get_arg_str(s, buf, sizeof(buf),
                                                        op->args[i]));
@@ -2144,7 +2228,6 @@ static void reachable_code_pass(TCGContext *s)
     QTAILQ_FOREACH_SAFE(op, &s->ops, link, op_next) {
         bool remove = dead;
         TCGLabel *label;
-        int call_flags;
 
         switch (op->opc) {
         case INDEX_op_set_label:
@@ -2189,8 +2272,7 @@ static void reachable_code_pass(TCGContext *s)
 
         case INDEX_op_call:
             /* Notice noreturn helper calls, raising exceptions.  */
-            call_flags = op->args[TCGOP_CALLO(op) + TCGOP_CALLI(op) + 1];
-            if (call_flags & TCG_CALL_NO_RETURN) {
+            if (tcg_call_flags(op) & TCG_CALL_NO_RETURN) {
                 dead = true;
             }
             break;
@@ -2391,7 +2473,7 @@ static void liveness_pass_1(TCGContext *s)
 
                 nb_oargs = TCGOP_CALLO(op);
                 nb_iargs = TCGOP_CALLI(op);
-                call_flags = op->args[nb_oargs + nb_iargs + 1];
+                call_flags = tcg_call_flags(op);
 
                 /* pure functions can be removed if their result is unused */
                 if (call_flags & TCG_CALL_NO_SIDE_EFFECTS) {
@@ -2706,7 +2788,7 @@ static bool liveness_pass_2(TCGContext *s)
         if (opc == INDEX_op_call) {
             nb_oargs = TCGOP_CALLO(op);
             nb_iargs = TCGOP_CALLI(op);
-            call_flags = op->args[nb_oargs + nb_iargs + 1];
+            call_flags = tcg_call_flags(op);
         } else {
             nb_iargs = def->nb_iargs;
             nb_oargs = def->nb_oargs;
@@ -2933,20 +3015,42 @@ static void check_regs(TCGContext *s)
 
 static void temp_allocate_frame(TCGContext *s, TCGTemp *ts)
 {
-#if !(defined(__sparc__) && TCG_TARGET_REG_BITS == 64)
-    /* Sparc64 stack is accessed with offset of 2047 */
-    s->current_frame_offset = (s->current_frame_offset +
-                               (tcg_target_long)sizeof(tcg_target_long) - 1) &
-        ~(sizeof(tcg_target_long) - 1);
-#endif
-    if (s->current_frame_offset + (tcg_target_long)sizeof(tcg_target_long) >
-        s->frame_end) {
-        tcg_abort();
+    intptr_t off, size, align;
+
+    switch (ts->type) {
+    case TCG_TYPE_I32:
+        size = align = 4;
+        break;
+    case TCG_TYPE_I64:
+    case TCG_TYPE_V64:
+        size = align = 8;
+        break;
+    case TCG_TYPE_V128:
+        size = align = 16;
+        break;
+    case TCG_TYPE_V256:
+        /* Note that we do not require aligned storage for V256. */
+        size = 32, align = 16;
+        break;
+    default:
+        g_assert_not_reached();
     }
-    ts->mem_offset = s->current_frame_offset;
+
+    assert(align <= TCG_TARGET_STACK_ALIGN);
+    off = ROUND_UP(s->current_frame_offset, align);
+
+    /* If we've exhausted the stack frame, restart with a smaller TB. */
+    if (off + size > s->frame_end) {
+        tcg_raise_tb_overflow(s);
+    }
+    s->current_frame_offset = off + size;
+
+    ts->mem_offset = off;
+#if defined(__sparc__)
+    ts->mem_offset += TCG_TARGET_STACK_BIAS;
+#endif
     ts->mem_base = s->frame_temp;
     ts->mem_allocated = 1;
-    s->current_frame_offset += sizeof(tcg_target_long);
 }
 
 static void temp_load(TCGContext *, TCGTemp *, TCGRegSet, TCGRegSet, TCGRegSet);
@@ -3777,6 +3881,7 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
     const int nb_oargs = TCGOP_CALLO(op);
     const int nb_iargs = TCGOP_CALLI(op);
     const TCGLifeData arg_life = op->life;
+    const TCGHelperInfo *info;
     int flags, nb_regs, i;
     TCGReg reg;
     TCGArg arg;
@@ -3787,8 +3892,9 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
     int allocate_args;
     TCGRegSet allocated_regs;
 
-    func_addr = (tcg_insn_unit *)(intptr_t)op->args[nb_oargs + nb_iargs];
-    flags = op->args[nb_oargs + nb_iargs + 1];
+    func_addr = tcg_call_func(op);
+    info = tcg_call_info(op);
+    flags = info->flags;
 
     nb_regs = ARRAY_SIZE(tcg_target_call_iarg_regs);
     if (nb_regs > nb_iargs) {
@@ -3880,7 +3986,16 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
         save_globals(s, allocated_regs);
     }
 
+#ifdef CONFIG_TCG_INTERPRETER
+    {
+        gpointer hash = (gpointer)(uintptr_t)info->typemask;
+        ffi_cif *cif = g_hash_table_lookup(ffi_table, hash);
+        assert(cif != NULL);
+        tcg_out_call(s, func_addr, cif);
+    }
+#else
     tcg_out_call(s, func_addr);
+#endif
 
     /* assign output registers and emit moves if needed */
     for(i = 0; i < nb_oargs; i++) {

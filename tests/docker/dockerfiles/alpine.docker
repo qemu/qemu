@@ -22,6 +22,7 @@ ENV PACKAGES \
 	libaio-dev \
 	libbpf-dev \
 	libcap-ng-dev \
+	libffi-dev \
 	libjpeg-turbo-dev \
 	libnfs-dev \
 	libpng-dev \

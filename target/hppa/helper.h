@@ -1,12 +1,9 @@
 #if TARGET_REGISTER_BITS == 64
 # define dh_alias_tr     i64
-# define dh_is_64bit_tr  1
 #else
 # define dh_alias_tr     i32
-# define dh_is_64bit_tr  0
 #endif
 #define dh_ctype_tr      target_ureg
-#define dh_is_signed_tr  0
 
 DEF_HELPER_2(excp, noreturn, env, int)
 DEF_HELPER_FLAGS_2(tsv, TCG_CALL_NO_WG, void, env, tr)

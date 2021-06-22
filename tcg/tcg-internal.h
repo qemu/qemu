@@ -27,6 +27,13 @@
 
 #define TCG_HIGHWATER 1024
 
+typedef struct TCGHelperInfo {
+    void *func;
+    const char *name;
+    unsigned flags;
+    unsigned typemask;
+} TCGHelperInfo;
+
 extern TCGContext tcg_init_ctx;
 extern TCGContext **tcg_ctxs;
 extern unsigned int tcg_cur_ctxs;
@@ -36,5 +43,20 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus);
 bool tcg_region_alloc(TCGContext *s);
 void tcg_region_initial_alloc(TCGContext *s);
 void tcg_region_prologue_set(TCGContext *s);
+
+static inline void *tcg_call_func(TCGOp *op)
+{
+    return (void *)(uintptr_t)op->args[TCGOP_CALLO(op) + TCGOP_CALLI(op)];
+}
+
+static inline const TCGHelperInfo *tcg_call_info(TCGOp *op)
+{
+    return (void *)(uintptr_t)op->args[TCGOP_CALLO(op) + TCGOP_CALLI(op) + 1];
+}
+
+static inline unsigned tcg_call_flags(TCGOp *op)
+{
+    return tcg_call_info(op)->flags;
+}
 
 #endif /* TCG_INTERNAL_H */

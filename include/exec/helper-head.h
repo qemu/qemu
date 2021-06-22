@@ -85,32 +85,14 @@
 #define dh_retvar_ptr tcgv_ptr_temp(retval)
 #define dh_retvar(t) glue(dh_retvar_, dh_alias(t))
 
-#define dh_is_64bit_void 0
-#define dh_is_64bit_noreturn 0
-#define dh_is_64bit_i32 0
-#define dh_is_64bit_i64 1
-#define dh_is_64bit_ptr (sizeof(void *) == 8)
-#define dh_is_64bit_cptr dh_is_64bit_ptr
-#define dh_is_64bit(t) glue(dh_is_64bit_, dh_alias(t))
-
-#define dh_is_signed_void 0
-#define dh_is_signed_noreturn 0
-#define dh_is_signed_i32 0
-#define dh_is_signed_s32 1
-#define dh_is_signed_i64 0
-#define dh_is_signed_s64 1
-#define dh_is_signed_f16 0
-#define dh_is_signed_f32 0
-#define dh_is_signed_f64 0
-#define dh_is_signed_tl  0
-#define dh_is_signed_int 1
-/* ??? This is highly specific to the host cpu.  There are even special
-   extension instructions that may be required, e.g. ia64's addp4.  But
-   for now we don't support any 64-bit targets with 32-bit pointers.  */
-#define dh_is_signed_ptr 0
-#define dh_is_signed_cptr dh_is_signed_ptr
-#define dh_is_signed_env dh_is_signed_ptr
-#define dh_is_signed(t) dh_is_signed_##t
+#define dh_typecode_void 0
+#define dh_typecode_noreturn 0
+#define dh_typecode_i32 2
+#define dh_typecode_s32 3
+#define dh_typecode_i64 4
+#define dh_typecode_s64 5
+#define dh_typecode_ptr 6
+#define dh_typecode(t) glue(dh_typecode_, dh_alias(t))
 
 #define dh_callflag_i32  0
 #define dh_callflag_s32  0
@@ -126,8 +108,7 @@
 #define dh_callflag_noreturn TCG_CALL_NO_RETURN
 #define dh_callflag(t) glue(dh_callflag_, dh_alias(t))
 
-#define dh_sizemask(t, n) \
-  ((dh_is_64bit(t) << (n*2)) | (dh_is_signed(t) << (n*2+1)))
+#define dh_typemask(t, n)  (dh_typecode(t) << (n * 3))
 
 #define dh_arg(t, n) \
   glue(glue(tcgv_, dh_alias(t)), _temp)(glue(arg, n))

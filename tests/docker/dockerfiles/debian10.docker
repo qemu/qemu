@@ -26,6 +26,7 @@ RUN apt update && \
         gdb-multiarch \
         gettext \
         git \
+        libffi-dev \
         libncurses5-dev \
         ninja-build \
         pkg-config \

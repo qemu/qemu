@@ -25,6 +25,7 @@
 
 #include "qemu/osdep.h"
 #include "tcg/tcg-op.h"
+#include "tcg-internal.h"
 
 #define CASE_OP_32_64(x)                        \
         glue(glue(case INDEX_op_, x), _i32):    \
@@ -1481,7 +1482,7 @@ void tcg_optimize(TCGContext *s)
             break;
 
         case INDEX_op_call:
-            if (!(op->args[nb_oargs + nb_iargs + 1]
+            if (!(tcg_call_flags(op)
                   & (TCG_CALL_NO_READ_GLOBALS | TCG_CALL_NO_WRITE_GLOBALS))) {
                 for (i = 0; i < nb_globals; i++) {
                     if (test_bit(i, temps_used.l)) {

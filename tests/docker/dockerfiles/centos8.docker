@@ -17,6 +17,7 @@ ENV PACKAGES \
     libbpf-devel \
     libepoxy-devel \
     libfdt-devel \
+    libffi-devel \
     libgcrypt-devel \
     lzo-devel \
     make \
