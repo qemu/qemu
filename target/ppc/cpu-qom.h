@@ -199,7 +199,6 @@ struct PowerPCCPUClass {
     void (*init_proc)(CPUPPCState *env);
     int  (*check_pow)(CPUPPCState *env);
     int (*handle_mmu_fault)(PowerPCCPU *cpu, vaddr eaddr, int rwx, int mmu_idx);
-    bool (*interrupts_big_endian)(PowerPCCPU *cpu);
 };
 
 #ifndef CONFIG_USER_ONLY

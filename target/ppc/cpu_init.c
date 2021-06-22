@@ -2666,18 +2666,6 @@ static int check_pow_hid0_74xx(CPUPPCState *env)
     return 0;
 }
 
-static bool ppc_cpu_interrupts_big_endian_always(PowerPCCPU *cpu)
-{
-    return true;
-}
-
-#ifdef TARGET_PPC64
-static bool ppc_cpu_interrupts_big_endian_lpcr(PowerPCCPU *cpu)
-{
-    return !(cpu->env.spr[SPR_LPCR] & LPCR_ILE);
-}
-#endif
-
 /*****************************************************************************/
 /* PowerPC implementations definitions                                       */
 
@@ -7740,7 +7728,6 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
                  POWERPC_FLAG_VSX;
     pcc->l1_dcache_size = 0x8000;
     pcc->l1_icache_size = 0x8000;
-    pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_lpcr;
 }
 
 static void init_proc_POWER8(CPUPPCState *env)
@@ -7918,7 +7905,6 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
                  POWERPC_FLAG_VSX | POWERPC_FLAG_TM;
     pcc->l1_dcache_size = 0x8000;
     pcc->l1_icache_size = 0x8000;
-    pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_lpcr;
 }
 
 #ifdef CONFIG_SOFTMMU
@@ -8136,7 +8122,6 @@ POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
                  POWERPC_FLAG_VSX | POWERPC_FLAG_TM | POWERPC_FLAG_SCV;
     pcc->l1_dcache_size = 0x8000;
     pcc->l1_icache_size = 0x8000;
-    pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_lpcr;
 }
 
 #ifdef CONFIG_SOFTMMU
@@ -8347,7 +8332,6 @@ POWERPC_FAMILY(POWER10)(ObjectClass *oc, void *data)
                  POWERPC_FLAG_VSX | POWERPC_FLAG_TM | POWERPC_FLAG_SCV;
     pcc->l1_dcache_size = 0x8000;
     pcc->l1_icache_size = 0x8000;
-    pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_lpcr;
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -9094,7 +9078,6 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     device_class_set_parent_unrealize(dc, ppc_cpu_unrealize,
                                       &pcc->parent_unrealize);
     pcc->pvr_match = ppc_pvr_match_default;
-    pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_always;
     device_class_set_props(dc, ppc_cpu_properties);
 
     device_class_set_parent_reset(dc, ppc_cpu_reset, &pcc->parent_reset);
