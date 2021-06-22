@@ -1445,7 +1445,9 @@ static void do_setxattr(fuse_req_t req, fuse_ino_t nodeid,
     }
 
     if (req->se->op.setxattr) {
-        req->se->op.setxattr(req, nodeid, name, value, arg->size, arg->flags);
+        uint32_t setxattr_flags = setxattr_ext ? arg->setxattr_flags : 0;
+        req->se->op.setxattr(req, nodeid, name, value, arg->size, arg->flags,
+                             setxattr_flags);
     } else {
         fuse_reply_err(req, ENOSYS);
     }
@@ -1992,6 +1994,9 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid,
     if (arg->flags & FUSE_HANDLE_KILLPRIV_V2) {
         se->conn.capable |= FUSE_CAP_HANDLE_KILLPRIV_V2;
     }
+    if (arg->flags & FUSE_SETXATTR_EXT) {
+        se->conn.capable |= FUSE_CAP_SETXATTR_EXT;
+    }
 #ifdef HAVE_SPLICE
 #ifdef HAVE_VMSPLICE
     se->conn.capable |= FUSE_CAP_SPLICE_WRITE | FUSE_CAP_SPLICE_MOVE;
@@ -2125,6 +2130,10 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid,
 
     if (se->conn.want & FUSE_CAP_HANDLE_KILLPRIV_V2) {
         outarg.flags |= FUSE_HANDLE_KILLPRIV_V2;
+    }
+
+    if (se->conn.want & FUSE_CAP_SETXATTR_EXT) {
+        outarg.flags |= FUSE_SETXATTR_EXT;
     }
 
     fuse_log(FUSE_LOG_DEBUG, "   INIT: %u.%u\n", outarg.major, outarg.minor);
