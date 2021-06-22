@@ -919,9 +919,13 @@ static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
      *
      * The extra 8 bytes is required because Linux's FWNMI error log check
      * is off-by-one.
+     *
+     * RTAS_MIN_SIZE is required for the RTAS blob itself.
      */
-    _FDT(fdt_setprop_cell(fdt, rtas, "rtas-size", RTAS_ERROR_LOG_MAX +
-			  ms->smp.max_cpus * sizeof(uint64_t)*2 + sizeof(uint64_t)));
+    _FDT(fdt_setprop_cell(fdt, rtas, "rtas-size", RTAS_MIN_SIZE +
+                          RTAS_ERROR_LOG_MAX +
+                          ms->smp.max_cpus * sizeof(uint64_t) * 2 +
+                          sizeof(uint64_t)));
     _FDT(fdt_setprop_cell(fdt, rtas, "rtas-error-log-max",
                           RTAS_ERROR_LOG_MAX));
     _FDT(fdt_setprop_cell(fdt, rtas, "rtas-event-scan-rate",
