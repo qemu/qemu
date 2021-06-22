@@ -252,7 +252,7 @@ static void do_program_interrupt(CPUS390XState *env)
 
     lowcore->pgm_ilen = cpu_to_be16(ilen);
     lowcore->pgm_code = cpu_to_be16(env->int_pgm_code);
-    lowcore->program_old_psw.mask = cpu_to_be64(get_psw_mask(env));
+    lowcore->program_old_psw.mask = cpu_to_be64(s390_cpu_get_psw_mask(env));
     lowcore->program_old_psw.addr = cpu_to_be64(env->psw.addr);
     mask = be64_to_cpu(lowcore->program_new_psw.mask);
     addr = be64_to_cpu(lowcore->program_new_psw.addr);
@@ -260,7 +260,7 @@ static void do_program_interrupt(CPUS390XState *env)
 
     cpu_unmap_lowcore(lowcore);
 
-    load_psw(env, mask, addr);
+    s390_cpu_set_psw(env, mask, addr);
 }
 
 static void do_svc_interrupt(CPUS390XState *env)
@@ -272,14 +272,14 @@ static void do_svc_interrupt(CPUS390XState *env)
 
     lowcore->svc_code = cpu_to_be16(env->int_svc_code);
     lowcore->svc_ilen = cpu_to_be16(env->int_svc_ilen);
-    lowcore->svc_old_psw.mask = cpu_to_be64(get_psw_mask(env));
+    lowcore->svc_old_psw.mask = cpu_to_be64(s390_cpu_get_psw_mask(env));
     lowcore->svc_old_psw.addr = cpu_to_be64(env->psw.addr + env->int_svc_ilen);
     mask = be64_to_cpu(lowcore->svc_new_psw.mask);
     addr = be64_to_cpu(lowcore->svc_new_psw.addr);
 
     cpu_unmap_lowcore(lowcore);
 
-    load_psw(env, mask, addr);
+    s390_cpu_set_psw(env, mask, addr);
 
     /* When a PER event is pending, the PER exception has to happen
        immediately after the SERVICE CALL one.  */
@@ -348,12 +348,12 @@ static void do_ext_interrupt(CPUS390XState *env)
 
     mask = be64_to_cpu(lowcore->external_new_psw.mask);
     addr = be64_to_cpu(lowcore->external_new_psw.addr);
-    lowcore->external_old_psw.mask = cpu_to_be64(get_psw_mask(env));
+    lowcore->external_old_psw.mask = cpu_to_be64(s390_cpu_get_psw_mask(env));
     lowcore->external_old_psw.addr = cpu_to_be64(env->psw.addr);
 
     cpu_unmap_lowcore(lowcore);
 
-    load_psw(env, mask, addr);
+    s390_cpu_set_psw(env, mask, addr);
 }
 
 static void do_io_interrupt(CPUS390XState *env)
@@ -373,7 +373,7 @@ static void do_io_interrupt(CPUS390XState *env)
     lowcore->subchannel_nr = cpu_to_be16(io->nr);
     lowcore->io_int_parm = cpu_to_be32(io->parm);
     lowcore->io_int_word = cpu_to_be32(io->word);
-    lowcore->io_old_psw.mask = cpu_to_be64(get_psw_mask(env));
+    lowcore->io_old_psw.mask = cpu_to_be64(s390_cpu_get_psw_mask(env));
     lowcore->io_old_psw.addr = cpu_to_be64(env->psw.addr);
     mask = be64_to_cpu(lowcore->io_new_psw.mask);
     addr = be64_to_cpu(lowcore->io_new_psw.addr);
@@ -381,7 +381,7 @@ static void do_io_interrupt(CPUS390XState *env)
     cpu_unmap_lowcore(lowcore);
     g_free(io);
 
-    load_psw(env, mask, addr);
+    s390_cpu_set_psw(env, mask, addr);
 }
 
 typedef struct MchkExtSaveArea {
@@ -457,14 +457,14 @@ static void do_mchk_interrupt(CPUS390XState *env)
     lowcore->clock_comp_save_area = cpu_to_be64(env->ckc >> 8);
 
     lowcore->mcic = cpu_to_be64(mcic);
-    lowcore->mcck_old_psw.mask = cpu_to_be64(get_psw_mask(env));
+    lowcore->mcck_old_psw.mask = cpu_to_be64(s390_cpu_get_psw_mask(env));
     lowcore->mcck_old_psw.addr = cpu_to_be64(env->psw.addr);
     mask = be64_to_cpu(lowcore->mcck_new_psw.mask);
     addr = be64_to_cpu(lowcore->mcck_new_psw.addr);
 
     cpu_unmap_lowcore(lowcore);
 
-    load_psw(env, mask, addr);
+    s390_cpu_set_psw(env, mask, addr);
 }
 
 void s390_cpu_do_interrupt(CPUState *cs)
@@ -592,9 +592,11 @@ void s390x_cpu_debug_excp_handler(CPUState *cs)
            and MVCS instrutions are not used.  */
         env->per_perc_atmid |= env->psw.mask & (PSW_MASK_ASC) >> 46;
 
-        /* Remove all watchpoints to re-execute the code.  A PER exception
-           will be triggered, it will call load_psw which will recompute
-           the watchpoints.  */
+        /*
+         * Remove all watchpoints to re-execute the code.  A PER exception
+         * will be triggered, it will call s390_cpu_set_psw which will
+         * recompute the watchpoints.
+         */
         cpu_watchpoint_remove_all(cs, BP_CPU);
         cpu_loop_exit_noexc(cs);
     }

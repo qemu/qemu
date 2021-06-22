@@ -321,6 +321,7 @@ static void vfio_ccw_io_notifier_handler(void *opaque)
     SCHIB *schib = &sch->curr_status;
     SCSW s;
     IRB irb;
+    ESW esw;
     int size;
 
     if (!event_notifier_test_and_clear(&vcdev->io_notifier)) {
@@ -370,6 +371,9 @@ static void vfio_ccw_io_notifier_handler(void *opaque)
     s = schib->scsw;
     copy_scsw_to_guest(&s, &irb.scsw);
     schib->scsw = s;
+
+    copy_esw_to_guest(&esw, &irb.esw);
+    sch->esw = esw;
 
     /* If a uint check is pending, copy sense data. */
     if ((schib->scsw.dstat & SCSW_DSTAT_UNIT_CHECK) &&

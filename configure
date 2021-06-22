@@ -5424,7 +5424,7 @@ if test "$cpu" = "s390x" ; then
   write_c_skeleton
   compile_prog "-march=z900" ""
   has_z900=$?
-  if [ $has_z900 = 0 ] || compile_prog "-march=z10" ""; then
+  if [ $has_z900 = 0 ] || compile_object "-march=z10 -msoft-float -Werror"; then
     if [ $has_z900 != 0 ]; then
       echo "WARNING: Your compiler does not support the z900!"
       echo "         The s390-ccw bios will only work with guest CPUs >= z10."

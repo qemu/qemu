@@ -123,10 +123,20 @@ typedef struct SCHIB {
     uint8_t mda[4];
 } QEMU_PACKED SCHIB;
 
+/* format-0 extended-status word */
+typedef struct ESW {
+    uint32_t word0;      /* subchannel logout for format 0 */
+    uint32_t erw;
+    uint64_t word2;     /* failing-storage address for format 0 */
+    uint32_t word4;     /* secondary-CCW address for format 0 */
+} QEMU_PACKED ESW;
+
+#define ESW_ERW_SENSE 0x01000000
+
 /* interruption response block */
 typedef struct IRB {
     SCSW scsw;
-    uint32_t esw[5];
+    ESW esw;
     uint32_t ecw[8];
     uint32_t emw[8];
 } IRB;

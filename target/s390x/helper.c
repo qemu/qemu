@@ -104,44 +104,6 @@ void s390_handle_wait(S390CPU *cpu)
     }
 }
 
-void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
-{
-    uint64_t old_mask = env->psw.mask;
-
-    env->psw.addr = addr;
-    env->psw.mask = mask;
-
-    /* KVM will handle all WAITs and trigger a WAIT exit on disabled_wait */
-    if (!tcg_enabled()) {
-        return;
-    }
-    env->cc_op = (mask >> 44) & 3;
-
-    if ((old_mask ^ mask) & PSW_MASK_PER) {
-        s390_cpu_recompute_watchpoints(env_cpu(env));
-    }
-
-    if (mask & PSW_MASK_WAIT) {
-        s390_handle_wait(env_archcpu(env));
-    }
-}
-
-uint64_t get_psw_mask(CPUS390XState *env)
-{
-    uint64_t r = env->psw.mask;
-
-    if (tcg_enabled()) {
-        env->cc_op = calc_cc(env, env->cc_op, env->cc_src, env->cc_dst,
-                             env->cc_vr);
-
-        r &= ~PSW_MASK_CC;
-        assert(!(env->cc_op & ~3));
-        r |= (uint64_t)env->cc_op << 44;
-    }
-
-    return r;
-}
-
 LowCore *cpu_map_lowcore(CPUS390XState *env)
 {
     LowCore *lowcore;
@@ -168,7 +130,7 @@ void do_restart_interrupt(CPUS390XState *env)
 
     lowcore = cpu_map_lowcore(env);
 
-    lowcore->restart_old_psw.mask = cpu_to_be64(get_psw_mask(env));
+    lowcore->restart_old_psw.mask = cpu_to_be64(s390_cpu_get_psw_mask(env));
     lowcore->restart_old_psw.addr = cpu_to_be64(env->psw.addr);
     mask = be64_to_cpu(lowcore->restart_new_psw.mask);
     addr = be64_to_cpu(lowcore->restart_new_psw.addr);
@@ -176,7 +138,7 @@ void do_restart_interrupt(CPUS390XState *env)
     cpu_unmap_lowcore(lowcore);
     env->pending_int &= ~INTERRUPT_RESTART;
 
-    load_psw(env, mask, addr);
+    s390_cpu_set_psw(env, mask, addr);
 }
 
 void s390_cpu_recompute_watchpoints(CPUState *cs)
@@ -266,7 +228,7 @@ int s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
         sa->grs[i] = cpu_to_be64(cpu->env.regs[i]);
     }
     sa->psw.addr = cpu_to_be64(cpu->env.psw.addr);
-    sa->psw.mask = cpu_to_be64(get_psw_mask(&cpu->env));
+    sa->psw.mask = cpu_to_be64(s390_cpu_get_psw_mask(&cpu->env));
     sa->prefix = cpu_to_be32(cpu->env.psa);
     sa->fpc = cpu_to_be32(cpu->env.fpc);
     sa->todpr = cpu_to_be32(cpu->env.todpr);
@@ -323,7 +285,52 @@ int s390_store_adtl_status(S390CPU *cpu, hwaddr addr, hwaddr len)
     cpu_physical_memory_unmap(sa, len, 1, len);
     return 0;
 }
+#else
+/* For user-only, tcg is always enabled. */
+#define tcg_enabled() true
 #endif /* CONFIG_USER_ONLY */
+
+void s390_cpu_set_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
+{
+#ifndef CONFIG_USER_ONLY
+    uint64_t old_mask = env->psw.mask;
+#endif
+
+    env->psw.addr = addr;
+    env->psw.mask = mask;
+
+    /* KVM will handle all WAITs and trigger a WAIT exit on disabled_wait */
+    if (!tcg_enabled()) {
+        return;
+    }
+    env->cc_op = (mask >> 44) & 3;
+
+#ifndef CONFIG_USER_ONLY
+    if ((old_mask ^ mask) & PSW_MASK_PER) {
+        s390_cpu_recompute_watchpoints(env_cpu(env));
+    }
+
+    if (mask & PSW_MASK_WAIT) {
+        s390_handle_wait(env_archcpu(env));
+    }
+#endif
+}
+
+uint64_t s390_cpu_get_psw_mask(CPUS390XState *env)
+{
+    uint64_t r = env->psw.mask;
+
+    if (tcg_enabled()) {
+        uint64_t cc = calc_cc(env, env->cc_op, env->cc_src,
+                              env->cc_dst, env->cc_vr);
+
+        assert(cc <= 3);
+        r &= ~PSW_MASK_CC;
+        r |= cc << 44;
+    }
+
+    return r;
+}
 
 void s390_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
@@ -331,12 +338,14 @@ void s390_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     CPUS390XState *env = &cpu->env;
     int i;
 
-    if (env->cc_op > 3) {
-        qemu_fprintf(f, "PSW=mask %016" PRIx64 " addr %016" PRIx64 " cc %15s\n",
-                     env->psw.mask, env->psw.addr, cc_name(env->cc_op));
+    qemu_fprintf(f, "PSW=mask %016" PRIx64 " addr %016" PRIx64,
+                 s390_cpu_get_psw_mask(env), env->psw.addr);
+    if (!tcg_enabled()) {
+        qemu_fprintf(f, "\n");
+    } else if (env->cc_op > 3) {
+        qemu_fprintf(f, " cc %15s\n", cc_name(env->cc_op));
     } else {
-        qemu_fprintf(f, "PSW=mask %016" PRIx64 " addr %016" PRIx64 " cc %02x\n",
-                     env->psw.mask, env->psw.addr, env->cc_op);
+        qemu_fprintf(f, " cc %02x\n", env->cc_op);
     }
 
     for (i = 0; i < 16; i++) {

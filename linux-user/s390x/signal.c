@@ -112,15 +112,23 @@ get_sigframe(struct target_sigaction *ka, CPUS390XState *env, size_t frame_size)
     return (sp - frame_size) & -8ul;
 }
 
+#define PSW_USER_BITS   (PSW_MASK_DAT | PSW_MASK_IO | PSW_MASK_EXT | \
+                         PSW_MASK_MCHECK | PSW_MASK_PSTATE | PSW_ASC_PRIMARY)
+#define PSW_MASK_USER   (PSW_MASK_ASC | PSW_MASK_CC | PSW_MASK_PM | \
+                         PSW_MASK_64 | PSW_MASK_32)
+
 static void save_sigregs(CPUS390XState *env, target_sigregs *sregs)
 {
+    uint64_t psw_mask = s390_cpu_get_psw_mask(env);
     int i;
 
     /*
      * Copy a 'clean' PSW mask to the user to avoid leaking
      * information about whether PER is currently on.
+     * TODO: qemu does not support PSW_MASK_RI; it will never be set.
      */
-    __put_user(env->psw.mask, &sregs->regs.psw.mask);
+    psw_mask = PSW_USER_BITS | (psw_mask & PSW_MASK_USER);
+    __put_user(psw_mask, &sregs->regs.psw.mask);
     __put_user(env->psw.addr, &sregs->regs.psw.addr);
 
     for (i = 0; i < 16; i++) {
@@ -289,7 +297,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
 
 static void restore_sigregs(CPUS390XState *env, target_sigregs *sc)
 {
-    target_ulong prev_addr;
+    uint64_t prev_addr, prev_mask, mask, addr;
     int i;
 
     for (i = 0; i < 16; i++) {
@@ -297,9 +305,28 @@ static void restore_sigregs(CPUS390XState *env, target_sigregs *sc)
     }
 
     prev_addr = env->psw.addr;
-    __get_user(env->psw.mask, &sc->regs.psw.mask);
-    __get_user(env->psw.addr, &sc->regs.psw.addr);
-    trace_user_s390x_restore_sigregs(env, env->psw.addr, prev_addr);
+    __get_user(mask, &sc->regs.psw.mask);
+    __get_user(addr, &sc->regs.psw.addr);
+    trace_user_s390x_restore_sigregs(env, addr, prev_addr);
+
+    /*
+     * Use current psw.mask to preserve PER bit.
+     * TODO:
+     *  if (!is_ri_task(current) && (user_sregs.regs.psw.mask & PSW_MASK_RI))
+     *          return -EINVAL;
+     * Simply do not allow it to be set in mask.
+     */
+    prev_mask = s390_cpu_get_psw_mask(env);
+    mask = (prev_mask & ~PSW_MASK_USER) | (mask & PSW_MASK_USER);
+    /* Check for invalid user address space control. */
+    if ((mask & PSW_MASK_ASC) == PSW_ASC_HOME) {
+        mask = (mask & ~PSW_MASK_ASC) | PSW_ASC_PRIMARY;
+    }
+    /* Check for invalid amode. */
+    if (mask & PSW_MASK_64) {
+        mask |= PSW_MASK_32;
+    }
+    s390_cpu_set_psw(env, mask, addr);
 
     for (i = 0; i < 16; i++) {
         __get_user(env->aregs[i], &sc->regs.acrs[i]);

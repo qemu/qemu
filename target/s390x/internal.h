@@ -235,10 +235,6 @@ int s390_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
 const char *cc_name(enum cc_op cc_op);
 uint32_t calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
                  uint64_t vr);
-#ifndef CONFIG_USER_ONLY
-void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr);
-#endif /* CONFIG_USER_ONLY */
-
 
 /* cpu.c */
 #ifndef CONFIG_USER_ONLY
@@ -288,6 +284,15 @@ uint8_t s390_softfloat_exc_to_ieee(unsigned int exc);
 int s390_swap_bfp_rounding_mode(CPUS390XState *env, int m3);
 void s390_restore_bfp_rounding_mode(CPUS390XState *env, int old_mode);
 int float_comp_to_cc(CPUS390XState *env, int float_compare);
+
+#define DCMASK_ZERO             0x0c00
+#define DCMASK_NORMAL           0x0300
+#define DCMASK_SUBNORMAL        0x00c0
+#define DCMASK_INFINITY         0x0030
+#define DCMASK_QUIET_NAN        0x000c
+#define DCMASK_SIGNALING_NAN    0x0003
+#define DCMASK_NAN              0x000f
+#define DCMASK_NEGATIVE         0x0555
 uint16_t float32_dcmask(CPUS390XState *env, float32 f1);
 uint16_t float64_dcmask(CPUS390XState *env, float64 f1);
 uint16_t float128_dcmask(CPUS390XState *env, float128 f1);
@@ -303,7 +308,6 @@ void s390_cpu_gdb_init(CPUState *cs);
 void s390_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 void do_restart_interrupt(CPUS390XState *env);
 #ifndef CONFIG_USER_ONLY
-uint64_t get_psw_mask(CPUS390XState *env);
 void s390_cpu_recompute_watchpoints(CPUState *cs);
 void s390x_tod_timer(void *opaque);
 void s390x_cpu_timer(void *opaque);
