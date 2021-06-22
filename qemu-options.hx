@@ -207,14 +207,27 @@ DEF("smp", HAS_ARG, QEMU_OPTION_smp,
         QEMU_ARCH_ALL)
 SRST
 ``-smp [[cpus=]n][,maxcpus=maxcpus][,sockets=sockets][,dies=dies][,cores=cores][,threads=threads]``
-    Simulate an SMP system with n CPUs. On the PC target, up to 255 CPUs
-    are supported. On Sparc32 target, Linux limits the number of usable
-    CPUs to 4. For the PC target, the number of cores per die, the
-    number of threads per cores, the number of dies per packages and the
-    total number of sockets can be specified. Missing values will be
-    computed. If any on the three values is given, the total number of
-    CPUs n can be omitted. maxcpus specifies the maximum number of
-    hotpluggable CPUs.
+    Simulate a SMP system with '\ ``n``\ ' CPUs initially present on
+    the machine type board. On boards supporting CPU hotplug, the optional
+    '\ ``maxcpus``\ ' parameter can be set to enable further CPUs to be
+    added at runtime. If omitted the maximum number of CPUs will be
+    set to match the initial CPU count. Both parameters are subject to
+    an upper limit that is determined by the specific machine type chosen.
+
+    To control reporting of CPU topology information, the number of sockets,
+    dies per socket, cores per die, and threads per core can be specified.
+    The sum `` sockets * cores * dies * threads `` must be equal to the
+    maximum CPU count. CPU targets may only support a subset of the topology
+    parameters. Where a CPU target does not support use of a particular
+    topology parameter, its value should be assumed to be 1 for the purpose
+    of computing the CPU maximum count.
+
+    Either the initial CPU count, or at least one of the topology parameters
+    must be specified. Values for any omitted parameters will be computed
+    from those which are given. Historically preference was given to the
+    coarsest topology parameters when computing missing values (ie sockets
+    preferred over cores, which were preferred over threads), however, this
+    behaviour is considered liable to change.
 ERST
 
 DEF("numa", HAS_ARG, QEMU_OPTION_numa,
