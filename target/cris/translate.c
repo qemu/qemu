@@ -3217,6 +3217,10 @@ static void cris_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
         cris_clear_x_flag(dc);
     }
 
+    /* Fold unhandled changes to X_FLAG into cpustate_changed. */
+    dc->cpustate_changed |= !dc->flagx_known;
+    dc->cpustate_changed |= dc->flags_x != (dc->base.tb->flags & X_FLAG);
+
     /*
      * Check for delayed branches here.  If we do it before
      * actually generating any host code, the simulator will just
@@ -3227,9 +3231,7 @@ static void cris_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
             t_gen_movi_env_TN(dslot, 0);
         }
 
-        if (dc->cpustate_changed
-            || !dc->flagx_known
-            || (dc->flags_x != (dc->base.tb->flags & X_FLAG))) {
+        if (dc->cpustate_changed) {
             cris_store_direct_jmp(dc);
         }
 
@@ -3263,10 +3265,7 @@ static void cris_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     }
 
     /* Force an update if the per-tb cpu state has changed.  */
-    if (dc->base.is_jmp == DISAS_NEXT
-        && (dc->cpustate_changed
-            || !dc->flagx_known
-            || (dc->flags_x != (dc->base.tb->flags & X_FLAG)))) {
+    if (dc->base.is_jmp == DISAS_NEXT && dc->cpustate_changed) {
         dc->base.is_jmp = DISAS_UPDATE;
         tcg_gen_movi_tl(env_pc, dc->pc);
     }
