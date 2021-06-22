@@ -106,9 +106,8 @@ static void gen_store_v10(DisasContext *dc, TCGv addr, TCGv val,
         cris_store_direct_jmp(dc);
     }
 
-    /* Conditional writes. We only support the kind were X is known
-       at translation time.  */
-    if (dc->flagx_known && dc->flags_x) {
+    /* Conditional writes. */
+    if (dc->flags_x) {
         gen_store_v10_conditional(dc, addr, val, size, mem_index);
         return;
     }
@@ -376,7 +375,6 @@ static unsigned int dec10_setclrf(DisasContext *dc)
 
 
     if (flags & X_FLAG) {
-        dc->flagx_known = 1;
         if (set)
             dc->flags_x = X_FLAG;
         else

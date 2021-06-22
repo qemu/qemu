@@ -120,8 +120,6 @@ typedef struct DisasContext {
 
     int cc_x_uptodate;  /* 1 - ccs, 2 - known | X_FLAG. 0 not up-to-date.  */
     int flags_uptodate; /* Whether or not $ccs is up-to-date.  */
-    int flagx_known; /* Whether or not flags_x has the x flag known at
-                translation time.  */
     int flags_x;
 
     int clear_x; /* Clear x after this insn?  */
@@ -377,66 +375,26 @@ static inline void t_gen_add_flag(TCGv d, int flag)
 
 static inline void t_gen_addx_carry(DisasContext *dc, TCGv d)
 {
-    if (dc->flagx_known) {
-        if (dc->flags_x) {
-            TCGv c;
-            
-            c = tcg_temp_new();
-            t_gen_mov_TN_preg(c, PR_CCS);
-            /* C flag is already at bit 0.  */
-            tcg_gen_andi_tl(c, c, C_FLAG);
-            tcg_gen_add_tl(d, d, c);
-            tcg_temp_free(c);
-        }
-    } else {
-        TCGv x, c;
+    if (dc->flags_x) {
+        TCGv c = tcg_temp_new();
 
-        x = tcg_temp_new();
-        c = tcg_temp_new();
-        t_gen_mov_TN_preg(x, PR_CCS);
-        tcg_gen_mov_tl(c, x);
-
-        /* Propagate carry into d if X is set. Branch free.  */
+        t_gen_mov_TN_preg(c, PR_CCS);
+        /* C flag is already at bit 0.  */
         tcg_gen_andi_tl(c, c, C_FLAG);
-        tcg_gen_andi_tl(x, x, X_FLAG);
-        tcg_gen_shri_tl(x, x, 4);
-
-        tcg_gen_and_tl(x, x, c);
-        tcg_gen_add_tl(d, d, x);
-        tcg_temp_free(x);
+        tcg_gen_add_tl(d, d, c);
         tcg_temp_free(c);
     }
 }
 
 static inline void t_gen_subx_carry(DisasContext *dc, TCGv d)
 {
-    if (dc->flagx_known) {
-        if (dc->flags_x) {
-            TCGv c;
-            
-            c = tcg_temp_new();
-            t_gen_mov_TN_preg(c, PR_CCS);
-            /* C flag is already at bit 0.  */
-            tcg_gen_andi_tl(c, c, C_FLAG);
-            tcg_gen_sub_tl(d, d, c);
-            tcg_temp_free(c);
-        }
-    } else {
-        TCGv x, c;
+    if (dc->flags_x) {
+        TCGv c = tcg_temp_new();
 
-        x = tcg_temp_new();
-        c = tcg_temp_new();
-        t_gen_mov_TN_preg(x, PR_CCS);
-        tcg_gen_mov_tl(c, x);
-
-        /* Propagate carry into d if X is set. Branch free.  */
+        t_gen_mov_TN_preg(c, PR_CCS);
+        /* C flag is already at bit 0.  */
         tcg_gen_andi_tl(c, c, C_FLAG);
-        tcg_gen_andi_tl(x, x, X_FLAG);
-        tcg_gen_shri_tl(x, x, 4);
-
-        tcg_gen_and_tl(x, x, c);
-        tcg_gen_sub_tl(d, d, x);
-        tcg_temp_free(x);
+        tcg_gen_sub_tl(d, d, c);
         tcg_temp_free(c);
     }
 }
@@ -541,11 +499,9 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
 
 static inline void cris_clear_x_flag(DisasContext *dc)
 {
-    if (dc->flagx_known && dc->flags_x) {
+    if (dc->flags_x) {
         dc->flags_uptodate = 0;
     }
-
-    dc->flagx_known = 1;
     dc->flags_x = 0;
 }
 
@@ -630,12 +586,10 @@ static void cris_evaluate_flags(DisasContext *dc)
         break;
     }
 
-    if (dc->flagx_known) {
-        if (dc->flags_x) {
-            tcg_gen_ori_tl(cpu_PR[PR_CCS], cpu_PR[PR_CCS], X_FLAG);
-        } else if (dc->cc_op == CC_OP_FLAGS) {
-            tcg_gen_andi_tl(cpu_PR[PR_CCS], cpu_PR[PR_CCS], ~X_FLAG);
-        }
+    if (dc->flags_x) {
+        tcg_gen_ori_tl(cpu_PR[PR_CCS], cpu_PR[PR_CCS], X_FLAG);
+    } else if (dc->cc_op == CC_OP_FLAGS) {
+        tcg_gen_andi_tl(cpu_PR[PR_CCS], cpu_PR[PR_CCS], ~X_FLAG);
     }
     dc->flags_uptodate = 1;
 }
@@ -670,16 +624,11 @@ static void cris_update_cc_op(DisasContext *dc, int op, int size)
 static inline void cris_update_cc_x(DisasContext *dc)
 {
     /* Save the x flag state at the time of the cc snapshot.  */
-    if (dc->flagx_known) {
-        if (dc->cc_x_uptodate == (2 | dc->flags_x)) {
-            return;
-        }
-        tcg_gen_movi_tl(cc_x, dc->flags_x);
-        dc->cc_x_uptodate = 2 | dc->flags_x;
-    } else {
-        tcg_gen_andi_tl(cc_x, cpu_PR[PR_CCS], X_FLAG);
-        dc->cc_x_uptodate = 1;
+    if (dc->cc_x_uptodate == (2 | dc->flags_x)) {
+        return;
     }
+    tcg_gen_movi_tl(cc_x, dc->flags_x);
+    dc->cc_x_uptodate = 2 | dc->flags_x;
 }
 
 /* Update cc prior to executing ALU op. Needs source operands untouched.  */
@@ -1131,7 +1080,7 @@ static void gen_store (DisasContext *dc, TCGv addr, TCGv val,
 
     /* Conditional writes. We only support the kind were X and P are known
        at translation time.  */
-    if (dc->flagx_known && dc->flags_x && (dc->tb_flags & P_FLAG)) {
+    if (dc->flags_x && (dc->tb_flags & P_FLAG)) {
         dc->postinc = 0;
         cris_evaluate_flags(dc);
         tcg_gen_ori_tl(cpu_PR[PR_CCS], cpu_PR[PR_CCS], C_FLAG);
@@ -1140,7 +1089,7 @@ static void gen_store (DisasContext *dc, TCGv addr, TCGv val,
 
     tcg_gen_qemu_st_tl(val, addr, mem_index, MO_TE + ctz32(size));
 
-    if (dc->flagx_known && dc->flags_x) {
+    if (dc->flags_x) {
         cris_evaluate_flags(dc);
         tcg_gen_andi_tl(cpu_PR[PR_CCS], cpu_PR[PR_CCS], ~C_FLAG);
     }
@@ -1727,8 +1676,8 @@ static int dec_addc_r(CPUCRISState *env, DisasContext *dc)
     LOG_DIS("addc $r%u, $r%u\n",
             dc->op1, dc->op2);
     cris_evaluate_flags(dc);
+
     /* Set for this insn.  */
-    dc->flagx_known = 1;
     dc->flags_x = X_FLAG;
 
     cris_cc_mask(dc, CC_MASK_NZVC);
@@ -2015,7 +1964,6 @@ static int dec_setclrf(CPUCRISState *env, DisasContext *dc)
     }
 
     if (flags & X_FLAG) {
-        dc->flagx_known = 1;
         if (set) {
             dc->flags_x = X_FLAG;
         } else {
@@ -2479,7 +2427,6 @@ static int dec_addc_mr(CPUCRISState *env, DisasContext *dc)
     cris_evaluate_flags(dc);
 
     /* Set for this insn.  */
-    dc->flagx_known = 1;
     dc->flags_x = X_FLAG;
 
     cris_alu_m_alloc_temps(t);
@@ -3141,7 +3088,6 @@ static void cris_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     dc->ppc = pc_start;
     dc->pc = pc_start;
     dc->flags_uptodate = 1;
-    dc->flagx_known = 1;
     dc->flags_x = tb_flags & X_FLAG;
     dc->cc_x_uptodate = 0;
     dc->cc_mask = 0;
@@ -3217,7 +3163,6 @@ static void cris_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     }
 
     /* Fold unhandled changes to X_FLAG into cpustate_changed. */
-    dc->cpustate_changed |= !dc->flagx_known;
     dc->cpustate_changed |= dc->flags_x != (dc->base.tb->flags & X_FLAG);
 
     /*
