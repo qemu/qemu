@@ -23,6 +23,7 @@ ENV PACKAGES \
     mingw64-libjpeg-turbo \
     mingw64-libpng \
     mingw64-libtasn1 \
+    mingw64-libusbx \
     mingw64-pixman \
     mingw64-pkg-config \
     perl \
