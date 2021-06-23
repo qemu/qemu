@@ -2880,6 +2880,7 @@ static int dec_rfe_etc(CPUCRISState *env, DisasContext *dc)
         cris_evaluate_flags(dc);
         gen_helper_rfe(cpu_env);
         dc->base.is_jmp = DISAS_UPDATE;
+        dc->cpustate_changed = true;
         break;
     case 5:
         /* rfn.  */
@@ -2887,6 +2888,7 @@ static int dec_rfe_etc(CPUCRISState *env, DisasContext *dc)
         cris_evaluate_flags(dc);
         gen_helper_rfn(cpu_env);
         dc->base.is_jmp = DISAS_UPDATE;
+        dc->cpustate_changed = true;
         break;
     case 6:
         LOG_DIS("break %d\n", dc->op1);
