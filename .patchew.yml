@@ -138,9 +138,6 @@ testing:
       script: |
         #!/bin/bash
         git rev-parse base > /dev/null || exit 0
-        git config --local diff.renamelimit 0
-        git config --local diff.renames True
-        git config --local diff.algorithm histogram
         ./scripts/checkpatch.pl --mailback base..
     docker-mingw@fedora:
       enabled: true
