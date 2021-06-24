@@ -72,8 +72,12 @@ if usbredir.found()
 endif
 
 # usb pass-through
-softmmu_ss.add(when: ['CONFIG_USB', libusb],
-               if_true: files('host-libusb.c'))
+if config_host.has_key('CONFIG_USB_LIBUSB')
+  usbhost_ss = ss.source_set()
+  usbhost_ss.add(when: ['CONFIG_USB', libusb],
+                 if_true: files('host-libusb.c'))
+  hw_usb_modules += {'host': usbhost_ss}
+endif
 
 softmmu_ss.add(when: ['CONFIG_USB', 'CONFIG_XEN', libusb], if_true: files('xen-usb.c'))
 

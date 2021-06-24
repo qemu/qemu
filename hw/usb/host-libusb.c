@@ -1777,6 +1777,7 @@ static TypeInfo usb_host_dev_info = {
     .class_init    = usb_host_class_initfn,
     .instance_init = usb_host_instance_init,
 };
+module_obj(TYPE_USB_HOST_DEVICE);
 
 static void usb_host_register_types(void)
 {
