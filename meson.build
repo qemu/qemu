@@ -92,6 +92,8 @@ if cpu in ['x86', 'x86_64']
   }
 endif
 
+modular_tcg = ['i386-softmmu', 'x86_64-softmmu']
+
 edk2_targets = [ 'arm-softmmu', 'aarch64-softmmu', 'i386-softmmu', 'x86_64-softmmu' ]
 install_edk2_blobs = false
 if get_option('install_blobs')
@@ -1531,6 +1533,11 @@ foreach target : target_dirs
       elif sym == 'CONFIG_XEN' and have_xen_pci_passthrough
         config_target += { 'CONFIG_XEN_PCI_PASSTHROUGH': 'y' }
       endif
+      if target in modular_tcg
+        config_target += { 'CONFIG_TCG_MODULAR': 'y' }
+      else
+        config_target += { 'CONFIG_TCG_BUILTIN': 'y' }
+      endif
       accel_kconfig += [ sym + '=y' ]
     endif
   endforeach
@@ -2002,6 +2009,7 @@ util_ss = ss.source_set()
 
 # accel modules
 qtest_module_ss = ss.source_set()
+tcg_module_ss = ss.source_set()
 
 modules = {}
 target_modules = {}
@@ -2242,7 +2250,11 @@ subdir('tests/qtest/libqos')
 subdir('tests/qtest/fuzz')
 
 # accel modules
-target_modules += { 'accel' : { 'qtest': qtest_module_ss }}
+tcg_real_module_ss = ss.source_set()
+tcg_real_module_ss.add_all(when: 'CONFIG_TCG_MODULAR', if_true: tcg_module_ss)
+specific_ss.add_all(when: 'CONFIG_TCG_BUILTIN', if_true: tcg_module_ss)
+target_modules += { 'accel' : { 'qtest': qtest_module_ss,
+                                'tcg': tcg_real_module_ss }}
 
 ########################
 # Library dependencies #
