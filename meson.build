@@ -2000,6 +2000,9 @@ trace_ss = ss.source_set()
 user_ss = ss.source_set()
 util_ss = ss.source_set()
 
+# accel modules
+qtest_module_ss = ss.source_set()
+
 modules = {}
 target_modules = {}
 hw_arch = {}
@@ -2237,6 +2240,9 @@ specific_ss.add_all(when: 'CONFIG_LINUX_USER', if_true: linux_user_ss)
 # needed for fuzzing binaries
 subdir('tests/qtest/libqos')
 subdir('tests/qtest/fuzz')
+
+# accel modules
+target_modules += { 'accel' : { 'qtest': qtest_module_ss }}
 
 ########################
 # Library dependencies #
