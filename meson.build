@@ -2241,6 +2241,9 @@ subdir('tests/qtest/fuzz')
 # Library dependencies #
 ########################
 
+modinfo_collect = find_program('scripts/modinfo-collect.py')
+modinfo_files = []
+
 block_mods = []
 softmmu_mods = []
 foreach d, list : modules
@@ -2253,6 +2256,19 @@ foreach d, list : modules
         block_mods += sl
       else
         softmmu_mods += sl
+      endif
+      if module_ss.sources() != []
+        # FIXME: Should use sl.extract_all_objects(recursive: true) as
+        # input. Sources can be used multiple times but objects are
+        # unique when it comes to lookup in compile_commands.json.
+        # Depnds on a mesion version with
+        # https://github.com/mesonbuild/meson/pull/8900
+        modinfo_files += custom_target(d + '-' + m + '.modinfo',
+                                       output: d + '-' + m + '.modinfo',
+                                       input: module_ss.sources(),
+                                       capture: true,
+                                       build_by_default: true, # to be removed when added to a target
+                                       command: [modinfo_collect, '@INPUT@'])
       endif
     else
       if d == 'block'
