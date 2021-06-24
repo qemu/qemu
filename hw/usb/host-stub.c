@@ -38,8 +38,3 @@ void hmp_info_usbhost(Monitor *mon, const QDict *qdict)
 {
     monitor_printf(mon, "USB host devices not supported\n");
 }
-
-bool usb_host_dev_is_scsi_storage(USBDevice *ud)
-{
-    return false;
-}
