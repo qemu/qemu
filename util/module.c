@@ -117,10 +117,31 @@ static const QemuModinfo module_info_stub[] = { {
     /* end of list */
 } };
 static const QemuModinfo *module_info = module_info_stub;
+static const char *module_arch;
 
 void module_init_info(const QemuModinfo *info)
 {
     module_info = info;
+}
+
+void module_allow_arch(const char *arch)
+{
+    module_arch = arch;
+}
+
+static bool module_check_arch(const QemuModinfo *modinfo)
+{
+    if (modinfo->arch) {
+        if (!module_arch) {
+            /* no arch set -> ignore all */
+            return false;
+        }
+        if (strcmp(module_arch, modinfo->arch) != 0) {
+            /* mismatch */
+            return false;
+        }
+    }
+    return true;
 }
 
 static int module_load_file(const char *fname, bool mayfail, bool export_symbols)
@@ -224,6 +245,13 @@ bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
     g_hash_table_add(loaded_modules, module_name);
 
     for (modinfo = module_info; modinfo->name != NULL; modinfo++) {
+        if (modinfo->arch) {
+            if (strcmp(modinfo->name, module_name) == 0) {
+                if (!module_check_arch(modinfo)) {
+                    return false;
+                }
+            }
+        }
         if (modinfo->deps) {
             if (strcmp(modinfo->name, module_name) == 0) {
                 /* we depend on other module(s) */
@@ -345,6 +373,7 @@ void qemu_load_module_for_opts(const char *group)
 
 #else
 
+void module_allow_arch(const char *arch) {}
 void qemu_load_module_for_opts(const char *group) {}
 void module_load_qom_one(const char *type) {}
 void module_load_qom_all(void) {}

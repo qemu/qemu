@@ -126,6 +126,8 @@
 #include "sysemu/iothread.h"
 #include "qemu/guest-random.h"
 
+#include "config-host.h"
+
 #define MAX_VIRTIO_CONSOLES 1
 
 typedef struct BlockdevOptionsQueueEntry {
@@ -2740,6 +2742,7 @@ void qemu_init(int argc, char **argv, char **envp)
 
 #ifdef CONFIG_MODULES
     module_init_info(qemu_modinfo);
+    module_allow_arch(TARGET_NAME);
 #endif
 
     qemu_init_subsystems();
