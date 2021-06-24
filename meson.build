@@ -2001,6 +2001,7 @@ user_ss = ss.source_set()
 util_ss = ss.source_set()
 
 modules = {}
+target_modules = {}
 hw_arch = {}
 target_arch = {}
 target_softmmu_arch = {}
@@ -2276,6 +2277,42 @@ foreach d, list : modules
       else
         softmmu_ss.add_all(module_ss)
       endif
+    endif
+  endforeach
+endforeach
+
+foreach d, list : target_modules
+  foreach m, module_ss : list
+    if enable_modules and targetos != 'windows'
+      foreach target : target_dirs
+        if target.endswith('-softmmu')
+          config_target = config_target_mak[target]
+          config_target += config_host
+          target_inc = [include_directories('target' / config_target['TARGET_BASE_ARCH'])]
+          c_args = ['-DNEED_CPU_H',
+                    '-DCONFIG_TARGET="@0@-config-target.h"'.format(target),
+                    '-DCONFIG_DEVICES="@0@-config-devices.h"'.format(target)]
+          target_module_ss = module_ss.apply(config_target, strict: false)
+          if target_module_ss.sources() != []
+            module_name = d + '-' + m + '-' + config_target['TARGET_NAME']
+            sl = static_library(module_name,
+                                [genh, target_module_ss.sources()],
+                                dependencies: [modulecommon, target_module_ss.dependencies()],
+                                include_directories: target_inc,
+                                c_args: c_args,
+                                pic: true)
+            softmmu_mods += sl
+            # FIXME: Should use sl.extract_all_objects(recursive: true) too.
+            modinfo_files += custom_target(module_name + '.modinfo',
+                                           output: module_name + '.modinfo',
+                                           input: target_module_ss.sources(),
+                                           capture: true,
+                                           command: [modinfo_collect, '--target', target, '@INPUT@'])
+          endif
+        endif
+      endforeach
+    else
+      specific_ss.add_all(module_ss)
     endif
   endforeach
 endforeach
