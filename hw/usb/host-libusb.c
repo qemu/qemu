@@ -1781,6 +1781,7 @@ static TypeInfo usb_host_dev_info = {
 static void usb_host_register_types(void)
 {
     type_register_static(&usb_host_dev_info);
+    monitor_register_hmp("usbhost", true, hmp_info_usbhost);
 }
 
 type_init(usb_host_register_types)
