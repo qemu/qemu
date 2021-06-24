@@ -154,6 +154,7 @@ static const TypeInfo virtio_gpu_gl_info = {
     .instance_size = sizeof(VirtIOGPUGL),
     .class_init = virtio_gpu_gl_class_init,
 };
+module_obj(TYPE_VIRTIO_GPU_GL);
 
 static void virtio_register_types(void)
 {
@@ -161,3 +162,5 @@ static void virtio_register_types(void)
 }
 
 type_init(virtio_register_types)
+
+module_dep("hw-display-virtio-gpu");

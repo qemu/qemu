@@ -36,6 +36,7 @@ static VirtioPCIDeviceTypeInfo virtio_vga_gl_info = {
     .instance_size = sizeof(VirtIOVGAGL),
     .instance_init = virtio_vga_gl_inst_initfn,
 };
+module_obj(TYPE_VIRTIO_VGA_GL);
 
 static void virtio_vga_register_types(void)
 {
@@ -45,3 +46,5 @@ static void virtio_vga_register_types(void)
 }
 
 type_init(virtio_vga_register_types)
+
+module_dep("hw-display-virtio-vga");

@@ -46,6 +46,7 @@ static const VirtioPCIDeviceTypeInfo virtio_gpu_gl_pci_info = {
     .instance_size = sizeof(VirtIOGPUGLPCI),
     .instance_init = virtio_gpu_gl_initfn,
 };
+module_obj(TYPE_VIRTIO_GPU_GL_PCI);
 
 static void virtio_gpu_gl_pci_register_types(void)
 {
@@ -53,3 +54,5 @@ static void virtio_gpu_gl_pci_register_types(void)
 }
 
 type_init(virtio_gpu_gl_pci_register_types)
+
+module_dep("hw-display-virtio-gpu-pci");
