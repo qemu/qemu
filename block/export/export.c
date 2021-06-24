@@ -111,6 +111,7 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
     if (export->has_iothread) {
         IOThread *iothread;
         AioContext *new_ctx;
+        Error **set_context_errp;
 
         iothread = iothread_by_id(export->iothread);
         if (!iothread) {
@@ -120,7 +121,9 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
 
         new_ctx = iothread_get_aio_context(iothread);
 
-        ret = bdrv_try_set_aio_context(bs, new_ctx, errp);
+        /* Ignore errors with fixed-iothread=false */
+        set_context_errp = fixed_iothread ? errp : NULL;
+        ret = bdrv_try_set_aio_context(bs, new_ctx, set_context_errp);
         if (ret == 0) {
             aio_context_release(ctx);
             aio_context_acquire(new_ctx);
