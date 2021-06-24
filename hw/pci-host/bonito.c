@@ -52,6 +52,7 @@
 #include "hw/misc/unimp.h"
 #include "hw/registerfields.h"
 #include "qom/object.h"
+#include "trace.h"
 
 /* #define DEBUG_BONITO */
 
@@ -185,6 +186,7 @@ FIELD(BONGENCFG, PCIQUEUE,      12, 1)
 #define BONITO_PCICONF_IDSEL_OFFSET    11
 #define BONITO_PCICONF_FUN_MASK        0x700    /* [10:8] */
 #define BONITO_PCICONF_FUN_OFFSET      8
+#define BONITO_PCICONF_REG_MASK_DS     (~3)         /* Per datasheet */
 #define BONITO_PCICONF_REG_MASK        0xFC
 #define BONITO_PCICONF_REG_OFFSET      0
 
@@ -495,6 +497,9 @@ static void bonito_spciconf_write(void *opaque, hwaddr addr, uint64_t val,
     if (pciaddr == 0xffffffff) {
         return;
     }
+    if (addr & ~BONITO_PCICONF_REG_MASK_DS) {
+        trace_bonito_spciconf_small_access(addr, size);
+    }
 
     /* set the pci address in s->config_reg */
     phb->config_reg = (pciaddr) | (1u << 31);
@@ -520,6 +525,9 @@ static uint64_t bonito_spciconf_read(void *opaque, hwaddr addr, unsigned size)
 
     if (pciaddr == 0xffffffff) {
         return MAKE_64BIT_MASK(0, size * 8);
+    }
+    if (addr & ~BONITO_PCICONF_REG_MASK_DS) {
+        trace_bonito_spciconf_small_access(addr, size);
     }
 
     /* set the pci address in s->config_reg */
