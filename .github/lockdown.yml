@@ -14,11 +14,11 @@ issues:
     at https://gitlab.com/qemu-project/qemu.git.
     The project does not process issues filed on GitHub.
 
-    The project issues are tracked on Launchpad:
-    https://bugs.launchpad.net/qemu
+    The project issues are tracked on GitLab:
+    https://gitlab.com/qemu-project/qemu/-/issues
 
     QEMU welcomes bug report contributions. You can file new ones on:
-    https://bugs.launchpad.net/qemu/+filebug
+    https://gitlab.com/qemu-project/qemu/-/issues/new
 
 pulls:
   comment: |

@@ -239,7 +239,7 @@ xattr-mapping Examples
 
 ::
 
--o xattrmap=":prefix:all::user.virtiofs.::bad:all:::"
+ -o xattrmap=":prefix:all::user.virtiofs.::bad:all:::"
 
 
 This uses two rules, using : as the field separator;
@@ -250,7 +250,8 @@ the host set.
 This is equivalent to the 'map' rule:
 
 ::
--o xattrmap=":map::user.virtiofs.:"
+
+ -o xattrmap=":map::user.virtiofs.:"
 
 2) Prefix 'trusted.' attributes, allow others through
 
@@ -277,7 +278,8 @@ through.
 This is equivalent to the 'map' rule:
 
 ::
--o xattrmap="/map/trusted./user.virtiofs./"
+
+ -o xattrmap="/map/trusted./user.virtiofs./"
 
 3) Hide 'security.' attributes, and allow everything else
 
@@ -298,13 +300,13 @@ Examples
 Export ``/var/lib/fs/vm001/`` on vhost-user UNIX domain socket
 ``/var/run/vm001-vhost-fs.sock``:
 
-::
+.. parsed-literal::
 
   host# virtiofsd --socket-path=/var/run/vm001-vhost-fs.sock -o source=/var/lib/fs/vm001
-  host# qemu-system-x86_64 \
-      -chardev socket,id=char0,path=/var/run/vm001-vhost-fs.sock \
-      -device vhost-user-fs-pci,chardev=char0,tag=myfs \
-      -object memory-backend-memfd,id=mem,size=4G,share=on \
-      -numa node,memdev=mem \
-      ...
+  host# |qemu_system| \\
+        -chardev socket,id=char0,path=/var/run/vm001-vhost-fs.sock \\
+        -device vhost-user-fs-pci,chardev=char0,tag=myfs \\
+        -object memory-backend-memfd,id=mem,size=4G,share=on \\
+        -numa node,memdev=mem \\
+        ...
   guest# mount -t virtiofs myfs /mnt

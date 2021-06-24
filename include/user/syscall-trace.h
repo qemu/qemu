@@ -7,8 +7,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef _SYSCALL_TRACE_H_
-#define _SYSCALL_TRACE_H_
+#ifndef SYSCALL_TRACE_H
+#define SYSCALL_TRACE_H
 
 #include "trace/trace-root.h"
 

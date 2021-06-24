@@ -48,8 +48,8 @@ this code that are retained.
 ===============================================================================
 */
 
-#ifndef _SOFTFLOAT_HELPERS_H_
-#define _SOFTFLOAT_HELPERS_H_
+#ifndef SOFTFLOAT_HELPERS_H
+#define SOFTFLOAT_HELPERS_H
 
 #include "fpu/softfloat-types.h"
 

@@ -841,9 +841,9 @@ static void generic_pre_fuzz(QTestState *s)
 
     g_hash_table_iter_init(&iter, fuzzable_memoryregions);
     while (g_hash_table_iter_next(&iter, (gpointer)&mr, NULL)) {
-        printf("  * %s (size %lx)\n",
+        printf("  * %s (size 0x%" PRIx64 ")\n",
                object_get_canonical_path_component(&(mr->parent_obj)),
-               (uint64_t)mr->size);
+               memory_region_size(mr));
     }
 
     if (!g_hash_table_size(fuzzable_memoryregions)) {

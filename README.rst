@@ -131,16 +131,16 @@ will be tagged as my-feature-v2.
 Bug reporting
 =============
 
-The QEMU project uses Launchpad as its primary upstream bug tracker. Bugs
+The QEMU project uses GitLab issues to track bugs. Bugs
 found when running code built from QEMU git or upstream released sources
 should be reported via:
 
-* `<https://bugs.launchpad.net/qemu/>`_
+* `<https://gitlab.com/qemu-project/qemu/-/issues>`_
 
 If using QEMU via an operating system vendor pre-built binary package, it
 is preferable to report bugs to the vendor's own bug tracker first. If
 the bug is also known to affect latest upstream code, it can also be
-reported via launchpad.
+reported via GitLab.
 
 For additional information on bug reporting consult:
 
