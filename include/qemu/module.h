@@ -134,4 +134,21 @@ void module_load_qom_all(void);
  */
 #define module_opts(name) modinfo(opts, name)
 
+/*
+ * module info database
+ *
+ * scripts/modinfo-generate.c will build this using the data collected
+ * by scripts/modinfo-collect.py
+ */
+typedef struct QemuModinfo QemuModinfo;
+struct QemuModinfo {
+    const char *name;
+    const char *arch;
+    const char **objs;
+    const char **deps;
+    const char **opts;
+};
+extern const QemuModinfo qemu_modinfo[];
+void module_init_info(const QemuModinfo *info);
+
 #endif

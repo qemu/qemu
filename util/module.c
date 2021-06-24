@@ -110,6 +110,17 @@ void module_call_init(module_init_type type)
 }
 
 #ifdef CONFIG_MODULES
+
+static const QemuModinfo module_info_stub[] = { {
+    /* end of list */
+} };
+static const QemuModinfo *module_info = module_info_stub;
+
+void module_init_info(const QemuModinfo *info)
+{
+    module_info = info;
+}
+
 static int module_load_file(const char *fname, bool mayfail, bool export_symbols)
 {
     GModule *g_module;

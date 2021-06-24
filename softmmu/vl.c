@@ -2755,6 +2755,10 @@ void qemu_init(int argc, char **argv, char **envp)
     error_init(argv[0]);
     qemu_init_exec_dir(argv[0]);
 
+#ifdef CONFIG_MODULES
+    module_init_info(qemu_modinfo);
+#endif
+
     qemu_init_subsystems();
 
     /* first pass of option parsing */

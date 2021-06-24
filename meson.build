@@ -2242,6 +2242,7 @@ subdir('tests/qtest/fuzz')
 ########################
 
 modinfo_collect = find_program('scripts/modinfo-collect.py')
+modinfo_generate = find_program('scripts/modinfo-generate.py')
 modinfo_files = []
 
 block_mods = []
@@ -2267,7 +2268,6 @@ foreach d, list : modules
                                        output: d + '-' + m + '.modinfo',
                                        input: module_ss.sources(),
                                        capture: true,
-                                       build_by_default: true, # to be removed when added to a target
                                        command: [modinfo_collect, '@INPUT@'])
       endif
     else
@@ -2279,6 +2279,17 @@ foreach d, list : modules
     endif
   endforeach
 endforeach
+
+if enable_modules
+  modinfo_src = custom_target('modinfo.c',
+                              output: 'modinfo.c',
+                              input: modinfo_files,
+                              command: [modinfo_generate, '@INPUT@'],
+                              capture: true)
+  modinfo_lib = static_library('modinfo', modinfo_src)
+  modinfo_dep = declare_dependency(link_whole: modinfo_lib)
+  softmmu_ss.add(modinfo_dep)
+endif
 
 nm = find_program('nm')
 undefsym = find_program('scripts/undefsym.py')
