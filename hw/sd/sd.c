@@ -1030,6 +1030,13 @@ static sd_rsp_type_t sd_cmd_GO_IDLE_STATE(SDState *sd, SDRequest req)
     return sd->spi ? sd_r1 : sd_r0;
 }
 
+static sd_rsp_type_t sd_cmd_SEND_OP_CMD(SDState *sd, SDRequest req)
+{
+    sd->state = sd_transfer_state;
+
+    return sd_r1;
+}
+
 static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 {
     uint32_t rca = 0x0000;
@@ -1069,10 +1076,6 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 
     switch (req.cmd) {
     /* Basic commands (Class 0 and Class 1) */
-    case 1:  /* CMD1:   SEND_OP_CMD */
-        sd->state = sd_transfer_state;
-        return sd_r1;
-
     case 2:  /* CMD2:   ALL_SEND_CID */
         switch (sd->state) {
         case sd_ready_state:
@@ -1622,11 +1625,6 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
         break;
 
     case 41:  /* ACMD41: SD_APP_OP_COND */
-        if (sd->spi) {
-            /* SEND_OP_CMD */
-            sd->state = sd_transfer_state;
-            return sd_r1;
-        }
         if (sd->state != sd_idle_state) {
             break;
         }
@@ -2131,6 +2129,7 @@ static const SDProto sd_proto_spi = {
     .name = "SPI",
     .cmd = {
         [0]         = sd_cmd_GO_IDLE_STATE,
+        [1]         = sd_cmd_SEND_OP_CMD,
         [2 ... 4]   = sd_cmd_illegal,
         [5]         = sd_cmd_illegal,
         [7]         = sd_cmd_illegal,
@@ -2140,6 +2139,7 @@ static const SDProto sd_proto_spi = {
     },
     .acmd = {
         [6]         = sd_cmd_unimplemented,
+        [41]        = sd_cmd_SEND_OP_CMD,
     },
 };
 
