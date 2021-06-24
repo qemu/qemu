@@ -339,10 +339,10 @@ nvdimm_build_structure_caps(GArray *structures, uint32_t capabilities)
 
 static GArray *nvdimm_build_device_structure(NVDIMMState *state)
 {
-    GSList *device_list = nvdimm_get_device_list();
+    GSList *device_list, *list = nvdimm_get_device_list();
     GArray *structures = g_array_new(false, true /* clear */, 1);
 
-    for (; device_list; device_list = device_list->next) {
+    for (device_list = list; device_list; device_list = device_list->next) {
         DeviceState *dev = device_list->data;
 
         /* build System Physical Address Range Structure. */
@@ -357,7 +357,7 @@ static GArray *nvdimm_build_device_structure(NVDIMMState *state)
         /* build NVDIMM Control Region Structure. */
         nvdimm_build_structure_dcr(structures, dev);
     }
-    g_slist_free(device_list);
+    g_slist_free(list);
 
     if (state->persistence) {
         nvdimm_build_structure_caps(structures, state->persistence);
@@ -1333,9 +1333,9 @@ static void nvdimm_build_ssdt(GArray *table_offsets, GArray *table_data,
 
 void nvdimm_build_srat(GArray *table_data)
 {
-    GSList *device_list = nvdimm_get_device_list();
+    GSList *device_list, *list = nvdimm_get_device_list();
 
-    for (; device_list; device_list = device_list->next) {
+    for (device_list = list; device_list; device_list = device_list->next) {
         DeviceState *dev = device_list->data;
         Object *obj = OBJECT(dev);
         uint64_t addr, size;
@@ -1348,7 +1348,7 @@ void nvdimm_build_srat(GArray *table_data)
         build_srat_memory(table_data, addr, size, node,
                           MEM_AFFINITY_ENABLED | MEM_AFFINITY_NON_VOLATILE);
     }
-    g_slist_free(device_list);
+    g_slist_free(list);
 }
 
 void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
