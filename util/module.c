@@ -280,80 +280,51 @@ bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
     return success;
 }
 
-/*
- * Building devices and other qom objects modular is mostly useful in
- * case they have dependencies to external shared libraries, so we can
- * cut down the core qemu library dependencies.  Which is the case for
- * only a very few devices & objects.
- *
- * So with the expectation that this will be rather the exception than
- * the rule and the list will not gain that many entries, go with a
- * simple manually maintained list for now.
- *
- * The list must be sorted by module (module_load_qom_all() needs this).
- */
-static struct {
-    const char *type;
-    const char *prefix;
-    const char *module;
-} const qom_modules[] = {
-    { "ccid-card-passthru",    "hw-", "usb-smartcard"         },
-    { "ccid-card-emulated",    "hw-", "usb-smartcard"         },
-    { "usb-redir",             "hw-", "usb-redirect"          },
-    { "qxl-vga",               "hw-", "display-qxl"           },
-    { "qxl",                   "hw-", "display-qxl"           },
-    { "virtio-gpu-device",     "hw-", "display-virtio-gpu"    },
-    { "virtio-gpu-gl-device",  "hw-", "display-virtio-gpu-gl" },
-    { "vhost-user-gpu",        "hw-", "display-virtio-gpu"    },
-    { "virtio-gpu-pci-base",   "hw-", "display-virtio-gpu-pci" },
-    { "virtio-gpu-pci",        "hw-", "display-virtio-gpu-pci" },
-    { "virtio-gpu-gl-pci",     "hw-", "display-virtio-gpu-pci-gl" },
-    { "vhost-user-gpu-pci",    "hw-", "display-virtio-gpu-pci" },
-    { "virtio-gpu-ccw",        "hw-", "s390x-virtio-gpu-ccw"   },
-    { "virtio-vga-base",       "hw-", "display-virtio-vga"    },
-    { "virtio-vga",            "hw-", "display-virtio-vga"    },
-    { "virtio-vga-gl",         "hw-", "display-virtio-vga-gl" },
-    { "vhost-user-vga",        "hw-", "display-virtio-vga"    },
-    { "chardev-braille",       "chardev-", "baum"             },
-    { "chardev-spicevmc",      "chardev-", "spice"            },
-    { "chardev-spiceport",     "chardev-", "spice"            },
-};
+#ifdef CONFIG_MODULES
 
 static bool module_loaded_qom_all;
 
 void module_load_qom_one(const char *type)
 {
-    int i;
+    const QemuModinfo *modinfo;
+    const char **sl;
 
     if (!type) {
         return;
     }
-    for (i = 0; i < ARRAY_SIZE(qom_modules); i++) {
-        if (strcmp(qom_modules[i].type, type) == 0) {
-            module_load_one(qom_modules[i].prefix,
-                            qom_modules[i].module,
-                            false);
-            return;
+
+    for (modinfo = module_info; modinfo->name != NULL; modinfo++) {
+        if (!modinfo->objs) {
+            continue;
+        }
+        for (sl = modinfo->objs; *sl != NULL; sl++) {
+            if (strcmp(type, *sl) == 0) {
+                module_load_one("", modinfo->name, false);
+            }
         }
     }
 }
 
 void module_load_qom_all(void)
 {
-    int i;
+    const QemuModinfo *modinfo;
 
     if (module_loaded_qom_all) {
         return;
     }
-    for (i = 0; i < ARRAY_SIZE(qom_modules); i++) {
-        if (i > 0 && (strcmp(qom_modules[i - 1].module,
-                             qom_modules[i].module) == 0 &&
-                      strcmp(qom_modules[i - 1].prefix,
-                             qom_modules[i].prefix) == 0)) {
-            /* one module implementing multiple types -> load only once */
+
+    for (modinfo = module_info; modinfo->name != NULL; modinfo++) {
+        if (!modinfo->objs) {
             continue;
         }
-        module_load_one(qom_modules[i].prefix, qom_modules[i].module, true);
+        module_load_one("", modinfo->name, false);
     }
     module_loaded_qom_all = true;
 }
+
+#else
+
+void module_load_qom_one(const char *type) {}
+void module_load_qom_all(void) {}
+
+#endif
