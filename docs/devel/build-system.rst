@@ -272,6 +272,23 @@ Target-dependent emulator sourcesets:
     target_arch += {'arm': arm_ss}
     target_softmmu_arch += {'arm': arm_softmmu_ss}
 
+Module sourcesets:
+  There are two dictionaries for modules: `modules` is used for
+  target-independent modules and `target_modules` is used for
+  target-dependent modules.  When modules are disabled the `module`
+  source sets are added to `softmmu_ss` and the `target_modules`
+  source sets are added to `specific_ss`.
+
+  Both dictionaries are nested.  One dictionary is created per
+  subdirectory, and these per-subdirectory dictionaries are added to
+  the toplevel dictionaries.  For example::
+
+    hw_display_modules = {}
+    qxl_ss = ss.source_set()
+    ...
+    hw_display_modules += { 'qxl': qxl_ss }
+    modules += { 'hw-display': hw_display_modules }
+
 Utility sourcesets:
   All binaries link with a static library `libqemuutil.a`.  This library
   is built from several sourcesets; most of them however host generated
