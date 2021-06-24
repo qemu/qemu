@@ -132,32 +132,75 @@ static void gen_preserve_fp_state(DisasContext *s)
 }
 
 /*
- * Check that VFP access is enabled. If it is, do the necessary
- * M-profile lazy-FP handling and then return true.
- * If not, emit code to generate an appropriate exception and
- * return false.
+ * Generate code for M-profile FP context handling: update the
+ * ownership of the FP context, and create a new context if
+ * necessary. This corresponds to the parts of the pseudocode
+ * ExecuteFPCheck() after the inital PreserveFPState() call.
+ */
+static void gen_update_fp_context(DisasContext *s)
+{
+    /* Update ownership of FP context: set FPCCR.S to match current state */
+    if (s->v8m_fpccr_s_wrong) {
+        TCGv_i32 tmp;
+
+        tmp = load_cpu_field(v7m.fpccr[M_REG_S]);
+        if (s->v8m_secure) {
+            tcg_gen_ori_i32(tmp, tmp, R_V7M_FPCCR_S_MASK);
+        } else {
+            tcg_gen_andi_i32(tmp, tmp, ~R_V7M_FPCCR_S_MASK);
+        }
+        store_cpu_field(tmp, v7m.fpccr[M_REG_S]);
+        /* Don't need to do this for any further FP insns in this TB */
+        s->v8m_fpccr_s_wrong = false;
+    }
+
+    if (s->v7m_new_fp_ctxt_needed) {
+        /*
+         * Create new FP context by updating CONTROL.FPCA, CONTROL.SFPA,
+         * the FPSCR, and VPR.
+         */
+        TCGv_i32 control, fpscr;
+        uint32_t bits = R_V7M_CONTROL_FPCA_MASK;
+
+        fpscr = load_cpu_field(v7m.fpdscr[s->v8m_secure]);
+        gen_helper_vfp_set_fpscr(cpu_env, fpscr);
+        tcg_temp_free_i32(fpscr);
+        if (dc_isar_feature(aa32_mve, s)) {
+            TCGv_i32 z32 = tcg_const_i32(0);
+            store_cpu_field(z32, v7m.vpr);
+        }
+
+        /*
+         * We don't need to arrange to end the TB, because the only
+         * parts of FPSCR which we cache in the TB flags are the VECLEN
+         * and VECSTRIDE, and those don't exist for M-profile.
+         */
+
+        if (s->v8m_secure) {
+            bits |= R_V7M_CONTROL_SFPA_MASK;
+        }
+        control = load_cpu_field(v7m.control[M_REG_S]);
+        tcg_gen_ori_i32(control, control, bits);
+        store_cpu_field(control, v7m.control[M_REG_S]);
+        /* Don't need to do this for any further FP insns in this TB */
+        s->v7m_new_fp_ctxt_needed = false;
+    }
+}
+
+/*
+ * Check that VFP access is enabled, A-profile specific version.
+ *
+ * If VFP is enabled, return true. If not, emit code to generate an
+ * appropriate exception and return false.
  * The ignore_vfp_enabled argument specifies that we should ignore
- * whether VFP is enabled via FPEXC[EN]: this should be true for FMXR/FMRX
+ * whether VFP is enabled via FPEXC.EN: this should be true for FMXR/FMRX
  * accesses to FPSID, FPEXC, MVFR0, MVFR1, MVFR2, and false for all other insns.
  */
-static bool full_vfp_access_check(DisasContext *s, bool ignore_vfp_enabled)
+static bool vfp_access_check_a(DisasContext *s, bool ignore_vfp_enabled)
 {
     if (s->fp_excp_el) {
-        if (arm_dc_feature(s, ARM_FEATURE_M)) {
-            /*
-             * M-profile mostly catches the "FPU disabled" case early, in
-             * disas_m_nocp(), but a few insns (eg LCTP, WLSTP, DLSTP)
-             * which do coprocessor-checks are outside the large ranges of
-             * the encoding space handled by the patterns in m-nocp.decode,
-             * and for them we may need to raise NOCP here.
-             */
-            gen_exception_insn(s, s->pc_curr, EXCP_NOCP,
-                               syn_uncategorized(), s->fp_excp_el);
-        } else {
-            gen_exception_insn(s, s->pc_curr, EXCP_UDEF,
-                               syn_fp_access_trap(1, 0xe, false),
-                               s->fp_excp_el);
-        }
+        gen_exception_insn(s, s->pc_curr, EXCP_UDEF,
+                           syn_fp_access_trap(1, 0xe, false), s->fp_excp_el);
         return false;
     }
 
@@ -166,59 +209,40 @@ static bool full_vfp_access_check(DisasContext *s, bool ignore_vfp_enabled)
         unallocated_encoding(s);
         return false;
     }
+    return true;
+}
 
-    if (arm_dc_feature(s, ARM_FEATURE_M)) {
-        /* Handle M-profile lazy FP state mechanics */
+/*
+ * Check that VFP access is enabled, M-profile specific version.
+ *
+ * If VFP is enabled, do the necessary M-profile lazy-FP handling and then
+ * return true. If not, emit code to generate an appropriate exception and
+ * return false.
+ * skip_context_update is true to skip the "update FP context" part of this.
+ */
+bool vfp_access_check_m(DisasContext *s, bool skip_context_update)
+{
+    if (s->fp_excp_el) {
+        /*
+         * M-profile mostly catches the "FPU disabled" case early, in
+         * disas_m_nocp(), but a few insns (eg LCTP, WLSTP, DLSTP)
+         * which do coprocessor-checks are outside the large ranges of
+         * the encoding space handled by the patterns in m-nocp.decode,
+         * and for them we may need to raise NOCP here.
+         */
+        gen_exception_insn(s, s->pc_curr, EXCP_NOCP,
+                           syn_uncategorized(), s->fp_excp_el);
+        return false;
+    }
 
-        /* Trigger lazy-state preservation if necessary */
-        gen_preserve_fp_state(s);
+    /* Handle M-profile lazy FP state mechanics */
 
-        /* Update ownership of FP context: set FPCCR.S to match current state */
-        if (s->v8m_fpccr_s_wrong) {
-            TCGv_i32 tmp;
+    /* Trigger lazy-state preservation if necessary */
+    gen_preserve_fp_state(s);
 
-            tmp = load_cpu_field(v7m.fpccr[M_REG_S]);
-            if (s->v8m_secure) {
-                tcg_gen_ori_i32(tmp, tmp, R_V7M_FPCCR_S_MASK);
-            } else {
-                tcg_gen_andi_i32(tmp, tmp, ~R_V7M_FPCCR_S_MASK);
-            }
-            store_cpu_field(tmp, v7m.fpccr[M_REG_S]);
-            /* Don't need to do this for any further FP insns in this TB */
-            s->v8m_fpccr_s_wrong = false;
-        }
-
-        if (s->v7m_new_fp_ctxt_needed) {
-            /*
-             * Create new FP context by updating CONTROL.FPCA, CONTROL.SFPA,
-             * the FPSCR, and VPR.
-             */
-            TCGv_i32 control, fpscr;
-            uint32_t bits = R_V7M_CONTROL_FPCA_MASK;
-
-            fpscr = load_cpu_field(v7m.fpdscr[s->v8m_secure]);
-            gen_helper_vfp_set_fpscr(cpu_env, fpscr);
-            tcg_temp_free_i32(fpscr);
-            if (dc_isar_feature(aa32_mve, s)) {
-                TCGv_i32 z32 = tcg_const_i32(0);
-                store_cpu_field(z32, v7m.vpr);
-            }
-
-            /*
-             * We don't need to arrange to end the TB, because the only
-             * parts of FPSCR which we cache in the TB flags are the VECLEN
-             * and VECSTRIDE, and those don't exist for M-profile.
-             */
-
-            if (s->v8m_secure) {
-                bits |= R_V7M_CONTROL_SFPA_MASK;
-            }
-            control = load_cpu_field(v7m.control[M_REG_S]);
-            tcg_gen_ori_i32(control, control, bits);
-            store_cpu_field(control, v7m.control[M_REG_S]);
-            /* Don't need to do this for any further FP insns in this TB */
-            s->v7m_new_fp_ctxt_needed = false;
-        }
+    if (!skip_context_update) {
+        /* Update ownership of FP context and create new FP context if needed */
+        gen_update_fp_context(s);
     }
 
     return true;
@@ -230,7 +254,11 @@ static bool full_vfp_access_check(DisasContext *s, bool ignore_vfp_enabled)
  */
 bool vfp_access_check(DisasContext *s)
 {
-    return full_vfp_access_check(s, false);
+    if (arm_dc_feature(s, ARM_FEATURE_M)) {
+        return vfp_access_check_m(s, false);
+    } else {
+        return vfp_access_check_a(s, false);
+    }
 }
 
 static bool trans_VSEL(DisasContext *s, arg_VSEL *a)
@@ -553,6 +581,48 @@ static bool trans_VCVT(DisasContext *s, arg_VCVT *a)
     return true;
 }
 
+static bool mve_skip_vmov(DisasContext *s, int vn, int index, int size)
+{
+    /*
+     * In a CPU with MVE, the VMOV (vector lane to general-purpose register)
+     * and VMOV (general-purpose register to vector lane) insns are not
+     * predicated, but they are subject to beatwise execution if they are
+     * not in an IT block.
+     *
+     * Since our implementation always executes all 4 beats in one tick,
+     * this means only that if PSR.ECI says we should not be executing
+     * the beat corresponding to the lane of the vector register being
+     * accessed then we should skip performing the move, and that we need
+     * to do the usual check for bad ECI state and advance of ECI state.
+     *
+     * Note that if PSR.ECI is non-zero then we cannot be in an IT block.
+     *
+     * Return true if this VMOV scalar <-> gpreg should be skipped because
+     * the MVE PSR.ECI state says we skip the beat where the store happens.
+     */
+
+    /* Calculate the byte offset into Qn which we're going to access */
+    int ofs = (index << size) + ((vn & 1) * 8);
+
+    if (!dc_isar_feature(aa32_mve, s)) {
+        return false;
+    }
+
+    switch (s->eci) {
+    case ECI_NONE:
+        return false;
+    case ECI_A0:
+        return ofs < 4;
+    case ECI_A0A1:
+        return ofs < 8;
+    case ECI_A0A1A2:
+    case ECI_A0A1A2B0:
+        return ofs < 12;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static bool trans_VMOV_to_gp(DisasContext *s, arg_VMOV_to_gp *a)
 {
     /* VMOV scalar to general purpose register */
@@ -575,14 +645,26 @@ static bool trans_VMOV_to_gp(DisasContext *s, arg_VMOV_to_gp *a)
         return false;
     }
 
+    if (dc_isar_feature(aa32_mve, s)) {
+        if (!mve_eci_check(s)) {
+            return true;
+        }
+    }
+
     if (!vfp_access_check(s)) {
         return true;
     }
 
-    tmp = tcg_temp_new_i32();
-    read_neon_element32(tmp, a->vn, a->index, a->size | (a->u ? 0 : MO_SIGN));
-    store_reg(s, a->rt, tmp);
+    if (!mve_skip_vmov(s, a->vn, a->index, a->size)) {
+        tmp = tcg_temp_new_i32();
+        read_neon_element32(tmp, a->vn, a->index,
+                            a->size | (a->u ? 0 : MO_SIGN));
+        store_reg(s, a->rt, tmp);
+    }
 
+    if (dc_isar_feature(aa32_mve, s)) {
+        mve_update_and_store_eci(s);
+    }
     return true;
 }
 
@@ -608,14 +690,25 @@ static bool trans_VMOV_from_gp(DisasContext *s, arg_VMOV_from_gp *a)
         return false;
     }
 
+    if (dc_isar_feature(aa32_mve, s)) {
+        if (!mve_eci_check(s)) {
+            return true;
+        }
+    }
+
     if (!vfp_access_check(s)) {
         return true;
     }
 
-    tmp = load_reg(s, a->rt);
-    write_neon_element32(tmp, a->vn, a->index, a->size);
-    tcg_temp_free_i32(tmp);
+    if (!mve_skip_vmov(s, a->vn, a->index, a->size)) {
+        tmp = load_reg(s, a->rt);
+        write_neon_element32(tmp, a->vn, a->index, a->size);
+        tcg_temp_free_i32(tmp);
+    }
 
+    if (dc_isar_feature(aa32_mve, s)) {
+        mve_update_and_store_eci(s);
+    }
     return true;
 }
 
@@ -663,408 +756,14 @@ static bool trans_VDUP(DisasContext *s, arg_VDUP *a)
     return true;
 }
 
-/*
- * M-profile provides two different sets of instructions that can
- * access floating point system registers: VMSR/VMRS (which move
- * to/from a general purpose register) and VLDR/VSTR sysreg (which
- * move directly to/from memory). In some cases there are also side
- * effects which must happen after any write to memory (which could
- * cause an exception). So we implement the common logic for the
- * sysreg access in gen_M_fp_sysreg_write() and gen_M_fp_sysreg_read(),
- * which take pointers to callback functions which will perform the
- * actual "read/write general purpose register" and "read/write
- * memory" operations.
- */
-
-/*
- * Emit code to store the sysreg to its final destination; frees the
- * TCG temp 'value' it is passed.
- */
-typedef void fp_sysreg_storefn(DisasContext *s, void *opaque, TCGv_i32 value);
-/*
- * Emit code to load the value to be copied to the sysreg; returns
- * a new TCG temporary
- */
-typedef TCGv_i32 fp_sysreg_loadfn(DisasContext *s, void *opaque);
-
-/* Common decode/access checks for fp sysreg read/write */
-typedef enum FPSysRegCheckResult {
-    FPSysRegCheckFailed, /* caller should return false */
-    FPSysRegCheckDone, /* caller should return true */
-    FPSysRegCheckContinue, /* caller should continue generating code */
-} FPSysRegCheckResult;
-
-static FPSysRegCheckResult fp_sysreg_checks(DisasContext *s, int regno)
-{
-    if (!dc_isar_feature(aa32_fpsp_v2, s) && !dc_isar_feature(aa32_mve, s)) {
-        return FPSysRegCheckFailed;
-    }
-
-    switch (regno) {
-    case ARM_VFP_FPSCR:
-    case QEMU_VFP_FPSCR_NZCV:
-        break;
-    case ARM_VFP_FPSCR_NZCVQC:
-        if (!arm_dc_feature(s, ARM_FEATURE_V8_1M)) {
-            return FPSysRegCheckFailed;
-        }
-        break;
-    case ARM_VFP_FPCXT_S:
-    case ARM_VFP_FPCXT_NS:
-        if (!arm_dc_feature(s, ARM_FEATURE_V8_1M)) {
-            return FPSysRegCheckFailed;
-        }
-        if (!s->v8m_secure) {
-            return FPSysRegCheckFailed;
-        }
-        break;
-    case ARM_VFP_VPR:
-    case ARM_VFP_P0:
-        if (!dc_isar_feature(aa32_mve, s)) {
-            return FPSysRegCheckFailed;
-        }
-        break;
-    default:
-        return FPSysRegCheckFailed;
-    }
-
-    /*
-     * FPCXT_NS is a special case: it has specific handling for
-     * "current FP state is inactive", and must do the PreserveFPState()
-     * but not the usual full set of actions done by ExecuteFPCheck().
-     * So we don't call vfp_access_check() and the callers must handle this.
-     */
-    if (regno != ARM_VFP_FPCXT_NS && !vfp_access_check(s)) {
-        return FPSysRegCheckDone;
-    }
-    return FPSysRegCheckContinue;
-}
-
-static void gen_branch_fpInactive(DisasContext *s, TCGCond cond,
-                                  TCGLabel *label)
-{
-    /*
-     * FPCXT_NS is a special case: it has specific handling for
-     * "current FP state is inactive", and must do the PreserveFPState()
-     * but not the usual full set of actions done by ExecuteFPCheck().
-     * We don't have a TB flag that matches the fpInactive check, so we
-     * do it at runtime as we don't expect FPCXT_NS accesses to be frequent.
-     *
-     * Emit code that checks fpInactive and does a conditional
-     * branch to label based on it:
-     *  if cond is TCG_COND_NE then branch if fpInactive != 0 (ie if inactive)
-     *  if cond is TCG_COND_EQ then branch if fpInactive == 0 (ie if active)
-     */
-    assert(cond == TCG_COND_EQ || cond == TCG_COND_NE);
-
-    /* fpInactive = FPCCR_NS.ASPEN == 1 && CONTROL.FPCA == 0 */
-    TCGv_i32 aspen, fpca;
-    aspen = load_cpu_field(v7m.fpccr[M_REG_NS]);
-    fpca = load_cpu_field(v7m.control[M_REG_S]);
-    tcg_gen_andi_i32(aspen, aspen, R_V7M_FPCCR_ASPEN_MASK);
-    tcg_gen_xori_i32(aspen, aspen, R_V7M_FPCCR_ASPEN_MASK);
-    tcg_gen_andi_i32(fpca, fpca, R_V7M_CONTROL_FPCA_MASK);
-    tcg_gen_or_i32(fpca, fpca, aspen);
-    tcg_gen_brcondi_i32(tcg_invert_cond(cond), fpca, 0, label);
-    tcg_temp_free_i32(aspen);
-    tcg_temp_free_i32(fpca);
-}
-
-static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
-
-                                  fp_sysreg_loadfn *loadfn,
-                                 void *opaque)
-{
-    /* Do a write to an M-profile floating point system register */
-    TCGv_i32 tmp;
-    TCGLabel *lab_end = NULL;
-
-    switch (fp_sysreg_checks(s, regno)) {
-    case FPSysRegCheckFailed:
-        return false;
-    case FPSysRegCheckDone:
-        return true;
-    case FPSysRegCheckContinue:
-        break;
-    }
-
-    switch (regno) {
-    case ARM_VFP_FPSCR:
-        tmp = loadfn(s, opaque);
-        gen_helper_vfp_set_fpscr(cpu_env, tmp);
-        tcg_temp_free_i32(tmp);
-        gen_lookup_tb(s);
-        break;
-    case ARM_VFP_FPSCR_NZCVQC:
-    {
-        TCGv_i32 fpscr;
-        tmp = loadfn(s, opaque);
-        if (dc_isar_feature(aa32_mve, s)) {
-            /* QC is only present for MVE; otherwise RES0 */
-            TCGv_i32 qc = tcg_temp_new_i32();
-            tcg_gen_andi_i32(qc, tmp, FPCR_QC);
-            /*
-             * The 4 vfp.qc[] fields need only be "zero" vs "non-zero";
-             * here writing the same value into all elements is simplest.
-             */
-            tcg_gen_gvec_dup_i32(MO_32, offsetof(CPUARMState, vfp.qc),
-                                 16, 16, qc);
-        }
-        tcg_gen_andi_i32(tmp, tmp, FPCR_NZCV_MASK);
-        fpscr = load_cpu_field(vfp.xregs[ARM_VFP_FPSCR]);
-        tcg_gen_andi_i32(fpscr, fpscr, ~FPCR_NZCV_MASK);
-        tcg_gen_or_i32(fpscr, fpscr, tmp);
-        store_cpu_field(fpscr, vfp.xregs[ARM_VFP_FPSCR]);
-        tcg_temp_free_i32(tmp);
-        break;
-    }
-    case ARM_VFP_FPCXT_NS:
-        lab_end = gen_new_label();
-        /* fpInactive case: write is a NOP, so branch to end */
-        gen_branch_fpInactive(s, TCG_COND_NE, lab_end);
-        /* !fpInactive: PreserveFPState(), and reads same as FPCXT_S */
-        gen_preserve_fp_state(s);
-        /* fall through */
-    case ARM_VFP_FPCXT_S:
-    {
-        TCGv_i32 sfpa, control;
-        /*
-         * Set FPSCR and CONTROL.SFPA from value; the new FPSCR takes
-         * bits [27:0] from value and zeroes bits [31:28].
-         */
-        tmp = loadfn(s, opaque);
-        sfpa = tcg_temp_new_i32();
-        tcg_gen_shri_i32(sfpa, tmp, 31);
-        control = load_cpu_field(v7m.control[M_REG_S]);
-        tcg_gen_deposit_i32(control, control, sfpa,
-                            R_V7M_CONTROL_SFPA_SHIFT, 1);
-        store_cpu_field(control, v7m.control[M_REG_S]);
-        tcg_gen_andi_i32(tmp, tmp, ~FPCR_NZCV_MASK);
-        gen_helper_vfp_set_fpscr(cpu_env, tmp);
-        tcg_temp_free_i32(tmp);
-        tcg_temp_free_i32(sfpa);
-        break;
-    }
-    case ARM_VFP_VPR:
-        /* Behaves as NOP if not privileged */
-        if (IS_USER(s)) {
-            break;
-        }
-        tmp = loadfn(s, opaque);
-        store_cpu_field(tmp, v7m.vpr);
-        break;
-    case ARM_VFP_P0:
-    {
-        TCGv_i32 vpr;
-        tmp = loadfn(s, opaque);
-        vpr = load_cpu_field(v7m.vpr);
-        tcg_gen_deposit_i32(vpr, vpr, tmp,
-                            R_V7M_VPR_P0_SHIFT, R_V7M_VPR_P0_LENGTH);
-        store_cpu_field(vpr, v7m.vpr);
-        tcg_temp_free_i32(tmp);
-        break;
-    }
-    default:
-        g_assert_not_reached();
-    }
-    if (lab_end) {
-        gen_set_label(lab_end);
-    }
-    return true;
-}
-
-static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
-                                fp_sysreg_storefn *storefn,
-                                void *opaque)
-{
-    /* Do a read from an M-profile floating point system register */
-    TCGv_i32 tmp;
-    TCGLabel *lab_end = NULL;
-    bool lookup_tb = false;
-
-    switch (fp_sysreg_checks(s, regno)) {
-    case FPSysRegCheckFailed:
-        return false;
-    case FPSysRegCheckDone:
-        return true;
-    case FPSysRegCheckContinue:
-        break;
-    }
-
-    if (regno == ARM_VFP_FPSCR_NZCVQC && !dc_isar_feature(aa32_mve, s)) {
-        /* QC is RES0 without MVE, so NZCVQC simplifies to NZCV */
-        regno = QEMU_VFP_FPSCR_NZCV;
-    }
-
-    switch (regno) {
-    case ARM_VFP_FPSCR:
-        tmp = tcg_temp_new_i32();
-        gen_helper_vfp_get_fpscr(tmp, cpu_env);
-        storefn(s, opaque, tmp);
-        break;
-    case ARM_VFP_FPSCR_NZCVQC:
-        tmp = tcg_temp_new_i32();
-        gen_helper_vfp_get_fpscr(tmp, cpu_env);
-        tcg_gen_andi_i32(tmp, tmp, FPCR_NZCVQC_MASK);
-        storefn(s, opaque, tmp);
-        break;
-    case QEMU_VFP_FPSCR_NZCV:
-        /*
-         * Read just NZCV; this is a special case to avoid the
-         * helper call for the "VMRS to CPSR.NZCV" insn.
-         */
-        tmp = load_cpu_field(vfp.xregs[ARM_VFP_FPSCR]);
-        tcg_gen_andi_i32(tmp, tmp, FPCR_NZCV_MASK);
-        storefn(s, opaque, tmp);
-        break;
-    case ARM_VFP_FPCXT_S:
-    {
-        TCGv_i32 control, sfpa, fpscr;
-        /* Bits [27:0] from FPSCR, bit [31] from CONTROL.SFPA */
-        tmp = tcg_temp_new_i32();
-        sfpa = tcg_temp_new_i32();
-        gen_helper_vfp_get_fpscr(tmp, cpu_env);
-        tcg_gen_andi_i32(tmp, tmp, ~FPCR_NZCV_MASK);
-        control = load_cpu_field(v7m.control[M_REG_S]);
-        tcg_gen_andi_i32(sfpa, control, R_V7M_CONTROL_SFPA_MASK);
-        tcg_gen_shli_i32(sfpa, sfpa, 31 - R_V7M_CONTROL_SFPA_SHIFT);
-        tcg_gen_or_i32(tmp, tmp, sfpa);
-        tcg_temp_free_i32(sfpa);
-        /*
-         * Store result before updating FPSCR etc, in case
-         * it is a memory write which causes an exception.
-         */
-        storefn(s, opaque, tmp);
-        /*
-         * Now we must reset FPSCR from FPDSCR_NS, and clear
-         * CONTROL.SFPA; so we'll end the TB here.
-         */
-        tcg_gen_andi_i32(control, control, ~R_V7M_CONTROL_SFPA_MASK);
-        store_cpu_field(control, v7m.control[M_REG_S]);
-        fpscr = load_cpu_field(v7m.fpdscr[M_REG_NS]);
-        gen_helper_vfp_set_fpscr(cpu_env, fpscr);
-        tcg_temp_free_i32(fpscr);
-        lookup_tb = true;
-        break;
-    }
-    case ARM_VFP_FPCXT_NS:
-    {
-        TCGv_i32 control, sfpa, fpscr, fpdscr, zero;
-        TCGLabel *lab_active = gen_new_label();
-
-        lookup_tb = true;
-
-        gen_branch_fpInactive(s, TCG_COND_EQ, lab_active);
-        /* fpInactive case: reads as FPDSCR_NS */
-        TCGv_i32 tmp = load_cpu_field(v7m.fpdscr[M_REG_NS]);
-        storefn(s, opaque, tmp);
-        lab_end = gen_new_label();
-        tcg_gen_br(lab_end);
-
-        gen_set_label(lab_active);
-        /* !fpInactive: Reads the same as FPCXT_S, but side effects differ */
-        gen_preserve_fp_state(s);
-        tmp = tcg_temp_new_i32();
-        sfpa = tcg_temp_new_i32();
-        fpscr = tcg_temp_new_i32();
-        gen_helper_vfp_get_fpscr(fpscr, cpu_env);
-        tcg_gen_andi_i32(tmp, fpscr, ~FPCR_NZCV_MASK);
-        control = load_cpu_field(v7m.control[M_REG_S]);
-        tcg_gen_andi_i32(sfpa, control, R_V7M_CONTROL_SFPA_MASK);
-        tcg_gen_shli_i32(sfpa, sfpa, 31 - R_V7M_CONTROL_SFPA_SHIFT);
-        tcg_gen_or_i32(tmp, tmp, sfpa);
-        tcg_temp_free_i32(control);
-        /* Store result before updating FPSCR, in case it faults */
-        storefn(s, opaque, tmp);
-        /* If SFPA is zero then set FPSCR from FPDSCR_NS */
-        fpdscr = load_cpu_field(v7m.fpdscr[M_REG_NS]);
-        zero = tcg_const_i32(0);
-        tcg_gen_movcond_i32(TCG_COND_EQ, fpscr, sfpa, zero, fpdscr, fpscr);
-        gen_helper_vfp_set_fpscr(cpu_env, fpscr);
-        tcg_temp_free_i32(zero);
-        tcg_temp_free_i32(sfpa);
-        tcg_temp_free_i32(fpdscr);
-        tcg_temp_free_i32(fpscr);
-        break;
-    }
-    case ARM_VFP_VPR:
-        /* Behaves as NOP if not privileged */
-        if (IS_USER(s)) {
-            break;
-        }
-        tmp = load_cpu_field(v7m.vpr);
-        storefn(s, opaque, tmp);
-        break;
-    case ARM_VFP_P0:
-        tmp = load_cpu_field(v7m.vpr);
-        tcg_gen_extract_i32(tmp, tmp, R_V7M_VPR_P0_SHIFT, R_V7M_VPR_P0_LENGTH);
-        storefn(s, opaque, tmp);
-        break;
-    default:
-        g_assert_not_reached();
-    }
-
-    if (lab_end) {
-        gen_set_label(lab_end);
-    }
-    if (lookup_tb) {
-        gen_lookup_tb(s);
-    }
-    return true;
-}
-
-static void fp_sysreg_to_gpr(DisasContext *s, void *opaque, TCGv_i32 value)
-{
-    arg_VMSR_VMRS *a = opaque;
-
-    if (a->rt == 15) {
-        /* Set the 4 flag bits in the CPSR */
-        gen_set_nzcv(value);
-        tcg_temp_free_i32(value);
-    } else {
-        store_reg(s, a->rt, value);
-    }
-}
-
-static TCGv_i32 gpr_to_fp_sysreg(DisasContext *s, void *opaque)
-{
-    arg_VMSR_VMRS *a = opaque;
-
-    return load_reg(s, a->rt);
-}
-
-static bool gen_M_VMSR_VMRS(DisasContext *s, arg_VMSR_VMRS *a)
-{
-    /*
-     * Accesses to R15 are UNPREDICTABLE; we choose to undef.
-     * FPSCR -> r15 is a special case which writes to the PSR flags;
-     * set a->reg to a special value to tell gen_M_fp_sysreg_read()
-     * we only care about the top 4 bits of FPSCR there.
-     */
-    if (a->rt == 15) {
-        if (a->l && a->reg == ARM_VFP_FPSCR) {
-            a->reg = QEMU_VFP_FPSCR_NZCV;
-        } else {
-            return false;
-        }
-    }
-
-    if (a->l) {
-        /* VMRS, move FP system register to gp register */
-        return gen_M_fp_sysreg_read(s, a->reg, fp_sysreg_to_gpr, a);
-    } else {
-        /* VMSR, move gp register to FP system register */
-        return gen_M_fp_sysreg_write(s, a->reg, gpr_to_fp_sysreg, a);
-    }
-}
-
 static bool trans_VMSR_VMRS(DisasContext *s, arg_VMSR_VMRS *a)
 {
     TCGv_i32 tmp;
     bool ignore_vfp_enabled = false;
 
     if (arm_dc_feature(s, ARM_FEATURE_M)) {
-        return gen_M_VMSR_VMRS(s, a);
+        /* M profile version was already handled in m-nocp.decode */
+        return false;
     }
 
     if (!dc_isar_feature(aa32_fpsp_v2, s)) {
@@ -1114,7 +813,11 @@ static bool trans_VMSR_VMRS(DisasContext *s, arg_VMSR_VMRS *a)
         return false;
     }
 
-    if (!full_vfp_access_check(s, ignore_vfp_enabled)) {
+    /*
+     * Call vfp_access_check_a() directly, because we need to tell
+     * it to ignore FPEXC.EN for some register accesses.
+     */
+    if (!vfp_access_check_a(s, ignore_vfp_enabled)) {
         return true;
     }
 
@@ -1200,96 +903,6 @@ static bool trans_VMSR_VMRS(DisasContext *s, arg_VMSR_VMRS *a)
     return true;
 }
 
-static void fp_sysreg_to_memory(DisasContext *s, void *opaque, TCGv_i32 value)
-{
-    arg_vldr_sysreg *a = opaque;
-    uint32_t offset = a->imm;
-    TCGv_i32 addr;
-
-    if (!a->a) {
-        offset = - offset;
-    }
-
-    addr = load_reg(s, a->rn);
-    if (a->p) {
-        tcg_gen_addi_i32(addr, addr, offset);
-    }
-
-    if (s->v8m_stackcheck && a->rn == 13 && a->w) {
-        gen_helper_v8m_stackcheck(cpu_env, addr);
-    }
-
-    gen_aa32_st_i32(s, value, addr, get_mem_index(s),
-                    MO_UL | MO_ALIGN | s->be_data);
-    tcg_temp_free_i32(value);
-
-    if (a->w) {
-        /* writeback */
-        if (!a->p) {
-            tcg_gen_addi_i32(addr, addr, offset);
-        }
-        store_reg(s, a->rn, addr);
-    } else {
-        tcg_temp_free_i32(addr);
-    }
-}
-
-static TCGv_i32 memory_to_fp_sysreg(DisasContext *s, void *opaque)
-{
-    arg_vldr_sysreg *a = opaque;
-    uint32_t offset = a->imm;
-    TCGv_i32 addr;
-    TCGv_i32 value = tcg_temp_new_i32();
-
-    if (!a->a) {
-        offset = - offset;
-    }
-
-    addr = load_reg(s, a->rn);
-    if (a->p) {
-        tcg_gen_addi_i32(addr, addr, offset);
-    }
-
-    if (s->v8m_stackcheck && a->rn == 13 && a->w) {
-        gen_helper_v8m_stackcheck(cpu_env, addr);
-    }
-
-    gen_aa32_ld_i32(s, value, addr, get_mem_index(s),
-                    MO_UL | MO_ALIGN | s->be_data);
-
-    if (a->w) {
-        /* writeback */
-        if (!a->p) {
-            tcg_gen_addi_i32(addr, addr, offset);
-        }
-        store_reg(s, a->rn, addr);
-    } else {
-        tcg_temp_free_i32(addr);
-    }
-    return value;
-}
-
-static bool trans_VLDR_sysreg(DisasContext *s, arg_vldr_sysreg *a)
-{
-    if (!arm_dc_feature(s, ARM_FEATURE_V8_1M)) {
-        return false;
-    }
-    if (a->rn == 15) {
-        return false;
-    }
-    return gen_M_fp_sysreg_write(s, a->reg, memory_to_fp_sysreg, a);
-}
-
-static bool trans_VSTR_sysreg(DisasContext *s, arg_vldr_sysreg *a)
-{
-    if (!arm_dc_feature(s, ARM_FEATURE_V8_1M)) {
-        return false;
-    }
-    if (a->rn == 15) {
-        return false;
-    }
-    return gen_M_fp_sysreg_read(s, a->reg, fp_sysreg_to_memory, a);
-}
 
 static bool trans_VMOV_half(DisasContext *s, arg_VMOV_single *a)
 {

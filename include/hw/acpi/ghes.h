@@ -64,6 +64,7 @@ enum {
 
 typedef struct AcpiGhesState {
     uint64_t ghes_addr_le;
+    bool present; /* True if GHES is present at all on this board */
 } AcpiGhesState;
 
 void build_ghes_error_table(GArray *hardware_errors, BIOSLinker *linker);
@@ -72,4 +73,12 @@ void acpi_build_hest(GArray *table_data, BIOSLinker *linker,
 void acpi_ghes_add_fw_cfg(AcpiGhesState *vms, FWCfgState *s,
                           GArray *hardware_errors);
 int acpi_ghes_record_errors(uint8_t notify, uint64_t error_physical_addr);
+
+/**
+ * acpi_ghes_present: Report whether ACPI GHES table is present
+ *
+ * Returns: true if the system has an ACPI GHES table and it is
+ * safe to call acpi_ghes_record_errors() to record a memory error.
+ */
+bool acpi_ghes_present(void);
 #endif
