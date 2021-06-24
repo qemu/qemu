@@ -24,6 +24,7 @@
 #ifdef CONFIG_MODULE_UPGRADES
 #include "qemu-version.h"
 #endif
+#include "trace.h"
 
 typedef struct ModuleEntry
 {
@@ -176,6 +177,7 @@ static int module_load_file(const char *fname, bool mayfail, bool export_symbols
         ret = 0;
     }
 
+    trace_module_load_module(fname);
     QTAILQ_FOREACH_SAFE(e, &dso_init_list, node, next) {
         QTAILQ_REMOVE(&dso_init_list, e, node);
         g_free(e);
@@ -294,6 +296,7 @@ void module_load_qom_one(const char *type)
         return;
     }
 
+    trace_module_lookup_object_type(type);
     for (modinfo = module_info; modinfo->name != NULL; modinfo++) {
         if (!modinfo->objs) {
             continue;
