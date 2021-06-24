@@ -1084,6 +1084,12 @@ static void do_open(fuse_req_t req, fuse_ino_t nodeid,
         return;
     }
 
+    /* File creation is handled by do_create() or do_mknod() */
+    if (arg->flags & (O_CREAT | O_TMPFILE)) {
+        fuse_reply_err(req, EINVAL);
+        return;
+    }
+
     memset(&fi, 0, sizeof(fi));
     fi.flags = arg->flags;
     fi.kill_priv = arg->open_flags & FUSE_OPEN_KILL_SUIDGID;
