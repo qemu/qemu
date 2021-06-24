@@ -1037,3 +1037,8 @@ static void spice_register_config(void)
     qemu_add_opts(&qemu_spice_opts);
 }
 opts_init(spice_register_config);
+module_opts("spice");
+
+#ifdef CONFIG_OPENGL
+module_dep("ui-opengl");
+#endif
