@@ -420,6 +420,8 @@ void tcg_gen_vec_sar16i_i32(TCGv_i32 d, TCGv_i32 a, int32_t);
 #define tcg_gen_vec_sub8_tl  tcg_gen_vec_sub8_i64
 #define tcg_gen_vec_add16_tl tcg_gen_vec_add16_i64
 #define tcg_gen_vec_sub16_tl tcg_gen_vec_sub16_i64
+#define tcg_gen_vec_add32_tl tcg_gen_vec_add32_i64
+#define tcg_gen_vec_sub32_tl tcg_gen_vec_sub32_i64
 #define tcg_gen_vec_shl8i_tl tcg_gen_vec_shl8i_i64
 #define tcg_gen_vec_shr8i_tl tcg_gen_vec_shr8i_i64
 #define tcg_gen_vec_sar8i_tl tcg_gen_vec_sar8i_i64
@@ -432,6 +434,8 @@ void tcg_gen_vec_sar16i_i32(TCGv_i32 d, TCGv_i32 a, int32_t);
 #define tcg_gen_vec_sub8_tl  tcg_gen_vec_sub8_i32
 #define tcg_gen_vec_add16_tl tcg_gen_vec_add16_i32
 #define tcg_gen_vec_sub16_tl tcg_gen_vec_sub16_i32
+#define tcg_gen_vec_add32_tl tcg_gen_add_i32
+#define tcg_gen_vec_sub32_tl tcg_gen_sub_i32
 #define tcg_gen_vec_shl8i_tl tcg_gen_vec_shl8i_i32
 #define tcg_gen_vec_shr8i_tl tcg_gen_vec_shr8i_i32
 #define tcg_gen_vec_sar8i_tl tcg_gen_vec_sar8i_i32
