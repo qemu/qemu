@@ -452,14 +452,15 @@ static void block_copy_handle_copy_range_result(BlockCopyState *s,
 static coroutine_fn int block_copy_task_entry(AioTask *task)
 {
     BlockCopyTask *t = container_of(task, BlockCopyTask, task);
+    BlockCopyState *s = t->s;
     bool error_is_read = false;
     bool copy_range = t->copy_range;
     int ret;
 
-    ret = block_copy_do_copy(t->s, t->offset, t->bytes, t->zeroes,
+    ret = block_copy_do_copy(s, t->offset, t->bytes, t->zeroes,
                              &copy_range, &error_is_read);
     if (t->copy_range) {
-        block_copy_handle_copy_range_result(t->s, copy_range);
+        block_copy_handle_copy_range_result(s, copy_range);
     }
     if (ret < 0) {
         if (!t->call_state->ret) {
@@ -467,9 +468,9 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
             t->call_state->error_is_read = error_is_read;
         }
     } else {
-        progress_work_done(t->s->progress, t->bytes);
+        progress_work_done(s->progress, t->bytes);
     }
-    co_put_to_shres(t->s->mem, t->bytes);
+    co_put_to_shres(s->mem, t->bytes);
     block_copy_task_end(t, ret);
 
     return ret;
@@ -714,14 +715,15 @@ void block_copy_kick(BlockCopyCallState *call_state)
 static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
 {
     int ret;
+    BlockCopyState *s = call_state->s;
 
-    QLIST_INSERT_HEAD(&call_state->s->calls, call_state, list);
+    QLIST_INSERT_HEAD(&s->calls, call_state, list);
 
     do {
         ret = block_copy_dirty_clusters(call_state);
 
         if (ret == 0 && !call_state->cancelled) {
-            ret = block_copy_wait_one(call_state->s, call_state->offset,
+            ret = block_copy_wait_one(s, call_state->offset,
                                       call_state->bytes);
         }
 
