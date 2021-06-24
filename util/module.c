@@ -329,6 +329,9 @@ void module_load_qom_one(const char *type)
         if (!modinfo->objs) {
             continue;
         }
+        if (!module_check_arch(modinfo)) {
+            continue;
+        }
         for (sl = modinfo->objs; *sl != NULL; sl++) {
             if (strcmp(type, *sl) == 0) {
                 module_load_one("", modinfo->name, false);
@@ -347,6 +350,9 @@ void module_load_qom_all(void)
 
     for (modinfo = module_info; modinfo->name != NULL; modinfo++) {
         if (!modinfo->objs) {
+            continue;
+        }
+        if (!module_check_arch(modinfo)) {
             continue;
         }
         module_load_one("", modinfo->name, false);
