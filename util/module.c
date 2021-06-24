@@ -20,6 +20,7 @@
 #include "qemu/queue.h"
 #include "qemu/module.h"
 #include "qemu/cutils.h"
+#include "qemu/config-file.h"
 #ifdef CONFIG_MODULE_UPGRADES
 #include "qemu-version.h"
 #endif
@@ -322,8 +323,26 @@ void module_load_qom_all(void)
     module_loaded_qom_all = true;
 }
 
+void qemu_load_module_for_opts(const char *group)
+{
+    const QemuModinfo *modinfo;
+    const char **sl;
+
+    for (modinfo = module_info; modinfo->name != NULL; modinfo++) {
+        if (!modinfo->opts) {
+            continue;
+        }
+        for (sl = modinfo->opts; *sl != NULL; sl++) {
+            if (strcmp(group, *sl) == 0) {
+                module_load_one("", modinfo->name, false);
+            }
+        }
+    }
+}
+
 #else
 
+void qemu_load_module_for_opts(const char *group) {}
 void module_load_qom_one(const char *type) {}
 void module_load_qom_all(void) {}
 
