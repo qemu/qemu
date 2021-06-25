@@ -4,9 +4,6 @@ check-patch:
   needs:
     job: amd64-centos8-container
   script:
-    - git config --local diff.renamelimit 0
-    - git config --local diff.renames True
-    - git config --local diff.algorithm histogram
     - .gitlab-ci.d/check-patch.py
   variables:
     GIT_DEPTH: 1000

@@ -75,10 +75,11 @@ class BootLinuxAarch64(LinuxTest):
         self.vm.add_args('-device', 'virtio-rng-pci,rng=rng0')
         self.vm.add_args('-object', 'rng-random,id=rng0,filename=/dev/urandom')
 
-    def test_virt_tcg(self):
+    def test_virt_tcg_gicv2(self):
         """
         :avocado: tags=accel:tcg
         :avocado: tags=cpu:max
+        :avocado: tags=device:gicv2
         """
         self.require_accelerator("tcg")
         self.vm.add_args("-accel", "tcg")
@@ -87,29 +88,28 @@ class BootLinuxAarch64(LinuxTest):
         self.add_common_args()
         self.launch_and_wait(set_up_ssh_connection=False)
 
-    def test_virt_kvm_gicv2(self):
+    def test_virt_tcg_gicv3(self):
         """
-        :avocado: tags=accel:kvm
-        :avocado: tags=cpu:host
-        :avocado: tags=device:gicv2
+        :avocado: tags=accel:tcg
+        :avocado: tags=cpu:max
+        :avocado: tags=device:gicv3
         """
-        self.require_accelerator("kvm")
-        self.vm.add_args("-accel", "kvm")
-        self.vm.add_args("-cpu", "host")
-        self.vm.add_args("-machine", "virt,gic-version=2")
+        self.require_accelerator("tcg")
+        self.vm.add_args("-accel", "tcg")
+        self.vm.add_args("-cpu", "max")
+        self.vm.add_args("-machine", "virt,gic-version=3")
         self.add_common_args()
         self.launch_and_wait(set_up_ssh_connection=False)
 
-    def test_virt_kvm_gicv3(self):
+    def test_virt_kvm(self):
         """
         :avocado: tags=accel:kvm
         :avocado: tags=cpu:host
-        :avocado: tags=device:gicv3
         """
         self.require_accelerator("kvm")
         self.vm.add_args("-accel", "kvm")
         self.vm.add_args("-cpu", "host")
-        self.vm.add_args("-machine", "virt,gic-version=3")
+        self.vm.add_args("-machine", "virt,gic-version=host")
         self.add_common_args()
         self.launch_and_wait(set_up_ssh_connection=False)
 
