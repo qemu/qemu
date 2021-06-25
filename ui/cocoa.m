@@ -28,6 +28,7 @@
 #include <crt_externs.h>
 
 #include "qemu-common.h"
+#include "ui/clipboard.h"
 #include "ui/console.h"
 #include "ui/input.h"
 #include "ui/kbd-state.h"
@@ -104,6 +105,10 @@ static NSArray * supportedImageFileTypes;
 static QemuSemaphore display_init_sem;
 static QemuSemaphore app_started_sem;
 static bool allow_events;
+
+static NSInteger cbchangecount = -1;
+static QemuClipboardInfo *cbinfo;
+static QemuEvent cbevent;
 
 // Utility functions to run specified code block with iothread lock held
 typedef void (^CodeBlock)(void);
@@ -516,6 +521,43 @@ QemuCocoaView *cocoaView;
         cdx = 1.0;
         cdy = 1.0;
     }
+}
+
+- (void) updateUIInfo
+{
+    NSSize frameSize;
+    QemuUIInfo info;
+
+    if (!qemu_console_is_graphic(dcl.con)) {
+        return;
+    }
+
+    if ([self window]) {
+        NSDictionary *description = [[[self window] screen] deviceDescription];
+        CGDirectDisplayID display = [[description objectForKey:@"NSScreenNumber"] unsignedIntValue];
+        NSSize screenSize = [[[self window] screen] frame].size;
+        CGSize screenPhysicalSize = CGDisplayScreenSize(display);
+
+        frameSize = isFullscreen ? screenSize : [self frame].size;
+        info.width_mm = frameSize.width / screenSize.width * screenPhysicalSize.width;
+        info.height_mm = frameSize.height / screenSize.height * screenPhysicalSize.height;
+    } else {
+        frameSize = [self frame].size;
+        info.width_mm = 0;
+        info.height_mm = 0;
+    }
+
+    info.xoff = 0;
+    info.yoff = 0;
+    info.width = frameSize.width;
+    info.height = frameSize.height;
+
+    dpy_set_ui_info(dcl.con, &info);
+}
+
+- (void)viewDidMoveToWindow
+{
+    [self updateUIInfo];
 }
 
 - (void) switchSurface:(pixman_image_t *)image
@@ -1172,6 +1214,16 @@ QemuCocoaView *cocoaView;
     return [self verifyQuit];
 }
 
+- (void)windowDidChangeScreen:(NSNotification *)notification
+{
+    [cocoaView updateUIInfo];
+}
+
+- (void)windowDidResize:(NSNotification *)notification
+{
+    [cocoaView updateUIInfo];
+}
+
 /* Called when the user clicks on a window's close button */
 - (BOOL)windowShouldClose:(id)sender
 {
@@ -1711,6 +1763,93 @@ static void addRemovableDevicesMenuItems(void)
     qapi_free_BlockInfoList(pointerToFree);
 }
 
+@interface QemuCocoaPasteboardTypeOwner : NSObject<NSPasteboardTypeOwner>
+@end
+
+@implementation QemuCocoaPasteboardTypeOwner
+
+- (void)pasteboard:(NSPasteboard *)sender provideDataForType:(NSPasteboardType)type
+{
+    if (type != NSPasteboardTypeString) {
+        return;
+    }
+
+    with_iothread_lock(^{
+        QemuClipboardInfo *info = qemu_clipboard_info_ref(cbinfo);
+        qemu_event_reset(&cbevent);
+        qemu_clipboard_request(info, QEMU_CLIPBOARD_TYPE_TEXT);
+
+        while (info == cbinfo &&
+               info->types[QEMU_CLIPBOARD_TYPE_TEXT].available &&
+               info->types[QEMU_CLIPBOARD_TYPE_TEXT].data == NULL) {
+            qemu_mutex_unlock_iothread();
+            qemu_event_wait(&cbevent);
+            qemu_mutex_lock_iothread();
+        }
+
+        if (info == cbinfo) {
+            NSData *data = [[NSData alloc] initWithBytes:info->types[QEMU_CLIPBOARD_TYPE_TEXT].data
+                                           length:info->types[QEMU_CLIPBOARD_TYPE_TEXT].size];
+            [sender setData:data forType:NSPasteboardTypeString];
+            [data release];
+        }
+
+        qemu_clipboard_info_unref(info);
+    });
+}
+
+@end
+
+static QemuCocoaPasteboardTypeOwner *cbowner;
+
+static void cocoa_clipboard_notify(Notifier *notifier, void *data);
+static void cocoa_clipboard_request(QemuClipboardInfo *info,
+                                    QemuClipboardType type);
+
+static QemuClipboardPeer cbpeer = {
+    .name = "cocoa",
+    .update = { .notify = cocoa_clipboard_notify },
+    .request = cocoa_clipboard_request
+};
+
+static void cocoa_clipboard_notify(Notifier *notifier, void *data)
+{
+    QemuClipboardInfo *info = data;
+
+    if (info->owner == &cbpeer || info->selection != QEMU_CLIPBOARD_SELECTION_CLIPBOARD) {
+        return;
+    }
+
+    if (info != cbinfo) {
+        NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+        qemu_clipboard_info_unref(cbinfo);
+        cbinfo = qemu_clipboard_info_ref(info);
+        cbchangecount = [[NSPasteboard generalPasteboard] declareTypes:@[NSPasteboardTypeString] owner:cbowner];
+        [pool release];
+    }
+
+    qemu_event_set(&cbevent);
+}
+
+static void cocoa_clipboard_request(QemuClipboardInfo *info,
+                                    QemuClipboardType type)
+{
+    NSData *text;
+
+    switch (type) {
+    case QEMU_CLIPBOARD_TYPE_TEXT:
+        text = [[NSPasteboard generalPasteboard] dataForType:NSPasteboardTypeString];
+        if (text) {
+            qemu_clipboard_set_data(&cbpeer, info, type,
+                                    [text length], [text bytes], true);
+            [text release];
+        }
+        break;
+    default:
+        break;
+    }
+}
+
 /*
  * The startup process for the OSX/Cocoa UI is complicated, because
  * OSX insists that the UI runs on the initial main thread, and so we
@@ -1745,6 +1884,7 @@ static void *call_qemu_main(void *opaque)
     COCOA_DEBUG("Second thread: calling qemu_main()\n");
     status = qemu_main(gArgc, gArgv, *_NSGetEnviron());
     COCOA_DEBUG("Second thread: qemu_main() returned, exiting\n");
+    [cbowner release];
     exit(status);
 }
 
@@ -1836,6 +1976,8 @@ static void cocoa_switch(DisplayChangeListener *dcl,
 
     COCOA_DEBUG("qemu_cocoa: cocoa_switch\n");
 
+    [cocoaView updateUIInfo];
+
     // The DisplaySurface will be freed as soon as this callback returns.
     // We take a reference to the underlying pixman image here so it does
     // not disappear from under our feet; the switchSurface method will
@@ -1865,6 +2007,18 @@ static void cocoa_refresh(DisplayChangeListener *dcl)
             [cocoaView setAbsoluteEnabled:YES];
         });
     }
+
+    if (cbchangecount != [[NSPasteboard generalPasteboard] changeCount]) {
+        qemu_clipboard_info_unref(cbinfo);
+        cbinfo = qemu_clipboard_info_new(&cbpeer, QEMU_CLIPBOARD_SELECTION_CLIPBOARD);
+        if ([[NSPasteboard generalPasteboard] availableTypeFromArray:@[NSPasteboardTypeString]]) {
+            cbinfo->types[QEMU_CLIPBOARD_TYPE_TEXT].available = true;
+        }
+        qemu_clipboard_update(cbinfo);
+        cbchangecount = [[NSPasteboard generalPasteboard] changeCount];
+        qemu_event_set(&cbevent);
+    }
+
     [pool release];
 }
 
@@ -1890,6 +2044,10 @@ static void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
 
     // register vga output callbacks
     register_displaychangelistener(&dcl);
+
+    qemu_event_init(&cbevent, false);
+    cbowner = [[QemuCocoaPasteboardTypeOwner alloc] init];
+    qemu_clipboard_peer_register(&cbpeer);
 }
 
 static QemuDisplay qemu_display_cocoa = {

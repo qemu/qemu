@@ -2370,13 +2370,19 @@ void qemu_display_register(QemuDisplay *ui)
 bool qemu_display_find_default(DisplayOptions *opts)
 {
     static DisplayType prio[] = {
+#if defined(CONFIG_GTK)
         DISPLAY_TYPE_GTK,
+#endif
+#if defined(CONFIG_SDL)
         DISPLAY_TYPE_SDL,
+#endif
+#if defined(CONFIG_COCOA)
         DISPLAY_TYPE_COCOA
+#endif
     };
     int i;
 
-    for (i = 0; i < ARRAY_SIZE(prio); i++) {
+    for (i = 0; i < (int)ARRAY_SIZE(prio); i++) {
         if (dpys[prio[i]] == NULL) {
             ui_module_load_one(DisplayType_str(prio[i]));
         }

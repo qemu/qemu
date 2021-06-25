@@ -1819,11 +1819,22 @@ SRST
     old style -sdl/-curses/... options. Use ``-display help`` to list
     the available display types. Valid values for type are
 
-    ``sdl``
+    ``spice-app[,gl=on|off]``
+        Start QEMU as a Spice server and launch the default Spice client
+        application. The Spice server will redirect the serial consoles
+        and QEMU monitors. (Since 4.0)
+
+    ``sdl[,window-close=on|off][,gl=on|core|es|off]``
+
         Display video output via SDL (usually in a separate graphics
         window; see the SDL documentation for other possibilities).
 
-    ``curses``
+    ``gtk[,grab-on-hover=on|off][,gl=on|off]``
+        Display video output in a GTK window. This interface provides
+        drop-down menus and other UI elements to configure and control
+        the VM during runtime.
+
+    ``curses [,charset=<encoding>]``
         Display video output via curses. For graphics device models
         which support a text mode, QEMU can display this output using a
         curses/ncurses interface. Nothing is displayed when the graphics
@@ -1834,6 +1845,11 @@ SRST
         ``charset=CP850`` for IBM CP850 encoding. The default is
         ``CP437``.
 
+    ``egl-headless[,rendernode<file>]``
+        Offload all OpenGL operations to a local DRI device. For any
+        graphical display, this display needs to be paired with either
+        VNC or SPICE displays.
+
     ``none``
         Do not display video output. The guest will still see an
         emulated graphics card, but its output will not be displayed to
@@ -1842,23 +1858,8 @@ SRST
         also changes the destination of the serial and parallel port
         data.
 
-    ``gtk``
-        Display video output in a GTK window. This interface provides
-        drop-down menus and other UI elements to configure and control
-        the VM during runtime.
 
-    ``vnc``
-        Start a VNC server on display <arg>
 
-    ``egl-headless``
-        Offload all OpenGL operations to a local DRI device. For any
-        graphical display, this display needs to be paired with either
-        VNC or SPICE displays.
-
-    ``spice-app``
-        Start QEMU as a Spice server and launch the default Spice client
-        application. The Spice server will redirect the serial consoles
-        and QEMU monitors. (Since 4.0)
 ERST
 
 DEF("nographic", 0, QEMU_OPTION_nographic,
