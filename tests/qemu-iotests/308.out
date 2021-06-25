@@ -50,6 +50,10 @@ wrote 67108864/67108864 bytes at offset 0
           } }
 {"return": {}}
 Images are identical.
+Permissions pre-chmod: 400
+chmod: changing permissions of 'TEST_DIR/t.IMGFMT.fuse': Read-only file system
+Permissions post-+w: 400
+Permissions post-+x: 500
 
 === Mount over existing file ===
 {'execute': 'block-export-add',
