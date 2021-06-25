@@ -46,6 +46,8 @@ typedef struct FuseExport {
     char *mountpoint;
     bool writable;
     bool growable;
+    /* Whether allow_other was used as a mount option or not */
+    bool allow_other;
 } FuseExport;
 
 static GHashTable *exports;
@@ -57,7 +59,7 @@ static void fuse_export_delete(BlockExport *exp);
 static void init_exports_table(void);
 
 static int setup_fuse_export(FuseExport *exp, const char *mountpoint,
-                             Error **errp);
+                             bool allow_other, Error **errp);
 static void read_from_fuse_export(void *opaque);
 
 static bool is_regular_file(const char *path, Error **errp);
@@ -118,7 +120,22 @@ static int fuse_export_create(BlockExport *blk_exp,
     exp->writable = blk_exp_args->writable;
     exp->growable = args->growable;
 
-    ret = setup_fuse_export(exp, args->mountpoint, errp);
+    /* set default */
+    if (!args->has_allow_other) {
+        args->allow_other = FUSE_EXPORT_ALLOW_OTHER_AUTO;
+    }
+
+    if (args->allow_other == FUSE_EXPORT_ALLOW_OTHER_AUTO) {
+        /* Ignore errors on our first attempt */
+        ret = setup_fuse_export(exp, args->mountpoint, true, NULL);
+        exp->allow_other = ret == 0;
+        if (ret < 0) {
+            ret = setup_fuse_export(exp, args->mountpoint, false, errp);
+        }
+    } else {
+        exp->allow_other = args->allow_other == FUSE_EXPORT_ALLOW_OTHER_ON;
+        ret = setup_fuse_export(exp, args->mountpoint, exp->allow_other, errp);
+    }
     if (ret < 0) {
         goto fail;
     }
@@ -146,7 +163,7 @@ static void init_exports_table(void)
  * Create exp->fuse_session and mount it.
  */
 static int setup_fuse_export(FuseExport *exp, const char *mountpoint,
-                             Error **errp)
+                             bool allow_other, Error **errp)
 {
     const char *fuse_argv[4];
     char *mount_opts;
@@ -157,8 +174,9 @@ static int setup_fuse_export(FuseExport *exp, const char *mountpoint,
      * max_read needs to match what fuse_init() sets.
      * max_write need not be supplied.
      */
-    mount_opts = g_strdup_printf("max_read=%zu,default_permissions",
-                                 FUSE_MAX_BOUNCE_BYTES);
+    mount_opts = g_strdup_printf("max_read=%zu,default_permissions%s",
+                                 FUSE_MAX_BOUNCE_BYTES,
+                                 allow_other ? ",allow_other" : "");
 
     fuse_argv[0] = ""; /* Dummy program name */
     fuse_argv[1] = "-o";

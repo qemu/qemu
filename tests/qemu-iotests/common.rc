@@ -512,9 +512,13 @@ _make_test_img()
         # Usually, users would export formatted nodes.  But we present fuse as a
         # protocol-level driver here, so we have to leave the format to the
         # client.
+        # Switch off allow-other, because in general we do not need it for
+        # iotests.  The default allow-other=auto has the downside of printing a
+        # fusermount error on its first attempt if allow_other is not
+        # permissible, which we would need to filter.
         QSD_NEED_PID=y $QSD \
               --blockdev file,node-name=export-node,filename=$img_name,discard=unmap \
-              --export fuse,id=fuse-export,node-name=export-node,mountpoint="$export_mp",writable=on,growable=on \
+              --export fuse,id=fuse-export,node-name=export-node,mountpoint="$export_mp",writable=on,growable=on,allow-other=off \
               &
 
         pidfile="$QEMU_TEST_DIR/qemu-storage-daemon.pid"

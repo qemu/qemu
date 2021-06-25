@@ -58,6 +58,9 @@ _supported_os Linux # We need /dev/urandom
 # $4: Node to export (defaults to 'node-format')
 fuse_export_add()
 {
+    # The grep -v is a filter for errors when /etc/fuse.conf does not contain
+    # user_allow_other.  (The error is benign, but it is printed by fusermount
+    # on the first mount attempt, so our export code cannot hide it.)
     _send_qemu_cmd $QEMU_HANDLE \
         "{'execute': 'block-export-add',
           'arguments': {
@@ -67,7 +70,8 @@ fuse_export_add()
               $2
           } }" \
         "${3:-return}" \
-        | _filter_imgfmt
+        | _filter_imgfmt \
+        | grep -v 'option allow_other only allowed if'
 }
 
 # $1: Export ID
