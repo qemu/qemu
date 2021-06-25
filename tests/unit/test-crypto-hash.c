@@ -104,7 +104,7 @@ static void test_hash_alloc(void)
                                  strlen(INPUT_TEXT),
                                  &result,
                                  &resultlen,
-                                 NULL);
+                                 &error_fatal);
         g_assert(ret == 0);
         g_assert(resultlen == expected_lens[i]);
 
@@ -139,7 +139,7 @@ static void test_hash_prealloc(void)
                                  strlen(INPUT_TEXT),
                                  &result,
                                  &resultlen,
-                                 NULL);
+                                 &error_fatal);
         g_assert(ret == 0);
 
         g_assert(resultlen == expected_lens[i]);
@@ -176,7 +176,7 @@ static void test_hash_iov(void)
                                   iov, 3,
                                   &result,
                                   &resultlen,
-                                  NULL);
+                                  &error_fatal);
         g_assert(ret == 0);
         g_assert(resultlen == expected_lens[i]);
         for (j = 0; j < resultlen; j++) {
@@ -210,7 +210,7 @@ static void test_hash_digest(void)
                                   INPUT_TEXT,
                                   strlen(INPUT_TEXT),
                                   &digest,
-                                  NULL);
+                                  &error_fatal);
         g_assert(ret == 0);
         g_assert_cmpstr(digest, ==, expected_outputs[i]);
         g_free(digest);
@@ -234,7 +234,7 @@ static void test_hash_base64(void)
                                   INPUT_TEXT,
                                   strlen(INPUT_TEXT),
                                   &digest,
-                                  NULL);
+                                  &error_fatal);
         g_assert(ret == 0);
         g_assert_cmpstr(digest, ==, expected_outputs_b64[i]);
         g_free(digest);
@@ -243,7 +243,8 @@ static void test_hash_base64(void)
 
 int main(int argc, char **argv)
 {
-    g_assert(qcrypto_init(NULL) == 0);
+    int ret = qcrypto_init(&error_fatal);
+    g_assert(ret == 0);
 
     g_test_init(&argc, &argv, NULL);
     g_test_add_func("/crypto/hash/iov", test_hash_iov);

@@ -89,7 +89,6 @@ static void test_hmac_alloc(void)
         QCryptoHmac *hmac = NULL;
         uint8_t *result = NULL;
         size_t resultlen = 0;
-        Error *err = NULL;
         const char *exp_output = NULL;
         int ret;
         size_t j;
@@ -101,14 +100,12 @@ static void test_hmac_alloc(void)
         exp_output = data->hex_digest;
 
         hmac = qcrypto_hmac_new(data->alg, (const uint8_t *)KEY,
-                                strlen(KEY), &err);
-        g_assert(err == NULL);
+                                strlen(KEY), &error_fatal);
         g_assert(hmac != NULL);
 
         ret = qcrypto_hmac_bytes(hmac, (const char *)INPUT_TEXT,
                                  strlen(INPUT_TEXT), &result,
-                                 &resultlen, &err);
-        g_assert(err == NULL);
+                                 &resultlen, &error_fatal);
         g_assert(ret == 0);
 
         for (j = 0; j < resultlen; j++) {
@@ -131,7 +128,6 @@ static void test_hmac_prealloc(void)
         QCryptoHmac *hmac = NULL;
         uint8_t *result = NULL;
         size_t resultlen = 0;
-        Error *err = NULL;
         const char *exp_output = NULL;
         int ret;
         size_t j;
@@ -146,14 +142,12 @@ static void test_hmac_prealloc(void)
         result = g_new0(uint8_t, resultlen);
 
         hmac = qcrypto_hmac_new(data->alg, (const uint8_t *)KEY,
-                                strlen(KEY), &err);
-        g_assert(err == NULL);
+                                strlen(KEY), &error_fatal);
         g_assert(hmac != NULL);
 
         ret = qcrypto_hmac_bytes(hmac, (const char *)INPUT_TEXT,
                                  strlen(INPUT_TEXT), &result,
-                                 &resultlen, &err);
-        g_assert(err == NULL);
+                                 &resultlen, &error_fatal);
         g_assert(ret == 0);
 
         exp_output = data->hex_digest;
@@ -177,7 +171,6 @@ static void test_hmac_iov(void)
         QCryptoHmac *hmac = NULL;
         uint8_t *result = NULL;
         size_t resultlen = 0;
-        Error *err = NULL;
         const char *exp_output = NULL;
         int ret;
         size_t j;
@@ -194,13 +187,11 @@ static void test_hmac_iov(void)
         exp_output = data->hex_digest;
 
         hmac = qcrypto_hmac_new(data->alg, (const uint8_t *)KEY,
-                                strlen(KEY), &err);
-        g_assert(err == NULL);
+                                strlen(KEY), &error_fatal);
         g_assert(hmac != NULL);
 
         ret = qcrypto_hmac_bytesv(hmac, iov, 3, &result,
-                                  &resultlen, &err);
-        g_assert(err == NULL);
+                                  &resultlen, &error_fatal);
         g_assert(ret == 0);
 
         for (j = 0; j < resultlen; j++) {
@@ -222,7 +213,6 @@ static void test_hmac_digest(void)
         QCryptoHmacTestData *data = &test_data[i];
         QCryptoHmac *hmac = NULL;
         uint8_t *result = NULL;
-        Error *err = NULL;
         const char *exp_output = NULL;
         int ret;
 
@@ -233,14 +223,12 @@ static void test_hmac_digest(void)
         exp_output = data->hex_digest;
 
         hmac = qcrypto_hmac_new(data->alg, (const uint8_t *)KEY,
-                                strlen(KEY), &err);
-        g_assert(err == NULL);
+                                strlen(KEY), &error_fatal);
         g_assert(hmac != NULL);
 
         ret = qcrypto_hmac_digest(hmac, (const char *)INPUT_TEXT,
                                   strlen(INPUT_TEXT), (char **)&result,
-                                  &err);
-        g_assert(err == NULL);
+                                  &error_fatal);
         g_assert(ret == 0);
 
         g_assert_cmpstr((const char *)result, ==, exp_output);
