@@ -101,6 +101,7 @@
 #define FDT_MAX_ADDR            0x80000000 /* FDT must stay below that */
 #define FW_MAX_SIZE             0x400000
 #define FW_FILE_NAME            "slof.bin"
+#define FW_FILE_NAME_VOF        "vof.bin"
 #define FW_OVERHEAD             0x2800000
 #define KERNEL_LOAD_ADDR        FW_MAX_SIZE
 
@@ -1643,22 +1644,37 @@ static void spapr_machine_reset(MachineState *machine)
     fdt_addr = MIN(spapr->rma_size, FDT_MAX_ADDR) - FDT_MAX_SIZE;
 
     fdt = spapr_build_fdt(spapr, true, FDT_MAX_SIZE);
+    if (spapr->vof) {
+        target_ulong stack_ptr = 0;
 
-    rc = fdt_pack(fdt);
+        spapr_vof_reset(spapr, fdt, &stack_ptr, &error_fatal);
 
-    /* Should only fail if we've built a corrupted tree */
-    assert(rc == 0);
+        spapr_cpu_set_entry_state(first_ppc_cpu, SPAPR_ENTRY_POINT,
+                                  stack_ptr, spapr->initrd_base,
+                                  spapr->initrd_size);
+        /* VOF is 32bit BE so enforce MSR here */
+        first_ppc_cpu->env.msr &= ~((1ULL << MSR_SF) | (1ULL << MSR_LE));
+        /*
+         * Do not pack the FDT as the client may change properties.
+         * VOF client does not expect the FDT so we do not load it to the VM.
+         */
+    } else {
+        rc = fdt_pack(fdt);
+        /* Should only fail if we've built a corrupted tree */
+        assert(rc == 0);
 
-    /* Load the fdt */
+        spapr_cpu_set_entry_state(first_ppc_cpu, SPAPR_ENTRY_POINT,
+                                  0, fdt_addr, 0);
+        cpu_physical_memory_write(fdt_addr, fdt, fdt_totalsize(fdt));
+    }
     qemu_fdt_dumpdtb(fdt, fdt_totalsize(fdt));
-    cpu_physical_memory_write(fdt_addr, fdt, fdt_totalsize(fdt));
+
     g_free(spapr->fdt_blob);
     spapr->fdt_size = fdt_totalsize(fdt);
     spapr->fdt_initial_size = spapr->fdt_size;
     spapr->fdt_blob = fdt;
 
     /* Set up the entry state */
-    spapr_cpu_set_entry_state(first_ppc_cpu, SPAPR_ENTRY_POINT, 0, fdt_addr, 0);
     first_ppc_cpu->env.gpr[5] = 0;
 
     spapr->fwnmi_system_reset_addr = -1;
@@ -2661,7 +2677,8 @@ static void spapr_machine_init(MachineState *machine)
     SpaprMachineState *spapr = SPAPR_MACHINE(machine);
     SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
-    const char *bios_name = machine->firmware ?: FW_FILE_NAME;
+    const char *bios_default = spapr->vof ? FW_FILE_NAME_VOF : FW_FILE_NAME;
+    const char *bios_name = machine->firmware ?: bios_default;
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
     PCIHostState *phb;
@@ -3018,6 +3035,10 @@ static void spapr_machine_init(MachineState *machine)
     }
 
     qemu_cond_init(&spapr->fwnmi_machine_check_interlock_cond);
+    if (spapr->vof) {
+        spapr->vof->fw_size = fw_size; /* for claim() on itself */
+        spapr_register_hypercall(KVMPPC_H_VOF_CLIENT, spapr_h_vof_client);
+    }
 }
 
 #define DEFAULT_KVM_TYPE "auto"
@@ -3208,6 +3229,28 @@ static void spapr_set_resize_hpt(Object *obj, const char *value, Error **errp)
     }
 }
 
+static bool spapr_get_vof(Object *obj, Error **errp)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
+
+    return spapr->vof != NULL;
+}
+
+static void spapr_set_vof(Object *obj, bool value, Error **errp)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
+
+    if (spapr->vof) {
+        vof_cleanup(spapr->vof);
+        g_free(spapr->vof);
+        spapr->vof = NULL;
+    }
+    if (!value) {
+        return;
+    }
+    spapr->vof = g_malloc0(sizeof(*spapr->vof));
+}
+
 static char *spapr_get_ic_mode(Object *obj, Error **errp)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
@@ -3333,6 +3376,11 @@ static void spapr_instance_init(Object *obj)
                                     stringify(KERNEL_LOAD_ADDR)
                                     " for -kernel is the default");
     spapr->kernel_addr = KERNEL_LOAD_ADDR;
+
+    object_property_add_bool(obj, "x-vof", spapr_get_vof, spapr_set_vof);
+    object_property_set_description(obj, "x-vof",
+                                    "Enable Virtual Open Firmware (experimental)");
+
     /* The machine class defines the default interrupt controller mode */
     spapr->irq = smc->irq;
     object_property_add_str(obj, "ic-mode", spapr_get_ic_mode,
@@ -4496,6 +4544,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     XICSFabricClass *xic = XICS_FABRIC_CLASS(oc);
     InterruptStatsProviderClass *ispc = INTERRUPT_STATS_PROVIDER_CLASS(oc);
     XiveFabricClass *xfc = XIVE_FABRIC_CLASS(oc);
+    VofMachineIfClass *vmc = VOF_MACHINE_CLASS(oc);
 
     mc->desc = "pSeries Logical Partition (PAPR compliant)";
     mc->ignore_boot_device_suffixes = true;
@@ -4584,6 +4633,9 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     smc->smp_threads_vsmt = true;
     smc->nr_xirqs = SPAPR_NR_XIRQS;
     xfc->match_nvt = spapr_match_nvt;
+    vmc->client_architecture_support = spapr_vof_client_architecture_support;
+    vmc->quiesce = spapr_vof_quiesce;
+    vmc->setprop = spapr_vof_setprop;
 }
 
 static const TypeInfo spapr_machine_info = {
@@ -4603,6 +4655,7 @@ static const TypeInfo spapr_machine_info = {
         { TYPE_XICS_FABRIC },
         { TYPE_INTERRUPT_STATS_PROVIDER },
         { TYPE_XIVE_FABRIC },
+        { TYPE_VOF_MACHINE_IF },
         { }
     },
 };

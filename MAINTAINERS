@@ -1360,6 +1360,18 @@ F: hw/pci-host/mv64361.c
 F: hw/pci-host/mv643xx.h
 F: include/hw/pci-host/mv64361.h
 
+Virtual Open Firmware (VOF)
+M: Alexey Kardashevskiy <aik@ozlabs.ru>
+M: David Gibson <david@gibson.dropbear.id.au>
+M: Greg Kurz <groug@kaod.org>
+L: qemu-ppc@nongnu.org
+S: Maintained
+F: hw/ppc/spapr_vof*
+F: hw/ppc/vof*
+F: include/hw/ppc/vof*
+F: pc-bios/vof/*
+F: pc-bios/vof*
+
 RISC-V Machines
 ---------------
 OpenTitan
