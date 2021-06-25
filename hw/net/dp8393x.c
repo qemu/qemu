@@ -30,8 +30,6 @@
 #include "qom/object.h"
 #include "trace.h"
 
-#define SONIC_PROM_SIZE 0x1000
-
 static const char *reg_names[] = {
     "CR", "DCR", "RCR", "TCR", "IMR", "ISR", "UTDA", "CTDA",
     "TPS", "TFC", "TSA0", "TSA1", "TFS", "URDA", "CRDA", "CRBA0",
@@ -157,7 +155,6 @@ struct dp8393xState {
     NICConf conf;
     NICState *nic;
     MemoryRegion mmio;
-    MemoryRegion prom;
 
     /* Registers */
     uint8_t cam[16][6];
@@ -966,16 +963,12 @@ static void dp8393x_instance_init(Object *obj)
     dp8393xState *s = DP8393X(obj);
 
     sysbus_init_mmio(sbd, &s->mmio);
-    sysbus_init_mmio(sbd, &s->prom);
     sysbus_init_irq(sbd, &s->irq);
 }
 
 static void dp8393x_realize(DeviceState *dev, Error **errp)
 {
     dp8393xState *s = DP8393X(dev);
-    int i, checksum;
-    uint8_t *prom;
-    Error *local_err = NULL;
 
     address_space_init(&s->as, s->dma_mr, "dp8393x");
     memory_region_init_io(&s->mmio, OBJECT(dev), &dp8393x_ops, s,
@@ -986,23 +979,6 @@ static void dp8393x_realize(DeviceState *dev, Error **errp)
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     s->watchdog = timer_new_ns(QEMU_CLOCK_VIRTUAL, dp8393x_watchdog, s);
-
-    memory_region_init_rom(&s->prom, OBJECT(dev), "dp8393x-prom",
-                           SONIC_PROM_SIZE, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-    prom = memory_region_get_ram_ptr(&s->prom);
-    checksum = 0;
-    for (i = 0; i < 6; i++) {
-        prom[i] = s->conf.macaddr.a[i];
-        checksum += prom[i];
-        if (checksum > 0xff) {
-            checksum = (checksum + 1) & 0xff;
-        }
-    }
-    prom[7] = 0xff - checksum;
 }
 
 static const VMStateDescription vmstate_dp8393x = {
