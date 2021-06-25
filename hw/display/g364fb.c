@@ -517,6 +517,16 @@ static Property g364fb_sysbus_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const VMStateDescription vmstate_g364fb_sysbus = {
+    .name = "g364fb-sysbus",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT(g364, G364SysBusState, 2, vmstate_g364fb, G364State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void g364fb_sysbus_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -525,7 +535,7 @@ static void g364fb_sysbus_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->desc = "G364 framebuffer";
     dc->reset = g364fb_sysbus_reset;
-    dc->vmsd = &vmstate_g364fb;
+    dc->vmsd = &vmstate_g364fb_sysbus;
     device_class_set_props(dc, g364fb_sysbus_properties);
 }
 
