@@ -169,16 +169,12 @@ static hwaddr kvm_max_slot_size = ~0;
 enum recording_state {
     PRE_RECORDING, /* initial state */
     RECORDING, /* when the device driver is configured */
-    UPDATING, /* updates the state after the first interrupt */
-    POST_RECORDING /* end state */
+    POST_RECORDING /* reloading state */
 };
 enum recording_state recording_state = PRE_RECORDING;
 struct kvm_access_log kvm_access_log;
 
-static void reload_pages(AccessState);
-
 static void reload_saved_memory_chunks(void);
-//static void update_saved_memory_chunks(void);
 
 MemoryRegion *fx_mr = NULL;
 int fx_irq_line = -1;
@@ -1476,8 +1472,6 @@ int kvm_set_irq(KVMState *s, int irq, int level)
 
     /* Cleared is true is KVM_CLEAR_ACCESS_LOG was called */
     static bool cleared = false;
-    /* Need update of saved memory chunk */
-    static bool updated = false; 
     /* Whether the chunks were reloaded */
     static bool reloaded = false;
 
@@ -1497,18 +1491,9 @@ int kvm_set_irq(KVMState *s, int irq, int level)
                     cleared = true;
                 }
                 break;
-            case UPDATING: 
-                if(!updated){
-                    DBG("Updating saved memory chunks\n");
-                    //update_saved_memory_chunks();
-                    updated = true;
-                } else updated = false;
-                break;
             case POST_RECORDING:
                 if(!reloaded){
-                    DBG("Reloaded saved memory chunks\n");
                     reload_saved_memory_chunks();
-                    reload_pages(WRITTEN);
                     reloaded = true;
                 } else reloaded = false;
                 break;
@@ -2752,20 +2737,6 @@ static struct saved_memory_chunk *find_saved_memory_chunk(void *hva,
     return NULL;
 }
 
-/* update the saved memory area of a saved memory chunk. It takes into account
-only the ones with automatic injection property */
-/*
-static void update_saved_memory_chunks(void)
-{
-    struct saved_memory_chunk *smc = smc_head;
-    while(smc != NULL){
-        if(smc->inject_before_interrupt && smc->access_log)
-            memcpy(smc->saved, smc->hva, smc->size);
-        smc = smc->next;
-    }
-}
-*/
-
 /* Ensure to pass aligned addresses */
 static KVMSlot *make_read_only_memory_slot(hwaddr gpa, 
                                         void *hva, 
@@ -2820,141 +2791,6 @@ static KVMSlot *make_read_only_memory_slot(hwaddr gpa,
     return new_slots[1];
 }
 
-/* Save the state of the entire guest physical memory. This is done per slot, 
-    and for each slot per page. This is used to understand which of the accessed
-    pages are also written */
-static void save_clean_state(void)
-{
-    return;
-    /*
-    KVMState *s = kvm_state;
-    KVMMemoryListener *kml = &s->memory_listener;
-    unsigned int i, j, npages;
-
-    DBG("Saving clean state\n");
-
-    kvm_slots_lock(kml);
-
-  
-    for (i = 0; i < s->nr_slots; i++) {
-        KVMSlot *slot = &kml->slots[i];
-        if(slot->memory_size == 0)
-            continue;
-        char *start = (char *)slot->ram;
-
-  
-        npages = slot->memory_size / PAGE_SIZE;
-
- 
-        slot->clean_state = g_malloc0(npages * sizeof(KVMPage));
-        assert(slot->clean_state);
-
-   
-        for(j = 0; j < npages; j++){
-            slot->clean_state[j].mem_state = g_malloc0(PAGE_SIZE);
-            assert(slot->clean_state[j].mem_state);
-            memcpy(slot->clean_state[j].mem_state, 
-                    start + j * PAGE_SIZE,
-                    PAGE_SIZE);
-            slot->clean_state[j].access_state = NOT_ACCESSED;
-        }
-    }
-
-    kvm_slots_unlock(kml);
-    */
-}
-
-/* Set pages as ACCESSED using the access log retrieved from the host kernel */
-static void update_accessed_pages_for_slot(KVMSlot *slot, 
-                                            bool *bitmap, 
-                                            unsigned int npages)
-{
-    return;
-    /*
-    unsigned int i;
-
-    DBG("Update accessed pages\n");
-
-    for(i = 0; i < npages; i++){
-        if(bitmap[i]){
-            slot->clean_state[i].access_state = ACCESSED;
-            //hwaddr gpa = slot->start_addr + i * PAGE_SIZE;
-            //DBG("gfn 0x%lx\n", gpa >> 12);
-        }
-    }    
-    */
-}
-
-/* Computes the pages which are different from the saved state */
-static void update_written_pages_for_slot(KVMSlot *slot, unsigned int npages)
-{
-    return;
-    /*
-    void *hva;
-    unsigned int i;
-    hwaddr gpa;
-    int ret;
-    unsigned int count = 0;
-
-    DBG("Update written pages for slot\n");
-
-
-    for(i = 0; i < npages; i++){
-        hva = slot->ram + i * PAGE_SIZE;
-        if(slot->clean_state[i].access_state == ACCESSED){
-            ret = memcmp(hva, slot->clean_state[i].mem_state, PAGE_SIZE);
-            if(ret != 0){
-                gpa = slot->start_addr + i * PAGE_SIZE;
-                DBG("gfn written: 0x%lx\n", gpa >> 12);
-                slot->clean_state[i].access_state = WRITTEN;
-                count++;
-            }
-            else if(slot->clean_state[i].access_state == NOT_ACCESSED){
-                g_free(slot->clean_state[i].mem_state);
-                slot->clean_state[i].mem_state = NULL;
-            }
-        }
-    
-    }   
-
-    DBG("Written pages: %u\n", count);
-    */
-}
-
-
-static void reload_pages(AccessState access_state)
-{
-    return;
-    /*
-    KVMState *s = kvm_state;
-    KVMMemoryListener *kml = &s->memory_listener;
-    void *hva;
-    unsigned int i, j, npages;
-    if(access_state == NOT_ACCESSED){
-        DBG("Cannot reload not accessed pages\n");
-        return;
-    }
-    
-    kvm_slots_lock(kml);
-      
-    for (i = 0; i < s->nr_slots; i++) {
-        KVMSlot *slot = &kml->slots[i];
-        npages = slot->memory_size / PAGE_SIZE;
-        for(j = 0; j < npages; j++){
-            hva = slot->ram + j * PAGE_SIZE;
-
-            if(access_state == ACCESSED && 
-                slot->clean_state[j].access_state == ACCESSED)
-                memcpy(hva, slot->clean_state[j].mem_state, PAGE_SIZE);
-            
-            else if(access_state == WRITTEN && 
-                slot->clean_state[j].access_state != NOT_ACCESSED)
-                memcpy(hva, slot->clean_state[j].mem_state, PAGE_SIZE);
-        }
-    }
-
-    kvm_slots_unlock(kml);*/
-}
 
 static void do_protect_memory_hypercall(CPUState *cpu, struct kvm_regs *regs)
 {
@@ -3045,7 +2881,7 @@ static void do_end_recording_hypercall(CPUState *cpu)
     struct kvm_access_log al;
     int i = 0;
     unsigned int npages;
-    bool *bitmap_iter;
+    //bool *bitmap_iter;
 
     kvm_slots_lock(kml);
 
@@ -3082,9 +2918,7 @@ static void do_end_recording_hypercall(CPUState *cpu)
             continue;
 
         /* save accessed pages */
-        bitmap_iter = (bool *)al.access_bitmap;
-        update_accessed_pages_for_slot(slot, bitmap_iter, npages);
-        update_written_pages_for_slot(slot, npages);
+        //bitmap_iter = (bool *)al.access_bitmap;
         g_free(al.access_bitmap);
     }
 
@@ -3151,23 +2985,16 @@ static void execute_hypercall(CPUState *cpu)
         fx_irq_line = (int)regs.r8;
         recording_state = RECORDING;
         /* save the entire state of guest memory */
-        save_clean_state();
         break;
     case START_MONITOR_HYPERCALL:
         do_start_monitor_hypercall(cpu);
         break;
-    case END_RECORDING_HYPERCALL: {
-        static unsigned int counter_update = 1;
+    case END_RECORDING_HYPERCALL: 
         if(recording_state == RECORDING){
-            recording_state = UPDATING;
+            recording_state = POST_RECORDING;
             do_end_recording_hypercall(cpu);
         }
-        else if(recording_state == UPDATING)
-            counter_update--;
-            if(!counter_update)
-                recording_state = POST_RECORDING;
-        break;
-    }
+        break;   
     default:
         DBG("Hypercall not recognized\n");
         break;

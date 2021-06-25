@@ -13,24 +13,6 @@
 #include "qemu/accel.h"
 #include "sysemu/kvm.h"
 
-/* A page can be not accessed, accessed, written. At the end 
-    of the process, the accessed pages are the pages that werE
-    only read */
-typedef enum AccessState 
-{
-    NOT_ACCESSED, 
-    ACCESSED, 
-    WRITTEN
-} AccessState;
-
-typedef struct KVMPage 
-{
-    void *mem_state;
-    AccessState access_state;
-    /* address is implicitly retrieved from index in array */
-    /* size is implicitly 4K */
-} KVMPage;
-
 typedef struct KVMSlot
 {
     hwaddr start_addr;
@@ -41,17 +23,6 @@ typedef struct KVMSlot
     int old_flags;
     /* Dirty bitmap cache for the slot */
     unsigned long *dirty_bmap;
-
-    KVMPage *clean_state;
-
-    /*
-        Accessed set: retrieved with new ioctls.
-        All pages set: pre-interrupt set, all pages of guest memory. 
-        Wset: written set. All the pages in accessed set whose
-            corresponding memcmp with its previous state fails.
-        Rset: Accessed - Wset. 
-    */
-
 } KVMSlot;
 
 typedef struct KVMMemoryListener {
