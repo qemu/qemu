@@ -119,6 +119,8 @@ static const MemoryRegionOps dma_dummy_ops = {
 #define MAGNUM_BIOS_SIZE                                                       \
         (BIOS_SIZE < MAGNUM_BIOS_SIZE_MAX ? BIOS_SIZE : MAGNUM_BIOS_SIZE_MAX)
 
+#define SONIC_PROM_SIZE 0x1000
+
 static void mips_jazz_init(MachineState *machine,
                            enum jazz_model_e jazz_model)
 {
@@ -137,6 +139,7 @@ static void mips_jazz_init(MachineState *machine,
     MemoryRegion *rtc = g_new(MemoryRegion, 1);
     MemoryRegion *i8042 = g_new(MemoryRegion, 1);
     MemoryRegion *dma_dummy = g_new(MemoryRegion, 1);
+    MemoryRegion *dp8393x_prom = g_new(MemoryRegion, 1);
     NICInfo *nd;
     DeviceState *dev, *rc4030;
     SysBusDevice *sysbus;
@@ -228,6 +231,10 @@ static void mips_jazz_init(MachineState *machine,
                           NULL, "dummy_dma", 0x1000);
     memory_region_add_subregion(address_space, 0x8000d000, dma_dummy);
 
+    memory_region_init_rom(dp8393x_prom, NULL, "dp8393x-jazz.prom",
+                           SONIC_PROM_SIZE, &error_fatal);
+    memory_region_add_subregion(address_space, 0x8000b000, dp8393x_prom);
+
     /* ISA bus: IO space at 0x90000000, mem space at 0x91000000 */
     memory_region_init(isa_io, NULL, "isa-io", 0x00010000);
     memory_region_init(isa_mem, NULL, "isa-mem", 0x01000000);
@@ -275,6 +282,9 @@ static void mips_jazz_init(MachineState *machine,
             nd->model = g_strdup("dp83932");
         }
         if (strcmp(nd->model, "dp83932") == 0) {
+            int checksum, i;
+            uint8_t *prom;
+
             qemu_check_nic_model(nd, "dp83932");
 
             dev = qdev_new("dp8393x");
@@ -285,8 +295,19 @@ static void mips_jazz_init(MachineState *machine,
             sysbus = SYS_BUS_DEVICE(dev);
             sysbus_realize_and_unref(sysbus, &error_fatal);
             sysbus_mmio_map(sysbus, 0, 0x80001000);
-            sysbus_mmio_map(sysbus, 1, 0x8000b000);
             sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(rc4030, 4));
+
+            /* Add MAC address with valid checksum to PROM */
+            prom = memory_region_get_ram_ptr(dp8393x_prom);
+            checksum = 0;
+            for (i = 0; i < 6; i++) {
+                prom[i] = nd->macaddr.a[i];
+                checksum += prom[i];
+                if (checksum > 0xff) {
+                    checksum = (checksum + 1) & 0xff;
+                }
+            }
+            prom[7] = 0xff - checksum;
             break;
         } else if (is_help_option(nd->model)) {
             error_report("Supported NICs: dp83932");
