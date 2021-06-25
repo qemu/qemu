@@ -215,7 +215,8 @@ echo '=== Writable export ==='
 fuse_export_add 'export-mp' "'mountpoint': '$EXT_MP', 'writable': true"
 
 # Check that writing to the read-only export fails
-$QEMU_IO -f raw -c 'write -P 42 1M 64k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -f raw -c 'write -P 42 1M 64k' "$TEST_IMG" 2>&1 \
+    | _filter_qemu_io | _filter_testdir | _filter_imgfmt
 
 # But here it should work
 $QEMU_IO -f raw -c 'write -P 42 1M 64k' "$EXT_MP" | _filter_qemu_io

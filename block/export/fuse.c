@@ -153,8 +153,12 @@ static int setup_fuse_export(FuseExport *exp, const char *mountpoint,
     struct fuse_args fuse_args;
     int ret;
 
-    /* Needs to match what fuse_init() sets.  Only max_read must be supplied. */
-    mount_opts = g_strdup_printf("max_read=%zu", FUSE_MAX_BOUNCE_BYTES);
+    /*
+     * max_read needs to match what fuse_init() sets.
+     * max_write need not be supplied.
+     */
+    mount_opts = g_strdup_printf("max_read=%zu,default_permissions",
+                                 FUSE_MAX_BOUNCE_BYTES);
 
     fuse_argv[0] = ""; /* Dummy program name */
     fuse_argv[1] = "-o";
