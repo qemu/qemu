@@ -70,6 +70,8 @@
 #define NUBUS_SUPER_SLOT_BASE 0x60000000
 #define NUBUS_SLOT_BASE       0xf0000000
 
+#define SONIC_PROM_SIZE       0x1000
+
 /*
  * the video base, whereas it a Nubus address,
  * is needed by the kernel to have early display and
@@ -211,8 +213,10 @@ static void q800_init(MachineState *machine)
     int32_t initrd_size;
     MemoryRegion *rom;
     MemoryRegion *io;
+    MemoryRegion *dp8393x_prom = g_new(MemoryRegion, 1);
+    uint8_t *prom;
     const int io_slice_nb = (IO_SIZE / IO_SLICE) - 1;
-    int i;
+    int i, checksum;
     ram_addr_t ram_size = machine->ram_size;
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
@@ -319,8 +323,24 @@ static void q800_init(MachineState *machine)
     sysbus = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(sysbus, &error_fatal);
     sysbus_mmio_map(sysbus, 0, SONIC_BASE);
-    sysbus_mmio_map(sysbus, 1, SONIC_PROM_BASE);
     sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(glue, 2));
+
+    memory_region_init_rom(dp8393x_prom, NULL, "dp8393x-q800.prom",
+                           SONIC_PROM_SIZE, &error_fatal);
+    memory_region_add_subregion(get_system_memory(), SONIC_PROM_BASE,
+                                dp8393x_prom);
+
+    /* Add MAC address with valid checksum to PROM */
+    prom = memory_region_get_ram_ptr(dp8393x_prom);
+    checksum = 0;
+    for (i = 0; i < 6; i++) {
+        prom[i] = nd_table[0].macaddr.a[i];
+        checksum += prom[i];
+        if (checksum > 0xff) {
+            checksum = (checksum + 1) & 0xff;
+        }
+    }
+    prom[7] = 0xff - checksum;
 
     /* SCC */
 
