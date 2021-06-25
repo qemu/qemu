@@ -334,11 +334,8 @@ static void q800_init(MachineState *machine)
     prom = memory_region_get_ram_ptr(dp8393x_prom);
     checksum = 0;
     for (i = 0; i < 6; i++) {
-        prom[i] = nd_table[0].macaddr.a[i];
-        checksum += prom[i];
-        if (checksum > 0xff) {
-            checksum = (checksum + 1) & 0xff;
-        }
+        prom[i] = bitrev8(nd_table[0].macaddr.a[i]);
+        checksum ^= prom[i];
     }
     prom[7] = 0xff - checksum;
 
