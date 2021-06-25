@@ -436,3 +436,20 @@ npcm7xx_emc_received_packet(uint32_t len) "Received %u byte packet"
 npcm7xx_emc_rx_done(uint32_t crxdsa) "RX done, CRXDSA=0x%x"
 npcm7xx_emc_reg_read(int emc_num, uint32_t result, const char *name, int regno) "emc%d: 0x%x = reg[%s/%d]"
 npcm7xx_emc_reg_write(int emc_num, const char *name, int regno, uint32_t value) "emc%d: reg[%s/%d] = 0x%x"
+
+# dp8398x.c
+dp8393x_raise_irq(int isr) "raise irq, isr is 0x%04x"
+dp8393x_lower_irq(void) "lower irq"
+dp8393x_load_cam(int idx, int cam0, int cam1, int cam2, int cam3, int cam4, int cam5) "load cam[%d] with 0x%02x0x%02x0x%02x0x%02x0x%02x0x%02x"
+dp8393x_load_cam_done(int cen) "load cam done. cam enable mask 0x%04x"
+dp8393x_read_rra_regs(int crba0, int crba1, int rbwc0, int rbwc1) "CRBA0/1: 0x%04x/0x%04x, RBWC0/1: 0x%04x/0x%04x"
+dp8393x_transmit_packet(int ttda) "Transmit packet at 0x%"PRIx32
+dp8393x_transmit_txlen_error(int len) "tx_len is %d"
+dp8393x_read(int reg, const char *name, int val, int size) "reg=0x%x [%s] val=0x%04x size=%d"
+dp8393x_write(int reg, const char *name, int val, int size) "reg=0x%x [%s] val=0x%04x size=%d"
+dp8393x_write_invalid(int reg) "writing to reg %d invalid"
+dp8393x_write_invalid_dcr(const char *name) "writing to %s invalid"
+dp8393x_receive_oversize(int size) "oversize packet, pkt_size is %d"
+dp8393x_receive_not_netcard(void) "packet not for netcard"
+dp8393x_receive_packet(int crba) "Receive packet at 0x%"PRIx32
+dp8393x_receive_write_status(int crba) "Write status at 0x%"PRIx32
