@@ -1,7 +1,7 @@
 /*
  * QEMU PowerPC CHRP (Genesi/bPlan Pegasos II) hardware System Emulator
  *
- * Copyright (c) 2018-2020 BALATON Zoltan
+ * Copyright (c) 2018-2021 BALATON Zoltan
  *
  * This work is licensed under the GNU GPL license version 2 or later.
  *
@@ -41,6 +41,15 @@
 
 #define BUS_FREQ_HZ 133333333
 
+#define TYPE_PEGASOS2_MACHINE  MACHINE_TYPE_NAME("pegasos2")
+OBJECT_DECLARE_TYPE(Pegasos2MachineState, MachineClass, PEGASOS2_MACHINE)
+
+struct Pegasos2MachineState {
+    MachineState parent_obj;
+    PowerPCCPU *cpu;
+    DeviceState *mv;
+};
+
 static void pegasos2_cpu_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
@@ -51,9 +60,9 @@ static void pegasos2_cpu_reset(void *opaque)
 
 static void pegasos2_init(MachineState *machine)
 {
-    PowerPCCPU *cpu = NULL;
+    Pegasos2MachineState *pm = PEGASOS2_MACHINE(machine);
+    CPUPPCState *env;
     MemoryRegion *rom = g_new(MemoryRegion, 1);
-    DeviceState *mv;
     PCIBus *pci_bus;
     PCIDevice *dev;
     I2CBus *i2c_bus;
@@ -63,15 +72,16 @@ static void pegasos2_init(MachineState *machine)
     uint8_t *spd_data;
 
     /* init CPU */
-    cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
-    if (PPC_INPUT(&cpu->env) != PPC_FLAGS_INPUT_6xx) {
+    pm->cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
+    env = &pm->cpu->env;
+    if (PPC_INPUT(env) != PPC_FLAGS_INPUT_6xx) {
         error_report("Incompatible CPU, only 6xx bus supported");
         exit(1);
     }
 
     /* Set time-base frequency */
-    cpu_ppc_tb_init(&cpu->env, BUS_FREQ_HZ / 4);
-    qemu_register_reset(pegasos2_cpu_reset, cpu);
+    cpu_ppc_tb_init(env, BUS_FREQ_HZ / 4);
+    qemu_register_reset(pegasos2_cpu_reset, pm->cpu);
 
     /* RAM */
     memory_region_add_subregion(get_system_memory(), 0, machine->ram);
@@ -96,16 +106,16 @@ static void pegasos2_init(MachineState *machine)
     g_free(filename);
 
     /* Marvell Discovery II system controller */
-    mv = DEVICE(sysbus_create_simple(TYPE_MV64361, -1,
-                        ((qemu_irq *)cpu->env.irq_inputs)[PPC6xx_INPUT_INT]));
-    pci_bus = mv64361_get_pci_bus(mv, 1);
+    pm->mv = DEVICE(sysbus_create_simple(TYPE_MV64361, -1,
+                             ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_INT]));
+    pci_bus = mv64361_get_pci_bus(pm->mv, 1);
 
     /* VIA VT8231 South Bridge (multifunction PCI device) */
     /* VT8231 function 0: PCI-to-ISA Bridge */
     dev = pci_create_simple_multifunction(pci_bus, PCI_DEVFN(12, 0), true,
                                           TYPE_VT8231_ISA);
     qdev_connect_gpio_out(DEVICE(dev), 0,
-                          qdev_get_gpio_in_named(mv, "gpp", 31));
+                          qdev_get_gpio_in_named(pm->mv, "gpp", 31));
 
     /* VT8231 function 1: IDE Controller */
     dev = pci_create_simple(pci_bus, PCI_DEVFN(12, 1), "via-ide");
@@ -129,8 +139,10 @@ static void pegasos2_init(MachineState *machine)
     pci_vga_init(pci_bus);
 }
 
-static void pegasos2_machine(MachineClass *mc)
+static void pegasos2_machine_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Genesi/bPlan Pegasos II";
     mc->init = pegasos2_init;
     mc->block_default_type = IF_IDE;
@@ -141,4 +153,16 @@ static void pegasos2_machine(MachineClass *mc)
     mc->default_ram_size = 512 * MiB;
 }
 
-DEFINE_MACHINE("pegasos2", pegasos2_machine)
+static const TypeInfo pegasos2_machine_info = {
+    .name          = TYPE_PEGASOS2_MACHINE,
+    .parent        = TYPE_MACHINE,
+    .class_init    = pegasos2_machine_class_init,
+    .instance_size = sizeof(Pegasos2MachineState),
+};
+
+static void pegasos2_machine_register_types(void)
+{
+    type_register_static(&pegasos2_machine_info);
+}
+
+type_init(pegasos2_machine_register_types)
