@@ -11,7 +11,7 @@ The ``sifive_u`` machine supports the following devices:
 
 * 1 E51 / E31 core
 * Up to 4 U54 / U34 cores
-* Core Level Interruptor (CLINT)
+* Core Local Interruptor (CLINT)
 * Platform-Level Interrupt Controller (PLIC)
 * Power, Reset, Clock, Interrupt (PRCI)
 * L2 Loosely Integrated Memory (L2-LIM)
