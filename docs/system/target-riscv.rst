@@ -69,6 +69,7 @@ undocumented; you can get a complete list by running
    riscv/microchip-icicle-kit
    riscv/shakti-c
    riscv/sifive_u
+   riscv/virt
 
 RISC-V CPU firmware
 -------------------
