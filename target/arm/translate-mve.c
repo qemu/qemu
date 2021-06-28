@@ -120,7 +120,8 @@ static bool mve_skip_first_beat(DisasContext *s)
     }
 }
 
-static bool do_ldst(DisasContext *s, arg_VLDR_VSTR *a, MVEGenLdStFn *fn)
+static bool do_ldst(DisasContext *s, arg_VLDR_VSTR *a, MVEGenLdStFn *fn,
+                    unsigned msize)
 {
     TCGv_i32 addr;
     uint32_t offset;
@@ -141,7 +142,7 @@ static bool do_ldst(DisasContext *s, arg_VLDR_VSTR *a, MVEGenLdStFn *fn)
         return true;
     }
 
-    offset = a->imm << a->size;
+    offset = a->imm << msize;
     if (!a->a) {
         offset = -offset;
     }
@@ -178,22 +179,22 @@ static bool trans_VLDR_VSTR(DisasContext *s, arg_VLDR_VSTR *a)
         { gen_helper_mve_vstrw, gen_helper_mve_vldrw },
         { NULL, NULL }
     };
-    return do_ldst(s, a, ldstfns[a->size][a->l]);
+    return do_ldst(s, a, ldstfns[a->size][a->l], a->size);
 }
 
-#define DO_VLDST_WIDE_NARROW(OP, SLD, ULD, ST)                  \
+#define DO_VLDST_WIDE_NARROW(OP, SLD, ULD, ST, MSIZE)           \
     static bool trans_##OP(DisasContext *s, arg_VLDR_VSTR *a)   \
     {                                                           \
         static MVEGenLdStFn * const ldstfns[2][2] = {           \
             { gen_helper_mve_##ST, gen_helper_mve_##SLD },      \
             { NULL, gen_helper_mve_##ULD },                     \
         };                                                      \
-        return do_ldst(s, a, ldstfns[a->u][a->l]);              \
+        return do_ldst(s, a, ldstfns[a->u][a->l], MSIZE);       \
     }
 
-DO_VLDST_WIDE_NARROW(VLDSTB_H, vldrb_sh, vldrb_uh, vstrb_h)
-DO_VLDST_WIDE_NARROW(VLDSTB_W, vldrb_sw, vldrb_uw, vstrb_w)
-DO_VLDST_WIDE_NARROW(VLDSTH_W, vldrh_sw, vldrh_uw, vstrh_w)
+DO_VLDST_WIDE_NARROW(VLDSTB_H, vldrb_sh, vldrb_uh, vstrb_h, MO_8)
+DO_VLDST_WIDE_NARROW(VLDSTB_W, vldrb_sw, vldrb_uw, vstrb_w, MO_8)
+DO_VLDST_WIDE_NARROW(VLDSTH_W, vldrh_sw, vldrh_uw, vstrh_w, MO_16)
 
 static bool trans_VDUP(DisasContext *s, arg_VDUP *a)
 {
