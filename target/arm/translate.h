@@ -540,7 +540,8 @@ static inline MemOp finalize_memop(DisasContext *s, MemOp opc)
  * VMVN and VBIC (when cmode < 14 && op == 1).
  *
  * The combination cmode == 15 op == 1 is a reserved encoding for AArch32;
- * callers must catch this.
+ * callers must catch this; we return the 64-bit constant value defined
+ * for AArch64.
  *
  * cmode = 2,3,4,5,6,7,10,11,12,13 imm=0 was UNPREDICTABLE in v7A but
  * is either not unpredictable or merely CONSTRAINED UNPREDICTABLE in v8A;

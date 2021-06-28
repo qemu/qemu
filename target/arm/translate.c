@@ -121,8 +121,8 @@ uint64_t asimd_imm_const(uint32_t imm, int cmode, int op)
     case 14:
         if (op) {
             /*
-             * This is the only case where the top and bottom 32 bits
-             * of the encoded constant differ.
+             * This and cmode == 15 op == 1 are the only cases where
+             * the top and bottom 32 bits of the encoded constant differ.
              */
             uint64_t imm64 = 0;
             int n;
@@ -137,6 +137,19 @@ uint64_t asimd_imm_const(uint32_t imm, int cmode, int op)
         imm |= (imm << 8) | (imm << 16) | (imm << 24);
         break;
     case 15:
+        if (op) {
+            /* Reserved encoding for AArch32; valid for AArch64 */
+            uint64_t imm64 = (uint64_t)(imm & 0x3f) << 48;
+            if (imm & 0x80) {
+                imm64 |= 0x8000000000000000ULL;
+            }
+            if (imm & 0x40) {
+                imm64 |= 0x3fc0000000000000ULL;
+            } else {
+                imm64 |= 0x4000000000000000ULL;
+            }
+            return imm64;
+        }
         imm = ((imm & 0x80) << 24) | ((imm & 0x3f) << 19)
             | ((imm & 0x40) ? (0x1f << 25) : (1 << 30));
         break;
