@@ -51,6 +51,7 @@
 &mve_shl_ri      rdalo rdahi shim
 &mve_shl_rr      rdalo rdahi rm
 &mve_sh_ri       rda shim
+&mve_sh_rr       rda rm
 
 # rdahi: bits [3:1] from insn, bit 0 is 1
 # rdalo: bits [3:1] from insn, bit 0 is 0
@@ -74,6 +75,7 @@
                  &mve_shl_rr rdalo=%rdalo_17 rdahi=%rdahi_9
 @mve_sh_ri       ....... .... . rda:4 . ... ... . .. .. .... \
                  &mve_sh_ri shim=%imm5_12_6
+@mve_sh_rr       ....... .... . rda:4 rm:4 .... .... .... &mve_sh_rr
 
 {
   TST_xrri       1110101 0000 1 .... 0 ... 1111 .... ....     @S_xrr_shi
@@ -112,10 +114,18 @@ BIC_rrri         1110101 0001 . .... 0 ... .... .... ....     @s_rrr_shi
       SQSHLL_ri  1110101 0010 1 ... 1 0 ... ... 1 .. 11 1111  @mve_shl_ri
     }
 
-    LSLL_rr      1110101 0010 1 ... 0 ....  ... 1  0000 1101  @mve_shl_rr
-    ASRL_rr      1110101 0010 1 ... 0 ....  ... 1  0010 1101  @mve_shl_rr
-    UQRSHLL64_rr 1110101 0010 1 ... 1 ....  ... 1  0000 1101  @mve_shl_rr
-    SQRSHRL64_rr 1110101 0010 1 ... 1 ....  ... 1  0010 1101  @mve_shl_rr
+    {
+      UQRSHL_rr    1110101 0010 1 ....  ....  1111 0000 1101  @mve_sh_rr
+      LSLL_rr      1110101 0010 1 ... 0 .... ... 1 0000 1101  @mve_shl_rr
+      UQRSHLL64_rr 1110101 0010 1 ... 1 .... ... 1 0000 1101  @mve_shl_rr
+    }
+
+    {
+      SQRSHR_rr    1110101 0010 1 ....  ....  1111 0010 1101  @mve_sh_rr
+      ASRL_rr      1110101 0010 1 ... 0 .... ... 1 0010 1101  @mve_shl_rr
+      SQRSHRL64_rr 1110101 0010 1 ... 1 .... ... 1 0010 1101  @mve_shl_rr
+    }
+
     UQRSHLL48_rr 1110101 0010 1 ... 1 ....  ... 1  1000 1101  @mve_shl_rr
     SQRSHRL48_rr 1110101 0010 1 ... 1 ....  ... 1  1010 1101  @mve_shl_rr
   ]

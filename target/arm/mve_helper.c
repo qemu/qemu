@@ -1638,3 +1638,13 @@ uint32_t HELPER(mve_sqshl)(CPUARMState *env, uint32_t n, uint32_t shift)
 {
     return do_sqrshl_bhs(n, (int8_t)shift, 32, false, &env->QF);
 }
+
+uint32_t HELPER(mve_uqrshl)(CPUARMState *env, uint32_t n, uint32_t shift)
+{
+    return do_uqrshl_bhs(n, (int8_t)shift, 32, true, &env->QF);
+}
+
+uint32_t HELPER(mve_sqrshr)(CPUARMState *env, uint32_t n, uint32_t shift)
+{
+    return do_sqrshl_bhs(n, -(int8_t)shift, 32, true, &env->QF);
+}
