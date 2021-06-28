@@ -1229,6 +1229,10 @@ DO_VADDV(vaddvuw, 4, uint32_t)
     DO_2SHIFT(OP##b, 1, uint8_t, FN)            \
     DO_2SHIFT(OP##h, 2, uint16_t, FN)           \
     DO_2SHIFT(OP##w, 4, uint32_t, FN)
+#define DO_2SHIFT_S(OP, FN)                     \
+    DO_2SHIFT(OP##b, 1, int8_t, FN)             \
+    DO_2SHIFT(OP##h, 2, int16_t, FN)            \
+    DO_2SHIFT(OP##w, 4, int32_t, FN)
 
 #define DO_2SHIFT_SAT_U(OP, FN)                 \
     DO_2SHIFT_SAT(OP##b, 1, uint8_t, FN)        \
@@ -1240,6 +1244,9 @@ DO_VADDV(vaddvuw, 4, uint32_t)
     DO_2SHIFT_SAT(OP##w, 4, int32_t, FN)
 
 DO_2SHIFT_U(vshli_u, DO_VSHLU)
+DO_2SHIFT_S(vshli_s, DO_VSHLS)
 DO_2SHIFT_SAT_U(vqshli_u, DO_UQSHL_OP)
 DO_2SHIFT_SAT_S(vqshli_s, DO_SQSHL_OP)
 DO_2SHIFT_SAT_S(vqshlui_s, DO_SUQSHL_OP)
+DO_2SHIFT_U(vrshli_u, DO_VRSHLU)
+DO_2SHIFT_S(vrshli_s, DO_VRSHLS)

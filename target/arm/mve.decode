@@ -64,6 +64,18 @@
 @2_shl_h .... .... .. 01  shift:4 .... .... .... .... &2shift qd=%qd qm=%qm size=1
 @2_shl_w .... .... .. 1   shift:5 .... .... .... .... &2shift qd=%qd qm=%qm size=2
 
+# Right shifts are encoded as N - shift, where N is the element size in bits.
+%rshift_i5  16:5 !function=rsub_32
+%rshift_i4  16:4 !function=rsub_16
+%rshift_i3  16:3 !function=rsub_8
+
+@2_shr_b .... .... .. 001 ... .... .... .... .... &2shift qd=%qd qm=%qm \
+         size=0 shift=%rshift_i3
+@2_shr_h .... .... .. 01 .... .... .... .... .... &2shift qd=%qd qm=%qm \
+         size=1 shift=%rshift_i4
+@2_shr_w .... .... .. 1 ..... .... .... .... .... &2shift qd=%qd qm=%qm \
+         size=2 shift=%rshift_i5
+
 # Vector loads and stores
 
 # Widening loads and narrowing stores:
@@ -298,3 +310,19 @@ VQSHLI_U          111 1 1111 1 . ... ... ... 0 0111 0 1 . 1 ... 0 @2_shl_w
 VQSHLUI           111 1 1111 1 . ... ... ... 0 0110 0 1 . 1 ... 0 @2_shl_b
 VQSHLUI           111 1 1111 1 . ... ... ... 0 0110 0 1 . 1 ... 0 @2_shl_h
 VQSHLUI           111 1 1111 1 . ... ... ... 0 0110 0 1 . 1 ... 0 @2_shl_w
+
+VSHRI_S           111 0 1111 1 . ... ... ... 0 0000 0 1 . 1 ... 0 @2_shr_b
+VSHRI_S           111 0 1111 1 . ... ... ... 0 0000 0 1 . 1 ... 0 @2_shr_h
+VSHRI_S           111 0 1111 1 . ... ... ... 0 0000 0 1 . 1 ... 0 @2_shr_w
+
+VSHRI_U           111 1 1111 1 . ... ... ... 0 0000 0 1 . 1 ... 0 @2_shr_b
+VSHRI_U           111 1 1111 1 . ... ... ... 0 0000 0 1 . 1 ... 0 @2_shr_h
+VSHRI_U           111 1 1111 1 . ... ... ... 0 0000 0 1 . 1 ... 0 @2_shr_w
+
+VRSHRI_S          111 0 1111 1 . ... ... ... 0 0010 0 1 . 1 ... 0 @2_shr_b
+VRSHRI_S          111 0 1111 1 . ... ... ... 0 0010 0 1 . 1 ... 0 @2_shr_h
+VRSHRI_S          111 0 1111 1 . ... ... ... 0 0010 0 1 . 1 ... 0 @2_shr_w
+
+VRSHRI_U          111 1 1111 1 . ... ... ... 0 0010 0 1 . 1 ... 0 @2_shr_b
+VRSHRI_U          111 1 1111 1 . ... ... ... 0 0010 0 1 . 1 ... 0 @2_shr_h
+VRSHRI_U          111 1 1111 1 . ... ... ... 0 0010 0 1 . 1 ... 0 @2_shr_w

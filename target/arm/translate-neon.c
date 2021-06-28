@@ -33,24 +33,6 @@ static inline int plus1(DisasContext *s, int x)
     return x + 1;
 }
 
-static inline int rsub_64(DisasContext *s, int x)
-{
-    return 64 - x;
-}
-
-static inline int rsub_32(DisasContext *s, int x)
-{
-    return 32 - x;
-}
-static inline int rsub_16(DisasContext *s, int x)
-{
-    return 16 - x;
-}
-static inline int rsub_8(DisasContext *s, int x)
-{
-    return 8 - x;
-}
-
 static inline int neon_3same_fp_size(DisasContext *s, int x)
 {
     /* Convert 0==fp32, 1==fp16 into a MO_* value */

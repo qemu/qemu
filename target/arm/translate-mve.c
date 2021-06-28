@@ -888,3 +888,8 @@ DO_2SHIFT(VSHLI, vshli_u, false)
 DO_2SHIFT(VQSHLI_S, vqshli_s, false)
 DO_2SHIFT(VQSHLI_U, vqshli_u, false)
 DO_2SHIFT(VQSHLUI, vqshlui_s, false)
+/* These right shifts use a left-shift helper with negated shift count */
+DO_2SHIFT(VSHRI_S, vshli_s, true)
+DO_2SHIFT(VSHRI_U, vshli_u, true)
+DO_2SHIFT(VRSHRI_S, vrshli_s, true)
+DO_2SHIFT(VRSHRI_U, vrshli_u, true)
