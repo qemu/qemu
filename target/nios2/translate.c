@@ -211,7 +211,7 @@ static void jmpi(DisasContext *dc, uint32_t code, uint32_t flags)
 
 static void call(DisasContext *dc, uint32_t code, uint32_t flags)
 {
-    tcg_gen_movi_tl(cpu_R[R_RA], dc->pc + 4);
+    tcg_gen_movi_tl(cpu_R[R_RA], dc->base.pc_next);
     jmpi(dc, code, flags);
 }
 
@@ -265,7 +265,7 @@ static void br(DisasContext *dc, uint32_t code, uint32_t flags)
 {
     I_TYPE(instr, code);
 
-    gen_goto_tb(dc, 0, dc->pc + 4 + (instr.imm16.s & -4));
+    gen_goto_tb(dc, 0, dc->base.pc_next + (instr.imm16.s & -4));
     dc->base.is_jmp = DISAS_NORETURN;
 }
 
@@ -275,9 +275,9 @@ static void gen_bxx(DisasContext *dc, uint32_t code, uint32_t flags)
 
     TCGLabel *l1 = gen_new_label();
     tcg_gen_brcond_tl(flags, cpu_R[instr.a], cpu_R[instr.b], l1);
-    gen_goto_tb(dc, 0, dc->pc + 4);
+    gen_goto_tb(dc, 0, dc->base.pc_next);
     gen_set_label(l1);
-    gen_goto_tb(dc, 1, dc->pc + 4 + (instr.imm16.s & -4));
+    gen_goto_tb(dc, 1, dc->base.pc_next + (instr.imm16.s & -4));
     dc->base.is_jmp = DISAS_NORETURN;
 }
 
@@ -435,7 +435,7 @@ static void nextpc(DisasContext *dc, uint32_t code, uint32_t flags)
     R_TYPE(instr, code);
 
     if (likely(instr.c != R_ZERO)) {
-        tcg_gen_movi_tl(cpu_R[instr.c], dc->pc + 4);
+        tcg_gen_movi_tl(cpu_R[instr.c], dc->base.pc_next);
     }
 }
 
@@ -448,7 +448,7 @@ static void callr(DisasContext *dc, uint32_t code, uint32_t flags)
     R_TYPE(instr, code);
 
     tcg_gen_mov_tl(cpu_R[R_PC], load_gpr(dc, instr.a));
-    tcg_gen_movi_tl(cpu_R[R_RA], dc->pc + 4);
+    tcg_gen_movi_tl(cpu_R[R_RA], dc->base.pc_next);
 
     dc->base.is_jmp = DISAS_JUMP;
 }
