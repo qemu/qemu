@@ -366,10 +366,9 @@ static inline int ppc_hash64_pte_noexec_guard(PowerPCCPU *cpu,
 }
 
 /* Check Basic Storage Protection */
-static int ppc_hash64_pte_prot(PowerPCCPU *cpu,
+static int ppc_hash64_pte_prot(int mmu_idx,
                                ppc_slb_t *slb, ppc_hash_pte64_t pte)
 {
-    CPUPPCState *env = &cpu->env;
     unsigned pp, key;
     /*
      * Some pp bit combinations have undefined behaviour, so default
@@ -377,7 +376,7 @@ static int ppc_hash64_pte_prot(PowerPCCPU *cpu,
      */
     int prot = 0;
 
-    key = !!(msr_pr ? (slb->vsid & SLB_VSID_KP)
+    key = !!(mmuidx_pr(mmu_idx) ? (slb->vsid & SLB_VSID_KP)
              : (slb->vsid & SLB_VSID_KS));
     pp = (pte.pte1 & HPTE64_R_PP) | ((pte.pte1 & HPTE64_R_PP0) >> 61);
 
@@ -744,17 +743,17 @@ static bool ppc_hash64_use_vrma(CPUPPCState *env)
     }
 }
 
-static void ppc_hash64_set_isi(CPUState *cs, uint64_t error_code)
+static void ppc_hash64_set_isi(CPUState *cs, int mmu_idx, uint64_t error_code)
 {
     CPUPPCState *env = &POWERPC_CPU(cs)->env;
     bool vpm;
 
-    if (msr_ir) {
+    if (!mmuidx_real(mmu_idx)) {
         vpm = !!(env->spr[SPR_LPCR] & LPCR_VPM1);
     } else {
         vpm = ppc_hash64_use_vrma(env);
     }
-    if (vpm && !msr_hv) {
+    if (vpm && !mmuidx_hv(mmu_idx)) {
         cs->exception_index = POWERPC_EXCP_HISI;
     } else {
         cs->exception_index = POWERPC_EXCP_ISI;
@@ -762,17 +761,17 @@ static void ppc_hash64_set_isi(CPUState *cs, uint64_t error_code)
     env->error_code = error_code;
 }
 
-static void ppc_hash64_set_dsi(CPUState *cs, uint64_t dar, uint64_t dsisr)
+static void ppc_hash64_set_dsi(CPUState *cs, int mmu_idx, uint64_t dar, uint64_t dsisr)
 {
     CPUPPCState *env = &POWERPC_CPU(cs)->env;
     bool vpm;
 
-    if (msr_dr) {
+    if (!mmuidx_real(mmu_idx)) {
         vpm = !!(env->spr[SPR_LPCR] & LPCR_VPM1);
     } else {
         vpm = ppc_hash64_use_vrma(env);
     }
-    if (vpm && !msr_hv) {
+    if (vpm && !mmuidx_hv(mmu_idx)) {
         cs->exception_index = POWERPC_EXCP_HDSI;
         env->spr[SPR_HDAR] = dar;
         env->spr[SPR_HDSISR] = dsisr;
@@ -874,7 +873,7 @@ static int build_vrma_slbe(PowerPCCPU *cpu, ppc_slb_t *slb)
 }
 
 bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
-                      hwaddr *raddrp, int *psizep, int *protp,
+                      hwaddr *raddrp, int *psizep, int *protp, int mmu_idx,
                       bool guest_visible)
 {
     CPUState *cs = CPU(cpu);
@@ -897,7 +896,7 @@ bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
      */
 
     /* 1. Handle real mode accesses */
-    if (access_type == MMU_INST_FETCH ? !msr_ir : !msr_dr) {
+    if (mmuidx_real(mmu_idx)) {
         /*
          * Translation is supposedly "off", but in real mode the top 4
          * effective address bits are (mostly) ignored
@@ -909,7 +908,7 @@ bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
              * In virtual hypervisor mode, there's nothing to do:
              *   EA == GPA == qemu guest address
              */
-        } else if (msr_hv || !env->has_hv_mode) {
+        } else if (mmuidx_hv(mmu_idx) || !env->has_hv_mode) {
             /* In HV mode, add HRMOR if top EA bit is clear */
             if (!(eaddr >> 63)) {
                 raddr |= env->spr[SPR_HRMOR];
@@ -937,13 +936,13 @@ bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
                 }
                 switch (access_type) {
                 case MMU_INST_FETCH:
-                    ppc_hash64_set_isi(cs, SRR1_PROTFAULT);
+                    ppc_hash64_set_isi(cs, mmu_idx, SRR1_PROTFAULT);
                     break;
                 case MMU_DATA_LOAD:
-                    ppc_hash64_set_dsi(cs, eaddr, DSISR_PROTFAULT);
+                    ppc_hash64_set_dsi(cs, mmu_idx, eaddr, DSISR_PROTFAULT);
                     break;
                 case MMU_DATA_STORE:
-                    ppc_hash64_set_dsi(cs, eaddr,
+                    ppc_hash64_set_dsi(cs, mmu_idx, eaddr,
                                        DSISR_PROTFAULT | DSISR_ISSTORE);
                     break;
                 default:
@@ -996,7 +995,7 @@ bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     /* 3. Check for segment level no-execute violation */
     if (access_type == MMU_INST_FETCH && (slb->vsid & SLB_VSID_N)) {
         if (guest_visible) {
-            ppc_hash64_set_isi(cs, SRR1_NOEXEC_GUARD);
+            ppc_hash64_set_isi(cs, mmu_idx, SRR1_NOEXEC_GUARD);
         }
         return false;
     }
@@ -1009,13 +1008,13 @@ bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
         }
         switch (access_type) {
         case MMU_INST_FETCH:
-            ppc_hash64_set_isi(cs, SRR1_NOPTE);
+            ppc_hash64_set_isi(cs, mmu_idx, SRR1_NOPTE);
             break;
         case MMU_DATA_LOAD:
-            ppc_hash64_set_dsi(cs, eaddr, DSISR_NOPTE);
+            ppc_hash64_set_dsi(cs, mmu_idx, eaddr, DSISR_NOPTE);
             break;
         case MMU_DATA_STORE:
-            ppc_hash64_set_dsi(cs, eaddr, DSISR_NOPTE | DSISR_ISSTORE);
+            ppc_hash64_set_dsi(cs, mmu_idx, eaddr, DSISR_NOPTE | DSISR_ISSTORE);
             break;
         default:
             g_assert_not_reached();
@@ -1028,7 +1027,7 @@ bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     /* 5. Check access permissions */
 
     exec_prot = ppc_hash64_pte_noexec_guard(cpu, pte);
-    pp_prot = ppc_hash64_pte_prot(cpu, slb, pte);
+    pp_prot = ppc_hash64_pte_prot(mmu_idx, slb, pte);
     amr_prot = ppc_hash64_amr_prot(cpu, pte);
     prot = exec_prot & pp_prot & amr_prot;
 
@@ -1049,7 +1048,7 @@ bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
             if (PAGE_EXEC & ~amr_prot) {
                 srr1 |= SRR1_IAMR; /* Access violates virt pg class key prot */
             }
-            ppc_hash64_set_isi(cs, srr1);
+            ppc_hash64_set_isi(cs, mmu_idx, srr1);
         } else {
             int dsisr = 0;
             if (need_prot & ~pp_prot) {
@@ -1061,7 +1060,7 @@ bool ppc_hash64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
             if (need_prot & ~amr_prot) {
                 dsisr |= DSISR_AMR;
             }
-            ppc_hash64_set_dsi(cs, eaddr, dsisr);
+            ppc_hash64_set_dsi(cs, mmu_idx, eaddr, dsisr);
         }
         return false;
     }
