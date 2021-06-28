@@ -34,6 +34,7 @@ typedef void MVEGenTwoOpFn(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr);
 typedef void MVEGenTwoOpScalarFn(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i32);
 typedef void MVEGenDualAccOpFn(TCGv_i64, TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i64);
 typedef void MVEGenVADDVFn(TCGv_i32, TCGv_ptr, TCGv_ptr, TCGv_i32);
+typedef void MVEGenOneOpImmFn(TCGv_ptr, TCGv_ptr, TCGv_i64);
 
 /* Return the offset of a Qn register (same semantics as aa32_vfp_qreg()) */
 static inline long mve_qreg_offset(unsigned reg)
@@ -786,4 +787,53 @@ static bool trans_VADDV(DisasContext *s, arg_VADDV *a)
 
     mve_update_eci(s);
     return true;
+}
+
+static bool do_1imm(DisasContext *s, arg_1imm *a, MVEGenOneOpImmFn *fn)
+{
+    TCGv_ptr qd;
+    uint64_t imm;
+
+    if (!dc_isar_feature(aa32_mve, s) ||
+        !mve_check_qreg_bank(s, a->qd) ||
+        !fn) {
+        return false;
+    }
+    if (!mve_eci_check(s) || !vfp_access_check(s)) {
+        return true;
+    }
+
+    imm = asimd_imm_const(a->imm, a->cmode, a->op);
+
+    qd = mve_qreg_ptr(a->qd);
+    fn(cpu_env, qd, tcg_constant_i64(imm));
+    tcg_temp_free_ptr(qd);
+    mve_update_eci(s);
+    return true;
+}
+
+static bool trans_Vimm_1r(DisasContext *s, arg_1imm *a)
+{
+    /* Handle decode of cmode/op here between VORR/VBIC/VMOV */
+    MVEGenOneOpImmFn *fn;
+
+    if ((a->cmode & 1) && a->cmode < 12) {
+        if (a->op) {
+            /*
+             * For op=1, the immediate will be inverted by asimd_imm_const(),
+             * so the VBIC becomes a logical AND operation.
+             */
+            fn = gen_helper_mve_vandi;
+        } else {
+            fn = gen_helper_mve_vorri;
+        }
+    } else {
+        /* There is one unallocated cmode/op combination in this space */
+        if (a->cmode == 15 && a->op == 1) {
+            return false;
+        }
+        /* asimd_imm_const() sorts out VMVNI vs VMOVI for us */
+        fn = gen_helper_mve_vmovi;
+    }
+    return do_1imm(s, a, fn);
 }

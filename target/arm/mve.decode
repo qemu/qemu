@@ -26,10 +26,14 @@
 # VQDMULL has size in bit 28: 0 for 16 bit, 1 for 32 bit
 %size_28 28:1 !function=plus_1
 
+# 1imm format immediate
+%imm_28_16_0 28:1 16:3 0:4
+
 &vldr_vstr rn qd imm p a w size l u
 &1op qd qm size
 &2op qd qm qn size
 &2scalar qd qn rm size
+&1imm qd imm cmode op
 
 @vldr_vstr ....... . . . . l:1 rn:4 ... ...... imm:7 &vldr_vstr qd=%qd u=0
 # Note that both Rn and Qd are 3 bits only (no D bit)
@@ -41,6 +45,7 @@
 @2op_nosz .... .... .... .... .... .... .... .... &2op qd=%qd qm=%qm qn=%qn size=0
 @2op_sz28 .... .... .... .... .... .... .... .... &2op qd=%qd qm=%qm qn=%qn \
      size=%size_28
+@1imm .... .... .... .... .... cmode:4 .. op:1 . .... &1imm qd=%qd imm=%imm_28_16_0
 
 # The _rev suffix indicates that Vn and Vm are reversed. This is
 # the case for shifts. In the Arm ARM these insns are documented
@@ -258,3 +263,15 @@ VADDV            111 u:1 1110 1111 size:2 01 ... 0 1111 0 0 a:1 0 qm:3 0 rda=%rd
 # Predicate operations
 %mask_22_13      22:1 13:3
 VPST             1111 1110 0 . 11 000 1 ... 0 1111 0100 1101 mask=%mask_22_13
+
+# Logical immediate operations (1 reg and modified-immediate)
+
+# The cmode/op bits here decode VORR/VBIC/VMOV/VMVN, but
+# not in a way we can conveniently represent in decodetree without
+# a lot of repetition:
+# VORR: op=0, (cmode & 1) && cmode < 12
+# VBIC: op=1, (cmode & 1) && cmode < 12
+# VMOV: everything else
+# So we have a single decode line and check the cmode/op in the
+# trans function.
+Vimm_1r 111 . 1111 1 . 00 0 ... ... 0 .... 0 1 . 1 .... @1imm

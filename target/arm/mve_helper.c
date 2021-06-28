@@ -323,6 +323,30 @@ DO_1OP(vnegw, 4, int32_t, DO_NEG)
 DO_1OP(vfnegh, 8, uint64_t, DO_FNEGH)
 DO_1OP(vfnegs, 8, uint64_t, DO_FNEGS)
 
+/*
+ * 1 operand immediates: Vda is destination and possibly also one source.
+ * All these insns work at 64-bit widths.
+ */
+#define DO_1OP_IMM(OP, FN)                                              \
+    void HELPER(mve_##OP)(CPUARMState *env, void *vda, uint64_t imm)    \
+    {                                                                   \
+        uint64_t *da = vda;                                             \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        for (e = 0; e < 16 / 8; e++, mask >>= 8) {                      \
+            mergemask(&da[H8(e)], FN(da[H8(e)], imm), mask);            \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_MOVI(N, I) (I)
+#define DO_ANDI(N, I) ((N) & (I))
+#define DO_ORRI(N, I) ((N) | (I))
+
+DO_1OP_IMM(vmovi, DO_MOVI)
+DO_1OP_IMM(vandi, DO_ANDI)
+DO_1OP_IMM(vorri, DO_ORRI)
+
 #define DO_2OP(OP, ESIZE, TYPE, FN)                                     \
     void HELPER(glue(mve_, OP))(CPUARMState *env,                       \
                                 void *vd, void *vn, void *vm)           \
