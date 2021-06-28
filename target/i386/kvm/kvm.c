@@ -2700,8 +2700,6 @@ static uint64_t make_vmx_msr_value(uint32_t index, uint32_t features)
     return must_be_one | (((uint64_t)can_be_one) << 32);
 }
 
-#define VMCS12_MAX_FIELD_INDEX (0x17)
-
 static void kvm_msr_entry_add_vmx(X86CPU *cpu, FeatureWordArray f)
 {
     uint64_t kvm_vmx_basic =
@@ -2791,8 +2789,14 @@ static void kvm_msr_entry_add_vmx(X86CPU *cpu, FeatureWordArray f)
                       CR0_PE_MASK | CR0_PG_MASK | CR0_NE_MASK);
     kvm_msr_entry_add(cpu, MSR_IA32_VMX_CR4_FIXED0,
                       CR4_VMXE_MASK);
-    kvm_msr_entry_add(cpu, MSR_IA32_VMX_VMCS_ENUM,
-                      VMCS12_MAX_FIELD_INDEX << 1);
+
+    if (f[FEAT_VMX_SECONDARY_CTLS] & VMX_SECONDARY_EXEC_TSC_SCALING) {
+        /* TSC multiplier (0x2032).  */
+        kvm_msr_entry_add(cpu, MSR_IA32_VMX_VMCS_ENUM, 0x32);
+    } else {
+        /* Preemption timer (0x482E).  */
+        kvm_msr_entry_add(cpu, MSR_IA32_VMX_VMCS_ENUM, 0x2E);
+    }
 }
 
 static void kvm_msr_entry_add_perf(X86CPU *cpu, FeatureWordArray f)

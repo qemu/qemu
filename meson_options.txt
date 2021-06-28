@@ -52,6 +52,8 @@ option('multiprocess', type: 'feature', value: 'auto',
 
 option('attr', type : 'feature', value : 'auto',
        description: 'attr/xattr support')
+option('auth_pam', type : 'feature', value : 'auto',
+       description: 'PAM access control')
 option('brlapi', type : 'feature', value : 'auto',
        description: 'brlapi character device driver')
 option('bzip2', type : 'feature', value : 'auto',
@@ -76,8 +78,16 @@ option('iconv', type : 'feature', value : 'auto',
        description: 'Font glyph conversion support')
 option('curses', type : 'feature', value : 'auto',
        description: 'curses UI')
+option('gnutls', type : 'feature', value : 'auto',
+       description: 'GNUTLS cryptography support')
+option('nettle', type : 'feature', value : 'auto',
+       description: 'nettle cryptography support')
+option('gcrypt', type : 'feature', value : 'auto',
+       description: 'libgcrypt cryptography support')
 option('libudev', type : 'feature', value : 'auto',
        description: 'Use libudev to enumerate host devices')
+option('libusb', type : 'feature', value : 'auto',
+       description: 'libusb support for USB passthrough')
 option('lzfse', type : 'feature', value : 'auto',
        description: 'lzfse support for DMG images')
 option('lzo', type : 'feature', value : 'auto',
@@ -92,10 +102,14 @@ option('sdl_image', type : 'feature', value : 'auto',
        description: 'SDL Image support for icons')
 option('seccomp', type : 'feature', value : 'auto',
        description: 'seccomp support')
+option('smartcard', type : 'feature', value : 'auto',
+       description: 'CA smartcard emulation support')
 option('snappy', type : 'feature', value : 'auto',
        description: 'snappy compression support')
 option('u2f', type : 'feature', value : 'auto',
        description: 'U2F emulation support')
+option('usb_redir', type : 'feature', value : 'auto',
+       description: 'libusbredir support')
 option('vnc', type : 'feature', value : 'enabled',
        description: 'VNC server')
 option('vnc_jpeg', type : 'feature', value : 'auto',

@@ -319,11 +319,16 @@ extern "C" {
     })
 #endif
 
-/* Round number down to multiple */
+/*
+ * Round number down to multiple. Safe when m is not a power of 2 (see
+ * ROUND_DOWN for a faster version when a power of 2 is guaranteed).
+ */
 #define QEMU_ALIGN_DOWN(n, m) ((n) / (m) * (m))
 
-/* Round number up to multiple. Safe when m is not a power of 2 (see
- * ROUND_UP for a faster version when a power of 2 is guaranteed) */
+/*
+ * Round number up to multiple. Safe when m is not a power of 2 (see
+ * ROUND_UP for a faster version when a power of 2 is guaranteed).
+ */
 #define QEMU_ALIGN_UP(n, m) QEMU_ALIGN_DOWN((n) + (m) - 1, (m))
 
 /* Check if n is a multiple of m */
@@ -340,11 +345,22 @@ extern "C" {
 /* Check if pointer p is n-bytes aligned */
 #define QEMU_PTR_IS_ALIGNED(p, n) QEMU_IS_ALIGNED((uintptr_t)(p), (n))
 
-/* Round number up to multiple. Requires that d be a power of 2 (see
+/*
+ * Round number down to multiple. Requires that d be a power of 2 (see
  * QEMU_ALIGN_UP for a safer but slower version on arbitrary
- * numbers); works even if d is a smaller type than n.  */
+ * numbers); works even if d is a smaller type than n.
+ */
+#ifndef ROUND_DOWN
+#define ROUND_DOWN(n, d) ((n) & -(0 ? (n) : (d)))
+#endif
+
+/*
+ * Round number up to multiple. Requires that d be a power of 2 (see
+ * QEMU_ALIGN_UP for a safer but slower version on arbitrary
+ * numbers); works even if d is a smaller type than n.
+ */
 #ifndef ROUND_UP
-#define ROUND_UP(n, d) (((n) + (d) - 1) & -(0 ? (n) : (d)))
+#define ROUND_UP(n, d) ROUND_DOWN((n) + (d) - 1, (d))
 #endif
 
 #ifndef DIV_ROUND_UP

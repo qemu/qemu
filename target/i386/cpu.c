@@ -1031,7 +1031,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             "vmx-invpcid-exit", "vmx-vmfunc", "vmx-shadow-vmcs", "vmx-encls-exit",
             "vmx-rdseed-exit", "vmx-pml", NULL, NULL,
             "vmx-xsaves", NULL, NULL, NULL,
-            NULL, NULL, NULL, NULL,
+            NULL, "vmx-tsc-scaling", NULL, NULL,
             NULL, NULL, NULL, NULL,
         },
         .msr = {

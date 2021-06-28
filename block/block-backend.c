@@ -1953,16 +1953,29 @@ uint32_t blk_get_request_alignment(BlockBackend *blk)
     return bs ? bs->bl.request_alignment : BDRV_SECTOR_SIZE;
 }
 
+/* Returns the maximum hardware transfer length, in bytes; guaranteed nonzero */
+uint64_t blk_get_max_hw_transfer(BlockBackend *blk)
+{
+    BlockDriverState *bs = blk_bs(blk);
+    uint64_t max = INT_MAX;
+
+    if (bs) {
+        max = MIN_NON_ZERO(max, bs->bl.max_hw_transfer);
+        max = MIN_NON_ZERO(max, bs->bl.max_transfer);
+    }
+    return ROUND_DOWN(max, blk_get_request_alignment(blk));
+}
+
 /* Returns the maximum transfer length, in bytes; guaranteed nonzero */
 uint32_t blk_get_max_transfer(BlockBackend *blk)
 {
     BlockDriverState *bs = blk_bs(blk);
-    uint32_t max = 0;
+    uint32_t max = INT_MAX;
 
     if (bs) {
-        max = bs->bl.max_transfer;
+        max = MIN_NON_ZERO(max, bs->bl.max_transfer);
     }
-    return MIN_NON_ZERO(max, INT_MAX);
+    return ROUND_DOWN(max, blk_get_request_alignment(blk));
 }
 
 int blk_get_max_iov(BlockBackend *blk)

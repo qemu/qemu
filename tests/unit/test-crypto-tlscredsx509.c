@@ -25,8 +25,6 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 
-#ifdef QCRYPTO_HAVE_TLS_TEST_SUPPORT
-
 #define WORKDIR "tests/test-crypto-tlscredsx509-work/"
 #define KEYFILE WORKDIR "key-ctx.pem"
 
@@ -706,13 +704,3 @@ int main(int argc, char **argv)
 
     return ret == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-
-#else /* ! QCRYPTO_HAVE_TLS_TEST_SUPPORT */
-
-int
-main(void)
-{
-    return EXIT_SUCCESS;
-}
-
-#endif /* ! QCRYPTO_HAVE_TLS_TEST_SUPPORT */

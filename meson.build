@@ -183,7 +183,7 @@ if targetos == 'windows'
                                       include_directories: include_directories('.'))
 elif targetos == 'darwin'
   coref = dependency('appleframeworks', modules: 'CoreFoundation')
-  iokit = dependency('appleframeworks', modules: 'IOKit')
+  iokit = dependency('appleframeworks', modules: 'IOKit', required: false)
 elif targetos == 'sunos'
   socket = [cc.find_library('socket'),
             cc.find_library('nsl'),
@@ -320,29 +320,10 @@ urcubp = not_found
 if 'CONFIG_TRACE_UST' in config_host
   urcubp = declare_dependency(link_args: config_host['URCU_BP_LIBS'].split())
 endif
-gcrypt = not_found
-if 'CONFIG_GCRYPT' in config_host
-  gcrypt = declare_dependency(compile_args: config_host['GCRYPT_CFLAGS'].split(),
-                              link_args: config_host['GCRYPT_LIBS'].split())
-endif
-nettle = not_found
-if 'CONFIG_NETTLE' in config_host
-  nettle = declare_dependency(compile_args: config_host['NETTLE_CFLAGS'].split(),
-                              link_args: config_host['NETTLE_LIBS'].split())
-endif
-gnutls = not_found
-if 'CONFIG_GNUTLS' in config_host
-  gnutls = declare_dependency(compile_args: config_host['GNUTLS_CFLAGS'].split(),
-                              link_args: config_host['GNUTLS_LIBS'].split())
-endif
 pixman = not_found
 if have_system or have_tools
   pixman = dependency('pixman-1', required: have_system, version:'>=0.21.8',
                       method: 'pkg-config', kwargs: static_kwargs)
-endif
-pam = not_found
-if 'CONFIG_AUTH_PAM' in config_host
-  pam = cc.find_library('pam')
 endif
 libaio = cc.find_library('aio', required: false)
 zlib = dependency('zlib', required: true, kwargs: static_kwargs)
@@ -829,6 +810,54 @@ if 'CONFIG_OPENGL' in config_host
                               link_args: config_host['OPENGL_LIBS'].split())
 endif
 
+gnutls = not_found
+if not get_option('gnutls').auto() or have_system
+  gnutls = dependency('gnutls', version: '>=3.5.18',
+                      method: 'pkg-config',
+                      required: get_option('gnutls'),
+                      kwargs: static_kwargs)
+endif
+
+# Nettle has priority over gcrypt
+gcrypt = not_found
+nettle = not_found
+xts = 'private'
+if get_option('nettle').enabled() and get_option('gcrypt').enabled()
+  error('Only one of gcrypt & nettle can be enabled')
+elif (not get_option('nettle').auto() or have_system) and not get_option('gcrypt').enabled()
+  nettle = dependency('nettle', version: '>=3.4',
+                      method: 'pkg-config',
+                      required: get_option('nettle'),
+                      kwargs: static_kwargs)
+  if nettle.found() and cc.has_header('nettle/xts.h', dependencies: nettle)
+    xts = 'nettle'
+  endif
+endif
+if (not get_option('gcrypt').auto() or have_system) and not nettle.found()
+  gcrypt = dependency('libgcrypt', version: '>=1.5',
+                         method: 'config-tool',
+                         required: get_option('gcrypt'),
+                         kwargs: static_kwargs)
+  if gcrypt.found() and cc.compiles('''
+    #include <gcrypt.h>
+    int main(void) {
+      gcry_cipher_hd_t handle;
+      gcry_cipher_open(&handle, GCRY_CIPHER_AES, GCRY_CIPHER_MODE_XTS, 0);
+      return 0;
+    }
+    ''', dependencies: gcrypt)
+    xts = 'gcrypt'
+  endif
+  # Debian has removed -lgpg-error from libgcrypt-config
+  # as it "spreads unnecessary dependencies" which in
+  # turn breaks static builds...
+  if gcrypt.found() and enable_static
+    gcrypt = declare_dependency(dependencies: [
+      gcrypt,
+      cc.find_library('gpg-error', required: true, kwargs: static_kwargs)])
+  endif
+endif
+
 gtk = not_found
 gtkx11 = not_found
 if not get_option('gtk').auto() or (have_system and not cocoa.found())
@@ -871,6 +900,31 @@ if get_option('vnc').enabled()
   if sasl.found()
     sasl = declare_dependency(dependencies: sasl,
                               compile_args: '-DSTRUCT_IOVEC_DEFINED')
+  endif
+endif
+
+pam = not_found
+if not get_option('auth_pam').auto() or have_system
+  pam = cc.find_library('pam', has_headers: ['security/pam_appl.h'],
+                        required: get_option('auth_pam'),
+                        kwargs: static_kwargs)
+endif
+if pam.found() and not cc.links('''
+   #include <stddef.h>
+   #include <security/pam_appl.h>
+   int main(void) {
+     const char *service_name = "qemu";
+     const char *user = "frank";
+     const struct pam_conv pam_conv = { 0 };
+     pam_handle_t *pamh = NULL;
+     pam_start(service_name, user, &pam_conv, &pamh);
+     return 0;
+   }''', dependencies: pam)
+  pam = not_found
+  if get_option('auth_pam').enabled()
+    error('could not link libpam')
+  else
+    warning('could not link libpam, disabling')
   endif
 endif
 
@@ -922,9 +976,10 @@ if 'CONFIG_XEN_BACKEND' in config_host
                            link_args: config_host['XEN_LIBS'].split())
 endif
 cacard = not_found
-if 'CONFIG_SMARTCARD' in config_host
-  cacard = declare_dependency(compile_args: config_host['SMARTCARD_CFLAGS'].split(),
-                              link_args: config_host['SMARTCARD_LIBS'].split())
+if not get_option('smartcard').auto() or have_system
+  cacard = dependency('libcacard', required: get_option('smartcard'),
+                      version: '>=2.5.1', method: 'pkg-config',
+                      kwargs: static_kwargs)
 endif
 u2f = not_found
 if have_system
@@ -933,15 +988,18 @@ if have_system
                    kwargs: static_kwargs)
 endif
 usbredir = not_found
-if 'CONFIG_USB_REDIR' in config_host
-  usbredir = declare_dependency(compile_args: config_host['USB_REDIR_CFLAGS'].split(),
-                                link_args: config_host['USB_REDIR_LIBS'].split())
+if not get_option('usb_redir').auto() or have_system
+  usbredir = dependency('libusbredirparser-0.5', required: get_option('usb_redir'),
+                        version: '>=0.6', method: 'pkg-config',
+                        kwargs: static_kwargs)
 endif
 libusb = not_found
-if 'CONFIG_USB_LIBUSB' in config_host
-  libusb = declare_dependency(compile_args: config_host['LIBUSB_CFLAGS'].split(),
-                              link_args: config_host['LIBUSB_LIBS'].split())
+if not get_option('libusb').auto() or have_system
+  libusb = dependency('libusb-1.0', required: get_option('libusb'),
+                      version: '>=1.0.13', method: 'pkg-config',
+                      kwargs: static_kwargs)
 endif
+
 libpmem = not_found
 if 'CONFIG_LIBPMEM' in config_host
   libpmem = declare_dependency(compile_args: config_host['LIBPMEM_CFLAGS'].split(),
@@ -952,9 +1010,10 @@ if 'CONFIG_LIBDAXCTL' in config_host
   libdaxctl = declare_dependency(link_args: config_host['LIBDAXCTL_LIBS'].split())
 endif
 tasn1 = not_found
-if 'CONFIG_TASN1' in config_host
-  tasn1 = declare_dependency(compile_args: config_host['TASN1_CFLAGS'].split(),
-                             link_args: config_host['TASN1_LIBS'].split())
+if gnutls.found()
+  tasn1 = dependency('libtasn1',
+                     method: 'pkg-config',
+                     kwargs: static_kwargs)
 endif
 keyutils = dependency('libkeyutils', required: false,
                       method: 'pkg-config', kwargs: static_kwargs)
@@ -1089,6 +1148,9 @@ if get_option('cfi')
   add_global_link_arguments(cfi_flags, native: false, language: ['c', 'cpp', 'objc'])
 endif
 
+have_host_block_device = (targetos != 'darwin' or
+    cc.has_header('IOKit/storage/IOMedia.h'))
+
 #################
 # config-host.h #
 #################
@@ -1156,6 +1218,7 @@ config_host_data.set('CONFIG_SDL', sdl.found())
 config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
 config_host_data.set('CONFIG_SECCOMP', seccomp.found())
 config_host_data.set('CONFIG_SNAPPY', snappy.found())
+config_host_data.set('CONFIG_USB_LIBUSB', libusb.found())
 config_host_data.set('CONFIG_VHOST_USER_BLK_SERVER', have_vhost_user_blk_server)
 config_host_data.set('CONFIG_VNC', vnc.found())
 config_host_data.set('CONFIG_VNC_JPEG', jpeg.found())
@@ -1165,6 +1228,10 @@ config_host_data.set('CONFIG_VIRTFS', have_virtfs)
 config_host_data.set('CONFIG_XKBCOMMON', xkbcommon.found())
 config_host_data.set('CONFIG_KEYUTILS', keyutils.found())
 config_host_data.set('CONFIG_GETTID', has_gettid)
+config_host_data.set('CONFIG_GNUTLS', gnutls.found())
+config_host_data.set('CONFIG_GCRYPT', gcrypt.found())
+config_host_data.set('CONFIG_NETTLE', nettle.found())
+config_host_data.set('CONFIG_QEMU_PRIVATE_XTS', xts == 'private')
 config_host_data.set('CONFIG_MALLOC_TRIM', has_malloc_trim)
 config_host_data.set('CONFIG_STATX', has_statx)
 config_host_data.set('CONFIG_ZSTD', zstd.found())
@@ -1183,6 +1250,8 @@ config_host_data.set('HAVE_PTY_H', cc.has_header('pty.h'))
 config_host_data.set('HAVE_SYS_IOCCOM_H', cc.has_header('sys/ioccom.h'))
 config_host_data.set('HAVE_SYS_KCOV_H', cc.has_header('sys/kcov.h'))
 config_host_data.set('HAVE_SYSTEM_FUNCTION', cc.has_function('system', prefix: '#include <stdlib.h>'))
+config_host_data.set('HAVE_HOST_BLOCK_DEVICE', have_host_block_device)
+config_host_data.set('HAVE_SYS_DISK_H', cc.has_header('sys/disk.h'))
 
 config_host_data.set('CONFIG_PREADV', cc.has_function('preadv', prefix: '#include <sys/uio.h>'))
 
@@ -2565,7 +2634,6 @@ summary_info += {'PIE':               get_option('b_pie')}
 summary_info += {'static build':      config_host.has_key('CONFIG_STATIC')}
 summary_info += {'malloc trim support': has_malloc_trim}
 summary_info += {'membarrier':        config_host.has_key('CONFIG_MEMBARRIER')}
-summary_info += {'preadv support':    config_host_data.get('CONFIG_PREADV')}
 summary_info += {'fdatasync':         config_host.has_key('CONFIG_FDATASYNC')}
 summary_info += {'madvise':           config_host.has_key('CONFIG_MADVISE')}
 summary_info += {'posix_madvise':     config_host.has_key('CONFIG_POSIX_MADVISE')}
@@ -2660,17 +2728,16 @@ summary(summary_info, bool_yn: true, section: 'Block layer support')
 # Crypto
 summary_info = {}
 summary_info += {'TLS priority':      config_host['CONFIG_TLS_PRIORITY']}
-summary_info += {'GNUTLS support':    config_host.has_key('CONFIG_GNUTLS')}
+summary_info += {'GNUTLS support':    gnutls.found()}
 # TODO: add back version
-summary_info += {'libgcrypt':         config_host.has_key('CONFIG_GCRYPT')}
-if config_host.has_key('CONFIG_GCRYPT')
-   summary_info += {'  hmac':            config_host.has_key('CONFIG_GCRYPT_HMAC')}
-   summary_info += {'  XTS':             not config_host.has_key('CONFIG_QEMU_PRIVATE_XTS')}
+summary_info += {'libgcrypt':         gcrypt.found()}
+if gcrypt.found()
+   summary_info += {'  XTS':             xts != 'private'}
 endif
 # TODO: add back version
-summary_info += {'nettle':            config_host.has_key('CONFIG_NETTLE')}
-if config_host.has_key('CONFIG_NETTLE')
-   summary_info += {'  XTS':             not config_host.has_key('CONFIG_QEMU_PRIVATE_XTS')}
+summary_info += {'nettle':            nettle.found()}
+if nettle.found()
+   summary_info += {'  XTS':             xts != 'private'}
 endif
 summary_info += {'crypto afalg':      config_host.has_key('CONFIG_AF_ALG')}
 summary_info += {'rng-none':          config_host.has_key('CONFIG_RNG_NONE')}
@@ -2692,8 +2759,8 @@ summary_info += {'pixman':            pixman.found()}
 summary_info += {'VTE support':       config_host.has_key('CONFIG_VTE')}
 # TODO: add back version
 summary_info += {'slirp support':     slirp_opt == 'disabled' ? false : slirp_opt}
-summary_info += {'libtasn1':          config_host.has_key('CONFIG_TASN1')}
-summary_info += {'PAM':               config_host.has_key('CONFIG_AUTH_PAM')}
+summary_info += {'libtasn1':          tasn1.found()}
+summary_info += {'PAM':               pam.found()}
 summary_info += {'iconv support':     iconv.found()}
 summary_info += {'curses support':    curses.found()}
 # TODO: add back version
@@ -2721,10 +2788,10 @@ summary_info += {'bpf support': libbpf.found()}
 summary_info += {'spice support':     config_host.has_key('CONFIG_SPICE')}
 summary_info += {'rbd support':       rbd.found()}
 summary_info += {'xfsctl support':    config_host.has_key('CONFIG_XFS')}
-summary_info += {'smartcard support': config_host.has_key('CONFIG_SMARTCARD')}
+summary_info += {'smartcard support': cacard.found()}
 summary_info += {'U2F support':       u2f.found()}
-summary_info += {'libusb':            config_host.has_key('CONFIG_USB_LIBUSB')}
-summary_info += {'usb net redir':     config_host.has_key('CONFIG_USB_REDIR')}
+summary_info += {'libusb':            libusb.found()}
+summary_info += {'usb net redir':     usbredir.found()}
 summary_info += {'OpenGL support':    config_host.has_key('CONFIG_OPENGL')}
 summary_info += {'GBM':               config_host.has_key('CONFIG_GBM')}
 summary_info += {'libiscsi support':  libiscsi.found()}

@@ -20,13 +20,9 @@
 
 #include "qemu/osdep.h"
 
-/* Include this first because it defines QCRYPTO_HAVE_TLS_TEST_SUPPORT */
 #include "crypto-tls-x509-helpers.h"
-
 #include "crypto-tls-psk-helpers.h"
 #include "qemu/sockets.h"
-
-#ifdef QCRYPTO_HAVE_TLS_TEST_SUPPORT
 
 void test_tls_psk_init(const char *pskfile)
 {
@@ -46,5 +42,3 @@ void test_tls_psk_cleanup(const char *pskfile)
 {
     unlink(pskfile);
 }
-
-#endif /* QCRYPTO_HAVE_TLS_TEST_SUPPORT */

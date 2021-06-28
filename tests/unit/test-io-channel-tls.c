@@ -34,8 +34,6 @@
 #include "authz/list.h"
 #include "qom/object_interfaces.h"
 
-#ifdef QCRYPTO_HAVE_TLS_TEST_SUPPORT
-
 #define WORKDIR "tests/test-io-channel-tls-work/"
 #define KEYFILE WORKDIR "key-ctx.pem"
 
@@ -334,13 +332,3 @@ int main(int argc, char **argv)
 
     return ret == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-
-#else /* ! QCRYPTO_HAVE_TLS_TEST_SUPPORT */
-
-int
-main(void)
-{
-    return EXIT_SUCCESS;
-}
-
-#endif /* ! QCRYPTO_HAVE_TLS_TEST_SUPPORT */

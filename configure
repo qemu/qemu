@@ -372,10 +372,10 @@ trace_file="trace"
 spice="$default_feature"
 spice_protocol="auto"
 rbd="auto"
-smartcard="$default_feature"
+smartcard="auto"
 u2f="auto"
-libusb="$default_feature"
-usb_redir="$default_feature"
+libusb="auto"
+usb_redir="auto"
 opengl="$default_feature"
 cpuid_h="no"
 avx2_opt="$default_feature"
@@ -404,13 +404,10 @@ seccomp="auto"
 glusterfs="auto"
 gtk="auto"
 tls_priority="NORMAL"
-gnutls="$default_feature"
-nettle="$default_feature"
-nettle_xts="no"
-gcrypt="$default_feature"
-gcrypt_xts="no"
-qemu_private_xts="yes"
-auth_pam="$default_feature"
+gnutls="auto"
+nettle="auto"
+gcrypt="auto"
+auth_pam="auto"
 vte="$default_feature"
 virglrenderer="$default_feature"
 tpm="$default_feature"
@@ -1280,21 +1277,21 @@ for opt do
   ;;
   --enable-xfsctl) xfs="yes"
   ;;
-  --disable-smartcard) smartcard="no"
+  --disable-smartcard) smartcard="disabled"
   ;;
-  --enable-smartcard) smartcard="yes"
+  --enable-smartcard) smartcard="enabled"
   ;;
   --disable-u2f) u2f="disabled"
   ;;
   --enable-u2f) u2f="enabled"
   ;;
-  --disable-libusb) libusb="no"
+  --disable-libusb) libusb="disabled"
   ;;
-  --enable-libusb) libusb="yes"
+  --enable-libusb) libusb="enabled"
   ;;
-  --disable-usb-redir) usb_redir="no"
+  --disable-usb-redir) usb_redir="disabled"
   ;;
-  --enable-usb-redir) usb_redir="yes"
+  --enable-usb-redir) usb_redir="enabled"
   ;;
   --disable-zlib-test)
   ;;
@@ -1374,21 +1371,21 @@ for opt do
   ;;
   --tls-priority=*) tls_priority="$optarg"
   ;;
-  --disable-gnutls) gnutls="no"
+  --disable-gnutls) gnutls="disabled"
   ;;
-  --enable-gnutls) gnutls="yes"
+  --enable-gnutls) gnutls="enabled"
   ;;
-  --disable-nettle) nettle="no"
+  --disable-nettle) nettle="disabled"
   ;;
-  --enable-nettle) nettle="yes"
+  --enable-nettle) nettle="enabled"
   ;;
-  --disable-gcrypt) gcrypt="no"
+  --disable-gcrypt) gcrypt="disabled"
   ;;
-  --enable-gcrypt) gcrypt="yes"
+  --enable-gcrypt) gcrypt="enabled"
   ;;
-  --disable-auth-pam) auth_pam="no"
+  --disable-auth-pam) auth_pam="disabled"
   ;;
-  --enable-auth-pam) auth_pam="yes"
+  --enable-auth-pam) auth_pam="enabled"
   ;;
   --enable-rdma) rdma="yes"
   ;;
@@ -2803,199 +2800,6 @@ EOF
 fi
 
 ##########################################
-# GNUTLS probe
-
-if test "$gnutls" != "no"; then
-    pass="no"
-    if $pkg_config --exists "gnutls >= 3.5.18"; then
-        gnutls_cflags=$($pkg_config --cflags gnutls)
-        gnutls_libs=$($pkg_config --libs gnutls)
-        # Packaging for the static libraries is not always correct.
-        # At least ubuntu 18.04 ships only shared libraries.
-        write_c_skeleton
-        if compile_prog "" "$gnutls_libs" ; then
-            pass="yes"
-        fi
-    fi
-    if test "$pass" = "no" && test "$gnutls" = "yes"; then
-	feature_not_found "gnutls" "Install gnutls devel >= 3.1.18"
-    else
-        gnutls="$pass"
-    fi
-fi
-
-
-# If user didn't give a --disable/enable-gcrypt flag,
-# then mark as disabled if user requested nettle
-# explicitly
-if test -z "$gcrypt"
-then
-    if test "$nettle" = "yes"
-    then
-        gcrypt="no"
-    fi
-fi
-
-# If user didn't give a --disable/enable-nettle flag,
-# then mark as disabled if user requested gcrypt
-# explicitly
-if test -z "$nettle"
-then
-    if test "$gcrypt" = "yes"
-    then
-        nettle="no"
-    fi
-fi
-
-has_libgcrypt() {
-    if ! has "libgcrypt-config"
-    then
-	return 1
-    fi
-
-    if test -n "$cross_prefix"
-    then
-	host=$(libgcrypt-config --host)
-	if test "$host-" != $cross_prefix
-	then
-	    return 1
-	fi
-    fi
-
-    maj=`libgcrypt-config --version | awk -F . '{print $1}'`
-    min=`libgcrypt-config --version | awk -F . '{print $2}'`
-
-    if test $maj != 1 || test $min -lt 8
-    then
-       return 1
-    fi
-
-    return 0
-}
-
-
-if test "$nettle" != "no"; then
-    pass="no"
-    if $pkg_config --exists "nettle >= 3.4"; then
-        nettle_cflags=$($pkg_config --cflags nettle)
-        nettle_libs=$($pkg_config --libs nettle)
-        # Link test to make sure the given libraries work (e.g for static).
-        write_c_skeleton
-        if compile_prog "" "$nettle_libs" ; then
-            if test -z "$gcrypt"; then
-               gcrypt="no"
-            fi
-            pass="yes"
-        fi
-    fi
-    if test "$pass" = "yes"
-    then
-        cat > $TMPC << EOF
-#include <nettle/xts.h>
-int main(void) {
-  return 0;
-}
-EOF
-        if compile_prog "$nettle_cflags" "$nettle_libs" ; then
-            nettle_xts=yes
-            qemu_private_xts=no
-        fi
-    fi
-    if test "$pass" = "no" && test "$nettle" = "yes"; then
-        feature_not_found "nettle" "Install nettle devel >= 2.7.1"
-    else
-        nettle="$pass"
-    fi
-fi
-
-if test "$gcrypt" != "no"; then
-    pass="no"
-    if has_libgcrypt; then
-        gcrypt_cflags=$(libgcrypt-config --cflags)
-        gcrypt_libs=$(libgcrypt-config --libs)
-        # Debian has removed -lgpg-error from libgcrypt-config
-        # as it "spreads unnecessary dependencies" which in
-        # turn breaks static builds...
-        if test "$static" = "yes"
-        then
-            gcrypt_libs="$gcrypt_libs -lgpg-error"
-        fi
-
-        # Link test to make sure the given libraries work (e.g for static).
-        write_c_skeleton
-        if compile_prog "" "$gcrypt_libs" ; then
-            pass="yes"
-        fi
-    fi
-    if test "$pass" = "yes"; then
-        gcrypt="yes"
-        cat > $TMPC << EOF
-#include <gcrypt.h>
-int main(void) {
-  gcry_cipher_hd_t handle;
-  gcry_cipher_open(&handle, GCRY_CIPHER_AES, GCRY_CIPHER_MODE_XTS, 0);
-  return 0;
-}
-EOF
-        if compile_prog "$gcrypt_cflags" "$gcrypt_libs" ; then
-            gcrypt_xts=yes
-            qemu_private_xts=no
-        fi
-    elif test "$gcrypt" = "yes"; then
-        feature_not_found "gcrypt" "Install gcrypt devel >= 1.5.0"
-    else
-        gcrypt="no"
-    fi
-fi
-
-
-if test "$gcrypt" = "yes" && test "$nettle" = "yes"
-then
-    error_exit "Only one of gcrypt & nettle can be enabled"
-fi
-
-##########################################
-# libtasn1 - only for the TLS creds/session test suite
-
-tasn1=yes
-tasn1_cflags=""
-tasn1_libs=""
-if $pkg_config --exists "libtasn1"; then
-    tasn1_cflags=$($pkg_config --cflags libtasn1)
-    tasn1_libs=$($pkg_config --libs libtasn1)
-else
-    tasn1=no
-fi
-
-
-##########################################
-# PAM probe
-
-if test "$auth_pam" != "no"; then
-    cat > $TMPC <<EOF
-#include <security/pam_appl.h>
-#include <stdio.h>
-int main(void) {
-   const char *service_name = "qemu";
-   const char *user = "frank";
-   const struct pam_conv pam_conv = { 0 };
-   pam_handle_t *pamh = NULL;
-   pam_start(service_name, user, &pam_conv, &pamh);
-   return 0;
-}
-EOF
-    if compile_prog "" "-lpam" ; then
-        auth_pam=yes
-    else
-        if test "$auth_pam" = "yes"; then
-            feature_not_found "PAM" "Install PAM development package"
-        else
-            auth_pam=no
-        fi
-    fi
-fi
-
-##########################################
 # VTE probe
 
 if test "$vte" != "no"; then
@@ -4174,48 +3978,6 @@ EOF
     fi
     spice="no"
   fi
-fi
-
-# check for smartcard support
-if test "$smartcard" != "no"; then
-    if $pkg_config --atleast-version=2.5.1 libcacard; then
-        libcacard_cflags=$($pkg_config --cflags libcacard)
-        libcacard_libs=$($pkg_config --libs libcacard)
-        smartcard="yes"
-    else
-        if test "$smartcard" = "yes"; then
-            feature_not_found "smartcard" "Install libcacard devel"
-        fi
-        smartcard="no"
-    fi
-fi
-
-# check for libusb
-if test "$libusb" != "no" ; then
-    if $pkg_config --atleast-version=1.0.13 libusb-1.0; then
-        libusb="yes"
-        libusb_cflags=$($pkg_config --cflags libusb-1.0)
-        libusb_libs=$($pkg_config --libs libusb-1.0)
-    else
-        if test "$libusb" = "yes"; then
-            feature_not_found "libusb" "Install libusb devel >= 1.0.13"
-        fi
-        libusb="no"
-    fi
-fi
-
-# check for usbredirparser for usb network redirection support
-if test "$usb_redir" != "no" ; then
-    if $pkg_config --atleast-version=0.6 libusbredirparser-0.5; then
-        usb_redir="yes"
-        usb_redir_cflags=$($pkg_config --cflags libusbredirparser-0.5)
-        usb_redir_libs=$($pkg_config --libs libusbredirparser-0.5)
-    else
-        if test "$usb_redir" = "yes"; then
-            feature_not_found "usb-redir" "Install usbredir devel"
-        fi
-        usb_redir="no"
-    fi
 fi
 
 ##########################################
@@ -5709,30 +5471,6 @@ if test "$gdbus_codegen" != "" ; then
     echo "GDBUS_CODEGEN=$gdbus_codegen" >> $config_host_mak
 fi
 echo "CONFIG_TLS_PRIORITY=\"$tls_priority\"" >> $config_host_mak
-if test "$gnutls" = "yes" ; then
-  echo "CONFIG_GNUTLS=y" >> $config_host_mak
-  echo "GNUTLS_CFLAGS=$gnutls_cflags" >> $config_host_mak
-  echo "GNUTLS_LIBS=$gnutls_libs" >> $config_host_mak
-fi
-if test "$gcrypt" = "yes" ; then
-  echo "CONFIG_GCRYPT=y" >> $config_host_mak
-  echo "GCRYPT_CFLAGS=$gcrypt_cflags" >> $config_host_mak
-  echo "GCRYPT_LIBS=$gcrypt_libs" >> $config_host_mak
-fi
-if test "$nettle" = "yes" ; then
-  echo "CONFIG_NETTLE=y" >> $config_host_mak
-  echo "NETTLE_CFLAGS=$nettle_cflags" >> $config_host_mak
-  echo "NETTLE_LIBS=$nettle_libs" >> $config_host_mak
-fi
-if test "$qemu_private_xts" = "yes" ; then
-  echo "CONFIG_QEMU_PRIVATE_XTS=y" >> $config_host_mak
-fi
-if test "$tasn1" = "yes" ; then
-  echo "CONFIG_TASN1=y" >> $config_host_mak
-fi
-if test "$auth_pam" = "yes" ; then
-    echo "CONFIG_AUTH_PAM=y" >> $config_host_mak
-fi
 if test "$have_broken_size_max" = "yes" ; then
     echo "HAVE_BROKEN_SIZE_MAX=y" >> $config_host_mak
 fi
@@ -5843,24 +5581,6 @@ if test "$spice" = "yes" ; then
   echo "CONFIG_SPICE=y" >> $config_host_mak
   echo "SPICE_CFLAGS=$spice_cflags $spice_protocol_cflags" >> $config_host_mak
   echo "SPICE_LIBS=$spice_libs" >> $config_host_mak
-fi
-
-if test "$smartcard" = "yes" ; then
-  echo "CONFIG_SMARTCARD=y" >> $config_host_mak
-  echo "SMARTCARD_CFLAGS=$libcacard_cflags" >> $config_host_mak
-  echo "SMARTCARD_LIBS=$libcacard_libs" >> $config_host_mak
-fi
-
-if test "$libusb" = "yes" ; then
-  echo "CONFIG_USB_LIBUSB=y" >> $config_host_mak
-  echo "LIBUSB_CFLAGS=$libusb_cflags" >> $config_host_mak
-  echo "LIBUSB_LIBS=$libusb_libs" >> $config_host_mak
-fi
-
-if test "$usb_redir" = "yes" ; then
-  echo "CONFIG_USB_REDIR=y" >> $config_host_mak
-  echo "USB_REDIR_CFLAGS=$usb_redir_cflags" >> $config_host_mak
-  echo "USB_REDIR_LIBS=$usb_redir_libs" >> $config_host_mak
 fi
 
 if test "$opengl" = "yes" ; then
@@ -6190,8 +5910,6 @@ echo "LD_I386_EMULATION=$ld_i386_emulation" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
 echo "HOST_DSOSUF=$HOST_DSOSUF" >> $config_host_mak
 echo "LIBS_QGA=$libs_qga" >> $config_host_mak
-echo "TASN1_LIBS=$tasn1_libs" >> $config_host_mak
-echo "TASN1_CFLAGS=$tasn1_cflags" >> $config_host_mak
 if test "$gcov" = "yes" ; then
   echo "CONFIG_GCOV=y" >> $config_host_mak
 fi
@@ -6437,12 +6155,14 @@ if test "$skip_meson" = no; then
         -Dkvm=$kvm -Dhax=$hax -Dwhpx=$whpx -Dhvf=$hvf -Dnvmm=$nvmm \
         -Dxen=$xen -Dxen_pci_passthrough=$xen_pci_passthrough -Dtcg=$tcg \
         -Dcocoa=$cocoa -Dgtk=$gtk -Dmpath=$mpath -Dsdl=$sdl -Dsdl_image=$sdl_image \
+        -Dlibusb=$libusb -Dsmartcard=$smartcard -Dusb_redir=$usb_redir \
         -Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
         -Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f -Dvirtiofsd=$virtiofsd \
         -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt -Dbrlapi=$brlapi \
         -Dcurl=$curl -Dglusterfs=$glusterfs -Dbzip2=$bzip2 -Dlibiscsi=$libiscsi \
         -Dlibnfs=$libnfs -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
         -Drbd=$rbd -Dlzo=$lzo -Dsnappy=$snappy -Dlzfse=$lzfse \
+        -Dgnutls=$gnutls -Dnettle=$nettle -Dgcrypt=$gcrypt -Dauth_pam=$auth_pam \
         -Dzstd=$zstd -Dseccomp=$seccomp -Dvirtfs=$virtfs -Dcap_ng=$cap_ng \
         -Dattr=$attr -Ddefault_devices=$default_devices \
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \

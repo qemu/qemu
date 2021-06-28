@@ -24,8 +24,6 @@
 #include "crypto/init.h"
 #include "qemu/sockets.h"
 
-#ifdef QCRYPTO_HAVE_TLS_TEST_SUPPORT
-
 /*
  * This stores some static data that is needed when
  * encoding extensions in the x509 certs
@@ -504,5 +502,3 @@ void test_tls_discard_cert(QCryptoTLSTestCertReq *req)
         unlink(req->filename);
     }
 }
-
-#endif /* QCRYPTO_HAVE_TLS_TEST_SUPPORT */

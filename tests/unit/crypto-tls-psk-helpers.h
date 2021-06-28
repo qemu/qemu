@@ -23,11 +23,7 @@
 
 #include <gnutls/gnutls.h>
 
-#ifdef QCRYPTO_HAVE_TLS_TEST_SUPPORT
-
 void test_tls_psk_init(const char *keyfile);
 void test_tls_psk_cleanup(const char *keyfile);
-
-#endif /* QCRYPTO_HAVE_TLS_TEST_SUPPORT */
 
 #endif

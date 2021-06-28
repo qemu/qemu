@@ -695,6 +695,13 @@ typedef struct BlockLimits {
      * clamped down. */
     uint32_t max_transfer;
 
+    /* Maximal hardware transfer length in bytes.  Applies whenever
+     * transfers to the device bypass the kernel I/O scheduler, for
+     * example with SG_IO.  If larger than max_transfer or if zero,
+     * blk_get_max_hw_transfer will fall back to max_transfer.
+     */
+    uint64_t max_hw_transfer;
+
     /* memory alignment, in bytes so that no bounce buffer is needed */
     size_t min_mem_alignment;
 
