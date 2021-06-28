@@ -911,3 +911,18 @@ DO_VSHLL(VSHLL_BS, vshllbs)
 DO_VSHLL(VSHLL_BU, vshllbu)
 DO_VSHLL(VSHLL_TS, vshllts)
 DO_VSHLL(VSHLL_TU, vshlltu)
+
+#define DO_2SHIFT_N(INSN, FN)                                   \
+    static bool trans_##INSN(DisasContext *s, arg_2shift *a)    \
+    {                                                           \
+        static MVEGenTwoOpShiftFn * const fns[] = {             \
+            gen_helper_mve_##FN##b,                             \
+            gen_helper_mve_##FN##h,                             \
+        };                                                      \
+        return do_2shift(s, a, fns[a->size], false);            \
+    }
+
+DO_2SHIFT_N(VSHRNB, vshrnb)
+DO_2SHIFT_N(VSHRNT, vshrnt)
+DO_2SHIFT_N(VRSHRNB, vrshrnb)
+DO_2SHIFT_N(VRSHRNT, vrshrnt)
