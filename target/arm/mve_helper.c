@@ -18,7 +18,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/int128.h"
 #include "cpu.h"
 #include "internals.h"
 #include "vec_internal.h"
@@ -1100,40 +1099,45 @@ DO_LDAV(vmlsldavsw, 4, int32_t, false, +=, -=)
 DO_LDAV(vmlsldavxsw, 4, int32_t, true, +=, -=)
 
 /*
- * Rounding multiply add long dual accumulate high: we must keep
- * a 72-bit internal accumulator value and return the top 64 bits.
+ * Rounding multiply add long dual accumulate high. In the pseudocode
+ * this is implemented with a 72-bit internal accumulator value of which
+ * the top 64 bits are returned. We optimize this to avoid having to
+ * use 128-bit arithmetic -- we can do this because the 74-bit accumulator
+ * is squashed back into 64-bits after each beat.
  */
-#define DO_LDAVH(OP, ESIZE, TYPE, XCHG, EVENACC, ODDACC, TO128)         \
+#define DO_LDAVH(OP, TYPE, LTYPE, XCHG, SUB)                            \
     uint64_t HELPER(glue(mve_, OP))(CPUARMState *env, void *vn,         \
                                     void *vm, uint64_t a)               \
     {                                                                   \
         uint16_t mask = mve_element_mask(env);                          \
         unsigned e;                                                     \
         TYPE *n = vn, *m = vm;                                          \
-        Int128 acc = int128_lshift(TO128(a), 8);                        \
-        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+        for (e = 0; e < 16 / 4; e++, mask >>= 4) {                      \
             if (mask & 1) {                                             \
+                LTYPE mul;                                              \
                 if (e & 1) {                                            \
-                    acc = ODDACC(acc, TO128(n[H##ESIZE(e - 1 * XCHG)] * \
-                                            m[H##ESIZE(e)]));           \
+                    mul = (LTYPE)n[H4(e - 1 * XCHG)] * m[H4(e)];        \
+                    if (SUB) {                                          \
+                        mul = -mul;                                     \
+                    }                                                   \
                 } else {                                                \
-                    acc = EVENACC(acc, TO128(n[H##ESIZE(e + 1 * XCHG)] * \
-                                             m[H##ESIZE(e)]));          \
+                    mul = (LTYPE)n[H4(e + 1 * XCHG)] * m[H4(e)];        \
                 }                                                       \
-                acc = int128_add(acc, int128_make64(1 << 7));           \
+                mul = (mul >> 8) + ((mul >> 7) & 1);                    \
+                a += mul;                                               \
             }                                                           \
         }                                                               \
         mve_advance_vpt(env);                                           \
-        return int128_getlo(int128_rshift(acc, 8));                     \
+        return a;                                                       \
     }
 
-DO_LDAVH(vrmlaldavhsw, 4, int32_t, false, int128_add, int128_add, int128_makes64)
-DO_LDAVH(vrmlaldavhxsw, 4, int32_t, true, int128_add, int128_add, int128_makes64)
+DO_LDAVH(vrmlaldavhsw, int32_t, int64_t, false, false)
+DO_LDAVH(vrmlaldavhxsw, int32_t, int64_t, true, false)
 
-DO_LDAVH(vrmlaldavhuw, 4, uint32_t, false, int128_add, int128_add, int128_make64)
+DO_LDAVH(vrmlaldavhuw, uint32_t, uint64_t, false, false)
 
-DO_LDAVH(vrmlsldavhsw, 4, int32_t, false, int128_add, int128_sub, int128_makes64)
-DO_LDAVH(vrmlsldavhxsw, 4, int32_t, true, int128_add, int128_sub, int128_makes64)
+DO_LDAVH(vrmlsldavhsw, int32_t, int64_t, false, true)
+DO_LDAVH(vrmlsldavhxsw, int32_t, int64_t, true, true)
 
 /* Vector add across vector */
 #define DO_VADDV(OP, ESIZE, TYPE)                               \
