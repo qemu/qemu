@@ -1251,6 +1251,48 @@ DO_2SHIFT_SAT_S(vqshlui_s, DO_SUQSHL_OP)
 DO_2SHIFT_U(vrshli_u, DO_VRSHLU)
 DO_2SHIFT_S(vrshli_s, DO_VRSHLS)
 
+/* Shift-and-insert; we always work with 64 bits at a time */
+#define DO_2SHIFT_INSERT(OP, ESIZE, SHIFTFN, MASKFN)                    \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd,             \
+                                void *vm, uint32_t shift)               \
+    {                                                                   \
+        uint64_t *d = vd, *m = vm;                                      \
+        uint16_t mask;                                                  \
+        uint64_t shiftmask;                                             \
+        unsigned e;                                                     \
+        if (shift == 0 || shift == ESIZE * 8) {                         \
+            /*                                                          \
+             * Only VSLI can shift by 0; only VSRI can shift by <dt>.   \
+             * The generic logic would give the right answer for 0 but  \
+             * fails for <dt>.                                          \
+             */                                                         \
+            goto done;                                                  \
+        }                                                               \
+        assert(shift < ESIZE * 8);                                      \
+        mask = mve_element_mask(env);                                   \
+        /* ESIZE / 2 gives the MO_* value if ESIZE is in [1,2,4] */     \
+        shiftmask = dup_const(ESIZE / 2, MASKFN(ESIZE * 8, shift));     \
+        for (e = 0; e < 16 / 8; e++, mask >>= 8) {                      \
+            uint64_t r = (SHIFTFN(m[H8(e)], shift) & shiftmask) |       \
+                (d[H8(e)] & ~shiftmask);                                \
+            mergemask(&d[H8(e)], r, mask);                              \
+        }                                                               \
+done:                                                                   \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_SHL(N, SHIFT) ((N) << (SHIFT))
+#define DO_SHR(N, SHIFT) ((N) >> (SHIFT))
+#define SHL_MASK(EBITS, SHIFT) MAKE_64BIT_MASK((SHIFT), (EBITS) - (SHIFT))
+#define SHR_MASK(EBITS, SHIFT) MAKE_64BIT_MASK(0, (EBITS) - (SHIFT))
+
+DO_2SHIFT_INSERT(vsrib, 1, DO_SHR, SHR_MASK)
+DO_2SHIFT_INSERT(vsrih, 2, DO_SHR, SHR_MASK)
+DO_2SHIFT_INSERT(vsriw, 4, DO_SHR, SHR_MASK)
+DO_2SHIFT_INSERT(vslib, 1, DO_SHL, SHL_MASK)
+DO_2SHIFT_INSERT(vslih, 2, DO_SHL, SHL_MASK)
+DO_2SHIFT_INSERT(vsliw, 4, DO_SHL, SHL_MASK)
+
 /*
  * Long shifts taking half-sized inputs from top or bottom of the input
  * vector and producing a double-width result. ESIZE, TYPE are for
