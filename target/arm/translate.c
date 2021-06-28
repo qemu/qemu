@@ -5792,6 +5792,75 @@ static bool trans_URSHRL_ri(DisasContext *s, arg_mve_shl_ri *a)
     return do_mve_shl_ri(s, a, gen_urshr64_i64);
 }
 
+static bool do_mve_shl_rr(DisasContext *s, arg_mve_shl_rr *a, WideShiftFn *fn)
+{
+    TCGv_i64 rda;
+    TCGv_i32 rdalo, rdahi;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_V8_1M)) {
+        /* Decode falls through to ORR/MOV UNPREDICTABLE handling */
+        return false;
+    }
+    if (a->rdahi == 15) {
+        /* These are a different encoding (SQSHL/SRSHR/UQSHL/URSHR) */
+        return false;
+    }
+    if (!dc_isar_feature(aa32_mve, s) ||
+        !arm_dc_feature(s, ARM_FEATURE_M_MAIN) ||
+        a->rdahi == 13 || a->rm == 13 || a->rm == 15 ||
+        a->rm == a->rdahi || a->rm == a->rdalo) {
+        /* These rdahi/rdalo/rm cases are UNPREDICTABLE; we choose to UNDEF */
+        unallocated_encoding(s);
+        return true;
+    }
+
+    rda = tcg_temp_new_i64();
+    rdalo = load_reg(s, a->rdalo);
+    rdahi = load_reg(s, a->rdahi);
+    tcg_gen_concat_i32_i64(rda, rdalo, rdahi);
+
+    /* The helper takes care of the sign-extension of the low 8 bits of Rm */
+    fn(rda, cpu_env, rda, cpu_R[a->rm]);
+
+    tcg_gen_extrl_i64_i32(rdalo, rda);
+    tcg_gen_extrh_i64_i32(rdahi, rda);
+    store_reg(s, a->rdalo, rdalo);
+    store_reg(s, a->rdahi, rdahi);
+    tcg_temp_free_i64(rda);
+
+    return true;
+}
+
+static bool trans_LSLL_rr(DisasContext *s, arg_mve_shl_rr *a)
+{
+    return do_mve_shl_rr(s, a, gen_helper_mve_ushll);
+}
+
+static bool trans_ASRL_rr(DisasContext *s, arg_mve_shl_rr *a)
+{
+    return do_mve_shl_rr(s, a, gen_helper_mve_sshrl);
+}
+
+static bool trans_UQRSHLL64_rr(DisasContext *s, arg_mve_shl_rr *a)
+{
+    return do_mve_shl_rr(s, a, gen_helper_mve_uqrshll);
+}
+
+static bool trans_SQRSHRL64_rr(DisasContext *s, arg_mve_shl_rr *a)
+{
+    return do_mve_shl_rr(s, a, gen_helper_mve_sqrshrl);
+}
+
+static bool trans_UQRSHLL48_rr(DisasContext *s, arg_mve_shl_rr *a)
+{
+    return do_mve_shl_rr(s, a, gen_helper_mve_uqrshll48);
+}
+
+static bool trans_SQRSHRL48_rr(DisasContext *s, arg_mve_shl_rr *a)
+{
+    return do_mve_shl_rr(s, a, gen_helper_mve_sqrshrl48);
+}
+
 /*
  * Multiply and multiply accumulate
  */

@@ -49,6 +49,7 @@
 &mcrr            !extern cp opc1 crm rt rt2
 
 &mve_shl_ri      rdalo rdahi shim
+&mve_shl_rr      rdalo rdahi rm
 
 # rdahi: bits [3:1] from insn, bit 0 is 1
 # rdalo: bits [3:1] from insn, bit 0 is 0
@@ -68,6 +69,8 @@
 
 @mve_shl_ri      ....... .... . ... . . ... ... . .. .. .... \
                  &mve_shl_ri shim=%imm5_12_6 rdalo=%rdalo_17 rdahi=%rdahi_9
+@mve_shl_rr      ....... .... . ... . rm:4  ... . .. .. .... \
+                 &mve_shl_rr rdalo=%rdalo_17 rdahi=%rdahi_9
 
 {
   TST_xrri       1110101 0000 1 .... 0 ... 1111 .... ....     @S_xrr_shi
@@ -91,10 +94,20 @@ BIC_rrri         1110101 0001 . .... 0 ... .... .... ....     @s_rrr_shi
     URSHRL_ri    1110101 0010 1 ... 1 0 ... ... 1 .. 01 1111  @mve_shl_ri
     SRSHRL_ri    1110101 0010 1 ... 1 0 ... ... 1 .. 10 1111  @mve_shl_ri
     SQSHLL_ri    1110101 0010 1 ... 1 0 ... ... 1 .. 11 1111  @mve_shl_ri
+
+    LSLL_rr      1110101 0010 1 ... 0 ....  ... 1  0000 1101  @mve_shl_rr
+    ASRL_rr      1110101 0010 1 ... 0 ....  ... 1  0010 1101  @mve_shl_rr
+    UQRSHLL64_rr 1110101 0010 1 ... 1 ....  ... 1  0000 1101  @mve_shl_rr
+    SQRSHRL64_rr 1110101 0010 1 ... 1 ....  ... 1  0010 1101  @mve_shl_rr
+    UQRSHLL48_rr 1110101 0010 1 ... 1 ....  ... 1  1000 1101  @mve_shl_rr
+    SQRSHRL48_rr 1110101 0010 1 ... 1 ....  ... 1  1010 1101  @mve_shl_rr
   ]
 
   MOV_rxri       1110101 0010 . 1111 0 ... .... .... ....     @s_rxr_shi
   ORR_rrri       1110101 0010 . .... 0 ... .... .... ....     @s_rrr_shi
+
+  # v8.1M CSEL and friends
+  CSEL           1110101 0010 1 rn:4 10 op:2 rd:4 fcond:4 rm:4
 }
 {
   MVN_rxri       1110101 0011 . 1111 0 ... .... .... ....     @s_rxr_shi
@@ -117,9 +130,6 @@ SBC_rrri         1110101 1011 . .... 0 ... .... .... ....     @s_rrr_shi
   SUB_rrri       1110101 1101 . .... 0 ... .... .... ....     @s_rrr_shi
 }
 RSB_rrri         1110101 1110 . .... 0 ... .... .... ....     @s_rrr_shi
-
-# v8.1M CSEL and friends
-CSEL             1110101 0010 1 rn:4 10 op:2 rd:4 fcond:4 rm:4
 
 # Data-processing (register-shifted register)
 
