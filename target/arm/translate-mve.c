@@ -790,6 +790,69 @@ static bool trans_VADDV(DisasContext *s, arg_VADDV *a)
     return true;
 }
 
+static bool trans_VADDLV(DisasContext *s, arg_VADDLV *a)
+{
+    /*
+     * Vector Add Long Across Vector: accumulate the 32-bit
+     * elements of the vector into a 64-bit result stored in
+     * a pair of general-purpose registers.
+     * No need to check Qm's bank: it is only 3 bits in decode.
+     */
+    TCGv_ptr qm;
+    TCGv_i64 rda;
+    TCGv_i32 rdalo, rdahi;
+
+    if (!dc_isar_feature(aa32_mve, s)) {
+        return false;
+    }
+    /*
+     * rdahi == 13 is UNPREDICTABLE; rdahi == 15 is a related
+     * encoding; rdalo always has bit 0 clear so cannot be 13 or 15.
+     */
+    if (a->rdahi == 13 || a->rdahi == 15) {
+        return false;
+    }
+    if (!mve_eci_check(s) || !vfp_access_check(s)) {
+        return true;
+    }
+
+    /*
+     * This insn is subject to beat-wise execution. Partial execution
+     * of an A=0 (no-accumulate) insn which does not execute the first
+     * beat must start with the current value of RdaHi:RdaLo, not zero.
+     */
+    if (a->a || mve_skip_first_beat(s)) {
+        /* Accumulate input from RdaHi:RdaLo */
+        rda = tcg_temp_new_i64();
+        rdalo = load_reg(s, a->rdalo);
+        rdahi = load_reg(s, a->rdahi);
+        tcg_gen_concat_i32_i64(rda, rdalo, rdahi);
+        tcg_temp_free_i32(rdalo);
+        tcg_temp_free_i32(rdahi);
+    } else {
+        /* Accumulate starting at zero */
+        rda = tcg_const_i64(0);
+    }
+
+    qm = mve_qreg_ptr(a->qm);
+    if (a->u) {
+        gen_helper_mve_vaddlv_u(rda, cpu_env, qm, rda);
+    } else {
+        gen_helper_mve_vaddlv_s(rda, cpu_env, qm, rda);
+    }
+    tcg_temp_free_ptr(qm);
+
+    rdalo = tcg_temp_new_i32();
+    rdahi = tcg_temp_new_i32();
+    tcg_gen_extrl_i64_i32(rdalo, rda);
+    tcg_gen_extrh_i64_i32(rdahi, rda);
+    store_reg(s, a->rdalo, rdalo);
+    store_reg(s, a->rdahi, rdahi);
+    tcg_temp_free_i64(rda);
+    mve_update_eci(s);
+    return true;
+}
+
 static bool do_1imm(DisasContext *s, arg_1imm *a, MVEGenOneOpImmFn *fn)
 {
     TCGv_ptr qd;

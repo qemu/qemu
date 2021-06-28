@@ -1189,6 +1189,25 @@ DO_VADDV(vaddvub, 1, uint8_t)
 DO_VADDV(vaddvuh, 2, uint16_t)
 DO_VADDV(vaddvuw, 4, uint32_t)
 
+#define DO_VADDLV(OP, TYPE, LTYPE)                              \
+    uint64_t HELPER(glue(mve_, OP))(CPUARMState *env, void *vm, \
+                                    uint64_t ra)                \
+    {                                                           \
+        uint16_t mask = mve_element_mask(env);                  \
+        unsigned e;                                             \
+        TYPE *m = vm;                                           \
+        for (e = 0; e < 16 / 4; e++, mask >>= 4) {              \
+            if (mask & 1) {                                     \
+                ra += (LTYPE)m[H4(e)];                          \
+            }                                                   \
+        }                                                       \
+        mve_advance_vpt(env);                                   \
+        return ra;                                              \
+    }                                                           \
+
+DO_VADDLV(vaddlv_s, int32_t, int64_t)
+DO_VADDLV(vaddlv_u, uint32_t, uint64_t)
+
 /* Shifts by immediate */
 #define DO_2SHIFT(OP, ESIZE, TYPE, FN)                          \
     void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd,     \

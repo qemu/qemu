@@ -307,7 +307,11 @@ VQDMULH_scalar   1110 1110 0 . .. ... 1 ... 0 1110 . 110 .... @2scalar
 VQRDMULH_scalar  1111 1110 0 . .. ... 1 ... 0 1110 . 110 .... @2scalar
 
 # Vector add across vector
-VADDV            111 u:1 1110 1111 size:2 01 ... 0 1111 0 0 a:1 0 qm:3 0 rda=%rdalo
+{
+  VADDV          111 u:1 1110 1111 size:2 01 ... 0 1111 0 0 a:1 0 qm:3 0 rda=%rdalo
+  VADDLV         111 u:1 1110 1 ... 1001 ... 0 1111 00 a:1 0 qm:3 0 \
+                 rdahi=%rdahi rdalo=%rdalo
+}
 
 # Predicate operations
 %mask_22_13      22:1 13:3
