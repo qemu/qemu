@@ -45,7 +45,7 @@
 #ifdef TARGET_PPC64
 
 bool ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
-                       hwaddr *raddr, int *psizep, int *protp,
+                       hwaddr *raddr, int *psizep, int *protp, int mmu_idx,
                        bool guest_visible);
 
 static inline int ppc_radix64_get_prot_eaa(uint64_t pte)
