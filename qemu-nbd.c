@@ -43,6 +43,7 @@
 #include "io/channel-socket.h"
 #include "io/net-listener.h"
 #include "crypto/init.h"
+#include "crypto/tlscreds.h"
 #include "trace/control.h"
 #include "qemu-version.h"
 
@@ -422,18 +423,12 @@ static QCryptoTLSCreds *nbd_get_tls_creds(const char *id, bool list,
         return NULL;
     }
 
-    if (list) {
-        if (creds->endpoint != QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT) {
-            error_setg(errp,
-                       "Expecting TLS credentials with a client endpoint");
-            return NULL;
-        }
-    } else {
-        if (creds->endpoint != QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
-            error_setg(errp,
-                       "Expecting TLS credentials with a server endpoint");
-            return NULL;
-        }
+    if (!qcrypto_tls_creds_check_endpoint(creds,
+                                          list
+                                          ? QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT
+                                          : QCRYPTO_TLS_CREDS_ENDPOINT_SERVER,
+                                          errp)) {
+        return NULL;
     }
     object_ref(obj);
     return creds;
