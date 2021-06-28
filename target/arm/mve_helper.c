@@ -1468,3 +1468,41 @@ DO_VSHRN_SAT_UB(vqrshrnb_ub, vqrshrnt_ub, DO_RSHRN_UB)
 DO_VSHRN_SAT_UH(vqrshrnb_uh, vqrshrnt_uh, DO_RSHRN_UH)
 DO_VSHRN_SAT_SB(vqrshrunbb, vqrshruntb, DO_RSHRUN_B)
 DO_VSHRN_SAT_SH(vqrshrunbh, vqrshrunth, DO_RSHRUN_H)
+
+uint32_t HELPER(mve_vshlc)(CPUARMState *env, void *vd, uint32_t rdm,
+                           uint32_t shift)
+{
+    uint32_t *d = vd;
+    uint16_t mask = mve_element_mask(env);
+    unsigned e;
+    uint32_t r;
+
+    /*
+     * For each 32-bit element, we shift it left, bringing in the
+     * low 'shift' bits of rdm at the bottom. Bits shifted out at
+     * the top become the new rdm, if the predicate mask permits.
+     * The final rdm value is returned to update the register.
+     * shift == 0 here means "shift by 32 bits".
+     */
+    if (shift == 0) {
+        for (e = 0; e < 16 / 4; e++, mask >>= 4) {
+            r = rdm;
+            if (mask & 1) {
+                rdm = d[H4(e)];
+            }
+            mergemask(&d[H4(e)], r, mask);
+        }
+    } else {
+        uint32_t shiftmask = MAKE_64BIT_MASK(0, shift);
+
+        for (e = 0; e < 16 / 4; e++, mask >>= 4) {
+            r = (d[H4(e)] << shift) | (rdm & shiftmask);
+            if (mask & 1) {
+                rdm = d[H4(e)] >> (32 - shift);
+            }
+            mergemask(&d[H4(e)], r, mask);
+        }
+    }
+    mve_advance_vpt(env);
+    return rdm;
+}

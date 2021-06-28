@@ -938,3 +938,33 @@ DO_2SHIFT_N(VQRSHRNB_U, vqrshrnb_u)
 DO_2SHIFT_N(VQRSHRNT_U, vqrshrnt_u)
 DO_2SHIFT_N(VQRSHRUNB, vqrshrunb)
 DO_2SHIFT_N(VQRSHRUNT, vqrshrunt)
+
+static bool trans_VSHLC(DisasContext *s, arg_VSHLC *a)
+{
+    /*
+     * Whole Vector Left Shift with Carry. The carry is taken
+     * from a general purpose register and written back there.
+     * An imm of 0 means "shift by 32".
+     */
+    TCGv_ptr qd;
+    TCGv_i32 rdm;
+
+    if (!dc_isar_feature(aa32_mve, s) || !mve_check_qreg_bank(s, a->qd)) {
+        return false;
+    }
+    if (a->rdm == 13 || a->rdm == 15) {
+        /* CONSTRAINED UNPREDICTABLE: we UNDEF */
+        return false;
+    }
+    if (!mve_eci_check(s) || !vfp_access_check(s)) {
+        return true;
+    }
+
+    qd = mve_qreg_ptr(a->qd);
+    rdm = load_reg(s, a->rdm);
+    gen_helper_mve_vshlc(rdm, cpu_env, qd, rdm, tcg_constant_i32(a->imm));
+    store_reg(s, a->rdm, rdm);
+    tcg_temp_free_ptr(qd);
+    mve_update_eci(s);
+    return true;
+}
