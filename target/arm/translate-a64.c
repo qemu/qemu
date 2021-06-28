@@ -8212,7 +8212,7 @@ static void disas_simd_mod_imm(DisasContext *s, uint32_t insn)
         /* FMOV (vector, immediate) - half-precision */
         imm = vfp_expand_imm(MO_16, abcdefgh);
         /* now duplicate across the lanes */
-        imm = bitfield_replicate(imm, 16);
+        imm = dup_const(MO_16, imm);
     } else {
         imm = asimd_imm_const(abcdefgh, cmode, is_neg);
     }
