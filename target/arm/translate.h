@@ -532,4 +532,20 @@ static inline MemOp finalize_memop(DisasContext *s, MemOp opc)
     return opc | s->be_data;
 }
 
+/**
+ * asimd_imm_const: Expand an encoded SIMD constant value
+ *
+ * Expand a SIMD constant value. This is essentially the pseudocode
+ * AdvSIMDExpandImm, except that we also perform the boolean NOT needed for
+ * VMVN and VBIC (when cmode < 14 && op == 1).
+ *
+ * The combination cmode == 15 op == 1 is a reserved encoding for AArch32;
+ * callers must catch this.
+ *
+ * cmode = 2,3,4,5,6,7,10,11,12,13 imm=0 was UNPREDICTABLE in v7A but
+ * is either not unpredictable or merely CONSTRAINED UNPREDICTABLE in v8A;
+ * we produce an immediate constant value of 0 in these cases.
+ */
+uint64_t asimd_imm_const(uint32_t imm, int cmode, int op);
+
 #endif /* TARGET_ARM_TRANSLATE_H */
