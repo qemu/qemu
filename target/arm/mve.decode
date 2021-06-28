@@ -34,6 +34,7 @@
 &2op qd qm qn size
 &2scalar qd qn rm size
 &1imm qd imm cmode op
+&2shift qd qm shift size
 
 @vldr_vstr ....... . . . . l:1 rn:4 ... ...... imm:7 &vldr_vstr qd=%qd u=0
 # Note that both Rn and Qd are 3 bits only (no D bit)
@@ -58,6 +59,10 @@
 
 @2scalar .... .... .. size:2 .... .... .... .... rm:4 &2scalar qd=%qd qn=%qn
 @2scalar_nosz .... .... .... .... .... .... .... rm:4 &2scalar qd=%qd qn=%qn
+
+@2_shl_b .... .... .. 001 shift:3 .... .... .... .... &2shift qd=%qd qm=%qm size=0
+@2_shl_h .... .... .. 01  shift:4 .... .... .... .... &2shift qd=%qd qm=%qm size=1
+@2_shl_w .... .... .. 1   shift:5 .... .... .... .... &2shift qd=%qd qm=%qm size=2
 
 # Vector loads and stores
 
@@ -275,3 +280,21 @@ VPST             1111 1110 0 . 11 000 1 ... 0 1111 0100 1101 mask=%mask_22_13
 # So we have a single decode line and check the cmode/op in the
 # trans function.
 Vimm_1r 111 . 1111 1 . 00 0 ... ... 0 .... 0 1 . 1 .... @1imm
+
+# Shifts by immediate
+
+VSHLI             111 0 1111 1 . ... ... ... 0 0101 0 1 . 1 ... 0 @2_shl_b
+VSHLI             111 0 1111 1 . ... ... ... 0 0101 0 1 . 1 ... 0 @2_shl_h
+VSHLI             111 0 1111 1 . ... ... ... 0 0101 0 1 . 1 ... 0 @2_shl_w
+
+VQSHLI_S          111 0 1111 1 . ... ... ... 0 0111 0 1 . 1 ... 0 @2_shl_b
+VQSHLI_S          111 0 1111 1 . ... ... ... 0 0111 0 1 . 1 ... 0 @2_shl_h
+VQSHLI_S          111 0 1111 1 . ... ... ... 0 0111 0 1 . 1 ... 0 @2_shl_w
+
+VQSHLI_U          111 1 1111 1 . ... ... ... 0 0111 0 1 . 1 ... 0 @2_shl_b
+VQSHLI_U          111 1 1111 1 . ... ... ... 0 0111 0 1 . 1 ... 0 @2_shl_h
+VQSHLI_U          111 1 1111 1 . ... ... ... 0 0111 0 1 . 1 ... 0 @2_shl_w
+
+VQSHLUI           111 1 1111 1 . ... ... ... 0 0110 0 1 . 1 ... 0 @2_shl_b
+VQSHLUI           111 1 1111 1 . ... ... ... 0 0110 0 1 . 1 ... 0 @2_shl_h
+VQSHLUI           111 1 1111 1 . ... ... ... 0 0110 0 1 . 1 ... 0 @2_shl_w

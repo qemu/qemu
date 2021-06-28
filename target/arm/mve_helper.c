@@ -733,6 +733,8 @@ DO_2OP_SAT(vqsubsw, 4, int32_t, DO_SQSUB_W)
     WRAP_QRSHL_HELPER(do_sqrshl_bhs, N, M, true, satp)
 #define DO_UQRSHL_OP(N, M, satp) \
     WRAP_QRSHL_HELPER(do_uqrshl_bhs, N, M, true, satp)
+#define DO_SUQSHL_OP(N, M, satp) \
+    WRAP_QRSHL_HELPER(do_suqrshl_bhs, N, M, false, satp)
 
 DO_2OP_SAT_S(vqshls, DO_SQSHL_OP)
 DO_2OP_SAT_U(vqshlu, DO_UQSHL_OP)
@@ -1186,3 +1188,58 @@ DO_VADDV(vaddvsw, 4, uint32_t)
 DO_VADDV(vaddvub, 1, uint8_t)
 DO_VADDV(vaddvuh, 2, uint16_t)
 DO_VADDV(vaddvuw, 4, uint32_t)
+
+/* Shifts by immediate */
+#define DO_2SHIFT(OP, ESIZE, TYPE, FN)                          \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd,     \
+                                void *vm, uint32_t shift)       \
+    {                                                           \
+        TYPE *d = vd, *m = vm;                                  \
+        uint16_t mask = mve_element_mask(env);                  \
+        unsigned e;                                             \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {      \
+            mergemask(&d[H##ESIZE(e)],                          \
+                      FN(m[H##ESIZE(e)], shift), mask);         \
+        }                                                       \
+        mve_advance_vpt(env);                                   \
+    }
+
+#define DO_2SHIFT_SAT(OP, ESIZE, TYPE, FN)                      \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd,     \
+                                void *vm, uint32_t shift)       \
+    {                                                           \
+        TYPE *d = vd, *m = vm;                                  \
+        uint16_t mask = mve_element_mask(env);                  \
+        unsigned e;                                             \
+        bool qc = false;                                        \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {      \
+            bool sat = false;                                   \
+            mergemask(&d[H##ESIZE(e)],                          \
+                      FN(m[H##ESIZE(e)], shift, &sat), mask);   \
+            qc |= sat & mask & 1;                               \
+        }                                                       \
+        if (qc) {                                               \
+            env->vfp.qc[0] = qc;                                \
+        }                                                       \
+        mve_advance_vpt(env);                                   \
+    }
+
+/* provide unsigned 2-op shift helpers for all sizes */
+#define DO_2SHIFT_U(OP, FN)                     \
+    DO_2SHIFT(OP##b, 1, uint8_t, FN)            \
+    DO_2SHIFT(OP##h, 2, uint16_t, FN)           \
+    DO_2SHIFT(OP##w, 4, uint32_t, FN)
+
+#define DO_2SHIFT_SAT_U(OP, FN)                 \
+    DO_2SHIFT_SAT(OP##b, 1, uint8_t, FN)        \
+    DO_2SHIFT_SAT(OP##h, 2, uint16_t, FN)       \
+    DO_2SHIFT_SAT(OP##w, 4, uint32_t, FN)
+#define DO_2SHIFT_SAT_S(OP, FN)                 \
+    DO_2SHIFT_SAT(OP##b, 1, int8_t, FN)         \
+    DO_2SHIFT_SAT(OP##h, 2, int16_t, FN)        \
+    DO_2SHIFT_SAT(OP##w, 4, int32_t, FN)
+
+DO_2SHIFT_U(vshli_u, DO_VSHLU)
+DO_2SHIFT_SAT_U(vqshli_u, DO_UQSHL_OP)
+DO_2SHIFT_SAT_S(vqshli_s, DO_SQSHL_OP)
+DO_2SHIFT_SAT_S(vqshlui_s, DO_SUQSHL_OP)
