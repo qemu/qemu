@@ -50,6 +50,7 @@
 
 &mve_shl_ri      rdalo rdahi shim
 &mve_shl_rr      rdalo rdahi rm
+&mve_sh_ri       rda shim
 
 # rdahi: bits [3:1] from insn, bit 0 is 1
 # rdalo: bits [3:1] from insn, bit 0 is 0
@@ -71,6 +72,8 @@
                  &mve_shl_ri shim=%imm5_12_6 rdalo=%rdalo_17 rdahi=%rdahi_9
 @mve_shl_rr      ....... .... . ... . rm:4  ... . .. .. .... \
                  &mve_shl_rr rdalo=%rdalo_17 rdahi=%rdahi_9
+@mve_sh_ri       ....... .... . rda:4 . ... ... . .. .. .... \
+                 &mve_sh_ri shim=%imm5_12_6
 
 {
   TST_xrri       1110101 0000 1 .... 0 ... 1111 .... ....     @S_xrr_shi
@@ -86,14 +89,28 @@ BIC_rrri         1110101 0001 . .... 0 ... .... .... ....     @s_rrr_shi
   # the rest fall through (where ORR_rrri and MOV_rxri will end up
   # handling them as r13 and r15 accesses with the same semantics as A32).
   [
-    LSLL_ri      1110101 0010 1 ... 0 0 ... ... 1 .. 00 1111  @mve_shl_ri
-    LSRL_ri      1110101 0010 1 ... 0 0 ... ... 1 .. 01 1111  @mve_shl_ri
-    ASRL_ri      1110101 0010 1 ... 0 0 ... ... 1 .. 10 1111  @mve_shl_ri
+    {
+      UQSHL_ri   1110101 0010 1 ....  0 ...  1111 .. 00 1111  @mve_sh_ri
+      LSLL_ri    1110101 0010 1 ... 0 0 ... ... 1 .. 00 1111  @mve_shl_ri
+      UQSHLL_ri  1110101 0010 1 ... 1 0 ... ... 1 .. 00 1111  @mve_shl_ri
+    }
 
-    UQSHLL_ri    1110101 0010 1 ... 1 0 ... ... 1 .. 00 1111  @mve_shl_ri
-    URSHRL_ri    1110101 0010 1 ... 1 0 ... ... 1 .. 01 1111  @mve_shl_ri
-    SRSHRL_ri    1110101 0010 1 ... 1 0 ... ... 1 .. 10 1111  @mve_shl_ri
-    SQSHLL_ri    1110101 0010 1 ... 1 0 ... ... 1 .. 11 1111  @mve_shl_ri
+    {
+      URSHR_ri   1110101 0010 1 ....  0 ...  1111 .. 01 1111  @mve_sh_ri
+      LSRL_ri    1110101 0010 1 ... 0 0 ... ... 1 .. 01 1111  @mve_shl_ri
+      URSHRL_ri  1110101 0010 1 ... 1 0 ... ... 1 .. 01 1111  @mve_shl_ri
+    }
+
+    {
+      SRSHR_ri   1110101 0010 1 ....  0 ...  1111 .. 10 1111  @mve_sh_ri
+      ASRL_ri    1110101 0010 1 ... 0 0 ... ... 1 .. 10 1111  @mve_shl_ri
+      SRSHRL_ri  1110101 0010 1 ... 1 0 ... ... 1 .. 10 1111  @mve_shl_ri
+    }
+
+    {
+      SQSHL_ri   1110101 0010 1 ....  0 ...  1111 .. 11 1111  @mve_sh_ri
+      SQSHLL_ri  1110101 0010 1 ... 1 0 ... ... 1 .. 11 1111  @mve_shl_ri
+    }
 
     LSLL_rr      1110101 0010 1 ... 0 ....  ... 1  0000 1101  @mve_shl_rr
     ASRL_rr      1110101 0010 1 ... 0 ....  ... 1  0010 1101  @mve_shl_rr
