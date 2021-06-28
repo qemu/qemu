@@ -735,38 +735,6 @@ illegal_op:
     t_gen_helper_raise_exception(dc, EXCP_ILLEGAL);
 }
 
-static void handle_instruction(DisasContext *dc, CPUNios2State *env)
-{
-    uint32_t code;
-    uint8_t op;
-    const Nios2Instruction *instr;
-
-#if defined(CONFIG_USER_ONLY)
-    /* FIXME: Is this needed ? */
-    if (dc->pc >= 0x1000 && dc->pc < 0x2000) {
-        t_gen_helper_raise_exception(dc, 0xaa);
-        return;
-    }
-#endif
-
-    code = cpu_ldl_code(env, dc->pc);
-    op = get_opcode(code);
-
-    if (unlikely(op >= ARRAY_SIZE(i_type_instructions))) {
-        t_gen_helper_raise_exception(dc, EXCP_ILLEGAL);
-        return;
-    }
-
-    dc->zero = NULL;
-
-    instr = &i_type_instructions[op];
-    instr->handler(dc, code, instr->flags);
-
-    if (dc->zero) {
-        tcg_temp_free(dc->zero);
-    }
-}
-
 static const char * const regnames[] = {
     "zero",       "at",         "r2",         "r3",
     "r4",         "r5",         "r6",         "r7",
@@ -842,12 +810,40 @@ static void nios2_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
     CPUNios2State *env = cs->env_ptr;
+    const Nios2Instruction *instr;
+    uint32_t code, pc;
+    uint8_t op;
 
-    dc->pc = dc->base.pc_next;
-    dc->base.pc_next += 4;
+    pc = dc->base.pc_next;
+    dc->pc = pc;
+    dc->base.pc_next = pc + 4;
 
     /* Decode an instruction */
-    handle_instruction(dc, env);
+
+#if defined(CONFIG_USER_ONLY)
+    /* FIXME: Is this needed ? */
+    if (pc >= 0x1000 && pc < 0x2000) {
+        t_gen_helper_raise_exception(dc, 0xaa);
+        return;
+    }
+#endif
+
+    code = cpu_ldl_code(env, pc);
+    op = get_opcode(code);
+
+    if (unlikely(op >= ARRAY_SIZE(i_type_instructions))) {
+        t_gen_helper_raise_exception(dc, EXCP_ILLEGAL);
+        return;
+    }
+
+    dc->zero = NULL;
+
+    instr = &i_type_instructions[op];
+    instr->handler(dc, code, instr->flags);
+
+    if (dc->zero) {
+        tcg_temp_free(dc->zero);
+    }
 }
 
 static void nios2_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
