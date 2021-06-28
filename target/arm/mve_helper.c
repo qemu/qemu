@@ -1525,3 +1525,13 @@ uint32_t HELPER(mve_vshlc)(CPUARMState *env, void *vd, uint32_t rdm,
     mve_advance_vpt(env);
     return rdm;
 }
+
+uint64_t HELPER(mve_sqshll)(CPUARMState *env, uint64_t n, uint32_t shift)
+{
+    return do_sqrshl_d(n, (int8_t)shift, false, &env->QF);
+}
+
+uint64_t HELPER(mve_uqshll)(CPUARMState *env, uint64_t n, uint32_t shift)
+{
+    return do_uqrshl_d(n, (int8_t)shift, false, &env->QF);
+}

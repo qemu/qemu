@@ -48,6 +48,13 @@
 &mcr             !extern cp opc1 crn crm opc2 rt
 &mcrr            !extern cp opc1 crm rt rt2
 
+&mve_shl_ri      rdalo rdahi shim
+
+# rdahi: bits [3:1] from insn, bit 0 is 1
+# rdalo: bits [3:1] from insn, bit 0 is 0
+%rdahi_9 9:3 !function=times_2_plus_1
+%rdalo_17 17:3 !function=times_2
+
 # Data-processing (register)
 
 %imm5_12_6       12:3 6:2
@@ -59,12 +66,33 @@
 @S_xrr_shi       ....... .... .   rn:4 .... .... .. shty:2 rm:4 \
                  &s_rrr_shi shim=%imm5_12_6 s=1 rd=0
 
+@mve_shl_ri      ....... .... . ... . . ... ... . .. .. .... \
+                 &mve_shl_ri shim=%imm5_12_6 rdalo=%rdalo_17 rdahi=%rdahi_9
+
 {
   TST_xrri       1110101 0000 1 .... 0 ... 1111 .... ....     @S_xrr_shi
   AND_rrri       1110101 0000 . .... 0 ... .... .... ....     @s_rrr_shi
 }
 BIC_rrri         1110101 0001 . .... 0 ... .... .... ....     @s_rrr_shi
 {
+  # The v8.1M MVE shift insns overlap in encoding with MOVS/ORRS
+  # and are distinguished by having Rm==13 or 15. Those are UNPREDICTABLE
+  # cases for MOVS/ORRS. We decode the MVE cases first, ensuring that
+  # they explicitly call unallocated_encoding() for cases that must UNDEF
+  # (eg "using a new shift insn on a v8.1M CPU without MVE"), and letting
+  # the rest fall through (where ORR_rrri and MOV_rxri will end up
+  # handling them as r13 and r15 accesses with the same semantics as A32).
+  [
+    LSLL_ri      1110101 0010 1 ... 0 0 ... ... 1 .. 00 1111  @mve_shl_ri
+    LSRL_ri      1110101 0010 1 ... 0 0 ... ... 1 .. 01 1111  @mve_shl_ri
+    ASRL_ri      1110101 0010 1 ... 0 0 ... ... 1 .. 10 1111  @mve_shl_ri
+
+    UQSHLL_ri    1110101 0010 1 ... 1 0 ... ... 1 .. 00 1111  @mve_shl_ri
+    URSHRL_ri    1110101 0010 1 ... 1 0 ... ... 1 .. 01 1111  @mve_shl_ri
+    SRSHRL_ri    1110101 0010 1 ... 1 0 ... ... 1 .. 10 1111  @mve_shl_ri
+    SQSHLL_ri    1110101 0010 1 ... 1 0 ... ... 1 .. 11 1111  @mve_shl_ri
+  ]
+
   MOV_rxri       1110101 0010 . 1111 0 ... .... .... ....     @s_rxr_shi
   ORR_rrri       1110101 0010 . .... 0 ... .... .... ....     @s_rrr_shi
 }
