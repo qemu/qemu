@@ -1250,3 +1250,35 @@ DO_2SHIFT_SAT_S(vqshli_s, DO_SQSHL_OP)
 DO_2SHIFT_SAT_S(vqshlui_s, DO_SUQSHL_OP)
 DO_2SHIFT_U(vrshli_u, DO_VRSHLU)
 DO_2SHIFT_S(vrshli_s, DO_VRSHLS)
+
+/*
+ * Long shifts taking half-sized inputs from top or bottom of the input
+ * vector and producing a double-width result. ESIZE, TYPE are for
+ * the input, and LESIZE, LTYPE for the output.
+ * Unlike the normal shift helpers, we do not handle negative shift counts,
+ * because the long shift is strictly left-only.
+ */
+#define DO_VSHLL(OP, TOP, ESIZE, TYPE, LESIZE, LTYPE)                   \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd,             \
+                                void *vm, uint32_t shift)               \
+    {                                                                   \
+        LTYPE *d = vd;                                                  \
+        TYPE *m = vm;                                                   \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned le;                                                    \
+        assert(shift <= 16);                                            \
+        for (le = 0; le < 16 / LESIZE; le++, mask >>= LESIZE) {         \
+            LTYPE r = (LTYPE)m[H##ESIZE(le * 2 + TOP)] << shift;        \
+            mergemask(&d[H##LESIZE(le)], r, mask);                      \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_VSHLL_ALL(OP, TOP)                                \
+    DO_VSHLL(OP##sb, TOP, 1, int8_t, 2, int16_t)             \
+    DO_VSHLL(OP##ub, TOP, 1, uint8_t, 2, uint16_t)           \
+    DO_VSHLL(OP##sh, TOP, 2, int16_t, 4, int32_t)            \
+    DO_VSHLL(OP##uh, TOP, 2, uint16_t, 4, uint32_t)          \
+
+DO_VSHLL_ALL(vshllb, false)
+DO_VSHLL_ALL(vshllt, true)

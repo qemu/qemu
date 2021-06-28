@@ -893,3 +893,18 @@ DO_2SHIFT(VSHRI_S, vshli_s, true)
 DO_2SHIFT(VSHRI_U, vshli_u, true)
 DO_2SHIFT(VRSHRI_S, vrshli_s, true)
 DO_2SHIFT(VRSHRI_U, vrshli_u, true)
+
+#define DO_VSHLL(INSN, FN)                                      \
+    static bool trans_##INSN(DisasContext *s, arg_2shift *a)    \
+    {                                                           \
+        static MVEGenTwoOpShiftFn * const fns[] = {             \
+            gen_helper_mve_##FN##b,                             \
+            gen_helper_mve_##FN##h,                             \
+        };                                                      \
+        return do_2shift(s, a, fns[a->size], false);            \
+    }
+
+DO_VSHLL(VSHLL_BS, vshllbs)
+DO_VSHLL(VSHLL_BU, vshllbu)
+DO_VSHLL(VSHLL_TS, vshllts)
+DO_VSHLL(VSHLL_TU, vshlltu)
