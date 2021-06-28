@@ -119,24 +119,24 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
     uint64_t delay_ns = 0;
     int ret = 0;
     int64_t n = 0; /* bytes */
-    void *buf = NULL;
+    QEMU_AUTO_VFREE void *buf = NULL;
     int64_t len, base_len;
 
-    ret = len = blk_getlength(s->top);
+    len = blk_getlength(s->top);
     if (len < 0) {
-        goto out;
+        return len;
     }
     job_progress_set_remaining(&s->common.job, len);
 
-    ret = base_len = blk_getlength(s->base);
+    base_len = blk_getlength(s->base);
     if (base_len < 0) {
-        goto out;
+        return base_len;
     }
 
     if (base_len < len) {
         ret = blk_truncate(s->base, len, false, PREALLOC_MODE_OFF, 0, NULL);
         if (ret) {
-            goto out;
+            return ret;
         }
     }
 
@@ -174,7 +174,7 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
                 block_job_error_action(&s->common, s->on_error,
                                        error_in_source, -ret);
             if (action == BLOCK_ERROR_ACTION_REPORT) {
-                goto out;
+                return ret;
             } else {
                 n = 0;
                 continue;
@@ -190,12 +190,7 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
         }
     }
 
-    ret = 0;
-
-out:
-    qemu_vfree(buf);
-
-    return ret;
+    return 0;
 }
 
 static const BlockJobDriver commit_job_driver = {
@@ -435,7 +430,7 @@ int bdrv_commit(BlockDriverState *bs)
     int ro;
     int64_t n;
     int ret = 0;
-    uint8_t *buf = NULL;
+    QEMU_AUTO_VFREE uint8_t *buf = NULL;
     Error *local_err = NULL;
 
     if (!drv)
@@ -556,8 +551,6 @@ int bdrv_commit(BlockDriverState *bs)
 
     ret = 0;
 ro_cleanup:
-    qemu_vfree(buf);
-
     blk_unref(backing);
     if (bdrv_cow_bs(bs) != backing_file_bs) {
         bdrv_set_backing_hd(bs, backing_file_bs, &error_abort);
