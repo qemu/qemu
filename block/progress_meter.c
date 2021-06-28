@@ -23,40 +23,42 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include "qemu/osdep.h"
+#include "qemu/progress_meter.h"
 
-#ifndef QEMU_PROGRESS_METER_H
-#define QEMU_PROGRESS_METER_H
+void progress_init(ProgressMeter *pm)
+{
+    qemu_mutex_init(&pm->lock);
+}
 
-#include "qemu/lockable.h"
+void progress_destroy(ProgressMeter *pm)
+{
+    qemu_mutex_destroy(&pm->lock);
+}
 
-typedef struct ProgressMeter {
-    /**
-     * Current progress. The unit is arbitrary as long as the ratio between
-     * current and total represents the estimated percentage
-     * of work already done.
-     */
-    uint64_t current;
-
-    /** Estimated current value at the completion of the process */
-    uint64_t total;
-
-    QemuMutex lock; /* protects concurrent access to above fields */
-} ProgressMeter;
-
-void progress_init(ProgressMeter *pm);
-void progress_destroy(ProgressMeter *pm);
-
-/* Get a snapshot of internal current and total values  */
 void progress_get_snapshot(ProgressMeter *pm, uint64_t *current,
-                           uint64_t *total);
+                           uint64_t *total)
+{
+    QEMU_LOCK_GUARD(&pm->lock);
 
-/* Increases the amount of work done so far by @done */
-void progress_work_done(ProgressMeter *pm, uint64_t done);
+    *current = pm->current;
+    *total = pm->total;
+}
 
-/* Sets how much work has to be done to complete to @remaining */
-void progress_set_remaining(ProgressMeter *pm, uint64_t remaining);
+void progress_work_done(ProgressMeter *pm, uint64_t done)
+{
+    QEMU_LOCK_GUARD(&pm->lock);
+    pm->current += done;
+}
 
-/* Increases the total work to do by @delta */
-void progress_increase_remaining(ProgressMeter *pm, uint64_t delta);
+void progress_set_remaining(ProgressMeter *pm, uint64_t remaining)
+{
+    QEMU_LOCK_GUARD(&pm->lock);
+    pm->total = pm->current + remaining;
+}
 
-#endif /* QEMU_PROGRESS_METER_H */
+void progress_increase_remaining(ProgressMeter *pm, uint64_t delta)
+{
+    QEMU_LOCK_GUARD(&pm->lock);
+    pm->total += delta;
+}

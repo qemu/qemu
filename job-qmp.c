@@ -144,16 +144,20 @@ void qmp_job_dismiss(const char *id, Error **errp)
 static JobInfo *job_query_single(Job *job, Error **errp)
 {
     JobInfo *info;
+    uint64_t progress_current;
+    uint64_t progress_total;
 
     assert(!job_is_internal(job));
+    progress_get_snapshot(&job->progress, &progress_current,
+                          &progress_total);
 
     info = g_new(JobInfo, 1);
     *info = (JobInfo) {
         .id                 = g_strdup(job->id),
         .type               = job_type(job),
         .status             = job->status,
-        .current_progress   = job->progress.current,
-        .total_progress     = job->progress.total,
+        .current_progress   = progress_current,
+        .total_progress     = progress_total,
         .has_error          = !!job->err,
         .error              = job->err ? \
                               g_strdup(error_get_pretty(job->err)) : NULL,

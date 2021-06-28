@@ -28,10 +28,13 @@
 #include "qemu/co-shared-resource.h"
 
 struct SharedResource {
-    uint64_t total;
-    uint64_t available;
+    uint64_t total; /* Set in shres_create() and not changed anymore */
 
+    /* State fields protected by lock */
+    uint64_t available;
     CoQueue queue;
+
+    QemuMutex lock;
 };
 
 SharedResource *shres_create(uint64_t total)
@@ -40,6 +43,7 @@ SharedResource *shres_create(uint64_t total)
 
     s->total = s->available = total;
     qemu_co_queue_init(&s->queue);
+    qemu_mutex_init(&s->lock);
 
     return s;
 }
@@ -47,10 +51,12 @@ SharedResource *shres_create(uint64_t total)
 void shres_destroy(SharedResource *s)
 {
     assert(s->available == s->total);
+    qemu_mutex_destroy(&s->lock);
     g_free(s);
 }
 
-bool co_try_get_from_shres(SharedResource *s, uint64_t n)
+/* Called with lock held. */
+static bool co_try_get_from_shres_locked(SharedResource *s, uint64_t n)
 {
     if (s->available >= n) {
         s->available -= n;
@@ -60,16 +66,24 @@ bool co_try_get_from_shres(SharedResource *s, uint64_t n)
     return false;
 }
 
+bool co_try_get_from_shres(SharedResource *s, uint64_t n)
+{
+    QEMU_LOCK_GUARD(&s->lock);
+    return co_try_get_from_shres_locked(s, n);
+}
+
 void coroutine_fn co_get_from_shres(SharedResource *s, uint64_t n)
 {
     assert(n <= s->total);
-    while (!co_try_get_from_shres(s, n)) {
-        qemu_co_queue_wait(&s->queue, NULL);
+    QEMU_LOCK_GUARD(&s->lock);
+    while (!co_try_get_from_shres_locked(s, n)) {
+        qemu_co_queue_wait(&s->queue, &s->lock);
     }
 }
 
 void coroutine_fn co_put_to_shres(SharedResource *s, uint64_t n)
 {
+    QEMU_LOCK_GUARD(&s->lock);
     assert(s->total - s->available >= n);
     s->available += n;
     qemu_co_queue_restart_all(&s->queue);
