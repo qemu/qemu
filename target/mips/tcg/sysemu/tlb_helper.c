@@ -17,6 +17,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include "qemu/bitops.h"
 
 #include "cpu.h"
 #include "internal.h"
@@ -659,7 +660,7 @@ static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
         w = directory_index - 1;
         if (directory_index & 0x1) {
             /* Generate adjacent page from same PTE for odd TLB page */
-            lsb = (1 << w) >> 6;
+            lsb = BIT_ULL(w) >> 6;
             *pw_entrylo0 = entry & ~lsb; /* even page */
             *pw_entrylo1 = entry | lsb; /* odd page */
         } else if (dph) {

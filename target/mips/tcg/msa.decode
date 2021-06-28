@@ -6,9 +6,10 @@
 #
 # Reference:
 #       MIPS Architecture for Programmers Volume IV-j
-#       The MIPS32 SIMD Architecture Module, Revision 1.12
-#       (Document Number: MD00866-2B-MSA32-AFP-01.12)
-#
+#       - The MIPS32 SIMD Architecture Module, Revision 1.12
+#         (Document Number: MD00866-2B-MSA32-AFP-01.12)
+#       - The MIPS64 SIMD Architecture Module, Revision 1.12
+#         (Document Number: MD00868-1D-MSA64-AFP-01.12)
 
 &rtype              rs rt rd sa
 
@@ -19,6 +20,7 @@
 @bz_df              ...... ... df:2 wt:5 s16:16             &msa_bz
 
 LSA                 000000 ..... ..... ..... 000 .. 000101  @lsa
+DLSA                000000 ..... ..... ..... 000 .. 010101  @lsa
 
 BZ_V                010001 01011  ..... ................    @bz
 BNZ_V               010001 01111  ..... ................    @bz

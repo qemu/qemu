@@ -1882,7 +1882,7 @@ if have_system or have_user
     'target/hppa',
     'target/i386',
     'target/i386/kvm',
-    'target/mips',
+    'target/mips/tcg',
     'target/ppc',
     'target/riscv',
     'target/s390x',

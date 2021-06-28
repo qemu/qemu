@@ -18,8 +18,7 @@
 #include "internal.h"
 
 /* Include the auto-generated decoder.  */
-#include "decode-msa32.c.inc"
-#include "decode-msa64.c.inc"
+#include "decode-msa.c.inc"
 
 #define OPC_MSA (0x1E << 26)
 
@@ -255,7 +254,7 @@ enum {
     OPC_BINSRI_df   = (0x7 << 23) | OPC_MSA_BIT_09,
 };
 
-static const char * const msaregnames[] = {
+static const char msaregnames[][6] = {
     "w0.d0",  "w0.d1",  "w1.d0",  "w1.d1",
     "w2.d0",  "w2.d1",  "w3.d0",  "w3.d1",
     "w4.d0",  "w4.d1",  "w5.d0",  "w5.d1",
@@ -2162,7 +2161,7 @@ static void gen_msa_vec(DisasContext *ctx)
     }
 }
 
-static void gen_msa(DisasContext *ctx)
+static bool trans_MSA(DisasContext *ctx, arg_MSA *a)
 {
     uint32_t opcode = ctx->opcode;
 
@@ -2258,11 +2257,6 @@ static void gen_msa(DisasContext *ctx)
         gen_reserved_instruction(ctx);
         break;
     }
-}
-
-static bool trans_MSA(DisasContext *ctx, arg_MSA *a)
-{
-    gen_msa(ctx);
 
     return true;
 }
@@ -2274,13 +2268,8 @@ static bool trans_LSA(DisasContext *ctx, arg_rtype *a)
 
 static bool trans_DLSA(DisasContext *ctx, arg_rtype *a)
 {
-    return gen_dlsa(ctx, a->rd, a->rt, a->rs, a->sa);
-}
-
-bool decode_ase_msa(DisasContext *ctx, uint32_t insn)
-{
-    if (TARGET_LONG_BITS == 64 && decode_msa64(ctx, insn)) {
-        return true;
+    if (TARGET_LONG_BITS != 64) {
+        return false;
     }
-    return decode_msa32(ctx, insn);
+    return gen_dlsa(ctx, a->rd, a->rt, a->rs, a->sa);
 }
