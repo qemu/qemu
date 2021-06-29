@@ -24,7 +24,7 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
                              QCryptoCipherMode mode)
 {
     switch (alg) {
-    case QCRYPTO_CIPHER_ALG_DES_RFB:
+    case QCRYPTO_CIPHER_ALG_DES:
     case QCRYPTO_CIPHER_ALG_3DES:
     case QCRYPTO_CIPHER_ALG_AES_128:
     case QCRYPTO_CIPHER_ALG_AES_192:
@@ -186,7 +186,7 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
     }
 
     switch (alg) {
-    case QCRYPTO_CIPHER_ALG_DES_RFB:
+    case QCRYPTO_CIPHER_ALG_DES:
         gcryalg = GCRY_CIPHER_DES;
         break;
     case QCRYPTO_CIPHER_ALG_3DES:
@@ -257,17 +257,7 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
     }
     ctx->blocksize = gcry_cipher_get_algo_blklen(gcryalg);
 
-    if (alg == QCRYPTO_CIPHER_ALG_DES_RFB) {
-        /* We're using standard DES cipher from gcrypt, so we need
-         * to munge the key so that the results are the same as the
-         * bizarre RFB variant of DES :-)
-         */
-        uint8_t *rfbkey = qcrypto_cipher_munge_des_rfb_key(key, nkey);
-        err = gcry_cipher_setkey(ctx->handle, rfbkey, nkey);
-        g_free(rfbkey);
-    } else {
-        err = gcry_cipher_setkey(ctx->handle, key, nkey);
-    }
+    err = gcry_cipher_setkey(ctx->handle, key, nkey);
     if (err != 0) {
         error_setg(errp, "Cannot set key: %s", gcry_strerror(err));
         goto error;

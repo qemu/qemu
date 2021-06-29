@@ -155,28 +155,28 @@ static QCryptoCipherTestData test_data[] = {
          * in single AES block, and gives identical
          * ciphertext in ECB and CBC modes
          */
-        .path = "/crypto/cipher/des-rfb-ecb-56-one-block",
-        .alg = QCRYPTO_CIPHER_ALG_DES_RFB,
+        .path = "/crypto/cipher/des-ecb-56-one-block",
+        .alg = QCRYPTO_CIPHER_ALG_DES,
         .mode = QCRYPTO_CIPHER_MODE_ECB,
-        .key = "0123456789abcdef",
+        .key = "80c4a2e691d5b3f7",
         .plaintext = "70617373776f7264",
         .ciphertext = "73fa80b66134e403",
     },
     {
         /* See previous comment */
-        .path = "/crypto/cipher/des-rfb-cbc-56-one-block",
-        .alg = QCRYPTO_CIPHER_ALG_DES_RFB,
+        .path = "/crypto/cipher/des-cbc-56-one-block",
+        .alg = QCRYPTO_CIPHER_ALG_DES,
         .mode = QCRYPTO_CIPHER_MODE_CBC,
-        .key = "0123456789abcdef",
+        .key = "80c4a2e691d5b3f7",
         .iv = "0000000000000000",
         .plaintext = "70617373776f7264",
         .ciphertext = "73fa80b66134e403",
     },
     {
-        .path = "/crypto/cipher/des-rfb-ecb-56",
-        .alg = QCRYPTO_CIPHER_ALG_DES_RFB,
+        .path = "/crypto/cipher/des-ecb-56",
+        .alg = QCRYPTO_CIPHER_ALG_DES,
         .mode = QCRYPTO_CIPHER_MODE_ECB,
-        .key = "0123456789abcdef",
+        .key = "80c4a2e691d5b3f7",
         .plaintext =
             "6bc1bee22e409f96e93d7e117393172a"
             "ae2d8a571e03ac9c9eb76fac45af8e51"
