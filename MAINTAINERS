@@ -1823,7 +1823,8 @@ F: include/hw/sd/sd*
 F: hw/sd/core.c
 F: hw/sd/sd*
 F: hw/sd/ssi-sd.c
-F: tests/qtest/sd*
+F: tests/qtest/fuzz-sdcard-test.c
+F: tests/qtest/sdhci-test.c
 
 USB
 M: Gerd Hoffmann <kraxel@redhat.com>

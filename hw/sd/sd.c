@@ -1380,6 +1380,11 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 
         switch (sd->state) {
         case sd_transfer_state:
+            if (!address_in_range(sd, "SEND_WRITE_PROT",
+                                  req.arg, sd->blk_len)) {
+                return sd_r1;
+            }
+
             sd->state = sd_sendingdata_state;
             *(uint32_t *) sd->data = sd_wpbits(sd, req.arg);
             sd->data_start = addr;
