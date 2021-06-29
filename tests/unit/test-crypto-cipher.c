@@ -165,7 +165,6 @@ static QCryptoCipherTestData test_data[] = {
             "ffd29f1bb5596ad94ea2d8e6196b7f09"
             "30d8ed0bf2773af36dd82a6280c20926",
     },
-#if defined(CONFIG_NETTLE) || defined(CONFIG_GCRYPT)
     {
         /* Borrowed from linux-kernel crypto/testmgr.h */
         .path = "/crypto/cipher/3des-cbc",
@@ -283,7 +282,6 @@ static QCryptoCipherTestData test_data[] = {
             "407772c2ea0e3a7846b991b6e73d5142"
             "fd51b0c62c6313785ceefccfc4700034",
     },
-#endif
     {
         /* RFC 2144, Appendix B.1 */
         .path = "/crypto/cipher/cast5-128",
