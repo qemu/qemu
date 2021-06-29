@@ -49,6 +49,7 @@ help:
 pipenv: .venv
 .venv: Pipfile.lock
 	@PIPENV_VENV_IN_PROJECT=1 pipenv sync --dev --keep-outdated
+	rm -f pyproject.toml
 	@touch .venv
 
 .PHONY: check-pipenv
@@ -91,6 +92,7 @@ check-tox:
 .PHONY: clean
 clean:
 	python3 setup.py clean --all
+	rm -f pyproject.toml
 
 .PHONY: distclean
 distclean: clean
