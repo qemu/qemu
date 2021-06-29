@@ -116,6 +116,8 @@ class QEMUQtestMachine(QEMUMachine):
                  base_temp_dir: str = "/var/tmp",
                  socket_scm_helper: Optional[str] = None,
                  sock_dir: Optional[str] = None):
+        # pylint: disable=too-many-arguments
+
         if name is None:
             name = "qemu-%d" % os.getpid()
         if sock_dir is None:

@@ -84,6 +84,7 @@ class QEMUMachine:
             ...
         # vm is guaranteed to be shut down here
     """
+    # pylint: disable=too-many-instance-attributes, too-many-public-methods
 
     def __init__(self,
                  binary: str,
@@ -111,6 +112,8 @@ class QEMUMachine:
         @param console_log: (optional) path to console log file
         @note: Qemu process is not started until launch() is used.
         '''
+        # pylint: disable=too-many-arguments
+
         # Direct user configuration
 
         self._binary = binary
