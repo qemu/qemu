@@ -1,5 +1,4 @@
-.PHONY: help pipenv check-pipenv check clean distclean develop
-
+.PHONY: help
 help:
 	@echo "python packaging help:"
 	@echo ""
@@ -29,25 +28,32 @@ help:
 	@echo "                 built distribution files, and everything"
 	@echo "                 from 'make clean'."
 
+.PHONY: pipenv
 pipenv: .venv
 .venv: Pipfile.lock
 	@PIPENV_VENV_IN_PROJECT=1 pipenv sync --dev --keep-outdated
 	@touch .venv
 
+.PHONY: check-pipenv
 check-pipenv: pipenv
 	@pipenv run make check
 
+.PHONY: develop
 develop:
 	pip3 install -e .[devel]
 
+.PHONY: check
 check:
 	@avocado --config avocado.cfg run tests/
 
+.PHONY: check-tox
 check-tox:
 	@tox
 
+.PHONY: clean
 clean:
 	python3 setup.py clean --all
 
+.PHONY: distclean
 distclean: clean
 	rm -rf qemu.egg-info/ .venv/ .tox/ dist/
