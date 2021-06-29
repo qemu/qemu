@@ -202,6 +202,12 @@ The namespace may be configured with additional parameters
   allows all zones to be open. If ``zoned.max_active`` is specified, this value
   must be less than or equal to that.
 
+``zoned.zasl=UINT8`` (default: ``0``)
+  Set the maximum data transfer size for the Zone Append command. Like
+  ``mdts``, the value is specified as a power of two (2^n) and is in units of
+  the minimum memory page size (CAP.MPSMIN). The default value (``0``)
+  has this property inherit the ``mdts`` value.
+
 Metadata
 --------
 
