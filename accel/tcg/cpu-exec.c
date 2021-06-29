@@ -38,6 +38,7 @@
 #include "exec/cpu-all.h"
 #include "sysemu/cpu-timers.h"
 #include "sysemu/replay.h"
+#include "exec/helper-proto.h"
 #include "tb-hash.h"
 #include "tb-lookup.h"
 #include "tb-context.h"
@@ -144,6 +145,35 @@ static void init_delay_params(SyncClocks *sc, const CPUState *cpu)
 {
 }
 #endif /* CONFIG USER ONLY */
+
+/**
+ * helper_lookup_tb_ptr: quick check for next tb
+ * @env: current cpu state
+ *
+ * Look for an existing TB matching the current cpu state.
+ * If found, return the code pointer.  If not found, return
+ * the tcg epilogue so that we return into cpu_tb_exec.
+ */
+const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
+{
+    CPUState *cpu = env_cpu(env);
+    TranslationBlock *tb;
+    target_ulong cs_base, pc;
+    uint32_t flags;
+
+    cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
+
+    tb = tb_lookup(cpu, pc, cs_base, flags, curr_cflags(cpu));
+    if (tb == NULL) {
+        return tcg_code_gen_epilogue;
+    }
+    qemu_log_mask_and_addr(CPU_LOG_EXEC, pc,
+                           "Chain %d: %p ["
+                           TARGET_FMT_lx "/" TARGET_FMT_lx "/%#x] %s\n",
+                           cpu->cpu_index, tb->tc.ptr, cs_base, pc, flags,
+                           lookup_symbol(pc));
+    return tb->tc.ptr;
+}
 
 /* Execute a TB, and fix up the CPU state afterwards if necessary */
 /*
