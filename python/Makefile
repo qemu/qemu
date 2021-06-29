@@ -1,15 +1,13 @@
-.PHONY: help venv venv-check check clean distclean develop
+.PHONY: help pipenv check-pipenv check clean distclean develop
 
 help:
 	@echo "python packaging help:"
 	@echo ""
-	@echo "make venv:       Create pipenv's virtual environment."
-	@echo "    NOTE: Requires Python 3.6 and pipenv."
-	@echo "          Will download packages from PyPI."
-	@echo "    Hint: (On Fedora): 'sudo dnf install python36 pipenv'"
-	@echo ""
-	@echo "make venv-check: run linters using pipenv's virtual environment."
-	@echo "    Hint: If you don't know which test to run, run this one!"
+	@echo "make check-pipenv:"
+	@echo "    Run tests in pipenv's virtual environment."
+	@echo "    These tests use the oldest dependencies."
+	@echo "    Requires: Python 3.6 and pipenv."
+	@echo "    Hint (Fedora): 'sudo dnf install python3.6 pipenv'"
 	@echo ""
 	@echo "make develop:    Install deps for 'make check', and"
 	@echo "                 the qemu libs in editable/development mode."
@@ -18,18 +16,21 @@ help:
 	@echo ""
 	@echo "make check-tox:  run linters using multiple python versions."
 	@echo ""
+	@echo "make pipenv"
+	@echo "    Creates pipenv's virtual environment (.venv)"
+	@echo ""
 	@echo "make clean:      remove package build output."
 	@echo ""
 	@echo "make distclean:  remove venv files, qemu package forwarder,"
 	@echo "                 built distribution files, and everything"
 	@echo "                 from 'make clean'."
 
-venv: .venv
+pipenv: .venv
 .venv: Pipfile.lock
 	@PIPENV_VENV_IN_PROJECT=1 pipenv sync --dev --keep-outdated
 	@touch .venv
 
-venv-check: venv
+check-pipenv: pipenv
 	@pipenv run make check
 
 develop:
