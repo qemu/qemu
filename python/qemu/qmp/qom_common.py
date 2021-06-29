@@ -156,7 +156,7 @@ class QOMCommand:
         """
         Run a fully-parsed subcommand, with error-handling for the CLI.
 
-        :return: The return code from `.run()`.
+        :return: The return code from `run()`.
         """
         try:
             cmd = cls(args)

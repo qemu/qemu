@@ -545,7 +545,8 @@ class QEMUMachine:
         @param enabled: if False, qmp monitor options will be removed from
                         the base arguments of the resulting QEMU command
                         line. Default is True.
-        @note: call this function before launch().
+
+        .. note:: Call this function before launch().
         """
         self._qmp_set = enabled
 
