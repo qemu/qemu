@@ -839,7 +839,7 @@ elif (not get_option('nettle').auto() or have_system) and not get_option('gcrypt
   endif
 endif
 if (not get_option('gcrypt').auto() or have_system) and not nettle.found()
-  gcrypt = dependency('libgcrypt', version: '>=1.5',
+  gcrypt = dependency('libgcrypt', version: '>=1.8',
                          method: 'config-tool',
                          required: get_option('gcrypt'),
                          kwargs: static_kwargs)
