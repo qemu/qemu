@@ -181,7 +181,7 @@ static int usb_desc_msos_prop(const USBDesc *desc, uint8_t *dest)
 
     if (desc->msos->Label) {
         /*
-         * Given as example in the specs.  Havn't figured yet where
+         * Given as example in the specs.  Haven't figured yet where
          * this label shows up in the windows gui.
          */
         length += usb_desc_msos_prop_str(dest+length, MSOS_REG_SZ,
