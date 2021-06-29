@@ -2097,6 +2097,13 @@ void qmp_migrate_recover(const char *uri, Error **errp)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
 
+    /*
+     * Don't even bother to use ERRP_GUARD() as it _must_ always be set by
+     * callers (no one should ignore a recover failure); if there is, it's a
+     * programming error.
+     */
+    assert(errp);
+
     if (mis->state != MIGRATION_STATUS_POSTCOPY_PAUSED) {
         error_setg(errp, "Migrate recover can only be run "
                    "when postcopy is paused.");
@@ -2115,6 +2122,12 @@ void qmp_migrate_recover(const char *uri, Error **errp)
      * to continue using that newly established channel.
      */
     qemu_start_incoming_migration(uri, errp);
+
+    /* Safe to dereference with the assert above */
+    if (*errp) {
+        /* Reset the flag so user could still retry */
+        qatomic_set(&mis->postcopy_recover_triggered, false);
+    }
 }
 
 void qmp_migrate_pause(Error **errp)
