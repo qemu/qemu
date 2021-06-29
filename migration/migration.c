@@ -456,10 +456,6 @@ static void qemu_start_incoming_migration(const char *uri, Error **errp)
 {
     const char *p = NULL;
 
-    if (!yank_register_instance(MIGRATION_YANK_INSTANCE, errp)) {
-        return;
-    }
-
     qapi_event_send_migration(MIGRATION_STATUS_SETUP);
     if (strstart(uri, "tcp:", &p) ||
         strstart(uri, "unix:", NULL) ||
@@ -474,7 +470,6 @@ static void qemu_start_incoming_migration(const char *uri, Error **errp)
     } else if (strstart(uri, "fd:", &p)) {
         fd_start_incoming_migration(p, errp);
     } else {
-        yank_unregister_instance(MIGRATION_YANK_INSTANCE);
         error_setg(errp, "unknown migration protocol: %s", uri);
     }
 }
@@ -2083,9 +2078,14 @@ void qmp_migrate_incoming(const char *uri, Error **errp)
         return;
     }
 
+    if (!yank_register_instance(MIGRATION_YANK_INSTANCE, errp)) {
+        return;
+    }
+
     qemu_start_incoming_migration(uri, &local_err);
 
     if (local_err) {
+        yank_unregister_instance(MIGRATION_YANK_INSTANCE);
         error_propagate(errp, local_err);
         return;
     }
@@ -2114,7 +2114,6 @@ void qmp_migrate_recover(const char *uri, Error **errp)
      * only re-setup the migration stream and poke existing migration
      * to continue using that newly established channel.
      */
-    yank_unregister_instance(MIGRATION_YANK_INSTANCE);
     qemu_start_incoming_migration(uri, errp);
 }
 
