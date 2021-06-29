@@ -7,8 +7,7 @@ then by package (e.g. ``qemu/machine``, ``qemu/qmp``, etc).
 
 ``setup.py`` is used by ``pip`` to install this tooling to the current
 environment. ``setup.cfg`` provides the packaging configuration used by
-``setup.py`` in a setuptools specific format. You will generally invoke
-it by doing one of the following:
+``setup.py``. You will generally invoke it by doing one of the following:
 
 1. ``pip3 install .`` will install these packages to your current
    environment. If you are inside a virtual environment, they will
@@ -17,12 +16,13 @@ it by doing one of the following:
 
 2. ``pip3 install --user .`` will install these packages to your user's
    local python packages. If you are inside of a virtual environment,
-   this will fail; you likely want the first invocation above.
+   this will fail; you want the first invocation above.
 
-If you append the ``-e`` argument, pip will install in "editable" mode;
-which installs a version of the package that installs a forwarder
-pointing to these files, such that the package always reflects the
-latest version in your git tree.
+If you append the ``--editable`` or ``-e`` argument to either invocation
+above, pip will install in "editable" mode. This installs the package as
+a forwarder ("qemu.egg-link") that points to the source tree. In so
+doing, the installed package always reflects the latest version in your
+source tree.
 
 Installing ".[devel]" instead of "." will additionally pull in required
 packages for testing this package. They are not runtime requirements,
@@ -30,6 +30,7 @@ and are not needed to simply use these libraries.
 
 Running ``make develop`` will pull in all testing dependencies and
 install QEMU in editable mode to the current environment.
+(It is a shortcut for ``pip3 install -e .[devel]``.)
 
 See `Installing packages using pip and virtual environments
 <https://packaging.python.org/guides/installing-using-pip-and-virtual-environments/>`_
@@ -39,7 +40,7 @@ for more information.
 Files in this directory
 -----------------------
 
-- ``qemu/`` Python package source directory.
+- ``qemu/`` Python 'qemu' namespace package source directory.
 - ``tests/`` Python package tests directory.
 - ``avocado.cfg`` Configuration for the Avocado test-runner.
   Used by ``make check`` et al.
