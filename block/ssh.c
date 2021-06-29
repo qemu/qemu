@@ -237,9 +237,7 @@ static int parse_uri(const char *filename, QDict *options, Error **errp)
     return 0;
 
  err:
-    if (uri) {
-      uri_free(uri);
-    }
+    uri_free(uri);
     return -EINVAL;
 }
 
