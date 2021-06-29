@@ -789,9 +789,7 @@ void tcg_prologue_init(TCGContext *s)
      * For tci, we use NULL as the signal to return from the interpreter,
      * so skip this check.
      */
-    if (TCG_TARGET_HAS_goto_ptr) {
-        tcg_debug_assert(tcg_code_gen_epilogue != NULL);
-    }
+    tcg_debug_assert(tcg_code_gen_epilogue != NULL);
 #endif
 
     tcg_region_prologue_set(s);
@@ -1176,6 +1174,7 @@ bool tcg_op_supported(TCGOpcode op)
     case INDEX_op_insn_start:
     case INDEX_op_exit_tb:
     case INDEX_op_goto_tb:
+    case INDEX_op_goto_ptr:
     case INDEX_op_qemu_ld_i32:
     case INDEX_op_qemu_st_i32:
     case INDEX_op_qemu_ld_i64:
@@ -1184,9 +1183,6 @@ bool tcg_op_supported(TCGOpcode op)
 
     case INDEX_op_qemu_st8_i32:
         return TCG_TARGET_HAS_qemu_st8_i32;
-
-    case INDEX_op_goto_ptr:
-        return TCG_TARGET_HAS_goto_ptr;
 
     case INDEX_op_mov_i32:
     case INDEX_op_setcond_i32:
