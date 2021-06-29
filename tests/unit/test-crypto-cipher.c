@@ -150,6 +150,29 @@ static QCryptoCipherTestData test_data[] = {
             "b2eb05e2c39be9fcda6c19078c6a9d1b",
     },
     {
+        /*
+         * Testing 'password' as plaintext fits
+         * in single AES block, and gives identical
+         * ciphertext in ECB and CBC modes
+         */
+        .path = "/crypto/cipher/des-rfb-ecb-56-one-block",
+        .alg = QCRYPTO_CIPHER_ALG_DES_RFB,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = "0123456789abcdef",
+        .plaintext = "70617373776f7264",
+        .ciphertext = "73fa80b66134e403",
+    },
+    {
+        /* See previous comment */
+        .path = "/crypto/cipher/des-rfb-cbc-56-one-block",
+        .alg = QCRYPTO_CIPHER_ALG_DES_RFB,
+        .mode = QCRYPTO_CIPHER_MODE_CBC,
+        .key = "0123456789abcdef",
+        .iv = "0000000000000000",
+        .plaintext = "70617373776f7264",
+        .ciphertext = "73fa80b66134e403",
+    },
+    {
         .path = "/crypto/cipher/des-rfb-ecb-56",
         .alg = QCRYPTO_CIPHER_ALG_DES_RFB,
         .mode = QCRYPTO_CIPHER_MODE_ECB,
