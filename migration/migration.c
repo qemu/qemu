@@ -3691,6 +3691,17 @@ static void qemu_savevm_wait_unplug(MigrationState *s, int old_state,
                qemu_savevm_state_guest_unplug_pending()) {
             qemu_sem_timedwait(&s->wait_unplug_sem, 250);
         }
+        if (s->state != MIGRATION_STATUS_WAIT_UNPLUG) {
+            int timeout = 120; /* 30 seconds */
+            /*
+             * migration has been canceled
+             * but as we have started an unplug we must wait the end
+             * to be able to plug back the card
+             */
+            while (timeout-- && qemu_savevm_state_guest_unplug_pending()) {
+                qemu_sem_timedwait(&s->wait_unplug_sem, 250);
+            }
+        }
 
         migrate_set_state(&s->state, MIGRATION_STATUS_WAIT_UNPLUG, new_state);
     } else {
