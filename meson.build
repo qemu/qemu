@@ -843,16 +843,7 @@ if (not get_option('gcrypt').auto() or have_system) and not nettle.found()
                          method: 'config-tool',
                          required: get_option('gcrypt'),
                          kwargs: static_kwargs)
-  if gcrypt.found() and cc.compiles('''
-    #include <gcrypt.h>
-    int main(void) {
-      gcry_cipher_hd_t handle;
-      gcry_cipher_open(&handle, GCRY_CIPHER_AES, GCRY_CIPHER_MODE_XTS, 0);
-      return 0;
-    }
-    ''', dependencies: gcrypt)
-    xts = 'gcrypt'
-  endif
+  xts = 'gcrypt'
   # Debian has removed -lgpg-error from libgcrypt-config
   # as it "spreads unnecessary dependencies" which in
   # turn breaks static builds...
@@ -2970,9 +2961,6 @@ summary_info += {'TLS priority':      config_host['CONFIG_TLS_PRIORITY']}
 summary_info += {'GNUTLS support':    gnutls.found()}
 # TODO: add back version
 summary_info += {'libgcrypt':         gcrypt.found()}
-if gcrypt.found()
-   summary_info += {'  XTS':             xts != 'private'}
-endif
 # TODO: add back version
 summary_info += {'nettle':            nettle.found()}
 if nettle.found()
