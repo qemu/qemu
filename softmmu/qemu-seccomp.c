@@ -97,17 +97,11 @@ static const struct QemuSeccompSyscall denylist[] = {
     { SCMP_SYS(vfork),                  QEMU_SECCOMP_SET_SPAWN },
     { SCMP_SYS(execve),                 QEMU_SECCOMP_SET_SPAWN },
     /* resource control */
-    { SCMP_SYS(getpriority),            QEMU_SECCOMP_SET_RESOURCECTL },
     { SCMP_SYS(setpriority),            QEMU_SECCOMP_SET_RESOURCECTL },
     { SCMP_SYS(sched_setparam),         QEMU_SECCOMP_SET_RESOURCECTL },
-    { SCMP_SYS(sched_getparam),         QEMU_SECCOMP_SET_RESOURCECTL },
     { SCMP_SYS(sched_setscheduler),     QEMU_SECCOMP_SET_RESOURCECTL,
       ARRAY_SIZE(sched_setscheduler_arg), sched_setscheduler_arg },
-    { SCMP_SYS(sched_getscheduler),     QEMU_SECCOMP_SET_RESOURCECTL },
     { SCMP_SYS(sched_setaffinity),      QEMU_SECCOMP_SET_RESOURCECTL },
-    { SCMP_SYS(sched_getaffinity),      QEMU_SECCOMP_SET_RESOURCECTL },
-    { SCMP_SYS(sched_get_priority_max), QEMU_SECCOMP_SET_RESOURCECTL },
-    { SCMP_SYS(sched_get_priority_min), QEMU_SECCOMP_SET_RESOURCECTL },
 };
 
 static inline __attribute__((unused)) int
