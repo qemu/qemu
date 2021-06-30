@@ -1910,10 +1910,11 @@ SRST
 ERST
 
 DEF("no-quit", 0, QEMU_OPTION_no_quit,
-    "-no-quit        disable SDL window close capability\n", QEMU_ARCH_ALL)
+    "-no-quit        disable SDL/GTK window close capability (deprecated)\n", QEMU_ARCH_ALL)
 SRST
 ``-no-quit``
-    Disable SDL window close capability.
+    Disable window close capability (SDL and GTK only). This option is
+    deprecated, please use ``-display ...,window-close=off`` instead.
 ERST
 
 DEF("sdl", 0, QEMU_OPTION_sdl,
