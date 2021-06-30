@@ -168,6 +168,34 @@ uint32_t set_cc_nz_f128(float128 v)
     }
 }
 
+/* condition codes for FP to integer conversion ops */
+static uint32_t set_cc_conv_f32(float32 v, float_status *stat)
+{
+    if (stat->float_exception_flags & float_flag_invalid) {
+        return 3;
+    } else {
+        return set_cc_nz_f32(v);
+    }
+}
+
+static uint32_t set_cc_conv_f64(float64 v, float_status *stat)
+{
+    if (stat->float_exception_flags & float_flag_invalid) {
+        return 3;
+    } else {
+        return set_cc_nz_f64(v);
+    }
+}
+
+static uint32_t set_cc_conv_f128(float128 v, float_status *stat)
+{
+    if (stat->float_exception_flags & float_flag_invalid) {
+        return 3;
+    } else {
+        return set_cc_nz_f128(v);
+    }
+}
+
 static inline uint8_t round_from_m34(uint32_t m34)
 {
     return extract32(m34, 0, 4);
@@ -506,9 +534,11 @@ uint64_t HELPER(cgeb)(CPUS390XState *env, uint64_t v2, uint32_t m34)
 {
     int old_mode = s390_swap_bfp_rounding_mode(env, round_from_m34(m34));
     int64_t ret = float32_to_int64(v2, &env->fpu_status);
+    uint32_t cc = set_cc_conv_f32(v2, &env->fpu_status);
 
     s390_restore_bfp_rounding_mode(env, old_mode);
     handle_exceptions(env, xxc_from_m34(m34), GETPC());
+    env->cc_op = cc;
     if (float32_is_any_nan(v2)) {
         return INT64_MIN;
     }
@@ -520,9 +550,11 @@ uint64_t HELPER(cgdb)(CPUS390XState *env, uint64_t v2, uint32_t m34)
 {
     int old_mode = s390_swap_bfp_rounding_mode(env, round_from_m34(m34));
     int64_t ret = float64_to_int64(v2, &env->fpu_status);
+    uint32_t cc = set_cc_conv_f64(v2, &env->fpu_status);
 
     s390_restore_bfp_rounding_mode(env, old_mode);
     handle_exceptions(env, xxc_from_m34(m34), GETPC());
+    env->cc_op = cc;
     if (float64_is_any_nan(v2)) {
         return INT64_MIN;
     }
@@ -535,9 +567,11 @@ uint64_t HELPER(cgxb)(CPUS390XState *env, uint64_t h, uint64_t l, uint32_t m34)
     int old_mode = s390_swap_bfp_rounding_mode(env, round_from_m34(m34));
     float128 v2 = make_float128(h, l);
     int64_t ret = float128_to_int64(v2, &env->fpu_status);
+    uint32_t cc = set_cc_conv_f128(v2, &env->fpu_status);
 
     s390_restore_bfp_rounding_mode(env, old_mode);
     handle_exceptions(env, xxc_from_m34(m34), GETPC());
+    env->cc_op = cc;
     if (float128_is_any_nan(v2)) {
         return INT64_MIN;
     }
@@ -549,9 +583,11 @@ uint64_t HELPER(cfeb)(CPUS390XState *env, uint64_t v2, uint32_t m34)
 {
     int old_mode = s390_swap_bfp_rounding_mode(env, round_from_m34(m34));
     int32_t ret = float32_to_int32(v2, &env->fpu_status);
+    uint32_t cc = set_cc_conv_f32(v2, &env->fpu_status);
 
     s390_restore_bfp_rounding_mode(env, old_mode);
     handle_exceptions(env, xxc_from_m34(m34), GETPC());
+    env->cc_op = cc;
     if (float32_is_any_nan(v2)) {
         return INT32_MIN;
     }
@@ -563,9 +599,11 @@ uint64_t HELPER(cfdb)(CPUS390XState *env, uint64_t v2, uint32_t m34)
 {
     int old_mode = s390_swap_bfp_rounding_mode(env, round_from_m34(m34));
     int32_t ret = float64_to_int32(v2, &env->fpu_status);
+    uint32_t cc = set_cc_conv_f64(v2, &env->fpu_status);
 
     s390_restore_bfp_rounding_mode(env, old_mode);
     handle_exceptions(env, xxc_from_m34(m34), GETPC());
+    env->cc_op = cc;
     if (float64_is_any_nan(v2)) {
         return INT32_MIN;
     }
@@ -578,9 +616,11 @@ uint64_t HELPER(cfxb)(CPUS390XState *env, uint64_t h, uint64_t l, uint32_t m34)
     int old_mode = s390_swap_bfp_rounding_mode(env, round_from_m34(m34));
     float128 v2 = make_float128(h, l);
     int32_t ret = float128_to_int32(v2, &env->fpu_status);
+    uint32_t cc = set_cc_conv_f128(v2, &env->fpu_status);
 
     s390_restore_bfp_rounding_mode(env, old_mode);
     handle_exceptions(env, xxc_from_m34(m34), GETPC());
+    env->cc_op = cc;
     if (float128_is_any_nan(v2)) {
         return INT32_MIN;
     }
@@ -592,8 +632,11 @@ uint64_t HELPER(clgeb)(CPUS390XState *env, uint64_t v2, uint32_t m34)
 {
     int old_mode = s390_swap_bfp_rounding_mode(env, round_from_m34(m34));
     uint64_t ret = float32_to_uint64(v2, &env->fpu_status);
+    uint32_t cc = set_cc_conv_f32(v2, &env->fpu_status);
+
     s390_restore_bfp_rounding_mode(env, old_mode);
     handle_exceptions(env, xxc_from_m34(m34), GETPC());
+    env->cc_op = cc;
     if (float32_is_any_nan(v2)) {
         return 0;
     }
@@ -605,9 +648,11 @@ uint64_t HELPER(clgdb)(CPUS390XState *env, uint64_t v2, uint32_t m34)
 {
     int old_mode = s390_swap_bfp_rounding_mode(env, round_from_m34(m34));
     uint64_t ret = float64_to_uint64(v2, &env->fpu_status);
+    uint32_t cc = set_cc_conv_f64(v2, &env->fpu_status);
 
     s390_restore_bfp_rounding_mode(env, old_mode);
     handle_exceptions(env, xxc_from_m34(m34), GETPC());
+    env->cc_op = cc;
     if (float64_is_any_nan(v2)) {
         return 0;
     }
@@ -618,11 +663,14 @@ uint64_t HELPER(clgdb)(CPUS390XState *env, uint64_t v2, uint32_t m34)
 uint64_t HELPER(clgxb)(CPUS390XState *env, uint64_t h, uint64_t l, uint32_t m34)
 {
     int old_mode = s390_swap_bfp_rounding_mode(env, round_from_m34(m34));
-    uint64_t ret = float128_to_uint64(make_float128(h, l), &env->fpu_status);
+    float128 v2 = make_float128(h, l);
+    uint64_t ret = float128_to_uint64(v2, &env->fpu_status);
+    uint32_t cc = set_cc_conv_f128(v2, &env->fpu_status);
 
     s390_restore_bfp_rounding_mode(env, old_mode);
     handle_exceptions(env, xxc_from_m34(m34), GETPC());
-    if (float128_is_any_nan(make_float128(h, l))) {
+    env->cc_op = cc;
+    if (float128_is_any_nan(v2)) {
         return 0;
     }
     return ret;
@@ -633,9 +681,11 @@ uint64_t HELPER(clfeb)(CPUS390XState *env, uint64_t v2, uint32_t m34)
 {
     int old_mode = s390_swap_bfp_rounding_mode(env, round_from_m34(m34));
     uint32_t ret = float32_to_uint32(v2, &env->fpu_status);
+    uint32_t cc = set_cc_conv_f32(v2, &env->fpu_status);
 
     s390_restore_bfp_rounding_mode(env, old_mode);
     handle_exceptions(env, xxc_from_m34(m34), GETPC());
+    env->cc_op = cc;
     if (float32_is_any_nan(v2)) {
         return 0;
     }
@@ -647,9 +697,11 @@ uint64_t HELPER(clfdb)(CPUS390XState *env, uint64_t v2, uint32_t m34)
 {
     int old_mode = s390_swap_bfp_rounding_mode(env, round_from_m34(m34));
     uint32_t ret = float64_to_uint32(v2, &env->fpu_status);
+    uint32_t cc = set_cc_conv_f64(v2, &env->fpu_status);
 
     s390_restore_bfp_rounding_mode(env, old_mode);
     handle_exceptions(env, xxc_from_m34(m34), GETPC());
+    env->cc_op = cc;
     if (float64_is_any_nan(v2)) {
         return 0;
     }
@@ -660,11 +712,14 @@ uint64_t HELPER(clfdb)(CPUS390XState *env, uint64_t v2, uint32_t m34)
 uint64_t HELPER(clfxb)(CPUS390XState *env, uint64_t h, uint64_t l, uint32_t m34)
 {
     int old_mode = s390_swap_bfp_rounding_mode(env, round_from_m34(m34));
-    uint32_t ret = float128_to_uint32(make_float128(h, l), &env->fpu_status);
+    float128 v2 = make_float128(h, l);
+    uint32_t ret = float128_to_uint32(v2, &env->fpu_status);
+    uint32_t cc = set_cc_conv_f128(v2, &env->fpu_status);
 
     s390_restore_bfp_rounding_mode(env, old_mode);
     handle_exceptions(env, xxc_from_m34(m34), GETPC());
-    if (float128_is_any_nan(make_float128(h, l))) {
+    env->cc_op = cc;
+    if (float128_is_any_nan(v2)) {
         return 0;
     }
     return ret;
