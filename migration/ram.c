@@ -795,8 +795,6 @@ static inline bool migration_bitmap_clear_dirty(RAMState *rs,
 {
     bool ret;
 
-    QEMU_LOCK_GUARD(&rs->bitmap_mutex);
-
     /*
      * Clear dirty bitmap if needed.  This _must_ be called before we
      * send any of the page in the chunk because we need to make sure
@@ -2834,6 +2832,14 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         goto out;
     }
 
+    /*
+     * We'll take this lock a little bit long, but it's okay for two reasons.
+     * Firstly, the only possible other thread to take it is who calls
+     * qemu_guest_free_page_hint(), which should be rare; secondly, see
+     * MAX_WAIT (if curious, further see commit 4508bd9ed8053ce) below, which
+     * guarantees that we'll at least released it in a regular basis.
+     */
+    qemu_mutex_lock(&rs->bitmap_mutex);
     WITH_RCU_READ_LOCK_GUARD() {
         if (ram_list.version != rs->last_version) {
             ram_state_reset(rs);
@@ -2893,6 +2899,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
             i++;
         }
     }
+    qemu_mutex_unlock(&rs->bitmap_mutex);
 
     /*
      * Must occur before EOS (or any QEMUFile operation)
@@ -3682,6 +3689,7 @@ void colo_flush_ram_cache(void)
     unsigned long offset = 0;
 
     memory_global_dirty_log_sync();
+    qemu_mutex_lock(&ram_state->bitmap_mutex);
     WITH_RCU_READ_LOCK_GUARD() {
         RAMBLOCK_FOREACH_NOT_IGNORED(block) {
             ramblock_sync_dirty_bitmap(ram_state, block);
@@ -3710,6 +3718,7 @@ void colo_flush_ram_cache(void)
         }
     }
     trace_colo_flush_ram_cache_end();
+    qemu_mutex_unlock(&ram_state->bitmap_mutex);
 }
 
 /**
