@@ -27,12 +27,6 @@
 #undef QEMU_GENERATE
 #include "gen_tcg.h"
 
-static inline TCGv gen_read_preg(TCGv pred, uint8_t num)
-{
-    tcg_gen_mov_tl(pred, hex_pred[num]);
-    return pred;
-}
-
 static inline void gen_log_predicated_reg_write(int rnum, TCGv val, int slot)
 {
     TCGv zero = tcg_const_tl(0);
@@ -121,10 +115,7 @@ static void gen_log_reg_write_pair(int rnum, TCGv_i64 val)
 
 static inline void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)
 {
-    TCGv zero = tcg_const_tl(0);
     TCGv base_val = tcg_temp_new();
-    TCGv and_val = tcg_temp_new();
-    TCGv pred_written = tcg_temp_new();
 
     tcg_gen_andi_tl(base_val, val, 0xff);
 
@@ -143,10 +134,7 @@ static inline void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)
     }
     tcg_gen_ori_tl(hex_pred_written, hex_pred_written, 1 << pnum);
 
-    tcg_temp_free(zero);
     tcg_temp_free(base_val);
-    tcg_temp_free(and_val);
-    tcg_temp_free(pred_written);
 }
 
 static inline void gen_read_p3_0(TCGv control_reg)
@@ -334,8 +322,7 @@ static inline void gen_load_locked8u(TCGv_i64 dest, TCGv vaddr, int mem_index)
     tcg_gen_mov_i64(hex_llsc_val_i64, dest);
 }
 
-static inline void gen_store_conditional4(CPUHexagonState *env,
-                                          DisasContext *ctx, int prednum,
+static inline void gen_store_conditional4(DisasContext *ctx,
                                           TCGv pred, TCGv vaddr, TCGv src)
 {
     TCGLabel *fail = gen_new_label();
@@ -349,7 +336,7 @@ static inline void gen_store_conditional4(CPUHexagonState *env,
     tmp = tcg_temp_new();
     tcg_gen_atomic_cmpxchg_tl(tmp, hex_llsc_addr, hex_llsc_val, src,
                               ctx->mem_idx, MO_32);
-    tcg_gen_movcond_tl(TCG_COND_EQ, hex_pred[prednum], tmp, hex_llsc_val,
+    tcg_gen_movcond_tl(TCG_COND_EQ, pred, tmp, hex_llsc_val,
                        one, zero);
     tcg_temp_free(one);
     tcg_temp_free(zero);
@@ -363,8 +350,7 @@ static inline void gen_store_conditional4(CPUHexagonState *env,
     tcg_gen_movi_tl(hex_llsc_addr, ~0);
 }
 
-static inline void gen_store_conditional8(CPUHexagonState *env,
-                                          DisasContext *ctx, int prednum,
+static inline void gen_store_conditional8(DisasContext *ctx,
                                           TCGv pred, TCGv vaddr, TCGv_i64 src)
 {
     TCGLabel *fail = gen_new_label();
@@ -380,7 +366,7 @@ static inline void gen_store_conditional8(CPUHexagonState *env,
                                ctx->mem_idx, MO_64);
     tcg_gen_movcond_i64(TCG_COND_EQ, tmp, tmp, hex_llsc_val_i64,
                         one, zero);
-    tcg_gen_extrl_i64_i32(hex_pred[prednum], tmp);
+    tcg_gen_extrl_i64_i32(pred, tmp);
     tcg_temp_free_i64(one);
     tcg_temp_free_i64(zero);
     tcg_temp_free_i64(tmp);

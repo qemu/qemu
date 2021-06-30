@@ -128,11 +128,6 @@ void HELPER(debug_start_packet)(CPUHexagonState *env)
     }
 }
 
-static int32_t new_pred_value(CPUHexagonState *env, int pnum)
-{
-    return env->new_pred_value[pnum];
-}
-
 /* Checks for bookkeeping errors between disassembly context and runtime */
 void HELPER(debug_check_store_width)(CPUHexagonState *env, int slot, int check)
 {

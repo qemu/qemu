@@ -493,6 +493,9 @@ DEF_ENC32(Y2_dccleana,     ICLASS_ST" 000 00 00sssss PP------ --------")
 DEF_ENC32(Y2_dcinva,       ICLASS_ST" 000 00 01sssss PP------ --------")
 DEF_ENC32(Y2_dccleaninva,  ICLASS_ST" 000 00 10sssss PP------ --------")
 
+DEF_ENC32(Y4_l2fetch,      ICLASS_ST" 011 00 00sssss PP-ttttt 000-----")
+DEF_ENC32(Y5_l2fetch,      ICLASS_ST" 011 01 00sssss PP-ttttt --------")
+
 /*******************************/
 /*                             */
 /*                             */

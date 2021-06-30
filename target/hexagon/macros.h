@@ -24,7 +24,6 @@
 
 #ifdef QEMU_GENERATE
 #define READ_REG(dest, NUM)              gen_read_reg(dest, NUM)
-#define READ_PREG(dest, NUM)             gen_read_preg(dest, (NUM))
 #else
 #define READ_REG(NUM)                    (env->gpr[(NUM)])
 #define READ_PREG(NUM)                   (env->pred[NUM])
@@ -239,33 +238,26 @@ static inline void gen_pred_cancel(TCGv pred, int slot_num)
 #endif
 
 #ifdef QEMU_GENERATE
-#define fLSBNEW(PVAL)   tcg_gen_mov_tl(LSB, (PVAL))
-#define fLSBNEW0        tcg_gen_mov_tl(LSB, hex_new_pred_value[0])
-#define fLSBNEW1        tcg_gen_mov_tl(LSB, hex_new_pred_value[1])
+#define fLSBNEW(PVAL)   tcg_gen_andi_tl(LSB, (PVAL), 1)
+#define fLSBNEW0        tcg_gen_andi_tl(LSB, hex_new_pred_value[0], 1)
+#define fLSBNEW1        tcg_gen_andi_tl(LSB, hex_new_pred_value[1], 1)
 #else
-#define fLSBNEW(PVAL)   (PVAL)
-#define fLSBNEW0        new_pred_value(env, 0)
-#define fLSBNEW1        new_pred_value(env, 1)
+#define fLSBNEW(PVAL)   ((PVAL) & 1)
+#define fLSBNEW0        (env->new_pred_value[0] & 1)
+#define fLSBNEW1        (env->new_pred_value[1] & 1)
 #endif
 
 #ifdef QEMU_GENERATE
-static inline void gen_logical_not(TCGv dest, TCGv src)
-{
-    TCGv one = tcg_const_tl(1);
-    TCGv zero = tcg_const_tl(0);
-
-    tcg_gen_movcond_tl(TCG_COND_NE, dest, src, zero, zero, one);
-
-    tcg_temp_free(one);
-    tcg_temp_free(zero);
-}
 #define fLSBOLDNOT(VAL) \
     do { \
         tcg_gen_andi_tl(LSB, (VAL), 1); \
         tcg_gen_xori_tl(LSB, LSB, 1); \
     } while (0)
 #define fLSBNEWNOT(PNUM) \
-    gen_logical_not(LSB, (PNUM))
+    do { \
+        tcg_gen_andi_tl(LSB, (PNUM), 1); \
+        tcg_gen_xori_tl(LSB, LSB, 1); \
+    } while (0)
 #else
 #define fLSBNEWNOT(PNUM) (!fLSBNEW(PNUM))
 #define fLSBOLDNOT(VAL) (!fLSBOLD(VAL))
@@ -598,7 +590,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 
 #ifdef QEMU_GENERATE
 #define fSTORE_LOCKED(NUM, SIZE, EA, SRC, PRED) \
-    gen_store_conditional##SIZE(env, ctx, PdN, PRED, EA, SRC);
+    gen_store_conditional##SIZE(ctx, PRED, EA, SRC);
 #endif
 
 #ifdef QEMU_GENERATE

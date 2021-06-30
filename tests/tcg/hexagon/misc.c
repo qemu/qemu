@@ -181,6 +181,19 @@ static inline void S4_storeirifnew_io(void *p, int pred)
                : "p0", "memory");
 }
 
+static int L2_ploadrifnew_pi(void *p, int pred)
+{
+  int result;
+  asm volatile("%0 = #31\n\t"
+               "{\n\t"
+               "    p0 = cmp.eq(%1, #1)\n\t"
+               "    if (!p0.new) %0 = memw(%2++#4)\n\t"
+               "}\n\t"
+               : "=r"(result) : "r"(pred), "r"(p)
+               : "p0");
+  return result;
+}
+
 /*
  * Test that compound-compare-jump is executed in 2 parts
  * First we have to do all the compares in the packet and
@@ -298,8 +311,31 @@ static int auto_and(void)
     return retval;
 }
 
+void test_lsbnew(void)
+{
+    int result;
+
+    asm("r0 = #2\n\t"
+        "r1 = #5\n\t"
+        "{\n\t"
+        "    p0 = r0\n\t"
+        "    if (p0.new) r1 = #3\n\t"
+        "}\n\t"
+        "%0 = r1\n\t"
+        : "=r"(result) :: "r0", "r1", "p0");
+    check(result, 5);
+}
+
+void test_l2fetch(void)
+{
+    /* These don't do anything in qemu, just make sure they don't assert */
+    asm volatile ("l2fetch(r0, r1)\n\t"
+                  "l2fetch(r0, r3:2)\n\t");
+}
+
 int main()
 {
+    int res;
     long long res64;
     int pred;
 
@@ -394,6 +430,12 @@ int main()
     S4_storeirifnew_io(&array[8], 1);
     check(array[9], 9);
 
+    memcpy(array, init, sizeof(array));
+    res = L2_ploadrifnew_pi(&array[6], 0);
+    check(res, 6);
+    res = L2_ploadrifnew_pi(&array[7], 1);
+    check(res, 31);
+
     int x = cmpnd_cmp_jump();
     check(x, 12);
 
@@ -406,7 +448,7 @@ int main()
     check((int)pair, 5);
     check((int)(pair >> 32), 7);
 
-    int res = test_clrtnew(1, 7);
+    res = test_clrtnew(1, 7);
     check(res, 0);
     res = test_clrtnew(2, 7);
     check(res, 7);
@@ -421,6 +463,10 @@ int main()
 
     res = auto_and();
     check(res, 0);
+
+    test_lsbnew();
+
+    test_l2fetch();
 
     puts(err ? "FAIL" : "PASS");
     return err;
