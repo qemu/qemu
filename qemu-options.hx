@@ -1783,11 +1783,12 @@ DEF("display", HAS_ARG, QEMU_OPTION_display,
     "-display spice-app[,gl=on|off]\n"
 #endif
 #if defined(CONFIG_SDL)
-    "-display sdl[,alt_grab=on|off][,ctrl_grab=on|off]\n"
-    "            [,window-close=on|off][,gl=on|core|es|off]\n"
+    "-display sdl[,alt_grab=on|off][,ctrl_grab=on|off][,gl=on|core|es|off]\n"
+    "            [,show-cursor=on|off][,window-close=on|off]\n"
 #endif
 #if defined(CONFIG_GTK)
-    "-display gtk[,grab_on_hover=on|off][,gl=on|off]|\n"
+    "-display gtk[,full-screen=on|off][,gl=on|off][,grab-on-hover=on|off]\n"
+    "            [,show-cursor=on|off][,window-close=on|off]\n"
 #endif
 #if defined(CONFIG_VNC)
     "-display vnc=<display>[,<optargs>]\n"
@@ -1824,17 +1825,37 @@ SRST
         application. The Spice server will redirect the serial consoles
         and QEMU monitors. (Since 4.0)
 
-    ``sdl[,window-close=on|off][,gl=on|core|es|off]``
-
+    ``sdl``
         Display video output via SDL (usually in a separate graphics
         window; see the SDL documentation for other possibilities).
+        Valid parameters are:
 
-    ``gtk[,grab-on-hover=on|off][,gl=on|off]``
+        ``alt_grab=on|off`` : Use Control+Alt+Shift-g to toggle mouse grabbing
+
+        ``ctrl_grab=on|off`` : Use Right-Control-g to toggle mouse grabbing
+
+        ``gl=on|off|core|es`` : Use OpenGL for displaying
+
+        ``show-cursor=on|off`` :  Force showing the mouse cursor
+
+        ``window-close=on|off`` : Allow to quit qemu with window close button
+
+    ``gtk``
         Display video output in a GTK window. This interface provides
         drop-down menus and other UI elements to configure and control
-        the VM during runtime.
+        the VM during runtime. Valid parameters are:
 
-    ``curses [,charset=<encoding>]``
+        ``full-screen=on|off`` : Start in fullscreen mode
+
+        ``gl=on|off`` : Use OpenGL for displaying
+
+        ``grab-on-hover=on|off`` : Grab keyboard input on mouse hover
+
+        ``show-cursor=on|off`` :  Force showing the mouse cursor
+
+        ``window-close=on|off`` : Allow to quit qemu with window close button
+
+    ``curses[,charset=<encoding>]``
         Display video output via curses. For graphics device models
         which support a text mode, QEMU can display this output using a
         curses/ncurses interface. Nothing is displayed when the graphics
@@ -1845,10 +1866,13 @@ SRST
         ``charset=CP850`` for IBM CP850 encoding. The default is
         ``CP437``.
 
-    ``egl-headless[,rendernode<file>]``
+    ``egl-headless[,rendernode=<file>]``
         Offload all OpenGL operations to a local DRI device. For any
         graphical display, this display needs to be paired with either
         VNC or SPICE displays.
+
+    ``vnc=<display>``
+        Start a VNC server on display <display>
 
     ``none``
         Do not display video output. The guest will still see an
@@ -1857,9 +1881,6 @@ SRST
         that it only affects what is done with video output; -nographic
         also changes the destination of the serial and parallel port
         data.
-
-
-
 ERST
 
 DEF("nographic", 0, QEMU_OPTION_nographic,
