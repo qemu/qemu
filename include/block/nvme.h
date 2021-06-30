@@ -708,6 +708,14 @@ enum {
 
 #define NVME_RW_PRINFO(control) ((control >> 10) & 0xf)
 
+enum {
+    NVME_PRINFO_PRACT       = 1 << 3,
+    NVME_PRINFO_PRCHK_GUARD = 1 << 2,
+    NVME_PRINFO_PRCHK_APP   = 1 << 1,
+    NVME_PRINFO_PRCHK_REF   = 1 << 0,
+    NVME_PRINFO_PRCHK_MASK  = 7 << 0,
+};
+
 typedef struct QEMU_PACKED NvmeDsmCmd {
     uint8_t     opcode;
     uint8_t     flags;
@@ -980,6 +988,7 @@ enum NvmeIdCns {
     NVME_ID_CNS_NS_PRESENT_LIST       = 0x10,
     NVME_ID_CNS_NS_PRESENT            = 0x11,
     NVME_ID_CNS_NS_ATTACHED_CTRL_LIST = 0x12,
+    NVME_ID_CNS_CTRL_LIST             = 0x13,
     NVME_ID_CNS_CS_NS_PRESENT_LIST    = 0x1a,
     NVME_ID_CNS_CS_NS_PRESENT         = 0x1b,
     NVME_ID_CNS_IO_COMMAND_SET        = 0x1c,
@@ -1339,6 +1348,15 @@ enum NvmeIdNsDps {
     NVME_ID_NS_DPS_TYPE_3      = 3,
     NVME_ID_NS_DPS_TYPE_MASK   = 0x7,
     NVME_ID_NS_DPS_FIRST_EIGHT = 8,
+};
+
+enum NvmeIdNsFlbas {
+    NVME_ID_NS_FLBAS_EXTENDED = 1 << 4,
+};
+
+enum NvmeIdNsMc {
+    NVME_ID_NS_MC_EXTENDED = 1 << 0,
+    NVME_ID_NS_MC_SEPARATE = 1 << 1,
 };
 
 #define NVME_ID_NS_DPS_TYPE(dps) (dps & NVME_ID_NS_DPS_TYPE_MASK)

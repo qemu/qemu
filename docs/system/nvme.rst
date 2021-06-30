@@ -81,6 +81,12 @@ There are a number of parameters available:
   Set the UUID of the namespace. This will be reported as a "Namespace UUID"
   descriptor in the Namespace Identification Descriptor List.
 
+``eui64``
+  Set the EUI-64 of the namespace. This will be reported as a "IEEE Extended
+  Unique Identifier" descriptor in the Namespace Identification Descriptor List.
+  Since machine type 6.1 a non-zero default value is used if the parameter
+  is not provided. For earlier machine types the field defaults to 0.
+
 ``bus``
   If there are more ``nvme`` devices defined, this parameter may be used to
   attach the namespace to a specific ``nvme`` device (identified by an ``id``
@@ -195,6 +201,12 @@ The namespace may be configured with additional parameters
   Set the maximum number of open resources (``MOR``). The default (``0``)
   allows all zones to be open. If ``zoned.max_active`` is specified, this value
   must be less than or equal to that.
+
+``zoned.zasl=UINT8`` (default: ``0``)
+  Set the maximum data transfer size for the Zone Append command. Like
+  ``mdts``, the value is specified as a power of two (2^n) and is in units of
+  the minimum memory page size (CAP.MPSMIN). The default value (``0``)
+  has this property inherit the ``mdts`` value.
 
 Metadata
 --------

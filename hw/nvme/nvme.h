@@ -26,6 +26,9 @@
 
 #define NVME_MAX_CONTROLLERS 32
 #define NVME_MAX_NAMESPACES  256
+#define NVME_EUI64_DEFAULT ((uint64_t)0x5254000000000000)
+
+QEMU_BUILD_BUG_ON(NVME_MAX_NAMESPACES > NVME_NSID_BROADCAST - 1);
 
 typedef struct NvmeCtrl NvmeCtrl;
 typedef struct NvmeNamespace NvmeNamespace;
@@ -83,6 +86,8 @@ typedef struct NvmeNamespaceParams {
     bool     shared;
     uint32_t nsid;
     QemuUUID uuid;
+    uint64_t eui64;
+    bool     eui64_default;
 
     uint16_t ms;
     uint8_t  mset;
@@ -382,6 +387,7 @@ typedef struct NvmeParams {
     uint8_t  vsl;
     bool     use_intel_id;
     uint8_t  zasl;
+    bool     auto_transition_zones;
     bool     legacy_cmb;
 } NvmeParams;
 
@@ -404,6 +410,7 @@ typedef struct NvmeCtrl {
     uint32_t    max_q_ents;
     uint8_t     outstanding_aers;
     uint32_t    irq_status;
+    int         cq_pending;
     uint64_t    host_timestamp;                 /* Timestamp sent by the host */
     uint64_t    timestamp_set_qemu_clock_ms;    /* QEMU clock time */
     uint64_t    starttime_ms;
@@ -530,17 +537,17 @@ static const uint16_t t10_dif_crc_table[256] = {
     0xF0D8, 0x7B6F, 0x6C01, 0xE7B6, 0x42DD, 0xC96A, 0xDE04, 0x55B3
 };
 
-uint16_t nvme_check_prinfo(NvmeNamespace *ns, uint16_t ctrl, uint64_t slba,
+uint16_t nvme_check_prinfo(NvmeNamespace *ns, uint8_t prinfo, uint64_t slba,
                            uint32_t reftag);
 uint16_t nvme_dif_mangle_mdata(NvmeNamespace *ns, uint8_t *mbuf, size_t mlen,
                                uint64_t slba);
 void nvme_dif_pract_generate_dif(NvmeNamespace *ns, uint8_t *buf, size_t len,
                                  uint8_t *mbuf, size_t mlen, uint16_t apptag,
-                                 uint32_t reftag);
+                                 uint32_t *reftag);
 uint16_t nvme_dif_check(NvmeNamespace *ns, uint8_t *buf, size_t len,
-                        uint8_t *mbuf, size_t mlen, uint16_t ctrl,
+                        uint8_t *mbuf, size_t mlen, uint8_t prinfo,
                         uint64_t slba, uint16_t apptag,
-                        uint16_t appmask, uint32_t reftag);
+                        uint16_t appmask, uint32_t *reftag);
 uint16_t nvme_dif_rw(NvmeCtrl *n, NvmeRequest *req);
 
 
