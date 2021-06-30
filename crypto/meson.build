@@ -38,6 +38,9 @@ crypto_ss.add(when: gnutls, if_true: files('tls-cipher-suites.c'))
 
 util_ss.add(files('aes.c'))
 util_ss.add(files('init.c'))
+if gnutls.found()
+  util_ss.add(gnutls)
+endif
 
 if gcrypt.found()
   util_ss.add(gcrypt, files('random-gcrypt.c'))

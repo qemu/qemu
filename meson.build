@@ -816,11 +816,34 @@ if 'CONFIG_OPENGL' in config_host
 endif
 
 gnutls = not_found
+gnutls_crypto = not_found
 if not get_option('gnutls').auto() or have_system
-  gnutls = dependency('gnutls', version: '>=3.5.18',
-                      method: 'pkg-config',
-                      required: get_option('gnutls'),
-                      kwargs: static_kwargs)
+  # For general TLS support our min gnutls matches
+  # that implied by our platform support matrix
+  #
+  # For the crypto backends, we look for a newer
+  # gnutls:
+  #
+  #   Version 3.6.8  is needed to get XTS
+  #   Version 3.6.13 is needed to get PBKDF
+  #   Version 3.6.14 is needed to get HW accelerated XTS
+  #
+  # If newer enough gnutls isn't available, we can
+  # still use a different crypto backend to satisfy
+  # the platform support requirements
+  gnutls_crypto = dependency('gnutls', version: '>=3.6.14',
+                             method: 'pkg-config',
+                             required: false,
+                             kwargs: static_kwargs)
+  if gnutls_crypto.found()
+    gnutls = gnutls_crypto
+  else
+    # Our min version if all we need is TLS
+    gnutls = dependency('gnutls', version: '>=3.5.18',
+                        method: 'pkg-config',
+                        required: get_option('gnutls'),
+                        kwargs: static_kwargs)
+  endif
 endif
 
 # Gcrypt has priority over nettle
@@ -851,6 +874,9 @@ if (not get_option('nettle').auto() or have_system) and not gcrypt.found()
   if nettle.found() and not cc.has_header('nettle/xts.h', dependencies: nettle)
     xts = 'private'
   endif
+endif
+if gcrypt.found() or nettle.found()
+  gnutls_crypto = not_found
 endif
 
 gtk = not_found
@@ -1236,6 +1262,7 @@ config_host_data.set('CONFIG_XKBCOMMON', xkbcommon.found())
 config_host_data.set('CONFIG_KEYUTILS', keyutils.found())
 config_host_data.set('CONFIG_GETTID', has_gettid)
 config_host_data.set('CONFIG_GNUTLS', gnutls.found())
+config_host_data.set('CONFIG_GNUTLS_CRYPTO', gnutls_crypto.found())
 config_host_data.set('CONFIG_GCRYPT', gcrypt.found())
 config_host_data.set('CONFIG_NETTLE', nettle.found())
 config_host_data.set('CONFIG_QEMU_PRIVATE_XTS', xts == 'private')
@@ -2958,6 +2985,7 @@ summary(summary_info, bool_yn: true, section: 'Block layer support')
 summary_info = {}
 summary_info += {'TLS priority':      config_host['CONFIG_TLS_PRIORITY']}
 summary_info += {'GNUTLS support':    gnutls.found()}
+summary_info += {'GNUTLS crypto':     gnutls_crypto.found()}
 # TODO: add back version
 summary_info += {'libgcrypt':         gcrypt.found()}
 # TODO: add back version
