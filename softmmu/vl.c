@@ -1089,7 +1089,12 @@ static void parse_display(const char *p)
                 } else {
                     goto invalid_sdl_args;
                 }
-            } else if (strstart(opts, ",window_close=", &nextopt)) {
+            } else if (strstart(opts, ",window_close=", &nextopt) ||
+                       strstart(opts, ",window-close=", &nextopt)) {
+                if (strstart(opts, ",window_close=", NULL)) {
+                    warn_report("window_close with an underscore is deprecated,"
+                                " please use window-close instead.");
+                }
                 opts = nextopt;
                 dpy.has_window_close = true;
                 if (strstart(opts, "on", &nextopt)) {

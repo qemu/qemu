@@ -1784,7 +1784,7 @@ DEF("display", HAS_ARG, QEMU_OPTION_display,
 #endif
 #if defined(CONFIG_SDL)
     "-display sdl[,alt_grab=on|off][,ctrl_grab=on|off]\n"
-    "            [,window_close=on|off][,gl=on|core|es|off]\n"
+    "            [,window-close=on|off][,gl=on|core|es|off]\n"
 #endif
 #if defined(CONFIG_GTK)
     "-display gtk[,grab_on_hover=on|off][,gl=on|off]|\n"
