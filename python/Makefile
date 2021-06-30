@@ -1,4 +1,5 @@
 QEMU_VENV_DIR=.dev-venv
+QEMU_TOX_EXTRA_ARGS ?=
 
 .PHONY: help
 help:
@@ -15,6 +16,8 @@ help:
 	@echo "    These tests use the newest dependencies."
 	@echo "    Requires: Python 3.6 - 3.10, and tox."
 	@echo "    Hint (Fedora): 'sudo dnf install python3-tox python3.10'"
+	@echo "    The variable QEMU_TOX_EXTRA_ARGS can be use to pass extra"
+	@echo "    arguments to tox".
 	@echo ""
 	@echo "make check-dev:"
 	@echo "    Run tests in a venv against your default python3 version."
@@ -87,7 +90,7 @@ check:
 
 .PHONY: check-tox
 check-tox:
-	@tox
+	@tox $(QEMU_TOX_EXTRA_ARGS)
 
 .PHONY: clean
 clean:
