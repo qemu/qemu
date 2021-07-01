@@ -126,6 +126,7 @@ void pc_system_flash_cleanup_unused(PCMachineState *pcms)
 
 #define OVMF_TABLE_FOOTER_GUID "96b582de-1fb2-45f7-baea-a366c55a082d"
 
+static bool ovmf_flash_parsed;
 static uint8_t *ovmf_table;
 static int ovmf_table_len;
 
@@ -136,9 +137,11 @@ static void pc_system_parse_ovmf_flash(uint8_t *flash_ptr, size_t flash_size)
     int tot_len;
 
     /* should only be called once */
-    if (ovmf_table) {
+    if (ovmf_flash_parsed) {
         return;
     }
+
+    ovmf_flash_parsed = true;
 
     if (flash_size < TARGET_PAGE_SIZE) {
         return;
@@ -182,6 +185,8 @@ bool pc_system_ovmf_table_find(const char *entry, uint8_t **data,
     uint8_t *ptr = ovmf_table;
     int tot_len = ovmf_table_len;
     QemuUUID entry_guid;
+
+    assert(ovmf_flash_parsed);
 
     if (qemu_uuid_parse(entry, &entry_guid) < 0) {
         return false;
