@@ -1,4 +1,4 @@
-QA output created by 309
+QA output created by nbd-qemu-allocation
 
 === Initial image setup ===
 
@@ -14,6 +14,16 @@ wrote 2097152/2097152 bytes at offset 1048576
 [{ "start": 0, "length": 1048576, "depth": 1, "zero": false, "data": true, "offset": 327680},
 { "start": 1048576, "length": 2097152, "depth": 0, "zero": false, "data": true, "offset": 327680},
 { "start": 3145728, "length": 1048576, "depth": 1, "zero": true, "data": false}]
+exports available: 1
+ export: ''
+  size:  4194304
+  flags: 0x58f ( readonly flush fua df multi cache )
+  min block: 1
+  opt block: 4096
+  max block: 33554432
+  available meta contexts: 2
+   base:allocation
+   qemu:allocation-depth
 [{ "start": 0, "length": 3145728, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
 { "start": 3145728, "length": 1048576, "depth": 0, "zero": true, "data": false, "offset": OFFSET}]
 [{ "start": 0, "length": 1048576, "depth": 0, "zero": true, "data": true, "offset": OFFSET},
