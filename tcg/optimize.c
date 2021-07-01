@@ -355,10 +355,12 @@ static uint64_t do_constant_folding_2(TCGOpcode op, uint64_t x, uint64_t y)
         return (uint16_t)x;
 
     CASE_OP_32_64(bswap16):
-        return bswap16(x);
+        x = bswap16(x);
+        return y & TCG_BSWAP_OS ? (int16_t)x : x;
 
     CASE_OP_32_64(bswap32):
-        return bswap32(x);
+        x = bswap32(x);
+        return y & TCG_BSWAP_OS ? (int32_t)x : x;
 
     case INDEX_op_bswap64_i64:
         return bswap64(x);
@@ -1029,6 +1031,42 @@ void tcg_optimize(TCGContext *s)
             }
             break;
 
+        CASE_OP_32_64(bswap16):
+            mask = arg_info(op->args[1])->mask;
+            if (mask <= 0xffff) {
+                op->args[2] |= TCG_BSWAP_IZ;
+            }
+            mask = bswap16(mask);
+            switch (op->args[2] & (TCG_BSWAP_OZ | TCG_BSWAP_OS)) {
+            case TCG_BSWAP_OZ:
+                break;
+            case TCG_BSWAP_OS:
+                mask = (int16_t)mask;
+                break;
+            default: /* undefined high bits */
+                mask |= MAKE_64BIT_MASK(16, 48);
+                break;
+            }
+            break;
+
+        case INDEX_op_bswap32_i64:
+            mask = arg_info(op->args[1])->mask;
+            if (mask <= 0xffffffffu) {
+                op->args[2] |= TCG_BSWAP_IZ;
+            }
+            mask = bswap32(mask);
+            switch (op->args[2] & (TCG_BSWAP_OZ | TCG_BSWAP_OS)) {
+            case TCG_BSWAP_OZ:
+                break;
+            case TCG_BSWAP_OS:
+                mask = (int32_t)mask;
+                break;
+            default: /* undefined high bits */
+                mask |= MAKE_64BIT_MASK(32, 32);
+                break;
+            }
+            break;
+
         default:
             break;
         }
@@ -1135,9 +1173,6 @@ void tcg_optimize(TCGContext *s)
         CASE_OP_32_64(ext16s):
         CASE_OP_32_64(ext16u):
         CASE_OP_32_64(ctpop):
-        CASE_OP_32_64(bswap16):
-        CASE_OP_32_64(bswap32):
-        case INDEX_op_bswap64_i64:
         case INDEX_op_ext32s_i64:
         case INDEX_op_ext32u_i64:
         case INDEX_op_ext_i32_i64:
@@ -1146,6 +1181,17 @@ void tcg_optimize(TCGContext *s)
         case INDEX_op_extrh_i64_i32:
             if (arg_is_const(op->args[1])) {
                 tmp = do_constant_folding(opc, arg_info(op->args[1])->val, 0);
+                tcg_opt_gen_movi(s, &temps_used, op, op->args[0], tmp);
+                break;
+            }
+            goto do_default;
+
+        CASE_OP_32_64(bswap16):
+        CASE_OP_32_64(bswap32):
+        case INDEX_op_bswap64_i64:
+            if (arg_is_const(op->args[1])) {
+                tmp = do_constant_folding(opc, arg_info(op->args[1])->val,
+                                          op->args[2]);
                 tcg_opt_gen_movi(s, &temps_used, op, op->args[0], tmp);
                 break;
             }

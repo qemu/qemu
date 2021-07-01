@@ -1778,6 +1778,14 @@ static const char * const alignment_name[(MO_AMASK >> MO_ASHIFT) + 1] = {
     [MO_ALIGN_64 >> MO_ASHIFT] = "al64+",
 };
 
+static const char bswap_flag_name[][6] = {
+    [TCG_BSWAP_IZ] = "iz",
+    [TCG_BSWAP_OZ] = "oz",
+    [TCG_BSWAP_OS] = "os",
+    [TCG_BSWAP_IZ | TCG_BSWAP_OZ] = "iz,oz",
+    [TCG_BSWAP_IZ | TCG_BSWAP_OS] = "iz,os",
+};
+
 static inline bool tcg_regset_single(TCGRegSet d)
 {
     return (d & (d - 1)) == 0;
@@ -1919,6 +1927,26 @@ static void tcg_dump_ops(TCGContext *s, bool have_prefs)
                         col += qemu_log(",%s%s,%u", s_al, s_op, ix);
                     }
                     i = 1;
+                }
+                break;
+            case INDEX_op_bswap16_i32:
+            case INDEX_op_bswap16_i64:
+            case INDEX_op_bswap32_i32:
+            case INDEX_op_bswap32_i64:
+            case INDEX_op_bswap64_i64:
+                {
+                    TCGArg flags = op->args[k];
+                    const char *name = NULL;
+
+                    if (flags < ARRAY_SIZE(bswap_flag_name)) {
+                        name = bswap_flag_name[flags];
+                    }
+                    if (name) {
+                        col += qemu_log(",%s", name);
+                    } else {
+                        col += qemu_log(",$0x%" TCG_PRIlx, flags);
+                    }
+                    i = k = 1;
                 }
                 break;
             default:

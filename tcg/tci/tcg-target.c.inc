@@ -597,6 +597,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
 {
+    TCGOpcode exts;
+
     switch (opc) {
     case INDEX_op_exit_tb:
         tcg_out_op_p(s, opc, (void *)args[0]);
@@ -710,11 +712,26 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     CASE_64(ext32u)      /* Optional (TCG_TARGET_HAS_ext32u_i64). */
     CASE_64(ext_i32)
     CASE_64(extu_i32)
-    CASE_32_64(bswap16)  /* Optional (TCG_TARGET_HAS_bswap16_*). */
-    CASE_32_64(bswap32)  /* Optional (TCG_TARGET_HAS_bswap32_*). */
-    CASE_64(bswap64)     /* Optional (TCG_TARGET_HAS_bswap64_i64). */
     CASE_32_64(ctpop)    /* Optional (TCG_TARGET_HAS_ctpop_*). */
+    case INDEX_op_bswap32_i32: /* Optional (TCG_TARGET_HAS_bswap32_i32). */
+    case INDEX_op_bswap64_i64: /* Optional (TCG_TARGET_HAS_bswap64_i64). */
         tcg_out_op_rr(s, opc, args[0], args[1]);
+        break;
+
+    case INDEX_op_bswap16_i32: /* Optional (TCG_TARGET_HAS_bswap16_i32). */
+        exts = INDEX_op_ext16s_i32;
+        goto do_bswap;
+    case INDEX_op_bswap16_i64: /* Optional (TCG_TARGET_HAS_bswap16_i64). */
+        exts = INDEX_op_ext16s_i64;
+        goto do_bswap;
+    case INDEX_op_bswap32_i64: /* Optional (TCG_TARGET_HAS_bswap32_i64). */
+        exts = INDEX_op_ext32s_i64;
+    do_bswap:
+        /* The base tci bswaps zero-extend, and ignore high bits. */
+        tcg_out_op_rr(s, opc, args[0], args[1]);
+        if (args[2] & TCG_BSWAP_OS) {
+            tcg_out_op_rr(s, exts, args[0], args[0]);
+        }
         break;
 
     CASE_32_64(add2)

@@ -21,7 +21,7 @@
 #include "qemu/osdep.h"
 #include "crisv10-decode.h"
 
-static const char *regnames_v10[] =
+static const char * const regnames_v10[] =
 {
     "$r0", "$r1", "$r2", "$r3",
     "$r4", "$r5", "$r6", "$r7",
@@ -29,7 +29,7 @@ static const char *regnames_v10[] =
     "$r12", "$r13", "$sp", "$pc",
 };
 
-static const char *pregnames_v10[] =
+static const char * const pregnames_v10[] =
 {
     "$bz", "$vr", "$p2", "$p3",
     "$wz", "$ccr", "$p6-prefix", "$mof",
@@ -38,7 +38,7 @@ static const char *pregnames_v10[] =
 };
 
 /* We need this table to handle preg-moves with implicit width.  */
-static int preg_sizes_v10[] = {
+static const int preg_sizes_v10[] = {
     1, /* bz.  */
     1, /* vr.  */
     1, /* pid. */
@@ -61,6 +61,7 @@ static inline void cris_illegal_insn(DisasContext *dc)
 {
     qemu_log_mask(LOG_GUEST_ERROR, "illegal insn at pc=%x\n", dc->pc);
     t_gen_raise_exception(EXCP_BREAK);
+    dc->base.is_jmp = DISAS_NORETURN;
 }
 
 static void gen_store_v10_conditional(DisasContext *dc, TCGv addr, TCGv val,
@@ -105,9 +106,8 @@ static void gen_store_v10(DisasContext *dc, TCGv addr, TCGv val,
         cris_store_direct_jmp(dc);
     }
 
-    /* Conditional writes. We only support the kind were X is known
-       at translation time.  */
-    if (dc->flagx_known && dc->flags_x) {
+    /* Conditional writes. */
+    if (dc->flags_x) {
         gen_store_v10_conditional(dc, addr, val, size, mem_index);
         return;
     }
@@ -375,7 +375,6 @@ static unsigned int dec10_setclrf(DisasContext *dc)
 
 
     if (flags & X_FLAG) {
-        dc->flagx_known = 1;
         if (set)
             dc->flags_x = X_FLAG;
         else
@@ -1169,7 +1168,7 @@ static unsigned int dec10_ind(CPUCRISState *env, DisasContext *dc)
                     t_gen_mov_env_TN(trap_vector, c);
                     tcg_temp_free(c);
                     t_gen_raise_exception(EXCP_BREAK);
-                    dc->is_jmp = DISAS_UPDATE;
+                    dc->base.is_jmp = DISAS_NORETURN;
                     return insn_len;
                 }
                 LOG_DIS("%d: jump.%d %d r%d r%d\n", __LINE__, size,
@@ -1277,7 +1276,7 @@ static unsigned int crisv10_decoder(CPUCRISState *env, DisasContext *dc)
     if (dc->clear_prefix && dc->tb_flags & PFIX_FLAG) {
         dc->tb_flags &= ~PFIX_FLAG;
         tcg_gen_andi_tl(cpu_PR[PR_CCS], cpu_PR[PR_CCS], ~PFIX_FLAG);
-        if (dc->tb_flags != dc->tb->flags) {
+        if (dc->tb_flags != dc->base.tb->flags) {
             dc->cpustate_changed = 1;
         }
     }
