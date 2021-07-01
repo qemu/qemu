@@ -16,6 +16,8 @@
 #ifndef FD_TRANS_H
 #define FD_TRANS_H
 
+#include "qemu/lockable.h"
+
 typedef abi_long (*TargetFdDataFunc)(void *, size_t);
 typedef abi_long (*TargetFdAddrFunc)(void *, abi_ulong, socklen_t);
 typedef struct TargetFdTrans {
@@ -25,12 +27,23 @@ typedef struct TargetFdTrans {
 } TargetFdTrans;
 
 extern TargetFdTrans **target_fd_trans;
+extern QemuMutex target_fd_trans_lock;
 
 extern unsigned int target_fd_max;
 
+static inline void fd_trans_init(void)
+{
+    qemu_mutex_init(&target_fd_trans_lock);
+}
+
 static inline TargetFdDataFunc fd_trans_target_to_host_data(int fd)
 {
-    if (fd >= 0 && fd < target_fd_max && target_fd_trans[fd]) {
+    if (fd < 0) {
+        return NULL;
+    }
+
+    QEMU_LOCK_GUARD(&target_fd_trans_lock);
+    if (fd < target_fd_max && target_fd_trans[fd]) {
         return target_fd_trans[fd]->target_to_host_data;
     }
     return NULL;
@@ -38,7 +51,12 @@ static inline TargetFdDataFunc fd_trans_target_to_host_data(int fd)
 
 static inline TargetFdDataFunc fd_trans_host_to_target_data(int fd)
 {
-    if (fd >= 0 && fd < target_fd_max && target_fd_trans[fd]) {
+    if (fd < 0) {
+        return NULL;
+    }
+
+    QEMU_LOCK_GUARD(&target_fd_trans_lock);
+    if (fd < target_fd_max && target_fd_trans[fd]) {
         return target_fd_trans[fd]->host_to_target_data;
     }
     return NULL;
@@ -46,13 +64,19 @@ static inline TargetFdDataFunc fd_trans_host_to_target_data(int fd)
 
 static inline TargetFdAddrFunc fd_trans_target_to_host_addr(int fd)
 {
-    if (fd >= 0 && fd < target_fd_max && target_fd_trans[fd]) {
+    if (fd < 0) {
+        return NULL;
+    }
+
+    QEMU_LOCK_GUARD(&target_fd_trans_lock);
+    if (fd < target_fd_max && target_fd_trans[fd]) {
         return target_fd_trans[fd]->target_to_host_addr;
     }
     return NULL;
 }
 
-static inline void fd_trans_register(int fd, TargetFdTrans *trans)
+static inline void internal_fd_trans_register_unsafe(int fd,
+                                                     TargetFdTrans *trans)
 {
     unsigned int oldmax;
 
@@ -67,18 +91,35 @@ static inline void fd_trans_register(int fd, TargetFdTrans *trans)
     target_fd_trans[fd] = trans;
 }
 
-static inline void fd_trans_unregister(int fd)
+static inline void fd_trans_register(int fd, TargetFdTrans *trans)
+{
+    QEMU_LOCK_GUARD(&target_fd_trans_lock);
+    internal_fd_trans_register_unsafe(fd, trans);
+}
+
+static inline void internal_fd_trans_unregister_unsafe(int fd)
 {
     if (fd >= 0 && fd < target_fd_max) {
         target_fd_trans[fd] = NULL;
     }
 }
 
+static inline void fd_trans_unregister(int fd)
+{
+    if (fd < 0) {
+        return;
+    }
+
+    QEMU_LOCK_GUARD(&target_fd_trans_lock);
+    internal_fd_trans_unregister_unsafe(fd);
+}
+
 static inline void fd_trans_dup(int oldfd, int newfd)
 {
-    fd_trans_unregister(newfd);
+    QEMU_LOCK_GUARD(&target_fd_trans_lock);
+    internal_fd_trans_unregister_unsafe(newfd);
     if (oldfd < target_fd_max && target_fd_trans[oldfd]) {
-        fd_trans_register(newfd, target_fd_trans[oldfd]);
+        internal_fd_trans_register_unsafe(newfd, target_fd_trans[oldfd]);
     }
 }
 
