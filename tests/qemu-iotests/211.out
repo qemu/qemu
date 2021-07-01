@@ -17,7 +17,7 @@ file format: IMGFMT
 virtual size: 128 MiB (134217728 bytes)
 cluster_size: 1048576
 
-[{ "start": 0, "length": 134217728, "depth": 0, "zero": true, "data": false}]
+[{ "start": 0, "length": 134217728, "depth": 0, "present": true, "zero": true, "data": false}]
 
 === Successful image creation (explicit defaults) ===
 
@@ -36,7 +36,7 @@ file format: IMGFMT
 virtual size: 64 MiB (67108864 bytes)
 cluster_size: 1048576
 
-[{ "start": 0, "length": 67108864, "depth": 0, "zero": true, "data": false}]
+[{ "start": 0, "length": 67108864, "depth": 0, "present": true, "zero": true, "data": false}]
 
 === Successful image creation (with non-default options) ===
 
@@ -55,8 +55,8 @@ file format: IMGFMT
 virtual size: 32 MiB (33554432 bytes)
 cluster_size: 1048576
 
-[{ "start": 0, "length": 3072, "depth": 0, "zero": false, "data": true, "offset": 1024},
-{ "start": 3072, "length": 33551360, "depth": 0, "zero": true, "data": true, "offset": 4096}]
+[{ "start": 0, "length": 3072, "depth": 0, "present": true, "zero": false, "data": true, "offset": 1024},
+{ "start": 3072, "length": 33551360, "depth": 0, "present": true, "zero": true, "data": true, "offset": 4096}]
 
 === Invalid BlockdevRef ===
 

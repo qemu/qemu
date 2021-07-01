@@ -597,6 +597,9 @@ Command description:
     if false, the sectors are either unallocated or stored as optimized
     all-zero clusters);
   - whether the data is known to read as zero (boolean field ``zero``);
+  - whether the data is actually present (boolean field ``present``);
+    if false, rebasing the backing chain onto a deeper file would pick
+    up data from the deeper file;
   - in order to make the output shorter, the target file is expressed as
     a ``depth``; for example, a depth of 2 refers to the backing file
     of the backing file of *FILENAME*.
