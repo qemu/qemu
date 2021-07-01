@@ -38,8 +38,8 @@ from .qom_common import QOMCommand
 
 try:
     from .qom_fuse import QOMFuse
-except ModuleNotFoundError as err:
-    if err.name != 'fuse':
+except ModuleNotFoundError as _err:
+    if _err.name != 'fuse':
         raise
 else:
     assert issubclass(QOMFuse, QOMCommand)

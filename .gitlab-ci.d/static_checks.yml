@@ -30,7 +30,7 @@ check-python-pipenv:
   stage: test
   image: $CI_REGISTRY_IMAGE/qemu/python:latest
   script:
-    - make -C python venv-check
+    - make -C python check-pipenv
   variables:
     GIT_DEPTH: 1
   needs:

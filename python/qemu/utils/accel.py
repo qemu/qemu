@@ -36,7 +36,7 @@ def list_accel(qemu_bin: str) -> List[str]:
     List accelerators enabled in the QEMU binary.
 
     @param qemu_bin (str): path to the QEMU binary.
-    @raise Exception: if failed to run `qemu -accel help`
+    @raise Exception: if failed to run ``qemu -accel help``
     @return a list of accelerator names.
     """
     if not qemu_bin:

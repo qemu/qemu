@@ -279,6 +279,7 @@ class QEMUMonitorProtocol:
                         None). The value passed will set the behavior of the
                         underneath QMP socket as described in [1].
                         Default value is set to 15.0.
+
         @return QMP greeting dict
         @raise OSError on socket connection errors
         @raise QMPConnectError if the greeting is not received

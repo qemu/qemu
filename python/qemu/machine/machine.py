@@ -84,6 +84,7 @@ class QEMUMachine:
             ...
         # vm is guaranteed to be shut down here
     """
+    # pylint: disable=too-many-instance-attributes, too-many-public-methods
 
     def __init__(self,
                  binary: str,
@@ -111,6 +112,8 @@ class QEMUMachine:
         @param console_log: (optional) path to console log file
         @note: Qemu process is not started until launch() is used.
         '''
+        # pylint: disable=too-many-arguments
+
         # Direct user configuration
 
         self._binary = binary
@@ -542,7 +545,8 @@ class QEMUMachine:
         @param enabled: if False, qmp monitor options will be removed from
                         the base arguments of the resulting QEMU command
                         line. Default is True.
-        @note: call this function before launch().
+
+        .. note:: Call this function before launch().
         """
         self._qmp_set = enabled
 
