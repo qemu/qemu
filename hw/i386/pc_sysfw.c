@@ -179,6 +179,17 @@ static void pc_system_parse_ovmf_flash(uint8_t *flash_ptr, size_t flash_size)
     ovmf_table += tot_len;
 }
 
+/**
+ * pc_system_ovmf_table_find - Find the data associated with an entry in OVMF's
+ * reset vector GUIDed table.
+ *
+ * @entry: GUID string of the entry to lookup
+ * @data: Filled with a pointer to the entry's value (if not NULL)
+ * @data_len: Filled with the length of the entry's value (if not NULL). Pass
+ *            NULL here if the length of data is known.
+ *
+ * Return: true if the entry was found in the OVMF table; false otherwise.
+ */
 bool pc_system_ovmf_table_find(const char *entry, uint8_t **data,
                                int *data_len)
 {
