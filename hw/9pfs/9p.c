@@ -1705,9 +1705,9 @@ static void coroutine_fn v9fs_walk(void *opaque)
     int name_idx;
     V9fsQID *qids = NULL;
     int i, err = 0;
-    V9fsPath dpath, path;
+    V9fsPath dpath, path, *pathes = NULL;
     uint16_t nwnames;
-    struct stat stbuf;
+    struct stat stbuf, fidst, *stbufs = NULL;
     size_t offset = 7;
     int32_t fid, newfid;
     V9fsString *wnames = NULL;
@@ -1733,6 +1733,8 @@ static void coroutine_fn v9fs_walk(void *opaque)
     if (nwnames) {
         wnames = g_new0(V9fsString, nwnames);
         qids   = g_new0(V9fsQID, nwnames);
+        stbufs = g_new0(struct stat, nwnames);
+        pathes = g_new0(V9fsPath, nwnames);
         for (i = 0; i < nwnames; i++) {
             err = pdu_unmarshal(pdu, offset, "s", &wnames[i]);
             if (err < 0) {
@@ -1753,39 +1755,85 @@ static void coroutine_fn v9fs_walk(void *opaque)
 
     v9fs_path_init(&dpath);
     v9fs_path_init(&path);
-
-    err = v9fs_co_lstat(pdu, &fidp->path, &stbuf);
-    if (err < 0) {
-        goto out;
-    }
-    err = stat_to_qid(pdu, &stbuf, &qid);
-    if (err < 0) {
-        goto out;
-    }
-
     /*
-     * Both dpath and path initially poin to fidp.
+     * Both dpath and path initially point to fidp.
      * Needed to handle request with nwnames == 0
      */
     v9fs_path_copy(&dpath, &fidp->path);
     v9fs_path_copy(&path, &fidp->path);
+
+    /*
+     * To keep latency (i.e. overall execution time for processing this
+     * Twalk client request) as small as possible, run all the required fs
+     * driver code altogether inside the following block.
+     */
+    v9fs_co_run_in_worker({
+        if (v9fs_request_cancelled(pdu)) {
+            err = -EINTR;
+            break;
+        }
+        err = s->ops->lstat(&s->ctx, &dpath, &fidst);
+        if (err < 0) {
+            err = -errno;
+            break;
+        }
+        stbuf = fidst;
+        for (name_idx = 0; name_idx < nwnames; name_idx++) {
+            if (v9fs_request_cancelled(pdu)) {
+                err = -EINTR;
+                break;
+            }
+            if (!same_stat_id(&pdu->s->root_st, &stbuf) ||
+                strcmp("..", wnames[name_idx].data))
+            {
+                err = s->ops->name_to_path(&s->ctx, &dpath,
+                                        wnames[name_idx].data, &path);
+                if (err < 0) {
+                    err = -errno;
+                    break;
+                }
+                if (v9fs_request_cancelled(pdu)) {
+                    err = -EINTR;
+                    break;
+                }
+                err = s->ops->lstat(&s->ctx, &path, &stbuf);
+                if (err < 0) {
+                    err = -errno;
+                    break;
+                }
+                stbufs[name_idx] = stbuf;
+                v9fs_path_copy(&dpath, &path);
+                v9fs_path_copy(&pathes[name_idx], &path);
+            }
+        }
+    });
+    /*
+     * Handle all the rest of this Twalk request on main thread ...
+     */
+    if (err < 0) {
+        goto out;
+    }
+
+    err = stat_to_qid(pdu, &fidst, &qid);
+    if (err < 0) {
+        goto out;
+    }
+    stbuf = fidst;
+
+    /* reset dpath and path */
+    v9fs_path_copy(&dpath, &fidp->path);
+    v9fs_path_copy(&path, &fidp->path);
+
     for (name_idx = 0; name_idx < nwnames; name_idx++) {
         if (!same_stat_id(&pdu->s->root_st, &stbuf) ||
-            strcmp("..", wnames[name_idx].data)) {
-            err = v9fs_co_name_to_path(pdu, &dpath, wnames[name_idx].data,
-                                       &path);
-            if (err < 0) {
-                goto out;
-            }
-
-            err = v9fs_co_lstat(pdu, &path, &stbuf);
-            if (err < 0) {
-                goto out;
-            }
+            strcmp("..", wnames[name_idx].data))
+        {
+            stbuf = stbufs[name_idx];
             err = stat_to_qid(pdu, &stbuf, &qid);
             if (err < 0) {
                 goto out;
             }
+            v9fs_path_copy(&path, &pathes[name_idx]);
             v9fs_path_copy(&dpath, &path);
         }
         memcpy(&qids[name_idx], &qid, sizeof(qid));
@@ -1821,9 +1869,12 @@ out_nofid:
     if (nwnames && nwnames <= P9_MAXWELEM) {
         for (name_idx = 0; name_idx < nwnames; name_idx++) {
             v9fs_string_free(&wnames[name_idx]);
+            v9fs_path_free(&pathes[name_idx]);
         }
         g_free(wnames);
         g_free(qids);
+        g_free(stbufs);
+        g_free(pathes);
     }
 }
 
