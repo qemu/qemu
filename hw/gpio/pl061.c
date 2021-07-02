@@ -453,6 +453,15 @@ static void pl061_enter_reset(Object *obj, ResetType type)
     trace_pl061_reset(DEVICE(s)->canonical_path);
 
     /* reset values from PL061 TRM, Stellaris LM3S5P31 & LM3S8962 Data Sheet */
+
+    /*
+     * FIXME: For the LM3S6965, not all of the PL061 instances have the
+     * same reset values for GPIOPUR, GPIOAFSEL and GPIODEN, so in theory
+     * we should allow the board to configure these via properties.
+     * In practice, we don't wire anything up to the affected GPIO lines
+     * (PB7, PC0, PC1, PC2, PC3 -- they're used for JTAG), so we can
+     * get away with this inaccuracy.
+     */
     s->data = 0;
     s->old_in_data = 0;
     s->dir = 0;
