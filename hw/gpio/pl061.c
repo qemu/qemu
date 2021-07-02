@@ -446,13 +446,14 @@ static void pl061_write(void *opaque, hwaddr offset,
     return;
 }
 
-static void pl061_reset(DeviceState *dev)
+static void pl061_enter_reset(Object *obj, ResetType type)
 {
-    PL061State *s = PL061(dev);
+    PL061State *s = PL061(obj);
+
+    trace_pl061_reset(DEVICE(s)->canonical_path);
 
     /* reset values from PL061 TRM, Stellaris LM3S5P31 & LM3S8962 Data Sheet */
     s->data = 0;
-    s->old_out_data = 0;
     s->old_in_data = 0;
     s->dir = 0;
     s->isense = 0;
@@ -472,6 +473,24 @@ static void pl061_reset(DeviceState *dev)
     s->locked = 1;
     s->cr = 0xff;
     s->amsel = 0;
+}
+
+static void pl061_hold_reset(Object *obj)
+{
+    PL061State *s = PL061(obj);
+    int i, level;
+    uint8_t floating = pl061_floating(s);
+    uint8_t pullups = pl061_pullups(s);
+
+    for (i = 0; i < N_GPIOS; i++) {
+        if (extract32(floating, i, 1)) {
+            continue;
+        }
+        level = extract32(pullups, i, 1);
+        trace_pl061_set_output(DEVICE(s)->canonical_path, i, level);
+        qemu_set_irq(s->out[i], level);
+    }
+    s->old_out_data = pullups;
 }
 
 static void pl061_set_irq(void * opaque, int irq, int level)
@@ -543,11 +562,13 @@ static Property pl061_props[] = {
 static void pl061_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->vmsd = &vmstate_pl061;
-    dc->reset = &pl061_reset;
     dc->realize = pl061_realize;
     device_class_set_props(dc, pl061_props);
+    rc->phases.enter = pl061_enter_reset;
+    rc->phases.hold = pl061_hold_reset;
 }
 
 static const TypeInfo pl061_info = {
