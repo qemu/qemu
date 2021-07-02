@@ -6,6 +6,13 @@
  * Written by Paul Brook
  *
  * This code is licensed under the GPL.
+ *
+ * QEMU interface:
+ *  + sysbus MMIO region 0: the device registers
+ *  + sysbus IRQ: the GPIOINTR interrupt line
+ *  + unnamed GPIO inputs 0..7: inputs to connect to the emulated GPIO lines
+ *  + unnamed GPIO outputs 0..7: the emulated GPIO lines, considered as
+ *    outputs
  */
 
 #include "qemu/osdep.h"
