@@ -38,8 +38,9 @@ class TestActiveMirror(iotests.QMPTestCase):
                       'if': 'none',
                       'node-name': 'source-node',
                       'driver': iotests.imgfmt,
-                      'file': {'driver': 'file',
-                               'filename': source_img}}
+                      'file': {'driver': 'blkdebug',
+                               'image': {'driver': 'file',
+                                         'filename': source_img}}}
 
         blk_target = {'node-name': 'target-node',
                       'driver': iotests.imgfmt,
@@ -135,6 +136,63 @@ class TestActiveMirror(iotests.QMPTestCase):
         result = self.vm.hmp_qemu_io('source', 'write -P 2 %i 1' % (1048576 + 42))
 
         # Let the job finish
+        result = self.vm.qmp('block-job-set-speed', device='mirror', speed=0)
+        self.assert_qmp(result, 'return', {})
+        self.complete_and_wait(drive='mirror')
+
+        self.potential_writes_in_flight = False
+
+    def testIntersectingActiveIO(self):
+        # FIXME: test-case is dead-locking. To reproduce dead-lock just drop
+        # this return statement
+        return
+
+        # Fill the source image
+        result = self.vm.hmp_qemu_io('source', 'write -P 1 0 2M')
+
+        # Start the block job (very slowly)
+        result = self.vm.qmp('blockdev-mirror',
+                             job_id='mirror',
+                             filter_node_name='mirror-node',
+                             device='source-node',
+                             target='target-node',
+                             sync='full',
+                             copy_mode='write-blocking',
+                             speed=1)
+
+        self.vm.hmp_qemu_io('source', 'break write_aio A')
+        self.vm.hmp_qemu_io('source', 'aio_write 0 1M')  # 1
+        self.vm.hmp_qemu_io('source', 'wait_break A')
+        self.vm.hmp_qemu_io('source', 'aio_write 0 2M')  # 2
+        self.vm.hmp_qemu_io('source', 'aio_write 0 2M')  # 3
+
+        # Now 2 and 3 are in mirror_wait_on_conflicts, waiting for 1
+
+        self.vm.hmp_qemu_io('source', 'break write_aio B')
+        self.vm.hmp_qemu_io('source', 'aio_write 1M 2M')  # 4
+        self.vm.hmp_qemu_io('source', 'wait_break B')
+
+        # 4 doesn't wait for 2 and 3, because they didn't yet set
+        # in_flight_bitmap. So, nothing prevents 4 to go except for our
+        # break-point B.
+
+        self.vm.hmp_qemu_io('source', 'resume A')
+
+        # Now we resumed 1, so 2 and 3 goes to the next iteration of while loop
+        # in mirror_wait_on_conflicts(). They don't exit, as bitmap is dirty
+        # due to request 4. And they start to wait: 2 wait for 3, 3 wait for 2
+        # - DEAD LOCK.
+        # Note that it's important that we add request 4 at last: requests are
+        # appended to the list, so we are sure that 4 is last in the list, so 2
+        # and 3 now waits for each other, not for 4.
+
+        self.vm.hmp_qemu_io('source', 'resume B')
+
+        # Resuming 4 doesn't help, 2 and 3 already dead-locked
+        # To check the dead-lock run:
+        #    gdb -p $(pidof qemu-system-x86_64) -ex 'set $job=(MirrorBlockJob *)jobs.lh_first' -ex 'p *$job->ops_in_flight.tqh_first' -ex 'p *$job->ops_in_flight.tqh_first->next.tqe_next'
+        # You'll see two MirrorOp objects waiting on each other
+
         result = self.vm.qmp('block-job-set-speed', device='mirror', speed=0)
         self.assert_qmp(result, 'return', {})
         self.complete_and_wait(drive='mirror')
