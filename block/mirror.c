@@ -1343,6 +1343,7 @@ static MirrorOp *coroutine_fn active_write_prepare(MirrorBlockJob *s,
         .bytes              = bytes,
         .is_active_write    = true,
         .is_in_flight       = true,
+        .co                 = qemu_coroutine_self(),
     };
     qemu_co_queue_init(&op->waiting_requests);
     QTAILQ_INSERT_TAIL(&s->ops_in_flight, op, next);
