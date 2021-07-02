@@ -84,12 +84,15 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
 
 static void bdrv_replace_child_noperm(BdrvChild *child,
                                       BlockDriverState *new_bs);
+static void bdrv_remove_file_or_backing_child(BlockDriverState *bs,
+                                              BdrvChild *child,
+                                              Transaction *tran);
 static void bdrv_remove_filter_or_cow_child(BlockDriverState *bs,
                                             Transaction *tran);
 
 static int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
                                BlockReopenQueue *queue,
-                               Transaction *set_backings_tran, Error **errp);
+                               Transaction *change_child_tran, Error **errp);
 static void bdrv_reopen_commit(BDRVReopenState *reopen_state);
 static void bdrv_reopen_abort(BDRVReopenState *reopen_state);
 
@@ -2249,12 +2252,14 @@ static TransactionActionDrv bdrv_replace_child_drv = {
 };
 
 /*
- * bdrv_replace_child
+ * bdrv_replace_child_tran
  *
  * Note: real unref of old_bs is done only on commit.
+ *
+ * The function doesn't update permissions, caller is responsible for this.
  */
-static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs,
-                               Transaction *tran)
+static void bdrv_replace_child_tran(BdrvChild *child, BlockDriverState *new_bs,
+                                    Transaction *tran)
 {
     BdrvReplaceChildState *s = g_new(BdrvReplaceChildState, 1);
     *s = (BdrvReplaceChildState) {
@@ -2768,6 +2773,8 @@ static TransactionActionDrv bdrv_attach_child_common_drv = {
  * @child is saved to a new entry of @tran, so that *@child could be reverted to
  * NULL on abort(). So referenced variable must live at least until transaction
  * end.
+ *
+ * Function doesn't update permissions, caller is responsible for this.
  */
 static int bdrv_attach_child_common(BlockDriverState *child_bs,
                                     const char *child_name,
@@ -2846,6 +2853,8 @@ static int bdrv_attach_child_common(BlockDriverState *child_bs,
 /*
  * Variable referenced by @child must live at least until transaction end.
  * (see bdrv_attach_child_common() doc for details)
+ *
+ * Function doesn't update permissions, caller is responsible for this.
  */
 static int bdrv_attach_child_noperm(BlockDriverState *parent_bs,
                                     BlockDriverState *child_bs,
@@ -3111,52 +3120,102 @@ static BdrvChildRole bdrv_backing_role(BlockDriverState *bs)
 }
 
 /*
- * Sets the bs->backing link of a BDS. A new reference is created; callers
- * which don't need their own reference any more must call bdrv_unref().
+ * Sets the bs->backing or bs->file link of a BDS. A new reference is created;
+ * callers which don't need their own reference any more must call bdrv_unref().
+ *
+ * Function doesn't update permissions, caller is responsible for this.
  */
-static int bdrv_set_backing_noperm(BlockDriverState *bs,
-                                   BlockDriverState *backing_hd,
-                                   Transaction *tran, Error **errp)
+static int bdrv_set_file_or_backing_noperm(BlockDriverState *parent_bs,
+                                           BlockDriverState *child_bs,
+                                           bool is_backing,
+                                           Transaction *tran, Error **errp)
 {
     int ret = 0;
-    bool update_inherits_from = bdrv_chain_contains(bs, backing_hd) &&
-        bdrv_inherits_from_recursive(backing_hd, bs);
+    bool update_inherits_from =
+        bdrv_inherits_from_recursive(child_bs, parent_bs);
+    BdrvChild *child = is_backing ? parent_bs->backing : parent_bs->file;
+    BdrvChildRole role;
 
-    if (bdrv_is_backing_chain_frozen(bs, child_bs(bs->backing), errp)) {
+    if (!parent_bs->drv) {
+        /*
+         * Node without drv is an object without a class :/. TODO: finally fix
+         * qcow2 driver to never clear bs->drv and implement format corruption
+         * handling in other way.
+         */
+        error_setg(errp, "Node corrupted");
+        return -EINVAL;
+    }
+
+    if (child && child->frozen) {
+        error_setg(errp, "Cannot change frozen '%s' link from '%s' to '%s'",
+                   child->name, parent_bs->node_name, child->bs->node_name);
         return -EPERM;
     }
 
-    if (bs->backing) {
-        /* Cannot be frozen, we checked that above */
-        bdrv_unset_inherits_from(bs, bs->backing, tran);
-        bdrv_remove_filter_or_cow_child(bs, tran);
+    if (is_backing && !parent_bs->drv->is_filter &&
+        !parent_bs->drv->supports_backing)
+    {
+        error_setg(errp, "Driver '%s' of node '%s' does not support backing "
+                   "files", parent_bs->drv->format_name, parent_bs->node_name);
+        return -EINVAL;
     }
 
-    if (!backing_hd) {
+    if (parent_bs->drv->is_filter) {
+        role = BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY;
+    } else if (is_backing) {
+        role = BDRV_CHILD_COW;
+    } else {
+        /*
+         * We only can use same role as it is in existing child. We don't have
+         * infrastructure to determine role of file child in generic way
+         */
+        if (!child) {
+            error_setg(errp, "Cannot set file child to format node without "
+                       "file child");
+            return -EINVAL;
+        }
+        role = child->role;
+    }
+
+    if (child) {
+        bdrv_unset_inherits_from(parent_bs, child, tran);
+        bdrv_remove_file_or_backing_child(parent_bs, child, tran);
+    }
+
+    if (!child_bs) {
         goto out;
     }
 
-    ret = bdrv_attach_child_noperm(bs, backing_hd, "backing",
-                                   &child_of_bds, bdrv_backing_role(bs),
-                                   &bs->backing, tran, errp);
+    ret = bdrv_attach_child_noperm(parent_bs, child_bs,
+                                   is_backing ? "backing" : "file",
+                                   &child_of_bds, role,
+                                   is_backing ? &parent_bs->backing :
+                                                &parent_bs->file,
+                                   tran, errp);
     if (ret < 0) {
         return ret;
     }
 
 
     /*
-     * If backing_hd was already part of bs's backing chain, and
-     * inherits_from pointed recursively to bs then let's update it to
+     * If inherits_from pointed recursively to bs then let's update it to
      * point directly to bs (else it will become NULL).
      */
     if (update_inherits_from) {
-        bdrv_set_inherits_from(backing_hd, bs, tran);
+        bdrv_set_inherits_from(child_bs, parent_bs, tran);
     }
 
 out:
-    bdrv_refresh_limits(bs, tran, NULL);
+    bdrv_refresh_limits(parent_bs, tran, NULL);
 
     return 0;
+}
+
+static int bdrv_set_backing_noperm(BlockDriverState *bs,
+                                   BlockDriverState *backing_hd,
+                                   Transaction *tran, Error **errp)
+{
+    return bdrv_set_file_or_backing_noperm(bs, backing_hd, true, tran, errp);
 }
 
 int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
@@ -4089,6 +4148,10 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
             refresh_list = bdrv_topological_dfs(refresh_list, found,
                                                 state->old_backing_bs);
         }
+        if (state->old_file_bs) {
+            refresh_list = bdrv_topological_dfs(refresh_list, found,
+                                                state->old_file_bs);
+        }
     }
 
     /*
@@ -4164,29 +4227,6 @@ int bdrv_reopen_set_read_only(BlockDriverState *bs, bool read_only,
     return ret;
 }
 
-static bool bdrv_reopen_can_attach(BlockDriverState *parent,
-                                   BdrvChild *child,
-                                   BlockDriverState *new_child,
-                                   Error **errp)
-{
-    AioContext *parent_ctx = bdrv_get_aio_context(parent);
-    AioContext *child_ctx = bdrv_get_aio_context(new_child);
-    GSList *ignore;
-    bool ret;
-
-    ignore = g_slist_prepend(NULL, child);
-    ret = bdrv_can_set_aio_context(new_child, parent_ctx, &ignore, NULL);
-    g_slist_free(ignore);
-    if (ret) {
-        return ret;
-    }
-
-    ignore = g_slist_prepend(NULL, child);
-    ret = bdrv_can_set_aio_context(parent, child_ctx, &ignore, errp);
-    g_slist_free(ignore);
-    return ret;
-}
-
 /*
  * Take a BDRVReopenState and check if the value of 'backing' in the
  * reopen_state->options QDict is valid or not.
@@ -4204,115 +4244,81 @@ static bool bdrv_reopen_can_attach(BlockDriverState *parent,
  *
  * Return 0 on success, otherwise return < 0 and set @errp.
  */
-static int bdrv_reopen_parse_backing(BDRVReopenState *reopen_state,
-                                     Transaction *set_backings_tran,
-                                     Error **errp)
+static int bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
+                                             bool is_backing, Transaction *tran,
+                                             Error **errp)
 {
     BlockDriverState *bs = reopen_state->bs;
-    BlockDriverState *overlay_bs, *below_bs, *new_backing_bs;
+    BlockDriverState *new_child_bs;
+    BlockDriverState *old_child_bs = is_backing ? child_bs(bs->backing) :
+                                                  child_bs(bs->file);
+    const char *child_name = is_backing ? "backing" : "file";
     QObject *value;
     const char *str;
 
-    value = qdict_get(reopen_state->options, "backing");
+    value = qdict_get(reopen_state->options, child_name);
     if (value == NULL) {
         return 0;
     }
 
     switch (qobject_type(value)) {
     case QTYPE_QNULL:
-        new_backing_bs = NULL;
+        assert(is_backing); /* The 'file' option does not allow a null value */
+        new_child_bs = NULL;
         break;
     case QTYPE_QSTRING:
         str = qstring_get_str(qobject_to(QString, value));
-        new_backing_bs = bdrv_lookup_bs(NULL, str, errp);
-        if (new_backing_bs == NULL) {
+        new_child_bs = bdrv_lookup_bs(NULL, str, errp);
+        if (new_child_bs == NULL) {
             return -EINVAL;
-        } else if (bdrv_recurse_has_child(new_backing_bs, bs)) {
-            error_setg(errp, "Making '%s' a backing file of '%s' "
-                       "would create a cycle", str, bs->node_name);
+        } else if (bdrv_recurse_has_child(new_child_bs, bs)) {
+            error_setg(errp, "Making '%s' a %s child of '%s' would create a "
+                       "cycle", str, child_name, bs->node_name);
             return -EINVAL;
         }
         break;
     default:
-        /* 'backing' does not allow any other data type */
+        /*
+         * The options QDict has been flattened, so 'backing' and 'file'
+         * do not allow any other data type here.
+         */
         g_assert_not_reached();
     }
 
-    /*
-     * Check AioContext compatibility so that the bdrv_set_backing_hd() call in
-     * bdrv_reopen_commit() won't fail.
-     */
-    if (new_backing_bs) {
-        if (!bdrv_reopen_can_attach(bs, bs->backing, new_backing_bs, errp)) {
-            return -EINVAL;
+    if (old_child_bs == new_child_bs) {
+        return 0;
+    }
+
+    if (old_child_bs) {
+        if (bdrv_skip_implicit_filters(old_child_bs) == new_child_bs) {
+            return 0;
+        }
+
+        if (old_child_bs->implicit) {
+            error_setg(errp, "Cannot replace implicit %s child of %s",
+                       child_name, bs->node_name);
+            return -EPERM;
         }
     }
 
-    /*
-     * Ensure that @bs can really handle backing files, because we are
-     * about to give it one (or swap the existing one)
-     */
-    if (bs->drv->is_filter) {
-        /* Filters always have a file or a backing child */
-        if (!bs->backing) {
-            error_setg(errp, "'%s' is a %s filter node that does not support a "
-                       "backing child", bs->node_name, bs->drv->format_name);
-            return -EINVAL;
-        }
-    } else if (!bs->drv->supports_backing) {
-        error_setg(errp, "Driver '%s' of node '%s' does not support backing "
-                   "files", bs->drv->format_name, bs->node_name);
+    if (bs->drv->is_filter && !old_child_bs) {
+        /*
+         * Filters always have a file or a backing child, so we are trying to
+         * change wrong child
+         */
+        error_setg(errp, "'%s' is a %s filter node that does not support a "
+                   "%s child", bs->node_name, bs->drv->format_name, child_name);
         return -EINVAL;
     }
 
-    /*
-     * Find the "actual" backing file by skipping all links that point
-     * to an implicit node, if any (e.g. a commit filter node).
-     * We cannot use any of the bdrv_skip_*() functions here because
-     * those return the first explicit node, while we are looking for
-     * its overlay here.
-     */
-    overlay_bs = bs;
-    for (below_bs = bdrv_filter_or_cow_bs(overlay_bs);
-         below_bs && below_bs->implicit;
-         below_bs = bdrv_filter_or_cow_bs(overlay_bs))
-    {
-        overlay_bs = below_bs;
+    if (is_backing) {
+        reopen_state->old_backing_bs = old_child_bs;
+    } else {
+        reopen_state->old_file_bs = old_child_bs;
     }
 
-    /* If we want to replace the backing file we need some extra checks */
-    if (new_backing_bs != bdrv_filter_or_cow_bs(overlay_bs)) {
-        int ret;
-
-        /* Check for implicit nodes between bs and its backing file */
-        if (bs != overlay_bs) {
-            error_setg(errp, "Cannot change backing link if '%s' has "
-                       "an implicit backing file", bs->node_name);
-            return -EPERM;
-        }
-        /*
-         * Check if the backing link that we want to replace is frozen.
-         * Note that
-         * bdrv_filter_or_cow_child(overlay_bs) == overlay_bs->backing,
-         * because we know that overlay_bs == bs, and that @bs
-         * either is a filter that uses ->backing or a COW format BDS
-         * with bs->drv->supports_backing == true.
-         */
-        if (bdrv_is_backing_chain_frozen(overlay_bs,
-                                         child_bs(overlay_bs->backing), errp))
-        {
-            return -EPERM;
-        }
-        reopen_state->replace_backing_bs = true;
-        reopen_state->old_backing_bs = bs->backing ? bs->backing->bs : NULL;
-        ret = bdrv_set_backing_noperm(bs, new_backing_bs, set_backings_tran,
-                                      errp);
-        if (ret < 0) {
-            return ret;
-        }
-    }
-
-    return 0;
+    return bdrv_set_file_or_backing_noperm(bs, new_child_bs, is_backing,
+                                           tran, errp);
 }
 
 /*
@@ -4334,7 +4340,7 @@ static int bdrv_reopen_parse_backing(BDRVReopenState *reopen_state,
  */
 static int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
                                BlockReopenQueue *queue,
-                               Transaction *set_backings_tran, Error **errp)
+                               Transaction *change_child_tran, Error **errp)
 {
     int ret = -1;
     int old_flags;
@@ -4454,11 +4460,20 @@ static int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
      * either a reference to an existing node (using its node name)
      * or NULL to simply detach the current backing file.
      */
-    ret = bdrv_reopen_parse_backing(reopen_state, set_backings_tran, errp);
+    ret = bdrv_reopen_parse_file_or_backing(reopen_state, true,
+                                            change_child_tran, errp);
     if (ret < 0) {
         goto error;
     }
     qdict_del(reopen_state->options, "backing");
+
+    /* Allow changing the 'file' option. In this case NULL is not allowed */
+    ret = bdrv_reopen_parse_file_or_backing(reopen_state, false,
+                                            change_child_tran, errp);
+    if (ret < 0) {
+        goto error;
+    }
+    qdict_del(reopen_state->options, "file");
 
     /* Options that are not handled are only okay if they are unchanged
      * compared to the old state. It is expected that some options are only
@@ -4564,17 +4579,16 @@ static void bdrv_reopen_commit(BDRVReopenState *reopen_state)
     bs->open_flags         = reopen_state->flags;
     bs->detect_zeroes      = reopen_state->detect_zeroes;
 
-    if (reopen_state->replace_backing_bs) {
-        qdict_del(bs->explicit_options, "backing");
-        qdict_del(bs->options, "backing");
-    }
-
     /* Remove child references from bs->options and bs->explicit_options.
      * Child options were already removed in bdrv_reopen_queue_child() */
     QLIST_FOREACH(child, &bs->children, next) {
         qdict_del(bs->explicit_options, child->name);
         qdict_del(bs->options, child->name);
     }
+    /* backing is probably removed, so it's not handled by previous loop */
+    qdict_del(bs->explicit_options, "backing");
+    qdict_del(bs->options, "backing");
+
     bdrv_refresh_limits(bs, NULL, NULL);
 }
 
@@ -4766,7 +4780,7 @@ static void bdrv_remove_filter_or_cow_child_abort(void *opaque)
     }
 
     /*
-     * We don't have to restore child->bs here to undo bdrv_replace_child()
+     * We don't have to restore child->bs here to undo bdrv_replace_child_tran()
      * because that function is transactionable and it registered own completion
      * entries in @tran, so .abort() for bdrv_replace_child_safe() will be
      * called automatically.
@@ -4787,22 +4801,23 @@ static TransactionActionDrv bdrv_remove_filter_or_cow_child_drv = {
 };
 
 /*
- * A function to remove backing-chain child of @bs if exists: cow child for
- * format nodes (always .backing) and filter child for filters (may be .file or
- * .backing)
+ * A function to remove backing or file child of @bs.
+ * Function doesn't update permissions, caller is responsible for this.
  */
-static void bdrv_remove_filter_or_cow_child(BlockDriverState *bs,
-                                            Transaction *tran)
+static void bdrv_remove_file_or_backing_child(BlockDriverState *bs,
+                                              BdrvChild *child,
+                                              Transaction *tran)
 {
     BdrvRemoveFilterOrCowChild *s;
-    BdrvChild *child = bdrv_filter_or_cow_child(bs);
+
+    assert(child == bs->backing || child == bs->file);
 
     if (!child) {
         return;
     }
 
     if (child->bs) {
-        bdrv_replace_child(child, NULL, tran);
+        bdrv_replace_child_tran(child, NULL, tran);
     }
 
     s = g_new(BdrvRemoveFilterOrCowChild, 1);
@@ -4818,6 +4833,17 @@ static void bdrv_remove_filter_or_cow_child(BlockDriverState *bs,
     } else {
         bs->file = NULL;
     }
+}
+
+/*
+ * A function to remove backing-chain child of @bs if exists: cow child for
+ * format nodes (always .backing) and filter child for filters (may be .file or
+ * .backing)
+ */
+static void bdrv_remove_filter_or_cow_child(BlockDriverState *bs,
+                                            Transaction *tran)
+{
+    bdrv_remove_file_or_backing_child(bs, bdrv_filter_or_cow_child(bs), tran);
 }
 
 static int bdrv_replace_node_noperm(BlockDriverState *from,
@@ -4842,7 +4868,7 @@ static int bdrv_replace_node_noperm(BlockDriverState *from,
                        c->name, from->node_name);
             return -EPERM;
         }
-        bdrv_replace_child(c, to, tran);
+        bdrv_replace_child_tran(c, to, tran);
     }
 
     return 0;
@@ -4866,7 +4892,7 @@ static int bdrv_replace_node_common(BlockDriverState *from,
     Transaction *tran = tran_new();
     g_autoptr(GHashTable) found = NULL;
     g_autoptr(GSList) refresh_list = NULL;
-    BlockDriverState *to_cow_parent;
+    BlockDriverState *to_cow_parent = NULL;
     int ret;
 
     if (detach_subchain) {
@@ -6553,9 +6579,13 @@ void bdrv_img_create(const char *filename, const char *fmt,
         }
         assert(full_backing);
 
-        /* backing files always opened read-only */
+        /*
+         * No need to do I/O here, which allows us to open encrypted
+         * backing images without needing the secret
+         */
         back_flags = flags;
         back_flags &= ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
+        back_flags |= BDRV_O_NO_IO;
 
         backing_options = qdict_new();
         if (backing_fmt) {

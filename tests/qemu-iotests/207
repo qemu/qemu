@@ -73,6 +73,9 @@ with iotests.FilePath('t.img') as disk_path, \
     iotests.log("=== Test host-key-check options ===")
     iotests.log("")
 
+    iotests.log("--- no host key checking --")
+    iotests.log("")
+
     vm.launch()
     blockdev_create(vm, { 'driver': 'ssh',
                           'location': {
@@ -89,6 +92,9 @@ with iotests.FilePath('t.img') as disk_path, \
     vm.shutdown()
 
     iotests.img_info_log(remote_path)
+
+    iotests.log("--- known_hosts key checking --")
+    iotests.log("")
 
     vm.launch()
     blockdev_create(vm, { 'driver': 'ssh',
@@ -115,6 +121,7 @@ with iotests.FilePath('t.img') as disk_path, \
     # Mappings of base64 representations to digests
     md5_keys = {}
     sha1_keys = {}
+    sha256_keys = {}
 
     for key in keys:
         md5_keys[key] = subprocess.check_output(
@@ -123,6 +130,10 @@ with iotests.FilePath('t.img') as disk_path, \
 
         sha1_keys[key] = subprocess.check_output(
             'echo %s | base64 -d | sha1sum -b | cut -d" " -f1' % key,
+            shell=True).rstrip().decode('ascii')
+
+        sha256_keys[key] = subprocess.check_output(
+            'echo %s | base64 -d | sha256sum -b | cut -d" " -f1' % key,
             shell=True).rstrip().decode('ascii')
 
     vm.launch()
@@ -150,6 +161,9 @@ with iotests.FilePath('t.img') as disk_path, \
         vm.shutdown()
         iotests.notrun('Did not find a key that fits 127.0.0.1')
 
+    iotests.log("--- explicit md5 key checking --")
+    iotests.log("")
+
     blockdev_create(vm, { 'driver': 'ssh',
                           'location': {
                               'path': disk_path,
@@ -164,6 +178,7 @@ with iotests.FilePath('t.img') as disk_path, \
                               }
                           },
                           'size': 2097152 })
+
     blockdev_create(vm, { 'driver': 'ssh',
                           'location': {
                               'path': disk_path,
@@ -181,6 +196,9 @@ with iotests.FilePath('t.img') as disk_path, \
     vm.shutdown()
 
     iotests.img_info_log(remote_path)
+
+    iotests.log("--- explicit sha1 key checking --")
+    iotests.log("")
 
     vm.launch()
     blockdev_create(vm, { 'driver': 'ssh',
@@ -208,6 +226,42 @@ with iotests.FilePath('t.img') as disk_path, \
                                   'mode': 'hash',
                                   'type': 'sha1',
                                   'hash': sha1_keys[matching_key],
+                              }
+                          },
+                          'size': 4194304 })
+    vm.shutdown()
+
+    iotests.img_info_log(remote_path)
+
+    iotests.log("--- explicit sha256 key checking --")
+    iotests.log("")
+
+    vm.launch()
+    blockdev_create(vm, { 'driver': 'ssh',
+                          'location': {
+                              'path': disk_path,
+                              'server': {
+                                  'host': '127.0.0.1',
+                                  'port': '22'
+                              },
+                              'host-key-check': {
+                                  'mode': 'hash',
+                                  'type': 'sha256',
+                                  'hash': 'wrong',
+                              }
+                          },
+                          'size': 2097152 })
+    blockdev_create(vm, { 'driver': 'ssh',
+                          'location': {
+                              'path': disk_path,
+                              'server': {
+                                  'host': '127.0.0.1',
+                                  'port': '22'
+                              },
+                              'host-key-check': {
+                                  'mode': 'hash',
+                                  'type': 'sha256',
+                                  'hash': sha256_keys[matching_key],
                               }
                           },
                           'size': 4194304 })

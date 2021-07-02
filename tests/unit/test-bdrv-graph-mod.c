@@ -41,6 +41,7 @@ static void no_perm_default_perms(BlockDriverState *bs, BdrvChild *c,
 
 static BlockDriver bdrv_no_perm = {
     .format_name = "no-perm",
+    .supports_backing = true,
     .bdrv_child_perm = no_perm_default_perms,
 };
 

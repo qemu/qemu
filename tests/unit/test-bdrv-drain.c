@@ -95,6 +95,7 @@ static int bdrv_test_change_backing_file(BlockDriverState *bs,
 static BlockDriver bdrv_test = {
     .format_name            = "test",
     .instance_size          = sizeof(BDRVTestState),
+    .supports_backing       = true,
 
     .bdrv_close             = bdrv_test_close,
     .bdrv_co_preadv         = bdrv_test_co_preadv,

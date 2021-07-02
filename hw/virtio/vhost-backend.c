@@ -24,13 +24,15 @@ static int vhost_kernel_call(struct vhost_dev *dev, unsigned long int request,
                              void *arg)
 {
     int fd = (uintptr_t) dev->opaque;
+    int ret;
 
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_KERNEL);
 
-    return ioctl(fd, request, arg);
+    ret = ioctl(fd, request, arg);
+    return ret < 0 ? -errno : ret;
 }
 
-static int vhost_kernel_init(struct vhost_dev *dev, void *opaque)
+static int vhost_kernel_init(struct vhost_dev *dev, void *opaque, Error **errp)
 {
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_KERNEL);
 

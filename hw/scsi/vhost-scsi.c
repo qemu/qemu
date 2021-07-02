@@ -219,10 +219,8 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
     vsc->dev.backend_features = 0;
 
     ret = vhost_dev_init(&vsc->dev, (void *)(uintptr_t)vhostfd,
-                         VHOST_BACKEND_TYPE_KERNEL, 0);
+                         VHOST_BACKEND_TYPE_KERNEL, 0, errp);
     if (ret < 0) {
-        error_setg(errp, "vhost-scsi: vhost initialization failed: %s",
-                   strerror(-ret));
         goto free_vqs;
     }
 

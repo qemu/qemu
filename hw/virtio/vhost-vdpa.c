@@ -245,10 +245,12 @@ static int vhost_vdpa_call(struct vhost_dev *dev, unsigned long int request,
 {
     struct vhost_vdpa *v = dev->opaque;
     int fd = v->device_fd;
+    int ret;
 
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_VDPA);
 
-    return ioctl(fd, request, arg);
+    ret = ioctl(fd, request, arg);
+    return ret < 0 ? -errno : ret;
 }
 
 static void vhost_vdpa_add_status(struct vhost_dev *dev, uint8_t status)
@@ -265,7 +267,7 @@ static void vhost_vdpa_add_status(struct vhost_dev *dev, uint8_t status)
     vhost_vdpa_call(dev, VHOST_VDPA_SET_STATUS, &s);
 }
 
-static int vhost_vdpa_init(struct vhost_dev *dev, void *opaque)
+static int vhost_vdpa_init(struct vhost_dev *dev, void *opaque, Error **errp)
 {
     struct vhost_vdpa *v;
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_VDPA);
@@ -521,7 +523,7 @@ static int vhost_vdpa_set_config(struct vhost_dev *dev, const uint8_t *data,
 }
 
 static int vhost_vdpa_get_config(struct vhost_dev *dev, uint8_t *config,
-                                   uint32_t config_len)
+                                   uint32_t config_len, Error **errp)
 {
     struct vhost_vdpa_config *v_config;
     unsigned long config_size = offsetof(struct vhost_vdpa_config, buf);

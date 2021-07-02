@@ -48,9 +48,9 @@ vhost_user_backend_dev_init(VhostUserBackend *b, VirtIODevice *vdev,
     b->dev.nvqs = nvqs;
     b->dev.vqs = g_new0(struct vhost_virtqueue, nvqs);
 
-    ret = vhost_dev_init(&b->dev, &b->vhost_user, VHOST_BACKEND_TYPE_USER, 0);
+    ret = vhost_dev_init(&b->dev, &b->vhost_user, VHOST_BACKEND_TYPE_USER, 0,
+                         errp);
     if (ret < 0) {
-        error_setg_errno(errp, -ret, "vhost initialization failed");
         return -1;
     }
 

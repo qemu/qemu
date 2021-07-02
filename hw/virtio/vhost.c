@@ -1286,11 +1286,12 @@ static void vhost_virtqueue_cleanup(struct vhost_virtqueue *vq)
 }
 
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
-                   VhostBackendType backend_type, uint32_t busyloop_timeout)
+                   VhostBackendType backend_type, uint32_t busyloop_timeout,
+                   Error **errp)
 {
+    ERRP_GUARD();
     uint64_t features;
     int i, r, n_initialized_vqs = 0;
-    Error *local_err = NULL;
 
     hdev->vdev = NULL;
     hdev->migration_blocker = NULL;
@@ -1298,26 +1299,30 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     r = vhost_set_backend_type(hdev, backend_type);
     assert(r >= 0);
 
-    r = hdev->vhost_ops->vhost_backend_init(hdev, opaque);
+    r = hdev->vhost_ops->vhost_backend_init(hdev, opaque, errp);
     if (r < 0) {
+        if (!*errp) {
+            error_setg_errno(errp, -r, "vhost_backend_init failed");
+        }
         goto fail;
     }
 
     r = hdev->vhost_ops->vhost_set_owner(hdev);
     if (r < 0) {
-        VHOST_OPS_DEBUG("vhost_set_owner failed");
+        error_setg_errno(errp, -r, "vhost_set_owner failed");
         goto fail;
     }
 
     r = hdev->vhost_ops->vhost_get_features(hdev, &features);
     if (r < 0) {
-        VHOST_OPS_DEBUG("vhost_get_features failed");
+        error_setg_errno(errp, -r, "vhost_get_features failed");
         goto fail;
     }
 
     for (i = 0; i < hdev->nvqs; ++i, ++n_initialized_vqs) {
         r = vhost_virtqueue_init(hdev, hdev->vqs + i, hdev->vq_index + i);
         if (r < 0) {
+            error_setg_errno(errp, -r, "Failed to initialize virtqueue %d", i);
             goto fail;
         }
     }
@@ -1327,6 +1332,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
             r = vhost_virtqueue_set_busyloop_timeout(hdev, hdev->vq_index + i,
                                                      busyloop_timeout);
             if (r < 0) {
+                error_setg_errno(errp, -r, "Failed to set busyloop timeout");
                 goto fail_busyloop;
             }
         }
@@ -1365,9 +1371,8 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     }
 
     if (hdev->migration_blocker != NULL) {
-        r = migrate_add_blocker(hdev->migration_blocker, &local_err);
-        if (local_err) {
-            error_report_err(local_err);
+        r = migrate_add_blocker(hdev->migration_blocker, errp);
+        if (*errp) {
             error_free(hdev->migration_blocker);
             goto fail_busyloop;
         }
@@ -1384,9 +1389,9 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
 
     if (used_memslots > hdev->vhost_ops->vhost_backend_memslots_limit(hdev)) {
-        error_report("vhost backend memory slots limit is less"
-                " than current number of present memory slots");
-        r = -1;
+        error_setg(errp, "vhost backend memory slots limit is less"
+                   " than current number of present memory slots");
+        r = -EINVAL;
         goto fail_busyloop;
     }
 
@@ -1557,15 +1562,23 @@ void vhost_ack_features(struct vhost_dev *hdev, const int *feature_bits,
 }
 
 int vhost_dev_get_config(struct vhost_dev *hdev, uint8_t *config,
-                         uint32_t config_len)
+                         uint32_t config_len, Error **errp)
 {
+    ERRP_GUARD();
+    int ret;
+
     assert(hdev->vhost_ops);
 
     if (hdev->vhost_ops->vhost_get_config) {
-        return hdev->vhost_ops->vhost_get_config(hdev, config, config_len);
+        ret = hdev->vhost_ops->vhost_get_config(hdev, config, config_len, errp);
+        if (ret < 0 && !*errp) {
+            error_setg_errno(errp, -ret, "vhost_get_config failed");
+        }
+        return ret;
     }
 
-    return -1;
+    error_setg(errp, "vhost_get_config not implemented");
+    return -ENOTSUP;
 }
 
 int vhost_dev_set_config(struct vhost_dev *hdev, const uint8_t *data,
