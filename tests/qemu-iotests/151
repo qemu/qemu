@@ -143,10 +143,6 @@ class TestActiveMirror(iotests.QMPTestCase):
         self.potential_writes_in_flight = False
 
     def testIntersectingActiveIO(self):
-        # FIXME: test-case is dead-locking. To reproduce dead-lock just drop
-        # this return statement
-        return
-
         # Fill the source image
         result = self.vm.hmp_qemu_io('source', 'write -P 1 0 2M')
 
@@ -180,18 +176,14 @@ class TestActiveMirror(iotests.QMPTestCase):
 
         # Now we resumed 1, so 2 and 3 goes to the next iteration of while loop
         # in mirror_wait_on_conflicts(). They don't exit, as bitmap is dirty
-        # due to request 4. And they start to wait: 2 wait for 3, 3 wait for 2
-        # - DEAD LOCK.
-        # Note that it's important that we add request 4 at last: requests are
-        # appended to the list, so we are sure that 4 is last in the list, so 2
-        # and 3 now waits for each other, not for 4.
+        # due to request 4.
+        # In the past at that point 2 and 3 would wait for each other producing
+        # a dead-lock. Now this is fixed and they will wait for request 4.
 
         self.vm.hmp_qemu_io('source', 'resume B')
 
-        # Resuming 4 doesn't help, 2 and 3 already dead-locked
-        # To check the dead-lock run:
-        #    gdb -p $(pidof qemu-system-x86_64) -ex 'set $job=(MirrorBlockJob *)jobs.lh_first' -ex 'p *$job->ops_in_flight.tqh_first' -ex 'p *$job->ops_in_flight.tqh_first->next.tqe_next'
-        # You'll see two MirrorOp objects waiting on each other
+        # After resuming 4, one of 2 and 3 goes first and set in_flight_bitmap,
+        # so the other will wait for it.
 
         result = self.vm.qmp('block-job-set-speed', device='mirror', speed=0)
         self.assert_qmp(result, 'return', {})

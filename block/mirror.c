@@ -107,6 +107,7 @@ struct MirrorOp {
     bool is_in_flight;
     CoQueue waiting_requests;
     Coroutine *co;
+    MirrorOp *waiting_for_op;
 
     QTAILQ_ENTRY(MirrorOp) next;
 };
@@ -159,7 +160,18 @@ static void coroutine_fn mirror_wait_on_conflicts(MirrorOp *self,
             if (ranges_overlap(self_start_chunk, self_nb_chunks,
                                op_start_chunk, op_nb_chunks))
             {
+                /*
+                 * If the operation is already (indirectly) waiting for us, or
+                 * will wait for us as soon as it wakes up, then just go on
+                 * (instead of producing a deadlock in the former case).
+                 */
+                if (op->waiting_for_op) {
+                    continue;
+                }
+
+                self->waiting_for_op = op;
                 qemu_co_queue_wait(&op->waiting_requests, NULL);
+                self->waiting_for_op = NULL;
                 break;
             }
         }
