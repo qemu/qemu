@@ -710,13 +710,16 @@ if not get_option('rbd').auto() or have_block
       int main(void) {
         rados_t cluster;
         rados_create(&cluster, NULL);
+        #if LIBRBD_VERSION_CODE < LIBRBD_VERSION(1, 12, 0)
+        #error
+        #endif
         return 0;
       }''', dependencies: [librbd, librados])
       rbd = declare_dependency(dependencies: [librbd, librados])
     elif get_option('rbd').enabled()
-      error('could not link librados')
+      error('librbd >= 1.12.0 required')
     else
-      warning('could not link librados, disabling')
+      warning('librbd >= 1.12.0 not found, disabling')
     endif
   endif
 endif
