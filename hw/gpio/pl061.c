@@ -15,19 +15,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qom/object.h"
-
-//#define DEBUG_PL061 1
-
-#ifdef DEBUG_PL061
-#define DPRINTF(fmt, ...) \
-do { printf("pl061: " fmt , ## __VA_ARGS__); } while (0)
-#define BADF(fmt, ...) \
-do { fprintf(stderr, "pl061: error: " fmt , ## __VA_ARGS__); exit(1);} while (0)
-#else
-#define DPRINTF(fmt, ...) do {} while(0)
-#define BADF(fmt, ...) \
-do { fprintf(stderr, "pl061: error: " fmt , ## __VA_ARGS__);} while (0)
-#endif
+#include "trace.h"
 
 static const uint8_t pl061_id[12] =
   { 0x00, 0x00, 0x00, 0x00, 0x61, 0x10, 0x04, 0x00, 0x0d, 0xf0, 0x05, 0xb1 };
@@ -107,7 +95,7 @@ static void pl061_update(PL061State *s)
     uint8_t out;
     int i;
 
-    DPRINTF("dir = %d, data = %d\n", s->dir, s->data);
+    trace_pl061_update(DEVICE(s)->canonical_path, s->dir, s->data);
 
     /* Outputs float high.  */
     /* FIXME: This is board dependent.  */
@@ -118,8 +106,9 @@ static void pl061_update(PL061State *s)
         for (i = 0; i < N_GPIOS; i++) {
             mask = 1 << i;
             if (changed & mask) {
-                DPRINTF("Set output %d = %d\n", i, (out & mask) != 0);
-                qemu_set_irq(s->out[i], (out & mask) != 0);
+                int level = (out & mask) != 0;
+                trace_pl061_set_output(DEVICE(s)->canonical_path, i, level);
+                qemu_set_irq(s->out[i], level);
             }
         }
     }
@@ -131,7 +120,8 @@ static void pl061_update(PL061State *s)
         for (i = 0; i < N_GPIOS; i++) {
             mask = 1 << i;
             if (changed & mask) {
-                DPRINTF("Changed input %d = %d\n", i, (s->data & mask) != 0);
+                trace_pl061_input_change(DEVICE(s)->canonical_path, i,
+                                         (s->data & mask) != 0);
 
                 if (!(s->isense & mask)) {
                     /* Edge interrupt */
@@ -150,7 +140,8 @@ static void pl061_update(PL061State *s)
     /* Level interrupt */
     s->istate |= ~(s->data ^ s->iev) & s->isense;
 
-    DPRINTF("istate = %02X\n", s->istate);
+    trace_pl061_update_istate(DEVICE(s)->canonical_path,
+                              s->istate, s->im, (s->istate & s->im) != 0);
 
     qemu_set_irq(s->irq, (s->istate & s->im) != 0);
 }
