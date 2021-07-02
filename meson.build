@@ -823,22 +823,13 @@ if not get_option('gnutls').auto() or have_system
                       kwargs: static_kwargs)
 endif
 
-# Nettle has priority over gcrypt
+# Gcrypt has priority over nettle
 gcrypt = not_found
 nettle = not_found
 xts = 'none'
 if get_option('nettle').enabled() and get_option('gcrypt').enabled()
   error('Only one of gcrypt & nettle can be enabled')
-elif (not get_option('nettle').auto() or have_system) and not get_option('gcrypt').enabled()
-  nettle = dependency('nettle', version: '>=3.4',
-                      method: 'pkg-config',
-                      required: get_option('nettle'),
-                      kwargs: static_kwargs)
-  if nettle.found() and not cc.has_header('nettle/xts.h', dependencies: nettle)
-    xts = 'private'
-  endif
-endif
-if (not get_option('gcrypt').auto() or have_system) and not nettle.found()
+elif (not get_option('gcrypt').auto() or have_system) and not get_option('nettle').enabled()
   gcrypt = dependency('libgcrypt', version: '>=1.8',
                          method: 'config-tool',
                          required: get_option('gcrypt'),
@@ -850,6 +841,15 @@ if (not get_option('gcrypt').auto() or have_system) and not nettle.found()
     gcrypt = declare_dependency(dependencies: [
       gcrypt,
       cc.find_library('gpg-error', required: true, kwargs: static_kwargs)])
+  endif
+endif
+if (not get_option('nettle').auto() or have_system) and not gcrypt.found()
+  nettle = dependency('nettle', version: '>=3.4',
+                      method: 'pkg-config',
+                      required: get_option('nettle'),
+                      kwargs: static_kwargs)
+  if nettle.found() and not cc.has_header('nettle/xts.h', dependencies: nettle)
+    xts = 'private'
   endif
 endif
 
