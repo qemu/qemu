@@ -149,90 +149,114 @@ static uint64_t pl061_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
     PL061State *s = (PL061State *)opaque;
+    uint64_t r = 0;
 
     switch (offset) {
     case 0x0 ... 0x3ff: /* Data */
-        return s->data & (offset >> 2);
+        r = s->data & (offset >> 2);
+        break;
     case 0x400: /* Direction */
-        return s->dir;
+        r = s->dir;
+        break;
     case 0x404: /* Interrupt sense */
-        return s->isense;
+        r = s->isense;
+        break;
     case 0x408: /* Interrupt both edges */
-        return s->ibe;
+        r = s->ibe;
+        break;
     case 0x40c: /* Interrupt event */
-        return s->iev;
+        r = s->iev;
+        break;
     case 0x410: /* Interrupt mask */
-        return s->im;
+        r = s->im;
+        break;
     case 0x414: /* Raw interrupt status */
-        return s->istate;
+        r = s->istate;
+        break;
     case 0x418: /* Masked interrupt status */
-        return s->istate & s->im;
+        r = s->istate & s->im;
+        break;
     case 0x420: /* Alternate function select */
-        return s->afsel;
+        r = s->afsel;
+        break;
     case 0x500: /* 2mA drive */
         if (s->id != pl061_id_luminary) {
             goto bad_offset;
         }
-        return s->dr2r;
+        r = s->dr2r;
+        break;
     case 0x504: /* 4mA drive */
         if (s->id != pl061_id_luminary) {
             goto bad_offset;
         }
-        return s->dr4r;
+        r = s->dr4r;
+        break;
     case 0x508: /* 8mA drive */
         if (s->id != pl061_id_luminary) {
             goto bad_offset;
         }
-        return s->dr8r;
+        r = s->dr8r;
+        break;
     case 0x50c: /* Open drain */
         if (s->id != pl061_id_luminary) {
             goto bad_offset;
         }
-        return s->odr;
+        r = s->odr;
+        break;
     case 0x510: /* Pull-up */
         if (s->id != pl061_id_luminary) {
             goto bad_offset;
         }
-        return s->pur;
+        r = s->pur;
+        break;
     case 0x514: /* Pull-down */
         if (s->id != pl061_id_luminary) {
             goto bad_offset;
         }
-        return s->pdr;
+        r = s->pdr;
+        break;
     case 0x518: /* Slew rate control */
         if (s->id != pl061_id_luminary) {
             goto bad_offset;
         }
-        return s->slr;
+        r = s->slr;
+        break;
     case 0x51c: /* Digital enable */
         if (s->id != pl061_id_luminary) {
             goto bad_offset;
         }
-        return s->den;
+        r = s->den;
+        break;
     case 0x520: /* Lock */
         if (s->id != pl061_id_luminary) {
             goto bad_offset;
         }
-        return s->locked;
+        r = s->locked;
+        break;
     case 0x524: /* Commit */
         if (s->id != pl061_id_luminary) {
             goto bad_offset;
         }
-        return s->cr;
+        r = s->cr;
+        break;
     case 0x528: /* Analog mode select */
         if (s->id != pl061_id_luminary) {
             goto bad_offset;
         }
-        return s->amsel;
+        r = s->amsel;
+        break;
     case 0xfd0 ... 0xfff: /* ID registers */
-        return s->id[(offset - 0xfd0) >> 2];
+        r = s->id[(offset - 0xfd0) >> 2];
+        break;
     default:
     bad_offset:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "pl061_read: Bad offset %x\n", (int)offset);
         break;
     }
-    return 0;
+
+    trace_pl061_read(DEVICE(s)->canonical_path, offset, r);
+    return r;
 }
 
 static void pl061_write(void *opaque, hwaddr offset,
@@ -240,6 +264,8 @@ static void pl061_write(void *opaque, hwaddr offset,
 {
     PL061State *s = (PL061State *)opaque;
     uint8_t mask;
+
+    trace_pl061_write(DEVICE(s)->canonical_path, offset, value);
 
     switch (offset) {
     case 0 ... 0x3ff:
