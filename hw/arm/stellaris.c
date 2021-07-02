@@ -1453,13 +1453,67 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
             DeviceState *sddev;
             DeviceState *ssddev;
 
-            /* Some boards have both an OLED controller and SD card connected to
+            /*
+             * Some boards have both an OLED controller and SD card connected to
              * the same SSI port, with the SD card chip select connected to a
              * GPIO pin.  Technically the OLED chip select is connected to the
              * SSI Fss pin.  We do not bother emulating that as both devices
              * should never be selected simultaneously, and our OLED controller
              * ignores stray 0xff commands that occur when deselecting the SD
              * card.
+             *
+             * The h/w wiring is:
+             *  - GPIO pin D0 is wired to the active-low SD card chip select
+             *  - GPIO pin A3 is wired to the active-low OLED chip select
+             *  - The SoC wiring of the PL061 "auxiliary function" for A3 is
+             *    SSI0Fss ("frame signal"), which is an output from the SoC's
+             *    SSI controller. The SSI controller takes SSI0Fss low when it
+             *    transmits a frame, so it can work as a chip-select signal.
+             *  - GPIO A4 is aux-function SSI0Rx, and wired to the SD card Tx
+             *    (the OLED never sends data to the CPU, so no wiring needed)
+             *  - GPIO A5 is aux-function SSI0Tx, and wired to the SD card Rx
+             *    and the OLED display-data-in
+             *  - GPIO A2 is aux-function SSI0Clk, wired to SD card and OLED
+             *    serial-clock input
+             * So a guest that wants to use the OLED can configure the PL061
+             * to make pins A2, A3, A5 aux-function, so they are connected
+             * directly to the SSI controller. When the SSI controller sends
+             * data it asserts SSI0Fss which selects the OLED.
+             * A guest that wants to use the SD card configures A2, A4 and A5
+             * as aux-function, but leaves A3 as a software-controlled GPIO
+             * line. It asserts the SD card chip-select by using the PL061
+             * to control pin D0, and lets the SSI controller handle Clk, Tx
+             * and Rx. (The SSI controller asserts Fss during tx cycles as
+             * usual, but because A3 is not set to aux-function this is not
+             * forwarded to the OLED, and so the OLED stays unselected.)
+             *
+             * The QEMU implementation instead is:
+             *  - GPIO pin D0 is wired to the active-low SD card chip select,
+             *    and also to the OLED chip-select which is implemented
+             *    as *active-high*
+             *  - SSI controller signals go to the devices regardless of
+             *    whether the guest programs A2, A4, A5 as aux-function or not
+             *
+             * The problem with this implementation is if the guest doesn't
+             * care about the SD card and only uses the OLED. In that case it
+             * may choose never to do anything with D0 (leaving it in its
+             * default floating state, which reliably leaves the card disabled
+             * because an SD card has a pullup on CS within the card itself),
+             * and only set up A2, A3, A5. This for us would mean the OLED
+             * never gets the chip-select assert it needs. We work around
+             * this with a manual raise of D0 here (despite board creation
+             * code being the wrong place to raise IRQ lines) to put the OLED
+             * into an initially selected state.
+             *
+             * In theory the right way to model this would be:
+             *  - Implement aux-function support in the PL061, with an
+             *    extra set of AFIN and AFOUT GPIO lines (set up so that
+             *    if a GPIO line is in auxfn mode the main GPIO in and out
+             *    track the AFIN and AFOUT lines)
+             *  - Wire the AFOUT for D0 up to either a line from the
+             *    SSI controller that's pulled low around every transmit,
+             *    or at least to an always-0 line here on the board
+             *  - Make the ssd0323 OLED controller chipselect active-low
              */
             bus = qdev_get_child_bus(dev, "ssi");
 
