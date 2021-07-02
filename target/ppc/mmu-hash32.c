@@ -27,7 +27,7 @@
 #include "mmu-hash32.h"
 #include "exec/log.h"
 
-/* #define DEBUG_BAT */
+/* #define DEBUG_BATS */
 
 #ifdef DEBUG_BATS
 #  define LOG_BATS(...) qemu_log_mask(CPU_LOG_MMU, __VA_ARGS__)
@@ -199,6 +199,9 @@ static hwaddr ppc_hash32_bat_lookup(PowerPCCPU *cpu, target_ulong ea,
     /* No hit */
 #if defined(DEBUG_BATS)
     if (qemu_log_enabled()) {
+        target_ulong *BATu, *BATl;
+        target_ulong BEPIl, BEPIu, bl;
+
         LOG_BATS("no BAT match for " TARGET_FMT_lx ":\n", ea);
         for (i = 0; i < 4; i++) {
             BATu = &BATut[i];
