@@ -5,7 +5,6 @@ crypto_ss.add(files(
   'block-qcow.c',
   'block.c',
   'cipher.c',
-  'desrfb.c',
   'hash.c',
   'hmac.c',
   'ivgen-essiv.c',

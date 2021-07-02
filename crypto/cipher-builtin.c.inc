@@ -19,7 +19,6 @@
  */
 
 #include "crypto/aes.h"
-#include "crypto/desrfb.h"
 #include "crypto/xts.h"
 
 typedef struct QCryptoCipherBuiltinAESContext QCryptoCipherBuiltinAESContext;
@@ -265,69 +264,10 @@ static const struct QCryptoCipherDriver qcrypto_cipher_aes_driver_xts = {
 };
 
 
-typedef struct QCryptoCipherBuiltinDESRFB QCryptoCipherBuiltinDESRFB;
-struct QCryptoCipherBuiltinDESRFB {
-    QCryptoCipher base;
-
-    /* C.f. alg_key_len[QCRYPTO_CIPHER_ALG_DES_RFB] */
-    uint8_t key[8];
-};
-
-static int qcrypto_cipher_encrypt_des_rfb(QCryptoCipher *cipher,
-                                          const void *in, void *out,
-                                          size_t len, Error **errp)
-{
-    QCryptoCipherBuiltinDESRFB *ctx
-        = container_of(cipher, QCryptoCipherBuiltinDESRFB, base);
-    size_t i;
-
-    if (!qcrypto_length_check(len, 8, errp)) {
-        return -1;
-    }
-
-    deskey(ctx->key, EN0);
-
-    for (i = 0; i < len; i += 8) {
-        des((void *)in + i, out + i);
-    }
-
-    return 0;
-}
-
-static int qcrypto_cipher_decrypt_des_rfb(QCryptoCipher *cipher,
-                                          const void *in, void *out,
-                                          size_t len, Error **errp)
-{
-    QCryptoCipherBuiltinDESRFB *ctx
-        = container_of(cipher, QCryptoCipherBuiltinDESRFB, base);
-    size_t i;
-
-    if (!qcrypto_length_check(len, 8, errp)) {
-        return -1;
-    }
-
-    deskey(ctx->key, DE1);
-
-    for (i = 0; i < len; i += 8) {
-        des((void *)in + i, out + i);
-    }
-
-    return 0;
-}
-
-static const struct QCryptoCipherDriver qcrypto_cipher_des_rfb_driver = {
-    .cipher_encrypt = qcrypto_cipher_encrypt_des_rfb,
-    .cipher_decrypt = qcrypto_cipher_decrypt_des_rfb,
-    .cipher_setiv = qcrypto_cipher_no_setiv,
-    .cipher_free = qcrypto_cipher_ctx_free,
-};
-
 bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
                              QCryptoCipherMode mode)
 {
     switch (alg) {
-    case QCRYPTO_CIPHER_ALG_DES_RFB:
-        return mode == QCRYPTO_CIPHER_MODE_ECB;
     case QCRYPTO_CIPHER_ALG_AES_128:
     case QCRYPTO_CIPHER_ALG_AES_192:
     case QCRYPTO_CIPHER_ALG_AES_256:
@@ -356,18 +296,6 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
     }
 
     switch (alg) {
-    case QCRYPTO_CIPHER_ALG_DES_RFB:
-        if (mode == QCRYPTO_CIPHER_MODE_ECB) {
-            QCryptoCipherBuiltinDESRFB *ctx;
-
-            ctx = g_new0(QCryptoCipherBuiltinDESRFB, 1);
-            ctx->base.driver = &qcrypto_cipher_des_rfb_driver;
-            memcpy(ctx->key, key, sizeof(ctx->key));
-
-            return &ctx->base;
-        }
-        goto bad_mode;
-
     case QCRYPTO_CIPHER_ALG_AES_128:
     case QCRYPTO_CIPHER_ALG_AES_192:
     case QCRYPTO_CIPHER_ALG_AES_256:
