@@ -13,12 +13,28 @@
  *  + unnamed GPIO inputs 0..7: inputs to connect to the emulated GPIO lines
  *  + unnamed GPIO outputs 0..7: the emulated GPIO lines, considered as
  *    outputs
+ *  + QOM property "pullups": an integer defining whether non-floating lines
+ *    configured as inputs should be pulled up to logical 1 (ie whether in
+ *    real hardware they have a pullup resistor on the line out of the PL061).
+ *    This should be an 8-bit value, where bit 0 is 1 if GPIO line 0 should
+ *    be pulled high, bit 1 configures line 1, and so on. The default is 0xff,
+ *    indicating that all GPIO lines are pulled up to logical 1.
+ *  + QOM property "pulldowns": an integer defining whether non-floating lines
+ *    configured as inputs should be pulled down to logical 0 (ie whether in
+ *    real hardware they have a pulldown resistor on the line out of the PL061).
+ *    This should be an 8-bit value, where bit 0 is 1 if GPIO line 0 should
+ *    be pulled low, bit 1 configures line 1, and so on. The default is 0x0.
+ *    It is an error to set a bit in both "pullups" and "pulldowns". If a bit
+ *    is 0 in both, then the line is considered to be floating, and it will
+ *    not have qemu_set_irq() called on it when it is configured as an input.
  */
 
 #include "qemu/osdep.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qom/object.h"
@@ -62,6 +78,9 @@ struct PL061State {
     qemu_irq irq;
     qemu_irq out[N_GPIOS];
     const unsigned char *id;
+    /* Properties, for non-Luminary PL061 */
+    uint32_t pullups;
+    uint32_t pulldowns;
 };
 
 static const VMStateDescription vmstate_pl061 = {
@@ -109,8 +128,7 @@ static uint8_t pl061_floating(PL061State *s)
          */
         floating = ~(s->pur | s->pdr);
     } else {
-        /* Assume outputs are pulled high. FIXME: this is board dependent. */
-        floating = 0;
+        floating = ~(s->pullups | s->pulldowns);
     }
     return floating & ~s->dir;
 }
@@ -131,8 +149,7 @@ static uint8_t pl061_pullups(PL061State *s)
          */
         pullups = s->pur;
     } else {
-        /* Assume outputs are pulled high. FIXME: this is board dependent. */
-        pullups = 0xff;
+        pullups = s->pullups;
     }
     return pullups & ~s->dir;
 }
@@ -499,12 +516,38 @@ static void pl061_init(Object *obj)
     qdev_init_gpio_out(dev, s->out, N_GPIOS);
 }
 
+static void pl061_realize(DeviceState *dev, Error **errp)
+{
+    PL061State *s = PL061(dev);
+
+    if (s->pullups > 0xff) {
+        error_setg(errp, "pullups property must be between 0 and 0xff");
+        return;
+    }
+    if (s->pulldowns > 0xff) {
+        error_setg(errp, "pulldowns property must be between 0 and 0xff");
+        return;
+    }
+    if (s->pullups & s->pulldowns) {
+        error_setg(errp, "no bit may be set both in pullups and pulldowns");
+        return;
+    }
+}
+
+static Property pl061_props[] = {
+    DEFINE_PROP_UINT32("pullups", PL061State, pullups, 0xff),
+    DEFINE_PROP_UINT32("pulldowns", PL061State, pulldowns, 0x0),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void pl061_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_pl061;
     dc->reset = &pl061_reset;
+    dc->realize = pl061_realize;
+    device_class_set_props(dc, pl061_props);
 }
 
 static const TypeInfo pl061_info = {
