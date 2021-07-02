@@ -94,18 +94,68 @@ static const VMStateDescription vmstate_pl061 = {
     }
 };
 
+static uint8_t pl061_floating(PL061State *s)
+{
+    /*
+     * Return mask of bits which correspond to pins configured as inputs
+     * and which are floating (neither pulled up to 1 nor down to 0).
+     */
+    uint8_t floating;
+
+    if (s->id == pl061_id_luminary) {
+        /*
+         * If both PUR and PDR bits are clear, there is neither a pullup
+         * nor a pulldown in place, and the output truly floats.
+         */
+        floating = ~(s->pur | s->pdr);
+    } else {
+        /* Assume outputs are pulled high. FIXME: this is board dependent. */
+        floating = 0;
+    }
+    return floating & ~s->dir;
+}
+
+static uint8_t pl061_pullups(PL061State *s)
+{
+    /*
+     * Return mask of bits which correspond to pins configured as inputs
+     * and which are pulled up to 1.
+     */
+    uint8_t pullups;
+
+    if (s->id == pl061_id_luminary) {
+        /*
+         * The Luminary variant of the PL061 has an extra registers which
+         * the guest can use to configure whether lines should be pullup
+         * or pulldown.
+         */
+        pullups = s->pur;
+    } else {
+        /* Assume outputs are pulled high. FIXME: this is board dependent. */
+        pullups = 0xff;
+    }
+    return pullups & ~s->dir;
+}
+
 static void pl061_update(PL061State *s)
 {
     uint8_t changed;
     uint8_t mask;
     uint8_t out;
     int i;
+    uint8_t pullups = pl061_pullups(s);
+    uint8_t floating = pl061_floating(s);
 
-    trace_pl061_update(DEVICE(s)->canonical_path, s->dir, s->data);
+    trace_pl061_update(DEVICE(s)->canonical_path, s->dir, s->data,
+                       pullups, floating);
 
-    /* Outputs float high.  */
-    /* FIXME: This is board dependent.  */
-    out = (s->data & s->dir) | ~s->dir;
+    /*
+     * Pins configured as output are driven from the data register;
+     * otherwise if they're pulled up they're 1, and if they're floating
+     * then we give them the same value they had previously, so we don't
+     * report any change to the other end.
+     */
+    out = (s->data & s->dir) | pullups | (s->old_out_data & floating);
     changed = s->old_out_data ^ out;
     if (changed) {
         s->old_out_data = out;
