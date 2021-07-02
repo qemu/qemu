@@ -55,7 +55,6 @@ struct PL061State {
     qemu_irq irq;
     qemu_irq out[N_GPIOS];
     const unsigned char *id;
-    uint32_t rsvd_start; /* reserved area: [rsvd_start, 0xfcc] */
 };
 
 static const VMStateDescription vmstate_pl061 = {
@@ -151,16 +150,9 @@ static uint64_t pl061_read(void *opaque, hwaddr offset,
 {
     PL061State *s = (PL061State *)opaque;
 
-    if (offset < 0x400) {
-        return s->data & (offset >> 2);
-    }
-    if (offset >= s->rsvd_start && offset <= 0xfcc) {
-        goto err_out;
-    }
-    if (offset >= 0xfd0 && offset < 0x1000) {
-        return s->id[(offset - 0xfd0) >> 2];
-    }
     switch (offset) {
+    case 0x0 ... 0x3ff: /* Data */
+        return s->data & (offset >> 2);
     case 0x400: /* Direction */
         return s->dir;
     case 0x404: /* Interrupt sense */
@@ -178,33 +170,68 @@ static uint64_t pl061_read(void *opaque, hwaddr offset,
     case 0x420: /* Alternate function select */
         return s->afsel;
     case 0x500: /* 2mA drive */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         return s->dr2r;
     case 0x504: /* 4mA drive */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         return s->dr4r;
     case 0x508: /* 8mA drive */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         return s->dr8r;
     case 0x50c: /* Open drain */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         return s->odr;
     case 0x510: /* Pull-up */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         return s->pur;
     case 0x514: /* Pull-down */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         return s->pdr;
     case 0x518: /* Slew rate control */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         return s->slr;
     case 0x51c: /* Digital enable */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         return s->den;
     case 0x520: /* Lock */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         return s->locked;
     case 0x524: /* Commit */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         return s->cr;
     case 0x528: /* Analog mode select */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         return s->amsel;
+    case 0xfd0 ... 0xfff: /* ID registers */
+        return s->id[(offset - 0xfd0) >> 2];
     default:
+    bad_offset:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl061_read: Bad offset %x\n", (int)offset);
         break;
     }
-err_out:
-    qemu_log_mask(LOG_GUEST_ERROR,
-                  "pl061_read: Bad offset %x\n", (int)offset);
     return 0;
 }
 
@@ -214,16 +241,12 @@ static void pl061_write(void *opaque, hwaddr offset,
     PL061State *s = (PL061State *)opaque;
     uint8_t mask;
 
-    if (offset < 0x400) {
+    switch (offset) {
+    case 0 ... 0x3ff:
         mask = (offset >> 2) & s->dir;
         s->data = (s->data & ~mask) | (value & mask);
         pl061_update(s);
         return;
-    }
-    if (offset >= s->rsvd_start) {
-        goto err_out;
-    }
-    switch (offset) {
     case 0x400: /* Direction */
         s->dir = value & 0xff;
         break;
@@ -247,47 +270,80 @@ static void pl061_write(void *opaque, hwaddr offset,
         s->afsel = (s->afsel & ~mask) | (value & mask);
         break;
     case 0x500: /* 2mA drive */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->dr2r = value & 0xff;
         break;
     case 0x504: /* 4mA drive */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->dr4r = value & 0xff;
         break;
     case 0x508: /* 8mA drive */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->dr8r = value & 0xff;
         break;
     case 0x50c: /* Open drain */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->odr = value & 0xff;
         break;
     case 0x510: /* Pull-up */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->pur = value & 0xff;
         break;
     case 0x514: /* Pull-down */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->pdr = value & 0xff;
         break;
     case 0x518: /* Slew rate control */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->slr = value & 0xff;
         break;
     case 0x51c: /* Digital enable */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->den = value & 0xff;
         break;
     case 0x520: /* Lock */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->locked = (value != 0xacce551);
         break;
     case 0x524: /* Commit */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         if (!s->locked)
             s->cr = value & 0xff;
         break;
     case 0x528:
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->amsel = value & 0xff;
         break;
     default:
-        goto err_out;
+    bad_offset:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl061_write: Bad offset %x\n", (int)offset);
+        return;
     }
     pl061_update(s);
     return;
-err_out:
-    qemu_log_mask(LOG_GUEST_ERROR,
-                  "pl061_write: Bad offset %x\n", (int)offset);
 }
 
 static void pl061_reset(DeviceState *dev)
@@ -343,7 +399,6 @@ static void pl061_luminary_init(Object *obj)
     PL061State *s = PL061(obj);
 
     s->id = pl061_id_luminary;
-    s->rsvd_start = 0x52c;
 }
 
 static void pl061_init(Object *obj)
@@ -353,7 +408,6 @@ static void pl061_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     s->id = pl061_id;
-    s->rsvd_start = 0x424;
 
     memory_region_init_io(&s->iomem, obj, &pl061_ops, s, "pl061", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
