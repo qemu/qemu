@@ -846,37 +846,48 @@ if not get_option('gnutls').auto() or have_system
   endif
 endif
 
-# Gcrypt has priority over nettle
+# We prefer use of gnutls for crypto, unless the options
+# explicitly asked for nettle or gcrypt.
+#
+# If gnutls isn't available for crypto, then we'll prefer
+# gcrypt over nettle for performance reasons.
 gcrypt = not_found
 nettle = not_found
 xts = 'none'
+
 if get_option('nettle').enabled() and get_option('gcrypt').enabled()
   error('Only one of gcrypt & nettle can be enabled')
-elif (not get_option('gcrypt').auto() or have_system) and not get_option('nettle').enabled()
-  gcrypt = dependency('libgcrypt', version: '>=1.8',
-                         method: 'config-tool',
-                         required: get_option('gcrypt'),
-                         kwargs: static_kwargs)
-  # Debian has removed -lgpg-error from libgcrypt-config
-  # as it "spreads unnecessary dependencies" which in
-  # turn breaks static builds...
-  if gcrypt.found() and enable_static
-    gcrypt = declare_dependency(dependencies: [
-      gcrypt,
-      cc.find_library('gpg-error', required: true, kwargs: static_kwargs)])
-  endif
 endif
-if (not get_option('nettle').auto() or have_system) and not gcrypt.found()
-  nettle = dependency('nettle', version: '>=3.4',
-                      method: 'pkg-config',
-                      required: get_option('nettle'),
-                      kwargs: static_kwargs)
-  if nettle.found() and not cc.has_header('nettle/xts.h', dependencies: nettle)
-    xts = 'private'
-  endif
-endif
-if gcrypt.found() or nettle.found()
+
+# Explicit nettle/gcrypt request, so ignore gnutls for crypto
+if get_option('nettle').enabled() or get_option('gcrypt').enabled()
   gnutls_crypto = not_found
+endif
+
+if not gnutls_crypto.found()
+  if (not get_option('gcrypt').auto() or have_system) and not get_option('nettle').enabled()
+    gcrypt = dependency('libgcrypt', version: '>=1.8',
+                        method: 'config-tool',
+                        required: get_option('gcrypt'),
+                        kwargs: static_kwargs)
+    # Debian has removed -lgpg-error from libgcrypt-config
+    # as it "spreads unnecessary dependencies" which in
+    # turn breaks static builds...
+    if gcrypt.found() and enable_static
+      gcrypt = declare_dependency(dependencies: [
+        gcrypt,
+        cc.find_library('gpg-error', required: true, kwargs: static_kwargs)])
+    endif
+  endif
+  if (not get_option('nettle').auto() or have_system) and not gcrypt.found()
+    nettle = dependency('nettle', version: '>=3.4',
+                        method: 'pkg-config',
+                        required: get_option('nettle'),
+                        kwargs: static_kwargs)
+    if nettle.found() and not cc.has_header('nettle/xts.h', dependencies: nettle)
+      xts = 'private'
+    endif
+  endif
 endif
 
 gtk = not_found
