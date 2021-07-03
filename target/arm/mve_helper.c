@@ -18,7 +18,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/int128.h"
 #include "cpu.h"
 #include "internals.h"
 #include "vec_internal.h"
@@ -323,6 +322,30 @@ DO_1OP(vnegw, 4, int32_t, DO_NEG)
 /* We can do these 64 bits at a time */
 DO_1OP(vfnegh, 8, uint64_t, DO_FNEGH)
 DO_1OP(vfnegs, 8, uint64_t, DO_FNEGS)
+
+/*
+ * 1 operand immediates: Vda is destination and possibly also one source.
+ * All these insns work at 64-bit widths.
+ */
+#define DO_1OP_IMM(OP, FN)                                              \
+    void HELPER(mve_##OP)(CPUARMState *env, void *vda, uint64_t imm)    \
+    {                                                                   \
+        uint64_t *da = vda;                                             \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        for (e = 0; e < 16 / 8; e++, mask >>= 8) {                      \
+            mergemask(&da[H8(e)], FN(da[H8(e)], imm), mask);            \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_MOVI(N, I) (I)
+#define DO_ANDI(N, I) ((N) & (I))
+#define DO_ORRI(N, I) ((N) | (I))
+
+DO_1OP_IMM(vmovi, DO_MOVI)
+DO_1OP_IMM(vandi, DO_ANDI)
+DO_1OP_IMM(vorri, DO_ORRI)
 
 #define DO_2OP(OP, ESIZE, TYPE, FN)                                     \
     void HELPER(glue(mve_, OP))(CPUARMState *env,                       \
@@ -710,6 +733,8 @@ DO_2OP_SAT(vqsubsw, 4, int32_t, DO_SQSUB_W)
     WRAP_QRSHL_HELPER(do_sqrshl_bhs, N, M, true, satp)
 #define DO_UQRSHL_OP(N, M, satp) \
     WRAP_QRSHL_HELPER(do_uqrshl_bhs, N, M, true, satp)
+#define DO_SUQSHL_OP(N, M, satp) \
+    WRAP_QRSHL_HELPER(do_suqrshl_bhs, N, M, false, satp)
 
 DO_2OP_SAT_S(vqshls, DO_SQSHL_OP)
 DO_2OP_SAT_U(vqshlu, DO_UQSHL_OP)
@@ -1100,40 +1125,45 @@ DO_LDAV(vmlsldavsw, 4, int32_t, false, +=, -=)
 DO_LDAV(vmlsldavxsw, 4, int32_t, true, +=, -=)
 
 /*
- * Rounding multiply add long dual accumulate high: we must keep
- * a 72-bit internal accumulator value and return the top 64 bits.
+ * Rounding multiply add long dual accumulate high. In the pseudocode
+ * this is implemented with a 72-bit internal accumulator value of which
+ * the top 64 bits are returned. We optimize this to avoid having to
+ * use 128-bit arithmetic -- we can do this because the 74-bit accumulator
+ * is squashed back into 64-bits after each beat.
  */
-#define DO_LDAVH(OP, ESIZE, TYPE, XCHG, EVENACC, ODDACC, TO128)         \
+#define DO_LDAVH(OP, TYPE, LTYPE, XCHG, SUB)                            \
     uint64_t HELPER(glue(mve_, OP))(CPUARMState *env, void *vn,         \
                                     void *vm, uint64_t a)               \
     {                                                                   \
         uint16_t mask = mve_element_mask(env);                          \
         unsigned e;                                                     \
         TYPE *n = vn, *m = vm;                                          \
-        Int128 acc = int128_lshift(TO128(a), 8);                        \
-        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+        for (e = 0; e < 16 / 4; e++, mask >>= 4) {                      \
             if (mask & 1) {                                             \
+                LTYPE mul;                                              \
                 if (e & 1) {                                            \
-                    acc = ODDACC(acc, TO128(n[H##ESIZE(e - 1 * XCHG)] * \
-                                            m[H##ESIZE(e)]));           \
+                    mul = (LTYPE)n[H4(e - 1 * XCHG)] * m[H4(e)];        \
+                    if (SUB) {                                          \
+                        mul = -mul;                                     \
+                    }                                                   \
                 } else {                                                \
-                    acc = EVENACC(acc, TO128(n[H##ESIZE(e + 1 * XCHG)] * \
-                                             m[H##ESIZE(e)]));          \
+                    mul = (LTYPE)n[H4(e + 1 * XCHG)] * m[H4(e)];        \
                 }                                                       \
-                acc = int128_add(acc, int128_make64(1 << 7));           \
+                mul = (mul >> 8) + ((mul >> 7) & 1);                    \
+                a += mul;                                               \
             }                                                           \
         }                                                               \
         mve_advance_vpt(env);                                           \
-        return int128_getlo(int128_rshift(acc, 8));                     \
+        return a;                                                       \
     }
 
-DO_LDAVH(vrmlaldavhsw, 4, int32_t, false, int128_add, int128_add, int128_makes64)
-DO_LDAVH(vrmlaldavhxsw, 4, int32_t, true, int128_add, int128_add, int128_makes64)
+DO_LDAVH(vrmlaldavhsw, int32_t, int64_t, false, false)
+DO_LDAVH(vrmlaldavhxsw, int32_t, int64_t, true, false)
 
-DO_LDAVH(vrmlaldavhuw, 4, uint32_t, false, int128_add, int128_add, int128_make64)
+DO_LDAVH(vrmlaldavhuw, uint32_t, uint64_t, false, false)
 
-DO_LDAVH(vrmlsldavhsw, 4, int32_t, false, int128_add, int128_sub, int128_makes64)
-DO_LDAVH(vrmlsldavhxsw, 4, int32_t, true, int128_add, int128_sub, int128_makes64)
+DO_LDAVH(vrmlsldavhsw, int32_t, int64_t, false, true)
+DO_LDAVH(vrmlsldavhxsw, int32_t, int64_t, true, true)
 
 /* Vector add across vector */
 #define DO_VADDV(OP, ESIZE, TYPE)                               \
@@ -1158,3 +1188,463 @@ DO_VADDV(vaddvsw, 4, uint32_t)
 DO_VADDV(vaddvub, 1, uint8_t)
 DO_VADDV(vaddvuh, 2, uint16_t)
 DO_VADDV(vaddvuw, 4, uint32_t)
+
+#define DO_VADDLV(OP, TYPE, LTYPE)                              \
+    uint64_t HELPER(glue(mve_, OP))(CPUARMState *env, void *vm, \
+                                    uint64_t ra)                \
+    {                                                           \
+        uint16_t mask = mve_element_mask(env);                  \
+        unsigned e;                                             \
+        TYPE *m = vm;                                           \
+        for (e = 0; e < 16 / 4; e++, mask >>= 4) {              \
+            if (mask & 1) {                                     \
+                ra += (LTYPE)m[H4(e)];                          \
+            }                                                   \
+        }                                                       \
+        mve_advance_vpt(env);                                   \
+        return ra;                                              \
+    }                                                           \
+
+DO_VADDLV(vaddlv_s, int32_t, int64_t)
+DO_VADDLV(vaddlv_u, uint32_t, uint64_t)
+
+/* Shifts by immediate */
+#define DO_2SHIFT(OP, ESIZE, TYPE, FN)                          \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd,     \
+                                void *vm, uint32_t shift)       \
+    {                                                           \
+        TYPE *d = vd, *m = vm;                                  \
+        uint16_t mask = mve_element_mask(env);                  \
+        unsigned e;                                             \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {      \
+            mergemask(&d[H##ESIZE(e)],                          \
+                      FN(m[H##ESIZE(e)], shift), mask);         \
+        }                                                       \
+        mve_advance_vpt(env);                                   \
+    }
+
+#define DO_2SHIFT_SAT(OP, ESIZE, TYPE, FN)                      \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd,     \
+                                void *vm, uint32_t shift)       \
+    {                                                           \
+        TYPE *d = vd, *m = vm;                                  \
+        uint16_t mask = mve_element_mask(env);                  \
+        unsigned e;                                             \
+        bool qc = false;                                        \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {      \
+            bool sat = false;                                   \
+            mergemask(&d[H##ESIZE(e)],                          \
+                      FN(m[H##ESIZE(e)], shift, &sat), mask);   \
+            qc |= sat & mask & 1;                               \
+        }                                                       \
+        if (qc) {                                               \
+            env->vfp.qc[0] = qc;                                \
+        }                                                       \
+        mve_advance_vpt(env);                                   \
+    }
+
+/* provide unsigned 2-op shift helpers for all sizes */
+#define DO_2SHIFT_U(OP, FN)                     \
+    DO_2SHIFT(OP##b, 1, uint8_t, FN)            \
+    DO_2SHIFT(OP##h, 2, uint16_t, FN)           \
+    DO_2SHIFT(OP##w, 4, uint32_t, FN)
+#define DO_2SHIFT_S(OP, FN)                     \
+    DO_2SHIFT(OP##b, 1, int8_t, FN)             \
+    DO_2SHIFT(OP##h, 2, int16_t, FN)            \
+    DO_2SHIFT(OP##w, 4, int32_t, FN)
+
+#define DO_2SHIFT_SAT_U(OP, FN)                 \
+    DO_2SHIFT_SAT(OP##b, 1, uint8_t, FN)        \
+    DO_2SHIFT_SAT(OP##h, 2, uint16_t, FN)       \
+    DO_2SHIFT_SAT(OP##w, 4, uint32_t, FN)
+#define DO_2SHIFT_SAT_S(OP, FN)                 \
+    DO_2SHIFT_SAT(OP##b, 1, int8_t, FN)         \
+    DO_2SHIFT_SAT(OP##h, 2, int16_t, FN)        \
+    DO_2SHIFT_SAT(OP##w, 4, int32_t, FN)
+
+DO_2SHIFT_U(vshli_u, DO_VSHLU)
+DO_2SHIFT_S(vshli_s, DO_VSHLS)
+DO_2SHIFT_SAT_U(vqshli_u, DO_UQSHL_OP)
+DO_2SHIFT_SAT_S(vqshli_s, DO_SQSHL_OP)
+DO_2SHIFT_SAT_S(vqshlui_s, DO_SUQSHL_OP)
+DO_2SHIFT_U(vrshli_u, DO_VRSHLU)
+DO_2SHIFT_S(vrshli_s, DO_VRSHLS)
+
+/* Shift-and-insert; we always work with 64 bits at a time */
+#define DO_2SHIFT_INSERT(OP, ESIZE, SHIFTFN, MASKFN)                    \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd,             \
+                                void *vm, uint32_t shift)               \
+    {                                                                   \
+        uint64_t *d = vd, *m = vm;                                      \
+        uint16_t mask;                                                  \
+        uint64_t shiftmask;                                             \
+        unsigned e;                                                     \
+        if (shift == 0 || shift == ESIZE * 8) {                         \
+            /*                                                          \
+             * Only VSLI can shift by 0; only VSRI can shift by <dt>.   \
+             * The generic logic would give the right answer for 0 but  \
+             * fails for <dt>.                                          \
+             */                                                         \
+            goto done;                                                  \
+        }                                                               \
+        assert(shift < ESIZE * 8);                                      \
+        mask = mve_element_mask(env);                                   \
+        /* ESIZE / 2 gives the MO_* value if ESIZE is in [1,2,4] */     \
+        shiftmask = dup_const(ESIZE / 2, MASKFN(ESIZE * 8, shift));     \
+        for (e = 0; e < 16 / 8; e++, mask >>= 8) {                      \
+            uint64_t r = (SHIFTFN(m[H8(e)], shift) & shiftmask) |       \
+                (d[H8(e)] & ~shiftmask);                                \
+            mergemask(&d[H8(e)], r, mask);                              \
+        }                                                               \
+done:                                                                   \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_SHL(N, SHIFT) ((N) << (SHIFT))
+#define DO_SHR(N, SHIFT) ((N) >> (SHIFT))
+#define SHL_MASK(EBITS, SHIFT) MAKE_64BIT_MASK((SHIFT), (EBITS) - (SHIFT))
+#define SHR_MASK(EBITS, SHIFT) MAKE_64BIT_MASK(0, (EBITS) - (SHIFT))
+
+DO_2SHIFT_INSERT(vsrib, 1, DO_SHR, SHR_MASK)
+DO_2SHIFT_INSERT(vsrih, 2, DO_SHR, SHR_MASK)
+DO_2SHIFT_INSERT(vsriw, 4, DO_SHR, SHR_MASK)
+DO_2SHIFT_INSERT(vslib, 1, DO_SHL, SHL_MASK)
+DO_2SHIFT_INSERT(vslih, 2, DO_SHL, SHL_MASK)
+DO_2SHIFT_INSERT(vsliw, 4, DO_SHL, SHL_MASK)
+
+/*
+ * Long shifts taking half-sized inputs from top or bottom of the input
+ * vector and producing a double-width result. ESIZE, TYPE are for
+ * the input, and LESIZE, LTYPE for the output.
+ * Unlike the normal shift helpers, we do not handle negative shift counts,
+ * because the long shift is strictly left-only.
+ */
+#define DO_VSHLL(OP, TOP, ESIZE, TYPE, LESIZE, LTYPE)                   \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd,             \
+                                void *vm, uint32_t shift)               \
+    {                                                                   \
+        LTYPE *d = vd;                                                  \
+        TYPE *m = vm;                                                   \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned le;                                                    \
+        assert(shift <= 16);                                            \
+        for (le = 0; le < 16 / LESIZE; le++, mask >>= LESIZE) {         \
+            LTYPE r = (LTYPE)m[H##ESIZE(le * 2 + TOP)] << shift;        \
+            mergemask(&d[H##LESIZE(le)], r, mask);                      \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_VSHLL_ALL(OP, TOP)                                \
+    DO_VSHLL(OP##sb, TOP, 1, int8_t, 2, int16_t)             \
+    DO_VSHLL(OP##ub, TOP, 1, uint8_t, 2, uint16_t)           \
+    DO_VSHLL(OP##sh, TOP, 2, int16_t, 4, int32_t)            \
+    DO_VSHLL(OP##uh, TOP, 2, uint16_t, 4, uint32_t)          \
+
+DO_VSHLL_ALL(vshllb, false)
+DO_VSHLL_ALL(vshllt, true)
+
+/*
+ * Narrowing right shifts, taking a double sized input, shifting it
+ * and putting the result in either the top or bottom half of the output.
+ * ESIZE, TYPE are the output, and LESIZE, LTYPE the input.
+ */
+#define DO_VSHRN(OP, TOP, ESIZE, TYPE, LESIZE, LTYPE, FN)       \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd,     \
+                                void *vm, uint32_t shift)       \
+    {                                                           \
+        LTYPE *m = vm;                                          \
+        TYPE *d = vd;                                           \
+        uint16_t mask = mve_element_mask(env);                  \
+        unsigned le;                                            \
+        for (le = 0; le < 16 / LESIZE; le++, mask >>= LESIZE) { \
+            TYPE r = FN(m[H##LESIZE(le)], shift);               \
+            mergemask(&d[H##ESIZE(le * 2 + TOP)], r, mask);     \
+        }                                                       \
+        mve_advance_vpt(env);                                   \
+    }
+
+#define DO_VSHRN_ALL(OP, FN)                                    \
+    DO_VSHRN(OP##bb, false, 1, uint8_t, 2, uint16_t, FN)        \
+    DO_VSHRN(OP##bh, false, 2, uint16_t, 4, uint32_t, FN)       \
+    DO_VSHRN(OP##tb, true, 1, uint8_t, 2, uint16_t, FN)         \
+    DO_VSHRN(OP##th, true, 2, uint16_t, 4, uint32_t, FN)
+
+static inline uint64_t do_urshr(uint64_t x, unsigned sh)
+{
+    if (likely(sh < 64)) {
+        return (x >> sh) + ((x >> (sh - 1)) & 1);
+    } else if (sh == 64) {
+        return x >> 63;
+    } else {
+        return 0;
+    }
+}
+
+static inline int64_t do_srshr(int64_t x, unsigned sh)
+{
+    if (likely(sh < 64)) {
+        return (x >> sh) + ((x >> (sh - 1)) & 1);
+    } else {
+        /* Rounding the sign bit always produces 0. */
+        return 0;
+    }
+}
+
+DO_VSHRN_ALL(vshrn, DO_SHR)
+DO_VSHRN_ALL(vrshrn, do_urshr)
+
+static inline int32_t do_sat_bhs(int64_t val, int64_t min, int64_t max,
+                                 bool *satp)
+{
+    if (val > max) {
+        *satp = true;
+        return max;
+    } else if (val < min) {
+        *satp = true;
+        return min;
+    } else {
+        return val;
+    }
+}
+
+/* Saturating narrowing right shifts */
+#define DO_VSHRN_SAT(OP, TOP, ESIZE, TYPE, LESIZE, LTYPE, FN)   \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd,     \
+                                void *vm, uint32_t shift)       \
+    {                                                           \
+        LTYPE *m = vm;                                          \
+        TYPE *d = vd;                                           \
+        uint16_t mask = mve_element_mask(env);                  \
+        bool qc = false;                                        \
+        unsigned le;                                            \
+        for (le = 0; le < 16 / LESIZE; le++, mask >>= LESIZE) { \
+            bool sat = false;                                   \
+            TYPE r = FN(m[H##LESIZE(le)], shift, &sat);         \
+            mergemask(&d[H##ESIZE(le * 2 + TOP)], r, mask);     \
+            qc |= sat && (mask & 1 << (TOP * ESIZE));           \
+        }                                                       \
+        if (qc) {                                               \
+            env->vfp.qc[0] = qc;                                \
+        }                                                       \
+        mve_advance_vpt(env);                                   \
+    }
+
+#define DO_VSHRN_SAT_UB(BOP, TOP, FN)                           \
+    DO_VSHRN_SAT(BOP, false, 1, uint8_t, 2, uint16_t, FN)       \
+    DO_VSHRN_SAT(TOP, true, 1, uint8_t, 2, uint16_t, FN)
+
+#define DO_VSHRN_SAT_UH(BOP, TOP, FN)                           \
+    DO_VSHRN_SAT(BOP, false, 2, uint16_t, 4, uint32_t, FN)      \
+    DO_VSHRN_SAT(TOP, true, 2, uint16_t, 4, uint32_t, FN)
+
+#define DO_VSHRN_SAT_SB(BOP, TOP, FN)                           \
+    DO_VSHRN_SAT(BOP, false, 1, int8_t, 2, int16_t, FN)         \
+    DO_VSHRN_SAT(TOP, true, 1, int8_t, 2, int16_t, FN)
+
+#define DO_VSHRN_SAT_SH(BOP, TOP, FN)                           \
+    DO_VSHRN_SAT(BOP, false, 2, int16_t, 4, int32_t, FN)        \
+    DO_VSHRN_SAT(TOP, true, 2, int16_t, 4, int32_t, FN)
+
+#define DO_SHRN_SB(N, M, SATP)                                  \
+    do_sat_bhs((int64_t)(N) >> (M), INT8_MIN, INT8_MAX, SATP)
+#define DO_SHRN_UB(N, M, SATP)                                  \
+    do_sat_bhs((uint64_t)(N) >> (M), 0, UINT8_MAX, SATP)
+#define DO_SHRUN_B(N, M, SATP)                                  \
+    do_sat_bhs((int64_t)(N) >> (M), 0, UINT8_MAX, SATP)
+
+#define DO_SHRN_SH(N, M, SATP)                                  \
+    do_sat_bhs((int64_t)(N) >> (M), INT16_MIN, INT16_MAX, SATP)
+#define DO_SHRN_UH(N, M, SATP)                                  \
+    do_sat_bhs((uint64_t)(N) >> (M), 0, UINT16_MAX, SATP)
+#define DO_SHRUN_H(N, M, SATP)                                  \
+    do_sat_bhs((int64_t)(N) >> (M), 0, UINT16_MAX, SATP)
+
+#define DO_RSHRN_SB(N, M, SATP)                                 \
+    do_sat_bhs(do_srshr(N, M), INT8_MIN, INT8_MAX, SATP)
+#define DO_RSHRN_UB(N, M, SATP)                                 \
+    do_sat_bhs(do_urshr(N, M), 0, UINT8_MAX, SATP)
+#define DO_RSHRUN_B(N, M, SATP)                                 \
+    do_sat_bhs(do_srshr(N, M), 0, UINT8_MAX, SATP)
+
+#define DO_RSHRN_SH(N, M, SATP)                                 \
+    do_sat_bhs(do_srshr(N, M), INT16_MIN, INT16_MAX, SATP)
+#define DO_RSHRN_UH(N, M, SATP)                                 \
+    do_sat_bhs(do_urshr(N, M), 0, UINT16_MAX, SATP)
+#define DO_RSHRUN_H(N, M, SATP)                                 \
+    do_sat_bhs(do_srshr(N, M), 0, UINT16_MAX, SATP)
+
+DO_VSHRN_SAT_SB(vqshrnb_sb, vqshrnt_sb, DO_SHRN_SB)
+DO_VSHRN_SAT_SH(vqshrnb_sh, vqshrnt_sh, DO_SHRN_SH)
+DO_VSHRN_SAT_UB(vqshrnb_ub, vqshrnt_ub, DO_SHRN_UB)
+DO_VSHRN_SAT_UH(vqshrnb_uh, vqshrnt_uh, DO_SHRN_UH)
+DO_VSHRN_SAT_SB(vqshrunbb, vqshruntb, DO_SHRUN_B)
+DO_VSHRN_SAT_SH(vqshrunbh, vqshrunth, DO_SHRUN_H)
+
+DO_VSHRN_SAT_SB(vqrshrnb_sb, vqrshrnt_sb, DO_RSHRN_SB)
+DO_VSHRN_SAT_SH(vqrshrnb_sh, vqrshrnt_sh, DO_RSHRN_SH)
+DO_VSHRN_SAT_UB(vqrshrnb_ub, vqrshrnt_ub, DO_RSHRN_UB)
+DO_VSHRN_SAT_UH(vqrshrnb_uh, vqrshrnt_uh, DO_RSHRN_UH)
+DO_VSHRN_SAT_SB(vqrshrunbb, vqrshruntb, DO_RSHRUN_B)
+DO_VSHRN_SAT_SH(vqrshrunbh, vqrshrunth, DO_RSHRUN_H)
+
+uint32_t HELPER(mve_vshlc)(CPUARMState *env, void *vd, uint32_t rdm,
+                           uint32_t shift)
+{
+    uint32_t *d = vd;
+    uint16_t mask = mve_element_mask(env);
+    unsigned e;
+    uint32_t r;
+
+    /*
+     * For each 32-bit element, we shift it left, bringing in the
+     * low 'shift' bits of rdm at the bottom. Bits shifted out at
+     * the top become the new rdm, if the predicate mask permits.
+     * The final rdm value is returned to update the register.
+     * shift == 0 here means "shift by 32 bits".
+     */
+    if (shift == 0) {
+        for (e = 0; e < 16 / 4; e++, mask >>= 4) {
+            r = rdm;
+            if (mask & 1) {
+                rdm = d[H4(e)];
+            }
+            mergemask(&d[H4(e)], r, mask);
+        }
+    } else {
+        uint32_t shiftmask = MAKE_64BIT_MASK(0, shift);
+
+        for (e = 0; e < 16 / 4; e++, mask >>= 4) {
+            r = (d[H4(e)] << shift) | (rdm & shiftmask);
+            if (mask & 1) {
+                rdm = d[H4(e)] >> (32 - shift);
+            }
+            mergemask(&d[H4(e)], r, mask);
+        }
+    }
+    mve_advance_vpt(env);
+    return rdm;
+}
+
+uint64_t HELPER(mve_sshrl)(CPUARMState *env, uint64_t n, uint32_t shift)
+{
+    return do_sqrshl_d(n, -(int8_t)shift, false, NULL);
+}
+
+uint64_t HELPER(mve_ushll)(CPUARMState *env, uint64_t n, uint32_t shift)
+{
+    return do_uqrshl_d(n, (int8_t)shift, false, NULL);
+}
+
+uint64_t HELPER(mve_sqshll)(CPUARMState *env, uint64_t n, uint32_t shift)
+{
+    return do_sqrshl_d(n, (int8_t)shift, false, &env->QF);
+}
+
+uint64_t HELPER(mve_uqshll)(CPUARMState *env, uint64_t n, uint32_t shift)
+{
+    return do_uqrshl_d(n, (int8_t)shift, false, &env->QF);
+}
+
+uint64_t HELPER(mve_sqrshrl)(CPUARMState *env, uint64_t n, uint32_t shift)
+{
+    return do_sqrshl_d(n, -(int8_t)shift, true, &env->QF);
+}
+
+uint64_t HELPER(mve_uqrshll)(CPUARMState *env, uint64_t n, uint32_t shift)
+{
+    return do_uqrshl_d(n, (int8_t)shift, true, &env->QF);
+}
+
+/* Operate on 64-bit values, but saturate at 48 bits */
+static inline int64_t do_sqrshl48_d(int64_t src, int64_t shift,
+                                    bool round, uint32_t *sat)
+{
+    if (shift <= -48) {
+        /* Rounding the sign bit always produces 0. */
+        if (round) {
+            return 0;
+        }
+        return src >> 63;
+    } else if (shift < 0) {
+        if (round) {
+            src >>= -shift - 1;
+            return (src >> 1) + (src & 1);
+        }
+        return src >> -shift;
+    } else if (shift < 48) {
+        int64_t val = src << shift;
+        int64_t extval = sextract64(val, 0, 48);
+        if (!sat || val == extval) {
+            return extval;
+        }
+    } else if (!sat || src == 0) {
+        return 0;
+    }
+
+    *sat = 1;
+    return (1ULL << 47) - (src >= 0);
+}
+
+/* Operate on 64-bit values, but saturate at 48 bits */
+static inline uint64_t do_uqrshl48_d(uint64_t src, int64_t shift,
+                                     bool round, uint32_t *sat)
+{
+    uint64_t val, extval;
+
+    if (shift <= -(48 + round)) {
+        return 0;
+    } else if (shift < 0) {
+        if (round) {
+            val = src >> (-shift - 1);
+            val = (val >> 1) + (val & 1);
+        } else {
+            val = src >> -shift;
+        }
+        extval = extract64(val, 0, 48);
+        if (!sat || val == extval) {
+            return extval;
+        }
+    } else if (shift < 48) {
+        uint64_t val = src << shift;
+        uint64_t extval = extract64(val, 0, 48);
+        if (!sat || val == extval) {
+            return extval;
+        }
+    } else if (!sat || src == 0) {
+        return 0;
+    }
+
+    *sat = 1;
+    return MAKE_64BIT_MASK(0, 48);
+}
+
+uint64_t HELPER(mve_sqrshrl48)(CPUARMState *env, uint64_t n, uint32_t shift)
+{
+    return do_sqrshl48_d(n, -(int8_t)shift, true, &env->QF);
+}
+
+uint64_t HELPER(mve_uqrshll48)(CPUARMState *env, uint64_t n, uint32_t shift)
+{
+    return do_uqrshl48_d(n, (int8_t)shift, true, &env->QF);
+}
+
+uint32_t HELPER(mve_uqshl)(CPUARMState *env, uint32_t n, uint32_t shift)
+{
+    return do_uqrshl_bhs(n, (int8_t)shift, 32, false, &env->QF);
+}
+
+uint32_t HELPER(mve_sqshl)(CPUARMState *env, uint32_t n, uint32_t shift)
+{
+    return do_sqrshl_bhs(n, (int8_t)shift, 32, false, &env->QF);
+}
+
+uint32_t HELPER(mve_uqrshl)(CPUARMState *env, uint32_t n, uint32_t shift)
+{
+    return do_uqrshl_bhs(n, (int8_t)shift, 32, true, &env->QF);
+}
+
+uint32_t HELPER(mve_sqrshr)(CPUARMState *env, uint32_t n, uint32_t shift)
+{
+    return do_sqrshl_bhs(n, -(int8_t)shift, 32, true, &env->QF);
+}

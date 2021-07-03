@@ -32,8 +32,10 @@ typedef void MVEGenLdStFn(TCGv_ptr, TCGv_ptr, TCGv_i32);
 typedef void MVEGenOneOpFn(TCGv_ptr, TCGv_ptr, TCGv_ptr);
 typedef void MVEGenTwoOpFn(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr);
 typedef void MVEGenTwoOpScalarFn(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i32);
+typedef void MVEGenTwoOpShiftFn(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i32);
 typedef void MVEGenDualAccOpFn(TCGv_i64, TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i64);
 typedef void MVEGenVADDVFn(TCGv_i32, TCGv_ptr, TCGv_ptr, TCGv_i32);
+typedef void MVEGenOneOpImmFn(TCGv_ptr, TCGv_ptr, TCGv_i64);
 
 /* Return the offset of a Qn register (same semantics as aa32_vfp_qreg()) */
 static inline long mve_qreg_offset(unsigned reg)
@@ -120,7 +122,8 @@ static bool mve_skip_first_beat(DisasContext *s)
     }
 }
 
-static bool do_ldst(DisasContext *s, arg_VLDR_VSTR *a, MVEGenLdStFn *fn)
+static bool do_ldst(DisasContext *s, arg_VLDR_VSTR *a, MVEGenLdStFn *fn,
+                    unsigned msize)
 {
     TCGv_i32 addr;
     uint32_t offset;
@@ -141,7 +144,7 @@ static bool do_ldst(DisasContext *s, arg_VLDR_VSTR *a, MVEGenLdStFn *fn)
         return true;
     }
 
-    offset = a->imm << a->size;
+    offset = a->imm << msize;
     if (!a->a) {
         offset = -offset;
     }
@@ -178,22 +181,22 @@ static bool trans_VLDR_VSTR(DisasContext *s, arg_VLDR_VSTR *a)
         { gen_helper_mve_vstrw, gen_helper_mve_vldrw },
         { NULL, NULL }
     };
-    return do_ldst(s, a, ldstfns[a->size][a->l]);
+    return do_ldst(s, a, ldstfns[a->size][a->l], a->size);
 }
 
-#define DO_VLDST_WIDE_NARROW(OP, SLD, ULD, ST)                  \
+#define DO_VLDST_WIDE_NARROW(OP, SLD, ULD, ST, MSIZE)           \
     static bool trans_##OP(DisasContext *s, arg_VLDR_VSTR *a)   \
     {                                                           \
         static MVEGenLdStFn * const ldstfns[2][2] = {           \
             { gen_helper_mve_##ST, gen_helper_mve_##SLD },      \
             { NULL, gen_helper_mve_##ULD },                     \
         };                                                      \
-        return do_ldst(s, a, ldstfns[a->u][a->l]);              \
+        return do_ldst(s, a, ldstfns[a->u][a->l], MSIZE);       \
     }
 
-DO_VLDST_WIDE_NARROW(VLDSTB_H, vldrb_sh, vldrb_uh, vstrb_h)
-DO_VLDST_WIDE_NARROW(VLDSTB_W, vldrb_sw, vldrb_uw, vstrb_w)
-DO_VLDST_WIDE_NARROW(VLDSTH_W, vldrh_sw, vldrh_uw, vstrh_w)
+DO_VLDST_WIDE_NARROW(VLDSTB_H, vldrb_sh, vldrb_uh, vstrb_h, MO_8)
+DO_VLDST_WIDE_NARROW(VLDSTB_W, vldrb_sw, vldrb_uw, vstrb_w, MO_8)
+DO_VLDST_WIDE_NARROW(VLDSTH_W, vldrh_sw, vldrh_uw, vstrh_w, MO_16)
 
 static bool trans_VDUP(DisasContext *s, arg_VDUP *a)
 {
@@ -783,6 +786,248 @@ static bool trans_VADDV(DisasContext *s, arg_VADDV *a)
     store_reg(s, a->rda, rda);
     tcg_temp_free_ptr(qm);
 
+    mve_update_eci(s);
+    return true;
+}
+
+static bool trans_VADDLV(DisasContext *s, arg_VADDLV *a)
+{
+    /*
+     * Vector Add Long Across Vector: accumulate the 32-bit
+     * elements of the vector into a 64-bit result stored in
+     * a pair of general-purpose registers.
+     * No need to check Qm's bank: it is only 3 bits in decode.
+     */
+    TCGv_ptr qm;
+    TCGv_i64 rda;
+    TCGv_i32 rdalo, rdahi;
+
+    if (!dc_isar_feature(aa32_mve, s)) {
+        return false;
+    }
+    /*
+     * rdahi == 13 is UNPREDICTABLE; rdahi == 15 is a related
+     * encoding; rdalo always has bit 0 clear so cannot be 13 or 15.
+     */
+    if (a->rdahi == 13 || a->rdahi == 15) {
+        return false;
+    }
+    if (!mve_eci_check(s) || !vfp_access_check(s)) {
+        return true;
+    }
+
+    /*
+     * This insn is subject to beat-wise execution. Partial execution
+     * of an A=0 (no-accumulate) insn which does not execute the first
+     * beat must start with the current value of RdaHi:RdaLo, not zero.
+     */
+    if (a->a || mve_skip_first_beat(s)) {
+        /* Accumulate input from RdaHi:RdaLo */
+        rda = tcg_temp_new_i64();
+        rdalo = load_reg(s, a->rdalo);
+        rdahi = load_reg(s, a->rdahi);
+        tcg_gen_concat_i32_i64(rda, rdalo, rdahi);
+        tcg_temp_free_i32(rdalo);
+        tcg_temp_free_i32(rdahi);
+    } else {
+        /* Accumulate starting at zero */
+        rda = tcg_const_i64(0);
+    }
+
+    qm = mve_qreg_ptr(a->qm);
+    if (a->u) {
+        gen_helper_mve_vaddlv_u(rda, cpu_env, qm, rda);
+    } else {
+        gen_helper_mve_vaddlv_s(rda, cpu_env, qm, rda);
+    }
+    tcg_temp_free_ptr(qm);
+
+    rdalo = tcg_temp_new_i32();
+    rdahi = tcg_temp_new_i32();
+    tcg_gen_extrl_i64_i32(rdalo, rda);
+    tcg_gen_extrh_i64_i32(rdahi, rda);
+    store_reg(s, a->rdalo, rdalo);
+    store_reg(s, a->rdahi, rdahi);
+    tcg_temp_free_i64(rda);
+    mve_update_eci(s);
+    return true;
+}
+
+static bool do_1imm(DisasContext *s, arg_1imm *a, MVEGenOneOpImmFn *fn)
+{
+    TCGv_ptr qd;
+    uint64_t imm;
+
+    if (!dc_isar_feature(aa32_mve, s) ||
+        !mve_check_qreg_bank(s, a->qd) ||
+        !fn) {
+        return false;
+    }
+    if (!mve_eci_check(s) || !vfp_access_check(s)) {
+        return true;
+    }
+
+    imm = asimd_imm_const(a->imm, a->cmode, a->op);
+
+    qd = mve_qreg_ptr(a->qd);
+    fn(cpu_env, qd, tcg_constant_i64(imm));
+    tcg_temp_free_ptr(qd);
+    mve_update_eci(s);
+    return true;
+}
+
+static bool trans_Vimm_1r(DisasContext *s, arg_1imm *a)
+{
+    /* Handle decode of cmode/op here between VORR/VBIC/VMOV */
+    MVEGenOneOpImmFn *fn;
+
+    if ((a->cmode & 1) && a->cmode < 12) {
+        if (a->op) {
+            /*
+             * For op=1, the immediate will be inverted by asimd_imm_const(),
+             * so the VBIC becomes a logical AND operation.
+             */
+            fn = gen_helper_mve_vandi;
+        } else {
+            fn = gen_helper_mve_vorri;
+        }
+    } else {
+        /* There is one unallocated cmode/op combination in this space */
+        if (a->cmode == 15 && a->op == 1) {
+            return false;
+        }
+        /* asimd_imm_const() sorts out VMVNI vs VMOVI for us */
+        fn = gen_helper_mve_vmovi;
+    }
+    return do_1imm(s, a, fn);
+}
+
+static bool do_2shift(DisasContext *s, arg_2shift *a, MVEGenTwoOpShiftFn fn,
+                      bool negateshift)
+{
+    TCGv_ptr qd, qm;
+    int shift = a->shift;
+
+    if (!dc_isar_feature(aa32_mve, s) ||
+        !mve_check_qreg_bank(s, a->qd | a->qm) ||
+        !fn) {
+        return false;
+    }
+    if (!mve_eci_check(s) || !vfp_access_check(s)) {
+        return true;
+    }
+
+    /*
+     * When we handle a right shift insn using a left-shift helper
+     * which permits a negative shift count to indicate a right-shift,
+     * we must negate the shift count.
+     */
+    if (negateshift) {
+        shift = -shift;
+    }
+
+    qd = mve_qreg_ptr(a->qd);
+    qm = mve_qreg_ptr(a->qm);
+    fn(cpu_env, qd, qm, tcg_constant_i32(shift));
+    tcg_temp_free_ptr(qd);
+    tcg_temp_free_ptr(qm);
+    mve_update_eci(s);
+    return true;
+}
+
+#define DO_2SHIFT(INSN, FN, NEGATESHIFT)                         \
+    static bool trans_##INSN(DisasContext *s, arg_2shift *a)    \
+    {                                                           \
+        static MVEGenTwoOpShiftFn * const fns[] = {             \
+            gen_helper_mve_##FN##b,                             \
+            gen_helper_mve_##FN##h,                             \
+            gen_helper_mve_##FN##w,                             \
+            NULL,                                               \
+        };                                                      \
+        return do_2shift(s, a, fns[a->size], NEGATESHIFT);      \
+    }
+
+DO_2SHIFT(VSHLI, vshli_u, false)
+DO_2SHIFT(VQSHLI_S, vqshli_s, false)
+DO_2SHIFT(VQSHLI_U, vqshli_u, false)
+DO_2SHIFT(VQSHLUI, vqshlui_s, false)
+/* These right shifts use a left-shift helper with negated shift count */
+DO_2SHIFT(VSHRI_S, vshli_s, true)
+DO_2SHIFT(VSHRI_U, vshli_u, true)
+DO_2SHIFT(VRSHRI_S, vrshli_s, true)
+DO_2SHIFT(VRSHRI_U, vrshli_u, true)
+
+DO_2SHIFT(VSRI, vsri, false)
+DO_2SHIFT(VSLI, vsli, false)
+
+#define DO_VSHLL(INSN, FN)                                      \
+    static bool trans_##INSN(DisasContext *s, arg_2shift *a)    \
+    {                                                           \
+        static MVEGenTwoOpShiftFn * const fns[] = {             \
+            gen_helper_mve_##FN##b,                             \
+            gen_helper_mve_##FN##h,                             \
+        };                                                      \
+        return do_2shift(s, a, fns[a->size], false);            \
+    }
+
+DO_VSHLL(VSHLL_BS, vshllbs)
+DO_VSHLL(VSHLL_BU, vshllbu)
+DO_VSHLL(VSHLL_TS, vshllts)
+DO_VSHLL(VSHLL_TU, vshlltu)
+
+#define DO_2SHIFT_N(INSN, FN)                                   \
+    static bool trans_##INSN(DisasContext *s, arg_2shift *a)    \
+    {                                                           \
+        static MVEGenTwoOpShiftFn * const fns[] = {             \
+            gen_helper_mve_##FN##b,                             \
+            gen_helper_mve_##FN##h,                             \
+        };                                                      \
+        return do_2shift(s, a, fns[a->size], false);            \
+    }
+
+DO_2SHIFT_N(VSHRNB, vshrnb)
+DO_2SHIFT_N(VSHRNT, vshrnt)
+DO_2SHIFT_N(VRSHRNB, vrshrnb)
+DO_2SHIFT_N(VRSHRNT, vrshrnt)
+DO_2SHIFT_N(VQSHRNB_S, vqshrnb_s)
+DO_2SHIFT_N(VQSHRNT_S, vqshrnt_s)
+DO_2SHIFT_N(VQSHRNB_U, vqshrnb_u)
+DO_2SHIFT_N(VQSHRNT_U, vqshrnt_u)
+DO_2SHIFT_N(VQSHRUNB, vqshrunb)
+DO_2SHIFT_N(VQSHRUNT, vqshrunt)
+DO_2SHIFT_N(VQRSHRNB_S, vqrshrnb_s)
+DO_2SHIFT_N(VQRSHRNT_S, vqrshrnt_s)
+DO_2SHIFT_N(VQRSHRNB_U, vqrshrnb_u)
+DO_2SHIFT_N(VQRSHRNT_U, vqrshrnt_u)
+DO_2SHIFT_N(VQRSHRUNB, vqrshrunb)
+DO_2SHIFT_N(VQRSHRUNT, vqrshrunt)
+
+static bool trans_VSHLC(DisasContext *s, arg_VSHLC *a)
+{
+    /*
+     * Whole Vector Left Shift with Carry. The carry is taken
+     * from a general purpose register and written back there.
+     * An imm of 0 means "shift by 32".
+     */
+    TCGv_ptr qd;
+    TCGv_i32 rdm;
+
+    if (!dc_isar_feature(aa32_mve, s) || !mve_check_qreg_bank(s, a->qd)) {
+        return false;
+    }
+    if (a->rdm == 13 || a->rdm == 15) {
+        /* CONSTRAINED UNPREDICTABLE: we UNDEF */
+        return false;
+    }
+    if (!mve_eci_check(s) || !vfp_access_check(s)) {
+        return true;
+    }
+
+    qd = mve_qreg_ptr(a->qd);
+    rdm = load_reg(s, a->rdm);
+    gen_helper_mve_vshlc(rdm, cpu_env, qd, rdm, tcg_constant_i32(a->imm));
+    store_reg(s, a->rdm, rdm);
+    tcg_temp_free_ptr(qd);
     mve_update_eci(s);
     return true;
 }

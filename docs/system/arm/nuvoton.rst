@@ -1,5 +1,5 @@
-Nuvoton iBMC boards (``npcm750-evb``, ``quanta-gsj``)
-=====================================================
+Nuvoton iBMC boards (``*-bmc``, ``npcm750-evb``, ``quanta-gsj``)
+================================================================
 
 The `Nuvoton iBMC`_ chips (NPCM7xx) are a family of ARM-based SoCs that are
 designed to be used as Baseboard Management Controllers (BMCs) in various
@@ -18,6 +18,7 @@ segment. The following machines are based on this chip :
 The NPCM730 SoC has two Cortex-A9 cores and is targeted for Data Center and
 Hyperscale applications. The following machines are based on this chip :
 
+- ``quanta-gbs-bmc``    Quanta GBS server BMC
 - ``quanta-gsj``        Quanta GSJ server BMC
 
 There are also two more SoCs, NPCM710 and NPCM705, which are single-core
