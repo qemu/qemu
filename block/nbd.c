@@ -371,6 +371,9 @@ int coroutine_fn nbd_co_do_establish_connection(BlockDriverState *bs,
         return -ECONNREFUSED;
     }
 
+    yank_register_function(BLOCKDEV_YANK_INSTANCE(s->bs->node_name), nbd_yank,
+                           bs);
+
     ret = nbd_handle_updated_info(s->bs, NULL);
     if (ret < 0) {
         /*
@@ -381,6 +384,8 @@ int coroutine_fn nbd_co_do_establish_connection(BlockDriverState *bs,
 
         nbd_send_request(s->ioc, &request);
 
+        yank_unregister_function(BLOCKDEV_YANK_INSTANCE(s->bs->node_name),
+                                 nbd_yank, bs);
         object_unref(OBJECT(s->ioc));
         s->ioc = NULL;
 
@@ -389,9 +394,6 @@ int coroutine_fn nbd_co_do_establish_connection(BlockDriverState *bs,
 
     qio_channel_set_blocking(s->ioc, false, NULL);
     qio_channel_attach_aio_context(s->ioc, bdrv_get_aio_context(bs));
-
-    yank_register_function(BLOCKDEV_YANK_INSTANCE(s->bs->node_name), nbd_yank,
-                           bs);
 
     /* successfully connected */
     s->state = NBD_CLIENT_CONNECTED;
