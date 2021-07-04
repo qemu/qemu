@@ -378,11 +378,6 @@ static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
     return 0;
 }
 
-void tb_destroy(TranslationBlock *tb)
-{
-    qemu_spin_destroy(&tb->jmp_lock);
-}
-
 bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc, bool will_exit)
 {
     /*
@@ -1681,7 +1676,6 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 
         orig_aligned -= ROUND_UP(sizeof(*tb), qemu_icache_linesize);
         qatomic_set(&tcg_ctx->code_gen_ptr, (void *)orig_aligned);
-        tb_destroy(tb);
         tcg_tb_remove(tb);
         return existing_tb;
     }

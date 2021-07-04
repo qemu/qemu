@@ -112,7 +112,7 @@ static int ptr_cmp_tb_tc(const void *ptr, const struct tb_tc *s)
     return 0;
 }
 
-static gint tb_tc_cmp(gconstpointer ap, gconstpointer bp)
+static gint tb_tc_cmp(gconstpointer ap, gconstpointer bp, gpointer userdata)
 {
     const struct tb_tc *a = ap;
     const struct tb_tc *b = bp;
@@ -143,6 +143,12 @@ static gint tb_tc_cmp(gconstpointer ap, gconstpointer bp)
     return ptr_cmp_tb_tc(b->ptr, a);
 }
 
+static void tb_destroy(gpointer value)
+{
+    TranslationBlock *tb = value;
+    qemu_spin_destroy(&tb->jmp_lock);
+}
+
 static void tcg_region_trees_init(void)
 {
     size_t i;
@@ -153,7 +159,7 @@ static void tcg_region_trees_init(void)
         struct tcg_region_tree *rt = region_trees + i * tree_size;
 
         qemu_mutex_init(&rt->lock);
-        rt->tree = g_tree_new(tb_tc_cmp);
+        rt->tree = g_tree_new_full(tb_tc_cmp, NULL, NULL, tb_destroy);
     }
 }
 
@@ -277,14 +283,6 @@ size_t tcg_nb_tbs(void)
     return nb_tbs;
 }
 
-static gboolean tcg_region_tree_traverse(gpointer k, gpointer v, gpointer data)
-{
-    TranslationBlock *tb = v;
-
-    tb_destroy(tb);
-    return FALSE;
-}
-
 static void tcg_region_tree_reset_all(void)
 {
     size_t i;
@@ -293,7 +291,6 @@ static void tcg_region_tree_reset_all(void)
     for (i = 0; i < region.n; i++) {
         struct tcg_region_tree *rt = region_trees + i * tree_size;
 
-        g_tree_foreach(rt->tree, tcg_region_tree_traverse, NULL);
         /* Increment the refcount first so that destroy acts as a reset */
         g_tree_ref(rt->tree);
         g_tree_destroy(rt->tree);
