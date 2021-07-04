@@ -1,5 +1,8 @@
 # See docs/devel/tracing.rst for syntax documentation.
 
+# bonito.c
+bonito_spciconf_small_access(uint64_t addr, unsigned size) "PCI config address is smaller then 32-bit, addr: 0x%"PRIx64", size: %u"
+
 # grackle.c
 grackle_set_irq(int irq_num, int level) "set_irq num %d level %d"
 
