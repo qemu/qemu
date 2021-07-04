@@ -56,6 +56,8 @@
 #include "multifd.h"
 #include "sysemu/runstate.h"
 
+#include "hw/boards.h" /* for machine_dump_guest_core() */
+
 #if defined(__linux__)
 #include "qemu/userfaultfd.h"
 #endif /* defined(__linux__) */
@@ -3541,6 +3543,10 @@ int colo_init_ram_cache(void)
                     }
                 }
                 return -errno;
+            }
+            if (!machine_dump_guest_core(current_machine)) {
+                qemu_madvise(block->colo_cache, block->used_length,
+                             QEMU_MADV_DONTDUMP);
             }
         }
     }
