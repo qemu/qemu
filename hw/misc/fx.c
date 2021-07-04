@@ -166,7 +166,7 @@ static void *fx_forcer_thread(void *opaque)
     while (1) {
 
         
-        g_usleep(3 * G_USEC_PER_SEC);
+        g_usleep(5 * G_USEC_PER_SEC);
         qemu_mutex_lock(&fx->thr_mutex);
         fx_raise_irq(fx, 0x1);
 
