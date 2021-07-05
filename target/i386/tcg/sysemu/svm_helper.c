@@ -269,7 +269,14 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     env->dr[6] = x86_ldq_phys(cs,
                           env->vm_vmcb + offsetof(struct vmcb, save.dr6));
 
-    /* FIXME: guest state consistency checks */
+#ifdef TARGET_X86_64
+    if (env->dr[6] & SVM_DR_RESERVED_MASK) {
+        cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
+    }
+    if (env->dr[7] & SVM_DR_RESERVED_MASK) {
+        cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
+    }
+#endif
 
     switch (x86_ldub_phys(cs,
                       env->vm_vmcb + offsetof(struct vmcb, control.tlb_ctl))) {
