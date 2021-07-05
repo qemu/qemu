@@ -113,6 +113,11 @@ static void virtio_gpu_gl_device_realize(DeviceState *qdev, Error **errp)
     return;
 #endif
 
+    if (!object_resolve_path_type("", TYPE_VIRTIO_GPU_GL, NULL)) {
+        error_setg(errp, "at most one %s device is permitted", TYPE_VIRTIO_GPU_GL);
+        return;
+    }
+
     if (!display_opengl) {
         error_setg(errp, "opengl is not available");
         return;
