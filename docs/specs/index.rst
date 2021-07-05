@@ -1,9 +1,8 @@
-.. This is the top level page for the 'specs' manual
-
-
 System Emulation Guest Hardware Specifications
 ==============================================
 
+This section of the manual contains specifications of
+guest hardware that is specific to QEMU.
 
 Contents:
 
