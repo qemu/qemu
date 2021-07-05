@@ -122,6 +122,34 @@ static void kvm_cpu_max_instance_init(X86CPU *cpu)
         kvm_arch_get_supported_cpuid(s, 0xC0000000, 0, R_EAX);
 }
 
+static void kvm_cpu_xsave_init(void)
+{
+    static bool first = true;
+    KVMState *s = kvm_state;
+    int i;
+
+    if (!first) {
+        return;
+    }
+    first = false;
+
+    /* x87 and SSE states are in the legacy region of the XSAVE area. */
+    x86_ext_save_areas[XSTATE_FP_BIT].offset = 0;
+    x86_ext_save_areas[XSTATE_SSE_BIT].offset = 0;
+
+    for (i = XSTATE_SSE_BIT + 1; i < XSAVE_STATE_AREA_COUNT; i++) {
+        ExtSaveArea *esa = &x86_ext_save_areas[i];
+
+        if (esa->size) {
+            int sz = kvm_arch_get_supported_cpuid(s, 0xd, i, R_EAX);
+            if (sz != 0) {
+                assert(esa->size == sz);
+                esa->offset = kvm_arch_get_supported_cpuid(s, 0xd, i, R_EBX);
+            }
+        }
+    }
+}
+
 static void kvm_cpu_instance_init(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);
@@ -141,6 +169,8 @@ static void kvm_cpu_instance_init(CPUState *cs)
     if (cpu->max_features) {
         kvm_cpu_max_instance_init(cpu);
     }
+
+    kvm_cpu_xsave_init();
 }
 
 static void kvm_cpu_accel_class_init(ObjectClass *oc, void *data)

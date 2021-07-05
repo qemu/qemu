@@ -30,6 +30,33 @@ static void hvf_cpu_max_instance_init(X86CPU *cpu)
         hvf_get_supported_cpuid(0xC0000000, 0, R_EAX);
 }
 
+static void hvf_cpu_xsave_init(void)
+{
+    static bool first = true;
+    int i;
+
+    if (!first) {
+        return;
+    }
+    first = false;
+
+    /* x87 and SSE states are in the legacy region of the XSAVE area. */
+    x86_ext_save_areas[XSTATE_FP_BIT].offset = 0;
+    x86_ext_save_areas[XSTATE_SSE_BIT].offset = 0;
+
+    for (i = XSTATE_SSE_BIT + 1; i < XSAVE_STATE_AREA_COUNT; i++) {
+        ExtSaveArea *esa = &x86_ext_save_areas[i];
+
+        if (esa->size) {
+            int sz = hvf_get_supported_cpuid(0xd, i, R_EAX);
+            if (sz != 0) {
+                assert(esa->size == sz);
+                esa->offset = hvf_get_supported_cpuid(0xd, i, R_EBX);
+            }
+        }
+    }
+}
+
 static void hvf_cpu_instance_init(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);
@@ -42,6 +69,8 @@ static void hvf_cpu_instance_init(CPUState *cs)
     if (cpu->max_features) {
         hvf_cpu_max_instance_init(cpu);
     }
+
+    hvf_cpu_xsave_init();
 }
 
 static void hvf_cpu_accel_class_init(ObjectClass *oc, void *data)

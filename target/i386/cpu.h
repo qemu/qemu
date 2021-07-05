@@ -1377,7 +1377,7 @@ typedef struct ExtSaveArea {
 
 #define XSAVE_STATE_AREA_COUNT (XSTATE_PKRU_BIT + 1)
 
-extern const ExtSaveArea x86_ext_save_areas[XSAVE_STATE_AREA_COUNT];
+extern ExtSaveArea x86_ext_save_areas[XSAVE_STATE_AREA_COUNT];
 
 typedef enum TPRAccess {
     TPR_ACCESS_READ,

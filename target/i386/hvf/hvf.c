@@ -270,6 +270,12 @@ int hvf_arch_init_vcpu(CPUState *cpu)
     x86cpu->env.xsave_buf_len = 4096;
     x86cpu->env.xsave_buf = qemu_memalign(4096, x86cpu->env.xsave_buf_len);
 
+    /*
+     * The allocated storage must be large enough for all of the
+     * possible XSAVE state components.
+     */
+    assert(hvf_get_supported_cpuid(0xd, 0, R_ECX) <= x86cpu->env.xsave_buf_len);
+
     hv_vcpu_enable_native_msr(cpu->hvf->fd, MSR_STAR, 1);
     hv_vcpu_enable_native_msr(cpu->hvf->fd, MSR_LSTAR, 1);
     hv_vcpu_enable_native_msr(cpu->hvf->fd, MSR_CSTAR, 1);
