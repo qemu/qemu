@@ -64,7 +64,13 @@ void cpu_loop(CPUS390XState *env)
         case EXCP_DEBUG:
             sig = TARGET_SIGTRAP;
             n = TARGET_TRAP_BRKPT;
-            goto do_signal_pc;
+            /*
+             * For SIGTRAP the PSW must point after the instruction, which it
+             * already does thanks to s390x_tr_tb_stop(). si_addr doesn't need
+             * to be filled.
+             */
+            addr = 0;
+            goto do_signal;
         case EXCP_PGM:
             n = env->int_pgm_code;
             switch (n) {
@@ -132,6 +138,10 @@ void cpu_loop(CPUS390XState *env)
 
         do_signal_pc:
             addr = env->psw.addr;
+            /*
+             * For SIGILL and SIGFPE the PSW must point after the instruction.
+             */
+            env->psw.addr += env->int_pgm_ilen;
         do_signal:
             info.si_signo = sig;
             info.si_errno = 0;
