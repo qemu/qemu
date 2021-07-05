@@ -35,7 +35,3 @@ or Hypervisor.Framework.
    targets
    security
    multi-process
-   deprecated
-   removed-features
-   build-platforms
-   license
