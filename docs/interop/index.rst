@@ -4,8 +4,6 @@ System Emulation Management and Interoperability
 This section of the manual contains documents and specifications that
 are useful for making QEMU interoperate with other software.
 
-Contents:
-
 .. toctree::
    :maxdepth: 2
 

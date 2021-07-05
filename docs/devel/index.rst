@@ -5,8 +5,6 @@ This section of the manual documents various parts of the internals of QEMU.
 You only need to read it if you are interested in reading or
 modifying QEMU's source code.
 
-Contents:
-
 .. toctree::
    :maxdepth: 2
    :includehidden:

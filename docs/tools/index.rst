@@ -4,8 +4,6 @@ Tools
 This section of the manual documents QEMU's "tools": its
 command line utilities and other standalone programs.
 
-Contents:
-
 .. toctree::
    :maxdepth: 2
 

@@ -6,8 +6,6 @@ for full system emulation (as opposed to user-mode emulation).
 This includes working with hypervisors such as KVM, Xen, Hax
 or Hypervisor.Framework.
 
-Contents:
-
 .. toctree::
    :maxdepth: 3
 

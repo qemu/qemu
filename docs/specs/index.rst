@@ -4,8 +4,6 @@ System Emulation Guest Hardware Specifications
 This section of the manual contains specifications of
 guest hardware that is specific to QEMU.
 
-Contents:
-
 .. toctree::
    :maxdepth: 2
 
