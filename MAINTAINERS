@@ -1881,6 +1881,7 @@ virtio-9p
 M: Greg Kurz <groug@kaod.org>
 M: Christian Schoenebeck <qemu_oss@crudebyte.com>
 S: Odd Fixes
+W: https://wiki.qemu.org/Documentation/9p
 F: hw/9pfs/
 X: hw/9pfs/xen-9p*
 F: fsdev/
