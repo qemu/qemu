@@ -146,7 +146,8 @@ struct SubchDev {
 
 static inline void sch_gen_unit_exception(SubchDev *sch)
 {
-    sch->curr_status.scsw.ctrl &= ~SCSW_ACTL_START_PEND;
+    sch->curr_status.scsw.ctrl &= ~(SCSW_ACTL_DEVICE_ACTIVE |
+                                    SCSW_ACTL_SUBCH_ACTIVE);
     sch->curr_status.scsw.ctrl |= SCSW_STCTL_PRIMARY |
                                   SCSW_STCTL_SECONDARY |
                                   SCSW_STCTL_ALERT |
