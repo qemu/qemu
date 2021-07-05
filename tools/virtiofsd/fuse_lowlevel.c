@@ -1084,6 +1084,12 @@ static void do_open(fuse_req_t req, fuse_ino_t nodeid,
         return;
     }
 
+    /* File creation is handled by do_create() or do_mknod() */
+    if (arg->flags & (O_CREAT | O_TMPFILE)) {
+        fuse_reply_err(req, EINVAL);
+        return;
+    }
+
     memset(&fi, 0, sizeof(fi));
     fi.flags = arg->flags;
     fi.kill_priv = arg->open_flags & FUSE_OPEN_KILL_SUIDGID;
@@ -1419,8 +1425,13 @@ static void do_setxattr(fuse_req_t req, fuse_ino_t nodeid,
     struct fuse_setxattr_in *arg;
     const char *name;
     const char *value;
+    bool setxattr_ext = req->se->conn.want & FUSE_CAP_SETXATTR_EXT;
 
-    arg = fuse_mbuf_iter_advance(iter, sizeof(*arg));
+    if (setxattr_ext) {
+        arg = fuse_mbuf_iter_advance(iter, sizeof(*arg));
+    } else {
+        arg = fuse_mbuf_iter_advance(iter, FUSE_COMPAT_SETXATTR_IN_SIZE);
+    }
     name = fuse_mbuf_iter_advance_str(iter);
     if (!arg || !name) {
         fuse_reply_err(req, EINVAL);
@@ -1434,7 +1445,9 @@ static void do_setxattr(fuse_req_t req, fuse_ino_t nodeid,
     }
 
     if (req->se->op.setxattr) {
-        req->se->op.setxattr(req, nodeid, name, value, arg->size, arg->flags);
+        uint32_t setxattr_flags = setxattr_ext ? arg->setxattr_flags : 0;
+        req->se->op.setxattr(req, nodeid, name, value, arg->size, arg->flags,
+                             setxattr_flags);
     } else {
         fuse_reply_err(req, ENOSYS);
     }
@@ -1981,6 +1994,9 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid,
     if (arg->flags & FUSE_HANDLE_KILLPRIV_V2) {
         se->conn.capable |= FUSE_CAP_HANDLE_KILLPRIV_V2;
     }
+    if (arg->flags & FUSE_SETXATTR_EXT) {
+        se->conn.capable |= FUSE_CAP_SETXATTR_EXT;
+    }
 #ifdef HAVE_SPLICE
 #ifdef HAVE_VMSPLICE
     se->conn.capable |= FUSE_CAP_SPLICE_WRITE | FUSE_CAP_SPLICE_MOVE;
@@ -2114,6 +2130,10 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid,
 
     if (se->conn.want & FUSE_CAP_HANDLE_KILLPRIV_V2) {
         outarg.flags |= FUSE_HANDLE_KILLPRIV_V2;
+    }
+
+    if (se->conn.want & FUSE_CAP_SETXATTR_EXT) {
+        outarg.flags |= FUSE_SETXATTR_EXT;
     }
 
     fuse_log(FUSE_LOG_DEBUG, "   INIT: %u.%u\n", outarg.major, outarg.minor);
