@@ -21,6 +21,7 @@ Testing:
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "floppy0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -48,6 +49,7 @@ Testing: -fda TEST_DIR/t.qcow2
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "floppy0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -85,6 +87,7 @@ Testing: -fdb TEST_DIR/t.qcow2
               dev: floppy, id ""
                 unit = 1 (0x1)
                 drive = "floppy1"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -96,6 +99,7 @@ Testing: -fdb TEST_DIR/t.qcow2
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "floppy0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -137,6 +141,7 @@ Testing: -fda TEST_DIR/t.qcow2 -fdb TEST_DIR/t.qcow2.2
               dev: floppy, id ""
                 unit = 1 (0x1)
                 drive = "floppy1"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -148,6 +153,7 @@ Testing: -fda TEST_DIR/t.qcow2 -fdb TEST_DIR/t.qcow2.2
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "floppy0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -190,6 +196,7 @@ Testing: -fdb
               dev: floppy, id ""
                 unit = 1 (0x1)
                 drive = "floppy1"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -201,6 +208,7 @@ Testing: -fdb
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "floppy0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -228,6 +236,7 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "floppy0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -265,6 +274,7 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2,index=1
               dev: floppy, id ""
                 unit = 1 (0x1)
                 drive = "floppy1"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -276,6 +286,7 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2,index=1
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "floppy0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -317,6 +328,7 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2 -drive if=floppy,file=TEST_DIR/t
               dev: floppy, id ""
                 unit = 1 (0x1)
                 drive = "floppy1"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -328,6 +340,7 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2 -drive if=floppy,file=TEST_DIR/t
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "floppy0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -373,6 +386,7 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -device floppy,drive=none0
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "none0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -410,6 +424,7 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -device floppy,drive=none0,unit=1
               dev: floppy, id ""
                 unit = 1 (0x1)
                 drive = "none0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -447,6 +462,7 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qco
               dev: floppy, id ""
                 unit = 1 (0x1)
                 drive = "none1"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -458,6 +474,7 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qco
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "none0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -509,6 +526,7 @@ Testing: -fda TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
               dev: floppy, id ""
                 unit = 1 (0x1)
                 drive = "none0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -520,6 +538,7 @@ Testing: -fda TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "floppy0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -562,6 +581,7 @@ Testing: -fda TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
               dev: floppy, id ""
                 unit = 1 (0x1)
                 drive = "none0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -573,6 +593,7 @@ Testing: -fda TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "floppy0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -615,6 +636,7 @@ Testing: -fdb TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "none0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -626,6 +648,7 @@ Testing: -fdb TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
               dev: floppy, id ""
                 unit = 1 (0x1)
                 drive = "floppy1"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -668,6 +691,7 @@ Testing: -fdb TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "none0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -679,6 +703,7 @@ Testing: -fdb TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
               dev: floppy, id ""
                 unit = 1 (0x1)
                 drive = "floppy1"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -730,6 +755,7 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.q
               dev: floppy, id ""
                 unit = 1 (0x1)
                 drive = "none0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -741,6 +767,7 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.q
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "floppy0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -783,6 +810,7 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.q
               dev: floppy, id ""
                 unit = 1 (0x1)
                 drive = "none0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -794,6 +822,7 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.q
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "floppy0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -842,6 +871,7 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -global floppy.drive=none0 -device
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "none0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -909,6 +939,7 @@ Testing: -device floppy
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = ""
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -933,6 +964,7 @@ Testing: -device floppy,drive-type=120
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = ""
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -957,6 +989,7 @@ Testing: -device floppy,drive-type=144
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = ""
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -981,6 +1014,7 @@ Testing: -device floppy,drive-type=288
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = ""
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -1008,6 +1042,7 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -device floppy,drive=none0,drive-t
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "none0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -1045,6 +1080,7 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -device floppy,drive=none0,drive-t
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "none0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -1085,6 +1121,7 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -device floppy,drive=none0,logical
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "none0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)
@@ -1122,6 +1159,7 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -device floppy,drive=none0,physica
               dev: floppy, id ""
                 unit = 0 (0x0)
                 drive = "none0"
+                backend_defaults = "auto"
                 logical_block_size = 512 (512 B)
                 physical_block_size = 512 (512 B)
                 min_io_size = 0 (0 B)

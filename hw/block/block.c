@@ -65,22 +65,56 @@ bool blkconf_blocksizes(BlockConf *conf, Error **errp)
 {
     BlockBackend *blk = conf->blk;
     BlockSizes blocksizes;
-    int backend_ret;
+    BlockDriverState *bs;
+    bool use_blocksizes;
+    bool use_bs;
 
-    backend_ret = blk_probe_blocksizes(blk, &blocksizes);
+    switch (conf->backend_defaults) {
+    case ON_OFF_AUTO_AUTO:
+        use_blocksizes = !blk_probe_blocksizes(blk, &blocksizes);
+        use_bs = false;
+        break;
+
+    case ON_OFF_AUTO_ON:
+        use_blocksizes = !blk_probe_blocksizes(blk, &blocksizes);
+        bs = blk_bs(blk);
+        use_bs = bs;
+        break;
+
+    case ON_OFF_AUTO_OFF:
+        use_blocksizes = false;
+        use_bs = false;
+        break;
+
+    default:
+        abort();
+    }
+
     /* fill in detected values if they are not defined via qemu command line */
     if (!conf->physical_block_size) {
-        if (!backend_ret) {
+        if (use_blocksizes) {
            conf->physical_block_size = blocksizes.phys;
         } else {
             conf->physical_block_size = BDRV_SECTOR_SIZE;
         }
     }
     if (!conf->logical_block_size) {
-        if (!backend_ret) {
+        if (use_blocksizes) {
             conf->logical_block_size = blocksizes.log;
         } else {
             conf->logical_block_size = BDRV_SECTOR_SIZE;
+        }
+    }
+    if (use_bs) {
+        if (!conf->opt_io_size) {
+            conf->opt_io_size = bs->bl.opt_transfer;
+        }
+        if (conf->discard_granularity == -1) {
+            if (bs->bl.pdiscard_alignment) {
+                conf->discard_granularity = bs->bl.pdiscard_alignment;
+            } else if (bs->bl.request_alignment != 1) {
+                conf->discard_granularity = bs->bl.request_alignment;
+            }
         }
     }
 
