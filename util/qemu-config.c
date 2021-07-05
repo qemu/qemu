@@ -417,12 +417,12 @@ static int qemu_config_foreach(FILE *fp, QEMUConfigCB *cb, void *opaque,
         return res;
     }
     res = count;
-out:
     if (qdict) {
         cb(group, qdict, opaque, errp);
-        qobject_unref(qdict);
     }
+out:
     loc_pop(&loc);
+    qobject_unref(qdict);
     return res;
 }
 
