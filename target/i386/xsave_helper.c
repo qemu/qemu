@@ -6,14 +6,16 @@
 
 #include "cpu.h"
 
-void x86_cpu_xsave_all_areas(X86CPU *cpu, X86XSaveArea *buf)
+void x86_cpu_xsave_all_areas(X86CPU *cpu, void *buf, uint32_t buflen)
 {
     CPUX86State *env = &cpu->env;
     X86XSaveArea *xsave = buf;
-
     uint16_t cwd, swd, twd;
     int i;
-    memset(xsave, 0, sizeof(X86XSaveArea));
+
+    assert(buflen >= sizeof(*xsave));
+
+    memset(xsave, 0, buflen);
     twd = 0;
     swd = env->fpus & ~(7 << 11);
     swd |= (env->fpstt & 7) << 11;
@@ -56,17 +58,17 @@ void x86_cpu_xsave_all_areas(X86CPU *cpu, X86XSaveArea *buf)
             16 * sizeof env->xmm_regs[16]);
     memcpy(&xsave->pkru_state, &env->pkru, sizeof env->pkru);
 #endif
-
 }
 
-void x86_cpu_xrstor_all_areas(X86CPU *cpu, const X86XSaveArea *buf)
+void x86_cpu_xrstor_all_areas(X86CPU *cpu, const void *buf, uint32_t buflen)
 {
-
     CPUX86State *env = &cpu->env;
     const X86XSaveArea *xsave = buf;
-
     int i;
     uint16_t cwd, swd, twd;
+
+    assert(buflen >= sizeof(*xsave));
+
     cwd = xsave->legacy.fcw;
     swd = xsave->legacy.fsw;
     twd = xsave->legacy.ftw;
@@ -108,5 +110,4 @@ void x86_cpu_xrstor_all_areas(X86CPU *cpu, const X86XSaveArea *buf)
            16 * sizeof env->xmm_regs[16]);
     memcpy(&env->pkru, &xsave->pkru_state, sizeof env->pkru);
 #endif
-
 }

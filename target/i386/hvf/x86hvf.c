@@ -73,14 +73,12 @@ void hvf_get_segment(SegmentCache *qseg, struct vmx_segment *vmx_seg)
 
 void hvf_put_xsave(CPUState *cpu_state)
 {
+    void *xsave = X86_CPU(cpu_state)->env.xsave_buf;
+    uint32_t xsave_len = X86_CPU(cpu_state)->env.xsave_buf_len;
 
-    struct X86XSaveArea *xsave;
+    x86_cpu_xsave_all_areas(X86_CPU(cpu_state), xsave, xsave_len);
 
-    xsave = X86_CPU(cpu_state)->env.xsave_buf;
-
-    x86_cpu_xsave_all_areas(X86_CPU(cpu_state), xsave);
-
-    if (hv_vcpu_write_fpstate(cpu_state->hvf->fd, (void*)xsave, 4096)) {
+    if (hv_vcpu_write_fpstate(cpu_state->hvf->fd, xsave, xsave_len)) {
         abort();
     }
 }
@@ -158,15 +156,14 @@ void hvf_put_msrs(CPUState *cpu_state)
 
 void hvf_get_xsave(CPUState *cpu_state)
 {
-    struct X86XSaveArea *xsave;
+    void *xsave = X86_CPU(cpu_state)->env.xsave_buf;
+    uint32_t xsave_len = X86_CPU(cpu_state)->env.xsave_buf_len;
 
-    xsave = X86_CPU(cpu_state)->env.xsave_buf;
-
-    if (hv_vcpu_read_fpstate(cpu_state->hvf->fd, (void*)xsave, 4096)) {
+    if (hv_vcpu_read_fpstate(cpu_state->hvf->fd, xsave, xsave_len)) {
         abort();
     }
 
-    x86_cpu_xrstor_all_areas(X86_CPU(cpu_state), xsave);
+    x86_cpu_xrstor_all_areas(X86_CPU(cpu_state), xsave, xsave_len);
 }
 
 void hvf_get_segments(CPUState *cpu_state)

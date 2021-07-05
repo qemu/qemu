@@ -267,7 +267,8 @@ int hvf_arch_init_vcpu(CPUState *cpu)
     wvmcs(cpu->hvf->fd, VMCS_TPR_THRESHOLD, 0);
 
     x86cpu = X86_CPU(cpu);
-    x86cpu->env.xsave_buf = qemu_memalign(4096, 4096);
+    x86cpu->env.xsave_buf_len = 4096;
+    x86cpu->env.xsave_buf = qemu_memalign(4096, x86cpu->env.xsave_buf_len);
 
     hv_vcpu_enable_native_msr(cpu->hvf->fd, MSR_STAR, 1);
     hv_vcpu_enable_native_msr(cpu->hvf->fd, MSR_LSTAR, 1);

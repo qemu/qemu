@@ -1667,6 +1667,7 @@ typedef struct CPUX86State {
     uint64_t apic_bus_freq;
 #if defined(CONFIG_KVM) || defined(CONFIG_HVF)
     void *xsave_buf;
+    uint32_t xsave_buf_len;
 #endif
 #if defined(CONFIG_KVM)
     struct kvm_nested_state *nested_state;
@@ -2227,8 +2228,8 @@ void x86_cpu_dump_local_apic_state(CPUState *cs, int flags);
 /* cpu.c */
 bool cpu_is_bsp(X86CPU *cpu);
 
-void x86_cpu_xrstor_all_areas(X86CPU *cpu, const X86XSaveArea *buf);
-void x86_cpu_xsave_all_areas(X86CPU *cpu, X86XSaveArea *buf);
+void x86_cpu_xrstor_all_areas(X86CPU *cpu, const void *buf, uint32_t buflen);
+void x86_cpu_xsave_all_areas(X86CPU *cpu, void *buf, uint32_t buflen);
 void x86_update_hflags(CPUX86State* env);
 
 static inline bool hyperv_feat_enabled(X86CPU *cpu, int feat)
