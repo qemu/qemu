@@ -414,7 +414,7 @@ static int qemu_config_foreach(FILE *fp, QEMUConfigCB *cb, void *opaque,
     if (ferror(fp)) {
         loc_pop(&loc);
         error_setg_errno(errp, errno, "Cannot read config file");
-        return res;
+        goto out_no_loc;
     }
     res = count;
     if (qdict) {
@@ -422,6 +422,7 @@ static int qemu_config_foreach(FILE *fp, QEMUConfigCB *cb, void *opaque,
     }
 out:
     loc_pop(&loc);
+out_no_loc:
     qobject_unref(qdict);
     return res;
 }
