@@ -199,7 +199,7 @@ again:
     case 0:
     case -ENODEV:
     case -EACCES:
-        return 0;
+        return ret;
     case -EFAULT:
     default:
         sch_gen_unit_exception(sch);
@@ -240,7 +240,7 @@ again:
     case -EBUSY:
     case -ENODEV:
     case -EACCES:
-        return 0;
+        return ret;
     case -EFAULT:
     default:
         sch_gen_unit_exception(sch);
