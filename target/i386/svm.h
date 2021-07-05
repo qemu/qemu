@@ -137,6 +137,9 @@
 
 #define SVM_CR0_RESERVED_MASK 0xffffffff00000000U
 
+#define SVM_MSRPM_SIZE		(1ULL << 13)
+#define SVM_IOPM_SIZE		((1ULL << 13) + 1)
+
 struct QEMU_PACKED vmcb_control_area {
 	uint16_t intercept_cr_read;
 	uint16_t intercept_cr_write;

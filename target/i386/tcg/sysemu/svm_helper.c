@@ -68,6 +68,7 @@ static inline void svm_load_seg_cache(CPUX86State *env, hwaddr addr,
 void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
 {
     CPUState *cs = env_cpu(env);
+    X86CPU *cpu = env_archcpu(env);
     target_ulong addr;
     uint64_t nested_ctl;
     uint32_t event_inj;
@@ -158,6 +159,20 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
                                                           control.nested_ctl));
     asid = x86_ldq_phys(cs, env->vm_vmcb + offsetof(struct vmcb,
                                                           control.asid));
+
+    uint64_t msrpm_base_pa = x86_ldq_phys(cs, env->vm_vmcb +
+                                    offsetof(struct vmcb,
+                                            control.msrpm_base_pa));
+    uint64_t iopm_base_pa = x86_ldq_phys(cs, env->vm_vmcb +
+                                 offsetof(struct vmcb, control.iopm_base_pa));
+
+    if ((msrpm_base_pa & ~0xfff) >= (1ull << cpu->phys_bits) - SVM_MSRPM_SIZE) {
+        cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
+    }
+
+    if ((iopm_base_pa & ~0xfff) >= (1ull << cpu->phys_bits) - SVM_IOPM_SIZE) {
+        cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
+    }
 
     env->nested_pg_mode = 0;
 
