@@ -80,6 +80,24 @@ static void tcg_cpu_class_init(CPUClass *cc)
     cc->init_accel_cpu = tcg_cpu_init_ops;
 }
 
+static void tcg_cpu_xsave_init(void)
+{
+#define XO(bit, field) \
+    x86_ext_save_areas[bit].offset = offsetof(X86XSaveArea, field);
+
+    XO(XSTATE_FP_BIT, legacy);
+    XO(XSTATE_SSE_BIT, legacy);
+    XO(XSTATE_YMM_BIT, avx_state);
+    XO(XSTATE_BNDREGS_BIT, bndreg_state);
+    XO(XSTATE_BNDCSR_BIT, bndcsr_state);
+    XO(XSTATE_OPMASK_BIT, opmask_state);
+    XO(XSTATE_ZMM_Hi256_BIT, zmm_hi256_state);
+    XO(XSTATE_Hi16_ZMM_BIT, hi16_zmm_state);
+    XO(XSTATE_PKRU_BIT, pkru_state);
+
+#undef XO
+}
+
 /*
  * TCG-specific defaults that override all CPU models when using TCG
  */
@@ -93,6 +111,8 @@ static void tcg_cpu_instance_init(CPUState *cs)
     X86CPU *cpu = X86_CPU(cs);
     /* Special cases not set in the X86CPUDefinition structs: */
     x86_cpu_apply_props(cpu, tcg_default_props);
+
+    tcg_cpu_xsave_init();
 }
 
 static void tcg_cpu_accel_class_init(ObjectClass *oc, void *data)

@@ -19,6 +19,7 @@
 #include "hw/loader.h"
 #include "qapi/error.h"
 #include "qapi/qapi-visit-common.h"
+#include "qapi/qapi-visit-machine.h"
 #include "qapi/visitor.h"
 #include "hw/sysbus.h"
 #include "sysemu/cpus.h"
@@ -799,6 +800,57 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
     ms->smp.sockets = sockets;
 }
 
+static void machine_get_smp(Object *obj, Visitor *v, const char *name,
+                            void *opaque, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+    SMPConfiguration *config = &(SMPConfiguration){
+        .has_cores = true, .cores = ms->smp.cores,
+        .has_sockets = true, .sockets = ms->smp.sockets,
+        .has_dies = true, .dies = ms->smp.dies,
+        .has_threads = true, .threads = ms->smp.threads,
+        .has_cpus = true, .cpus = ms->smp.cpus,
+        .has_maxcpus = true, .maxcpus = ms->smp.max_cpus,
+    };
+    if (!visit_type_SMPConfiguration(v, name, &config, &error_abort)) {
+        return;
+    }
+}
+
+static void machine_set_smp(Object *obj, Visitor *v, const char *name,
+                            void *opaque, Error **errp)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(obj);
+    MachineState *ms = MACHINE(obj);
+    SMPConfiguration *config;
+    ERRP_GUARD();
+
+    if (!visit_type_SMPConfiguration(v, name, &config, errp)) {
+        return;
+    }
+
+    mc->smp_parse(ms, config, errp);
+    if (errp) {
+        goto out_free;
+    }
+
+    /* sanity-check smp_cpus and max_cpus against mc */
+    if (ms->smp.cpus < mc->min_cpus) {
+        error_setg(errp, "Invalid SMP CPUs %d. The min CPUs "
+                   "supported by machine '%s' is %d",
+                   ms->smp.cpus,
+                   mc->name, mc->min_cpus);
+    } else if (ms->smp.max_cpus > mc->max_cpus) {
+        error_setg(errp, "Invalid SMP CPUs %d. The max CPUs "
+                   "supported by machine '%s' is %d",
+                   current_machine->smp.max_cpus,
+                   mc->name, mc->max_cpus);
+    }
+
+out_free:
+    qapi_free_SMPConfiguration(config);
+}
+
 static void machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -837,6 +889,12 @@ static void machine_class_init(ObjectClass *oc, void *data)
         machine_get_dumpdtb, machine_set_dumpdtb);
     object_class_property_set_description(oc, "dumpdtb",
         "Dump current dtb to a file and quit");
+
+    object_class_property_add(oc, "smp", "SMPConfiguration",
+        machine_get_smp, machine_set_smp,
+        NULL, NULL);
+    object_class_property_set_description(oc, "smp",
+        "CPU topology");
 
     object_class_property_add(oc, "phandle-start", "int",
         machine_get_phandle_start, machine_set_phandle_start,
@@ -1124,56 +1182,6 @@ MemoryRegion *machine_consume_memdev(MachineState *machine,
     host_memory_backend_set_mapped(backend, true);
     vmstate_register_ram_global(ret);
     return ret;
-}
-
-bool machine_smp_parse(MachineState *ms, QemuOpts *opts, Error **errp)
-{
-    MachineClass *mc = MACHINE_GET_CLASS(ms);
-    ERRP_GUARD();
-
-    if (opts) {
-        SMPConfiguration config = {
-            .has_cpus = !!qemu_opt_get(opts, "cpus"),
-            .cpus = qemu_opt_get_number(opts, "cpus", 0),
-            .has_sockets = !!qemu_opt_get(opts, "sockets"),
-            .sockets = qemu_opt_get_number(opts, "sockets", 0),
-            .has_dies = !!qemu_opt_get(opts, "dies"),
-            .dies = qemu_opt_get_number(opts, "dies", 0),
-            .has_cores = !!qemu_opt_get(opts, "cores"),
-            .cores = qemu_opt_get_number(opts, "cores", 0),
-            .has_threads = !!qemu_opt_get(opts, "threads"),
-            .threads = qemu_opt_get_number(opts, "threads", 0),
-            .has_maxcpus = !!qemu_opt_get(opts, "maxcpus"),
-            .maxcpus = qemu_opt_get_number(opts, "maxcpus", 0),
-        };
-
-        mc->smp_parse(ms, &config, errp);
-        if (*errp) {
-            return false;
-        }
-    }
-
-    /* sanity-check smp_cpus and max_cpus against mc */
-    if (ms->smp.cpus < mc->min_cpus) {
-        error_setg(errp, "Invalid SMP CPUs %d. The min CPUs "
-                   "supported by machine '%s' is %d",
-                   ms->smp.cpus,
-                   mc->name, mc->min_cpus);
-        return false;
-    } else if (ms->smp.max_cpus > mc->max_cpus) {
-        error_setg(errp, "Invalid SMP CPUs %d. The max CPUs "
-                   "supported by machine '%s' is %d",
-                   current_machine->smp.max_cpus,
-                   mc->name, mc->max_cpus);
-        return false;
-    }
-
-    if (ms->smp.cpus > 1) {
-        Error *blocker = NULL;
-        error_setg(&blocker, QERR_REPLAY_NOT_SUPPORTED, "smp");
-        replay_add_blocker(blocker);
-    }
-    return true;
 }
 
 void machine_run_board_init(MachineState *machine)

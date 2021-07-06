@@ -303,5 +303,5 @@ variable::
     host_kconfig = \
       ('CONFIG_TPM' in config_host ? ['CONFIG_TPM=y'] : []) + \
       ('CONFIG_SPICE' in config_host ? ['CONFIG_SPICE=y'] : []) + \
-      ('CONFIG_IVSHMEM' in config_host ? ['CONFIG_IVSHMEM=y'] : []) + \
+      (have_ivshmem ? ['CONFIG_IVSHMEM=y'] : []) + \
       ...

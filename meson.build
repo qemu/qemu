@@ -164,6 +164,7 @@ endif
 multiprocess_allowed = targetos == 'linux' and not get_option('multiprocess').disabled()
 
 libm = cc.find_library('m', required: false)
+threads = dependency('threads')
 util = cc.find_library('util', required: false)
 winmm = []
 socket = []
@@ -327,15 +328,16 @@ if have_system or have_tools
 endif
 libaio = cc.find_library('aio', required: false)
 zlib = dependency('zlib', required: true, kwargs: static_kwargs)
+
 linux_io_uring = not_found
-if 'CONFIG_LINUX_IO_URING' in config_host
-  linux_io_uring = declare_dependency(compile_args: config_host['LINUX_IO_URING_CFLAGS'].split(),
-                                      link_args: config_host['LINUX_IO_URING_LIBS'].split())
+if not get_option('linux_io_uring').auto() or have_block
+  linux_io_uring = dependency('liburing', required: get_option('linux_io_uring'),
+                              method: 'pkg-config', kwargs: static_kwargs)
 endif
 libxml2 = not_found
-if 'CONFIG_LIBXML2' in config_host
-  libxml2 = declare_dependency(compile_args: config_host['LIBXML2_CFLAGS'].split(),
-                               link_args: config_host['LIBXML2_LIBS'].split())
+if not get_option('libxml2').auto() or have_block
+  libxml2 = dependency('libxml-2.0', required: get_option('libxml2'),
+                       method: 'pkg-config', kwargs: static_kwargs)
 endif
 libnfs = not_found
 if not get_option('libnfs').auto() or have_block
@@ -471,9 +473,11 @@ if 'CONFIG_GBM' in config_host
                            link_args: config_host['GBM_LIBS'].split())
 endif
 virgl = not_found
-if 'CONFIG_VIRGL' in config_host
-  virgl = declare_dependency(compile_args: config_host['VIRGL_CFLAGS'].split(),
-                             link_args: config_host['VIRGL_LIBS'].split())
+if not get_option('virglrenderer').auto() or have_system
+  virgl = dependency('virglrenderer',
+                     method: 'pkg-config',
+                     required: get_option('virglrenderer'),
+                     kwargs: static_kwargs)
 endif
 curl = not_found
 if not get_option('curl').auto() or have_block
@@ -860,6 +864,7 @@ endif
 
 gtk = not_found
 gtkx11 = not_found
+vte = not_found
 if not get_option('gtk').auto() or (have_system and not cocoa.found())
   gtk = dependency('gtk+-3.0', version: '>=3.22.0',
                    method: 'pkg-config',
@@ -871,14 +876,16 @@ if not get_option('gtk').auto() or (have_system and not cocoa.found())
                         required: false,
                         kwargs: static_kwargs)
     gtk = declare_dependency(dependencies: [gtk, gtkx11])
+
+    if not get_option('vte').auto() or have_system
+      vte = dependency('vte-2.91',
+                       method: 'pkg-config',
+                       required: get_option('vte'),
+                       kwargs: static_kwargs)
+    endif
   endif
 endif
 
-vte = not_found
-if 'CONFIG_VTE' in config_host
-  vte = declare_dependency(compile_args: config_host['VTE_CFLAGS'].split(),
-                           link_args: config_host['VTE_LIBS'].split())
-endif
 x11 = not_found
 if gtkx11.found()
   x11 = dependency('x11', method: 'pkg-config', required: gtkx11.found(),
@@ -1001,13 +1008,15 @@ if not get_option('libusb').auto() or have_system
 endif
 
 libpmem = not_found
-if 'CONFIG_LIBPMEM' in config_host
-  libpmem = declare_dependency(compile_args: config_host['LIBPMEM_CFLAGS'].split(),
-                               link_args: config_host['LIBPMEM_LIBS'].split())
+if not get_option('libpmem').auto() or have_system
+  libpmem = dependency('libpmem', required: get_option('libpmem'),
+                       method: 'pkg-config', kwargs: static_kwargs)
 endif
 libdaxctl = not_found
-if 'CONFIG_LIBDAXCTL' in config_host
-  libdaxctl = declare_dependency(link_args: config_host['LIBDAXCTL_LIBS'].split())
+if not get_option('libdaxctl').auto() or have_system
+  libdaxctl = dependency('libdaxctl', required: get_option('libdaxctl'),
+                         version: '>=57', method: 'pkg-config',
+                         kwargs: static_kwargs)
 endif
 tasn1 = not_found
 if gnutls.found()
@@ -1042,10 +1051,12 @@ endif
 
 # Check whether the glibc provides statx()
 
-statx_test = '''
+gnu_source_prefix = '''
   #ifndef _GNU_SOURCE
   #define _GNU_SOURCE
   #endif
+'''
+statx_test = gnu_source_prefix + '''
   #include <sys/stat.h>
   int main(void) {
     struct statx statxbuf;
@@ -1208,6 +1219,7 @@ if glusterfs.found()
   config_host_data.set('CONFIG_GLUSTERFS_IOCB_HAS_STAT', glusterfs_iocb_has_stat)
 endif
 config_host_data.set('CONFIG_GTK', gtk.found())
+config_host_data.set('CONFIG_VTE', vte.found())
 config_host_data.set('CONFIG_LIBATTR', have_old_libattr)
 config_host_data.set('CONFIG_LIBCAP_NG', libcap_ng.found())
 config_host_data.set('CONFIG_EBPF', libbpf.found())
@@ -1244,16 +1256,150 @@ config_host_data.set('QEMU_VERSION_MAJOR', meson.project_version().split('.')[0]
 config_host_data.set('QEMU_VERSION_MINOR', meson.project_version().split('.')[1])
 config_host_data.set('QEMU_VERSION_MICRO', meson.project_version().split('.')[2])
 
+config_host_data.set('HAVE_HOST_BLOCK_DEVICE', have_host_block_device)
+
+# has_header
+config_host_data.set('CONFIG_EPOLL', cc.has_header('sys/epoll.h'))
+config_host_data.set('CONFIG_LINUX_MAGIC_H', cc.has_header('linux/magic.h'))
+config_host_data.set('CONFIG_VALGRIND_H', cc.has_header('valgrind/valgrind.h'))
 config_host_data.set('HAVE_BTRFS_H', cc.has_header('linux/btrfs.h'))
 config_host_data.set('HAVE_DRM_H', cc.has_header('libdrm/drm.h'))
 config_host_data.set('HAVE_PTY_H', cc.has_header('pty.h'))
+config_host_data.set('HAVE_SYS_DISK_H', cc.has_header('sys/disk.h'))
 config_host_data.set('HAVE_SYS_IOCCOM_H', cc.has_header('sys/ioccom.h'))
 config_host_data.set('HAVE_SYS_KCOV_H', cc.has_header('sys/kcov.h'))
-config_host_data.set('HAVE_SYSTEM_FUNCTION', cc.has_function('system', prefix: '#include <stdlib.h>'))
-config_host_data.set('HAVE_HOST_BLOCK_DEVICE', have_host_block_device)
-config_host_data.set('HAVE_SYS_DISK_H', cc.has_header('sys/disk.h'))
 
+# has_function
+config_host_data.set('CONFIG_ACCEPT4', cc.has_function('accept4'))
+config_host_data.set('CONFIG_CLOCK_ADJTIME', cc.has_function('clock_adjtime'))
+config_host_data.set('CONFIG_DUP3', cc.has_function('dup3'))
+config_host_data.set('CONFIG_FALLOCATE', cc.has_function('fallocate'))
+config_host_data.set('CONFIG_POSIX_FALLOCATE', cc.has_function('posix_fallocate'))
+config_host_data.set('CONFIG_POSIX_MEMALIGN', cc.has_function('posix_memalign'))
+config_host_data.set('CONFIG_PPOLL', cc.has_function('ppoll'))
 config_host_data.set('CONFIG_PREADV', cc.has_function('preadv', prefix: '#include <sys/uio.h>'))
+config_host_data.set('CONFIG_SEM_TIMEDWAIT', cc.has_function('sem_timedwait', dependencies: threads))
+config_host_data.set('CONFIG_SENDFILE', cc.has_function('sendfile'))
+config_host_data.set('CONFIG_SETNS', cc.has_function('setns') and cc.has_function('unshare'))
+config_host_data.set('CONFIG_SYNCFS', cc.has_function('syncfs'))
+config_host_data.set('CONFIG_SYNC_FILE_RANGE', cc.has_function('sync_file_range'))
+config_host_data.set('CONFIG_TIMERFD', cc.has_function('timerfd_create'))
+config_host_data.set('HAVE_COPY_FILE_RANGE', cc.has_function('copy_file_range'))
+config_host_data.set('HAVE_OPENPTY', cc.has_function('openpty', dependencies: util))
+config_host_data.set('HAVE_STRCHRNUL', cc.has_function('strchrnul'))
+config_host_data.set('HAVE_SYSTEM_FUNCTION', cc.has_function('system', prefix: '#include <stdlib.h>'))
+
+# has_header_symbol
+config_host_data.set('CONFIG_BYTESWAP_H',
+                     cc.has_header_symbol('byteswap.h', 'bswap_32'))
+config_host_data.set('CONFIG_EPOLL_CREATE1',
+                     cc.has_header_symbol('sys/epoll.h', 'epoll_create1'))
+config_host_data.set('CONFIG_HAS_ENVIRON',
+                     cc.has_header_symbol('unistd.h', 'environ', prefix: gnu_source_prefix))
+config_host_data.set('CONFIG_FALLOCATE_PUNCH_HOLE',
+                     cc.has_header_symbol('linux/falloc.h', 'FALLOC_FL_PUNCH_HOLE') and
+                     cc.has_header_symbol('linux/falloc.h', 'FALLOC_FL_KEEP_SIZE'))
+config_host_data.set('CONFIG_FALLOCATE_ZERO_RANGE',
+                     cc.has_header_symbol('linux/falloc.h', 'FALLOC_FL_ZERO_RANGE'))
+config_host_data.set('CONFIG_FIEMAP',
+                     cc.has_header('linux/fiemap.h') and
+                     cc.has_header_symbol('linux/fs.h', 'FS_IOC_FIEMAP'))
+config_host_data.set('CONFIG_GETRANDOM',
+                     cc.has_function('getrandom') and
+                     cc.has_header_symbol('sys/random.h', 'GRND_NONBLOCK'))
+config_host_data.set('CONFIG_INOTIFY',
+                     cc.has_header_symbol('sys/inotify.h', 'inotify_init'))
+config_host_data.set('CONFIG_INOTIFY1',
+                     cc.has_header_symbol('sys/inotify.h', 'inotify_init1'))
+config_host_data.set('CONFIG_MACHINE_BSWAP_H',
+                     cc.has_header_symbol('machine/bswap.h', 'bswap32',
+                                          prefix: '''#include <sys/endian.h>
+                                                     #include <sys/types.h>'''))
+config_host_data.set('CONFIG_PRCTL_PR_SET_TIMERSLACK',
+                     cc.has_header_symbol('sys/prctl.h', 'PR_SET_TIMERSLACK'))
+config_host_data.set('CONFIG_RTNETLINK',
+                     cc.has_header_symbol('linux/rtnetlink.h', 'IFLA_PROTO_DOWN'))
+config_host_data.set('CONFIG_SYSMACROS',
+                     cc.has_header_symbol('sys/sysmacros.h', 'makedev'))
+config_host_data.set('HAVE_OPTRESET',
+                     cc.has_header_symbol('getopt.h', 'optreset'))
+config_host_data.set('HAVE_UTMPX',
+                     cc.has_header_symbol('utmpx.h', 'struct utmpx'))
+
+# has_member
+config_host_data.set('HAVE_SIGEV_NOTIFY_THREAD_ID',
+                     cc.has_member('struct sigevent', 'sigev_notify_thread_id',
+                                   prefix: '#include <signal.h>'))
+config_host_data.set('HAVE_STRUCT_STAT_ST_ATIM',
+                     cc.has_member('struct stat', 'st_atim',
+                                   prefix: '#include <sys/stat.h>'))
+
+config_host_data.set('CONFIG_EVENTFD', cc.compiles('''
+  #include <sys/eventfd.h>
+  int main(void) { return eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC); }'''))
+config_host_data.set('CONFIG_FDATASYNC', cc.compiles(gnu_source_prefix + '''
+  #include <unistd.h>
+  int main(void) {
+  #if defined(_POSIX_SYNCHRONIZED_IO) && _POSIX_SYNCHRONIZED_IO > 0
+  return fdatasync(0);
+  #else
+  #error Not supported
+  #endif
+  }'''))
+config_host_data.set('CONFIG_MADVISE', cc.compiles(gnu_source_prefix + '''
+  #include <sys/types.h>
+  #include <sys/mman.h>
+  #include <stddef.h>
+  int main(void) { return madvise(NULL, 0, MADV_DONTNEED); }'''))
+config_host_data.set('CONFIG_MEMFD', cc.compiles(gnu_source_prefix + '''
+  #include <sys/mman.h>
+  int main(void) { return memfd_create("foo", MFD_ALLOW_SEALING); }'''))
+config_host_data.set('CONFIG_OPEN_BY_HANDLE', cc.compiles(gnu_source_prefix + '''
+  #include <fcntl.h>
+  #if !defined(AT_EMPTY_PATH)
+  # error missing definition
+  #else
+  int main(void) { struct file_handle fh; return open_by_handle_at(0, &fh, 0); }
+  #endif'''))
+config_host_data.set('CONFIG_PIPE2', cc.compiles(gnu_source_prefix + '''
+  #include <unistd.h>
+  #include <fcntl.h>
+
+  int main(void)
+  {
+      int pipefd[2];
+      return pipe2(pipefd, O_CLOEXEC);
+  }'''))
+config_host_data.set('CONFIG_POSIX_MADVISE', cc.compiles(gnu_source_prefix + '''
+  #include <sys/mman.h>
+  #include <stddef.h>
+  int main(void) { return posix_madvise(NULL, 0, POSIX_MADV_DONTNEED); }'''))
+config_host_data.set('CONFIG_SIGNALFD', cc.compiles(gnu_source_prefix + '''
+  #include <unistd.h>
+  #include <sys/syscall.h>
+  #include <signal.h>
+  int main(void) { return syscall(SYS_signalfd, -1, NULL, _NSIG / 8); }'''))
+config_host_data.set('CONFIG_SPLICE', cc.compiles(gnu_source_prefix + '''
+  #include <unistd.h>
+  #include <fcntl.h>
+  #include <limits.h>
+
+  int main(void)
+  {
+    int len, fd = 0;
+    len = tee(STDIN_FILENO, STDOUT_FILENO, INT_MAX, SPLICE_F_NONBLOCK);
+    splice(STDIN_FILENO, NULL, fd, NULL, len, SPLICE_F_MOVE);
+    return 0;
+  }'''))
+
+# Some versions of Mac OS X incorrectly define SIZE_MAX
+config_host_data.set('HAVE_BROKEN_SIZE_MAX', not cc.compiles('''
+    #include <stdint.h>
+    #include <stdio.h>
+    int main(int argc, char *argv[]) {
+        return printf("%zu", SIZE_MAX);
+    }''', args: ['-Werror']))
+
 
 ignored = ['CONFIG_QEMU_INTERP_PREFIX'] # actually per-target
 arrays = ['CONFIG_AUDIO_DRIVERS', 'CONFIG_BDRV_RW_WHITELIST', 'CONFIG_BDRV_RO_WHITELIST']
@@ -1322,10 +1468,11 @@ if link_language == 'cpp'
   }
 endif
 
+have_ivshmem = config_host_data.get('CONFIG_EVENTFD')
 host_kconfig = \
   ('CONFIG_TPM' in config_host ? ['CONFIG_TPM=y'] : []) + \
   ('CONFIG_SPICE' in config_host ? ['CONFIG_SPICE=y'] : []) + \
-  ('CONFIG_IVSHMEM' in config_host ? ['CONFIG_IVSHMEM=y'] : []) + \
+  (have_ivshmem ? ['CONFIG_IVSHMEM=y'] : []) + \
   ('CONFIG_OPENGL' in config_host ? ['CONFIG_OPENGL=y'] : []) + \
   (x11.found() ? ['CONFIG_X11=y'] : []) + \
   ('CONFIG_VHOST_USER' in config_host ? ['CONFIG_VHOST_USER=y'] : []) + \
@@ -1987,7 +2134,7 @@ util_ss.add_all(trace_ss)
 util_ss = util_ss.apply(config_all, strict: false)
 libqemuutil = static_library('qemuutil',
                              sources: util_ss.sources() + stub_ss.sources() + genh,
-                             dependencies: [util_ss.dependencies(), libm, glib, socket, malloc, pixman])
+                             dependencies: [util_ss.dependencies(), libm, threads, glib, socket, malloc, pixman])
 qemuutil = declare_dependency(link_with: libqemuutil,
                               sources: genh + version_res)
 
@@ -2360,8 +2507,7 @@ foreach target : target_dirs
   endif
   foreach exe: execs
     exe_name = exe['name']
-    exe_sign = 'CONFIG_HVF' in config_target
-    if exe_sign
+    if targetos == 'darwin'
       exe_name += '-unsigned'
     endif
 
@@ -2375,7 +2521,13 @@ foreach target : target_dirs
                link_args: link_args,
                gui_app: exe['gui'])
 
-    if exe_sign
+    if 'CONFIG_HVF' in config_target
+      entitlements = meson.current_source_dir() / 'accel/hvf/entitlements.plist'
+    else
+      entitlements = '/dev/null'
+    endif
+    if targetos == 'darwin'
+      icon = meson.current_source_dir() / 'pc-bios/qemu.rsrc'
       emulators += {exe['name'] : custom_target(exe['name'],
                    depends: emulator,
                    output: exe['name'],
@@ -2383,14 +2535,14 @@ foreach target : target_dirs
                      meson.current_source_dir() / 'scripts/entitlement.sh',
                      meson.current_build_dir() / exe_name,
                      meson.current_build_dir() / exe['name'],
-                     meson.current_source_dir() / 'accel/hvf/entitlements.plist'
+                     entitlements, icon
                    ])
       }
 
       meson.add_install_script('scripts/entitlement.sh', '--install',
                                get_option('bindir') / exe_name,
                                get_option('bindir') / exe['name'],
-                               meson.current_source_dir() / 'accel/hvf/entitlements.plist')
+                               entitlements, icon)
     else
       emulators += {exe['name']: emulator}
     endif
@@ -2476,7 +2628,7 @@ if have_tools
                install: true)
   endif
 
-  if 'CONFIG_IVSHMEM' in config_host
+  if have_ivshmem
     subdir('contrib/ivshmem-client')
     subdir('contrib/ivshmem-server')
   endif
@@ -2613,7 +2765,6 @@ if targetos == 'windows'
     summary_info += {'Windows SDK':   config_host['WIN_SDK']}
   endif
 endif
-summary_info += {'ARFLAGS':           config_host['ARFLAGS']}
 summary_info += {'CFLAGS':            ' '.join(get_option('c_args')
                                                + ['-O' + get_option('optimization')]
                                                + (get_option('debug') ? ['-g'] : []))}
@@ -2634,10 +2785,6 @@ summary_info += {'PIE':               get_option('b_pie')}
 summary_info += {'static build':      config_host.has_key('CONFIG_STATIC')}
 summary_info += {'malloc trim support': has_malloc_trim}
 summary_info += {'membarrier':        config_host.has_key('CONFIG_MEMBARRIER')}
-summary_info += {'fdatasync':         config_host.has_key('CONFIG_FDATASYNC')}
-summary_info += {'madvise':           config_host.has_key('CONFIG_MADVISE')}
-summary_info += {'posix_madvise':     config_host.has_key('CONFIG_POSIX_MADVISE')}
-summary_info += {'posix_memalign':    config_host.has_key('CONFIG_POSIX_MEMALIGN')}
 summary_info += {'debug stack usage': config_host.has_key('CONFIG_DEBUG_STACK_USAGE')}
 summary_info += {'mutex debugging':   config_host.has_key('CONFIG_DEBUG_MUTEX')}
 summary_info += {'memory allocator':  get_option('malloc')}
@@ -2756,7 +2903,7 @@ summary_info += {'SDL image support': sdl_image.found()}
 summary_info += {'GTK support':       gtk.found()}
 summary_info += {'pixman':            pixman.found()}
 # TODO: add back version
-summary_info += {'VTE support':       config_host.has_key('CONFIG_VTE')}
+summary_info += {'VTE support':       vte.found()}
 # TODO: add back version
 summary_info += {'slirp support':     slirp_opt == 'disabled' ? false : slirp_opt}
 summary_info += {'libtasn1':          tasn1.found()}
@@ -2764,7 +2911,7 @@ summary_info += {'PAM':               pam.found()}
 summary_info += {'iconv support':     iconv.found()}
 summary_info += {'curses support':    curses.found()}
 # TODO: add back version
-summary_info += {'virgl support':     config_host.has_key('CONFIG_VIRGL')}
+summary_info += {'virgl support':     virgl.found()}
 summary_info += {'curl support':      curl.found()}
 summary_info += {'Multipath support': mpathpersist.found()}
 summary_info += {'VNC support':       vnc.found()}
@@ -2777,7 +2924,7 @@ summary_info += {'brlapi support':    brlapi.found()}
 summary_info += {'vde support':       config_host.has_key('CONFIG_VDE')}
 summary_info += {'netmap support':    config_host.has_key('CONFIG_NETMAP')}
 summary_info += {'Linux AIO support': config_host.has_key('CONFIG_LINUX_AIO')}
-summary_info += {'Linux io_uring support': config_host.has_key('CONFIG_LINUX_IO_URING')}
+summary_info += {'Linux io_uring support': linux_io_uring.found()}
 summary_info += {'ATTR/XATTR support': libattr.found()}
 summary_info += {'RDMA support':      config_host.has_key('CONFIG_RDMA')}
 summary_info += {'PVRDMA support':    config_host.has_key('CONFIG_PVRDMA')}
@@ -2812,10 +2959,10 @@ summary_info += {'bzip2 support':     libbzip2.found()}
 summary_info += {'lzfse support':     liblzfse.found()}
 summary_info += {'zstd support':      zstd.found()}
 summary_info += {'NUMA host support': config_host.has_key('CONFIG_NUMA')}
-summary_info += {'libxml2':           config_host.has_key('CONFIG_LIBXML2')}
+summary_info += {'libxml2':           libxml2.found()}
 summary_info += {'capstone':          capstone_opt == 'disabled' ? false : capstone_opt}
-summary_info += {'libpmem support':   config_host.has_key('CONFIG_LIBPMEM')}
-summary_info += {'libdaxctl support': config_host.has_key('CONFIG_LIBDAXCTL')}
+summary_info += {'libpmem support':   libpmem.found()}
+summary_info += {'libdaxctl support': libdaxctl.found()}
 summary_info += {'libudev':           libudev.found()}
 summary_info += {'FUSE lseek':        fuse_lseek.found()}
 summary(summary_info, bool_yn: true, section: 'Dependencies')

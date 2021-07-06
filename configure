@@ -315,7 +315,7 @@ xen="$default_feature"
 xen_ctrl_version="$default_feature"
 xen_pci_passthrough="auto"
 linux_aio="$default_feature"
-linux_io_uring="$default_feature"
+linux_io_uring="auto"
 cap_ng="auto"
 attr="auto"
 xfs="$default_feature"
@@ -408,8 +408,8 @@ gnutls="auto"
 nettle="auto"
 gcrypt="auto"
 auth_pam="auto"
-vte="$default_feature"
-virglrenderer="$default_feature"
+vte="auto"
+virglrenderer="auto"
 tpm="$default_feature"
 libssh="$default_feature"
 live_block_migration=${default_feature:-yes}
@@ -425,15 +425,15 @@ vdi=${default_feature:-yes}
 vvfat=${default_feature:-yes}
 qed=${default_feature:-yes}
 parallels=${default_feature:-yes}
-libxml2="$default_feature"
+libxml2="auto"
 debug_mutex="no"
-libpmem="$default_feature"
+libpmem="auto"
 default_devices="true"
 plugins="no"
 fuzzing="no"
 rng_none="no"
 secret_keyring="$default_feature"
-libdaxctl="$default_feature"
+libdaxctl="auto"
 meson=""
 ninja=""
 skip_meson=no
@@ -520,9 +520,6 @@ query_pkg_config() {
 }
 pkg_config=query_pkg_config
 sdl2_config="${SDL2_CONFIG-${cross_prefix}sdl2-config}"
-
-# If the user hasn't specified ARFLAGS, default to 'rv', just as make does.
-ARFLAGS="${ARFLAGS-rv}"
 
 # default flags for all hosts
 # We use -fwrapv to tell the compiler that we require a C dialect where
@@ -1205,9 +1202,9 @@ for opt do
   ;;
   --enable-linux-aio) linux_aio="yes"
   ;;
-  --disable-linux-io-uring) linux_io_uring="no"
+  --disable-linux-io-uring) linux_io_uring="disabled"
   ;;
-  --enable-linux-io-uring) linux_io_uring="yes"
+  --enable-linux-io-uring) linux_io_uring="enabled"
   ;;
   --disable-attr) attr="disabled"
   ;;
@@ -1395,13 +1392,13 @@ for opt do
   ;;
   --disable-pvrdma) pvrdma="no"
   ;;
-  --disable-vte) vte="no"
+  --disable-vte) vte="disabled"
   ;;
-  --enable-vte) vte="yes"
+  --enable-vte) vte="enabled"
   ;;
-  --disable-virglrenderer) virglrenderer="no"
+  --disable-virglrenderer) virglrenderer="disabled"
   ;;
-  --enable-virglrenderer) virglrenderer="yes"
+  --enable-virglrenderer) virglrenderer="enabled"
   ;;
   --disable-tpm) tpm="no"
   ;;
@@ -1419,9 +1416,9 @@ for opt do
   ;;
   --enable-numa) numa="yes"
   ;;
-  --disable-libxml2) libxml2="no"
+  --disable-libxml2) libxml2="disabled"
   ;;
-  --enable-libxml2) libxml2="yes"
+  --enable-libxml2) libxml2="enabled"
   ;;
   --disable-tcmalloc) tcmalloc="no"
   ;;
@@ -1504,9 +1501,9 @@ for opt do
   ;;
   --disable-debug-mutex) debug_mutex=no
   ;;
-  --enable-libpmem) libpmem=yes
+  --enable-libpmem) libpmem=disabled
   ;;
-  --disable-libpmem) libpmem=no
+  --disable-libpmem) libpmem=enabled
   ;;
   --enable-xkbcommon) xkbcommon="enabled"
   ;;
@@ -1534,9 +1531,9 @@ for opt do
   ;;
   --disable-keyring) secret_keyring="no"
   ;;
-  --enable-libdaxctl) libdaxctl=yes
+  --enable-libdaxctl) libdaxctl=disabled
   ;;
-  --disable-libdaxctl) libdaxctl=no
+  --disable-libdaxctl) libdaxctl=enabled
   ;;
   --enable-fuse) fuse="enabled"
   ;;
@@ -2376,20 +2373,6 @@ if test "$softmmu" = "no"; then
 fi
 
 ##########################################
-# Some versions of Mac OS X incorrectly define SIZE_MAX
-cat > $TMPC << EOF
-#include <stdint.h>
-#include <stdio.h>
-int main(int argc, char *argv[]) {
-    return printf("%zu", SIZE_MAX);
-}
-EOF
-have_broken_size_max=no
-if ! compile_object -Werror ; then
-    have_broken_size_max=yes
-fi
-
-##########################################
 # L2TPV3 probe
 
 cat > $TMPC <<EOF
@@ -2797,28 +2780,6 @@ EOF
       fi
     fi
   fi
-fi
-
-##########################################
-# VTE probe
-
-if test "$vte" != "no"; then
-    vteminversion="0.32.0"
-    if $pkg_config --exists "vte-2.91"; then
-      vtepackage="vte-2.91"
-    else
-      vtepackage="vte-2.90"
-    fi
-    if $pkg_config --exists "$vtepackage >= $vteminversion"; then
-        vte_cflags=$($pkg_config --cflags $vtepackage)
-        vte_libs=$($pkg_config --libs $vtepackage)
-        vteversion=$($pkg_config --modversion $vtepackage)
-        vte="yes"
-    elif test "$vte" = "yes"; then
-        feature_not_found "vte" "Install libvte-2.90/2.91 devel"
-    else
-        vte="no"
-    fi
 fi
 
 ##########################################
@@ -3356,21 +3317,6 @@ EOF
     linux_aio=no
   fi
 fi
-##########################################
-# linux-io-uring probe
-
-if test "$linux_io_uring" != "no" ; then
-  if $pkg_config liburing; then
-    linux_io_uring_cflags=$($pkg_config --cflags liburing)
-    linux_io_uring_libs=$($pkg_config --libs liburing)
-    linux_io_uring=yes
-  else
-    if test "$linux_io_uring" = "yes" ; then
-      feature_not_found "linux io_uring" "Install liburing devel"
-    fi
-    linux_io_uring=no
-  fi
-fi
 
 ##########################################
 # TPM emulation is only on POSIX
@@ -3447,107 +3393,6 @@ EOF
 fi
 
 ##########################################
-# libxml2 probe
-if test "$libxml2" != "no" ; then
-    if $pkg_config --exists libxml-2.0; then
-        libxml2="yes"
-        libxml2_cflags=$($pkg_config --cflags libxml-2.0)
-        libxml2_libs=$($pkg_config --libs libxml-2.0)
-    else
-        if test "$libxml2" = "yes"; then
-            feature_not_found "libxml2" "Install libxml2 devel"
-        fi
-        libxml2="no"
-    fi
-fi
-
-# Check for inotify functions when we are building linux-user
-# emulator.  This is done because older glibc versions don't
-# have syscall stubs for these implemented.  In that case we
-# don't provide them even if kernel supports them.
-#
-inotify=no
-cat > $TMPC << EOF
-#include <sys/inotify.h>
-
-int
-main(void)
-{
-	/* try to start inotify */
-	return inotify_init();
-}
-EOF
-if compile_prog "" "" ; then
-  inotify=yes
-fi
-
-inotify1=no
-cat > $TMPC << EOF
-#include <sys/inotify.h>
-
-int
-main(void)
-{
-    /* try to start inotify */
-    return inotify_init1(0);
-}
-EOF
-if compile_prog "" "" ; then
-  inotify1=yes
-fi
-
-# check if pipe2 is there
-pipe2=no
-cat > $TMPC << EOF
-#include <unistd.h>
-#include <fcntl.h>
-
-int main(void)
-{
-    int pipefd[2];
-    return pipe2(pipefd, O_CLOEXEC);
-}
-EOF
-if compile_prog "" "" ; then
-  pipe2=yes
-fi
-
-# check if accept4 is there
-accept4=no
-cat > $TMPC << EOF
-#include <sys/socket.h>
-#include <stddef.h>
-
-int main(void)
-{
-    accept4(0, NULL, NULL, SOCK_CLOEXEC);
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-  accept4=yes
-fi
-
-# check if tee/splice is there. vmsplice was added same time.
-splice=no
-cat > $TMPC << EOF
-#include <unistd.h>
-#include <fcntl.h>
-#include <limits.h>
-
-int main(void)
-{
-    int len, fd = 0;
-    len = tee(STDIN_FILENO, STDOUT_FILENO, INT_MAX, SPLICE_F_NONBLOCK);
-    splice(STDIN_FILENO, NULL, fd, NULL, len, SPLICE_F_MOVE);
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-  splice=yes
-fi
-
-##########################################
 # libnuma probe
 
 if test "$numa" != "no" ; then
@@ -3577,59 +3422,6 @@ elif test "$jemalloc" = "yes" ; then
     malloc=jemalloc
 fi
 
-##########################################
-# signalfd probe
-signalfd="no"
-cat > $TMPC << EOF
-#include <unistd.h>
-#include <sys/syscall.h>
-#include <signal.h>
-int main(void) { return syscall(SYS_signalfd, -1, NULL, _NSIG / 8); }
-EOF
-
-if compile_prog "" "" ; then
-  signalfd=yes
-fi
-
-# check if optreset global is declared by <getopt.h>
-optreset="no"
-cat > $TMPC << EOF
-#include <getopt.h>
-int main(void) { return optreset; }
-EOF
-
-if compile_prog "" "" ; then
-  optreset=yes
-fi
-
-# check if eventfd is supported
-eventfd=no
-cat > $TMPC << EOF
-#include <sys/eventfd.h>
-
-int main(void)
-{
-    return eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
-}
-EOF
-if compile_prog "" "" ; then
-  eventfd=yes
-fi
-
-# check if memfd is supported
-memfd=no
-cat > $TMPC << EOF
-#include <sys/mman.h>
-
-int main(void)
-{
-    return memfd_create("foo", MFD_ALLOW_SEALING);
-}
-EOF
-if compile_prog "" "" ; then
-  memfd=yes
-fi
-
 # check for usbfs
 have_usbfs=no
 if test "$linux_user" = "yes"; then
@@ -3651,297 +3443,6 @@ int main(void)
 EOF
   if compile_prog "" ""; then
     have_usbfs=yes
-  fi
-fi
-
-# check for fallocate
-fallocate=no
-cat > $TMPC << EOF
-#include <fcntl.h>
-
-int main(void)
-{
-    fallocate(0, 0, 0, 0);
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-  fallocate=yes
-fi
-
-# check for fallocate hole punching
-fallocate_punch_hole=no
-cat > $TMPC << EOF
-#include <fcntl.h>
-#include <linux/falloc.h>
-
-int main(void)
-{
-    fallocate(0, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, 0, 0);
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-  fallocate_punch_hole=yes
-fi
-
-# check that fallocate supports range zeroing inside the file
-fallocate_zero_range=no
-cat > $TMPC << EOF
-#include <fcntl.h>
-#include <linux/falloc.h>
-
-int main(void)
-{
-    fallocate(0, FALLOC_FL_ZERO_RANGE, 0, 0);
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-  fallocate_zero_range=yes
-fi
-
-# check for posix_fallocate
-posix_fallocate=no
-cat > $TMPC << EOF
-#include <fcntl.h>
-
-int main(void)
-{
-    posix_fallocate(0, 0, 0);
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-    posix_fallocate=yes
-fi
-
-# check for sync_file_range
-sync_file_range=no
-cat > $TMPC << EOF
-#include <fcntl.h>
-
-int main(void)
-{
-    sync_file_range(0, 0, 0, 0);
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-  sync_file_range=yes
-fi
-
-# check for linux/fiemap.h and FS_IOC_FIEMAP
-fiemap=no
-cat > $TMPC << EOF
-#include <sys/ioctl.h>
-#include <linux/fs.h>
-#include <linux/fiemap.h>
-
-int main(void)
-{
-    ioctl(0, FS_IOC_FIEMAP, 0);
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-  fiemap=yes
-fi
-
-# check for dup3
-dup3=no
-cat > $TMPC << EOF
-#include <unistd.h>
-
-int main(void)
-{
-    dup3(0, 0, 0);
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-  dup3=yes
-fi
-
-# check for ppoll support
-ppoll=no
-cat > $TMPC << EOF
-#include <poll.h>
-
-int main(void)
-{
-    struct pollfd pfd = { .fd = 0, .events = 0, .revents = 0 };
-    ppoll(&pfd, 1, 0, 0);
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-  ppoll=yes
-fi
-
-# check for prctl(PR_SET_TIMERSLACK , ... ) support
-prctl_pr_set_timerslack=no
-cat > $TMPC << EOF
-#include <sys/prctl.h>
-
-int main(void)
-{
-    prctl(PR_SET_TIMERSLACK, 1, 0, 0, 0);
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-  prctl_pr_set_timerslack=yes
-fi
-
-# check for epoll support
-epoll=no
-cat > $TMPC << EOF
-#include <sys/epoll.h>
-
-int main(void)
-{
-    epoll_create(0);
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-  epoll=yes
-fi
-
-# epoll_create1 is a later addition
-# so we must check separately for its presence
-epoll_create1=no
-cat > $TMPC << EOF
-#include <sys/epoll.h>
-
-int main(void)
-{
-    /* Note that we use epoll_create1 as a value, not as
-     * a function being called. This is necessary so that on
-     * old SPARC glibc versions where the function was present in
-     * the library but not declared in the header file we will
-     * fail the configure check. (Otherwise we will get a compiler
-     * warning but not an error, and will proceed to fail the
-     * qemu compile where we compile with -Werror.)
-     */
-    return (int)(uintptr_t)&epoll_create1;
-}
-EOF
-if compile_prog "" "" ; then
-  epoll_create1=yes
-fi
-
-# check for sendfile support
-sendfile=no
-cat > $TMPC << EOF
-#include <sys/sendfile.h>
-
-int main(void)
-{
-    return sendfile(0, 0, 0, 0);
-}
-EOF
-if compile_prog "" "" ; then
-  sendfile=yes
-fi
-
-# check for timerfd support (glibc 2.8 and newer)
-timerfd=no
-cat > $TMPC << EOF
-#include <sys/timerfd.h>
-
-int main(void)
-{
-    return(timerfd_create(CLOCK_REALTIME, 0));
-}
-EOF
-if compile_prog "" "" ; then
-  timerfd=yes
-fi
-
-# check for setns and unshare support
-setns=no
-cat > $TMPC << EOF
-#include <sched.h>
-
-int main(void)
-{
-    int ret;
-    ret = setns(0, 0);
-    ret = unshare(0);
-    return ret;
-}
-EOF
-if compile_prog "" "" ; then
-  setns=yes
-fi
-
-# clock_adjtime probe
-clock_adjtime=no
-cat > $TMPC <<EOF
-#include <time.h>
-#include <sys/timex.h>
-
-int main(void)
-{
-    return clock_adjtime(0, 0);
-}
-EOF
-clock_adjtime=no
-if compile_prog "" "" ; then
-  clock_adjtime=yes
-fi
-
-# syncfs probe
-syncfs=no
-cat > $TMPC <<EOF
-#include <unistd.h>
-
-int main(void)
-{
-    return syncfs(0);
-}
-EOF
-syncfs=no
-if compile_prog "" "" ; then
-  syncfs=yes
-fi
-
-# Search for bswap_32 function
-byteswap_h=no
-cat > $TMPC << EOF
-#include <byteswap.h>
-int main(void) { return bswap_32(0); }
-EOF
-if compile_prog "" "" ; then
-  byteswap_h=yes
-fi
-
-# Search for bswap32 function
-bswap_h=no
-cat > $TMPC << EOF
-#include <sys/endian.h>
-#include <sys/types.h>
-#include <machine/bswap.h>
-int main(void) { return bswap32(0); }
-EOF
-if compile_prog "" "" ; then
-  bswap_h=yes
-fi
-
-# Check whether we have openpty() in either libc or libutil
-cat > $TMPC << EOF
-extern int openpty(int *am, int *as, char *name, void *termp, void *winp);
-int main(void) { return openpty(0, 0, 0, 0, 0); }
-EOF
-
-have_openpty="no"
-if compile_prog "" "" ; then
-  have_openpty="yes"
-else
-  if compile_prog "" "-lutil" ; then
-    have_openpty="yes"
   fi
 fi
 
@@ -4059,28 +3560,6 @@ EOF
 fi
 
 ##########################################
-# virgl renderer probe
-
-if test "$virglrenderer" != "no" ; then
-  cat > $TMPC << EOF
-#include <virglrenderer.h>
-int main(void) { virgl_renderer_poll(); return 0; }
-EOF
-  virgl_cflags=$($pkg_config --cflags virglrenderer 2>/dev/null)
-  virgl_libs=$($pkg_config --libs virglrenderer 2>/dev/null)
-  virgl_version=$($pkg_config --modversion virglrenderer 2>/dev/null)
-  if $pkg_config virglrenderer >/dev/null 2>&1 && \
-     compile_prog "$virgl_cflags" "$virgl_libs" ; then
-    virglrenderer="yes"
-  else
-    if test "$virglrenderer" = "yes" ; then
-      feature_not_found "virglrenderer"
-    fi
-    virglrenderer="no"
-  fi
-fi
-
-##########################################
 # capstone
 
 case "$capstone" in
@@ -4089,66 +3568,6 @@ case "$capstone" in
     git_submodules="${git_submodules} capstone"
     ;;
 esac
-
-##########################################
-# check if we have fdatasync
-
-fdatasync=no
-cat > $TMPC << EOF
-#include <unistd.h>
-int main(void) {
-#if defined(_POSIX_SYNCHRONIZED_IO) && _POSIX_SYNCHRONIZED_IO > 0
-return fdatasync(0);
-#else
-#error Not supported
-#endif
-}
-EOF
-if compile_prog "" "" ; then
-    fdatasync=yes
-fi
-
-##########################################
-# check if we have madvise
-
-madvise=no
-cat > $TMPC << EOF
-#include <sys/types.h>
-#include <sys/mman.h>
-#include <stddef.h>
-int main(void) { return madvise(NULL, 0, MADV_DONTNEED); }
-EOF
-if compile_prog "" "" ; then
-    madvise=yes
-fi
-
-##########################################
-# check if we have posix_madvise
-
-posix_madvise=no
-cat > $TMPC << EOF
-#include <sys/mman.h>
-#include <stddef.h>
-int main(void) { return posix_madvise(NULL, 0, POSIX_MADV_DONTNEED); }
-EOF
-if compile_prog "" "" ; then
-    posix_madvise=yes
-fi
-
-##########################################
-# check if we have posix_memalign()
-
-posix_memalign=no
-cat > $TMPC << EOF
-#include <stdlib.h>
-int main(void) {
-    void *p;
-    return posix_memalign(&p, 8, 8);
-}
-EOF
-if compile_prog "" "" ; then
-    posix_memalign=yes
-fi
 
 ##########################################
 # check if we have posix_syslog
@@ -4160,59 +3579,6 @@ int main(void) { openlog("qemu", LOG_PID, LOG_DAEMON); syslog(LOG_INFO, "configu
 EOF
 if compile_prog "" "" ; then
     posix_syslog=yes
-fi
-
-##########################################
-# check if we have sem_timedwait
-
-sem_timedwait=no
-cat > $TMPC << EOF
-#include <semaphore.h>
-int main(void) { sem_t s; struct timespec t = {0}; return sem_timedwait(&s, &t); }
-EOF
-if compile_prog "" "" ; then
-    sem_timedwait=yes
-fi
-
-##########################################
-# check if we have strchrnul
-
-strchrnul=no
-cat > $TMPC << EOF
-#include <string.h>
-int main(void);
-// Use a haystack that the compiler shouldn't be able to constant fold
-char *haystack = (char*)&main;
-int main(void) { return strchrnul(haystack, 'x') != &haystack[6]; }
-EOF
-if compile_prog "" "" ; then
-    strchrnul=yes
-fi
-
-#########################################
-# check if we have st_atim
-
-st_atim=no
-cat > $TMPC << EOF
-#include <sys/stat.h>
-#include <stddef.h>
-int main(void) { return offsetof(struct stat, st_atim); }
-EOF
-if compile_prog "" "" ; then
-    st_atim=yes
-fi
-
-##########################################
-# check if we have sigev_notify_thread_id
-
-sigev_notify_thread_id=no
-cat > $TMPC << EOF
-#include <stddef.h>
-#include <signal.h>
-int main(void) { return offsetof(struct sigevent, sigev_notify_thread_id); }
-EOF
-if compile_prog "" "" ; then
-    sigev_notify_thread_id=yes
 fi
 
 ##########################################
@@ -4392,65 +3758,6 @@ else # "$safe_stack" = ""
     fi
   fi
 fi
-fi
-
-##########################################
-# check if we have open_by_handle_at
-
-open_by_handle_at=no
-cat > $TMPC << EOF
-#include <fcntl.h>
-#if !defined(AT_EMPTY_PATH)
-# error missing definition
-#else
-int main(void) { struct file_handle fh; return open_by_handle_at(0, &fh, 0); }
-#endif
-EOF
-if compile_prog "" "" ; then
-    open_by_handle_at=yes
-fi
-
-########################################
-# check if we have linux/magic.h
-
-linux_magic_h=no
-cat > $TMPC << EOF
-#include <linux/magic.h>
-int main(void) {
-  return 0;
-}
-EOF
-if compile_prog "" "" ; then
-    linux_magic_h=yes
-fi
-
-########################################
-# check if we have valgrind/valgrind.h
-
-valgrind_h=no
-cat > $TMPC << EOF
-#include <valgrind/valgrind.h>
-int main(void) {
-  return 0;
-}
-EOF
-if compile_prog "" "" ; then
-    valgrind_h=yes
-fi
-
-########################################
-# check if environ is declared
-
-has_environ=no
-cat > $TMPC << EOF
-#include <unistd.h>
-int main(void) {
-    environ = 0;
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-    has_environ=yes
 fi
 
 ########################################
@@ -4725,20 +4032,6 @@ if test "$fortify_source" != "no"; then
   fi
 fi
 
-###############################################
-# Check if copy_file_range is provided by glibc
-have_copy_file_range=no
-cat > $TMPC << EOF
-#include <unistd.h>
-int main(void) {
-  copy_file_range(0, NULL, 0, NULL, 0, 0);
-  return 0;
-}
-EOF
-if compile_prog "" "" ; then
-    have_copy_file_range=yes
-fi
-
 ##########################################
 # check if struct fsxattr is available via linux/fs.h
 
@@ -4783,19 +4076,6 @@ else
     # Do not enable it by default even for Mingw32, because it doesn't
     # work on Wine.
     membarrier=no
-fi
-
-##########################################
-# check if rtnetlink.h exists and is useful
-have_rtnetlink=no
-cat > $TMPC << EOF
-#include <linux/rtnetlink.h>
-int main(void) {
-  return IFLA_PROTO_DOWN;
-}
-EOF
-if compile_prog "" "" ; then
-    have_rtnetlink=yes
 fi
 
 ##########################################
@@ -4850,49 +4130,6 @@ then
     fi
 fi
 
-
-#################################################
-# check for sysmacros.h
-
-have_sysmacros=no
-cat > $TMPC << EOF
-#include <sys/sysmacros.h>
-int main(void) {
-    return makedev(0, 0);
-}
-EOF
-if compile_prog "" "" ; then
-    have_sysmacros=yes
-fi
-
-##########################################
-# check for utmpx.h, it is missing e.g. on OpenBSD
-
-have_utmpx=no
-cat > $TMPC << EOF
-#include <utmpx.h>
-struct utmpx user_info;
-int main(void) {
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-    have_utmpx=yes
-fi
-
-##########################################
-# check for getrandom()
-
-have_getrandom=no
-cat > $TMPC << EOF
-#include <sys/random.h>
-int main(void) {
-    return getrandom(0, 0, GRND_NONBLOCK);
-}
-EOF
-if compile_prog "" "" ; then
-    have_getrandom=yes
-fi
 
 ##########################################
 # checks for sanitizers
@@ -4975,38 +4212,6 @@ EOF
   if compile_prog "$CPU_CFLAGS -Werror -fsanitize=thread" "" ; then
       have_tsan_iface_fiber=yes
   fi
-fi
-
-##########################################
-# check for libpmem
-
-if test "$libpmem" != "no"; then
-	if $pkg_config --exists "libpmem"; then
-		libpmem="yes"
-		libpmem_libs=$($pkg_config --libs libpmem)
-		libpmem_cflags=$($pkg_config --cflags libpmem)
-	else
-		if test "$libpmem" = "yes" ; then
-			feature_not_found "libpmem" "Install nvml or pmdk"
-		fi
-		libpmem="no"
-	fi
-fi
-
-##########################################
-# check for libdaxctl
-
-if test "$libdaxctl" != "no"; then
-	if $pkg_config --atleast-version=57 "libdaxctl"; then
-		libdaxctl="yes"
-		libdaxctl_libs=$($pkg_config --libs libdaxctl)
-		libdaxctl_cflags=$($pkg_config --cflags libdaxctl)
-	else
-		if test "$libdaxctl" = "yes" ; then
-			feature_not_found "libdaxctl" "Install libdaxctl"
-		fi
-		libdaxctl="no"
-	fi
 fi
 
 ##########################################
@@ -5141,11 +4346,6 @@ if test "$mingw32" = "yes" ; then
             QEMU_LDFLAGS="-Wl,$flag $QEMU_LDFLAGS"
         fi
     done
-fi
-
-# We can only support ivshmem if we have eventfd
-if [ "$eventfd" = "yes" ]; then
-  ivshmem=yes
 fi
 
 # Probe for guest agent support/options
@@ -5372,95 +4572,8 @@ fi
 if test "$module_upgrades" = "yes"; then
   echo "CONFIG_MODULE_UPGRADES=y" >> $config_host_mak
 fi
-if test "$pipe2" = "yes" ; then
-  echo "CONFIG_PIPE2=y" >> $config_host_mak
-fi
-if test "$accept4" = "yes" ; then
-  echo "CONFIG_ACCEPT4=y" >> $config_host_mak
-fi
-if test "$splice" = "yes" ; then
-  echo "CONFIG_SPLICE=y" >> $config_host_mak
-fi
-if test "$eventfd" = "yes" ; then
-  echo "CONFIG_EVENTFD=y" >> $config_host_mak
-fi
-if test "$memfd" = "yes" ; then
-  echo "CONFIG_MEMFD=y" >> $config_host_mak
-fi
 if test "$have_usbfs" = "yes" ; then
   echo "CONFIG_USBFS=y" >> $config_host_mak
-fi
-if test "$fallocate" = "yes" ; then
-  echo "CONFIG_FALLOCATE=y" >> $config_host_mak
-fi
-if test "$fallocate_punch_hole" = "yes" ; then
-  echo "CONFIG_FALLOCATE_PUNCH_HOLE=y" >> $config_host_mak
-fi
-if test "$fallocate_zero_range" = "yes" ; then
-  echo "CONFIG_FALLOCATE_ZERO_RANGE=y" >> $config_host_mak
-fi
-if test "$posix_fallocate" = "yes" ; then
-  echo "CONFIG_POSIX_FALLOCATE=y" >> $config_host_mak
-fi
-if test "$sync_file_range" = "yes" ; then
-  echo "CONFIG_SYNC_FILE_RANGE=y" >> $config_host_mak
-fi
-if test "$fiemap" = "yes" ; then
-  echo "CONFIG_FIEMAP=y" >> $config_host_mak
-fi
-if test "$dup3" = "yes" ; then
-  echo "CONFIG_DUP3=y" >> $config_host_mak
-fi
-if test "$ppoll" = "yes" ; then
-  echo "CONFIG_PPOLL=y" >> $config_host_mak
-fi
-if test "$prctl_pr_set_timerslack" = "yes" ; then
-  echo "CONFIG_PRCTL_PR_SET_TIMERSLACK=y" >> $config_host_mak
-fi
-if test "$epoll" = "yes" ; then
-  echo "CONFIG_EPOLL=y" >> $config_host_mak
-fi
-if test "$epoll_create1" = "yes" ; then
-  echo "CONFIG_EPOLL_CREATE1=y" >> $config_host_mak
-fi
-if test "$sendfile" = "yes" ; then
-  echo "CONFIG_SENDFILE=y" >> $config_host_mak
-fi
-if test "$timerfd" = "yes" ; then
-  echo "CONFIG_TIMERFD=y" >> $config_host_mak
-fi
-if test "$setns" = "yes" ; then
-  echo "CONFIG_SETNS=y" >> $config_host_mak
-fi
-if test "$clock_adjtime" = "yes" ; then
-  echo "CONFIG_CLOCK_ADJTIME=y" >> $config_host_mak
-fi
-if test "$syncfs" = "yes" ; then
-  echo "CONFIG_SYNCFS=y" >> $config_host_mak
-fi
-if test "$inotify" = "yes" ; then
-  echo "CONFIG_INOTIFY=y" >> $config_host_mak
-fi
-if test "$inotify1" = "yes" ; then
-  echo "CONFIG_INOTIFY1=y" >> $config_host_mak
-fi
-if test "$sem_timedwait" = "yes" ; then
-  echo "CONFIG_SEM_TIMEDWAIT=y" >> $config_host_mak
-fi
-if test "$strchrnul" = "yes" ; then
-  echo "HAVE_STRCHRNUL=y" >> $config_host_mak
-fi
-if test "$st_atim" = "yes" ; then
-  echo "HAVE_STRUCT_STAT_ST_ATIM=y" >> $config_host_mak
-fi
-if test "$sigev_notify_thread_id" = "yes" ; then
-  echo "HAVE_SIGEV_NOTIFY_THREAD_ID=y" >> $config_host_mak
-fi
-if test "$byteswap_h" = "yes" ; then
-  echo "CONFIG_BYTESWAP_H=y" >> $config_host_mak
-fi
-if test "$bswap_h" = "yes" ; then
-  echo "CONFIG_MACHINE_BSWAP_H=y" >> $config_host_mak
 fi
 if test "$gio" = "yes" ; then
     echo "CONFIG_GIO=y" >> $config_host_mak
@@ -5471,12 +4584,6 @@ if test "$gdbus_codegen" != "" ; then
     echo "GDBUS_CODEGEN=$gdbus_codegen" >> $config_host_mak
 fi
 echo "CONFIG_TLS_PRIORITY=\"$tls_priority\"" >> $config_host_mak
-if test "$have_broken_size_max" = "yes" ; then
-    echo "HAVE_BROKEN_SIZE_MAX=y" >> $config_host_mak
-fi
-if test "$have_openpty" = "yes" ; then
-    echo "HAVE_OPENPTY=y" >> $config_host_mak
-fi
 
 # Work around a system header bug with some kernel/XFS header
 # versions where they both try to define 'struct fsxattr':
@@ -5484,19 +4591,6 @@ fi
 # if this macro is set.
 if test "$have_fsxattr" = "yes" ; then
     echo "HAVE_FSXATTR=y" >> $config_host_mak
-fi
-if test "$have_copy_file_range" = "yes" ; then
-    echo "HAVE_COPY_FILE_RANGE=y" >> $config_host_mak
-fi
-if test "$vte" = "yes" ; then
-  echo "CONFIG_VTE=y" >> $config_host_mak
-  echo "VTE_CFLAGS=$vte_cflags" >> $config_host_mak
-  echo "VTE_LIBS=$vte_libs" >> $config_host_mak
-fi
-if test "$virglrenderer" = "yes" ; then
-  echo "CONFIG_VIRGL=y" >> $config_host_mak
-  echo "VIRGL_CFLAGS=$virgl_cflags" >> $config_host_mak
-  echo "VIRGL_LIBS=$virgl_libs" >> $config_host_mak
 fi
 if test "$xen" = "enabled" ; then
   echo "CONFIG_XEN_BACKEND=y" >> $config_host_mak
@@ -5506,11 +4600,6 @@ if test "$xen" = "enabled" ; then
 fi
 if test "$linux_aio" = "yes" ; then
   echo "CONFIG_LINUX_AIO=y" >> $config_host_mak
-fi
-if test "$linux_io_uring" = "yes" ; then
-  echo "CONFIG_LINUX_IO_URING=y" >> $config_host_mak
-  echo "LINUX_IO_URING_CFLAGS=$linux_io_uring_cflags" >> $config_host_mak
-  echo "LINUX_IO_URING_LIBS=$linux_io_uring_libs" >> $config_host_mak
 fi
 if test "$vhost_scsi" = "yes" ; then
   echo "CONFIG_VHOST_SCSI=y" >> $config_host_mak
@@ -5551,26 +4640,8 @@ fi
 if test "$membarrier" = "yes" ; then
   echo "CONFIG_MEMBARRIER=y" >> $config_host_mak
 fi
-if test "$signalfd" = "yes" ; then
-  echo "CONFIG_SIGNALFD=y" >> $config_host_mak
-fi
-if test "$optreset" = "yes" ; then
-  echo "HAVE_OPTRESET=y" >> $config_host_mak
-fi
 if test "$tcg" = "enabled" -a "$tcg_interpreter" = "true" ; then
   echo "CONFIG_TCG_INTERPRETER=y" >> $config_host_mak
-fi
-if test "$fdatasync" = "yes" ; then
-  echo "CONFIG_FDATASYNC=y" >> $config_host_mak
-fi
-if test "$madvise" = "yes" ; then
-  echo "CONFIG_MADVISE=y" >> $config_host_mak
-fi
-if test "$posix_madvise" = "yes" ; then
-  echo "CONFIG_POSIX_MADVISE=y" >> $config_host_mak
-fi
-if test "$posix_memalign" = "yes" ; then
-  echo "CONFIG_POSIX_MEMALIGN=y" >> $config_host_mak
 fi
 
 if test "$spice_protocol" = "yes" ; then
@@ -5628,28 +4699,12 @@ if test "$crypto_afalg" = "yes" ; then
   echo "CONFIG_AF_ALG=y" >> $config_host_mak
 fi
 
-if test "$open_by_handle_at" = "yes" ; then
-  echo "CONFIG_OPEN_BY_HANDLE=y" >> $config_host_mak
-fi
-
-if test "$linux_magic_h" = "yes" ; then
-  echo "CONFIG_LINUX_MAGIC_H=y" >> $config_host_mak
-fi
-
-if test "$valgrind_h" = "yes" ; then
-  echo "CONFIG_VALGRIND_H=y" >> $config_host_mak
-fi
-
 if test "$have_asan_iface_fiber" = "yes" ; then
     echo "CONFIG_ASAN_IFACE_FIBER=y" >> $config_host_mak
 fi
 
 if test "$have_tsan" = "yes" && test "$have_tsan_iface_fiber" = "yes" ; then
     echo "CONFIG_TSAN=y" >> $config_host_mak
-fi
-
-if test "$has_environ" = "yes" ; then
-  echo "CONFIG_HAS_ENVIRON=y" >> $config_host_mak
 fi
 
 if test "$cpuid_h" = "yes" ; then
@@ -5738,16 +4793,6 @@ if test "$pvrdma" = "yes" ; then
   echo "CONFIG_PVRDMA=y" >> $config_host_mak
 fi
 
-if test "$have_rtnetlink" = "yes" ; then
-  echo "CONFIG_RTNETLINK=y" >> $config_host_mak
-fi
-
-if test "$libxml2" = "yes" ; then
-  echo "CONFIG_LIBXML2=y" >> $config_host_mak
-  echo "LIBXML2_CFLAGS=$libxml2_cflags" >> $config_host_mak
-  echo "LIBXML2_LIBS=$libxml2_libs" >> $config_host_mak
-fi
-
 if test "$replication" = "yes" ; then
   echo "CONFIG_REPLICATION=y" >> $config_host_mak
 fi
@@ -5756,19 +4801,6 @@ if test "$have_af_vsock" = "yes" ; then
   echo "CONFIG_AF_VSOCK=y" >> $config_host_mak
 fi
 
-if test "$have_sysmacros" = "yes" ; then
-  echo "CONFIG_SYSMACROS=y" >> $config_host_mak
-fi
-
-if test "$have_utmpx" = "yes" ; then
-  echo "HAVE_UTMPX=y" >> $config_host_mak
-fi
-if test "$have_getrandom" = "yes" ; then
-  echo "CONFIG_GETRANDOM=y" >> $config_host_mak
-fi
-if test "$ivshmem" = "yes" ; then
-  echo "CONFIG_IVSHMEM=y" >> $config_host_mak
-fi
 if test "$debug_mutex" = "yes" ; then
   echo "CONFIG_DEBUG_MUTEX=y" >> $config_host_mak
 fi
@@ -5790,11 +4822,6 @@ if test "$libpmem" = "yes" ; then
   echo "CONFIG_LIBPMEM=y" >> $config_host_mak
   echo "LIBPMEM_LIBS=$libpmem_libs" >> $config_host_mak
   echo "LIBPMEM_CFLAGS=$libpmem_cflags" >> $config_host_mak
-fi
-
-if test "$libdaxctl" = "yes" ; then
-  echo "CONFIG_LIBDAXCTL=y" >> $config_host_mak
-  echo "LIBDAXCTL_LIBS=$libdaxctl_libs" >> $config_host_mak
 fi
 
 if test "$bochs" = "yes" ; then
@@ -5887,19 +4914,12 @@ echo "HOST_CC=$host_cc" >> $config_host_mak
 if $iasl -h > /dev/null 2>&1; then
   echo "CONFIG_IASL=$iasl" >> $config_host_mak
 fi
-echo "CXX=$cxx" >> $config_host_mak
-echo "OBJCC=$objcc" >> $config_host_mak
 echo "AR=$ar" >> $config_host_mak
-echo "ARFLAGS=$ARFLAGS" >> $config_host_mak
 echo "AS=$as" >> $config_host_mak
 echo "CCAS=$ccas" >> $config_host_mak
 echo "CPP=$cpp" >> $config_host_mak
 echo "OBJCOPY=$objcopy" >> $config_host_mak
 echo "LD=$ld" >> $config_host_mak
-echo "RANLIB=$ranlib" >> $config_host_mak
-echo "NM=$nm" >> $config_host_mak
-echo "PKG_CONFIG=$pkg_config_exe" >> $config_host_mak
-echo "WINDRES=$windres" >> $config_host_mak
 echo "CFLAGS_NOPIE=$CFLAGS_NOPIE" >> $config_host_mak
 echo "QEMU_CFLAGS=$QEMU_CFLAGS" >> $config_host_mak
 echo "QEMU_CXXFLAGS=$QEMU_CXXFLAGS" >> $config_host_mak
@@ -6155,16 +5175,17 @@ if test "$skip_meson" = no; then
         -Dkvm=$kvm -Dhax=$hax -Dwhpx=$whpx -Dhvf=$hvf -Dnvmm=$nvmm \
         -Dxen=$xen -Dxen_pci_passthrough=$xen_pci_passthrough -Dtcg=$tcg \
         -Dcocoa=$cocoa -Dgtk=$gtk -Dmpath=$mpath -Dsdl=$sdl -Dsdl_image=$sdl_image \
-        -Dlibusb=$libusb -Dsmartcard=$smartcard -Dusb_redir=$usb_redir \
+        -Dlibusb=$libusb -Dsmartcard=$smartcard -Dusb_redir=$usb_redir -Dvte=$vte \
         -Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
         -Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f -Dvirtiofsd=$virtiofsd \
         -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt -Dbrlapi=$brlapi \
         -Dcurl=$curl -Dglusterfs=$glusterfs -Dbzip2=$bzip2 -Dlibiscsi=$libiscsi \
         -Dlibnfs=$libnfs -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
-        -Drbd=$rbd -Dlzo=$lzo -Dsnappy=$snappy -Dlzfse=$lzfse \
+        -Drbd=$rbd -Dlzo=$lzo -Dsnappy=$snappy -Dlzfse=$lzfse -Dlibxml2=$libxml2 \
+        -Dlibdaxctl=$libdaxctl -Dlibpmem=$libpmem -Dlinux_io_uring=$linux_io_uring \
         -Dgnutls=$gnutls -Dnettle=$nettle -Dgcrypt=$gcrypt -Dauth_pam=$auth_pam \
         -Dzstd=$zstd -Dseccomp=$seccomp -Dvirtfs=$virtfs -Dcap_ng=$cap_ng \
-        -Dattr=$attr -Ddefault_devices=$default_devices \
+        -Dattr=$attr -Ddefault_devices=$default_devices -Dvirglrenderer=$virglrenderer \
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         -Dvhost_user_blk_server=$vhost_user_blk_server -Dmultiprocess=$multiprocess \
         -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek -Dguest_agent_msi=$guest_agent_msi -Dbpf=$bpf\

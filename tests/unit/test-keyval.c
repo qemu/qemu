@@ -747,6 +747,61 @@ static void test_keyval_visit_any(void)
     visit_free(v);
 }
 
+static void test_keyval_merge_dict(void)
+{
+    QDict *first = keyval_parse("opt1=abc,opt2.sub1=def,opt2.sub2=ghi,opt3=xyz",
+                                NULL, NULL, &error_abort);
+    QDict *second = keyval_parse("opt1=ABC,opt2.sub2=GHI,opt2.sub3=JKL",
+                                 NULL, NULL, &error_abort);
+    QDict *combined = keyval_parse("opt1=ABC,opt2.sub1=def,opt2.sub2=GHI,opt2.sub3=JKL,opt3=xyz",
+                                   NULL, NULL, &error_abort);
+    Error *err = NULL;
+
+    keyval_merge(first, second, &err);
+    g_assert(!err);
+    g_assert(qobject_is_equal(QOBJECT(combined), QOBJECT(first)));
+    qobject_unref(first);
+    qobject_unref(second);
+    qobject_unref(combined);
+}
+
+static void test_keyval_merge_list(void)
+{
+    QDict *first = keyval_parse("opt1.0=abc,opt2.0=xyz",
+                                NULL, NULL, &error_abort);
+    QDict *second = keyval_parse("opt1.0=def",
+                                 NULL, NULL, &error_abort);
+    QDict *combined = keyval_parse("opt1.0=abc,opt1.1=def,opt2.0=xyz",
+                                   NULL, NULL, &error_abort);
+    Error *err = NULL;
+
+    keyval_merge(first, second, &err);
+    g_assert(!err);
+    g_assert(qobject_is_equal(QOBJECT(combined), QOBJECT(first)));
+    qobject_unref(first);
+    qobject_unref(second);
+    qobject_unref(combined);
+}
+
+static void test_keyval_merge_conflict(void)
+{
+    QDict *first = keyval_parse("opt2=ABC",
+                                NULL, NULL, &error_abort);
+    QDict *second = keyval_parse("opt2.sub1=def,opt2.sub2=ghi",
+                                 NULL, NULL, &error_abort);
+    QDict *third = qdict_clone_shallow(first);
+    Error *err = NULL;
+
+    keyval_merge(first, second, &err);
+    error_free_or_abort(&err);
+    keyval_merge(second, third, &err);
+    error_free_or_abort(&err);
+
+    qobject_unref(first);
+    qobject_unref(second);
+    qobject_unref(third);
+}
+
 int main(int argc, char *argv[])
 {
     g_test_init(&argc, &argv, NULL);
@@ -760,6 +815,9 @@ int main(int argc, char *argv[])
     g_test_add_func("/keyval/visit/optional", test_keyval_visit_optional);
     g_test_add_func("/keyval/visit/alternate", test_keyval_visit_alternate);
     g_test_add_func("/keyval/visit/any", test_keyval_visit_any);
+    g_test_add_func("/keyval/merge/dict", test_keyval_merge_dict);
+    g_test_add_func("/keyval/merge/list", test_keyval_merge_list);
+    g_test_add_func("/keyval/merge/conflict", test_keyval_merge_conflict);
     g_test_run();
     return 0;
 }

@@ -21,9 +21,6 @@ hppa
 i386
   ~ (/qemu)?((/include)?/hw/i386/.*|/target/i386/.*|/hw/intc/[^/]*apic[^/]*\.c)
 
-lm32
-  ~ (/qemu)?((/include)?/hw/lm32/.*|/target/lm32/.*|/hw/.*/(milkymist|lm32).*)
-
 m68k
   ~ (/qemu)?((/include)?/hw/m68k/.*|/target/m68k/.*|(/include)?/hw(/.*)?/mcf.*)
 
@@ -59,9 +56,6 @@ tilegx
 
 tricore
   ~ (/qemu)?((/include)?/hw/tricore/.*|/target/tricore/.*)
-
-unicore32
-  ~ (/qemu)?((/include)?/hw/unicore32/.*|/target/unicore32/.*)
 
 9pfs
   ~ (/qemu)?(/hw/9pfs/.*|/fsdev/.*)

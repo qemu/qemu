@@ -1305,40 +1305,22 @@ typedef struct XSavePKRU {
     uint32_t padding;
 } XSavePKRU;
 
-typedef struct X86XSaveArea {
-    X86LegacyXSaveArea legacy;
-    X86XSaveHeader header;
-
-    /* Extended save areas: */
-
-    /* AVX State: */
-    XSaveAVX avx_state;
-    uint8_t padding[960 - 576 - sizeof(XSaveAVX)];
-    /* MPX State: */
-    XSaveBNDREG bndreg_state;
-    XSaveBNDCSR bndcsr_state;
-    /* AVX-512 State: */
-    XSaveOpmask opmask_state;
-    XSaveZMM_Hi256 zmm_hi256_state;
-    XSaveHi16_ZMM hi16_zmm_state;
-    /* PKRU State: */
-    XSavePKRU pkru_state;
-} X86XSaveArea;
-
-QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, avx_state) != 0x240);
 QEMU_BUILD_BUG_ON(sizeof(XSaveAVX) != 0x100);
-QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, bndreg_state) != 0x3c0);
 QEMU_BUILD_BUG_ON(sizeof(XSaveBNDREG) != 0x40);
-QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, bndcsr_state) != 0x400);
 QEMU_BUILD_BUG_ON(sizeof(XSaveBNDCSR) != 0x40);
-QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, opmask_state) != 0x440);
 QEMU_BUILD_BUG_ON(sizeof(XSaveOpmask) != 0x40);
-QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, zmm_hi256_state) != 0x480);
 QEMU_BUILD_BUG_ON(sizeof(XSaveZMM_Hi256) != 0x200);
-QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, hi16_zmm_state) != 0x680);
 QEMU_BUILD_BUG_ON(sizeof(XSaveHi16_ZMM) != 0x400);
-QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, pkru_state) != 0xA80);
 QEMU_BUILD_BUG_ON(sizeof(XSavePKRU) != 0x8);
+
+typedef struct ExtSaveArea {
+    uint32_t feature, bits;
+    uint32_t offset, size;
+} ExtSaveArea;
+
+#define XSAVE_STATE_AREA_COUNT (XSTATE_PKRU_BIT + 1)
+
+extern ExtSaveArea x86_ext_save_areas[XSAVE_STATE_AREA_COUNT];
 
 typedef enum TPRAccess {
     TPR_ACCESS_READ,
@@ -1637,6 +1619,7 @@ typedef struct CPUX86State {
     uint64_t apic_bus_freq;
 #if defined(CONFIG_KVM) || defined(CONFIG_HVF)
     void *xsave_buf;
+    uint32_t xsave_buf_len;
 #endif
 #if defined(CONFIG_KVM)
     struct kvm_nested_state *nested_state;
@@ -2197,8 +2180,8 @@ void x86_cpu_dump_local_apic_state(CPUState *cs, int flags);
 /* cpu.c */
 bool cpu_is_bsp(X86CPU *cpu);
 
-void x86_cpu_xrstor_all_areas(X86CPU *cpu, const X86XSaveArea *buf);
-void x86_cpu_xsave_all_areas(X86CPU *cpu, X86XSaveArea *buf);
+void x86_cpu_xrstor_all_areas(X86CPU *cpu, const void *buf, uint32_t buflen);
+void x86_cpu_xsave_all_areas(X86CPU *cpu, void *buf, uint32_t buflen);
 void x86_update_hflags(CPUX86State* env);
 
 static inline bool hyperv_feat_enabled(X86CPU *cpu, int feat)
