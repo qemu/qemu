@@ -1892,8 +1892,10 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 
 #ifdef TARGET_RISCV32
 #define ELF_CLASS ELFCLASS32
+#define VDSO_HEADER "vdso-32.c.inc"
 #else
 #define ELF_CLASS ELFCLASS64
+#define VDSO_HEADER "vdso-64.c.inc"
 #endif
 
 #define ELF_HWCAP get_elf_hwcap()
