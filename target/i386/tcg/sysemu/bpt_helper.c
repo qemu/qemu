@@ -234,10 +234,30 @@ void breakpoint_handler(CPUState *cs)
     }
 }
 
+target_ulong helper_get_dr(CPUX86State *env, int reg)
+{
+    if (reg >= 4 && reg < 6) {
+        if (env->cr[4] & CR4_DE_MASK) {
+            raise_exception_ra(env, EXCP06_ILLOP, GETPC());
+        } else {
+            reg += 2;
+        }
+    }
+
+    return env->dr[reg];
+}
+
 void helper_set_dr(CPUX86State *env, int reg, target_ulong t0)
 {
-    switch (reg) {
-    case 0: case 1: case 2: case 3:
+    if (reg >= 4 && reg < 6) {
+        if (env->cr[4] & CR4_DE_MASK) {
+            raise_exception_ra(env, EXCP06_ILLOP, GETPC());
+        } else {
+            reg += 2;
+        }
+    }
+
+    if (reg < 4) {
         if (hw_breakpoint_enabled(env->dr[7], reg)
             && hw_breakpoint_type(env->dr[7], reg) != DR7_TYPE_IO_RW) {
             hw_breakpoint_remove(env, reg);
@@ -246,25 +266,16 @@ void helper_set_dr(CPUX86State *env, int reg, target_ulong t0)
         } else {
             env->dr[reg] = t0;
         }
-        return;
-    case 4:
-        if (env->cr[4] & CR4_DE_MASK) {
-            break;
+    } else {
+        if (t0 & DR_RESERVED_MASK) {
+            raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
         }
-        /* fallthru */
-    case 6:
-        env->dr[6] = t0 | DR6_FIXED_1;
-        return;
-    case 5:
-        if (env->cr[4] & CR4_DE_MASK) {
-            break;
+        if (reg == 6) {
+            env->dr[6] = t0 | DR6_FIXED_1;
+        } else {
+            cpu_x86_update_dr7(env, t0);
         }
-        /* fallthru */
-    case 7:
-        cpu_x86_update_dr7(env, t0);
-        return;
     }
-    raise_exception_err_ra(env, EXCP06_ILLOP, 0, GETPC());
 }
 
 /* Check if Port I/O is trapped by a breakpoint.  */

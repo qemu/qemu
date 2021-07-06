@@ -268,6 +268,8 @@ typedef enum X86Seg {
 #define DR7_TYPE_IO_RW       0x2
 #define DR7_TYPE_DATA_RW     0x3
 
+#define DR_RESERVED_MASK 0xffffffff00000000ULL
+
 #define PG_PRESENT_BIT  0
 #define PG_RW_BIT       1
 #define PG_USER_BIT     2

@@ -270,10 +270,10 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
                           env->vm_vmcb + offsetof(struct vmcb, save.dr6));
 
 #ifdef TARGET_X86_64
-    if (env->dr[6] & SVM_DR_RESERVED_MASK) {
+    if (env->dr[6] & DR_RESERVED_MASK) {
         cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
     }
-    if (env->dr[7] & SVM_DR_RESERVED_MASK) {
+    if (env->dr[7] & DR_RESERVED_MASK) {
         cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
     }
 #endif

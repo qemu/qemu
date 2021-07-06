@@ -37,24 +37,3 @@ void helper_rechecking_single_step(CPUX86State *env)
         helper_single_step(env);
     }
 }
-
-target_ulong helper_get_dr(CPUX86State *env, int reg)
-{
-    switch (reg) {
-    case 0: case 1: case 2: case 3: case 6: case 7:
-        return env->dr[reg];
-    case 4:
-        if (env->cr[4] & CR4_DE_MASK) {
-            break;
-        } else {
-            return env->dr[6];
-        }
-    case 5:
-        if (env->cr[4] & CR4_DE_MASK) {
-            break;
-        } else {
-            return env->dr[7];
-        }
-    }
-    raise_exception_err_ra(env, EXCP06_ILLOP, 0, GETPC());
-}
