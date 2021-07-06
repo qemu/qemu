@@ -317,17 +317,59 @@ class LinuxDistro:
             '31': {
                 'x86_64':
                 {'checksum': ('e3c1b309d9203604922d6e255c2c5d09'
-                              '8a309c2d46215d8fc026954f3c5c27a0')},
+                              '8a309c2d46215d8fc026954f3c5c27a0'),
+                 'pxeboot_url': ('https://archives.fedoraproject.org/'
+                                 'pub/archive/fedora/linux/releases/31/'
+                                 'Everything/x86_64/os/images/pxeboot/'),
+                 'kernel_params': ('root=UUID=b1438b9b-2cab-4065-a99a-'
+                                   '08a96687f73c ro no_timer_check '
+                                   'net.ifnames=0 console=tty1 '
+                                   'console=ttyS0,115200n8'),
+                },
                 'aarch64':
                 {'checksum': ('1e18d9c0cf734940c4b5d5ec592facae'
-                              'd2af0ad0329383d5639c997fdf16fe49')},
+                              'd2af0ad0329383d5639c997fdf16fe49'),
+                'pxeboot_url': 'https://archives.fedoraproject.org/'
+                               'pub/archive/fedora/linux/releases/31/'
+                               'Everything/aarch64/os/images/pxeboot/',
+                'kernel_params': ('root=UUID=b6950a44-9f3c-4076-a9c2-'
+                                  '355e8475b0a7 ro earlyprintk=pl011,0x9000000'
+                                  ' ignore_loglevel no_timer_check'
+                                  ' printk.time=1 rd_NO_PLYMOUTH'
+                                  ' console=ttyAMA0'),
+                },
                 'ppc64':
                 {'checksum': ('7c3528b85a3df4b2306e892199a9e1e4'
                               '3f991c506f2cc390dc4efa2026ad2f58')},
                 's390x':
                 {'checksum': ('4caaab5a434fd4d1079149a072fdc789'
                               '1e354f834d355069ca982fdcaf5a122d')},
-            }
+            },
+            '32': {
+                'aarch64':
+                {'checksum': ('b367755c664a2d7a26955bbfff985855'
+                              'adfa2ca15e908baf15b4b176d68d3967'),
+                'pxeboot_url': ('http://dl.fedoraproject.org/pub/fedora/linux/'
+                                'releases/32/Server/aarch64/os/images/'
+                                'pxeboot/'),
+                'kernel_params': ('root=UUID=3df75b65-be8d-4db4-8655-'
+                                  '14d95c0e90c5 ro no_timer_check net.ifnames=0'
+                                  ' console=tty1 console=ttyS0,115200n8'),
+                },
+            },
+            '33': {
+                'aarch64':
+                {'checksum': ('e7f75cdfd523fe5ac2ca9eeece68edc1'
+                              'a81f386a17f969c1d1c7c87031008a6b'),
+                'pxeboot_url': ('http://dl.fedoraproject.org/pub/fedora/linux/'
+                                'releases/33/Server/aarch64/os/images/'
+                                'pxeboot/'),
+                'kernel_params': ('root=UUID=d20b3ffa-6397-4a63-a734-'
+                                  '1126a0208f8a ro no_timer_check net.ifnames=0'
+                                  ' console=tty1 console=ttyS0,115200n8'
+                                  ' console=tty0'),
+                 },
+            },
         }
     }
 
@@ -350,6 +392,16 @@ class LinuxDistro:
     @checksum.setter
     def checksum(self, value):
         self._info['checksum'] = value
+
+    @property
+    def pxeboot_url(self):
+        """Gets the repository url where pxeboot files can be found"""
+        return self._info.get('pxeboot_url', None)
+
+    @property
+    def default_kernel_params(self):
+        """Gets the default kernel parameters"""
+        return self._info.get('kernel_params', None)
 
 
 class LinuxTest(Test, LinuxSSHMixIn):
