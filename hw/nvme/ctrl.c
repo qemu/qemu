@@ -6523,6 +6523,10 @@ static void nvme_exit(PCIDevice *pci_dev)
         nvme_ns_cleanup(ns);
     }
 
+    if (n->subsys) {
+        nvme_subsys_unregister_ctrl(n->subsys, n);
+    }
+
     g_free(n->cq);
     g_free(n->sq);
     g_free(n->aer_reqs);
