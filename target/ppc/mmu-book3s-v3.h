@@ -21,6 +21,7 @@
 #define PPC_MMU_BOOK3S_V3_H
 
 #include "mmu-hash64.h"
+#include "mmu-books.h"
 
 #ifndef CONFIG_USER_ONLY
 
@@ -46,19 +47,6 @@
 struct prtb_entry {
     uint64_t prtbe0, prtbe1;
 };
-
-/*
- * These correspond to the mmu_idx values computed in
- * hreg_compute_hflags_value. See the tables therein
- *
- * They are here because some bits are inverted for BookE MMUs
- * not necessarily because they only work for BookS. However,
- * we only needed to change BookS MMUs, we left the functions
- * here to avoid other possible bugs for untested MMUs
- */
-static inline bool mmuidx_pr(int idx) { return !(idx & 1); }
-static inline bool mmuidx_real(int idx) { return idx & 2; }
-static inline bool mmuidx_hv(int idx) { return idx & 4; }
 
 #ifdef TARGET_PPC64
 
