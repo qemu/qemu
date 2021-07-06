@@ -19,6 +19,7 @@ The ``ppce500`` machine supports the following devices:
 * Power-off functionality via one GPIO pin
 * 1 Freescale MPC8xxx PCI host controller
 * VirtIO devices via PCI bus
+* 1 Freescale Enhanced Triple Speed Ethernet controller (eTSEC)
 
 Hardware configuration information
 ----------------------------------
@@ -121,7 +122,7 @@ To boot the 32-bit Linux kernel:
 Running U-Boot
 --------------
 
-U-Boot mainline v2021.04 release is tested at the time of writing. To build a
+U-Boot mainline v2021.07 release is tested at the time of writing. To build a
 U-Boot mainline bootloader that can be booted by the ``ppce500`` machine, use
 the qemu-ppce500_defconfig with similar commands as described above for Linux:
 
@@ -154,3 +155,10 @@ interface at PCI address 0.1.0, but we can switch that to an e1000 NIC by:
                     -display none -serial stdio \
                     -bios u-boot \
                     -nic tap,ifname=tap0,script=no,downscript=no,model=e1000
+
+The QEMU ``ppce500`` machine can also dynamically instantiate an eTSEC device
+if “-device eTSEC” is given to QEMU:
+
+.. code-block:: bash
+
+  -netdev tap,ifname=tap0,script=no,downscript=no,id=net0 -device eTSEC,netdev=net0
