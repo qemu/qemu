@@ -75,8 +75,10 @@ typedef enum {
 #define SPAPR_CAP_CCF_ASSIST            0x09
 /* Implements PAPR FWNMI option */
 #define SPAPR_CAP_FWNMI                 0x0A
+/* Support H_RPT_INVALIDATE */
+#define SPAPR_CAP_RPT_INVALIDATE        0x0B
 /* Num Caps */
-#define SPAPR_CAP_NUM                   (SPAPR_CAP_FWNMI + 1)
+#define SPAPR_CAP_NUM                   (SPAPR_CAP_RPT_INVALIDATE + 1)
 
 /*
  * Capability Values
@@ -547,8 +549,9 @@ struct SpaprMachineState {
 #define H_SCM_UNBIND_MEM        0x3F0
 #define H_SCM_UNBIND_ALL        0x3FC
 #define H_SCM_HEALTH            0x400
+#define H_RPT_INVALIDATE        0x448
 
-#define MAX_HCALL_OPCODE        H_SCM_HEALTH
+#define MAX_HCALL_OPCODE        H_RPT_INVALIDATE
 
 /* The hcalls above are standardized in PAPR and implemented by pHyp
  * as well.
@@ -939,6 +942,7 @@ extern const VMStateDescription vmstate_spapr_cap_nested_kvm_hv;
 extern const VMStateDescription vmstate_spapr_cap_large_decr;
 extern const VMStateDescription vmstate_spapr_cap_ccf_assist;
 extern const VMStateDescription vmstate_spapr_cap_fwnmi;
+extern const VMStateDescription vmstate_spapr_cap_rpt_invalidate;
 
 static inline uint8_t spapr_get_cap(SpaprMachineState *spapr, int cap)
 {
