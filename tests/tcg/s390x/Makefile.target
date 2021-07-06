@@ -9,6 +9,3 @@ TESTS+=pack
 TESTS+=mvo
 TESTS+=mvc
 
-# This triggers failures on s390x hosts about 4% of the time
-run-signals: signals
-	$(call skip-test, $<, "BROKEN awaiting sigframe clean-ups")
