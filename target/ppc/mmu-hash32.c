@@ -25,6 +25,7 @@
 #include "kvm_ppc.h"
 #include "internal.h"
 #include "mmu-hash32.h"
+#include "mmu-books.h"
 #include "exec/log.h"
 
 /* #define DEBUG_BATS */
@@ -86,25 +87,22 @@ static int ppc_hash32_pp_prot(int key, int pp, int nx)
     return prot;
 }
 
-static int ppc_hash32_pte_prot(PowerPCCPU *cpu,
+static int ppc_hash32_pte_prot(int mmu_idx,
                                target_ulong sr, ppc_hash_pte32_t pte)
 {
-    CPUPPCState *env = &cpu->env;
     unsigned pp, key;
 
-    key = !!(msr_pr ? (sr & SR32_KP) : (sr & SR32_KS));
+    key = !!(mmuidx_pr(mmu_idx) ? (sr & SR32_KP) : (sr & SR32_KS));
     pp = pte.pte1 & HPTE32_R_PP;
 
     return ppc_hash32_pp_prot(key, pp, !!(sr & SR32_NX));
 }
 
-static target_ulong hash32_bat_size(PowerPCCPU *cpu,
+static target_ulong hash32_bat_size(int mmu_idx,
                                     target_ulong batu, target_ulong batl)
 {
-    CPUPPCState *env = &cpu->env;
-
-    if ((msr_pr && !(batu & BATU32_VP))
-        || (!msr_pr && !(batu & BATU32_VS))) {
+    if ((mmuidx_pr(mmu_idx) && !(batu & BATU32_VP))
+        || (!mmuidx_pr(mmu_idx) && !(batu & BATU32_VS))) {
         return 0;
     }
 
@@ -137,14 +135,13 @@ static target_ulong hash32_bat_601_size(PowerPCCPU *cpu,
     return BATU32_BEPI & ~((batl & BATL32_601_BL) << 17);
 }
 
-static int hash32_bat_601_prot(PowerPCCPU *cpu,
+static int hash32_bat_601_prot(int mmu_idx,
                                target_ulong batu, target_ulong batl)
 {
-    CPUPPCState *env = &cpu->env;
     int key, pp;
 
     pp = batu & BATU32_601_PP;
-    if (msr_pr == 0) {
+    if (mmuidx_pr(mmu_idx) == 0) {
         key = !!(batu & BATU32_601_KS);
     } else {
         key = !!(batu & BATU32_601_KP);
@@ -153,7 +150,8 @@ static int hash32_bat_601_prot(PowerPCCPU *cpu,
 }
 
 static hwaddr ppc_hash32_bat_lookup(PowerPCCPU *cpu, target_ulong ea,
-                                    MMUAccessType access_type, int *prot)
+                                    MMUAccessType access_type, int *prot,
+                                    int mmu_idx)
 {
     CPUPPCState *env = &cpu->env;
     target_ulong *BATlt, *BATut;
@@ -177,7 +175,7 @@ static hwaddr ppc_hash32_bat_lookup(PowerPCCPU *cpu, target_ulong ea,
         if (unlikely(env->mmu_model == POWERPC_MMU_601)) {
             mask = hash32_bat_601_size(cpu, batu, batl);
         } else {
-            mask = hash32_bat_size(cpu, batu, batl);
+            mask = hash32_bat_size(mmu_idx, batu, batl);
         }
         LOG_BATS("%s: %cBAT%d v " TARGET_FMT_lx " BATu " TARGET_FMT_lx
                  " BATl " TARGET_FMT_lx "\n", __func__,
@@ -187,7 +185,7 @@ static hwaddr ppc_hash32_bat_lookup(PowerPCCPU *cpu, target_ulong ea,
             hwaddr raddr = (batl & mask) | (ea & ~mask);
 
             if (unlikely(env->mmu_model == POWERPC_MMU_601)) {
-                *prot = hash32_bat_601_prot(cpu, batu, batl);
+                *prot = hash32_bat_601_prot(mmu_idx, batu, batl);
             } else {
                 *prot = hash32_bat_prot(cpu, batu, batl);
             }
@@ -224,12 +222,12 @@ static hwaddr ppc_hash32_bat_lookup(PowerPCCPU *cpu, target_ulong ea,
 static bool ppc_hash32_direct_store(PowerPCCPU *cpu, target_ulong sr,
                                     target_ulong eaddr,
                                     MMUAccessType access_type,
-                                    hwaddr *raddr, int *prot,
+                                    hwaddr *raddr, int *prot, int mmu_idx,
                                     bool guest_visible)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    int key = !!(msr_pr ? (sr & SR32_KP) : (sr & SR32_KS));
+    int key = !!(mmuidx_pr(mmu_idx) ? (sr & SR32_KP) : (sr & SR32_KS));
 
     qemu_log_mask(CPU_LOG_MMU, "direct store...\n");
 
@@ -428,7 +426,7 @@ static hwaddr ppc_hash32_pte_raddr(target_ulong sr, ppc_hash_pte32_t pte,
 }
 
 bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
-                      hwaddr *raddrp, int *psizep, int *protp,
+                      hwaddr *raddrp, int *psizep, int *protp, int mmu_idx,
                       bool guest_visible)
 {
     CPUState *cs = CPU(cpu);
@@ -444,7 +442,7 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     *psizep = TARGET_PAGE_BITS;
 
     /* 1. Handle real mode accesses */
-    if (access_type == MMU_INST_FETCH ? !msr_ir : !msr_dr) {
+    if (mmuidx_real(mmu_idx)) {
         /* Translation is off */
         *raddrp = eaddr;
         *protp = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
@@ -455,7 +453,7 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
 
     /* 2. Check Block Address Translation entries (BATs) */
     if (env->nb_BATs != 0) {
-        raddr = ppc_hash32_bat_lookup(cpu, eaddr, access_type, protp);
+        raddr = ppc_hash32_bat_lookup(cpu, eaddr, access_type, protp, mmu_idx);
         if (raddr != -1) {
             if (need_prot & ~*protp) {
                 if (guest_visible) {
@@ -486,7 +484,7 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
     /* 4. Handle direct store segments */
     if (sr & SR32_T) {
         return ppc_hash32_direct_store(cpu, sr, eaddr, access_type,
-                                       raddrp, protp, guest_visible);
+                                       raddrp, protp, mmu_idx, guest_visible);
     }
 
     /* 5. Check for segment level no-execute violation */
@@ -523,7 +521,7 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
 
     /* 7. Check access permissions */
 
-    prot = ppc_hash32_pte_prot(cpu, sr, pte);
+    prot = ppc_hash32_pte_prot(mmu_idx, sr, pte);
 
     if (need_prot & ~prot) {
         /* Access right violation */
