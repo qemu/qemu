@@ -4940,6 +4940,11 @@ static void gen_mtcrf(DisasContext *ctx)
 #if defined(TARGET_PPC64)
 static void gen_mtmsrd(DisasContext *ctx)
 {
+    if (unlikely(!is_book3s_arch2x(ctx))) {
+        gen_invalid(ctx);
+        return;
+    }
+
     CHK_SV;
 
 #if !defined(CONFIG_USER_ONLY)
