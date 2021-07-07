@@ -8,21 +8,6 @@ s390x_ss.add(files(
   'interrupt.c',
 ))
 
-s390x_ss.add(when: 'CONFIG_TCG', if_true: files(
-  'cc_helper.c',
-  'crypto_helper.c',
-  'excp_helper.c',
-  'fpu_helper.c',
-  'int_helper.c',
-  'mem_helper.c',
-  'misc_helper.c',
-  'translate.c',
-  'vec_fpu_helper.c',
-  'vec_helper.c',
-  'vec_int_helper.c',
-  'vec_string_helper.c',
-))
-
 s390x_ss.add(when: 'CONFIG_KVM', if_true: files('kvm.c'), if_false: files('kvm-stub.c'))
 
 gen_features = executable('gen-features', 'gen-features.c', native: true,
@@ -59,6 +44,8 @@ if host_machine.cpu_family() == 's390x' and cc.has_link_argument('-Wl,--s390-pgs
 endif
 
 s390x_user_ss = ss.source_set()
+
+subdir('tcg')
 
 target_arch += {'s390x': s390x_ss}
 target_softmmu_arch += {'s390x': s390x_softmmu_ss}
