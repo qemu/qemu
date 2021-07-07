@@ -8,7 +8,7 @@ s390x_ss.add(files(
   'cpu-dump.c',
 ))
 
-s390x_ss.add(when: 'CONFIG_KVM', if_true: files('kvm.c'), if_false: files('kvm-stub.c'))
+s390x_ss.add(when: 'CONFIG_KVM', if_true: files('kvm.c'))
 
 gen_features = executable('gen-features', 'gen-features.c', native: true,
                           build_by_default: false)
