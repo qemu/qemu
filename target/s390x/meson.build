@@ -58,5 +58,8 @@ if host_machine.cpu_family() == 's390x' and cc.has_link_argument('-Wl,--s390-pgs
                        if_true: declare_dependency(link_args: ['-Wl,--s390-pgste']))
 endif
 
+s390x_user_ss = ss.source_set()
+
 target_arch += {'s390x': s390x_ss}
 target_softmmu_arch += {'s390x': s390x_softmmu_ss}
+target_user_arch += {'s390x': s390x_user_ss}
