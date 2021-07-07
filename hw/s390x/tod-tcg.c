@@ -1,5 +1,5 @@
 /*
- * TOD (Time Of Day) clock - QEMU implementation
+ * TOD (Time Of Day) clock - TCG implementation
  *
  * Copyright 2018 Red Hat, Inc.
  * Author(s): David Hildenbrand <david@redhat.com>
