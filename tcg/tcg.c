@@ -1849,7 +1849,7 @@ static void tcg_dump_ops(TCGContext *s, bool have_prefs)
                 col += qemu_log("plugin(%p)", func);
             }
 
-            col += qemu_log("$0x%x,$%d", info->flags, nb_oargs);
+            col += qemu_log(",$0x%x,$%d", info->flags, nb_oargs);
             for (i = 0; i < nb_oargs; i++) {
                 col += qemu_log(",%s", tcg_get_arg_str(s, buf, sizeof(buf),
                                                        op->args[i]));
