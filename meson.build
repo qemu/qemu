@@ -1340,10 +1340,10 @@ config_host_data.set('HAVE_STRUCT_STAT_ST_ATIM',
                      cc.has_member('struct stat', 'st_atim',
                                    prefix: '#include <sys/stat.h>'))
 
-config_host_data.set('CONFIG_EVENTFD', cc.compiles('''
+config_host_data.set('CONFIG_EVENTFD', cc.links('''
   #include <sys/eventfd.h>
   int main(void) { return eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC); }'''))
-config_host_data.set('CONFIG_FDATASYNC', cc.compiles(gnu_source_prefix + '''
+config_host_data.set('CONFIG_FDATASYNC', cc.links(gnu_source_prefix + '''
   #include <unistd.h>
   int main(void) {
   #if defined(_POSIX_SYNCHRONIZED_IO) && _POSIX_SYNCHRONIZED_IO > 0
@@ -1352,22 +1352,22 @@ config_host_data.set('CONFIG_FDATASYNC', cc.compiles(gnu_source_prefix + '''
   #error Not supported
   #endif
   }'''))
-config_host_data.set('CONFIG_MADVISE', cc.compiles(gnu_source_prefix + '''
+config_host_data.set('CONFIG_MADVISE', cc.links(gnu_source_prefix + '''
   #include <sys/types.h>
   #include <sys/mman.h>
   #include <stddef.h>
   int main(void) { return madvise(NULL, 0, MADV_DONTNEED); }'''))
-config_host_data.set('CONFIG_MEMFD', cc.compiles(gnu_source_prefix + '''
+config_host_data.set('CONFIG_MEMFD', cc.links(gnu_source_prefix + '''
   #include <sys/mman.h>
   int main(void) { return memfd_create("foo", MFD_ALLOW_SEALING); }'''))
-config_host_data.set('CONFIG_OPEN_BY_HANDLE', cc.compiles(gnu_source_prefix + '''
+config_host_data.set('CONFIG_OPEN_BY_HANDLE', cc.links(gnu_source_prefix + '''
   #include <fcntl.h>
   #if !defined(AT_EMPTY_PATH)
   # error missing definition
   #else
   int main(void) { struct file_handle fh; return open_by_handle_at(0, &fh, 0); }
   #endif'''))
-config_host_data.set('CONFIG_PIPE2', cc.compiles(gnu_source_prefix + '''
+config_host_data.set('CONFIG_PIPE2', cc.links(gnu_source_prefix + '''
   #include <unistd.h>
   #include <fcntl.h>
 
@@ -1376,16 +1376,16 @@ config_host_data.set('CONFIG_PIPE2', cc.compiles(gnu_source_prefix + '''
       int pipefd[2];
       return pipe2(pipefd, O_CLOEXEC);
   }'''))
-config_host_data.set('CONFIG_POSIX_MADVISE', cc.compiles(gnu_source_prefix + '''
+config_host_data.set('CONFIG_POSIX_MADVISE', cc.links(gnu_source_prefix + '''
   #include <sys/mman.h>
   #include <stddef.h>
   int main(void) { return posix_madvise(NULL, 0, POSIX_MADV_DONTNEED); }'''))
-config_host_data.set('CONFIG_SIGNALFD', cc.compiles(gnu_source_prefix + '''
+config_host_data.set('CONFIG_SIGNALFD', cc.links(gnu_source_prefix + '''
   #include <unistd.h>
   #include <sys/syscall.h>
   #include <signal.h>
   int main(void) { return syscall(SYS_signalfd, -1, NULL, _NSIG / 8); }'''))
-config_host_data.set('CONFIG_SPLICE', cc.compiles(gnu_source_prefix + '''
+config_host_data.set('CONFIG_SPLICE', cc.links(gnu_source_prefix + '''
   #include <unistd.h>
   #include <fcntl.h>
   #include <limits.h>
