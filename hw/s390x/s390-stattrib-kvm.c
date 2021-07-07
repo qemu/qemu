@@ -16,7 +16,7 @@
 #include "qemu/error-report.h"
 #include "sysemu/kvm.h"
 #include "exec/ram_addr.h"
-#include "kvm_s390x.h"
+#include "kvm/kvm_s390x.h"
 
 Object *kvm_s390_stattrib_create(void)
 {
