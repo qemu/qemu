@@ -1,0 +1,6 @@
+config ARM
+    bool
+
+config AARCH64
+    bool
+    select ARM

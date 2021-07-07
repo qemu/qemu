@@ -1,0 +1,2 @@
+config OPENRISC
+    bool

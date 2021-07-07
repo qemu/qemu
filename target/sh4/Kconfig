@@ -1,0 +1,2 @@
+config SH4
+    bool

@@ -1,0 +1,5 @@
+config RISCV32
+    bool
+
+config RISCV64
+    bool

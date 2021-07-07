@@ -1,0 +1,2 @@
+config M68K
+    bool

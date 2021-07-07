@@ -1,0 +1,5 @@
+config I386
+    bool
+
+config X86_64
+    bool
