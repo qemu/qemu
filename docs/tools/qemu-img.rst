@@ -593,16 +593,16 @@ Command description:
   the ``start``, ``length``, ``offset`` fields;
   it will also include other more specific information:
 
-  - whether the sectors contain actual data or not (boolean field ``data``;
-    if false, the sectors are either unallocated or stored as optimized
-    all-zero clusters);
-  - whether the data is known to read as zero (boolean field ``zero``);
-  - whether the data is actually present (boolean field ``present``);
-    if false, rebasing the backing chain onto a deeper file would pick
-    up data from the deeper file;
-  - in order to make the output shorter, the target file is expressed as
-    a ``depth``; for example, a depth of 2 refers to the backing file
-    of the backing file of *FILENAME*.
+  - boolean field ``data``: true if the sectors contain actual data,
+    false if the sectors are either unallocated or stored as optimized
+    all-zero clusters
+  - boolean field ``zero``: true if the data is known to read as zero
+  - boolean field ``present``: true if the data belongs to the backing
+    chain, false if rebasing the backing chain onto a deeper file
+    would pick up data from the deeper file;
+  - integer field ``depth``: the depth within the backing chain at
+    which the data was resolved; for example, a depth of 2 refers to
+    the backing file of the backing file of *FILENAME*.
 
   In JSON format, the ``offset`` field is optional; it is absent in
   cases where ``human`` format would omit the entry or exit with an error.
