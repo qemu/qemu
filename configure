@@ -1501,9 +1501,9 @@ for opt do
   ;;
   --disable-debug-mutex) debug_mutex=no
   ;;
-  --enable-libpmem) libpmem=disabled
+  --enable-libpmem) libpmem="enabled"
   ;;
-  --disable-libpmem) libpmem=enabled
+  --disable-libpmem) libpmem="disabled"
   ;;
   --enable-xkbcommon) xkbcommon="enabled"
   ;;
