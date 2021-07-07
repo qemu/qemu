@@ -727,7 +727,7 @@ void helper_fwait(CPUX86State *env)
     }
 }
 
-void helper_fninit(CPUX86State *env)
+static void do_fninit(CPUX86State *env)
 {
     env->fpus = 0;
     env->fpstt = 0;
@@ -740,6 +740,11 @@ void helper_fninit(CPUX86State *env)
     env->fptags[5] = 1;
     env->fptags[6] = 1;
     env->fptags[7] = 1;
+}
+
+void helper_fninit(CPUX86State *env)
+{
+    do_fninit(env);
 }
 
 /* BCD ops */
@@ -2451,18 +2456,7 @@ static void do_fsave(CPUX86State *env, target_ulong ptr, int data32,
         ptr += 10;
     }
 
-    /* fninit */
-    env->fpus = 0;
-    env->fpstt = 0;
-    cpu_set_fpuc(env, 0x37f);
-    env->fptags[0] = 1;
-    env->fptags[1] = 1;
-    env->fptags[2] = 1;
-    env->fptags[3] = 1;
-    env->fptags[4] = 1;
-    env->fptags[5] = 1;
-    env->fptags[6] = 1;
-    env->fptags[7] = 1;
+    do_fninit(env);
 }
 
 void helper_fsave(CPUX86State *env, target_ulong ptr, int data32)
@@ -2834,7 +2828,7 @@ void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
         if (xstate_bv & XSTATE_FP_MASK) {
             do_xrstor_fpu(env, ptr, ra);
         } else {
-            helper_fninit(env);
+            do_fninit(env);
             memset(env->fpregs, 0, sizeof(env->fpregs));
         }
     }
