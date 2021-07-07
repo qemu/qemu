@@ -34,6 +34,7 @@ struct TBContext {
 
     /* statistics */
     unsigned tb_flush_count;
+    unsigned tb_phys_invalidate_count;
 };
 
 extern TBContext tb_ctx;
