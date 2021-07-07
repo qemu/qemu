@@ -1,6 +1,6 @@
 # Default configuration for mips64el-softmmu
 
-include mips-softmmu-common.mak
+include ../mips-softmmu/common.mak
 CONFIG_IDE_VIA=y
 CONFIG_FULOONG=y
 CONFIG_LOONGSON3V=y

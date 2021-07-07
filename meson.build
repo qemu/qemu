@@ -1549,7 +1549,7 @@ foreach target : target_dirs
   endif
 
   actual_target_dirs += target
-  config_target += keyval.load('default-configs/targets' / target + '.mak')
+  config_target += keyval.load('configs/targets' / target + '.mak')
   config_target += { 'TARGET_' + config_target['TARGET_ARCH'].to_upper(): 'y' }
 
   if 'TARGET_NEED_FDT' in config_target
@@ -1597,7 +1597,7 @@ foreach target : target_dirs
   if target.endswith('-softmmu')
     config_devices_mak = target + '-config-devices.mak'
     config_devices_mak = configure_file(
-      input: ['default-configs/devices' / target + '.mak', 'Kconfig'],
+      input: ['configs/devices' / target / 'default.mak', 'Kconfig'],
       output: config_devices_mak,
       depfile: config_devices_mak + '.d',
       capture: true,

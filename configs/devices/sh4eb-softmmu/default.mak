@@ -1,3 +1,3 @@
 # Default configuration for sh4eb-softmmu
 
-include sh4-softmmu.mak
+include ../sh4-softmmu/default.mak

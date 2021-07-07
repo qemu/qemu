@@ -1,3 +1,3 @@
 # Default configuration for microblazeel-softmmu
 
-include microblaze-softmmu.mak
+include ../microblaze-softmmu/default.mak

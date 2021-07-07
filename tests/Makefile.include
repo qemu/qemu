@@ -36,7 +36,7 @@ export SRC_PATH
 
 # Get the list of all supported sysemu targets
 SYSEMU_TARGET_LIST := $(subst -softmmu.mak,,$(notdir \
-   $(wildcard $(SRC_PATH)/default-configs/*-softmmu.mak)))
+   $(wildcard $(SRC_PATH)/configs/*-softmmu.mak)))
 
 SPEED = quick
 
