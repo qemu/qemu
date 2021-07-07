@@ -1531,9 +1531,9 @@ for opt do
   ;;
   --disable-keyring) secret_keyring="no"
   ;;
-  --enable-libdaxctl) libdaxctl=disabled
+  --enable-libdaxctl) libdaxctl="enabled"
   ;;
-  --disable-libdaxctl) libdaxctl=enabled
+  --disable-libdaxctl) libdaxctl="disabled"
   ;;
   --enable-fuse) fuse="enabled"
   ;;
