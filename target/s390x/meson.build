@@ -28,9 +28,13 @@ s390x_softmmu_ss.add(files(
   'mmu_helper.c',
   'sigp.c',
   'cpu-sysemu.c',
+  'cpu_models_sysemu.c',
 ))
 
 s390x_user_ss = ss.source_set()
+s390x_user_ss.add(files(
+  'cpu_models_user.c',
+))
 
 subdir('tcg')
 subdir('kvm')
