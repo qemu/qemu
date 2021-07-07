@@ -34,9 +34,52 @@
 #include "hw/qdev-properties.h"
 #include "fpu/softfloat-helpers.h"
 #include "disas/capstone.h"
+#include "sysemu/tcg.h"
 
 #define CR0_RESET       0xE0UL
 #define CR14_RESET      0xC2000000UL;
+
+void s390_cpu_set_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
+{
+#ifndef CONFIG_USER_ONLY
+    uint64_t old_mask = env->psw.mask;
+#endif
+
+    env->psw.addr = addr;
+    env->psw.mask = mask;
+
+    /* KVM will handle all WAITs and trigger a WAIT exit on disabled_wait */
+    if (!tcg_enabled()) {
+        return;
+    }
+    env->cc_op = (mask >> 44) & 3;
+
+#ifndef CONFIG_USER_ONLY
+    if ((old_mask ^ mask) & PSW_MASK_PER) {
+        s390_cpu_recompute_watchpoints(env_cpu(env));
+    }
+
+    if (mask & PSW_MASK_WAIT) {
+        s390_handle_wait(env_archcpu(env));
+    }
+#endif
+}
+
+uint64_t s390_cpu_get_psw_mask(CPUS390XState *env)
+{
+    uint64_t r = env->psw.mask;
+
+    if (tcg_enabled()) {
+        uint64_t cc = calc_cc(env, env->cc_op, env->cc_src,
+                              env->cc_dst, env->cc_vr);
+
+        assert(cc <= 3);
+        r &= ~PSW_MASK_CC;
+        r |= cc << 44;
+    }
+
+    return r;
+}
 
 static void s390_cpu_set_pc(CPUState *cs, vaddr value)
 {
