@@ -3061,6 +3061,7 @@ F: block/vmdk.c
 
 RBD
 M: Ilya Dryomov <idryomov@gmail.com>
+R: Peter Lieven <pl@kamp.de>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/rbd.c
