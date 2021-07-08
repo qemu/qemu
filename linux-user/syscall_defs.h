@@ -2751,7 +2751,7 @@ struct target_drm_i915_getparam {
 
 #include "socket.h"
 
-#include "errno_defs.h"
+#include "target_errno_defs.h"
 
 #define FUTEX_WAIT              0
 #define FUTEX_WAKE              1
