@@ -2717,7 +2717,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
             /* Pre-EV6 CPUs interpreted this as HW_REI, loading the return
                address from EXC_ADDR.  This turns out to be useful for our
                emulation PALcode, so continue to accept it.  */
-            ctx->lit = vb = tcg_temp_new();
+            vb = dest_sink(ctx);
             tcg_gen_ld_i64(vb, cpu_env, offsetof(CPUAlphaState, exc_addr));
         } else {
             vb = load_gpr(ctx, rb);
