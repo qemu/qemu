@@ -317,6 +317,16 @@
 #define TARGET_NR_fsmount 432
 #define TARGET_NR_fspick 433
 #define TARGET_NR_pidfd_open 434
-#define TARGET_NR_syscalls 436
+#define TARGET_NR_close_range 436
+#define TARGET_NR_openat2 437
+#define TARGET_NR_pidfd_getfd 438
+#define TARGET_NR_faccessat2 439
+#define TARGET_NR_process_madvise 440
+#define TARGET_NR_epoll_pwait2 441
+#define TARGET_NR_mount_setattr 442
+#define TARGET_NR_landlock_create_ruleset 444
+#define TARGET_NR_landlock_add_rule 445
+#define TARGET_NR_landlock_restrict_self 446
+#define TARGET_NR_syscalls 447
 
 #endif /* LINUX_USER_HEXAGON_SYSCALL_NR_H */
