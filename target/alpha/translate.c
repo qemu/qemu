@@ -1084,15 +1084,11 @@ static void gen_msk_l(DisasContext *ctx, TCGv vc, TCGv va, int rb, bool islit,
 
 static void gen_rx(DisasContext *ctx, int ra, int set)
 {
-    TCGv tmp;
-
     if (ra != 31) {
         ld_flag_byte(ctx->ir[ra], ENV_FLAG_RX_SHIFT);
     }
 
-    tmp = tcg_const_i64(set);
-    st_flag_byte(ctx->ir[ra], ENV_FLAG_RX_SHIFT);
-    tcg_temp_free(tmp);
+    st_flag_byte(tcg_constant_i64(set), ENV_FLAG_RX_SHIFT);
 }
 
 static DisasJumpType gen_call_pal(DisasContext *ctx, int palcode)
