@@ -252,8 +252,6 @@
 typedef struct DisasCond {
     TCGCond c;
     TCGv_reg a0, a1;
-    bool a0_is_n;
-    bool a1_is_0;
 } DisasCond;
 
 typedef struct DisasContext {
@@ -448,9 +446,7 @@ static DisasCond cond_make_n(void)
     return (DisasCond){
         .c = TCG_COND_NE,
         .a0 = cpu_psw_n,
-        .a0_is_n = true,
-        .a1 = NULL,
-        .a1_is_0 = true
+        .a1 = tcg_constant_reg(0)
     };
 }
 
@@ -458,7 +454,7 @@ static DisasCond cond_make_0_tmp(TCGCond c, TCGv_reg a0)
 {
     assert (c != TCG_COND_NEVER && c != TCG_COND_ALWAYS);
     return (DisasCond){
-        .c = c, .a0 = a0, .a1_is_0 = true
+        .c = c, .a0 = a0, .a1 = tcg_constant_reg(0)
     };
 }
 
@@ -482,26 +478,14 @@ static DisasCond cond_make(TCGCond c, TCGv_reg a0, TCGv_reg a1)
     return r;
 }
 
-static void cond_prep(DisasCond *cond)
-{
-    if (cond->a1_is_0) {
-        cond->a1_is_0 = false;
-        cond->a1 = tcg_const_reg(0);
-    }
-}
-
 static void cond_free(DisasCond *cond)
 {
     switch (cond->c) {
     default:
-        if (!cond->a0_is_n) {
+        if (cond->a0 != cpu_psw_n) {
             tcg_temp_free(cond->a0);
         }
-        if (!cond->a1_is_0) {
-            tcg_temp_free(cond->a1);
-        }
-        cond->a0_is_n = false;
-        cond->a1_is_0 = false;
+        tcg_temp_free(cond->a1);
         cond->a0 = NULL;
         cond->a1 = NULL;
         /* fallthru */
@@ -559,9 +543,8 @@ static TCGv_reg dest_gpr(DisasContext *ctx, unsigned reg)
 static void save_or_nullify(DisasContext *ctx, TCGv_reg dest, TCGv_reg t)
 {
     if (ctx->null_cond.c != TCG_COND_NEVER) {
-        cond_prep(&ctx->null_cond);
         tcg_gen_movcond_reg(ctx->null_cond.c, dest, ctx->null_cond.a0,
-                           ctx->null_cond.a1, dest, t);
+                            ctx->null_cond.a1, dest, t);
     } else {
         tcg_gen_mov_reg(dest, t);
     }
@@ -668,11 +651,9 @@ static void nullify_over(DisasContext *ctx)
         assert(ctx->null_cond.c != TCG_COND_ALWAYS);
 
         ctx->null_lab = gen_new_label();
-        cond_prep(&ctx->null_cond);
 
         /* If we're using PSW[N], copy it to a temp because... */
-        if (ctx->null_cond.a0_is_n) {
-            ctx->null_cond.a0_is_n = false;
+        if (ctx->null_cond.a0 == cpu_psw_n) {
             ctx->null_cond.a0 = tcg_temp_new();
             tcg_gen_mov_reg(ctx->null_cond.a0, cpu_psw_n);
         }
@@ -685,7 +666,7 @@ static void nullify_over(DisasContext *ctx)
         }
 
         tcg_gen_brcond_reg(ctx->null_cond.c, ctx->null_cond.a0,
-                          ctx->null_cond.a1, ctx->null_lab);
+                           ctx->null_cond.a1, ctx->null_lab);
         cond_free(&ctx->null_cond);
     }
 }
@@ -699,10 +680,9 @@ static void nullify_save(DisasContext *ctx)
         }
         return;
     }
-    if (!ctx->null_cond.a0_is_n) {
-        cond_prep(&ctx->null_cond);
+    if (ctx->null_cond.a0 != cpu_psw_n) {
         tcg_gen_setcond_reg(ctx->null_cond.c, cpu_psw_n,
-                           ctx->null_cond.a0, ctx->null_cond.a1);
+                            ctx->null_cond.a0, ctx->null_cond.a1);
         ctx->psw_n_nonzero = true;
     }
     cond_free(&ctx->null_cond);
@@ -1178,7 +1158,6 @@ static void do_add(DisasContext *ctx, unsigned rt, TCGv_reg in1,
     /* Emit any conditional trap before any writeback.  */
     cond = do_cond(cf, dest, cb_msb, sv);
     if (is_tc) {
-        cond_prep(&cond);
         tmp = tcg_temp_new();
         tcg_gen_setcond_reg(cond.c, tmp, cond.a0, cond.a1);
         gen_helper_tcond(cpu_env, tmp);
@@ -1273,7 +1252,6 @@ static void do_sub(DisasContext *ctx, unsigned rt, TCGv_reg in1,
 
     /* Emit any conditional trap before any writeback.  */
     if (is_tc) {
-        cond_prep(&cond);
         tmp = tcg_temp_new();
         tcg_gen_setcond_reg(cond.c, tmp, cond.a0, cond.a1);
         gen_helper_tcond(cpu_env, tmp);
@@ -1399,7 +1377,6 @@ static void do_unit(DisasContext *ctx, unsigned rt, TCGv_reg in1,
 
         if (is_tc) {
             TCGv_reg tmp = tcg_temp_new();
-            cond_prep(&cond);
             tcg_gen_setcond_reg(cond.c, tmp, cond.a0, cond.a1);
             gen_helper_tcond(cpu_env, tmp);
             tcg_temp_free(tmp);
@@ -1855,7 +1832,6 @@ static bool do_cbranch(DisasContext *ctx, target_sreg disp, bool is_n,
     }
 
     taken = gen_new_label();
-    cond_prep(cond);
     tcg_gen_brcond_reg(c, cond->a0, cond->a1, taken);
     cond_free(cond);
 
@@ -1952,7 +1928,6 @@ static bool do_ibranch(DisasContext *ctx, TCGv_reg dest,
         tcg_gen_lookup_and_goto_ptr();
         return nullify_end(ctx);
     } else {
-        cond_prep(&ctx->null_cond);
         c = ctx->null_cond.c;
         a0 = ctx->null_cond.a0;
         a1 = ctx->null_cond.a1;
