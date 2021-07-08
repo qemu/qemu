@@ -4818,12 +4818,6 @@ elif test "$pthread_setname_np_wo_tid" = "yes" ; then
   echo "CONFIG_PTHREAD_SETNAME_NP_WO_TID=y" >> $config_host_mak
 fi
 
-if test "$libpmem" = "yes" ; then
-  echo "CONFIG_LIBPMEM=y" >> $config_host_mak
-  echo "LIBPMEM_LIBS=$libpmem_libs" >> $config_host_mak
-  echo "LIBPMEM_CFLAGS=$libpmem_cflags" >> $config_host_mak
-fi
-
 if test "$bochs" = "yes" ; then
   echo "CONFIG_BOCHS=y" >> $config_host_mak
 fi
