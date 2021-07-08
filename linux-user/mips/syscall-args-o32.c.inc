@@ -356,7 +356,7 @@
     [ 355] = 3, /* bpf */
     [ 356] = 5, /* execveat */
     [ 357] = 1, /* userfaultfd */
-    [ 358] = 2, /* membarrier */
+    [ 358] = 3, /* membarrier */
     [ 359] = 3, /* mlock2 */
     [ 360] = 6, /* copy_file_range */
     [ 361] = 6, /* preadv2 */
@@ -438,3 +438,6 @@
     [ 437] = 4, /* openat2 */
     [ 438] = 3, /* pidfd_getfd */
     [ 439] = 4, /* faccessat2 */
+    [ 440] = 5, /* process_madvise */
+    [ 441] = 6, /* epoll_pwait2 */
+    [ 442] = 5, /* mount_setattr */
