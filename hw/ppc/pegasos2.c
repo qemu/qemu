@@ -43,6 +43,7 @@
 #define PROM_SIZE     0x80000
 
 #define KVMPPC_HCALL_BASE    0xf000
+#define KVMPPC_H_RTAS        (KVMPPC_HCALL_BASE + 0x0)
 #define KVMPPC_H_VOF_CLIENT  (KVMPPC_HCALL_BASE + 0x5)
 
 #define H_SUCCESS     0
@@ -195,6 +196,30 @@ static void pegasos2_init(MachineState *machine)
     }
 }
 
+static uint32_t pegasos2_pci_config_read(AddressSpace *as, int bus,
+                                         uint32_t addr, uint32_t len)
+{
+    hwaddr pcicfg = (bus ? 0xf1000c78 : 0xf1000cf8);
+    uint32_t val = 0xffffffff;
+
+    stl_le_phys(as, pcicfg, addr | BIT(31));
+    switch (len) {
+    case 4:
+        val = ldl_le_phys(as, pcicfg + 4);
+        break;
+    case 2:
+        val = lduw_le_phys(as, pcicfg + 4);
+        break;
+    case 1:
+        val = ldub_phys(as, pcicfg + 4);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid length\n", __func__);
+        break;
+    }
+    return val;
+}
+
 static void pegasos2_pci_config_write(AddressSpace *as, int bus, uint32_t addr,
                                       uint32_t len, uint32_t val)
 {
@@ -304,6 +329,87 @@ static void pegasos2_machine_reset(MachineState *machine)
     pm->cpu->vhyp = PPC_VIRTUAL_HYPERVISOR(machine);
 }
 
+enum pegasos2_rtas_tokens {
+    RTAS_RESTART_RTAS = 0,
+    RTAS_NVRAM_FETCH = 1,
+    RTAS_NVRAM_STORE = 2,
+    RTAS_GET_TIME_OF_DAY = 3,
+    RTAS_SET_TIME_OF_DAY = 4,
+    RTAS_EVENT_SCAN = 6,
+    RTAS_CHECK_EXCEPTION = 7,
+    RTAS_READ_PCI_CONFIG = 8,
+    RTAS_WRITE_PCI_CONFIG = 9,
+    RTAS_DISPLAY_CHARACTER = 10,
+    RTAS_SET_INDICATOR = 11,
+    RTAS_POWER_OFF = 17,
+    RTAS_SUSPEND = 18,
+    RTAS_HIBERNATE = 19,
+    RTAS_SYSTEM_REBOOT = 20,
+};
+
+static target_ulong pegasos2_rtas(PowerPCCPU *cpu, Pegasos2MachineState *pm,
+                                  target_ulong args_real)
+{
+    AddressSpace *as = CPU(cpu)->as;
+    uint32_t token = ldl_be_phys(as, args_real);
+    uint32_t nargs = ldl_be_phys(as, args_real + 4);
+    uint32_t nrets = ldl_be_phys(as, args_real + 8);
+    uint32_t args = args_real + 12;
+    uint32_t rets = args_real + 12 + nargs * 4;
+
+    if (nrets < 1) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Too few return values in RTAS call\n");
+        return H_PARAMETER;
+    }
+    switch (token) {
+    case RTAS_READ_PCI_CONFIG:
+    {
+        uint32_t addr, len, val;
+
+        if (nargs != 2 || nrets != 2) {
+            stl_be_phys(as, rets, -1);
+            return H_PARAMETER;
+        }
+        addr = ldl_be_phys(as, args);
+        len = ldl_be_phys(as, args + 4);
+        val = pegasos2_pci_config_read(as, !(addr >> 24),
+                                       addr & 0x0fffffff, len);
+        stl_be_phys(as, rets, 0);
+        stl_be_phys(as, rets + 4, val);
+        return H_SUCCESS;
+    }
+    case RTAS_WRITE_PCI_CONFIG:
+    {
+        uint32_t addr, len, val;
+
+        if (nargs != 3 || nrets != 1) {
+            stl_be_phys(as, rets, -1);
+            return H_PARAMETER;
+        }
+        addr = ldl_be_phys(as, args);
+        len = ldl_be_phys(as, args + 4);
+        val = ldl_be_phys(as, args + 8);
+        pegasos2_pci_config_write(as, !(addr >> 24),
+                                  addr & 0x0fffffff, len, val);
+        stl_be_phys(as, rets, 0);
+        return H_SUCCESS;
+    }
+    case RTAS_DISPLAY_CHARACTER:
+        if (nargs != 1 || nrets != 1) {
+            stl_be_phys(as, rets, -1);
+            return H_PARAMETER;
+        }
+        qemu_log_mask(LOG_UNIMP, "%c", ldl_be_phys(as, args));
+        stl_be_phys(as, rets, 0);
+        return H_SUCCESS;
+    default:
+        qemu_log_mask(LOG_UNIMP, "Unknown RTAS token %u (args=%u, rets=%u)\n",
+                      token, nargs, nrets);
+        stl_be_phys(as, rets, 0);
+        return H_SUCCESS;
+    }
+}
+
 static void pegasos2_hypercall(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu)
 {
     Pegasos2MachineState *pm = PEGASOS2_MACHINE(vhyp);
@@ -315,6 +421,8 @@ static void pegasos2_hypercall(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu)
     if (msr_pr) {
         qemu_log_mask(LOG_GUEST_ERROR, "Hypercall made with MSR[PR]=1\n");
         env->gpr[3] = H_PRIVILEGE;
+    } else if (env->gpr[3] == KVMPPC_H_RTAS) {
+        env->gpr[3] = pegasos2_rtas(cpu, pm, env->gpr[4]);
     } else if (env->gpr[3] == KVMPPC_H_VOF_CLIENT) {
         int ret = vof_client_call(MACHINE(pm), pm->vof, pm->fdt_blob,
                                   env->gpr[4]);
@@ -686,6 +794,35 @@ static void *build_fdt(MachineState *machine, int *fdt_size)
     qemu_fdt_add_subnode(fdt, "/failsafe");
     qemu_fdt_setprop_string(fdt, "/failsafe", "device_type", "serial");
     qemu_fdt_setprop_string(fdt, "/failsafe", "name", "failsafe");
+
+    qemu_fdt_add_subnode(fdt, "/rtas");
+    qemu_fdt_setprop_cell(fdt, "/rtas", "system-reboot", RTAS_SYSTEM_REBOOT);
+    qemu_fdt_setprop_cell(fdt, "/rtas", "hibernate", RTAS_HIBERNATE);
+    qemu_fdt_setprop_cell(fdt, "/rtas", "suspend", RTAS_SUSPEND);
+    qemu_fdt_setprop_cell(fdt, "/rtas", "power-off", RTAS_POWER_OFF);
+    qemu_fdt_setprop_cell(fdt, "/rtas", "set-indicator", RTAS_SET_INDICATOR);
+    qemu_fdt_setprop_cell(fdt, "/rtas", "display-character",
+                          RTAS_DISPLAY_CHARACTER);
+    qemu_fdt_setprop_cell(fdt, "/rtas", "write-pci-config",
+                          RTAS_WRITE_PCI_CONFIG);
+    qemu_fdt_setprop_cell(fdt, "/rtas", "read-pci-config",
+                          RTAS_READ_PCI_CONFIG);
+    /* Pegasos2 firmware misspells check-exception and guests use that */
+    qemu_fdt_setprop_cell(fdt, "/rtas", "check-execption",
+                          RTAS_CHECK_EXCEPTION);
+    qemu_fdt_setprop_cell(fdt, "/rtas", "event-scan", RTAS_EVENT_SCAN);
+    qemu_fdt_setprop_cell(fdt, "/rtas", "set-time-of-day",
+                          RTAS_SET_TIME_OF_DAY);
+    qemu_fdt_setprop_cell(fdt, "/rtas", "get-time-of-day",
+                          RTAS_GET_TIME_OF_DAY);
+    qemu_fdt_setprop_cell(fdt, "/rtas", "nvram-store", RTAS_NVRAM_STORE);
+    qemu_fdt_setprop_cell(fdt, "/rtas", "nvram-fetch", RTAS_NVRAM_FETCH);
+    qemu_fdt_setprop_cell(fdt, "/rtas", "restart-rtas", RTAS_RESTART_RTAS);
+    qemu_fdt_setprop_cell(fdt, "/rtas", "rtas-error-log-max", 0);
+    qemu_fdt_setprop_cell(fdt, "/rtas", "rtas-event-scan-rate", 0);
+    qemu_fdt_setprop_cell(fdt, "/rtas", "rtas-display-device", 0);
+    qemu_fdt_setprop_cell(fdt, "/rtas", "rtas-size", 20);
+    qemu_fdt_setprop_cell(fdt, "/rtas", "rtas-version", 1);
 
     /* cpus */
     qemu_fdt_add_subnode(fdt, "/cpus");
