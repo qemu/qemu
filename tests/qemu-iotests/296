@@ -120,8 +120,7 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
 
         command = 'x-blockdev-reopen' if reOpen else 'blockdev-add'
 
-        result = vm.qmp(command, **
-            {
+        opts = {
                 'driver': iotests.imgfmt,
                 'node-name': id,
                 'read-only': readOnly,
@@ -131,7 +130,11 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
                     'filename': test_img,
                 }
             }
-        )
+
+        if reOpen:
+            result = vm.qmp(command, options=[opts])
+        else:
+            result = vm.qmp(command, **opts)
         self.assert_qmp(result, 'return', {})
 
 
