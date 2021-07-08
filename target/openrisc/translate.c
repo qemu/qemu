@@ -52,6 +52,8 @@ typedef struct DisasContext {
 
     /* The temporary corresponding to register 0 for this compilation.  */
     TCGv R0;
+    /* The constant zero. */
+    TCGv zero;
 } DisasContext;
 
 static inline bool is_user(DisasContext *dc)
@@ -536,10 +538,8 @@ static bool trans_l_extbz(DisasContext *dc, arg_da *a)
 
 static bool trans_l_cmov(DisasContext *dc, arg_dab *a)
 {
-    TCGv zero = tcg_constant_tl(0);
-
     check_r0_write(dc, a->d);
-    tcg_gen_movcond_tl(TCG_COND_NE, cpu_R(dc, a->d), cpu_sr_f, zero,
+    tcg_gen_movcond_tl(TCG_COND_NE, cpu_R(dc, a->d), cpu_sr_f, dc->zero,
                        cpu_R(dc, a->a), cpu_R(dc, a->b));
     return true;
 }
@@ -630,9 +630,8 @@ static void do_bf(DisasContext *dc, arg_l_bf *a, TCGCond cond)
     target_ulong tmp_pc = dc->base.pc_next + a->n * 4;
     TCGv t_next = tcg_constant_tl(dc->base.pc_next + 8);
     TCGv t_true = tcg_constant_tl(tmp_pc);
-    TCGv t_zero = tcg_constant_tl(0);
 
-    tcg_gen_movcond_tl(cond, jmp_pc, cpu_sr_f, t_zero, t_true, t_next);
+    tcg_gen_movcond_tl(cond, jmp_pc, cpu_sr_f, dc->zero, t_true, t_next);
     dc->delayed_branch = 2;
 }
 
@@ -1594,8 +1593,9 @@ static void openrisc_tr_tb_start(DisasContextBase *db, CPUState *cs)
 
     /* Allow the TCG optimizer to see that R0 == 0,
        when it's true, which is the common case.  */
+    dc->zero = tcg_constant_tl(0);
     if (dc->tb_flags & TB_FLAGS_R0_0) {
-        dc->R0 = tcg_constant_tl(0);
+        dc->R0 = dc->zero;
     } else {
         dc->R0 = cpu_regs[0];
     }
