@@ -13,3 +13,7 @@ config EMC141X
 config ADM1272
     bool
     depends on I2C
+
+config MAX34451
+    bool
+    depends on I2C
