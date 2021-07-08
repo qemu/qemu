@@ -21,6 +21,8 @@ struct target_pt_regs {
 };
 
 /* Target errno definitions taken from asm-mips/errno.h */
+#undef TARGET_EWOULDBLOCK
+#define TARGET_EWOULDBLOCK     TARGET_EAGAIN /* Operation would block */
 #undef TARGET_ENOMSG
 #define TARGET_ENOMSG          35      /* Identifier removed */
 #undef TARGET_EIDRM

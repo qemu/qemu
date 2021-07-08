@@ -27,6 +27,8 @@ struct target_pt_regs {
 #define TARGET_MCL_FUTURE  2
 #define TARGET_MCL_ONFAULT 4
 
+#undef  TARGET_EWOULDBLOCK
+#define TARGET_EWOULDBLOCK     TARGET_EAGAIN /* Operation would block */
 #undef  TARGET_ENOMSG
 #define TARGET_ENOMSG          35
 #undef  TARGET_EIDRM

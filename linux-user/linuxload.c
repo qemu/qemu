@@ -1,59 +1,57 @@
 /* Code for loading Linux executables.  Mostly linux kernel code.  */
 
 #include "qemu/osdep.h"
-
 #include "qemu.h"
 
 #define NGROUPS 32
 
 /* ??? This should really be somewhere else.  */
-abi_long memcpy_to_target(abi_ulong dest, const void *src,
-                          unsigned long len)
+abi_long memcpy_to_target(abi_ulong dest, const void *src, unsigned long len)
 {
     void *host_ptr;
 
     host_ptr = lock_user(VERIFY_WRITE, dest, len, 0);
-    if (!host_ptr)
+    if (!host_ptr) {
         return -TARGET_EFAULT;
+    }
     memcpy(host_ptr, src, len);
     unlock_user(host_ptr, dest, 1);
     return 0;
 }
 
-static int count(char ** vec)
+static int count(char **vec)
 {
-    int		i;
+    int i;
 
-    for(i = 0; *vec; i++) {
+    for (i = 0; *vec; i++) {
         vec++;
     }
-
-    return(i);
+    return i;
 }
 
 static int prepare_binprm(struct linux_binprm *bprm)
 {
-    struct stat		st;
+    struct stat st;
     int mode;
     int retval;
 
-    if(fstat(bprm->fd, &st) < 0) {
-        return(-errno);
+    if (fstat(bprm->fd, &st) < 0) {
+        return -errno;
     }
 
     mode = st.st_mode;
-    if(!S_ISREG(mode)) {	/* Must be regular file */
-        return(-EACCES);
+    if (!S_ISREG(mode)) {   /* Must be regular file */
+        return -EACCES;
     }
-    if(!(mode & 0111)) {	/* Must have at least one execute bit set */
-        return(-EACCES);
+    if (!(mode & 0111)) {   /* Must have at least one execute bit set */
+        return -EACCES;
     }
 
     bprm->e_uid = geteuid();
     bprm->e_gid = getegid();
 
     /* Set-uid? */
-    if(mode & S_ISUID) {
+    if (mode & S_ISUID) {
         bprm->e_uid = st.st_uid;
     }
 
@@ -125,8 +123,8 @@ abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
 }
 
 int loader_exec(int fdexec, const char *filename, char **argv, char **envp,
-             struct target_pt_regs * regs, struct image_info *infop,
-             struct linux_binprm *bprm)
+                struct target_pt_regs *regs, struct image_info *infop,
+                struct linux_binprm *bprm)
 {
     int retval;
 
@@ -139,7 +137,7 @@ int loader_exec(int fdexec, const char *filename, char **argv, char **envp,
 
     retval = prepare_binprm(bprm);
 
-    if(retval>=0) {
+    if (retval >= 0) {
         if (bprm->buf[0] == 0x7f
                 && bprm->buf[1] == 'E'
                 && bprm->buf[2] == 'L'
@@ -157,11 +155,11 @@ int loader_exec(int fdexec, const char *filename, char **argv, char **envp,
         }
     }
 
-    if(retval>=0) {
+    if (retval >= 0) {
         /* success.  Initialize important registers */
         do_init_thread(regs, infop);
         return retval;
     }
 
-    return(retval);
+    return retval;
 }
