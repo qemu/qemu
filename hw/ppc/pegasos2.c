@@ -584,7 +584,7 @@ static void add_pci_device(PCIBus *bus, PCIDevice *d, void *opaque)
                           pci_get_word(&d->config[PCI_SUBSYSTEM_VENDOR_ID]));
     cells[0] = pci_get_long(&d->config[PCI_CLASS_REVISION]);
     qemu_fdt_setprop_cell(fi->fdt, node->str, "class-code", cells[0] >> 8);
-    qemu_fdt_setprop_cell(fi->fdt, node->str, "revision-id", cells[0] && 0xff);
+    qemu_fdt_setprop_cell(fi->fdt, node->str, "revision-id", cells[0] & 0xff);
     qemu_fdt_setprop_cell(fi->fdt, node->str, "device-id",
                           pci_get_word(&d->config[PCI_DEVICE_ID]));
     qemu_fdt_setprop_cell(fi->fdt, node->str, "vendor-id",
