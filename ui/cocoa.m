@@ -1888,12 +1888,12 @@ static void *call_qemu_main(void *opaque)
     exit(status);
 }
 
-int main (int argc, const char * argv[]) {
+int main (int argc, char **argv) {
     QemuThread thread;
 
     COCOA_DEBUG("Entered main()\n");
     gArgc = argc;
-    gArgv = (char **)argv;
+    gArgv = argv;
 
     qemu_sem_init(&display_init_sem, 0);
     qemu_sem_init(&app_started_sem, 0);
