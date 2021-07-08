@@ -2818,12 +2818,12 @@ out:
              * Maybe there is something we can do: it looks like a
              * network down issue, and we pause for a recovery.
              */
+            qemu_fclose(rp);
+            ms->rp_state.from_dst_file = NULL;
+            rp = NULL;
             if (postcopy_pause_return_path_thread(ms)) {
                 /* Reload rp, reset the rest */
-                if (rp != ms->rp_state.from_dst_file) {
-                    qemu_fclose(rp);
-                    rp = ms->rp_state.from_dst_file;
-                }
+                rp = ms->rp_state.from_dst_file;
                 ms->rp_state.error = false;
                 goto retry;
             }
