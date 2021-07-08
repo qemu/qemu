@@ -129,9 +129,7 @@ void openrisc_translate_init(void)
 
 static void gen_exception(DisasContext *dc, unsigned int excp)
 {
-    TCGv_i32 tmp = tcg_const_i32(excp);
-    gen_helper_exception(cpu_env, tmp);
-    tcg_temp_free_i32(tmp);
+    gen_helper_exception(cpu_env, tcg_constant_i32(excp));
 }
 
 static void gen_illegal_exception(DisasContext *dc)
@@ -538,13 +536,11 @@ static bool trans_l_extbz(DisasContext *dc, arg_da *a)
 
 static bool trans_l_cmov(DisasContext *dc, arg_dab *a)
 {
-    TCGv zero;
+    TCGv zero = tcg_constant_tl(0);
 
     check_r0_write(dc, a->d);
-    zero = tcg_const_tl(0);
     tcg_gen_movcond_tl(TCG_COND_NE, cpu_R(dc, a->d), cpu_sr_f, zero,
                        cpu_R(dc, a->a), cpu_R(dc, a->b));
-    tcg_temp_free(zero);
     return true;
 }
 
@@ -632,15 +628,11 @@ static bool trans_l_jal(DisasContext *dc, arg_l_jal *a)
 static void do_bf(DisasContext *dc, arg_l_bf *a, TCGCond cond)
 {
     target_ulong tmp_pc = dc->base.pc_next + a->n * 4;
-    TCGv t_next = tcg_const_tl(dc->base.pc_next + 8);
-    TCGv t_true = tcg_const_tl(tmp_pc);
-    TCGv t_zero = tcg_const_tl(0);
+    TCGv t_next = tcg_constant_tl(dc->base.pc_next + 8);
+    TCGv t_true = tcg_constant_tl(tmp_pc);
+    TCGv t_zero = tcg_constant_tl(0);
 
     tcg_gen_movcond_tl(cond, jmp_pc, cpu_sr_f, t_zero, t_true, t_next);
-
-    tcg_temp_free(t_next);
-    tcg_temp_free(t_true);
-    tcg_temp_free(t_zero);
     dc->delayed_branch = 2;
 }
 
@@ -813,44 +805,28 @@ static bool trans_l_adrp(DisasContext *dc, arg_l_adrp *a)
 
 static bool trans_l_addi(DisasContext *dc, arg_rri *a)
 {
-    TCGv t0;
-
     check_r0_write(dc, a->d);
-    t0 = tcg_const_tl(a->i);
-    gen_add(dc, cpu_R(dc, a->d), cpu_R(dc, a->a), t0);
-    tcg_temp_free(t0);
+    gen_add(dc, cpu_R(dc, a->d), cpu_R(dc, a->a), tcg_constant_tl(a->i));
     return true;
 }
 
 static bool trans_l_addic(DisasContext *dc, arg_rri *a)
 {
-    TCGv t0;
-
     check_r0_write(dc, a->d);
-    t0 = tcg_const_tl(a->i);
-    gen_addc(dc, cpu_R(dc, a->d), cpu_R(dc, a->a), t0);
-    tcg_temp_free(t0);
+    gen_addc(dc, cpu_R(dc, a->d), cpu_R(dc, a->a), tcg_constant_tl(a->i));
     return true;
 }
 
 static bool trans_l_muli(DisasContext *dc, arg_rri *a)
 {
-    TCGv t0;
-
     check_r0_write(dc, a->d);
-    t0 = tcg_const_tl(a->i);
-    gen_mul(dc, cpu_R(dc, a->d), cpu_R(dc, a->a), t0);
-    tcg_temp_free(t0);
+    gen_mul(dc, cpu_R(dc, a->d), cpu_R(dc, a->a), tcg_constant_tl(a->i));
     return true;
 }
 
 static bool trans_l_maci(DisasContext *dc, arg_l_maci *a)
 {
-    TCGv t0;
-
-    t0 = tcg_const_tl(a->i);
-    gen_mac(dc, cpu_R(dc, a->a), t0);
-    tcg_temp_free(t0);
+    gen_mac(dc, cpu_R(dc, a->a), tcg_constant_tl(a->i));
     return true;
 }
 
