@@ -53,7 +53,7 @@ new_base_opts = {
 }
 
 # Don't want to bother with filtering qmp_log for reopen command
-result = vm.qmp('x-blockdev-reopen', **new_base_opts)
+result = vm.qmp('blockdev-reopen', **new_base_opts)
 if result != {'return': {}}:
     log('Failed to reopen: ' + str(result))
 
@@ -61,7 +61,7 @@ log('Remove persistent bitmap from base node reopened to RW:')
 vm.qmp_log('block-dirty-bitmap-remove', node='base', name='bitmap0')
 
 new_base_opts['options'][0]['read-only'] = True
-result = vm.qmp('x-blockdev-reopen', **new_base_opts)
+result = vm.qmp('blockdev-reopen', **new_base_opts)
 if result != {'return': {}}:
     log('Failed to reopen: ' + str(result))
 

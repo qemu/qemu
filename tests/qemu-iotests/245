@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # group: rw
 #
-# Test cases for the QMP 'x-blockdev-reopen' command
+# Test cases for the QMP 'blockdev-reopen' command
 #
 # Copyright (C) 2018-2019 Igalia, S.L.
 # Author: Alberto Garcia <berto@igalia.com>
@@ -85,16 +85,16 @@ class TestBlockdevReopen(iotests.QMPTestCase):
                          "Expected output of %d qemu-io commands, found %d" %
                          (found, self.total_io_cmds))
 
-    # Run x-blockdev-reopen on a list of block devices
+    # Run blockdev-reopen on a list of block devices
     def reopenMultiple(self, opts, errmsg = None):
-        result = self.vm.qmp('x-blockdev-reopen', conv_keys=False, options=opts)
+        result = self.vm.qmp('blockdev-reopen', conv_keys=False, options=opts)
         if errmsg:
             self.assert_qmp(result, 'error/class', 'GenericError')
             self.assert_qmp(result, 'error/desc', errmsg)
         else:
             self.assert_qmp(result, 'return', {})
 
-    # Run x-blockdev-reopen on a single block device (specified by
+    # Run blockdev-reopen on a single block device (specified by
     # 'opts') but applying 'newopts' on top of it. The original 'opts'
     # dict is unmodified
     def reopen(self, opts, newopts = {}, errmsg = None):
@@ -161,7 +161,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.reopen(opts, {'file.locking': 'off'}, "Cannot change the option 'locking'")
         self.reopen(opts, {'file.filename': None}, "Invalid parameter type for 'options[0].file.filename', expected: string")
 
-        # node-name is optional in BlockdevOptions, but x-blockdev-reopen needs it
+        # node-name is optional in BlockdevOptions, but blockdev-reopen needs it
         del opts['node-name']
         self.reopen(opts, {}, "node-name not specified")
 
