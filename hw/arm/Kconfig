@@ -375,6 +375,7 @@ config NPCM7XX
     select ARM_GIC
     select AT24C  # EEPROM
     select PL310  # cache controller
+    select PMBUS
     select SERIAL
     select SSI
     select UNIMP
