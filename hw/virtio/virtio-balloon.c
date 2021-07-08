@@ -30,6 +30,7 @@
 #include "trace.h"
 #include "qemu/error-report.h"
 #include "migration/misc.h"
+#include "migration/migration.h"
 
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
@@ -659,6 +660,18 @@ virtio_balloon_free_page_hint_notify(NotifierWithReturn *n, void *data)
          * have the normal migration process not affected when this feature is
          * not supported.
          */
+        return 0;
+    }
+
+    /*
+     * Pages hinted via qemu_guest_free_page_hint() are cleared from the dirty
+     * bitmap and will not get migrated, especially also not when the postcopy
+     * destination starts using them and requests migration from the source; the
+     * faulting thread will stall until postcopy migration finishes and
+     * all threads are woken up. Let's not start free page hinting if postcopy
+     * is possible.
+     */
+    if (migrate_postcopy_ram()) {
         return 0;
     }
 
