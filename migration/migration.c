@@ -1855,6 +1855,15 @@ void migrate_set_error(MigrationState *s, const Error *error)
     }
 }
 
+static void migrate_error_free(MigrationState *s)
+{
+    QEMU_LOCK_GUARD(&s->error_mutex);
+    if (s->error) {
+        error_free(s->error);
+        s->error = NULL;
+    }
+}
+
 void migrate_fd_error(MigrationState *s, const Error *error)
 {
     trace_migrate_fd_error(error_get_pretty(error));
@@ -3969,6 +3978,13 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
     Error *local_err = NULL;
     int64_t rate_limit;
     bool resume = s->state == MIGRATION_STATUS_POSTCOPY_PAUSED;
+
+    /*
+     * If there's a previous error, free it and prepare for another one.
+     * Meanwhile if migration completes successfully, there won't have an error
+     * dumped when calling migrate_fd_cleanup().
+     */
+    migrate_error_free(s);
 
     s->expected_downtime = s->parameters.downtime_limit;
     if (resume) {
