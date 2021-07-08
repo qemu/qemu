@@ -8847,9 +8847,11 @@ static void ppc_cpu_reset(DeviceState *dev)
 
 #if !defined(CONFIG_USER_ONLY)
     env->nip = env->hreset_vector | env->excp_prefix;
+#if defined(CONFIG_TCG)
     if (env->mmu_model != POWERPC_MMU_REAL) {
         ppc_tlb_invalidate_all(env);
     }
+#endif /* CONFIG_TCG */
 #endif
 
     hreg_compute_hflags(env);
