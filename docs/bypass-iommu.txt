@@ -1,0 +1,89 @@
+BYPASS IOMMU PROPERTY
+=====================
+
+Description
+===========
+Traditionally, there is a global switch to enable/disable vIOMMU. All
+devices in the system can only support go through vIOMMU or not, which
+is not flexible. We introduce this bypass iommu property to support
+coexist of devices go through vIOMMU and devices not. This is useful to
+passthrough devices with no-iommu mode and devices go through vIOMMU in
+the same virtual machine.
+
+PCI host bridges have a bypass_iommu property. This property is used to
+determine whether the devices attached on the PCI host bridge will bypass
+virtual iommu. The bypass_iommu property is valid only when there is a
+virtual iommu in the system, it is implemented to allow some devices to
+bypass vIOMMU. When bypass_iommu property is not set for a host bridge,
+the attached devices will go through vIOMMU by default.
+
+Usage
+=====
+The bypass iommu feature support PXB host bridge and default main host
+bridge, we add a bypass_iommu property for PXB and default_bus_bypass_iommu
+for machine. Note that default_bus_bypass_iommu is available only when
+the 'q35' machine type on x86 architecture and the 'virt' machine type
+on AArch64. Other machine types do not support bypass iommu for default
+root bus.
+
+1. The following is the bypass iommu options:
+ (1) PCI expander bridge
+     qemu -device pxb-pcie,bus_nr=0x10,addr=0x1,bypass_iommu=true
+ (2) Arm default host bridge
+     qemu -machine virt,iommu=smmuv3,default_bus_bypass_iommu=true
+ (3) X86 default root bus bypass iommu:
+     qemu -machine q35,default_bus_bypass_iommu=true
+
+2. Here is the detailed qemu command line for 'virt' machine with PXB on
+AArch64:
+
+qemu-system-aarch64 \
+ -machine virt,kernel_irqchip=on,iommu=smmuv3,default_bus_bypass_iommu=true \
+ -device pxb-pcie,bus_nr=0x10,id=pci.10,bus=pcie.0,addr=0x3.0x1 \
+ -device pxb-pcie,bus_nr=0x20,id=pci.20,bus=pcie.0,addr=0x3.0x2,bypass_iommu=true \
+
+And we got:
+ - a default host bridge which bypass SMMUv3
+ - a pxb host bridge which go through SMMUv3
+ - a pxb host bridge which bypass SMMUv3
+
+3. Here is the detailed qemu command line for 'q35' machine with PXB on
+x86 architecture:
+
+qemu-system-x86_64 \
+ -machine q35,accel=kvm,default_bus_bypass_iommu=true \
+ -device pxb-pcie,bus_nr=0x10,id=pci.10,bus=pcie.0,addr=0x3 \
+ -device pxb-pcie,bus_nr=0x20,id=pci.20,bus=pcie.0,addr=0x4,bypass_iommu=true \
+ -device intel-iommu \
+
+And we got:
+ - a default host bridge which bypass iommu
+ - a pxb host bridge which go through iommu
+ - a pxb host bridge which bypass iommu
+
+Limitations
+===========
+There might be potential security risk when devices bypass iommu, because
+devices might send malicious dma request to virtual machine if there is no
+iommu isolation. So it would be necessary to only bypass iommu for trusted
+device.
+
+Implementation
+==============
+The bypass iommu feature includes:
+ - Address space
+   Add bypass iommu property check of PCI Host and do not get iommu address
+   space for devices bypass iommu.
+ - Arm SMMUv3 support
+   We traverse all PCI root bus and get bus number ranges, then build explicit
+   RID mapping for devices which do not bypass iommu.
+ - X86 IOMMU support
+   To support Intel iommu, we traverse all PCI host bridge and get information
+   of devices which do not bypass iommu, then fill the DMAR drhd struct with
+   explicit device scope info. To support AMD iommu, add check of bypass iommu
+   when traverse the PCI hsot bridge.
+ - Machine and PXB options
+   We add bypass iommu options in machine option for default root bus, and add
+   option for PXB also. Note that the default value of bypass iommu is false,
+   so that the devices will by default go through iommu if there exist one.
+
