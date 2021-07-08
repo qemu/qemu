@@ -66,8 +66,6 @@ struct DisasContext {
     /* Temporaries for $31 and $f31 as source and destination.  */
     TCGv zero;
     TCGv sink;
-    /* Temporary for immediate constants.  */
-    TCGv lit;
 };
 
 /* Target-specific return values from translate_one, indicating the
@@ -157,7 +155,7 @@ void alpha_translate_init(void)
 static TCGv load_zero(DisasContext *ctx)
 {
     if (!ctx->zero) {
-        ctx->zero = tcg_const_i64(0);
+        ctx->zero = tcg_constant_i64(0);
     }
     return ctx->zero;
 }
@@ -177,14 +175,6 @@ static void free_context_temps(DisasContext *ctx)
         tcg_temp_free(ctx->sink);
         ctx->sink = NULL;
     }
-    if (ctx->zero) {
-        tcg_temp_free(ctx->zero);
-        ctx->zero = NULL;
-    }
-    if (ctx->lit) {
-        tcg_temp_free(ctx->lit);
-        ctx->lit = NULL;
-    }
 }
 
 static TCGv load_gpr(DisasContext *ctx, unsigned reg)
@@ -200,8 +190,7 @@ static TCGv load_gpr_lit(DisasContext *ctx, unsigned reg,
                          uint8_t lit, bool islit)
 {
     if (islit) {
-        ctx->lit = tcg_const_i64(lit);
-        return ctx->lit;
+        return tcg_constant_i64(lit);
     } else if (likely(reg < 31)) {
         return ctx->ir[reg];
     } else {
@@ -2992,7 +2981,6 @@ static void alpha_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
 
     ctx->zero = NULL;
     ctx->sink = NULL;
-    ctx->lit = NULL;
 
     /* Bound the number of insns to execute to those left on the page.  */
     bound = -(ctx->base.pc_first | TARGET_PAGE_MASK) / 4;
