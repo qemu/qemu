@@ -3979,7 +3979,18 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
     }
     if (error_in) {
         migrate_fd_error(s, error_in);
-        migrate_fd_cleanup(s);
+        if (resume) {
+            /*
+             * Don't do cleanup for resume if channel is invalid, but only dump
+             * the error.  We wait for another channel connect from the user.
+             * The error_report still gives HMP user a hint on what failed.
+             * It's normally done in migrate_fd_cleanup(), but call it here
+             * explicitly.
+             */
+            error_report_err(error_copy(s->error));
+        } else {
+            migrate_fd_cleanup(s);
+        }
         return;
     }
 
