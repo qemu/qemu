@@ -509,150 +509,26 @@ static inline int next_free_host_timer(void)
 
 #define ERRNO_TABLE_SIZE 1200
 
-/* target_to_host_errno_table[] is initialized from
- * host_to_target_errno_table[] in syscall_init(). */
-static uint16_t target_to_host_errno_table[ERRNO_TABLE_SIZE] = {
-};
-
-/*
- * This list is the union of errno values overridden in asm-<arch>/errno.h
- * minus the errnos that are not actually generic to all archs.
- */
-static uint16_t host_to_target_errno_table[ERRNO_TABLE_SIZE] = {
-    [EAGAIN]            = TARGET_EAGAIN,
-    [EIDRM]             = TARGET_EIDRM,
-    [ECHRNG]            = TARGET_ECHRNG,
-    [EL2NSYNC]          = TARGET_EL2NSYNC,
-    [EL3HLT]            = TARGET_EL3HLT,
-    [EL3RST]            = TARGET_EL3RST,
-    [ELNRNG]            = TARGET_ELNRNG,
-    [EUNATCH]           = TARGET_EUNATCH,
-    [ENOCSI]            = TARGET_ENOCSI,
-    [EL2HLT]            = TARGET_EL2HLT,
-    [EDEADLK]           = TARGET_EDEADLK,
-    [ENOLCK]            = TARGET_ENOLCK,
-    [EBADE]             = TARGET_EBADE,
-    [EBADR]             = TARGET_EBADR,
-    [EXFULL]            = TARGET_EXFULL,
-    [ENOANO]            = TARGET_ENOANO,
-    [EBADRQC]           = TARGET_EBADRQC,
-    [EBADSLT]           = TARGET_EBADSLT,
-    [EBFONT]            = TARGET_EBFONT,
-    [ENOSTR]            = TARGET_ENOSTR,
-    [ENODATA]           = TARGET_ENODATA,
-    [ETIME]             = TARGET_ETIME,
-    [ENOSR]             = TARGET_ENOSR,
-    [ENONET]            = TARGET_ENONET,
-    [ENOPKG]            = TARGET_ENOPKG,
-    [EREMOTE]           = TARGET_EREMOTE,
-    [ENOLINK]           = TARGET_ENOLINK,
-    [EADV]              = TARGET_EADV,
-    [ESRMNT]            = TARGET_ESRMNT,
-    [ECOMM]             = TARGET_ECOMM,
-    [EPROTO]            = TARGET_EPROTO,
-    [EDOTDOT]           = TARGET_EDOTDOT,
-    [EMULTIHOP]         = TARGET_EMULTIHOP,
-    [EBADMSG]           = TARGET_EBADMSG,
-    [ENAMETOOLONG]      = TARGET_ENAMETOOLONG,
-    [EOVERFLOW]         = TARGET_EOVERFLOW,
-    [ENOTUNIQ]          = TARGET_ENOTUNIQ,
-    [EBADFD]            = TARGET_EBADFD,
-    [EREMCHG]           = TARGET_EREMCHG,
-    [ELIBACC]           = TARGET_ELIBACC,
-    [ELIBBAD]           = TARGET_ELIBBAD,
-    [ELIBSCN]           = TARGET_ELIBSCN,
-    [ELIBMAX]           = TARGET_ELIBMAX,
-    [ELIBEXEC]          = TARGET_ELIBEXEC,
-    [EILSEQ]            = TARGET_EILSEQ,
-    [ENOSYS]            = TARGET_ENOSYS,
-    [ELOOP]             = TARGET_ELOOP,
-    [ERESTART]          = TARGET_ERESTART,
-    [ESTRPIPE]          = TARGET_ESTRPIPE,
-    [ENOTEMPTY]         = TARGET_ENOTEMPTY,
-    [EUSERS]            = TARGET_EUSERS,
-    [ENOTSOCK]          = TARGET_ENOTSOCK,
-    [EDESTADDRREQ]      = TARGET_EDESTADDRREQ,
-    [EMSGSIZE]          = TARGET_EMSGSIZE,
-    [EPROTOTYPE]        = TARGET_EPROTOTYPE,
-    [ENOPROTOOPT]       = TARGET_ENOPROTOOPT,
-    [EPROTONOSUPPORT]   = TARGET_EPROTONOSUPPORT,
-    [ESOCKTNOSUPPORT]   = TARGET_ESOCKTNOSUPPORT,
-    [EOPNOTSUPP]        = TARGET_EOPNOTSUPP,
-    [EPFNOSUPPORT]      = TARGET_EPFNOSUPPORT,
-    [EAFNOSUPPORT]      = TARGET_EAFNOSUPPORT,
-    [EADDRINUSE]        = TARGET_EADDRINUSE,
-    [EADDRNOTAVAIL]     = TARGET_EADDRNOTAVAIL,
-    [ENETDOWN]          = TARGET_ENETDOWN,
-    [ENETUNREACH]       = TARGET_ENETUNREACH,
-    [ENETRESET]         = TARGET_ENETRESET,
-    [ECONNABORTED]      = TARGET_ECONNABORTED,
-    [ECONNRESET]        = TARGET_ECONNRESET,
-    [ENOBUFS]           = TARGET_ENOBUFS,
-    [EISCONN]           = TARGET_EISCONN,
-    [ENOTCONN]          = TARGET_ENOTCONN,
-    [EUCLEAN]           = TARGET_EUCLEAN,
-    [ENOTNAM]           = TARGET_ENOTNAM,
-    [ENAVAIL]           = TARGET_ENAVAIL,
-    [EISNAM]            = TARGET_EISNAM,
-    [EREMOTEIO]         = TARGET_EREMOTEIO,
-    [EDQUOT]            = TARGET_EDQUOT,
-    [ESHUTDOWN]         = TARGET_ESHUTDOWN,
-    [ETOOMANYREFS]      = TARGET_ETOOMANYREFS,
-    [ETIMEDOUT]         = TARGET_ETIMEDOUT,
-    [ECONNREFUSED]      = TARGET_ECONNREFUSED,
-    [EHOSTDOWN]         = TARGET_EHOSTDOWN,
-    [EHOSTUNREACH]      = TARGET_EHOSTUNREACH,
-    [EALREADY]          = TARGET_EALREADY,
-    [EINPROGRESS]       = TARGET_EINPROGRESS,
-    [ESTALE]            = TARGET_ESTALE,
-    [ECANCELED]         = TARGET_ECANCELED,
-    [ENOMEDIUM]         = TARGET_ENOMEDIUM,
-    [EMEDIUMTYPE]       = TARGET_EMEDIUMTYPE,
-#ifdef ENOKEY
-    [ENOKEY]            = TARGET_ENOKEY,
-#endif
-#ifdef EKEYEXPIRED
-    [EKEYEXPIRED]       = TARGET_EKEYEXPIRED,
-#endif
-#ifdef EKEYREVOKED
-    [EKEYREVOKED]       = TARGET_EKEYREVOKED,
-#endif
-#ifdef EKEYREJECTED
-    [EKEYREJECTED]      = TARGET_EKEYREJECTED,
-#endif
-#ifdef EOWNERDEAD
-    [EOWNERDEAD]        = TARGET_EOWNERDEAD,
-#endif
-#ifdef ENOTRECOVERABLE
-    [ENOTRECOVERABLE]   = TARGET_ENOTRECOVERABLE,
-#endif
-#ifdef ENOMSG
-    [ENOMSG]            = TARGET_ENOMSG,
-#endif
-#ifdef ERFKILL
-    [ERFKILL]           = TARGET_ERFKILL,
-#endif
-#ifdef EHWPOISON
-    [EHWPOISON]         = TARGET_EHWPOISON,
-#endif
-};
-
-static inline int host_to_target_errno(int err)
+static inline int host_to_target_errno(int host_errno)
 {
-    if (err >= 0 && err < ERRNO_TABLE_SIZE &&
-        host_to_target_errno_table[err]) {
-        return host_to_target_errno_table[err];
+    switch (host_errno) {
+#define E(X)  case X: return TARGET_##X;
+#include "errnos.c.inc"
+#undef E
+    default:
+        return host_errno;
     }
-    return err;
 }
 
-static inline int target_to_host_errno(int err)
+static inline int target_to_host_errno(int target_errno)
 {
-    if (err >= 0 && err < ERRNO_TABLE_SIZE &&
-        target_to_host_errno_table[err]) {
-        return target_to_host_errno_table[err];
+    switch (target_errno) {
+#define E(X)  case TARGET_##X: return X;
+#include "errnos.c.inc"
+#undef E
+    default:
+        return target_errno;
     }
-    return err;
 }
 
 static inline abi_long get_errno(abi_long ret)
@@ -7102,7 +6978,6 @@ void syscall_init(void)
     IOCTLEntry *ie;
     const argtype *arg_type;
     int size;
-    int i;
 
     thunk_init(STRUCT_MAX);
 
@@ -7111,12 +6986,6 @@ void syscall_init(void)
 #include "syscall_types.h"
 #undef STRUCT
 #undef STRUCT_SPECIAL
-
-    /* Build target_to_host_errno_table[] table from
-     * host_to_target_errno_table[]. */
-    for (i = 0; i < ERRNO_TABLE_SIZE; i++) {
-        target_to_host_errno_table[host_to_target_errno_table[i]] = i;
-    }
 
     /* we patch the ioctl size if necessary. We rely on the fact that
        no ioctl has all the bits at '1' in the size field */
