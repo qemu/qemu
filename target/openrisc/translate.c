@@ -732,12 +732,6 @@ static bool trans_l_swa(DisasContext *dc, arg_store *a)
     ea = tcg_temp_new();
     tcg_gen_addi_tl(ea, cpu_R(dc, a->a), a->i);
 
-    /* For TB_FLAGS_R0_0, the branch below invalidates the temporary assigned
-       to cpu_regs[0].  Since l.swa is quite often immediately followed by a
-       branch, don't bother reallocating; finish the TB using the "real" R0.
-       This also takes care of RB input across the branch.  */
-    dc->R0 = cpu_regs[0];
-
     lab_fail = gen_new_label();
     lab_done = gen_new_label();
     tcg_gen_brcond_tl(TCG_COND_NE, ea, cpu_lock_addr, lab_fail);
@@ -745,7 +739,7 @@ static bool trans_l_swa(DisasContext *dc, arg_store *a)
 
     val = tcg_temp_new();
     tcg_gen_atomic_cmpxchg_tl(val, cpu_lock_addr, cpu_lock_value,
-                              cpu_regs[a->b], dc->mem_idx, MO_TEUL);
+                              cpu_R(dc, a->b), dc->mem_idx, MO_TEUL);
     tcg_gen_setcond_tl(TCG_COND_EQ, cpu_sr_f, val, cpu_lock_value);
     tcg_temp_free(val);
 
@@ -1601,7 +1595,7 @@ static void openrisc_tr_tb_start(DisasContextBase *db, CPUState *cs)
     /* Allow the TCG optimizer to see that R0 == 0,
        when it's true, which is the common case.  */
     if (dc->tb_flags & TB_FLAGS_R0_0) {
-        dc->R0 = tcg_const_tl(0);
+        dc->R0 = tcg_constant_tl(0);
     } else {
         dc->R0 = cpu_regs[0];
     }
