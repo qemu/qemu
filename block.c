@@ -4124,19 +4124,26 @@ void bdrv_reopen_queue_free(BlockReopenQueue *bs_queue)
  *
  * All affected nodes must be drained between bdrv_reopen_queue() and
  * bdrv_reopen_multiple().
+ *
+ * To be called from the main thread, with all other AioContexts unlocked.
  */
 int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
 {
     int ret = -1;
     BlockReopenQueueEntry *bs_entry, *next;
+    AioContext *ctx;
     Transaction *tran = tran_new();
     g_autoptr(GHashTable) found = NULL;
     g_autoptr(GSList) refresh_list = NULL;
 
+    assert(qemu_get_current_aio_context() == qemu_get_aio_context());
     assert(bs_queue != NULL);
 
     QTAILQ_FOREACH(bs_entry, bs_queue, entry) {
+        ctx = bdrv_get_aio_context(bs_entry->state.bs);
+        aio_context_acquire(ctx);
         ret = bdrv_flush(bs_entry->state.bs);
+        aio_context_release(ctx);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Error flushing drive");
             goto abort;
@@ -4145,7 +4152,10 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
 
     QTAILQ_FOREACH(bs_entry, bs_queue, entry) {
         assert(bs_entry->state.bs->quiesce_counter > 0);
+        ctx = bdrv_get_aio_context(bs_entry->state.bs);
+        aio_context_acquire(ctx);
         ret = bdrv_reopen_prepare(&bs_entry->state, bs_queue, tran, errp);
+        aio_context_release(ctx);
         if (ret < 0) {
             goto abort;
         }
@@ -4188,7 +4198,10 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
      * to first element.
      */
     QTAILQ_FOREACH_REVERSE(bs_entry, bs_queue, entry) {
+        ctx = bdrv_get_aio_context(bs_entry->state.bs);
+        aio_context_acquire(ctx);
         bdrv_reopen_commit(&bs_entry->state);
+        aio_context_release(ctx);
     }
 
     tran_commit(tran);
@@ -4197,7 +4210,10 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
         BlockDriverState *bs = bs_entry->state.bs;
 
         if (bs->drv->bdrv_reopen_commit_post) {
+            ctx = bdrv_get_aio_context(bs);
+            aio_context_acquire(ctx);
             bs->drv->bdrv_reopen_commit_post(&bs_entry->state);
+            aio_context_release(ctx);
         }
     }
 
@@ -4208,7 +4224,10 @@ abort:
     tran_abort(tran);
     QTAILQ_FOREACH_SAFE(bs_entry, bs_queue, entry, next) {
         if (bs_entry->prepared) {
+            ctx = bdrv_get_aio_context(bs_entry->state.bs);
+            aio_context_acquire(ctx);
             bdrv_reopen_abort(&bs_entry->state);
+            aio_context_release(ctx);
         }
     }
 
@@ -4218,21 +4237,37 @@ cleanup:
     return ret;
 }
 
+int bdrv_reopen(BlockDriverState *bs, QDict *opts, bool keep_old_opts,
+                Error **errp)
+{
+    AioContext *ctx = bdrv_get_aio_context(bs);
+    BlockReopenQueue *queue;
+    int ret;
+
+    bdrv_subtree_drained_begin(bs);
+    if (ctx != qemu_get_aio_context()) {
+        aio_context_release(ctx);
+    }
+
+    queue = bdrv_reopen_queue(NULL, bs, opts, keep_old_opts);
+    ret = bdrv_reopen_multiple(queue, errp);
+
+    if (ctx != qemu_get_aio_context()) {
+        aio_context_acquire(ctx);
+    }
+    bdrv_subtree_drained_end(bs);
+
+    return ret;
+}
+
 int bdrv_reopen_set_read_only(BlockDriverState *bs, bool read_only,
                               Error **errp)
 {
-    int ret;
-    BlockReopenQueue *queue;
     QDict *opts = qdict_new();
 
     qdict_put_bool(opts, BDRV_OPT_READ_ONLY, read_only);
 
-    bdrv_subtree_drained_begin(bs);
-    queue = bdrv_reopen_queue(NULL, bs, opts, true);
-    ret = bdrv_reopen_multiple(queue, errp);
-    bdrv_subtree_drained_end(bs);
-
-    return ret;
+    return bdrv_reopen(bs, opts, true, errp);
 }
 
 /*

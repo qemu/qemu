@@ -390,7 +390,14 @@ static void reopen_backing_file(BlockDriverState *bs, bool writable,
     }
 
     if (reopen_queue) {
+        AioContext *ctx = bdrv_get_aio_context(bs);
+        if (ctx != qemu_get_aio_context()) {
+            aio_context_release(ctx);
+        }
         bdrv_reopen_multiple(reopen_queue, errp);
+        if (ctx != qemu_get_aio_context()) {
+            aio_context_acquire(ctx);
+        }
     }
 
     bdrv_subtree_drained_end(s->hidden_disk->bs);

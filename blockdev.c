@@ -3592,8 +3592,13 @@ void qmp_x_blockdev_reopen(BlockdevOptions *options, Error **errp)
     ctx = bdrv_get_aio_context(bs);
     aio_context_acquire(ctx);
     bdrv_subtree_drained_begin(bs);
+    aio_context_release(ctx);
+
     queue = bdrv_reopen_queue(NULL, bs, qdict, false);
     bdrv_reopen_multiple(queue, errp);
+
+    ctx = bdrv_get_aio_context(bs);
+    aio_context_acquire(ctx);
     bdrv_subtree_drained_end(bs);
     aio_context_release(ctx);
 
