@@ -544,9 +544,9 @@ void main_loop_wait(int nonblocking)
 
 /* Functions to operate on the main QEMU AioContext.  */
 
-QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque)
+QEMUBH *qemu_bh_new_full(QEMUBHFunc *cb, void *opaque, const char *name)
 {
-    return aio_bh_new(qemu_aio_context, cb, opaque);
+    return aio_bh_new_full(qemu_aio_context, cb, opaque, name);
 }
 
 /*

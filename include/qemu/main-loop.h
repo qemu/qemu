@@ -294,7 +294,9 @@ void qemu_cond_timedwait_iothread(QemuCond *cond, int ms);
 
 void qemu_fd_register(int fd);
 
-QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque);
+#define qemu_bh_new(cb, opaque) \
+    qemu_bh_new_full((cb), (opaque), (stringify(cb)))
+QEMUBH *qemu_bh_new_full(QEMUBHFunc *cb, void *opaque, const char *name);
 void qemu_bh_schedule_idle(QEMUBH *bh);
 
 enum {
