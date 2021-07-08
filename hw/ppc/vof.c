@@ -144,15 +144,16 @@ static int path_offset(const void *fdt, const char *path)
      * the lower case forms of the hexadecimal digits in the range a..f,
      * suppressing leading zeros".
      */
-    at = strchr(path, '@');
-    if (!at) {
-        return fdt_path_offset(fdt, path);
+    p = g_strdup(path);
+    for (at = strchr(p, '@'); at && *at; ) {
+            if (*at == '/') {
+                at = strchr(at, '@');
+            } else {
+                *at = tolower(*at);
+                ++at;
+            }
     }
 
-    p = g_strdup(path);
-    for (at = at - path + p + 1; *at; ++at) {
-        *at = tolower(*at);
-    }
     return fdt_path_offset(fdt, p);
 }
 
@@ -300,6 +301,7 @@ static uint32_t vof_setprop(MachineState *ms, void *fdt, Vof *vof,
     char trval[64] = "";
     char nodepath[VOF_MAX_PATH] = "";
     Object *vmo = object_dynamic_cast(OBJECT(ms), TYPE_VOF_MACHINE_IF);
+    VofMachineIfClass *vmc;
     g_autofree char *val = NULL;
 
     if (vallen > VOF_MAX_SETPROPLEN) {
@@ -322,13 +324,13 @@ static uint32_t vof_setprop(MachineState *ms, void *fdt, Vof *vof,
         goto trace_exit;
     }
 
-    if (vmo) {
-        VofMachineIfClass *vmc = VOF_MACHINE_GET_CLASS(vmo);
+    if (!vmo) {
+        goto trace_exit;
+    }
 
-        if (vmc->setprop &&
-            !vmc->setprop(ms, nodepath, propname, val, vallen)) {
-            goto trace_exit;
-        }
+    vmc = VOF_MACHINE_GET_CLASS(vmo);
+    if (!vmc->setprop || !vmc->setprop(ms, nodepath, propname, val, vallen)) {
+        goto trace_exit;
     }
 
     ret = fdt_setprop(fdt, offset, propname, val, vallen);
@@ -918,6 +920,8 @@ static uint32_t vof_client_handle(MachineState *ms, void *fdt, Vof *vof,
         trace_vof_error_unknown_service(service, nargs, nrets);
         ret = -1;
     }
+
+#undef cmpserv
 
     return ret;
 }

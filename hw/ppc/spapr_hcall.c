@@ -1080,7 +1080,7 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
     SpaprOptionVector *ov1_guest, *ov5_guest;
     bool guest_radix;
     bool raw_mode_supported = false;
-    bool guest_xive, reset_fdt = false;
+    bool guest_xive;
     CPUState *cs;
     void *fdt;
     uint32_t max_compat = spapr->max_compat_pvr;
@@ -1233,8 +1233,7 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
         spapr_setup_hpt(spapr);
     }
 
-    reset_fdt = spapr->vof != NULL;
-    fdt = spapr_build_fdt(spapr, reset_fdt, fdt_bufsize);
+    fdt = spapr_build_fdt(spapr, spapr->vof != NULL, fdt_bufsize);
     g_free(spapr->fdt_blob);
     spapr->fdt_size = fdt_totalsize(fdt);
     spapr->fdt_initial_size = spapr->fdt_size;

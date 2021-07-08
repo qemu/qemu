@@ -1645,15 +1645,7 @@ static void spapr_machine_reset(MachineState *machine)
 
     fdt = spapr_build_fdt(spapr, true, FDT_MAX_SIZE);
     if (spapr->vof) {
-        target_ulong stack_ptr = 0;
-
-        spapr_vof_reset(spapr, fdt, &stack_ptr, &error_fatal);
-
-        spapr_cpu_set_entry_state(first_ppc_cpu, SPAPR_ENTRY_POINT,
-                                  stack_ptr, spapr->initrd_base,
-                                  spapr->initrd_size);
-        /* VOF is 32bit BE so enforce MSR here */
-        first_ppc_cpu->env.msr &= ~((1ULL << MSR_SF) | (1ULL << MSR_LE));
+        spapr_vof_reset(spapr, fdt, &error_fatal);
         /*
          * Do not pack the FDT as the client may change properties.
          * VOF client does not expect the FDT so we do not load it to the VM.

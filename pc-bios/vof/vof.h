@@ -10,11 +10,9 @@ typedef unsigned short uint16_t;
 typedef unsigned long uint32_t;
 typedef unsigned long long uint64_t;
 #define NULL (0)
-#define PROM_ERROR (-1u)
 typedef unsigned long ihandle;
 typedef unsigned long phandle;
 typedef int size_t;
-typedef void client(void);
 
 /* globals */
 extern void _prom_entry(void); /* OF CI entry point (i.e. this firmware) */

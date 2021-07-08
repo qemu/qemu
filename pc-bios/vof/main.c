@@ -6,7 +6,7 @@ void do_boot(unsigned long addr, unsigned long _r3, unsigned long _r4)
     register unsigned long r4 __asm__("r4") = _r4;
     register unsigned long r5 __asm__("r5") = (unsigned long) _prom_entry;
 
-    ((client *)(uint32_t)addr)();
+    ((void (*)(void))(uint32_t)addr)();
 }
 
 void entry_c(void)

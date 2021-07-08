@@ -964,8 +964,7 @@ void spapr_set_all_lpcrs(target_ulong value, target_ulong mask);
 hwaddr spapr_get_rtas_addr(void);
 bool spapr_memory_hot_unplug_supported(SpaprMachineState *spapr);
 
-void spapr_vof_reset(SpaprMachineState *spapr, void *fdt,
-                     target_ulong *stack_ptr, Error **errp);
+void spapr_vof_reset(SpaprMachineState *spapr, void *fdt, Error **errp);
 void spapr_vof_quiesce(MachineState *ms);
 bool spapr_vof_setprop(MachineState *ms, const char *path, const char *propname,
                        void *val, int vallen);

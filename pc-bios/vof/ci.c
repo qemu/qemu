@@ -69,7 +69,7 @@ static int call_ci(const char *service, int nargs, int nret, ...)
     }
 
     if (ci_entry((uint32_t)(&args)) < 0) {
-        return PROM_ERROR;
+        return -1;
     }
 
     return (nret > 0) ? args.args[nargs] : 0;

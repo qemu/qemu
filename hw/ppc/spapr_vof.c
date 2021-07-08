@@ -8,6 +8,7 @@
 #include "qapi/error.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
+#include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/vof.h"
 #include "sysemu/sysemu.h"
@@ -29,13 +30,19 @@ target_ulong spapr_h_vof_client(PowerPCCPU *cpu, SpaprMachineState *spapr,
 void spapr_vof_client_dt_finalize(SpaprMachineState *spapr, void *fdt)
 {
     char *stdout_path = spapr_vio_stdout_path(spapr->vio_bus);
-    int chosen;
 
     vof_build_dt(fdt, spapr->vof);
 
-    _FDT(chosen = fdt_path_offset(fdt, "/chosen"));
-    _FDT(fdt_setprop_string(fdt, chosen, "bootargs",
-                            spapr->vof->bootargs ? : ""));
+    if (spapr->vof->bootargs) {
+        int chosen;
+
+        _FDT(chosen = fdt_path_offset(fdt, "/chosen"));
+        /*
+         * If the client did not change "bootargs", spapr_dt_chosen() must have
+         * stored machine->kernel_cmdline in it before getting here.
+         */
+        _FDT(fdt_setprop_string(fdt, chosen, "bootargs", spapr->vof->bootargs));
+    }
 
     /*
      * SLOF-less setup requires an open instance of stdout for early
@@ -48,20 +55,21 @@ void spapr_vof_client_dt_finalize(SpaprMachineState *spapr, void *fdt)
     }
 }
 
-void spapr_vof_reset(SpaprMachineState *spapr, void *fdt,
-                     target_ulong *stack_ptr, Error **errp)
+void spapr_vof_reset(SpaprMachineState *spapr, void *fdt, Error **errp)
 {
+    target_ulong stack_ptr;
     Vof *vof = spapr->vof;
+    PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
 
     vof_init(vof, spapr->rma_size, errp);
 
-    *stack_ptr = vof_claim(vof, 0, VOF_STACK_SIZE, VOF_STACK_SIZE);
-    if (*stack_ptr == -1) {
+    stack_ptr = vof_claim(vof, 0, VOF_STACK_SIZE, VOF_STACK_SIZE);
+    if (stack_ptr == -1) {
         error_setg(errp, "Memory allocation for stack failed");
         return;
     }
     /* Stack grows downwards plus reserve space for the minimum stack frame */
-    *stack_ptr += VOF_STACK_SIZE - 0x20;
+    stack_ptr += VOF_STACK_SIZE - 0x20;
 
     if (spapr->kernel_size &&
         vof_claim(vof, spapr->kernel_addr, spapr->kernel_size, 0) == -1) {
@@ -76,6 +84,12 @@ void spapr_vof_reset(SpaprMachineState *spapr, void *fdt,
     }
 
     spapr_vof_client_dt_finalize(spapr, fdt);
+
+    spapr_cpu_set_entry_state(first_ppc_cpu, SPAPR_ENTRY_POINT,
+                              stack_ptr, spapr->initrd_base,
+                              spapr->initrd_size);
+    /* VOF is 32bit BE so enforce MSR here */
+    first_ppc_cpu->env.msr &= ~((1ULL << MSR_SF) | (1ULL << MSR_LE));
 
     /*
      * At this point the expected allocation map is:
