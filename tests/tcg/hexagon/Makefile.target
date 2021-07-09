@@ -18,15 +18,6 @@
 # Hexagon doesn't support gdb, so skip the EXTRA_RUNS
 EXTRA_RUNS =
 
-# Hexagon has 64K pages, so increase the timeout to keep
-# test-mmap from timing out
-ifeq ($(CONFIG_DEBUG_TCG),y)
-TIMEOUT=800
-else
-TIMEOUT=500
-endif
-
-
 CFLAGS += -Wno-incompatible-pointer-types -Wno-undefined-internal
 CFLAGS += -fno-unroll-loops
 
