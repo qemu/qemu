@@ -58,6 +58,7 @@ static const MemMapEntry ibex_memmap[] = {
     [IBEX_DEV_ALERT_HANDLER] =  {  0x411b0000,  0x1000  },
     [IBEX_DEV_NMI_GEN] =        {  0x411c0000,  0x1000  },
     [IBEX_DEV_OTBN] =           {  0x411d0000,  0x10000 },
+    [IBEX_DEV_PERI] =           {  0x411f0000,  0x10000 },
 };
 
 static void opentitan_board_init(MachineState *machine)
@@ -217,6 +218,8 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
         memmap[IBEX_DEV_NMI_GEN].base, memmap[IBEX_DEV_NMI_GEN].size);
     create_unimplemented_device("riscv.lowrisc.ibex.otbn",
         memmap[IBEX_DEV_OTBN].base, memmap[IBEX_DEV_OTBN].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.peri",
+        memmap[IBEX_DEV_PERI].base, memmap[IBEX_DEV_PERI].size);
 }
 
 static void lowrisc_ibex_soc_class_init(ObjectClass *oc, void *data)

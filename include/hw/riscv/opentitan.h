@@ -81,6 +81,7 @@ enum {
     IBEX_DEV_ALERT_HANDLER,
     IBEX_DEV_NMI_GEN,
     IBEX_DEV_OTBN,
+    IBEX_DEV_PERI,
 };
 
 enum {
