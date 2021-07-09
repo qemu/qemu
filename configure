@@ -2197,10 +2197,13 @@ if test "$modules" = "no" && test "$module_upgrades" = "yes" ; then
   error_exit "Can't enable module-upgrades as Modules are not enabled"
 fi
 
-# Static linking is not possible with modules or PIE
+# Static linking is not possible with plugins, modules or PIE
 if test "$static" = "yes" ; then
   if test "$modules" = "yes" ; then
     error_exit "static and modules are mutually incompatible"
+  fi
+  if test "$plugins" = "yes"; then
+    error_exit "static and plugins are mutually incompatible"
   fi
 fi
 
@@ -3979,7 +3982,7 @@ if  test "$plugins" = "yes" &&
       "Plugin support requires dynamic linking and specifying a set of symbols " \
       "that are exported to plugins. Unfortunately your linker doesn't " \
       "support the flag (--dynamic-list or -exported_symbols_list) used " \
-      "for this purpose. You can't build with --static."
+      "for this purpose."
 fi
 
 ########################################
