@@ -2609,28 +2609,32 @@ foreach target : target_dirs
                link_args: link_args,
                gui_app: exe['gui'])
 
-    if 'CONFIG_HVF' in config_target
-      entitlements = meson.current_source_dir() / 'accel/hvf/entitlements.plist'
-    else
-      entitlements = '/dev/null'
-    endif
     if targetos == 'darwin'
-      icon = meson.current_source_dir() / 'pc-bios/qemu.rsrc'
+      icon = 'pc-bios/qemu.rsrc'
+      build_input = [emulator, files(icon)]
+      install_input = [
+        get_option('bindir') / exe_name,
+        meson.current_source_dir() / icon
+      ]
+      if 'CONFIG_HVF' in config_target
+        entitlements = 'accel/hvf/entitlements.plist'
+        build_input += files(entitlements)
+        install_input += meson.current_source_dir() / entitlements
+      endif
+
       emulators += {exe['name'] : custom_target(exe['name'],
-                   depends: emulator,
+                   input: build_input,
                    output: exe['name'],
                    command: [
-                     meson.current_source_dir() / 'scripts/entitlement.sh',
-                     meson.current_build_dir() / exe_name,
-                     meson.current_build_dir() / exe['name'],
-                     entitlements, icon
+                     files('scripts/entitlement.sh'),
+                     '@OUTPUT@',
+                     '@INPUT@'
                    ])
       }
 
       meson.add_install_script('scripts/entitlement.sh', '--install',
-                               get_option('bindir') / exe_name,
                                get_option('bindir') / exe['name'],
-                               entitlements, icon)
+                               install_input)
     else
       emulators += {exe['name']: emulator}
     endif
