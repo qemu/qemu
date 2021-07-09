@@ -38,7 +38,7 @@ static int glib_random_bytes(void *buf, size_t len)
     }
     if (i < len) {
         x = g_rand_int(rand);
-        __builtin_memcpy(buf + i, &x, i - len);
+        __builtin_memcpy(buf + i, &x, len - i);
     }
     return 0;
 }
