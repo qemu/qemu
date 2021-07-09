@@ -623,6 +623,10 @@ static uint16_t nvme_map_addr(NvmeCtrl *n, NvmeSg *sg, hwaddr addr, size_t len)
             return NVME_INVALID_USE_OF_CMB | NVME_DNR;
         }
 
+        if (sg->iov.niov + 1 > IOV_MAX) {
+            goto max_mappings_exceeded;
+        }
+
         if (cmb) {
             return nvme_map_addr_cmb(n, &sg->iov, addr, len);
         } else {
@@ -634,9 +638,18 @@ static uint16_t nvme_map_addr(NvmeCtrl *n, NvmeSg *sg, hwaddr addr, size_t len)
         return NVME_INVALID_USE_OF_CMB | NVME_DNR;
     }
 
+    if (sg->qsg.nsg + 1 > IOV_MAX) {
+        goto max_mappings_exceeded;
+    }
+
     qemu_sglist_add(&sg->qsg, addr, len);
 
     return NVME_SUCCESS;
+
+max_mappings_exceeded:
+    NVME_GUEST_ERR(pci_nvme_ub_too_many_mappings,
+                   "number of mappings exceed 1024");
+    return NVME_INTERNAL_DEV_ERROR | NVME_DNR;
 }
 
 static inline bool nvme_addr_is_dma(NvmeCtrl *n, hwaddr addr)
