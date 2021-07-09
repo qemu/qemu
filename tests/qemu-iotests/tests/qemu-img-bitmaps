@@ -3,7 +3,7 @@
 #
 # Test qemu-img bitmap handling
 #
-# Copyright (C) 2018-2020 Red Hat, Inc.
+# Copyright (C) 2018-2021 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,11 +27,13 @@ status=1 # failure is the default!
 _cleanup()
 {
     _cleanup_test_img
+    _rm_test_img "$TEST_IMG.copy"
     nbd_server_stop
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
 # get standard environment, filters and checks
+cd ..
 . ./common.rc
 . ./common.filter
 . ./common.nbd
@@ -128,6 +130,23 @@ $QEMU_IMG map --output=json --image-opts \
     "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b3" | _filter_qemu_img_map
 
 nbd_server_stop
+
+echo
+echo "=== Check handling of inconsistent bitmap ==="
+echo
+
+# Prepare image with corrupted bitmap
+$QEMU_IO -c abort "$TEST_IMG" 2>/dev/null
+$QEMU_IMG bitmap --add "$TEST_IMG" b4
+$QEMU_IMG bitmap --remove "$TEST_IMG" b1
+_img_info --format-specific | _filter_irrelevant_img_info
+echo
+$QEMU_IMG convert --bitmaps -O qcow2 "$TEST_IMG" "$TEST_IMG.copy" &&
+    echo "unexpected success"
+# Bug - even though we failed at conversion, we left a file around with
+# a bitmap marked as not corrupt
+TEST_IMG=$TEST_IMG.copy _img_info --format-specific \
+    | _filter_irrelevant_img_info
 
 # success, all done
 echo '*** done'

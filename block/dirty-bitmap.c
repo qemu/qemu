@@ -193,7 +193,7 @@ int bdrv_dirty_bitmap_check(const BdrvDirtyBitmap *bitmap, uint32_t flags,
         error_setg(errp, "Bitmap '%s' is inconsistent and cannot be used",
                    bitmap->name);
         error_append_hint(errp, "Try block-dirty-bitmap-remove to delete"
-                          " this bitmap from disk");
+                          " this bitmap from disk\n");
         return -1;
     }
 

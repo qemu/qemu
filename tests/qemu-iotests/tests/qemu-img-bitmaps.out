@@ -1,4 +1,4 @@
-QA output created by 291
+QA output created by qemu-img-bitmaps
 
 === Initial image setup ===
 
@@ -115,4 +115,51 @@ Format specific information:
 [{ "start": 0, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
 { "start": 2097152, "length": 1048576, "depth": 0, "present": false, "zero": false, "data": false},
 { "start": 3145728, "length": 7340032, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET}]
+
+=== Check handling of inconsistent bitmap ===
+
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 10 MiB (10485760 bytes)
+cluster_size: 65536
+backing file: TEST_DIR/t.IMGFMT.base
+backing file format: IMGFMT
+Format specific information:
+    bitmaps:
+        [0]:
+            flags:
+                [0]: in-use
+                [1]: auto
+            name: b2
+            granularity: 65536
+        [1]:
+            flags:
+                [0]: in-use
+            name: b0
+            granularity: 65536
+        [2]:
+            flags:
+                [0]: auto
+            name: b4
+            granularity: 65536
+    corrupt: false
+
+qemu-img: Failed to populate bitmap b0: Bitmap 'b0' is inconsistent and cannot be used
+Try block-dirty-bitmap-remove to delete this bitmap from disk
+image: TEST_DIR/t.IMGFMT.copy
+file format: IMGFMT
+virtual size: 10 MiB (10485760 bytes)
+cluster_size: 65536
+Format specific information:
+    bitmaps:
+        [0]:
+            flags:
+            name: b0
+            granularity: 65536
+        [1]:
+            flags:
+                [0]: auto
+            name: b4
+            granularity: 65536
+    corrupt: false
 *** done
