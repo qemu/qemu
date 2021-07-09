@@ -221,6 +221,24 @@ This machine is deprecated because we have enough AST2500 based OpenPOWER
 machines. It can be easily replaced by the ``witherspoon-bmc`` or the
 ``romulus-bmc`` machines.
 
+Backend options
+---------------
+
+Using non-persistent backing file with pmem=on (since 6.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+This option is used when ``memory-backend-file`` is consumed by emulated NVDIMM
+device. However enabling ``memory-backend-file.pmem`` option, when backing file
+is (a) not DAX capable or (b) not on a filesystem that support direct mapping
+of persistent memory, is not safe and may lead to data loss or corruption in case
+of host crash.
+Options are:
+
+    - modify VM configuration to set ``pmem=off`` to continue using fake NVDIMM
+      (without persistence guaranties) with backing file on non DAX storage
+    - move backing file to NVDIMM storage and keep ``pmem=on``
+      (to have NVDIMM with persistence guaranties).
+
 Device options
 --------------
 

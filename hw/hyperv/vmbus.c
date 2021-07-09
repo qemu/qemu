@@ -2372,6 +2372,14 @@ static void vmbus_dev_realize(DeviceState *dev, Error **errp)
 
     assert(!qemu_uuid_is_null(&vdev->instanceid));
 
+    if (!qemu_uuid_is_null(&vdc->instanceid)) {
+        /* Class wants to only have a single instance with a fixed UUID */
+        if (!qemu_uuid_is_equal(&vdev->instanceid, &vdc->instanceid)) {
+            error_setg(&err, "instance id can't be changed");
+            goto error_out;
+        }
+    }
+
     /* Check for instance id collision for this class id */
     QTAILQ_FOREACH(child, &BUS(vmbus)->children, sibling) {
         VMBusDevice *child_dev = VMBUS_DEVICE(child->child);
@@ -2438,17 +2446,21 @@ static void vmbus_dev_unrealize(DeviceState *dev)
     free_channels(vdev);
 }
 
+static Property vmbus_dev_props[] = {
+    DEFINE_PROP_UUID("instanceid", VMBusDevice, instanceid),
+    DEFINE_PROP_END_OF_LIST()
+};
+
+
 static void vmbus_dev_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *kdev = DEVICE_CLASS(klass);
+    device_class_set_props(kdev, vmbus_dev_props);
     kdev->bus_type = TYPE_VMBUS;
     kdev->realize = vmbus_dev_realize;
     kdev->unrealize = vmbus_dev_unrealize;
     kdev->reset = vmbus_dev_reset;
 }
-
-static Property vmbus_dev_instanceid =
-                        DEFINE_PROP_UUID("instanceid", VMBusDevice, instanceid);
 
 static void vmbus_dev_instance_init(Object *obj)
 {
@@ -2458,8 +2470,6 @@ static void vmbus_dev_instance_init(Object *obj)
     if (!qemu_uuid_is_null(&vdc->instanceid)) {
         /* Class wants to only have a single instance with a fixed UUID */
         vdev->instanceid = vdc->instanceid;
-    } else {
-        qdev_property_add_static(DEVICE(vdev), &vmbus_dev_instanceid);
     }
 }
 
