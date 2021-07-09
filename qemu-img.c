@@ -2101,6 +2101,29 @@ static int convert_do_copy(ImgConvertState *s)
     return s->ret;
 }
 
+/* Check that bitmaps can be copied, or output an error */
+static int convert_check_bitmaps(BlockDriverState *src)
+{
+    BdrvDirtyBitmap *bm;
+
+    if (!bdrv_supports_persistent_dirty_bitmap(src)) {
+        error_report("Source lacks bitmap support");
+        return -1;
+    }
+    FOR_EACH_DIRTY_BITMAP(src, bm) {
+        if (!bdrv_dirty_bitmap_get_persistence(bm)) {
+            continue;
+        }
+        if (bdrv_dirty_bitmap_inconsistent(bm)) {
+            error_report("Cannot copy inconsistent bitmap '%s'",
+                         bdrv_dirty_bitmap_name(bm));
+            error_printf("Try 'qemu-img bitmap --remove' to delete it\n");
+            return -1;
+        }
+    }
+    return 0;
+}
+
 static int convert_copy_bitmaps(BlockDriverState *src, BlockDriverState *dst)
 {
     BdrvDirtyBitmap *bm;
@@ -2127,6 +2150,7 @@ static int convert_copy_bitmaps(BlockDriverState *src, BlockDriverState *dst)
                               &err);
         if (err) {
             error_reportf_err(err, "Failed to populate bitmap %s: ", name);
+            qmp_block_dirty_bitmap_remove(dst->node_name, name, NULL);
             return -1;
         }
     }
@@ -2554,9 +2578,8 @@ static int img_convert(int argc, char **argv)
             ret = -1;
             goto out;
         }
-        if (!bdrv_supports_persistent_dirty_bitmap(blk_bs(s.src[0]))) {
-            error_report("Source lacks bitmap support");
-            ret = -1;
+        ret = convert_check_bitmaps(blk_bs(s.src[0]));
+        if (ret < 0) {
             goto out;
         }
     }
