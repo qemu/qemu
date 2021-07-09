@@ -40,6 +40,7 @@ struct LowRISCIbexSoCState {
 
     MemoryRegion flash_mem;
     MemoryRegion rom;
+    MemoryRegion flash_alias;
 };
 
 typedef struct OpenTitanState {
@@ -54,6 +55,7 @@ enum {
     IBEX_DEV_ROM,
     IBEX_DEV_RAM,
     IBEX_DEV_FLASH,
+    IBEX_DEV_FLASH_VIRTUAL,
     IBEX_DEV_UART,
     IBEX_DEV_GPIO,
     IBEX_DEV_SPI,
