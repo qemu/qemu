@@ -46,6 +46,12 @@ typedef struct FuseExport {
     char *mountpoint;
     bool writable;
     bool growable;
+    /* Whether allow_other was used as a mount option or not */
+    bool allow_other;
+
+    mode_t st_mode;
+    uid_t st_uid;
+    gid_t st_gid;
 } FuseExport;
 
 static GHashTable *exports;
@@ -57,7 +63,7 @@ static void fuse_export_delete(BlockExport *exp);
 static void init_exports_table(void);
 
 static int setup_fuse_export(FuseExport *exp, const char *mountpoint,
-                             Error **errp);
+                             bool allow_other, Error **errp);
 static void read_from_fuse_export(void *opaque);
 
 static bool is_regular_file(const char *path, Error **errp);
@@ -118,7 +124,29 @@ static int fuse_export_create(BlockExport *blk_exp,
     exp->writable = blk_exp_args->writable;
     exp->growable = args->growable;
 
-    ret = setup_fuse_export(exp, args->mountpoint, errp);
+    /* set default */
+    if (!args->has_allow_other) {
+        args->allow_other = FUSE_EXPORT_ALLOW_OTHER_AUTO;
+    }
+
+    exp->st_mode = S_IFREG | S_IRUSR;
+    if (exp->writable) {
+        exp->st_mode |= S_IWUSR;
+    }
+    exp->st_uid = getuid();
+    exp->st_gid = getgid();
+
+    if (args->allow_other == FUSE_EXPORT_ALLOW_OTHER_AUTO) {
+        /* Ignore errors on our first attempt */
+        ret = setup_fuse_export(exp, args->mountpoint, true, NULL);
+        exp->allow_other = ret == 0;
+        if (ret < 0) {
+            ret = setup_fuse_export(exp, args->mountpoint, false, errp);
+        }
+    } else {
+        exp->allow_other = args->allow_other == FUSE_EXPORT_ALLOW_OTHER_ON;
+        ret = setup_fuse_export(exp, args->mountpoint, exp->allow_other, errp);
+    }
     if (ret < 0) {
         goto fail;
     }
@@ -146,15 +174,20 @@ static void init_exports_table(void)
  * Create exp->fuse_session and mount it.
  */
 static int setup_fuse_export(FuseExport *exp, const char *mountpoint,
-                             Error **errp)
+                             bool allow_other, Error **errp)
 {
     const char *fuse_argv[4];
     char *mount_opts;
     struct fuse_args fuse_args;
     int ret;
 
-    /* Needs to match what fuse_init() sets.  Only max_read must be supplied. */
-    mount_opts = g_strdup_printf("max_read=%zu", FUSE_MAX_BOUNCE_BYTES);
+    /*
+     * max_read needs to match what fuse_init() sets.
+     * max_write need not be supplied.
+     */
+    mount_opts = g_strdup_printf("max_read=%zu,default_permissions%s",
+                                 FUSE_MAX_BOUNCE_BYTES,
+                                 allow_other ? ",allow_other" : "");
 
     fuse_argv[0] = ""; /* Dummy program name */
     fuse_argv[1] = "-o";
@@ -316,7 +349,6 @@ static void fuse_getattr(fuse_req_t req, fuse_ino_t inode,
     int64_t length, allocated_blocks;
     time_t now = time(NULL);
     FuseExport *exp = fuse_req_userdata(req);
-    mode_t mode;
 
     length = blk_getlength(exp->common.blk);
     if (length < 0) {
@@ -331,17 +363,12 @@ static void fuse_getattr(fuse_req_t req, fuse_ino_t inode,
         allocated_blocks = DIV_ROUND_UP(allocated_blocks, 512);
     }
 
-    mode = S_IFREG | S_IRUSR;
-    if (exp->writable) {
-        mode |= S_IWUSR;
-    }
-
     statbuf = (struct stat) {
         .st_ino     = inode,
-        .st_mode    = mode,
+        .st_mode    = exp->st_mode,
         .st_nlink   = 1,
-        .st_uid     = getuid(),
-        .st_gid     = getgid(),
+        .st_uid     = exp->st_uid,
+        .st_gid     = exp->st_gid,
         .st_size    = length,
         .st_blksize = blk_bs(exp->common.blk)->bl.request_alignment,
         .st_blocks  = allocated_blocks,
@@ -387,28 +414,76 @@ static int fuse_do_truncate(const FuseExport *exp, int64_t size,
 }
 
 /**
- * Let clients set file attributes.  Only resizing is supported.
+ * Let clients set file attributes.  Only resizing and changing
+ * permissions (st_mode, st_uid, st_gid) is allowed.
+ * Changing permissions is only allowed as far as it will actually
+ * permit access: Read-only exports cannot be given +w, and exports
+ * without allow_other cannot be given a different UID or GID, and
+ * they cannot be given non-owner access.
  */
 static void fuse_setattr(fuse_req_t req, fuse_ino_t inode, struct stat *statbuf,
                          int to_set, struct fuse_file_info *fi)
 {
     FuseExport *exp = fuse_req_userdata(req);
+    int supported_attrs;
     int ret;
 
-    if (!exp->writable) {
-        fuse_reply_err(req, EACCES);
-        return;
+    supported_attrs = FUSE_SET_ATTR_SIZE | FUSE_SET_ATTR_MODE;
+    if (exp->allow_other) {
+        supported_attrs |= FUSE_SET_ATTR_UID | FUSE_SET_ATTR_GID;
     }
 
-    if (to_set & ~FUSE_SET_ATTR_SIZE) {
+    if (to_set & ~supported_attrs) {
         fuse_reply_err(req, ENOTSUP);
         return;
     }
 
-    ret = fuse_do_truncate(exp, statbuf->st_size, true, PREALLOC_MODE_OFF);
-    if (ret < 0) {
-        fuse_reply_err(req, -ret);
-        return;
+    /* Do some argument checks first before committing to anything */
+    if (to_set & FUSE_SET_ATTR_MODE) {
+        /*
+         * Without allow_other, non-owners can never access the export, so do
+         * not allow setting permissions for them
+         */
+        if (!exp->allow_other &&
+            (statbuf->st_mode & (S_IRWXG | S_IRWXO)) != 0)
+        {
+            fuse_reply_err(req, EPERM);
+            return;
+        }
+
+        /* +w for read-only exports makes no sense, disallow it */
+        if (!exp->writable &&
+            (statbuf->st_mode & (S_IWUSR | S_IWGRP | S_IWOTH)) != 0)
+        {
+            fuse_reply_err(req, EROFS);
+            return;
+        }
+    }
+
+    if (to_set & FUSE_SET_ATTR_SIZE) {
+        if (!exp->writable) {
+            fuse_reply_err(req, EACCES);
+            return;
+        }
+
+        ret = fuse_do_truncate(exp, statbuf->st_size, true, PREALLOC_MODE_OFF);
+        if (ret < 0) {
+            fuse_reply_err(req, -ret);
+            return;
+        }
+    }
+
+    if (to_set & FUSE_SET_ATTR_MODE) {
+        /* Ignore FUSE-supplied file type, only change the mode */
+        exp->st_mode = (statbuf->st_mode & 07777) | S_IFREG;
+    }
+
+    if (to_set & FUSE_SET_ATTR_UID) {
+        exp->st_uid = statbuf->st_uid;
+    }
+
+    if (to_set & FUSE_SET_ATTR_GID) {
+        exp->st_gid = statbuf->st_gid;
     }
 
     fuse_getattr(req, inode, fi);

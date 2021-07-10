@@ -920,8 +920,8 @@ class TestCommitWithOverriddenBacking(iotests.QMPTestCase):
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, self.img_base_a, '1M')
         qemu_img('create', '-f', iotests.imgfmt, self.img_base_b, '1M')
-        qemu_img('create', '-f', iotests.imgfmt, '-b', self.img_base_a, \
-                 self.img_top)
+        qemu_img('create', '-f', iotests.imgfmt, '-b', self.img_base_a,
+                 '-F', iotests.imgfmt, self.img_top)
 
         self.vm = iotests.VM()
         self.vm.launch()

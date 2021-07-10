@@ -121,6 +121,23 @@
             '*num-queues': 'uint16'} }
 
 ##
+# @FuseExportAllowOther:
+#
+# Possible allow_other modes for FUSE exports.
+#
+# @off: Do not pass allow_other as a mount option.
+#
+# @on: Pass allow_other as a mount option.
+#
+# @auto: Try mounting with allow_other first, and if that fails, retry
+#        without allow_other.
+#
+# Since: 6.1
+##
+{ 'enum': 'FuseExportAllowOther',
+  'data': ['off', 'on', 'auto'] }
+
+##
 # @BlockExportOptionsFuse:
 #
 # Options for exporting a block graph node on some (file) mountpoint
@@ -132,11 +149,25 @@
 # @growable: Whether writes beyond the EOF should grow the block node
 #            accordingly. (default: false)
 #
+# @allow-other: If this is off, only qemu's user is allowed access to
+#               this export.  That cannot be changed even with chmod or
+#               chown.
+#               Enabling this option will allow other users access to
+#               the export with the FUSE mount option "allow_other".
+#               Note that using allow_other as a non-root user requires
+#               user_allow_other to be enabled in the global fuse.conf
+#               configuration file.
+#               In auto mode (the default), the FUSE export driver will
+#               first attempt to mount the export with allow_other, and
+#               if that fails, try again without.
+#               (since 6.1; default: auto)
+#
 # Since: 6.0
 ##
 { 'struct': 'BlockExportOptionsFuse',
   'data': { 'mountpoint': 'str',
-            '*growable': 'bool' },
+            '*growable': 'bool',
+            '*allow-other': 'FuseExportAllowOther' },
   'if': 'defined(CONFIG_FUSE)' }
 
 ##

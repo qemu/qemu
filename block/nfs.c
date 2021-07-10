@@ -147,9 +147,7 @@ out:
     if (qp) {
         query_params_free(qp);
     }
-    if (uri) {
-        uri_free(uri);
-    }
+    uri_free(uri);
     return ret;
 }
 

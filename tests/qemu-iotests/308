@@ -58,6 +58,9 @@ _supported_os Linux # We need /dev/urandom
 # $4: Node to export (defaults to 'node-format')
 fuse_export_add()
 {
+    # The grep -v is a filter for errors when /etc/fuse.conf does not contain
+    # user_allow_other.  (The error is benign, but it is printed by fusermount
+    # on the first mount attempt, so our export code cannot hide it.)
     _send_qemu_cmd $QEMU_HANDLE \
         "{'execute': 'block-export-add',
           'arguments': {
@@ -67,7 +70,8 @@ fuse_export_add()
               $2
           } }" \
         "${3:-return}" \
-        | _filter_imgfmt
+        | _filter_imgfmt \
+        | grep -v 'option allow_other only allowed if'
 }
 
 # $1: Export ID
@@ -166,6 +170,17 @@ fuse_export_add 'export-mp' "'mountpoint': '$EXT_MP'"
 # Check that the export presents the same data as the original image
 $QEMU_IMG compare -f raw -F $IMGFMT -U "$EXT_MP" "$TEST_IMG"
 
+# Some quick chmod tests
+stat -c 'Permissions pre-chmod: %a' "$EXT_MP"
+
+# Verify that we cannot set +w
+chmod u+w "$EXT_MP" 2>&1 | _filter_testdir | _filter_imgfmt
+stat -c 'Permissions post-+w: %a' "$EXT_MP"
+
+# But that we can set, say, +x (if we are so inclined)
+chmod u+x "$EXT_MP" 2>&1 | _filter_testdir | _filter_imgfmt
+stat -c 'Permissions post-+x: %a' "$EXT_MP"
+
 echo
 echo '=== Mount over existing file ==='
 
@@ -215,7 +230,8 @@ echo '=== Writable export ==='
 fuse_export_add 'export-mp' "'mountpoint': '$EXT_MP', 'writable': true"
 
 # Check that writing to the read-only export fails
-$QEMU_IO -f raw -c 'write -P 42 1M 64k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -f raw -c 'write -P 42 1M 64k' "$TEST_IMG" 2>&1 \
+    | _filter_qemu_io | _filter_testdir | _filter_imgfmt
 
 # But here it should work
 $QEMU_IO -f raw -c 'write -P 42 1M 64k' "$EXT_MP" | _filter_qemu_io

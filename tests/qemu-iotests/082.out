@@ -808,12 +808,14 @@ Amend options for 'qcow2':
   size=<size>            - Virtual disk size
 
 Testing: amend -f qcow2 -o backing_file=TEST_DIR/t.qcow2,,help TEST_DIR/t.qcow2
-qemu-img: warning: Deprecated use of amend to alter the backing file; use qemu-img rebase instead
+qemu-img: Cannot amend the backing file
+You can use 'qemu-img rebase' instead.
 
 Testing: rebase -u -b  -f qcow2 TEST_DIR/t.qcow2
 
 Testing: amend -f qcow2 -o backing_file=TEST_DIR/t.qcow2,,? TEST_DIR/t.qcow2
-qemu-img: warning: Deprecated use of amend to alter the backing file; use qemu-img rebase instead
+qemu-img: Cannot amend the backing file
+You can use 'qemu-img rebase' instead.
 
 Testing: rebase -u -b  -f qcow2 TEST_DIR/t.qcow2
 

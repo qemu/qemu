@@ -50,6 +50,10 @@ wrote 67108864/67108864 bytes at offset 0
           } }
 {"return": {}}
 Images are identical.
+Permissions pre-chmod: 400
+chmod: changing permissions of 'TEST_DIR/t.IMGFMT.fuse': Read-only file system
+Permissions post-+w: 400
+Permissions post-+x: 500
 
 === Mount over existing file ===
 {'execute': 'block-export-add',
@@ -91,7 +95,7 @@ virtual size: 0 B (0 bytes)
               'mountpoint': 'TEST_DIR/t.IMGFMT.fuse', 'writable': true
           } }
 {"return": {}}
-write failed: Permission denied
+qemu-io: can't open device TEST_DIR/t.IMGFMT: Could not open 'TEST_DIR/t.IMGFMT': Permission denied
 wrote 65536/65536 bytes at offset 1048576
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 65536/65536 bytes at offset 1048576

@@ -2,13 +2,7 @@ QA output created by 301
 
 == qcow backed by qcow ==
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=33554432
-qemu-img: warning: Deprecated use of backing file without explicit backing format (detected format of IMGFMT)
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33554432 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
-image: TEST_DIR/t.IMGFMT
-file format: IMGFMT
-virtual size: 32 MiB (33554432 bytes)
-cluster_size: 512
-backing file: TEST_DIR/t.IMGFMT.base
+qemu-img: TEST_DIR/t.IMGFMT: Backing file specified without backing format
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33554432 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
@@ -36,13 +30,7 @@ cluster_size: 512
 backing file: TEST_DIR/t.IMGFMT.base
 
 == qcow backed by raw ==
-qemu-img: warning: Deprecated use of backing file without explicit backing format (detected format of raw)
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33554432 backing_file=TEST_DIR/t.IMGFMT.base
-image: TEST_DIR/t.IMGFMT
-file format: IMGFMT
-virtual size: 32 MiB (33554432 bytes)
-cluster_size: 512
-backing file: TEST_DIR/t.IMGFMT.base
+qemu-img: TEST_DIR/t.IMGFMT: Backing file specified without backing format
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33554432 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=raw
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
