@@ -752,8 +752,6 @@ void tcg_prologue_init(TCGContext *s)
                         (uintptr_t)s->code_buf, prologue_size);
 #endif
 
-    tcg_region_prologue_set(s);
-
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM)) {
         FILE *logfile = qemu_log_lock();
@@ -795,6 +793,8 @@ void tcg_prologue_init(TCGContext *s)
         tcg_debug_assert(tcg_code_gen_epilogue != NULL);
     }
 #endif
+
+    tcg_region_prologue_set(s);
 }
 
 void tcg_func_start(TCGContext *s)
