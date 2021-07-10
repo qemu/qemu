@@ -21,6 +21,7 @@
 #define PPC_MMU_BOOK3S_V3_H
 
 #include "mmu-hash64.h"
+#include "mmu-books.h"
 
 #ifndef CONFIG_USER_ONLY
 
@@ -66,11 +67,6 @@ static inline bool ppc64_v3_radix(PowerPCCPU *cpu)
 {
     return !!(cpu->env.spr[SPR_LPCR] & LPCR_HR);
 }
-
-hwaddr ppc64_v3_get_phys_page_debug(PowerPCCPU *cpu, vaddr eaddr);
-
-int ppc64_v3_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
-                              int mmu_idx);
 
 static inline hwaddr ppc_hash64_hpt_base(PowerPCCPU *cpu)
 {

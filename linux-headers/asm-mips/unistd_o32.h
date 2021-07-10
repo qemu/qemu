@@ -418,6 +418,7 @@
 #define __NR_process_madvise (__NR_Linux + 440)
 #define __NR_epoll_pwait2 (__NR_Linux + 441)
 #define __NR_mount_setattr (__NR_Linux + 442)
+#define __NR_quotactl_fd (__NR_Linux + 443)
 #define __NR_landlock_create_ruleset (__NR_Linux + 444)
 #define __NR_landlock_add_rule (__NR_Linux + 445)
 #define __NR_landlock_restrict_self (__NR_Linux + 446)

@@ -155,7 +155,7 @@ static void ppc_radix64_raise_hsi(PowerPCCPU *cpu, MMUAccessType access_type,
 
 static bool ppc_radix64_check_prot(PowerPCCPU *cpu, MMUAccessType access_type,
                                    uint64_t pte, int *fault_cause, int *prot,
-                                   bool partition_scoped)
+                                   int mmu_idx, bool partition_scoped)
 {
     CPUPPCState *env = &cpu->env;
     int need_prot;
@@ -173,7 +173,8 @@ static bool ppc_radix64_check_prot(PowerPCCPU *cpu, MMUAccessType access_type,
     /* Determine permissions allowed by Encoded Access Authority */
     if (!partition_scoped && (pte & R_PTE_EAA_PRIV) && msr_pr) {
         *prot = 0;
-    } else if (msr_pr || (pte & R_PTE_EAA_PRIV) || partition_scoped) {
+    } else if (mmuidx_pr(mmu_idx) || (pte & R_PTE_EAA_PRIV) ||
+               partition_scoped) {
         *prot = ppc_radix64_get_prot_eaa(pte);
     } else { /* !msr_pr && !(pte & R_PTE_EAA_PRIV) && !partition_scoped */
         *prot = ppc_radix64_get_prot_eaa(pte);
@@ -299,7 +300,7 @@ static int ppc_radix64_partition_scoped_xlate(PowerPCCPU *cpu,
                                               ppc_v3_pate_t pate,
                                               hwaddr *h_raddr, int *h_prot,
                                               int *h_page_size, bool pde_addr,
-                                              bool guest_visible)
+                                              int mmu_idx, bool guest_visible)
 {
     int fault_cause = 0;
     hwaddr pte_addr;
@@ -310,7 +311,8 @@ static int ppc_radix64_partition_scoped_xlate(PowerPCCPU *cpu,
     if (ppc_radix64_walk_tree(CPU(cpu)->as, g_raddr, pate.dw0 & PRTBE_R_RPDB,
                               pate.dw0 & PRTBE_R_RPDS, h_raddr, h_page_size,
                               &pte, &fault_cause, &pte_addr) ||
-        ppc_radix64_check_prot(cpu, access_type, pte, &fault_cause, h_prot, true)) {
+        ppc_radix64_check_prot(cpu, access_type, pte,
+                               &fault_cause, h_prot, mmu_idx, true)) {
         if (pde_addr) { /* address being translated was that of a guest pde */
             fault_cause |= DSISR_PRTABLE_FAULT;
         }
@@ -332,7 +334,7 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
                                             vaddr eaddr, uint64_t pid,
                                             ppc_v3_pate_t pate, hwaddr *g_raddr,
                                             int *g_prot, int *g_page_size,
-                                            bool guest_visible)
+                                            int mmu_idx, bool guest_visible)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
@@ -367,7 +369,8 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
         ret = ppc_radix64_partition_scoped_xlate(cpu, 0, eaddr, prtbe_addr,
                                                  pate, &h_raddr, &h_prot,
                                                  &h_page_size, true,
-                                                 guest_visible);
+            /* mmu_idx is 5 because we're translating from hypervisor scope */
+                                                 5, guest_visible);
         if (ret) {
             return ret;
         }
@@ -407,7 +410,8 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
             ret = ppc_radix64_partition_scoped_xlate(cpu, 0, eaddr, pte_addr,
                                                      pate, &h_raddr, &h_prot,
                                                      &h_page_size, true,
-                                                     guest_visible);
+            /* mmu_idx is 5 because we're translating from hypervisor scope */
+                                                     5, guest_visible);
             if (ret) {
                 return ret;
             }
@@ -431,7 +435,8 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
         *g_raddr = (rpn & ~mask) | (eaddr & mask);
     }
 
-    if (ppc_radix64_check_prot(cpu, access_type, pte, &fault_cause, g_prot, false)) {
+    if (ppc_radix64_check_prot(cpu, access_type, pte, &fault_cause,
+                               g_prot, mmu_idx, false)) {
         /* Access denied due to protection */
         if (guest_visible) {
             ppc_radix64_raise_si(cpu, access_type, eaddr, fault_cause);
@@ -463,24 +468,53 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
  *              | = On        | Process Scoped |    Scoped     |
  *              +-------------+----------------+---------------+
  */
-static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr,
-                             MMUAccessType access_type,
-                             bool relocation,
-                             hwaddr *raddr, int *psizep, int *protp,
-                             bool guest_visible)
+bool ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
+                       hwaddr *raddr, int *psizep, int *protp, int mmu_idx,
+                       bool guest_visible)
 {
     CPUPPCState *env = &cpu->env;
     uint64_t lpid, pid;
     ppc_v3_pate_t pate;
     int psize, prot;
     hwaddr g_raddr;
+    bool relocation;
+
+    assert(!(mmuidx_hv(mmu_idx) && cpu->vhyp));
+
+    relocation = !mmuidx_real(mmu_idx);
+
+    /* HV or virtual hypervisor Real Mode Access */
+    if (!relocation && (mmuidx_hv(mmu_idx) || cpu->vhyp)) {
+        /* In real mode top 4 effective addr bits (mostly) ignored */
+        *raddr = eaddr & 0x0FFFFFFFFFFFFFFFULL;
+
+        /* In HV mode, add HRMOR if top EA bit is clear */
+        if (mmuidx_hv(mmu_idx) || !env->has_hv_mode) {
+            if (!(eaddr >> 63)) {
+                *raddr |= env->spr[SPR_HRMOR];
+           }
+        }
+        *protp = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        *psizep = TARGET_PAGE_BITS;
+        return true;
+    }
+
+    /*
+     * Check UPRT (we avoid the check in real mode to deal with
+     * transitional states during kexec.
+     */
+    if (guest_visible && !ppc64_use_proc_tbl(cpu)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "LPCR:UPRT not set in radix mode ! LPCR="
+                      TARGET_FMT_lx "\n", env->spr[SPR_LPCR]);
+    }
 
     /* Virtual Mode Access - get the fully qualified address */
     if (!ppc_radix64_get_fully_qualified_addr(&cpu->env, eaddr, &lpid, &pid)) {
         if (guest_visible) {
             ppc_radix64_raise_segi(cpu, access_type, eaddr);
         }
-        return 1;
+        return false;
     }
 
     /* Get Process Table */
@@ -493,13 +527,13 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr,
             if (guest_visible) {
                 ppc_radix64_raise_si(cpu, access_type, eaddr, DSISR_NOPTE);
             }
-            return 1;
+            return false;
         }
         if (!validate_pate(cpu, lpid, &pate)) {
             if (guest_visible) {
                 ppc_radix64_raise_si(cpu, access_type, eaddr, DSISR_R_BADCONFIG);
             }
-            return 1;
+            return false;
         }
     }
 
@@ -517,9 +551,9 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr,
     if (relocation) {
         int ret = ppc_radix64_process_scoped_xlate(cpu, access_type, eaddr, pid,
                                                    pate, &g_raddr, &prot,
-                                                   &psize, guest_visible);
+                                                   &psize, mmu_idx, guest_visible);
         if (ret) {
-            return ret;
+            return false;
         }
         *psizep = MIN(*psizep, psize);
         *protp &= prot;
@@ -535,15 +569,15 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr,
          * quadrants 1 or 2. Translates a guest real address to a host
          * real address.
          */
-        if (lpid || !msr_hv) {
+        if (lpid || !mmuidx_hv(mmu_idx)) {
             int ret;
 
             ret = ppc_radix64_partition_scoped_xlate(cpu, access_type, eaddr,
                                                      g_raddr, pate, raddr,
                                                      &prot, &psize, false,
-                                                     guest_visible);
+                                                     mmu_idx, guest_visible);
             if (ret) {
-                return ret;
+                return false;
             }
             *psizep = MIN(*psizep, psize);
             *protp &= prot;
@@ -552,78 +586,5 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr,
         }
     }
 
-    return 0;
-}
-
-int ppc_radix64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
-                                 int mmu_idx)
-{
-    CPUState *cs = CPU(cpu);
-    CPUPPCState *env = &cpu->env;
-    int page_size, prot;
-    bool relocation;
-    MMUAccessType access_type;
-    hwaddr raddr;
-
-    assert(!(msr_hv && cpu->vhyp));
-    assert((rwx == 0) || (rwx == 1) || (rwx == 2));
-    access_type = rwx;
-
-    relocation = (access_type == MMU_INST_FETCH ? msr_ir : msr_dr);
-    /* HV or virtual hypervisor Real Mode Access */
-    if (!relocation && (msr_hv || cpu->vhyp)) {
-        /* In real mode top 4 effective addr bits (mostly) ignored */
-        raddr = eaddr & 0x0FFFFFFFFFFFFFFFULL;
-
-        /* In HV mode, add HRMOR if top EA bit is clear */
-        if (msr_hv || !env->has_hv_mode) {
-            if (!(eaddr >> 63)) {
-                raddr |= env->spr[SPR_HRMOR];
-           }
-        }
-        tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
-                     PAGE_READ | PAGE_WRITE | PAGE_EXEC, mmu_idx,
-                     TARGET_PAGE_SIZE);
-        return 0;
-    }
-
-    /*
-     * Check UPRT (we avoid the check in real mode to deal with
-     * transitional states during kexec.
-     */
-    if (!ppc64_use_proc_tbl(cpu)) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "LPCR:UPRT not set in radix mode ! LPCR="
-                      TARGET_FMT_lx "\n", env->spr[SPR_LPCR]);
-    }
-
-    /* Translate eaddr to raddr (where raddr is addr qemu needs for access) */
-    if (ppc_radix64_xlate(cpu, eaddr, access_type, relocation, &raddr,
-                          &page_size, &prot, true)) {
-        return 1;
-    }
-
-    tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
-                 prot, mmu_idx, 1UL << page_size);
-    return 0;
-}
-
-hwaddr ppc_radix64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong eaddr)
-{
-    CPUPPCState *env = &cpu->env;
-    int psize, prot;
-    hwaddr raddr;
-
-    /* Handle Real Mode */
-    if ((msr_dr == 0) && (msr_hv || cpu->vhyp)) {
-        /* In real mode top 4 effective addr bits (mostly) ignored */
-        return eaddr & 0x0FFFFFFFFFFFFFFFULL;
-    }
-
-    if (ppc_radix64_xlate(cpu, eaddr, 0, msr_dr, &raddr, &psize,
-                          &prot, false)) {
-        return -1;
-    }
-
-    return raddr & TARGET_PAGE_MASK;
+    return true;
 }

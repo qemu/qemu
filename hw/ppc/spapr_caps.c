@@ -582,6 +582,37 @@ static void cap_fwnmi_apply(SpaprMachineState *spapr, uint8_t val,
     }
 }
 
+static void cap_rpt_invalidate_apply(SpaprMachineState *spapr,
+                                     uint8_t val, Error **errp)
+{
+    ERRP_GUARD();
+
+    if (!val) {
+        /* capability disabled by default */
+        return;
+    }
+
+    if (tcg_enabled()) {
+        error_setg(errp, "No H_RPT_INVALIDATE support in TCG");
+        error_append_hint(errp,
+                          "Try appending -machine cap-rpt-invalidate=off\n");
+    } else if (kvm_enabled()) {
+        if (!kvmppc_has_cap_mmu_radix()) {
+            error_setg(errp, "H_RPT_INVALIDATE only supported on Radix");
+            return;
+        }
+
+        if (!kvmppc_has_cap_rpt_invalidate()) {
+            error_setg(errp,
+                       "KVM implementation does not support H_RPT_INVALIDATE");
+            error_append_hint(errp,
+                              "Try appending -machine cap-rpt-invalidate=off\n");
+        } else {
+            kvmppc_enable_h_rpt_invalidate();
+        }
+    }
+}
+
 SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     [SPAPR_CAP_HTM] = {
         .name = "htm",
@@ -689,6 +720,15 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .set = spapr_cap_set_bool,
         .type = "bool",
         .apply = cap_fwnmi_apply,
+    },
+    [SPAPR_CAP_RPT_INVALIDATE] = {
+        .name = "rpt-invalidate",
+        .description = "Allow H_RPT_INVALIDATE",
+        .index = SPAPR_CAP_RPT_INVALIDATE,
+        .get = spapr_cap_get_bool,
+        .set = spapr_cap_set_bool,
+        .type = "bool",
+        .apply = cap_rpt_invalidate_apply,
     },
 };
 
@@ -830,6 +870,7 @@ SPAPR_CAP_MIG_STATE(nested_kvm_hv, SPAPR_CAP_NESTED_KVM_HV);
 SPAPR_CAP_MIG_STATE(large_decr, SPAPR_CAP_LARGE_DECREMENTER);
 SPAPR_CAP_MIG_STATE(ccf_assist, SPAPR_CAP_CCF_ASSIST);
 SPAPR_CAP_MIG_STATE(fwnmi, SPAPR_CAP_FWNMI);
+SPAPR_CAP_MIG_STATE(rpt_invalidate, SPAPR_CAP_RPT_INVALIDATE);
 
 void spapr_caps_init(SpaprMachineState *spapr)
 {

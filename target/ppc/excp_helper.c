@@ -1099,7 +1099,6 @@ void ppc_cpu_do_fwnmi_machine_check(CPUState *cs, target_ulong vector)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     target_ulong msr = 0;
 
     /*
@@ -1108,7 +1107,7 @@ void ppc_cpu_do_fwnmi_machine_check(CPUState *cs, target_ulong vector)
      */
     msr = (1ULL << MSR_ME);
     msr |= env->msr & (1ULL << MSR_SF);
-    if (!(*pcc->interrupts_big_endian)(cpu)) {
+    if (ppc_interrupts_little_endian(cpu)) {
         msr |= (1ULL << MSR_LE);
     }
 

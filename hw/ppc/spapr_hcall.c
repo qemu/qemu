@@ -1233,8 +1233,7 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
         spapr_setup_hpt(spapr);
     }
 
-    fdt = spapr_build_fdt(spapr, false, fdt_bufsize);
-
+    fdt = spapr_build_fdt(spapr, spapr->vof != NULL, fdt_bufsize);
     g_free(spapr->fdt_blob);
     spapr->fdt_size = fdt_totalsize(fdt);
     spapr->fdt_initial_size = spapr->fdt_size;
@@ -1277,6 +1276,25 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     return ret;
 }
 
+target_ulong spapr_vof_client_architecture_support(MachineState *ms,
+                                                   CPUState *cs,
+                                                   target_ulong ovec_addr)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(ms);
+
+    target_ulong ret = do_client_architecture_support(POWERPC_CPU(cs), spapr,
+                                                      ovec_addr, FDT_MAX_SIZE);
+
+    /*
+     * This adds stdout and generates phandles for boottime and CAS FDTs.
+     * It is alright to update the FDT here as do_client_architecture_support()
+     * does not pack it.
+     */
+    spapr_vof_client_dt_finalize(spapr, spapr->fdt_blob);
+
+    return ret;
+}
+
 static target_ulong h_get_cpu_characteristics(PowerPCCPU *cpu,
                                               SpaprMachineState *spapr,
                                               target_ulong opcode,
@@ -1299,6 +1317,8 @@ static target_ulong h_get_cpu_characteristics(PowerPCCPU *cpu,
         behaviour |= H_CPU_BEHAV_L1D_FLUSH_PR;
         break;
     case SPAPR_CAP_FIXED:
+        behaviour |= H_CPU_BEHAV_NO_L1D_FLUSH_ENTRY;
+        behaviour |= H_CPU_BEHAV_NO_L1D_FLUSH_UACCESS;
         break;
     default: /* broken */
         assert(safe_cache == SPAPR_CAP_BROKEN);

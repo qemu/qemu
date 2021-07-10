@@ -23,25 +23,6 @@
 #include "mmu-book3s-v3.h"
 #include "mmu-radix64.h"
 
-int ppc64_v3_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
-                              int mmu_idx)
-{
-    if (ppc64_v3_radix(cpu)) { /* Guest uses radix */
-        return ppc_radix64_handle_mmu_fault(cpu, eaddr, rwx, mmu_idx);
-    } else { /* Guest uses hash */
-        return ppc_hash64_handle_mmu_fault(cpu, eaddr, rwx, mmu_idx);
-    }
-}
-
-hwaddr ppc64_v3_get_phys_page_debug(PowerPCCPU *cpu, vaddr eaddr)
-{
-    if (ppc64_v3_radix(cpu)) {
-        return ppc_radix64_get_phys_page_debug(cpu, eaddr);
-    } else {
-        return ppc_hash64_get_phys_page_debug(cpu, eaddr);
-    }
-}
-
 bool ppc64_v3_get_pate(PowerPCCPU *cpu, target_ulong lpid, ppc_v3_pate_t *entry)
 {
     uint64_t patb = cpu->env.spr[SPR_PTCR] & PTCR_PATB;
