@@ -917,7 +917,7 @@ static bool fv_socket_lock(struct fuse_session *se)
     dir = qemu_get_local_state_pathname("run/virtiofsd");
 
     if (g_mkdir_with_parents(dir, S_IRWXU) < 0) {
-        fuse_log(FUSE_LOG_ERR, "%s: Failed to create directory %s: %s",
+        fuse_log(FUSE_LOG_ERR, "%s: Failed to create directory %s: %s\n",
                  __func__, dir, strerror(errno));
         return false;
     }

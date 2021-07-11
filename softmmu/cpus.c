@@ -325,7 +325,7 @@ static void sigbus_reraise(void)
         sigaddset(&set, SIGBUS);
         pthread_sigmask(SIG_UNBLOCK, &set, NULL);
     }
-    perror("Failed to re-raise SIGBUS!\n");
+    perror("Failed to re-raise SIGBUS!");
     abort();
 }
 

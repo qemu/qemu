@@ -6270,8 +6270,10 @@ static void extract_field(DisasFields *o, const DisasField *f, uint64_t insn)
         abort();
     }
 
-    /* Validate that the "compressed" encoding we selected above is valid.
-       I.e. we havn't make two different original fields overlap.  */
+    /*
+     * Validate that the "compressed" encoding we selected above is valid.
+     * I.e. we haven't made two different original fields overlap.
+     */
     assert(((o->presentC >> f->indexC) & 1) == 0);
     o->presentC |= 1 << f->indexC;
     o->presentO |= 1 << f->indexO;
