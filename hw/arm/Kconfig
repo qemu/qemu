@@ -239,6 +239,10 @@ config STELLARIS
     select STELLARIS_ENET # ethernet
     select UNIMP
 
+config STM32VLDISCOVERY
+    bool
+    select STM32F100_SOC
+
 config STRONGARM
     bool
     select PXA2XX
@@ -325,6 +329,12 @@ config RASPI
     select PL011 # UART
     select SDHCI
     select USB_DWC2
+
+config STM32F100_SOC
+    bool
+    select ARM_V7M
+    select STM32F2XX_USART
+    select STM32F2XX_SPI
 
 config STM32F205_SOC
     bool

@@ -6,28 +6,39 @@
  * Written by Paul Brook
  *
  * This code is licensed under the GPL.
+ *
+ * QEMU interface:
+ *  + sysbus MMIO region 0: the device registers
+ *  + sysbus IRQ: the GPIOINTR interrupt line
+ *  + unnamed GPIO inputs 0..7: inputs to connect to the emulated GPIO lines
+ *  + unnamed GPIO outputs 0..7: the emulated GPIO lines, considered as
+ *    outputs
+ *  + QOM property "pullups": an integer defining whether non-floating lines
+ *    configured as inputs should be pulled up to logical 1 (ie whether in
+ *    real hardware they have a pullup resistor on the line out of the PL061).
+ *    This should be an 8-bit value, where bit 0 is 1 if GPIO line 0 should
+ *    be pulled high, bit 1 configures line 1, and so on. The default is 0xff,
+ *    indicating that all GPIO lines are pulled up to logical 1.
+ *  + QOM property "pulldowns": an integer defining whether non-floating lines
+ *    configured as inputs should be pulled down to logical 0 (ie whether in
+ *    real hardware they have a pulldown resistor on the line out of the PL061).
+ *    This should be an 8-bit value, where bit 0 is 1 if GPIO line 0 should
+ *    be pulled low, bit 1 configures line 1, and so on. The default is 0x0.
+ *    It is an error to set a bit in both "pullups" and "pulldowns". If a bit
+ *    is 0 in both, then the line is considered to be floating, and it will
+ *    not have qemu_set_irq() called on it when it is configured as an input.
  */
 
 #include "qemu/osdep.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qom/object.h"
-
-//#define DEBUG_PL061 1
-
-#ifdef DEBUG_PL061
-#define DPRINTF(fmt, ...) \
-do { printf("pl061: " fmt , ## __VA_ARGS__); } while (0)
-#define BADF(fmt, ...) \
-do { fprintf(stderr, "pl061: error: " fmt , ## __VA_ARGS__); exit(1);} while (0)
-#else
-#define DPRINTF(fmt, ...) do {} while(0)
-#define BADF(fmt, ...) \
-do { fprintf(stderr, "pl061: error: " fmt , ## __VA_ARGS__);} while (0)
-#endif
+#include "trace.h"
 
 static const uint8_t pl061_id[12] =
   { 0x00, 0x00, 0x00, 0x00, 0x61, 0x10, 0x04, 0x00, 0x0d, 0xf0, 0x05, 0xb1 };
@@ -67,7 +78,9 @@ struct PL061State {
     qemu_irq irq;
     qemu_irq out[N_GPIOS];
     const unsigned char *id;
-    uint32_t rsvd_start; /* reserved area: [rsvd_start, 0xfcc] */
+    /* Properties, for non-Luminary PL061 */
+    uint32_t pullups;
+    uint32_t pulldowns;
 };
 
 static const VMStateDescription vmstate_pl061 = {
@@ -100,26 +113,75 @@ static const VMStateDescription vmstate_pl061 = {
     }
 };
 
+static uint8_t pl061_floating(PL061State *s)
+{
+    /*
+     * Return mask of bits which correspond to pins configured as inputs
+     * and which are floating (neither pulled up to 1 nor down to 0).
+     */
+    uint8_t floating;
+
+    if (s->id == pl061_id_luminary) {
+        /*
+         * If both PUR and PDR bits are clear, there is neither a pullup
+         * nor a pulldown in place, and the output truly floats.
+         */
+        floating = ~(s->pur | s->pdr);
+    } else {
+        floating = ~(s->pullups | s->pulldowns);
+    }
+    return floating & ~s->dir;
+}
+
+static uint8_t pl061_pullups(PL061State *s)
+{
+    /*
+     * Return mask of bits which correspond to pins configured as inputs
+     * and which are pulled up to 1.
+     */
+    uint8_t pullups;
+
+    if (s->id == pl061_id_luminary) {
+        /*
+         * The Luminary variant of the PL061 has an extra registers which
+         * the guest can use to configure whether lines should be pullup
+         * or pulldown.
+         */
+        pullups = s->pur;
+    } else {
+        pullups = s->pullups;
+    }
+    return pullups & ~s->dir;
+}
+
 static void pl061_update(PL061State *s)
 {
     uint8_t changed;
     uint8_t mask;
     uint8_t out;
     int i;
+    uint8_t pullups = pl061_pullups(s);
+    uint8_t floating = pl061_floating(s);
 
-    DPRINTF("dir = %d, data = %d\n", s->dir, s->data);
+    trace_pl061_update(DEVICE(s)->canonical_path, s->dir, s->data,
+                       pullups, floating);
 
-    /* Outputs float high.  */
-    /* FIXME: This is board dependent.  */
-    out = (s->data & s->dir) | ~s->dir;
+    /*
+     * Pins configured as output are driven from the data register;
+     * otherwise if they're pulled up they're 1, and if they're floating
+     * then we give them the same value they had previously, so we don't
+     * report any change to the other end.
+     */
+    out = (s->data & s->dir) | pullups | (s->old_out_data & floating);
     changed = s->old_out_data ^ out;
     if (changed) {
         s->old_out_data = out;
         for (i = 0; i < N_GPIOS; i++) {
             mask = 1 << i;
             if (changed & mask) {
-                DPRINTF("Set output %d = %d\n", i, (out & mask) != 0);
-                qemu_set_irq(s->out[i], (out & mask) != 0);
+                int level = (out & mask) != 0;
+                trace_pl061_set_output(DEVICE(s)->canonical_path, i, level);
+                qemu_set_irq(s->out[i], level);
             }
         }
     }
@@ -131,7 +193,8 @@ static void pl061_update(PL061State *s)
         for (i = 0; i < N_GPIOS; i++) {
             mask = 1 << i;
             if (changed & mask) {
-                DPRINTF("Changed input %d = %d\n", i, (s->data & mask) != 0);
+                trace_pl061_input_change(DEVICE(s)->canonical_path, i,
+                                         (s->data & mask) != 0);
 
                 if (!(s->isense & mask)) {
                     /* Edge interrupt */
@@ -150,7 +213,8 @@ static void pl061_update(PL061State *s)
     /* Level interrupt */
     s->istate |= ~(s->data ^ s->iev) & s->isense;
 
-    DPRINTF("istate = %02X\n", s->istate);
+    trace_pl061_update_istate(DEVICE(s)->canonical_path,
+                              s->istate, s->im, (s->istate & s->im) != 0);
 
     qemu_set_irq(s->irq, (s->istate & s->im) != 0);
 }
@@ -159,62 +223,114 @@ static uint64_t pl061_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
     PL061State *s = (PL061State *)opaque;
+    uint64_t r = 0;
 
-    if (offset < 0x400) {
-        return s->data & (offset >> 2);
-    }
-    if (offset >= s->rsvd_start && offset <= 0xfcc) {
-        goto err_out;
-    }
-    if (offset >= 0xfd0 && offset < 0x1000) {
-        return s->id[(offset - 0xfd0) >> 2];
-    }
     switch (offset) {
+    case 0x0 ... 0x3ff: /* Data */
+        r = s->data & (offset >> 2);
+        break;
     case 0x400: /* Direction */
-        return s->dir;
+        r = s->dir;
+        break;
     case 0x404: /* Interrupt sense */
-        return s->isense;
+        r = s->isense;
+        break;
     case 0x408: /* Interrupt both edges */
-        return s->ibe;
+        r = s->ibe;
+        break;
     case 0x40c: /* Interrupt event */
-        return s->iev;
+        r = s->iev;
+        break;
     case 0x410: /* Interrupt mask */
-        return s->im;
+        r = s->im;
+        break;
     case 0x414: /* Raw interrupt status */
-        return s->istate;
+        r = s->istate;
+        break;
     case 0x418: /* Masked interrupt status */
-        return s->istate & s->im;
+        r = s->istate & s->im;
+        break;
     case 0x420: /* Alternate function select */
-        return s->afsel;
+        r = s->afsel;
+        break;
     case 0x500: /* 2mA drive */
-        return s->dr2r;
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
+        r = s->dr2r;
+        break;
     case 0x504: /* 4mA drive */
-        return s->dr4r;
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
+        r = s->dr4r;
+        break;
     case 0x508: /* 8mA drive */
-        return s->dr8r;
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
+        r = s->dr8r;
+        break;
     case 0x50c: /* Open drain */
-        return s->odr;
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
+        r = s->odr;
+        break;
     case 0x510: /* Pull-up */
-        return s->pur;
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
+        r = s->pur;
+        break;
     case 0x514: /* Pull-down */
-        return s->pdr;
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
+        r = s->pdr;
+        break;
     case 0x518: /* Slew rate control */
-        return s->slr;
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
+        r = s->slr;
+        break;
     case 0x51c: /* Digital enable */
-        return s->den;
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
+        r = s->den;
+        break;
     case 0x520: /* Lock */
-        return s->locked;
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
+        r = s->locked;
+        break;
     case 0x524: /* Commit */
-        return s->cr;
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
+        r = s->cr;
+        break;
     case 0x528: /* Analog mode select */
-        return s->amsel;
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
+        r = s->amsel;
+        break;
+    case 0xfd0 ... 0xfff: /* ID registers */
+        r = s->id[(offset - 0xfd0) >> 2];
+        break;
     default:
+    bad_offset:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl061_read: Bad offset %x\n", (int)offset);
         break;
     }
-err_out:
-    qemu_log_mask(LOG_GUEST_ERROR,
-                  "pl061_read: Bad offset %x\n", (int)offset);
-    return 0;
+
+    trace_pl061_read(DEVICE(s)->canonical_path, offset, r);
+    return r;
 }
 
 static void pl061_write(void *opaque, hwaddr offset,
@@ -223,16 +339,14 @@ static void pl061_write(void *opaque, hwaddr offset,
     PL061State *s = (PL061State *)opaque;
     uint8_t mask;
 
-    if (offset < 0x400) {
+    trace_pl061_write(DEVICE(s)->canonical_path, offset, value);
+
+    switch (offset) {
+    case 0 ... 0x3ff:
         mask = (offset >> 2) & s->dir;
         s->data = (s->data & ~mask) | (value & mask);
         pl061_update(s);
         return;
-    }
-    if (offset >= s->rsvd_start) {
-        goto err_out;
-    }
-    switch (offset) {
     case 0x400: /* Direction */
         s->dir = value & 0xff;
         break;
@@ -256,56 +370,99 @@ static void pl061_write(void *opaque, hwaddr offset,
         s->afsel = (s->afsel & ~mask) | (value & mask);
         break;
     case 0x500: /* 2mA drive */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->dr2r = value & 0xff;
         break;
     case 0x504: /* 4mA drive */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->dr4r = value & 0xff;
         break;
     case 0x508: /* 8mA drive */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->dr8r = value & 0xff;
         break;
     case 0x50c: /* Open drain */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->odr = value & 0xff;
         break;
     case 0x510: /* Pull-up */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->pur = value & 0xff;
         break;
     case 0x514: /* Pull-down */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->pdr = value & 0xff;
         break;
     case 0x518: /* Slew rate control */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->slr = value & 0xff;
         break;
     case 0x51c: /* Digital enable */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->den = value & 0xff;
         break;
     case 0x520: /* Lock */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->locked = (value != 0xacce551);
         break;
     case 0x524: /* Commit */
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         if (!s->locked)
             s->cr = value & 0xff;
         break;
     case 0x528:
+        if (s->id != pl061_id_luminary) {
+            goto bad_offset;
+        }
         s->amsel = value & 0xff;
         break;
     default:
-        goto err_out;
+    bad_offset:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl061_write: Bad offset %x\n", (int)offset);
+        return;
     }
     pl061_update(s);
     return;
-err_out:
-    qemu_log_mask(LOG_GUEST_ERROR,
-                  "pl061_write: Bad offset %x\n", (int)offset);
 }
 
-static void pl061_reset(DeviceState *dev)
+static void pl061_enter_reset(Object *obj, ResetType type)
 {
-    PL061State *s = PL061(dev);
+    PL061State *s = PL061(obj);
+
+    trace_pl061_reset(DEVICE(s)->canonical_path);
 
     /* reset values from PL061 TRM, Stellaris LM3S5P31 & LM3S8962 Data Sheet */
+
+    /*
+     * FIXME: For the LM3S6965, not all of the PL061 instances have the
+     * same reset values for GPIOPUR, GPIOAFSEL and GPIODEN, so in theory
+     * we should allow the board to configure these via properties.
+     * In practice, we don't wire anything up to the affected GPIO lines
+     * (PB7, PC0, PC1, PC2, PC3 -- they're used for JTAG), so we can
+     * get away with this inaccuracy.
+     */
     s->data = 0;
-    s->old_out_data = 0;
     s->old_in_data = 0;
     s->dir = 0;
     s->isense = 0;
@@ -325,6 +482,24 @@ static void pl061_reset(DeviceState *dev)
     s->locked = 1;
     s->cr = 0xff;
     s->amsel = 0;
+}
+
+static void pl061_hold_reset(Object *obj)
+{
+    PL061State *s = PL061(obj);
+    int i, level;
+    uint8_t floating = pl061_floating(s);
+    uint8_t pullups = pl061_pullups(s);
+
+    for (i = 0; i < N_GPIOS; i++) {
+        if (extract32(floating, i, 1)) {
+            continue;
+        }
+        level = extract32(pullups, i, 1);
+        trace_pl061_set_output(DEVICE(s)->canonical_path, i, level);
+        qemu_set_irq(s->out[i], level);
+    }
+    s->old_out_data = pullups;
 }
 
 static void pl061_set_irq(void * opaque, int irq, int level)
@@ -352,7 +527,6 @@ static void pl061_luminary_init(Object *obj)
     PL061State *s = PL061(obj);
 
     s->id = pl061_id_luminary;
-    s->rsvd_start = 0x52c;
 }
 
 static void pl061_init(Object *obj)
@@ -362,7 +536,6 @@ static void pl061_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     s->id = pl061_id;
-    s->rsvd_start = 0x424;
 
     memory_region_init_io(&s->iomem, obj, &pl061_ops, s, "pl061", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
@@ -371,12 +544,40 @@ static void pl061_init(Object *obj)
     qdev_init_gpio_out(dev, s->out, N_GPIOS);
 }
 
+static void pl061_realize(DeviceState *dev, Error **errp)
+{
+    PL061State *s = PL061(dev);
+
+    if (s->pullups > 0xff) {
+        error_setg(errp, "pullups property must be between 0 and 0xff");
+        return;
+    }
+    if (s->pulldowns > 0xff) {
+        error_setg(errp, "pulldowns property must be between 0 and 0xff");
+        return;
+    }
+    if (s->pullups & s->pulldowns) {
+        error_setg(errp, "no bit may be set both in pullups and pulldowns");
+        return;
+    }
+}
+
+static Property pl061_props[] = {
+    DEFINE_PROP_UINT32("pullups", PL061State, pullups, 0xff),
+    DEFINE_PROP_UINT32("pulldowns", PL061State, pulldowns, 0x0),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void pl061_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->vmsd = &vmstate_pl061;
-    dc->reset = &pl061_reset;
+    dc->realize = pl061_realize;
+    device_class_set_props(dc, pl061_props);
+    rc->phases.enter = pl061_enter_reset;
+    rc->phases.hold = pl061_hold_reset;
 }
 
 static const TypeInfo pl061_info = {

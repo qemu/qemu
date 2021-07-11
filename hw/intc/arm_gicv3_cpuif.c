@@ -1227,7 +1227,7 @@ static void icv_dir_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     trace_gicv3_icv_dir_write(gicv3_redist_affid(cs), value);
 
-    if (irq >= cs->gic->num_irq) {
+    if (irq >= GICV3_MAXIRQ) {
         /* Also catches special interrupt numbers and LPIs */
         return;
     }
@@ -1262,7 +1262,7 @@ static void icv_eoir_write(CPUARMState *env, const ARMCPRegInfo *ri,
     trace_gicv3_icv_eoir_write(ri->crm == 8 ? 0 : 1,
                                gicv3_redist_affid(cs), value);
 
-    if (irq >= cs->gic->num_irq) {
+    if (irq >= GICV3_MAXIRQ) {
         /* Also catches special interrupt numbers and LPIs */
         return;
     }
