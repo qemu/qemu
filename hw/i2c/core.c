@@ -66,7 +66,7 @@ I2CBus *i2c_init_bus(DeviceState *parent, const char *name)
     return bus;
 }
 
-void i2c_set_slave_address(I2CSlave *dev, uint8_t address)
+void i2c_slave_set_address(I2CSlave *dev, uint8_t address)
 {
     dev->address = address;
 }
@@ -114,8 +114,11 @@ bool i2c_scan_bus(I2CBus *bus, uint8_t address, bool broadcast,
  * protocol uses a start transfer to switch from write to read mode
  * without releasing the bus.  If that fails, the bus is still
  * in a transaction.
+ *
+ * @event must be I2C_START_RECV or I2C_START_SEND.
  */
-int i2c_start_transfer(I2CBus *bus, uint8_t address, int recv)
+static int i2c_do_start_transfer(I2CBus *bus, uint8_t address,
+                                 enum i2c_event event)
 {
     I2CSlaveClass *sc;
     I2CNode *node;
@@ -157,7 +160,7 @@ int i2c_start_transfer(I2CBus *bus, uint8_t address, int recv)
 
         if (sc->event) {
             trace_i2c_event("start", s->address);
-            rv = sc->event(s, recv ? I2C_START_RECV : I2C_START_SEND);
+            rv = sc->event(s, event);
             if (rv && !bus->broadcast) {
                 if (bus_scanned) {
                     /* First call, terminate the transfer. */
@@ -168,6 +171,23 @@ int i2c_start_transfer(I2CBus *bus, uint8_t address, int recv)
         }
     }
     return 0;
+}
+
+int i2c_start_transfer(I2CBus *bus, uint8_t address, bool is_recv)
+{
+    return i2c_do_start_transfer(bus, address, is_recv
+                                               ? I2C_START_RECV
+                                               : I2C_START_SEND);
+}
+
+int i2c_start_recv(I2CBus *bus, uint8_t address)
+{
+    return i2c_do_start_transfer(bus, address, I2C_START_RECV);
+}
+
+int i2c_start_send(I2CBus *bus, uint8_t address)
+{
+    return i2c_do_start_transfer(bus, address, I2C_START_SEND);
 }
 
 void i2c_end_transfer(I2CBus *bus)
@@ -188,50 +208,42 @@ void i2c_end_transfer(I2CBus *bus)
     bus->broadcast = false;
 }
 
-int i2c_send_recv(I2CBus *bus, uint8_t *data, bool send)
+int i2c_send(I2CBus *bus, uint8_t data)
 {
     I2CSlaveClass *sc;
     I2CSlave *s;
     I2CNode *node;
     int ret = 0;
 
-    if (send) {
-        QLIST_FOREACH(node, &bus->current_devs, next) {
-            s = node->elt;
-            sc = I2C_SLAVE_GET_CLASS(s);
-            if (sc->send) {
-                trace_i2c_send(s->address, *data);
-                ret = ret || sc->send(s, *data);
-            } else {
-                ret = -1;
-            }
+    QLIST_FOREACH(node, &bus->current_devs, next) {
+        s = node->elt;
+        sc = I2C_SLAVE_GET_CLASS(s);
+        if (sc->send) {
+            trace_i2c_send(s->address, data);
+            ret = ret || sc->send(s, data);
+        } else {
+            ret = -1;
         }
-        return ret ? -1 : 0;
-    } else {
-        ret = 0xff;
-        if (!QLIST_EMPTY(&bus->current_devs) && !bus->broadcast) {
-            sc = I2C_SLAVE_GET_CLASS(QLIST_FIRST(&bus->current_devs)->elt);
-            if (sc->recv) {
-                s = QLIST_FIRST(&bus->current_devs)->elt;
-                ret = sc->recv(s);
-                trace_i2c_recv(s->address, ret);
-            }
-        }
-        *data = ret;
-        return 0;
     }
-}
 
-int i2c_send(I2CBus *bus, uint8_t data)
-{
-    return i2c_send_recv(bus, &data, true);
+    return ret ? -1 : 0;
 }
 
 uint8_t i2c_recv(I2CBus *bus)
 {
     uint8_t data = 0xff;
+    I2CSlaveClass *sc;
+    I2CSlave *s;
 
-    i2c_send_recv(bus, &data, false);
+    if (!QLIST_EMPTY(&bus->current_devs) && !bus->broadcast) {
+        sc = I2C_SLAVE_GET_CLASS(QLIST_FIRST(&bus->current_devs)->elt);
+        if (sc->recv) {
+            s = QLIST_FIRST(&bus->current_devs)->elt;
+            data = sc->recv(s);
+            trace_i2c_recv(s->address, data);
+        }
+    }
+
     return data;
 }
 

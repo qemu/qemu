@@ -32,3 +32,7 @@ config MPC_I2C
 config PCA954X
     bool
     select I2C
+
+config PMBUS
+    bool
+    select SMBUS

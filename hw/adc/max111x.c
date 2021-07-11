@@ -11,7 +11,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/misc/max111x.h"
+#include "hw/adc/max111x.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"

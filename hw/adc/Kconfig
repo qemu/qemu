@@ -1,2 +1,5 @@
 config STM32F2XX_ADC
     bool
+
+config MAX111X
+    bool

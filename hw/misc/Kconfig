@@ -11,21 +11,6 @@ config ARMSSE_MHU
 config ARMSSE_CPU_PWRCTRL
     bool
 
-config MAX111X
-    bool
-
-config TMP105
-    bool
-    depends on I2C
-
-config TMP421
-    bool
-    depends on I2C
-
-config EMC141X
-    bool
-    depends on I2C
-
 config ISA_DEBUG
     bool
     depends on ISA_BUS

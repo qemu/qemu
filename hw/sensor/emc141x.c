@@ -25,7 +25,7 @@
 #include "qapi/visitor.h"
 #include "qemu/module.h"
 #include "qom/object.h"
-#include "hw/misc/emc141x_regs.h"
+#include "hw/sensor/emc141x_regs.h"
 
 #define SENSORS_COUNT_MAX    4
 

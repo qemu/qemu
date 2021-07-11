@@ -171,7 +171,7 @@ static void imx_i2c_write(void *opaque, hwaddr offset,
     switch (offset) {
     case IADR_ADDR:
         s->iadr = value & IADR_MASK;
-        /* i2c_set_slave_address(s->bus, (uint8_t)s->iadr); */
+        /* i2c_slave_set_address(s->bus, (uint8_t)s->iadr); */
         break;
     case IFDR_ADDR:
         s->ifdr = value & IFDR_MASK;
