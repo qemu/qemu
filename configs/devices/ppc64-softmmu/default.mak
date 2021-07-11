@@ -1,7 +1,7 @@
 # Default configuration for ppc64-softmmu
 
 # Include all 32-bit boards
-include ppc-softmmu.mak
+include ../ppc-softmmu/default.mak
 
 # For PowerNV
 CONFIG_POWERNV=y

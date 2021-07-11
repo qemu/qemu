@@ -219,6 +219,7 @@ enum USBDeviceFlags {
     USB_DEV_FLAG_IS_HOST,
     USB_DEV_FLAG_MSOS_DESC_ENABLE,
     USB_DEV_FLAG_MSOS_DESC_IN_USE,
+    USB_DEV_FLAG_IS_SCSI_STORAGE,
 };
 
 /* definition of a USB device */
@@ -465,7 +466,6 @@ void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p);
 
 /* usb-linux.c */
 void hmp_info_usbhost(Monitor *mon, const QDict *qdict);
-bool usb_host_dev_is_scsi_storage(USBDevice *usbdev);
 
 /* usb ports of the VM */
 
@@ -560,6 +560,11 @@ void usb_device_free_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps);
 const char *usb_device_get_product_desc(USBDevice *dev);
 
 const USBDesc *usb_device_get_usb_desc(USBDevice *dev);
+
+static inline bool usb_device_is_scsi_storage(USBDevice *dev)
+{
+    return dev->flags & (1 << USB_DEV_FLAG_IS_SCSI_STORAGE);
+}
 
 /* quirks.c */
 

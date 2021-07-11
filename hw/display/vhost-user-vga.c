@@ -44,6 +44,7 @@ static const VirtioPCIDeviceTypeInfo vhost_user_vga_info = {
     .instance_size = sizeof(VhostUserVGA),
     .instance_init = vhost_user_vga_inst_initfn,
 };
+module_obj(TYPE_VHOST_USER_VGA);
 
 static void vhost_user_vga_register_types(void)
 {

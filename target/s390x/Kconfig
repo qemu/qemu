@@ -1,0 +1,2 @@
+config S390X
+    bool

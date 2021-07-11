@@ -414,6 +414,7 @@ static const TypeInfo passthru_card_info = {
     .instance_size = sizeof(PassthruState),
     .class_init    = passthru_class_initfn,
 };
+module_obj(TYPE_CCID_PASSTHRU);
 
 static void ccid_card_passthru_register_types(void)
 {

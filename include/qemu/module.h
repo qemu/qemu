@@ -72,5 +72,84 @@ void module_call_init(module_init_type type);
 bool module_load_one(const char *prefix, const char *lib_name, bool mayfail);
 void module_load_qom_one(const char *type);
 void module_load_qom_all(void);
+void module_allow_arch(const char *arch);
+
+/**
+ * DOC: module info annotation macros
+ *
+ * `scripts/modinfo-collect.py` will collect module info,
+ * using the preprocessor and -DQEMU_MODINFO.
+ *
+ * `scripts/modinfo-generate.py` will create a module meta-data database
+ * from the collected information so qemu knows about module
+ * dependencies and QOM objects implemented by modules.
+ *
+ * See `*.modinfo` and `modinfo.c` in the build directory to check the
+ * script results.
+ */
+#ifdef QEMU_MODINFO
+# define modinfo(kind, value) \
+    MODINFO_START kind value MODINFO_END
+#else
+# define modinfo(kind, value)
+#endif
+
+/**
+ * module_obj
+ *
+ * @name: QOM type.
+ *
+ * This module implements QOM type @name.
+ */
+#define module_obj(name) modinfo(obj, name)
+
+/**
+ * module_dep
+ *
+ * @name: module name
+ *
+ * This module depends on module @name.
+ */
+#define module_dep(name) modinfo(dep, name)
+
+/**
+ * module_arch
+ *
+ * @name: target architecture
+ *
+ * This module is for target architecture @arch.
+ *
+ * Note that target-dependent modules are tagged automatically, so
+ * this is only needed in case target-independent modules should be
+ * restricted.  Use case example: the ccw bus is implemented by s390x
+ * only.
+ */
+#define module_arch(name) modinfo(arch, name)
+
+/**
+ * module_opts
+ *
+ * @name: QemuOpts name
+ *
+ * This module registers QemuOpts @name.
+ */
+#define module_opts(name) modinfo(opts, name)
+
+/*
+ * module info database
+ *
+ * scripts/modinfo-generate.c will build this using the data collected
+ * by scripts/modinfo-collect.py
+ */
+typedef struct QemuModinfo QemuModinfo;
+struct QemuModinfo {
+    const char *name;
+    const char *arch;
+    const char **objs;
+    const char **deps;
+    const char **opts;
+};
+extern const QemuModinfo qemu_modinfo[];
+void module_init_info(const QemuModinfo *info);
 
 #endif

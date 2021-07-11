@@ -317,3 +317,5 @@ static void register_audio_spice(void)
     audio_driver_register(&spice_audio_driver);
 }
 type_init(register_audio_spice);
+
+module_dep("ui-spice-core");

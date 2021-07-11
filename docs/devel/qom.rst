@@ -87,6 +87,14 @@ specific type:
    #define MY_DEVICE(obj) \
       OBJECT_CHECK(MyDevice, obj, TYPE_MY_DEVICE)
 
+In case the ObjectClass implementation can be built as module a
+module_obj() line must be added to make sure qemu loads the module
+when the object is needed.
+
+.. code-block:: c
+
+   module_obj(TYPE_MY_DEVICE);
+
 Class Initialization
 ====================
 

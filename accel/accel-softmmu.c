@@ -72,7 +72,7 @@ void accel_init_ops_interfaces(AccelClass *ac)
     g_assert(ac_name != NULL);
 
     ops_name = g_strdup_printf("%s" ACCEL_OPS_SUFFIX, ac_name);
-    ops = ACCEL_OPS_CLASS(object_class_by_name(ops_name));
+    ops = ACCEL_OPS_CLASS(module_object_class_by_name(ops_name));
     g_free(ops_name);
 
     /*

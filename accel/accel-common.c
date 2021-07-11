@@ -44,7 +44,7 @@ static const TypeInfo accel_type = {
 AccelClass *accel_find(const char *opt_name)
 {
     char *class_name = g_strdup_printf(ACCEL_CLASS_NAME("%s"), opt_name);
-    AccelClass *ac = ACCEL_CLASS(object_class_by_name(class_name));
+    AccelClass *ac = ACCEL_CLASS(module_object_class_by_name(class_name));
     g_free(class_name);
     return ac;
 }

@@ -126,6 +126,8 @@
 #include "sysemu/iothread.h"
 #include "qemu/guest-random.h"
 
+#include "config-host.h"
+
 #define MAX_VIRTIO_CONSOLES 1
 
 typedef struct BlockdevOptionsQueueEntry {
@@ -2191,12 +2193,17 @@ static void qemu_parse_config_group(const char *group, QDict *qdict,
     if (!crumpled) {
         return;
     }
-    if (qobject_type(crumpled) != QTYPE_QDICT) {
-        assert(qobject_type(crumpled) == QTYPE_QLIST);
+    switch (qobject_type(crumpled)) {
+    case QTYPE_QDICT:
+        qemu_record_config_group(group, qobject_to(QDict, crumpled), false, errp);
+        break;
+    case QTYPE_QLIST:
         error_setg(errp, "Lists cannot be at top level of a configuration section");
-        return;
+        break;
+    default:
+        g_assert_not_reached();
     }
-    qemu_record_config_group(group, qobject_to(QDict, crumpled), false, errp);
+    qobject_unref(crumpled);
 }
 
 static void qemu_read_default_config_file(Error **errp)
@@ -2691,23 +2698,6 @@ void qmp_x_exit_preconfig(Error **errp)
     }
 }
 
-#ifdef CONFIG_MODULES
-void qemu_load_module_for_opts(const char *group)
-{
-    static bool spice_tried;
-    if (g_str_equal(group, "spice") && !spice_tried) {
-        ui_module_load_one("spice-core");
-        spice_tried = true;
-    }
-
-    static bool iscsi_tried;
-    if (g_str_equal(group, "iscsi") && !iscsi_tried) {
-        block_module_load_one("iscsi");
-        iscsi_tried = true;
-    }
-}
-#endif
-
 void qemu_init(int argc, char **argv, char **envp)
 {
     QemuOpts *opts;
@@ -2754,6 +2744,11 @@ void qemu_init(int argc, char **argv, char **envp)
 
     error_init(argv[0]);
     qemu_init_exec_dir(argv[0]);
+
+#ifdef CONFIG_MODULES
+    module_init_info(qemu_modinfo);
+    module_allow_arch(TARGET_NAME);
+#endif
 
     qemu_init_subsystems();
 

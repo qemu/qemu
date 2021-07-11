@@ -100,3 +100,7 @@ uffd_create_fd_api_failed(int err) "errno: %i"
 uffd_create_fd_api_noioctl(uint64_t ioctl_req, uint64_t ioctl_supp) "ioctl_req: 0x%" PRIx64 "ioctl_supp: 0x%" PRIx64
 uffd_register_memory_failed(void *addr, uint64_t length, uint64_t mode, int err) "addr: %p length: %" PRIu64 " mode: 0x%" PRIx64 " errno: %i"
 uffd_unregister_memory_failed(void *addr, uint64_t length, int err) "addr: %p length: %" PRIu64 " errno: %i"
+
+# module.c
+module_load_module(const char *name) "file %s"
+module_lookup_object_type(const char *name) "name %s"

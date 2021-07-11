@@ -1,0 +1,2 @@
+config NIOS2
+    bool
