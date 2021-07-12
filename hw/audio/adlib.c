@@ -186,7 +186,7 @@ static int write_audio (AdlibState *s, int samples)
 static void adlib_callback (void *opaque, int free)
 {
     AdlibState *s = opaque;
-    int samples, net = 0, to_play, written;
+    int samples, to_play, written;
 
     samples = free >> SHIFT;
     if (!(s->active && s->enabled) || !samples) {
@@ -219,7 +219,6 @@ static void adlib_callback (void *opaque, int free)
         written = write_audio (s, samples);
 
         if (written) {
-            net += written;
             samples -= written;
             s->pos = (s->pos + written) % s->samples;
         }
