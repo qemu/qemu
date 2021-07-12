@@ -783,7 +783,8 @@ static void vfio_register_ram_discard_listener(VFIOContainer *container,
                                                                 section->mr);
 
     g_assert(vrdl->granularity && is_power_of_2(vrdl->granularity));
-    g_assert(vrdl->granularity >= 1 << ctz64(container->pgsizes));
+    g_assert(container->pgsizes &&
+             vrdl->granularity >= 1ULL << ctz64(container->pgsizes));
 
     ram_discard_listener_init(&vrdl->listener,
                               vfio_ram_discard_notify_populate,
