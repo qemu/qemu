@@ -12,7 +12,7 @@
 #define HW_S390_TOD_H
 
 #include "hw/qdev-core.h"
-#include "target/s390x/s390-tod.h"
+#include "tcg/s390-tod.h"
 #include "qom/object.h"
 
 typedef struct S390TOD {

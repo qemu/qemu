@@ -30,7 +30,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "internal.h"
+#include "s390x-internal.h"
 #include "disas/disas.h"
 #include "exec/exec-all.h"
 #include "tcg/tcg-op.h"
@@ -560,21 +560,6 @@ static void gen_op_update3_cc_i64(DisasContext *s, enum cc_op op, TCGv_i64 src,
 static void set_cc_nz_u64(DisasContext *s, TCGv_i64 val)
 {
     gen_op_update1_cc_i64(s, CC_OP_NZ, val);
-}
-
-static void gen_set_cc_nz_f32(DisasContext *s, TCGv_i64 val)
-{
-    gen_op_update1_cc_i64(s, CC_OP_NZ_F32, val);
-}
-
-static void gen_set_cc_nz_f64(DisasContext *s, TCGv_i64 val)
-{
-    gen_op_update1_cc_i64(s, CC_OP_NZ_F64, val);
-}
-
-static void gen_set_cc_nz_f128(DisasContext *s, TCGv_i64 vh, TCGv_i64 vl)
-{
-    gen_op_update2_cc_i64(s, CC_OP_NZ_F128, vh, vl);
 }
 
 /* CC value is in env->cc_op */
@@ -1823,7 +1808,7 @@ static DisasJumpType op_cfeb(DisasContext *s, DisasOps *o)
     }
     gen_helper_cfeb(o->out, cpu_env, o->in2, m34);
     tcg_temp_free_i32(m34);
-    gen_set_cc_nz_f32(s, o->in2);
+    set_cc_static(s);
     return DISAS_NEXT;
 }
 
@@ -1836,7 +1821,7 @@ static DisasJumpType op_cfdb(DisasContext *s, DisasOps *o)
     }
     gen_helper_cfdb(o->out, cpu_env, o->in2, m34);
     tcg_temp_free_i32(m34);
-    gen_set_cc_nz_f64(s, o->in2);
+    set_cc_static(s);
     return DISAS_NEXT;
 }
 
@@ -1849,7 +1834,7 @@ static DisasJumpType op_cfxb(DisasContext *s, DisasOps *o)
     }
     gen_helper_cfxb(o->out, cpu_env, o->in1, o->in2, m34);
     tcg_temp_free_i32(m34);
-    gen_set_cc_nz_f128(s, o->in1, o->in2);
+    set_cc_static(s);
     return DISAS_NEXT;
 }
 
@@ -1862,7 +1847,7 @@ static DisasJumpType op_cgeb(DisasContext *s, DisasOps *o)
     }
     gen_helper_cgeb(o->out, cpu_env, o->in2, m34);
     tcg_temp_free_i32(m34);
-    gen_set_cc_nz_f32(s, o->in2);
+    set_cc_static(s);
     return DISAS_NEXT;
 }
 
@@ -1875,7 +1860,7 @@ static DisasJumpType op_cgdb(DisasContext *s, DisasOps *o)
     }
     gen_helper_cgdb(o->out, cpu_env, o->in2, m34);
     tcg_temp_free_i32(m34);
-    gen_set_cc_nz_f64(s, o->in2);
+    set_cc_static(s);
     return DISAS_NEXT;
 }
 
@@ -1888,7 +1873,7 @@ static DisasJumpType op_cgxb(DisasContext *s, DisasOps *o)
     }
     gen_helper_cgxb(o->out, cpu_env, o->in1, o->in2, m34);
     tcg_temp_free_i32(m34);
-    gen_set_cc_nz_f128(s, o->in1, o->in2);
+    set_cc_static(s);
     return DISAS_NEXT;
 }
 
@@ -1901,7 +1886,7 @@ static DisasJumpType op_clfeb(DisasContext *s, DisasOps *o)
     }
     gen_helper_clfeb(o->out, cpu_env, o->in2, m34);
     tcg_temp_free_i32(m34);
-    gen_set_cc_nz_f32(s, o->in2);
+    set_cc_static(s);
     return DISAS_NEXT;
 }
 
@@ -1914,7 +1899,7 @@ static DisasJumpType op_clfdb(DisasContext *s, DisasOps *o)
     }
     gen_helper_clfdb(o->out, cpu_env, o->in2, m34);
     tcg_temp_free_i32(m34);
-    gen_set_cc_nz_f64(s, o->in2);
+    set_cc_static(s);
     return DISAS_NEXT;
 }
 
@@ -1927,7 +1912,7 @@ static DisasJumpType op_clfxb(DisasContext *s, DisasOps *o)
     }
     gen_helper_clfxb(o->out, cpu_env, o->in1, o->in2, m34);
     tcg_temp_free_i32(m34);
-    gen_set_cc_nz_f128(s, o->in1, o->in2);
+    set_cc_static(s);
     return DISAS_NEXT;
 }
 
@@ -1940,7 +1925,7 @@ static DisasJumpType op_clgeb(DisasContext *s, DisasOps *o)
     }
     gen_helper_clgeb(o->out, cpu_env, o->in2, m34);
     tcg_temp_free_i32(m34);
-    gen_set_cc_nz_f32(s, o->in2);
+    set_cc_static(s);
     return DISAS_NEXT;
 }
 
@@ -1953,7 +1938,7 @@ static DisasJumpType op_clgdb(DisasContext *s, DisasOps *o)
     }
     gen_helper_clgdb(o->out, cpu_env, o->in2, m34);
     tcg_temp_free_i32(m34);
-    gen_set_cc_nz_f64(s, o->in2);
+    set_cc_static(s);
     return DISAS_NEXT;
 }
 
@@ -1966,7 +1951,7 @@ static DisasJumpType op_clgxb(DisasContext *s, DisasOps *o)
     }
     gen_helper_clgxb(o->out, cpu_env, o->in1, o->in2, m34);
     tcg_temp_free_i32(m34);
-    gen_set_cc_nz_f128(s, o->in1, o->in2);
+    set_cc_static(s);
     return DISAS_NEXT;
 }
 

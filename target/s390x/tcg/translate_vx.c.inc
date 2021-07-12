@@ -1783,7 +1783,7 @@ static DisasJumpType op_vmsl(DisasContext *s, DisasOps *o)
 {
     TCGv_i64 l1, h1, l2, h2;
 
-    if (get_field(s, m4) != ES_64) {
+    if (get_field(s, m5) != ES_64) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }

@@ -1,5 +1,5 @@
 /*
- * TOD (Time Of Day) clock - QEMU implementation
+ * TOD (Time Of Day) clock - TCG implementation
  *
  * Copyright 2018 Red Hat, Inc.
  * Author(s): David Hildenbrand <david@redhat.com>
@@ -16,7 +16,7 @@
 #include "qemu/cutils.h"
 #include "qemu/module.h"
 #include "cpu.h"
-#include "tcg_s390x.h"
+#include "tcg/tcg_s390x.h"
 
 static void qemu_s390_tod_get(const S390TODState *td, S390TOD *tod,
                               Error **errp)

@@ -9,13 +9,13 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "kvm_s390x.h"
-#include "internal.h"
+#include "kvm/kvm_s390x.h"
+#include "s390x-internal.h"
 #include "exec/exec-all.h"
 #include "sysemu/kvm.h"
 #include "sysemu/tcg.h"
 #include "hw/s390x/ioinst.h"
-#include "tcg_s390x.h"
+#include "tcg/tcg_s390x.h"
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/s390x/s390_flic.h"
 #endif
