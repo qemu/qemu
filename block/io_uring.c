@@ -49,7 +49,7 @@ typedef struct LuringQueue {
     QSIMPLEQ_HEAD(, LuringAIOCB) submit_queue;
 } LuringQueue;
 
-typedef struct LuringState {
+struct LuringState {
     AioContext *aio_context;
 
     struct io_uring ring;
@@ -58,7 +58,7 @@ typedef struct LuringState {
     LuringQueue io_q;
 
     QEMUBH *completion_bh;
-} LuringState;
+};
 
 /**
  * luring_resubmit:
