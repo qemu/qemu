@@ -1304,7 +1304,7 @@ S: Maintained
 F: hw/ppc/prep.c
 F: hw/ppc/prep_systemio.c
 F: hw/ppc/rs6000_mc.c
-F: hw/pci-host/prep.[hc]
+F: hw/pci-host/raven.c
 F: hw/isa/i82378.c
 F: hw/isa/pc87312.c
 F: hw/dma/i82374.c

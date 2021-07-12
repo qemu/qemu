@@ -74,25 +74,19 @@ enum UHIOpenFlags {
     UHIOpen_EXCL   = 0x800
 };
 
-/* Errno values taken from asm-mips/errno.h */
-static const uint16_t host_to_mips_errno[] = {
-    [ENAMETOOLONG] = 78,
+static int errno_mips(int host_errno)
+{
+    /* Errno values taken from asm-mips/errno.h */
+    switch (host_errno) {
+    case 0:             return 0;
+    case ENAMETOOLONG:  return 78;
 #ifdef EOVERFLOW
-    [EOVERFLOW]    = 79,
+    case EOVERFLOW:     return 79;
 #endif
 #ifdef ELOOP
-    [ELOOP]        = 90,
+    case ELOOP:         return 90;
 #endif
-};
-
-static int errno_mips(int err)
-{
-    if (err < 0 || err >= ARRAY_SIZE(host_to_mips_errno)) {
-        return EINVAL;
-    } else if (host_to_mips_errno[err]) {
-        return host_to_mips_errno[err];
-    } else {
-        return err;
+    default:            return EINVAL;
     }
 }
 
