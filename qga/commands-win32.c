@@ -2231,7 +2231,7 @@ static char *ga_get_win_name(OSVERSIONINFOEXW const *os_version, bool id)
 
 static char *ga_get_win_product_name(Error **errp)
 {
-    HKEY key = NULL;
+    HKEY key = INVALID_HANDLE_VALUE;
     DWORD size = 128;
     char *result = g_malloc0(size);
     LONG err = ERROR_SUCCESS;
@@ -2241,7 +2241,8 @@ static char *ga_get_win_product_name(Error **errp)
                       &key);
     if (err != ERROR_SUCCESS) {
         error_setg_win32(errp, err, "failed to open registry key");
-        goto fail;
+        g_free(result);
+        return NULL;
     }
 
     err = RegQueryValueExA(key, "ProductName", NULL, NULL,
@@ -2262,9 +2263,13 @@ static char *ga_get_win_product_name(Error **errp)
         goto fail;
     }
 
+    RegCloseKey(key);
     return result;
 
 fail:
+    if (key != INVALID_HANDLE_VALUE) {
+        RegCloseKey(key);
+    }
     g_free(result);
     return NULL;
 }
