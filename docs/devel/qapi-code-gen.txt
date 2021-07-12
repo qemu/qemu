@@ -1496,8 +1496,12 @@ Example:
 
 
     bool visit_type_UserDefOne_members(Visitor *v, UserDefOne *obj, Error **errp);
-    bool visit_type_UserDefOne(Visitor *v, const char *name, UserDefOne **obj, Error **errp);
-    bool visit_type_UserDefOneList(Visitor *v, const char *name, UserDefOneList **obj, Error **errp);
+
+    bool visit_type_UserDefOne(Visitor *v, const char *name,
+                     UserDefOne **obj, Error **errp);
+
+    bool visit_type_UserDefOneList(Visitor *v, const char *name,
+                     UserDefOneList **obj, Error **errp);
 
     bool visit_type_q_obj_my_command_arg_members(Visitor *v, q_obj_my_command_arg *obj, Error **errp);
 
@@ -1518,7 +1522,8 @@ Example:
         return true;
     }
 
-    bool visit_type_UserDefOne(Visitor *v, const char *name, UserDefOne **obj, Error **errp)
+    bool visit_type_UserDefOne(Visitor *v, const char *name,
+                     UserDefOne **obj, Error **errp)
     {
         bool ok = false;
 
@@ -1528,6 +1533,7 @@ Example:
         if (!*obj) {
             /* incomplete */
             assert(visit_is_dealloc(v));
+            ok = true;
             goto out_obj;
         }
         if (!visit_type_UserDefOne_members(v, *obj, errp)) {
@@ -1543,7 +1549,8 @@ Example:
         return ok;
     }
 
-    bool visit_type_UserDefOneList(Visitor *v, const char *name, UserDefOneList **obj, Error **errp)
+    bool visit_type_UserDefOneList(Visitor *v, const char *name,
+                     UserDefOneList **obj, Error **errp)
     {
         bool ok = false;
         UserDefOneList *tail;
@@ -1628,11 +1635,13 @@ Example:
     $ cat qapi-generated/example-qapi-commands.c
 [Uninteresting stuff omitted...]
 
-    static void qmp_marshal_output_UserDefOne(UserDefOne *ret_in, QObject **ret_out, Error **errp)
+
+    static void qmp_marshal_output_UserDefOne(UserDefOne *ret_in,
+                                    QObject **ret_out, Error **errp)
     {
         Visitor *v;
 
-        v = qobject_output_visitor_new(ret_out);
+        v = qobject_output_visitor_new_qmp(ret_out);
         if (visit_type_UserDefOne(v, "unused", &ret_in, errp)) {
             visit_complete(v, ret_out);
         }
@@ -1650,7 +1659,7 @@ Example:
         UserDefOne *retval;
         q_obj_my_command_arg arg = {0};
 
-        v = qobject_input_visitor_new(QOBJECT(args));
+        v = qobject_input_visitor_new_qmp(QOBJECT(args));
         if (!visit_start_struct(v, NULL, NULL, 0, errp)) {
             goto out;
         }
