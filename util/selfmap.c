@@ -23,29 +23,34 @@ GSList *read_self_maps(void)
             gchar **fields = g_strsplit(lines[i], " ", 6);
             if (g_strv_length(fields) > 4) {
                 MapInfo *e = g_new0(MapInfo, 1);
-                int errors;
+                int errors = 0;
                 const char *end;
 
-                errors  = qemu_strtoul(fields[0], &end, 16, &e->start);
-                errors += qemu_strtoul(end + 1, NULL, 16, &e->end);
+                errors |= qemu_strtoul(fields[0], &end, 16, &e->start);
+                errors |= qemu_strtoul(end + 1, NULL, 16, &e->end);
 
                 e->is_read  = fields[1][0] == 'r';
                 e->is_write = fields[1][1] == 'w';
                 e->is_exec  = fields[1][2] == 'x';
                 e->is_priv  = fields[1][3] == 'p';
 
-                errors += qemu_strtoul(fields[2], NULL, 16, &e->offset);
+                errors |= qemu_strtoul(fields[2], NULL, 16, &e->offset);
                 e->dev = g_strdup(fields[3]);
-                errors += qemu_strtou64(fields[4], NULL, 10, &e->inode);
+                errors |= qemu_strtou64(fields[4], NULL, 10, &e->inode);
 
-                /*
-                 * The last field may have leading spaces which we
-                 * need to strip.
-                 */
-                if (g_strv_length(fields) == 6) {
-                    e->path = g_strdup(g_strchug(fields[5]));
+                if (!errors) {
+                    /*
+                     * The last field may have leading spaces which we
+                     * need to strip.
+                     */
+                    if (g_strv_length(fields) == 6) {
+                        e->path = g_strdup(g_strchug(fields[5]));
+                    }
+                    map_info = g_slist_prepend(map_info, e);
+                } else {
+                    g_free(e->dev);
+                    g_free(e);
                 }
-                map_info = g_slist_prepend(map_info, e);
             }
 
             g_strfreev(fields);
