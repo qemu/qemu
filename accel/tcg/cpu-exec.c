@@ -855,7 +855,6 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
 
 int cpu_exec(CPUState *cpu)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
     int ret;
     SyncClocks sc = { 0 };
 
@@ -889,19 +888,14 @@ int cpu_exec(CPUState *cpu)
          * that we support, but is still unfixed in clang:
          *   https://bugs.llvm.org/show_bug.cgi?id=21183
          *
-         * Reload essential local variables here for those compilers.
+         * Reload an essential local variable here for those compilers.
          * Newer versions of gcc would complain about this code (-Wclobbered),
          * so we only perform the workaround for clang.
          */
         cpu = current_cpu;
-        cc = CPU_GET_CLASS(cpu);
 #else
-        /*
-         * Non-buggy compilers preserve these locals; assert that
-         * they have the correct value.
-         */
+        /* Non-buggy compilers preserve this; assert the correct value. */
         g_assert(cpu == current_cpu);
-        g_assert(cc == CPU_GET_CLASS(cpu));
 #endif
 
 #ifndef CONFIG_SOFTMMU
