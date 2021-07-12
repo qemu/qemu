@@ -92,7 +92,11 @@ if cpu in ['x86', 'x86_64']
   }
 endif
 
-modular_tcg = ['i386-softmmu', 'x86_64-softmmu']
+modular_tcg = []
+# Darwin does not support references to thread-local variables in modules
+if targetos != 'darwin'
+  modular_tcg = ['i386-softmmu', 'x86_64-softmmu']
+endif
 
 edk2_targets = [ 'arm-softmmu', 'aarch64-softmmu', 'i386-softmmu', 'x86_64-softmmu' ]
 install_edk2_blobs = false
