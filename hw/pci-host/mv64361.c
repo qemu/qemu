@@ -687,7 +687,6 @@ static void mv64361_write(void *opaque, hwaddr addr, uint64_t val,
     case MV64340_PCI_1_IO_BASE_ADDR:
         s->pci[1].io_base = val & 0x30fffffULL;
         warn_swap_bit(val);
-        break;
         if (!(s->cpu_conf & BIT(27))) {
             s->pci[1].remap[4] = (val & 0xffffULL) << 16;
         }
