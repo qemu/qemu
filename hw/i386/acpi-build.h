@@ -10,5 +10,6 @@ extern const struct AcpiGenericAddress x86_nvdimm_acpi_dsmio;
 #define ACPI_PCIHP_BNMR_BASE 0x10
 
 void acpi_setup(void);
+Object *acpi_get_i386_pci_host(void);
 
 #endif
