@@ -5,8 +5,8 @@
  * Taken from asm-generic/errno-base.h and asm-generic/errno.h
  */
 
-#ifndef LINUX_USER_ERRNO_DEFS_H
-#define LINUX_USER_ERRNO_DEFS_H
+#ifndef GENERIC_TARGET_ERRNO_DEFS_H
+#define GENERIC_TARGET_ERRNO_DEFS_H
 
 #define TARGET_EPERM            1      /* Operation not permitted */
 #define TARGET_ENOENT           2      /* No such file or directory */

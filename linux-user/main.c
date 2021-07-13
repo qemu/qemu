@@ -48,6 +48,7 @@
 #include "target_elf.h"
 #include "cpu_loop-common.h"
 #include "crypto/init.h"
+#include "fd-trans.h"
 
 #ifndef AT_FLAGS_PRESERVE_ARGV0
 #define AT_FLAGS_PRESERVE_ARGV0_BIT 0
@@ -828,6 +829,8 @@ int main(int argc, char **argv, char **envp)
     ts->bprm = &bprm;
     cpu->opaque = ts;
     task_settid(ts);
+
+    fd_trans_init();
 
     ret = loader_exec(execfd, exec_path, target_argv, target_environ, regs,
         info, &bprm);

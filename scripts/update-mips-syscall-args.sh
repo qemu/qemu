@@ -1,9 +1,9 @@
 #!/bin/sh
 
-URL=https://raw.githubusercontent.com/strace/strace/master
+URL=https://raw.githubusercontent.com/strace/strace/master/src
 FILES="sysent.h sysent_shorthand_defs.h linux/mips/syscallent-compat.h \
-       linux/mips/syscallent-o32.h linux/syscallent-common-32.h \
-       linux/syscallent-common.h"
+       linux/mips/syscallent-o32.h linux/32/syscallent-common-32.h \
+       linux/generic/syscallent-common.h"
 
 output="$1"
 if [ "$output" = "" ] ; then
@@ -16,10 +16,11 @@ TMP=$(mktemp -d)
 cd $TMP
 
 for file in $FILES; do
-    curl -O $URL/$file
+    curl --create-dirs $URL/$file -o $TMP/$file
 done
 
-> subcall32.h
+> linux/generic/subcallent.h
+> linux/32/subcallent.h
 
 cat > gen_mips_o32.c <<EOF
 #include <stdio.h>
@@ -52,6 +53,6 @@ int main(void)
 }
 EOF
 
-cc -o gen_mips_o32 gen_mips_o32.c && ./gen_mips_o32 > "$output/$INC"
+cc -o gen_mips_o32 -I linux/mips -I linux/generic gen_mips_o32.c && ./gen_mips_o32 > "$output/$INC"
 
 rm -fr "$TMP"

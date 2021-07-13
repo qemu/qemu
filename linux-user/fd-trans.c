@@ -267,6 +267,7 @@ enum {
 };
 
 TargetFdTrans **target_fd_trans;
+QemuMutex target_fd_trans_lock;
 unsigned int target_fd_max;
 
 static void tswap_nlmsghdr(struct nlmsghdr *nlh)
