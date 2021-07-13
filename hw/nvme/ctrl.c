@@ -5740,7 +5740,7 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
     }
 
     switch (offset) {
-    case 0xc:   /* INTMS */
+    case NVME_REG_INTMS:
         if (unlikely(msix_enabled(&(n->parent_obj)))) {
             NVME_GUEST_ERR(pci_nvme_ub_mmiowr_intmask_with_msix,
                            "undefined access to interrupt mask set"
@@ -5752,7 +5752,7 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
         trace_pci_nvme_mmio_intm_set(data & 0xffffffff, n->bar.intmc);
         nvme_irq_check(n);
         break;
-    case 0x10:  /* INTMC */
+    case NVME_REG_INTMC:
         if (unlikely(msix_enabled(&(n->parent_obj)))) {
             NVME_GUEST_ERR(pci_nvme_ub_mmiowr_intmask_with_msix,
                            "undefined access to interrupt mask clr"
@@ -5764,7 +5764,7 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
         trace_pci_nvme_mmio_intm_clr(data & 0xffffffff, n->bar.intmc);
         nvme_irq_check(n);
         break;
-    case 0x14:  /* CC */
+    case NVME_REG_CC:
         trace_pci_nvme_mmio_cfg(data & 0xffffffff);
         /* Windows first sends data, then sends enable bit */
         if (!NVME_CC_EN(data) && !NVME_CC_EN(n->bar.cc) &&
@@ -5798,7 +5798,7 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
             n->bar.cc = data;
         }
         break;
-    case 0x1c:  /* CSTS */
+    case NVME_REG_CSTS:
         if (data & (1 << 4)) {
             NVME_GUEST_ERR(pci_nvme_ub_mmiowr_ssreset_w1c_unsupported,
                            "attempted to W1C CSTS.NSSRO"
@@ -5809,7 +5809,7 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
                            " of controller status");
         }
         break;
-    case 0x20:  /* NSSR */
+    case NVME_REG_NSSR:
         if (data == 0x4e564d65) {
             trace_pci_nvme_ub_mmiowr_ssreset_unsupported();
         } else {
@@ -5817,38 +5817,38 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
             return;
         }
         break;
-    case 0x24:  /* AQA */
+    case NVME_REG_AQA:
         n->bar.aqa = data & 0xffffffff;
         trace_pci_nvme_mmio_aqattr(data & 0xffffffff);
         break;
-    case 0x28:  /* ASQ */
+    case NVME_REG_ASQ:
         n->bar.asq = size == 8 ? data :
             (n->bar.asq & ~0xffffffffULL) | (data & 0xffffffff);
         trace_pci_nvme_mmio_asqaddr(data);
         break;
-    case 0x2c:  /* ASQ hi */
+    case NVME_REG_ASQ + 4:
         n->bar.asq = (n->bar.asq & 0xffffffff) | (data << 32);
         trace_pci_nvme_mmio_asqaddr_hi(data, n->bar.asq);
         break;
-    case 0x30:  /* ACQ */
+    case NVME_REG_ACQ:
         trace_pci_nvme_mmio_acqaddr(data);
         n->bar.acq = size == 8 ? data :
             (n->bar.acq & ~0xffffffffULL) | (data & 0xffffffff);
         break;
-    case 0x34:  /* ACQ hi */
+    case NVME_REG_ACQ + 4:
         n->bar.acq = (n->bar.acq & 0xffffffff) | (data << 32);
         trace_pci_nvme_mmio_acqaddr_hi(data, n->bar.acq);
         break;
-    case 0x38:  /* CMBLOC */
+    case NVME_REG_CMBLOC:
         NVME_GUEST_ERR(pci_nvme_ub_mmiowr_cmbloc_reserved,
                        "invalid write to reserved CMBLOC"
                        " when CMBSZ is zero, ignored");
         return;
-    case 0x3C:  /* CMBSZ */
+    case NVME_REG_CMBSZ:
         NVME_GUEST_ERR(pci_nvme_ub_mmiowr_cmbsz_readonly,
                        "invalid write to read only CMBSZ, ignored");
         return;
-    case 0x50:  /* CMBMSC */
+    case NVME_REG_CMBMSC:
         if (!NVME_CAP_CMBS(n->bar.cap)) {
             return;
         }
@@ -5876,15 +5876,15 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
         }
 
         return;
-    case 0x54:  /* CMBMSC hi */
+    case NVME_REG_CMBMSC + 4:
         n->bar.cmbmsc = (n->bar.cmbmsc & 0xffffffff) | (data << 32);
         return;
 
-    case 0xe00: /* PMRCAP */
+    case NVME_REG_PMRCAP:
         NVME_GUEST_ERR(pci_nvme_ub_mmiowr_pmrcap_readonly,
                        "invalid write to PMRCAP register, ignored");
         return;
-    case 0xe04: /* PMRCTL */
+    case NVME_REG_PMRCTL:
         if (!NVME_CAP_PMRS(n->bar.cap)) {
             return;
         }
@@ -5899,19 +5899,19 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
             n->pmr.cmse = false;
         }
         return;
-    case 0xe08: /* PMRSTS */
+    case NVME_REG_PMRSTS:
         NVME_GUEST_ERR(pci_nvme_ub_mmiowr_pmrsts_readonly,
                        "invalid write to PMRSTS register, ignored");
         return;
-    case 0xe0C: /* PMREBS */
+    case NVME_REG_PMREBS:
         NVME_GUEST_ERR(pci_nvme_ub_mmiowr_pmrebs_readonly,
                        "invalid write to PMREBS register, ignored");
         return;
-    case 0xe10: /* PMRSWTP */
+    case NVME_REG_PMRSWTP:
         NVME_GUEST_ERR(pci_nvme_ub_mmiowr_pmrswtp_readonly,
                        "invalid write to PMRSWTP register, ignored");
         return;
-    case 0xe14: /* PMRMSCL */
+    case NVME_REG_PMRMSCL:
         if (!NVME_CAP_PMRS(n->bar.cap)) {
             return;
         }
@@ -5933,7 +5933,7 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
         }
 
         return;
-    case 0xe18: /* PMRMSCU */
+    case NVME_REG_PMRMSCU:
         if (!NVME_CAP_PMRS(n->bar.cap)) {
             return;
         }
@@ -5975,7 +5975,7 @@ static uint64_t nvme_mmio_read(void *opaque, hwaddr addr, unsigned size)
          * from PMRSTS should ensure prior writes
          * made it to persistent media
          */
-        if (addr == 0xe08 &&
+        if (addr == NVME_REG_PMRSTS &&
             (NVME_PMRCAP_PMRWBM(n->bar.pmrcap) & 0x02)) {
             memory_region_msync(&n->pmr.dev->mr, 0, n->pmr.dev->size);
         }

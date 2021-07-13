@@ -9,7 +9,7 @@ typedef struct QEMU_PACKED NvmeBar {
     uint32_t    cc;
     uint8_t     rsvd24[4];
     uint32_t    csts;
-    uint32_t    nssrc;
+    uint32_t    nssr;
     uint32_t    aqa;
     uint64_t    asq;
     uint64_t    acq;
@@ -30,6 +30,33 @@ typedef struct QEMU_PACKED NvmeBar {
     uint32_t    pmrmscu;
     uint8_t     css[484];
 } NvmeBar;
+
+enum NvmeBarRegs {
+    NVME_REG_CAP     = offsetof(NvmeBar, cap),
+    NVME_REG_VS      = offsetof(NvmeBar, vs),
+    NVME_REG_INTMS   = offsetof(NvmeBar, intms),
+    NVME_REG_INTMC   = offsetof(NvmeBar, intmc),
+    NVME_REG_CC      = offsetof(NvmeBar, cc),
+    NVME_REG_CSTS    = offsetof(NvmeBar, csts),
+    NVME_REG_NSSR    = offsetof(NvmeBar, nssr),
+    NVME_REG_AQA     = offsetof(NvmeBar, aqa),
+    NVME_REG_ASQ     = offsetof(NvmeBar, asq),
+    NVME_REG_ACQ     = offsetof(NvmeBar, acq),
+    NVME_REG_CMBLOC  = offsetof(NvmeBar, cmbloc),
+    NVME_REG_CMBSZ   = offsetof(NvmeBar, cmbsz),
+    NVME_REG_BPINFO  = offsetof(NvmeBar, bpinfo),
+    NVME_REG_BPRSEL  = offsetof(NvmeBar, bprsel),
+    NVME_REG_BPMBL   = offsetof(NvmeBar, bpmbl),
+    NVME_REG_CMBMSC  = offsetof(NvmeBar, cmbmsc),
+    NVME_REG_CMBSTS  = offsetof(NvmeBar, cmbsts),
+    NVME_REG_PMRCAP  = offsetof(NvmeBar, pmrcap),
+    NVME_REG_PMRCTL  = offsetof(NvmeBar, pmrctl),
+    NVME_REG_PMRSTS  = offsetof(NvmeBar, pmrsts),
+    NVME_REG_PMREBS  = offsetof(NvmeBar, pmrebs),
+    NVME_REG_PMRSWTP = offsetof(NvmeBar, pmrswtp),
+    NVME_REG_PMRMSCL = offsetof(NvmeBar, pmrmscl),
+    NVME_REG_PMRMSCU = offsetof(NvmeBar, pmrmscu),
+};
 
 enum NvmeCapShift {
     CAP_MQES_SHIFT     = 0,
