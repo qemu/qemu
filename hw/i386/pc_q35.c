@@ -37,6 +37,7 @@
 #include "sysemu/kvm.h"
 #include "hw/kvm/clock.h"
 #include "hw/pci-host/q35.h"
+#include "hw/pci/pcie_port.h"
 #include "hw/qdev-properties.h"
 #include "hw/i386/x86.h"
 #include "hw/i386/pc.h"
@@ -136,6 +137,7 @@ static void pc_q35_init(MachineState *machine)
     ram_addr_t lowmem;
     DriveInfo *hd[MAX_SATA_PORTS];
     MachineClass *mc = MACHINE_GET_CLASS(machine);
+    bool acpi_pcihp;
 
     /* Check whether RAM fits below 4G (leaving 1/2 GByte for IO memory
      * and 256 Mbytes for PCI Express Enhanced Configuration Access Mapping
@@ -235,6 +237,15 @@ static void pc_q35_init(MachineState *machine)
                              OBJ_PROP_LINK_STRONG);
     object_property_set_link(OBJECT(machine), PC_MACHINE_ACPI_DEVICE_PROP,
                              OBJECT(lpc), &error_abort);
+
+    acpi_pcihp = object_property_get_bool(OBJECT(lpc),
+                                          "acpi-pci-hotplug-with-bridge-support",
+                                          NULL);
+
+    if (acpi_pcihp) {
+        object_register_sugar_prop(TYPE_PCIE_SLOT, "native-hotplug",
+                                   "false", true);
+    }
 
     /* irq lines */
     gsi_state = pc_gsi_create(&x86ms->gsi, pcmc->pci_enabled);
