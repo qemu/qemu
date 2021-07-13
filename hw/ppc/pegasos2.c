@@ -443,10 +443,17 @@ static target_ulong vhyp_encode_hpt_for_kvm_pr(PPCVirtualHypervisor *vhyp)
     return POWERPC_CPU(current_cpu)->env.spr[SPR_SDR1];
 }
 
+static bool pegasos2_setprop(MachineState *ms, const char *path,
+                             const char *propname, void *val, int vallen)
+{
+    return true;
+}
+
 static void pegasos2_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     PPCVirtualHypervisorClass *vhc = PPC_VIRTUAL_HYPERVISOR_CLASS(oc);
+    VofMachineIfClass *vmc = VOF_MACHINE_CLASS(oc);
 
     mc->desc = "Genesi/bPlan Pegasos II";
     mc->init = pegasos2_init;
@@ -462,6 +469,8 @@ static void pegasos2_machine_class_init(ObjectClass *oc, void *data)
     vhc->cpu_exec_enter = vhyp_nop;
     vhc->cpu_exec_exit = vhyp_nop;
     vhc->encode_hpt_for_kvm_pr = vhyp_encode_hpt_for_kvm_pr;
+
+    vmc->setprop = pegasos2_setprop;
 }
 
 static const TypeInfo pegasos2_machine_info = {
@@ -471,6 +480,7 @@ static const TypeInfo pegasos2_machine_info = {
     .instance_size = sizeof(Pegasos2MachineState),
     .interfaces = (InterfaceInfo[]) {
         { TYPE_PPC_VIRTUAL_HYPERVISOR },
+        { TYPE_VOF_MACHINE_IF },
         { }
     },
 };
