@@ -3,7 +3,7 @@
 #
 # Test qemu-nbd -A
 #
-# Copyright (C) 2018-2020 Red Hat, Inc.
+# Copyright (C) 2018-2021 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ _cleanup()
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
 # get standard environment, filters and checks
+cd ..
 . ./common.rc
 . ./common.filter
 . ./common.nbd
@@ -57,6 +58,8 @@ echo
 $QEMU_IMG map --output=json -f qcow2 "$TEST_IMG"
 IMG="driver=nbd,server.type=unix,server.path=$nbd_unix_socket"
 nbd_server_start_unix_socket -r -f qcow2 -A "$TEST_IMG"
+# Inspect what the server is exposing
+$QEMU_NBD --list -k $nbd_unix_socket
 # Normal -f raw NBD block status loses access to allocation information
 $QEMU_IMG map --output=json --image-opts \
     "$IMG" | _filter_qemu_img_map

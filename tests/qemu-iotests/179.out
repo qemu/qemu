@@ -13,7 +13,11 @@ wrote 2097152/2097152 bytes at offset 6291456
 2 MiB (0x200000) bytes not allocated at offset 4 MiB (0x400000)
 2 MiB (0x200000) bytes     allocated at offset 6 MiB (0x600000)
 56 MiB (0x3800000) bytes not allocated at offset 8 MiB (0x800000)
-[{ "start": 0, "length": 67108864, "depth": 0, "zero": true, "data": false}]
+[{ "start": 0, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 2097152, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 4194304, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 6291456, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 8388608, "length": 58720256, "depth": 0, "present": false, "zero": true, "data": false}]
 wrote 2097150/2097150 bytes at offset 10485761
 2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 2097150/2097150 bytes at offset 14680065
@@ -27,7 +31,15 @@ wrote 2097150/2097150 bytes at offset 14680065
 2 MiB (0x200000) bytes not allocated at offset 12 MiB (0xc00000)
 2 MiB (0x200000) bytes     allocated at offset 14 MiB (0xe00000)
 48 MiB (0x3000000) bytes not allocated at offset 16 MiB (0x1000000)
-[{ "start": 0, "length": 67108864, "depth": 0, "zero": true, "data": false}]
+[{ "start": 0, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 2097152, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 4194304, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 6291456, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 8388608, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 10485760, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 12582912, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 14680064, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 16777216, "length": 50331648, "depth": 0, "present": false, "zero": true, "data": false}]
 wrote 14680064/14680064 bytes at offset 18874368
 14 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 2097152/2097152 bytes at offset 20971520
@@ -45,13 +57,21 @@ wrote 6291456/6291456 bytes at offset 25165824
 2 MiB (0x200000) bytes not allocated at offset 16 MiB (0x1000000)
 14 MiB (0xe00000) bytes     allocated at offset 18 MiB (0x1200000)
 32 MiB (0x2000000) bytes not allocated at offset 32 MiB (0x2000000)
-[{ "start": 0, "length": 18874368, "depth": 0, "zero": true, "data": false},
-{ "start": 18874368, "length": 2097152, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 20971520, "length": 2097152, "depth": 0, "zero": true, "data": false},
-{ "start": 23068672, "length": 2097152, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 25165824, "length": 6291456, "depth": 0, "zero": true, "data": false, "offset": OFFSET},
-{ "start": 31457280, "length": 2097152, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 33554432, "length": 33554432, "depth": 0, "zero": true, "data": false}]
+[{ "start": 0, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 2097152, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 4194304, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 6291456, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 8388608, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 10485760, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 12582912, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 14680064, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 16777216, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 18874368, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 20971520, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 23068672, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 25165824, "length": 6291456, "depth": 0, "present": true, "zero": true, "data": false, "offset": OFFSET},
+{ "start": 31457280, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 33554432, "length": 33554432, "depth": 0, "present": false, "zero": true, "data": false}]
 wrote 2097152/2097152 bytes at offset 27262976
 2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 2097152/2097152 bytes at offset 29360128
@@ -67,15 +87,23 @@ wrote 2097152/2097152 bytes at offset 29360128
 2 MiB (0x200000) bytes not allocated at offset 16 MiB (0x1000000)
 14 MiB (0xe00000) bytes     allocated at offset 18 MiB (0x1200000)
 32 MiB (0x2000000) bytes not allocated at offset 32 MiB (0x2000000)
-[{ "start": 0, "length": 18874368, "depth": 0, "zero": true, "data": false},
-{ "start": 18874368, "length": 2097152, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 20971520, "length": 2097152, "depth": 0, "zero": true, "data": false},
-{ "start": 23068672, "length": 2097152, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 25165824, "length": 2097152, "depth": 0, "zero": true, "data": false, "offset": OFFSET},
-{ "start": 27262976, "length": 2097152, "depth": 0, "zero": true, "data": false},
-{ "start": 29360128, "length": 2097152, "depth": 0, "zero": true, "data": false, "offset": OFFSET},
-{ "start": 31457280, "length": 2097152, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 33554432, "length": 33554432, "depth": 0, "zero": true, "data": false}]
+[{ "start": 0, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 2097152, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 4194304, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 6291456, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 8388608, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 10485760, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 12582912, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 14680064, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 16777216, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 18874368, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 20971520, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 23068672, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 25165824, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false, "offset": OFFSET},
+{ "start": 27262976, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 29360128, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false, "offset": OFFSET},
+{ "start": 31457280, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 33554432, "length": 33554432, "depth": 0, "present": false, "zero": true, "data": false}]
 wrote 8388608/8388608 bytes at offset 33554432
 8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 2097152/2097152 bytes at offset 35651584
@@ -93,15 +121,24 @@ wrote 2097152/2097152 bytes at offset 37748736
 2 MiB (0x200000) bytes not allocated at offset 16 MiB (0x1000000)
 22 MiB (0x1600000) bytes     allocated at offset 18 MiB (0x1200000)
 24 MiB (0x1800000) bytes not allocated at offset 40 MiB (0x2800000)
-[{ "start": 0, "length": 18874368, "depth": 0, "zero": true, "data": false},
-{ "start": 18874368, "length": 2097152, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 20971520, "length": 2097152, "depth": 0, "zero": true, "data": false},
-{ "start": 23068672, "length": 2097152, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 25165824, "length": 2097152, "depth": 0, "zero": true, "data": false, "offset": OFFSET},
-{ "start": 27262976, "length": 2097152, "depth": 0, "zero": true, "data": false},
-{ "start": 29360128, "length": 2097152, "depth": 0, "zero": true, "data": false, "offset": OFFSET},
-{ "start": 31457280, "length": 2097152, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 33554432, "length": 33554432, "depth": 0, "zero": true, "data": false}]
+[{ "start": 0, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 2097152, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 4194304, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 6291456, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 8388608, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 10485760, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 12582912, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 14680064, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 16777216, "length": 2097152, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 18874368, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 20971520, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 23068672, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 25165824, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false, "offset": OFFSET},
+{ "start": 27262976, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 29360128, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false, "offset": OFFSET},
+{ "start": 31457280, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 33554432, "length": 8388608, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 41943040, "length": 25165824, "depth": 0, "present": false, "zero": true, "data": false}]
 wrote 8388608/8388608 bytes at offset 41943040
 8 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 8388608/8388608 bytes at offset 50331648
@@ -125,23 +162,31 @@ wrote 2097152/2097152 bytes at offset 62914560
 4 MiB (0x400000) bytes not allocated at offset 54 MiB (0x3600000)
 4 MiB (0x400000) bytes     allocated at offset 58 MiB (0x3a00000)
 2 MiB (0x200000) bytes not allocated at offset 62 MiB (0x3e00000)
-[{ "start": 0, "length": 18874368, "depth": 1, "zero": true, "data": false},
-{ "start": 18874368, "length": 2097152, "depth": 1, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 20971520, "length": 2097152, "depth": 1, "zero": true, "data": false},
-{ "start": 23068672, "length": 2097152, "depth": 1, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 25165824, "length": 2097152, "depth": 1, "zero": true, "data": false, "offset": OFFSET},
-{ "start": 27262976, "length": 2097152, "depth": 1, "zero": true, "data": false},
-{ "start": 29360128, "length": 2097152, "depth": 1, "zero": true, "data": false, "offset": OFFSET},
-{ "start": 31457280, "length": 2097152, "depth": 1, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 33554432, "length": 10485760, "depth": 1, "zero": true, "data": false},
-{ "start": 44040192, "length": 4194304, "depth": 0, "zero": true, "data": false},
-{ "start": 48234496, "length": 2097152, "depth": 1, "zero": true, "data": false},
-{ "start": 50331648, "length": 2097152, "depth": 1, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 52428800, "length": 4194304, "depth": 0, "zero": true, "data": false},
-{ "start": 56623104, "length": 2097152, "depth": 1, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 58720256, "length": 2097152, "depth": 1, "zero": true, "data": false},
-{ "start": 60817408, "length": 4194304, "depth": 0, "zero": true, "data": false},
-{ "start": 65011712, "length": 2097152, "depth": 1, "zero": true, "data": false}]
+[{ "start": 0, "length": 2097152, "depth": 1, "present": false, "zero": true, "data": false},
+{ "start": 2097152, "length": 2097152, "depth": 1, "present": true, "zero": true, "data": false},
+{ "start": 4194304, "length": 2097152, "depth": 1, "present": false, "zero": true, "data": false},
+{ "start": 6291456, "length": 2097152, "depth": 1, "present": true, "zero": true, "data": false},
+{ "start": 8388608, "length": 2097152, "depth": 1, "present": false, "zero": true, "data": false},
+{ "start": 10485760, "length": 2097152, "depth": 1, "present": true, "zero": true, "data": false},
+{ "start": 12582912, "length": 2097152, "depth": 1, "present": false, "zero": true, "data": false},
+{ "start": 14680064, "length": 2097152, "depth": 1, "present": true, "zero": true, "data": false},
+{ "start": 16777216, "length": 2097152, "depth": 1, "present": false, "zero": true, "data": false},
+{ "start": 18874368, "length": 2097152, "depth": 1, "present": true, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 20971520, "length": 2097152, "depth": 1, "present": true, "zero": true, "data": false},
+{ "start": 23068672, "length": 2097152, "depth": 1, "present": true, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 25165824, "length": 2097152, "depth": 1, "present": true, "zero": true, "data": false, "offset": OFFSET},
+{ "start": 27262976, "length": 2097152, "depth": 1, "present": true, "zero": true, "data": false},
+{ "start": 29360128, "length": 2097152, "depth": 1, "present": true, "zero": true, "data": false, "offset": OFFSET},
+{ "start": 31457280, "length": 2097152, "depth": 1, "present": true, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 33554432, "length": 10485760, "depth": 1, "present": true, "zero": true, "data": false},
+{ "start": 44040192, "length": 4194304, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 48234496, "length": 2097152, "depth": 1, "present": true, "zero": true, "data": false},
+{ "start": 50331648, "length": 2097152, "depth": 1, "present": true, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 52428800, "length": 4194304, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 56623104, "length": 2097152, "depth": 1, "present": true, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 58720256, "length": 2097152, "depth": 1, "present": false, "zero": true, "data": false},
+{ "start": 60817408, "length": 4194304, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 65011712, "length": 2097152, "depth": 1, "present": false, "zero": true, "data": false}]
 No errors were found on the image.
 No errors were found on the image.
 

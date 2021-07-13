@@ -274,6 +274,9 @@
 #         images in the chain)) before reaching one for which the
 #         range is allocated
 #
+# @present: true if this layer provides the data, false if adding a backing
+#           layer could impact this region (since 6.1)
+#
 # @offset: if present, the image file stores the data for this range
 #          in raw format at the given (host) offset
 #
@@ -284,8 +287,8 @@
 ##
 { 'struct': 'MapEntry',
   'data': {'start': 'int', 'length': 'int', 'data': 'bool',
-           'zero': 'bool', 'depth': 'int', '*offset': 'int',
-           '*filename': 'str' } }
+           'zero': 'bool', 'depth': 'int', 'present': 'bool',
+           '*offset': 'int', '*filename': 'str' } }
 
 ##
 # @BlockdevCacheInfo:

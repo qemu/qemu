@@ -57,11 +57,12 @@ wrote 3145728/3145728 bytes at offset 3145728
 3 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 No errors were found on the image.
 
-[{ "start": 0, "length": 1048576, "depth": 0, "zero": true, "data": false},
-{ "start": 1048576, "length": 1048576, "depth": 0, "zero": false, "data": true, "offset": 1048576},
-{ "start": 2097152, "length": 2097152, "depth": 0, "zero": true, "data": false},
-{ "start": 4194304, "length": 1048576, "depth": 0, "zero": true, "data": false, "offset": 4194304},
-{ "start": 5242880, "length": 61865984, "depth": 0, "zero": true, "data": false}]
+[{ "start": 0, "length": 1048576, "depth": 0, "present": false, "zero": true, "data": false},
+{ "start": 1048576, "length": 1048576, "depth": 0, "present": true, "zero": false, "data": true, "offset": 1048576},
+{ "start": 2097152, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 4194304, "length": 1048576, "depth": 0, "present": true, "zero": true, "data": false, "offset": 4194304},
+{ "start": 5242880, "length": 1048576, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 6291456, "length": 60817408, "depth": 0, "present": false, "zero": true, "data": false}]
 
 read 1048576/1048576 bytes at offset 0
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -93,10 +94,10 @@ wrote 3145728/3145728 bytes at offset 3145728
 3 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 No errors were found on the image.
 
-[{ "start": 0, "length": 2097152, "depth": 0, "zero": false, "data": true, "offset": 0},
-{ "start": 2097152, "length": 2097152, "depth": 0, "zero": true, "data": false},
-{ "start": 4194304, "length": 2097152, "depth": 0, "zero": true, "data": false, "offset": 4194304},
-{ "start": 6291456, "length": 60817408, "depth": 0, "zero": false, "data": true, "offset": 6291456}]
+[{ "start": 0, "length": 2097152, "depth": 0, "present": true, "zero": false, "data": true, "offset": 0},
+{ "start": 2097152, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false},
+{ "start": 4194304, "length": 2097152, "depth": 0, "present": true, "zero": true, "data": false, "offset": 4194304},
+{ "start": 6291456, "length": 60817408, "depth": 0, "present": true, "zero": false, "data": true, "offset": 6291456}]
 
 read 1048576/1048576 bytes at offset 0
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -122,8 +123,8 @@ read 1048576/1048576 bytes at offset 0
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 Offset          Length          Mapped to       File
 0               0x100000        0               TEST_DIR/t.qcow2.data
-[{ "start": 0, "length": 1048576, "depth": 0, "zero": false, "data": true, "offset": 0},
-{ "start": 1048576, "length": 66060288, "depth": 0, "zero": true, "data": false}]
+[{ "start": 0, "length": 1048576, "depth": 0, "present": true, "zero": false, "data": true, "offset": 0},
+{ "start": 1048576, "length": 66060288, "depth": 0, "present": false, "zero": true, "data": false}]
 
 === Copy offloading ===
 
