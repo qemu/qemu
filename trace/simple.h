@@ -15,6 +15,7 @@ void st_print_trace_file_status(void);
 bool st_set_trace_file_enabled(bool enable);
 void st_set_trace_file(const char *file);
 bool st_init(void);
+void st_init_group(size_t group);
 void st_flush_trace_buffer(void);
 
 typedef struct {

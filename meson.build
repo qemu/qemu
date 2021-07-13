@@ -319,10 +319,6 @@ lttng = not_found
 if 'CONFIG_TRACE_UST' in config_host
   lttng = declare_dependency(link_args: config_host['LTTNG_UST_LIBS'].split())
 endif
-urcubp = not_found
-if 'CONFIG_TRACE_UST' in config_host
-  urcubp = declare_dependency(link_args: config_host['URCU_BP_LIBS'].split())
-endif
 pixman = not_found
 if have_system or have_tools
   pixman = dependency('pixman-1', required: have_system, version:'>=0.21.8',

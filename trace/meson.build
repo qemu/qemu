@@ -26,7 +26,7 @@ foreach dir : [ '.' ] + trace_events_subdirs
                                 input: trace_events_file,
                                 command: [ tracetool, group, '--format=ust-events-h', '@INPUT@', '@OUTPUT@' ],
                                 depend_files: tracetool_depends)
-    trace_ss.add(trace_ust_h, lttng, urcubp)
+    trace_ss.add(trace_ust_h, lttng)
     genh += trace_ust_h
   endif
   trace_ss.add(trace_h, trace_c)
