@@ -43,6 +43,7 @@ check-python-tox:
     - make -C python check-tox
   variables:
     GIT_DEPTH: 1
+    QEMU_TOX_EXTRA_ARGS: --skip-missing-interpreters=false
   needs:
     job: python-container
   allow_failure: true

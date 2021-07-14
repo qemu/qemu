@@ -96,7 +96,8 @@ class QEMUMachine:
                  socket_scm_helper: Optional[str] = None,
                  sock_dir: Optional[str] = None,
                  drain_console: bool = False,
-                 console_log: Optional[str] = None):
+                 console_log: Optional[str] = None,
+                 log_dir: Optional[str] = None):
         '''
         Initialize a QEMUMachine
 
@@ -110,6 +111,7 @@ class QEMUMachine:
         @param sock_dir: where to create socket (defaults to base_temp_dir)
         @param drain_console: (optional) True to drain console socket to buffer
         @param console_log: (optional) path to console log file
+        @param log_dir: where to create and keep log files
         @note: Qemu process is not started until launch() is used.
         '''
         # pylint: disable=too-many-arguments
@@ -123,6 +125,7 @@ class QEMUMachine:
         self._name = name or "qemu-%d" % os.getpid()
         self._base_temp_dir = base_temp_dir
         self._sock_dir = sock_dir or self._base_temp_dir
+        self._log_dir = log_dir
         self._socket_scm_helper = socket_scm_helper
 
         if monitor_address is not None:
@@ -313,9 +316,12 @@ class QEMUMachine:
                 args.extend(['-device', device])
         return args
 
-    def _pre_launch(self) -> None:
-        self._qemu_log_path = os.path.join(self.temp_dir, self._name + ".log")
+    @property
+    def args(self) -> List[str]:
+        """Returns the list of arguments given to the QEMU binary."""
+        return self._args
 
+    def _pre_launch(self) -> None:
         if self._console_set:
             self._remove_files.append(self._console_address)
 
@@ -332,6 +338,7 @@ class QEMUMachine:
         # NOTE: Make sure any opened resources are *definitely* freed in
         # _post_shutdown()!
         # pylint: disable=consider-using-with
+        self._qemu_log_path = os.path.join(self.log_dir, self._name + ".log")
         self._qemu_log_file = open(self._qemu_log_path, 'wb')
 
     def _post_launch(self) -> None:
@@ -770,3 +777,12 @@ class QEMUMachine:
             self._temp_dir = tempfile.mkdtemp(prefix="qemu-machine-",
                                               dir=self._base_temp_dir)
         return self._temp_dir
+
+    @property
+    def log_dir(self) -> str:
+        """
+        Returns a directory to be used for writing logs
+        """
+        if self._log_dir is None:
+            return self.temp_dir
+        return self._log_dir
