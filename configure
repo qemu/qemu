@@ -3266,18 +3266,6 @@ if ! compile_prog "$glib_cflags" "$glib_libs" ; then
 	       "build target"
 fi
 
-# Silence clang 3.5.0 warnings about glib attribute __alloc_size__ usage
-cat > $TMPC << EOF
-#include <glib.h>
-int main(void) { return 0; }
-EOF
-if ! compile_prog "$glib_cflags -Werror" "$glib_libs" ; then
-    if cc_has_warning_flag "-Wno-unknown-attributes"; then
-        glib_cflags="-Wno-unknown-attributes $glib_cflags"
-        CONFIGURE_CFLAGS="-Wno-unknown-attributes $CONFIGURE_CFLAGS"
-    fi
-fi
-
 # Silence clang warnings triggered by glib < 2.57.2
 cat > $TMPC << EOF
 #include <glib.h>
