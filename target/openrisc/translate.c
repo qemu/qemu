@@ -52,6 +52,8 @@ typedef struct DisasContext {
 
     /* The temporary corresponding to register 0 for this compilation.  */
     TCGv R0;
+    /* The constant zero. */
+    TCGv zero;
 } DisasContext;
 
 static inline bool is_user(DisasContext *dc)
@@ -129,9 +131,7 @@ void openrisc_translate_init(void)
 
 static void gen_exception(DisasContext *dc, unsigned int excp)
 {
-    TCGv_i32 tmp = tcg_const_i32(excp);
-    gen_helper_exception(cpu_env, tmp);
-    tcg_temp_free_i32(tmp);
+    gen_helper_exception(cpu_env, tcg_constant_i32(excp));
 }
 
 static void gen_illegal_exception(DisasContext *dc)
@@ -199,10 +199,10 @@ static void gen_ove_cyov(DisasContext *dc)
 
 static void gen_add(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
 {
-    TCGv t0 = tcg_const_tl(0);
+    TCGv t0 = tcg_temp_new();
     TCGv res = tcg_temp_new();
 
-    tcg_gen_add2_tl(res, cpu_sr_cy, srca, t0, srcb, t0);
+    tcg_gen_add2_tl(res, cpu_sr_cy, srca, dc->zero, srcb, dc->zero);
     tcg_gen_xor_tl(cpu_sr_ov, srca, srcb);
     tcg_gen_xor_tl(t0, res, srcb);
     tcg_gen_andc_tl(cpu_sr_ov, t0, cpu_sr_ov);
@@ -216,11 +216,11 @@ static void gen_add(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
 
 static void gen_addc(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
 {
-    TCGv t0 = tcg_const_tl(0);
+    TCGv t0 = tcg_temp_new();
     TCGv res = tcg_temp_new();
 
-    tcg_gen_add2_tl(res, cpu_sr_cy, srca, t0, cpu_sr_cy, t0);
-    tcg_gen_add2_tl(res, cpu_sr_cy, res, cpu_sr_cy, srcb, t0);
+    tcg_gen_add2_tl(res, cpu_sr_cy, srca, dc->zero, cpu_sr_cy, dc->zero);
+    tcg_gen_add2_tl(res, cpu_sr_cy, res, cpu_sr_cy, srcb, dc->zero);
     tcg_gen_xor_tl(cpu_sr_ov, srca, srcb);
     tcg_gen_xor_tl(t0, res, srcb);
     tcg_gen_andc_tl(cpu_sr_ov, t0, cpu_sr_ov);
@@ -538,13 +538,9 @@ static bool trans_l_extbz(DisasContext *dc, arg_da *a)
 
 static bool trans_l_cmov(DisasContext *dc, arg_dab *a)
 {
-    TCGv zero;
-
     check_r0_write(dc, a->d);
-    zero = tcg_const_tl(0);
-    tcg_gen_movcond_tl(TCG_COND_NE, cpu_R(dc, a->d), cpu_sr_f, zero,
+    tcg_gen_movcond_tl(TCG_COND_NE, cpu_R(dc, a->d), cpu_sr_f, dc->zero,
                        cpu_R(dc, a->a), cpu_R(dc, a->b));
-    tcg_temp_free(zero);
     return true;
 }
 
@@ -632,15 +628,10 @@ static bool trans_l_jal(DisasContext *dc, arg_l_jal *a)
 static void do_bf(DisasContext *dc, arg_l_bf *a, TCGCond cond)
 {
     target_ulong tmp_pc = dc->base.pc_next + a->n * 4;
-    TCGv t_next = tcg_const_tl(dc->base.pc_next + 8);
-    TCGv t_true = tcg_const_tl(tmp_pc);
-    TCGv t_zero = tcg_const_tl(0);
+    TCGv t_next = tcg_constant_tl(dc->base.pc_next + 8);
+    TCGv t_true = tcg_constant_tl(tmp_pc);
 
-    tcg_gen_movcond_tl(cond, jmp_pc, cpu_sr_f, t_zero, t_true, t_next);
-
-    tcg_temp_free(t_next);
-    tcg_temp_free(t_true);
-    tcg_temp_free(t_zero);
+    tcg_gen_movcond_tl(cond, jmp_pc, cpu_sr_f, dc->zero, t_true, t_next);
     dc->delayed_branch = 2;
 }
 
@@ -740,12 +731,6 @@ static bool trans_l_swa(DisasContext *dc, arg_store *a)
     ea = tcg_temp_new();
     tcg_gen_addi_tl(ea, cpu_R(dc, a->a), a->i);
 
-    /* For TB_FLAGS_R0_0, the branch below invalidates the temporary assigned
-       to cpu_regs[0].  Since l.swa is quite often immediately followed by a
-       branch, don't bother reallocating; finish the TB using the "real" R0.
-       This also takes care of RB input across the branch.  */
-    dc->R0 = cpu_regs[0];
-
     lab_fail = gen_new_label();
     lab_done = gen_new_label();
     tcg_gen_brcond_tl(TCG_COND_NE, ea, cpu_lock_addr, lab_fail);
@@ -753,7 +738,7 @@ static bool trans_l_swa(DisasContext *dc, arg_store *a)
 
     val = tcg_temp_new();
     tcg_gen_atomic_cmpxchg_tl(val, cpu_lock_addr, cpu_lock_value,
-                              cpu_regs[a->b], dc->mem_idx, MO_TEUL);
+                              cpu_R(dc, a->b), dc->mem_idx, MO_TEUL);
     tcg_gen_setcond_tl(TCG_COND_EQ, cpu_sr_f, val, cpu_lock_value);
     tcg_temp_free(val);
 
@@ -813,44 +798,28 @@ static bool trans_l_adrp(DisasContext *dc, arg_l_adrp *a)
 
 static bool trans_l_addi(DisasContext *dc, arg_rri *a)
 {
-    TCGv t0;
-
     check_r0_write(dc, a->d);
-    t0 = tcg_const_tl(a->i);
-    gen_add(dc, cpu_R(dc, a->d), cpu_R(dc, a->a), t0);
-    tcg_temp_free(t0);
+    gen_add(dc, cpu_R(dc, a->d), cpu_R(dc, a->a), tcg_constant_tl(a->i));
     return true;
 }
 
 static bool trans_l_addic(DisasContext *dc, arg_rri *a)
 {
-    TCGv t0;
-
     check_r0_write(dc, a->d);
-    t0 = tcg_const_tl(a->i);
-    gen_addc(dc, cpu_R(dc, a->d), cpu_R(dc, a->a), t0);
-    tcg_temp_free(t0);
+    gen_addc(dc, cpu_R(dc, a->d), cpu_R(dc, a->a), tcg_constant_tl(a->i));
     return true;
 }
 
 static bool trans_l_muli(DisasContext *dc, arg_rri *a)
 {
-    TCGv t0;
-
     check_r0_write(dc, a->d);
-    t0 = tcg_const_tl(a->i);
-    gen_mul(dc, cpu_R(dc, a->d), cpu_R(dc, a->a), t0);
-    tcg_temp_free(t0);
+    gen_mul(dc, cpu_R(dc, a->d), cpu_R(dc, a->a), tcg_constant_tl(a->i));
     return true;
 }
 
 static bool trans_l_maci(DisasContext *dc, arg_l_maci *a)
 {
-    TCGv t0;
-
-    t0 = tcg_const_tl(a->i);
-    gen_mac(dc, cpu_R(dc, a->a), t0);
-    tcg_temp_free(t0);
+    gen_mac(dc, cpu_R(dc, a->a), tcg_constant_tl(a->i));
     return true;
 }
 
@@ -1624,8 +1593,9 @@ static void openrisc_tr_tb_start(DisasContextBase *db, CPUState *cs)
 
     /* Allow the TCG optimizer to see that R0 == 0,
        when it's true, which is the common case.  */
+    dc->zero = tcg_constant_tl(0);
     if (dc->tb_flags & TB_FLAGS_R0_0) {
-        dc->R0 = tcg_const_tl(0);
+        dc->R0 = dc->zero;
     } else {
         dc->R0 = cpu_regs[0];
     }

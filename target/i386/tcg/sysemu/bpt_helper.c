@@ -109,9 +109,9 @@ static void hw_breakpoint_remove(CPUX86State *env, int index)
 
     case DR7_TYPE_DATA_WR:
     case DR7_TYPE_DATA_RW:
-        if (env->cpu_breakpoint[index]) {
+        if (env->cpu_watchpoint[index]) {
             cpu_watchpoint_remove_by_ref(cs, env->cpu_watchpoint[index]);
-            env->cpu_breakpoint[index] = NULL;
+            env->cpu_watchpoint[index] = NULL;
         }
         break;
 
