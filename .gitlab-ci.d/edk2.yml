@@ -1,10 +1,22 @@
-docker-edk2:
- stage: containers
- rules: # Only run this job when the Dockerfile is modified
+# All jobs needing docker-edk2 must use the same rules it uses.
+.edk2_job_rules:
+ rules: # Only run this job when ...
  - changes:
+   # this file is modified
    - .gitlab-ci.d/edk2.yml
+   # or the Dockerfile is modified
    - .gitlab-ci.d/edk2/Dockerfile
+   # or roms/edk2/ is modified (submodule updated)
+   - roms/edk2/*
    when: always
+ - if: '$CI_COMMIT_REF_NAME =~ /^edk2/' # or the branch/tag starts with 'edk2'
+   when: always
+ - if: '$CI_COMMIT_MESSAGE =~ /edk2/i' # or last commit description contains 'EDK2'
+   when: always
+
+docker-edk2:
+ extends: .edk2_job_rules
+ stage: containers
  image: docker:19.03.1
  services:
  - docker:19.03.1-dind
@@ -24,16 +36,9 @@ docker-edk2:
  - docker push $IMAGE_TAG
 
 build-edk2:
+ extends: .edk2_job_rules
  stage: build
  needs: ['docker-edk2']
- rules: # Only run this job when ...
- - changes: # ... roms/edk2/ is modified (submodule updated)
-   - roms/edk2/*
-   when: always
- - if: '$CI_COMMIT_REF_NAME =~ /^edk2/' # or the branch/tag starts with 'edk2'
-   when: always
- - if: '$CI_COMMIT_MESSAGE =~ /edk2/i' # or last commit description contains 'EDK2'
-   when: always
  artifacts:
    paths: # 'artifacts.zip' will contains the following files:
    - pc-bios/edk2*bz2
