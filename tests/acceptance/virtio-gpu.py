@@ -56,7 +56,7 @@ class VirtioGPUx86(Test):
 
     def test_virtio_vga_virgl(self):
         """
-        :avocado: tags=device:virtio-vga
+        :avocado: tags=device:virtio-vga-gl
         """
         # FIXME: should check presence of virtio, virgl etc
         self.require_accelerator('kvm')
@@ -67,7 +67,7 @@ class VirtioGPUx86(Test):
         self.vm.set_console()
         self.vm.add_args("-m", "2G")
         self.vm.add_args("-machine", "pc,accel=kvm")
-        self.vm.add_args("-device", "virtio-vga,virgl=on")
+        self.vm.add_args("-device", "virtio-vga-gl")
         self.vm.add_args("-display", "egl-headless")
         self.vm.add_args(
             "-kernel",
