@@ -31,6 +31,7 @@ class VirtioGPUx86(Test):
     """
     :avocado: tags=virtio-gpu
     :avocado: tags=arch:x86_64
+    :avocado: tags=cpu:host
     """
 
     KERNEL_COMMON_COMMAND_LINE = "printk.time=0 "
@@ -56,7 +57,6 @@ class VirtioGPUx86(Test):
     def test_virtio_vga_virgl(self):
         """
         :avocado: tags=device:virtio-vga
-        :avocado: tags=cpu:host
         """
         kernel_command_line = (
             self.KERNEL_COMMON_COMMAND_LINE + "console=ttyS0 rdinit=/bin/bash"
@@ -95,7 +95,6 @@ class VirtioGPUx86(Test):
     def test_vhost_user_vga_virgl(self):
         """
         :avocado: tags=device:vhost-user-vga
-        :avocado: tags=cpu:host
         """
         kernel_command_line = (
             self.KERNEL_COMMON_COMMAND_LINE + "console=ttyS0 rdinit=/bin/bash"
