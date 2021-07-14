@@ -40,11 +40,13 @@ class VirtioGPUx86(Test):
         "/linux/releases/33/Everything/x86_64/os/images"
         "/pxeboot/vmlinuz"
     )
+    KERNEL_HASH = '1433cfe3f2ffaa44de4ecfb57ec25dc2399cdecf'
     INITRD_URL = (
         "https://archives.fedoraproject.org/pub/fedora"
         "/linux/releases/33/Everything/x86_64/os/images"
         "/pxeboot/initrd.img"
     )
+    INITRD_HASH = 'c828d68a027b53e5220536585efe03412332c2d9'
 
     def wait_for_console_pattern(self, success_message, vm=None):
         wait_for_console_pattern(
@@ -61,8 +63,8 @@ class VirtioGPUx86(Test):
         # FIXME: should check presence of virtio, virgl etc
         self.require_accelerator('kvm')
 
-        kernel_path = self.fetch_asset(self.KERNEL_URL)
-        initrd_path = self.fetch_asset(self.INITRD_URL)
+        kernel_path = self.fetch_asset(self.KERNEL_URL, self.KERNEL_HASH)
+        initrd_path = self.fetch_asset(self.INITRD_URL, self.INITRD_HASH)
 
         self.vm.set_console()
         self.vm.add_args("-m", "2G")
@@ -100,8 +102,8 @@ class VirtioGPUx86(Test):
         if not vug:
             self.cancel("Could not find vhost-user-gpu")
 
-        kernel_path = self.fetch_asset(self.KERNEL_URL)
-        initrd_path = self.fetch_asset(self.INITRD_URL)
+        kernel_path = self.fetch_asset(self.KERNEL_URL, self.KERNEL_HASH)
+        initrd_path = self.fetch_asset(self.INITRD_URL, self.INITRD_HASH)
 
         # Create socketpair to connect proxy and remote processes
         qemu_sock, vug_sock = socket.socketpair(
