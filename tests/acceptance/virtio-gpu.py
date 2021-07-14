@@ -17,10 +17,6 @@ import socket
 import subprocess
 
 
-ACCEL_NOT_AVAILABLE_FMT = "%s accelerator does not seem to be available"
-KVM_NOT_AVAILABLE = ACCEL_NOT_AVAILABLE_FMT % "KVM"
-
-
 def pick_default_vug_bin():
     relative_path = "./contrib/vhost-user-gpu/vhost-user-gpu"
     if is_readable_executable_file(relative_path):
@@ -66,8 +62,7 @@ class VirtioGPUx86(Test):
             self.KERNEL_COMMON_COMMAND_LINE + "console=ttyS0 rdinit=/bin/bash"
         )
         # FIXME: should check presence of virtio, virgl etc
-        if not kvm_available(self.arch, self.qemu_bin):
-            self.cancel(KVM_NOT_AVAILABLE)
+        self.require_accelerator('kvm')
 
         kernel_path = self.fetch_asset(self.KERNEL_URL)
         initrd_path = self.fetch_asset(self.INITRD_URL)
@@ -107,8 +102,7 @@ class VirtioGPUx86(Test):
             self.KERNEL_COMMON_COMMAND_LINE + "console=ttyS0 rdinit=/bin/bash"
         )
         # FIXME: should check presence of vhost-user-gpu, virgl, memfd etc
-        if not kvm_available(self.arch, self.qemu_bin):
-            self.cancel(KVM_NOT_AVAILABLE)
+        self.require_accelerator('kvm')
 
         vug = pick_default_vug_bin()
         if not vug:
