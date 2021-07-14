@@ -39,6 +39,12 @@
 #define HV_ACCESS_REENLIGHTENMENTS_CONTROL  (1u << 13)
 
 /*
+ * HV_CPUID_FEATURES.EBX bits
+ */
+#define HV_POST_MESSAGES             (1u << 4)
+#define HV_SIGNAL_EVENTS             (1u << 5)
+
+/*
  * HV_CPUID_FEATURES.EDX bits
  */
 #define HV_MWAIT_AVAILABLE                      (1u << 0)

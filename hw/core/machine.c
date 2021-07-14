@@ -728,7 +728,8 @@ void machine_set_cpu_numa_node(MachineState *machine,
             if ((numa_info[props->node_id].initiator < MAX_NODES) &&
                 (props->node_id != numa_info[props->node_id].initiator)) {
                 error_setg(errp, "The initiator of CPU NUMA node %" PRId64
-                        " should be itself", props->node_id);
+                           " should be itself (got %" PRIu16 ")",
+                           props->node_id, numa_info[props->node_id].initiator);
                 return;
             }
             numa_info[props->node_id].has_cpu = true;

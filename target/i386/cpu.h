@@ -1748,6 +1748,9 @@ struct X86CPU {
     /* Enable auto level-increase for all CPUID leaves */
     bool full_cpuid_auto_level;
 
+    /* Only advertise CPUID leaves defined by the vendor */
+    bool vendor_cpuid_only;
+
     /* Enable auto level-increase for Intel Processor Trace leave */
     bool intel_pt_auto_level;
 
