@@ -34,7 +34,7 @@ class VirtioGPUx86(Test):
     :avocado: tags=cpu:host
     """
 
-    KERNEL_COMMON_COMMAND_LINE = "printk.time=0 "
+    KERNEL_COMMAND_LINE = "printk.time=0 console=ttyS0 rdinit=/bin/bash"
     KERNEL_URL = (
         "https://archives.fedoraproject.org/pub/fedora"
         "/linux/releases/33/Everything/x86_64/os/images"
@@ -58,9 +58,6 @@ class VirtioGPUx86(Test):
         """
         :avocado: tags=device:virtio-vga
         """
-        kernel_command_line = (
-            self.KERNEL_COMMON_COMMAND_LINE + "console=ttyS0 rdinit=/bin/bash"
-        )
         # FIXME: should check presence of virtio, virgl etc
         self.require_accelerator('kvm')
 
@@ -78,7 +75,7 @@ class VirtioGPUx86(Test):
             "-initrd",
             initrd_path,
             "-append",
-            kernel_command_line,
+            self.KERNEL_COMMAND_LINE,
         )
         try:
             self.vm.launch()
@@ -96,9 +93,6 @@ class VirtioGPUx86(Test):
         """
         :avocado: tags=device:vhost-user-vga
         """
-        kernel_command_line = (
-            self.KERNEL_COMMON_COMMAND_LINE + "console=ttyS0 rdinit=/bin/bash"
-        )
         # FIXME: should check presence of vhost-user-gpu, virgl, memfd etc
         self.require_accelerator('kvm')
 
@@ -145,7 +139,7 @@ class VirtioGPUx86(Test):
             "-initrd",
             initrd_path,
             "-append",
-            kernel_command_line,
+            self.KERNEL_COMMAND_LINE,
         )
         self.vm.launch()
         self.wait_for_console_pattern("as init process")
