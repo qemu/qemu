@@ -65,6 +65,28 @@ if config_host.has_key('CONFIG_OPENGL') and gbm.found()
   ui_modules += {'egl-headless' : egl_headless_ss}
 endif
 
+if dbus_display
+  dbus_ss = ss.source_set()
+  dbus_display1 = custom_target('dbus-display gdbus-codegen',
+                                output: ['dbus-display1.h', 'dbus-display1.c'],
+                                input: files('dbus-display1.xml'),
+                                command: [config_host['GDBUS_CODEGEN'],
+                                          '@INPUT@',
+                                          '--glib-min-required', '2.64',
+                                          '--output-directory', meson.current_build_dir(),
+                                          '--interface-prefix', 'org.qemu.',
+                                          '--c-namespace', 'QemuDBus',
+                                          '--generate-c-code', '@BASENAME@'])
+  dbus_ss.add(when: [gio, pixman, opengl, 'CONFIG_GIO'],
+              if_true: [files(
+                'dbus-console.c',
+                'dbus-error.c',
+                'dbus-listener.c',
+                'dbus.c',
+              ), dbus_display1])
+  ui_modules += {'dbus' : dbus_ss}
+endif
+
 if gtk.found()
   softmmu_ss.add(when: 'CONFIG_WIN32', if_true: files('win32-kbd-hook.c'))
 

@@ -1,0 +1,378 @@
+<?xml version="1.0" encoding="utf-8"?>
+<node>
+  <!--
+      org.qemu.Display1.VM:
+
+      This interface is implemented on ``/org/qemu/Display1/VM``.
+  -->
+  <interface name="org.qemu.Display1.VM">
+    <!--
+        Name:
+
+        The name of the VM.
+    -->
+    <property name="Name" type="s" access="read"/>
+
+    <!--
+        UUID:
+
+        The UUID of the VM.
+    -->
+    <property name="UUID" type="s" access="read"/>
+
+    <!--
+        ConsoleIDs:
+
+        The list of consoles available on ``/org/qemu/Display1/Console_$id``.
+    -->
+    <property name="ConsoleIDs" type="au" access="read"/>
+  </interface>
+
+  <!--
+      org.qemu.Display1.Console:
+
+      This interface is implemented on ``/org/qemu/Display1/Console_$id``. You
+      may discover available consoles through introspection or with the
+      :dbus:prop:`org.qemu.Display1.VM.ConsoleIDs` property.
+
+      A console is attached to a video device head. It may be "Graphic" or
+      "Text" (see :dbus:prop:`Type` and other properties).
+
+      Interactions with a console may be done with
+      :dbus:iface:`org.qemu.Display1.Keyboard` and
+      :dbus:iface:`org.qemu.Display1.Mouse` interfaces when available.
+  -->
+  <interface name="org.qemu.Display1.Console">
+    <!--
+        RegisterListener:
+        @listener: a Unix socket FD, for peer-to-peer D-Bus communication.
+
+        Register a console listener, which will receive display updates, until
+        it is disconnected.
+
+        Multiple listeners may be registered simultaneously.
+
+        The listener is expected to implement the
+        :dbus:iface:`org.qemu.Display1.Listener` interface.
+    -->
+    <method name="RegisterListener">
+      <arg type="h" name="listener" direction="in"/>
+    </method>
+
+    <!--
+        SetUIInfo:
+        @width_mm: the physical display width in millimeters.
+        @height_mm: the physical display height in millimeters.
+        @xoff: horizontal offset, in pixels.
+        @yoff: vertical offset, in pixels.
+        @width: console width, in pixels.
+        @height: console height, in pixels.
+
+        Modify the dimensions and display settings.
+    -->
+    <method name="SetUIInfo">
+      <arg name="width_mm" type="q" direction="in"/>
+      <arg name="height_mm" type="q" direction="in"/>
+      <arg name="xoff" type="i" direction="in"/>
+      <arg name="yoff" type="i" direction="in"/>
+      <arg name="width" type="u" direction="in"/>
+      <arg name="height" type="u" direction="in"/>
+    </method>
+
+    <!--
+        Label:
+
+        A user-friendly name for the console (for ex: "VGA").
+    -->
+    <property name="Label" type="s" access="read"/>
+
+    <!--
+        Head:
+
+        Graphical device head number.
+    -->
+    <property name="Head" type="u" access="read"/>
+
+    <!--
+        Type:
+
+        Console type ("Graphic" or "Text").
+    -->
+    <property name="Type" type="s" access="read"/>
+
+    <!--
+        Width:
+
+        Console width, in pixels.
+    -->
+    <property name="Width" type="u" access="read"/>
+
+    <!--
+        Height:
+
+        Console height, in pixels.
+    -->
+    <property name="Height" type="u" access="read"/>
+
+    <!--
+        DeviceAddress:
+
+        The device address (ex: "pci/0000/02.0").
+    -->
+    <property name="DeviceAddress" type="s" access="read"/>
+  </interface>
+
+  <!--
+      org.qemu.Display1.Keyboard:
+
+      This interface in implemented on ``/org/qemu/Display1/Console_$id`` (see
+      :dbus:iface:`~org.qemu.Display1.Console`).
+  -->
+  <interface name="org.qemu.Display1.Keyboard">
+    <!--
+        Press:
+        @keycode: QEMU key number (xtkbd + special re-encoding of high bit)
+
+        Send a key press event.
+    -->
+    <method name="Press">
+      <arg type="u" name="keycode" direction="in"/>
+    </method>
+
+    <!--
+        Release:
+        @keycode: QEMU key number (xtkbd + special re-encoding of high bit)
+
+        Send a key release event.
+    -->
+    <method name="Release">
+      <arg type="u" name="keycode" direction="in"/>
+    </method>
+
+    <!--
+        Modifiers:
+
+        The active keyboard modifiers::
+
+          Scroll = 1 << 0
+          Num    = 1 << 1
+          Caps   = 1 << 2
+    -->
+    <property name="Modifiers" type="u" access="read"/>
+  </interface>
+
+  <!--
+      org.qemu.Display1.Mouse:
+
+      This interface in implemented on ``/org/qemu/Display1/Console_$id`` (see
+      :dbus:iface:`~org.qemu.Display1.Console` documentation).
+
+      .. _dbus-button-values:
+
+      **Button values**::
+
+        Left       = 0
+        Middle     = 1
+        Right      = 2
+        Wheel-up   = 3
+        Wheel-down = 4
+        Side       = 5
+        Extra      = 6
+  -->
+  <interface name="org.qemu.Display1.Mouse">
+    <!--
+        Press:
+        @button: :ref:`button value<dbus-button-values>`.
+
+        Send a mouse button press event.
+    -->
+    <method name="Press">
+      <arg type="u" name="button" direction="in"/>
+    </method>
+
+    <!--
+        Release:
+        @button: :ref:`button value<dbus-button-values>`.
+
+        Send a mouse button release event.
+    -->
+    <method name="Release">
+      <arg type="u" name="button" direction="in"/>
+    </method>
+
+    <!--
+        SetAbsPosition:
+        @x: X position, in pixels.
+        @y: Y position, in pixels.
+
+        Set the mouse pointer position.
+
+        Returns an error if not :dbus:prop:`IsAbsolute`.
+    -->
+    <method name="SetAbsPosition">
+      <arg type="u" name="x" direction="in"/>
+      <arg type="u" name="y" direction="in"/>
+    </method>
+
+    <!--
+        RelMotion:
+        @dx: X-delta, in pixels.
+        @dy: Y-delta, in pixels.
+
+        Move the mouse pointer position, relative to the current position.
+
+        Returns an error if :dbus:prop:`IsAbsolute`.
+    -->
+    <method name="RelMotion">
+      <arg type="i" name="dx" direction="in"/>
+      <arg type="i" name="dy" direction="in"/>
+    </method>
+
+    <!--
+        IsAbsolute:
+
+        Whether the mouse is using absolute movements.
+    -->
+    <property name="IsAbsolute" type="b" access="read"/>
+  </interface>
+
+  <!--
+      org.qemu.Display1.Listener:
+
+      This client-side interface must be available on
+      ``/org/qemu/Display1/Listener`` when registering the peer-to-peer
+      connection with :dbus:meth:`~org.qemu.Display1.Console.Register`.
+  -->
+  <interface name="org.qemu.Display1.Listener">
+    <!--
+        Scanout:
+        @width: display width, in pixels.
+        @height: display height, in pixels.
+        @stride: data stride, in bytes.
+        @pixman_format: image format (ex: ``PIXMAN_X8R8G8B8``).
+        @data: image data.
+
+        Resize and update the display content.
+
+        The data to transfer for the display update may be large. The preferred
+        scanout method is :dbus:meth:`ScanoutDMABUF`, used whenever possible.
+    -->
+    <method name="Scanout">
+      <arg type="u" name="width" direction="in"/>
+      <arg type="u" name="height" direction="in"/>
+      <arg type="u" name="stride" direction="in"/>
+      <arg type="u" name="pixman_format" direction="in"/>
+      <arg type="ay" name="data" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+
+    <!--
+        Update:
+        @x: X update position, in pixels.
+        @y: Y update position, in pixels.
+        @width: update width, in pixels.
+        @height: update height, in pixels.
+        @stride: data stride, in bytes.
+        @pixman_format: image format (ex: ``PIXMAN_X8R8G8B8``).
+        @data: display image data.
+
+        Update the display content.
+
+        This method is only called after a :dbus:meth:`Scanout` call.
+    -->
+    <method name="Update">
+      <arg type="i" name="x" direction="in"/>
+      <arg type="i" name="y" direction="in"/>
+      <arg type="i" name="width" direction="in"/>
+      <arg type="i" name="height" direction="in"/>
+      <arg type="u" name="stride" direction="in"/>
+      <arg type="u" name="pixman_format" direction="in"/>
+      <arg type="ay" name="data" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+
+    <!--
+        ScanoutDMABUF:
+        @dmabuf: the DMABUF file descriptor.
+        @width: display width, in pixels.
+        @height: display height, in pixels.
+        @stride: stride, in bytes.
+        @fourcc: DMABUF fourcc.
+        @modifier: DMABUF modifier.
+        @y0_top: whether Y position 0 is the top or not.
+
+        Resize and update the display content with a DMABUF.
+    -->
+    <method name="ScanoutDMABUF">
+      <arg type="h" name="dmabuf" direction="in"/>
+      <arg type="u" name="width" direction="in"/>
+      <arg type="u" name="height" direction="in"/>
+      <arg type="u" name="stride" direction="in"/>
+      <arg type="u" name="fourcc" direction="in"/>
+      <!-- xywh? -->
+      <arg type="t" name="modifier" direction="in"/>
+      <arg type="b" name="y0_top" direction="in"/>
+    </method>
+
+    <!--
+        UpdateDMABUF:
+        @x: the X update position, in pixels.
+        @y: the Y update position, in pixels.
+        @width: the update width, in pixels.
+        @height: the update height, in pixels.
+
+        Update the display content with the current DMABUF and the given region.
+    -->
+    <method name="UpdateDMABUF">
+      <arg type="i" name="x" direction="in"/>
+      <arg type="i" name="y" direction="in"/>
+      <arg type="i" name="width" direction="in"/>
+      <arg type="i" name="height" direction="in"/>
+    </method>
+
+    <!--
+        Disable:
+
+        Disable the display (turn it off).
+    -->
+    <method name="Disable">
+    </method>
+
+    <!--
+        MouseSet:
+        @x: X mouse position, in pixels.
+        @y: Y mouse position, in pixels.
+        @on: whether the mouse is visible or not.
+
+        Set the mouse position and visibility.
+    -->
+    <method name="MouseSet">
+      <arg type="i" name="x" direction="in"/>
+      <arg type="i" name="y" direction="in"/>
+      <arg type="i" name="on" direction="in"/>
+    </method>
+
+    <!--
+        CursorDefine:
+        @width: cursor width, in pixels.
+        @height: cursor height, in pixels.
+        @hot_x: hot-spot X position, in pixels.
+        @hot_y: hot-spot Y position, in pixels.
+        @data: the cursor data.
+
+        Set the mouse cursor shape and hot-spot. The "data" must be ARGB, 32-bit
+        per pixel.
+    -->
+    <method name="CursorDefine">
+      <arg type="i" name="width" direction="in"/>
+      <arg type="i" name="height" direction="in"/>
+      <arg type="i" name="hot_x" direction="in"/>
+      <arg type="i" name="hot_y" direction="in"/>
+      <arg type="ay" name="data" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+  </interface>
+</node>
