@@ -37,6 +37,8 @@ signals: LDFLAGS+=-lrt -lpthread
 run-signals: signals
 	$(call skip-test, $<, "BROKEN awaiting sigframe clean-ups and vdso support")
 
+run-plugin-signals-with-%:
+	$(call skip-test, $<, "BROKEN awaiting sigframe clean-ups and vdso support")
 
 # We define the runner for test-mmap after the individual
 # architectures have defined their supported pages sizes. If no
