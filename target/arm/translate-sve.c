@@ -70,11 +70,6 @@ static int tszimm_shl(DisasContext *s, int x)
     return x - (8 << tszimm_esz(s, x));
 }
 
-static inline int plus1(DisasContext *s, int x)
-{
-    return x + 1;
-}
-
 /* The SH bit is in bit 8.  Extract the low 8 and shift.  */
 static inline int expand_imm_sh8s(DisasContext *s, int x)
 {

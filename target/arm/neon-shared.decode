@@ -38,7 +38,7 @@
 # which is 0 for fp16 and 1 for fp32 into a MO_* constant.
 # (Note that this is the reverse of the sense of the 1-bit size
 # field in the 3same_fp Neon insns.)
-%vcadd_size    20:1 !function=plus1
+%vcadd_size    20:1 !function=plus_1
 
 VCMLA          1111 110 rot:2 . 1 . .... .... 1000 . q:1 . 0 .... \
                vm=%vm_dp vn=%vn_dp vd=%vd_dp size=%vcadd_size
