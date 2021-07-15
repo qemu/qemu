@@ -5,7 +5,6 @@ crypto_ss.add(files(
   'block-qcow.c',
   'block.c',
   'cipher.c',
-  'desrfb.c',
   'hash.c',
   'hmac.c',
   'ivgen-essiv.c',
@@ -24,13 +23,15 @@ crypto_ss.add(files(
 
 if nettle.found()
   crypto_ss.add(nettle, files('hash-nettle.c', 'hmac-nettle.c', 'pbkdf-nettle.c'))
+  if xts == 'private'
+    crypto_ss.add(files('xts.c'))
+  endif
 elif gcrypt.found()
   crypto_ss.add(gcrypt, files('hash-gcrypt.c', 'hmac-gcrypt.c', 'pbkdf-gcrypt.c'))
+elif gnutls_crypto.found()
+  crypto_ss.add(gnutls, files('hash-gnutls.c', 'hmac-gnutls.c', 'pbkdf-gnutls.c'))
 else
   crypto_ss.add(files('hash-glib.c', 'hmac-glib.c', 'pbkdf-stub.c'))
-endif
-if xts == 'private'
-  crypto_ss.add(files('xts.c'))
 endif
 
 crypto_ss.add(when: 'CONFIG_SECRET_KEYRING', if_true: files('secret_keyring.c'))
@@ -39,6 +40,9 @@ crypto_ss.add(when: gnutls, if_true: files('tls-cipher-suites.c'))
 
 util_ss.add(files('aes.c'))
 util_ss.add(files('init.c'))
+if gnutls.found()
+  util_ss.add(gnutls)
+endif
 
 if gcrypt.found()
   util_ss.add(gcrypt, files('random-gcrypt.c'))

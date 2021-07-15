@@ -235,11 +235,11 @@ static const struct QCryptoCipherDriver NAME##_driver_xts = {   \
     DEFINE_XTS(NAME, TYPE, BLEN, ENCRYPT, DECRYPT)
 
 
-typedef struct QCryptoNettleDESRFB {
+typedef struct QCryptoNettleDES {
     QCryptoCipher base;
     struct des_ctx key;
     uint8_t iv[DES_BLOCK_SIZE];
-} QCryptoNettleDESRFB;
+} QCryptoNettleDES;
 
 static void des_encrypt_native(const void *ctx, size_t length,
                                uint8_t *dst, const uint8_t *src)
@@ -253,7 +253,7 @@ static void des_decrypt_native(const void *ctx, size_t length,
     des_decrypt(ctx, length, dst, src);
 }
 
-DEFINE_ECB_CBC_CTR(qcrypto_nettle_des_rfb, QCryptoNettleDESRFB,
+DEFINE_ECB_CBC_CTR(qcrypto_nettle_des, QCryptoNettleDES,
                    DES_BLOCK_SIZE, des_encrypt_native, des_decrypt_native)
 
 
@@ -431,7 +431,7 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
                              QCryptoCipherMode mode)
 {
     switch (alg) {
-    case QCRYPTO_CIPHER_ALG_DES_RFB:
+    case QCRYPTO_CIPHER_ALG_DES:
     case QCRYPTO_CIPHER_ALG_3DES:
     case QCRYPTO_CIPHER_ALG_AES_128:
     case QCRYPTO_CIPHER_ALG_AES_192:
@@ -480,32 +480,28 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
     }
 
     switch (alg) {
-    case QCRYPTO_CIPHER_ALG_DES_RFB:
+    case QCRYPTO_CIPHER_ALG_DES:
         {
-            QCryptoNettleDESRFB *ctx;
+            QCryptoNettleDES *ctx;
             const QCryptoCipherDriver *drv;
-            uint8_t *rfbkey;
 
             switch (mode) {
             case QCRYPTO_CIPHER_MODE_ECB:
-                drv = &qcrypto_nettle_des_rfb_driver_ecb;
+                drv = &qcrypto_nettle_des_driver_ecb;
                 break;
             case QCRYPTO_CIPHER_MODE_CBC:
-                drv = &qcrypto_nettle_des_rfb_driver_cbc;
+                drv = &qcrypto_nettle_des_driver_cbc;
                 break;
             case QCRYPTO_CIPHER_MODE_CTR:
-                drv = &qcrypto_nettle_des_rfb_driver_ctr;
+                drv = &qcrypto_nettle_des_driver_ctr;
                 break;
             default:
                 goto bad_cipher_mode;
             }
 
-            ctx = g_new0(QCryptoNettleDESRFB, 1);
+            ctx = g_new0(QCryptoNettleDES, 1);
             ctx->base.driver = drv;
-
-            rfbkey = qcrypto_cipher_munge_des_rfb_key(key, nkey);
-            des_set_key(&ctx->key, rfbkey);
-            g_free(rfbkey);
+            des_set_key(&ctx->key, key);
 
             return &ctx->base;
         }

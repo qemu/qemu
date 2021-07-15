@@ -136,8 +136,15 @@ struct QCryptoIVGenTestData {
 static void test_ivgen(const void *opaque)
 {
     const struct QCryptoIVGenTestData *data = opaque;
-    uint8_t *iv = g_new0(uint8_t, data->niv);
-    QCryptoIVGen *ivgen = qcrypto_ivgen_new(
+    g_autofree uint8_t *iv = g_new0(uint8_t, data->niv);
+    g_autoptr(QCryptoIVGen) ivgen = NULL;
+
+    if (!qcrypto_cipher_supports(data->cipheralg,
+                                 QCRYPTO_CIPHER_MODE_ECB)) {
+        return;
+    }
+
+    ivgen = qcrypto_ivgen_new(
         data->ivalg,
         data->cipheralg,
         data->hashalg,
@@ -152,9 +159,6 @@ static void test_ivgen(const void *opaque)
                             &error_abort);
 
     g_assert(memcmp(iv, data->iv, data->niv) == 0);
-
-    qcrypto_ivgen_free(ivgen);
-    g_free(iv);
 }
 
 int main(int argc, char **argv)

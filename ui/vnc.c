@@ -2733,6 +2733,19 @@ static void authentication_failed(VncState *vs)
     vnc_client_error(vs);
 }
 
+static void
+vnc_munge_des_rfb_key(unsigned char *key, size_t nkey)
+{
+    size_t i;
+    for (i = 0; i < nkey; i++) {
+        uint8_t r = key[i];
+        r = (r & 0xf0) >> 4 | (r & 0x0f) << 4;
+        r = (r & 0xcc) >> 2 | (r & 0x33) << 2;
+        r = (r & 0xaa) >> 1 | (r & 0x55) << 1;
+        key[i] = r;
+    }
+}
+
 static int protocol_client_auth_vnc(VncState *vs, uint8_t *data, size_t len)
 {
     unsigned char response[VNC_AUTH_CHALLENGE_SIZE];
@@ -2757,9 +2770,10 @@ static int protocol_client_auth_vnc(VncState *vs, uint8_t *data, size_t len)
     pwlen = strlen(vs->vd->password);
     for (i=0; i<sizeof(key); i++)
         key[i] = i<pwlen ? vs->vd->password[i] : 0;
+    vnc_munge_des_rfb_key(key, sizeof(key));
 
     cipher = qcrypto_cipher_new(
-        QCRYPTO_CIPHER_ALG_DES_RFB,
+        QCRYPTO_CIPHER_ALG_DES,
         QCRYPTO_CIPHER_MODE_ECB,
         key, G_N_ELEMENTS(key),
         &err);
@@ -4045,9 +4059,9 @@ void vnc_display_open(const char *id, Error **errp)
             goto fail;
         }
         if (!qcrypto_cipher_supports(
-                QCRYPTO_CIPHER_ALG_DES_RFB, QCRYPTO_CIPHER_MODE_ECB)) {
+                QCRYPTO_CIPHER_ALG_DES, QCRYPTO_CIPHER_MODE_ECB)) {
             error_setg(errp,
-                       "Cipher backend does not support DES RFB algorithm");
+                       "Cipher backend does not support DES algorithm");
             goto fail;
         }
     }

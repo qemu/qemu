@@ -423,7 +423,7 @@ class Engine(object):
             progress_history = ret[0]
             qemu_timings = ret[1]
             vcpu_timings = ret[2]
-            if uri[0:5] == "unix:":
+            if uri[0:5] == "unix:" and os.path.exists(uri[5:]):
                 os.remove(uri[5:])
 
             if os.path.exists(srcmonaddr):

@@ -229,10 +229,8 @@ static QCryptoPbkdfTestData test_data[] = {
     },
 
     /* non-RFC misc test data */
-#ifdef CONFIG_NETTLE
     {
-        /* empty password test.
-         * Broken with libgcrypt <= 1.5.0, hence CONFIG_NETTLE */
+        /* empty password test. */
         .path = "/crypto/pbkdf/nonrfc/sha1/iter2",
         .hash = QCRYPTO_HASH_ALG_SHA1,
         .iterations = 2,
@@ -244,7 +242,6 @@ static QCryptoPbkdfTestData test_data[] = {
                "\xbf\x03\xe1\x1c\x71\xca\x79\x4e\x07\x97",
         .nout = 20
     },
-#endif
     {
         /* Password exceeds block size test */
         .path = "/crypto/pbkdf/nonrfc/sha256/iter1200",

@@ -18,17 +18,13 @@
  *
  */
 
-#ifdef CONFIG_QEMU_PRIVATE_XTS
-#include "crypto/xts.h"
-#endif
-
 #include <gcrypt.h>
 
 bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
                              QCryptoCipherMode mode)
 {
     switch (alg) {
-    case QCRYPTO_CIPHER_ALG_DES_RFB:
+    case QCRYPTO_CIPHER_ALG_DES:
     case QCRYPTO_CIPHER_ALG_3DES:
     case QCRYPTO_CIPHER_ALG_AES_128:
     case QCRYPTO_CIPHER_ALG_AES_192:
@@ -59,10 +55,6 @@ typedef struct QCryptoCipherGcrypt {
     QCryptoCipher base;
     gcry_cipher_hd_t handle;
     size_t blocksize;
-#ifdef CONFIG_QEMU_PRIVATE_XTS
-    gcry_cipher_hd_t tweakhandle;
-    uint8_t iv[XTS_BLOCK_SIZE];
-#endif
 } QCryptoCipherGcrypt;
 
 
@@ -178,90 +170,6 @@ static const struct QCryptoCipherDriver qcrypto_gcrypt_ctr_driver = {
     .cipher_free = qcrypto_gcrypt_ctx_free,
 };
 
-#ifdef CONFIG_QEMU_PRIVATE_XTS
-static void qcrypto_gcrypt_xts_ctx_free(QCryptoCipher *cipher)
-{
-    QCryptoCipherGcrypt *ctx = container_of(cipher, QCryptoCipherGcrypt, base);
-
-    gcry_cipher_close(ctx->tweakhandle);
-    qcrypto_gcrypt_ctx_free(cipher);
-}
-
-static void qcrypto_gcrypt_xts_wrape(const void *ctx, size_t length,
-                                     uint8_t *dst, const uint8_t *src)
-{
-    gcry_error_t err;
-    err = gcry_cipher_encrypt((gcry_cipher_hd_t)ctx, dst, length, src, length);
-    g_assert(err == 0);
-}
-
-static void qcrypto_gcrypt_xts_wrapd(const void *ctx, size_t length,
-                                     uint8_t *dst, const uint8_t *src)
-{
-    gcry_error_t err;
-    err = gcry_cipher_decrypt((gcry_cipher_hd_t)ctx, dst, length, src, length);
-    g_assert(err == 0);
-}
-
-static int qcrypto_gcrypt_xts_encrypt(QCryptoCipher *cipher, const void *in,
-                                      void *out, size_t len, Error **errp)
-{
-    QCryptoCipherGcrypt *ctx = container_of(cipher, QCryptoCipherGcrypt, base);
-
-    if (len & (ctx->blocksize - 1)) {
-        error_setg(errp, "Length %zu must be a multiple of block size %zu",
-                   len, ctx->blocksize);
-        return -1;
-    }
-
-    xts_encrypt(ctx->handle, ctx->tweakhandle,
-                qcrypto_gcrypt_xts_wrape, qcrypto_gcrypt_xts_wrapd,
-                ctx->iv, len, out, in);
-    return 0;
-}
-
-static int qcrypto_gcrypt_xts_decrypt(QCryptoCipher *cipher, const void *in,
-                                      void *out, size_t len, Error **errp)
-{
-    QCryptoCipherGcrypt *ctx = container_of(cipher, QCryptoCipherGcrypt, base);
-
-    if (len & (ctx->blocksize - 1)) {
-        error_setg(errp, "Length %zu must be a multiple of block size %zu",
-                   len, ctx->blocksize);
-        return -1;
-    }
-
-    xts_decrypt(ctx->handle, ctx->tweakhandle,
-                qcrypto_gcrypt_xts_wrape, qcrypto_gcrypt_xts_wrapd,
-                ctx->iv, len, out, in);
-    return 0;
-}
-
-static int qcrypto_gcrypt_xts_setiv(QCryptoCipher *cipher,
-                                    const uint8_t *iv, size_t niv,
-                                    Error **errp)
-{
-    QCryptoCipherGcrypt *ctx = container_of(cipher, QCryptoCipherGcrypt, base);
-
-    if (niv != ctx->blocksize) {
-        error_setg(errp, "Expected IV size %zu not %zu",
-                   ctx->blocksize, niv);
-        return -1;
-    }
-
-    memcpy(ctx->iv, iv, niv);
-    return 0;
-}
-
-static const struct QCryptoCipherDriver qcrypto_gcrypt_xts_driver = {
-    .cipher_encrypt = qcrypto_gcrypt_xts_encrypt,
-    .cipher_decrypt = qcrypto_gcrypt_xts_decrypt,
-    .cipher_setiv = qcrypto_gcrypt_xts_setiv,
-    .cipher_free = qcrypto_gcrypt_xts_ctx_free,
-};
-#endif /* CONFIG_QEMU_PRIVATE_XTS */
-
-
 static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
                                              QCryptoCipherMode mode,
                                              const uint8_t *key,
@@ -278,7 +186,7 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
     }
 
     switch (alg) {
-    case QCRYPTO_CIPHER_ALG_DES_RFB:
+    case QCRYPTO_CIPHER_ALG_DES:
         gcryalg = GCRY_CIPHER_DES;
         break;
     case QCRYPTO_CIPHER_ALG_3DES:
@@ -323,12 +231,7 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
         gcrymode = GCRY_CIPHER_MODE_ECB;
         break;
     case QCRYPTO_CIPHER_MODE_XTS:
-#ifdef CONFIG_QEMU_PRIVATE_XTS
-        drv = &qcrypto_gcrypt_xts_driver;
-        gcrymode = GCRY_CIPHER_MODE_ECB;
-#else
         gcrymode = GCRY_CIPHER_MODE_XTS;
-#endif
         break;
     case QCRYPTO_CIPHER_MODE_CBC:
         gcrymode = GCRY_CIPHER_MODE_CBC;
@@ -354,44 +257,7 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
     }
     ctx->blocksize = gcry_cipher_get_algo_blklen(gcryalg);
 
-#ifdef CONFIG_QEMU_PRIVATE_XTS
-    if (mode == QCRYPTO_CIPHER_MODE_XTS) {
-        if (ctx->blocksize != XTS_BLOCK_SIZE) {
-            error_setg(errp,
-                       "Cipher block size %zu must equal XTS block size %d",
-		       ctx->blocksize, XTS_BLOCK_SIZE);
-            goto error;
-        }
-        err = gcry_cipher_open(&ctx->tweakhandle, gcryalg, gcrymode, 0);
-        if (err != 0) {
-            error_setg(errp, "Cannot initialize cipher: %s",
-                       gcry_strerror(err));
-            goto error;
-        }
-    }
-#endif
-
-    if (alg == QCRYPTO_CIPHER_ALG_DES_RFB) {
-        /* We're using standard DES cipher from gcrypt, so we need
-         * to munge the key so that the results are the same as the
-         * bizarre RFB variant of DES :-)
-         */
-        uint8_t *rfbkey = qcrypto_cipher_munge_des_rfb_key(key, nkey);
-        err = gcry_cipher_setkey(ctx->handle, rfbkey, nkey);
-        g_free(rfbkey);
-    } else {
-#ifdef CONFIG_QEMU_PRIVATE_XTS
-        if (mode == QCRYPTO_CIPHER_MODE_XTS) {
-            nkey /= 2;
-            err = gcry_cipher_setkey(ctx->tweakhandle, key + nkey, nkey);
-            if (err != 0) {
-                error_setg(errp, "Cannot set key: %s", gcry_strerror(err));
-                goto error;
-            }
-        }
-#endif
-        err = gcry_cipher_setkey(ctx->handle, key, nkey);
-    }
+    err = gcry_cipher_setkey(ctx->handle, key, nkey);
     if (err != 0) {
         error_setg(errp, "Cannot set key: %s", gcry_strerror(err));
         goto error;
@@ -400,9 +266,6 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
     return &ctx->base;
 
  error:
-#ifdef CONFIG_QEMU_PRIVATE_XTS
-    gcry_cipher_close(ctx->tweakhandle);
-#endif
     gcry_cipher_close(ctx->handle);
     g_free(ctx);
     return NULL;

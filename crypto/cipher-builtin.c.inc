@@ -19,8 +19,6 @@
  */
 
 #include "crypto/aes.h"
-#include "crypto/desrfb.h"
-#include "crypto/xts.h"
 
 typedef struct QCryptoCipherBuiltinAESContext QCryptoCipherBuiltinAESContext;
 struct QCryptoCipherBuiltinAESContext {
@@ -32,7 +30,6 @@ typedef struct QCryptoCipherBuiltinAES QCryptoCipherBuiltinAES;
 struct QCryptoCipherBuiltinAES {
     QCryptoCipher base;
     QCryptoCipherBuiltinAESContext key;
-    QCryptoCipherBuiltinAESContext key_tweak;
     uint8_t iv[AES_BLOCK_SIZE];
 };
 
@@ -194,39 +191,6 @@ static int qcrypto_cipher_aes_decrypt_cbc(QCryptoCipher *cipher,
     return 0;
 }
 
-static int qcrypto_cipher_aes_encrypt_xts(QCryptoCipher *cipher,
-                                          const void *in, void *out,
-                                          size_t len, Error **errp)
-{
-    QCryptoCipherBuiltinAES *ctx
-        = container_of(cipher, QCryptoCipherBuiltinAES, base);
-
-    if (!qcrypto_length_check(len, AES_BLOCK_SIZE, errp)) {
-        return -1;
-    }
-    xts_encrypt(&ctx->key, &ctx->key_tweak,
-                do_aes_encrypt_ecb, do_aes_decrypt_ecb,
-                ctx->iv, len, out, in);
-    return 0;
-}
-
-static int qcrypto_cipher_aes_decrypt_xts(QCryptoCipher *cipher,
-                                          const void *in, void *out,
-                                          size_t len, Error **errp)
-{
-    QCryptoCipherBuiltinAES *ctx
-        = container_of(cipher, QCryptoCipherBuiltinAES, base);
-
-    if (!qcrypto_length_check(len, AES_BLOCK_SIZE, errp)) {
-        return -1;
-    }
-    xts_decrypt(&ctx->key, &ctx->key_tweak,
-                do_aes_encrypt_ecb, do_aes_decrypt_ecb,
-                ctx->iv, len, out, in);
-    return 0;
-}
-
-
 static int qcrypto_cipher_aes_setiv(QCryptoCipher *cipher, const uint8_t *iv,
                              size_t niv, Error **errp)
 {
@@ -257,84 +221,16 @@ static const struct QCryptoCipherDriver qcrypto_cipher_aes_driver_cbc = {
     .cipher_free = qcrypto_cipher_ctx_free,
 };
 
-static const struct QCryptoCipherDriver qcrypto_cipher_aes_driver_xts = {
-    .cipher_encrypt = qcrypto_cipher_aes_encrypt_xts,
-    .cipher_decrypt = qcrypto_cipher_aes_decrypt_xts,
-    .cipher_setiv = qcrypto_cipher_aes_setiv,
-    .cipher_free = qcrypto_cipher_ctx_free,
-};
-
-
-typedef struct QCryptoCipherBuiltinDESRFB QCryptoCipherBuiltinDESRFB;
-struct QCryptoCipherBuiltinDESRFB {
-    QCryptoCipher base;
-
-    /* C.f. alg_key_len[QCRYPTO_CIPHER_ALG_DES_RFB] */
-    uint8_t key[8];
-};
-
-static int qcrypto_cipher_encrypt_des_rfb(QCryptoCipher *cipher,
-                                          const void *in, void *out,
-                                          size_t len, Error **errp)
-{
-    QCryptoCipherBuiltinDESRFB *ctx
-        = container_of(cipher, QCryptoCipherBuiltinDESRFB, base);
-    size_t i;
-
-    if (!qcrypto_length_check(len, 8, errp)) {
-        return -1;
-    }
-
-    deskey(ctx->key, EN0);
-
-    for (i = 0; i < len; i += 8) {
-        des((void *)in + i, out + i);
-    }
-
-    return 0;
-}
-
-static int qcrypto_cipher_decrypt_des_rfb(QCryptoCipher *cipher,
-                                          const void *in, void *out,
-                                          size_t len, Error **errp)
-{
-    QCryptoCipherBuiltinDESRFB *ctx
-        = container_of(cipher, QCryptoCipherBuiltinDESRFB, base);
-    size_t i;
-
-    if (!qcrypto_length_check(len, 8, errp)) {
-        return -1;
-    }
-
-    deskey(ctx->key, DE1);
-
-    for (i = 0; i < len; i += 8) {
-        des((void *)in + i, out + i);
-    }
-
-    return 0;
-}
-
-static const struct QCryptoCipherDriver qcrypto_cipher_des_rfb_driver = {
-    .cipher_encrypt = qcrypto_cipher_encrypt_des_rfb,
-    .cipher_decrypt = qcrypto_cipher_decrypt_des_rfb,
-    .cipher_setiv = qcrypto_cipher_no_setiv,
-    .cipher_free = qcrypto_cipher_ctx_free,
-};
-
 bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg,
                              QCryptoCipherMode mode)
 {
     switch (alg) {
-    case QCRYPTO_CIPHER_ALG_DES_RFB:
-        return mode == QCRYPTO_CIPHER_MODE_ECB;
     case QCRYPTO_CIPHER_ALG_AES_128:
     case QCRYPTO_CIPHER_ALG_AES_192:
     case QCRYPTO_CIPHER_ALG_AES_256:
         switch (mode) {
         case QCRYPTO_CIPHER_MODE_ECB:
         case QCRYPTO_CIPHER_MODE_CBC:
-        case QCRYPTO_CIPHER_MODE_XTS:
             return true;
         default:
             return false;
@@ -356,18 +252,6 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
     }
 
     switch (alg) {
-    case QCRYPTO_CIPHER_ALG_DES_RFB:
-        if (mode == QCRYPTO_CIPHER_MODE_ECB) {
-            QCryptoCipherBuiltinDESRFB *ctx;
-
-            ctx = g_new0(QCryptoCipherBuiltinDESRFB, 1);
-            ctx->base.driver = &qcrypto_cipher_des_rfb_driver;
-            memcpy(ctx->key, key, sizeof(ctx->key));
-
-            return &ctx->base;
-        }
-        goto bad_mode;
-
     case QCRYPTO_CIPHER_ALG_AES_128:
     case QCRYPTO_CIPHER_ALG_AES_192:
     case QCRYPTO_CIPHER_ALG_AES_256:
@@ -382,9 +266,6 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
             case QCRYPTO_CIPHER_MODE_CBC:
                 drv = &qcrypto_cipher_aes_driver_cbc;
                 break;
-            case QCRYPTO_CIPHER_MODE_XTS:
-                drv = &qcrypto_cipher_aes_driver_xts;
-                break;
             default:
                 goto bad_mode;
             }
@@ -392,19 +273,6 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgorithm alg,
             ctx = g_new0(QCryptoCipherBuiltinAES, 1);
             ctx->base.driver = drv;
 
-            if (mode == QCRYPTO_CIPHER_MODE_XTS) {
-                nkey /= 2;
-                if (AES_set_encrypt_key(key + nkey, nkey * 8,
-                                        &ctx->key_tweak.enc)) {
-                    error_setg(errp, "Failed to set encryption key");
-                    goto error;
-                }
-                if (AES_set_decrypt_key(key + nkey, nkey * 8,
-                                        &ctx->key_tweak.dec)) {
-                    error_setg(errp, "Failed to set decryption key");
-                    goto error;
-                }
-            }
             if (AES_set_encrypt_key(key, nkey * 8, &ctx->key.enc)) {
                 error_setg(errp, "Failed to set encryption key");
                 goto error;

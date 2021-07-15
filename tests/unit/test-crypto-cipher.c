@@ -150,10 +150,33 @@ static QCryptoCipherTestData test_data[] = {
             "b2eb05e2c39be9fcda6c19078c6a9d1b",
     },
     {
-        .path = "/crypto/cipher/des-rfb-ecb-56",
-        .alg = QCRYPTO_CIPHER_ALG_DES_RFB,
+        /*
+         * Testing 'password' as plaintext fits
+         * in single AES block, and gives identical
+         * ciphertext in ECB and CBC modes
+         */
+        .path = "/crypto/cipher/des-ecb-56-one-block",
+        .alg = QCRYPTO_CIPHER_ALG_DES,
         .mode = QCRYPTO_CIPHER_MODE_ECB,
-        .key = "0123456789abcdef",
+        .key = "80c4a2e691d5b3f7",
+        .plaintext = "70617373776f7264",
+        .ciphertext = "73fa80b66134e403",
+    },
+    {
+        /* See previous comment */
+        .path = "/crypto/cipher/des-cbc-56-one-block",
+        .alg = QCRYPTO_CIPHER_ALG_DES,
+        .mode = QCRYPTO_CIPHER_MODE_CBC,
+        .key = "80c4a2e691d5b3f7",
+        .iv = "0000000000000000",
+        .plaintext = "70617373776f7264",
+        .ciphertext = "73fa80b66134e403",
+    },
+    {
+        .path = "/crypto/cipher/des-ecb-56",
+        .alg = QCRYPTO_CIPHER_ALG_DES,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = "80c4a2e691d5b3f7",
         .plaintext =
             "6bc1bee22e409f96e93d7e117393172a"
             "ae2d8a571e03ac9c9eb76fac45af8e51"
@@ -165,7 +188,6 @@ static QCryptoCipherTestData test_data[] = {
             "ffd29f1bb5596ad94ea2d8e6196b7f09"
             "30d8ed0bf2773af36dd82a6280c20926",
     },
-#if defined(CONFIG_NETTLE) || defined(CONFIG_GCRYPT)
     {
         /* Borrowed from linux-kernel crypto/testmgr.h */
         .path = "/crypto/cipher/3des-cbc",
@@ -283,7 +305,6 @@ static QCryptoCipherTestData test_data[] = {
             "407772c2ea0e3a7846b991b6e73d5142"
             "fd51b0c62c6313785ceefccfc4700034",
     },
-#endif
     {
         /* RFC 2144, Appendix B.1 */
         .path = "/crypto/cipher/cast5-128",
