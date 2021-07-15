@@ -51,6 +51,9 @@ def main(args):
     with open('compile_commands.json') as f:
         compile_commands = json.load(f)
     for src in args:
+        if not src.endswith('.c'):
+            print("MODINFO_DEBUG skip %s" % src)
+            continue
         print("MODINFO_DEBUG src %s" % src)
         command = find_command(src, target, compile_commands)
         cmdline = process_command(src, command)
