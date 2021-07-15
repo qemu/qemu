@@ -1,5 +1,9 @@
+config X86_FW_OVMF
+    bool
+
 config SEV
     bool
+    select X86_FW_OVMF
     depends on KVM
 
 config PC
