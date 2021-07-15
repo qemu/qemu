@@ -3098,26 +3098,6 @@ static int coroutine_fn vvfat_co_block_status(BlockDriverState *bs,
     return BDRV_BLOCK_DATA;
 }
 
-static int coroutine_fn
-write_target_commit(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
-                    QEMUIOVector *qiov, int flags)
-{
-    int ret;
-
-    BDRVVVFATState* s = *((BDRVVVFATState**) bs->opaque);
-    qemu_co_mutex_lock(&s->lock);
-    ret = try_commit(s);
-    qemu_co_mutex_unlock(&s->lock);
-
-    return ret;
-}
-
-static BlockDriver vvfat_write_target = {
-    .format_name        = "vvfat_write_target",
-    .instance_size      = sizeof(void*),
-    .bdrv_co_pwritev    = write_target_commit,
-};
-
 static void vvfat_qcow_options(BdrvChildRole role, bool parent_is_format,
                                int *child_flags, QDict *child_options,
                                int parent_flags, QDict *parent_options)
@@ -3133,7 +3113,6 @@ static int enable_write_target(BlockDriverState *bs, Error **errp)
 {
     BDRVVVFATState *s = bs->opaque;
     BlockDriver *bdrv_qcow = NULL;
-    BlockDriverState *backing;
     QemuOpts *opts = NULL;
     int ret;
     int size = sector2cluster(s, s->sector_count);
@@ -3184,13 +3163,6 @@ static int enable_write_target(BlockDriverState *bs, Error **errp)
     unlink(s->qcow_filename);
 #endif
 
-    backing = bdrv_new_open_driver(&vvfat_write_target, NULL, BDRV_O_ALLOW_RDWR,
-                                   &error_abort);
-    *(void**) backing->opaque = s;
-
-    bdrv_set_backing_hd(s->bs, backing, &error_abort);
-    bdrv_unref(backing);
-
     return 0;
 
 err:
@@ -3205,17 +3177,10 @@ static void vvfat_child_perm(BlockDriverState *bs, BdrvChild *c,
                              uint64_t perm, uint64_t shared,
                              uint64_t *nperm, uint64_t *nshared)
 {
-    if (role & BDRV_CHILD_DATA) {
-        /* This is a private node, nobody should try to attach to it */
-        *nperm = BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE;
-        *nshared = BLK_PERM_WRITE_UNCHANGED;
-    } else {
-        assert(role & BDRV_CHILD_COW);
-        /* The backing file is there so 'commit' can use it. vvfat doesn't
-         * access it in any way. */
-        *nperm = 0;
-        *nshared = BLK_PERM_ALL;
-    }
+    assert(role & BDRV_CHILD_DATA);
+    /* This is a private node, nobody should try to attach to it */
+    *nperm = BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE;
+    *nshared = BLK_PERM_WRITE_UNCHANGED;
 }
 
 static void vvfat_close(BlockDriverState *bs)
