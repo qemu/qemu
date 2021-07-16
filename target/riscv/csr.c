@@ -215,11 +215,6 @@ static RISCVException epmp(CPURISCVState *env, int csrno)
 static RISCVException read_fflags(CPURISCVState *env, int csrno,
                                   target_ulong *val)
 {
-#if !defined(CONFIG_USER_ONLY)
-    if (!env->debugger && !riscv_cpu_fp_enabled(env)) {
-        return RISCV_EXCP_ILLEGAL_INST;
-    }
-#endif
     *val = riscv_cpu_get_fflags(env);
     return RISCV_EXCP_NONE;
 }
@@ -228,9 +223,6 @@ static RISCVException write_fflags(CPURISCVState *env, int csrno,
                                    target_ulong val)
 {
 #if !defined(CONFIG_USER_ONLY)
-    if (!env->debugger && !riscv_cpu_fp_enabled(env)) {
-        return RISCV_EXCP_ILLEGAL_INST;
-    }
     env->mstatus |= MSTATUS_FS;
 #endif
     riscv_cpu_set_fflags(env, val & (FSR_AEXC >> FSR_AEXC_SHIFT));
@@ -240,11 +232,6 @@ static RISCVException write_fflags(CPURISCVState *env, int csrno,
 static RISCVException read_frm(CPURISCVState *env, int csrno,
                                target_ulong *val)
 {
-#if !defined(CONFIG_USER_ONLY)
-    if (!env->debugger && !riscv_cpu_fp_enabled(env)) {
-        return RISCV_EXCP_ILLEGAL_INST;
-    }
-#endif
     *val = env->frm;
     return RISCV_EXCP_NONE;
 }
@@ -253,9 +240,6 @@ static RISCVException write_frm(CPURISCVState *env, int csrno,
                                 target_ulong val)
 {
 #if !defined(CONFIG_USER_ONLY)
-    if (!env->debugger && !riscv_cpu_fp_enabled(env)) {
-        return RISCV_EXCP_ILLEGAL_INST;
-    }
     env->mstatus |= MSTATUS_FS;
 #endif
     env->frm = val & (FSR_RD >> FSR_RD_SHIFT);
@@ -265,11 +249,6 @@ static RISCVException write_frm(CPURISCVState *env, int csrno,
 static RISCVException read_fcsr(CPURISCVState *env, int csrno,
                                 target_ulong *val)
 {
-#if !defined(CONFIG_USER_ONLY)
-    if (!env->debugger && !riscv_cpu_fp_enabled(env)) {
-        return RISCV_EXCP_ILLEGAL_INST;
-    }
-#endif
     *val = (riscv_cpu_get_fflags(env) << FSR_AEXC_SHIFT)
         | (env->frm << FSR_RD_SHIFT);
     if (vs(env, csrno) >= 0) {
@@ -283,9 +262,6 @@ static RISCVException write_fcsr(CPURISCVState *env, int csrno,
                                  target_ulong val)
 {
 #if !defined(CONFIG_USER_ONLY)
-    if (!env->debugger && !riscv_cpu_fp_enabled(env)) {
-        return RISCV_EXCP_ILLEGAL_INST;
-    }
     env->mstatus |= MSTATUS_FS;
 #endif
     env->frm = (val & FSR_RD) >> FSR_RD_SHIFT;
@@ -435,28 +411,36 @@ static RISCVException read_timeh(CPURISCVState *env, int csrno,
 
 static const target_ulong delegable_ints = S_MODE_INTERRUPTS |
                                            VS_MODE_INTERRUPTS;
+static const target_ulong vs_delegable_ints = VS_MODE_INTERRUPTS;
 static const target_ulong all_ints = M_MODE_INTERRUPTS | S_MODE_INTERRUPTS |
                                      VS_MODE_INTERRUPTS;
-static const target_ulong delegable_excps =
-    (1ULL << (RISCV_EXCP_INST_ADDR_MIS)) |
-    (1ULL << (RISCV_EXCP_INST_ACCESS_FAULT)) |
-    (1ULL << (RISCV_EXCP_ILLEGAL_INST)) |
-    (1ULL << (RISCV_EXCP_BREAKPOINT)) |
-    (1ULL << (RISCV_EXCP_LOAD_ADDR_MIS)) |
-    (1ULL << (RISCV_EXCP_LOAD_ACCESS_FAULT)) |
-    (1ULL << (RISCV_EXCP_STORE_AMO_ADDR_MIS)) |
-    (1ULL << (RISCV_EXCP_STORE_AMO_ACCESS_FAULT)) |
-    (1ULL << (RISCV_EXCP_U_ECALL)) |
-    (1ULL << (RISCV_EXCP_S_ECALL)) |
-    (1ULL << (RISCV_EXCP_VS_ECALL)) |
-    (1ULL << (RISCV_EXCP_M_ECALL)) |
-    (1ULL << (RISCV_EXCP_INST_PAGE_FAULT)) |
-    (1ULL << (RISCV_EXCP_LOAD_PAGE_FAULT)) |
-    (1ULL << (RISCV_EXCP_STORE_PAGE_FAULT)) |
-    (1ULL << (RISCV_EXCP_INST_GUEST_PAGE_FAULT)) |
-    (1ULL << (RISCV_EXCP_LOAD_GUEST_ACCESS_FAULT)) |
-    (1ULL << (RISCV_EXCP_VIRT_INSTRUCTION_FAULT)) |
-    (1ULL << (RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT));
+#define DELEGABLE_EXCPS ((1ULL << (RISCV_EXCP_INST_ADDR_MIS)) | \
+                         (1ULL << (RISCV_EXCP_INST_ACCESS_FAULT)) | \
+                         (1ULL << (RISCV_EXCP_ILLEGAL_INST)) | \
+                         (1ULL << (RISCV_EXCP_BREAKPOINT)) | \
+                         (1ULL << (RISCV_EXCP_LOAD_ADDR_MIS)) | \
+                         (1ULL << (RISCV_EXCP_LOAD_ACCESS_FAULT)) | \
+                         (1ULL << (RISCV_EXCP_STORE_AMO_ADDR_MIS)) | \
+                         (1ULL << (RISCV_EXCP_STORE_AMO_ACCESS_FAULT)) | \
+                         (1ULL << (RISCV_EXCP_U_ECALL)) | \
+                         (1ULL << (RISCV_EXCP_S_ECALL)) | \
+                         (1ULL << (RISCV_EXCP_VS_ECALL)) | \
+                         (1ULL << (RISCV_EXCP_M_ECALL)) | \
+                         (1ULL << (RISCV_EXCP_INST_PAGE_FAULT)) | \
+                         (1ULL << (RISCV_EXCP_LOAD_PAGE_FAULT)) | \
+                         (1ULL << (RISCV_EXCP_STORE_PAGE_FAULT)) | \
+                         (1ULL << (RISCV_EXCP_INST_GUEST_PAGE_FAULT)) | \
+                         (1ULL << (RISCV_EXCP_LOAD_GUEST_ACCESS_FAULT)) | \
+                         (1ULL << (RISCV_EXCP_VIRT_INSTRUCTION_FAULT)) | \
+                         (1ULL << (RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT)))
+static const target_ulong vs_delegable_excps = DELEGABLE_EXCPS &
+    ~((1ULL << (RISCV_EXCP_S_ECALL)) |
+      (1ULL << (RISCV_EXCP_VS_ECALL)) |
+      (1ULL << (RISCV_EXCP_M_ECALL)) |
+      (1ULL << (RISCV_EXCP_INST_GUEST_PAGE_FAULT)) |
+      (1ULL << (RISCV_EXCP_LOAD_GUEST_ACCESS_FAULT)) |
+      (1ULL << (RISCV_EXCP_VIRT_INSTRUCTION_FAULT)) |
+      (1ULL << (RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT)));
 static const target_ulong sstatus_v1_10_mask = SSTATUS_SIE | SSTATUS_SPIE |
     SSTATUS_UIE | SSTATUS_UPIE | SSTATUS_SPP | SSTATUS_FS | SSTATUS_XS |
     SSTATUS_SUM | SSTATUS_MXR;
@@ -644,7 +628,7 @@ static RISCVException read_medeleg(CPURISCVState *env, int csrno,
 static RISCVException write_medeleg(CPURISCVState *env, int csrno,
                                     target_ulong val)
 {
-    env->medeleg = (env->medeleg & ~delegable_excps) | (val & delegable_excps);
+    env->medeleg = (env->medeleg & ~DELEGABLE_EXCPS) | (val & DELEGABLE_EXCPS);
     return RISCV_EXCP_NONE;
 }
 
@@ -1063,7 +1047,7 @@ static RISCVException read_hedeleg(CPURISCVState *env, int csrno,
 static RISCVException write_hedeleg(CPURISCVState *env, int csrno,
                                     target_ulong val)
 {
-    env->hedeleg = val;
+    env->hedeleg = val & vs_delegable_excps;
     return RISCV_EXCP_NONE;
 }
 
@@ -1077,7 +1061,7 @@ static RISCVException read_hideleg(CPURISCVState *env, int csrno,
 static RISCVException write_hideleg(CPURISCVState *env, int csrno,
                                     target_ulong val)
 {
-    env->hideleg = val;
+    env->hideleg = val & vs_delegable_ints;
     return RISCV_EXCP_NONE;
 }
 
