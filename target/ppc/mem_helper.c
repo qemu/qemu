@@ -376,7 +376,7 @@ uint64_t helper_lq_le_parallel(CPUPPCState *env, target_ulong addr,
 
     /* We will have raised EXCP_ATOMIC from the translator.  */
     assert(HAVE_ATOMIC128);
-    ret = helper_atomic_ldo_le_mmu(env, addr, opidx, GETPC());
+    ret = cpu_atomic_ldo_le_mmu(env, addr, opidx, GETPC());
     env->retxh = int128_gethi(ret);
     return int128_getlo(ret);
 }
@@ -388,7 +388,7 @@ uint64_t helper_lq_be_parallel(CPUPPCState *env, target_ulong addr,
 
     /* We will have raised EXCP_ATOMIC from the translator.  */
     assert(HAVE_ATOMIC128);
-    ret = helper_atomic_ldo_be_mmu(env, addr, opidx, GETPC());
+    ret = cpu_atomic_ldo_be_mmu(env, addr, opidx, GETPC());
     env->retxh = int128_gethi(ret);
     return int128_getlo(ret);
 }
@@ -401,7 +401,7 @@ void helper_stq_le_parallel(CPUPPCState *env, target_ulong addr,
     /* We will have raised EXCP_ATOMIC from the translator.  */
     assert(HAVE_ATOMIC128);
     val = int128_make128(lo, hi);
-    helper_atomic_sto_le_mmu(env, addr, val, opidx, GETPC());
+    cpu_atomic_sto_le_mmu(env, addr, val, opidx, GETPC());
 }
 
 void helper_stq_be_parallel(CPUPPCState *env, target_ulong addr,
@@ -412,7 +412,7 @@ void helper_stq_be_parallel(CPUPPCState *env, target_ulong addr,
     /* We will have raised EXCP_ATOMIC from the translator.  */
     assert(HAVE_ATOMIC128);
     val = int128_make128(lo, hi);
-    helper_atomic_sto_be_mmu(env, addr, val, opidx, GETPC());
+    cpu_atomic_sto_be_mmu(env, addr, val, opidx, GETPC());
 }
 
 uint32_t helper_stqcx_le_parallel(CPUPPCState *env, target_ulong addr,
@@ -429,8 +429,8 @@ uint32_t helper_stqcx_le_parallel(CPUPPCState *env, target_ulong addr,
 
         cmpv = int128_make128(env->reserve_val2, env->reserve_val);
         newv = int128_make128(new_lo, new_hi);
-        oldv = helper_atomic_cmpxchgo_le_mmu(env, addr, cmpv, newv,
-                                             opidx, GETPC());
+        oldv = cpu_atomic_cmpxchgo_le_mmu(env, addr, cmpv, newv,
+                                          opidx, GETPC());
         success = int128_eq(oldv, cmpv);
     }
     env->reserve_addr = -1;
@@ -451,8 +451,8 @@ uint32_t helper_stqcx_be_parallel(CPUPPCState *env, target_ulong addr,
 
         cmpv = int128_make128(env->reserve_val2, env->reserve_val);
         newv = int128_make128(new_lo, new_hi);
-        oldv = helper_atomic_cmpxchgo_be_mmu(env, addr, cmpv, newv,
-                                             opidx, GETPC());
+        oldv = cpu_atomic_cmpxchgo_be_mmu(env, addr, cmpv, newv,
+                                          opidx, GETPC());
         success = int128_eq(oldv, cmpv);
     }
     env->reserve_addr = -1;

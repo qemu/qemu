@@ -2686,12 +2686,14 @@ void cpu_stq_le_data(CPUArchState *env, target_ulong ptr, uint64_t val)
     cpu_stq_le_data_ra(env, ptr, val, 0);
 }
 
-/* First set of helpers allows passing in of OI and RETADDR.  This makes
-   them callable from other helpers.  */
+/*
+ * First set of functions passes in OI and RETADDR.
+ * This makes them callable from other helpers.
+ */
 
 #define EXTRA_ARGS     , TCGMemOpIdx oi, uintptr_t retaddr
 #define ATOMIC_NAME(X) \
-    HELPER(glue(glue(glue(atomic_ ## X, SUFFIX), END), _mmu))
+    glue(glue(glue(cpu_atomic_ ## X, SUFFIX), END), _mmu)
 #define ATOMIC_MMU_DECLS
 #define ATOMIC_MMU_LOOKUP_RW \
     atomic_mmu_lookup(env, addr, oi, DATA_SIZE, PAGE_READ | PAGE_WRITE, retaddr)

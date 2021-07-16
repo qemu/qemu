@@ -1341,31 +1341,32 @@ void helper_be_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
 # define helper_ret_stl_mmu   helper_le_stl_mmu
 # define helper_ret_stq_mmu   helper_le_stq_mmu
 #endif
+#endif /* CONFIG_SOFTMMU */
 
-uint32_t helper_atomic_cmpxchgb_mmu(CPUArchState *env, target_ulong addr,
+uint32_t cpu_atomic_cmpxchgb_mmu(CPUArchState *env, target_ulong addr,
+                                 uint32_t cmpv, uint32_t newv,
+                                 TCGMemOpIdx oi, uintptr_t retaddr);
+uint32_t cpu_atomic_cmpxchgw_le_mmu(CPUArchState *env, target_ulong addr,
                                     uint32_t cmpv, uint32_t newv,
                                     TCGMemOpIdx oi, uintptr_t retaddr);
-uint32_t helper_atomic_cmpxchgw_le_mmu(CPUArchState *env, target_ulong addr,
-                                       uint32_t cmpv, uint32_t newv,
-                                       TCGMemOpIdx oi, uintptr_t retaddr);
-uint32_t helper_atomic_cmpxchgl_le_mmu(CPUArchState *env, target_ulong addr,
-                                       uint32_t cmpv, uint32_t newv,
-                                       TCGMemOpIdx oi, uintptr_t retaddr);
-uint64_t helper_atomic_cmpxchgq_le_mmu(CPUArchState *env, target_ulong addr,
-                                       uint64_t cmpv, uint64_t newv,
-                                       TCGMemOpIdx oi, uintptr_t retaddr);
-uint32_t helper_atomic_cmpxchgw_be_mmu(CPUArchState *env, target_ulong addr,
-                                       uint32_t cmpv, uint32_t newv,
-                                       TCGMemOpIdx oi, uintptr_t retaddr);
-uint32_t helper_atomic_cmpxchgl_be_mmu(CPUArchState *env, target_ulong addr,
-                                       uint32_t cmpv, uint32_t newv,
-                                       TCGMemOpIdx oi, uintptr_t retaddr);
-uint64_t helper_atomic_cmpxchgq_be_mmu(CPUArchState *env, target_ulong addr,
-                                       uint64_t cmpv, uint64_t newv,
-                                       TCGMemOpIdx oi, uintptr_t retaddr);
+uint32_t cpu_atomic_cmpxchgl_le_mmu(CPUArchState *env, target_ulong addr,
+                                    uint32_t cmpv, uint32_t newv,
+                                    TCGMemOpIdx oi, uintptr_t retaddr);
+uint64_t cpu_atomic_cmpxchgq_le_mmu(CPUArchState *env, target_ulong addr,
+                                    uint64_t cmpv, uint64_t newv,
+                                    TCGMemOpIdx oi, uintptr_t retaddr);
+uint32_t cpu_atomic_cmpxchgw_be_mmu(CPUArchState *env, target_ulong addr,
+                                    uint32_t cmpv, uint32_t newv,
+                                    TCGMemOpIdx oi, uintptr_t retaddr);
+uint32_t cpu_atomic_cmpxchgl_be_mmu(CPUArchState *env, target_ulong addr,
+                                    uint32_t cmpv, uint32_t newv,
+                                    TCGMemOpIdx oi, uintptr_t retaddr);
+uint64_t cpu_atomic_cmpxchgq_be_mmu(CPUArchState *env, target_ulong addr,
+                                    uint64_t cmpv, uint64_t newv,
+                                    TCGMemOpIdx oi, uintptr_t retaddr);
 
 #define GEN_ATOMIC_HELPER(NAME, TYPE, SUFFIX)         \
-TYPE helper_atomic_ ## NAME ## SUFFIX ## _mmu         \
+TYPE cpu_atomic_ ## NAME ## SUFFIX ## _mmu            \
     (CPUArchState *env, target_ulong addr, TYPE val,  \
      TCGMemOpIdx oi, uintptr_t retaddr);
 
@@ -1411,31 +1412,22 @@ GEN_ATOMIC_HELPER_ALL(xchg)
 
 #undef GEN_ATOMIC_HELPER_ALL
 #undef GEN_ATOMIC_HELPER
-#endif /* CONFIG_SOFTMMU */
 
-/*
- * These aren't really a "proper" helpers because TCG cannot manage Int128.
- * However, use the same format as the others, for use by the backends.
- *
- * The cmpxchg functions are only defined if HAVE_CMPXCHG128;
- * the ld/st functions are only defined if HAVE_ATOMIC128,
- * as defined by <qemu/atomic128.h>.
- */
-Int128 helper_atomic_cmpxchgo_le_mmu(CPUArchState *env, target_ulong addr,
-                                     Int128 cmpv, Int128 newv,
-                                     TCGMemOpIdx oi, uintptr_t retaddr);
-Int128 helper_atomic_cmpxchgo_be_mmu(CPUArchState *env, target_ulong addr,
-                                     Int128 cmpv, Int128 newv,
-                                     TCGMemOpIdx oi, uintptr_t retaddr);
+Int128 cpu_atomic_cmpxchgo_le_mmu(CPUArchState *env, target_ulong addr,
+                                  Int128 cmpv, Int128 newv,
+                                  TCGMemOpIdx oi, uintptr_t retaddr);
+Int128 cpu_atomic_cmpxchgo_be_mmu(CPUArchState *env, target_ulong addr,
+                                  Int128 cmpv, Int128 newv,
+                                  TCGMemOpIdx oi, uintptr_t retaddr);
 
-Int128 helper_atomic_ldo_le_mmu(CPUArchState *env, target_ulong addr,
-                                TCGMemOpIdx oi, uintptr_t retaddr);
-Int128 helper_atomic_ldo_be_mmu(CPUArchState *env, target_ulong addr,
-                                TCGMemOpIdx oi, uintptr_t retaddr);
-void helper_atomic_sto_le_mmu(CPUArchState *env, target_ulong addr, Int128 val,
-                              TCGMemOpIdx oi, uintptr_t retaddr);
-void helper_atomic_sto_be_mmu(CPUArchState *env, target_ulong addr, Int128 val,
-                              TCGMemOpIdx oi, uintptr_t retaddr);
+Int128 cpu_atomic_ldo_le_mmu(CPUArchState *env, target_ulong addr,
+                             TCGMemOpIdx oi, uintptr_t retaddr);
+Int128 cpu_atomic_ldo_be_mmu(CPUArchState *env, target_ulong addr,
+                             TCGMemOpIdx oi, uintptr_t retaddr);
+void cpu_atomic_sto_le_mmu(CPUArchState *env, target_ulong addr, Int128 val,
+                           TCGMemOpIdx oi, uintptr_t retaddr);
+void cpu_atomic_sto_be_mmu(CPUArchState *env, target_ulong addr, Int128 val,
+                           TCGMemOpIdx oi, uintptr_t retaddr);
 
 #ifdef CONFIG_DEBUG_TCG
 void tcg_assert_listed_vecop(TCGOpcode);
