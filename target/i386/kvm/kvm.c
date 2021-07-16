@@ -975,6 +975,12 @@ static struct kvm_cpuid2 *get_supported_hv_cpuid(CPUState *cs)
         kvm_check_extension(kvm_state, KVM_CAP_SYS_HYPERV_CPUID) > 0;
 
     /*
+     * Non-empty KVM context is needed when KVM_CAP_SYS_HYPERV_CPUID is
+     * unsupported, kvm_hyperv_expand_features() checks for that.
+     */
+    assert(do_sys_ioctl || cs->kvm_state);
+
+    /*
      * When the buffer is too small, KVM_GET_SUPPORTED_HV_CPUID fails with
      * -E2BIG, however, it doesn't report back the right size. Keep increasing
      * it and re-trying until we succeed.
@@ -1105,6 +1111,14 @@ static uint32_t hv_cpuid_get_host(CPUState *cs, uint32_t func, int reg)
         if (kvm_check_extension(kvm_state, KVM_CAP_HYPERV_CPUID) > 0) {
             cpuid = get_supported_hv_cpuid(cs);
         } else {
+            /*
+             * 'cs->kvm_state' may be NULL when Hyper-V features are expanded
+             * before KVM context is created but this is only done when
+             * KVM_CAP_SYS_HYPERV_CPUID is supported and it implies
+             * KVM_CAP_HYPERV_CPUID.
+             */
+            assert(cs->kvm_state);
+
             cpuid = get_supported_hv_cpuid_legacy(cs);
         }
         hv_cpuid_cache = cpuid;
