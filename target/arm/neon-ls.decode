@@ -41,8 +41,8 @@ VLD_all_lanes  1111 0100 1 . 1 0 rn:4 .... 11 n:2 size:2 t:1 a:1 rm:4 \
                vd=%vd_dp
 
 # Neon load/store single structure to one lane
-%imm1_5_p1 5:1 !function=plus1
-%imm1_6_p1 6:1 !function=plus1
+%imm1_5_p1 5:1 !function=plus_1
+%imm1_6_p1 6:1 !function=plus_1
 
 VLDST_single   1111 0100 1 . l:1 0 rn:4 .... 00 n:2 reg_idx:3 align:1 rm:4 \
                vd=%vd_dp size=0 stride=1

@@ -22,7 +22,7 @@
 ###########################################################################
 # Named fields.  These are primarily for disjoint fields.
 
-%imm4_16_p1     16:4 !function=plus1
+%imm4_16_p1     16:4 !function=plus_1
 %imm6_22_5      22:1 5:5
 %imm7_22_16     22:2 16:5
 %imm8_16_10     16:5 10:3

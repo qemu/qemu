@@ -1,0 +1,14 @@
+{% extends "!footer.html" %}
+{% block extrafooter %}
+
+<!-- Empty para to force a blank line after "Built with Sphinx ..." -->
+<p></p>
+
+<p>This documentation is for QEMU version {{ version }}.</p>
+
+{% trans path=pathto('about/license') %}
+<p><a href="{{ path }}">QEMU and this manual are released under the
+GNU General Public License, version 2.</a></p>
+{% endtrans %}
+{{ super() }}
+{% endblock %}

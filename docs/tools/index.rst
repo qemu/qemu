@@ -1,11 +1,8 @@
-.. This is the top level page for the 'tools' manual
-
-
 Tools
 =====
 
-
-Contents:
+This section of the manual documents QEMU's "tools": its
+command line utilities and other standalone programs.
 
 .. toctree::
    :maxdepth: 2

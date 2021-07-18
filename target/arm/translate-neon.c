@@ -28,11 +28,6 @@
 #include "translate.h"
 #include "translate-a32.h"
 
-static inline int plus1(DisasContext *s, int x)
-{
-    return x + 1;
-}
-
 static inline int neon_3same_fp_size(DisasContext *s, int x)
 {
     /* Convert 0==fp32, 1==fp16 into a MO_* value */
