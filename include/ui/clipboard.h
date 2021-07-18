@@ -102,6 +102,8 @@ struct QemuClipboardNotify {
  * @owner: clipboard owner.
  * @selection: clipboard selection.
  * @types: clipboard data array (one entry per type).
+ * @has_serial: whether @serial is available.
+ * @serial: the grab serial counter.
  *
  * Clipboard content data and metadata.
  */
@@ -109,6 +111,8 @@ struct QemuClipboardInfo {
     uint32_t refcount;
     QemuClipboardPeer *owner;
     QemuClipboardSelection selection;
+    bool has_serial;
+    uint32_t serial;
     struct {
         bool available;
         bool requested;

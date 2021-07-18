@@ -59,6 +59,7 @@ struct VDAgentChardev {
 
     /* clipboard */
     QemuClipboardPeer cbpeer;
+    uint32_t last_serial[QEMU_CLIPBOARD_SELECTION__COUNT];
     uint32_t cbpending[QEMU_CLIPBOARD_SELECTION__COUNT];
 };
 typedef struct VDAgentChardev VDAgentChardev;
@@ -203,6 +204,9 @@ static void vdagent_send_caps(VDAgentChardev *vd)
     if (vd->clipboard) {
         caps->caps[0] |= (1 << VD_AGENT_CAP_CLIPBOARD_BY_DEMAND);
         caps->caps[0] |= (1 << VD_AGENT_CAP_CLIPBOARD_SELECTION);
+#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 1)
+        caps->caps[0] |= (1 << VD_AGENT_CAP_CLIPBOARD_GRAB_SERIAL);
+#endif
     }
 
     vdagent_send_msg(vd, msg);
@@ -333,7 +337,8 @@ static void vdagent_send_clipboard_grab(VDAgentChardev *vd,
 {
     g_autofree VDAgentMessage *msg =
         g_malloc0(sizeof(VDAgentMessage) +
-                  sizeof(uint32_t) * (QEMU_CLIPBOARD_TYPE__COUNT + 1));
+                  sizeof(uint32_t) * (QEMU_CLIPBOARD_TYPE__COUNT + 1) +
+                  sizeof(uint32_t));
     uint8_t *s = msg->data;
     uint32_t *data = (uint32_t *)msg->data;
     uint32_t q, type;
@@ -345,6 +350,19 @@ static void vdagent_send_clipboard_grab(VDAgentChardev *vd,
     } else if (info->selection != QEMU_CLIPBOARD_SELECTION_CLIPBOARD) {
         return;
     }
+
+#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 1)
+    if (vd->caps & (1 << VD_AGENT_CAP_CLIPBOARD_GRAB_SERIAL)) {
+        if (!info->has_serial) {
+            /* client should win */
+            info->serial = vd->last_serial[info->selection]++;
+            info->has_serial = true;
+        }
+        *data = info->serial;
+        data++;
+        msg->size += sizeof(uint32_t);
+    }
+#endif
 
     for (q = 0; q < QEMU_CLIPBOARD_TYPE__COUNT; q++) {
         type = type_qemu_to_vdagent(q);
@@ -494,6 +512,24 @@ static void vdagent_clipboard_recv_grab(VDAgentChardev *vd, uint8_t s, uint32_t 
 
     trace_vdagent_cb_grab_selection(GET_NAME(sel_name, s));
     info = qemu_clipboard_info_new(&vd->cbpeer, s);
+#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 1)
+    if (vd->caps & (1 << VD_AGENT_CAP_CLIPBOARD_GRAB_SERIAL)) {
+        if (size < sizeof(uint32_t)) {
+            /* this shouldn't happen! */
+            return;
+        }
+
+        info->has_serial = true;
+        info->serial = *(uint32_t *)data;
+        if (info->serial < vd->last_serial[s]) {
+            /* discard lower-ordering guest grab */
+            return;
+        }
+        vd->last_serial[s] = info->serial;
+        data += sizeof(uint32_t);
+        size -= sizeof(uint32_t);
+    }
+#endif
     if (size > sizeof(uint32_t) * 10) {
         /*
          * spice has 6 types as of 2021. Limiting to 10 entries
@@ -671,6 +707,7 @@ static void vdagent_chr_recv_caps(VDAgentChardev *vd, VDAgentMessage *msg)
         qemu_input_handler_activate(vd->mouse_hs);
     }
     if (have_clipboard(vd) && vd->cbpeer.notifier.notify == NULL) {
+        memset(vd->last_serial, 0, sizeof(vd->last_serial));
         vd->cbpeer.name = "vdagent";
         vd->cbpeer.notifier.notify = vdagent_clipboard_notify;
         vd->cbpeer.request = vdagent_clipboard_request;
