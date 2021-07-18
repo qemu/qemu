@@ -165,7 +165,12 @@ static void replication_child_perm(BlockDriverState *bs, BdrvChild *c,
                                    uint64_t perm, uint64_t shared,
                                    uint64_t *nperm, uint64_t *nshared)
 {
-    *nperm = BLK_PERM_CONSISTENT_READ;
+    if (role & BDRV_CHILD_PRIMARY) {
+        *nperm = BLK_PERM_CONSISTENT_READ;
+    } else {
+        *nperm = 0;
+    }
+
     if ((bs->open_flags & (BDRV_O_INACTIVE | BDRV_O_RDWR)) == BDRV_O_RDWR) {
         *nperm |= BLK_PERM_WRITE;
     }
@@ -557,8 +562,25 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
             return;
         }
 
-        s->hidden_disk = hidden_disk;
-        s->secondary_disk = secondary_disk;
+        bdrv_ref(hidden_disk->bs);
+        s->hidden_disk = bdrv_attach_child(bs, hidden_disk->bs, "hidden disk",
+                                           &child_of_bds, BDRV_CHILD_DATA,
+                                           &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            aio_context_release(aio_context);
+            return;
+        }
+
+        bdrv_ref(secondary_disk->bs);
+        s->secondary_disk = bdrv_attach_child(bs, secondary_disk->bs,
+                                              "secondary disk", &child_of_bds,
+                                              BDRV_CHILD_DATA, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            aio_context_release(aio_context);
+            return;
+        }
 
         /* start backup job now */
         error_setg(&s->blocker,
@@ -664,7 +686,9 @@ static void replication_done(void *opaque, int ret)
     if (ret == 0) {
         s->stage = BLOCK_REPLICATION_DONE;
 
+        bdrv_unref_child(bs, s->secondary_disk);
         s->secondary_disk = NULL;
+        bdrv_unref_child(bs, s->hidden_disk);
         s->hidden_disk = NULL;
         s->error = 0;
     } else {
