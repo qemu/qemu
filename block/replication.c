@@ -346,17 +346,7 @@ static void secondary_do_checkpoint(BlockDriverState *bs, Error **errp)
         return;
     }
 
-    BlockBackend *blk = blk_new(qemu_get_current_aio_context(),
-                                BLK_PERM_WRITE, BLK_PERM_ALL);
-    blk_insert_bs(blk, s->hidden_disk->bs, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        blk_unref(blk);
-        return;
-    }
-
-    ret = blk_make_empty(blk, errp);
-    blk_unref(blk);
+    ret = bdrv_make_empty(s->hidden_disk, errp);
     if (ret < 0) {
         return;
     }
