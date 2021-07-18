@@ -2,6 +2,7 @@ util_ss.add(files(
   'opts-visitor.c',
   'qapi-clone-visitor.c',
   'qapi-dealloc-visitor.c',
+  'qapi-forward-visitor.c',
   'qapi-util.c',
   'qapi-visit-core.c',
   'qobject-input-visitor.c',
