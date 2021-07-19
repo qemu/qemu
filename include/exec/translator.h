@@ -89,15 +89,6 @@ typedef struct DisasContextBase {
  * @insn_start:
  *      Emit the tcg_gen_insn_start opcode.
  *
- * @breakpoint_check:
- *      When called, the breakpoint has already been checked to match the PC,
- *      but the target may decide the breakpoint missed the address
- *      (e.g., due to conditions encoded in their flags).  Return true to
- *      indicate that the breakpoint did hit, in which case no more breakpoints
- *      are checked.  If the breakpoint did hit, emit any code required to
- *      signal the exception, and set db->is_jmp as necessary to terminate
- *      the main loop.
- *
  * @translate_insn:
  *      Disassemble one instruction and set db->pc_next for the start
  *      of the following instruction.  Set db->is_jmp as necessary to
@@ -113,8 +104,6 @@ typedef struct TranslatorOps {
     void (*init_disas_context)(DisasContextBase *db, CPUState *cpu);
     void (*tb_start)(DisasContextBase *db, CPUState *cpu);
     void (*insn_start)(DisasContextBase *db, CPUState *cpu);
-    bool (*breakpoint_check)(DisasContextBase *db, CPUState *cpu,
-                             const CPUBreakpoint *bp);
     void (*translate_insn)(DisasContextBase *db, CPUState *cpu);
     void (*tb_stop)(DisasContextBase *db, CPUState *cpu);
     void (*disas_log)(const DisasContextBase *db, CPUState *cpu);

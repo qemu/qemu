@@ -1609,22 +1609,6 @@ static void openrisc_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
                        | (dc->base.num_insns > 1 ? 2 : 0));
 }
 
-static bool openrisc_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
-                                         const CPUBreakpoint *bp)
-{
-    DisasContext *dc = container_of(dcbase, DisasContext, base);
-
-    tcg_gen_movi_tl(cpu_pc, dc->base.pc_next);
-    gen_exception(dc, EXCP_DEBUG);
-    dc->base.is_jmp = DISAS_NORETURN;
-    /* The address covered by the breakpoint must be included in
-       [tb->pc, tb->pc + tb->size) in order to for it to be
-       properly cleared -- thus we increment the PC here so that
-       the logic setting tb->size below does the right thing.  */
-    dc->base.pc_next += 4;
-    return true;
-}
-
 static void openrisc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
@@ -1727,7 +1711,6 @@ static const TranslatorOps openrisc_tr_ops = {
     .init_disas_context = openrisc_tr_init_disas_context,
     .tb_start           = openrisc_tr_tb_start,
     .insn_start         = openrisc_tr_insn_start,
-    .breakpoint_check   = openrisc_tr_breakpoint_check,
     .translate_insn     = openrisc_tr_translate_insn,
     .tb_stop            = openrisc_tr_tb_stop,
     .disas_log          = openrisc_tr_disas_log,

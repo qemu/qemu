@@ -2289,23 +2289,6 @@ static void sh4_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
     tcg_gen_insn_start(ctx->base.pc_next, ctx->envflags);
 }
 
-static bool sh4_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
-                                    const CPUBreakpoint *bp)
-{
-    DisasContext *ctx = container_of(dcbase, DisasContext, base);
-
-    /* We have hit a breakpoint - make sure PC is up-to-date */
-    gen_save_cpu_state(ctx, true);
-    gen_helper_debug(cpu_env);
-    ctx->base.is_jmp = DISAS_NORETURN;
-    /* The address covered by the breakpoint must be included in
-       [tb->pc, tb->pc + tb->size) in order to for it to be
-       properly cleared -- thus we increment the PC here so that
-       the logic setting tb->size below does the right thing.  */
-    ctx->base.pc_next += 2;
-    return true;
-}
-
 static void sh4_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     CPUSH4State *env = cs->env_ptr;
@@ -2369,7 +2352,6 @@ static const TranslatorOps sh4_tr_ops = {
     .init_disas_context = sh4_tr_init_disas_context,
     .tb_start           = sh4_tr_tb_start,
     .insn_start         = sh4_tr_insn_start,
-    .breakpoint_check   = sh4_tr_breakpoint_check,
     .translate_insn     = sh4_tr_translate_insn,
     .tb_stop            = sh4_tr_tb_stop,
     .disas_log          = sh4_tr_disas_log,

@@ -2900,14 +2900,6 @@ static bool canonicalize_skip(DisasContext *ctx)
     return true;
 }
 
-static void gen_breakpoint(DisasContext *ctx)
-{
-    canonicalize_skip(ctx);
-    tcg_gen_movi_tl(cpu_pc, ctx->npc);
-    gen_helper_debug(cpu_env);
-    ctx->base.is_jmp = DISAS_NORETURN;
-}
-
 static void avr_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
@@ -2942,15 +2934,6 @@ static void avr_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
     tcg_gen_insn_start(ctx->npc);
-}
-
-static bool avr_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
-                                    const CPUBreakpoint *bp)
-{
-    DisasContext *ctx = container_of(dcbase, DisasContext, base);
-
-    gen_breakpoint(ctx);
-    return true;
 }
 
 static void avr_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
@@ -3055,7 +3038,6 @@ static const TranslatorOps avr_tr_ops = {
     .init_disas_context = avr_tr_init_disas_context,
     .tb_start           = avr_tr_tb_start,
     .insn_start         = avr_tr_insn_start,
-    .breakpoint_check   = avr_tr_breakpoint_check,
     .translate_insn     = avr_tr_translate_insn,
     .tb_stop            = avr_tr_tb_stop,
     .disas_log          = avr_tr_disas_log,

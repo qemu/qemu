@@ -6552,29 +6552,6 @@ static void s390x_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 {
 }
 
-static bool s390x_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
-                                      const CPUBreakpoint *bp)
-{
-    DisasContext *dc = container_of(dcbase, DisasContext, base);
-
-    /*
-     * Emit an insn_start to accompany the breakpoint exception.
-     * The ILEN value is a dummy, since this does not result in
-     * an s390x exception, but an internal qemu exception which
-     * brings us back to interact with the gdbstub.
-     */
-    tcg_gen_insn_start(dc->base.pc_next, dc->cc_op, 2);
-
-    dc->base.is_jmp = DISAS_PC_STALE;
-    dc->do_debug = true;
-    /* The address covered by the breakpoint must be included in
-       [tb->pc, tb->pc + tb->size) in order to for it to be
-       properly cleared -- thus we increment the PC here so that
-       the logic setting tb->size does the right thing.  */
-    dc->base.pc_next += 2;
-    return true;
-}
-
 static void s390x_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     CPUS390XState *env = cs->env_ptr;
@@ -6642,7 +6619,6 @@ static const TranslatorOps s390x_tr_ops = {
     .init_disas_context = s390x_tr_init_disas_context,
     .tb_start           = s390x_tr_tb_start,
     .insn_start         = s390x_tr_insn_start,
-    .breakpoint_check   = s390x_tr_breakpoint_check,
     .translate_insn     = s390x_tr_translate_insn,
     .tb_stop            = s390x_tr_tb_stop,
     .disas_log          = s390x_tr_disas_log,

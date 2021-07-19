@@ -540,22 +540,6 @@ static void hexagon_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
     tcg_gen_insn_start(ctx->base.pc_next);
 }
 
-static bool hexagon_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cpu,
-                                        const CPUBreakpoint *bp)
-{
-    DisasContext *ctx = container_of(dcbase, DisasContext, base);
-
-    gen_exception_end_tb(ctx, EXCP_DEBUG);
-    /*
-     * The address covered by the breakpoint must be included in
-     * [tb->pc, tb->pc + tb->size) in order to for it to be
-     * properly cleared -- thus we increment the PC here so that
-     * the logic setting tb->size below does the right thing.
-     */
-    ctx->base.pc_next += 4;
-    return true;
-}
-
 static bool pkt_crosses_page(CPUHexagonState *env, DisasContext *ctx)
 {
     target_ulong page_start = ctx->base.pc_first & TARGET_PAGE_MASK;
@@ -631,7 +615,6 @@ static const TranslatorOps hexagon_tr_ops = {
     .init_disas_context = hexagon_tr_init_disas_context,
     .tb_start           = hexagon_tr_tb_start,
     .insn_start         = hexagon_tr_insn_start,
-    .breakpoint_check   = hexagon_tr_breakpoint_check,
     .translate_insn     = hexagon_tr_translate_packet,
     .tb_stop            = hexagon_tr_tb_stop,
     .disas_log          = hexagon_tr_disas_log,

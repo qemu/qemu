@@ -239,13 +239,6 @@ bool arm_debug_check_breakpoint(CPUState *cs)
     return false;
 }
 
-void HELPER(check_breakpoints)(CPUARMState *env)
-{
-    if (arm_debug_check_breakpoint(env_cpu(env))) {
-        HELPER(exception_internal(env, EXCP_DEBUG));
-    }
-}
-
 bool arm_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
 {
     /*
