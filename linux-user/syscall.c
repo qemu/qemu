@@ -8475,7 +8475,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #endif
     case TARGET_NR_execve:
         {
-            char **argp, **envp;
+            char **argp = NULL, **envp = NULL;
             int argc, envc;
             abi_ulong gp;
             abi_ulong guest_argp;

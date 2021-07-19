@@ -66,6 +66,8 @@
 #include "qemuafl/common.h"
 #include "tcg/tcg-op.h"
 
+#include <math.h>
+
 __thread int cur_block_is_good;
 
 void HELPER(afl_maybe_log)(target_ulong cur_loc) {
@@ -74,8 +76,17 @@ void HELPER(afl_maybe_log)(target_ulong cur_loc) {
 
   INC_AFL_AREA(afl_idx);
 
+  // afl_prev_loc = ((cur_loc & (MAP_SIZE - 1) >> 1)) |
+  //                ((cur_loc & 1) << ((int)ceil(log2(MAP_SIZE)) -1));
   afl_prev_loc = cur_loc >> 1;
 
+}
+
+static target_ulong pc_hash(target_ulong x) {
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = (x >> 16) ^ x;
+    return x;
 }
 
 /* Generates TCG code for AFL's tracing instrumentation. */
@@ -93,8 +104,9 @@ static void afl_gen_trace(target_ulong cur_loc) {
      concern. Phew. But instruction addresses may be aligned. Let's mangle
      the value to get something quasi-uniform. */
 
-  cur_loc = (cur_loc >> 4) ^ (cur_loc << 8);
-  cur_loc &= MAP_SIZE - 1;
+  // cur_loc = (cur_loc >> 4) ^ (cur_loc << 8);
+  // cur_loc &= MAP_SIZE - 1;
+  cur_loc = pc_hash(cur_loc) & (MAP_SIZE -1);
 
   /* Implement probabilistic instrumentation by looking at scrambled block
      address. This keeps the instrumented locations stable across runs. */
