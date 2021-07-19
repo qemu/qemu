@@ -383,6 +383,17 @@ cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
             cc->set_pc(cpu, last_tb->pc);
         }
     }
+
+    /*
+     * If gdb single-step, and we haven't raised another exception,
+     * raise a debug exception.  Single-step with another exception
+     * is handled in cpu_handle_exception.
+     */
+    if (unlikely(cpu->singlestep_enabled) && cpu->exception_index == -1) {
+        cpu->exception_index = EXCP_DEBUG;
+        cpu_loop_exit(cpu);
+    }
+
     return last_tb;
 }
 
