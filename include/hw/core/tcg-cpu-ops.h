@@ -89,6 +89,12 @@ struct TCGCPUOps {
     bool (*debug_check_watchpoint)(CPUState *cpu, CPUWatchpoint *wp);
 
     /**
+     * @debug_check_breakpoint: return true if the architectural
+     * breakpoint whose PC has matched should really fire.
+     */
+    bool (*debug_check_breakpoint)(CPUState *cpu);
+
+    /**
      * @io_recompile_replay_branch: Callback for cpu_io_recompile.
      *
      * The cpu has been stopped, and cpu_restore_state_from_tb has been
