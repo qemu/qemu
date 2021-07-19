@@ -1195,12 +1195,35 @@
 }
 
 ##
+# @SgxEPCDeviceInfo:
+#
+# Sgx EPC state information
+#
+# @id: device's ID
+#
+# @memaddr: physical address in memory, where device is mapped
+#
+# @size: size of memory that the device provides
+#
+# @memdev: memory backend linked with device
+#
+# Since: 6.2
+##
+{ 'struct': 'SgxEPCDeviceInfo',
+  'data': { '*id': 'str',
+            'memaddr': 'size',
+            'size': 'size',
+            'memdev': 'str'
+          }
+}
+
+##
 # @MemoryDeviceInfoKind:
 #
 # Since: 2.1
 ##
 { 'enum': 'MemoryDeviceInfoKind',
-  'data': [ 'dimm', 'nvdimm', 'virtio-pmem', 'virtio-mem' ] }
+  'data': [ 'dimm', 'nvdimm', 'virtio-pmem', 'virtio-mem', 'sgx-epc' ] }
 
 ##
 # @PCDIMMDeviceInfoWrapper:
@@ -1225,13 +1248,22 @@
 ##
 { 'struct': 'VirtioMEMDeviceInfoWrapper',
   'data': { 'data': 'VirtioMEMDeviceInfo' } }
+
+##
+# @SgxEPCDeviceInfoWrapper:
+#
+# Since: 6.2
+##
+{ 'struct': 'SgxEPCDeviceInfoWrapper',
+  'data': { 'data': 'SgxEPCDeviceInfo' } }
+
 ##
 # @MemoryDeviceInfo:
 #
 # Union containing information about a memory device
 #
 # nvdimm is included since 2.12. virtio-pmem is included since 4.1.
-# virtio-mem is included since 5.1.
+# virtio-mem is included since 5.1. sgx-epc is included since 6.2.
 #
 # Since: 2.1
 ##
@@ -1241,7 +1273,8 @@
   'data': { 'dimm': 'PCDIMMDeviceInfoWrapper',
             'nvdimm': 'PCDIMMDeviceInfoWrapper',
             'virtio-pmem': 'VirtioPMEMDeviceInfoWrapper',
-            'virtio-mem': 'VirtioMEMDeviceInfoWrapper'
+            'virtio-mem': 'VirtioMEMDeviceInfoWrapper',
+            'sgx-epc': 'SgxEPCDeviceInfoWrapper'
           }
 }
 
