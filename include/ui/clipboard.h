@@ -20,8 +20,10 @@
  */
 
 typedef enum QemuClipboardType QemuClipboardType;
+typedef enum QemuClipboardNotifyType QemuClipboardNotifyType;
 typedef enum QemuClipboardSelection QemuClipboardSelection;
 typedef struct QemuClipboardPeer QemuClipboardPeer;
+typedef struct QemuClipboardNotify QemuClipboardNotify;
 typedef struct QemuClipboardInfo QemuClipboardInfo;
 
 /**
@@ -55,16 +57,42 @@ enum QemuClipboardSelection {
  * struct QemuClipboardPeer
  *
  * @name: peer name.
- * @update: notifier for clipboard updates.
+ * @notifier: notifier for clipboard updates.
  * @request: callback for clipboard data requests.
  *
  * Clipboard peer description.
  */
 struct QemuClipboardPeer {
     const char *name;
-    Notifier update;
+    Notifier notifier;
     void (*request)(QemuClipboardInfo *info,
                     QemuClipboardType type);
+};
+
+/**
+ * enum QemuClipboardNotifyType
+ *
+ * @QEMU_CLIPBOARD_UPDATE_INFO: clipboard info update
+ *
+ * Clipboard notify type.
+ */
+enum QemuClipboardNotifyType {
+    QEMU_CLIPBOARD_UPDATE_INFO,
+};
+
+/**
+ * struct QemuClipboardNotify
+ *
+ * @type: the type of event.
+ * @info: a QemuClipboardInfo event.
+ *
+ * Clipboard notify data.
+ */
+struct QemuClipboardNotify {
+    QemuClipboardNotifyType type;
+    union {
+        QemuClipboardInfo *info;
+    };
 };
 
 /**

@@ -417,10 +417,9 @@ static void vdagent_send_empty_clipboard_data(VDAgentChardev *vd,
     vdagent_send_clipboard_data(vd, info, type);
 }
 
-static void vdagent_clipboard_notify(Notifier *notifier, void *data)
+static void vdagent_clipboard_update_info(VDAgentChardev *vd,
+                                          QemuClipboardInfo *info)
 {
-    VDAgentChardev *vd = container_of(notifier, VDAgentChardev, cbpeer.update);
-    QemuClipboardInfo *info = data;
     QemuClipboardSelection s = info->selection;
     QemuClipboardType type;
     bool self_update = info->owner == &vd->cbpeer;
@@ -446,6 +445,19 @@ static void vdagent_clipboard_notify(Notifier *notifier, void *data)
             vd->cbpending[s] &= ~(1 << type);
             vdagent_send_clipboard_data(vd, info, type);
         }
+    }
+}
+
+static void vdagent_clipboard_notify(Notifier *notifier, void *data)
+{
+    VDAgentChardev *vd =
+        container_of(notifier, VDAgentChardev, cbpeer.notifier);
+    QemuClipboardNotify *notify = data;
+
+    switch (notify->type) {
+    case QEMU_CLIPBOARD_UPDATE_INFO:
+        vdagent_clipboard_update_info(vd, notify->info);
+        return;
     }
 }
 
@@ -658,9 +670,9 @@ static void vdagent_chr_recv_caps(VDAgentChardev *vd, VDAgentMessage *msg)
     if (have_mouse(vd) && vd->mouse_hs) {
         qemu_input_handler_activate(vd->mouse_hs);
     }
-    if (have_clipboard(vd) && vd->cbpeer.update.notify == NULL) {
+    if (have_clipboard(vd) && vd->cbpeer.notifier.notify == NULL) {
         vd->cbpeer.name = "vdagent";
-        vd->cbpeer.update.notify = vdagent_clipboard_notify;
+        vd->cbpeer.notifier.notify = vdagent_clipboard_notify;
         vd->cbpeer.request = vdagent_clipboard_request;
         qemu_clipboard_peer_register(&vd->cbpeer);
     }
@@ -799,7 +811,7 @@ static void vdagent_disconnect(VDAgentChardev *vd)
     if (vd->mouse_hs) {
         qemu_input_handler_deactivate(vd->mouse_hs);
     }
-    if (vd->cbpeer.update.notify) {
+    if (vd->cbpeer.notifier.notify) {
         qemu_clipboard_peer_unregister(&vd->cbpeer);
         memset(&vd->cbpeer, 0, sizeof(vd->cbpeer));
     }
@@ -807,11 +819,8 @@ static void vdagent_disconnect(VDAgentChardev *vd)
 
 static void vdagent_chr_set_fe_open(struct Chardev *chr, int fe_open)
 {
-    VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(chr);
-
     if (!fe_open) {
         trace_vdagent_close();
-        vdagent_disconnect(vd);
         return;
     }
 

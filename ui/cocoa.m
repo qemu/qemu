@@ -1808,14 +1808,12 @@ static void cocoa_clipboard_request(QemuClipboardInfo *info,
 
 static QemuClipboardPeer cbpeer = {
     .name = "cocoa",
-    .update = { .notify = cocoa_clipboard_notify },
+    .notifier = { .notify = cocoa_clipboard_notify },
     .request = cocoa_clipboard_request
 };
 
-static void cocoa_clipboard_notify(Notifier *notifier, void *data)
+static void cocoa_clipboard_update_info(QemuClipboardInfo *info)
 {
-    QemuClipboardInfo *info = data;
-
     if (info->owner == &cbpeer || info->selection != QEMU_CLIPBOARD_SELECTION_CLIPBOARD) {
         return;
     }
@@ -1829,6 +1827,17 @@ static void cocoa_clipboard_notify(Notifier *notifier, void *data)
     }
 
     qemu_event_set(&cbevent);
+}
+
+static void cocoa_clipboard_notify(Notifier *notifier, void *data)
+{
+    QemuClipboardNotify *notify = data;
+
+    switch (notify->type) {
+    case QEMU_CLIPBOARD_UPDATE_INFO:
+        cocoa_clipboard_update_info(notify->info);
+        return;
+    }
 }
 
 static void cocoa_clipboard_request(QemuClipboardInfo *info,
