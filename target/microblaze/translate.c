@@ -1779,7 +1779,7 @@ static void mb_tr_tb_stop(DisasContextBase *dcb, CPUState *cs)
         break;
 
     case DISAS_JUMP:
-        if (dc->jmp_dest != -1 && !cs->singlestep_enabled) {
+        if (dc->jmp_dest != -1 && !(tb_cflags(dc->base.tb) & CF_NO_GOTO_TB)) {
             /* Direct jump. */
             tcg_gen_discard_i32(cpu_btarget);
 
@@ -1804,7 +1804,7 @@ static void mb_tr_tb_stop(DisasContextBase *dcb, CPUState *cs)
             return;
         }
 
-        /* Indirect jump (or direct jump w/ singlestep) */
+        /* Indirect jump (or direct jump w/ goto_tb disabled) */
         tcg_gen_mov_i32(cpu_pc, cpu_btarget);
         tcg_gen_discard_i32(cpu_btarget);
 
