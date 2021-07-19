@@ -13,6 +13,7 @@ ENV PACKAGES \
     hostname \
     make \
     meson \
+    mingw32-nsis \
     mingw64-bzip2 \
     mingw64-curl \
     mingw64-glib2 \
