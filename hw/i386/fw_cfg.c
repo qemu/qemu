@@ -159,7 +159,7 @@ void fw_cfg_build_feature_control(MachineState *ms, FWCfgState *fw_cfg)
 {
     X86CPU *cpu = X86_CPU(ms->possible_cpus->cpus[0].cpu);
     CPUX86State *env = &cpu->env;
-    uint32_t unused, ecx, edx;
+    uint32_t unused, ebx, ecx, edx;
     uint64_t feature_control_bits = 0;
     uint64_t *val;
 
@@ -172,6 +172,16 @@ void fw_cfg_build_feature_control(MachineState *ms, FWCfgState *fw_cfg)
         (CPUID_EXT2_MCE | CPUID_EXT2_MCA) &&
         (env->mcg_cap & MCG_LMCE_P)) {
         feature_control_bits |= FEATURE_CONTROL_LMCE;
+    }
+
+    if (env->cpuid_level >= 7) {
+        cpu_x86_cpuid(env, 0x7, 0, &unused, &ebx, &ecx, &unused);
+        if (ebx & CPUID_7_0_EBX_SGX) {
+            feature_control_bits |= FEATURE_CONTROL_SGX;
+        }
+        if (ecx & CPUID_7_0_ECX_SGX_LC) {
+            feature_control_bits |= FEATURE_CONTROL_SGX_LC;
+        }
     }
 
     if (!feature_control_bits) {
