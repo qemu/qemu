@@ -1837,6 +1837,9 @@ static void cocoa_clipboard_notify(Notifier *notifier, void *data)
     case QEMU_CLIPBOARD_UPDATE_INFO:
         cocoa_clipboard_update_info(notify->info);
         return;
+    case QEMU_CLIPBOARD_RESET_SERIAL:
+        /* ignore */
+        return;
     }
 }
 

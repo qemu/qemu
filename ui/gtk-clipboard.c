@@ -127,6 +127,9 @@ static void gd_clipboard_notify(Notifier *notifier, void *data)
     case QEMU_CLIPBOARD_UPDATE_INFO:
         gd_clipboard_update_info(gd, notify->info);
         return;
+    case QEMU_CLIPBOARD_RESET_SERIAL:
+        /* ignore */
+        return;
     }
 }
 

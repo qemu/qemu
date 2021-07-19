@@ -73,11 +73,13 @@ struct QemuClipboardPeer {
  * enum QemuClipboardNotifyType
  *
  * @QEMU_CLIPBOARD_UPDATE_INFO: clipboard info update
+ * @QEMU_CLIPBOARD_RESET_SERIAL: reset clipboard serial
  *
  * Clipboard notify type.
  */
 enum QemuClipboardNotifyType {
     QEMU_CLIPBOARD_UPDATE_INFO,
+    QEMU_CLIPBOARD_RESET_SERIAL,
 };
 
 /**
@@ -229,6 +231,13 @@ void qemu_clipboard_info_unref(QemuClipboardInfo *info);
  * calls.
  */
 void qemu_clipboard_update(QemuClipboardInfo *info);
+
+/**
+ * qemu_clipboard_reset_serial
+ *
+ * Reset the clipboard serial.
+ */
+void qemu_clipboard_reset_serial(void);
 
 /**
  * qemu_clipboard_request

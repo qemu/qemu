@@ -466,6 +466,15 @@ static void vdagent_clipboard_update_info(VDAgentChardev *vd,
     }
 }
 
+static void vdagent_clipboard_reset_serial(VDAgentChardev *vd)
+{
+    Chardev *chr = CHARDEV(vd);
+
+    /* reopen the agent connection to reset the serial state */
+    qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+}
+
 static void vdagent_clipboard_notify(Notifier *notifier, void *data)
 {
     VDAgentChardev *vd =
@@ -475,6 +484,9 @@ static void vdagent_clipboard_notify(Notifier *notifier, void *data)
     switch (notify->type) {
     case QEMU_CLIPBOARD_UPDATE_INFO:
         vdagent_clipboard_update_info(vd, notify->info);
+        return;
+    case QEMU_CLIPBOARD_RESET_SERIAL:
+        vdagent_clipboard_reset_serial(vd);
         return;
     }
 }

@@ -230,6 +230,9 @@ static void vnc_clipboard_notify(Notifier *notifier, void *data)
     case QEMU_CLIPBOARD_UPDATE_INFO:
         vnc_clipboard_update_info(vs, notify->info);
         return;
+    case QEMU_CLIPBOARD_RESET_SERIAL:
+        /* ignore */
+        return;
     }
 }
 

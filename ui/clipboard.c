@@ -129,6 +129,13 @@ void qemu_clipboard_request(QemuClipboardInfo *info,
     info->owner->request(info, type);
 }
 
+void qemu_clipboard_reset_serial(void)
+{
+    QemuClipboardNotify notify = { .type = QEMU_CLIPBOARD_RESET_SERIAL };
+
+    notifier_list_notify(&clipboard_notifiers, &notify);
+}
+
 void qemu_clipboard_set_data(QemuClipboardPeer *peer,
                              QemuClipboardInfo *info,
                              QemuClipboardType type,
