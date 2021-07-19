@@ -3881,7 +3881,7 @@ static int bar(void *a) {
 }
 int main(int argc, char *argv[]) { return bar(argv[0]); }
 EOF
-  if compile_object "" ; then
+  if compile_object "-Werror" ; then
     avx2_opt="yes"
   else
     avx2_opt="no"
@@ -3911,7 +3911,7 @@ int main(int argc, char *argv[])
 	return bar(argv[0]);
 }
 EOF
-  if ! compile_object "" ; then
+  if ! compile_object "-Werror" ; then
     avx512f_opt="no"
   fi
 else
