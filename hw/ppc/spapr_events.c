@@ -872,7 +872,6 @@ void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered)
     SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     CPUState *cs = CPU(cpu);
     int ret;
-    Error *local_err = NULL;
 
     if (spapr->fwnmi_machine_check_addr == -1) {
         /* Non-FWNMI case, deliver it like an architected CPU interrupt. */
@@ -912,7 +911,7 @@ void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered)
         }
     }
 
-    ret = migrate_add_blocker(spapr->fwnmi_migration_blocker, &local_err);
+    ret = migrate_add_blocker(spapr->fwnmi_migration_blocker, NULL);
     if (ret == -EBUSY) {
         /*
          * We don't want to abort so we let the migration to continue.
