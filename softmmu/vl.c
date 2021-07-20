@@ -2694,12 +2694,7 @@ void qmp_x_exit_preconfig(Error **errp)
     qemu_machine_creation_done();
 
     if (loadvm) {
-        Error *local_err = NULL;
-        if (!load_snapshot(loadvm, NULL, false, NULL, &local_err)) {
-            error_report_err(local_err);
-            autostart = 0;
-            exit(1);
-        }
+        load_snapshot(loadvm, NULL, false, NULL, &error_fatal);
     }
     if (replay_mode != REPLAY_MODE_NONE) {
         replay_vmstate_init();

@@ -188,8 +188,6 @@ static gint page_request_addr_cmp(gconstpointer ap, gconstpointer bp)
 
 void migration_object_init(void)
 {
-    Error *err = NULL;
-
     /* This can only be called once. */
     assert(!current_migration);
     current_migration = MIGRATION_OBJ(object_new(TYPE_MIGRATION));
@@ -210,10 +208,7 @@ void migration_object_init(void)
     qemu_mutex_init(&current_incoming->page_request_mutex);
     current_incoming->page_requested = g_tree_new(page_request_addr_cmp);
 
-    if (!migration_object_check(current_migration, &err)) {
-        error_report_err(err);
-        exit(1);
-    }
+    migration_object_check(current_migration, &error_fatal);
 
     blk_mig_init();
     ram_mig_init();

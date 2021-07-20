@@ -671,18 +671,13 @@ static void qemu_spice_init(void)
     }
     passwordSecret = qemu_opt_get(opts, "password-secret");
     if (passwordSecret) {
-        Error *local_err = NULL;
         if (qemu_opt_get(opts, "password")) {
             error_report("'password' option is mutually exclusive with "
                          "'password-secret'");
             exit(1);
         }
         password = qcrypto_secret_lookup_as_utf8(passwordSecret,
-                                                 &local_err);
-        if (!password) {
-            error_report_err(local_err);
-            exit(1);
-        }
+                                                 &error_fatal);
     } else {
         str = qemu_opt_get(opts, "password");
         if (str) {

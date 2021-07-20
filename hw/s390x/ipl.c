@@ -711,7 +711,6 @@ int s390_ipl_pv_unpack(void)
 void s390_ipl_prepare_cpu(S390CPU *cpu)
 {
     S390IPLState *ipl = get_ipl_device();
-    Error *err = NULL;
 
     cpu->env.psw.addr = ipl->start_addr;
     cpu->env.psw.mask = IPL_PSW_MASK;
@@ -723,10 +722,7 @@ void s390_ipl_prepare_cpu(S390CPU *cpu)
         }
     }
     if (ipl->netboot) {
-        if (load_netboot_image(&err) < 0) {
-            error_report_err(err);
-            exit(1);
-        }
+        load_netboot_image(&error_fatal);
         ipl->qipl.netboot_start_addr = cpu_to_be64(ipl->start_addr);
     }
     s390_ipl_set_boot_menu(ipl);

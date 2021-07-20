@@ -529,7 +529,6 @@ int main(int argc, char **argv)
     int flags = BDRV_O_UNMAP;
     int ret;
     bool writethrough = true;
-    Error *local_error = NULL;
     QDict *opts = NULL;
     const char *format = NULL;
     bool force_share = false;
@@ -629,10 +628,7 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    if (qemu_init_main_loop(&local_error)) {
-        error_report_err(local_error);
-        exit(1);
-    }
+    qemu_init_main_loop(&error_fatal);
 
     if (!trace_init_backends()) {
         exit(1);
