@@ -1545,7 +1545,7 @@ machine_parse_property_opt(QemuOptsList *opts_list, const char *propname,
     prop = keyval_parse(arg, opts_list->implied_opt_name, &help, errp);
     if (help) {
         qemu_opts_print_help(opts_list, true);
-        return;
+        exit(0);
     }
     opts = qdict_new();
     qdict_put(opts, propname, prop);
