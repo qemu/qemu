@@ -237,18 +237,18 @@ def qemu_io_silent(*args):
         default_args = qemu_io_args
 
     args = default_args + list(args)
-    exitcode = subprocess.call(args, stdout=open('/dev/null', 'w'))
-    if exitcode < 0:
+    result = subprocess.run(args, stdout=subprocess.DEVNULL, check=False)
+    if result.returncode < 0:
         sys.stderr.write('qemu-io received signal %i: %s\n' %
-                         (-exitcode, ' '.join(args)))
-    return exitcode
+                         (-result.returncode, ' '.join(args)))
+    return result.returncode
 
 def qemu_io_silent_check(*args):
     '''Run qemu-io and return the true if subprocess returned 0'''
     args = qemu_io_args + list(args)
-    exitcode = subprocess.call(args, stdout=open('/dev/null', 'w'),
-                               stderr=subprocess.STDOUT)
-    return exitcode == 0
+    result = subprocess.run(args, stdout=subprocess.DEVNULL,
+                            stderr=subprocess.STDOUT, check=False)
+    return result.returncode == 0
 
 class QemuIoInteractive:
     def __init__(self, *args):
