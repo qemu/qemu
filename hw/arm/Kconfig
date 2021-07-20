@@ -388,6 +388,7 @@ config NPCM7XX
     select A9MPCORE
     select ADM1272
     select ARM_GIC
+    select SMBUS
     select AT24C  # EEPROM
     select MAX34451
     select PL310  # cache controller
@@ -403,7 +404,7 @@ config FSL_IMX25
     select IMX_FEC
     select IMX_I2C
     select WDT_IMX2
-    select DS1338
+    select SDHCI
 
 config FSL_IMX31
     bool
