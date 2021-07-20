@@ -865,37 +865,25 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
         GdkWindow *win = gtk_widget_get_window(widget);
         GdkMonitor *monitor = gdk_display_get_monitor_at_window(dpy, win);
         GdkRectangle geometry;
-        int screen_width, screen_height;
 
         int x = (int)motion->x_root;
         int y = (int)motion->y_root;
 
         gdk_monitor_get_geometry(monitor, &geometry);
-        screen_width = geometry.width;
-        screen_height = geometry.height;
 
         /* In relative mode check to see if client pointer hit
-         * one of the screen edges, and if so move it back by
-         * 200 pixels. This is important because the pointer
+         * one of the monitor edges, and if so move it back to the
+         * center of the monitor. This is important because the pointer
          * in the server doesn't correspond 1-for-1, and so
          * may still be only half way across the screen. Without
          * this warp, the server pointer would thus appear to hit
          * an invisible wall */
-        if (x == 0) {
-            x += 200;
-        }
-        if (y == 0) {
-            y += 200;
-        }
-        if (x == (screen_width - 1)) {
-            x -= 200;
-        }
-        if (y == (screen_height - 1)) {
-            y -= 200;
-        }
-
-        if (x != (int)motion->x_root || y != (int)motion->y_root) {
+        if (x <= geometry.x || x - geometry.x >= geometry.width - 1 ||
+            y <= geometry.y || y - geometry.y >= geometry.height - 1) {
             GdkDevice *dev = gdk_event_get_device((GdkEvent *)motion);
+            x = geometry.x + geometry.width / 2;
+            y = geometry.y + geometry.height / 2;
+
             gdk_device_warp(dev, screen, x, y);
             s->last_set = FALSE;
             return FALSE;
