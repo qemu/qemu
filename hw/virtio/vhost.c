@@ -1372,7 +1372,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
 
     if (hdev->migration_blocker != NULL) {
         r = migrate_add_blocker(hdev->migration_blocker, errp);
-        if (*errp) {
+        if (r < 0) {
             error_free(hdev->migration_blocker);
             goto fail_busyloop;
         }
