@@ -6162,6 +6162,9 @@ BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
 
 void bdrv_init(void)
 {
+#ifdef CONFIG_BDRV_WHITELIST_TOOLS
+    use_bdrv_whitelist = 1;
+#endif
     module_call_init(MODULE_INIT_BLOCK);
 }
 

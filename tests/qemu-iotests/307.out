@@ -51,6 +51,14 @@ exports available: 1
    base:allocation
 
 
+=== Add export with conflicting iothread ===
+{"execute": "device_add", "arguments": {"drive": "null", "driver": "scsi-hd", "id": "sdb"}}
+{"return": {}}
+{"execute": "block-export-add", "arguments": {"fixed-iothread": true, "id": "export1", "iothread": "iothread1", "node-name": "null", "type": "nbd", "writable": true}}
+{"error": {"class": "GenericError", "desc": "Cannot change iothread of active block backend"}}
+{"execute": "block-export-add", "arguments": {"fixed-iothread": false, "id": "export1", "iothread": "iothread1", "node-name": "null", "type": "nbd", "writable": true}}
+{"error": {"class": "GenericError", "desc": "Permission conflict on node 'null': permissions 'write' are both required by an unnamed block device (uses node 'null' as 'root' child) and unshared by block device 'sdb' (uses node 'null' as 'root' child)."}}
+
 === Add a writable export ===
 {"execute": "block-export-add", "arguments": {"description": "This is the writable second export", "id": "export1", "name": "export1", "node-name": "fmt", "type": "nbd", "writable": true, "writethrough": true}}
 {"error": {"class": "GenericError", "desc": "Permission conflict on node 'fmt': permissions 'write' are both required by an unnamed block device (uses node 'fmt' as 'root' child) and unshared by block device 'sda' (uses node 'fmt' as 'root' child)."}}

@@ -41,9 +41,11 @@ with iotests.FilePath('image') as img, \
     iotests.log('=== Launch VM ===')
 
     vm.add_object('iothread,id=iothread0')
+    vm.add_object('iothread,id=iothread1')
     vm.add_blockdev(f'file,filename={img},node-name=file')
     vm.add_blockdev(f'{iotests.imgfmt},file=file,node-name=fmt')
     vm.add_blockdev('raw,file=file,node-name=ro,read-only=on')
+    vm.add_blockdev('null-co,node-name=null')
     vm.add_device(f'id=scsi0,driver=virtio-scsi,iothread=iothread0')
     vm.launch()
 
@@ -73,6 +75,19 @@ with iotests.FilePath('image') as img, \
     vm.qmp_log('device_add', id='sda', driver='scsi-hd', drive='fmt')
     vm.qmp_log('query-block-exports')
     iotests.qemu_nbd_list_log('-k', socket)
+
+    iotests.log('\n=== Add export with conflicting iothread ===')
+
+    vm.qmp_log('device_add', id='sdb', driver='scsi-hd', drive='null')
+
+    # Should fail because of fixed-iothread
+    vm.qmp_log('block-export-add', id='export1', type='nbd', node_name='null',
+               iothread='iothread1', fixed_iothread=True, writable=True)
+
+    # Should ignore the iothread conflict, but then fail because of the
+    # permission conflict (and not crash)
+    vm.qmp_log('block-export-add', id='export1', type='nbd', node_name='null',
+               iothread='iothread1', fixed_iothread=False, writable=True)
 
     iotests.log('\n=== Add a writable export ===')
 

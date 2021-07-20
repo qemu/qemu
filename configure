@@ -243,6 +243,7 @@ cross_prefix=""
 audio_drv_list=""
 block_drv_rw_whitelist=""
 block_drv_ro_whitelist=""
+block_drv_whitelist_tools="no"
 host_cc="cc"
 audio_win_int=""
 libs_qga=""
@@ -1015,6 +1016,10 @@ for opt do
   --block-drv-rw-whitelist=*|--block-drv-whitelist=*) block_drv_rw_whitelist=$(echo "$optarg" | sed -e 's/,/ /g')
   ;;
   --block-drv-ro-whitelist=*) block_drv_ro_whitelist=$(echo "$optarg" | sed -e 's/,/ /g')
+  ;;
+  --enable-block-drv-whitelist-in-tools) block_drv_whitelist_tools="yes"
+  ;;
+  --disable-block-drv-whitelist-in-tools) block_drv_whitelist_tools="no"
   ;;
   --enable-debug-tcg) debug_tcg="yes"
   ;;
@@ -1800,10 +1805,12 @@ Advanced options (experts only):
   --block-drv-whitelist=L  Same as --block-drv-rw-whitelist=L
   --block-drv-rw-whitelist=L
                            set block driver read-write whitelist
-                           (affects only QEMU, not qemu-img)
+                           (by default affects only QEMU, not tools like qemu-img)
   --block-drv-ro-whitelist=L
                            set block driver read-only whitelist
-                           (affects only QEMU, not qemu-img)
+                           (by default affects only QEMU, not tools like qemu-img)
+  --enable-block-drv-whitelist-in-tools
+                           use block whitelist also in tools instead of only QEMU
   --enable-trace-backends=B Set trace backend
                            Available backends: $trace_backend_list
   --with-trace-file=NAME   Full PATH,NAME of file to store traces
@@ -4583,6 +4590,9 @@ if test "$audio_win_int" = "yes" ; then
 fi
 echo "CONFIG_BDRV_RW_WHITELIST=$block_drv_rw_whitelist" >> $config_host_mak
 echo "CONFIG_BDRV_RO_WHITELIST=$block_drv_ro_whitelist" >> $config_host_mak
+if test "$block_drv_whitelist_tools" = "yes" ; then
+  echo "CONFIG_BDRV_WHITELIST_TOOLS=y" >> $config_host_mak
+fi
 if test "$xfs" = "yes" ; then
   echo "CONFIG_XFS=y" >> $config_host_mak
 fi
