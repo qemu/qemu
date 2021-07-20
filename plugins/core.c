@@ -488,6 +488,45 @@ void qemu_plugin_register_atexit_cb(qemu_plugin_id_t id,
 }
 
 /*
+ * Handle exit from linux-user. Unlike the normal atexit() mechanism
+ * we need to handle the clean-up manually as it's possible threads
+ * are still running. We need to remove all callbacks from code
+ * generation, flush the current translations and then we can safely
+ * trigger the exit callbacks.
+ */
+
+void qemu_plugin_user_exit(void)
+{
+    enum qemu_plugin_event ev;
+    CPUState *cpu;
+
+    QEMU_LOCK_GUARD(&plugin.lock);
+
+    start_exclusive();
+
+    /* un-register all callbacks except the final AT_EXIT one */
+    for (ev = 0; ev < QEMU_PLUGIN_EV_MAX; ev++) {
+        if (ev != QEMU_PLUGIN_EV_ATEXIT) {
+            struct qemu_plugin_ctx *ctx;
+            QTAILQ_FOREACH(ctx, &plugin.ctxs, entry) {
+                plugin_unregister_cb__locked(ctx, ev);
+            }
+        }
+    }
+
+    tb_flush(current_cpu);
+
+    CPU_FOREACH(cpu) {
+        qemu_plugin_disable_mem_helpers(cpu);
+    }
+
+    end_exclusive();
+
+    /* now it's safe to handle the exit case */
+    qemu_plugin_atexit_cb();
+}
+
+/*
  * Call this function after longjmp'ing to the main loop. It's possible that the
  * last instruction of a TB might have used helpers, and therefore the
  * "disable" instruction will never execute because it ended up as dead code.

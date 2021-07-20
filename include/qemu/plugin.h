@@ -190,6 +190,16 @@ void qemu_plugin_add_dyn_cb_arr(GArray *arr);
 
 void qemu_plugin_disable_mem_helpers(CPUState *cpu);
 
+/**
+ * qemu_plugin_user_exit(): clean-up callbacks before calling exit callbacks
+ *
+ * This is a user-mode only helper that ensure we have fully cleared
+ * callbacks from all threads before calling the exit callbacks. This
+ * is so the plugins themselves don't have to jump through hoops to
+ * guard against race conditions.
+ */
+void qemu_plugin_user_exit(void);
+
 #else /* !CONFIG_PLUGIN */
 
 static inline void qemu_plugin_add_opts(void)
@@ -250,6 +260,8 @@ void qemu_plugin_add_dyn_cb_arr(GArray *arr)
 static inline void qemu_plugin_disable_mem_helpers(CPUState *cpu)
 { }
 
+static inline void qemu_plugin_user_exit(void)
+{ }
 #endif /* !CONFIG_PLUGIN */
 
 #endif /* QEMU_PLUGIN_H */
