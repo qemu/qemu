@@ -156,6 +156,7 @@ from making a forward reference to a type that is only introduced by
 an outer file.  The parser may be made stricter in the future to
 prevent incomplete include files.
 
+.. _pragma:
 
 Pragma directives
 -----------------
@@ -186,6 +187,7 @@ Pragma 'member-name-exceptions' takes a list of types whose member
 names may contain uppercase letters, and ``"_"`` instead of ``"-"``.
 Default is none.
 
+.. _ENUM-VALUE:
 
 Enumeration types
 -----------------
@@ -228,12 +230,14 @@ additional enumeration constant PREFIX__MAX with value N.
 Do not use string or an integer type when an enumeration type can do
 the job satisfactorily.
 
-The optional 'if' member specifies a conditional.  See "Configuring
-the schema" below for more on this.
+The optional 'if' member specifies a conditional.  See `Configuring the
+schema`_ below for more on this.
 
-The optional 'features' member specifies features.  See "Features"
+The optional 'features' member specifies features.  See Features_
 below for more on this.
 
+
+.. _TYPE-REF:
 
 Type references and array types
 -------------------------------
@@ -269,11 +273,13 @@ Member 'struct' names the struct type.
 
 Each MEMBER of the 'data' object defines a member of the struct type.
 
+.. _MEMBERS:
+
 The MEMBER's STRING name consists of an optional ``*`` prefix and the
 struct member name.  If ``*`` is present, the member is optional.
 
 The MEMBER's value defines its properties, in particular its type.
-The form TYPE-REF is shorthand for :code:`{ 'type': TYPE-REF }`.
+The form TYPE-REF_ is shorthand for :code:`{ 'type': TYPE-REF }`.
 
 Example::
 
@@ -300,10 +306,10 @@ both members like this::
  { "file": "/some/place/my-image",
    "backing": "/some/place/my-backing-file" }
 
-The optional 'if' member specifies a conditional.  See "Configuring
-the schema" below for more on this.
+The optional 'if' member specifies a conditional.  See `Configuring
+the schema`_ below for more on this.
 
-The optional 'features' member specifies features.  See "Features"
+The optional 'features' member specifies features.  See Features_
 below for more on this.
 
 
@@ -337,7 +343,7 @@ union must have at least one branch.
 The BRANCH's STRING name is the branch name.
 
 The BRANCH's value defines the branch's properties, in particular its
-type.  The form TYPE-REF is shorthand for :code:`{ 'type': TYPE-REF }`.
+type.  The form TYPE-REF_ is shorthand for :code:`{ 'type': TYPE-REF }`.
 
 A simple union type defines a mapping from automatic discriminator
 values to data types like in this example::
@@ -368,12 +374,12 @@ Flat unions permit arbitrary common members that occur in all variants
 of the union, not just a discriminator.  Their discriminators need not
 be named 'type'.  They also avoid nesting on the wire.
 
-The 'base' member defines the common members.  If it is a MEMBERS
+The 'base' member defines the common members.  If it is a MEMBERS_
 object, it defines common members just like a struct type's 'data'
 member defines struct type members.  If it is a STRING, it names a
 struct type whose members are the common members.
 
-All flat union branches must be of struct type.
+All flat union branches must be `Struct types`_.
 
 In the Client JSON Protocol, a flat union is represented by an object
 with the common members (from the base type) and the selected branch's
@@ -425,10 +431,10 @@ is identical on the wire to::
  { 'union': 'Flat', 'base': { 'type': 'Enum' }, 'discriminator': 'type',
    'data': { 'one': 'Branch1', 'two': 'Branch2' } }
 
-The optional 'if' member specifies a conditional.  See "Configuring
-the schema" below for more on this.
+The optional 'if' member specifies a conditional.  See `Configuring
+the schema`_ below for more on this.
 
-The optional 'features' member specifies features.  See "Features"
+The optional 'features' member specifies features.  See Features_
 below for more on this.
 
 
@@ -481,10 +487,10 @@ following example objects::
              "read-only": false,
              "filename": "/tmp/mydisk.qcow2" } }
 
-The optional 'if' member specifies a conditional.  See "Configuring
-the schema" below for more on this.
+The optional 'if' member specifies a conditional.  See `Configuring
+the schema`_ below for more on this.
 
-The optional 'features' member specifies features.  See "Features"
+The optional 'features' member specifies features.  See Features_
 below for more on this.
 
 
@@ -511,10 +517,10 @@ Syntax::
 
 Member 'command' names the command.
 
-Member 'data' defines the arguments.  It defaults to an empty MEMBERS
+Member 'data' defines the arguments.  It defaults to an empty MEMBERS_
 object.
 
-If 'data' is a MEMBERS object, then MEMBERS defines arguments just
+If 'data' is a MEMBERS_ object, then MEMBERS defines arguments just
 like a struct type's 'data' defines struct type members.
 
 If 'data' is a STRING, then STRING names a complex type whose members
@@ -553,7 +559,7 @@ which would validate this Client JSON Protocol transaction::
 
 The generator emits a prototype for the C function implementing the
 command.  The function itself needs to be written by hand.  See
-section "Code generated for commands" for examples.
+section `Code generated for commands`_ for examples.
 
 The function returns the return type.  When member 'boxed' is absent,
 it takes the command arguments as arguments one by one, in QAPI schema
@@ -660,10 +666,10 @@ for a command.  We don't currently have a use case for both together and
 without a use case, it's not entirely clear what the semantics should
 be.
 
-The optional 'if' member specifies a conditional.  See "Configuring
-the schema" below for more on this.
+The optional 'if' member specifies a conditional.  See `Configuring
+the schema`_ below for more on this.
 
-The optional 'features' member specifies features.  See "Features"
+The optional 'features' member specifies features.  See Features_
 below for more on this.
 
 
@@ -708,14 +714,16 @@ Resulting in this JSON object::
 The generator emits a function to send the event.  When member 'boxed'
 is absent, it takes event-specific data one by one, in QAPI schema
 order.  Else it takes them wrapped in the C struct generated for the
-complex type.  See section "Code generated for events" for examples.
+complex type.  See section `Code generated for events`_ for examples.
 
-The optional 'if' member specifies a conditional.  See "Configuring
-the schema" below for more on this.
+The optional 'if' member specifies a conditional.  See `Configuring
+the schema`_ below for more on this.
 
-The optional 'features' member specifies features.  See "Features"
+The optional 'features' member specifies features.  See Features_
 below for more on this.
 
+
+.. _FEATURE:
 
 Features
 --------
@@ -735,8 +743,8 @@ For this purpose, a list of features can be specified for a command or
 struct type.  Each list member can either be ``{ 'name': STRING, '*if':
 COND }``, or STRING, which is shorthand for ``{ 'name': STRING }``.
 
-The optional 'if' member specifies a conditional.  See "Configuring
-the schema" below for more on this.
+The optional 'if' member specifies a conditional.  See `Configuring
+the schema`_ below for more on this.
 
 Example::
 
@@ -745,7 +753,7 @@ Example::
    'features': [ 'allow-negative-numbers' ] }
 
 The feature strings are exposed to clients in introspection, as
-explained in section "Client JSON Protocol introspection".
+explained in section `Client JSON Protocol introspection`_.
 
 Intended use is to have each feature string signal that this build of
 QEMU shows a certain behaviour.
@@ -764,7 +772,7 @@ Naming rules and reserved names
 All names must begin with a letter, and contain only ASCII letters,
 digits, hyphen, and underscore.  There are two exceptions: enum values
 may start with a digit, and names that are downstream extensions (see
-section Downstream extensions) start with underscore.
+section `Downstream extensions`_) start with underscore.
 
 Names beginning with ``q_`` are reserved for the generator, which uses
 them for munging QMP names that resemble C keywords or other
@@ -794,8 +802,9 @@ Any name (command, event, type, member, or enum value) beginning with
 ``x-`` is marked experimental, and may be withdrawn or changed
 incompatibly in a future release.
 
-Pragmas ``command-name-exceptions`` and ``member-name-exceptions`` let you
-violate naming rules.  Use for new code is strongly discouraged.
+Pragmas ``command-name-exceptions`` and ``member-name-exceptions`` let
+you violate naming rules.  Use for new code is strongly discouraged. See
+`Pragma directives`_ for details.
 
 
 Downstream extensions
@@ -851,7 +860,7 @@ member 'bar' ::
 A union's discriminator may not be conditional.
 
 Likewise, individual enumeration values be conditional.  This requires
-the longhand form of ENUM-VALUE.
+the longhand form of ENUM-VALUE_.
 
 Example: an enum type with unconditional value 'foo' and conditional
 value 'bar' ::
@@ -861,7 +870,7 @@ value 'bar' ::
      { 'name' : 'bar', 'if': 'defined(IFCOND)' } ] }
 
 Likewise, features can be conditional.  This requires the longhand
-form of FEATURE.
+form of FEATURE_.
 
 Example: a struct with conditional feature 'allow-negative-numbers' ::
 
@@ -893,7 +902,7 @@ If the documentation comment starts like ::
 it documents the definition of SYMBOL, else it's free-form
 documentation.
 
-See below for more on definition documentation.
+See below for more on `Definition documentation`_.
 
 Free-form documentation may be used to provide additional text and
 structuring content.
@@ -984,7 +993,7 @@ Definition documentation
 Definition documentation, if present, must immediately precede the
 definition it documents.
 
-When documentation is required (see pragma 'doc-required'), every
+When documentation is required (see pragma_ 'doc-required'), every
 definition must have documentation.
 
 Definition documentation starts with a line naming the definition,
@@ -1181,7 +1190,7 @@ the wire then.
 Each command or event defined with 'data' as MEMBERS object in the
 QAPI schema implicitly defines an object type.
 
-Example: the SchemaInfo for EVENT_C from section Events ::
+Example: the SchemaInfo for EVENT_C from section Events_ ::
 
     { "name": "EVENT_C", "meta-type": "event",
       "arg-type": "q_obj-EVENT_C-arg" }
@@ -1205,7 +1214,7 @@ extensions.  The "members" array is in no particular order; clients
 must search the entire object when learning whether a particular
 member is supported.
 
-Example: the SchemaInfo for MyType from section Struct types ::
+Example: the SchemaInfo for MyType from section `Struct types`_ ::
 
     { "name": "MyType", "meta-type": "object",
       "members": [
@@ -1216,7 +1225,7 @@ Example: the SchemaInfo for MyType from section Struct types ::
 "features" exposes the command's feature strings as a JSON array of
 strings.
 
-Example: the SchemaInfo for TestType from section Features::
+Example: the SchemaInfo for TestType from section Features_::
 
     { "name": "TestType", "meta-type": "object",
       "members": [
@@ -1232,7 +1241,7 @@ that provides the variant members for this type tag value).  The
 list cases in the same order as the corresponding "tag" enum type.
 
 Example: the SchemaInfo for flat union BlockdevOptions from section
-Union types ::
+`Union types`_ ::
 
     { "name": "BlockdevOptions", "meta-type": "object",
       "members": [
@@ -1247,13 +1256,13 @@ Note that base types are "flattened": its members are included in the
 "members" array.
 
 A simple union implicitly defines an enumeration type for its implicit
-discriminator (called "type" on the wire, see section Union types).
+discriminator (called "type" on the wire, see section `Union types`_).
 
 A simple union implicitly defines an object type for each of its
 variants.
 
 Example: the SchemaInfo for simple union BlockdevOptionsSimple from section
-Union types ::
+`Union types`_ ::
 
     { "name": "BlockdevOptionsSimple", "meta-type": "object",
       "members": [
@@ -1273,7 +1282,7 @@ a JSON object with member "type", which names a type.  Values of the
 alternate type conform to exactly one of its member types.  There is
 no guarantee on the order in which "members" will be listed.
 
-Example: the SchemaInfo for BlockdevRef from section Alternate types ::
+Example: the SchemaInfo for BlockdevRef from section `Alternate types`_ ::
 
     { "name": "BlockdevRef", "meta-type": "alternate",
       "members": [
@@ -1297,13 +1306,13 @@ variant member "values".  The values are listed in no particular
 order; clients must search the entire enum when learning whether a
 particular value is supported.
 
-Example: the SchemaInfo for MyEnum from section Enumeration types ::
+Example: the SchemaInfo for MyEnum from section `Enumeration types`_ ::
 
     { "name": "MyEnum", "meta-type": "enum",
       "values": [ "value1", "value2", "value3" ] }
 
 The SchemaInfo for a built-in type has the same name as the type in
-the QAPI schema (see section Built-in Types), with one exception
+the QAPI schema (see section `Built-in Types`_), with one exception
 detailed below.  It has variant member "json-type" that shows how
 values of this type are encoded on the wire.
 
@@ -1505,7 +1514,7 @@ Example::
 
     [Uninteresting stuff omitted...]
 
-For a modular QAPI schema (see section Include directives), code for
+For a modular QAPI schema (see section `Include directives`_), code for
 each sub-module SUBDIR/SUBMODULE.json is actually generated into ::
 
  SUBDIR/$(prefix)qapi-types-SUBMODULE.h
@@ -1643,7 +1652,7 @@ Example::
 
     [Uninteresting stuff omitted...]
 
-For a modular QAPI schema (see section Include directives), code for
+For a modular QAPI schema (see section `Include directives`_), code for
 each sub-module SUBDIR/SUBMODULE.json is actually generated into ::
 
  SUBDIR/$(prefix)qapi-visit-SUBMODULE.h
@@ -1773,7 +1782,7 @@ Example::
     }
     [Uninteresting stuff omitted...]
 
-For a modular QAPI schema (see section Include directives), code for
+For a modular QAPI schema (see section `Include directives`_), code for
 each sub-module SUBDIR/SUBMODULE.json is actually generated into::
 
  SUBDIR/$(prefix)qapi-commands-SUBMODULE.h
@@ -1862,7 +1871,7 @@ Example::
 
     [Uninteresting stuff omitted...]
 
-For a modular QAPI schema (see section Include directives), code for
+For a modular QAPI schema (see section `Include directives`_), code for
 each sub-module SUBDIR/SUBMODULE.json is actually generated into ::
 
  SUBDIR/$(prefix)qapi-events-SUBMODULE.h
