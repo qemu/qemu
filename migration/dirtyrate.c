@@ -15,6 +15,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "exec/ramblock.h"
+#include "exec/ram_addr.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/main-loop.h"
 #include "qapi/qapi-commands-migration.h"
@@ -117,6 +118,10 @@ static struct DirtyRateInfo *query_dirty_rate_info(void)
                 QAPI_LIST_APPEND(tail, rate);
             }
             info->vcpu_dirty_rate = head;
+        }
+
+        if (dirtyrate_mode == DIRTY_RATE_MEASURE_MODE_DIRTY_BITMAP) {
+            info->sample_pages = 0;
         }
     }
 
@@ -429,6 +434,79 @@ static int64_t do_calculate_dirtyrate_vcpu(DirtyPageRecord dirty_pages)
     return memory_size_MB / time_s;
 }
 
+static inline void record_dirtypages_bitmap(DirtyPageRecord *dirty_pages,
+                                            bool start)
+{
+    if (start) {
+        dirty_pages->start_pages = total_dirty_pages;
+    } else {
+        dirty_pages->end_pages = total_dirty_pages;
+    }
+}
+
+static void do_calculate_dirtyrate_bitmap(DirtyPageRecord dirty_pages)
+{
+    DirtyStat.dirty_rate = do_calculate_dirtyrate_vcpu(dirty_pages);
+}
+
+static inline void dirtyrate_manual_reset_protect(void)
+{
+    RAMBlock *block = NULL;
+
+    WITH_RCU_READ_LOCK_GUARD() {
+        RAMBLOCK_FOREACH_MIGRATABLE(block) {
+            memory_region_clear_dirty_bitmap(block->mr, 0,
+                                             block->used_length);
+        }
+    }
+}
+
+static void calculate_dirtyrate_dirty_bitmap(struct DirtyRateConfig config)
+{
+    int64_t msec = 0;
+    int64_t start_time;
+    DirtyPageRecord dirty_pages;
+
+    qemu_mutex_lock_iothread();
+    memory_global_dirty_log_start(GLOBAL_DIRTY_DIRTY_RATE);
+
+    /*
+     * 1'round of log sync may return all 1 bits with
+     * KVM_DIRTY_LOG_INITIALLY_SET enable
+     * skip it unconditionally and start dirty tracking
+     * from 2'round of log sync
+     */
+    memory_global_dirty_log_sync();
+
+    /*
+     * reset page protect manually and unconditionally.
+     * this make sure kvm dirty log be cleared if
+     * KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE cap is enabled.
+     */
+    dirtyrate_manual_reset_protect();
+    qemu_mutex_unlock_iothread();
+
+    record_dirtypages_bitmap(&dirty_pages, true);
+
+    start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    DirtyStat.start_time = start_time / 1000;
+
+    msec = config.sample_period_seconds * 1000;
+    msec = set_sample_page_period(msec, start_time);
+    DirtyStat.calc_time = msec / 1000;
+
+    /*
+     * dirtyrate_global_dirty_log_stop do two things.
+     * 1. fetch dirty bitmap from kvm
+     * 2. stop dirty tracking
+     */
+    dirtyrate_global_dirty_log_stop();
+
+    record_dirtypages_bitmap(&dirty_pages, false);
+
+    do_calculate_dirtyrate_bitmap(dirty_pages);
+}
+
 static void calculate_dirtyrate_dirty_ring(struct DirtyRateConfig config)
 {
     CPUState *cpu;
@@ -514,7 +592,9 @@ out:
 
 static void calculate_dirtyrate(struct DirtyRateConfig config)
 {
-    if (config.mode == DIRTY_RATE_MEASURE_MODE_DIRTY_RING) {
+    if (config.mode == DIRTY_RATE_MEASURE_MODE_DIRTY_BITMAP) {
+        calculate_dirtyrate_dirty_bitmap(config);
+    } else if (config.mode == DIRTY_RATE_MEASURE_MODE_DIRTY_RING) {
         calculate_dirtyrate_dirty_ring(config);
     } else {
         calculate_dirtyrate_sample_vm(config);
@@ -597,12 +677,15 @@ void qmp_calc_dirty_rate(int64_t calc_time,
 
     /*
      * dirty ring mode only works when kvm dirty ring is enabled.
+     * on the contrary, dirty bitmap mode is not.
      */
-    if ((mode == DIRTY_RATE_MEASURE_MODE_DIRTY_RING) &&
-        !kvm_dirty_ring_enabled()) {
-        error_setg(errp, "dirty ring is disabled, use sample-pages method "
-                         "or remeasure later.");
-        return;
+    if (((mode == DIRTY_RATE_MEASURE_MODE_DIRTY_RING) &&
+        !kvm_dirty_ring_enabled()) ||
+        ((mode == DIRTY_RATE_MEASURE_MODE_DIRTY_BITMAP) &&
+         kvm_dirty_ring_enabled())) {
+        error_setg(errp, "mode %s is not enabled, use other method instead.",
+                         DirtyRateMeasureMode_str(mode));
+         return;
     }
 
     /*
@@ -678,14 +761,25 @@ void hmp_calc_dirty_rate(Monitor *mon, const QDict *qdict)
     int64_t sample_pages = qdict_get_try_int(qdict, "sample_pages_per_GB", -1);
     bool has_sample_pages = (sample_pages != -1);
     bool dirty_ring = qdict_get_try_bool(qdict, "dirty_ring", false);
-    DirtyRateMeasureMode mode =
-        (dirty_ring ? DIRTY_RATE_MEASURE_MODE_DIRTY_RING :
-         DIRTY_RATE_MEASURE_MODE_PAGE_SAMPLING);
+    bool dirty_bitmap = qdict_get_try_bool(qdict, "dirty_bitmap", false);
+    DirtyRateMeasureMode mode = DIRTY_RATE_MEASURE_MODE_PAGE_SAMPLING;
     Error *err = NULL;
 
     if (!sec) {
         monitor_printf(mon, "Incorrect period length specified!\n");
         return;
+    }
+
+    if (dirty_ring && dirty_bitmap) {
+        monitor_printf(mon, "Either dirty ring or dirty bitmap "
+                       "can be specified!\n");
+        return;
+    }
+
+    if (dirty_bitmap) {
+        mode = DIRTY_RATE_MEASURE_MODE_DIRTY_BITMAP;
+    } else if (dirty_ring) {
+        mode = DIRTY_RATE_MEASURE_MODE_DIRTY_RING;
     }
 
     qmp_calc_dirty_rate(sec, has_sample_pages, sample_pages, true,
