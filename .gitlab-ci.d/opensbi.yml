@@ -1,10 +1,23 @@
-docker-opensbi:
- stage: containers
- rules: # Only run this job when the Dockerfile is modified
+# All jobs needing docker-opensbi must use the same rules it uses.
+.opensbi_job_rules:
+ rules: # Only run this job when ...
  - changes:
+   # this file is modified
    - .gitlab-ci.d/opensbi.yml
+   # or the Dockerfile is modified
    - .gitlab-ci.d/opensbi/Dockerfile
    when: always
+ - changes: # or roms/opensbi/ is modified (submodule updated)
+   - roms/opensbi/*
+   when: always
+ - if: '$CI_COMMIT_REF_NAME =~ /^opensbi/' # or the branch/tag starts with 'opensbi'
+   when: always
+ - if: '$CI_COMMIT_MESSAGE =~ /opensbi/i' # or last commit description contains 'OpenSBI'
+   when: always
+
+docker-opensbi:
+ extends: .opensbi_job_rules
+ stage: containers
  image: docker:19.03.1
  services:
  - docker:19.03.1-dind
@@ -24,16 +37,9 @@ docker-opensbi:
  - docker push $IMAGE_TAG
 
 build-opensbi:
+ extends: .opensbi_job_rules
  stage: build
  needs: ['docker-opensbi']
- rules: # Only run this job when ...
- - changes: # ... roms/opensbi/ is modified (submodule updated)
-   - roms/opensbi/*
-   when: always
- - if: '$CI_COMMIT_REF_NAME =~ /^opensbi/' # or the branch/tag starts with 'opensbi'
-   when: always
- - if: '$CI_COMMIT_MESSAGE =~ /opensbi/i' # or last commit description contains 'OpenSBI'
-   when: always
  artifacts:
    paths: # 'artifacts.zip' will contains the following files:
    - pc-bios/opensbi-riscv32-generic-fw_dynamic.bin
