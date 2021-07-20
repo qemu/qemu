@@ -208,7 +208,6 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
                 "target SCSI device state or use shared storage over network), "
                 "set 'migratable' property to true to enable migration.");
         if (migrate_add_blocker(vsc->migration_blocker, errp) < 0) {
-            error_free(vsc->migration_blocker);
             goto free_virtio;
         }
     }
@@ -233,11 +232,12 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
     return;
 
  free_vqs:
+    g_free(vsc->dev.vqs);
     if (!vsc->migratable) {
         migrate_del_blocker(vsc->migration_blocker);
     }
-    g_free(vsc->dev.vqs);
  free_virtio:
+    error_free(vsc->migration_blocker);
     virtio_scsi_common_unrealize(dev);
  close_fd:
     close(vhostfd);
