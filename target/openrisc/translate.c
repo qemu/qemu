@@ -1659,11 +1659,7 @@ static void openrisc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
             /* The jump destination is indirect/computed; use jmp_pc.  */
             tcg_gen_mov_tl(cpu_pc, jmp_pc);
             tcg_gen_discard_tl(jmp_pc);
-            if (unlikely(dc->base.singlestep_enabled)) {
-                gen_exception(dc, EXCP_DEBUG);
-            } else {
-                tcg_gen_lookup_and_goto_ptr();
-            }
+            tcg_gen_lookup_and_goto_ptr();
             break;
         }
         /* The jump destination is direct; use jmp_pc_imm.
@@ -1680,19 +1676,11 @@ static void openrisc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
             break;
         }
         tcg_gen_movi_tl(cpu_pc, jmp_dest);
-        if (unlikely(dc->base.singlestep_enabled)) {
-            gen_exception(dc, EXCP_DEBUG);
-        } else {
-            tcg_gen_lookup_and_goto_ptr();
-        }
+        tcg_gen_lookup_and_goto_ptr();
         break;
 
     case DISAS_EXIT:
-        if (unlikely(dc->base.singlestep_enabled)) {
-            gen_exception(dc, EXCP_DEBUG);
-        } else {
-            tcg_gen_exit_tb(NULL, 0);
-        }
+        tcg_gen_exit_tb(NULL, 0);
         break;
     default:
         g_assert_not_reached();
