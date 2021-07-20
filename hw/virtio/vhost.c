@@ -1289,7 +1289,6 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    VhostBackendType backend_type, uint32_t busyloop_timeout,
                    Error **errp)
 {
-    ERRP_GUARD();
     uint64_t features;
     int i, r, n_initialized_vqs = 0;
 
@@ -1301,9 +1300,6 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
 
     r = hdev->vhost_ops->vhost_backend_init(hdev, opaque, errp);
     if (r < 0) {
-        if (!*errp) {
-            error_setg_errno(errp, -r, "vhost_backend_init failed");
-        }
         goto fail;
     }
 
