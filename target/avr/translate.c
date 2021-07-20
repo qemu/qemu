@@ -2958,20 +2958,6 @@ static void avr_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     TCGLabel *skip_label = NULL;
 
-    /*
-     * This is due to some strange GDB behavior
-     * Let's assume main has address 0x100:
-     * b main   - sets breakpoint at address 0x00000100 (code)
-     * b *0x100 - sets breakpoint at address 0x00800100 (data)
-     *
-     * The translator driver has already taken care of the code pointer.
-     */
-    if (!ctx->base.singlestep_enabled &&
-        cpu_breakpoint_test(cs, OFFSET_DATA + ctx->base.pc_next, BP_ANY)) {
-        gen_breakpoint(ctx);
-        return;
-    }
-
     /* Conditionally skip the next instruction, if indicated.  */
     if (ctx->skip_cond != TCG_COND_NEVER) {
         skip_label = gen_new_label();
