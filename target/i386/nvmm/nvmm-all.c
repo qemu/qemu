@@ -929,7 +929,6 @@ nvmm_init_vcpu(CPUState *cpu)
         (void)migrate_add_blocker(nvmm_migration_blocker, &local_error);
         if (local_error) {
             error_report_err(local_error);
-            migrate_del_blocker(nvmm_migration_blocker);
             error_free(nvmm_migration_blocker);
             return -EINVAL;
         }

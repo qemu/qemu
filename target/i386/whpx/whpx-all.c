@@ -1349,7 +1349,6 @@ int whpx_init_vcpu(CPUState *cpu)
         (void)migrate_add_blocker(whpx_migration_blocker, &local_error);
         if (local_error) {
             error_report_err(local_error);
-            migrate_del_blocker(whpx_migration_blocker);
             error_free(whpx_migration_blocker);
             ret = -EINVAL;
             goto error;
