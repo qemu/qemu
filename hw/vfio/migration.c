@@ -858,7 +858,6 @@ int vfio_migration_probe(VFIODevice *vbasedev, Error **errp)
 {
     VFIOContainer *container = vbasedev->group->container;
     struct vfio_region_info *info = NULL;
-    Error *local_err = NULL;
     int ret = -ENOTSUP;
 
     if (!vbasedev->enable_migration || !container->dirty_pages_supported) {
@@ -885,9 +884,8 @@ add_blocker:
                "VFIO device doesn't support migration");
     g_free(info);
 
-    ret = migrate_add_blocker(vbasedev->migration_blocker, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    ret = migrate_add_blocker(vbasedev->migration_blocker, errp);
+    if (ret < 0) {
         error_free(vbasedev->migration_blocker);
         vbasedev->migration_blocker = NULL;
     }
