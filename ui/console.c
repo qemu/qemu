@@ -1481,7 +1481,6 @@ static bool displaychangelistener_has_dmabuf(DisplayChangeListener *dcl)
 static bool dpy_compatible_with(QemuConsole *con,
                                 DisplayChangeListener *dcl, Error **errp)
 {
-    ERRP_GUARD();
     int flags;
 
     flags = con->hw_ops->get_flags ? con->hw_ops->get_flags(con->hw) : 0;

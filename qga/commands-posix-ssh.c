@@ -45,8 +45,6 @@ get_passwd_entry(const char *username, Error **errp)
     g_autoptr(GError) err = NULL;
     struct passwd *p;
 
-    ERRP_GUARD();
-
     p = g_unix_get_passwd_entry_qemu(username, &err);
     if (p == NULL) {
         error_setg(errp, "failed to lookup user '%s': %s",
@@ -61,8 +59,6 @@ static bool
 mkdir_for_user(const char *path, const struct passwd *p,
                mode_t mode, Error **errp)
 {
-    ERRP_GUARD();
-
     if (g_mkdir(path, mode) == -1) {
         error_setg(errp, "failed to create directory '%s': %s",
                    path, g_strerror(errno));
@@ -87,8 +83,6 @@ mkdir_for_user(const char *path, const struct passwd *p,
 static bool
 check_openssh_pub_key(const char *key, Error **errp)
 {
-    ERRP_GUARD();
-
     /* simple sanity-check, we may want more? */
     if (!key || key[0] == '#' || strchr(key, '\n')) {
         error_setg(errp, "invalid OpenSSH public key: '%s'", key);
@@ -103,8 +97,6 @@ check_openssh_pub_keys(strList *keys, size_t *nkeys, Error **errp)
 {
     size_t n = 0;
     strList *k;
-
-    ERRP_GUARD();
 
     for (k = keys; k != NULL; k = k->next) {
         if (!check_openssh_pub_key(k->value, errp)) {
@@ -125,8 +117,6 @@ write_authkeys(const char *path, const GStrv keys,
 {
     g_autofree char *contents = NULL;
     g_autoptr(GError) err = NULL;
-
-    ERRP_GUARD();
 
     contents = g_strjoinv("\n", keys);
     if (!g_file_set_contents(path, contents, -1, &err)) {
@@ -155,8 +145,6 @@ read_authkeys(const char *path, Error **errp)
     g_autoptr(GError) err = NULL;
     g_autofree char *contents = NULL;
 
-    ERRP_GUARD();
-
     if (!g_file_get_contents(path, &contents, NULL, &err)) {
         error_setg(errp, "failed to read '%s': %s", path, err->message);
         return NULL;
@@ -178,7 +166,6 @@ qmp_guest_ssh_add_authorized_keys(const char *username, strList *keys,
     strList *k;
     size_t nkeys, nauthkeys;
 
-    ERRP_GUARD();
     reset = has_reset && reset;
 
     if (!check_openssh_pub_keys(keys, &nkeys, errp)) {
@@ -228,8 +215,6 @@ qmp_guest_ssh_remove_authorized_keys(const char *username, strList *keys,
     GStrv a;
     size_t nkeys = 0;
 
-    ERRP_GUARD();
-
     if (!check_openssh_pub_keys(keys, NULL, errp)) {
         return;
     }
@@ -276,8 +261,6 @@ qmp_guest_ssh_get_authorized_keys(const char *username, Error **errp)
     g_auto(GStrv) authkeys = NULL;
     g_autoptr(GuestAuthorizedKeys) ret = NULL;
     int i;
-
-    ERRP_GUARD();
 
     p = get_passwd_entry(username, errp);
     if (p == NULL) {
