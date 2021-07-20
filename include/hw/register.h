@@ -204,6 +204,14 @@ RegisterInfoArray *register_init_block32(DeviceState *owner,
                                          bool debug_enabled,
                                          uint64_t memory_size);
 
+RegisterInfoArray *register_init_block64(DeviceState *owner,
+                                         const RegisterAccessInfo *rae,
+                                         int num, RegisterInfo *ri,
+                                         uint64_t *data,
+                                         const MemoryRegionOps *ops,
+                                         bool debug_enabled,
+                                         uint64_t memory_size);
+
 /**
  * This function should be called to cleanup the registers that were initialized
  * when calling register_init_block32(). This function should only be called
