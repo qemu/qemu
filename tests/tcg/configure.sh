@@ -72,6 +72,10 @@ fi
 : ${cross_cc_x86_64="x86_64-linux-gnu-gcc"}
 : ${cross_cc_cflags_x86_64="-m64"}
 
+# tricore is special as it doesn't have a compiler
+: ${cross_as_tricore="tricore-as"}
+: ${cross_ld_tricore="tricore-ld"}
+
 for target in $target_list; do
   arch=${target%%-*}
 
@@ -246,6 +250,20 @@ for target in $target_list; do
                   echo "CROSS_CC_GUEST=$target_compiler" >> $config_target_mak
               fi
           fi
+      fi
+
+      # Special handling for assembler only tests
+      eval "target_as=\"\${cross_as_$arch}\""
+      eval "target_ld=\"\${cross_ld_$arch}\""
+      if has $target_as && has $target_ld; then
+          case $target in
+              tricore-softmmu)
+                  echo "CROSS_CC_GUEST=$target_as" >> $config_target_mak
+                  echo "CROSS_AS_GUEST=$target_as" >> $config_target_mak
+                  echo "CROSS_LD_GUEST=$target_ld" >> $config_target_mak
+                  got_cross_cc=yes
+                  ;;
+          esac
       fi
   fi
 
