@@ -160,7 +160,7 @@ static int path_offset(const void *fdt, const char *path)
 static uint32_t vof_finddevice(const void *fdt, uint32_t nodeaddr)
 {
     char fullnode[VOF_MAX_PATH];
-    uint32_t ret = -1;
+    uint32_t ret = PROM_ERROR;
     int offset;
 
     if (readstr(nodeaddr, fullnode, sizeof(fullnode))) {
@@ -172,7 +172,7 @@ static uint32_t vof_finddevice(const void *fdt, uint32_t nodeaddr)
         ret = fdt_get_phandle(fdt, offset);
     }
     trace_vof_finddevice(fullnode, ret);
-    return (uint32_t) ret;
+    return ret;
 }
 
 static const void *getprop(const void *fdt, int nodeoff, const char *propname,
@@ -229,10 +229,10 @@ static uint32_t vof_getprop(const void *fdt, uint32_t nodeph, uint32_t pname,
     bool write0;
 
     if (nodeoff < 0) {
-        return -1;
+        return PROM_ERROR;
     }
     if (readstr(pname, propname, sizeof(propname))) {
-        return -1;
+        return PROM_ERROR;
     }
     prop = getprop(fdt, nodeoff, propname, &proplen, &write0);
     if (prop) {
@@ -244,7 +244,7 @@ static uint32_t vof_getprop(const void *fdt, uint32_t nodeph, uint32_t pname,
             (write0 &&
              cb == proplen &&
              VOF_MEM_WRITE(valaddr + cb - 1, &zero, 1) != MEMTX_OK)) {
-            ret = -1;
+            ret = PROM_ERROR;
         } else {
             /*
              * OF1275 says:
@@ -259,7 +259,7 @@ static uint32_t vof_getprop(const void *fdt, uint32_t nodeph, uint32_t pname,
             }
         }
     } else {
-        ret = -1;
+        ret = PROM_ERROR;
     }
     trace_vof_getprop(nodeph, propname, ret, trval);
 
@@ -275,16 +275,16 @@ static uint32_t vof_getproplen(const void *fdt, uint32_t nodeph, uint32_t pname)
     int nodeoff = fdt_node_offset_by_phandle(fdt, nodeph);
 
     if (nodeoff < 0) {
-        return -1;
+        return PROM_ERROR;
     }
     if (readstr(pname, propname, sizeof(propname))) {
-        return -1;
+        return PROM_ERROR;
     }
     prop = getprop(fdt, nodeoff, propname, &proplen, NULL);
     if (prop) {
         ret = proplen;
     } else {
-        ret = -1;
+        ret = PROM_ERROR;
     }
     trace_vof_getproplen(nodeph, propname, ret);
 
@@ -296,8 +296,8 @@ static uint32_t vof_setprop(MachineState *ms, void *fdt, Vof *vof,
                             uint32_t valaddr, uint32_t vallen)
 {
     char propname[OF_PROPNAME_LEN_MAX + 1];
-    uint32_t ret = -1;
-    int offset;
+    uint32_t ret = PROM_ERROR;
+    int offset, rc;
     char trval[64] = "";
     char nodepath[VOF_MAX_PATH] = "";
     Object *vmo = object_dynamic_cast(OBJECT(ms), TYPE_VOF_MACHINE_IF);
@@ -314,8 +314,8 @@ static uint32_t vof_setprop(MachineState *ms, void *fdt, Vof *vof,
     if (offset < 0) {
         goto trace_exit;
     }
-    ret = get_path(fdt, offset, nodepath, sizeof(nodepath));
-    if (ret <= 0) {
+    rc = get_path(fdt, offset, nodepath, sizeof(nodepath));
+    if (rc <= 0) {
         goto trace_exit;
     }
 
@@ -333,8 +333,8 @@ static uint32_t vof_setprop(MachineState *ms, void *fdt, Vof *vof,
         goto trace_exit;
     }
 
-    ret = fdt_setprop(fdt, offset, propname, val, vallen);
-    if (ret) {
+    rc = fdt_setprop(fdt, offset, propname, val, vallen);
+    if (rc) {
         goto trace_exit;
     }
 
@@ -358,7 +358,7 @@ static uint32_t vof_nextprop(const void *fdt, uint32_t phandle,
     const char *tmp;
 
     if (readstr(prevaddr, prev, sizeof(prev))) {
-        return -1;
+        return PROM_ERROR;
     }
 
     fdt_for_each_property_offset(offset, fdt, nodeoff) {
@@ -377,7 +377,7 @@ static uint32_t vof_nextprop(const void *fdt, uint32_t phandle,
             }
 
             if (VOF_MEM_WRITE(nameaddr, tmp, strlen(tmp) + 1) != MEMTX_OK) {
-                return -1;
+                return PROM_ERROR;
             }
             return 1;
         }
@@ -388,18 +388,17 @@ static uint32_t vof_nextprop(const void *fdt, uint32_t phandle,
 
 static uint32_t vof_peer(const void *fdt, uint32_t phandle)
 {
-    int ret;
+    uint32_t ret = 0;
+    int rc;
 
     if (phandle == 0) {
-        ret = fdt_path_offset(fdt, "/");
+        rc = fdt_path_offset(fdt, "/");
     } else {
-        ret = fdt_next_subnode(fdt, fdt_node_offset_by_phandle(fdt, phandle));
+        rc = fdt_next_subnode(fdt, fdt_node_offset_by_phandle(fdt, phandle));
     }
 
-    if (ret < 0) {
-        ret = 0;
-    } else {
-        ret = fdt_get_phandle(fdt, ret);
+    if (rc >= 0) {
+        ret = fdt_get_phandle(fdt, rc);
     }
 
     return ret;
@@ -407,12 +406,11 @@ static uint32_t vof_peer(const void *fdt, uint32_t phandle)
 
 static uint32_t vof_child(const void *fdt, uint32_t phandle)
 {
-    int ret = fdt_first_subnode(fdt, fdt_node_offset_by_phandle(fdt, phandle));
+    uint32_t ret = 0;
+    int rc = fdt_first_subnode(fdt, fdt_node_offset_by_phandle(fdt, phandle));
 
-    if (ret < 0) {
-        ret = 0;
-    } else {
-        ret = fdt_get_phandle(fdt, ret);
+    if (rc >= 0) {
+        ret = fdt_get_phandle(fdt, rc);
     }
 
     return ret;
@@ -420,12 +418,11 @@ static uint32_t vof_child(const void *fdt, uint32_t phandle)
 
 static uint32_t vof_parent(const void *fdt, uint32_t phandle)
 {
-    int ret = fdt_parent_offset(fdt, fdt_node_offset_by_phandle(fdt, phandle));
+    uint32_t ret = 0;
+    int rc = fdt_parent_offset(fdt, fdt_node_offset_by_phandle(fdt, phandle));
 
-    if (ret < 0) {
-        ret = 0;
-    } else {
-        ret = fdt_get_phandle(fdt, ret);
+    if (rc >= 0) {
+        ret = fdt_get_phandle(fdt, rc);
     }
 
     return ret;
@@ -433,7 +430,7 @@ static uint32_t vof_parent(const void *fdt, uint32_t phandle)
 
 static uint32_t vof_do_open(void *fdt, Vof *vof, int offset, const char *path)
 {
-    uint32_t ret = -1;
+    uint32_t ret = PROM_ERROR;
     OfInstance *inst = NULL;
 
     if (vof->of_instance_last == 0xFFFFFFFF) {
@@ -461,18 +458,18 @@ trace_exit:
 uint32_t vof_client_open_store(void *fdt, Vof *vof, const char *nodename,
                                const char *prop, const char *path)
 {
-    int node = fdt_path_offset(fdt, nodename);
-    int inst, offset;
+    int offset, node = fdt_path_offset(fdt, nodename);
+    uint32_t inst;
 
     offset = fdt_path_offset(fdt, path);
     if (offset < 0) {
         trace_vof_error_unknown_path(path);
-        return offset;
+        return PROM_ERROR;
     }
 
     inst = vof_do_open(fdt, vof, offset, path);
 
-    return fdt_setprop_cell(fdt, node, prop, inst);
+    return fdt_setprop_cell(fdt, node, prop, inst) >= 0 ? 0 : PROM_ERROR;
 }
 
 static uint32_t vof_open(void *fdt, Vof *vof, uint32_t pathaddr)
@@ -481,13 +478,13 @@ static uint32_t vof_open(void *fdt, Vof *vof, uint32_t pathaddr)
     int offset;
 
     if (readstr(pathaddr, path, sizeof(path))) {
-        return -1;
+        return PROM_ERROR;
     }
 
     offset = path_offset(fdt, path);
     if (offset < 0) {
         trace_vof_error_unknown_path(path);
-        return offset;
+        return PROM_ERROR;
     }
 
     return vof_do_open(fdt, vof, offset, path);
@@ -504,7 +501,7 @@ static uint32_t vof_instance_to_package(Vof *vof, uint32_t ihandle)
 {
     gpointer instp = g_hash_table_lookup(vof->of_instances,
                                          GINT_TO_POINTER(ihandle));
-    uint32_t ret = -1;
+    uint32_t ret = PROM_ERROR;
 
     if (instp) {
         ret = ((OfInstance *)instp)->phandle;
@@ -517,39 +514,39 @@ static uint32_t vof_instance_to_package(Vof *vof, uint32_t ihandle)
 static uint32_t vof_package_to_path(const void *fdt, uint32_t phandle,
                                     uint32_t buf, uint32_t len)
 {
-    uint32_t ret = -1;
+    int rc;
     char tmp[VOF_MAX_PATH] = "";
 
-    ret = phandle_to_path(fdt, phandle, tmp, sizeof(tmp));
-    if (ret > 0) {
-        if (VOF_MEM_WRITE(buf, tmp, ret) != MEMTX_OK) {
-            ret = -1;
+    rc = phandle_to_path(fdt, phandle, tmp, sizeof(tmp));
+    if (rc > 0) {
+        if (VOF_MEM_WRITE(buf, tmp, rc) != MEMTX_OK) {
+            rc = -1;
         }
     }
 
-    trace_vof_package_to_path(phandle, tmp, ret);
+    trace_vof_package_to_path(phandle, tmp, rc);
 
-    return ret;
+    return rc > 0 ? (uint32_t)rc : PROM_ERROR;
 }
 
 static uint32_t vof_instance_to_path(void *fdt, Vof *vof, uint32_t ihandle,
                                      uint32_t buf, uint32_t len)
 {
-    uint32_t ret = -1;
+    int rc = -1;
     uint32_t phandle = vof_instance_to_package(vof, ihandle);
     char tmp[VOF_MAX_PATH] = "";
 
     if (phandle != -1) {
-        ret = phandle_to_path(fdt, phandle, tmp, sizeof(tmp));
-        if (ret > 0) {
-            if (VOF_MEM_WRITE(buf, tmp, ret) != MEMTX_OK) {
-                ret = -1;
+        rc = phandle_to_path(fdt, phandle, tmp, sizeof(tmp));
+        if (rc > 0) {
+            if (VOF_MEM_WRITE(buf, tmp, rc) != MEMTX_OK) {
+                rc = -1;
             }
         }
     }
-    trace_vof_instance_to_path(ihandle, phandle, tmp, ret);
+    trace_vof_instance_to_path(ihandle, phandle, tmp, rc);
 
-    return ret;
+    return rc > 0 ? (uint32_t)rc : PROM_ERROR;
 }
 
 static uint32_t vof_write(Vof *vof, uint32_t ihandle, uint32_t buf,
@@ -562,13 +559,13 @@ static uint32_t vof_write(Vof *vof, uint32_t ihandle, uint32_t buf,
 
     if (!inst) {
         trace_vof_error_write(ihandle);
-        return -1;
+        return PROM_ERROR;
     }
 
     for ( ; len > 0; len -= cb) {
         cb = MIN(len, sizeof(tmp) - 1);
         if (VOF_MEM_READ(buf, tmp, cb) != MEMTX_OK) {
-            return -1;
+            return PROM_ERROR;
         }
 
         /* FIXME: there is no backend(s) yet so just call a trace */
@@ -747,7 +744,7 @@ uint64_t vof_claim(Vof *vof, uint64_t virt, uint64_t size,
 
 static uint32_t vof_release(Vof *vof, uint64_t virt, uint64_t size)
 {
-    uint32_t ret = -1;
+    uint32_t ret = PROM_ERROR;
     int i;
     GArray *claimed = vof->claimed;
     OfClaimed c;
@@ -776,7 +773,7 @@ static uint32_t vof_call_method(MachineState *ms, Vof *vof, uint32_t methodaddr,
                                 uint32_t param2, uint32_t param3,
                                 uint32_t param4, uint32_t *ret2)
 {
-    uint32_t ret = -1;
+    uint32_t ret = PROM_ERROR;
     char method[VOF_MAX_METHODLEN] = "";
     OfInstance *inst;
 
@@ -802,7 +799,8 @@ static uint32_t vof_call_method(MachineState *ms, Vof *vof, uint32_t methodaddr,
                 VofMachineIfClass *vmc = VOF_MACHINE_GET_CLASS(vmo);
 
                 g_assert(vmc->client_architecture_support);
-                ret = vmc->client_architecture_support(ms, first_cpu, param1);
+                ret = (uint32_t)vmc->client_architecture_support(ms, first_cpu,
+                                                                 param1);
             }
 
             *ret2 = 0;
@@ -826,7 +824,7 @@ trace_exit:
 static uint32_t vof_call_interpret(uint32_t cmdaddr, uint32_t param1,
                                    uint32_t param2, uint32_t *ret2)
 {
-    uint32_t ret = -1;
+    uint32_t ret = PROM_ERROR;
     char cmd[VOF_MAX_FORTHCODE] = "";
 
     /* No interpret implemented so just call a trace */
@@ -895,13 +893,20 @@ static uint32_t vof_client_handle(MachineState *ms, void *fdt, Vof *vof,
     } else if (cmpserv("write", 3, 1)) {
         ret = vof_write(vof, args[0], args[1], args[2]);
     } else if (cmpserv("claim", 3, 1)) {
-        ret = vof_claim(vof, args[0], args[1], args[2]);
-        if (ret != -1) {
+        uint64_t ret64 = vof_claim(vof, args[0], args[1], args[2]);
+
+        if (ret64 < 0x100000000UL) {
             vof_dt_memory_available(fdt, vof->claimed, vof->claimed_base);
+            ret = (uint32_t)ret64;
+        } else {
+            if (ret64 != -1) {
+                vof_release(vof, ret, args[1]);
+            }
+            ret = PROM_ERROR;
         }
     } else if (cmpserv("release", 2, 0)) {
         ret = vof_release(vof, args[0], args[1]);
-        if (ret != -1) {
+        if (ret != PROM_ERROR) {
             vof_dt_memory_available(fdt, vof->claimed, vof->claimed_base);
         }
     } else if (cmpserv("call-method", 0, 0)) {
@@ -965,11 +970,15 @@ int vof_client_call(MachineState *ms, Vof *vof, void *fdt,
     }
 
     nret = be32_to_cpu(args_be.nret);
+    if (nret > ARRAY_SIZE(args_be.args) - nargs) {
+        return -EINVAL;
+    }
     ret = vof_client_handle(ms, fdt, vof, service, args, nargs, rets, nret);
     if (!nret) {
         return 0;
     }
 
+    /* @nrets includes the value which this function returns */
     args_be.args[nargs] = cpu_to_be32(ret);
     for (i = 1; i < nret; ++i) {
         args_be.args[nargs + i] = cpu_to_be32(rets[i - 1]);
