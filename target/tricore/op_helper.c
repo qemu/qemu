@@ -107,13 +107,6 @@ static void raise_exception_sync_helper(CPUTriCoreState *env, uint32_t class,
     raise_exception_sync_internal(env, class, tin, pc, 0);
 }
 
-void helper_qemu_excp(CPUTriCoreState *env, uint32_t excp)
-{
-    CPUState *cs = env_cpu(env);
-    cs->exception_index = excp;
-    cpu_loop_exit(cs);
-}
-
 /* Addressing mode helper */
 
 static uint16_t reverse16(uint16_t val)
