@@ -1564,17 +1564,11 @@ void vhost_ack_features(struct vhost_dev *hdev, const int *feature_bits,
 int vhost_dev_get_config(struct vhost_dev *hdev, uint8_t *config,
                          uint32_t config_len, Error **errp)
 {
-    ERRP_GUARD();
-    int ret;
-
     assert(hdev->vhost_ops);
 
     if (hdev->vhost_ops->vhost_get_config) {
-        ret = hdev->vhost_ops->vhost_get_config(hdev, config, config_len, errp);
-        if (ret < 0 && !*errp) {
-            error_setg_errno(errp, -ret, "vhost_get_config failed");
-        }
-        return ret;
+        return hdev->vhost_ops->vhost_get_config(hdev, config, config_len,
+                                                 errp);
     }
 
     error_setg(errp, "vhost_get_config not implemented");

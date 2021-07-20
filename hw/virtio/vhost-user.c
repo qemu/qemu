@@ -2139,10 +2139,12 @@ static int vhost_user_get_config(struct vhost_dev *dev, uint8_t *config,
     msg.payload.config.offset = 0;
     msg.payload.config.size = config_len;
     if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        error_setg_errno(errp, EPROTO, "vhost_get_config failed");
         return -EPROTO;
     }
 
     if (vhost_user_read(dev, &msg) < 0) {
+        error_setg_errno(errp, EPROTO, "vhost_get_config failed");
         return -EPROTO;
     }
 
