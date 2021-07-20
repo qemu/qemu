@@ -911,16 +911,17 @@ void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered)
         }
     }
 
+    /*
+     * Try to block migration while FWNMI is being handled, so the
+     * machine check handler runs where the information passed to it
+     * actually makes sense.  This shouldn't actually block migration,
+     * only delay it slightly, assuming migration is retried.  If the
+     * attempt to block fails, carry on.  Unfortunately, it always
+     * fails when running with -only-migrate.  A proper interface to
+     * delay migration completion for a bit could avoid that.
+     */
     ret = migrate_add_blocker(spapr->fwnmi_migration_blocker, NULL);
     if (ret == -EBUSY) {
-        /*
-         * We don't want to abort so we let the migration to continue.
-         * In a rare case, the machine check handler will run on the target.
-         * Though this is not preferable, it is better than aborting
-         * the migration or killing the VM. It is okay to call
-         * migrate_del_blocker on a blocker that was not added (which the
-         * nmi-interlock handler would do when it's called after this).
-         */
         warn_report("Received a fwnmi while migration was in progress");
     }
 
