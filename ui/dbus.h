@@ -27,8 +27,15 @@
 #include "qemu/dbus.h"
 #include "qom/object.h"
 #include "ui/console.h"
+#include "ui/clipboard.h"
 
 #include "dbus-display1.h"
+
+typedef struct DBusClipboardRequest {
+    GDBusMethodInvocation *invocation;
+    QemuClipboardType type;
+    guint timeout_id;
+} DBusClipboardRequest;
 
 struct DBusDisplay {
     Object parent;
@@ -44,6 +51,11 @@ struct DBusDisplay {
     QemuDBusDisplay1VM *iface;
     GPtrArray *consoles;
     GCancellable *add_client_cancellable;
+
+    QemuClipboardPeer clipboard_peer;
+    QemuDBusDisplay1Clipboard *clipboard;
+    QemuDBusDisplay1Clipboard *clipboard_proxy;
+    DBusClipboardRequest clipboard_request[QEMU_CLIPBOARD_SELECTION__COUNT];
 };
 
 #define TYPE_DBUS_DISPLAY "dbus-display"
@@ -82,5 +94,7 @@ dbus_display_listener_get_bus_name(DBusDisplayListener *ddl);
 
 extern const DisplayChangeListenerOps dbus_gl_dcl_ops;
 extern const DisplayChangeListenerOps dbus_dcl_ops;
+
+void dbus_clipboard_init(DBusDisplay *dpy);
 
 #endif /* UI_DBUS_H_ */

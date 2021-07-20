@@ -82,6 +82,7 @@ if dbus_display
                                           '--generate-c-code', '@BASENAME@'])
   dbus_ss.add(when: [gio, pixman, opengl, 'CONFIG_GIO'],
               if_true: [files(
+                'dbus-clipboard.c',
                 'dbus-console.c',
                 'dbus-error.c',
                 'dbus-listener.c',

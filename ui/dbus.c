@@ -24,6 +24,7 @@
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 #include "qemu/dbus.h"
+#include "qemu/main-loop.h"
 #include "qemu/option.h"
 #include "qom/object_interfaces.h"
 #include "sysemu/sysemu.h"
@@ -70,12 +71,17 @@ dbus_display_init(Object *o)
     g_dbus_object_skeleton_add_interface(
         vm, G_DBUS_INTERFACE_SKELETON(dd->iface));
     g_dbus_object_manager_server_export(dd->server, vm);
+
+    dbus_clipboard_init(dd);
 }
 
 static void
 dbus_display_finalize(Object *o)
 {
     DBusDisplay *dd = DBUS_DISPLAY(o);
+
+    qemu_clipboard_peer_unregister(&dd->clipboard_peer);
+    g_clear_object(&dd->clipboard);
 
     g_clear_object(&dd->server);
     g_clear_pointer(&dd->consoles, g_ptr_array_unref);
@@ -293,6 +299,7 @@ set_audiodev(Object *o, const char *str, Error **errp)
     g_free(dd->audiodev);
     dd->audiodev = g_strdup(str);
 }
+
 
 static int
 get_gl_mode(Object *o, Error **errp)

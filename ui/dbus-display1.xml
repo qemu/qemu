@@ -377,6 +377,103 @@
   </interface>
 
   <!--
+      org.qemu.Display1.Clipboard:
+
+      This interface must be implemented by both the client and the server on
+      ``/org/qemu/Display1/Clipboard`` to support clipboard sharing between
+      the client and the guest.
+
+      Once :dbus:meth:`Register`'ed, method calls may be sent and received in both
+      directions. Unregistered callers will get error replies.
+
+      .. _dbus-clipboard-selection:
+
+      **Selection values**::
+
+        Clipboard   = 0
+        Primary     = 1
+        Secondary   = 2
+
+      .. _dbus-clipboard-serial:
+
+      **Serial counter**
+
+      To solve potential clipboard races, clipboard grabs have an associated
+      serial counter. It is set to 0 on registration, and incremented by 1 for
+      each grab. The peer with the highest serial is the clipboard grab owner.
+
+      When a grab with a lower serial is received, it should be discarded.
+
+      When a grab is attempted with the same serial number as the current grab,
+      the one coming from the client should have higher priority, and the client
+      should gain clipboard grab ownership.
+  -->
+  <interface name="org.qemu.Display1.Clipboard">
+    <!--
+        Register:
+
+        Register a clipboard session and reinitialize the serial counter.
+
+        The client must register itself, and is granted an exclusive
+        access for handling the clipboard.
+
+        The server can reinitialize the session as well (to reset the counter).
+    -->
+    <method name="Register"/>
+
+    <!--
+        Unregister:
+
+        Unregister the clipboard session.
+    -->
+    <method name="Unregister"/>
+    <!--
+        Grab:
+        @selection: a :ref:`selection value<dbus-clipboard-selection>`.
+        @serial: the current grab :ref:`serial<dbus-clipboard-serial>`.
+        @mimes: the list of available content MIME types.
+
+        Grab the clipboard, claiming current clipboard content.
+    -->
+    <method name="Grab">
+      <arg type="u" name="selection"/>
+      <arg type="u" name="serial"/>
+      <arg type="as" name="mimes"/>
+    </method>
+
+    <!--
+        Release:
+        @selection: a :ref:`selection value<dbus-clipboard-selection>`.
+
+        Release the clipboard (does nothing if not the current owner).
+    -->
+    <method name="Release">
+      <arg type="u" name="selection"/>
+    </method>
+
+    <!--
+        Request:
+        @selection: a :ref:`selection value<dbus-clipboard-selection>`
+        @mimes: requested MIME types (by order of preference).
+        @reply_mime: the returned data MIME type.
+        @data: the clipboard data.
+
+        Request the clipboard content.
+
+        Return an error if the clipboard is empty, or the requested MIME types
+        are unavailable.
+    -->
+    <method name="Request">
+      <arg type="u" name="selection"/>
+      <arg type="as" name="mimes"/>
+      <arg type="s" name="reply_mime" direction="out"/>
+      <arg type="ay" name="data" direction="out">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+  </interface>
+
+  <!--
       org.qemu.Display1.Audio:
 
       Audio backend may be available on ``/org/qemu/Display1/Audio``.
