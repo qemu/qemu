@@ -16016,6 +16016,16 @@ static void mips_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->default_tcg_memop_mask = (ctx->insn_flags & (ISA_MIPS_R6 |
                                   INSN_LOONGSON3A)) ? MO_UNALN : MO_ALIGN;
 
+    /*
+     * Execute a branch and its delay slot as a single instruction.
+     * This is what GDB expects and is consistent with what the
+     * hardware does (e.g. if a delay slot instruction faults, the
+     * reported PC is the PC of the branch).
+     */
+    if (ctx->base.singlestep_enabled && (ctx->hflags & MIPS_HFLAG_BMASK)) {
+        ctx->base.max_insns = 2;
+    }
+
     LOG_DISAS("\ntb %p idx %d hflags %04x\n", ctx->base.tb, ctx->mem_idx,
               ctx->hflags);
 }
@@ -16085,17 +16095,14 @@ static void mips_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     if (ctx->base.is_jmp != DISAS_NEXT) {
         return;
     }
+
     /*
-     * Execute a branch and its delay slot as a single instruction.
-     * This is what GDB expects and is consistent with what the
-     * hardware does (e.g. if a delay slot instruction faults, the
-     * reported PC is the PC of the branch).
+     * End the TB on (most) page crossings.
+     * See mips_tr_init_disas_context about single-stepping a branch
+     * together with its delay slot.
      */
-    if (ctx->base.singlestep_enabled &&
-        (ctx->hflags & MIPS_HFLAG_BMASK) == 0) {
-        ctx->base.is_jmp = DISAS_TOO_MANY;
-    }
-    if (ctx->base.pc_next - ctx->page_start >= TARGET_PAGE_SIZE) {
+    if (ctx->base.pc_next - ctx->page_start >= TARGET_PAGE_SIZE
+        && !ctx->base.singlestep_enabled) {
         ctx->base.is_jmp = DISAS_TOO_MANY;
     }
 }
