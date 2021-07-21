@@ -5301,7 +5301,7 @@ SRST
 
             CN=laptop.example.com,O=Example Home,L=London,ST=London,C=GB
 
-    ``-object iothread,id=id,poll-max-ns=poll-max-ns,poll-grow=poll-grow,poll-shrink=poll-shrink``
+    ``-object iothread,id=id,poll-max-ns=poll-max-ns,poll-grow=poll-grow,poll-shrink=poll-shrink,aio-max-batch=aio-max-batch``
         Creates a dedicated event loop thread that devices can be
         assigned to. This is known as an IOThread. By default device
         emulation happens in vCPU threads or the main event loop thread.
@@ -5337,7 +5337,11 @@ SRST
         the polling time when the algorithm detects it is spending too
         long polling without encountering events.
 
-        The polling parameters can be modified at run-time using the
+        The ``aio-max-batch`` parameter is the maximum number of requests
+        in a batch for the AIO engine, 0 means that the engine will use
+        its default.
+
+        The IOThread parameters can be modified at run-time using the
         ``qom-set`` command (where ``iothread1`` is the IOThread's
         ``id``):
 

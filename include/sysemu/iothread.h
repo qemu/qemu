@@ -37,6 +37,9 @@ struct IOThread {
     int64_t poll_max_ns;
     int64_t poll_grow;
     int64_t poll_shrink;
+
+    /* AioContext AIO engine parameters */
+    int64_t aio_max_batch;
 };
 typedef struct IOThread IOThread;
 
