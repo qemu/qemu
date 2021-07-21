@@ -2283,7 +2283,9 @@ static int qxl_pre_save(void *opaque)
     } else {
         d->last_release_offset = (uint8_t *)d->last_release - ram_start;
     }
-    assert(d->last_release_offset < d->vga.vram_size);
+    if (d->last_release_offset < d->vga.vram_size) {
+        return 1;
+    }
 
     return 0;
 }
