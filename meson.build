@@ -2335,9 +2335,9 @@ foreach d, list : modules
         # https://github.com/mesonbuild/meson/pull/8900
         modinfo_files += custom_target(d + '-' + m + '.modinfo',
                                        output: d + '-' + m + '.modinfo',
-                                       input: module_ss.sources(),
+                                       input: module_ss.sources() + genh,
                                        capture: true,
-                                       command: [modinfo_collect, '@INPUT@'])
+                                       command: [modinfo_collect, module_ss.sources()])
       endif
     else
       if d == 'block'
