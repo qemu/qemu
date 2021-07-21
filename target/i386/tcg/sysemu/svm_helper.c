@@ -65,6 +65,16 @@ static inline void svm_load_seg_cache(CPUX86State *env, hwaddr addr,
                            sc->base, sc->limit, sc->flags);
 }
 
+static inline bool ctl_has_irq(uint32_t int_ctl)
+{
+    uint32_t int_prio;
+    uint32_t tpr;
+
+    int_prio = (int_ctl & V_INTR_PRIO_MASK) >> V_INTR_MASKING_SHIFT;
+    tpr = int_ctl & V_TPR_MASK;
+    return (int_ctl & V_IRQ_MASK) && (int_prio >= tpr);
+}
+
 void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
 {
     CPUState *cs = env_cpu(env);
@@ -290,7 +300,7 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
 
     env->hflags2 |= HF2_GIF_MASK;
 
-    if (int_ctl & V_IRQ_MASK) {
+    if (ctl_has_irq(int_ctl)) {
         CPUState *cs = env_cpu(env);
 
         cs->interrupt_request |= CPU_INTERRUPT_VIRQ;
