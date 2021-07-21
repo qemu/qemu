@@ -78,9 +78,9 @@ static GHashTable *type_table_get(void)
 {
     static GHashTable *type_table;
 
-    if (type_table == NULL) {
-        type_table = g_hash_table_new(g_str_hash, g_str_equal);
-    }
+    
+    type_table = g_hash_table_new(g_str_hash, g_str_equal);
+   
 
     return type_table;
 }
