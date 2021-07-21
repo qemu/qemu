@@ -75,6 +75,41 @@ static inline bool ctl_has_irq(uint32_t int_ctl)
     return (int_ctl & V_IRQ_MASK) && (int_prio >= tpr);
 }
 
+static inline bool is_efer_invalid_state (CPUX86State *env)
+{
+    if (!(env->efer & MSR_EFER_SVME)) {
+        return true;
+    }
+
+    if (env->efer & MSR_EFER_RESERVED) {
+        return true;
+    }
+
+    if ((env->efer & (MSR_EFER_LMA | MSR_EFER_LME)) &&
+            !(env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM)) {
+        return true;
+    }
+
+    if ((env->efer & MSR_EFER_LME) && (env->cr[0] & CR0_PG_MASK)
+                                && !(env->cr[4] & CR4_PAE_MASK)) {
+        return true;
+    }
+
+    if ((env->efer & MSR_EFER_LME) && (env->cr[0] & CR0_PG_MASK)
+                                && !(env->cr[0] & CR0_PE_MASK)) {
+        return true;
+    }
+
+    if ((env->efer & MSR_EFER_LME) && (env->cr[0] & CR0_PG_MASK)
+                                && (env->cr[4] & CR4_PAE_MASK)
+                                && (env->segs[R_CS].flags & DESC_L_MASK)
+                                && (env->segs[R_CS].flags & DESC_B_MASK)) {
+        return true;
+    }
+
+    return false;
+}
+
 void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
 {
     CPUState *cs = env_cpu(env);
@@ -290,6 +325,10 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
         cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
     }
 #endif
+
+    if (is_efer_invalid_state(env)) {
+        cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
+    }
 
     switch (x86_ldub_phys(cs,
                       env->vm_vmcb + offsetof(struct vmcb, control.tlb_ctl))) {
