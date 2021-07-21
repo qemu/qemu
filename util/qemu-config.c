@@ -255,14 +255,19 @@ CommandLineOptionInfoList *qmp_query_command_line_options(bool has_option,
             info->option = g_strdup(vm_config_groups[i]->name);
             if (!strcmp("drive", vm_config_groups[i]->name)) {
                 info->parameters = get_drive_infolist();
-            } else if (!strcmp("machine", vm_config_groups[i]->name)) {
-                info->parameters = query_option_descs(machine_opts.desc);
             } else {
                 info->parameters =
                     query_option_descs(vm_config_groups[i]->desc);
             }
             QAPI_LIST_PREPEND(conf_list, info);
         }
+    }
+
+    if (!has_option || !strcmp(option, "machine")) {
+        info = g_malloc0(sizeof(*info));
+        info->option = g_strdup("machine");
+        info->parameters = query_option_descs(machine_opts.desc);
+        QAPI_LIST_PREPEND(conf_list, info);
     }
 
     if (conf_list == NULL) {
