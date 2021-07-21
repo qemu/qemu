@@ -144,7 +144,21 @@ _img_info --format-specific | _filter_irrelevant_img_info
 echo
 $QEMU_IMG convert --bitmaps -O qcow2 "$TEST_IMG" "$TEST_IMG.copy" &&
     echo "unexpected success"
-TEST_IMG=$TEST_IMG.copy _img_info --format-specific \
+TEST_IMG="$TEST_IMG.copy" _img_info --format-specific \
+    | _filter_irrelevant_img_info
+# Skipping the broken bitmaps works,...
+echo
+$QEMU_IMG convert --bitmaps --skip-broken-bitmaps \
+    -O qcow2 "$TEST_IMG" "$TEST_IMG.copy"
+TEST_IMG="$TEST_IMG.copy" _img_info --format-specific \
+    | _filter_irrelevant_img_info
+# ...as does removing them
+echo
+_rm_test_img "$TEST_IMG.copy"
+$QEMU_IMG bitmap --remove "$TEST_IMG" b0
+$QEMU_IMG bitmap --remove --add "$TEST_IMG" b2
+$QEMU_IMG convert --bitmaps -O qcow2 "$TEST_IMG" "$TEST_IMG.copy"
+TEST_IMG="$TEST_IMG.copy" _img_info --format-specific \
     | _filter_irrelevant_img_info
 
 # success, all done

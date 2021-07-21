@@ -145,6 +145,39 @@ Format specific information:
     corrupt: false
 
 qemu-img: Cannot copy inconsistent bitmap 'b0'
-Try 'qemu-img bitmap --remove' to delete it
+Try --skip-broken-bitmaps, or use 'qemu-img bitmap --remove' to delete it
 qemu-img: Could not open 'TEST_DIR/t.IMGFMT.copy': Could not open 'TEST_DIR/t.IMGFMT.copy': No such file or directory
+
+qemu-img: warning: Skipping inconsistent bitmap 'b0'
+qemu-img: warning: Skipping inconsistent bitmap 'b2'
+image: TEST_DIR/t.IMGFMT.copy
+file format: IMGFMT
+virtual size: 10 MiB (10485760 bytes)
+cluster_size: 65536
+Format specific information:
+    bitmaps:
+        [0]:
+            flags:
+                [0]: auto
+            name: b4
+            granularity: 65536
+    corrupt: false
+
+image: TEST_DIR/t.IMGFMT.copy
+file format: IMGFMT
+virtual size: 10 MiB (10485760 bytes)
+cluster_size: 65536
+Format specific information:
+    bitmaps:
+        [0]:
+            flags:
+                [0]: auto
+            name: b4
+            granularity: 65536
+        [1]:
+            flags:
+                [0]: auto
+            name: b2
+            granularity: 65536
+    corrupt: false
 *** done
