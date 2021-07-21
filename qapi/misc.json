@@ -86,6 +86,9 @@
 # @poll-shrink: how many ns will be removed from polling time, 0 means that
 #               it's not configured (since 2.9)
 #
+# @aio-max-batch: maximum number of requests in a batch for the AIO engine,
+#                 0 means that the engine will use its default (since 6.1)
+#
 # Since: 2.0
 ##
 { 'struct': 'IOThreadInfo',
@@ -93,7 +96,8 @@
            'thread-id': 'int',
            'poll-max-ns': 'int',
            'poll-grow': 'int',
-           'poll-shrink': 'int' } }
+           'poll-shrink': 'int',
+           'aio-max-batch': 'int' } }
 
 ##
 # @query-iothreads:

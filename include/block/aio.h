@@ -232,6 +232,9 @@ struct AioContext {
     int64_t poll_grow;      /* polling time growth factor */
     int64_t poll_shrink;    /* polling time shrink factor */
 
+    /* AIO engine parameters */
+    int64_t aio_max_batch;  /* maximum number of requests in a batch */
+
     /*
      * List of handlers participating in userspace polling.  Protected by
      * ctx->list_lock.  Iterated and modified mostly by the event loop thread
@@ -754,5 +757,14 @@ void aio_context_use_g_source(AioContext *ctx);
 void aio_context_set_poll_params(AioContext *ctx, int64_t max_ns,
                                  int64_t grow, int64_t shrink,
                                  Error **errp);
+
+/**
+ * aio_context_set_aio_params:
+ * @ctx: the aio context
+ * @max_batch: maximum number of requests in a batch, 0 means that the
+ *             engine will use its default
+ */
+void aio_context_set_aio_params(AioContext *ctx, int64_t max_batch,
+                                Error **errp);
 
 #endif

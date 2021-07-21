@@ -554,6 +554,8 @@ AioContext *aio_context_new(Error **errp)
     ctx->poll_grow = 0;
     ctx->poll_shrink = 0;
 
+    ctx->aio_max_batch = 0;
+
     return ctx;
 fail:
     g_source_destroy(&ctx->source);

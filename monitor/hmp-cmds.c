@@ -1893,6 +1893,8 @@ void hmp_info_iothreads(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "  poll-max-ns=%" PRId64 "\n", value->poll_max_ns);
         monitor_printf(mon, "  poll-grow=%" PRId64 "\n", value->poll_grow);
         monitor_printf(mon, "  poll-shrink=%" PRId64 "\n", value->poll_shrink);
+        monitor_printf(mon, "  aio-max-batch=%" PRId64 "\n",
+                       value->aio_max_batch);
     }
 
     qapi_free_IOThreadInfoList(info_list);
