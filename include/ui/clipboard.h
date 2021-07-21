@@ -173,6 +173,16 @@ void qemu_clipboard_peer_release(QemuClipboardPeer *peer,
 QemuClipboardInfo *qemu_clipboard_info(QemuClipboardSelection selection);
 
 /**
+ * qemu_clipboard_check_serial
+ *
+ * @info: clipboard info.
+ * @client: whether to check from the client context and priority.
+ *
+ * Return TRUE if the @info has a higher serial than the current clipboard.
+ */
+bool qemu_clipboard_check_serial(QemuClipboardInfo *info, bool client);
+
+/**
  * qemu_clipboard_info_new
  *
  * @owner: clipboard owner.
