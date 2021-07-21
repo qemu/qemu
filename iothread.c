@@ -213,7 +213,7 @@ static PollParamInfo poll_shrink_info = {
     "poll-shrink", offsetof(IOThread, poll_shrink),
 };
 
-static void iothread_get_poll_param(Object *obj, Visitor *v,
+static void iothread_get_param(Object *obj, Visitor *v,
         const char *name, void *opaque, Error **errp)
 {
     IOThread *iothread = IOTHREAD(obj);
@@ -223,7 +223,7 @@ static void iothread_get_poll_param(Object *obj, Visitor *v,
     visit_type_int64(v, name, field, errp);
 }
 
-static void iothread_set_poll_param(Object *obj, Visitor *v,
+static bool iothread_set_param(Object *obj, Visitor *v,
         const char *name, void *opaque, Error **errp)
 {
     IOThread *iothread = IOTHREAD(obj);
@@ -232,16 +232,35 @@ static void iothread_set_poll_param(Object *obj, Visitor *v,
     int64_t value;
 
     if (!visit_type_int64(v, name, &value, errp)) {
-        return;
+        return false;
     }
 
     if (value < 0) {
         error_setg(errp, "%s value must be in range [0, %" PRId64 "]",
                    info->name, INT64_MAX);
-        return;
+        return false;
     }
 
     *field = value;
+
+    return true;
+}
+
+static void iothread_get_poll_param(Object *obj, Visitor *v,
+        const char *name, void *opaque, Error **errp)
+{
+
+    iothread_get_param(obj, v, name, opaque, errp);
+}
+
+static void iothread_set_poll_param(Object *obj, Visitor *v,
+        const char *name, void *opaque, Error **errp)
+{
+    IOThread *iothread = IOTHREAD(obj);
+
+    if (!iothread_set_param(obj, v, name, opaque, errp)) {
+        return;
+    }
 
     if (iothread->ctx) {
         aio_context_set_poll_params(iothread->ctx,
