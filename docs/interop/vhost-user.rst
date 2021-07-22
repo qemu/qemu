@@ -3,11 +3,13 @@
 ===================
 Vhost-user Protocol
 ===================
-:Copyright: 2014 Virtual Open Systems Sarl.
-:Copyright: 2019 Intel Corporation
-:Licence: This work is licensed under the terms of the GNU GPL,
-          version 2 or later. See the COPYING file in the top-level
-          directory.
+
+..
+  Copyright 2014 Virtual Open Systems Sarl.
+  Copyright 2019 Intel Corporation
+  Licence: This work is licensed under the terms of the GNU GPL,
+           version 2 or later. See the COPYING file in the top-level
+           directory.
 
 .. contents:: Table of Contents
 
