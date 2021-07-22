@@ -129,9 +129,11 @@ endif
 # 4. Rules to bridge to other makefiles
 
 ifneq ($(NINJA),)
-MAKE.n = $(findstring n,$(firstword $(MAKEFLAGS)))
-MAKE.k = $(findstring k,$(firstword $(MAKEFLAGS)))
-MAKE.q = $(findstring q,$(firstword $(MAKEFLAGS)))
+# Filter out long options to avoid flags like --no-print-directory which
+# may result in false positive match for MAKE.n
+MAKE.n = $(findstring n,$(firstword $(filter-out --%,$(MAKEFLAGS))))
+MAKE.k = $(findstring k,$(firstword $(filter-out --%,$(MAKEFLAGS))))
+MAKE.q = $(findstring q,$(firstword $(filter-out --%,$(MAKEFLAGS))))
 MAKE.nq = $(if $(word 2, $(MAKE.n) $(MAKE.q)),nq)
 NINJAFLAGS = $(if $V,-v) $(if $(MAKE.n), -n) $(if $(MAKE.k), -k0) \
         $(filter-out -j, $(lastword -j1 $(filter -l% -j%, $(MAKEFLAGS)))) \
