@@ -107,9 +107,6 @@ static int channel_close(void *opaque, Error **errp)
     int ret;
     QIOChannel *ioc = QIO_CHANNEL(opaque);
     ret = qio_channel_close(ioc, errp);
-    if (OBJECT(ioc)->ref == 1) {
-        migration_ioc_unregister_yank(ioc);
-    }
     object_unref(OBJECT(ioc));
     return ret;
 }

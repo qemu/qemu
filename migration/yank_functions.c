@@ -14,6 +14,7 @@
 #include "qemu/yank.h"
 #include "io/channel-socket.h"
 #include "io/channel-tls.h"
+#include "qemu-file.h"
 
 void migration_yank_iochannel(void *opaque)
 {
@@ -44,5 +45,18 @@ void migration_ioc_unregister_yank(QIOChannel *ioc)
         yank_unregister_function(MIGRATION_YANK_INSTANCE,
                                  migration_yank_iochannel,
                                  QIO_CHANNEL(ioc));
+    }
+}
+
+void migration_ioc_unregister_yank_from_file(QEMUFile *file)
+{
+    QIOChannel *ioc = qemu_file_get_ioc(file);
+
+    if (ioc) {
+        /*
+         * For migration qemufiles, we'll always reach here.  Though we'll skip
+         * calls from e.g. savevm/loadvm as they don't use yank.
+         */
+        migration_ioc_unregister_yank(ioc);
     }
 }
