@@ -90,6 +90,7 @@ undocumented; you can get a complete list by running
    arm/highbank
    arm/musicpal
    arm/gumstix
+   arm/mainstone
    arm/nrf
    arm/nseries
    arm/nuvoton
