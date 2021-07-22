@@ -789,6 +789,53 @@ unsigned long migration_bitmap_find_dirty(RAMState *rs, RAMBlock *rb,
     return find_next_bit(bitmap, size, start);
 }
 
+static void migration_clear_memory_region_dirty_bitmap(RAMState *rs,
+                                                       RAMBlock *rb,
+                                                       unsigned long page)
+{
+    uint8_t shift;
+    hwaddr size, start;
+
+    if (!rb->clear_bmap || !clear_bmap_test_and_clear(rb, page)) {
+        return;
+    }
+
+    shift = rb->clear_bmap_shift;
+    /*
+     * CLEAR_BITMAP_SHIFT_MIN should always guarantee this... this
+     * can make things easier sometimes since then start address
+     * of the small chunk will always be 64 pages aligned so the
+     * bitmap will always be aligned to unsigned long. We should
+     * even be able to remove this restriction but I'm simply
+     * keeping it.
+     */
+    assert(shift >= 6);
+
+    size = 1ULL << (TARGET_PAGE_BITS + shift);
+    start = (((ram_addr_t)page) << TARGET_PAGE_BITS) & (-size);
+    trace_migration_bitmap_clear_dirty(rb->idstr, start, size, page);
+    memory_region_clear_dirty_bitmap(rb->mr, start, size);
+}
+
+static void
+migration_clear_memory_region_dirty_bitmap_range(RAMState *rs,
+                                                 RAMBlock *rb,
+                                                 unsigned long start,
+                                                 unsigned long npages)
+{
+    unsigned long i, chunk_pages = 1UL << rb->clear_bmap_shift;
+    unsigned long chunk_start = QEMU_ALIGN_DOWN(start, chunk_pages);
+    unsigned long chunk_end = QEMU_ALIGN_UP(start + npages, chunk_pages);
+
+    /*
+     * Clear pages from start to start + npages - 1, so the end boundary is
+     * exclusive.
+     */
+    for (i = chunk_start; i < chunk_end; i += chunk_pages) {
+        migration_clear_memory_region_dirty_bitmap(rs, rb, i);
+    }
+}
+
 static inline bool migration_bitmap_clear_dirty(RAMState *rs,
                                                 RAMBlock *rb,
                                                 unsigned long page)
@@ -803,26 +850,9 @@ static inline bool migration_bitmap_clear_dirty(RAMState *rs,
      * the page in the chunk we clear the remote dirty bitmap for all.
      * Clearing it earlier won't be a problem, but too late will.
      */
-    if (rb->clear_bmap && clear_bmap_test_and_clear(rb, page)) {
-        uint8_t shift = rb->clear_bmap_shift;
-        hwaddr size = 1ULL << (TARGET_PAGE_BITS + shift);
-        hwaddr start = (((ram_addr_t)page) << TARGET_PAGE_BITS) & (-size);
-
-        /*
-         * CLEAR_BITMAP_SHIFT_MIN should always guarantee this... this
-         * can make things easier sometimes since then start address
-         * of the small chunk will always be 64 pages aligned so the
-         * bitmap will always be aligned to unsigned long.  We should
-         * even be able to remove this restriction but I'm simply
-         * keeping it.
-         */
-        assert(shift >= 6);
-        trace_migration_bitmap_clear_dirty(rb->idstr, start, size, page);
-        memory_region_clear_dirty_bitmap(rb->mr, start, size);
-    }
+    migration_clear_memory_region_dirty_bitmap(rs, rb, page);
 
     ret = test_and_clear_bit(page, rb->bmap);
-
     if (ret) {
         rs->migration_dirty_pages--;
     }
@@ -2741,6 +2771,14 @@ void qemu_guest_free_page_hint(void *addr, size_t len)
         npages = used_len >> TARGET_PAGE_BITS;
 
         qemu_mutex_lock(&ram_state->bitmap_mutex);
+        /*
+         * The skipped free pages are equavalent to be sent from clear_bmap's
+         * perspective, so clear the bits from the memory region bitmap which
+         * are initially set. Otherwise those skipped pages will be sent in
+         * the next round after syncing from the memory region bitmap.
+         */
+        migration_clear_memory_region_dirty_bitmap_range(ram_state, block,
+                                                         start, npages);
         ram_state->migration_dirty_pages -=
                       bitmap_count_one_with_offset(block->bmap, start, npages);
         bitmap_clear(block->bmap, start, npages);
