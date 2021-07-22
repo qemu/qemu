@@ -107,12 +107,8 @@ static int channel_close(void *opaque, Error **errp)
     int ret;
     QIOChannel *ioc = QIO_CHANNEL(opaque);
     ret = qio_channel_close(ioc, errp);
-    if ((object_dynamic_cast(OBJECT(ioc), TYPE_QIO_CHANNEL_SOCKET) ||
-         object_dynamic_cast(OBJECT(ioc), TYPE_QIO_CHANNEL_TLS))
-        && OBJECT(ioc)->ref == 1) {
-        yank_unregister_function(MIGRATION_YANK_INSTANCE,
-                                 migration_yank_iochannel,
-                                 QIO_CHANNEL(ioc));
+    if (OBJECT(ioc)->ref == 1) {
+        migration_ioc_unregister_yank(ioc);
     }
     object_unref(OBJECT(ioc));
     return ret;

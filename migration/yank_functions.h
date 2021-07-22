@@ -15,3 +15,5 @@
  * @opaque: QIOChannel to shutdown
  */
 void migration_yank_iochannel(void *opaque);
+void migration_ioc_register_yank(QIOChannel *ioc);
+void migration_ioc_unregister_yank(QIOChannel *ioc);
