@@ -2397,6 +2397,12 @@ static int kvm_init(MachineState *ms)
                     "- for kernels supporting the vm.allocate_pgste sysctl, "
                     "whether it is enabled\n");
         }
+#elif defined(TARGET_PPC)
+        if (ret == -EINVAL) {
+            fprintf(stderr,
+                    "PPC KVM module is not loaded. Try modprobe kvm_%s.\n",
+                    (type == 2) ? "pr" : "hv");
+        }
 #endif
         goto err;
     }
