@@ -684,6 +684,7 @@ F: hw/watchdog/wdt_imx2.c
 F: include/hw/arm/fsl-imx25.h
 F: include/hw/misc/imx25_ccm.h
 F: include/hw/watchdog/wdt_imx2.h
+F: docs/system/arm/imx25-pdk.rst
 
 i.MX31 (kzm)
 M: Peter Maydell <peter.maydell@linaro.org>
