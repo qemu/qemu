@@ -683,4 +683,79 @@
       </arg>
     </method>
   </interface>
+
+  <!--
+      org.qemu.Display1.Chardev:
+
+      Character devices may be available on ``/org/qemu/Display1/Chardev_$id``.
+
+      They may be used for different kind of streams, which are identified via
+      their FQDN :dbus:prop:`Name`.
+
+      .. _dbus-chardev-fqdn:
+
+      Here are some known reserved kind names (the ``org.qemu`` prefix is
+      reserved by QEMU):
+
+      org.qemu.console.serial.0
+        A serial console stream.
+
+      org.qemu.monitor.hmp.0
+        A QEMU HMP human monitor.
+
+      org.qemu.monitor.qmp.0
+        A QEMU QMP monitor.
+
+      org.qemu.usbredir
+        A usbredir stream.
+  -->
+  <interface name="org.qemu.Display1.Chardev">
+    <!--
+        Register:
+        @stream: a Unix FD to redirect the stream to.
+
+        Register a file-descriptor for the stream handling.
+
+        The current handler, if any, will be replaced.
+    -->
+    <method name="Register">
+      <arg type="h" name="stream" direction="in"/>
+    </method>
+
+    <!--
+        SendBreak:
+
+        Send a break event to the character device.
+    -->
+    <method name="SendBreak"/>
+
+    <!--
+        Name:
+
+        The FQDN name to identify the kind of stream. See :ref:`reserved
+        names<dbus-chardev-fqdn>`.
+    -->
+    <property name="Name" type="s" access="read"/>
+
+    <!--
+        FEOpened:
+
+        Whether the front-end side is opened.
+    -->
+    <property name="FEOpened" type="b" access="read"/>
+
+    <!--
+        Echo:
+
+        Whether the input should be echo'ed (for serial streams).
+    -->
+    <property name="Echo" type="b" access="read"/>
+
+    <!--
+        Owner:
+
+        The D-Bus unique name of the registered handler.
+    -->
+    <property name="Owner" type="s" access="read"/>
+  </interface>
 </node>

@@ -43,6 +43,8 @@ typedef enum {
     TCP_CHARDEV_STATE_CONNECTED,
 } TCPChardevState;
 
+typedef ChardevClass SocketChardevClass;
+
 struct SocketChardev {
     Chardev parent;
     QIOChannel *ioc; /* Client I/O channel */

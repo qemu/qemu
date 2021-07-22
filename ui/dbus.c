@@ -55,6 +55,27 @@ static const DisplayGLCtxOps dbus_gl_ops = {
     .dpy_gl_ctx_make_current = qemu_egl_make_context_current,
 };
 
+static NotifierList dbus_display_notifiers =
+    NOTIFIER_LIST_INITIALIZER(dbus_display_notifiers);
+
+void
+dbus_display_notifier_add(Notifier *notifier)
+{
+    notifier_list_add(&dbus_display_notifiers, notifier);
+}
+
+static void
+dbus_display_notifier_remove(Notifier *notifier)
+{
+    notifier_remove(notifier);
+}
+
+void
+dbus_display_notify(DBusDisplayEvent *event)
+{
+    notifier_list_notify(&dbus_display_notifiers, event);
+}
+
 static void
 dbus_display_init(Object *o)
 {
@@ -73,12 +94,17 @@ dbus_display_init(Object *o)
     g_dbus_object_manager_server_export(dd->server, vm);
 
     dbus_clipboard_init(dd);
+    dbus_chardev_init(dd);
 }
 
 static void
 dbus_display_finalize(Object *o)
 {
     DBusDisplay *dd = DBUS_DISPLAY(o);
+
+    if (dd->notifier.notify) {
+        dbus_display_notifier_remove(&dd->notifier);
+    }
 
     qemu_clipboard_peer_unregister(&dd->clipboard_peer);
     g_clear_object(&dd->clipboard);

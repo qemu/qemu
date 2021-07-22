@@ -12,6 +12,11 @@
 
 #include <gio/gio.h>
 
+#include "qom/object.h"
+#include "chardev/char.h"
+#include "qemu/notify.h"
+#include "qemu/typedefs.h"
+
 /* glib/gio 2.68 */
 #define DBUS_METHOD_INVOCATION_HANDLED TRUE
 #define DBUS_METHOD_INVOCATION_UNHANDLED FALSE

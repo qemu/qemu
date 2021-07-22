@@ -24,6 +24,7 @@
 #ifndef UI_DBUS_H_
 #define UI_DBUS_H_
 
+#include "chardev/char-socket.h"
 #include "qemu/dbus.h"
 #include "qom/object.h"
 #include "ui/console.h"
@@ -56,10 +57,14 @@ struct DBusDisplay {
     QemuDBusDisplay1Clipboard *clipboard;
     QemuDBusDisplay1Clipboard *clipboard_proxy;
     DBusClipboardRequest clipboard_request[QEMU_CLIPBOARD_SELECTION__COUNT];
+
+    Notifier notifier;
 };
 
 #define TYPE_DBUS_DISPLAY "dbus-display"
 OBJECT_DECLARE_SIMPLE_TYPE(DBusDisplay, DBUS_DISPLAY)
+
+void dbus_display_notifier_add(Notifier *notifier);
 
 #define DBUS_DISPLAY_TYPE_CONSOLE dbus_display_console_get_type()
 G_DECLARE_FINAL_TYPE(DBusDisplayConsole,
@@ -94,6 +99,45 @@ dbus_display_listener_get_bus_name(DBusDisplayListener *ddl);
 
 extern const DisplayChangeListenerOps dbus_gl_dcl_ops;
 extern const DisplayChangeListenerOps dbus_dcl_ops;
+
+#define TYPE_CHARDEV_DBUS "chardev-dbus"
+
+typedef struct DBusChardevClass {
+    SocketChardevClass parent_class;
+
+    void (*parent_chr_be_event)(Chardev *s, QEMUChrEvent event);
+} DBusChardevClass;
+
+DECLARE_CLASS_CHECKERS(DBusChardevClass, DBUS_CHARDEV,
+                       TYPE_CHARDEV_DBUS)
+
+typedef struct DBusChardev {
+    SocketChardev parent;
+
+    bool exported;
+    QemuDBusDisplay1Chardev *iface;
+} DBusChardev;
+
+DECLARE_INSTANCE_CHECKER(DBusChardev, DBUS_CHARDEV, TYPE_CHARDEV_DBUS)
+
+#define CHARDEV_IS_DBUS(chr) \
+    object_dynamic_cast(OBJECT(chr), TYPE_CHARDEV_DBUS)
+
+typedef enum {
+    DBUS_DISPLAY_CHARDEV_OPEN,
+    DBUS_DISPLAY_CHARDEV_CLOSE,
+} DBusDisplayEventType;
+
+typedef struct DBusDisplayEvent {
+    DBusDisplayEventType type;
+    union {
+        DBusChardev *chardev;
+    };
+} DBusDisplayEvent;
+
+void dbus_display_notify(DBusDisplayEvent *event);
+
+void dbus_chardev_init(DBusDisplay *dpy);
 
 void dbus_clipboard_init(DBusDisplay *dpy);
 
