@@ -91,6 +91,7 @@ undocumented; you can get a complete list by running
    arm/musicpal
    arm/gumstix
    arm/mainstone
+   arm/kzm
    arm/nrf
    arm/nseries
    arm/nuvoton

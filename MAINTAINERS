@@ -694,6 +694,7 @@ F: hw/*/imx_*
 F: hw/*/*imx31*
 F: include/hw/*/imx_*
 F: include/hw/*/*imx31*
+F: docs/system/arm/kzm.rst
 
 Integrator CP
 M: Peter Maydell <peter.maydell@linaro.org>
