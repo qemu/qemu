@@ -2900,14 +2900,6 @@ static bool canonicalize_skip(DisasContext *ctx)
     return true;
 }
 
-static void gen_breakpoint(DisasContext *ctx)
-{
-    canonicalize_skip(ctx);
-    tcg_gen_movi_tl(cpu_pc, ctx->npc);
-    gen_helper_debug(cpu_env);
-    ctx->base.is_jmp = DISAS_NORETURN;
-}
-
 static void avr_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
@@ -2944,33 +2936,10 @@ static void avr_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
     tcg_gen_insn_start(ctx->npc);
 }
 
-static bool avr_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
-                                    const CPUBreakpoint *bp)
-{
-    DisasContext *ctx = container_of(dcbase, DisasContext, base);
-
-    gen_breakpoint(ctx);
-    return true;
-}
-
 static void avr_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     TCGLabel *skip_label = NULL;
-
-    /*
-     * This is due to some strange GDB behavior
-     * Let's assume main has address 0x100:
-     * b main   - sets breakpoint at address 0x00000100 (code)
-     * b *0x100 - sets breakpoint at address 0x00800100 (data)
-     *
-     * The translator driver has already taken care of the code pointer.
-     */
-    if (!ctx->base.singlestep_enabled &&
-        cpu_breakpoint_test(cs, OFFSET_DATA + ctx->base.pc_next, BP_ANY)) {
-        gen_breakpoint(ctx);
-        return;
-    }
 
     /* Conditionally skip the next instruction, if indicated.  */
     if (ctx->skip_cond != TCG_COND_NEVER) {
@@ -3069,7 +3038,6 @@ static const TranslatorOps avr_tr_ops = {
     .init_disas_context = avr_tr_init_disas_context,
     .tb_start           = avr_tr_tb_start,
     .insn_start         = avr_tr_insn_start,
-    .breakpoint_check   = avr_tr_breakpoint_check,
     .translate_insn     = avr_tr_translate_insn,
     .tb_stop            = avr_tr_tb_stop,
     .disas_log          = avr_tr_disas_log,

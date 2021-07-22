@@ -21,7 +21,7 @@
 
 typedef struct Stat64 {
 #ifdef CONFIG_ATOMIC64
-    uint64_t value;
+    aligned_uint64_t value;
 #else
     uint32_t low, high;
     uint32_t lock;

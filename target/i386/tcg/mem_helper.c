@@ -64,22 +64,12 @@ void helper_cmpxchg8b(CPUX86State *env, target_ulong a0)
     cmpv = deposit64(env->regs[R_EAX], 32, 32, env->regs[R_EDX]);
     newv = deposit64(env->regs[R_EBX], 32, 32, env->regs[R_ECX]);
 
-#ifdef CONFIG_USER_ONLY
-    {
-        uint64_t *haddr = g2h(env_cpu(env), a0);
-        cmpv = cpu_to_le64(cmpv);
-        newv = cpu_to_le64(newv);
-        oldv = qatomic_cmpxchg__nocheck(haddr, cmpv, newv);
-        oldv = le64_to_cpu(oldv);
-    }
-#else
     {
         uintptr_t ra = GETPC();
         int mem_idx = cpu_mmu_index(env, false);
         TCGMemOpIdx oi = make_memop_idx(MO_TEQ, mem_idx);
-        oldv = helper_atomic_cmpxchgq_le_mmu(env, a0, cmpv, newv, oi, ra);
+        oldv = cpu_atomic_cmpxchgq_le_mmu(env, a0, cmpv, newv, oi, ra);
     }
-#endif
 
     if (oldv == cmpv) {
         eflags |= CC_Z;
@@ -147,8 +137,7 @@ void helper_cmpxchg16b(CPUX86State *env, target_ulong a0)
 
         int mem_idx = cpu_mmu_index(env, false);
         TCGMemOpIdx oi = make_memop_idx(MO_TEQ | MO_ALIGN_16, mem_idx);
-        Int128 oldv = helper_atomic_cmpxchgo_le_mmu(env, a0, cmpv,
-                                                    newv, oi, ra);
+        Int128 oldv = cpu_atomic_cmpxchgo_le_mmu(env, a0, cmpv, newv, oi, ra);
 
         if (int128_eq(oldv, cmpv)) {
             eflags |= CC_Z;

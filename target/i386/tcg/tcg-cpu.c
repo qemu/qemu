@@ -54,6 +54,17 @@ static void x86_cpu_synchronize_from_tb(CPUState *cs,
     cpu->env.eip = tb->pc - tb->cs_base;
 }
 
+#ifndef CONFIG_USER_ONLY
+static bool x86_debug_check_breakpoint(CPUState *cs)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+
+    /* RF disables all architectural breakpoints. */
+    return !(env->eflags & RF_MASK);
+}
+#endif
+
 #include "hw/core/tcg-cpu-ops.h"
 
 static const struct TCGCPUOps x86_tcg_ops = {
@@ -66,6 +77,7 @@ static const struct TCGCPUOps x86_tcg_ops = {
     .tlb_fill = x86_cpu_tlb_fill,
 #ifndef CONFIG_USER_ONLY
     .debug_excp_handler = breakpoint_handler,
+    .debug_check_breakpoint = x86_debug_check_breakpoint,
 #endif /* !CONFIG_USER_ONLY */
 };
 

@@ -82,3 +82,16 @@ int avr_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 
     return 0;
 }
+
+vaddr avr_cpu_gdb_adjust_breakpoint(CPUState *cpu, vaddr addr)
+{
+    /*
+     * This is due to some strange GDB behavior
+     * Let's assume main has address 0x100:
+     * b main   - sets breakpoint at address 0x00000100 (code)
+     * b *0x100 - sets breakpoint at address 0x00800100 (data)
+     *
+     * Force all breakpoints into code space.
+     */
+    return addr % OFFSET_DATA;
+}
