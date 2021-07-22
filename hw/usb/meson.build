@@ -72,7 +72,7 @@ if usbredir.found()
 endif
 
 # usb pass-through
-if config_host.has_key('CONFIG_USB_LIBUSB')
+if libusb.found()
   usbhost_ss = ss.source_set()
   usbhost_ss.add(when: ['CONFIG_USB', libusb],
                  if_true: files('host-libusb.c'))

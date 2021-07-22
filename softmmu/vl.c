@@ -2126,6 +2126,7 @@ static void qemu_create_machine(QDict *qdict)
         QDict *default_opts =
             keyval_parse(machine_class->default_machine_opts, NULL, NULL,
                          &error_abort);
+        qemu_apply_legacy_machine_options(default_opts);
         object_set_properties_from_keyval(OBJECT(current_machine), default_opts,
                                           false, &error_abort);
         qobject_unref(default_opts);

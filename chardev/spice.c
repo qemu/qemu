@@ -382,6 +382,7 @@ static const TypeInfo char_spicevmc_type_info = {
     .parent = TYPE_CHARDEV_SPICE,
     .class_init = char_spicevmc_class_init,
 };
+module_obj(TYPE_CHARDEV_SPICEVMC);
 
 static void char_spiceport_class_init(ObjectClass *oc, void *data)
 {

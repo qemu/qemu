@@ -99,6 +99,9 @@ void helper_write_crN(CPUX86State *env, int reg, target_ulong t0)
         cpu_x86_update_cr3(env, t0);
         break;
     case 4:
+        if (t0 & cr4_reserved_bits(env)) {
+            cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
+        }
         if (((t0 ^ env->cr[4]) & CR4_LA57_MASK) &&
             (env->hflags & HF_CS64_MASK)) {
             raise_exception_ra(env, EXCP0D_GPF, GETPC());

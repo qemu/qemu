@@ -255,14 +255,19 @@ CommandLineOptionInfoList *qmp_query_command_line_options(bool has_option,
             info->option = g_strdup(vm_config_groups[i]->name);
             if (!strcmp("drive", vm_config_groups[i]->name)) {
                 info->parameters = get_drive_infolist();
-            } else if (!strcmp("machine", vm_config_groups[i]->name)) {
-                info->parameters = query_option_descs(machine_opts.desc);
             } else {
                 info->parameters =
                     query_option_descs(vm_config_groups[i]->desc);
             }
             QAPI_LIST_PREPEND(conf_list, info);
         }
+    }
+
+    if (!has_option || !strcmp(option, "machine")) {
+        info = g_malloc0(sizeof(*info));
+        info->option = g_strdup("machine");
+        info->parameters = query_option_descs(machine_opts.desc);
+        QAPI_LIST_PREPEND(conf_list, info);
     }
 
     if (conf_list == NULL) {
@@ -414,15 +419,16 @@ static int qemu_config_foreach(FILE *fp, QEMUConfigCB *cb, void *opaque,
     if (ferror(fp)) {
         loc_pop(&loc);
         error_setg_errno(errp, errno, "Cannot read config file");
-        return res;
+        goto out_no_loc;
     }
     res = count;
-out:
     if (qdict) {
         cb(group, qdict, opaque, errp);
-        qobject_unref(qdict);
     }
+out:
     loc_pop(&loc);
+out_no_loc:
+    qobject_unref(qdict);
     return res;
 }
 
