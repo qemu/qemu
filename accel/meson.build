@@ -11,10 +11,5 @@ if have_system
   subdir('stubs')
 endif
 
-dummy_ss = ss.source_set()
-dummy_ss.add(files(
-  'dummy-cpus.c',
-))
-
-specific_ss.add_all(when: ['CONFIG_SOFTMMU'], if_true: dummy_ss)
-specific_ss.add_all(when: ['CONFIG_XEN'], if_true: dummy_ss)
+# qtest
+softmmu_ss.add(files('dummy-cpus.c'))
