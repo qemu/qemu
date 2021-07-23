@@ -588,15 +588,19 @@ void virtio_gpu_virgl_fence_poll(VirtIOGPU *g)
     virtio_gpu_fence_poll(g);
 }
 
-void virtio_gpu_virgl_reset(VirtIOGPU *g)
+void virtio_gpu_virgl_reset_scanout(VirtIOGPU *g)
 {
     int i;
 
-    virgl_renderer_reset();
     for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
         dpy_gfx_replace_surface(g->parent_obj.scanout[i].con, NULL);
         dpy_gl_scanout_disable(g->parent_obj.scanout[i].con);
     }
+}
+
+void virtio_gpu_virgl_reset(VirtIOGPU *g)
+{
+    virgl_renderer_reset();
 }
 
 int virtio_gpu_virgl_init(VirtIOGPU *g)
