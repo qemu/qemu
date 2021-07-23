@@ -2452,6 +2452,8 @@ F: tests/tcg/multiarch/gdbstub/
 
 Memory API
 M: Paolo Bonzini <pbonzini@redhat.com>
+M: Peter Xu <peterx@redhat.com>
+M: David Hildenbrand <david@redhat.com>
 S: Supported
 F: include/exec/ioport.h
 F: include/exec/memop.h
