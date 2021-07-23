@@ -35,6 +35,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "net/eth.h"
 #include "net/net.h"
 #include "net/tap.h"
 #include "qemu/module.h"
@@ -79,7 +80,7 @@ struct E1000EState {
     bool disable_vnet;
 
     E1000ECore core;
-
+    bool init_vet;
 };
 
 #define E1000E_MMIO_IDX     0
@@ -527,6 +528,10 @@ static void e1000e_qdev_reset(DeviceState *dev)
     trace_e1000e_cb_qdev_reset();
 
     e1000e_core_reset(&s->core);
+
+    if (s->init_vet) {
+        s->core.mac[VET] = ETH_P_VLAN;
+    }
 }
 
 static int e1000e_pre_save(void *opaque)
@@ -666,6 +671,7 @@ static Property e1000e_properties[] = {
                         e1000e_prop_subsys_ven, uint16_t),
     DEFINE_PROP_SIGNED("subsys", E1000EState, subsys, 0,
                         e1000e_prop_subsys, uint16_t),
+    DEFINE_PROP_BOOL("init-vet", E1000EState, init_vet, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
