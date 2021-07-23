@@ -14,6 +14,10 @@
 #include "qemu/module.h"
 #include "qapi/visitor.h"
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <sys/random.h>
+
 #define TYPE_PCI_FXPCI_DEVICE "fx"
 typedef struct FxState FxState;
 DECLARE_INSTANCE_CHECKER(FxState, FX,
@@ -27,6 +31,9 @@ DECLARE_INSTANCE_CHECKER(FxState, FX,
 #define INTERRUPT_RAISE_REGISTER    0x60
 #define INTERRUPT_ACK_REGISTER      0x64
 
+#define CONF_INTERVAL_DEFAULT       10
+#define CONF_SERVER_PORT            3333
+
 struct FxState {
     PCIDevice pdev;
     MemoryRegion mmio;
@@ -39,6 +46,12 @@ struct FxState {
 
     uint32_t irq_status;
     uint32_t card_liveness;
+
+    QemuMutex conf_mutex;
+    unsigned int conf_sleep_interval;
+    int listen_fd;
+    int conn_fd;
+
 };
 
 static bool fx_msi_enabled(FxState *);
@@ -52,6 +65,11 @@ static void pci_fx_uninit(PCIDevice *);
 static void fx_instance_init(Object *);
 static void fx_class_init(ObjectClass *, void *);
 static void pci_fx_register_types(void);
+static void conf_server_init(void *);
+static void conf_server_uninit(void *);
+static void accept_conf_server_callback(void *);
+static void read_conf_server_callback(void *);
+
 
 static const MemoryRegionOps fx_mmio_ops = {
     .read = fx_mmio_read,
@@ -162,11 +180,25 @@ static void *wait_device_driver(void *opaque)
 static void *fx_forcer_thread(void *opaque)
 {
     FxState *fx = opaque;
+    unsigned int interval;
+    char *buf;
+
+    buf = g_malloc0(sizeof(unsigned int));
 
     while (1) {
 
+        /* get random bytes from urandom. */
+        getrandom(buf, sizeof(unsigned int), 0);
+
+        qemu_mutex_lock(&fx->conf_mutex);
+        interval = fx->conf_sleep_interval;
+        qemu_mutex_unlock(&fx->conf_mutex);
+
+        g_usleep(
+            (interval * G_USEC_PER_SEC / 10) + 
+            (*(unsigned int *)buf % (G_USEC_PER_SEC / 100))
+        );
         
-        g_usleep(5 * G_USEC_PER_SEC);
         qemu_mutex_lock(&fx->thr_mutex);
         fx_raise_irq(fx, 0x1);
 
@@ -174,15 +206,91 @@ static void *fx_forcer_thread(void *opaque)
 
         if(fx->stopping){
             qemu_mutex_unlock(&fx->thr_mutex);
+
             break;
         }
-
         qemu_mutex_unlock(&fx->thr_mutex);
 
     }
 
+    g_free(buf);
     return NULL;
 }
+
+
+static void conf_server_init(void *opaque)
+{
+    FxState *fx = opaque;
+    struct sockaddr_in serv_addr;
+
+    qemu_mutex_init(&fx->conf_mutex);
+    fx->conf_sleep_interval = CONF_INTERVAL_DEFAULT;
+    fx->listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+
+    memset(&serv_addr, 0, sizeof(struct sockaddr_in));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    serv_addr.sin_port = htons(CONF_SERVER_PORT); 
+
+    bind(
+        fx->listen_fd, 
+        (struct sockaddr*)&serv_addr, 
+        sizeof(serv_addr)
+    ); 
+    listen(fx->listen_fd, 10); 
+
+    // add listen_fd to the set of fds monitored by iothread. Once it becomes
+    //    ready, it is possible to accept the connection without blocking 
+    qemu_set_fd_handler(
+        fx->listen_fd, 
+        accept_conf_server_callback, 
+        NULL, 
+        opaque
+    );
+}
+
+static void conf_server_uninit(void *opaque)
+{
+    FxState *fx = opaque;
+    qemu_mutex_destroy(&fx->conf_mutex);
+    close(fx->listen_fd);
+}
+
+static void accept_conf_server_callback(void *opaque)
+{
+    FxState *fx = opaque;
+
+    fx->conn_fd = accept(fx->listen_fd, NULL, NULL);
+    printf("Accepted connection \n");
+
+    qemu_set_fd_handler(
+        fx->conn_fd, 
+        read_conf_server_callback, 
+        NULL, 
+        opaque
+    );
+
+}
+
+static void read_conf_server_callback(void *opaque)
+{
+    unsigned int interval;
+    FxState *fx = opaque;
+
+    printf("read callback\n");
+    read(fx->conn_fd, &interval, sizeof(unsigned int));
+
+    qemu_mutex_lock(&fx->conf_mutex);
+    fx->conf_sleep_interval = interval;
+    qemu_mutex_unlock(&fx->conf_mutex);
+
+    printf("Received new conf interval: %u\n", interval);
+
+    // remove itself from set
+    qemu_set_fd_handler(fx->conn_fd, NULL, NULL, NULL);  
+    close(fx->conn_fd);
+}
+
 
 static void pci_fx_realize(PCIDevice *pdev, Error **errp)
 {
@@ -204,7 +312,7 @@ static void pci_fx_realize(PCIDevice *pdev, Error **errp)
                     "fx-mmio", 1 * KiB);
     pci_register_bar(pdev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &fx->mmio);
 
-    
+    conf_server_init((void *)fx);
 }
 
 static void pci_fx_uninit(PCIDevice *pdev)
@@ -219,6 +327,8 @@ static void pci_fx_uninit(PCIDevice *pdev)
 
     qemu_cond_destroy(&fx->thr_cond);
     qemu_mutex_destroy(&fx->thr_mutex);
+
+    conf_server_uninit((void *)fx);
 
     msi_uninit(pdev);
 }

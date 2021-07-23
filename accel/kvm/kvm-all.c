@@ -2961,6 +2961,8 @@ static void find_fx_mr(void)
 /* Monitoring the IDTR and GDTR registers */
 static void check_idtr_gdtr(CPUState *cpu)
 {
+    return;
+    /*
     struct kvm_sregs sregs;
     hwaddr current_idtr, current_gdtr;
 
@@ -2974,6 +2976,7 @@ static void check_idtr_gdtr(CPUState *cpu)
         DBG("IDT or GDT attacked\n");
         abort();
     }
+    */
 }
 
 /******************************************************************************
