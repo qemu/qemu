@@ -663,6 +663,17 @@ build-tools-and-docs-debian:
 
 # Prepare for GitLab pages deployment. Anything copied into the
 # "public" directory will be deployed to $USER.gitlab.io/$PROJECT
+#
+# GitLab publishes from any branch that triggers a CI pipeline
+#
+# For the main repo we don't want to publish from 'staging'
+# since that content may not be pushed, nor do we wish to
+# publish from 'stable-NNN' branches as that content is outdated.
+# Thus we restrict to just the default branch
+#
+# For contributor forks we want to publish from any repo so
+# that users can see the results of their commits, regardless
+# of what topic branch they're currently using
 pages:
   image: $CI_REGISTRY_IMAGE/qemu/debian-amd64:latest
   stage: test
@@ -681,3 +692,10 @@ pages:
   artifacts:
     paths:
       - public
+  rules:
+    - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: on_success
+    - if: '$CI_PROJECT_NAMESPACE == "qemu-project"'
+      when: never
+    - if: '$CI_PROJECT_NAMESPACE != "qemu-project"'
+      when: on_success
