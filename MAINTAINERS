@@ -2547,7 +2547,7 @@ S: Maintained
 F: net/netmap.c
 
 Host Memory Backends
-M: Eduardo Habkost <ehabkost@redhat.com>
+M: David Hildenbrand <david@redhat.com>
 M: Igor Mammedov <imammedo@redhat.com>
 S: Maintained
 F: backends/hostmem*.c
