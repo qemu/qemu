@@ -1554,6 +1554,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
                     qemu_log_mask(CPU_LOG_INT, "...taking UsageFault on existing "
                         "stackframe: NSACR prevents clearing FPU registers\n");
                     v7m_exception_taken(cpu, excret, true, false);
+                    return;
                 } else if (!cpacr_pass) {
                     armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE,
                                             exc_secure);
@@ -1561,6 +1562,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
                     qemu_log_mask(CPU_LOG_INT, "...taking UsageFault on existing "
                         "stackframe: CPACR prevents clearing FPU registers\n");
                     v7m_exception_taken(cpu, excret, true, false);
+                    return;
                 }
             }
             /* Clear s0..s15, FPSCR and VPR */
