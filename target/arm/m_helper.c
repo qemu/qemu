@@ -2563,13 +2563,13 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
             if (!env->v7m.secure) {
                 return;
             }
-            env->v7m.other_ss_msp = val;
+            env->v7m.other_ss_msp = val & ~3;
             return;
         case 0x89: /* PSP_NS */
             if (!env->v7m.secure) {
                 return;
             }
-            env->v7m.other_ss_psp = val;
+            env->v7m.other_ss_psp = val & ~3;
             return;
         case 0x8a: /* MSPLIM_NS */
             if (!env->v7m.secure) {
@@ -2638,6 +2638,8 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
 
             limit = is_psp ? env->v7m.psplim[false] : env->v7m.msplim[false];
 
+            val &= ~0x3;
+
             if (val < limit) {
                 raise_exception_ra(env, EXCP_STKOF, 0, 1, GETPC());
             }
@@ -2660,16 +2662,16 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
         break;
     case 8: /* MSP */
         if (v7m_using_psp(env)) {
-            env->v7m.other_sp = val;
+            env->v7m.other_sp = val & ~3;
         } else {
-            env->regs[13] = val;
+            env->regs[13] = val & ~3;
         }
         break;
     case 9: /* PSP */
         if (v7m_using_psp(env)) {
-            env->regs[13] = val;
+            env->regs[13] = val & ~3;
         } else {
-            env->v7m.other_sp = val;
+            env->v7m.other_sp = val & ~3;
         }
         break;
     case 10: /* MSPLIM */
