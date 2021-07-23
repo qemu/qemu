@@ -127,14 +127,13 @@ static bool nvic_isrpending(NVICState *s)
 {
     int irq;
 
-    /* We can shortcut if the highest priority pending interrupt
-     * happens to be external or if there is nothing pending.
+    /*
+     * We can shortcut if the highest priority pending interrupt
+     * happens to be external; if not we need to check the whole
+     * vectors[] array.
      */
     if (s->vectpending > NVIC_FIRST_IRQ) {
         return true;
-    }
-    if (s->vectpending == 0) {
-        return false;
     }
 
     for (irq = NVIC_FIRST_IRQ; irq < s->num_irq; irq++) {
