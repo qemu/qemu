@@ -2248,6 +2248,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
         env->v7m.sfsr |= R_V7M_SFSR_LSERR_MASK;
         break;
     case EXCP_UNALIGNED:
+        /* Unaligned faults reported by M-profile aware code */
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE, env->v7m.secure);
         env->v7m.cfsr[env->v7m.secure] |= R_V7M_CFSR_UNALIGNED_MASK;
         break;
@@ -2319,6 +2320,13 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
                 break;
             }
             armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_BUS, false);
+            break;
+        case 0x1: /* Alignment fault reported by generic code */
+            qemu_log_mask(CPU_LOG_INT,
+                          "...really UsageFault with UFSR.UNALIGNED\n");
+            env->v7m.cfsr[env->v7m.secure] |= R_V7M_CFSR_UNALIGNED_MASK;
+            armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE,
+                                    env->v7m.secure);
             break;
         default:
             /*
