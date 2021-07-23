@@ -211,20 +211,31 @@ void qemu_chr_open_fd(Chardev *chr,
                       int fd_in, int fd_out)
 {
     FDChardev *s = FD_CHARDEV(chr);
-    char *name;
+    g_autofree char *name = NULL;
+
+    if (fd_out >= 0) {
+        qemu_set_nonblock(fd_out);
+    }
+
+    if (fd_out == fd_in && fd_in >= 0) {
+        s->ioc_in = QIO_CHANNEL(qio_channel_file_new_fd(fd_in));
+        name = g_strdup_printf("chardev-file-%s", chr->label);
+        qio_channel_set_name(QIO_CHANNEL(s->ioc_in), name);
+        s->ioc_out = QIO_CHANNEL(object_ref(s->ioc_in));
+        return;
+    }
 
     if (fd_in >= 0) {
         s->ioc_in = QIO_CHANNEL(qio_channel_file_new_fd(fd_in));
         name = g_strdup_printf("chardev-file-in-%s", chr->label);
         qio_channel_set_name(QIO_CHANNEL(s->ioc_in), name);
-        g_free(name);
     }
+
     if (fd_out >= 0) {
         s->ioc_out = QIO_CHANNEL(qio_channel_file_new_fd(fd_out));
+        g_free(name);
         name = g_strdup_printf("chardev-file-out-%s", chr->label);
         qio_channel_set_name(QIO_CHANNEL(s->ioc_out), name);
-        g_free(name);
-        qemu_set_nonblock(fd_out);
     }
 }
 
