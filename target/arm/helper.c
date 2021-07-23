@@ -6461,7 +6461,9 @@ static uint32_t sve_zcr_get_valid_len(ARMCPU *cpu, uint32_t start_len)
 {
     uint32_t end_len;
 
-    end_len = start_len &= 0xf;
+    start_len = MIN(start_len, ARM_MAX_VQ - 1);
+    end_len = start_len;
+
     if (!test_bit(start_len, cpu->sve_vq_map)) {
         end_len = find_last_bit(cpu->sve_vq_map, start_len);
         assert(end_len < start_len);
