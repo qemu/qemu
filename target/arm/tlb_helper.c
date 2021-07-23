@@ -213,4 +213,10 @@ void arm_cpu_record_sigsegv(CPUState *cs, vaddr addr,
     cpu_restore_state(cs, ra, true);
     arm_deliver_fault(cpu, addr, access_type, MMU_USER_IDX, &fi);
 }
+
+void arm_cpu_record_sigbus(CPUState *cs, vaddr addr,
+                           MMUAccessType access_type, uintptr_t ra)
+{
+    arm_cpu_do_unaligned_access(cs, addr, access_type, MMU_USER_IDX, ra);
+}
 #endif /* !defined(CONFIG_USER_ONLY) */

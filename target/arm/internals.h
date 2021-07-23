@@ -548,6 +548,8 @@ static inline bool arm_extabort_type(MemTxResult result)
 void arm_cpu_record_sigsegv(CPUState *cpu, vaddr addr,
                             MMUAccessType access_type,
                             bool maperr, uintptr_t ra);
+void arm_cpu_record_sigbus(CPUState *cpu, vaddr addr,
+                           MMUAccessType access_type, uintptr_t ra);
 #else
 bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                       MMUAccessType access_type, int mmu_idx,
