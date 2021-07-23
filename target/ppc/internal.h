@@ -245,4 +245,43 @@ static inline int prot_for_access_type(MMUAccessType access_type)
     g_assert_not_reached();
 }
 
+/* PowerPC MMU emulation */
+
+typedef struct mmu_ctx_t mmu_ctx_t;
+bool ppc_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
+                      hwaddr *raddrp, int *psizep, int *protp,
+                      int mmu_idx, bool guest_visible);
+int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
+                                     target_ulong eaddr,
+                                     MMUAccessType access_type, int type,
+                                     int mmu_idx);
+/* Software driven TLB helpers */
+int ppc6xx_tlb_getnum(CPUPPCState *env, target_ulong eaddr,
+                                    int way, int is_code);
+/* Context used internally during MMU translations */
+struct mmu_ctx_t {
+    hwaddr raddr;      /* Real address              */
+    hwaddr eaddr;      /* Effective address         */
+    int prot;                      /* Protection bits           */
+    hwaddr hash[2];    /* Pagetable hash values     */
+    target_ulong ptem;             /* Virtual segment ID | API  */
+    int key;                       /* Access key                */
+    int nx;                        /* Non-execute area          */
+};
+
+/* Common routines used by software and hardware TLBs emulation */
+static inline int pte_is_valid(target_ulong pte0)
+{
+    return pte0 & 0x80000000 ? 1 : 0;
+}
+
+static inline void pte_invalidate(target_ulong *pte0)
+{
+    *pte0 &= ~0x80000000;
+}
+
+#define PTE_PTEM_MASK 0x7FFFFFBF
+#define PTE_CHECK_MASK (TARGET_PAGE_MASK | 0x7B)
+
+
 #endif /* PPC_INTERNAL_H */

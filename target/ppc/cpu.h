@@ -1330,6 +1330,15 @@ void store_booke_tsr(CPUPPCState *env, target_ulong val);
 void ppc_tlb_invalidate_all(CPUPPCState *env);
 void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr);
 void cpu_ppc_set_vhyp(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp);
+int ppcmas_tlb_check(CPUPPCState *env, ppcmas_tlb_t *tlb,
+                            hwaddr *raddrp, target_ulong address,
+                            uint32_t pid);
+int ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
+                            hwaddr *raddrp,
+                            target_ulong address, uint32_t pid, int ext,
+                            int i);
+hwaddr booke206_tlb_to_page_size(CPUPPCState *env,
+                                        ppcmas_tlb_t *tlb);
 #endif
 #endif
 
