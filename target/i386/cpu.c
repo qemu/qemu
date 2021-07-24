@@ -4919,6 +4919,9 @@ static uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
     return r;
 }
 
+/*
+ * Only for builtin_x86_defs models initialized with x86_register_cpudef_types.
+ */
 void x86_cpu_apply_props(X86CPU *cpu, PropValue *props)
 {
     PropValue *pv;
@@ -4931,7 +4934,11 @@ void x86_cpu_apply_props(X86CPU *cpu, PropValue *props)
     }
 }
 
-/* Apply properties for the CPU model version specified in model */
+/*
+ * Apply properties for the CPU model version specified in model.
+ * Only for builtin_x86_defs models initialized with x86_register_cpudef_types.
+ */
+
 static void x86_cpu_apply_version_props(X86CPU *cpu, X86CPUModel *model)
 {
     const X86CPUVersionDefinition *vdef;
@@ -4960,7 +4967,9 @@ static void x86_cpu_apply_version_props(X86CPU *cpu, X86CPUModel *model)
     assert(vdef->version == version);
 }
 
-/* Load data from X86CPUDefinition into a X86CPU object
+/*
+ * Load data from X86CPUDefinition into a X86CPU object.
+ * Only for builtin_x86_defs models initialized with x86_register_cpudef_types.
  */
 static void x86_cpu_load_model(X86CPU *cpu, X86CPUModel *model)
 {
@@ -5051,6 +5060,12 @@ static void x86_register_cpu_model_type(const char *name, X86CPUModel *model)
     type_register(&ti);
 }
 
+
+/*
+ * register builtin_x86_defs;
+ * "max", "base" and subclasses ("host") are not registered here.
+ * See x86_cpu_register_types for all model registrations.
+ */
 static void x86_register_cpudef_types(const X86CPUDefinition *def)
 {
     X86CPUModel *m;

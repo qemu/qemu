@@ -96,6 +96,13 @@ void helper_write_crN(CPUX86State *env, int reg, target_ulong t0)
         cpu_x86_update_cr0(env, t0);
         break;
     case 3:
+        if ((env->efer & MSR_EFER_LMA) &&
+                (t0 & ((~0UL) << env_archcpu(env)->phys_bits))) {
+            cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
+        }
+        if (!(env->efer & MSR_EFER_LMA)) {
+            t0 &= 0xffffffffUL;
+        }
         cpu_x86_update_cr3(env, t0);
         break;
     case 4:

@@ -2452,15 +2452,19 @@ F: tests/tcg/multiarch/gdbstub/
 
 Memory API
 M: Paolo Bonzini <pbonzini@redhat.com>
+M: Peter Xu <peterx@redhat.com>
+M: David Hildenbrand <david@redhat.com>
 S: Supported
 F: include/exec/ioport.h
 F: include/exec/memop.h
 F: include/exec/memory.h
 F: include/exec/ram_addr.h
 F: include/exec/ramblock.h
+F: include/sysemu/memory_mapping.h
 F: softmmu/dma-helpers.c
 F: softmmu/ioport.c
 F: softmmu/memory.c
+F: softmmu/memory_mapping.c
 F: softmmu/physmem.c
 F: include/exec/memory-internal.h
 F: scripts/coccinelle/memory-region-housekeeping.cocci
@@ -2547,7 +2551,7 @@ S: Maintained
 F: net/netmap.c
 
 Host Memory Backends
-M: Eduardo Habkost <ehabkost@redhat.com>
+M: David Hildenbrand <david@redhat.com>
 M: Igor Mammedov <imammedo@redhat.com>
 S: Maintained
 F: backends/hostmem*.c

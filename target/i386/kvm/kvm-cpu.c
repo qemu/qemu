@@ -52,47 +52,6 @@ static bool kvm_cpu_realizefn(CPUState *cs, Error **errp)
     return host_cpu_realizefn(cs, errp);
 }
 
-/*
- * KVM-specific features that are automatically added/removed
- * from all CPU models when KVM is enabled.
- *
- * NOTE: features can be enabled by default only if they were
- *       already available in the oldest kernel version supported
- *       by the KVM accelerator (see "OS requirements" section at
- *       docs/system/target-i386.rst)
- */
-static PropValue kvm_default_props[] = {
-    { "kvmclock", "on" },
-    { "kvm-nopiodelay", "on" },
-    { "kvm-asyncpf", "on" },
-    { "kvm-steal-time", "on" },
-    { "kvm-pv-eoi", "on" },
-    { "kvmclock-stable-bit", "on" },
-    { "x2apic", "on" },
-    { "kvm-msi-ext-dest-id", "off" },
-    { "acpi", "off" },
-    { "monitor", "off" },
-    { "svm", "off" },
-    { NULL, NULL },
-};
-
-void x86_cpu_change_kvm_default(const char *prop, const char *value)
-{
-    PropValue *pv;
-    for (pv = kvm_default_props; pv->prop; pv++) {
-        if (!strcmp(pv->prop, prop)) {
-            pv->value = value;
-            break;
-        }
-    }
-
-    /*
-     * It is valid to call this function only for properties that
-     * are already present in the kvm_default_props table.
-     */
-    assert(pv->prop);
-}
-
 static bool lmce_supported(void)
 {
     uint64_t mce_cap = 0;
@@ -150,21 +109,69 @@ static void kvm_cpu_xsave_init(void)
     }
 }
 
+/*
+ * KVM-specific features that are automatically added/removed
+ * from cpudef models when KVM is enabled.
+ * Only for builtin_x86_defs models initialized with x86_register_cpudef_types.
+ *
+ * NOTE: features can be enabled by default only if they were
+ *       already available in the oldest kernel version supported
+ *       by the KVM accelerator (see "OS requirements" section at
+ *       docs/system/target-i386.rst)
+ */
+static PropValue kvm_default_props[] = {
+    { "kvmclock", "on" },
+    { "kvm-nopiodelay", "on" },
+    { "kvm-asyncpf", "on" },
+    { "kvm-steal-time", "on" },
+    { "kvm-pv-eoi", "on" },
+    { "kvmclock-stable-bit", "on" },
+    { "x2apic", "on" },
+    { "kvm-msi-ext-dest-id", "off" },
+    { "acpi", "off" },
+    { "monitor", "off" },
+    { "svm", "off" },
+    { NULL, NULL },
+};
+
+/*
+ * Only for builtin_x86_defs models initialized with x86_register_cpudef_types.
+ */
+void x86_cpu_change_kvm_default(const char *prop, const char *value)
+{
+    PropValue *pv;
+    for (pv = kvm_default_props; pv->prop; pv++) {
+        if (!strcmp(pv->prop, prop)) {
+            pv->value = value;
+            break;
+        }
+    }
+
+    /*
+     * It is valid to call this function only for properties that
+     * are already present in the kvm_default_props table.
+     */
+    assert(pv->prop);
+}
+
 static void kvm_cpu_instance_init(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);
+    X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
 
     host_cpu_instance_init(cpu);
 
-    if (!kvm_irqchip_in_kernel()) {
-        x86_cpu_change_kvm_default("x2apic", "off");
-    } else if (kvm_irqchip_is_split() && kvm_enable_x2apic()) {
-        x86_cpu_change_kvm_default("kvm-msi-ext-dest-id", "on");
+    if (xcc->model) {
+        /* only applies to builtin_x86_defs cpus */
+        if (!kvm_irqchip_in_kernel()) {
+            x86_cpu_change_kvm_default("x2apic", "off");
+        } else if (kvm_irqchip_is_split() && kvm_enable_x2apic()) {
+            x86_cpu_change_kvm_default("kvm-msi-ext-dest-id", "on");
+        }
+
+        /* Special cases not set in the X86CPUDefinition structs: */
+        x86_cpu_apply_props(cpu, kvm_default_props);
     }
-
-    /* Special cases not set in the X86CPUDefinition structs: */
-
-    x86_cpu_apply_props(cpu, kvm_default_props);
 
     if (cpu->max_features) {
         kvm_cpu_max_instance_init(cpu);

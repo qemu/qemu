@@ -2373,9 +2373,9 @@ foreach d, list : target_modules
             # FIXME: Should use sl.extract_all_objects(recursive: true) too.
             modinfo_files += custom_target(module_name + '.modinfo',
                                            output: module_name + '.modinfo',
-                                           input: target_module_ss.sources(),
+                                           input: target_module_ss.sources() + genh,
                                            capture: true,
-                                           command: [modinfo_collect, '--target', target, '@INPUT@'])
+                                           command: [modinfo_collect, '--target', target, target_module_ss.sources()])
           endif
         endif
       endforeach
