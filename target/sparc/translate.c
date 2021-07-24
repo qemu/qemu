@@ -3401,7 +3401,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         tcg_temp_free_i32(r_const);
                         gen_store_gpr(dc, rd, cpu_dst);
                         if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-                            gen_io_end();
+                            /* I/O operations in icount mode must end the TB */
+                            dc->base.is_jmp = DISAS_EXIT;
                         }
                     }
                     break;
@@ -3454,7 +3455,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         tcg_temp_free_i32(r_const);
                         gen_store_gpr(dc, rd, cpu_dst);
                         if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-                            gen_io_end();
+                            /* I/O operations in icount mode must end the TB */
+                            dc->base.is_jmp = DISAS_EXIT;
                         }
                     }
                     break;
@@ -3588,7 +3590,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         tcg_temp_free_ptr(r_tickptr);
                         tcg_temp_free_i32(r_const);
                         if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-                            gen_io_end();
+                            /* I/O operations in icount mode must end the TB */
+                            dc->base.is_jmp = DISAS_EXIT;
                         }
                     }
                     break;
@@ -4582,7 +4585,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                 }
                                 gen_helper_wrpstate(cpu_env, cpu_tmp0);
                                 if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-                                    gen_io_end();
+                                    /* I/O ops in icount mode must end the TB */
+                                    dc->base.is_jmp = DISAS_EXIT;
                                 }
                                 dc->npc = DYNAMIC_PC;
                                 break;
@@ -4598,7 +4602,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                 }
                                 gen_helper_wrpil(cpu_env, cpu_tmp0);
                                 if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-                                    gen_io_end();
+                                    /* I/O ops in icount mode must end the TB */
+                                    dc->base.is_jmp = DISAS_EXIT;
                                 }
                                 break;
                             case 9: // cwp
@@ -4697,10 +4702,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                     gen_helper_tick_set_limit(r_tickptr,
                                                               cpu_hstick_cmpr);
                                     tcg_temp_free_ptr(r_tickptr);
-                                    if (tb_cflags(dc->base.tb) &
-                                           CF_USE_ICOUNT) {
-                                        gen_io_end();
-                                    }
                                     /* End TB to handle timer interrupt */
                                     dc->base.is_jmp = DISAS_EXIT;
                                 }
@@ -5327,9 +5328,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                 gen_io_start();
                             }
                             gen_helper_done(cpu_env);
-                            if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-                                gen_io_end();
-                            }
                             goto jmp_insn;
                         case 1:
                             if (!supervisor(dc))
@@ -5340,9 +5338,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                 gen_io_start();
                             }
                             gen_helper_retry(cpu_env);
-                            if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-                                gen_io_end();
-                            }
                             goto jmp_insn;
                         default:
                             goto illegal_insn;
