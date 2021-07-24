@@ -92,6 +92,3 @@ When the translator is handling an instruction of this kind:
     }
 
 * it must end the TB immediately after this instruction
-
-Note that some older front-ends call a "gen_io_end()" function:
-this is obsolete and should not be used.
