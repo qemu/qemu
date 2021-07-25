@@ -843,7 +843,9 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
      * execute we need to ensure we find/generate a TB with exactly
      * insns_left instructions in it.
      */
-    if (!cpu->icount_extra && insns_left > 0 && insns_left < tb->icount)  {
+    if (insns_left > 0 && insns_left < tb->icount)  {
+        assert(insns_left <= CF_COUNT_MASK);
+        assert(cpu->icount_extra == 0);
         cpu->cflags_next_tb = (tb->cflags & ~CF_COUNT_MASK) | insns_left;
     }
 #endif
