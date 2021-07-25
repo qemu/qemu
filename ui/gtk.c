@@ -1640,6 +1640,25 @@ static void gd_vc_adjustment_changed(GtkAdjustment *adjustment, void *opaque)
     }
 }
 
+static void gd_vc_send_chars(VirtualConsole *vc)
+{
+    uint32_t len, avail;
+
+    len = qemu_chr_be_can_write(vc->vte.chr);
+    avail = fifo8_num_used(&vc->vte.out_fifo);
+    if (len > avail) {
+        len = avail;
+    }
+    while (len > 0) {
+        const uint8_t *buf;
+        uint32_t size;
+
+        buf = fifo8_pop_buf(&vc->vte.out_fifo, len, &size);
+        qemu_chr_be_write(vc->vte.chr, (uint8_t *)buf, size);
+        len -= size;
+    }
+}
+
 static int gd_vc_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
     VCChardev *vcd = VC_CHARDEV(chr);
@@ -1647,6 +1666,14 @@ static int gd_vc_chr_write(Chardev *chr, const uint8_t *buf, int len)
 
     vte_terminal_feed(VTE_TERMINAL(vc->vte.terminal), (const char *)buf, len);
     return len;
+}
+
+static void gd_vc_chr_accept_input(Chardev *chr)
+{
+    VCChardev *vcd = VC_CHARDEV(chr);
+    VirtualConsole *vc = vcd->console;
+
+    gd_vc_send_chars(vc);
 }
 
 static void gd_vc_chr_set_echo(Chardev *chr, bool echo)
@@ -1688,6 +1715,7 @@ static void char_gd_vc_class_init(ObjectClass *oc, void *data)
     cc->parse = qemu_chr_parse_vc;
     cc->open = gd_vc_open;
     cc->chr_write = gd_vc_chr_write;
+    cc->chr_accept_input = gd_vc_chr_accept_input;
     cc->chr_set_echo = gd_vc_chr_set_echo;
 }
 
@@ -1702,6 +1730,7 @@ static gboolean gd_vc_in(VteTerminal *terminal, gchar *text, guint size,
                          gpointer user_data)
 {
     VirtualConsole *vc = user_data;
+    uint32_t free;
 
     if (vc->vte.echo) {
         VteTerminal *term = VTE_TERMINAL(vc->vte.terminal);
@@ -1721,16 +1750,10 @@ static gboolean gd_vc_in(VteTerminal *terminal, gchar *text, guint size,
         }
     }
 
-    int remaining = size;
-    uint8_t* p = (uint8_t *)text;
-    while (remaining > 0) {
-        int can_write = qemu_chr_be_can_write(vc->vte.chr);
-        int written = MIN(remaining, can_write);
-        qemu_chr_be_write(vc->vte.chr, p, written);
+    free = fifo8_num_free(&vc->vte.out_fifo);
+    fifo8_push_all(&vc->vte.out_fifo, (uint8_t *)text, MIN(free, size));
+    gd_vc_send_chars(vc);
 
-        remaining -= written;
-        p += written;
-    }
     return TRUE;
 }
 
@@ -1747,6 +1770,7 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
     vc->s = s;
     vc->vte.echo = vcd->echo;
     vc->vte.chr = chr;
+    fifo8_create(&vc->vte.out_fifo, 4096);
     vcd->console = vc;
 
     snprintf(buffer, sizeof(buffer), "vc%d", idx);
