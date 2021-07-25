@@ -1248,6 +1248,10 @@ static int qmp_chardev_open_socket_server(Chardev *chr,
     qio_net_listener_set_name(s->listener, name);
     g_free(name);
 
+    if (s->addr->type == SOCKET_ADDRESS_TYPE_FD && !*s->addr->u.fd.str) {
+        goto skip_listen;
+    }
+
     if (qio_net_listener_open_sync(s->listener, s->addr, 1, errp) < 0) {
         object_unref(OBJECT(s->listener));
         s->listener = NULL;
@@ -1256,6 +1260,8 @@ static int qmp_chardev_open_socket_server(Chardev *chr,
 
     qapi_free_SocketAddress(s->addr);
     s->addr = socket_local_address(s->listener->sioc[0]->fd, errp);
+
+skip_listen:
     update_disconnected_filename(s);
 
     if (is_waitconnect) {
@@ -1466,9 +1472,9 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     SocketAddressLegacy *addr;
     ChardevSocket *sock;
 
-    if ((!!path + !!fd + !!host) != 1) {
+    if ((!!path + !!fd + !!host) > 1) {
         error_setg(errp,
-                   "Exactly one of 'path', 'fd' or 'host' required");
+                   "None or one of 'path', 'fd' or 'host' option required.");
         return;
     }
 
@@ -1542,12 +1548,10 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
             .has_ipv6 = qemu_opt_get(opts, "ipv6"),
             .ipv6 = qemu_opt_get_bool(opts, "ipv6", 0),
         };
-    } else if (fd) {
+    } else {
         addr->type = SOCKET_ADDRESS_TYPE_FD;
         addr->u.fd.data = g_new(String, 1);
         addr->u.fd.data->str = g_strdup(fd);
-    } else {
-        g_assert_not_reached();
     }
     sock->addr = addr;
 }
