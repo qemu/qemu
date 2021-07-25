@@ -1930,7 +1930,7 @@ static bool do_v7m_function_return(ARMCPU *cpu)
 
     {
         bool threadmode, spsel;
-        TCGMemOpIdx oi;
+        MemOpIdx oi;
         ARMMMUIdx mmu_idx;
         uint32_t *frame_sp_p;
         uint32_t frameptr;

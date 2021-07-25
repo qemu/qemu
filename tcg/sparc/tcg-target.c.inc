@@ -1148,7 +1148,7 @@ static const int qemu_st_opc[(MO_SIZE | MO_BSWAP) + 1] = {
 };
 
 static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
-                            TCGMemOpIdx oi, bool is_64)
+                            MemOpIdx oi, bool is_64)
 {
     MemOp memop = get_memop(oi);
 #ifdef CONFIG_SOFTMMU
@@ -1230,7 +1230,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
 }
 
 static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
-                            TCGMemOpIdx oi)
+                            MemOpIdx oi)
 {
     MemOp memop = get_memop(oi);
 #ifdef CONFIG_SOFTMMU

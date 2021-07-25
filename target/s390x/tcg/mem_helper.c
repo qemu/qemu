@@ -239,7 +239,7 @@ static void do_access_memset(CPUS390XState *env, vaddr vaddr, char *haddr,
     g_assert(haddr);
     memset(haddr, byte, size);
 #else
-    TCGMemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
+    MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
     int i;
 
     if (likely(haddr)) {
@@ -282,7 +282,7 @@ static uint8_t do_access_get_byte(CPUS390XState *env, vaddr vaddr, char **haddr,
 #ifdef CONFIG_USER_ONLY
     return ldub_p(*haddr + offset);
 #else
-    TCGMemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
+    MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
     uint8_t byte;
 
     if (likely(*haddr)) {
@@ -316,7 +316,7 @@ static void do_access_set_byte(CPUS390XState *env, vaddr vaddr, char **haddr,
 #ifdef CONFIG_USER_ONLY
     stb_p(*haddr + offset, byte);
 #else
-    TCGMemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
+    MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
 
     if (likely(*haddr)) {
         stb_p(*haddr + offset, byte);
@@ -1804,7 +1804,7 @@ void HELPER(cdsg_parallel)(CPUS390XState *env, uint64_t addr,
     Int128 cmpv = int128_make128(env->regs[r1 + 1], env->regs[r1]);
     Int128 newv = int128_make128(env->regs[r3 + 1], env->regs[r3]);
     int mem_idx;
-    TCGMemOpIdx oi;
+    MemOpIdx oi;
     Int128 oldv;
     bool fail;
 
@@ -1884,7 +1884,7 @@ static uint32_t do_csst(CPUS390XState *env, uint32_t r3, uint64_t a1,
                 uint32_t *haddr = g2h(env_cpu(env), a1);
                 ov = qatomic_cmpxchg__nocheck(haddr, cv, nv);
 #else
-                TCGMemOpIdx oi = make_memop_idx(MO_TEUL | MO_ALIGN, mem_idx);
+                MemOpIdx oi = make_memop_idx(MO_TEUL | MO_ALIGN, mem_idx);
                 ov = cpu_atomic_cmpxchgl_be_mmu(env, a1, cv, nv, oi, ra);
 #endif
             } else {
@@ -1904,7 +1904,7 @@ static uint32_t do_csst(CPUS390XState *env, uint32_t r3, uint64_t a1,
 
             if (parallel) {
 #ifdef CONFIG_ATOMIC64
-                TCGMemOpIdx oi = make_memop_idx(MO_TEQ | MO_ALIGN, mem_idx);
+                MemOpIdx oi = make_memop_idx(MO_TEQ | MO_ALIGN, mem_idx);
                 ov = cpu_atomic_cmpxchgq_be_mmu(env, a1, cv, nv, oi, ra);
 #else
                 /* Note that we asserted !parallel above.  */
@@ -1940,7 +1940,7 @@ static uint32_t do_csst(CPUS390XState *env, uint32_t r3, uint64_t a1,
                 cpu_stq_data_ra(env, a1 + 0, int128_gethi(nv), ra);
                 cpu_stq_data_ra(env, a1 + 8, int128_getlo(nv), ra);
             } else if (HAVE_CMPXCHG128) {
-                TCGMemOpIdx oi = make_memop_idx(MO_TEQ | MO_ALIGN_16, mem_idx);
+                MemOpIdx oi = make_memop_idx(MO_TEQ | MO_ALIGN_16, mem_idx);
                 ov = cpu_atomic_cmpxchgo_be_mmu(env, a1, cv, nv, oi, ra);
                 cc = !int128_eq(ov, cv);
             } else {
@@ -1979,7 +1979,7 @@ static uint32_t do_csst(CPUS390XState *env, uint32_t r3, uint64_t a1,
                 cpu_stq_data_ra(env, a2 + 0, svh, ra);
                 cpu_stq_data_ra(env, a2 + 8, svl, ra);
             } else if (HAVE_ATOMIC128) {
-                TCGMemOpIdx oi = make_memop_idx(MO_TEQ | MO_ALIGN_16, mem_idx);
+                MemOpIdx oi = make_memop_idx(MO_TEQ | MO_ALIGN_16, mem_idx);
                 Int128 sv = int128_make128(svl, svh);
                 cpu_atomic_sto_be_mmu(env, a2, sv, oi, ra);
             } else {
@@ -2497,7 +2497,7 @@ uint64_t HELPER(lpq_parallel)(CPUS390XState *env, uint64_t addr)
     uintptr_t ra = GETPC();
     uint64_t hi, lo;
     int mem_idx;
-    TCGMemOpIdx oi;
+    MemOpIdx oi;
     Int128 v;
 
     assert(HAVE_ATOMIC128);
@@ -2528,7 +2528,7 @@ void HELPER(stpq_parallel)(CPUS390XState *env, uint64_t addr,
 {
     uintptr_t ra = GETPC();
     int mem_idx;
-    TCGMemOpIdx oi;
+    MemOpIdx oi;
     Int128 v;
 
     assert(HAVE_ATOMIC128);

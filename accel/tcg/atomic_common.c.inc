@@ -14,7 +14,7 @@
  */
 
 static uint16_t atomic_trace_rmw_pre(CPUArchState *env, target_ulong addr,
-                                     TCGMemOpIdx oi)
+                                     MemOpIdx oi)
 {
     CPUState *cpu = env_cpu(env);
     uint16_t info = trace_mem_get_info(get_memop(oi), get_mmuidx(oi), false);
@@ -34,7 +34,7 @@ static void atomic_trace_rmw_post(CPUArchState *env, target_ulong addr,
 
 #if HAVE_ATOMIC128
 static uint16_t atomic_trace_ld_pre(CPUArchState *env, target_ulong addr,
-                                    TCGMemOpIdx oi)
+                                    MemOpIdx oi)
 {
     uint16_t info = trace_mem_get_info(get_memop(oi), get_mmuidx(oi), false);
 
@@ -50,7 +50,7 @@ static void atomic_trace_ld_post(CPUArchState *env, target_ulong addr,
 }
 
 static uint16_t atomic_trace_st_pre(CPUArchState *env, target_ulong addr,
-                                    TCGMemOpIdx oi)
+                                    MemOpIdx oi)
 {
     uint16_t info = trace_mem_get_info(get_memop(oi), get_mmuidx(oi), true);
 
