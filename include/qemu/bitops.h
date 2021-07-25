@@ -618,26 +618,4 @@ static inline uint64_t half_unshuffle64(uint64_t x)
     return x;
 }
 
-/**
- * bitrev8:
- * @x: 8-bit value to be reversed
- *
- * Given an input value with bits::
- *
- *   ABCDEFGH
- *
- * return the value with its bits reversed from left to right::
- *
- *   HGFEDCBA
- *
- * Returns: the bit-reversed value.
- */
-static inline uint8_t bitrev8(uint8_t x)
-{
-    x = ((x >> 1) & 0x55) | ((x << 1) & 0xaa);
-    x = ((x >> 2) & 0x33) | ((x << 2) & 0xcc);
-    x = (x >> 4) | (x << 4) ;
-    return x;
-}
-
 #endif
