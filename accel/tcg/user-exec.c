@@ -899,13 +899,7 @@ uint32_t cpu_ldub_data(CPUArchState *env, abi_ptr ptr)
 
 int cpu_ldsb_data(CPUArchState *env, abi_ptr ptr)
 {
-    int ret;
-    uint16_t meminfo = trace_mem_get_info(MO_SB, MMU_USER_IDX, false);
-
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    ret = ldsb_p(g2h(env_cpu(env), ptr));
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
-    return ret;
+    return (int8_t)cpu_ldub_data(env, ptr);
 }
 
 uint32_t cpu_lduw_be_data(CPUArchState *env, abi_ptr ptr)
@@ -921,13 +915,7 @@ uint32_t cpu_lduw_be_data(CPUArchState *env, abi_ptr ptr)
 
 int cpu_ldsw_be_data(CPUArchState *env, abi_ptr ptr)
 {
-    int ret;
-    uint16_t meminfo = trace_mem_get_info(MO_BESW, MMU_USER_IDX, false);
-
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    ret = ldsw_be_p(g2h(env_cpu(env), ptr));
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
-    return ret;
+    return (int16_t)cpu_lduw_be_data(env, ptr);
 }
 
 uint32_t cpu_ldl_be_data(CPUArchState *env, abi_ptr ptr)
@@ -965,13 +953,7 @@ uint32_t cpu_lduw_le_data(CPUArchState *env, abi_ptr ptr)
 
 int cpu_ldsw_le_data(CPUArchState *env, abi_ptr ptr)
 {
-    int ret;
-    uint16_t meminfo = trace_mem_get_info(MO_LESW, MMU_USER_IDX, false);
-
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    ret = ldsw_le_p(g2h(env_cpu(env), ptr));
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
-    return ret;
+    return (int16_t)cpu_lduw_le_data(env, ptr);
 }
 
 uint32_t cpu_ldl_le_data(CPUArchState *env, abi_ptr ptr)
@@ -1008,12 +990,7 @@ uint32_t cpu_ldub_data_ra(CPUArchState *env, abi_ptr ptr, uintptr_t retaddr)
 
 int cpu_ldsb_data_ra(CPUArchState *env, abi_ptr ptr, uintptr_t retaddr)
 {
-    int ret;
-
-    set_helper_retaddr(retaddr);
-    ret = cpu_ldsb_data(env, ptr);
-    clear_helper_retaddr();
-    return ret;
+    return (int8_t)cpu_ldub_data_ra(env, ptr, retaddr);
 }
 
 uint32_t cpu_lduw_be_data_ra(CPUArchState *env, abi_ptr ptr, uintptr_t retaddr)
@@ -1028,12 +1005,7 @@ uint32_t cpu_lduw_be_data_ra(CPUArchState *env, abi_ptr ptr, uintptr_t retaddr)
 
 int cpu_ldsw_be_data_ra(CPUArchState *env, abi_ptr ptr, uintptr_t retaddr)
 {
-    int ret;
-
-    set_helper_retaddr(retaddr);
-    ret = cpu_ldsw_be_data(env, ptr);
-    clear_helper_retaddr();
-    return ret;
+    return (int16_t)cpu_lduw_be_data_ra(env, ptr, retaddr);
 }
 
 uint32_t cpu_ldl_be_data_ra(CPUArchState *env, abi_ptr ptr, uintptr_t retaddr)
@@ -1068,12 +1040,7 @@ uint32_t cpu_lduw_le_data_ra(CPUArchState *env, abi_ptr ptr, uintptr_t retaddr)
 
 int cpu_ldsw_le_data_ra(CPUArchState *env, abi_ptr ptr, uintptr_t retaddr)
 {
-    int ret;
-
-    set_helper_retaddr(retaddr);
-    ret = cpu_ldsw_le_data(env, ptr);
-    clear_helper_retaddr();
-    return ret;
+    return (int16_t)cpu_lduw_le_data_ra(env, ptr, retaddr);
 }
 
 uint32_t cpu_ldl_le_data_ra(CPUArchState *env, abi_ptr ptr, uintptr_t retaddr)
