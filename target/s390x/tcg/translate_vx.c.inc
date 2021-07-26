@@ -67,7 +67,7 @@ static void read_vec_element_i64(TCGv_i64 dst, uint8_t reg, uint8_t enr,
 {
     const int offs = vec_reg_offset(reg, enr, memop & MO_SIZE);
 
-    switch (memop) {
+    switch ((unsigned)memop) {
     case ES_8:
         tcg_gen_ld8u_i64(dst, cpu_env, offs);
         break;

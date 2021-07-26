@@ -1547,7 +1547,7 @@ static void tcg_out_cltz(TCGContext *s, TCGType ext, TCGReg d,
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
  *                                     TCGMemOpIdx oi, uintptr_t ra)
  */
-static void * const qemu_ld_helpers[4] = {
+static void * const qemu_ld_helpers[MO_SIZE + 1] = {
     [MO_8]  = helper_ret_ldub_mmu,
 #ifdef HOST_WORDS_BIGENDIAN
     [MO_16] = helper_be_lduw_mmu,
@@ -1564,7 +1564,7 @@ static void * const qemu_ld_helpers[4] = {
  *                                     uintxx_t val, TCGMemOpIdx oi,
  *                                     uintptr_t ra)
  */
-static void * const qemu_st_helpers[4] = {
+static void * const qemu_st_helpers[MO_SIZE + 1] = {
     [MO_8]  = helper_ret_stb_mmu,
 #ifdef HOST_WORDS_BIGENDIAN
     [MO_16] = helper_be_stw_mmu,
