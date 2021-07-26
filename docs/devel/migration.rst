@@ -53,7 +53,7 @@ savevm/loadvm functionality.
 Debugging
 =========
 
-The migration stream can be analyzed thanks to `scripts/analyze-migration.py`.
+The migration stream can be analyzed thanks to ``scripts/analyze-migration.py``.
 
 Example usage:
 
@@ -75,8 +75,8 @@ Common infrastructure
 =====================
 
 The files, sockets or fd's that carry the migration stream are abstracted by
-the  ``QEMUFile`` type (see `migration/qemu-file.h`).  In most cases this
-is connected to a subtype of ``QIOChannel`` (see `io/`).
+the  ``QEMUFile`` type (see ``migration/qemu-file.h``).  In most cases this
+is connected to a subtype of ``QIOChannel`` (see ``io/``).
 
 
 Saving the state of one device
@@ -166,14 +166,14 @@ An example (from hw/input/pckbd.c)
   };
 
 We are declaring the state with name "pckbd".
-The `version_id` is 3, and the fields are 4 uint8_t in a KBDState structure.
+The ``version_id`` is 3, and the fields are 4 uint8_t in a KBDState structure.
 We registered this with:
 
 .. code:: c
 
     vmstate_register(NULL, 0, &vmstate_kbd, s);
 
-For devices that are `qdev` based, we can register the device in the class
+For devices that are ``qdev`` based, we can register the device in the class
 init function:
 
 .. code:: c
@@ -210,9 +210,9 @@ another to load the state back.
                            SaveVMHandlers *ops,
                            void *opaque);
 
-Two functions in the ``ops`` structure are the `save_state`
-and `load_state` functions.  Notice that `load_state` receives a version_id
-parameter to know what state format is receiving.  `save_state` doesn't
+Two functions in the ``ops`` structure are the ``save_state``
+and ``load_state`` functions.  Notice that ``load_state`` receives a version_id
+parameter to know what state format is receiving.  ``save_state`` doesn't
 have a version_id parameter because it always uses the latest version.
 
 Note that because the VMState macros still save the data in a raw
@@ -385,18 +385,18 @@ migration of a device, and using them breaks backward-migration
 compatibility; in general most changes can be made by adding Subsections
 (see above) or _TEST macros (see above) which won't break compatibility.
 
-Each version is associated with a series of fields saved.  The `save_state` always saves
-the state as the newer version.  But `load_state` sometimes is able to
+Each version is associated with a series of fields saved.  The ``save_state`` always saves
+the state as the newer version.  But ``load_state`` sometimes is able to
 load state from an older version.
 
 You can see that there are several version fields:
 
-- `version_id`: the maximum version_id supported by VMState for that device.
-- `minimum_version_id`: the minimum version_id that VMState is able to understand
+- ``version_id``: the maximum version_id supported by VMState for that device.
+- ``minimum_version_id``: the minimum version_id that VMState is able to understand
   for that device.
-- `minimum_version_id_old`: For devices that were not able to port to vmstate, we can
+- ``minimum_version_id_old``: For devices that were not able to port to vmstate, we can
   assign a function that knows how to read this old state. This field is
-  ignored if there is no `load_state_old` handler.
+  ignored if there is no ``load_state_old`` handler.
 
 VMState is able to read versions from minimum_version_id to
 version_id.  And the function ``load_state_old()`` (if present) is able to
@@ -454,7 +454,7 @@ data and then transferred to the main structure.
 
 If you use memory API functions that update memory layout outside
 initialization (i.e., in response to a guest action), this is a strong
-indication that you need to call these functions in a `post_load` callback.
+indication that you need to call these functions in a ``post_load`` callback.
 Examples of such memory API functions are:
 
   - memory_region_add_subregion()
@@ -823,12 +823,12 @@ Postcopy migration with shared memory needs explicit support from the other
 processes that share memory and from QEMU. There are restrictions on the type of
 memory that userfault can support shared.
 
-The Linux kernel userfault support works on `/dev/shm` memory and on `hugetlbfs`
-(although the kernel doesn't provide an equivalent to `madvise(MADV_DONTNEED)`
+The Linux kernel userfault support works on ``/dev/shm`` memory and on ``hugetlbfs``
+(although the kernel doesn't provide an equivalent to ``madvise(MADV_DONTNEED)``
 for hugetlbfs which may be a problem in some configurations).
 
 The vhost-user code in QEMU supports clients that have Postcopy support,
-and the `vhost-user-bridge` (in `tests/`) and the DPDK package have changes
+and the ``vhost-user-bridge`` (in ``tests/``) and the DPDK package have changes
 to support postcopy.
 
 The client needs to open a userfaultfd and register the areas
