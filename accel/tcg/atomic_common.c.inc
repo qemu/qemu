@@ -13,55 +13,55 @@
  * See the COPYING file in the top-level directory.
  */
 
-static uint16_t atomic_trace_rmw_pre(CPUArchState *env, target_ulong addr,
-                                     MemOpIdx oi)
+static void atomic_trace_rmw_pre(CPUArchState *env, target_ulong addr,
+                                 MemOpIdx oi)
 {
     CPUState *cpu = env_cpu(env);
     uint16_t info = trace_mem_get_info(oi, false);
 
     trace_guest_mem_before_exec(cpu, addr, info);
     trace_guest_mem_before_exec(cpu, addr, info | TRACE_MEM_ST);
-
-    return info;
 }
 
 static void atomic_trace_rmw_post(CPUArchState *env, target_ulong addr,
-                                  uint16_t info)
+                                  MemOpIdx oi)
 {
+    uint16_t info = trace_mem_get_info(oi, false);
+
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, info);
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, info | TRACE_MEM_ST);
 }
 
 #if HAVE_ATOMIC128
-static uint16_t atomic_trace_ld_pre(CPUArchState *env, target_ulong addr,
-                                    MemOpIdx oi)
+static void atomic_trace_ld_pre(CPUArchState *env, target_ulong addr,
+                                MemOpIdx oi)
 {
     uint16_t info = trace_mem_get_info(oi, false);
 
     trace_guest_mem_before_exec(env_cpu(env), addr, info);
-
-    return info;
 }
 
 static void atomic_trace_ld_post(CPUArchState *env, target_ulong addr,
-                                 uint16_t info)
+                                 MemOpIdx oi)
 {
+    uint16_t info = trace_mem_get_info(oi, false);
+
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, info);
 }
 
-static uint16_t atomic_trace_st_pre(CPUArchState *env, target_ulong addr,
-                                    MemOpIdx oi)
+static void atomic_trace_st_pre(CPUArchState *env, target_ulong addr,
+                                MemOpIdx oi)
 {
     uint16_t info = trace_mem_get_info(oi, true);
 
     trace_guest_mem_before_exec(env_cpu(env), addr, info);
-
-    return info;
 }
 
 static void atomic_trace_st_post(CPUArchState *env, target_ulong addr,
-                                 uint16_t info)
+                                 MemOpIdx oi)
 {
+    uint16_t info = trace_mem_get_info(oi, false);
+
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, info);
 }
 #endif
