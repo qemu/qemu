@@ -580,6 +580,25 @@ static void raw_cancel_in_flight(BlockDriverState *bs)
     bdrv_cancel_in_flight(bs->file->bs);
 }
 
+static void raw_child_perm(BlockDriverState *bs, BdrvChild *c,
+                           BdrvChildRole role,
+                           BlockReopenQueue *reopen_queue,
+                           uint64_t parent_perm, uint64_t parent_shared,
+                           uint64_t *nperm, uint64_t *nshared)
+{
+    bdrv_default_perms(bs, c, role, reopen_queue, parent_perm,
+                       parent_shared, nperm, nshared);
+
+    /*
+     * bdrv_default_perms() may add WRITE and/or RESIZE (see comment in
+     * bdrv_default_perms_for_storage() for an explanation) but we only need
+     * them if they are in parent_perm. Drop WRITE and RESIZE whenever possible
+     * to avoid permission conflicts.
+     */
+    *nperm &= ~(BLK_PERM_WRITE | BLK_PERM_RESIZE);
+    *nperm |= parent_perm & (BLK_PERM_WRITE | BLK_PERM_RESIZE);
+}
+
 BlockDriver bdrv_raw = {
     .format_name          = "raw",
     .instance_size        = sizeof(BDRVRawState),
@@ -588,7 +607,7 @@ BlockDriver bdrv_raw = {
     .bdrv_reopen_commit   = &raw_reopen_commit,
     .bdrv_reopen_abort    = &raw_reopen_abort,
     .bdrv_open            = &raw_open,
-    .bdrv_child_perm      = bdrv_default_perms,
+    .bdrv_child_perm      = raw_child_perm,
     .bdrv_co_create_opts  = &raw_co_create_opts,
     .bdrv_co_preadv       = &raw_co_preadv,
     .bdrv_co_pwritev      = &raw_co_pwritev,
