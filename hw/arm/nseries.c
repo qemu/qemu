@@ -692,7 +692,7 @@ static uint32_t mipid_txrx(void *opaque, uint32_t cmd, int len)
     default:
     bad_cmd:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: unknown command %02x\n", __func__, s->cmd);
+                      "%s: unknown command 0x%02x\n", __func__, s->cmd);
         break;
     }
 
