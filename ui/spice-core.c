@@ -1039,6 +1039,6 @@ static void spice_register_config(void)
 opts_init(spice_register_config);
 module_opts("spice");
 
-#ifdef CONFIG_OPENGL
+#ifdef HAVE_SPICE_GL
 module_dep("ui-opengl");
 #endif

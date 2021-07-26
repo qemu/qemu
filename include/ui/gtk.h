@@ -25,6 +25,9 @@
 #include "ui/egl-helpers.h"
 #include "ui/egl-context.h"
 #endif
+#ifdef CONFIG_VTE
+#include "qemu/fifo8.h"
+#endif
 
 #define MAX_VCS 10
 
@@ -62,6 +65,7 @@ typedef struct VirtualVteConsole {
     GtkWidget *scrollbar;
     GtkWidget *terminal;
     Chardev *chr;
+    Fifo8 out_fifo;
     bool echo;
 } VirtualVteConsole;
 #endif

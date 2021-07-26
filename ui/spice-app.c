@@ -27,6 +27,7 @@
 #include <gio/gio.h>
 
 #include "ui/console.h"
+#include "ui/spice-display.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"
 #include "qemu/cutils.h"
@@ -175,7 +176,7 @@ static void spice_app_display_early_init(DisplayOptions *opts)
     qemu_opt_set(qopts, "addr", sock_path, &error_abort);
     qemu_opt_set(qopts, "image-compression", "off", &error_abort);
     qemu_opt_set(qopts, "streaming-video", "off", &error_abort);
-#ifdef CONFIG_OPENGL
+#ifdef HAVE_SPICE_GL
     qemu_opt_set(qopts, "gl", opts->has_gl ? "on" : "off", &error_abort);
     display_opengl = opts->has_gl;
 #endif
