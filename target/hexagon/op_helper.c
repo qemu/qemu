@@ -16,7 +16,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu.h"
+#include "qemu/log.h"
+#include "exec/exec-all.h"
+#include "exec/cpu_ldst.h"
 #include "exec/helper-proto.h"
 #include "fpu/softfloat.h"
 #include "cpu.h"
@@ -140,22 +142,22 @@ void HELPER(debug_check_store_width)(CPUHexagonState *env, int slot, int check)
 
 void HELPER(commit_store)(CPUHexagonState *env, int slot_num)
 {
-    switch (env->mem_log_stores[slot_num].width) {
+    uintptr_t ra = GETPC();
+    uint8_t width = env->mem_log_stores[slot_num].width;
+    target_ulong va = env->mem_log_stores[slot_num].va;
+
+    switch (width) {
     case 1:
-        put_user_u8(env->mem_log_stores[slot_num].data32,
-                    env->mem_log_stores[slot_num].va);
+        cpu_stb_data_ra(env, va, env->mem_log_stores[slot_num].data32, ra);
         break;
     case 2:
-        put_user_u16(env->mem_log_stores[slot_num].data32,
-                     env->mem_log_stores[slot_num].va);
+        cpu_stw_data_ra(env, va, env->mem_log_stores[slot_num].data32, ra);
         break;
     case 4:
-        put_user_u32(env->mem_log_stores[slot_num].data32,
-                     env->mem_log_stores[slot_num].va);
+        cpu_stl_data_ra(env, va, env->mem_log_stores[slot_num].data32, ra);
         break;
     case 8:
-        put_user_u64(env->mem_log_stores[slot_num].data64,
-                     env->mem_log_stores[slot_num].va);
+        cpu_stq_data_ra(env, va, env->mem_log_stores[slot_num].data64, ra);
         break;
     default:
         g_assert_not_reached();
@@ -393,37 +395,33 @@ static void check_noshuf(CPUHexagonState *env, uint32_t slot)
 static uint8_t mem_load1(CPUHexagonState *env, uint32_t slot,
                          target_ulong vaddr)
 {
-    uint8_t retval;
+    uintptr_t ra = GETPC();
     check_noshuf(env, slot);
-    get_user_u8(retval, vaddr);
-    return retval;
+    return cpu_ldub_data_ra(env, vaddr, ra);
 }
 
 static uint16_t mem_load2(CPUHexagonState *env, uint32_t slot,
                           target_ulong vaddr)
 {
-    uint16_t retval;
+    uintptr_t ra = GETPC();
     check_noshuf(env, slot);
-    get_user_u16(retval, vaddr);
-    return retval;
+    return cpu_lduw_data_ra(env, vaddr, ra);
 }
 
 static uint32_t mem_load4(CPUHexagonState *env, uint32_t slot,
                           target_ulong vaddr)
 {
-    uint32_t retval;
+    uintptr_t ra = GETPC();
     check_noshuf(env, slot);
-    get_user_u32(retval, vaddr);
-    return retval;
+    return cpu_ldl_data_ra(env, vaddr, ra);
 }
 
 static uint64_t mem_load8(CPUHexagonState *env, uint32_t slot,
                           target_ulong vaddr)
 {
-    uint64_t retval;
+    uintptr_t ra = GETPC();
     check_noshuf(env, slot);
-    get_user_u64(retval, vaddr);
-    return retval;
+    return cpu_ldq_data_ra(env, vaddr, ra);
 }
 
 /* Floating point */
