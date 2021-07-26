@@ -124,7 +124,7 @@ devices.  Drives the board doesn't pick up can no longer be used with
 '''''''''''''''''''''''''''''''''''''
 
 This option was undocumented and not used in the field.
-Use `-device usb-ccid`` instead.
+Use ``-device usb-ccid`` instead.
 
 RISC-V firmware not booted by default (removed in 5.1)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''
