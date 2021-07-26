@@ -2296,7 +2296,7 @@ static const char * const mxuregnames[] = {
 #endif
 
 /* MIPS_PATCH */
-void afl_save_regs(struct api_regs *r, CPUArchState *env) {
+void afl_save_regs(struct api_regs* r, CPUArchState *env) {
     int i = 0;
     int j = 0;
     /* GP registers saving */
@@ -2333,7 +2333,10 @@ void afl_save_regs(struct api_regs *r, CPUArchState *env) {
     r->fp = env->active_tc.gpr[30];
     r->ra = env->active_tc.gpr[31];
     r->PC = env->active_tc.PC;
-    for (i = 0; i < 4; i++) {
+#if defined(TARGET_MIPS64)
+    memcpy(r->gpr_hi, env->active_tc.gpr_hi, sizeof(r->gpr_hi));
+#endif
+    for (i = 0; i < MIPS_DSP_ACC; i++) {
         r->HI[i] = env->active_tc.HI[i];
         r->LO[i] = env->active_tc.LO[i];
     }
@@ -2350,20 +2353,11 @@ void afl_save_regs(struct api_regs *r, CPUArchState *env) {
         for (j = 0; j < MSA_WRLEN / 8; j++) {
             r->fpr[i].wr.b[j] = env->active_fpu.fpr[i].wr.b[j];
         }
-        for (j = 0; j < MSA_WRLEN / 16; j++) {
-            r->fpr[i].wr.h[j] = env->active_fpu.fpr[i].wr.h[j];
-        }
-        for (j = 0; j < MSA_WRLEN / 32; j++) {
-            r->fpr[i].wr.w[j] = env->active_fpu.fpr[i].wr.w[j];
-        }
-        for (j = 0; j < MSA_WRLEN / 64; j++) {
-            r->fpr[i].wr.d[j] = env->active_fpu.fpr[i].wr.d[j];
-        }
     }
 }
 
 /* MIPS_PATCH */
-void afl_restore_regs(struct api_regs *r, CPUArchState *env) {
+void afl_restore_regs(struct api_regs* r, CPUArchState *env) {
     int i = 0;
     int j = 0;
     /* GP registers restoring */
@@ -2400,7 +2394,10 @@ void afl_restore_regs(struct api_regs *r, CPUArchState *env) {
     env->active_tc.gpr[30] = r->fp;
     env->active_tc.gpr[31] = r->ra;
     env->active_tc.PC = r->PC;
-    for (i = 0; i < 4; i++) {
+#if defined(TARGET_MIPS64)
+    memcpy(env->active_tc.gpr_hi, r->gpr_hi, sizeof(r->gpr_hi));
+#endif
+    for (i = 0; i < MIPS_DSP_ACC; i++) {
         env->active_tc.HI[i] = r->HI[i];
         env->active_tc.LO[i] = r->LO[i];
     }
@@ -2416,15 +2413,6 @@ void afl_restore_regs(struct api_regs *r, CPUArchState *env) {
         }
         for (j = 0; j < MSA_WRLEN / 8; j++) {
             env->active_fpu.fpr[i].wr.b[j] = r->fpr[i].wr.b[j];
-        }
-        for (j = 0; j < MSA_WRLEN / 16; j++) {
-            env->active_fpu.fpr[i].wr.h[j] = r->fpr[i].wr.h[j];
-        }
-        for (j = 0; j < MSA_WRLEN / 32; j++) {
-            env->active_fpu.fpr[i].wr.w[j] = r->fpr[i].wr.w[j];
-        }
-        for (j = 0; j < MSA_WRLEN / 64; j++) {
-            env->active_fpu.fpr[i].wr.d[j] = r->fpr[i].wr.d[j];
         }
     }
 }
