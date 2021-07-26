@@ -14,11 +14,11 @@ Prerequisites
 To run PVMs, a machine with the Protected Virtualization feature, as
 indicated by the Ultravisor Call facility (stfle bit 158), is
 required. The Ultravisor needs to be initialized at boot by setting
-`prot_virt=1` on the host's kernel command line.
+``prot_virt=1`` on the host's kernel command line.
 
 Running PVMs requires using the KVM hypervisor.
 
-If those requirements are met, the capability `KVM_CAP_S390_PROTECTED`
+If those requirements are met, the capability ``KVM_CAP_S390_PROTECTED``
 will indicate that KVM can support PVMs on that LPAR.
 
 
@@ -26,15 +26,15 @@ Running a Protected Virtual Machine
 -----------------------------------
 
 To run a PVM you will need to select a CPU model which includes the
-`Unpack facility` (stfle bit 161 represented by the feature
-`unpack`/`S390_FEAT_UNPACK`), and add these options to the command line::
+``Unpack facility`` (stfle bit 161 represented by the feature
+``unpack``/``S390_FEAT_UNPACK``), and add these options to the command line::
 
     -object s390-pv-guest,id=pv0 \
     -machine confidential-guest-support=pv0
 
 Adding these options will:
 
-* Ensure the `unpack` facility is available
+* Ensure the ``unpack`` facility is available
 * Enable the IOMMU by default for all I/O devices
 * Initialize the PV mechanism
 
@@ -63,5 +63,5 @@ from the disk boot. This memory layout includes the encrypted
 components (kernel, initrd, cmdline), the stage3a loader and
 metadata. In case this boot method is used, the command line
 options -initrd and -cmdline are ineffective. The preparation of a PVM
-image is done via the `genprotimg` tool from the s390-tools
+image is done via the ``genprotimg`` tool from the s390-tools
 collection.
