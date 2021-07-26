@@ -72,7 +72,7 @@ eBPF RSS implementation
 
 eBPF RSS loading functionality located in ebpf/ebpf_rss.c and ebpf/ebpf_rss.h.
 
-The `struct EBPFRSSContext` structure that holds 4 file descriptors:
+The ``struct EBPFRSSContext`` structure that holds 4 file descriptors:
 
 - ctx - pointer of the libbpf context.
 - program_fd - file descriptor of the eBPF RSS program.
@@ -80,20 +80,20 @@ The `struct EBPFRSSContext` structure that holds 4 file descriptors:
 - map_toeplitz_key - file descriptor of the 'Toeplitz key' map. One element of the 40byte key prepared for the hashing algorithm.
 - map_indirections_table - 128 elements of queue indexes.
 
-`struct EBPFRSSConfig` fields:
+``struct EBPFRSSConfig`` fields:
 
-- redirect - "boolean" value, should the hash be calculated, on false  - `default_queue` would be used as the final decision.
+- redirect - "boolean" value, should the hash be calculated, on false  - ``default_queue`` would be used as the final decision.
 - populate_hash - for now, not used. eBPF RSS doesn't support hash reporting.
-- hash_types - binary mask of different hash types. See `VIRTIO_NET_RSS_HASH_TYPE_*` defines. If for packet hash should not be calculated - `default_queue` would be used.
+- hash_types - binary mask of different hash types. See ``VIRTIO_NET_RSS_HASH_TYPE_*`` defines. If for packet hash should not be calculated - ``default_queue`` would be used.
 - indirections_len - length of the indirections table, maximum 128.
 - default_queue - the queue index that used for packet that shouldn't be hashed. For some packets, the hash can't be calculated(g.e ARP).
 
 Functions:
 
-- `ebpf_rss_init()` - sets ctx to NULL, which indicates that EBPFRSSContext is not loaded.
-- `ebpf_rss_load()` - creates 3 maps and loads eBPF program from the rss.bpf.skeleton.h. Returns 'true' on success. After that, program_fd can be used to set steering for TAP.
-- `ebpf_rss_set_all()` - sets values for eBPF maps. `indirections_table` length is in EBPFRSSConfig. `toeplitz_key` is VIRTIO_NET_RSS_MAX_KEY_SIZE aka 40 bytes array.
-- `ebpf_rss_unload()` - close all file descriptors and set ctx to NULL.
+- ``ebpf_rss_init()`` - sets ctx to NULL, which indicates that EBPFRSSContext is not loaded.
+- ``ebpf_rss_load()`` - creates 3 maps and loads eBPF program from the rss.bpf.skeleton.h. Returns 'true' on success. After that, program_fd can be used to set steering for TAP.
+- ``ebpf_rss_set_all()`` - sets values for eBPF maps. ``indirections_table`` length is in EBPFRSSConfig. ``toeplitz_key`` is VIRTIO_NET_RSS_MAX_KEY_SIZE aka 40 bytes array.
+- ``ebpf_rss_unload()`` - close all file descriptors and set ctx to NULL.
 
 Simplified eBPF RSS workflow:
 
@@ -122,4 +122,4 @@ Simplified eBPF RSS workflow:
 NetClientState SetSteeringEBPF()
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For now, `set_steering_ebpf()` method supported by Linux TAP NetClientState. The method requires an eBPF program file descriptor as an argument.
+For now, ``set_steering_ebpf()`` method supported by Linux TAP NetClientState. The method requires an eBPF program file descriptor as an argument.
