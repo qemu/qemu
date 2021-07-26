@@ -34,11 +34,11 @@ version they were built against. This can be done simply by::
   QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 
 The core code will refuse to load a plugin that doesn't export a
-`qemu_plugin_version` symbol or if plugin version is outside of QEMU's
+``qemu_plugin_version`` symbol or if plugin version is outside of QEMU's
 supported range of API versions.
 
-Additionally the `qemu_info_t` structure which is passed to the
-`qemu_plugin_install` method of a plugin will detail the minimum and
+Additionally the ``qemu_info_t`` structure which is passed to the
+``qemu_plugin_install`` method of a plugin will detail the minimum and
 current API versions supported by QEMU. The API version will be
 incremented if new APIs are added. The minimum API version will be
 incremented if existing APIs are changed or removed.
@@ -146,12 +146,12 @@ Example Plugins
 
 There are a number of plugins included with QEMU and you are
 encouraged to contribute your own plugins plugins upstream. There is a
-`contrib/plugins` directory where they can go.
+``contrib/plugins`` directory where they can go.
 
 - tests/plugins
 
 These are some basic plugins that are used to test and exercise the
-API during the `make check-tcg` target.
+API during the ``make check-tcg`` target.
 
 - contrib/plugins/hotblocks.c
 
@@ -163,7 +163,7 @@ with linux-user execution as system emulation tends to generate
 re-translations as blocks from different programs get swapped in and
 out of system memory.
 
-If your program is single-threaded you can use the `inline` option for
+If your program is single-threaded you can use the ``inline`` option for
 slightly faster (but not thread safe) counters.
 
 Example::
@@ -251,7 +251,7 @@ which will lead to a sorted list after the class breakdown::
   ...
 
 To find the argument shorthand for the class you need to examine the
-source code of the plugin at the moment, specifically the `*opt`
+source code of the plugin at the moment, specifically the ``*opt``
 argument in the InsnClassExecCount tables.
 
 - contrib/plugins/lockstep.c

@@ -66,11 +66,11 @@ Notes for the nodes:
 Edges
 ^^^^^^
 
-An edge relation between two nodes (drivers or machines) `X` and `Y` can be:
+An edge relation between two nodes (drivers or machines) ``X`` and ``Y`` can be:
 
-- ``X CONSUMES Y``: `Y` can be plugged into `X`
-- ``X PRODUCES Y``: `X` provides the interface `Y`
-- ``X CONTAINS Y``: `Y` is part of `X` component
+- ``X CONSUMES Y``: ``Y`` can be plugged into ``X``
+- ``X PRODUCES Y``: ``X`` provides the interface ``Y``
+- ``X CONTAINS Y``: ``Y`` is part of ``X`` component
 
 Execution steps
 ^^^^^^^^^^^^^^^
