@@ -31,7 +31,7 @@
   <?endif?>
 
   <?if $(var.Arch) = "32"?>
-    <?define ArchLib=libgcc_s_sjlj-1.dll?>
+    <?define ArchLib=libgcc_s_dw2-1.dll?>
     <?define GaProgramFilesFolder="ProgramFilesFolder" ?>
   <?endif?>
 
