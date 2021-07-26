@@ -50,6 +50,9 @@
 #define api_regs arm64_regs
 #elif defined(TARGET_ARM)
 #define api_regs arm_regs
+/* MIPS_PATCH */
+#elif defined(TARGET_MIPS)
+#define api_regs mips_regs
 #else
 struct generic_api_regs { int v; };
 #define api_regs generic_api_regs
@@ -134,7 +137,7 @@ void afl_float_compcov_log_80(target_ulong cur_loc, floatx80 arg1,
 abi_ulong afl_get_brk(void);
 abi_ulong afl_set_brk(abi_ulong new_brk);
 
-#if defined(TARGET_X86_64) || defined(TARGET_I386) || defined(TARGET_AARCH64) || defined(TARGET_ARM)
+#if defined(TARGET_X86_64) || defined(TARGET_I386) || defined(TARGET_AARCH64) || defined(TARGET_ARM) || defined(TARGET_MIPS)
 void afl_save_regs(struct api_regs* regs, CPUArchState* env);
 void afl_restore_regs(struct api_regs* regs, CPUArchState* env);
 #else

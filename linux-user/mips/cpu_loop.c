@@ -25,6 +25,9 @@
 #include "internal.h"
 #include "fpu_helper.h"
 
+/* MIPS_PATCH */
+#include "qemuafl/common.h"
+
 # ifdef TARGET_ABI_MIPSO32
 #  define MIPS_SYSCALL_NUMBER_UNUSED -1
 static const int8_t mips_syscall_args[] = {

@@ -137,4 +137,16 @@ struct arm64_regs {
 
 };
 
+/* MIPS_PATCH */
+#if defined(TARGET_MIPS)
+struct mips_regs {
+  uint32_t r0, at, v0, v1, a0, a1, a2, a3, t0, t1, t2, t3, t4, t5, t6, t7, s0,
+      s1, s2, s3, s4, s5, s6, s7, t8, t9, k0, k1, gp, sp, fp, ra;
+  uint32_t HI[4];
+  uint32_t LO[4];
+  uint32_t PC;
+  fpr_t    fpr[32];
+};
+#endif
+
 #endif
