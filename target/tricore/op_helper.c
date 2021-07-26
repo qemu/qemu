@@ -2783,8 +2783,6 @@ void helper_rslcx(CPUTriCoreState *env)
     restore_context_lower(env, ea, &env->gpr_a[11], &new_PCXI);
     /* M(EA, word) = FCX; */
     cpu_stl_data(env, ea, env->FCX);
-    /* M(EA, word) = FCX; */
-    cpu_stl_data(env, ea, env->FCX);
     /* FCX[19: 0] = PCXI[19: 0]; */
     env->FCX = (env->FCX & 0xfff00000) + (env->PCXI & 0x000fffff);
     /* PCXI = new_PCXI; */
