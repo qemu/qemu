@@ -15,7 +15,7 @@ where QEMU can launch processes compiled for one CPU on another CPU.
 In this mode the CPU is always emulated.
 
 QEMU also provides a number of standalone commandline utilities,
-such as the `qemu-img` disk image utility that allows you to create,
+such as the ``qemu-img`` disk image utility that allows you to create,
 convert and modify disk images.
 
 .. toctree::

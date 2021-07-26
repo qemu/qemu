@@ -1,7 +1,7 @@
 'virt' Generic Virtual Platform (``virt``)
 ==========================================
 
-The `virt` board is a platform which does not correspond to any real hardware;
+The ``virt`` board is a platform which does not correspond to any real hardware;
 it is designed for use in virtual machines. It is the recommended board type
 if you simply want to run a guest such as Linux and do not care about
 reproducing the idiosyncrasies and limitations of a particular bit of
