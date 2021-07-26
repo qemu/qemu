@@ -1030,7 +1030,29 @@ try_map:
         r = qemu_vfio_dma_map(s->vfio,
                               qiov->iov[i].iov_base,
                               len, true, &iova);
+        if (r == -ENOSPC) {
+            /*
+             * In addition to the -ENOMEM error, the VFIO_IOMMU_MAP_DMA
+             * ioctl returns -ENOSPC to signal the user exhausted the DMA
+             * mappings available for a container since Linux kernel commit
+             * 492855939bdb ("vfio/type1: Limit DMA mappings per container",
+             * April 2019, see CVE-2019-3882).
+             *
+             * This block driver already handles this error path by checking
+             * for the -ENOMEM error, so we directly replace -ENOSPC by
+             * -ENOMEM. Beside, -ENOSPC has a specific meaning for blockdev
+             * coroutines: it triggers BLOCKDEV_ON_ERROR_ENOSPC and
+             * BLOCK_ERROR_ACTION_STOP which stops the VM, asking the operator
+             * to add more storage to the blockdev. Not something we can do
+             * easily with an IOMMU :)
+             */
+            r = -ENOMEM;
+        }
         if (r == -ENOMEM && retry) {
+            /*
+             * We exhausted the DMA mappings available for our container:
+             * recycle the volatile IOVA mappings.
+             */
             retry = false;
             trace_nvme_dma_flush_queue_wait(s);
             if (s->dma_map_count) {
