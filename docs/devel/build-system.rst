@@ -235,11 +235,11 @@ Target-independent emulator sourcesets:
   symbol::
 
     # Some targets have CONFIG_ACPI, some don't, so this is not enough
-    softmmu_ss.add(when: 'CONFIG_ACPI`, if_true: files('acpi.c'),
+    softmmu_ss.add(when: 'CONFIG_ACPI', if_true: files('acpi.c'),
                                         if_false: files('acpi-stub.c'))
 
     # This is required as well:
-    softmmu_ss.add(when: 'CONFIG_ALL`, if_true: files('acpi-stub.c'))
+    softmmu_ss.add(when: 'CONFIG_ALL', if_true: files('acpi-stub.c'))
 
 Target-dependent emulator sourcesets:
   In the target-dependent set lives CPU emulation, some device emulation and
