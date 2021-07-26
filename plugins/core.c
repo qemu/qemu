@@ -27,7 +27,6 @@
 #include "exec/helper-proto.h"
 #include "tcg/tcg.h"
 #include "tcg/tcg-op.h"
-#include "trace/mem.h" /* mem_info macros */
 #include "plugin.h"
 #include "qemu/compiler.h"
 
@@ -446,7 +445,8 @@ void exec_inline_op(struct qemu_plugin_dyn_cb *cb)
     }
 }
 
-void qemu_plugin_vcpu_mem_cb(CPUState *cpu, uint64_t vaddr, uint32_t info)
+void qemu_plugin_vcpu_mem_cb(CPUState *cpu, uint64_t vaddr,
+                             MemOpIdx oi, enum qemu_plugin_mem_rw rw)
 {
     GArray *arr = cpu->plugin_mem_cbs;
     size_t i;
@@ -457,14 +457,14 @@ void qemu_plugin_vcpu_mem_cb(CPUState *cpu, uint64_t vaddr, uint32_t info)
     for (i = 0; i < arr->len; i++) {
         struct qemu_plugin_dyn_cb *cb =
             &g_array_index(arr, struct qemu_plugin_dyn_cb, i);
-        int w = !!(info & TRACE_MEM_ST) + 1;
 
-        if (!(w & cb->rw)) {
+        if (!(rw & cb->rw)) {
                 break;
         }
         switch (cb->type) {
         case PLUGIN_CB_REGULAR:
-            cb->f.vcpu_mem(cpu->cpu_index, info, vaddr, cb->userp);
+            cb->f.vcpu_mem(cpu->cpu_index, make_plugin_meminfo(oi, rw),
+                           vaddr, cb->userp);
             break;
         case PLUGIN_CB_INLINE:
             exec_inline_op(cb);

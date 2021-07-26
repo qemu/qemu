@@ -12,6 +12,7 @@
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "qemu/option.h"
+#include "exec/memopidx.h"
 
 /*
  * Events that plugins can subscribe to.
@@ -35,6 +36,25 @@ enum qemu_plugin_event {
  */
 struct qemu_plugin_desc;
 typedef QTAILQ_HEAD(, qemu_plugin_desc) QemuPluginList;
+
+/*
+ * Construct a qemu_plugin_meminfo_t.
+ */
+static inline qemu_plugin_meminfo_t
+make_plugin_meminfo(MemOpIdx oi, enum qemu_plugin_mem_rw rw)
+{
+    return oi | (rw << 16);
+}
+
+/*
+ * Extract the memory operation direction from a qemu_plugin_meminfo_t.
+ * Other portions may be extracted via get_memop and get_mmuidx.
+ */
+static inline enum qemu_plugin_mem_rw
+get_plugin_meminfo_rw(qemu_plugin_meminfo_t i)
+{
+    return i >> 16;
+}
 
 #ifdef CONFIG_PLUGIN
 extern QemuOptsList qemu_plugin_opts;
@@ -180,7 +200,8 @@ qemu_plugin_vcpu_syscall(CPUState *cpu, int64_t num, uint64_t a1,
                          uint64_t a6, uint64_t a7, uint64_t a8);
 void qemu_plugin_vcpu_syscall_ret(CPUState *cpu, int64_t num, int64_t ret);
 
-void qemu_plugin_vcpu_mem_cb(CPUState *cpu, uint64_t vaddr, uint32_t meminfo);
+void qemu_plugin_vcpu_mem_cb(CPUState *cpu, uint64_t vaddr,
+                             MemOpIdx oi, enum qemu_plugin_mem_rw rw);
 
 void qemu_plugin_flush_cb(void);
 
@@ -244,7 +265,8 @@ void qemu_plugin_vcpu_syscall_ret(CPUState *cpu, int64_t num, int64_t ret)
 { }
 
 static inline void qemu_plugin_vcpu_mem_cb(CPUState *cpu, uint64_t vaddr,
-                                           uint32_t meminfo)
+                                           MemOpIdx oi,
+                                           enum qemu_plugin_mem_rw rw)
 { }
 
 static inline void qemu_plugin_flush_cb(void)
