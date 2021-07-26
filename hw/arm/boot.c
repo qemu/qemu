@@ -1243,6 +1243,15 @@ static void arm_setup_firmware_boot(ARMCPU *cpu, struct arm_boot_info *info)
         bool try_decompressing_kernel;
 
         fw_cfg = fw_cfg_find();
+
+        if (!fw_cfg) {
+            error_report("This machine type does not support loading both "
+                         "a guest firmware/BIOS image and a guest kernel at "
+                         "the same time. You should change your QEMU command "
+                         "line to specify one or the other, but not both.");
+            exit(1);
+        }
+
         try_decompressing_kernel = arm_feature(&cpu->env,
                                                ARM_FEATURE_AARCH64);
 
