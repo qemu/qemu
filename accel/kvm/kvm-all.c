@@ -2875,6 +2875,14 @@ static void do_end_recording_hypercall(CPUState *cpu)
     kvm_slots_unlock(kml);
 
 }
+
+static void *pt_monitor_body(void *opaque){
+    while(1){
+        //DBG("prova\n");
+        g_usleep(5 * G_USEC_PER_SEC);
+    }
+    return NULL;
+}
  
 /* function for generic hypercall. It acts as a dispatcher by looking
     at the type of hypercall. It also updates the recording state */
@@ -2910,6 +2918,13 @@ static void execute_hypercall(CPUState *cpu)
     case SET_IRQ_LINE_HYPERCALL:
         fx_irq_line = (int)regs.r8;
         recording_state = RECORDING;
+        qemu_thread_create(
+            &pt_monitor, 
+            "page table monitor", 
+            pt_monitor_body,
+            NULL, QEMU_THREAD_JOINABLE
+        );
+        qemu_mutex_init(&pt_mutex);
         /* save the entire state of guest memory */
         break;
     case START_MONITOR_HYPERCALL:
@@ -2930,7 +2945,7 @@ static void execute_hypercall(CPUState *cpu)
     case PROCESS_LIST_HYPERCALL:
         /* to check if everything is good, simply print 
             the list of processes */
-        //DBG("%s\n", (const char *)process_list);
+        DBG("%s\n", (const char *)process_list);
         break;
     default:
         DBG("Hypercall not recognized\n");

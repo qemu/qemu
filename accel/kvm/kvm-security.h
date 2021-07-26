@@ -78,4 +78,16 @@ struct kernel_invariants {
 
 static void *process_list;
 
+/* page table monitor */
+#define PT_MONITOR_INTERVAL 1
+QemuThread pt_monitor;
+QemuMutex pt_mutex;
+
+typedef struct monitored_pt_entry {
+    unsigned long *entry;
+    struct monitored_pt_entry *next;
+} MonitoredPageTableEntry;
+
+MonitoredPageTableEntry *pt_head;
+
 #endif
