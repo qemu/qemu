@@ -319,7 +319,7 @@ uint64_t qemu_plugin_hwaddr_phys_addr(const struct qemu_plugin_hwaddr *haddr)
             return block->offset + offset + block->mr->addr;
         } else {
             MemoryRegionSection *mrs = haddr->v.io.section;
-            return haddr->v.io.offset + mrs->mr->addr;
+            return mrs->offset_within_address_space + haddr->v.io.offset;
         }
     }
 #endif

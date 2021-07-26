@@ -1,23 +1,47 @@
 #
 # Docker TriCore cross-compiler target
 #
-# This docker target builds on the debian Stretch base image.
+# This docker target builds on the Debian Buster base image but
+# doesn't inherit from the common one to avoid bringing in unneeded
+# dependencies.
 #
 # Copyright (c) 2018 Philippe Mathieu-Daudé
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-FROM qemu/debian10
+FROM docker.io/library/debian:buster-slim
 
 MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
+
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata && \
+    DEBIAN_FRONTEND=noninteractive eatmydata apt install -yy \
+       bzip2 \
+       ca-certificates \
+       ccache \
+       g++ \
+       gcc \
+       git \
+       libglib2.0-dev \
+       libpixman-1-dev \
+       libtest-harness-perl \
+       locales \
+       make \
+       ninja-build \
+       perl-base \
+       pkgconf \
+       python3-pip \
+       python3-setuptools \
+       python3-wheel
 
 RUN git clone --single-branch \
         https://github.com/bkoppelmann/tricore-binutils.git \
         /usr/src/binutils && \
     cd /usr/src/binutils && chmod +x missing && \
-    CFLAGS=-w ./configure --prefix=/usr --disable-nls --target=tricore && \
+    CFLAGS=-w ./configure --prefix=/usr/local --disable-nls --target=tricore && \
     make && make install && \
     rm -rf /usr/src/binutils
 
-# This image isn't designed for building QEMU but building tests
-ENV QEMU_CONFIGURE_OPTS --disable-system --disable-user
+# This image can only build a very minimal QEMU as well as the tests
+ENV DEF_TARGET_LIST tricore-softmmu
+ENV QEMU_CONFIGURE_OPTS --disable-user --disable-tools --disable-fdt

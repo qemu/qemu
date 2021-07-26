@@ -549,6 +549,19 @@ void qemu_plugin_vcpu_for_each(qemu_plugin_id_t id,
 void qemu_plugin_register_flush_cb(qemu_plugin_id_t id,
                                    qemu_plugin_simple_cb_t cb);
 
+/**
+ * qemu_plugin_register_atexit_cb() - register exit callback
+ * @id: plugin ID
+ * @cb: callback
+ * @userdata: user data for callback
+ *
+ * The @cb function is called once execution has finished. Plugins
+ * should be able to free all their resources at this point much like
+ * after a reset/uninstall callback is called.
+ *
+ * In user-mode it is possible a few un-instrumented instructions from
+ * child threads may run before the host kernel reaps the threads.
+ */
 void qemu_plugin_register_atexit_cb(qemu_plugin_id_t id,
                                     qemu_plugin_udata_cb_t cb, void *userdata);
 
