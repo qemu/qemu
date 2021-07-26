@@ -17,10 +17,8 @@ static void atomic_trace_rmw_pre(CPUArchState *env, target_ulong addr,
                                  MemOpIdx oi)
 {
     CPUState *cpu = env_cpu(env);
-    uint16_t info = trace_mem_get_info(oi, false);
 
-    trace_guest_mem_before_exec(cpu, addr, info);
-    trace_guest_mem_before_exec(cpu, addr, info | TRACE_MEM_ST);
+    trace_guest_rmw_before_exec(cpu, addr, oi);
 }
 
 static void atomic_trace_rmw_post(CPUArchState *env, target_ulong addr,
@@ -33,9 +31,7 @@ static void atomic_trace_rmw_post(CPUArchState *env, target_ulong addr,
 static void atomic_trace_ld_pre(CPUArchState *env, target_ulong addr,
                                 MemOpIdx oi)
 {
-    uint16_t info = trace_mem_get_info(oi, false);
-
-    trace_guest_mem_before_exec(env_cpu(env), addr, info);
+    trace_guest_ld_before_exec(env_cpu(env), addr, oi);
 }
 
 static void atomic_trace_ld_post(CPUArchState *env, target_ulong addr,
@@ -47,9 +43,7 @@ static void atomic_trace_ld_post(CPUArchState *env, target_ulong addr,
 static void atomic_trace_st_pre(CPUArchState *env, target_ulong addr,
                                 MemOpIdx oi)
 {
-    uint16_t info = trace_mem_get_info(oi, true);
-
-    trace_guest_mem_before_exec(env_cpu(env), addr, info);
+    trace_guest_st_before_exec(env_cpu(env), addr, oi);
 }
 
 static void atomic_trace_st_post(CPUArchState *env, target_ulong addr,
