@@ -252,7 +252,6 @@ void ATOMIC_NAME(st)(CPUArchState *env, target_ulong addr, ABI_TYPE val,
     uint16_t info = atomic_trace_st_pre(env, addr, oi);
 
     val = BSWAP(val);
-    val = BSWAP(val);
     atomic16_set(haddr, val);
     ATOMIC_MMU_CLEANUP;
     atomic_trace_st_post(env, addr, info);
