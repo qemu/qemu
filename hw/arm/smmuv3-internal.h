@@ -570,7 +570,7 @@ static inline int pa_range(STE *ste)
 
 /* CD fields */
 
-#define CD_VALID(x)   extract32((x)->word[0], 30, 1)
+#define CD_VALID(x)   extract32((x)->word[0], 31, 1)
 #define CD_ASID(x)    extract32((x)->word[1], 16, 16)
 #define CD_TTB(x, sel)                                      \
     ({                                                      \
