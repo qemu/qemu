@@ -231,20 +231,18 @@ static IOThreadParamInfo aio_max_batch_info = {
 };
 
 static void iothread_get_param(Object *obj, Visitor *v,
-        const char *name, void *opaque, Error **errp)
+        const char *name, IOThreadParamInfo *info, Error **errp)
 {
     IOThread *iothread = IOTHREAD(obj);
-    IOThreadParamInfo *info = opaque;
     int64_t *field = (void *)iothread + info->offset;
 
     visit_type_int64(v, name, field, errp);
 }
 
 static bool iothread_set_param(Object *obj, Visitor *v,
-        const char *name, void *opaque, Error **errp)
+        const char *name, IOThreadParamInfo *info, Error **errp)
 {
     IOThread *iothread = IOTHREAD(obj);
-    IOThreadParamInfo *info = opaque;
     int64_t *field = (void *)iothread + info->offset;
     int64_t value;
 
@@ -266,16 +264,18 @@ static bool iothread_set_param(Object *obj, Visitor *v,
 static void iothread_get_poll_param(Object *obj, Visitor *v,
         const char *name, void *opaque, Error **errp)
 {
+    IOThreadParamInfo *info = opaque;
 
-    iothread_get_param(obj, v, name, opaque, errp);
+    iothread_get_param(obj, v, name, info, errp);
 }
 
 static void iothread_set_poll_param(Object *obj, Visitor *v,
         const char *name, void *opaque, Error **errp)
 {
     IOThread *iothread = IOTHREAD(obj);
+    IOThreadParamInfo *info = opaque;
 
-    if (!iothread_set_param(obj, v, name, opaque, errp)) {
+    if (!iothread_set_param(obj, v, name, info, errp)) {
         return;
     }
 
@@ -291,16 +291,18 @@ static void iothread_set_poll_param(Object *obj, Visitor *v,
 static void iothread_get_aio_param(Object *obj, Visitor *v,
         const char *name, void *opaque, Error **errp)
 {
+    IOThreadParamInfo *info = opaque;
 
-    iothread_get_param(obj, v, name, opaque, errp);
+    iothread_get_param(obj, v, name, info, errp);
 }
 
 static void iothread_set_aio_param(Object *obj, Visitor *v,
         const char *name, void *opaque, Error **errp)
 {
     IOThread *iothread = IOTHREAD(obj);
+    IOThreadParamInfo *info = opaque;
 
-    if (!iothread_set_param(obj, v, name, opaque, errp)) {
+    if (!iothread_set_param(obj, v, name, info, errp)) {
         return;
     }
 
