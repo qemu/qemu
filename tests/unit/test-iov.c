@@ -158,7 +158,7 @@ static void test_io(void)
 
     int sv[2];
     int r;
-    unsigned i, j, k, s, t;
+    unsigned i, j, k, s;
     fd_set fds;
     unsigned niov;
     struct iovec *iov, *siov;
@@ -182,7 +182,6 @@ static void test_io(void)
 
     FD_ZERO(&fds);
 
-    t = 0;
     if (fork() == 0) {
        /* writer */
 
@@ -201,7 +200,6 @@ static void test_io(void)
                    g_assert(memcmp(iov, siov, sizeof(*iov)*niov) == 0);
                    if (r >= 0) {
                        k += r;
-                       t += r;
                        usleep(g_test_rand_int_range(0, 30));
                    } else if (errno == EAGAIN) {
                        select(sv[1]+1, NULL, &fds, NULL, NULL);
@@ -238,7 +236,6 @@ static void test_io(void)
                    g_assert(memcmp(iov, siov, sizeof(*iov)*niov) == 0);
                    if (r > 0) {
                        k += r;
-                       t += r;
                    } else if (!r) {
                        if (s) {
                            break;
