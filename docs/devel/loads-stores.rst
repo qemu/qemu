@@ -68,15 +68,19 @@ Regexes for git grep
  - ``\<ldn_\([hbl]e\)?_p\>``
  - ``\<stn_\([hbl]e\)?_p\>``
 
-``cpu_{ld,st}*_mmuidx_ra``
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+``cpu_{ld,st}*_mmu``
+~~~~~~~~~~~~~~~~~~~~
 
-These functions operate on a guest virtual address plus a context,
-known as a "mmu index" or ``mmuidx``, which controls how that virtual
-address is translated.  The meaning of the indexes are target specific,
-but specifying a particular index might be necessary if, for instance,
-the helper requires an "always as non-privileged" access rather that
-the default access for the current state of the guest CPU.
+These functions operate on a guest virtual address, plus a context
+known as a "mmu index" which controls how that virtual address is
+translated, plus a ``MemOp`` which contains alignment requirements
+among other things.  The ``MemOp`` and mmu index are combined into
+a single argument of type ``MemOpIdx``.
+
+The meaning of the indexes are target specific, but specifying a
+particular index might be necessary if, for instance, the helper
+requires a "always as non-privileged" access rather than the
+default access for the current state of the guest CPU.
 
 These functions may cause a guest CPU exception to be taken
 (e.g. for an alignment fault or MMU fault) which will result in
@@ -96,6 +100,35 @@ function, which is a return address into the generated code [#gpc]_.
           ``HELPER(foo)`` will cause unexpected behavior. Instead, the
           value of ``GETPC()`` should be read from the helper and passed
           if needed to the functions that the helper calls.
+
+Function names follow the pattern:
+
+load: ``cpu_ld{size}{end}_mmu(env, ptr, oi, retaddr)``
+
+store: ``cpu_st{size}{end}_mmu(env, ptr, val, oi, retaddr)``
+
+``size``
+ - ``b`` : 8 bits
+ - ``w`` : 16 bits
+ - ``l`` : 32 bits
+ - ``q`` : 64 bits
+
+``end``
+ - (empty) : for target endian, or 8 bit sizes
+ - ``_be`` : big endian
+ - ``_le`` : little endian
+
+Regexes for git grep:
+ - ``\<cpu_ld[bwlq](_[bl]e)\?_mmu\>``
+ - ``\<cpu_st[bwlq](_[bl]e)\?_mmu\>``
+
+
+``cpu_{ld,st}*_mmuidx_ra``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+These functions work like the ``cpu_{ld,st}_mmu`` functions except
+that the ``mmuidx`` parameter is not combined with a ``MemOp``,
+and therefore there is no required alignment supplied or enforced.
 
 Function names follow the pattern:
 
@@ -132,7 +165,8 @@ of the guest CPU, as determined by ``cpu_mmu_index(env, false)``.
 
 These are generally the preferred way to do accesses by guest
 virtual address from helper functions, unless the access should
-be performed with a context other than the default.
+be performed with a context other than the default, or alignment
+should be enforced for the access.
 
 Function names follow the pattern:
 
