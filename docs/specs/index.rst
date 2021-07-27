@@ -15,3 +15,4 @@ guest hardware that is specific to QEMU.
    acpi_hest_ghes
    acpi_cpu_hotplug
    acpi_mem_hotplug
+   acpi_pci_hotplug
