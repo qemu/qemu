@@ -2261,12 +2261,12 @@ static bool trans_MSA(DisasContext *ctx, arg_MSA *a)
     return true;
 }
 
-static bool trans_LSA(DisasContext *ctx, arg_rtype *a)
+static bool trans_LSA(DisasContext *ctx, arg_r *a)
 {
     return gen_lsa(ctx, a->rd, a->rt, a->rs, a->sa);
 }
 
-static bool trans_DLSA(DisasContext *ctx, arg_rtype *a)
+static bool trans_DLSA(DisasContext *ctx, arg_r *a)
 {
     if (TARGET_LONG_BITS != 64) {
         return false;

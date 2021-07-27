@@ -11,20 +11,20 @@
 # when creating helpers common to those for the individual
 # instruction patterns.
 
-&rtype           rs rt rd sa
+&r               rs rt rd sa
 
-&itype           base rt offset
+&i               base rt offset
 
 ###########################################################################
 # Named instruction formats.  These are generally used to
 # reduce the amount of duplication between instruction patterns.
 
-@rs_rt_rd       ...... rs:5  rt:5  rd:5  ..... ......   &rtype sa=0
-@rt_rd          ...... ..... rt:5  rd:5  ..... ......   &rtype rs=0 sa=0
-@rs             ...... rs:5  ..... ..........  ......   &rtype rt=0 rd=0 sa=0
-@rd             ...... ..........  rd:5  ..... ......   &rtype rs=0 rt=0 sa=0
+@rs_rt_rd       ...... rs:5  rt:5  rd:5  ..... ......   &r sa=0
+@rt_rd          ...... ..... rt:5  rd:5  ..... ......   &r sa=0 rs=0
+@rs             ...... rs:5  ..... ..........  ......   &r sa=0      rt=0 rd=0
+@rd             ...... ..........  rd:5  ..... ......   &r sa=0 rs=0 rt=0
 
-@ldst            ...... base:5 rt:5 offset:16            &itype
+@ldst            ...... base:5 rt:5 offset:16           &i
 
 ###########################################################################
 
