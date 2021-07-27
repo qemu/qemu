@@ -269,32 +269,77 @@ void *g_try_realloc_n(void *ptr, size_t nmemb, size_t size)
 
 void *g_malloc(size_t size)
 {
-    return g_malloc_n(1, size);
+    void *ptr;
+
+    __coverity_negative_sink__(size);
+    ptr = __coverity_alloc__(size);
+    if (!ptr) {
+        __coverity_panic__();
+    }
+    __coverity_mark_as_uninitialized_buffer__(ptr);
+    __coverity_mark_as_afm_allocated__(ptr, AFM_free);
+    return ptr;
 }
 
 void *g_malloc0(size_t size)
 {
-    return g_malloc0_n(1, size);
+    void *ptr;
+
+    __coverity_negative_sink__(size);
+    ptr = __coverity_alloc__(size);
+    if (!ptr) {
+        __coverity_panic__();
+    }
+    __coverity_writeall0__(ptr);
+    __coverity_mark_as_afm_allocated__(ptr, AFM_free);
+    return ptr;
 }
 
 void *g_realloc(void *ptr, size_t size)
 {
-    return g_realloc_n(ptr, 1, size);
+    __coverity_negative_sink__(size);
+    __coverity_escape__(ptr);
+    ptr = __coverity_alloc__(size);
+    if (!ptr) {
+        __coverity_panic__();
+    }
+    /*
+     * Memory beyond the old size isn't actually initialized.  Can't
+     * model that.  See Coverity's realloc() model
+     */
+    __coverity_writeall__(ptr);
+    __coverity_mark_as_afm_allocated__(ptr, AFM_free);
+    return ptr;
 }
 
 void *g_try_malloc(size_t size)
 {
-    return g_try_malloc_n(1, size);
+    int nomem;
+
+    if (nomem) {
+        return NULL;
+    }
+    return g_malloc(size);
 }
 
 void *g_try_malloc0(size_t size)
 {
-    return g_try_malloc0_n(1, size);
+    int nomem;
+
+    if (nomem) {
+        return NULL;
+    }
+    return g_malloc0(size);
 }
 
 void *g_try_realloc(void *ptr, size_t size)
 {
-    return g_try_realloc_n(ptr, 1, size);
+    int nomem;
+
+    if (nomem) {
+        return NULL;
+    }
+    return g_realloc(ptr, size);
 }
 
 /* Other glib functions */
