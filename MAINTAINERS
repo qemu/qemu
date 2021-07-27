@@ -1751,6 +1751,10 @@ F: qapi/acpi.json
 F: tests/qtest/bios-tables-test*
 F: tests/qtest/acpi-utils.[hc]
 F: tests/data/acpi/
+F: docs/specs/acpi_cpu_hotplug.rst
+F: docs/specs/acpi_mem_hotplug.rst
+F: docs/specs/acpi_pci_hotplug.rst
+F: docs/specs/acpi_hw_reduced_hotplug.rst
 
 ACPI/HEST/GHES
 R: Dongjiu Geng <gengdongjiu1@gmail.com>
@@ -2057,6 +2061,7 @@ F: hw/acpi/nvdimm.c
 F: hw/mem/nvdimm.c
 F: include/hw/mem/nvdimm.h
 F: docs/nvdimm.txt
+F: docs/specs/acpi_nvdimm.rst
 
 e1000x
 M: Dmitry Fleytman <dmitry.fleytman@gmail.com>
