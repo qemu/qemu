@@ -45,9 +45,10 @@ typedef struct va_list_str *va_list;
 /* exec.c */
 
 typedef struct AddressSpace AddressSpace;
+typedef struct MemoryRegionCache MemoryRegionCache;
 typedef uint64_t hwaddr;
 typedef uint32_t MemTxResult;
-typedef uint64_t MemTxAttrs;
+typedef struct MemTxAttrs {} MemTxAttrs;
 
 static void __bufwrite(uint8_t *buf, ssize_t len)
 {
@@ -67,9 +68,40 @@ static void __bufread(uint8_t *buf, ssize_t len)
     int last = buf[len-1];
 }
 
+MemTxResult address_space_read_cached(MemoryRegionCache *cache, hwaddr addr,
+                                      MemTxAttrs attrs,
+                                      void *buf, int len)
+{
+    MemTxResult result;
+    // TODO: investigate impact of treating reads as producing
+    // tainted data, with __coverity_tainted_data_argument__(buf).
+    __bufwrite(buf, len);
+    return result;
+}
+
+MemTxResult address_space_write_cached(MemoryRegionCache *cache, hwaddr addr,
+                                MemTxAttrs attrs,
+                                const void *buf, int len)
+{
+    MemTxResult result;
+    __bufread(buf, len);
+    return result;
+}
+
+MemTxResult address_space_rw_cached(MemoryRegionCache *cache, hwaddr addr,
+                                    MemTxAttrs attrs,
+                                    void *buf, int len, bool is_write)
+{
+    if (is_write) {
+        return address_space_write_cached(cache, addr, attrs, buf, len);
+    } else {
+        return address_space_read_cached(cache, addr, attrs, buf, len);
+    }
+}
+
 MemTxResult address_space_read(AddressSpace *as, hwaddr addr,
                                MemTxAttrs attrs,
-                               uint8_t *buf, int len)
+                               void *buf, int len)
 {
     MemTxResult result;
     // TODO: investigate impact of treating reads as producing
@@ -80,13 +112,23 @@ MemTxResult address_space_read(AddressSpace *as, hwaddr addr,
 
 MemTxResult address_space_write(AddressSpace *as, hwaddr addr,
                                 MemTxAttrs attrs,
-                                const uint8_t *buf, int len)
+                                const void *buf, int len)
 {
     MemTxResult result;
     __bufread(buf, len);
     return result;
 }
 
+MemTxResult address_space_rw(AddressSpace *as, hwaddr addr,
+                             MemTxAttrs attrs,
+                             void *buf, int len, bool is_write)
+{
+    if (is_write) {
+        return address_space_write(as, addr, attrs, buf, len);
+    } else {
+        return address_space_read(as, addr, attrs, buf, len);
+    }
+}
 
 /* Tainting */
 
