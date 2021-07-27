@@ -1868,6 +1868,9 @@ static void gen_pool32axf_2_nanomips_insn(DisasContext *ctx, uint32_t opc,
                 TCGv_i32 t2 = tcg_temp_new_i32();
                 TCGv_i32 t3 = tcg_temp_new_i32();
 
+                if (acc || ctx->insn_flags & ISA_MIPS_R6) {
+                    check_dsp_r2(ctx);
+                }
                 gen_load_gpr(t0, rs);
                 gen_load_gpr(t1, rt);
                 tcg_gen_trunc_tl_i32(t2, t0);
@@ -1925,6 +1928,9 @@ static void gen_pool32axf_2_nanomips_insn(DisasContext *ctx, uint32_t opc,
                 TCGv_i32 t2 = tcg_temp_new_i32();
                 TCGv_i32 t3 = tcg_temp_new_i32();
 
+                if (acc || ctx->insn_flags & ISA_MIPS_R6) {
+                    check_dsp_r2(ctx);
+                }
                 gen_load_gpr(t0, rs);
                 gen_load_gpr(t1, rt);
                 tcg_gen_trunc_tl_i32(t2, t0);
