@@ -45,8 +45,4 @@
 
         (qemu) object_del barrier0
         (qemu) object_add input-barrier,id=barrier0,name=VM-1
-* TO DO
-
-    - Enable SSL
-    - Manage SetOptions/ResetOptions commands
 
