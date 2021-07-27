@@ -107,13 +107,6 @@ static int channel_close(void *opaque, Error **errp)
     int ret;
     QIOChannel *ioc = QIO_CHANNEL(opaque);
     ret = qio_channel_close(ioc, errp);
-    if ((object_dynamic_cast(OBJECT(ioc), TYPE_QIO_CHANNEL_SOCKET) ||
-         object_dynamic_cast(OBJECT(ioc), TYPE_QIO_CHANNEL_TLS))
-        && OBJECT(ioc)->ref == 1) {
-        yank_unregister_function(MIGRATION_YANK_INSTANCE,
-                                 migration_yank_iochannel,
-                                 QIO_CHANNEL(ioc));
-    }
     object_unref(OBJECT(ioc));
     return ret;
 }
@@ -191,11 +184,11 @@ static const QEMUFileOps channel_output_ops = {
 QEMUFile *qemu_fopen_channel_input(QIOChannel *ioc)
 {
     object_ref(OBJECT(ioc));
-    return qemu_fopen_ops(ioc, &channel_input_ops);
+    return qemu_fopen_ops(ioc, &channel_input_ops, true);
 }
 
 QEMUFile *qemu_fopen_channel_output(QIOChannel *ioc)
 {
     object_ref(OBJECT(ioc));
-    return qemu_fopen_ops(ioc, &channel_output_ops);
+    return qemu_fopen_ops(ioc, &channel_output_ops, true);
 }

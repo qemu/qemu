@@ -65,6 +65,7 @@
 #include "qemu/bitmap.h"
 #include "net/announce.h"
 #include "qemu/yank.h"
+#include "yank_functions.h"
 
 const unsigned int postcopy_ram_discard_version;
 
@@ -168,9 +169,9 @@ static const QEMUFileOps bdrv_write_ops = {
 static QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int is_writable)
 {
     if (is_writable) {
-        return qemu_fopen_ops(bs, &bdrv_write_ops);
+        return qemu_fopen_ops(bs, &bdrv_write_ops, false);
     }
-    return qemu_fopen_ops(bs, &bdrv_read_ops);
+    return qemu_fopen_ops(bs, &bdrv_read_ops, false);
 }
 
 
@@ -2567,6 +2568,12 @@ static bool postcopy_pause_incoming(MigrationIncomingState *mis)
 
     /* Clear the triggered bit to allow one recovery */
     mis->postcopy_recover_triggered = false;
+
+    /*
+     * Unregister yank with either from/to src would work, since ioc behind it
+     * is the same
+     */
+    migration_ioc_unregister_yank_from_file(mis->from_src_file);
 
     assert(mis->from_src_file);
     qemu_file_shutdown(mis->from_src_file);

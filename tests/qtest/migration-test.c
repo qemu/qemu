@@ -787,10 +787,10 @@ static void test_baddest(void)
 
     args->hide_stderr = true;
 
-    if (test_migrate_start(&from, &to, "tcp:0:0", args)) {
+    if (test_migrate_start(&from, &to, "tcp:127.0.0.1:0", args)) {
         return;
     }
-    migrate_qmp(from, "tcp:0:0", "{}");
+    migrate_qmp(from, "tcp:127.0.0.1:0", "{}");
     wait_for_migration_fail(from, false);
     test_migrate_end(from, to, false);
 }

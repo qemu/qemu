@@ -55,6 +55,8 @@ struct QEMUFile {
     Error *last_error_obj;
     /* has the file has been shutdown */
     bool shutdown;
+    /* Whether opaque points to a QIOChannel */
+    bool has_ioc;
 };
 
 /*
@@ -101,7 +103,7 @@ bool qemu_file_mode_is_not_valid(const char *mode)
     return false;
 }
 
-QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops)
+QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops, bool has_ioc)
 {
     QEMUFile *f;
 
@@ -109,6 +111,7 @@ QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops)
 
     f->opaque = opaque;
     f->ops = ops;
+    f->has_ioc = has_ioc;
     return f;
 }
 
@@ -850,4 +853,16 @@ void qemu_file_set_blocking(QEMUFile *f, bool block)
     if (f->ops->set_blocking) {
         f->ops->set_blocking(f->opaque, block, NULL);
     }
+}
+
+/*
+ * Return the ioc object if it's a migration channel.  Note: it can return NULL
+ * for callers passing in a non-migration qemufile.  E.g. see qemu_fopen_bdrv()
+ * and its usage in e.g. load_snapshot().  So we need to check against NULL
+ * before using it.  If without the check, migration_incoming_state_destroy()
+ * could fail for load_snapshot().
+ */
+QIOChannel *qemu_file_get_ioc(QEMUFile *file)
+{
+    return file->has_ioc ? QIO_CHANNEL(file->opaque) : NULL;
 }

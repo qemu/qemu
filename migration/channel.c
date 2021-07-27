@@ -44,13 +44,7 @@ void migration_channel_process_incoming(QIOChannel *ioc)
                              TYPE_QIO_CHANNEL_TLS)) {
         migration_tls_channel_process_incoming(s, ioc, &local_err);
     } else {
-        if (object_dynamic_cast(OBJECT(ioc), TYPE_QIO_CHANNEL_SOCKET) ||
-            object_dynamic_cast(OBJECT(ioc), TYPE_QIO_CHANNEL_TLS)) {
-            yank_register_function(MIGRATION_YANK_INSTANCE,
-                                   migration_yank_iochannel,
-                                   QIO_CHANNEL(ioc));
-        }
-
+        migration_ioc_register_yank(ioc);
         migration_ioc_process_incoming(ioc, &local_err);
     }
 
@@ -94,12 +88,7 @@ void migration_channel_connect(MigrationState *s,
         } else {
             QEMUFile *f = qemu_fopen_channel_output(ioc);
 
-            if (object_dynamic_cast(OBJECT(ioc), TYPE_QIO_CHANNEL_SOCKET) ||
-                object_dynamic_cast(OBJECT(ioc), TYPE_QIO_CHANNEL_TLS)) {
-                yank_register_function(MIGRATION_YANK_INSTANCE,
-                                       migration_yank_iochannel,
-                                       QIO_CHANNEL(ioc));
-            }
+            migration_ioc_register_yank(ioc);
 
             qemu_mutex_lock(&s->qemu_file_lock);
             s->to_dst_file = f;
