@@ -20,6 +20,7 @@ or Hypervisor.Framework.
    linuxboot
    generic-loader
    guest-loader
+   barrier
    vnc-security
    tls
    secrets
