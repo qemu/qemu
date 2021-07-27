@@ -186,7 +186,7 @@ void *g_malloc_n(size_t nmemb, size_t size)
     sz = nmemb * size;
     ptr = __coverity_alloc__(sz);
     __coverity_mark_as_uninitialized_buffer__(ptr);
-    __coverity_mark_as_afm_allocated__(ptr, "g_free");
+    __coverity_mark_as_afm_allocated__(ptr, AFM_free);
     return ptr;
 }
 
@@ -200,7 +200,7 @@ void *g_malloc0_n(size_t nmemb, size_t size)
     sz = nmemb * size;
     ptr = __coverity_alloc__(sz);
     __coverity_writeall0__(ptr);
-    __coverity_mark_as_afm_allocated__(ptr, "g_free");
+    __coverity_mark_as_afm_allocated__(ptr, AFM_free);
     return ptr;
 }
 
@@ -218,14 +218,14 @@ void *g_realloc_n(void *ptr, size_t nmemb, size_t size)
      * model that.  See Coverity's realloc() model
      */
     __coverity_writeall__(ptr);
-    __coverity_mark_as_afm_allocated__(ptr, "g_free");
+    __coverity_mark_as_afm_allocated__(ptr, AFM_free);
     return ptr;
 }
 
 void g_free(void *ptr)
 {
     __coverity_free__(ptr);
-    __coverity_mark_as_afm_freed__(ptr, "g_free");
+    __coverity_mark_as_afm_freed__(ptr, AFM_free);
 }
 
 /*
@@ -328,7 +328,7 @@ char *g_strdup(const char *s)
     __coverity_string_null_sink__(s);
     __coverity_string_size_sink__(s);
     dup = __coverity_alloc_nosize__();
-    __coverity_mark_as_afm_allocated__(dup, "g_free");
+    __coverity_mark_as_afm_allocated__(dup, AFM_free);
     for (i = 0; (dup[i] = s[i]); i++) ;
     return dup;
 }
@@ -362,7 +362,7 @@ char *g_strdup_printf(const char *format, ...)
 
     s = __coverity_alloc_nosize__();
     __coverity_writeall__(s);
-    __coverity_mark_as_afm_allocated__(s, "g_free");
+    __coverity_mark_as_afm_allocated__(s, AFM_free);
     return s;
 }
 
@@ -375,11 +375,10 @@ char *g_strdup_vprintf(const char *format, va_list ap)
     __coverity_string_size_sink__(format);
 
     ch = *format;
-    ch = *(char *)ap;
 
     s = __coverity_alloc_nosize__();
     __coverity_writeall__(s);
-    __coverity_mark_as_afm_allocated__(s, "g_free");
+    __coverity_mark_as_afm_allocated__(s, AFM_free);
 
     return len;
 }
@@ -395,7 +394,7 @@ char *g_strconcat(const char *s, ...)
 
     s = __coverity_alloc_nosize__();
     __coverity_writeall__(s);
-    __coverity_mark_as_afm_allocated__(s, "g_free");
+    __coverity_mark_as_afm_allocated__(s, AFM_free);
     return s;
 }
 
