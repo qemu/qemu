@@ -14,3 +14,4 @@ guest hardware that is specific to QEMU.
    tpm
    acpi_hest_ghes
    acpi_cpu_hotplug
+   acpi_mem_hotplug
