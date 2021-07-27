@@ -8,11 +8,11 @@
    - .gitlab-ci.d/edk2/Dockerfile
    # or roms/edk2/ is modified (submodule updated)
    - roms/edk2/*
-   when: always
+   when: on_success
  - if: '$CI_COMMIT_REF_NAME =~ /^edk2/' # or the branch/tag starts with 'edk2'
-   when: always
+   when: on_success
  - if: '$CI_COMMIT_MESSAGE =~ /edk2/i' # or last commit description contains 'EDK2'
-   when: always
+   when: on_success
 
 docker-edk2:
  extends: .edk2_job_rules
