@@ -112,25 +112,9 @@ static void acpi_dsdt_add_pci_osc(Aml *dev)
     UUID = aml_touuid("E5C937D0-3553-4D7A-9117-EA4D19C3434D");
     ifctx = aml_if(aml_equal(aml_arg(0), UUID));
     ifctx1 = aml_if(aml_equal(aml_arg(2), aml_int(0)));
-    uint8_t byte_list[] = {
-                0x1 << 0 /* support for functions other than function 0 */ |
-                0x1 << 5 /* support for function 5 */
-                };
-    buf = aml_buffer(ARRAY_SIZE(byte_list), byte_list);
+    uint8_t byte_list[1] = {1};
+    buf = aml_buffer(1, byte_list);
     aml_append(ifctx1, aml_return(buf));
-    aml_append(ifctx, ifctx1);
-
-    /*
-     * PCI Firmware Specification 3.1
-     * 4.6.5. _DSM for Ignoring PCI Boot Configurations
-     */
-    /* Arg2: Function Index: 5 */
-    ifctx1 = aml_if(aml_equal(aml_arg(2), aml_int(5)));
-    /*
-     * 0 - The operating system must not ignore the PCI configuration that
-     *     firmware has done at boot time.
-     */
-    aml_append(ifctx1, aml_return(aml_int(0)));
     aml_append(ifctx, ifctx1);
     aml_append(method, ifctx);
 
