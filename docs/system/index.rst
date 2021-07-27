@@ -26,6 +26,7 @@ or Hypervisor.Framework.
    authz
    gdb
    managed-startup
+   bootindex
    cpu-hotplug
    pr-manager
    targets
