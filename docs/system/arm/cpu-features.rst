@@ -376,3 +376,18 @@ verbose command lines.  However, the recommended way to select vector
 lengths is to explicitly enable each desired length.  Therefore only
 example's (1), (4), and (6) exhibit recommended uses of the properties.
 
+SVE User-mode Default Vector Length Property
+--------------------------------------------
+
+For qemu-aarch64, the cpu property ``sve-default-vector-length=N`` is
+defined to mirror the Linux kernel parameter file
+``/proc/sys/abi/sve_default_vector_length``.  The default length, ``N``,
+is in units of bytes and must be between 16 and 8192.
+If not specified, the default vector length is 64.
+
+If the default length is larger than the maximum vector length enabled,
+the actual vector length will be reduced.  Note that the maximum vector
+length supported by QEMU is 256.
+
+If this property is set to ``-1`` then the default vector length
+is set to the maximum possible length.

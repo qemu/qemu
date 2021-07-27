@@ -4110,7 +4110,7 @@ static const X86CPUDefinition builtin_x86_defs[] = {
  * none", but this is just for compatibility while libvirt isn't
  * adapted to resolve CPU model versions before creating VMs.
  * See "Runnability guarantee of CPU models" at
- * docs/system/deprecated.rst.
+ * docs/about/deprecated.rst.
  */
 X86CPUVersion default_cpu_version = 1;
 

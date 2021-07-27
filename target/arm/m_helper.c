@@ -1554,6 +1554,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
                     qemu_log_mask(CPU_LOG_INT, "...taking UsageFault on existing "
                         "stackframe: NSACR prevents clearing FPU registers\n");
                     v7m_exception_taken(cpu, excret, true, false);
+                    return;
                 } else if (!cpacr_pass) {
                     armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE,
                                             exc_secure);
@@ -1561,6 +1562,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
                     qemu_log_mask(CPU_LOG_INT, "...taking UsageFault on existing "
                         "stackframe: CPACR prevents clearing FPU registers\n");
                     v7m_exception_taken(cpu, excret, true, false);
+                    return;
                 }
             }
             /* Clear s0..s15, FPSCR and VPR */
@@ -2246,6 +2248,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
         env->v7m.sfsr |= R_V7M_SFSR_LSERR_MASK;
         break;
     case EXCP_UNALIGNED:
+        /* Unaligned faults reported by M-profile aware code */
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE, env->v7m.secure);
         env->v7m.cfsr[env->v7m.secure] |= R_V7M_CFSR_UNALIGNED_MASK;
         break;
@@ -2317,6 +2320,13 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
                 break;
             }
             armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_BUS, false);
+            break;
+        case 0x1: /* Alignment fault reported by generic code */
+            qemu_log_mask(CPU_LOG_INT,
+                          "...really UsageFault with UFSR.UNALIGNED\n");
+            env->v7m.cfsr[env->v7m.secure] |= R_V7M_CFSR_UNALIGNED_MASK;
+            armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE,
+                                    env->v7m.secure);
             break;
         default:
             /*
@@ -2563,13 +2573,13 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
             if (!env->v7m.secure) {
                 return;
             }
-            env->v7m.other_ss_msp = val;
+            env->v7m.other_ss_msp = val & ~3;
             return;
         case 0x89: /* PSP_NS */
             if (!env->v7m.secure) {
                 return;
             }
-            env->v7m.other_ss_psp = val;
+            env->v7m.other_ss_psp = val & ~3;
             return;
         case 0x8a: /* MSPLIM_NS */
             if (!env->v7m.secure) {
@@ -2638,6 +2648,8 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
 
             limit = is_psp ? env->v7m.psplim[false] : env->v7m.msplim[false];
 
+            val &= ~0x3;
+
             if (val < limit) {
                 raise_exception_ra(env, EXCP_STKOF, 0, 1, GETPC());
             }
@@ -2660,16 +2672,16 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
         break;
     case 8: /* MSP */
         if (v7m_using_psp(env)) {
-            env->v7m.other_sp = val;
+            env->v7m.other_sp = val & ~3;
         } else {
-            env->regs[13] = val;
+            env->regs[13] = val & ~3;
         }
         break;
     case 9: /* PSP */
         if (v7m_using_psp(env)) {
-            env->regs[13] = val;
+            env->regs[13] = val & ~3;
         } else {
-            env->v7m.other_sp = val;
+            env->v7m.other_sp = val & ~3;
         }
         break;
     case 10: /* MSPLIM */

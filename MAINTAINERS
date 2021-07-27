@@ -3439,7 +3439,7 @@ F: contrib/gitdm/*
 
 Incompatible changes
 R: libvir-list@redhat.com
-F: docs/system/deprecated.rst
+F: docs/about/deprecated.rst
 
 Build System
 ------------
