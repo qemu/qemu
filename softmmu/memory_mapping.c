@@ -193,29 +193,14 @@ typedef struct GuestPhysListener {
     MemoryListener listener;
 } GuestPhysListener;
 
-static void guest_phys_blocks_region_add(MemoryListener *listener,
+static void guest_phys_block_add_section(GuestPhysListener *g,
                                          MemoryRegionSection *section)
 {
-    GuestPhysListener *g;
-    uint64_t section_size;
-    hwaddr target_start, target_end;
-    uint8_t *host_addr;
-    GuestPhysBlock *predecessor;
-
-    /* we only care about RAM */
-    if (!memory_region_is_ram(section->mr) ||
-        memory_region_is_ram_device(section->mr) ||
-        memory_region_is_nonvolatile(section->mr)) {
-        return;
-    }
-
-    g            = container_of(listener, GuestPhysListener, listener);
-    section_size = int128_get64(section->size);
-    target_start = section->offset_within_address_space;
-    target_end   = target_start + section_size;
-    host_addr    = memory_region_get_ram_ptr(section->mr) +
-                   section->offset_within_region;
-    predecessor  = NULL;
+    const hwaddr target_start = section->offset_within_address_space;
+    const hwaddr target_end = target_start + int128_get64(section->size);
+    uint8_t *host_addr = memory_region_get_ram_ptr(section->mr) +
+                         section->offset_within_region;
+    GuestPhysBlock *predecessor = NULL;
 
     /* find continuity in guest physical address space */
     if (!QTAILQ_EMPTY(&g->list->head)) {
@@ -259,6 +244,20 @@ static void guest_phys_blocks_region_add(MemoryListener *listener,
             TARGET_FMT_plx ": %s (count: %u)\n", __func__, target_start,
             target_end, predecessor ? "joined" : "added", g->list->num);
 #endif
+}
+
+static void guest_phys_blocks_region_add(MemoryListener *listener,
+                                         MemoryRegionSection *section)
+{
+    GuestPhysListener *g = container_of(listener, GuestPhysListener, listener);
+
+    /* we only care about RAM */
+    if (!memory_region_is_ram(section->mr) ||
+        memory_region_is_ram_device(section->mr) ||
+        memory_region_is_nonvolatile(section->mr)) {
+        return;
+    }
+    guest_phys_block_add_section(g, section);
 }
 
 void guest_phys_blocks_append(GuestPhysBlockList *list)
