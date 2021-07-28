@@ -199,6 +199,39 @@ option or the ``device_add`` monitor command. Available devices are:
 ``u2f-{emulated,passthru}``
    Universal Second Factor device
 
+Physical port addressing
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+For all the above USB devices, by default QEMU will plug the device
+into the next available port on the specified USB bus, or onto
+some available USB bus if you didn't specify one explicitly.
+If you need to, you can also specify the physical port where
+the device will show up in the guest.  This can be done using the
+``port`` property.  UHCI has two root ports (1,2).  EHCI has six root
+ports (1-6), and the emulated (1.1) USB hub has eight ports.
+
+Plugging a tablet into UHCI port 1 works like this::
+
+        -device usb-tablet,bus=usb-bus.0,port=1
+
+Plugging a hub into UHCI port 2 works like this::
+
+        -device usb-hub,bus=usb-bus.0,port=2
+
+Plugging a virtual USB stick into port 4 of the hub just plugged works
+this way::
+
+        -device usb-storage,bus=usb-bus.0,port=2.4,drive=...
+
+In the monitor, the ``device_add` command also accepts a ``port``
+property specification. If you want to unplug devices too you should
+specify some unique id which you can use to refer to the device.
+You can then use ``device_del`` to unplug the device later.
+For example::
+
+        (qemu) device_add usb-tablet,bus=usb-bus.0,port=1,id=my-tablet
+        (qemu) device_del my-tablet
+
 Hotplugging USB storage
 ~~~~~~~~~~~~~~~~~~~~~~~
 
