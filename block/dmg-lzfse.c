@@ -40,8 +40,7 @@ static int dmg_uncompress_lzfse_do(char *next_in, unsigned int avail_in,
     return -1;
 }
 
-__attribute__((constructor))
-static void dmg_lzfse_init(void)
+static void __attribute__((constructor)) dmg_lzfse_init(void)
 {
     assert(!dmg_uncompress_lzfse);
     dmg_uncompress_lzfse = dmg_uncompress_lzfse_do;
