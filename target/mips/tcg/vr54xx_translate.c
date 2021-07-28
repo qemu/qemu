@@ -25,6 +25,12 @@
  * MACCHI       Multiply, accumulate, and move HI
  * MACCHIU      Unsigned multiply, accumulate, and move HI
  * MACCU        Unsigned multiply, accumulate, and move LO
+ * MULHI        Multiply and move HI
+ * MULHIU       Unsigned multiply and move HI
+ * MULS         Multiply, negate, and move LO
+ * MULSHI       Multiply, negate, and move HI
+ * MULSHIU      Unsigned multiply, negate, and move HI
+ * MULSU        Unsigned multiply, negate, and move LO
  */
 
 static bool trans_mult_acc(DisasContext *ctx, arg_r *a,
@@ -50,3 +56,9 @@ TRANS(MACC,     trans_mult_acc, gen_helper_macc);
 TRANS(MACCHI,   trans_mult_acc, gen_helper_macchi);
 TRANS(MACCHIU,  trans_mult_acc, gen_helper_macchiu);
 TRANS(MACCU,    trans_mult_acc, gen_helper_maccu);
+TRANS(MULHI,    trans_mult_acc, gen_helper_mulhi);
+TRANS(MULHIU,   trans_mult_acc, gen_helper_mulhiu);
+TRANS(MULS,     trans_mult_acc, gen_helper_muls);
+TRANS(MULSHI,   trans_mult_acc, gen_helper_mulshi);
+TRANS(MULSHIU,  trans_mult_acc, gen_helper_mulshiu);
+TRANS(MULSU,    trans_mult_acc, gen_helper_mulsu);
