@@ -28,17 +28,46 @@ option or the ``device_add`` monitor command. Available devices are:
 
 ``usb-storage,drive=drive_id``
    Mass storage device backed by drive_id (see the :ref:`disk images`
-   chapter in the System Emulation Users Guide)
+   chapter in the System Emulation Users Guide). This is the classic
+   bulk-only transport protocol used by 99% of USB sticks. This
+   example shows it connected to an XHCI USB controller and with
+   a drive backed by a raw format disk image:
+
+   .. parsed-literal::
+
+       |qemu_system| [...]                                   \\
+        -drive if=none,id=stick,format=raw,file=/path/to/file.img \\
+        -device nec-usb-xhci,id=xhci                              \\
+        -device usb-storage,bus=xhci.0,drive=stick
 
 ``usb-uas``
-   USB attached SCSI device, see
-   `usb-storage.txt <https://git.qemu.org/?p=qemu.git;a=blob_plain;f=docs/usb-storage.txt>`__
-   for details
+   USB attached SCSI device. This does not create a SCSI disk, so
+   you need to explicitly create a ``scsi-hd`` or ``scsi-cd`` device
+   on the command line, as well as using the ``-drive`` option to
+   specify what those disks are backed by. One ``usb-uas`` device can
+   handle multiple logical units (disks). This example creates three
+   logical units: two disks and one cdrom drive:
+
+   .. parsed-literal::
+
+      |qemu_system| [...]                                         \\
+       -drive if=none,id=uas-disk1,format=raw,file=/path/to/file1.img  \\
+       -drive if=none,id=uas-disk2,format=raw,file=/path/to/file2.img  \\
+       -drive if=none,id=uas-cdrom,media=cdrom,format=raw,file=/path/to/image.iso \\
+       -device nec-usb-xhci,id=xhci                                    \\
+       -device usb-uas,id=uas,bus=xhci.0                               \\
+       -device scsi-hd,bus=uas.0,scsi-id=0,lun=0,drive=uas-disk1       \\
+       -device scsi-hd,bus=uas.0,scsi-id=0,lun=1,drive=uas-disk2       \\
+       -device scsi-cd,bus=uas.0,scsi-id=0,lun=5,drive=uas-cdrom
 
 ``usb-bot``
-   Bulk-only transport storage device, see
-   `usb-storage.txt <https://git.qemu.org/?p=qemu.git;a=blob_plain;f=docs/usb-storage.txt>`__
-   for details here, too
+   Bulk-only transport storage device. This presents the guest with the
+   same USB bulk-only transport protocol interface as ``usb-storage``, but
+   the QEMU command line option works like ``usb-uas`` and does not
+   automatically create SCSI disks for you. ``usb-bot`` supports up to
+   16 LUNs. Unlike ``usb-uas``, the LUN numbers must be continuous,
+   i.e. for three devices you must use 0+1+2. The 0+1+5 numbering from the
+   ``usb-uas`` example above won't work with ``usb-bot``.
 
 ``usb-mtp,rootdir=dir``
    Media transfer protocol device, using dir as root of the file tree
@@ -83,6 +112,20 @@ option or the ``device_add`` monitor command. Available devices are:
 
 ``u2f-{emulated,passthru}``
    Universal Second Factor device
+
+Hotplugging USB storage
+~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``usb-bot`` and ``usb-uas`` devices can be hotplugged.  In the hotplug
+case they are added with ``attached = false`` so the guest will not see
+the device until the ``attached`` property is explicitly set to true.
+That allows you to attach one or more scsi devices before making the
+device visible to the guest. The workflow looks like this:
+
+#. ``device-add usb-bot,id=foo``
+#. ``device-add scsi-{hd,cd},bus=foo.0,lun=0``
+#. optionally add more devices (luns 1 ... 15)
+#. ``scripts/qmp/qom-set foo.attached = true``
 
 .. _host_005fusb_005fdevices:
 
