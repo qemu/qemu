@@ -1837,7 +1837,6 @@ F: hw/usb/*
 F: stubs/usb-dev-stub.c
 F: tests/qtest/usb-*-test.c
 F: docs/system/devices/usb.rst
-F: docs/usb-storage.txt
 F: include/hw/usb.h
 F: include/hw/usb/
 

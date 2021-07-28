@@ -300,3 +300,52 @@ are not supported yet.
 
 When relaunching QEMU, you may have to unplug and plug again the USB
 device to make it work again (this is a bug).
+
+``usb-host`` properties for specifying the host device
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The example above uses the ``vendorid`` and ``productid`` to
+specify which host device to pass through, but this is not
+the only way to specify the host device. ``usb-host`` supports
+the following properties:
+
+``hostbus=<nr>``
+  Specifies the bus number the device must be attached to
+``hostaddr=<nr>``
+  Specifies the device address the device got assigned by the guest os
+``hostport=<str>``
+  Specifies the physical port the device is attached to
+``vendorid=<hexnr>``
+  Specifies the vendor ID of the device
+``productid=<hexnr>``
+  Specifies the product ID of the device.
+
+In theory you can combine all these properties as you like.  In
+practice only a few combinations are useful:
+
+- ``vendorid`` and ``productid`` -- match for a specific device, pass it to
+  the guest when it shows up somewhere in the host.
+
+- ``hostbus`` and ``hostport`` -- match for a specific physical port in the
+  host, any device which is plugged in there gets passed to the
+  guest.
+
+- ``hostbus`` and ``hostaddr`` -- most useful for ad-hoc pass through as the
+  hostaddr isn't stable. The next time you plug the device into the host it
+  will get a new hostaddr.
+
+Note that on the host USB 1.1 devices are handled by UHCI/OHCI and USB
+2.0 by EHCI.  That means different USB devices plugged into the very
+same physical port on the host may show up on different host buses
+depending on the speed. Supposing that devices plugged into a given
+physical port appear as bus 1 + port 1 for 2.0 devices and bus 3 + port 1
+for 1.1 devices, you can pass through any device plugged into that port
+and also assign it to the correct USB bus in QEMU like this:
+
+.. parsed-literal::
+
+   |qemu_system| -M pc [...]                            \\
+        -usb                                                 \\
+        -device usb-ehci,id=ehci                             \\
+        -device usb-host,bus=usb-bus.0,hostbus=3,hostport=1  \\
+        -device usb-host,bus=ehci.0,hostbus=1,hostport=1
