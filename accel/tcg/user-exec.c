@@ -27,6 +27,7 @@
 #include "exec/helper-proto.h"
 #include "qemu/atomic128.h"
 #include "trace/trace-root.h"
+#include "tcg/tcg-ldst.h"
 #include "internal.h"
 
 __thread uintptr_t helper_retaddr;
@@ -213,6 +214,16 @@ static void validate_memop(MemOpIdx oi, MemOp expected)
     MemOp have = get_memop(oi) & (MO_SIZE | MO_BSWAP);
     assert(have == expected);
 #endif
+}
+
+void helper_unaligned_ld(CPUArchState *env, target_ulong addr)
+{
+    cpu_loop_exit_sigbus(env_cpu(env), addr, MMU_DATA_LOAD, GETPC());
+}
+
+void helper_unaligned_st(CPUArchState *env, target_ulong addr)
+{
+    cpu_loop_exit_sigbus(env_cpu(env), addr, MMU_DATA_STORE, GETPC());
 }
 
 static void *cpu_mmu_lookup(CPUArchState *env, target_ulong addr,
