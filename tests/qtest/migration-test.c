@@ -27,7 +27,8 @@
 #include "migration-helpers.h"
 #include "tests/migration/migration-test.h"
 
-#if defined(__linux__)
+/* For dirty ring test; so far only x86_64 is supported */
+#if defined(__linux__) && defined(HOST_X86_64)
 #include "linux/kvm.h"
 #endif
 
@@ -1395,7 +1396,7 @@ static void test_multifd_tcp_cancel(void)
 
 static bool kvm_dirty_ring_supported(void)
 {
-#if defined(__linux__)
+#if defined(__linux__) && defined(HOST_X86_64)
     int ret, kvm_fd = open("/dev/kvm", O_RDONLY);
 
     if (kvm_fd < 0) {
