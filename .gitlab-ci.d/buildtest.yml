@@ -416,6 +416,12 @@ build-cfi-aarch64:
     expire_in: 2 days
     paths:
       - build
+  rules:
+    # FIXME: This job is often failing, likely due to out-of-memory problems in
+    # the constrained containers of the shared runners. Thus this is marked as
+    # manual until the situation has been solved.
+    - when: manual
+      allow_failure: true
 
 check-cfi-aarch64:
   extends: .native_test_job_template
@@ -452,6 +458,12 @@ build-cfi-ppc64-s390x:
     expire_in: 2 days
     paths:
       - build
+  rules:
+    # FIXME: This job is often failing, likely due to out-of-memory problems in
+    # the constrained containers of the shared runners. Thus this is marked as
+    # manual until the situation has been solved.
+    - when: manual
+      allow_failure: true
 
 check-cfi-ppc64-s390x:
   extends: .native_test_job_template
