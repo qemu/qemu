@@ -25,6 +25,10 @@
  * MACCHI       Multiply, accumulate, and move HI
  * MACCHIU      Unsigned multiply, accumulate, and move HI
  * MACCU        Unsigned multiply, accumulate, and move LO
+ * MSAC         Multiply, negate, accumulate, and move LO
+ * MSACHI       Multiply, negate, accumulate, and move HI
+ * MSACHIU      Unsigned multiply, negate, accumulate, and move HI
+ * MSACU        Unsigned multiply, negate, accumulate, and move LO
  * MULHI        Multiply and move HI
  * MULHIU       Unsigned multiply and move HI
  * MULS         Multiply, negate, and move LO
@@ -56,6 +60,10 @@ TRANS(MACC,     trans_mult_acc, gen_helper_macc);
 TRANS(MACCHI,   trans_mult_acc, gen_helper_macchi);
 TRANS(MACCHIU,  trans_mult_acc, gen_helper_macchiu);
 TRANS(MACCU,    trans_mult_acc, gen_helper_maccu);
+TRANS(MSAC,     trans_mult_acc, gen_helper_msac);
+TRANS(MSACHI,   trans_mult_acc, gen_helper_msachi);
+TRANS(MSACHIU,  trans_mult_acc, gen_helper_msachiu);
+TRANS(MSACU,    trans_mult_acc, gen_helper_msacu);
 TRANS(MULHI,    trans_mult_acc, gen_helper_mulhi);
 TRANS(MULHIU,   trans_mult_acc, gen_helper_mulhiu);
 TRANS(MULS,     trans_mult_acc, gen_helper_muls);

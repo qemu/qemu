@@ -294,16 +294,6 @@ enum {
     R6_OPC_SDBBP    = 0x0e | OPC_SPECIAL,
 };
 
-/* Multiplication variants of the vr54xx. */
-#define MASK_MUL_VR54XX(op)         (MASK_SPECIAL(op) | (op & (0x1F << 6)))
-
-enum {
-    OPC_VR54XX_MSAC    = (0x07 << 6) | OPC_MULT,
-    OPC_VR54XX_MSACU   = (0x07 << 6) | OPC_MULTU,
-    OPC_VR54XX_MSACHI  = (0x0F << 6) | OPC_MULT,
-    OPC_VR54XX_MSACHIU = (0x0F << 6) | OPC_MULTU,
-};
-
 /* REGIMM (rt field) opcodes */
 #define MASK_REGIMM(op)             (MASK_OP_MAJOR(op) | (op & (0x1F << 16)))
 
@@ -3748,40 +3738,6 @@ static void gen_mul_txx9(DisasContext *ctx, uint32_t opc,
         gen_reserved_instruction(ctx);
         goto out;
     }
-
- out:
-    tcg_temp_free(t0);
-    tcg_temp_free(t1);
-}
-
-static void gen_mul_vr54xx(DisasContext *ctx, uint32_t opc,
-                           int rd, int rs, int rt)
-{
-    TCGv t0 = tcg_temp_new();
-    TCGv t1 = tcg_temp_new();
-
-    gen_load_gpr(t0, rs);
-    gen_load_gpr(t1, rt);
-
-    switch (opc) {
-    case OPC_VR54XX_MSAC:
-        gen_helper_msac(t0, cpu_env, t0, t1);
-        break;
-    case OPC_VR54XX_MSACU:
-        gen_helper_msacu(t0, cpu_env, t0, t1);
-        break;
-    case OPC_VR54XX_MSACHI:
-        gen_helper_msachi(t0, cpu_env, t0, t1);
-        break;
-    case OPC_VR54XX_MSACHIU:
-        gen_helper_msachiu(t0, cpu_env, t0, t1);
-        break;
-    default:
-        MIPS_INVAL("mul vr54xx");
-        gen_reserved_instruction(ctx);
-        goto out;
-    }
-    gen_store_gpr(t0, rd);
 
  out:
     tcg_temp_free(t0);
@@ -14104,13 +14060,12 @@ static void decode_opc_special_tx79(CPUMIPSState *env, DisasContext *ctx)
 
 static void decode_opc_special_legacy(CPUMIPSState *env, DisasContext *ctx)
 {
-    int rs, rt, rd, sa;
+    int rs, rt, rd;
     uint32_t op1;
 
     rs = (ctx->opcode >> 21) & 0x1f;
     rt = (ctx->opcode >> 16) & 0x1f;
     rd = (ctx->opcode >> 11) & 0x1f;
-    sa = (ctx->opcode >> 6) & 0x1f;
 
     op1 = MASK_SPECIAL(ctx->opcode);
     switch (op1) {
@@ -14140,13 +14095,7 @@ static void decode_opc_special_legacy(CPUMIPSState *env, DisasContext *ctx)
         break;
     case OPC_MULT:
     case OPC_MULTU:
-        if (sa) {
-            check_insn(ctx, INSN_VR54XX);
-            op1 = MASK_MUL_VR54XX(ctx->opcode);
-            gen_mul_vr54xx(ctx, op1, rd, rs, rt);
-        } else {
-            gen_muldiv(ctx, op1, rd & 3, rs, rt);
-        }
+        gen_muldiv(ctx, op1, rd & 3, rs, rt);
         break;
     case OPC_DIV:
     case OPC_DIVU:
