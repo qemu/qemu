@@ -3178,6 +3178,7 @@ F: block/null.c
 NVMe Block Driver
 M: Stefan Hajnoczi <stefanha@redhat.com>
 R: Fam Zheng <fam@euphon.net>
+R: Philippe Mathieu-Daudé <philmd@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/nvme*
