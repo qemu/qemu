@@ -24,7 +24,8 @@ ubuntu-18.04-s390x-all-linux-static:
  - ubuntu_18.04
  - s390x
  rules:
- - if: '$CI_COMMIT_BRANCH =~ /^staging/'
+ - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+ - if: "$S390X_RUNNER_AVAILABLE"
  script:
  # --disable-libssh is needed because of https://bugs.launchpad.net/qemu/+bug/1838763
  # --disable-glusterfs is needed because there's no static version of those libs in distro supplied packages
@@ -43,7 +44,8 @@ ubuntu-18.04-s390x-all:
  - ubuntu_18.04
  - s390x
  rules:
- - if: '$CI_COMMIT_BRANCH =~ /^staging/'
+ - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+ - if: "$S390X_RUNNER_AVAILABLE"
  script:
  - mkdir build
  - cd build
@@ -59,7 +61,8 @@ ubuntu-18.04-s390x-alldbg:
  - ubuntu_18.04
  - s390x
  rules:
- - if: '$CI_COMMIT_BRANCH =~ /^staging/'
+ - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+ - if: "$S390X_RUNNER_AVAILABLE"
  script:
  - mkdir build
  - cd build
@@ -76,7 +79,9 @@ ubuntu-18.04-s390x-clang:
  - ubuntu_18.04
  - s390x
  rules:
- - if: '$CI_COMMIT_BRANCH =~ /^staging/'
+ - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+   when: manual
+ - if: "$S390X_RUNNER_AVAILABLE"
    when: manual
  script:
  - mkdir build
@@ -93,7 +98,8 @@ ubuntu-18.04-s390x-tci:
  - ubuntu_18.04
  - s390x
  rules:
- - if: '$CI_COMMIT_BRANCH =~ /^staging/'
+ - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+ - if: "$S390X_RUNNER_AVAILABLE"
  script:
  - mkdir build
  - cd build
@@ -108,7 +114,9 @@ ubuntu-18.04-s390x-notcg:
  - ubuntu_18.04
  - s390x
  rules:
- - if: '$CI_COMMIT_BRANCH =~ /^staging/'
+ - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+   when: manual
+ - if: "$S390X_RUNNER_AVAILABLE"
    when: manual
  script:
  - mkdir build
@@ -128,7 +136,8 @@ ubuntu-20.04-aarch64-all-linux-static:
  - ubuntu_20.04
  - aarch64
  rules:
- - if: '$CI_COMMIT_BRANCH =~ /^staging/'
+ - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+ - if: "$S390X_RUNNER_AVAILABLE"
  script:
  # --disable-libssh is needed because of https://bugs.launchpad.net/qemu/+bug/1838763
  # --disable-glusterfs is needed because there's no static version of those libs in distro supplied packages
@@ -147,7 +156,8 @@ ubuntu-20.04-aarch64-all:
  - ubuntu_20.04
  - aarch64
  rules:
- - if: '$CI_COMMIT_BRANCH =~ /^staging/'
+ - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+ - if: "$S390X_RUNNER_AVAILABLE"
  script:
  - mkdir build
  - cd build
@@ -163,7 +173,8 @@ ubuntu-20.04-aarch64-alldbg:
  - ubuntu_20.04
  - aarch64
  rules:
- - if: '$CI_COMMIT_BRANCH =~ /^staging/'
+ - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+ - if: "$S390X_RUNNER_AVAILABLE"
  script:
  - mkdir build
  - cd build
@@ -180,7 +191,9 @@ ubuntu-20.04-aarch64-clang:
  - ubuntu_20.04
  - aarch64
  rules:
- - if: '$CI_COMMIT_BRANCH =~ /^staging/'
+ - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+   when: manual
+ - if: "$S390X_RUNNER_AVAILABLE"
    when: manual
  script:
  - mkdir build
@@ -197,7 +210,8 @@ ubuntu-20.04-aarch64-tci:
  - ubuntu_20.04
  - aarch64
  rules:
- - if: '$CI_COMMIT_BRANCH =~ /^staging/'
+ - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+ - if: "$S390X_RUNNER_AVAILABLE"
  script:
  - mkdir build
  - cd build
@@ -212,7 +226,9 @@ ubuntu-20.04-aarch64-notcg:
  - ubuntu_20.04
  - aarch64
  rules:
- - if: '$CI_COMMIT_BRANCH =~ /^staging/'
+ - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
+   when: manual
+ - if: "$S390X_RUNNER_AVAILABLE"
    when: manual
  script:
  - mkdir build
