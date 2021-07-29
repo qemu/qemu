@@ -275,6 +275,10 @@ static void buff2frame_pel(const uint8_t *buff, qemu_can_frame *frame)
     }
     frame->can_dlc = buff[0] & 0x0f;
 
+    if (frame->can_dlc > 8) {
+        frame->can_dlc = 8;
+    }
+
     if (buff[0] & 0x80) { /* Extended */
         frame->can_id |= QEMU_CAN_EFF_FLAG;
         frame->can_id |= buff[1] << 21; /* ID.28~ID.21 */
@@ -310,6 +314,10 @@ static void buff2frame_bas(const uint8_t *buff, qemu_can_frame *frame)
         frame->can_id = QEMU_CAN_RTR_FLAG;
     }
     frame->can_dlc = buff[1] & 0x0f;
+
+    if (frame->can_dlc > 8) {
+        frame->can_dlc = 8;
+    }
 
     for (i = 0; i < frame->can_dlc; i++) {
         frame->data[i] = buff[2 + i];
