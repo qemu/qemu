@@ -70,7 +70,7 @@ static inline bool ctl_has_irq(uint32_t int_ctl)
     uint32_t int_prio;
     uint32_t tpr;
 
-    int_prio = (int_ctl & V_INTR_PRIO_MASK) >> V_INTR_MASKING_SHIFT;
+    int_prio = (int_ctl & V_INTR_PRIO_MASK) >> V_INTR_PRIO_SHIFT;
     tpr = int_ctl & V_TPR_MASK;
     return (int_ctl & V_IRQ_MASK) && (int_prio >= tpr);
 }
@@ -383,6 +383,9 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
             cpu_loop_exit(cs);
             break;
         case SVM_EVTINJ_TYPE_EXEPT:
+            if (vector == EXCP02_NMI || vector >= 31)  {
+                cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
+            }
             cs->exception_index = vector;
             env->error_code = event_inj_err;
             env->exception_is_int = 0;
@@ -397,6 +400,9 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
             env->exception_next_eip = env->eip;
             qemu_log_mask(CPU_LOG_TB_IN_ASM, "SOFT");
             cpu_loop_exit(cs);
+            break;
+        default:
+            cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
             break;
         }
         qemu_log_mask(CPU_LOG_TB_IN_ASM, " %#x %#x\n", cs->exception_index,

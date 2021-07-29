@@ -40,7 +40,7 @@
 
 #endif
 
-#include "qemu/atomic.h"
+#include "include/atomic.h"
 
 #include "libvhost-user.h"
 
@@ -1067,10 +1067,10 @@ vu_set_vring_addr_exec(VuDev *dev, VhostUserMsg *vmsg)
     DPRINT("vhost_vring_addr:\n");
     DPRINT("    index:  %d\n", vra->index);
     DPRINT("    flags:  %d\n", vra->flags);
-    DPRINT("    desc_user_addr:   0x%016" PRIx64 "\n", vra->desc_user_addr);
-    DPRINT("    used_user_addr:   0x%016" PRIx64 "\n", vra->used_user_addr);
-    DPRINT("    avail_user_addr:  0x%016" PRIx64 "\n", vra->avail_user_addr);
-    DPRINT("    log_guest_addr:   0x%016" PRIx64 "\n", vra->log_guest_addr);
+    DPRINT("    desc_user_addr:   0x%016" PRIx64 "\n", (uint64_t)vra->desc_user_addr);
+    DPRINT("    used_user_addr:   0x%016" PRIx64 "\n", (uint64_t)vra->used_user_addr);
+    DPRINT("    avail_user_addr:  0x%016" PRIx64 "\n", (uint64_t)vra->avail_user_addr);
+    DPRINT("    log_guest_addr:   0x%016" PRIx64 "\n", (uint64_t)vra->log_guest_addr);
 
     vq->vra = *vra;
     vq->vring.flags = vra->flags;
