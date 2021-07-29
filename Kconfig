@@ -1,6 +1,0 @@
-source Kconfig.host
-source backends/Kconfig
-source accel/Kconfig
-source target/Kconfig
-source hw/Kconfig
-source semihosting/Kconfig
