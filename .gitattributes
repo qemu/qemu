@@ -1,3 +1,0 @@
-*.c.inc         diff=c
-*.h.inc         diff=c
-*.py            diff=python
