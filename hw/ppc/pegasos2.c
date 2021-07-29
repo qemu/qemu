@@ -191,7 +191,7 @@ static void pegasos2_init(MachineState *machine)
             warn_report("Option -kernel may be ineffective with -bios.");
         }
     }
-    if (machine->kernel_cmdline && !pm->vof) {
+    if (!pm->vof && machine->kernel_cmdline && machine->kernel_cmdline[0]) {
         warn_report("Option -append may be ineffective with -bios.");
     }
 }

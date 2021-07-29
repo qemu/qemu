@@ -55,4 +55,6 @@ struct VofMachineIfClass {
     address_space_write(&address_space_memory, \
     (pa), MEMTXATTRS_UNSPECIFIED, (buf), (size))
 
+#define PROM_ERROR          (~0U)
+
 #endif /* HW_VOF_H */

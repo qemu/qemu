@@ -171,8 +171,35 @@ TRANS64(PSTD, do_ldst_PLS_D, false, true, MO_Q)
 
 static bool do_cmp_X(DisasContext *ctx, arg_X_bfl *a, bool s)
 {
+    if ((ctx->insns_flags & PPC_64B) == 0) {
+        /*
+         * For 32-bit implementations, The Programming Environments Manual says
+         * that "the L field must be cleared, otherwise the instruction form is
+         * invalid." It seems, however, that most 32-bit CPUs ignore invalid
+         * forms (e.g., section "Instruction Formats" of the 405 and 440
+         * manuals, "Integer Compare Instructions" of the 601 manual), with the
+         * notable exception of the e500 and e500mc, where L=1 was reported to
+         * cause an exception.
+         */
+        if (a->l) {
+            if ((ctx->insns_flags2 & PPC2_BOOKE206)) {
+                /*
+                 * For 32-bit Book E v2.06 implementations (i.e. e500/e500mc),
+                 * generate an illegal instruction exception.
+                 */
+                return false;
+            } else {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                        "Invalid form of CMP%s at 0x" TARGET_FMT_lx ", L = 1\n",
+                        s ? "" : "L", ctx->cia);
+            }
+        }
+        gen_op_cmp32(cpu_gpr[a->ra], cpu_gpr[a->rb], s, a->bf);
+        return true;
+    }
+
+    /* For 64-bit implementations, deal with bit L accordingly. */
     if (a->l) {
-        REQUIRE_64BIT(ctx);
         gen_op_cmp(cpu_gpr[a->ra], cpu_gpr[a->rb], s, a->bf);
     } else {
         gen_op_cmp32(cpu_gpr[a->ra], cpu_gpr[a->rb], s, a->bf);
@@ -182,8 +209,35 @@ static bool do_cmp_X(DisasContext *ctx, arg_X_bfl *a, bool s)
 
 static bool do_cmp_D(DisasContext *ctx, arg_D_bf *a, bool s)
 {
+    if ((ctx->insns_flags & PPC_64B) == 0) {
+        /*
+         * For 32-bit implementations, The Programming Environments Manual says
+         * that "the L field must be cleared, otherwise the instruction form is
+         * invalid." It seems, however, that most 32-bit CPUs ignore invalid
+         * forms (e.g., section "Instruction Formats" of the 405 and 440
+         * manuals, "Integer Compare Instructions" of the 601 manual), with the
+         * notable exception of the e500 and e500mc, where L=1 was reported to
+         * cause an exception.
+         */
+        if (a->l) {
+            if ((ctx->insns_flags2 & PPC2_BOOKE206)) {
+                /*
+                 * For 32-bit Book E v2.06 implementations (i.e. e500/e500mc),
+                 * generate an illegal instruction exception.
+                 */
+                return false;
+            } else {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                        "Invalid form of CMP%s at 0x" TARGET_FMT_lx ", L = 1\n",
+                        s ? "I" : "LI", ctx->cia);
+            }
+        }
+        gen_op_cmp32(cpu_gpr[a->ra], tcg_constant_tl(a->imm), s, a->bf);
+        return true;
+    }
+
+    /* For 64-bit implementations, deal with bit L accordingly. */
     if (a->l) {
-        REQUIRE_64BIT(ctx);
         gen_op_cmp(cpu_gpr[a->ra], tcg_constant_tl(a->imm), s, a->bf);
     } else {
         gen_op_cmp32(cpu_gpr[a->ra], tcg_constant_tl(a->imm), s, a->bf);

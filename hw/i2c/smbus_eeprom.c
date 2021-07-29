@@ -276,7 +276,7 @@ uint8_t *spd_data_generate(enum sdram_type type, ram_addr_t ram_size)
     spd[18] = 12;   /* ~CAS latencies supported */
     spd[19] = (type == DDR2 ? 0 : 1); /* reserved / ~CS latencies supported */
     spd[20] = 2;    /* DIMM type / ~WE latencies */
-                    /* module features */
+    spd[21] = (type < DDR2 ? 0x20 : 0); /* module features */
                     /* memory chip features */
     spd[23] = 0x12; /* clock cycle time @ medium CAS latency */
                     /* data access time */
