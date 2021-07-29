@@ -22,8 +22,8 @@ bool mips_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                        MMUAccessType access_type, int mmu_idx,
                        bool probe, uintptr_t retaddr);
 void mips_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
-                                  MMUAccessType access_type,
-                                  int mmu_idx, uintptr_t retaddr);
+                                  MMUAccessType access_type, int mmu_idx,
+                                  uintptr_t retaddr) QEMU_NORETURN;
 
 const char *mips_exception_name(int32_t exception);
 

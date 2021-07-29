@@ -72,9 +72,10 @@ static void hppa_cpu_disas_set_info(CPUState *cs, disassemble_info *info)
 }
 
 #ifndef CONFIG_USER_ONLY
-static void hppa_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
-                                         MMUAccessType access_type,
-                                         int mmu_idx, uintptr_t retaddr)
+static void QEMU_NORETURN
+hppa_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
+                             MMUAccessType access_type, int mmu_idx,
+                             uintptr_t retaddr)
 {
     HPPACPU *cpu = HPPA_CPU(cs);
     CPUHPPAState *env = &cpu->env;

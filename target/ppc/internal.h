@@ -213,8 +213,8 @@ void helper_compute_fprf_float128(CPUPPCState *env, float128 arg);
 
 /* Raise a data fault alignment exception for the specified virtual address */
 void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
-                                 MMUAccessType access_type,
-                                 int mmu_idx, uintptr_t retaddr);
+                                 MMUAccessType access_type, int mmu_idx,
+                                 uintptr_t retaddr) QEMU_NORETURN;
 
 /* translate.c */
 
