@@ -1,5 +1,0 @@
-# See docs/devel/tracing.rst for syntax documentation.
-
-# pr-manager.c
-pr_manager_execute(int fd, int cmd, int sa) "fd=%d cmd=0x%02x service action=0x%02x"
-pr_manager_run(int fd, int cmd, int sa) "fd=%d cmd=0x%02x service action=0x%02x"
