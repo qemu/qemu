@@ -1535,22 +1535,35 @@ static void machine_help_func(const QDict *qdict)
 }
 
 static void
+machine_merge_property(const char *propname, QDict *prop, Error **errp)
+{
+    QDict *opts;
+
+    opts = qdict_new();
+    /* Preserve the caller's reference to prop.  */
+    qobject_ref(prop);
+    qdict_put(opts, propname, prop);
+    keyval_merge(machine_opts_dict, opts, errp);
+    qobject_unref(opts);
+}
+
+static void
 machine_parse_property_opt(QemuOptsList *opts_list, const char *propname,
                            const char *arg, Error **errp)
 {
-    QDict *opts, *prop;
+    QDict *prop = NULL;
     bool help = false;
-    ERRP_GUARD();
 
     prop = keyval_parse(arg, opts_list->implied_opt_name, &help, errp);
     if (help) {
         qemu_opts_print_help(opts_list, true);
         exit(0);
     }
-    opts = qdict_new();
-    qdict_put(opts, propname, prop);
-    keyval_merge(machine_opts_dict, opts, errp);
-    qobject_unref(opts);
+    if (!prop) {
+        return;
+    }
+    machine_merge_property(propname, prop, errp);
+    qobject_unref(prop);
 }
 
 static const char *pid_file;
