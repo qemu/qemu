@@ -244,6 +244,10 @@ static const struct QemuSeccompSyscall denylist[] = {
     RULE_CLONE_FLAG(CLONE_NEWPID),
     RULE_CLONE_FLAG(CLONE_NEWNET),
     RULE_CLONE_FLAG(CLONE_IO),
+#ifdef __SNR_clone3
+    { SCMP_SYS(clone3),                 QEMU_SECCOMP_SET_SPAWN,
+      0, NULL, SCMP_ACT_ERRNO(ENOSYS) },
+#endif
     /* resource control */
     { SCMP_SYS(setpriority),            QEMU_SECCOMP_SET_RESOURCECTL,
       0, NULL, SCMP_ACT_ERRNO(EPERM) },
