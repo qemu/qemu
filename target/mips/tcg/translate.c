@@ -15739,12 +15739,8 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
         /* Treat as NOP. */
         break;
     case OPC_PREF:
-        if (ctx->insn_flags & INSN_R5900) {
-            /* Treat as NOP. */
-        } else {
-            check_insn(ctx, ISA_MIPS4 | ISA_MIPS_R1);
-            /* Treat as NOP. */
-        }
+        check_insn(ctx, ISA_MIPS4 | ISA_MIPS_R1 | INSN_R5900);
+        /* Treat as NOP. */
         break;
 
     /* Floating point (COP1). */
