@@ -476,7 +476,7 @@ static int bufp_alloc(USBRedirDevice *dev, uint8_t *data, uint16_t len,
     if (dev->endpoint[EP2I(ep)].bufpq_dropping_packets) {
         if (dev->endpoint[EP2I(ep)].bufpq_size >
                 dev->endpoint[EP2I(ep)].bufpq_target_size) {
-            free(data);
+            free(free_on_destroy);
             return -1;
         }
         dev->endpoint[EP2I(ep)].bufpq_dropping_packets = 0;

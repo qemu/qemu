@@ -23,6 +23,7 @@ ENV PACKAGES \
     mingw32-libjpeg-turbo \
     mingw32-libpng \
     mingw32-libtasn1 \
+    mingw32-libusbx \
     mingw32-nettle \
     mingw32-nsis \
     mingw32-pixman \
