@@ -38,6 +38,7 @@ struct QemuSeccompSyscall {
     uint8_t set;
     uint8_t narg;
     const struct scmp_arg_cmp *arg_cmp;
+    uint32_t action;
 };
 
 const struct scmp_arg_cmp sched_setscheduler_arg[] = {
@@ -47,61 +48,111 @@ const struct scmp_arg_cmp sched_setscheduler_arg[] = {
 
 static const struct QemuSeccompSyscall denylist[] = {
     /* default set of syscalls that should get blocked */
-    { SCMP_SYS(reboot),                 QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(swapon),                 QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(swapoff),                QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(syslog),                 QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(mount),                  QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(umount),                 QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(kexec_load),             QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(afs_syscall),            QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(break),                  QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(ftime),                  QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(getpmsg),                QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(gtty),                   QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(lock),                   QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(mpx),                    QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(prof),                   QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(profil),                 QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(putpmsg),                QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(security),               QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(stty),                   QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(tuxcall),                QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(ulimit),                 QEMU_SECCOMP_SET_DEFAULT },
-    { SCMP_SYS(vserver),                QEMU_SECCOMP_SET_DEFAULT },
+    { SCMP_SYS(reboot),                 QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(swapon),                 QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(swapoff),                QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(syslog),                 QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(mount),                  QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(umount),                 QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(kexec_load),             QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(afs_syscall),            QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(break),                  QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(ftime),                  QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(getpmsg),                QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(gtty),                   QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(lock),                   QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(mpx),                    QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(prof),                   QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(profil),                 QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(putpmsg),                QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(security),               QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(stty),                   QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(tuxcall),                QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(ulimit),                 QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(vserver),                QEMU_SECCOMP_SET_DEFAULT,
+      0, NULL, SCMP_ACT_TRAP },
     /* obsolete */
-    { SCMP_SYS(readdir),                QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(_sysctl),                QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(bdflush),                QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(create_module),          QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(get_kernel_syms),        QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(query_module),           QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(sgetmask),               QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(ssetmask),               QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(sysfs),                  QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(uselib),                 QEMU_SECCOMP_SET_OBSOLETE },
-    { SCMP_SYS(ustat),                  QEMU_SECCOMP_SET_OBSOLETE },
+    { SCMP_SYS(readdir),                QEMU_SECCOMP_SET_OBSOLETE,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(_sysctl),                QEMU_SECCOMP_SET_OBSOLETE,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(bdflush),                QEMU_SECCOMP_SET_OBSOLETE,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(create_module),          QEMU_SECCOMP_SET_OBSOLETE,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(get_kernel_syms),        QEMU_SECCOMP_SET_OBSOLETE,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(query_module),           QEMU_SECCOMP_SET_OBSOLETE,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(sgetmask),               QEMU_SECCOMP_SET_OBSOLETE,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(ssetmask),               QEMU_SECCOMP_SET_OBSOLETE,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(sysfs),                  QEMU_SECCOMP_SET_OBSOLETE,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(uselib),                 QEMU_SECCOMP_SET_OBSOLETE,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(ustat),                  QEMU_SECCOMP_SET_OBSOLETE,
+      0, NULL, SCMP_ACT_TRAP },
     /* privileged */
-    { SCMP_SYS(setuid),                 QEMU_SECCOMP_SET_PRIVILEGED },
-    { SCMP_SYS(setgid),                 QEMU_SECCOMP_SET_PRIVILEGED },
-    { SCMP_SYS(setpgid),                QEMU_SECCOMP_SET_PRIVILEGED },
-    { SCMP_SYS(setsid),                 QEMU_SECCOMP_SET_PRIVILEGED },
-    { SCMP_SYS(setreuid),               QEMU_SECCOMP_SET_PRIVILEGED },
-    { SCMP_SYS(setregid),               QEMU_SECCOMP_SET_PRIVILEGED },
-    { SCMP_SYS(setresuid),              QEMU_SECCOMP_SET_PRIVILEGED },
-    { SCMP_SYS(setresgid),              QEMU_SECCOMP_SET_PRIVILEGED },
-    { SCMP_SYS(setfsuid),               QEMU_SECCOMP_SET_PRIVILEGED },
-    { SCMP_SYS(setfsgid),               QEMU_SECCOMP_SET_PRIVILEGED },
+    { SCMP_SYS(setuid),                 QEMU_SECCOMP_SET_PRIVILEGED,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(setgid),                 QEMU_SECCOMP_SET_PRIVILEGED,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(setpgid),                QEMU_SECCOMP_SET_PRIVILEGED,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(setsid),                 QEMU_SECCOMP_SET_PRIVILEGED,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(setreuid),               QEMU_SECCOMP_SET_PRIVILEGED,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(setregid),               QEMU_SECCOMP_SET_PRIVILEGED,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(setresuid),              QEMU_SECCOMP_SET_PRIVILEGED,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(setresgid),              QEMU_SECCOMP_SET_PRIVILEGED,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(setfsuid),               QEMU_SECCOMP_SET_PRIVILEGED,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(setfsgid),               QEMU_SECCOMP_SET_PRIVILEGED,
+      0, NULL, SCMP_ACT_TRAP },
     /* spawn */
-    { SCMP_SYS(fork),                   QEMU_SECCOMP_SET_SPAWN },
-    { SCMP_SYS(vfork),                  QEMU_SECCOMP_SET_SPAWN },
-    { SCMP_SYS(execve),                 QEMU_SECCOMP_SET_SPAWN },
+    { SCMP_SYS(fork),                   QEMU_SECCOMP_SET_SPAWN,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(vfork),                  QEMU_SECCOMP_SET_SPAWN,
+      0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(execve),                 QEMU_SECCOMP_SET_SPAWN,
+      0, NULL, SCMP_ACT_TRAP },
     /* resource control */
-    { SCMP_SYS(setpriority),            QEMU_SECCOMP_SET_RESOURCECTL },
-    { SCMP_SYS(sched_setparam),         QEMU_SECCOMP_SET_RESOURCECTL },
+    { SCMP_SYS(setpriority),            QEMU_SECCOMP_SET_RESOURCECTL,
+      0, NULL, SCMP_ACT_ERRNO(EPERM) },
+    { SCMP_SYS(sched_setparam),         QEMU_SECCOMP_SET_RESOURCECTL,
+      0, NULL, SCMP_ACT_ERRNO(EPERM) },
     { SCMP_SYS(sched_setscheduler),     QEMU_SECCOMP_SET_RESOURCECTL,
-      ARRAY_SIZE(sched_setscheduler_arg), sched_setscheduler_arg },
-    { SCMP_SYS(sched_setaffinity),      QEMU_SECCOMP_SET_RESOURCECTL },
+      ARRAY_SIZE(sched_setscheduler_arg), sched_setscheduler_arg,
+      SCMP_ACT_ERRNO(EPERM) },
+    { SCMP_SYS(sched_setaffinity),      QEMU_SECCOMP_SET_RESOURCECTL,
+      0, NULL, SCMP_ACT_ERRNO(EPERM) },
 };
 
 static inline __attribute__((unused)) int
@@ -115,15 +166,11 @@ qemu_seccomp(unsigned int operation, unsigned int flags, void *args)
 #endif
 }
 
-static uint32_t qemu_seccomp_get_action(int set)
+static uint32_t qemu_seccomp_update_action(uint32_t action)
 {
-    switch (set) {
-    case QEMU_SECCOMP_SET_DEFAULT:
-    case QEMU_SECCOMP_SET_OBSOLETE:
-    case QEMU_SECCOMP_SET_PRIVILEGED:
-    case QEMU_SECCOMP_SET_SPAWN: {
 #if defined(SECCOMP_GET_ACTION_AVAIL) && defined(SCMP_ACT_KILL_PROCESS) && \
     defined(SECCOMP_RET_KILL_PROCESS)
+    if (action == SCMP_ACT_TRAP) {
         static int kill_process = -1;
         if (kill_process == -1) {
             uint32_t action = SECCOMP_RET_KILL_PROCESS;
@@ -137,16 +184,9 @@ static uint32_t qemu_seccomp_get_action(int set)
         if (kill_process == 1) {
             return SCMP_ACT_KILL_PROCESS;
         }
+    }
 #endif
-        return SCMP_ACT_TRAP;
-    }
-
-    case QEMU_SECCOMP_SET_RESOURCECTL:
-        return SCMP_ACT_ERRNO(EPERM);
-
-    default:
-        g_assert_not_reached();
-    }
+    return action;
 }
 
 
@@ -175,7 +215,7 @@ static int seccomp_start(uint32_t seccomp_opts, Error **errp)
             continue;
         }
 
-        action = qemu_seccomp_get_action(denylist[i].set);
+        action = qemu_seccomp_update_action(denylist[i].action);
         rc = seccomp_rule_add_array(ctx, action, denylist[i].num,
                                     denylist[i].narg, denylist[i].arg_cmp);
         if (rc < 0) {
