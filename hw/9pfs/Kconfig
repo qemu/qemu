@@ -1,9 +1,0 @@
-config FSDEV_9P
-    bool
-    depends on VIRTFS
-
-config VIRTIO_9P
-    bool
-    default y
-    depends on VIRTFS && VIRTIO
-    select FSDEV_9P

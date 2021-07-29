@@ -1,9 +1,0 @@
-config TRICORE_TESTBOARD
-    bool
-
-config TRIBOARD
-    bool
-    select TC27X_SOC
-
-config TC27X_SOC
-    bool

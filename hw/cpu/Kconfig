@@ -1,8 +1,0 @@
-config ARM11MPCORE
-    bool
-
-config A9MPCORE
-    bool
-
-config A15MPCORE
-    bool
