@@ -6,14 +6,14 @@
    - .gitlab-ci.d/opensbi.yml
    # or the Dockerfile is modified
    - .gitlab-ci.d/opensbi/Dockerfile
-   when: always
+   when: on_success
  - changes: # or roms/opensbi/ is modified (submodule updated)
    - roms/opensbi/*
-   when: always
+   when: on_success
  - if: '$CI_COMMIT_REF_NAME =~ /^opensbi/' # or the branch/tag starts with 'opensbi'
-   when: always
+   when: on_success
  - if: '$CI_COMMIT_MESSAGE =~ /opensbi/i' # or last commit description contains 'OpenSBI'
-   when: always
+   when: on_success
 
 docker-opensbi:
  extends: .opensbi_job_rules
