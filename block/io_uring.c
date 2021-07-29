@@ -165,7 +165,21 @@ static void luring_process_completions(LuringState *s)
         total_bytes = ret + luringcb->total_read;
 
         if (ret < 0) {
-            if (ret == -EINTR) {
+            /*
+             * Only writev/readv/fsync requests on regular files or host block
+             * devices are submitted. Therefore -EAGAIN is not expected but it's
+             * known to happen sometimes with Linux SCSI. Submit again and hope
+             * the request completes successfully.
+             *
+             * For more information, see:
+             * https://lore.kernel.org/io-uring/20210727165811.284510-3-axboe@kernel.dk/T/#u
+             *
+             * If the code is changed to submit other types of requests in the
+             * future, then this workaround may need to be extended to deal with
+             * genuine -EAGAIN results that should not be resubmitted
+             * immediately.
+             */
+            if (ret == -EINTR || ret == -EAGAIN) {
                 luring_resubmit(s, luringcb);
                 continue;
             }
