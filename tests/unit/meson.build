@@ -53,6 +53,10 @@ if have_system or have_tools
   tests += {
     'test-qmp-event': [testqapi],
   }
+
+  if seccomp.found()
+    tests += {'test-seccomp': ['../../softmmu/qemu-seccomp.c', seccomp]}
+  endif
 endif
 
 if have_block

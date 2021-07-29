@@ -2982,6 +2982,7 @@ M: Eduardo Otubo <otubo@redhat.com>
 S: Supported
 F: softmmu/qemu-seccomp.c
 F: include/sysemu/seccomp.h
+F: tests/unit/test-seccomp.c
 
 Cryptography
 M: Daniel P. Berrange <berrange@redhat.com>
