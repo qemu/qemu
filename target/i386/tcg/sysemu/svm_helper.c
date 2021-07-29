@@ -70,7 +70,7 @@ static inline bool ctl_has_irq(uint32_t int_ctl)
     uint32_t int_prio;
     uint32_t tpr;
 
-    int_prio = (int_ctl & V_INTR_PRIO_MASK) >> V_INTR_MASKING_SHIFT;
+    int_prio = (int_ctl & V_INTR_PRIO_MASK) >> V_INTR_PRIO_SHIFT;
     tpr = int_ctl & V_TPR_MASK;
     return (int_ctl & V_IRQ_MASK) && (int_prio >= tpr);
 }
