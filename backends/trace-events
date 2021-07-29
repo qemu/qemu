@@ -1,7 +1,0 @@
-# See docs/devel/tracing.rst for syntax documentation.
-
-# dbus-vmstate.c
-dbus_vmstate_pre_save(void)
-dbus_vmstate_post_load(int version_id) "version_id: %d"
-dbus_vmstate_loading(const char *id) "id: %s"
-dbus_vmstate_saving(const char *id) "id: %s"
