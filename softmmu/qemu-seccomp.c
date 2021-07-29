@@ -46,6 +46,82 @@ const struct scmp_arg_cmp sched_setscheduler_arg[] = {
     { .arg = 1, .op = SCMP_CMP_NE, .datum_a = SCHED_IDLE }
 };
 
+/*
+ * See 'NOTES' in 'man 2 clone' - s390 & cross have 'flags' in
+ *  different position to other architectures
+ */
+#if defined(HOST_S390X) || defined(HOST_S390) || defined(HOST_CRIS)
+#define CLONE_FLAGS_ARG 1
+#else
+#define CLONE_FLAGS_ARG 0
+#endif
+
+#ifndef CLONE_PIDFD
+# define CLONE_PIDFD 0x00001000
+#endif
+
+#define REQUIRE_CLONE_FLAG(flag) \
+    const struct scmp_arg_cmp clone_arg ## flag[] = { \
+    { .arg = CLONE_FLAGS_ARG, \
+      .op = SCMP_CMP_MASKED_EQ, \
+      .datum_a = flag, .datum_b = 0 } }
+
+#define FORBID_CLONE_FLAG(flag) \
+    const struct scmp_arg_cmp clone_arg ## flag[] = { \
+    { .arg = CLONE_FLAGS_ARG, \
+      .op = SCMP_CMP_MASKED_EQ, \
+      .datum_a = flag, .datum_b = flag } }
+
+#define RULE_CLONE_FLAG(flag) \
+    { SCMP_SYS(clone),                  QEMU_SECCOMP_SET_SPAWN, \
+      ARRAY_SIZE(clone_arg ## flag), clone_arg ## flag, SCMP_ACT_TRAP }
+
+/* If no CLONE_* flags are set, except CSIGNAL, deny */
+const struct scmp_arg_cmp clone_arg_none[] = {
+    { .arg = CLONE_FLAGS_ARG,
+      .op = SCMP_CMP_MASKED_EQ,
+      .datum_a = ~(CSIGNAL), .datum_b = 0 }
+};
+
+/*
+ * pthread_create should always set all of these.
+ */
+REQUIRE_CLONE_FLAG(CLONE_VM);
+REQUIRE_CLONE_FLAG(CLONE_FS);
+REQUIRE_CLONE_FLAG(CLONE_FILES);
+REQUIRE_CLONE_FLAG(CLONE_SIGHAND);
+REQUIRE_CLONE_FLAG(CLONE_THREAD);
+REQUIRE_CLONE_FLAG(CLONE_SYSVSEM);
+REQUIRE_CLONE_FLAG(CLONE_SETTLS);
+REQUIRE_CLONE_FLAG(CLONE_PARENT_SETTID);
+REQUIRE_CLONE_FLAG(CLONE_CHILD_CLEARTID);
+/*
+ * Musl sets this in pthread_create too, but it is
+ * obsolete and harmless since its behaviour is
+ * subsumed under CLONE_THREAD
+ */
+/*REQUIRE_CLONE_FLAG(CLONE_DETACHED);*/
+
+
+/*
+ * These all indicate an attempt to spawn a process
+ * instead of a thread, or other undesirable scenarios
+ */
+FORBID_CLONE_FLAG(CLONE_PIDFD);
+FORBID_CLONE_FLAG(CLONE_PTRACE);
+FORBID_CLONE_FLAG(CLONE_VFORK);
+FORBID_CLONE_FLAG(CLONE_PARENT);
+FORBID_CLONE_FLAG(CLONE_NEWNS);
+FORBID_CLONE_FLAG(CLONE_UNTRACED);
+FORBID_CLONE_FLAG(CLONE_NEWCGROUP);
+FORBID_CLONE_FLAG(CLONE_NEWUTS);
+FORBID_CLONE_FLAG(CLONE_NEWIPC);
+FORBID_CLONE_FLAG(CLONE_NEWUSER);
+FORBID_CLONE_FLAG(CLONE_NEWPID);
+FORBID_CLONE_FLAG(CLONE_NEWNET);
+FORBID_CLONE_FLAG(CLONE_IO);
+
+
 static const struct QemuSeccompSyscall denylist[] = {
     /* default set of syscalls that should get blocked */
     { SCMP_SYS(reboot),                 QEMU_SECCOMP_SET_DEFAULT,
@@ -143,6 +219,31 @@ static const struct QemuSeccompSyscall denylist[] = {
       0, NULL, SCMP_ACT_TRAP },
     { SCMP_SYS(execve),                 QEMU_SECCOMP_SET_SPAWN,
       0, NULL, SCMP_ACT_TRAP },
+    { SCMP_SYS(clone),                  QEMU_SECCOMP_SET_SPAWN,
+      ARRAY_SIZE(clone_arg_none), clone_arg_none, SCMP_ACT_TRAP },
+    RULE_CLONE_FLAG(CLONE_VM),
+    RULE_CLONE_FLAG(CLONE_FS),
+    RULE_CLONE_FLAG(CLONE_FILES),
+    RULE_CLONE_FLAG(CLONE_SIGHAND),
+    RULE_CLONE_FLAG(CLONE_THREAD),
+    RULE_CLONE_FLAG(CLONE_SYSVSEM),
+    RULE_CLONE_FLAG(CLONE_SETTLS),
+    RULE_CLONE_FLAG(CLONE_PARENT_SETTID),
+    RULE_CLONE_FLAG(CLONE_CHILD_CLEARTID),
+    /*RULE_CLONE_FLAG(CLONE_DETACHED),*/
+    RULE_CLONE_FLAG(CLONE_PIDFD),
+    RULE_CLONE_FLAG(CLONE_PTRACE),
+    RULE_CLONE_FLAG(CLONE_VFORK),
+    RULE_CLONE_FLAG(CLONE_PARENT),
+    RULE_CLONE_FLAG(CLONE_NEWNS),
+    RULE_CLONE_FLAG(CLONE_UNTRACED),
+    RULE_CLONE_FLAG(CLONE_NEWCGROUP),
+    RULE_CLONE_FLAG(CLONE_NEWUTS),
+    RULE_CLONE_FLAG(CLONE_NEWIPC),
+    RULE_CLONE_FLAG(CLONE_NEWUSER),
+    RULE_CLONE_FLAG(CLONE_NEWPID),
+    RULE_CLONE_FLAG(CLONE_NEWNET),
+    RULE_CLONE_FLAG(CLONE_IO),
     /* resource control */
     { SCMP_SYS(setpriority),            QEMU_SECCOMP_SET_RESOURCECTL,
       0, NULL, SCMP_ACT_ERRNO(EPERM) },

@@ -126,8 +126,7 @@ static int doit_fork(void)
 
 static void test_seccomp_fork_on_nospawn(void)
 {
-    /* XXX fixme - should be killed */
-    test_seccomp_passed("on,spawn=deny", doit_fork);
+    test_seccomp_killed("on,spawn=deny", doit_fork);
 }
 
 static void test_seccomp_fork_on(void)
