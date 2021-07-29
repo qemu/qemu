@@ -1,4 +1,0 @@
-config MULTIPROCESS
-    bool
-    depends on PCI && PCI_EXPRESS && KVM
-    select REMOTE_PCIHOST

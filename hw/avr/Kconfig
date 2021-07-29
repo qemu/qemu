@@ -1,9 +1,0 @@
-config AVR_ATMEGA_MCU
-    bool
-    select AVR_TIMER16
-    select AVR_USART
-    select AVR_POWER
-
-config ARDUINO
-    select AVR_ATMEGA_MCU
-    select UNIMP
