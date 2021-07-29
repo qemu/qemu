@@ -1,3 +1,0 @@
-include VERSION
-include PACKAGE.rst
-exclude README.rst
