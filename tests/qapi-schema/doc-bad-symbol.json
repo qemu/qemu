@@ -1,6 +1,0 @@
-# Documentation symbol mismatch with expression
-
-##
-# @food:
-##
-{ 'command': 'foo', 'data': {'a': 'int'} }

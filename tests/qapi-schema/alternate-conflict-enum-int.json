@@ -1,6 +1,0 @@
-# alternate branches of 'enum' type that conflicts with numbers
-{ 'enum': 'Enum',
-  'data': [ '1', '2', '3' ] }
-{ 'alternate': 'Alt',
-  'data': { 'one': 'Enum',
-            'two': 'int' } }

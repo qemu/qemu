@@ -1,2 +1,0 @@
-# pragma value must be list
-{ 'pragma': { 'member-name-exceptions': false } }

@@ -1,4 +1,0 @@
-# C entity name collision
-# We reject names like 'q-unix', because they can collide with the mangled
-# name for 'unix' in generated C.
-{ 'enum': 'Foo', 'data': [ 'unix', 'q-Unix' ] }

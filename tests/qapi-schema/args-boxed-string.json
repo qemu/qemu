@@ -1,2 +1,0 @@
-# 'boxed' requires a complex (not built-in) type
-{ 'command': 'foo', 'boxed': true, 'data': 'str' }

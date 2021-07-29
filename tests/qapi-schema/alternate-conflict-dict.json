@@ -1,8 +1,0 @@
-# alternate branches of object type conflict with each other
-{ 'struct': 'One',
-  'data': { 'name': 'str' } }
-{ 'struct': 'Two',
-  'data': { 'value': 'int' } }
-{ 'alternate': 'Alt',
-  'data': { 'one': 'One',
-            'two': 'Two' } }

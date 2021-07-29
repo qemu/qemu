@@ -1,2 +1,0 @@
-# we reject an array return that is not a single type
-{ 'command': 'oops', 'returns': [ 'str', 'str' ] }

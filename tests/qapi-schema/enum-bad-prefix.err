@@ -1,2 +1,0 @@
-enum-bad-prefix.json: In enum 'MyEnum':
-enum-bad-prefix.json:2: 'prefix' must be a string

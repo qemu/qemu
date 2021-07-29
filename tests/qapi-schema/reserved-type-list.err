@@ -1,2 +1,0 @@
-reserved-type-list.json: In struct 'FooList':
-reserved-type-list.json:5: struct name should not end in 'List'

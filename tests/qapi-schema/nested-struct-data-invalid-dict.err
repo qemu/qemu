@@ -1,2 +1,0 @@
-nested-struct-data-invalid-dict.json: In command 'foo':
-nested-struct-data-invalid-dict.json:3: 'data' member 'a' misses key 'type'

@@ -1,8 +1,0 @@
-graph G {
-	graph [hostidtype="hostname", version="1:0", date="04/12/2013"];
-	edge [dir=none, notify="log"];
-	sw1:swp1 -- h1:swp1;
-	sw1:swp2 -- h2:swp1;
-	sw1:swp3 -- h3:swp1;
-	sw1:swp4 -- h4:swp1;
-}

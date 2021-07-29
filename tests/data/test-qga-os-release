@@ -1,7 +1,0 @@
-ID=qemu-ga-test
-NAME=QEMU-GA
-PRETTY_NAME="QEMU Guest Agent test"
-VERSION="Test 1"
-VERSION_ID=1
-VARIANT="Unit test \"\'\$\`\\ and \\\\ etc."
-VARIANT_ID=unit-test

@@ -1,2 +1,0 @@
-# enum member lacking a name
-{ 'enum': 'Enum', 'data': [ {} ] }

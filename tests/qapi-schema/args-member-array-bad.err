@@ -1,2 +1,0 @@
-args-member-array-bad.json: In command 'oops':
-args-member-array-bad.json:2: 'data' member 'member': array type must contain single type name

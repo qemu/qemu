@@ -1,2 +1,0 @@
-features-duplicate-name.json: In struct 'FeatureStruct0':
-features-duplicate-name.json:1: feature 'foo' collides with feature 'foo'

@@ -1,2 +1,0 @@
-reserved-member-underscore.json: In struct 'Oops':
-reserved-member-underscore.json:4: 'data' member '_oops' has an invalid name

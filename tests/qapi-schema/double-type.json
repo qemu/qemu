@@ -1,2 +1,0 @@
-# we reject an expression with ambiguous metatype
-{ 'command': 'foo', 'struct': 'Bar', 'data': { } }

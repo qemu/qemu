@@ -1,6 +1,0 @@
-# Cover branch with invalid 'if'
-{ 'enum': 'Branches', 'data': ['branch1'] }
-{ 'struct': 'Stru', 'data': { 'member': 'str' } }
-{ 'union': 'Uni',
-  'base': { 'tag': 'Branches' }, 'discriminator': 'tag',
-  'data': { 'branch1': { 'type': 'Stru', 'if': [''] } } }

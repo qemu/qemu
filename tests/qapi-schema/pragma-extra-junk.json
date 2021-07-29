@@ -1,3 +1,0 @@
-# 'pragma' must be the sole member
-
-{ 'pragma': { 'doc-required': true }, 'junk': true }

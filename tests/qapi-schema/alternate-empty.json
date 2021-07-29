@@ -1,2 +1,0 @@
-# alternates cannot be empty
-{ 'alternate': 'Alt', 'data': { } }

@@ -1,2 +1,0 @@
-# we reject any enum member that is not a string or a dict with 'name'
-{ 'enum': 'MyEnum', 'data': [ { 'name': 'foo', 'bad-key': 'str' } ] }

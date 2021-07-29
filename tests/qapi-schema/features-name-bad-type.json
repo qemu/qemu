@@ -1,3 +1,0 @@
-{ 'struct': 'FeatureStruct0',
-  'data': { 'foo': 'int' },
-  'features': [ { 'name': { 'feature-type': 'object' } } ] }

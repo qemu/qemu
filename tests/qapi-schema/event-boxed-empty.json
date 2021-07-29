@@ -1,2 +1,0 @@
-# 'boxed' requires a non-empty type
-{ 'event': 'FOO', 'boxed': true }

@@ -1,2 +1,0 @@
-# We accept printable ASCII: code points 32..126.  Test code point 127:
-{ 'command': '' }

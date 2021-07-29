@@ -1,3 +1,0 @@
-{ 'struct': 'FeatureStruct0',
-  'data': { 'foo': 'int' },
-  'features': [ { 'name': 'bar', 'colour': 'red' } ] }

@@ -1,3 +1,0 @@
-# we reject a loop in base classes
-{ 'struct': 'Base1', 'base': 'Base2', 'data': {} }
-{ 'struct': 'Base2', 'base': 'Base1', 'data': {} }

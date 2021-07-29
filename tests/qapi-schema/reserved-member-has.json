@@ -1,5 +1,0 @@
-# C member name collision
-# We reject names like 'has-a', because they can collide with the flag
-# for an optional 'a' in generated C.
-# TODO we could munge the optional flag name to avoid the collision.
-{ 'command': 'oops', 'data': { '*a': 'str', 'has-a': 'str' } }

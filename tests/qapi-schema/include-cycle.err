@@ -1,3 +1,0 @@
-In file included from include-cycle.json:1:
-In file included from include-cycle-b.json:1:
-include-cycle-c.json:1: inclusion loop for include-cycle.json

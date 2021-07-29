@@ -1,8 +1,0 @@
-This is for small sample images to be used with qemu-iotests, intended for
-non-native formats that QEMU supports for compatibility.  The idea is to use
-the native tool to create the sample image.
-
-For instance, a VHDX image in this directory would be an image created not by
-QEMU itself, but rather created by Hyper-V.
-
-Sample images added here must be compressed with bzip2.

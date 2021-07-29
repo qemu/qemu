@@ -1,3 +1,0 @@
-# we only recognize \\
-# { 'command': 'foo', 'data': {} }
-{ 'command': 'foo', 'dat\x61':{} }

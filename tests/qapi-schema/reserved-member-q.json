@@ -1,4 +1,0 @@
-# C member name collision
-# We reject names like 'q-unix', because they can collide with the mangled
-# name for 'unix' in generated C.
-{ 'struct': 'Foo', 'data': { 'unix':'int', 'q-unix':'bool' } }

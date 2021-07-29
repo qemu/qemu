@@ -1,4 +1,0 @@
-redefined-event.json: In event 'EVENT_A':
-redefined-event.json:3: 'EVENT_A' is already defined
-redefined-event.json: In event 'EVENT_A':
-redefined-event.json:2: previous definition

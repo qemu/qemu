@@ -1,7 +1,0 @@
-MIPS
-====
-
-hello-mips
-----------
-
-A very simple inline assembly, write syscall based hello world

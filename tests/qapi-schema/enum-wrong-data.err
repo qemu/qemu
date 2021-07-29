@@ -1,2 +1,0 @@
-enum-wrong-data.json: In enum 'MyEnum':
-enum-wrong-data.json:2: 'data' must be an array

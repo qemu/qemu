@@ -1,2 +1,0 @@
-args-any.json: In command 'oops':
-args-any.json:2: command's 'data' cannot take built-in type 'any'

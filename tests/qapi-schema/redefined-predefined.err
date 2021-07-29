@@ -1,2 +1,0 @@
-redefined-predefined.json: In struct 'QType':
-redefined-predefined.json:2: enum type 'QType' is already defined

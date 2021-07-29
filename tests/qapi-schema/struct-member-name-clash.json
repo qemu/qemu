@@ -1,5 +1,0 @@
-# C member name collision
-# Reject members that clash when mapped to C names (we would have two 'a_b'
-# members).
-{ 'pragma': { 'member-name-exceptions': [ 'Oops' ] } }
-{ 'struct': 'Oops', 'data': { 'a-b': 'str', 'a_b': 'str' } }

@@ -1,7 +1,0 @@
-# Alternate branch name collision
-# Naming rules make collision impossible (even with the pragma).  If
-# that wasn't the case, then we'd get a collision in generated C: two
-# union members a_b.
-{ 'pragma': { 'member-name-exceptions': [ 'Alt1' ] } }
-{ 'alternate': 'Alt1',
-  'data': { 'a-b': 'bool', 'a_b': 'int' } }

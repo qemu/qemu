@@ -1,2 +1,0 @@
-# we reject an expression with unknown top-level keys
-{ 'struct': 'Bar', 'data': { 'string': 'str'}, 'bogus': { }, 'phony': { } }

@@ -1,2 +1,0 @@
-struct-member-invalid.json: In struct 'Foo':
-struct-member-invalid.json:1: 'data' member 'a' should be a type name

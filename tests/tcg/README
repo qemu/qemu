@@ -1,9 +1,0 @@
-This directory contains various interesting guest programs for
-regression testing. Tests are either multi-arch, meaning they can be
-built for all guest architectures that support linux-user executable,
-or they are architecture specific.
-
-CRIS
-====
-The testsuite for CRIS is in tests/tcg/cris.  You can run it
-with "make test-cris".

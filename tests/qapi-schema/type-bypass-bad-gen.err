@@ -1,2 +1,0 @@
-type-bypass-bad-gen.json: In command 'foo':
-type-bypass-bad-gen.json:2: flag 'gen' may only use false value

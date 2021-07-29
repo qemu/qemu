@@ -1,9 +1,0 @@
-# Arguments listed in the doc comment must exist in the actual schema
-
-##
-# @AorB:
-# @aa: a
-# @bb: b
-##
-{ 'alternate': 'AorB',
-  'data': { 'a': 'bool', 'b': 'int' } }

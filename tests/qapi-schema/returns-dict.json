@@ -1,2 +1,0 @@
-# we reject inline struct return type
-{ 'command': 'oops', 'returns': { 'a': 'str' } }

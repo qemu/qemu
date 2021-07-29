@@ -1,7 +1,0 @@
-QA output created by 174
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=262144
-
-== reading wrong format should fail ==
-
-== reading missing file should fail ==
-*** done

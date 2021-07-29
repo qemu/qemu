@@ -1,2 +1,0 @@
-union-invalid-base.json: In union 'TestUnion':
-union-invalid-base.json:8: 'base' requires a struct type, built-in type 'int' isn't

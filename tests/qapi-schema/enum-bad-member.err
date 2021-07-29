@@ -1,2 +1,0 @@
-enum-bad-member.json: In enum 'MyEnum':
-enum-bad-member.json:2: 'data' member requires a string name

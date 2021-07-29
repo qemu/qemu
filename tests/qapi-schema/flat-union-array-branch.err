@@ -1,2 +1,0 @@
-flat-union-array-branch.json: In union 'TestUnion':
-flat-union-array-branch.json:8: 'data' member 'value1' cannot be an array

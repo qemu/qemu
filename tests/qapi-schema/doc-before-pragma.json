@@ -1,7 +1,0 @@
-# Doc comment separated from defining expression by non-defining expression
-
-##
-# @foo:
-##
-{ 'pragma': {} }
-{ 'struct': 'foo', 'data': {} }

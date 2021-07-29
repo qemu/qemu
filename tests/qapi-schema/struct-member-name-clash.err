@@ -1,2 +1,0 @@
-struct-member-name-clash.json: In struct 'Oops':
-struct-member-name-clash.json:5: member 'a_b' collides with member 'a-b'

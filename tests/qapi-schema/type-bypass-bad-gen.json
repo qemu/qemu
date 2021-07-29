@@ -1,2 +1,0 @@
-# 'gen' should only appear with value false
-{ 'command': 'foo', 'gen': 'whatever' }

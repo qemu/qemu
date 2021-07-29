@@ -1,4 +1,0 @@
-redefined-command.json: In command 'foo':
-redefined-command.json:3: 'foo' is already defined
-redefined-command.json: In command 'foo':
-redefined-command.json:2: previous definition

@@ -1,2 +1,0 @@
-args-int.json: In command 'oops':
-args-int.json:2: command's 'data' cannot take built-in type 'int'

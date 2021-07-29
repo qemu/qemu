@@ -1,3 +1,0 @@
-# we reject commands defined more than once
-{ 'command': 'foo', 'data': { 'one': 'str' } }
-{ 'command': 'foo', 'data': { '*two': 'str' } }

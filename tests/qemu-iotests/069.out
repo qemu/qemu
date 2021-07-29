@@ -1,8 +1,0 @@
-QA output created by 069
-
-=== Creating an image with a backing file and deleting that file ===
-
-Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=131072
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=131072 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
-qemu-io: can't open device TEST_DIR/t.IMGFMT: Could not open backing file: Could not open 'TEST_DIR/t.IMGFMT.base': No such file or directory
-*** done

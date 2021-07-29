@@ -1,5 +1,0 @@
-# we reject a nested alternate branch
-{ 'alternate': 'Alt1',
-  'data': { 'name': 'bool', 'value': 'int' } }
-{ 'alternate': 'Alt2',
-  'data': { 'nested': 'Alt1', 'b': 'bool' } }

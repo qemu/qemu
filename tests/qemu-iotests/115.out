@@ -1,8 +1,0 @@
-QA output created by 115
-
-=== Testing large refcount and L1 table ===
-
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=268435456 preallocation=metadata
-No errors were found on the image.
-100.00% allocated clusters
-*** done

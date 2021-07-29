@@ -1,2 +1,0 @@
-{ 'include': 'include-simple-sub.json' }
-{ 'command' 'missing-colon' }

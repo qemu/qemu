@@ -1,2 +1,0 @@
-# we reject an expression with a metatype that is not a string
-{ 'struct': true, 'data': { } }

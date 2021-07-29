@@ -1,4 +1,0 @@
-# Unindented comment
-{ 'enum': 'Status',             # Comment to the right of code
-  # Indented comment
-  'data': [ 'good', 'bad', 'ugly' ] }

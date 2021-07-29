@@ -1,5 +1,0 @@
-QA output created by 135
-
-=== Verify image open and failure ====
-qemu-img: Could not open 'TEST_DIR/afl5.img': Max Table Entries too large (1073741825)
-*** done

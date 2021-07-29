@@ -1,2 +1,0 @@
-args-invalid.json: In command 'foo':
-args-invalid.json:1: 'data' should be an object or type name

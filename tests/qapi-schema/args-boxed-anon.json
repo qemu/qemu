@@ -1,2 +1,0 @@
-# 'boxed' can only be used with named types
-{ 'command': 'foo', 'boxed': true, 'data': { 'string': 'str' } }

@@ -1,8 +1,0 @@
-QA output created by 289
-
-=== Avoid freeing external data clusters on failure ===
-
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=65536 data_file=TEST_DIR/t.IMGFMT.data_file
-write failed: Input/output error
-No errors were found on the image.
-*** done

@@ -1,8 +1,0 @@
-# Do not allow duplicated Since section
-
-##
-# @foo:
-#
-# Since: 0
-# Since: 1
-##

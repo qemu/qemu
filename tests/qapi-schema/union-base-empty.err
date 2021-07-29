@@ -1,2 +1,0 @@
-union-base-empty.json: In union 'TestUnion':
-union-base-empty.json:5: discriminator 'type' is not a member of 'base'

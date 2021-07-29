@@ -1,2 +1,0 @@
-# The prefix must be a string type
-{ 'enum': 'MyEnum', 'data': [ 'one' ], 'prefix': [ 'fish' ] }

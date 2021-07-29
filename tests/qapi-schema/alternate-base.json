@@ -1,6 +1,0 @@
-# we reject alternate with base type
-{ 'struct': 'Base',
-  'data': { 'string': 'str' } }
-{ 'alternate': 'Alt',
-  'base': 'Base',
-  'data': { 'number': 'int' } }

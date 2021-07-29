@@ -1,3 +1,0 @@
-# we reject a union with unknown type in branch
-{ 'union': 'Union',
-  'data': { 'unknown': ['MissingType'] } }

@@ -1,3 +1,0 @@
-# we reject types defined more than once
-{ 'struct': 'Foo', 'data': { 'one': 'str' } }
-{ 'enum': 'Foo', 'data': [ 'two' ] }

@@ -1,2 +1,0 @@
-alternate-invalid-dict.json: In alternate 'Alt':
-alternate-invalid-dict.json:2: 'data' member 'two' misses key 'type'

@@ -1,2 +1,0 @@
-# we reject collisions between commands and types
-{ 'command': 'int', 'data': { 'character': 'str' } }

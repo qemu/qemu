@@ -1,2 +1,0 @@
-# we reject creating a type name with bad name
-{ 'struct': '*oops', 'data': { 'i': 'int' } }

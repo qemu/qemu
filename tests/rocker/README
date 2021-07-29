@@ -1,5 +1,0 @@
-Tests require simp (simple network simulator) found here:
-
-https://github.com/scottfeldman/simp
-
-Run 'all' to run all tests.

@@ -1,3 +1,0 @@
-# pragma value must be bool
-
-{ 'pragma': { 'doc-required': {} } }

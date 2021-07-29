@@ -1,3 +1,0 @@
-{ 'struct': 'FeatureStruct0',
-  'data': { 'foo': 'int' },
-  'features': [ [ 'a feature cannot be an array' ] ] }

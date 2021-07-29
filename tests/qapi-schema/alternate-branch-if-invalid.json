@@ -1,3 +1,0 @@
-# Cover alternative with invalid 'if'
-{ 'alternate': 'Alt',
-  'data': { 'branch': { 'type': 'int', 'if': ' ' } } }

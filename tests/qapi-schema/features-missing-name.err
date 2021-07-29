@@ -1,2 +1,0 @@
-features-missing-name.json: In struct 'FeatureStruct0':
-features-missing-name.json:1: 'features' member misses key 'name'

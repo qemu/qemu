@@ -1,2 +1,0 @@
-enum-clash-member.json: In enum 'MyEnum':
-enum-clash-member.json:3: value 'one_two' collides with value 'one-two'

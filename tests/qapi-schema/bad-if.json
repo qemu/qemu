@@ -1,3 +1,0 @@
-# check invalid 'if' type
-{ 'struct': 'TestIfStruct', 'data': { 'foo': 'int' },
-  'if': { 'value': 'defined(TEST_IF_STRUCT)' } }

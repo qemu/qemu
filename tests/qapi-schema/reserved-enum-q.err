@@ -1,2 +1,0 @@
-reserved-enum-q.json: In enum 'Foo':
-reserved-enum-q.json:4: 'data' member 'q-Unix' has an invalid name

@@ -1,3 +1,0 @@
-# {} is not a valid type reference
-{ 'command': 'foo',
-  'data': { 'a' : { 'type': {} }, 'b' : 'str' } }

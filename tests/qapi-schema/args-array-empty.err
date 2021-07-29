@@ -1,2 +1,0 @@
-args-array-empty.json: In command 'oops':
-args-array-empty.json:2: 'data' member 'empty': array type must contain single type name

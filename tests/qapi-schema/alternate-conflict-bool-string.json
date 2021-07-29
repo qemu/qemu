@@ -1,4 +1,0 @@
-# alternate branches of 'str' type conflict with all scalar types
-{ 'alternate': 'Alt',
-  'data': { 'one': 'bool',
-            'two': 'str' } }

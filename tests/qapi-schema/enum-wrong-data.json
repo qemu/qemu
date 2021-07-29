@@ -1,2 +1,0 @@
-# we require that all qapi enums have an array for data
-{ 'enum': 'MyEnum', 'data': { 'value': 'str' } }

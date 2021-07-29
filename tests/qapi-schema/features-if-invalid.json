@@ -1,4 +1,0 @@
-# Cover feature with invalid 'if'
-{ 'struct': 'Stru',
-  'data': {},
-  'features': [{'name': 'f', 'if': false }] }

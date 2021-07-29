@@ -1,7 +1,0 @@
-QA output created by 192
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) nbd_server_start unix:SOCK_DIR/nbd
-(qemu) nbd_server_add -w drive0
-(qemu) q
-*** done

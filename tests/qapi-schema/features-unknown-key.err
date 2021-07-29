@@ -1,3 +1,0 @@
-features-unknown-key.json: In struct 'FeatureStruct0':
-features-unknown-key.json:1: 'features' member has unknown key 'colour'
-Valid keys are 'if', 'name'.

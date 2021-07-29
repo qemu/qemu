@@ -1,2 +1,0 @@
-features-bad-type.json: In struct 'FeatureStruct0':
-features-bad-type.json:1: 'features' member requires a string name

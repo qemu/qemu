@@ -1,6 +1,0 @@
-# This work is licensed under the terms of the GNU LGPL, version 2 or later.
-# See the COPYING.LIB file in the top-level directory.
-
-# Diagnose uninitialized member in pattern.
-&args	a b
-insn	00000000 00000000 00000000 b:8	&args

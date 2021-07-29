@@ -1,2 +1,0 @@
-union-clash-branches.json: In union 'TestUnion':
-union-clash-branches.json:6: name of 'data' member 'a_b' must not use uppercase or '_'

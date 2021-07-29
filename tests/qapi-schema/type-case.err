@@ -1,2 +1,0 @@
-type-case.json: In struct 'not-a-camel':
-type-case.json:2: name of struct must use CamelCase

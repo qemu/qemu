@@ -1,2 +1,0 @@
-# we reject a loop in base classes
-{ 'struct': 'Loopy', 'base': 'Loopy', 'data': {} }

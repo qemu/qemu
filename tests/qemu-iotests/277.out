@@ -1,6 +1,0 @@
-NBD server: started
-NBD client: QEMU-IO write
-NBD server: Closing connection on rule match inject-error
-NBD server: started
-NBD client: wrote 3145728/3145728 bytes at offset 0
-NBD server: Closing connection on rule match inject-error

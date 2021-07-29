@@ -1,4 +1,0 @@
-# we do not allow the 'any' type as an alternate branch
-{ 'alternate': 'Alt',
-  'data': { 'one': 'any',
-            'two': 'int' } }

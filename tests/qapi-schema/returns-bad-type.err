@@ -1,2 +1,0 @@
-returns-bad-type.json: In command 'no-way-this-will-get-whitelisted':
-returns-bad-type.json:14: command's 'returns' cannot take array type ['int']

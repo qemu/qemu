@@ -1,3 +1,0 @@
-# we reject duplicate events
-{ 'event': 'EVENT_A', 'data': { 'myint': 'int' } }
-{ 'event': 'EVENT_A', 'data': { 'myint': 'int' } }

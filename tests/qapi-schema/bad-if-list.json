@@ -1,3 +1,0 @@
-# check invalid 'if' content
-{ 'struct': 'TestIfStruct', 'data': { 'foo': 'int' },
-  'if': ['foo', ' '] }

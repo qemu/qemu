@@ -1,2 +1,0 @@
-returns-array-bad.json: In command 'oops':
-returns-array-bad.json:2: 'returns': array type must contain single type name

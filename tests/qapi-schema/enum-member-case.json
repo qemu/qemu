@@ -1,4 +1,0 @@
-# Member names should be 'lower-case' unless the enum is whitelisted
-{ 'pragma': { 'member-name-exceptions': [ 'UuidInfo' ] } }
-{ 'enum': 'UuidInfo', 'data': [ 'Value' ] } # UuidInfo is whitelisted
-{ 'enum': 'NoWayThisWillGetWhitelisted', 'data': [ 'Value' ] }

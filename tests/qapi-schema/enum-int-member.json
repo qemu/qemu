@@ -1,3 +1,0 @@
-# we reject any enum member that is not a string
-# FIXME: once the parser understands integer inputs, improve the error message
-{ 'enum': 'MyEnum', 'data': [ 1 ] }

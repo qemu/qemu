@@ -1,2 +1,0 @@
-struct-base-clash.json: In struct 'Sub':
-struct-base-clash.json:5: member 'name' collides with member 'name' of type 'Base'

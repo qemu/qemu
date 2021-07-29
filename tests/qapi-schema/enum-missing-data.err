@@ -1,2 +1,0 @@
-enum-missing-data.json: In enum 'MyEnum':
-enum-missing-data.json:2: enum misses key 'data'

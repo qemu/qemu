@@ -1,3 +1,0 @@
-# we reject an alternate with unknown type in branch
-{ 'alternate': 'Alt',
-  'data': { 'unknown': 'MissingType', 'i': 'int' } }

@@ -1,8 +1,0 @@
-# Tagged-section must not be empty
-
-##
-# @foo:
-#
-# Note:
-##
-{ 'command': 'foo', 'data': {'a': 'int'} }

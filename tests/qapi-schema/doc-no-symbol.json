@@ -1,6 +1,0 @@
-# Documentation for expression lacks symbol
-
-##
-# foo:
-##
-{ 'command': 'foo', 'data': {'a': 'int'} }

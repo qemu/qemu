@@ -1,2 +1,0 @@
-args-unknown.json: In command 'oops':
-args-unknown.json:2: command's 'data' uses unknown type 'NoSuchType'

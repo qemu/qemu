@@ -1,2 +1,0 @@
-# Type names should use CamelCase
-{ 'struct': 'not-a-camel', 'data': {} }

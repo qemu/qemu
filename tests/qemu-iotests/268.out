@@ -1,7 +1,0 @@
-QA output created by 268
-
-== Required alignment larger than cluster size ==
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
-wrote 512/512 bytes at offset 0
-512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-*** done

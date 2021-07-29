@@ -1,3 +1,0 @@
-alternate-base.json: In alternate 'Alt':
-alternate-base.json:4: alternate has unknown key 'base'
-Valid keys are 'alternate', 'data', 'features', 'if'.

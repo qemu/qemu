@@ -1,2 +1,0 @@
-# Check against oob illegal value
-{ 'command': 'oob-command-1', 'allow-oob': 'some-string' }

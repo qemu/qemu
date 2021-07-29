@@ -1,2 +1,0 @@
-# we reject data if it does not contain a known type
-{ 'command': 'oops', 'data': 'NoSuchType' }

@@ -1,6 +1,0 @@
-# This work is licensed under the terms of the GNU LGPL, version 2 or later.
-# See the COPYING.LIB file in the top-level directory.
-
-# Diagnose not specified bit (. vs -) w/format.
-@format		........ a:8      ........ b:7 .
-insn		00000000 ........ 00000000 ........	@format
