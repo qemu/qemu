@@ -14203,7 +14203,7 @@ static void decode_opc_special_legacy(CPUMIPSState *env, DisasContext *ctx)
         break;
 #endif
     case OPC_JR:
-        gen_compute_branch(ctx, op1, 4, rs, rd, sa, 4);
+        gen_compute_branch(ctx, op1, 4, rs, 0, 0, 4);
         break;
     case OPC_SPIM:
 #ifdef MIPS_STRICT_STANDARD
