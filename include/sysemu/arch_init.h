@@ -29,8 +29,6 @@ enum {
 
 extern const uint32_t arch_type;
 
-int kvm_available(void);
-
 /* default virtio transport per architecture */
 #define QEMU_ARCH_VIRTIO_PCI (QEMU_ARCH_ALPHA | QEMU_ARCH_ARM | \
                               QEMU_ARCH_HPPA | QEMU_ARCH_I386 | \
