@@ -259,26 +259,41 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
                         int argc, char **argv)
 {
     int i;
+    g_autoptr(GString) matches_raw = g_string_new("");
 
     for (i = 0; i < argc; i++) {
         char *opt = argv[i];
-        if (g_strcmp0(opt, "read") == 0) {
-            rw = QEMU_PLUGIN_MEM_R;
-        } else if (g_strcmp0(opt, "write") == 0) {
-            rw = QEMU_PLUGIN_MEM_W;
-        } else if (g_strcmp0(opt, "pattern") == 0) {
-            pattern = true;
-        } else if (g_strcmp0(opt, "source") == 0) {
-            source = true;
-        } else if (g_str_has_prefix(opt, "match")) {
-            gchar **parts = g_strsplit(opt, "=", 2);
+        g_autofree char **tokens = g_strsplit(opt, "=", 2);
+
+        if (g_strcmp0(tokens[0], "track") == 0) {
+            if (g_strcmp0(tokens[1], "read") == 0) {
+                rw = QEMU_PLUGIN_MEM_R;
+            } else if (g_strcmp0(tokens[1], "write") == 0) {
+                rw = QEMU_PLUGIN_MEM_W;
+            } else {
+                fprintf(stderr, "invalid value for track: %s\n", tokens[1]);
+                return -1;
+            }
+        } else if (g_strcmp0(tokens[0], "pattern") == 0) {
+            if (!qemu_plugin_bool_parse(tokens[0], tokens[1], &pattern)) {
+                fprintf(stderr, "boolean argument parsing failed: %s\n", opt);
+                return -1;
+            }
+        } else if (g_strcmp0(tokens[0], "source") == 0) {
+            if (!qemu_plugin_bool_parse(tokens[0], tokens[1], &source)) {
+                fprintf(stderr, "boolean argument parsing failed: %s\n", opt);
+                return -1;
+            }
+        } else if (g_strcmp0(tokens[0], "match") == 0) {
             check_match = true;
-            matches = g_strsplit(parts[1], ",", -1);
-            g_strfreev(parts);
+            g_string_append_printf(matches_raw, "%s,", tokens[1]);
         } else {
             fprintf(stderr, "option parsing failed: %s\n", opt);
             return -1;
         }
+    }
+    if (check_match) {
+        matches = g_strsplit(matches_raw->str, ",", -1);
     }
 
     if (source && pattern) {
