@@ -1,4 +1,5 @@
 {
+  qemu_plugin_bool_parse;
   qemu_plugin_get_hwaddr;
   qemu_plugin_hwaddr_is_io;
   qemu_plugin_insn_data;
