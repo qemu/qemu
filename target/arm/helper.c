@@ -9355,17 +9355,20 @@ uint32_t HELPER(uxtb16)(uint32_t x)
 
 int32_t HELPER(sdiv)(int32_t num, int32_t den)
 {
-    if (den == 0)
-      return 0;
-    if (num == INT_MIN && den == -1)
-      return INT_MIN;
+    if (den == 0) {
+        return 0;
+    }
+    if (num == INT_MIN && den == -1) {
+        return INT_MIN;
+    }
     return num / den;
 }
 
 uint32_t HELPER(udiv)(uint32_t num, uint32_t den)
 {
-    if (den == 0)
-      return 0;
+    if (den == 0) {
+        return 0;
+    }
     return num / den;
 }
 
