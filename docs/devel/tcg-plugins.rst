@@ -193,6 +193,21 @@ Similar to hotblocks but this time tracks memory accesses::
   0x0000000048b000, 0x0001, 130594, 0x0001, 355
   0x0000000048a000, 0x0001, 1826, 0x0001, 11
 
+The hotpages plugin can be configured using the following arguments:
+
+  * sortby=reads|writes|address
+
+  Log the data sorted by either the number of reads, the number of writes, or
+  memory address. (Default: entries are sorted by the sum of reads and writes)
+
+  * io=on
+
+  Track IO addresses. Only relevant to full system emulation. (Default: off)
+
+  * pagesize=N
+
+  The page size used. (Default: N = 4096)
+
 - contrib/plugins/howvec.c
 
 This is an instruction classifier so can be used to count different
