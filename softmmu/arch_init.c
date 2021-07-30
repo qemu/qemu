@@ -38,45 +38,4 @@ int graphic_height = 600;
 int graphic_depth = 32;
 #endif
 
-
-#if defined(TARGET_ALPHA)
-#define QEMU_ARCH QEMU_ARCH_ALPHA
-#elif defined(TARGET_ARM)
-#define QEMU_ARCH QEMU_ARCH_ARM
-#elif defined(TARGET_CRIS)
-#define QEMU_ARCH QEMU_ARCH_CRIS
-#elif defined(TARGET_HPPA)
-#define QEMU_ARCH QEMU_ARCH_HPPA
-#elif defined(TARGET_I386)
-#define QEMU_ARCH QEMU_ARCH_I386
-#elif defined(TARGET_M68K)
-#define QEMU_ARCH QEMU_ARCH_M68K
-#elif defined(TARGET_MICROBLAZE)
-#define QEMU_ARCH QEMU_ARCH_MICROBLAZE
-#elif defined(TARGET_MIPS)
-#define QEMU_ARCH QEMU_ARCH_MIPS
-#elif defined(TARGET_NIOS2)
-#define QEMU_ARCH QEMU_ARCH_NIOS2
-#elif defined(TARGET_OPENRISC)
-#define QEMU_ARCH QEMU_ARCH_OPENRISC
-#elif defined(TARGET_PPC)
-#define QEMU_ARCH QEMU_ARCH_PPC
-#elif defined(TARGET_RISCV)
-#define QEMU_ARCH QEMU_ARCH_RISCV
-#elif defined(TARGET_RX)
-#define QEMU_ARCH QEMU_ARCH_RX
-#elif defined(TARGET_S390X)
-#define QEMU_ARCH QEMU_ARCH_S390X
-#elif defined(TARGET_SH4)
-#define QEMU_ARCH QEMU_ARCH_SH4
-#elif defined(TARGET_SPARC)
-#define QEMU_ARCH QEMU_ARCH_SPARC
-#elif defined(TARGET_TRICORE)
-#define QEMU_ARCH QEMU_ARCH_TRICORE
-#elif defined(TARGET_XTENSA)
-#define QEMU_ARCH QEMU_ARCH_XTENSA
-#elif defined(TARGET_AVR)
-#define QEMU_ARCH QEMU_ARCH_AVR
-#endif
-
 const uint32_t arch_type = QEMU_ARCH;
