@@ -23,13 +23,6 @@
  */
 #include "qemu/osdep.h"
 #include "sysemu/arch_init.h"
-#include "hw/pci/pci.h"
-#include "hw/audio/soundhw.h"
-#include "qapi/error.h"
-#include "qemu/config-file.h"
-#include "qemu/error-report.h"
-#include "hw/acpi/acpi.h"
-#include "qemu/help_option.h"
 
 #ifdef TARGET_SPARC
 int graphic_width = 1024;
