@@ -1706,7 +1706,7 @@ static void usb_host_free_streams(USBDevice *udev, USBEndpoint **eps,
 /*
  * This is *NOT* about restoring state.  We have absolutely no idea
  * what state the host device is in at the moment and whenever it is
- * still present in the first place.  Attemping to contine where we
+ * still present in the first place.  Attempting to continue where we
  * left off is impossible.
  *
  * What we are going to do here is emulate a surprise removal of

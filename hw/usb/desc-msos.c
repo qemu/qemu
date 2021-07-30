@@ -5,12 +5,12 @@
 /*
  * Microsoft OS Descriptors
  *
- * Windows tries to fetch some special descriptors with informations
+ * Windows tries to fetch some special descriptors with information
  * specifically for windows.  Presence is indicated using a special
  * string @ index 0xee.  There are two kinds of descriptors:
  *
  * compatid descriptor
- *   Used to bind drivers, if usb class isn't specific enougth.
+ *   Used to bind drivers, if usb class isn't specific enough.
  *   Used for PTP/MTP for example (both share the same usb class).
  *
  * properties descriptor
@@ -23,7 +23,7 @@
  *   HLM\SYSTEM\CurrentControlSet\Control\usbflags
  *   HLM\SYSTEM\CurrentControlSet\Enum\USB
  * Windows will complain it can't delete entries on the second one.
- * It has deleted everything it had permissions too, which is enouth
+ * It has deleted everything it had permissions too, which is enough
  * as this includes "Device Parameters".
  *
  * http://msdn.microsoft.com/en-us/library/windows/hardware/ff537430.aspx
@@ -192,8 +192,8 @@ static int usb_desc_msos_prop(const USBDesc *desc, uint8_t *dest)
     if (desc->msos->SelectiveSuspendEnabled) {
         /*
          * Signaling remote wakeup capability in the standard usb
-         * descriptors isn't enouth to make windows actually use it.
-         * This is the "Yes, we really mean it" registy entry to flip
+         * descriptors isn't enough to make windows actually use it.
+         * This is the "Yes, we really mean it" registry entry to flip
          * the switch in the windows drivers.
          */
         length += usb_desc_msos_prop_dword(dest+length,
