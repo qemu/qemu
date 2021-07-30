@@ -9345,6 +9345,18 @@ uint32_t HELPER(sxtb16)(uint32_t x)
     return res;
 }
 
+static void handle_possible_div0_trap(CPUARMState *env, uintptr_t ra)
+{
+    /*
+     * Take a division-by-zero exception if necessary; otherwise return
+     * to get the usual non-trapping division behaviour (result of 0)
+     */
+    if (arm_feature(env, ARM_FEATURE_M)
+        && (env->v7m.ccr[env->v7m.secure] & R_V7M_CCR_DIV_0_TRP_MASK)) {
+        raise_exception_ra(env, EXCP_DIVBYZERO, 0, 1, ra);
+    }
+}
+
 uint32_t HELPER(uxtb16)(uint32_t x)
 {
     uint32_t res;
@@ -9353,9 +9365,10 @@ uint32_t HELPER(uxtb16)(uint32_t x)
     return res;
 }
 
-int32_t HELPER(sdiv)(int32_t num, int32_t den)
+int32_t HELPER(sdiv)(CPUARMState *env, int32_t num, int32_t den)
 {
     if (den == 0) {
+        handle_possible_div0_trap(env, GETPC());
         return 0;
     }
     if (num == INT_MIN && den == -1) {
@@ -9364,9 +9377,10 @@ int32_t HELPER(sdiv)(int32_t num, int32_t den)
     return num / den;
 }
 
-uint32_t HELPER(udiv)(uint32_t num, uint32_t den)
+uint32_t HELPER(udiv)(CPUARMState *env, uint32_t num, uint32_t den)
 {
     if (den == 0) {
+        handle_possible_div0_trap(env, GETPC());
         return 0;
     }
     return num / den;
@@ -9567,6 +9581,7 @@ void arm_log_exception(int idx)
             [EXCP_LAZYFP] = "v7M exception during lazy FP stacking",
             [EXCP_LSERR] = "v8M LSERR UsageFault",
             [EXCP_UNALIGNED] = "v7M UNALIGNED UsageFault",
+            [EXCP_DIVBYZERO] = "v7M DIVBYZERO UsageFault",
         };
 
         if (idx >= 0 && idx < ARRAY_SIZE(excnames)) {

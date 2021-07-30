@@ -7992,9 +7992,9 @@ static bool op_div(DisasContext *s, arg_rrr *a, bool u)
     t1 = load_reg(s, a->rn);
     t2 = load_reg(s, a->rm);
     if (u) {
-        gen_helper_udiv(t1, t1, t2);
+        gen_helper_udiv(t1, cpu_env, t1, t2);
     } else {
-        gen_helper_sdiv(t1, t1, t2);
+        gen_helper_sdiv(t1, cpu_env, t1, t2);
     }
     tcg_temp_free_i32(t2);
     store_reg(s, a->rd, t1);
