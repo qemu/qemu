@@ -121,6 +121,17 @@ static inline bool is_efer_invalid_state (CPUX86State *env)
     return false;
 }
 
+static inline bool virtual_gif_enabled(CPUX86State *env, uint32_t *int_ctl)
+{
+    if (likely(env->hflags & HF_GUEST_MASK)) {
+        *int_ctl = x86_ldl_phys(env_cpu(env),
+                       env->vm_vmcb + offsetof(struct vmcb, control.int_ctl));
+        return (env->features[FEAT_SVM] & CPUID_SVM_VGIF)
+                    && (*int_ctl & V_GIF_ENABLED_MASK);
+    }
+    return false;
+}
+
 void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
 {
     CPUState *cs = env_cpu(env);
@@ -510,13 +521,29 @@ void helper_vmsave(CPUX86State *env, int aflag)
 void helper_stgi(CPUX86State *env)
 {
     cpu_svm_check_intercept_param(env, SVM_EXIT_STGI, 0, GETPC());
-    env->hflags2 |= HF2_GIF_MASK;
+
+    CPUState *cs = env_cpu(env);
+    uint32_t int_ctl;
+    if (virtual_gif_enabled(env, &int_ctl)) {
+        x86_stl_phys(cs, env->vm_vmcb + offsetof(struct vmcb, control.int_ctl),
+                        int_ctl | V_GIF_MASK);
+    } else {
+        env->hflags2 |= HF2_GIF_MASK;
+    }
 }
 
 void helper_clgi(CPUX86State *env)
 {
     cpu_svm_check_intercept_param(env, SVM_EXIT_CLGI, 0, GETPC());
-    env->hflags2 &= ~HF2_GIF_MASK;
+
+    CPUState *cs = env_cpu(env);
+    uint32_t int_ctl;
+    if (virtual_gif_enabled(env, &int_ctl)) {
+        x86_stl_phys(cs, env->vm_vmcb + offsetof(struct vmcb, control.int_ctl),
+                        int_ctl & ~V_GIF_MASK);
+    } else {
+        env->hflags2 &= ~HF2_GIF_MASK;
+    }
 }
 
 bool cpu_svm_has_intercept(CPUX86State *env, uint32_t type)
