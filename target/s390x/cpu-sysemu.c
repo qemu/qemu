@@ -34,7 +34,6 @@
 
 #include "hw/s390x/pv.h"
 #include "hw/boards.h"
-#include "sysemu/arch_init.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/tcg.h"
 #include "hw/core/sysemu-cpu-ops.h"
