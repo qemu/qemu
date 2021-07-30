@@ -1356,7 +1356,7 @@ static bool vfio_radeon_smc_is_running(VFIOPCIDevice *vdev)
 /*
  * The scope of a config reset is controlled by a mode bit in the misc register
  * and a fuse, exposed as a bit in another register.  The fuse is the default
- * (0 = GFX, 1 = whole GPU), the misc bit is a toggle, with the forumula
+ * (0 = GFX, 1 = whole GPU), the misc bit is a toggle, with the formula
  * scope = !(misc ^ fuse), where the resulting scope is defined the same as
  * the fuse.  A truth table therefore tells us that if misc == fuse, we need
  * to flip the value of the bit in the misc register.

@@ -156,7 +156,7 @@ static void vfio_mmap_set_enabled(VFIOPlatformDevice *vdev, bool enabled)
  * if there is no more active IRQ
  * @opaque: actually points to the VFIO platform device
  *
- * Called on mmap timer timout, this function checks whether the
+ * Called on mmap timer timeout, this function checks whether the
  * IRQ is still active and if not, restores the fast path.
  * by construction a single eventfd is handled at a time.
  * if the IRQ is still active, the timer is re-programmed.
