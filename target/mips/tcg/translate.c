@@ -16094,6 +16094,11 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
 
     /* Transition to the auto-generated decoder.  */
 
+    /* Vendor specific extensions */
+    if (cpu_supports_isa(env, INSN_R5900) && decode_ext_txx9(ctx, ctx->opcode)) {
+        return;
+    }
+
     /* ISA extensions */
     if (ase_msa_available(env) && decode_ase_msa(ctx, ctx->opcode)) {
         return;
@@ -16101,9 +16106,6 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
 
     /* ISA (from latest to oldest) */
     if (cpu_supports_isa(env, ISA_MIPS_R6) && decode_isa_rel6(ctx, ctx->opcode)) {
-        return;
-    }
-    if (cpu_supports_isa(env, INSN_R5900) && decode_ext_txx9(ctx, ctx->opcode)) {
         return;
     }
 
