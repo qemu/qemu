@@ -5,20 +5,28 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 #
 # Reference:
+#
 #       MIPS Architecture for Programmers Volume II-A
 #       The MIPS32 Instruction Set Reference Manual, Revision 6.06
 #       (Document Number: MD00086-2B-MIPS32BIS-AFP-06.06)
 #
+#       MIPS Architecture for Programmers Volume II-A
+#       The MIPS64 Instruction Set Reference Manual, Revision 6.06
+#       (Document Number: MD00087-2B-MIPS64BIS-AFP-6.06)
 
 &rtype              rs rt rd sa
 
 @lsa                ...... rs:5 rt:5 rd:5 ... sa:2 ......   &rtype
 
 LSA                 000000 ..... ..... ..... 000 .. 000101  @lsa
+DLSA                000000 ..... ..... ..... 000 .. 010101  @lsa
 
 REMOVED             010011 ----- ----- ----- ----- ------   # COP1X (COP3)
 
 REMOVED             011100 ----- ----- ----- ----- ------   # SPECIAL2
+
+REMOVED             011010 ----- ----- ----------------     # LDL
+REMOVED             011011 ----- ----- ----------------     # LDR
 
 REMOVED             011111 ----- ----- ----------  011001   # LWLE
 REMOVED             011111 ----- ----- ----------  011010   # LWRE
@@ -28,9 +36,14 @@ REMOVED             011111 ----- ----- ----------  100010   # SWRE
 REMOVED             100010 ----- ----- ----------------     # LWL
 REMOVED             100110 ----- ----- ----------------     # LWR
 REMOVED             101010 ----- ----- ----------------     # SWL
+REMOVED             101100 ----- ----- ----------------     # SDL
+REMOVED             101101 ----- ----- ----------------     # SDR
 REMOVED             101110 ----- ----- ----------------     # SWR
 
 REMOVED             101111 ----- ----- ----------------     # CACHE
+
 REMOVED             110000 ----- ----- ----------------     # LL
 REMOVED             110011 ----- ----- ----------------     # PREF
+REMOVED             110100 ----- ----- ----------------     # LLD
 REMOVED             111000 ----- ----- ----------------     # SC
+REMOVED             111100 ----- ----- ----------------     # SCD
