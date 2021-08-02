@@ -16,6 +16,9 @@
 #define TPM_RC_FAILURE 0x101
 #define TPM2_ST_NO_SESSIONS 0x8001
 
+#define TPM_FAIL 9
+#define TPM_TAG_RSP_COMMAND 0xc4
+
 #include "qemu/sockets.h"
 #include "io/channel.h"
 #include "sysemu/tpm.h"
@@ -29,6 +32,7 @@ struct tpm_hdr {
 
 #ifndef CONFIG_TPM
 enum TPMVersion {
+    TPM_VERSION_1_2 = 1,
     TPM_VERSION_2_0 = 2,
 };
 #endif
