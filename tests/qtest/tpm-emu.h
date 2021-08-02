@@ -18,6 +18,7 @@
 
 #include "qemu/sockets.h"
 #include "io/channel.h"
+#include "sysemu/tpm.h"
 
 struct tpm_hdr {
     uint16_t tag;
@@ -25,6 +26,12 @@ struct tpm_hdr {
     uint32_t code; /*ordinal/error */
     char buffer[];
 } QEMU_PACKED;
+
+#ifndef CONFIG_TPM
+enum TPMVersion {
+    TPM_VERSION_2_0 = 2,
+};
+#endif
 
 typedef struct TPMTestState {
     GMutex data_mutex;
@@ -34,6 +41,7 @@ typedef struct TPMTestState {
     QIOChannel *tpm_ioc;
     GThread *emu_tpm_thread;
     struct tpm_hdr *tpm_msg;
+    enum TPMVersion tpm_version;
 } TPMTestState;
 
 void tpm_emu_test_wait_cond(TPMTestState *s);
