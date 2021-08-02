@@ -29,6 +29,7 @@
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "net/eth.h"
 #include "net/net.h"
 #include "net/checksum.h"
 #include "sysemu/sysemu.h"
@@ -130,10 +131,13 @@ struct E1000State_st {
 #define E1000_FLAG_MIT_BIT 1
 #define E1000_FLAG_MAC_BIT 2
 #define E1000_FLAG_TSO_BIT 3
+#define E1000_FLAG_VET_BIT 4
 #define E1000_FLAG_AUTONEG (1 << E1000_FLAG_AUTONEG_BIT)
 #define E1000_FLAG_MIT (1 << E1000_FLAG_MIT_BIT)
 #define E1000_FLAG_MAC (1 << E1000_FLAG_MAC_BIT)
 #define E1000_FLAG_TSO (1 << E1000_FLAG_TSO_BIT)
+#define E1000_FLAG_VET (1 << E1000_FLAG_VET_BIT)
+
     uint32_t compat_flags;
     bool received_tx_tso;
     bool use_tso_for_migration;
@@ -361,6 +365,13 @@ e1000_autoneg_timer(void *opaque)
     }
 }
 
+static bool e1000_vet_init_need(void *opaque)
+{
+    E1000State *s = opaque;
+
+    return chkflag(VET);
+}
+
 static void e1000_reset(void *opaque)
 {
     E1000State *d = opaque;
@@ -386,6 +397,10 @@ static void e1000_reset(void *opaque)
     }
 
     e1000x_reset_mac_addr(d->nic, d->mac_reg, macaddr);
+
+    if (e1000_vet_init_need(d)) {
+        d->mac_reg[VET] = ETH_P_VLAN;
+    }
 }
 
 static void
@@ -1737,6 +1752,8 @@ static Property e1000_properties[] = {
                     compat_flags, E1000_FLAG_MAC_BIT, true),
     DEFINE_PROP_BIT("migrate_tso_props", E1000State,
                     compat_flags, E1000_FLAG_TSO_BIT, true),
+    DEFINE_PROP_BIT("init-vet", E1000State,
+                    compat_flags, E1000_FLAG_VET_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
