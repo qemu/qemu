@@ -22,6 +22,7 @@
 #include "qemu/sockets.h"
 #include "io/channel.h"
 #include "sysemu/tpm.h"
+#include "libqos/libqtest.h"
 
 struct tpm_hdr {
     uint16_t tag;
@@ -50,5 +51,6 @@ typedef struct TPMTestState {
 
 void tpm_emu_test_wait_cond(TPMTestState *s);
 void *tpm_emu_ctrl_thread(void *data);
+bool tpm_model_is_available(const char *args, const char *tpm_if);
 
 #endif /* TESTS_TPM_EMU_H */

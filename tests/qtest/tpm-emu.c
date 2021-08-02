@@ -16,6 +16,8 @@
 #include "backends/tpm/tpm_ioctl.h"
 #include "io/channel-socket.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qlist.h"
+#include "qapi/qmp/qstring.h"
 #include "tpm-emu.h"
 
 void tpm_emu_test_wait_cond(TPMTestState *s)
@@ -191,4 +193,40 @@ void *tpm_emu_ctrl_thread(void *data)
     object_unref(OBJECT(ioc));
     object_unref(OBJECT(lioc));
     return NULL;
+}
+
+bool tpm_model_is_available(const char *args, const char *tpm_if)
+{
+    QTestState *qts;
+    QDict *rsp_tpm;
+    bool ret = false;
+
+    qts = qtest_init(args);
+    if (!qts) {
+        return false;
+    }
+
+    rsp_tpm = qtest_qmp(qts, "{ 'execute': 'query-tpm'}");
+    if (!qdict_haskey(rsp_tpm, "error")) {
+        QDict *rsp_models = qtest_qmp(qts,
+                                      "{ 'execute': 'query-tpm-models'}");
+        if (qdict_haskey(rsp_models, "return")) {
+            QList *models = qdict_get_qlist(rsp_models, "return");
+            QListEntry *e;
+
+            QLIST_FOREACH_ENTRY(models, e) {
+                QString *s = qobject_to(QString, qlist_entry_obj(e));
+                const char *ename = qstring_get_str(s);
+                if (!strcmp(ename, tpm_if)) {
+                    ret = true;
+                    break;
+                }
+            }
+        }
+        qobject_unref(rsp_models);
+    }
+    qobject_unref(rsp_tpm);
+    qtest_quit(qts);
+
+    return ret;
 }
