@@ -45,9 +45,10 @@ typedef struct va_list_str *va_list;
 /* exec.c */
 
 typedef struct AddressSpace AddressSpace;
+typedef struct MemoryRegionCache MemoryRegionCache;
 typedef uint64_t hwaddr;
 typedef uint32_t MemTxResult;
-typedef uint64_t MemTxAttrs;
+typedef struct MemTxAttrs {} MemTxAttrs;
 
 static void __bufwrite(uint8_t *buf, ssize_t len)
 {
@@ -67,9 +68,40 @@ static void __bufread(uint8_t *buf, ssize_t len)
     int last = buf[len-1];
 }
 
+MemTxResult address_space_read_cached(MemoryRegionCache *cache, hwaddr addr,
+                                      MemTxAttrs attrs,
+                                      void *buf, int len)
+{
+    MemTxResult result;
+    // TODO: investigate impact of treating reads as producing
+    // tainted data, with __coverity_tainted_data_argument__(buf).
+    __bufwrite(buf, len);
+    return result;
+}
+
+MemTxResult address_space_write_cached(MemoryRegionCache *cache, hwaddr addr,
+                                MemTxAttrs attrs,
+                                const void *buf, int len)
+{
+    MemTxResult result;
+    __bufread(buf, len);
+    return result;
+}
+
+MemTxResult address_space_rw_cached(MemoryRegionCache *cache, hwaddr addr,
+                                    MemTxAttrs attrs,
+                                    void *buf, int len, bool is_write)
+{
+    if (is_write) {
+        return address_space_write_cached(cache, addr, attrs, buf, len);
+    } else {
+        return address_space_read_cached(cache, addr, attrs, buf, len);
+    }
+}
+
 MemTxResult address_space_read(AddressSpace *as, hwaddr addr,
                                MemTxAttrs attrs,
-                               uint8_t *buf, int len)
+                               void *buf, int len)
 {
     MemTxResult result;
     // TODO: investigate impact of treating reads as producing
@@ -80,13 +112,23 @@ MemTxResult address_space_read(AddressSpace *as, hwaddr addr,
 
 MemTxResult address_space_write(AddressSpace *as, hwaddr addr,
                                 MemTxAttrs attrs,
-                                const uint8_t *buf, int len)
+                                const void *buf, int len)
 {
     MemTxResult result;
     __bufread(buf, len);
     return result;
 }
 
+MemTxResult address_space_rw(AddressSpace *as, hwaddr addr,
+                             MemTxAttrs attrs,
+                             void *buf, int len, bool is_write)
+{
+    if (is_write) {
+        return address_space_write(as, addr, attrs, buf, len);
+    } else {
+        return address_space_read(as, addr, attrs, buf, len);
+    }
+}
 
 /* Tainting */
 
@@ -136,54 +178,56 @@ uint8_t replay_get_byte(void)
 
 void *g_malloc_n(size_t nmemb, size_t size)
 {
-    size_t sz;
     void *ptr;
 
     __coverity_negative_sink__(nmemb);
     __coverity_negative_sink__(size);
-    sz = nmemb * size;
-    ptr = __coverity_alloc__(sz);
+    ptr = __coverity_alloc__(nmemb * size);
+    if (!ptr) {
+        __coverity_panic__();
+    }
     __coverity_mark_as_uninitialized_buffer__(ptr);
-    __coverity_mark_as_afm_allocated__(ptr, "g_free");
+    __coverity_mark_as_afm_allocated__(ptr, AFM_free);
     return ptr;
 }
 
 void *g_malloc0_n(size_t nmemb, size_t size)
 {
-    size_t sz;
     void *ptr;
 
     __coverity_negative_sink__(nmemb);
     __coverity_negative_sink__(size);
-    sz = nmemb * size;
-    ptr = __coverity_alloc__(sz);
+    ptr = __coverity_alloc__(nmemb * size);
+    if (!ptr) {
+        __coverity_panic__();
+    }
     __coverity_writeall0__(ptr);
-    __coverity_mark_as_afm_allocated__(ptr, "g_free");
+    __coverity_mark_as_afm_allocated__(ptr, AFM_free);
     return ptr;
 }
 
 void *g_realloc_n(void *ptr, size_t nmemb, size_t size)
 {
-    size_t sz;
-
     __coverity_negative_sink__(nmemb);
     __coverity_negative_sink__(size);
-    sz = nmemb * size;
     __coverity_escape__(ptr);
-    ptr = __coverity_alloc__(sz);
+    ptr = __coverity_alloc__(nmemb * size);
+    if (!ptr) {
+        __coverity_panic__();
+    }
     /*
      * Memory beyond the old size isn't actually initialized.  Can't
      * model that.  See Coverity's realloc() model
      */
     __coverity_writeall__(ptr);
-    __coverity_mark_as_afm_allocated__(ptr, "g_free");
+    __coverity_mark_as_afm_allocated__(ptr, AFM_free);
     return ptr;
 }
 
 void g_free(void *ptr)
 {
     __coverity_free__(ptr);
-    __coverity_mark_as_afm_freed__(ptr, "g_free");
+    __coverity_mark_as_afm_freed__(ptr, AFM_free);
 }
 
 /*
@@ -221,140 +265,81 @@ void *g_try_realloc_n(void *ptr, size_t nmemb, size_t size)
     return g_realloc_n(ptr, nmemb, size);
 }
 
-/* Trivially derive the g_FOO() from the g_FOO_n() */
+/* Derive the g_FOO() from the g_FOO_n() */
 
 void *g_malloc(size_t size)
 {
-    return g_malloc_n(1, size);
+    void *ptr;
+
+    __coverity_negative_sink__(size);
+    ptr = __coverity_alloc__(size);
+    if (!ptr) {
+        __coverity_panic__();
+    }
+    __coverity_mark_as_uninitialized_buffer__(ptr);
+    __coverity_mark_as_afm_allocated__(ptr, AFM_free);
+    return ptr;
 }
 
 void *g_malloc0(size_t size)
 {
-    return g_malloc0_n(1, size);
+    void *ptr;
+
+    __coverity_negative_sink__(size);
+    ptr = __coverity_alloc__(size);
+    if (!ptr) {
+        __coverity_panic__();
+    }
+    __coverity_writeall0__(ptr);
+    __coverity_mark_as_afm_allocated__(ptr, AFM_free);
+    return ptr;
 }
 
 void *g_realloc(void *ptr, size_t size)
 {
-    return g_realloc_n(ptr, 1, size);
+    __coverity_negative_sink__(size);
+    __coverity_escape__(ptr);
+    ptr = __coverity_alloc__(size);
+    if (!ptr) {
+        __coverity_panic__();
+    }
+    /*
+     * Memory beyond the old size isn't actually initialized.  Can't
+     * model that.  See Coverity's realloc() model
+     */
+    __coverity_writeall__(ptr);
+    __coverity_mark_as_afm_allocated__(ptr, AFM_free);
+    return ptr;
 }
 
 void *g_try_malloc(size_t size)
 {
-    return g_try_malloc_n(1, size);
+    int nomem;
+
+    if (nomem) {
+        return NULL;
+    }
+    return g_malloc(size);
 }
 
 void *g_try_malloc0(size_t size)
 {
-    return g_try_malloc0_n(1, size);
+    int nomem;
+
+    if (nomem) {
+        return NULL;
+    }
+    return g_malloc0(size);
 }
 
 void *g_try_realloc(void *ptr, size_t size)
 {
-    return g_try_realloc_n(ptr, 1, size);
-}
+    int nomem;
 
-/* Other memory allocation functions */
-
-void *g_memdup(const void *ptr, unsigned size)
-{
-    unsigned char *dup;
-    unsigned i;
-
-    if (!ptr) {
+    if (nomem) {
         return NULL;
     }
-
-    dup = g_malloc(size);
-    for (i = 0; i < size; i++)
-        dup[i] = ((unsigned char *)ptr)[i];
-    return dup;
-}
-
-/*
- * GLib string allocation functions
- */
-
-char *g_strdup(const char *s)
-{
-    char *dup;
-    size_t i;
-
-    if (!s) {
-        return NULL;
-    }
-
-    __coverity_string_null_sink__(s);
-    __coverity_string_size_sink__(s);
-    dup = __coverity_alloc_nosize__();
-    __coverity_mark_as_afm_allocated__(dup, "g_free");
-    for (i = 0; (dup[i] = s[i]); i++) ;
-    return dup;
-}
-
-char *g_strndup(const char *s, size_t n)
-{
-    char *dup;
-    size_t i;
-
-    __coverity_negative_sink__(n);
-
-    if (!s) {
-        return NULL;
-    }
-
-    dup = g_malloc(n + 1);
-    for (i = 0; i < n && (dup[i] = s[i]); i++) ;
-    dup[i] = 0;
-    return dup;
-}
-
-char *g_strdup_printf(const char *format, ...)
-{
-    char ch, *s;
-    size_t len;
-
-    __coverity_string_null_sink__(format);
-    __coverity_string_size_sink__(format);
-
-    ch = *format;
-
-    s = __coverity_alloc_nosize__();
-    __coverity_writeall__(s);
-    __coverity_mark_as_afm_allocated__(s, "g_free");
-    return s;
-}
-
-char *g_strdup_vprintf(const char *format, va_list ap)
-{
-    char ch, *s;
-    size_t len;
-
-    __coverity_string_null_sink__(format);
-    __coverity_string_size_sink__(format);
-
-    ch = *format;
-    ch = *(char *)ap;
-
-    s = __coverity_alloc_nosize__();
-    __coverity_writeall__(s);
-    __coverity_mark_as_afm_allocated__(s, "g_free");
-
-    return len;
-}
-
-char *g_strconcat(const char *s, ...)
-{
-    char *s;
-
-    /*
-     * Can't model: last argument must be null, the others
-     * null-terminated strings
-     */
-
-    s = __coverity_alloc_nosize__();
-    __coverity_writeall__(s);
-    __coverity_mark_as_afm_allocated__(s, "g_free");
-    return s;
+    return g_realloc(ptr, size);
 }
 
 /* Other glib functions */
