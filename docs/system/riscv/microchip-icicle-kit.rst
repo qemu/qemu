@@ -95,7 +95,7 @@ Then we can boot the machine by:
       -serial chardev:serial1
 
 With above command line, current terminal session will be used for the first
-serial port. Open another terminal window, and use `minicom` to connect the
+serial port. Open another terminal window, and use ``minicom`` to connect the
 second serial port.
 
 .. code-block:: bash

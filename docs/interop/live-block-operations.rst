@@ -781,7 +781,7 @@ the content of image [D].
         }
 
 (6) [On *destination* QEMU] Finally, resume the guest vCPUs by issuing the
-    QMP command `cont`::
+    QMP command ``cont``::
 
         (QEMU) cont
         {

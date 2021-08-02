@@ -20,12 +20,14 @@ or Hypervisor.Framework.
    linuxboot
    generic-loader
    guest-loader
+   barrier
    vnc-security
    tls
    secrets
    authz
    gdb
    managed-startup
+   bootindex
    cpu-hotplug
    pr-manager
    targets

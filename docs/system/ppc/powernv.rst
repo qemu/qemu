@@ -48,15 +48,15 @@ Firmware
 --------
 
 The OPAL firmware (OpenPower Abstraction Layer) for OpenPower systems
-includes the runtime services `skiboot` and the bootloader kernel and
-initramfs `skiroot`. Source code can be found on GitHub:
+includes the runtime services ``skiboot`` and the bootloader kernel and
+initramfs ``skiroot``. Source code can be found on GitHub:
 
   https://github.com/open-power.
 
-Prebuilt images of `skiboot` and `skiboot` are made available on the `OpenPOWER <https://openpower.xyz/job/openpower/job/openpower-op-build/>`__ site. To boot a POWER9 machine, use the `witherspoon <https://openpower.xyz/job/openpower/job/openpower-op-build/label=slave,target=witherspoon/lastSuccessfulBuild/>`__ images. For POWER8, use
+Prebuilt images of ``skiboot`` and ``skiboot`` are made available on the `OpenPOWER <https://openpower.xyz/job/openpower/job/openpower-op-build/>`__ site. To boot a POWER9 machine, use the `witherspoon <https://openpower.xyz/job/openpower/job/openpower-op-build/label=slave,target=witherspoon/lastSuccessfulBuild/>`__ images. For POWER8, use
 the `palmetto <https://openpower.xyz/job/openpower/job/openpower-op-build/label=slave,target=palmetto/lastSuccessfulBuild/>`__ images.
 
-QEMU includes a prebuilt image of `skiboot` which is updated when a
+QEMU includes a prebuilt image of ``skiboot`` which is updated when a
 more recent version is required by the models.
 
 Boot options

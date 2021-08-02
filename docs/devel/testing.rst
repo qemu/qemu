@@ -775,7 +775,7 @@ The base test class has also support for tests with more than one
 QEMUMachine. The way to get machines is through the ``self.get_vm()``
 method which will return a QEMUMachine instance. The ``self.get_vm()``
 method accepts arguments that will be passed to the QEMUMachine creation
-and also an optional `name` attribute so you can identify a specific
+and also an optional ``name`` attribute so you can identify a specific
 machine and get it more than once through the tests methods. A simple
 and hypothetical example follows:
 
@@ -1062,7 +1062,7 @@ Here is a list of the most used variables:
 AVOCADO_ALLOW_LARGE_STORAGE
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Tests which are going to fetch or produce assets considered *large* are not
-going to run unless that `AVOCADO_ALLOW_LARGE_STORAGE=1` is exported on
+going to run unless that ``AVOCADO_ALLOW_LARGE_STORAGE=1`` is exported on
 the environment.
 
 The definition of *large* is a bit arbitrary here, but it usually means an
@@ -1076,7 +1076,7 @@ skipped by default. The definition of *not safe* is also arbitrary but
 usually it means a blob which either its source or build process aren't
 public available.
 
-You should export `AVOCADO_ALLOW_UNTRUSTED_CODE=1` on the environment in
+You should export ``AVOCADO_ALLOW_UNTRUSTED_CODE=1`` on the environment in
 order to allow tests which make use of those kind of assets.
 
 AVOCADO_TIMEOUT_EXPECTED
@@ -1090,7 +1090,7 @@ property defined in the test class, for further details::
 Even though the timeout can be set by the test developer, there are some tests
 that may not have a well-defined limit of time to finish under certain
 conditions. For example, tests that take longer to execute when QEMU is
-compiled with debug flags. Therefore, the `AVOCADO_TIMEOUT_EXPECTED` variable
+compiled with debug flags. Therefore, the ``AVOCADO_TIMEOUT_EXPECTED`` variable
 has been used to determine whether those tests should run or not.
 
 GITLAB_CI

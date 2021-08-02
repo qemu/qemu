@@ -691,13 +691,6 @@ static void sbsa_ref_init(MachineState *machine)
 
     firmware_loaded = sbsa_firmware_init(sms, sysmem, secure_sysmem);
 
-    if (machine->kernel_filename && firmware_loaded) {
-        error_report("sbsa-ref: No fw_cfg device on this machine, "
-                     "so -kernel option is not supported when firmware loaded, "
-                     "please load OS from hard disk instead");
-        exit(1);
-    }
-
     /*
      * This machine has EL3 enabled, external firmware should supply PSCI
      * implementation, so the QEMU's internal PSCI is disabled.

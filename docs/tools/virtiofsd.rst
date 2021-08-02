@@ -102,7 +102,7 @@ Options
     default is ``no_xattr``.
 
   * posix_acl|no_posix_acl -
-    Enable/disable posix acl support.  Posix ACLs are disabled by default`.
+    Enable/disable posix acl support.  Posix ACLs are disabled by default.
 
 .. option:: --socket-path=PATH
 

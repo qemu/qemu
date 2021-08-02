@@ -78,7 +78,7 @@ vCPU hotplug
       }
       (QEMU)
 
-(5) Optionally, run QMP `query-cpus-fast` for some details about the
+(5) Optionally, run QMP ``query-cpus-fast`` for some details about the
     vCPUs::
 
       (QEMU) query-cpus-fast

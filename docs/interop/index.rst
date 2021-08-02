@@ -7,6 +7,7 @@ are useful for making QEMU interoperate with other software.
 .. toctree::
    :maxdepth: 2
 
+   barrier
    bitmaps
    dbus
    dbus-vmstate

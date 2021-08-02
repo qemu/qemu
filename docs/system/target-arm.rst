@@ -90,9 +90,12 @@ undocumented; you can get a complete list by running
    arm/highbank
    arm/musicpal
    arm/gumstix
+   arm/mainstone
+   arm/kzm
    arm/nrf
    arm/nseries
    arm/nuvoton
+   arm/imx25-pdk
    arm/orangepi
    arm/palm
    arm/raspi
