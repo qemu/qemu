@@ -821,7 +821,6 @@ static uint32_t sd_wpbits(SDState *sd, uint64_t addr)
     wpnum = sd_addr_to_wpnum(addr);
 
     for (i = 0; i < 32; i++, wpnum++, addr += WPGROUP_SIZE) {
-        assert(wpnum < sd->wpgrps_size);
         if (addr >= sd->size) {
             /*
              * If the addresses of the last groups are outside the valid range,
@@ -829,6 +828,7 @@ static uint32_t sd_wpbits(SDState *sd, uint64_t addr)
              */
             continue;
         }
+        assert(wpnum < sd->wpgrps_size);
         if (test_bit(wpnum, sd->wp_groups)) {
             ret |= (1 << i);
         }
