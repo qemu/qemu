@@ -251,10 +251,10 @@ void hmp_drive_mirror(Monitor *mon, const QDict *qdict)
 
     if (!filename) {
         error_setg(&err, QERR_MISSING_PARAMETER, "target");
-        hmp_handle_error(mon, err);
-        return;
+        goto end;
     }
     qmp_drive_mirror(&mirror, &err);
+end:
     hmp_handle_error(mon, err);
 }
 
@@ -281,11 +281,11 @@ void hmp_drive_backup(Monitor *mon, const QDict *qdict)
 
     if (!filename) {
         error_setg(&err, QERR_MISSING_PARAMETER, "target");
-        hmp_handle_error(mon, err);
-        return;
+        goto end;
     }
 
     qmp_drive_backup(&backup, &err);
+end:
     hmp_handle_error(mon, err);
 }
 
@@ -356,8 +356,7 @@ void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict)
          * will be taken internally. Today it's actually required.
          */
         error_setg(&err, QERR_MISSING_PARAMETER, "snapshot-file");
-        hmp_handle_error(mon, err);
-        return;
+        goto end;
     }
 
     mode = reuse ? NEW_IMAGE_MODE_EXISTING : NEW_IMAGE_MODE_ABSOLUTE_PATHS;
@@ -365,6 +364,7 @@ void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict)
                                filename, false, NULL,
                                !!format, format,
                                true, mode, &err);
+end:
     hmp_handle_error(mon, err);
 }
 
