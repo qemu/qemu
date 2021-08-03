@@ -361,4 +361,46 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
     tcg_gen_gvec_umin(MO_8, VdV_off, VuV_off, VvV_off, \
                       sizeof(MMVector), sizeof(MMVector))
 
+/* Vector logical ops */
+#define fGEN_TCG_V6_vxor(SHORTCODE) \
+    tcg_gen_gvec_xor(MO_64, VdV_off, VuV_off, VvV_off, \
+                     sizeof(MMVector), sizeof(MMVector))
+
+#define fGEN_TCG_V6_vand(SHORTCODE) \
+    tcg_gen_gvec_and(MO_64, VdV_off, VuV_off, VvV_off, \
+                     sizeof(MMVector), sizeof(MMVector))
+
+#define fGEN_TCG_V6_vor(SHORTCODE) \
+    tcg_gen_gvec_or(MO_64, VdV_off, VuV_off, VvV_off, \
+                    sizeof(MMVector), sizeof(MMVector))
+
+#define fGEN_TCG_V6_vnot(SHORTCODE) \
+    tcg_gen_gvec_not(MO_64, VdV_off, VuV_off, \
+                     sizeof(MMVector), sizeof(MMVector))
+
+/* Q register logical ops */
+#define fGEN_TCG_V6_pred_or(SHORTCODE) \
+    tcg_gen_gvec_or(MO_64, QdV_off, QsV_off, QtV_off, \
+                    sizeof(MMQReg), sizeof(MMQReg))
+
+#define fGEN_TCG_V6_pred_and(SHORTCODE) \
+    tcg_gen_gvec_and(MO_64, QdV_off, QsV_off, QtV_off, \
+                     sizeof(MMQReg), sizeof(MMQReg))
+
+#define fGEN_TCG_V6_pred_xor(SHORTCODE) \
+    tcg_gen_gvec_xor(MO_64, QdV_off, QsV_off, QtV_off, \
+                     sizeof(MMQReg), sizeof(MMQReg))
+
+#define fGEN_TCG_V6_pred_or_n(SHORTCODE) \
+    tcg_gen_gvec_orc(MO_64, QdV_off, QsV_off, QtV_off, \
+                     sizeof(MMQReg), sizeof(MMQReg))
+
+#define fGEN_TCG_V6_pred_and_n(SHORTCODE) \
+    tcg_gen_gvec_andc(MO_64, QdV_off, QsV_off, QtV_off, \
+                      sizeof(MMQReg), sizeof(MMQReg))
+
+#define fGEN_TCG_V6_pred_not(SHORTCODE) \
+    tcg_gen_gvec_not(MO_64, QdV_off, QsV_off, \
+                     sizeof(MMQReg), sizeof(MMQReg))
+
 #endif
