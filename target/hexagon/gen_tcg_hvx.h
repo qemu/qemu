@@ -155,4 +155,54 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
 #define fGEN_TCG_V6_vncmov(SHORTCODE) \
     fGEN_TCG_VEC_CMOV(0)
 
+/* Vector add - various forms */
+#define fGEN_TCG_V6_vaddb(SHORTCODE) \
+    tcg_gen_gvec_add(MO_8, VdV_off, VuV_off, VvV_off, \
+                     sizeof(MMVector), sizeof(MMVector))
+
+#define fGEN_TCG_V6_vaddh(SHORTCYDE) \
+    tcg_gen_gvec_add(MO_16, VdV_off, VuV_off, VvV_off, \
+                     sizeof(MMVector), sizeof(MMVector))
+
+#define fGEN_TCG_V6_vaddw(SHORTCODE) \
+    tcg_gen_gvec_add(MO_32, VdV_off, VuV_off, VvV_off, \
+                     sizeof(MMVector), sizeof(MMVector))
+
+#define fGEN_TCG_V6_vaddb_dv(SHORTCODE) \
+    tcg_gen_gvec_add(MO_8, VddV_off, VuuV_off, VvvV_off, \
+                     sizeof(MMVector) * 2, sizeof(MMVector) * 2)
+
+#define fGEN_TCG_V6_vaddh_dv(SHORTCYDE) \
+    tcg_gen_gvec_add(MO_16, VddV_off, VuuV_off, VvvV_off, \
+                     sizeof(MMVector) * 2, sizeof(MMVector) * 2)
+
+#define fGEN_TCG_V6_vaddw_dv(SHORTCODE) \
+    tcg_gen_gvec_add(MO_32, VddV_off, VuuV_off, VvvV_off, \
+                     sizeof(MMVector) * 2, sizeof(MMVector) * 2)
+
+/* Vector sub - various forms */
+#define fGEN_TCG_V6_vsubb(SHORTCODE) \
+    tcg_gen_gvec_sub(MO_8, VdV_off, VuV_off, VvV_off, \
+                     sizeof(MMVector), sizeof(MMVector))
+
+#define fGEN_TCG_V6_vsubh(SHORTCODE) \
+    tcg_gen_gvec_sub(MO_16, VdV_off, VuV_off, VvV_off, \
+                     sizeof(MMVector), sizeof(MMVector))
+
+#define fGEN_TCG_V6_vsubw(SHORTCODE) \
+    tcg_gen_gvec_sub(MO_32, VdV_off, VuV_off, VvV_off, \
+                     sizeof(MMVector), sizeof(MMVector))
+
+#define fGEN_TCG_V6_vsubb_dv(SHORTCODE) \
+    tcg_gen_gvec_sub(MO_8, VddV_off, VuuV_off, VvvV_off, \
+                     sizeof(MMVector) * 2, sizeof(MMVector) * 2)
+
+#define fGEN_TCG_V6_vsubh_dv(SHORTCODE) \
+    tcg_gen_gvec_sub(MO_16, VddV_off, VuuV_off, VvvV_off, \
+                     sizeof(MMVector) * 2, sizeof(MMVector) * 2)
+
+#define fGEN_TCG_V6_vsubw_dv(SHORTCODE) \
+    tcg_gen_gvec_sub(MO_32, VddV_off, VuuV_off, VvvV_off, \
+                     sizeof(MMVector) * 2, sizeof(MMVector) * 2)
+
 #endif
