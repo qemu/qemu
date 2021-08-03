@@ -537,9 +537,28 @@ static void *qemu_thread_start(void *args)
     QEMU_TSAN_ANNOTATE_THREAD_NAME(qemu_thread_args->name);
     g_free(qemu_thread_args->name);
     g_free(qemu_thread_args);
+
+    /*
+     * GCC 11 with glibc 2.17 on PowerPC reports
+     *
+     * qemu-thread-posix.c:540:5: error: ‘__sigsetjmp’ accessing 656 bytes
+     *   in a region of size 528 [-Werror=stringop-overflow=]
+     * 540 |     pthread_cleanup_push(qemu_thread_atexit_notify, NULL);
+     *     |     ^~~~~~~~~~~~~~~~~~~~
+     *
+     * which is clearly nonsense.
+     */
+#pragma GCC diagnostic push
+#ifndef __clang__
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
+
     pthread_cleanup_push(qemu_thread_atexit_notify, NULL);
     r = start_routine(arg);
     pthread_cleanup_pop(1);
+
+#pragma GCC diagnostic pop
+
     return r;
 }
 
