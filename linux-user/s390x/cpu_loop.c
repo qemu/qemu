@@ -25,6 +25,35 @@
 /* s390x masks the fault address it reports in si_addr for SIGSEGV and SIGBUS */
 #define S390X_FAIL_ADDR_MASK -4096LL
 
+static int get_pgm_data_si_code(int dxc_code)
+{
+    switch (dxc_code) {
+    /* Non-simulated IEEE exceptions */
+    case 0x80:
+        return TARGET_FPE_FLTINV;
+    case 0x40:
+        return TARGET_FPE_FLTDIV;
+    case 0x20:
+    case 0x28:
+    case 0x2c:
+        return TARGET_FPE_FLTOVF;
+    case 0x10:
+    case 0x18:
+    case 0x1c:
+        return TARGET_FPE_FLTUND;
+    case 0x08:
+    case 0x0c:
+        return TARGET_FPE_FLTRES;
+    }
+    /*
+     * Non-IEEE and simulated IEEE:
+     * Includes compare-and-trap, quantum exception, etc.
+     * Simulated IEEE are included here to match current
+     * s390x linux kernel.
+     */
+    return 0;
+}
+
 void cpu_loop(CPUS390XState *env)
 {
     CPUState *cs = env_cpu(env);
@@ -64,7 +93,13 @@ void cpu_loop(CPUS390XState *env)
         case EXCP_DEBUG:
             sig = TARGET_SIGTRAP;
             n = TARGET_TRAP_BRKPT;
-            goto do_signal_pc;
+            /*
+             * For SIGTRAP the PSW must point after the instruction, which it
+             * already does thanks to s390x_tr_tb_stop(). si_addr doesn't need
+             * to be filled.
+             */
+            addr = 0;
+            goto do_signal;
         case EXCP_PGM:
             n = env->int_pgm_code;
             switch (n) {
@@ -100,28 +135,13 @@ void cpu_loop(CPUS390XState *env)
 
             case PGM_DATA:
                 n = (env->fpc >> 8) & 0xff;
-                if (n == 0xff) {
-                    /* compare-and-trap */
+                if (n == 0) {
                     goto do_sigill_opn;
-                } else {
-                    /* An IEEE exception, simulated or otherwise.  */
-                    if (n & 0x80) {
-                        n = TARGET_FPE_FLTINV;
-                    } else if (n & 0x40) {
-                        n = TARGET_FPE_FLTDIV;
-                    } else if (n & 0x20) {
-                        n = TARGET_FPE_FLTOVF;
-                    } else if (n & 0x10) {
-                        n = TARGET_FPE_FLTUND;
-                    } else if (n & 0x08) {
-                        n = TARGET_FPE_FLTRES;
-                    } else {
-                        /* ??? Quantum exception; BFP, DFP error.  */
-                        goto do_sigill_opn;
-                    }
-                    sig = TARGET_SIGFPE;
-                    goto do_signal_pc;
                 }
+
+                sig = TARGET_SIGFPE;
+                n = get_pgm_data_si_code(n);
+                goto do_signal_pc;
 
             default:
                 fprintf(stderr, "Unhandled program exception: %#x\n", n);
@@ -132,6 +152,10 @@ void cpu_loop(CPUS390XState *env)
 
         do_signal_pc:
             addr = env->psw.addr;
+            /*
+             * For SIGILL and SIGFPE the PSW must point after the instruction.
+             */
+            env->psw.addr += env->int_pgm_ilen;
         do_signal:
             info.si_signo = sig;
             info.si_errno = 0;
