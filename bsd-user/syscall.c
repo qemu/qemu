@@ -138,17 +138,6 @@ static abi_long do_freebsd_sysarch(CPUX86State *env, int op, abi_ulong parms)
 }
 #endif
 
-#ifdef TARGET_SPARC
-static abi_long do_freebsd_sysarch(void *env, int op, abi_ulong parms)
-{
-    /* XXX handle
-     * TARGET_FREEBSD_SPARC_UTRAP_INSTALL,
-     * TARGET_FREEBSD_SPARC_SIGTRAMP_INSTALL
-     */
-    return -TARGET_EINVAL;
-}
-#endif
-
 #ifdef __FreeBSD__
 /*
  * XXX this uses the undocumented oidfmt interface to find the kind of
