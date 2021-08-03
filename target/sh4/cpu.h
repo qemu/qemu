@@ -213,8 +213,6 @@ void superh_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
                                     int mmu_idx, uintptr_t retaddr);
 
 void sh4_translate_init(void);
-int cpu_sh4_signal_handler(int host_signum, void *pinfo,
-                           void *puc);
 bool superh_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                          MMUAccessType access_type, int mmu_idx,
                          bool probe, uintptr_t retaddr);
@@ -250,7 +248,6 @@ void cpu_load_tlb(CPUSH4State * env);
 #define SUPERH_CPU_TYPE_NAME(model) model SUPERH_CPU_TYPE_SUFFIX
 #define CPU_RESOLVING_TYPE TYPE_SUPERH_CPU
 
-#define cpu_signal_handler cpu_sh4_signal_handler
 #define cpu_list sh4_cpu_list
 
 /* MMU modes definitions */

@@ -134,13 +134,9 @@ int rx_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 hwaddr rx_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 
 void rx_translate_init(void);
-int cpu_rx_signal_handler(int host_signum, void *pinfo,
-                           void *puc);
-
 void rx_cpu_list(void);
 void rx_cpu_unpack_psw(CPURXState *env, uint32_t psw, int rte);
 
-#define cpu_signal_handler cpu_rx_signal_handler
 #define cpu_list rx_cpu_list
 
 #include "exec/cpu-all.h"

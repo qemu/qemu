@@ -385,15 +385,8 @@ static inline void mb_cpu_write_msr(CPUMBState *env, uint32_t val)
 }
 
 void mb_tcg_init(void);
-/* you can call this signal handler from your SIGBUS and SIGSEGV
-   signal handlers to inform the virtual CPU of exceptions. non zero
-   is returned if the signal was handled by the virtual CPU.  */
-int cpu_mb_signal_handler(int host_signum, void *pinfo,
-                          void *puc);
 
 #define CPU_RESOLVING_TYPE TYPE_MICROBLAZE_CPU
-
-#define cpu_signal_handler cpu_mb_signal_handler
 
 /* MMU modes definitions */
 #define MMU_NOMMU_IDX   0
