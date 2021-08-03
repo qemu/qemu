@@ -31,7 +31,7 @@
   <?endif?>
 
   <?if $(var.Arch) = "32"?>
-    <?define ArchLib=libgcc_s_sjlj-1.dll?>
+    <?define ArchLib=libgcc_s_dw2-1.dll?>
     <?define GaProgramFilesFolder="ProgramFilesFolder" ?>
   <?endif?>
 
@@ -84,6 +84,9 @@
             <ServiceControl Id="StartService" Start="install" Stop="both" Remove="uninstall" Name="QEMU-GA" Wait="yes" />
           </Component>
           <?ifdef var.InstallVss?>
+          <Component Id="libstdc++_6_lib" Guid="{55E737B5-9127-4A11-9FC3-A29367714574}">
+            <File Id="libstdc++-6.lib" Name="libstdc++-6.dll" Source="$(var.Mingw_bin)/libstdc++-6.dll" KeyPath="yes" DiskId="1"/>
+          </Component>
           <Component Id="qga_vss_dll" Guid="{CB19C453-FABB-4BB1-ABAB-6B74F687BFBB}">
             <File Id="qga_vss.dll" Name="qga-vss.dll" Source="$(env.BUILD_DIR)/qga/vss-win32/qga-vss.dll" KeyPath="yes" DiskId="1"/>
           </Component>
@@ -164,6 +167,7 @@
     <Feature Id="QEMUFeature" Title="QEMU Guest Agent" Level="1">
       <ComponentRef Id="qemu_ga" />
       <?ifdef var.InstallVss?>
+      <ComponentRef Id="libstdc++_6_lib" />
       <ComponentRef Id="qga_vss_dll" />
       <ComponentRef Id="qga_vss_tlb" />
       <?endif?>

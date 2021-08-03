@@ -1091,7 +1091,7 @@ static GuestFilesystemInfo *build_guest_fsinfo(char *guid, Error **errp)
     size_t len;
     uint64_t i64FreeBytesToCaller, i64TotalBytes, i64FreeBytes;
     GuestFilesystemInfo *fs = NULL;
-    HANDLE hLocalDiskHandle = NULL;
+    HANDLE hLocalDiskHandle = INVALID_HANDLE_VALUE;
 
     GetVolumePathNamesForVolumeName(guid, (LPCH)&mnt, 0, &info_size);
     if (GetLastError() != ERROR_MORE_DATA) {
@@ -1149,7 +1149,9 @@ static GuestFilesystemInfo *build_guest_fsinfo(char *guid, Error **errp)
     fs->type = g_strdup(fs_name);
     fs->disk = build_guest_disk_info(guid, errp);
 free:
-    CloseHandle(hLocalDiskHandle);
+    if (hLocalDiskHandle != INVALID_HANDLE_VALUE) {
+        CloseHandle(hLocalDiskHandle);
+    }
     g_free(mnt_point);
     return fs;
 }
@@ -2229,7 +2231,7 @@ static char *ga_get_win_name(OSVERSIONINFOEXW const *os_version, bool id)
 
 static char *ga_get_win_product_name(Error **errp)
 {
-    HKEY key = NULL;
+    HKEY key = INVALID_HANDLE_VALUE;
     DWORD size = 128;
     char *result = g_malloc0(size);
     LONG err = ERROR_SUCCESS;
@@ -2239,7 +2241,8 @@ static char *ga_get_win_product_name(Error **errp)
                       &key);
     if (err != ERROR_SUCCESS) {
         error_setg_win32(errp, err, "failed to open registry key");
-        goto fail;
+        g_free(result);
+        return NULL;
     }
 
     err = RegQueryValueExA(key, "ProductName", NULL, NULL,
@@ -2260,9 +2263,13 @@ static char *ga_get_win_product_name(Error **errp)
         goto fail;
     }
 
+    RegCloseKey(key);
     return result;
 
 fail:
+    if (key != INVALID_HANDLE_VALUE) {
+        RegCloseKey(key);
+    }
     g_free(result);
     return NULL;
 }
@@ -2452,7 +2459,7 @@ GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
             continue;
         }
         for (j = 0; hw_ids[j] != NULL; j++) {
-            GMatchInfo *match_info;
+            g_autoptr(GMatchInfo) match_info;
             GuestDeviceIdPCI *id;
             if (!g_regex_match(device_pci_re, hw_ids[j], 0, &match_info)) {
                 continue;
@@ -2469,7 +2476,6 @@ GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
             id->vendor_id = g_ascii_strtoull(vendor_id, NULL, 16);
             id->device_id = g_ascii_strtoull(device_id, NULL, 16);
 
-            g_match_info_free(match_info);
             break;
         }
         if (skip) {

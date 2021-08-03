@@ -18,7 +18,7 @@
 #include <inc/win2003/vsbackup.h>
 
 /* Max wait time for frozen event (VSS can only hold writes for 10 seconds) */
-#define VSS_TIMEOUT_FREEZE_MSEC 10000
+#define VSS_TIMEOUT_FREEZE_MSEC 60000
 
 /* Call QueryStatus every 10 ms while waiting for frozen event */
 #define VSS_TIMEOUT_EVENT_MSEC 10
