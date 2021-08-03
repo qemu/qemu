@@ -72,13 +72,6 @@ void gemu_log(const char *fmt, ...)
     va_end(ap);
 }
 
-#if defined(TARGET_I386)
-int cpu_get_pic_interrupt(CPUX86State *env)
-{
-    return -1;
-}
-#endif
-
 void fork_start(void)
 {
 }
@@ -93,11 +86,6 @@ void fork_end(int child)
 #ifdef TARGET_I386
 /***********************************************************/
 /* CPUX86 core interface */
-
-uint64_t cpu_get_tsc(CPUX86State *env)
-{
-    return cpu_get_host_ticks();
-}
 
 static void write_dt(void *ptr, unsigned long addr, unsigned long limit,
                      int flags)
@@ -569,29 +557,6 @@ int main(int argc, char **argv)
      * proper page alignment for guest_base.
      */
     guest_base = HOST_PAGE_ALIGN(guest_base);
-
-    /*
-     * Read in mmap_min_addr kernel parameter.  This value is used
-     * When loading the ELF image to determine whether guest_base
-     * is needed.
-     *
-     * When user has explicitly set the quest base, we skip this
-     * test.
-     */
-    if (!have_guest_base) {
-        FILE *fp;
-
-        fp = fopen("/proc/sys/vm/mmap_min_addr", "r");
-        if (fp != NULL) {
-            unsigned long tmp;
-            if (fscanf(fp, "%lu", &tmp) == 1) {
-                mmap_min_addr = tmp;
-                qemu_log_mask(CPU_LOG_PAGE, "host mmap_min_addr=0x%lx\n",
-                              mmap_min_addr);
-            }
-            fclose(fp);
-        }
-    }
 
     if (loader_exec(filename, argv + optind, target_environ, regs, info,
                     &bprm) != 0) {
