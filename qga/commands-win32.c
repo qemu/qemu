@@ -514,7 +514,7 @@ DEFINE_GUID(GUID_DEVINTERFACE_STORAGEPORT,
 
 static GuestPCIAddress *get_pci_info(int number, Error **errp)
 {
-    HDEVINFO dev_info;
+    HDEVINFO dev_info = INVALID_HANDLE_VALUE;
     SP_DEVINFO_DATA dev_info_data;
     SP_DEVICE_INTERFACE_DATA dev_iface_data;
     HANDLE dev_file;
@@ -749,7 +749,9 @@ static GuestPCIAddress *get_pci_info(int number, Error **errp)
     }
 
 free_dev_info:
-    SetupDiDestroyDeviceInfoList(dev_info);
+    if (dev_info != INVALID_HANDLE_VALUE) {
+        SetupDiDestroyDeviceInfoList(dev_info);
+    }
 out:
     return pci;
 }
