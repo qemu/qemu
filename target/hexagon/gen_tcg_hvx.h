@@ -327,4 +327,38 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         tcg_temp_free(shift); \
     } while (0)
 
+/* Vector max - various forms */
+#define fGEN_TCG_V6_vmaxw(SHORTCODE) \
+    tcg_gen_gvec_smax(MO_32, VdV_off, VuV_off, VvV_off, \
+                      sizeof(MMVector), sizeof(MMVector))
+#define fGEN_TCG_V6_vmaxh(SHORTCODE) \
+    tcg_gen_gvec_smax(MO_16, VdV_off, VuV_off, VvV_off, \
+                      sizeof(MMVector), sizeof(MMVector))
+#define fGEN_TCG_V6_vmaxuh(SHORTCODE) \
+    tcg_gen_gvec_umax(MO_16, VdV_off, VuV_off, VvV_off, \
+                      sizeof(MMVector), sizeof(MMVector))
+#define fGEN_TCG_V6_vmaxb(SHORTCODE) \
+    tcg_gen_gvec_smax(MO_8, VdV_off, VuV_off, VvV_off, \
+                      sizeof(MMVector), sizeof(MMVector))
+#define fGEN_TCG_V6_vmaxub(SHORTCODE) \
+    tcg_gen_gvec_umax(MO_8, VdV_off, VuV_off, VvV_off, \
+                      sizeof(MMVector), sizeof(MMVector))
+
+/* Vector min - various forms */
+#define fGEN_TCG_V6_vminw(SHORTCODE) \
+    tcg_gen_gvec_smin(MO_32, VdV_off, VuV_off, VvV_off, \
+                      sizeof(MMVector), sizeof(MMVector))
+#define fGEN_TCG_V6_vminh(SHORTCODE) \
+    tcg_gen_gvec_smin(MO_16, VdV_off, VuV_off, VvV_off, \
+                      sizeof(MMVector), sizeof(MMVector))
+#define fGEN_TCG_V6_vminuh(SHORTCODE) \
+    tcg_gen_gvec_umin(MO_16, VdV_off, VuV_off, VvV_off, \
+                      sizeof(MMVector), sizeof(MMVector))
+#define fGEN_TCG_V6_vminb(SHORTCODE) \
+    tcg_gen_gvec_smin(MO_8, VdV_off, VuV_off, VvV_off, \
+                      sizeof(MMVector), sizeof(MMVector))
+#define fGEN_TCG_V6_vminub(SHORTCODE) \
+    tcg_gen_gvec_umin(MO_8, VdV_off, VuV_off, VvV_off, \
+                      sizeof(MMVector), sizeof(MMVector))
+
 #endif
