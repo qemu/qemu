@@ -43,6 +43,8 @@
 
 #include "host-os.h"
 
+#include <sys/sysctl.h>
+
 int singlestep;
 unsigned long mmap_min_addr;
 uintptr_t guest_base;
@@ -52,6 +54,7 @@ unsigned long reserved_va;
 static const char *interp_prefix = CONFIG_QEMU_INTERP_PREFIX;
 const char *qemu_uname_release;
 enum BSDType bsd_type;
+char qemu_proc_pathname[PATH_MAX];  /* full path to exeutable */
 
 /*
  * XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
@@ -336,6 +339,22 @@ void init_task_state(TaskState *ts)
     ts->sigqueue_table[i].next = NULL;
 }
 
+static void save_proc_pathname(char *argv0)
+{
+    int mib[4];
+    size_t len;
+
+    mib[0] = CTL_KERN;
+    mib[1] = KERN_PROC;
+    mib[2] = KERN_PROC_PATHNAME;
+    mib[3] = -1;
+
+    len = sizeof(qemu_proc_pathname);
+    if (sysctl(mib, 4, qemu_proc_pathname, &len, NULL, 0)) {
+        perror("sysctl");
+    }
+}
+
 int main(int argc, char **argv)
 {
     const char *filename;
@@ -359,6 +378,8 @@ int main(int argc, char **argv)
     if (argc <= 1) {
         usage();
     }
+
+    save_proc_pathname(argv[0]);
 
     error_init(argv[0]);
     module_call_init(MODULE_INIT_TRACE);
