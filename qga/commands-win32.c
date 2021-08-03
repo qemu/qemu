@@ -515,6 +515,8 @@ DEFINE_GUID(GUID_DEVINTERFACE_STORAGEPORT,
 static GuestPCIAddress *get_pci_info(int number, Error **errp)
 {
     HDEVINFO dev_info = INVALID_HANDLE_VALUE;
+    HDEVINFO parent_dev_info = INVALID_HANDLE_VALUE;
+
     SP_DEVINFO_DATA dev_info_data;
     SP_DEVICE_INTERFACE_DATA dev_iface_data;
     HANDLE dev_file;
@@ -542,7 +544,6 @@ static GuestPCIAddress *get_pci_info(int number, Error **errp)
         PSP_DEVICE_INTERFACE_DETAIL_DATA pdev_iface_detail_data = NULL;
         STORAGE_DEVICE_NUMBER sdn;
         char *parent_dev_id = NULL;
-        HDEVINFO parent_dev_info;
         SP_DEVINFO_DATA parent_dev_info_data;
         DWORD j;
         DWORD size = 0;
@@ -744,11 +745,13 @@ static GuestPCIAddress *get_pci_info(int number, Error **errp)
                 break;
             }
         }
-        SetupDiDestroyDeviceInfoList(parent_dev_info);
         break;
     }
 
 end:
+    if (parent_dev_info != INVALID_HANDLE_VALUE) {
+        SetupDiDestroyDeviceInfoList(parent_dev_info);
+    }
     if (dev_info != INVALID_HANDLE_VALUE) {
         SetupDiDestroyDeviceInfoList(dev_info);
     }
