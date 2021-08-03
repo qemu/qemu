@@ -309,7 +309,7 @@ static void usage(void)
     exit(1);
 }
 
-THREAD CPUState *thread_cpu;
+__thread CPUState *thread_cpu;
 
 bool qemu_cpu_is_self(CPUState *cpu)
 {
