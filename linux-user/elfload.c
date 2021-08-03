@@ -172,33 +172,33 @@ typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
  */
 static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUX86State *env)
 {
-    (*regs)[0] = env->regs[15];
-    (*regs)[1] = env->regs[14];
-    (*regs)[2] = env->regs[13];
-    (*regs)[3] = env->regs[12];
-    (*regs)[4] = env->regs[R_EBP];
-    (*regs)[5] = env->regs[R_EBX];
-    (*regs)[6] = env->regs[11];
-    (*regs)[7] = env->regs[10];
-    (*regs)[8] = env->regs[9];
-    (*regs)[9] = env->regs[8];
-    (*regs)[10] = env->regs[R_EAX];
-    (*regs)[11] = env->regs[R_ECX];
-    (*regs)[12] = env->regs[R_EDX];
-    (*regs)[13] = env->regs[R_ESI];
-    (*regs)[14] = env->regs[R_EDI];
-    (*regs)[15] = env->regs[R_EAX]; /* XXX */
-    (*regs)[16] = env->eip;
-    (*regs)[17] = env->segs[R_CS].selector & 0xffff;
-    (*regs)[18] = env->eflags;
-    (*regs)[19] = env->regs[R_ESP];
-    (*regs)[20] = env->segs[R_SS].selector & 0xffff;
-    (*regs)[21] = env->segs[R_FS].selector & 0xffff;
-    (*regs)[22] = env->segs[R_GS].selector & 0xffff;
-    (*regs)[23] = env->segs[R_DS].selector & 0xffff;
-    (*regs)[24] = env->segs[R_ES].selector & 0xffff;
-    (*regs)[25] = env->segs[R_FS].selector & 0xffff;
-    (*regs)[26] = env->segs[R_GS].selector & 0xffff;
+    (*regs)[0] = tswapreg(env->regs[15]);
+    (*regs)[1] = tswapreg(env->regs[14]);
+    (*regs)[2] = tswapreg(env->regs[13]);
+    (*regs)[3] = tswapreg(env->regs[12]);
+    (*regs)[4] = tswapreg(env->regs[R_EBP]);
+    (*regs)[5] = tswapreg(env->regs[R_EBX]);
+    (*regs)[6] = tswapreg(env->regs[11]);
+    (*regs)[7] = tswapreg(env->regs[10]);
+    (*regs)[8] = tswapreg(env->regs[9]);
+    (*regs)[9] = tswapreg(env->regs[8]);
+    (*regs)[10] = tswapreg(env->regs[R_EAX]);
+    (*regs)[11] = tswapreg(env->regs[R_ECX]);
+    (*regs)[12] = tswapreg(env->regs[R_EDX]);
+    (*regs)[13] = tswapreg(env->regs[R_ESI]);
+    (*regs)[14] = tswapreg(env->regs[R_EDI]);
+    (*regs)[15] = tswapreg(env->regs[R_EAX]); /* XXX */
+    (*regs)[16] = tswapreg(env->eip);
+    (*regs)[17] = tswapreg(env->segs[R_CS].selector & 0xffff);
+    (*regs)[18] = tswapreg(env->eflags);
+    (*regs)[19] = tswapreg(env->regs[R_ESP]);
+    (*regs)[20] = tswapreg(env->segs[R_SS].selector & 0xffff);
+    (*regs)[21] = tswapreg(env->segs[R_FS].selector & 0xffff);
+    (*regs)[22] = tswapreg(env->segs[R_GS].selector & 0xffff);
+    (*regs)[23] = tswapreg(env->segs[R_DS].selector & 0xffff);
+    (*regs)[24] = tswapreg(env->segs[R_ES].selector & 0xffff);
+    (*regs)[25] = tswapreg(env->segs[R_FS].selector & 0xffff);
+    (*regs)[26] = tswapreg(env->segs[R_GS].selector & 0xffff);
 }
 
 #else
@@ -244,23 +244,23 @@ typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
  */
 static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUX86State *env)
 {
-    (*regs)[0] = env->regs[R_EBX];
-    (*regs)[1] = env->regs[R_ECX];
-    (*regs)[2] = env->regs[R_EDX];
-    (*regs)[3] = env->regs[R_ESI];
-    (*regs)[4] = env->regs[R_EDI];
-    (*regs)[5] = env->regs[R_EBP];
-    (*regs)[6] = env->regs[R_EAX];
-    (*regs)[7] = env->segs[R_DS].selector & 0xffff;
-    (*regs)[8] = env->segs[R_ES].selector & 0xffff;
-    (*regs)[9] = env->segs[R_FS].selector & 0xffff;
-    (*regs)[10] = env->segs[R_GS].selector & 0xffff;
-    (*regs)[11] = env->regs[R_EAX]; /* XXX */
-    (*regs)[12] = env->eip;
-    (*regs)[13] = env->segs[R_CS].selector & 0xffff;
-    (*regs)[14] = env->eflags;
-    (*regs)[15] = env->regs[R_ESP];
-    (*regs)[16] = env->segs[R_SS].selector & 0xffff;
+    (*regs)[0] = tswapreg(env->regs[R_EBX]);
+    (*regs)[1] = tswapreg(env->regs[R_ECX]);
+    (*regs)[2] = tswapreg(env->regs[R_EDX]);
+    (*regs)[3] = tswapreg(env->regs[R_ESI]);
+    (*regs)[4] = tswapreg(env->regs[R_EDI]);
+    (*regs)[5] = tswapreg(env->regs[R_EBP]);
+    (*regs)[6] = tswapreg(env->regs[R_EAX]);
+    (*regs)[7] = tswapreg(env->segs[R_DS].selector & 0xffff);
+    (*regs)[8] = tswapreg(env->segs[R_ES].selector & 0xffff);
+    (*regs)[9] = tswapreg(env->segs[R_FS].selector & 0xffff);
+    (*regs)[10] = tswapreg(env->segs[R_GS].selector & 0xffff);
+    (*regs)[11] = tswapreg(env->regs[R_EAX]); /* XXX */
+    (*regs)[12] = tswapreg(env->eip);
+    (*regs)[13] = tswapreg(env->segs[R_CS].selector & 0xffff);
+    (*regs)[14] = tswapreg(env->eflags);
+    (*regs)[15] = tswapreg(env->regs[R_ESP]);
+    (*regs)[16] = tswapreg(env->segs[R_SS].selector & 0xffff);
 }
 #endif
 
