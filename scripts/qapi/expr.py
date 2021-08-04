@@ -275,10 +275,10 @@ def check_if(expr: _JSONObject, info: QAPISourceInfo, source: str) -> None:
 
     def _check_if(cond: Union[str, object]) -> None:
         if isinstance(cond, str):
-            if not cond.strip():
+            if not re.match(r'^[A-Z][A-Z0-9_]*$', cond):
                 raise QAPISemError(
                     info,
-                    "'if' condition '%s' of %s makes no sense"
+                    "'if' condition '%s' of %s is not a valid identifier"
                     % (cond, source))
             return
 

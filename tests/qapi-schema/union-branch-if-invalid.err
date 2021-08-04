@@ -1,2 +1,2 @@
 union-branch-if-invalid.json: In union 'Uni':
-union-branch-if-invalid.json:4: 'if' condition '' of 'data' member 'branch1' makes no sense
+union-branch-if-invalid.json:4: 'if' condition '' of 'data' member 'branch1' is not a valid identifier

@@ -12,16 +12,16 @@ enum QType
 module doc-good.json
 enum Enum
     member one
-        if defined(IFONE)
+        if IFONE
     member two
-    if defined(IFCOND)
+    if IFCOND
     feature enum-feat
 object Base
     member base1: Enum optional=False
     if OrderedDict([('all', ['IFALL1', 'IFALL2'])])
 object Variant1
     member var1: str optional=False
-        if defined(IFSTR)
+        if IFSTR
         feature member-feat
     feature variant1-feat
 object Variant2

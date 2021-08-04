@@ -43,7 +43,7 @@ Example:
 Values
 ~~~~~~
 
-"one" (**If: **"defined(IFONE)")
+"one" (**If: **"IFONE")
    The _one_ {and only}
 
 "two"
@@ -62,7 +62,7 @@ Features
 If
 ~~
 
-"defined(IFCOND)"
+"IFCOND"
 
 
 "Base" (Object)
@@ -93,7 +93,7 @@ Another paragraph (but no "var": line)
 Members
 ~~~~~~~
 
-"var1": "string" (**If: **"defined(IFSTR)")
+"var1": "string" (**If: **"IFSTR")
    Not documented
 
 

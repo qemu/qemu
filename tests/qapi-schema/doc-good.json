@@ -61,9 +61,9 @@
 # @two is undocumented
 ##
 { 'enum': 'Enum', 'data':
-  [ { 'name': 'one', 'if': 'defined(IFONE)' }, 'two' ],
+  [ { 'name': 'one', 'if': 'IFONE' }, 'two' ],
   'features': [ 'enum-feat' ],
-  'if': 'defined(IFCOND)' }
+  'if': 'IFCOND' }
 
 ##
 # @Base:
@@ -87,7 +87,7 @@
   'features': [ 'variant1-feat' ],
   'data': { 'var1': { 'type': 'str',
                       'features': [ 'member-feat' ],
-                      'if': 'defined(IFSTR)' } } }
+                      'if': 'IFSTR' } } }
 
 ##
 # @Variant2:

@@ -914,7 +914,7 @@
   'data': {
       'file': 'BlockStatsSpecificFile',
       'host_device': { 'type': 'BlockStatsSpecificFile',
-                       'if': 'defined(HAVE_HOST_BLOCK_DEVICE)' },
+                       'if': 'HAVE_HOST_BLOCK_DEVICE' },
       'nvme': 'BlockStatsSpecificNvme' } }
 
 ##
@@ -2796,7 +2796,7 @@
 ##
 { 'enum': 'BlockdevAioOptions',
   'data': [ 'threads', 'native',
-            { 'name': 'io_uring', 'if': 'defined(CONFIG_LINUX_IO_URING)' } ] }
+            { 'name': 'io_uring', 'if': 'CONFIG_LINUX_IO_URING' } ] }
 
 ##
 # @BlockdevCacheOptions:
@@ -2832,12 +2832,12 @@
   'data': [ 'blkdebug', 'blklogwrites', 'blkreplay', 'blkverify', 'bochs',
             'cloop', 'compress', 'copy-on-read', 'dmg', 'file', 'ftp', 'ftps',
             'gluster',
-            {'name': 'host_cdrom', 'if': 'defined(HAVE_HOST_BLOCK_DEVICE)' },
-            {'name': 'host_device', 'if': 'defined(HAVE_HOST_BLOCK_DEVICE)' },
+            {'name': 'host_cdrom', 'if': 'HAVE_HOST_BLOCK_DEVICE' },
+            {'name': 'host_device', 'if': 'HAVE_HOST_BLOCK_DEVICE' },
             'http', 'https', 'iscsi',
             'luks', 'nbd', 'nfs', 'null-aio', 'null-co', 'nvme', 'parallels',
             'preallocate', 'qcow', 'qcow2', 'qed', 'quorum', 'raw', 'rbd',
-            { 'name': 'replication', 'if': 'defined(CONFIG_REPLICATION)' },
+            { 'name': 'replication', 'if': 'CONFIG_REPLICATION' },
             'ssh', 'throttle', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
 
 ##
@@ -2879,10 +2879,10 @@
             '*locking': 'OnOffAuto',
             '*aio': 'BlockdevAioOptions',
             '*drop-cache': {'type': 'bool',
-                            'if': 'defined(CONFIG_LINUX)'},
+                            'if': 'CONFIG_LINUX'},
             '*x-check-cache-dropped': 'bool' },
   'features': [ { 'name': 'dynamic-auto-read-only',
-                  'if': 'defined(CONFIG_POSIX)' } ] }
+                  'if': 'CONFIG_POSIX' } ] }
 
 ##
 # @BlockdevOptionsNull:
@@ -3774,7 +3774,7 @@
 # Since: 2.9
 ##
 { 'enum' : 'ReplicationMode', 'data' : [ 'primary', 'secondary' ],
-  'if': 'defined(CONFIG_REPLICATION)' }
+  'if': 'CONFIG_REPLICATION' }
 
 ##
 # @BlockdevOptionsReplication:
@@ -3793,7 +3793,7 @@
   'base': 'BlockdevOptionsGenericFormat',
   'data': { 'mode': 'ReplicationMode',
             '*top-id': 'str' },
-  'if': 'defined(CONFIG_REPLICATION)' }
+  'if': 'CONFIG_REPLICATION' }
 
 ##
 # @NFSTransport:
@@ -4108,9 +4108,9 @@
       'ftps':       'BlockdevOptionsCurlFtps',
       'gluster':    'BlockdevOptionsGluster',
       'host_cdrom':  { 'type': 'BlockdevOptionsFile',
-                       'if': 'defined(HAVE_HOST_BLOCK_DEVICE)' },
+                       'if': 'HAVE_HOST_BLOCK_DEVICE' },
       'host_device': { 'type': 'BlockdevOptionsFile',
-                       'if': 'defined(HAVE_HOST_BLOCK_DEVICE)' },
+                       'if': 'HAVE_HOST_BLOCK_DEVICE' },
       'http':       'BlockdevOptionsCurlHttp',
       'https':      'BlockdevOptionsCurlHttps',
       'iscsi':      'BlockdevOptionsIscsi',
@@ -4129,7 +4129,7 @@
       'raw':        'BlockdevOptionsRaw',
       'rbd':        'BlockdevOptionsRbd',
       'replication': { 'type': 'BlockdevOptionsReplication',
-                       'if': 'defined(CONFIG_REPLICATION)' },
+                       'if': 'CONFIG_REPLICATION' },
       'ssh':        'BlockdevOptionsSsh',
       'throttle':   'BlockdevOptionsThrottle',
       'vdi':        'BlockdevOptionsGenericFormat',
@@ -4307,8 +4307,8 @@
 # @size: Size of the virtual disk in bytes
 # @preallocation: Preallocation mode for the new image (default: off;
 #                 allowed values: off,
-#                 falloc (if defined CONFIG_POSIX_FALLOCATE),
-#                 full (if defined CONFIG_POSIX))
+#                 falloc (if CONFIG_POSIX_FALLOCATE),
+#                 full (if CONFIG_POSIX))
 # @nocow: Turn off copy-on-write (valid only on btrfs; default: off)
 # @extent-size-hint: Extent size hint to add to the image file; 0 for not
 #                    adding an extent size hint (default: 1 MB, since 5.1)
@@ -4331,8 +4331,8 @@
 # @size: Size of the virtual disk in bytes
 # @preallocation: Preallocation mode for the new image (default: off;
 #                 allowed values: off,
-#                 falloc (if defined CONFIG_GLUSTERFS_FALLOCATE),
-#                 full (if defined CONFIG_GLUSTERFS_ZEROFILL))
+#                 falloc (if CONFIG_GLUSTERFS_FALLOCATE),
+#                 full (if CONFIG_GLUSTERFS_ZEROFILL))
 #
 # Since: 2.12
 ##
@@ -4432,7 +4432,7 @@
 # Since: 5.1
 ##
 { 'enum': 'Qcow2CompressionType',
-  'data': [ 'zlib', { 'name': 'zstd', 'if': 'defined(CONFIG_ZSTD)' } ] }
+  'data': [ 'zlib', { 'name': 'zstd', 'if': 'CONFIG_ZSTD' } ] }
 
 ##
 # @BlockdevCreateOptionsQcow2:

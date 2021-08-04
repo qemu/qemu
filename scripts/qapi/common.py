@@ -204,7 +204,7 @@ def cgen_ifcond(ifcond: Union[str, Dict[str, Any]]) -> str:
     if not ifcond:
         return ''
     if isinstance(ifcond, str):
-        return ifcond
+        return 'defined(' + ifcond + ')'
 
     oper, operands = next(iter(ifcond.items()))
     if oper == 'not':

@@ -342,7 +342,7 @@
 { 'struct': 'ChardevSpiceChannel',
   'data': { 'type': 'str' },
   'base': 'ChardevCommon',
-  'if': 'defined(CONFIG_SPICE)' }
+  'if': 'CONFIG_SPICE' }
 
 ##
 # @ChardevSpicePort:
@@ -356,7 +356,7 @@
 { 'struct': 'ChardevSpicePort',
   'data': { 'fqdn': 'str' },
   'base': 'ChardevCommon',
-  'if': 'defined(CONFIG_SPICE)' }
+  'if': 'CONFIG_SPICE' }
 
 ##
 # @ChardevVC:
@@ -405,7 +405,7 @@
   'data': { '*mouse': 'bool',
             '*clipboard': 'bool' },
   'base': 'ChardevCommon',
-  'if': 'defined(CONFIG_SPICE_PROTOCOL)' }
+  'if': 'CONFIG_SPICE_PROTOCOL' }
 
 ##
 # @ChardevBackend:
@@ -431,11 +431,11 @@
             'stdio': 'ChardevStdio',
             'console': 'ChardevCommon',
             'spicevmc': { 'type': 'ChardevSpiceChannel',
-                          'if': 'defined(CONFIG_SPICE)' },
+                          'if': 'CONFIG_SPICE' },
             'spiceport': { 'type': 'ChardevSpicePort',
-                           'if': 'defined(CONFIG_SPICE)' },
+                           'if': 'CONFIG_SPICE' },
             'qemu-vdagent': { 'type': 'ChardevQemuVDAgent',
-                              'if': 'defined(CONFIG_SPICE_PROTOCOL)' },
+                              'if': 'CONFIG_SPICE_PROTOCOL' },
             'vc': 'ChardevVC',
             'ringbuf': 'ChardevRingbuf',
             # next one is just for compatibility

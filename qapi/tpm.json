@@ -18,7 +18,7 @@
 # Since: 1.5
 ##
 { 'enum': 'TpmModel', 'data': [ 'tpm-tis', 'tpm-crb', 'tpm-spapr' ],
-  'if': 'defined(CONFIG_TPM)' }
+  'if': 'CONFIG_TPM' }
 
 ##
 # @query-tpm-models:
@@ -36,7 +36,7 @@
 #
 ##
 { 'command': 'query-tpm-models', 'returns': ['TpmModel'],
-  'if': 'defined(CONFIG_TPM)' }
+  'if': 'CONFIG_TPM' }
 
 ##
 # @TpmType:
@@ -50,7 +50,7 @@
 # Since: 1.5
 ##
 { 'enum': 'TpmType', 'data': [ 'passthrough', 'emulator' ],
-  'if': 'defined(CONFIG_TPM)' }
+  'if': 'CONFIG_TPM' }
 
 ##
 # @query-tpm-types:
@@ -68,7 +68,7 @@
 #
 ##
 { 'command': 'query-tpm-types', 'returns': ['TpmType'],
-  'if': 'defined(CONFIG_TPM)' }
+  'if': 'CONFIG_TPM' }
 
 ##
 # @TPMPassthroughOptions:
@@ -85,7 +85,7 @@
 { 'struct': 'TPMPassthroughOptions',
   'data': { '*path': 'str',
             '*cancel-path': 'str' },
-  'if': 'defined(CONFIG_TPM)' }
+  'if': 'CONFIG_TPM' }
 
 ##
 # @TPMEmulatorOptions:
@@ -97,7 +97,7 @@
 # Since: 2.11
 ##
 { 'struct': 'TPMEmulatorOptions', 'data': { 'chardev' : 'str' },
-  'if': 'defined(CONFIG_TPM)' }
+  'if': 'CONFIG_TPM' }
 
 ##
 # @TpmTypeOptions:
@@ -112,7 +112,7 @@
 { 'union': 'TpmTypeOptions',
    'data': { 'passthrough' : 'TPMPassthroughOptions',
              'emulator': 'TPMEmulatorOptions' },
-  'if': 'defined(CONFIG_TPM)' }
+  'if': 'CONFIG_TPM' }
 
 ##
 # @TPMInfo:
@@ -131,7 +131,7 @@
   'data': {'id': 'str',
            'model': 'TpmModel',
            'options': 'TpmTypeOptions' },
-  'if': 'defined(CONFIG_TPM)' }
+  'if': 'CONFIG_TPM' }
 
 ##
 # @query-tpm:
@@ -162,4 +162,4 @@
 #
 ##
 { 'command': 'query-tpm', 'returns': ['TPMInfo'],
-  'if': 'defined(CONFIG_TPM)' }
+  'if': 'CONFIG_TPM' }
