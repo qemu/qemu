@@ -123,10 +123,10 @@ def _tree_to_qlit(obj: JSONValue,
         ret = ''
         if obj.comment:
             ret += indent(level) + f"/* {obj.comment} */\n"
-        if obj.ifcond.ifcond:
+        if obj.ifcond.is_present():
             ret += gen_if(obj.ifcond.ifcond)
         ret += _tree_to_qlit(obj.value, level)
-        if obj.ifcond.ifcond:
+        if obj.ifcond.is_present():
             ret += '\n' + gen_endif(obj.ifcond.ifcond)
         return ret
 

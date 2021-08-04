@@ -29,6 +29,9 @@ class QAPISchemaIfCond:
     def __init__(self, ifcond=None):
         self.ifcond = ifcond or []
 
+    def is_present(self):
+        return bool(self.ifcond)
+
 
 class QAPISchemaEntity:
     meta: Optional[str] = None
@@ -598,7 +601,7 @@ class QAPISchemaVariants:
                     self.info,
                     "discriminator member '%s' of %s must not be optional"
                     % (self._tag_name, base))
-            if self.tag_member.ifcond.ifcond:
+            if self.tag_member.ifcond.is_present():
                 raise QAPISemError(
                     self.info,
                     "discriminator member '%s' of %s must not be conditional"
@@ -606,7 +609,7 @@ class QAPISchemaVariants:
         else:                   # simple union
             assert isinstance(self.tag_member.type, QAPISchemaEnumType)
             assert not self.tag_member.optional
-            assert self.tag_member.ifcond.ifcond == []
+            assert not self.tag_member.ifcond.is_present()
         if self._tag_name:    # flat union
             # branches that are not explicitly covered get an empty type
             cases = {v.name for v in self.variants}
