@@ -670,6 +670,7 @@ static void generic_fuzz(QTestState *s, const unsigned char *Data, size_t Size)
     if (fork() == 0) {
         struct sigaction sact;
         struct itimerval timer;
+        sigset_t set;
         /*
          * Sometimes the fuzzer will find inputs that take quite a long time to
          * process. Often times, these inputs do not result in new coverage.
@@ -683,6 +684,10 @@ static void generic_fuzz(QTestState *s, const unsigned char *Data, size_t Size)
             sact.sa_flags   = SA_NODEFER;
             sact.sa_handler = handle_timeout;
             sigaction(SIGALRM, &sact, NULL);
+
+            sigemptyset(&set);
+            sigaddset(&set, SIGALRM);
+            pthread_sigmask(SIG_UNBLOCK, &set, NULL);
 
             memset(&timer, 0, sizeof(timer));
             timer.it_value.tv_sec = timeout / USEC_IN_SEC;
