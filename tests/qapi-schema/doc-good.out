@@ -51,6 +51,7 @@ alternate Alternate
     tag type
     case i: int
     case b: bool
+    if OrderedDict([('not', 'IFNOT')])
     feature alt-feat
 object q_obj_cmd-arg
     member arg1: int optional=False

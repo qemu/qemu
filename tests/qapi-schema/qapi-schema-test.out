@@ -333,10 +333,10 @@ alternate TestIfAlternate
     if OrderedDict([('all', ['defined(TEST_IF_ALT)', 'defined(TEST_IF_STRUCT)'])])
 object q_obj_test-if-alternate-cmd-arg
     member alt-cmd-arg: TestIfAlternate optional=False
-    if OrderedDict([('all', ['defined(TEST_IF_ALT)'])])
+    if OrderedDict([('all', ['defined(TEST_IF_ALT)', OrderedDict([('not', 'defined(TEST_IF_NOT_ALT)')])])])
 command test-if-alternate-cmd q_obj_test-if-alternate-cmd-arg -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
-    if OrderedDict([('all', ['defined(TEST_IF_ALT)'])])
+    if OrderedDict([('all', ['defined(TEST_IF_ALT)', OrderedDict([('not', 'defined(TEST_IF_NOT_ALT)')])])])
 object q_obj_test-if-cmd-arg
     member foo: TestIfStruct optional=False
     member bar: TestIfEnum optional=False

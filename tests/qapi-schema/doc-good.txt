@@ -171,6 +171,12 @@ Features
    a feature
 
 
+If
+~~
+
+"!IFNOT"
+
+
 Another subsection
 ==================
 

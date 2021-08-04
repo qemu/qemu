@@ -126,7 +126,8 @@
 ##
 { 'alternate': 'Alternate',
   'features': [ 'alt-feat' ],
-  'data': { 'i': 'int', 'b': 'bool' } }
+  'data': { 'i': 'int', 'b': 'bool' },
+  'if': { 'not': 'IFNOT' } }
 
 ##
 # == Another subsection

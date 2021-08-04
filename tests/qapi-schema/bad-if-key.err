@@ -1,3 +1,3 @@
 bad-if-key.json: In struct 'TestIfStruct':
 bad-if-key.json:2: 'if' condition has unknown key 'value'
-Valid keys are 'all', 'any'.
+Valid keys are 'all', 'any', 'not'.
