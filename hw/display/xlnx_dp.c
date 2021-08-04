@@ -714,7 +714,11 @@ static uint64_t xlnx_dp_read(void *opaque, hwaddr offset, unsigned size)
         break;
     default:
         assert(offset <= (0x3AC >> 2));
-        ret = s->core_registers[offset];
+        if (offset == (0x3A8 >> 2) || offset == (0x3AC >> 2)) {
+            ret = s->core_registers[DP_INT_MASK];
+        } else {
+            ret = s->core_registers[offset];
+        }
         break;
     }
 
