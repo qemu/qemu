@@ -41,6 +41,16 @@ static inline void svm_save_seg(CPUX86State *env, hwaddr addr,
              ((sc->flags >> 8) & 0xff) | ((sc->flags >> 12) & 0x0f00));
 }
 
+/*
+ * VMRUN and VMLOAD canonicalizes (i.e., sign-extend to bit 63) all base
+ * addresses in the segment registers that have been loaded.
+ */
+static inline void svm_canonicalization(CPUX86State *env, target_ulong *seg_base)
+{
+    uint16_t shift_amt = 64 - cpu_x86_virtual_addr_width(env);
+    *seg_base = ((((long) *seg_base) << shift_amt) >> shift_amt);
+}
+
 static inline void svm_load_seg(CPUX86State *env, hwaddr addr,
                                 SegmentCache *sc)
 {
@@ -53,6 +63,7 @@ static inline void svm_load_seg(CPUX86State *env, hwaddr addr,
     sc->limit = x86_ldl_phys(cs, addr + offsetof(struct vmcb_seg, limit));
     flags = x86_lduw_phys(cs, addr + offsetof(struct vmcb_seg, attrib));
     sc->flags = ((flags & 0xff) << 8) | ((flags & 0x0f00) << 12);
+    svm_canonicalization(env, &sc->base);
 }
 
 static inline void svm_load_seg_cache(CPUX86State *env, hwaddr addr,
@@ -245,16 +256,6 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     env->tsc_offset = x86_ldq_phys(cs, env->vm_vmcb +
                                offsetof(struct vmcb, control.tsc_offset));
 
-    env->gdt.base  = x86_ldq_phys(cs, env->vm_vmcb + offsetof(struct vmcb,
-                                                      save.gdtr.base));
-    env->gdt.limit = x86_ldl_phys(cs, env->vm_vmcb + offsetof(struct vmcb,
-                                                      save.gdtr.limit));
-
-    env->idt.base  = x86_ldq_phys(cs, env->vm_vmcb + offsetof(struct vmcb,
-                                                      save.idtr.base));
-    env->idt.limit = x86_ldl_phys(cs, env->vm_vmcb + offsetof(struct vmcb,
-                                                      save.idtr.limit));
-
     new_cr0 = x86_ldq_phys(cs, env->vm_vmcb + offsetof(struct vmcb, save.cr0));
     if (new_cr0 & SVM_CR0_RESERVED_MASK) {
         cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
@@ -308,6 +309,10 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
                        R_SS);
     svm_load_seg_cache(env, env->vm_vmcb + offsetof(struct vmcb, save.ds),
                        R_DS);
+    svm_load_seg(env, env->vm_vmcb + offsetof(struct vmcb, save.idtr),
+                       &env->idt);
+    svm_load_seg(env, env->vm_vmcb + offsetof(struct vmcb, save.gdtr),
+                       &env->gdt);
 
     env->eip = x86_ldq_phys(cs,
                         env->vm_vmcb + offsetof(struct vmcb, save.rip));
@@ -446,6 +451,7 @@ void helper_vmload(CPUX86State *env, int aflag)
     env->lstar = x86_ldq_phys(cs, addr + offsetof(struct vmcb, save.lstar));
     env->cstar = x86_ldq_phys(cs, addr + offsetof(struct vmcb, save.cstar));
     env->fmask = x86_ldq_phys(cs, addr + offsetof(struct vmcb, save.sfmask));
+    svm_canonicalization(env, &env->kernelgsbase);
 #endif
     env->star = x86_ldq_phys(cs, addr + offsetof(struct vmcb, save.star));
     env->sysenter_cs = x86_ldq_phys(cs,
@@ -454,6 +460,7 @@ void helper_vmload(CPUX86State *env, int aflag)
                                                  save.sysenter_esp));
     env->sysenter_eip = x86_ldq_phys(cs, addr + offsetof(struct vmcb,
                                                  save.sysenter_eip));
+
 }
 
 void helper_vmsave(CPUX86State *env, int aflag)
