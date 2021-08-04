@@ -1,5 +1,5 @@
 /*
- *  x86_64 ELF definitions
+ *  OpenBSD thread dependent code and definitions
  *
  *  Copyright (c) 2013 Stacey D. Son
  *
@@ -16,20 +16,10 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _TARGET_ARCH_ELF_H_
-#define _TARGET_ARCH_ELF_H_
 
-#define ELF_START_MMAP 0x2aaaaab000ULL
-#define ELF_ET_DYN_LOAD_ADDR    0x01021000
-#define elf_check_arch(x) (((x) == ELF_ARCH))
+#ifndef _TARGET_OS_THREAD_H_
+#define _TARGET_OS_THREAD_H_
 
-#define ELF_HWCAP      0 /* FreeBSD doesn't do AT_HWCAP{,2} on x86 */
+#include "target_arch_thread.h"
 
-#define ELF_CLASS      ELFCLASS64
-#define ELF_DATA       ELFDATA2LSB
-#define ELF_ARCH       EM_X86_64
-
-#define USE_ELF_CORE_DUMP
-#define ELF_EXEC_PAGESIZE       4096
-
-#endif /* _TARGET_ARCH_ELF_H_ */
+#endif /* !_TARGET_OS_THREAD_H_ */

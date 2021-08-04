@@ -24,6 +24,7 @@
 #include "qemu/path.h"
 
 #include "target_arch_elf.h"
+#include "target_os_thread.h"
 
 /* this flag is uneffective under linux too, should be deleted */
 #ifndef MAP_DENYWRITE
@@ -1001,5 +1002,6 @@ int load_elf_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
 
 void do_init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
-    init_thread(regs, infop);
+
+    target_thread_init(regs, infop);
 }

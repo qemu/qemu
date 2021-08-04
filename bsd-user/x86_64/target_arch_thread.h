@@ -1,5 +1,5 @@
 /*
- *  x86_64 ELF definitions
+ *  x86_64 thread support
  *
  *  Copyright (c) 2013 Stacey D. Son
  *
@@ -16,20 +16,25 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _TARGET_ARCH_ELF_H_
-#define _TARGET_ARCH_ELF_H_
+#ifndef _TARGET_ARCH_THREAD_H_
+#define _TARGET_ARCH_THREAD_H_
 
-#define ELF_START_MMAP 0x2aaaaab000ULL
-#define ELF_ET_DYN_LOAD_ADDR    0x01021000
-#define elf_check_arch(x) (((x) == ELF_ARCH))
+/* Compare to vm_machdep.c cpu_set_upcall_kse() */
+static inline void target_thread_set_upcall(CPUX86State *regs, abi_ulong entry,
+    abi_ulong arg, abi_ulong stack_base, abi_ulong stack_size)
+{
+    /* XXX */
+}
 
-#define ELF_HWCAP      0 /* FreeBSD doesn't do AT_HWCAP{,2} on x86 */
+static inline void target_thread_init(struct target_pt_regs *regs,
+    struct image_info *infop)
+{
+    regs->rax = 0;
+    regs->rsp = infop->start_stack;
+    regs->rip = infop->entry;
+    if (bsd_type == target_freebsd) {
+        regs->rdi = infop->start_stack;
+    }
+}
 
-#define ELF_CLASS      ELFCLASS64
-#define ELF_DATA       ELFDATA2LSB
-#define ELF_ARCH       EM_X86_64
-
-#define USE_ELF_CORE_DUMP
-#define ELF_EXEC_PAGESIZE       4096
-
-#endif /* _TARGET_ARCH_ELF_H_ */
+#endif /* !_TARGET_ARCH_THREAD_H_ */
