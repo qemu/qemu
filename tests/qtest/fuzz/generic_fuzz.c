@@ -695,7 +695,7 @@ static void generic_fuzz(QTestState *s, const unsigned char *Data, size_t Size)
         while (cmd && Size) {
             /* Reset the timeout, each time we run a new command */
             if (timeout) {
-                setitimer(ITIMER_VIRTUAL, &timer, NULL);
+                setitimer(ITIMER_REAL, &timer, NULL);
             }
 
             /* Get the length until the next command or end of input */
