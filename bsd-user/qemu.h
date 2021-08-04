@@ -124,6 +124,7 @@ struct bsd_binprm {
         char buf[128];
         void *page[MAX_ARG_PAGES];
         abi_ulong p;
+        abi_ulong stringp;
         int fd;
         int e_uid, e_gid;
         int argc, envc;
