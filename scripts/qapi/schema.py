@@ -19,7 +19,7 @@ import os
 import re
 from typing import Optional
 
-from .common import POINTER_SUFFIX, c_name
+from .common import POINTER_SUFFIX, c_name, cgen_ifcond
 from .error import QAPIError, QAPISemError, QAPISourceError
 from .expr import check_exprs
 from .parser import QAPISchemaParser
@@ -28,6 +28,9 @@ from .parser import QAPISchemaParser
 class QAPISchemaIfCond:
     def __init__(self, ifcond=None):
         self.ifcond = ifcond or []
+
+    def cgen(self):
+        return cgen_ifcond(self.ifcond)
 
     def is_present(self):
         return bool(self.ifcond)

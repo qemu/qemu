@@ -95,9 +95,9 @@ def _wrap_ifcond(ifcond: QAPISchemaIfCond, before: str, after: str) -> str:
     if added[0] == '\n':
         out += '\n'
         added = added[1:]
-    out += gen_if(ifcond.ifcond)
+    out += gen_if(ifcond.cgen())
     out += added
-    out += gen_endif(ifcond.ifcond)
+    out += gen_endif(ifcond.cgen())
     return out
 
 

@@ -79,7 +79,7 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 
     for memb in members:
         deprecated = 'deprecated' in [f.name for f in memb.features]
-        ret += gen_if(memb.ifcond.ifcond)
+        ret += gen_if(memb.ifcond.cgen())
         if memb.optional:
             ret += mcgen('''
     if (visit_optional(v, "%(name)s", &obj->has_%(c_name)s)) {
@@ -112,7 +112,7 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
             ret += mcgen('''
     }
 ''')
-        ret += gen_endif(memb.ifcond.ifcond)
+        ret += gen_endif(memb.ifcond.cgen())
 
     if variants:
         tag_member = variants.tag_member
@@ -126,7 +126,7 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
         for var in variants.variants:
             case_str = c_enum_const(tag_member.type.name, var.name,
                                     tag_member.type.prefix)
-            ret += gen_if(var.ifcond.ifcond)
+            ret += gen_if(var.ifcond.cgen())
             if var.type.name == 'q_empty':
                 # valid variant and nothing to do
                 ret += mcgen('''
@@ -142,7 +142,7 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
                              case=case_str,
                              c_type=var.type.c_name(), c_name=c_name(var.name))
 
-            ret += gen_endif(var.ifcond.ifcond)
+            ret += gen_endif(var.ifcond.cgen())
         ret += mcgen('''
     default:
         abort();
@@ -228,7 +228,7 @@ bool visit_type_%(c_name)s(Visitor *v, const char *name,
                 c_name=c_name(name))
 
     for var in variants.variants:
-        ret += gen_if(var.ifcond.ifcond)
+        ret += gen_if(var.ifcond.cgen())
         ret += mcgen('''
     case %(case)s:
 ''',
@@ -254,7 +254,7 @@ bool visit_type_%(c_name)s(Visitor *v, const char *name,
         ret += mcgen('''
         break;
 ''')
-        ret += gen_endif(var.ifcond.ifcond)
+        ret += gen_endif(var.ifcond.cgen())
 
     ret += mcgen('''
     case QTYPE_NONE:
