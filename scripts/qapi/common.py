@@ -13,7 +13,8 @@
 
 import re
 from typing import (
-    List,
+    Any,
+    Dict,
     Match,
     Optional,
     Union,
@@ -199,17 +200,29 @@ def guardend(name: str) -> str:
                  name=c_fname(name).upper())
 
 
-def cgen_ifcond(ifcond: Union[str, List[str]]) -> str:
+def cgen_ifcond(ifcond: Union[str, Dict[str, Any]]) -> str:
     if not ifcond:
         return ''
-    return '(' + ') && ('.join(ifcond) + ')'
+    if isinstance(ifcond, str):
+        return ifcond
+
+    oper, operands = next(iter(ifcond.items()))
+    oper = {'all': '&&'}[oper]
+    operands = [cgen_ifcond(o) for o in operands]
+    return '(' + (') ' + oper + ' (').join(operands) + ')'
 
 
-def docgen_ifcond(ifcond: Union[str, List[str]]) -> str:
+def docgen_ifcond(ifcond: Union[str, Dict[str, Any]]) -> str:
     # TODO Doc generated for conditions needs polish
     if not ifcond:
         return ''
-    return ' and '.join(ifcond)
+    if isinstance(ifcond, str):
+        return ifcond
+
+    oper, operands = next(iter(ifcond.items()))
+    oper = {'all': ' and '}[oper]
+    operands = [docgen_ifcond(o) for o in operands]
+    return '(' + oper.join(operands) + ')'
 
 
 def gen_if(cond: str) -> str:

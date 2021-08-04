@@ -1,0 +1,3 @@
+# check 'if all' is not a list
+{ 'struct': 'TestIfStruct', 'data': { 'foo': 'int' },
+  'if': { 'all': 'ALL' } }
