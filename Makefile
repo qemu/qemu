@@ -256,7 +256,7 @@ gtags:
 		"GTAGS", "Remove old $@ files")
 	$(call quiet-command, 				\
 	        (cd $(SRC_PATH) && 			\
-		 $(find-src-path) | gtags -f -), 	\
+		 $(find-src-path) -print | gtags -f -),	\
 		"GTAGS", "Re-index $(SRC_PATH)")
 
 .PHONY: TAGS
