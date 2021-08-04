@@ -112,17 +112,19 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
     def _nodes_for_ifcond(self, ifcond, with_if=True):
         """Return list of Text, literal nodes for the ifcond
 
-        Return a list which gives text like ' (If: cond1, cond2, cond3)', where
-        the conditions are in literal-text and the commas are not.
+        Return a list which gives text like ' (If: condition)'.
         If with_if is False, we don't return the "(If: " and ")".
         """
-        condlist = intersperse([nodes.literal('', c) for c in ifcond.ifcond],
-                               nodes.Text(', '))
+
+        doc = ifcond.docgen()
+        if not doc:
+            return []
+        doc = nodes.literal('', doc)
         if not with_if:
-            return condlist
+            return [doc]
 
         nodelist = [nodes.Text(' ('), nodes.strong('', 'If: ')]
-        nodelist.extend(condlist)
+        nodelist.append(doc)
         nodelist.append(nodes.Text(')'))
         return nodelist
 
