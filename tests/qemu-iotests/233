@@ -148,7 +148,7 @@ $QEMU_IMG info --image-opts \
 
 echo
 echo "== final server log =="
-cat "$TEST_DIR/server.log"
+cat "$TEST_DIR/server.log" | _filter_authz_check_tls
 rm -f "$TEST_DIR/server.log"
 
 # success, all done
