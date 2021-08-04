@@ -362,6 +362,11 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
     }
 }
 
+static void tcg_out_nop(TCGContext *s)
+{
+    tcg_out32(s, NOP);
+}
+
 static void tcg_out_arith(TCGContext *s, TCGReg rd, TCGReg rs1,
                           TCGReg rs2, int op)
 {
@@ -387,6 +392,15 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
         tcg_out_arith(s, ret, arg, TCG_REG_G0, ARITH_OR);
     }
     return true;
+}
+
+static void tcg_out_mov_delay(TCGContext *s, TCGReg ret, TCGReg arg)
+{
+    if (ret != arg) {
+        tcg_out_arith(s, ret, arg, TCG_REG_G0, ARITH_OR);
+    } else {
+        tcg_out_nop(s);
+    }
 }
 
 static void tcg_out_sethi(TCGContext *s, TCGReg ret, uint32_t arg)
@@ -549,11 +563,6 @@ static void tcg_out_div32(TCGContext *s, TCGReg rd, TCGReg rs1,
 
     tcg_out_arithc(s, rd, rs1, val2, val2const,
                    uns ? ARITH_UDIV : ARITH_SDIV);
-}
-
-static void tcg_out_nop(TCGContext *s)
-{
-    tcg_out32(s, NOP);
 }
 
 static const uint8_t tcg_cond_to_bcond[] = {
@@ -1349,7 +1358,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_goto_ptr:
         tcg_out_arithi(s, TCG_REG_G0, a0, 0, JMPL);
         if (USE_REG_TB) {
-            tcg_out_arith(s, TCG_REG_TB, a0, TCG_REG_G0, ARITH_OR);
+            tcg_out_mov_delay(s, TCG_REG_TB, a0);
         } else {
             tcg_out_nop(s);
         }
