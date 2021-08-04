@@ -116,7 +116,7 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
         the conditions are in literal-text and the commas are not.
         If with_if is False, we don't return the "(If: " and ")".
         """
-        condlist = intersperse([nodes.literal('', c) for c in ifcond],
+        condlist = intersperse([nodes.literal('', c) for c in ifcond.ifcond],
                                nodes.Text(', '))
         if not with_if:
             return condlist
@@ -139,7 +139,7 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
             term.append(nodes.literal('', member.type.doc_type()))
         if member.optional:
             term.append(nodes.Text(' (optional)'))
-        if member.ifcond:
+        if member.ifcond.ifcond:
             term.extend(self._nodes_for_ifcond(member.ifcond))
         return term
 
@@ -154,7 +154,7 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
                 nodes.literal('', variants.tag_member.name),
                 nodes.Text(' is '),
                 nodes.literal('', '"%s"' % variant.name)]
-        if variant.ifcond:
+        if variant.ifcond.ifcond:
             term.extend(self._nodes_for_ifcond(variant.ifcond))
         return term
 
@@ -209,7 +209,7 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
         dlnode = nodes.definition_list()
         for section in doc.args.values():
             termtext = [nodes.literal('', section.member.name)]
-            if section.member.ifcond:
+            if section.member.ifcond.ifcond:
                 termtext.extend(self._nodes_for_ifcond(section.member.ifcond))
             # TODO drop fallbacks when undocumented members are outlawed
             if section.text:
@@ -277,7 +277,7 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
     def _nodes_for_if_section(self, ifcond):
         """Return list of doctree nodes for the "If" section"""
         nodelist = []
-        if ifcond:
+        if ifcond.ifcond:
             snode = self._make_section('If')
             snode += nodes.paragraph(
                 '', '', *self._nodes_for_ifcond(ifcond, with_if=False)

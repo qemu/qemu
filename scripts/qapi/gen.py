@@ -18,7 +18,6 @@ from typing import (
     Dict,
     Iterator,
     Optional,
-    Sequence,
     Tuple,
 )
 
@@ -32,6 +31,7 @@ from .common import (
     mcgen,
 )
 from .schema import (
+    QAPISchemaIfCond,
     QAPISchemaModule,
     QAPISchemaObjectType,
     QAPISchemaVisitor,
@@ -85,7 +85,7 @@ class QAPIGen:
                 fp.write(text)
 
 
-def _wrap_ifcond(ifcond: Sequence[str], before: str, after: str) -> str:
+def _wrap_ifcond(ifcond: QAPISchemaIfCond, before: str, after: str) -> str:
     if before == after:
         return after   # suppress empty #if ... #endif
 
@@ -95,9 +95,9 @@ def _wrap_ifcond(ifcond: Sequence[str], before: str, after: str) -> str:
     if added[0] == '\n':
         out += '\n'
         added = added[1:]
-    out += gen_if(ifcond)
+    out += gen_if(ifcond.ifcond)
     out += added
-    out += gen_endif(ifcond)
+    out += gen_endif(ifcond.ifcond)
     return out
 
 
@@ -127,9 +127,9 @@ def build_params(arg_type: Optional[QAPISchemaObjectType],
 class QAPIGenCCode(QAPIGen):
     def __init__(self, fname: str):
         super().__init__(fname)
-        self._start_if: Optional[Tuple[Sequence[str], str, str]] = None
+        self._start_if: Optional[Tuple[QAPISchemaIfCond, str, str]] = None
 
-    def start_if(self, ifcond: Sequence[str]) -> None:
+    def start_if(self, ifcond: QAPISchemaIfCond) -> None:
         assert self._start_if is None
         self._start_if = (ifcond, self._body, self._preamble)
 
@@ -187,7 +187,7 @@ class QAPIGenH(QAPIGenC):
 
 
 @contextmanager
-def ifcontext(ifcond: Sequence[str], *args: QAPIGenCCode) -> Iterator[None]:
+def ifcontext(ifcond: QAPISchemaIfCond, *args: QAPIGenCCode) -> Iterator[None]:
     """
     A with-statement context manager that wraps with `start_if()` / `end_if()`.
 

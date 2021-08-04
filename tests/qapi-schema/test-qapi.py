@@ -94,8 +94,8 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
 
     @staticmethod
     def _print_if(ifcond, indent=4):
-        if ifcond:
-            print('%sif %s' % (' ' * indent, ifcond))
+        if ifcond.ifcond:
+            print('%sif %s' % (' ' * indent, ifcond.ifcond))
 
     @classmethod
     def _print_features(cls, features, indent=4):

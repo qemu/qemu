@@ -13,7 +13,7 @@ This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 """
 
-from typing import List, Optional, Sequence
+from typing import List, Optional
 
 from .common import (
     c_enum_const,
@@ -27,6 +27,7 @@ from .schema import (
     QAPISchema,
     QAPISchemaEnumMember,
     QAPISchemaFeature,
+    QAPISchemaIfCond,
     QAPISchemaObjectType,
     QAPISchemaObjectTypeMember,
     QAPISchemaType,
@@ -50,13 +51,13 @@ const QEnumLookup %(c_name)s_lookup = {
 ''',
                 c_name=c_name(name))
     for memb in members:
-        ret += gen_if(memb.ifcond)
+        ret += gen_if(memb.ifcond.ifcond)
         index = c_enum_const(name, memb.name, prefix)
         ret += mcgen('''
         [%(index)s] = "%(name)s",
 ''',
                      index=index, name=memb.name)
-        ret += gen_endif(memb.ifcond)
+        ret += gen_endif(memb.ifcond.ifcond)
 
     ret += mcgen('''
     },
@@ -80,12 +81,12 @@ typedef enum %(c_name)s {
                 c_name=c_name(name))
 
     for memb in enum_members:
-        ret += gen_if(memb.ifcond)
+        ret += gen_if(memb.ifcond.ifcond)
         ret += mcgen('''
     %(c_enum)s,
 ''',
                      c_enum=c_enum_const(name, memb.name, prefix))
-        ret += gen_endif(memb.ifcond)
+        ret += gen_endif(memb.ifcond.ifcond)
 
     ret += mcgen('''
 } %(c_name)s;
@@ -125,7 +126,7 @@ struct %(c_name)s {
 def gen_struct_members(members: List[QAPISchemaObjectTypeMember]) -> str:
     ret = ''
     for memb in members:
-        ret += gen_if(memb.ifcond)
+        ret += gen_if(memb.ifcond.ifcond)
         if memb.optional:
             ret += mcgen('''
     bool has_%(c_name)s;
@@ -135,11 +136,11 @@ def gen_struct_members(members: List[QAPISchemaObjectTypeMember]) -> str:
     %(c_type)s %(c_name)s;
 ''',
                      c_type=memb.type.c_type(), c_name=c_name(memb.name))
-        ret += gen_endif(memb.ifcond)
+        ret += gen_endif(memb.ifcond.ifcond)
     return ret
 
 
-def gen_object(name: str, ifcond: Sequence[str],
+def gen_object(name: str, ifcond: QAPISchemaIfCond,
                base: Optional[QAPISchemaObjectType],
                members: List[QAPISchemaObjectTypeMember],
                variants: Optional[QAPISchemaVariants]) -> str:
@@ -158,7 +159,7 @@ def gen_object(name: str, ifcond: Sequence[str],
     ret += mcgen('''
 
 ''')
-    ret += gen_if(ifcond)
+    ret += gen_if(ifcond.ifcond)
     ret += mcgen('''
 struct %(c_name)s {
 ''',
@@ -192,7 +193,7 @@ struct %(c_name)s {
     ret += mcgen('''
 };
 ''')
-    ret += gen_endif(ifcond)
+    ret += gen_endif(ifcond.ifcond)
 
     return ret
 
@@ -219,13 +220,13 @@ def gen_variants(variants: QAPISchemaVariants) -> str:
     for var in variants.variants:
         if var.type.name == 'q_empty':
             continue
-        ret += gen_if(var.ifcond)
+        ret += gen_if(var.ifcond.ifcond)
         ret += mcgen('''
         %(c_type)s %(c_name)s;
 ''',
                      c_type=var.type.c_unboxed_type(),
                      c_name=c_name(var.name))
-        ret += gen_endif(var.ifcond)
+        ret += gen_endif(var.ifcond.ifcond)
 
     ret += mcgen('''
     } u;
@@ -307,7 +308,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
     def visit_enum_type(self,
                         name: str,
                         info: Optional[QAPISourceInfo],
-                        ifcond: Sequence[str],
+                        ifcond: QAPISchemaIfCond,
                         features: List[QAPISchemaFeature],
                         members: List[QAPISchemaEnumMember],
                         prefix: Optional[str]) -> None:
@@ -318,7 +319,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
     def visit_array_type(self,
                          name: str,
                          info: Optional[QAPISourceInfo],
-                         ifcond: Sequence[str],
+                         ifcond: QAPISchemaIfCond,
                          element_type: QAPISchemaType) -> None:
         with ifcontext(ifcond, self._genh, self._genc):
             self._genh.preamble_add(gen_fwd_object_or_array(name))
@@ -328,7 +329,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
     def visit_object_type(self,
                           name: str,
                           info: Optional[QAPISourceInfo],
-                          ifcond: Sequence[str],
+                          ifcond: QAPISchemaIfCond,
                           features: List[QAPISchemaFeature],
                           base: Optional[QAPISchemaObjectType],
                           members: List[QAPISchemaObjectTypeMember],
@@ -351,7 +352,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
     def visit_alternate_type(self,
                              name: str,
                              info: Optional[QAPISourceInfo],
-                             ifcond: Sequence[str],
+                             ifcond: QAPISchemaIfCond,
                              features: List[QAPISchemaFeature],
                              variants: QAPISchemaVariants) -> None:
         with ifcontext(ifcond, self._genh):
