@@ -2765,7 +2765,12 @@ void tcg_gen_lookup_and_goto_ptr(void)
 static inline MemOp tcg_canonicalize_memop(MemOp op, bool is64, bool st)
 {
     /* Trigger the asserts within as early as possible.  */
-    (void)get_alignment_bits(op);
+    unsigned a_bits = get_alignment_bits(op);
+
+    /* Prefer MO_ALIGN+MO_XX over MO_ALIGN_XX+MO_XX */
+    if (a_bits == (op & MO_SIZE)) {
+        op = (op & ~MO_AMASK) | MO_ALIGN;
+    }
 
     switch (op & MO_SIZE) {
     case MO_8:
