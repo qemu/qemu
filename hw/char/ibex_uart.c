@@ -135,7 +135,7 @@ static void ibex_uart_receive(void *opaque, const uint8_t *buf, int size)
     ibex_uart_update_irqs(s);
 }
 
-static gboolean ibex_uart_xmit(GIOChannel *chan, GIOCondition cond,
+static gboolean ibex_uart_xmit(void *do_not_use, GIOCondition cond,
                                void *opaque)
 {
     IbexUartState *s = opaque;

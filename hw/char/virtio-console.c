@@ -38,7 +38,7 @@ struct VirtConsole {
  * Callback function that's called from chardevs when backend becomes
  * writable.
  */
-static gboolean chr_write_unblocked(GIOChannel *chan, GIOCondition cond,
+static gboolean chr_write_unblocked(void *do_not_use, GIOCondition cond,
                                     void *opaque)
 {
     VirtConsole *vcon = opaque;

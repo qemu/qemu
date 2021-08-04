@@ -220,7 +220,7 @@ static void serial_update_msl(SerialState *s)
     }
 }
 
-static gboolean serial_watch_cb(GIOChannel *chan, GIOCondition cond,
+static gboolean serial_watch_cb(void *do_not_use, GIOCondition cond,
                                 void *opaque)
 {
     SerialState *s = opaque;
