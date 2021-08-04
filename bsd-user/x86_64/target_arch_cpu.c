@@ -1,6 +1,7 @@
 /*
  *  x86_64 cpu related code
  *
+ * Copyright (c) 2013 Stacey Son <sson@FreeBSD.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
