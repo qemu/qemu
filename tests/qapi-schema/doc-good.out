@@ -30,7 +30,7 @@ object Object
     tag base1
     case one: Variant1
     case two: Variant2
-        if IFTWO
+        if OrderedDict([('any', ['IFONE', 'IFTWO'])])
     feature union-feat1
 object q_obj_Variant1-wrapper
     member data: Variant1 optional=False

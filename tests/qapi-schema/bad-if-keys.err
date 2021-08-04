@@ -1,2 +1,2 @@
 bad-if-keys.json: In struct 'TestIfStruct':
-bad-if-keys.json:2: 'if' condition dict of struct must have one key: 'all'
+bad-if-keys.json:2: 'if' condition dict of struct must have one key: 'all' or 'any'

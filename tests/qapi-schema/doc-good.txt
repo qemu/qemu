@@ -120,7 +120,8 @@ Members
 
 The members of "Base"
 The members of "Variant1" when "base1" is ""one""
-The members of "Variant2" when "base1" is ""two"" (**If: **"IFTWO")
+The members of "Variant2" when "base1" is ""two"" (**If: **"(IFONE or
+IFTWO)")
 
 Features
 ~~~~~~~~

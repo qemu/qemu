@@ -290,16 +290,16 @@ def check_if(expr: _JSONObject, info: QAPISourceInfo, source: str) -> None:
             raise QAPISemError(
                 info,
                 "'if' condition dict of %s must have one key: "
-                "'all'" % source)
+                "'all' or 'any'" % source)
         check_keys(cond, info, "'if' condition", [],
-                   ["all"])
+                   ["all", "any"])
 
         oper, operands = next(iter(cond.items()))
         if not operands:
             raise QAPISemError(
                 info, "'if' condition [] of %s is useless" % source)
 
-        if oper in ("all") and not isinstance(operands, list):
+        if oper in ("all", "any") and not isinstance(operands, list):
             raise QAPISemError(
                 info, "'%s' condition of %s must be an array" % (oper, source))
         for operand in operands:

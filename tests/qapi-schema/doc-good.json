@@ -103,7 +103,9 @@
   'features': [ 'union-feat1' ],
   'base': 'Base',
   'discriminator': 'base1',
-  'data': { 'one': 'Variant1', 'two': { 'type': 'Variant2', 'if': 'IFTWO' } } }
+  'data': { 'one': 'Variant1',
+            'two': { 'type': 'Variant2',
+                     'if': { 'any': ['IFONE', 'IFTWO'] } } } }
 
 ##
 # @SugaredUnion:
