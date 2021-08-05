@@ -177,11 +177,11 @@ void gd_clipboard_init(GtkDisplayState *gd)
     qemu_clipboard_peer_register(&gd->cbpeer);
 
     gd->gtkcb[QEMU_CLIPBOARD_SELECTION_CLIPBOARD] =
-        gtk_clipboard_get(gdk_atom_intern("CLIPBOARD", FALSE));
+        gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
     gd->gtkcb[QEMU_CLIPBOARD_SELECTION_PRIMARY] =
-        gtk_clipboard_get(gdk_atom_intern("PRIMARY", FALSE));
+        gtk_clipboard_get(GDK_SELECTION_PRIMARY);
     gd->gtkcb[QEMU_CLIPBOARD_SELECTION_SECONDARY] =
-        gtk_clipboard_get(gdk_atom_intern("SECONDARY", FALSE));
+        gtk_clipboard_get(GDK_SELECTION_SECONDARY);
 
     g_signal_connect(gd->gtkcb[QEMU_CLIPBOARD_SELECTION_CLIPBOARD],
                      "owner-change", G_CALLBACK(gd_owner_change), gd);
