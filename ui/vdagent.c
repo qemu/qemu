@@ -721,22 +721,26 @@ static void vdagent_chr_accept_input(Chardev *chr)
     vdagent_send_buf(vd);
 }
 
+static void vdagent_disconnect(VDAgentChardev *vd)
+{
+    vdagent_reset_bufs(vd);
+    vd->caps = 0;
+    if (vd->mouse_hs) {
+        qemu_input_handler_deactivate(vd->mouse_hs);
+    }
+    if (vd->cbpeer.update.notify) {
+        qemu_clipboard_peer_unregister(&vd->cbpeer);
+        memset(&vd->cbpeer, 0, sizeof(vd->cbpeer));
+    }
+}
+
 static void vdagent_chr_set_fe_open(struct Chardev *chr, int fe_open)
 {
     VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(chr);
 
     if (!fe_open) {
         trace_vdagent_close();
-        /* reset state */
-        vdagent_reset_bufs(vd);
-        vd->caps = 0;
-        if (vd->mouse_hs) {
-            qemu_input_handler_deactivate(vd->mouse_hs);
-        }
-        if (vd->cbpeer.update.notify) {
-            qemu_clipboard_peer_unregister(&vd->cbpeer);
-            memset(&vd->cbpeer, 0, sizeof(vd->cbpeer));
-        }
+        vdagent_disconnect(vd);
         return;
     }
 
@@ -781,6 +785,7 @@ static void vdagent_chr_fini(Object *obj)
 {
     VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(obj);
 
+    vdagent_disconnect(vd);
     buffer_free(&vd->outbuf);
 }
 
