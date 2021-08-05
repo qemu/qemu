@@ -723,6 +723,7 @@ static void vdagent_chr_accept_input(Chardev *chr)
 
 static void vdagent_disconnect(VDAgentChardev *vd)
 {
+    buffer_reset(&vd->outbuf);
     vdagent_reset_bufs(vd);
     vd->caps = 0;
     if (vd->mouse_hs) {
