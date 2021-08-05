@@ -45,24 +45,24 @@ static void gd_clipboard_get_data(GtkClipboard     *clipboard,
     GtkDisplayState *gd = data;
     QemuClipboardSelection s = gd_find_selection(gd, clipboard);
     QemuClipboardType type = QEMU_CLIPBOARD_TYPE_TEXT;
-    QemuClipboardInfo *info = qemu_clipboard_info_ref(gd->cbinfo[s]);
+    g_autoptr(QemuClipboardInfo) info = NULL;
+
+    info = qemu_clipboard_info_ref(qemu_clipboard_info(s));
 
     qemu_clipboard_request(info, type);
-    while (info == gd->cbinfo[s] &&
+    while (info == qemu_clipboard_info(s) &&
            info->types[type].available &&
            info->types[type].data == NULL) {
         main_loop_wait(false);
     }
 
-    if (info == gd->cbinfo[s] && gd->cbowner[s]) {
+    if (info == qemu_clipboard_info(s) && gd->cbowner[s]) {
         gtk_selection_data_set_text(selection_data,
                                     info->types[type].data,
                                     info->types[type].size);
     } else {
         /* clipboard owner changed while waiting for the data */
     }
-
-    qemu_clipboard_info_unref(info);
 }
 
 static void gd_clipboard_clear(GtkClipboard *clipboard,
@@ -81,9 +81,7 @@ static void gd_clipboard_notify(Notifier *notifier, void *data)
     QemuClipboardSelection s = info->selection;
     bool self_update = info->owner == &gd->cbpeer;
 
-    if (info != gd->cbinfo[s]) {
-        qemu_clipboard_info_unref(gd->cbinfo[s]);
-        gd->cbinfo[s] = qemu_clipboard_info_ref(info);
+    if (info != qemu_clipboard_info(s)) {
         gd->cbpending[s] = 0;
         if (!self_update) {
             GtkTargetList *list;
