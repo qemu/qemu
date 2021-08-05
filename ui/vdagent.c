@@ -507,13 +507,7 @@ static void vdagent_clipboard_recv_data(VDAgentChardev *vd, uint8_t s, uint32_t 
 
 static void vdagent_clipboard_recv_release(VDAgentChardev *vd, uint8_t s)
 {
-    g_autoptr(QemuClipboardInfo) info = NULL;
-
-    if (vd->cbinfo[s] && vd->cbinfo[s]->owner == &vd->cbpeer) {
-        /* set empty clipboard info */
-        info = qemu_clipboard_info_new(NULL, s);
-        qemu_clipboard_update(info);
-    }
+    qemu_clipboard_peer_release(&vd->cbpeer, s);
 }
 
 static void vdagent_chr_recv_clipboard(VDAgentChardev *vd, VDAgentMessage *msg)
