@@ -375,6 +375,16 @@ static void vdagent_send_clipboard_data(VDAgentChardev *vd,
     vdagent_send_msg(vd, msg);
 }
 
+static void vdagent_send_empty_clipboard_data(VDAgentChardev *vd,
+                                              QemuClipboardSelection selection,
+                                              QemuClipboardType type)
+{
+    g_autoptr(QemuClipboardInfo) info = qemu_clipboard_info_new(&vd->cbpeer, selection);
+
+    trace_vdagent_send_empty_clipboard();
+    vdagent_send_clipboard_data(vd, info, type);
+}
+
 static void vdagent_clipboard_notify(Notifier *notifier, void *data)
 {
     VDAgentChardev *vd = container_of(notifier, VDAgentChardev, cbpeer.update);
@@ -482,6 +492,8 @@ static void vdagent_clipboard_recv_request(VDAgentChardev *vd, uint8_t s, uint32
             vd->cbpending[s] |= (1 << type);
             qemu_clipboard_request(info, type);
         }
+    } else {
+        vdagent_send_empty_clipboard_data(vd, s, type);
     }
 }
 
