@@ -110,6 +110,15 @@ void qemu_clipboard_peer_register(QemuClipboardPeer *peer);
 void qemu_clipboard_peer_unregister(QemuClipboardPeer *peer);
 
 /**
+ * qemu_clipboard_info
+ *
+ * @selection: clipboard selection.
+ *
+ * Return the current clipboard data & owner informations.
+ */
+QemuClipboardInfo *qemu_clipboard_info(QemuClipboardSelection selection);
+
+/**
  * qemu_clipboard_info_new
  *
  * @owner: clipboard owner.

@@ -4,6 +4,8 @@
 static NotifierList clipboard_notifiers =
     NOTIFIER_LIST_INITIALIZER(clipboard_notifiers);
 
+static QemuClipboardInfo *cbinfo[QEMU_CLIPBOARD_SELECTION__COUNT];
+
 void qemu_clipboard_peer_register(QemuClipboardPeer *peer)
 {
     notifier_list_add(&clipboard_notifiers, &peer->update);
@@ -16,7 +18,20 @@ void qemu_clipboard_peer_unregister(QemuClipboardPeer *peer)
 
 void qemu_clipboard_update(QemuClipboardInfo *info)
 {
+    g_autoptr(QemuClipboardInfo) old = NULL;
+    assert(info->selection < QEMU_CLIPBOARD_SELECTION__COUNT);
+
     notifier_list_notify(&clipboard_notifiers, info);
+
+    old = cbinfo[info->selection];
+    cbinfo[info->selection] = qemu_clipboard_info_ref(info);
+}
+
+QemuClipboardInfo *qemu_clipboard_info(QemuClipboardSelection selection)
+{
+    assert(selection < QEMU_CLIPBOARD_SELECTION__COUNT);
+
+    return cbinfo[selection];
 }
 
 QemuClipboardInfo *qemu_clipboard_info_new(QemuClipboardPeer *owner,
