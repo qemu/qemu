@@ -516,7 +516,7 @@ static void vdagent_chr_recv_clipboard(VDAgentChardev *vd, VDAgentMessage *msg)
         qemu_clipboard_set_data(&vd->cbpeer, vd->cbinfo[s], type,
                                 size, data, true);
         break;
-    case VD_AGENT_CLIPBOARD_RELEASE: /* data */
+    case VD_AGENT_CLIPBOARD_RELEASE:
         if (vd->cbinfo[s] &&
             vd->cbinfo[s]->owner == &vd->cbpeer) {
             /* set empty clipboard info */
