@@ -438,7 +438,7 @@ static void vdagent_chr_recv_clipboard(VDAgentChardev *vd, VDAgentMessage *msg)
     uint8_t s = VD_AGENT_CLIPBOARD_SELECTION_CLIPBOARD;
     uint32_t size = msg->size;
     void *data = msg->data;
-    QemuClipboardInfo *info;
+    g_autoptr(QemuClipboardInfo) info = NULL;
     QemuClipboardType type;
 
     if (have_selection(vd)) {
@@ -477,7 +477,6 @@ static void vdagent_chr_recv_clipboard(VDAgentChardev *vd, VDAgentMessage *msg)
             size -= sizeof(uint32_t);
         }
         qemu_clipboard_update(info);
-        qemu_clipboard_info_unref(info);
         break;
     case VD_AGENT_CLIPBOARD_REQUEST:
         if (size < sizeof(uint32_t)) {
@@ -523,7 +522,6 @@ static void vdagent_chr_recv_clipboard(VDAgentChardev *vd, VDAgentMessage *msg)
             /* set empty clipboard info */
             info = qemu_clipboard_info_new(NULL, s);
             qemu_clipboard_update(info);
-            qemu_clipboard_info_unref(info);
         }
         break;
     }

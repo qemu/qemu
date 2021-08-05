@@ -190,4 +190,6 @@ void qemu_clipboard_set_data(QemuClipboardPeer *peer,
                              const void *data,
                              bool update);
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(QemuClipboardInfo, qemu_clipboard_info_unref)
+
 #endif /* QEMU_CLIPBOARD_H */
