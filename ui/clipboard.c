@@ -13,6 +13,12 @@ void qemu_clipboard_peer_register(QemuClipboardPeer *peer)
 
 void qemu_clipboard_peer_unregister(QemuClipboardPeer *peer)
 {
+    int i;
+
+    for (i = 0; i < QEMU_CLIPBOARD_SELECTION__COUNT; i++) {
+        qemu_clipboard_peer_release(peer, i);
+    }
+
     notifier_remove(&peer->update);
 }
 
