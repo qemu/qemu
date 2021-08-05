@@ -163,6 +163,8 @@ static void gd_owner_change(GtkClipboard *clipboard,
         qemu_clipboard_info_unref(info);
         break;
     default:
+        qemu_clipboard_peer_release(&gd->cbpeer, s);
+        gd->cbowner[s] = false;
         break;
     }
 }
