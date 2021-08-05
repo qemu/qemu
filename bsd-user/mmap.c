@@ -20,8 +20,6 @@
 
 #include "qemu.h"
 #include "qemu-common.h"
-#include "bsd-mman.h"
-#include "exec/exec-all.h"
 
 //#define DEBUG_MMAP
 
