@@ -354,7 +354,7 @@ void qemu_chr_fe_set_open(CharBackend *be, int fe_open)
 }
 
 guint qemu_chr_fe_add_watch(CharBackend *be, GIOCondition cond,
-                            GIOFunc func, void *user_data)
+                            FEWatchFunc func, void *user_data)
 {
     Chardev *s = be->chr;
     GSource *src;

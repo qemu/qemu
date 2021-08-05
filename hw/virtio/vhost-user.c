@@ -303,7 +303,7 @@ struct vhost_user_read_cb_data {
     int ret;
 };
 
-static gboolean vhost_user_read_cb(GIOChannel *source, GIOCondition condition,
+static gboolean vhost_user_read_cb(void *do_not_use, GIOCondition condition,
                                    gpointer opaque)
 {
     struct vhost_user_read_cb_data *data = opaque;

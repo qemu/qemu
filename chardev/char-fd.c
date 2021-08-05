@@ -28,6 +28,7 @@
 #include "qemu/sockets.h"
 #include "qapi/error.h"
 #include "chardev/char.h"
+#include "chardev/char-fe.h"
 #include "io/channel-file.h"
 
 #include "chardev/char-fd.h"
@@ -37,6 +38,10 @@
 static int fd_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
     FDChardev *s = FD_CHARDEV(chr);
+
+    if (!s->ioc_out) {
+        return -1;
+    }
 
     return io_channel_send(s->ioc_out, buf, len);
 }
@@ -80,10 +85,85 @@ static int fd_chr_read_poll(void *opaque)
     return s->max_size;
 }
 
+typedef struct FDSource {
+    GSource parent;
+
+    GIOCondition cond;
+} FDSource;
+
+static gboolean
+fd_source_prepare(GSource *source,
+                  gint *timeout_)
+{
+    FDSource *src = (FDSource *)source;
+
+    return src->cond != 0;
+}
+
+static gboolean
+fd_source_check(GSource *source)
+{
+    FDSource *src = (FDSource *)source;
+
+    return src->cond != 0;
+}
+
+static gboolean
+fd_source_dispatch(GSource *source, GSourceFunc callback,
+                   gpointer user_data)
+{
+    FDSource *src = (FDSource *)source;
+    FEWatchFunc func = (FEWatchFunc)callback;
+    gboolean ret = G_SOURCE_CONTINUE;
+
+    if (src->cond) {
+        ret = func(NULL, src->cond, user_data);
+        src->cond = 0;
+    }
+
+    return ret;
+}
+
+static GSourceFuncs fd_source_funcs = {
+  fd_source_prepare,
+  fd_source_check,
+  fd_source_dispatch,
+  NULL, NULL, NULL
+};
+
+static GSource *fd_source_new(FDChardev *chr)
+{
+    return g_source_new(&fd_source_funcs, sizeof(FDSource));
+}
+
+static gboolean child_func(GIOChannel *source,
+                           GIOCondition condition,
+                           gpointer data)
+{
+    FDSource *parent = data;
+
+    parent->cond |= condition;
+
+    return G_SOURCE_CONTINUE;
+}
+
 static GSource *fd_chr_add_watch(Chardev *chr, GIOCondition cond)
 {
     FDChardev *s = FD_CHARDEV(chr);
-    return qio_channel_create_watch(s->ioc_out, cond);
+    g_autoptr(GSource) source = fd_source_new(s);
+
+    if (s->ioc_out) {
+        g_autoptr(GSource) child = qio_channel_create_watch(s->ioc_out, cond & ~G_IO_IN);
+        g_source_set_callback(child, (GSourceFunc)child_func, source, NULL);
+        g_source_add_child_source(source, child);
+    }
+    if (s->ioc_in) {
+        g_autoptr(GSource) child = qio_channel_create_watch(s->ioc_in, cond & ~G_IO_OUT);
+        g_source_set_callback(child, (GSourceFunc)child_func, source, NULL);
+        g_source_add_child_source(source, child);
+    }
+
+    return g_steal_pointer(&source);
 }
 
 static void fd_chr_update_read_handler(Chardev *chr)
@@ -131,17 +211,32 @@ void qemu_chr_open_fd(Chardev *chr,
                       int fd_in, int fd_out)
 {
     FDChardev *s = FD_CHARDEV(chr);
-    char *name;
+    g_autofree char *name = NULL;
 
-    s->ioc_in = QIO_CHANNEL(qio_channel_file_new_fd(fd_in));
-    name = g_strdup_printf("chardev-file-in-%s", chr->label);
-    qio_channel_set_name(QIO_CHANNEL(s->ioc_in), name);
-    g_free(name);
-    s->ioc_out = QIO_CHANNEL(qio_channel_file_new_fd(fd_out));
-    name = g_strdup_printf("chardev-file-out-%s", chr->label);
-    qio_channel_set_name(QIO_CHANNEL(s->ioc_out), name);
-    g_free(name);
-    qemu_set_nonblock(fd_out);
+    if (fd_out >= 0) {
+        qemu_set_nonblock(fd_out);
+    }
+
+    if (fd_out == fd_in && fd_in >= 0) {
+        s->ioc_in = QIO_CHANNEL(qio_channel_file_new_fd(fd_in));
+        name = g_strdup_printf("chardev-file-%s", chr->label);
+        qio_channel_set_name(QIO_CHANNEL(s->ioc_in), name);
+        s->ioc_out = QIO_CHANNEL(object_ref(s->ioc_in));
+        return;
+    }
+
+    if (fd_in >= 0) {
+        s->ioc_in = QIO_CHANNEL(qio_channel_file_new_fd(fd_in));
+        name = g_strdup_printf("chardev-file-in-%s", chr->label);
+        qio_channel_set_name(QIO_CHANNEL(s->ioc_in), name);
+    }
+
+    if (fd_out >= 0) {
+        s->ioc_out = QIO_CHANNEL(qio_channel_file_new_fd(fd_out));
+        g_free(name);
+        name = g_strdup_printf("chardev-file-out-%s", chr->label);
+        qio_channel_set_name(QIO_CHANNEL(s->ioc_out), name);
+    }
 }
 
 static void char_fd_class_init(ObjectClass *oc, void *data)

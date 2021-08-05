@@ -468,9 +468,9 @@ static char *qemu_chr_socket_address(SocketChardev *s, const char *prefix)
 
 #ifdef CONFIG_LINUX
         if (sa->has_abstract && sa->abstract) {
-            abstract = ",abstract";
+            abstract = ",abstract=on";
             if (sa->has_tight && sa->tight) {
-                tight = ",tight";
+                tight = ",tight=on";
             }
         }
 #endif

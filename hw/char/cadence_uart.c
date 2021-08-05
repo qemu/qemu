@@ -288,7 +288,7 @@ static void uart_write_rx_fifo(void *opaque, const uint8_t *buf, int size)
     uart_update_status(s);
 }
 
-static gboolean cadence_uart_xmit(GIOChannel *chan, GIOCondition cond,
+static gboolean cadence_uart_xmit(void *do_not_use, GIOCondition cond,
                                   void *opaque)
 {
     CadenceUARTState *s = opaque;

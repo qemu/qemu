@@ -208,8 +208,8 @@ static NetClientInfo net_vhost_user_info = {
         .set_vnet_le = vhost_user_set_vnet_endianness,
 };
 
-static gboolean net_vhost_user_watch(GIOChannel *chan, GIOCondition cond,
-                                           void *opaque)
+static gboolean net_vhost_user_watch(void *do_not_use, GIOCondition cond,
+                                     void *opaque)
 {
     NetVhostUserState *s = opaque;
 
