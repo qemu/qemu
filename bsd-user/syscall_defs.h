@@ -37,8 +37,6 @@
  *      @(#)signal.h    8.2 (Berkeley) 1/21/94
  */
 
-#define TARGET_NSIG     32              /* counting 0; could be 33 (mask is 1-32) */
-
 #define TARGET_SIGHUP  1       /* hangup */
 #define TARGET_SIGINT  2       /* interrupt */
 #define TARGET_SIGQUIT 3       /* quit */
@@ -71,14 +69,6 @@
 #define TARGET_SIGINFO  29      /* information request */
 #define TARGET_SIGUSR1 30       /* user defined signal 1 */
 #define TARGET_SIGUSR2 31       /* user defined signal 2 */
-
-/*
- * Language spec says we must list exactly one parameter, even though we
- * actually supply three.  Ugh!
- */
-#define TARGET_SIG_DFL         (void (*)(int))0
-#define TARGET_SIG_IGN         (void (*)(int))1
-#define TARGET_SIG_ERR         (void (*)(int))-1
 
 #define TARGET_SA_ONSTACK       0x0001  /* take signal on signal stack */
 #define TARGET_SA_RESTART       0x0002  /* restart system on signal return */
