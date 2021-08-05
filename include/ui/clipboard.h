@@ -121,6 +121,17 @@ bool qemu_clipboard_peer_owns(QemuClipboardPeer *peer,
                               QemuClipboardSelection selection);
 
 /**
+ * qemu_clipboard_peer_release
+ *
+ * @peer: peer information.
+ * @selection: clipboard selection.
+ *
+ * If the peer owns the clipboard, release it.
+ */
+void qemu_clipboard_peer_release(QemuClipboardPeer *peer,
+                                 QemuClipboardSelection selection);
+
+/**
  * qemu_clipboard_info
  *
  * @selection: clipboard selection.

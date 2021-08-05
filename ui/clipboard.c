@@ -24,6 +24,18 @@ bool qemu_clipboard_peer_owns(QemuClipboardPeer *peer,
     return info && info->owner == peer;
 }
 
+void qemu_clipboard_peer_release(QemuClipboardPeer *peer,
+                                 QemuClipboardSelection selection)
+{
+    g_autoptr(QemuClipboardInfo) info = NULL;
+
+    if (qemu_clipboard_peer_owns(peer, selection)) {
+        /* set empty clipboard info */
+        info = qemu_clipboard_info_new(NULL, selection);
+        qemu_clipboard_update(info);
+    }
+}
+
 void qemu_clipboard_update(QemuClipboardInfo *info)
 {
     g_autoptr(QemuClipboardInfo) old = NULL;
