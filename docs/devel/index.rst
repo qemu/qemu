@@ -42,3 +42,5 @@ modifying QEMU's source code.
    multi-process
    ebpf_rss
    vfio-migration
+   qapi-code-gen
+   writing-qmp-commands
