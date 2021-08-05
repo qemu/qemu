@@ -16,6 +16,14 @@ void qemu_clipboard_peer_unregister(QemuClipboardPeer *peer)
     notifier_remove(&peer->update);
 }
 
+bool qemu_clipboard_peer_owns(QemuClipboardPeer *peer,
+                              QemuClipboardSelection selection)
+{
+    QemuClipboardInfo *info = qemu_clipboard_info(selection);
+
+    return info && info->owner == peer;
+}
+
 void qemu_clipboard_update(QemuClipboardInfo *info)
 {
     g_autoptr(QemuClipboardInfo) old = NULL;
