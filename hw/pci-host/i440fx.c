@@ -316,9 +316,7 @@ PCIBus *i440fx_init(const char *host_type, const char *pci_type,
 
 PCIBus *find_i440fx(void)
 {
-    PCIHostState *s = OBJECT_CHECK(PCIHostState,
-                                   object_resolve_path("/machine/i440fx", NULL),
-                                   TYPE_PCI_HOST_BRIDGE);
+    PCIHostState *s = PCI_HOST_BRIDGE(object_resolve_path("/machine/i440fx", NULL));
     return s ? s->bus : NULL;
 }
 

@@ -303,13 +303,9 @@ Object *acpi_get_i386_pci_host(void)
 {
     PCIHostState *host;
 
-    host = OBJECT_CHECK(PCIHostState,
-                        object_resolve_path("/machine/i440fx", NULL),
-                        TYPE_PCI_HOST_BRIDGE);
+    host = PCI_HOST_BRIDGE(object_resolve_path("/machine/i440fx", NULL));
     if (!host) {
-        host = OBJECT_CHECK(PCIHostState,
-                            object_resolve_path("/machine/q35", NULL),
-                            TYPE_PCI_HOST_BRIDGE);
+        host = PCI_HOST_BRIDGE(object_resolve_path("/machine/q35", NULL));
     }
 
     return OBJECT(host);
