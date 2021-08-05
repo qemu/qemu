@@ -1,7 +1,8 @@
 /*
- *  qemu user main
+ *  qemu bsd user main
  *
  *  Copyright (c) 2003-2008 Fabrice Bellard
+ *  Copyright (c) 2013-14 Stacey Son
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
