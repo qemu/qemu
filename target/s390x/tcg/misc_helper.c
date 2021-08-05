@@ -151,13 +151,26 @@ void HELPER(diag)(CPUS390XState *env, uint32_t r1, uint32_t r3, uint32_t num)
 /* Set Prefix */
 void HELPER(spx)(CPUS390XState *env, uint64_t a1)
 {
+    const uint32_t prefix = a1 & 0x7fffe000;
+    const uint32_t old_prefix = env->psa;
     CPUState *cs = env_cpu(env);
-    uint32_t prefix = a1 & 0x7fffe000;
+
+    if (prefix == old_prefix) {
+        return;
+    }
 
     env->psa = prefix;
     HELPER_LOG("prefix: %#x\n", prefix);
     tlb_flush_page(cs, 0);
     tlb_flush_page(cs, TARGET_PAGE_SIZE);
+    if (prefix != 0) {
+        tlb_flush_page(cs, prefix);
+        tlb_flush_page(cs, prefix + TARGET_PAGE_SIZE);
+    }
+    if (old_prefix != 0) {
+        tlb_flush_page(cs, old_prefix);
+        tlb_flush_page(cs, old_prefix + TARGET_PAGE_SIZE);
+    }
 }
 
 static void update_ckc_timer(CPUS390XState *env)
