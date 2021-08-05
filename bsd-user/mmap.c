@@ -68,8 +68,8 @@ int target_mprotect(abi_ulong start, abi_ulong len, int prot)
     int prot1, ret;
 
 #ifdef DEBUG_MMAP
-    printf("mprotect: start=0x" TARGET_FMT_lx
-           " len=0x" TARGET_FMT_lx " prot=%c%c%c\n", start, len,
+    printf("mprotect: start=0x" TARGET_ABI_FMT_lx
+           "len=0x" TARGET_ABI_FMT_lx " prot=%c%c%c\n", start, len,
            prot & PROT_READ ? 'r' : '-',
            prot & PROT_WRITE ? 'w' : '-',
            prot & PROT_EXEC ? 'x' : '-');
@@ -250,28 +250,47 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
     mmap_lock();
 #ifdef DEBUG_MMAP
     {
-        printf("mmap: start=0x" TARGET_FMT_lx
-               " len=0x" TARGET_FMT_lx " prot=%c%c%c flags=",
+        printf("mmap: start=0x" TARGET_ABI_FMT_lx
+               " len=0x" TARGET_ABI_FMT_lx " prot=%c%c%c flags=",
                start, len,
                prot & PROT_READ ? 'r' : '-',
                prot & PROT_WRITE ? 'w' : '-',
                prot & PROT_EXEC ? 'x' : '-');
-        if (flags & MAP_FIXED)
-            printf("MAP_FIXED ");
-        if (flags & MAP_ANON)
-            printf("MAP_ANON ");
-        switch (flags & TARGET_BSD_MAP_FLAGMASK) {
-        case MAP_PRIVATE:
-            printf("MAP_PRIVATE ");
-            break;
-        case MAP_SHARED:
-            printf("MAP_SHARED ");
-            break;
-        default:
-            printf("[MAP_FLAGMASK=0x%x] ", flags & TARGET_BSD_MAP_FLAGMASK);
-            break;
+        if (flags & MAP_ALIGNMENT_MASK) {
+            printf("MAP_ALIGNED(%u) ", (flags & MAP_ALIGNMENT_MASK)
+                    >> MAP_ALIGNMENT_SHIFT);
         }
-        printf("fd=%d offset=" TARGET_FMT_lx "\n", fd, offset);
+#if MAP_GUARD
+        if (flags & MAP_GUARD) {
+            printf("MAP_GUARD ");
+        }
+#endif
+        if (flags & MAP_FIXED) {
+            printf("MAP_FIXED ");
+        }
+        if (flags & MAP_ANONYMOUS) {
+            printf("MAP_ANON ");
+        }
+#ifdef MAP_EXCL
+        if (flags & MAP_EXCL) {
+            printf("MAP_EXCL ");
+        }
+#endif
+        if (flags & MAP_PRIVATE) {
+            printf("MAP_PRIVATE ");
+        }
+        if (flags & MAP_SHARED) {
+            printf("MAP_SHARED ");
+        }
+        if (flags & MAP_NOCORE) {
+            printf("MAP_NOCORE ");
+        }
+#ifdef MAP_STACK
+        if (flags & MAP_STACK) {
+            printf("MAP_STACK ");
+        }
+#endif
+        printf("fd=%d offset=0x%llx\n", fd, offset);
     }
 #endif
 
@@ -399,7 +418,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
     page_set_flags(start, start + len, prot | PAGE_VALID);
  the_end:
 #ifdef DEBUG_MMAP
-    printf("ret=0x" TARGET_FMT_lx "\n", start);
+    printf("ret=0x" TARGET_ABI_FMT_lx "\n", start);
     page_dump(stdout);
     printf("\n");
 #endif
@@ -416,7 +435,9 @@ int target_munmap(abi_ulong start, abi_ulong len)
     int prot, ret;
 
 #ifdef DEBUG_MMAP
-    printf("munmap: start=0x%lx len=0x%lx\n", start, len);
+    printf("munmap: start=0x" TARGET_ABI_FMT_lx " len=0x"
+           TARGET_ABI_FMT_lx "\n",
+           start, len);
 #endif
     if (start & ~TARGET_PAGE_MASK)
         return -EINVAL;
