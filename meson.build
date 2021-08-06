@@ -824,7 +824,7 @@ endif
 
 gnutls = not_found
 gnutls_crypto = not_found
-if not get_option('gnutls').auto() or have_system
+if get_option('gnutls').enabled() or (get_option('gnutls').auto() and have_system)
   # For general TLS support our min gnutls matches
   # that implied by our platform support matrix
   #
