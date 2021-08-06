@@ -207,8 +207,6 @@ extern bool use_mips32r2_instructions;
 void tb_target_set_jmp_target(uintptr_t, uintptr_t, uintptr_t, uintptr_t)
     QEMU_ERROR("code path is reachable");
 
-#ifdef CONFIG_SOFTMMU
 #define TCG_TARGET_NEED_LDST_LABELS
-#endif
 
 #endif
