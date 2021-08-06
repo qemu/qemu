@@ -573,8 +573,10 @@ static void tcg_out_bswap16(TCGContext *s, TCGReg ret, TCGReg arg, int flags)
 
 static void tcg_out_bswap_subr(TCGContext *s, const tcg_insn_unit *sub)
 {
-    bool ok = tcg_out_opc_jmp(s, OPC_JAL, sub);
-    tcg_debug_assert(ok);
+    if (!tcg_out_opc_jmp(s, OPC_JAL, sub)) {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_TMP1, (uintptr_t)sub);
+        tcg_out_opc_reg(s, OPC_JALR, TCG_REG_RA, TCG_TMP1, 0);
+    }
 }
 
 static void tcg_out_bswap32(TCGContext *s, TCGReg ret, TCGReg arg, int flags)
