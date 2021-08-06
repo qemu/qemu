@@ -558,9 +558,6 @@ int load_elf_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
     abi_ulong elf_entry, interp_load_addr = 0;
     abi_ulong start_code, end_code, start_data, end_data;
     abi_ulong reloc_func_desc = 0;
-#ifdef LOW_ELF_STACK
-    abi_ulong elf_stack = ~((abi_ulong)0UL);
-#endif
 
     load_addr = 0;
     load_bias = 0;
@@ -761,11 +758,6 @@ int load_elf_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
             exit(-1);
         }
 
-#ifdef LOW_ELF_STACK
-        if (TARGET_ELF_PAGESTART(elf_ppnt->p_vaddr) < elf_stack)
-            elf_stack = TARGET_ELF_PAGESTART(elf_ppnt->p_vaddr);
-#endif
-
         if (!load_addr_set) {
             load_addr_set = 1;
             load_addr = elf_ppnt->p_vaddr - elf_ppnt->p_offset;
@@ -823,9 +815,6 @@ int load_elf_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
 
     close(bprm->fd);
 
-#ifdef LOW_ELF_STACK
-    info->start_stack = bprm->p = elf_stack - 4;
-#endif
     bprm->p = target_create_elf_tables(bprm->p, bprm->argc, bprm->envc,
                                        bprm->stringp, &elf_ex, load_addr,
                                        load_bias, interp_load_addr, info);
@@ -842,15 +831,6 @@ int load_elf_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
     set_brk(elf_bss, elf_brk);
 
     padzero(elf_bss, elf_brk);
-
-#if 0
-    printf("(start_brk) %x\n" , info->start_brk);
-    printf("(end_code) %x\n" , info->end_code);
-    printf("(start_code) %x\n" , info->start_code);
-    printf("(end_data) %x\n" , info->end_data);
-    printf("(start_stack) %x\n" , info->start_stack);
-    printf("(brk) %x\n" , info->brk);
-#endif
 
     info->entry = elf_entry;
 
