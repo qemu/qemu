@@ -997,18 +997,18 @@ class QAPISchema:
         name = 'q_obj_%s-%s' % (name, role)
         typ = self.lookup_entity(name, QAPISchemaObjectType)
         if typ:
-            # The implicit object type has multiple users.  This can
-            # happen only for simple unions' implicit wrapper types.
-            # Its ifcond should be the disjunction of its user's
-            # ifconds.  Not implemented.  Instead, we always pass the
-            # wrapped type's ifcond, which is trivially the same for all
-            # users.  It's also necessary for the wrapper to compile.
-            # But it's not tight: the disjunction need not imply it.  We
-            # may end up compiling useless wrapper types.
+            # The implicit object type has multiple users.  This is
+            # either a duplicate definition (which will be flagged
+            # later), or an implicit wrapper type used for multiple
+            # simple unions.  In the latter case, ifcond should be the
+            # disjunction of its user's ifconds.  Not implemented.
+            # Instead, we always pass the wrapped type's ifcond, which
+            # is trivially the same for all users.  It's also
+            # necessary for the wrapper to compile.  But it's not
+            # tight: the disjunction need not imply it.  We may end up
+            # compiling useless wrapper types.
             # TODO kill simple unions or implement the disjunction
-
-            # pylint: disable=protected-access
-            assert (ifcond or []) == typ._ifcond
+            pass
         else:
             self._def_entity(QAPISchemaObjectType(
                 name, info, None, ifcond, None, None, members, None))
