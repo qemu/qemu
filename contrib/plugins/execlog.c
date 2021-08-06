@@ -67,7 +67,7 @@ static void vcpu_insn_exec(unsigned int cpu_index, void *udata)
     /* Print previous instruction in cache */
     if (s->len) {
         qemu_plugin_outs(s->str);
-        qemu_plugin_outs("s\n");
+        qemu_plugin_outs("\n");
     }
 
     /* Store new instruction in cache */
