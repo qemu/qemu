@@ -26,14 +26,16 @@
 static abi_ulong target_auxents;   /* Where the AUX entries are in target */
 static size_t target_auxents_sz;   /* Size of AUX entries including AT_NULL */
 
+#include "target_arch_reg.h"
 #include "target_os_elf.h"
 #include "target_os_stack.h"
 #include "target_os_thread.h"
-
-#include "elf.h"
+#include "target_os_user.h"
 
 abi_ulong target_stksiz;
 abi_ulong target_stkbas;
+
+static int elf_core_dump(int signr, CPUArchState *env);
 
 static inline void memcpy_fromfs(void *to, const void *from, unsigned long n)
 {
@@ -100,14 +102,24 @@ static void bswap_sym(struct elf_sym *sym)
     bswap16s(&sym->st_shndx);
 }
 
+static void bswap_note(struct elf_note *en)
+{
+    bswap32s(&en->n_namesz);
+    bswap32s(&en->n_descsz);
+    bswap32s(&en->n_type);
+}
+
 #else /* ! BSWAP_NEEDED */
 
 static void bswap_ehdr(struct elfhdr *ehdr) { }
 static void bswap_phdr(struct elf_phdr *phdr, int phnum) { }
 static void bswap_shdr(struct elf_shdr *shdr, int shnum) { }
 static void bswap_sym(struct elf_sym *sym) { }
+static void bswap_note(struct elf_note *en) { }
 
 #endif /* ! BSWAP_NEEDED */
+
+#include "elfcore.c"
 
 /*
  * 'copy_elf_strings()' copies argument/envelope strings from user
@@ -833,6 +845,12 @@ int load_elf_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
     padzero(elf_bss, elf_brk);
 
     info->entry = elf_entry;
+
+#ifdef USE_ELF_CORE_DUMP
+    bprm->core_dump = &elf_core_dump;
+#else
+    bprm->core_dump = NULL;
+#endif
 
     return 0;
 }

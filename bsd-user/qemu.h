@@ -51,6 +51,7 @@ extern enum BSDType bsd_type;
  * kernel
  */
 struct image_info {
+    abi_ulong load_bias;
     abi_ulong load_addr;
     abi_ulong start_code;
     abi_ulong end_code;
@@ -65,6 +66,9 @@ struct image_info {
     abi_ulong entry;
     abi_ulong code_offset;
     abi_ulong data_offset;
+    abi_ulong arg_start;
+    abi_ulong arg_end;
+    uint32_t  elf_flags;
 };
 
 #define MAX_SIGQUEUE_SIZE 1024
@@ -132,6 +136,7 @@ struct bsd_binprm {
         char **envp;
         char *filename;         /* (Given) Name of binary */
         char *fullpath;         /* Full path of binary */
+        int (*core_dump)(int, CPUArchState *);
 };
 
 void do_init_thread(struct target_pt_regs *regs, struct image_info *infop);
@@ -145,6 +150,7 @@ int load_elf_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
                     struct image_info *info);
 int load_flt_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
                     struct image_info *info);
+int is_target_elf_binary(int fd);
 
 abi_long memcpy_to_target(abi_ulong dest, const void *src,
                           unsigned long len);
