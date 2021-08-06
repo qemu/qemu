@@ -590,8 +590,6 @@ build-libvhost-user:
   image: $CI_REGISTRY_IMAGE/qemu/fedora:latest
   needs:
     job: amd64-fedora-container
-  before_script:
-    - dnf install -y meson ninja-build
   script:
     - mkdir subprojects/libvhost-user/build
     - cd subprojects/libvhost-user/build
