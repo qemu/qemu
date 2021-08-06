@@ -429,7 +429,7 @@ static int process_message_reply(struct vhost_dev *dev,
     }
 
     if (msg_reply.hdr.request != msg->hdr.request) {
-        error_report("Received unexpected msg type."
+        error_report("Received unexpected msg type. "
                      "Expected %d received %d",
                      msg->hdr.request, msg_reply.hdr.request);
         return -1;
