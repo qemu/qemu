@@ -88,6 +88,11 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 #ifndef CONFIG_SOFTMMU
 #define TCG_GUEST_BASE_REG TCG_REG_S7
 #endif
+#if TCG_TARGET_REG_BITS == 64
+#define TCG_REG_TB         TCG_REG_S6
+#else
+#define TCG_REG_TB         (qemu_build_not_reached(), TCG_REG_ZERO)
+#endif
 
 /* check if we really need so many registers :P */
 static const int tcg_target_reg_alloc_order[] = {
@@ -1547,27 +1552,61 @@ static void tcg_out_clz(TCGContext *s, MIPSInsn opcv2, MIPSInsn opcv6,
 
 static void tcg_out_exit_tb(TCGContext *s, uintptr_t a0)
 {
-    TCGReg b0 = TCG_REG_ZERO;
+    TCGReg base = TCG_REG_ZERO;
+    int16_t lo = 0;
 
-    if (a0 & ~0xffff) {
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_V0, a0 & ~0xffff);
-        b0 = TCG_REG_V0;
+    if (a0) {
+        intptr_t ofs;
+        if (TCG_TARGET_REG_BITS == 64) {
+            ofs = tcg_tbrel_diff(s, (void *)a0);
+            lo = ofs;
+            if (ofs == lo) {
+                base = TCG_REG_TB;
+            } else {
+                base = TCG_REG_V0;
+                tcg_out_movi(s, TCG_TYPE_PTR, base, ofs - lo);
+                tcg_out_opc_reg(s, ALIAS_PADD, base, base, TCG_REG_TB);
+            }
+        } else {
+            ofs = a0;
+            lo = ofs;
+            base = TCG_REG_V0;
+            tcg_out_movi(s, TCG_TYPE_PTR, base, ofs - lo);
+        }
     }
     if (!tcg_out_opc_jmp(s, OPC_J, tb_ret_addr)) {
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_TMP0, (uintptr_t)tb_ret_addr);
         tcg_out_opc_reg(s, OPC_JR, 0, TCG_TMP0, 0);
     }
-    tcg_out_opc_imm(s, OPC_ORI, TCG_REG_V0, b0, a0 & 0xffff);
+    /* delay slot */
+    tcg_out_opc_imm(s, ALIAS_PADDI, TCG_REG_V0, base, lo);
 }
 
 static void tcg_out_goto_tb(TCGContext *s, int which)
 {
+    intptr_t ofs = get_jmp_target_addr(s, which);
+    TCGReg base, dest;
+
     /* indirect jump method */
-    tcg_out_ld(s, TCG_TYPE_PTR, TCG_TMP0, TCG_REG_ZERO,
-               get_jmp_target_addr(s, which));
-    tcg_out_opc_reg(s, OPC_JR, 0, TCG_TMP0, 0);
+    if (TCG_TARGET_REG_BITS == 64) {
+        dest = TCG_REG_TB;
+        base = TCG_REG_TB;
+        ofs = tcg_tbrel_diff(s, (void *)ofs);
+    } else {
+        dest = TCG_TMP0;
+        base = TCG_REG_ZERO;
+    }
+    tcg_out_ld(s, TCG_TYPE_PTR, dest, base, ofs);
+    tcg_out_opc_reg(s, OPC_JR, 0, dest, 0);
+    /* delay slot */
     tcg_out_nop(s);
+
     set_jmp_reset_offset(s, which);
+    if (TCG_TARGET_REG_BITS == 64) {
+        /* For the unlinked case, need to reset TCG_REG_TB. */
+        tcg_out_ldst(s, ALIAS_PADDI, TCG_REG_TB, TCG_REG_TB,
+                     -tcg_current_code_size(s));
+    }
 }
 
 void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
@@ -1598,7 +1637,11 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_goto_ptr:
         /* jmp to the given host address (could be epilogue) */
         tcg_out_opc_reg(s, OPC_JR, 0, a0, 0);
-        tcg_out_nop(s);
+        if (TCG_TARGET_REG_BITS == 64) {
+            tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_TB, a0);
+        } else {
+            tcg_out_nop(s);
+        }
         break;
     case INDEX_op_br:
         tcg_out_brcond(s, TCG_COND_EQ, TCG_REG_ZERO, TCG_REG_ZERO,
@@ -2189,7 +2232,7 @@ static const int tcg_target_callee_save_regs[] = {
     TCG_REG_S3,
     TCG_REG_S4,
     TCG_REG_S5,
-    TCG_REG_S6,
+    TCG_REG_S6,       /* used for the tb base (TCG_REG_TB) */
     TCG_REG_S7,       /* used for guest_base */
     TCG_REG_S8,       /* used for the global env (TCG_AREG0) */
     TCG_REG_RA,       /* should be last for ABI compliance */
@@ -2317,6 +2360,9 @@ static void tcg_target_qemu_prologue(TCGContext *s)
         tcg_regset_set_reg(s->reserved_regs, TCG_GUEST_BASE_REG);
     }
 #endif
+    if (TCG_TARGET_REG_BITS == 64) {
+        tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_TB, tcg_target_call_iarg_regs[1]);
+    }
 
     /* Call generated code */
     tcg_out_opc_reg(s, OPC_JR, 0, tcg_target_call_iarg_regs[1], 0);
@@ -2498,6 +2544,9 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_RA);   /* return address */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_SP);   /* stack pointer */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_GP);   /* global pointer */
+    if (TCG_TARGET_REG_BITS == 64) {
+        tcg_regset_set_reg(s->reserved_regs, TCG_REG_TB); /* tc->tc_ptr */
+    }
 }
 
 typedef struct {
