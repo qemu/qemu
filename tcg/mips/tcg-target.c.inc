@@ -86,7 +86,7 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 #define TCG_TMP3  TCG_REG_T7
 
 #ifndef CONFIG_SOFTMMU
-#define TCG_GUEST_BASE_REG TCG_REG_S1
+#define TCG_GUEST_BASE_REG TCG_REG_S7
 #endif
 
 /* check if we really need so many registers :P */
@@ -2190,7 +2190,7 @@ static const int tcg_target_callee_save_regs[] = {
     TCG_REG_S4,
     TCG_REG_S5,
     TCG_REG_S6,
-    TCG_REG_S7,
+    TCG_REG_S7,       /* used for guest_base */
     TCG_REG_S8,       /* used for the global env (TCG_AREG0) */
     TCG_REG_RA,       /* should be last for ABI compliance */
 };
