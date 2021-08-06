@@ -52,10 +52,47 @@
 #include "target_arch_cpu.h"
 
 int singlestep;
-unsigned long mmap_min_addr;
 uintptr_t guest_base;
 bool have_guest_base;
+/*
+ * When running 32-on-64 we should make sure we can fit all of the possible
+ * guest address space into a contiguous chunk of virtual host memory.
+ *
+ * This way we will never overlap with our own libraries or binaries or stack
+ * or anything else that QEMU maps.
+ *
+ * Many cpus reserve the high bit (or more than one for some 64-bit cpus)
+ * of the address for the kernel.  Some cpus rely on this and user space
+ * uses the high bit(s) for pointer tagging and the like.  For them, we
+ * must preserve the expected address space.
+ */
+#ifndef MAX_RESERVED_VA
+# if HOST_LONG_BITS > TARGET_VIRT_ADDR_SPACE_BITS
+#  if TARGET_VIRT_ADDR_SPACE_BITS == 32 && \
+      (TARGET_LONG_BITS == 32 || defined(TARGET_ABI32))
+/*
+ * There are a number of places where we assign reserved_va to a variable
+ * of type abi_ulong and expect it to fit.  Avoid the last page.
+ */
+#   define MAX_RESERVED_VA  (0xfffffffful & TARGET_PAGE_MASK)
+#  else
+#   define MAX_RESERVED_VA  (1ul << TARGET_VIRT_ADDR_SPACE_BITS)
+#  endif
+# else
+#  define MAX_RESERVED_VA  0
+# endif
+#endif
+
+/*
+ * That said, reserving *too* much vm space via mmap can run into problems
+ * with rlimits, oom due to page table creation, etc.  We will still try it,
+ * if directed by the command-line option, but not by default.
+ */
+#if HOST_LONG_BITS == 64 && TARGET_VIRT_ADDR_SPACE_BITS <= 32
+unsigned long reserved_va = MAX_RESERVED_VA;
+#else
 unsigned long reserved_va;
+#endif
 
 static const char *interp_prefix = CONFIG_QEMU_INTERP_PREFIX;
 const char *qemu_uname_release;
@@ -438,6 +475,10 @@ int main(int argc, char **argv)
 
     target_environ = envlist_to_environ(envlist, NULL);
     envlist_free(envlist);
+
+    if (reserved_va) {
+            mmap_next_start = reserved_va;
+    }
 
     {
         Error *err = NULL;
