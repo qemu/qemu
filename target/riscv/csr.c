@@ -1423,7 +1423,7 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno,
     target_ulong old_value;
     RISCVCPU *cpu = env_archcpu(env);
 
-    /* check privileges and return -1 if check fails */
+    /* check privileges and return RISCV_EXCP_ILLEGAL_INST if check fails */
 #if !defined(CONFIG_USER_ONLY)
     int effective_priv = env->priv;
     int read_only = get_field(csrno, 0xC00) == 3;
