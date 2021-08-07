@@ -18,6 +18,11 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <sys/sysctl.h>
+
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/units.h"
@@ -44,8 +49,6 @@
 #include "host-os.h"
 #include "target_arch_cpu.h"
 
-#include <sys/sysctl.h>
-
 int singlestep;
 unsigned long mmap_min_addr;
 uintptr_t guest_base;
@@ -57,12 +60,12 @@ const char *qemu_uname_release;
 enum BSDType bsd_type;
 char qemu_proc_pathname[PATH_MAX];  /* full path to exeutable */
 
-/*
- * XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
- * we allocate a bigger stack. Need a better solution, for example
- * by remapping the process stack directly at the right place
- */
-unsigned long x86_stack_size = 512 * 1024;
+unsigned long target_maxtsiz = TARGET_MAXTSIZ;   /* max text size */
+unsigned long target_dfldsiz = TARGET_DFLDSIZ;   /* initial data size limit */
+unsigned long target_maxdsiz = TARGET_MAXDSIZ;   /* max data size */
+unsigned long target_dflssiz = TARGET_DFLSSIZ;   /* initial data size limit */
+unsigned long target_maxssiz = TARGET_MAXSSIZ;   /* max stack size */
+unsigned long target_sgrowsiz = TARGET_SGROWSIZ; /* amount to grow stack */
 
 void gemu_log(const char *fmt, ...)
 {
@@ -112,7 +115,6 @@ static void usage(void)
            "-d item1[,...]    enable logging of specified items\n"
            "                  (use '-d help' for a list of log items)\n"
            "-D logfile        write logs to 'logfile' (default stderr)\n"
-           "-p pagesize       set the host page size to 'pagesize'\n"
            "-singlestep       always run in singlestep mode\n"
            "-strace           log system calls\n"
            "-trace            [[enable=]<pattern>][,events=<file>][,file=<file>]\n"
@@ -132,7 +134,7 @@ static void usage(void)
            ,
            TARGET_NAME,
            interp_prefix,
-           x86_stack_size);
+           target_dflssiz);
     exit(1);
 }
 
@@ -159,6 +161,23 @@ void init_task_state(TaskState *ts)
         ts->sigqueue_table[i].next = &ts->sigqueue_table[i + 1];
     }
     ts->sigqueue_table[i].next = NULL;
+}
+
+static void
+adjust_ssize(void)
+{
+    struct rlimit rl;
+
+    if (getrlimit(RLIMIT_STACK, &rl) != 0) {
+        return;
+    }
+
+    target_maxssiz = MIN(target_maxssiz, rl.rlim_max);
+    target_dflssiz = MIN(MAX(target_dflssiz, rl.rlim_cur), target_maxssiz);
+
+    rl.rlim_max = target_maxssiz;
+    rl.rlim_cur = target_dflssiz;
+    setrlimit(RLIMIT_STACK, &rl);
 }
 
 static void save_proc_pathname(char *argv0)
@@ -196,6 +215,8 @@ int main(int argc, char **argv)
     char **target_environ, **wrk;
     envlist_t *envlist = NULL;
     bsd_type = HOST_DEFAULT_BSD_TYPE;
+
+    adjust_ssize();
 
     if (argc <= 1) {
         usage();
@@ -257,14 +278,17 @@ int main(int argc, char **argv)
             }
         } else if (!strcmp(r, "s")) {
             r = argv[optind++];
-            rv = qemu_strtoul(r, &r, 0, &x86_stack_size);
-            if (rv < 0 || x86_stack_size <= 0) {
+            rv = qemu_strtoul(r, &r, 0, &target_dflssiz);
+            if (rv < 0 || target_dflssiz <= 0) {
                 usage();
             }
             if (*r == 'M') {
-                x86_stack_size *= MiB;
+                target_dflssiz *= 1024 * 1024;
             } else if (*r == 'k' || *r == 'K') {
-                x86_stack_size *= KiB;
+                target_dflssiz *= 1024;
+            }
+            if (target_dflssiz > target_maxssiz) {
+                usage();
             }
         } else if (!strcmp(r, "L")) {
             interp_prefix = argv[optind++];

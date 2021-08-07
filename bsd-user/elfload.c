@@ -204,7 +204,7 @@ static abi_ulong setup_arg_pages(abi_ulong p, struct bsd_binprm *bprm,
     /* Create enough stack to hold everything.  If we don't use
      * it for args, we'll use it for something else...
      */
-    size = x86_stack_size;
+    size = target_dflssiz;
     if (size < MAX_ARG_PAGES * TARGET_PAGE_SIZE)
         size = MAX_ARG_PAGES * TARGET_PAGE_SIZE;
     error = target_mmap(0,
