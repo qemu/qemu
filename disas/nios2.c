@@ -3478,9 +3478,7 @@ nios2_disassemble (bfd_vma address, unsigned long opcode,
    instruction word at the address given, and prints the disassembled
    instruction on the stream info->stream using info->fprintf_func. */
 
-static int
-print_insn_nios2 (bfd_vma address, disassemble_info *info,
-		  enum bfd_endian endianness)
+int print_insn_nios2(bfd_vma address, disassemble_info *info)
 {
     bfd_byte buffer[INSNLEN];
     int status;
@@ -3488,7 +3486,7 @@ print_insn_nios2 (bfd_vma address, disassemble_info *info,
     status = (*info->read_memory_func)(address, buffer, INSNLEN, info);
     if (status == 0) {
         unsigned long insn;
-        if (endianness == BFD_ENDIAN_BIG) {
+        if (info->endian == BFD_ENDIAN_BIG) {
             insn = (unsigned long) bfd_getb32(buffer);
         } else {
             insn = (unsigned long) bfd_getl32(buffer);
@@ -3501,7 +3499,7 @@ print_insn_nios2 (bfd_vma address, disassemble_info *info,
         status = (*info->read_memory_func)(address, buffer, 2, info);
         if (status == 0) {
             unsigned long insn;
-            if (endianness == BFD_ENDIAN_BIG) {
+            if (info->endian == BFD_ENDIAN_BIG) {
                 insn = (unsigned long) bfd_getb16(buffer);
             } else {
                 insn = (unsigned long) bfd_getl16(buffer);
@@ -3513,18 +3511,4 @@ print_insn_nios2 (bfd_vma address, disassemble_info *info,
     /* If we got here, we couldn't read anything.  */
     (*info->memory_error_func)(status, address, info);
     return -1;
-}
-
-/* These two functions are the main entry points, accessed from
-   disassemble.c.  */
-int
-print_insn_big_nios2 (bfd_vma address, disassemble_info *info)
-{
-  return print_insn_nios2 (address, info, BFD_ENDIAN_BIG);
-}
-
-int
-print_insn_little_nios2 (bfd_vma address, disassemble_info *info)
-{
-  return print_insn_nios2 (address, info, BFD_ENDIAN_LITTLE);
 }

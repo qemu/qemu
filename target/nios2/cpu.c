@@ -147,11 +147,7 @@ static void nios2_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
 {
     /* NOTE: NiosII R2 is not supported yet. */
     info->mach = bfd_arch_nios2;
-#ifdef TARGET_WORDS_BIGENDIAN
-    info->print_insn = print_insn_big_nios2;
-#else
-    info->print_insn = print_insn_little_nios2;
-#endif
+    info->print_insn = print_insn_nios2;
 }
 
 static int nios2_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
