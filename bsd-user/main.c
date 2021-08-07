@@ -69,15 +69,39 @@ unsigned long target_dflssiz = TARGET_DFLSSIZ;   /* initial data size limit */
 unsigned long target_maxssiz = TARGET_MAXSSIZ;   /* max stack size */
 unsigned long target_sgrowsiz = TARGET_SGROWSIZ; /* amount to grow stack */
 
+/* Helper routines for implementing atomic operations. */
 
 void fork_start(void)
 {
+    start_exclusive();
+    cpu_list_lock();
+    mmap_fork_start();
 }
 
 void fork_end(int child)
 {
     if (child) {
+        CPUState *cpu, *next_cpu;
+        /*
+         * Child processes created by fork() only have a single thread.  Discard
+         * information about the parent threads.
+         */
+        CPU_FOREACH_SAFE(cpu, next_cpu) {
+            if (cpu != thread_cpu) {
+                QTAILQ_REMOVE_RCU(&cpus, cpu, node);
+            }
+        }
+        mmap_fork_end(child);
+        /*
+         * qemu_init_cpu_list() takes care of reinitializing the exclusive
+         * state, so we don't need to end_exclusive() here.
+         */
+        qemu_init_cpu_list();
         gdbserver_fork(thread_cpu);
+    } else {
+        mmap_fork_end(child);
+        cpu_list_unlock();
+        end_exclusive();
     }
 }
 
