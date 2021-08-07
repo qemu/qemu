@@ -243,6 +243,7 @@ int main(int argc, char **argv)
     char **target_environ, **wrk;
     envlist_t *envlist = NULL;
     bsd_type = HOST_DEFAULT_BSD_TYPE;
+    char *argv0 = NULL;
 
     adjust_ssize();
 
@@ -367,6 +368,8 @@ int main(int argc, char **argv)
             do_strace = 1;
         } else if (!strcmp(r, "trace")) {
             trace_opt_parse(optarg);
+        } else if (!strcmp(r, "0")) {
+            argv0 = argv[optind++];
         } else {
             usage();
         }
@@ -390,6 +393,9 @@ int main(int argc, char **argv)
         usage();
     }
     filename = argv[optind];
+    if (argv0) {
+        argv[optind] = argv0;
+    }
 
     if (!trace_init_backends()) {
         exit(1);
