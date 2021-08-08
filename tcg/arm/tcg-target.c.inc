@@ -1396,16 +1396,9 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
     int cmp_off = (is_load ? offsetof(CPUTLBEntry, addr_read)
                    : offsetof(CPUTLBEntry, addr_write));
     int fast_off = TLB_MASK_TABLE_OFS(mem_index);
-    unsigned s_bits = opc & MO_SIZE;
-    unsigned a_bits = get_alignment_bits(opc);
-
-    /*
-     * We don't support inline unaligned acceses, but we can easily
-     * support overalignment checks.
-     */
-    if (a_bits < s_bits) {
-        a_bits = s_bits;
-    }
+    unsigned s_mask = (1 << (opc & MO_SIZE)) - 1;
+    unsigned a_mask = (1 << get_alignment_bits(opc)) - 1;
+    TCGReg t_addr;
 
     /* Load env_tlb(env)->f[mmu_idx].{mask,table} into {r0,r1}.  */
     tcg_out_ldrd_8(s, COND_AL, TCG_REG_R0, TCG_AREG0, fast_off);
@@ -1440,27 +1433,35 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
 
     /*
      * Check alignment, check comparators.
-     * Do this in no more than 3 insns.  Use MOVW for v7, if possible,
+     * Do this in 2-4 insns.  Use MOVW for v7, if possible,
      * to reduce the number of sequential conditional instructions.
      * Almost all guests have at least 4k pages, which means that we need
      * to clear at least 9 bits even for an 8-byte memory, which means it
      * isn't worth checking for an immediate operand for BIC.
+     *
+     * For unaligned accesses, test the page of the last unit of alignment.
+     * This leaves the least significant alignment bits unchanged, and of
+     * course must be zero.
      */
+    t_addr = addrlo;
+    if (a_mask < s_mask) {
+        t_addr = TCG_REG_R0;
+        tcg_out_dat_imm(s, COND_AL, ARITH_ADD, t_addr,
+                        addrlo, s_mask - a_mask);
+    }
     if (use_armv7_instructions && TARGET_PAGE_BITS <= 16) {
-        tcg_target_ulong mask = ~(TARGET_PAGE_MASK | ((1 << a_bits) - 1));
-
-        tcg_out_movi32(s, COND_AL, TCG_REG_TMP, mask);
+        tcg_out_movi32(s, COND_AL, TCG_REG_TMP, ~(TARGET_PAGE_MASK | a_mask));
         tcg_out_dat_reg(s, COND_AL, ARITH_BIC, TCG_REG_TMP,
-                        addrlo, TCG_REG_TMP, 0);
+                        t_addr, TCG_REG_TMP, 0);
         tcg_out_dat_reg(s, COND_AL, ARITH_CMP, 0, TCG_REG_R2, TCG_REG_TMP, 0);
     } else {
-        if (a_bits) {
-            tcg_out_dat_imm(s, COND_AL, ARITH_TST, 0, addrlo,
-                            (1 << a_bits) - 1);
+        if (a_mask) {
+            tcg_debug_assert(a_mask <= 0xff);
+            tcg_out_dat_imm(s, COND_AL, ARITH_TST, 0, addrlo, a_mask);
         }
-        tcg_out_dat_reg(s, COND_AL, ARITH_MOV, TCG_REG_TMP, 0, addrlo,
+        tcg_out_dat_reg(s, COND_AL, ARITH_MOV, TCG_REG_TMP, 0, t_addr,
                         SHIFT_IMM_LSR(TARGET_PAGE_BITS));
-        tcg_out_dat_reg(s, (a_bits ? COND_EQ : COND_AL), ARITH_CMP,
+        tcg_out_dat_reg(s, (a_mask ? COND_EQ : COND_AL), ARITH_CMP,
                         0, TCG_REG_R2, TCG_REG_TMP,
                         SHIFT_IMM_LSL(TARGET_PAGE_BITS));
     }
