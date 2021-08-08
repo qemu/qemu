@@ -141,6 +141,9 @@ typedef enum {
     INSN_CLZ       = 0x016f0f10,
     INSN_RBIT      = 0x06ff0f30,
 
+    INSN_LDMIA     = 0x08b00000,
+    INSN_STMDB     = 0x09200000,
+
     INSN_LDR_IMM   = 0x04100000,
     INSN_LDR_REG   = 0x06100000,
     INSN_STR_IMM   = 0x04000000,
@@ -591,6 +594,12 @@ static inline void tcg_out_dat_imm(TCGContext *s,
 {
     tcg_out32(s, (cond << 28) | (1 << 25) | opc |
                     (rn << 16) | (rd << 12) | im);
+}
+
+static void tcg_out_ldstm(TCGContext *s, int cond, int opc,
+                          TCGReg rn, uint16_t mask)
+{
+    tcg_out32(s, (cond << 28) | opc | (rn << 16) | mask);
 }
 
 /* Note that this routine is used for both LDR and LDRH formats, so we do
@@ -3081,7 +3090,10 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 {
     /* Calling convention requires us to save r4-r11 and lr.  */
     /* stmdb sp!, { r4 - r11, lr } */
-    tcg_out32(s, (COND_AL << 28) | 0x092d4ff0);
+    tcg_out_ldstm(s, COND_AL, INSN_STMDB, TCG_REG_CALL_STACK,
+                  (1 << TCG_REG_R4) | (1 << TCG_REG_R5) | (1 << TCG_REG_R6) |
+                  (1 << TCG_REG_R7) | (1 << TCG_REG_R8) | (1 << TCG_REG_R9) |
+                  (1 << TCG_REG_R10) | (1 << TCG_REG_R11) | (1 << TCG_REG_R14));
 
     /* Reserve callee argument and tcg temp space.  */
     tcg_out_dat_rI(s, COND_AL, ARITH_SUB, TCG_REG_CALL_STACK,
@@ -3109,7 +3121,10 @@ static void tcg_out_epilogue(TCGContext *s)
                    TCG_REG_CALL_STACK, STACK_ADDEND, 1);
 
     /* ldmia sp!, { r4 - r11, pc } */
-    tcg_out32(s, (COND_AL << 28) | 0x08bd8ff0);
+    tcg_out_ldstm(s, COND_AL, INSN_LDMIA, TCG_REG_CALL_STACK,
+                  (1 << TCG_REG_R4) | (1 << TCG_REG_R5) | (1 << TCG_REG_R6) |
+                  (1 << TCG_REG_R7) | (1 << TCG_REG_R8) | (1 << TCG_REG_R9) |
+                  (1 << TCG_REG_R10) | (1 << TCG_REG_R11) | (1 << TCG_REG_PC));
 }
 
 typedef struct {
