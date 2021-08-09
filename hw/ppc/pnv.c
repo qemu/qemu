@@ -809,9 +809,10 @@ static void pnv_init(MachineState *machine)
      * TODO: should we decide on how many chips we can create based
      * on #cores and Venice vs. Murano vs. Naples chip type etc...,
      */
-    if (!is_power_of_2(pnv->num_chips) || pnv->num_chips > 4) {
+    if (!is_power_of_2(pnv->num_chips) || pnv->num_chips > 16) {
         error_report("invalid number of chips: '%d'", pnv->num_chips);
-        error_printf("Try '-smp sockets=N'. Valid values are : 1, 2 or 4.\n");
+        error_printf(
+            "Try '-smp sockets=N'. Valid values are : 1, 2, 4, 8 and 16.\n");
         exit(1);
     }
 
@@ -819,6 +820,7 @@ static void pnv_init(MachineState *machine)
     for (i = 0; i < pnv->num_chips; i++) {
         char chip_name[32];
         Object *chip = OBJECT(qdev_new(chip_typename));
+        int chip_id = i;
 
         pnv->chips[i] = PNV_CHIP(chip);
 
@@ -831,10 +833,9 @@ static void pnv_init(MachineState *machine)
                                     &error_fatal);
         }
 
-        snprintf(chip_name, sizeof(chip_name), "chip[%d]", PNV_CHIP_HWID(i));
+        snprintf(chip_name, sizeof(chip_name), "chip[%d]", chip_id);
         object_property_add_child(OBJECT(pnv), chip_name, chip);
-        object_property_set_int(chip, "chip-id", PNV_CHIP_HWID(i),
-                                &error_fatal);
+        object_property_set_int(chip, "chip-id", chip_id, &error_fatal);
         object_property_set_int(chip, "nr-cores", machine->smp.cores,
                                 &error_fatal);
         object_property_set_int(chip, "nr-threads", machine->smp.threads,

@@ -174,25 +174,6 @@ DECLARE_INSTANCE_CHECKER(PnvChip, PNV_CHIP_POWER9,
 DECLARE_INSTANCE_CHECKER(PnvChip, PNV_CHIP_POWER10,
                          TYPE_PNV_CHIP_POWER10)
 
-/*
- * This generates a HW chip id depending on an index, as found on a
- * two socket system with dual chip modules :
- *
- *    0x0, 0x1, 0x10, 0x11
- *
- * 4 chips should be the maximum
- *
- * TODO: use a machine property to define the chip ids
- */
-#define PNV_CHIP_HWID(i) ((((i) & 0x3e) << 3) | ((i) & 0x1))
-
-/*
- * Converts back a HW chip id to an index. This is useful to calculate
- * the MMIO addresses of some controllers which depend on the chip id.
- */
-#define PNV_CHIP_INDEX(chip)                                    \
-    (((chip)->chip_id >> 2) * 2 + ((chip)->chip_id & 0x3))
-
 PowerPCCPU *pnv_chip_find_cpu(PnvChip *chip, uint32_t pir);
 
 #define TYPE_PNV_MACHINE       MACHINE_TYPE_NAME("powernv")
@@ -256,11 +237,11 @@ void pnv_bmc_set_pnor(IPMIBmc *bmc, PnvPnor *pnor);
 #define PNV_OCC_COMMON_AREA_SIZE    0x0000000000800000ull
 #define PNV_OCC_COMMON_AREA_BASE    0x7fff800000ull
 #define PNV_OCC_SENSOR_BASE(chip)   (PNV_OCC_COMMON_AREA_BASE + \
-    PNV_OCC_SENSOR_DATA_BLOCK_BASE(PNV_CHIP_INDEX(chip)))
+    PNV_OCC_SENSOR_DATA_BLOCK_BASE((chip)->chip_id))
 
 #define PNV_HOMER_SIZE              0x0000000000400000ull
 #define PNV_HOMER_BASE(chip)                                            \
-    (0x7ffd800000ull + ((uint64_t)PNV_CHIP_INDEX(chip)) * PNV_HOMER_SIZE)
+    (0x7ffd800000ull + ((uint64_t)(chip)->chip_id) * PNV_HOMER_SIZE)
 
 
 /*
@@ -279,16 +260,16 @@ void pnv_bmc_set_pnor(IPMIBmc *bmc, PnvPnor *pnor);
  */
 #define PNV_ICP_SIZE         0x0000000000100000ull
 #define PNV_ICP_BASE(chip)                                              \
-    (0x0003ffff80000000ull + (uint64_t) PNV_CHIP_INDEX(chip) * PNV_ICP_SIZE)
+    (0x0003ffff80000000ull + (uint64_t) (chip)->chip_id * PNV_ICP_SIZE)
 
 
 #define PNV_PSIHB_SIZE       0x0000000000100000ull
 #define PNV_PSIHB_BASE(chip) \
-    (0x0003fffe80000000ull + (uint64_t)PNV_CHIP_INDEX(chip) * PNV_PSIHB_SIZE)
+    (0x0003fffe80000000ull + (uint64_t)(chip)->chip_id * PNV_PSIHB_SIZE)
 
 #define PNV_PSIHB_FSP_SIZE   0x0000000100000000ull
 #define PNV_PSIHB_FSP_BASE(chip) \
-    (0x0003ffe000000000ull + (uint64_t)PNV_CHIP_INDEX(chip) * \
+    (0x0003ffe000000000ull + (uint64_t)(chip)->chip_id * \
      PNV_PSIHB_FSP_SIZE)
 
 /*
@@ -324,11 +305,11 @@ void pnv_bmc_set_pnor(IPMIBmc *bmc, PnvPnor *pnor);
 #define PNV9_OCC_COMMON_AREA_SIZE    0x0000000000800000ull
 #define PNV9_OCC_COMMON_AREA_BASE    0x203fff800000ull
 #define PNV9_OCC_SENSOR_BASE(chip)   (PNV9_OCC_COMMON_AREA_BASE +       \
-    PNV_OCC_SENSOR_DATA_BLOCK_BASE(PNV_CHIP_INDEX(chip)))
+    PNV_OCC_SENSOR_DATA_BLOCK_BASE((chip)->chip_id))
 
 #define PNV9_HOMER_SIZE              0x0000000000400000ull
 #define PNV9_HOMER_BASE(chip)                                           \
-    (0x203ffd800000ull + ((uint64_t)PNV_CHIP_INDEX(chip)) * PNV9_HOMER_SIZE)
+    (0x203ffd800000ull + ((uint64_t)(chip)->chip_id) * PNV9_HOMER_SIZE)
 
 /*
  * POWER10 MMIO base addresses - 16TB stride per chip
