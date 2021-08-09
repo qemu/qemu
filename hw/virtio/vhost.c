@@ -174,6 +174,35 @@ static uint64_t vhost_get_log_size(struct vhost_dev *dev)
     return log_size;
 }
 
+static int vhost_set_backend_type(struct vhost_dev *dev,
+                                  VhostBackendType backend_type)
+{
+    int r = 0;
+
+    switch (backend_type) {
+#ifdef CONFIG_VHOST_KERNEL
+    case VHOST_BACKEND_TYPE_KERNEL:
+        dev->vhost_ops = &kernel_ops;
+        break;
+#endif
+#ifdef CONFIG_VHOST_USER
+    case VHOST_BACKEND_TYPE_USER:
+        dev->vhost_ops = &user_ops;
+        break;
+#endif
+#ifdef CONFIG_VHOST_VDPA
+    case VHOST_BACKEND_TYPE_VDPA:
+        dev->vhost_ops = &vdpa_ops;
+        break;
+#endif
+    default:
+        error_report("Unknown vhost backend type");
+        r = -1;
+    }
+
+    return r;
+}
+
 static struct vhost_log *vhost_log_alloc(uint64_t size, bool share)
 {
     Error *err = NULL;

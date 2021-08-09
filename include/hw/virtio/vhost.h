@@ -95,6 +95,10 @@ struct vhost_dev {
     const VhostDevConfigOps *config_ops;
 };
 
+extern const VhostOps kernel_ops;
+extern const VhostOps user_ops;
+extern const VhostOps vdpa_ops;
+
 struct vhost_net {
     struct vhost_dev dev;
     struct vhost_virtqueue vqs[2];
