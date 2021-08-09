@@ -332,5 +332,10 @@ for fname in fnames:
 sys.stdout.write(result)'
 }
 
+_filter_authz_check_tls()
+{
+    $SED -e 's/TLS x509 authz check for .* is denied/TLS x509 authz check for DISTINGUISHED-NAME is denied/'
+}
+
 # make sure this script returns success
 true
