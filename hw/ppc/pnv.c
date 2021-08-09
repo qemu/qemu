@@ -1916,7 +1916,7 @@ static void pnv_machine_power10_class_init(ObjectClass *oc, void *data)
     static const char compat[] = "qemu,powernv10\0ibm,powernv";
 
     mc->desc = "IBM PowerNV (Non-Virtualized) POWER10";
-    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power10_v1.0");
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power10_v2.0");
 
     pmc->compat = compat;
     pmc->compat_size = sizeof(compat);
