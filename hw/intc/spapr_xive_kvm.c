@@ -297,7 +297,7 @@ static uint8_t xive_esb_read(XiveSource *xsrc, int srcno, uint32_t offset)
     return xive_esb_rw(xsrc, srcno, offset, 0, 0) & 0x3;
 }
 
-static void xive_esb_trigger(XiveSource *xsrc, int srcno)
+static void kvmppc_xive_esb_trigger(XiveSource *xsrc, int srcno)
 {
     uint64_t *addr = xsrc->esb_mmap + xive_source_esb_page(xsrc, srcno);
 
@@ -322,7 +322,7 @@ uint64_t kvmppc_xive_esb_rw(XiveSource *xsrc, int srcno, uint32_t offset,
         offset == XIVE_ESB_LOAD_EOI) {
         xive_esb_read(xsrc, srcno, XIVE_ESB_SET_PQ_00);
         if (xsrc->status[srcno] & XIVE_STATUS_ASSERTED) {
-            xive_esb_trigger(xsrc, srcno);
+            kvmppc_xive_esb_trigger(xsrc, srcno);
         }
         return 0;
     } else {
@@ -366,7 +366,7 @@ void kvmppc_xive_source_set_irq(void *opaque, int srcno, int val)
         }
     }
 
-    xive_esb_trigger(xsrc, srcno);
+    kvmppc_xive_esb_trigger(xsrc, srcno);
 }
 
 /*
@@ -533,7 +533,7 @@ static void kvmppc_xive_change_state_handler(void *opaque, bool running,
              * generate a trigger.
              */
             if (pq == XIVE_ESB_RESET && old_pq == XIVE_ESB_QUEUED) {
-                xive_esb_trigger(xsrc, i);
+                kvmppc_xive_esb_trigger(xsrc, i);
             }
         }
 
