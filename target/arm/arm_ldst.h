@@ -24,15 +24,15 @@
 #include "qemu/bswap.h"
 
 /* Load an instruction and return it in the standard little-endian order */
-static inline uint32_t arm_ldl_code(CPUARMState *env, target_ulong addr,
-                                    bool sctlr_b)
+static inline uint32_t arm_ldl_code(CPUARMState *env, DisasContextBase *s,
+                                    target_ulong addr, bool sctlr_b)
 {
-    return translator_ldl_swap(env, addr, bswap_code(sctlr_b));
+    return translator_ldl_swap(env, s, addr, bswap_code(sctlr_b));
 }
 
 /* Ditto, for a halfword (Thumb) instruction */
-static inline uint16_t arm_lduw_code(CPUARMState *env, target_ulong addr,
-                                     bool sctlr_b)
+static inline uint16_t arm_lduw_code(CPUARMState *env, DisasContextBase* s,
+                                     target_ulong addr, bool sctlr_b)
 {
 #ifndef CONFIG_USER_ONLY
     /* In big-endian (BE32) mode, adjacent Thumb instructions have been swapped
@@ -41,7 +41,7 @@ static inline uint16_t arm_lduw_code(CPUARMState *env, target_ulong addr,
         addr ^= 2;
     }
 #endif
-    return translator_lduw_swap(env, addr, bswap_code(sctlr_b));
+    return translator_lduw_swap(env, s, addr, bswap_code(sctlr_b));
 }
 
 #endif

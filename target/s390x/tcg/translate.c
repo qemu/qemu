@@ -388,14 +388,16 @@ static void update_cc_op(DisasContext *s)
     }
 }
 
-static inline uint64_t ld_code2(CPUS390XState *env, uint64_t pc)
+static inline uint64_t ld_code2(CPUS390XState *env, DisasContext *s,
+                                uint64_t pc)
 {
-    return (uint64_t)cpu_lduw_code(env, pc);
+    return (uint64_t)translator_lduw(env, &s->base, pc);
 }
 
-static inline uint64_t ld_code4(CPUS390XState *env, uint64_t pc)
+static inline uint64_t ld_code4(CPUS390XState *env, DisasContext *s,
+                                uint64_t pc)
 {
-    return (uint64_t)(uint32_t)cpu_ldl_code(env, pc);
+    return (uint64_t)(uint32_t)translator_ldl(env, &s->base, pc);
 }
 
 static int get_mem_index(DisasContext *s)
@@ -6273,7 +6275,7 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s)
         ilen = s->ex_value & 0xf;
         op = insn >> 56;
     } else {
-        insn = ld_code2(env, pc);
+        insn = ld_code2(env, s, pc);
         op = (insn >> 8) & 0xff;
         ilen = get_ilen(op);
         switch (ilen) {
@@ -6281,10 +6283,10 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s)
             insn = insn << 48;
             break;
         case 4:
-            insn = ld_code4(env, pc) << 32;
+            insn = ld_code4(env, s, pc) << 32;
             break;
         case 6:
-            insn = (insn << 48) | (ld_code4(env, pc + 2) << 16);
+            insn = (insn << 48) | (ld_code4(env, s, pc + 2) << 16);
             break;
         default:
             g_assert_not_reached();

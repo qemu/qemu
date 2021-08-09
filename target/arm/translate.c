@@ -9312,7 +9312,7 @@ static bool insn_crosses_page(CPUARMState *env, DisasContext *s)
      * boundary, so we cross the page if the first 16 bits indicate
      * that this is a 32 bit insn.
      */
-    uint16_t insn = arm_lduw_code(env, s->base.pc_next, s->sctlr_b);
+    uint16_t insn = arm_lduw_code(env, &s->base, s->base.pc_next, s->sctlr_b);
 
     return !thumb_insn_is_16bit(s, s->base.pc_next, insn);
 }
@@ -9551,7 +9551,7 @@ static void arm_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     }
 
     dc->pc_curr = dc->base.pc_next;
-    insn = arm_ldl_code(env, dc->base.pc_next, dc->sctlr_b);
+    insn = arm_ldl_code(env, &dc->base, dc->base.pc_next, dc->sctlr_b);
     dc->insn = insn;
     dc->base.pc_next += 4;
     disas_arm_insn(dc, insn);
@@ -9621,11 +9621,12 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     }
 
     dc->pc_curr = dc->base.pc_next;
-    insn = arm_lduw_code(env, dc->base.pc_next, dc->sctlr_b);
+    insn = arm_lduw_code(env, &dc->base, dc->base.pc_next, dc->sctlr_b);
     is_16bit = thumb_insn_is_16bit(dc, dc->base.pc_next, insn);
     dc->base.pc_next += 2;
     if (!is_16bit) {
-        uint32_t insn2 = arm_lduw_code(env, dc->base.pc_next, dc->sctlr_b);
+        uint32_t insn2 = arm_lduw_code(env, &dc->base, dc->base.pc_next,
+                                       dc->sctlr_b);
 
         insn = insn << 16 | insn2;
         dc->base.pc_next += 2;

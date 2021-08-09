@@ -157,7 +157,8 @@ bool translator_use_goto_tb(DisasContextBase *db, target_ulong dest);
 
 #define GEN_TRANSLATOR_LD(fullname, type, load_fn, swap_fn)             \
     static inline type                                                  \
-    fullname ## _swap(CPUArchState *env, abi_ptr pc, bool do_swap)      \
+    fullname ## _swap(CPUArchState *env, DisasContextBase *dcbase,      \
+                      abi_ptr pc, bool do_swap)                         \
     {                                                                   \
         type ret = load_fn(env, pc);                                    \
         if (do_swap) {                                                  \
@@ -166,10 +167,10 @@ bool translator_use_goto_tb(DisasContextBase *db, target_ulong dest);
         plugin_insn_append(&ret, sizeof(ret));                          \
         return ret;                                                     \
     }                                                                   \
-                                                                        \
-    static inline type fullname(CPUArchState *env, abi_ptr pc)          \
+    static inline type fullname(CPUArchState *env,                      \
+                                DisasContextBase *dcbase, abi_ptr pc)   \
     {                                                                   \
-        return fullname ## _swap(env, pc, false);                       \
+        return fullname ## _swap(env, dcbase, pc, false);               \
     }
 
 GEN_TRANSLATOR_LD(translator_ldub, uint8_t, cpu_ldub_code, /* no swap */)
