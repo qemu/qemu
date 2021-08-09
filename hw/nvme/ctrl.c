@@ -4663,15 +4663,15 @@ static uint16_t nvme_identify_ns_descr_list(NvmeCtrl *n, NvmeRequest *req)
     struct {
         NvmeIdNsDescr hdr;
         uint8_t v[NVME_NIDL_UUID];
-    } QEMU_PACKED uuid;
+    } QEMU_PACKED uuid = {};
     struct {
         NvmeIdNsDescr hdr;
         uint64_t v;
-    } QEMU_PACKED eui64;
+    } QEMU_PACKED eui64 = {};
     struct {
         NvmeIdNsDescr hdr;
         uint8_t v;
-    } QEMU_PACKED csi;
+    } QEMU_PACKED csi = {};
 
     trace_pci_nvme_identify_ns_descr_list(nsid);
 
