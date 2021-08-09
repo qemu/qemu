@@ -710,6 +710,23 @@ static void pnv_chip_power10_pic_print_info(PnvChip *chip, Monitor *mon)
     pnv_psi_pic_print_info(&chip10->psi, mon);
 }
 
+/* Always give the first 1GB to chip 0 else we won't boot */
+static uint64_t pnv_chip_get_ram_size(PnvMachineState *pnv, int chip_id)
+{
+    MachineState *machine = MACHINE(pnv);
+    uint64_t ram_per_chip;
+
+    assert(machine->ram_size >= 1 * GiB);
+
+    ram_per_chip = machine->ram_size / pnv->num_chips;
+    if (ram_per_chip >= 1 * GiB) {
+        return QEMU_ALIGN_DOWN(ram_per_chip, 1 * MiB);
+    }
+
+    ram_per_chip = (machine->ram_size - 1 * GiB) / (pnv->num_chips - 1);
+    return chip_id == 0 ? 1 * GiB : QEMU_ALIGN_DOWN(ram_per_chip, 1 * MiB);
+}
+
 static void pnv_init(MachineState *machine)
 {
     const char *bios_name = machine->firmware ?: FW_FILE_NAME;
@@ -717,6 +734,7 @@ static void pnv_init(MachineState *machine)
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     char *fw_filename;
     long fw_size;
+    uint64_t chip_ram_start = 0;
     int i;
     char *chip_typename;
     DriveInfo *pnor = drive_get(IF_MTD, 0, 0);
@@ -821,17 +839,16 @@ static void pnv_init(MachineState *machine)
         char chip_name[32];
         Object *chip = OBJECT(qdev_new(chip_typename));
         int chip_id = i;
+        uint64_t chip_ram_size =  pnv_chip_get_ram_size(pnv, chip_id);
 
         pnv->chips[i] = PNV_CHIP(chip);
 
-        /*
-         * TODO: put all the memory in one node on chip 0 until we find a
-         * way to specify different ranges for each chip
-         */
-        if (i == 0) {
-            object_property_set_int(chip, "ram-size", machine->ram_size,
-                                    &error_fatal);
-        }
+        /* Distribute RAM among the chips  */
+        object_property_set_int(chip, "ram-start", chip_ram_start,
+                                &error_fatal);
+        object_property_set_int(chip, "ram-size", chip_ram_size,
+                                &error_fatal);
+        chip_ram_start += chip_ram_size;
 
         snprintf(chip_name, sizeof(chip_name), "chip[%d]", chip_id);
         object_property_add_child(OBJECT(pnv), chip_name, chip);
