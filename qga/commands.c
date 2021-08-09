@@ -402,7 +402,7 @@ GuestExec *qmp_guest_exec(const char *path,
     GIOChannel *in_ch, *out_ch, *err_ch;
     GSpawnFlags flags;
     bool has_output = (has_capture_output && capture_output);
-    uint8_t *input = NULL;
+    g_autofree uint8_t *input = NULL;
     size_t ninput = 0;
 
     arglist.value = (char *)path;
@@ -441,7 +441,7 @@ GuestExec *qmp_guest_exec(const char *path,
     g_child_watch_add(pid, guest_exec_child_watch, gei);
 
     if (has_input_data) {
-        gei->in.data = input;
+        gei->in.data = g_steal_pointer(&input);
         gei->in.size = ninput;
 #ifdef G_OS_WIN32
         in_ch = g_io_channel_win32_new_fd(in_fd);
