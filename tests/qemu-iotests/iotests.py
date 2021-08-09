@@ -591,7 +591,11 @@ class VM(qtest.QEMUQtestMachine):
     def __init__(self, path_suffix=''):
         name = "qemu%s-%d" % (path_suffix, os.getpid())
         timer = 15.0 if not (qemu_gdb or qemu_valgrind) else None
-        super().__init__(qemu_prog, qemu_opts, wrapper=qemu_gdb,
+        if qemu_gdb and qemu_valgrind:
+            sys.stderr.write('gdb and valgrind are mutually exclusive\n')
+            sys.exit(1)
+        wrapper = qemu_gdb if qemu_gdb else qemu_valgrind
+        super().__init__(qemu_prog, qemu_opts, wrapper=wrapper,
                          name=name,
                          base_temp_dir=test_dir,
                          socket_scm_helper=socket_scm_helper,
