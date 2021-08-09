@@ -73,17 +73,19 @@ if ! make "-j$(nproc)" qemu-fuzz-i386; then
           "\nFor example: CC=clang CXX=clang++ $0"
 fi
 
-for i in $(ldd ./qemu-fuzz-i386 | cut -f3 -d' '); do
-    cp "$i" "$DEST_DIR/lib/"
-done
-rm qemu-fuzz-i386
+if [ "$GITLAB_CI" != "true" ]; then
+    for i in $(ldd ./qemu-fuzz-i386 | cut -f3 -d' '); do
+        cp "$i" "$DEST_DIR/lib/"
+    done
+    rm qemu-fuzz-i386
 
-# Build a second time to build the final binary with correct rpath
-../configure --disable-werror --cc="$CC" --cxx="$CXX" --enable-fuzzing \
-    --prefix="$DEST_DIR" --bindir="$DEST_DIR" --datadir="$DEST_DIR/data/" \
-    --extra-cflags="$EXTRA_CFLAGS" --extra-ldflags="-Wl,-rpath,\$ORIGIN/lib" \
-    --target-list="i386-softmmu"
-make "-j$(nproc)" qemu-fuzz-i386 V=1
+    # Build a second time to build the final binary with correct rpath
+    ../configure --disable-werror --cc="$CC" --cxx="$CXX" --enable-fuzzing \
+        --prefix="$DEST_DIR" --bindir="$DEST_DIR" --datadir="$DEST_DIR/data/" \
+        --extra-cflags="$EXTRA_CFLAGS" --extra-ldflags="-Wl,-rpath,\$ORIGIN/lib" \
+        --target-list="i386-softmmu"
+    make "-j$(nproc)" qemu-fuzz-i386 V=1
+fi
 
 # Copy over the datadir
 cp  -r ../pc-bios/ "$DEST_DIR/pc-bios"
