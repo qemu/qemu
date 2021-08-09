@@ -570,7 +570,7 @@ static void tcg_out_blx_imm(TCGContext *s, int32_t offset)
                 (((offset - 8) >> 2) & 0x00ffffff));
 }
 
-static void tcg_out_dat_reg(TCGContext *s, ARMCond cond, int opc, int rd,
+static void tcg_out_dat_reg(TCGContext *s, ARMCond cond, ARMInsn opc, int rd,
                             int rn, int rm, int shift)
 {
     tcg_out32(s, (cond << 28) | (0 << 25) | opc |
@@ -603,14 +603,14 @@ static void tcg_out_b_reg(TCGContext *s, ARMCond cond, TCGReg rn)
     }
 }
 
-static void tcg_out_dat_imm(TCGContext *s, ARMCond cond, int opc,
+static void tcg_out_dat_imm(TCGContext *s, ARMCond cond, ARMInsn opc,
                             int rd, int rn, int im)
 {
     tcg_out32(s, (cond << 28) | (1 << 25) | opc |
                     (rn << 16) | (rd << 12) | im);
 }
 
-static void tcg_out_ldstm(TCGContext *s, ARMCond cond, int opc,
+static void tcg_out_ldstm(TCGContext *s, ARMCond cond, ARMInsn opc,
                           TCGReg rn, uint16_t mask)
 {
     tcg_out32(s, (cond << 28) | opc | (rn << 16) | mask);
@@ -637,8 +637,8 @@ static void tcg_out_memop_8(TCGContext *s, ARMCond cond, ARMInsn opc, TCGReg rt,
               (rn << 16) | (rt << 12) | ((imm8 & 0xf0) << 4) | (imm8 & 0xf));
 }
 
-static void tcg_out_memop_12(TCGContext *s, ARMCond cond, ARMInsn opc, TCGReg rt,
-                             TCGReg rn, int imm12, bool p, bool w)
+static void tcg_out_memop_12(TCGContext *s, ARMCond cond, ARMInsn opc,
+                             TCGReg rt, TCGReg rn, int imm12, bool p, bool w)
 {
     bool u = 1;
     if (imm12 < 0) {
@@ -873,7 +873,7 @@ static void tcg_out_movi32(TCGContext *s, ARMCond cond, int rd, uint32_t arg)
  * Emit either the reg,imm or reg,reg form of a data-processing insn.
  * rhs must satisfy the "rI" constraint.
  */
-static void tcg_out_dat_rI(TCGContext *s, ARMCond cond, int opc, TCGArg dst,
+static void tcg_out_dat_rI(TCGContext *s, ARMCond cond, ARMInsn opc, TCGArg dst,
                            TCGArg lhs, TCGArg rhs, int rhs_is_const)
 {
     if (rhs_is_const) {
@@ -887,8 +887,8 @@ static void tcg_out_dat_rI(TCGContext *s, ARMCond cond, int opc, TCGArg dst,
  * Emit either the reg,imm or reg,reg form of a data-processing insn.
  * rhs must satisfy the "rIK" constraint.
  */
-static void tcg_out_dat_rIK(TCGContext *s, ARMCond cond, int opc, int opinv,
-                            TCGReg dst, TCGReg lhs, TCGArg rhs,
+static void tcg_out_dat_rIK(TCGContext *s, ARMCond cond, ARMInsn opc,
+                            ARMInsn opinv, TCGReg dst, TCGReg lhs, TCGArg rhs,
                             bool rhs_is_const)
 {
     if (rhs_is_const) {
@@ -903,8 +903,8 @@ static void tcg_out_dat_rIK(TCGContext *s, ARMCond cond, int opc, int opinv,
     }
 }
 
-static void tcg_out_dat_rIN(TCGContext *s, ARMCond cond, int opc, int opneg,
-                            TCGArg dst, TCGArg lhs, TCGArg rhs,
+static void tcg_out_dat_rIN(TCGContext *s, ARMCond cond, ARMInsn opc,
+                            ARMInsn opneg, TCGArg dst, TCGArg lhs, TCGArg rhs,
                             bool rhs_is_const)
 {
     /* Emit either the reg,imm or reg,reg form of a data-processing insn.
