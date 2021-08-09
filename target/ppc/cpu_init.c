@@ -8269,6 +8269,9 @@ POWERPC_FAMILY(POWER10)(ObjectClass *oc, void *data)
                              LPCR_DEE | LPCR_OEE))
         | LPCR_MER | LPCR_GTSE | LPCR_TC |
         LPCR_HEIC | LPCR_LPES0 | LPCR_HVICE | LPCR_HDICE;
+    /* DD2 adds an extra HAIL bit */
+    pcc->lpcr_mask |= LPCR_HAIL;
+
     pcc->lpcr_pm = LPCR_PDEE | LPCR_HDEE | LPCR_EEE | LPCR_DEE | LPCR_OEE;
     pcc->mmu_model = POWERPC_MMU_3_00;
 #if defined(CONFIG_SOFTMMU)
