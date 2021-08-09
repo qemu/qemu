@@ -120,6 +120,25 @@ static inline bool virtual_gif_enabled(CPUX86State *env)
     return false;
 }
 
+static inline bool virtual_vm_load_save_enabled(CPUX86State *env, uint32_t exit_code, uintptr_t retaddr)
+{
+    uint64_t lbr_ctl;
+
+    if (likely(env->hflags & HF_GUEST_MASK)) {
+        if (likely(!(env->hflags2 & HF2_NPT_MASK)) || !(env->efer & MSR_EFER_LMA)) {
+            cpu_vmexit(env, exit_code, 0, retaddr);
+        }
+
+        lbr_ctl = x86_ldl_phys(env_cpu(env), env->vm_vmcb + offsetof(struct vmcb,
+                                                  control.lbr_ctl));
+        return (env->features[FEAT_SVM] & CPUID_SVM_V_VMSAVE_VMLOAD)
+                && (lbr_ctl & V_VMLOAD_VMSAVE_ENABLED_MASK);
+
+    }
+
+    return false;
+}
+
 static inline bool virtual_gif_set(CPUX86State *env)
 {
     return !virtual_gif_enabled(env) || (env->int_ctl & V_GIF_MASK);
@@ -431,6 +450,7 @@ void helper_vmload(CPUX86State *env, int aflag)
 {
     CPUState *cs = env_cpu(env);
     target_ulong addr;
+    int prot;
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_VMLOAD, 0, GETPC());
 
@@ -438,6 +458,10 @@ void helper_vmload(CPUX86State *env, int aflag)
         addr = env->regs[R_EAX];
     } else {
         addr = (uint32_t)env->regs[R_EAX];
+    }
+
+    if (virtual_vm_load_save_enabled(env, SVM_EXIT_VMLOAD, GETPC())) {
+        addr = get_hphys(cs, addr, MMU_DATA_LOAD, &prot);
     }
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "vmload! " TARGET_FMT_lx
@@ -473,6 +497,7 @@ void helper_vmsave(CPUX86State *env, int aflag)
 {
     CPUState *cs = env_cpu(env);
     target_ulong addr;
+    int prot;
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_VMSAVE, 0, GETPC());
 
@@ -480,6 +505,10 @@ void helper_vmsave(CPUX86State *env, int aflag)
         addr = env->regs[R_EAX];
     } else {
         addr = (uint32_t)env->regs[R_EAX];
+    }
+
+    if (virtual_vm_load_save_enabled(env, SVM_EXIT_VMSAVE, GETPC())) {
+        addr = get_hphys(cs, addr, MMU_DATA_STORE, &prot);
     }
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "vmsave! " TARGET_FMT_lx
