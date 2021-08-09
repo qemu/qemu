@@ -312,10 +312,10 @@ static bool reloc_pc8(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
 {
     const tcg_insn_unit *src_rx = tcg_splitwx_to_rx(src_rw);
     ptrdiff_t offset = tcg_ptr_byte_diff(target, src_rx) - 8;
-    int rot = encode_imm(offset);
+    int imm12 = encode_imm(offset);
 
-    if (rot >= 0) {
-        *src_rw = deposit32(*src_rw, 0, 12, rol32(offset, rot) | (rot << 7));
+    if (imm12 >= 0) {
+        *src_rw = deposit32(*src_rw, 0, 12, imm12);
         return true;
     }
     return false;
@@ -369,33 +369,52 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
     (ALL_GENERAL_REGS & ~((1 << TCG_REG_R0) | (1 << TCG_REG_R1)))
 #endif
 
-static inline uint32_t rotl(uint32_t val, int n)
-{
-  return (val << n) | (val >> (32 - n));
-}
-
-/* ARM immediates for ALU instructions are made of an unsigned 8-bit
-   right-rotated by an even amount between 0 and 30. */
+/*
+ * ARM immediates for ALU instructions are made of an unsigned 8-bit
+ * right-rotated by an even amount between 0 and 30.
+ *
+ * Return < 0 if @imm cannot be encoded, else the entire imm12 field.
+ */
 static int encode_imm(uint32_t imm)
 {
-    int shift;
+    uint32_t rot, imm8;
 
-    /* simple case, only lower bits */
-    if ((imm & ~0xff) == 0)
-        return 0;
-    /* then try a simple even shift */
-    shift = ctz32(imm) & ~1;
-    if (((imm >> shift) & ~0xff) == 0)
-        return 32 - shift;
-    /* now try harder with rotations */
-    if ((rotl(imm, 2) & ~0xff) == 0)
-        return 2;
-    if ((rotl(imm, 4) & ~0xff) == 0)
-        return 4;
-    if ((rotl(imm, 6) & ~0xff) == 0)
-        return 6;
-    /* imm can't be encoded */
+    /* Simple case, no rotation required. */
+    if ((imm & ~0xff) == 0) {
+        return imm;
+    }
+
+    /* Next, try a simple even shift.  */
+    rot = ctz32(imm) & ~1;
+    imm8 = imm >> rot;
+    rot = 32 - rot;
+    if ((imm8 & ~0xff) == 0) {
+        goto found;
+    }
+
+    /*
+     * Finally, try harder with rotations.
+     * The ctz test above will have taken care of rotates >= 8.
+     */
+    for (rot = 2; rot < 8; rot += 2) {
+        imm8 = rol32(imm, rot);
+        if ((imm8 & ~0xff) == 0) {
+            goto found;
+        }
+    }
+    /* Fail: imm cannot be encoded. */
     return -1;
+
+ found:
+    /* Note that rot is even, and we discard bit 0 by shifting by 7. */
+    return rot << 7 | imm8;
+}
+
+static int encode_imm_nofail(uint32_t imm)
+{
+    int ret = encode_imm(imm);
+    tcg_debug_assert(ret >= 0);
+    return ret;
 }
 
 static inline int check_fit_imm(uint32_t imm)
@@ -782,20 +801,18 @@ static void tcg_out_movi_pool(TCGContext *s, int cond, int rd, uint32_t arg)
 
 static void tcg_out_movi32(TCGContext *s, int cond, int rd, uint32_t arg)
 {
-    int rot, diff, opc, sh1, sh2;
+    int imm12, diff, opc, sh1, sh2;
     uint32_t tt0, tt1, tt2;
 
     /* Check a single MOV/MVN before anything else.  */
-    rot = encode_imm(arg);
-    if (rot >= 0) {
-        tcg_out_dat_imm(s, cond, ARITH_MOV, rd, 0,
-                        rotl(arg, rot) | (rot << 7));
+    imm12 = encode_imm(arg);
+    if (imm12 >= 0) {
+        tcg_out_dat_imm(s, cond, ARITH_MOV, rd, 0, imm12);
         return;
     }
-    rot = encode_imm(~arg);
-    if (rot >= 0) {
-        tcg_out_dat_imm(s, cond, ARITH_MVN, rd, 0,
-                        rotl(~arg, rot) | (rot << 7));
+    imm12 = encode_imm(~arg);
+    if (imm12 >= 0) {
+        tcg_out_dat_imm(s, cond, ARITH_MVN, rd, 0, imm12);
         return;
     }
 
@@ -803,17 +820,15 @@ static void tcg_out_movi32(TCGContext *s, int cond, int rd, uint32_t arg)
        or within the TB, which is immediately before the code block.  */
     diff = tcg_pcrel_diff(s, (void *)arg) - 8;
     if (diff >= 0) {
-        rot = encode_imm(diff);
-        if (rot >= 0) {
-            tcg_out_dat_imm(s, cond, ARITH_ADD, rd, TCG_REG_PC,
-                            rotl(diff, rot) | (rot << 7));
+        imm12 = encode_imm(diff);
+        if (imm12 >= 0) {
+            tcg_out_dat_imm(s, cond, ARITH_ADD, rd, TCG_REG_PC, imm12);
             return;
         }
     } else {
-        rot = encode_imm(-diff);
-        if (rot >= 0) {
-            tcg_out_dat_imm(s, cond, ARITH_SUB, rd, TCG_REG_PC,
-                            rotl(-diff, rot) | (rot << 7));
+        imm12 = encode_imm(-diff);
+        if (imm12 >= 0) {
+            tcg_out_dat_imm(s, cond, ARITH_SUB, rd, TCG_REG_PC, imm12);
             return;
         }
     }
@@ -845,6 +860,8 @@ static void tcg_out_movi32(TCGContext *s, int cond, int rd, uint32_t arg)
     sh2 = ctz32(tt1) & ~1;
     tt2 = tt1 & ~(0xff << sh2);
     if (tt2 == 0) {
+        int rot;
+
         rot = ((32 - sh1) << 7) & 0xf00;
         tcg_out_dat_imm(s, cond, opc, rd,  0, ((tt0 >> sh1) & 0xff) | rot);
         rot = ((32 - sh2) << 7) & 0xf00;
@@ -857,37 +874,35 @@ static void tcg_out_movi32(TCGContext *s, int cond, int rd, uint32_t arg)
     tcg_out_movi_pool(s, cond, rd, arg);
 }
 
+/*
+ * Emit either the reg,imm or reg,reg form of a data-processing insn.
+ * rhs must satisfy the "rI" constraint.
+ */
 static inline void tcg_out_dat_rI(TCGContext *s, int cond, int opc, TCGArg dst,
                                   TCGArg lhs, TCGArg rhs, int rhs_is_const)
 {
-    /* Emit either the reg,imm or reg,reg form of a data-processing insn.
-     * rhs must satisfy the "rI" constraint.
-     */
     if (rhs_is_const) {
-        int rot = encode_imm(rhs);
-        tcg_debug_assert(rot >= 0);
-        tcg_out_dat_imm(s, cond, opc, dst, lhs, rotl(rhs, rot) | (rot << 7));
+        tcg_out_dat_imm(s, cond, opc, dst, lhs, encode_imm_nofail(rhs));
     } else {
         tcg_out_dat_reg(s, cond, opc, dst, lhs, rhs, SHIFT_IMM_LSL(0));
     }
 }
 
+/*
+ * Emit either the reg,imm or reg,reg form of a data-processing insn.
+ * rhs must satisfy the "rIK" constraint.
+ */
 static void tcg_out_dat_rIK(TCGContext *s, int cond, int opc, int opinv,
                             TCGReg dst, TCGReg lhs, TCGArg rhs,
                             bool rhs_is_const)
 {
-    /* Emit either the reg,imm or reg,reg form of a data-processing insn.
-     * rhs must satisfy the "rIK" constraint.
-     */
     if (rhs_is_const) {
-        int rot = encode_imm(rhs);
-        if (rot < 0) {
-            rhs = ~rhs;
-            rot = encode_imm(rhs);
-            tcg_debug_assert(rot >= 0);
+        int imm12 = encode_imm(rhs);
+        if (imm12 < 0) {
+            imm12 = encode_imm_nofail(~rhs);
             opc = opinv;
         }
-        tcg_out_dat_imm(s, cond, opc, dst, lhs, rotl(rhs, rot) | (rot << 7));
+        tcg_out_dat_imm(s, cond, opc, dst, lhs, imm12);
     } else {
         tcg_out_dat_reg(s, cond, opc, dst, lhs, rhs, SHIFT_IMM_LSL(0));
     }
@@ -901,14 +916,12 @@ static void tcg_out_dat_rIN(TCGContext *s, int cond, int opc, int opneg,
      * rhs must satisfy the "rIN" constraint.
      */
     if (rhs_is_const) {
-        int rot = encode_imm(rhs);
-        if (rot < 0) {
-            rhs = -rhs;
-            rot = encode_imm(rhs);
-            tcg_debug_assert(rot >= 0);
+        int imm12 = encode_imm(rhs);
+        if (imm12 < 0) {
+            imm12 = encode_imm_nofail(-rhs);
             opc = opneg;
         }
-        tcg_out_dat_imm(s, cond, opc, dst, lhs, rotl(rhs, rot) | (rot << 7));
+        tcg_out_dat_imm(s, cond, opc, dst, lhs, imm12);
     } else {
         tcg_out_dat_reg(s, cond, opc, dst, lhs, rhs, SHIFT_IMM_LSL(0));
     }
