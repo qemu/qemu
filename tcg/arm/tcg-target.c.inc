@@ -84,6 +84,9 @@ static const int tcg_target_call_oarg_regs[2] = {
 
 #define TCG_REG_TMP  TCG_REG_R12
 #define TCG_VEC_TMP  TCG_REG_Q15
+#ifndef CONFIG_SOFTMMU
+#define TCG_REG_GUEST_BASE  TCG_REG_R11
+#endif
 
 typedef enum {
     COND_EQ = 0x0,
@@ -1593,7 +1596,8 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 
 static void tcg_out_qemu_ld_index(TCGContext *s, MemOp opc,
                                   TCGReg datalo, TCGReg datahi,
-                                  TCGReg addrlo, TCGReg addend)
+                                  TCGReg addrlo, TCGReg addend,
+                                  bool scratch_addend)
 {
     /* Byte swapping is left to middle-end expansion. */
     tcg_debug_assert((opc & MO_BSWAP) == 0);
@@ -1619,7 +1623,7 @@ static void tcg_out_qemu_ld_index(TCGContext *s, MemOp opc,
         if (get_alignment_bits(opc) >= MO_64
             && (datalo & 1) == 0 && datahi == datalo + 1) {
             tcg_out_ldrd_r(s, COND_AL, datalo, addrlo, addend);
-        } else if (datalo != addend) {
+        } else if (scratch_addend) {
             tcg_out_ld32_rwb(s, COND_AL, datalo, addend, addrlo);
             tcg_out_ld32_12(s, COND_AL, datahi, addend, 4);
         } else {
@@ -1703,14 +1707,14 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
     label_ptr = s->code_ptr;
     tcg_out_bl_imm(s, COND_NE, 0);
 
-    tcg_out_qemu_ld_index(s, opc, datalo, datahi, addrlo, addend);
+    tcg_out_qemu_ld_index(s, opc, datalo, datahi, addrlo, addend, true);
 
     add_qemu_ldst_label(s, true, oi, datalo, datahi, addrlo, addrhi,
                         s->code_ptr, label_ptr);
 #else /* !CONFIG_SOFTMMU */
     if (guest_base) {
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP, guest_base);
-        tcg_out_qemu_ld_index(s, opc, datalo, datahi, addrlo, TCG_REG_TMP);
+        tcg_out_qemu_ld_index(s, opc, datalo, datahi,
+                              addrlo, TCG_REG_GUEST_BASE, false);
     } else {
         tcg_out_qemu_ld_direct(s, opc, datalo, datahi, addrlo);
     }
@@ -1719,7 +1723,8 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
 
 static void tcg_out_qemu_st_index(TCGContext *s, ARMCond cond, MemOp opc,
                                   TCGReg datalo, TCGReg datahi,
-                                  TCGReg addrlo, TCGReg addend)
+                                  TCGReg addrlo, TCGReg addend,
+                                  bool scratch_addend)
 {
     /* Byte swapping is left to middle-end expansion. */
     tcg_debug_assert((opc & MO_BSWAP) == 0);
@@ -1739,9 +1744,14 @@ static void tcg_out_qemu_st_index(TCGContext *s, ARMCond cond, MemOp opc,
         if (get_alignment_bits(opc) >= MO_64
             && (datalo & 1) == 0 && datahi == datalo + 1) {
             tcg_out_strd_r(s, cond, datalo, addrlo, addend);
-        } else {
+        } else if (scratch_addend) {
             tcg_out_st32_rwb(s, cond, datalo, addend, addrlo);
             tcg_out_st32_12(s, cond, datahi, addend, 4);
+        } else {
+            tcg_out_dat_reg(s, cond, ARITH_ADD, TCG_REG_TMP,
+                            addend, addrlo, SHIFT_IMM_LSL(0));
+            tcg_out_st32_12(s, cond, datalo, TCG_REG_TMP, 0);
+            tcg_out_st32_12(s, cond, datahi, TCG_REG_TMP, 4);
         }
         break;
     default:
@@ -1804,7 +1814,8 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
     mem_index = get_mmuidx(oi);
     addend = tcg_out_tlb_read(s, addrlo, addrhi, opc, mem_index, 0);
 
-    tcg_out_qemu_st_index(s, COND_EQ, opc, datalo, datahi, addrlo, addend);
+    tcg_out_qemu_st_index(s, COND_EQ, opc, datalo, datahi,
+                          addrlo, addend, true);
 
     /* The conditional call must come last, as we're going to return here.  */
     label_ptr = s->code_ptr;
@@ -1814,9 +1825,8 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
                         s->code_ptr, label_ptr);
 #else /* !CONFIG_SOFTMMU */
     if (guest_base) {
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP, guest_base);
-        tcg_out_qemu_st_index(s, COND_AL, opc, datalo,
-                              datahi, addrlo, TCG_REG_TMP);
+        tcg_out_qemu_st_index(s, COND_AL, opc, datalo, datahi,
+                              addrlo, TCG_REG_GUEST_BASE, false);
     } else {
         tcg_out_qemu_st_direct(s, opc, datalo, datahi, addrlo);
     }
@@ -2957,6 +2967,13 @@ static void tcg_target_qemu_prologue(TCGContext *s)
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
+
+#ifndef CONFIG_SOFTMMU
+    if (guest_base) {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_GUEST_BASE, guest_base);
+        tcg_regset_set_reg(s->reserved_regs, TCG_REG_GUEST_BASE);
+    }
+#endif
 
     tcg_out_b_reg(s, COND_AL, tcg_target_call_iarg_regs[1]);
 
