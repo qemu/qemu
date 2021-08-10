@@ -91,7 +91,7 @@
 
 typedef struct {
     uint8_t data[PS2_BUFFER_SIZE];
-    int rptr, wptr, count;
+    int rptr, wptr, cwptr, count;
 } PS2Queue;
 
 struct PS2State {
@@ -186,6 +186,7 @@ static void ps2_reset_queue(PS2State *s)
 
     q->rptr = 0;
     q->wptr = 0;
+    q->cwptr = -1;
     q->count = 0;
 }
 
@@ -198,7 +199,7 @@ void ps2_queue_noirq(PS2State *s, int b)
 {
     PS2Queue *q = &s->queue;
 
-    if (q->count == PS2_QUEUE_SIZE) {
+    if (q->count >= PS2_QUEUE_SIZE) {
         return;
     }
 
@@ -258,6 +259,63 @@ void ps2_queue_4(PS2State *s, int b1, int b2, int b3, int b4)
     ps2_queue_noirq(s, b3);
     ps2_queue_noirq(s, b4);
     ps2_raise_irq(s);
+}
+
+static void ps2_cqueue_data(PS2Queue *q, int b)
+{
+    q->data[q->cwptr] = b;
+    if (++q->cwptr >= PS2_BUFFER_SIZE) {
+        q->cwptr = 0;
+    }
+    q->count++;
+}
+
+static void ps2_cqueue_1(PS2State *s, int b1)
+{
+    PS2Queue *q = &s->queue;
+
+    q->rptr = (q->rptr - 1) & (PS2_BUFFER_SIZE - 1);
+    q->cwptr = q->rptr;
+    ps2_cqueue_data(q, b1);
+    ps2_raise_irq(s);
+}
+
+static void ps2_cqueue_2(PS2State *s, int b1, int b2)
+{
+    PS2Queue *q = &s->queue;
+
+    q->rptr = (q->rptr - 2) & (PS2_BUFFER_SIZE - 1);
+    q->cwptr = q->rptr;
+    ps2_cqueue_data(q, b1);
+    ps2_cqueue_data(q, b2);
+    ps2_raise_irq(s);
+}
+
+static void ps2_cqueue_3(PS2State *s, int b1, int b2, int b3)
+{
+    PS2Queue *q = &s->queue;
+
+    q->rptr = (q->rptr - 3) & (PS2_BUFFER_SIZE - 1);
+    q->cwptr = q->rptr;
+    ps2_cqueue_data(q, b1);
+    ps2_cqueue_data(q, b2);
+    ps2_cqueue_data(q, b3);
+    ps2_raise_irq(s);
+}
+
+static void ps2_cqueue_reset(PS2State *s)
+{
+    PS2Queue *q = &s->queue;
+    int ccount;
+
+    if (q->cwptr == -1) {
+        return;
+    }
+
+    ccount = (q->cwptr - q->rptr) & (PS2_BUFFER_SIZE - 1);
+    q->count -= ccount;
+    q->rptr = q->cwptr;
+    q->cwptr = -1;
 }
 
 /* keycode is the untranslated scancode in the current scancode set. */
@@ -523,6 +581,10 @@ uint32_t ps2_read_data(PS2State *s)
             q->rptr = 0;
         }
         q->count--;
+        if (q->rptr == q->cwptr) {
+            /* command reply queue is empty */
+            q->cwptr = -1;
+        }
         /* reading deasserts IRQ */
         s->update_irq(s->update_arg, 0);
         /* reassert IRQs if data left */
@@ -554,92 +616,83 @@ void ps2_write_keyboard(void *opaque, int val)
     PS2KbdState *s = (PS2KbdState *)opaque;
 
     trace_ps2_write_keyboard(opaque, val);
+    ps2_cqueue_reset(&s->common);
     switch(s->common.write_cmd) {
     default:
     case -1:
         switch(val) {
         case 0x00:
-            ps2_queue(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
             break;
         case 0x05:
-            ps2_queue(&s->common, KBD_REPLY_RESEND);
+            ps2_cqueue_1(&s->common, KBD_REPLY_RESEND);
             break;
         case KBD_CMD_GET_ID:
             /* We emulate a MF2 AT keyboard here */
-            if (s->translate)
-                ps2_queue_3(&s->common,
-                    KBD_REPLY_ACK,
-                    KBD_REPLY_ID,
-                    0x41);
-            else
-                ps2_queue_3(&s->common,
-                    KBD_REPLY_ACK,
-                    KBD_REPLY_ID,
-                    0x83);
+            ps2_cqueue_3(&s->common, KBD_REPLY_ACK, KBD_REPLY_ID,
+                s->translate ? 0x41 : 0x83);
             break;
         case KBD_CMD_ECHO:
-            ps2_queue(&s->common, KBD_CMD_ECHO);
+            ps2_cqueue_1(&s->common, KBD_CMD_ECHO);
             break;
         case KBD_CMD_ENABLE:
             s->scan_enabled = 1;
-            ps2_queue(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
             break;
         case KBD_CMD_SCANCODE:
         case KBD_CMD_SET_LEDS:
         case KBD_CMD_SET_RATE:
         case KBD_CMD_SET_MAKE_BREAK:
             s->common.write_cmd = val;
-            ps2_queue(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
             break;
         case KBD_CMD_RESET_DISABLE:
             ps2_reset_keyboard(s);
             s->scan_enabled = 0;
-            ps2_queue(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
             break;
         case KBD_CMD_RESET_ENABLE:
             ps2_reset_keyboard(s);
             s->scan_enabled = 1;
-            ps2_queue(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
             break;
         case KBD_CMD_RESET:
             ps2_reset_keyboard(s);
-            ps2_queue_2(&s->common,
+            ps2_cqueue_2(&s->common,
                 KBD_REPLY_ACK,
                 KBD_REPLY_POR);
             break;
         case KBD_CMD_SET_TYPEMATIC:
-            ps2_queue(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
             break;
         default:
-            ps2_queue(&s->common, KBD_REPLY_RESEND);
+            ps2_cqueue_1(&s->common, KBD_REPLY_RESEND);
             break;
         }
         break;
     case KBD_CMD_SET_MAKE_BREAK:
-        ps2_queue(&s->common, KBD_REPLY_ACK);
+        ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
         s->common.write_cmd = -1;
         break;
     case KBD_CMD_SCANCODE:
         if (val == 0) {
-            if (s->common.queue.count <= PS2_QUEUE_SIZE - 2) {
-                ps2_queue(&s->common, KBD_REPLY_ACK);
-                ps2_put_keycode(s, s->scancode_set);
-            }
+            ps2_cqueue_2(&s->common, KBD_REPLY_ACK, s->translate ?
+                translate_table[s->scancode_set] : s->scancode_set);
         } else if (val >= 1 && val <= 3) {
             s->scancode_set = val;
-            ps2_queue(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
         } else {
-            ps2_queue(&s->common, KBD_REPLY_RESEND);
+            ps2_cqueue_1(&s->common, KBD_REPLY_RESEND);
         }
         s->common.write_cmd = -1;
         break;
     case KBD_CMD_SET_LEDS:
         ps2_set_ledstate(s, val);
-        ps2_queue(&s->common, KBD_REPLY_ACK);
+        ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
         s->common.write_cmd = -1;
         break;
     case KBD_CMD_SET_RATE:
-        ps2_queue(&s->common, KBD_REPLY_ACK);
+        ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
         s->common.write_cmd = -1;
         break;
     }
