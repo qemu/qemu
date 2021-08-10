@@ -23,6 +23,7 @@
  */
 
 #include "elf.h"
+#include "../tcg-ldst.c.inc"
 #include "../tcg-pool.c.inc"
 
 int arm_arch = __ARM_ARCH;
@@ -1289,8 +1290,6 @@ static void tcg_out_vldst(TCGContext *s, ARMInsn insn,
 }
 
 #ifdef CONFIG_SOFTMMU
-#include "../tcg-ldst.c.inc"
-
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
  *                                     int mmu_idx, uintptr_t ra)
  */
@@ -1592,6 +1591,74 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_goto(s, COND_AL, qemu_st_helpers[opc & MO_SIZE]);
     return true;
 }
+#else
+
+static void tcg_out_test_alignment(TCGContext *s, bool is_ld, TCGReg addrlo,
+                                   TCGReg addrhi, unsigned a_bits)
+{
+    unsigned a_mask = (1 << a_bits) - 1;
+    TCGLabelQemuLdst *label = new_ldst_label(s);
+
+    label->is_ld = is_ld;
+    label->addrlo_reg = addrlo;
+    label->addrhi_reg = addrhi;
+
+    /* We are expecting a_bits to max out at 7, and can easily support 8. */
+    tcg_debug_assert(a_mask <= 0xff);
+    /* tst addr, #mask */
+    tcg_out_dat_imm(s, COND_AL, ARITH_TST, 0, addrlo, a_mask);
+
+    /* blne slow_path */
+    label->label_ptr[0] = s->code_ptr;
+    tcg_out_bl_imm(s, COND_NE, 0);
+
+    label->raddr = tcg_splitwx_to_rx(s->code_ptr);
+}
+
+static bool tcg_out_fail_alignment(TCGContext *s, TCGLabelQemuLdst *l)
+{
+    if (!reloc_pc24(l->label_ptr[0], tcg_splitwx_to_rx(s->code_ptr))) {
+        return false;
+    }
+
+    if (TARGET_LONG_BITS == 64) {
+        /* 64-bit target address is aligned into R2:R3. */
+        if (l->addrhi_reg != TCG_REG_R2) {
+            tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_R2, l->addrlo_reg);
+            tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_R3, l->addrhi_reg);
+        } else if (l->addrlo_reg != TCG_REG_R3) {
+            tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_R3, l->addrhi_reg);
+            tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_R2, l->addrlo_reg);
+        } else {
+            tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_R1, TCG_REG_R2);
+            tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_R2, TCG_REG_R3);
+            tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_R3, TCG_REG_R1);
+        }
+    } else {
+        tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_R1, l->addrlo_reg);
+    }
+    tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_R0, TCG_AREG0);
+
+    /*
+     * Tail call to the helper, with the return address back inline,
+     * just for the clarity of the debugging traceback -- the helper
+     * cannot return.  We have used BLNE to arrive here, so LR is
+     * already set.
+     */
+    tcg_out_goto(s, COND_AL, (const void *)
+                 (l->is_ld ? helper_unaligned_ld : helper_unaligned_st));
+    return true;
+}
+
+static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
+{
+    return tcg_out_fail_alignment(s, l);
+}
+
+static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
+{
+    return tcg_out_fail_alignment(s, l);
+}
 #endif /* SOFTMMU */
 
 static void tcg_out_qemu_ld_index(TCGContext *s, MemOp opc,
@@ -1689,6 +1756,8 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
     int mem_index;
     TCGReg addend;
     tcg_insn_unit *label_ptr;
+#else
+    unsigned a_bits;
 #endif
 
     datalo = *args++;
@@ -1712,6 +1781,10 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
     add_qemu_ldst_label(s, true, oi, datalo, datahi, addrlo, addrhi,
                         s->code_ptr, label_ptr);
 #else /* !CONFIG_SOFTMMU */
+    a_bits = get_alignment_bits(opc);
+    if (a_bits) {
+        tcg_out_test_alignment(s, true, addrlo, addrhi, a_bits);
+    }
     if (guest_base) {
         tcg_out_qemu_ld_index(s, opc, datalo, datahi,
                               addrlo, TCG_REG_GUEST_BASE, false);
@@ -1801,6 +1874,8 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
     int mem_index;
     TCGReg addend;
     tcg_insn_unit *label_ptr;
+#else
+    unsigned a_bits;
 #endif
 
     datalo = *args++;
@@ -1824,6 +1899,10 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
     add_qemu_ldst_label(s, false, oi, datalo, datahi, addrlo, addrhi,
                         s->code_ptr, label_ptr);
 #else /* !CONFIG_SOFTMMU */
+    a_bits = get_alignment_bits(opc);
+    if (a_bits) {
+        tcg_out_test_alignment(s, false, addrlo, addrhi, a_bits);
+    }
     if (guest_base) {
         tcg_out_qemu_st_index(s, COND_AL, opc, datalo, datahi,
                               addrlo, TCG_REG_GUEST_BASE, false);
