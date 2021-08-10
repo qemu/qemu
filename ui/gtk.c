@@ -1646,16 +1646,14 @@ static void gd_vc_send_chars(VirtualConsole *vc)
 
     len = qemu_chr_be_can_write(vc->vte.chr);
     avail = fifo8_num_used(&vc->vte.out_fifo);
-    if (len > avail) {
-        len = avail;
-    }
-    while (len > 0) {
+    while (len > 0 && avail > 0) {
         const uint8_t *buf;
         uint32_t size;
 
-        buf = fifo8_pop_buf(&vc->vte.out_fifo, len, &size);
+        buf = fifo8_pop_buf(&vc->vte.out_fifo, MIN(len, avail), &size);
         qemu_chr_be_write(vc->vte.chr, (uint8_t *)buf, size);
-        len -= size;
+        len = qemu_chr_be_can_write(vc->vte.chr);
+        avail -= size;
     }
 }
 
