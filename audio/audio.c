@@ -1622,10 +1622,20 @@ void audio_cleanup(void)
     }
 }
 
+static bool vmstate_audio_needed(void *opaque)
+{
+    /*
+     * Never needed, this vmstate only exists in case
+     * an old qemu sends it to us.
+     */
+    return false;
+}
+
 static const VMStateDescription vmstate_audio = {
     .name = "audio",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = vmstate_audio_needed,
     .fields = (VMStateField[]) {
         VMSTATE_END_OF_LIST()
     }

@@ -817,7 +817,10 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
      * This is a bit hackish but saves us from bigger problem.
      * Maybe it's a good idea to fix this in SDL instead.
      */
-    g_setenv("SDL_VIDEODRIVER", "x11", 0);
+    if (!g_setenv("SDL_VIDEODRIVER", "x11", 0)) {
+        fprintf(stderr, "Could not set SDL_VIDEODRIVER environment variable\n");
+        exit(1);
+    }
 #endif
 
     if (SDL_Init(SDL_INIT_VIDEO)) {
