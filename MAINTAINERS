@@ -2270,7 +2270,7 @@ F: tests/qtest/fuzz-sb16-test.c
 
 Block layer core
 M: Kevin Wolf <kwolf@redhat.com>
-M: Max Reitz <mreitz@redhat.com>
+M: Hanna Reitz <hreitz@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block*
@@ -3265,7 +3265,7 @@ F: stubs/io_uring.c
 
 qcow2
 M: Kevin Wolf <kwolf@redhat.com>
-M: Max Reitz <mreitz@redhat.com>
+M: Hanna Reitz <hreitz@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/qcow2*
@@ -3279,7 +3279,7 @@ F: block/qcow.c
 
 blkdebug
 M: Kevin Wolf <kwolf@redhat.com>
-M: Max Reitz <mreitz@redhat.com>
+M: Hanna Reitz <hreitz@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/blkdebug.c
@@ -3314,7 +3314,7 @@ F: tests/qtest/vhost-user-blk-test.c
 F: util/vhost-user-server.c
 
 FUSE block device exports
-M: Max Reitz <mreitz@redhat.com>
+M: Hanna Reitz <hreitz@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/export/fuse.c
