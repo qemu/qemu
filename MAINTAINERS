@@ -2157,7 +2157,7 @@ F: include/hw/display/ramfb.h
 
 virtio-gpu
 M: Gerd Hoffmann <kraxel@redhat.com>
-S: Maintained
+S: Odd Fixes
 F: hw/display/virtio-gpu*
 F: hw/display/virtio-vga.*
 F: include/hw/virtio/virtio-gpu.h
@@ -2176,7 +2176,7 @@ F: include/hw/virtio/vhost-user-scsi.h
 
 vhost-user-gpu
 M: Marc-André Lureau <marcandre.lureau@redhat.com>
-M: Gerd Hoffmann <kraxel@redhat.com>
+R: Gerd Hoffmann <kraxel@redhat.com>
 S: Maintained
 F: docs/interop/vhost-user-gpu.rst
 F: contrib/vhost-user-gpu
