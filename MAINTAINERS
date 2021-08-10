@@ -2258,7 +2258,7 @@ Subsystems
 ----------
 Audio
 M: Gerd Hoffmann <kraxel@redhat.com>
-S: Maintained
+S: Odd Fixes
 F: audio/
 F: hw/audio/
 F: include/hw/audio/
