@@ -74,7 +74,12 @@
 #define MOUSE_STATUS_ENABLED    0x20
 #define MOUSE_STATUS_SCALE21    0x10
 
-#define PS2_QUEUE_SIZE 16  /* Buffer size required by PS/2 protocol */
+/*
+ * PS/2 buffer size. Keep 256 bytes for compatibility with
+ * older QEMU versions.
+ */
+#define PS2_BUFFER_SIZE     256
+#define PS2_QUEUE_SIZE      16  /* Queue size required by PS/2 protocol */
 
 /* Bits for 'modifiers' field in PS2KbdState */
 #define MOD_CTRL_L  (1 << 0)
@@ -85,9 +90,7 @@
 #define MOD_ALT_R   (1 << 5)
 
 typedef struct {
-    /* Keep the data array 256 bytes long, which compatibility
-     with older qemu versions. */
-    uint8_t data[256];
+    uint8_t data[PS2_BUFFER_SIZE];
     int rptr, wptr, count;
 } PS2Queue;
 
@@ -200,8 +203,9 @@ void ps2_queue_noirq(PS2State *s, int b)
     }
 
     q->data[q->wptr] = b;
-    if (++q->wptr == PS2_QUEUE_SIZE)
+    if (++q->wptr == PS2_BUFFER_SIZE) {
         q->wptr = 0;
+    }
     q->count++;
 }
 
@@ -509,13 +513,15 @@ uint32_t ps2_read_data(PS2State *s)
            (needed for EMM386) */
         /* XXX: need a timer to do things correctly */
         index = q->rptr - 1;
-        if (index < 0)
-            index = PS2_QUEUE_SIZE - 1;
+        if (index < 0) {
+            index = PS2_BUFFER_SIZE - 1;
+        }
         val = q->data[index];
     } else {
         val = q->data[q->rptr];
-        if (++q->rptr == PS2_QUEUE_SIZE)
+        if (++q->rptr == PS2_BUFFER_SIZE) {
             q->rptr = 0;
+        }
         q->count--;
         /* reading deasserts IRQ */
         s->update_irq(s->update_arg, 0);
@@ -926,30 +932,17 @@ static void ps2_common_reset(PS2State *s)
 static void ps2_common_post_load(PS2State *s)
 {
     PS2Queue *q = &s->queue;
-    uint8_t i, size;
-    uint8_t tmp_data[PS2_QUEUE_SIZE];
 
-    /* set the useful data buffer queue size, < PS2_QUEUE_SIZE */
-    size = q->count;
+    /* set the useful data buffer queue size <= PS2_QUEUE_SIZE */
     if (q->count < 0) {
-        size = 0;
+        q->count = 0;
     } else if (q->count > PS2_QUEUE_SIZE) {
-        size = PS2_QUEUE_SIZE;
+        q->count = PS2_QUEUE_SIZE;
     }
 
-    /* move the queue elements to the start of data array */
-    for (i = 0; i < size; i++) {
-        if (q->rptr < 0 || q->rptr >= sizeof(q->data)) {
-            q->rptr = 0;
-        }
-        tmp_data[i] = q->data[q->rptr++];
-    }
-    memcpy(q->data, tmp_data, size);
-
-    /* reset rptr/wptr/count */
-    q->rptr = 0;
-    q->wptr = (size == PS2_QUEUE_SIZE) ? 0 : size;
-    q->count = size;
+    /* sanitize rptr and recalculate wptr */
+    q->rptr = q->rptr & (PS2_BUFFER_SIZE - 1);
+    q->wptr = (q->rptr + q->count) & (PS2_BUFFER_SIZE - 1);
 }
 
 static void ps2_kbd_reset(void *opaque)
@@ -1053,22 +1046,11 @@ static int ps2_kbd_post_load(void* opaque, int version_id)
     return 0;
 }
 
-static int ps2_kbd_pre_save(void *opaque)
-{
-    PS2KbdState *s = (PS2KbdState *)opaque;
-    PS2State *ps2 = &s->common;
-
-    ps2_common_post_load(ps2);
-
-    return 0;
-}
-
 static const VMStateDescription vmstate_ps2_keyboard = {
     .name = "ps2kbd",
     .version_id = 3,
     .minimum_version_id = 2,
     .post_load = ps2_kbd_post_load,
-    .pre_save = ps2_kbd_pre_save,
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT(common, PS2KbdState, 0, vmstate_ps2_common, PS2State),
         VMSTATE_INT32(scan_enabled, PS2KbdState),
@@ -1093,22 +1075,11 @@ static int ps2_mouse_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static int ps2_mouse_pre_save(void *opaque)
-{
-    PS2MouseState *s = (PS2MouseState *)opaque;
-    PS2State *ps2 = &s->common;
-
-    ps2_common_post_load(ps2);
-
-    return 0;
-}
-
 static const VMStateDescription vmstate_ps2_mouse = {
     .name = "ps2mouse",
     .version_id = 2,
     .minimum_version_id = 2,
     .post_load = ps2_mouse_post_load,
-    .pre_save = ps2_mouse_pre_save,
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT(common, PS2MouseState, 0, vmstate_ps2_common, PS2State),
         VMSTATE_UINT8(mouse_status, PS2MouseState),
