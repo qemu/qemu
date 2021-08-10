@@ -80,6 +80,7 @@
  */
 #define PS2_BUFFER_SIZE     256
 #define PS2_QUEUE_SIZE      16  /* Queue size required by PS/2 protocol */
+#define PS2_QUEUE_HEADROOM  8   /* Queue size for keyboard command replies */
 
 /* Bits for 'modifiers' field in PS2KbdState */
 #define MOD_CTRL_L  (1 << 0)
@@ -985,17 +986,27 @@ static void ps2_common_reset(PS2State *s)
 static void ps2_common_post_load(PS2State *s)
 {
     PS2Queue *q = &s->queue;
+    int ccount = 0;
 
-    /* set the useful data buffer queue size <= PS2_QUEUE_SIZE */
-    if (q->count < 0) {
-        q->count = 0;
-    } else if (q->count > PS2_QUEUE_SIZE) {
-        q->count = PS2_QUEUE_SIZE;
+    /* limit the number of queued command replies to PS2_QUEUE_HEADROOM */
+    if (q->cwptr != -1) {
+        ccount = (q->cwptr - q->rptr) & (PS2_BUFFER_SIZE - 1);
+        if (ccount > PS2_QUEUE_HEADROOM) {
+            ccount = PS2_QUEUE_HEADROOM;
+        }
     }
 
-    /* sanitize rptr and recalculate wptr */
+    /* limit the scancode queue size to PS2_QUEUE_SIZE */
+    if (q->count < ccount) {
+        q->count = ccount;
+    } else if (q->count > ccount + PS2_QUEUE_SIZE) {
+        q->count = ccount + PS2_QUEUE_SIZE;
+    }
+
+    /* sanitize rptr and recalculate wptr and cwptr */
     q->rptr = q->rptr & (PS2_BUFFER_SIZE - 1);
     q->wptr = (q->rptr + q->count) & (PS2_BUFFER_SIZE - 1);
+    q->cwptr = ccount ? (q->rptr + ccount) & (PS2_BUFFER_SIZE - 1) : -1;
 }
 
 static void ps2_kbd_reset(void *opaque)
@@ -1086,6 +1097,22 @@ static const VMStateDescription vmstate_ps2_keyboard_need_high_bit = {
     }
 };
 
+static bool ps2_keyboard_cqueue_needed(void *opaque)
+{
+    PS2KbdState *s = opaque;
+
+    return s->common.queue.cwptr != -1; /* the queue is mostly empty */
+}
+
+static const VMStateDescription vmstate_ps2_keyboard_cqueue = {
+    .name = "ps2kbd/command_reply_queue",
+    .needed = ps2_keyboard_cqueue_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT32(common.queue.cwptr, PS2KbdState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static int ps2_kbd_post_load(void* opaque, int version_id)
 {
     PS2KbdState *s = (PS2KbdState*)opaque;
@@ -1114,6 +1141,7 @@ static const VMStateDescription vmstate_ps2_keyboard = {
     .subsections = (const VMStateDescription*[]) {
         &vmstate_ps2_keyboard_ledstate,
         &vmstate_ps2_keyboard_need_high_bit,
+        &vmstate_ps2_keyboard_cqueue,
         NULL
     }
 };
