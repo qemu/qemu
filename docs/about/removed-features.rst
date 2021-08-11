@@ -513,6 +513,17 @@ running the old binaries, you can use older versions of QEMU.
 System emulator devices
 -----------------------
 
+``spapr-pci-vfio-host-bridge`` (removed in 2.12)
+'''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``spapr-pci-vfio-host-bridge`` device type has been replaced by the
+``spapr-pci-host-bridge`` device type.
+
+``ivshmem`` (removed in 4.0)
+''''''''''''''''''''''''''''
+
+Replaced by either the ``ivshmem-plain`` or ``ivshmem-doorbell``.
+
 ``ide-drive`` (removed in 6.0)
 ''''''''''''''''''''''''''''''
 
