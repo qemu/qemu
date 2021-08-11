@@ -356,6 +356,17 @@ Specify the properties for the object as top-level arguments instead.
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 
+``usb_add`` and ``usb_remove`` (removed in 2.12)
+''''''''''''''''''''''''''''''''''''''''''''''''
+
+Replaced by ``device_add`` and ``device_del`` (use ``device_add help`` for a
+list of available devices).
+
+``host_net_add`` and ``host_net_remove`` (removed in 2.12)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Replaced by ``netdev_add`` and ``netdev_del``.
+
 The ``hub_id`` parameter of ``hostfwd_add`` / ``hostfwd_remove`` (removed in 5.0)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
