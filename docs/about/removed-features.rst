@@ -473,6 +473,22 @@ Removed without replacement.
 System emulator machines
 ------------------------
 
+``s390-virtio`` (removed in 2.6)
+''''''''''''''''''''''''''''''''
+
+Use the ``s390-ccw-virtio`` machine instead.
+
+The m68k ``dummy`` machine (removed in 2.9)
+'''''''''''''''''''''''''''''''''''''''''''
+
+Use the ``none`` machine with the ``loader`` device instead.
+
+``xlnx-ep108`` (removed in 3.0)
+'''''''''''''''''''''''''''''''
+
+The EP108 was an early access development board that is no longer used.
+Use the ``xlnx-zcu102`` machine instead.
+
 ``spike_v1.9.1`` and ``spike_v1.10`` (removed in 5.1)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''
 
@@ -491,8 +507,8 @@ mips ``fulong2e`` machine alias (removed in 6.0)
 
 This machine has been renamed ``fuloong2e``.
 
-``pc-1.0``, ``pc-1.1``, ``pc-1.2`` and ``pc-1.3`` (removed in 6.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+``pc-0.10`` up to ``pc-1.3`` (removed in 4.0 up to 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 These machine types were very old and likely could not be used for live
 migration from old QEMU versions anymore. Use a newer machine type instead.
