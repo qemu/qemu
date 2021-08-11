@@ -6,8 +6,8 @@ subdir('qapi')
 
 if have_tools
   qsd_ss = qsd_ss.apply(config_host, strict: false)
-  executable('qemu-storage-daemon',
-             qsd_ss.sources(),
-             dependencies: qsd_ss.dependencies(),
-             install: true)
+  qsd = executable('qemu-storage-daemon',
+                   qsd_ss.sources(),
+                   dependencies: qsd_ss.dependencies(),
+                   install: true)
 endif
