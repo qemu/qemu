@@ -9,8 +9,43 @@ trouble after a recent upgrade.
 System emulator command line arguments
 --------------------------------------
 
-``-net ...,name=``\ *name* (removed in 5.1)
-'''''''''''''''''''''''''''''''''''''''''''
+``-hdachs`` (removed in 2.12)
+'''''''''''''''''''''''''''''
+
+The geometry defined by ``-hdachs c,h,s,t`` should now be specified via
+``-device ide-hd,drive=dr,cyls=c,heads=h,secs=s,bios-chs-trans=t``
+(together with ``-drive if=none,id=dr,...``).
+
+``-net channel`` (removed in 2.12)
+''''''''''''''''''''''''''''''''''
+
+This option has been replaced by ``-net user,guestfwd=...``.
+
+``-net dump`` (removed in 2.12)
+'''''''''''''''''''''''''''''''
+
+``-net dump[,vlan=n][,file=filename][,len=maxlen]`` has been replaced by
+``-object filter-dump,id=id,netdev=dev[,file=filename][,maxlen=maxlen]``.
+Note that the new syntax works with netdev IDs instead of the old "vlan" hubs.
+
+``-no-kvm-pit`` (removed in 2.12)
+'''''''''''''''''''''''''''''''''
+
+This was just a dummy option that has been ignored, since the in-kernel PIT
+cannot be disabled separately from the irqchip anymore. A similar effect
+(which also disables the KVM IOAPIC) can be obtained with
+``-M kernel_irqchip=split``.
+
+``-tdf`` (removed in 2.12)
+''''''''''''''''''''''''''
+
+There is no replacement, the ``-tdf`` option has just been ignored since the
+behaviour that could be changed by this option in qemu-kvm is now the default
+when using the KVM PIT. It still can be requested explicitly using
+``-global kvm-pit.lost_tick_policy=delay``.
+
+``-net ...,name=...`` (removed in 5.1)
+''''''''''''''''''''''''''''''''''''''
 
 The ``name`` parameter of the ``-net`` option was a synonym
 for the ``id`` parameter, which should now be used instead.
