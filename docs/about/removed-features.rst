@@ -44,6 +44,41 @@ behaviour that could be changed by this option in qemu-kvm is now the default
 when using the KVM PIT. It still can be requested explicitly using
 ``-global kvm-pit.lost_tick_policy=delay``.
 
+``-drive secs=s``, ``-drive heads=h`` & ``-drive cyls=c`` (removed in 3.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The drive geometry should now be specified via
+``-device ...,drive=dr,cyls=c,heads=h,secs=s`` (together with
+``-drive if=none,id=dr,...``).
+
+``-drive serial=``, ``-drive trans=`` & ``-drive addr=`` (removed in 3.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``-device ...,drive=dr,serial=r,bios-chs-trans=t,addr=a`` instead
+(together with ``-drive if=none,id=dr,...``).
+
+``-net ...,vlan=x`` (removed in 3.0)
+''''''''''''''''''''''''''''''''''''
+
+The term "vlan" was very confusing for most users in this context (it's about
+specifying a hub ID, not about IEEE 802.1Q or something similar), so this
+has been removed. To connect one NIC frontend with a network backend, either
+use ``-nic ...`` (e.g. for on-board NICs) or use ``-netdev ...,id=n`` together
+with ``-device ...,netdev=n`` (for full control over pluggable NICs). To
+connect multiple NICs or network backends via a hub device (which is what
+vlan did), use ``-nic hubport,hubid=x,...`` or
+``-netdev hubport,id=n,hubid=x,...`` (with ``-device ...,netdev=n``) instead.
+
+``-no-kvm-irqchip`` (removed in 3.0)
+''''''''''''''''''''''''''''''''''''
+
+Use ``-machine kernel_irqchip=off`` instead.
+
+``-no-kvm-pit-reinjection`` (removed in 3.0)
+''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``-global kvm-pit.lost_tick_policy=discard`` instead.
+
 ``-net ...,name=...`` (removed in 5.1)
 ''''''''''''''''''''''''''''''''''''''
 
