@@ -79,6 +79,73 @@ Use ``-machine kernel_irqchip=off`` instead.
 
 Use ``-global kvm-pit.lost_tick_policy=discard`` instead.
 
+``-balloon`` (removed in 3.1)
+'''''''''''''''''''''''''''''
+
+The ``-balloon virtio`` option has been replaced by ``-device virtio-balloon``.
+The ``-balloon none`` option was a no-op and has no replacement.
+
+``-bootp`` (removed in 3.1)
+'''''''''''''''''''''''''''
+
+The ``-bootp /some/file`` argument is replaced by either
+``-netdev user,id=x,bootp=/some/file`` (for pluggable NICs, accompanied with
+``-device ...,netdev=x``), or ``-nic user,bootp=/some/file`` (for on-board NICs).
+The new syntax allows different settings to be provided per NIC.
+
+``-redir`` (removed in 3.1)
+'''''''''''''''''''''''''''
+
+The ``-redir [tcp|udp]:hostport:[guestaddr]:guestport`` option is replaced
+by either ``-netdev
+user,id=x,hostfwd=[tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport``
+(for pluggable NICs, accompanied with ``-device ...,netdev=x``) or by the option
+``-nic user,hostfwd=[tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport``
+(for on-board NICs). The new syntax allows different settings to be provided
+per NIC.
+
+``-smb`` (removed in 3.1)
+'''''''''''''''''''''''''
+
+The ``-smb /some/dir`` argument is replaced by either
+``-netdev user,id=x,smb=/some/dir`` (for pluggable NICs, accompanied with
+``-device ...,netdev=x``), or ``-nic user,smb=/some/dir`` (for on-board NICs).
+The new syntax allows different settings to be provided per NIC.
+
+``-tftp`` (removed in 3.1)
+''''''''''''''''''''''''''
+
+The ``-tftp /some/dir`` argument is replaced by either
+``-netdev user,id=x,tftp=/some/dir`` (for pluggable NICs, accompanied with
+``-device ...,netdev=x``), or ``-nic user,tftp=/some/dir`` (for embedded NICs).
+The new syntax allows different settings to be provided per NIC.
+
+``-localtime`` (removed in 3.1)
+'''''''''''''''''''''''''''''''
+
+Replaced by ``-rtc base=localtime``.
+
+``-nodefconfig`` (removed in 3.1)
+'''''''''''''''''''''''''''''''''
+
+Use ``-no-user-config`` instead.
+
+``-rtc-td-hack`` (removed in 3.1)
+'''''''''''''''''''''''''''''''''
+
+Use ``-rtc driftfix=slew`` instead.
+
+``-startdate`` (removed in 3.1)
+'''''''''''''''''''''''''''''''
+
+Replaced by ``-rtc base=date``.
+
+``-vnc ...,tls=...``, ``-vnc ...,x509=...`` & ``-vnc ...,x509verify=...``
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The "tls-creds" option should be used instead to point to a "tls-creds-x509"
+object created using "-object".
+
 ``-net ...,name=...`` (removed in 5.1)
 ''''''''''''''''''''''''''''''''''''''
 
