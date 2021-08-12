@@ -77,6 +77,10 @@ struct ARMv7MState {
      * NS systick device if appropriate.
      */
     MemoryRegion systick_ns_mem;
+    /* Ditto, for the sysregs region provided by the NVIC */
+    MemoryRegion sysreg_ns_mem;
+    /* MR providing default PPB behaviour */
+    MemoryRegion defaultmem;
 
     /* Properties */
     char *cpu_type;

@@ -80,9 +80,6 @@ struct NVICState {
     int vectpending_prio; /* group prio of the exeception in vectpending */
 
     MemoryRegion sysregmem;
-    MemoryRegion sysreg_ns_mem;
-    MemoryRegion container;
-    MemoryRegion defaultmem;
 
     uint32_t num_irq;
     qemu_irq excpout;
