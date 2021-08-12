@@ -540,6 +540,24 @@ static FWCfgState *create_fw_cfg(const MachineState *mc)
     return fw_cfg;
 }
 
+/*
+ * Return the per-socket PLIC hart topology configuration string
+ * (caller must free with g_free())
+ */
+static char *plic_hart_config_string(int hart_count)
+{
+    g_autofree const char **vals = g_new(const char *, hart_count + 1);
+    int i;
+
+    for (i = 0; i < hart_count; i++) {
+        vals[i] = VIRT_PLIC_HART_CONFIG;
+    }
+    vals[i] = NULL;
+
+    /* g_strjoinv() obliges us to cast away const here */
+    return g_strjoinv(",", (char **)vals);
+}
+
 static void virt_machine_init(MachineState *machine)
 {
     const MemMapEntry *memmap = virt_memmap;
@@ -548,13 +566,12 @@ static void virt_machine_init(MachineState *machine)
     MemoryRegion *main_mem = g_new(MemoryRegion, 1);
     MemoryRegion *mask_rom = g_new(MemoryRegion, 1);
     char *plic_hart_config, *soc_name;
-    size_t plic_hart_config_len;
     target_ulong start_addr = memmap[VIRT_DRAM].base;
     target_ulong firmware_end_addr, kernel_start_addr;
     uint32_t fdt_load_addr;
     uint64_t kernel_entry;
     DeviceState *mmio_plic, *virtio_plic, *pcie_plic;
-    int i, j, base_hartid, hart_count;
+    int i, base_hartid, hart_count;
 
     /* Check socket count limit */
     if (VIRT_SOCKETS_MAX < riscv_socket_count(machine)) {
@@ -603,17 +620,7 @@ static void virt_machine_init(MachineState *machine)
             SIFIVE_CLINT_TIMEBASE_FREQ, true);
 
         /* Per-socket PLIC hart topology configuration string */
-        plic_hart_config_len =
-            (strlen(VIRT_PLIC_HART_CONFIG) + 1) * hart_count;
-        plic_hart_config = g_malloc0(plic_hart_config_len);
-        for (j = 0; j < hart_count; j++) {
-            if (j != 0) {
-                strncat(plic_hart_config, ",", plic_hart_config_len);
-            }
-            strncat(plic_hart_config, VIRT_PLIC_HART_CONFIG,
-                plic_hart_config_len);
-            plic_hart_config_len -= (strlen(VIRT_PLIC_HART_CONFIG) + 1);
-        }
+        plic_hart_config = plic_hart_config_string(hart_count);
 
         /* Per-socket PLIC */
         s->plic[i] = sifive_plic_create(
