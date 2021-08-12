@@ -29,6 +29,7 @@
 #include "hw/char/serial.h"
 #include "hw/arm/msf2-soc.h"
 #include "hw/misc/unimp.h"
+#include "hw/qdev-clock.h"
 #include "sysemu/sysemu.h"
 
 #define MSF2_TIMER_BASE       0x40004000
@@ -73,6 +74,8 @@ static void m2sxxx_soc_initfn(Object *obj)
     }
 
     object_initialize_child(obj, "emac", &s->emac, TYPE_MSS_EMAC);
+
+    s->m3clk = qdev_init_clock_in(DEVICE(obj), "m3clk", NULL, NULL, 0);
 }
 
 static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
@@ -83,6 +86,11 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     int i;
 
     MemoryRegion *system_memory = get_system_memory();
+
+    if (!clock_has_source(s->m3clk)) {
+        error_setg(errp, "m3clk must be wired up by the board code");
+        return;
+    }
 
     memory_region_init_rom(&s->nvm, OBJECT(dev_soc), "MSF2.eNVM", s->envm_size,
                            &error_fatal);
@@ -106,19 +114,14 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     qdev_prop_set_uint32(armv7m, "num-irq", 81);
     qdev_prop_set_string(armv7m, "cpu-type", s->cpu_type);
     qdev_prop_set_bit(armv7m, "enable-bitband", true);
+    qdev_connect_clock_in(armv7m, "cpuclk", s->m3clk);
     object_property_set_link(OBJECT(&s->armv7m), "memory",
                              OBJECT(get_system_memory()), &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), errp)) {
         return;
     }
 
-    if (!s->m3clk) {
-        error_setg(errp, "Invalid m3clk value");
-        error_append_hint(errp, "m3clk can not be zero\n");
-        return;
-    }
-
-    system_clock_scale = NANOSECONDS_PER_SECOND / s->m3clk;
+    system_clock_scale = clock_ticks_to_ns(s->m3clk, 1);
 
     for (i = 0; i < MSF2_NUM_UARTS; i++) {
         if (serial_hd(i)) {
@@ -129,8 +132,13 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     }
 
     dev = DEVICE(&s->timer);
-    /* APB0 clock is the timer input clock */
-    qdev_prop_set_uint32(dev, "clock-frequency", s->m3clk / s->apb0div);
+    /*
+     * APB0 clock is the timer input clock.
+     * TODO: ideally the MSF2 timer device should use a Clock rather than a
+     * clock-frequency integer property.
+     */
+    qdev_prop_set_uint32(dev, "clock-frequency",
+                         clock_get_hz(s->m3clk) / s->apb0div);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer), errp)) {
         return;
     }
@@ -207,8 +215,6 @@ static Property m2sxxx_soc_properties[] = {
     DEFINE_PROP_UINT64("eNVM-size", MSF2State, envm_size, MSF2_ENVM_MAX_SIZE),
     DEFINE_PROP_UINT64("eSRAM-size", MSF2State, esram_size,
                         MSF2_ESRAM_MAX_SIZE),
-    /* Libero GUI shows 100Mhz as default for clocks */
-    DEFINE_PROP_UINT32("m3clk", MSF2State, m3clk, 100 * 1000000),
     /* default divisors in Libero GUI */
     DEFINE_PROP_UINT8("apb0div", MSF2State, apb0div, 2),
     DEFINE_PROP_UINT8("apb1div", MSF2State, apb1div, 2),
