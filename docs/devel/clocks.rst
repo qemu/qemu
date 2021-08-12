@@ -260,6 +260,29 @@ clocks get the new clock period value: *Clock 2*, *Clock 3* and *Clock 4*.
 It is not possible to disconnect a clock or to change the clock connection
 after it is connected.
 
+Clock multiplier and divider settings
+-------------------------------------
+
+By default, when clocks are connected together, the child
+clocks run with the same period as their source (parent) clock.
+The Clock API supports a built-in period multiplier/divider
+mechanism so you can configure a clock to make its children
+run at a different period from its own. If you call the
+``clock_set_mul_div()`` function you can specify the clock's
+multiplier and divider values. The children of that clock
+will all run with a period of ``parent_period * multiplier / divider``.
+For instance, if the clock has a frequency of 8MHz and you set its
+multiplier to 2 and its divider to 3, the child clocks will run
+at 12MHz.
+
+You can change the multiplier and divider of a clock at runtime,
+so you can use this to model clock controller devices which
+have guest-programmable frequency multipliers or dividers.
+
+Note that ``clock_set_mul_div()`` does not automatically call
+``clock_propagate()``. If you make a runtime change to the
+multiplier or divider you must call clock_propagate() yourself.
+
 Unconnected input clocks
 ------------------------
 
