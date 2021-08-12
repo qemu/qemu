@@ -755,33 +755,6 @@ static void stellaris_sys_instance_init(Object *obj)
     s->sysclk = qdev_init_clock_out(DEVICE(s), "SYSCLK");
 }
 
-static DeviceState *stellaris_sys_init(uint32_t base, qemu_irq irq,
-                                       stellaris_board_info *board,
-                                       uint8_t *macaddr)
-{
-    DeviceState *dev = qdev_new(TYPE_STELLARIS_SYS);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-
-    /* Most devices come preprogrammed with a MAC address in the user data. */
-    qdev_prop_set_uint32(dev, "user0",
-                         macaddr[0] | (macaddr[1] << 8) | (macaddr[2] << 16));
-    qdev_prop_set_uint32(dev, "user1",
-                         macaddr[3] | (macaddr[4] << 8) | (macaddr[5] << 16));
-    qdev_prop_set_uint32(dev, "did0", board->did0);
-    qdev_prop_set_uint32(dev, "did1", board->did1);
-    qdev_prop_set_uint32(dev, "dc0", board->dc0);
-    qdev_prop_set_uint32(dev, "dc1", board->dc1);
-    qdev_prop_set_uint32(dev, "dc2", board->dc2);
-    qdev_prop_set_uint32(dev, "dc3", board->dc3);
-    qdev_prop_set_uint32(dev, "dc4", board->dc4);
-
-    sysbus_realize_and_unref(sbd, &error_fatal);
-    sysbus_mmio_map(sbd, 0, base);
-    sysbus_connect_irq(sbd, 0, irq);
-
-    return dev;
-}
-
 /* I2C controller.  */
 
 #define TYPE_STELLARIS_I2C "stellaris-i2c"
@@ -1349,6 +1322,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     DeviceState *ssys_dev;
     int i;
     int j;
+    uint8_t *macaddr;
 
     MemoryRegion *sram = g_new(MemoryRegion, 1);
     MemoryRegion *flash = g_new(MemoryRegion, 1);
@@ -1366,6 +1340,26 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
                            &error_fatal);
     memory_region_add_subregion(system_memory, 0x20000000, sram);
 
+    /*
+     * Create the system-registers object early, because we will
+     * need its sysclk output.
+     */
+    ssys_dev = qdev_new(TYPE_STELLARIS_SYS);
+    /* Most devices come preprogrammed with a MAC address in the user data. */
+    macaddr = nd_table[0].macaddr.a;
+    qdev_prop_set_uint32(ssys_dev, "user0",
+                         macaddr[0] | (macaddr[1] << 8) | (macaddr[2] << 16));
+    qdev_prop_set_uint32(ssys_dev, "user1",
+                         macaddr[3] | (macaddr[4] << 8) | (macaddr[5] << 16));
+    qdev_prop_set_uint32(ssys_dev, "did0", board->did0);
+    qdev_prop_set_uint32(ssys_dev, "did1", board->did1);
+    qdev_prop_set_uint32(ssys_dev, "dc0", board->dc0);
+    qdev_prop_set_uint32(ssys_dev, "dc1", board->dc1);
+    qdev_prop_set_uint32(ssys_dev, "dc2", board->dc2);
+    qdev_prop_set_uint32(ssys_dev, "dc3", board->dc3);
+    qdev_prop_set_uint32(ssys_dev, "dc4", board->dc4);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(ssys_dev), &error_fatal);
+
     nvic = qdev_new(TYPE_ARMV7M);
     qdev_prop_set_uint32(nvic, "num-irq", NUM_IRQ_LINES);
     qdev_prop_set_string(nvic, "cpu-type", ms->cpu_type);
@@ -1374,6 +1368,10 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
                              OBJECT(get_system_memory()), &error_abort);
     /* This will exit with an error if the user passed us a bad cpu_type */
     sysbus_realize_and_unref(SYS_BUS_DEVICE(nvic), &error_fatal);
+
+    /* Now we can wire up the IRQ and MMIO of the system registers */
+    sysbus_mmio_map(SYS_BUS_DEVICE(ssys_dev), 0, 0x400fe000);
+    sysbus_connect_irq(SYS_BUS_DEVICE(ssys_dev), 0, qdev_get_gpio_in(nvic, 28));
 
     if (board->dc1 & (1 << 16)) {
         dev = sysbus_create_varargs(TYPE_STELLARIS_ADC, 0x40038000,
@@ -1396,10 +1394,6 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
             qdev_connect_gpio_out(dev, 0, adc);
         }
     }
-
-    ssys_dev = stellaris_sys_init(0x400fe000, qdev_get_gpio_in(nvic, 28),
-                                  board, nd_table[0].macaddr.a);
-
 
     if (board->dc1 & (1 << 3)) { /* watchdog present */
         dev = qdev_new(TYPE_LUMINARY_WATCHDOG);
