@@ -833,7 +833,7 @@ static void machine_set_smp(Object *obj, Visitor *v, const char *name,
     }
 
     mc->smp_parse(ms, config, errp);
-    if (errp) {
+    if (*errp) {
         goto out_free;
     }
 
