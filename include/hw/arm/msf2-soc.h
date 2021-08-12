@@ -59,6 +59,7 @@ struct MSF2State {
     uint64_t esram_size;
 
     Clock *m3clk;
+    Clock *refclk;
     uint8_t apb0div;
     uint8_t apb1div;
 

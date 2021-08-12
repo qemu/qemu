@@ -76,6 +76,7 @@ static void m2sxxx_soc_initfn(Object *obj)
     object_initialize_child(obj, "emac", &s->emac, TYPE_MSS_EMAC);
 
     s->m3clk = qdev_init_clock_in(DEVICE(obj), "m3clk", NULL, NULL, 0);
+    s->refclk = qdev_init_clock_in(DEVICE(obj), "refclk", NULL, NULL, 0);
 }
 
 static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
@@ -91,6 +92,27 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
         error_setg(errp, "m3clk must be wired up by the board code");
         return;
     }
+
+    /*
+     * We use s->refclk internally and only define it with qdev_init_clock_in()
+     * so it is correctly parented and not leaked on an init/deinit; it is not
+     * intended as an externally exposed clock.
+     */
+    if (clock_has_source(s->refclk)) {
+        error_setg(errp, "refclk must not be wired up by the board code");
+        return;
+    }
+
+    /*
+     * TODO: ideally we should model the SoC SYSTICK_CR register at 0xe0042038,
+     * which allows the guest to program the divisor between the m3clk and
+     * the systick refclk to either /4, /8, /16 or /32, as well as setting
+     * the value the guest can read in the STCALIB register. Currently we
+     * implement the divisor as a fixed /32, which matches the reset value
+     * of SYSTICK_CR.
+     */
+    clock_set_mul_div(s->refclk, 32, 1);
+    clock_set_source(s->refclk, s->m3clk);
 
     memory_region_init_rom(&s->nvm, OBJECT(dev_soc), "MSF2.eNVM", s->envm_size,
                            &error_fatal);
@@ -115,6 +137,7 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     qdev_prop_set_string(armv7m, "cpu-type", s->cpu_type);
     qdev_prop_set_bit(armv7m, "enable-bitband", true);
     qdev_connect_clock_in(armv7m, "cpuclk", s->m3clk);
+    qdev_connect_clock_in(armv7m, "refclk", s->refclk);
     object_property_set_link(OBJECT(&s->armv7m), "memory",
                              OBJECT(get_system_memory()), &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), errp)) {
