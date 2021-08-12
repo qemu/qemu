@@ -995,6 +995,9 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         int j;
         char *gpioname;
 
+        qdev_connect_clock_in(cpudev, "cpuclk", s->mainclk);
+        /* The SSE subsystems do not wire up a systick refclk */
+
         qdev_prop_set_uint32(cpudev, "num-irq", s->exp_numirq + NUM_SSE_IRQS);
         /*
          * In real hardware the initial Secure VTOR is set from the INITSVTOR*
