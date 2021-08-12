@@ -525,19 +525,19 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
     return 0;
 }
 
-static inline void tcg_out_b(TCGContext *s, int cond, int32_t offset)
+static inline void tcg_out_b_imm(TCGContext *s, int cond, int32_t offset)
 {
     tcg_out32(s, (cond << 28) | 0x0a000000 |
                     (((offset - 8) >> 2) & 0x00ffffff));
 }
 
-static inline void tcg_out_bl(TCGContext *s, int cond, int32_t offset)
+static inline void tcg_out_bl_imm(TCGContext *s, int cond, int32_t offset)
 {
     tcg_out32(s, (cond << 28) | 0x0b000000 |
                     (((offset - 8) >> 2) & 0x00ffffff));
 }
 
-static inline void tcg_out_blx(TCGContext *s, int cond, int rn)
+static inline void tcg_out_blx_reg(TCGContext *s, int cond, int rn)
 {
     tcg_out32(s, (cond << 28) | 0x012fff30 | rn);
 }
@@ -568,13 +568,19 @@ static inline void tcg_out_mov_reg(TCGContext *s, int cond, int rd, int rm)
     }
 }
 
-static inline void tcg_out_bx(TCGContext *s, int cond, TCGReg rn)
+static void tcg_out_bx_reg(TCGContext *s, int cond, TCGReg rn)
 {
-    /* Unless the C portion of QEMU is compiled as thumb, we don't
-       actually need true BX semantics; merely a branch to an address
-       held in a register.  */
+    tcg_out32(s, (cond << 28) | 0x012fff10 | rn);
+}
+
+static void tcg_out_b_reg(TCGContext *s, int cond, TCGReg rn)
+{
+    /*
+     * Unless the C portion of QEMU is compiled as thumb, we don't need
+     * true BX semantics; merely a branch to an address held in a register.
+     */
     if (use_armv5t_instructions) {
-        tcg_out32(s, (cond << 28) | 0x012fff10 | rn);
+        tcg_out_bx_reg(s, cond, rn);
     } else {
         tcg_out_mov_reg(s, cond, TCG_REG_PC, rn);
     }
@@ -1215,7 +1221,7 @@ static void tcg_out_goto(TCGContext *s, int cond, const tcg_insn_unit *addr)
     ptrdiff_t disp = tcg_pcrel_diff(s, addr);
 
     if ((addri & 1) == 0 && disp - 8 < 0x01fffffd && disp - 8 > -0x01fffffd) {
-        tcg_out_b(s, cond, disp);
+        tcg_out_b_imm(s, cond, disp);
         return;
     }
     tcg_out_movi_pool(s, cond, TCG_REG_PC, addri);
@@ -1236,11 +1242,11 @@ static void tcg_out_call(TCGContext *s, const tcg_insn_unit *addr)
             }
             tcg_out_blx_imm(s, disp);
         } else {
-            tcg_out_bl(s, COND_AL, disp);
+            tcg_out_bl_imm(s, COND_AL, disp);
         }
     } else if (use_armv7_instructions) {
         tcg_out_movi32(s, COND_AL, TCG_REG_TMP, addri);
-        tcg_out_blx(s, COND_AL, TCG_REG_TMP);
+        tcg_out_blx_reg(s, COND_AL, TCG_REG_TMP);
     } else {
         /* ??? Know that movi_pool emits exactly 1 insn.  */
         tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R14, TCG_REG_PC, 0);
@@ -1254,7 +1260,7 @@ static inline void tcg_out_goto_label(TCGContext *s, int cond, TCGLabel *l)
         tcg_out_goto(s, cond, l->u.value_ptr);
     } else {
         tcg_out_reloc(s, s->code_ptr, R_ARM_PC24, l, 0);
-        tcg_out_b(s, cond, 0);
+        tcg_out_b_imm(s, cond, 0);
     }
 }
 
@@ -1823,7 +1829,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
     /* This a conditional BL only to load a pointer within this opcode into LR
        for the slow path.  We will not be using the value for a tail call.  */
     label_ptr = s->code_ptr;
-    tcg_out_bl(s, COND_NE, 0);
+    tcg_out_bl_imm(s, COND_NE, 0);
 
     tcg_out_qemu_ld_index(s, opc, datalo, datahi, addrlo, addend);
 
@@ -1929,7 +1935,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
 
     /* The conditional call must come last, as we're going to return here.  */
     label_ptr = s->code_ptr;
-    tcg_out_bl(s, COND_NE, 0);
+    tcg_out_bl_imm(s, COND_NE, 0);
 
     add_qemu_ldst_label(s, false, oi, datalo, datahi, addrlo, addrhi,
                         s->code_ptr, label_ptr);
@@ -1982,7 +1988,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
     case INDEX_op_goto_ptr:
-        tcg_out_bx(s, COND_AL, args[0]);
+        tcg_out_b_reg(s, COND_AL, args[0]);
         break;
     case INDEX_op_br:
         tcg_out_goto_label(s, COND_AL, arg_label(args[0]));
@@ -3066,7 +3072,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
 
-    tcg_out_bx(s, COND_AL, tcg_target_call_iarg_regs[1]);
+    tcg_out_b_reg(s, COND_AL, tcg_target_call_iarg_regs[1]);
 
     /*
      * Return path for goto_ptr. Set return value to 0, a-la exit_tb,
