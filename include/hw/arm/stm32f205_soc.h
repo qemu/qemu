@@ -63,6 +63,10 @@ struct STM32F205State {
     STM32F2XXSPIState spi[STM_NUM_SPIS];
 
     qemu_or_irq *adc_irqs;
+
+    MemoryRegion sram;
+    MemoryRegion flash;
+    MemoryRegion flash_alias;
 };
 
 #endif

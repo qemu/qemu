@@ -67,25 +67,22 @@ static void stm32f100_soc_realize(DeviceState *dev_soc, Error **errp)
     int i;
 
     MemoryRegion *system_memory = get_system_memory();
-    MemoryRegion *sram = g_new(MemoryRegion, 1);
-    MemoryRegion *flash = g_new(MemoryRegion, 1);
-    MemoryRegion *flash_alias = g_new(MemoryRegion, 1);
 
     /*
      * Init flash region
      * Flash starts at 0x08000000 and then is aliased to boot memory at 0x0
      */
-    memory_region_init_rom(flash, OBJECT(dev_soc), "STM32F100.flash",
+    memory_region_init_rom(&s->flash, OBJECT(dev_soc), "STM32F100.flash",
                            FLASH_SIZE, &error_fatal);
-    memory_region_init_alias(flash_alias, OBJECT(dev_soc),
-                             "STM32F100.flash.alias", flash, 0, FLASH_SIZE);
-    memory_region_add_subregion(system_memory, FLASH_BASE_ADDRESS, flash);
-    memory_region_add_subregion(system_memory, 0, flash_alias);
+    memory_region_init_alias(&s->flash_alias, OBJECT(dev_soc),
+                             "STM32F100.flash.alias", &s->flash, 0, FLASH_SIZE);
+    memory_region_add_subregion(system_memory, FLASH_BASE_ADDRESS, &s->flash);
+    memory_region_add_subregion(system_memory, 0, &s->flash_alias);
 
     /* Init SRAM region */
-    memory_region_init_ram(sram, NULL, "STM32F100.sram", SRAM_SIZE,
+    memory_region_init_ram(&s->sram, NULL, "STM32F100.sram", SRAM_SIZE,
                            &error_fatal);
-    memory_region_add_subregion(system_memory, SRAM_BASE_ADDRESS, sram);
+    memory_region_add_subregion(system_memory, SRAM_BASE_ADDRESS, &s->sram);
 
     /* Init ARMv7m */
     armv7m = DEVICE(&s->armv7m);
