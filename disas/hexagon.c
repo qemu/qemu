@@ -33,7 +33,7 @@ int print_insn_hexagon(bfd_vma memaddr, struct disassemble_info *info)
 {
     uint32_t words[PACKET_WORDS_MAX];
     bool found_end = false;
-    GString *buf = g_string_sized_new(PACKET_BUFFER_LEN);
+    GString *buf;
     int i, len;
 
     for (i = 0; i < PACKET_WORDS_MAX && !found_end; i++) {
@@ -57,6 +57,7 @@ int print_insn_hexagon(bfd_vma memaddr, struct disassemble_info *info)
         return PACKET_WORDS_MAX * sizeof(uint32_t);
     }
 
+    buf = g_string_sized_new(PACKET_BUFFER_LEN);
     len = disassemble_hexagon(words, i, memaddr, buf);
     (*info->fprintf_func)(info->stream, "%s", buf->str);
     g_string_free(buf, true);
