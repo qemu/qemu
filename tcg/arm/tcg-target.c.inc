@@ -1211,7 +1211,8 @@ static inline void tcg_out_st8(TCGContext *s, int cond,
         tcg_out_st8_12(s, cond, rd, rn, offset);
 }
 
-/* The _goto case is normally between TBs within the same code buffer, and
+/*
+ * The _goto case is normally between TBs within the same code buffer, and
  * with the code buffer limited to 16MB we wouldn't need the long case.
  * But we also use it for the tail-call to the qemu_ld/st helpers, which does.
  */
@@ -1219,38 +1220,56 @@ static void tcg_out_goto(TCGContext *s, int cond, const tcg_insn_unit *addr)
 {
     intptr_t addri = (intptr_t)addr;
     ptrdiff_t disp = tcg_pcrel_diff(s, addr);
+    bool arm_mode = !(addri & 1);
 
-    if ((addri & 1) == 0 && disp - 8 < 0x01fffffd && disp - 8 > -0x01fffffd) {
+    if (arm_mode && disp - 8 < 0x01fffffd && disp - 8 > -0x01fffffd) {
         tcg_out_b_imm(s, cond, disp);
         return;
     }
-    tcg_out_movi_pool(s, cond, TCG_REG_PC, addri);
+
+    /* LDR is interworking from v5t. */
+    if (arm_mode || use_armv5t_instructions) {
+        tcg_out_movi_pool(s, cond, TCG_REG_PC, addri);
+        return;
+    }
+
+    /* else v4t */
+    tcg_out_movi32(s, COND_AL, TCG_REG_TMP, addri);
+    tcg_out_bx_reg(s, COND_AL, TCG_REG_TMP);
 }
 
-/* The call case is mostly used for helpers - so it's not unreasonable
- * for them to be beyond branch range */
+/*
+ * The call case is mostly used for helpers - so it's not unreasonable
+ * for them to be beyond branch range.
+ */
 static void tcg_out_call(TCGContext *s, const tcg_insn_unit *addr)
 {
     intptr_t addri = (intptr_t)addr;
     ptrdiff_t disp = tcg_pcrel_diff(s, addr);
+    bool arm_mode = !(addri & 1);
 
     if (disp - 8 < 0x02000000 && disp - 8 >= -0x02000000) {
-        if (addri & 1) {
-            /* Use BLX if the target is in Thumb mode */
-            if (!use_armv5t_instructions) {
-                tcg_abort();
-            }
-            tcg_out_blx_imm(s, disp);
-        } else {
+        if (arm_mode) {
             tcg_out_bl_imm(s, COND_AL, disp);
+            return;
         }
-    } else if (use_armv7_instructions) {
+        if (use_armv5t_instructions) {
+            tcg_out_blx_imm(s, disp);
+            return;
+        }
+    }
+
+    if (use_armv5t_instructions) {
         tcg_out_movi32(s, COND_AL, TCG_REG_TMP, addri);
         tcg_out_blx_reg(s, COND_AL, TCG_REG_TMP);
-    } else {
+    } else if (arm_mode) {
         /* ??? Know that movi_pool emits exactly 1 insn.  */
-        tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R14, TCG_REG_PC, 0);
+        tcg_out_mov_reg(s, COND_AL, TCG_REG_R14, TCG_REG_PC);
         tcg_out_movi_pool(s, COND_AL, TCG_REG_PC, addri);
+    } else {
+        tcg_out_movi32(s, COND_AL, TCG_REG_TMP, addri);
+        tcg_out_mov_reg(s, COND_AL, TCG_REG_R14, TCG_REG_PC);
+        tcg_out_bx_reg(s, COND_AL, TCG_REG_TMP);
     }
 }
 
