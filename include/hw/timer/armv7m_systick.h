@@ -15,6 +15,7 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 #include "hw/ptimer.h"
+#include "hw/clock.h"
 
 #define TYPE_SYSTICK "armv7m_systick"
 
@@ -25,6 +26,10 @@ OBJECT_DECLARE_SIMPLE_TYPE(SysTickState, SYSTICK)
  *  + sysbus MMIO region 0 is the register interface (covering
  *    the registers which are mapped at address 0xE000E010)
  *  + sysbus IRQ 0 is the interrupt line to the NVIC
+ *  + Clock input "refclk" is the external reference clock
+ *    (used when SYST_CSR.CLKSOURCE == 0)
+ *  + Clock input "cpuclk" is the main CPU clock
+ *    (used when SYST_CSR.CLKSOURCE == 1)
  */
 
 struct SysTickState {
@@ -38,6 +43,8 @@ struct SysTickState {
     ptimer_state *ptimer;
     MemoryRegion iomem;
     qemu_irq irq;
+    Clock *refclk;
+    Clock *cpuclk;
 };
 
 /*
