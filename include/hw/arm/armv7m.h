@@ -15,6 +15,7 @@
 #include "hw/misc/armv7m_ras.h"
 #include "target/arm/idau.h"
 #include "qom/object.h"
+#include "hw/clock.h"
 
 #define TYPE_BITBAND "ARM-bitband-memory"
 OBJECT_DECLARE_SIMPLE_TYPE(BitBandState, BITBAND)
@@ -51,6 +52,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(ARMv7MState, ARMV7M)
  * + Property "vfp": enable VFP (forwarded to CPU object)
  * + Property "dsp": enable DSP (forwarded to CPU object)
  * + Property "enable-bitband": expose bitbanded IO
+ * + Clock input "refclk" is the external reference clock for the systick timers
+ * + Clock input "cpuclk" is the main CPU clock
  */
 struct ARMv7MState {
     /*< private >*/
@@ -81,6 +84,9 @@ struct ARMv7MState {
     MemoryRegion sysreg_ns_mem;
     /* MR providing default PPB behaviour */
     MemoryRegion defaultmem;
+
+    Clock *refclk;
+    Clock *cpuclk;
 
     /* Properties */
     char *cpu_type;

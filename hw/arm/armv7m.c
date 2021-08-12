@@ -14,12 +14,14 @@
 #include "hw/arm/boot.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-clock.h"
 #include "elf.h"
 #include "sysemu/reset.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
 #include "target/arm/idau.h"
+#include "migration/vmstate.h"
 
 /* Bitbanded IO.  Each word corresponds to a single bit.  */
 
@@ -265,6 +267,9 @@ static void armv7m_instance_init(Object *obj)
         object_initialize_child(obj, "bitband[*]", &s->bitband[i],
                                 TYPE_BITBAND);
     }
+
+    s->refclk = qdev_init_clock_in(DEVICE(obj), "refclk", NULL, NULL, 0);
+    s->cpuclk = qdev_init_clock_in(DEVICE(obj), "cpuclk", NULL, NULL, 0);
 }
 
 static void armv7m_realize(DeviceState *dev, Error **errp)
@@ -416,6 +421,8 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     }
 
     /* Create and map the systick devices */
+    qdev_connect_clock_in(DEVICE(&s->systick[M_REG_NS]), "refclk", s->refclk);
+    qdev_connect_clock_in(DEVICE(&s->systick[M_REG_NS]), "cpuclk", s->cpuclk);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->systick[M_REG_NS]), errp)) {
         return;
     }
@@ -431,6 +438,10 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
          */
         object_initialize_child(OBJECT(dev), "systick-reg-s",
                                 &s->systick[M_REG_S], TYPE_SYSTICK);
+        qdev_connect_clock_in(DEVICE(&s->systick[M_REG_S]), "refclk",
+                              s->refclk);
+        qdev_connect_clock_in(DEVICE(&s->systick[M_REG_S]), "cpuclk",
+                              s->cpuclk);
 
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->systick[M_REG_S]), errp)) {
             return;
@@ -504,11 +515,23 @@ static Property armv7m_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const VMStateDescription vmstate_armv7m = {
+    .name = "armv7m",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_CLOCK(refclk, SysTickState),
+        VMSTATE_CLOCK(cpuclk, SysTickState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void armv7m_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = armv7m_realize;
+    dc->vmsd = &vmstate_armv7m;
     device_class_set_props(dc, armv7m_properties);
 }
 
