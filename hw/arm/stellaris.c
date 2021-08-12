@@ -97,10 +97,11 @@ static void gptm_stop(gptm_state *s, int n)
 static void gptm_reload(gptm_state *s, int n, int reset)
 {
     int64_t tick;
-    if (reset)
+    if (reset) {
         tick = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    else
+    } else {
         tick = s->tick[n];
+    }
 
     if (s->config == 0) {
         /* 32-bit CountDown.  */
@@ -227,9 +228,11 @@ static void gptm_write(void *opaque, hwaddr offset,
     gptm_state *s = (gptm_state *)opaque;
     uint32_t oldval;
 
-    /* The timers should be disabled before changing the configuration.
-       We take advantage of this and defer everything until the timer
-       is enabled.  */
+    /*
+     * The timers should be disabled before changing the configuration.
+     * We take advantage of this and defer everything until the timer
+     * is enabled.
+     */
     switch (offset) {
     case 0x00: /* CFG */
         s->config = value;
