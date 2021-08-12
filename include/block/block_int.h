@@ -34,6 +34,7 @@
 #include "qemu/hbitmap.h"
 #include "block/snapshot.h"
 #include "qemu/throttle.h"
+#include "qemu/rcu.h"
 
 #define BLOCK_FLAG_LAZY_REFCOUNTS   8
 
@@ -839,6 +840,24 @@ struct BdrvChild {
     QLIST_ENTRY(BdrvChild) next_parent;
 };
 
+/*
+ * Allows bdrv_co_block_status() to cache one data region for a
+ * protocol node.
+ *
+ * @valid: Whether the cache is valid (should be accessed with atomic
+ *         functions so this can be reset by RCU readers)
+ * @data_start: Offset where we know (or strongly assume) is data
+ * @data_end: Offset where the data region ends (which is not necessarily
+ *            the start of a zeroed region)
+ */
+typedef struct BdrvBlockStatusCache {
+    struct rcu_head rcu;
+
+    bool valid;
+    int64_t data_start;
+    int64_t data_end;
+} BdrvBlockStatusCache;
+
 struct BlockDriverState {
     /* Protected by big QEMU lock or read-only after opening.  No special
      * locking needed during I/O...
@@ -1004,6 +1023,11 @@ struct BlockDriverState {
 
     /* BdrvChild links to this node may never be frozen */
     bool never_freeze;
+
+    /* Lock for block-status cache RCU writers */
+    CoMutex bsc_modify_lock;
+    /* Always non-NULL, but must only be dereferenced under an RCU read guard */
+    BdrvBlockStatusCache *block_status_cache;
 };
 
 struct BlockBackendRootState {
@@ -1428,5 +1452,31 @@ static inline BlockDriverState *bdrv_primary_bs(BlockDriverState *bs)
  * should call it.
  */
 void bdrv_drain_all_end_quiesce(BlockDriverState *bs);
+
+/**
+ * Check whether the given offset is in the cached block-status data
+ * region.
+ *
+ * If it is, and @pnum is not NULL, *pnum is set to
+ * `bsc.data_end - offset`, i.e. how many bytes, starting from
+ * @offset, are data (according to the cache).
+ * Otherwise, *pnum is not touched.
+ */
+bool bdrv_bsc_is_data(BlockDriverState *bs, int64_t offset, int64_t *pnum);
+
+/**
+ * If [offset, offset + bytes) overlaps with the currently cached
+ * block-status region, invalidate the cache.
+ *
+ * (To be used by I/O paths that cause data regions to be zero or
+ * holes.)
+ */
+void bdrv_bsc_invalidate_range(BlockDriverState *bs,
+                               int64_t offset, int64_t bytes);
+
+/**
+ * Mark the range [offset, offset + bytes) as a data region.
+ */
+void bdrv_bsc_fill(BlockDriverState *bs, int64_t offset, int64_t bytes);
 
 #endif /* BLOCK_INT_H */

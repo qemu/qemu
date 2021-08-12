@@ -49,6 +49,8 @@
 #include "qemu/timer.h"
 #include "qemu/cutils.h"
 #include "qemu/id.h"
+#include "qemu/range.h"
+#include "qemu/rcu.h"
 #include "block/coroutines.h"
 
 #ifdef CONFIG_BSD
@@ -400,6 +402,9 @@ BlockDriverState *bdrv_new(void)
     bs->aio_context = qemu_get_aio_context();
 
     qemu_co_queue_init(&bs->flush_queue);
+
+    qemu_co_mutex_init(&bs->bsc_modify_lock);
+    bs->block_status_cache = g_new0(BdrvBlockStatusCache, 1);
 
     for (i = 0; i < bdrv_drain_all_count; i++) {
         bdrv_drained_begin(bs);
@@ -4694,6 +4699,8 @@ static void bdrv_close(BlockDriverState *bs)
     bs->explicit_options = NULL;
     qobject_unref(bs->full_open_options);
     bs->full_open_options = NULL;
+    g_free(bs->block_status_cache);
+    bs->block_status_cache = NULL;
 
     bdrv_release_named_dirty_bitmaps(bs);
     assert(QLIST_EMPTY(&bs->dirty_bitmaps));
@@ -7683,4 +7690,77 @@ BlockDriverState *bdrv_skip_filters(BlockDriverState *bs)
 BlockDriverState *bdrv_backing_chain_next(BlockDriverState *bs)
 {
     return bdrv_skip_filters(bdrv_cow_bs(bdrv_skip_filters(bs)));
+}
+
+/**
+ * Check whether [offset, offset + bytes) overlaps with the cached
+ * block-status data region.
+ *
+ * If so, and @pnum is not NULL, set *pnum to `bsc.data_end - offset`,
+ * which is what bdrv_bsc_is_data()'s interface needs.
+ * Otherwise, *pnum is not touched.
+ */
+static bool bdrv_bsc_range_overlaps_locked(BlockDriverState *bs,
+                                           int64_t offset, int64_t bytes,
+                                           int64_t *pnum)
+{
+    BdrvBlockStatusCache *bsc = qatomic_rcu_read(&bs->block_status_cache);
+    bool overlaps;
+
+    overlaps =
+        qatomic_read(&bsc->valid) &&
+        ranges_overlap(offset, bytes, bsc->data_start,
+                       bsc->data_end - bsc->data_start);
+
+    if (overlaps && pnum) {
+        *pnum = bsc->data_end - offset;
+    }
+
+    return overlaps;
+}
+
+/**
+ * See block_int.h for this function's documentation.
+ */
+bool bdrv_bsc_is_data(BlockDriverState *bs, int64_t offset, int64_t *pnum)
+{
+    RCU_READ_LOCK_GUARD();
+
+    return bdrv_bsc_range_overlaps_locked(bs, offset, 1, pnum);
+}
+
+/**
+ * See block_int.h for this function's documentation.
+ */
+void bdrv_bsc_invalidate_range(BlockDriverState *bs,
+                               int64_t offset, int64_t bytes)
+{
+    RCU_READ_LOCK_GUARD();
+
+    if (bdrv_bsc_range_overlaps_locked(bs, offset, bytes, NULL)) {
+        qatomic_set(&bs->block_status_cache->valid, false);
+    }
+}
+
+/**
+ * See block_int.h for this function's documentation.
+ */
+void bdrv_bsc_fill(BlockDriverState *bs, int64_t offset, int64_t bytes)
+{
+    BdrvBlockStatusCache *new_bsc = g_new(BdrvBlockStatusCache, 1);
+    BdrvBlockStatusCache *old_bsc;
+
+    *new_bsc = (BdrvBlockStatusCache) {
+        .valid = true,
+        .data_start = offset,
+        .data_end = offset + bytes,
+    };
+
+    QEMU_LOCK_GUARD(&bs->bsc_modify_lock);
+
+    old_bsc = qatomic_rcu_read(&bs->block_status_cache);
+    qatomic_rcu_set(&bs->block_status_cache, new_bsc);
+    if (old_bsc) {
+        g_free_rcu(old_bsc, rcu);
+    }
 }

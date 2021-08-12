@@ -1883,6 +1883,9 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
         return -ENOTSUP;
     }
 
+    /* Invalidate the cached block-status data range if this write overlaps */
+    bdrv_bsc_invalidate_range(bs, offset, bytes);
+
     assert(alignment % bs->bl.request_alignment == 0);
     head = offset % alignment;
     tail = (offset + bytes) % alignment;
@@ -2447,9 +2450,65 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
     aligned_bytes = ROUND_UP(offset + bytes, align) - aligned_offset;
 
     if (bs->drv->bdrv_co_block_status) {
-        ret = bs->drv->bdrv_co_block_status(bs, want_zero, aligned_offset,
-                                            aligned_bytes, pnum, &local_map,
-                                            &local_file);
+        /*
+         * Use the block-status cache only for protocol nodes: Format
+         * drivers are generally quick to inquire the status, but protocol
+         * drivers often need to get information from outside of qemu, so
+         * we do not have control over the actual implementation.  There
+         * have been cases where inquiring the status took an unreasonably
+         * long time, and we can do nothing in qemu to fix it.
+         * This is especially problematic for images with large data areas,
+         * because finding the few holes in them and giving them special
+         * treatment does not gain much performance.  Therefore, we try to
+         * cache the last-identified data region.
+         *
+         * Second, limiting ourselves to protocol nodes allows us to assume
+         * the block status for data regions to be DATA | OFFSET_VALID, and
+         * that the host offset is the same as the guest offset.
+         *
+         * Note that it is possible that external writers zero parts of
+         * the cached regions without the cache being invalidated, and so
+         * we may report zeroes as data.  This is not catastrophic,
+         * however, because reporting zeroes as data is fine.
+         */
+        if (QLIST_EMPTY(&bs->children) &&
+            bdrv_bsc_is_data(bs, aligned_offset, pnum))
+        {
+            ret = BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID;
+            local_file = bs;
+            local_map = aligned_offset;
+        } else {
+            ret = bs->drv->bdrv_co_block_status(bs, want_zero, aligned_offset,
+                                                aligned_bytes, pnum, &local_map,
+                                                &local_file);
+
+            /*
+             * Note that checking QLIST_EMPTY(&bs->children) is also done when
+             * the cache is queried above.  Technically, we do not need to check
+             * it here; the worst that can happen is that we fill the cache for
+             * non-protocol nodes, and then it is never used.  However, filling
+             * the cache requires an RCU update, so double check here to avoid
+             * such an update if possible.
+             */
+            if (ret == (BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID) &&
+                QLIST_EMPTY(&bs->children))
+            {
+                /*
+                 * When a protocol driver reports BLOCK_OFFSET_VALID, the
+                 * returned local_map value must be the same as the offset we
+                 * have passed (aligned_offset), and local_bs must be the node
+                 * itself.
+                 * Assert this, because we follow this rule when reading from
+                 * the cache (see the `local_file = bs` and
+                 * `local_map = aligned_offset` assignments above), and the
+                 * result the cache delivers must be the same as the driver
+                 * would deliver.
+                 */
+                assert(local_file == bs);
+                assert(local_map == aligned_offset);
+                bdrv_bsc_fill(bs, aligned_offset, *pnum);
+            }
+        }
     } else {
         /* Default code for filters */
 
@@ -3001,6 +3060,9 @@ int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
     if (!bs->drv->bdrv_co_pdiscard && !bs->drv->bdrv_aio_pdiscard) {
         return 0;
     }
+
+    /* Invalidate the cached block-status data range if this discard overlaps */
+    bdrv_bsc_invalidate_range(bs, offset, bytes);
 
     /* Discard is advisory, but some devices track and coalesce
      * unaligned requests, so we must pass everything down rather than
