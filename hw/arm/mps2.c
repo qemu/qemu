@@ -86,6 +86,7 @@ struct MPS2MachineState {
     CMSDKAPBWatchdog watchdog;
     CMSDKAPBTimer timer[2];
     Clock *sysclk;
+    Clock *refclk;
 };
 
 #define TYPE_MPS2_MACHINE "mps2"
@@ -98,6 +99,15 @@ OBJECT_DECLARE_TYPE(MPS2MachineState, MPS2MachineClass, MPS2_MACHINE)
 
 /* Main SYSCLK frequency in Hz */
 #define SYSCLK_FRQ 25000000
+
+/*
+ * The Application Notes don't say anything about how the
+ * systick reference clock is configured. (Quite possibly
+ * they don't have one at all.) This 1MHz clock matches the
+ * pre-existing behaviour that used to be hardcoded in the
+ * armv7m_systick implementation.
+ */
+#define REFCLK_FRQ (1 * 1000 * 1000)
 
 /* Initialize the auxiliary RAM region @mr and map it into
  * the memory map at @base.
@@ -145,6 +155,9 @@ static void mps2_common_init(MachineState *machine)
     /* This clock doesn't need migration because it is fixed-frequency */
     mms->sysclk = clock_new(OBJECT(machine), "SYSCLK");
     clock_set_hz(mms->sysclk, SYSCLK_FRQ);
+
+    mms->refclk = clock_new(OBJECT(machine), "REFCLK");
+    clock_set_hz(mms->refclk, REFCLK_FRQ);
 
     /* The FPGA images have an odd combination of different RAMs,
      * because in hardware they are different implementations and
@@ -223,6 +236,8 @@ static void mps2_common_init(MachineState *machine)
     default:
         g_assert_not_reached();
     }
+    qdev_connect_clock_in(armv7m, "cpuclk", mms->sysclk);
+    qdev_connect_clock_in(armv7m, "refclk", mms->refclk);
     qdev_prop_set_string(armv7m, "cpu-type", machine->cpu_type);
     qdev_prop_set_bit(armv7m, "enable-bitband", true);
     object_property_set_link(OBJECT(&mms->armv7m), "memory",
