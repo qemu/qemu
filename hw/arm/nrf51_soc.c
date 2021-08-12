@@ -12,6 +12,7 @@
 #include "qapi/error.h"
 #include "hw/arm/boot.h"
 #include "hw/sysbus.h"
+#include "hw/qdev-clock.h"
 #include "hw/misc/unimp.h"
 #include "qemu/log.h"
 
@@ -65,6 +66,23 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
         error_setg(errp, "memory property was not set");
         return;
     }
+
+    /*
+     * HCLK on this SoC is fixed, so we set up sysclk ourselves and
+     * the board shouldn't connect it.
+     */
+    if (clock_has_source(s->sysclk)) {
+        error_setg(errp, "sysclk clock must not be wired up by the board code");
+        return;
+    }
+    /* This clock doesn't need migration because it is fixed-frequency */
+    clock_set_hz(s->sysclk, HCLK_FRQ);
+    qdev_connect_clock_in(DEVICE(&s->cpu), "cpuclk", s->sysclk);
+    /*
+     * This SoC has no systick device, so don't connect refclk.
+     * TODO: model the lack of systick (currently the armv7m object
+     * will always provide one).
+     */
 
     system_clock_scale = NANOSECONDS_PER_SECOND / HCLK_FRQ;
 
@@ -191,6 +209,8 @@ static void nrf51_soc_init(Object *obj)
                                 TYPE_NRF51_TIMER);
 
     }
+
+    s->sysclk = qdev_init_clock_in(DEVICE(s), "sysclk", NULL, NULL, 0);
 }
 
 static Property nrf51_soc_properties[] = {
