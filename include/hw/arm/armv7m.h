@@ -60,11 +60,23 @@ struct ARMv7MState {
     BitBandState bitband[ARMV7M_NUM_BITBANDS];
     ARMCPU *cpu;
     ARMv7MRAS ras;
+    SysTickState systick[M_REG_NUM_BANKS];
 
     /* MemoryRegion we pass to the CPU, with our devices layered on
      * top of the ones the board provides in board_memory.
      */
     MemoryRegion container;
+    /*
+     * MemoryRegion which passes the transaction to either the S or the
+     * NS systick device depending on the transaction attributes
+     */
+    MemoryRegion systickmem;
+    /*
+     * MemoryRegion which enforces the S/NS handling of the systick
+     * device NS alias region and passes the transaction to the
+     * NS systick device if appropriate.
+     */
+    MemoryRegion systick_ns_mem;
 
     /* Properties */
     char *cpu_type;

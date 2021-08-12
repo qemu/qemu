@@ -124,6 +124,85 @@ static const hwaddr bitband_output_addr[ARMV7M_NUM_BITBANDS] = {
     0x22000000, 0x42000000
 };
 
+static MemTxResult v7m_sysreg_ns_write(void *opaque, hwaddr addr,
+                                       uint64_t value, unsigned size,
+                                       MemTxAttrs attrs)
+{
+    MemoryRegion *mr = opaque;
+
+    if (attrs.secure) {
+        /* S accesses to the alias act like NS accesses to the real region */
+        attrs.secure = 0;
+        return memory_region_dispatch_write(mr, addr, value,
+                                            size_memop(size) | MO_TE, attrs);
+    } else {
+        /* NS attrs are RAZ/WI for privileged, and BusFault for user */
+        if (attrs.user) {
+            return MEMTX_ERROR;
+        }
+        return MEMTX_OK;
+    }
+}
+
+static MemTxResult v7m_sysreg_ns_read(void *opaque, hwaddr addr,
+                                      uint64_t *data, unsigned size,
+                                      MemTxAttrs attrs)
+{
+    MemoryRegion *mr = opaque;
+
+    if (attrs.secure) {
+        /* S accesses to the alias act like NS accesses to the real region */
+        attrs.secure = 0;
+        return memory_region_dispatch_read(mr, addr, data,
+                                           size_memop(size) | MO_TE, attrs);
+    } else {
+        /* NS attrs are RAZ/WI for privileged, and BusFault for user */
+        if (attrs.user) {
+            return MEMTX_ERROR;
+        }
+        *data = 0;
+        return MEMTX_OK;
+    }
+}
+
+static const MemoryRegionOps v7m_sysreg_ns_ops = {
+    .read_with_attrs = v7m_sysreg_ns_read,
+    .write_with_attrs = v7m_sysreg_ns_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
+static MemTxResult v7m_systick_write(void *opaque, hwaddr addr,
+                                     uint64_t value, unsigned size,
+                                     MemTxAttrs attrs)
+{
+    ARMv7MState *s = opaque;
+    MemoryRegion *mr;
+
+    /* Direct the access to the correct systick */
+    mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->systick[attrs.secure]), 0);
+    return memory_region_dispatch_write(mr, addr, value,
+                                        size_memop(size) | MO_TE, attrs);
+}
+
+static MemTxResult v7m_systick_read(void *opaque, hwaddr addr,
+                                    uint64_t *data, unsigned size,
+                                    MemTxAttrs attrs)
+{
+    ARMv7MState *s = opaque;
+    MemoryRegion *mr;
+
+    /* Direct the access to the correct systick */
+    mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->systick[attrs.secure]), 0);
+    return memory_region_dispatch_read(mr, addr, data, size_memop(size) | MO_TE,
+                                       attrs);
+}
+
+static const MemoryRegionOps v7m_systick_ops = {
+    .read_with_attrs = v7m_systick_read,
+    .write_with_attrs = v7m_systick_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
 static void armv7m_instance_init(Object *obj)
 {
     ARMv7MState *s = ARMV7M(obj);
@@ -136,6 +215,13 @@ static void armv7m_instance_init(Object *obj)
     object_initialize_child(obj, "nvic", &s->nvic, TYPE_NVIC);
     object_property_add_alias(obj, "num-irq",
                               OBJECT(&s->nvic), "num-irq");
+
+    object_initialize_child(obj, "systick-reg-ns", &s->systick[M_REG_NS],
+                            TYPE_SYSTICK);
+    /*
+     * We can't initialize the secure systick here, as we don't know
+     * yet if we need it.
+     */
 
     for (i = 0; i < ARRAY_SIZE(s->bitband); i++) {
         object_initialize_child(obj, "bitband[*]", &s->bitband[i],
@@ -230,6 +316,45 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
 
     memory_region_add_subregion(&s->container, 0xe0000000,
                                 sysbus_mmio_get_region(sbd, 0));
+
+    /* Create and map the systick devices */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->systick[M_REG_NS]), errp)) {
+        return;
+    }
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->systick[M_REG_NS]), 0,
+                       qdev_get_gpio_in_named(DEVICE(&s->nvic),
+                                              "systick-trigger", M_REG_NS));
+
+    if (arm_feature(&s->cpu->env, ARM_FEATURE_M_SECURITY)) {
+        /*
+         * We couldn't init the secure systick device in instance_init
+         * as we didn't know then if the CPU had the security extensions;
+         * so we have to do it here.
+         */
+        object_initialize_child(OBJECT(dev), "systick-reg-s",
+                                &s->systick[M_REG_S], TYPE_SYSTICK);
+
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->systick[M_REG_S]), errp)) {
+            return;
+        }
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->systick[M_REG_S]), 0,
+                           qdev_get_gpio_in_named(DEVICE(&s->nvic),
+                                                  "systick-trigger", M_REG_S));
+    }
+
+    memory_region_init_io(&s->systickmem, OBJECT(s),
+                          &v7m_systick_ops, s,
+                          "v7m_systick", 0xe0);
+
+    memory_region_add_subregion_overlap(&s->container, 0xe000e010,
+                                        &s->systickmem, 1);
+    if (arm_feature(&s->cpu->env, ARM_FEATURE_V8)) {
+        memory_region_init_io(&s->systick_ns_mem, OBJECT(s),
+                              &v7m_sysreg_ns_ops, &s->systickmem,
+                              "v7m_systick_ns", 0xe0);
+        memory_region_add_subregion_overlap(&s->container, 0xe002e010,
+                                            &s->systick_ns_mem, 1);
+    }
 
     /* If the CPU has RAS support, create the RAS register block */
     if (cpu_isar_feature(aa32_ras, s->cpu)) {

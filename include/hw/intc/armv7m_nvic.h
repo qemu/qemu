@@ -81,16 +81,12 @@ struct NVICState {
 
     MemoryRegion sysregmem;
     MemoryRegion sysreg_ns_mem;
-    MemoryRegion systickmem;
-    MemoryRegion systick_ns_mem;
     MemoryRegion container;
     MemoryRegion defaultmem;
 
     uint32_t num_irq;
     qemu_irq excpout;
     qemu_irq sysresetreq;
-
-    SysTickState systick[M_REG_NUM_BANKS];
 };
 
 #endif
