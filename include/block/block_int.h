@@ -348,6 +348,15 @@ struct BlockDriver {
      * clamped to bdrv_getlength() and aligned to request_alignment,
      * as well as non-NULL pnum, map, and file; in turn, the driver
      * must return an error or set pnum to an aligned non-zero value.
+     *
+     * Note that @bytes is just a hint on how big of a region the
+     * caller wants to inspect.  It is not a limit on *pnum.
+     * Implementations are free to return larger values of *pnum if
+     * doing so does not incur a performance penalty.
+     *
+     * block/io.c's bdrv_co_block_status() will utilize an unclamped
+     * *pnum value for the block-status cache on protocol nodes, prior
+     * to clamping *pnum for return to its caller.
      */
     int coroutine_fn (*bdrv_co_block_status)(BlockDriverState *bs,
         bool want_zero, int64_t offset, int64_t bytes, int64_t *pnum,
