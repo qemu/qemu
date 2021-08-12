@@ -30,8 +30,6 @@
 #define SYSCALIB_SKEW (1U << 30)
 #define SYSCALIB_TENMS ((1U << 24) - 1)
 
-int system_clock_scale;
-
 static void systick_set_period_from_clock(SysTickState *s)
 {
     /*

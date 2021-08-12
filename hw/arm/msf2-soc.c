@@ -144,8 +144,6 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
         return;
     }
 
-    system_clock_scale = clock_ticks_to_ns(s->m3clk, 1);
-
     for (i = 0; i < MSF2_NUM_UARTS; i++) {
         if (serial_hd(i)) {
             serial_mm_init(get_system_memory(), uart_addr[i], 2,

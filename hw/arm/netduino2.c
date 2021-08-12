@@ -39,8 +39,6 @@ static void netduino2_init(MachineState *machine)
     DeviceState *dev;
     Clock *sysclk;
 
-    system_clock_scale = NANOSECONDS_PER_SECOND / SYSCLK_FRQ;
-
     /* This clock doesn't need migration because it is fixed-frequency */
     sysclk = clock_new(OBJECT(machine), "SYSCLK");
     clock_set_hz(sysclk, SYSCLK_FRQ);

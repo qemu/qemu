@@ -263,17 +263,18 @@ static bool ssys_use_rcc2(ssys_state *s)
  */
 static void ssys_calculate_system_clock(ssys_state *s, bool propagate_clock)
 {
+    int period_ns;
     /*
      * SYSDIV field specifies divisor: 0 == /1, 1 == /2, etc.  Input
      * clock is 200MHz, which is a period of 5 ns. Dividing the clock
      * frequency by X is the same as multiplying the period by X.
      */
     if (ssys_use_rcc2(s)) {
-        system_clock_scale = 5 * (((s->rcc2 >> 23) & 0x3f) + 1);
+        period_ns = 5 * (((s->rcc2 >> 23) & 0x3f) + 1);
     } else {
-        system_clock_scale = 5 * (((s->rcc >> 23) & 0xf) + 1);
+        period_ns = 5 * (((s->rcc >> 23) & 0xf) + 1);
     }
-    clock_set_ns(s->sysclk, system_clock_scale);
+    clock_set_ns(s->sysclk, period_ns);
     if (propagate_clock) {
         clock_propagate(s->sysclk);
     }

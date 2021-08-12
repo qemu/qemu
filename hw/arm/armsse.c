@@ -689,17 +689,6 @@ static void armsse_forward_sec_resp_cfg(ARMSSE *s)
     qdev_connect_gpio_out(dev_splitter, 2, s->sec_resp_cfg_in);
 }
 
-static void armsse_mainclk_update(void *opaque, ClockEvent event)
-{
-    ARMSSE *s = ARM_SSE(opaque);
-
-    /*
-     * Set system_clock_scale from our Clock input; this is what
-     * controls the tick rate of the CPU SysTick timer.
-     */
-    system_clock_scale = clock_ticks_to_ns(s->mainclk, 1);
-}
-
 static void armsse_init(Object *obj)
 {
     ARMSSE *s = ARM_SSE(obj);
@@ -711,8 +700,7 @@ static void armsse_init(Object *obj)
     assert(info->sram_banks <= MAX_SRAM_BANKS);
     assert(info->num_cpus <= SSE_MAX_CPUS);
 
-    s->mainclk = qdev_init_clock_in(DEVICE(s), "MAINCLK",
-                                    armsse_mainclk_update, s, ClockUpdate);
+    s->mainclk = qdev_init_clock_in(DEVICE(s), "MAINCLK", NULL, NULL, 0);
     s->s32kclk = qdev_init_clock_in(DEVICE(s), "S32KCLK", NULL, NULL, 0);
 
     memory_region_init(&s->container, obj, "armsse-container", UINT64_MAX);
@@ -1654,9 +1642,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
      * devices in the ARMSSE.
      */
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->container);
-
-    /* Set initial system_clock_scale from MAINCLK */
-    armsse_mainclk_update(s, ClockUpdate);
 }
 
 static void armsse_idau_check(IDAUInterface *ii, uint32_t address,

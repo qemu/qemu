@@ -439,8 +439,6 @@ static void mps2_common_init(MachineState *machine)
                  qdev_get_gpio_in(armv7m,
                                   mmc->fpga_type == FPGA_AN511 ? 47 : 13));
 
-    system_clock_scale = NANOSECONDS_PER_SECOND / SYSCLK_FRQ;
-
     armv7m_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename,
                        0x400000);
 }
