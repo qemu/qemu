@@ -65,4 +65,3 @@ static void stm32vldiscovery_machine_init(MachineClass *mc)
 }
 
 DEFINE_MACHINE("stm32vldiscovery", stm32vldiscovery_machine_init)
-
