@@ -20,6 +20,13 @@
 
 OBJECT_DECLARE_SIMPLE_TYPE(SysTickState, SYSTICK)
 
+/*
+ * QEMU interface:
+ *  + sysbus MMIO region 0 is the register interface (covering
+ *    the registers which are mapped at address 0xE000E010)
+ *  + sysbus IRQ 0 is the interrupt line to the NVIC
+ */
+
 struct SysTickState {
     /*< private >*/
     SysBusDevice parent_obj;
