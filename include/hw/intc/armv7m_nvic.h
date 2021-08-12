@@ -83,7 +83,6 @@ struct NVICState {
     MemoryRegion sysreg_ns_mem;
     MemoryRegion systickmem;
     MemoryRegion systick_ns_mem;
-    MemoryRegion ras_mem;
     MemoryRegion container;
     MemoryRegion defaultmem;
 

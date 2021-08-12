@@ -231,6 +231,18 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&s->container, 0xe0000000,
                                 sysbus_mmio_get_region(sbd, 0));
 
+    /* If the CPU has RAS support, create the RAS register block */
+    if (cpu_isar_feature(aa32_ras, s->cpu)) {
+        object_initialize_child(OBJECT(dev), "armv7m-ras",
+                                &s->ras, TYPE_ARMV7M_RAS);
+        sbd = SYS_BUS_DEVICE(&s->ras);
+        if (!sysbus_realize(sbd, errp)) {
+            return;
+        }
+        memory_region_add_subregion_overlap(&s->container, 0xe0005000,
+                                            sysbus_mmio_get_region(sbd, 0), 1);
+    }
+
     for (i = 0; i < ARRAY_SIZE(s->bitband); i++) {
         if (s->enable_bitband) {
             Object *obj = OBJECT(&s->bitband[i]);

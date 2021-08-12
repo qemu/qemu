@@ -617,6 +617,7 @@ F: hw/intc/gic_internal.h
 F: hw/misc/a9scu.c
 F: hw/misc/arm11scu.c
 F: hw/misc/arm_l2x0.c
+F: hw/misc/armv7m_ras.c
 F: hw/timer/a9gtimer*
 F: hw/timer/arm*
 F: include/hw/arm/arm*.h
@@ -626,6 +627,7 @@ F: include/hw/misc/arm11scu.h
 F: include/hw/timer/a9gtimer.h
 F: include/hw/timer/arm_mptimer.h
 F: include/hw/timer/armv7m_systick.h
+F: include/hw/misc/armv7m_ras.h
 F: tests/qtest/test-arm-mptimer.c
 
 Exynos

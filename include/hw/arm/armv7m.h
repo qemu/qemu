@@ -12,6 +12,7 @@
 
 #include "hw/sysbus.h"
 #include "hw/intc/armv7m_nvic.h"
+#include "hw/misc/armv7m_ras.h"
 #include "target/arm/idau.h"
 #include "qom/object.h"
 
@@ -58,6 +59,7 @@ struct ARMv7MState {
     NVICState nvic;
     BitBandState bitband[ARMV7M_NUM_BITBANDS];
     ARMCPU *cpu;
+    ARMv7MRAS ras;
 
     /* MemoryRegion we pass to the CPU, with our devices layered on
      * top of the ones the board provides in board_memory.
