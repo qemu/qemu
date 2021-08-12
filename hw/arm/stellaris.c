@@ -1090,9 +1090,15 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     }
     for (i = 0; i < 4; i++) {
         if (board->dc2 & (0x10000 << i)) {
-            dev = sysbus_create_simple(TYPE_STELLARIS_GPTM,
-                                       0x40030000 + i * 0x1000,
-                                       qdev_get_gpio_in(nvic, timer_irq[i]));
+            SysBusDevice *sbd;
+
+            dev = qdev_new(TYPE_STELLARIS_GPTM);
+            sbd = SYS_BUS_DEVICE(dev);
+            qdev_connect_clock_in(dev, "clk",
+                                  qdev_get_clock_out(ssys_dev, "SYSCLK"));
+            sysbus_realize_and_unref(sbd, &error_fatal);
+            sysbus_mmio_map(sbd, 0, 0x40030000 + i * 0x1000);
+            sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(nvic, timer_irq[i]));
             /* TODO: This is incorrect, but we get away with it because
                the ADC output is only ever pulsed.  */
             qdev_connect_gpio_out(dev, 0, adc);

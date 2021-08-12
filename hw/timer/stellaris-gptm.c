@@ -10,9 +10,10 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/timer.h"
+#include "qapi/error.h"
 #include "migration/vmstate.h"
+#include "hw/qdev-clock.h"
 #include "hw/timer/stellaris-gptm.h"
-#include "hw/timer/armv7m_systick.h" /* Needed only for system_clock_scale */
 
 static void gptm_update_irq(gptm_state *s)
 {
@@ -39,7 +40,7 @@ static void gptm_reload(gptm_state *s, int n, int reset)
         /* 32-bit CountDown.  */
         uint32_t count;
         count = s->load[0] | (s->load[1] << 16);
-        tick += (int64_t)count * system_clock_scale;
+        tick += clock_ticks_to_ns(s->clk, count);
     } else if (s->config == 1) {
         /* 32-bit RTC.  1Hz tick.  */
         tick += NANOSECONDS_PER_SECOND;
@@ -247,8 +248,8 @@ static const MemoryRegionOps gptm_ops = {
 
 static const VMStateDescription vmstate_stellaris_gptm = {
     .name = "stellaris_gptm",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(config, gptm_state),
         VMSTATE_UINT32_ARRAY(mode, gptm_state, 2),
@@ -263,6 +264,7 @@ static const VMStateDescription vmstate_stellaris_gptm = {
         VMSTATE_UINT32(rtc, gptm_state),
         VMSTATE_INT64_ARRAY(tick, gptm_state, 2),
         VMSTATE_TIMER_PTR_ARRAY(timer, gptm_state, 2),
+        VMSTATE_CLOCK(clk, gptm_state),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -281,11 +283,27 @@ static void stellaris_gptm_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 
     s->opaque[0] = s->opaque[1] = s;
+
+    /*
+     * TODO: in an ideal world we would model the effects of changing
+     * the input clock frequency while the countdown timer is active.
+     * The best way to do this would be to convert the device to use
+     * ptimer instead of hand-rolling its own timer. This would also
+     * make it easy to implement reading the current count from the
+     * TAR and TBR registers.
+     */
+    s->clk = qdev_init_clock_in(dev, "clk", NULL, NULL, 0);
 }
 
 static void stellaris_gptm_realize(DeviceState *dev, Error **errp)
 {
     gptm_state *s = STELLARIS_GPTM(dev);
+
+    if (!clock_has_source(s->clk)) {
+        error_setg(errp, "stellaris-gptm: clk must be connected");
+        return;
+    }
+
     s->timer[0] = timer_new_ns(QEMU_CLOCK_VIRTUAL, gptm_tick, &s->opaque[0]);
     s->timer[1] = timer_new_ns(QEMU_CLOCK_VIRTUAL, gptm_tick, &s->opaque[1]);
 }

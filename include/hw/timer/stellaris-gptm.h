@@ -13,6 +13,7 @@
 #include "qom/object.h"
 #include "hw/sysbus.h"
 #include "hw/irq.h"
+#include "hw/clock.h"
 
 #define TYPE_STELLARIS_GPTM "stellaris-gptm"
 OBJECT_DECLARE_SIMPLE_TYPE(gptm_state, STELLARIS_GPTM)
@@ -22,6 +23,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(gptm_state, STELLARIS_GPTM)
  *  + sysbus MMIO region 0: register bank
  *  + sysbus IRQ 0: timer interrupt
  *  + unnamed GPIO output 0: trigger output for the ADC
+ *  + Clock input "clk": the 32-bit countdown timer runs at this speed
  */
 struct gptm_state {
     SysBusDevice parent_obj;
@@ -43,6 +45,7 @@ struct gptm_state {
     /* The timers have an alternate output used to trigger the ADC.  */
     qemu_irq trigger;
     qemu_irq irq;
+    Clock *clk;
 };
 
 #endif
