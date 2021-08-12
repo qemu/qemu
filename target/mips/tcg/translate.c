@@ -1249,12 +1249,6 @@ TCGv_i64 fpu_f64[32];
     tcg_temp_free_i32(helper_tmp);                                \
     } while (0)
 
-#define gen_helper_0e3i(name, arg1, arg2, arg3, arg4) do {        \
-    TCGv_i32 helper_tmp = tcg_const_i32(arg4);                    \
-    gen_helper_##name(cpu_env, arg1, arg2, arg3, helper_tmp);     \
-    tcg_temp_free_i32(helper_tmp);                                \
-    } while (0)
-
 #define DISAS_STOP       DISAS_TARGET_0
 #define DISAS_EXIT       DISAS_TARGET_1
 
