@@ -1451,6 +1451,9 @@ static int64_t get_file_align(int fd)
         path = g_strdup_printf("/sys/dev/char/%d:%d",
                     major(st.st_rdev), minor(st.st_rdev));
         rpath = realpath(path, NULL);
+        if (!rpath) {
+            return -errno;
+        }
 
         rc = daxctl_new(&ctx);
         if (rc) {
