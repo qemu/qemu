@@ -65,6 +65,10 @@ struct MSF2State {
     MSSTimerState timer;
     MSSSpiState spi[MSF2_NUM_SPIS];
     MSF2EmacState emac;
+
+    MemoryRegion nvm;
+    MemoryRegion nvm_alias;
+    MemoryRegion sram;
 };
 
 #endif
