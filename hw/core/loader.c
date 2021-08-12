@@ -555,24 +555,35 @@ ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src, size_t srclen)
 
     /* skip header */
     i = 10;
+    if (srclen < 4) {
+        goto toosmall;
+    }
     flags = src[3];
     if (src[2] != DEFLATED || (flags & RESERVED) != 0) {
         puts ("Error: Bad gzipped data\n");
         return -1;
     }
-    if ((flags & EXTRA_FIELD) != 0)
+    if ((flags & EXTRA_FIELD) != 0) {
+        if (srclen < 12) {
+            goto toosmall;
+        }
         i = 12 + src[10] + (src[11] << 8);
-    if ((flags & ORIG_NAME) != 0)
-        while (src[i++] != 0)
-            ;
-    if ((flags & COMMENT) != 0)
-        while (src[i++] != 0)
-            ;
-    if ((flags & HEAD_CRC) != 0)
+    }
+    if ((flags & ORIG_NAME) != 0) {
+        while (i < srclen && src[i++] != 0) {
+            /* do nothing */
+        }
+    }
+    if ((flags & COMMENT) != 0) {
+        while (i < srclen && src[i++] != 0) {
+            /* do nothing */
+        }
+    }
+    if ((flags & HEAD_CRC) != 0) {
         i += 2;
+    }
     if (i >= srclen) {
-        puts ("Error: gunzip out of data in header\n");
-        return -1;
+        goto toosmall;
     }
 
     s.zalloc = zalloc;
@@ -596,6 +607,10 @@ ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src, size_t srclen)
     inflateEnd(&s);
 
     return dstbytes;
+
+toosmall:
+    puts("Error: gunzip out of data in header\n");
+    return -1;
 }
 
 /* Load a U-Boot image.  */
