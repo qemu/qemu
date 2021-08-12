@@ -22,6 +22,7 @@ typedef struct VhostVDPAHostNotifier {
 typedef struct vhost_vdpa {
     int device_fd;
     uint32_t msg_type;
+    bool iotlb_batch_begin_sent;
     MemoryListener listener;
     struct vhost_dev *dev;
     VhostVDPAHostNotifier notifier[VIRTIO_QUEUE_MAX];
