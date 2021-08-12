@@ -18,25 +18,30 @@
 #include "qemu/timer.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qapi/error.h"
 #include "trace.h"
-
-/* qemu timers run at 1GHz.   We want something closer to 1MHz.  */
-#define SYSTICK_SCALE 1000ULL
 
 #define SYSTICK_ENABLE    (1 << 0)
 #define SYSTICK_TICKINT   (1 << 1)
 #define SYSTICK_CLKSOURCE (1 << 2)
 #define SYSTICK_COUNTFLAG (1 << 16)
 
+#define SYSCALIB_NOREF (1U << 31)
+#define SYSCALIB_SKEW (1U << 30)
+#define SYSCALIB_TENMS ((1U << 24) - 1)
+
 int system_clock_scale;
 
-/* Conversion factor from qemu timer to SysTick frequencies.  */
-static inline int64_t systick_scale(SysTickState *s)
+static void systick_set_period_from_clock(SysTickState *s)
 {
+    /*
+     * Set the ptimer period from whichever clock is selected.
+     * Must be called from within a ptimer transaction block.
+     */
     if (s->control & SYSTICK_CLKSOURCE) {
-        return system_clock_scale;
+        ptimer_set_period_from_clock(s->ptimer, s->cpuclk, 1);
     } else {
-        return 1000;
+        ptimer_set_period_from_clock(s->ptimer, s->refclk, 1);
     }
 }
 
@@ -83,7 +88,28 @@ static MemTxResult systick_read(void *opaque, hwaddr addr, uint64_t *data,
         val = ptimer_get_count(s->ptimer);
         break;
     case 0xc: /* SysTick Calibration Value.  */
-        val = 10000;
+        /*
+         * In real hardware it is possible to make this register report
+         * a different value from what the reference clock is actually
+         * running at. We don't model that (which usually happens due
+         * to integration errors in the real hardware) and instead always
+         * report the theoretical correct value as described in the
+         * knowledgebase article at
+         * https://developer.arm.com/documentation/ka001325/latest
+         * If necessary, we could implement an extra QOM property on this
+         * device to force the STCALIB value to something different from
+         * the "correct" value.
+         */
+        if (!clock_has_source(s->refclk)) {
+            val = SYSCALIB_NOREF;
+            break;
+        }
+        val = clock_ns_to_ticks(s->refclk, 10 * SCALE_MS) - 1;
+        val &= SYSCALIB_TENMS;
+        if (clock_ticks_to_ns(s->refclk, val + 1) != 10 * SCALE_MS) {
+            /* report that tick count does not yield exactly 10ms */
+            val |= SYSCALIB_SKEW;
+        }
         break;
     default:
         val = 0;
@@ -115,6 +141,11 @@ static MemTxResult systick_write(void *opaque, hwaddr addr,
     {
         uint32_t oldval;
 
+        if (!clock_has_source(s->refclk)) {
+            /* This bit is always 1 if there is no external refclk */
+            value |= SYSTICK_CLKSOURCE;
+        }
+
         ptimer_transaction_begin(s->ptimer);
         oldval = s->control;
         s->control &= 0xfffffff8;
@@ -122,19 +153,14 @@ static MemTxResult systick_write(void *opaque, hwaddr addr,
 
         if ((oldval ^ value) & SYSTICK_ENABLE) {
             if (value & SYSTICK_ENABLE) {
-                /*
-                 * Always reload the period in case board code has
-                 * changed system_clock_scale. If we ever replace that
-                 * global with a more sensible API then we might be able
-                 * to set the period only when it actually changes.
-                 */
-                ptimer_set_period(s->ptimer, systick_scale(s));
                 ptimer_run(s->ptimer, 0);
             } else {
                 ptimer_stop(s->ptimer);
             }
-        } else if ((oldval ^ value) & SYSTICK_CLKSOURCE) {
-            ptimer_set_period(s->ptimer, systick_scale(s));
+        }
+
+        if ((oldval ^ value) & SYSTICK_CLKSOURCE) {
+            systick_set_period_from_clock(s);
         }
         ptimer_transaction_commit(s->ptimer);
         break;
@@ -177,20 +203,42 @@ static void systick_reset(DeviceState *dev)
 {
     SysTickState *s = SYSTICK(dev);
 
-    /*
-     * Forgetting to set system_clock_scale is always a board code
-     * bug. We can't check this earlier because for some boards
-     * (like stellaris) it is not yet configured at the point where
-     * the systick device is realized.
-     */
-    assert(system_clock_scale != 0);
-
     ptimer_transaction_begin(s->ptimer);
     s->control = 0;
+    if (!clock_has_source(s->refclk)) {
+        /* This bit is always 1 if there is no external refclk */
+        s->control |= SYSTICK_CLKSOURCE;
+    }
     ptimer_stop(s->ptimer);
     ptimer_set_count(s->ptimer, 0);
     ptimer_set_limit(s->ptimer, 0, 0);
-    ptimer_set_period(s->ptimer, systick_scale(s));
+    systick_set_period_from_clock(s);
+    ptimer_transaction_commit(s->ptimer);
+}
+
+static void systick_cpuclk_update(void *opaque, ClockEvent event)
+{
+    SysTickState *s = SYSTICK(opaque);
+
+    if (!(s->control & SYSTICK_CLKSOURCE)) {
+        /* currently using refclk, we can ignore cpuclk changes */
+    }
+
+    ptimer_transaction_begin(s->ptimer);
+    ptimer_set_period_from_clock(s->ptimer, s->cpuclk, 1);
+    ptimer_transaction_commit(s->ptimer);
+}
+
+static void systick_refclk_update(void *opaque, ClockEvent event)
+{
+    SysTickState *s = SYSTICK(opaque);
+
+    if (s->control & SYSTICK_CLKSOURCE) {
+        /* currently using cpuclk, we can ignore refclk changes */
+    }
+
+    ptimer_transaction_begin(s->ptimer);
+    ptimer_set_period_from_clock(s->ptimer, s->refclk, 1);
     ptimer_transaction_commit(s->ptimer);
 }
 
@@ -203,8 +251,10 @@ static void systick_instance_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
 
-    s->refclk = qdev_init_clock_in(DEVICE(obj), "refclk", NULL, NULL, 0);
-    s->cpuclk = qdev_init_clock_in(DEVICE(obj), "cpuclk", NULL, NULL, 0);
+    s->refclk = qdev_init_clock_in(DEVICE(obj), "refclk",
+                                   systick_refclk_update, s, ClockUpdate);
+    s->cpuclk = qdev_init_clock_in(DEVICE(obj), "cpuclk",
+                                   systick_cpuclk_update, s, ClockUpdate);
 }
 
 static void systick_realize(DeviceState *dev, Error **errp)
@@ -215,6 +265,12 @@ static void systick_realize(DeviceState *dev, Error **errp)
                             PTIMER_POLICY_NO_COUNTER_ROUND_DOWN |
                             PTIMER_POLICY_NO_IMMEDIATE_RELOAD |
                             PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT);
+
+    if (!clock_has_source(s->cpuclk)) {
+        error_setg(errp, "systick: cpuclk must be connected");
+        return;
+    }
+    /* It's OK not to connect the refclk */
 }
 
 static const VMStateDescription vmstate_systick = {
