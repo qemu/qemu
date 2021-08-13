@@ -46,6 +46,7 @@ typedef void MVEGenVIWDUPFn(TCGv_i32, TCGv_ptr, TCGv_ptr, TCGv_i32, TCGv_i32, TC
 typedef void MVEGenCmpFn(TCGv_ptr, TCGv_ptr, TCGv_ptr);
 typedef void MVEGenScalarCmpFn(TCGv_ptr, TCGv_ptr, TCGv_i32);
 typedef void MVEGenVABAVFn(TCGv_i32, TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i32);
+typedef void MVEGenDualAccOpFn(TCGv_i32, TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i32);
 
 /* Return the offset of a Qn register (same semantics as aa32_vfp_qreg()) */
 static inline long mve_qreg_offset(unsigned reg)
@@ -763,6 +764,69 @@ static bool trans_VRMLSLDAVH(DisasContext *s, arg_vmlaldav *a)
         gen_helper_mve_vrmlsldavhsw, gen_helper_mve_vrmlsldavhxsw,
     };
     return do_long_dual_acc(s, a, fns[a->x]);
+}
+
+static bool do_dual_acc(DisasContext *s, arg_vmladav *a, MVEGenDualAccOpFn *fn)
+{
+    TCGv_ptr qn, qm;
+    TCGv_i32 rda;
+
+    if (!dc_isar_feature(aa32_mve, s) ||
+        !mve_check_qreg_bank(s, a->qn) ||
+        !fn) {
+        return false;
+    }
+    if (!mve_eci_check(s) || !vfp_access_check(s)) {
+        return true;
+    }
+
+    qn = mve_qreg_ptr(a->qn);
+    qm = mve_qreg_ptr(a->qm);
+
+    /*
+     * This insn is subject to beat-wise execution. Partial execution
+     * of an A=0 (no-accumulate) insn which does not execute the first
+     * beat must start with the current rda value, not 0.
+     */
+    if (a->a || mve_skip_first_beat(s)) {
+        rda = load_reg(s, a->rda);
+    } else {
+        rda = tcg_const_i32(0);
+    }
+
+    fn(rda, cpu_env, qn, qm, rda);
+    store_reg(s, a->rda, rda);
+    tcg_temp_free_ptr(qn);
+    tcg_temp_free_ptr(qm);
+
+    mve_update_eci(s);
+    return true;
+}
+
+#define DO_DUAL_ACC(INSN, FN)                                           \
+    static bool trans_##INSN(DisasContext *s, arg_vmladav *a)           \
+    {                                                                   \
+        static MVEGenDualAccOpFn * const fns[4][2] = {                  \
+            { gen_helper_mve_##FN##b, gen_helper_mve_##FN##xb },        \
+            { gen_helper_mve_##FN##h, gen_helper_mve_##FN##xh },        \
+            { gen_helper_mve_##FN##w, gen_helper_mve_##FN##xw },        \
+            { NULL, NULL },                                             \
+        };                                                              \
+        return do_dual_acc(s, a, fns[a->size][a->x]);                   \
+    }
+
+DO_DUAL_ACC(VMLADAV_S, vmladavs)
+DO_DUAL_ACC(VMLSDAV, vmlsdav)
+
+static bool trans_VMLADAV_U(DisasContext *s, arg_vmladav *a)
+{
+    static MVEGenDualAccOpFn * const fns[4][2] = {
+        { gen_helper_mve_vmladavub, NULL },
+        { gen_helper_mve_vmladavuh, NULL },
+        { gen_helper_mve_vmladavuw, NULL },
+        { NULL, NULL },
+    };
+    return do_dual_acc(s, a, fns[a->size][a->x]);
 }
 
 static void gen_vpst(DisasContext *s, uint32_t mask)
