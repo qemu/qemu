@@ -251,7 +251,7 @@ static void test_time(void)
 static int server_socket(void)
 {
     int val, fd;
-    struct sockaddr_in sockaddr;
+    struct sockaddr_in sockaddr = {};
 
     /* server socket */
     fd = chk_error(socket(PF_INET, SOCK_STREAM, 0));
@@ -271,7 +271,7 @@ static int server_socket(void)
 static int client_socket(uint16_t port)
 {
     int fd;
-    struct sockaddr_in sockaddr;
+    struct sockaddr_in sockaddr = {};
 
     /* server socket */
     fd = chk_error(socket(PF_INET, SOCK_STREAM, 0));
