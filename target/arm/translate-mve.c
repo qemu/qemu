@@ -1507,3 +1507,88 @@ static bool do_vabav(DisasContext *s, arg_vabav *a, MVEGenVABAVFn *fn)
 
 DO_VABAV(VABAV_S, vabavs)
 DO_VABAV(VABAV_U, vabavu)
+
+static bool trans_VMOV_to_2gp(DisasContext *s, arg_VMOV_to_2gp *a)
+{
+    /*
+     * VMOV two 32-bit vector lanes to two general-purpose registers.
+     * This insn is not predicated but it is subject to beat-wise
+     * execution if it is not in an IT block. For us this means
+     * only that if PSR.ECI says we should not be executing the beat
+     * corresponding to the lane of the vector register being accessed
+     * then we should skip perfoming the move, and that we need to do
+     * the usual check for bad ECI state and advance of ECI state.
+     * (If PSR.ECI is non-zero then we cannot be in an IT block.)
+     */
+    TCGv_i32 tmp;
+    int vd;
+
+    if (!dc_isar_feature(aa32_mve, s) || !mve_check_qreg_bank(s, a->qd) ||
+        a->rt == 13 || a->rt == 15 || a->rt2 == 13 || a->rt2 == 15 ||
+        a->rt == a->rt2) {
+        /* Rt/Rt2 cases are UNPREDICTABLE */
+        return false;
+    }
+    if (!mve_eci_check(s) || !vfp_access_check(s)) {
+        return true;
+    }
+
+    /* Convert Qreg index to Dreg for read_neon_element32() etc */
+    vd = a->qd * 2;
+
+    if (!mve_skip_vmov(s, vd, a->idx, MO_32)) {
+        tmp = tcg_temp_new_i32();
+        read_neon_element32(tmp, vd, a->idx, MO_32);
+        store_reg(s, a->rt, tmp);
+    }
+    if (!mve_skip_vmov(s, vd + 1, a->idx, MO_32)) {
+        tmp = tcg_temp_new_i32();
+        read_neon_element32(tmp, vd + 1, a->idx, MO_32);
+        store_reg(s, a->rt2, tmp);
+    }
+
+    mve_update_and_store_eci(s);
+    return true;
+}
+
+static bool trans_VMOV_from_2gp(DisasContext *s, arg_VMOV_to_2gp *a)
+{
+    /*
+     * VMOV two general-purpose registers to two 32-bit vector lanes.
+     * This insn is not predicated but it is subject to beat-wise
+     * execution if it is not in an IT block. For us this means
+     * only that if PSR.ECI says we should not be executing the beat
+     * corresponding to the lane of the vector register being accessed
+     * then we should skip perfoming the move, and that we need to do
+     * the usual check for bad ECI state and advance of ECI state.
+     * (If PSR.ECI is non-zero then we cannot be in an IT block.)
+     */
+    TCGv_i32 tmp;
+    int vd;
+
+    if (!dc_isar_feature(aa32_mve, s) || !mve_check_qreg_bank(s, a->qd) ||
+        a->rt == 13 || a->rt == 15 || a->rt2 == 13 || a->rt2 == 15) {
+        /* Rt/Rt2 cases are UNPREDICTABLE */
+        return false;
+    }
+    if (!mve_eci_check(s) || !vfp_access_check(s)) {
+        return true;
+    }
+
+    /* Convert Qreg idx to Dreg for read_neon_element32() etc */
+    vd = a->qd * 2;
+
+    if (!mve_skip_vmov(s, vd, a->idx, MO_32)) {
+        tmp = load_reg(s, a->rt);
+        write_neon_element32(tmp, vd, a->idx, MO_32);
+        tcg_temp_free_i32(tmp);
+    }
+    if (!mve_skip_vmov(s, vd + 1, a->idx, MO_32)) {
+        tmp = load_reg(s, a->rt2);
+        write_neon_element32(tmp, vd + 1, a->idx, MO_32);
+        tcg_temp_free_i32(tmp);
+    }
+
+    mve_update_and_store_eci(s);
+    return true;
+}
