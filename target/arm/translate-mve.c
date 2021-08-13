@@ -1003,6 +1003,52 @@ DO_2SHIFT(VRSHRI_U, vrshli_u, true)
 DO_2SHIFT(VSRI, vsri, false)
 DO_2SHIFT(VSLI, vsli, false)
 
+static bool do_2shift_scalar(DisasContext *s, arg_shl_scalar *a,
+                             MVEGenTwoOpShiftFn *fn)
+{
+    TCGv_ptr qda;
+    TCGv_i32 rm;
+
+    if (!dc_isar_feature(aa32_mve, s) ||
+        !mve_check_qreg_bank(s, a->qda) ||
+        a->rm == 13 || a->rm == 15 || !fn) {
+        /* Rm cases are UNPREDICTABLE */
+        return false;
+    }
+    if (!mve_eci_check(s) || !vfp_access_check(s)) {
+        return true;
+    }
+
+    qda = mve_qreg_ptr(a->qda);
+    rm = load_reg(s, a->rm);
+    fn(cpu_env, qda, qda, rm);
+    tcg_temp_free_ptr(qda);
+    tcg_temp_free_i32(rm);
+    mve_update_eci(s);
+    return true;
+}
+
+#define DO_2SHIFT_SCALAR(INSN, FN)                                      \
+    static bool trans_##INSN(DisasContext *s, arg_shl_scalar *a)        \
+    {                                                                   \
+        static MVEGenTwoOpShiftFn * const fns[] = {                     \
+            gen_helper_mve_##FN##b,                                     \
+            gen_helper_mve_##FN##h,                                     \
+            gen_helper_mve_##FN##w,                                     \
+            NULL,                                                       \
+        };                                                              \
+        return do_2shift_scalar(s, a, fns[a->size]);                    \
+    }
+
+DO_2SHIFT_SCALAR(VSHL_S_scalar, vshli_s)
+DO_2SHIFT_SCALAR(VSHL_U_scalar, vshli_u)
+DO_2SHIFT_SCALAR(VRSHL_S_scalar, vrshli_s)
+DO_2SHIFT_SCALAR(VRSHL_U_scalar, vrshli_u)
+DO_2SHIFT_SCALAR(VQSHL_S_scalar, vqshli_s)
+DO_2SHIFT_SCALAR(VQSHL_U_scalar, vqshli_u)
+DO_2SHIFT_SCALAR(VQRSHL_S_scalar, vqrshli_s)
+DO_2SHIFT_SCALAR(VQRSHL_U_scalar, vqrshli_u)
+
 #define DO_VSHLL(INSN, FN)                                      \
     static bool trans_##INSN(DisasContext *s, arg_2shift *a)    \
     {                                                           \

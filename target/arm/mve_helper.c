@@ -1334,6 +1334,8 @@ DO_2SHIFT_SAT_S(vqshli_s, DO_SQSHL_OP)
 DO_2SHIFT_SAT_S(vqshlui_s, DO_SUQSHL_OP)
 DO_2SHIFT_U(vrshli_u, DO_VRSHLU)
 DO_2SHIFT_S(vrshli_s, DO_VRSHLS)
+DO_2SHIFT_SAT_U(vqrshli_u, DO_UQRSHL_OP)
+DO_2SHIFT_SAT_S(vqrshli_s, DO_SQRSHL_OP)
 
 /* Shift-and-insert; we always work with 64 bits at a time */
 #define DO_2SHIFT_INSERT(OP, ESIZE, SHIFTFN, MASKFN)                    \
