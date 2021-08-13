@@ -275,6 +275,28 @@ DO_1OP(VCLS, vcls)
 DO_1OP(VABS, vabs)
 DO_1OP(VNEG, vneg)
 
+/* Narrowing moves: only size 0 and 1 are valid */
+#define DO_VMOVN(INSN, FN) \
+    static bool trans_##INSN(DisasContext *s, arg_1op *a)       \
+    {                                                           \
+        static MVEGenOneOpFn * const fns[] = {                  \
+            gen_helper_mve_##FN##b,                             \
+            gen_helper_mve_##FN##h,                             \
+            NULL,                                               \
+            NULL,                                               \
+        };                                                      \
+        return do_1op(s, a, fns[a->size]);                      \
+    }
+
+DO_VMOVN(VMOVNB, vmovnb)
+DO_VMOVN(VMOVNT, vmovnt)
+DO_VMOVN(VQMOVUNB, vqmovunb)
+DO_VMOVN(VQMOVUNT, vqmovunt)
+DO_VMOVN(VQMOVN_BS, vqmovnbs)
+DO_VMOVN(VQMOVN_TS, vqmovnts)
+DO_VMOVN(VQMOVN_BU, vqmovnbu)
+DO_VMOVN(VQMOVN_TU, vqmovntu)
+
 static bool trans_VREV16(DisasContext *s, arg_1op *a)
 {
     static MVEGenOneOpFn * const fns[] = {
