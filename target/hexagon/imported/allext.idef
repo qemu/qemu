@@ -16,16 +16,10 @@
  */
 
 /*
- * Top level instruction definition file
+ * Top level file for all instruction set extensions
  */
-
-#include "branch.idef"
-#include "ldst.idef"
-#include "compare.idef"
-#include "mpy.idef"
-#include "alu.idef"
-#include "float.idef"
-#include "shift.idef"
-#include "system.idef"
-#include "subinsns.idef"
-#include "allext.idef"
+#define EXTNAME mmvec
+#define EXTSTR "mmvec"
+#include "mmvec/ext.idef"
+#undef EXTNAME
+#undef EXTSTR
