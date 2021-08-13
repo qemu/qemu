@@ -268,16 +268,13 @@ static bool emulate_arm_fpa11(CPUARMState *env, uint32_t opcode)
     ts->fpa.fpsr |= raise & ~enabled;
 
     if (raise & enabled) {
-        target_siginfo_t info = { };
-
         /*
          * The kernel's nwfpe emulator does not pass a real si_code.
-         * It merely uses send_sig(SIGFPE, current, 1).
+         * It merely uses send_sig(SIGFPE, current, 1), which results in
+         * __send_signal() filling out SI_KERNEL with pid and uid 0 (under
+         * the "SEND_SIG_PRIV" case). That's what our force_sig() does.
          */
-        info.si_signo = TARGET_SIGFPE;
-        info.si_code = TARGET_SI_KERNEL;
-
-        queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
+        force_sig(TARGET_SIGFPE);
     } else {
         env->regs[15] += 4;
     }
