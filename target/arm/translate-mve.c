@@ -464,6 +464,34 @@ static bool trans_VQDMULLT(DisasContext *s, arg_2op *a)
     return do_2op(s, a, fns[a->size]);
 }
 
+static bool trans_VMULLP_B(DisasContext *s, arg_2op *a)
+{
+    /*
+     * Note that a->size indicates the output size, ie VMULL.P8
+     * is the 8x8->16 operation and a->size is MO_16; VMULL.P16
+     * is the 16x16->32 operation and a->size is MO_32.
+     */
+    static MVEGenTwoOpFn * const fns[] = {
+        NULL,
+        gen_helper_mve_vmullpbh,
+        gen_helper_mve_vmullpbw,
+        NULL,
+    };
+    return do_2op(s, a, fns[a->size]);
+}
+
+static bool trans_VMULLP_T(DisasContext *s, arg_2op *a)
+{
+    /* a->size is as for trans_VMULLP_B */
+    static MVEGenTwoOpFn * const fns[] = {
+        NULL,
+        gen_helper_mve_vmullpth,
+        gen_helper_mve_vmullptw,
+        NULL,
+    };
+    return do_2op(s, a, fns[a->size]);
+}
+
 /*
  * VADC and VSBC: these perform an add-with-carry or subtract-with-carry
  * of the 32-bit elements in each lane of the input vectors, where the

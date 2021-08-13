@@ -2028,11 +2028,23 @@ static uint64_t expand_byte_to_half(uint64_t x)
          | ((x & 0xff000000) << 24);
 }
 
-static uint64_t pmull_h(uint64_t op1, uint64_t op2)
+uint64_t pmull_w(uint64_t op1, uint64_t op2)
 {
     uint64_t result = 0;
     int i;
+    for (i = 0; i < 16; ++i) {
+        uint64_t mask = (op1 & 0x0000000100000001ull) * 0xffffffff;
+        result ^= op2 & mask;
+        op1 >>= 1;
+        op2 <<= 1;
+    }
+    return result;
+}
 
+uint64_t pmull_h(uint64_t op1, uint64_t op2)
+{
+    uint64_t result = 0;
+    int i;
     for (i = 0; i < 8; ++i) {
         uint64_t mask = (op1 & 0x0001000100010001ull) * 0xffff;
         result ^= op2 & mask;
