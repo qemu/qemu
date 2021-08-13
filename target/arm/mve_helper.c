@@ -2218,6 +2218,26 @@ void HELPER(mve_vpnot)(CPUARMState *env)
     mve_advance_vpt(env);
 }
 
+/*
+ * VCTP: P0 unexecuted bits unchanged, predicated bits zeroed,
+ * otherwise set according to value of Rn. The calculation of
+ * newmask here works in the same way as the calculation of the
+ * ltpmask in mve_element_mask(), but we have pre-calculated
+ * the masklen in the generated code.
+ */
+void HELPER(mve_vctp)(CPUARMState *env, uint32_t masklen)
+{
+    uint16_t mask = mve_element_mask(env);
+    uint16_t eci_mask = mve_eci_mask(env);
+    uint16_t newmask;
+
+    assert(masklen <= 16);
+    newmask = masklen ? MAKE_64BIT_MASK(0, masklen) : 0;
+    newmask &= mask;
+    env->v7m.vpr = (env->v7m.vpr & ~(uint32_t)eci_mask) | (newmask & eci_mask);
+    mve_advance_vpt(env);
+}
+
 #define DO_1OP_SAT(OP, ESIZE, TYPE, FN)                                 \
     void HELPER(mve_##OP)(CPUARMState *env, void *vd, void *vm)         \
     {                                                                   \

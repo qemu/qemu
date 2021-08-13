@@ -93,7 +93,7 @@ bool mve_eci_check(DisasContext *s)
     }
 }
 
-static void mve_update_eci(DisasContext *s)
+void mve_update_eci(DisasContext *s)
 {
     /*
      * The helper function will always update the CPUState field,

@@ -8669,6 +8669,39 @@ static bool trans_LCTP(DisasContext *s, arg_LCTP *a)
     return true;
 }
 
+static bool trans_VCTP(DisasContext *s, arg_VCTP *a)
+{
+    /*
+     * M-profile Create Vector Tail Predicate. This insn is itself
+     * predicated and is subject to beatwise execution.
+     */
+    TCGv_i32 rn_shifted, masklen;
+
+    if (!dc_isar_feature(aa32_mve, s) || a->rn == 13 || a->rn == 15) {
+        return false;
+    }
+
+    if (!mve_eci_check(s) || !vfp_access_check(s)) {
+        return true;
+    }
+
+    /*
+     * We pre-calculate the mask length here to avoid having
+     * to have multiple helpers specialized for size.
+     * We pass the helper "rn <= (1 << (4 - size)) ? (rn << size) : 16".
+     */
+    rn_shifted = tcg_temp_new_i32();
+    masklen = load_reg(s, a->rn);
+    tcg_gen_shli_i32(rn_shifted, masklen, a->size);
+    tcg_gen_movcond_i32(TCG_COND_LEU, masklen,
+                        masklen, tcg_constant_i32(1 << (4 - a->size)),
+                        rn_shifted, tcg_constant_i32(16));
+    gen_helper_mve_vctp(cpu_env, masklen);
+    tcg_temp_free_i32(masklen);
+    tcg_temp_free_i32(rn_shifted);
+    mve_update_eci(s);
+    return true;
+}
 
 static bool op_tbranch(DisasContext *s, arg_tbranch *a, bool half)
 {
