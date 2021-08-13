@@ -306,6 +306,78 @@ static bool trans_VSTR_sg(DisasContext *s, arg_vldst_sg *a)
 
 #undef F
 
+static bool do_ldst_sg_imm(DisasContext *s, arg_vldst_sg_imm *a,
+                           MVEGenLdStSGFn *fn, unsigned msize)
+{
+    uint32_t offset;
+    TCGv_ptr qd, qm;
+
+    if (!dc_isar_feature(aa32_mve, s) ||
+        !mve_check_qreg_bank(s, a->qd | a->qm) ||
+        !fn) {
+        return false;
+    }
+
+    if (!mve_eci_check(s) || !vfp_access_check(s)) {
+        return true;
+    }
+
+    offset = a->imm << msize;
+    if (!a->a) {
+        offset = -offset;
+    }
+
+    qd = mve_qreg_ptr(a->qd);
+    qm = mve_qreg_ptr(a->qm);
+    fn(cpu_env, qd, qm, tcg_constant_i32(offset));
+    tcg_temp_free_ptr(qd);
+    tcg_temp_free_ptr(qm);
+    mve_update_eci(s);
+    return true;
+}
+
+static bool trans_VLDRW_sg_imm(DisasContext *s, arg_vldst_sg_imm *a)
+{
+    static MVEGenLdStSGFn * const fns[] = {
+        gen_helper_mve_vldrw_sg_uw,
+        gen_helper_mve_vldrw_sg_wb_uw,
+    };
+    if (a->qd == a->qm) {
+        return false; /* UNPREDICTABLE */
+    }
+    return do_ldst_sg_imm(s, a, fns[a->w], MO_32);
+}
+
+static bool trans_VLDRD_sg_imm(DisasContext *s, arg_vldst_sg_imm *a)
+{
+    static MVEGenLdStSGFn * const fns[] = {
+        gen_helper_mve_vldrd_sg_ud,
+        gen_helper_mve_vldrd_sg_wb_ud,
+    };
+    if (a->qd == a->qm) {
+        return false; /* UNPREDICTABLE */
+    }
+    return do_ldst_sg_imm(s, a, fns[a->w], MO_64);
+}
+
+static bool trans_VSTRW_sg_imm(DisasContext *s, arg_vldst_sg_imm *a)
+{
+    static MVEGenLdStSGFn * const fns[] = {
+        gen_helper_mve_vstrw_sg_uw,
+        gen_helper_mve_vstrw_sg_wb_uw,
+    };
+    return do_ldst_sg_imm(s, a, fns[a->w], MO_32);
+}
+
+static bool trans_VSTRD_sg_imm(DisasContext *s, arg_vldst_sg_imm *a)
+{
+    static MVEGenLdStSGFn * const fns[] = {
+        gen_helper_mve_vstrd_sg_ud,
+        gen_helper_mve_vstrd_sg_wb_ud,
+    };
+    return do_ldst_sg_imm(s, a, fns[a->w], MO_64);
+}
+
 static bool trans_VDUP(DisasContext *s, arg_VDUP *a)
 {
     TCGv_ptr qd;
