@@ -1563,6 +1563,8 @@ uint64_t HELPER(mve_uqrshll)(CPUARMState *env, uint64_t n, uint32_t shift)
 static inline int64_t do_sqrshl48_d(int64_t src, int64_t shift,
                                     bool round, uint32_t *sat)
 {
+    int64_t val, extval;
+
     if (shift <= -48) {
         /* Rounding the sign bit always produces 0. */
         if (round) {
@@ -1572,9 +1574,14 @@ static inline int64_t do_sqrshl48_d(int64_t src, int64_t shift,
     } else if (shift < 0) {
         if (round) {
             src >>= -shift - 1;
-            return (src >> 1) + (src & 1);
+            val = (src >> 1) + (src & 1);
+        } else {
+            val = src >> -shift;
         }
-        return src >> -shift;
+        extval = sextract64(val, 0, 48);
+        if (!sat || val == extval) {
+            return extval;
+        }
     } else if (shift < 48) {
         int64_t extval = sextract64(src << shift, 0, 48);
         if (!sat || src == (extval >> shift)) {
