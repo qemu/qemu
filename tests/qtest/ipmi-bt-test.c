@@ -378,7 +378,7 @@ static void test_enable_irq(void)
  */
 static void open_socket(void)
 {
-    struct sockaddr_in myaddr;
+    struct sockaddr_in myaddr = {};
     socklen_t addrlen;
 
     myaddr.sin_family = AF_INET;
