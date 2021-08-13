@@ -948,6 +948,22 @@ DO_VQDMLADH_OP(vqrdmlsdhxw, 4, int32_t, 1, 1, do_vqdmlsdh_w)
         mve_advance_vpt(env);                                           \
     }
 
+/* "accumulating" version where FN takes d as well as n and m */
+#define DO_2OP_ACC_SCALAR(OP, ESIZE, TYPE, FN)                          \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd, void *vn,   \
+                                uint32_t rm)                            \
+    {                                                                   \
+        TYPE *d = vd, *n = vn;                                          \
+        TYPE m = rm;                                                    \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            mergemask(&d[H##ESIZE(e)],                                  \
+                      FN(d[H##ESIZE(e)], n[H##ESIZE(e)], m), mask);     \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
 /* provide unsigned 2-op scalar helpers for all sizes */
 #define DO_2OP_SCALAR_U(OP, FN)                 \
     DO_2OP_SCALAR(OP##b, 1, uint8_t, FN)        \
@@ -957,6 +973,11 @@ DO_VQDMLADH_OP(vqrdmlsdhxw, 4, int32_t, 1, 1, do_vqdmlsdh_w)
     DO_2OP_SCALAR(OP##b, 1, int8_t, FN)         \
     DO_2OP_SCALAR(OP##h, 2, int16_t, FN)        \
     DO_2OP_SCALAR(OP##w, 4, int32_t, FN)
+
+#define DO_2OP_ACC_SCALAR_U(OP, FN)             \
+    DO_2OP_ACC_SCALAR(OP##b, 1, uint8_t, FN)    \
+    DO_2OP_ACC_SCALAR(OP##h, 2, uint16_t, FN)   \
+    DO_2OP_ACC_SCALAR(OP##w, 4, uint32_t, FN)
 
 DO_2OP_SCALAR_U(vadd_scalar, DO_ADD)
 DO_2OP_SCALAR_U(vsub_scalar, DO_SUB)
@@ -986,6 +1007,11 @@ DO_2OP_SAT_SCALAR(vqdmulh_scalarw, 4, int32_t, DO_QDMULH_W)
 DO_2OP_SAT_SCALAR(vqrdmulh_scalarb, 1, int8_t, DO_QRDMULH_B)
 DO_2OP_SAT_SCALAR(vqrdmulh_scalarh, 2, int16_t, DO_QRDMULH_H)
 DO_2OP_SAT_SCALAR(vqrdmulh_scalarw, 4, int32_t, DO_QRDMULH_W)
+
+/* Vector by vector plus scalar */
+#define DO_VMLAS(D, N, M) ((N) * (D) + (M))
+
+DO_2OP_ACC_SCALAR_U(vmlas, DO_VMLAS)
 
 /*
  * Long saturating scalar ops. As with DO_2OP_L, TYPE and H are for the
