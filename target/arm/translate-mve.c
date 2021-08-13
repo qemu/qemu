@@ -275,6 +275,8 @@ DO_1OP(VCLZ, vclz)
 DO_1OP(VCLS, vcls)
 DO_1OP(VABS, vabs)
 DO_1OP(VNEG, vneg)
+DO_1OP(VQABS, vqabs)
+DO_1OP(VQNEG, vqneg)
 
 /* Narrowing moves: only size 0 and 1 are valid */
 #define DO_VMOVN(INSN, FN) \
