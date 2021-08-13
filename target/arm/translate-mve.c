@@ -34,6 +34,7 @@ static inline int vidup_imm(DisasContext *s, int x)
 #include "decode-mve.c.inc"
 
 typedef void MVEGenLdStFn(TCGv_ptr, TCGv_ptr, TCGv_i32);
+typedef void MVEGenLdStSGFn(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i32);
 typedef void MVEGenOneOpFn(TCGv_ptr, TCGv_ptr, TCGv_ptr);
 typedef void MVEGenTwoOpFn(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr);
 typedef void MVEGenTwoOpScalarFn(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i32);
@@ -208,6 +209,102 @@ static bool trans_VLDR_VSTR(DisasContext *s, arg_VLDR_VSTR *a)
 DO_VLDST_WIDE_NARROW(VLDSTB_H, vldrb_sh, vldrb_uh, vstrb_h, MO_8)
 DO_VLDST_WIDE_NARROW(VLDSTB_W, vldrb_sw, vldrb_uw, vstrb_w, MO_8)
 DO_VLDST_WIDE_NARROW(VLDSTH_W, vldrh_sw, vldrh_uw, vstrh_w, MO_16)
+
+static bool do_ldst_sg(DisasContext *s, arg_vldst_sg *a, MVEGenLdStSGFn fn)
+{
+    TCGv_i32 addr;
+    TCGv_ptr qd, qm;
+
+    if (!dc_isar_feature(aa32_mve, s) ||
+        !mve_check_qreg_bank(s, a->qd | a->qm) ||
+        !fn || a->rn == 15) {
+        /* Rn case is UNPREDICTABLE */
+        return false;
+    }
+
+    if (!mve_eci_check(s) || !vfp_access_check(s)) {
+        return true;
+    }
+
+    addr = load_reg(s, a->rn);
+
+    qd = mve_qreg_ptr(a->qd);
+    qm = mve_qreg_ptr(a->qm);
+    fn(cpu_env, qd, qm, addr);
+    tcg_temp_free_ptr(qd);
+    tcg_temp_free_ptr(qm);
+    tcg_temp_free_i32(addr);
+    mve_update_eci(s);
+    return true;
+}
+
+/*
+ * The naming scheme here is "vldrb_sg_sh == in-memory byte loads
+ * signextended to halfword elements in register". _os_ indicates that
+ * the offsets in Qm should be scaled by the element size.
+ */
+/* This macro is just to make the arrays more compact in these functions */
+#define F(N) gen_helper_mve_##N
+
+/* VLDRB/VSTRB (ie msize 1) with OS=1 is UNPREDICTABLE; we UNDEF */
+static bool trans_VLDR_S_sg(DisasContext *s, arg_vldst_sg *a)
+{
+    static MVEGenLdStSGFn * const fns[2][4][4] = { {
+            { NULL, F(vldrb_sg_sh), F(vldrb_sg_sw), NULL },
+            { NULL, NULL,           F(vldrh_sg_sw), NULL },
+            { NULL, NULL,           NULL,           NULL },
+            { NULL, NULL,           NULL,           NULL }
+        }, {
+            { NULL, NULL,              NULL,              NULL },
+            { NULL, NULL,              F(vldrh_sg_os_sw), NULL },
+            { NULL, NULL,              NULL,              NULL },
+            { NULL, NULL,              NULL,              NULL }
+        }
+    };
+    if (a->qd == a->qm) {
+        return false; /* UNPREDICTABLE */
+    }
+    return do_ldst_sg(s, a, fns[a->os][a->msize][a->size]);
+}
+
+static bool trans_VLDR_U_sg(DisasContext *s, arg_vldst_sg *a)
+{
+    static MVEGenLdStSGFn * const fns[2][4][4] = { {
+            { F(vldrb_sg_ub), F(vldrb_sg_uh), F(vldrb_sg_uw), NULL },
+            { NULL,           F(vldrh_sg_uh), F(vldrh_sg_uw), NULL },
+            { NULL,           NULL,           F(vldrw_sg_uw), NULL },
+            { NULL,           NULL,           NULL,           F(vldrd_sg_ud) }
+        }, {
+            { NULL, NULL,              NULL,              NULL },
+            { NULL, F(vldrh_sg_os_uh), F(vldrh_sg_os_uw), NULL },
+            { NULL, NULL,              F(vldrw_sg_os_uw), NULL },
+            { NULL, NULL,              NULL,              F(vldrd_sg_os_ud) }
+        }
+    };
+    if (a->qd == a->qm) {
+        return false; /* UNPREDICTABLE */
+    }
+    return do_ldst_sg(s, a, fns[a->os][a->msize][a->size]);
+}
+
+static bool trans_VSTR_sg(DisasContext *s, arg_vldst_sg *a)
+{
+    static MVEGenLdStSGFn * const fns[2][4][4] = { {
+            { F(vstrb_sg_ub), F(vstrb_sg_uh), F(vstrb_sg_uw), NULL },
+            { NULL,           F(vstrh_sg_uh), F(vstrh_sg_uw), NULL },
+            { NULL,           NULL,           F(vstrw_sg_uw), NULL },
+            { NULL,           NULL,           NULL,           F(vstrd_sg_ud) }
+        }, {
+            { NULL, NULL,              NULL,              NULL },
+            { NULL, F(vstrh_sg_os_uh), F(vstrh_sg_os_uw), NULL },
+            { NULL, NULL,              F(vstrw_sg_os_uw), NULL },
+            { NULL, NULL,              NULL,              F(vstrd_sg_os_ud) }
+        }
+    };
+    return do_ldst_sg(s, a, fns[a->os][a->msize][a->size]);
+}
+
+#undef F
 
 static bool trans_VDUP(DisasContext *s, arg_VDUP *a)
 {
