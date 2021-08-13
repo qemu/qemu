@@ -264,7 +264,7 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     }
     new_cr3 = x86_ldq_phys(cs, env->vm_vmcb + offsetof(struct vmcb, save.cr3));
     if ((env->efer & MSR_EFER_LMA) &&
-            (new_cr3 & ((~0UL) << cpu->phys_bits))) {
+            (new_cr3 & ((~0ULL) << cpu->phys_bits))) {
         cpu_vmexit(env, SVM_EXIT_ERR, 0, GETPC());
     }
     new_cr4 = x86_ldq_phys(cs, env->vm_vmcb + offsetof(struct vmcb, save.cr4));
