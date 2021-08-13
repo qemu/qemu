@@ -641,7 +641,7 @@ void force_sig(int sig)
 {
     CPUState *cpu = thread_cpu;
     CPUArchState *env = cpu->env_ptr;
-    target_siginfo_t info;
+    target_siginfo_t info = {};
 
     info.si_signo = sig;
     info.si_errno = 0;
