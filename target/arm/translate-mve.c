@@ -277,6 +277,8 @@ DO_1OP(VABS, vabs)
 DO_1OP(VNEG, vneg)
 DO_1OP(VQABS, vqabs)
 DO_1OP(VQNEG, vqneg)
+DO_1OP(VMAXA, vmaxa)
+DO_1OP(VMINA, vmina)
 
 /* Narrowing moves: only size 0 and 1 are valid */
 #define DO_VMOVN(INSN, FN) \
