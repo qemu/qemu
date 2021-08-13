@@ -41,6 +41,7 @@
 &vcmp_scalar qn rm size mask
 &shl_scalar qda rm size
 &vmaxv qm rda size
+&vabav qn qm rda size
 
 @vldr_vstr ....... . . . . l:1 rn:4 ... ...... imm:7 &vldr_vstr qd=%qd u=0
 # Note that both Rn and Qd are 3 bits only (no D bit)
@@ -385,6 +386,11 @@ VMLAS            111- 1110 0 . .. ... 1 ... 1 1110 . 100 .... @2scalar
   VADDLV         111 u:1 1110 1 ... 1001 ... 0 1111 00 a:1 0 qm:3 0 \
                  rdahi=%rdahi rdalo=%rdalo
 }
+
+@vabav           .... .... .. size:2 .... rda:4 .... .... .... &vabav qn=%qn qm=%qm
+
+VABAV_S          111 0 1110 10 .. ... 0 .... 1111 . 0 . 0 ... 1 @vabav
+VABAV_U          111 1 1110 10 .. ... 0 .... 1111 . 0 . 0 ... 1 @vabav
 
 # Logical immediate operations (1 reg and modified-immediate)
 

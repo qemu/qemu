@@ -1320,6 +1320,32 @@ DO_VMAXMINV(vminavb, 1, int8_t, uint8_t, do_mina)
 DO_VMAXMINV(vminavh, 2, int16_t, uint16_t, do_mina)
 DO_VMAXMINV(vminavw, 4, int32_t, uint32_t, do_mina)
 
+#define DO_VABAV(OP, ESIZE, TYPE)                               \
+    uint32_t HELPER(glue(mve_, OP))(CPUARMState *env, void *vn, \
+                                    void *vm, uint32_t ra)      \
+    {                                                           \
+        uint16_t mask = mve_element_mask(env);                  \
+        unsigned e;                                             \
+        TYPE *m = vm, *n = vn;                                  \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {      \
+            if (mask & 1) {                                     \
+                int64_t n0 = n[H##ESIZE(e)];                    \
+                int64_t m0 = m[H##ESIZE(e)];                    \
+                uint32_t r = n0 >= m0 ? (n0 - m0) : (m0 - n0);  \
+                ra += r;                                        \
+            }                                                   \
+        }                                                       \
+        mve_advance_vpt(env);                                   \
+        return ra;                                              \
+    }
+
+DO_VABAV(vabavsb, 1, int8_t)
+DO_VABAV(vabavsh, 2, int16_t)
+DO_VABAV(vabavsw, 4, int32_t)
+DO_VABAV(vabavub, 1, uint8_t)
+DO_VABAV(vabavuh, 2, uint16_t)
+DO_VABAV(vabavuw, 4, uint32_t)
+
 #define DO_VADDLV(OP, TYPE, LTYPE)                              \
     uint64_t HELPER(glue(mve_, OP))(CPUARMState *env, void *vm, \
                                     uint64_t ra)                \
