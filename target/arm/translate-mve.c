@@ -25,6 +25,11 @@
 #include "translate.h"
 #include "translate-a32.h"
 
+static inline int vidup_imm(DisasContext *s, int x)
+{
+    return 1 << x;
+}
+
 /* Include the generated decoder */
 #include "decode-mve.c.inc"
 
@@ -36,6 +41,8 @@ typedef void MVEGenTwoOpShiftFn(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i32);
 typedef void MVEGenDualAccOpFn(TCGv_i64, TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i64);
 typedef void MVEGenVADDVFn(TCGv_i32, TCGv_ptr, TCGv_ptr, TCGv_i32);
 typedef void MVEGenOneOpImmFn(TCGv_ptr, TCGv_ptr, TCGv_i64);
+typedef void MVEGenVIDUPFn(TCGv_i32, TCGv_ptr, TCGv_ptr, TCGv_i32, TCGv_i32);
+typedef void MVEGenVIWDUPFn(TCGv_i32, TCGv_ptr, TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32);
 
 /* Return the offset of a Qn register (same semantics as aa32_vfp_qreg()) */
 static inline long mve_qreg_offset(unsigned reg)
@@ -1058,4 +1065,117 @@ static bool trans_VSHLC(DisasContext *s, arg_VSHLC *a)
     tcg_temp_free_ptr(qd);
     mve_update_eci(s);
     return true;
+}
+
+static bool do_vidup(DisasContext *s, arg_vidup *a, MVEGenVIDUPFn *fn)
+{
+    TCGv_ptr qd;
+    TCGv_i32 rn;
+
+    /*
+     * Vector increment/decrement with wrap and duplicate (VIDUP, VDDUP).
+     * This fills the vector with elements of successively increasing
+     * or decreasing values, starting from Rn.
+     */
+    if (!dc_isar_feature(aa32_mve, s) || !mve_check_qreg_bank(s, a->qd)) {
+        return false;
+    }
+    if (a->size == MO_64) {
+        /* size 0b11 is another encoding */
+        return false;
+    }
+    if (!mve_eci_check(s) || !vfp_access_check(s)) {
+        return true;
+    }
+
+    qd = mve_qreg_ptr(a->qd);
+    rn = load_reg(s, a->rn);
+    fn(rn, cpu_env, qd, rn, tcg_constant_i32(a->imm));
+    store_reg(s, a->rn, rn);
+    tcg_temp_free_ptr(qd);
+    mve_update_eci(s);
+    return true;
+}
+
+static bool do_viwdup(DisasContext *s, arg_viwdup *a, MVEGenVIWDUPFn *fn)
+{
+    TCGv_ptr qd;
+    TCGv_i32 rn, rm;
+
+    /*
+     * Vector increment/decrement with wrap and duplicate (VIWDUp, VDWDUP)
+     * This fills the vector with elements of successively increasing
+     * or decreasing values, starting from Rn. Rm specifies a point where
+     * the count wraps back around to 0. The updated offset is written back
+     * to Rn.
+     */
+    if (!dc_isar_feature(aa32_mve, s) || !mve_check_qreg_bank(s, a->qd)) {
+        return false;
+    }
+    if (!fn || a->rm == 13 || a->rm == 15) {
+        /*
+         * size 0b11 is another encoding; Rm == 13 is UNPREDICTABLE;
+         * Rm == 13 is VIWDUP, VDWDUP.
+         */
+        return false;
+    }
+    if (!mve_eci_check(s) || !vfp_access_check(s)) {
+        return true;
+    }
+
+    qd = mve_qreg_ptr(a->qd);
+    rn = load_reg(s, a->rn);
+    rm = load_reg(s, a->rm);
+    fn(rn, cpu_env, qd, rn, rm, tcg_constant_i32(a->imm));
+    store_reg(s, a->rn, rn);
+    tcg_temp_free_ptr(qd);
+    tcg_temp_free_i32(rm);
+    mve_update_eci(s);
+    return true;
+}
+
+static bool trans_VIDUP(DisasContext *s, arg_vidup *a)
+{
+    static MVEGenVIDUPFn * const fns[] = {
+        gen_helper_mve_vidupb,
+        gen_helper_mve_viduph,
+        gen_helper_mve_vidupw,
+        NULL,
+    };
+    return do_vidup(s, a, fns[a->size]);
+}
+
+static bool trans_VDDUP(DisasContext *s, arg_vidup *a)
+{
+    static MVEGenVIDUPFn * const fns[] = {
+        gen_helper_mve_vidupb,
+        gen_helper_mve_viduph,
+        gen_helper_mve_vidupw,
+        NULL,
+    };
+    /* VDDUP is just like VIDUP but with a negative immediate */
+    a->imm = -a->imm;
+    return do_vidup(s, a, fns[a->size]);
+}
+
+static bool trans_VIWDUP(DisasContext *s, arg_viwdup *a)
+{
+    static MVEGenVIWDUPFn * const fns[] = {
+        gen_helper_mve_viwdupb,
+        gen_helper_mve_viwduph,
+        gen_helper_mve_viwdupw,
+        NULL,
+    };
+    return do_viwdup(s, a, fns[a->size]);
+}
+
+static bool trans_VDWDUP(DisasContext *s, arg_viwdup *a)
+{
+    static MVEGenVIWDUPFn * const fns[] = {
+        gen_helper_mve_vdwdupb,
+        gen_helper_mve_vdwduph,
+        gen_helper_mve_vdwdupw,
+        NULL,
+    };
+    return do_viwdup(s, a, fns[a->size]);
 }
