@@ -44,6 +44,7 @@
 &vabav qn qm rda size
 &vldst_sg qd qm rn size msize os
 &vldst_sg_imm qd qm a w imm
+&vldst_il qd rn size pat w
 
 # scatter-gather memory size is in bits 6:4
 %sg_msize 6:1 4:1
@@ -58,6 +59,10 @@
 # Qm is in the fields usually labeled Qn
 @vldst_sg_imm .... .... a:1 . w:1 . .... .... .... . imm:7 &vldst_sg_imm \
               qd=%qd qm=%qn
+
+# Deinterleaving load/interleaving store
+@vldst_il .... .... .. w:1 . rn:4 .... ... size:2 pat:2 ..... &vldst_il \
+          qd=%qd
 
 @1op .... .... .... size:2 .. .... .... .... .... &1op qd=%qd qm=%qm
 @1op_nosz .... .... .... .... .... .... .... .... &1op qd=%qd qm=%qm size=0
@@ -157,6 +162,12 @@ VLDRW_sg_imm     111 1 1101 ... 1 ... 0 ... 1 1110 .... .... @vldst_sg_imm
 VLDRD_sg_imm     111 1 1101 ... 1 ... 0 ... 1 1111 .... .... @vldst_sg_imm
 VSTRW_sg_imm     111 1 1101 ... 0 ... 0 ... 1 1110 .... .... @vldst_sg_imm
 VSTRD_sg_imm     111 1 1101 ... 0 ... 0 ... 1 1111 .... .... @vldst_sg_imm
+
+# deinterleaving loads/interleaving stores
+VLD2             1111 1100 1 .. 1 .... ... 1 111 .. .. 00000 @vldst_il
+VLD4             1111 1100 1 .. 1 .... ... 1 111 .. .. 00001 @vldst_il
+VST2             1111 1100 1 .. 0 .... ... 1 111 .. .. 00000 @vldst_il
+VST4             1111 1100 1 .. 0 .... ... 1 111 .. .. 00001 @vldst_il
 
 # Moves between 2 32-bit vector lanes and 2 general purpose registers
 VMOV_to_2gp      1110 1100 0 . 00 rt2:4 ... 0 1111 000 idx:1 rt:4 qd=%qd

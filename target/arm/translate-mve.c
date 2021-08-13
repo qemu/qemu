@@ -35,6 +35,7 @@ static inline int vidup_imm(DisasContext *s, int x)
 
 typedef void MVEGenLdStFn(TCGv_ptr, TCGv_ptr, TCGv_i32);
 typedef void MVEGenLdStSGFn(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i32);
+typedef void MVEGenLdStIlFn(TCGv_ptr, TCGv_i32, TCGv_i32);
 typedef void MVEGenOneOpFn(TCGv_ptr, TCGv_ptr, TCGv_ptr);
 typedef void MVEGenTwoOpFn(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr);
 typedef void MVEGenTwoOpScalarFn(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i32);
@@ -377,6 +378,99 @@ static bool trans_VSTRD_sg_imm(DisasContext *s, arg_vldst_sg_imm *a)
     };
     return do_ldst_sg_imm(s, a, fns[a->w], MO_64);
 }
+
+static bool do_vldst_il(DisasContext *s, arg_vldst_il *a, MVEGenLdStIlFn *fn,
+                        int addrinc)
+{
+    TCGv_i32 rn;
+
+    if (!dc_isar_feature(aa32_mve, s) ||
+        !mve_check_qreg_bank(s, a->qd) ||
+        !fn || (a->rn == 13 && a->w) || a->rn == 15) {
+        /* Variously UNPREDICTABLE or UNDEF or related-encoding */
+        return false;
+    }
+    if (!mve_eci_check(s) || !vfp_access_check(s)) {
+        return true;
+    }
+
+    rn = load_reg(s, a->rn);
+    /*
+     * We pass the index of Qd, not a pointer, because the helper must
+     * access multiple Q registers starting at Qd and working up.
+     */
+    fn(cpu_env, tcg_constant_i32(a->qd), rn);
+
+    if (a->w) {
+        tcg_gen_addi_i32(rn, rn, addrinc);
+        store_reg(s, a->rn, rn);
+    } else {
+        tcg_temp_free_i32(rn);
+    }
+    mve_update_and_store_eci(s);
+    return true;
+}
+
+/* This macro is just to make the arrays more compact in these functions */
+#define F(N) gen_helper_mve_##N
+
+static bool trans_VLD2(DisasContext *s, arg_vldst_il *a)
+{
+    static MVEGenLdStIlFn * const fns[4][4] = {
+        { F(vld20b), F(vld20h), F(vld20w), NULL, },
+        { F(vld21b), F(vld21h), F(vld21w), NULL, },
+        { NULL, NULL, NULL, NULL },
+        { NULL, NULL, NULL, NULL },
+    };
+    if (a->qd > 6) {
+        return false;
+    }
+    return do_vldst_il(s, a, fns[a->pat][a->size], 32);
+}
+
+static bool trans_VLD4(DisasContext *s, arg_vldst_il *a)
+{
+    static MVEGenLdStIlFn * const fns[4][4] = {
+        { F(vld40b), F(vld40h), F(vld40w), NULL, },
+        { F(vld41b), F(vld41h), F(vld41w), NULL, },
+        { F(vld42b), F(vld42h), F(vld42w), NULL, },
+        { F(vld43b), F(vld43h), F(vld43w), NULL, },
+    };
+    if (a->qd > 4) {
+        return false;
+    }
+    return do_vldst_il(s, a, fns[a->pat][a->size], 64);
+}
+
+static bool trans_VST2(DisasContext *s, arg_vldst_il *a)
+{
+    static MVEGenLdStIlFn * const fns[4][4] = {
+        { F(vst20b), F(vst20h), F(vst20w), NULL, },
+        { F(vst21b), F(vst21h), F(vst21w), NULL, },
+        { NULL, NULL, NULL, NULL },
+        { NULL, NULL, NULL, NULL },
+    };
+    if (a->qd > 6) {
+        return false;
+    }
+    return do_vldst_il(s, a, fns[a->pat][a->size], 32);
+}
+
+static bool trans_VST4(DisasContext *s, arg_vldst_il *a)
+{
+    static MVEGenLdStIlFn * const fns[4][4] = {
+        { F(vst40b), F(vst40h), F(vst40w), NULL, },
+        { F(vst41b), F(vst41h), F(vst41w), NULL, },
+        { F(vst42b), F(vst42h), F(vst42w), NULL, },
+        { F(vst43b), F(vst43h), F(vst43w), NULL, },
+    };
+    if (a->qd > 4) {
+        return false;
+    }
+    return do_vldst_il(s, a, fns[a->pat][a->size], 64);
+}
+
+#undef F
 
 static bool trans_VDUP(DisasContext *s, arg_VDUP *a)
 {

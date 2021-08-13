@@ -363,6 +363,348 @@ DO_VSTR_SG(vstrw_sg_wb_uw, stl, 4, uint32_t, ADDR_ADD, true)
 DO_VSTR64_SG(vstrd_sg_wb_ud, ADDR_ADD, true)
 
 /*
+ * Deinterleaving loads/interleaving stores.
+ *
+ * For these helpers we are passed the index of the first Qreg
+ * (VLD2/VST2 will also access Qn+1, VLD4/VST4 access Qn .. Qn+3)
+ * and the value of the base address register Rn.
+ * The helpers are specialized for pattern and element size, so
+ * for instance vld42h is VLD4 with pattern 2, element size MO_16.
+ *
+ * These insns are beatwise but not predicated, so we must honour ECI,
+ * but need not look at mve_element_mask().
+ *
+ * The pseudocode implements these insns with multiple memory accesses
+ * of the element size, but rules R_VVVG and R_FXDM permit us to make
+ * one 32-bit memory access per beat.
+ */
+#define DO_VLD4B(OP, O1, O2, O3, O4)                                    \
+    void HELPER(mve_##OP)(CPUARMState *env, uint32_t qnidx,             \
+                          uint32_t base)                                \
+    {                                                                   \
+        int beat, e;                                                    \
+        uint16_t mask = mve_eci_mask(env);                              \
+        static const uint8_t off[4] = { O1, O2, O3, O4 };               \
+        uint32_t addr, data;                                            \
+        for (beat = 0; beat < 4; beat++, mask >>= 4) {                  \
+            if ((mask & 1) == 0) {                                      \
+                /* ECI says skip this beat */                           \
+                continue;                                               \
+            }                                                           \
+            addr = base + off[beat] * 4;                                \
+            data = cpu_ldl_le_data_ra(env, addr, GETPC());              \
+            for (e = 0; e < 4; e++, data >>= 8) {                       \
+                uint8_t *qd = (uint8_t *)aa32_vfp_qreg(env, qnidx + e); \
+                qd[H1(off[beat])] = data;                               \
+            }                                                           \
+        }                                                               \
+    }
+
+#define DO_VLD4H(OP, O1, O2)                                            \
+    void HELPER(mve_##OP)(CPUARMState *env, uint32_t qnidx,             \
+                          uint32_t base)                                \
+    {                                                                   \
+        int beat;                                                       \
+        uint16_t mask = mve_eci_mask(env);                              \
+        static const uint8_t off[4] = { O1, O1, O2, O2 };               \
+        uint32_t addr, data;                                            \
+        int y; /* y counts 0 2 0 2 */                                   \
+        uint16_t *qd;                                                   \
+        for (beat = 0, y = 0; beat < 4; beat++, mask >>= 4, y ^= 2) {   \
+            if ((mask & 1) == 0) {                                      \
+                /* ECI says skip this beat */                           \
+                continue;                                               \
+            }                                                           \
+            addr = base + off[beat] * 8 + (beat & 1) * 4;               \
+            data = cpu_ldl_le_data_ra(env, addr, GETPC());              \
+            qd = (uint16_t *)aa32_vfp_qreg(env, qnidx + y);             \
+            qd[H2(off[beat])] = data;                                   \
+            data >>= 16;                                                \
+            qd = (uint16_t *)aa32_vfp_qreg(env, qnidx + y + 1);         \
+            qd[H2(off[beat])] = data;                                   \
+        }                                                               \
+    }
+
+#define DO_VLD4W(OP, O1, O2, O3, O4)                                    \
+    void HELPER(mve_##OP)(CPUARMState *env, uint32_t qnidx,             \
+                          uint32_t base)                                \
+    {                                                                   \
+        int beat;                                                       \
+        uint16_t mask = mve_eci_mask(env);                              \
+        static const uint8_t off[4] = { O1, O2, O3, O4 };               \
+        uint32_t addr, data;                                            \
+        uint32_t *qd;                                                   \
+        int y;                                                          \
+        for (beat = 0; beat < 4; beat++, mask >>= 4) {                  \
+            if ((mask & 1) == 0) {                                      \
+                /* ECI says skip this beat */                           \
+                continue;                                               \
+            }                                                           \
+            addr = base + off[beat] * 4;                                \
+            data = cpu_ldl_le_data_ra(env, addr, GETPC());              \
+            y = (beat + (O1 & 2)) & 3;                                  \
+            qd = (uint32_t *)aa32_vfp_qreg(env, qnidx + y);             \
+            qd[H4(off[beat] >> 2)] = data;                              \
+        }                                                               \
+    }
+
+DO_VLD4B(vld40b, 0, 1, 10, 11)
+DO_VLD4B(vld41b, 2, 3, 12, 13)
+DO_VLD4B(vld42b, 4, 5, 14, 15)
+DO_VLD4B(vld43b, 6, 7, 8, 9)
+
+DO_VLD4H(vld40h, 0, 5)
+DO_VLD4H(vld41h, 1, 6)
+DO_VLD4H(vld42h, 2, 7)
+DO_VLD4H(vld43h, 3, 4)
+
+DO_VLD4W(vld40w, 0, 1, 10, 11)
+DO_VLD4W(vld41w, 2, 3, 12, 13)
+DO_VLD4W(vld42w, 4, 5, 14, 15)
+DO_VLD4W(vld43w, 6, 7, 8, 9)
+
+#define DO_VLD2B(OP, O1, O2, O3, O4)                                    \
+    void HELPER(mve_##OP)(CPUARMState *env, uint32_t qnidx,             \
+                          uint32_t base)                                \
+    {                                                                   \
+        int beat, e;                                                    \
+        uint16_t mask = mve_eci_mask(env);                              \
+        static const uint8_t off[4] = { O1, O2, O3, O4 };               \
+        uint32_t addr, data;                                            \
+        uint8_t *qd;                                                    \
+        for (beat = 0; beat < 4; beat++, mask >>= 4) {                  \
+            if ((mask & 1) == 0) {                                      \
+                /* ECI says skip this beat */                           \
+                continue;                                               \
+            }                                                           \
+            addr = base + off[beat] * 2;                                \
+            data = cpu_ldl_le_data_ra(env, addr, GETPC());              \
+            for (e = 0; e < 4; e++, data >>= 8) {                       \
+                qd = (uint8_t *)aa32_vfp_qreg(env, qnidx + (e & 1));    \
+                qd[H1(off[beat] + (e >> 1))] = data;                    \
+            }                                                           \
+        }                                                               \
+    }
+
+#define DO_VLD2H(OP, O1, O2, O3, O4)                                    \
+    void HELPER(mve_##OP)(CPUARMState *env, uint32_t qnidx,             \
+                          uint32_t base)                                \
+    {                                                                   \
+        int beat;                                                       \
+        uint16_t mask = mve_eci_mask(env);                              \
+        static const uint8_t off[4] = { O1, O2, O3, O4 };               \
+        uint32_t addr, data;                                            \
+        int e;                                                          \
+        uint16_t *qd;                                                   \
+        for (beat = 0; beat < 4; beat++, mask >>= 4) {                  \
+            if ((mask & 1) == 0) {                                      \
+                /* ECI says skip this beat */                           \
+                continue;                                               \
+            }                                                           \
+            addr = base + off[beat] * 4;                                \
+            data = cpu_ldl_le_data_ra(env, addr, GETPC());              \
+            for (e = 0; e < 2; e++, data >>= 16) {                      \
+                qd = (uint16_t *)aa32_vfp_qreg(env, qnidx + e);         \
+                qd[H2(off[beat])] = data;                               \
+            }                                                           \
+        }                                                               \
+    }
+
+#define DO_VLD2W(OP, O1, O2, O3, O4)                                    \
+    void HELPER(mve_##OP)(CPUARMState *env, uint32_t qnidx,             \
+                          uint32_t base)                                \
+    {                                                                   \
+        int beat;                                                       \
+        uint16_t mask = mve_eci_mask(env);                              \
+        static const uint8_t off[4] = { O1, O2, O3, O4 };               \
+        uint32_t addr, data;                                            \
+        uint32_t *qd;                                                   \
+        for (beat = 0; beat < 4; beat++, mask >>= 4) {                  \
+            if ((mask & 1) == 0) {                                      \
+                /* ECI says skip this beat */                           \
+                continue;                                               \
+            }                                                           \
+            addr = base + off[beat];                                    \
+            data = cpu_ldl_le_data_ra(env, addr, GETPC());              \
+            qd = (uint32_t *)aa32_vfp_qreg(env, qnidx + (beat & 1));    \
+            qd[H4(off[beat] >> 3)] = data;                              \
+        }                                                               \
+    }
+
+DO_VLD2B(vld20b, 0, 2, 12, 14)
+DO_VLD2B(vld21b, 4, 6, 8, 10)
+
+DO_VLD2H(vld20h, 0, 1, 6, 7)
+DO_VLD2H(vld21h, 2, 3, 4, 5)
+
+DO_VLD2W(vld20w, 0, 4, 24, 28)
+DO_VLD2W(vld21w, 8, 12, 16, 20)
+
+#define DO_VST4B(OP, O1, O2, O3, O4)                                    \
+    void HELPER(mve_##OP)(CPUARMState *env, uint32_t qnidx,             \
+                          uint32_t base)                                \
+    {                                                                   \
+        int beat, e;                                                    \
+        uint16_t mask = mve_eci_mask(env);                              \
+        static const uint8_t off[4] = { O1, O2, O3, O4 };               \
+        uint32_t addr, data;                                            \
+        for (beat = 0; beat < 4; beat++, mask >>= 4) {                  \
+            if ((mask & 1) == 0) {                                      \
+                /* ECI says skip this beat */                           \
+                continue;                                               \
+            }                                                           \
+            addr = base + off[beat] * 4;                                \
+            data = 0;                                                   \
+            for (e = 3; e >= 0; e--) {                                  \
+                uint8_t *qd = (uint8_t *)aa32_vfp_qreg(env, qnidx + e); \
+                data = (data << 8) | qd[H1(off[beat])];                 \
+            }                                                           \
+            cpu_stl_le_data_ra(env, addr, data, GETPC());               \
+        }                                                               \
+    }
+
+#define DO_VST4H(OP, O1, O2)                                            \
+    void HELPER(mve_##OP)(CPUARMState *env, uint32_t qnidx,             \
+                          uint32_t base)                                \
+    {                                                                   \
+        int beat;                                                       \
+        uint16_t mask = mve_eci_mask(env);                              \
+        static const uint8_t off[4] = { O1, O1, O2, O2 };               \
+        uint32_t addr, data;                                            \
+        int y; /* y counts 0 2 0 2 */                                   \
+        uint16_t *qd;                                                   \
+        for (beat = 0, y = 0; beat < 4; beat++, mask >>= 4, y ^= 2) {   \
+            if ((mask & 1) == 0) {                                      \
+                /* ECI says skip this beat */                           \
+                continue;                                               \
+            }                                                           \
+            addr = base + off[beat] * 8 + (beat & 1) * 4;               \
+            qd = (uint16_t *)aa32_vfp_qreg(env, qnidx + y);             \
+            data = qd[H2(off[beat])];                                   \
+            qd = (uint16_t *)aa32_vfp_qreg(env, qnidx + y + 1);         \
+            data |= qd[H2(off[beat])] << 16;                            \
+            cpu_stl_le_data_ra(env, addr, data, GETPC());               \
+        }                                                               \
+    }
+
+#define DO_VST4W(OP, O1, O2, O3, O4)                                    \
+    void HELPER(mve_##OP)(CPUARMState *env, uint32_t qnidx,             \
+                          uint32_t base)                                \
+    {                                                                   \
+        int beat;                                                       \
+        uint16_t mask = mve_eci_mask(env);                              \
+        static const uint8_t off[4] = { O1, O2, O3, O4 };               \
+        uint32_t addr, data;                                            \
+        uint32_t *qd;                                                   \
+        int y;                                                          \
+        for (beat = 0; beat < 4; beat++, mask >>= 4) {                  \
+            if ((mask & 1) == 0) {                                      \
+                /* ECI says skip this beat */                           \
+                continue;                                               \
+            }                                                           \
+            addr = base + off[beat] * 4;                                \
+            y = (beat + (O1 & 2)) & 3;                                  \
+            qd = (uint32_t *)aa32_vfp_qreg(env, qnidx + y);             \
+            data = qd[H4(off[beat] >> 2)];                              \
+            cpu_stl_le_data_ra(env, addr, data, GETPC());               \
+        }                                                               \
+    }
+
+DO_VST4B(vst40b, 0, 1, 10, 11)
+DO_VST4B(vst41b, 2, 3, 12, 13)
+DO_VST4B(vst42b, 4, 5, 14, 15)
+DO_VST4B(vst43b, 6, 7, 8, 9)
+
+DO_VST4H(vst40h, 0, 5)
+DO_VST4H(vst41h, 1, 6)
+DO_VST4H(vst42h, 2, 7)
+DO_VST4H(vst43h, 3, 4)
+
+DO_VST4W(vst40w, 0, 1, 10, 11)
+DO_VST4W(vst41w, 2, 3, 12, 13)
+DO_VST4W(vst42w, 4, 5, 14, 15)
+DO_VST4W(vst43w, 6, 7, 8, 9)
+
+#define DO_VST2B(OP, O1, O2, O3, O4)                                    \
+    void HELPER(mve_##OP)(CPUARMState *env, uint32_t qnidx,             \
+                          uint32_t base)                                \
+    {                                                                   \
+        int beat, e;                                                    \
+        uint16_t mask = mve_eci_mask(env);                              \
+        static const uint8_t off[4] = { O1, O2, O3, O4 };               \
+        uint32_t addr, data;                                            \
+        uint8_t *qd;                                                    \
+        for (beat = 0; beat < 4; beat++, mask >>= 4) {                  \
+            if ((mask & 1) == 0) {                                      \
+                /* ECI says skip this beat */                           \
+                continue;                                               \
+            }                                                           \
+            addr = base + off[beat] * 2;                                \
+            data = 0;                                                   \
+            for (e = 3; e >= 0; e--) {                                  \
+                qd = (uint8_t *)aa32_vfp_qreg(env, qnidx + (e & 1));    \
+                data = (data << 8) | qd[H1(off[beat] + (e >> 1))];      \
+            }                                                           \
+            cpu_stl_le_data_ra(env, addr, data, GETPC());               \
+        }                                                               \
+    }
+
+#define DO_VST2H(OP, O1, O2, O3, O4)                                    \
+    void HELPER(mve_##OP)(CPUARMState *env, uint32_t qnidx,             \
+                          uint32_t base)                                \
+    {                                                                   \
+        int beat;                                                       \
+        uint16_t mask = mve_eci_mask(env);                              \
+        static const uint8_t off[4] = { O1, O2, O3, O4 };               \
+        uint32_t addr, data;                                            \
+        int e;                                                          \
+        uint16_t *qd;                                                   \
+        for (beat = 0; beat < 4; beat++, mask >>= 4) {                  \
+            if ((mask & 1) == 0) {                                      \
+                /* ECI says skip this beat */                           \
+                continue;                                               \
+            }                                                           \
+            addr = base + off[beat] * 4;                                \
+            data = 0;                                                   \
+            for (e = 1; e >= 0; e--) {                                  \
+                qd = (uint16_t *)aa32_vfp_qreg(env, qnidx + e);         \
+                data = (data << 16) | qd[H2(off[beat])];                \
+            }                                                           \
+            cpu_stl_le_data_ra(env, addr, data, GETPC());               \
+        }                                                               \
+    }
+
+#define DO_VST2W(OP, O1, O2, O3, O4)                                    \
+    void HELPER(mve_##OP)(CPUARMState *env, uint32_t qnidx,             \
+                          uint32_t base)                                \
+    {                                                                   \
+        int beat;                                                       \
+        uint16_t mask = mve_eci_mask(env);                              \
+        static const uint8_t off[4] = { O1, O2, O3, O4 };               \
+        uint32_t addr, data;                                            \
+        uint32_t *qd;                                                   \
+        for (beat = 0; beat < 4; beat++, mask >>= 4) {                  \
+            if ((mask & 1) == 0) {                                      \
+                /* ECI says skip this beat */                           \
+                continue;                                               \
+            }                                                           \
+            addr = base + off[beat];                                    \
+            qd = (uint32_t *)aa32_vfp_qreg(env, qnidx + (beat & 1));    \
+            data = qd[H4(off[beat] >> 3)];                              \
+            cpu_stl_le_data_ra(env, addr, data, GETPC());               \
+        }                                                               \
+    }
+
+DO_VST2B(vst20b, 0, 2, 12, 14)
+DO_VST2B(vst21b, 4, 6, 8, 10)
+
+DO_VST2H(vst20h, 0, 1, 6, 7)
+DO_VST2H(vst21h, 2, 3, 4, 5)
+
+DO_VST2W(vst20w, 0, 4, 24, 28)
+DO_VST2W(vst21w, 8, 12, 16, 20)
+
+/*
  * The mergemask(D, R, M) macro performs the operation "*D = R" but
  * storing only the bytes which correspond to 1 bits in M,
  * leaving other bytes in *D unchanged. We use _Generic
