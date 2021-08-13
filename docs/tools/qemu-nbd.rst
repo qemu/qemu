@@ -98,8 +98,10 @@ driver options if ``--image-opts`` is specified.
 
 .. option:: --cache=CACHE
 
-  The cache mode to be used with the file.  See the documentation of
-  the emulator's ``-drive cache=...`` option for allowed values.
+  The cache mode to be used with the file. Valid values are:
+  ``none``, ``writeback`` (the default), ``writethrough``,
+  ``directsync`` and ``unsafe``. See the documentation of
+  the emulator's ``-drive cache=...`` option for more info.
 
 .. option:: -n, --nocache
 
