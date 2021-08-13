@@ -1279,11 +1279,12 @@ DO_2SHIFT_S(vrshli_s, DO_VRSHLS)
         uint16_t mask;                                                  \
         uint64_t shiftmask;                                             \
         unsigned e;                                                     \
-        if (shift == 0 || shift == ESIZE * 8) {                         \
+        if (shift == ESIZE * 8) {                                       \
             /*                                                          \
-             * Only VSLI can shift by 0; only VSRI can shift by <dt>.   \
-             * The generic logic would give the right answer for 0 but  \
-             * fails for <dt>.                                          \
+             * Only VSRI can shift by <dt>; it should mean "don't       \
+             * update the destination". The generic logic can't handle  \
+             * this because it would try to shift by an out-of-range    \
+             * amount, so special case it here.                         \
              */                                                         \
             goto done;                                                  \
         }                                                               \
