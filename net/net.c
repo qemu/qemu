@@ -75,6 +75,8 @@ int parse_host_port(struct sockaddr_in *saddr, const char *str,
     const char *addr, *p, *r;
     int port, ret = 0;
 
+    memset(saddr, 0, sizeof(*saddr));
+
     substrings = g_strsplit(str, ":", 2);
     if (!substrings || !substrings[0] || !substrings[1]) {
         error_setg(errp, "host address '%s' doesn't contain ':' "
