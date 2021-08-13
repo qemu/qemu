@@ -1787,15 +1787,43 @@ DO_VIWDUP_ALL(vdwdup, do_sub_wrap)
         mve_advance_vpt(env);                                           \
     }
 
-#define DO_VCMP_S(OP, FN)                       \
-    DO_VCMP(OP##b, 1, int8_t, FN)               \
-    DO_VCMP(OP##h, 2, int16_t, FN)              \
-    DO_VCMP(OP##w, 4, int32_t, FN)
+#define DO_VCMP_SCALAR(OP, ESIZE, TYPE, FN)                             \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vn,             \
+                                uint32_t rm)                            \
+    {                                                                   \
+        TYPE *n = vn;                                                   \
+        uint16_t mask = mve_element_mask(env);                          \
+        uint16_t eci_mask = mve_eci_mask(env);                          \
+        uint16_t beatpred = 0;                                          \
+        uint16_t emask = MAKE_64BIT_MASK(0, ESIZE);                     \
+        unsigned e;                                                     \
+        for (e = 0; e < 16 / ESIZE; e++) {                              \
+            bool r = FN(n[H##ESIZE(e)], (TYPE)rm);                      \
+            /* Comparison sets 0/1 bits for each byte in the element */ \
+            beatpred |= r * emask;                                      \
+            emask <<= ESIZE;                                            \
+        }                                                               \
+        beatpred &= mask;                                               \
+        env->v7m.vpr = (env->v7m.vpr & ~(uint32_t)eci_mask) |           \
+            (beatpred & eci_mask);                                      \
+        mve_advance_vpt(env);                                           \
+    }
 
-#define DO_VCMP_U(OP, FN)                       \
-    DO_VCMP(OP##b, 1, uint8_t, FN)              \
-    DO_VCMP(OP##h, 2, uint16_t, FN)             \
-    DO_VCMP(OP##w, 4, uint32_t, FN)
+#define DO_VCMP_S(OP, FN)                               \
+    DO_VCMP(OP##b, 1, int8_t, FN)                       \
+    DO_VCMP(OP##h, 2, int16_t, FN)                      \
+    DO_VCMP(OP##w, 4, int32_t, FN)                      \
+    DO_VCMP_SCALAR(OP##_scalarb, 1, int8_t, FN)         \
+    DO_VCMP_SCALAR(OP##_scalarh, 2, int16_t, FN)        \
+    DO_VCMP_SCALAR(OP##_scalarw, 4, int32_t, FN)
+
+#define DO_VCMP_U(OP, FN)                               \
+    DO_VCMP(OP##b, 1, uint8_t, FN)                      \
+    DO_VCMP(OP##h, 2, uint16_t, FN)                     \
+    DO_VCMP(OP##w, 4, uint32_t, FN)                     \
+    DO_VCMP_SCALAR(OP##_scalarb, 1, uint8_t, FN)        \
+    DO_VCMP_SCALAR(OP##_scalarh, 2, uint16_t, FN)       \
+    DO_VCMP_SCALAR(OP##_scalarw, 4, uint32_t, FN)
 
 #define DO_EQ(N, M) ((N) == (M))
 #define DO_NE(N, M) ((N) != (M))

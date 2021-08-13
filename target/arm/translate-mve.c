@@ -44,6 +44,7 @@ typedef void MVEGenOneOpImmFn(TCGv_ptr, TCGv_ptr, TCGv_i64);
 typedef void MVEGenVIDUPFn(TCGv_i32, TCGv_ptr, TCGv_ptr, TCGv_i32, TCGv_i32);
 typedef void MVEGenVIWDUPFn(TCGv_i32, TCGv_ptr, TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32);
 typedef void MVEGenCmpFn(TCGv_ptr, TCGv_ptr, TCGv_ptr);
+typedef void MVEGenScalarCmpFn(TCGv_ptr, TCGv_ptr, TCGv_i32);
 
 /* Return the offset of a Qn register (same semantics as aa32_vfp_qreg()) */
 static inline long mve_qreg_offset(unsigned reg)
@@ -1209,6 +1210,37 @@ static bool do_vcmp(DisasContext *s, arg_vcmp *a, MVEGenCmpFn *fn)
     return true;
 }
 
+static bool do_vcmp_scalar(DisasContext *s, arg_vcmp_scalar *a,
+                           MVEGenScalarCmpFn *fn)
+{
+    TCGv_ptr qn;
+    TCGv_i32 rm;
+
+    if (!dc_isar_feature(aa32_mve, s) || !fn || a->rm == 13) {
+        return false;
+    }
+    if (!mve_eci_check(s) || !vfp_access_check(s)) {
+        return true;
+    }
+
+    qn = mve_qreg_ptr(a->qn);
+    if (a->rm == 15) {
+        /* Encoding Rm=0b1111 means "constant zero" */
+        rm = tcg_constant_i32(0);
+    } else {
+        rm = load_reg(s, a->rm);
+    }
+    fn(cpu_env, qn, rm);
+    tcg_temp_free_ptr(qn);
+    tcg_temp_free_i32(rm);
+    if (a->mask) {
+        /* VPT */
+        gen_vpst(s, a->mask);
+    }
+    mve_update_eci(s);
+    return true;
+}
+
 #define DO_VCMP(INSN, FN)                                       \
     static bool trans_##INSN(DisasContext *s, arg_vcmp *a)      \
     {                                                           \
@@ -1219,6 +1251,17 @@ static bool do_vcmp(DisasContext *s, arg_vcmp *a, MVEGenCmpFn *fn)
             NULL,                                               \
         };                                                      \
         return do_vcmp(s, a, fns[a->size]);                     \
+    }                                                           \
+    static bool trans_##INSN##_scalar(DisasContext *s,          \
+                                      arg_vcmp_scalar *a)       \
+    {                                                           \
+        static MVEGenScalarCmpFn * const fns[] = {              \
+            gen_helper_mve_##FN##_scalarb,                      \
+            gen_helper_mve_##FN##_scalarh,                      \
+            gen_helper_mve_##FN##_scalarw,                      \
+            NULL,                                               \
+        };                                                      \
+        return do_vcmp_scalar(s, a, fns[a->size]);              \
     }
 
 DO_VCMP(VCMPEQ, vcmpeq)
