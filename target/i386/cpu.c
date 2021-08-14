@@ -5655,7 +5655,7 @@ static void x86_cpu_reset(DeviceState *dev)
     env->old_exception = -1;
 
     /* init to reset state */
-
+    env->int_ctl = 0;
     env->hflags2 |= HF2_GIF_MASK;
     env->hflags &= ~HF_GUEST_MASK;
 

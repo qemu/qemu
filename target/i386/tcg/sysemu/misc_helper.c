@@ -73,7 +73,7 @@ target_ulong helper_read_crN(CPUX86State *env, int reg)
         if (!(env->hflags2 & HF2_VINTR_MASK)) {
             val = cpu_get_apic_tpr(env_archcpu(env)->apic_state);
         } else {
-            val = env->v_tpr;
+            val = env->int_ctl & V_TPR_MASK;
         }
         break;
     }
@@ -121,7 +121,7 @@ void helper_write_crN(CPUX86State *env, int reg, target_ulong t0)
             cpu_set_apic_tpr(env_archcpu(env)->apic_state, t0);
             qemu_mutex_unlock_iothread();
         }
-        env->v_tpr = t0 & 0x0f;
+        env->int_ctl = (env->int_ctl & ~V_TPR_MASK) | (t0 & V_TPR_MASK);
         break;
     default:
         env->cr[reg] = t0;

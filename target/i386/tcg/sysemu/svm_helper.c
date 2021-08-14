@@ -76,14 +76,14 @@ static inline void svm_load_seg_cache(CPUX86State *env, hwaddr addr,
                            sc->base, sc->limit, sc->flags);
 }
 
-static inline bool ctl_has_irq(uint32_t int_ctl)
+static inline bool ctl_has_irq(CPUX86State *env)
 {
     uint32_t int_prio;
     uint32_t tpr;
 
-    int_prio = (int_ctl & V_INTR_PRIO_MASK) >> V_INTR_PRIO_SHIFT;
-    tpr = int_ctl & V_TPR_MASK;
-    return (int_ctl & V_IRQ_MASK) && (int_prio >= tpr);
+    int_prio = (env->int_ctl & V_INTR_PRIO_MASK) >> V_INTR_PRIO_SHIFT;
+    tpr = env->int_ctl & V_TPR_MASK;
+    return (env->int_ctl & V_IRQ_MASK) && (int_prio >= tpr);
 }
 
 static inline bool is_efer_invalid_state (CPUX86State *env)
@@ -121,13 +121,11 @@ static inline bool is_efer_invalid_state (CPUX86State *env)
     return false;
 }
 
-static inline bool virtual_gif_enabled(CPUX86State *env, uint32_t *int_ctl)
+static inline bool virtual_gif_enabled(CPUX86State *env)
 {
     if (likely(env->hflags & HF_GUEST_MASK)) {
-        *int_ctl = x86_ldl_phys(env_cpu(env),
-                       env->vm_vmcb + offsetof(struct vmcb, control.int_ctl));
         return (env->features[FEAT_SVM] & CPUID_SVM_VGIF)
-                    && (*int_ctl & V_GIF_ENABLED_MASK);
+                    && (env->int_ctl & V_GIF_ENABLED_MASK);
     }
     return false;
 }
@@ -139,7 +137,6 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     target_ulong addr;
     uint64_t nested_ctl;
     uint32_t event_inj;
-    uint32_t int_ctl;
     uint32_t asid;
     uint64_t new_cr0;
     uint64_t new_cr3;
@@ -292,11 +289,10 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     cpu_x86_update_cr3(env, new_cr3);
     env->cr[2] = x86_ldq_phys(cs,
                           env->vm_vmcb + offsetof(struct vmcb, save.cr2));
-    int_ctl = x86_ldl_phys(cs,
+    env->int_ctl = x86_ldl_phys(cs,
                        env->vm_vmcb + offsetof(struct vmcb, control.int_ctl));
     env->hflags2 &= ~(HF2_HIF_MASK | HF2_VINTR_MASK);
-    if (int_ctl & V_INTR_MASKING_MASK) {
-        env->v_tpr = int_ctl & V_TPR_MASK;
+    if (env->int_ctl & V_INTR_MASKING_MASK) {
         env->hflags2 |= HF2_VINTR_MASK;
         if (env->eflags & IF_MASK) {
             env->hflags2 |= HF2_HIF_MASK;
@@ -362,7 +358,7 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
 
     env->hflags2 |= HF2_GIF_MASK;
 
-    if (ctl_has_irq(int_ctl)) {
+    if (ctl_has_irq(env)) {
         CPUState *cs = env_cpu(env);
 
         cs->interrupt_request |= CPU_INTERRUPT_VIRQ;
@@ -522,11 +518,8 @@ void helper_stgi(CPUX86State *env)
 {
     cpu_svm_check_intercept_param(env, SVM_EXIT_STGI, 0, GETPC());
 
-    CPUState *cs = env_cpu(env);
-    uint32_t int_ctl;
-    if (virtual_gif_enabled(env, &int_ctl)) {
-        x86_stl_phys(cs, env->vm_vmcb + offsetof(struct vmcb, control.int_ctl),
-                        int_ctl | V_GIF_MASK);
+    if (virtual_gif_enabled(env)) {
+        env->int_ctl |= V_GIF_MASK;
     } else {
         env->hflags2 |= HF2_GIF_MASK;
     }
@@ -536,11 +529,8 @@ void helper_clgi(CPUX86State *env)
 {
     cpu_svm_check_intercept_param(env, SVM_EXIT_CLGI, 0, GETPC());
 
-    CPUState *cs = env_cpu(env);
-    uint32_t int_ctl;
-    if (virtual_gif_enabled(env, &int_ctl)) {
-        x86_stl_phys(cs, env->vm_vmcb + offsetof(struct vmcb, control.int_ctl),
-                        int_ctl & ~V_GIF_MASK);
+    if (virtual_gif_enabled(env)) {
+        env->int_ctl &= ~V_GIF_MASK;
     } else {
         env->hflags2 &= ~HF2_GIF_MASK;
     }
@@ -688,7 +678,6 @@ void cpu_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1,
 void do_vmexit(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
-    uint32_t int_ctl;
 
     if (env->hflags & HF_INHIBIT_IRQ_MASK) {
         x86_stl_phys(cs,
@@ -731,16 +720,8 @@ void do_vmexit(CPUX86State *env)
              env->vm_vmcb + offsetof(struct vmcb, save.cr3), env->cr[3]);
     x86_stq_phys(cs,
              env->vm_vmcb + offsetof(struct vmcb, save.cr4), env->cr[4]);
-
-    int_ctl = x86_ldl_phys(cs,
-                       env->vm_vmcb + offsetof(struct vmcb, control.int_ctl));
-    int_ctl &= ~(V_TPR_MASK | V_IRQ_MASK);
-    int_ctl |= env->v_tpr & V_TPR_MASK;
-    if (cs->interrupt_request & CPU_INTERRUPT_VIRQ) {
-        int_ctl |= V_IRQ_MASK;
-    }
     x86_stl_phys(cs,
-             env->vm_vmcb + offsetof(struct vmcb, control.int_ctl), int_ctl);
+             env->vm_vmcb + offsetof(struct vmcb, control.int_ctl), env->int_ctl);
 
     x86_stq_phys(cs, env->vm_vmcb + offsetof(struct vmcb, save.rflags),
              cpu_compute_eflags(env));
@@ -763,6 +744,7 @@ void do_vmexit(CPUX86State *env)
     env->intercept = 0;
     env->intercept_exceptions = 0;
     cs->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
+    env->int_ctl = 0;
     env->tsc_offset = 0;
 
     env->gdt.base  = x86_ldq_phys(cs, env->vm_hsave + offsetof(struct vmcb,
