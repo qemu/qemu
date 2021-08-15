@@ -1363,12 +1363,9 @@ static inline void restore_cpu_state(CPUMIPSState *env, DisasContext *ctx)
 
 void generate_exception_err(DisasContext *ctx, int excp, int err)
 {
-    TCGv_i32 texcp = tcg_const_i32(excp);
-    TCGv_i32 terr = tcg_const_i32(err);
     save_cpu_state(ctx, 1);
-    gen_helper_raise_exception_err(cpu_env, texcp, terr);
-    tcg_temp_free_i32(terr);
-    tcg_temp_free_i32(texcp);
+    gen_helper_raise_exception_err(cpu_env, tcg_constant_i32(excp),
+                                   tcg_constant_i32(err));
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
