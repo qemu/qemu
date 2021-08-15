@@ -789,6 +789,14 @@ static const char *qtest_qemu_storage_daemon_binary(void)
         exit(0);
     }
 
+    /* If we've got a path to the binary, check whether we can access it */
+    if (strchr(qemu_storage_daemon_bin, '/') &&
+        access(qemu_storage_daemon_bin, X_OK) != 0) {
+        fprintf(stderr, "ERROR: '%s' is not accessible\n",
+                qemu_storage_daemon_bin);
+        exit(1);
+    }
+
     return qemu_storage_daemon_bin;
 }
 

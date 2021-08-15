@@ -9,8 +9,145 @@ trouble after a recent upgrade.
 System emulator command line arguments
 --------------------------------------
 
-``-net ...,name=``\ *name* (removed in 5.1)
-'''''''''''''''''''''''''''''''''''''''''''
+``-hdachs`` (removed in 2.12)
+'''''''''''''''''''''''''''''
+
+The geometry defined by ``-hdachs c,h,s,t`` should now be specified via
+``-device ide-hd,drive=dr,cyls=c,heads=h,secs=s,bios-chs-trans=t``
+(together with ``-drive if=none,id=dr,...``).
+
+``-net channel`` (removed in 2.12)
+''''''''''''''''''''''''''''''''''
+
+This option has been replaced by ``-net user,guestfwd=...``.
+
+``-net dump`` (removed in 2.12)
+'''''''''''''''''''''''''''''''
+
+``-net dump[,vlan=n][,file=filename][,len=maxlen]`` has been replaced by
+``-object filter-dump,id=id,netdev=dev[,file=filename][,maxlen=maxlen]``.
+Note that the new syntax works with netdev IDs instead of the old "vlan" hubs.
+
+``-no-kvm-pit`` (removed in 2.12)
+'''''''''''''''''''''''''''''''''
+
+This was just a dummy option that has been ignored, since the in-kernel PIT
+cannot be disabled separately from the irqchip anymore. A similar effect
+(which also disables the KVM IOAPIC) can be obtained with
+``-M kernel_irqchip=split``.
+
+``-tdf`` (removed in 2.12)
+''''''''''''''''''''''''''
+
+There is no replacement, the ``-tdf`` option has just been ignored since the
+behaviour that could be changed by this option in qemu-kvm is now the default
+when using the KVM PIT. It still can be requested explicitly using
+``-global kvm-pit.lost_tick_policy=delay``.
+
+``-drive secs=s``, ``-drive heads=h`` & ``-drive cyls=c`` (removed in 3.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The drive geometry should now be specified via
+``-device ...,drive=dr,cyls=c,heads=h,secs=s`` (together with
+``-drive if=none,id=dr,...``).
+
+``-drive serial=``, ``-drive trans=`` & ``-drive addr=`` (removed in 3.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``-device ...,drive=dr,serial=r,bios-chs-trans=t,addr=a`` instead
+(together with ``-drive if=none,id=dr,...``).
+
+``-net ...,vlan=x`` (removed in 3.0)
+''''''''''''''''''''''''''''''''''''
+
+The term "vlan" was very confusing for most users in this context (it's about
+specifying a hub ID, not about IEEE 802.1Q or something similar), so this
+has been removed. To connect one NIC frontend with a network backend, either
+use ``-nic ...`` (e.g. for on-board NICs) or use ``-netdev ...,id=n`` together
+with ``-device ...,netdev=n`` (for full control over pluggable NICs). To
+connect multiple NICs or network backends via a hub device (which is what
+vlan did), use ``-nic hubport,hubid=x,...`` or
+``-netdev hubport,id=n,hubid=x,...`` (with ``-device ...,netdev=n``) instead.
+
+``-no-kvm-irqchip`` (removed in 3.0)
+''''''''''''''''''''''''''''''''''''
+
+Use ``-machine kernel_irqchip=off`` instead.
+
+``-no-kvm-pit-reinjection`` (removed in 3.0)
+''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``-global kvm-pit.lost_tick_policy=discard`` instead.
+
+``-balloon`` (removed in 3.1)
+'''''''''''''''''''''''''''''
+
+The ``-balloon virtio`` option has been replaced by ``-device virtio-balloon``.
+The ``-balloon none`` option was a no-op and has no replacement.
+
+``-bootp`` (removed in 3.1)
+'''''''''''''''''''''''''''
+
+The ``-bootp /some/file`` argument is replaced by either
+``-netdev user,id=x,bootp=/some/file`` (for pluggable NICs, accompanied with
+``-device ...,netdev=x``), or ``-nic user,bootp=/some/file`` (for on-board NICs).
+The new syntax allows different settings to be provided per NIC.
+
+``-redir`` (removed in 3.1)
+'''''''''''''''''''''''''''
+
+The ``-redir [tcp|udp]:hostport:[guestaddr]:guestport`` option is replaced
+by either ``-netdev
+user,id=x,hostfwd=[tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport``
+(for pluggable NICs, accompanied with ``-device ...,netdev=x``) or by the option
+``-nic user,hostfwd=[tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport``
+(for on-board NICs). The new syntax allows different settings to be provided
+per NIC.
+
+``-smb`` (removed in 3.1)
+'''''''''''''''''''''''''
+
+The ``-smb /some/dir`` argument is replaced by either
+``-netdev user,id=x,smb=/some/dir`` (for pluggable NICs, accompanied with
+``-device ...,netdev=x``), or ``-nic user,smb=/some/dir`` (for on-board NICs).
+The new syntax allows different settings to be provided per NIC.
+
+``-tftp`` (removed in 3.1)
+''''''''''''''''''''''''''
+
+The ``-tftp /some/dir`` argument is replaced by either
+``-netdev user,id=x,tftp=/some/dir`` (for pluggable NICs, accompanied with
+``-device ...,netdev=x``), or ``-nic user,tftp=/some/dir`` (for embedded NICs).
+The new syntax allows different settings to be provided per NIC.
+
+``-localtime`` (removed in 3.1)
+'''''''''''''''''''''''''''''''
+
+Replaced by ``-rtc base=localtime``.
+
+``-nodefconfig`` (removed in 3.1)
+'''''''''''''''''''''''''''''''''
+
+Use ``-no-user-config`` instead.
+
+``-rtc-td-hack`` (removed in 3.1)
+'''''''''''''''''''''''''''''''''
+
+Use ``-rtc driftfix=slew`` instead.
+
+``-startdate`` (removed in 3.1)
+'''''''''''''''''''''''''''''''
+
+Replaced by ``-rtc base=date``.
+
+``-vnc ...,tls=...``, ``-vnc ...,x509=...`` & ``-vnc ...,x509verify=...``
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The "tls-creds" option should be used instead to point to a "tls-creds-x509"
+object created using "-object".
+
+``-net ...,name=...`` (removed in 5.1)
+''''''''''''''''''''''''''''''''''''''
 
 The ``name`` parameter of the ``-net`` option was a synonym
 for the ``id`` parameter, which should now be used instead.
@@ -219,6 +356,17 @@ Specify the properties for the object as top-level arguments instead.
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 
+``usb_add`` and ``usb_remove`` (removed in 2.12)
+''''''''''''''''''''''''''''''''''''''''''''''''
+
+Replaced by ``device_add`` and ``device_del`` (use ``device_add help`` for a
+list of available devices).
+
+``host_net_add`` and ``host_net_remove`` (removed in 2.12)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Replaced by ``netdev_add`` and ``netdev_del``.
+
 The ``hub_id`` parameter of ``hostfwd_add`` / ``hostfwd_remove`` (removed in 5.0)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
@@ -325,6 +473,22 @@ Removed without replacement.
 System emulator machines
 ------------------------
 
+``s390-virtio`` (removed in 2.6)
+''''''''''''''''''''''''''''''''
+
+Use the ``s390-ccw-virtio`` machine instead.
+
+The m68k ``dummy`` machine (removed in 2.9)
+'''''''''''''''''''''''''''''''''''''''''''
+
+Use the ``none`` machine with the ``loader`` device instead.
+
+``xlnx-ep108`` (removed in 3.0)
+'''''''''''''''''''''''''''''''
+
+The EP108 was an early access development board that is no longer used.
+Use the ``xlnx-zcu102`` machine instead.
+
 ``spike_v1.9.1`` and ``spike_v1.10`` (removed in 5.1)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''
 
@@ -343,8 +507,8 @@ mips ``fulong2e`` machine alias (removed in 6.0)
 
 This machine has been renamed ``fuloong2e``.
 
-``pc-1.0``, ``pc-1.1``, ``pc-1.2`` and ``pc-1.3`` (removed in 6.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+``pc-0.10`` up to ``pc-1.3`` (removed in 4.0 up to 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 These machine types were very old and likely could not be used for live
 migration from old QEMU versions anymore. Use a newer machine type instead.
@@ -364,6 +528,17 @@ running the old binaries, you can use older versions of QEMU.
 
 System emulator devices
 -----------------------
+
+``spapr-pci-vfio-host-bridge`` (removed in 2.12)
+'''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``spapr-pci-vfio-host-bridge`` device type has been replaced by the
+``spapr-pci-host-bridge`` device type.
+
+``ivshmem`` (removed in 4.0)
+''''''''''''''''''''''''''''
+
+Replaced by either the ``ivshmem-plain`` or ``ivshmem-doorbell``.
 
 ``ide-drive`` (removed in 6.0)
 ''''''''''''''''''''''''''''''

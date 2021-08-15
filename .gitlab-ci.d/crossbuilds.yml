@@ -160,6 +160,8 @@ cross-win32-system:
     job: win32-fedora-cross-container
   variables:
     IMAGE: fedora-win32-cross
+    CROSS_SKIP_TARGETS: alpha-softmmu avr-softmmu hppa-softmmu m68k-softmmu
+                        microblazeel-softmmu mips64el-softmmu nios2-softmmu
   artifacts:
     paths:
       - build/qemu-setup*.exe
@@ -170,6 +172,8 @@ cross-win64-system:
     job: win64-fedora-cross-container
   variables:
     IMAGE: fedora-win64-cross
+    CROSS_SKIP_TARGETS: or1k-softmmu rx-softmmu sh4eb-softmmu sparc64-softmmu
+                        tricore-softmmu xtensaeb-softmmu
   artifacts:
     paths:
       - build/qemu-setup*.exe
