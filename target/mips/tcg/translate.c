@@ -9072,12 +9072,7 @@ static void gen_mttr(CPUMIPSState *env, DisasContext *ctx, int rd, int rt,
             break;
         case 3:
             /* XXX: For now we support only a single FPU context. */
-            {
-                TCGv_i32 fs_tmp = tcg_const_i32(rd);
-
-                gen_helper_0e2i(ctc1, t0, fs_tmp, rt);
-                tcg_temp_free_i32(fs_tmp);
-            }
+            gen_helper_0e2i(ctc1, t0, tcg_constant_i32(rd), rt);
             /* Stop translation as we may have changed hflags */
             ctx->base.is_jmp = DISAS_STOP;
             break;
@@ -9694,12 +9689,7 @@ static void gen_cp1(DisasContext *ctx, uint32_t opc, int rt, int fs)
     case OPC_CTC1:
         gen_load_gpr(t0, rt);
         save_cpu_state(ctx, 0);
-        {
-            TCGv_i32 fs_tmp = tcg_const_i32(fs);
-
-            gen_helper_0e2i(ctc1, t0, fs_tmp, rt);
-            tcg_temp_free_i32(fs_tmp);
-        }
+        gen_helper_0e2i(ctc1, t0, tcg_constant_i32(fs), rt);
         /* Stop translation as we may have changed hflags */
         ctx->base.is_jmp = DISAS_STOP;
         break;
