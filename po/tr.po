@@ -1,14 +1,15 @@
 # Turkish translation for QEMU.
 # This file is put in the public domain.
 # Ozan Çağlayan <ozancag@gmail.com>, 2013.
+# Oğuz Ersen <oguzersen@protonmail.com>, 2021.
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: QEMU 1.4.50\n"
 "Report-Msgid-Bugs-To: qemu-devel@nongnu.org\n"
 "POT-Creation-Date: 2018-07-18 07:56+0200\n"
-"PO-Revision-Date: 2013-04-22 18:35+0300\n"
-"Last-Translator: Ozan Çağlayan <ozancag@gmail.com>\n"
+"PO-Revision-Date: 2021-08-15 22:17+0300\n"
+"Last-Translator: Oğuz Ersen <oguzersen@protonmail.com>\n"
 "Language-Team: Türkçe <>\n"
 "Language: tr\n"
 "MIME-Version: 1.0\n"
@@ -33,24 +34,22 @@ msgid "Power _Down"
 msgstr "_Kapat"
 
 msgid "_Quit"
-msgstr ""
+msgstr "_Çıkış"
 
 msgid "_Fullscreen"
-msgstr ""
+msgstr "_Tam Ekran"
 
 msgid "_Copy"
-msgstr ""
+msgstr "_Kopyala"
 
-#, fuzzy
 msgid "Zoom _In"
-msgstr "Yakınlaş ve Sığ_dır"
+msgstr "_Yakınlaş"
 
-#, fuzzy
 msgid "Zoom _Out"
-msgstr "Yakınlaş ve Sığ_dır"
+msgstr "_Uzaklaş"
 
 msgid "Best _Fit"
-msgstr ""
+msgstr "_En Uygun"
 
 msgid "Zoom To _Fit"
 msgstr "Yakınlaş ve Sığ_dır"
@@ -62,13 +61,13 @@ msgid "_Grab Input"
 msgstr "Girdiyi _Yakala"
 
 msgid "Show _Tabs"
-msgstr "Se_kmeleri Göster"
+msgstr "_Sekmeleri Göster"
 
 msgid "Detach Tab"
-msgstr ""
+msgstr "Sekmeyi Ayır"
 
 msgid "Show Menubar"
-msgstr ""
+msgstr "Menü Çubuğunu Göster"
 
 msgid "_Machine"
 msgstr "_Makine"
