@@ -1660,6 +1660,16 @@ F: hw/net/opencores_eth.c
 
 Devices
 -------
+Overall Audio frontends
+M: Gerd Hoffmann <kraxel@redhat.com>
+S: Odd Fixes
+F: hw/audio/
+F: include/hw/audio/
+F: tests/qtest/ac97-test.c
+F: tests/qtest/es1370-test.c
+F: tests/qtest/intel-hda-test.c
+F: tests/qtest/fuzz-sb16-test.c
+
 Xilinx CAN
 M: Vikram Garhwal <fnu.vikram@xilinx.com>
 M: Francisco Iglesias <francisco.iglesias@xilinx.com>
@@ -2261,17 +2271,11 @@ F: include/net/can_*.h
 
 Subsystems
 ----------
-Audio
+Overall Audio backends
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Odd Fixes
 F: audio/
-F: hw/audio/
-F: include/hw/audio/
 F: qapi/audio.json
-F: tests/qtest/ac97-test.c
-F: tests/qtest/es1370-test.c
-F: tests/qtest/intel-hda-test.c
-F: tests/qtest/fuzz-sb16-test.c
 
 Block layer core
 M: Kevin Wolf <kwolf@redhat.com>
