@@ -36,6 +36,7 @@ enum arm_exception_class {
     EC_ADVSIMDFPACCESSTRAP    = 0x07,
     EC_FPIDTRAP               = 0x08,
     EC_PACTRAP                = 0x09,
+    EC_BXJTRAP                = 0x0a,
     EC_CP14RRTTRAP            = 0x0c,
     EC_BTITRAP                = 0x0d,
     EC_ILLEGALSTATE           = 0x0e,
@@ -213,6 +214,12 @@ static inline uint32_t syn_pactrap(void)
 static inline uint32_t syn_btitrap(int btype)
 {
     return (EC_BTITRAP << ARM_EL_EC_SHIFT) | btype;
+}
+
+static inline uint32_t syn_bxjtrap(int cv, int cond, int rm)
+{
+    return (EC_BXJTRAP << ARM_EL_EC_SHIFT) | ARM_EL_IL |
+        (cv << 24) | (cond << 20) | rm;
 }
 
 static inline uint32_t syn_insn_abort(int same_el, int ea, int s1ptw, int fsc)

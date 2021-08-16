@@ -6440,6 +6440,18 @@ static bool trans_BXJ(DisasContext *s, arg_BXJ *a)
     if (!ENABLE_ARCH_5J || arm_dc_feature(s, ARM_FEATURE_M)) {
         return false;
     }
+    /*
+     * v7A allows BXJ to be trapped via HSTR.TJDBX. We don't waste a
+     * TBFLAGS bit on a basically-never-happens case, so call a helper
+     * function to check for the trap and raise the exception if needed
+     * (passing it the register number for the syndrome value).
+     * v8A doesn't have this HSTR bit.
+     */
+    if (!arm_dc_feature(s, ARM_FEATURE_V8) &&
+        arm_dc_feature(s, ARM_FEATURE_EL2) &&
+        s->current_el < 2 && s->ns) {
+        gen_helper_check_bxj_trap(cpu_env, tcg_constant_i32(a->rm));
+    }
     /* Trivial implementation equivalent to bx.  */
     gen_bx(s, load_reg(s, a->rm));
     return true;
