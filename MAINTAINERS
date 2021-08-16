@@ -2275,8 +2275,50 @@ Overall Audio backends
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Odd Fixes
 F: audio/
+X: audio/alsaaudio.c
+X: audio/coreaudio.c
+X: audio/dsound*
+X: audio/jackaudio.c
+X: audio/ossaudio.c
+X: audio/paaudio.c
+X: audio/sdlaudio.c
 X: audio/spiceaudio.c
 F: qapi/audio.json
+
+ALSA Audio backend
+M: Gerd Hoffmann <kraxel@redhat.com>
+S: Odd Fixes
+F: audio/alsaaudio.c
+
+Core Audio framework backend
+M: Gerd Hoffmann <kraxel@redhat.com>
+S: Odd Fixes
+F: audio/coreaudio.c
+
+DSound Audio backend
+M: Gerd Hoffmann <kraxel@redhat.com>
+S: Odd Fixes
+F: audio/dsound*
+
+JACK Audio Connection Kit backend
+M: Gerd Hoffmann <kraxel@redhat.com>
+S: Odd Fixes
+F: audio/jackaudio.c
+
+Open Sound System (OSS) Audio backend
+M: Gerd Hoffmann <kraxel@redhat.com>
+S: Odd Fixes
+F: audio/ossaudio.c
+
+PulseAudio backend
+M: Gerd Hoffmann <kraxel@redhat.com>
+S: Odd Fixes
+F: audio/paaudio.c
+
+SDL Audio backend
+M: Gerd Hoffmann <kraxel@redhat.com>
+S: Odd Fixes
+F: audio/sdlaudio.c
 
 Block layer core
 M: Kevin Wolf <kwolf@redhat.com>
