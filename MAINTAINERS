@@ -2275,6 +2275,7 @@ Overall Audio backends
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Odd Fixes
 F: audio/
+X: audio/spiceaudio.c
 F: qapi/audio.json
 
 Block layer core
