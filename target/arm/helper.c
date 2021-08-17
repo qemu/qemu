@@ -9246,6 +9246,8 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask,
                 CPSRWriteType write_type)
 {
     uint32_t changed_daif;
+    bool rebuild_hflags = (write_type != CPSRWriteRaw) &&
+        (mask & (CPSR_M | CPSR_E | CPSR_IL));
 
     if (mask & CPSR_NZCV) {
         env->ZF = (~val) & CPSR_Z;
@@ -9365,6 +9367,9 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask,
     }
     mask &= ~CACHED_CPSR_BITS;
     env->uncached_cpsr = (env->uncached_cpsr & ~mask) | (val & mask);
+    if (rebuild_hflags) {
+        arm_rebuild_hflags(env);
+    }
 }
 
 /* Sign/zero extend */

@@ -1398,11 +1398,17 @@ uint32_t cpsr_read(CPUARMState *env);
 typedef enum CPSRWriteType {
     CPSRWriteByInstr = 0,         /* from guest MSR or CPS */
     CPSRWriteExceptionReturn = 1, /* from guest exception return insn */
-    CPSRWriteRaw = 2,             /* trust values, do not switch reg banks */
+    CPSRWriteRaw = 2,
+        /* trust values, no reg bank switch, no hflags rebuild */
     CPSRWriteByGDBStub = 3,       /* from the GDB stub */
 } CPSRWriteType;
 
-/* Set the CPSR.  Note that some bits of mask must be all-set or all-clear.*/
+/*
+ * Set the CPSR.  Note that some bits of mask must be all-set or all-clear.
+ * This will do an arm_rebuild_hflags() if any of the bits in @mask
+ * correspond to TB flags bits cached in the hflags, unless @write_type
+ * is CPSRWriteRaw.
+ */
 void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask,
                 CPSRWriteType write_type);
 

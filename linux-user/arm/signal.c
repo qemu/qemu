@@ -289,7 +289,6 @@ setup_return(CPUARMState *env, struct target_sigaction *ka,
     env->regs[14] = retcode;
     env->regs[15] = handler & (thumb ? ~1 : ~3);
     cpsr_write(env, cpsr, CPSR_IT | CPSR_T | CPSR_E, CPSRWriteByInstr);
-    arm_rebuild_hflags(env);
 
     return 0;
 }
@@ -547,7 +546,6 @@ restore_sigcontext(CPUARMState *env, struct target_sigcontext *sc)
     __get_user(env->regs[15], &sc->arm_pc);
     __get_user(cpsr, &sc->arm_cpsr);
     cpsr_write(env, cpsr, CPSR_USER | CPSR_EXEC, CPSRWriteByInstr);
-    arm_rebuild_hflags(env);
 
     err |= !valid_user_regs(env);
 
