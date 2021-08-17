@@ -2154,6 +2154,7 @@ static void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
                 }
             }
             flatview_unref(view);
+            trace_memory_region_sync_dirty(mr ? mr->name : "(all)", listener->name, 0);
         } else if (listener->log_sync_global) {
             /*
              * No matter whether MR is specified, what we can do here
@@ -2161,6 +2162,7 @@ static void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
              * sync in a finer granularity.
              */
             listener->log_sync_global(listener);
+            trace_memory_region_sync_dirty(mr ? mr->name : "(all)", listener->name, 1);
         }
     }
 }
