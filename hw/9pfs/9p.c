@@ -1703,11 +1703,12 @@ static bool same_stat_id(const struct stat *a, const struct stat *b)
 static void coroutine_fn v9fs_walk(void *opaque)
 {
     int name_idx;
-    V9fsQID *qids = NULL;
+    g_autofree V9fsQID *qids = NULL;
     int i, err = 0;
     V9fsPath dpath, path, *pathes = NULL;
     uint16_t nwnames;
-    struct stat stbuf, fidst, *stbufs = NULL;
+    struct stat stbuf, fidst;
+    g_autofree struct stat *stbufs = NULL;
     size_t offset = 7;
     int32_t fid, newfid;
     V9fsString *wnames = NULL;
@@ -1872,8 +1873,6 @@ out_nofid:
             v9fs_path_free(&pathes[name_idx]);
         }
         g_free(wnames);
-        g_free(qids);
-        g_free(stbufs);
         g_free(pathes);
     }
 }
