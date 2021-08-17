@@ -1787,7 +1787,8 @@ static void coroutine_fn v9fs_walk(void *opaque)
                 strcmp("..", wnames[name_idx].data))
             {
                 err = s->ops->name_to_path(&s->ctx, &dpath,
-                                        wnames[name_idx].data, &path);
+                                           wnames[name_idx].data,
+                                           &pathes[name_idx]);
                 if (err < 0) {
                     err = -errno;
                     break;
@@ -1796,14 +1797,13 @@ static void coroutine_fn v9fs_walk(void *opaque)
                     err = -EINTR;
                     break;
                 }
-                err = s->ops->lstat(&s->ctx, &path, &stbuf);
+                err = s->ops->lstat(&s->ctx, &pathes[name_idx], &stbuf);
                 if (err < 0) {
                     err = -errno;
                     break;
                 }
                 stbufs[name_idx] = stbuf;
-                v9fs_path_copy(&dpath, &path);
-                v9fs_path_copy(&pathes[name_idx], &path);
+                v9fs_path_copy(&dpath, &pathes[name_idx]);
             }
         }
     });
