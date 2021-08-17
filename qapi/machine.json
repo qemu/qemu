@@ -1288,7 +1288,7 @@
 ##
 # @SMPConfiguration:
 #
-# Schema for CPU topology configuration.  "0" or a missing value lets
+# Schema for CPU topology configuration.  A missing value lets
 # QEMU figure out a suitable value based on the ones that are provided.
 #
 # @cpus: number of virtual CPUs in the virtual machine
