@@ -37,7 +37,7 @@ typedef struct KVMMemoryListener {
 } KVMMemoryListener;
 
 void kvm_memory_listener_register(KVMState *s, KVMMemoryListener *kml,
-                                  AddressSpace *as, int as_id);
+                                  AddressSpace *as, int as_id, const char *name);
 
 void kvm_set_max_memslot_size(hwaddr max_slot_size);
 

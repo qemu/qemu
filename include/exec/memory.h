@@ -982,6 +982,14 @@ struct MemoryListener {
      */
     unsigned priority;
 
+    /**
+     * @name:
+     *
+     * Name of the listener.  It can be used in contexts where we'd like to
+     * identify one memory listener with the rest.
+     */
+    const char *name;
+
     /* private: */
     AddressSpace *address_space;
     QTAILQ_ENTRY(MemoryListener) link;

@@ -335,6 +335,7 @@ static void kvm_arm_devlistener_del(MemoryListener *listener,
 }
 
 static MemoryListener devlistener = {
+    .name = "kvm-arm",
     .region_add = kvm_arm_devlistener_add,
     .region_del = kvm_arm_devlistener_del,
 };

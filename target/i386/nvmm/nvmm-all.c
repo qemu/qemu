@@ -1123,6 +1123,7 @@ nvmm_log_sync(MemoryListener *listener, MemoryRegionSection *section)
 }
 
 static MemoryListener nvmm_memory_listener = {
+    .name = "nvmm",
     .begin = nvmm_transaction_begin,
     .commit = nvmm_transaction_commit,
     .region_add = nvmm_region_add,
