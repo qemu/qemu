@@ -2048,9 +2048,9 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
          */
         tcg_gen_qemu_ld_tl(t1, t0, mem_idx, MO_UB);
         tcg_gen_andi_tl(t1, t0, 7);
-#ifndef TARGET_WORDS_BIGENDIAN
-        tcg_gen_xori_tl(t1, t1, 7);
-#endif
+        if (!cpu_is_bigendian(ctx)) {
+            tcg_gen_xori_tl(t1, t1, 7);
+        }
         tcg_gen_shli_tl(t1, t1, 3);
         tcg_gen_andi_tl(t0, t0, ~7);
         tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEQ);
@@ -2072,9 +2072,9 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
          */
         tcg_gen_qemu_ld_tl(t1, t0, mem_idx, MO_UB);
         tcg_gen_andi_tl(t1, t0, 7);
-#ifdef TARGET_WORDS_BIGENDIAN
-        tcg_gen_xori_tl(t1, t1, 7);
-#endif
+        if (cpu_is_bigendian(ctx)) {
+            tcg_gen_xori_tl(t1, t1, 7);
+        }
         tcg_gen_shli_tl(t1, t1, 3);
         tcg_gen_andi_tl(t0, t0, ~7);
         tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEQ);
@@ -2153,9 +2153,9 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
          */
         tcg_gen_qemu_ld_tl(t1, t0, mem_idx, MO_UB);
         tcg_gen_andi_tl(t1, t0, 3);
-#ifndef TARGET_WORDS_BIGENDIAN
-        tcg_gen_xori_tl(t1, t1, 3);
-#endif
+        if (!cpu_is_bigendian(ctx)) {
+            tcg_gen_xori_tl(t1, t1, 3);
+        }
         tcg_gen_shli_tl(t1, t1, 3);
         tcg_gen_andi_tl(t0, t0, ~3);
         tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEUL);
@@ -2181,9 +2181,9 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
          */
         tcg_gen_qemu_ld_tl(t1, t0, mem_idx, MO_UB);
         tcg_gen_andi_tl(t1, t0, 3);
-#ifdef TARGET_WORDS_BIGENDIAN
-        tcg_gen_xori_tl(t1, t1, 3);
-#endif
+        if (cpu_is_bigendian(ctx)) {
+            tcg_gen_xori_tl(t1, t1, 3);
+        }
         tcg_gen_shli_tl(t1, t1, 3);
         tcg_gen_andi_tl(t0, t0, ~3);
         tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEUL);
@@ -4400,9 +4400,9 @@ static void gen_loongson_lswc2(DisasContext *ctx, int rt,
             t1 = tcg_temp_new();
             tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
             tcg_gen_andi_tl(t1, t0, 3);
-#ifndef TARGET_WORDS_BIGENDIAN
-            tcg_gen_xori_tl(t1, t1, 3);
-#endif
+            if (!cpu_is_bigendian(ctx)) {
+                tcg_gen_xori_tl(t1, t1, 3);
+            }
             tcg_gen_shli_tl(t1, t1, 3);
             tcg_gen_andi_tl(t0, t0, ~3);
             tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUL);
@@ -4430,9 +4430,9 @@ static void gen_loongson_lswc2(DisasContext *ctx, int rt,
             t1 = tcg_temp_new();
             tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
             tcg_gen_andi_tl(t1, t0, 3);
-#ifdef TARGET_WORDS_BIGENDIAN
-            tcg_gen_xori_tl(t1, t1, 3);
-#endif
+            if (cpu_is_bigendian(ctx)) {
+                tcg_gen_xori_tl(t1, t1, 3);
+            }
             tcg_gen_shli_tl(t1, t1, 3);
             tcg_gen_andi_tl(t0, t0, ~3);
             tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUL);
@@ -4462,9 +4462,9 @@ static void gen_loongson_lswc2(DisasContext *ctx, int rt,
             t1 = tcg_temp_new();
             tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
             tcg_gen_andi_tl(t1, t0, 7);
-#ifndef TARGET_WORDS_BIGENDIAN
-            tcg_gen_xori_tl(t1, t1, 7);
-#endif
+            if (!cpu_is_bigendian(ctx)) {
+                tcg_gen_xori_tl(t1, t1, 7);
+            }
             tcg_gen_shli_tl(t1, t1, 3);
             tcg_gen_andi_tl(t0, t0, ~7);
             tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ);
@@ -4484,9 +4484,9 @@ static void gen_loongson_lswc2(DisasContext *ctx, int rt,
             t1 = tcg_temp_new();
             tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
             tcg_gen_andi_tl(t1, t0, 7);
-#ifdef TARGET_WORDS_BIGENDIAN
-            tcg_gen_xori_tl(t1, t1, 7);
-#endif
+            if (cpu_is_bigendian(ctx)) {
+                tcg_gen_xori_tl(t1, t1, 7);
+            }
             tcg_gen_shli_tl(t1, t1, 3);
             tcg_gen_andi_tl(t0, t0, ~7);
             tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ);
@@ -11409,17 +11409,17 @@ static void gen_flt3_arith(DisasContext *ctx, uint32_t opc,
             gen_set_label(l1);
             tcg_gen_brcondi_tl(TCG_COND_NE, t0, 4, l2);
             tcg_temp_free(t0);
-#ifdef TARGET_WORDS_BIGENDIAN
-            gen_load_fpr32(ctx, fp, fs);
-            gen_load_fpr32h(ctx, fph, ft);
-            gen_store_fpr32h(ctx, fp, fd);
-            gen_store_fpr32(ctx, fph, fd);
-#else
-            gen_load_fpr32h(ctx, fph, fs);
-            gen_load_fpr32(ctx, fp, ft);
-            gen_store_fpr32(ctx, fph, fd);
-            gen_store_fpr32h(ctx, fp, fd);
-#endif
+            if (cpu_is_bigendian(ctx)) {
+                gen_load_fpr32(ctx, fp, fs);
+                gen_load_fpr32h(ctx, fph, ft);
+                gen_store_fpr32h(ctx, fp, fd);
+                gen_store_fpr32(ctx, fph, fd);
+            } else {
+                gen_load_fpr32h(ctx, fph, fs);
+                gen_load_fpr32(ctx, fp, ft);
+                gen_store_fpr32(ctx, fph, fd);
+                gen_store_fpr32h(ctx, fp, fd);
+            }
             gen_set_label(l2);
             tcg_temp_free_i32(fp);
             tcg_temp_free_i32(fph);
