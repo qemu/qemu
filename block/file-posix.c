@@ -1705,7 +1705,7 @@ static int handle_aiocb_write_zeroes(void *opaque)
              */
             warn_report_once("Your file system is misbehaving: "
                              "fallocate(FALLOC_FL_PUNCH_HOLE) returned EINVAL. "
-                             "Please report this bug to your file sytem "
+                             "Please report this bug to your file system "
                              "vendor.");
         } else if (ret != -ENOTSUP) {
             return ret;
