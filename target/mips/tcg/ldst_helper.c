@@ -124,50 +124,46 @@ void helper_swr(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
  * "half" load and stores.  We must do the memory access inline,
  * or fault handling won't work.
  */
-#ifdef TARGET_WORDS_BIGENDIAN
-#define GET_LMASK64(v) ((v) & 7)
-#else
-#define GET_LMASK64(v) (((v) & 7) ^ 7)
-#endif
 
 void helper_sdl(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
                 int mem_idx)
 {
+    target_ulong lmask = get_lmask(env, arg2, 64);
     int dir = cpu_is_bigendian(env) ? 1 : -1;
 
     cpu_stb_mmuidx_ra(env, arg2, (uint8_t)(arg1 >> 56), mem_idx, GETPC());
 
-    if (GET_LMASK64(arg2) <= 6) {
+    if (lmask <= 6) {
         cpu_stb_mmuidx_ra(env, arg2 + 1 * dir, (uint8_t)(arg1 >> 48),
                           mem_idx, GETPC());
     }
 
-    if (GET_LMASK64(arg2) <= 5) {
+    if (lmask <= 5) {
         cpu_stb_mmuidx_ra(env, arg2 + 2 * dir, (uint8_t)(arg1 >> 40),
                           mem_idx, GETPC());
     }
 
-    if (GET_LMASK64(arg2) <= 4) {
+    if (lmask <= 4) {
         cpu_stb_mmuidx_ra(env, arg2 + 3 * dir, (uint8_t)(arg1 >> 32),
                           mem_idx, GETPC());
     }
 
-    if (GET_LMASK64(arg2) <= 3) {
+    if (lmask <= 3) {
         cpu_stb_mmuidx_ra(env, arg2 + 4 * dir, (uint8_t)(arg1 >> 24),
                           mem_idx, GETPC());
     }
 
-    if (GET_LMASK64(arg2) <= 2) {
+    if (lmask <= 2) {
         cpu_stb_mmuidx_ra(env, arg2 + 5 * dir, (uint8_t)(arg1 >> 16),
                           mem_idx, GETPC());
     }
 
-    if (GET_LMASK64(arg2) <= 1) {
+    if (lmask <= 1) {
         cpu_stb_mmuidx_ra(env, arg2 + 6 * dir, (uint8_t)(arg1 >> 8),
                           mem_idx, GETPC());
     }
 
-    if (GET_LMASK64(arg2) <= 0) {
+    if (lmask <= 0) {
         cpu_stb_mmuidx_ra(env, arg2 + 7 * dir, (uint8_t)arg1,
                           mem_idx, GETPC());
     }
@@ -176,41 +172,42 @@ void helper_sdl(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
 void helper_sdr(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
                 int mem_idx)
 {
+    target_ulong lmask = get_lmask(env, arg2, 64);
     int dir = cpu_is_bigendian(env) ? 1 : -1;
 
     cpu_stb_mmuidx_ra(env, arg2, (uint8_t)arg1, mem_idx, GETPC());
 
-    if (GET_LMASK64(arg2) >= 1) {
+    if (lmask >= 1) {
         cpu_stb_mmuidx_ra(env, arg2 - 1 * dir, (uint8_t)(arg1 >> 8),
                           mem_idx, GETPC());
     }
 
-    if (GET_LMASK64(arg2) >= 2) {
+    if (lmask >= 2) {
         cpu_stb_mmuidx_ra(env, arg2 - 2 * dir, (uint8_t)(arg1 >> 16),
                           mem_idx, GETPC());
     }
 
-    if (GET_LMASK64(arg2) >= 3) {
+    if (lmask >= 3) {
         cpu_stb_mmuidx_ra(env, arg2 - 3 * dir, (uint8_t)(arg1 >> 24),
                           mem_idx, GETPC());
     }
 
-    if (GET_LMASK64(arg2) >= 4) {
+    if (lmask >= 4) {
         cpu_stb_mmuidx_ra(env, arg2 - 4 * dir, (uint8_t)(arg1 >> 32),
                           mem_idx, GETPC());
     }
 
-    if (GET_LMASK64(arg2) >= 5) {
+    if (lmask >= 5) {
         cpu_stb_mmuidx_ra(env, arg2 - 5 * dir, (uint8_t)(arg1 >> 40),
                           mem_idx, GETPC());
     }
 
-    if (GET_LMASK64(arg2) >= 6) {
+    if (lmask >= 6) {
         cpu_stb_mmuidx_ra(env, arg2 - 6 * dir, (uint8_t)(arg1 >> 48),
                           mem_idx, GETPC());
     }
 
-    if (GET_LMASK64(arg2) == 7) {
+    if (lmask == 7) {
         cpu_stb_mmuidx_ra(env, arg2 - 7 * dir, (uint8_t)(arg1 >> 56),
                           mem_idx, GETPC());
     }
