@@ -146,11 +146,72 @@ Replaced by ``-rtc base=date``.
 The "tls-creds" option should be used instead to point to a "tls-creds-x509"
 object created using "-object".
 
+``-mem-path`` fallback to RAM (removed in 5.0)
+''''''''''''''''''''''''''''''''''''''''''''''
+
+If guest RAM allocation from file pointed by ``mem-path`` failed,
+QEMU was falling back to allocating from RAM, which might have resulted
+in unpredictable behavior since the backing file specified by the user
+as ignored. Currently, users are responsible for making sure the backing storage
+specified with ``-mem-path`` can actually provide the guest RAM configured with
+``-m`` and QEMU fails to start up if RAM allocation is unsuccessful.
+
 ``-net ...,name=...`` (removed in 5.1)
 ''''''''''''''''''''''''''''''''''''''
 
 The ``name`` parameter of the ``-net`` option was a synonym
 for the ``id`` parameter, which should now be used instead.
+
+``-numa node,mem=...`` (removed in 5.1)
+'''''''''''''''''''''''''''''''''''''''
+
+The parameter ``mem`` of ``-numa node`` was used to assign a part of guest RAM
+to a NUMA node. But when using it, it's impossible to manage a specified RAM
+chunk on the host side (like bind it to a host node, setting bind policy, ...),
+so the guest ends up with the fake NUMA configuration with suboptiomal
+performance.
+However since 2014 there is an alternative way to assign RAM to a NUMA node
+using parameter ``memdev``, which does the same as ``mem`` and adds
+means to actually manage node RAM on the host side. Use parameter ``memdev``
+with *memory-backend-ram* backend as replacement for parameter ``mem``
+to achieve the same fake NUMA effect or a properly configured
+*memory-backend-file* backend to actually benefit from NUMA configuration.
+New machine versions (since 5.1) will not accept the option but it will still
+work with old machine types. User can check the QAPI schema to see if the legacy
+option is supported by looking at MachineInfo::numa-mem-supported property.
+
+``-numa`` node (without memory specified) (removed in 5.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Splitting RAM by default between NUMA nodes had the same issues as ``mem``
+parameter with the difference that the role of the user plays QEMU using
+implicit generic or board specific splitting rule.
+Use ``memdev`` with *memory-backend-ram* backend or ``mem`` (if
+it's supported by used machine type) to define mapping explicitly instead.
+Users of existing VMs, wishing to preserve the same RAM distribution, should
+configure it explicitly using ``-numa node,memdev`` options. Current RAM
+distribution can be retrieved using HMP command ``info numa`` and if separate
+memory devices (pc|nv-dimm) are present use ``info memory-device`` and subtract
+device memory from output of ``info numa``.
+
+``-smp`` (invalid topologies) (removed in 5.2)
+''''''''''''''''''''''''''''''''''''''''''''''
+
+CPU topology properties should describe whole machine topology including
+possible CPUs.
+
+However, historically it was possible to start QEMU with an incorrect topology
+where *n* <= *sockets* * *cores* * *threads* < *maxcpus*,
+which could lead to an incorrect topology enumeration by the guest.
+Support for invalid topologies is removed, the user must ensure
+topologies described with -smp include all possible cpus, i.e.
+*sockets* * *cores* * *threads* = *maxcpus*.
+
+``-machine enforce-config-section=on|off`` (removed in 5.2)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``enforce-config-section`` property was replaced by the
+``-global migration.send-configuration={on|off}`` option.
 
 ``-no-kvm`` (removed in 5.2)
 ''''''''''''''''''''''''''''
@@ -589,69 +650,6 @@ However, as the ``-u`` option exists for this purpose, it is safer to
 enforce that any failure to open the backing image (including if the
 backing file is missing or an incorrect format was specified) is an
 error when ``-u`` is not used.
-
-Command line options
---------------------
-
-``-smp`` (invalid topologies) (removed in 5.2)
-''''''''''''''''''''''''''''''''''''''''''''''
-
-CPU topology properties should describe whole machine topology including
-possible CPUs.
-
-However, historically it was possible to start QEMU with an incorrect topology
-where *n* <= *sockets* * *cores* * *threads* < *maxcpus*,
-which could lead to an incorrect topology enumeration by the guest.
-Support for invalid topologies is removed, the user must ensure
-topologies described with -smp include all possible cpus, i.e.
-*sockets* * *cores* * *threads* = *maxcpus*.
-
-``-numa`` node (without memory specified) (removed in 5.2)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Splitting RAM by default between NUMA nodes had the same issues as ``mem``
-parameter with the difference that the role of the user plays QEMU using
-implicit generic or board specific splitting rule.
-Use ``memdev`` with *memory-backend-ram* backend or ``mem`` (if
-it's supported by used machine type) to define mapping explicitly instead.
-Users of existing VMs, wishing to preserve the same RAM distribution, should
-configure it explicitly using ``-numa node,memdev`` options. Current RAM
-distribution can be retrieved using HMP command ``info numa`` and if separate
-memory devices (pc|nv-dimm) are present use ``info memory-device`` and subtract
-device memory from output of ``info numa``.
-
-``-numa node,mem=``\ *size* (removed in 5.1)
-''''''''''''''''''''''''''''''''''''''''''''
-
-The parameter ``mem`` of ``-numa node`` was used to assign a part of
-guest RAM to a NUMA node. But when using it, it's impossible to manage a specified
-RAM chunk on the host side (like bind it to a host node, setting bind policy, ...),
-so the guest ends up with the fake NUMA configuration with suboptiomal performance.
-However since 2014 there is an alternative way to assign RAM to a NUMA node
-using parameter ``memdev``, which does the same as ``mem`` and adds
-means to actually manage node RAM on the host side. Use parameter ``memdev``
-with *memory-backend-ram* backend as replacement for parameter ``mem``
-to achieve the same fake NUMA effect or a properly configured
-*memory-backend-file* backend to actually benefit from NUMA configuration.
-New machine versions (since 5.1) will not accept the option but it will still
-work with old machine types. User can check the QAPI schema to see if the legacy
-option is supported by looking at MachineInfo::numa-mem-supported property.
-
-``-mem-path`` fallback to RAM (removed in 5.0)
-''''''''''''''''''''''''''''''''''''''''''''''
-
-If guest RAM allocation from file pointed by ``mem-path`` failed,
-QEMU was falling back to allocating from RAM, which might have resulted
-in unpredictable behavior since the backing file specified by the user
-as ignored. Currently, users are responsible for making sure the backing storage
-specified with ``-mem-path`` can actually provide the guest RAM configured with
-``-m`` and QEMU fails to start up if RAM allocation is unsuccessful.
-
-``-machine enforce-config-section=on|off`` (removed in 5.2)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``enforce-config-section`` property was replaced by the
-``-global migration.send-configuration={on|off}`` option.
 
 qemu-img amend to adjust backing file (removed in 6.1)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''
