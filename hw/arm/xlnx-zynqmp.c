@@ -620,6 +620,10 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
                            gic_spi[adma_ch_intr[i]]);
     }
 
+    if (!object_property_set_link(OBJECT(&s->qspi_dma), "dma",
+                                  OBJECT(system_memory), errp)) {
+        return;
+    }
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->qspi_dma), errp)) {
         return;
     }

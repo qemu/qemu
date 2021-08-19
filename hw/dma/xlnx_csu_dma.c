@@ -201,11 +201,11 @@ static uint32_t xlnx_csu_dma_read(XlnxCSUDMA *s, uint8_t *buf, uint32_t len)
         for (i = 0; i < len && (result == MEMTX_OK); i += s->width) {
             uint32_t mlen = MIN(len - i, s->width);
 
-            result = address_space_rw(s->dma_as, addr, s->attr,
+            result = address_space_rw(&s->dma_as, addr, s->attr,
                                       buf + i, mlen, false);
         }
     } else {
-        result = address_space_rw(s->dma_as, addr, s->attr, buf, len, false);
+        result = address_space_rw(&s->dma_as, addr, s->attr, buf, len, false);
     }
 
     if (result == MEMTX_OK) {
@@ -232,12 +232,12 @@ static uint32_t xlnx_csu_dma_write(XlnxCSUDMA *s, uint8_t *buf, uint32_t len)
         for (i = 0; i < len && (result == MEMTX_OK); i += s->width) {
             uint32_t mlen = MIN(len - i, s->width);
 
-            result = address_space_rw(s->dma_as, addr, s->attr,
+            result = address_space_rw(&s->dma_as, addr, s->attr,
                                       buf, mlen, true);
             buf += mlen;
         }
     } else {
-        result = address_space_rw(s->dma_as, addr, s->attr, buf, len, true);
+        result = address_space_rw(&s->dma_as, addr, s->attr, buf, len, true);
     }
 
     if (result != MEMTX_OK) {
@@ -631,6 +631,12 @@ static void xlnx_csu_dma_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (!s->dma_mr) {
+        error_setg(errp, TYPE_XLNX_CSU_DMA " 'dma' link not set");
+        return;
+    }
+    address_space_init(&s->dma_as, s->dma_mr, "csu-dma");
+
     reg_array =
         register_init_block32(dev, xlnx_csu_dma_regs_info[!!s->is_dst],
                               XLNX_CSU_DMA_R_MAX,
@@ -647,13 +653,6 @@ static void xlnx_csu_dma_realize(DeviceState *dev, Error **errp)
 
     s->src_timer = ptimer_init(xlnx_csu_dma_src_timeout_hit,
                                s, PTIMER_POLICY_DEFAULT);
-
-    if (s->dma_mr) {
-        s->dma_as = g_malloc0(sizeof(AddressSpace));
-        address_space_init(s->dma_as, s->dma_mr, NULL);
-    } else {
-        s->dma_as = &address_space_memory;
-    }
 
     s->attr = MEMTXATTRS_UNSPECIFIED;
 

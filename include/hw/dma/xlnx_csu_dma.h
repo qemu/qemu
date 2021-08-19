@@ -30,7 +30,7 @@ typedef struct XlnxCSUDMA {
     MemoryRegion iomem;
     MemTxAttrs attr;
     MemoryRegion *dma_mr;
-    AddressSpace *dma_as;
+    AddressSpace dma_as;
     qemu_irq irq;
     StreamSink *tx_dev; /* Used as generic StreamSink */
     ptimer_state *src_timer;
