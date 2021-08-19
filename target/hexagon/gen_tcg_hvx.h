@@ -532,4 +532,154 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
     tcg_gen_gvec_abs(MO_32, VdV_off, VuV_off, \
                      sizeof(MMVector), sizeof(MMVector))
 
+/* Vector loads */
+#define fGEN_TCG_V6_vL32b_pi(SHORTCODE)                    SHORTCODE
+#define fGEN_TCG_V6_vL32Ub_pi(SHORTCODE)                   SHORTCODE
+#define fGEN_TCG_V6_vL32b_cur_pi(SHORTCODE)                SHORTCODE
+#define fGEN_TCG_V6_vL32b_tmp_pi(SHORTCODE)                SHORTCODE
+#define fGEN_TCG_V6_vL32b_nt_pi(SHORTCODE)                 SHORTCODE
+#define fGEN_TCG_V6_vL32b_nt_cur_pi(SHORTCODE)             SHORTCODE
+#define fGEN_TCG_V6_vL32b_nt_tmp_pi(SHORTCODE)             SHORTCODE
+#define fGEN_TCG_V6_vL32b_ai(SHORTCODE)                    SHORTCODE
+#define fGEN_TCG_V6_vL32Ub_ai(SHORTCODE)                   SHORTCODE
+#define fGEN_TCG_V6_vL32b_cur_ai(SHORTCODE)                SHORTCODE
+#define fGEN_TCG_V6_vL32b_tmp_ai(SHORTCODE)                SHORTCODE
+#define fGEN_TCG_V6_vL32b_nt_ai(SHORTCODE)                 SHORTCODE
+#define fGEN_TCG_V6_vL32b_nt_cur_ai(SHORTCODE)             SHORTCODE
+#define fGEN_TCG_V6_vL32b_nt_tmp_ai(SHORTCODE)             SHORTCODE
+#define fGEN_TCG_V6_vL32b_ppu(SHORTCODE)                   SHORTCODE
+#define fGEN_TCG_V6_vL32Ub_ppu(SHORTCODE)                  SHORTCODE
+#define fGEN_TCG_V6_vL32b_cur_ppu(SHORTCODE)               SHORTCODE
+#define fGEN_TCG_V6_vL32b_tmp_ppu(SHORTCODE)               SHORTCODE
+#define fGEN_TCG_V6_vL32b_nt_ppu(SHORTCODE)                SHORTCODE
+#define fGEN_TCG_V6_vL32b_nt_cur_ppu(SHORTCODE)            SHORTCODE
+#define fGEN_TCG_V6_vL32b_nt_tmp_ppu(SHORTCODE)            SHORTCODE
+
+/* Predicated vector loads */
+#define fGEN_TCG_PRED_VEC_LOAD(GET_EA, PRED, DSTOFF, INC) \
+    do { \
+        TCGv LSB = tcg_temp_new(); \
+        TCGLabel *false_label = gen_new_label(); \
+        TCGLabel *end_label = gen_new_label(); \
+        GET_EA; \
+        PRED; \
+        tcg_gen_brcondi_tl(TCG_COND_EQ, LSB, 0, false_label); \
+        tcg_temp_free(LSB); \
+        gen_vreg_load(ctx, DSTOFF, EA, true); \
+        INC; \
+        tcg_gen_br(end_label); \
+        gen_set_label(false_label); \
+        tcg_gen_ori_tl(hex_slot_cancelled, hex_slot_cancelled, \
+                       1 << insn->slot); \
+        gen_set_label(end_label); \
+    } while (0)
+
+#define fGEN_TCG_PRED_VEC_LOAD_pred_pi \
+    fGEN_TCG_PRED_VEC_LOAD(fLSBOLD(PvV), \
+                           fEA_REG(RxV), \
+                           VdV_off, \
+                           fPM_I(RxV, siV * sizeof(MMVector)))
+#define fGEN_TCG_PRED_VEC_LOAD_npred_pi \
+    fGEN_TCG_PRED_VEC_LOAD(fLSBOLDNOT(PvV), \
+                           fEA_REG(RxV), \
+                           VdV_off, \
+                           fPM_I(RxV, siV * sizeof(MMVector)))
+
+#define fGEN_TCG_V6_vL32b_pred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_pred_pi
+#define fGEN_TCG_V6_vL32b_npred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_npred_pi
+#define fGEN_TCG_V6_vL32b_cur_pred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_pred_pi
+#define fGEN_TCG_V6_vL32b_cur_npred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_npred_pi
+#define fGEN_TCG_V6_vL32b_tmp_pred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_pred_pi
+#define fGEN_TCG_V6_vL32b_tmp_npred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_npred_pi
+#define fGEN_TCG_V6_vL32b_nt_pred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_pred_pi
+#define fGEN_TCG_V6_vL32b_nt_npred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_npred_pi
+#define fGEN_TCG_V6_vL32b_nt_cur_pred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_pred_pi
+#define fGEN_TCG_V6_vL32b_nt_cur_npred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_npred_pi
+#define fGEN_TCG_V6_vL32b_nt_tmp_pred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_pred_pi
+#define fGEN_TCG_V6_vL32b_nt_tmp_npred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_npred_pi
+
+#define fGEN_TCG_PRED_VEC_LOAD_pred_ai \
+    fGEN_TCG_PRED_VEC_LOAD(fLSBOLD(PvV), \
+                           fEA_RI(RtV, siV * sizeof(MMVector)), \
+                           VdV_off, \
+                           do {} while (0))
+#define fGEN_TCG_PRED_VEC_LOAD_npred_ai \
+    fGEN_TCG_PRED_VEC_LOAD(fLSBOLDNOT(PvV), \
+                           fEA_RI(RtV, siV * sizeof(MMVector)), \
+                           VdV_off, \
+                           do {} while (0))
+
+#define fGEN_TCG_V6_vL32b_pred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_pred_ai
+#define fGEN_TCG_V6_vL32b_npred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_npred_ai
+#define fGEN_TCG_V6_vL32b_cur_pred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_pred_ai
+#define fGEN_TCG_V6_vL32b_cur_npred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_npred_ai
+#define fGEN_TCG_V6_vL32b_tmp_pred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_pred_ai
+#define fGEN_TCG_V6_vL32b_tmp_npred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_npred_ai
+#define fGEN_TCG_V6_vL32b_nt_pred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_pred_ai
+#define fGEN_TCG_V6_vL32b_nt_npred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_npred_ai
+#define fGEN_TCG_V6_vL32b_nt_cur_pred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_pred_ai
+#define fGEN_TCG_V6_vL32b_nt_cur_npred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_npred_ai
+#define fGEN_TCG_V6_vL32b_nt_tmp_pred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_pred_ai
+#define fGEN_TCG_V6_vL32b_nt_tmp_npred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_npred_ai
+
+#define fGEN_TCG_PRED_VEC_LOAD_pred_ppu \
+    fGEN_TCG_PRED_VEC_LOAD(fLSBOLD(PvV), \
+                           fEA_REG(RxV), \
+                           VdV_off, \
+                           fPM_M(RxV, MuV))
+#define fGEN_TCG_PRED_VEC_LOAD_npred_ppu \
+    fGEN_TCG_PRED_VEC_LOAD(fLSBOLDNOT(PvV), \
+                           fEA_REG(RxV), \
+                           VdV_off, \
+                           fPM_M(RxV, MuV))
+
+#define fGEN_TCG_V6_vL32b_pred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_pred_ppu
+#define fGEN_TCG_V6_vL32b_npred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_npred_ppu
+#define fGEN_TCG_V6_vL32b_cur_pred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_pred_ppu
+#define fGEN_TCG_V6_vL32b_cur_npred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_npred_ppu
+#define fGEN_TCG_V6_vL32b_tmp_pred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_pred_ppu
+#define fGEN_TCG_V6_vL32b_tmp_npred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_npred_ppu
+#define fGEN_TCG_V6_vL32b_nt_pred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_pred_ppu
+#define fGEN_TCG_V6_vL32b_nt_npred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_npred_ppu
+#define fGEN_TCG_V6_vL32b_nt_cur_pred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_pred_ppu
+#define fGEN_TCG_V6_vL32b_nt_cur_npred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_npred_ppu
+#define fGEN_TCG_V6_vL32b_nt_tmp_pred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_pred_ppu
+#define fGEN_TCG_V6_vL32b_nt_tmp_npred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_LOAD_npred_ppu
+
 #endif
