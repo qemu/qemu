@@ -682,4 +682,222 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
 #define fGEN_TCG_V6_vL32b_nt_tmp_npred_ppu(SHORTCODE) \
     fGEN_TCG_PRED_VEC_LOAD_npred_ppu
 
+/* Vector stores */
+#define fGEN_TCG_V6_vS32b_pi(SHORTCODE)                    SHORTCODE
+#define fGEN_TCG_V6_vS32Ub_pi(SHORTCODE)                   SHORTCODE
+#define fGEN_TCG_V6_vS32b_nt_pi(SHORTCODE)                 SHORTCODE
+#define fGEN_TCG_V6_vS32b_ai(SHORTCODE)                    SHORTCODE
+#define fGEN_TCG_V6_vS32Ub_ai(SHORTCODE)                   SHORTCODE
+#define fGEN_TCG_V6_vS32b_nt_ai(SHORTCODE)                 SHORTCODE
+#define fGEN_TCG_V6_vS32b_ppu(SHORTCODE)                   SHORTCODE
+#define fGEN_TCG_V6_vS32Ub_ppu(SHORTCODE)                  SHORTCODE
+#define fGEN_TCG_V6_vS32b_nt_ppu(SHORTCODE)                SHORTCODE
+
+/* New value vector stores */
+#define fGEN_TCG_NEWVAL_VEC_STORE(GET_EA, INC) \
+    do { \
+        GET_EA; \
+        gen_vreg_store(ctx, insn, pkt, EA, OsN_off, insn->slot, true); \
+        INC; \
+    } while (0)
+
+#define fGEN_TCG_NEWVAL_VEC_STORE_pi \
+    fGEN_TCG_NEWVAL_VEC_STORE(fEA_REG(RxV), fPM_I(RxV, siV * sizeof(MMVector)))
+
+#define fGEN_TCG_V6_vS32b_new_pi(SHORTCODE) \
+    fGEN_TCG_NEWVAL_VEC_STORE_pi
+#define fGEN_TCG_V6_vS32b_nt_new_pi(SHORTCODE) \
+    fGEN_TCG_NEWVAL_VEC_STORE_pi
+
+#define fGEN_TCG_NEWVAL_VEC_STORE_ai \
+    fGEN_TCG_NEWVAL_VEC_STORE(fEA_RI(RtV, siV * sizeof(MMVector)), \
+                              do { } while (0))
+
+#define fGEN_TCG_V6_vS32b_new_ai(SHORTCODE) \
+    fGEN_TCG_NEWVAL_VEC_STORE_ai
+#define fGEN_TCG_V6_vS32b_nt_new_ai(SHORTCODE) \
+    fGEN_TCG_NEWVAL_VEC_STORE_ai
+
+#define fGEN_TCG_NEWVAL_VEC_STORE_ppu \
+    fGEN_TCG_NEWVAL_VEC_STORE(fEA_REG(RxV), fPM_M(RxV, MuV))
+
+#define fGEN_TCG_V6_vS32b_new_ppu(SHORTCODE) \
+    fGEN_TCG_NEWVAL_VEC_STORE_ppu
+#define fGEN_TCG_V6_vS32b_nt_new_ppu(SHORTCODE) \
+    fGEN_TCG_NEWVAL_VEC_STORE_ppu
+
+/* Predicated vector stores */
+#define fGEN_TCG_PRED_VEC_STORE(GET_EA, PRED, SRCOFF, ALIGN, INC) \
+    do { \
+        TCGv LSB = tcg_temp_new(); \
+        TCGLabel *false_label = gen_new_label(); \
+        TCGLabel *end_label = gen_new_label(); \
+        GET_EA; \
+        PRED; \
+        tcg_gen_brcondi_tl(TCG_COND_EQ, LSB, 0, false_label); \
+        tcg_temp_free(LSB); \
+        gen_vreg_store(ctx, insn, pkt, EA, SRCOFF, insn->slot, ALIGN); \
+        INC; \
+        tcg_gen_br(end_label); \
+        gen_set_label(false_label); \
+        tcg_gen_ori_tl(hex_slot_cancelled, hex_slot_cancelled, \
+                       1 << insn->slot); \
+        gen_set_label(end_label); \
+    } while (0)
+
+#define fGEN_TCG_PRED_VEC_STORE_pred_pi(ALIGN) \
+    fGEN_TCG_PRED_VEC_STORE(fLSBOLD(PvV), \
+                            fEA_REG(RxV), \
+                            VsV_off, ALIGN, \
+                            fPM_I(RxV, siV * sizeof(MMVector)))
+#define fGEN_TCG_PRED_VEC_STORE_npred_pi(ALIGN) \
+    fGEN_TCG_PRED_VEC_STORE(fLSBOLDNOT(PvV), \
+                            fEA_REG(RxV), \
+                            VsV_off, ALIGN, \
+                            fPM_I(RxV, siV * sizeof(MMVector)))
+#define fGEN_TCG_PRED_VEC_STORE_new_pred_pi \
+    fGEN_TCG_PRED_VEC_STORE(fLSBOLD(PvV), \
+                            fEA_REG(RxV), \
+                            OsN_off, true, \
+                            fPM_I(RxV, siV * sizeof(MMVector)))
+#define fGEN_TCG_PRED_VEC_STORE_new_npred_pi \
+    fGEN_TCG_PRED_VEC_STORE(fLSBOLDNOT(PvV), \
+                            fEA_REG(RxV), \
+                            OsN_off, true, \
+                            fPM_I(RxV, siV * sizeof(MMVector)))
+
+#define fGEN_TCG_V6_vS32b_pred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_pred_pi(true)
+#define fGEN_TCG_V6_vS32b_npred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_npred_pi(true)
+#define fGEN_TCG_V6_vS32Ub_pred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_pred_pi(false)
+#define fGEN_TCG_V6_vS32Ub_npred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_npred_pi(false)
+#define fGEN_TCG_V6_vS32b_nt_pred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_pred_pi(true)
+#define fGEN_TCG_V6_vS32b_nt_npred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_npred_pi(true)
+#define fGEN_TCG_V6_vS32b_new_pred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_new_pred_pi
+#define fGEN_TCG_V6_vS32b_new_npred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_new_npred_pi
+#define fGEN_TCG_V6_vS32b_nt_new_pred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_new_pred_pi
+#define fGEN_TCG_V6_vS32b_nt_new_npred_pi(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_new_npred_pi
+
+#define fGEN_TCG_PRED_VEC_STORE_pred_ai(ALIGN) \
+    fGEN_TCG_PRED_VEC_STORE(fLSBOLD(PvV), \
+                            fEA_RI(RtV, siV * sizeof(MMVector)), \
+                            VsV_off, ALIGN, \
+                            do { } while (0))
+#define fGEN_TCG_PRED_VEC_STORE_npred_ai(ALIGN) \
+    fGEN_TCG_PRED_VEC_STORE(fLSBOLDNOT(PvV), \
+                            fEA_RI(RtV, siV * sizeof(MMVector)), \
+                            VsV_off, ALIGN, \
+                            do { } while (0))
+#define fGEN_TCG_PRED_VEC_STORE_new_pred_ai \
+    fGEN_TCG_PRED_VEC_STORE(fLSBOLD(PvV), \
+                            fEA_RI(RtV, siV * sizeof(MMVector)), \
+                            OsN_off, true, \
+                            do { } while (0))
+#define fGEN_TCG_PRED_VEC_STORE_new_npred_ai \
+    fGEN_TCG_PRED_VEC_STORE(fLSBOLDNOT(PvV), \
+                            fEA_RI(RtV, siV * sizeof(MMVector)), \
+                            OsN_off, true, \
+                            do { } while (0))
+
+#define fGEN_TCG_V6_vS32b_pred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_pred_ai(true)
+#define fGEN_TCG_V6_vS32b_npred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_npred_ai(true)
+#define fGEN_TCG_V6_vS32Ub_pred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_pred_ai(false)
+#define fGEN_TCG_V6_vS32Ub_npred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_npred_ai(false)
+#define fGEN_TCG_V6_vS32b_nt_pred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_pred_ai(true)
+#define fGEN_TCG_V6_vS32b_nt_npred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_npred_ai(true)
+#define fGEN_TCG_V6_vS32b_new_pred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_new_pred_ai
+#define fGEN_TCG_V6_vS32b_new_npred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_new_npred_ai
+#define fGEN_TCG_V6_vS32b_nt_new_pred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_new_pred_ai
+#define fGEN_TCG_V6_vS32b_nt_new_npred_ai(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_new_npred_ai
+
+#define fGEN_TCG_PRED_VEC_STORE_pred_ppu(ALIGN) \
+    fGEN_TCG_PRED_VEC_STORE(fLSBOLD(PvV), \
+                            fEA_REG(RxV), \
+                            VsV_off, ALIGN, \
+                            fPM_M(RxV, MuV))
+#define fGEN_TCG_PRED_VEC_STORE_npred_ppu(ALIGN) \
+    fGEN_TCG_PRED_VEC_STORE(fLSBOLDNOT(PvV), \
+                            fEA_REG(RxV), \
+                            VsV_off, ALIGN, \
+                            fPM_M(RxV, MuV))
+#define fGEN_TCG_PRED_VEC_STORE_new_pred_ppu \
+    fGEN_TCG_PRED_VEC_STORE(fLSBOLD(PvV), \
+                            fEA_REG(RxV), \
+                            OsN_off, true, \
+                            fPM_M(RxV, MuV))
+#define fGEN_TCG_PRED_VEC_STORE_new_npred_ppu \
+    fGEN_TCG_PRED_VEC_STORE(fLSBOLDNOT(PvV), \
+                            fEA_REG(RxV), \
+                            OsN_off, true, \
+                            fPM_M(RxV, MuV))
+
+#define fGEN_TCG_V6_vS32b_pred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_pred_ppu(true)
+#define fGEN_TCG_V6_vS32b_npred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_npred_ppu(true)
+#define fGEN_TCG_V6_vS32Ub_pred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_pred_ppu(false)
+#define fGEN_TCG_V6_vS32Ub_npred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_npred_ppu(false)
+#define fGEN_TCG_V6_vS32b_nt_pred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_pred_ppu(true)
+#define fGEN_TCG_V6_vS32b_nt_npred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_npred_ppu(true)
+#define fGEN_TCG_V6_vS32b_new_pred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_new_pred_ppu
+#define fGEN_TCG_V6_vS32b_new_npred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_new_npred_ppu
+#define fGEN_TCG_V6_vS32b_nt_new_pred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_new_pred_ppu
+#define fGEN_TCG_V6_vS32b_nt_new_npred_ppu(SHORTCODE) \
+    fGEN_TCG_PRED_VEC_STORE_new_npred_ppu
+
+/* Masked vector stores */
+#define fGEN_TCG_V6_vS32b_qpred_pi(SHORTCODE)              SHORTCODE
+#define fGEN_TCG_V6_vS32b_nt_qpred_pi(SHORTCODE)           SHORTCODE
+#define fGEN_TCG_V6_vS32b_qpred_ai(SHORTCODE)              SHORTCODE
+#define fGEN_TCG_V6_vS32b_nt_qpred_ai(SHORTCODE)           SHORTCODE
+#define fGEN_TCG_V6_vS32b_qpred_ppu(SHORTCODE)             SHORTCODE
+#define fGEN_TCG_V6_vS32b_nt_qpred_ppu(SHORTCODE)          SHORTCODE
+#define fGEN_TCG_V6_vS32b_nqpred_pi(SHORTCODE)             SHORTCODE
+#define fGEN_TCG_V6_vS32b_nt_nqpred_pi(SHORTCODE)          SHORTCODE
+#define fGEN_TCG_V6_vS32b_nqpred_ai(SHORTCODE)             SHORTCODE
+#define fGEN_TCG_V6_vS32b_nt_nqpred_ai(SHORTCODE)          SHORTCODE
+#define fGEN_TCG_V6_vS32b_nqpred_ppu(SHORTCODE)            SHORTCODE
+#define fGEN_TCG_V6_vS32b_nt_nqpred_ppu(SHORTCODE)         SHORTCODE
+
+/* Store release not modelled in qemu, but need to suppress compiler warnings */
+#define fGEN_TCG_V6_vS32b_srls_pi(SHORTCODE) \
+    do { \
+        siV = siV; \
+    } while (0)
+#define fGEN_TCG_V6_vS32b_srls_ai(SHORTCODE) \
+    do { \
+        RtV = RtV; \
+        siV = siV; \
+    } while (0)
+#define fGEN_TCG_V6_vS32b_srls_ppu(SHORTCODE) \
+    do { \
+        MuV = MuV; \
+    } while (0)
+
 #endif
