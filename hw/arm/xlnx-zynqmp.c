@@ -570,26 +570,6 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         g_free(bus_name);
     }
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->qspi), errp)) {
-        return;
-    }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->qspi), 0, QSPI_ADDR);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->qspi), 1, LQSPI_ADDR);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->qspi), 0, gic_spi[QSPI_IRQ]);
-
-    for (i = 0; i < XLNX_ZYNQMP_NUM_QSPI_BUS; i++) {
-        gchar *bus_name;
-        gchar *target_bus;
-
-        /* Alias controller SPI bus to the SoC itself */
-        bus_name = g_strdup_printf("qspi%d", i);
-        target_bus = g_strdup_printf("spi%d", i);
-        object_property_add_alias(OBJECT(s), bus_name,
-                                  OBJECT(&s->qspi), target_bus);
-        g_free(bus_name);
-        g_free(target_bus);
-    }
-
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->dp), errp)) {
         return;
     }
@@ -646,8 +626,26 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
 
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->qspi_dma), 0, QSPI_DMA_ADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->qspi_dma), 0, gic_spi[QSPI_IRQ]);
-    object_property_set_link(OBJECT(&s->qspi), "stream-connected-dma",
-                             OBJECT(&s->qspi_dma), errp);
+
+    if (!object_property_set_link(OBJECT(&s->qspi), "stream-connected-dma",
+                                  OBJECT(&s->qspi_dma), errp)) {
+         return;
+    }
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->qspi), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->qspi), 0, QSPI_ADDR);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->qspi), 1, LQSPI_ADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->qspi), 0, gic_spi[QSPI_IRQ]);
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_QSPI_BUS; i++) {
+        g_autofree gchar *bus_name = g_strdup_printf("qspi%d", i);
+        g_autofree gchar *target_bus = g_strdup_printf("spi%d", i);
+
+        /* Alias controller SPI bus to the SoC itself */
+        object_property_add_alias(OBJECT(s), bus_name,
+                                  OBJECT(&s->qspi), target_bus);
+    }
 }
 
 static Property xlnx_zynqmp_props[] = {
