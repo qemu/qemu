@@ -598,6 +598,10 @@ void qdev_init_gpio_in(DeviceState *dev, qemu_irq_handler handler, int n);
  *
  * See qdev_connect_gpio_out() for how code that uses such a device
  * can connect to one of its output GPIO lines.
+ *
+ * There is no need to release the @pins allocated array because it
+ * will be automatically released when @dev calls its instance_finalize()
+ * handler.
  */
 void qdev_init_gpio_out(DeviceState *dev, qemu_irq *pins, int n);
 /**
