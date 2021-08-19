@@ -2628,6 +2628,14 @@ static int img_convert(int argc, char **argv)
         goto out;
     }
 
+    if (flags & BDRV_O_NOCACHE) {
+        /*
+         * If we open the target with O_DIRECT, it may be necessary to
+         * extend its size to align to the physical sector size.
+         */
+        flags |= BDRV_O_RESIZE;
+    }
+
     if (skip_create) {
         s.target = img_open(tgt_image_opts, out_filename, out_fmt,
                             flags, writethrough, s.quiet, false);
