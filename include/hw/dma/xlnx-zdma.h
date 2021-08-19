@@ -56,7 +56,7 @@ struct XlnxZDMA {
     MemoryRegion iomem;
     MemTxAttrs attr;
     MemoryRegion *dma_mr;
-    AddressSpace *dma_as;
+    AddressSpace dma_as;
     qemu_irq irq_zdma_ch_imr;
 
     struct {
