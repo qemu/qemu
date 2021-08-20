@@ -83,6 +83,7 @@ _filter_qemu()
 {
     gsed -e "s#\\(^\\|(qemu) \\)$(basename $QEMU_PROG):#\1QEMU_PROG:#" \
         -e 's#^QEMU [0-9]\+\.[0-9]\+\.[0-9]\+ monitor#QEMU X.Y.Z monitor#' \
+        -e "/qcow2 v2 images are deprecated/d" \
         -e $'s#\r##' # QEMU monitor uses \r\n line endings
 }
 

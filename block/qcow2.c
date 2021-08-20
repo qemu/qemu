@@ -1358,6 +1358,12 @@ qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -ENOTSUP;
         goto fail;
     }
+    if (header.version < 3 && !bdrv_is_read_only(bs) && bdrv_uses_whitelist()) {
+        warn_report_once("qcow2 v2 images are deprecated and may not be "
+                         "supported in future versions. Please consider "
+                         "upgrading the image with 'qemu-img amend "
+                         "-o compat=v3'.");
+    }
 
     s->qcow_version = header.version;
 
