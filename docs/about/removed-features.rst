@@ -194,8 +194,8 @@ by the ``tls-authz`` and ``sasl-authz`` options.
 The ``pretty=on|off`` switch has no effect for HMP monitors and
 its use is rejected.
 
-``-drive file=json:{...{'driver':'file'}}`` (removed 6.0)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+``-drive file=json:{...{'driver':'file'}}`` (removed in 6.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 The 'file' driver for drives is no longer appropriate for character or host
 devices and will only accept regular files (S_IFREG). The correct driver
@@ -272,8 +272,8 @@ for the RISC-V ``virt`` machine and ``sifive_u`` machine.
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 
-``block-dirty-bitmap-add`` "autoload" parameter (removed in 4.2.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+``block-dirty-bitmap-add`` "autoload" parameter (removed in 4.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 The "autoload" parameter has been ignored since 2.12.0. All bitmaps
 are automatically loaded from qcow2 images.
@@ -456,15 +456,15 @@ Nobody was using this CPU emulation in QEMU, and there were no test images
 available to make sure that the code is still working, so it has been removed
 without replacement.
 
-``lm32`` CPUs (removed in 6.1.0)
-''''''''''''''''''''''''''''''''
+``lm32`` CPUs (removed in 6.1)
+''''''''''''''''''''''''''''''
 
 The only public user of this architecture was the milkymist project,
 which has been dead for years; there was never an upstream Linux
 port.  Removed without replacement.
 
-``unicore32`` CPUs (since 6.1.0)
-''''''''''''''''''''''''''''''''
+``unicore32`` CPUs (removed in 6.1)
+'''''''''''''''''''''''''''''''''''
 
 Support for this CPU was removed from the upstream Linux kernel, and
 there is no available upstream toolchain to build binaries for it.
@@ -593,8 +593,8 @@ error when ``-u`` is not used.
 Command line options
 --------------------
 
-``-smp`` (invalid topologies) (removed 5.2)
-'''''''''''''''''''''''''''''''''''''''''''
+``-smp`` (invalid topologies) (removed in 5.2)
+''''''''''''''''''''''''''''''''''''''''''''''
 
 CPU topology properties should describe whole machine topology including
 possible CPUs.
@@ -606,8 +606,8 @@ Support for invalid topologies is removed, the user must ensure
 topologies described with -smp include all possible cpus, i.e.
 *sockets* * *cores* * *threads* = *maxcpus*.
 
-``-numa`` node (without memory specified) (removed 5.2)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''
+``-numa`` node (without memory specified) (removed in 5.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Splitting RAM by default between NUMA nodes had the same issues as ``mem``
 parameter with the difference that the role of the user plays QEMU using
@@ -647,8 +647,8 @@ as ignored. Currently, users are responsible for making sure the backing storage
 specified with ``-mem-path`` can actually provide the guest RAM configured with
 ``-m`` and QEMU fails to start up if RAM allocation is unsuccessful.
 
-``-machine enforce-config-section=on|off`` (removed 5.2)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+``-machine enforce-config-section=on|off`` (removed in 5.2)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 The ``enforce-config-section`` property was replaced by the
 ``-global migration.send-configuration={on|off}`` option.
