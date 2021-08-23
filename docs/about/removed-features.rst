@@ -140,8 +140,8 @@ Use ``-rtc driftfix=slew`` instead.
 
 Replaced by ``-rtc base=date``.
 
-``-vnc ...,tls=...``, ``-vnc ...,x509=...`` & ``-vnc ...,x509verify=...``
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+``-vnc ...,tls=...``, ``-vnc ...,x509=...`` & ``-vnc ...,x509verify=...`` (removed in 3.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 The "tls-creds" option should be used instead to point to a "tls-creds-x509"
 object created using "-object".
