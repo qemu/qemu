@@ -5191,7 +5191,7 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
     uint16_t list[NVME_CONTROLLER_LIST_SIZE] = {};
     uint32_t nsid = le32_to_cpu(req->cmd.nsid);
     uint32_t dw10 = le32_to_cpu(req->cmd.cdw10);
-    bool attach = !(dw10 & 0xf);
+    uint8_t sel = dw10 & 0xf;
     uint16_t *nr_ids = &list[0];
     uint16_t *ids = &list[1];
     uint16_t ret;
@@ -5224,7 +5224,8 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
             return NVME_NS_CTRL_LIST_INVALID | NVME_DNR;
         }
 
-        if (attach) {
+        switch (sel) {
+        case NVME_NS_ATTACHMENT_ATTACH:
             if (nvme_ns(ctrl, nsid)) {
                 return NVME_NS_ALREADY_ATTACHED | NVME_DNR;
             }
@@ -5235,7 +5236,10 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
 
             nvme_attach_ns(ctrl, ns);
             nvme_select_iocs_ns(ctrl, ns);
-        } else {
+
+            break;
+
+        case NVME_NS_ATTACHMENT_DETACH:
             if (!nvme_ns(ctrl, nsid)) {
                 return NVME_NS_NOT_ATTACHED | NVME_DNR;
             }
@@ -5244,6 +5248,11 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
             ns->attached--;
 
             nvme_update_dmrsl(ctrl);
+
+            break;
+
+        default:
+            return NVME_INVALID_FIELD | NVME_DNR;
         }
 
         /*
