@@ -22,7 +22,7 @@ static inline bool gen_lr(DisasContext *ctx, arg_atomic *a, MemOp mop)
 {
     TCGv src1 = tcg_temp_new();
     /* Put addr in load_res, data in load_val.  */
-    gen_get_gpr(src1, a->rs1);
+    gen_get_gpr(ctx, src1, a->rs1);
     if (a->rl) {
         tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
     }
@@ -31,7 +31,7 @@ static inline bool gen_lr(DisasContext *ctx, arg_atomic *a, MemOp mop)
         tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
     }
     tcg_gen_mov_tl(load_res, src1);
-    gen_set_gpr(a->rd, load_val);
+    gen_set_gpr(ctx, a->rd, load_val);
 
     tcg_temp_free(src1);
     return true;
@@ -45,10 +45,10 @@ static inline bool gen_sc(DisasContext *ctx, arg_atomic *a, MemOp mop)
     TCGLabel *l1 = gen_new_label();
     TCGLabel *l2 = gen_new_label();
 
-    gen_get_gpr(src1, a->rs1);
+    gen_get_gpr(ctx, src1, a->rs1);
     tcg_gen_brcond_tl(TCG_COND_NE, load_res, src1, l1);
 
-    gen_get_gpr(src2, a->rs2);
+    gen_get_gpr(ctx, src2, a->rs2);
     /*
      * Note that the TCG atomic primitives are SC,
      * so we can ignore AQ/RL along this path.
@@ -56,7 +56,7 @@ static inline bool gen_sc(DisasContext *ctx, arg_atomic *a, MemOp mop)
     tcg_gen_atomic_cmpxchg_tl(src1, load_res, load_val, src2,
                               ctx->mem_idx, mop);
     tcg_gen_setcond_tl(TCG_COND_NE, dat, src1, load_val);
-    gen_set_gpr(a->rd, dat);
+    gen_set_gpr(ctx, a->rd, dat);
     tcg_gen_br(l2);
 
     gen_set_label(l1);
@@ -66,7 +66,7 @@ static inline bool gen_sc(DisasContext *ctx, arg_atomic *a, MemOp mop)
      */
     tcg_gen_mb(TCG_MO_ALL + a->aq * TCG_BAR_LDAQ + a->rl * TCG_BAR_STRL);
     tcg_gen_movi_tl(dat, 1);
-    gen_set_gpr(a->rd, dat);
+    gen_set_gpr(ctx, a->rd, dat);
 
     gen_set_label(l2);
     /*
@@ -88,12 +88,12 @@ static bool gen_amo(DisasContext *ctx, arg_atomic *a,
     TCGv src1 = tcg_temp_new();
     TCGv src2 = tcg_temp_new();
 
-    gen_get_gpr(src1, a->rs1);
-    gen_get_gpr(src2, a->rs2);
+    gen_get_gpr(ctx, src1, a->rs1);
+    gen_get_gpr(ctx, src2, a->rs2);
 
     (*func)(src2, src1, src2, ctx->mem_idx, mop);
 
-    gen_set_gpr(a->rd, src2);
+    gen_set_gpr(ctx, a->rd, src2);
     tcg_temp_free(src1);
     tcg_temp_free(src2);
     return true;
