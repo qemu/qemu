@@ -5623,14 +5623,6 @@ static int nvme_start_ctrl(NvmeCtrl *n)
         trace_pci_nvme_err_startfail_sq();
         return -1;
     }
-    if (unlikely(!asq)) {
-        trace_pci_nvme_err_startfail_nbarasq();
-        return -1;
-    }
-    if (unlikely(!acq)) {
-        trace_pci_nvme_err_startfail_nbaracq();
-        return -1;
-    }
     if (unlikely(asq & (page_size - 1))) {
         trace_pci_nvme_err_startfail_asq_misaligned(asq);
         return -1;
