@@ -79,6 +79,11 @@ OBJECT_DECLARE_SIMPLE_TYPE(XlnxZynqMPState, XLNX_ZYNQMP)
 #define XLNX_ZYNQMP_MAX_RAM_SIZE (XLNX_ZYNQMP_MAX_LOW_RAM_SIZE + \
                                   XLNX_ZYNQMP_MAX_HIGH_RAM_SIZE)
 
+/*
+ * Unimplemented mmio regions needed to boot some images.
+ */
+#define XLNX_ZYNQMP_NUM_UNIMP_AREAS 1
+
 struct XlnxZynqMPState {
     /*< private >*/
     DeviceState parent_obj;
@@ -95,6 +100,8 @@ struct XlnxZynqMPState {
 
     MemoryRegion *ddr_ram;
     MemoryRegion ddr_ram_low, ddr_ram_high;
+
+    MemoryRegion mr_unimp[XLNX_ZYNQMP_NUM_UNIMP_AREAS];
 
     CadenceGEMState gem[XLNX_ZYNQMP_NUM_GEMS];
     CadenceUARTState uart[XLNX_ZYNQMP_NUM_UARTS];
