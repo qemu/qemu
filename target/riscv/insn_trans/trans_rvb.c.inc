@@ -160,13 +160,13 @@ static void gen_bset(TCGv ret, TCGv arg1, TCGv shamt)
 static bool trans_bset(DisasContext *ctx, arg_bset *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, gen_bset);
+    return gen_shift(ctx, a, EXT_NONE, gen_bset);
 }
 
 static bool trans_bseti(DisasContext *ctx, arg_bseti *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shifti(ctx, a, gen_bset);
+    return gen_shift_imm_tl(ctx, a, EXT_NONE, gen_bset);
 }
 
 static void gen_bclr(TCGv ret, TCGv arg1, TCGv shamt)
@@ -182,13 +182,13 @@ static void gen_bclr(TCGv ret, TCGv arg1, TCGv shamt)
 static bool trans_bclr(DisasContext *ctx, arg_bclr *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, gen_bclr);
+    return gen_shift(ctx, a, EXT_NONE, gen_bclr);
 }
 
 static bool trans_bclri(DisasContext *ctx, arg_bclri *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shifti(ctx, a, gen_bclr);
+    return gen_shift_imm_tl(ctx, a, EXT_NONE, gen_bclr);
 }
 
 static void gen_binv(TCGv ret, TCGv arg1, TCGv shamt)
@@ -204,13 +204,13 @@ static void gen_binv(TCGv ret, TCGv arg1, TCGv shamt)
 static bool trans_binv(DisasContext *ctx, arg_binv *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, gen_binv);
+    return gen_shift(ctx, a, EXT_NONE, gen_binv);
 }
 
 static bool trans_binvi(DisasContext *ctx, arg_binvi *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shifti(ctx, a, gen_binv);
+    return gen_shift_imm_tl(ctx, a, EXT_NONE, gen_binv);
 }
 
 static void gen_bext(TCGv ret, TCGv arg1, TCGv shamt)
@@ -222,13 +222,13 @@ static void gen_bext(TCGv ret, TCGv arg1, TCGv shamt)
 static bool trans_bext(DisasContext *ctx, arg_bext *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, gen_bext);
+    return gen_shift(ctx, a, EXT_NONE, gen_bext);
 }
 
 static bool trans_bexti(DisasContext *ctx, arg_bexti *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shifti(ctx, a, gen_bext);
+    return gen_shift_imm_tl(ctx, a, EXT_NONE, gen_bext);
 }
 
 static void gen_slo(TCGv ret, TCGv arg1, TCGv arg2)
@@ -241,13 +241,13 @@ static void gen_slo(TCGv ret, TCGv arg1, TCGv arg2)
 static bool trans_slo(DisasContext *ctx, arg_slo *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, gen_slo);
+    return gen_shift(ctx, a, EXT_NONE, gen_slo);
 }
 
 static bool trans_sloi(DisasContext *ctx, arg_sloi *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shifti(ctx, a, gen_slo);
+    return gen_shift_imm_tl(ctx, a, EXT_NONE, gen_slo);
 }
 
 static void gen_sro(TCGv ret, TCGv arg1, TCGv arg2)
@@ -260,82 +260,65 @@ static void gen_sro(TCGv ret, TCGv arg1, TCGv arg2)
 static bool trans_sro(DisasContext *ctx, arg_sro *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, gen_sro);
+    return gen_shift(ctx, a, EXT_ZERO, gen_sro);
 }
 
 static bool trans_sroi(DisasContext *ctx, arg_sroi *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shifti(ctx, a, gen_sro);
+    return gen_shift_imm_tl(ctx, a, EXT_ZERO, gen_sro);
 }
 
 static bool trans_ror(DisasContext *ctx, arg_ror *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, tcg_gen_rotr_tl);
+    return gen_shift(ctx, a, EXT_NONE, tcg_gen_rotr_tl);
 }
 
 static bool trans_rori(DisasContext *ctx, arg_rori *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shifti(ctx, a, tcg_gen_rotr_tl);
+    return gen_shift_imm_fn(ctx, a, EXT_NONE, tcg_gen_rotri_tl);
 }
 
 static bool trans_rol(DisasContext *ctx, arg_rol *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, tcg_gen_rotl_tl);
+    return gen_shift(ctx, a, EXT_NONE, tcg_gen_rotl_tl);
 }
 
 static bool trans_grev(DisasContext *ctx, arg_grev *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, gen_helper_grev);
+    return gen_shift(ctx, a, EXT_NONE, gen_helper_grev);
 }
 
-static bool gen_grevi(DisasContext *ctx, arg_grevi *a)
+static void gen_grevi(TCGv dest, TCGv src, target_long shamt)
 {
-    TCGv source1 = tcg_temp_new();
-    TCGv source2;
-
-    gen_get_gpr(ctx, source1, a->rs1);
-
-    if (a->shamt == (TARGET_LONG_BITS - 8)) {
+    if (shamt == TARGET_LONG_BITS - 8) {
         /* rev8, byte swaps */
-        tcg_gen_bswap_tl(source1, source1);
+        tcg_gen_bswap_tl(dest, src);
     } else {
-        source2 = tcg_temp_new();
-        tcg_gen_movi_tl(source2, a->shamt);
-        gen_helper_grev(source1, source1, source2);
-        tcg_temp_free(source2);
+        gen_helper_grev(dest, src, tcg_constant_tl(shamt));
     }
-
-    gen_set_gpr(ctx, a->rd, source1);
-    tcg_temp_free(source1);
-    return true;
 }
 
 static bool trans_grevi(DisasContext *ctx, arg_grevi *a)
 {
     REQUIRE_EXT(ctx, RVB);
-
-    if (a->shamt >= TARGET_LONG_BITS) {
-        return false;
-    }
-
-    return gen_grevi(ctx, a);
+    return gen_shift_imm_fn(ctx, a, EXT_NONE, gen_grevi);
 }
 
 static bool trans_gorc(DisasContext *ctx, arg_gorc *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, gen_helper_gorc);
+    return gen_shift(ctx, a, EXT_ZERO, gen_helper_gorc);
 }
 
 static bool trans_gorci(DisasContext *ctx, arg_gorci *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shifti(ctx, a, gen_helper_gorc);
+    return gen_shift_imm_tl(ctx, a, EXT_ZERO, gen_helper_gorc);
 }
 
 #define GEN_SHADD(SHAMT)                                       \
@@ -433,77 +416,88 @@ static bool trans_bsetw(DisasContext *ctx, arg_bsetw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_shiftw(ctx, a, gen_bset);
+    ctx->w = true;
+    return gen_shift(ctx, a, EXT_NONE, gen_bset);
 }
 
 static bool trans_bsetiw(DisasContext *ctx, arg_bsetiw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_shiftiw(ctx, a, gen_bset);
+    ctx->w = true;
+    return gen_shift_imm_tl(ctx, a, EXT_NONE, gen_bset);
 }
 
 static bool trans_bclrw(DisasContext *ctx, arg_bclrw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_shiftw(ctx, a, gen_bclr);
+    ctx->w = true;
+    return gen_shift(ctx, a, EXT_NONE, gen_bclr);
 }
 
 static bool trans_bclriw(DisasContext *ctx, arg_bclriw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_shiftiw(ctx, a, gen_bclr);
+    ctx->w = true;
+    return gen_shift_imm_tl(ctx, a, EXT_NONE, gen_bclr);
 }
 
 static bool trans_binvw(DisasContext *ctx, arg_binvw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_shiftw(ctx, a, gen_binv);
+    ctx->w = true;
+    return gen_shift(ctx, a, EXT_NONE, gen_binv);
 }
 
 static bool trans_binviw(DisasContext *ctx, arg_binviw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_shiftiw(ctx, a, gen_binv);
+    ctx->w = true;
+    return gen_shift_imm_tl(ctx, a, EXT_NONE, gen_binv);
 }
 
 static bool trans_bextw(DisasContext *ctx, arg_bextw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_shiftw(ctx, a, gen_bext);
+    ctx->w = true;
+    return gen_shift(ctx, a, EXT_NONE, gen_bext);
 }
 
 static bool trans_slow(DisasContext *ctx, arg_slow *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_shiftw(ctx, a, gen_slo);
+    ctx->w = true;
+    return gen_shift(ctx, a, EXT_NONE, gen_slo);
 }
 
 static bool trans_sloiw(DisasContext *ctx, arg_sloiw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_shiftiw(ctx, a, gen_slo);
+    ctx->w = true;
+    return gen_shift_imm_tl(ctx, a, EXT_NONE, gen_slo);
 }
 
 static bool trans_srow(DisasContext *ctx, arg_srow *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_shiftw(ctx, a, gen_sro);
+    ctx->w = true;
+    return gen_shift(ctx, a, EXT_ZERO, gen_sro);
 }
 
 static bool trans_sroiw(DisasContext *ctx, arg_sroiw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_shiftiw(ctx, a, gen_sro);
+    ctx->w = true;
+    return gen_shift_imm_tl(ctx, a, EXT_ZERO, gen_sro);
 }
 
 static void gen_rorw(TCGv ret, TCGv arg1, TCGv arg2)
@@ -528,14 +522,16 @@ static bool trans_rorw(DisasContext *ctx, arg_rorw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_shiftw(ctx, a, gen_rorw);
+    ctx->w = true;
+    return gen_shift(ctx, a, EXT_NONE, gen_rorw);
 }
 
 static bool trans_roriw(DisasContext *ctx, arg_roriw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_shiftiw(ctx, a, gen_rorw);
+    ctx->w = true;
+    return gen_shift_imm_tl(ctx, a, EXT_NONE, gen_rorw);
 }
 
 static void gen_rolw(TCGv ret, TCGv arg1, TCGv arg2)
@@ -560,47 +556,40 @@ static bool trans_rolw(DisasContext *ctx, arg_rolw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_shiftw(ctx, a, gen_rolw);
-}
-
-static void gen_grevw(TCGv ret, TCGv arg1, TCGv arg2)
-{
-    tcg_gen_ext32u_tl(arg1, arg1);
-    gen_helper_grev(ret, arg1, arg2);
+    ctx->w = true;
+    return gen_shift(ctx, a, EXT_NONE, gen_rolw);
 }
 
 static bool trans_grevw(DisasContext *ctx, arg_grevw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_shiftw(ctx, a, gen_grevw);
+    ctx->w = true;
+    return gen_shift(ctx, a, EXT_ZERO, gen_helper_grev);
 }
 
 static bool trans_greviw(DisasContext *ctx, arg_greviw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_shiftiw(ctx, a, gen_grevw);
-}
-
-static void gen_gorcw(TCGv ret, TCGv arg1, TCGv arg2)
-{
-    tcg_gen_ext32u_tl(arg1, arg1);
-    gen_helper_gorcw(ret, arg1, arg2);
+    ctx->w = true;
+    return gen_shift_imm_tl(ctx, a, EXT_ZERO, gen_helper_grev);
 }
 
 static bool trans_gorcw(DisasContext *ctx, arg_gorcw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_shiftw(ctx, a, gen_gorcw);
+    ctx->w = true;
+    return gen_shift(ctx, a, EXT_ZERO, gen_helper_gorc);
 }
 
 static bool trans_gorciw(DisasContext *ctx, arg_gorciw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_shiftiw(ctx, a, gen_gorcw);
+    ctx->w = true;
+    return gen_shift_imm_tl(ctx, a, EXT_ZERO, gen_helper_gorc);
 }
 
 #define GEN_SHADD_UW(SHAMT)                                       \
