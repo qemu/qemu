@@ -104,20 +104,16 @@ static void gen_nanbox_s(TCGv_i64 out, TCGv_i64 in)
  */
 static void gen_check_nanbox_s(TCGv_i64 out, TCGv_i64 in)
 {
-    TCGv_i64 t_max = tcg_const_i64(0xffffffff00000000ull);
-    TCGv_i64 t_nan = tcg_const_i64(0xffffffff7fc00000ull);
+    TCGv_i64 t_max = tcg_constant_i64(0xffffffff00000000ull);
+    TCGv_i64 t_nan = tcg_constant_i64(0xffffffff7fc00000ull);
 
     tcg_gen_movcond_i64(TCG_COND_GEU, out, in, t_max, in, t_nan);
-    tcg_temp_free_i64(t_max);
-    tcg_temp_free_i64(t_nan);
 }
 
 static void generate_exception(DisasContext *ctx, int excp)
 {
     tcg_gen_movi_tl(cpu_pc, ctx->base.pc_next);
-    TCGv_i32 helper_tmp = tcg_const_i32(excp);
-    gen_helper_raise_exception(cpu_env, helper_tmp);
-    tcg_temp_free_i32(helper_tmp);
+    gen_helper_raise_exception(cpu_env, tcg_constant_i32(excp));
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
@@ -125,17 +121,13 @@ static void generate_exception_mtval(DisasContext *ctx, int excp)
 {
     tcg_gen_movi_tl(cpu_pc, ctx->base.pc_next);
     tcg_gen_st_tl(cpu_pc, cpu_env, offsetof(CPURISCVState, badaddr));
-    TCGv_i32 helper_tmp = tcg_const_i32(excp);
-    gen_helper_raise_exception(cpu_env, helper_tmp);
-    tcg_temp_free_i32(helper_tmp);
+    gen_helper_raise_exception(cpu_env, tcg_constant_i32(excp));
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
 static void gen_exception_debug(void)
 {
-    TCGv_i32 helper_tmp = tcg_const_i32(EXCP_DEBUG);
-    gen_helper_raise_exception(cpu_env, helper_tmp);
-    tcg_temp_free_i32(helper_tmp);
+    gen_helper_raise_exception(cpu_env, tcg_constant_i32(EXCP_DEBUG));
 }
 
 /* Wrapper around tcg_gen_exit_tb that handles single stepping */
@@ -229,7 +221,7 @@ static void gen_div(TCGv ret, TCGv source1, TCGv source2)
      */
     cond1 = tcg_temp_new();
     cond2 = tcg_temp_new();
-    zeroreg = tcg_const_tl(0);
+    zeroreg = tcg_constant_tl(0);
     resultopt1 = tcg_temp_new();
 
     tcg_gen_movi_tl(resultopt1, (target_ulong)-1);
@@ -250,7 +242,6 @@ static void gen_div(TCGv ret, TCGv source1, TCGv source2)
 
     tcg_temp_free(cond1);
     tcg_temp_free(cond2);
-    tcg_temp_free(zeroreg);
     tcg_temp_free(resultopt1);
 }
 
@@ -259,7 +250,7 @@ static void gen_divu(TCGv ret, TCGv source1, TCGv source2)
     TCGv cond1, zeroreg, resultopt1;
     cond1 = tcg_temp_new();
 
-    zeroreg = tcg_const_tl(0);
+    zeroreg = tcg_constant_tl(0);
     resultopt1 = tcg_temp_new();
 
     tcg_gen_setcondi_tl(TCG_COND_EQ, cond1, source2, 0);
@@ -272,7 +263,6 @@ static void gen_divu(TCGv ret, TCGv source1, TCGv source2)
     tcg_gen_divu_tl(ret, source1, source2);
 
     tcg_temp_free(cond1);
-    tcg_temp_free(zeroreg);
     tcg_temp_free(resultopt1);
 }
 
@@ -282,7 +272,7 @@ static void gen_rem(TCGv ret, TCGv source1, TCGv source2)
 
     cond1 = tcg_temp_new();
     cond2 = tcg_temp_new();
-    zeroreg = tcg_const_tl(0);
+    zeroreg = tcg_constant_tl(0);
     resultopt1 = tcg_temp_new();
 
     tcg_gen_movi_tl(resultopt1, 1L);
@@ -302,7 +292,6 @@ static void gen_rem(TCGv ret, TCGv source1, TCGv source2)
 
     tcg_temp_free(cond1);
     tcg_temp_free(cond2);
-    tcg_temp_free(zeroreg);
     tcg_temp_free(resultopt1);
 }
 
@@ -310,7 +299,7 @@ static void gen_remu(TCGv ret, TCGv source1, TCGv source2)
 {
     TCGv cond1, zeroreg, resultopt1;
     cond1 = tcg_temp_new();
-    zeroreg = tcg_const_tl(0);
+    zeroreg = tcg_constant_tl(0);
     resultopt1 = tcg_temp_new();
 
     tcg_gen_movi_tl(resultopt1, (target_ulong)1);
@@ -323,7 +312,6 @@ static void gen_remu(TCGv ret, TCGv source1, TCGv source2)
             source1);
 
     tcg_temp_free(cond1);
-    tcg_temp_free(zeroreg);
     tcg_temp_free(resultopt1);
 }
 
@@ -384,15 +372,11 @@ static inline void mark_fs_dirty(DisasContext *ctx) { }
 
 static void gen_set_rm(DisasContext *ctx, int rm)
 {
-    TCGv_i32 t0;
-
     if (ctx->frm == rm) {
         return;
     }
     ctx->frm = rm;
-    t0 = tcg_const_i32(rm);
-    gen_helper_set_rounding_mode(cpu_env, t0);
-    tcg_temp_free_i32(t0);
+    gen_helper_set_rounding_mode(cpu_env, tcg_constant_i32(rm));
 }
 
 static int ex_plus_1(DisasContext *ctx, int nf)
