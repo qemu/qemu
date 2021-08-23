@@ -471,7 +471,9 @@ bool vnc_display_reload_certs(const char *id,  Error **errp);
 /* input.c */
 int index_from_key(const char *key, size_t key_length);
 
+#ifdef CONFIG_LINUX
 /* udmabuf.c */
 int udmabuf_fd(void);
+#endif
 
 #endif
