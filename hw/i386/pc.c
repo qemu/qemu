@@ -802,18 +802,9 @@ void pc_machine_done(Notifier *notifier, void *data)
 
 void pc_guest_info_init(PCMachineState *pcms)
 {
-    int i;
-    MachineState *ms = MACHINE(pcms);
     X86MachineState *x86ms = X86_MACHINE(pcms);
 
     x86ms->apic_xrupt_override = true;
-    pcms->numa_nodes = ms->numa_state->num_nodes;
-    pcms->node_mem = g_malloc0(pcms->numa_nodes *
-                                    sizeof *pcms->node_mem);
-    for (i = 0; i < ms->numa_state->num_nodes; i++) {
-        pcms->node_mem[i] = ms->numa_state->nodes[i].node_mem;
-    }
-
     pcms->machine_done.notify = pc_machine_done;
     qemu_add_machine_init_done_notifier(&pcms->machine_done);
 }

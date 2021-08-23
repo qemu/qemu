@@ -47,10 +47,6 @@ typedef struct PCMachineState {
     bool default_bus_bypass_iommu;
     uint64_t max_fw_size;
 
-    /* NUMA information: */
-    uint64_t numa_nodes;
-    uint64_t *node_mem;
-
     /* ACPI Memory hotplug IO base address */
     hwaddr memhp_io_base;
 } PCMachineState;
