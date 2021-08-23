@@ -937,9 +937,12 @@ static RISCVException rmw_vsip(CPURISCVState *env, int csrno,
     /* Shift the S bits to their VS bit location in mip */
     int ret = rmw_mip(env, 0, ret_value, new_value << 1,
                       (write_mask << 1) & vsip_writable_mask & env->hideleg);
-    *ret_value &= VS_MODE_INTERRUPTS;
-    /* Shift the VS bits to their S bit location in vsip */
-    *ret_value >>= 1;
+
+    if (ret_value) {
+        *ret_value &= VS_MODE_INTERRUPTS;
+        /* Shift the VS bits to their S bit location in vsip */
+        *ret_value >>= 1;
+    }
     return ret;
 }
 
@@ -956,7 +959,9 @@ static RISCVException rmw_sip(CPURISCVState *env, int csrno,
                       write_mask & env->mideleg & sip_writable_mask);
     }
 
-    *ret_value &= env->mideleg;
+    if (ret_value) {
+        *ret_value &= env->mideleg;
+    }
     return ret;
 }
 
@@ -1072,8 +1077,9 @@ static RISCVException rmw_hvip(CPURISCVState *env, int csrno,
     int ret = rmw_mip(env, 0, ret_value, new_value,
                       write_mask & hvip_writable_mask);
 
-    *ret_value &= hvip_writable_mask;
-
+    if (ret_value) {
+        *ret_value &= hvip_writable_mask;
+    }
     return ret;
 }
 
@@ -1084,8 +1090,9 @@ static RISCVException rmw_hip(CPURISCVState *env, int csrno,
     int ret = rmw_mip(env, 0, ret_value, new_value,
                       write_mask & hip_writable_mask);
 
-    *ret_value &= hip_writable_mask;
-
+    if (ret_value) {
+        *ret_value &= hip_writable_mask;
+    }
     return ret;
 }
 
