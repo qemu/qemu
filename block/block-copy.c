@@ -384,8 +384,7 @@ static int64_t block_copy_calculate_cluster_size(BlockDriverState *target,
 }
 
 BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
-                                     bool use_copy_range,
-                                     bool compress, Error **errp)
+                                     Error **errp)
 {
     BlockCopyState *s;
     int64_t cluster_size;
@@ -434,7 +433,7 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
                                     cluster_size),
     };
 
-    block_copy_set_copy_opts(s, use_copy_range, compress);
+    block_copy_set_copy_opts(s, false, false);
 
     ratelimit_init(&s->rate_limit);
     qemu_co_mutex_init(&s->lock);

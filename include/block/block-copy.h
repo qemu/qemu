@@ -25,7 +25,6 @@ typedef struct BlockCopyState BlockCopyState;
 typedef struct BlockCopyCallState BlockCopyCallState;
 
 BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
-                                     bool use_copy_range, bool compress,
                                      Error **errp);
 
 /* Function should be called prior any actual copy request */
