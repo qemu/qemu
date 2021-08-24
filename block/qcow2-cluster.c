@@ -1403,6 +1403,17 @@ static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
             continue;
         }
 
+        if (old_alloc->keep_old_clusters &&
+            (end <= l2meta_cow_start(old_alloc) ||
+             start >= l2meta_cow_end(old_alloc)))
+        {
+            /*
+             * Clusters intersect but COW areas don't. And cluster itself is
+             * already allocated. So, there is no actual conflict.
+             */
+            continue;
+        }
+
         /* Conflict */
 
         if (start < old_start) {
