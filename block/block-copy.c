@@ -315,6 +315,33 @@ static uint32_t block_copy_max_transfer(BdrvChild *source, BdrvChild *target)
                                      target->bs->bl.max_transfer));
 }
 
+void block_copy_set_copy_opts(BlockCopyState *s, bool use_copy_range,
+                              bool compress)
+{
+    /* Keep BDRV_REQ_SERIALISING set (or not set) in block_copy_state_new() */
+    s->write_flags = (s->write_flags & BDRV_REQ_SERIALISING) |
+        (compress ? BDRV_REQ_WRITE_COMPRESSED : 0);
+
+    if (s->max_transfer < s->cluster_size) {
+        /*
+         * copy_range does not respect max_transfer. We don't want to bother
+         * with requests smaller than block-copy cluster size, so fallback to
+         * buffered copying (read and write respect max_transfer on their
+         * behalf).
+         */
+        s->method = COPY_READ_WRITE_CLUSTER;
+    } else if (compress) {
+        /* Compression supports only cluster-size writes and no copy-range. */
+        s->method = COPY_READ_WRITE_CLUSTER;
+    } else {
+        /*
+         * If copy range enabled, start with COPY_RANGE_SMALL, until first
+         * successful copy_range (look at block_copy_do_copy).
+         */
+        s->method = use_copy_range ? COPY_RANGE_SMALL : COPY_READ_WRITE;
+    }
+}
+
 BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
                                      int64_t cluster_size, bool use_copy_range,
                                      bool compress, Error **errp)
@@ -353,32 +380,14 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
         .copy_bitmap = copy_bitmap,
         .cluster_size = cluster_size,
         .len = bdrv_dirty_bitmap_size(copy_bitmap),
-        .write_flags = (is_fleecing ? BDRV_REQ_SERIALISING : 0) |
-            (compress ? BDRV_REQ_WRITE_COMPRESSED : 0),
+        .write_flags = (is_fleecing ? BDRV_REQ_SERIALISING : 0),
         .mem = shres_create(BLOCK_COPY_MAX_MEM),
         .max_transfer = QEMU_ALIGN_DOWN(
                                     block_copy_max_transfer(source, target),
                                     cluster_size),
     };
 
-    if (s->max_transfer < cluster_size) {
-        /*
-         * copy_range does not respect max_transfer. We don't want to bother
-         * with requests smaller than block-copy cluster size, so fallback to
-         * buffered copying (read and write respect max_transfer on their
-         * behalf).
-         */
-        s->method = COPY_READ_WRITE_CLUSTER;
-    } else if (compress) {
-        /* Compression supports only cluster-size writes and no copy-range. */
-        s->method = COPY_READ_WRITE_CLUSTER;
-    } else {
-        /*
-         * If copy range enabled, start with COPY_RANGE_SMALL, until first
-         * successful copy_range (look at block_copy_do_copy).
-         */
-        s->method = use_copy_range ? COPY_RANGE_SMALL : COPY_READ_WRITE;
-    }
+    block_copy_set_copy_opts(s, use_copy_range, compress);
 
     ratelimit_init(&s->rate_limit);
     qemu_co_mutex_init(&s->lock);
