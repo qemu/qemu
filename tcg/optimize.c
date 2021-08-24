@@ -888,6 +888,18 @@ static bool fold_eqv(OptContext *ctx, TCGOp *op)
     return fold_const2(ctx, op);
 }
 
+static bool fold_extract(OptContext *ctx, TCGOp *op)
+{
+    if (arg_is_const(op->args[1])) {
+        uint64_t t;
+
+        t = arg_info(op->args[1])->val;
+        t = extract64(t, op->args[2], op->args[3]);
+        return tcg_opt_gen_movi(ctx, op, op->args[0], t);
+    }
+    return false;
+}
+
 static bool fold_extract2(OptContext *ctx, TCGOp *op)
 {
     if (arg_is_const(op->args[1]) && arg_is_const(op->args[2])) {
@@ -1124,6 +1136,18 @@ static bool fold_setcond2(OptContext *ctx, TCGOp *op)
 
  do_setcond_const:
     return tcg_opt_gen_movi(ctx, op, op->args[0], i);
+}
+
+static bool fold_sextract(OptContext *ctx, TCGOp *op)
+{
+    if (arg_is_const(op->args[1])) {
+        uint64_t t;
+
+        t = arg_info(op->args[1])->val;
+        t = sextract64(t, op->args[2], op->args[3]);
+        return tcg_opt_gen_movi(ctx, op, op->args[0], t);
+    }
+    return false;
 }
 
 static bool fold_shift(OptContext *ctx, TCGOp *op)
@@ -1727,24 +1751,6 @@ void tcg_optimize(TCGContext *s)
             }
             break;
 
-        CASE_OP_32_64(extract):
-            if (arg_is_const(op->args[1])) {
-                tmp = extract64(arg_info(op->args[1])->val,
-                                op->args[2], op->args[3]);
-                tcg_opt_gen_movi(&ctx, op, op->args[0], tmp);
-                continue;
-            }
-            break;
-
-        CASE_OP_32_64(sextract):
-            if (arg_is_const(op->args[1])) {
-                tmp = sextract64(arg_info(op->args[1])->val,
-                                 op->args[2], op->args[3]);
-                tcg_opt_gen_movi(&ctx, op, op->args[0], tmp);
-                continue;
-            }
-            break;
-
         default:
             break;
 
@@ -1778,6 +1784,9 @@ void tcg_optimize(TCGContext *s)
             break;
         CASE_OP_32_64(eqv):
             done = fold_eqv(&ctx, op);
+            break;
+        CASE_OP_32_64(extract):
+            done = fold_extract(&ctx, op);
             break;
         CASE_OP_32_64(extract2):
             done = fold_extract2(&ctx, op);
@@ -1855,6 +1864,9 @@ void tcg_optimize(TCGContext *s)
             break;
         case INDEX_op_setcond2_i32:
             done = fold_setcond2(&ctx, op);
+            break;
+        CASE_OP_32_64(sextract):
+            done = fold_sextract(&ctx, op);
             break;
         CASE_OP_32_64_VEC(sub):
             done = fold_sub(&ctx, op);
