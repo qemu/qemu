@@ -703,7 +703,7 @@ class VM(qtest.QEMUQtestMachine):
 
     def flatten_qmp_object(self, obj, output=None, basestr=''):
         if output is None:
-            output = dict()
+            output = {}
         if isinstance(obj, list):
             for i, item in enumerate(obj):
                 self.flatten_qmp_object(item, output, basestr + str(i) + '.')
@@ -716,7 +716,7 @@ class VM(qtest.QEMUQtestMachine):
 
     def qmp_to_opts(self, obj):
         obj = self.flatten_qmp_object(obj)
-        output_list = list()
+        output_list = []
         for key in obj:
             output_list += [key + '=' + obj[key]]
         return ','.join(output_list)
