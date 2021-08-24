@@ -46,7 +46,7 @@ def is_python_file(filename):
     if filename.endswith('.py'):
         return True
 
-    with open(filename) as f:
+    with open(filename, encoding='utf-8') as f:
         try:
             first_line = f.readline()
             return re.match('^#!.*python', first_line) is not None
