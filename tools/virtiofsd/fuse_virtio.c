@@ -716,6 +716,7 @@ static void *fv_queue_thread(void *opaque)
 
         /* Process all the requests. */
         if (!se->thread_pool_size && req_list != NULL) {
+            req_list = g_list_reverse(req_list);
             g_list_foreach(req_list, fv_queue_worker, qi);
             g_list_free(req_list);
             req_list = NULL;
