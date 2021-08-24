@@ -36,6 +36,7 @@ from typing import (
     Sequence,
     Tuple,
     Type,
+    TypeVar,
 )
 
 from qemu.qmp import (  # pylint: disable=import-error
@@ -71,6 +72,9 @@ class AbnormalShutdown(QEMUMachineError):
     """
     Exception raised when a graceful shutdown was requested, but not performed.
     """
+
+
+_T = TypeVar('_T', bound='QEMUMachine')
 
 
 class QEMUMachine:
@@ -169,7 +173,7 @@ class QEMUMachine:
         self._remove_files: List[str] = []
         self._user_killed = False
 
-    def __enter__(self) -> 'QEMUMachine':
+    def __enter__(self: _T) -> _T:
         return self
 
     def __exit__(self,
@@ -185,8 +189,8 @@ class QEMUMachine:
         self._args.append('-monitor')
         self._args.append('null')
 
-    def add_fd(self, fd: int, fdset: int,
-               opaque: str, opts: str = '') -> 'QEMUMachine':
+    def add_fd(self: _T, fd: int, fdset: int,
+               opaque: str, opts: str = '') -> _T:
         """
         Pass a file descriptor to the VM
         """
