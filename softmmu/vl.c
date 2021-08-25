@@ -2889,6 +2889,8 @@ void qemu_init(int argc, char **argv, char **envp)
                 dpy.type = DISPLAY_TYPE_NONE;
                 break;
             case QEMU_OPTION_curses:
+                warn_report("-curses is deprecated, "
+                            "use -display curses instead.");
 #ifdef CONFIG_CURSES
                 dpy.type = DISPLAY_TYPE_CURSES;
 #else
@@ -3262,6 +3264,7 @@ void qemu_init(int argc, char **argv, char **envp)
                             "-display ...,window-close=off instead.");
                 break;
             case QEMU_OPTION_sdl:
+                warn_report("-sdl is deprecated, use -display sdl instead.");
 #ifdef CONFIG_SDL
                 dpy.type = DISPLAY_TYPE_SDL;
                 break;
