@@ -15,7 +15,8 @@ The ``-s`` option will make QEMU listen for an incoming connection
 from gdb on TCP port 1234, and ``-S`` will make QEMU not start the
 guest until you tell it to from gdb. (If you want to specify which
 TCP port to use or to use something other than TCP for the gdbstub
-connection, use the ``-gdb dev`` option instead of ``-s``.)
+connection, use the ``-gdb dev`` option instead of ``-s``. See
+`Using unix sockets`_ for an example.)
 
 .. parsed-literal::
 
@@ -99,6 +100,29 @@ so that when you tell gdb to ``continue`` it resumes all CPUs,
 not just those in the cluster you are currently working on::
 
   (gdb) set schedule-multiple on
+
+Using unix sockets
+==================
+
+An alternate method for connecting gdb to the QEMU gdbstub is to use
+a unix socket (if supported by your operating system). This is useful when
+running several tests in parallel, or if you do not have a known free TCP
+port (e.g. when running automated tests).
+
+First create a chardev with the appropriate options, then
+instruct the gdbserver to use that device:
+
+.. parsed-literal::
+
+   |qemu_system| -chardev socket,path=/tmp/gdb-socket,server=on,wait=off,id=gdb0 -gdb chardev:gdb0 -S ...
+
+Start gdb as before, but this time connect using the path to
+the socket::
+
+   (gdb) target remote /tmp/gdb-socket
+
+Note that to use a unix socket for the connection you will need
+gdb version 9.0 or newer.
 
 Advanced debugging options
 ==========================

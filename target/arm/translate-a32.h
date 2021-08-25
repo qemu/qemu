@@ -48,7 +48,9 @@ long neon_element_offset(int reg, int element, MemOp memop);
 void gen_rev16(TCGv_i32 dest, TCGv_i32 var);
 void clear_eci_state(DisasContext *s);
 bool mve_eci_check(DisasContext *s);
+void mve_update_eci(DisasContext *s);
 void mve_update_and_store_eci(DisasContext *s);
+bool mve_skip_vmov(DisasContext *s, int vn, int index, int size);
 
 static inline TCGv_i32 load_cpu_offset(int offset)
 {

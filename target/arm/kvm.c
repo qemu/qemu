@@ -998,7 +998,6 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
     hwaddr xlat, len, doorbell_gpa;
     MemoryRegionSection mrs;
     MemoryRegion *mr;
-    int ret = 1;
 
     if (as == &address_space_memory) {
         return 0;
@@ -1006,15 +1005,19 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
 
     /* MSI doorbell address is translated by an IOMMU */
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
+
     mr = address_space_translate(as, address, &xlat, &len, true,
                                  MEMTXATTRS_UNSPECIFIED);
+
     if (!mr) {
-        goto unlock;
+        return 1;
     }
+
     mrs = memory_region_find(mr, xlat, 1);
+
     if (!mrs.mr) {
-        goto unlock;
+        return 1;
     }
 
     doorbell_gpa = mrs.offset_within_address_space;
@@ -1025,11 +1028,7 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
 
     trace_kvm_arm_fixup_msi_route(address, doorbell_gpa);
 
-    ret = 0;
-
-unlock:
-    rcu_read_unlock();
-    return ret;
+    return 0;
 }
 
 int kvm_arch_add_msi_route_post(struct kvm_irq_routing_entry *route,

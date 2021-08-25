@@ -581,7 +581,7 @@ static bool trans_VCVT(DisasContext *s, arg_VCVT *a)
     return true;
 }
 
-static bool mve_skip_vmov(DisasContext *s, int vn, int index, int size)
+bool mve_skip_vmov(DisasContext *s, int vn, int index, int size)
 {
     /*
      * In a CPU with MVE, the VMOV (vector lane to general-purpose register)

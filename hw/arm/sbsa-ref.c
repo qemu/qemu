@@ -65,7 +65,7 @@ enum {
     SBSA_GIC_DIST,
     SBSA_GIC_REDIST,
     SBSA_SECURE_EC,
-    SBSA_GWDT,
+    SBSA_GWDT_WS0,
     SBSA_GWDT_REFRESH,
     SBSA_GWDT_CONTROL,
     SBSA_SMMU,
@@ -140,7 +140,7 @@ static const int sbsa_ref_irqmap[] = {
     [SBSA_AHCI] = 10,
     [SBSA_EHCI] = 11,
     [SBSA_SMMU] = 12, /* ... to 15 */
-    [SBSA_GWDT] = 16,
+    [SBSA_GWDT_WS0] = 16,
 };
 
 static const char * const valid_cpus[] = {
@@ -481,7 +481,7 @@ static void create_wdt(const SBSAMachineState *sms)
     hwaddr cbase = sbsa_ref_memmap[SBSA_GWDT_CONTROL].base;
     DeviceState *dev = qdev_new(TYPE_WDT_SBSA);
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
-    int irq = sbsa_ref_irqmap[SBSA_GWDT];
+    int irq = sbsa_ref_irqmap[SBSA_GWDT_WS0];
 
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, rbase);
