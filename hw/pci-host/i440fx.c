@@ -314,12 +314,6 @@ PCIBus *i440fx_init(const char *host_type, const char *pci_type,
     return b;
 }
 
-PCIBus *find_i440fx(void)
-{
-    PCIHostState *s = PCI_HOST_BRIDGE(object_resolve_path("/machine/i440fx", NULL));
-    return s ? s->bus : NULL;
-}
-
 static void i440fx_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
