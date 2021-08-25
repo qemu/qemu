@@ -999,11 +999,11 @@ static void gen_llwp(DisasContext *ctx, uint32_t base, int16_t offset,
 
     gen_base_offset_addr(ctx, taddr, base, offset);
     tcg_gen_qemu_ld64(tval, taddr, ctx->mem_idx);
-#ifdef TARGET_WORDS_BIGENDIAN
-    tcg_gen_extr_i64_tl(tmp2, tmp1, tval);
-#else
-    tcg_gen_extr_i64_tl(tmp1, tmp2, tval);
-#endif
+    if (cpu_is_bigendian(ctx)) {
+        tcg_gen_extr_i64_tl(tmp2, tmp1, tval);
+    } else {
+        tcg_gen_extr_i64_tl(tmp1, tmp2, tval);
+    }
     gen_store_gpr(tmp1, reg1);
     tcg_temp_free(tmp1);
     gen_store_gpr(tmp2, reg2);
@@ -1035,11 +1035,11 @@ static void gen_scwp(DisasContext *ctx, uint32_t base, int16_t offset,
     gen_load_gpr(tmp1, reg1);
     gen_load_gpr(tmp2, reg2);
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    tcg_gen_concat_tl_i64(tval, tmp2, tmp1);
-#else
-    tcg_gen_concat_tl_i64(tval, tmp1, tmp2);
-#endif
+    if (cpu_is_bigendian(ctx)) {
+        tcg_gen_concat_tl_i64(tval, tmp2, tmp1);
+    } else {
+        tcg_gen_concat_tl_i64(tval, tmp1, tmp2);
+    }
 
     tcg_gen_ld_i64(llval, cpu_env, offsetof(CPUMIPSState, llval_wp));
     tcg_gen_atomic_cmpxchg_i64(val, taddr, llval, tval,

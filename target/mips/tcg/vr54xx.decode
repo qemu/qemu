@@ -1,0 +1,27 @@
+# MIPS VR5432 instruction set extensions
+#
+# Copyright (C) 2021  Philippe Mathieu-Daudé
+#
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+# Reference: VR5432 Microprocessor User’s Manual
+#            (Document Number U13751EU5V0UM00)
+
+&r              rs rt rd
+
+@rs_rt_rd       ...... rs:5  rt:5  rd:5  ..... ......   &r
+
+MULS            000000 ..... ..... ..... 00011011000    @rs_rt_rd
+MULSU           000000 ..... ..... ..... 00011011001    @rs_rt_rd
+MACC            000000 ..... ..... ..... 00101011000    @rs_rt_rd
+MACCU           000000 ..... ..... ..... 00101011001    @rs_rt_rd
+MSAC            000000 ..... ..... ..... 00111011000    @rs_rt_rd
+MSACU           000000 ..... ..... ..... 00111011001    @rs_rt_rd
+MULHI           000000 ..... ..... ..... 01001011000    @rs_rt_rd
+MULHIU          000000 ..... ..... ..... 01001011001    @rs_rt_rd
+MULSHI          000000 ..... ..... ..... 01011011000    @rs_rt_rd
+MULSHIU         000000 ..... ..... ..... 01011011001    @rs_rt_rd
+MACCHI          000000 ..... ..... ..... 01101011000    @rs_rt_rd
+MACCHIU         000000 ..... ..... ..... 01101011001    @rs_rt_rd
+MSACHI          000000 ..... ..... ..... 01111011000    @rs_rt_rd
+MSACHIU         000000 ..... ..... ..... 01111011001    @rs_rt_rd

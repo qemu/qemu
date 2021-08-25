@@ -16,21 +16,6 @@ DEF_HELPER_3(lld, tl, env, tl, int)
 #endif
 #endif
 
-DEF_HELPER_3(muls, tl, env, tl, tl)
-DEF_HELPER_3(mulsu, tl, env, tl, tl)
-DEF_HELPER_3(macc, tl, env, tl, tl)
-DEF_HELPER_3(maccu, tl, env, tl, tl)
-DEF_HELPER_3(msac, tl, env, tl, tl)
-DEF_HELPER_3(msacu, tl, env, tl, tl)
-DEF_HELPER_3(mulhi, tl, env, tl, tl)
-DEF_HELPER_3(mulhiu, tl, env, tl, tl)
-DEF_HELPER_3(mulshi, tl, env, tl, tl)
-DEF_HELPER_3(mulshiu, tl, env, tl, tl)
-DEF_HELPER_3(macchi, tl, env, tl, tl)
-DEF_HELPER_3(macchiu, tl, env, tl, tl)
-DEF_HELPER_3(msachi, tl, env, tl, tl)
-DEF_HELPER_3(msachiu, tl, env, tl, tl)
-
 DEF_HELPER_FLAGS_1(bitswap, TCG_CALL_NO_RWG_SE, tl, tl)
 #ifdef TARGET_MIPS64
 DEF_HELPER_FLAGS_1(dbitswap, TCG_CALL_NO_RWG_SE, tl, tl)
@@ -609,3 +594,6 @@ DEF_HELPER_FLAGS_2(rddsp, 0, tl, tl, env)
 #endif /* !CONFIG_USER_ONLY */
 
 #include "tcg/msa_helper.h.inc"
+
+/* Vendor extensions */
+#include "tcg/vr54xx_helper.h.inc"

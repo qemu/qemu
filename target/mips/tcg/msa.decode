@@ -11,11 +11,11 @@
 #       - The MIPS64 SIMD Architecture Module, Revision 1.12
 #         (Document Number: MD00868-1D-MSA64-AFP-01.12)
 
-&rtype              rs rt rd sa
+&r                  rs rt rd sa
 
 &msa_bz             df wt s16
 
-@lsa                ...... rs:5 rt:5 rd:5 ... sa:2 ......   &rtype
+@lsa                ...... rs:5 rt:5 rd:5 ... sa:2 ......   &r
 @bz                 ...... ... ..   wt:5 s16:16             &msa_bz df=3
 @bz_df              ...... ... df:2 wt:5 s16:16             &msa_bz
 

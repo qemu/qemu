@@ -18,6 +18,7 @@ typedef struct DisasContext {
     target_ulong page_start;
     uint32_t opcode;
     uint64_t insn_flags;
+    int32_t CP0_Config0;
     int32_t CP0_Config1;
     int32_t CP0_Config2;
     int32_t CP0_Config3;
@@ -113,6 +114,18 @@ enum {
     OPC_BC1TANY4     = (0x01 << 16) | OPC_BC1ANY4,
 };
 
+#define gen_helper_0e1i(name, arg1, arg2) do { \
+    gen_helper_##name(cpu_env, arg1, tcg_constant_i32(arg2)); \
+    } while (0)
+
+#define gen_helper_1e0i(name, ret, arg1) do { \
+    gen_helper_##name(ret, cpu_env, tcg_constant_i32(arg1)); \
+    } while (0)
+
+#define gen_helper_0e2i(name, arg1, arg2, arg3) do { \
+    gen_helper_##name(cpu_env, arg1, arg2, tcg_constant_i32(arg3));\
+    } while (0)
+
 void generate_exception(DisasContext *ctx, int excp);
 void generate_exception_err(DisasContext *ctx, int excp, int err);
 void generate_exception_end(DisasContext *ctx, int excp);
@@ -201,5 +214,19 @@ bool decode_ext_txx9(DisasContext *ctx, uint32_t insn);
 #if defined(TARGET_MIPS64)
 bool decode_ext_tx79(DisasContext *ctx, uint32_t insn);
 #endif
+bool decode_ext_vr54xx(DisasContext *ctx, uint32_t insn);
+
+/*
+ * Helpers for implementing sets of trans_* functions.
+ * Defer the implementation of NAME to FUNC, with optional extra arguments.
+ */
+#define TRANS(NAME, FUNC, ...) \
+    static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a) \
+    { return FUNC(ctx, a, __VA_ARGS__); }
+
+static inline bool cpu_is_bigendian(DisasContext *ctx)
+{
+    return extract32(ctx->CP0_Config0, CP0C0_BE, 1);
+}
 
 #endif
