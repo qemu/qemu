@@ -1017,15 +1017,24 @@ static void parse_display(const char *p)
          * parse_display_qapi() due to some options not in
          * DisplayOptions, specifically:
          *   - ctrl_grab + alt_grab
-         *     Not clear yet what happens to them long-term.  Should
-         *     replaced by something better or deprecated and dropped.
+         *     They can't be moved into the QAPI since they use underscores,
+         *     thus they will get replaced by "grab-mod" in the long term
          */
 #if defined(CONFIG_SDL)
         dpy.type = DISPLAY_TYPE_SDL;
         while (*opts) {
             const char *nextopt;
 
-            if (strstart(opts, ",alt_grab=", &nextopt)) {
+            if (strstart(opts, ",grab-mod=", &nextopt)) {
+                opts = nextopt;
+                if (strstart(opts, "lshift-lctrl-lalt", &nextopt)) {
+                    alt_grab = 1;
+                } else if (strstart(opts, "rctrl", &nextopt)) {
+                    ctrl_grab = 1;
+                } else {
+                    goto invalid_sdl_args;
+                }
+            } else if (strstart(opts, ",alt_grab=", &nextopt)) {
                 opts = nextopt;
                 if (strstart(opts, "on", &nextopt)) {
                     alt_grab = 1;

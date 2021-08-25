@@ -1834,7 +1834,7 @@ DEF("display", HAS_ARG, QEMU_OPTION_display,
 #endif
 #if defined(CONFIG_SDL)
     "-display sdl[,alt_grab=on|off][,ctrl_grab=on|off][,gl=on|core|es|off]\n"
-    "            [,show-cursor=on|off][,window-close=on|off]\n"
+    "            [,grab-mod=<mod>][,show-cursor=on|off][,window-close=on|off]\n"
 #endif
 #if defined(CONFIG_GTK)
     "-display gtk[,full-screen=on|off][,gl=on|off][,grab-on-hover=on|off]\n"
@@ -1879,6 +1879,10 @@ SRST
         Display video output via SDL (usually in a separate graphics
         window; see the SDL documentation for other possibilities).
         Valid parameters are:
+
+        ``grab-mod=<mods>`` : Used to select the modifier keys for toggling
+        the mouse grabbing in conjunction with the "g" key. `<mods>` can be
+        either `lshift-lctrl-lalt` or `rctrl`.
 
         ``alt_grab=on|off`` : Use Control+Alt+Shift-g to toggle mouse grabbing
 
