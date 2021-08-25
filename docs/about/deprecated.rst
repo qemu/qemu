@@ -107,8 +107,8 @@ the process listing. This is replaced by the new ``password-secret``
 option which lets the password be securely provided on the command
 line using a ``secret`` object instance.
 
-``opened`` property of ``rng-*`` objects (since 6.0.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''
+``opened`` property of ``rng-*`` objects (since 6.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 The only effect of specifying ``opened=on`` in the command line or QMP
 ``object-add`` is that the device is opened immediately, possibly before all
@@ -116,8 +116,8 @@ other options have been processed.  This will either have no effect (if
 ``opened`` was the last option) or cause errors.  The property is therefore
 useless and should not be specified.
 
-``loaded`` property of ``secret`` and ``secret_keyring`` objects (since 6.0.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+``loaded`` property of ``secret`` and ``secret_keyring`` objects (since 6.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 The only effect of specifying ``loaded=on`` in the command line or QMP
 ``object-add`` is that the secret is loaded immediately, possibly before all
@@ -142,33 +142,33 @@ should be used instead.
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 
-``blockdev-open-tray``, ``blockdev-close-tray`` argument ``device`` (since 2.8.0)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+``blockdev-open-tray``, ``blockdev-close-tray`` argument ``device`` (since 2.8)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Use argument ``id`` instead.
 
-``eject`` argument ``device`` (since 2.8.0)
-'''''''''''''''''''''''''''''''''''''''''''
+``eject`` argument ``device`` (since 2.8)
+'''''''''''''''''''''''''''''''''''''''''
 
 Use argument ``id`` instead.
 
-``blockdev-change-medium`` argument ``device`` (since 2.8.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+``blockdev-change-medium`` argument ``device`` (since 2.8)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Use argument ``id`` instead.
 
-``block_set_io_throttle`` argument ``device`` (since 2.8.0)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+``block_set_io_throttle`` argument ``device`` (since 2.8)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Use argument ``id`` instead.
 
-``blockdev-add`` empty string argument ``backing`` (since 2.10.0)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+``blockdev-add`` empty string argument ``backing`` (since 2.10)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Use argument value ``null`` instead.
 
-``block-commit`` arguments ``base`` and ``top`` (since 3.1.0)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+``block-commit`` arguments ``base`` and ``top`` (since 3.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Use arguments ``base-node`` and ``top-node`` instead.
 
@@ -191,8 +191,8 @@ from Linux upstream kernel, declare it deprecated.
 System emulator CPUS
 --------------------
 
-``Icelake-Client`` CPU Model (since 5.2.0)
-''''''''''''''''''''''''''''''''''''''''''
+``Icelake-Client`` CPU Model (since 5.2)
+''''''''''''''''''''''''''''''''''''''''
 
 ``Icelake-Client`` CPU Models are deprecated. Use ``Icelake-Server`` CPU
 Models instead.
@@ -245,8 +245,8 @@ Device options
 Emulated device options
 '''''''''''''''''''''''
 
-``-device virtio-blk,scsi=on|off`` (since 5.0.0)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+``-device virtio-blk,scsi=on|off`` (since 5.0)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The virtio-blk SCSI passthrough feature is a legacy VIRTIO feature.  VIRTIO 1.0
 and later do not support it because the virtio-scsi device was introduced for
@@ -258,14 +258,14 @@ alias.
 Block device options
 ''''''''''''''''''''
 
-``"backing": ""`` (since 2.12.0)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+``"backing": ""`` (since 2.12)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In order to prevent QEMU from automatically opening an image's backing
 chain, use ``"backing": null`` instead.
 
-``rbd`` keyvalue pair encoded filenames: ``""`` (since 3.1.0)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+``rbd`` keyvalue pair encoded filenames: ``""`` (since 3.1)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Options for ``rbd`` should be specified according to its runtime options,
 like other block drivers.  Legacy parsing of keyvalue pair encoded
@@ -283,8 +283,8 @@ The above, converted to the current supported format::
 linux-user mode CPUs
 --------------------
 
-``ppc64abi32`` CPUs (since 5.2.0)
-'''''''''''''''''''''''''''''''''
+``ppc64abi32`` CPUs (since 5.2)
+'''''''''''''''''''''''''''''''
 
 The ``ppc64abi32`` architecture has a number of issues which regularly
 trip up our CI testing and is suspected to be quite broken. For that
@@ -303,8 +303,8 @@ Related binaries
 Backwards compatibility
 -----------------------
 
-Runnability guarantee of CPU models (since 4.1.0)
-'''''''''''''''''''''''''''''''''''''''''''''''''
+Runnability guarantee of CPU models (since 4.1)
+'''''''''''''''''''''''''''''''''''''''''''''''
 
 Previous versions of QEMU never changed existing CPU models in
 ways that introduced additional host software or hardware
