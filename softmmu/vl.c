@@ -1043,6 +1043,7 @@ static void parse_display(const char *p)
                 } else {
                     goto invalid_sdl_args;
                 }
+                warn_report("alt_grab is deprecated, use grab-mod instead.");
             } else if (strstart(opts, ",ctrl_grab=", &nextopt)) {
                 opts = nextopt;
                 if (strstart(opts, "on", &nextopt)) {
@@ -1052,6 +1053,7 @@ static void parse_display(const char *p)
                 } else {
                     goto invalid_sdl_args;
                 }
+                warn_report("ctrl_grab is deprecated, use grab-mod instead.");
             } else if (strstart(opts, ",window_close=", &nextopt) ||
                        strstart(opts, ",window-close=", &nextopt)) {
                 if (strstart(opts, ",window_close=", NULL)) {
@@ -3245,9 +3247,13 @@ void qemu_init(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_alt_grab:
                 alt_grab = 1;
+                warn_report("-alt-grab is deprecated, please use "
+                            "-display sdl,grab-mod=lshift-lctrl-lalt instead.");
                 break;
             case QEMU_OPTION_ctrl_grab:
                 ctrl_grab = 1;
+                warn_report("-ctrl-grab is deprecated, please use "
+                            "-display sdl,grab-mod=rctrl instead.");
                 break;
             case QEMU_OPTION_no_quit:
                 dpy.has_window_close = true;

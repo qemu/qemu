@@ -1884,9 +1884,11 @@ SRST
         the mouse grabbing in conjunction with the "g" key. `<mods>` can be
         either `lshift-lctrl-lalt` or `rctrl`.
 
-        ``alt_grab=on|off`` : Use Control+Alt+Shift-g to toggle mouse grabbing
+        ``alt_grab=on|off`` : Use Control+Alt+Shift-g to toggle mouse grabbing.
+        This parameter is deprecated - use ``grab-mod`` instead.
 
-        ``ctrl_grab=on|off`` : Use Right-Control-g to toggle mouse grabbing
+        ``ctrl_grab=on|off`` : Use Right-Control-g to toggle mouse grabbing.
+        This parameter is deprecated - use ``grab-mod`` instead.
 
         ``gl=on|off|core|es`` : Use OpenGL for displaying
 
@@ -1971,7 +1973,8 @@ SRST
 ``-alt-grab``
     Use Ctrl-Alt-Shift to grab mouse (instead of Ctrl-Alt). Note that
     this also affects the special keys (for fullscreen, monitor-mode
-    switching, etc).
+    switching, etc). This option is deprecated - please use
+    ``-display sdl,grab-mod=lshift-lctrl-lalt`` instead.
 ERST
 
 DEF("ctrl-grab", 0, QEMU_OPTION_ctrl_grab,
@@ -1981,7 +1984,8 @@ SRST
 ``-ctrl-grab``
     Use Right-Ctrl to grab mouse (instead of Ctrl-Alt). Note that this
     also affects the special keys (for fullscreen, monitor-mode
-    switching, etc).
+    switching, etc). This option is deprecated - please use
+    ``-display sdl,grab-mod=rctrl`` instead.
 ERST
 
 DEF("no-quit", 0, QEMU_OPTION_no_quit,
