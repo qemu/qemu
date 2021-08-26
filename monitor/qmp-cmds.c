@@ -27,7 +27,6 @@
 #include "sysemu/kvm.h"
 #include "sysemu/runstate.h"
 #include "sysemu/runstate-action.h"
-#include "sysemu/arch_init.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
@@ -58,7 +57,7 @@ KvmInfo *qmp_query_kvm(Error **errp)
     KvmInfo *info = g_malloc0(sizeof(*info));
 
     info->enabled = kvm_enabled();
-    info->present = kvm_available();
+    info->present = accel_find("kvm");
 
     return info;
 }

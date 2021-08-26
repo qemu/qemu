@@ -1625,6 +1625,8 @@ foreach target : target_dirs
       config_target_data.set(k, v)
     endif
   endforeach
+  config_target_data.set('QEMU_ARCH',
+                         'QEMU_ARCH_' + config_target['TARGET_BASE_ARCH'].to_upper())
   config_target_h += {target: configure_file(output: target + '-config-target.h',
                                                configuration: config_target_data)}
 

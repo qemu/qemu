@@ -167,6 +167,8 @@ struct Versal {
 #define MM_IOU_SCNTRS_SIZE          0x10000
 #define MM_FPD_CRF                  0xfd1a0000U
 #define MM_FPD_CRF_SIZE             0x140000
+#define MM_FPD_FPD_APU              0xfd5c0000
+#define MM_FPD_FPD_APU_SIZE         0x100
 
 #define MM_PMC_SD0                  0xf1040000U
 #define MM_PMC_SD0_SIZE             0x10000

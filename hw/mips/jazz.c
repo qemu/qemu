@@ -35,7 +35,6 @@
 #include "hw/isa/isa.h"
 #include "hw/block/fdc.h"
 #include "sysemu/sysemu.h"
-#include "sysemu/arch_init.h"
 #include "hw/boards.h"
 #include "net/net.h"
 #include "hw/scsi/esp.h"

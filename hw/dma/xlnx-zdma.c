@@ -320,9 +320,9 @@ static bool zdma_load_descriptor(XlnxZDMA *s, uint64_t addr,
         return false;
     }
 
-    descr->addr = address_space_ldq_le(s->dma_as, addr, s->attr, NULL);
-    descr->size = address_space_ldl_le(s->dma_as, addr + 8, s->attr, NULL);
-    descr->attr = address_space_ldl_le(s->dma_as, addr + 12, s->attr, NULL);
+    descr->addr = address_space_ldq_le(&s->dma_as, addr, s->attr, NULL);
+    descr->size = address_space_ldl_le(&s->dma_as, addr + 8, s->attr, NULL);
+    descr->attr = address_space_ldl_le(&s->dma_as, addr + 12, s->attr, NULL);
     return true;
 }
 
@@ -354,7 +354,7 @@ static void zdma_update_descr_addr(XlnxZDMA *s, bool type,
     } else {
         addr = zdma_get_regaddr64(s, basereg);
         addr += sizeof(s->dsc_dst);
-        next = address_space_ldq_le(s->dma_as, addr, s->attr, NULL);
+        next = address_space_ldq_le(&s->dma_as, addr, s->attr, NULL);
     }
 
     zdma_put_regaddr64(s, basereg, next);
@@ -421,7 +421,7 @@ static void zdma_write_dst(XlnxZDMA *s, uint8_t *buf, uint32_t len)
             }
         }
 
-        address_space_write(s->dma_as, s->dsc_dst.addr, s->attr, buf, dlen);
+        address_space_write(&s->dma_as, s->dsc_dst.addr, s->attr, buf, dlen);
         if (burst_type == AXI_BURST_INCR) {
             s->dsc_dst.addr += dlen;
         }
@@ -497,7 +497,7 @@ static void zdma_process_descr(XlnxZDMA *s)
                 len = s->cfg.bus_width / 8;
             }
         } else {
-            address_space_read(s->dma_as, src_addr, s->attr, s->buf, len);
+            address_space_read(&s->dma_as, src_addr, s->attr, s->buf, len);
             if (burst_type == AXI_BURST_INCR) {
                 src_addr += len;
             }
@@ -765,6 +765,12 @@ static void zdma_realize(DeviceState *dev, Error **errp)
     XlnxZDMA *s = XLNX_ZDMA(dev);
     unsigned int i;
 
+    if (!s->dma_mr) {
+        error_setg(errp, TYPE_XLNX_ZDMA " 'dma' link not set");
+        return;
+    }
+    address_space_init(&s->dma_as, s->dma_mr, "zdma-dma");
+
     for (i = 0; i < ARRAY_SIZE(zdma_regs_info); ++i) {
         RegisterInfo *r = &s->regs_info[zdma_regs_info[i].addr / 4];
 
@@ -777,12 +783,6 @@ static void zdma_realize(DeviceState *dev, Error **errp)
         };
     }
 
-    if (s->dma_mr) {
-        s->dma_as = g_malloc0(sizeof(AddressSpace));
-        address_space_init(s->dma_as, s->dma_mr, NULL);
-    } else {
-        s->dma_as = &address_space_memory;
-    }
     s->attr = MEMTXATTRS_UNSPECIFIED;
 }
 

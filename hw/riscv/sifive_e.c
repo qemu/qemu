@@ -45,7 +45,6 @@
 #include "hw/intc/sifive_plic.h"
 #include "hw/misc/sifive_e_prci.h"
 #include "chardev/char.h"
-#include "sysemu/arch_init.h"
 #include "sysemu/sysemu.h"
 
 static const MemMapEntry sifive_e_memmap[] = {
