@@ -763,8 +763,8 @@ static MemTxResult gicd_writel(GICv3State *s, hwaddr offset,
     }
 }
 
-static MemTxResult gicd_writell(GICv3State *s, hwaddr offset,
-                                uint64_t value, MemTxAttrs attrs)
+static MemTxResult gicd_writeq(GICv3State *s, hwaddr offset,
+                               uint64_t value, MemTxAttrs attrs)
 {
     /* Our only 64-bit registers are GICD_IROUTER<n> */
     int irq;
@@ -779,8 +779,8 @@ static MemTxResult gicd_writell(GICv3State *s, hwaddr offset,
     }
 }
 
-static MemTxResult gicd_readll(GICv3State *s, hwaddr offset,
-                               uint64_t *data, MemTxAttrs attrs)
+static MemTxResult gicd_readq(GICv3State *s, hwaddr offset,
+                              uint64_t *data, MemTxAttrs attrs)
 {
     /* Our only 64-bit registers are GICD_IROUTER<n> */
     int irq;
@@ -812,7 +812,7 @@ MemTxResult gicv3_dist_read(void *opaque, hwaddr offset, uint64_t *data,
         r = gicd_readl(s, offset, data, attrs);
         break;
     case 8:
-        r = gicd_readll(s, offset, data, attrs);
+        r = gicd_readq(s, offset, data, attrs);
         break;
     default:
         r = MEMTX_ERROR;
@@ -854,7 +854,7 @@ MemTxResult gicv3_dist_write(void *opaque, hwaddr offset, uint64_t data,
         r = gicd_writel(s, offset, data, attrs);
         break;
     case 8:
-        r = gicd_writell(s, offset, data, attrs);
+        r = gicd_writeq(s, offset, data, attrs);
         break;
     default:
         r = MEMTX_ERROR;
