@@ -43,7 +43,7 @@ Example:
 Values
 ~~~~~~
 
-"one" (**If: **"defined(IFONE)")
+"one" (**If: **"IFONE")
    The _one_ {and only}
 
 "two"
@@ -62,7 +62,7 @@ Features
 If
 ~~
 
-"defined(IFCOND)"
+"IFCOND"
 
 
 "Base" (Object)
@@ -76,6 +76,12 @@ Members
    the first member
 
 
+If
+~~
+
+"(IFALL1 and IFALL2)"
+
+
 "Variant1" (Object)
 -------------------
 
@@ -87,7 +93,7 @@ Another paragraph (but no "var": line)
 Members
 ~~~~~~~
 
-"var1": "string" (**If: **"defined(IFSTR)")
+"var1": "string" (**If: **"IFSTR")
    Not documented
 
 
@@ -114,7 +120,8 @@ Members
 
 The members of "Base"
 The members of "Variant1" when "base1" is ""one""
-The members of "Variant2" when "base1" is ""two"" (**If: **"IFTWO")
+The members of "Variant2" when "base1" is ""two"" (**If: **"(IFONE or
+IFTWO)")
 
 Features
 ~~~~~~~~
@@ -162,6 +169,12 @@ Features
 
 "alt-feat"
    a feature
+
+
+If
+~~
+
+"!IFNOT"
 
 
 Another subsection

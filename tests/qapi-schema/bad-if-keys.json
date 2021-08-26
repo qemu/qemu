@@ -1,0 +1,3 @@
+# check multiple 'if' keys
+{ 'struct': 'TestIfStruct', 'data': { 'foo': 'int' },
+  'if': { 'any': ['ANY'], 'all': ['ALL'] } }

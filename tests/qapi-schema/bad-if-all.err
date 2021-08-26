@@ -1,0 +1,2 @@
+bad-if-all.json: In struct 'TestIfStruct':
+bad-if-all.json:2: 'all' condition of struct must be an array

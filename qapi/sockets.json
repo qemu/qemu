@@ -69,7 +69,7 @@
     '*ipv4': 'bool',
     '*ipv6': 'bool',
     '*keep-alive': 'bool',
-    '*mptcp': { 'type': 'bool', 'if': 'defined(IPPROTO_MPTCP)' } } }
+    '*mptcp': { 'type': 'bool', 'if': 'IPPROTO_MPTCP' } } }
 
 ##
 # @UnixSocketAddress:
@@ -89,8 +89,8 @@
 { 'struct': 'UnixSocketAddress',
   'data': {
     'path': 'str',
-    '*abstract': { 'type': 'bool', 'if': 'defined(CONFIG_LINUX)' },
-    '*tight': { 'type': 'bool', 'if': 'defined(CONFIG_LINUX)' } } }
+    '*abstract': { 'type': 'bool', 'if': 'CONFIG_LINUX' },
+    '*tight': { 'type': 'bool', 'if': 'CONFIG_LINUX' } } }
 
 ##
 # @VsockSocketAddress:

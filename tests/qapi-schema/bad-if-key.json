@@ -1,0 +1,3 @@
+# check unknown 'if' dict key
+{ 'struct': 'TestIfStruct', 'data': { 'foo': 'int' },
+  'if': { 'value': 'defined(TEST_IF_STRUCT)' } }

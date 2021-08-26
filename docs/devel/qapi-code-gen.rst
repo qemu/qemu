@@ -826,25 +826,31 @@ Configuring the schema
 Syntax::
 
     COND = STRING
-         | [ STRING, ... ]
+         | { 'all: [ COND, ... ] }
+         | { 'any: [ COND, ... ] }
+         | { 'not': COND }
 
 All definitions take an optional 'if' member.  Its value must be a
-string or a list of strings.  A string is shorthand for a list
-containing just that string.  The code generated for the definition
-will then be guarded by #if STRING for each STRING in the COND list.
+string, or an object with a single member 'all', 'any' or 'not'.
+
+The C code generated for the definition will then be guarded by an #if
+preprocessing directive with an operand generated from that condition:
+
+ * STRING will generate defined(STRING)
+ * { 'all': [COND, ...] } will generate (COND && ...)
+ * { 'any': [COND, ...] } will generate (COND || ...)
+ * { 'not': COND } will generate !COND
 
 Example: a conditional struct ::
 
  { 'struct': 'IfStruct', 'data': { 'foo': 'int' },
-   'if': ['defined(CONFIG_FOO)', 'defined(HAVE_BAR)'] }
+   'if': { 'all': [ 'CONFIG_FOO', 'HAVE_BAR' ] } }
 
 gets its generated code guarded like this::
 
- #if defined(CONFIG_FOO)
- #if defined(HAVE_BAR)
+ #if defined(CONFIG_FOO) && defined(HAVE_BAR)
  ... generated code ...
- #endif /* defined(HAVE_BAR) */
- #endif /* defined(CONFIG_FOO) */
+ #endif /* defined(HAVE_BAR) && defined(CONFIG_FOO) */
 
 Individual members of complex types, commands arguments, and
 event-specific data can also be made conditional.  This requires the
@@ -855,7 +861,7 @@ member 'bar' ::
 
  { 'struct': 'IfStruct', 'data':
    { 'foo': 'int',
-     'bar': { 'type': 'int', 'if': 'defined(IFCOND)'} } }
+     'bar': { 'type': 'int', 'if': 'IFCOND'} } }
 
 A union's discriminator may not be conditional.
 
@@ -867,7 +873,7 @@ value 'bar' ::
 
  { 'enum': 'IfEnum', 'data':
    [ 'foo',
-     { 'name' : 'bar', 'if': 'defined(IFCOND)' } ] }
+     { 'name' : 'bar', 'if': 'IFCOND' } ] }
 
 Likewise, features can be conditional.  This requires the longhand
 form of FEATURE_.
@@ -877,7 +883,7 @@ Example: a struct with conditional feature 'allow-negative-numbers' ::
  { 'struct': 'TestType',
    'data': { 'number': 'int' },
    'features': [ { 'name': 'allow-negative-numbers',
-                   'if': 'defined(IFCOND)' } ] }
+                   'if': 'IFCOND' } ] }
 
 Please note that you are responsible to ensure that the C code will
 compile with an arbitrary combination of conditions, since the

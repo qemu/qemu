@@ -1380,7 +1380,7 @@
   'data': {
       'keys': ['str']
   },
-  'if': 'defined(CONFIG_POSIX)' }
+  'if': 'CONFIG_POSIX' }
 
 
 ##
@@ -1398,7 +1398,7 @@
 { 'command': 'guest-ssh-get-authorized-keys',
   'data': { 'username': 'str' },
   'returns': 'GuestAuthorizedKeys',
-  'if': 'defined(CONFIG_POSIX)' }
+  'if': 'CONFIG_POSIX' }
 
 ##
 # @guest-ssh-add-authorized-keys:
@@ -1416,7 +1416,7 @@
 ##
 { 'command': 'guest-ssh-add-authorized-keys',
   'data': { 'username': 'str', 'keys': ['str'], '*reset': 'bool' },
-  'if': 'defined(CONFIG_POSIX)' }
+  'if': 'CONFIG_POSIX' }
 
 ##
 # @guest-ssh-remove-authorized-keys:
@@ -1434,4 +1434,4 @@
 ##
 { 'command': 'guest-ssh-remove-authorized-keys',
   'data': { 'username': 'str', 'keys': ['str'] },
-  'if': 'defined(CONFIG_POSIX)' }
+  'if': 'CONFIG_POSIX' }

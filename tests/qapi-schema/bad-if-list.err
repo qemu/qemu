@@ -1,2 +1,2 @@
 bad-if-list.json: In struct 'TestIfStruct':
-bad-if-list.json:2: 'if' condition ' ' of struct makes no sense
+bad-if-list.json:2: 'if' condition 'foo' of struct is not a valid identifier

@@ -61,16 +61,17 @@
 # @two is undocumented
 ##
 { 'enum': 'Enum', 'data':
-  [ { 'name': 'one', 'if': 'defined(IFONE)' }, 'two' ],
+  [ { 'name': 'one', 'if': 'IFONE' }, 'two' ],
   'features': [ 'enum-feat' ],
-  'if': 'defined(IFCOND)' }
+  'if': 'IFCOND' }
 
 ##
 # @Base:
 # @base1:
 # the first member
 ##
-{ 'struct': 'Base', 'data': { 'base1': 'Enum' } }
+{ 'struct': 'Base', 'data': { 'base1': 'Enum' },
+  'if': { 'all': ['IFALL1', 'IFALL2'] } }
 
 ##
 # @Variant1:
@@ -86,7 +87,7 @@
   'features': [ 'variant1-feat' ],
   'data': { 'var1': { 'type': 'str',
                       'features': [ 'member-feat' ],
-                      'if': 'defined(IFSTR)' } } }
+                      'if': 'IFSTR' } } }
 
 ##
 # @Variant2:
@@ -102,7 +103,9 @@
   'features': [ 'union-feat1' ],
   'base': 'Base',
   'discriminator': 'base1',
-  'data': { 'one': 'Variant1', 'two': { 'type': 'Variant2', 'if': 'IFTWO' } } }
+  'data': { 'one': 'Variant1',
+            'two': { 'type': 'Variant2',
+                     'if': { 'any': ['IFONE', 'IFTWO'] } } } }
 
 ##
 # @SugaredUnion:
@@ -123,7 +126,8 @@
 ##
 { 'alternate': 'Alternate',
   'features': [ 'alt-feat' ],
-  'data': { 'i': 'int', 'b': 'bool' } }
+  'data': { 'i': 'int', 'b': 'bool' },
+  'if': { 'not': 'IFNOT' } }
 
 ##
 # == Another subsection
