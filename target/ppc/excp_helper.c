@@ -1211,12 +1211,6 @@ void helper_pminsn(CPUPPCState *env, powerpc_pm_insn_t insn)
     cs = env_cpu(env);
     cs->halted = 1;
 
-    /*
-     * The architecture specifies that HDEC interrupts are discarded
-     * in PM states
-     */
-    env->pending_interrupts &= ~(1 << PPC_INTERRUPT_HDECR);
-
     /* Condition for waking up at 0x100 */
     env->resume_as_sreset = (insn != PPC_PM_STOP) ||
         (env->spr[SPR_PSSCR] & PSSCR_EC);

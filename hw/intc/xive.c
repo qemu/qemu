@@ -816,7 +816,7 @@ void xive_tctx_destroy(XiveTCTX *tctx)
  * XIVE ESB helpers
  */
 
-static uint8_t xive_esb_set(uint8_t *pq, uint8_t value)
+uint8_t xive_esb_set(uint8_t *pq, uint8_t value)
 {
     uint8_t old_pq = *pq & 0x3;
 
@@ -826,7 +826,7 @@ static uint8_t xive_esb_set(uint8_t *pq, uint8_t value)
     return old_pq;
 }
 
-static bool xive_esb_trigger(uint8_t *pq)
+bool xive_esb_trigger(uint8_t *pq)
 {
     uint8_t old_pq = *pq & 0x3;
 
@@ -846,7 +846,7 @@ static bool xive_esb_trigger(uint8_t *pq)
     }
 }
 
-static bool xive_esb_eoi(uint8_t *pq)
+bool xive_esb_eoi(uint8_t *pq)
 {
     uint8_t old_pq = *pq & 0x3;
 
@@ -1514,10 +1514,10 @@ int xive_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
  *
  * The parameters represent what is sent on the PowerBus
  */
-static bool xive_presenter_notify(XiveFabric *xfb, uint8_t format,
-                                  uint8_t nvt_blk, uint32_t nvt_idx,
-                                  bool cam_ignore, uint8_t priority,
-                                  uint32_t logic_serv)
+bool xive_presenter_notify(XiveFabric *xfb, uint8_t format,
+                           uint8_t nvt_blk, uint32_t nvt_idx,
+                           bool cam_ignore, uint8_t priority,
+                           uint32_t logic_serv)
 {
     XiveFabricClass *xfc = XIVE_FABRIC_GET_CLASS(xfb);
     XiveTCTXMatch match = { .tctx = NULL, .ring = 0 };

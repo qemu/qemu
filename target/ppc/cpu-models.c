@@ -776,6 +776,8 @@
                 "POWER9 v2.0")
     POWERPC_DEF("power10_v1.0",  CPU_POWERPC_POWER10_DD1,            POWER10,
                 "POWER10 v1.0")
+    POWERPC_DEF("power10_v2.0",  CPU_POWERPC_POWER10_DD20,           POWER10,
+                "POWER10 v2.0")
 #endif /* defined (TARGET_PPC64) */
 
 /***************************************************************************/
@@ -952,7 +954,7 @@ PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "power8", "power8_v2.0" },
     { "power8nvl", "power8nvl_v1.0" },
     { "power9", "power9_v2.0" },
-    { "power10", "power10_v1.0" },
+    { "power10", "power10_v2.0" },
 #endif
 
     /* Generic PowerPCs */
