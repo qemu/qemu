@@ -42,7 +42,7 @@ static void *raspi2_get_driver(void *object, const char *interface)
         return &machine->alloc;
     }
 
-    fprintf(stderr, "%s not present in arm/raspi2\n", interface);
+    fprintf(stderr, "%s not present in arm/raspi2b\n", interface);
     g_assert_not_reached();
 }
 
@@ -53,7 +53,7 @@ static QOSGraphObject *raspi2_get_device(void *obj, const char *device)
         return &machine->sdhci.obj;
     }
 
-    fprintf(stderr, "%s not present in arm/raspi2\n", device);
+    fprintf(stderr, "%s not present in arm/raspi2b\n", device);
     g_assert_not_reached();
 }
 
@@ -85,8 +85,8 @@ static void *qos_create_machine_arm_raspi2(QTestState *qts)
 
 static void raspi2_register_nodes(void)
 {
-    qos_node_create_machine("arm/raspi2", qos_create_machine_arm_raspi2);
-    qos_node_contains("arm/raspi2", "generic-sdhci", NULL);
+    qos_node_create_machine("arm/raspi2b", qos_create_machine_arm_raspi2);
+    qos_node_contains("arm/raspi2b", "generic-sdhci", NULL);
 }
 
 libqos_init(raspi2_register_nodes);

@@ -252,17 +252,17 @@ void qos_node_create_driver_named(const char *name, const char *qemu_name,
  * This function can be useful when there are multiple devices
  * with the same node name contained in a machine/other node
  *
- * For example, if ``arm/raspi2`` contains 2 ``generic-sdhci``
+ * For example, if ``arm/raspi2b`` contains 2 ``generic-sdhci``
  * devices, the right commands will be:
  *
  * .. code::
  *
- *    qos_node_create_machine("arm/raspi2");
+ *    qos_node_create_machine("arm/raspi2b");
  *    qos_node_create_driver("generic-sdhci", constructor);
  *    // assume rest of the fields are set NULL
  *    QOSGraphEdgeOptions op1 = { .edge_name = "emmc" };
  *    QOSGraphEdgeOptions op2 = { .edge_name = "sdcard" };
- *    qos_node_contains("arm/raspi2", "generic-sdhci", &op1, &op2, NULL);
+ *    qos_node_contains("arm/raspi2b", "generic-sdhci", &op1, &op2, NULL);
  *
  * Of course this also requires that the @container's get_device function
  * should implement a case for "emmc" and "sdcard".

@@ -230,7 +230,7 @@ void qos_graph_foreach_test_path(QOSTestCallback fn);
 /**
  * qos_get_machine_type(): return QEMU machine type for a machine node.
  * This function requires every machine @name to be in the form
- * <arch>/<machine_name>, like "arm/raspi2" or "x86_64/pc".
+ * <arch>/<machine_name>, like "arm/raspi2b" or "x86_64/pc".
  *
  * The function will validate the format and return a pointer to
  * @machine to <machine_name>.  For example, when passed "x86_64/pc"
