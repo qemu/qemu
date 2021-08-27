@@ -926,10 +926,8 @@ nvmm_init_vcpu(CPUState *cpu)
         error_setg(&nvmm_migration_blocker,
             "NVMM: Migration not supported");
 
-        (void)migrate_add_blocker(nvmm_migration_blocker, &local_error);
-        if (local_error) {
+        if (migrate_add_blocker(nvmm_migration_blocker, &local_error) < 0) {
             error_report_err(local_error);
-            migrate_del_blocker(nvmm_migration_blocker);
             error_free(nvmm_migration_blocker);
             return -EINVAL;
         }

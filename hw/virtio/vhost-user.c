@@ -1876,6 +1876,7 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
 
     err = vhost_user_get_features(dev, &features);
     if (err < 0) {
+        error_setg_errno(errp, -err, "vhost_backend_init failed");
         return err;
     }
 
@@ -1885,6 +1886,7 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
         err = vhost_user_get_u64(dev, VHOST_USER_GET_PROTOCOL_FEATURES,
                                  &protocol_features);
         if (err < 0) {
+            error_setg_errno(errp, EPROTO, "vhost_backend_init failed");
             return -EPROTO;
         }
 
@@ -1903,6 +1905,7 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
 
         err = vhost_user_set_protocol_features(dev, dev->protocol_features);
         if (err < 0) {
+            error_setg_errno(errp, EPROTO, "vhost_backend_init failed");
             return -EPROTO;
         }
 
@@ -1911,6 +1914,7 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
             err = vhost_user_get_u64(dev, VHOST_USER_GET_QUEUE_NUM,
                                      &dev->max_queues);
             if (err < 0) {
+                error_setg_errno(errp, EPROTO, "vhost_backend_init failed");
                 return -EPROTO;
             }
         } else {
@@ -1940,6 +1944,7 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
         } else {
             err = vhost_user_get_max_memslots(dev, &ram_slots);
             if (err < 0) {
+                error_setg_errno(errp, EPROTO, "vhost_backend_init failed");
                 return -EPROTO;
             }
 
@@ -1966,6 +1971,7 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
     if (dev->vq_index == 0) {
         err = vhost_setup_slave_channel(dev);
         if (err < 0) {
+            error_setg_errno(errp, EPROTO, "vhost_backend_init failed");
             return -EPROTO;
         }
     }
@@ -2139,10 +2145,12 @@ static int vhost_user_get_config(struct vhost_dev *dev, uint8_t *config,
     msg.payload.config.offset = 0;
     msg.payload.config.size = config_len;
     if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        error_setg_errno(errp, EPROTO, "vhost_get_config failed");
         return -EPROTO;
     }
 
     if (vhost_user_read(dev, &msg) < 0) {
+        error_setg_errno(errp, EPROTO, "vhost_get_config failed");
         return -EPROTO;
     }
 

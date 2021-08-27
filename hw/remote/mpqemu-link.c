@@ -34,7 +34,6 @@
  */
 bool mpqemu_msg_send(MPQemuMsg *msg, QIOChannel *ioc, Error **errp)
 {
-    ERRP_GUARD();
     bool iolock = qemu_mutex_iothread_locked();
     bool iothread = qemu_in_iothread();
     struct iovec send[2] = {};
@@ -97,7 +96,6 @@ bool mpqemu_msg_send(MPQemuMsg *msg, QIOChannel *ioc, Error **errp)
 static ssize_t mpqemu_read(QIOChannel *ioc, void *buf, size_t len, int **fds,
                            size_t *nfds, Error **errp)
 {
-    ERRP_GUARD();
     struct iovec iov = { .iov_base = buf, .iov_len = len };
     bool iolock = qemu_mutex_iothread_locked();
     bool iothread = qemu_in_iothread();
@@ -192,7 +190,6 @@ fail:
 uint64_t mpqemu_msg_send_and_await_reply(MPQemuMsg *msg, PCIProxyDev *pdev,
                                          Error **errp)
 {
-    ERRP_GUARD();
     MPQemuMsg msg_reply = {0};
     uint64_t ret = UINT64_MAX;
 

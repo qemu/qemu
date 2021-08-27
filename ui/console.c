@@ -1481,7 +1481,6 @@ static bool displaychangelistener_has_dmabuf(DisplayChangeListener *dcl)
 static bool dpy_compatible_with(QemuConsole *con,
                                 DisplayChangeListener *dcl, Error **errp)
 {
-    ERRP_GUARD();
     int flags;
 
     flags = con->hw_ops->get_flags ? con->hw_ops->get_flags(con->hw) : 0;
@@ -1508,7 +1507,6 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
         "This VM has no graphic display device.";
     static DisplaySurface *dummy;
     QemuConsole *con;
-    Error *err = NULL;
 
     assert(!dcl->ds);
 
@@ -1523,9 +1521,8 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
         dcl->con->gl = dcl;
     }
 
-    if (dcl->con && !dpy_compatible_with(dcl->con, dcl, &err)) {
-        error_report_err(err);
-        exit(1);
+    if (dcl->con) {
+        dpy_compatible_with(dcl->con, dcl, &error_fatal);
     }
 
     trace_displaychangelistener_register(dcl, dcl->ops->dpy_name);

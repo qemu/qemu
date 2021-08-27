@@ -737,7 +737,6 @@ static void
 sev_launch_finish(SevGuestState *sev)
 {
     int ret, error;
-    Error *local_err = NULL;
 
     trace_kvm_sev_launch_finish();
     ret = sev_ioctl(sev->sev_fd, KVM_SEV_LAUNCH_FINISH, 0, &error);
@@ -752,12 +751,7 @@ sev_launch_finish(SevGuestState *sev)
     /* add migration blocker */
     error_setg(&sev_mig_blocker,
                "SEV: Migration is not implemented");
-    ret = migrate_add_blocker(sev_mig_blocker, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
-        error_free(sev_mig_blocker);
-        exit(1);
-    }
+    migrate_add_blocker(sev_mig_blocker, &error_fatal);
 }
 
 static void

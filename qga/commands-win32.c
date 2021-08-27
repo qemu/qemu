@@ -976,7 +976,6 @@ out:
 
 GuestDiskInfoList *qmp_guest_get_disks(Error **errp)
 {
-    ERRP_GUARD();
     GuestDiskInfoList *ret = NULL;
     HDEVINFO dev_info;
     SP_DEVICE_INTERFACE_DATA dev_iface_data;

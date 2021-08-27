@@ -1289,7 +1289,6 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    VhostBackendType backend_type, uint32_t busyloop_timeout,
                    Error **errp)
 {
-    ERRP_GUARD();
     uint64_t features;
     int i, r, n_initialized_vqs = 0;
 
@@ -1301,9 +1300,6 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
 
     r = hdev->vhost_ops->vhost_backend_init(hdev, opaque, errp);
     if (r < 0) {
-        if (!*errp) {
-            error_setg_errno(errp, -r, "vhost_backend_init failed");
-        }
         goto fail;
     }
 
@@ -1372,7 +1368,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
 
     if (hdev->migration_blocker != NULL) {
         r = migrate_add_blocker(hdev->migration_blocker, errp);
-        if (*errp) {
+        if (r < 0) {
             error_free(hdev->migration_blocker);
             goto fail_busyloop;
         }
@@ -1564,17 +1560,11 @@ void vhost_ack_features(struct vhost_dev *hdev, const int *feature_bits,
 int vhost_dev_get_config(struct vhost_dev *hdev, uint8_t *config,
                          uint32_t config_len, Error **errp)
 {
-    ERRP_GUARD();
-    int ret;
-
     assert(hdev->vhost_ops);
 
     if (hdev->vhost_ops->vhost_get_config) {
-        ret = hdev->vhost_ops->vhost_get_config(hdev, config, config_len, errp);
-        if (ret < 0 && !*errp) {
-            error_setg_errno(errp, -ret, "vhost_get_config failed");
-        }
-        return ret;
+        return hdev->vhost_ops->vhost_get_config(hdev, config, config_len,
+                                                 errp);
     }
 
     error_setg(errp, "vhost_get_config not implemented");

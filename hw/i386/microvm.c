@@ -458,15 +458,10 @@ static void microvm_machine_state_init(MachineState *machine)
 {
     MicrovmMachineState *mms = MICROVM_MACHINE(machine);
     X86MachineState *x86ms = X86_MACHINE(machine);
-    Error *local_err = NULL;
 
     microvm_memory_init(mms);
 
     x86_cpus_init(x86ms, CPU_VERSION_LATEST);
-    if (local_err) {
-        error_report_err(local_err);
-        exit(1);
-    }
 
     microvm_devices_init(mms);
 }
