@@ -74,7 +74,6 @@ build-system-debian:
     job: amd64-debian-container
   variables:
     IMAGE: debian-amd64
-    CONFIGURE_ARGS: --enable-fdt=system
     TARGETS: arm-softmmu avr-softmmu i386-softmmu mipsel-softmmu
       riscv64-softmmu sh4eb-softmmu sparc-softmmu xtensaeb-softmmu
     MAKE_CHECK_ARGS: check-build
