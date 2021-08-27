@@ -1916,6 +1916,7 @@ if have_system
       fdt_opt = 'internal'
     else
       fdt_opt = 'disabled'
+      fdt = not_found
     endif
   endif
   if fdt_opt == 'internal'
