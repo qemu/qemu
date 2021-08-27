@@ -99,7 +99,7 @@
 # Example:
 #
 # -> { "execute": "trace-event-set-state",
-#      "arguments": { "name": "qemu_memalign", "enable": "true" } }
+#      "arguments": { "name": "qemu_memalign", "enable": true } }
 # <- { "return": {} }
 #
 ##
