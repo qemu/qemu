@@ -46,6 +46,16 @@ struct MOS6522Q800VIA1State {
     BlockBackend *blk;
     VMChangeStateEntry *vmstate;
 
+    uint32_t tick_offset;
+
+    uint8_t data_out;
+    int data_out_cnt;
+    uint8_t data_in;
+    uint8_t data_in_cnt;
+    uint8_t cmd;
+    int wprotect;
+    int alt;
+
     /* external timers */
     QEMUTimer *one_second_timer;
     int64_t next_second;
@@ -92,17 +102,6 @@ struct MacVIAState {
     /* VIAs */
     MOS6522Q800VIA1State mos6522_via1;
     MOS6522Q800VIA2State mos6522_via2;
-
-    /* RTC */
-    uint32_t tick_offset;
-
-    uint8_t data_out;
-    int data_out_cnt;
-    uint8_t data_in;
-    uint8_t data_in_cnt;
-    uint8_t cmd;
-    int wprotect;
-    int alt;
 
     /* ADB */
     ADBBusState adb_bus;

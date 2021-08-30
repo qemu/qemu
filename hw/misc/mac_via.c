@@ -433,9 +433,8 @@ static int via1_rtc_compact_cmd(uint8_t value)
     return REG_INVALID;
 }
 
-static void via1_rtc_update(MacVIAState *m)
+static void via1_rtc_update(MOS6522Q800VIA1State *v1s)
 {
-    MOS6522Q800VIA1State *v1s = &m->mos6522_via1;
     MOS6522State *s = MOS6522(v1s);
     int cmd, sector, addr;
     uint32_t time;
@@ -447,40 +446,40 @@ static void via1_rtc_update(MacVIAState *m)
     if (s->dirb & VIA1B_vRTCData) {
         /* send bits to the RTC */
         if (!(v1s->last_b & VIA1B_vRTCClk) && (s->b & VIA1B_vRTCClk)) {
-            m->data_out <<= 1;
-            m->data_out |= s->b & VIA1B_vRTCData;
-            m->data_out_cnt++;
+            v1s->data_out <<= 1;
+            v1s->data_out |= s->b & VIA1B_vRTCData;
+            v1s->data_out_cnt++;
         }
-        trace_via1_rtc_update_data_out(m->data_out_cnt, m->data_out);
+        trace_via1_rtc_update_data_out(v1s->data_out_cnt, v1s->data_out);
     } else {
-        trace_via1_rtc_update_data_in(m->data_in_cnt, m->data_in);
+        trace_via1_rtc_update_data_in(v1s->data_in_cnt, v1s->data_in);
         /* receive bits from the RTC */
         if ((v1s->last_b & VIA1B_vRTCClk) &&
             !(s->b & VIA1B_vRTCClk) &&
-            m->data_in_cnt) {
+            v1s->data_in_cnt) {
             s->b = (s->b & ~VIA1B_vRTCData) |
-                   ((m->data_in >> 7) & VIA1B_vRTCData);
-            m->data_in <<= 1;
-            m->data_in_cnt--;
+                   ((v1s->data_in >> 7) & VIA1B_vRTCData);
+            v1s->data_in <<= 1;
+            v1s->data_in_cnt--;
         }
         return;
     }
 
-    if (m->data_out_cnt != 8) {
+    if (v1s->data_out_cnt != 8) {
         return;
     }
 
-    m->data_out_cnt = 0;
+    v1s->data_out_cnt = 0;
 
-    trace_via1_rtc_internal_status(m->cmd, m->alt, m->data_out);
+    trace_via1_rtc_internal_status(v1s->cmd, v1s->alt, v1s->data_out);
     /* first byte: it's a command */
-    if (m->cmd == REG_EMPTY) {
+    if (v1s->cmd == REG_EMPTY) {
 
-        cmd = via1_rtc_compact_cmd(m->data_out);
+        cmd = via1_rtc_compact_cmd(v1s->data_out);
         trace_via1_rtc_internal_cmd(cmd);
 
         if (cmd == REG_INVALID) {
-            trace_via1_rtc_cmd_invalid(m->data_out);
+            trace_via1_rtc_cmd_invalid(v1s->data_out);
             return;
         }
 
@@ -492,20 +491,20 @@ static void via1_rtc_update(MacVIAState *m)
                  * register 3 is highest-order byte
                  */
 
-                time = m->tick_offset + (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)
+                time = v1s->tick_offset + (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)
                        / NANOSECONDS_PER_SECOND);
                 trace_via1_rtc_internal_time(time);
-                m->data_in = (time >> ((cmd & 0x03) << 3)) & 0xff;
-                m->data_in_cnt = 8;
+                v1s->data_in = (time >> ((cmd & 0x03) << 3)) & 0xff;
+                v1s->data_in_cnt = 8;
                 trace_via1_rtc_cmd_seconds_read((cmd & 0x7f) - REG_0,
-                                                m->data_in);
+                                                v1s->data_in);
                 break;
             case REG_PRAM_ADDR...REG_PRAM_ADDR_LAST:
                 /* PRAM address 0x00 -> 0x13 */
-                m->data_in = v1s->PRAM[(cmd & 0x7f) - REG_PRAM_ADDR];
-                m->data_in_cnt = 8;
+                v1s->data_in = v1s->PRAM[(cmd & 0x7f) - REG_PRAM_ADDR];
+                v1s->data_in_cnt = 8;
                 trace_via1_rtc_cmd_pram_read((cmd & 0x7f) - REG_PRAM_ADDR,
-                                             m->data_in);
+                                             v1s->data_in);
                 break;
             case REG_PRAM_SECT...REG_PRAM_SECT_LAST:
                 /*
@@ -513,7 +512,7 @@ static void via1_rtc_update(MacVIAState *m)
                  * the only two-byte read command
                  */
                 trace_via1_rtc_internal_set_cmd(cmd);
-                m->cmd = cmd;
+                v1s->cmd = cmd;
                 break;
             default:
                 g_assert_not_reached();
@@ -523,9 +522,9 @@ static void via1_rtc_update(MacVIAState *m)
         }
 
         /* this is a write command, needs a parameter */
-        if (cmd == REG_WPROTECT || !m->wprotect) {
+        if (cmd == REG_WPROTECT || !v1s->wprotect) {
             trace_via1_rtc_internal_set_cmd(cmd);
-            m->cmd = cmd;
+            v1s->cmd = cmd;
         } else {
             trace_via1_rtc_internal_ignore_cmd(cmd);
         }
@@ -533,46 +532,47 @@ static void via1_rtc_update(MacVIAState *m)
     }
 
     /* second byte: it's a parameter */
-    if (m->alt == REG_EMPTY) {
-        switch (m->cmd & 0x7f) {
+    if (v1s->alt == REG_EMPTY) {
+        switch (v1s->cmd & 0x7f) {
         case REG_0...REG_3: /* seconds register */
             /* FIXME */
-            trace_via1_rtc_cmd_seconds_write(m->cmd - REG_0, m->data_out);
-            m->cmd = REG_EMPTY;
+            trace_via1_rtc_cmd_seconds_write(v1s->cmd - REG_0, v1s->data_out);
+            v1s->cmd = REG_EMPTY;
             break;
         case REG_TEST:
             /* device control: nothing to do */
-            trace_via1_rtc_cmd_test_write(m->data_out);
-            m->cmd = REG_EMPTY;
+            trace_via1_rtc_cmd_test_write(v1s->data_out);
+            v1s->cmd = REG_EMPTY;
             break;
         case REG_WPROTECT:
             /* Write Protect register */
-            trace_via1_rtc_cmd_wprotect_write(m->data_out);
-            m->wprotect = !!(m->data_out & 0x80);
-            m->cmd = REG_EMPTY;
+            trace_via1_rtc_cmd_wprotect_write(v1s->data_out);
+            v1s->wprotect = !!(v1s->data_out & 0x80);
+            v1s->cmd = REG_EMPTY;
             break;
         case REG_PRAM_ADDR...REG_PRAM_ADDR_LAST:
             /* PRAM address 0x00 -> 0x13 */
-            trace_via1_rtc_cmd_pram_write(m->cmd - REG_PRAM_ADDR, m->data_out);
-            v1s->PRAM[m->cmd - REG_PRAM_ADDR] = m->data_out;
+            trace_via1_rtc_cmd_pram_write(v1s->cmd - REG_PRAM_ADDR,
+                                          v1s->data_out);
+            v1s->PRAM[v1s->cmd - REG_PRAM_ADDR] = v1s->data_out;
             pram_update(v1s);
-            m->cmd = REG_EMPTY;
+            v1s->cmd = REG_EMPTY;
             break;
         case REG_PRAM_SECT...REG_PRAM_SECT_LAST:
-            addr = (m->data_out >> 2) & 0x1f;
-            sector = (m->cmd & 0x7f) - REG_PRAM_SECT;
-            if (m->cmd & 0x80) {
+            addr = (v1s->data_out >> 2) & 0x1f;
+            sector = (v1s->cmd & 0x7f) - REG_PRAM_SECT;
+            if (v1s->cmd & 0x80) {
                 /* it's a read */
-                m->data_in = v1s->PRAM[sector * 32 + addr];
-                m->data_in_cnt = 8;
+                v1s->data_in = v1s->PRAM[sector * 32 + addr];
+                v1s->data_in_cnt = 8;
                 trace_via1_rtc_cmd_pram_sect_read(sector, addr,
                                                   sector * 32 + addr,
-                                                  m->data_in);
-                m->cmd = REG_EMPTY;
+                                                  v1s->data_in);
+                v1s->cmd = REG_EMPTY;
             } else {
                 /* it's a write, we need one more parameter */
                 trace_via1_rtc_internal_set_alt(addr, sector, addr);
-                m->alt = addr;
+                v1s->alt = addr;
             }
             break;
         default:
@@ -583,14 +583,14 @@ static void via1_rtc_update(MacVIAState *m)
     }
 
     /* third byte: it's the data of a REG_PRAM_SECT write */
-    g_assert(REG_PRAM_SECT <= m->cmd && m->cmd <= REG_PRAM_SECT_LAST);
-    sector = m->cmd - REG_PRAM_SECT;
-    v1s->PRAM[sector * 32 + m->alt] = m->data_out;
+    g_assert(REG_PRAM_SECT <= v1s->cmd && v1s->cmd <= REG_PRAM_SECT_LAST);
+    sector = v1s->cmd - REG_PRAM_SECT;
+    v1s->PRAM[sector * 32 + v1s->alt] = v1s->data_out;
     pram_update(v1s);
-    trace_via1_rtc_cmd_pram_sect_write(sector, m->alt, sector * 32 + m->alt,
-                                       m->data_out);
-    m->alt = REG_EMPTY;
-    m->cmd = REG_EMPTY;
+    trace_via1_rtc_cmd_pram_sect_write(sector, v1s->alt, sector * 32 + v1s->alt,
+                                       v1s->data_out);
+    v1s->alt = REG_EMPTY;
+    v1s->cmd = REG_EMPTY;
 }
 
 static void adb_via_poll(void *opaque)
@@ -903,7 +903,7 @@ static void mos6522_q800_via1_write(void *opaque, hwaddr addr, uint64_t val,
 
     switch (addr) {
     case VIA_REG_B:
-        via1_rtc_update(m);
+        via1_rtc_update(v1s);
         via1_adb_update(m);
 
         v1s->last_b = ms->b;
@@ -953,12 +953,13 @@ static const MemoryRegionOps mos6522_q800_via2_ops = {
 static void mac_via_reset(DeviceState *dev)
 {
     MacVIAState *m = MAC_VIA(dev);
+    MOS6522Q800VIA1State *v1s = &m->mos6522_via1;
     ADBBusState *adb_bus = &m->adb_bus;
 
     adb_set_autopoll_enabled(adb_bus, true);
 
-    m->cmd = REG_EMPTY;
-    m->alt = REG_EMPTY;
+    v1s->cmd = REG_EMPTY;
+    v1s->alt = REG_EMPTY;
 }
 
 static void mac_via_realize(DeviceState *dev, Error **errp)
@@ -1003,7 +1004,7 @@ static void mac_via_realize(DeviceState *dev, Error **errp)
     via1_sixty_hz_update(&m->mos6522_via1);
 
     qemu_get_timedate(&tm, 0);
-    m->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
+    v1s->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
 
     adb_register_autopoll_callback(adb_bus, adb_via_poll, m);
     m->adb_data_ready = qdev_get_gpio_in_named(dev, "via1-irq",
@@ -1081,20 +1082,10 @@ static const VMStateDescription vmstate_mac_via = {
     .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         /* VIAs */
-        VMSTATE_BUFFER(mos6522_via1.PRAM, MacVIAState),
         VMSTATE_TIMER_PTR(mos6522_via1.one_second_timer, MacVIAState),
         VMSTATE_INT64(mos6522_via1.next_second, MacVIAState),
         VMSTATE_TIMER_PTR(mos6522_via1.sixty_hz_timer, MacVIAState),
         VMSTATE_INT64(mos6522_via1.next_sixty_hz, MacVIAState),
-        /* RTC */
-        VMSTATE_UINT32(tick_offset, MacVIAState),
-        VMSTATE_UINT8(data_out, MacVIAState),
-        VMSTATE_INT32(data_out_cnt, MacVIAState),
-        VMSTATE_UINT8(data_in, MacVIAState),
-        VMSTATE_UINT8(data_in_cnt, MacVIAState),
-        VMSTATE_UINT8(cmd, MacVIAState),
-        VMSTATE_INT32(wprotect, MacVIAState),
-        VMSTATE_INT32(alt, MacVIAState),
         /* ADB */
         VMSTATE_INT32(adb_data_in_size, MacVIAState),
         VMSTATE_INT32(adb_data_in_index, MacVIAState),
@@ -1154,6 +1145,14 @@ static const VMStateDescription vmstate_q800_via1 = {
         VMSTATE_UINT8(last_b, MOS6522Q800VIA1State),
         /* RTC */
         VMSTATE_BUFFER(PRAM, MOS6522Q800VIA1State),
+        VMSTATE_UINT32(tick_offset, MOS6522Q800VIA1State),
+        VMSTATE_UINT8(data_out, MOS6522Q800VIA1State),
+        VMSTATE_INT32(data_out_cnt, MOS6522Q800VIA1State),
+        VMSTATE_UINT8(data_in, MOS6522Q800VIA1State),
+        VMSTATE_UINT8(data_in_cnt, MOS6522Q800VIA1State),
+        VMSTATE_UINT8(cmd, MOS6522Q800VIA1State),
+        VMSTATE_INT32(wprotect, MOS6522Q800VIA1State),
+        VMSTATE_INT32(alt, MOS6522Q800VIA1State),
         VMSTATE_END_OF_LIST()
     }
 };
