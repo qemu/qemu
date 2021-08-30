@@ -93,6 +93,16 @@ struct MOS6522Q800VIA1State {
 #define VIA2_IRQ_SCSI           (1 << VIA2_IRQ_UNUSED_BIT)
 #define VIA2_IRQ_ASC            (1 << VIA2_IRQ_ASC_BIT)
 
+#define VIA2_NUBUS_IRQ_NB       7
+
+#define VIA2_NUBUS_IRQ_9        0
+#define VIA2_NUBUS_IRQ_A        1
+#define VIA2_NUBUS_IRQ_B        2
+#define VIA2_NUBUS_IRQ_C        3
+#define VIA2_NUBUS_IRQ_D        4
+#define VIA2_NUBUS_IRQ_E        5
+#define VIA2_NUBUS_IRQ_INTVIDEO 6
+
 #define TYPE_MOS6522_Q800_VIA2 "mos6522-q800-via2"
 OBJECT_DECLARE_SIMPLE_TYPE(MOS6522Q800VIA2State, MOS6522_Q800_VIA2)
 

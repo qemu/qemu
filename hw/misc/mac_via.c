@@ -1123,6 +1123,26 @@ static void mos6522_q800_via2_reset(DeviceState *dev)
 
     ms->dirb = 0;
     ms->b = 0;
+    ms->dira = 0;
+    ms->a = 0x7f;
+}
+
+static void via2_nubus_irq_request(void *opaque, int irq, int level)
+{
+    MOS6522Q800VIA2State *v2s = opaque;
+    MOS6522State *s = MOS6522(v2s);
+    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
+
+    if (level) {
+        /* Port A nubus IRQ inputs are active LOW */
+        s->a &= ~(1 << irq);
+        s->ifr |= 1 << VIA2_IRQ_NUBUS_BIT;
+    } else {
+        s->a |= (1 << irq);
+        s->ifr &= ~(1 << VIA2_IRQ_NUBUS_BIT);
+    }
+
+    mdc->update_irq(s);
 }
 
 static void mos6522_q800_via2_init(Object *obj)
@@ -1135,6 +1155,9 @@ static void mos6522_q800_via2_init(Object *obj)
     sysbus_init_mmio(sbd, &v2s->via_mem);
 
     qdev_init_gpio_in(DEVICE(obj), via2_irq_request, VIA2_IRQ_NB);
+
+    qdev_init_gpio_in_named(DEVICE(obj), via2_nubus_irq_request, "nubus-irq",
+                            VIA2_NUBUS_IRQ_NB);
 }
 
 static const VMStateDescription vmstate_q800_via2 = {
