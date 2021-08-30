@@ -34,10 +34,8 @@
 #include "qemu/log.h"
 
 /*
- * VIAs: There are two in every machine,
+ * VIAs: There are two in every machine
  */
-
-#define VIA_SIZE (0x2000)
 
 /*
  * Not all of these are true post MacII I think.
@@ -945,52 +943,6 @@ static const MemoryRegionOps mos6522_q800_via2_ops = {
     },
 };
 
-static void mac_via_realize(DeviceState *dev, Error **errp)
-{
-    MacVIAState *m = MAC_VIA(dev);
-    MOS6522State *ms;
-
-    /* Pass through mos6522 output IRQs */
-    ms = MOS6522(&m->mos6522_via1);
-    object_property_add_alias(OBJECT(dev), "irq[0]", OBJECT(ms),
-                              SYSBUS_DEVICE_GPIO_IRQ "[0]");
-    ms = MOS6522(&m->mos6522_via2);
-    object_property_add_alias(OBJECT(dev), "irq[1]", OBJECT(ms),
-                              SYSBUS_DEVICE_GPIO_IRQ "[0]");
-
-    sysbus_realize(SYS_BUS_DEVICE(&m->mos6522_via1), &error_abort);
-    sysbus_realize(SYS_BUS_DEVICE(&m->mos6522_via2), &error_abort);
-
-    /* Pass through mos6522 input IRQs */
-    qdev_pass_gpios(DEVICE(&m->mos6522_via1), dev, "via1-irq");
-    qdev_pass_gpios(DEVICE(&m->mos6522_via2), dev, "via2-irq");
-}
-
-static void mac_via_init(Object *obj)
-{
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    MacVIAState *m = MAC_VIA(obj);
-
-    /* MMIO */
-    memory_region_init(&m->mmio, obj, "mac-via", 2 * VIA_SIZE);
-    sysbus_init_mmio(sbd, &m->mmio);
-
-    memory_region_init_io(&m->via1mem, obj, &mos6522_q800_via1_ops,
-                          &m->mos6522_via1, "via1", VIA_SIZE);
-    memory_region_add_subregion(&m->mmio, 0x0, &m->via1mem);
-
-    memory_region_init_io(&m->via2mem, obj, &mos6522_q800_via2_ops,
-                          &m->mos6522_via2, "via2", VIA_SIZE);
-    memory_region_add_subregion(&m->mmio, VIA_SIZE, &m->via2mem);
-
-    /* Init VIAs 1 and 2 */
-    object_initialize_child(obj, "via1", &m->mos6522_via1,
-                            TYPE_MOS6522_Q800_VIA1);
-
-    object_initialize_child(obj, "via2", &m->mos6522_via2,
-                            TYPE_MOS6522_Q800_VIA2);
-}
-
 static void via1_postload_update_cb(void *opaque, bool running, RunState state)
 {
     MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(opaque);
@@ -1012,21 +964,6 @@ static int via1_post_load(void *opaque, int version_id)
 
     return 0;
 }
-
-static void mac_via_class_init(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = mac_via_realize;
-}
-
-static TypeInfo mac_via_info = {
-    .name = TYPE_MAC_VIA,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MacVIAState),
-    .instance_init = mac_via_init,
-    .class_init = mac_via_class_init,
-};
 
 /* VIA 1 */
 static void mos6522_q800_via1_reset(DeviceState *dev)
@@ -1095,6 +1032,11 @@ static void mos6522_q800_via1_realize(DeviceState *dev, Error **errp)
 static void mos6522_q800_via1_init(Object *obj)
 {
     MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(v1s);
+
+    memory_region_init_io(&v1s->via_mem, obj, &mos6522_q800_via1_ops, v1s,
+                          "via1", VIA_SIZE);
+    sysbus_init_mmio(sbd, &v1s->via_mem);
 
     /* ADB */
     qbus_create_inplace((BusState *)&v1s->adb_bus, sizeof(v1s->adb_bus),
@@ -1187,6 +1129,13 @@ static void mos6522_q800_via2_reset(DeviceState *dev)
 
 static void mos6522_q800_via2_init(Object *obj)
 {
+    MOS6522Q800VIA2State *v2s = MOS6522_Q800_VIA2(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(v2s);
+
+    memory_region_init_io(&v2s->via_mem, obj, &mos6522_q800_via2_ops, v2s,
+                          "via2", VIA_SIZE);
+    sysbus_init_mmio(sbd, &v2s->via_mem);
+
     qdev_init_gpio_in_named(DEVICE(obj), via2_irq_request, "via2-irq",
                             VIA2_IRQ_NB);
 }
@@ -1224,7 +1173,6 @@ static void mac_via_register_types(void)
 {
     type_register_static(&mos6522_q800_via1_type_info);
     type_register_static(&mos6522_q800_via2_type_info);
-    type_register_static(&mac_via_info);
 }
 
 type_init(mac_via_register_types);

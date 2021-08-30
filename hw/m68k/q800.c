@@ -225,7 +225,7 @@ static void q800_init(MachineState *machine)
     hwaddr parameters_base;
     CPUState *cs;
     DeviceState *dev;
-    DeviceState *via_dev, *via1_dev;
+    DeviceState *via1_dev, *via2_dev;
     DeviceState *escc_orgate;
     SysBusESPState *sysbus_esp;
     ESPState *esp;
@@ -270,27 +270,29 @@ static void q800_init(MachineState *machine)
     object_property_set_link(OBJECT(glue), "cpu", OBJECT(cpu), &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(glue), &error_fatal);
 
-    /* VIA */
-
-    via_dev = qdev_new(TYPE_MAC_VIA);
+    /* VIA 1 */
+    via1_dev = qdev_new(TYPE_MOS6522_Q800_VIA1);
     dinfo = drive_get(IF_MTD, 0, 0);
     if (dinfo) {
-        qdev_prop_set_drive(via_dev, "drive", blk_by_legacy_dinfo(dinfo));
+        qdev_prop_set_drive(via1_dev, "drive", blk_by_legacy_dinfo(dinfo));
     }
-    sysbus = SYS_BUS_DEVICE(via_dev);
+    sysbus = SYS_BUS_DEVICE(via1_dev);
     sysbus_realize_and_unref(sysbus, &error_fatal);
-    sysbus_mmio_map(sysbus, 0, VIA_BASE);
-    qdev_connect_gpio_out_named(DEVICE(sysbus), "irq", 0,
-                                qdev_get_gpio_in(glue, 0));
-    qdev_connect_gpio_out_named(DEVICE(sysbus), "irq", 1,
-                                qdev_get_gpio_in(glue, 1));
+    sysbus_mmio_map(sysbus, 1, VIA_BASE);
+    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(glue, 0));
 
-    via1_dev = DEVICE(MOS6522_Q800_VIA1(&MAC_VIA(via_dev)->mos6522_via1));
-    adb_bus = qdev_get_child_bus(DEVICE(via1_dev), "adb.0");
+    adb_bus = qdev_get_child_bus(via1_dev, "adb.0");
     dev = qdev_new(TYPE_ADB_KEYBOARD);
     qdev_realize_and_unref(dev, adb_bus, &error_fatal);
     dev = qdev_new(TYPE_ADB_MOUSE);
     qdev_realize_and_unref(dev, adb_bus, &error_fatal);
+
+    /* VIA 2 */
+    via2_dev = qdev_new(TYPE_MOS6522_Q800_VIA2);
+    sysbus = SYS_BUS_DEVICE(via2_dev);
+    sysbus_realize_and_unref(sysbus, &error_fatal);
+    sysbus_mmio_map(sysbus, 1, VIA_BASE + VIA_SIZE);
+    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(glue, 1));
 
     /* MACSONIC */
 
@@ -375,11 +377,11 @@ static void q800_init(MachineState *machine)
 
     sysbus = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(sysbus, &error_fatal);
-    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in_named(via_dev,
+    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in_named(via2_dev,
                                                          "via2-irq",
                                                          VIA2_IRQ_SCSI_BIT));
     sysbus_connect_irq(sysbus, 1,
-                       qdev_get_gpio_in_named(via_dev, "via2-irq",
+                       qdev_get_gpio_in_named(via2_dev, "via2-irq",
                                               VIA2_IRQ_SCSI_DATA_BIT));
     sysbus_mmio_map(sysbus, 0, ESP_BASE);
     sysbus_mmio_map(sysbus, 1, ESP_PDMA);

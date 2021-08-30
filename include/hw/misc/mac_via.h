@@ -15,6 +15,8 @@
 #include "qom/object.h"
 
 
+#define VIA_SIZE   0x2000
+
 /* VIA 1 */
 #define VIA1_IRQ_ONE_SECOND_BIT 0
 #define VIA1_IRQ_60HZ_BIT       1
@@ -37,6 +39,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(MOS6522Q800VIA1State, MOS6522_Q800_VIA1)
 struct MOS6522Q800VIA1State {
     /*< private >*/
     MOS6522State parent_obj;
+
+    MemoryRegion via_mem;
 
     qemu_irq irqs[VIA1_IRQ_NB];
     uint8_t last_b;
@@ -95,23 +99,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(MOS6522Q800VIA2State, MOS6522_Q800_VIA2)
 struct MOS6522Q800VIA2State {
     /*< private >*/
     MOS6522State parent_obj;
-};
 
-
-#define TYPE_MAC_VIA "mac_via"
-OBJECT_DECLARE_SIMPLE_TYPE(MacVIAState, MAC_VIA)
-
-struct MacVIAState {
-    SysBusDevice busdev;
-
-    /* MMIO */
-    MemoryRegion mmio;
-    MemoryRegion via1mem;
-    MemoryRegion via2mem;
-
-    /* VIAs */
-    MOS6522Q800VIA1State mos6522_via1;
-    MOS6522Q800VIA2State mos6522_via2;
+    MemoryRegion via_mem;
 };
 
 #endif
