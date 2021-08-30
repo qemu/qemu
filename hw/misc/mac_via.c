@@ -374,11 +374,10 @@ static void via2_irq_request(void *opaque, int irq, int level)
 }
 
 
-static void pram_update(MacVIAState *m)
+static void pram_update(MOS6522Q800VIA1State *v1s)
 {
-    if (m->blk) {
-        if (blk_pwrite(m->blk, 0, m->mos6522_via1.PRAM,
-                       sizeof(m->mos6522_via1.PRAM), 0) < 0) {
+    if (v1s->blk) {
+        if (blk_pwrite(v1s->blk, 0, v1s->PRAM, sizeof(v1s->PRAM), 0) < 0) {
             qemu_log("pram_update: cannot write to file\n");
         }
     }
@@ -556,7 +555,7 @@ static void via1_rtc_update(MacVIAState *m)
             /* PRAM address 0x00 -> 0x13 */
             trace_via1_rtc_cmd_pram_write(m->cmd - REG_PRAM_ADDR, m->data_out);
             v1s->PRAM[m->cmd - REG_PRAM_ADDR] = m->data_out;
-            pram_update(m);
+            pram_update(v1s);
             m->cmd = REG_EMPTY;
             break;
         case REG_PRAM_SECT...REG_PRAM_SECT_LAST:
@@ -587,7 +586,7 @@ static void via1_rtc_update(MacVIAState *m)
     g_assert(REG_PRAM_SECT <= m->cmd && m->cmd <= REG_PRAM_SECT_LAST);
     sector = m->cmd - REG_PRAM_SECT;
     v1s->PRAM[sector * 32 + m->alt] = m->data_out;
-    pram_update(m);
+    pram_update(v1s);
     trace_via1_rtc_cmd_pram_sect_write(sector, m->alt, sector * 32 + m->alt,
                                        m->data_out);
     m->alt = REG_EMPTY;
@@ -965,6 +964,7 @@ static void mac_via_reset(DeviceState *dev)
 static void mac_via_realize(DeviceState *dev, Error **errp)
 {
     MacVIAState *m = MAC_VIA(dev);
+    MOS6522Q800VIA1State *v1s = &m->mos6522_via1;
     MOS6522State *ms;
     ADBBusState *adb_bus = &m->adb_bus;
     struct tm tm;
@@ -1009,23 +1009,22 @@ static void mac_via_realize(DeviceState *dev, Error **errp)
     m->adb_data_ready = qdev_get_gpio_in_named(dev, "via1-irq",
                                                VIA1_IRQ_ADB_READY_BIT);
 
-    if (m->blk) {
-        int64_t len = blk_getlength(m->blk);
+    if (v1s->blk) {
+        int64_t len = blk_getlength(v1s->blk);
         if (len < 0) {
             error_setg_errno(errp, -len,
                              "could not get length of backing image");
             return;
         }
-        ret = blk_set_perm(m->blk,
+        ret = blk_set_perm(v1s->blk,
                            BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
                            BLK_PERM_ALL, errp);
         if (ret < 0) {
             return;
         }
 
-        len = blk_pread(m->blk, 0, m->mos6522_via1.PRAM,
-                        sizeof(m->mos6522_via1.PRAM));
-        if (len != sizeof(m->mos6522_via1.PRAM)) {
+        len = blk_pread(v1s->blk, 0, v1s->PRAM, sizeof(v1s->PRAM));
+        if (len != sizeof(v1s->PRAM)) {
             error_setg(errp, "can't read PRAM contents");
             return;
         }
@@ -1054,23 +1053,23 @@ static void mac_via_init(Object *obj)
                         TYPE_ADB_BUS, DEVICE(obj), "adb.0");
 }
 
-static void postload_update_cb(void *opaque, bool running, RunState state)
+static void via1_postload_update_cb(void *opaque, bool running, RunState state)
 {
-    MacVIAState *m = MAC_VIA(opaque);
+    MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(opaque);
 
-    qemu_del_vm_change_state_handler(m->vmstate);
-    m->vmstate = NULL;
+    qemu_del_vm_change_state_handler(v1s->vmstate);
+    v1s->vmstate = NULL;
 
-    pram_update(m);
+    pram_update(v1s);
 }
 
-static int mac_via_post_load(void *opaque, int version_id)
+static int via1_post_load(void *opaque, int version_id)
 {
-    MacVIAState *m = MAC_VIA(opaque);
+    MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(opaque);
 
-    if (m->blk) {
-        m->vmstate = qemu_add_vm_change_state_handler(postload_update_cb,
-                                                      m);
+    if (v1s->blk) {
+        v1s->vmstate = qemu_add_vm_change_state_handler(
+                           via1_postload_update_cb, v1s);
     }
 
     return 0;
@@ -1080,7 +1079,6 @@ static const VMStateDescription vmstate_mac_via = {
     .name = "mac-via",
     .version_id = 2,
     .minimum_version_id = 2,
-    .post_load = mac_via_post_load,
     .fields = (VMStateField[]) {
         /* VIAs */
         VMSTATE_BUFFER(mos6522_via1.PRAM, MacVIAState),
@@ -1108,11 +1106,6 @@ static const VMStateDescription vmstate_mac_via = {
     }
 };
 
-static Property mac_via_properties[] = {
-    DEFINE_PROP_DRIVE("drive", MacVIAState, blk),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void mac_via_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -1120,7 +1113,6 @@ static void mac_via_class_init(ObjectClass *oc, void *data)
     dc->realize = mac_via_realize;
     dc->reset = mac_via_reset;
     dc->vmsd = &vmstate_mac_via;
-    device_class_set_props(dc, mac_via_properties);
 }
 
 static TypeInfo mac_via_info = {
@@ -1155,12 +1147,20 @@ static const VMStateDescription vmstate_q800_via1 = {
     .name = "q800-via1",
     .version_id = 0,
     .minimum_version_id = 0,
+    .post_load = via1_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT(parent_obj, MOS6522Q800VIA1State, 0, vmstate_mos6522,
                        MOS6522State),
         VMSTATE_UINT8(last_b, MOS6522Q800VIA1State),
+        /* RTC */
+        VMSTATE_BUFFER(PRAM, MOS6522Q800VIA1State),
         VMSTATE_END_OF_LIST()
     }
+};
+
+static Property mos6522_q800_via1_properties[] = {
+    DEFINE_PROP_DRIVE("drive", MOS6522Q800VIA1State, blk),
+    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void mos6522_q800_via1_class_init(ObjectClass *oc, void *data)
@@ -1169,6 +1169,7 @@ static void mos6522_q800_via1_class_init(ObjectClass *oc, void *data)
 
     dc->reset = mos6522_q800_via1_reset;
     dc->vmsd = &vmstate_q800_via1;
+    device_class_set_props(dc, mos6522_q800_via1_properties);
 }
 
 static const TypeInfo mos6522_q800_via1_type_info = {

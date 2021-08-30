@@ -40,7 +40,11 @@ struct MOS6522Q800VIA1State {
 
     qemu_irq irqs[VIA1_IRQ_NB];
     uint8_t last_b;
+
+    /* RTC */
     uint8_t PRAM[256];
+    BlockBackend *blk;
+    VMChangeStateEntry *vmstate;
 
     /* external timers */
     QEMUTimer *one_second_timer;
@@ -80,8 +84,6 @@ OBJECT_DECLARE_SIMPLE_TYPE(MacVIAState, MAC_VIA)
 struct MacVIAState {
     SysBusDevice busdev;
 
-    VMChangeStateEntry *vmstate;
-
     /* MMIO */
     MemoryRegion mmio;
     MemoryRegion via1mem;
@@ -101,7 +103,6 @@ struct MacVIAState {
     uint8_t cmd;
     int wprotect;
     int alt;
-    BlockBackend *blk;
 
     /* ADB */
     ADBBusState adb_bus;
