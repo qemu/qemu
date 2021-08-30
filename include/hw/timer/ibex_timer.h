@@ -48,5 +48,7 @@ struct IbexTimerState {
     uint32_t timebase_freq;
 
     qemu_irq irq;
+
+    qemu_irq m_timer_irq;
 };
 #endif /* HW_IBEX_TIMER_H */
