@@ -1083,7 +1083,6 @@ static const VMStateDescription vmstate_mac_via = {
     .post_load = mac_via_post_load,
     .fields = (VMStateField[]) {
         /* VIAs */
-        VMSTATE_UINT8(mos6522_via1.last_b, MacVIAState),
         VMSTATE_BUFFER(mos6522_via1.PRAM, MacVIAState),
         VMSTATE_TIMER_PTR(mos6522_via1.one_second_timer, MacVIAState),
         VMSTATE_INT64(mos6522_via1.next_second, MacVIAState),
@@ -1159,6 +1158,7 @@ static const VMStateDescription vmstate_q800_via1 = {
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT(parent_obj, MOS6522Q800VIA1State, 0, vmstate_mos6522,
                        MOS6522State),
+        VMSTATE_UINT8(last_b, MOS6522Q800VIA1State),
         VMSTATE_END_OF_LIST()
     }
 };
