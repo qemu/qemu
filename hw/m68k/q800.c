@@ -377,12 +377,10 @@ static void q800_init(MachineState *machine)
 
     sysbus = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(sysbus, &error_fatal);
-    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in_named(via2_dev,
-                                                         "via2-irq",
-                                                         VIA2_IRQ_SCSI_BIT));
-    sysbus_connect_irq(sysbus, 1,
-                       qdev_get_gpio_in_named(via2_dev, "via2-irq",
-                                              VIA2_IRQ_SCSI_DATA_BIT));
+    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(via2_dev,
+                                                   VIA2_IRQ_SCSI_BIT));
+    sysbus_connect_irq(sysbus, 1, qdev_get_gpio_in(via2_dev,
+                                                   VIA2_IRQ_SCSI_DATA_BIT));
     sysbus_mmio_map(sysbus, 0, ESP_BASE);
     sysbus_mmio_map(sysbus, 1, ESP_PDMA);
 

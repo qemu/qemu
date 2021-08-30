@@ -1004,8 +1004,7 @@ static void mos6522_q800_via1_realize(DeviceState *dev, Error **errp)
     v1s->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
 
     adb_register_autopoll_callback(adb_bus, adb_via_poll, v1s);
-    v1s->adb_data_ready = qdev_get_gpio_in_named(dev, "via1-irq",
-                                                 VIA1_IRQ_ADB_READY_BIT);
+    v1s->adb_data_ready = qdev_get_gpio_in(dev, VIA1_IRQ_ADB_READY_BIT);
 
     if (v1s->blk) {
         int64_t len = blk_getlength(v1s->blk);
@@ -1042,8 +1041,7 @@ static void mos6522_q800_via1_init(Object *obj)
     qbus_create_inplace((BusState *)&v1s->adb_bus, sizeof(v1s->adb_bus),
                         TYPE_ADB_BUS, DEVICE(v1s), "adb.0");
 
-    qdev_init_gpio_in_named(DEVICE(obj), via1_irq_request, "via1-irq",
-                            VIA1_IRQ_NB);
+    qdev_init_gpio_in(DEVICE(obj), via1_irq_request, VIA1_IRQ_NB);
 }
 
 static const VMStateDescription vmstate_q800_via1 = {
@@ -1136,8 +1134,7 @@ static void mos6522_q800_via2_init(Object *obj)
                           "via2", VIA_SIZE);
     sysbus_init_mmio(sbd, &v2s->via_mem);
 
-    qdev_init_gpio_in_named(DEVICE(obj), via2_irq_request, "via2-irq",
-                            VIA2_IRQ_NB);
+    qdev_init_gpio_in(DEVICE(obj), via2_irq_request, VIA2_IRQ_NB);
 }
 
 static const VMStateDescription vmstate_q800_via2 = {
