@@ -948,11 +948,7 @@ static const MemoryRegionOps mos6522_q800_via2_ops = {
 static void mac_via_realize(DeviceState *dev, Error **errp)
 {
     MacVIAState *m = MAC_VIA(dev);
-    MOS6522Q800VIA1State *v1s = &m->mos6522_via1;
     MOS6522State *ms;
-    ADBBusState *adb_bus = &v1s->adb_bus;
-    struct tm tm;
-    int ret;
 
     /* Pass through mos6522 output IRQs */
     ms = MOS6522(&m->mos6522_via1);
@@ -968,44 +964,6 @@ static void mac_via_realize(DeviceState *dev, Error **errp)
     /* Pass through mos6522 input IRQs */
     qdev_pass_gpios(DEVICE(&m->mos6522_via1), dev, "via1-irq");
     qdev_pass_gpios(DEVICE(&m->mos6522_via2), dev, "via2-irq");
-
-    /* VIA 1 */
-    m->mos6522_via1.one_second_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
-                                                     via1_one_second,
-                                                     &m->mos6522_via1);
-    via1_one_second_update(&m->mos6522_via1);
-    m->mos6522_via1.sixty_hz_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                                  via1_sixty_hz,
-                                                  &m->mos6522_via1);
-    via1_sixty_hz_update(&m->mos6522_via1);
-
-    qemu_get_timedate(&tm, 0);
-    v1s->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
-
-    adb_register_autopoll_callback(adb_bus, adb_via_poll, v1s);
-    v1s->adb_data_ready = qdev_get_gpio_in_named(dev, "via1-irq",
-                                                 VIA1_IRQ_ADB_READY_BIT);
-
-    if (v1s->blk) {
-        int64_t len = blk_getlength(v1s->blk);
-        if (len < 0) {
-            error_setg_errno(errp, -len,
-                             "could not get length of backing image");
-            return;
-        }
-        ret = blk_set_perm(v1s->blk,
-                           BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
-                           BLK_PERM_ALL, errp);
-        if (ret < 0) {
-            return;
-        }
-
-        len = blk_pread(v1s->blk, 0, v1s->PRAM, sizeof(v1s->PRAM));
-        if (len != sizeof(v1s->PRAM)) {
-            error_setg(errp, "can't read PRAM contents");
-            return;
-        }
-    }
 }
 
 static void mac_via_init(Object *obj)
@@ -1091,6 +1049,49 @@ static void mos6522_q800_via1_reset(DeviceState *dev)
     v1s->alt = REG_EMPTY;
 }
 
+static void mos6522_q800_via1_realize(DeviceState *dev, Error **errp)
+{
+    MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(dev);
+    ADBBusState *adb_bus = &v1s->adb_bus;
+    struct tm tm;
+    int ret;
+
+    v1s->one_second_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, via1_one_second,
+                                         v1s);
+    via1_one_second_update(v1s);
+    v1s->sixty_hz_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, via1_sixty_hz,
+                                       v1s);
+    via1_sixty_hz_update(v1s);
+
+    qemu_get_timedate(&tm, 0);
+    v1s->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
+
+    adb_register_autopoll_callback(adb_bus, adb_via_poll, v1s);
+    v1s->adb_data_ready = qdev_get_gpio_in_named(dev, "via1-irq",
+                                                 VIA1_IRQ_ADB_READY_BIT);
+
+    if (v1s->blk) {
+        int64_t len = blk_getlength(v1s->blk);
+        if (len < 0) {
+            error_setg_errno(errp, -len,
+                             "could not get length of backing image");
+            return;
+        }
+        ret = blk_set_perm(v1s->blk,
+                           BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
+                           BLK_PERM_ALL, errp);
+        if (ret < 0) {
+            return;
+        }
+
+        len = blk_pread(v1s->blk, 0, v1s->PRAM, sizeof(v1s->PRAM));
+        if (len != sizeof(v1s->PRAM)) {
+            error_setg(errp, "can't read PRAM contents");
+            return;
+        }
+    }
+}
+
 static void mos6522_q800_via1_init(Object *obj)
 {
     MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(obj);
@@ -1147,6 +1148,7 @@ static void mos6522_q800_via1_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
+    dc->realize = mos6522_q800_via1_realize;
     dc->reset = mos6522_q800_via1_reset;
     dc->vmsd = &vmstate_q800_via1;
     device_class_set_props(dc, mos6522_q800_via1_properties);
