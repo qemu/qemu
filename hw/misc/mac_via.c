@@ -945,18 +945,6 @@ static const MemoryRegionOps mos6522_q800_via2_ops = {
     },
 };
 
-static void mac_via_reset(DeviceState *dev)
-{
-    MacVIAState *m = MAC_VIA(dev);
-    MOS6522Q800VIA1State *v1s = &m->mos6522_via1;
-    ADBBusState *adb_bus = &v1s->adb_bus;
-
-    adb_set_autopoll_enabled(adb_bus, true);
-
-    v1s->cmd = REG_EMPTY;
-    v1s->alt = REG_EMPTY;
-}
-
 static void mac_via_realize(DeviceState *dev, Error **errp)
 {
     MacVIAState *m = MAC_VIA(dev);
@@ -1072,7 +1060,6 @@ static void mac_via_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = mac_via_realize;
-    dc->reset = mac_via_reset;
 }
 
 static TypeInfo mac_via_info = {
@@ -1086,8 +1073,10 @@ static TypeInfo mac_via_info = {
 /* VIA 1 */
 static void mos6522_q800_via1_reset(DeviceState *dev)
 {
-    MOS6522State *ms = MOS6522(dev);
+    MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(dev);
+    MOS6522State *ms = MOS6522(v1s);
     MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(ms);
+    ADBBusState *adb_bus = &v1s->adb_bus;
 
     mdc->parent_reset(dev);
 
@@ -1095,6 +1084,11 @@ static void mos6522_q800_via1_reset(DeviceState *dev)
     ms->timers[1].frequency = VIA_TIMER_FREQ;
 
     ms->b = VIA1B_vADB_StateMask | VIA1B_vADBInt | VIA1B_vRTCEnb;
+
+    /* ADB/RTC */
+    adb_set_autopoll_enabled(adb_bus, true);
+    v1s->cmd = REG_EMPTY;
+    v1s->alt = REG_EMPTY;
 }
 
 static void mos6522_q800_via1_init(Object *obj)
