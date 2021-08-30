@@ -56,6 +56,16 @@ struct MOS6522Q800VIA1State {
     int wprotect;
     int alt;
 
+    /* ADB */
+    ADBBusState adb_bus;
+    qemu_irq adb_data_ready;
+    int adb_data_in_size;
+    int adb_data_in_index;
+    int adb_data_out_index;
+    uint8_t adb_data_in[128];
+    uint8_t adb_data_out[16];
+    uint8_t adb_autopoll_cmd;
+
     /* external timers */
     QEMUTimer *one_second_timer;
     int64_t next_second;
@@ -102,16 +112,6 @@ struct MacVIAState {
     /* VIAs */
     MOS6522Q800VIA1State mos6522_via1;
     MOS6522Q800VIA2State mos6522_via2;
-
-    /* ADB */
-    ADBBusState adb_bus;
-    qemu_irq adb_data_ready;
-    int adb_data_in_size;
-    int adb_data_in_index;
-    int adb_data_out_index;
-    uint8_t adb_data_in[128];
-    uint8_t adb_data_out[16];
-    uint8_t adb_autopoll_cmd;
 };
 
 #endif

@@ -225,7 +225,7 @@ static void q800_init(MachineState *machine)
     hwaddr parameters_base;
     CPUState *cs;
     DeviceState *dev;
-    DeviceState *via_dev;
+    DeviceState *via_dev, *via1_dev;
     DeviceState *escc_orgate;
     SysBusESPState *sysbus_esp;
     ESPState *esp;
@@ -285,8 +285,8 @@ static void q800_init(MachineState *machine)
     qdev_connect_gpio_out_named(DEVICE(sysbus), "irq", 1,
                                 qdev_get_gpio_in(glue, 1));
 
-
-    adb_bus = qdev_get_child_bus(via_dev, "adb.0");
+    via1_dev = DEVICE(MOS6522_Q800_VIA1(&MAC_VIA(via_dev)->mos6522_via1));
+    adb_bus = qdev_get_child_bus(DEVICE(via1_dev), "adb.0");
     dev = qdev_new(TYPE_ADB_KEYBOARD);
     qdev_realize_and_unref(dev, adb_bus, &error_fatal);
     dev = qdev_new(TYPE_ADB_MOUSE);
