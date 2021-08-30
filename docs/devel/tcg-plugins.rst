@@ -301,7 +301,7 @@ which will eventually report::
     previously @ 0x000000ffd08098/5 (809900593 insns)
     previously @ 0x000000ffd080c0/1 (809900588 insns)
 
-- contrib/plugins/hwprofile
+- contrib/plugins/hwprofile.c
 
 The hwprofile tool can only be used with system emulation and allows
 the user to see what hardware is accessed how often. It has a number of options:
@@ -360,7 +360,7 @@ which will output an execution trace following this structure::
   0, 0xd34, 0xf9c8f000, "bl #0x10c8"
   0, 0x10c8, 0xfff96c43, "ldr r3, [r0, #0x44]", load, 0x200000e4, RAM
 
-- contrib/plugins/cache
+- contrib/plugins/cache.c
 
 Cache modelling plugin that measures the performance of a given cache
 configuration when a given working set is run::
