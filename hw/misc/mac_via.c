@@ -1083,16 +1083,12 @@ static const VMStateDescription vmstate_mac_via = {
     .post_load = mac_via_post_load,
     .fields = (VMStateField[]) {
         /* VIAs */
-        VMSTATE_STRUCT(mos6522_via1.parent_obj, MacVIAState, 0, vmstate_mos6522,
-                       MOS6522State),
         VMSTATE_UINT8(mos6522_via1.last_b, MacVIAState),
         VMSTATE_BUFFER(mos6522_via1.PRAM, MacVIAState),
         VMSTATE_TIMER_PTR(mos6522_via1.one_second_timer, MacVIAState),
         VMSTATE_INT64(mos6522_via1.next_second, MacVIAState),
         VMSTATE_TIMER_PTR(mos6522_via1.sixty_hz_timer, MacVIAState),
         VMSTATE_INT64(mos6522_via1.next_sixty_hz, MacVIAState),
-        VMSTATE_STRUCT(mos6522_via2.parent_obj, MacVIAState, 0, vmstate_mos6522,
-                       MOS6522State),
         /* RTC */
         VMSTATE_UINT32(tick_offset, MacVIAState),
         VMSTATE_UINT8(data_out, MacVIAState),
@@ -1156,11 +1152,23 @@ static void mos6522_q800_via1_init(Object *obj)
                             VIA1_IRQ_NB);
 }
 
+static const VMStateDescription vmstate_q800_via1 = {
+    .name = "q800-via1",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT(parent_obj, MOS6522Q800VIA1State, 0, vmstate_mos6522,
+                       MOS6522State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void mos6522_q800_via1_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->reset = mos6522_q800_via1_reset;
+    dc->vmsd = &vmstate_q800_via1;
 }
 
 static const TypeInfo mos6522_q800_via1_type_info = {
@@ -1200,12 +1208,24 @@ static void mos6522_q800_via2_init(Object *obj)
                             VIA2_IRQ_NB);
 }
 
+static const VMStateDescription vmstate_q800_via2 = {
+    .name = "q800-via2",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT(parent_obj, MOS6522Q800VIA2State, 0, vmstate_mos6522,
+                       MOS6522State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void mos6522_q800_via2_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
 
     dc->reset = mos6522_q800_via2_reset;
+    dc->vmsd = &vmstate_q800_via2;
     mdc->portB_write = mos6522_q800_via2_portB_write;
 }
 
