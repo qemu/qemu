@@ -1067,27 +1067,12 @@ static int via1_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static const VMStateDescription vmstate_mac_via = {
-    .name = "mac-via",
-    .version_id = 2,
-    .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
-        /* VIAs */
-        VMSTATE_TIMER_PTR(mos6522_via1.one_second_timer, MacVIAState),
-        VMSTATE_INT64(mos6522_via1.next_second, MacVIAState),
-        VMSTATE_TIMER_PTR(mos6522_via1.sixty_hz_timer, MacVIAState),
-        VMSTATE_INT64(mos6522_via1.next_sixty_hz, MacVIAState),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
 static void mac_via_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = mac_via_realize;
     dc->reset = mac_via_reset;
-    dc->vmsd = &vmstate_mac_via;
 }
 
 static TypeInfo mac_via_info = {
@@ -1150,6 +1135,11 @@ static const VMStateDescription vmstate_q800_via1 = {
         VMSTATE_BUFFER(adb_data_in, MOS6522Q800VIA1State),
         VMSTATE_BUFFER(adb_data_out, MOS6522Q800VIA1State),
         VMSTATE_UINT8(adb_autopoll_cmd, MOS6522Q800VIA1State),
+        /* Timers */
+        VMSTATE_TIMER_PTR(one_second_timer, MOS6522Q800VIA1State),
+        VMSTATE_INT64(next_second, MOS6522Q800VIA1State),
+        VMSTATE_TIMER_PTR(sixty_hz_timer, MOS6522Q800VIA1State),
+        VMSTATE_INT64(next_sixty_hz, MOS6522Q800VIA1State),
         VMSTATE_END_OF_LIST()
     }
 };
