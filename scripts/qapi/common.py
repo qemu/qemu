@@ -17,6 +17,7 @@ from typing import (
     Dict,
     Match,
     Optional,
+    Sequence,
     Union,
 )
 
@@ -200,33 +201,37 @@ def guardend(name: str) -> str:
                  name=c_fname(name).upper())
 
 
-def cgen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]]) -> str:
+def gen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]],
+               cond_fmt: str, not_fmt: str,
+               all_operator: str, any_operator: str) -> str:
+
+    def do_gen(ifcond: Union[str, Dict[str, Any]]):
+        if isinstance(ifcond, str):
+            return cond_fmt % ifcond
+        assert isinstance(ifcond, dict) and len(ifcond) == 1
+        if 'not' in ifcond:
+            return not_fmt % do_gen(ifcond['not'])
+        if 'all' in ifcond:
+            gen = gen_infix(all_operator, ifcond['all'])
+        else:
+            gen = gen_infix(any_operator, ifcond['any'])
+        return gen
+
+    def gen_infix(operator: str, operands: Sequence[Any]) -> str:
+        return '(' + operator.join([do_gen(o) for o in operands]) + ')'
+
     if not ifcond:
         return ''
-    if isinstance(ifcond, str):
-        return 'defined(' + ifcond + ')'
+    return do_gen(ifcond)
 
-    oper, operands = next(iter(ifcond.items()))
-    if oper == 'not':
-        return '!' + cgen_ifcond(operands)
-    oper = {'all': ' && ', 'any': ' || '}[oper]
-    operands = [cgen_ifcond(o) for o in operands]
-    return '(' + oper.join(operands) + ')'
+
+def cgen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]]) -> str:
+    return gen_ifcond(ifcond, 'defined(%s)', '!%s', ' && ', ' || ')
 
 
 def docgen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]]) -> str:
     # TODO Doc generated for conditions needs polish
-    if not ifcond:
-        return ''
-    if isinstance(ifcond, str):
-        return ifcond
-
-    oper, operands = next(iter(ifcond.items()))
-    if oper == 'not':
-        return '!' + docgen_ifcond(operands)
-    oper = {'all': ' and ', 'any': ' or '}[oper]
-    operands = [docgen_ifcond(o) for o in operands]
-    return '(' + oper.join(operands) + ')'
+    return gen_ifcond(ifcond, '%s', '!%s', ' and ', ' or ')
 
 
 def gen_if(cond: str) -> str:
