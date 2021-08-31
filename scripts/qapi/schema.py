@@ -24,6 +24,8 @@ from .common import (
     c_name,
     cgen_ifcond,
     docgen_ifcond,
+    gen_endif,
+    gen_if,
 )
 from .error import QAPIError, QAPISemError, QAPISourceError
 from .expr import check_exprs
@@ -34,8 +36,14 @@ class QAPISchemaIfCond:
     def __init__(self, ifcond=None):
         self.ifcond = ifcond or {}
 
-    def cgen(self):
+    def _cgen(self):
         return cgen_ifcond(self.ifcond)
+
+    def gen_if(self):
+        return gen_if(self._cgen())
+
+    def gen_endif(self):
+        return gen_endif(self._cgen())
 
     def docgen(self):
         return docgen_ifcond(self.ifcond)
