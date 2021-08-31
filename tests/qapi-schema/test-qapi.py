@@ -94,8 +94,17 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
 
     @staticmethod
     def _print_if(ifcond, indent=4):
+        # TODO Drop this hack after replacing OrderedDict by plain
+        # dict (requires Python 3.7)
+        def _massage(subcond):
+            if isinstance(subcond, str):
+                return subcond
+            if isinstance(subcond, list):
+                return [_massage(val) for val in subcond]
+            return {key: _massage(val) for key, val in subcond.items()}
+
         if ifcond.is_present():
-            print('%sif %s' % (' ' * indent, ifcond.ifcond))
+            print('%sif %s' % (' ' * indent, _massage(ifcond.ifcond)))
 
     @classmethod
     def _print_features(cls, features, indent=4):

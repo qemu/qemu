@@ -18,7 +18,7 @@ enum Enum
     feature enum-feat
 object Base
     member base1: Enum optional=False
-    if OrderedDict([('all', ['IFALL1', 'IFALL2'])])
+    if {'all': ['IFALL1', 'IFALL2']}
 object Variant1
     member var1: str optional=False
         if IFSTR
@@ -30,7 +30,7 @@ object Object
     tag base1
     case one: Variant1
     case two: Variant2
-        if OrderedDict([('any', ['IFONE', 'IFTWO'])])
+        if {'any': ['IFONE', 'IFTWO']}
     feature union-feat1
 object q_obj_Variant1-wrapper
     member data: Variant1 optional=False
@@ -51,7 +51,7 @@ alternate Alternate
     tag type
     case i: int
     case b: bool
-    if OrderedDict([('not', OrderedDict([('any', ['IFONE', 'IFTWO'])]))])
+    if {'not': {'any': ['IFONE', 'IFTWO']}}
     feature alt-feat
 object q_obj_cmd-arg
     member arg1: int optional=False

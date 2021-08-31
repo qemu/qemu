@@ -311,40 +311,40 @@ enum TestIfUnionKind
     member foo
     member bar
         if TEST_IF_UNION_BAR
-    if OrderedDict([('all', ['TEST_IF_UNION', 'TEST_IF_STRUCT'])])
+    if {'all': ['TEST_IF_UNION', 'TEST_IF_STRUCT']}
 object TestIfUnion
     member type: TestIfUnionKind optional=False
     tag type
     case foo: q_obj_TestStruct-wrapper
     case bar: q_obj_str-wrapper
         if TEST_IF_UNION_BAR
-    if OrderedDict([('all', ['TEST_IF_UNION', 'TEST_IF_STRUCT'])])
+    if {'all': ['TEST_IF_UNION', 'TEST_IF_STRUCT']}
 object q_obj_test-if-union-cmd-arg
     member union-cmd-arg: TestIfUnion optional=False
-    if OrderedDict([('all', ['TEST_IF_UNION', 'TEST_IF_STRUCT'])])
+    if {'all': ['TEST_IF_UNION', 'TEST_IF_STRUCT']}
 command test-if-union-cmd q_obj_test-if-union-cmd-arg -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
-    if OrderedDict([('all', ['TEST_IF_UNION', 'TEST_IF_STRUCT'])])
+    if {'all': ['TEST_IF_UNION', 'TEST_IF_STRUCT']}
 alternate TestIfAlternate
     tag type
     case foo: int
     case bar: TestStruct
         if TEST_IF_ALT_BAR
-    if OrderedDict([('all', ['TEST_IF_ALT', 'TEST_IF_STRUCT'])])
+    if {'all': ['TEST_IF_ALT', 'TEST_IF_STRUCT']}
 object q_obj_test-if-alternate-cmd-arg
     member alt-cmd-arg: TestIfAlternate optional=False
-    if OrderedDict([('all', ['TEST_IF_ALT', 'TEST_IF_STRUCT'])])
+    if {'all': ['TEST_IF_ALT', 'TEST_IF_STRUCT']}
 command test-if-alternate-cmd q_obj_test-if-alternate-cmd-arg -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
-    if OrderedDict([('all', ['TEST_IF_ALT', 'TEST_IF_STRUCT'])])
+    if {'all': ['TEST_IF_ALT', 'TEST_IF_STRUCT']}
 object q_obj_test-if-cmd-arg
     member foo: TestIfStruct optional=False
     member bar: TestIfEnum optional=False
         if TEST_IF_CMD_BAR
-    if OrderedDict([('all', ['TEST_IF_CMD', 'TEST_IF_STRUCT'])])
+    if {'all': ['TEST_IF_CMD', 'TEST_IF_STRUCT']}
 command test-if-cmd q_obj_test-if-cmd-arg -> UserDefThree
     gen=True success_response=True boxed=False oob=False preconfig=False
-    if OrderedDict([('all', ['TEST_IF_CMD', 'TEST_IF_STRUCT'])])
+    if {'all': ['TEST_IF_CMD', 'TEST_IF_STRUCT']}
 command test-cmd-return-def-three None -> UserDefThree
     gen=True success_response=True boxed=False oob=False preconfig=False
 array TestIfEnumList TestIfEnum
@@ -353,13 +353,13 @@ object q_obj_TEST_IF_EVENT-arg
     member foo: TestIfStruct optional=False
     member bar: TestIfEnumList optional=False
         if TEST_IF_EVT_BAR
-    if OrderedDict([('all', ['TEST_IF_EVT', 'TEST_IF_STRUCT'])])
+    if {'all': ['TEST_IF_EVT', 'TEST_IF_STRUCT']}
 event TEST_IF_EVENT q_obj_TEST_IF_EVENT-arg
     boxed=False
-    if OrderedDict([('all', ['TEST_IF_EVT', 'TEST_IF_STRUCT'])])
+    if {'all': ['TEST_IF_EVT', 'TEST_IF_STRUCT']}
 event TEST_IF_EVENT2 None
     boxed=False
-    if OrderedDict([('not', OrderedDict([('any', [OrderedDict([('not', 'TEST_IF_EVT')]), OrderedDict([('not', 'TEST_IF_STRUCT')])])]))])
+    if {'not': {'any': [{'not': 'TEST_IF_EVT'}, {'not': 'TEST_IF_STRUCT'}]}}
 object FeatureStruct0
     member foo: int optional=False
 object FeatureStruct1
@@ -392,11 +392,11 @@ object CondFeatureStruct2
 object CondFeatureStruct3
     member foo: int optional=False
     feature feature1
-        if OrderedDict([('all', ['TEST_IF_COND_1', 'TEST_IF_COND_2'])])
+        if {'all': ['TEST_IF_COND_1', 'TEST_IF_COND_2']}
 object CondFeatureStruct4
     member foo: int optional=False
     feature feature1
-        if OrderedDict([('any', ['TEST_IF_COND_1', 'TEST_IF_COND_2'])])
+        if {'any': ['TEST_IF_COND_1', 'TEST_IF_COND_2']}
 enum FeatureEnum1
     member eins
     member zwei
@@ -447,7 +447,7 @@ command test-command-cond-features2 None -> None
 command test-command-cond-features3 None -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
     feature feature1
-        if OrderedDict([('all', ['TEST_IF_COND_1', 'TEST_IF_COND_2'])])
+        if {'all': ['TEST_IF_COND_1', 'TEST_IF_COND_2']}
 event TEST_EVENT_FEATURES0 FeatureStruct1
     boxed=False
 event TEST_EVENT_FEATURES1 None
