@@ -357,6 +357,9 @@ object q_obj_TEST_IF_EVENT-arg
 event TEST_IF_EVENT q_obj_TEST_IF_EVENT-arg
     boxed=False
     if OrderedDict([('all', ['TEST_IF_EVT', 'TEST_IF_STRUCT'])])
+event TEST_IF_EVENT2 None
+    boxed=False
+    if OrderedDict([('not', OrderedDict([('any', [OrderedDict([('not', 'TEST_IF_EVT')]), OrderedDict([('not', 'TEST_IF_STRUCT')])])]))])
 object FeatureStruct0
     member foo: int optional=False
 object FeatureStruct1
