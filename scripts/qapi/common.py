@@ -209,9 +209,9 @@ def cgen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]]) -> str:
     oper, operands = next(iter(ifcond.items()))
     if oper == 'not':
         return '!' + cgen_ifcond(operands)
-    oper = {'all': '&&', 'any': '||'}[oper]
+    oper = {'all': ' && ', 'any': ' || '}[oper]
     operands = [cgen_ifcond(o) for o in operands]
-    return '(' + (') ' + oper + ' (').join(operands) + ')'
+    return '(' + oper.join(operands) + ')'
 
 
 def docgen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]]) -> str:

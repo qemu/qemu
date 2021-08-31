@@ -262,7 +262,6 @@
   'if': { 'all': ['TEST_IF_EVT', 'TEST_IF_STRUCT'] } }
 
 { 'event': 'TEST_IF_EVENT2', 'data': {},
-  # FIXME C #if generated for this conditional is wrong
   'if': { 'not': { 'any': [ { 'not': 'TEST_IF_EVT' },
                             { 'not': 'TEST_IF_STRUCT' } ] } } }
 
