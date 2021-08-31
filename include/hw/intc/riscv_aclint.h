@@ -1,8 +1,9 @@
 /*
- * SiFive CLINT (Core Local Interruptor) interface
+ * RISC-V ACLINT (Advanced Core Local Interruptor) interface
  *
  * Copyright (c) 2016-2017 Sagar Karandikar, sagark@eecs.berkeley.edu
  * Copyright (c) 2017 SiFive, Inc.
+ * Copyright (c) 2021 Western Digital Corporation or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -17,17 +18,17 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HW_SIFIVE_CLINT_H
-#define HW_SIFIVE_CLINT_H
+#ifndef HW_RISCV_ACLINT_H
+#define HW_RISCV_ACLINT_H
 
 #include "hw/sysbus.h"
 
-#define TYPE_SIFIVE_CLINT "riscv.sifive.clint"
+#define TYPE_RISCV_ACLINT_MTIMER "riscv.aclint.mtimer"
 
-#define SIFIVE_CLINT(obj) \
-    OBJECT_CHECK(SiFiveCLINTState, (obj), TYPE_SIFIVE_CLINT)
+#define RISCV_ACLINT_MTIMER(obj) \
+    OBJECT_CHECK(RISCVAclintMTimerState, (obj), TYPE_RISCV_ACLINT_MTIMER)
 
-typedef struct SiFiveCLINTState {
+typedef struct RISCVAclintMTimerState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -35,28 +36,45 @@ typedef struct SiFiveCLINTState {
     MemoryRegion mmio;
     uint32_t hartid_base;
     uint32_t num_harts;
-    uint32_t sip_base;
     uint32_t timecmp_base;
     uint32_t time_base;
     uint32_t aperture_size;
     uint32_t timebase_freq;
     qemu_irq *timer_irqs;
-    qemu_irq *soft_irqs;
-} SiFiveCLINTState;
+} RISCVAclintMTimerState;
 
-DeviceState *sifive_clint_create(hwaddr addr, hwaddr size,
-    uint32_t hartid_base, uint32_t num_harts, uint32_t sip_base,
+DeviceState *riscv_aclint_mtimer_create(hwaddr addr, hwaddr size,
+    uint32_t hartid_base, uint32_t num_harts,
     uint32_t timecmp_base, uint32_t time_base, uint32_t timebase_freq,
     bool provide_rdtime);
 
-enum {
-    SIFIVE_SIP_BASE     = 0x0,
-    SIFIVE_TIMECMP_BASE = 0x4000,
-    SIFIVE_TIME_BASE    = 0xBFF8
-};
+#define TYPE_RISCV_ACLINT_SWI "riscv.aclint.swi"
+
+#define RISCV_ACLINT_SWI(obj) \
+    OBJECT_CHECK(RISCVAclintSwiState, (obj), TYPE_RISCV_ACLINT_SWI)
+
+typedef struct RISCVAclintSwiState {
+    /*< private >*/
+    SysBusDevice parent_obj;
+
+    /*< public >*/
+    MemoryRegion mmio;
+    uint32_t hartid_base;
+    uint32_t num_harts;
+    uint32_t sswi;
+    qemu_irq *soft_irqs;
+} RISCVAclintSwiState;
+
+DeviceState *riscv_aclint_swi_create(hwaddr addr, uint32_t hartid_base,
+    uint32_t num_harts, bool sswi);
 
 enum {
-    SIFIVE_CLINT_TIMEBASE_FREQ = 10000000
+    RISCV_ACLINT_DEFAULT_MTIMECMP      = 0x0,
+    RISCV_ACLINT_DEFAULT_MTIME         = 0x7ff8,
+    RISCV_ACLINT_DEFAULT_MTIMER_SIZE   = 0x8000,
+    RISCV_ACLINT_DEFAULT_TIMEBASE_FREQ = 10000000,
+    RISCV_ACLINT_MAX_HARTS             = 4095,
+    RISCV_ACLINT_SWI_SIZE              = 0x4000
 };
 
 #endif
