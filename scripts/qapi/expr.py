@@ -286,13 +286,12 @@ def check_if(expr: _JSONObject, info: QAPISourceInfo, source: str) -> None:
             raise QAPISemError(
                 info,
                 "'if' condition of %s must be a string or an object" % source)
+        check_keys(cond, info, "'if' condition of %s" % source, [],
+                   ["all", "any", "not"])
         if len(cond) != 1:
             raise QAPISemError(
                 info,
-                "'if' condition dict of %s must have one key: "
-                "'all', 'any' or 'not'" % source)
-        check_keys(cond, info, "'if' condition", [],
-                   ["all", "any", "not"])
+                "'if' condition of %s has conflicting keys" % source)
 
         oper, operands = next(iter(cond.items()))
         if not operands:
