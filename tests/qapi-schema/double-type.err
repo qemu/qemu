@@ -1,3 +1,1 @@
-double-type.json: In struct 'Bar':
-double-type.json:2: struct has unknown key 'command'
-Valid keys are 'base', 'data', 'features', 'if', 'struct'.
+double-type.json:2: expression must have exactly one key 'enum', 'struct', 'union', 'alternate', 'command', 'event'

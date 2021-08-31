@@ -630,20 +630,15 @@ def check_exprs(exprs: List[_JSONObject]) -> List[_JSONObject]:
         if 'include' in expr:
             continue
 
-        if 'enum' in expr:
-            meta = 'enum'
-        elif 'union' in expr:
-            meta = 'union'
-        elif 'alternate' in expr:
-            meta = 'alternate'
-        elif 'struct' in expr:
-            meta = 'struct'
-        elif 'command' in expr:
-            meta = 'command'
-        elif 'event' in expr:
-            meta = 'event'
-        else:
-            raise QAPISemError(info, "expression is missing metatype")
+        metas = expr.keys() & {'enum', 'struct', 'union', 'alternate',
+                               'command', 'event'}
+        if len(metas) != 1:
+            raise QAPISemError(
+                info,
+                "expression must have exactly one key"
+                " 'enum', 'struct', 'union', 'alternate',"
+                " 'command', 'event'")
+        meta = metas.pop()
 
         check_name_is_str(expr[meta], info, "'%s'" % meta)
         name = cast(str, expr[meta])
