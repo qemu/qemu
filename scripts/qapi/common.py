@@ -205,24 +205,26 @@ def gen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]],
                cond_fmt: str, not_fmt: str,
                all_operator: str, any_operator: str) -> str:
 
-    def do_gen(ifcond: Union[str, Dict[str, Any]]):
+    def do_gen(ifcond: Union[str, Dict[str, Any]], need_parens: bool):
         if isinstance(ifcond, str):
             return cond_fmt % ifcond
         assert isinstance(ifcond, dict) and len(ifcond) == 1
         if 'not' in ifcond:
-            return not_fmt % do_gen(ifcond['not'])
+            return not_fmt % do_gen(ifcond['not'], True)
         if 'all' in ifcond:
             gen = gen_infix(all_operator, ifcond['all'])
         else:
             gen = gen_infix(any_operator, ifcond['any'])
+        if need_parens:
+            gen = '(' + gen + ')'
         return gen
 
     def gen_infix(operator: str, operands: Sequence[Any]) -> str:
-        return '(' + operator.join([do_gen(o) for o in operands]) + ')'
+        return operator.join([do_gen(o, True) for o in operands])
 
     if not ifcond:
         return ''
-    return do_gen(ifcond)
+    return do_gen(ifcond, False)
 
 
 def cgen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]]) -> str:
