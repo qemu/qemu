@@ -321,10 +321,10 @@ object TestIfUnion
     if OrderedDict([('all', ['TEST_IF_UNION', 'TEST_IF_STRUCT'])])
 object q_obj_test-if-union-cmd-arg
     member union-cmd-arg: TestIfUnion optional=False
-    if TEST_IF_UNION
+    if OrderedDict([('all', ['TEST_IF_UNION', 'TEST_IF_STRUCT'])])
 command test-if-union-cmd q_obj_test-if-union-cmd-arg -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
-    if TEST_IF_UNION
+    if OrderedDict([('all', ['TEST_IF_UNION', 'TEST_IF_STRUCT'])])
 alternate TestIfAlternate
     tag type
     case foo: int
@@ -333,10 +333,10 @@ alternate TestIfAlternate
     if OrderedDict([('all', ['TEST_IF_ALT', 'TEST_IF_STRUCT'])])
 object q_obj_test-if-alternate-cmd-arg
     member alt-cmd-arg: TestIfAlternate optional=False
-    if OrderedDict([('all', ['TEST_IF_ALT', OrderedDict([('not', 'TEST_IF_NOT_ALT')])])])
+    if OrderedDict([('all', ['TEST_IF_ALT', 'TEST_IF_STRUCT'])])
 command test-if-alternate-cmd q_obj_test-if-alternate-cmd-arg -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
-    if OrderedDict([('all', ['TEST_IF_ALT', OrderedDict([('not', 'TEST_IF_NOT_ALT')])])])
+    if OrderedDict([('all', ['TEST_IF_ALT', 'TEST_IF_STRUCT'])])
 object q_obj_test-if-cmd-arg
     member foo: TestIfStruct optional=False
     member bar: TestIfEnum optional=False

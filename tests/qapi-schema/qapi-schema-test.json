@@ -236,7 +236,7 @@
 
 { 'command': 'test-if-union-cmd',
   'data': { 'union-cmd-arg': 'TestIfUnion' },
-  'if': 'TEST_IF_UNION' }
+  'if': { 'all': ['TEST_IF_UNION', 'TEST_IF_STRUCT'] } }
 
 { 'alternate': 'TestIfAlternate', 'data':
   { 'foo': 'int',
@@ -245,8 +245,7 @@
 
 { 'command': 'test-if-alternate-cmd',
   'data': { 'alt-cmd-arg': 'TestIfAlternate' },
-  'if': { 'all': ['TEST_IF_ALT',
-                  {'not': 'TEST_IF_NOT_ALT'}] } }
+  'if': { 'all': ['TEST_IF_ALT', 'TEST_IF_STRUCT'] } }
 
 { 'command': 'test-if-cmd',
   'data': {
