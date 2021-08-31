@@ -200,7 +200,7 @@ def guardend(name: str) -> str:
                  name=c_fname(name).upper())
 
 
-def cgen_ifcond(ifcond: Union[str, Dict[str, Any]]) -> str:
+def cgen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]]) -> str:
     if not ifcond:
         return ''
     if isinstance(ifcond, str):
@@ -214,7 +214,7 @@ def cgen_ifcond(ifcond: Union[str, Dict[str, Any]]) -> str:
     return '(' + (') ' + oper + ' (').join(operands) + ')'
 
 
-def docgen_ifcond(ifcond: Union[str, Dict[str, Any]]) -> str:
+def docgen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]]) -> str:
     # TODO Doc generated for conditions needs polish
     if not ifcond:
         return ''

@@ -34,7 +34,7 @@ from .parser import QAPISchemaParser
 
 class QAPISchemaIfCond:
     def __init__(self, ifcond=None):
-        self.ifcond = ifcond or {}
+        self.ifcond = ifcond
 
     def _cgen(self):
         return cgen_ifcond(self.ifcond)
