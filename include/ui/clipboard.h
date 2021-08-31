@@ -110,6 +110,37 @@ void qemu_clipboard_peer_register(QemuClipboardPeer *peer);
 void qemu_clipboard_peer_unregister(QemuClipboardPeer *peer);
 
 /**
+ * qemu_clipboard_peer_owns
+ *
+ * @peer: peer information.
+ * @selection: clipboard selection.
+ *
+ * Return TRUE if the peer owns the clipboard.
+ */
+bool qemu_clipboard_peer_owns(QemuClipboardPeer *peer,
+                              QemuClipboardSelection selection);
+
+/**
+ * qemu_clipboard_peer_release
+ *
+ * @peer: peer information.
+ * @selection: clipboard selection.
+ *
+ * If the peer owns the clipboard, release it.
+ */
+void qemu_clipboard_peer_release(QemuClipboardPeer *peer,
+                                 QemuClipboardSelection selection);
+
+/**
+ * qemu_clipboard_info
+ *
+ * @selection: clipboard selection.
+ *
+ * Return the current clipboard data & owner informations.
+ */
+QemuClipboardInfo *qemu_clipboard_info(QemuClipboardSelection selection);
+
+/**
  * qemu_clipboard_info_new
  *
  * @owner: clipboard owner.
@@ -189,5 +220,7 @@ void qemu_clipboard_set_data(QemuClipboardPeer *peer,
                              uint32_t size,
                              const void *data,
                              bool update);
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(QemuClipboardInfo, qemu_clipboard_info_unref)
 
 #endif /* QEMU_CLIPBOARD_H */

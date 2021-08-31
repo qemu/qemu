@@ -6,6 +6,7 @@
 #include "qemu/option.h"
 #include "qemu/units.h"
 #include "hw/qdev-core.h"
+#include "migration/blocker.h"
 #include "ui/clipboard.h"
 #include "ui/console.h"
 #include "ui/input.h"
@@ -22,6 +23,9 @@
 
 struct VDAgentChardev {
     Chardev parent;
+
+    /* TODO: migration isn't yet supported */
+    Error *migration_blocker;
 
     /* config */
     bool mouse;
@@ -47,7 +51,6 @@ struct VDAgentChardev {
 
     /* clipboard */
     QemuClipboardPeer cbpeer;
-    QemuClipboardInfo *cbinfo[QEMU_CLIPBOARD_SELECTION__COUNT];
     uint32_t cbpending[QEMU_CLIPBOARD_SELECTION__COUNT];
 };
 typedef struct VDAgentChardev VDAgentChardev;
@@ -346,6 +349,24 @@ static void vdagent_send_clipboard_grab(VDAgentChardev *vd,
     vdagent_send_msg(vd, msg);
 }
 
+static void vdagent_send_clipboard_release(VDAgentChardev *vd,
+                                           QemuClipboardInfo *info)
+{
+    g_autofree VDAgentMessage *msg = g_malloc0(sizeof(VDAgentMessage) +
+                                               sizeof(uint32_t));
+
+    if (have_selection(vd)) {
+        uint8_t *s = msg->data;
+        *s = info->selection;
+        msg->size += sizeof(uint32_t);
+    } else if (info->selection != QEMU_CLIPBOARD_SELECTION_CLIPBOARD) {
+        return;
+    }
+
+    msg->type = VD_AGENT_CLIPBOARD_RELEASE;
+    vdagent_send_msg(vd, msg);
+}
+
 static void vdagent_send_clipboard_data(VDAgentChardev *vd,
                                         QemuClipboardInfo *info,
                                         QemuClipboardType type)
@@ -376,6 +397,16 @@ static void vdagent_send_clipboard_data(VDAgentChardev *vd,
     vdagent_send_msg(vd, msg);
 }
 
+static void vdagent_send_empty_clipboard_data(VDAgentChardev *vd,
+                                              QemuClipboardSelection selection,
+                                              QemuClipboardType type)
+{
+    g_autoptr(QemuClipboardInfo) info = qemu_clipboard_info_new(&vd->cbpeer, selection);
+
+    trace_vdagent_send_empty_clipboard();
+    vdagent_send_clipboard_data(vd, info, type);
+}
+
 static void vdagent_clipboard_notify(Notifier *notifier, void *data)
 {
     VDAgentChardev *vd = container_of(notifier, VDAgentChardev, cbpeer.update);
@@ -384,12 +415,14 @@ static void vdagent_clipboard_notify(Notifier *notifier, void *data)
     QemuClipboardType type;
     bool self_update = info->owner == &vd->cbpeer;
 
-    if (info != vd->cbinfo[s]) {
-        qemu_clipboard_info_unref(vd->cbinfo[s]);
-        vd->cbinfo[s] = qemu_clipboard_info_ref(info);
+    if (info != qemu_clipboard_info(s)) {
         vd->cbpending[s] = 0;
         if (!self_update) {
-            vdagent_send_clipboard_grab(vd, info);
+            if (info->owner) {
+                vdagent_send_clipboard_grab(vd, info);
+            } else {
+                vdagent_send_clipboard_release(vd, info);
+            }
         }
         return;
     }
@@ -433,13 +466,96 @@ static void vdagent_clipboard_request(QemuClipboardInfo *info,
     vdagent_send_msg(vd, msg);
 }
 
+static void vdagent_clipboard_recv_grab(VDAgentChardev *vd, uint8_t s, uint32_t size, void *data)
+{
+    g_autoptr(QemuClipboardInfo) info = NULL;
+
+    trace_vdagent_cb_grab_selection(GET_NAME(sel_name, s));
+    info = qemu_clipboard_info_new(&vd->cbpeer, s);
+    if (size > sizeof(uint32_t) * 10) {
+        /*
+         * spice has 6 types as of 2021. Limiting to 10 entries
+         * so we we have some wiggle room.
+         */
+        return;
+    }
+    while (size >= sizeof(uint32_t)) {
+        trace_vdagent_cb_grab_type(GET_NAME(type_name, *(uint32_t *)data));
+        switch (*(uint32_t *)data) {
+        case VD_AGENT_CLIPBOARD_UTF8_TEXT:
+            info->types[QEMU_CLIPBOARD_TYPE_TEXT].available = true;
+            break;
+        default:
+            break;
+        }
+        data += sizeof(uint32_t);
+        size -= sizeof(uint32_t);
+    }
+    qemu_clipboard_update(info);
+}
+
+static void vdagent_clipboard_recv_request(VDAgentChardev *vd, uint8_t s, uint32_t size, void *data)
+{
+    QemuClipboardType type;
+    QemuClipboardInfo *info;
+
+    if (size < sizeof(uint32_t)) {
+        return;
+    }
+    switch (*(uint32_t *)data) {
+    case VD_AGENT_CLIPBOARD_UTF8_TEXT:
+        type = QEMU_CLIPBOARD_TYPE_TEXT;
+        break;
+    default:
+        return;
+    }
+
+    info = qemu_clipboard_info(s);
+    if (info && info->types[type].available && info->owner != &vd->cbpeer) {
+        if (info->types[type].data) {
+            vdagent_send_clipboard_data(vd, info, type);
+        } else {
+            vd->cbpending[s] |= (1 << type);
+            qemu_clipboard_request(info, type);
+        }
+    } else {
+        vdagent_send_empty_clipboard_data(vd, s, type);
+    }
+}
+
+static void vdagent_clipboard_recv_data(VDAgentChardev *vd, uint8_t s, uint32_t size, void *data)
+{
+    QemuClipboardType type;
+
+    if (size < sizeof(uint32_t)) {
+        return;
+    }
+    switch (*(uint32_t *)data) {
+    case VD_AGENT_CLIPBOARD_UTF8_TEXT:
+        type = QEMU_CLIPBOARD_TYPE_TEXT;
+        break;
+    default:
+        return;
+    }
+    data += 4;
+    size -= 4;
+
+    if (qemu_clipboard_peer_owns(&vd->cbpeer, s)) {
+        qemu_clipboard_set_data(&vd->cbpeer, qemu_clipboard_info(s),
+                                type, size, data, true);
+    }
+}
+
+static void vdagent_clipboard_recv_release(VDAgentChardev *vd, uint8_t s)
+{
+    qemu_clipboard_peer_release(&vd->cbpeer, s);
+}
+
 static void vdagent_chr_recv_clipboard(VDAgentChardev *vd, VDAgentMessage *msg)
 {
     uint8_t s = VD_AGENT_CLIPBOARD_SELECTION_CLIPBOARD;
     uint32_t size = msg->size;
     void *data = msg->data;
-    QemuClipboardInfo *info;
-    QemuClipboardType type;
 
     if (have_selection(vd)) {
         if (size < 4) {
@@ -455,77 +571,15 @@ static void vdagent_chr_recv_clipboard(VDAgentChardev *vd, VDAgentMessage *msg)
 
     switch (msg->type) {
     case VD_AGENT_CLIPBOARD_GRAB:
-        trace_vdagent_cb_grab_selection(GET_NAME(sel_name, s));
-        info = qemu_clipboard_info_new(&vd->cbpeer, s);
-        if (size > sizeof(uint32_t) * 10) {
-            /*
-             * spice has 6 types as of 2021. Limiting to 10 entries
-             * so we we have some wiggle room.
-             */
-            return;
-        }
-        while (size >= sizeof(uint32_t)) {
-            trace_vdagent_cb_grab_type(GET_NAME(type_name, *(uint32_t *)data));
-            switch (*(uint32_t *)data) {
-            case VD_AGENT_CLIPBOARD_UTF8_TEXT:
-                info->types[QEMU_CLIPBOARD_TYPE_TEXT].available = true;
-                break;
-            default:
-                break;
-            }
-            data += sizeof(uint32_t);
-            size -= sizeof(uint32_t);
-        }
-        qemu_clipboard_update(info);
-        qemu_clipboard_info_unref(info);
-        break;
+        return vdagent_clipboard_recv_grab(vd, s, size, data);
     case VD_AGENT_CLIPBOARD_REQUEST:
-        if (size < sizeof(uint32_t)) {
-            return;
-        }
-        switch (*(uint32_t *)data) {
-        case VD_AGENT_CLIPBOARD_UTF8_TEXT:
-            type = QEMU_CLIPBOARD_TYPE_TEXT;
-            break;
-        default:
-            return;
-        }
-        if (vd->cbinfo[s] &&
-            vd->cbinfo[s]->types[type].available &&
-            vd->cbinfo[s]->owner != &vd->cbpeer) {
-            if (vd->cbinfo[s]->types[type].data) {
-                vdagent_send_clipboard_data(vd, vd->cbinfo[s], type);
-            } else {
-                vd->cbpending[s] |= (1 << type);
-                qemu_clipboard_request(vd->cbinfo[s], type);
-            }
-        }
-        break;
+        return vdagent_clipboard_recv_request(vd, s, size, data);
     case VD_AGENT_CLIPBOARD: /* data */
-        if (size < sizeof(uint32_t)) {
-            return;
-        }
-        switch (*(uint32_t *)data) {
-        case VD_AGENT_CLIPBOARD_UTF8_TEXT:
-            type = QEMU_CLIPBOARD_TYPE_TEXT;
-            break;
-        default:
-            return;
-        }
-        data += 4;
-        size -= 4;
-        qemu_clipboard_set_data(&vd->cbpeer, vd->cbinfo[s], type,
-                                size, data, true);
-        break;
-    case VD_AGENT_CLIPBOARD_RELEASE: /* data */
-        if (vd->cbinfo[s] &&
-            vd->cbinfo[s]->owner == &vd->cbpeer) {
-            /* set empty clipboard info */
-            info = qemu_clipboard_info_new(NULL, s);
-            qemu_clipboard_update(info);
-            qemu_clipboard_info_unref(info);
-        }
-        break;
+        return vdagent_clipboard_recv_data(vd, s, size, data);
+    case VD_AGENT_CLIPBOARD_RELEASE:
+        return vdagent_clipboard_recv_release(vd, s);
+    default:
+        g_assert_not_reached();
     }
 }
 
@@ -548,6 +602,10 @@ static void vdagent_chr_open(Chardev *chr,
     error_setg(errp, "vdagent is not supported on bigendian hosts");
     return;
 #endif
+
+    if (migrate_add_blocker(vd->migration_blocker, errp) != 0) {
+        return;
+    }
 
     vd->mouse = VDAGENT_MOUSE_DEFAULT;
     if (cfg->has_mouse) {
@@ -723,22 +781,27 @@ static void vdagent_chr_accept_input(Chardev *chr)
     vdagent_send_buf(vd);
 }
 
+static void vdagent_disconnect(VDAgentChardev *vd)
+{
+    buffer_reset(&vd->outbuf);
+    vdagent_reset_bufs(vd);
+    vd->caps = 0;
+    if (vd->mouse_hs) {
+        qemu_input_handler_deactivate(vd->mouse_hs);
+    }
+    if (vd->cbpeer.update.notify) {
+        qemu_clipboard_peer_unregister(&vd->cbpeer);
+        memset(&vd->cbpeer, 0, sizeof(vd->cbpeer));
+    }
+}
+
 static void vdagent_chr_set_fe_open(struct Chardev *chr, int fe_open)
 {
     VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(chr);
 
     if (!fe_open) {
         trace_vdagent_close();
-        /* reset state */
-        vdagent_reset_bufs(vd);
-        vd->caps = 0;
-        if (vd->mouse_hs) {
-            qemu_input_handler_deactivate(vd->mouse_hs);
-        }
-        if (vd->cbpeer.update.notify) {
-            qemu_clipboard_peer_unregister(&vd->cbpeer);
-            memset(&vd->cbpeer, 0, sizeof(vd->cbpeer));
-        }
+        vdagent_disconnect(vd);
         return;
     }
 
@@ -777,13 +840,18 @@ static void vdagent_chr_init(Object *obj)
     VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(obj);
 
     buffer_init(&vd->outbuf, "vdagent-outbuf");
+    error_setg(&vd->migration_blocker,
+               "The vdagent chardev doesn't yet support migration");
 }
 
 static void vdagent_chr_fini(Object *obj)
 {
     VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(obj);
 
+    migrate_del_blocker(vd->migration_blocker);
+    vdagent_disconnect(vd);
     buffer_free(&vd->outbuf);
+    error_free(vd->migration_blocker);
 }
 
 static const TypeInfo vdagent_chr_type_info = {
