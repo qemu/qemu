@@ -174,7 +174,7 @@ Features
 If
 ~~
 
-"!(IFONE or IFTWO)"
+"not (IFONE or IFTWO)"
 
 
 Another subsection

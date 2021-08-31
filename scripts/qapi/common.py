@@ -233,7 +233,7 @@ def cgen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]]) -> str:
 
 def docgen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]]) -> str:
     # TODO Doc generated for conditions needs polish
-    return gen_ifcond(ifcond, '%s', '!%s', ' and ', ' or ')
+    return gen_ifcond(ifcond, '%s', 'not %s', ' and ', ' or ')
 
 
 def gen_if(cond: str) -> str:
