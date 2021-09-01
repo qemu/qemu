@@ -141,11 +141,6 @@ void xive_tctx_ipb_update(XiveTCTX *tctx, uint8_t ring, uint8_t ipb)
     xive_tctx_notify(tctx, ring);
 }
 
-static inline uint32_t xive_tctx_word2(uint8_t *ring)
-{
-    return *((uint32_t *) &ring[TM_WORD2]);
-}
-
 /*
  * XIVE Thread Interrupt Management Area (TIMA)
  */

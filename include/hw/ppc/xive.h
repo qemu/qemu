@@ -335,6 +335,11 @@ struct XiveTCTX {
     XivePresenter *xptr;
 };
 
+static inline uint32_t xive_tctx_word2(uint8_t *ring)
+{
+    return *((uint32_t *) &ring[TM_WORD2]);
+}
+
 /*
  * XIVE Router
  */
