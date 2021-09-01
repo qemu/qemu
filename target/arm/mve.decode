@@ -124,6 +124,9 @@
 @vcmp_scalar .... .... .. size:2 qn:3 . .... .... .... rm:4 &vcmp_scalar \
              mask=%mask_22_13
 
+@vcmp_fp .... .... .... qn:3 . .... .... .... .... &vcmp \
+         qm=%qm size=%2op_fp_scalar_size mask=%mask_22_13
+
 @vmaxv .... .... .... size:2 .. rda:4 .... .... .... &vmaxv qm=%qm
 
 @2op_fp .... .... .... .... .... .... .... .... &2op \
@@ -671,17 +674,41 @@ VSHLC             111 0 1110 1 . 1 imm:5 ... 0 1111 1100 rdm:4 qd=%qd
 # Comparisons. We expand out the conditions which are split across
 # encodings T1, T2, T3 and the fc bits. These include VPT, which is
 # effectively "VCMP then VPST". A plain "VCMP" has a mask field of zero.
-VCMPEQ            1111 1110 0 . .. ... 1 ... 0 1111 0 0 . 0 ... 0 @vcmp
-VCMPNE            1111 1110 0 . .. ... 1 ... 0 1111 1 0 . 0 ... 0 @vcmp
+{
+  VCMPEQ_fp       111 . 1110 0 . 11 ... 1 ... 0 1111 0 0 . 0 ... 0 @vcmp_fp
+  VCMPEQ          111 1 1110 0 . .. ... 1 ... 0 1111 0 0 . 0 ... 0 @vcmp
+}
+
+{
+  VCMPNE_fp       111 . 1110 0 . 11 ... 1 ... 0 1111 1 0 . 0 ... 0 @vcmp_fp
+  VCMPNE          111 1 1110 0 . .. ... 1 ... 0 1111 1 0 . 0 ... 0 @vcmp
+}
+
+{
+  VCMPGE_fp       111 . 1110 0 . 11 ... 1 ... 1 1111 0 0 . 0 ... 0 @vcmp_fp
+  VCMPGE          111 1 1110 0 . .. ... 1 ... 1 1111 0 0 . 0 ... 0 @vcmp
+}
+
+{
+  VCMPLT_fp       111 . 1110 0 . 11 ... 1 ... 1 1111 1 0 . 0 ... 0 @vcmp_fp
+  VCMPLT          111 1 1110 0 . .. ... 1 ... 1 1111 1 0 . 0 ... 0 @vcmp
+}
+
+{
+  VCMPGT_fp       111 . 1110 0 . 11 ... 1 ... 1 1111 0 0 . 0 ... 1 @vcmp_fp
+  VCMPGT          111 1 1110 0 . .. ... 1 ... 1 1111 0 0 . 0 ... 1 @vcmp
+}
+
+{
+  VCMPLE_fp         111 . 1110 0 . 11 ... 1 ... 1 1111 1 0 . 0 ... 1 @vcmp_fp
+  VCMPLE            1111 1110 0 . .. ... 1 ... 1 1111 1 0 . 0 ... 1 @vcmp
+}
+
 {
   VPSEL           1111 1110 0 . 11 ... 1 ... 0 1111 . 0 . 0 ... 1 @2op_nosz
   VCMPCS          1111 1110 0 . .. ... 1 ... 0 1111 0 0 . 0 ... 1 @vcmp
   VCMPHI          1111 1110 0 . .. ... 1 ... 0 1111 1 0 . 0 ... 1 @vcmp
 }
-VCMPGE            1111 1110 0 . .. ... 1 ... 1 1111 0 0 . 0 ... 0 @vcmp
-VCMPLT            1111 1110 0 . .. ... 1 ... 1 1111 1 0 . 0 ... 0 @vcmp
-VCMPGT            1111 1110 0 . .. ... 1 ... 1 1111 0 0 . 0 ... 1 @vcmp
-VCMPLE            1111 1110 0 . .. ... 1 ... 1 1111 1 0 . 0 ... 1 @vcmp
 
 {
   VPNOT           1111 1110 0 0 11 000 1 000 0 1111 0100 1101

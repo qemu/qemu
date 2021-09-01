@@ -1758,6 +1758,28 @@ DO_VCMP(VCMPLT, vcmplt)
 DO_VCMP(VCMPGT, vcmpgt)
 DO_VCMP(VCMPLE, vcmple)
 
+#define DO_VCMP_FP(INSN, FN)                                    \
+    static bool trans_##INSN(DisasContext *s, arg_vcmp *a)      \
+    {                                                           \
+        static MVEGenCmpFn * const fns[] = {                    \
+            NULL,                                               \
+            gen_helper_mve_##FN##h,                             \
+            gen_helper_mve_##FN##s,                             \
+            NULL,                                               \
+        };                                                      \
+        if (!dc_isar_feature(aa32_mve_fp, s)) {                 \
+            return false;                                       \
+        }                                                       \
+        return do_vcmp(s, a, fns[a->size]);                     \
+    }
+
+DO_VCMP_FP(VCMPEQ_fp, vfcmpeq)
+DO_VCMP_FP(VCMPNE_fp, vfcmpne)
+DO_VCMP_FP(VCMPGE_fp, vfcmpge)
+DO_VCMP_FP(VCMPLT_fp, vfcmplt)
+DO_VCMP_FP(VCMPGT_fp, vfcmpgt)
+DO_VCMP_FP(VCMPLE_fp, vfcmple)
+
 static bool do_vmaxv(DisasContext *s, arg_vmaxv *a, MVEGenVADDVFn fn)
 {
     /*

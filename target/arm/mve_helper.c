@@ -3156,3 +3156,67 @@ DO_FP_VMAXMINV(vmaxnmavh, 2, float16, true, float16_maxnum)
 DO_FP_VMAXMINV(vmaxnmavs, 4, float32, true, float32_maxnum)
 DO_FP_VMAXMINV(vminnmavh, 2, float16, true, float16_minnum)
 DO_FP_VMAXMINV(vminnmavs, 4, float32, true, float32_minnum)
+
+/* FP compares; note that all comparisons signal InvalidOp for QNaNs */
+#define DO_VCMP_FP(OP, ESIZE, TYPE, FN)                                 \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vn, void *vm)   \
+    {                                                                   \
+        TYPE *n = vn, *m = vm;                                          \
+        uint16_t mask = mve_element_mask(env);                          \
+        uint16_t eci_mask = mve_eci_mask(env);                          \
+        uint16_t beatpred = 0;                                          \
+        uint16_t emask = MAKE_64BIT_MASK(0, ESIZE);                     \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        bool r;                                                         \
+        for (e = 0; e < 16 / ESIZE; e++, emask <<= ESIZE) {             \
+            if ((mask & emask) == 0) {                                  \
+                continue;                                               \
+            }                                                           \
+            fpst = (ESIZE == 2) ? &env->vfp.standard_fp_status_f16 :    \
+                &env->vfp.standard_fp_status;                           \
+            if (!(mask & (1 << (e * ESIZE)))) {                         \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            r = FN(n[H##ESIZE(e)], m[H##ESIZE(e)], fpst);               \
+            /* Comparison sets 0/1 bits for each byte in the element */ \
+            beatpred |= r * emask;                                      \
+        }                                                               \
+        beatpred &= mask;                                               \
+        env->v7m.vpr = (env->v7m.vpr & ~(uint32_t)eci_mask) |           \
+            (beatpred & eci_mask);                                      \
+        mve_advance_vpt(env);                                           \
+    }
+
+/*
+ * Some care is needed here to get the correct result for the unordered case.
+ * Architecturally EQ, GE and GT are defined to be false for unordered, but
+ * the NE, LT and LE comparisons are defined as simple logical inverses of
+ * EQ, GE and GT and so they must return true for unordered. The softfloat
+ * comparison functions float*_{eq,le,lt} all return false for unordered.
+ */
+#define DO_GE16(X, Y, S) float16_le(Y, X, S)
+#define DO_GE32(X, Y, S) float32_le(Y, X, S)
+#define DO_GT16(X, Y, S) float16_lt(Y, X, S)
+#define DO_GT32(X, Y, S) float32_lt(Y, X, S)
+
+DO_VCMP_FP(vfcmpeqh, 2, float16, float16_eq)
+DO_VCMP_FP(vfcmpeqs, 4, float32, float32_eq)
+
+DO_VCMP_FP(vfcmpneh, 2, float16, !float16_eq)
+DO_VCMP_FP(vfcmpnes, 4, float32, !float32_eq)
+
+DO_VCMP_FP(vfcmpgeh, 2, float16, DO_GE16)
+DO_VCMP_FP(vfcmpges, 4, float32, DO_GE32)
+
+DO_VCMP_FP(vfcmplth, 2, float16, !DO_GE16)
+DO_VCMP_FP(vfcmplts, 4, float32, !DO_GE32)
+
+DO_VCMP_FP(vfcmpgth, 2, float16, DO_GT16)
+DO_VCMP_FP(vfcmpgts, 4, float32, DO_GT32)
+
+DO_VCMP_FP(vfcmpleh, 2, float16, !DO_GT16)
+DO_VCMP_FP(vfcmples, 4, float32, !DO_GT32)
