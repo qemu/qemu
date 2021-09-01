@@ -864,6 +864,8 @@ DO_2OP_FP(VCMLA0, vcmla0)
 DO_2OP_FP(VCMLA90, vcmla90)
 DO_2OP_FP(VCMLA180, vcmla180)
 DO_2OP_FP(VCMLA270, vcmla270)
+DO_2OP_FP(VMAXNMA, vmaxnma)
+DO_2OP_FP(VMINNMA, vminnma)
 
 static bool do_2op_scalar(DisasContext *s, arg_2scalar *a,
                           MVEGenTwoOpScalarFn fn)

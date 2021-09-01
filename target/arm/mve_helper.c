@@ -2855,6 +2855,29 @@ DO_2OP_FP_ALL(vfabd, abd)
 DO_2OP_FP_ALL(vmaxnm, maxnum)
 DO_2OP_FP_ALL(vminnm, minnum)
 
+static inline float16 float16_maxnuma(float16 a, float16 b, float_status *s)
+{
+    return float16_maxnum(float16_abs(a), float16_abs(b), s);
+}
+
+static inline float32 float32_maxnuma(float32 a, float32 b, float_status *s)
+{
+    return float32_maxnum(float32_abs(a), float32_abs(b), s);
+}
+
+static inline float16 float16_minnuma(float16 a, float16 b, float_status *s)
+{
+    return float16_minnum(float16_abs(a), float16_abs(b), s);
+}
+
+static inline float32 float32_minnuma(float32 a, float32 b, float_status *s)
+{
+    return float32_minnum(float32_abs(a), float32_abs(b), s);
+}
+
+DO_2OP_FP_ALL(vmaxnma, maxnuma)
+DO_2OP_FP_ALL(vminnma, minnuma)
+
 #define DO_VCADD_FP(OP, ESIZE, TYPE, FN0, FN1)                          \
     void HELPER(glue(mve_, OP))(CPUARMState *env,                       \
                                 void *vd, void *vn, void *vm)           \
