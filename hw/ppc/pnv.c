@@ -1368,10 +1368,10 @@ static void pnv_chip_quad_realize(Pnv9Chip *chip9, Error **errp)
                                            sizeof(*eq), TYPE_PNV_QUAD,
                                            &error_fatal, NULL);
 
-        object_property_set_int(OBJECT(eq), "id", core_id, &error_fatal);
+        object_property_set_int(OBJECT(eq), "quad-id", core_id, &error_fatal);
         qdev_realize(DEVICE(eq), NULL, &error_fatal);
 
-        pnv_xscom_add_subregion(chip, PNV9_XSCOM_EQ_BASE(eq->id),
+        pnv_xscom_add_subregion(chip, PNV9_XSCOM_EQ_BASE(eq->quad_id),
                                 &eq->xscom_regs);
     }
 }
