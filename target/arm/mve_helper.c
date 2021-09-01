@@ -25,6 +25,7 @@
 #include "exec/cpu_ldst.h"
 #include "exec/exec-all.h"
 #include "tcg/tcg.h"
+#include "fpu/softfloat.h"
 
 static uint16_t mve_eci_mask(CPUARMState *env)
 {
@@ -2798,3 +2799,42 @@ DO_VMAXMINA(vmaxaw, 4, int32_t, uint32_t, DO_MAX)
 DO_VMAXMINA(vminab, 1, int8_t, uint8_t, DO_MIN)
 DO_VMAXMINA(vminah, 2, int16_t, uint16_t, DO_MIN)
 DO_VMAXMINA(vminaw, 4, int32_t, uint32_t, DO_MIN)
+
+/*
+ * 2-operand floating point. Note that if an element is partially
+ * predicated we must do the FP operation to update the non-predicated
+ * bytes, but we must be careful to avoid updating the FP exception
+ * state unless byte 0 of the element was unpredicated.
+ */
+#define DO_2OP_FP(OP, ESIZE, TYPE, FN)                                  \
+    void HELPER(glue(mve_, OP))(CPUARMState *env,                       \
+                                void *vd, void *vn, void *vm)           \
+    {                                                                   \
+        TYPE *d = vd, *n = vn, *m = vm;                                 \
+        TYPE r;                                                         \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            if ((mask & MAKE_64BIT_MASK(0, ESIZE)) == 0) {              \
+                continue;                                               \
+            }                                                           \
+            fpst = (ESIZE == 2) ? &env->vfp.standard_fp_status_f16 :    \
+                &env->vfp.standard_fp_status;                           \
+            if (!(mask & 1)) {                                          \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            r = FN(n[H##ESIZE(e)], m[H##ESIZE(e)], fpst);               \
+            mergemask(&d[H##ESIZE(e)], r, mask);                        \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_2OP_FP_ALL(OP, FN)                  \
+    DO_2OP_FP(OP##h, 2, float16, float16_##FN) \
+    DO_2OP_FP(OP##s, 4, float32, float32_##FN)
+
+DO_2OP_FP_ALL(vfadd, add)

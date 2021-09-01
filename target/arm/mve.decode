@@ -26,6 +26,10 @@
 # VQDMULL has size in bit 28: 0 for 16 bit, 1 for 32 bit
 %size_28 28:1 !function=plus_1
 
+# 2 operand fp insns have size in bit 20: 1 for 16 bit, 0 for 32 bit,
+# like Neon FP insns.
+%2op_fp_size 20:1 !function=neon_3same_fp_size
+
 # 1imm format immediate
 %imm_28_16_0 28:1 16:3 0:4
 
@@ -117,6 +121,9 @@
              mask=%mask_22_13
 
 @vmaxv .... .... .... size:2 .. rda:4 .... .... .... &vmaxv qm=%qm
+
+@2op_fp .... .... .... .... .... .... .... .... &2op \
+        qd=%qd qn=%qn qm=%qm size=%2op_fp_size
 
 # Vector loads and stores
 
@@ -615,3 +622,6 @@ VCMPGE_scalar     1111 1110 0 . .. ... 1 ... 1 1111 0 1 0 0 .... @vcmp_scalar
 VCMPLT_scalar     1111 1110 0 . .. ... 1 ... 1 1111 1 1 0 0 .... @vcmp_scalar
 VCMPGT_scalar     1111 1110 0 . .. ... 1 ... 1 1111 0 1 1 0 .... @vcmp_scalar
 VCMPLE_scalar     1111 1110 0 . .. ... 1 ... 1 1111 1 1 1 0 .... @vcmp_scalar
+
+# 2-operand FP
+VADD_fp           1110 1111 0 . 0 . ... 0 ... 0 1101 . 1 . 0 ... 0 @2op_fp
