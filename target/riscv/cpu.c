@@ -392,9 +392,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     RISCVCPU *cpu = RISCV_CPU(dev);
     CPURISCVState *env = &cpu->env;
     RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(dev);
-    int priv_version = PRIV_VERSION_1_11_0;
-    int bext_version = BEXT_VERSION_0_93_0;
-    int vext_version = VEXT_VERSION_0_07_1;
+    int priv_version = 0;
     target_ulong target_misa = env->misa;
     Error *local_err = NULL;
 
@@ -417,9 +415,11 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    set_priv_version(env, priv_version);
-    set_bext_version(env, bext_version);
-    set_vext_version(env, vext_version);
+    if (priv_version) {
+        set_priv_version(env, priv_version);
+    } else if (!env->priv_ver) {
+        set_priv_version(env, PRIV_VERSION_1_11_0);
+    }
 
     if (cpu->cfg.mmu) {
         set_feature(env, RISCV_FEATURE_MMU);
@@ -497,6 +497,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             target_misa |= RVH;
         }
         if (cpu->cfg.ext_b) {
+            int bext_version = BEXT_VERSION_0_93_0;
             target_misa |= RVB;
 
             if (cpu->cfg.bext_spec) {
@@ -515,6 +516,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             set_bext_version(env, bext_version);
         }
         if (cpu->cfg.ext_v) {
+            int vext_version = VEXT_VERSION_0_07_1;
             target_misa |= RVV;
             if (!is_power_of_2(cpu->cfg.vlen)) {
                 error_setg(errp,
