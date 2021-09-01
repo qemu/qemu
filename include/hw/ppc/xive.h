@@ -459,6 +459,17 @@ struct XiveENDSource {
 #define XIVE_PRIORITY_MAX  7
 
 /*
+ * Convert a priority number to an Interrupt Pending Buffer (IPB)
+ * register, which indicates a pending interrupt at the priority
+ * corresponding to the bit number
+ */
+static inline uint8_t xive_priority_to_ipb(uint8_t priority)
+{
+    return priority > XIVE_PRIORITY_MAX ?
+        0 : 1 << (XIVE_PRIORITY_MAX - priority);
+}
+
+/*
  * XIVE Thread Interrupt Management Aera (TIMA)
  *
  * This region gives access to the registers of the thread interrupt
