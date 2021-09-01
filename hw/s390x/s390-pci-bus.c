@@ -330,7 +330,7 @@ static unsigned int calc_sx(dma_addr_t ptr)
 
 static unsigned int calc_px(dma_addr_t ptr)
 {
-    return ((unsigned long) ptr >> PAGE_SHIFT) & ZPCI_PT_MASK;
+    return ((unsigned long) ptr >> TARGET_PAGE_BITS) & ZPCI_PT_MASK;
 }
 
 static uint64_t get_rt_sto(uint64_t entry)
@@ -506,7 +506,7 @@ uint16_t s390_guest_io_table_walk(uint64_t g_iota, hwaddr addr,
     int8_t ett = 1;
     uint16_t error = 0;
 
-    entry->iova = addr & PAGE_MASK;
+    entry->iova = addr & TARGET_PAGE_MASK;
     entry->translated_addr = 0;
     entry->perm = IOMMU_RW;
 
@@ -526,7 +526,7 @@ static IOMMUTLBEntry s390_translate_iommu(IOMMUMemoryRegion *mr, hwaddr addr,
 {
     S390PCIIOMMU *iommu = container_of(mr, S390PCIIOMMU, iommu_mr);
     S390IOTLBEntry *entry;
-    uint64_t iova = addr & PAGE_MASK;
+    uint64_t iova = addr & TARGET_PAGE_MASK;
     uint16_t error = 0;
     IOMMUTLBEntry ret = {
         .target_as = &address_space_memory,
@@ -562,7 +562,7 @@ static IOMMUTLBEntry s390_translate_iommu(IOMMUMemoryRegion *mr, hwaddr addr,
         ret.perm = entry->perm;
     } else {
         ret.iova = iova;
-        ret.addr_mask = ~PAGE_MASK;
+        ret.addr_mask = ~TARGET_PAGE_MASK;
         ret.perm = IOMMU_NONE;
     }
 
@@ -868,7 +868,7 @@ static int s390_pci_msix_init(S390PCIBusDevice *pbdev)
 
     name = g_strdup_printf("msix-s390-%04x", pbdev->uid);
     memory_region_init_io(&pbdev->msix_notify_mr, OBJECT(pbdev),
-                          &s390_msi_ctrl_ops, pbdev, name, PAGE_SIZE);
+                          &s390_msi_ctrl_ops, pbdev, name, TARGET_PAGE_SIZE);
     memory_region_add_subregion(&pbdev->iommu->mr,
                                 pbdev->pci_group->zpci_group.msia,
                                 &pbdev->msix_notify_mr);

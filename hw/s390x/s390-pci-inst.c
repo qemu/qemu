@@ -613,7 +613,7 @@ static uint32_t s390_pci_update_iotlb(S390PCIIOMMU *iommu,
             .iova = entry->iova,
             .translated_addr = entry->translated_addr,
             .perm = entry->perm,
-            .addr_mask = ~PAGE_MASK,
+            .addr_mask = ~TARGET_PAGE_MASK,
         },
     };
 
@@ -640,7 +640,7 @@ static uint32_t s390_pci_update_iotlb(S390PCIIOMMU *iommu,
         cache = g_new(S390IOTLBEntry, 1);
         cache->iova = entry->iova;
         cache->translated_addr = entry->translated_addr;
-        cache->len = PAGE_SIZE;
+        cache->len = TARGET_PAGE_SIZE;
         cache->perm = entry->perm;
         g_hash_table_replace(iommu->iotlb, &cache->iova, cache);
         dec_dma_avail(iommu);
@@ -725,8 +725,8 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
         while (entry.iova < start && entry.iova < end &&
                (dma_avail > 0 || entry.perm == IOMMU_NONE)) {
             dma_avail = s390_pci_update_iotlb(iommu, &entry);
-            entry.iova += PAGE_SIZE;
-            entry.translated_addr += PAGE_SIZE;
+            entry.iova += TARGET_PAGE_SIZE;
+            entry.translated_addr += TARGET_PAGE_SIZE;
         }
     }
 err:
