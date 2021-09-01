@@ -508,9 +508,17 @@ VSUB_scalar      1110 1110 0 . .. ... 1 ... 1 1111 . 100 .... @2scalar
   VQRDMULH_scalar 1111  1110 0 . .. ... 1 ... 0 1110 . 110 .... @2scalar
 }
 
-# The U bit (28) is don't-care because it does not affect the result
-VMLA             111- 1110 0 . .. ... 1 ... 0 1110 . 100 .... @2scalar
-VMLAS            111- 1110 0 . .. ... 1 ... 1 1110 . 100 .... @2scalar
+{
+  VFMA_scalar     111 . 1110 0 . 11 ... 1 ... 0 1110 . 100 .... @2op_fp_scalar
+  # The U bit (28) is don't-care because it does not affect the result
+  VMLA            111 - 1110 0 . .. ... 1 ... 0 1110 . 100 .... @2scalar
+}
+
+{
+  VFMAS_scalar    111 . 1110 0 . 11 ... 1 ... 1 1110 . 100 .... @2op_fp_scalar
+  # The U bit (28) is don't-care because it does not affect the result
+  VMLAS           111 - 1110 0 . .. ... 1 ... 1 1110 . 100 .... @2scalar
+}
 
 VQRDMLAH         1110 1110 0 . .. ... 0 ... 0 1110 . 100 .... @2scalar
 VQRDMLASH        1110 1110 0 . .. ... 0 ... 1 1110 . 100 .... @2scalar

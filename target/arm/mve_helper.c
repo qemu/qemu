@@ -3075,3 +3075,40 @@ DO_VCMLA(vcmla270s, 4, float32, 3, DO_VCMLAS)
 DO_2OP_FP_SCALAR_ALL(vfadd_scalar, add)
 DO_2OP_FP_SCALAR_ALL(vfsub_scalar, sub)
 DO_2OP_FP_SCALAR_ALL(vfmul_scalar, mul)
+
+#define DO_2OP_FP_ACC_SCALAR(OP, ESIZE, TYPE, FN)                       \
+    void HELPER(glue(mve_, OP))(CPUARMState *env,                       \
+                                void *vd, void *vn, uint32_t rm)        \
+    {                                                                   \
+        TYPE *d = vd, *n = vn;                                          \
+        TYPE r, m = rm;                                                 \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            if ((mask & MAKE_64BIT_MASK(0, ESIZE)) == 0) {              \
+                continue;                                               \
+            }                                                           \
+            fpst = (ESIZE == 2) ? &env->vfp.standard_fp_status_f16 :    \
+                &env->vfp.standard_fp_status;                           \
+            if (!(mask & 1)) {                                          \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            r = FN(n[H##ESIZE(e)], m, d[H##ESIZE(e)], 0, fpst);         \
+            mergemask(&d[H##ESIZE(e)], r, mask);                        \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+/* VFMAS is vector * vector + scalar, so swap op2 and op3 */
+#define DO_VFMAS_SCALARH(N, M, D, F, S) float16_muladd(N, D, M, F, S)
+#define DO_VFMAS_SCALARS(N, M, D, F, S) float32_muladd(N, D, M, F, S)
+
+/* VFMA is vector * scalar + vector */
+DO_2OP_FP_ACC_SCALAR(vfma_scalarh, 2, float16, float16_muladd)
+DO_2OP_FP_ACC_SCALAR(vfma_scalars, 4, float32, float32_muladd)
+DO_2OP_FP_ACC_SCALAR(vfmas_scalarh, 2, float16, DO_VFMAS_SCALARH)
+DO_2OP_FP_ACC_SCALAR(vfmas_scalars, 4, float32, DO_VFMAS_SCALARS)
