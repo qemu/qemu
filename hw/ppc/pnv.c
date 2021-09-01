@@ -838,8 +838,7 @@ static void pnv_init(MachineState *machine)
     for (i = 0; i < pnv->num_chips; i++) {
         char chip_name[32];
         Object *chip = OBJECT(qdev_new(chip_typename));
-        int chip_id = i;
-        uint64_t chip_ram_size =  pnv_chip_get_ram_size(pnv, chip_id);
+        uint64_t chip_ram_size =  pnv_chip_get_ram_size(pnv, i);
 
         pnv->chips[i] = PNV_CHIP(chip);
 
@@ -850,9 +849,9 @@ static void pnv_init(MachineState *machine)
                                 &error_fatal);
         chip_ram_start += chip_ram_size;
 
-        snprintf(chip_name, sizeof(chip_name), "chip[%d]", chip_id);
+        snprintf(chip_name, sizeof(chip_name), "chip[%d]", i);
         object_property_add_child(OBJECT(pnv), chip_name, chip);
-        object_property_set_int(chip, "chip-id", chip_id, &error_fatal);
+        object_property_set_int(chip, "chip-id", i, &error_fatal);
         object_property_set_int(chip, "nr-cores", machine->smp.cores,
                                 &error_fatal);
         object_property_set_int(chip, "nr-threads", machine->smp.threads,
