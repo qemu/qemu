@@ -2838,3 +2838,19 @@ DO_VMAXMINA(vminaw, 4, int32_t, uint32_t, DO_MIN)
     DO_2OP_FP(OP##s, 4, float32, float32_##FN)
 
 DO_2OP_FP_ALL(vfadd, add)
+DO_2OP_FP_ALL(vfsub, sub)
+DO_2OP_FP_ALL(vfmul, mul)
+
+static inline float16 float16_abd(float16 a, float16 b, float_status *s)
+{
+    return float16_abs(float16_sub(a, b, s));
+}
+
+static inline float32 float32_abd(float32 a, float32 b, float_status *s)
+{
+    return float32_abs(float32_sub(a, b, s));
+}
+
+DO_2OP_FP_ALL(vfabd, abd)
+DO_2OP_FP_ALL(vmaxnm, maxnum)
+DO_2OP_FP_ALL(vminnm, minnum)
