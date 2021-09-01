@@ -831,7 +831,7 @@ main(int argc, char *argv[])
 out:
     fprintf(stderr, "Usage: %s ", argv[0]);
     fprintf(stderr, "[-c] [-H] [-u ud_socket_path] [-l lhost:lport] [-r rhost:rport]\n");
-    fprintf(stderr, "\t-u path to unix doman socket. default: %s\n",
+    fprintf(stderr, "\t-u path to unix domain socket. default: %s\n",
             DEFAULT_UD_SOCKET);
     fprintf(stderr, "\t-l local host and port. default: %s:%s\n",
             DEFAULT_LHOST, DEFAULT_LPORT);
