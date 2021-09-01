@@ -3040,3 +3040,38 @@ DO_VCMLA(vcmla180h, 2, float16, 2, DO_VCMLAH)
 DO_VCMLA(vcmla180s, 4, float32, 2, DO_VCMLAS)
 DO_VCMLA(vcmla270h, 2, float16, 3, DO_VCMLAH)
 DO_VCMLA(vcmla270s, 4, float32, 3, DO_VCMLAS)
+
+#define DO_2OP_FP_SCALAR(OP, ESIZE, TYPE, FN)                           \
+    void HELPER(glue(mve_, OP))(CPUARMState *env,                       \
+                                void *vd, void *vn, uint32_t rm)        \
+    {                                                                   \
+        TYPE *d = vd, *n = vn;                                          \
+        TYPE r, m = rm;                                                 \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            if ((mask & MAKE_64BIT_MASK(0, ESIZE)) == 0) {              \
+                continue;                                               \
+            }                                                           \
+            fpst = (ESIZE == 2) ? &env->vfp.standard_fp_status_f16 :    \
+                &env->vfp.standard_fp_status;                           \
+            if (!(mask & 1)) {                                          \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            r = FN(n[H##ESIZE(e)], m, fpst);                            \
+            mergemask(&d[H##ESIZE(e)], r, mask);                        \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_2OP_FP_SCALAR_ALL(OP, FN)                    \
+    DO_2OP_FP_SCALAR(OP##h, 2, float16, float16_##FN)   \
+    DO_2OP_FP_SCALAR(OP##s, 4, float32, float32_##FN)
+
+DO_2OP_FP_SCALAR_ALL(vfadd_scalar, add)
+DO_2OP_FP_SCALAR_ALL(vfsub_scalar, sub)
+DO_2OP_FP_SCALAR_ALL(vfmul_scalar, mul)
