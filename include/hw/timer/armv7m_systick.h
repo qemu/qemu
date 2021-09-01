@@ -15,10 +15,22 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 #include "hw/ptimer.h"
+#include "hw/clock.h"
 
 #define TYPE_SYSTICK "armv7m_systick"
 
 OBJECT_DECLARE_SIMPLE_TYPE(SysTickState, SYSTICK)
+
+/*
+ * QEMU interface:
+ *  + sysbus MMIO region 0 is the register interface (covering
+ *    the registers which are mapped at address 0xE000E010)
+ *  + sysbus IRQ 0 is the interrupt line to the NVIC
+ *  + Clock input "refclk" is the external reference clock
+ *    (used when SYST_CSR.CLKSOURCE == 0)
+ *  + Clock input "cpuclk" is the main CPU clock
+ *    (used when SYST_CSR.CLKSOURCE == 1)
+ */
 
 struct SysTickState {
     /*< private >*/
@@ -31,28 +43,8 @@ struct SysTickState {
     ptimer_state *ptimer;
     MemoryRegion iomem;
     qemu_irq irq;
+    Clock *refclk;
+    Clock *cpuclk;
 };
-
-/*
- * Multiplication factor to convert from system clock ticks to qemu timer
- * ticks. This should be set (by board code, usually) to a value
- * equal to NANOSECONDS_PER_SECOND / frq, where frq is the clock frequency
- * in Hz of the CPU.
- *
- * This value is used by the systick device when it is running in
- * its "use the CPU clock" mode (ie when SYST_CSR.CLKSOURCE == 1) to
- * set how fast the timer should tick.
- *
- * TODO: we should refactor this so that rather than using a global
- * we use a device property or something similar. This is complicated
- * because (a) the property would need to be plumbed through from the
- * board code down through various layers to the systick device
- * and (b) the property needs to be modifiable after realize, because
- * the stellaris board uses this to implement the behaviour where the
- * guest can reprogram the PLL registers to downclock the CPU, and the
- * systick device needs to react accordingly. Possibly this should
- * be deferred until we have a good API for modelling clock trees.
- */
-extern int system_clock_scale;
 
 #endif

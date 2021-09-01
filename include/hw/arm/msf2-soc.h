@@ -30,6 +30,7 @@
 #include "hw/misc/msf2-sysreg.h"
 #include "hw/ssi/mss-spi.h"
 #include "hw/net/msf2-emac.h"
+#include "hw/clock.h"
 #include "qom/object.h"
 
 #define TYPE_MSF2_SOC     "msf2-soc"
@@ -57,7 +58,8 @@ struct MSF2State {
     uint64_t envm_size;
     uint64_t esram_size;
 
-    uint32_t m3clk;
+    Clock *m3clk;
+    Clock *refclk;
     uint8_t apb0div;
     uint8_t apb1div;
 
@@ -65,6 +67,10 @@ struct MSF2State {
     MSSTimerState timer;
     MSSSpiState spi[MSF2_NUM_SPIS];
     MSF2EmacState emac;
+
+    MemoryRegion nvm;
+    MemoryRegion nvm_alias;
+    MemoryRegion sram;
 };
 
 #endif

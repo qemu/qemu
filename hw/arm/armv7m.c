@@ -14,11 +14,14 @@
 #include "hw/arm/boot.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-clock.h"
 #include "elf.h"
 #include "sysemu/reset.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qemu/log.h"
 #include "target/arm/idau.h"
+#include "migration/vmstate.h"
 
 /* Bitbanded IO.  Each word corresponds to a single bit.  */
 
@@ -124,6 +127,122 @@ static const hwaddr bitband_output_addr[ARMV7M_NUM_BITBANDS] = {
     0x22000000, 0x42000000
 };
 
+static MemTxResult v7m_sysreg_ns_write(void *opaque, hwaddr addr,
+                                       uint64_t value, unsigned size,
+                                       MemTxAttrs attrs)
+{
+    MemoryRegion *mr = opaque;
+
+    if (attrs.secure) {
+        /* S accesses to the alias act like NS accesses to the real region */
+        attrs.secure = 0;
+        return memory_region_dispatch_write(mr, addr, value,
+                                            size_memop(size) | MO_TE, attrs);
+    } else {
+        /* NS attrs are RAZ/WI for privileged, and BusFault for user */
+        if (attrs.user) {
+            return MEMTX_ERROR;
+        }
+        return MEMTX_OK;
+    }
+}
+
+static MemTxResult v7m_sysreg_ns_read(void *opaque, hwaddr addr,
+                                      uint64_t *data, unsigned size,
+                                      MemTxAttrs attrs)
+{
+    MemoryRegion *mr = opaque;
+
+    if (attrs.secure) {
+        /* S accesses to the alias act like NS accesses to the real region */
+        attrs.secure = 0;
+        return memory_region_dispatch_read(mr, addr, data,
+                                           size_memop(size) | MO_TE, attrs);
+    } else {
+        /* NS attrs are RAZ/WI for privileged, and BusFault for user */
+        if (attrs.user) {
+            return MEMTX_ERROR;
+        }
+        *data = 0;
+        return MEMTX_OK;
+    }
+}
+
+static const MemoryRegionOps v7m_sysreg_ns_ops = {
+    .read_with_attrs = v7m_sysreg_ns_read,
+    .write_with_attrs = v7m_sysreg_ns_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
+static MemTxResult v7m_systick_write(void *opaque, hwaddr addr,
+                                     uint64_t value, unsigned size,
+                                     MemTxAttrs attrs)
+{
+    ARMv7MState *s = opaque;
+    MemoryRegion *mr;
+
+    /* Direct the access to the correct systick */
+    mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->systick[attrs.secure]), 0);
+    return memory_region_dispatch_write(mr, addr, value,
+                                        size_memop(size) | MO_TE, attrs);
+}
+
+static MemTxResult v7m_systick_read(void *opaque, hwaddr addr,
+                                    uint64_t *data, unsigned size,
+                                    MemTxAttrs attrs)
+{
+    ARMv7MState *s = opaque;
+    MemoryRegion *mr;
+
+    /* Direct the access to the correct systick */
+    mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->systick[attrs.secure]), 0);
+    return memory_region_dispatch_read(mr, addr, data, size_memop(size) | MO_TE,
+                                       attrs);
+}
+
+static const MemoryRegionOps v7m_systick_ops = {
+    .read_with_attrs = v7m_systick_read,
+    .write_with_attrs = v7m_systick_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
+/*
+ * Unassigned portions of the PPB space are RAZ/WI for privileged
+ * accesses, and fault for non-privileged accesses.
+ */
+static MemTxResult ppb_default_read(void *opaque, hwaddr addr,
+                                    uint64_t *data, unsigned size,
+                                    MemTxAttrs attrs)
+{
+    qemu_log_mask(LOG_UNIMP, "Read of unassigned area of PPB: offset 0x%x\n",
+                  (uint32_t)addr);
+    if (attrs.user) {
+        return MEMTX_ERROR;
+    }
+    *data = 0;
+    return MEMTX_OK;
+}
+
+static MemTxResult ppb_default_write(void *opaque, hwaddr addr,
+                                     uint64_t value, unsigned size,
+                                     MemTxAttrs attrs)
+{
+    qemu_log_mask(LOG_UNIMP, "Write of unassigned area of PPB: offset 0x%x\n",
+                  (uint32_t)addr);
+    if (attrs.user) {
+        return MEMTX_ERROR;
+    }
+    return MEMTX_OK;
+}
+
+static const MemoryRegionOps ppb_default_ops = {
+    .read_with_attrs = ppb_default_read,
+    .write_with_attrs = ppb_default_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 8,
+};
+
 static void armv7m_instance_init(Object *obj)
 {
     ARMv7MState *s = ARMV7M(obj);
@@ -137,10 +256,20 @@ static void armv7m_instance_init(Object *obj)
     object_property_add_alias(obj, "num-irq",
                               OBJECT(&s->nvic), "num-irq");
 
+    object_initialize_child(obj, "systick-reg-ns", &s->systick[M_REG_NS],
+                            TYPE_SYSTICK);
+    /*
+     * We can't initialize the secure systick here, as we don't know
+     * yet if we need it.
+     */
+
     for (i = 0; i < ARRAY_SIZE(s->bitband); i++) {
         object_initialize_child(obj, "bitband[*]", &s->bitband[i],
                                 TYPE_BITBAND);
     }
+
+    s->refclk = qdev_init_clock_in(DEVICE(obj), "refclk", NULL, NULL, 0);
+    s->cpuclk = qdev_init_clock_in(DEVICE(obj), "cpuclk", NULL, NULL, 0);
 }
 
 static void armv7m_realize(DeviceState *dev, Error **errp)
@@ -223,13 +352,130 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     qdev_pass_gpios(DEVICE(&s->nvic), dev, "SYSRESETREQ");
     qdev_pass_gpios(DEVICE(&s->nvic), dev, "NMI");
 
+    /*
+     * We map various devices into the container MR at their architected
+     * addresses. In particular, we map everything corresponding to the
+     * "System PPB" space. This is the range from 0xe0000000 to 0xe00fffff
+     * and includes the NVIC, the System Control Space (system registers),
+     * the systick timer, and for CPUs with the Security extension an NS
+     * banked version of all of these.
+     *
+     * The default behaviour for unimplemented registers/ranges
+     * (for instance the Data Watchpoint and Trace unit at 0xe0001000)
+     * is to RAZ/WI for privileged access and BusFault for non-privileged
+     * access.
+     *
+     * The NVIC and System Control Space (SCS) starts at 0xe000e000
+     * and looks like this:
+     *  0x004 - ICTR
+     *  0x010 - 0xff - systick
+     *  0x100..0x7ec - NVIC
+     *  0x7f0..0xcff - Reserved
+     *  0xd00..0xd3c - SCS registers
+     *  0xd40..0xeff - Reserved or Not implemented
+     *  0xf00 - STIR
+     *
+     * Some registers within this space are banked between security states.
+     * In v8M there is a second range 0xe002e000..0xe002efff which is the
+     * NonSecure alias SCS; secure accesses to this behave like NS accesses
+     * to the main SCS range, and non-secure accesses (including when
+     * the security extension is not implemented) are RAZ/WI.
+     * Note that both the main SCS range and the alias range are defined
+     * to be exempt from memory attribution (R_BLJT) and so the memory
+     * transaction attribute always matches the current CPU security
+     * state (attrs.secure == env->v7m.secure). In the v7m_sysreg_ns_ops
+     * wrappers we change attrs.secure to indicate the NS access; so
+     * generally code determining which banked register to use should
+     * use attrs.secure; code determining actual behaviour of the system
+     * should use env->v7m.secure.
+     *
+     * Within the PPB space, some MRs overlap, and the priority
+     * of overlapping regions is:
+     *  - default region (for RAZ/WI and BusFault) : -1
+     *  - system register regions (provided by the NVIC) : 0
+     *  - systick : 1
+     * This is because the systick device is a small block of registers
+     * in the middle of the other system control registers.
+     */
+
+    memory_region_init_io(&s->defaultmem, OBJECT(s), &ppb_default_ops, s,
+                          "nvic-default", 0x100000);
+    memory_region_add_subregion_overlap(&s->container, 0xe0000000,
+                                        &s->defaultmem, -1);
+
     /* Wire the NVIC up to the CPU */
     sbd = SYS_BUS_DEVICE(&s->nvic);
     sysbus_connect_irq(sbd, 0,
                        qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_IRQ));
 
-    memory_region_add_subregion(&s->container, 0xe0000000,
+    memory_region_add_subregion(&s->container, 0xe000e000,
                                 sysbus_mmio_get_region(sbd, 0));
+    if (arm_feature(&s->cpu->env, ARM_FEATURE_V8)) {
+        /* Create the NS alias region for the NVIC sysregs */
+        memory_region_init_io(&s->sysreg_ns_mem, OBJECT(s),
+                              &v7m_sysreg_ns_ops,
+                              sysbus_mmio_get_region(sbd, 0),
+                              "nvic_sysregs_ns", 0x1000);
+        memory_region_add_subregion(&s->container, 0xe002e000,
+                                    &s->sysreg_ns_mem);
+    }
+
+    /* Create and map the systick devices */
+    qdev_connect_clock_in(DEVICE(&s->systick[M_REG_NS]), "refclk", s->refclk);
+    qdev_connect_clock_in(DEVICE(&s->systick[M_REG_NS]), "cpuclk", s->cpuclk);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->systick[M_REG_NS]), errp)) {
+        return;
+    }
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->systick[M_REG_NS]), 0,
+                       qdev_get_gpio_in_named(DEVICE(&s->nvic),
+                                              "systick-trigger", M_REG_NS));
+
+    if (arm_feature(&s->cpu->env, ARM_FEATURE_M_SECURITY)) {
+        /*
+         * We couldn't init the secure systick device in instance_init
+         * as we didn't know then if the CPU had the security extensions;
+         * so we have to do it here.
+         */
+        object_initialize_child(OBJECT(dev), "systick-reg-s",
+                                &s->systick[M_REG_S], TYPE_SYSTICK);
+        qdev_connect_clock_in(DEVICE(&s->systick[M_REG_S]), "refclk",
+                              s->refclk);
+        qdev_connect_clock_in(DEVICE(&s->systick[M_REG_S]), "cpuclk",
+                              s->cpuclk);
+
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->systick[M_REG_S]), errp)) {
+            return;
+        }
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->systick[M_REG_S]), 0,
+                           qdev_get_gpio_in_named(DEVICE(&s->nvic),
+                                                  "systick-trigger", M_REG_S));
+    }
+
+    memory_region_init_io(&s->systickmem, OBJECT(s),
+                          &v7m_systick_ops, s,
+                          "v7m_systick", 0xe0);
+
+    memory_region_add_subregion_overlap(&s->container, 0xe000e010,
+                                        &s->systickmem, 1);
+    if (arm_feature(&s->cpu->env, ARM_FEATURE_V8)) {
+        memory_region_init_io(&s->systick_ns_mem, OBJECT(s),
+                              &v7m_sysreg_ns_ops, &s->systickmem,
+                              "v7m_systick_ns", 0xe0);
+        memory_region_add_subregion_overlap(&s->container, 0xe002e010,
+                                            &s->systick_ns_mem, 1);
+    }
+
+    /* If the CPU has RAS support, create the RAS register block */
+    if (cpu_isar_feature(aa32_ras, s->cpu)) {
+        object_initialize_child(OBJECT(dev), "armv7m-ras",
+                                &s->ras, TYPE_ARMV7M_RAS);
+        sbd = SYS_BUS_DEVICE(&s->ras);
+        if (!sysbus_realize(sbd, errp)) {
+            return;
+        }
+        memory_region_add_subregion_overlap(&s->container, 0xe0005000,
+                                            sysbus_mmio_get_region(sbd, 0), 1);
+    }
 
     for (i = 0; i < ARRAY_SIZE(s->bitband); i++) {
         if (s->enable_bitband) {
@@ -269,11 +515,23 @@ static Property armv7m_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const VMStateDescription vmstate_armv7m = {
+    .name = "armv7m",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_CLOCK(refclk, SysTickState),
+        VMSTATE_CLOCK(cpuclk, SysTickState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void armv7m_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = armv7m_realize;
+    dc->vmsd = &vmstate_armv7m;
     device_class_set_props(dc, armv7m_properties);
 }
 

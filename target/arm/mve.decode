@@ -26,6 +26,14 @@
 # VQDMULL has size in bit 28: 0 for 16 bit, 1 for 32 bit
 %size_28 28:1 !function=plus_1
 
+# 2 operand fp insns have size in bit 20: 1 for 16 bit, 0 for 32 bit,
+# like Neon FP insns.
+%2op_fp_size 20:1 !function=neon_3same_fp_size
+# VCADD is an exception, where bit 20 is 0 for 16 bit and 1 for 32 bit
+%2op_fp_size_rev 20:1 !function=plus_1
+# FP scalars have size in bit 28, 1 for 16 bit, 0 for 32 bit
+%2op_fp_scalar_size 28:1 !function=neon_3same_fp_size
+
 # 1imm format immediate
 %imm_28_16_0 28:1 16:3 0:4
 
@@ -116,7 +124,33 @@
 @vcmp_scalar .... .... .. size:2 qn:3 . .... .... .... rm:4 &vcmp_scalar \
              mask=%mask_22_13
 
+@vcmp_fp .... .... .... qn:3 . .... .... .... .... &vcmp \
+         qm=%qm size=%2op_fp_scalar_size mask=%mask_22_13
+
+# Bit 28 is a 2op_fp_scalar_size bit, but we do not decode it in this
+# format to avoid complicated overlapping-instruction-groups
+@vcmp_fp_scalar .... .... .... qn:3 . .... .... .... rm:4 &vcmp_scalar \
+                mask=%mask_22_13
+
 @vmaxv .... .... .... size:2 .. rda:4 .... .... .... &vmaxv qm=%qm
+
+@2op_fp .... .... .... .... .... .... .... .... &2op \
+        qd=%qd qn=%qn qm=%qm size=%2op_fp_size
+
+@2op_fp_size_rev .... .... .... .... .... .... .... .... &2op \
+                 qd=%qd qn=%qn qm=%qm size=%2op_fp_size_rev
+
+# 2-operand, but Qd and Qn share a field. Size is in bit 28, but we
+# don't decode it in this format
+@vmaxnma  .... .... .... .... .... .... .... .... &2op \
+          qd=%qd qn=%qd qm=%qm
+
+# Here also we don't decode the bit 28 size in the format to avoid
+# awkward nested overlap groups
+@vmaxnmv          .... .... .... .... rda:4 .... .... .... &vmaxv qm=%qm
+
+@2op_fp_scalar .... .... .... .... .... .... .... rm:4 &2scalar \
+               qd=%qd qn=%qn size=%2op_fp_scalar_size
 
 # Vector loads and stores
 
@@ -187,6 +221,10 @@ VMUL             1110 1111 0 . .. ... 0 ... 0 1001 . 1 . 1 ... 0 @2op
 # The VSHLL T2 encoding is not a @2op pattern, but is here because it
 # overlaps what would be size=0b11 VMULH/VRMULH
 {
+  VCVTB_SH       111 0 1110 0 . 11 1111 ... 0 1110 0 0 . 0 ... 1 @1op_nosz
+
+  VMAXNMA        111 0 1110 0 . 11 1111 ... 0 1110 1 0 . 0 ... 1 @vmaxnma size=2
+
   VSHLL_BS       111 0 1110 0 . 11 .. 01 ... 0 1110 0 0 . 0 ... 1 @2_shll_esize_b
   VSHLL_BS       111 0 1110 0 . 11 .. 01 ... 0 1110 0 0 . 0 ... 1 @2_shll_esize_h
 
@@ -199,6 +237,10 @@ VMUL             1110 1111 0 . .. ... 0 ... 0 1001 . 1 . 1 ... 0 @2op
 }
 
 {
+  VCVTB_HS       111 1 1110 0 . 11  1111 ... 0 1110 0 0 . 0 ... 1  @1op_nosz
+
+  VMAXNMA        111 1 1110 0 . 11  1111 ... 0 1110 1 0 . 0 ... 1 @vmaxnma size=1
+
   VSHLL_BU       111 1 1110 0 . 11 .. 01 ... 0 1110 0 0 . 0 ... 1 @2_shll_esize_b
   VSHLL_BU       111 1 1110 0 . 11 .. 01 ... 0 1110 0 0 . 0 ... 1 @2_shll_esize_h
 
@@ -209,6 +251,9 @@ VMUL             1110 1111 0 . .. ... 0 ... 0 1001 . 1 . 1 ... 0 @2op
 }
 
 {
+  VCVTT_SH       111 0 1110 0 . 11  1111 ... 1 1110 0 0 . 0 ... 1 @1op_nosz
+
+  VMINNMA        111 0 1110 0 . 11  1111 ... 1 1110 1 0 . 0 ... 1 @vmaxnma size=2
   VSHLL_TS       111 0 1110 0 . 11 .. 01 ... 1 1110 0 0 . 0 ... 1 @2_shll_esize_b
   VSHLL_TS       111 0 1110 0 . 11 .. 01 ... 1 1110 0 0 . 0 ... 1 @2_shll_esize_h
 
@@ -221,6 +266,9 @@ VMUL             1110 1111 0 . .. ... 0 ... 0 1001 . 1 . 1 ... 0 @2op
 }
 
 {
+  VCVTT_HS       111 1 1110 0 . 11  1111 ... 1 1110 0 0 . 0 ... 1 @1op_nosz
+
+  VMINNMA        111 1 1110 0 . 11  1111 ... 1 1110 1 0 . 0 ... 1 @vmaxnma size=1
   VSHLL_TU       111 1 1110 0 . 11 .. 01 ... 1 1110 0 0 . 0 ... 1 @2_shll_esize_b
   VSHLL_TU       111 1 1110 0 . 11 .. 01 ... 1 1110 0 0 . 0 ... 1 @2_shll_esize_h
 
@@ -274,15 +322,29 @@ VQSHL_U          111 1 1111 0 . .. ... 0 ... 0 0100 . 1 . 1 ... 0 @2op_rev
 VQRSHL_S         111 0 1111 0 . .. ... 0 ... 0 0101 . 1 . 1 ... 0 @2op_rev
 VQRSHL_U         111 1 1111 0 . .. ... 0 ... 0 0101 . 1 . 1 ... 0 @2op_rev
 
-VQDMLADH         1110 1110 0 . .. ... 0 ... 0 1110 . 0 . 0 ... 0 @2op
-VQDMLADHX        1110 1110 0 . .. ... 0 ... 1 1110 . 0 . 0 ... 0 @2op
-VQRDMLADH        1110 1110 0 . .. ... 0 ... 0 1110 . 0 . 0 ... 1 @2op
-VQRDMLADHX       1110 1110 0 . .. ... 0 ... 1 1110 . 0 . 0 ... 1 @2op
+{
+  VCMUL0         111 . 1110 0 . 11 ... 0 ... 0 1110 . 0 . 0 ... 0 @2op_sz28
+  VQDMLADH       1110  1110 0 . .. ... 0 ... 0 1110 . 0 . 0 ... 0 @2op
+  VQDMLSDH       1111  1110 0 . .. ... 0 ... 0 1110 . 0 . 0 ... 0 @2op
+}
 
-VQDMLSDH         1111 1110 0 . .. ... 0 ... 0 1110 . 0 . 0 ... 0 @2op
-VQDMLSDHX        1111 1110 0 . .. ... 0 ... 1 1110 . 0 . 0 ... 0 @2op
-VQRDMLSDH        1111 1110 0 . .. ... 0 ... 0 1110 . 0 . 0 ... 1 @2op
-VQRDMLSDHX       1111 1110 0 . .. ... 0 ... 1 1110 . 0 . 0 ... 1 @2op
+{
+  VCMUL180       111 . 1110 0 . 11 ... 0 ... 1 1110 . 0 . 0 ... 0 @2op_sz28
+  VQDMLADHX      111 0 1110 0 . .. ... 0 ... 1 1110 . 0 . 0 ... 0 @2op
+  VQDMLSDHX      111 1 1110 0 . .. ... 0 ... 1 1110 . 0 . 0 ... 0 @2op
+}
+
+{
+  VCMUL90        111 . 1110 0 . 11 ... 0 ... 0 1110 . 0 . 0 ... 1 @2op_sz28
+  VQRDMLADH      111 0 1110 0 . .. ... 0 ... 0 1110 . 0 . 0 ... 1 @2op
+  VQRDMLSDH      111 1 1110 0 . .. ... 0 ... 0 1110 . 0 . 0 ... 1 @2op
+}
+
+{
+  VCMUL270       111 . 1110 0 . 11 ... 0 ... 1 1110 . 0 . 0 ... 1 @2op_sz28
+  VQRDMLADHX     111 0 1110 0 . .. ... 0 ... 1 1110 . 0 . 0 ... 1 @2op
+  VQRDMLSDHX     111 1 1110 0 . .. ... 0 ... 1 1110 . 0 . 0 ... 1 @2op
+}
 
 VQDMULLB         111 . 1110 0 . 11 ... 0 ... 0 1111 . 0 . 0 ... 1 @2op_sz28
 VQDMULLT         111 . 1110 0 . 11 ... 0 ... 1 1111 . 0 . 0 ... 1 @2op_sz28
@@ -351,8 +413,10 @@ VDUP             1110 1110 1 0 10 ... 0 .... 1011 . 0 0 1 0000 @vdup size=2
   VIWDUP         1110 1110 0 . .. ... 1 ... 0 1111 . 110 ... . @viwdup
 }
 {
-  VDDUP          1110 1110 0 . .. ... 1 ... 1 1111 . 110 111 . @vidup
-  VDWDUP         1110 1110 0 . .. ... 1 ... 1 1111 . 110 ... . @viwdup
+  VCMPGT_fp_scalar 1110 1110 0 . 11 ... 1 ... 1 1111  0110 .... @vcmp_fp_scalar size=2
+  VCMPLE_fp_scalar 1110 1110 0 . 11 ... 1 ... 1 1111  1110 .... @vcmp_fp_scalar size=2
+  VDDUP            1110 1110 0 . .. ... 1 ... 1 1111 . 110 111 . @vidup
+  VDWDUP           1110 1110 0 . .. ... 1 ... 1 1111 . 110 ... . @viwdup
 }
 
 # multiply-add long dual accumulate
@@ -398,25 +462,50 @@ VMLADAV_S        1110 1110 1111  ... 0 ... . 1111 . 0 . 0 ... 1 @vmladav_nosz
 VMLADAV_U        1111 1110 1111  ... 0 ... . 1111 . 0 . 0 ... 1 @vmladav_nosz
 
 {
-  VMAXV_S        1110 1110 1110  .. 10 ....  1111 0 0 . 0 ... 0 @vmaxv
-  VMINV_S        1110 1110 1110  .. 10 ....  1111 1 0 . 0 ... 0 @vmaxv
-  VMAXAV         1110 1110 1110  .. 00 ....  1111 0 0 . 0 ... 0 @vmaxv
-  VMINAV         1110 1110 1110  .. 00 ....  1111 1 0 . 0 ... 0 @vmaxv
+  [
+    VMAXNMAV     1110 1110 1110  11 00 ....  1111 0 0 . 0 ... 0 @vmaxnmv size=2
+    VMINNMAV     1110 1110 1110  11 00 ....  1111 1 0 . 0 ... 0 @vmaxnmv size=2
+    VMAXNMV      1110 1110 1110  11 10 ....  1111 0 0 . 0 ... 0 @vmaxnmv size=2
+    VMINNMV      1110 1110 1110  11 10 ....  1111 1 0 . 0 ... 0 @vmaxnmv size=2
+  ]
+  [
+    VMAXV_S      1110 1110 1110  .. 10 ....  1111 0 0 . 0 ... 0 @vmaxv
+    VMINV_S      1110 1110 1110  .. 10 ....  1111 1 0 . 0 ... 0 @vmaxv
+    VMAXAV       1110 1110 1110  .. 00 ....  1111 0 0 . 0 ... 0 @vmaxv
+    VMINAV       1110 1110 1110  .. 00 ....  1111 1 0 . 0 ... 0 @vmaxv
+  ]
   VMLADAV_S      1110 1110 1111  ... 0 ... . 1111 . 0 . 0 ... 0 @vmladav_nosz
   VRMLALDAVH_S   1110 1110 1 ... ... 0 ... . 1111 . 0 . 0 ... 0 @vmlaldav_nosz
 }
 
 {
-  VMAXV_U        1111 1110 1110  .. 10 ....  1111 0 0 . 0 ... 0 @vmaxv
-  VMINV_U        1111 1110 1110  .. 10 ....  1111 1 0 . 0 ... 0 @vmaxv
+  [
+    VMAXNMAV     1111 1110 1110  11 00 ....  1111 0 0 . 0 ... 0 @vmaxnmv size=1
+    VMINNMAV     1111 1110 1110  11 00 ....  1111 1 0 . 0 ... 0 @vmaxnmv size=1
+    VMAXNMV      1111 1110 1110  11 10 ....  1111 0 0 . 0 ... 0 @vmaxnmv size=1
+    VMINNMV      1111 1110 1110  11 10 ....  1111 1 0 . 0 ... 0 @vmaxnmv size=1
+  ]
+  [
+    VMAXV_U      1111 1110 1110  .. 10 ....  1111 0 0 . 0 ... 0 @vmaxv
+    VMINV_U      1111 1110 1110  .. 10 ....  1111 1 0 . 0 ... 0 @vmaxv
+  ]
   VMLADAV_U      1111 1110 1111  ... 0 ... . 1111 . 0 . 0 ... 0 @vmladav_nosz
   VRMLALDAVH_U   1111 1110 1 ... ... 0 ... . 1111 . 0 . 0 ... 0 @vmlaldav_nosz
 }
 
 # Scalar operations
 
-VADD_scalar      1110 1110 0 . .. ... 1 ... 0 1111 . 100 .... @2scalar
-VSUB_scalar      1110 1110 0 . .. ... 1 ... 1 1111 . 100 .... @2scalar
+{
+  VCMPEQ_fp_scalar 1110 1110 0 . 11 ... 1 ... 0 1111  0100 .... @vcmp_fp_scalar size=2
+  VCMPNE_fp_scalar 1110 1110 0 . 11 ... 1 ... 0 1111  1100 .... @vcmp_fp_scalar size=2
+  VADD_scalar      1110 1110 0 . .. ... 1 ... 0 1111 . 100 .... @2scalar
+}
+
+{
+  VCMPLT_fp_scalar 1110 1110 0 . 11 ... 1 ... 1 1111  1100 .... @vcmp_fp_scalar size=2
+  VCMPGE_fp_scalar 1110 1110 0 . 11 ... 1 ... 1 1111  0100 .... @vcmp_fp_scalar size=2
+  VSUB_scalar      1110 1110 0 . .. ... 1 ... 1 1111 . 100 .... @2scalar
+}
 
 {
   VSHL_S_scalar   1110 1110 0 . 11 .. 01 ... 1 1110 0110 .... @shl_scalar
@@ -434,10 +523,17 @@ VSUB_scalar      1110 1110 0 . .. ... 1 ... 1 1111 . 100 .... @2scalar
   VBRSR           1111 1110 0 . .. ... 1 ... 1 1110 . 110 .... @2scalar
 }
 
-VHADD_S_scalar   1110 1110 0 . .. ... 0 ... 0 1111 . 100 .... @2scalar
-VHADD_U_scalar   1111 1110 0 . .. ... 0 ... 0 1111 . 100 .... @2scalar
-VHSUB_S_scalar   1110 1110 0 . .. ... 0 ... 1 1111 . 100 .... @2scalar
-VHSUB_U_scalar   1111 1110 0 . .. ... 0 ... 1 1111 . 100 .... @2scalar
+{
+  VADD_fp_scalar  111 . 1110 0 . 11 ... 0 ... 0 1111 . 100 .... @2op_fp_scalar
+  VHADD_S_scalar  1110  1110 0 . .. ... 0 ... 0 1111 . 100 .... @2scalar
+  VHADD_U_scalar  1111  1110 0 . .. ... 0 ... 0 1111 . 100 .... @2scalar
+}
+
+{
+  VSUB_fp_scalar  111 . 1110 0 . 11 ... 0 ... 1 1111 . 100 .... @2op_fp_scalar
+  VHSUB_S_scalar  1110  1110 0 . .. ... 0 ... 1 1111 . 100 .... @2scalar
+  VHSUB_U_scalar  1111  1110 0 . .. ... 0 ... 1 1111 . 100 .... @2scalar
+}
 
 {
   VQADD_S_scalar  1110  1110 0 . .. ... 0 ... 0 1111 . 110 .... @2scalar
@@ -453,12 +549,23 @@ VHSUB_U_scalar   1111 1110 0 . .. ... 0 ... 1 1111 . 100 .... @2scalar
                   size=%size_28
 }
 
-VQDMULH_scalar   1110 1110 0 . .. ... 1 ... 0 1110 . 110 .... @2scalar
-VQRDMULH_scalar  1111 1110 0 . .. ... 1 ... 0 1110 . 110 .... @2scalar
+{
+  VMUL_fp_scalar  111 . 1110 0 . 11 ... 1 ... 0 1110 . 110 .... @2op_fp_scalar
+  VQDMULH_scalar  1110  1110 0 . .. ... 1 ... 0 1110 . 110 .... @2scalar
+  VQRDMULH_scalar 1111  1110 0 . .. ... 1 ... 0 1110 . 110 .... @2scalar
+}
 
-# The U bit (28) is don't-care because it does not affect the result
-VMLA             111- 1110 0 . .. ... 1 ... 0 1110 . 100 .... @2scalar
-VMLAS            111- 1110 0 . .. ... 1 ... 1 1110 . 100 .... @2scalar
+{
+  VFMA_scalar     111 . 1110 0 . 11 ... 1 ... 0 1110 . 100 .... @2op_fp_scalar
+  # The U bit (28) is don't-care because it does not affect the result
+  VMLA            111 - 1110 0 . .. ... 1 ... 0 1110 . 100 .... @2scalar
+}
+
+{
+  VFMAS_scalar    111 . 1110 0 . 11 ... 1 ... 1 1110 . 100 .... @2op_fp_scalar
+  # The U bit (28) is don't-care because it does not affect the result
+  VMLAS           111 - 1110 0 . .. ... 1 ... 1 1110 . 100 .... @2scalar
+}
 
 VQRDMLAH         1110 1110 0 . .. ... 0 ... 0 1110 . 100 .... @2scalar
 VQRDMLASH        1110 1110 0 . .. ... 0 ... 1 1110 . 100 .... @2scalar
@@ -591,27 +698,135 @@ VSHLC             111 0 1110 1 . 1 imm:5 ... 0 1111 1100 rdm:4 qd=%qd
 # Comparisons. We expand out the conditions which are split across
 # encodings T1, T2, T3 and the fc bits. These include VPT, which is
 # effectively "VCMP then VPST". A plain "VCMP" has a mask field of zero.
-VCMPEQ            1111 1110 0 . .. ... 1 ... 0 1111 0 0 . 0 ... 0 @vcmp
-VCMPNE            1111 1110 0 . .. ... 1 ... 0 1111 1 0 . 0 ... 0 @vcmp
+{
+  VCMPEQ_fp       111 . 1110 0 . 11 ... 1 ... 0 1111 0 0 . 0 ... 0 @vcmp_fp
+  VCMPEQ          111 1 1110 0 . .. ... 1 ... 0 1111 0 0 . 0 ... 0 @vcmp
+}
+
+{
+  VCMPNE_fp       111 . 1110 0 . 11 ... 1 ... 0 1111 1 0 . 0 ... 0 @vcmp_fp
+  VCMPNE          111 1 1110 0 . .. ... 1 ... 0 1111 1 0 . 0 ... 0 @vcmp
+}
+
+{
+  VCMPGE_fp       111 . 1110 0 . 11 ... 1 ... 1 1111 0 0 . 0 ... 0 @vcmp_fp
+  VCMPGE          111 1 1110 0 . .. ... 1 ... 1 1111 0 0 . 0 ... 0 @vcmp
+}
+
+{
+  VCMPLT_fp       111 . 1110 0 . 11 ... 1 ... 1 1111 1 0 . 0 ... 0 @vcmp_fp
+  VCMPLT          111 1 1110 0 . .. ... 1 ... 1 1111 1 0 . 0 ... 0 @vcmp
+}
+
+{
+  VCMPGT_fp       111 . 1110 0 . 11 ... 1 ... 1 1111 0 0 . 0 ... 1 @vcmp_fp
+  VCMPGT          111 1 1110 0 . .. ... 1 ... 1 1111 0 0 . 0 ... 1 @vcmp
+}
+
+{
+  VCMPLE_fp         111 . 1110 0 . 11 ... 1 ... 1 1111 1 0 . 0 ... 1 @vcmp_fp
+  VCMPLE            1111 1110 0 . .. ... 1 ... 1 1111 1 0 . 0 ... 1 @vcmp
+}
+
 {
   VPSEL           1111 1110 0 . 11 ... 1 ... 0 1111 . 0 . 0 ... 1 @2op_nosz
   VCMPCS          1111 1110 0 . .. ... 1 ... 0 1111 0 0 . 0 ... 1 @vcmp
   VCMPHI          1111 1110 0 . .. ... 1 ... 0 1111 1 0 . 0 ... 1 @vcmp
 }
-VCMPGE            1111 1110 0 . .. ... 1 ... 1 1111 0 0 . 0 ... 0 @vcmp
-VCMPLT            1111 1110 0 . .. ... 1 ... 1 1111 1 0 . 0 ... 0 @vcmp
-VCMPGT            1111 1110 0 . .. ... 1 ... 1 1111 0 0 . 0 ... 1 @vcmp
-VCMPLE            1111 1110 0 . .. ... 1 ... 1 1111 1 0 . 0 ... 1 @vcmp
 
 {
-  VPNOT           1111 1110 0 0 11 000 1 000 0 1111 0100 1101
-  VPST            1111 1110 0 . 11 000 1 ... 0 1111 0100 1101 mask=%mask_22_13
-  VCMPEQ_scalar   1111 1110 0 . .. ... 1 ... 0 1111 0 1 0 0 .... @vcmp_scalar
+  VPNOT            1111 1110 0 0 11 000 1 000 0 1111 0100 1101
+  VPST             1111 1110 0 . 11 000 1 ... 0 1111 0100 1101 mask=%mask_22_13
+  VCMPEQ_fp_scalar 1111 1110 0 . 11 ... 1 ... 0 1111 0100 .... @vcmp_fp_scalar size=1
+  VCMPEQ_scalar    1111 1110 0 . .. ... 1 ... 0 1111 0100 .... @vcmp_scalar
 }
-VCMPNE_scalar     1111 1110 0 . .. ... 1 ... 0 1111 1 1 0 0 .... @vcmp_scalar
+
+{
+  VCMPNE_fp_scalar 1111 1110 0 . 11 ... 1 ... 0 1111 1100 .... @vcmp_fp_scalar size=1
+  VCMPNE_scalar    1111 1110 0 . .. ... 1 ... 0 1111 1100 .... @vcmp_scalar
+}
+
+{
+  VCMPGT_fp_scalar 1111 1110 0 . 11 ... 1 ... 1 1111 0110 .... @vcmp_fp_scalar size=1
+  VCMPGT_scalar    1111 1110 0 . .. ... 1 ... 1 1111 0110 .... @vcmp_scalar
+}
+
+{
+  VCMPLE_fp_scalar 1111 1110 0 . 11 ... 1 ... 1 1111 1110 .... @vcmp_fp_scalar size=1
+  VCMPLE_scalar    1111 1110 0 . .. ... 1 ... 1 1111 1110 .... @vcmp_scalar
+}
+
+{
+  VCMPGE_fp_scalar 1111 1110 0 . 11 ... 1 ... 1 1111 0100 .... @vcmp_fp_scalar size=1
+  VCMPGE_scalar    1111 1110 0 . .. ... 1 ... 1 1111 0100 .... @vcmp_scalar
+}
+{
+  VCMPLT_fp_scalar 1111 1110 0 . 11 ... 1 ... 1 1111 1100 .... @vcmp_fp_scalar size=1
+  VCMPLT_scalar    1111 1110 0 . .. ... 1 ... 1 1111 1100 .... @vcmp_scalar
+}
+
 VCMPCS_scalar     1111 1110 0 . .. ... 1 ... 0 1111 0 1 1 0 .... @vcmp_scalar
 VCMPHI_scalar     1111 1110 0 . .. ... 1 ... 0 1111 1 1 1 0 .... @vcmp_scalar
-VCMPGE_scalar     1111 1110 0 . .. ... 1 ... 1 1111 0 1 0 0 .... @vcmp_scalar
-VCMPLT_scalar     1111 1110 0 . .. ... 1 ... 1 1111 1 1 0 0 .... @vcmp_scalar
-VCMPGT_scalar     1111 1110 0 . .. ... 1 ... 1 1111 0 1 1 0 .... @vcmp_scalar
-VCMPLE_scalar     1111 1110 0 . .. ... 1 ... 1 1111 1 1 1 0 .... @vcmp_scalar
+
+# 2-operand FP
+VADD_fp           1110 1111 0 . 0 . ... 0 ... 0 1101 . 1 . 0 ... 0 @2op_fp
+VSUB_fp           1110 1111 0 . 1 . ... 0 ... 0 1101 . 1 . 0 ... 0 @2op_fp
+VMUL_fp           1111 1111 0 . 0 . ... 0 ... 0 1101 . 1 . 1 ... 0 @2op_fp
+VABD_fp           1111 1111 0 . 1 . ... 0 ... 0 1101 . 1 . 0 ... 0 @2op_fp
+
+VMAXNM            1111 1111 0 . 0 . ... 0 ... 0 1111 . 1 . 1 ... 0 @2op_fp
+VMINNM            1111 1111 0 . 1 . ... 0 ... 0 1111 . 1 . 1 ... 0 @2op_fp
+
+VCADD90_fp        1111 1100 1 . 0 . ... 0 ... 0 1000 . 1 . 0 ... 0 @2op_fp_size_rev
+VCADD270_fp       1111 1101 1 . 0 . ... 0 ... 0 1000 . 1 . 0 ... 0 @2op_fp_size_rev
+
+VFMA              1110 1111 0 . 0 . ... 0 ... 0 1100 . 1 . 1 ... 0 @2op_fp
+VFMS              1110 1111 0 . 1 . ... 0 ... 0 1100 . 1 . 1 ... 0 @2op_fp
+
+VCMLA0            1111 110 00 . 1 . ... 0 ... 0 1000 . 1 . 0 ... 0 @2op_fp_size_rev
+VCMLA90           1111 110 01 . 1 . ... 0 ... 0 1000 . 1 . 0 ... 0 @2op_fp_size_rev
+VCMLA180          1111 110 10 . 1 . ... 0 ... 0 1000 . 1 . 0 ... 0 @2op_fp_size_rev
+VCMLA270          1111 110 11 . 1 . ... 0 ... 0 1000 . 1 . 0 ... 0 @2op_fp_size_rev
+
+# floating-point <-> fixed-point conversions. Naming convention:
+# VCVT_<from><to>, S = signed int, U = unsigned int, H = halfprec, F = singleprec
+@vcvt             .... .... .. 1 ..... .... .. 1 . .... .... &2shift \
+                  qd=%qd qm=%qm shift=%rshift_i5 size=2
+@vcvt_f16         .... .... .. 11 .... .... .. 0 . .... .... &2shift \
+                  qd=%qd qm=%qm shift=%rshift_i4 size=1
+
+VCVT_SH_fixed     1110 1111 1 . ...... ... 0 11 . 0 01 . 1 ... 0 @vcvt_f16
+VCVT_UH_fixed     1111 1111 1 . ...... ... 0 11 . 0 01 . 1 ... 0 @vcvt_f16
+
+VCVT_HS_fixed     1110 1111 1 . ...... ... 0 11 . 1 01 . 1 ... 0 @vcvt_f16
+VCVT_HU_fixed     1111 1111 1 . ...... ... 0 11 . 1 01 . 1 ... 0 @vcvt_f16
+
+VCVT_SF_fixed     1110 1111 1 . ...... ... 0 11 . 0 01 . 1 ... 0 @vcvt
+VCVT_UF_fixed     1111 1111 1 . ...... ... 0 11 . 0 01 . 1 ... 0 @vcvt
+
+VCVT_FS_fixed     1110 1111 1 . ...... ... 0 11 . 1 01 . 1 ... 0 @vcvt
+VCVT_FU_fixed     1111 1111 1 . ...... ... 0 11 . 1 01 . 1 ... 0 @vcvt
+
+# VCVT between floating point and integer (halfprec and single);
+# VCVT_<from><to>, S = signed int, U = unsigned int, F = float
+VCVT_SF           1111 1111 1 . 11 .. 11 ... 0 011 00 1 . 0 ... 0 @1op
+VCVT_UF           1111 1111 1 . 11 .. 11 ... 0 011 01 1 . 0 ... 0 @1op
+VCVT_FS           1111 1111 1 . 11 .. 11 ... 0 011 10 1 . 0 ... 0 @1op
+VCVT_FU           1111 1111 1 . 11 .. 11 ... 0 011 11 1 . 0 ... 0 @1op
+
+# VCVT from floating point to integer with specified rounding mode
+VCVTAS            1111 1111 1 . 11 .. 11 ... 000 00 0 1 . 0 ... 0 @1op
+VCVTAU            1111 1111 1 . 11 .. 11 ... 000 00 1 1 . 0 ... 0 @1op
+VCVTNS            1111 1111 1 . 11 .. 11 ... 000 01 0 1 . 0 ... 0 @1op
+VCVTNU            1111 1111 1 . 11 .. 11 ... 000 01 1 1 . 0 ... 0 @1op
+VCVTPS            1111 1111 1 . 11 .. 11 ... 000 10 0 1 . 0 ... 0 @1op
+VCVTPU            1111 1111 1 . 11 .. 11 ... 000 10 1 1 . 0 ... 0 @1op
+VCVTMS            1111 1111 1 . 11 .. 11 ... 000 11 0 1 . 0 ... 0 @1op
+VCVTMU            1111 1111 1 . 11 .. 11 ... 000 11 1 1 . 0 ... 0 @1op
+
+VRINTN            1111 1111 1 . 11 .. 10 ... 001 000 1 . 0 ... 0 @1op
+VRINTX            1111 1111 1 . 11 .. 10 ... 001 001 1 . 0 ... 0 @1op
+VRINTA            1111 1111 1 . 11 .. 10 ... 001 010 1 . 0 ... 0 @1op
+VRINTZ            1111 1111 1 . 11 .. 10 ... 001 011 1 . 0 ... 0 @1op
+VRINTM            1111 1111 1 . 11 .. 10 ... 001 101 1 . 0 ... 0 @1op
+VRINTP            1111 1111 1 . 11 .. 10 ... 001 111 1 . 0 ... 0 @1op

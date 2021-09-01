@@ -28,12 +28,6 @@
 #include "translate.h"
 #include "translate-a32.h"
 
-static inline int neon_3same_fp_size(DisasContext *s, int x)
-{
-    /* Convert 0==fp32, 1==fp16 into a MO_* value */
-    return MO_32 - x;
-}
-
 /* Include the generated Neon decoder */
 #include "decode-neon-dp.c.inc"
 #include "decode-neon-ls.c.inc"

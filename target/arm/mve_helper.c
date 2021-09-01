@@ -25,6 +25,7 @@
 #include "exec/cpu_ldst.h"
 #include "exec/exec-all.h"
 #include "tcg/tcg.h"
+#include "fpu/softfloat.h"
 
 static uint16_t mve_eci_mask(CPUARMState *env)
 {
@@ -2798,3 +2799,652 @@ DO_VMAXMINA(vmaxaw, 4, int32_t, uint32_t, DO_MAX)
 DO_VMAXMINA(vminab, 1, int8_t, uint8_t, DO_MIN)
 DO_VMAXMINA(vminah, 2, int16_t, uint16_t, DO_MIN)
 DO_VMAXMINA(vminaw, 4, int32_t, uint32_t, DO_MIN)
+
+/*
+ * 2-operand floating point. Note that if an element is partially
+ * predicated we must do the FP operation to update the non-predicated
+ * bytes, but we must be careful to avoid updating the FP exception
+ * state unless byte 0 of the element was unpredicated.
+ */
+#define DO_2OP_FP(OP, ESIZE, TYPE, FN)                                  \
+    void HELPER(glue(mve_, OP))(CPUARMState *env,                       \
+                                void *vd, void *vn, void *vm)           \
+    {                                                                   \
+        TYPE *d = vd, *n = vn, *m = vm;                                 \
+        TYPE r;                                                         \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            if ((mask & MAKE_64BIT_MASK(0, ESIZE)) == 0) {              \
+                continue;                                               \
+            }                                                           \
+            fpst = (ESIZE == 2) ? &env->vfp.standard_fp_status_f16 :    \
+                &env->vfp.standard_fp_status;                           \
+            if (!(mask & 1)) {                                          \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            r = FN(n[H##ESIZE(e)], m[H##ESIZE(e)], fpst);               \
+            mergemask(&d[H##ESIZE(e)], r, mask);                        \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_2OP_FP_ALL(OP, FN)                  \
+    DO_2OP_FP(OP##h, 2, float16, float16_##FN) \
+    DO_2OP_FP(OP##s, 4, float32, float32_##FN)
+
+DO_2OP_FP_ALL(vfadd, add)
+DO_2OP_FP_ALL(vfsub, sub)
+DO_2OP_FP_ALL(vfmul, mul)
+
+static inline float16 float16_abd(float16 a, float16 b, float_status *s)
+{
+    return float16_abs(float16_sub(a, b, s));
+}
+
+static inline float32 float32_abd(float32 a, float32 b, float_status *s)
+{
+    return float32_abs(float32_sub(a, b, s));
+}
+
+DO_2OP_FP_ALL(vfabd, abd)
+DO_2OP_FP_ALL(vmaxnm, maxnum)
+DO_2OP_FP_ALL(vminnm, minnum)
+
+static inline float16 float16_maxnuma(float16 a, float16 b, float_status *s)
+{
+    return float16_maxnum(float16_abs(a), float16_abs(b), s);
+}
+
+static inline float32 float32_maxnuma(float32 a, float32 b, float_status *s)
+{
+    return float32_maxnum(float32_abs(a), float32_abs(b), s);
+}
+
+static inline float16 float16_minnuma(float16 a, float16 b, float_status *s)
+{
+    return float16_minnum(float16_abs(a), float16_abs(b), s);
+}
+
+static inline float32 float32_minnuma(float32 a, float32 b, float_status *s)
+{
+    return float32_minnum(float32_abs(a), float32_abs(b), s);
+}
+
+DO_2OP_FP_ALL(vmaxnma, maxnuma)
+DO_2OP_FP_ALL(vminnma, minnuma)
+
+#define DO_VCADD_FP(OP, ESIZE, TYPE, FN0, FN1)                          \
+    void HELPER(glue(mve_, OP))(CPUARMState *env,                       \
+                                void *vd, void *vn, void *vm)           \
+    {                                                                   \
+        TYPE *d = vd, *n = vn, *m = vm;                                 \
+        TYPE r[16 / ESIZE];                                             \
+        uint16_t tm, mask = mve_element_mask(env);                      \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        /* Calculate all results first to avoid overwriting inputs */   \
+        for (e = 0, tm = mask; e < 16 / ESIZE; e++, tm >>= ESIZE) {     \
+            if ((tm & MAKE_64BIT_MASK(0, ESIZE)) == 0) {                \
+                r[e] = 0;                                               \
+                continue;                                               \
+            }                                                           \
+            fpst = (ESIZE == 2) ? &env->vfp.standard_fp_status_f16 :    \
+                &env->vfp.standard_fp_status;                           \
+            if (!(tm & 1)) {                                            \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            if (!(e & 1)) {                                             \
+                r[e] = FN0(n[H##ESIZE(e)], m[H##ESIZE(e + 1)], fpst);   \
+            } else {                                                    \
+                r[e] = FN1(n[H##ESIZE(e)], m[H##ESIZE(e - 1)], fpst);   \
+            }                                                           \
+        }                                                               \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            mergemask(&d[H##ESIZE(e)], r[e], mask);                     \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+DO_VCADD_FP(vfcadd90h, 2, float16, float16_sub, float16_add)
+DO_VCADD_FP(vfcadd90s, 4, float32, float32_sub, float32_add)
+DO_VCADD_FP(vfcadd270h, 2, float16, float16_add, float16_sub)
+DO_VCADD_FP(vfcadd270s, 4, float32, float32_add, float32_sub)
+
+#define DO_VFMA(OP, ESIZE, TYPE, CHS)                                   \
+    void HELPER(glue(mve_, OP))(CPUARMState *env,                       \
+                                void *vd, void *vn, void *vm)           \
+    {                                                                   \
+        TYPE *d = vd, *n = vn, *m = vm;                                 \
+        TYPE r;                                                         \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            if ((mask & MAKE_64BIT_MASK(0, ESIZE)) == 0) {              \
+                continue;                                               \
+            }                                                           \
+            fpst = (ESIZE == 2) ? &env->vfp.standard_fp_status_f16 :    \
+                &env->vfp.standard_fp_status;                           \
+            if (!(mask & 1)) {                                          \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            r = n[H##ESIZE(e)];                                         \
+            if (CHS) {                                                  \
+                r = TYPE##_chs(r);                                      \
+            }                                                           \
+            r = TYPE##_muladd(r, m[H##ESIZE(e)], d[H##ESIZE(e)],        \
+                              0, fpst);                                 \
+            mergemask(&d[H##ESIZE(e)], r, mask);                        \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+DO_VFMA(vfmah, 2, float16, false)
+DO_VFMA(vfmas, 4, float32, false)
+DO_VFMA(vfmsh, 2, float16, true)
+DO_VFMA(vfmss, 4, float32, true)
+
+#define DO_VCMLA(OP, ESIZE, TYPE, ROT, FN)                              \
+    void HELPER(glue(mve_, OP))(CPUARMState *env,                       \
+                                void *vd, void *vn, void *vm)           \
+    {                                                                   \
+        TYPE *d = vd, *n = vn, *m = vm;                                 \
+        TYPE r0, r1, e1, e2, e3, e4;                                    \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        float_status *fpst0, *fpst1;                                    \
+        float_status scratch_fpst;                                      \
+        /* We loop through pairs of elements at a time */               \
+        for (e = 0; e < 16 / ESIZE; e += 2, mask >>= ESIZE * 2) {       \
+            if ((mask & MAKE_64BIT_MASK(0, ESIZE * 2)) == 0) {          \
+                continue;                                               \
+            }                                                           \
+            fpst0 = (ESIZE == 2) ? &env->vfp.standard_fp_status_f16 :   \
+                &env->vfp.standard_fp_status;                           \
+            fpst1 = fpst0;                                              \
+            if (!(mask & 1)) {                                          \
+                scratch_fpst = *fpst0;                                  \
+                fpst0 = &scratch_fpst;                                  \
+            }                                                           \
+            if (!(mask & (1 << ESIZE))) {                               \
+                scratch_fpst = *fpst1;                                  \
+                fpst1 = &scratch_fpst;                                  \
+            }                                                           \
+            switch (ROT) {                                              \
+            case 0:                                                     \
+                e1 = m[H##ESIZE(e)];                                    \
+                e2 = n[H##ESIZE(e)];                                    \
+                e3 = m[H##ESIZE(e + 1)];                                \
+                e4 = n[H##ESIZE(e)];                                    \
+                break;                                                  \
+            case 1:                                                     \
+                e1 = TYPE##_chs(m[H##ESIZE(e + 1)]);                    \
+                e2 = n[H##ESIZE(e + 1)];                                \
+                e3 = m[H##ESIZE(e)];                                    \
+                e4 = n[H##ESIZE(e + 1)];                                \
+                break;                                                  \
+            case 2:                                                     \
+                e1 = TYPE##_chs(m[H##ESIZE(e)]);                        \
+                e2 = n[H##ESIZE(e)];                                    \
+                e3 = TYPE##_chs(m[H##ESIZE(e + 1)]);                    \
+                e4 = n[H##ESIZE(e)];                                    \
+                break;                                                  \
+            case 3:                                                     \
+                e1 = m[H##ESIZE(e + 1)];                                \
+                e2 = n[H##ESIZE(e + 1)];                                \
+                e3 = TYPE##_chs(m[H##ESIZE(e)]);                        \
+                e4 = n[H##ESIZE(e + 1)];                                \
+                break;                                                  \
+            default:                                                    \
+                g_assert_not_reached();                                 \
+            }                                                           \
+            r0 = FN(e2, e1, d[H##ESIZE(e)], fpst0);                     \
+            r1 = FN(e4, e3, d[H##ESIZE(e + 1)], fpst1);                 \
+            mergemask(&d[H##ESIZE(e)], r0, mask);                       \
+            mergemask(&d[H##ESIZE(e + 1)], r1, mask >> ESIZE);          \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_VCMULH(N, M, D, S) float16_mul(N, M, S)
+#define DO_VCMULS(N, M, D, S) float32_mul(N, M, S)
+
+#define DO_VCMLAH(N, M, D, S) float16_muladd(N, M, D, 0, S)
+#define DO_VCMLAS(N, M, D, S) float32_muladd(N, M, D, 0, S)
+
+DO_VCMLA(vcmul0h, 2, float16, 0, DO_VCMULH)
+DO_VCMLA(vcmul0s, 4, float32, 0, DO_VCMULS)
+DO_VCMLA(vcmul90h, 2, float16, 1, DO_VCMULH)
+DO_VCMLA(vcmul90s, 4, float32, 1, DO_VCMULS)
+DO_VCMLA(vcmul180h, 2, float16, 2, DO_VCMULH)
+DO_VCMLA(vcmul180s, 4, float32, 2, DO_VCMULS)
+DO_VCMLA(vcmul270h, 2, float16, 3, DO_VCMULH)
+DO_VCMLA(vcmul270s, 4, float32, 3, DO_VCMULS)
+
+DO_VCMLA(vcmla0h, 2, float16, 0, DO_VCMLAH)
+DO_VCMLA(vcmla0s, 4, float32, 0, DO_VCMLAS)
+DO_VCMLA(vcmla90h, 2, float16, 1, DO_VCMLAH)
+DO_VCMLA(vcmla90s, 4, float32, 1, DO_VCMLAS)
+DO_VCMLA(vcmla180h, 2, float16, 2, DO_VCMLAH)
+DO_VCMLA(vcmla180s, 4, float32, 2, DO_VCMLAS)
+DO_VCMLA(vcmla270h, 2, float16, 3, DO_VCMLAH)
+DO_VCMLA(vcmla270s, 4, float32, 3, DO_VCMLAS)
+
+#define DO_2OP_FP_SCALAR(OP, ESIZE, TYPE, FN)                           \
+    void HELPER(glue(mve_, OP))(CPUARMState *env,                       \
+                                void *vd, void *vn, uint32_t rm)        \
+    {                                                                   \
+        TYPE *d = vd, *n = vn;                                          \
+        TYPE r, m = rm;                                                 \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            if ((mask & MAKE_64BIT_MASK(0, ESIZE)) == 0) {              \
+                continue;                                               \
+            }                                                           \
+            fpst = (ESIZE == 2) ? &env->vfp.standard_fp_status_f16 :    \
+                &env->vfp.standard_fp_status;                           \
+            if (!(mask & 1)) {                                          \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            r = FN(n[H##ESIZE(e)], m, fpst);                            \
+            mergemask(&d[H##ESIZE(e)], r, mask);                        \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_2OP_FP_SCALAR_ALL(OP, FN)                    \
+    DO_2OP_FP_SCALAR(OP##h, 2, float16, float16_##FN)   \
+    DO_2OP_FP_SCALAR(OP##s, 4, float32, float32_##FN)
+
+DO_2OP_FP_SCALAR_ALL(vfadd_scalar, add)
+DO_2OP_FP_SCALAR_ALL(vfsub_scalar, sub)
+DO_2OP_FP_SCALAR_ALL(vfmul_scalar, mul)
+
+#define DO_2OP_FP_ACC_SCALAR(OP, ESIZE, TYPE, FN)                       \
+    void HELPER(glue(mve_, OP))(CPUARMState *env,                       \
+                                void *vd, void *vn, uint32_t rm)        \
+    {                                                                   \
+        TYPE *d = vd, *n = vn;                                          \
+        TYPE r, m = rm;                                                 \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            if ((mask & MAKE_64BIT_MASK(0, ESIZE)) == 0) {              \
+                continue;                                               \
+            }                                                           \
+            fpst = (ESIZE == 2) ? &env->vfp.standard_fp_status_f16 :    \
+                &env->vfp.standard_fp_status;                           \
+            if (!(mask & 1)) {                                          \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            r = FN(n[H##ESIZE(e)], m, d[H##ESIZE(e)], 0, fpst);         \
+            mergemask(&d[H##ESIZE(e)], r, mask);                        \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+/* VFMAS is vector * vector + scalar, so swap op2 and op3 */
+#define DO_VFMAS_SCALARH(N, M, D, F, S) float16_muladd(N, D, M, F, S)
+#define DO_VFMAS_SCALARS(N, M, D, F, S) float32_muladd(N, D, M, F, S)
+
+/* VFMA is vector * scalar + vector */
+DO_2OP_FP_ACC_SCALAR(vfma_scalarh, 2, float16, float16_muladd)
+DO_2OP_FP_ACC_SCALAR(vfma_scalars, 4, float32, float32_muladd)
+DO_2OP_FP_ACC_SCALAR(vfmas_scalarh, 2, float16, DO_VFMAS_SCALARH)
+DO_2OP_FP_ACC_SCALAR(vfmas_scalars, 4, float32, DO_VFMAS_SCALARS)
+
+/* Floating point max/min across vector. */
+#define DO_FP_VMAXMINV(OP, ESIZE, TYPE, ABS, FN)                \
+    uint32_t HELPER(glue(mve_, OP))(CPUARMState *env, void *vm, \
+                                    uint32_t ra_in)             \
+    {                                                           \
+        uint16_t mask = mve_element_mask(env);                  \
+        unsigned e;                                             \
+        TYPE *m = vm;                                           \
+        TYPE ra = (TYPE)ra_in;                                  \
+        float_status *fpst = (ESIZE == 2) ?                     \
+            &env->vfp.standard_fp_status_f16 :                  \
+            &env->vfp.standard_fp_status;                       \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {      \
+            if (mask & 1) {                                     \
+                TYPE v = m[H##ESIZE(e)];                        \
+                if (TYPE##_is_signaling_nan(ra, fpst)) {        \
+                    ra = TYPE##_silence_nan(ra, fpst);          \
+                    float_raise(float_flag_invalid, fpst);      \
+                }                                               \
+                if (TYPE##_is_signaling_nan(v, fpst)) {         \
+                    v = TYPE##_silence_nan(v, fpst);            \
+                    float_raise(float_flag_invalid, fpst);      \
+                }                                               \
+                if (ABS) {                                      \
+                    v = TYPE##_abs(v);                          \
+                }                                               \
+                ra = FN(ra, v, fpst);                           \
+            }                                                   \
+        }                                                       \
+        mve_advance_vpt(env);                                   \
+        return ra;                                              \
+    }                                                           \
+
+#define NOP(X) (X)
+
+DO_FP_VMAXMINV(vmaxnmvh, 2, float16, false, float16_maxnum)
+DO_FP_VMAXMINV(vmaxnmvs, 4, float32, false, float32_maxnum)
+DO_FP_VMAXMINV(vminnmvh, 2, float16, false, float16_minnum)
+DO_FP_VMAXMINV(vminnmvs, 4, float32, false, float32_minnum)
+DO_FP_VMAXMINV(vmaxnmavh, 2, float16, true, float16_maxnum)
+DO_FP_VMAXMINV(vmaxnmavs, 4, float32, true, float32_maxnum)
+DO_FP_VMAXMINV(vminnmavh, 2, float16, true, float16_minnum)
+DO_FP_VMAXMINV(vminnmavs, 4, float32, true, float32_minnum)
+
+/* FP compares; note that all comparisons signal InvalidOp for QNaNs */
+#define DO_VCMP_FP(OP, ESIZE, TYPE, FN)                                 \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vn, void *vm)   \
+    {                                                                   \
+        TYPE *n = vn, *m = vm;                                          \
+        uint16_t mask = mve_element_mask(env);                          \
+        uint16_t eci_mask = mve_eci_mask(env);                          \
+        uint16_t beatpred = 0;                                          \
+        uint16_t emask = MAKE_64BIT_MASK(0, ESIZE);                     \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        bool r;                                                         \
+        for (e = 0; e < 16 / ESIZE; e++, emask <<= ESIZE) {             \
+            if ((mask & emask) == 0) {                                  \
+                continue;                                               \
+            }                                                           \
+            fpst = (ESIZE == 2) ? &env->vfp.standard_fp_status_f16 :    \
+                &env->vfp.standard_fp_status;                           \
+            if (!(mask & (1 << (e * ESIZE)))) {                         \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            r = FN(n[H##ESIZE(e)], m[H##ESIZE(e)], fpst);               \
+            /* Comparison sets 0/1 bits for each byte in the element */ \
+            beatpred |= r * emask;                                      \
+        }                                                               \
+        beatpred &= mask;                                               \
+        env->v7m.vpr = (env->v7m.vpr & ~(uint32_t)eci_mask) |           \
+            (beatpred & eci_mask);                                      \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_VCMP_FP_SCALAR(OP, ESIZE, TYPE, FN)                          \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vn,             \
+                                uint32_t rm)                            \
+    {                                                                   \
+        TYPE *n = vn;                                                   \
+        uint16_t mask = mve_element_mask(env);                          \
+        uint16_t eci_mask = mve_eci_mask(env);                          \
+        uint16_t beatpred = 0;                                          \
+        uint16_t emask = MAKE_64BIT_MASK(0, ESIZE);                     \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        bool r;                                                         \
+        for (e = 0; e < 16 / ESIZE; e++, emask <<= ESIZE) {             \
+            if ((mask & emask) == 0) {                                  \
+                continue;                                               \
+            }                                                           \
+            fpst = (ESIZE == 2) ? &env->vfp.standard_fp_status_f16 :    \
+                &env->vfp.standard_fp_status;                           \
+            if (!(mask & (1 << (e * ESIZE)))) {                         \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            r = FN(n[H##ESIZE(e)], (TYPE)rm, fpst);                     \
+            /* Comparison sets 0/1 bits for each byte in the element */ \
+            beatpred |= r * emask;                                      \
+        }                                                               \
+        beatpred &= mask;                                               \
+        env->v7m.vpr = (env->v7m.vpr & ~(uint32_t)eci_mask) |           \
+            (beatpred & eci_mask);                                      \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_VCMP_FP_BOTH(VOP, SOP, ESIZE, TYPE, FN)      \
+    DO_VCMP_FP(VOP, ESIZE, TYPE, FN)                    \
+    DO_VCMP_FP_SCALAR(SOP, ESIZE, TYPE, FN)
+
+/*
+ * Some care is needed here to get the correct result for the unordered case.
+ * Architecturally EQ, GE and GT are defined to be false for unordered, but
+ * the NE, LT and LE comparisons are defined as simple logical inverses of
+ * EQ, GE and GT and so they must return true for unordered. The softfloat
+ * comparison functions float*_{eq,le,lt} all return false for unordered.
+ */
+#define DO_GE16(X, Y, S) float16_le(Y, X, S)
+#define DO_GE32(X, Y, S) float32_le(Y, X, S)
+#define DO_GT16(X, Y, S) float16_lt(Y, X, S)
+#define DO_GT32(X, Y, S) float32_lt(Y, X, S)
+
+DO_VCMP_FP_BOTH(vfcmpeqh, vfcmpeq_scalarh, 2, float16, float16_eq)
+DO_VCMP_FP_BOTH(vfcmpeqs, vfcmpeq_scalars, 4, float32, float32_eq)
+
+DO_VCMP_FP_BOTH(vfcmpneh, vfcmpne_scalarh, 2, float16, !float16_eq)
+DO_VCMP_FP_BOTH(vfcmpnes, vfcmpne_scalars, 4, float32, !float32_eq)
+
+DO_VCMP_FP_BOTH(vfcmpgeh, vfcmpge_scalarh, 2, float16, DO_GE16)
+DO_VCMP_FP_BOTH(vfcmpges, vfcmpge_scalars, 4, float32, DO_GE32)
+
+DO_VCMP_FP_BOTH(vfcmplth, vfcmplt_scalarh, 2, float16, !DO_GE16)
+DO_VCMP_FP_BOTH(vfcmplts, vfcmplt_scalars, 4, float32, !DO_GE32)
+
+DO_VCMP_FP_BOTH(vfcmpgth, vfcmpgt_scalarh, 2, float16, DO_GT16)
+DO_VCMP_FP_BOTH(vfcmpgts, vfcmpgt_scalars, 4, float32, DO_GT32)
+
+DO_VCMP_FP_BOTH(vfcmpleh, vfcmple_scalarh, 2, float16, !DO_GT16)
+DO_VCMP_FP_BOTH(vfcmples, vfcmple_scalars, 4, float32, !DO_GT32)
+
+#define DO_VCVT_FIXED(OP, ESIZE, TYPE, FN)                              \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd, void *vm,   \
+                                uint32_t shift)                         \
+    {                                                                   \
+        TYPE *d = vd, *m = vm;                                          \
+        TYPE r;                                                         \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            if ((mask & MAKE_64BIT_MASK(0, ESIZE)) == 0) {              \
+                continue;                                               \
+            }                                                           \
+            fpst = (ESIZE == 2) ? &env->vfp.standard_fp_status_f16 :    \
+                &env->vfp.standard_fp_status;                           \
+            if (!(mask & 1)) {                                          \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            r = FN(m[H##ESIZE(e)], shift, fpst);                        \
+            mergemask(&d[H##ESIZE(e)], r, mask);                        \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+DO_VCVT_FIXED(vcvt_sh, 2, int16_t, helper_vfp_shtoh)
+DO_VCVT_FIXED(vcvt_uh, 2, uint16_t, helper_vfp_uhtoh)
+DO_VCVT_FIXED(vcvt_hs, 2, int16_t, helper_vfp_toshh_round_to_zero)
+DO_VCVT_FIXED(vcvt_hu, 2, uint16_t, helper_vfp_touhh_round_to_zero)
+DO_VCVT_FIXED(vcvt_sf, 4, int32_t, helper_vfp_sltos)
+DO_VCVT_FIXED(vcvt_uf, 4, uint32_t, helper_vfp_ultos)
+DO_VCVT_FIXED(vcvt_fs, 4, int32_t, helper_vfp_tosls_round_to_zero)
+DO_VCVT_FIXED(vcvt_fu, 4, uint32_t, helper_vfp_touls_round_to_zero)
+
+/* VCVT with specified rmode */
+#define DO_VCVT_RMODE(OP, ESIZE, TYPE, FN)                              \
+    void HELPER(glue(mve_, OP))(CPUARMState *env,                       \
+                                void *vd, void *vm, uint32_t rmode)     \
+    {                                                                   \
+        TYPE *d = vd, *m = vm;                                          \
+        TYPE r;                                                         \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        float_status *base_fpst = (ESIZE == 2) ?                        \
+            &env->vfp.standard_fp_status_f16 :                          \
+            &env->vfp.standard_fp_status;                               \
+        uint32_t prev_rmode = get_float_rounding_mode(base_fpst);       \
+        set_float_rounding_mode(rmode, base_fpst);                      \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            if ((mask & MAKE_64BIT_MASK(0, ESIZE)) == 0) {              \
+                continue;                                               \
+            }                                                           \
+            fpst = base_fpst;                                           \
+            if (!(mask & 1)) {                                          \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            r = FN(m[H##ESIZE(e)], 0, fpst);                            \
+            mergemask(&d[H##ESIZE(e)], r, mask);                        \
+        }                                                               \
+        set_float_rounding_mode(prev_rmode, base_fpst);                 \
+        mve_advance_vpt(env);                                           \
+    }
+
+DO_VCVT_RMODE(vcvt_rm_sh, 2, uint16_t, helper_vfp_toshh)
+DO_VCVT_RMODE(vcvt_rm_uh, 2, uint16_t, helper_vfp_touhh)
+DO_VCVT_RMODE(vcvt_rm_ss, 4, uint32_t, helper_vfp_tosls)
+DO_VCVT_RMODE(vcvt_rm_us, 4, uint32_t, helper_vfp_touls)
+
+#define DO_VRINT_RM_H(M, F, S) helper_rinth(M, S)
+#define DO_VRINT_RM_S(M, F, S) helper_rints(M, S)
+
+DO_VCVT_RMODE(vrint_rm_h, 2, uint16_t, DO_VRINT_RM_H)
+DO_VCVT_RMODE(vrint_rm_s, 4, uint32_t, DO_VRINT_RM_S)
+
+/*
+ * VCVT between halfprec and singleprec. As usual for halfprec
+ * conversions, FZ16 is ignored and AHP is observed.
+ */
+static void do_vcvt_sh(CPUARMState *env, void *vd, void *vm, int top)
+{
+    uint16_t *d = vd;
+    uint32_t *m = vm;
+    uint16_t r;
+    uint16_t mask = mve_element_mask(env);
+    bool ieee = !(env->vfp.xregs[ARM_VFP_FPSCR] & FPCR_AHP);
+    unsigned e;
+    float_status *fpst;
+    float_status scratch_fpst;
+    float_status *base_fpst = &env->vfp.standard_fp_status;
+    bool old_fz = get_flush_to_zero(base_fpst);
+    set_flush_to_zero(false, base_fpst);
+    for (e = 0; e < 16 / 4; e++, mask >>= 4) {
+        if ((mask & MAKE_64BIT_MASK(0, 4)) == 0) {
+            continue;
+        }
+        fpst = base_fpst;
+        if (!(mask & 1)) {
+            /* We need the result but without updating flags */
+            scratch_fpst = *fpst;
+            fpst = &scratch_fpst;
+        }
+        r = float32_to_float16(m[H4(e)], ieee, fpst);
+        mergemask(&d[H2(e * 2 + top)], r, mask >> (top * 2));
+    }
+    set_flush_to_zero(old_fz, base_fpst);
+    mve_advance_vpt(env);
+}
+
+static void do_vcvt_hs(CPUARMState *env, void *vd, void *vm, int top)
+{
+    uint32_t *d = vd;
+    uint16_t *m = vm;
+    uint32_t r;
+    uint16_t mask = mve_element_mask(env);
+    bool ieee = !(env->vfp.xregs[ARM_VFP_FPSCR] & FPCR_AHP);
+    unsigned e;
+    float_status *fpst;
+    float_status scratch_fpst;
+    float_status *base_fpst = &env->vfp.standard_fp_status;
+    bool old_fiz = get_flush_inputs_to_zero(base_fpst);
+    set_flush_inputs_to_zero(false, base_fpst);
+    for (e = 0; e < 16 / 4; e++, mask >>= 4) {
+        if ((mask & MAKE_64BIT_MASK(0, 4)) == 0) {
+            continue;
+        }
+        fpst = base_fpst;
+        if (!(mask & (1 << (top * 2)))) {
+            /* We need the result but without updating flags */
+            scratch_fpst = *fpst;
+            fpst = &scratch_fpst;
+        }
+        r = float16_to_float32(m[H2(e * 2 + top)], ieee, fpst);
+        mergemask(&d[H4(e)], r, mask);
+    }
+    set_flush_inputs_to_zero(old_fiz, base_fpst);
+    mve_advance_vpt(env);
+}
+
+void HELPER(mve_vcvtb_sh)(CPUARMState *env, void *vd, void *vm)
+{
+    do_vcvt_sh(env, vd, vm, 0);
+}
+void HELPER(mve_vcvtt_sh)(CPUARMState *env, void *vd, void *vm)
+{
+    do_vcvt_sh(env, vd, vm, 1);
+}
+void HELPER(mve_vcvtb_hs)(CPUARMState *env, void *vd, void *vm)
+{
+    do_vcvt_hs(env, vd, vm, 0);
+}
+void HELPER(mve_vcvtt_hs)(CPUARMState *env, void *vd, void *vm)
+{
+    do_vcvt_hs(env, vd, vm, 1);
+}
+
+#define DO_1OP_FP(OP, ESIZE, TYPE, FN)                                  \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd, void *vm)   \
+    {                                                                   \
+        TYPE *d = vd, *m = vm;                                          \
+        TYPE r;                                                         \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            if ((mask & MAKE_64BIT_MASK(0, ESIZE)) == 0) {              \
+                continue;                                               \
+            }                                                           \
+            fpst = (ESIZE == 2) ? &env->vfp.standard_fp_status_f16 :    \
+                &env->vfp.standard_fp_status;                           \
+            if (!(mask & 1)) {                                          \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            r = FN(m[H##ESIZE(e)], fpst);                               \
+            mergemask(&d[H##ESIZE(e)], r, mask);                        \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+DO_1OP_FP(vrintx_h, 2, float16, float16_round_to_int)
+DO_1OP_FP(vrintx_s, 4, float32, float32_round_to_int)

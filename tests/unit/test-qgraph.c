@@ -21,7 +21,7 @@
 #include "../qtest/libqos/qgraph_internal.h"
 
 #define MACHINE_PC "x86_64/pc"
-#define MACHINE_RASPI2 "arm/raspi2"
+#define MACHINE_RASPI2 "arm/raspi2b"
 #define I440FX "i440FX-pcihost"
 #define PCIBUS_PC "pcibus-pc"
 #define SDHCI "sdhci"

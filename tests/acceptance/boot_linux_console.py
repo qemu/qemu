@@ -475,7 +475,7 @@ class BootLinuxConsole(LinuxKernelTest):
     def test_arm_raspi2_uart0(self):
         """
         :avocado: tags=arch:arm
-        :avocado: tags=machine:raspi2
+        :avocado: tags=machine:raspi2b
         :avocado: tags=device:pl011
         :avocado: tags=accel:tcg
         """
@@ -484,7 +484,7 @@ class BootLinuxConsole(LinuxKernelTest):
     def test_arm_raspi2_initrd(self):
         """
         :avocado: tags=arch:arm
-        :avocado: tags=machine:raspi2
+        :avocado: tags=machine:raspi2b
         """
         deb_url = ('http://archive.raspberrypi.org/debian/'
                    'pool/main/r/raspberrypi-firmware/'
@@ -971,7 +971,7 @@ class BootLinuxConsole(LinuxKernelTest):
     def test_aarch64_raspi3_atf(self):
         """
         :avocado: tags=arch:aarch64
-        :avocado: tags=machine:raspi3
+        :avocado: tags=machine:raspi3b
         :avocado: tags=cpu:cortex-a53
         :avocado: tags=device:pl011
         :avocado: tags=atf
