@@ -540,6 +540,11 @@ vubr_new(const char *path, bool client)
     CallbackFunc cb;
     size_t len;
 
+    if (strlen(path) >= sizeof(un.sun_path)) {
+        fprintf(stderr, "unix domain socket path '%s' is too long\n", path);
+        exit(1);
+    }
+
     /* Get a UNIX socket. */
     dev->sock = socket(AF_UNIX, SOCK_STREAM, 0);
     if (dev->sock == -1) {
