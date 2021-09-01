@@ -3191,6 +3191,44 @@ DO_FP_VMAXMINV(vminnmavs, 4, float32, true, float32_minnum)
         mve_advance_vpt(env);                                           \
     }
 
+#define DO_VCMP_FP_SCALAR(OP, ESIZE, TYPE, FN)                          \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vn,             \
+                                uint32_t rm)                            \
+    {                                                                   \
+        TYPE *n = vn;                                                   \
+        uint16_t mask = mve_element_mask(env);                          \
+        uint16_t eci_mask = mve_eci_mask(env);                          \
+        uint16_t beatpred = 0;                                          \
+        uint16_t emask = MAKE_64BIT_MASK(0, ESIZE);                     \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        bool r;                                                         \
+        for (e = 0; e < 16 / ESIZE; e++, emask <<= ESIZE) {             \
+            if ((mask & emask) == 0) {                                  \
+                continue;                                               \
+            }                                                           \
+            fpst = (ESIZE == 2) ? &env->vfp.standard_fp_status_f16 :    \
+                &env->vfp.standard_fp_status;                           \
+            if (!(mask & (1 << (e * ESIZE)))) {                         \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            r = FN(n[H##ESIZE(e)], (TYPE)rm, fpst);                     \
+            /* Comparison sets 0/1 bits for each byte in the element */ \
+            beatpred |= r * emask;                                      \
+        }                                                               \
+        beatpred &= mask;                                               \
+        env->v7m.vpr = (env->v7m.vpr & ~(uint32_t)eci_mask) |           \
+            (beatpred & eci_mask);                                      \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_VCMP_FP_BOTH(VOP, SOP, ESIZE, TYPE, FN)      \
+    DO_VCMP_FP(VOP, ESIZE, TYPE, FN)                    \
+    DO_VCMP_FP_SCALAR(SOP, ESIZE, TYPE, FN)
+
 /*
  * Some care is needed here to get the correct result for the unordered case.
  * Architecturally EQ, GE and GT are defined to be false for unordered, but
@@ -3203,20 +3241,20 @@ DO_FP_VMAXMINV(vminnmavs, 4, float32, true, float32_minnum)
 #define DO_GT16(X, Y, S) float16_lt(Y, X, S)
 #define DO_GT32(X, Y, S) float32_lt(Y, X, S)
 
-DO_VCMP_FP(vfcmpeqh, 2, float16, float16_eq)
-DO_VCMP_FP(vfcmpeqs, 4, float32, float32_eq)
+DO_VCMP_FP_BOTH(vfcmpeqh, vfcmpeq_scalarh, 2, float16, float16_eq)
+DO_VCMP_FP_BOTH(vfcmpeqs, vfcmpeq_scalars, 4, float32, float32_eq)
 
-DO_VCMP_FP(vfcmpneh, 2, float16, !float16_eq)
-DO_VCMP_FP(vfcmpnes, 4, float32, !float32_eq)
+DO_VCMP_FP_BOTH(vfcmpneh, vfcmpne_scalarh, 2, float16, !float16_eq)
+DO_VCMP_FP_BOTH(vfcmpnes, vfcmpne_scalars, 4, float32, !float32_eq)
 
-DO_VCMP_FP(vfcmpgeh, 2, float16, DO_GE16)
-DO_VCMP_FP(vfcmpges, 4, float32, DO_GE32)
+DO_VCMP_FP_BOTH(vfcmpgeh, vfcmpge_scalarh, 2, float16, DO_GE16)
+DO_VCMP_FP_BOTH(vfcmpges, vfcmpge_scalars, 4, float32, DO_GE32)
 
-DO_VCMP_FP(vfcmplth, 2, float16, !DO_GE16)
-DO_VCMP_FP(vfcmplts, 4, float32, !DO_GE32)
+DO_VCMP_FP_BOTH(vfcmplth, vfcmplt_scalarh, 2, float16, !DO_GE16)
+DO_VCMP_FP_BOTH(vfcmplts, vfcmplt_scalars, 4, float32, !DO_GE32)
 
-DO_VCMP_FP(vfcmpgth, 2, float16, DO_GT16)
-DO_VCMP_FP(vfcmpgts, 4, float32, DO_GT32)
+DO_VCMP_FP_BOTH(vfcmpgth, vfcmpgt_scalarh, 2, float16, DO_GT16)
+DO_VCMP_FP_BOTH(vfcmpgts, vfcmpgt_scalars, 4, float32, DO_GT32)
 
-DO_VCMP_FP(vfcmpleh, 2, float16, !DO_GT16)
-DO_VCMP_FP(vfcmples, 4, float32, !DO_GT32)
+DO_VCMP_FP_BOTH(vfcmpleh, vfcmple_scalarh, 2, float16, !DO_GT16)
+DO_VCMP_FP_BOTH(vfcmples, vfcmple_scalars, 4, float32, !DO_GT32)

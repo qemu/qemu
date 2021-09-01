@@ -127,6 +127,11 @@
 @vcmp_fp .... .... .... qn:3 . .... .... .... .... &vcmp \
          qm=%qm size=%2op_fp_scalar_size mask=%mask_22_13
 
+# Bit 28 is a 2op_fp_scalar_size bit, but we do not decode it in this
+# format to avoid complicated overlapping-instruction-groups
+@vcmp_fp_scalar .... .... .... qn:3 . .... .... .... rm:4 &vcmp_scalar \
+                mask=%mask_22_13
+
 @vmaxv .... .... .... size:2 .. rda:4 .... .... .... &vmaxv qm=%qm
 
 @2op_fp .... .... .... .... .... .... .... .... &2op \
@@ -400,8 +405,10 @@ VDUP             1110 1110 1 0 10 ... 0 .... 1011 . 0 0 1 0000 @vdup size=2
   VIWDUP         1110 1110 0 . .. ... 1 ... 0 1111 . 110 ... . @viwdup
 }
 {
-  VDDUP          1110 1110 0 . .. ... 1 ... 1 1111 . 110 111 . @vidup
-  VDWDUP         1110 1110 0 . .. ... 1 ... 1 1111 . 110 ... . @viwdup
+  VCMPGT_fp_scalar 1110 1110 0 . 11 ... 1 ... 1 1111  0110 .... @vcmp_fp_scalar size=2
+  VCMPLE_fp_scalar 1110 1110 0 . 11 ... 1 ... 1 1111  1110 .... @vcmp_fp_scalar size=2
+  VDDUP            1110 1110 0 . .. ... 1 ... 1 1111 . 110 111 . @vidup
+  VDWDUP           1110 1110 0 . .. ... 1 ... 1 1111 . 110 ... . @viwdup
 }
 
 # multiply-add long dual accumulate
@@ -480,8 +487,17 @@ VMLADAV_U        1111 1110 1111  ... 0 ... . 1111 . 0 . 0 ... 1 @vmladav_nosz
 
 # Scalar operations
 
-VADD_scalar      1110 1110 0 . .. ... 1 ... 0 1111 . 100 .... @2scalar
-VSUB_scalar      1110 1110 0 . .. ... 1 ... 1 1111 . 100 .... @2scalar
+{
+  VCMPEQ_fp_scalar 1110 1110 0 . 11 ... 1 ... 0 1111  0100 .... @vcmp_fp_scalar size=2
+  VCMPNE_fp_scalar 1110 1110 0 . 11 ... 1 ... 0 1111  1100 .... @vcmp_fp_scalar size=2
+  VADD_scalar      1110 1110 0 . .. ... 1 ... 0 1111 . 100 .... @2scalar
+}
+
+{
+  VCMPLT_fp_scalar 1110 1110 0 . 11 ... 1 ... 1 1111  1100 .... @vcmp_fp_scalar size=2
+  VCMPGE_fp_scalar 1110 1110 0 . 11 ... 1 ... 1 1111  0100 .... @vcmp_fp_scalar size=2
+  VSUB_scalar      1110 1110 0 . .. ... 1 ... 1 1111 . 100 .... @2scalar
+}
 
 {
   VSHL_S_scalar   1110 1110 0 . 11 .. 01 ... 1 1110 0110 .... @shl_scalar
@@ -711,17 +727,38 @@ VSHLC             111 0 1110 1 . 1 imm:5 ... 0 1111 1100 rdm:4 qd=%qd
 }
 
 {
-  VPNOT           1111 1110 0 0 11 000 1 000 0 1111 0100 1101
-  VPST            1111 1110 0 . 11 000 1 ... 0 1111 0100 1101 mask=%mask_22_13
-  VCMPEQ_scalar   1111 1110 0 . .. ... 1 ... 0 1111 0 1 0 0 .... @vcmp_scalar
+  VPNOT            1111 1110 0 0 11 000 1 000 0 1111 0100 1101
+  VPST             1111 1110 0 . 11 000 1 ... 0 1111 0100 1101 mask=%mask_22_13
+  VCMPEQ_fp_scalar 1111 1110 0 . 11 ... 1 ... 0 1111 0100 .... @vcmp_fp_scalar size=1
+  VCMPEQ_scalar    1111 1110 0 . .. ... 1 ... 0 1111 0100 .... @vcmp_scalar
 }
-VCMPNE_scalar     1111 1110 0 . .. ... 1 ... 0 1111 1 1 0 0 .... @vcmp_scalar
+
+{
+  VCMPNE_fp_scalar 1111 1110 0 . 11 ... 1 ... 0 1111 1100 .... @vcmp_fp_scalar size=1
+  VCMPNE_scalar    1111 1110 0 . .. ... 1 ... 0 1111 1100 .... @vcmp_scalar
+}
+
+{
+  VCMPGT_fp_scalar 1111 1110 0 . 11 ... 1 ... 1 1111 0110 .... @vcmp_fp_scalar size=1
+  VCMPGT_scalar    1111 1110 0 . .. ... 1 ... 1 1111 0110 .... @vcmp_scalar
+}
+
+{
+  VCMPLE_fp_scalar 1111 1110 0 . 11 ... 1 ... 1 1111 1110 .... @vcmp_fp_scalar size=1
+  VCMPLE_scalar    1111 1110 0 . .. ... 1 ... 1 1111 1110 .... @vcmp_scalar
+}
+
+{
+  VCMPGE_fp_scalar 1111 1110 0 . 11 ... 1 ... 1 1111 0100 .... @vcmp_fp_scalar size=1
+  VCMPGE_scalar    1111 1110 0 . .. ... 1 ... 1 1111 0100 .... @vcmp_scalar
+}
+{
+  VCMPLT_fp_scalar 1111 1110 0 . 11 ... 1 ... 1 1111 1100 .... @vcmp_fp_scalar size=1
+  VCMPLT_scalar    1111 1110 0 . .. ... 1 ... 1 1111 1100 .... @vcmp_scalar
+}
+
 VCMPCS_scalar     1111 1110 0 . .. ... 1 ... 0 1111 0 1 1 0 .... @vcmp_scalar
 VCMPHI_scalar     1111 1110 0 . .. ... 1 ... 0 1111 1 1 1 0 .... @vcmp_scalar
-VCMPGE_scalar     1111 1110 0 . .. ... 1 ... 1 1111 0 1 0 0 .... @vcmp_scalar
-VCMPLT_scalar     1111 1110 0 . .. ... 1 ... 1 1111 1 1 0 0 .... @vcmp_scalar
-VCMPGT_scalar     1111 1110 0 . .. ... 1 ... 1 1111 0 1 1 0 .... @vcmp_scalar
-VCMPLE_scalar     1111 1110 0 . .. ... 1 ... 1 1111 1 1 1 0 .... @vcmp_scalar
 
 # 2-operand FP
 VADD_fp           1110 1111 0 . 0 . ... 0 ... 0 1101 . 1 . 0 ... 0 @2op_fp

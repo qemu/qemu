@@ -1771,6 +1771,20 @@ DO_VCMP(VCMPLE, vcmple)
             return false;                                       \
         }                                                       \
         return do_vcmp(s, a, fns[a->size]);                     \
+    }                                                           \
+    static bool trans_##INSN##_scalar(DisasContext *s,          \
+                                      arg_vcmp_scalar *a)       \
+    {                                                           \
+        static MVEGenScalarCmpFn * const fns[] = {              \
+            NULL,                                               \
+            gen_helper_mve_##FN##_scalarh,                      \
+            gen_helper_mve_##FN##_scalars,                      \
+            NULL,                                               \
+        };                                                      \
+        if (!dc_isar_feature(aa32_mve_fp, s)) {                 \
+            return false;                                       \
+        }                                                       \
+        return do_vcmp_scalar(s, a, fns[a->size]);              \
     }
 
 DO_VCMP_FP(VCMPEQ_fp, vfcmpeq)
