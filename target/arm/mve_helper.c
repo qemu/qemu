@@ -3332,3 +3332,84 @@ DO_VCVT_RMODE(vcvt_rm_sh, 2, uint16_t, helper_vfp_toshh)
 DO_VCVT_RMODE(vcvt_rm_uh, 2, uint16_t, helper_vfp_touhh)
 DO_VCVT_RMODE(vcvt_rm_ss, 4, uint32_t, helper_vfp_tosls)
 DO_VCVT_RMODE(vcvt_rm_us, 4, uint32_t, helper_vfp_touls)
+
+/*
+ * VCVT between halfprec and singleprec. As usual for halfprec
+ * conversions, FZ16 is ignored and AHP is observed.
+ */
+static void do_vcvt_sh(CPUARMState *env, void *vd, void *vm, int top)
+{
+    uint16_t *d = vd;
+    uint32_t *m = vm;
+    uint16_t r;
+    uint16_t mask = mve_element_mask(env);
+    bool ieee = !(env->vfp.xregs[ARM_VFP_FPSCR] & FPCR_AHP);
+    unsigned e;
+    float_status *fpst;
+    float_status scratch_fpst;
+    float_status *base_fpst = &env->vfp.standard_fp_status;
+    bool old_fz = get_flush_to_zero(base_fpst);
+    set_flush_to_zero(false, base_fpst);
+    for (e = 0; e < 16 / 4; e++, mask >>= 4) {
+        if ((mask & MAKE_64BIT_MASK(0, 4)) == 0) {
+            continue;
+        }
+        fpst = base_fpst;
+        if (!(mask & 1)) {
+            /* We need the result but without updating flags */
+            scratch_fpst = *fpst;
+            fpst = &scratch_fpst;
+        }
+        r = float32_to_float16(m[H4(e)], ieee, fpst);
+        mergemask(&d[H2(e * 2 + top)], r, mask >> (top * 2));
+    }
+    set_flush_to_zero(old_fz, base_fpst);
+    mve_advance_vpt(env);
+}
+
+static void do_vcvt_hs(CPUARMState *env, void *vd, void *vm, int top)
+{
+    uint32_t *d = vd;
+    uint16_t *m = vm;
+    uint32_t r;
+    uint16_t mask = mve_element_mask(env);
+    bool ieee = !(env->vfp.xregs[ARM_VFP_FPSCR] & FPCR_AHP);
+    unsigned e;
+    float_status *fpst;
+    float_status scratch_fpst;
+    float_status *base_fpst = &env->vfp.standard_fp_status;
+    bool old_fiz = get_flush_inputs_to_zero(base_fpst);
+    set_flush_inputs_to_zero(false, base_fpst);
+    for (e = 0; e < 16 / 4; e++, mask >>= 4) {
+        if ((mask & MAKE_64BIT_MASK(0, 4)) == 0) {
+            continue;
+        }
+        fpst = base_fpst;
+        if (!(mask & (1 << (top * 2)))) {
+            /* We need the result but without updating flags */
+            scratch_fpst = *fpst;
+            fpst = &scratch_fpst;
+        }
+        r = float16_to_float32(m[H2(e * 2 + top)], ieee, fpst);
+        mergemask(&d[H4(e)], r, mask);
+    }
+    set_flush_inputs_to_zero(old_fiz, base_fpst);
+    mve_advance_vpt(env);
+}
+
+void HELPER(mve_vcvtb_sh)(CPUARMState *env, void *vd, void *vm)
+{
+    do_vcvt_sh(env, vd, vm, 0);
+}
+void HELPER(mve_vcvtt_sh)(CPUARMState *env, void *vd, void *vm)
+{
+    do_vcvt_sh(env, vd, vm, 1);
+}
+void HELPER(mve_vcvtb_hs)(CPUARMState *env, void *vd, void *vm)
+{
+    do_vcvt_hs(env, vd, vm, 0);
+}
+void HELPER(mve_vcvtt_hs)(CPUARMState *env, void *vd, void *vm)
+{
+    do_vcvt_hs(env, vd, vm, 1);
+}
