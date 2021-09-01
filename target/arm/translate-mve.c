@@ -1439,6 +1439,24 @@ DO_2SHIFT(VRSHRI_U, vrshli_u, true)
 DO_2SHIFT(VSRI, vsri, false)
 DO_2SHIFT(VSLI, vsli, false)
 
+#define DO_2SHIFT_FP(INSN, FN)                                  \
+    static bool trans_##INSN(DisasContext *s, arg_2shift *a)    \
+    {                                                           \
+        if (!dc_isar_feature(aa32_mve_fp, s)) {                 \
+            return false;                                       \
+        }                                                       \
+        return do_2shift(s, a, gen_helper_mve_##FN, false);     \
+    }
+
+DO_2SHIFT_FP(VCVT_SH_fixed, vcvt_sh)
+DO_2SHIFT_FP(VCVT_UH_fixed, vcvt_uh)
+DO_2SHIFT_FP(VCVT_HS_fixed, vcvt_hs)
+DO_2SHIFT_FP(VCVT_HU_fixed, vcvt_hu)
+DO_2SHIFT_FP(VCVT_SF_fixed, vcvt_sf)
+DO_2SHIFT_FP(VCVT_UF_fixed, vcvt_uf)
+DO_2SHIFT_FP(VCVT_FS_fixed, vcvt_fs)
+DO_2SHIFT_FP(VCVT_FU_fixed, vcvt_fu)
+
 static bool do_2shift_scalar(DisasContext *s, arg_shl_scalar *a,
                              MVEGenTwoOpShiftFn *fn)
 {

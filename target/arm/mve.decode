@@ -779,3 +779,22 @@ VCMLA0            1111 110 00 . 1 . ... 0 ... 0 1000 . 1 . 0 ... 0 @2op_fp_size_
 VCMLA90           1111 110 01 . 1 . ... 0 ... 0 1000 . 1 . 0 ... 0 @2op_fp_size_rev
 VCMLA180          1111 110 10 . 1 . ... 0 ... 0 1000 . 1 . 0 ... 0 @2op_fp_size_rev
 VCMLA270          1111 110 11 . 1 . ... 0 ... 0 1000 . 1 . 0 ... 0 @2op_fp_size_rev
+
+# floating-point <-> fixed-point conversions. Naming convention:
+# VCVT_<from><to>, S = signed int, U = unsigned int, H = halfprec, F = singleprec
+@vcvt             .... .... .. 1 ..... .... .. 1 . .... .... &2shift \
+                  qd=%qd qm=%qm shift=%rshift_i5 size=2
+@vcvt_f16         .... .... .. 11 .... .... .. 0 . .... .... &2shift \
+                  qd=%qd qm=%qm shift=%rshift_i4 size=1
+
+VCVT_SH_fixed     1110 1111 1 . ...... ... 0 11 . 0 01 . 1 ... 0 @vcvt_f16
+VCVT_UH_fixed     1111 1111 1 . ...... ... 0 11 . 0 01 . 1 ... 0 @vcvt_f16
+
+VCVT_HS_fixed     1110 1111 1 . ...... ... 0 11 . 1 01 . 1 ... 0 @vcvt_f16
+VCVT_HU_fixed     1111 1111 1 . ...... ... 0 11 . 1 01 . 1 ... 0 @vcvt_f16
+
+VCVT_SF_fixed     1110 1111 1 . ...... ... 0 11 . 0 01 . 1 ... 0 @vcvt
+VCVT_UF_fixed     1111 1111 1 . ...... ... 0 11 . 0 01 . 1 ... 0 @vcvt
+
+VCVT_FS_fixed     1110 1111 1 . ...... ... 0 11 . 1 01 . 1 ... 0 @vcvt
+VCVT_FU_fixed     1111 1111 1 . ...... ... 0 11 . 1 01 . 1 ... 0 @vcvt
