@@ -187,6 +187,7 @@ qtests_aarch64 = \
    'numa-test',
    'boot-serial-test',
    'xlnx-can-test',
+   'fuzz-xlnx-dp-test',
    'migration-test']
 
 qtests_s390x = \

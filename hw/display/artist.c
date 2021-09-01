@@ -1170,8 +1170,8 @@ static void artist_vram_write(void *opaque, hwaddr addr, uint64_t val,
     }
 
     buf = vram_write_buffer(s);
-    posy = ADDR_TO_Y(addr);
-    posx = ADDR_TO_X(addr);
+    posy = ADDR_TO_Y(addr >> 2);
+    posx = ADDR_TO_X(addr >> 2);
 
     if (!buf->size) {
         return;
@@ -1232,8 +1232,8 @@ static uint64_t artist_vram_read(void *opaque, hwaddr addr, unsigned size)
         return 0;
     }
 
-    posy = ADDR_TO_Y(addr);
-    posx = ADDR_TO_X(addr);
+    posy = ADDR_TO_Y(addr >> 2);
+    posx = ADDR_TO_X(addr >> 2);
 
     if (posy > buf->height || posx > buf->width) {
         return 0;
