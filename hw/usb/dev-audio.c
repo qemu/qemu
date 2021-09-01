@@ -168,7 +168,7 @@ static const USBDescIface desc_iface[] = {
                     STRING_FEATURE_UNIT,        /*  u8  iFeature */
                 }
             },{
-                /* Headphone Ouptut Terminal ID3 Descriptor */
+                /* Headphone Output Terminal ID3 Descriptor */
                 .data = (uint8_t[]) {
                     0x09,                       /*  u8  bLength */
                     USB_DT_CS_INTERFACE,        /*  u8  bDescriptorType */
@@ -332,7 +332,7 @@ static const USBDescIface desc_iface_multi[] = {
                     STRING_FEATURE_UNIT,        /*  u8  iFeature */
                 }
             },{
-                /* Headphone Ouptut Terminal ID3 Descriptor */
+                /* Headphone Output Terminal ID3 Descriptor */
                 .data = (uint8_t[]) {
                     0x09,                       /*  u8  bLength */
                     USB_DT_CS_INTERFACE,        /*  u8  bDescriptorType */

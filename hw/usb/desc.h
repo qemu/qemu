@@ -133,7 +133,7 @@ struct USBDescConfig {
     const USBDescIface        *ifs;
 };
 
-/* conceptually an Interface Association Descriptor, and releated interfaces */
+/* conceptually an Interface Association Descriptor, and related interfaces */
 struct USBDescIfaceAssoc {
     uint8_t                   bFirstInterface;
     uint8_t                   bInterfaceCount;

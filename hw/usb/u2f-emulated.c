@@ -307,7 +307,7 @@ static void u2f_emulated_realize(U2FKeyState *base, Error **errp)
             rc = u2f_emulated_setup_vdev_manualy(key);
         } else {
             error_setg(errp, "%s: cert, priv, entropy and counter "
-                       "parameters must be provided to manualy configure "
+                       "parameters must be provided to manually configure "
                        "the emulated device", TYPE_U2F_EMULATED);
             return;
         }
