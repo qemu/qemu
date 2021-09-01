@@ -137,6 +137,10 @@
 @vmaxnma  .... .... .... .... .... .... .... .... &2op \
           qd=%qd qn=%qd qm=%qm
 
+# Here also we don't decode the bit 28 size in the format to avoid
+# awkward nested overlap groups
+@vmaxnmv          .... .... .... .... rda:4 .... .... .... &vmaxv qm=%qm
+
 @2op_fp_scalar .... .... .... .... .... .... .... rm:4 &2scalar \
                qd=%qd qn=%qn size=%2op_fp_scalar_size
 
@@ -440,17 +444,33 @@ VMLADAV_S        1110 1110 1111  ... 0 ... . 1111 . 0 . 0 ... 1 @vmladav_nosz
 VMLADAV_U        1111 1110 1111  ... 0 ... . 1111 . 0 . 0 ... 1 @vmladav_nosz
 
 {
-  VMAXV_S        1110 1110 1110  .. 10 ....  1111 0 0 . 0 ... 0 @vmaxv
-  VMINV_S        1110 1110 1110  .. 10 ....  1111 1 0 . 0 ... 0 @vmaxv
-  VMAXAV         1110 1110 1110  .. 00 ....  1111 0 0 . 0 ... 0 @vmaxv
-  VMINAV         1110 1110 1110  .. 00 ....  1111 1 0 . 0 ... 0 @vmaxv
+  [
+    VMAXNMAV     1110 1110 1110  11 00 ....  1111 0 0 . 0 ... 0 @vmaxnmv size=2
+    VMINNMAV     1110 1110 1110  11 00 ....  1111 1 0 . 0 ... 0 @vmaxnmv size=2
+    VMAXNMV      1110 1110 1110  11 10 ....  1111 0 0 . 0 ... 0 @vmaxnmv size=2
+    VMINNMV      1110 1110 1110  11 10 ....  1111 1 0 . 0 ... 0 @vmaxnmv size=2
+  ]
+  [
+    VMAXV_S      1110 1110 1110  .. 10 ....  1111 0 0 . 0 ... 0 @vmaxv
+    VMINV_S      1110 1110 1110  .. 10 ....  1111 1 0 . 0 ... 0 @vmaxv
+    VMAXAV       1110 1110 1110  .. 00 ....  1111 0 0 . 0 ... 0 @vmaxv
+    VMINAV       1110 1110 1110  .. 00 ....  1111 1 0 . 0 ... 0 @vmaxv
+  ]
   VMLADAV_S      1110 1110 1111  ... 0 ... . 1111 . 0 . 0 ... 0 @vmladav_nosz
   VRMLALDAVH_S   1110 1110 1 ... ... 0 ... . 1111 . 0 . 0 ... 0 @vmlaldav_nosz
 }
 
 {
-  VMAXV_U        1111 1110 1110  .. 10 ....  1111 0 0 . 0 ... 0 @vmaxv
-  VMINV_U        1111 1110 1110  .. 10 ....  1111 1 0 . 0 ... 0 @vmaxv
+  [
+    VMAXNMAV     1111 1110 1110  11 00 ....  1111 0 0 . 0 ... 0 @vmaxnmv size=1
+    VMINNMAV     1111 1110 1110  11 00 ....  1111 1 0 . 0 ... 0 @vmaxnmv size=1
+    VMAXNMV      1111 1110 1110  11 10 ....  1111 0 0 . 0 ... 0 @vmaxnmv size=1
+    VMINNMV      1111 1110 1110  11 10 ....  1111 1 0 . 0 ... 0 @vmaxnmv size=1
+  ]
+  [
+    VMAXV_U      1111 1110 1110  .. 10 ....  1111 0 0 . 0 ... 0 @vmaxv
+    VMINV_U      1111 1110 1110  .. 10 ....  1111 1 0 . 0 ... 0 @vmaxv
+  ]
   VMLADAV_U      1111 1110 1111  ... 0 ... . 1111 . 0 . 0 ... 0 @vmladav_nosz
   VRMLALDAVH_U   1111 1110 1 ... ... 0 ... . 1111 . 0 . 0 ... 0 @vmlaldav_nosz
 }

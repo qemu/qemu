@@ -3112,3 +3112,47 @@ DO_2OP_FP_ACC_SCALAR(vfma_scalarh, 2, float16, float16_muladd)
 DO_2OP_FP_ACC_SCALAR(vfma_scalars, 4, float32, float32_muladd)
 DO_2OP_FP_ACC_SCALAR(vfmas_scalarh, 2, float16, DO_VFMAS_SCALARH)
 DO_2OP_FP_ACC_SCALAR(vfmas_scalars, 4, float32, DO_VFMAS_SCALARS)
+
+/* Floating point max/min across vector. */
+#define DO_FP_VMAXMINV(OP, ESIZE, TYPE, ABS, FN)                \
+    uint32_t HELPER(glue(mve_, OP))(CPUARMState *env, void *vm, \
+                                    uint32_t ra_in)             \
+    {                                                           \
+        uint16_t mask = mve_element_mask(env);                  \
+        unsigned e;                                             \
+        TYPE *m = vm;                                           \
+        TYPE ra = (TYPE)ra_in;                                  \
+        float_status *fpst = (ESIZE == 2) ?                     \
+            &env->vfp.standard_fp_status_f16 :                  \
+            &env->vfp.standard_fp_status;                       \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {      \
+            if (mask & 1) {                                     \
+                TYPE v = m[H##ESIZE(e)];                        \
+                if (TYPE##_is_signaling_nan(ra, fpst)) {        \
+                    ra = TYPE##_silence_nan(ra, fpst);          \
+                    float_raise(float_flag_invalid, fpst);      \
+                }                                               \
+                if (TYPE##_is_signaling_nan(v, fpst)) {         \
+                    v = TYPE##_silence_nan(v, fpst);            \
+                    float_raise(float_flag_invalid, fpst);      \
+                }                                               \
+                if (ABS) {                                      \
+                    v = TYPE##_abs(v);                          \
+                }                                               \
+                ra = FN(ra, v, fpst);                           \
+            }                                                   \
+        }                                                       \
+        mve_advance_vpt(env);                                   \
+        return ra;                                              \
+    }                                                           \
+
+#define NOP(X) (X)
+
+DO_FP_VMAXMINV(vmaxnmvh, 2, float16, false, float16_maxnum)
+DO_FP_VMAXMINV(vmaxnmvs, 4, float32, false, float32_maxnum)
+DO_FP_VMAXMINV(vminnmvh, 2, float16, false, float16_minnum)
+DO_FP_VMAXMINV(vminnmvs, 4, float32, false, float32_minnum)
+DO_FP_VMAXMINV(vmaxnmavh, 2, float16, true, float16_maxnum)
+DO_FP_VMAXMINV(vmaxnmavs, 4, float32, true, float32_maxnum)
+DO_FP_VMAXMINV(vminnmavh, 2, float16, true, float16_minnum)
+DO_FP_VMAXMINV(vminnmavs, 4, float32, true, float32_minnum)
