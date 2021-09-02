@@ -723,6 +723,8 @@ static uint64_t pnv_chip_get_ram_size(PnvMachineState *pnv, int chip_id)
         return QEMU_ALIGN_DOWN(ram_per_chip, 1 * MiB);
     }
 
+    assert(pnv->num_chips > 1);
+
     ram_per_chip = (machine->ram_size - 1 * GiB) / (pnv->num_chips - 1);
     return chip_id == 0 ? 1 * GiB : QEMU_ALIGN_DOWN(ram_per_chip, 1 * MiB);
 }
