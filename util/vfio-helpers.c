@@ -751,10 +751,6 @@ int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
             }
 
             mapping = qemu_vfio_add_mapping(s, host, size, index + 1, iova0);
-            if (!mapping) {
-                ret = -ENOMEM;
-                goto out;
-            }
             assert(qemu_vfio_verify_mappings(s));
             ret = qemu_vfio_do_mapping(s, host, size, iova0);
             if (ret) {
