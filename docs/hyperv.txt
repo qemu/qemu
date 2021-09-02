@@ -189,7 +189,15 @@ enabled.
 
 Requires: hv-vpindex, hv-synic, hv-time, hv-stimer
 
-3.17. hv-no-nonarch-coresharing=on/off/auto
+3.18. hv-avic (hv-apicv)
+=======================
+The enlightenment allows to use Hyper-V SynIC with hardware APICv/AVIC enabled.
+Normally, Hyper-V SynIC disables these hardware feature and suggests the guest
+to use paravirtualized AutoEOI feature.
+Note: enabling this feature on old hardware (without APICv/AVIC support) may
+have negative effect on guest's performace.
+
+3.19. hv-no-nonarch-coresharing=on/off/auto
 ===========================================
 This enlightenment tells guest OS that virtual processors will never share a
 physical core unless they are reported as sibling SMT threads. This information

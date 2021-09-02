@@ -924,6 +924,13 @@ static struct {
         },
         .dependencies = BIT(HYPERV_FEAT_STIMER)
     },
+    [HYPERV_FEAT_AVIC] = {
+        .desc = "AVIC/APICv support (hv-avic/hv-apicv)",
+        .flags = {
+            {.func = HV_CPUID_ENLIGHTMENT_INFO, .reg = R_EAX,
+             .bits = HV_DEPRECATING_AEOI_RECOMMENDED}
+        }
+    },
 };
 
 static struct kvm_cpuid2 *try_get_hv_cpuid(CPUState *cs, int max,
@@ -1373,7 +1380,8 @@ static int hyperv_fill_cpuids(CPUState *cs,
     c->eax = hv_build_cpuid_leaf(cs, HV_CPUID_ENLIGHTMENT_INFO, R_EAX);
     c->ebx = cpu->hyperv_spinlock_attempts;
 
-    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_VAPIC)) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_VAPIC) &&
+        !hyperv_feat_enabled(cpu, HYPERV_FEAT_AVIC)) {
         c->eax |= HV_APIC_ACCESS_RECOMMENDED;
     }
 
