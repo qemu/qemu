@@ -93,7 +93,11 @@
 #include "trace.h"
 #include CONFIG_DEVICES
 
-GlobalProperty pc_compat_6_1[] = {};
+GlobalProperty pc_compat_6_1[] = {
+    { TYPE_X86_CPU, "hv-version-id-build", "0x1bbc" },
+    { TYPE_X86_CPU, "hv-version-id-major", "0x0006" },
+    { TYPE_X86_CPU, "hv-version-id-minor", "0x0001" },
+};
 const size_t pc_compat_6_1_len = G_N_ELEMENTS(pc_compat_6_1);
 
 GlobalProperty pc_compat_6_0[] = {

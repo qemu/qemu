@@ -6838,11 +6838,11 @@ static Property x86_cpu_properties[] = {
 
     /* WS2008R2 identify by default */
     DEFINE_PROP_UINT32("hv-version-id-build", X86CPU, hyperv_ver_id_build,
-                       0x1bbc),
+                       0x3839),
     DEFINE_PROP_UINT16("hv-version-id-major", X86CPU, hyperv_ver_id_major,
-                       0x0006),
+                       0x000A),
     DEFINE_PROP_UINT16("hv-version-id-minor", X86CPU, hyperv_ver_id_minor,
-                       0x0001),
+                       0x0000),
     DEFINE_PROP_UINT32("hv-version-id-spack", X86CPU, hyperv_ver_id_sp, 0),
     DEFINE_PROP_UINT8("hv-version-id-sbranch", X86CPU, hyperv_ver_id_sb, 0),
     DEFINE_PROP_UINT32("hv-version-id-snumber", X86CPU, hyperv_ver_id_sn, 0),
