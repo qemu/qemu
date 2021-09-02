@@ -821,9 +821,7 @@ static struct {
         .desc = "virtual APIC (hv-vapic)",
         .flags = {
             {.func = HV_CPUID_FEATURES, .reg = R_EAX,
-             .bits = HV_APIC_ACCESS_AVAILABLE},
-            {.func = HV_CPUID_ENLIGHTMENT_INFO, .reg = R_EAX,
-             .bits = HV_APIC_ACCESS_RECOMMENDED}
+             .bits = HV_APIC_ACCESS_AVAILABLE}
         }
     },
     [HYPERV_FEAT_TIME] = {
@@ -1366,6 +1364,7 @@ static int hyperv_fill_cpuids(CPUState *cs,
         c->ebx |= HV_POST_MESSAGES | HV_SIGNAL_EVENTS;
     }
 
+
     /* Not exposed by KVM but needed to make CPU hotplug in Windows work */
     c->edx |= HV_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
 
@@ -1373,6 +1372,10 @@ static int hyperv_fill_cpuids(CPUState *cs,
     c->function = HV_CPUID_ENLIGHTMENT_INFO;
     c->eax = hv_build_cpuid_leaf(cs, HV_CPUID_ENLIGHTMENT_INFO, R_EAX);
     c->ebx = cpu->hyperv_spinlock_attempts;
+
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_VAPIC)) {
+        c->eax |= HV_APIC_ACCESS_RECOMMENDED;
+    }
 
     if (cpu->hyperv_no_nonarch_cs == ON_OFF_AUTO_ON) {
         c->eax |= HV_NO_NONARCH_CORESHARING;
