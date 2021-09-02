@@ -370,7 +370,6 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     s->base = blk_new(s->common.job.aio_context,
                       base_perms,
                       BLK_PERM_CONSISTENT_READ
-                      | BLK_PERM_GRAPH_MOD
                       | BLK_PERM_WRITE_UNCHANGED);
     ret = blk_insert_bs(s->base, base, errp);
     if (ret < 0) {

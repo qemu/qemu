@@ -1878,14 +1878,11 @@
 #
 # @resize: This permission is required to change the size of a block node.
 #
-# @graph-mod: This permission is required to change the node that this
-#             BdrvChild points to.
-#
 # Since: 4.0
 ##
 { 'enum': 'BlockPermission',
-  'data': [ 'consistent-read', 'write', 'write-unchanged', 'resize',
-            'graph-mod' ] }
+  'data': [ 'consistent-read', 'write', 'write-unchanged', 'resize' ] }
+
 ##
 # @XDbgBlockGraphEdge:
 #

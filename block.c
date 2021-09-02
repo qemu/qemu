@@ -2485,7 +2485,6 @@ char *bdrv_perm_names(uint64_t perm)
         { BLK_PERM_WRITE,           "write" },
         { BLK_PERM_WRITE_UNCHANGED, "write unchanged" },
         { BLK_PERM_RESIZE,          "resize" },
-        { BLK_PERM_GRAPH_MOD,       "change children" },
         { 0, NULL }
     };
 
@@ -2601,8 +2600,7 @@ static void bdrv_default_perms_for_cow(BlockDriverState *bs, BdrvChild *c,
         shared = 0;
     }
 
-    shared |= BLK_PERM_CONSISTENT_READ | BLK_PERM_GRAPH_MOD |
-              BLK_PERM_WRITE_UNCHANGED;
+    shared |= BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED;
 
     if (bs->open_flags & BDRV_O_INACTIVE) {
         shared |= BLK_PERM_WRITE | BLK_PERM_RESIZE;
@@ -2720,7 +2718,6 @@ uint64_t bdrv_qapi_perm_to_blk_perm(BlockPermission qapi_perm)
         [BLOCK_PERMISSION_WRITE]            = BLK_PERM_WRITE,
         [BLOCK_PERMISSION_WRITE_UNCHANGED]  = BLK_PERM_WRITE_UNCHANGED,
         [BLOCK_PERMISSION_RESIZE]           = BLK_PERM_RESIZE,
-        [BLOCK_PERMISSION_GRAPH_MOD]        = BLK_PERM_GRAPH_MOD,
     };
 
     QEMU_BUILD_BUG_ON(ARRAY_SIZE(permissions) != BLOCK_PERMISSION__MAX);
@@ -5546,8 +5543,6 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
     update_inherits_from = bdrv_inherits_from_recursive(base, explicit_top);
 
     /* success - we can delete the intermediate states, and link top->base */
-    /* TODO Check graph modification op blockers (BLK_PERM_GRAPH_MOD) once
-     * we've figured out how they should work. */
     if (!backing_file_str) {
         bdrv_refresh_filename(base);
         backing_file_str = base->filename;
