@@ -85,7 +85,12 @@ _timed_wait_for()
     timeout=yes
 
     QEMU_STATUS[$h]=0
-    while IFS= read -t ${QEMU_COMM_TIMEOUT} resp <&${QEMU_OUT[$h]}
+    read_timeout="-t ${QEMU_COMM_TIMEOUT}"
+    if [ -n "${GDB_OPTIONS}" ]; then
+        read_timeout=
+    fi
+
+    while IFS= read ${read_timeout} resp <&${QEMU_OUT[$h]}
     do
         if [ -n "$capture_events" ]; then
             capture=0

@@ -21,12 +21,14 @@
 #include "qemu/units.h"
 #include "qemu/coroutine.h"
 #include "block/aio_task.h"
+#include "qemu/error-report.h"
 
 #define BLOCK_COPY_MAX_COPY_RANGE (16 * MiB)
 #define BLOCK_COPY_MAX_BUFFER (1 * MiB)
 #define BLOCK_COPY_MAX_MEM (128 * MiB)
 #define BLOCK_COPY_MAX_WORKERS 64
 #define BLOCK_COPY_SLICE_TIME 100000000ULL /* ns */
+#define BLOCK_COPY_CLUSTER_SIZE_DEFAULT (1 << 16)
 
 typedef enum {
     COPY_READ_WRITE_CLUSTER,
@@ -290,9 +292,11 @@ static void coroutine_fn block_copy_task_end(BlockCopyTask *task, int ret)
         bdrv_set_dirty_bitmap(task->s->copy_bitmap, task->offset, task->bytes);
     }
     QLIST_REMOVE(task, list);
-    progress_set_remaining(task->s->progress,
-                           bdrv_get_dirty_count(task->s->copy_bitmap) +
-                           task->s->in_flight_bytes);
+    if (task->s->progress) {
+        progress_set_remaining(task->s->progress,
+                               bdrv_get_dirty_count(task->s->copy_bitmap) +
+                               task->s->in_flight_bytes);
+    }
     qemu_co_queue_restart_all(&task->wait_queue);
 }
 
@@ -315,35 +319,14 @@ static uint32_t block_copy_max_transfer(BdrvChild *source, BdrvChild *target)
                                      target->bs->bl.max_transfer));
 }
 
-BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
-                                     int64_t cluster_size, bool use_copy_range,
-                                     BdrvRequestFlags write_flags, Error **errp)
+void block_copy_set_copy_opts(BlockCopyState *s, bool use_copy_range,
+                              bool compress)
 {
-    BlockCopyState *s;
-    BdrvDirtyBitmap *copy_bitmap;
+    /* Keep BDRV_REQ_SERIALISING set (or not set) in block_copy_state_new() */
+    s->write_flags = (s->write_flags & BDRV_REQ_SERIALISING) |
+        (compress ? BDRV_REQ_WRITE_COMPRESSED : 0);
 
-    copy_bitmap = bdrv_create_dirty_bitmap(source->bs, cluster_size, NULL,
-                                           errp);
-    if (!copy_bitmap) {
-        return NULL;
-    }
-    bdrv_disable_dirty_bitmap(copy_bitmap);
-
-    s = g_new(BlockCopyState, 1);
-    *s = (BlockCopyState) {
-        .source = source,
-        .target = target,
-        .copy_bitmap = copy_bitmap,
-        .cluster_size = cluster_size,
-        .len = bdrv_dirty_bitmap_size(copy_bitmap),
-        .write_flags = write_flags,
-        .mem = shres_create(BLOCK_COPY_MAX_MEM),
-        .max_transfer = QEMU_ALIGN_DOWN(
-                                    block_copy_max_transfer(source, target),
-                                    cluster_size),
-    };
-
-    if (s->max_transfer < cluster_size) {
+    if (s->max_transfer < s->cluster_size) {
         /*
          * copy_range does not respect max_transfer. We don't want to bother
          * with requests smaller than block-copy cluster size, so fallback to
@@ -351,7 +334,7 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
          * behalf).
          */
         s->method = COPY_READ_WRITE_CLUSTER;
-    } else if (write_flags & BDRV_REQ_WRITE_COMPRESSED) {
+    } else if (compress) {
         /* Compression supports only cluster-size writes and no copy-range. */
         s->method = COPY_READ_WRITE_CLUSTER;
     } else {
@@ -361,6 +344,96 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
          */
         s->method = use_copy_range ? COPY_RANGE_SMALL : COPY_READ_WRITE;
     }
+}
+
+static int64_t block_copy_calculate_cluster_size(BlockDriverState *target,
+                                                 Error **errp)
+{
+    int ret;
+    BlockDriverInfo bdi;
+    bool target_does_cow = bdrv_backing_chain_next(target);
+
+    /*
+     * If there is no backing file on the target, we cannot rely on COW if our
+     * backup cluster size is smaller than the target cluster size. Even for
+     * targets with a backing file, try to avoid COW if possible.
+     */
+    ret = bdrv_get_info(target, &bdi);
+    if (ret == -ENOTSUP && !target_does_cow) {
+        /* Cluster size is not defined */
+        warn_report("The target block device doesn't provide "
+                    "information about the block size and it doesn't have a "
+                    "backing file. The default block size of %u bytes is "
+                    "used. If the actual block size of the target exceeds "
+                    "this default, the backup may be unusable",
+                    BLOCK_COPY_CLUSTER_SIZE_DEFAULT);
+        return BLOCK_COPY_CLUSTER_SIZE_DEFAULT;
+    } else if (ret < 0 && !target_does_cow) {
+        error_setg_errno(errp, -ret,
+            "Couldn't determine the cluster size of the target image, "
+            "which has no backing file");
+        error_append_hint(errp,
+            "Aborting, since this may create an unusable destination image\n");
+        return ret;
+    } else if (ret < 0 && target_does_cow) {
+        /* Not fatal; just trudge on ahead. */
+        return BLOCK_COPY_CLUSTER_SIZE_DEFAULT;
+    }
+
+    return MAX(BLOCK_COPY_CLUSTER_SIZE_DEFAULT, bdi.cluster_size);
+}
+
+BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
+                                     Error **errp)
+{
+    BlockCopyState *s;
+    int64_t cluster_size;
+    BdrvDirtyBitmap *copy_bitmap;
+    bool is_fleecing;
+
+    cluster_size = block_copy_calculate_cluster_size(target->bs, errp);
+    if (cluster_size < 0) {
+        return NULL;
+    }
+
+    copy_bitmap = bdrv_create_dirty_bitmap(source->bs, cluster_size, NULL,
+                                           errp);
+    if (!copy_bitmap) {
+        return NULL;
+    }
+    bdrv_disable_dirty_bitmap(copy_bitmap);
+
+    /*
+     * If source is in backing chain of target assume that target is going to be
+     * used for "image fleecing", i.e. it should represent a kind of snapshot of
+     * source at backup-start point in time. And target is going to be read by
+     * somebody (for example, used as NBD export) during backup job.
+     *
+     * In this case, we need to add BDRV_REQ_SERIALISING write flag to avoid
+     * intersection of backup writes and third party reads from target,
+     * otherwise reading from target we may occasionally read already updated by
+     * guest data.
+     *
+     * For more information see commit f8d59dfb40bb and test
+     * tests/qemu-iotests/222
+     */
+    is_fleecing = bdrv_chain_contains(target->bs, source->bs);
+
+    s = g_new(BlockCopyState, 1);
+    *s = (BlockCopyState) {
+        .source = source,
+        .target = target,
+        .copy_bitmap = copy_bitmap,
+        .cluster_size = cluster_size,
+        .len = bdrv_dirty_bitmap_size(copy_bitmap),
+        .write_flags = (is_fleecing ? BDRV_REQ_SERIALISING : 0),
+        .mem = shres_create(BLOCK_COPY_MAX_MEM),
+        .max_transfer = QEMU_ALIGN_DOWN(
+                                    block_copy_max_transfer(source, target),
+                                    cluster_size),
+    };
+
+    block_copy_set_copy_opts(s, false, false);
 
     ratelimit_init(&s->rate_limit);
     qemu_co_mutex_init(&s->lock);
@@ -522,7 +595,7 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
                 t->call_state->ret = ret;
                 t->call_state->error_is_read = error_is_read;
             }
-        } else {
+        } else if (s->progress) {
             progress_work_done(s->progress, t->bytes);
         }
     }
@@ -628,9 +701,11 @@ int64_t block_copy_reset_unallocated(BlockCopyState *s,
     if (!ret) {
         qemu_co_mutex_lock(&s->lock);
         bdrv_reset_dirty_bitmap(s->copy_bitmap, offset, bytes);
-        progress_set_remaining(s->progress,
-                               bdrv_get_dirty_count(s->copy_bitmap) +
-                               s->in_flight_bytes);
+        if (s->progress) {
+            progress_set_remaining(s->progress,
+                                   bdrv_get_dirty_count(s->copy_bitmap) +
+                                   s->in_flight_bytes);
+        }
         qemu_co_mutex_unlock(&s->lock);
     }
 
@@ -931,6 +1006,11 @@ void block_copy_call_cancel(BlockCopyCallState *call_state)
 BdrvDirtyBitmap *block_copy_dirty_bitmap(BlockCopyState *s)
 {
     return s->copy_bitmap;
+}
+
+int64_t block_copy_cluster_size(BlockCopyState *s)
+{
+    return s->cluster_size;
 }
 
 void block_copy_set_skip_unallocated(BlockCopyState *s, bool skip)

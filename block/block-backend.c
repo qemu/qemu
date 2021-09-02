@@ -870,6 +870,14 @@ int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp)
 }
 
 /*
+ * Change BlockDriverState associated with @blk.
+ */
+int blk_replace_bs(BlockBackend *blk, BlockDriverState *new_bs, Error **errp)
+{
+    return bdrv_replace_child_bs(blk->root, new_bs, errp);
+}
+
+/*
  * Sets the permission bitmasks that the user of the BlockBackend needs.
  */
 int blk_set_perm(BlockBackend *blk, uint64_t perm, uint64_t shared_perm,
