@@ -127,16 +127,24 @@ static bool nbd_client_connected(BDRVNBDState *s)
     return qatomic_load_acquire(&s->state) == NBD_CLIENT_CONNECTED;
 }
 
-static void nbd_recv_coroutines_wake_all(BDRVNBDState *s)
+static bool nbd_recv_coroutine_wake_one(NBDClientRequest *req)
+{
+    if (req->receiving) {
+        req->receiving = false;
+        aio_co_wake(req->coroutine);
+        return true;
+    }
+
+    return false;
+}
+
+static void nbd_recv_coroutines_wake(BDRVNBDState *s, bool all)
 {
     int i;
 
     for (i = 0; i < MAX_NBD_REQUESTS; i++) {
-        NBDClientRequest *req = &s->requests[i];
-
-        if (req->coroutine && req->receiving) {
-            req->receiving = false;
-            aio_co_wake(req->coroutine);
+        if (nbd_recv_coroutine_wake_one(&s->requests[i]) && !all) {
+            return;
         }
     }
 }
@@ -415,7 +423,7 @@ static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
 
     while (s->in_flight > 0) {
         qemu_co_mutex_unlock(&s->send_mutex);
-        nbd_recv_coroutines_wake_all(s);
+        nbd_recv_coroutines_wake(s, true);
         s->wait_in_flight = true;
         qemu_coroutine_yield();
         s->wait_in_flight = false;
@@ -558,7 +566,7 @@ static coroutine_fn void nbd_connection_entry(void *opaque)
     }
 
     qemu_co_queue_restart_all(&s->free_sema);
-    nbd_recv_coroutines_wake_all(s);
+    nbd_recv_coroutines_wake(s, true);
     bdrv_dec_in_flight(s->bs);
 
     s->connection_co = NULL;
@@ -1035,7 +1043,7 @@ static coroutine_fn int nbd_co_receive_one_chunk(
     if (s->connection_co && !s->wait_in_flight) {
         /*
          * We must check s->wait_in_flight, because we may entered by
-         * nbd_recv_coroutines_wake_all(), in this case we should not
+         * nbd_recv_coroutines_wake(), in this case we should not
          * wake connection_co here, it will woken by last request.
          */
         aio_co_wake(s->connection_co);
