@@ -75,6 +75,12 @@ else
   kvm_targets = []
 endif
 
+kvm_targets_c = ''
+if not get_option('kvm').disabled() and targetos == 'linux'
+  kvm_targets_c = '"' + '" ,"'.join(kvm_targets) + '"'
+endif
+config_host_data.set('CONFIG_KVM_TARGETS', kvm_targets_c)
+
 accelerator_targets = { 'CONFIG_KVM': kvm_targets }
 
 if cpu in ['aarch64']
