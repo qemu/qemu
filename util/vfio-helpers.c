@@ -677,8 +677,8 @@ static bool qemu_vfio_verify_mappings(QEMUVFIOState *s)
     return true;
 }
 
-static int
-qemu_vfio_find_fixed_iova(QEMUVFIOState *s, size_t size, uint64_t *iova)
+static bool qemu_vfio_find_fixed_iova(QEMUVFIOState *s, size_t size,
+                                      uint64_t *iova, Error **errp)
 {
     int i;
 
@@ -693,14 +693,16 @@ qemu_vfio_find_fixed_iova(QEMUVFIOState *s, size_t size, uint64_t *iova)
             s->usable_iova_ranges[i].end - s->low_water_mark + 1 == 0) {
             *iova = s->low_water_mark;
             s->low_water_mark += size;
-            return 0;
+            return true;
         }
     }
-    return -ENOMEM;
+    error_setg(errp, "fixed iova range not found");
+
+    return false;
 }
 
-static int
-qemu_vfio_find_temp_iova(QEMUVFIOState *s, size_t size, uint64_t *iova)
+static bool qemu_vfio_find_temp_iova(QEMUVFIOState *s, size_t size,
+                                     uint64_t *iova, Error **errp)
 {
     int i;
 
@@ -715,10 +717,12 @@ qemu_vfio_find_temp_iova(QEMUVFIOState *s, size_t size, uint64_t *iova)
             s->high_water_mark - s->usable_iova_ranges[i].start + 1 == 0) {
             *iova = s->high_water_mark - size;
             s->high_water_mark = *iova;
-            return 0;
+            return true;
         }
     }
-    return -ENOMEM;
+    error_setg(errp, "temporary iova range not found");
+
+    return false;
 }
 
 /**
@@ -762,7 +766,7 @@ int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
             goto out;
         }
         if (!temporary) {
-            if (qemu_vfio_find_fixed_iova(s, size, &iova0)) {
+            if (!qemu_vfio_find_fixed_iova(s, size, &iova0, errp)) {
                 ret = -ENOMEM;
                 goto out;
             }
@@ -776,7 +780,7 @@ int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
             }
             qemu_vfio_dump_mappings(s);
         } else {
-            if (qemu_vfio_find_temp_iova(s, size, &iova0)) {
+            if (!qemu_vfio_find_temp_iova(s, size, &iova0, errp)) {
                 ret = -ENOMEM;
                 goto out;
             }
