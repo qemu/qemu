@@ -45,6 +45,8 @@
 #include "qemu/cutils.h"
 #include "exec/log.h"
 #include "trace/control.h"
+#include "crypto/init.h"
+#include "qemu/guest-random.h"
 
 #include "host-os.h"
 #include "target_arch_cpu.h"
@@ -203,6 +205,7 @@ int main(int argc, char **argv)
     const char *cpu_type;
     const char *log_file = NULL;
     const char *log_mask = NULL;
+    const char *seed_optarg = NULL;
     struct target_pt_regs regs1, *regs = &regs1;
     struct image_info info1, *info = &info1;
     struct bsd_binprm bprm;
@@ -331,6 +334,8 @@ int main(int argc, char **argv)
                 usage();
             }
             optind++;
+        } else if (!strcmp(r, "seed")) {
+            seed_optarg = optarg;
         } else if (!strcmp(r, "singlestep")) {
             singlestep = 1;
         } else if (!strcmp(r, "strace")) {
@@ -402,6 +407,19 @@ int main(int argc, char **argv)
 
     target_environ = envlist_to_environ(envlist, NULL);
     envlist_free(envlist);
+
+    {
+        Error *err = NULL;
+        if (seed_optarg != NULL) {
+            qemu_guest_random_seed_main(seed_optarg, &err);
+        } else {
+            qcrypto_init(&err);
+        }
+        if (err) {
+            error_reportf_err(err, "cannot initialize crypto: ");
+            exit(1);
+        }
+    }
 
     /*
      * Now that page sizes are configured we can do
