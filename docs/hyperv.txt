@@ -211,6 +211,20 @@ When the option is set to 'on' QEMU will always enable the feature, regardless
 of host setup. To keep guests secure, this can only be used in conjunction with
 exposing correct vCPU topology and vCPU pinning.
 
+3.20. hv-version-id-{build,major,minor,spack,sbranch,snumber}
+=============================================================
+This changes Hyper-V version identification in CPUID 0x40000002.EAX-EDX from the
+default (WS2008R2).
+- hv-version-id-build sets 'Build Number' (32 bits)
+- hv-version-id-major sets 'Major Version' (16 bits)
+- hv-version-id-minor sets 'Minor Version' (16 bits)
+- hv-version-id-spack sets 'Service Pack' (32 bits)
+- hv-version-id-sbranch sets 'Service Branch' (8 bits)
+- hv-version-id-snumber sets 'Service Number' (24 bits)
+
+Note: hv-version-id-* are not enlightenments and thus don't enable Hyper-V
+identification when specified without any other enlightenments.
+
 4. Supplementary features
 =========================
 

@@ -1258,14 +1258,18 @@ bool kvm_hyperv_expand_features(X86CPU *cpu, Error **errp)
         cpu->hyperv_interface_id[3] =
             hv_cpuid_get_host(cs, HV_CPUID_INTERFACE, R_EDX);
 
-        cpu->hyperv_version_id[0] =
+        cpu->hyperv_ver_id_build =
             hv_cpuid_get_host(cs, HV_CPUID_VERSION, R_EAX);
-        cpu->hyperv_version_id[1] =
-            hv_cpuid_get_host(cs, HV_CPUID_VERSION, R_EBX);
-        cpu->hyperv_version_id[2] =
+        cpu->hyperv_ver_id_major =
+            hv_cpuid_get_host(cs, HV_CPUID_VERSION, R_EBX) >> 16;
+        cpu->hyperv_ver_id_minor =
+            hv_cpuid_get_host(cs, HV_CPUID_VERSION, R_EBX) & 0xffff;
+        cpu->hyperv_ver_id_sp =
             hv_cpuid_get_host(cs, HV_CPUID_VERSION, R_ECX);
-        cpu->hyperv_version_id[3] =
-            hv_cpuid_get_host(cs, HV_CPUID_VERSION, R_EDX);
+        cpu->hyperv_ver_id_sb =
+            hv_cpuid_get_host(cs, HV_CPUID_VERSION, R_EDX) >> 24;
+        cpu->hyperv_ver_id_sn =
+            hv_cpuid_get_host(cs, HV_CPUID_VERSION, R_EDX) & 0xffffff;
 
         cpu->hv_max_vps = hv_cpuid_get_host(cs, HV_CPUID_IMPLEMENT_LIMITS,
                                             R_EAX);
@@ -1351,10 +1355,12 @@ static int hyperv_fill_cpuids(CPUState *cs,
 
     c = &cpuid_ent[cpuid_i++];
     c->function = HV_CPUID_VERSION;
-    c->eax = cpu->hyperv_version_id[0];
-    c->ebx = cpu->hyperv_version_id[1];
-    c->ecx = cpu->hyperv_version_id[2];
-    c->edx = cpu->hyperv_version_id[3];
+    c->eax = cpu->hyperv_ver_id_build;
+    c->ebx = (uint32_t)cpu->hyperv_ver_id_major << 16 |
+        cpu->hyperv_ver_id_minor;
+    c->ecx = cpu->hyperv_ver_id_sp;
+    c->edx = (uint32_t)cpu->hyperv_ver_id_sb << 24 |
+        (cpu->hyperv_ver_id_sn & 0xffffff);
 
     c = &cpuid_ent[cpuid_i++];
     c->function = HV_CPUID_FEATURES;
