@@ -28,6 +28,7 @@
 #include "fpu/softfloat.h"
 #include "qapi/error.h"
 #include "qemu/guest-random.h"
+#include "tcg/tcg-gvec-desc.h"
 
 #include "helper_regs.h"
 /*****************************************************************************/
@@ -1712,6 +1713,47 @@ void helper_xxinsertw(CPUPPCState *env, ppc_vsr_t *xt,
     }
 
     *xt = t;
+}
+
+void helper_XXEVAL(ppc_avr_t *t, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c,
+                   uint32_t desc)
+{
+    /*
+     * Instead of processing imm bit-by-bit, we'll skip the computation of
+     * conjunctions whose corresponding bit is unset.
+     */
+    int bit, imm = simd_data(desc);
+    Int128 conj, disj = int128_zero();
+
+    /* Iterate over set bits from the least to the most significant bit */
+    while (imm) {
+        /*
+         * Get the next bit to be processed with ctz64. Invert the result of
+         * ctz64 to match the indexing used by PowerISA.
+         */
+        bit = 7 - ctzl(imm);
+        if (bit & 0x4) {
+            conj = a->s128;
+        } else {
+            conj = int128_not(a->s128);
+        }
+        if (bit & 0x2) {
+            conj = int128_and(conj, b->s128);
+        } else {
+            conj = int128_and(conj, int128_not(b->s128));
+        }
+        if (bit & 0x1) {
+            conj = int128_and(conj, c->s128);
+        } else {
+            conj = int128_and(conj, int128_not(c->s128));
+        }
+        disj = int128_or(disj, conj);
+
+        /* Unset the least significant bit that is set */
+        imm &= imm - 1;
+    }
+
+    t->s128 = disj;
 }
 
 #define XXBLEND(name, sz) \
