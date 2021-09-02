@@ -127,6 +127,20 @@ static bool nbd_client_connected(BDRVNBDState *s)
     return qatomic_load_acquire(&s->state) == NBD_CLIENT_CONNECTED;
 }
 
+static void nbd_recv_coroutines_wake_all(BDRVNBDState *s)
+{
+    int i;
+
+    for (i = 0; i < MAX_NBD_REQUESTS; i++) {
+        NBDClientRequest *req = &s->requests[i];
+
+        if (req->coroutine && req->receiving) {
+            req->receiving = false;
+            aio_co_wake(req->coroutine);
+        }
+    }
+}
+
 static void nbd_channel_error(BDRVNBDState *s, int ret)
 {
     if (nbd_client_connected(s)) {
@@ -140,20 +154,6 @@ static void nbd_channel_error(BDRVNBDState *s, int ret)
         }
     } else {
         s->state = NBD_CLIENT_QUIT;
-    }
-}
-
-static void nbd_recv_coroutines_wake_all(BDRVNBDState *s)
-{
-    int i;
-
-    for (i = 0; i < MAX_NBD_REQUESTS; i++) {
-        NBDClientRequest *req = &s->requests[i];
-
-        if (req->coroutine && req->receiving) {
-            req->receiving = false;
-            aio_co_wake(req->coroutine);
-        }
     }
 }
 
