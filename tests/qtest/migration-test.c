@@ -1420,6 +1420,7 @@ static bool kvm_dirty_ring_supported(void)
 int main(int argc, char **argv)
 {
     char template[] = "/tmp/migration-test-XXXXXX";
+    const bool has_kvm = qtest_has_accel("kvm");
     int ret;
 
     g_test_init(&argc, &argv, NULL);
@@ -1434,8 +1435,7 @@ int main(int argc, char **argv)
      * some reason)
      */
     if (g_str_equal(qtest_get_arch(), "ppc64") &&
-        (access("/sys/module/kvm_hv", F_OK) ||
-         access("/dev/kvm", R_OK | W_OK))) {
+        (!has_kvm || access("/sys/module/kvm_hv", F_OK))) {
         g_test_message("Skipping test: kvm_hv not available");
         return g_test_run();
     }
@@ -1444,16 +1444,9 @@ int main(int argc, char **argv)
      * Similar to ppc64, s390x seems to be touchy with TCG, so disable it
      * there until the problems are resolved
      */
-    if (g_str_equal(qtest_get_arch(), "s390x")) {
-#if defined(HOST_S390X)
-        if (access("/dev/kvm", R_OK | W_OK)) {
-            g_test_message("Skipping test: kvm not available");
-            return g_test_run();
-        }
-#else
-        g_test_message("Skipping test: Need s390x host to work properly");
+    if (g_str_equal(qtest_get_arch(), "s390x") && !has_kvm) {
+        g_test_message("Skipping test: s390x host with KVM is required");
         return g_test_run();
-#endif
     }
 
     tmpfs = mkdtemp(template);
