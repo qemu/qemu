@@ -721,6 +721,21 @@ qemu_vfio_find_temp_iova(QEMUVFIOState *s, size_t size, uint64_t *iova)
     return -ENOMEM;
 }
 
+/**
+ * qemu_vfio_water_mark_reached:
+ *
+ * Returns %true if high watermark has been reached, %false otherwise.
+ */
+static bool qemu_vfio_water_mark_reached(QEMUVFIOState *s, size_t size,
+                                         Error **errp)
+{
+    if (s->high_water_mark - s->low_water_mark + 1 < size) {
+        error_setg(errp, "iova exhausted (water mark reached)");
+        return true;
+    }
+    return false;
+}
+
 /* Map [host, host + size) area into a contiguous IOVA address space, and store
  * the result in @iova if not NULL. The caller need to make sure the area is
  * aligned to page size, and mustn't overlap with existing mapping areas (split
@@ -742,7 +757,7 @@ int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
     if (mapping) {
         iova0 = mapping->iova + ((uint8_t *)host - (uint8_t *)mapping->host);
     } else {
-        if (s->high_water_mark - s->low_water_mark + 1 < size) {
+        if (qemu_vfio_water_mark_reached(s, size, errp)) {
             ret = -ENOMEM;
             goto out;
         }
