@@ -47,7 +47,7 @@ class TestMirrorTopPerms(iotests.QMPTestCase):
     def tearDown(self):
         try:
             self.vm.shutdown()
-        except qemu.machine.AbnormalShutdown:
+        except qemu.machine.machine.AbnormalShutdown:
             pass
 
         if self.vm_b is not None:
