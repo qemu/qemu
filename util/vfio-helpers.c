@@ -748,7 +748,6 @@ static bool qemu_vfio_water_mark_reached(QEMUVFIOState *s, size_t size,
 int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
                       bool temporary, uint64_t *iova, Error **errp)
 {
-    int ret = 0;
     int index;
     IOVAMapping *mapping;
     uint64_t iova0;
@@ -761,32 +760,31 @@ int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
     if (mapping) {
         iova0 = mapping->iova + ((uint8_t *)host - (uint8_t *)mapping->host);
     } else {
+        int ret;
+
         if (qemu_vfio_water_mark_reached(s, size, errp)) {
-            ret = -ENOMEM;
-            goto out;
+            return -ENOMEM;
         }
         if (!temporary) {
             if (!qemu_vfio_find_fixed_iova(s, size, &iova0, errp)) {
-                ret = -ENOMEM;
-                goto out;
+                return -ENOMEM;
             }
 
             mapping = qemu_vfio_add_mapping(s, host, size, index + 1, iova0);
             assert(qemu_vfio_verify_mappings(s));
             ret = qemu_vfio_do_mapping(s, host, size, iova0);
-            if (ret) {
+            if (ret < 0) {
                 qemu_vfio_undo_mapping(s, mapping, NULL);
-                goto out;
+                return ret;
             }
             qemu_vfio_dump_mappings(s);
         } else {
             if (!qemu_vfio_find_temp_iova(s, size, &iova0, errp)) {
-                ret = -ENOMEM;
-                goto out;
+                return -ENOMEM;
             }
             ret = qemu_vfio_do_mapping(s, host, size, iova0);
-            if (ret) {
-                goto out;
+            if (ret < 0) {
+                return ret;
             }
         }
     }
@@ -794,8 +792,7 @@ int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
     if (iova) {
         *iova = iova0;
     }
-out:
-    return ret;
+    return 0;
 }
 
 /* Reset the high watermark and free all "temporary" mappings. */
