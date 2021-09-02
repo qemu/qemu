@@ -98,6 +98,20 @@ void acpi_fetch_table(QTestState *qts, uint8_t **aml, uint32_t *aml_len,
         ACPI_ASSERT_CMP(**aml, sig);
     }
     if (verify_checksum) {
+        if (acpi_calc_checksum(*aml, *aml_len)) {
+            gint fd, ret;
+            char *fname = NULL;
+            GError *error = NULL;
+
+            fprintf(stderr, "Invalid '%.4s'(%d)\n", *aml, *aml_len);
+            fd = g_file_open_tmp("malformed-XXXXXX.dat", &fname, &error);
+            g_assert_no_error(error);
+            fprintf(stderr, "Dumping invalid table into '%s'\n", fname);
+            ret = qemu_write_full(fd, *aml, *aml_len);
+            g_assert(ret == *aml_len);
+            close(fd);
+            g_free(fname);
+        }
         g_assert(!acpi_calc_checksum(*aml, *aml_len));
     }
 }
