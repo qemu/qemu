@@ -1802,6 +1802,9 @@ struct X86CPU {
     /* Stop SMI delivery for migration compatibility with old machines */
     bool kvm_no_smi_migration;
 
+    /* Forcefully disable KVM PV features not exposed in guest CPUIDs */
+    bool kvm_pv_enforce_cpuid;
+
     /* Number of physical address bits supported */
     uint32_t phys_bits;
 
