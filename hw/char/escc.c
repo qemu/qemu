@@ -118,6 +118,8 @@
 #define W_SYNC2   7
 #define W_TXBUF   8
 #define W_MINTR   9
+#define MINTR_VIS      0x01
+#define MINTR_NV       0x02
 #define MINTR_STATUSHI 0x10
 #define MINTR_SOFTIACK 0x20
 #define MINTR_RST_MASK 0xc0
@@ -347,36 +349,19 @@ static void escc_soft_reset_chn(ESCCChannelState *s)
 
 static void escc_hard_reset_chn(ESCCChannelState *s)
 {
-    int i;
+    escc_soft_reset_chn(s);
 
-    s->reg = 0;
-    for (i = 0; i < ESCC_SERIAL_REGS; i++) {
-        s->rregs[i] = 0;
-        s->wregs[i] = 0;
-    }
-    /* 1X divisor, 1 stop bit, no parity */
-    s->wregs[W_TXCTRL1] = TXCTRL1_1STOP;
-    s->wregs[W_MINTR] = MINTR_RST_ALL;
-    /* Synch mode tx clock = TRxC */
+    /*
+     * Hard reset is almost identical to soft reset above, except that the
+     * values of WR9 (W_MINTR), WR10 (W_MISC1), WR11 (W_CLOCK) and WR14
+     * (W_MISC2) have extra bits forced to 0/1
+     */
+    s->wregs[W_MINTR] &= MINTR_VIS | MINTR_NV;
+    s->wregs[W_MINTR] |= MINTR_RST_B | MINTR_RST_A;
+    s->wregs[W_MISC1] = 0;
     s->wregs[W_CLOCK] = CLOCK_TRXC;
-    /* PLL disabled */
-    s->wregs[W_MISC2] = MISC2_PLLDIS;
-    /* Enable most interrupts */
-    s->wregs[W_EXTINT] = EXTINT_DCD | EXTINT_SYNCINT | EXTINT_CTSINT |
-                         EXTINT_TXUNDRN | EXTINT_BRKINT;
-    if (s->disabled) {
-        s->rregs[R_STATUS] = STATUS_TXEMPTY | STATUS_DCD | STATUS_SYNC |
-                             STATUS_CTS | STATUS_TXUNDRN;
-    } else {
-        s->rregs[R_STATUS] = STATUS_TXEMPTY | STATUS_TXUNDRN;
-    }
-    s->rregs[R_SPEC] = SPEC_BITS8 | SPEC_ALLSENT;
-
-    s->rx = s->tx = 0;
-    s->rxint = s->txint = 0;
-    s->rxint_under_svc = s->txint_under_svc = 0;
-    s->e0_mode = s->led_mode = s->caps_lock_mode = s->num_lock_mode = 0;
-    clear_queue(s);
+    s->wregs[W_MISC2] &= MISC2_PLLCMD1 | MISC2_PLLCMD2;
+    s->wregs[W_MISC2] |= MISC2_LCL_LOOP | MISC2_PLLCMD0;
 }
 
 static void escc_reset(DeviceState *d)
