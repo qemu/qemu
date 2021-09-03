@@ -111,10 +111,6 @@ static int vhost_vdpa_add(NetClientState *ncs, void *be)
         error_report("failed to init vhost_net for queue");
         goto err;
     }
-    if (s->vhost_net) {
-        vhost_net_cleanup(s->vhost_net);
-        g_free(s->vhost_net);
-    }
     s->vhost_net = net;
     ret = vhost_vdpa_net_check_device_id(net);
     if (ret) {
