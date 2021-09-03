@@ -314,6 +314,14 @@ static void mmu_handle_skey(target_ulong addr, int rw, int *flags)
     }
 
     /*
+     * Don't enable storage keys if they are still disabled, i.e., no actual
+     * storage key instruction was issued yet.
+     */
+    if (!skeyclass->skeys_are_enabled(ss)) {
+        return;
+    }
+
+    /*
      * Whenever we create a new TLB entry, we set the storage key reference
      * bit. In case we allow write accesses, we set the storage key change
      * bit. Whenever the guest changes the storage key, we have to flush the

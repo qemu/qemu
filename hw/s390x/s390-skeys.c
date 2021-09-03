@@ -191,18 +191,45 @@ out:
     fclose(f);
 }
 
-static void qemu_s390_skeys_init(Object *obj)
-{
-    QEMUS390SKeysState *skeys = QEMU_S390_SKEYS(obj);
-    MachineState *machine = MACHINE(qdev_get_machine());
-
-    skeys->key_count = machine->ram_size / TARGET_PAGE_SIZE;
-    skeys->keydata = g_malloc0(skeys->key_count);
-}
-
 static bool qemu_s390_skeys_are_enabled(S390SKeysState *ss)
 {
-    return true;
+    QEMUS390SKeysState *skeys = QEMU_S390_SKEYS(ss);
+
+    /* Lockless check is sufficient. */
+    return !!skeys->keydata;
+}
+
+static bool qemu_s390_enable_skeys(S390SKeysState *ss)
+{
+    QEMUS390SKeysState *skeys = QEMU_S390_SKEYS(ss);
+    static gsize initialized;
+
+    if (likely(skeys->keydata)) {
+        return true;
+    }
+
+    /*
+     * TODO: Modern Linux doesn't use storage keys unless running KVM guests
+     *       that use storage keys. Therefore, we keep it simple for now.
+     *
+     * 1) We should initialize to "referenced+changed" for an initial
+     *    over-indication. Let's avoid touching megabytes of data for now and
+     *    assume that any sane user will issue a storage key instruction before
+     *    actually relying on this data.
+     * 2) Relying on ram_size and allocating a big array is ugly. We should
+     *    allocate and manage storage key data per RAMBlock or optimally using
+     *    some sparse data structure.
+     * 3) We only ever have a single S390SKeysState, so relying on
+     *    g_once_init_enter() is good enough.
+     */
+    if (g_once_init_enter(&initialized)) {
+        MachineState *machine = MACHINE(qdev_get_machine());
+
+        skeys->key_count = machine->ram_size / TARGET_PAGE_SIZE;
+        skeys->keydata = g_malloc0(skeys->key_count);
+        g_once_init_leave(&initialized, 1);
+    }
+    return false;
 }
 
 static int qemu_s390_skeys_set(S390SKeysState *ss, uint64_t start_gfn,
@@ -212,9 +239,10 @@ static int qemu_s390_skeys_set(S390SKeysState *ss, uint64_t start_gfn,
     int i;
 
     /* Check for uint64 overflow and access beyond end of key data */
-    if (start_gfn + count > skeydev->key_count || start_gfn + count < count) {
-        error_report("Error: Setting storage keys for page beyond the end "
-                     "of memory: gfn=%" PRIx64 " count=%" PRId64,
+    if (unlikely(!skeydev->keydata || start_gfn + count > skeydev->key_count ||
+                  start_gfn + count < count)) {
+        error_report("Error: Setting storage keys for pages with unallocated "
+                     "storage key memory: gfn=%" PRIx64 " count=%" PRId64,
                      start_gfn, count);
         return -EINVAL;
     }
@@ -232,9 +260,10 @@ static int qemu_s390_skeys_get(S390SKeysState *ss, uint64_t start_gfn,
     int i;
 
     /* Check for uint64 overflow and access beyond end of key data */
-    if (start_gfn + count > skeydev->key_count || start_gfn + count < count) {
-        error_report("Error: Getting storage keys for page beyond the end "
-                     "of memory: gfn=%" PRIx64 " count=%" PRId64,
+    if (unlikely(!skeydev->keydata || start_gfn + count > skeydev->key_count ||
+                  start_gfn + count < count)) {
+        error_report("Error: Getting storage keys for pages with unallocated "
+                     "storage key memory: gfn=%" PRIx64 " count=%" PRId64,
                      start_gfn, count);
         return -EINVAL;
     }
@@ -251,6 +280,7 @@ static void qemu_s390_skeys_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     skeyclass->skeys_are_enabled = qemu_s390_skeys_are_enabled;
+    skeyclass->enable_skeys = qemu_s390_enable_skeys;
     skeyclass->get_skeys = qemu_s390_skeys_get;
     skeyclass->set_skeys = qemu_s390_skeys_set;
 
@@ -261,7 +291,6 @@ static void qemu_s390_skeys_class_init(ObjectClass *oc, void *data)
 static const TypeInfo qemu_s390_skeys_info = {
     .name          = TYPE_QEMU_S390_SKEYS,
     .parent        = TYPE_S390_SKEYS,
-    .instance_init = qemu_s390_skeys_init,
     .instance_size = sizeof(QEMUS390SKeysState),
     .class_init    = qemu_s390_skeys_class_init,
     .class_size    = sizeof(S390SKeysClass),
@@ -340,6 +369,14 @@ static int s390_storage_keys_load(QEMUFile *f, void *opaque, int version_id)
     S390SKeysState *ss = S390_SKEYS(opaque);
     S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
     int ret = 0;
+
+    /*
+     * Make sure to lazy-enable if required to be done explicitly. No need to
+     * flush any TLB as the VM is not running yet.
+     */
+    if (skeyclass->enable_skeys) {
+        skeyclass->enable_skeys(ss);
+    }
 
     while (!ret) {
         ram_addr_t addr;
