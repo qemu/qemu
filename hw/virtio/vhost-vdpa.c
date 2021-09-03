@@ -443,13 +443,13 @@ static int vhost_vdpa_set_backend_cap(struct vhost_dev *dev)
     int r;
 
     if (vhost_vdpa_call(dev, VHOST_GET_BACKEND_FEATURES, &features)) {
-        return 0;
+        return -EFAULT;
     }
 
     features &= f;
     r = vhost_vdpa_call(dev, VHOST_SET_BACKEND_FEATURES, &features);
     if (r) {
-        return 0;
+        return -EFAULT;
     }
 
     dev->backend_cap = features;
