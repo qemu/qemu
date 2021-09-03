@@ -751,9 +751,7 @@ bool bdrv_drain_poll(BlockDriverState *bs, bool recursive,
  * bdrv_drained_begin:
  *
  * Begin a quiesced section for exclusive access to the BDS, by disabling
- * external request sources including NBD server and device model. Note that
- * this doesn't block timers or coroutines from submitting more requests, which
- * means block_job_pause is still necessary.
+ * external request sources including NBD server, block jobs, and device model.
  *
  * This function can be recursive.
  */
