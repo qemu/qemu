@@ -301,7 +301,7 @@ static void mmu_handle_skey(target_ulong addr, int rw, int *flags)
 {
     static S390SKeysClass *skeyclass;
     static S390SKeysState *ss;
-    uint8_t key;
+    uint8_t key, old_key;
     int rc;
 
     /*
@@ -337,6 +337,7 @@ static void mmu_handle_skey(target_ulong addr, int rw, int *flags)
         trace_get_skeys_nonzero(rc);
         return;
     }
+    old_key = key;
 
     switch (rw) {
     case MMU_DATA_LOAD:
@@ -360,9 +361,11 @@ static void mmu_handle_skey(target_ulong addr, int rw, int *flags)
     /* Any store/fetch sets the reference bit */
     key |= SK_R;
 
-    rc = skeyclass->set_skeys(ss, addr / TARGET_PAGE_SIZE, 1, &key);
-    if (rc) {
-        trace_set_skeys_nonzero(rc);
+    if (key != old_key) {
+        rc = skeyclass->set_skeys(ss, addr / TARGET_PAGE_SIZE, 1, &key);
+        if (rc) {
+            trace_set_skeys_nonzero(rc);
+        }
     }
 }
 
