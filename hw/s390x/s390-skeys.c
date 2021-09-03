@@ -18,6 +18,7 @@
 #include "qapi/qmp/qdict.h"
 #include "qemu/error-report.h"
 #include "sysemu/memory_mapping.h"
+#include "exec/address-spaces.h"
 #include "sysemu/kvm.h"
 #include "migration/qemu-file-types.h"
 #include "migration/register.h"
@@ -83,6 +84,13 @@ void hmp_info_skeys(Monitor *mon, const QDict *qdict)
     /* Quick check to see if guest is using storage keys*/
     if (!skeyclass->skeys_enabled(ss)) {
         monitor_printf(mon, "Error: This guest is not using storage keys\n");
+        return;
+    }
+
+    if (!address_space_access_valid(&address_space_memory,
+                                    addr & TARGET_PAGE_MASK, TARGET_PAGE_SIZE,
+                                    false, MEMTXATTRS_UNSPECIFIED)) {
+        monitor_printf(mon, "Error: The given address is not valid\n");
         return;
     }
 
@@ -197,11 +205,6 @@ static int qemu_s390_skeys_enabled(S390SKeysState *ss)
     return 1;
 }
 
-/*
- * TODO: for memory hotplug support qemu_s390_skeys_set and qemu_s390_skeys_get
- * will have to make sure that the given gfn belongs to a memory region and not
- * a memory hole.
- */
 static int qemu_s390_skeys_set(S390SKeysState *ss, uint64_t start_gfn,
                               uint64_t count, uint8_t *keys)
 {
