@@ -1205,9 +1205,9 @@ static int coroutine_fn qemu_rbd_co_pdiscard(BlockDriverState *bs,
 #ifdef LIBRBD_SUPPORTS_WRITE_ZEROES
 static int
 coroutine_fn qemu_rbd_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
-                                      int count, BdrvRequestFlags flags)
+                                       int64_t bytes, BdrvRequestFlags flags)
 {
-    return qemu_rbd_start_co(bs, offset, count, NULL, flags,
+    return qemu_rbd_start_co(bs, offset, bytes, NULL, flags,
                              RBD_AIO_WRITE_ZEROES);
 }
 #endif

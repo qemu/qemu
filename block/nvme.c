@@ -1296,18 +1296,28 @@ static coroutine_fn int nvme_co_flush(BlockDriverState *bs)
 
 static coroutine_fn int nvme_co_pwrite_zeroes(BlockDriverState *bs,
                                               int64_t offset,
-                                              int bytes,
+                                              int64_t bytes,
                                               BdrvRequestFlags flags)
 {
     BDRVNVMeState *s = bs->opaque;
     NVMeQueuePair *ioq = s->queues[INDEX_IO(0)];
     NVMeRequest *req;
-
-    uint32_t cdw12 = ((bytes >> s->blkshift) - 1) & 0xFFFF;
+    uint32_t cdw12;
 
     if (!s->supports_write_zeroes) {
         return -ENOTSUP;
     }
+
+    if (bytes == 0) {
+        return 0;
+    }
+
+    cdw12 = ((bytes >> s->blkshift) - 1) & 0xFFFF;
+    /*
+     * We should not lose information. pwrite_zeroes_alignment and
+     * max_pwrite_zeroes guarantees it.
+     */
+    assert(((cdw12 + 1) << s->blkshift) == bytes);
 
     NvmeCmd cmd = {
         .opcode = NVME_CMD_WRITE_ZEROES,
@@ -1472,6 +1482,14 @@ static void nvme_refresh_limits(BlockDriverState *bs, Error **errp)
     bs->bl.opt_mem_alignment = s->page_size;
     bs->bl.request_alignment = s->page_size;
     bs->bl.max_transfer = s->max_transfer;
+
+    /*
+     * Look at nvme_co_pwrite_zeroes: after shift and decrement we should get
+     * at most 0xFFFF
+     */
+    bs->bl.max_pwrite_zeroes = 1ULL << (s->blkshift + 16);
+    bs->bl.pwrite_zeroes_alignment = MAX(bs->bl.request_alignment,
+                                         1UL << s->blkshift);
 }
 
 static void nvme_detach_aio_context(BlockDriverState *bs)
