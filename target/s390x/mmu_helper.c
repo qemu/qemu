@@ -301,14 +301,13 @@ static void mmu_handle_skey(target_ulong addr, int rw, int *flags)
 {
     static S390SKeysClass *skeyclass;
     static S390SKeysState *ss;
-    MachineState *ms = MACHINE(qdev_get_machine());
     uint8_t key;
     int rc;
 
-    if (unlikely(addr >= ms->ram_size)) {
-        return;
-    }
-
+    /*
+     * We expect to be called with an absolute address that has already been
+     * validated, such that we can reliably use it to lookup the storage key.
+     */
     if (unlikely(!ss)) {
         ss = s390_get_skeys_device();
         skeyclass = S390_SKEYS_GET_CLASS(ss);
@@ -370,7 +369,7 @@ static void mmu_handle_skey(target_ulong addr, int rw, int *flags)
 /**
  * Translate a virtual (logical) address into a physical (absolute) address.
  * @param vaddr  the virtual address
- * @param rw     0 = read, 1 = write, 2 = code fetch
+ * @param rw     0 = read, 1 = write, 2 = code fetch, < 0 = load real address
  * @param asc    address space control (one of the PSW_ASC_* modes)
  * @param raddr  the translated address is stored to this pointer
  * @param flags  the PAGE_READ/WRITE/EXEC flags are stored to this pointer
@@ -449,10 +448,17 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
     }
 
 nodat:
-    /* Convert real address -> absolute address */
-    *raddr = mmu_real2abs(env, *raddr);
+    if (rw >= 0) {
+        /* Convert real address -> absolute address */
+        *raddr = mmu_real2abs(env, *raddr);
 
-    mmu_handle_skey(*raddr, rw, flags);
+        if (!mmu_absolute_addr_valid(*raddr, rw == MMU_DATA_STORE)) {
+            *tec = 0; /* unused */
+            return PGM_ADDRESSING;
+        }
+
+        mmu_handle_skey(*raddr, rw, flags);
+    }
     return 0;
 }
 
@@ -472,12 +478,6 @@ static int translate_pages(S390CPU *cpu, vaddr addr, int nr_pages,
         ret = mmu_translate(env, addr, is_write, asc, &pages[i], &pflags, tec);
         if (ret) {
             return ret;
-        }
-        if (!address_space_access_valid(&address_space_memory, pages[i],
-                                        TARGET_PAGE_SIZE, is_write,
-                                        MEMTXATTRS_UNSPECIFIED)) {
-            *tec = 0; /* unused */
-            return PGM_ADDRESSING;
         }
         addr += TARGET_PAGE_SIZE;
     }
@@ -587,6 +587,12 @@ int mmu_translate_real(CPUS390XState *env, target_ulong raddr, int rw,
     }
 
     *addr = mmu_real2abs(env, raddr & TARGET_PAGE_MASK);
+
+    if (!mmu_absolute_addr_valid(*addr, rw == MMU_DATA_STORE)) {
+        /* unused */
+        *tec = 0;
+        return PGM_ADDRESSING;
+    }
 
     mmu_handle_skey(*addr, rw, flags);
     return 0;

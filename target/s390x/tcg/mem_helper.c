@@ -2455,7 +2455,7 @@ uint64_t HELPER(lra)(CPUS390XState *env, uint64_t addr)
         tcg_s390_program_interrupt(env, PGM_SPECIAL_OP, GETPC());
     }
 
-    exc = mmu_translate(env, addr, 0, asc, &ret, &flags, &tec);
+    exc = mmu_translate(env, addr, MMU_S390_LRA, asc, &ret, &flags, &tec);
     if (exc) {
         cc = 3;
         ret = exc | 0x80000000;
