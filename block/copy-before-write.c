@@ -40,8 +40,8 @@ typedef struct BDRVCopyBeforeWriteState {
 } BDRVCopyBeforeWriteState;
 
 static coroutine_fn int cbw_co_preadv(
-        BlockDriverState *bs, uint64_t offset, uint64_t bytes,
-        QEMUIOVector *qiov, int flags)
+        BlockDriverState *bs, int64_t offset, int64_t bytes,
+        QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     return bdrv_co_preadv(bs->file, offset, bytes, qiov, flags);
 }

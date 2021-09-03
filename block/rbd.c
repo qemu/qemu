@@ -1164,9 +1164,9 @@ static int coroutine_fn qemu_rbd_start_co(BlockDriverState *bs,
 }
 
 static int
-coroutine_fn qemu_rbd_co_preadv(BlockDriverState *bs, uint64_t offset,
-                               uint64_t bytes, QEMUIOVector *qiov,
-                               int flags)
+coroutine_fn qemu_rbd_co_preadv(BlockDriverState *bs, int64_t offset,
+                                int64_t bytes, QEMUIOVector *qiov,
+                                BdrvRequestFlags flags)
 {
     return qemu_rbd_start_co(bs, offset, bytes, qiov, flags, RBD_AIO_READ);
 }
