@@ -120,7 +120,7 @@ option('usb_redir', type : 'feature', value : 'auto',
        description: 'libusbredir support')
 option('virglrenderer', type : 'feature', value : 'auto',
        description: 'virgl rendering support')
-option('vnc', type : 'feature', value : 'enabled',
+option('vnc', type : 'feature', value : 'auto',
        description: 'VNC server')
 option('vnc_jpeg', type : 'feature', value : 'auto',
        description: 'JPEG lossy compression for VNC server')
