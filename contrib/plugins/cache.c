@@ -17,17 +17,11 @@ static enum qemu_plugin_mem_rw rw = QEMU_PLUGIN_MEM_RW;
 
 static GHashTable *miss_ht;
 
-static GMutex mtx;
+static GMutex hashtable_lock;
 static GRand *rng;
 
 static int limit;
 static bool sys;
-
-static uint64_t dmem_accesses;
-static uint64_t dmisses;
-
-static uint64_t imem_accesses;
-static uint64_t imisses;
 
 enum EvictionPolicy {
     LRU,
@@ -80,6 +74,8 @@ typedef struct {
     int blksize_shift;
     uint64_t set_mask;
     uint64_t tag_mask;
+    uint64_t accesses;
+    uint64_t misses;
 } Cache;
 
 typedef struct {
@@ -96,7 +92,16 @@ void (*update_miss)(Cache *cache, int set, int blk);
 void (*metadata_init)(Cache *cache);
 void (*metadata_destroy)(Cache *cache);
 
-Cache *dcache, *icache;
+static int cores;
+static Cache **dcaches, **icaches;
+
+static GMutex *dcache_locks;
+static GMutex *icache_locks;
+
+static uint64_t all_dmem_accesses;
+static uint64_t all_imem_accesses;
+static uint64_t all_imisses;
+static uint64_t all_dmisses;
 
 static int pow_of_two(int num)
 {
@@ -233,13 +238,15 @@ static bool bad_cache_params(int blksize, int assoc, int cachesize)
 
 static Cache *cache_init(int blksize, int assoc, int cachesize)
 {
-    if (bad_cache_params(blksize, assoc, cachesize)) {
-        return NULL;
-    }
-
     Cache *cache;
     int i;
     uint64_t blk_mask;
+
+    /*
+     * This function shall not be called directly, and hence expects suitable
+     * parameters.
+     */
+    g_assert(!bad_cache_params(blksize, assoc, cachesize));
 
     cache = g_new(Cache, 1);
     cache->assoc = assoc;
@@ -247,6 +254,8 @@ static Cache *cache_init(int blksize, int assoc, int cachesize)
     cache->num_sets = cachesize / (blksize * assoc);
     cache->sets = g_new(CacheSet, cache->num_sets);
     cache->blksize_shift = pow_of_two(blksize);
+    cache->accesses = 0;
+    cache->misses = 0;
 
     for (i = 0; i < cache->num_sets; i++) {
         cache->sets[i].blocks = g_new0(CacheBlock, assoc);
@@ -261,6 +270,24 @@ static Cache *cache_init(int blksize, int assoc, int cachesize)
     }
 
     return cache;
+}
+
+static Cache **caches_init(int blksize, int assoc, int cachesize)
+{
+    Cache **caches;
+    int i;
+
+    if (bad_cache_params(blksize, assoc, cachesize)) {
+        return NULL;
+    }
+
+    caches = g_new(Cache *, cores);
+
+    for (i = 0; i < cores; i++) {
+        caches[i] = cache_init(blksize, assoc, cachesize);
+    }
+
+    return caches;
 }
 
 static int get_invalid_block(Cache *cache, uint64_t set)
@@ -353,6 +380,7 @@ static void vcpu_mem_access(unsigned int vcpu_index, qemu_plugin_meminfo_t info,
 {
     uint64_t effective_addr;
     struct qemu_plugin_hwaddr *hwaddr;
+    int cache_idx;
     InsnData *insn;
 
     hwaddr = qemu_plugin_get_hwaddr(info, vaddr);
@@ -361,32 +389,35 @@ static void vcpu_mem_access(unsigned int vcpu_index, qemu_plugin_meminfo_t info,
     }
 
     effective_addr = hwaddr ? qemu_plugin_hwaddr_phys_addr(hwaddr) : vaddr;
+    cache_idx = vcpu_index % cores;
 
-    g_mutex_lock(&mtx);
-    if (!access_cache(dcache, effective_addr)) {
+    g_mutex_lock(&dcache_locks[cache_idx]);
+    if (!access_cache(dcaches[cache_idx], effective_addr)) {
         insn = (InsnData *) userdata;
-        insn->dmisses++;
-        dmisses++;
+        __atomic_fetch_add(&insn->dmisses, 1, __ATOMIC_SEQ_CST);
+        dcaches[cache_idx]->misses++;
     }
-    dmem_accesses++;
-    g_mutex_unlock(&mtx);
+    dcaches[cache_idx]->accesses++;
+    g_mutex_unlock(&dcache_locks[cache_idx]);
 }
 
 static void vcpu_insn_exec(unsigned int vcpu_index, void *userdata)
 {
     uint64_t insn_addr;
     InsnData *insn;
+    int cache_idx;
 
-    g_mutex_lock(&mtx);
     insn_addr = ((InsnData *) userdata)->addr;
 
-    if (!access_cache(icache, insn_addr)) {
+    cache_idx = vcpu_index % cores;
+    g_mutex_lock(&icache_locks[cache_idx]);
+    if (!access_cache(icaches[cache_idx], insn_addr)) {
         insn = (InsnData *) userdata;
-        insn->imisses++;
-        imisses++;
+        __atomic_fetch_add(&insn->imisses, 1, __ATOMIC_SEQ_CST);
+        icaches[cache_idx]->misses++;
     }
-    imem_accesses++;
-    g_mutex_unlock(&mtx);
+    icaches[cache_idx]->accesses++;
+    g_mutex_unlock(&icache_locks[cache_idx]);
 }
 
 static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
@@ -411,7 +442,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
          * new entries for those instructions. Instead, we fetch the same
          * entry from the hash table and register it for the callback again.
          */
-        g_mutex_lock(&mtx);
+        g_mutex_lock(&hashtable_lock);
         data = g_hash_table_lookup(miss_ht, GUINT_TO_POINTER(effective_addr));
         if (data == NULL) {
             data = g_new0(InsnData, 1);
@@ -421,7 +452,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
             g_hash_table_insert(miss_ht, GUINT_TO_POINTER(effective_addr),
                                (gpointer) data);
         }
-        g_mutex_unlock(&mtx);
+        g_mutex_unlock(&hashtable_lock);
 
         qemu_plugin_register_vcpu_mem_cb(insn, vcpu_mem_access,
                                          QEMU_PLUGIN_CB_NO_REGS,
@@ -453,12 +484,52 @@ static void cache_free(Cache *cache)
     g_free(cache);
 }
 
+static void caches_free(Cache **caches)
+{
+    int i;
+
+    for (i = 0; i < cores; i++) {
+        cache_free(caches[i]);
+    }
+}
+
 static int dcmp(gconstpointer a, gconstpointer b)
 {
     InsnData *insn_a = (InsnData *) a;
     InsnData *insn_b = (InsnData *) b;
 
     return insn_a->dmisses < insn_b->dmisses ? 1 : -1;
+}
+
+static void append_stats_line(GString *line, uint64_t daccess, uint64_t dmisses,
+                              uint64_t iaccess, uint64_t imisses)
+{
+    double dmiss_rate, imiss_rate;
+
+    dmiss_rate = ((double) dmisses) / (daccess) * 100.0;
+    imiss_rate = ((double) imisses) / (iaccess) * 100.0;
+
+    g_string_append_printf(line, "%-14lu %-12lu %9.4lf%%  %-14lu %-12lu"
+                           " %9.4lf%%\n",
+                           daccess,
+                           dmisses,
+                           daccess ? dmiss_rate : 0.0,
+                           iaccess,
+                           imisses,
+                           iaccess ? imiss_rate : 0.0);
+}
+
+static void sum_stats(void)
+{
+    int i;
+
+    g_assert(cores > 1);
+    for (i = 0; i < cores; i++) {
+        all_imisses += icaches[i]->misses;
+        all_dmisses += dcaches[i]->misses;
+        all_imem_accesses += icaches[i]->accesses;
+        all_dmem_accesses += dcaches[i]->accesses;
+    }
 }
 
 static int icmp(gconstpointer a, gconstpointer b)
@@ -471,19 +542,29 @@ static int icmp(gconstpointer a, gconstpointer b)
 
 static void log_stats(void)
 {
-    g_autoptr(GString) rep = g_string_new("");
-    g_string_append_printf(rep,
-        "Data accesses: %lu, Misses: %lu\nMiss rate: %lf%%\n\n",
-        dmem_accesses,
-        dmisses,
-        ((double) dmisses / (double) dmem_accesses) * 100.0);
+    int i;
+    Cache *icache, *dcache;
 
-    g_string_append_printf(rep,
-        "Instruction accesses: %lu, Misses: %lu\nMiss rate: %lf%%\n\n",
-        imem_accesses,
-        imisses,
-        ((double) imisses / (double) imem_accesses) * 100.0);
+    g_autoptr(GString) rep = g_string_new("core #, data accesses, data misses,"
+                                          " dmiss rate, insn accesses,"
+                                          " insn misses, imiss rate\n");
 
+    for (i = 0; i < cores; i++) {
+        g_string_append_printf(rep, "%-8d", i);
+        dcache = dcaches[i];
+        icache = icaches[i];
+        append_stats_line(rep, dcache->accesses, dcache->misses,
+                icache->accesses, icache->misses);
+    }
+
+    if (cores > 1) {
+        sum_stats();
+        g_string_append_printf(rep, "%-8s", "sum");
+        append_stats_line(rep, all_dmem_accesses, all_dmisses,
+                all_imem_accesses, all_imisses);
+    }
+
+    g_string_append(rep, "\n");
     qemu_plugin_outs(rep->str);
 }
 
@@ -530,8 +611,8 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
     log_stats();
     log_top_insns();
 
-    cache_free(dcache);
-    cache_free(icache);
+    caches_free(dcaches);
+    caches_free(icaches);
 
     g_hash_table_destroy(miss_ht);
 }
@@ -579,6 +660,8 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
 
     policy = LRU;
 
+    cores = sys ? qemu_plugin_n_vcpus() : 1;
+
     for (i = 0; i < argc; i++) {
         char *opt = argv[i];
         if (g_str_has_prefix(opt, "iblksize=")) {
@@ -595,6 +678,8 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
             dcachesize = g_ascii_strtoll(opt + 11, NULL, 10);
         } else if (g_str_has_prefix(opt, "limit=")) {
             limit = g_ascii_strtoll(opt + 6, NULL, 10);
+        } else if (g_str_has_prefix(opt, "cores=")) {
+            cores = g_ascii_strtoll(opt + 6, NULL, 10);
         } else if (g_str_has_prefix(opt, "evict=")) {
             gchar *p = opt + 6;
             if (g_strcmp0(p, "rand") == 0) {
@@ -615,21 +700,24 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
 
     policy_init();
 
-    dcache = cache_init(dblksize, dassoc, dcachesize);
-    if (!dcache) {
+    dcaches = caches_init(dblksize, dassoc, dcachesize);
+    if (!dcaches) {
         const char *err = cache_config_error(dblksize, dassoc, dcachesize);
         fprintf(stderr, "dcache cannot be constructed from given parameters\n");
         fprintf(stderr, "%s\n", err);
         return -1;
     }
 
-    icache = cache_init(iblksize, iassoc, icachesize);
-    if (!icache) {
+    icaches = caches_init(iblksize, iassoc, icachesize);
+    if (!icaches) {
         const char *err = cache_config_error(iblksize, iassoc, icachesize);
         fprintf(stderr, "icache cannot be constructed from given parameters\n");
         fprintf(stderr, "%s\n", err);
         return -1;
     }
+
+    dcache_locks = g_new0(GMutex, cores);
+    icache_locks = g_new0(GMutex, cores);
 
     qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans);
     qemu_plugin_register_atexit_cb(id, plugin_exit, NULL);

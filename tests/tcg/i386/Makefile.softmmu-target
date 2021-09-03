@@ -38,7 +38,7 @@ run-plugin-%-with-libinsn.so:
 	$(call run-test, $@, \
 	  $(QEMU) -monitor none -display none \
 		  -chardev file$(COMMA)path=$@.out$(COMMA)id=output \
-                  -plugin ../../plugin/libinsn.so$(COMMA)arg=inline \
+                  -plugin ../../plugin/libinsn.so$(COMMA)inline=on \
 	    	  -d plugin -D $*-with-libinsn.so.pout \
 	   	  $(QEMU_OPTS) $*, \
 		  "$* on $(TARGET_NAME)")

@@ -139,6 +139,18 @@ The ``-no-quit`` is a synonym for ``-display ...,window-close=off`` which
 should be used instead.
 
 
+Plugin argument passing through ``arg=<string>`` (since 6.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Passing TCG plugins arguments through ``arg=`` is redundant is makes the
+command-line less readable, especially when the argument itself consist of a
+name and a value, e.g. ``-plugin plugin_name,arg="arg_name=arg_value"``.
+Therefore, the usage of ``arg`` is redundant. Single-word arguments are treated
+as short-form boolean values, and passed to plugins as ``arg_name=on``.
+However, short-form booleans are deprecated and full explicit ``arg_name=on``
+form is preferred.
+
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 
