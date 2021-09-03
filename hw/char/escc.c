@@ -300,9 +300,24 @@ static void escc_reset_chn(ESCCChannelState *s)
 static void escc_reset(DeviceState *d)
 {
     ESCCState *s = ESCC(d);
+    int i, j;
 
-    escc_reset_chn(&s->chn[0]);
-    escc_reset_chn(&s->chn[1]);
+    for (i = 0; i < 2; i++) {
+        ESCCChannelState *cs = &s->chn[i];
+
+        /*
+         * According to the ESCC datasheet "Miscellaneous Questions" section
+         * on page 384, the values of the ESCC registers are not guaranteed on
+         * power-on until an explicit hardware or software reset has been
+         * issued. For now we zero the registers so that a device reset always
+         * returns the emulated device to a fixed state.
+         */
+        for (j = 0; j < ESCC_SERIAL_REGS; j++) {
+            cs->rregs[j] = 0;
+            cs->wregs[j] = 0;
+        }
+        escc_reset_chn(cs);
+    }
 }
 
 static inline void set_rxint(ESCCChannelState *s)
