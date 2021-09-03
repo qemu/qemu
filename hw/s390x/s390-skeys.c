@@ -110,11 +110,10 @@ void qmp_dump_skeys(const char *filename, Error **errp)
 {
     S390SKeysState *ss = s390_get_skeys_device();
     S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
-    MachineState *ms = MACHINE(qdev_get_machine());
-    const uint64_t total_count = ms->ram_size / TARGET_PAGE_SIZE;
-    uint64_t handled_count = 0, cur_count;
+    GuestPhysBlockList guest_phys_blocks;
+    GuestPhysBlock *block;
+    uint64_t pages, gfn;
     Error *lerr = NULL;
-    vaddr cur_gfn = 0;
     uint8_t *buf;
     int ret;
     int fd;
@@ -145,28 +144,39 @@ void qmp_dump_skeys(const char *filename, Error **errp)
         goto out;
     }
 
-    /* we'll only dump initial memory for now */
-    while (handled_count < total_count) {
-        /* Calculate how many keys to ask for & handle overflow case */
-        cur_count = MIN(total_count - handled_count, S390_SKEYS_BUFFER_SIZE);
+    assert(qemu_mutex_iothread_locked());
+    guest_phys_blocks_init(&guest_phys_blocks);
+    guest_phys_blocks_append(&guest_phys_blocks);
 
-        ret = skeyclass->get_skeys(ss, cur_gfn, cur_count, buf);
-        if (ret < 0) {
-            error_setg(errp, "get_keys error %d", ret);
-            goto out_free;
+    QTAILQ_FOREACH(block, &guest_phys_blocks.head, next) {
+        assert(QEMU_IS_ALIGNED(block->target_start, TARGET_PAGE_SIZE));
+        assert(QEMU_IS_ALIGNED(block->target_end, TARGET_PAGE_SIZE));
+
+        gfn = block->target_start / TARGET_PAGE_SIZE;
+        pages = (block->target_end - block->target_start) / TARGET_PAGE_SIZE;
+
+        while (pages) {
+            const uint64_t cur_pages = MIN(pages, S390_SKEYS_BUFFER_SIZE);
+
+            ret = skeyclass->get_skeys(ss, gfn, cur_pages, buf);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret, "get_keys error");
+                goto out_free;
+            }
+
+            /* write keys to stream */
+            write_keys(f, buf, gfn, cur_pages, &lerr);
+            if (lerr) {
+                goto out_free;
+            }
+
+            gfn += cur_pages;
+            pages -= cur_pages;
         }
-
-        /* write keys to stream */
-        write_keys(f, buf, cur_gfn, cur_count, &lerr);
-        if (lerr) {
-            goto out_free;
-        }
-
-        cur_gfn += cur_count;
-        handled_count += cur_count;
     }
 
 out_free:
+    guest_phys_blocks_free(&guest_phys_blocks);
     error_propagate(errp, lerr);
     g_free(buf);
 out:
