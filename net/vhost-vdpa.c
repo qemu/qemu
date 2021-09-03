@@ -110,6 +110,7 @@ static int vhost_vdpa_add(NetClientState *ncs, void *be)
 err:
     if (net) {
         vhost_net_cleanup(net);
+        g_free(net);
     }
     return -1;
 }
