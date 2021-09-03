@@ -17,6 +17,7 @@
 #include "qapi/qapi-commands-misc-target.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/error-report.h"
+#include "sysemu/memory_mapping.h"
 #include "sysemu/kvm.h"
 #include "migration/qemu-file-types.h"
 #include "migration/register.h"
@@ -257,10 +258,9 @@ static void s390_storage_keys_save(QEMUFile *f, void *opaque)
 {
     S390SKeysState *ss = S390_SKEYS(opaque);
     S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
-    MachineState *ms = MACHINE(qdev_get_machine());
-    uint64_t pages_left = ms->ram_size / TARGET_PAGE_SIZE;
-    uint64_t read_count, eos = S390_SKEYS_SAVE_FLAG_EOS;
-    vaddr cur_gfn = 0;
+    GuestPhysBlockList guest_phys_blocks;
+    GuestPhysBlock *block;
+    uint64_t pages, gfn;
     int error = 0;
     uint8_t *buf;
 
@@ -274,36 +274,52 @@ static void s390_storage_keys_save(QEMUFile *f, void *opaque)
         goto end_stream;
     }
 
-    /* We only support initial memory. Standby memory is not handled yet. */
-    qemu_put_be64(f, (cur_gfn * TARGET_PAGE_SIZE) | S390_SKEYS_SAVE_FLAG_SKEYS);
-    qemu_put_be64(f, pages_left);
+    guest_phys_blocks_init(&guest_phys_blocks);
+    guest_phys_blocks_append(&guest_phys_blocks);
 
-    while (pages_left) {
-        read_count = MIN(pages_left, S390_SKEYS_BUFFER_SIZE);
+    /* Send each contiguous physical memory range separately. */
+    QTAILQ_FOREACH(block, &guest_phys_blocks.head, next) {
+        assert(QEMU_IS_ALIGNED(block->target_start, TARGET_PAGE_SIZE));
+        assert(QEMU_IS_ALIGNED(block->target_end, TARGET_PAGE_SIZE));
 
-        if (!error) {
-            error = skeyclass->get_skeys(ss, cur_gfn, read_count, buf);
-            if (error) {
-                /*
-                 * If error: we want to fill the stream with valid data instead
-                 * of stopping early so we pad the stream with 0x00 values and
-                 * use S390_SKEYS_SAVE_FLAG_ERROR to indicate failure to the
-                 * reading side.
-                 */
-                error_report("S390_GET_KEYS error %d", error);
-                memset(buf, 0, S390_SKEYS_BUFFER_SIZE);
-                eos = S390_SKEYS_SAVE_FLAG_ERROR;
+        gfn = block->target_start / TARGET_PAGE_SIZE;
+        pages = (block->target_end - block->target_start) / TARGET_PAGE_SIZE;
+        qemu_put_be64(f, block->target_start | S390_SKEYS_SAVE_FLAG_SKEYS);
+        qemu_put_be64(f, pages);
+
+        while (pages) {
+            const uint64_t cur_pages = MIN(pages, S390_SKEYS_BUFFER_SIZE);
+
+            if (!error) {
+                error = skeyclass->get_skeys(ss, gfn, cur_pages, buf);
+                if (error) {
+                    /*
+                     * Create a valid stream with all 0x00 and indicate
+                     * S390_SKEYS_SAVE_FLAG_ERROR to the destination.
+                     */
+                    error_report("S390_GET_KEYS error %d", error);
+                    memset(buf, 0, S390_SKEYS_BUFFER_SIZE);
+                }
             }
+
+            qemu_put_buffer(f, buf, cur_pages);
+            gfn += cur_pages;
+            pages -= cur_pages;
         }
 
-        qemu_put_buffer(f, buf, read_count);
-        cur_gfn += read_count;
-        pages_left -= read_count;
+        if (error) {
+            break;
+        }
     }
 
+    guest_phys_blocks_free(&guest_phys_blocks);
     g_free(buf);
 end_stream:
-    qemu_put_be64(f, eos);
+    if (error) {
+        qemu_put_be64(f, S390_SKEYS_SAVE_FLAG_ERROR);
+    } else {
+        qemu_put_be64(f, S390_SKEYS_SAVE_FLAG_EOS);
+    }
 }
 
 static int s390_storage_keys_load(QEMUFile *f, void *opaque, int version_id)
