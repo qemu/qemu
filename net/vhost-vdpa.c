@@ -29,7 +29,6 @@ typedef struct VhostVDPAState {
     NetClientState nc;
     struct vhost_vdpa vhost_vdpa;
     VHostNetState *vhost_net;
-    uint64_t acked_features;
     bool started;
 } VhostVDPAState;
 
