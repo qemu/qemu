@@ -86,9 +86,10 @@ static int coroutine_fn cbw_co_pwrite_zeroes(BlockDriverState *bs,
 }
 
 static coroutine_fn int cbw_co_pwritev(BlockDriverState *bs,
-                                       uint64_t offset,
-                                       uint64_t bytes,
-                                       QEMUIOVector *qiov, int flags)
+                                       int64_t offset,
+                                       int64_t bytes,
+                                       QEMUIOVector *qiov,
+                                       BdrvRequestFlags flags)
 {
     int ret = cbw_do_copy_before_write(bs, offset, bytes, flags);
     if (ret < 0) {

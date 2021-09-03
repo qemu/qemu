@@ -1172,9 +1172,9 @@ coroutine_fn qemu_rbd_co_preadv(BlockDriverState *bs, int64_t offset,
 }
 
 static int
-coroutine_fn qemu_rbd_co_pwritev(BlockDriverState *bs, uint64_t offset,
-                                 uint64_t bytes, QEMUIOVector *qiov,
-                                 int flags)
+coroutine_fn qemu_rbd_co_pwritev(BlockDriverState *bs, int64_t offset,
+                                 int64_t bytes, QEMUIOVector *qiov,
+                                 BdrvRequestFlags flags)
 {
     BDRVRBDState *s = bs->opaque;
     /*
