@@ -2177,6 +2177,7 @@ uint64_t HELPER(iske)(CPUS390XState *env, uint64_t r2)
     uint64_t addr = wrap_address(env, r2);
     uint8_t key;
 
+    addr = mmu_real2abs(env, addr);
     if (addr > ms->ram_size) {
         return 0;
     }
@@ -2201,6 +2202,7 @@ void HELPER(sske)(CPUS390XState *env, uint64_t r1, uint64_t r2)
     uint64_t addr = wrap_address(env, r2);
     uint8_t key;
 
+    addr = mmu_real2abs(env, addr);
     if (addr > ms->ram_size) {
         return;
     }
@@ -2228,6 +2230,7 @@ uint32_t HELPER(rrbe)(CPUS390XState *env, uint64_t r2)
     static S390SKeysClass *skeyclass;
     uint8_t re, key;
 
+    addr = mmu_real2abs(env, addr);
     if (addr > ms->ram_size) {
         return 0;
     }
