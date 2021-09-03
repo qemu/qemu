@@ -331,6 +331,40 @@ static void escc_soft_reset_chn(ESCCChannelState *s)
     clear_queue(s);
 }
 
+static void escc_hard_reset_chn(ESCCChannelState *s)
+{
+    int i;
+
+    s->reg = 0;
+    for (i = 0; i < ESCC_SERIAL_REGS; i++) {
+        s->rregs[i] = 0;
+        s->wregs[i] = 0;
+    }
+    /* 1X divisor, 1 stop bit, no parity */
+    s->wregs[W_TXCTRL1] = TXCTRL1_1STOP;
+    s->wregs[W_MINTR] = MINTR_RST_ALL;
+    /* Synch mode tx clock = TRxC */
+    s->wregs[W_CLOCK] = CLOCK_TRXC;
+    /* PLL disabled */
+    s->wregs[W_MISC2] = MISC2_PLLDIS;
+    /* Enable most interrupts */
+    s->wregs[W_EXTINT] = EXTINT_DCD | EXTINT_SYNCINT | EXTINT_CTSINT |
+                         EXTINT_TXUNDRN | EXTINT_BRKINT;
+    if (s->disabled) {
+        s->rregs[R_STATUS] = STATUS_TXEMPTY | STATUS_DCD | STATUS_SYNC |
+                             STATUS_CTS | STATUS_TXUNDRN;
+    } else {
+        s->rregs[R_STATUS] = STATUS_TXEMPTY | STATUS_TXUNDRN;
+    }
+    s->rregs[R_SPEC] = SPEC_BITS8 | SPEC_ALLSENT;
+
+    s->rx = s->tx = 0;
+    s->rxint = s->txint = 0;
+    s->rxint_under_svc = s->txint_under_svc = 0;
+    s->e0_mode = s->led_mode = s->caps_lock_mode = s->num_lock_mode = 0;
+    clear_queue(s);
+}
+
 static void escc_reset(DeviceState *d)
 {
     ESCCState *s = ESCC(d);
@@ -589,7 +623,9 @@ static void escc_mem_write(void *opaque, hwaddr addr,
                 escc_soft_reset_chn(&serial->chn[1]);
                 return;
             case MINTR_RST_ALL:
-                escc_reset(DEVICE(serial));
+                trace_escc_hard_reset();
+                escc_hard_reset_chn(&serial->chn[0]);
+                escc_hard_reset_chn(&serial->chn[1]);
                 return;
             }
             break;
