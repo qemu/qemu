@@ -1360,7 +1360,7 @@ static coroutine_fn int nvme_co_pwrite_zeroes(BlockDriverState *bs,
 
 static int coroutine_fn nvme_co_pdiscard(BlockDriverState *bs,
                                          int64_t offset,
-                                         int bytes)
+                                         int64_t bytes)
 {
     BDRVNVMeState *s = bs->opaque;
     NVMeQueuePair *ioq = s->queues[INDEX_IO(0)];
@@ -1386,6 +1386,14 @@ static int coroutine_fn nvme_co_pdiscard(BlockDriverState *bs,
     }
 
     assert(s->queue_count > 1);
+
+    /*
+     * Filling the @buf requires @offset and @bytes to satisfy restrictions
+     * defined in nvme_refresh_limits().
+     */
+    assert(QEMU_IS_ALIGNED(bytes, 1UL << s->blkshift));
+    assert(QEMU_IS_ALIGNED(offset, 1UL << s->blkshift));
+    assert((bytes >> s->blkshift) <= UINT32_MAX);
 
     buf = qemu_try_memalign(s->page_size, s->page_size);
     if (!buf) {
@@ -1490,6 +1498,10 @@ static void nvme_refresh_limits(BlockDriverState *bs, Error **errp)
     bs->bl.max_pwrite_zeroes = 1ULL << (s->blkshift + 16);
     bs->bl.pwrite_zeroes_alignment = MAX(bs->bl.request_alignment,
                                          1UL << s->blkshift);
+
+    bs->bl.max_pdiscard = (uint64_t)UINT32_MAX << s->blkshift;
+    bs->bl.pdiscard_alignment = MAX(bs->bl.request_alignment,
+                                    1UL << s->blkshift);
 }
 
 static void nvme_detach_aio_context(BlockDriverState *bs)

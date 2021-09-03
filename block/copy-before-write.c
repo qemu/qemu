@@ -64,7 +64,7 @@ static coroutine_fn int cbw_do_copy_before_write(BlockDriverState *bs,
 }
 
 static int coroutine_fn cbw_co_pdiscard(BlockDriverState *bs,
-                                        int64_t offset, int bytes)
+                                        int64_t offset, int64_t bytes)
 {
     int ret = cbw_do_copy_before_write(bs, offset, bytes, 0);
     if (ret < 0) {
