@@ -94,6 +94,14 @@ target_ulong mmu_real2abs(CPUS390XState *env, target_ulong raddr)
     return raddr;
 }
 
+bool mmu_absolute_addr_valid(target_ulong addr, bool is_write)
+{
+    return address_space_access_valid(&address_space_memory,
+                                      addr & TARGET_PAGE_MASK,
+                                      TARGET_PAGE_SIZE, is_write,
+                                      MEMTXATTRS_UNSPECIFIED);
+}
+
 static inline bool read_table_entry(CPUS390XState *env, hwaddr gaddr,
                                     uint64_t *entry)
 {
