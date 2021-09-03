@@ -1703,11 +1703,12 @@ static bool same_stat_id(const struct stat *a, const struct stat *b)
 static void coroutine_fn v9fs_walk(void *opaque)
 {
     int name_idx;
-    V9fsQID *qids = NULL;
+    g_autofree V9fsQID *qids = NULL;
     int i, err = 0;
     V9fsPath dpath, path, *pathes = NULL;
     uint16_t nwnames;
-    struct stat stbuf, fidst, *stbufs = NULL;
+    struct stat stbuf, fidst;
+    g_autofree struct stat *stbufs = NULL;
     size_t offset = 7;
     int32_t fid, newfid;
     V9fsString *wnames = NULL;
@@ -1787,7 +1788,8 @@ static void coroutine_fn v9fs_walk(void *opaque)
                 strcmp("..", wnames[name_idx].data))
             {
                 err = s->ops->name_to_path(&s->ctx, &dpath,
-                                        wnames[name_idx].data, &path);
+                                           wnames[name_idx].data,
+                                           &pathes[name_idx]);
                 if (err < 0) {
                     err = -errno;
                     break;
@@ -1796,14 +1798,13 @@ static void coroutine_fn v9fs_walk(void *opaque)
                     err = -EINTR;
                     break;
                 }
-                err = s->ops->lstat(&s->ctx, &path, &stbuf);
+                err = s->ops->lstat(&s->ctx, &pathes[name_idx], &stbuf);
                 if (err < 0) {
                     err = -errno;
                     break;
                 }
                 stbufs[name_idx] = stbuf;
-                v9fs_path_copy(&dpath, &path);
-                v9fs_path_copy(&pathes[name_idx], &path);
+                v9fs_path_copy(&dpath, &pathes[name_idx]);
             }
         }
     });
@@ -1872,8 +1873,6 @@ out_nofid:
             v9fs_path_free(&pathes[name_idx]);
         }
         g_free(wnames);
-        g_free(qids);
-        g_free(stbufs);
         g_free(pathes);
     }
 }
