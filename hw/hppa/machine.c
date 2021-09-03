@@ -207,37 +207,37 @@ static FWCfgState *create_fw_cfg(MachineState *ms, PCIBus *pci_bus,
 
     val = cpu_to_le64(MIN_SEABIOS_HPPA_VERSION);
     fw_cfg_add_file(fw_cfg, "/etc/firmware-min-version",
-                    g_memdup(&val, sizeof(val)), sizeof(val));
+                    g_memdup2(&val, sizeof(val)), sizeof(val));
 
     val = cpu_to_le64(HPPA_TLB_ENTRIES - btlb_entries);
     fw_cfg_add_file(fw_cfg, "/etc/cpu/tlb_entries",
-                    g_memdup(&val, sizeof(val)), sizeof(val));
+                    g_memdup2(&val, sizeof(val)), sizeof(val));
 
     val = cpu_to_le64(btlb_entries);
     fw_cfg_add_file(fw_cfg, "/etc/cpu/btlb_entries",
-                    g_memdup(&val, sizeof(val)), sizeof(val));
+                    g_memdup2(&val, sizeof(val)), sizeof(val));
 
     len = strlen(mc->name) + 1;
     fw_cfg_add_file(fw_cfg, "/etc/hppa/machine",
-                    g_memdup(mc->name, len), len);
+                    g_memdup2(mc->name, len), len);
 
     val = cpu_to_le64(soft_power_reg);
     fw_cfg_add_file(fw_cfg, "/etc/hppa/power-button-addr",
-                    g_memdup(&val, sizeof(val)), sizeof(val));
+                    g_memdup2(&val, sizeof(val)), sizeof(val));
 
     val = cpu_to_le64(CPU_HPA + 16);
     fw_cfg_add_file(fw_cfg, "/etc/hppa/rtc-addr",
-                    g_memdup(&val, sizeof(val)), sizeof(val));
+                    g_memdup2(&val, sizeof(val)), sizeof(val));
 
     val = cpu_to_le64(CPU_HPA + 24);
     fw_cfg_add_file(fw_cfg, "/etc/hppa/DebugOutputPort",
-                    g_memdup(&val, sizeof(val)), sizeof(val));
+                    g_memdup2(&val, sizeof(val)), sizeof(val));
 
     fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, ms->boot_config.order[0]);
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 
     fw_cfg_add_file(fw_cfg, "/etc/qemu-version",
-                    g_memdup(qemu_version, sizeof(qemu_version)),
+                    g_memdup2(qemu_version, sizeof(qemu_version)),
                     sizeof(qemu_version));
 
     fw_cfg_add_extra_pci_roots(pci_bus, fw_cfg);
