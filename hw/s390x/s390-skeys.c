@@ -82,7 +82,7 @@ void hmp_info_skeys(Monitor *mon, const QDict *qdict)
     int r;
 
     /* Quick check to see if guest is using storage keys*/
-    if (!skeyclass->skeys_enabled(ss)) {
+    if (!skeyclass->skeys_are_enabled(ss)) {
         monitor_printf(mon, "Error: This guest is not using storage keys\n");
         return;
     }
@@ -128,7 +128,7 @@ void qmp_dump_skeys(const char *filename, Error **errp)
     FILE *f;
 
     /* Quick check to see if guest is using storage keys*/
-    if (!skeyclass->skeys_enabled(ss)) {
+    if (!skeyclass->skeys_are_enabled(ss)) {
         error_setg(errp, "This guest is not using storage keys - "
                          "nothing to dump");
         return;
@@ -200,9 +200,9 @@ static void qemu_s390_skeys_init(Object *obj)
     skeys->keydata = g_malloc0(skeys->key_count);
 }
 
-static int qemu_s390_skeys_enabled(S390SKeysState *ss)
+static bool qemu_s390_skeys_are_enabled(S390SKeysState *ss)
 {
-    return 1;
+    return true;
 }
 
 static int qemu_s390_skeys_set(S390SKeysState *ss, uint64_t start_gfn,
@@ -250,7 +250,7 @@ static void qemu_s390_skeys_class_init(ObjectClass *oc, void *data)
     S390SKeysClass *skeyclass = S390_SKEYS_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    skeyclass->skeys_enabled = qemu_s390_skeys_enabled;
+    skeyclass->skeys_are_enabled = qemu_s390_skeys_are_enabled;
     skeyclass->get_skeys = qemu_s390_skeys_get;
     skeyclass->set_skeys = qemu_s390_skeys_set;
 
@@ -277,7 +277,7 @@ static void s390_storage_keys_save(QEMUFile *f, void *opaque)
     int error = 0;
     uint8_t *buf;
 
-    if (!skeyclass->skeys_enabled(ss)) {
+    if (!skeyclass->skeys_are_enabled(ss)) {
         goto end_stream;
     }
 

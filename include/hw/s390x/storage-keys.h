@@ -28,7 +28,7 @@ struct S390SKeysState {
 
 struct S390SKeysClass {
     DeviceClass parent_class;
-    int (*skeys_enabled)(S390SKeysState *ks);
+    bool (*skeys_are_enabled)(S390SKeysState *ks);
     int (*get_skeys)(S390SKeysState *ks, uint64_t start_gfn, uint64_t count,
                      uint8_t *keys);
     int (*set_skeys)(S390SKeysState *ks, uint64_t start_gfn, uint64_t count,
