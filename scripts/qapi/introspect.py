@@ -22,12 +22,7 @@ from typing import (
     Union,
 )
 
-from .common import (
-    c_name,
-    gen_endif,
-    gen_if,
-    mcgen,
-)
+from .common import c_name, mcgen
 from .gen import QAPISchemaMonolithicCVisitor
 from .schema import (
     QAPISchema,
@@ -124,10 +119,10 @@ def _tree_to_qlit(obj: JSONValue,
         if obj.comment:
             ret += indent(level) + f"/* {obj.comment} */\n"
         if obj.ifcond.is_present():
-            ret += gen_if(obj.ifcond.cgen())
+            ret += obj.ifcond.gen_if()
         ret += _tree_to_qlit(obj.value, level)
         if obj.ifcond.is_present():
-            ret += '\n' + gen_endif(obj.ifcond.cgen())
+            ret += '\n' + obj.ifcond.gen_endif()
         return ret
 
     ret = ''

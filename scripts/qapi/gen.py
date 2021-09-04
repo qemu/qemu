@@ -24,8 +24,6 @@ from typing import (
 from .common import (
     c_fname,
     c_name,
-    gen_endif,
-    gen_if,
     guardend,
     guardstart,
     mcgen,
@@ -95,9 +93,9 @@ def _wrap_ifcond(ifcond: QAPISchemaIfCond, before: str, after: str) -> str:
     if added[0] == '\n':
         out += '\n'
         added = added[1:]
-    out += gen_if(ifcond.cgen())
+    out += ifcond.gen_if()
     out += added
-    out += gen_endif(ifcond.cgen())
+    out += ifcond.gen_endif()
     return out
 
 

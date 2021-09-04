@@ -275,7 +275,7 @@ def check_if(expr: _JSONObject, info: QAPISourceInfo, source: str) -> None:
 
     def _check_if(cond: Union[str, object]) -> None:
         if isinstance(cond, str):
-            if not re.match(r'^[A-Z][A-Z0-9_]*$', cond):
+            if not re.fullmatch(r'[A-Z][A-Z0-9_]*', cond):
                 raise QAPISemError(
                     info,
                     "'if' condition '%s' of %s is not a valid identifier"
@@ -286,13 +286,12 @@ def check_if(expr: _JSONObject, info: QAPISourceInfo, source: str) -> None:
             raise QAPISemError(
                 info,
                 "'if' condition of %s must be a string or an object" % source)
+        check_keys(cond, info, "'if' condition of %s" % source, [],
+                   ["all", "any", "not"])
         if len(cond) != 1:
             raise QAPISemError(
                 info,
-                "'if' condition dict of %s must have one key: "
-                "'all', 'any' or 'not'" % source)
-        check_keys(cond, info, "'if' condition", [],
-                   ["all", "any", "not"])
+                "'if' condition of %s has conflicting keys" % source)
 
         oper, operands = next(iter(cond.items()))
         if not operands:
@@ -630,20 +629,15 @@ def check_exprs(exprs: List[_JSONObject]) -> List[_JSONObject]:
         if 'include' in expr:
             continue
 
-        if 'enum' in expr:
-            meta = 'enum'
-        elif 'union' in expr:
-            meta = 'union'
-        elif 'alternate' in expr:
-            meta = 'alternate'
-        elif 'struct' in expr:
-            meta = 'struct'
-        elif 'command' in expr:
-            meta = 'command'
-        elif 'event' in expr:
-            meta = 'event'
-        else:
-            raise QAPISemError(info, "expression is missing metatype")
+        metas = expr.keys() & {'enum', 'struct', 'union', 'alternate',
+                               'command', 'event'}
+        if len(metas) != 1:
+            raise QAPISemError(
+                info,
+                "expression must have exactly one key"
+                " 'enum', 'struct', 'union', 'alternate',"
+                " 'command', 'event'")
+        meta = metas.pop()
 
         check_name_is_str(expr[meta], info, "'%s'" % meta)
         name = cast(str, expr[meta])
