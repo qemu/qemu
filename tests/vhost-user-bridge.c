@@ -540,6 +540,11 @@ vubr_new(const char *path, bool client)
     CallbackFunc cb;
     size_t len;
 
+    if (strlen(path) >= sizeof(un.sun_path)) {
+        fprintf(stderr, "unix domain socket path '%s' is too long\n", path);
+        exit(1);
+    }
+
     /* Get a UNIX socket. */
     dev->sock = socket(AF_UNIX, SOCK_STREAM, 0);
     if (dev->sock == -1) {
@@ -826,7 +831,7 @@ main(int argc, char *argv[])
 out:
     fprintf(stderr, "Usage: %s ", argv[0]);
     fprintf(stderr, "[-c] [-H] [-u ud_socket_path] [-l lhost:lport] [-r rhost:rport]\n");
-    fprintf(stderr, "\t-u path to unix doman socket. default: %s\n",
+    fprintf(stderr, "\t-u path to unix domain socket. default: %s\n",
             DEFAULT_UD_SOCKET);
     fprintf(stderr, "\t-l local host and port. default: %s:%s\n",
             DEFAULT_LHOST, DEFAULT_LPORT);

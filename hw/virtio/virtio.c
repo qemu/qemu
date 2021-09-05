@@ -133,12 +133,10 @@ struct VirtQueue
     QLIST_ENTRY(VirtQueue) node;
 };
 
+/* Called within call_rcu().  */
 static void virtio_free_region_cache(VRingMemoryRegionCaches *caches)
 {
-    if (!caches) {
-        return;
-    }
-
+    assert(caches != NULL);
     address_space_cache_destroy(&caches->desc);
     address_space_cache_destroy(&caches->avail);
     address_space_cache_destroy(&caches->used);
@@ -634,6 +632,7 @@ static int virtio_queue_split_empty(VirtQueue *vq)
     return empty;
 }
 
+/* Called within rcu_read_lock().  */
 static int virtio_queue_packed_empty_rcu(VirtQueue *vq)
 {
     struct VRingPackedDesc desc;

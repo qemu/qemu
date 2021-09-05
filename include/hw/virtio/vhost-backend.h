@@ -173,12 +173,6 @@ typedef struct VhostOps {
     vhost_force_iommu_op vhost_force_iommu;
 } VhostOps;
 
-extern const VhostOps user_ops;
-extern const VhostOps vdpa_ops;
-
-int vhost_set_backend_type(struct vhost_dev *dev,
-                           VhostBackendType backend_type);
-
 int vhost_backend_update_device_iotlb(struct vhost_dev *dev,
                                              uint64_t iova, uint64_t uaddr,
                                              uint64_t len,

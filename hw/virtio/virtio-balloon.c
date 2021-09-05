@@ -30,6 +30,7 @@
 #include "trace.h"
 #include "qemu/error-report.h"
 #include "migration/misc.h"
+#include "migration/migration.h"
 
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
@@ -533,22 +534,18 @@ static bool get_free_page_hints(VirtIOBalloon *dev)
         if (dev->free_page_hint_status == FREE_PAGE_HINT_S_REQUESTED &&
             id == dev->free_page_hint_cmd_id) {
             dev->free_page_hint_status = FREE_PAGE_HINT_S_START;
-        } else {
+        } else if (dev->free_page_hint_status == FREE_PAGE_HINT_S_START) {
             /*
              * Stop the optimization only when it has started. This
              * avoids a stale stop sign for the previous command.
              */
-            if (dev->free_page_hint_status == FREE_PAGE_HINT_S_START) {
-                dev->free_page_hint_status = FREE_PAGE_HINT_S_STOP;
-            }
+            dev->free_page_hint_status = FREE_PAGE_HINT_S_STOP;
         }
     }
 
-    if (elem->in_num) {
-        if (dev->free_page_hint_status == FREE_PAGE_HINT_S_START) {
-            qemu_guest_free_page_hint(elem->in_sg[0].iov_base,
-                                      elem->in_sg[0].iov_len);
-        }
+    if (elem->in_num && dev->free_page_hint_status == FREE_PAGE_HINT_S_START) {
+        qemu_guest_free_page_hint(elem->in_sg[0].iov_base,
+                                  elem->in_sg[0].iov_len);
     }
 
 out:
@@ -591,16 +588,10 @@ static void virtio_balloon_free_page_start(VirtIOBalloon *s)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
 
-    /* For the stop and copy phase, we don't need to start the optimization */
-    if (!vdev->vm_running) {
-        return;
-    }
-
     qemu_mutex_lock(&s->free_page_lock);
 
     if (s->free_page_hint_cmd_id == UINT_MAX) {
-        s->free_page_hint_cmd_id =
-                       VIRTIO_BALLOON_FREE_PAGE_HINT_CMD_ID_MIN;
+        s->free_page_hint_cmd_id = VIRTIO_BALLOON_FREE_PAGE_HINT_CMD_ID_MIN;
     } else {
         s->free_page_hint_cmd_id++;
     }
@@ -648,8 +639,7 @@ static void virtio_balloon_free_page_done(VirtIOBalloon *s)
 static int
 virtio_balloon_free_page_hint_notify(NotifierWithReturn *n, void *data)
 {
-    VirtIOBalloon *dev = container_of(n, VirtIOBalloon,
-                                      free_page_hint_notify);
+    VirtIOBalloon *dev = container_of(n, VirtIOBalloon, free_page_hint_notify);
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     PrecopyNotifyData *pnd = data;
 
@@ -659,6 +649,18 @@ virtio_balloon_free_page_hint_notify(NotifierWithReturn *n, void *data)
          * have the normal migration process not affected when this feature is
          * not supported.
          */
+        return 0;
+    }
+
+    /*
+     * Pages hinted via qemu_guest_free_page_hint() are cleared from the dirty
+     * bitmap and will not get migrated, especially also not when the postcopy
+     * destination starts using them and requests migration from the source; the
+     * faulting thread will stall until postcopy migration finishes and
+     * all threads are woken up. Let's not start free page hinting if postcopy
+     * is possible.
+     */
+    if (migrate_postcopy_ram()) {
         return 0;
     }
 
@@ -906,8 +908,7 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
     s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
     s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
 
-    if (virtio_has_feature(s->host_features,
-                           VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
+    if (virtio_has_feature(s->host_features, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
         s->free_page_vq = virtio_add_queue(vdev, VIRTQUEUE_MAX_SIZE,
                                            virtio_balloon_handle_free_page_vq);
         precopy_add_notifier(&s->free_page_hint_notify);

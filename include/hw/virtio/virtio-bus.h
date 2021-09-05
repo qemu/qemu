@@ -93,6 +93,7 @@ struct VirtioBusClass {
      */
     bool has_variable_vring_alignment;
     AddressSpace *(*get_dma_as)(DeviceState *d);
+    bool (*iommu_enabled)(DeviceState *d);
 };
 
 struct VirtioBusState {
@@ -154,5 +155,6 @@ void virtio_bus_release_ioeventfd(VirtioBusState *bus);
 int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign);
 /* Tell the bus that the ioeventfd handler is no longer required. */
 void virtio_bus_cleanup_host_notifier(VirtioBusState *bus, int n);
-
+/* Whether the IOMMU is enabled for this device */
+bool virtio_bus_device_iommu_enabled(VirtIODevice *vdev);
 #endif /* VIRTIO_BUS_H */

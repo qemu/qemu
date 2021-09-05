@@ -238,7 +238,7 @@ static void pc_q35_init(MachineState *machine)
                              OBJECT(lpc), &error_abort);
 
     acpi_pcihp = object_property_get_bool(OBJECT(lpc),
-                                          "acpi-pci-hotplug-with-bridge-support",
+                                          ACPI_PM_PROP_ACPI_PCIHP_BRIDGE,
                                           NULL);
 
     if (acpi_pcihp) {

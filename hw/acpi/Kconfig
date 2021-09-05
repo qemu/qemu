@@ -8,6 +8,8 @@ config ACPI_X86
     select ACPI_CPU_HOTPLUG
     select ACPI_MEMORY_HOTPLUG
     select ACPI_HMAT
+    select ACPI_PIIX4
+    select ACPI_PCIHP
 
 config ACPI_X86_ICH
     bool
@@ -21,6 +23,14 @@ config ACPI_MEMORY_HOTPLUG
     select MEM_DEVICE
 
 config ACPI_NVDIMM
+    bool
+    depends on ACPI
+
+config ACPI_PIIX4
+    bool
+    depends on ACPI
+
+config ACPI_PCIHP
     bool
     depends on ACPI
 

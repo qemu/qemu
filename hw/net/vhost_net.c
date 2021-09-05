@@ -165,9 +165,9 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
         goto fail;
     }
     net->nc = options->net_backend;
+    net->dev.nvqs = options->nvqs;
 
     net->dev.max_queues = 1;
-    net->dev.nvqs = 2;
     net->dev.vqs = net->vqs;
 
     if (backend_kernel) {
@@ -241,9 +241,6 @@ static int vhost_net_start_one(struct vhost_net *net,
 {
     struct vhost_vring_file file = { };
     int r;
-
-    net->dev.nvqs = 2;
-    net->dev.vqs = net->vqs;
 
     r = vhost_dev_enable_notifiers(&net->dev, dev);
     if (r < 0) {

@@ -101,7 +101,7 @@ GlobalProperty pc_compat_6_0[] = {
     { "qemu64" "-" TYPE_X86_CPU, "model", "6" },
     { "qemu64" "-" TYPE_X86_CPU, "stepping", "3" },
     { TYPE_X86_CPU, "x-vendor-cpuid-only", "off" },
-    { "ICH9-LPC", "acpi-pci-hotplug-with-bridge-support", "off" },
+    { "ICH9-LPC", ACPI_PM_PROP_ACPI_PCIHP_BRIDGE, "off" },
 };
 const size_t pc_compat_6_0_len = G_N_ELEMENTS(pc_compat_6_0);
 
@@ -313,7 +313,7 @@ const size_t pc_compat_2_0_len = G_N_ELEMENTS(pc_compat_2_0);
 GlobalProperty pc_compat_1_7[] = {
     PC_CPU_MODEL_IDS("1.7.0")
     { TYPE_USB_DEVICE, "msos-desc", "no" },
-    { "PIIX4_PM", "acpi-pci-hotplug-with-bridge-support", "off" },
+    { "PIIX4_PM", ACPI_PM_PROP_ACPI_PCIHP_BRIDGE, "off" },
     { "hpet", HPET_INTCAP, "4" },
 };
 const size_t pc_compat_1_7_len = G_N_ELEMENTS(pc_compat_1_7);
@@ -802,18 +802,9 @@ void pc_machine_done(Notifier *notifier, void *data)
 
 void pc_guest_info_init(PCMachineState *pcms)
 {
-    int i;
-    MachineState *ms = MACHINE(pcms);
     X86MachineState *x86ms = X86_MACHINE(pcms);
 
     x86ms->apic_xrupt_override = true;
-    pcms->numa_nodes = ms->numa_state->num_nodes;
-    pcms->node_mem = g_malloc0(pcms->numa_nodes *
-                                    sizeof *pcms->node_mem);
-    for (i = 0; i < ms->numa_state->num_nodes; i++) {
-        pcms->node_mem[i] = ms->numa_state->nodes[i].node_mem;
-    }
-
     pcms->machine_done.notify = pc_machine_done;
     qemu_add_machine_init_done_notifier(&pcms->machine_done);
 }
