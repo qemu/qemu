@@ -318,6 +318,7 @@ nbd_co_establish_connection(NBDClientConnection *conn, NBDExportInfo *info,
         }
 
         if (!blocking) {
+            error_setg(errp, "No connection at the moment");
             return NULL;
         }
 
