@@ -931,7 +931,7 @@ vnc = not_found
 png = not_found
 jpeg = not_found
 sasl = not_found
-if not get_option('vnc').disabled()
+if have_system and not get_option('vnc').disabled()
   vnc = declare_dependency() # dummy dependency
   png = dependency('libpng', required: get_option('vnc_png'),
                    method: 'pkg-config', kwargs: static_kwargs)
