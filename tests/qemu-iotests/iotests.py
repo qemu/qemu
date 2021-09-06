@@ -138,14 +138,22 @@ def unarchive_sample_image(sample, fname):
         shutil.copyfileobj(f_in, f_out)
 
 
+def qemu_tool_popen(args: Sequence[str],
+                    connect_stderr: bool = True) -> 'subprocess.Popen[str]':
+    stderr = subprocess.STDOUT if connect_stderr else None
+    # pylint: disable=consider-using-with
+    return subprocess.Popen(args,
+                            stdout=subprocess.PIPE,
+                            stderr=stderr,
+                            universal_newlines=True)
+
+
 def qemu_tool_pipe_and_status(tool: str, args: Sequence[str],
                               connect_stderr: bool = True) -> Tuple[str, int]:
     """
     Run a tool and return both its output and its exit code
     """
-    stderr = subprocess.STDOUT if connect_stderr else None
-    with subprocess.Popen(args, stdout=subprocess.PIPE,
-                          stderr=stderr, universal_newlines=True) as subp:
+    with qemu_tool_popen(args, connect_stderr) as subp:
         output = subp.communicate()[0]
         if subp.returncode < 0:
             cmd = ' '.join(args)
