@@ -1,0 +1,11 @@
+read 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+Check fail to connect with 0 seconds of timeout
+qemu-io: can't open: Failed to connect to 'TEST_DIR/PID-nbd-sock': No such file or directory
+
+qemu_io finished in 0..0.2 seconds, OK
+Check fail to connect with 1 seconds of timeout
+qemu-io: can't open: Failed to connect to 'TEST_DIR/PID-nbd-sock': No such file or directory
+
+qemu_io finished in 1..1.2 seconds, OK

@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+#
+# Test nbd reconnect on open
+#
+# Copyright (c) 2020 Virtuozzo International GmbH
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import time
+
+import iotests
+from iotests import qemu_img_create, file_path, qemu_io_popen, qemu_nbd, \
+    qemu_io_log, log
+
+iotests.script_initialize(supported_fmts=['qcow2'])
+
+disk, nbd_sock = file_path('disk', 'nbd-sock')
+
+
+def create_args(open_timeout):
+    return ['--image-opts', '-c', 'read 0 1M',
+            f'driver=nbd,open-timeout={open_timeout},'
+            f'server.type=unix,server.path={nbd_sock}']
+
+
+def check_fail_to_connect(open_timeout):
+    log(f'Check fail to connect with {open_timeout} seconds of timeout')
+
+    start_t = time.time()
+    qemu_io_log(*create_args(open_timeout))
+    delta_t = time.time() - start_t
+
+    max_delta = open_timeout + 0.2
+    if open_timeout <= delta_t <= max_delta:
+        log(f'qemu_io finished in {open_timeout}..{max_delta} seconds, OK')
+    else:
+        note = 'too early' if delta_t < open_timeout else 'too long'
+        log(f'qemu_io finished in {delta_t:.1f} seconds, {note}')
+
+
+qemu_img_create('-f', iotests.imgfmt, disk, '1M')
+
+# Start NBD client when NBD server is not yet running. It should not fail, but
+# wait for 5 seconds for the server to be available.
+client = qemu_io_popen(*create_args(5))
+
+time.sleep(1)
+qemu_nbd('-k', nbd_sock, '-f', iotests.imgfmt, disk)
+
+# client should succeed
+log(client.communicate()[0], filters=[iotests.filter_qemu_io])
+
+# Server was started without --persistent flag, so it should be off now. Let's
+# check it and at the same time check that with open-timeout=0 client fails
+# immediately.
+check_fail_to_connect(0)
+
+# Check that we will fail after non-zero timeout if server is still unavailable
+check_fail_to_connect(1)
