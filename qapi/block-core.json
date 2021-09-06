@@ -4096,6 +4096,12 @@
 #                   future requests before a successful reconnect will
 #                   immediately fail. Default 0 (Since 4.2)
 #
+# @open-timeout: In seconds. If zero, the nbd driver tries the connection
+#                only once, and fails to open if the connection fails.
+#                If non-zero, the nbd driver will repeat connection attempts
+#                until successful or until @open-timeout seconds have elapsed.
+#                Default 0 (Since 7.0)
+#
 # Features:
 # @unstable: Member @x-dirty-bitmap is experimental.
 #
@@ -4106,7 +4112,8 @@
             '*export': 'str',
             '*tls-creds': 'str',
             '*x-dirty-bitmap': { 'type': 'str', 'features': [ 'unstable' ] },
-            '*reconnect-delay': 'uint32' } }
+            '*reconnect-delay': 'uint32',
+            '*open-timeout': 'uint32' } }
 
 ##
 # @BlockdevOptionsRaw:
