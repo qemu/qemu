@@ -1,6 +1,8 @@
 #ifndef KVM_SECURITY_LAYER
 #define KVM_SECURITY_LAYER
 
+#include <time.h>
+
 #define HYPERCALL_OFFSET 0x80
 
 #define AGENT_HYPERCALL             1   /* DEPRECATED HYPERCALL*/
@@ -31,6 +33,11 @@
 
 /* Call clear access log, testing experiment */
 /* #define CLEAR_ACCESS_LOG_HYPERCALL  8 */
+
+/* Performance measurments */
+#define START_TIMER_HYPERCALL       10
+#define EMPTY_HYPERCALL             11
+#define STOP_TIMER_HYPERCALL        12
 
 
 typedef enum recording_state {
@@ -71,6 +78,7 @@ typedef struct saved_memory_chunk {
 ProtectedMemoryChunk *pmc_head = NULL;
 SavedMemoryChunk *smc_head = NULL;
 
+/* Not useful anymore. */
 struct kernel_invariants {
     hwaddr idt_physical_addr;
     hwaddr gdt_physical_addr; /* ? */
@@ -89,5 +97,10 @@ typedef struct monitored_pt_entry {
 } MonitoredPageTableEntry;
 
 MonitoredPageTableEntry *pt_head;
+
+/* Performance measurments */
+FILE *perf_fd, *hypercall_fd;
+struct timespec begin, end;
+struct timespec begin_hypercall, end_hypercall;
 
 #endif

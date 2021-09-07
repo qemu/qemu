@@ -49,6 +49,7 @@
 
 #include "hw/boards.h"
 #include "kvm-security.h"
+#include <sched.h>
 
 /* This check must be after config-host.h is included */
 #ifdef CONFIG_EVENTFD
@@ -80,6 +81,16 @@
     do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
 #else
 #define DBG(fmt, ...) \
+    do { } while (0)
+#endif
+
+#define CUSTOM_LOG
+
+#ifdef CUSTOM_LOG
+#define LOG(fd, fmt, ...) \
+    do { fprintf(fd, fmt, ## __VA_ARGS__); } while (0)
+#else
+#define LOG(fd, fmt, ...) \
     do { } while (0)
 #endif
 
@@ -1432,6 +1443,9 @@ int kvm_set_irq(KVMState *s, int irq, int level)
     event.irq = irq;
 
     if(irq == fx_irq_line && level == 1){
+        if(perf_fd == NULL)
+            perf_fd = fopen("perf_log.txt", "w");
+
         switch(recording_state){
             case PRE_RECORDING:
                 break;
@@ -1449,6 +1463,8 @@ int kvm_set_irq(KVMState *s, int irq, int level)
                 } else reloaded = false;
                 break;
         }
+
+        clock_gettime(CLOCK_REALTIME, &begin);
     }
 
     ret = kvm_vm_ioctl(s, s->irq_set_ioctl, &event);
@@ -1456,6 +1472,8 @@ int kvm_set_irq(KVMState *s, int irq, int level)
         perror("kvm_set_irq");
         abort();
     }
+
+
 
     return (s->irq_set_ioctl == KVM_IRQ_LINE) ? 1 : event.status;
 }
@@ -2883,6 +2901,16 @@ static void *pt_monitor_body(void *opaque){
     }
     return NULL;
 }
+
+static double get_elapsed_time(struct timespec *begin, struct timespec *end)
+{
+    long seconds, nanoseconds;
+    double elapsed;
+    seconds = end->tv_sec - begin->tv_sec;
+    nanoseconds = end->tv_nsec - begin->tv_nsec;
+    elapsed = seconds + nanoseconds * 1e-9;
+    return elapsed;
+}
  
 /* function for generic hypercall. It acts as a dispatcher by looking
     at the type of hypercall. It also updates the recording state */
@@ -2930,12 +2958,17 @@ static void execute_hypercall(CPUState *cpu)
     case START_MONITOR_HYPERCALL:
         do_start_monitor_hypercall(cpu);
         break;
-    case END_RECORDING_HYPERCALL: 
+    case END_RECORDING_HYPERCALL: {
+        double elapsed;
+        clock_gettime(CLOCK_REALTIME, &end);
+        elapsed = get_elapsed_time(&begin, &end);
+        LOG(perf_fd, "Time measured: %.9f seconds.\n", elapsed);
         if(recording_state == RECORDING){
             recording_state = POST_RECORDING;
             do_end_recording_hypercall(cpu);
         }
-        break;   
+        break;  
+    } 
     case SET_PROCESS_LIST_HYPERCALL:
         process_list = kvm_physical_memory_addr_to_host(
                             kvm_state,  
@@ -2945,8 +2978,30 @@ static void execute_hypercall(CPUState *cpu)
     case PROCESS_LIST_HYPERCALL:
         /* to check if everything is good, simply print 
             the list of processes */
-        DBG("%s\n", (const char *)process_list);
+        //DBG("%s\n", (const char *)process_list);
         break;
+    case START_TIMER_HYPERCALL:{
+        cpu_set_t mask;
+        CPU_ZERO(&mask);
+        CPU_SET(0, &mask);
+        if (sched_setaffinity(getpid(), sizeof(cpu_set_t), &mask) == -1) {
+            DBG("sched_setaffinity");
+            assert(false);
+        }
+        clock_gettime(CLOCK_THREAD_CPUTIME_ID, &begin_hypercall);
+        break;
+    }
+    case EMPTY_HYPERCALL:
+        break;
+    case STOP_TIMER_HYPERCALL:{
+        double elapsed;
+        clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end_hypercall);
+        elapsed = get_elapsed_time(&begin_hypercall, &end_hypercall);
+        if(hypercall_fd == NULL)
+            hypercall_fd = fopen("hypercall_log.txt", "a");
+        LOG(hypercall_fd, "Hypercall time: %.3f microsecs.\n", (elapsed / 100000)*1e6);
+        break;
+    }
     default:
         DBG("Hypercall not recognized\n");
         break;
