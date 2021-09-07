@@ -38,6 +38,7 @@ if meson.is_cross_build() or 'CONFIG_XKBCOMMON' not in config_host
 else
   native_qemu_keymap = qemu_keymap
 endif
+cp = find_program('cp')
 
 t = []
 foreach km, args: keymaps
@@ -55,7 +56,7 @@ foreach km, args: keymaps
                        build_by_default: true,
                        input: km,
                        output: km,
-                       command: ['cp', '@INPUT@', '@OUTPUT@'],
+                       command: [cp, '@INPUT@', '@OUTPUT@'],
                        install: true,
                        install_dir: qemu_datadir / 'keymaps')
   endif

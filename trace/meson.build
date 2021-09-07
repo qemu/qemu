@@ -2,6 +2,7 @@
 specific_ss.add(files('control-target.c'))
 
 trace_events_files = []
+dtrace = find_program('dtrace', required: 'CONFIG_TRACE_DTRACE' in config_host)
 foreach dir : [ '.' ] + trace_events_subdirs
   trace_events_file = meson.source_root() / dir / 'trace-events'
   trace_events_files += [ trace_events_file ]
@@ -39,13 +40,13 @@ foreach dir : [ '.' ] + trace_events_subdirs
     trace_dtrace_h = custom_target(fmt.format('trace-dtrace', 'h'),
                                    output: fmt.format('trace-dtrace', 'h'),
                                    input: trace_dtrace,
-                                   command: [ 'dtrace', '-DSTAP_SDT_V2', '-o', '@OUTPUT@', '-h', '-s', '@INPUT@' ])
+                                   command: [ dtrace, '-DSTAP_SDT_V2', '-o', '@OUTPUT@', '-h', '-s', '@INPUT@' ])
     trace_ss.add(trace_dtrace_h)
     if host_machine.system() != 'darwin'
       trace_dtrace_o = custom_target(fmt.format('trace-dtrace', 'o'),
                                      output: fmt.format('trace-dtrace', 'o'),
                                      input: trace_dtrace,
-                                     command: [ 'dtrace', '-DSTAP_SDT_V2', '-o', '@OUTPUT@', '-G', '-s', '@INPUT@' ])
+                                     command: [ dtrace, '-DSTAP_SDT_V2', '-o', '@OUTPUT@', '-G', '-s', '@INPUT@' ])
       trace_ss.add(trace_dtrace_o)
     endif
 
