@@ -6,8 +6,9 @@
    parts of the documentation that go in the manpage as well as the
    HTML manual.
 
-Title
-=====
+=======================
+QEMU User Documentation
+=======================
 
 Synopsis
 --------
