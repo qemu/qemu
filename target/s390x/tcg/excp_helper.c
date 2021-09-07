@@ -150,19 +150,6 @@ bool s390_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         g_assert_not_reached();
     }
 
-    /* check out of RAM access */
-    if (!excp &&
-        !address_space_access_valid(&address_space_memory, raddr,
-                                    TARGET_PAGE_SIZE, access_type,
-                                    MEMTXATTRS_UNSPECIFIED)) {
-        MachineState *ms = MACHINE(qdev_get_machine());
-        qemu_log_mask(CPU_LOG_MMU,
-                      "%s: raddr %" PRIx64 " > ram_size %" PRIx64 "\n",
-                      __func__, (uint64_t)raddr, (uint64_t)ms->ram_size);
-        excp = PGM_ADDRESSING;
-        tec = 0; /* unused */
-    }
-
     env->tlb_fill_exc = excp;
     env->tlb_fill_tec = tec;
 

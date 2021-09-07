@@ -1,4 +1,5 @@
-VPATH+=$(SRC_PATH)/tests/tcg/s390x
+S390X_SRC=$(SRC_PATH)/tests/tcg/s390x
+VPATH+=$(S390X_SRC)
 CFLAGS+=-march=zEC12 -m64
 TESTS+=hello-s390x
 TESTS+=csst
@@ -9,3 +10,17 @@ TESTS+=pack
 TESTS+=mvo
 TESTS+=mvc
 TESTS+=trap
+TESTS+=signals-s390x
+
+ifneq ($(HAVE_GDB_BIN),)
+GDB_SCRIPT=$(SRC_PATH)/tests/guest-debug/run-test.py
+
+run-gdbstub-signals-s390x: signals-s390x
+	$(call run-test, $@, $(GDB_SCRIPT) \
+		--gdb $(HAVE_GDB_BIN) \
+		--qemu $(QEMU) --qargs "$(QEMU_OPTS)" \
+		--bin $< --test $(S390X_SRC)/gdbstub/test-signals-s390x.py, \
+	"mixing signals and debugging on s390x")
+
+EXTRA_RUNS += run-gdbstub-signals-s390x
+endif

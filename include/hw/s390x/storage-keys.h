@@ -28,9 +28,72 @@ struct S390SKeysState {
 
 struct S390SKeysClass {
     DeviceClass parent_class;
-    int (*skeys_enabled)(S390SKeysState *ks);
+
+    /**
+     * @skeys_are_enabled:
+     *
+     * Check whether storage keys are enabled. If not enabled, they were not
+     * enabled lazily either by the guest via a storage key instruction or
+     * by the host during migration.
+     *
+     * If disabled, everything not explicitly triggered by the guest,
+     * such as outgoing migration or dirty/change tracking, should not touch
+     * storage keys and should not lazily enable it.
+     *
+     * @ks: the #S390SKeysState
+     *
+     * Returns false if not enabled and true if enabled.
+     */
+    bool (*skeys_are_enabled)(S390SKeysState *ks);
+
+    /**
+     * @enable_skeys:
+     *
+     * Lazily enable storage keys. If this function is not implemented,
+     * setting a storage key will lazily enable storage keys implicitly
+     * instead. TCG guests have to make sure to flush the TLB of all CPUs
+     * if storage keys were not enabled before this call.
+     *
+     * @ks: the #S390SKeysState
+     *
+     * Returns false if not enabled before this call, and true if already
+     * enabled.
+     */
+    bool (*enable_skeys)(S390SKeysState *ks);
+
+    /**
+     * @get_skeys:
+     *
+     * Get storage keys for the given PFN range. This call will fail if
+     * storage keys have not been lazily enabled yet.
+     *
+     * Callers have to validate that a GFN is valid before this call.
+     *
+     * @ks: the #S390SKeysState
+     * @start_gfn: the start GFN to get storage keys for
+     * @count: the number of storage keys to get
+     * @keys: the byte array where storage keys will be stored to
+     *
+     * Returns 0 on success, returns an error if getting a storage key failed.
+     */
     int (*get_skeys)(S390SKeysState *ks, uint64_t start_gfn, uint64_t count,
                      uint8_t *keys);
+    /**
+     * @set_skeys:
+     *
+     * Set storage keys for the given PFN range. This call will fail if
+     * storage keys have not been lazily enabled yet and implicit
+     * enablement is not supported.
+     *
+     * Callers have to validate that a GFN is valid before this call.
+     *
+     * @ks: the #S390SKeysState
+     * @start_gfn: the start GFN to set storage keys for
+     * @count: the number of storage keys to set
+     * @keys: the byte array where storage keys will be read from
+     *
+     * Returns 0 on success, returns an error if setting a storage key failed.
+     */
     int (*set_skeys)(S390SKeysState *ks, uint64_t start_gfn, uint64_t count,
                      uint8_t *keys);
 };

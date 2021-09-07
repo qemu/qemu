@@ -15,7 +15,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 
-static int kvm_s390_skeys_enabled(S390SKeysState *ss)
+static bool kvm_s390_skeys_are_enabled(S390SKeysState *ss)
 {
     S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
     uint8_t single_key;
@@ -57,7 +57,7 @@ static void kvm_s390_skeys_class_init(ObjectClass *oc, void *data)
     S390SKeysClass *skeyclass = S390_SKEYS_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    skeyclass->skeys_enabled = kvm_s390_skeys_enabled;
+    skeyclass->skeys_are_enabled = kvm_s390_skeys_are_enabled;
     skeyclass->get_skeys = kvm_s390_skeys_get;
     skeyclass->set_skeys = kvm_s390_skeys_set;
 

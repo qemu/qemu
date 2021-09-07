@@ -1206,23 +1206,53 @@ static void sch_handle_start_func_virtual(SubchDev *sch)
 
 }
 
-static void sch_handle_halt_func_passthrough(SubchDev *sch)
+static IOInstEnding sch_handle_halt_func_passthrough(SubchDev *sch)
 {
     int ret;
 
     ret = s390_ccw_halt(sch);
     if (ret == -ENOSYS) {
         sch_handle_halt_func(sch);
+        return IOINST_CC_EXPECTED;
+    }
+    /*
+     * Some conditions may have been detected prior to starting the halt
+     * function; map them to the correct cc.
+     * Note that we map both -ENODEV and -EACCES to cc 3 (there's not really
+     * anything else we can do.)
+     */
+    switch (ret) {
+    case -EBUSY:
+        return IOINST_CC_BUSY;
+    case -ENODEV:
+    case -EACCES:
+        return IOINST_CC_NOT_OPERATIONAL;
+    default:
+        return IOINST_CC_EXPECTED;
     }
 }
 
-static void sch_handle_clear_func_passthrough(SubchDev *sch)
+static IOInstEnding sch_handle_clear_func_passthrough(SubchDev *sch)
 {
     int ret;
 
     ret = s390_ccw_clear(sch);
     if (ret == -ENOSYS) {
         sch_handle_clear_func(sch);
+        return IOINST_CC_EXPECTED;
+    }
+    /*
+     * Some conditions may have been detected prior to starting the clear
+     * function; map them to the correct cc.
+     * Note that we map both -ENODEV and -EACCES to cc 3 (there's not really
+     * anything else we can do.)
+     */
+    switch (ret) {
+    case -ENODEV:
+    case -EACCES:
+        return IOINST_CC_NOT_OPERATIONAL;
+    default:
+        return IOINST_CC_EXPECTED;
     }
 }
 
@@ -1265,9 +1295,9 @@ IOInstEnding do_subchannel_work_passthrough(SubchDev *sch)
     SCHIB *schib = &sch->curr_status;
 
     if (schib->scsw.ctrl & SCSW_FCTL_CLEAR_FUNC) {
-        sch_handle_clear_func_passthrough(sch);
+        return sch_handle_clear_func_passthrough(sch);
     } else if (schib->scsw.ctrl & SCSW_FCTL_HALT_FUNC) {
-        sch_handle_halt_func_passthrough(sch);
+        return sch_handle_halt_func_passthrough(sch);
     } else if (schib->scsw.ctrl & SCSW_FCTL_START_FUNC) {
         return sch_handle_start_func_passthrough(sch);
     }

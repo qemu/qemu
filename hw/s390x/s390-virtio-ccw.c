@@ -803,6 +803,11 @@ DEFINE_CCW_MACHINE(6_2, "6.2", true);
 static void ccw_machine_6_1_instance_options(MachineState *machine)
 {
     ccw_machine_6_2_instance_options(machine);
+    s390_cpudef_featoff_greater(16, 1, S390_FEAT_NNPA);
+    s390_cpudef_featoff_greater(16, 1, S390_FEAT_VECTOR_PACKED_DECIMAL_ENH2);
+    s390_cpudef_featoff_greater(16, 1, S390_FEAT_BEAR_ENH);
+    s390_cpudef_featoff_greater(16, 1, S390_FEAT_RDP);
+    s390_cpudef_featoff_greater(16, 1, S390_FEAT_PAI);
 }
 
 static void ccw_machine_6_1_class_options(MachineClass *mc)
