@@ -29,6 +29,7 @@
 #include "qemu/datadir.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-machine.h"
+#include "qapi/qapi-events-qdev.h"
 #include "qapi/visitor.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/hostmem.h"
@@ -3686,11 +3687,18 @@ void spapr_memory_unplug_rollback(SpaprMachineState *spapr, DeviceState *dev)
 
     /*
      * Tell QAPI that something happened and the memory
-     * hotunplug wasn't successful.
+     * hotunplug wasn't successful. Keep sending
+     * MEM_UNPLUG_ERROR even while sending
+     * DEVICE_UNPLUG_GUEST_ERROR until the deprecation of
+     * MEM_UNPLUG_ERROR is due.
      */
     qapi_error = g_strdup_printf("Memory hotunplug rejected by the guest "
                                  "for device %s", dev->id);
+
     qapi_event_send_mem_unplug_error(dev->id ? : "", qapi_error);
+
+    qapi_event_send_device_unplug_guest_error(!!dev->id, dev->id,
+                                              dev->canonical_path);
 }
 
 /* Callback to be called during DRC release. */
