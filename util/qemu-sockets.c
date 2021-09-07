@@ -278,7 +278,7 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
 
     /* create socket + bind/listen */
     for (e = res; e != NULL; e = e->ai_next) {
-#ifdef IPPROTO_MPTCP
+#ifdef HAVE_IPPROTO_MPTCP
         if (saddr->has_mptcp && saddr->mptcp) {
             e->ai_protocol = IPPROTO_MPTCP;
         }
@@ -462,7 +462,7 @@ int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
         error_free(local_err);
         local_err = NULL;
 
-#ifdef IPPROTO_MPTCP
+#ifdef HAVE_IPPROTO_MPTCP
         if (saddr->has_mptcp && saddr->mptcp) {
             e->ai_protocol = IPPROTO_MPTCP;
         }
@@ -699,7 +699,7 @@ int inet_parse(InetSocketAddress *addr, const char *str, Error **errp)
         }
         addr->has_keep_alive = true;
     }
-#ifdef IPPROTO_MPTCP
+#ifdef HAVE_IPPROTO_MPTCP
     begin = strstr(optstr, ",mptcp");
     if (begin) {
         if (inet_parse_flag("mptcp", begin + strlen(",mptcp"),

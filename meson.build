@@ -1374,6 +1374,8 @@ config_host_data.set('HAVE_OPTRESET',
                      cc.has_header_symbol('getopt.h', 'optreset'))
 config_host_data.set('HAVE_UTMPX',
                      cc.has_header_symbol('utmpx.h', 'struct utmpx'))
+config_host_data.set('HAVE_IPPROTO_MPTCP',
+                     cc.has_header_symbol('netinet/in.h', 'IPPROTO_MPTCP'))
 
 # has_member
 config_host_data.set('HAVE_SIGEV_NOTIFY_THREAD_ID',
