@@ -1,5 +1,6 @@
+-----
 Tools
-=====
+-----
 
 This section of the manual documents QEMU's "tools": its
 command line utilities and other standalone programs.
