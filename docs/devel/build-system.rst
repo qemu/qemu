@@ -380,6 +380,16 @@ phony target, while benchmarks are run with ``make bench``.  Meson test
 suites such as ``unit`` can be ran with ``make check-unit`` too.  It is also
 possible to run tests defined in meson.build with ``meson test``.
 
+Useful make targets
+-------------------
+
+``help``
+  Print a help message for the most common build targets.
+
+``print-VAR``
+  Print the value of the variable VAR. Useful for debugging the build
+  system.
+
 Important files for the build system
 ====================================
 
@@ -473,14 +483,3 @@ Built by Makefile:
   meson.build.  The rules are produced from Meson's JSON description of
   tests (obtained with "meson introspect --tests") through the script
   scripts/mtest2make.py.
-
-
-Useful make targets
--------------------
-
-``help``
-  Print a help message for the most common build targets.
-
-``print-VAR``
-  Print the value of the variable VAR. Useful for debugging the build
-  system.
