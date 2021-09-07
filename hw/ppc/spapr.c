@@ -3690,7 +3690,7 @@ void spapr_memory_unplug_rollback(SpaprMachineState *spapr, DeviceState *dev)
      */
     qapi_error = g_strdup_printf("Memory hotunplug rejected by the guest "
                                  "for device %s", dev->id);
-    qapi_event_send_mem_unplug_error(dev->id, qapi_error);
+    qapi_event_send_mem_unplug_error(dev->id ? : "", qapi_error);
 }
 
 /* Callback to be called during DRC release. */
