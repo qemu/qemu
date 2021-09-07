@@ -3,7 +3,6 @@
    Copyright (c) 2019, Linaro Limited
    Written by Emilio Cota and Alex Bennée
 
-================
 QEMU TCG Plugins
 ================
 
@@ -16,60 +15,8 @@ only monitor it passively. However they can do this down to an
 individual instruction granularity including potentially subscribing
 to all load and store operations.
 
-API Stability
-=============
-
-This is a new feature for QEMU and it does allow people to develop
-out-of-tree plugins that can be dynamically linked into a running QEMU
-process. However the project reserves the right to change or break the
-API should it need to do so. The best way to avoid this is to submit
-your plugin upstream so they can be updated if/when the API changes.
-
-API versioning
---------------
-
-All plugins need to declare a symbol which exports the plugin API
-version they were built against. This can be done simply by::
-
-  QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
-
-The core code will refuse to load a plugin that doesn't export a
-``qemu_plugin_version`` symbol or if plugin version is outside of QEMU's
-supported range of API versions.
-
-Additionally the ``qemu_info_t`` structure which is passed to the
-``qemu_plugin_install`` method of a plugin will detail the minimum and
-current API versions supported by QEMU. The API version will be
-incremented if new APIs are added. The minimum API version will be
-incremented if existing APIs are changed or removed.
-
-Exposure of QEMU internals
---------------------------
-
-The plugin architecture actively avoids leaking implementation details
-about how QEMU's translation works to the plugins. While there are
-conceptions such as translation time and translation blocks the
-details are opaque to plugins. The plugin is able to query select
-details of instructions and system configuration only through the
-exported *qemu_plugin* functions.
-
-Query Handle Lifetime
----------------------
-
-Each callback provides an opaque anonymous information handle which
-can usually be further queried to find out information about a
-translation, instruction or operation. The handles themselves are only
-valid during the lifetime of the callback so it is important that any
-information that is needed is extracted during the callback and saved
-by the plugin.
-
-API
-===
-
-.. kernel-doc:: include/qemu/qemu-plugin.h
-
 Usage
-=====
+-----
 
 Any QEMU binary with TCG support has plugins enabled by default.
 Earlier releases needed to be explicitly enabled with::
@@ -87,8 +34,45 @@ Arguments are plugin specific and can be used to modify their
 behaviour. In this case the howvec plugin is being asked to use inline
 ops to count and break down the hint instructions by type.
 
-Plugin Life cycle
-=================
+Writing plugins
+---------------
+
+API versioning
+~~~~~~~~~~~~~~
+
+This is a new feature for QEMU and it does allow people to develop
+out-of-tree plugins that can be dynamically linked into a running QEMU
+process. However the project reserves the right to change or break the
+API should it need to do so. The best way to avoid this is to submit
+your plugin upstream so they can be updated if/when the API changes.
+
+All plugins need to declare a symbol which exports the plugin API
+version they were built against. This can be done simply by::
+
+  QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
+
+The core code will refuse to load a plugin that doesn't export a
+``qemu_plugin_version`` symbol or if plugin version is outside of QEMU's
+supported range of API versions.
+
+Additionally the ``qemu_info_t`` structure which is passed to the
+``qemu_plugin_install`` method of a plugin will detail the minimum and
+current API versions supported by QEMU. The API version will be
+incremented if new APIs are added. The minimum API version will be
+incremented if existing APIs are changed or removed.
+
+Lifetime of the query handle
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Each callback provides an opaque anonymous information handle which
+can usually be further queried to find out information about a
+translation, instruction or operation. The handles themselves are only
+valid during the lifetime of the callback so it is important that any
+information that is needed is extracted during the callback and saved
+by the plugin.
+
+Plugin life cycle
+~~~~~~~~~~~~~~~~~
 
 First the plugin is loaded and the public qemu_plugin_install function
 is called. The plugin will then register callbacks for various plugin
@@ -111,11 +95,26 @@ callback which can then ensure atomicity itself.
 Finally when QEMU exits all the registered *atexit* callbacks are
 invoked.
 
+Exposure of QEMU internals
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The plugin architecture actively avoids leaking implementation details
+about how QEMU's translation works to the plugins. While there are
+conceptions such as translation time and translation blocks the
+details are opaque to plugins. The plugin is able to query select
+details of instructions and system configuration only through the
+exported *qemu_plugin* functions.
+
+API
+~~~
+
+.. kernel-doc:: include/qemu/qemu-plugin.h
+
 Internals
-=========
+---------
 
 Locking
--------
+~~~~~~~
 
 We have to ensure we cannot deadlock, particularly under MTTCG. For
 this we acquire a lock when called from plugin code. We also keep the
@@ -142,7 +141,7 @@ requested. The plugin isn't completely uninstalled until the safe work
 has executed while all vCPUs are quiescent.
 
 Example Plugins
-===============
+---------------
 
 There are a number of plugins included with QEMU and you are
 encouraged to contribute your own plugins plugins upstream. There is a
