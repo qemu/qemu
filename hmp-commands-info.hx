@@ -338,7 +338,7 @@ ERST
         .args_type  = "",
         .params     = "",
         .help       = "show guest USB devices",
-        .cmd        = hmp_info_usb,
+        .cmd_info_hrt = qmp_x_query_usb,
     },
 
 SRST

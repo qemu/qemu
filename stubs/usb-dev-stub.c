@@ -8,6 +8,8 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
+#include "qapi/error.h"
+#include "qapi/qapi-commands-machine.h"
 #include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
 #include "hw/usb.h"
@@ -16,6 +18,12 @@ USBDevice *usbdevice_create(const char *driver)
 {
     error_report("Support for USB devices not built-in");
 
+    return NULL;
+}
+
+HumanReadableText *qmp_x_query_usb(Error **errp)
+{
+    error_setg(errp, "Support for USB devices not built-in");
     return NULL;
 }
 
