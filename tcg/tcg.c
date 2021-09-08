@@ -4116,15 +4116,15 @@ static void tcg_profile_snapshot_table(TCGProfile *prof)
     tcg_profile_snapshot(prof, false, true);
 }
 
-void tcg_dump_op_count(void)
+void tcg_dump_op_count(GString *buf)
 {
     TCGProfile prof = {};
     int i;
 
     tcg_profile_snapshot_table(&prof);
     for (i = 0; i < NB_OPS; i++) {
-        qemu_printf("%s %" PRId64 "\n", tcg_op_defs[i].name,
-                    prof.table_op_count[i]);
+        g_string_append_printf(buf, "%s %" PRId64 "\n", tcg_op_defs[i].name,
+                               prof.table_op_count[i]);
     }
 }
 
@@ -4143,9 +4143,9 @@ int64_t tcg_cpu_exec_time(void)
     return ret;
 }
 #else
-void tcg_dump_op_count(void)
+void tcg_dump_op_count(GString *buf)
 {
-    qemu_printf("[TCG profiler not compiled]\n");
+    g_string_append_printf(buf, "[TCG profiler not compiled]\n");
 }
 
 int64_t tcg_cpu_exec_time(void)

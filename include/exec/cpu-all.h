@@ -432,7 +432,7 @@ static inline bool tlb_hit(target_ulong tlb_addr, target_ulong addr)
 void dump_drift_info(GString *buf);
 /* accel/tcg/translate-all.c */
 void dump_exec_info(GString *buf);
-void dump_opcount_info(void);
+void dump_opcount_info(GString *buf);
 #endif /* CONFIG_TCG */
 
 #endif /* !CONFIG_USER_ONLY */
