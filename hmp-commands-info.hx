@@ -325,7 +325,7 @@ ERST
         .args_type  = "",
         .params     = "",
         .help       = "show NUMA information",
-        .cmd        = hmp_info_numa,
+        .cmd_info_hrt = qmp_x_query_numa,
     },
 
 SRST
