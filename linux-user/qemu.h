@@ -15,12 +15,14 @@
 #include "target_syscall.h"
 #include "exec/gdbstub.h"
 
-/* This is the size of the host kernel's sigset_t, needed where we make
+/*
+ * This is the size of the host kernel's sigset_t, needed where we make
  * direct system calls that take a sigset_t pointer and a size.
  */
 #define SIGSET_T_SIZE (_NSIG / 8)
 
-/* This struct is used to hold certain information about the image.
+/*
+ * This struct is used to hold certain information about the image.
  * Basically, it replicates in user space what would be certain
  * task_struct fields in the kernel
  */
@@ -48,13 +50,13 @@ struct image_info {
         abi_ulong       env_strings;
         abi_ulong       file_string;
         uint32_t        elf_flags;
-        int		personality;
+        int             personality;
         abi_ulong       alignment;
 
         /* The fields below are used in FDPIC mode.  */
         abi_ulong       loadmap_addr;
         uint16_t        nsegs;
-        void           *loadsegs;
+        void            *loadsegs;
         abi_ulong       pt_dynamic_addr;
         abi_ulong       interpreter_loadmap_addr;
         abi_ulong       interpreter_pt_dynamic_addr;
@@ -98,8 +100,10 @@ struct emulated_sigtable {
     target_siginfo_t info;
 };
 
-/* NOTE: we force a big alignment so that the stack stored after is
-   aligned too */
+/*
+ * NOTE: we force a big alignment so that the stack stored after is
+ * aligned too
+ */
 typedef struct TaskState {
     pid_t ts_tid;     /* tid (or pid) of this task */
 #ifdef TARGET_ARM
@@ -134,20 +138,23 @@ typedef struct TaskState {
 
     struct emulated_sigtable sync_signal;
     struct emulated_sigtable sigtab[TARGET_NSIG];
-    /* This thread's signal mask, as requested by the guest program.
+    /*
+     * This thread's signal mask, as requested by the guest program.
      * The actual signal mask of this thread may differ:
      *  + we don't let SIGSEGV and SIGBUS be blocked while running guest code
      *  + sometimes we block all signals to avoid races
      */
     sigset_t signal_mask;
-    /* The signal mask imposed by a guest sigsuspend syscall, if we are
+    /*
+     * The signal mask imposed by a guest sigsuspend syscall, if we are
      * currently in the middle of such a syscall
      */
     sigset_t sigsuspend_mask;
     /* Nonzero if we're leaving a sigsuspend and sigsuspend_mask is valid. */
     int in_sigsuspend;
 
-    /* Nonzero if process_pending_signals() needs to do something (either
+    /*
+     * Nonzero if process_pending_signals() needs to do something (either
      * handle a pending signal or unblock signals).
      * This flag is written from a signal handler so should be accessed via
      * the qatomic_read() and qatomic_set() functions. (It is not accessed
@@ -168,8 +175,10 @@ extern unsigned long mmap_min_addr;
 
 /* ??? See if we can avoid exposing so much of the loader internals.  */
 
-/* Read a good amount of data initially, to hopefully get all the
-   program headers loaded.  */
+/*
+ * Read a good amount of data initially, to hopefully get all the
+ * program headers loaded.
+ */
 #define BPRM_BUF_SIZE  1024
 
 /*
@@ -184,7 +193,7 @@ struct linux_binprm {
         int argc, envc;
         char **argv;
         char **envp;
-        char * filename;        /* Name of binary */
+        char *filename;        /* Name of binary */
         int (*core_dump)(int, const CPUArchState *); /* coredump routine */
 };
 
@@ -212,10 +221,11 @@ void do_init_thread(struct target_pt_regs *regs, struct image_info *infop);
 abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
                               abi_ulong stringp, int push_ptr);
 int loader_exec(int fdexec, const char *filename, char **argv, char **envp,
-             struct target_pt_regs * regs, struct image_info *infop,
+             struct target_pt_regs *regs, struct image_info *infop,
              struct linux_binprm *);
 
-/* Returns true if the image uses the FDPIC ABI. If this is the case,
+/*
+ * Returns true if the image uses the FDPIC ABI. If this is the case,
  * we have to provide some information (loadmap, pt_dynamic_info) such
  * that the program can be relocated adequately. This is also useful
  * when handling signals.
@@ -283,7 +293,8 @@ void probe_guest_base(const char *image_name,
  * with any of the host errno values.)
  */
 
-/* A guide to using safe_syscall() to handle interactions between guest
+/*
+ * A guide to using safe_syscall() to handle interactions between guest
  * syscalls and guest signals:
  *
  * Guest syscalls come in two flavours:
@@ -392,7 +403,8 @@ extern long safe_syscall_base(int *pending, long number, ...);
 
 #else
 
-/* Fallback for architectures which don't yet provide a safe-syscall assembly
+/*
+ * Fallback for architectures which don't yet provide a safe-syscall assembly
  * fragment; note that this is racy!
  * This should go away when all host architectures have been updated.
  */
@@ -736,7 +748,8 @@ static inline int regpairs_aligned(void *cpu_env, int num) { return 0; }
  */
 void preexit_cleanup(CPUArchState *env, int code);
 
-/* Include target-specific struct and function definitions;
+/*
+ * Include target-specific struct and function definitions;
  * they may need access to the target-independent structures
  * above, so include them last.
  */
