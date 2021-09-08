@@ -132,9 +132,6 @@ class Indentation:
     def __init__(self, initial: int = 0) -> None:
         self._level = initial
 
-    def __int__(self) -> int:
-        return self._level
-
     def __repr__(self) -> str:
         return "{}({:d})".format(type(self).__name__, self._level)
 
@@ -148,9 +145,7 @@ class Indentation:
 
     def decrease(self, amount: int = 4) -> None:
         """Decrease the indentation level by ``amount``, default 4."""
-        if self._level < amount:
-            raise ArithmeticError(
-                f"Can't remove {amount:d} spaces from {self!r}")
+        assert amount <= self._level
         self._level -= amount
 
 
