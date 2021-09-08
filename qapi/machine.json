@@ -1413,6 +1413,18 @@
      '*maxcpus': 'int' } }
 
 ##
+# @x-query-irq:
+#
+# Query interrupt statistics
+#
+# Returns: interrupt statistics
+#
+# Since: 6.2
+##
+{ 'command': 'x-query-irq',
+  'returns': 'HumanReadableText' }
+
+##
 # @x-query-numa:
 #
 # Query NUMA topology information

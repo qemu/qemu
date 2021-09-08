@@ -159,7 +159,7 @@ ERST
         .args_type  = "",
         .params     = "",
         .help       = "show the interrupts statistics (if available)",
-        .cmd        = hmp_info_irq,
+        .cmd_info_hrt = qmp_x_query_irq,
     },
 
 SRST
