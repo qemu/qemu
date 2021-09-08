@@ -1425,6 +1425,19 @@
   'returns': 'HumanReadableText' }
 
 ##
+# @x-query-jit:
+#
+# Query TCG compiler statistics
+#
+# Returns: TCG compiler statistics
+#
+# Since: 6.2
+##
+{ 'command': 'x-query-jit',
+  'returns': 'HumanReadableText',
+  'if': 'CONFIG_TCG' }
+
+##
 # @x-query-numa:
 #
 # Query NUMA topology information

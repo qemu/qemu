@@ -51,6 +51,8 @@ static int query_error_class(const char *cmd)
 #endif
         /* Only valid with a USB bus added */
         { "x-query-usb", ERROR_CLASS_GENERIC_ERROR },
+        /* Only valid with accel=tcg */
+        { "x-query-jit", ERROR_CLASS_GENERIC_ERROR },
         { NULL, -1 }
     };
     int i;

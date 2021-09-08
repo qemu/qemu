@@ -1,19 +1,10 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
+#include "qapi/error.h"
+#include "qapi/qapi-commands-machine.h"
 #include "exec/exec-all.h"
 #include "monitor/monitor.h"
 #include "sysemu/tcg.h"
-
-static void hmp_info_jit(Monitor *mon, const QDict *qdict)
-{
-    if (!tcg_enabled()) {
-        error_report("JIT information is only available with accel=tcg");
-        return;
-    }
-
-    dump_exec_info();
-    dump_drift_info();
-}
 
 static void hmp_info_opcount(Monitor *mon, const QDict *qdict)
 {
@@ -22,7 +13,7 @@ static void hmp_info_opcount(Monitor *mon, const QDict *qdict)
 
 static void hmp_tcg_register(void)
 {
-    monitor_register_hmp("jit", true, hmp_info_jit);
+    monitor_register_hmp_info_hrt("jit", qmp_x_query_jit);
     monitor_register_hmp("opcount", true, hmp_info_opcount);
 }
 

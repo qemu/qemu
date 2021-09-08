@@ -937,7 +937,7 @@ int tcg_check_temp_count(void);
 #endif
 
 int64_t tcg_cpu_exec_time(void);
-void tcg_dump_info(void);
+void tcg_dump_info(GString *buf);
 void tcg_dump_op_count(void);
 
 #define TCG_CT_CONST  1 /* any constant of register size */

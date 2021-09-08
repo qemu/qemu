@@ -429,9 +429,9 @@ static inline bool tlb_hit(target_ulong tlb_addr, target_ulong addr)
 
 #ifdef CONFIG_TCG
 /* accel/tcg/cpu-exec.c */
-void dump_drift_info(void);
+void dump_drift_info(GString *buf);
 /* accel/tcg/translate-all.c */
-void dump_exec_info(void);
+void dump_exec_info(GString *buf);
 void dump_opcount_info(void);
 #endif /* CONFIG_TCG */
 
