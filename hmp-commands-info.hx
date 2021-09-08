@@ -185,7 +185,7 @@ ERST
         .args_type  = "",
         .params     = "",
         .help       = "show RDMA state",
-        .cmd        = hmp_info_rdma,
+        .cmd_info_hrt = qmp_x_query_rdma,
     },
 
 SRST

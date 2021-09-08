@@ -31,7 +31,7 @@ typedef struct RdmaProvider RdmaProvider;
 struct RdmaProviderClass {
     InterfaceClass parent;
 
-    void (*print_statistics)(Monitor *mon, RdmaProvider *obj);
+    void (*format_statistics)(RdmaProvider *obj, GString *buf);
 };
 
 #endif
