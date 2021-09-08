@@ -594,7 +594,7 @@ ERST
         .args_type  = "",
         .params     = "",
         .help       = "show roms",
-        .cmd        = hmp_info_roms,
+        .cmd_info_hrt = qmp_x_query_roms,
     },
 
 SRST
