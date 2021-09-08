@@ -22,6 +22,7 @@
 #include <sys/resource.h>
 
 #include "qemu.h"
+#include "strace.h"
 #include "trace.h"
 #include "signal-common.h"
 

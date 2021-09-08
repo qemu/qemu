@@ -415,24 +415,6 @@ extern long safe_syscall_base(int *pending, long number, ...);
 /* syscall.c */
 int host_to_target_waitstatus(int status);
 
-/* strace.c */
-void print_syscall(void *cpu_env, int num,
-                   abi_long arg1, abi_long arg2, abi_long arg3,
-                   abi_long arg4, abi_long arg5, abi_long arg6);
-void print_syscall_ret(void *cpu_env, int num, abi_long ret,
-                       abi_long arg1, abi_long arg2, abi_long arg3,
-                       abi_long arg4, abi_long arg5, abi_long arg6);
-/**
- * print_taken_signal:
- * @target_signum: target signal being taken
- * @tinfo: target_siginfo_t which will be passed to the guest for the signal
- *
- * Print strace output indicating that this signal is being taken by the guest,
- * in a format similar to:
- * --- SIGSEGV {si_signo=SIGSEGV, si_code=SI_KERNEL, si_addr=0} ---
- */
-void print_taken_signal(int target_signum, const target_siginfo_t *tinfo);
-
 /* signal.c */
 void process_pending_signals(CPUArchState *cpu_env);
 void signal_init(void);
