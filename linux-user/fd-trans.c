@@ -27,6 +27,7 @@
 #include <linux/if_bridge.h>
 #endif
 #include "qemu.h"
+#include "user-internals.h"
 #include "fd-trans.h"
 #include "signal-common.h"
 

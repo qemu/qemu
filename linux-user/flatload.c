@@ -36,6 +36,7 @@
 #include "qemu/osdep.h"
 
 #include "qemu.h"
+#include "user-internals.h"
 #include "loader.h"
 #include "user-mmap.h"
 #include "flat.h"

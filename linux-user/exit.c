@@ -18,6 +18,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu.h"
+#include "user-internals.h"
 #ifdef CONFIG_GPROF
 #include <sys/gmon.h>
 #endif

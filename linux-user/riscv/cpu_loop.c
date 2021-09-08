@@ -21,6 +21,7 @@
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "qemu.h"
+#include "user-internals.h"
 #include "cpu_loop-common.h"
 #include "signal-common.h"
 #include "elf.h"

@@ -22,6 +22,7 @@
 #include <sys/resource.h>
 
 #include "qemu.h"
+#include "user-internals.h"
 #include "strace.h"
 #include "loader.h"
 #include "trace.h"
