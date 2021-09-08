@@ -18,6 +18,8 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
+#include "exec/gdbstub.h"
+
 #include <sys/ucontext.h>
 #include <sys/resource.h>
 

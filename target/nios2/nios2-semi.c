@@ -24,11 +24,11 @@
 #include "qemu/osdep.h"
 
 #include "cpu.h"
+#include "exec/gdbstub.h"
 #if defined(CONFIG_USER_ONLY)
 #include "qemu.h"
 #else
 #include "qemu-common.h"
-#include "exec/gdbstub.h"
 #include "exec/softmmu-semi.h"
 #endif
 #include "qemu/log.h"

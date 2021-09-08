@@ -17,6 +17,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include "exec/gdbstub.h"
 #include "qemu.h"
 #include "user-internals.h"
 #ifdef CONFIG_GPROF
