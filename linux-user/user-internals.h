@@ -20,6 +20,8 @@
 
 #include "hostdep.h"
 #include "exec/user/thunk.h"
+#include "exec/exec-all.h"
+#include "qemu/log.h"
 
 extern char *exec_path;
 void init_task_state(TaskState *ts);

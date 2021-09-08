@@ -2,7 +2,6 @@
 #define QEMU_H
 
 #include "cpu.h"
-#include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 
 #undef DEBUG_REMAP
@@ -162,8 +161,6 @@ typedef struct TaskState {
     /* This thread's sigaltstack, if it has one */
     struct target_sigaltstack sigaltstack_used;
 } __attribute__((aligned(16))) TaskState;
-
-#include "qemu/log.h"
 
 abi_long do_brk(abi_ulong new_brk);
 
@@ -349,5 +346,4 @@ void *lock_user_string(abi_ulong guest_addr);
 #define unlock_user_struct(host_ptr, guest_addr, copy)		\
     unlock_user(host_ptr, guest_addr, (copy) ? sizeof(*host_ptr) : 0)
 
-#include <pthread.h>
 #endif /* QEMU_H */
