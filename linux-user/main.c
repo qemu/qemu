@@ -51,6 +51,7 @@
 #include "fd-trans.h"
 #include "signal-common.h"
 #include "loader.h"
+#include "user-mmap.h"
 
 #ifndef AT_FLAGS_PRESERVE_ARGV0
 #define AT_FLAGS_PRESERVE_ARGV0_BIT 0

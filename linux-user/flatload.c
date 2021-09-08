@@ -37,6 +37,7 @@
 
 #include "qemu.h"
 #include "loader.h"
+#include "user-mmap.h"
 #include "flat.h"
 #include "target_flat.h"
 
