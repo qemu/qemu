@@ -363,7 +363,7 @@ ERST
         .args_type  = "",
         .params     = "",
         .help       = "show profiling information",
-        .cmd        = hmp_info_profile,
+        .cmd_info_hrt = qmp_x_query_profile,
     },
 
 SRST

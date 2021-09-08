@@ -1413,6 +1413,18 @@
      '*maxcpus': 'int' } }
 
 ##
+# @x-query-profile:
+#
+# Query TCG profiling information
+#
+# Returns: profile information
+#
+# Since: 6.2
+##
+{ 'command': 'x-query-profile',
+  'returns': 'HumanReadableText' }
+
+##
 # @x-query-roms:
 #
 # Query information on the registered ROMS
