@@ -772,7 +772,7 @@ ERST
         .args_type  = "",
         .params     = "",
         .help       = "Display system ramblock information",
-        .cmd        = hmp_info_ramblock,
+        .cmd_info_hrt = qmp_x_query_ramblock,
     },
 
 SRST

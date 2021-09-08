@@ -1437,6 +1437,18 @@
   'returns': 'HumanReadableText' }
 
 ##
+# @x-query-ramblock:
+#
+# Query system ramblock information
+#
+# Returns: system ramblock information
+#
+# Since: 6.2
+##
+{ 'command': 'x-query-ramblock',
+  'returns': 'HumanReadableText' }
+
+##
 # @x-query-rdma:
 #
 # Query RDMA state

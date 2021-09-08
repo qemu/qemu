@@ -52,7 +52,6 @@
 #include "ui/console.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
-#include "exec/ramlist.h"
 #include "hw/intc/intc.h"
 #include "migration/snapshot.h"
 #include "migration/misc.h"
@@ -2174,11 +2173,6 @@ void hmp_rocker_of_dpa_groups(Monitor *mon, const QDict *qdict)
     }
 
     qapi_free_RockerOfDpaGroupList(list);
-}
-
-void hmp_info_ramblock(Monitor *mon, const QDict *qdict)
-{
-    ram_block_dump(mon);
 }
 
 void hmp_info_vm_generation_id(Monitor *mon, const QDict *qdict)
