@@ -21,6 +21,7 @@
 #include "qemu-common.h"
 #include "qemu.h"
 #include "cpu_loop-common.h"
+#include "signal-common.h"
 
 static inline uint64_t cpu_ppc_get_tb(CPUPPCState *env)
 {

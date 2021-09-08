@@ -128,6 +128,7 @@
 
 #include "qemu.h"
 #include "strace.h"
+#include "signal-common.h"
 #include "qemu/guest-random.h"
 #include "qemu/selfmap.h"
 #include "user/syscall-trace.h"

@@ -49,6 +49,7 @@
 #include "cpu_loop-common.h"
 #include "crypto/init.h"
 #include "fd-trans.h"
+#include "signal-common.h"
 
 #ifndef AT_FLAGS_PRESERVE_ARGV0
 #define AT_FLAGS_PRESERVE_ARGV0_BIT 0

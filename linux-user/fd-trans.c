@@ -28,6 +28,7 @@
 #endif
 #include "qemu.h"
 #include "fd-trans.h"
+#include "signal-common.h"
 
 enum {
     QEMU_IFLA_BR_UNSPEC,
