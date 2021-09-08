@@ -173,30 +173,6 @@ void stop_all_tasks(void);
 extern const char *qemu_uname_release;
 extern unsigned long mmap_min_addr;
 
-/* ??? See if we can avoid exposing so much of the loader internals.  */
-
-/*
- * Read a good amount of data initially, to hopefully get all the
- * program headers loaded.
- */
-#define BPRM_BUF_SIZE  1024
-
-/*
- * This structure is used to hold the arguments that are
- * used when loading binaries.
- */
-struct linux_binprm {
-        char buf[BPRM_BUF_SIZE] __attribute__((aligned));
-        abi_ulong p;
-        int fd;
-        int e_uid, e_gid;
-        int argc, envc;
-        char **argv;
-        char **envp;
-        char *filename;        /* Name of binary */
-        int (*core_dump)(int, const CPUArchState *); /* coredump routine */
-};
-
 typedef struct IOCTLEntry IOCTLEntry;
 
 typedef abi_long do_ioctl_fn(const IOCTLEntry *ie, uint8_t *buf_temp,
@@ -217,13 +193,6 @@ extern IOCTLEntry ioctl_entries[];
 #define IOC_W 0x0002
 #define IOC_RW (IOC_R | IOC_W)
 
-void do_init_thread(struct target_pt_regs *regs, struct image_info *infop);
-abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
-                              abi_ulong stringp, int push_ptr);
-int loader_exec(int fdexec, const char *filename, char **argv, char **envp,
-             struct target_pt_regs *regs, struct image_info *infop,
-             struct linux_binprm *);
-
 /*
  * Returns true if the image uses the FDPIC ABI. If this is the case,
  * we have to provide some information (loadmap, pt_dynamic_info) such
@@ -232,12 +201,6 @@ int loader_exec(int fdexec, const char *filename, char **argv, char **envp,
  */
 int info_is_fdpic(struct image_info *info);
 
-uint32_t get_elf_eflags(int fd);
-int load_elf_binary(struct linux_binprm *bprm, struct image_info *info);
-int load_flt_binary(struct linux_binprm *bprm, struct image_info *info);
-
-abi_long memcpy_to_target(abi_ulong dest, const void *src,
-                          unsigned long len);
 void target_set_brk(abi_ulong new_brk);
 abi_long do_brk(abi_ulong new_brk);
 void syscall_init(void);
@@ -439,9 +402,6 @@ extern abi_ulong mmap_next_start;
 abi_ulong mmap_find_vma(abi_ulong, abi_ulong, abi_ulong);
 void mmap_fork_start(void);
 void mmap_fork_end(int child);
-
-/* main.c */
-extern unsigned long guest_stack_size;
 
 /* user access */
 
