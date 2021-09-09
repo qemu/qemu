@@ -24,6 +24,7 @@ The ``sifive_u`` machine supports the following devices:
 * 2 QSPI controllers
 * 1 ISSI 25WP256 flash
 * 1 SD card in SPI mode
+* PWM0 and PWM1
 
 Please note the real world HiFive Unleashed board has a fixed configuration of
 1 E51 core and 4 U54 core combination and the RISC-V core boots in 64-bit mode.
