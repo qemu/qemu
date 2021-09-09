@@ -991,10 +991,7 @@ int multifd_load_cleanup(Error **errp)
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
 
-        if (OBJECT(p->c)->ref == 1) {
-            migration_ioc_unregister_yank(p->c);
-        }
-
+        migration_ioc_unregister_yank(p->c);
         object_unref(OBJECT(p->c));
         p->c = NULL;
         qemu_mutex_destroy(&p->mutex);
