@@ -85,8 +85,8 @@ any data". Now you're ready to enter the QMP example commands as explained in
 the following sections.
 
 
-Writing a command that doesn't return data
-------------------------------------------
+Writing a simple command: hello-world
+-------------------------------------
 
 That's the most simple QMP command that can be written. Usually, this kind of
 command carries some meaningful action in QEMU but here it will just print
@@ -340,8 +340,8 @@ Please, check the "-monitor" command-line option to know how to open a user
 monitor.
 
 
-Writing a command that returns data
------------------------------------
+Writing more complex commands
+-----------------------------
 
 A QMP command is capable of returning any data the QAPI supports like integers,
 strings, booleans, enumerations and user defined types.
