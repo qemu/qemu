@@ -11,6 +11,14 @@ For an in-depth introduction to the QAPI framework, please refer to
 docs/devel/qapi-code-gen.txt. For documentation about the QMP protocol,
 start with docs/interop/qmp-intro.txt.
 
+New commands may be implemented in QMP only.  New HMP commands should be
+implemented on top of QMP.  The typical HMP command wraps around an
+equivalent QMP command, but HMP convenience commands built from QMP
+building blocks are also fine.  The long term goal is to make all
+existing HMP commands conform to this, to fully isolate HMP from the
+internals of QEMU. Refer to the `Writing a debugging aid returning
+unstructured text`_ section for further guidance on commands that
+would have traditionally been HMP only.
 
 Overview
 --------
