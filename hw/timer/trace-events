@@ -88,3 +88,9 @@ sse_counter_reset(void) "SSE system counter: reset"
 sse_timer_read(uint64_t offset, uint64_t data, unsigned size) "SSE system timer read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
 sse_timer_write(uint64_t offset, uint64_t data, unsigned size) "SSE system timer write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
 sse_timer_reset(void) "SSE system timer: reset"
+
+# sifive_pwm.c
+sifive_pwm_set_alarm(uint64_t alarm, uint64_t now) "Setting alarm to: 0x%" PRIx64 ", now: 0x%" PRIx64
+sifive_pwm_interrupt(int num) "Interrupt %d"
+sifive_pwm_read(uint64_t offset) "Read at address: 0x%" PRIx64
+sifive_pwm_write(uint64_t data, uint64_t offset) "Write 0x%" PRIx64 " at address: 0x%" PRIx64
