@@ -36,6 +36,8 @@ grlib_apbuart_writel_unknown(uint64_t addr, uint32_t value) "addr 0x%"PRIx64" va
 grlib_apbuart_readl_unknown(uint64_t addr) "addr 0x%"PRIx64
 
 # escc.c
+escc_hard_reset(void) "hard reset"
+escc_soft_reset_chn(char channel) "soft reset channel %c"
 escc_put_queue(char channel, int b) "channel %c put: 0x%02x"
 escc_get_queue(char channel, int val) "channel %c get 0x%02x"
 escc_update_irq(int irq) "IRQ = %d"
