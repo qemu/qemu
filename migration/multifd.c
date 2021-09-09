@@ -868,7 +868,7 @@ cleanup:
     multifd_new_send_channel_cleanup(p, sioc, local_err);
 }
 
-static bool migrate_allow_multifd;
+static bool migrate_allow_multifd = true;
 void migrate_protocol_allow_multifd(bool allow)
 {
     migrate_allow_multifd = allow;

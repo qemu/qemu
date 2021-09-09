@@ -1237,6 +1237,14 @@ static bool migrate_caps_check(bool *cap_list,
         }
     }
 
+    /* incoming side only */
+    if (runstate_check(RUN_STATE_INMIGRATE) &&
+        !migrate_multifd_is_allowed() &&
+        cap_list[MIGRATION_CAPABILITY_MULTIFD]) {
+        error_setg(errp, "multifd is not supported by current protocol");
+        return false;
+    }
+
     return true;
 }
 
