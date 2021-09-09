@@ -55,6 +55,6 @@ Sources
 -------
 
 This document is based on the `Fedora Code of Conduct
-<https://fedoraproject.org/code-of-conduct>`__ and the
-`Contributor Covenant version 1.3.0
+<http://web.archive.org/web/20210429132536/https://docs.fedoraproject.org/en-US/project/code-of-conduct/>`__
+(as of April 2021) and the `Contributor Covenant version 1.3.0
 <https://www.contributor-covenant.org/version/1/3/0/code-of-conduct/>`__.
