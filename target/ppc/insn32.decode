@@ -542,6 +542,11 @@ STXVPX          011111 ..... ..... ..... 0111001101 -   @X_TSXP
 XXSPLTIB        111100 ..... 00 ........ 0101101000 .   @X_imm8
 XXSPLTW         111100 ..... ---.. ..... 010100100 . .  @XX2
 
+## VSX Permute Instructions
+
+XXPERM          111100 ..... ..... ..... 00011010 ...   @XX3
+XXPERMR         111100 ..... ..... ..... 00111010 ...   @XX3
+
 XXSEL           111100 ..... ..... ..... ..... 11 ....  @XX4
 
 ## VSX Vector Load Special Value Instruction

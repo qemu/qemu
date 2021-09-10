@@ -3055,27 +3055,6 @@ uint64_t helper_xsrsp(CPUPPCState *env, uint64_t xb)
     return xt;
 }
 
-#define VSX_XXPERM(op, indexed)                                       \
-void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                     \
-                 ppc_vsr_t *xa, ppc_vsr_t *pcv)                       \
-{                                                                     \
-    ppc_vsr_t t = *xt;                                                \
-    int i, idx;                                                       \
-                                                                      \
-    for (i = 0; i < 16; i++) {                                        \
-        idx = pcv->VsrB(i) & 0x1F;                                    \
-        if (indexed) {                                                \
-            idx = 31 - idx;                                           \
-        }                                                             \
-        t.VsrB(i) = (idx <= 15) ? xa->VsrB(idx)                       \
-                                : xt->VsrB(idx - 16);                 \
-    }                                                                 \
-    *xt = t;                                                          \
-}
-
-VSX_XXPERM(xxperm, 0)
-VSX_XXPERM(xxpermr, 1)
-
 void helper_xvxsigsp(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)
 {
     ppc_vsr_t t = { };
