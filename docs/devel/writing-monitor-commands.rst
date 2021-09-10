@@ -374,7 +374,9 @@ best practices. An example where this approach is taken is the QMP
 command "x-query-registers". This returns a formatted dump of the
 architecture specific CPU state. The way the data is formatted varies
 across QEMU targets, is liable to change over time, and is only
-intended to be consumed as an opaque string by machines.
+intended to be consumed as an opaque string by machines. Refer to the
+`Writing a debugging aid returning unstructured text`_ section for
+an illustration.
 
 User Defined Types
 ~~~~~~~~~~~~~~~~~~
@@ -642,3 +644,100 @@ has to traverse the list, it's shown below for reference::
 
      qapi_free_TimerAlarmMethodList(method_list);
  }
+
+Writing a debugging aid returning unstructured text
+---------------------------------------------------
+
+As discussed in section `Modelling data in QAPI`_, it is required that
+commands expecting machine usage be using fine-grained QAPI data types.
+The exception to this rule applies when the command is solely intended
+as a debugging aid and allows for returning unstructured text. This is
+commonly needed for query commands that report aspects of QEMU's
+internal state that are useful to human operators.
+
+In this example we will consider a simplified variant of the HMP
+command ``info roms``. Following the earlier rules, this command will
+need to live under the ``x-`` name prefix, so its QMP implementation
+will be called ``x-query-roms``. It will have no parameters and will
+return a single text string::
+
+ { 'struct': 'HumanReadableText',
+   'data': { 'human-readable-text': 'str' } }
+
+ { 'command': 'x-query-roms',
+   'returns': 'HumanReadableText' }
+
+The ``HumanReadableText`` struct is intended to be used for all
+commands, under the ``x-`` name prefix that are returning unstructured
+text targetted at humans. It should never be used for commands outside
+the ``x-`` name prefix, as those should be using structured QAPI types.
+
+Implementing the QMP command
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The QMP implementation will typically involve creating a ``GString``
+object and printing formatted data into it::
+
+ HumanReadableText *qmp_x_query_roms(Error **errp)
+ {
+     g_autoptr(GString) buf = g_string_new("");
+     Rom *rom;
+
+     QTAILQ_FOREACH(rom, &roms, next) {
+        g_string_append_printf("%s size=0x%06zx name=\"%s\"\n",
+                               memory_region_name(rom->mr),
+                               rom->romsize,
+                               rom->name);
+     }
+
+     return human_readable_text_from_str(buf);
+ }
+
+
+Implementing the HMP command
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Now that the QMP command is in place, we can also make it available in
+the human monitor (HMP) as shown in previous examples. The HMP
+implementations will all look fairly similar, as all they need do is
+invoke the QMP command and then print the resulting text or error
+message. Here's the implementation of the "info roms" HMP command::
+
+ void hmp_info_roms(Monitor *mon, const QDict *qdict)
+ {
+     Error err = NULL;
+     g_autoptr(HumanReadableText) info = qmp_x_query_roms(&err);
+
+     if (hmp_handle_error(mon, err)) {
+         return;
+     }
+     monitor_printf(mon, "%s", info->human_readable_text);
+ }
+
+Also, you have to add the function's prototype to the hmp.h file.
+
+There's one last step to actually make the command available to
+monitor users, we should add it to the hmp-commands-info.hx file::
+
+    {
+        .name       = "roms",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show roms",
+        .cmd        = hmp_info_roms,
+    },
+
+The case of writing a HMP info handler that calls a no-parameter QMP query
+command is quite common. To simplify the implementation there is a general
+purpose HMP info handler for this scenario. All that is required to expose
+a no-parameter QMP query command via HMP is to declare it using the
+'.cmd_info_hrt' field to point to the QMP handler, and leave the '.cmd'
+field NULL::
+
+    {
+        .name         = "roms",
+        .args_type    = "",
+        .params       = "",
+        .help         = "show roms",
+        .cmd_info_hrt = qmp_x_query_roms,
+    },
