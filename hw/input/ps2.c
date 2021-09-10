@@ -74,7 +74,13 @@
 #define MOUSE_STATUS_ENABLED    0x20
 #define MOUSE_STATUS_SCALE21    0x10
 
-#define PS2_QUEUE_SIZE 16  /* Buffer size required by PS/2 protocol */
+/*
+ * PS/2 buffer size. Keep 256 bytes for compatibility with
+ * older QEMU versions.
+ */
+#define PS2_BUFFER_SIZE     256
+#define PS2_QUEUE_SIZE      16  /* Queue size required by PS/2 protocol */
+#define PS2_QUEUE_HEADROOM  8   /* Queue size for keyboard command replies */
 
 /* Bits for 'modifiers' field in PS2KbdState */
 #define MOD_CTRL_L  (1 << 0)
@@ -85,10 +91,8 @@
 #define MOD_ALT_R   (1 << 5)
 
 typedef struct {
-    /* Keep the data array 256 bytes long, which compatibility
-     with older qemu versions. */
-    uint8_t data[256];
-    int rptr, wptr, count;
+    uint8_t data[PS2_BUFFER_SIZE];
+    int rptr, wptr, cwptr, count;
 } PS2Queue;
 
 struct PS2State {
@@ -183,6 +187,7 @@ static void ps2_reset_queue(PS2State *s)
 
     q->rptr = 0;
     q->wptr = 0;
+    q->cwptr = -1;
     q->count = 0;
 }
 
@@ -195,13 +200,14 @@ void ps2_queue_noirq(PS2State *s, int b)
 {
     PS2Queue *q = &s->queue;
 
-    if (q->count == PS2_QUEUE_SIZE) {
+    if (q->count >= PS2_QUEUE_SIZE) {
         return;
     }
 
     q->data[q->wptr] = b;
-    if (++q->wptr == PS2_QUEUE_SIZE)
+    if (++q->wptr == PS2_BUFFER_SIZE) {
         q->wptr = 0;
+    }
     q->count++;
 }
 
@@ -254,6 +260,63 @@ void ps2_queue_4(PS2State *s, int b1, int b2, int b3, int b4)
     ps2_queue_noirq(s, b3);
     ps2_queue_noirq(s, b4);
     ps2_raise_irq(s);
+}
+
+static void ps2_cqueue_data(PS2Queue *q, int b)
+{
+    q->data[q->cwptr] = b;
+    if (++q->cwptr >= PS2_BUFFER_SIZE) {
+        q->cwptr = 0;
+    }
+    q->count++;
+}
+
+static void ps2_cqueue_1(PS2State *s, int b1)
+{
+    PS2Queue *q = &s->queue;
+
+    q->rptr = (q->rptr - 1) & (PS2_BUFFER_SIZE - 1);
+    q->cwptr = q->rptr;
+    ps2_cqueue_data(q, b1);
+    ps2_raise_irq(s);
+}
+
+static void ps2_cqueue_2(PS2State *s, int b1, int b2)
+{
+    PS2Queue *q = &s->queue;
+
+    q->rptr = (q->rptr - 2) & (PS2_BUFFER_SIZE - 1);
+    q->cwptr = q->rptr;
+    ps2_cqueue_data(q, b1);
+    ps2_cqueue_data(q, b2);
+    ps2_raise_irq(s);
+}
+
+static void ps2_cqueue_3(PS2State *s, int b1, int b2, int b3)
+{
+    PS2Queue *q = &s->queue;
+
+    q->rptr = (q->rptr - 3) & (PS2_BUFFER_SIZE - 1);
+    q->cwptr = q->rptr;
+    ps2_cqueue_data(q, b1);
+    ps2_cqueue_data(q, b2);
+    ps2_cqueue_data(q, b3);
+    ps2_raise_irq(s);
+}
+
+static void ps2_cqueue_reset(PS2State *s)
+{
+    PS2Queue *q = &s->queue;
+    int ccount;
+
+    if (q->cwptr == -1) {
+        return;
+    }
+
+    ccount = (q->cwptr - q->rptr) & (PS2_BUFFER_SIZE - 1);
+    q->count -= ccount;
+    q->rptr = q->cwptr;
+    q->cwptr = -1;
 }
 
 /* keycode is the untranslated scancode in the current scancode set. */
@@ -509,14 +572,20 @@ uint32_t ps2_read_data(PS2State *s)
            (needed for EMM386) */
         /* XXX: need a timer to do things correctly */
         index = q->rptr - 1;
-        if (index < 0)
-            index = PS2_QUEUE_SIZE - 1;
+        if (index < 0) {
+            index = PS2_BUFFER_SIZE - 1;
+        }
         val = q->data[index];
     } else {
         val = q->data[q->rptr];
-        if (++q->rptr == PS2_QUEUE_SIZE)
+        if (++q->rptr == PS2_BUFFER_SIZE) {
             q->rptr = 0;
+        }
         q->count--;
+        if (q->rptr == q->cwptr) {
+            /* command reply queue is empty */
+            q->cwptr = -1;
+        }
         /* reading deasserts IRQ */
         s->update_irq(s->update_arg, 0);
         /* reassert IRQs if data left */
@@ -548,92 +617,83 @@ void ps2_write_keyboard(void *opaque, int val)
     PS2KbdState *s = (PS2KbdState *)opaque;
 
     trace_ps2_write_keyboard(opaque, val);
+    ps2_cqueue_reset(&s->common);
     switch(s->common.write_cmd) {
     default:
     case -1:
         switch(val) {
         case 0x00:
-            ps2_queue(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
             break;
         case 0x05:
-            ps2_queue(&s->common, KBD_REPLY_RESEND);
+            ps2_cqueue_1(&s->common, KBD_REPLY_RESEND);
             break;
         case KBD_CMD_GET_ID:
             /* We emulate a MF2 AT keyboard here */
-            if (s->translate)
-                ps2_queue_3(&s->common,
-                    KBD_REPLY_ACK,
-                    KBD_REPLY_ID,
-                    0x41);
-            else
-                ps2_queue_3(&s->common,
-                    KBD_REPLY_ACK,
-                    KBD_REPLY_ID,
-                    0x83);
+            ps2_cqueue_3(&s->common, KBD_REPLY_ACK, KBD_REPLY_ID,
+                s->translate ? 0x41 : 0x83);
             break;
         case KBD_CMD_ECHO:
-            ps2_queue(&s->common, KBD_CMD_ECHO);
+            ps2_cqueue_1(&s->common, KBD_CMD_ECHO);
             break;
         case KBD_CMD_ENABLE:
             s->scan_enabled = 1;
-            ps2_queue(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
             break;
         case KBD_CMD_SCANCODE:
         case KBD_CMD_SET_LEDS:
         case KBD_CMD_SET_RATE:
         case KBD_CMD_SET_MAKE_BREAK:
             s->common.write_cmd = val;
-            ps2_queue(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
             break;
         case KBD_CMD_RESET_DISABLE:
             ps2_reset_keyboard(s);
             s->scan_enabled = 0;
-            ps2_queue(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
             break;
         case KBD_CMD_RESET_ENABLE:
             ps2_reset_keyboard(s);
             s->scan_enabled = 1;
-            ps2_queue(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
             break;
         case KBD_CMD_RESET:
             ps2_reset_keyboard(s);
-            ps2_queue_2(&s->common,
+            ps2_cqueue_2(&s->common,
                 KBD_REPLY_ACK,
                 KBD_REPLY_POR);
             break;
         case KBD_CMD_SET_TYPEMATIC:
-            ps2_queue(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
             break;
         default:
-            ps2_queue(&s->common, KBD_REPLY_RESEND);
+            ps2_cqueue_1(&s->common, KBD_REPLY_RESEND);
             break;
         }
         break;
     case KBD_CMD_SET_MAKE_BREAK:
-        ps2_queue(&s->common, KBD_REPLY_ACK);
+        ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
         s->common.write_cmd = -1;
         break;
     case KBD_CMD_SCANCODE:
         if (val == 0) {
-            if (s->common.queue.count <= PS2_QUEUE_SIZE - 2) {
-                ps2_queue(&s->common, KBD_REPLY_ACK);
-                ps2_put_keycode(s, s->scancode_set);
-            }
+            ps2_cqueue_2(&s->common, KBD_REPLY_ACK, s->translate ?
+                translate_table[s->scancode_set] : s->scancode_set);
         } else if (val >= 1 && val <= 3) {
             s->scancode_set = val;
-            ps2_queue(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
         } else {
-            ps2_queue(&s->common, KBD_REPLY_RESEND);
+            ps2_cqueue_1(&s->common, KBD_REPLY_RESEND);
         }
         s->common.write_cmd = -1;
         break;
     case KBD_CMD_SET_LEDS:
         ps2_set_ledstate(s, val);
-        ps2_queue(&s->common, KBD_REPLY_ACK);
+        ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
         s->common.write_cmd = -1;
         break;
     case KBD_CMD_SET_RATE:
-        ps2_queue(&s->common, KBD_REPLY_ACK);
+        ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
         s->common.write_cmd = -1;
         break;
     }
@@ -926,30 +986,27 @@ static void ps2_common_reset(PS2State *s)
 static void ps2_common_post_load(PS2State *s)
 {
     PS2Queue *q = &s->queue;
-    uint8_t i, size;
-    uint8_t tmp_data[PS2_QUEUE_SIZE];
+    int ccount = 0;
 
-    /* set the useful data buffer queue size, < PS2_QUEUE_SIZE */
-    size = q->count;
-    if (q->count < 0) {
-        size = 0;
-    } else if (q->count > PS2_QUEUE_SIZE) {
-        size = PS2_QUEUE_SIZE;
-    }
-
-    /* move the queue elements to the start of data array */
-    for (i = 0; i < size; i++) {
-        if (q->rptr < 0 || q->rptr >= sizeof(q->data)) {
-            q->rptr = 0;
+    /* limit the number of queued command replies to PS2_QUEUE_HEADROOM */
+    if (q->cwptr != -1) {
+        ccount = (q->cwptr - q->rptr) & (PS2_BUFFER_SIZE - 1);
+        if (ccount > PS2_QUEUE_HEADROOM) {
+            ccount = PS2_QUEUE_HEADROOM;
         }
-        tmp_data[i] = q->data[q->rptr++];
     }
-    memcpy(q->data, tmp_data, size);
 
-    /* reset rptr/wptr/count */
-    q->rptr = 0;
-    q->wptr = (size == PS2_QUEUE_SIZE) ? 0 : size;
-    q->count = size;
+    /* limit the scancode queue size to PS2_QUEUE_SIZE */
+    if (q->count < ccount) {
+        q->count = ccount;
+    } else if (q->count > ccount + PS2_QUEUE_SIZE) {
+        q->count = ccount + PS2_QUEUE_SIZE;
+    }
+
+    /* sanitize rptr and recalculate wptr and cwptr */
+    q->rptr = q->rptr & (PS2_BUFFER_SIZE - 1);
+    q->wptr = (q->rptr + q->count) & (PS2_BUFFER_SIZE - 1);
+    q->cwptr = ccount ? (q->rptr + ccount) & (PS2_BUFFER_SIZE - 1) : -1;
 }
 
 static void ps2_kbd_reset(void *opaque)
@@ -1040,6 +1097,22 @@ static const VMStateDescription vmstate_ps2_keyboard_need_high_bit = {
     }
 };
 
+static bool ps2_keyboard_cqueue_needed(void *opaque)
+{
+    PS2KbdState *s = opaque;
+
+    return s->common.queue.cwptr != -1; /* the queue is mostly empty */
+}
+
+static const VMStateDescription vmstate_ps2_keyboard_cqueue = {
+    .name = "ps2kbd/command_reply_queue",
+    .needed = ps2_keyboard_cqueue_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT32(common.queue.cwptr, PS2KbdState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static int ps2_kbd_post_load(void* opaque, int version_id)
 {
     PS2KbdState *s = (PS2KbdState*)opaque;
@@ -1053,22 +1126,11 @@ static int ps2_kbd_post_load(void* opaque, int version_id)
     return 0;
 }
 
-static int ps2_kbd_pre_save(void *opaque)
-{
-    PS2KbdState *s = (PS2KbdState *)opaque;
-    PS2State *ps2 = &s->common;
-
-    ps2_common_post_load(ps2);
-
-    return 0;
-}
-
 static const VMStateDescription vmstate_ps2_keyboard = {
     .name = "ps2kbd",
     .version_id = 3,
     .minimum_version_id = 2,
     .post_load = ps2_kbd_post_load,
-    .pre_save = ps2_kbd_pre_save,
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT(common, PS2KbdState, 0, vmstate_ps2_common, PS2State),
         VMSTATE_INT32(scan_enabled, PS2KbdState),
@@ -1079,6 +1141,7 @@ static const VMStateDescription vmstate_ps2_keyboard = {
     .subsections = (const VMStateDescription*[]) {
         &vmstate_ps2_keyboard_ledstate,
         &vmstate_ps2_keyboard_need_high_bit,
+        &vmstate_ps2_keyboard_cqueue,
         NULL
     }
 };
@@ -1093,22 +1156,11 @@ static int ps2_mouse_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static int ps2_mouse_pre_save(void *opaque)
-{
-    PS2MouseState *s = (PS2MouseState *)opaque;
-    PS2State *ps2 = &s->common;
-
-    ps2_common_post_load(ps2);
-
-    return 0;
-}
-
 static const VMStateDescription vmstate_ps2_mouse = {
     .name = "ps2mouse",
     .version_id = 2,
     .minimum_version_id = 2,
     .post_load = ps2_mouse_post_load,
-    .pre_save = ps2_mouse_pre_save,
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT(common, PS2MouseState, 0, vmstate_ps2_common, PS2State),
         VMSTATE_UINT8(mouse_status, PS2MouseState),
