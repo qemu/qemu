@@ -102,7 +102,7 @@ int divu128(uint64_t *plow, uint64_t *phigh, uint64_t divisor)
         *plow  = dlo / divisor;
         *phigh = dlo % divisor;
         return 0;
-    } else if (dhi > divisor) {
+    } else if (dhi >= divisor) {
         return 1;
     } else {
 
