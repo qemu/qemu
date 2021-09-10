@@ -17,6 +17,37 @@
 #include "monitor/qdev.h"
 #include "qapi/error.h"
 #include "exec/address-spaces.h"
+#include "hw/i386/sgx.h"
+
+SGXInfo *sgx_get_info(Error **errp)
+{
+    SGXInfo *info = NULL;
+    X86MachineState *x86ms;
+    PCMachineState *pcms =
+        (PCMachineState *)object_dynamic_cast(qdev_get_machine(),
+                                              TYPE_PC_MACHINE);
+    if (!pcms) {
+        error_setg(errp, "SGX is only supported on PC machines");
+        return NULL;
+    }
+
+    x86ms = X86_MACHINE(pcms);
+    if (!x86ms->sgx_epc_list) {
+        error_setg(errp, "No EPC regions defined, SGX not available");
+        return NULL;
+    }
+
+    SGXEPCState *sgx_epc = &pcms->sgx_epc;
+    info = g_new0(SGXInfo, 1);
+
+    info->sgx = true;
+    info->sgx1 = true;
+    info->sgx2 = true;
+    info->flc = true;
+    info->section_size = sgx_epc->size;
+
+    return info;
+}
 
 int sgx_epc_get_section(int section_nr, uint64_t *addr, uint64_t *size)
 {

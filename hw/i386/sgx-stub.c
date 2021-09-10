@@ -1,6 +1,13 @@
 #include "qemu/osdep.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/sgx-epc.h"
+#include "hw/i386/sgx.h"
+
+SGXInfo *sgx_get_info(Error **errp)
+{
+    error_setg(errp, "SGX support is not compiled in");
+    return NULL;
+}
 
 void pc_machine_init_sgx_epc(PCMachineState *pcms)
 {
