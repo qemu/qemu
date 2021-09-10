@@ -665,45 +665,6 @@ static void gen_mtvsrws(DisasContext *ctx)
 
 #endif
 
-static void gen_xxpermdi(DisasContext *ctx)
-{
-    TCGv_i64 xh, xl;
-
-    if (unlikely(!ctx->vsx_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VSXU);
-        return;
-    }
-
-    xh = tcg_temp_new_i64();
-    xl = tcg_temp_new_i64();
-
-    if (unlikely((xT(ctx->opcode) == xA(ctx->opcode)) ||
-                 (xT(ctx->opcode) == xB(ctx->opcode)))) {
-        get_cpu_vsr(xh, xA(ctx->opcode), (DM(ctx->opcode) & 2) == 0);
-        get_cpu_vsr(xl, xB(ctx->opcode), (DM(ctx->opcode) & 1) == 0);
-
-        set_cpu_vsr(xT(ctx->opcode), xh, true);
-        set_cpu_vsr(xT(ctx->opcode), xl, false);
-    } else {
-        if ((DM(ctx->opcode) & 2) == 0) {
-            get_cpu_vsr(xh, xA(ctx->opcode), true);
-            set_cpu_vsr(xT(ctx->opcode), xh, true);
-        } else {
-            get_cpu_vsr(xh, xA(ctx->opcode), false);
-            set_cpu_vsr(xT(ctx->opcode), xh, true);
-        }
-        if ((DM(ctx->opcode) & 1) == 0) {
-            get_cpu_vsr(xl, xB(ctx->opcode), true);
-            set_cpu_vsr(xT(ctx->opcode), xl, false);
-        } else {
-            get_cpu_vsr(xl, xB(ctx->opcode), false);
-            set_cpu_vsr(xT(ctx->opcode), xl, false);
-        }
-    }
-    tcg_temp_free_i64(xh);
-    tcg_temp_free_i64(xl);
-}
-
 #define OP_ABS 1
 #define OP_NABS 2
 #define OP_NEG 3
@@ -1235,6 +1196,38 @@ static bool trans_XXPERMR(DisasContext *ctx, arg_XX3 *a)
     tcg_temp_free_ptr(xt);
     tcg_temp_free_ptr(xa);
     tcg_temp_free_ptr(xb);
+
+    return true;
+}
+
+static bool trans_XXPERMDI(DisasContext *ctx, arg_XX3_dm *a)
+{
+    TCGv_i64 t0, t1;
+
+    REQUIRE_INSNS_FLAGS2(ctx, VSX);
+    REQUIRE_VSX(ctx);
+
+    t0 = tcg_temp_new_i64();
+
+    if (unlikely(a->xt == a->xa || a->xt == a->xb)) {
+        t1 = tcg_temp_new_i64();
+
+        get_cpu_vsr(t0, a->xa, (a->dm & 2) == 0);
+        get_cpu_vsr(t1, a->xb, (a->dm & 1) == 0);
+
+        set_cpu_vsr(a->xt, t0, true);
+        set_cpu_vsr(a->xt, t1, false);
+
+        tcg_temp_free_i64(t1);
+    } else {
+        get_cpu_vsr(t0, a->xa, (a->dm & 2) == 0);
+        set_cpu_vsr(a->xt, t0, true);
+
+        get_cpu_vsr(t0, a->xb, (a->dm & 1) == 0);
+        set_cpu_vsr(a->xt, t0, false);
+    }
+
+    tcg_temp_free_i64(t0);
 
     return true;
 }
