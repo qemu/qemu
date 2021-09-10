@@ -790,3 +790,8 @@ void hmp_info_sgx(Monitor *mon, const QDict *qdict)
     monitor_printf(mon, "size: %" PRIu64 "\n",
                    info->section_size);
 }
+
+SGXInfo *qmp_query_sgx_capabilities(Error **errp)
+{
+    return sgx_get_capabilities(errp);
+}

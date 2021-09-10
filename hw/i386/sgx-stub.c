@@ -9,6 +9,12 @@ SGXInfo *sgx_get_info(Error **errp)
     return NULL;
 }
 
+SGXInfo *sgx_get_capabilities(Error **errp)
+{
+    error_setg(errp, "SGX support is not compiled in");
+    return NULL;
+}
+
 void pc_machine_init_sgx_epc(PCMachineState *pcms)
 {
     memset(&pcms->sgx_epc, 0, sizeof(SGXEPCState));
