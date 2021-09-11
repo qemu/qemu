@@ -210,15 +210,16 @@ command line options with ``qemu-system-riscv32``.
 Running U-Boot
 --------------
 
-U-Boot mainline v2021.01 release is tested at the time of writing. To build a
+U-Boot mainline v2021.07 release is tested at the time of writing. To build a
 U-Boot mainline bootloader that can be booted by the ``sifive_u`` machine, use
-the sifive_fu540_defconfig with similar commands as described above for Linux:
+the sifive_unleashed_defconfig with similar commands as described above for
+Linux:
 
 .. code-block:: bash
 
   $ export CROSS_COMPILE=riscv64-linux-
   $ export OPENSBI=/path/to/opensbi-riscv64-generic-fw_dynamic.bin
-  $ make sifive_fu540_defconfig
+  $ make sifive_unleashed_defconfig
 
 You will get spl/u-boot-spl.bin and u-boot.itb file in the build tree.
 
@@ -313,31 +314,29 @@ board on QEMU ``sifive_u`` machine out of the box. This allows users to
 develop and test the recommended RISC-V boot flow with a real world use
 case: ZSBL (in QEMU) loads U-Boot SPL from SD card or SPI flash to L2LIM,
 then U-Boot SPL loads the combined payload image of OpenSBI fw_dynamic
-firmware and U-Boot proper. However sometimes we want to have a quick test
-of booting U-Boot on QEMU without the needs of preparing the SPI flash or
-SD card images, an alternate way can be used, which is to create a U-Boot
-S-mode image by modifying the configuration of U-Boot:
+firmware and U-Boot proper.
+
+However sometimes we want to have a quick test of booting U-Boot on QEMU
+without the needs of preparing the SPI flash or SD card images, an alternate
+way can be used, which is to create a U-Boot S-mode image by modifying the
+configuration of U-Boot:
 
 .. code-block:: bash
 
+  $ export CROSS_COMPILE=riscv64-linux-
+  $ make sifive_unleashed_defconfig
   $ make menuconfig
 
-then manually select the following configuration in U-Boot:
+then manually select the following configuration:
 
-  Device Tree Control > Provider of DTB for DT Control > Prior Stage bootloader DTB
+  * Device Tree Control ---> Provider of DTB for DT Control ---> Prior Stage bootloader DTB
 
-This lets U-Boot to use the QEMU generated device tree blob. During the build,
-a build error will be seen below:
+and unselect the following configuration:
 
-.. code-block:: none
+  * Library routines ---> Allow access to binman information in the device tree
 
-  MKIMAGE u-boot.img
-  ./tools/mkimage: Can't open arch/riscv/dts/hifive-unleashed-a00.dtb: No such file or directory
-  ./tools/mkimage: failed to build FIT
-  make: *** [Makefile:1440: u-boot.img] Error 1
-
-The above errors can be safely ignored as we don't run U-Boot SPL under QEMU
-in this alternate configuration.
+This changes U-Boot to use the QEMU generated device tree blob, and bypass
+running the U-Boot SPL stage.
 
 Boot the 64-bit U-Boot S-mode image directly:
 
@@ -352,14 +351,18 @@ It's possible to create a 32-bit U-Boot S-mode image as well.
 .. code-block:: bash
 
   $ export CROSS_COMPILE=riscv64-linux-
-  $ make sifive_fu540_defconfig
+  $ make sifive_unleashed_defconfig
   $ make menuconfig
 
 then manually update the following configuration in U-Boot:
 
-  Device Tree Control > Provider of DTB for DT Control > Prior Stage bootloader DTB
-  RISC-V architecture > Base ISA > RV32I
-  Boot images > Text Base > 0x80400000
+  * Device Tree Control ---> Provider of DTB for DT Control ---> Prior Stage bootloader DTB
+  * RISC-V architecture ---> Base ISA ---> RV32I
+  * Boot options ---> Boot images ---> Text Base ---> 0x80400000
+
+and unselect the following configuration:
+
+  * Library routines ---> Allow access to binman information in the device tree
 
 Use the same command line options to boot the 32-bit U-Boot S-mode image:
 
