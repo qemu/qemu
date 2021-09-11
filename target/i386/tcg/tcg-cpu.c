@@ -73,9 +73,11 @@ static const struct TCGCPUOps x86_tcg_ops = {
     .cpu_exec_enter = x86_cpu_exec_enter,
     .cpu_exec_exit = x86_cpu_exec_exit,
     .cpu_exec_interrupt = x86_cpu_exec_interrupt,
-    .do_interrupt = x86_cpu_do_interrupt,
     .tlb_fill = x86_cpu_tlb_fill,
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+    .fake_user_interrupt = x86_cpu_do_interrupt,
+#else
+    .do_interrupt = x86_cpu_do_interrupt,
     .debug_excp_handler = breakpoint_handler,
     .debug_check_breakpoint = x86_debug_check_breakpoint,
 #endif /* !CONFIG_USER_ONLY */
