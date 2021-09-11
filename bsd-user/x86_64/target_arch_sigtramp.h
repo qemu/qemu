@@ -1,6 +1,7 @@
 /*
- *  sparc64 dependent system call definitions
+ * Intel x86_64  sigcode for bsd-user
  *
+ *  Copyright (c) 2013 Stacey D. Son
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,23 +16,14 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TARGET_SYSCALL_H
-#define TARGET_SYSCALL_H
 
-struct target_pt_regs {
-	abi_ulong u_regs[16];
-	abi_ulong tstate;
-	abi_ulong pc;
-	abi_ulong npc;
-	abi_ulong y;
-	abi_ulong fprs;
-};
+#ifndef _TARGET_ARCH_SIGTRAMP_H_
+#define _TARGET_ARCH_SIGTRAMP_H_
 
-#define UNAME_MACHINE           "sun4u"
-#define TARGET_HW_MACHINE       "sparc"
-#define TARGET_HW_MACHINE_ARCH  "sparc64"
+static inline abi_long setup_sigtramp(abi_ulong offset, unsigned sigf_uc,
+        unsigned sys_sigreturn)
+{
 
-#define TARGET_SPARC_UTRAP_INSTALL      1
-#define TARGET_SPARC_SIGTRAMP_INSTALL   2
-
-#endif /* TARGET_SYSCALL_H */
+    return 0;
+}
+#endif /* _TARGET_ARCH_SIGTRAMP_H_ */

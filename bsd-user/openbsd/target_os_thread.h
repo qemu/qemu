@@ -1,6 +1,7 @@
 /*
- *  sparc dependent system call definitions
+ *  OpenBSD thread dependent code and definitions
  *
+ *  Copyright (c) 2013 Stacey D. Son
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,22 +16,10 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TARGET_SYSCALL_H
-#define TARGET_SYSCALL_H
 
-struct target_pt_regs {
-	abi_ulong psr;
-	abi_ulong pc;
-	abi_ulong npc;
-	abi_ulong y;
-	abi_ulong u_regs[16];
-};
+#ifndef _TARGET_OS_THREAD_H_
+#define _TARGET_OS_THREAD_H_
 
-#define UNAME_MACHINE           "sun4"
-#define TARGET_HW_MACHINE       "sparc"
-#define TARGET_HW_MACHINE_ARCH  "sparc"
+#include "target_arch_thread.h"
 
-#define TARGET_SPARC_UTRAP_INSTALL      1
-#define TARGET_SPARC_SIGTRAMP_INSTALL   2
-
-#endif /* TARGET_SYSCALL_H */
+#endif /* !_TARGET_OS_THREAD_H_ */
