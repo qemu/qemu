@@ -349,7 +349,7 @@ GEN_TRANS_SHADD(3)
 
 static void gen_clzw(TCGv ret, TCGv arg1)
 {
-    tcg_gen_clzi_tl(ret, ret, 64);
+    tcg_gen_clzi_tl(ret, arg1, 64);
     tcg_gen_subi_tl(ret, ret, 32);
 }
 
