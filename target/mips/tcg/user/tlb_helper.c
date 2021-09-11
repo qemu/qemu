@@ -57,8 +57,3 @@ bool mips_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     raise_mmu_exception(env, address, access_type);
     do_raise_exception_err(env, cs->exception_index, env->error_code, retaddr);
 }
-
-void mips_cpu_do_interrupt(CPUState *cs)
-{
-    cs->exception_index = EXCP_NONE;
-}
