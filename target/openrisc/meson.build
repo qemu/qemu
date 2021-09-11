@@ -9,7 +9,6 @@ openrisc_ss.add(files(
   'exception_helper.c',
   'fpu_helper.c',
   'gdbstub.c',
-  'interrupt.c',
   'interrupt_helper.c',
   'mmu.c',
   'sys_helper.c',
@@ -17,7 +16,10 @@ openrisc_ss.add(files(
 ))
 
 openrisc_softmmu_ss = ss.source_set()
-openrisc_softmmu_ss.add(files('machine.c'))
+openrisc_softmmu_ss.add(files(
+  'interrupt.c',
+  'machine.c',
+))
 
 target_arch += {'openrisc': openrisc_ss}
 target_softmmu_arch += {'openrisc': openrisc_softmmu_ss}
