@@ -295,16 +295,27 @@ static bool trans_grevi(DisasContext *ctx, arg_grevi *a)
     return gen_shift_imm_fn(ctx, a, EXT_NONE, gen_grevi);
 }
 
-static bool trans_gorc(DisasContext *ctx, arg_gorc *a)
+static void gen_orc_b(TCGv ret, TCGv source1)
 {
-    REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, EXT_ZERO, gen_helper_gorc);
+    TCGv  tmp = tcg_temp_new();
+    TCGv  ones = tcg_constant_tl(dup_const_tl(MO_8, 0x01));
+
+    /* Set lsb in each byte if the byte was zero. */
+    tcg_gen_sub_tl(tmp, source1, ones);
+    tcg_gen_andc_tl(tmp, tmp, source1);
+    tcg_gen_shri_tl(tmp, tmp, 7);
+    tcg_gen_andc_tl(tmp, ones, tmp);
+
+    /* Replicate the lsb of each byte across the byte. */
+    tcg_gen_muli_tl(ret, tmp, 0xff);
+
+    tcg_temp_free(tmp);
 }
 
-static bool trans_gorci(DisasContext *ctx, arg_gorci *a)
+static bool trans_orc_b(DisasContext *ctx, arg_orc_b *a)
 {
-    REQUIRE_EXT(ctx, RVB);
-    return gen_shift_imm_tl(ctx, a, EXT_ZERO, gen_helper_gorc);
+    REQUIRE_ZBB(ctx);
+    return gen_unary(ctx, a, EXT_ZERO, gen_orc_b);
 }
 
 #define GEN_SHADD(SHAMT)                                       \
@@ -474,22 +485,6 @@ static bool trans_greviw(DisasContext *ctx, arg_greviw *a)
     REQUIRE_EXT(ctx, RVB);
     ctx->w = true;
     return gen_shift_imm_tl(ctx, a, EXT_ZERO, gen_helper_grev);
-}
-
-static bool trans_gorcw(DisasContext *ctx, arg_gorcw *a)
-{
-    REQUIRE_64BIT(ctx);
-    REQUIRE_EXT(ctx, RVB);
-    ctx->w = true;
-    return gen_shift(ctx, a, EXT_ZERO, gen_helper_gorc);
-}
-
-static bool trans_gorciw(DisasContext *ctx, arg_gorciw *a)
-{
-    REQUIRE_64BIT(ctx);
-    REQUIRE_EXT(ctx, RVB);
-    ctx->w = true;
-    return gen_shift_imm_tl(ctx, a, EXT_ZERO, gen_helper_gorc);
 }
 
 #define GEN_SHADD_UW(SHAMT)                                       \
