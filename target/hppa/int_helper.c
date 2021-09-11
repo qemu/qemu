@@ -88,7 +88,6 @@ void HELPER(write_eiem)(CPUHPPAState *env, target_ureg val)
     eval_interrupt(env_archcpu(env));
     qemu_mutex_unlock_iothread();
 }
-#endif /* !CONFIG_USER_ONLY */
 
 void hppa_cpu_do_interrupt(CPUState *cs)
 {
@@ -100,7 +99,6 @@ void hppa_cpu_do_interrupt(CPUState *cs)
     uint64_t iasq_f = env->iasq_f;
     uint64_t iasq_b = env->iasq_b;
 
-#ifndef CONFIG_USER_ONLY
     target_ureg old_psw;
 
     /* As documented in pa2.0 -- interruption handling.  */
@@ -187,7 +185,6 @@ void hppa_cpu_do_interrupt(CPUState *cs)
     env->iaoq_b = env->iaoq_f + 4;
     env->iasq_f = 0;
     env->iasq_b = 0;
-#endif
 
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
         static const char * const names[] = {
@@ -248,7 +245,6 @@ void hppa_cpu_do_interrupt(CPUState *cs)
 
 bool hppa_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
-#ifndef CONFIG_USER_ONLY
     HPPACPU *cpu = HPPA_CPU(cs);
     CPUHPPAState *env = &cpu->env;
 
@@ -258,6 +254,7 @@ bool hppa_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
         hppa_cpu_do_interrupt(cs);
         return true;
     }
-#endif
     return false;
 }
+
+#endif /* !CONFIG_USER_ONLY */
