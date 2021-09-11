@@ -6326,6 +6326,7 @@ static int bdrv_inactivate_recurse(BlockDriverState *bs)
 {
     BdrvChild *child, *parent;
     int ret;
+    uint64_t cumulative_perms, cumulative_shared_perms;
 
     if (!bs->drv) {
         return -ENOMEDIUM;
@@ -6354,6 +6355,13 @@ static int bdrv_inactivate_recurse(BlockDriverState *bs)
                 return ret;
             }
         }
+    }
+
+    bdrv_get_cumulative_perm(bs, &cumulative_perms,
+                             &cumulative_shared_perms);
+    if (cumulative_perms & (BLK_PERM_WRITE | BLK_PERM_WRITE_UNCHANGED)) {
+        /* Our inactive parents still need write access. Inactivation failed. */
+        return -EPERM;
     }
 
     bs->open_flags |= BDRV_O_INACTIVE;
