@@ -624,8 +624,10 @@ GEN_TRANS_SHADD_UW(3)
 
 static void gen_add_uw(TCGv ret, TCGv arg1, TCGv arg2)
 {
-    tcg_gen_ext32u_tl(arg1, arg1);
-    tcg_gen_add_tl(ret, arg1, arg2);
+    TCGv t = tcg_temp_new();
+    tcg_gen_ext32u_tl(t, arg1);
+    tcg_gen_add_tl(ret, t, arg2);
+    tcg_temp_free(t);
 }
 
 static bool trans_add_uw(DisasContext *ctx, arg_add_uw *a)
