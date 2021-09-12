@@ -3061,7 +3061,13 @@ static void temp_allocate_frame(TCGContext *s, TCGTemp *ts)
         g_assert_not_reached();
     }
 
-    assert(align <= TCG_TARGET_STACK_ALIGN);
+    /*
+     * Assume the stack is sufficiently aligned.
+     * This affects e.g. ARM NEON, where we have 8 byte stack alignment
+     * and do not require 16 byte vector alignment.  This seems slightly
+     * easier than fully parameterizing the above switch statement.
+     */
+    align = MIN(TCG_TARGET_STACK_ALIGN, align);
     off = ROUND_UP(s->current_frame_offset, align);
 
     /* If we've exhausted the stack frame, restart with a smaller TB. */
