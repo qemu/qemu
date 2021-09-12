@@ -252,6 +252,15 @@ static void sifive_pdma_write(void *opaque, hwaddr offset,
 
         s->chan[ch].control = value;
 
+        /*
+         * If channel was not claimed before run bit is set,
+         * DMA won't run.
+         */
+        if (!claimed) {
+            s->chan[ch].control &= ~CONTROL_RUN;
+            return;
+        }
+
         if (value & CONTROL_RUN) {
             sifive_pdma_run(s, ch);
         }
