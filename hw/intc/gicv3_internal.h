@@ -304,6 +304,43 @@ FIELD(GITS_TYPER, CIL, 36, 1)
 #define L1TABLE_ENTRY_SIZE         8
 
 #define GITS_CMDQ_ENTRY_SIZE               32
+#define NUM_BYTES_IN_DW                     8
+
+#define CMD_MASK                  0xff
+
+/* ITS Commands */
+#define GITS_CMD_CLEAR            0x04
+#define GITS_CMD_DISCARD          0x0F
+#define GITS_CMD_INT              0x03
+#define GITS_CMD_MAPC             0x09
+#define GITS_CMD_MAPD             0x08
+#define GITS_CMD_MAPI             0x0B
+#define GITS_CMD_MAPTI            0x0A
+#define GITS_CMD_INV              0x0C
+#define GITS_CMD_INVALL           0x0D
+#define GITS_CMD_SYNC             0x05
+
+/* MAPC command fields */
+#define ICID_LENGTH                  16
+#define ICID_MASK                 ((1U << ICID_LENGTH) - 1)
+FIELD(MAPC, RDBASE, 16, 32)
+
+#define RDBASE_PROCNUM_LENGTH        16
+#define RDBASE_PROCNUM_MASK       ((1ULL << RDBASE_PROCNUM_LENGTH) - 1)
+
+/* MAPD command fields */
+#define ITTADDR_LENGTH               44
+#define ITTADDR_SHIFT                 8
+#define ITTADDR_MASK             MAKE_64BIT_MASK(ITTADDR_SHIFT, ITTADDR_LENGTH)
+#define SIZE_MASK                 0x1f
+
+#define DEVID_SHIFT                  32
+#define DEVID_MASK                MAKE_64BIT_MASK(32, 32)
+
+#define VALID_SHIFT               63
+#define CMD_FIELD_VALID_MASK      (1ULL << VALID_SHIFT)
+#define L2_TABLE_VALID_MASK       CMD_FIELD_VALID_MASK
+#define TABLE_ENTRY_VALID_MASK    (1ULL << 0)
 
 /**
  * Default features advertised by this version of ITS
@@ -337,6 +374,9 @@ FIELD(GITS_TYPER, CIL, 36, 1)
  * Valid = 1 bit,ITTAddr = 44 bits,Size = 5 bits
  */
 #define GITS_DTE_SIZE                 (0x8ULL)
+#define GITS_DTE_ITTADDR_SHIFT           6
+#define GITS_DTE_ITTADDR_MASK         MAKE_64BIT_MASK(GITS_DTE_ITTADDR_SHIFT, \
+                                                      ITTADDR_LENGTH)
 
 /*
  * 8 bytes Collection Table Entry size
