@@ -43,6 +43,7 @@ schemas = [
   'bad-if-key.json',
   'bad-if-keys.json',
   'bad-if-list.json',
+  'bad-if-not.json',
   'bad-type-bool.json',
   'bad-type-dict.json',
   'bad-type-int.json',

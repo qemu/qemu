@@ -132,9 +132,6 @@ class Indentation:
     def __init__(self, initial: int = 0) -> None:
         self._level = initial
 
-    def __int__(self) -> int:
-        return self._level
-
     def __repr__(self) -> str:
         return "{}({:d})".format(type(self).__name__, self._level)
 
@@ -142,19 +139,13 @@ class Indentation:
         """Return the current indentation as a string of spaces."""
         return ' ' * self._level
 
-    def __bool__(self) -> bool:
-        """True when there is a non-zero indentation."""
-        return bool(self._level)
-
     def increase(self, amount: int = 4) -> None:
         """Increase the indentation level by ``amount``, default 4."""
         self._level += amount
 
     def decrease(self, amount: int = 4) -> None:
         """Decrease the indentation level by ``amount``, default 4."""
-        if self._level < amount:
-            raise ArithmeticError(
-                f"Can't remove {amount:d} spaces from {self!r}")
+        assert amount <= self._level
         self._level -= amount
 
 
@@ -169,8 +160,9 @@ def cgen(code: str, **kwds: object) -> str:
     Obey `indent`, and strip `EATSPACE`.
     """
     raw = code % kwds
-    if indent:
-        raw = re.sub(r'^(?!(#|$))', str(indent), raw, flags=re.MULTILINE)
+    pfx = str(indent)
+    if pfx:
+        raw = re.sub(r'^(?!(#|$))', pfx, raw, flags=re.MULTILINE)
     return re.sub(re.escape(EATSPACE) + r' *', '', raw)
 
 
@@ -205,7 +197,8 @@ def gen_ifcond(ifcond: Optional[Union[str, Dict[str, Any]]],
                cond_fmt: str, not_fmt: str,
                all_operator: str, any_operator: str) -> str:
 
-    def do_gen(ifcond: Union[str, Dict[str, Any]], need_parens: bool):
+    def do_gen(ifcond: Union[str, Dict[str, Any]],
+               need_parens: bool) -> str:
         if isinstance(ifcond, str):
             return cond_fmt % ifcond
         assert isinstance(ifcond, dict) and len(ifcond) == 1

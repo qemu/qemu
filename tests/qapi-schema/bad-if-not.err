@@ -1,0 +1,2 @@
+bad-if-not.json: In struct 'TestIfStruct':
+bad-if-not.json:2: 'if' condition '' of struct is not a valid identifier

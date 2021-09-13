@@ -293,17 +293,22 @@ def check_if(expr: _JSONObject, info: QAPISourceInfo, source: str) -> None:
                 info,
                 "'if' condition of %s has conflicting keys" % source)
 
-        oper, operands = next(iter(cond.items()))
+        if 'not' in cond:
+            _check_if(cond['not'])
+        elif 'all' in cond:
+            _check_infix('all', cond['all'])
+        else:
+            _check_infix('any', cond['any'])
+
+    def _check_infix(operator: str, operands: object) -> None:
+        if not isinstance(operands, list):
+            raise QAPISemError(
+                info,
+                "'%s' condition of %s must be an array"
+                % (operator, source))
         if not operands:
             raise QAPISemError(
                 info, "'if' condition [] of %s is useless" % source)
-
-        if oper == "not":
-            _check_if(operands)
-            return
-        if oper in ("all", "any") and not isinstance(operands, list):
-            raise QAPISemError(
-                info, "'%s' condition of %s must be an array" % (oper, source))
         for operand in operands:
             _check_if(operand)
 
