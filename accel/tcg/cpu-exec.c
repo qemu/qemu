@@ -462,6 +462,7 @@ void cpu_exec_step_atomic(CPUState *cpu)
          * memory.
          */
 #ifndef CONFIG_SOFTMMU
+        clear_helper_retaddr();
         tcg_debug_assert(!have_mmap_lock());
 #endif
         if (qemu_mutex_iothread_locked()) {
@@ -470,7 +471,6 @@ void cpu_exec_step_atomic(CPUState *cpu)
         assert_no_pages_locked();
         qemu_plugin_disable_mem_helpers(cpu);
     }
-
 
     /*
      * As we start the exclusive region before codegen we must still
@@ -916,6 +916,7 @@ int cpu_exec(CPUState *cpu)
 #endif
 
 #ifndef CONFIG_SOFTMMU
+        clear_helper_retaddr();
         tcg_debug_assert(!have_mmap_lock());
 #endif
         if (qemu_mutex_iothread_locked()) {
