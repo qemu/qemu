@@ -1735,15 +1735,66 @@ DO_2SHIFT_SCALAR(VQSHL_U_scalar, vqshli_u)
 DO_2SHIFT_SCALAR(VQRSHL_S_scalar, vqrshli_s)
 DO_2SHIFT_SCALAR(VQRSHL_U_scalar, vqrshli_u)
 
-#define DO_VSHLL(INSN, FN)                                      \
-    static bool trans_##INSN(DisasContext *s, arg_2shift *a)    \
-    {                                                           \
-        static MVEGenTwoOpShiftFn * const fns[] = {             \
-            gen_helper_mve_##FN##b,                             \
-            gen_helper_mve_##FN##h,                             \
-        };                                                      \
-        return do_2shift(s, a, fns[a->size], false);            \
+#define DO_VSHLL(INSN, FN)                                              \
+    static bool trans_##INSN(DisasContext *s, arg_2shift *a)            \
+    {                                                                   \
+        static MVEGenTwoOpShiftFn * const fns[] = {                     \
+            gen_helper_mve_##FN##b,                                     \
+            gen_helper_mve_##FN##h,                                     \
+        };                                                              \
+        return do_2shift_vec(s, a, fns[a->size], false, do_gvec_##FN);  \
     }
+
+/*
+ * For the VSHLL vector helpers, the vece is the size of the input
+ * (ie MO_8 or MO_16); the helpers want to work in the output size.
+ * The shift count can be 0..<input size>, inclusive. (0 is VMOVL.)
+ */
+static void do_gvec_vshllbs(unsigned vece, uint32_t dofs, uint32_t aofs,
+                            int64_t shift, uint32_t oprsz, uint32_t maxsz)
+{
+    unsigned ovece = vece + 1;
+    unsigned ibits = vece == MO_8 ? 8 : 16;
+    tcg_gen_gvec_shli(ovece, dofs, aofs, ibits, oprsz, maxsz);
+    tcg_gen_gvec_sari(ovece, dofs, dofs, ibits - shift, oprsz, maxsz);
+}
+
+static void do_gvec_vshllbu(unsigned vece, uint32_t dofs, uint32_t aofs,
+                            int64_t shift, uint32_t oprsz, uint32_t maxsz)
+{
+    unsigned ovece = vece + 1;
+    tcg_gen_gvec_andi(ovece, dofs, aofs,
+                      ovece == MO_16 ? 0xff : 0xffff, oprsz, maxsz);
+    tcg_gen_gvec_shli(ovece, dofs, dofs, shift, oprsz, maxsz);
+}
+
+static void do_gvec_vshllts(unsigned vece, uint32_t dofs, uint32_t aofs,
+                            int64_t shift, uint32_t oprsz, uint32_t maxsz)
+{
+    unsigned ovece = vece + 1;
+    unsigned ibits = vece == MO_8 ? 8 : 16;
+    if (shift == 0) {
+        tcg_gen_gvec_sari(ovece, dofs, aofs, ibits, oprsz, maxsz);
+    } else {
+        tcg_gen_gvec_andi(ovece, dofs, aofs,
+                          ovece == MO_16 ? 0xff00 : 0xffff0000, oprsz, maxsz);
+        tcg_gen_gvec_sari(ovece, dofs, dofs, ibits - shift, oprsz, maxsz);
+    }
+}
+
+static void do_gvec_vshlltu(unsigned vece, uint32_t dofs, uint32_t aofs,
+                            int64_t shift, uint32_t oprsz, uint32_t maxsz)
+{
+    unsigned ovece = vece + 1;
+    unsigned ibits = vece == MO_8 ? 8 : 16;
+    if (shift == 0) {
+        tcg_gen_gvec_shri(ovece, dofs, aofs, ibits, oprsz, maxsz);
+    } else {
+        tcg_gen_gvec_andi(ovece, dofs, aofs,
+                          ovece == MO_16 ? 0xff00 : 0xffff0000, oprsz, maxsz);
+        tcg_gen_gvec_shri(ovece, dofs, dofs, ibits - shift, oprsz, maxsz);
+    }
+}
 
 DO_VSHLL(VSHLL_BS, vshllbs)
 DO_VSHLL(VSHLL_BU, vshllbu)
