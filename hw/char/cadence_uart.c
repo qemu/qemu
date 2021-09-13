@@ -411,15 +411,15 @@ static void uart_read_rx_fifo(CadenceUARTState *s, uint32_t *c)
     uart_update_status(s);
 }
 
-static void uart_write(void *opaque, hwaddr offset,
-                          uint64_t value, unsigned size)
+static MemTxResult uart_write(void *opaque, hwaddr offset,
+                              uint64_t value, unsigned size, MemTxAttrs attrs)
 {
     CadenceUARTState *s = opaque;
 
     DB_PRINT(" offset:%x data:%08x\n", (unsigned)offset, (unsigned)value);
     offset >>= 2;
     if (offset >= CADENCE_UART_R_MAX) {
-        return;
+        return MEMTX_DECODE_ERROR;
     }
     switch (offset) {
     case R_IER: /* ier (wts imr) */
@@ -466,30 +466,34 @@ static void uart_write(void *opaque, hwaddr offset,
         break;
     }
     uart_update_status(s);
+
+    return MEMTX_OK;
 }
 
-static uint64_t uart_read(void *opaque, hwaddr offset,
-        unsigned size)
+static MemTxResult uart_read(void *opaque, hwaddr offset,
+                             uint64_t *value, unsigned size, MemTxAttrs attrs)
 {
     CadenceUARTState *s = opaque;
     uint32_t c = 0;
 
     offset >>= 2;
     if (offset >= CADENCE_UART_R_MAX) {
-        c = 0;
-    } else if (offset == R_TX_RX) {
+        return MEMTX_DECODE_ERROR;
+    }
+    if (offset == R_TX_RX) {
         uart_read_rx_fifo(s, &c);
     } else {
-       c = s->r[offset];
+        c = s->r[offset];
     }
 
     DB_PRINT(" offset:%x data:%08x\n", (unsigned)(offset << 2), (unsigned)c);
-    return c;
+    *value = c;
+    return MEMTX_OK;
 }
 
 static const MemoryRegionOps uart_ops = {
-    .read = uart_read,
-    .write = uart_write,
+    .read_with_attrs = uart_read,
+    .write_with_attrs = uart_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
