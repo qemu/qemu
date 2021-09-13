@@ -769,7 +769,7 @@ static bool trans_VREV64(DisasContext *s, arg_1op *a)
 
 static bool trans_VMVN(DisasContext *s, arg_1op *a)
 {
-    return do_1op(s, a, gen_helper_mve_vmvn);
+    return do_1op_vec(s, a, gen_helper_mve_vmvn, tcg_gen_gvec_not);
 }
 
 static bool trans_VABS_fp(DisasContext *s, arg_1op *a)
