@@ -664,6 +664,16 @@ static inline tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env,
 }
 
 /**
+ * adjust_signal_pc:
+ * @pc: raw pc from the host signal ucontext_t.
+ * @is_write: host memory operation was write, or read-modify-write.
+ *
+ * Alter @pc as required for unwinding.  Return the type of the
+ * guest memory access -- host reads may be for guest execution.
+ */
+MMUAccessType adjust_signal_pc(uintptr_t *pc, bool is_write);
+
+/**
  * cpu_signal_handler
  * @signum: host signal number
  * @pinfo: host siginfo_t
