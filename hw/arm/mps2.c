@@ -428,7 +428,17 @@ static void mps2_common_init(MachineState *machine)
                                          0x40023000,    /* Audio */
                                          0x40029000,    /* Shield0 */
                                          0x4002a000};   /* Shield1 */
-        sysbus_create_simple(TYPE_ARM_SBCON_I2C, i2cbase[i], NULL);
+        DeviceState *dev;
+
+        dev = sysbus_create_simple(TYPE_ARM_SBCON_I2C, i2cbase[i], NULL);
+        if (i < 2) {
+            /*
+             * internal-only bus: mark it full to avoid user-created
+             * i2c devices being plugged into it.
+             */
+            BusState *qbus = qdev_get_child_bus(dev, "i2c");
+            qbus_mark_full(qbus);
+        }
     }
     create_unimplemented_device("i2s", 0x40024000, 0x400);
 
