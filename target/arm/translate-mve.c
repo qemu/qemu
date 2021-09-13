@@ -1521,7 +1521,8 @@ static bool trans_VADDLV(DisasContext *s, arg_VADDLV *a)
     return true;
 }
 
-static bool do_1imm(DisasContext *s, arg_1imm *a, MVEGenOneOpImmFn *fn)
+static bool do_1imm(DisasContext *s, arg_1imm *a, MVEGenOneOpImmFn *fn,
+                    GVecGen2iFn *vecfn)
 {
     TCGv_ptr qd;
     uint64_t imm;
@@ -1537,17 +1538,29 @@ static bool do_1imm(DisasContext *s, arg_1imm *a, MVEGenOneOpImmFn *fn)
 
     imm = asimd_imm_const(a->imm, a->cmode, a->op);
 
-    qd = mve_qreg_ptr(a->qd);
-    fn(cpu_env, qd, tcg_constant_i64(imm));
-    tcg_temp_free_ptr(qd);
+    if (vecfn && mve_no_predication(s)) {
+        vecfn(MO_64, mve_qreg_offset(a->qd), mve_qreg_offset(a->qd),
+              imm, 16, 16);
+    } else {
+        qd = mve_qreg_ptr(a->qd);
+        fn(cpu_env, qd, tcg_constant_i64(imm));
+        tcg_temp_free_ptr(qd);
+    }
     mve_update_eci(s);
     return true;
+}
+
+static void gen_gvec_vmovi(unsigned vece, uint32_t dofs, uint32_t aofs,
+                           int64_t c, uint32_t oprsz, uint32_t maxsz)
+{
+    tcg_gen_gvec_dup_imm(vece, dofs, oprsz, maxsz, c);
 }
 
 static bool trans_Vimm_1r(DisasContext *s, arg_1imm *a)
 {
     /* Handle decode of cmode/op here between VORR/VBIC/VMOV */
     MVEGenOneOpImmFn *fn;
+    GVecGen2iFn *vecfn;
 
     if ((a->cmode & 1) && a->cmode < 12) {
         if (a->op) {
@@ -1556,8 +1569,10 @@ static bool trans_Vimm_1r(DisasContext *s, arg_1imm *a)
              * so the VBIC becomes a logical AND operation.
              */
             fn = gen_helper_mve_vandi;
+            vecfn = tcg_gen_gvec_andi;
         } else {
             fn = gen_helper_mve_vorri;
+            vecfn = tcg_gen_gvec_ori;
         }
     } else {
         /* There is one unallocated cmode/op combination in this space */
@@ -1566,8 +1581,9 @@ static bool trans_Vimm_1r(DisasContext *s, arg_1imm *a)
         }
         /* asimd_imm_const() sorts out VMVNI vs VMOVI for us */
         fn = gen_helper_mve_vmovi;
+        vecfn = gen_gvec_vmovi;
     }
-    return do_1imm(s, a, fn);
+    return do_1imm(s, a, fn, vecfn);
 }
 
 static bool do_2shift_vec(DisasContext *s, arg_2shift *a, MVEGenTwoOpShiftFn fn,
