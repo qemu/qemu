@@ -500,11 +500,15 @@ static bool trans_VDUP(DisasContext *s, arg_VDUP *a)
         return true;
     }
 
-    qd = mve_qreg_ptr(a->qd);
     rt = load_reg(s, a->rt);
-    tcg_gen_dup_i32(a->size, rt, rt);
-    gen_helper_mve_vdup(cpu_env, qd, rt);
-    tcg_temp_free_ptr(qd);
+    if (mve_no_predication(s)) {
+        tcg_gen_gvec_dup_i32(a->size, mve_qreg_offset(a->qd), 16, 16, rt);
+    } else {
+        qd = mve_qreg_ptr(a->qd);
+        tcg_gen_dup_i32(a->size, rt, rt);
+        gen_helper_mve_vdup(cpu_env, qd, rt);
+        tcg_temp_free_ptr(qd);
+    }
     tcg_temp_free_i32(rt);
     mve_update_eci(s);
     return true;
