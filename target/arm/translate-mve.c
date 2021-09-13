@@ -1570,8 +1570,8 @@ static bool trans_Vimm_1r(DisasContext *s, arg_1imm *a)
     return do_1imm(s, a, fn);
 }
 
-static bool do_2shift(DisasContext *s, arg_2shift *a, MVEGenTwoOpShiftFn fn,
-                      bool negateshift)
+static bool do_2shift_vec(DisasContext *s, arg_2shift *a, MVEGenTwoOpShiftFn fn,
+                          bool negateshift, GVecGen2iFn vecfn)
 {
     TCGv_ptr qd, qm;
     int shift = a->shift;
@@ -1594,34 +1594,77 @@ static bool do_2shift(DisasContext *s, arg_2shift *a, MVEGenTwoOpShiftFn fn,
         shift = -shift;
     }
 
-    qd = mve_qreg_ptr(a->qd);
-    qm = mve_qreg_ptr(a->qm);
-    fn(cpu_env, qd, qm, tcg_constant_i32(shift));
-    tcg_temp_free_ptr(qd);
-    tcg_temp_free_ptr(qm);
+    if (vecfn && mve_no_predication(s)) {
+        vecfn(a->size, mve_qreg_offset(a->qd), mve_qreg_offset(a->qm),
+              shift, 16, 16);
+    } else {
+        qd = mve_qreg_ptr(a->qd);
+        qm = mve_qreg_ptr(a->qm);
+        fn(cpu_env, qd, qm, tcg_constant_i32(shift));
+        tcg_temp_free_ptr(qd);
+        tcg_temp_free_ptr(qm);
+    }
     mve_update_eci(s);
     return true;
 }
 
-#define DO_2SHIFT(INSN, FN, NEGATESHIFT)                         \
-    static bool trans_##INSN(DisasContext *s, arg_2shift *a)    \
-    {                                                           \
-        static MVEGenTwoOpShiftFn * const fns[] = {             \
-            gen_helper_mve_##FN##b,                             \
-            gen_helper_mve_##FN##h,                             \
-            gen_helper_mve_##FN##w,                             \
-            NULL,                                               \
-        };                                                      \
-        return do_2shift(s, a, fns[a->size], NEGATESHIFT);      \
+static bool do_2shift(DisasContext *s, arg_2shift *a, MVEGenTwoOpShiftFn fn,
+                      bool negateshift)
+{
+    return do_2shift_vec(s, a, fn, negateshift, NULL);
+}
+
+#define DO_2SHIFT_VEC(INSN, FN, NEGATESHIFT, VECFN)                     \
+    static bool trans_##INSN(DisasContext *s, arg_2shift *a)            \
+    {                                                                   \
+        static MVEGenTwoOpShiftFn * const fns[] = {                     \
+            gen_helper_mve_##FN##b,                                     \
+            gen_helper_mve_##FN##h,                                     \
+            gen_helper_mve_##FN##w,                                     \
+            NULL,                                                       \
+        };                                                              \
+        return do_2shift_vec(s, a, fns[a->size], NEGATESHIFT, VECFN);   \
     }
 
-DO_2SHIFT(VSHLI, vshli_u, false)
+#define DO_2SHIFT(INSN, FN, NEGATESHIFT)        \
+    DO_2SHIFT_VEC(INSN, FN, NEGATESHIFT, NULL)
+
+static void do_gvec_shri_s(unsigned vece, uint32_t dofs, uint32_t aofs,
+                           int64_t shift, uint32_t oprsz, uint32_t maxsz)
+{
+    /*
+     * We get here with a negated shift count, and we must handle
+     * shifts by the element size, which tcg_gen_gvec_sari() does not do.
+     */
+    shift = -shift;
+    if (shift == (8 << vece)) {
+        shift--;
+    }
+    tcg_gen_gvec_sari(vece, dofs, aofs, shift, oprsz, maxsz);
+}
+
+static void do_gvec_shri_u(unsigned vece, uint32_t dofs, uint32_t aofs,
+                           int64_t shift, uint32_t oprsz, uint32_t maxsz)
+{
+    /*
+     * We get here with a negated shift count, and we must handle
+     * shifts by the element size, which tcg_gen_gvec_shri() does not do.
+     */
+    shift = -shift;
+    if (shift == (8 << vece)) {
+        tcg_gen_gvec_dup_imm(vece, dofs, oprsz, maxsz, 0);
+    } else {
+        tcg_gen_gvec_shri(vece, dofs, aofs, shift, oprsz, maxsz);
+    }
+}
+
+DO_2SHIFT_VEC(VSHLI, vshli_u, false, tcg_gen_gvec_shli)
 DO_2SHIFT(VQSHLI_S, vqshli_s, false)
 DO_2SHIFT(VQSHLI_U, vqshli_u, false)
 DO_2SHIFT(VQSHLUI, vqshlui_s, false)
 /* These right shifts use a left-shift helper with negated shift count */
-DO_2SHIFT(VSHRI_S, vshli_s, true)
-DO_2SHIFT(VSHRI_U, vshli_u, true)
+DO_2SHIFT_VEC(VSHRI_S, vshli_s, true, do_gvec_shri_s)
+DO_2SHIFT_VEC(VSHRI_U, vshli_u, true, do_gvec_shri_u)
 DO_2SHIFT(VRSHRI_S, vrshli_s, true)
 DO_2SHIFT(VRSHRI_U, vrshli_u, true)
 
