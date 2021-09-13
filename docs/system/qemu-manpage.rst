@@ -6,9 +6,11 @@
    parts of the documentation that go in the manpage as well as the
    HTML manual.
 
-Title
-=====
+=======================
+QEMU User Documentation
+=======================
 
+--------
 Synopsis
 --------
 
@@ -16,11 +18,13 @@ Synopsis
 
    |qemu_system| [options] [disk_image]
 
+-----------
 Description
 -----------
 
 .. include:: target-i386-desc.rst.inc
 
+-------
 Options
 -------
 
@@ -33,11 +37,13 @@ not need a disk image.
 
 .. include:: mux-chardev.rst.inc
 
+-----
 Notes
 -----
 
 .. include:: device-url-syntax.rst.inc
 
+--------
 See also
 --------
 

@@ -105,8 +105,6 @@ if config_host.has_key('CONFIG_SPICE') and config_host.has_key('CONFIG_GIO')
   ui_modules += {'spice-app': spice_ss}
 endif
 
-keymap_gen = find_program('keycodemapdb/tools/keymap-gen')
-
 keymaps = [
   ['atset1', 'qcode'],
   ['linux', 'qcode'],
@@ -134,7 +132,7 @@ if have_system or xkbcommon.found()
                   output: output,
                   capture: true,
                   input: files('keycodemapdb/data/keymaps.csv'),
-                  command: [python.full_path(), files('keycodemapdb/tools/keymap-gen'),
+                  command: [python, files('keycodemapdb/tools/keymap-gen'),
                             'code-map',
                             '--lang', 'glib2',
                             '--varname', 'qemu_input_map_@0@_to_@1@'.format(e[0], e[1]),

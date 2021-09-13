@@ -19,7 +19,13 @@ Board-specific documentation
    i386/microvm
    i386/pc
 
-.. include:: cpu-models-x86.rst.inc
+Architectural features
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. toctree::
+   :maxdepth: 1
+
+   i386/cpu
 
 .. _pcsys_005freq:
 

@@ -1132,13 +1132,14 @@ static MemoryListener nvmm_memory_listener = {
 };
 
 static void
-nvmm_ram_block_added(RAMBlockNotifier *n, void *host, size_t size)
+nvmm_ram_block_added(RAMBlockNotifier *n, void *host, size_t size,
+                     size_t max_size)
 {
     struct nvmm_machine *mach = get_nvmm_mach();
     uintptr_t hva = (uintptr_t)host;
     int ret;
 
-    ret = nvmm_hva_map(mach, hva, size);
+    ret = nvmm_hva_map(mach, hva, max_size);
 
     if (ret == -1) {
         error_report("NVMM: Failed to map HVA, HostVA:%p "
