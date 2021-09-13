@@ -4691,6 +4691,8 @@
 # @adapter-type: The adapter type used to fill in the descriptor. Default: ide.
 # @hwversion: Hardware version. The meaningful options are "4" or "6".
 #             Default: "4".
+# @toolsversion: VMware guest tools version.
+#                Default: "2147483647" (Since 6.2)
 # @zeroed-grain: Whether to enable zeroed-grain feature for sparse subformats.
 #                Default: false.
 #
@@ -4704,6 +4706,7 @@
             '*backing-file':    'str',
             '*adapter-type':    'BlockdevVmdkAdapterType',
             '*hwversion':       'str',
+            '*toolsversion':    'str',
             '*zeroed-grain':    'bool' } }
 
 
