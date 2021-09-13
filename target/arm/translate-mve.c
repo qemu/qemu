@@ -1668,8 +1668,8 @@ DO_2SHIFT_VEC(VSHRI_U, vshli_u, true, do_gvec_shri_u)
 DO_2SHIFT(VRSHRI_S, vrshli_s, true)
 DO_2SHIFT(VRSHRI_U, vrshli_u, true)
 
-DO_2SHIFT(VSRI, vsri, false)
-DO_2SHIFT(VSLI, vsli, false)
+DO_2SHIFT_VEC(VSRI, vsri, false, gen_gvec_sri)
+DO_2SHIFT_VEC(VSLI, vsli, false, gen_gvec_sli)
 
 #define DO_2SHIFT_FP(INSN, FN)                                  \
     static bool trans_##INSN(DisasContext *s, arg_2shift *a)    \
