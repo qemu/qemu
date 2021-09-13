@@ -556,6 +556,11 @@ static bool ssh_process_legacy_options(QDict *output_opts,
             qdict_put_str(output_opts, "host-key-check.type", "sha1");
             qdict_put_str(output_opts, "host-key-check.hash",
                           &host_key_check[5]);
+        } else if (strncmp(host_key_check, "sha256:", 7) == 0) {
+            qdict_put_str(output_opts, "host-key-check.mode", "hash");
+            qdict_put_str(output_opts, "host-key-check.type", "sha256");
+            qdict_put_str(output_opts, "host-key-check.hash",
+                          &host_key_check[7]);
         } else if (strcmp(host_key_check, "yes") == 0) {
             qdict_put_str(output_opts, "host-key-check.mode", "known_hosts");
         } else {
