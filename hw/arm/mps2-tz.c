@@ -373,6 +373,10 @@ static qemu_irq get_sse_irq_in(MPS2TZMachineState *mms, int irqno)
     }
 }
 
+/* Union describing the device-specific extra data we pass to the devfn. */
+typedef union PPCExtraData {
+} PPCExtraData;
+
 /* Most of the devices in the AN505 FPGA image sit behind
  * Peripheral Protection Controllers. These data structures
  * define the layout of which devices sit behind which PPCs.
@@ -382,7 +386,8 @@ static qemu_irq get_sse_irq_in(MPS2TZMachineState *mms, int irqno)
  */
 typedef MemoryRegion *MakeDevFn(MPS2TZMachineState *mms, void *opaque,
                                 const char *name, hwaddr size,
-                                const int *irqs);
+                                const int *irqs,
+                                const PPCExtraData *extradata);
 
 typedef struct PPCPortInfo {
     const char *name;
@@ -391,6 +396,7 @@ typedef struct PPCPortInfo {
     hwaddr addr;
     hwaddr size;
     int irqs[3]; /* currently no device needs more IRQ lines than this */
+    PPCExtraData extradata; /* to pass device-specific info to the devfn */
 } PPCPortInfo;
 
 typedef struct PPCInfo {
@@ -401,7 +407,8 @@ typedef struct PPCInfo {
 static MemoryRegion *make_unimp_dev(MPS2TZMachineState *mms,
                                     void *opaque,
                                     const char *name, hwaddr size,
-                                    const int *irqs)
+                                    const int *irqs,
+                                    const PPCExtraData *extradata)
 {
     /* Initialize, configure and realize a TYPE_UNIMPLEMENTED_DEVICE,
      * and return a pointer to its MemoryRegion.
@@ -417,7 +424,7 @@ static MemoryRegion *make_unimp_dev(MPS2TZMachineState *mms,
 
 static MemoryRegion *make_uart(MPS2TZMachineState *mms, void *opaque,
                                const char *name, hwaddr size,
-                               const int *irqs)
+                               const int *irqs, const PPCExtraData *extradata)
 {
     /* The irq[] array is tx, rx, combined, in that order */
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_GET_CLASS(mms);
@@ -441,7 +448,7 @@ static MemoryRegion *make_uart(MPS2TZMachineState *mms, void *opaque,
 
 static MemoryRegion *make_scc(MPS2TZMachineState *mms, void *opaque,
                               const char *name, hwaddr size,
-                              const int *irqs)
+                              const int *irqs, const PPCExtraData *extradata)
 {
     MPS2SCC *scc = opaque;
     DeviceState *sccdev;
@@ -465,7 +472,7 @@ static MemoryRegion *make_scc(MPS2TZMachineState *mms, void *opaque,
 
 static MemoryRegion *make_fpgaio(MPS2TZMachineState *mms, void *opaque,
                                  const char *name, hwaddr size,
-                                 const int *irqs)
+                                 const int *irqs, const PPCExtraData *extradata)
 {
     MPS2FPGAIO *fpgaio = opaque;
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_GET_CLASS(mms);
@@ -480,7 +487,8 @@ static MemoryRegion *make_fpgaio(MPS2TZMachineState *mms, void *opaque,
 
 static MemoryRegion *make_eth_dev(MPS2TZMachineState *mms, void *opaque,
                                   const char *name, hwaddr size,
-                                  const int *irqs)
+                                  const int *irqs,
+                                  const PPCExtraData *extradata)
 {
     SysBusDevice *s;
     NICInfo *nd = &nd_table[0];
@@ -500,7 +508,8 @@ static MemoryRegion *make_eth_dev(MPS2TZMachineState *mms, void *opaque,
 
 static MemoryRegion *make_eth_usb(MPS2TZMachineState *mms, void *opaque,
                                   const char *name, hwaddr size,
-                                  const int *irqs)
+                                  const int *irqs,
+                                  const PPCExtraData *extradata)
 {
     /*
      * The AN524 makes the ethernet and USB share a PPC port.
@@ -543,7 +552,7 @@ static MemoryRegion *make_eth_usb(MPS2TZMachineState *mms, void *opaque,
 
 static MemoryRegion *make_mpc(MPS2TZMachineState *mms, void *opaque,
                               const char *name, hwaddr size,
-                              const int *irqs)
+                              const int *irqs, const PPCExtraData *extradata)
 {
     TZMPC *mpc = opaque;
     int i = mpc - &mms->mpc[0];
@@ -615,7 +624,7 @@ static void remap_irq_fn(void *opaque, int n, int level)
 
 static MemoryRegion *make_dma(MPS2TZMachineState *mms, void *opaque,
                               const char *name, hwaddr size,
-                              const int *irqs)
+                              const int *irqs, const PPCExtraData *extradata)
 {
     /* The irq[] array is DMACINTR, DMACINTERR, DMACINTTC, in that order */
     PL080State *dma = opaque;
@@ -672,7 +681,7 @@ static MemoryRegion *make_dma(MPS2TZMachineState *mms, void *opaque,
 
 static MemoryRegion *make_spi(MPS2TZMachineState *mms, void *opaque,
                               const char *name, hwaddr size,
-                              const int *irqs)
+                              const int *irqs, const PPCExtraData *extradata)
 {
     /*
      * The AN505 has five PL022 SPI controllers.
@@ -694,7 +703,7 @@ static MemoryRegion *make_spi(MPS2TZMachineState *mms, void *opaque,
 
 static MemoryRegion *make_i2c(MPS2TZMachineState *mms, void *opaque,
                               const char *name, hwaddr size,
-                              const int *irqs)
+                              const int *irqs, const PPCExtraData *extradata)
 {
     ArmSbconI2CState *i2c = opaque;
     SysBusDevice *s;
@@ -707,7 +716,7 @@ static MemoryRegion *make_i2c(MPS2TZMachineState *mms, void *opaque,
 
 static MemoryRegion *make_rtc(MPS2TZMachineState *mms, void *opaque,
                               const char *name, hwaddr size,
-                              const int *irqs)
+                              const int *irqs, const PPCExtraData *extradata)
 {
     PL031State *pl031 = opaque;
     SysBusDevice *s;
@@ -1084,7 +1093,7 @@ static void mps2tz_common_init(MachineState *machine)
             }
 
             mr = pinfo->devfn(mms, pinfo->opaque, pinfo->name, pinfo->size,
-                              pinfo->irqs);
+                              pinfo->irqs, &pinfo->extradata);
             portname = g_strdup_printf("port[%d]", port);
             object_property_set_link(OBJECT(ppc), portname, OBJECT(mr),
                                      &error_fatal);
