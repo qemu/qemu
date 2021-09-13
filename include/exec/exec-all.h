@@ -674,6 +674,18 @@ static inline tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env,
 MMUAccessType adjust_signal_pc(uintptr_t *pc, bool is_write);
 
 /**
+ * handle_sigsegv_accerr_write:
+ * @cpu: the cpu context
+ * @old_set: the sigset_t from the signal ucontext_t
+ * @host_pc: the host pc, adjusted for the signal
+ * @host_addr: the host address of the fault
+ *
+ * Return true if the write fault has been handled, and should be re-tried.
+ */
+bool handle_sigsegv_accerr_write(CPUState *cpu, sigset_t *old_set,
+                                 uintptr_t host_pc, abi_ptr guest_addr);
+
+/**
  * cpu_signal_handler
  * @signum: host signal number
  * @pinfo: host siginfo_t
