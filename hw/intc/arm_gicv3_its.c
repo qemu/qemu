@@ -233,6 +233,7 @@ static bool process_its_cmd(GICv3ITSState *s, uint64_t value, uint32_t offset,
     uint64_t cte = 0;
     bool cte_valid = false;
     bool result = false;
+    uint64_t rdbase;
 
     if (cmd == NONE) {
         devid = offset;
@@ -293,6 +294,18 @@ static bool process_its_cmd(GICv3ITSState *s, uint64_t value, uint32_t offset,
          * Current implementation only supports rdbase == procnum
          * Hence rdbase physical address is ignored
          */
+        rdbase = (cte & GITS_CTE_RDBASE_PROCNUM_MASK) >> 1U;
+
+        if (rdbase > s->gicv3->num_cpu) {
+            return result;
+        }
+
+        if ((cmd == CLEAR) || (cmd == DISCARD)) {
+            gicv3_redist_process_lpi(&s->gicv3->cpu[rdbase], pIntid, 0);
+        } else {
+            gicv3_redist_process_lpi(&s->gicv3->cpu[rdbase], pIntid, 1);
+        }
+
         if (cmd == DISCARD) {
             IteEntry ite = {};
             /* remove mapping from interrupt translation table */
@@ -621,6 +634,7 @@ static void process_cmdq(GICv3ITSState *s)
     MemTxResult res = MEMTX_OK;
     bool result = true;
     uint8_t cmd;
+    int i;
 
     if (!(s->ctlr & ITS_CTLR_ENABLED)) {
         return;
@@ -685,6 +699,15 @@ static void process_cmdq(GICv3ITSState *s)
             break;
         case GITS_CMD_INV:
         case GITS_CMD_INVALL:
+            /*
+             * Current implementation doesn't cache any ITS tables,
+             * but the calculated lpi priority information. We only
+             * need to trigger lpi priority re-calculation to be in
+             * sync with LPI config table or pending table changes.
+             */
+            for (i = 0; i < s->gicv3->num_cpu; i++) {
+                gicv3_redist_update_lpi(&s->gicv3->cpu[i]);
+            }
             break;
         default:
             break;
