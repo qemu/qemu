@@ -1420,19 +1420,15 @@ static void glue(gen_, name)(DisasContext *ctx)             \
 VSX_XXMRG(xxmrghw, 1)
 VSX_XXMRG(xxmrglw, 0)
 
-static void gen_xxsel(DisasContext *ctx)
+static bool trans_XXSEL(DisasContext *ctx, arg_XX4 *a)
 {
-    int rt = xT(ctx->opcode);
-    int ra = xA(ctx->opcode);
-    int rb = xB(ctx->opcode);
-    int rc = xC(ctx->opcode);
+    REQUIRE_INSNS_FLAGS2(ctx, VSX);
+    REQUIRE_VSX(ctx);
 
-    if (unlikely(!ctx->vsx_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VSXU);
-        return;
-    }
-    tcg_gen_gvec_bitsel(MO_64, vsr_full_offset(rt), vsr_full_offset(rc),
-                        vsr_full_offset(rb), vsr_full_offset(ra), 16, 16);
+    tcg_gen_gvec_bitsel(MO_64, vsr_full_offset(a->xt), vsr_full_offset(a->xc),
+                        vsr_full_offset(a->xb), vsr_full_offset(a->xa), 16, 16);
+
+    return true;
 }
 
 static bool trans_XXSPLTW(DisasContext *ctx, arg_XX2 *a)
@@ -2125,7 +2121,7 @@ static void gen_xxblendv_vec(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b,
     tcg_temp_free_vec(tmp);
 }
 
-static bool do_xxblendv(DisasContext *ctx, arg_XX4 *a, unsigned vece)
+static bool do_xxblendv(DisasContext *ctx, arg_8RR_XX4 *a, unsigned vece)
 {
     static const TCGOpcode vecop_list[] = {
         INDEX_op_sari_vec, 0
