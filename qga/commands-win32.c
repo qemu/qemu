@@ -2195,7 +2195,7 @@ static ga_matrix_lookup_t const WIN_VERSION_MATRIX[2][8] = {
 };
 
 typedef struct _ga_win_10_0_server_t {
-    int final_build;
+    int first_build;
     char const *version;
     char const *version_id;
 } ga_win_10_0_server_t;
@@ -2235,17 +2235,21 @@ static char *ga_get_win_name(OSVERSIONINFOEXW const *os_version, bool id)
     int tbl_idx = (os_version->wProductType != VER_NT_WORKSTATION);
     ga_matrix_lookup_t const *table = WIN_VERSION_MATRIX[tbl_idx];
     ga_win_10_0_server_t const *win_10_0_table = WIN_10_0_SERVER_VERSION_MATRIX;
+    ga_win_10_0_server_t const *win_10_0_version = NULL;
     while (table->version != NULL) {
         if (major == 10 && minor == 0 && tbl_idx) {
             while (win_10_0_table->version != NULL) {
-                if (build <= win_10_0_table->final_build) {
-                    if (id) {
-                        return g_strdup(win_10_0_table->version_id);
-                    } else {
-                        return g_strdup(win_10_0_table->version);
-                    }
+                if (build >= win_10_0_table->first_build) {
+                    win_10_0_version = win_10_0_table;
                 }
                 win_10_0_table++;
+            }
+            if (win_10_0_table) {
+                if (id) {
+                    return g_strdup(win_10_0_version->version_id);
+                } else {
+                    return g_strdup(win_10_0_version->version);
+                }
             }
         } else if (major == table->major && minor == table->minor) {
             if (id) {
