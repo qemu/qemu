@@ -29,6 +29,39 @@ The `Repology`_ site is a useful resource to identify
 currently shipped versions of software in various operating systems,
 though it does not cover all distros listed below.
 
+Supported host architectures
+----------------------------
+
+Those hosts are officially supported, with various accelerators:
+
+  .. list-table::
+   :header-rows: 1
+
+   * - CPU Architecture
+     - Accelerators
+   * - Arm
+     - kvm (64 bit only), tcg, xen
+   * - MIPS
+     - kvm, tcg
+   * - PPC
+     - kvm, tcg
+   * - RISC-V
+     - tcg
+   * - s390x
+     - kvm, tcg
+   * - SPARC
+     - tcg
+   * - x86
+     - hax, hvf (64 bit only), kvm, nvmm, tcg, whpx (64 bit only), xen
+
+Other host architectures are not supported. It is possible to build QEMU on an
+unsupported host architecture using the configure ``--enable-tcg-interpreter``
+option to enable the experimental TCI support, but note that this is very slow
+and is not recommended.
+
+Non-supported architectures may be removed in the future following the
+:ref:`deprecation process<Deprecated features>`.
+
 Linux OS, macOS, FreeBSD, NetBSD, OpenBSD
 -----------------------------------------
 
