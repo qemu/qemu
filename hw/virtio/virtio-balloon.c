@@ -852,7 +852,7 @@ static const VMStateDescription vmstate_virtio_balloon_free_page_hint = {
 };
 
 static const VMStateDescription vmstate_virtio_balloon_page_poison = {
-    .name = "vitio-balloon-device/page-poison",
+    .name = "virtio-balloon-device/page-poison",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = virtio_balloon_page_poison_support,
