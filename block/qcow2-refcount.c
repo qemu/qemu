@@ -1680,10 +1680,22 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
     for (i = 0; i < s->l2_size; i++) {
         uint64_t coffset;
         int csize;
+        QCow2ClusterType type;
+
         l2_entry = get_l2_entry(s, l2_table, i);
         l2_bitmap = get_l2_bitmap(s, l2_table, i);
+        type = qcow2_get_cluster_type(bs, l2_entry);
 
-        switch (qcow2_get_cluster_type(bs, l2_entry)) {
+        if (type != QCOW2_CLUSTER_COMPRESSED) {
+            /* Check reserved bits of Standard Cluster Descriptor */
+            if (l2_entry & L2E_STD_RESERVED_MASK) {
+                fprintf(stderr, "ERROR found l2 entry with reserved bits set: "
+                        "%" PRIx64 "\n", l2_entry);
+                res->corruptions++;
+            }
+        }
+
+        switch (type) {
         case QCOW2_CLUSTER_COMPRESSED:
             /* Compressed clusters don't have QCOW_OFLAG_COPIED */
             if (l2_entry & QCOW_OFLAG_COPIED) {
