@@ -22,6 +22,7 @@ managing QMP events.
 # the COPYING file in the top-level directory.
 
 from .error import AQMPError
+from .events import EventListener
 from .message import Message
 from .protocol import ConnectError, Runstate, StateError
 
@@ -30,6 +31,7 @@ from .protocol import ConnectError, Runstate, StateError
 __all__ = (
     # Classes, most to least important
     'Message',
+    'EventListener',
     'Runstate',
 
     # Exceptions, most generic to most explicit
