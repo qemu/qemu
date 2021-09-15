@@ -71,20 +71,20 @@ static RISCVException ctr(CPURISCVState *env, int csrno)
     if (riscv_cpu_virt_enabled(env)) {
         switch (csrno) {
         case CSR_CYCLE:
-            if (!get_field(env->hcounteren, HCOUNTEREN_CY) &&
-                get_field(env->mcounteren, HCOUNTEREN_CY)) {
+            if (!get_field(env->hcounteren, COUNTEREN_CY) &&
+                get_field(env->mcounteren, COUNTEREN_CY)) {
                 return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
             }
             break;
         case CSR_TIME:
-            if (!get_field(env->hcounteren, HCOUNTEREN_TM) &&
-                get_field(env->mcounteren, HCOUNTEREN_TM)) {
+            if (!get_field(env->hcounteren, COUNTEREN_TM) &&
+                get_field(env->mcounteren, COUNTEREN_TM)) {
                 return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
             }
             break;
         case CSR_INSTRET:
-            if (!get_field(env->hcounteren, HCOUNTEREN_IR) &&
-                get_field(env->mcounteren, HCOUNTEREN_IR)) {
+            if (!get_field(env->hcounteren, COUNTEREN_IR) &&
+                get_field(env->mcounteren, COUNTEREN_IR)) {
                 return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
             }
             break;
@@ -98,20 +98,20 @@ static RISCVException ctr(CPURISCVState *env, int csrno)
         if (riscv_cpu_is_32bit(env)) {
             switch (csrno) {
             case CSR_CYCLEH:
-                if (!get_field(env->hcounteren, HCOUNTEREN_CY) &&
-                    get_field(env->mcounteren, HCOUNTEREN_CY)) {
+                if (!get_field(env->hcounteren, COUNTEREN_CY) &&
+                    get_field(env->mcounteren, COUNTEREN_CY)) {
                     return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
                 }
                 break;
             case CSR_TIMEH:
-                if (!get_field(env->hcounteren, HCOUNTEREN_TM) &&
-                    get_field(env->mcounteren, HCOUNTEREN_TM)) {
+                if (!get_field(env->hcounteren, COUNTEREN_TM) &&
+                    get_field(env->mcounteren, COUNTEREN_TM)) {
                     return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
                 }
                 break;
             case CSR_INSTRETH:
-                if (!get_field(env->hcounteren, HCOUNTEREN_IR) &&
-                    get_field(env->mcounteren, HCOUNTEREN_IR)) {
+                if (!get_field(env->hcounteren, COUNTEREN_IR) &&
+                    get_field(env->mcounteren, COUNTEREN_IR)) {
                     return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
                 }
                 break;
