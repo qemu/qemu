@@ -25,11 +25,13 @@ from .error import AQMPError
 from .events import EventListener
 from .message import Message
 from .protocol import ConnectError, Runstate, StateError
+from .qmp_client import QMPClient
 
 
 # The order of these fields impact the Sphinx documentation order.
 __all__ = (
     # Classes, most to least important
+    'QMPClient',
     'Message',
     'EventListener',
     'Runstate',
