@@ -610,7 +610,7 @@ class VM(qtest.QEMUQtestMachine):
             return
         valgrind_filename =  f"{test_dir}/{self._popen.pid}.valgrind"
         if self.exitcode() == 99:
-            with open(valgrind_filename) as f:
+            with open(valgrind_filename, encoding='utf-8') as f:
                 print(f.read())
         else:
             os.remove(valgrind_filename)
@@ -703,7 +703,7 @@ class VM(qtest.QEMUQtestMachine):
 
     def flatten_qmp_object(self, obj, output=None, basestr=''):
         if output is None:
-            output = dict()
+            output = {}
         if isinstance(obj, list):
             for i, item in enumerate(obj):
                 self.flatten_qmp_object(item, output, basestr + str(i) + '.')
@@ -716,7 +716,7 @@ class VM(qtest.QEMUQtestMachine):
 
     def qmp_to_opts(self, obj):
         obj = self.flatten_qmp_object(obj)
-        output_list = list()
+        output_list = []
         for key in obj:
             output_list += [key + '=' + obj[key]]
         return ','.join(output_list)
@@ -1121,7 +1121,8 @@ def notrun(reason):
     # Each test in qemu-iotests has a number ("seq")
     seq = os.path.basename(sys.argv[0])
 
-    with open('%s/%s.notrun' % (output_dir, seq), 'w') as outfile:
+    with open('%s/%s.notrun' % (output_dir, seq), 'w', encoding='utf-8') \
+            as outfile:
         outfile.write(reason + '\n')
     logger.warning("%s not run: %s", seq, reason)
     sys.exit(0)
@@ -1135,7 +1136,8 @@ def case_notrun(reason):
     # Each test in qemu-iotests has a number ("seq")
     seq = os.path.basename(sys.argv[0])
 
-    with open('%s/%s.casenotrun' % (output_dir, seq), 'a') as outfile:
+    with open('%s/%s.casenotrun' % (output_dir, seq), 'a', encoding='utf-8') \
+            as outfile:
         outfile.write('    [case not run] ' + reason + '\n')
 
 def _verify_image_format(supported_fmts: Sequence[str] = (),

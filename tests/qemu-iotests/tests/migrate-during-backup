@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+# group: migration
+#
+# Copyright (c) 2021 Virtuozzo International GmbH
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import iotests
+from iotests import qemu_img_create, qemu_io
+
+
+disk_a = os.path.join(iotests.test_dir, 'disk_a')
+disk_b = os.path.join(iotests.test_dir, 'disk_b')
+size = '1M'
+mig_file = os.path.join(iotests.test_dir, 'mig_file')
+mig_cmd = 'exec: cat > ' + mig_file
+
+
+class TestMigrateDuringBackup(iotests.QMPTestCase):
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(disk_a)
+        os.remove(disk_b)
+        os.remove(mig_file)
+
+    def setUp(self):
+        qemu_img_create('-f', iotests.imgfmt, disk_a, size)
+        qemu_img_create('-f', iotests.imgfmt, disk_b, size)
+        qemu_io('-c', f'write 0 {size}', disk_a)
+
+        self.vm = iotests.VM().add_drive(disk_a)
+        self.vm.launch()
+        result = self.vm.qmp('blockdev-add', {
+            'node-name': 'target',
+            'driver': iotests.imgfmt,
+            'file': {
+                'driver': 'file',
+                'filename': disk_b
+            }
+        })
+        self.assert_qmp(result, 'return', {})
+
+    def test_migrate(self):
+        result = self.vm.qmp('blockdev-backup', device='drive0',
+                             target='target', sync='full',
+                             speed=1, x_perf={
+                                 'max-workers': 1,
+                                 'max-chunk': 64 * 1024
+                             })
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('job-pause', id='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('migrate-set-capabilities',
+                             capabilities=[{'capability': 'events',
+                                            'state': True}])
+        self.assert_qmp(result, 'return', {})
+        result = self.vm.qmp('migrate', uri=mig_cmd)
+        self.assert_qmp(result, 'return', {})
+
+        e = self.vm.events_wait((('MIGRATION',
+                                  {'data': {'status': 'completed'}}),
+                                 ('MIGRATION',
+                                  {'data': {'status': 'failed'}})))
+
+        # Don't assert that e is 'failed' now: this way we'll miss
+        # possible crash when backup continues :)
+
+        result = self.vm.qmp('block-job-set-speed', device='drive0',
+                             speed=0)
+        self.assert_qmp(result, 'return', {})
+        result = self.vm.qmp('job-resume', id='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        # For future: if something changes so that both migration
+        # and backup pass, let's not miss that moment, as it may
+        # be a bug as well as improvement.
+        self.assert_qmp(e, 'data/status', 'failed')
+
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['qcow2'],
+                 supported_protocols=['file'])

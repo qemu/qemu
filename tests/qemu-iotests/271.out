@@ -719,8 +719,8 @@ blkdebug: Suspended request 'A'
 blkdebug: Resuming request 'A'
 wrote 2048/2048 bytes at offset 30720
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-wrote 2048/2048 bytes at offset 20480
+wrote 2048/2048 bytes at offset OFFSET
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-wrote 2048/2048 bytes at offset 40960
+wrote 2048/2048 bytes at offset OFFSET
 2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 *** done
