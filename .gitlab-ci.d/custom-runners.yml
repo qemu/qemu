@@ -60,8 +60,10 @@ ubuntu-18.04-s390x-alldbg:
  rules:
  - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
    when: manual
+   allow_failure: true
  - if: "$S390X_RUNNER_AVAILABLE"
    when: manual
+   allow_failure: true
  script:
  - mkdir build
  - cd build
@@ -79,8 +81,10 @@ ubuntu-18.04-s390x-clang:
  rules:
  - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
    when: manual
+   allow_failure: true
  - if: "$S390X_RUNNER_AVAILABLE"
    when: manual
+   allow_failure: true
  script:
  - mkdir build
  - cd build
@@ -97,8 +101,10 @@ ubuntu-18.04-s390x-tci:
  rules:
  - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
    when: manual
+   allow_failure: true
  - if: "$S390X_RUNNER_AVAILABLE"
    when: manual
+   allow_failure: true
  script:
  - mkdir build
  - cd build
@@ -114,8 +120,10 @@ ubuntu-18.04-s390x-notcg:
  rules:
  - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
    when: manual
+   allow_failure: true
  - if: "$S390X_RUNNER_AVAILABLE"
    when: manual
+   allow_failure: true
  script:
  - mkdir build
  - cd build
@@ -154,8 +162,10 @@ ubuntu-20.04-aarch64-all:
  rules:
  - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
    when: manual
+   allow_failure: true
  - if: "$AARCH64_RUNNER_AVAILABLE"
    when: manual
+   allow_failure: true
  script:
  - mkdir build
  - cd build
@@ -189,8 +199,10 @@ ubuntu-20.04-aarch64-clang:
  rules:
  - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
    when: manual
+   allow_failure: true
  - if: "$AARCH64_RUNNER_AVAILABLE"
    when: manual
+   allow_failure: true
  script:
  - mkdir build
  - cd build
@@ -207,8 +219,10 @@ ubuntu-20.04-aarch64-tci:
  rules:
  - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
    when: manual
+   allow_failure: true
  - if: "$AARCH64_RUNNER_AVAILABLE"
    when: manual
+   allow_failure: true
  script:
  - mkdir build
  - cd build
@@ -224,8 +238,10 @@ ubuntu-20.04-aarch64-notcg:
  rules:
  - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
    when: manual
+   allow_failure: true
  - if: "$AARCH64_RUNNER_AVAILABLE"
    when: manual
+   allow_failure: true
  script:
  - mkdir build
  - cd build
