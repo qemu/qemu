@@ -78,6 +78,25 @@ class NullProtocol(AsyncProtocol[None]):
         self._schedule_disconnect()
 
 
+class LineProtocol(AsyncProtocol[str]):
+    def __init__(self, name=None):
+        super().__init__(name)
+        self.rx_history = []
+
+    async def _do_recv(self) -> str:
+        raw = await self._readline()
+        msg = raw.decode()
+        self.rx_history.append(msg)
+        return msg
+
+    def _do_send(self, msg: str) -> None:
+        assert self._writer is not None
+        self._writer.write(msg.encode() + b'\n')
+
+    async def send_msg(self, msg: str) -> None:
+        await self._outgoing.put(msg)
+
+
 def run_as_task(coro, allow_cancellation=False):
     """
     Run a given coroutine as a task.
@@ -533,3 +552,32 @@ class FakeSession(TestBase):
              " Call disconnect() to return to IDLE state."),
             accept=False,
         )
+
+
+class SimpleSession(TestBase):
+
+    def setUp(self):
+        super().setUp()
+        self.server = LineProtocol(type(self).__name__ + '-server')
+
+    async def _asyncSetUp(self):
+        await super()._asyncSetUp()
+        await self._watch_runstates(*self.GOOD_CONNECTION_STATES)
+
+    async def _asyncTearDown(self):
+        await self.proto.disconnect()
+        try:
+            await self.server.disconnect()
+        except EOFError:
+            pass
+        await super()._asyncTearDown()
+
+    @TestBase.async_test
+    async def testSmoke(self):
+        with TemporaryDirectory(suffix='.aqmp') as tmpdir:
+            sock = os.path.join(tmpdir, type(self.proto).__name__ + ".sock")
+            server_task = create_task(self.server.accept(sock))
+
+            # give the server a chance to start listening [...]
+            await asyncio.sleep(0)
+            await self.proto.connect(sock)
