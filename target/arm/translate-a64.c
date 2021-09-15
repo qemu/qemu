@@ -14772,7 +14772,7 @@ static void aarch64_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     }
 
     s->pc_curr = s->base.pc_next;
-    insn = arm_ldl_code(env, s->base.pc_next, s->sctlr_b);
+    insn = arm_ldl_code(env, &s->base, s->base.pc_next, s->sctlr_b);
     s->insn = insn;
     s->base.pc_next += 4;
 

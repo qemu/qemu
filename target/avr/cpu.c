@@ -197,10 +197,7 @@ static const struct TCGCPUOps avr_tcg_ops = {
     .synchronize_from_tb = avr_cpu_synchronize_from_tb,
     .cpu_exec_interrupt = avr_cpu_exec_interrupt,
     .tlb_fill = avr_cpu_tlb_fill,
-
-#ifndef CONFIG_USER_ONLY
     .do_interrupt = avr_cpu_do_interrupt,
-#endif /* !CONFIG_USER_ONLY */
 };
 
 static void avr_cpu_class_init(ObjectClass *oc, void *data)

@@ -60,8 +60,6 @@ void rr_kick_vcpu_thread(CPUState *unused)
 static QEMUTimer *rr_kick_vcpu_timer;
 static CPUState *rr_current_cpu;
 
-#define TCG_KICK_PERIOD (NANOSECONDS_PER_SECOND / 10)
-
 static inline int64_t rr_next_kick_time(void)
 {
     return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + TCG_KICK_PERIOD;

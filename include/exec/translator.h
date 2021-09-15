@@ -23,6 +23,7 @@
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "exec/plugin-gen.h"
+#include "exec/translate-all.h"
 #include "tcg/tcg.h"
 
 
@@ -74,6 +75,17 @@ typedef struct DisasContextBase {
     int num_insns;
     int max_insns;
     bool singlestep_enabled;
+#ifdef CONFIG_USER_ONLY
+    /*
+     * Guest address of the last byte of the last protected page.
+     *
+     * Pages containing the translated instructions are made non-writable in
+     * order to achieve consistency in case another thread is modifying the
+     * code while translate_insn() fetches the instruction bytes piecemeal.
+     * Such writer threads are blocked on mmap_lock() in page_unprotect().
+     */
+    target_ulong page_protect_end;
+#endif
 } DisasContextBase;
 
 /**
@@ -156,27 +168,23 @@ bool translator_use_goto_tb(DisasContextBase *db, target_ulong dest);
  */
 
 #define GEN_TRANSLATOR_LD(fullname, type, load_fn, swap_fn)             \
-    static inline type                                                  \
-    fullname ## _swap(CPUArchState *env, abi_ptr pc, bool do_swap)      \
+    type fullname ## _swap(CPUArchState *env, DisasContextBase *dcbase, \
+                           abi_ptr pc, bool do_swap);                   \
+    static inline type fullname(CPUArchState *env,                      \
+                                DisasContextBase *dcbase, abi_ptr pc)   \
     {                                                                   \
-        type ret = load_fn(env, pc);                                    \
-        if (do_swap) {                                                  \
-            ret = swap_fn(ret);                                         \
-        }                                                               \
-        plugin_insn_append(&ret, sizeof(ret));                          \
-        return ret;                                                     \
-    }                                                                   \
-                                                                        \
-    static inline type fullname(CPUArchState *env, abi_ptr pc)          \
-    {                                                                   \
-        return fullname ## _swap(env, pc, false);                       \
+        return fullname ## _swap(env, dcbase, pc, false);               \
     }
 
-GEN_TRANSLATOR_LD(translator_ldub, uint8_t, cpu_ldub_code, /* no swap */)
-GEN_TRANSLATOR_LD(translator_ldsw, int16_t, cpu_ldsw_code, bswap16)
-GEN_TRANSLATOR_LD(translator_lduw, uint16_t, cpu_lduw_code, bswap16)
-GEN_TRANSLATOR_LD(translator_ldl, uint32_t, cpu_ldl_code, bswap32)
-GEN_TRANSLATOR_LD(translator_ldq, uint64_t, cpu_ldq_code, bswap64)
+#define FOR_EACH_TRANSLATOR_LD(F)                                       \
+    F(translator_ldub, uint8_t, cpu_ldub_code, /* no swap */)           \
+    F(translator_ldsw, int16_t, cpu_ldsw_code, bswap16)                 \
+    F(translator_lduw, uint16_t, cpu_lduw_code, bswap16)                \
+    F(translator_ldl, uint32_t, cpu_ldl_code, bswap32)                  \
+    F(translator_ldq, uint64_t, cpu_ldq_code, bswap64)
+
+FOR_EACH_TRANSLATOR_LD(GEN_TRANSLATOR_LD)
+
 #undef GEN_TRANSLATOR_LD
 
 #endif  /* EXEC__TRANSLATOR_H */

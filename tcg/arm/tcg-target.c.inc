@@ -92,7 +92,7 @@ static const int tcg_target_call_oarg_regs[2] = {
 #define TCG_REG_TMP  TCG_REG_R12
 #define TCG_VEC_TMP  TCG_REG_Q15
 
-enum arm_cond_code_e {
+typedef enum {
     COND_EQ = 0x0,
     COND_NE = 0x1,
     COND_CS = 0x2,	/* Unsigned greater or equal */
@@ -108,7 +108,7 @@ enum arm_cond_code_e {
     COND_GT = 0xc,
     COND_LE = 0xd,
     COND_AL = 0xe,
-};
+} ARMCond;
 
 #define TO_CPSR (1 << 20)
 
@@ -140,6 +140,9 @@ typedef enum {
 
     INSN_CLZ       = 0x016f0f10,
     INSN_RBIT      = 0x06ff0f30,
+
+    INSN_LDMIA     = 0x08b00000,
+    INSN_STMDB     = 0x09200000,
 
     INSN_LDR_IMM   = 0x04100000,
     INSN_LDR_REG   = 0x06100000,
@@ -309,10 +312,10 @@ static bool reloc_pc8(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
 {
     const tcg_insn_unit *src_rx = tcg_splitwx_to_rx(src_rw);
     ptrdiff_t offset = tcg_ptr_byte_diff(target, src_rx) - 8;
-    int rot = encode_imm(offset);
+    int imm12 = encode_imm(offset);
 
-    if (rot >= 0) {
-        *src_rw = deposit32(*src_rw, 0, 12, rol32(offset, rot) | (rot << 7));
+    if (imm12 >= 0) {
+        *src_rw = deposit32(*src_rw, 0, 12, imm12);
         return true;
     }
     return false;
@@ -366,36 +369,55 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
     (ALL_GENERAL_REGS & ~((1 << TCG_REG_R0) | (1 << TCG_REG_R1)))
 #endif
 
-static inline uint32_t rotl(uint32_t val, int n)
-{
-  return (val << n) | (val >> (32 - n));
-}
-
-/* ARM immediates for ALU instructions are made of an unsigned 8-bit
-   right-rotated by an even amount between 0 and 30. */
+/*
+ * ARM immediates for ALU instructions are made of an unsigned 8-bit
+ * right-rotated by an even amount between 0 and 30.
+ *
+ * Return < 0 if @imm cannot be encoded, else the entire imm12 field.
+ */
 static int encode_imm(uint32_t imm)
 {
-    int shift;
+    uint32_t rot, imm8;
 
-    /* simple case, only lower bits */
-    if ((imm & ~0xff) == 0)
-        return 0;
-    /* then try a simple even shift */
-    shift = ctz32(imm) & ~1;
-    if (((imm >> shift) & ~0xff) == 0)
-        return 32 - shift;
-    /* now try harder with rotations */
-    if ((rotl(imm, 2) & ~0xff) == 0)
-        return 2;
-    if ((rotl(imm, 4) & ~0xff) == 0)
-        return 4;
-    if ((rotl(imm, 6) & ~0xff) == 0)
-        return 6;
-    /* imm can't be encoded */
+    /* Simple case, no rotation required. */
+    if ((imm & ~0xff) == 0) {
+        return imm;
+    }
+
+    /* Next, try a simple even shift.  */
+    rot = ctz32(imm) & ~1;
+    imm8 = imm >> rot;
+    rot = 32 - rot;
+    if ((imm8 & ~0xff) == 0) {
+        goto found;
+    }
+
+    /*
+     * Finally, try harder with rotations.
+     * The ctz test above will have taken care of rotates >= 8.
+     */
+    for (rot = 2; rot < 8; rot += 2) {
+        imm8 = rol32(imm, rot);
+        if ((imm8 & ~0xff) == 0) {
+            goto found;
+        }
+    }
+    /* Fail: imm cannot be encoded. */
     return -1;
+
+ found:
+    /* Note that rot is even, and we discard bit 0 by shifting by 7. */
+    return rot << 7 | imm8;
 }
 
-static inline int check_fit_imm(uint32_t imm)
+static int encode_imm_nofail(uint32_t imm)
+{
+    int ret = encode_imm(imm);
+    tcg_debug_assert(ret >= 0);
+    return ret;
+}
+
+static bool check_fit_imm(uint32_t imm)
 {
     return encode_imm(imm) >= 0;
 }
@@ -525,42 +547,37 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
     return 0;
 }
 
-static inline void tcg_out_b(TCGContext *s, int cond, int32_t offset)
+static void tcg_out_b_imm(TCGContext *s, ARMCond cond, int32_t offset)
 {
     tcg_out32(s, (cond << 28) | 0x0a000000 |
                     (((offset - 8) >> 2) & 0x00ffffff));
 }
 
-static inline void tcg_out_bl(TCGContext *s, int cond, int32_t offset)
+static void tcg_out_bl_imm(TCGContext *s, ARMCond cond, int32_t offset)
 {
     tcg_out32(s, (cond << 28) | 0x0b000000 |
                     (((offset - 8) >> 2) & 0x00ffffff));
 }
 
-static inline void tcg_out_blx(TCGContext *s, int cond, int rn)
+static void tcg_out_blx_reg(TCGContext *s, ARMCond cond, TCGReg rn)
 {
     tcg_out32(s, (cond << 28) | 0x012fff30 | rn);
 }
 
-static inline void tcg_out_blx_imm(TCGContext *s, int32_t offset)
+static void tcg_out_blx_imm(TCGContext *s, int32_t offset)
 {
     tcg_out32(s, 0xfa000000 | ((offset & 2) << 23) |
                 (((offset - 8) >> 2) & 0x00ffffff));
 }
 
-static inline void tcg_out_dat_reg(TCGContext *s,
-                int cond, int opc, int rd, int rn, int rm, int shift)
+static void tcg_out_dat_reg(TCGContext *s, ARMCond cond, ARMInsn opc,
+                            TCGReg rd, TCGReg rn, TCGReg rm, int shift)
 {
     tcg_out32(s, (cond << 28) | (0 << 25) | opc |
                     (rn << 16) | (rd << 12) | shift | rm);
 }
 
-static inline void tcg_out_nop(TCGContext *s)
-{
-    tcg_out32(s, INSN_NOP);
-}
-
-static inline void tcg_out_mov_reg(TCGContext *s, int cond, int rd, int rm)
+static void tcg_out_mov_reg(TCGContext *s, ARMCond cond, TCGReg rd, TCGReg rm)
 {
     /* Simple reg-reg move, optimising out the 'do nothing' case */
     if (rd != rm) {
@@ -568,35 +585,47 @@ static inline void tcg_out_mov_reg(TCGContext *s, int cond, int rd, int rm)
     }
 }
 
-static inline void tcg_out_bx(TCGContext *s, int cond, TCGReg rn)
+static void tcg_out_bx_reg(TCGContext *s, ARMCond cond, TCGReg rn)
 {
-    /* Unless the C portion of QEMU is compiled as thumb, we don't
-       actually need true BX semantics; merely a branch to an address
-       held in a register.  */
+    tcg_out32(s, (cond << 28) | 0x012fff10 | rn);
+}
+
+static void tcg_out_b_reg(TCGContext *s, ARMCond cond, TCGReg rn)
+{
+    /*
+     * Unless the C portion of QEMU is compiled as thumb, we don't need
+     * true BX semantics; merely a branch to an address held in a register.
+     */
     if (use_armv5t_instructions) {
-        tcg_out32(s, (cond << 28) | 0x012fff10 | rn);
+        tcg_out_bx_reg(s, cond, rn);
     } else {
         tcg_out_mov_reg(s, cond, TCG_REG_PC, rn);
     }
 }
 
-static inline void tcg_out_dat_imm(TCGContext *s,
-                int cond, int opc, int rd, int rn, int im)
+static void tcg_out_dat_imm(TCGContext *s, ARMCond cond, ARMInsn opc,
+                            TCGReg rd, TCGReg rn, int im)
 {
     tcg_out32(s, (cond << 28) | (1 << 25) | opc |
                     (rn << 16) | (rd << 12) | im);
 }
 
+static void tcg_out_ldstm(TCGContext *s, ARMCond cond, ARMInsn opc,
+                          TCGReg rn, uint16_t mask)
+{
+    tcg_out32(s, (cond << 28) | opc | (rn << 16) | mask);
+}
+
 /* Note that this routine is used for both LDR and LDRH formats, so we do
    not wish to include an immediate shift at this point.  */
-static void tcg_out_memop_r(TCGContext *s, int cond, ARMInsn opc, TCGReg rt,
+static void tcg_out_memop_r(TCGContext *s, ARMCond cond, ARMInsn opc, TCGReg rt,
                             TCGReg rn, TCGReg rm, bool u, bool p, bool w)
 {
     tcg_out32(s, (cond << 28) | opc | (u << 23) | (p << 24)
               | (w << 21) | (rn << 16) | (rt << 12) | rm);
 }
 
-static void tcg_out_memop_8(TCGContext *s, int cond, ARMInsn opc, TCGReg rt,
+static void tcg_out_memop_8(TCGContext *s, ARMCond cond, ARMInsn opc, TCGReg rt,
                             TCGReg rn, int imm8, bool p, bool w)
 {
     bool u = 1;
@@ -608,8 +637,8 @@ static void tcg_out_memop_8(TCGContext *s, int cond, ARMInsn opc, TCGReg rt,
               (rn << 16) | (rt << 12) | ((imm8 & 0xf0) << 4) | (imm8 & 0xf));
 }
 
-static void tcg_out_memop_12(TCGContext *s, int cond, ARMInsn opc, TCGReg rt,
-                             TCGReg rn, int imm12, bool p, bool w)
+static void tcg_out_memop_12(TCGContext *s, ARMCond cond, ARMInsn opc,
+                             TCGReg rt, TCGReg rn, int imm12, bool p, bool w)
 {
     bool u = 1;
     if (imm12 < 0) {
@@ -620,167 +649,167 @@ static void tcg_out_memop_12(TCGContext *s, int cond, ARMInsn opc, TCGReg rt,
               (rn << 16) | (rt << 12) | imm12);
 }
 
-static inline void tcg_out_ld32_12(TCGContext *s, int cond, TCGReg rt,
-                                   TCGReg rn, int imm12)
+static void tcg_out_ld32_12(TCGContext *s, ARMCond cond, TCGReg rt,
+                            TCGReg rn, int imm12)
 {
     tcg_out_memop_12(s, cond, INSN_LDR_IMM, rt, rn, imm12, 1, 0);
 }
 
-static inline void tcg_out_st32_12(TCGContext *s, int cond, TCGReg rt,
-                                   TCGReg rn, int imm12)
+static void tcg_out_st32_12(TCGContext *s, ARMCond cond, TCGReg rt,
+                            TCGReg rn, int imm12)
 {
     tcg_out_memop_12(s, cond, INSN_STR_IMM, rt, rn, imm12, 1, 0);
 }
 
-static inline void tcg_out_ld32_r(TCGContext *s, int cond, TCGReg rt,
-                                  TCGReg rn, TCGReg rm)
+static void tcg_out_ld32_r(TCGContext *s, ARMCond cond, TCGReg rt,
+                           TCGReg rn, TCGReg rm)
 {
     tcg_out_memop_r(s, cond, INSN_LDR_REG, rt, rn, rm, 1, 1, 0);
 }
 
-static inline void tcg_out_st32_r(TCGContext *s, int cond, TCGReg rt,
-                                  TCGReg rn, TCGReg rm)
+static void tcg_out_st32_r(TCGContext *s, ARMCond cond, TCGReg rt,
+                           TCGReg rn, TCGReg rm)
 {
     tcg_out_memop_r(s, cond, INSN_STR_REG, rt, rn, rm, 1, 1, 0);
 }
 
-static inline void tcg_out_ldrd_8(TCGContext *s, int cond, TCGReg rt,
-                                   TCGReg rn, int imm8)
+static void tcg_out_ldrd_8(TCGContext *s, ARMCond cond, TCGReg rt,
+                           TCGReg rn, int imm8)
 {
     tcg_out_memop_8(s, cond, INSN_LDRD_IMM, rt, rn, imm8, 1, 0);
 }
 
-static inline void tcg_out_ldrd_r(TCGContext *s, int cond, TCGReg rt,
-                                  TCGReg rn, TCGReg rm)
+static void tcg_out_ldrd_r(TCGContext *s, ARMCond cond, TCGReg rt,
+                           TCGReg rn, TCGReg rm)
 {
     tcg_out_memop_r(s, cond, INSN_LDRD_REG, rt, rn, rm, 1, 1, 0);
 }
 
-static inline void tcg_out_ldrd_rwb(TCGContext *s, int cond, TCGReg rt,
-                                    TCGReg rn, TCGReg rm)
+static void __attribute__((unused))
+tcg_out_ldrd_rwb(TCGContext *s, ARMCond cond, TCGReg rt, TCGReg rn, TCGReg rm)
 {
     tcg_out_memop_r(s, cond, INSN_LDRD_REG, rt, rn, rm, 1, 1, 1);
 }
 
-static inline void tcg_out_strd_8(TCGContext *s, int cond, TCGReg rt,
-                                   TCGReg rn, int imm8)
+static void tcg_out_strd_8(TCGContext *s, ARMCond cond, TCGReg rt,
+                           TCGReg rn, int imm8)
 {
     tcg_out_memop_8(s, cond, INSN_STRD_IMM, rt, rn, imm8, 1, 0);
 }
 
-static inline void tcg_out_strd_r(TCGContext *s, int cond, TCGReg rt,
-                                  TCGReg rn, TCGReg rm)
+static void tcg_out_strd_r(TCGContext *s, ARMCond cond, TCGReg rt,
+                           TCGReg rn, TCGReg rm)
 {
     tcg_out_memop_r(s, cond, INSN_STRD_REG, rt, rn, rm, 1, 1, 0);
 }
 
 /* Register pre-increment with base writeback.  */
-static inline void tcg_out_ld32_rwb(TCGContext *s, int cond, TCGReg rt,
-                                    TCGReg rn, TCGReg rm)
+static void tcg_out_ld32_rwb(TCGContext *s, ARMCond cond, TCGReg rt,
+                             TCGReg rn, TCGReg rm)
 {
     tcg_out_memop_r(s, cond, INSN_LDR_REG, rt, rn, rm, 1, 1, 1);
 }
 
-static inline void tcg_out_st32_rwb(TCGContext *s, int cond, TCGReg rt,
-                                    TCGReg rn, TCGReg rm)
+static void tcg_out_st32_rwb(TCGContext *s, ARMCond cond, TCGReg rt,
+                             TCGReg rn, TCGReg rm)
 {
     tcg_out_memop_r(s, cond, INSN_STR_REG, rt, rn, rm, 1, 1, 1);
 }
 
-static inline void tcg_out_ld16u_8(TCGContext *s, int cond, TCGReg rt,
-                                   TCGReg rn, int imm8)
+static void tcg_out_ld16u_8(TCGContext *s, ARMCond cond, TCGReg rt,
+                            TCGReg rn, int imm8)
 {
     tcg_out_memop_8(s, cond, INSN_LDRH_IMM, rt, rn, imm8, 1, 0);
 }
 
-static inline void tcg_out_st16_8(TCGContext *s, int cond, TCGReg rt,
-                                  TCGReg rn, int imm8)
+static void tcg_out_st16_8(TCGContext *s, ARMCond cond, TCGReg rt,
+                           TCGReg rn, int imm8)
 {
     tcg_out_memop_8(s, cond, INSN_STRH_IMM, rt, rn, imm8, 1, 0);
 }
 
-static inline void tcg_out_ld16u_r(TCGContext *s, int cond, TCGReg rt,
-                                   TCGReg rn, TCGReg rm)
+static void tcg_out_ld16u_r(TCGContext *s, ARMCond cond, TCGReg rt,
+                            TCGReg rn, TCGReg rm)
 {
     tcg_out_memop_r(s, cond, INSN_LDRH_REG, rt, rn, rm, 1, 1, 0);
 }
 
-static inline void tcg_out_st16_r(TCGContext *s, int cond, TCGReg rt,
-                                  TCGReg rn, TCGReg rm)
+static void tcg_out_st16_r(TCGContext *s, ARMCond cond, TCGReg rt,
+                           TCGReg rn, TCGReg rm)
 {
     tcg_out_memop_r(s, cond, INSN_STRH_REG, rt, rn, rm, 1, 1, 0);
 }
 
-static inline void tcg_out_ld16s_8(TCGContext *s, int cond, TCGReg rt,
-                                   TCGReg rn, int imm8)
+static void tcg_out_ld16s_8(TCGContext *s, ARMCond cond, TCGReg rt,
+                            TCGReg rn, int imm8)
 {
     tcg_out_memop_8(s, cond, INSN_LDRSH_IMM, rt, rn, imm8, 1, 0);
 }
 
-static inline void tcg_out_ld16s_r(TCGContext *s, int cond, TCGReg rt,
-                                   TCGReg rn, TCGReg rm)
+static void tcg_out_ld16s_r(TCGContext *s, ARMCond cond, TCGReg rt,
+                            TCGReg rn, TCGReg rm)
 {
     tcg_out_memop_r(s, cond, INSN_LDRSH_REG, rt, rn, rm, 1, 1, 0);
 }
 
-static inline void tcg_out_ld8_12(TCGContext *s, int cond, TCGReg rt,
-                                  TCGReg rn, int imm12)
+static void tcg_out_ld8_12(TCGContext *s, ARMCond cond, TCGReg rt,
+                           TCGReg rn, int imm12)
 {
     tcg_out_memop_12(s, cond, INSN_LDRB_IMM, rt, rn, imm12, 1, 0);
 }
 
-static inline void tcg_out_st8_12(TCGContext *s, int cond, TCGReg rt,
-                                  TCGReg rn, int imm12)
+static void tcg_out_st8_12(TCGContext *s, ARMCond cond, TCGReg rt,
+                           TCGReg rn, int imm12)
 {
     tcg_out_memop_12(s, cond, INSN_STRB_IMM, rt, rn, imm12, 1, 0);
 }
 
-static inline void tcg_out_ld8_r(TCGContext *s, int cond, TCGReg rt,
-                                 TCGReg rn, TCGReg rm)
+static void tcg_out_ld8_r(TCGContext *s, ARMCond cond, TCGReg rt,
+                          TCGReg rn, TCGReg rm)
 {
     tcg_out_memop_r(s, cond, INSN_LDRB_REG, rt, rn, rm, 1, 1, 0);
 }
 
-static inline void tcg_out_st8_r(TCGContext *s, int cond, TCGReg rt,
-                                 TCGReg rn, TCGReg rm)
+static void tcg_out_st8_r(TCGContext *s, ARMCond cond, TCGReg rt,
+                          TCGReg rn, TCGReg rm)
 {
     tcg_out_memop_r(s, cond, INSN_STRB_REG, rt, rn, rm, 1, 1, 0);
 }
 
-static inline void tcg_out_ld8s_8(TCGContext *s, int cond, TCGReg rt,
-                                  TCGReg rn, int imm8)
+static void tcg_out_ld8s_8(TCGContext *s, ARMCond cond, TCGReg rt,
+                           TCGReg rn, int imm8)
 {
     tcg_out_memop_8(s, cond, INSN_LDRSB_IMM, rt, rn, imm8, 1, 0);
 }
 
-static inline void tcg_out_ld8s_r(TCGContext *s, int cond, TCGReg rt,
-                                  TCGReg rn, TCGReg rm)
+static void tcg_out_ld8s_r(TCGContext *s, ARMCond cond, TCGReg rt,
+                           TCGReg rn, TCGReg rm)
 {
     tcg_out_memop_r(s, cond, INSN_LDRSB_REG, rt, rn, rm, 1, 1, 0);
 }
 
-static void tcg_out_movi_pool(TCGContext *s, int cond, int rd, uint32_t arg)
+static void tcg_out_movi_pool(TCGContext *s, ARMCond cond,
+                              TCGReg rd, uint32_t arg)
 {
     new_pool_label(s, arg, R_ARM_PC13, s->code_ptr, 0);
     tcg_out_ld32_12(s, cond, rd, TCG_REG_PC, 0);
 }
 
-static void tcg_out_movi32(TCGContext *s, int cond, int rd, uint32_t arg)
+static void tcg_out_movi32(TCGContext *s, ARMCond cond,
+                           TCGReg rd, uint32_t arg)
 {
-    int rot, diff, opc, sh1, sh2;
+    int imm12, diff, opc, sh1, sh2;
     uint32_t tt0, tt1, tt2;
 
     /* Check a single MOV/MVN before anything else.  */
-    rot = encode_imm(arg);
-    if (rot >= 0) {
-        tcg_out_dat_imm(s, cond, ARITH_MOV, rd, 0,
-                        rotl(arg, rot) | (rot << 7));
+    imm12 = encode_imm(arg);
+    if (imm12 >= 0) {
+        tcg_out_dat_imm(s, cond, ARITH_MOV, rd, 0, imm12);
         return;
     }
-    rot = encode_imm(~arg);
-    if (rot >= 0) {
-        tcg_out_dat_imm(s, cond, ARITH_MVN, rd, 0,
-                        rotl(~arg, rot) | (rot << 7));
+    imm12 = encode_imm(~arg);
+    if (imm12 >= 0) {
+        tcg_out_dat_imm(s, cond, ARITH_MVN, rd, 0, imm12);
         return;
     }
 
@@ -788,17 +817,15 @@ static void tcg_out_movi32(TCGContext *s, int cond, int rd, uint32_t arg)
        or within the TB, which is immediately before the code block.  */
     diff = tcg_pcrel_diff(s, (void *)arg) - 8;
     if (diff >= 0) {
-        rot = encode_imm(diff);
-        if (rot >= 0) {
-            tcg_out_dat_imm(s, cond, ARITH_ADD, rd, TCG_REG_PC,
-                            rotl(diff, rot) | (rot << 7));
+        imm12 = encode_imm(diff);
+        if (imm12 >= 0) {
+            tcg_out_dat_imm(s, cond, ARITH_ADD, rd, TCG_REG_PC, imm12);
             return;
         }
     } else {
-        rot = encode_imm(-diff);
-        if (rot >= 0) {
-            tcg_out_dat_imm(s, cond, ARITH_SUB, rd, TCG_REG_PC,
-                            rotl(-diff, rot) | (rot << 7));
+        imm12 = encode_imm(-diff);
+        if (imm12 >= 0) {
+            tcg_out_dat_imm(s, cond, ARITH_SUB, rd, TCG_REG_PC, imm12);
             return;
         }
     }
@@ -830,6 +857,8 @@ static void tcg_out_movi32(TCGContext *s, int cond, int rd, uint32_t arg)
     sh2 = ctz32(tt1) & ~1;
     tt2 = tt1 & ~(0xff << sh2);
     if (tt2 == 0) {
+        int rot;
+
         rot = ((32 - sh1) << 7) & 0xf00;
         tcg_out_dat_imm(s, cond, opc, rd,  0, ((tt0 >> sh1) & 0xff) | rot);
         rot = ((32 - sh2) << 7) & 0xf00;
@@ -842,65 +871,61 @@ static void tcg_out_movi32(TCGContext *s, int cond, int rd, uint32_t arg)
     tcg_out_movi_pool(s, cond, rd, arg);
 }
 
-static inline void tcg_out_dat_rI(TCGContext *s, int cond, int opc, TCGArg dst,
-                                  TCGArg lhs, TCGArg rhs, int rhs_is_const)
+/*
+ * Emit either the reg,imm or reg,reg form of a data-processing insn.
+ * rhs must satisfy the "rI" constraint.
+ */
+static void tcg_out_dat_rI(TCGContext *s, ARMCond cond, ARMInsn opc,
+                           TCGReg dst, TCGReg lhs, TCGArg rhs, int rhs_is_const)
 {
-    /* Emit either the reg,imm or reg,reg form of a data-processing insn.
-     * rhs must satisfy the "rI" constraint.
-     */
     if (rhs_is_const) {
-        int rot = encode_imm(rhs);
-        tcg_debug_assert(rot >= 0);
-        tcg_out_dat_imm(s, cond, opc, dst, lhs, rotl(rhs, rot) | (rot << 7));
+        tcg_out_dat_imm(s, cond, opc, dst, lhs, encode_imm_nofail(rhs));
     } else {
         tcg_out_dat_reg(s, cond, opc, dst, lhs, rhs, SHIFT_IMM_LSL(0));
     }
 }
 
-static void tcg_out_dat_rIK(TCGContext *s, int cond, int opc, int opinv,
-                            TCGReg dst, TCGReg lhs, TCGArg rhs,
+/*
+ * Emit either the reg,imm or reg,reg form of a data-processing insn.
+ * rhs must satisfy the "rIK" constraint.
+ */
+static void tcg_out_dat_rIK(TCGContext *s, ARMCond cond, ARMInsn opc,
+                            ARMInsn opinv, TCGReg dst, TCGReg lhs, TCGArg rhs,
                             bool rhs_is_const)
 {
-    /* Emit either the reg,imm or reg,reg form of a data-processing insn.
-     * rhs must satisfy the "rIK" constraint.
-     */
     if (rhs_is_const) {
-        int rot = encode_imm(rhs);
-        if (rot < 0) {
-            rhs = ~rhs;
-            rot = encode_imm(rhs);
-            tcg_debug_assert(rot >= 0);
+        int imm12 = encode_imm(rhs);
+        if (imm12 < 0) {
+            imm12 = encode_imm_nofail(~rhs);
             opc = opinv;
         }
-        tcg_out_dat_imm(s, cond, opc, dst, lhs, rotl(rhs, rot) | (rot << 7));
+        tcg_out_dat_imm(s, cond, opc, dst, lhs, imm12);
     } else {
         tcg_out_dat_reg(s, cond, opc, dst, lhs, rhs, SHIFT_IMM_LSL(0));
     }
 }
 
-static void tcg_out_dat_rIN(TCGContext *s, int cond, int opc, int opneg,
-                            TCGArg dst, TCGArg lhs, TCGArg rhs,
+static void tcg_out_dat_rIN(TCGContext *s, ARMCond cond, ARMInsn opc,
+                            ARMInsn opneg, TCGReg dst, TCGReg lhs, TCGArg rhs,
                             bool rhs_is_const)
 {
     /* Emit either the reg,imm or reg,reg form of a data-processing insn.
      * rhs must satisfy the "rIN" constraint.
      */
     if (rhs_is_const) {
-        int rot = encode_imm(rhs);
-        if (rot < 0) {
-            rhs = -rhs;
-            rot = encode_imm(rhs);
-            tcg_debug_assert(rot >= 0);
+        int imm12 = encode_imm(rhs);
+        if (imm12 < 0) {
+            imm12 = encode_imm_nofail(-rhs);
             opc = opneg;
         }
-        tcg_out_dat_imm(s, cond, opc, dst, lhs, rotl(rhs, rot) | (rot << 7));
+        tcg_out_dat_imm(s, cond, opc, dst, lhs, imm12);
     } else {
         tcg_out_dat_reg(s, cond, opc, dst, lhs, rhs, SHIFT_IMM_LSL(0));
     }
 }
 
-static inline void tcg_out_mul32(TCGContext *s, int cond, TCGReg rd,
-                                 TCGReg rn, TCGReg rm)
+static void tcg_out_mul32(TCGContext *s, ARMCond cond, TCGReg rd,
+                          TCGReg rn, TCGReg rm)
 {
     /* if ArchVersion() < 6 && d == n then UNPREDICTABLE;  */
     if (!use_armv6_instructions && rd == rn) {
@@ -917,8 +942,8 @@ static inline void tcg_out_mul32(TCGContext *s, int cond, TCGReg rd,
     tcg_out32(s, (cond << 28) | 0x90 | (rd << 16) | (rm << 8) | rn);
 }
 
-static inline void tcg_out_umull32(TCGContext *s, int cond, TCGReg rd0,
-                                   TCGReg rd1, TCGReg rn, TCGReg rm)
+static void tcg_out_umull32(TCGContext *s, ARMCond cond, TCGReg rd0,
+                            TCGReg rd1, TCGReg rn, TCGReg rm)
 {
     /* if ArchVersion() < 6 && (dHi == n || dLo == n) then UNPREDICTABLE;  */
     if (!use_armv6_instructions && (rd0 == rn || rd1 == rn)) {
@@ -936,8 +961,8 @@ static inline void tcg_out_umull32(TCGContext *s, int cond, TCGReg rd0,
               (rd1 << 16) | (rd0 << 12) | (rm << 8) | rn);
 }
 
-static inline void tcg_out_smull32(TCGContext *s, int cond, TCGReg rd0,
-                                   TCGReg rd1, TCGReg rn, TCGReg rm)
+static void tcg_out_smull32(TCGContext *s, ARMCond cond, TCGReg rd0,
+                            TCGReg rd1, TCGReg rn, TCGReg rm)
 {
     /* if ArchVersion() < 6 && (dHi == n || dLo == n) then UNPREDICTABLE;  */
     if (!use_armv6_instructions && (rd0 == rn || rd1 == rn)) {
@@ -955,18 +980,19 @@ static inline void tcg_out_smull32(TCGContext *s, int cond, TCGReg rd0,
               (rd1 << 16) | (rd0 << 12) | (rm << 8) | rn);
 }
 
-static inline void tcg_out_sdiv(TCGContext *s, int cond, int rd, int rn, int rm)
+static void tcg_out_sdiv(TCGContext *s, ARMCond cond,
+                         TCGReg rd, TCGReg rn, TCGReg rm)
 {
     tcg_out32(s, 0x0710f010 | (cond << 28) | (rd << 16) | rn | (rm << 8));
 }
 
-static inline void tcg_out_udiv(TCGContext *s, int cond, int rd, int rn, int rm)
+static void tcg_out_udiv(TCGContext *s, ARMCond cond,
+                         TCGReg rd, TCGReg rn, TCGReg rm)
 {
     tcg_out32(s, 0x0730f010 | (cond << 28) | (rd << 16) | rn | (rm << 8));
 }
 
-static inline void tcg_out_ext8s(TCGContext *s, int cond,
-                                 int rd, int rn)
+static void tcg_out_ext8s(TCGContext *s, ARMCond cond, TCGReg rd, TCGReg rn)
 {
     if (use_armv6_instructions) {
         /* sxtb */
@@ -979,14 +1005,13 @@ static inline void tcg_out_ext8s(TCGContext *s, int cond,
     }
 }
 
-static inline void tcg_out_ext8u(TCGContext *s, int cond,
-                                 int rd, int rn)
+static void __attribute__((unused))
+tcg_out_ext8u(TCGContext *s, ARMCond cond, TCGReg rd, TCGReg rn)
 {
     tcg_out_dat_imm(s, cond, ARITH_AND, rd, rn, 0xff);
 }
 
-static inline void tcg_out_ext16s(TCGContext *s, int cond,
-                                  int rd, int rn)
+static void tcg_out_ext16s(TCGContext *s, ARMCond cond, TCGReg rd, TCGReg rn)
 {
     if (use_armv6_instructions) {
         /* sxth */
@@ -999,8 +1024,7 @@ static inline void tcg_out_ext16s(TCGContext *s, int cond,
     }
 }
 
-static inline void tcg_out_ext16u(TCGContext *s, int cond,
-                                  int rd, int rn)
+static void tcg_out_ext16u(TCGContext *s, ARMCond cond, TCGReg rd, TCGReg rn)
 {
     if (use_armv6_instructions) {
         /* uxth */
@@ -1013,7 +1037,8 @@ static inline void tcg_out_ext16u(TCGContext *s, int cond,
     }
 }
 
-static void tcg_out_bswap16(TCGContext *s, int cond, int rd, int rn, int flags)
+static void tcg_out_bswap16(TCGContext *s, ARMCond cond,
+                            TCGReg rd, TCGReg rn, int flags)
 {
     if (use_armv6_instructions) {
         if (flags & TCG_BSWAP_OS) {
@@ -1080,7 +1105,7 @@ static void tcg_out_bswap16(TCGContext *s, int cond, int rd, int rn, int flags)
                      ? SHIFT_IMM_ASR(8) : SHIFT_IMM_LSR(8)));
 }
 
-static inline void tcg_out_bswap32(TCGContext *s, int cond, int rd, int rn)
+static void tcg_out_bswap32(TCGContext *s, ARMCond cond, TCGReg rd, TCGReg rn)
 {
     if (use_armv6_instructions) {
         /* rev */
@@ -1097,8 +1122,8 @@ static inline void tcg_out_bswap32(TCGContext *s, int cond, int rd, int rn)
     }
 }
 
-static inline void tcg_out_deposit(TCGContext *s, int cond, TCGReg rd,
-                                   TCGArg a1, int ofs, int len, bool const_a1)
+static void tcg_out_deposit(TCGContext *s, ARMCond cond, TCGReg rd,
+                            TCGArg a1, int ofs, int len, bool const_a1)
 {
     if (const_a1) {
         /* bfi becomes bfc with rn == 15.  */
@@ -1109,24 +1134,24 @@ static inline void tcg_out_deposit(TCGContext *s, int cond, TCGReg rd,
               | (ofs << 7) | ((ofs + len - 1) << 16));
 }
 
-static inline void tcg_out_extract(TCGContext *s, int cond, TCGReg rd,
-                                   TCGArg a1, int ofs, int len)
+static void tcg_out_extract(TCGContext *s, ARMCond cond, TCGReg rd,
+                            TCGReg rn, int ofs, int len)
 {
     /* ubfx */
-    tcg_out32(s, 0x07e00050 | (cond << 28) | (rd << 12) | a1
+    tcg_out32(s, 0x07e00050 | (cond << 28) | (rd << 12) | rn
               | (ofs << 7) | ((len - 1) << 16));
 }
 
-static inline void tcg_out_sextract(TCGContext *s, int cond, TCGReg rd,
-                                    TCGArg a1, int ofs, int len)
+static void tcg_out_sextract(TCGContext *s, ARMCond cond, TCGReg rd,
+                             TCGReg rn, int ofs, int len)
 {
     /* sbfx */
-    tcg_out32(s, 0x07a00050 | (cond << 28) | (rd << 12) | a1
+    tcg_out32(s, 0x07a00050 | (cond << 28) | (rd << 12) | rn
               | (ofs << 7) | ((len - 1) << 16));
 }
 
-static inline void tcg_out_ld32u(TCGContext *s, int cond,
-                int rd, int rn, int32_t offset)
+static void tcg_out_ld32u(TCGContext *s, ARMCond cond,
+                          TCGReg rd, TCGReg rn, int32_t offset)
 {
     if (offset > 0xfff || offset < -0xfff) {
         tcg_out_movi32(s, cond, TCG_REG_TMP, offset);
@@ -1135,8 +1160,8 @@ static inline void tcg_out_ld32u(TCGContext *s, int cond,
         tcg_out_ld32_12(s, cond, rd, rn, offset);
 }
 
-static inline void tcg_out_st32(TCGContext *s, int cond,
-                int rd, int rn, int32_t offset)
+static void tcg_out_st32(TCGContext *s, ARMCond cond,
+                         TCGReg rd, TCGReg rn, int32_t offset)
 {
     if (offset > 0xfff || offset < -0xfff) {
         tcg_out_movi32(s, cond, TCG_REG_TMP, offset);
@@ -1145,8 +1170,8 @@ static inline void tcg_out_st32(TCGContext *s, int cond,
         tcg_out_st32_12(s, cond, rd, rn, offset);
 }
 
-static inline void tcg_out_ld16u(TCGContext *s, int cond,
-                int rd, int rn, int32_t offset)
+static void tcg_out_ld16u(TCGContext *s, ARMCond cond,
+                          TCGReg rd, TCGReg rn, int32_t offset)
 {
     if (offset > 0xff || offset < -0xff) {
         tcg_out_movi32(s, cond, TCG_REG_TMP, offset);
@@ -1155,8 +1180,8 @@ static inline void tcg_out_ld16u(TCGContext *s, int cond,
         tcg_out_ld16u_8(s, cond, rd, rn, offset);
 }
 
-static inline void tcg_out_ld16s(TCGContext *s, int cond,
-                int rd, int rn, int32_t offset)
+static void tcg_out_ld16s(TCGContext *s, ARMCond cond,
+                          TCGReg rd, TCGReg rn, int32_t offset)
 {
     if (offset > 0xff || offset < -0xff) {
         tcg_out_movi32(s, cond, TCG_REG_TMP, offset);
@@ -1165,8 +1190,8 @@ static inline void tcg_out_ld16s(TCGContext *s, int cond,
         tcg_out_ld16s_8(s, cond, rd, rn, offset);
 }
 
-static inline void tcg_out_st16(TCGContext *s, int cond,
-                int rd, int rn, int32_t offset)
+static void tcg_out_st16(TCGContext *s, ARMCond cond,
+                         TCGReg rd, TCGReg rn, int32_t offset)
 {
     if (offset > 0xff || offset < -0xff) {
         tcg_out_movi32(s, cond, TCG_REG_TMP, offset);
@@ -1175,8 +1200,8 @@ static inline void tcg_out_st16(TCGContext *s, int cond,
         tcg_out_st16_8(s, cond, rd, rn, offset);
 }
 
-static inline void tcg_out_ld8u(TCGContext *s, int cond,
-                int rd, int rn, int32_t offset)
+static void tcg_out_ld8u(TCGContext *s, ARMCond cond,
+                         TCGReg rd, TCGReg rn, int32_t offset)
 {
     if (offset > 0xfff || offset < -0xfff) {
         tcg_out_movi32(s, cond, TCG_REG_TMP, offset);
@@ -1185,8 +1210,8 @@ static inline void tcg_out_ld8u(TCGContext *s, int cond,
         tcg_out_ld8_12(s, cond, rd, rn, offset);
 }
 
-static inline void tcg_out_ld8s(TCGContext *s, int cond,
-                int rd, int rn, int32_t offset)
+static void tcg_out_ld8s(TCGContext *s, ARMCond cond,
+                         TCGReg rd, TCGReg rn, int32_t offset)
 {
     if (offset > 0xff || offset < -0xff) {
         tcg_out_movi32(s, cond, TCG_REG_TMP, offset);
@@ -1195,8 +1220,8 @@ static inline void tcg_out_ld8s(TCGContext *s, int cond,
         tcg_out_ld8s_8(s, cond, rd, rn, offset);
 }
 
-static inline void tcg_out_st8(TCGContext *s, int cond,
-                int rd, int rn, int32_t offset)
+static void tcg_out_st8(TCGContext *s, ARMCond cond,
+                        TCGReg rd, TCGReg rn, int32_t offset)
 {
     if (offset > 0xfff || offset < -0xfff) {
         tcg_out_movi32(s, cond, TCG_REG_TMP, offset);
@@ -1205,60 +1230,79 @@ static inline void tcg_out_st8(TCGContext *s, int cond,
         tcg_out_st8_12(s, cond, rd, rn, offset);
 }
 
-/* The _goto case is normally between TBs within the same code buffer, and
+/*
+ * The _goto case is normally between TBs within the same code buffer, and
  * with the code buffer limited to 16MB we wouldn't need the long case.
  * But we also use it for the tail-call to the qemu_ld/st helpers, which does.
  */
-static void tcg_out_goto(TCGContext *s, int cond, const tcg_insn_unit *addr)
+static void tcg_out_goto(TCGContext *s, ARMCond cond, const tcg_insn_unit *addr)
 {
     intptr_t addri = (intptr_t)addr;
     ptrdiff_t disp = tcg_pcrel_diff(s, addr);
+    bool arm_mode = !(addri & 1);
 
-    if ((addri & 1) == 0 && disp - 8 < 0x01fffffd && disp - 8 > -0x01fffffd) {
-        tcg_out_b(s, cond, disp);
+    if (arm_mode && disp - 8 < 0x01fffffd && disp - 8 > -0x01fffffd) {
+        tcg_out_b_imm(s, cond, disp);
         return;
     }
-    tcg_out_movi_pool(s, cond, TCG_REG_PC, addri);
+
+    /* LDR is interworking from v5t. */
+    if (arm_mode || use_armv5t_instructions) {
+        tcg_out_movi_pool(s, cond, TCG_REG_PC, addri);
+        return;
+    }
+
+    /* else v4t */
+    tcg_out_movi32(s, COND_AL, TCG_REG_TMP, addri);
+    tcg_out_bx_reg(s, COND_AL, TCG_REG_TMP);
 }
 
-/* The call case is mostly used for helpers - so it's not unreasonable
- * for them to be beyond branch range */
+/*
+ * The call case is mostly used for helpers - so it's not unreasonable
+ * for them to be beyond branch range.
+ */
 static void tcg_out_call(TCGContext *s, const tcg_insn_unit *addr)
 {
     intptr_t addri = (intptr_t)addr;
     ptrdiff_t disp = tcg_pcrel_diff(s, addr);
+    bool arm_mode = !(addri & 1);
 
     if (disp - 8 < 0x02000000 && disp - 8 >= -0x02000000) {
-        if (addri & 1) {
-            /* Use BLX if the target is in Thumb mode */
-            if (!use_armv5t_instructions) {
-                tcg_abort();
-            }
-            tcg_out_blx_imm(s, disp);
-        } else {
-            tcg_out_bl(s, COND_AL, disp);
+        if (arm_mode) {
+            tcg_out_bl_imm(s, COND_AL, disp);
+            return;
         }
-    } else if (use_armv7_instructions) {
+        if (use_armv5t_instructions) {
+            tcg_out_blx_imm(s, disp);
+            return;
+        }
+    }
+
+    if (use_armv5t_instructions) {
         tcg_out_movi32(s, COND_AL, TCG_REG_TMP, addri);
-        tcg_out_blx(s, COND_AL, TCG_REG_TMP);
-    } else {
+        tcg_out_blx_reg(s, COND_AL, TCG_REG_TMP);
+    } else if (arm_mode) {
         /* ??? Know that movi_pool emits exactly 1 insn.  */
-        tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R14, TCG_REG_PC, 0);
+        tcg_out_mov_reg(s, COND_AL, TCG_REG_R14, TCG_REG_PC);
         tcg_out_movi_pool(s, COND_AL, TCG_REG_PC, addri);
+    } else {
+        tcg_out_movi32(s, COND_AL, TCG_REG_TMP, addri);
+        tcg_out_mov_reg(s, COND_AL, TCG_REG_R14, TCG_REG_PC);
+        tcg_out_bx_reg(s, COND_AL, TCG_REG_TMP);
     }
 }
 
-static inline void tcg_out_goto_label(TCGContext *s, int cond, TCGLabel *l)
+static void tcg_out_goto_label(TCGContext *s, ARMCond cond, TCGLabel *l)
 {
     if (l->has_value) {
         tcg_out_goto(s, cond, l->u.value_ptr);
     } else {
         tcg_out_reloc(s, s->code_ptr, R_ARM_PC24, l, 0);
-        tcg_out_b(s, cond, 0);
+        tcg_out_b_imm(s, cond, 0);
     }
 }
 
-static inline void tcg_out_mb(TCGContext *s, TCGArg a0)
+static void tcg_out_mb(TCGContext *s, TCGArg a0)
 {
     if (use_armv7_instructions) {
         tcg_out32(s, INSN_DMB_ISH);
@@ -1714,9 +1758,9 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 }
 #endif /* SOFTMMU */
 
-static inline void tcg_out_qemu_ld_index(TCGContext *s, MemOp opc,
-                                         TCGReg datalo, TCGReg datahi,
-                                         TCGReg addrlo, TCGReg addend)
+static void tcg_out_qemu_ld_index(TCGContext *s, MemOp opc,
+                                  TCGReg datalo, TCGReg datahi,
+                                  TCGReg addrlo, TCGReg addend)
 {
     /* Byte swapping is left to middle-end expansion. */
     tcg_debug_assert((opc & MO_BSWAP) == 0);
@@ -1757,9 +1801,9 @@ static inline void tcg_out_qemu_ld_index(TCGContext *s, MemOp opc,
     }
 }
 
-static inline void tcg_out_qemu_ld_direct(TCGContext *s, MemOp opc,
-                                          TCGReg datalo, TCGReg datahi,
-                                          TCGReg addrlo)
+#ifndef CONFIG_SOFTMMU
+static void tcg_out_qemu_ld_direct(TCGContext *s, MemOp opc, TCGReg datalo,
+                                   TCGReg datahi, TCGReg addrlo)
 {
     /* Byte swapping is left to middle-end expansion. */
     tcg_debug_assert((opc & MO_BSWAP) == 0);
@@ -1797,6 +1841,7 @@ static inline void tcg_out_qemu_ld_direct(TCGContext *s, MemOp opc,
         g_assert_not_reached();
     }
 }
+#endif
 
 static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
 {
@@ -1823,7 +1868,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
     /* This a conditional BL only to load a pointer within this opcode into LR
        for the slow path.  We will not be using the value for a tail call.  */
     label_ptr = s->code_ptr;
-    tcg_out_bl(s, COND_NE, 0);
+    tcg_out_bl_imm(s, COND_NE, 0);
 
     tcg_out_qemu_ld_index(s, opc, datalo, datahi, addrlo, addend);
 
@@ -1839,9 +1884,9 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
 #endif
 }
 
-static inline void tcg_out_qemu_st_index(TCGContext *s, int cond, MemOp opc,
-                                         TCGReg datalo, TCGReg datahi,
-                                         TCGReg addrlo, TCGReg addend)
+static void tcg_out_qemu_st_index(TCGContext *s, ARMCond cond, MemOp opc,
+                                  TCGReg datalo, TCGReg datahi,
+                                  TCGReg addrlo, TCGReg addend)
 {
     /* Byte swapping is left to middle-end expansion. */
     tcg_debug_assert((opc & MO_BSWAP) == 0);
@@ -1871,9 +1916,9 @@ static inline void tcg_out_qemu_st_index(TCGContext *s, int cond, MemOp opc,
     }
 }
 
-static inline void tcg_out_qemu_st_direct(TCGContext *s, MemOp opc,
-                                          TCGReg datalo, TCGReg datahi,
-                                          TCGReg addrlo)
+#ifndef CONFIG_SOFTMMU
+static void tcg_out_qemu_st_direct(TCGContext *s, MemOp opc, TCGReg datalo,
+                                   TCGReg datahi, TCGReg addrlo)
 {
     /* Byte swapping is left to middle-end expansion. */
     tcg_debug_assert((opc & MO_BSWAP) == 0);
@@ -1902,6 +1947,7 @@ static inline void tcg_out_qemu_st_direct(TCGContext *s, MemOp opc,
         g_assert_not_reached();
     }
 }
+#endif
 
 static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
 {
@@ -1929,7 +1975,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
 
     /* The conditional call must come last, as we're going to return here.  */
     label_ptr = s->code_ptr;
-    tcg_out_bl(s, COND_NE, 0);
+    tcg_out_bl_imm(s, COND_NE, 0);
 
     add_qemu_ldst_label(s, false, oi, datalo, datahi, addrlo, addrhi,
                         s->code_ptr, label_ptr);
@@ -1946,9 +1992,9 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
 
 static void tcg_out_epilogue(TCGContext *s);
 
-static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
-                const TCGArg args[TCG_MAX_OP_ARGS],
-                const int const_args[TCG_MAX_OP_ARGS])
+static void tcg_out_op(TCGContext *s, TCGOpcode opc,
+                       const TCGArg args[TCG_MAX_OP_ARGS],
+                       const int const_args[TCG_MAX_OP_ARGS])
 {
     TCGArg a0, a1, a2, a3, a4, a5;
     int c;
@@ -1982,7 +2028,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
     case INDEX_op_goto_ptr:
-        tcg_out_bx(s, COND_AL, args[0]);
+        tcg_out_b_reg(s, COND_AL, args[0]);
         break;
     case INDEX_op_br:
         tcg_out_goto_label(s, COND_AL, arg_label(args[0]));
@@ -2505,8 +2551,8 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
     }
 }
 
-static inline bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
-                               TCGReg base, intptr_t ofs)
+static bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
+                        TCGReg base, intptr_t ofs)
 {
     return false;
 }
@@ -2715,7 +2761,8 @@ static const ARMInsn vec_cmp0_insn[16] = {
 
 static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
                            unsigned vecl, unsigned vece,
-                           const TCGArg *args, const int *const_args)
+                           const TCGArg args[TCG_MAX_OP_ARGS],
+                           const int const_args[TCG_MAX_OP_ARGS])
 {
     TCGType type = vecl + TCG_TYPE_V64;
     unsigned q = vecl;
@@ -3055,7 +3102,10 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 {
     /* Calling convention requires us to save r4-r11 and lr.  */
     /* stmdb sp!, { r4 - r11, lr } */
-    tcg_out32(s, (COND_AL << 28) | 0x092d4ff0);
+    tcg_out_ldstm(s, COND_AL, INSN_STMDB, TCG_REG_CALL_STACK,
+                  (1 << TCG_REG_R4) | (1 << TCG_REG_R5) | (1 << TCG_REG_R6) |
+                  (1 << TCG_REG_R7) | (1 << TCG_REG_R8) | (1 << TCG_REG_R9) |
+                  (1 << TCG_REG_R10) | (1 << TCG_REG_R11) | (1 << TCG_REG_R14));
 
     /* Reserve callee argument and tcg temp space.  */
     tcg_out_dat_rI(s, COND_AL, ARITH_SUB, TCG_REG_CALL_STACK,
@@ -3065,7 +3115,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
 
-    tcg_out_bx(s, COND_AL, tcg_target_call_iarg_regs[1]);
+    tcg_out_b_reg(s, COND_AL, tcg_target_call_iarg_regs[1]);
 
     /*
      * Return path for goto_ptr. Set return value to 0, a-la exit_tb,
@@ -3083,7 +3133,10 @@ static void tcg_out_epilogue(TCGContext *s)
                    TCG_REG_CALL_STACK, STACK_ADDEND, 1);
 
     /* ldmia sp!, { r4 - r11, pc } */
-    tcg_out32(s, (COND_AL << 28) | 0x08bd8ff0);
+    tcg_out_ldstm(s, COND_AL, INSN_LDMIA, TCG_REG_CALL_STACK,
+                  (1 << TCG_REG_R4) | (1 << TCG_REG_R5) | (1 << TCG_REG_R6) |
+                  (1 << TCG_REG_R7) | (1 << TCG_REG_R8) | (1 << TCG_REG_R9) |
+                  (1 << TCG_REG_R10) | (1 << TCG_REG_R11) | (1 << TCG_REG_PC));
 }
 
 typedef struct {
