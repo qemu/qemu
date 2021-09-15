@@ -25,7 +25,7 @@ from .error import AQMPError
 from .events import EventListener
 from .message import Message
 from .protocol import ConnectError, Runstate, StateError
-from .qmp_client import QMPClient
+from .qmp_client import ExecInterruptedError, ExecuteError, QMPClient
 
 
 # The order of these fields impact the Sphinx documentation order.
@@ -40,4 +40,6 @@ __all__ = (
     'AQMPError',
     'StateError',
     'ConnectError',
+    'ExecuteError',
+    'ExecInterruptedError',
 )
