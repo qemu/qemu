@@ -15,3 +15,8 @@ qemu.egg-info/
 .venv/
 .tox/
 .dev-venv/
+
+# Coverage.py reports
+.coverage
+.coverage.*
+htmlcov/
