@@ -31,13 +31,13 @@
 #include "qemu/cutils.h"
 #include "qemu/module.h"
 #include "trace/trace-root.h"
+#include "exec/gdbstub.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu.h"
 #else
 #include "monitor/monitor.h"
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
-#include "exec/gdbstub.h"
 #include "hw/cpu/cluster.h"
 #include "hw/boards.h"
 #endif

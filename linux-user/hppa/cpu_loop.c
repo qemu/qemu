@@ -19,7 +19,9 @@
 
 #include "qemu/osdep.h"
 #include "qemu.h"
+#include "user-internals.h"
 #include "cpu_loop-common.h"
+#include "signal-common.h"
 
 static abi_ulong hppa_lws(CPUHPPAState *env)
 {

@@ -6,6 +6,9 @@
 #include <sys/shm.h>
 
 #include "qemu.h"
+#include "user-internals.h"
+#include "loader.h"
+#include "user-mmap.h"
 #include "disas/disas.h"
 #include "qemu/bitops.h"
 #include "qemu/path.h"

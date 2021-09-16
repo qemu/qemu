@@ -20,7 +20,10 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu.h"
+#include "user-internals.h"
 #include "cpu_loop-common.h"
+#include "signal-common.h"
+#include "user-mmap.h"
 
 /***********************************************************/
 /* CPUX86 core interface */

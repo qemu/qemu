@@ -20,11 +20,11 @@
 #include "qemu/osdep.h"
 
 #include "cpu.h"
+#include "exec/gdbstub.h"
 #if defined(CONFIG_USER_ONLY)
 #include "qemu.h"
 #define SEMIHOSTING_HEAP_SIZE (128 * 1024 * 1024)
 #else
-#include "exec/gdbstub.h"
 #include "exec/softmmu-semi.h"
 #include "hw/boards.h"
 #endif

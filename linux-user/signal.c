@@ -18,10 +18,15 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
+#include "exec/gdbstub.h"
+
 #include <sys/ucontext.h>
 #include <sys/resource.h>
 
 #include "qemu.h"
+#include "user-internals.h"
+#include "strace.h"
+#include "loader.h"
 #include "trace.h"
 #include "signal-common.h"
 
