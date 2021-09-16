@@ -29,7 +29,7 @@
 #include "hw/acpi/acpi_dev_interface.h"
 #include "hw/acpi/tco.h"
 
-#define ACPI_PCIHP_ADDR_ICH9 0x0cc4
+#define ACPI_PCIHP_ADDR_ICH9 0x0cc0
 
 typedef struct ICH9LPCPMRegs {
     /*
