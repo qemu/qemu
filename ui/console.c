@@ -27,6 +27,7 @@
 #include "hw/qdev-core.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-ui.h"
+#include "qemu/fifo8.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/timer.h"
@@ -61,57 +62,6 @@ enum TTYState {
     TTY_STATE_ESC,
     TTY_STATE_CSI,
 };
-
-typedef struct QEMUFIFO {
-    uint8_t *buf;
-    int buf_size;
-    int count, wptr, rptr;
-} QEMUFIFO;
-
-static int qemu_fifo_write(QEMUFIFO *f, const uint8_t *buf, int len1)
-{
-    int l, len;
-
-    l = f->buf_size - f->count;
-    if (len1 > l)
-        len1 = l;
-    len = len1;
-    while (len > 0) {
-        l = f->buf_size - f->wptr;
-        if (l > len)
-            l = len;
-        memcpy(f->buf + f->wptr, buf, l);
-        f->wptr += l;
-        if (f->wptr >= f->buf_size)
-            f->wptr = 0;
-        buf += l;
-        len -= l;
-    }
-    f->count += len1;
-    return len1;
-}
-
-static int qemu_fifo_read(QEMUFIFO *f, uint8_t *buf, int len1)
-{
-    int l, len;
-
-    if (len1 > f->count)
-        len1 = f->count;
-    len = len1;
-    while (len > 0) {
-        l = f->buf_size - f->rptr;
-        if (l > len)
-            l = len;
-        memcpy(buf, f->buf + f->rptr, l);
-        f->rptr += l;
-        if (f->rptr >= f->buf_size)
-            f->rptr = 0;
-        buf += l;
-        len -= l;
-    }
-    f->count -= len1;
-    return len1;
-}
 
 typedef enum {
     GRAPHIC_CONSOLE,
@@ -165,8 +115,7 @@ struct QemuConsole {
 
     Chardev *chr;
     /* fifo for key pressed */
-    QEMUFIFO out_fifo;
-    uint8_t out_fifo_buf[16];
+    Fifo8 out_fifo;
     QEMUTimer *kbd_timer;
     CoQueue dump_queue;
 
@@ -1160,21 +1109,25 @@ static int vc_chr_write(Chardev *chr, const uint8_t *buf, int len)
 static void kbd_send_chars(void *opaque)
 {
     QemuConsole *s = opaque;
-    int len;
-    uint8_t buf[16];
+    uint32_t len, avail;
 
     len = qemu_chr_be_can_write(s->chr);
-    if (len > s->out_fifo.count)
-        len = s->out_fifo.count;
-    if (len > 0) {
-        if (len > sizeof(buf))
-            len = sizeof(buf);
-        qemu_fifo_read(&s->out_fifo, buf, len);
-        qemu_chr_be_write(s->chr, buf, len);
+    avail = fifo8_num_used(&s->out_fifo);
+    if (len > avail) {
+        len = avail;
+    }
+    while (len > 0) {
+        const uint8_t *buf;
+        uint32_t size;
+
+        buf = fifo8_pop_buf(&s->out_fifo, len, &size);
+        qemu_chr_be_write(s->chr, (uint8_t *)buf, size);
+        len -= size;
+        avail -= size;
     }
     /* characters are pending: we send them a bit later (XXX:
        horrible, should change char device API) */
-    if (s->out_fifo.count > 0) {
+    if (avail > 0) {
         timer_mod(s->kbd_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 1);
     }
 }
@@ -1185,6 +1138,7 @@ void kbd_put_keysym_console(QemuConsole *s, int keysym)
     uint8_t buf[16], *q;
     CharBackend *be;
     int c;
+    uint32_t num_free;
 
     if (!s || (s->console_type == GRAPHIC_CONSOLE))
         return;
@@ -1228,7 +1182,8 @@ void kbd_put_keysym_console(QemuConsole *s, int keysym)
         }
         be = s->chr->be;
         if (be && be->chr_read) {
-            qemu_fifo_write(&s->out_fifo, buf, q - buf);
+            num_free = fifo8_num_free(&s->out_fifo);
+            fifo8_push_all(&s->out_fifo, buf, MIN(num_free, q - buf));
             kbd_send_chars(s);
         }
         break;
@@ -2233,8 +2188,7 @@ static void text_console_do_init(Chardev *chr, DisplayState *ds)
     int g_width = 80 * FONT_WIDTH;
     int g_height = 24 * FONT_HEIGHT;
 
-    s->out_fifo.buf = s->out_fifo_buf;
-    s->out_fifo.buf_size = sizeof(s->out_fifo_buf);
+    fifo8_create(&s->out_fifo, 16);
     s->kbd_timer = timer_new_ms(QEMU_CLOCK_REALTIME, kbd_send_chars, s);
     s->ds = ds;
 
