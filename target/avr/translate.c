@@ -70,11 +70,9 @@ static const char reg_names[NUMBER_OF_CPU_REGISTERS][8] = {
 };
 #define REG(x) (cpu_r[x])
 
-enum {
-    DISAS_EXIT   = DISAS_TARGET_0,  /* We want return to the cpu main loop.  */
-    DISAS_LOOKUP = DISAS_TARGET_1,  /* We have a variable condition exit.  */
-    DISAS_CHAIN  = DISAS_TARGET_2,  /* We have a single condition exit.  */
-};
+#define DISAS_EXIT   DISAS_TARGET_0  /* We want return to the cpu main loop.  */
+#define DISAS_LOOKUP DISAS_TARGET_1  /* We have a variable condition exit.  */
+#define DISAS_CHAIN  DISAS_TARGET_2  /* We have a single condition exit.  */
 
 typedef struct DisasContext DisasContext;
 

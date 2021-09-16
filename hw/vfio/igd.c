@@ -557,7 +557,7 @@ void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
      * must allocate a 1MB aligned reserved memory region below 4GB with
      * the requested size (in bytes) for use by the Intel PCI class VGA
      * device at VM address 00:02.0.  The base address of this reserved
-     * memory region must be written to the device BDSM regsiter at PCI
+     * memory region must be written to the device BDSM register at PCI
      * config offset 0x5C.
      */
     bdsm_size = g_malloc(sizeof(*bdsm_size));
