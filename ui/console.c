@@ -28,10 +28,11 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-ui.h"
 #include "qemu/fifo8.h"
+#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/timer.h"
-#include "chardev/char-fe.h"
+#include "chardev/char.h"
 #include "trace.h"
 #include "exec/memory.h"
 #include "io/channel-file.h"
@@ -1126,7 +1127,6 @@ static void kbd_send_chars(QemuConsole *s)
 void kbd_put_keysym_console(QemuConsole *s, int keysym)
 {
     uint8_t buf[16], *q;
-    CharBackend *be;
     int c;
     uint32_t num_free;
 
@@ -1170,12 +1170,9 @@ void kbd_put_keysym_console(QemuConsole *s, int keysym)
         if (s->echo) {
             vc_chr_write(s->chr, buf, q - buf);
         }
-        be = s->chr->be;
-        if (be && be->chr_read) {
-            num_free = fifo8_num_free(&s->out_fifo);
-            fifo8_push_all(&s->out_fifo, buf, MIN(num_free, q - buf));
-            kbd_send_chars(s);
-        }
+        num_free = fifo8_num_free(&s->out_fifo);
+        fifo8_push_all(&s->out_fifo, buf, MIN(num_free, q - buf));
+        kbd_send_chars(s);
         break;
     }
 }
