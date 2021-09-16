@@ -2,6 +2,7 @@
  * QEMU Hypervisor.framework support for Apple Silicon
 
  * Copyright 2020 Alexander Graf <agraf@csgraf.de>
+ * Copyright 2020 Google LLC
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
@@ -490,6 +491,7 @@ int hvf_arch_init_vcpu(CPUState *cpu)
 
 void hvf_kick_vcpu_thread(CPUState *cpu)
 {
+    cpus_kick_thread(cpu);
     hv_vcpus_exit(&cpu->hvf->fd, 1);
 }
 
@@ -606,6 +608,80 @@ static uint64_t hvf_vtimer_val_raw(void)
      * offset that we define. Add our own offset on top.
      */
     return mach_absolute_time() - hvf_state->vtimer_offset;
+}
+
+static uint64_t hvf_vtimer_val(void)
+{
+    if (!runstate_is_running()) {
+        /* VM is paused, the vtimer value is in vtimer.vtimer_val */
+        return vtimer.vtimer_val;
+    }
+
+    return hvf_vtimer_val_raw();
+}
+
+static void hvf_wait_for_ipi(CPUState *cpu, struct timespec *ts)
+{
+    /*
+     * Use pselect to sleep so that other threads can IPI us while we're
+     * sleeping.
+     */
+    qatomic_mb_set(&cpu->thread_kicked, false);
+    qemu_mutex_unlock_iothread();
+    pselect(0, 0, 0, 0, ts, &cpu->hvf->unblock_ipi_mask);
+    qemu_mutex_lock_iothread();
+}
+
+static void hvf_wfi(CPUState *cpu)
+{
+    ARMCPU *arm_cpu = ARM_CPU(cpu);
+    struct timespec ts;
+    hv_return_t r;
+    uint64_t ctl;
+    uint64_t cval;
+    int64_t ticks_to_sleep;
+    uint64_t seconds;
+    uint64_t nanos;
+    uint32_t cntfrq;
+
+    if (cpu->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_FIQ)) {
+        /* Interrupt pending, no need to wait */
+        return;
+    }
+
+    r = hv_vcpu_get_sys_reg(cpu->hvf->fd, HV_SYS_REG_CNTV_CTL_EL0, &ctl);
+    assert_hvf_ok(r);
+
+    if (!(ctl & 1) || (ctl & 2)) {
+        /* Timer disabled or masked, just wait for an IPI. */
+        hvf_wait_for_ipi(cpu, NULL);
+        return;
+    }
+
+    r = hv_vcpu_get_sys_reg(cpu->hvf->fd, HV_SYS_REG_CNTV_CVAL_EL0, &cval);
+    assert_hvf_ok(r);
+
+    ticks_to_sleep = cval - hvf_vtimer_val();
+    if (ticks_to_sleep < 0) {
+        return;
+    }
+
+    cntfrq = gt_cntfrq_period_ns(arm_cpu);
+    seconds = muldiv64(ticks_to_sleep, cntfrq, NANOSECONDS_PER_SECOND);
+    ticks_to_sleep -= muldiv64(seconds, NANOSECONDS_PER_SECOND, cntfrq);
+    nanos = ticks_to_sleep * cntfrq;
+
+    /*
+     * Don't sleep for less than the time a context switch would take,
+     * so that we can satisfy fast timer requests on the same CPU.
+     * Measurements on M1 show the sweet spot to be ~2ms.
+     */
+    if (!seconds && nanos < (2 * SCALE_MS)) {
+        return;
+    }
+
+    ts = (struct timespec) { seconds, nanos };
+    hvf_wait_for_ipi(cpu, &ts);
 }
 
 static void hvf_sync_vtimer(CPUState *cpu)
@@ -728,6 +804,9 @@ int hvf_vcpu_exec(CPUState *cpu)
     }
     case EC_WFX_TRAP:
         advance_pc = true;
+        if (!(syndrome & WFX_IS_WFE)) {
+            hvf_wfi(cpu);
+        }
         break;
     case EC_AA64_HVC:
         cpu_synchronize_state(cpu);
