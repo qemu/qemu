@@ -168,6 +168,9 @@ typedef struct QemuDmaBuf {
     uint64_t  modifier;
     uint32_t  texture;
     bool      y0_top;
+    void      *sync;
+    int       fence_fd;
+    bool      allow_fences;
 } QemuDmaBuf;
 
 typedef struct DisplayState DisplayState;
