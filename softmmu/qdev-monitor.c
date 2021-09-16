@@ -836,16 +836,12 @@ void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
 static DeviceState *find_device_state(const char *id, Error **errp)
 {
     Object *obj;
+    DeviceState *dev;
 
     if (id[0] == '/') {
         obj = object_resolve_path(id, NULL);
     } else {
-        char *root_path = object_get_canonical_path(qdev_get_peripheral());
-        char *path = g_strdup_printf("%s/%s", root_path, id);
-
-        g_free(root_path);
-        obj = object_resolve_path_type(path, TYPE_DEVICE, NULL);
-        g_free(path);
+        obj = object_resolve_path_component(qdev_get_peripheral(), id);
     }
 
     if (!obj) {
@@ -854,12 +850,13 @@ static DeviceState *find_device_state(const char *id, Error **errp)
         return NULL;
     }
 
-    if (!object_dynamic_cast(obj, TYPE_DEVICE)) {
+    dev = (DeviceState *)object_dynamic_cast(obj, TYPE_DEVICE);
+    if (!dev) {
         error_setg(errp, "%s is not a hotpluggable device", id);
         return NULL;
     }
 
-    return DEVICE(obj);
+    return dev;
 }
 
 void qdev_unplug(DeviceState *dev, Error **errp)
