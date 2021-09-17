@@ -22,3 +22,7 @@ config XLNX_EFUSE_CRC
 config XLNX_EFUSE
     bool
     select XLNX_EFUSE_CRC
+
+config XLNX_EFUSE_VERSAL
+    bool
+    select XLNX_EFUSE
