@@ -5517,7 +5517,15 @@ static void gen_tlbiel(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     GEN_PRIV;
 #else
-    CHK_SV;
+    bool psr = (ctx->opcode >> 17) & 0x1;
+
+    if (ctx->pr || (!ctx->hv && !psr && ctx->hr)) {
+        /*
+         * tlbiel is privileged except when PSR=0 and HR=1, making it
+         * hypervisor privileged.
+         */
+        GEN_PRIV;
+    }
 
     gen_helper_tlbie(cpu_env, cpu_gpr[rB(ctx->opcode)]);
 #endif /* defined(CONFIG_USER_ONLY) */
@@ -5529,12 +5537,20 @@ static void gen_tlbie(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     GEN_PRIV;
 #else
+    bool psr = (ctx->opcode >> 17) & 0x1;
     TCGv_i32 t1;
 
-    if (ctx->gtse) {
-        CHK_SV; /* If gtse is set then tlbie is supervisor privileged */
-    } else {
-        CHK_HV; /* Else hypervisor privileged */
+    if (ctx->pr) {
+        /* tlbie is privileged... */
+        GEN_PRIV;
+    } else if (!ctx->hv) {
+        if (!ctx->gtse || (!psr && ctx->hr)) {
+            /*
+             * ... except when GTSE=0 or when PSR=0 and HR=1, making it
+             * hypervisor privileged.
+             */
+            GEN_PRIV;
+        }
     }
 
     if (NARROW_MODE(ctx)) {
