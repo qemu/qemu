@@ -220,27 +220,27 @@
 
 # test 'if' condition handling
 
-{ 'struct': 'TestIfStruct', 'data':
-  { 'foo': 'int',
-    'bar': { 'type': 'int', 'if': 'TEST_IF_STRUCT_BAR'} },
+{ 'struct': 'TestIfStruct',
+  'data': { 'foo': 'int',
+            'bar': { 'type': 'int', 'if': 'TEST_IF_STRUCT_BAR'} },
   'if': 'TEST_IF_STRUCT' }
 
-{ 'enum': 'TestIfEnum', 'data':
-  [ 'foo', { 'name' : 'bar', 'if': 'TEST_IF_ENUM_BAR' } ],
+{ 'enum': 'TestIfEnum',
+  'data': [ 'foo', { 'name' : 'bar', 'if': 'TEST_IF_ENUM_BAR' } ],
   'if': 'TEST_IF_ENUM' }
 
-{ 'union': 'TestIfUnion', 'data':
-  { 'foo': 'TestStruct',
-    'bar': { 'type': 'str', 'if': 'TEST_IF_UNION_BAR'} },
+{ 'union': 'TestIfUnion',
+  'data': { 'foo': 'TestStruct',
+            'bar': { 'type': 'str', 'if': 'TEST_IF_UNION_BAR'} },
   'if': { 'all': ['TEST_IF_UNION', 'TEST_IF_STRUCT'] } }
 
 { 'command': 'test-if-union-cmd',
   'data': { 'union-cmd-arg': 'TestIfUnion' },
   'if': { 'all': ['TEST_IF_UNION', 'TEST_IF_STRUCT'] } }
 
-{ 'alternate': 'TestIfAlternate', 'data':
-  { 'foo': 'int',
-    'bar': { 'type': 'TestStruct', 'if': 'TEST_IF_ALT_BAR'} },
+{ 'alternate': 'TestIfAlternate',
+  'data': { 'foo': 'int',
+            'bar': { 'type': 'TestStruct', 'if': 'TEST_IF_ALT_BAR'} },
   'if': { 'all': ['TEST_IF_ALT', 'TEST_IF_STRUCT'] } }
 
 { 'command': 'test-if-alternate-cmd',
@@ -256,9 +256,9 @@
 
 { 'command': 'test-cmd-return-def-three', 'returns': 'UserDefThree' }
 
-{ 'event': 'TEST_IF_EVENT', 'data':
-  { 'foo': 'TestIfStruct',
-    'bar': { 'type': ['TestIfEnum'], 'if': 'TEST_IF_EVT_BAR' } },
+{ 'event': 'TEST_IF_EVENT',
+  'data': { 'foo': 'TestIfStruct',
+            'bar': { 'type': ['TestIfEnum'], 'if': 'TEST_IF_EVT_BAR' } },
   'if': { 'all': ['TEST_IF_EVT', 'TEST_IF_STRUCT'] } }
 
 { 'event': 'TEST_IF_EVENT2', 'data': {},
