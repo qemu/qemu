@@ -215,21 +215,13 @@ object __org.qemu_x-Struct
     base __org.qemu_x-Base
     member __org.qemu_x-member2: str optional=False
     member wchar-t: int optional=True
-object q_obj_str-wrapper
-    member data: str optional=False
-enum __org.qemu_x-Union1Kind
-    member __org.qemu_x-branch
-object __org.qemu_x-Union1
-    member type: __org.qemu_x-Union1Kind optional=False
-    tag type
-    case __org.qemu_x-branch: q_obj_str-wrapper
 alternate __org.qemu_x-Alt1
     tag type
     case __org.qemu_x-branch: str
-array __org.qemu_x-Union1List __org.qemu_x-Union1
+array __org.qemu_x-UnionList __org.qemu_x-Union
 object __org.qemu_x-Struct2
-    member array: __org.qemu_x-Union1List optional=False
-object __org.qemu_x-Union2
+    member array: __org.qemu_x-UnionList optional=False
+object __org.qemu_x-Union
     base __org.qemu_x-Base
     tag __org.qemu_x-member1
     case __org.qemu_x-value: __org.qemu_x-Struct2
@@ -243,9 +235,9 @@ array __org.qemu_x-StructList __org.qemu_x-Struct
 object q_obj___org.qemu_x-command-arg
     member a: __org.qemu_x-EnumList optional=False
     member b: __org.qemu_x-StructList optional=False
-    member c: __org.qemu_x-Union2 optional=False
+    member c: __org.qemu_x-Union optional=False
     member d: __org.qemu_x-Alt optional=False
-command __org.qemu_x-command q_obj___org.qemu_x-command-arg -> __org.qemu_x-Union1
+command __org.qemu_x-command q_obj___org.qemu_x-command-arg -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
 object TestIfStruct
     member foo: int optional=False
