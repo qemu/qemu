@@ -1,0 +1,2 @@
+union-base-any.json: In union 'TestUnion':
+union-base-any.json:8: 'base' requires a struct type, built-in type 'any' isn't

@@ -1,2 +1,0 @@
-flat-union-discriminator-bad-name.json: In union 'MyUnion':
-flat-union-discriminator-bad-name.json:6: discriminator '*switch' is not a member of 'base'

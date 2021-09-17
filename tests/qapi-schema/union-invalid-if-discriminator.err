@@ -1,0 +1,2 @@
+union-invalid-if-discriminator.json: In union 'TestUnion':
+union-invalid-if-discriminator.json:10: discriminator member 'enum1' of 'base' must not be conditional

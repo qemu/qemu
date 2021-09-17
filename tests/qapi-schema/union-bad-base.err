@@ -1,0 +1,2 @@
+union-bad-base.json: In union 'TestUnion':
+union-bad-base.json:8: member 'string' of type 'TestTypeA' collides with base member 'string'

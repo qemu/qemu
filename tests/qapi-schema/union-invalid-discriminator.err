@@ -1,0 +1,2 @@
+union-invalid-discriminator.json: In union 'TestUnion':
+union-invalid-discriminator.json:10: discriminator 'enum_wrong' is not a member of 'base'
