@@ -1,2 +1,2 @@
 union-branch-invalid-dict.json: In union 'UnionInvalidBranch':
-union-branch-invalid-dict.json:2: 'data' member 'integer' misses key 'type'
+union-branch-invalid-dict.json:4: 'data' member 'integer' misses key 'type'

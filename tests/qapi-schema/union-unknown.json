@@ -1,3 +1,6 @@
 # we reject a union with unknown type in branch
+{ 'enum': 'Enum', 'data': [ 'unknown' ] }
 { 'union': 'Union',
-  'data': { 'unknown': ['MissingType'] } }
+  'base': { 'type': 'Enum' },
+  'discriminator': 'type',
+  'data': { 'unknown': 'MissingType' } }

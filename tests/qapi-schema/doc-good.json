@@ -108,15 +108,6 @@
                      'if': { 'any': ['IFONE', 'IFTWO'] } } } }
 
 ##
-# @SugaredUnion:
-# Features:
-# @union-feat2: a feature
-##
-{ 'union': 'SugaredUnion',
-  'features': [ 'union-feat2' ],
-  'data': { 'one': 'Variant1', 'two': { 'type': 'Variant2', 'if': 'IFTWO' } } }
-
-##
 # @Alternate:
 # @i: an integer
 #     @b is undocumented

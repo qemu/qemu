@@ -8,7 +8,10 @@
   'data': { 'string': 'str' } }
 { 'struct': 'TestTypeB',
   'data': { 'integer': 'int' } }
+{ 'enum': 'Enum', 'data': [ 'kind1', 'kind2' ] }
 { 'union': 'UnionBase',
+  'base': { 'type': 'Enum' },
+  'discriminator': 'type',
   'data': { 'kind1': 'TestTypeA',
             'kind2': 'TestTypeB' } }
 { 'union': 'TestUnion',
