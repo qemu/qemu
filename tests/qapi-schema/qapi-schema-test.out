@@ -232,7 +232,7 @@ command guest-sync q_obj_guest-sync-arg -> any
     gen=True success_response=True boxed=False oob=False preconfig=False
 command boxed-struct UserDefZero -> None
     gen=True success_response=True boxed=True oob=False preconfig=False
-command boxed-union UserDefListUnion -> None
+command boxed-union UserDefFlatUnion -> None
     gen=True success_response=True boxed=True oob=False preconfig=False
 command boxed-empty Empty1 -> None
     gen=True success_response=True boxed=True oob=False preconfig=False
