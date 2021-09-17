@@ -35,7 +35,7 @@
           -e "s|[@]PIP3@|$PIP3|g"
           -e "s|[@]PYPI_PKGS@|$PYPI_PKGS|g"
           -e "s|[@]CONFIGURE_ARGS@|$CONFIGURE_ARGS|g"
-          -e "s|[@]TEST_TARGETSS@|$TEST_TARGETSS|g"
+          -e "s|[@]TEST_TARGETS@|$TEST_TARGETS|g"
       <.gitlab-ci.d/cirrus/build.yml >.gitlab-ci.d/cirrus/$NAME.yml
     - cat .gitlab-ci.d/cirrus/$NAME.yml
     - cirrus-run -v --show-build-log always .gitlab-ci.d/cirrus/$NAME.yml
