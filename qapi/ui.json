@@ -825,6 +825,30 @@
             'lang1', 'lang2' ] }
 
 ##
+# @KeyValueKind:
+#
+# Since: 1.3
+##
+{ 'enum': 'KeyValueKind',
+  'data': [ 'number', 'qcode' ] }
+
+##
+# @IntWrapper:
+#
+# Since: 1.3
+##
+{ 'struct': 'IntWrapper',
+  'data': { 'data': 'int' } }
+
+##
+# @QKeyCodeWrapper:
+#
+# Since: 1.3
+##
+{ 'struct': 'QKeyCodeWrapper',
+  'data': { 'data': 'QKeyCode' } }
+
+##
 # @KeyValue:
 #
 # Represents a keyboard key.
@@ -832,9 +856,11 @@
 # Since: 1.3
 ##
 { 'union': 'KeyValue',
+  'base': { 'type': 'KeyValueKind' },
+  'discriminator': 'type',
   'data': {
-    'number': 'int',
-    'qcode': 'QKeyCode' } }
+    'number': 'IntWrapper',
+    'qcode': 'QKeyCodeWrapper' } }
 
 ##
 # @send-key:
