@@ -88,7 +88,7 @@ static void char_change_test(gconstpointer opaque)
             .type = CHARDEV_BACKEND_KIND_SOCKET,
             .u.socket.data = &(ChardevSocket) {
                 .addr = &(SocketAddressLegacy) {
-                    .type = SOCKET_ADDRESS_LEGACY_KIND_INET,
+                    .type = SOCKET_ADDRESS_TYPE_INET,
                     .u.inet.data = &addr->u.inet
                 },
                 .has_server = true,
@@ -102,7 +102,7 @@ static void char_change_test(gconstpointer opaque)
             .type = CHARDEV_BACKEND_KIND_UDP,
             .u.udp.data = &(ChardevUdp) {
                 .remote = &(SocketAddressLegacy) {
-                    .type = SOCKET_ADDRESS_LEGACY_KIND_UNIX,
+                    .type = SOCKET_ADDRESS_TYPE_UNIX,
                     .u.q_unix.data = &(UnixSocketAddress) {
                         .path = (char *)""
                     }
@@ -114,7 +114,7 @@ static void char_change_test(gconstpointer opaque)
             .type = CHARDEV_BACKEND_KIND_SOCKET,
             .u.socket.data = &(ChardevSocket) {
                 .addr = &(SocketAddressLegacy) {
-                    .type = SOCKET_ADDRESS_LEGACY_KIND_INET,
+                    .type = SOCKET_ADDRESS_TYPE_INET,
                     .u.inet.data = &(InetSocketAddress) {
                         .host = (char *)"127.0.0.1",
                         .port = (char *)"0"
