@@ -21,8 +21,6 @@
 #include "qemu.h"
 #include "qemu-common.h"
 
-//#define DEBUG_MMAP
-
 static pthread_mutex_t mmap_mutex = PTHREAD_MUTEX_INITIALIZER;
 static __thread int mmap_lock_count;
 
@@ -67,14 +65,11 @@ int target_mprotect(abi_ulong start, abi_ulong len, int prot)
     abi_ulong end, host_start, host_end, addr;
     int prot1, ret;
 
-#ifdef DEBUG_MMAP
-    printf("mprotect: start=0x" TARGET_ABI_FMT_lx
-           "len=0x" TARGET_ABI_FMT_lx " prot=%c%c%c\n", start, len,
-           prot & PROT_READ ? 'r' : '-',
-           prot & PROT_WRITE ? 'w' : '-',
-           prot & PROT_EXEC ? 'x' : '-');
-#endif
-
+    qemu_log_mask(CPU_LOG_PAGE, "mprotect: start=0x" TARGET_ABI_FMT_lx
+                  " len=0x" TARGET_ABI_FMT_lx " prot=%c%c%c\n", start, len,
+                  prot & PROT_READ ? 'r' : '-',
+                  prot & PROT_WRITE ? 'w' : '-',
+                  prot & PROT_EXEC ? 'x' : '-');
     if ((start & ~TARGET_PAGE_MASK) != 0)
         return -EINVAL;
     len = TARGET_PAGE_ALIGN(len);
@@ -391,45 +386,43 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
     abi_ulong ret, end, real_start, real_end, retaddr, host_offset, host_len;
 
     mmap_lock();
-#ifdef DEBUG_MMAP
-    {
-        printf("mmap: start=0x" TARGET_ABI_FMT_lx
-               " len=0x" TARGET_ABI_FMT_lx " prot=%c%c%c flags=",
-               start, len,
-               prot & PROT_READ ? 'r' : '-',
-               prot & PROT_WRITE ? 'w' : '-',
-               prot & PROT_EXEC ? 'x' : '-');
+    if (qemu_loglevel_mask(CPU_LOG_PAGE)) {
+        qemu_log("mmap: start=0x" TARGET_ABI_FMT_lx
+                 " len=0x" TARGET_ABI_FMT_lx " prot=%c%c%c flags=",
+                 start, len,
+                 prot & PROT_READ ? 'r' : '-',
+                 prot & PROT_WRITE ? 'w' : '-',
+                 prot & PROT_EXEC ? 'x' : '-');
         if (flags & MAP_ALIGNMENT_MASK) {
-            printf("MAP_ALIGNED(%u) ", (flags & MAP_ALIGNMENT_MASK)
-                    >> MAP_ALIGNMENT_SHIFT);
+            qemu_log("MAP_ALIGNED(%u) ",
+                     (flags & MAP_ALIGNMENT_MASK) >> MAP_ALIGNMENT_SHIFT);
         }
         if (flags & MAP_GUARD) {
-            printf("MAP_GUARD ");
+            qemu_log("MAP_GUARD ");
         }
         if (flags & MAP_FIXED) {
-            printf("MAP_FIXED ");
+            qemu_log("MAP_FIXED ");
         }
         if (flags & MAP_ANON) {
-            printf("MAP_ANON ");
+            qemu_log("MAP_ANON ");
         }
         if (flags & MAP_EXCL) {
-            printf("MAP_EXCL ");
+            qemu_log("MAP_EXCL ");
         }
         if (flags & MAP_PRIVATE) {
-            printf("MAP_PRIVATE ");
+            qemu_log("MAP_PRIVATE ");
         }
         if (flags & MAP_SHARED) {
-            printf("MAP_SHARED ");
+            qemu_log("MAP_SHARED ");
         }
         if (flags & MAP_NOCORE) {
-            printf("MAP_NOCORE ");
+            qemu_log("MAP_NOCORE ");
         }
         if (flags & MAP_STACK) {
-            printf("MAP_STACK ");
+            qemu_log("MAP_STACK ");
         }
-        printf("fd=%d offset=0x%llx\n", fd, offset);
+        qemu_log("fd=%d offset=0x%lx\n", fd, offset);
     }
-#endif
 
     if ((flags & MAP_ANON) && fd != -1) {
         errno = EINVAL;
