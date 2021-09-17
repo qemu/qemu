@@ -604,10 +604,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
             }
             if (!(prot & PROT_WRITE)) {
                 ret = target_mprotect(start, len, prot);
-                if (ret != 0) {
-                    start = ret;
-                    goto the_end;
-                }
+                assert(ret == 0);
             }
             goto the_end;
         }
