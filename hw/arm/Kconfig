@@ -382,6 +382,7 @@ config XLNX_VERSAL
     select XLNX_ZYNQMP
     select OR_IRQ
     select XLNX_BBRAM
+    select XLNX_EFUSE_VERSAL
 
 config NPCM7XX
     bool
