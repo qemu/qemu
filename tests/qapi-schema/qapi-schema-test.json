@@ -229,8 +229,10 @@
   'if': 'TEST_IF_ENUM' }
 
 { 'union': 'TestIfUnion',
+  'base': { 'type': 'TestIfEnum' },
+  'discriminator': 'type',
   'data': { 'foo': 'TestStruct',
-            'bar': { 'type': 'str', 'if': 'TEST_IF_UNION_BAR'} },
+            'bar': { 'type': 'UserDefZero', 'if': 'TEST_IF_ENUM_BAR'} },
   'if': { 'all': ['TEST_IF_UNION', 'TEST_IF_STRUCT'] } }
 
 { 'command': 'test-if-union-cmd',

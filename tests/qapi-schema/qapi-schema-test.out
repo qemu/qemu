@@ -257,19 +257,15 @@ enum TestIfEnum
     member bar
         if TEST_IF_ENUM_BAR
     if TEST_IF_ENUM
-object q_obj_TestStruct-wrapper
-    member data: TestStruct optional=False
-enum TestIfUnionKind
-    member foo
-    member bar
-        if TEST_IF_UNION_BAR
+object q_obj_TestIfUnion-base
+    member type: TestIfEnum optional=False
     if {'all': ['TEST_IF_UNION', 'TEST_IF_STRUCT']}
 object TestIfUnion
-    member type: TestIfUnionKind optional=False
+    base q_obj_TestIfUnion-base
     tag type
-    case foo: q_obj_TestStruct-wrapper
-    case bar: q_obj_str-wrapper
-        if TEST_IF_UNION_BAR
+    case foo: TestStruct
+    case bar: UserDefZero
+        if TEST_IF_ENUM_BAR
     if {'all': ['TEST_IF_UNION', 'TEST_IF_STRUCT']}
 object q_obj_test-if-union-cmd-arg
     member union-cmd-arg: TestIfUnion optional=False
