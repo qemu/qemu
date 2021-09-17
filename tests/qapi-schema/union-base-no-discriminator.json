@@ -1,4 +1,4 @@
-# we reject simple unions with a base (or flat unions without discriminator)
+# we reject unions without discriminator
 { 'struct': 'TestTypeA',
   'data': { 'string': 'str' } }
 

@@ -1,2 +1,2 @@
 union-base-no-discriminator.json: In union 'TestUnion':
-union-base-no-discriminator.json:11: 'base' requires 'discriminator'
+union-base-no-discriminator.json:11: union misses key 'discriminator'

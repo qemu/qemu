@@ -30,7 +30,7 @@
 { 'struct': 'Empty1', 'data': { } }
 { 'struct': 'Empty2', 'base': 'Empty1', 'data': { } }
 
-# Likewise for an empty flat union
+# Likewise for an empty union
 { 'union': 'Union',
   'base': { 'type': 'EnumOne' }, 'discriminator': 'type',
   'data': { } }

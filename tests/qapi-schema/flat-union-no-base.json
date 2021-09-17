@@ -1,4 +1,4 @@
-# flat unions require a base
+# unions require a base
 { 'struct': 'TestTypeA',
   'data': { 'string': 'str' } }
 { 'struct': 'TestTypeB',
