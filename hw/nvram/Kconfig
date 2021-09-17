@@ -26,3 +26,7 @@ config XLNX_EFUSE
 config XLNX_EFUSE_VERSAL
     bool
     select XLNX_EFUSE
+
+config XLNX_EFUSE_ZYNQMP
+    bool
+    select XLNX_EFUSE
