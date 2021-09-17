@@ -1686,8 +1686,10 @@ case "$cpu" in
     # No special flags required for other host CPUs
 esac
 
-eval "cross_cc_${cpu}=\$cc"
-cross_cc_vars="$cross_cc_vars cross_cc_${cpu}"
+if eval test -z "\${cross_cc_$cpu}"; then
+    eval "cross_cc_${cpu}=\$cc"
+    cross_cc_vars="$cross_cc_vars cross_cc_${cpu}"
+fi
 
 # For user-mode emulation the host arch has to be one we explicitly
 # support, even if we're using TCI.
