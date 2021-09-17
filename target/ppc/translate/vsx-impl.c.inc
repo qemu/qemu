@@ -1254,6 +1254,35 @@ static bool trans_XXPERMX(DisasContext *ctx, arg_8RR_XX4_uim3 *a)
     return true;
 }
 
+static bool do_xxgenpcv(DisasContext *ctx, arg_X_imm5 *a,
+                        void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv))
+{
+    TCGv_ptr xt, vrb;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VSX(ctx);
+
+    if (a->imm & ~0x3) {
+        gen_invalid(ctx);
+        return true;
+    }
+
+    xt = gen_vsr_ptr(a->xt);
+    vrb = gen_avr_ptr(a->vrb);
+
+    gen_helper(xt, vrb, tcg_constant_tl(a->imm));
+
+    tcg_temp_free_ptr(xt);
+    tcg_temp_free_ptr(vrb);
+
+    return true;
+}
+
+TRANS(XXGENPCVBM, do_xxgenpcv, gen_helper_XXGENPCVBM)
+TRANS(XXGENPCVHM, do_xxgenpcv, gen_helper_XXGENPCVHM)
+TRANS(XXGENPCVWM, do_xxgenpcv, gen_helper_XXGENPCVWM)
+TRANS(XXGENPCVDM, do_xxgenpcv, gen_helper_XXGENPCVDM)
+
 #define GEN_VSX_HELPER_VSX_MADD(name, op1, aop, mop, inval, type)             \
 static void gen_##name(DisasContext *ctx)                                     \
 {                                                                             \

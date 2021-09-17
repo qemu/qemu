@@ -1210,6 +1210,90 @@ void helper_VPERMR(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     *r = result;
 }
 
+#define XXGENPCV(NAME, SZ) \
+void helper_##NAME(ppc_vsr_t *t, ppc_vsr_t *b, target_ulong imm)            \
+{                                                                           \
+    ppc_vsr_t tmp = { .u64 = { 0, 0 } };                                    \
+                                                                            \
+    switch (imm) {                                                          \
+    case 0b00000: /* Big-Endian expansion */                                \
+        /* Initialize tmp with the result of an all-zeros mask */           \
+        tmp.VsrD(0) = 0x1011121314151617;                                   \
+        tmp.VsrD(1) = 0x18191A1B1C1D1E1F;                                   \
+                                                                            \
+        /* Iterate over the most significant byte of each element */        \
+        for (int i = 0, j = 0; i < ARRAY_SIZE(b->u8); i += SZ) {            \
+            if (b->VsrB(i) & 0x80) {                                        \
+                /* Update each byte of the element */                       \
+                for (int k = 0; k < SZ; k++) {                              \
+                    tmp.VsrB(i + k) = j + k;                                \
+                }                                                           \
+                j += SZ;                                                    \
+            }                                                               \
+        }                                                                   \
+                                                                            \
+        break;                                                              \
+    case 0b00001: /* Big-Endian compression */                              \
+        /* Iterate over the most significant byte of each element */        \
+        for (int i = 0, j = 0; i < ARRAY_SIZE(b->u8); i += SZ) {            \
+            if (b->VsrB(i) & 0x80) {                                        \
+                /* Update each byte of the element */                       \
+                for (int k = 0; k < SZ; k++) {                              \
+                    tmp.VsrB(j + k) = i + k;                                \
+                }                                                           \
+                j += SZ;                                                    \
+            }                                                               \
+        }                                                                   \
+                                                                            \
+        break;                                                              \
+    case 0b00010: /* Little-Endian expansion */                             \
+        /* Initialize tmp with the result of an all-zeros mask */           \
+        tmp.VsrD(0) = 0x1F1E1D1C1B1A1918;                                   \
+        tmp.VsrD(1) = 0x1716151413121110;                                   \
+                                                                            \
+        /* Iterate over the most significant byte of each element */        \
+        for (int i = 0, j = 0; i < ARRAY_SIZE(b->u8); i += SZ) {            \
+            /* Reverse indexing of "i" */                                   \
+            const int idx = ARRAY_SIZE(b->u8) - i - SZ;                     \
+            if (b->VsrB(idx) & 0x80) {                                      \
+                /* Update each byte of the element */                       \
+                for (int k = 0, rk = SZ - 1; k < SZ; k++, rk--) {           \
+                    tmp.VsrB(idx + rk) = j + k;                             \
+                }                                                           \
+                j += SZ;                                                    \
+            }                                                               \
+        }                                                                   \
+                                                                            \
+        break;                                                              \
+    case 0b00011: /* Little-Endian compression */                           \
+        /* Iterate over the most significant byte of each element */        \
+        for (int i = 0, j = 0; i < ARRAY_SIZE(b->u8); i += SZ) {            \
+            if (b->VsrB(ARRAY_SIZE(b->u8) - i - SZ) & 0x80) {               \
+                /* Update each byte of the element */                       \
+                for (int k = 0, rk = SZ - 1; k < SZ; k++, rk--) {           \
+                    /* Reverse indexing of "j" */                           \
+                    const int idx = ARRAY_SIZE(b->u8) - j - SZ;             \
+                    tmp.VsrB(idx + rk) = i + k;                             \
+                }                                                           \
+                j += SZ;                                                    \
+            }                                                               \
+        }                                                                   \
+                                                                            \
+        break;                                                              \
+    default:                                                                \
+        /* Translation code validates IMM before calling this helper */     \
+        g_assert_not_reached();                                             \
+        break;                                                              \
+    }                                                                       \
+                                                                            \
+    *t = tmp;                                                               \
+}
+XXGENPCV(XXGENPCVBM, 1)
+XXGENPCV(XXGENPCVHM, 2)
+XXGENPCV(XXGENPCVWM, 4)
+XXGENPCV(XXGENPCVDM, 8)
+#undef XXGENPCV
+
 #if defined(HOST_WORDS_BIGENDIAN)
 #define VBPERMQ_INDEX(avr, i) ((avr)->u8[(i)])
 #define VBPERMD_INDEX(i) (i)

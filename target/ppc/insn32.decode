@@ -119,6 +119,9 @@
 @X_bfl          ...... bf:3 - l:1 ra:5 rb:5 ..........- &X_bfl
 
 %x_xt           0:1 21:5
+&X_imm5         xt imm:uint8_t vrb
+@X_imm5         ...... ..... imm:5 vrb:5 .......... .           &X_imm5 xt=%x_xt
+
 &X_imm8         xt imm:uint8_t
 @X_imm8         ...... ..... .. imm:8 .......... .              &X_imm8 xt=%x_xt
 
@@ -552,6 +555,13 @@ XXPERMR         111100 ..... ..... ..... 00111010 ...   @XX3
 XXPERMDI        111100 ..... ..... ..... 0 .. 01010 ... @XX3_dm
 
 XXSEL           111100 ..... ..... ..... ..... 11 ....  @XX4
+
+## VSX Vector Generate PCV
+
+XXGENPCVBM      111100 ..... ..... ..... 1110010100 .   @X_imm5
+XXGENPCVHM      111100 ..... ..... ..... 1110010101 .   @X_imm5
+XXGENPCVWM      111100 ..... ..... ..... 1110110100 .   @X_imm5
+XXGENPCVDM      111100 ..... ..... ..... 1110110101 .   @X_imm5
 
 ## VSX Vector Load Special Value Instruction
 
