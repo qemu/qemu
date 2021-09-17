@@ -171,7 +171,7 @@ def check_defn_name_str(name: str, info: QAPISourceInfo, meta: str) -> None:
       - 'event' names adhere to `check_name_upper()`.
       - 'command' names adhere to `check_name_lower()`.
       - Else, meta is a type, and must pass `check_name_camel()`.
-        These names must not end with ``Kind`` nor ``List``.
+        These names must not end with ``List``.
 
     :param name: Name to check.
     :param info: QAPI schema source file information.
@@ -187,9 +187,9 @@ def check_defn_name_str(name: str, info: QAPISourceInfo, meta: str) -> None:
             permit_underscore=name in info.pragma.command_name_exceptions)
     else:
         check_name_camel(name, info, meta)
-        if name.endswith('Kind') or name.endswith('List'):
+        if name.endswith('List'):
             raise QAPISemError(
-                info, "%s name should not end in '%s'" % (meta, name[-4:]))
+                info, "%s name should not end in 'List'" % meta)
 
 
 def check_keys(value: _JSONObject,

@@ -168,7 +168,6 @@ schemas = [
   'reserved-member-q.json',
   'reserved-member-u.json',
   'reserved-member-underscore.json',
-  'reserved-type-kind.json',
   'reserved-type-list.json',
   'returns-alternate.json',
   'returns-array-bad.json',

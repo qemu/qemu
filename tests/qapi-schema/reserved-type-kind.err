@@ -1,2 +1,0 @@
-reserved-type-kind.json: In enum 'UnionKind':
-reserved-type-kind.json:2: enum name should not end in 'Kind'
