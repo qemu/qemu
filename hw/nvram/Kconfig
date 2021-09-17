@@ -30,3 +30,7 @@ config XLNX_EFUSE_VERSAL
 config XLNX_EFUSE_ZYNQMP
     bool
     select XLNX_EFUSE
+
+config XLNX_BBRAM
+    bool
+    select XLNX_EFUSE_CRC
