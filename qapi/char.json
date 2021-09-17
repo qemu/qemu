@@ -408,38 +408,184 @@
   'if': 'CONFIG_SPICE_PROTOCOL' }
 
 ##
+# @ChardevBackendKind:
+#
+# @pipe: Since 1.5
+# @udp: Since 1.5
+# @mux: Since 1.5
+# @msmouse: Since 1.5
+# @wctablet: Since 2.9
+# @braille: Since 1.5
+# @testdev: Since 2.2
+# @stdio: Since 1.5
+# @console: Since 1.5
+# @spicevmc: Since 1.5
+# @spiceport: Since 1.5
+# @qemu-vdagent: Since 6.1
+# @vc: v1.5
+# @ringbuf: Since 1.6
+# @memory: Since 1.5
+#
+# Since: 1.4
+##
+{ 'enum': 'ChardevBackendKind',
+  'data': [ 'file',
+            'serial',
+            'parallel',
+            'pipe',
+            'socket',
+            'udp',
+            'pty',
+            'null',
+            'mux',
+            'msmouse',
+            'wctablet',
+            'braille',
+            'testdev',
+            'stdio',
+            'console',
+            { 'name': 'spicevmc', 'if': 'CONFIG_SPICE' },
+            { 'name': 'spiceport', 'if': 'CONFIG_SPICE' },
+            { 'name': 'qemu-vdagent', 'if': 'CONFIG_SPICE_PROTOCOL' },
+            'vc',
+            'ringbuf',
+            # next one is just for compatibility
+            'memory' ] }
+
+##
+# @ChardevFileWrapper:
+#
+# Since: 1.4
+##
+{ 'struct': 'ChardevFileWrapper',
+  'data': { 'data': 'ChardevFile' } }
+
+##
+# @ChardevHostdevWrapper:
+#
+# Since: 1.4
+##
+{ 'struct': 'ChardevHostdevWrapper',
+  'data': { 'data': 'ChardevHostdev' } }
+
+##
+# @ChardevSocketWrapper:
+#
+# Since: 1.4
+##
+{ 'struct': 'ChardevSocketWrapper',
+  'data': { 'data': 'ChardevSocket' } }
+
+##
+# @ChardevUdpWrapper:
+#
+# Since: 1.5
+##
+{ 'struct': 'ChardevUdpWrapper',
+  'data': { 'data': 'ChardevUdp' } }
+
+##
+# @ChardevCommonWrapper:
+#
+# Since: 2.6
+##
+{ 'struct': 'ChardevCommonWrapper',
+  'data': { 'data': 'ChardevCommon' } }
+
+##
+# @ChardevMuxWrapper:
+#
+# Since: 1.5
+##
+{ 'struct': 'ChardevMuxWrapper',
+  'data': { 'data': 'ChardevMux' } }
+
+##
+# @ChardevStdioWrapper:
+#
+# Since: 1.5
+##
+{ 'struct': 'ChardevStdioWrapper',
+  'data': { 'data': 'ChardevStdio' } }
+
+##
+# @ChardevSpiceChannelWrapper:
+#
+# Since: 1.5
+##
+{ 'struct': 'ChardevSpiceChannelWrapper',
+  'data': { 'data': 'ChardevSpiceChannel' },
+  'if': 'CONFIG_SPICE' }
+
+##
+# @ChardevSpicePortWrapper:
+#
+# Since: 1.5
+##
+{ 'struct': 'ChardevSpicePortWrapper',
+  'data': { 'data': 'ChardevSpicePort' },
+  'if': 'CONFIG_SPICE' }
+
+##
+# @ChardevQemuVDAgentWrapper:
+#
+# Since: 6.1
+##
+{ 'struct': 'ChardevQemuVDAgentWrapper',
+  'data': { 'data': 'ChardevQemuVDAgent' },
+  'if': 'CONFIG_SPICE_PROTOCOL' }
+
+##
+# @ChardevVCWrapper:
+#
+# Since: 1.5
+##
+{ 'struct': 'ChardevVCWrapper',
+  'data': { 'data': 'ChardevVC' } }
+
+##
+# @ChardevRingbufWrapper:
+#
+# Since: 1.5
+##
+{ 'struct': 'ChardevRingbufWrapper',
+  'data': { 'data': 'ChardevRingbuf' } }
+
+##
 # @ChardevBackend:
 #
 # Configuration info for the new chardev backend.
 #
-# Since: 1.4 (testdev since 2.2, wctablet since 2.9, vdagent since 6.1)
+# Since: 1.4
 ##
 { 'union': 'ChardevBackend',
-  'data': { 'file': 'ChardevFile',
-            'serial': 'ChardevHostdev',
-            'parallel': 'ChardevHostdev',
-            'pipe': 'ChardevHostdev',
-            'socket': 'ChardevSocket',
-            'udp': 'ChardevUdp',
-            'pty': 'ChardevCommon',
-            'null': 'ChardevCommon',
-            'mux': 'ChardevMux',
-            'msmouse': 'ChardevCommon',
-            'wctablet': 'ChardevCommon',
-            'braille': 'ChardevCommon',
-            'testdev': 'ChardevCommon',
-            'stdio': 'ChardevStdio',
-            'console': 'ChardevCommon',
-            'spicevmc': { 'type': 'ChardevSpiceChannel',
+  'base': { 'type': 'ChardevBackendKind' },
+  'discriminator': 'type',
+  'data': { 'file': 'ChardevFileWrapper',
+            'serial': 'ChardevHostdevWrapper',
+            'parallel': 'ChardevHostdevWrapper',
+            'pipe': 'ChardevHostdevWrapper',
+            'socket': 'ChardevSocketWrapper',
+            'udp': 'ChardevUdpWrapper',
+            'pty': 'ChardevCommonWrapper',
+            'null': 'ChardevCommonWrapper',
+            'mux': 'ChardevMuxWrapper',
+            'msmouse': 'ChardevCommonWrapper',
+            'wctablet': 'ChardevCommonWrapper',
+            'braille': 'ChardevCommonWrapper',
+            'testdev': 'ChardevCommonWrapper',
+            'stdio': 'ChardevStdioWrapper',
+            'console': 'ChardevCommonWrapper',
+            'spicevmc': { 'type': 'ChardevSpiceChannelWrapper',
                           'if': 'CONFIG_SPICE' },
-            'spiceport': { 'type': 'ChardevSpicePort',
+            'spiceport': { 'type': 'ChardevSpicePortWrapper',
                            'if': 'CONFIG_SPICE' },
-            'qemu-vdagent': { 'type': 'ChardevQemuVDAgent',
+            'qemu-vdagent': { 'type': 'ChardevQemuVDAgentWrapper',
                               'if': 'CONFIG_SPICE_PROTOCOL' },
-            'vc': 'ChardevVC',
-            'ringbuf': 'ChardevRingbuf',
+            'vc': 'ChardevVCWrapper',
+            'ringbuf': 'ChardevRingbufWrapper',
             # next one is just for compatibility
-            'memory': 'ChardevRingbuf' } }
+            'memory': 'ChardevRingbufWrapper' } }
 
 ##
 # @ChardevReturn:
