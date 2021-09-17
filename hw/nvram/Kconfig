@@ -15,3 +15,10 @@ config NMC93XX_EEPROM
 
 config CHRP_NVRAM
     bool
+
+config XLNX_EFUSE_CRC
+    bool
+
+config XLNX_EFUSE
+    bool
+    select XLNX_EFUSE_CRC
