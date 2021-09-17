@@ -189,6 +189,22 @@ object UserDefListUnion
     case sizes: q_obj_sizeList-wrapper
     case any: q_obj_anyList-wrapper
     case user: q_obj_StatusList-wrapper
+object ArrayStruct
+    member integer: intList optional=False
+    member s8: int8List optional=False
+    member s16: int16List optional=False
+    member s32: int32List optional=False
+    member s64: int64List optional=False
+    member u8: uint8List optional=False
+    member u16: uint16List optional=False
+    member u32: uint32List optional=False
+    member u64: uint64List optional=False
+    member number: numberList optional=False
+    member boolean: boolList optional=False
+    member string: strList optional=False
+    member sz: sizeList optional=True
+    member any: anyList optional=True
+    member user: StatusList optional=True
 include include/sub-module.json
 command user-def-cmd None -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
