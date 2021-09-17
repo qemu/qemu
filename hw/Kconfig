@@ -82,3 +82,4 @@ config XLNX_ZYNQMP
     select CAN_BUS
     select PTIMER
     select XLNX_BBRAM
+    select XLNX_EFUSE_ZYNQMP
