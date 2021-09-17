@@ -100,6 +100,24 @@
   'if': 'CONFIG_TPM' }
 
 ##
+# @TPMPassthroughOptionsWrapper:
+#
+# Since: 1.5
+##
+{ 'struct': 'TPMPassthroughOptionsWrapper',
+  'data': { 'data': 'TPMPassthroughOptions' },
+  'if': 'CONFIG_TPM' }
+
+##
+# @TPMEmulatorOptionsWrapper:
+#
+# Since: 2.11
+##
+{ 'struct': 'TPMEmulatorOptionsWrapper',
+  'data': { 'data': 'TPMEmulatorOptions' },
+  'if': 'CONFIG_TPM' }
+
+##
 # @TpmTypeOptions:
 #
 # A union referencing different TPM backend types' configuration options
@@ -110,8 +128,10 @@
 # Since: 1.5
 ##
 { 'union': 'TpmTypeOptions',
-   'data': { 'passthrough' : 'TPMPassthroughOptions',
-             'emulator': 'TPMEmulatorOptions' },
+  'base': { 'type': 'TpmType' },
+  'discriminator': 'type',
+  'data': { 'passthrough' : 'TPMPassthroughOptionsWrapper',
+            'emulator': 'TPMEmulatorOptionsWrapper' },
   'if': 'CONFIG_TPM' }
 
 ##
