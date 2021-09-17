@@ -123,23 +123,6 @@
 # for testing use of 'str' within alternates
 { 'alternate': 'AltStrObj', 'data': { 's': 'str', 'o': 'TestStruct' } }
 
-# for testing lists
-{ 'union': 'UserDefListUnion',
-  'data': { 'integer': ['int'],
-            's8': ['int8'],
-            's16': ['int16'],
-            's32': ['int32'],
-            's64': ['int64'],
-            'u8': ['uint8'],
-            'u16': ['uint16'],
-            'u32': ['uint32'],
-            'u64': ['uint64'],
-            'number': ['number'],
-            'boolean': ['bool'],
-            'string': ['str'],
-            'sizes': ['size'],
-            'any': ['any'],
-            'user': ['Status'] } } # intentional forward ref. to sub-module
 { 'struct': 'ArrayStruct',
   'data': { 'integer': ['int'],
             's8': ['int8'],
