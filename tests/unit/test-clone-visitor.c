@@ -99,18 +99,26 @@ static void test_clone_empty(void)
 
 static void test_clone_complex1(void)
 {
-    UserDefListUnion *src, *dst;
+    UserDefFlatUnion *src, *dst;
 
-    src = g_new0(UserDefListUnion, 1);
-    src->type = USER_DEF_LIST_UNION_KIND_STRING;
+    src = g_new0(UserDefFlatUnion, 1);
+    src->integer = 123;
+    src->string = g_strdup("abc");
+    src->enum1 = ENUM_ONE_VALUE1;
+    src->u.value1.boolean = true;
 
-    dst = QAPI_CLONE(UserDefListUnion, src);
+    dst = QAPI_CLONE(UserDefFlatUnion, src);
     g_assert(dst);
-    g_assert_cmpint(dst->type, ==, src->type);
-    g_assert(!dst->u.string.data);
 
-    qapi_free_UserDefListUnion(src);
-    qapi_free_UserDefListUnion(dst);
+    g_assert_cmpint(dst->integer, ==, 123);
+    g_assert_cmpstr(dst->string, ==, "abc");
+    g_assert_cmpint(dst->enum1, ==, ENUM_ONE_VALUE1);
+    g_assert(dst->u.value1.boolean);
+    g_assert(!dst->u.value1.has_a_b);
+    g_assert_cmpint(dst->u.value1.a_b, ==, 0);
+
+    qapi_free_UserDefFlatUnion(src);
+    qapi_free_UserDefFlatUnion(dst);
 }
 
 static void test_clone_complex2(void)
