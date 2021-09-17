@@ -153,42 +153,48 @@ static void test_clone_complex2(void)
 
 static void test_clone_complex3(void)
 {
-    __org_qemu_x_Struct2 *src, *dst;
-    __org_qemu_x_Union1List *tmp;
+    UserDefOneList *src, *dst, *tail;
+    UserDefOne *elt;
 
-    src = g_new0(__org_qemu_x_Struct2, 1);
-    tmp = src->array = g_new0(__org_qemu_x_Union1List, 1);
-    tmp->value = g_new0(__org_qemu_x_Union1, 1);
-    tmp->value->type = ORG_QEMU_X_UNION1_KIND___ORG_QEMU_X_BRANCH;
-    tmp->value->u.__org_qemu_x_branch.data = g_strdup("one");
-    tmp = tmp->next = g_new0(__org_qemu_x_Union1List, 1);
-    tmp->value = g_new0(__org_qemu_x_Union1, 1);
-    tmp->value->type = ORG_QEMU_X_UNION1_KIND___ORG_QEMU_X_BRANCH;
-    tmp->value->u.__org_qemu_x_branch.data = g_strdup("two");
-    tmp = tmp->next = g_new0(__org_qemu_x_Union1List, 1);
-    tmp->value = g_new0(__org_qemu_x_Union1, 1);
-    tmp->value->type = ORG_QEMU_X_UNION1_KIND___ORG_QEMU_X_BRANCH;
-    tmp->value->u.__org_qemu_x_branch.data = g_strdup("three");
+    src = NULL;
+    elt = g_new0(UserDefOne, 1);
+    elt->integer = 3;
+    elt->string = g_strdup("three");
+    elt->has_enum1 = true;
+    elt->enum1 = ENUM_ONE_VALUE3;
+    QAPI_LIST_PREPEND(src, elt);
+    elt = g_new0(UserDefOne, 1);
+    elt->integer = 2;
+    elt->string = g_strdup("two");
+    QAPI_LIST_PREPEND(src, elt);
+    elt = g_new0(UserDefOne, 1);
+    elt->integer = 1;
+    elt->string = g_strdup("one");
+    QAPI_LIST_PREPEND(src, elt);
 
-    dst = QAPI_CLONE(__org_qemu_x_Struct2, src);
+    dst = QAPI_CLONE(UserDefOneList, src);
+
     g_assert(dst);
-    tmp = dst->array;
-    g_assert(tmp);
-    g_assert(tmp->value);
-    g_assert_cmpstr(tmp->value->u.__org_qemu_x_branch.data, ==, "one");
-    tmp = tmp->next;
-    g_assert(tmp);
-    g_assert(tmp->value);
-    g_assert_cmpstr(tmp->value->u.__org_qemu_x_branch.data, ==, "two");
-    tmp = tmp->next;
-    g_assert(tmp);
-    g_assert(tmp->value);
-    g_assert_cmpstr(tmp->value->u.__org_qemu_x_branch.data, ==, "three");
-    tmp = tmp->next;
-    g_assert(!tmp);
+    tail = dst;
+    elt = tail->value;
+    g_assert_cmpint(elt->integer, ==, 1);
+    g_assert_cmpstr(elt->string, ==, "one");
+    g_assert(!elt->has_enum1);
+    tail = tail->next;
+    elt = tail->value;
+    g_assert_cmpint(elt->integer, ==, 2);
+    g_assert_cmpstr(elt->string, ==, "two");
+    g_assert(!elt->has_enum1);
+    tail = tail->next;
+    elt = tail->value;
+    g_assert_cmpint(elt->integer, ==, 3);
+    g_assert_cmpstr(elt->string, ==, "three");
+    g_assert(elt->has_enum1);
+    g_assert_cmpint(elt->enum1, ==, ENUM_ONE_VALUE3);
+    g_assert(!tail->next);
 
-    qapi_free___org_qemu_x_Struct2(src);
-    qapi_free___org_qemu_x_Struct2(dst);
+    qapi_free_UserDefOneList(src);
+    qapi_free_UserDefOneList(dst);
 }
 
 int main(int argc, char **argv)
