@@ -1195,6 +1195,38 @@
 }
 
 ##
+# @MemoryDeviceInfoKind:
+#
+# Since: 2.1
+##
+{ 'enum': 'MemoryDeviceInfoKind',
+  'data': [ 'dimm', 'nvdimm', 'virtio-pmem', 'virtio-mem' ] }
+
+##
+# @PCDIMMDeviceInfoWrapper:
+#
+# Since: 2.1
+##
+{ 'struct': 'PCDIMMDeviceInfoWrapper',
+  'data': { 'data': 'PCDIMMDeviceInfo' } }
+
+##
+# @VirtioPMEMDeviceInfoWrapper:
+#
+# Since: 2.1
+##
+{ 'struct': 'VirtioPMEMDeviceInfoWrapper',
+  'data': { 'data': 'VirtioPMEMDeviceInfo' } }
+
+##
+# @VirtioMEMDeviceInfoWrapper:
+#
+# Since: 2.1
+##
+{ 'struct': 'VirtioMEMDeviceInfoWrapper',
+  'data': { 'data': 'VirtioMEMDeviceInfo' } }
+
+##
 # @MemoryDeviceInfo:
 #
 # Union containing information about a memory device
@@ -1205,10 +1237,12 @@
 # Since: 2.1
 ##
 { 'union': 'MemoryDeviceInfo',
-  'data': { 'dimm': 'PCDIMMDeviceInfo',
-            'nvdimm': 'PCDIMMDeviceInfo',
-            'virtio-pmem': 'VirtioPMEMDeviceInfo',
-            'virtio-mem': 'VirtioMEMDeviceInfo'
+  'base': { 'type': 'MemoryDeviceInfoKind' },
+  'discriminator': 'type',
+  'data': { 'dimm': 'PCDIMMDeviceInfoWrapper',
+            'nvdimm': 'PCDIMMDeviceInfoWrapper',
+            'virtio-pmem': 'VirtioPMEMDeviceInfoWrapper',
+            'virtio-mem': 'VirtioMEMDeviceInfoWrapper'
           }
 }
 
