@@ -51,7 +51,8 @@ typedef enum IRQType {
     IRQ_TYPE_FSLSPECIAL,    /* FSL timer/IPI interrupt, edge, no polarity */
 } IRQType;
 
-/* Round up to the nearest 64 IRQs so that the queue length
+/*
+ * Round up to the nearest 64 IRQs so that the queue length
  * won't change when moving between 32 and 64 bit hosts.
  */
 #define IRQQUEUE_SIZE_BITS ((OPENPIC_MAX_IRQ + 63) & ~63)
@@ -101,8 +102,10 @@ typedef struct OpenPICTimer {
     bool                  qemu_timer_active; /* Is the qemu_timer is running? */
     struct QEMUTimer     *qemu_timer;
     struct OpenPICState  *opp;          /* Device timer is part of. */
-    /* The QEMU_CLOCK_VIRTUAL time (in ns) corresponding to the last
-       current_count written or read, only defined if qemu_timer_active. */
+    /*
+     * The QEMU_CLOCK_VIRTUAL time (in ns) corresponding to the last
+     * current_count written or read, only defined if qemu_timer_active.
+     */
     uint64_t              origin_time;
 } OpenPICTimer;
 

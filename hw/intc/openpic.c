@@ -47,7 +47,7 @@
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
 
-//#define DEBUG_OPENPIC
+/* #define DEBUG_OPENPIC */
 
 #ifdef DEBUG_OPENPIC
 static const int debug_openpic = 1;
@@ -118,7 +118,8 @@ static FslMpicInfo fsl_mpic_42 = {
 #define ILR_INTTGT_CINT   0x01 /* critical */
 #define ILR_INTTGT_MCP    0x02 /* machine check */
 
-/* The currently supported INTTGT values happen to be the same as QEMU's
+/*
+ * The currently supported INTTGT values happen to be the same as QEMU's
  * openpic output codes, but don't depend on this.  The output codes
  * could change (unlikely, but...) or support could be added for
  * more INTTGT values.
@@ -177,10 +178,11 @@ static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
                                        uint32_t val, int idx);
 static void openpic_reset(DeviceState *d);
 
-/* Convert between openpic clock ticks and nanosecs.  In the hardware the clock
-   frequency is driven by board inputs to the PIC which the PIC would then
-   divide by 4 or 8.  For now hard code to 25MZ.
-*/
+/*
+ * Convert between openpic clock ticks and nanosecs.  In the hardware the clock
+ * frequency is driven by board inputs to the PIC which the PIC would then
+ * divide by 4 or 8.  For now hard code to 25MZ.
+ */
 #define OPENPIC_TIMER_FREQ_MHZ 25
 #define OPENPIC_TIMER_NS_PER_TICK (1000 / OPENPIC_TIMER_FREQ_MHZ)
 static inline uint64_t ns_to_ticks(uint64_t ns)
@@ -253,7 +255,8 @@ static void IRQ_local_pipe(OpenPICState *opp, int n_CPU, int n_IRQ,
                 __func__, src->output, n_IRQ, active, was_active,
                 dst->outputs_active[src->output]);
 
-        /* On Freescale MPIC, critical interrupts ignore priority,
+        /*
+         * On Freescale MPIC, critical interrupts ignore priority,
          * IACK, EOI, etc.  Before MPIC v4.1 they also ignore
          * masking.
          */
@@ -276,7 +279,8 @@ static void IRQ_local_pipe(OpenPICState *opp, int n_CPU, int n_IRQ,
 
     priority = IVPR_PRIORITY(src->ivpr);
 
-    /* Even if the interrupt doesn't have enough priority,
+    /*
+     * Even if the interrupt doesn't have enough priority,
      * it is still raised, in case ctpr is lowered later.
      */
     if (active) {
@@ -408,7 +412,8 @@ static void openpic_set_irq(void *opaque, int n_IRQ, int level)
         }
 
         if (src->output != OPENPIC_OUTPUT_INT) {
-            /* Edge-triggered interrupts shouldn't be used
+            /*
+             * Edge-triggered interrupts shouldn't be used
              * with non-INT delivery, but just in case,
              * try to make it do something sane rather than
              * cause an interrupt storm.  This is close to
@@ -501,7 +506,8 @@ static inline void write_IRQreg_ivpr(OpenPICState *opp, int n_IRQ, uint32_t val)
 {
     uint32_t mask;
 
-    /* NOTE when implementing newer FSL MPIC models: starting with v4.0,
+    /*
+     * NOTE when implementing newer FSL MPIC models: starting with v4.0,
      * the polarity bit is read-only on internal interrupts.
      */
     mask = IVPR_MASK_MASK | IVPR_PRIORITY_MASK | IVPR_SENSE_MASK |
@@ -511,7 +517,8 @@ static inline void write_IRQreg_ivpr(OpenPICState *opp, int n_IRQ, uint32_t val)
     opp->src[n_IRQ].ivpr =
         (opp->src[n_IRQ].ivpr & IVPR_ACTIVITY_MASK) | (val & mask);
 
-    /* For FSL internal interrupts, The sense bit is reserved and zero,
+    /*
+     * For FSL internal interrupts, The sense bit is reserved and zero,
      * and the interrupt is always level-triggered.  Timers and IPIs
      * have no sense or polarity bits, and are edge-triggered.
      */
@@ -695,16 +702,20 @@ static void qemu_timer_cb(void *opaque)
     openpic_set_irq(opp, n_IRQ, 0);
 }
 
-/* If enabled is true, arranges for an interrupt to be raised val clocks into
-   the future, if enabled is false cancels the timer. */
+/*
+ * If enabled is true, arranges for an interrupt to be raised val clocks into
+ * the future, if enabled is false cancels the timer.
+ */
 static void openpic_tmr_set_tmr(OpenPICTimer *tmr, uint32_t val, bool enabled)
 {
     uint64_t ns = ticks_to_ns(val & ~TCCR_TOG);
-    /* A count of zero causes a timer to be set to expire immediately.  This
-       effectively stops the simulation since the timer is constantly expiring
-       which prevents guest code execution, so we don't honor that
-       configuration.  On real hardware, this situation would generate an
-       interrupt on every clock cycle if the interrupt was unmasked. */
+    /*
+     * A count of zero causes a timer to be set to expire immediately.  This
+     * effectively stops the simulation since the timer is constantly expiring
+     * which prevents guest code execution, so we don't honor that
+     * configuration.  On real hardware, this situation would generate an
+     * interrupt on every clock cycle if the interrupt was unmasked.
+     */
     if ((ns == 0) || !enabled) {
         tmr->qemu_timer_active = false;
         tmr->tccr = tmr->tccr & TCCR_TOG;
@@ -717,8 +728,10 @@ static void openpic_tmr_set_tmr(OpenPICTimer *tmr, uint32_t val, bool enabled)
     }
 }
 
-/* Returns the currrent tccr value, i.e., timer value (in clocks) with
-   appropriate TOG. */
+/*
+ * Returns the currrent tccr value, i.e., timer value (in clocks) with
+ * appropriate TOG.
+ */
 static uint64_t openpic_tmr_get_timer(OpenPICTimer *tmr)
 {
     uint64_t retval;
@@ -1309,7 +1322,7 @@ static void openpic_reset(DeviceState *d)
 typedef struct MemReg {
     const char             *name;
     MemoryRegionOps const  *ops;
-    hwaddr      start_addr;
+    hwaddr                  start_addr;
     ram_addr_t              size;
 } MemReg;
 
