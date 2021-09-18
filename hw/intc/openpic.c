@@ -1276,6 +1276,15 @@ static void openpic_reset(DeviceState *d)
             break;
         }
 
+        /* Mask all IPI interrupts for Freescale OpenPIC */
+        if ((opp->model == OPENPIC_MODEL_FSL_MPIC_20) ||
+            (opp->model == OPENPIC_MODEL_FSL_MPIC_42)) {
+            if (i >= opp->irq_ipi0 && i < opp->irq_tim0) {
+                write_IRQreg_idr(opp, i, 0);
+                continue;
+            }
+        }
+
         write_IRQreg_idr(opp, i, opp->idr_reset);
     }
     /* Initialise IRQ destinations */
