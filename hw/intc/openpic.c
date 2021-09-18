@@ -25,12 +25,8 @@
 /*
  *
  * Based on OpenPic implementations:
- * - Intel GW80314 I/O companion chip developer's manual
  * - Motorola MPC8245 & MPC8540 user manuals.
- * - Motorola MCP750 (aka Raven) programmer manual.
- * - Motorola Harrier programmer manuel
- *
- * Serial interrupts, as implemented in Raven chipset are not supported yet.
+ * - Motorola Harrier programmer manual
  *
  */
 
@@ -1562,28 +1558,6 @@ static void openpic_realize(DeviceState *dev, Error **errp)
         map_list(opp, list_be, &list_count);
         map_list(opp, list_fsl, &list_count);
 
-        break;
-
-    case OPENPIC_MODEL_RAVEN:
-        opp->nb_irqs = RAVEN_MAX_EXT;
-        opp->vid = VID_REVISION_1_3;
-        opp->vir = VIR_GENERIC;
-        opp->vector_mask = 0xFF;
-        opp->tfrr_reset = 4160000;
-        opp->ivpr_reset = IVPR_MASK_MASK | IVPR_MODE_MASK;
-        opp->idr_reset = 0;
-        opp->max_irq = RAVEN_MAX_IRQ;
-        opp->irq_ipi0 = RAVEN_IPI_IRQ;
-        opp->irq_tim0 = RAVEN_TMR_IRQ;
-        opp->brr1 = -1;
-        opp->mpic_mode_mask = GCR_MODE_MIXED;
-
-        if (opp->nb_cpus != 1) {
-            error_setg(errp, "Only UP supported today");
-            return;
-        }
-
-        map_list(opp, list_le, &list_count);
         break;
 
     case OPENPIC_MODEL_KEYLARGO:
