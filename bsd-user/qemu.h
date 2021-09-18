@@ -235,6 +235,10 @@ extern unsigned long target_dflssiz;
 extern unsigned long target_maxssiz;
 extern unsigned long target_sgrowsiz;
 
+/* syscall.c */
+abi_long get_errno(abi_long ret);
+bool is_error(abi_long ret);
+
 /* user access */
 
 #define VERIFY_READ  PAGE_READ

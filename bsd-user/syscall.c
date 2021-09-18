@@ -33,18 +33,18 @@
 static abi_ulong target_brk;
 static abi_ulong target_original_brk;
 
-static inline abi_long get_errno(abi_long ret)
+abi_long get_errno(abi_long ret)
 {
-    if (ret == -1)
+    if (ret == -1) {
         /* XXX need to translate host -> target errnos here */
         return -(errno);
-    else
-        return ret;
+    }
+    return ret;
 }
 
 #define target_to_host_bitmask(x, tbl) (x)
 
-static inline int is_error(abi_long ret)
+bool is_error(abi_long ret)
 {
     return (abi_ulong)ret >= (abi_ulong)(-4096);
 }
