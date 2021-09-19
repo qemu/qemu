@@ -195,6 +195,15 @@ static void usage(void)
 
 __thread CPUState *thread_cpu;
 
+void stop_all_tasks(void)
+{
+    /*
+     * We trust when using NPTL (pthreads) start_exclusive() handles thread
+     * stopping correctly.
+     */
+    start_exclusive();
+}
+
 bool qemu_cpu_is_self(CPUState *cpu)
 {
     return thread_cpu == cpu;
