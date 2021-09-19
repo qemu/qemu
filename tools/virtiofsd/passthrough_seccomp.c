@@ -51,6 +51,7 @@ static const int syscall_allowlist[] = {
     SCMP_SYS(fsetxattr),
     SCMP_SYS(fstat),
     SCMP_SYS(fstatfs),
+    SCMP_SYS(fstatfs64),
     SCMP_SYS(fsync),
     SCMP_SYS(ftruncate),
     SCMP_SYS(futex),
