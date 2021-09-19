@@ -92,7 +92,6 @@ typedef struct TaskState {
 
     struct TaskState *next;
     struct bsd_binprm *bprm;
-    int used; /* non zero if used */
     struct image_info *info;
 
     struct emulated_sigtable sigtab[TARGET_NSIG];
