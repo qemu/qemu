@@ -239,6 +239,9 @@ extern unsigned long target_sgrowsiz;
 abi_long get_errno(abi_long ret);
 bool is_error(abi_long ret);
 
+/* os-sys.c */
+abi_long do_freebsd_sysarch(void *cpu_env, abi_long arg1, abi_long arg2);
+
 /* user access */
 
 #define VERIFY_READ  PAGE_READ

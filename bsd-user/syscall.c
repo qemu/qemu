@@ -88,56 +88,6 @@ static abi_long do_obreak(abi_ulong new_brk)
     return 0;
 }
 
-#if defined(TARGET_I386)
-static abi_long do_freebsd_sysarch(CPUX86State *env, int op, abi_ulong parms)
-{
-    abi_long ret = 0;
-    abi_ulong val;
-    int idx;
-
-    switch (op) {
-#ifdef TARGET_ABI32
-    case TARGET_FREEBSD_I386_SET_GSBASE:
-    case TARGET_FREEBSD_I386_SET_FSBASE:
-        if (op == TARGET_FREEBSD_I386_SET_GSBASE)
-#else
-    case TARGET_FREEBSD_AMD64_SET_GSBASE:
-    case TARGET_FREEBSD_AMD64_SET_FSBASE:
-        if (op == TARGET_FREEBSD_AMD64_SET_GSBASE)
-#endif
-            idx = R_GS;
-        else
-            idx = R_FS;
-        if (get_user(val, parms, abi_ulong))
-            return -TARGET_EFAULT;
-        cpu_x86_load_seg(env, idx, 0);
-        env->segs[idx].base = val;
-        break;
-#ifdef TARGET_ABI32
-    case TARGET_FREEBSD_I386_GET_GSBASE:
-    case TARGET_FREEBSD_I386_GET_FSBASE:
-        if (op == TARGET_FREEBSD_I386_GET_GSBASE)
-#else
-    case TARGET_FREEBSD_AMD64_GET_GSBASE:
-    case TARGET_FREEBSD_AMD64_GET_FSBASE:
-        if (op == TARGET_FREEBSD_AMD64_GET_GSBASE)
-#endif
-            idx = R_GS;
-        else
-            idx = R_FS;
-        val = env->segs[idx].base;
-        if (put_user(val, parms, abi_ulong))
-            return -TARGET_EFAULT;
-        break;
-    /* XXX handle the others... */
-    default:
-        ret = -TARGET_EINVAL;
-        break;
-    }
-    return ret;
-}
-#endif
-
 #ifdef __FreeBSD__
 /*
  * XXX this uses the undocumented oidfmt interface to find the kind of
