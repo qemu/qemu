@@ -282,7 +282,7 @@ class Test(avocado.Test):
                     asset_hash=None, algorithm=None,
                     locations=None, expire=None,
                     find_only=False, cancel_on_missing=True):
-        return super(Test, self).fetch_asset(name,
+        return super().fetch_asset(name,
                         asset_hash=asset_hash,
                         algorithm=algorithm,
                         locations=locations,
@@ -470,7 +470,7 @@ class LinuxTest(Test, LinuxSSHMixIn):
             self.distro.checksum = distro_checksum
 
     def setUp(self, ssh_pubkey=None, network_device_type='virtio-net'):
-        super(LinuxTest, self).setUp()
+        super().setUp()
         self._set_distro()
         self.vm.add_args('-smp', '2')
         self.vm.add_args('-m', '1024')
