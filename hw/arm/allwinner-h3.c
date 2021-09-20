@@ -237,7 +237,7 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
 
         /* Provide Power State Coordination Interface */
         qdev_prop_set_int32(DEVICE(&s->cpus[i]), "psci-conduit",
-                            QEMU_PSCI_CONDUIT_HVC);
+                            QEMU_PSCI_CONDUIT_SMC);
 
         /* Disable secondary CPUs */
         qdev_prop_set_bit(DEVICE(&s->cpus[i]), "start-powered-off",
