@@ -381,14 +381,14 @@ static void arm_cpu_reset(DeviceState *dev)
         env->regs[15] = 0xFFFF0000;
     }
 
+    env->vfp.xregs[ARM_VFP_FPEXC] = 0;
+#endif
+
     /* M profile requires that reset clears the exclusive monitor;
      * A profile does not, but clearing it makes more sense than having it
      * set with an exclusive access on address zero.
      */
     arm_clear_exclusive(env);
-
-    env->vfp.xregs[ARM_VFP_FPEXC] = 0;
-#endif
 
     if (arm_feature(env, ARM_FEATURE_PMSA)) {
         if (cpu->pmsav7_dregion > 0) {
