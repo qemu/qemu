@@ -165,9 +165,7 @@ static void ppc6xx_set_irq(void *opaque, int pin, int level)
             ppc_set_irq(cpu, PPC_INTERRUPT_RESET, level);
             break;
         default:
-            /* Unknown pin - do nothing */
-            LOG_IRQ("%s: unknown IRQ pin %d\n", __func__, pin);
-            return;
+            g_assert_not_reached();
         }
         if (level)
             env->irq_input_state |= 1 << pin;
@@ -252,9 +250,7 @@ static void ppc970_set_irq(void *opaque, int pin, int level)
             /* XXX: TODO */
             break;
         default:
-            /* Unknown pin - do nothing */
-            LOG_IRQ("%s: unknown IRQ pin %d\n", __func__, pin);
-            return;
+            g_assert_not_reached();
         }
         if (level)
             env->irq_input_state |= 1 << pin;
@@ -287,9 +283,7 @@ static void power7_set_irq(void *opaque, int pin, int level)
         ppc_set_irq(cpu, PPC_INTERRUPT_EXT, level);
         break;
     default:
-        /* Unknown pin - do nothing */
-        LOG_IRQ("%s: unknown IRQ pin %d\n", __func__, pin);
-        return;
+        g_assert_not_reached();
     }
 }
 
@@ -323,9 +317,7 @@ static void power9_set_irq(void *opaque, int pin, int level)
         ppc_set_irq(cpu, PPC_INTERRUPT_HVIRT, level);
         break;
     default:
-        /* Unknown pin - do nothing */
-        LOG_IRQ("%s: unknown IRQ pin %d\n", __func__, pin);
-        return;
+        g_assert_not_reached();
     }
 }
 
@@ -459,9 +451,7 @@ static void ppc40x_set_irq(void *opaque, int pin, int level)
             ppc_set_irq(cpu, PPC_INTERRUPT_DEBUG, level);
             break;
         default:
-            /* Unknown pin - do nothing */
-            LOG_IRQ("%s: unknown IRQ pin %d\n", __func__, pin);
-            return;
+            g_assert_not_reached();
         }
         if (level)
             env->irq_input_state |= 1 << pin;
@@ -523,9 +513,7 @@ static void ppce500_set_irq(void *opaque, int pin, int level)
             ppc_set_irq(cpu, PPC_INTERRUPT_DEBUG, level);
             break;
         default:
-            /* Unknown pin - do nothing */
-            LOG_IRQ("%s: unknown IRQ pin %d\n", __func__, pin);
-            return;
+            g_assert_not_reached();
         }
         if (level)
             env->irq_input_state |= 1 << pin;
