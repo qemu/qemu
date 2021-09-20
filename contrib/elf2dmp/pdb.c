@@ -215,6 +215,10 @@ out_symbols:
 
 static int pdb_reader_ds_init(struct pdb_reader *r, PDB_DS_HEADER *hdr)
 {
+    if (hdr->block_size == 0) {
+        return 1;
+    }
+
     memset(r->file_used, 0, sizeof(r->file_used));
     r->ds.header = hdr;
     r->ds.toc = pdb_ds_read(hdr, (uint32_t *)((uint8_t *)hdr +
