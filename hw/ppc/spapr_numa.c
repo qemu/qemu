@@ -24,6 +24,10 @@
  */
 static int get_max_dist_ref_points(SpaprMachineState *spapr)
 {
+    if (spapr_ovec_test(spapr->ov5_cas, OV5_FORM2_AFFINITY)) {
+        return FORM2_DIST_REF_POINTS;
+    }
+
     return FORM1_DIST_REF_POINTS;
 }
 
@@ -32,6 +36,10 @@ static int get_max_dist_ref_points(SpaprMachineState *spapr)
  */
 static int get_numa_assoc_size(SpaprMachineState *spapr)
 {
+    if (spapr_ovec_test(spapr->ov5_cas, OV5_FORM2_AFFINITY)) {
+        return FORM2_NUMA_ASSOC_SIZE;
+    }
+
     return FORM1_NUMA_ASSOC_SIZE;
 }
 
@@ -52,6 +60,9 @@ static int get_vcpu_assoc_size(SpaprMachineState *spapr)
  */
 static const uint32_t *get_associativity(SpaprMachineState *spapr, int node_id)
 {
+    if (spapr_ovec_test(spapr->ov5_cas, OV5_FORM2_AFFINITY)) {
+        return spapr->FORM2_assoc_array[node_id];
+    }
     return spapr->FORM1_assoc_array[node_id];
 }
 
@@ -295,14 +306,50 @@ static void spapr_numa_FORM1_affinity_init(SpaprMachineState *spapr,
     spapr_numa_define_FORM1_domains(spapr);
 }
 
+/*
+ * Init NUMA FORM2 machine state data
+ */
+static void spapr_numa_FORM2_affinity_init(SpaprMachineState *spapr)
+{
+    int i;
+
+    /*
+     * For all resources but CPUs, FORM2 associativity arrays will
+     * be a size 2 array with the following format:
+     *
+     * ibm,associativity = {1, numa_id}
+     *
+     * CPUs will write an additional 'vcpu_id' on top of the arrays
+     * being initialized here. 'numa_id' is represented by the
+     * index 'i' of the loop.
+     *
+     * Given that this initialization is also valid for GPU associativity
+     * arrays, handle everything in one single step by populating the
+     * arrays up to NUMA_NODES_MAX_NUM.
+     */
+    for (i = 0; i < NUMA_NODES_MAX_NUM; i++) {
+        spapr->FORM2_assoc_array[i][0] = cpu_to_be32(1);
+        spapr->FORM2_assoc_array[i][1] = cpu_to_be32(i);
+    }
+}
+
 void spapr_numa_associativity_init(SpaprMachineState *spapr,
                                    MachineState *machine)
 {
     spapr_numa_FORM1_affinity_init(spapr, machine);
+    spapr_numa_FORM2_affinity_init(spapr);
 }
 
 void spapr_numa_associativity_check(SpaprMachineState *spapr)
 {
+    /*
+     * FORM2 does not have any restrictions we need to handle
+     * at CAS time, for now.
+     */
+    if (spapr_ovec_test(spapr->ov5_cas, OV5_FORM2_AFFINITY)) {
+        return;
+    }
+
     spapr_numa_FORM1_affinity_check(MACHINE(spapr));
 }
 
@@ -447,6 +494,100 @@ static void spapr_numa_FORM1_write_rtas_dt(SpaprMachineState *spapr,
                      maxdomains, sizeof(maxdomains)));
 }
 
+static void spapr_numa_FORM2_write_rtas_tables(SpaprMachineState *spapr,
+                                               void *fdt, int rtas)
+{
+    MachineState *ms = MACHINE(spapr);
+    NodeInfo *numa_info = ms->numa_state->nodes;
+    int nb_numa_nodes = ms->numa_state->num_nodes;
+    int distance_table_entries = nb_numa_nodes * nb_numa_nodes;
+    g_autofree uint32_t *lookup_index_table = NULL;
+    g_autofree uint32_t *distance_table = NULL;
+    int src, dst, i, distance_table_size;
+    uint8_t *node_distances;
+
+    /*
+     * ibm,numa-lookup-index-table: array with length and a
+     * list of NUMA ids present in the guest.
+     */
+    lookup_index_table = g_new0(uint32_t, nb_numa_nodes + 1);
+    lookup_index_table[0] = cpu_to_be32(nb_numa_nodes);
+
+    for (i = 0; i < nb_numa_nodes; i++) {
+        lookup_index_table[i + 1] = cpu_to_be32(i);
+    }
+
+    _FDT(fdt_setprop(fdt, rtas, "ibm,numa-lookup-index-table",
+                     lookup_index_table,
+                     (nb_numa_nodes + 1) * sizeof(uint32_t)));
+
+    /*
+     * ibm,numa-distance-table: contains all node distances. First
+     * element is the size of the table as uint32, followed up
+     * by all the uint8 distances from the first NUMA node, then all
+     * distances from the second NUMA node and so on.
+     *
+     * ibm,numa-lookup-index-table is used by guest to navigate this
+     * array because NUMA ids can be sparse (node 0 is the first,
+     * node 8 is the second ...).
+     */
+    distance_table = g_new0(uint32_t, distance_table_entries + 1);
+    distance_table[0] = cpu_to_be32(distance_table_entries);
+
+    node_distances = (uint8_t *)&distance_table[1];
+    i = 0;
+
+    for (src = 0; src < nb_numa_nodes; src++) {
+        for (dst = 0; dst < nb_numa_nodes; dst++) {
+            node_distances[i++] = numa_info[src].distance[dst];
+        }
+    }
+
+    distance_table_size = distance_table_entries * sizeof(uint8_t) +
+                          sizeof(uint32_t);
+    _FDT(fdt_setprop(fdt, rtas, "ibm,numa-distance-table",
+                     distance_table, distance_table_size));
+}
+
+/*
+ * This helper could be compressed in a single function with
+ * FORM1 logic since we're setting the same DT values, with the
+ * difference being a call to spapr_numa_FORM2_write_rtas_tables()
+ * in the end. The separation was made to avoid clogging FORM1 code
+ * which already has to deal with compat modes from previous
+ * QEMU machine types.
+ */
+static void spapr_numa_FORM2_write_rtas_dt(SpaprMachineState *spapr,
+                                           void *fdt, int rtas)
+{
+    MachineState *ms = MACHINE(spapr);
+    uint32_t number_nvgpus_nodes = spapr->gpu_numa_id -
+                                   spapr_numa_initial_nvgpu_numa_id(ms);
+
+    /*
+     * In FORM2, ibm,associativity-reference-points will point to
+     * the element in the ibm,associativity array that contains the
+     * primary domain index (for FORM2, the first element).
+     *
+     * This value (in our case, the numa-id) is then used as an index
+     * to retrieve all other attributes of the node (distance,
+     * bandwidth, latency) via ibm,numa-lookup-index-table and other
+     * ibm,numa-*-table properties.
+     */
+    uint32_t refpoints[] = { cpu_to_be32(1) };
+
+    uint32_t maxdomain = ms->numa_state->num_nodes + number_nvgpus_nodes;
+    uint32_t maxdomains[] = { cpu_to_be32(1), cpu_to_be32(maxdomain) };
+
+    _FDT(fdt_setprop(fdt, rtas, "ibm,associativity-reference-points",
+                     refpoints, sizeof(refpoints)));
+
+    _FDT(fdt_setprop(fdt, rtas, "ibm,max-associativity-domains",
+                     maxdomains, sizeof(maxdomains)));
+
+    spapr_numa_FORM2_write_rtas_tables(spapr, fdt, rtas);
+}
+
 /*
  * Helper that writes ibm,associativity-reference-points and
  * max-associativity-domains in the RTAS pointed by @rtas
@@ -454,6 +595,11 @@ static void spapr_numa_FORM1_write_rtas_dt(SpaprMachineState *spapr,
  */
 void spapr_numa_write_rtas_dt(SpaprMachineState *spapr, void *fdt, int rtas)
 {
+    if (spapr_ovec_test(spapr->ov5_cas, OV5_FORM2_AFFINITY)) {
+        spapr_numa_FORM2_write_rtas_dt(spapr, fdt, rtas);
+        return;
+    }
+
     spapr_numa_FORM1_write_rtas_dt(spapr, fdt, rtas);
 }
 
