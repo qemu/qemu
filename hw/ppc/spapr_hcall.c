@@ -1199,6 +1199,12 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
     spapr_ovec_cleanup(ov1_guest);
 
     /*
+     * Check for NUMA affinity conditions now that we know which NUMA
+     * affinity the guest will use.
+     */
+    spapr_numa_associativity_check(spapr);
+
+    /*
      * Ensure the guest asks for an interrupt mode we support;
      * otherwise terminate the boot.
      */
