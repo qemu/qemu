@@ -13,6 +13,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 import uuid
 
 import avocado
@@ -305,8 +306,7 @@ class LinuxSSHMixIn:
                 self.ssh_session.connect()
                 return
             except:
-                time.sleep(4)
-                pass
+                time.sleep(i)
         self.fail('ssh connection timeout')
 
     def ssh_command(self, command):
