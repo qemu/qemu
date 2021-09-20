@@ -100,23 +100,23 @@ typedef enum {
 
 #define FDT_MAX_SIZE                    0x200000
 
-/*
- * NUMA related macros. MAX_DISTANCE_REF_POINTS was taken
- * from Linux kernel arch/powerpc/mm/numa.h. It represents the
- * amount of associativity domains for non-CPU resources.
- *
- * NUMA_ASSOC_SIZE is the base array size of an ibm,associativity
- * array for any non-CPU resource.
- *
- * VCPU_ASSOC_SIZE represents the size of ibm,associativity array
- * for CPUs, which has an extra element (vcpu_id) in the end.
- */
-#define MAX_DISTANCE_REF_POINTS    4
-#define NUMA_ASSOC_SIZE            (MAX_DISTANCE_REF_POINTS + 1)
-#define VCPU_ASSOC_SIZE            (NUMA_ASSOC_SIZE + 1)
+/* Max number of GPUs per system */
+#define NVGPU_MAX_NUM              6
 
-/* Max number of these GPUsper a physical box */
-#define NVGPU_MAX_NUM                6
+/* Max number of NUMA nodes */
+#define NUMA_NODES_MAX_NUM         (MAX_NODES + NVGPU_MAX_NUM)
+
+/*
+ * NUMA FORM1 macros. FORM1_DIST_REF_POINTS was taken from
+ * MAX_DISTANCE_REF_POINTS in arch/powerpc/mm/numa.h from Linux
+ * kernel source. It represents the amount of associativity domains
+ * for non-CPU resources.
+ *
+ * FORM1_NUMA_ASSOC_SIZE is the base array size of an ibm,associativity
+ * array for any non-CPU resource.
+ */
+#define FORM1_DIST_REF_POINTS            4
+#define FORM1_NUMA_ASSOC_SIZE            (FORM1_DIST_REF_POINTS + 1)
 
 typedef struct SpaprCapabilities SpaprCapabilities;
 struct SpaprCapabilities {
@@ -249,7 +249,7 @@ struct SpaprMachineState {
     unsigned gpu_numa_id;
     SpaprTpmProxy *tpm_proxy;
 
-    uint32_t numa_assoc_array[MAX_NODES + NVGPU_MAX_NUM][NUMA_ASSOC_SIZE];
+    uint32_t numa_assoc_array[NUMA_NODES_MAX_NUM][FORM1_NUMA_ASSOC_SIZE];
 
     Error *fwnmi_migration_blocker;
 };
