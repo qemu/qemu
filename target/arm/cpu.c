@@ -265,6 +265,16 @@ static void arm_cpu_reset(DeviceState *dev)
         env->uncached_cpsr = ARM_CPU_MODE_SVC;
     }
     env->daif = PSTATE_D | PSTATE_A | PSTATE_I | PSTATE_F;
+
+    /* AArch32 has a hard highvec setting of 0xFFFF0000.  If we are currently
+     * executing as AArch32 then check if highvecs are enabled and
+     * adjust the PC accordingly.
+     */
+    if (A32_BANKED_CURRENT_REG_GET(env, sctlr) & SCTLR_V) {
+        env->regs[15] = 0xFFFF0000;
+    }
+
+    env->vfp.xregs[ARM_VFP_FPEXC] = 0;
 #endif
 
     if (arm_feature(env, ARM_FEATURE_M)) {
@@ -371,18 +381,6 @@ static void arm_cpu_reset(DeviceState *dev)
         env->v7m.control[M_REG_S] |= R_V7M_CONTROL_FPCA_MASK;
 #endif
     }
-
-#ifndef CONFIG_USER_ONLY
-    /* AArch32 has a hard highvec setting of 0xFFFF0000.  If we are currently
-     * executing as AArch32 then check if highvecs are enabled and
-     * adjust the PC accordingly.
-     */
-    if (A32_BANKED_CURRENT_REG_GET(env, sctlr) & SCTLR_V) {
-        env->regs[15] = 0xFFFF0000;
-    }
-
-    env->vfp.xregs[ARM_VFP_FPEXC] = 0;
-#endif
 
     /* M profile requires that reset clears the exclusive monitor;
      * A profile does not, but clearing it makes more sense than having it
