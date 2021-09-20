@@ -5119,14 +5119,23 @@ static void bdrv_delete(BlockDriverState *bs)
     g_free(bs);
 }
 
-BlockDriverState *bdrv_insert_node(BlockDriverState *bs, QDict *node_options,
+
+/*
+ * Replace @bs by newly created block node.
+ *
+ * @options is a QDict of options to pass to the block drivers, or NULL for an
+ * empty set of options. The reference to the QDict belongs to the block layer
+ * after the call (even on failure), so if the caller intends to reuse the
+ * dictionary, it needs to use qobject_ref() before calling bdrv_open.
+ */
+BlockDriverState *bdrv_insert_node(BlockDriverState *bs, QDict *options,
                                    int flags, Error **errp)
 {
     ERRP_GUARD();
     int ret;
     BlockDriverState *new_node_bs;
 
-    new_node_bs = bdrv_open(NULL, NULL, node_options, flags, errp);
+    new_node_bs = bdrv_open(NULL, NULL, options, flags, errp);
     if (new_node_bs == NULL) {
         error_prepend(errp, "Could not create node: ");
         return NULL;
