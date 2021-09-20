@@ -417,8 +417,9 @@ static void gicv3_cpuif_virt_update(GICv3CPUState *cs)
         }
     }
 
-    if (cs->ich_hcr_el2 & ICH_HCR_EL2_EN) {
-        maintlevel = maintenance_interrupt_state(cs);
+    if ((cs->ich_hcr_el2 & ICH_HCR_EL2_EN) &&
+        maintenance_interrupt_state(cs) != 0) {
+        maintlevel = 1;
     }
 
     trace_gicv3_cpuif_virt_set_irqs(gicv3_redist_affid(cs), fiqlevel,
