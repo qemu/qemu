@@ -96,7 +96,7 @@ typedef enum {
     LASIPS2_STATUS_CLKSHD = 0x80,
 } lasips2_status_reg_t;
 
-static const char *artist_read_reg_name(uint64_t addr)
+static const char *lasips2_read_reg_name(uint64_t addr)
 {
     switch (addr & 0xc) {
     case REG_PS2_ID:
@@ -116,7 +116,7 @@ static const char *artist_read_reg_name(uint64_t addr)
     }
 }
 
-static const char *artist_write_reg_name(uint64_t addr)
+static const char *lasips2_write_reg_name(uint64_t addr)
 {
     switch (addr & 0x0c) {
     case REG_PS2_RESET:
@@ -145,7 +145,7 @@ static void lasips2_reg_write(void *opaque, hwaddr addr, uint64_t val,
     LASIPS2Port *port = opaque;
 
     trace_lasips2_reg_write(size, port->id, addr,
-                            artist_write_reg_name(addr), val);
+                            lasips2_write_reg_name(addr), val);
 
     switch (addr & 0xc) {
     case REG_PS2_CONTROL:
@@ -239,7 +239,7 @@ static uint64_t lasips2_reg_read(void *opaque, hwaddr addr, unsigned size)
         break;
     }
     trace_lasips2_reg_read(size, port->id, addr,
-                           artist_read_reg_name(addr), ret);
+                           lasips2_read_reg_name(addr), ret);
 
     return ret;
 }
