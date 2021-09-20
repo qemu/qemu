@@ -12,18 +12,12 @@ import logging
 import os
 import shutil
 import sys
-import uuid
 import tempfile
+import uuid
 
 import avocado
-
-from avocado.utils import cloudinit
-from avocado.utils import datadrainer
-from avocado.utils import network
-from avocado.utils import ssh
-from avocado.utils import vmimage
+from avocado.utils import cloudinit, datadrainer, network, ssh, vmimage
 from avocado.utils.path import find_command
-
 
 #: The QEMU build root directory.  It may also be the source directory
 #: if building from the source dir, but it's safer to use BUILD_DIR for
@@ -42,11 +36,9 @@ else:
 sys.path.append(os.path.join(SOURCE_DIR, 'python'))
 
 from qemu.machine import QEMUMachine
-from qemu.utils import (
-    get_info_usernet_hostfwd_port,
-    kvm_available,
-    tcg_available,
-)
+from qemu.utils import (get_info_usernet_hostfwd_port, kvm_available,
+                        tcg_available)
+
 
 def is_readable_executable_file(path):
     return os.path.isfile(path) and os.access(path, os.R_OK | os.X_OK)
