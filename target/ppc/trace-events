@@ -28,3 +28,11 @@ kvm_handle_epr(void) "handle epr"
 kvm_handle_watchdog_expiry(void) "handle watchdog expiry"
 kvm_handle_debug_exception(void) "handle debug exception"
 kvm_handle_nmi_exception(void) "handle NMI exception"
+
+# excp_helper.c
+ppc_excp_rfi(uint64_t nip, uint64_t msr) "Return from exception at 0x%" PRIx64 " with flags 0x%016" PRIx64
+ppc_excp_dsi(uint64_t dsisr, uint64_t dar) "DSI exception: DSISR=0x%" PRIx64 " DAR=0x%" PRIx64
+ppc_excp_isi(uint64_t msr, uint64_t nip) "ISI exception: msr=0x%016" PRIx64 " nip=0x%" PRIx64
+ppc_excp_fp_ignore(void) "Ignore floating point exception"
+ppc_excp_inval(uint64_t nip) "Invalid instruction at 0x%" PRIx64
+ppc_excp_print(const char *excp) "%s exception"
