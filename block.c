@@ -5122,8 +5122,9 @@ static void bdrv_delete(BlockDriverState *bs)
 BlockDriverState *bdrv_insert_node(BlockDriverState *bs, QDict *node_options,
                                    int flags, Error **errp)
 {
+    ERRP_GUARD();
+    int ret;
     BlockDriverState *new_node_bs;
-    Error *local_err = NULL;
 
     new_node_bs = bdrv_open(NULL, NULL, node_options, flags, errp);
     if (new_node_bs == NULL) {
@@ -5132,12 +5133,12 @@ BlockDriverState *bdrv_insert_node(BlockDriverState *bs, QDict *node_options,
     }
 
     bdrv_drained_begin(bs);
-    bdrv_replace_node(bs, new_node_bs, &local_err);
+    ret = bdrv_replace_node(bs, new_node_bs, errp);
     bdrv_drained_end(bs);
 
-    if (local_err) {
+    if (ret < 0) {
+        error_prepend(errp, "Could not replace node: ");
         bdrv_unref(new_node_bs);
-        error_propagate(errp, local_err);
         return NULL;
     }
 
