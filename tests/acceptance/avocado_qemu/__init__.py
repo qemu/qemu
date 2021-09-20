@@ -72,6 +72,7 @@ def pick_default_qemu_bin(arch=None):
                                               qemu_bin_relative_path)
     if is_readable_executable_file(qemu_bin_from_bld_dir_path):
         return qemu_bin_from_bld_dir_path
+    return None
 
 
 def _console_interaction(test, success_message, failure_message,
