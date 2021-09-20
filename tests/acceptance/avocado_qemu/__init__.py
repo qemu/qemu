@@ -276,6 +276,7 @@ class Test(avocado.Test):
         for vm in self._vms.values():
             vm.shutdown()
         self._sd = None
+        super().tearDown()
 
     def fetch_asset(self, name,
                     asset_hash=None, algorithm=None,
