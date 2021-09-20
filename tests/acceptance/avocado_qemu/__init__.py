@@ -424,7 +424,7 @@ class LinuxDistro:
         return self._info.get('kernel_params', None)
 
 
-class LinuxTest(Test, LinuxSSHMixIn):
+class LinuxTest(LinuxSSHMixIn, Test):
     """Facilitates having a cloud-image Linux based available.
 
     For tests that indend to interact with guests, this is a better choice
