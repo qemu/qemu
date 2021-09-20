@@ -5133,12 +5133,30 @@ BlockDriverState *bdrv_insert_node(BlockDriverState *bs, QDict *options,
 {
     ERRP_GUARD();
     int ret;
-    BlockDriverState *new_node_bs;
+    BlockDriverState *new_node_bs = NULL;
+    const char *drvname, *node_name;
+    BlockDriver *drv;
 
-    new_node_bs = bdrv_open(NULL, NULL, options, flags, errp);
-    if (new_node_bs == NULL) {
+    drvname = qdict_get_try_str(options, "driver");
+    if (!drvname) {
+        error_setg(errp, "driver is not specified");
+        goto fail;
+    }
+
+    drv = bdrv_find_format(drvname);
+    if (!drv) {
+        error_setg(errp, "Unknown driver: '%s'", drvname);
+        goto fail;
+    }
+
+    node_name = qdict_get_try_str(options, "node-name");
+
+    new_node_bs = bdrv_new_open_driver_opts(drv, node_name, options, flags,
+                                            errp);
+    options = NULL; /* bdrv_new_open_driver() eats options */
+    if (!new_node_bs) {
         error_prepend(errp, "Could not create node: ");
-        return NULL;
+        goto fail;
     }
 
     bdrv_drained_begin(bs);
@@ -5147,11 +5165,15 @@ BlockDriverState *bdrv_insert_node(BlockDriverState *bs, QDict *options,
 
     if (ret < 0) {
         error_prepend(errp, "Could not replace node: ");
-        bdrv_unref(new_node_bs);
-        return NULL;
+        goto fail;
     }
 
     return new_node_bs;
+
+fail:
+    qobject_unref(options);
+    bdrv_unref(new_node_bs);
+    return NULL;
 }
 
 /*
