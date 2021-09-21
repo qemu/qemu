@@ -1317,7 +1317,7 @@ sPAPR
 M: David Gibson <david@gibson.dropbear.id.au>
 M: Greg Kurz <groug@kaod.org>
 L: qemu-ppc@nongnu.org
-S: Supported
+S: Maintained
 F: hw/*/spapr*
 F: include/hw/*/spapr*
 F: hw/*/xics*
