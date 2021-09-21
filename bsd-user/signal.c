@@ -16,9 +16,18 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include "qemu/osdep.h"
 
+#include "qemu/osdep.h"
 #include "qemu.h"
+
+/*
+ * Queue a signal so that it will be send to the virtual CPU as soon as
+ * possible.
+ */
+void queue_signal(CPUArchState *env, int sig, target_siginfo_t *info)
+{
+    qemu_log_mask(LOG_UNIMP, "No signal queueing, dropping signal %d\n", sig);
+}
 
 void signal_init(void)
 {

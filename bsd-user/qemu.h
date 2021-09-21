@@ -17,7 +17,6 @@
 #ifndef QEMU_H
 #define QEMU_H
 
-
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "qemu/units.h"
@@ -209,6 +208,7 @@ void process_pending_signals(CPUArchState *cpu_env);
 void signal_init(void);
 long do_sigreturn(CPUArchState *env);
 long do_rt_sigreturn(CPUArchState *env);
+void queue_signal(CPUArchState *env, int sig, target_siginfo_t *info);
 abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp);
 
 /* mmap.c */
