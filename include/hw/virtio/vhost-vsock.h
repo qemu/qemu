@@ -30,6 +30,9 @@ struct VHostVSock {
     VHostVSockCommon parent;
     VHostVSockConf conf;
 
+    /* features */
+    OnOffAuto seqpacket;
+
     /*< public >*/
 };
 
