@@ -39,6 +39,7 @@
 #include "sysemu/tcg.h"
 #include "sysemu/hw_accel.h"
 #include "kvm_arm.h"
+#include "hvf_arm.h"
 #include "disas/capstone.h"
 #include "fpu/softfloat.h"
 
@@ -266,11 +267,24 @@ static void arm_cpu_reset(DeviceState *dev)
     }
     env->daif = PSTATE_D | PSTATE_A | PSTATE_I | PSTATE_F;
 
+    /* AArch32 has a hard highvec setting of 0xFFFF0000.  If we are currently
+     * executing as AArch32 then check if highvecs are enabled and
+     * adjust the PC accordingly.
+     */
+    if (A32_BANKED_CURRENT_REG_GET(env, sctlr) & SCTLR_V) {
+        env->regs[15] = 0xFFFF0000;
+    }
+
+    env->vfp.xregs[ARM_VFP_FPEXC] = 0;
+#endif
+
     if (arm_feature(env, ARM_FEATURE_M)) {
+#ifndef CONFIG_USER_ONLY
         uint32_t initial_msp; /* Loaded from 0x0 */
         uint32_t initial_pc; /* Loaded from 0x4 */
         uint8_t *rom;
         uint32_t vecbase;
+#endif
 
         if (cpu_isar_feature(aa32_lob, cpu)) {
             /*
@@ -324,6 +338,8 @@ static void arm_cpu_reset(DeviceState *dev)
             env->v7m.fpccr[M_REG_S] = R_V7M_FPCCR_ASPEN_MASK |
                 R_V7M_FPCCR_LSPEN_MASK | R_V7M_FPCCR_S_MASK;
         }
+
+#ifndef CONFIG_USER_ONLY
         /* Unlike A/R profile, M profile defines the reset LR value */
         env->regs[14] = 0xffffffff;
 
@@ -352,14 +368,19 @@ static void arm_cpu_reset(DeviceState *dev)
         env->regs[13] = initial_msp & 0xFFFFFFFC;
         env->regs[15] = initial_pc & ~1;
         env->thumb = initial_pc & 1;
-    }
-
-    /* AArch32 has a hard highvec setting of 0xFFFF0000.  If we are currently
-     * executing as AArch32 then check if highvecs are enabled and
-     * adjust the PC accordingly.
-     */
-    if (A32_BANKED_CURRENT_REG_GET(env, sctlr) & SCTLR_V) {
-        env->regs[15] = 0xFFFF0000;
+#else
+        /*
+         * For user mode we run non-secure and with access to the FPU.
+         * The FPU context is active (ie does not need further setup)
+         * and is owned by non-secure.
+         */
+        env->v7m.secure = false;
+        env->v7m.nsacr = 0xcff;
+        env->v7m.cpacr[M_REG_NS] = 0xf0ffff;
+        env->v7m.fpccr[M_REG_S] &=
+            ~(R_V7M_FPCCR_LSPEN_MASK | R_V7M_FPCCR_S_MASK);
+        env->v7m.control[M_REG_S] |= R_V7M_CONTROL_FPCA_MASK;
+#endif
     }
 
     /* M profile requires that reset clears the exclusive monitor;
@@ -367,9 +388,6 @@ static void arm_cpu_reset(DeviceState *dev)
      * set with an exclusive access on address zero.
      */
     arm_clear_exclusive(env);
-
-    env->vfp.xregs[ARM_VFP_FPEXC] = 0;
-#endif
 
     if (arm_feature(env, ARM_FEATURE_PMSA)) {
         if (cpu->pmsav7_dregion > 0) {
@@ -1095,8 +1113,8 @@ static void arm_cpu_initfn(Object *obj)
     cpu->psci_version = 1; /* By default assume PSCI v0.1 */
     cpu->kvm_target = QEMU_KVM_ARM_TARGET_NONE;
 
-    if (tcg_enabled()) {
-        cpu->psci_version = 2; /* TCG implements PSCI 0.2 */
+    if (tcg_enabled() || hvf_enabled()) {
+        cpu->psci_version = 2; /* TCG and HVF implement PSCI 0.2 */
     }
 }
 
@@ -1400,8 +1418,8 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
      * this is the first point where we can report it.
      */
     if (cpu->host_cpu_probe_failed) {
-        if (!kvm_enabled()) {
-            error_setg(errp, "The 'host' CPU type can only be used with KVM");
+        if (!kvm_enabled() && !hvf_enabled()) {
+            error_setg(errp, "The 'host' CPU type can only be used with KVM or HVF");
         } else {
             error_setg(errp, "Failed to retrieve host CPU features");
         }
@@ -2061,15 +2079,19 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 #endif /* CONFIG_TCG */
 }
 
-#ifdef CONFIG_KVM
+#if defined(CONFIG_KVM) || defined(CONFIG_HVF)
 static void arm_host_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
 
+#ifdef CONFIG_KVM
     kvm_arm_set_cpu_features_from_host(cpu);
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
         aarch64_add_sve_properties(obj);
     }
+#else
+    hvf_arm_set_cpu_features_from_host(cpu);
+#endif
     arm_cpu_post_init(obj);
 }
 
@@ -2129,7 +2151,7 @@ static void arm_cpu_register_types(void)
 {
     type_register_static(&arm_cpu_type_info);
 
-#ifdef CONFIG_KVM
+#if defined(CONFIG_KVM) || defined(CONFIG_HVF)
     type_register_static(&host_arm_cpu_type_info);
 #endif
 }

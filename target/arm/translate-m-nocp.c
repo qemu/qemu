@@ -95,7 +95,10 @@ static bool trans_VLLDM_VLSTM(DisasContext *s, arg_VLLDM_VLSTM *a)
 
     clear_eci_state(s);
 
-    /* End the TB, because we have updated FP control bits */
+    /*
+     * End the TB, because we have updated FP control bits,
+     * and possibly VPR or LTPSIZE.
+     */
     s->base.is_jmp = DISAS_UPDATE_EXIT;
     return true;
 }
@@ -397,6 +400,7 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
         store_cpu_field(control, v7m.control[M_REG_S]);
         tcg_gen_andi_i32(tmp, tmp, ~FPCR_NZCV_MASK);
         gen_helper_vfp_set_fpscr(cpu_env, tmp);
+        s->base.is_jmp = DISAS_UPDATE_NOCHAIN;
         tcg_temp_free_i32(tmp);
         tcg_temp_free_i32(sfpa);
         break;
@@ -409,6 +413,7 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
         }
         tmp = loadfn(s, opaque, true);
         store_cpu_field(tmp, v7m.vpr);
+        s->base.is_jmp = DISAS_UPDATE_NOCHAIN;
         break;
     case ARM_VFP_P0:
     {
@@ -418,6 +423,7 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
         tcg_gen_deposit_i32(vpr, vpr, tmp,
                             R_V7M_VPR_P0_SHIFT, R_V7M_VPR_P0_LENGTH);
         store_cpu_field(vpr, v7m.vpr);
+        s->base.is_jmp = DISAS_UPDATE_NOCHAIN;
         tcg_temp_free_i32(tmp);
         break;
     }

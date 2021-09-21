@@ -11,7 +11,11 @@
 #ifndef HVF_INT_H
 #define HVF_INT_H
 
+#ifdef __aarch64__
+#include <Hypervisor/Hypervisor.h>
+#else
 #include <Hypervisor/hv.h>
+#endif
 
 /* hvf_slot flags */
 #define HVF_SLOT_LOG (1 << 0)
@@ -40,19 +44,25 @@ struct HVFState {
     int num_slots;
 
     hvf_vcpu_caps *hvf_caps;
+    uint64_t vtimer_offset;
 };
 extern HVFState *hvf_state;
 
 struct hvf_vcpu_state {
-    int fd;
+    uint64_t fd;
+    void *exit;
+    bool vtimer_masked;
+    sigset_t unblock_ipi_mask;
 };
 
 void assert_hvf_ok(hv_return_t ret);
+int hvf_arch_init(void);
 int hvf_arch_init_vcpu(CPUState *cpu);
 void hvf_arch_vcpu_destroy(CPUState *cpu);
 int hvf_vcpu_exec(CPUState *);
 hvf_slot *hvf_find_overlap_slot(uint64_t, uint64_t);
 int hvf_put_registers(CPUState *);
 int hvf_get_registers(CPUState *);
+void hvf_kick_vcpu_thread(CPUState *cpu);
 
 #endif

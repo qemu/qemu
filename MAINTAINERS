@@ -433,6 +433,11 @@ F: accel/accel-*.c
 F: accel/Makefile.objs
 F: accel/stubs/Makefile.objs
 
+Apple Silicon HVF CPUs
+M: Alexander Graf <agraf@csgraf.de>
+S: Maintained
+F: target/arm/hvf/
+
 X86 HVF CPUs
 M: Cameron Esfahani <dirty@apple.com>
 M: Roman Bolshakov <r.bolshakov@yadro.com>

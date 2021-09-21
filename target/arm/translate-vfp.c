@@ -109,7 +109,7 @@ static inline long vfp_f16_offset(unsigned reg, bool top)
  * Generate code for M-profile lazy FP state preservation if needed;
  * this corresponds to the pseudocode PreserveFPState() function.
  */
-static void gen_preserve_fp_state(DisasContext *s)
+static void gen_preserve_fp_state(DisasContext *s, bool skip_context_update)
 {
     if (s->v7m_lspact) {
         /*
@@ -128,6 +128,20 @@ static void gen_preserve_fp_state(DisasContext *s)
          * any further FP insns in this TB.
          */
         s->v7m_lspact = false;
+        /*
+         * The helper might have zeroed VPR, so we do not know the
+         * correct value for the MVE_NO_PRED TB flag any more.
+         * If we're about to create a new fp context then that
+         * will precisely determine the MVE_NO_PRED value (see
+         * gen_update_fp_context()). Otherwise, we must:
+         *  - set s->mve_no_pred to false, so this instruction
+         *    is generated to use helper functions
+         *  - end the TB now, without chaining to the next TB
+         */
+        if (skip_context_update || !s->v7m_new_fp_ctxt_needed) {
+            s->mve_no_pred = false;
+            s->base.is_jmp = DISAS_UPDATE_NOCHAIN;
+        }
     }
 }
 
@@ -169,12 +183,19 @@ static void gen_update_fp_context(DisasContext *s)
             TCGv_i32 z32 = tcg_const_i32(0);
             store_cpu_field(z32, v7m.vpr);
         }
-
         /*
-         * We don't need to arrange to end the TB, because the only
-         * parts of FPSCR which we cache in the TB flags are the VECLEN
-         * and VECSTRIDE, and those don't exist for M-profile.
+         * We just updated the FPSCR and VPR. Some of this state is cached
+         * in the MVE_NO_PRED TB flag. We want to avoid having to end the
+         * TB here, which means we need the new value of the MVE_NO_PRED
+         * flag to be exactly known here and the same for all executions.
+         * Luckily FPDSCR.LTPSIZE is always constant 4 and the VPR is
+         * always set to 0, so the new MVE_NO_PRED flag is always 1
+         * if and only if we have MVE.
+         *
+         * (The other FPSCR state cached in TB flags is VECLEN and VECSTRIDE,
+         * but those do not exist for M-profile, so are not relevant here.)
          */
+        s->mve_no_pred = dc_isar_feature(aa32_mve, s);
 
         if (s->v8m_secure) {
             bits |= R_V7M_CONTROL_SFPA_MASK;
@@ -238,7 +259,7 @@ bool vfp_access_check_m(DisasContext *s, bool skip_context_update)
     /* Handle M-profile lazy FP state mechanics */
 
     /* Trigger lazy-state preservation if necessary */
-    gen_preserve_fp_state(s);
+    gen_preserve_fp_state(s, skip_context_update);
 
     if (!skip_context_update) {
         /* Update ownership of FP context and create new FP context if needed */

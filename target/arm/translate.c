@@ -2610,8 +2610,40 @@ static inline void gen_jmp_tb(DisasContext *s, uint32_t dest, int tbno)
         /* An indirect jump so that we still trigger the debug exception.  */
         gen_set_pc_im(s, dest);
         s->base.is_jmp = DISAS_JUMP;
-    } else {
+        return;
+    }
+    switch (s->base.is_jmp) {
+    case DISAS_NEXT:
+    case DISAS_TOO_MANY:
+    case DISAS_NORETURN:
+        /*
+         * The normal case: just go to the destination TB.
+         * NB: NORETURN happens if we generate code like
+         *    gen_brcondi(l);
+         *    gen_jmp();
+         *    gen_set_label(l);
+         *    gen_jmp();
+         * on the second call to gen_jmp().
+         */
         gen_goto_tb(s, tbno, dest);
+        break;
+    case DISAS_UPDATE_NOCHAIN:
+    case DISAS_UPDATE_EXIT:
+        /*
+         * We already decided we're leaving the TB for some other reason.
+         * Avoid using goto_tb so we really do exit back to the main loop
+         * and don't chain to another TB.
+         */
+        gen_set_pc_im(s, dest);
+        gen_goto_ptr();
+        s->base.is_jmp = DISAS_NORETURN;
+        break;
+    default:
+        /*
+         * We shouldn't be emitting code for a jump and also have
+         * is_jmp set to one of the special cases like DISAS_SWI.
+         */
+        g_assert_not_reached();
     }
 }
 
@@ -8464,6 +8496,7 @@ static bool trans_DLS(DisasContext *s, arg_DLS *a)
         /* DLSTP: set FPSCR.LTPSIZE */
         tmp = tcg_const_i32(a->size);
         store_cpu_field(tmp, v7m.ltpsize);
+        s->base.is_jmp = DISAS_UPDATE_NOCHAIN;
     }
     return true;
 }
@@ -8529,6 +8562,10 @@ static bool trans_WLS(DisasContext *s, arg_WLS *a)
         assert(ok);
         tmp = tcg_const_i32(a->size);
         store_cpu_field(tmp, v7m.ltpsize);
+        /*
+         * LTPSIZE updated, but MVE_NO_PRED will always be the same thing (0)
+         * when we take this upcoming exit from this TB, so gen_jmp_tb() is OK.
+         */
     }
     gen_jmp_tb(s, s->base.pc_next, 1);
 
@@ -8711,6 +8748,8 @@ static bool trans_VCTP(DisasContext *s, arg_VCTP *a)
     gen_helper_mve_vctp(cpu_env, masklen);
     tcg_temp_free_i32(masklen);
     tcg_temp_free_i32(rn_shifted);
+    /* This insn updates predication bits */
+    s->base.is_jmp = DISAS_UPDATE_NOCHAIN;
     mve_update_eci(s);
     return true;
 }
@@ -9381,6 +9420,7 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
         dc->v7m_new_fp_ctxt_needed =
             EX_TBFLAG_M32(tb_flags, NEW_FP_CTXT_NEEDED);
         dc->v7m_lspact = EX_TBFLAG_M32(tb_flags, LSPACT);
+        dc->mve_no_pred = EX_TBFLAG_M32(tb_flags, MVE_NO_PRED);
     } else {
         dc->debug_target_el = EX_TBFLAG_ANY(tb_flags, DEBUG_TARGET_EL);
         dc->sctlr_b = EX_TBFLAG_A32(tb_flags, SCTLR__B);
