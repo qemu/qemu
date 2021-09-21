@@ -43,6 +43,7 @@ struct RISCVVirtState {
     FWCfgState *fw_cfg;
 
     int fdt_size;
+    bool have_aclint;
 };
 
 enum {
@@ -51,6 +52,7 @@ enum {
     VIRT_TEST,
     VIRT_RTC,
     VIRT_CLINT,
+    VIRT_ACLINT_SSWI,
     VIRT_PLIC,
     VIRT_UART0,
     VIRT_VIRTIO,

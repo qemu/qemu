@@ -27,6 +27,7 @@
 #include "target/riscv/cpu_bits.h"
 #include "target/riscv/cpu.h"
 #include "hw/intc/ibex_plic.h"
+#include "hw/irq.h"
 
 static bool addr_between(uint32_t addr, uint32_t base, uint32_t num)
 {
@@ -92,19 +93,10 @@ static bool ibex_plic_irqs_pending(IbexPlicState *s, uint32_t context)
 
 static void ibex_plic_update(IbexPlicState *s)
 {
-    CPUState *cpu;
-    int level, i;
+    int i;
 
     for (i = 0; i < s->num_cpus; i++) {
-        cpu = qemu_get_cpu(i);
-
-        if (!cpu) {
-            continue;
-        }
-
-        level = ibex_plic_irqs_pending(s, 0);
-
-        riscv_cpu_update_mip(RISCV_CPU(cpu), MIP_MEIP, BOOL_TO_MASK(level));
+        qemu_set_irq(s->external_irqs[i], ibex_plic_irqs_pending(s, 0));
     }
 }
 
@@ -267,6 +259,9 @@ static void ibex_plic_realize(DeviceState *dev, Error **errp)
     s->enable = g_new0(uint32_t, s->enable_num);
 
     qdev_init_gpio_in(dev, ibex_plic_irq_request, s->num_sources);
+
+    s->external_irqs = g_malloc(sizeof(qemu_irq) * s->num_cpus);
+    qdev_init_gpio_out(dev, s->external_irqs, s->num_cpus);
 
     /*
      * We can't allow the supervisor to control SEIP as this would allow the

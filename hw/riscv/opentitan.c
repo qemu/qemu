@@ -39,12 +39,12 @@ static const MemMapEntry ibex_memmap[] = {
     [IBEX_DEV_TIMER] =          {  0x40100000,  0x1000  },
     [IBEX_DEV_SENSOR_CTRL] =    {  0x40110000,  0x1000  },
     [IBEX_DEV_OTP_CTRL] =       {  0x40130000,  0x4000  },
+    [IBEX_DEV_USBDEV] =         {  0x40150000,  0x1000  },
     [IBEX_DEV_PWRMGR] =         {  0x40400000,  0x1000  },
     [IBEX_DEV_RSTMGR] =         {  0x40410000,  0x1000  },
     [IBEX_DEV_CLKMGR] =         {  0x40420000,  0x1000  },
     [IBEX_DEV_PINMUX] =         {  0x40460000,  0x1000  },
     [IBEX_DEV_PADCTRL] =        {  0x40470000,  0x1000  },
-    [IBEX_DEV_USBDEV] =         {  0x40500000,  0x1000  },
     [IBEX_DEV_FLASH_CTRL] =     {  0x41000000,  0x1000  },
     [IBEX_DEV_PLIC] =           {  0x41010000,  0x1000  },
     [IBEX_DEV_AES] =            {  0x41100000,  0x1000  },
@@ -118,6 +118,7 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
     MachineState *ms = MACHINE(qdev_get_machine());
     LowRISCIbexSoCState *s = RISCV_IBEX_SOC(dev_soc);
     MemoryRegion *sys_mem = get_system_memory();
+    int i;
 
     object_property_set_str(OBJECT(&s->cpus), "cpu-type", ms->cpu_type,
                             &error_abort);
@@ -149,6 +150,13 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->plic), 0, memmap[IBEX_DEV_PLIC].base);
 
+    for (i = 0; i < ms->smp.cpus; i++) {
+        CPUState *cpu = qemu_get_cpu(i);
+
+        qdev_connect_gpio_out(DEVICE(&s->plic), i,
+                              qdev_get_gpio_in(DEVICE(cpu), IRQ_M_EXT));
+    }
+
     /* UART */
     qdev_prop_set_chr(DEVICE(&(s->uart)), "chardev", serial_hd(0));
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->uart), errp)) {
@@ -175,6 +183,9 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer),
                        0, qdev_get_gpio_in(DEVICE(&s->plic),
                        IBEX_TIMER_TIMEREXPIRED0_0));
+    qdev_connect_gpio_out(DEVICE(&s->timer), 0,
+                          qdev_get_gpio_in(DEVICE(qemu_get_cpu(0)),
+                                           IRQ_M_TIMER));
 
     create_unimplemented_device("riscv.lowrisc.ibex.gpio",
         memmap[IBEX_DEV_GPIO].base, memmap[IBEX_DEV_GPIO].size);
