@@ -6,6 +6,10 @@ config TMP421
     bool
     depends on I2C
 
+config DPS310
+    bool
+    depends on I2C
+
 config EMC141X
     bool
     depends on I2C

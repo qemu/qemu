@@ -101,14 +101,26 @@
 #define AST2600_CLK_STOP_CTRL_CLR TO_REG(0x84)
 #define AST2600_CLK_STOP_CTRL2     TO_REG(0x90)
 #define AST2600_CLK_STOP_CTRL2_CLR TO_REG(0x94)
+#define AST2600_DEBUG_CTRL        TO_REG(0xC8)
+#define AST2600_DEBUG_CTRL2       TO_REG(0xD8)
 #define AST2600_SDRAM_HANDSHAKE   TO_REG(0x100)
 #define AST2600_HPLL_PARAM        TO_REG(0x200)
 #define AST2600_HPLL_EXT          TO_REG(0x204)
+#define AST2600_APLL_PARAM        TO_REG(0x210)
+#define AST2600_APLL_EXT          TO_REG(0x214)
+#define AST2600_MPLL_PARAM        TO_REG(0x220)
 #define AST2600_MPLL_EXT          TO_REG(0x224)
+#define AST2600_EPLL_PARAM        TO_REG(0x240)
 #define AST2600_EPLL_EXT          TO_REG(0x244)
+#define AST2600_DPLL_PARAM        TO_REG(0x260)
+#define AST2600_DPLL_EXT          TO_REG(0x264)
 #define AST2600_CLK_SEL           TO_REG(0x300)
 #define AST2600_CLK_SEL2          TO_REG(0x304)
-#define AST2600_CLK_SEL3          TO_REG(0x310)
+#define AST2600_CLK_SEL3          TO_REG(0x308)
+#define AST2600_CLK_SEL4          TO_REG(0x310)
+#define AST2600_CLK_SEL5          TO_REG(0x314)
+#define AST2600_UARTCLK           TO_REG(0x338)
+#define AST2600_HUARTCLK          TO_REG(0x33C)
 #define AST2600_HW_STRAP1         TO_REG(0x500)
 #define AST2600_HW_STRAP1_CLR     TO_REG(0x504)
 #define AST2600_HW_STRAP1_PROT    TO_REG(0x508)
@@ -433,6 +445,8 @@ static uint32_t aspeed_silicon_revs[] = {
     AST2500_A1_SILICON_REV,
     AST2600_A0_SILICON_REV,
     AST2600_A1_SILICON_REV,
+    AST2600_A2_SILICON_REV,
+    AST2600_A3_SILICON_REV,
 };
 
 bool is_supported_silicon_rev(uint32_t silicon_rev)
@@ -651,16 +665,28 @@ static const MemoryRegionOps aspeed_ast2600_scu_ops = {
     .valid.unaligned = false,
 };
 
-static const uint32_t ast2600_a1_resets[ASPEED_AST2600_SCU_NR_REGS] = {
+static const uint32_t ast2600_a3_resets[ASPEED_AST2600_SCU_NR_REGS] = {
     [AST2600_SYS_RST_CTRL]      = 0xF7C3FED8,
-    [AST2600_SYS_RST_CTRL2]     = 0xFFFFFFFC,
+    [AST2600_SYS_RST_CTRL2]     = 0x0DFFFFFC,
     [AST2600_CLK_STOP_CTRL]     = 0xFFFF7F8A,
     [AST2600_CLK_STOP_CTRL2]    = 0xFFF0FFF0,
+    [AST2600_DEBUG_CTRL]        = 0x00000FFF,
+    [AST2600_DEBUG_CTRL2]       = 0x000000FF,
     [AST2600_SDRAM_HANDSHAKE]   = 0x00000000,
-    [AST2600_HPLL_PARAM]        = 0x1000405F,
+    [AST2600_HPLL_PARAM]        = 0x1000408F,
+    [AST2600_APLL_PARAM]        = 0x1000405F,
+    [AST2600_MPLL_PARAM]        = 0x1008405F,
+    [AST2600_EPLL_PARAM]        = 0x1004077F,
+    [AST2600_DPLL_PARAM]        = 0x1078405F,
+    [AST2600_CLK_SEL]           = 0xF3940000,
+    [AST2600_CLK_SEL2]          = 0x00700000,
+    [AST2600_CLK_SEL3]          = 0x00000000,
+    [AST2600_CLK_SEL4]          = 0xF3F40000,
+    [AST2600_CLK_SEL5]          = 0x30000000,
+    [AST2600_UARTCLK]           = 0x00014506,
+    [AST2600_HUARTCLK]          = 0x000145C0,
     [AST2600_CHIP_ID0]          = 0x1234ABCD,
     [AST2600_CHIP_ID1]          = 0x88884444,
-
 };
 
 static void aspeed_ast2600_scu_reset(DeviceState *dev)
@@ -675,7 +701,7 @@ static void aspeed_ast2600_scu_reset(DeviceState *dev)
      * of actual revision. QEMU and Linux only support A1 onwards so this is
      * sufficient.
      */
-    s->regs[AST2600_SILICON_REV] = AST2600_A1_SILICON_REV;
+    s->regs[AST2600_SILICON_REV] = AST2600_A3_SILICON_REV;
     s->regs[AST2600_SILICON_REV2] = s->silicon_rev;
     s->regs[AST2600_HW_STRAP1] = s->hw_strap1;
     s->regs[AST2600_HW_STRAP2] = s->hw_strap2;
@@ -689,7 +715,7 @@ static void aspeed_2600_scu_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "ASPEED 2600 System Control Unit";
     dc->reset = aspeed_ast2600_scu_reset;
-    asc->resets = ast2600_a1_resets;
+    asc->resets = ast2600_a3_resets;
     asc->calc_hpll = aspeed_2500_scu_calc_hpll; /* No change since AST2500 */
     asc->apb_divider = 4;
     asc->nr_regs = ASPEED_AST2600_SCU_NR_REGS;
