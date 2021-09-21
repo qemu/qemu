@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2021 Linaro Ltd.
+
+     Copying and distribution of this file, with or without modification,
+     are permitted in any medium without royalty provided the copyright
+     notice and this notice are preserved.
+
+     These are A/R profile VFP system registers. Debugger users probably
+     don't really care about these, but because we used to (incorrectly)
+     provide them to gdb in the org.gnu.gdb.arm.vfp XML we continue
+     to do so via this separate XML.
+     -->
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.qemu.gdb.arm.vfp-sysregs">
+  <reg name="fpsid" bitsize="32" type="int" group="float"/>
+  <reg name="fpexc" bitsize="32" type="int" group="float"/>
+</feature>

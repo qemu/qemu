@@ -39,7 +39,5 @@
   <reg name="d30" bitsize="64" type="float"/>
   <reg name="d31" bitsize="64" type="float"/>
 
-  <reg name="fpsid" bitsize="32" type="int" group="float"/>
   <reg name="fpscr" bitsize="32" type="int" group="float"/>
-  <reg name="fpexc" bitsize="32" type="int" group="float"/>
 </feature>

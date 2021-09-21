@@ -82,7 +82,5 @@
   <reg name="q14" bitsize="128" type="neon_q"/>
   <reg name="q15" bitsize="128" type="neon_q"/>
 
-  <reg name="fpsid" bitsize="32" type="int" group="float"/>
   <reg name="fpscr" bitsize="32" type="int" group="float"/>
-  <reg name="fpexc" bitsize="32" type="int" group="float"/>
 </feature>

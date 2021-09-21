@@ -144,11 +144,7 @@ static int vfp_gdb_get_reg(CPUARMState *env, GByteArray *buf, int reg)
     }
     switch (reg - nregs) {
     case 0:
-        return gdb_get_reg32(buf, env->vfp.xregs[ARM_VFP_FPSID]);
-    case 1:
         return gdb_get_reg32(buf, vfp_get_fpscr(env));
-    case 2:
-        return gdb_get_reg32(buf, env->vfp.xregs[ARM_VFP_FPEXC]);
     }
     return 0;
 }
@@ -173,12 +169,30 @@ static int vfp_gdb_set_reg(CPUARMState *env, uint8_t *buf, int reg)
     }
     switch (reg - nregs) {
     case 0:
+        vfp_set_fpscr(env, ldl_p(buf));
+        return 4;
+    }
+    return 0;
+}
+
+static int vfp_gdb_get_sysreg(CPUARMState *env, GByteArray *buf, int reg)
+{
+    switch (reg) {
+    case 0:
+        return gdb_get_reg32(buf, env->vfp.xregs[ARM_VFP_FPSID]);
+    case 1:
+        return gdb_get_reg32(buf, env->vfp.xregs[ARM_VFP_FPEXC]);
+    }
+    return 0;
+}
+
+static int vfp_gdb_set_sysreg(CPUARMState *env, uint8_t *buf, int reg)
+{
+    switch (reg) {
+    case 0:
         env->vfp.xregs[ARM_VFP_FPSID] = ldl_p(buf);
         return 4;
     case 1:
-        vfp_set_fpscr(env, ldl_p(buf));
-        return 4;
-    case 2:
         env->vfp.xregs[ARM_VFP_FPEXC] = ldl_p(buf) & (1 << 30);
         return 4;
     }
@@ -434,15 +448,25 @@ void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
                                      34, "aarch64-fpu.xml", 0);
         }
 #endif
-    } else if (arm_feature(env, ARM_FEATURE_NEON)) {
-        gdb_register_coprocessor(cs, vfp_gdb_get_reg, vfp_gdb_set_reg,
-                                 51, "arm-neon.xml", 0);
-    } else if (cpu_isar_feature(aa32_simd_r32, cpu)) {
-        gdb_register_coprocessor(cs, vfp_gdb_get_reg, vfp_gdb_set_reg,
-                                 35, "arm-vfp3.xml", 0);
-    } else if (cpu_isar_feature(aa32_vfp_simd, cpu)) {
-        gdb_register_coprocessor(cs, vfp_gdb_get_reg, vfp_gdb_set_reg,
-                                 19, "arm-vfp.xml", 0);
+    } else {
+        if (arm_feature(env, ARM_FEATURE_NEON)) {
+            gdb_register_coprocessor(cs, vfp_gdb_get_reg, vfp_gdb_set_reg,
+                                     49, "arm-neon.xml", 0);
+        } else if (cpu_isar_feature(aa32_simd_r32, cpu)) {
+            gdb_register_coprocessor(cs, vfp_gdb_get_reg, vfp_gdb_set_reg,
+                                     33, "arm-vfp3.xml", 0);
+        } else if (cpu_isar_feature(aa32_vfp_simd, cpu)) {
+            gdb_register_coprocessor(cs, vfp_gdb_get_reg, vfp_gdb_set_reg,
+                                     17, "arm-vfp.xml", 0);
+        }
+        if (!arm_feature(env, ARM_FEATURE_M)) {
+            /*
+             * A and R profile have FP sysregs FPEXC and FPSID that we
+             * expose to gdb.
+             */
+            gdb_register_coprocessor(cs, vfp_gdb_get_sysreg, vfp_gdb_set_sysreg,
+                                     2, "arm-vfp-sysregs.xml", 0);
+        }
     }
     gdb_register_coprocessor(cs, arm_gdb_get_sysreg, arm_gdb_set_sysreg,
                              arm_gen_dynamic_sysreg_xml(cs, cs->gdb_num_regs),
