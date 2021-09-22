@@ -132,6 +132,17 @@ def test_frontend(fname):
             print('    section=%s\n%s' % (section.name, section.text))
 
 
+def open_test_result(dir_name, file_name, update):
+    mode = 'r+' if update else 'r'
+    try:
+        fp = open(os.path.join(dir_name, file_name), mode)
+    except FileNotFoundError:
+        if not update:
+            raise
+        fp = open(os.path.join(dir_name, file_name), 'w+')
+    return fp
+
+
 def test_and_diff(test_name, dir_name, update):
     sys.stdout = StringIO()
     try:
@@ -148,10 +159,9 @@ def test_and_diff(test_name, dir_name, update):
         sys.stdout.close()
         sys.stdout = sys.__stdout__
 
-    mode = 'r+' if update else 'r'
     try:
-        outfp = open(os.path.join(dir_name, test_name + '.out'), mode)
-        errfp = open(os.path.join(dir_name, test_name + '.err'), mode)
+        outfp = open_test_result(dir_name, test_name + '.out', update)
+        errfp = open_test_result(dir_name, test_name + '.err', update)
         expected_out = outfp.readlines()
         expected_err = errfp.readlines()
     except OSError as err:
