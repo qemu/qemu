@@ -154,7 +154,7 @@ def test_and_diff(test_name, dir_name, update):
         errfp = open(os.path.join(dir_name, test_name + '.err'), mode)
         expected_out = outfp.readlines()
         expected_err = errfp.readlines()
-    except IOError as err:
+    except OSError as err:
         print("%s: can't open '%s': %s"
               % (sys.argv[0], err.filename, err.strerror),
               file=sys.stderr)
@@ -180,7 +180,7 @@ def test_and_diff(test_name, dir_name, update):
         errfp.truncate(0)
         errfp.seek(0)
         errfp.writelines(actual_err)
-    except IOError as err:
+    except OSError as err:
         print("%s: can't write '%s': %s"
               % (sys.argv[0], err.filename, err.strerror),
               file=sys.stderr)
