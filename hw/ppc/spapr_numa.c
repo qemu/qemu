@@ -502,9 +502,8 @@ static void spapr_numa_FORM2_write_rtas_tables(SpaprMachineState *spapr,
     int nb_numa_nodes = ms->numa_state->num_nodes;
     int distance_table_entries = nb_numa_nodes * nb_numa_nodes;
     g_autofree uint32_t *lookup_index_table = NULL;
-    g_autofree uint32_t *distance_table = NULL;
+    g_autofree uint8_t *distance_table = NULL;
     int src, dst, i, distance_table_size;
-    uint8_t *node_distances;
 
     /*
      * ibm,numa-lookup-index-table: array with length and a
@@ -531,11 +530,13 @@ static void spapr_numa_FORM2_write_rtas_tables(SpaprMachineState *spapr,
      * array because NUMA ids can be sparse (node 0 is the first,
      * node 8 is the second ...).
      */
-    distance_table = g_new0(uint32_t, distance_table_entries + 1);
-    distance_table[0] = cpu_to_be32(distance_table_entries);
+    distance_table_size = distance_table_entries * sizeof(uint8_t) +
+                          sizeof(uint32_t);
+    distance_table = g_new0(uint8_t, distance_table_size);
+    stl_be_p(distance_table, distance_table_entries);
 
-    node_distances = (uint8_t *)&distance_table[1];
-    i = 0;
+    /* Skip the uint32_t array length at the start */
+    i = sizeof(uint32_t);
 
     for (src = 0; src < nb_numa_nodes; src++) {
         for (dst = 0; dst < nb_numa_nodes; dst++) {
@@ -546,16 +547,14 @@ static void spapr_numa_FORM2_write_rtas_tables(SpaprMachineState *spapr,
              * adding the numa_info to retrieve distance info from.
              */
             if (src == dst) {
-                node_distances[i++] = 10;
+                distance_table[i++] = NUMA_DISTANCE_MIN;
                 continue;
             }
 
-            node_distances[i++] = numa_info[src].distance[dst];
+            distance_table[i++] = numa_info[src].distance[dst];
         }
     }
 
-    distance_table_size = distance_table_entries * sizeof(uint8_t) +
-                          sizeof(uint32_t);
     _FDT(fdt_setprop(fdt, rtas, "ibm,numa-distance-table",
                      distance_table, distance_table_size));
 }
