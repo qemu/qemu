@@ -236,6 +236,8 @@ int kvmppc_xive_source_reset_one(XiveSource *xsrc, int srcno, Error **errp)
     SpaprXive *xive = SPAPR_XIVE(xsrc->xive);
     uint64_t state = 0;
 
+    trace_kvm_xive_source_reset(srcno);
+
     assert(xive->fd != -1);
 
     if (xive_source_irq_is_lsi(xsrc, srcno)) {
@@ -310,8 +312,6 @@ uint64_t kvmppc_xive_esb_rw(XiveSource *xsrc, int srcno, uint32_t offset,
     if (write) {
         return xive_esb_rw(xsrc, srcno, offset, data, 1);
     }
-
-    trace_kvm_xive_source_reset(srcno);
 
     /*
      * Special Load EOI handling for LSI sources. Q bit is never set
