@@ -419,7 +419,7 @@ static void process_store_log(DisasContext *ctx, Packet *pkt)
 {
     /*
      *  When a packet has two stores, the hardware processes
-     *  slot 1 and then slot 2.  This will be important when
+     *  slot 1 and then slot 0.  This will be important when
      *  the memory accesses overlap.
      */
     if (pkt->pkt_has_store_s1 && !pkt->pkt_has_dczeroa) {
@@ -471,10 +471,42 @@ static void update_exec_counters(DisasContext *ctx, Packet *pkt)
 
 static void gen_commit_packet(DisasContext *ctx, Packet *pkt)
 {
+    /*
+     * If there is more than one store in a packet, make sure they are all OK
+     * before proceeding with the rest of the packet commit.
+     *
+     * dczeroa has to be the only store operation in the packet, so we go
+     * ahead and process that first.
+     *
+     * When there are two scalar stores, we probe the one in slot 0.
+     *
+     * Note that we don't call the probe helper for packets with only one
+     * store.  Therefore, we call process_store_log before anything else
+     * involved in committing the packet.
+     */
+    bool has_store_s0 = pkt->pkt_has_store_s0;
+    bool has_store_s1 = (pkt->pkt_has_store_s1 && !ctx->s1_store_processed);
+    if (pkt->pkt_has_dczeroa) {
+        /*
+         * The dczeroa will be the store in slot 0, check that we don't have
+         * a store in slot 1.
+         */
+        g_assert(has_store_s0 && !has_store_s1);
+        process_dczeroa(ctx, pkt);
+    } else if (has_store_s0 && has_store_s1) {
+        /*
+         * process_store_log will execute the slot 1 store first,
+         * so we only have to probe the store in slot 0
+         */
+        TCGv mem_idx = tcg_const_tl(ctx->mem_idx);
+        gen_helper_probe_pkt_scalar_store_s0(cpu_env, mem_idx);
+        tcg_temp_free(mem_idx);
+    }
+
+    process_store_log(ctx, pkt);
+
     gen_reg_writes(ctx);
     gen_pred_writes(ctx, pkt);
-    process_store_log(ctx, pkt);
-    process_dczeroa(ctx, pkt);
     update_exec_counters(ctx, pkt);
     if (HEX_DEBUG) {
         TCGv has_st0 =

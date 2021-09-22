@@ -377,6 +377,22 @@ int32_t HELPER(vacsh_pred)(CPUHexagonState *env,
     return PeV;
 }
 
+static void probe_store(CPUHexagonState *env, int slot, int mmu_idx)
+{
+    if (!(env->slot_cancelled & (1 << slot))) {
+        size1u_t width = env->mem_log_stores[slot].width;
+        target_ulong va = env->mem_log_stores[slot].va;
+        uintptr_t ra = GETPC();
+        probe_write(env, va, width, mmu_idx, ra);
+    }
+}
+
+/* Called during packet commit when there are two scalar stores */
+void HELPER(probe_pkt_scalar_store_s0)(CPUHexagonState *env, int mmu_idx)
+{
+    probe_store(env, 0, mmu_idx);
+}
+
 /*
  * mem_noshuf
  * Section 5.5 of the Hexagon V67 Programmer's Reference Manual
