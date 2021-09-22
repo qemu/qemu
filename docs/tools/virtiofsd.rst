@@ -183,6 +183,12 @@ Using ':' as the separator a rule is of the form:
   'ok' as either an explicit terminator or for special handling of certain
   patterns.
 
+- 'unsupported' - If a client tries to use a name matching 'key' it's
+  denied using ENOTSUP; when the server passes an attribute
+  name matching 'prepend' it's hidden.  In many ways it's use is very like
+  'ok' as either an explicit terminator or for special handling of certain
+  patterns.
+
 **key** is a string tested as a prefix on an attribute name originating
 on the client.  It maybe empty in which case a 'client' rule
 will always match on client names.
