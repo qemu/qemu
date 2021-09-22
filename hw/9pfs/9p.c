@@ -1262,6 +1262,25 @@ static int coroutine_fn stat_to_v9stat(V9fsPDU *pdu, V9fsPath *path,
 #define P9_STATS_ALL           0x00003fffULL /* Mask for All fields above */
 
 
+static int32_t stat_to_iounit(const V9fsPDU *pdu, const struct stat *stbuf)
+{
+    int32_t iounit = 0;
+    V9fsState *s = pdu->s;
+
+    /*
+     * iounit should be multiples of st_blksize (host filesystem block size)
+     * as well as less than (client msize - P9_IOHDRSZ)
+     */
+    if (stbuf->st_blksize) {
+        iounit = stbuf->st_blksize;
+        iounit *= (s->msize - P9_IOHDRSZ) / stbuf->st_blksize;
+    }
+    if (!iounit) {
+        iounit = s->msize - P9_IOHDRSZ;
+    }
+    return iounit;
+}
+
 static int stat_to_v9stat_dotl(V9fsPDU *pdu, const struct stat *stbuf,
                                 V9fsStatDotl *v9lstat)
 {
@@ -1273,7 +1292,7 @@ static int stat_to_v9stat_dotl(V9fsPDU *pdu, const struct stat *stbuf,
     v9lstat->st_gid = stbuf->st_gid;
     v9lstat->st_rdev = stbuf->st_rdev;
     v9lstat->st_size = stbuf->st_size;
-    v9lstat->st_blksize = stbuf->st_blksize;
+    v9lstat->st_blksize = stat_to_iounit(pdu, stbuf);
     v9lstat->st_blocks = stbuf->st_blocks;
     v9lstat->st_atime_sec = stbuf->st_atime;
     v9lstat->st_atime_nsec = stbuf->st_atim.tv_nsec;
