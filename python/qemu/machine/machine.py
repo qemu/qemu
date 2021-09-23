@@ -213,48 +213,22 @@ class QEMUMachine:
     def send_fd_scm(self, fd: Optional[int] = None,
                     file_path: Optional[str] = None) -> int:
         """
-        Send an fd or file_path to socket_scm_helper.
+        Send an fd or file_path to the remote via SCM_RIGHTS.
 
-        Exactly one of fd and file_path must be given.
-        If it is file_path, the helper will open that file and pass its own fd.
+        Exactly one of fd and file_path must be given.  If it is
+        file_path, the file will be opened read-only and the new file
+        descriptor will be sent to the remote.
         """
-        # In iotest.py, the qmp should always use unix socket.
-        assert self._qmp.is_scm_available()
-        if self._socket_scm_helper is None:
-            raise QEMUMachineError("No path to socket_scm_helper set")
-        if not os.path.exists(self._socket_scm_helper):
-            raise QEMUMachineError("%s does not exist" %
-                                   self._socket_scm_helper)
-
-        # This did not exist before 3.4, but since then it is
-        # mandatory for our purpose
-        if hasattr(os, 'set_inheritable'):
-            os.set_inheritable(self._qmp.get_sock_fd(), True)
-            if fd is not None:
-                os.set_inheritable(fd, True)
-
-        fd_param = ["%s" % self._socket_scm_helper,
-                    "%d" % self._qmp.get_sock_fd()]
-
         if file_path is not None:
             assert fd is None
-            fd_param.append(file_path)
+            with open(file_path, "rb") as passfile:
+                fd = passfile.fileno()
+                self._qmp.send_fd_scm(fd)
         else:
             assert fd is not None
-            fd_param.append(str(fd))
+            self._qmp.send_fd_scm(fd)
 
-        proc = subprocess.run(
-            fd_param,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            check=False,
-            close_fds=False,
-        )
-        if proc.stdout:
-            LOG.debug(proc.stdout)
-
-        return proc.returncode
+        return 0
 
     @staticmethod
     def _remove_if_exists(path: str) -> None:
