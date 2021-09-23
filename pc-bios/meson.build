@@ -1,3 +1,4 @@
+roms = []
 if unpack_edk2_blobs
   fds = [
     'edk2-aarch64-code.fd',
@@ -11,7 +12,7 @@ if unpack_edk2_blobs
   ]
 
   foreach f : fds
-    custom_target(f,
+    roms += custom_target(f,
                   build_by_default: have_system,
                   output: f,
                   input: '@0@.bz2'.format(f),
