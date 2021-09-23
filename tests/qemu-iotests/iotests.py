@@ -36,8 +36,6 @@ import unittest
 
 from contextlib import contextmanager
 
-# pylint: disable=import-error, wrong-import-position
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu.machine import qtest
 from qemu.qmp import QMPMessage
 

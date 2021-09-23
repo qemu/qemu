@@ -24,11 +24,10 @@ import random
 import re
 from typing import Dict, List, Optional
 
+from qemu.machine import machine
+
 import iotests
 
-# Import qemu after iotests.py has amended sys.path
-# pylint: disable=wrong-import-order
-from qemu.machine import machine
 
 BlockBitmapMapping = List[Dict[str, object]]
 

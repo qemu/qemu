@@ -20,12 +20,11 @@
 #
 
 import os
+
+import qemu
+
 import iotests
 from iotests import qemu_img
-
-# Import qemu after iotests.py has amended sys.path
-# pylint: disable=wrong-import-order
-import qemu
 
 
 image_size = 1 * 1024 * 1024
