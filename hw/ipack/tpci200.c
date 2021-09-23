@@ -611,8 +611,8 @@ static void tpci200_realize(PCIDevice *pci_dev, Error **errp)
     pci_register_bar(&s->dev, 4, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->las2);
     pci_register_bar(&s->dev, 5, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->las3);
 
-    ipack_bus_new_inplace(&s->bus, sizeof(s->bus), DEVICE(pci_dev), NULL,
-                          N_MODULES, tpci200_set_irq);
+    ipack_bus_init(&s->bus, sizeof(s->bus), DEVICE(pci_dev),
+                   N_MODULES, tpci200_set_irq);
 }
 
 static const VMStateDescription vmstate_tpci200 = {
