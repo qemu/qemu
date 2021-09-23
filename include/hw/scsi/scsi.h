@@ -146,8 +146,34 @@ struct SCSIBus {
     const SCSIBusInfo *info;
 };
 
-void scsi_bus_new(SCSIBus *bus, size_t bus_size, DeviceState *host,
-                  const SCSIBusInfo *info, const char *bus_name);
+/**
+ * scsi_bus_init_named: Initialize a SCSI bus with the specified name
+ * @bus: SCSIBus object to initialize
+ * @bus_size: size of @bus object
+ * @host: Device which owns the bus (generally the SCSI controller)
+ * @info: structure defining callbacks etc for the controller
+ * @bus_name: Name to use for this bus
+ *
+ * This in-place initializes @bus as a new SCSI bus with a name
+ * provided by the caller. It is the caller's responsibility to make
+ * sure that name does not clash with the name of any other bus in the
+ * system. Unless you need the new bus to have a specific name, you
+ * should use scsi_bus_new() instead.
+ */
+void scsi_bus_init_named(SCSIBus *bus, size_t bus_size, DeviceState *host,
+                         const SCSIBusInfo *info, const char *bus_name);
+
+/**
+ * scsi_bus_init: Initialize a SCSI bus
+ *
+ * This in-place-initializes @bus as a new SCSI bus and gives it
+ * an automatically generated unique name.
+ */
+static inline void scsi_bus_init(SCSIBus *bus, size_t bus_size,
+                                 DeviceState *host, const SCSIBusInfo *info)
+{
+    scsi_bus_init_named(bus, bus_size, host, info, NULL);
+}
 
 static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)
 {

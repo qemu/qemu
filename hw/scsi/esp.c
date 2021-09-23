@@ -1348,7 +1348,7 @@ static void sysbus_esp_realize(DeviceState *dev, Error **errp)
 
     qdev_init_gpio_in(dev, sysbus_esp_gpio_demux, 2);
 
-    scsi_bus_new(&s->bus, sizeof(s->bus), dev, &esp_scsi_info, NULL);
+    scsi_bus_init(&s->bus, sizeof(s->bus), dev, &esp_scsi_info);
 }
 
 static void sysbus_esp_hard_reset(DeviceState *dev)

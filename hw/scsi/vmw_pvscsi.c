@@ -1180,8 +1180,7 @@ pvscsi_realizefn(PCIDevice *pci_dev, Error **errp)
 
     s->completion_worker = qemu_bh_new(pvscsi_process_completion_queue, s);
 
-    scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(pci_dev),
-                 &pvscsi_scsi_info, NULL);
+    scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(pci_dev), &pvscsi_scsi_info);
     /* override default SCSI bus hotplug-handler, with pvscsi's one */
     qbus_set_hotplug_handler(BUS(&s->bus), OBJECT(s));
     pvscsi_reset_state(s);

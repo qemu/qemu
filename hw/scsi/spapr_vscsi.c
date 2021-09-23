@@ -1216,8 +1216,7 @@ static void spapr_vscsi_realize(SpaprVioDevice *dev, Error **errp)
 
     dev->crq.SendFunc = vscsi_do_crq;
 
-    scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(dev),
-                 &vscsi_scsi_info, NULL);
+    scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(dev), &vscsi_scsi_info);
 
     /* ibmvscsi SCSI bus does not allow hotplug. */
     qbus_set_hotplug_handler(BUS(&s->bus), NULL);
