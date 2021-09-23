@@ -754,6 +754,34 @@ may be invoked by running:
 
   tests/venv/bin/avocado run $OPTION1 $OPTION2 tests/acceptance/
 
+Note that if ``make check-acceptance`` was not executed before, it is
+possible to create the Python virtual environment with the dependencies
+needed running:
+
+ .. code::
+
+  make check-venv
+
+It is also possible to run tests from a single file or a single test within
+a test file. To run tests from a single file within the build tree, use:
+
+ .. code::
+
+  tests/venv/bin/avocado run tests/acceptance/$TESTFILE
+
+To run a single test within a test file, use:
+
+ .. code::
+
+  tests/venv/bin/avocado run tests/acceptance/$TESTFILE:$TESTCLASS.$TESTNAME
+
+Valid test names are visible in the output from any previous execution
+of Avocado or ``make check-acceptance``, and can also be queried using:
+
+ .. code::
+
+  tests/venv/bin/avocado list tests/acceptance
+
 Manual Installation
 -------------------
 
