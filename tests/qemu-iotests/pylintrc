@@ -19,13 +19,17 @@ disable=invalid-name,
         too-many-public-methods,
         # pylint warns about Optional[] etc. as unsubscriptable in 3.9
         unsubscriptable-object,
+        # pylint's static analysis causes false positivies for file_path();
+        # If we really care to make it statically knowable, we'll use mypy.
+        unbalanced-tuple-unpacking,
         # Sometimes we need to disable a newly introduced pylint warning.
         # Doing so should not produce a warning in older versions of pylint.
         bad-option-value,
         # These are temporary, and should be removed:
         missing-docstring,
         too-many-return-statements,
-        too-many-statements
+        too-many-statements,
+        consider-using-f-string,
 
 [FORMAT]
 
