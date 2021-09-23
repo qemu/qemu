@@ -746,6 +746,33 @@ tags, see:
 
  https://avocado-framework.readthedocs.io/en/latest/guides/user/chapters/tags.html
 
+To run a single test file, a couple of them, or a test within a file
+using the ``make check-acceptance`` command, set the ``AVOCADO_TESTS``
+environment variable with the test files or test names. To run all
+tests from a single file, use:
+
+ .. code::
+
+  make check-acceptance AVOCADO_TESTS=$FILEPATH
+
+The same is valid to run tests from multiple test files:
+
+ .. code::
+
+  make check-acceptance AVOCADO_TESTS='$FILEPATH1 $FILEPATH2'
+
+To run a single test within a file, use:
+
+ .. code::
+
+  make check-acceptance AVOCADO_TESTS=$FILEPATH:$TESTCLASS.$TESTNAME
+
+The same is valid to run single tests from multiple test files:
+
+ .. code::
+
+  make check-acceptance AVOCADO_TESTS='$FILEPATH1:$TESTCLASS1.$TESTNAME1 $FILEPATH2:$TESTCLASS2.$TESTNAME2'
+
 The scripts installed inside the virtual environment may be used
 without an "activation".  For instance, the Avocado test runner
 may be invoked by running:
