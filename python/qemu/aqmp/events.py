@@ -562,7 +562,7 @@ class EventListener:
         """
         return self._queue.empty()
 
-    def clear(self) -> None:
+    def clear(self) -> List[Message]:
         """
         Clear this listener of all pending events.
 
@@ -570,16 +570,21 @@ class EventListener:
         pending FIFO queue synchronously. It can be also be used to
         manually clear any pending events, if desired.
 
+        :return: The cleared events, if any.
+
         .. warning::
             Take care when discarding events. Cleared events will be
             silently tossed on the floor. All events that were ever
             accepted by this listener are visible in `history()`.
         """
+        events = []
         while True:
             try:
-                self._queue.get_nowait()
+                events.append(self._queue.get_nowait())
             except asyncio.QueueEmpty:
                 break
+
+        return events
 
     def __aiter__(self) -> AsyncIterator[Message]:
         return self
