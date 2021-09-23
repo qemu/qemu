@@ -68,7 +68,7 @@ static const TypeInfo ide_bus_info = {
     .class_init = ide_bus_class_init,
 };
 
-void ide_bus_new(IDEBus *idebus, size_t idebus_size, DeviceState *dev,
+void ide_bus_init(IDEBus *idebus, size_t idebus_size, DeviceState *dev,
                  int bus_id, int max_units)
 {
     qbus_init(idebus, idebus_size, TYPE_IDE_BUS, dev, NULL);

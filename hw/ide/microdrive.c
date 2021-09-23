@@ -605,7 +605,7 @@ static void microdrive_init(Object *obj)
 {
     MicroDriveState *md = MICRODRIVE(obj);
 
-    ide_bus_new(&md->bus, sizeof(md->bus), DEVICE(obj), 0, 1);
+    ide_bus_init(&md->bus, sizeof(md->bus), DEVICE(obj), 0, 1);
 }
 
 static void microdrive_class_init(ObjectClass *oc, void *data)
