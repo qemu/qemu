@@ -9,6 +9,8 @@ accept an incoming connection from that server.
 
 import asyncio
 import logging
+import socket
+import struct
 from typing import (
     Dict,
     List,
@@ -624,3 +626,23 @@ class QMPClient(AsyncProtocol[Message], Events):
         """
         msg = self.make_execute_msg(cmd, arguments, oob=oob)
         return await self.execute_msg(msg)
+
+    @upper_half
+    @require(Runstate.RUNNING)
+    def send_fd_scm(self, fd: int) -> None:
+        """
+        Send a file descriptor to the remote via SCM_RIGHTS.
+        """
+        assert self._writer is not None
+        sock = self._writer.transport.get_extra_info('socket')
+
+        if sock.family != socket.AF_UNIX:
+            raise AQMPError("Sending file descriptors requires a UNIX socket.")
+
+        # Void the warranty sticker.
+        # Access to sendmsg in asyncio is scheduled for removal in Python 3.11.
+        sock = sock._sock  # pylint: disable=protected-access
+        sock.sendmsg(
+            [b' '],
+            [(socket.SOL_SOCKET, socket.SCM_RIGHTS, struct.pack('@i', fd))]
+        )
