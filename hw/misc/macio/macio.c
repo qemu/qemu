@@ -387,8 +387,8 @@ static void macio_instance_init(Object *obj)
 
     memory_region_init(&s->bar, obj, "macio", 0x80000);
 
-    qbus_create_inplace(&s->macio_bus, sizeof(s->macio_bus), TYPE_MACIO_BUS,
-                        DEVICE(obj), "macio.0");
+    qbus_init(&s->macio_bus, sizeof(s->macio_bus), TYPE_MACIO_BUS,
+              DEVICE(obj), "macio.0");
 
     object_initialize_child(OBJECT(s), "dbdma", &s->dbdma, TYPE_MAC_DBDMA);
 

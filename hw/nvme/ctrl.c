@@ -6539,8 +6539,8 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
         return;
     }
 
-    qbus_create_inplace(&n->bus, sizeof(NvmeBus), TYPE_NVME_BUS,
-                        &pci_dev->qdev, n->parent_obj.qdev.id);
+    qbus_init(&n->bus, sizeof(NvmeBus), TYPE_NVME_BUS,
+              &pci_dev->qdev, n->parent_obj.qdev.id);
 
     nvme_init_state(n);
     if (nvme_init_pci(n, pci_dev, errp)) {

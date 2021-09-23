@@ -82,7 +82,7 @@ const VMStateDescription vmstate_usb_device = {
 void usb_bus_new(USBBus *bus, size_t bus_size,
                  USBBusOps *ops, DeviceState *host)
 {
-    qbus_create_inplace(bus, bus_size, TYPE_USB_BUS, host, NULL);
+    qbus_init(bus, bus_size, TYPE_USB_BUS, host, NULL);
     qbus_set_bus_hotplug_handler(BUS(bus));
     bus->ops = ops;
     bus->busnr = next_usb_bus++;

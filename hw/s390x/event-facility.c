@@ -427,8 +427,8 @@ static void init_event_facility(Object *obj)
                              sclp_event_set_allow_all_mask_sizes);
 
     /* Spawn a new bus for SCLP events */
-    qbus_create_inplace(&event_facility->sbus, sizeof(event_facility->sbus),
-                        TYPE_SCLP_EVENTS_BUS, sdev, NULL);
+    qbus_init(&event_facility->sbus, sizeof(event_facility->sbus),
+              TYPE_SCLP_EVENTS_BUS, sdev, NULL);
 
     object_initialize_child(obj, TYPE_SCLP_QUIESCE,
                             &event_facility->quiesce,

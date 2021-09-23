@@ -373,8 +373,7 @@ static void ssi_sd_realize(SSIPeripheral *d, Error **errp)
     DeviceState *carddev;
     DriveInfo *dinfo;
 
-    qbus_create_inplace(&s->sdbus, sizeof(s->sdbus), TYPE_SD_BUS,
-                        DEVICE(d), "sd-bus");
+    qbus_init(&s->sdbus, sizeof(s->sdbus), TYPE_SD_BUS, DEVICE(d), "sd-bus");
 
     /* Create and plug in the sd card */
     /* FIXME use a qdev drive property instead of drive_get_next() */

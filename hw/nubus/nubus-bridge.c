@@ -18,7 +18,7 @@ static void nubus_bridge_init(Object *obj)
     NubusBridge *s = NUBUS_BRIDGE(obj);
     NubusBus *bus = &s->bus;
 
-    qbus_create_inplace(bus, sizeof(s->bus), TYPE_NUBUS_BUS, DEVICE(s), NULL);
+    qbus_init(bus, sizeof(s->bus), TYPE_NUBUS_BUS, DEVICE(s), NULL);
 
     qdev_init_gpio_out(DEVICE(s), bus->irqs, NUBUS_IRQS);
 }

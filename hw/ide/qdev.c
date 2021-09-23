@@ -71,7 +71,7 @@ static const TypeInfo ide_bus_info = {
 void ide_bus_new(IDEBus *idebus, size_t idebus_size, DeviceState *dev,
                  int bus_id, int max_units)
 {
-    qbus_create_inplace(idebus, idebus_size, TYPE_IDE_BUS, dev, NULL);
+    qbus_init(idebus, idebus_size, TYPE_IDE_BUS, dev, NULL);
     idebus->bus_id = bus_id;
     idebus->max_units = max_units;
 }

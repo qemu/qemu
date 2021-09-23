@@ -421,8 +421,7 @@ static void sysbus_swim_realize(DeviceState *dev, Error **errp)
     Swim *sys = SWIM(dev);
     SWIMCtrl *swimctrl = &sys->ctrl;
 
-    qbus_create_inplace(&swimctrl->bus, sizeof(SWIMBus), TYPE_SWIM_BUS, dev,
-                        NULL);
+    qbus_init(&swimctrl->bus, sizeof(SWIMBus), TYPE_SWIM_BUS, dev, NULL);
     swimctrl->bus.ctrl = swimctrl;
 }
 

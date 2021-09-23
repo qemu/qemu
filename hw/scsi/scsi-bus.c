@@ -137,7 +137,7 @@ void scsi_device_unit_attention_reported(SCSIDevice *s)
 void scsi_bus_init_named(SCSIBus *bus, size_t bus_size, DeviceState *host,
                          const SCSIBusInfo *info, const char *bus_name)
 {
-    qbus_create_inplace(bus, bus_size, TYPE_SCSI_BUS, host, bus_name);
+    qbus_init(bus, bus_size, TYPE_SCSI_BUS, host, bus_name);
     bus->busnr = next_scsi_bus++;
     bus->info = info;
     qbus_set_bus_hotplug_handler(BUS(bus));

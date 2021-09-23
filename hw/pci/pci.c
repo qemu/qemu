@@ -466,7 +466,7 @@ void pci_root_bus_init(PCIBus *bus, size_t bus_size, DeviceState *parent,
                        MemoryRegion *address_space_io,
                        uint8_t devfn_min, const char *typename)
 {
-    qbus_create_inplace(bus, bus_size, typename, parent, name);
+    qbus_init(bus, bus_size, typename, parent, name);
     pci_root_bus_internal_init(bus, parent, address_space_mem,
                                address_space_io, devfn_min);
 }
