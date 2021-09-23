@@ -180,7 +180,7 @@ static int scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s, int len)
         page = r->req.cmd.buf[2];
         if (page == 0xb0) {
             uint64_t max_transfer = blk_get_max_hw_transfer(s->conf.blk);
-            uint32_t max_iov = blk_get_max_iov(s->conf.blk);
+            uint32_t max_iov = blk_get_max_hw_iov(s->conf.blk);
 
             assert(max_transfer);
             max_transfer = MIN_NON_ZERO(max_transfer, max_iov * qemu_real_host_page_size)
