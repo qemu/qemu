@@ -159,7 +159,7 @@ void qbus_init(void *bus, size_t size, const char *typename,
     qbus_init_internal(bus, parent, name);
 }
 
-BusState *qbus_create(const char *typename, DeviceState *parent, const char *name)
+BusState *qbus_new(const char *typename, DeviceState *parent, const char *name)
 {
     BusState *bus;
 

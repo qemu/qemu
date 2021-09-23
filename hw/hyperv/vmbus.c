@@ -2729,7 +2729,7 @@ static void vmbus_bridge_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    bridge->bus = VMBUS(qbus_create(TYPE_VMBUS, dev, "vmbus"));
+    bridge->bus = VMBUS(qbus_new(TYPE_VMBUS, dev, "vmbus"));
 }
 
 static char *vmbus_bridge_ofw_unit_address(const SysBusDevice *dev)

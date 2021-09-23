@@ -55,7 +55,7 @@ void s390_init_ap(void)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* Create bus on bridge device */
-    bus = qbus_create(TYPE_AP_BUS, dev, TYPE_AP_BUS);
+    bus = qbus_new(TYPE_AP_BUS, dev, TYPE_AP_BUS);
 
     /* Enable hotplugging */
     qbus_set_hotplug_handler(bus, OBJECT(dev));
