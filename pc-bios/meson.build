@@ -1,4 +1,4 @@
-if install_edk2_blobs
+if unpack_edk2_blobs
   fds = [
     'edk2-aarch64-code.fd',
     'edk2-arm-code.fd',
