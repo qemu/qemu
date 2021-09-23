@@ -21,7 +21,8 @@
 
 import os
 
-import qemu
+from qemu import qmp
+from qemu.machine import machine
 
 import iotests
 from iotests import qemu_img
@@ -46,7 +47,7 @@ class TestMirrorTopPerms(iotests.QMPTestCase):
     def tearDown(self):
         try:
             self.vm.shutdown()
-        except qemu.machine.machine.AbnormalShutdown:
+        except machine.AbnormalShutdown:
             pass
 
         if self.vm_b is not None:
@@ -101,7 +102,7 @@ class TestMirrorTopPerms(iotests.QMPTestCase):
             self.vm_b.launch()
             print('ERROR: VM B launched successfully, this should not have '
                   'happened')
-        except qemu.qmp.QMPConnectError:
+        except qmp.QMPConnectError:
             assert 'Is another process using the image' in self.vm_b.get_log()
 
         result = self.vm.qmp('block-job-cancel',
