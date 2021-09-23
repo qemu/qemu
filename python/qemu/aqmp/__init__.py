@@ -21,6 +21,7 @@ managing QMP events.
 # This work is licensed under the terms of the GNU GPL, version 2.  See
 # the COPYING file in the top-level directory.
 
+import logging
 import warnings
 
 from .error import AQMPError
@@ -40,6 +41,9 @@ Proceed with caution!
 """
 
 warnings.warn(_WMSG, FutureWarning)
+
+# Suppress logging unless an application engages it.
+logging.getLogger('qemu.aqmp').addHandler(logging.NullHandler())
 
 
 # The order of these fields impact the Sphinx documentation order.
