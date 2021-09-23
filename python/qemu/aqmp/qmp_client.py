@@ -224,6 +224,11 @@ class QMPClient(AsyncProtocol[Message], Events):
             'asyncio.Queue[QMPClient._PendingT]'
         ] = {}
 
+    @property
+    def greeting(self) -> Optional[Greeting]:
+        """The `Greeting` from the QMP server, if any."""
+        return self._greeting
+
     @upper_half
     async def _establish_session(self) -> None:
         """
