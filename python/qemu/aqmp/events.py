@@ -556,6 +556,12 @@ class EventListener:
         """
         return await self._queue.get()
 
+    def empty(self) -> bool:
+        """
+        Return `True` if there are no pending events.
+        """
+        return self._queue.empty()
+
     def clear(self) -> None:
         """
         Clear this listener of all pending events.
