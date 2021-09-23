@@ -361,7 +361,7 @@ class QEMUMonitorProtocol:
 
     def get_events(self, wait: bool = False) -> List[QMPMessage]:
         """
-        Get a list of available QMP events.
+        Get a list of available QMP events and clear all pending events.
 
         @param wait (bool): block until an event is available.
         @param wait (float): If wait is a float, treat it as a timeout value.
@@ -374,7 +374,9 @@ class QEMUMonitorProtocol:
         @return The list of available QMP events.
         """
         self.__get_events(wait)
-        return self.__events
+        events = self.__events
+        self.__events = []
+        return events
 
     def clear_events(self) -> None:
         """
