@@ -721,8 +721,11 @@ class AsyncProtocol(Generic[T]):
             self.logger.debug("Task.%s: cancelled.", name)
             return
         except BaseException as err:
-            self.logger.error("Task.%s: %s",
-                              name, exception_summary(err))
+            self.logger.log(
+                logging.INFO if isinstance(err, EOFError) else logging.ERROR,
+                "Task.%s: %s",
+                name, exception_summary(err)
+            )
             self.logger.debug("Task.%s: failure:\n%s\n",
                               name, pretty_traceback())
             self._schedule_disconnect()
