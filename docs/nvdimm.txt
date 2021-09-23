@@ -15,7 +15,7 @@ backend (i.e. memory-backend-file and memory-backend-ram). A simple
 way to create a vNVDIMM device at startup time is done via the
 following command line options:
 
- -machine pc,nvdimm
+ -machine pc,nvdimm=on
  -m $RAM_SIZE,slots=$N,maxmem=$MAX_SIZE
  -object memory-backend-file,id=mem1,share=on,mem-path=$PATH,size=$NVDIMM_SIZE,readonly=off
  -device nvdimm,id=nvdimm1,memdev=mem1,unarmed=off
