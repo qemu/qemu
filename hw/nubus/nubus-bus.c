@@ -28,23 +28,23 @@ static NubusBus *nubus_find(void)
     return NUBUS_BUS(object_resolve_path_type("", TYPE_NUBUS_BUS, NULL));
 }
 
-static void nubus_slot_write(void *opaque, hwaddr addr, uint64_t val,
-                             unsigned int size)
+static MemTxResult nubus_slot_write(void *opaque, hwaddr addr, uint64_t val,
+                                    unsigned size, MemTxAttrs attrs)
 {
-    /* read only */
     trace_nubus_slot_write(addr, val, size);
+    return MEMTX_DECODE_ERROR;
 }
 
-static uint64_t nubus_slot_read(void *opaque, hwaddr addr,
-                                unsigned int size)
+static MemTxResult nubus_slot_read(void *opaque, hwaddr addr, uint64_t *data,
+                                   unsigned size, MemTxAttrs attrs)
 {
     trace_nubus_slot_read(addr, size);
-    return 0;
+    return MEMTX_DECODE_ERROR;
 }
 
 static const MemoryRegionOps nubus_slot_ops = {
-    .read  = nubus_slot_read,
-    .write = nubus_slot_write,
+    .read_with_attrs  = nubus_slot_read,
+    .write_with_attrs = nubus_slot_write,
     .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 1,
@@ -52,23 +52,25 @@ static const MemoryRegionOps nubus_slot_ops = {
     },
 };
 
-static void nubus_super_slot_write(void *opaque, hwaddr addr, uint64_t val,
-                                   unsigned int size)
+static MemTxResult nubus_super_slot_write(void *opaque, hwaddr addr,
+                                          uint64_t val, unsigned size,
+                                          MemTxAttrs attrs)
 {
-    /* read only */
     trace_nubus_super_slot_write(addr, val, size);
+    return MEMTX_DECODE_ERROR;
 }
 
-static uint64_t nubus_super_slot_read(void *opaque, hwaddr addr,
-                                      unsigned int size)
+static MemTxResult nubus_super_slot_read(void *opaque, hwaddr addr,
+                                         uint64_t *data, unsigned size,
+                                         MemTxAttrs attrs)
 {
     trace_nubus_super_slot_read(addr, size);
-    return 0;
+    return MEMTX_DECODE_ERROR;
 }
 
 static const MemoryRegionOps nubus_super_slot_ops = {
-    .read  = nubus_super_slot_read,
-    .write = nubus_super_slot_write,
+    .read_with_attrs = nubus_super_slot_read,
+    .write_with_attrs = nubus_super_slot_write,
     .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 1,
