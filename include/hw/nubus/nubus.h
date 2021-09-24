@@ -44,25 +44,6 @@ struct NubusDevice {
     int32_t slot;
     MemoryRegion super_slot_mem;
     MemoryRegion slot_mem;
-
-    /* Format Block */
-
-    MemoryRegion fblock_io;
-
-    uint32_t rom_length;
-    uint32_t rom_crc;
-    uint8_t rom_rev;
-    uint8_t rom_format;
-    uint8_t byte_lanes;
-    int32_t directory_offset;
-
-    /* ROM */
-
-    MemoryRegion rom_io;
-    const uint8_t *rom;
 };
-
-void nubus_register_rom(NubusDevice *dev, const uint8_t *rom, uint32_t size,
-                        int revision, int format, uint8_t byte_lanes);
 
 #endif
