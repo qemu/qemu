@@ -3893,6 +3893,10 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
         return ns->status;
     }
 
+    if (NVME_CMD_FLAGS_FUSE(req->cmd.flags)) {
+        return NVME_INVALID_FIELD;
+    }
+
     req->ns = ns;
 
     switch (req->cmd.opcode) {
@@ -5191,7 +5195,7 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
     uint16_t list[NVME_CONTROLLER_LIST_SIZE] = {};
     uint32_t nsid = le32_to_cpu(req->cmd.nsid);
     uint32_t dw10 = le32_to_cpu(req->cmd.cdw10);
-    bool attach = !(dw10 & 0xf);
+    uint8_t sel = dw10 & 0xf;
     uint16_t *nr_ids = &list[0];
     uint16_t *ids = &list[1];
     uint16_t ret;
@@ -5224,7 +5228,8 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
             return NVME_NS_CTRL_LIST_INVALID | NVME_DNR;
         }
 
-        if (attach) {
+        switch (sel) {
+        case NVME_NS_ATTACHMENT_ATTACH:
             if (nvme_ns(ctrl, nsid)) {
                 return NVME_NS_ALREADY_ATTACHED | NVME_DNR;
             }
@@ -5235,7 +5240,10 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
 
             nvme_attach_ns(ctrl, ns);
             nvme_select_iocs_ns(ctrl, ns);
-        } else {
+
+            break;
+
+        case NVME_NS_ATTACHMENT_DETACH:
             if (!nvme_ns(ctrl, nsid)) {
                 return NVME_NS_NOT_ATTACHED | NVME_DNR;
             }
@@ -5244,6 +5252,11 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
             ns->attached--;
 
             nvme_update_dmrsl(ctrl);
+
+            break;
+
+        default:
+            return NVME_INVALID_FIELD | NVME_DNR;
         }
 
         /*
@@ -5466,6 +5479,10 @@ static uint16_t nvme_admin_cmd(NvmeCtrl *n, NvmeRequest *req)
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
+    if (NVME_CMD_FLAGS_FUSE(req->cmd.flags)) {
+        return NVME_INVALID_FIELD;
+    }
+
     switch (req->cmd.opcode) {
     case NVME_ADM_CMD_DELETE_SQ:
         return nvme_del_sq(n, req);
@@ -5621,14 +5638,6 @@ static int nvme_start_ctrl(NvmeCtrl *n)
     }
     if (unlikely(n->sq[0])) {
         trace_pci_nvme_err_startfail_sq();
-        return -1;
-    }
-    if (unlikely(!asq)) {
-        trace_pci_nvme_err_startfail_nbarasq();
-        return -1;
-    }
-    if (unlikely(!acq)) {
-        trace_pci_nvme_err_startfail_nbaracq();
         return -1;
     }
     if (unlikely(asq & (page_size - 1))) {
