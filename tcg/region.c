@@ -467,38 +467,6 @@ static size_t tcg_n_regions(size_t tb_size, unsigned max_cpus)
   (DEFAULT_CODE_GEN_BUFFER_SIZE_1 < MAX_CODE_GEN_BUFFER_SIZE \
    ? DEFAULT_CODE_GEN_BUFFER_SIZE_1 : MAX_CODE_GEN_BUFFER_SIZE)
 
-#ifdef __mips__
-/*
- * In order to use J and JAL within the code_gen_buffer, we require
- * that the buffer not cross a 256MB boundary.
- */
-static inline bool cross_256mb(void *addr, size_t size)
-{
-    return ((uintptr_t)addr ^ ((uintptr_t)addr + size)) & ~0x0ffffffful;
-}
-
-/*
- * We weren't able to allocate a buffer without crossing that boundary,
- * so make do with the larger portion of the buffer that doesn't cross.
- * Returns the new base and size of the buffer in *obuf and *osize.
- */
-static inline void split_cross_256mb(void **obuf, size_t *osize,
-                                     void *buf1, size_t size1)
-{
-    void *buf2 = (void *)(((uintptr_t)buf1 + size1) & ~0x0ffffffful);
-    size_t size2 = buf1 + size1 - buf2;
-
-    size1 = buf2 - buf1;
-    if (size1 < size2) {
-        size1 = size2;
-        buf1 = buf2;
-    }
-
-    *obuf = buf1;
-    *osize = size1;
-}
-#endif
-
 #ifdef USE_STATIC_CODE_GEN_BUFFER
 static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE]
     __attribute__((aligned(CODE_GEN_ALIGN)));
@@ -525,12 +493,6 @@ static int alloc_code_gen_buffer(size_t tb_size, int splitwx, Error **errp)
     if (size > tb_size) {
         size = QEMU_ALIGN_DOWN(tb_size, qemu_real_host_page_size);
     }
-
-#ifdef __mips__
-    if (cross_256mb(buf, size)) {
-        split_cross_256mb(&buf, &size, buf, size);
-    }
-#endif
 
     region.start_aligned = buf;
     region.total_size = size;
@@ -573,39 +535,6 @@ static int alloc_code_gen_buffer_anon(size_t size, int prot,
         return -1;
     }
 
-#ifdef __mips__
-    if (cross_256mb(buf, size)) {
-        /*
-         * Try again, with the original still mapped, to avoid re-acquiring
-         * the same 256mb crossing.
-         */
-        size_t size2;
-        void *buf2 = mmap(NULL, size, prot, flags, -1, 0);
-        switch ((int)(buf2 != MAP_FAILED)) {
-        case 1:
-            if (!cross_256mb(buf2, size)) {
-                /* Success!  Use the new buffer.  */
-                munmap(buf, size);
-                break;
-            }
-            /* Failure.  Work with what we had.  */
-            munmap(buf2, size);
-            /* fallthru */
-        default:
-            /* Split the original buffer.  Free the smaller half.  */
-            split_cross_256mb(&buf2, &size2, buf, size);
-            if (buf == buf2) {
-                munmap(buf + size2, size - size2);
-            } else {
-                munmap(buf, size - size2);
-            }
-            size = size2;
-            break;
-        }
-        buf = buf2;
-    }
-#endif
-
     region.start_aligned = buf;
     region.total_size = size;
     return prot;
@@ -620,35 +549,15 @@ static bool alloc_code_gen_buffer_splitwx_memfd(size_t size, Error **errp)
     void *buf_rw = NULL, *buf_rx = MAP_FAILED;
     int fd = -1;
 
-#ifdef __mips__
-    /* Find space for the RX mapping, vs the 256MiB regions. */
-    if (alloc_code_gen_buffer_anon(size, PROT_NONE,
-                                   MAP_PRIVATE | MAP_ANONYMOUS |
-                                   MAP_NORESERVE, errp) < 0) {
-        return false;
-    }
-    /* The size of the mapping may have been adjusted. */
-    buf_rx = region.start_aligned;
-    size = region.total_size;
-#endif
-
     buf_rw = qemu_memfd_alloc("tcg-jit", size, 0, &fd, errp);
     if (buf_rw == NULL) {
         goto fail;
     }
 
-#ifdef __mips__
-    void *tmp = mmap(buf_rx, size, PROT_READ | PROT_EXEC,
-                     MAP_SHARED | MAP_FIXED, fd, 0);
-    if (tmp != buf_rx) {
-        goto fail_rx;
-    }
-#else
     buf_rx = mmap(NULL, size, PROT_READ | PROT_EXEC, MAP_SHARED, fd, 0);
     if (buf_rx == MAP_FAILED) {
         goto fail_rx;
     }
-#endif
 
     close(fd);
     region.start_aligned = buf_rw;

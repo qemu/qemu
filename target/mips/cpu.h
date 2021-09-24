@@ -1193,7 +1193,6 @@ struct MIPSCPU {
 
 void mips_cpu_list(void);
 
-#define cpu_signal_handler cpu_mips_signal_handler
 #define cpu_list mips_cpu_list
 
 extern void cpu_wrdsp(uint32_t rs, uint32_t mask_num, CPUMIPSState *env);
@@ -1276,8 +1275,6 @@ enum {
  * cleared when VPE goes from active to inactive.
  */
 #define CPU_INTERRUPT_WAKE CPU_INTERRUPT_TGT_INT_0
-
-int cpu_mips_signal_handler(int host_signum, void *pinfo, void *puc);
 
 #define MIPS_CPU_TYPE_SUFFIX "-" TYPE_MIPS_CPU
 #define MIPS_CPU_TYPE_NAME(model) model MIPS_CPU_TYPE_SUFFIX

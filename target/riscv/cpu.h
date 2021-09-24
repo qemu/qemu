@@ -344,7 +344,7 @@ int riscv_cpu_mmu_index(CPURISCVState *env, bool ifetch);
 hwaddr riscv_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 void  riscv_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
                                     MMUAccessType access_type, int mmu_idx,
-                                    uintptr_t retaddr);
+                                    uintptr_t retaddr) QEMU_NORETURN;
 bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                         MMUAccessType access_type, int mmu_idx,
                         bool probe, uintptr_t retaddr);
@@ -356,7 +356,6 @@ void riscv_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
 char *riscv_isa_string(RISCVCPU *cpu);
 void riscv_cpu_list(void);
 
-#define cpu_signal_handler riscv_cpu_signal_handler
 #define cpu_list riscv_cpu_list
 #define cpu_mmu_index riscv_cpu_mmu_index
 
@@ -372,7 +371,6 @@ void riscv_cpu_set_rdtime_fn(CPURISCVState *env, uint64_t (*fn)(uint32_t),
 void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv);
 
 void riscv_translate_init(void);
-int riscv_cpu_signal_handler(int host_signum, void *pinfo, void *puc);
 void QEMU_NORETURN riscv_raise_exception(CPURISCVState *env,
                                          uint32_t exception, uintptr_t pc);
 

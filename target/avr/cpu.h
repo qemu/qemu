@@ -175,7 +175,6 @@ static inline void set_avr_feature(CPUAVRState *env, int feature)
 }
 
 #define cpu_list avr_cpu_list
-#define cpu_signal_handler cpu_avr_signal_handler
 #define cpu_mmu_index avr_cpu_mmu_index
 
 static inline int avr_cpu_mmu_index(CPUAVRState *env, bool ifetch)
@@ -187,7 +186,6 @@ void avr_cpu_tcg_init(void);
 
 void avr_cpu_list(void);
 int cpu_avr_exec(CPUState *cpu);
-int cpu_avr_signal_handler(int host_signum, void *pinfo, void *puc);
 int avr_cpu_memory_rw_debug(CPUState *cs, vaddr address, uint8_t *buf,
                             int len, bool is_write);
 

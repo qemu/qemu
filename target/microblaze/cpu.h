@@ -361,7 +361,7 @@ bool mb_cpu_exec_interrupt(CPUState *cs, int int_req);
 #endif /* !CONFIG_USER_ONLY */
 void mb_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
                                 MMUAccessType access_type,
-                                int mmu_idx, uintptr_t retaddr);
+                                int mmu_idx, uintptr_t retaddr) QEMU_NORETURN;
 void mb_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 hwaddr mb_cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
                                         MemTxAttrs *attrs);
@@ -385,15 +385,8 @@ static inline void mb_cpu_write_msr(CPUMBState *env, uint32_t val)
 }
 
 void mb_tcg_init(void);
-/* you can call this signal handler from your SIGBUS and SIGSEGV
-   signal handlers to inform the virtual CPU of exceptions. non zero
-   is returned if the signal was handled by the virtual CPU.  */
-int cpu_mb_signal_handler(int host_signum, void *pinfo,
-                          void *puc);
 
 #define CPU_RESOLVING_TYPE TYPE_MICROBLAZE_CPU
-
-#define cpu_signal_handler cpu_mb_signal_handler
 
 /* MMU modes definitions */
 #define MMU_NOMMU_IDX   0

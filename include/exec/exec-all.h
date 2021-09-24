@@ -662,6 +662,19 @@ static inline tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env,
     }
     return addr;
 }
+
+/**
+ * cpu_signal_handler
+ * @signum: host signal number
+ * @pinfo: host siginfo_t
+ * @puc: host ucontext_t
+ *
+ * To be called from the SIGBUS and SIGSEGV signal handler to inform the
+ * virtual cpu of exceptions.  Returns true if the signal was handled by
+ * the virtual CPU.
+ */
+int cpu_signal_handler(int signum, void *pinfo, void *puc);
+
 #else
 static inline void mmap_lock(void) {}
 static inline void mmap_unlock(void) {}
