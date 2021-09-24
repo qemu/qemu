@@ -165,17 +165,6 @@ typedef struct AcpiFacsDescriptorRev1 AcpiFacsDescriptorRev1;
 
 /* Values for Type in APIC sub-headers */
 
-#define ACPI_APIC_PROCESSOR          0
-#define ACPI_APIC_IO                 1
-#define ACPI_APIC_XRUPT_OVERRIDE     2
-#define ACPI_APIC_NMI                3
-#define ACPI_APIC_LOCAL_NMI          4
-#define ACPI_APIC_ADDRESS_OVERRIDE   5
-#define ACPI_APIC_IO_SAPIC           6
-#define ACPI_APIC_LOCAL_SAPIC        7
-#define ACPI_APIC_XRUPT_SOURCE       8
-#define ACPI_APIC_LOCAL_X2APIC       9
-#define ACPI_APIC_LOCAL_X2APIC_NMI      10
 #define ACPI_APIC_GENERIC_CPU_INTERFACE 11
 #define ACPI_APIC_GENERIC_DISTRIBUTOR   12
 #define ACPI_APIC_GENERIC_MSI_FRAME     13
@@ -191,59 +180,6 @@ typedef struct AcpiFacsDescriptorRev1 AcpiFacsDescriptorRev1;
     uint8_t  length;
 
 /* Sub-structures for MADT */
-
-struct AcpiMadtProcessorApic {
-    ACPI_SUB_HEADER_DEF
-    uint8_t  processor_id;           /* ACPI processor id */
-    uint8_t  local_apic_id;          /* Processor's local APIC id */
-    uint32_t flags;
-} QEMU_PACKED;
-typedef struct AcpiMadtProcessorApic AcpiMadtProcessorApic;
-
-struct AcpiMadtIoApic {
-    ACPI_SUB_HEADER_DEF
-    uint8_t  io_apic_id;             /* I/O APIC ID */
-    uint8_t  reserved;               /* Reserved - must be zero */
-    uint32_t address;                /* APIC physical address */
-    uint32_t interrupt;              /* Global system interrupt where INTI
-                                 * lines start */
-} QEMU_PACKED;
-typedef struct AcpiMadtIoApic AcpiMadtIoApic;
-
-struct AcpiMadtIntsrcovr {
-    ACPI_SUB_HEADER_DEF
-    uint8_t  bus;
-    uint8_t  source;
-    uint32_t gsi;
-    uint16_t flags;
-} QEMU_PACKED;
-typedef struct AcpiMadtIntsrcovr AcpiMadtIntsrcovr;
-
-struct AcpiMadtLocalNmi {
-    ACPI_SUB_HEADER_DEF
-    uint8_t  processor_id;           /* ACPI processor id */
-    uint16_t flags;                  /* MPS INTI flags */
-    uint8_t  lint;                   /* Local APIC LINT# */
-} QEMU_PACKED;
-typedef struct AcpiMadtLocalNmi AcpiMadtLocalNmi;
-
-struct AcpiMadtProcessorX2Apic {
-    ACPI_SUB_HEADER_DEF
-    uint16_t reserved;
-    uint32_t x2apic_id;              /* Processor's local x2APIC ID */
-    uint32_t flags;
-    uint32_t uid;                    /* Processor object _UID */
-} QEMU_PACKED;
-typedef struct AcpiMadtProcessorX2Apic AcpiMadtProcessorX2Apic;
-
-struct AcpiMadtLocalX2ApicNmi {
-    ACPI_SUB_HEADER_DEF
-    uint16_t flags;                  /* MPS INTI flags */
-    uint32_t uid;                    /* Processor object _UID */
-    uint8_t  lint;                   /* Local APIC LINT# */
-    uint8_t  reserved[3];            /* Local APIC LINT# */
-} QEMU_PACKED;
-typedef struct AcpiMadtLocalX2ApicNmi AcpiMadtLocalX2ApicNmi;
 
 struct AcpiMadtGenericCpuInterface {
     ACPI_SUB_HEADER_DEF

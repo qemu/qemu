@@ -38,7 +38,9 @@ void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
                        bool force_enabled)
 {
     uint32_t apic_id = apic_ids->cpus[uid].arch_id;
-    uint32_t flags = apic_ids->cpus[uid].cpu != NULL || force_enabled ? 1 : 0;
+    /* Flags – Local APIC Flags */
+    uint32_t flags = apic_ids->cpus[uid].cpu != NULL || force_enabled ?
+                     1 /* Enabled */ : 0;
 
     /* ACPI spec says that LAPIC entry for non present
      * CPU may be omitted from MADT or it must be marked
@@ -47,22 +49,45 @@ void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
      * should be put in MADT but kept disabled.
      */
     if (apic_id < 255) {
-        AcpiMadtProcessorApic *apic = acpi_data_push(entry, sizeof *apic);
-
-        apic->type = ACPI_APIC_PROCESSOR;
-        apic->length = sizeof(*apic);
-        apic->processor_id = uid;
-        apic->local_apic_id = apic_id;
-        apic->flags = cpu_to_le32(flags);
+        /* Rev 1.0b, Table 5-13 Processor Local APIC Structure */
+        build_append_int_noprefix(entry, 0, 1);       /* Type */
+        build_append_int_noprefix(entry, 8, 1);       /* Length */
+        build_append_int_noprefix(entry, uid, 1);     /* ACPI Processor ID */
+        build_append_int_noprefix(entry, apic_id, 1); /* APIC ID */
+        build_append_int_noprefix(entry, flags, 4); /* Flags */
     } else {
-        AcpiMadtProcessorX2Apic *apic = acpi_data_push(entry, sizeof *apic);
-
-        apic->type = ACPI_APIC_LOCAL_X2APIC;
-        apic->length = sizeof(*apic);
-        apic->uid = cpu_to_le32(uid);
-        apic->x2apic_id = cpu_to_le32(apic_id);
-        apic->flags = cpu_to_le32(flags);
+        /* Rev 4.0, 5.2.12.12 Processor Local x2APIC Structure */
+        build_append_int_noprefix(entry, 9, 1);       /* Type */
+        build_append_int_noprefix(entry, 16, 1);      /* Length */
+        build_append_int_noprefix(entry, 0, 2);       /* Reserved */
+        build_append_int_noprefix(entry, apic_id, 4); /* X2APIC ID */
+        build_append_int_noprefix(entry, flags, 4);   /* Flags */
+        build_append_int_noprefix(entry, uid, 4);     /* ACPI Processor UID */
     }
+}
+
+static void build_ioapic(GArray *entry, uint8_t id, uint32_t addr, uint32_t irq)
+{
+    /* Rev 1.0b, 5.2.8.2 IO APIC */
+    build_append_int_noprefix(entry, 1, 1);    /* Type */
+    build_append_int_noprefix(entry, 12, 1);   /* Length */
+    build_append_int_noprefix(entry, id, 1);   /* IO APIC ID */
+    build_append_int_noprefix(entry, 0, 1);    /* Reserved */
+    build_append_int_noprefix(entry, addr, 4); /* IO APIC Address */
+    build_append_int_noprefix(entry, irq, 4);  /* System Vector Base */
+}
+
+static void
+build_xrupt_override(GArray *entry, uint8_t src, uint32_t gsi, uint16_t flags)
+{
+    /* Rev 1.0b, 5.2.8.3.1 Interrupt Source Overrides */
+    build_append_int_noprefix(entry, 2, 1);  /* Type */
+    build_append_int_noprefix(entry, 10, 1); /* Length */
+    build_append_int_noprefix(entry, 0, 1);  /* Bus */
+    build_append_int_noprefix(entry, src, 1);  /* Source */
+    /* Global System Interrupt Vector */
+    build_append_int_noprefix(entry, gsi, 4);
+    build_append_int_noprefix(entry, flags, 2);  /* Flags */
 }
 
 /*
@@ -73,14 +98,11 @@ void acpi_build_madt(GArray *table_data, BIOSLinker *linker,
                      X86MachineState *x86ms, AcpiDeviceIf *adev,
                      const char *oem_id, const char *oem_table_id)
 {
+    int i;
+    bool x2apic_mode = false;
     MachineClass *mc = MACHINE_GET_CLASS(x86ms);
     const CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(MACHINE(x86ms));
     AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(adev);
-    bool x2apic_mode = false;
-
-    AcpiMadtIoApic *io_apic;
-    AcpiMadtIntsrcovr *intsrcovr;
-    int i;
     AcpiTable table = { .sig = "APIC", .rev = 1, .oem_id = oem_id,
                         .oem_table_id = oem_table_id };
 
@@ -96,30 +118,15 @@ void acpi_build_madt(GArray *table_data, BIOSLinker *linker,
         }
     }
 
-    io_apic = acpi_data_push(table_data, sizeof *io_apic);
-    io_apic->type = ACPI_APIC_IO;
-    io_apic->length = sizeof(*io_apic);
-    io_apic->io_apic_id = ACPI_BUILD_IOAPIC_ID;
-    io_apic->address = cpu_to_le32(IO_APIC_DEFAULT_ADDRESS);
-    io_apic->interrupt = cpu_to_le32(0);
-
+    build_ioapic(table_data, ACPI_BUILD_IOAPIC_ID, IO_APIC_DEFAULT_ADDRESS, 0);
     if (x86ms->ioapic2) {
-        AcpiMadtIoApic *io_apic2;
-        io_apic2 = acpi_data_push(table_data, sizeof *io_apic);
-        io_apic2->type = ACPI_APIC_IO;
-        io_apic2->length = sizeof(*io_apic);
-        io_apic2->io_apic_id = ACPI_BUILD_IOAPIC_ID + 1;
-        io_apic2->address = cpu_to_le32(IO_APIC_SECONDARY_ADDRESS);
-        io_apic2->interrupt = cpu_to_le32(IO_APIC_SECONDARY_IRQBASE);
+        build_ioapic(table_data, ACPI_BUILD_IOAPIC_ID + 1,
+                     IO_APIC_SECONDARY_ADDRESS, IO_APIC_SECONDARY_IRQBASE);
     }
 
     if (x86ms->apic_xrupt_override) {
-        intsrcovr = acpi_data_push(table_data, sizeof *intsrcovr);
-        intsrcovr->type   = ACPI_APIC_XRUPT_OVERRIDE;
-        intsrcovr->length = sizeof(*intsrcovr);
-        intsrcovr->source = 0;
-        intsrcovr->gsi    = cpu_to_le32(2);
-        intsrcovr->flags  = cpu_to_le16(0); /* conforms to bus specifications */
+        build_xrupt_override(table_data, 0, 2,
+            0 /* Flags: Conforms to the specifications of the bus */);
     }
 
     for (i = 1; i < 16; i++) {
@@ -127,32 +134,30 @@ void acpi_build_madt(GArray *table_data, BIOSLinker *linker,
             /* No need for a INT source override structure. */
             continue;
         }
-        intsrcovr = acpi_data_push(table_data, sizeof *intsrcovr);
-        intsrcovr->type   = ACPI_APIC_XRUPT_OVERRIDE;
-        intsrcovr->length = sizeof(*intsrcovr);
-        intsrcovr->source = i;
-        intsrcovr->gsi    = cpu_to_le32(i);
-        intsrcovr->flags  = cpu_to_le16(0xd); /* active high, level triggered */
+        build_xrupt_override(table_data, i, i,
+            0xd /* Flags: Active high, Level Triggered */);
     }
 
     if (x2apic_mode) {
-        AcpiMadtLocalX2ApicNmi *local_nmi;
-
-        local_nmi = acpi_data_push(table_data, sizeof *local_nmi);
-        local_nmi->type   = ACPI_APIC_LOCAL_X2APIC_NMI;
-        local_nmi->length = sizeof(*local_nmi);
-        local_nmi->uid    = 0xFFFFFFFF; /* all processors */
-        local_nmi->flags  = cpu_to_le16(0);
-        local_nmi->lint   = 1; /* ACPI_LINT1 */
+        /* Rev 4.0, 5.2.12.13 Local x2APIC NMI Structure*/
+        build_append_int_noprefix(table_data, 0xA, 1); /* Type */
+        build_append_int_noprefix(table_data, 12, 1);  /* Length */
+        build_append_int_noprefix(table_data, 0, 2);   /* Flags */
+        /* ACPI Processor UID */
+        build_append_int_noprefix(table_data, 0xFFFFFFFF /* all processors */,
+                                  4);
+        /* Local x2APIC LINT# */
+        build_append_int_noprefix(table_data, 1 /* ACPI_LINT1 */, 1);
+        build_append_int_noprefix(table_data, 0, 3); /* Reserved */
     } else {
-        AcpiMadtLocalNmi *local_nmi;
-
-        local_nmi = acpi_data_push(table_data, sizeof *local_nmi);
-        local_nmi->type         = ACPI_APIC_LOCAL_NMI;
-        local_nmi->length       = sizeof(*local_nmi);
-        local_nmi->processor_id = 0xff; /* all processors */
-        local_nmi->flags        = cpu_to_le16(0);
-        local_nmi->lint         = 1; /* ACPI_LINT1 */
+        /* Rev 1.0b, 5.2.8.3.3 Local APIC NMI */
+        build_append_int_noprefix(table_data, 4, 1);  /* Type */
+        build_append_int_noprefix(table_data, 6, 1);  /* Length */
+        /* ACPI Processor ID */
+        build_append_int_noprefix(table_data, 0xFF /* all processors */, 1);
+        build_append_int_noprefix(table_data, 0, 2);  /* Flags */
+        /* Local APIC INTI# */
+        build_append_int_noprefix(table_data, 1 /* ACPI_LINT1 */, 1);
     }
 
     acpi_table_end(linker, &table);
