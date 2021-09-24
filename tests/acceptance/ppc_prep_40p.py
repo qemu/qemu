@@ -7,7 +7,6 @@
 
 import os
 
-from avocado import skipIf
 from avocado import skipUnless
 from avocado_qemu import Test
 from avocado_qemu import wait_for_console_pattern
