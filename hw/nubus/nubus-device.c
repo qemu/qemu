@@ -10,11 +10,19 @@
 
 #include "qemu/osdep.h"
 #include "qemu/datadir.h"
+#include "hw/irq.h"
 #include "hw/loader.h"
 #include "hw/nubus/nubus.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 
+
+void nubus_set_irq(NubusDevice *nd, int level)
+{
+    NubusBus *nubus = NUBUS_BUS(qdev_get_parent_bus(DEVICE(nd)));
+
+    qemu_set_irq(nubus->irqs[nd->slot], level);
+}
 
 static void nubus_device_realize(DeviceState *dev, Error **errp)
 {
