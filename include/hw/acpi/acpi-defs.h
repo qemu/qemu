@@ -55,7 +55,7 @@ struct AcpiGenericAddress {
     uint8_t access_width;    /* ACPI 3.0: Minimum Access size (ACPI 3.0),
                                 ACPI 2.0: Reserved, Table 5-1 */
     uint64_t address;        /* 64-bit address of struct or register */
-} QEMU_PACKED;
+};
 
 typedef struct AcpiFadtData {
     struct AcpiGenericAddress pm1a_cnt;   /* PM1a_CNT_BLK */
