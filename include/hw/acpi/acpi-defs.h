@@ -359,19 +359,6 @@ struct AcpiGenericTimerTable {
 typedef struct AcpiGenericTimerTable AcpiGenericTimerTable;
 
 /*
- * HPET Description Table
- */
-struct Acpi20Hpet {
-    ACPI_TABLE_HEADER_DEF                    /* ACPI common table header */
-    uint32_t           timer_block_id;
-    struct AcpiGenericAddress addr;
-    uint8_t            hpet_number;
-    uint16_t           min_tick;
-    uint8_t            page_protect;
-} QEMU_PACKED;
-typedef struct Acpi20Hpet Acpi20Hpet;
-
-/*
  * SRAT (NUMA topology description) table
  */
 
