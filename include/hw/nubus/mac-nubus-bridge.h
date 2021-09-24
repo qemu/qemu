@@ -22,7 +22,6 @@ OBJECT_DECLARE_SIMPLE_TYPE(MacNubusBridge, MAC_NUBUS_BRIDGE)
 struct MacNubusBridge {
     NubusBridge parent_obj;
 
-    NubusBus *bus;
     MemoryRegion super_slot_alias;
     MemoryRegion slot_alias;
 };

@@ -12,6 +12,14 @@
 #include "hw/sysbus.h"
 #include "hw/nubus/nubus.h"
 
+
+static void nubus_bridge_init(Object *obj)
+{
+    NubusBridge *s = NUBUS_BRIDGE(obj);
+
+    s->bus = NUBUS_BUS(qbus_create(TYPE_NUBUS_BUS, DEVICE(s), NULL));
+}
+
 static void nubus_bridge_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -22,6 +30,7 @@ static void nubus_bridge_class_init(ObjectClass *klass, void *data)
 static const TypeInfo nubus_bridge_info = {
     .name          = TYPE_NUBUS_BRIDGE,
     .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_init = nubus_bridge_init,
     .instance_size = sizeof(NubusBridge),
     .class_init    = nubus_bridge_class_init,
 };
