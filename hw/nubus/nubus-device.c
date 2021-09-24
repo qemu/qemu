@@ -168,26 +168,26 @@ static void nubus_device_realize(DeviceState *dev, Error **errp)
     }
 
     nd->slot = nubus->current_slot++;
-    name = g_strdup_printf("nubus-slot-%d", nd->slot);
 
-    if (nd->slot < NUBUS_FIRST_SLOT) {
-        /* Super */
-        slot_offset = (nd->slot - 6) * NUBUS_SUPER_SLOT_SIZE;
+    /* Super */
+    slot_offset = nd->slot * NUBUS_SUPER_SLOT_SIZE;
 
-        memory_region_init(&nd->slot_mem, OBJECT(dev), name,
-                           NUBUS_SUPER_SLOT_SIZE);
-        memory_region_add_subregion(&nubus->super_slot_io, slot_offset,
-                                    &nd->slot_mem);
-    } else {
-        /* Normal */
-        slot_offset = nd->slot * NUBUS_SLOT_SIZE;
-
-        memory_region_init(&nd->slot_mem, OBJECT(dev), name, NUBUS_SLOT_SIZE);
-        memory_region_add_subregion(&nubus->slot_io, slot_offset,
-                                    &nd->slot_mem);
-    }
-
+    name = g_strdup_printf("nubus-super-slot-%x", nd->slot);
+    memory_region_init(&nd->super_slot_mem, OBJECT(dev), name,
+                       NUBUS_SUPER_SLOT_SIZE);
+    memory_region_add_subregion(&nubus->super_slot_io, slot_offset,
+                                &nd->super_slot_mem);
     g_free(name);
+
+    /* Normal */
+    slot_offset = nd->slot * NUBUS_SLOT_SIZE;
+
+    name = g_strdup_printf("nubus-slot-%x", nd->slot);
+    memory_region_init(&nd->slot_mem, OBJECT(dev), name, NUBUS_SLOT_SIZE);
+    memory_region_add_subregion(&nubus->slot_io, slot_offset,
+                                &nd->slot_mem);
+    g_free(name);
+
     nubus_register_format_block(nd);
 }
 

@@ -43,6 +43,7 @@ struct NubusDevice {
     DeviceState qdev;
 
     int slot;
+    MemoryRegion super_slot_mem;
     MemoryRegion slot_mem;
 
     /* Format Block */
