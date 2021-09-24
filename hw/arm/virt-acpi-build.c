@@ -568,94 +568,124 @@ build_gtdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 }
 
 /*
- * ACPI spec, Revision 5.0
+ * ACPI spec, Revision 5.1 Errata A
  * 5.2.12 Multiple APIC Description Table (MADT)
  */
+static void build_append_gicr(GArray *table_data, uint64_t base, uint32_t size)
+{
+    build_append_int_noprefix(table_data, 0xE, 1);  /* Type */
+    build_append_int_noprefix(table_data, 16, 1);   /* Length */
+    build_append_int_noprefix(table_data, 0, 2);    /* Reserved */
+    /* Discovery Range Base Addres */
+    build_append_int_noprefix(table_data, base, 8);
+    build_append_int_noprefix(table_data, size, 4); /* Discovery Range Length */
+}
+
 static void
 build_madt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 {
+    int i;
     VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
     const MemMapEntry *memmap = vms->memmap;
-    const int *irqmap = vms->irqmap;
-    AcpiMadtGenericDistributor *gicd;
-    AcpiMadtGenericMsiFrame *gic_msi;
-    int i;
     AcpiTable table = { .sig = "APIC", .rev = 3, .oem_id = vms->oem_id,
                         .oem_table_id = vms->oem_table_id };
 
     acpi_table_begin(&table, table_data);
     /* Local Interrupt Controller Address */
     build_append_int_noprefix(table_data, 0, 4);
-    build_append_int_noprefix(table_data, 0, 4); /* Flags */
+    build_append_int_noprefix(table_data, 0, 4);   /* Flags */
 
-    gicd = acpi_data_push(table_data, sizeof *gicd);
-    gicd->type = ACPI_APIC_GENERIC_DISTRIBUTOR;
-    gicd->length = sizeof(*gicd);
-    gicd->base_address = cpu_to_le64(memmap[VIRT_GIC_DIST].base);
-    gicd->version = vms->gic_version;
+    /* 5.2.12.15 GIC Distributor Structure */
+    build_append_int_noprefix(table_data, 0xC, 1); /* Type */
+    build_append_int_noprefix(table_data, 24, 1);  /* Length */
+    build_append_int_noprefix(table_data, 0, 2);   /* Reserved */
+    build_append_int_noprefix(table_data, 0, 4);   /* GIC ID */
+    /* Physical Base Address */
+    build_append_int_noprefix(table_data, memmap[VIRT_GIC_DIST].base, 8);
+    build_append_int_noprefix(table_data, 0, 4);   /* System Vector Base */
+    /* GIC version */
+    build_append_int_noprefix(table_data, vms->gic_version, 1);
+    build_append_int_noprefix(table_data, 0, 3);   /* Reserved */
 
     for (i = 0; i < MACHINE(vms)->smp.cpus; i++) {
-        AcpiMadtGenericCpuInterface *gicc = acpi_data_push(table_data,
-                                                           sizeof(*gicc));
         ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(i));
+        uint64_t physical_base_address = 0, gich = 0, gicv = 0;
+        uint32_t vgic_interrupt = vms->virt ? PPI(ARCH_GIC_MAINT_IRQ) : 0;
+        uint32_t pmu_interrupt = arm_feature(&armcpu->env, ARM_FEATURE_PMU) ?
+                                             PPI(VIRTUAL_PMU_IRQ) : 0;
 
-        gicc->type = ACPI_APIC_GENERIC_CPU_INTERFACE;
-        gicc->length = sizeof(*gicc);
         if (vms->gic_version == 2) {
-            gicc->base_address = cpu_to_le64(memmap[VIRT_GIC_CPU].base);
-            gicc->gich_base_address = cpu_to_le64(memmap[VIRT_GIC_HYP].base);
-            gicc->gicv_base_address = cpu_to_le64(memmap[VIRT_GIC_VCPU].base);
+            physical_base_address = memmap[VIRT_GIC_CPU].base;
+            gicv = memmap[VIRT_GIC_VCPU].base;
+            gich = memmap[VIRT_GIC_HYP].base;
         }
-        gicc->cpu_interface_number = cpu_to_le32(i);
-        gicc->arm_mpidr = cpu_to_le64(armcpu->mp_affinity);
-        gicc->uid = cpu_to_le32(i);
-        gicc->flags = cpu_to_le32(ACPI_MADT_GICC_ENABLED);
 
-        if (arm_feature(&armcpu->env, ARM_FEATURE_PMU)) {
-            gicc->performance_interrupt = cpu_to_le32(PPI(VIRTUAL_PMU_IRQ));
-        }
-        if (vms->virt) {
-            gicc->vgic_interrupt = cpu_to_le32(PPI(ARCH_GIC_MAINT_IRQ));
-        }
+        /* 5.2.12.14 GIC Structure */
+        build_append_int_noprefix(table_data, 0xB, 1);  /* Type */
+        build_append_int_noprefix(table_data, 76, 1);   /* Length */
+        build_append_int_noprefix(table_data, 0, 2);    /* Reserved */
+        build_append_int_noprefix(table_data, i, 4);    /* GIC ID */
+        build_append_int_noprefix(table_data, i, 4);    /* ACPI Processor UID */
+        /* Flags */
+        build_append_int_noprefix(table_data, 1, 4);    /* Enabled */
+        /* Parking Protocol Version */
+        build_append_int_noprefix(table_data, 0, 4);
+        /* Performance Interrupt GSIV */
+        build_append_int_noprefix(table_data, pmu_interrupt, 4);
+        build_append_int_noprefix(table_data, 0, 8); /* Parked Address */
+        /* Physical Base Address */
+        build_append_int_noprefix(table_data, physical_base_address, 8);
+        build_append_int_noprefix(table_data, gicv, 8); /* GICV */
+        build_append_int_noprefix(table_data, gich, 8); /* GICH */
+        /* VGIC Maintenance interrupt */
+        build_append_int_noprefix(table_data, vgic_interrupt, 4);
+        build_append_int_noprefix(table_data, 0, 8);    /* GICR Base Address*/
+        /* MPIDR */
+        build_append_int_noprefix(table_data, armcpu->mp_affinity, 8);
     }
 
     if (vms->gic_version == 3) {
-        AcpiMadtGenericTranslator *gic_its;
-        int nb_redist_regions = virt_gicv3_redist_region_count(vms);
-        AcpiMadtGenericRedistributor *gicr = acpi_data_push(table_data,
-                                                         sizeof *gicr);
-
-        gicr->type = ACPI_APIC_GENERIC_REDISTRIBUTOR;
-        gicr->length = sizeof(*gicr);
-        gicr->base_address = cpu_to_le64(memmap[VIRT_GIC_REDIST].base);
-        gicr->range_length = cpu_to_le32(memmap[VIRT_GIC_REDIST].size);
-
-        if (nb_redist_regions == 2) {
-            gicr = acpi_data_push(table_data, sizeof(*gicr));
-            gicr->type = ACPI_APIC_GENERIC_REDISTRIBUTOR;
-            gicr->length = sizeof(*gicr);
-            gicr->base_address =
-                cpu_to_le64(memmap[VIRT_HIGH_GIC_REDIST2].base);
-            gicr->range_length =
-                cpu_to_le32(memmap[VIRT_HIGH_GIC_REDIST2].size);
+        build_append_gicr(table_data, memmap[VIRT_GIC_REDIST].base,
+                                      memmap[VIRT_GIC_REDIST].size);
+        if (virt_gicv3_redist_region_count(vms) == 2) {
+            build_append_gicr(table_data, memmap[VIRT_HIGH_GIC_REDIST2].base,
+                                          memmap[VIRT_HIGH_GIC_REDIST2].size);
         }
 
         if (its_class_name() && !vmc->no_its) {
-            gic_its = acpi_data_push(table_data, sizeof *gic_its);
-            gic_its->type = ACPI_APIC_GENERIC_TRANSLATOR;
-            gic_its->length = sizeof(*gic_its);
-            gic_its->translation_id = 0;
-            gic_its->base_address = cpu_to_le64(memmap[VIRT_GIC_ITS].base);
+            /*
+             * FIXME: Structure is from Revision 6.0 where 'GIC Structure'
+             * has additional fields on top of implemented 5.1 Errata A,
+             * to make it consistent with v6.0 we need to bump everything
+             * to v6.0
+             */
+            /*
+             * ACPI spec, Revision 6.0 Errata A
+             * (original 6.0 definition has invalid Length)
+             * 5.2.12.18 GIC ITS Structure
+             */
+            build_append_int_noprefix(table_data, 0xF, 1);  /* Type */
+            build_append_int_noprefix(table_data, 20, 1);   /* Length */
+            build_append_int_noprefix(table_data, 0, 2);    /* Reserved */
+            build_append_int_noprefix(table_data, 0, 4);    /* GIC ITS ID */
+            /* Physical Base Address */
+            build_append_int_noprefix(table_data, memmap[VIRT_GIC_ITS].base, 8);
+            build_append_int_noprefix(table_data, 0, 4);    /* Reserved */
         }
     } else {
-        gic_msi = acpi_data_push(table_data, sizeof *gic_msi);
-        gic_msi->type = ACPI_APIC_GENERIC_MSI_FRAME;
-        gic_msi->length = sizeof(*gic_msi);
-        gic_msi->gic_msi_frame_id = 0;
-        gic_msi->base_address = cpu_to_le64(memmap[VIRT_GIC_V2M].base);
-        gic_msi->flags = cpu_to_le32(1);
-        gic_msi->spi_count = cpu_to_le16(NUM_GICV2M_SPIS);
-        gic_msi->spi_base = cpu_to_le16(irqmap[VIRT_GIC_V2M] + ARM_SPI_BASE);
+        const uint16_t spi_base = vms->irqmap[VIRT_GIC_V2M] + ARM_SPI_BASE;
+
+        /* 5.2.12.16 GIC MSI Frame Structure */
+        build_append_int_noprefix(table_data, 0xD, 1);  /* Type */
+        build_append_int_noprefix(table_data, 24, 1);   /* Length */
+        build_append_int_noprefix(table_data, 0, 2);    /* Reserved */
+        build_append_int_noprefix(table_data, 0, 4);    /* GIC MSI Frame ID */
+        /* Physical Base Address */
+        build_append_int_noprefix(table_data, memmap[VIRT_GIC_V2M].base, 8);
+        build_append_int_noprefix(table_data, 1, 4);    /* Flags */
+        /* SPI Count */
+        build_append_int_noprefix(table_data, NUM_GICV2M_SPIS, 2);
+        build_append_int_noprefix(table_data, spi_base, 2); /* SPI Base */
     }
     acpi_table_end(linker, &table);
 }
