@@ -23,6 +23,8 @@ struct MacNubusState {
     SysBusDevice sysbus_dev;
 
     NubusBus *bus;
+    MemoryRegion super_slot_alias;
+    MemoryRegion slot_alias;
 };
 
 #endif

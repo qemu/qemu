@@ -78,25 +78,42 @@ static const MemoryRegionOps nubus_super_slot_ops = {
     },
 };
 
+static void nubus_unrealize(BusState *bus)
+{
+    NubusBus *nubus = NUBUS_BUS(bus);
+
+    address_space_destroy(&nubus->nubus_as);
+}
+
 static void nubus_realize(BusState *bus, Error **errp)
 {
+    NubusBus *nubus = NUBUS_BUS(bus);
+
     if (!nubus_find()) {
         error_setg(errp, "at most one %s device is permitted", TYPE_NUBUS_BUS);
         return;
     }
+
+    address_space_init(&nubus->nubus_as, &nubus->nubus_mr, "nubus");
 }
 
 static void nubus_init(Object *obj)
 {
     NubusBus *nubus = NUBUS_BUS(obj);
 
+    memory_region_init(&nubus->nubus_mr, obj, "nubus", 0x100000000);
+
     memory_region_init_io(&nubus->super_slot_io, obj, &nubus_super_slot_ops,
                           nubus, "nubus-super-slots",
                           (NUBUS_SUPER_SLOT_NB + 1) * NUBUS_SUPER_SLOT_SIZE);
+    memory_region_add_subregion(&nubus->nubus_mr, 0x0, &nubus->super_slot_io);
 
     memory_region_init_io(&nubus->slot_io, obj, &nubus_slot_ops,
                           nubus, "nubus-slots",
                           NUBUS_SLOT_NB * NUBUS_SLOT_SIZE);
+    memory_region_add_subregion(&nubus->nubus_mr,
+                                (NUBUS_SUPER_SLOT_NB + 1) *
+                                NUBUS_SUPER_SLOT_SIZE, &nubus->slot_io);
 
     nubus->slot_available_mask = MAKE_64BIT_MASK(NUBUS_FIRST_SLOT,
                                                  NUBUS_SLOT_NB);
@@ -150,6 +167,7 @@ static void nubus_class_init(ObjectClass *oc, void *data)
     BusClass *bc = BUS_CLASS(oc);
 
     bc->realize = nubus_realize;
+    bc->unrealize = nubus_unrealize;
     bc->check_address = nubus_check_address;
     bc->get_dev_path = nubus_get_dev_path;
 }
