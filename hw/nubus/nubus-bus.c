@@ -8,6 +8,14 @@
  *
  */
 
+/*
+ * References:
+ *   Nubus Specification (TI)
+ *     http://www.bitsavers.org/pdf/ti/nubus/2242825-0001_NuBus_Spec1983.pdf
+ *
+ *   Designing Cards and Drivers for the Macintosh Family (Apple)
+ */
+
 #include "qemu/osdep.h"
 #include "hw/nubus/nubus.h"
 #include "qapi/error.h"
