@@ -148,7 +148,7 @@ struct AspeedMachineState {
         SCU_AST2400_HW_STRAP_BOOT_MODE(AST2400_SPI_BOOT))
 
 /* AST2600 evb hardware value */
-#define AST2600_EVB_HW_STRAP1 0x000000C0
+#define AST2600_EVB_HW_STRAP1 (0x000000C0 | AST26500_HW_STRAP_BOOT_SRC_EMMC)
 #define AST2600_EVB_HW_STRAP2 0x00000003
 
 /* Tacoma hardware value */
