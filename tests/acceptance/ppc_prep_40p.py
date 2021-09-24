@@ -67,8 +67,8 @@ class IbmPrep40pMachine(Test):
         :avocado: tags=machine:40p
         :avocado: tags=os:netbsd
         """
-        drive_url = ('https://cdn.netbsd.org/pub/NetBSD/iso/7.1.2/'
-                     'NetBSD-7.1.2-prep.iso')
+        drive_url = ('https://archive.netbsd.org/pub/NetBSD-archive/'
+                     'NetBSD-7.1.2/iso/NetBSD-7.1.2-prep.iso')
         drive_hash = 'ac6fa2707d888b36d6fa64de6e7fe48e'
         drive_path = self.fetch_asset(drive_url, asset_hash=drive_hash,
                                       algorithm='md5')
