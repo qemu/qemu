@@ -86,13 +86,14 @@ static void nubus_init(Object *obj)
 
     memory_region_init_io(&nubus->super_slot_io, obj, &nubus_super_slot_ops,
                           nubus, "nubus-super-slots",
-                          NUBUS_SUPER_SLOT_NB * NUBUS_SUPER_SLOT_SIZE);
+                          (NUBUS_SUPER_SLOT_NB + 1) * NUBUS_SUPER_SLOT_SIZE);
 
     memory_region_init_io(&nubus->slot_io, obj, &nubus_slot_ops,
                           nubus, "nubus-slots",
                           NUBUS_SLOT_NB * NUBUS_SLOT_SIZE);
 
-    nubus->current_slot = NUBUS_FIRST_SLOT;
+    nubus->slot_available_mask = MAKE_64BIT_MASK(NUBUS_FIRST_SLOT,
+                                                 NUBUS_SLOT_NB);
 }
 
 static void nubus_class_init(ObjectClass *oc, void *data)

@@ -18,6 +18,10 @@ static void mac_nubus_bridge_init(Object *obj)
 
     s->bus = NUBUS_BUS(qbus_create(TYPE_NUBUS_BUS, DEVICE(s), NULL));
 
+    /* Macintosh only has slots 0x9 to 0xe available */
+    s->bus->slot_available_mask = MAKE_64BIT_MASK(MAC_NUBUS_FIRST_SLOT,
+                                                  MAC_NUBUS_SLOT_NB);
+
     sysbus_init_mmio(sbd, &s->bus->super_slot_io);
     sysbus_init_mmio(sbd, &s->bus->slot_io);
 }

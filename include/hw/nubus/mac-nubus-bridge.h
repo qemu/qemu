@@ -12,6 +12,10 @@
 #include "hw/nubus/nubus.h"
 #include "qom/object.h"
 
+#define MAC_NUBUS_FIRST_SLOT 0x9
+#define MAC_NUBUS_LAST_SLOT  0xe
+#define MAC_NUBUS_SLOT_NB    (MAC_NUBUS_LAST_SLOT - MAC_NUBUS_FIRST_SLOT + 1)
+
 #define TYPE_MAC_NUBUS_BRIDGE "mac-nubus-bridge"
 OBJECT_DECLARE_SIMPLE_TYPE(MacNubusState, MAC_NUBUS_BRIDGE)
 

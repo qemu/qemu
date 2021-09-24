@@ -161,13 +161,26 @@ static void nubus_device_realize(DeviceState *dev, Error **errp)
     char *name;
     hwaddr slot_offset;
 
-    if (nubus->current_slot < NUBUS_FIRST_SLOT ||
-            nubus->current_slot > NUBUS_LAST_SLOT) {
-        error_setg(errp, "Cannot register nubus card, not enough slots");
-        return;
+    if (nd->slot == -1) {
+        /* No slot specified, find first available free slot */
+        int s = ctz32(nubus->slot_available_mask);
+        if (s != 32) {
+            nd->slot = s;
+        } else {
+            error_setg(errp, "Cannot register nubus card, no free slot "
+                             "available");
+            return;
+        }
+    } else {
+        /* Slot specified, make sure the slot is available */
+        if (!(nubus->slot_available_mask & BIT(nd->slot))) {
+            error_setg(errp, "Cannot register nubus card, slot %d is "
+                             "unavailable or already occupied", nd->slot);
+            return;
+        }
     }
 
-    nd->slot = nubus->current_slot++;
+    nubus->slot_available_mask &= ~BIT(nd->slot);
 
     /* Super */
     slot_offset = nd->slot * NUBUS_SUPER_SLOT_SIZE;
@@ -191,12 +204,18 @@ static void nubus_device_realize(DeviceState *dev, Error **errp)
     nubus_register_format_block(nd);
 }
 
+static Property nubus_device_properties[] = {
+    DEFINE_PROP_INT32("slot", NubusDevice, slot, -1),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void nubus_device_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = nubus_device_realize;
     dc->bus_type = TYPE_NUBUS_BUS;
+    device_class_set_props(dc, nubus_device_properties);
 }
 
 static const TypeInfo nubus_device_type_info = {
