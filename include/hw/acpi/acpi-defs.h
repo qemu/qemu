@@ -118,38 +118,6 @@ typedef struct AcpiFadtData {
 #define ACPI_FADT_ARM_PSCI_USE_HVC    (1 << 1)
 
 /*
- * Serial Port Console Redirection Table (SPCR), Rev. 1.02
- *
- * For .interface_type see Debug Port Table 2 (DBG2) serial port
- * subtypes in Table 3, Rev. May 22, 2012
- */
-struct AcpiSerialPortConsoleRedirection {
-    ACPI_TABLE_HEADER_DEF
-    uint8_t  interface_type;
-    uint8_t  reserved1[3];
-    struct AcpiGenericAddress base_address;
-    uint8_t  interrupt_types;
-    uint8_t  irq;
-    uint32_t gsi;
-    uint8_t  baud;
-    uint8_t  parity;
-    uint8_t  stopbits;
-    uint8_t  flowctrl;
-    uint8_t  term_type;
-    uint8_t  reserved2;
-    uint16_t pci_device_id;
-    uint16_t pci_vendor_id;
-    uint8_t  pci_bus;
-    uint8_t  pci_slot;
-    uint8_t  pci_func;
-    uint32_t pci_flags;
-    uint8_t  pci_seg;
-    uint32_t reserved3;
-} QEMU_PACKED;
-typedef struct AcpiSerialPortConsoleRedirection
-               AcpiSerialPortConsoleRedirection;
-
-/*
  * ACPI 1.0 Firmware ACPI Control Structure (FACS)
  */
 struct AcpiFacsDescriptorRev1 {
