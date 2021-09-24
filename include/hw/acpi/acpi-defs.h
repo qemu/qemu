@@ -189,20 +189,6 @@ struct AcpiGenericTimerTable {
 typedef struct AcpiGenericTimerTable AcpiGenericTimerTable;
 
 /*
- * Input Output Remapping Table (IORT)
- * Conforms to "IO Remapping Table System Software on ARM Platforms",
- * Document number: ARM DEN 0049B, October 2015
- */
-
-struct AcpiIortTable {
-    ACPI_TABLE_HEADER_DEF     /* ACPI common table header */
-    uint32_t node_count;
-    uint32_t node_offset;
-    uint32_t reserved;
-} QEMU_PACKED;
-typedef struct AcpiIortTable AcpiIortTable;
-
-/*
  * IORT node types
  */
 
