@@ -12,6 +12,7 @@
 #include "hw/qdev-properties.h"
 #include "exec/address-spaces.h"
 #include "qom/object.h"
+#include "qemu/units.h"
 
 #define NUBUS_SUPER_SLOT_SIZE 0x10000000U
 #define NUBUS_SUPER_SLOT_NB   0xe
@@ -38,12 +39,17 @@ struct NubusBus {
     uint16_t slot_available_mask;
 };
 
+#define NUBUS_DECL_ROM_MAX_SIZE    (128 * KiB)
+
 struct NubusDevice {
     DeviceState qdev;
 
     int32_t slot;
     MemoryRegion super_slot_mem;
     MemoryRegion slot_mem;
+
+    char *romfile;
+    MemoryRegion decl_rom;
 };
 
 #endif
