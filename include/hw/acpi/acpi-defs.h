@@ -150,16 +150,6 @@ typedef struct AcpiSerialPortConsoleRedirection
                AcpiSerialPortConsoleRedirection;
 
 /*
- * ACPI 1.0 Root System Description Table (RSDT)
- */
-struct AcpiRsdtDescriptorRev1 {
-    ACPI_TABLE_HEADER_DEF       /* ACPI common table header */
-    uint32_t table_offset_entry[];  /* Array of pointers to other */
-    /* ACPI tables */
-} QEMU_PACKED;
-typedef struct AcpiRsdtDescriptorRev1 AcpiRsdtDescriptorRev1;
-
-/*
  * ACPI 2.0 eXtended System Description Table (XSDT)
  */
 struct AcpiXsdtDescriptorRev2 {
