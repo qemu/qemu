@@ -45,22 +45,6 @@ static const uint8_t nvdimm_nfit_spa_uuid[] =
               0x18, 0xb7, 0x8c, 0xdb);
 
 /*
- * NVDIMM Firmware Interface Table
- * @signature: "NFIT"
- *
- * It provides information that allows OSPM to enumerate NVDIMM present in
- * the platform and associate system physical address ranges created by the
- * NVDIMMs.
- *
- * It is defined in ACPI 6.0: 5.2.25 NVDIMM Firmware Interface Table (NFIT)
- */
-struct NvdimmNfitHeader {
-    ACPI_TABLE_HEADER_DEF
-    uint32_t reserved;
-} QEMU_PACKED;
-typedef struct NvdimmNfitHeader NvdimmNfitHeader;
-
-/*
  * define NFIT structures according to ACPI 6.0: 5.2.25 NVDIMM Firmware
  * Interface Table (NFIT).
  */
@@ -401,25 +385,33 @@ void nvdimm_plug(NVDIMMState *state)
     nvdimm_build_fit_buffer(state);
 }
 
+/*
+ * NVDIMM Firmware Interface Table
+ * @signature: "NFIT"
+ *
+ * It provides information that allows OSPM to enumerate NVDIMM present in
+ * the platform and associate system physical address ranges created by the
+ * NVDIMMs.
+ *
+ * It is defined in ACPI 6.0: 5.2.25 NVDIMM Firmware Interface Table (NFIT)
+ */
+
 static void nvdimm_build_nfit(NVDIMMState *state, GArray *table_offsets,
                               GArray *table_data, BIOSLinker *linker,
                               const char *oem_id, const char *oem_table_id)
 {
     NvdimmFitBuffer *fit_buf = &state->fit_buf;
-    unsigned int header;
+    AcpiTable table = { .sig = "NFIT", .rev = 1,
+                        .oem_id = oem_id, .oem_table_id = oem_table_id };
 
     acpi_add_table(table_offsets, table_data);
 
-    /* NFIT header. */
-    header = table_data->len;
-    acpi_data_push(table_data, sizeof(NvdimmNfitHeader));
+    acpi_table_begin(&table, table_data);
+    /* Reserved */
+    build_append_int_noprefix(table_data, 0, 4);
     /* NVDIMM device structures. */
     g_array_append_vals(table_data, fit_buf->fit->data, fit_buf->fit->len);
-
-    build_header(linker, table_data,
-                 (void *)(table_data->data + header), "NFIT",
-                 sizeof(NvdimmNfitHeader) + fit_buf->fit->len, 1, oem_id,
-                 oem_table_id);
+    acpi_table_end(linker, &table);
 }
 
 #define NVDIMM_DSM_MEMORY_SIZE      4096
