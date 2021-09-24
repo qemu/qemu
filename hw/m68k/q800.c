@@ -398,6 +398,12 @@ static void q800_init(MachineState *machine)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, NUBUS_SLOT_BASE +
                     MAC_NUBUS_FIRST_SLOT * NUBUS_SLOT_SIZE);
 
+    for (i = 0; i < VIA2_NUBUS_IRQ_NB; i++) {
+        qdev_connect_gpio_out(dev, 9 + i,
+                              qdev_get_gpio_in_named(via2_dev, "nubus-irq",
+                                                     VIA2_NUBUS_IRQ_9 + i));
+    }
+
     nubus = &NUBUS_BRIDGE(dev)->bus;
 
     /* framebuffer in nubus slot #9 */
