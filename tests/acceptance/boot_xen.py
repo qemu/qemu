@@ -13,7 +13,6 @@
 
 import os
 
-from avocado import skipIf
 from avocado_qemu import wait_for_console_pattern
 from boot_linux_console import LinuxKernelTest
 
