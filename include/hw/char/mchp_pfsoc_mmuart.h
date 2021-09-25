@@ -33,6 +33,7 @@
 #define MCHP_PFSOC_MMUART_REG_COUNT 13
 
 typedef struct MchpPfSoCMMUartState {
+    MemoryRegion container;
     MemoryRegion iomem;
     hwaddr base;
     qemu_irq irq;

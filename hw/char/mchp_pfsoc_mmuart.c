@@ -25,6 +25,8 @@
 #include "chardev/char.h"
 #include "hw/char/mchp_pfsoc_mmuart.h"
 
+#define REGS_OFFSET 0x20
+
 static uint64_t mchp_pfsoc_mmuart_read(void *opaque, hwaddr addr, unsigned size)
 {
     MchpPfSoCMMUartState *s = opaque;
@@ -72,16 +74,19 @@ MchpPfSoCMMUartState *mchp_pfsoc_mmuart_create(MemoryRegion *sysmem,
 
     s = g_new0(MchpPfSoCMMUartState, 1);
 
+    memory_region_init(&s->container, NULL, "mchp.pfsoc.mmuart", 0x1000);
+
     memory_region_init_io(&s->iomem, NULL, &mchp_pfsoc_mmuart_ops, s,
-                          "mchp.pfsoc.mmuart", 0x1000);
+                          "mchp.pfsoc.mmuart.regs", 0x1000 - REGS_OFFSET);
+    memory_region_add_subregion(&s->container, REGS_OFFSET, &s->iomem);
 
     s->base = base;
     s->irq = irq;
 
-    s->serial = serial_mm_init(sysmem, base, 2, irq, 399193, chr,
+    s->serial = serial_mm_init(&s->container, 0, 2, irq, 399193, chr,
                                DEVICE_LITTLE_ENDIAN);
 
-    memory_region_add_subregion(sysmem, base + 0x20, &s->iomem);
+    memory_region_add_subregion(sysmem, base, &s->container);
 
     return s;
 }
