@@ -29,13 +29,14 @@ static uint64_t mchp_pfsoc_mmuart_read(void *opaque, hwaddr addr, unsigned size)
 {
     MchpPfSoCMMUartState *s = opaque;
 
-    if (addr >= MCHP_PFSOC_MMUART_REG_SIZE) {
+    addr >>= 2;
+    if (addr >= MCHP_PFSOC_MMUART_REG_COUNT) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: read: addr=0x%" HWADDR_PRIx "\n",
-                      __func__, addr);
+                      __func__, addr << 2);
         return 0;
     }
 
-    return s->reg[addr / sizeof(uint32_t)];
+    return s->reg[addr];
 }
 
 static void mchp_pfsoc_mmuart_write(void *opaque, hwaddr addr,
@@ -44,13 +45,14 @@ static void mchp_pfsoc_mmuart_write(void *opaque, hwaddr addr,
     MchpPfSoCMMUartState *s = opaque;
     uint32_t val32 = (uint32_t)value;
 
-    if (addr >= MCHP_PFSOC_MMUART_REG_SIZE) {
+    addr >>= 2;
+    if (addr >= MCHP_PFSOC_MMUART_REG_COUNT) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: bad write: addr=0x%" HWADDR_PRIx
-                      " v=0x%x\n", __func__, addr, val32);
+                      " v=0x%x\n", __func__, addr << 2, val32);
         return;
     }
 
-    s->reg[addr / sizeof(uint32_t)] = val32;
+    s->reg[addr] = val32;
 }
 
 static const MemoryRegionOps mchp_pfsoc_mmuart_ops = {

@@ -30,7 +30,7 @@
 
 #include "hw/char/serial.h"
 
-#define MCHP_PFSOC_MMUART_REG_SIZE  52
+#define MCHP_PFSOC_MMUART_REG_COUNT 13
 
 typedef struct MchpPfSoCMMUartState {
     MemoryRegion iomem;
@@ -39,7 +39,7 @@ typedef struct MchpPfSoCMMUartState {
 
     SerialMM *serial;
 
-    uint32_t reg[MCHP_PFSOC_MMUART_REG_SIZE / sizeof(uint32_t)];
+    uint32_t reg[MCHP_PFSOC_MMUART_REG_COUNT];
 } MchpPfSoCMMUartState;
 
 /**
