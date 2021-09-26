@@ -324,6 +324,7 @@ static void probe_pci_info(PCIDevice *dev, Error **errp)
         set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
         break;
     case PCI_BASE_CLASS_NETWORK:
+    case PCI_BASE_CLASS_WIRELESS:
         set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
         break;
     case PCI_BASE_CLASS_INPUT:
