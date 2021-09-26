@@ -248,6 +248,7 @@ static void sifive_uart_class_init(ObjectClass *oc, void *data)
     rc->phases.enter = sifive_uart_reset_enter;
     rc->phases.hold  = sifive_uart_reset_hold;
     device_class_set_props(dc, sifive_uart_properties);
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo sifive_uart_info = {
