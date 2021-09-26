@@ -1526,7 +1526,7 @@ static void amdvi_init(AMDVIState *s)
             AMDVI_MAX_PH_ADDR | AMDVI_MAX_GVA_ADDR | AMDVI_MAX_VA_ADDR);
 }
 
-static void amdvi_reset(DeviceState *dev)
+static void amdvi_sysbus_reset(DeviceState *dev)
 {
     AMDVIState *s = AMD_IOMMU_DEVICE(dev);
 
@@ -1534,7 +1534,7 @@ static void amdvi_reset(DeviceState *dev)
     amdvi_init(s);
 }
 
-static void amdvi_realize(DeviceState *dev, Error **errp)
+static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
 {
     int ret = 0;
     AMDVIState *s = AMD_IOMMU_DEVICE(dev);
@@ -1585,27 +1585,27 @@ static void amdvi_realize(DeviceState *dev, Error **errp)
     amdvi_init(s);
 }
 
-static const VMStateDescription vmstate_amdvi = {
+static const VMStateDescription vmstate_amdvi_sysbus = {
     .name = "amd-iommu",
     .unmigratable = 1
 };
 
-static void amdvi_instance_init(Object *klass)
+static void amdvi_sysbus_instance_init(Object *klass)
 {
     AMDVIState *s = AMD_IOMMU_DEVICE(klass);
 
     object_initialize(&s->pci, sizeof(s->pci), TYPE_AMD_IOMMU_PCI);
 }
 
-static void amdvi_class_init(ObjectClass *klass, void* data)
+static void amdvi_sysbus_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     X86IOMMUClass *dc_class = X86_IOMMU_DEVICE_CLASS(klass);
 
-    dc->reset = amdvi_reset;
-    dc->vmsd = &vmstate_amdvi;
+    dc->reset = amdvi_sysbus_reset;
+    dc->vmsd = &vmstate_amdvi_sysbus;
     dc->hotpluggable = false;
-    dc_class->realize = amdvi_realize;
+    dc_class->realize = amdvi_sysbus_realize;
     dc_class->int_remap = amdvi_int_remap;
     /* Supported by the pc-q35-* machine types */
     dc->user_creatable = true;
@@ -1613,12 +1613,12 @@ static void amdvi_class_init(ObjectClass *klass, void* data)
     dc->desc = "AMD IOMMU (AMD-Vi) DMA Remapping device";
 }
 
-static const TypeInfo amdvi = {
+static const TypeInfo amdvi_sysbus = {
     .name = TYPE_AMD_IOMMU_DEVICE,
     .parent = TYPE_X86_IOMMU_DEVICE,
     .instance_size = sizeof(AMDVIState),
-    .instance_init = amdvi_instance_init,
-    .class_init = amdvi_class_init
+    .instance_init = amdvi_sysbus_instance_init,
+    .class_init = amdvi_sysbus_class_init
 };
 
 static const TypeInfo amdvi_pci = {
@@ -1648,7 +1648,7 @@ static const TypeInfo amdvi_iommu_memory_region_info = {
 static void amdvi_register_types(void)
 {
     type_register_static(&amdvi_pci);
-    type_register_static(&amdvi);
+    type_register_static(&amdvi_sysbus);
     type_register_static(&amdvi_iommu_memory_region_info);
 }
 
