@@ -550,6 +550,7 @@ static void ibex_uart_class_init(ObjectClass *klass, void *data)
     dc->realize = ibex_uart_realize;
     dc->vmsd = &vmstate_ibex_uart;
     device_class_set_props(dc, ibex_uart_properties);
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo ibex_uart_info = {
