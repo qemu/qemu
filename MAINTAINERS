@@ -271,8 +271,9 @@ M: Greg Kurz <groug@kaod.org>
 L: qemu-ppc@nongnu.org
 S: Maintained
 F: target/ppc/
-F: hw/ppc/
-F: include/hw/ppc/
+F: hw/ppc/ppc.c
+F: hw/ppc/ppc_booke.c
+F: include/hw/ppc/ppc.h
 F: disas/ppc.c
 
 RISC-V TCG CPUs
