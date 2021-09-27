@@ -12,18 +12,13 @@ import logging
 import os
 import shutil
 import sys
-import uuid
 import tempfile
+import time
+import uuid
 
 import avocado
-
-from avocado.utils import cloudinit
-from avocado.utils import datadrainer
-from avocado.utils import network
-from avocado.utils import ssh
-from avocado.utils import vmimage
+from avocado.utils import cloudinit, datadrainer, network, ssh, vmimage
 from avocado.utils.path import find_command
-
 
 #: The QEMU build root directory.  It may also be the source directory
 #: if building from the source dir, but it's safer to use BUILD_DIR for
@@ -42,11 +37,9 @@ else:
 sys.path.append(os.path.join(SOURCE_DIR, 'python'))
 
 from qemu.machine import QEMUMachine
-from qemu.utils import (
-    get_info_usernet_hostfwd_port,
-    kvm_available,
-    tcg_available,
-)
+from qemu.utils import (get_info_usernet_hostfwd_port, kvm_available,
+                        tcg_available)
+
 
 def is_readable_executable_file(path):
     return os.path.isfile(path) and os.access(path, os.R_OK | os.X_OK)
@@ -79,6 +72,7 @@ def pick_default_qemu_bin(arch=None):
                                               qemu_bin_relative_path)
     if is_readable_executable_file(qemu_bin_from_bld_dir_path):
         return qemu_bin_from_bld_dir_path
+    return None
 
 
 def _console_interaction(test, success_message, failure_message,
@@ -276,12 +270,13 @@ class Test(avocado.Test):
         for vm in self._vms.values():
             vm.shutdown()
         self._sd = None
+        super().tearDown()
 
     def fetch_asset(self, name,
                     asset_hash=None, algorithm=None,
                     locations=None, expire=None,
                     find_only=False, cancel_on_missing=True):
-        return super(Test, self).fetch_asset(name,
+        return super().fetch_asset(name,
                         asset_hash=asset_hash,
                         algorithm=algorithm,
                         locations=locations,
@@ -312,8 +307,7 @@ class LinuxSSHMixIn:
                 self.ssh_session.connect()
                 return
             except:
-                time.sleep(4)
-                pass
+                time.sleep(i)
         self.fail('ssh connection timeout')
 
     def ssh_command(self, command):
@@ -430,7 +424,7 @@ class LinuxDistro:
         return self._info.get('kernel_params', None)
 
 
-class LinuxTest(Test, LinuxSSHMixIn):
+class LinuxTest(LinuxSSHMixIn, Test):
     """Facilitates having a cloud-image Linux based available.
 
     For tests that indend to interact with guests, this is a better choice
@@ -469,7 +463,7 @@ class LinuxTest(Test, LinuxSSHMixIn):
             self.distro.checksum = distro_checksum
 
     def setUp(self, ssh_pubkey=None, network_device_type='virtio-net'):
-        super(LinuxTest, self).setUp()
+        super().setUp()
         self._set_distro()
         self.vm.add_args('-smp', '2')
         self.vm.add_args('-m', '1024')

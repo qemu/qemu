@@ -732,6 +732,47 @@ available.  On Debian and Ubuntu based systems, depending on the
 specific version, they may be on packages named ``python3-venv`` and
 ``python3-pip``.
 
+It is also possible to run tests based on tags using the
+``make check-acceptance`` command and the ``AVOCADO_TAGS`` environment
+variable:
+
+.. code::
+
+   make check-acceptance AVOCADO_TAGS=quick
+
+Note that tags separated with commas have an AND behavior, while tags
+separated by spaces have an OR behavior. For more information on Avocado
+tags, see:
+
+ https://avocado-framework.readthedocs.io/en/latest/guides/user/chapters/tags.html
+
+To run a single test file, a couple of them, or a test within a file
+using the ``make check-acceptance`` command, set the ``AVOCADO_TESTS``
+environment variable with the test files or test names. To run all
+tests from a single file, use:
+
+ .. code::
+
+  make check-acceptance AVOCADO_TESTS=$FILEPATH
+
+The same is valid to run tests from multiple test files:
+
+ .. code::
+
+  make check-acceptance AVOCADO_TESTS='$FILEPATH1 $FILEPATH2'
+
+To run a single test within a file, use:
+
+ .. code::
+
+  make check-acceptance AVOCADO_TESTS=$FILEPATH:$TESTCLASS.$TESTNAME
+
+The same is valid to run single tests from multiple test files:
+
+ .. code::
+
+  make check-acceptance AVOCADO_TESTS='$FILEPATH1:$TESTCLASS1.$TESTNAME1 $FILEPATH2:$TESTCLASS2.$TESTNAME2'
+
 The scripts installed inside the virtual environment may be used
 without an "activation".  For instance, the Avocado test runner
 may be invoked by running:
@@ -739,6 +780,34 @@ may be invoked by running:
  .. code::
 
   tests/venv/bin/avocado run $OPTION1 $OPTION2 tests/acceptance/
+
+Note that if ``make check-acceptance`` was not executed before, it is
+possible to create the Python virtual environment with the dependencies
+needed running:
+
+ .. code::
+
+  make check-venv
+
+It is also possible to run tests from a single file or a single test within
+a test file. To run tests from a single file within the build tree, use:
+
+ .. code::
+
+  tests/venv/bin/avocado run tests/acceptance/$TESTFILE
+
+To run a single test within a test file, use:
+
+ .. code::
+
+  tests/venv/bin/avocado run tests/acceptance/$TESTFILE:$TESTCLASS.$TESTNAME
+
+Valid test names are visible in the output from any previous execution
+of Avocado or ``make check-acceptance``, and can also be queried using:
+
+ .. code::
+
+  tests/venv/bin/avocado list tests/acceptance
 
 Manual Installation
 -------------------

@@ -207,6 +207,38 @@ class ReplayKernelNormal(ReplayKernelBase):
                           '-initrd', initrd_path,
                           '-no-reboot'))
 
+    def test_s390x_s390_ccw_virtio(self):
+        """
+        :avocado: tags=arch:s390x
+        :avocado: tags=machine:s390-ccw-virtio
+        """
+        kernel_url = ('https://archives.fedoraproject.org/pub/archive'
+                      '/fedora-secondary/releases/29/Everything/s390x/os/images'
+                      '/kernel.img')
+        kernel_hash = 'e8e8439103ef8053418ef062644ffd46a7919313'
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+
+        kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=sclp0'
+        console_pattern = 'Kernel command line: %s' % kernel_command_line
+        self.run_rr(kernel_path, kernel_command_line, console_pattern, shift=9)
+
+    def test_alpha_clipper(self):
+        """
+        :avocado: tags=arch:alpha
+        :avocado: tags=machine:clipper
+        """
+        kernel_url = ('http://archive.debian.org/debian/dists/lenny/main/'
+                      'installer-alpha/20090123lenny10/images/cdrom/vmlinuz')
+        kernel_hash = '3a943149335529e2ed3e74d0d787b85fb5671ba3'
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+
+        uncompressed_kernel = archive.uncompress(kernel_path, self.workdir)
+
+        kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=ttyS0'
+        console_pattern = 'Kernel command line: %s' % kernel_command_line
+        self.run_rr(uncompressed_kernel, kernel_command_line, console_pattern, shift=9,
+            args=('-nodefaults', ))
+
     def test_ppc64_pseries(self):
         """
         :avocado: tags=arch:ppc64
@@ -301,6 +333,28 @@ class ReplayKernelNormal(ReplayKernelBase):
                    '/2018/download/day19.tar.xz')
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         self.do_test_advcal_2018(file_path, 'uImage')
+
+    def test_or1k_sim(self):
+        """
+        :avocado: tags=arch:or1k
+        :avocado: tags=machine:or1k-sim
+        """
+        tar_hash = '20334cdaf386108c530ff0badaecc955693027dd'
+        tar_url = ('https://www.qemu-advent-calendar.org'
+                   '/2018/download/day20.tar.xz')
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        self.do_test_advcal_2018(file_path, 'vmlinux')
+
+    def test_nios2_10m50(self):
+        """
+        :avocado: tags=arch:nios2
+        :avocado: tags=machine:10m50-ghrd
+        """
+        tar_hash = 'e4251141726c412ac0407c5a6bceefbbff018918'
+        tar_url = ('https://www.qemu-advent-calendar.org'
+                   '/2018/download/day14.tar.xz')
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        self.do_test_advcal_2018(file_path, 'vmlinux.elf')
 
     def test_ppc_g3beige(self):
         """

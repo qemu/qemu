@@ -45,7 +45,7 @@ class Vnc(Test):
                          'Could not set password')
 
     def test_change_password(self):
-        self.vm.add_args('-nodefaults', '-S', '-vnc', ':0,password')
+        self.vm.add_args('-nodefaults', '-S', '-vnc', ':0,password=on')
         self.vm.launch()
         self.assertTrue(self.vm.qmp('query-vnc')['return']['enabled'])
         set_password_response = self.vm.qmp('change-vnc-password',
