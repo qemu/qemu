@@ -1,0 +1,2 @@
+union-no-base.json: In union 'TestUnion':
+union-no-base.json:8: union misses key 'base'

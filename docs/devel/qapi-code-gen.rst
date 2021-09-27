@@ -319,13 +319,9 @@ Union types
 Syntax::
 
     UNION = { 'union': STRING,
-              'data': BRANCHES,
-              '*if': COND,
-              '*features': FEATURES }
-          | { 'union': STRING,
-              'data': BRANCHES,
               'base': ( MEMBERS | STRING ),
               'discriminator': STRING,
+              'data': BRANCHES,
               '*if': COND,
               '*features': FEATURES }
     BRANCHES = { BRANCH, ... }
@@ -334,63 +330,30 @@ Syntax::
 
 Member 'union' names the union type.
 
-There are two flavors of union types: simple (no discriminator or
-base), and flat (both discriminator and base).
-
-Each BRANCH of the 'data' object defines a branch of the union.  A
-union must have at least one branch.
-
-The BRANCH's STRING name is the branch name.
-
-The BRANCH's value defines the branch's properties, in particular its
-type.  The form TYPE-REF_ is shorthand for :code:`{ 'type': TYPE-REF }`.
-
-A simple union type defines a mapping from automatic discriminator
-values to data types like in this example::
-
- { 'struct': 'BlockdevOptionsFile', 'data': { 'filename': 'str' } }
- { 'struct': 'BlockdevOptionsQcow2',
-   'data': { 'backing': 'str', '*lazy-refcounts': 'bool' } }
-
- { 'union': 'BlockdevOptionsSimple',
-   'data': { 'file': 'BlockdevOptionsFile',
-             'qcow2': 'BlockdevOptionsQcow2' } }
-
-In the Client JSON Protocol, a simple union is represented by an
-object that contains the 'type' member as a discriminator, and a
-'data' member that is of the specified data type corresponding to the
-discriminator value, as in these examples::
-
- { "type": "file", "data": { "filename": "/some/place/my-image" } }
- { "type": "qcow2", "data": { "backing": "/some/place/my-image",
-                              "lazy-refcounts": true } }
-
-The generated C code uses a struct containing a union.  Additionally,
-an implicit C enum 'NameKind' is created, corresponding to the union
-'Name', for accessing the various branches of the union.  The value
-for each branch can be of any type.
-
-Flat unions permit arbitrary common members that occur in all variants
-of the union, not just a discriminator.  Their discriminators need not
-be named 'type'.  They also avoid nesting on the wire.
-
 The 'base' member defines the common members.  If it is a MEMBERS_
 object, it defines common members just like a struct type's 'data'
 member defines struct type members.  If it is a STRING, it names a
 struct type whose members are the common members.
 
-All flat union branches must be `Struct types`_.
+Member 'discriminator' must name a non-optional enum-typed member of
+the base struct.  That member's value selects a branch by its name.
+If no such branch exists, an empty branch is assumed.
 
-In the Client JSON Protocol, a flat union is represented by an object
-with the common members (from the base type) and the selected branch's
-members.  The two sets of member names must be disjoint.  Member
-'discriminator' must name a non-optional enum-typed member of the base
-struct.
+Each BRANCH of the 'data' object defines a branch of the union.  A
+union must have at least one branch.
 
-The following example enhances the above simple union example by
-adding an optional common member 'read-only', renaming the
-discriminator to something more applicable than the simple union's
-default of 'type', and reducing the number of ``{}`` required on the wire::
+The BRANCH's STRING name is the branch name.  It must be a value of
+the discriminator enum type.
+
+The BRANCH's value defines the branch's properties, in particular its
+type.  The type must a struct type.  The form TYPE-REF_ is shorthand
+for :code:`{ 'type': TYPE-REF }`.
+
+In the Client JSON Protocol, a union is represented by an object with
+the common members (from the base type) and the selected branch's
+members.  The two sets of member names must be disjoint.
+
+Example::
 
  { 'enum': 'BlockdevDriver', 'data': [ 'file', 'qcow2' ] }
  { 'union': 'BlockdevOptions',
@@ -406,30 +369,11 @@ Resulting in these JSON objects::
  { "driver": "qcow2", "read-only": false,
    "backing": "/some/place/my-image", "lazy-refcounts": true }
 
-Notice that in a flat union, the discriminator name is controlled by
-the user, but because it must map to a base member with enum type, the
-code generator ensures that branches match the existing values of the
-enum.  The order of branches need not match the order of the enum
-values.  The branches need not cover all possible enum values.
-Omitted enum values are still valid branches that add no additional
-members to the data type.  In the resulting generated C data types, a
-flat union is represented as a struct with the base members in QAPI
-schema order, and then a union of structures for each branch of the
-struct.
-
-A simple union can always be re-written as a flat union where the base
-class has a single member named 'type', and where each branch of the
-union has a struct with a single member named 'data'.  That is, ::
-
- { 'union': 'Simple', 'data': { 'one': 'str', 'two': 'int' } }
-
-is identical on the wire to::
-
- { 'enum': 'Enum', 'data': ['one', 'two'] }
- { 'struct': 'Branch1', 'data': { 'data': 'str' } }
- { 'struct': 'Branch2', 'data': { 'data': 'int' } }
- { 'union': 'Flat', 'base': { 'type': 'Enum' }, 'discriminator': 'type',
-   'data': { 'one': 'Branch1', 'two': 'Branch2' } }
+The order of branches need not match the order of the enum values.
+The branches need not cover all possible enum values.  In the
+resulting generated C data types, a union is represented as a struct
+with the base members in QAPI schema order, and then a union of
+structures for each branch of the struct.
 
 The optional 'if' member specifies a conditional.  See `Configuring
 the schema`_ below for more on this.
@@ -859,9 +803,9 @@ longhand form of MEMBER.
 Example: a struct type with unconditional member 'foo' and conditional
 member 'bar' ::
 
- { 'struct': 'IfStruct', 'data':
-   { 'foo': 'int',
-     'bar': { 'type': 'int', 'if': 'IFCOND'} } }
+ { 'struct': 'IfStruct',
+   'data': { 'foo': 'int',
+             'bar': { 'type': 'int', 'if': 'IFCOND'} } }
 
 A union's discriminator may not be conditional.
 
@@ -871,9 +815,9 @@ the longhand form of ENUM-VALUE_.
 Example: an enum type with unconditional value 'foo' and conditional
 value 'bar' ::
 
- { 'enum': 'IfEnum', 'data':
-   [ 'foo',
-     { 'name' : 'bar', 'if': 'IFCOND' } ] }
+ { 'enum': 'IfEnum',
+   'data': [ 'foo',
+             { 'name' : 'bar', 'if': 'IFCOND' } ] }
 
 Likewise, features can be conditional.  This requires the longhand
 form of FEATURE_.
@@ -1246,7 +1190,7 @@ that provides the variant members for this type tag value).  The
 "variants" array is in no particular order, and is not guaranteed to
 list cases in the same order as the corresponding "tag" enum type.
 
-Example: the SchemaInfo for flat union BlockdevOptions from section
+Example: the SchemaInfo for union BlockdevOptions from section
 `Union types`_ ::
 
     { "name": "BlockdevOptions", "meta-type": "object",
@@ -1260,27 +1204,6 @@ Example: the SchemaInfo for flat union BlockdevOptions from section
 
 Note that base types are "flattened": its members are included in the
 "members" array.
-
-A simple union implicitly defines an enumeration type for its implicit
-discriminator (called "type" on the wire, see section `Union types`_).
-
-A simple union implicitly defines an object type for each of its
-variants.
-
-Example: the SchemaInfo for simple union BlockdevOptionsSimple from section
-`Union types`_ ::
-
-    { "name": "BlockdevOptionsSimple", "meta-type": "object",
-      "members": [
-          { "name": "type", "type": "BlockdevOptionsSimpleKind" } ],
-      "tag": "type",
-      "variants": [
-          { "case": "file", "type": "q_obj-BlockdevOptionsFile-wrapper" },
-          { "case": "qcow2", "type": "q_obj-BlockdevOptionsQcow2-wrapper" } ] }
-
-    Enumeration type "BlockdevOptionsSimpleKind" and the object types
-    "q_obj-BlockdevOptionsFile-wrapper", "q_obj-BlockdevOptionsQcow2-wrapper"
-    are implicitly defined.
 
 The SchemaInfo for an alternate type has meta-type "alternate", and
 variant member "members".  "members" is a JSON array.  Each element is

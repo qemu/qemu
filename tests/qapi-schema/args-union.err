@@ -1,2 +1,2 @@
 args-union.json: In command 'oops':
-args-union.json:3: command's 'data' can take union type 'Uni' only with 'boxed': true
+args-union.json:9: command's 'data' can take union type 'Uni' only with 'boxed': true

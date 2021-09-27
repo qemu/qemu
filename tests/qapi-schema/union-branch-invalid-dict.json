@@ -1,4 +1,8 @@
 # Long form of member must have a value member 'type'
+{ 'enum': 'TestEnum',
+  'data': [ 'integer', 's8' ] }
 { 'union': 'UnionInvalidBranch',
+  'base': { 'type': 'TestEnum' },
+  'discriminator': 'type',
   'data': { 'integer': { 'if': 'foo'},
             's8': 'int8' } }

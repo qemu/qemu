@@ -1,0 +1,12 @@
+# we require union branches to be a struct
+{ 'enum': 'TestEnum',
+  'data': [ 'value1', 'value2' ] }
+{ 'struct': 'Base',
+  'data': { 'enum1': 'TestEnum' } }
+{ 'struct': 'TestTypeB',
+  'data': { 'integer': 'int' } }
+{ 'union': 'TestUnion',
+  'base': 'Base',
+  'discriminator': 'enum1',
+  'data': { 'value1': ['TestTypeB'],
+            'value2': 'TestTypeB' } }

@@ -1,4 +1,4 @@
-# Flat union with empty base and therefore without discriminator
+# Union with empty base and therefore without discriminator
 
 { 'struct': 'Empty', 'data': { } }
 

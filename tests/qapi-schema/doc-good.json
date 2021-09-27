@@ -60,8 +60,8 @@
 #
 # @two is undocumented
 ##
-{ 'enum': 'Enum', 'data':
-  [ { 'name': 'one', 'if': 'IFONE' }, 'two' ],
+{ 'enum': 'Enum',
+  'data': [ { 'name': 'one', 'if': 'IFONE' }, 'two' ],
   'features': [ 'enum-feat' ],
   'if': 'IFCOND' }
 
@@ -106,15 +106,6 @@
   'data': { 'one': 'Variant1',
             'two': { 'type': 'Variant2',
                      'if': { 'any': ['IFONE', 'IFTWO'] } } } }
-
-##
-# @SugaredUnion:
-# Features:
-# @union-feat2: a feature
-##
-{ 'union': 'SugaredUnion',
-  'features': [ 'union-feat2' ],
-  'data': { 'one': 'Variant1', 'two': { 'type': 'Variant2', 'if': 'IFTWO' } } }
 
 ##
 # @Alternate:

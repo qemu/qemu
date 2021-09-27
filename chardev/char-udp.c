@@ -165,7 +165,7 @@ static void qemu_chr_parse_udp(QemuOpts *opts, ChardevBackend *backend,
     qemu_chr_parse_common(opts, qapi_ChardevUdp_base(udp));
 
     addr = g_new0(SocketAddressLegacy, 1);
-    addr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
+    addr->type = SOCKET_ADDRESS_TYPE_INET;
     addr->u.inet.data = g_new(InetSocketAddress, 1);
     *addr->u.inet.data = (InetSocketAddress) {
         .host = g_strdup(host),
@@ -180,7 +180,7 @@ static void qemu_chr_parse_udp(QemuOpts *opts, ChardevBackend *backend,
     if (has_local) {
         udp->has_local = true;
         addr = g_new0(SocketAddressLegacy, 1);
-        addr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
+        addr->type = SOCKET_ADDRESS_TYPE_INET;
         addr->u.inet.data = g_new(InetSocketAddress, 1);
         *addr->u.inet.data = (InetSocketAddress) {
             .host = g_strdup(localaddr),

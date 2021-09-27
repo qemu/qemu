@@ -1,4 +1,0 @@
-# flat union discriminator cannot be empty
-{ 'enum': 'Empty', 'data': [ ] }
-{ 'struct': 'Base', 'data': { 'type': 'Empty' } }
-{ 'union': 'Union', 'base': 'Base', 'discriminator': 'type', 'data': { } }

@@ -1,3 +1,9 @@
 # we reject a base that is not a struct
-{ 'union': 'Union', 'data': { 'a': 'int', 'b': 'str' } }
+{ 'enum': 'Enum', 'data': [ 'a', 'b' ] }
+{ 'struct': 'Int', 'data': { 'data': 'int' } }
+{ 'struct': 'Str', 'data': { 'data': 'str' } }
+{ 'union': 'Union',
+  'base': { 'type': 'Enum' },
+  'discriminator': 'type',
+  'data': { 'a': 'Int', 'b': 'Str' } }
 { 'struct': 'MyType', 'base': 'Union', 'data': { 'c': 'int' } }

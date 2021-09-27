@@ -1,0 +1,11 @@
+# unions require a base
+{ 'struct': 'TestTypeA',
+  'data': { 'string': 'str' } }
+{ 'struct': 'TestTypeB',
+  'data': { 'integer': 'int' } }
+{ 'enum': 'Enum',
+  'data': [ 'value1', 'value2' ] }
+{ 'union': 'TestUnion',
+  'discriminator': 'Enum',
+  'data': { 'value1': 'TestTypeA',
+            'value2': 'TestTypeB' } }

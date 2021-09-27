@@ -171,7 +171,7 @@ def check_defn_name_str(name: str, info: QAPISourceInfo, meta: str) -> None:
       - 'event' names adhere to `check_name_upper()`.
       - 'command' names adhere to `check_name_lower()`.
       - Else, meta is a type, and must pass `check_name_camel()`.
-        These names must not end with ``Kind`` nor ``List``.
+        These names must not end with ``List``.
 
     :param name: Name to check.
     :param info: QAPI schema source file information.
@@ -187,9 +187,9 @@ def check_defn_name_str(name: str, info: QAPISourceInfo, meta: str) -> None:
             permit_underscore=name in info.pragma.command_name_exceptions)
     else:
         check_name_camel(name, info, meta)
-        if name.endswith('Kind') or name.endswith('List'):
+        if name.endswith('List'):
             raise QAPISemError(
-                info, "%s name should not end in '%s'" % (meta, name[-4:]))
+                info, "%s name should not end in 'List'" % meta)
 
 
 def check_keys(value: _JSONObject,
@@ -513,27 +513,18 @@ def check_union(expr: _JSONObject, info: QAPISourceInfo) -> None:
     :return: None, ``expr`` is normalized in-place as needed.
     """
     name = cast(str, expr['union'])  # Checked in check_exprs
-    base = expr.get('base')
-    discriminator = expr.get('discriminator')
+    base = expr['base']
+    discriminator = expr['discriminator']
     members = expr['data']
 
-    if discriminator is None:   # simple union
-        if base is not None:
-            raise QAPISemError(info, "'base' requires 'discriminator'")
-    else:                       # flat union
-        check_type(base, info, "'base'", allow_dict=name)
-        if not base:
-            raise QAPISemError(info, "'discriminator' requires 'base'")
-        check_name_is_str(discriminator, info, "'discriminator'")
+    check_type(base, info, "'base'", allow_dict=name)
+    check_name_is_str(discriminator, info, "'discriminator'")
 
     if not isinstance(members, dict):
         raise QAPISemError(info, "'data' must be an object")
 
     for (key, value) in members.items():
         source = "'data' member '%s'" % key
-        if discriminator is None:
-            check_name_lower(key, info, source)
-        # else: name is in discriminator enum, which gets checked
         check_keys(value, info, source, ['type'], ['if'])
         check_if(value, info, source)
         check_type(value['type'], info, source, allow_array=not base)
@@ -664,8 +655,8 @@ def check_exprs(exprs: List[_JSONObject]) -> List[_JSONObject]:
             check_enum(expr, info)
         elif meta == 'union':
             check_keys(expr, info, meta,
-                       ['union', 'data'],
-                       ['base', 'discriminator', 'if', 'features'])
+                       ['union', 'base', 'discriminator', 'data'],
+                       ['if', 'features'])
             normalize_members(expr.get('base'))
             normalize_members(expr['data'])
             check_union(expr, info)

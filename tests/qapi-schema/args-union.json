@@ -1,3 +1,9 @@
 # use of union arguments requires 'boxed':true
-{ 'union': 'Uni', 'data': { 'case1': 'int', 'case2': 'str' } }
+{ 'enum': 'Enum', 'data': [ 'case1', 'case2' ] }
+{ 'struct': 'Case1', 'data': { 'data': 'int' } }
+{ 'struct': 'Case2', 'data': { 'data': 'str' } }
+{ 'union': 'Uni',
+  'base': { 'type': 'Enum' },
+  'discriminator': 'type',
+  'data': { 'case1': 'Case1', 'case2': 'Case2' } }
 { 'command': 'oops', 'data': 'Uni' }

@@ -32,21 +32,6 @@ object Object
     case two: Variant2
         if {'any': ['IFONE', 'IFTWO']}
     feature union-feat1
-object q_obj_Variant1-wrapper
-    member data: Variant1 optional=False
-object q_obj_Variant2-wrapper
-    member data: Variant2 optional=False
-enum SugaredUnionKind
-    member one
-    member two
-        if IFTWO
-object SugaredUnion
-    member type: SugaredUnionKind optional=False
-    tag type
-    case one: q_obj_Variant1-wrapper
-    case two: q_obj_Variant2-wrapper
-        if IFTWO
-    feature union-feat2
 alternate Alternate
     tag type
     case i: int
@@ -148,13 +133,6 @@ doc symbol=Object
     body=
 
     feature=union-feat1
-a feature
-doc symbol=SugaredUnion
-    body=
-
-    arg=type
-
-    feature=union-feat2
 a feature
 doc symbol=Alternate
     body=

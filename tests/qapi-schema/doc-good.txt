@@ -130,26 +130,6 @@ Features
    a feature
 
 
-"SugaredUnion" (Object)
------------------------
-
-
-Members
-~~~~~~~
-
-"type"
-   One of "one", "two"
-
-"data": "Variant1" when "type" is ""one""
-"data": "Variant2" when "type" is ""two"" (**If: **"IFTWO")
-
-Features
-~~~~~~~~
-
-"union-feat2"
-   a feature
-
-
 "Alternate" (Alternate)
 -----------------------
 

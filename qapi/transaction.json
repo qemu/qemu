@@ -39,40 +39,127 @@
   'data': [ 'individual', 'grouped' ] }
 
 ##
+# @TransactionActionKind:
+#
+# @abort: Since 1.6
+# @block-dirty-bitmap-add: Since 2.5
+# @block-dirty-bitmap-remove: Since 4.2
+# @block-dirty-bitmap-clear: Since 2.5
+# @block-dirty-bitmap-enable: Since 4.0
+# @block-dirty-bitmap-disable: Since 4.0
+# @block-dirty-bitmap-merge: Since 4.0
+# @blockdev-backup: Since 2.3
+# @blockdev-snapshot: Since 2.5
+# @blockdev-snapshot-internal-sync: Since 1.7
+# @blockdev-snapshot-sync: since 1.1
+# @drive-backup: Since 1.6
+#
+# Since: 1.1
+##
+{ 'enum': 'TransactionActionKind',
+  'data': [ 'abort', 'block-dirty-bitmap-add', 'block-dirty-bitmap-remove',
+            'block-dirty-bitmap-clear', 'block-dirty-bitmap-enable',
+            'block-dirty-bitmap-disable', 'block-dirty-bitmap-merge',
+            'blockdev-backup', 'blockdev-snapshot',
+            'blockdev-snapshot-internal-sync', 'blockdev-snapshot-sync',
+            'drive-backup' ] }
+
+##
+# @AbortWrapper:
+#
+# Since: 1.6
+##
+{ 'struct': 'AbortWrapper',
+  'data': { 'data': 'Abort' } }
+
+##
+# @BlockDirtyBitmapAddWrapper:
+#
+# Since: 2.5
+##
+{ 'struct': 'BlockDirtyBitmapAddWrapper',
+  'data': { 'data': 'BlockDirtyBitmapAdd' } }
+
+##
+# @BlockDirtyBitmapWrapper:
+#
+# Since: 2.5
+##
+{ 'struct': 'BlockDirtyBitmapWrapper',
+  'data': { 'data': 'BlockDirtyBitmap' } }
+
+##
+# @BlockDirtyBitmapMergeWrapper:
+#
+# Since: 4.0
+##
+{ 'struct': 'BlockDirtyBitmapMergeWrapper',
+  'data': { 'data': 'BlockDirtyBitmapMerge' } }
+
+##
+# @BlockdevBackupWrapper:
+#
+# Since: 2.3
+##
+{ 'struct': 'BlockdevBackupWrapper',
+  'data': { 'data': 'BlockdevBackup' } }
+
+##
+# @BlockdevSnapshotWrapper:
+#
+# Since: 2.5
+##
+{ 'struct': 'BlockdevSnapshotWrapper',
+  'data': { 'data': 'BlockdevSnapshot' } }
+
+##
+# @BlockdevSnapshotInternalWrapper:
+#
+# Since: 1.7
+##
+{ 'struct': 'BlockdevSnapshotInternalWrapper',
+  'data': { 'data': 'BlockdevSnapshotInternal' } }
+
+##
+# @BlockdevSnapshotSyncWrapper:
+#
+# Since: 1.1
+##
+{ 'struct': 'BlockdevSnapshotSyncWrapper',
+  'data': { 'data': 'BlockdevSnapshotSync' } }
+
+##
+# @DriveBackupWrapper:
+#
+# Since: 1.6
+##
+{ 'struct': 'DriveBackupWrapper',
+  'data': { 'data': 'DriveBackup' } }
+
+##
 # @TransactionAction:
 #
 # A discriminated record of operations that can be performed with
-# @transaction. Action @type can be:
-#
-# - @abort: since 1.6
-# - @block-dirty-bitmap-add: since 2.5
-# - @block-dirty-bitmap-remove: since 4.2
-# - @block-dirty-bitmap-clear: since 2.5
-# - @block-dirty-bitmap-enable: since 4.0
-# - @block-dirty-bitmap-disable: since 4.0
-# - @block-dirty-bitmap-merge: since 4.0
-# - @blockdev-backup: since 2.3
-# - @blockdev-snapshot: since 2.5
-# - @blockdev-snapshot-internal-sync: since 1.7
-# - @blockdev-snapshot-sync: since 1.1
-# - @drive-backup: since 1.6
+# @transaction.
 #
 # Since: 1.1
 ##
 { 'union': 'TransactionAction',
+  'base': { 'type': 'TransactionActionKind' },
+  'discriminator': 'type',
   'data': {
-       'abort': 'Abort',
-       'block-dirty-bitmap-add': 'BlockDirtyBitmapAdd',
-       'block-dirty-bitmap-remove': 'BlockDirtyBitmap',
-       'block-dirty-bitmap-clear': 'BlockDirtyBitmap',
-       'block-dirty-bitmap-enable': 'BlockDirtyBitmap',
-       'block-dirty-bitmap-disable': 'BlockDirtyBitmap',
-       'block-dirty-bitmap-merge': 'BlockDirtyBitmapMerge',
-       'blockdev-backup': 'BlockdevBackup',
-       'blockdev-snapshot': 'BlockdevSnapshot',
-       'blockdev-snapshot-internal-sync': 'BlockdevSnapshotInternal',
-       'blockdev-snapshot-sync': 'BlockdevSnapshotSync',
-       'drive-backup': 'DriveBackup'
+       'abort': 'AbortWrapper',
+       'block-dirty-bitmap-add': 'BlockDirtyBitmapAddWrapper',
+       'block-dirty-bitmap-remove': 'BlockDirtyBitmapWrapper',
+       'block-dirty-bitmap-clear': 'BlockDirtyBitmapWrapper',
+       'block-dirty-bitmap-enable': 'BlockDirtyBitmapWrapper',
+       'block-dirty-bitmap-disable': 'BlockDirtyBitmapWrapper',
+       'block-dirty-bitmap-merge': 'BlockDirtyBitmapMergeWrapper',
+       'blockdev-backup': 'BlockdevBackupWrapper',
+       'blockdev-snapshot': 'BlockdevSnapshotWrapper',
+       'blockdev-snapshot-internal-sync': 'BlockdevSnapshotInternalWrapper',
+       'blockdev-snapshot-sync': 'BlockdevSnapshotSyncWrapper',
+       'drive-backup': 'DriveBackupWrapper'
    } }
 
 ##

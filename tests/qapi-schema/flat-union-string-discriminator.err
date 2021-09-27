@@ -1,2 +1,0 @@
-flat-union-string-discriminator.json: In union 'TestUnion':
-flat-union-string-discriminator.json:13: discriminator member 'kind' of base type 'TestBase' must be of enum type

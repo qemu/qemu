@@ -1,2 +1,0 @@
-# Branch names should be 'lower-case'
-{ 'union': 'Uni', 'data': { 'Branch': 'int' } }

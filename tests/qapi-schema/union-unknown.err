@@ -1,2 +1,2 @@
 union-unknown.json: In union 'Union':
-union-unknown.json:2: union uses unknown type 'MissingType'
+union-unknown.json:3: branch 'unknown' uses unknown type 'MissingType'

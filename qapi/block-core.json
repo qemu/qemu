@@ -140,6 +140,52 @@
   } }
 
 ##
+# @ImageInfoSpecificKind:
+#
+# @luks: Since 2.7
+# @rbd: Since 6.1
+#
+# Since: 1.7
+##
+{ 'enum': 'ImageInfoSpecificKind',
+  'data': [ 'qcow2', 'vmdk', 'luks', 'rbd' ] }
+
+##
+# @ImageInfoSpecificQCow2Wrapper:
+#
+# Since: 1.7
+##
+{ 'struct': 'ImageInfoSpecificQCow2Wrapper',
+  'data': { 'data': 'ImageInfoSpecificQCow2' } }
+
+##
+# @ImageInfoSpecificVmdkWrapper:
+#
+# Since: 6.1
+##
+{ 'struct': 'ImageInfoSpecificVmdkWrapper',
+  'data': { 'data': 'ImageInfoSpecificVmdk' } }
+
+##
+# @ImageInfoSpecificLUKSWrapper:
+#
+# Since: 2.7
+##
+{ 'struct': 'ImageInfoSpecificLUKSWrapper',
+  'data': { 'data': 'QCryptoBlockInfoLUKS' } }
+# If we need to add block driver specific parameters for
+# LUKS in future, then we'll subclass QCryptoBlockInfoLUKS
+# to define a ImageInfoSpecificLUKS
+
+##
+# @ImageInfoSpecificRbdWrapper:
+#
+# Since: 6.1
+##
+{ 'struct': 'ImageInfoSpecificRbdWrapper',
+  'data': { 'data': 'ImageInfoSpecificRbd' } }
+
+##
 # @ImageInfoSpecific:
 #
 # A discriminated record of image format specific information structures.
@@ -147,14 +193,13 @@
 # Since: 1.7
 ##
 { 'union': 'ImageInfoSpecific',
+  'base': { 'type': 'ImageInfoSpecificKind' },
+  'discriminator': 'type',
   'data': {
-      'qcow2': 'ImageInfoSpecificQCow2',
-      'vmdk': 'ImageInfoSpecificVmdk',
-      # If we need to add block driver specific parameters for
-      # LUKS in future, then we'll subclass QCryptoBlockInfoLUKS
-      # to define a ImageInfoSpecificLUKS
-      'luks': 'QCryptoBlockInfoLUKS',
-      'rbd': 'ImageInfoSpecificRbd'
+      'qcow2': 'ImageInfoSpecificQCow2Wrapper',
+      'vmdk': 'ImageInfoSpecificVmdkWrapper',
+      'luks': 'ImageInfoSpecificLUKSWrapper',
+      'rbd': 'ImageInfoSpecificRbdWrapper'
   } }
 
 ##

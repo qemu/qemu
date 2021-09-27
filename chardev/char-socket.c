@@ -1520,7 +1520,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     addr = g_new0(SocketAddressLegacy, 1);
     if (path) {
         UnixSocketAddress *q_unix;
-        addr->type = SOCKET_ADDRESS_LEGACY_KIND_UNIX;
+        addr->type = SOCKET_ADDRESS_TYPE_UNIX;
         q_unix = addr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
         q_unix->path = g_strdup(path);
 #ifdef CONFIG_LINUX
@@ -1530,7 +1530,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
         q_unix->abstract = abstract;
 #endif
     } else if (host) {
-        addr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
+        addr->type = SOCKET_ADDRESS_TYPE_INET;
         addr->u.inet.data = g_new(InetSocketAddress, 1);
         *addr->u.inet.data = (InetSocketAddress) {
             .host = g_strdup(host),
@@ -1543,7 +1543,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
             .ipv6 = qemu_opt_get_bool(opts, "ipv6", 0),
         };
     } else if (fd) {
-        addr->type = SOCKET_ADDRESS_LEGACY_KIND_FD;
+        addr->type = SOCKET_ADDRESS_TYPE_FD;
         addr->u.fd.data = g_new(String, 1);
         addr->u.fd.data->str = g_strdup(fd);
     } else {

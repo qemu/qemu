@@ -63,7 +63,7 @@ static void test_clone_alternate(void)
     qapi_free_AltEnumBool(s_dst);
 }
 
-static void test_clone_list_union(void)
+static void test_clone_list(void)
 {
     uint8List *src = NULL, *dst;
     uint8List *tmp = NULL;
@@ -99,18 +99,26 @@ static void test_clone_empty(void)
 
 static void test_clone_complex1(void)
 {
-    UserDefListUnion *src, *dst;
+    UserDefFlatUnion *src, *dst;
 
-    src = g_new0(UserDefListUnion, 1);
-    src->type = USER_DEF_LIST_UNION_KIND_STRING;
+    src = g_new0(UserDefFlatUnion, 1);
+    src->integer = 123;
+    src->string = g_strdup("abc");
+    src->enum1 = ENUM_ONE_VALUE1;
+    src->u.value1.boolean = true;
 
-    dst = QAPI_CLONE(UserDefListUnion, src);
+    dst = QAPI_CLONE(UserDefFlatUnion, src);
     g_assert(dst);
-    g_assert_cmpint(dst->type, ==, src->type);
-    g_assert(!dst->u.string.data);
 
-    qapi_free_UserDefListUnion(src);
-    qapi_free_UserDefListUnion(dst);
+    g_assert_cmpint(dst->integer, ==, 123);
+    g_assert_cmpstr(dst->string, ==, "abc");
+    g_assert_cmpint(dst->enum1, ==, ENUM_ONE_VALUE1);
+    g_assert(dst->u.value1.boolean);
+    g_assert(!dst->u.value1.has_a_b);
+    g_assert_cmpint(dst->u.value1.a_b, ==, 0);
+
+    qapi_free_UserDefFlatUnion(src);
+    qapi_free_UserDefFlatUnion(dst);
 }
 
 static void test_clone_complex2(void)
@@ -145,42 +153,48 @@ static void test_clone_complex2(void)
 
 static void test_clone_complex3(void)
 {
-    __org_qemu_x_Struct2 *src, *dst;
-    __org_qemu_x_Union1List *tmp;
+    UserDefOneList *src, *dst, *tail;
+    UserDefOne *elt;
 
-    src = g_new0(__org_qemu_x_Struct2, 1);
-    tmp = src->array = g_new0(__org_qemu_x_Union1List, 1);
-    tmp->value = g_new0(__org_qemu_x_Union1, 1);
-    tmp->value->type = ORG_QEMU_X_UNION1_KIND___ORG_QEMU_X_BRANCH;
-    tmp->value->u.__org_qemu_x_branch.data = g_strdup("one");
-    tmp = tmp->next = g_new0(__org_qemu_x_Union1List, 1);
-    tmp->value = g_new0(__org_qemu_x_Union1, 1);
-    tmp->value->type = ORG_QEMU_X_UNION1_KIND___ORG_QEMU_X_BRANCH;
-    tmp->value->u.__org_qemu_x_branch.data = g_strdup("two");
-    tmp = tmp->next = g_new0(__org_qemu_x_Union1List, 1);
-    tmp->value = g_new0(__org_qemu_x_Union1, 1);
-    tmp->value->type = ORG_QEMU_X_UNION1_KIND___ORG_QEMU_X_BRANCH;
-    tmp->value->u.__org_qemu_x_branch.data = g_strdup("three");
+    src = NULL;
+    elt = g_new0(UserDefOne, 1);
+    elt->integer = 3;
+    elt->string = g_strdup("three");
+    elt->has_enum1 = true;
+    elt->enum1 = ENUM_ONE_VALUE3;
+    QAPI_LIST_PREPEND(src, elt);
+    elt = g_new0(UserDefOne, 1);
+    elt->integer = 2;
+    elt->string = g_strdup("two");
+    QAPI_LIST_PREPEND(src, elt);
+    elt = g_new0(UserDefOne, 1);
+    elt->integer = 1;
+    elt->string = g_strdup("one");
+    QAPI_LIST_PREPEND(src, elt);
 
-    dst = QAPI_CLONE(__org_qemu_x_Struct2, src);
+    dst = QAPI_CLONE(UserDefOneList, src);
+
     g_assert(dst);
-    tmp = dst->array;
-    g_assert(tmp);
-    g_assert(tmp->value);
-    g_assert_cmpstr(tmp->value->u.__org_qemu_x_branch.data, ==, "one");
-    tmp = tmp->next;
-    g_assert(tmp);
-    g_assert(tmp->value);
-    g_assert_cmpstr(tmp->value->u.__org_qemu_x_branch.data, ==, "two");
-    tmp = tmp->next;
-    g_assert(tmp);
-    g_assert(tmp->value);
-    g_assert_cmpstr(tmp->value->u.__org_qemu_x_branch.data, ==, "three");
-    tmp = tmp->next;
-    g_assert(!tmp);
+    tail = dst;
+    elt = tail->value;
+    g_assert_cmpint(elt->integer, ==, 1);
+    g_assert_cmpstr(elt->string, ==, "one");
+    g_assert(!elt->has_enum1);
+    tail = tail->next;
+    elt = tail->value;
+    g_assert_cmpint(elt->integer, ==, 2);
+    g_assert_cmpstr(elt->string, ==, "two");
+    g_assert(!elt->has_enum1);
+    tail = tail->next;
+    elt = tail->value;
+    g_assert_cmpint(elt->integer, ==, 3);
+    g_assert_cmpstr(elt->string, ==, "three");
+    g_assert(elt->has_enum1);
+    g_assert_cmpint(elt->enum1, ==, ENUM_ONE_VALUE3);
+    g_assert(!tail->next);
 
-    qapi_free___org_qemu_x_Struct2(src);
-    qapi_free___org_qemu_x_Struct2(dst);
+    qapi_free_UserDefOneList(src);
+    qapi_free_UserDefOneList(dst);
 }
 
 int main(int argc, char **argv)
@@ -189,7 +203,7 @@ int main(int argc, char **argv)
 
     g_test_add_func("/visitor/clone/struct", test_clone_struct);
     g_test_add_func("/visitor/clone/alternate", test_clone_alternate);
-    g_test_add_func("/visitor/clone/list_union", test_clone_list_union);
+    g_test_add_func("/visitor/clone/list", test_clone_list);
     g_test_add_func("/visitor/clone/empty", test_clone_empty);
     g_test_add_func("/visitor/clone/complex1", test_clone_complex1);
     g_test_add_func("/visitor/clone/complex2", test_clone_complex2);

@@ -1,0 +1,2 @@
+union-base-union.json: In union 'TestUnion':
+union-base-union.json:17: 'base' requires a struct type, union type 'UnionBase' isn't

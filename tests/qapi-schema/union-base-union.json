@@ -1,0 +1,21 @@
+# For now, we require the base to be a struct without variants
+# TODO: It would be possible to allow a union as a base, as long as all
+# permutations of QMP names exposed by base do not clash with any QMP
+# member names added by local variants.
+{ 'enum': 'TestEnum',
+  'data': [ 'value1', 'value2' ] }
+{ 'struct': 'TestTypeA',
+  'data': { 'string': 'str' } }
+{ 'struct': 'TestTypeB',
+  'data': { 'integer': 'int' } }
+{ 'enum': 'Enum', 'data': [ 'kind1', 'kind2' ] }
+{ 'union': 'UnionBase',
+  'base': { 'type': 'Enum' },
+  'discriminator': 'type',
+  'data': { 'kind1': 'TestTypeA',
+            'kind2': 'TestTypeB' } }
+{ 'union': 'TestUnion',
+  'base': 'UnionBase',
+  'discriminator': 'type',
+  'data': { 'kind1': 'TestTypeA',
+            'kind2': 'TestTypeB' } }
