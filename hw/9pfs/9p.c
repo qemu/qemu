@@ -1280,8 +1280,7 @@ static int32_t blksize_to_iounit(const V9fsPDU *pdu, int32_t blksize)
      * as well as less than (client msize - P9_IOHDRSZ)
      */
     if (blksize) {
-        iounit = blksize;
-        iounit *= (s->msize - P9_IOHDRSZ) / blksize;
+        iounit = QEMU_ALIGN_DOWN(s->msize - P9_IOHDRSZ, blksize);
     }
     if (!iounit) {
         iounit = s->msize - P9_IOHDRSZ;
