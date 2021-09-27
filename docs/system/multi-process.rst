@@ -45,7 +45,7 @@ Following is a description of command-line used to launch mpqemu.
       -device lsi53c895a,id=lsi0                                         \
       -drive id=drive_image2,file=/build/ol7-nvme-test-1.qcow2           \
       -device scsi-hd,id=drive2,drive=drive_image2,bus=lsi0.0,scsi-id=0  \
-      -object x-remote-object,id=robj1,devid=lsi1,fd=4,
+      -object x-remote-object,id=robj1,devid=lsi0,fd=4,
 
 * QEMU:
 
