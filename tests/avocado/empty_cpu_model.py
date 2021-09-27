@@ -7,9 +7,9 @@
 #
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 
-class EmptyCPUModel(Test):
+class EmptyCPUModel(QemuSystemTest):
     def test(self):
         self.vm.add_args('-S', '-display', 'none', '-machine', 'none', '-cpu', '')
         self.vm.set_qmp_monitor(enabled=False)

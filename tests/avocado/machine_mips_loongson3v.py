@@ -11,10 +11,10 @@ import os
 import time
 
 from avocado import skipUnless
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 from avocado_qemu import wait_for_console_pattern
 
-class MipsLoongson3v(Test):
+class MipsLoongson3v(QemuSystemTest):
     timeout = 60
 
     @skipUnless(os.getenv('AVOCADO_ALLOW_UNTRUSTED_CODE'), 'untrusted code')

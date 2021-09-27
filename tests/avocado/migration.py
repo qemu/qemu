@@ -11,7 +11,7 @@
 
 
 import tempfile
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 from avocado import skipUnless
 
 from avocado.utils import network
@@ -19,7 +19,7 @@ from avocado.utils import wait
 from avocado.utils.path import find_command
 
 
-class Migration(Test):
+class Migration(QemuSystemTest):
     """
     :avocado: tags=migration
     """

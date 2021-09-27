@@ -6,10 +6,10 @@
 # later.  See the COPYING file in the top-level directory.
 
 from avocado.utils import archive
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 from avocado_qemu import wait_for_console_pattern
 
-class Mpc8544dsMachine(Test):
+class Mpc8544dsMachine(QemuSystemTest):
 
     timeout = 90
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '

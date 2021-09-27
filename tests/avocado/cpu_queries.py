@@ -8,9 +8,9 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 
-class QueryCPUModelExpansion(Test):
+class QueryCPUModelExpansion(QemuSystemTest):
     """
     Run query-cpu-model-expansion for each CPU model, and validate results
     """

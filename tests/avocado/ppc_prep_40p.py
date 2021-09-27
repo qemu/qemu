@@ -8,11 +8,11 @@
 import os
 
 from avocado import skipUnless
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 from avocado_qemu import wait_for_console_pattern
 
 
-class IbmPrep40pMachine(Test):
+class IbmPrep40pMachine(QemuSystemTest):
 
     timeout = 60
 

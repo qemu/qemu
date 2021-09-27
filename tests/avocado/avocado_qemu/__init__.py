@@ -176,7 +176,7 @@ def interrupt_interactive_console_until_pattern(test, success_message,
 
     :param test: an Avocado test containing a VM that will have its console
                  read and probed for a success or failure message
-    :type test: :class:`avocado_qemu.Test`
+    :type test: :class:`avocado_qemu.QemuSystemTest`
     :param success_message: if this message appears, test succeeds
     :param failure_message: if this message appears, test fails
     :param interrupt_string: a string to send to the console before trying
@@ -192,7 +192,7 @@ def wait_for_console_pattern(test, success_message, failure_message=None,
 
     :param test: an Avocado test containing a VM that will have its console
                  read and probed for a success or failure message
-    :type test: :class:`avocado_qemu.Test`
+    :type test: :class:`avocado_qemu.QemuSystemTest`
     :param success_message: if this message appears, test succeeds
     :param failure_message: if this message appears, test fails
     """
@@ -204,7 +204,7 @@ def exec_command(test, command):
     the content.
 
     :param test: an Avocado test containing a VM.
-    :type test: :class:`avocado_qemu.Test`
+    :type test: :class:`avocado_qemu.QemuSystemTest`
     :param command: the command to send
     :type command: str
     """
@@ -219,7 +219,7 @@ def exec_command_and_wait_for_pattern(test, command,
 
     :param test: an Avocado test containing a VM that will have its console
                  read and probed for a success or failure message
-    :type test: :class:`avocado_qemu.Test`
+    :type test: :class:`avocado_qemu.QemuSystemTest`
     :param command: the command to send
     :param success_message: if this message appears, test succeeds
     :param failure_message: if this message appears, test fails
@@ -262,11 +262,8 @@ class QemuBaseTest(avocado.Test):
                         cancel_on_missing=cancel_on_missing)
 
 
-class Test(QemuBaseTest):
-    """Facilitates system emulation tests.
-
-    TODO: Rename this class as `QemuSystemTest`.
-    """
+class QemuSystemTest(QemuBaseTest):
+    """Facilitates system emulation tests."""
 
     def setUp(self):
         self._vms = {}
@@ -508,11 +505,11 @@ class LinuxDistro:
         return self._info.get('kernel_params', None)
 
 
-class LinuxTest(LinuxSSHMixIn, Test):
+class LinuxTest(LinuxSSHMixIn, QemuSystemTest):
     """Facilitates having a cloud-image Linux based available.
 
-    For tests that indend to interact with guests, this is a better choice
-    to start with than the more vanilla `Test` class.
+    For tests that indent to interact with guests, this is a better choice
+    to start with than the more vanilla `QemuSystemTest` class.
     """
 
     timeout = 900

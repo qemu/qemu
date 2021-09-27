@@ -12,7 +12,8 @@ import logging
 import time
 
 from avocado import skipUnless
-from avocado_qemu import Test, LinuxSSHMixIn
+from avocado_qemu import LinuxSSHMixIn
+from avocado_qemu import QemuSystemTest
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import process
 from avocado.utils import archive
@@ -21,7 +22,7 @@ from avocado.utils import ssh
 
 @skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
 @skipUnless(ssh.SSH_CLIENT_BINARY, 'No SSH client available')
-class LinuxSSH(Test, LinuxSSHMixIn):
+class LinuxSSH(QemuSystemTest, LinuxSSHMixIn):
 
     timeout = 150 # Not for 'configure --enable-debug --enable-debug-tcg'
 

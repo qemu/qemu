@@ -8,10 +8,10 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 
 
-class Vnc(Test):
+class Vnc(QemuSystemTest):
     """
     :avocado: tags=vnc,quick
     """

@@ -8,12 +8,12 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 
 from qemu.utils import get_info_usernet_hostfwd_port
 
 
-class InfoUsernet(Test):
+class InfoUsernet(QemuSystemTest):
 
     def test_hostfwd(self):
         self.vm.add_args('-netdev', 'user,id=vnet,hostfwd=:127.0.0.1:0-:22')

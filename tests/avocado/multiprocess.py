@@ -7,12 +7,12 @@
 import os
 import socket
 
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 from avocado_qemu import wait_for_console_pattern
 from avocado_qemu import exec_command
 from avocado_qemu import exec_command_and_wait_for_pattern
 
-class Multiprocess(Test):
+class Multiprocess(QemuSystemTest):
     """
     :avocado: tags=multiprocess
     """

@@ -5,12 +5,12 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later. See the COPYING file in the top-level directory.
 
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 from avocado_qemu import wait_for_console_pattern
 from avocado import skip
 
 
-class Leon3Machine(Test):
+class Leon3Machine(QemuSystemTest):
 
     timeout = 60
 

@@ -12,7 +12,7 @@ import gzip
 import logging
 
 from avocado import skipUnless
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import archive
 from avocado import skipIf
@@ -33,7 +33,7 @@ except ImportError:
 
 @skipUnless(NUMPY_AVAILABLE, 'Python NumPy not installed')
 @skipUnless(CV2_AVAILABLE, 'Python OpenCV not installed')
-class MaltaMachineFramebuffer(Test):
+class MaltaMachineFramebuffer(QemuSystemTest):
 
     timeout = 30
 

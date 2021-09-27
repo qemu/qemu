@@ -19,9 +19,9 @@
 
 import time
 
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 
-class AVR6Machine(Test):
+class AVR6Machine(QemuSystemTest):
     timeout = 5
 
     def test_freertos(self):

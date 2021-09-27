@@ -8,7 +8,7 @@
 import os
 import time
 
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 from avocado import skipUnless
 
 from tesseract_utils import tesseract_available, tesseract_ocr
@@ -20,7 +20,7 @@ except ImportError:
     PIL_AVAILABLE = False
 
 
-class NextCubeMachine(Test):
+class NextCubeMachine(QemuSystemTest):
     """
     :avocado: tags=arch:m68k
     :avocado: tags=machine:next-cube

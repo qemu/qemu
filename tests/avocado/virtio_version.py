@@ -13,7 +13,7 @@ import os
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu.machine import QEMUMachine
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 
 # Virtio Device IDs:
 VIRTIO_NET = 1
@@ -55,7 +55,7 @@ def get_pci_interfaces(vm, devtype):
     interfaces = ('pci-express-device', 'conventional-pci-device')
     return [i for i in interfaces if devtype_implements(vm, devtype, i)]
 
-class VirtioVersionCheck(Test):
+class VirtioVersionCheck(QemuSystemTest):
     """
     Check if virtio-version-specific device types result in the
     same device tree created by `disable-modern` and

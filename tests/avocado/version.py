@@ -9,10 +9,10 @@
 # later.  See the COPYING file in the top-level directory.
 
 
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 
 
-class Version(Test):
+class Version(QemuSystemTest):
     """
     :avocado: tags=quick
     """

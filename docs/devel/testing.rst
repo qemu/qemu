@@ -811,10 +811,10 @@ class.  Here's a simple usage example:
 
 .. code::
 
-  from avocado_qemu import Test
+  from avocado_qemu import QemuSystemTest
 
 
-  class Version(Test):
+  class Version(QemuSystemTest):
       """
       :avocado: tags=quick
       """
@@ -859,10 +859,10 @@ and hypothetical example follows:
 
 .. code::
 
-  from avocado_qemu import Test
+  from avocado_qemu import QemuSystemTest
 
 
-  class MultipleMachines(Test):
+  class MultipleMachines(QemuSystemTest):
       def test_multiple_machines(self):
           first_machine = self.get_vm()
           second_machine = self.get_vm()

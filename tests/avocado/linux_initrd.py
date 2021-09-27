@@ -12,11 +12,11 @@ import os
 import logging
 import tempfile
 
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 from avocado import skipIf
 
 
-class LinuxInitrd(Test):
+class LinuxInitrd(QemuSystemTest):
     """
     Checks QEMU evaluates correctly the initrd file passed as -initrd option.
 

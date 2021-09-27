@@ -4,8 +4,8 @@
 # later.  See the COPYING file in the top-level directory.
 
 
-from avocado_qemu import Test
 from avocado_qemu import BUILD_DIR
+from avocado_qemu import QemuSystemTest
 from avocado_qemu import wait_for_console_pattern
 from avocado_qemu import exec_command_and_wait_for_pattern
 from avocado_qemu import is_readable_executable_file
@@ -27,7 +27,7 @@ def pick_default_vug_bin():
         return bld_dir_path
 
 
-class VirtioGPUx86(Test):
+class VirtioGPUx86(QemuSystemTest):
     """
     :avocado: tags=virtio-gpu
     :avocado: tags=arch:x86_64

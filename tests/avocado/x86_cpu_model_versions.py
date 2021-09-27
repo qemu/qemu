@@ -24,7 +24,7 @@
 import avocado_qemu
 import re
 
-class X86CPUModelAliases(avocado_qemu.Test):
+class X86CPUModelAliases(avocado_qemu.QemuSystemTest):
     """
     Validation of PC CPU model versions and CPU model aliases
 
@@ -239,7 +239,7 @@ class X86CPUModelAliases(avocado_qemu.Test):
         self.validate_aliases(cpus)
 
 
-class CascadelakeArchCapabilities(avocado_qemu.Test):
+class CascadelakeArchCapabilities(avocado_qemu.QemuSystemTest):
     """
     Validation of Cascadelake arch-capabilities
 

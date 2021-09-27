@@ -12,7 +12,7 @@ import os
 import logging
 
 from avocado import skipUnless
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 from avocado_qemu import wait_for_console_pattern
 
 
@@ -29,7 +29,7 @@ except ImportError:
     CV2_AVAILABLE = False
 
 
-class IntegratorMachine(Test):
+class IntegratorMachine(QemuSystemTest):
 
     timeout = 90
 

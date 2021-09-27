@@ -5,11 +5,11 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later. See the COPYING file in the top-level directory.
 
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import archive
 
-class MicroblazeMachine(Test):
+class MicroblazeMachine(QemuSystemTest):
 
     timeout = 90
 

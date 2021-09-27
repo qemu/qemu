@@ -11,13 +11,13 @@
 import os
 
 from avocado import skipIf
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 from avocado_qemu import exec_command_and_wait_for_pattern
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import archive
 
 
-class RxGdbSimMachine(Test):
+class RxGdbSimMachine(QemuSystemTest):
 
     timeout = 30
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '

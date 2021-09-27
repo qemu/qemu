@@ -20,9 +20,9 @@
 # License along with this library; if not, see <http://www.gnu.org/licenses/>.
 #
 
-from avocado_qemu import Test
+from avocado_qemu import QemuSystemTest
 
-class OmittedCPUProps(Test):
+class OmittedCPUProps(QemuSystemTest):
     """
     :avocado: tags=arch:x86_64
     :avocado: tags=cpu:qemu64
