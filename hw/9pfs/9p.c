@@ -1262,23 +1262,36 @@ static int coroutine_fn stat_to_v9stat(V9fsPDU *pdu, V9fsPath *path,
 #define P9_STATS_ALL           0x00003fffULL /* Mask for All fields above */
 
 
-static int32_t stat_to_iounit(const V9fsPDU *pdu, const struct stat *stbuf)
+/**
+ * Convert host filesystem's block size into an appropriate block size for
+ * 9p client (guest OS side). The value returned suggests an "optimum" block
+ * size for 9p I/O, i.e. to maximize performance.
+ *
+ * @pdu: 9p client request
+ * @blksize: host filesystem's block size
+ */
+static int32_t blksize_to_iounit(const V9fsPDU *pdu, int32_t blksize)
 {
     int32_t iounit = 0;
     V9fsState *s = pdu->s;
 
     /*
-     * iounit should be multiples of st_blksize (host filesystem block size)
+     * iounit should be multiples of blksize (host filesystem block size)
      * as well as less than (client msize - P9_IOHDRSZ)
      */
-    if (stbuf->st_blksize) {
-        iounit = stbuf->st_blksize;
-        iounit *= (s->msize - P9_IOHDRSZ) / stbuf->st_blksize;
+    if (blksize) {
+        iounit = blksize;
+        iounit *= (s->msize - P9_IOHDRSZ) / blksize;
     }
     if (!iounit) {
         iounit = s->msize - P9_IOHDRSZ;
     }
     return iounit;
+}
+
+static int32_t stat_to_iounit(const V9fsPDU *pdu, const struct stat *stbuf)
+{
+    return blksize_to_iounit(pdu, stbuf->st_blksize);
 }
 
 static int stat_to_v9stat_dotl(V9fsPDU *pdu, const struct stat *stbuf,
@@ -1899,23 +1912,9 @@ out_nofid:
 static int32_t coroutine_fn get_iounit(V9fsPDU *pdu, V9fsPath *path)
 {
     struct statfs stbuf;
-    int32_t iounit = 0;
-    V9fsState *s = pdu->s;
+    int err = v9fs_co_statfs(pdu, path, &stbuf);
 
-    /*
-     * iounit should be multiples of f_bsize (host filesystem block size
-     * and as well as less than (client msize - P9_IOHDRSZ))
-     */
-    if (!v9fs_co_statfs(pdu, path, &stbuf)) {
-        if (stbuf.f_bsize) {
-            iounit = stbuf.f_bsize;
-            iounit *= (s->msize - P9_IOHDRSZ) / stbuf.f_bsize;
-        }
-    }
-    if (!iounit) {
-        iounit = s->msize - P9_IOHDRSZ;
-    }
-    return iounit;
+    return blksize_to_iounit(pdu, (err >= 0) ? stbuf.f_bsize : 0);
 }
 
 static void coroutine_fn v9fs_open(void *opaque)
