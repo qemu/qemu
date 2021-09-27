@@ -243,7 +243,7 @@ static void sifive_pdma_write(void *opaque, hwaddr offset,
     offset &= 0xfff;
     switch (offset) {
     case DMA_CONTROL:
-        claimed = !!s->chan[ch].control & CONTROL_CLAIM;
+        claimed = !!(s->chan[ch].control & CONTROL_CLAIM);
 
         if (!claimed && (value & CONTROL_CLAIM)) {
             /* reset Next* registers */
