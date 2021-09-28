@@ -150,6 +150,13 @@ static void shakti_c_soc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = shakti_c_soc_state_realize;
+    /*
+     * Reasons:
+     *     - Creates CPUS in riscv_hart_realize(), and can create unintended
+     *       CPUs
+     *     - Uses serial_hds in realize function, thus can't be used twice
+     */
+    dc->user_creatable = false;
 }
 
 static void shakti_c_soc_instance_init(Object *obj)
