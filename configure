@@ -1699,9 +1699,6 @@ if test "$targetos" = "darwin" ; then
   echo "CONFIG_DARWIN=y" >> $config_host_mak
 fi
 
-if test "$targetos" = "sunos" ; then
-  echo "CONFIG_SOLARIS=y" >> $config_host_mak
-fi
 echo "SRC_PATH=$source_path" >> $config_host_mak
 echo "TARGET_DIRS=$target_list" >> $config_host_mak
 
