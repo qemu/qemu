@@ -39,6 +39,27 @@
 #include "fpu_helper.h"
 #include "translate.h"
 
+/* MIPS_PATCH */
+#include "qemuafl/cpu-translate.h"
+
+/* MIPS_PATCH */
+#define AFL_QEMU_TARGET_MIPS_SNIPPET                                          \
+  if (is_persistent) {                                                        \
+    if (ctx->base.pc_next == afl_persistent_addr) {                           \
+      gen_helper_afl_persistent_routine(cpu_env);                             \
+                                                                              \
+      if (afl_persistent_ret_addr == 0 && !persistent_exits) {                \
+        tcg_gen_movi_tl(cpu_gpr[31], afl_persistent_addr);                    \
+      }                                                                       \
+                                                                              \
+      if (!persistent_save_gpr) afl_gen_tcg_plain_call(&afl_persistent_loop); \
+                                                                              \
+    } else if (afl_persistent_ret_addr &&                                     \
+               ctx->base.pc_next == afl_persistent_ret_addr) {                \
+      gen_goto_tb(ctx, 0, afl_persistent_addr);                               \
+    }                                                                         \
+  }
+
 enum {
     /* indirect opcode tables */
     OPC_SPECIAL  = (0x00 << 26),
@@ -2273,6 +2294,128 @@ static const char * const mxuregnames[] = {
     "XR9",  "XR10", "XR11", "XR12", "XR13", "XR14", "XR15", "MXU_CR",
 };
 #endif
+
+/* MIPS_PATCH */
+void afl_save_regs(struct api_regs* r, CPUArchState *env) {
+    int i = 0;
+    int j = 0;
+    /* GP registers saving */
+    r->r0 = env->active_tc.gpr[0];
+    r->at = env->active_tc.gpr[1];
+    r->v0 = env->active_tc.gpr[2];
+    r->v1 = env->active_tc.gpr[3];
+    r->a0 = env->active_tc.gpr[4];
+    r->a1 = env->active_tc.gpr[5];
+    r->a2 = env->active_tc.gpr[6];
+    r->a3 = env->active_tc.gpr[7];
+    r->t0 = env->active_tc.gpr[8];
+    r->t1 = env->active_tc.gpr[9];
+    r->t2 = env->active_tc.gpr[10];
+    r->t3 = env->active_tc.gpr[11];
+    r->t4 = env->active_tc.gpr[12];
+    r->t5 = env->active_tc.gpr[13];
+    r->t6 = env->active_tc.gpr[14];
+    r->t7 = env->active_tc.gpr[15];
+    r->s0 = env->active_tc.gpr[16];
+    r->s1 = env->active_tc.gpr[17];
+    r->s2 = env->active_tc.gpr[18];
+    r->s3 = env->active_tc.gpr[19];
+    r->s4 = env->active_tc.gpr[20];
+    r->s5 = env->active_tc.gpr[21];
+    r->s6 = env->active_tc.gpr[22];
+    r->s7 = env->active_tc.gpr[23];
+    r->t8 = env->active_tc.gpr[24];
+    r->t9 = env->active_tc.gpr[25];
+    r->k0 = env->active_tc.gpr[26];
+    r->k1 = env->active_tc.gpr[27];
+    r->gp = env->active_tc.gpr[28];
+    r->sp = env->active_tc.gpr[29];
+    r->fp = env->active_tc.gpr[30];
+    r->ra = env->active_tc.gpr[31];
+    r->PC = env->active_tc.PC;
+#if defined(TARGET_MIPS64)
+    memcpy(r->gpr_hi, env->active_tc.gpr_hi, sizeof(r->gpr_hi));
+#endif
+    for (i = 0; i < MIPS_DSP_ACC; i++) {
+        r->HI[i] = env->active_tc.HI[i];
+        r->LO[i] = env->active_tc.LO[i];
+    }
+    /* FP registers saving */
+    for (i = 0; i < 32; i++) {
+        r->fpr[i].fd = env->active_fpu.fpr[i].fd;
+        for (j = 0; j < 2; j++) {
+            r->fpr[i].fs[j] = env->active_fpu.fpr[i].fs[j];
+        }
+        r->fpr[i].d = env->active_fpu.fpr[i].d;
+        for (j = 0; j < 2; j++) {
+            r->fpr[i].w[j] = env->active_fpu.fpr[i].w[j];
+        }
+        for (j = 0; j < MSA_WRLEN / 8; j++) {
+            r->fpr[i].wr.b[j] = env->active_fpu.fpr[i].wr.b[j];
+        }
+    }
+}
+
+/* MIPS_PATCH */
+void afl_restore_regs(struct api_regs* r, CPUArchState *env) {
+    int i = 0;
+    int j = 0;
+    /* GP registers restoring */
+    env->active_tc.gpr[0] = r->r0;
+    env->active_tc.gpr[1] = r->at;
+    env->active_tc.gpr[2] = r->v0;
+    env->active_tc.gpr[3] = r->v1;
+    env->active_tc.gpr[4] = r->a0;
+    env->active_tc.gpr[5] = r->a1;
+    env->active_tc.gpr[6] = r->a2;
+    env->active_tc.gpr[7] = r->a3;
+    env->active_tc.gpr[8] = r->t0;
+    env->active_tc.gpr[9] = r->t1;
+    env->active_tc.gpr[10] = r->t2;
+    env->active_tc.gpr[11] = r->t3;
+    env->active_tc.gpr[12] = r->t4;
+    env->active_tc.gpr[13] = r->t5;
+    env->active_tc.gpr[14] = r->t6;
+    env->active_tc.gpr[15] = r->t7;
+    env->active_tc.gpr[16] = r->s0;
+    env->active_tc.gpr[17] = r->s1;
+    env->active_tc.gpr[18] = r->s2;
+    env->active_tc.gpr[19] = r->s3;
+    env->active_tc.gpr[20] = r->s4;
+    env->active_tc.gpr[21] = r->s5;
+    env->active_tc.gpr[22] = r->s6;
+    env->active_tc.gpr[23] = r->s7;
+    env->active_tc.gpr[24] = r->t8;
+    env->active_tc.gpr[25] = r->t9;
+    env->active_tc.gpr[26] = r->k0;
+    env->active_tc.gpr[27] = r->k1;
+    env->active_tc.gpr[28] = r->gp;
+    env->active_tc.gpr[29] = r->sp;
+    env->active_tc.gpr[30] = r->fp;
+    env->active_tc.gpr[31] = r->ra;
+    env->active_tc.PC = r->PC;
+#if defined(TARGET_MIPS64)
+    memcpy(env->active_tc.gpr_hi, r->gpr_hi, sizeof(r->gpr_hi));
+#endif
+    for (i = 0; i < MIPS_DSP_ACC; i++) {
+        env->active_tc.HI[i] = r->HI[i];
+        env->active_tc.LO[i] = r->LO[i];
+    }
+    /* FP registers restoring */
+    for (i = 0; i < 32; i++) {
+        env->active_fpu.fpr[i].fd = r->fpr[i].fd;
+        for (j = 0; j < 2; j++) {
+            env->active_fpu.fpr[i].fs[j] = r->fpr[i].fs[j];
+        }
+        env->active_fpu.fpr[i].d = r->fpr[i].d;
+        for (j = 0; j < 2; j++) {
+            env->active_fpu.fpr[i].w[j] = r->fpr[i].w[j];
+        }
+        for (j = 0; j < MSA_WRLEN / 8; j++) {
+            env->active_fpu.fpr[i].wr.b[j] = r->fpr[i].wr.b[j];
+        }
+    }
+}
 
 /* General purpose registers moves. */
 void gen_load_gpr(TCGv t, int reg)
@@ -29089,6 +29232,9 @@ static void mips_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     int insn_bytes;
     int is_slot;
+
+    /* MIPS_PATCH */
+    AFL_QEMU_TARGET_MIPS_SNIPPET
 
     is_slot = ctx->hflags & MIPS_HFLAG_BMASK;
     if (ctx->insn_flags & ISA_NANOMIPS32) {
