@@ -109,6 +109,14 @@ typedef struct {
 } CPUArchIdList;
 
 /**
+ * SMPCompatProps:
+ * @dies_supported - whether dies are supported by the machine
+ */
+typedef struct {
+    bool dies_supported;
+} SMPCompatProps;
+
+/**
  * MachineClass:
  * @deprecation_reason: If set, the machine is marked as deprecated. The
  *    string should provide some clear information about what to use instead.
@@ -248,6 +256,7 @@ struct MachineClass {
     bool numa_mem_supported;
     bool auto_enable_numa;
     bool smp_prefer_sockets;
+    SMPCompatProps smp_props;
     const char *default_ram_id;
 
     HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
