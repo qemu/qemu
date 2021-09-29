@@ -99,43 +99,21 @@ struct sigframe
 struct rt_sigframe
 {
     struct target_siginfo info;
-    struct target_ucontext uc;
-    abi_ulong retcode[4];
+    struct sigframe sig;
 };
+
+static abi_ptr sigreturn_fdpic_tramp;
 
 /*
- * For ARM syscalls, we encode the syscall number into the instruction.
+ * Up to 3 words of 'retcode' in the sigframe are code,
+ * with retcode[3] being used by fdpic for the function descriptor.
+ * This code is not actually executed, but is retained for ABI compat.
+ *
+ * We will create a table of 8 retcode variants in the sigtramp page.
+ * Let each table entry use 3 words.
  */
-#define SWI_SYS_SIGRETURN       (0xef000000|(TARGET_NR_sigreturn + ARM_SYSCALL_BASE))
-#define SWI_SYS_RT_SIGRETURN    (0xef000000|(TARGET_NR_rt_sigreturn + ARM_SYSCALL_BASE))
-
-/*
- * For Thumb syscalls, we pass the syscall number via r7.  We therefore
- * need two 16-bit instructions.
- */
-#define SWI_THUMB_SIGRETURN     (0xdf00 << 16 | 0x2700 | (TARGET_NR_sigreturn))
-#define SWI_THUMB_RT_SIGRETURN  (0xdf00 << 16 | 0x2700 | (TARGET_NR_rt_sigreturn))
-
-static const abi_ulong retcodes[4] = {
-        SWI_SYS_SIGRETURN,      SWI_THUMB_SIGRETURN,
-        SWI_SYS_RT_SIGRETURN,   SWI_THUMB_RT_SIGRETURN
-};
-
-/*
- * Stub needed to make sure the FD register (r9) contains the right
- * value.
- */
-static const unsigned long sigreturn_fdpic_codes[3] = {
-    0xe59fc004, /* ldr r12, [pc, #4] to read function descriptor */
-    0xe59c9004, /* ldr r9, [r12, #4] to setup GOT */
-    0xe59cf000  /* ldr pc, [r12] to jump into restorer */
-};
-
-static const unsigned long sigreturn_fdpic_thumb_codes[3] = {
-    0xc008f8df, /* ldr r12, [pc, #8] to read function descriptor */
-    0x9004f8dc, /* ldr r9, [r12, #4] to setup GOT */
-    0xf000f8dc  /* ldr pc, [r12] to jump into restorer */
-};
+#define RETCODE_WORDS  3
+#define RETCODE_BYTES  (RETCODE_WORDS * 4)
 
 static inline int valid_user_regs(CPUARMState *regs)
 {
@@ -183,15 +161,15 @@ get_sigframe(struct target_sigaction *ka, CPUARMState *regs, int framesize)
 }
 
 static int
-setup_return(CPUARMState *env, struct target_sigaction *ka,
-             abi_ulong *rc, abi_ulong frame_addr, int usig, abi_ulong rc_addr)
+setup_return(CPUARMState *env, struct target_sigaction *ka, int usig,
+             struct sigframe *frame, abi_ulong sp_addr)
 {
     abi_ulong handler = 0;
     abi_ulong handler_fdpic_GOT = 0;
     abi_ulong retcode;
-
-    int thumb;
+    int thumb, retcode_idx;
     int is_fdpic = info_is_fdpic(((TaskState *)thread_cpu->opaque)->info);
+    bool copy_retcode;
 
     if (is_fdpic) {
         /* In FDPIC mode, ka->_sa_handler points to a function
@@ -208,6 +186,7 @@ setup_return(CPUARMState *env, struct target_sigaction *ka,
     }
 
     thumb = handler & 1;
+    retcode_idx = thumb + (ka->sa_flags & TARGET_SA_SIGINFO ? 2 : 0);
 
     uint32_t cpsr = cpsr_read(env);
 
@@ -225,44 +204,29 @@ setup_return(CPUARMState *env, struct target_sigaction *ka,
 
     if (ka->sa_flags & TARGET_SA_RESTORER) {
         if (is_fdpic) {
-            /* For FDPIC we ensure that the restorer is called with a
-             * correct r9 value.  For that we need to write code on
-             * the stack that sets r9 and jumps back to restorer
-             * value.
-             */
-            if (thumb) {
-                __put_user(sigreturn_fdpic_thumb_codes[0], rc);
-                __put_user(sigreturn_fdpic_thumb_codes[1], rc + 1);
-                __put_user(sigreturn_fdpic_thumb_codes[2], rc + 2);
-                __put_user((abi_ulong)ka->sa_restorer, rc + 3);
-            } else {
-                __put_user(sigreturn_fdpic_codes[0], rc);
-                __put_user(sigreturn_fdpic_codes[1], rc + 1);
-                __put_user(sigreturn_fdpic_codes[2], rc + 2);
-                __put_user((abi_ulong)ka->sa_restorer, rc + 3);
-            }
-
-            retcode = rc_addr + thumb;
+            __put_user((abi_ulong)ka->sa_restorer, &frame->retcode[3]);
+            retcode = (sigreturn_fdpic_tramp +
+                       retcode_idx * RETCODE_BYTES + thumb);
+            copy_retcode = true;
         } else {
             retcode = ka->sa_restorer;
+            copy_retcode = false;
         }
     } else {
-        unsigned int idx = thumb;
+        retcode = default_sigreturn + retcode_idx * RETCODE_BYTES + thumb;
+        copy_retcode = true;
+    }
 
-        if (ka->sa_flags & TARGET_SA_SIGINFO) {
-            idx += 2;
-        }
-
-        __put_user(retcodes[idx], rc);
-
-        retcode = rc_addr + thumb;
+    /* Copy the code to the stack slot for ABI compatibility. */
+    if (copy_retcode) {
+        memcpy(frame->retcode, g2h_untagged(retcode & ~1), RETCODE_BYTES);
     }
 
     env->regs[0] = usig;
     if (is_fdpic) {
         env->regs[9] = handler_fdpic_GOT;
     }
-    env->regs[13] = frame_addr;
+    env->regs[13] = sp_addr;
     env->regs[14] = retcode;
     env->regs[15] = handler & (thumb ? ~1 : ~3);
     cpsr_write(env, cpsr, CPSR_IT | CPSR_T | CPSR_E, CPSRWriteByInstr);
@@ -351,8 +315,7 @@ void setup_frame(int usig, struct target_sigaction *ka,
 
     setup_sigframe(&frame->uc, set, regs);
 
-    if (setup_return(regs, ka, frame->retcode, frame_addr, usig,
-                     frame_addr + offsetof(struct sigframe, retcode))) {
+    if (setup_return(regs, ka, usig, frame, frame_addr)) {
         goto sigsegv;
     }
 
@@ -377,13 +340,12 @@ void setup_rt_frame(int usig, struct target_sigaction *ka,
     }
 
     info_addr = frame_addr + offsetof(struct rt_sigframe, info);
-    uc_addr = frame_addr + offsetof(struct rt_sigframe, uc);
+    uc_addr = frame_addr + offsetof(struct rt_sigframe, sig.uc);
     tswap_siginfo(&frame->info, info);
 
-    setup_sigframe(&frame->uc, set, env);
+    setup_sigframe(&frame->sig.uc, set, env);
 
-    if (setup_return(env, ka, frame->retcode, frame_addr, usig,
-                     frame_addr + offsetof(struct rt_sigframe, retcode))) {
+    if (setup_return(env, ka, usig, &frame->sig, frame_addr)) {
         goto sigsegv;
     }
 
@@ -578,8 +540,8 @@ long do_rt_sigreturn(CPUARMState *env)
     }
 
     if (do_sigframe_return(env,
-                           frame_addr + offsetof(struct rt_sigframe, uc),
-                           &frame->uc)) {
+                           frame_addr + offsetof(struct rt_sigframe, sig.uc),
+                           &frame->sig.uc)) {
         goto badframe;
     }
 
@@ -590,4 +552,79 @@ badframe:
     unlock_user_struct(frame, frame_addr, 0);
     force_sig(TARGET_SIGSEGV);
     return -TARGET_QEMU_ESIGRETURN;
+}
+
+/*
+ * EABI syscalls pass the number via r7.
+ * Note that the kernel still adds the OABI syscall number to the trap,
+ * presumably for backward ABI compatibility with unwinders.
+ */
+#define ARM_MOV_R7_IMM(X)       (0xe3a07000 | (X))
+#define ARM_SWI_SYS(X)          (0xef000000 | (X) | ARM_SYSCALL_BASE)
+
+#define THUMB_MOVS_R7_IMM(X)    (0x2700 | (X))
+#define THUMB_SWI_SYS           0xdf00
+
+static void write_arm_sigreturn(uint32_t *rc, int syscall)
+{
+    __put_user(ARM_MOV_R7_IMM(syscall), rc);
+    __put_user(ARM_SWI_SYS(syscall), rc + 1);
+    /* Wrote 8 of 12 bytes */
+}
+
+static void write_thm_sigreturn(uint32_t *rc, int syscall)
+{
+    __put_user(THUMB_SWI_SYS << 16 | THUMB_MOVS_R7_IMM(syscall), rc);
+    /* Wrote 4 of 12 bytes */
+}
+
+/*
+ * Stub needed to make sure the FD register (r9) contains the right value.
+ * Use the same instruction sequence as the kernel.
+ */
+static void write_arm_fdpic_sigreturn(uint32_t *rc, int ofs)
+{
+    assert(ofs <= 0xfff);
+    __put_user(0xe59d3000 | ofs, rc + 0);   /* ldr r3, [sp, #ofs] */
+    __put_user(0xe8930908, rc + 1);         /* ldm r3, { r3, r9 } */
+    __put_user(0xe12fff13, rc + 2);         /* bx  r3 */
+    /* Wrote 12 of 12 bytes */
+}
+
+static void write_thm_fdpic_sigreturn(void *vrc, int ofs)
+{
+    uint16_t *rc = vrc;
+
+    assert((ofs & ~0x3fc) == 0);
+    __put_user(0x9b00 | (ofs >> 2), rc + 0);      /* ldr r3, [sp, #ofs] */
+    __put_user(0xcb0c, rc + 1);                   /* ldm r3, { r2, r3 } */
+    __put_user(0x4699, rc + 2);                   /* mov r9, r3 */
+    __put_user(0x4710, rc + 3);                   /* bx  r2 */
+    /* Wrote 8 of 12 bytes */
+}
+
+void setup_sigtramp(abi_ulong sigtramp_page)
+{
+    uint32_t total_size = 8 * RETCODE_BYTES;
+    uint32_t *tramp = lock_user(VERIFY_WRITE, sigtramp_page, total_size, 0);
+
+    assert(tramp != NULL);
+
+    default_sigreturn = sigtramp_page;
+    write_arm_sigreturn(&tramp[0 * RETCODE_WORDS], TARGET_NR_sigreturn);
+    write_thm_sigreturn(&tramp[1 * RETCODE_WORDS], TARGET_NR_sigreturn);
+    write_arm_sigreturn(&tramp[2 * RETCODE_WORDS], TARGET_NR_rt_sigreturn);
+    write_thm_sigreturn(&tramp[3 * RETCODE_WORDS], TARGET_NR_rt_sigreturn);
+
+    sigreturn_fdpic_tramp = sigtramp_page + 4 * RETCODE_BYTES;
+    write_arm_fdpic_sigreturn(tramp + 4 * RETCODE_WORDS,
+                              offsetof(struct sigframe, retcode[3]));
+    write_thm_fdpic_sigreturn(tramp + 5 * RETCODE_WORDS,
+                                offsetof(struct sigframe, retcode[3]));
+    write_arm_fdpic_sigreturn(tramp + 6 * RETCODE_WORDS,
+                              offsetof(struct rt_sigframe, sig.retcode[3]));
+    write_thm_fdpic_sigreturn(tramp + 7 * RETCODE_WORDS,
+                              offsetof(struct rt_sigframe, sig.retcode[3]));
+
+    unlock_user(tramp, sigtramp_page, total_size);
 }
