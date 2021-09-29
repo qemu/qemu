@@ -215,8 +215,11 @@ void migration_object_init(void)
     dirty_bitmap_mig_init();
 }
 
-void migration_cancel(void)
+void migration_cancel(const Error *error)
 {
+    if (error) {
+        migrate_set_error(current_migration, error);
+    }
     migrate_fd_cancel(current_migration);
 }
 
@@ -226,7 +229,7 @@ void migration_shutdown(void)
      * Cancel the current migration - that will (eventually)
      * stop the migration using this structure
      */
-    migration_cancel();
+    migration_cancel(NULL);
     object_unref(OBJECT(current_migration));
 
     /*
@@ -2334,7 +2337,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
 
 void qmp_migrate_cancel(Error **errp)
 {
-    migration_cancel();
+    migration_cancel(NULL);
 }
 
 void qmp_migrate_continue(MigrationStatus state, Error **errp)
