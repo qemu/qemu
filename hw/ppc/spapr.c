@@ -4685,7 +4685,7 @@ static void spapr_machine_6_1_class_options(MachineClass *mc)
     spapr_machine_6_2_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_6_1, hw_compat_6_1_len);
     smc->pre_6_2_numa_affinity = true;
-    mc->smp_prefer_sockets = true;
+    mc->smp_props.prefer_sockets = true;
 }
 
 DEFINE_SPAPR_MACHINE(6_1, "6.1", false);
