@@ -265,7 +265,8 @@ static void pc_dynamic_cpu_cfg(const void *data)
     QTestState *qs;
     g_autofree char *cli = NULL;
 
-    cli = make_cli(data, "-nodefaults --preconfig -machine smp.cpus=2");
+    cli = make_cli(data, "-nodefaults --preconfig "
+                         "-machine smp.cpus=2,smp.sockets=2");
     qs = qtest_init(cli);
 
     /* create 2 numa nodes */
