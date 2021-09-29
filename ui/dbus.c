@@ -357,6 +357,57 @@ dbus_display_class_init(ObjectClass *oc, void *data)
                                    get_gl_mode, set_gl_mode);
 }
 
+#define TYPE_CHARDEV_VC "chardev-vc"
+
+typedef struct DBusVCClass {
+    DBusChardevClass parent_class;
+
+    void (*parent_parse)(QemuOpts *opts, ChardevBackend *b, Error **errp);
+} DBusVCClass;
+
+DECLARE_CLASS_CHECKERS(DBusVCClass, DBUS_VC,
+                       TYPE_CHARDEV_VC)
+
+static void
+dbus_vc_parse(QemuOpts *opts, ChardevBackend *backend,
+              Error **errp)
+{
+    DBusVCClass *klass = DBUS_VC_CLASS(object_class_by_name(TYPE_CHARDEV_VC));
+    const char *name = qemu_opt_get(opts, "name");
+    const char *id = qemu_opts_id(opts);
+
+    if (name == NULL) {
+        if (g_str_has_prefix(id, "compat_monitor")) {
+            name = "org.qemu.monitor.hmp.0";
+        } else if (g_str_has_prefix(id, "serial")) {
+            name = "org.qemu.console.serial.0";
+        } else {
+            name = "";
+        }
+        if (!qemu_opt_set(opts, "name", name, errp)) {
+            return;
+        }
+    }
+
+    klass->parent_parse(opts, backend, errp);
+}
+
+static void
+dbus_vc_class_init(ObjectClass *oc, void *data)
+{
+    DBusVCClass *klass = DBUS_VC_CLASS(oc);
+    ChardevClass *cc = CHARDEV_CLASS(oc);
+
+    klass->parent_parse = cc->parse;
+    cc->parse = dbus_vc_parse;
+}
+
+static const TypeInfo dbus_vc_type_info = {
+    .name = TYPE_CHARDEV_VC,
+    .parent = TYPE_CHARDEV_DBUS,
+    .class_init = dbus_vc_class_init,
+};
+
 static void
 early_dbus_init(DisplayOptions *opts)
 {
@@ -370,6 +421,8 @@ early_dbus_init(DisplayOptions *opts)
 
         display_opengl = 1;
     }
+
+    type_register(&dbus_vc_type_info);
 }
 
 static void
