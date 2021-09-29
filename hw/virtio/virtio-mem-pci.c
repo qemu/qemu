@@ -88,13 +88,8 @@ static void virtio_mem_pci_size_change_notify(Notifier *notifier, void *data)
                                          size_change_notifier);
     DeviceState *dev = DEVICE(pci_mem);
     const uint64_t * const size_p = data;
-    const char *id = NULL;
 
-    if (dev->id) {
-        id = g_strdup(dev->id);
-    }
-
-    qapi_event_send_memory_device_size_change(!!id, id, *size_p);
+    qapi_event_send_memory_device_size_change(!!dev->id, dev->id, *size_p);
 }
 
 static void virtio_mem_pci_class_init(ObjectClass *klass, void *data)
