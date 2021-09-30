@@ -43,6 +43,10 @@ TopLevelExpr = Dict[str, object]
 # Return value alias for get_expr().
 _ExprValue = Union[List[object], Dict[str, object], str, bool]
 
+# FIXME: Consolidate and centralize definitions for TopLevelExpr,
+# _ExprValue, _JSONValue, and _JSONObject; currently scattered across
+# several modules.
+
 
 class QAPIParseError(QAPISourceError):
     """Error class for all QAPI schema parsing errors."""
