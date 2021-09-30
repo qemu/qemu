@@ -740,6 +740,18 @@ static void fv_queue_cleanup_thread(struct fv_VuDev *vud, int qidx)
     vud->qi[qidx] = NULL;
 }
 
+static void stop_all_queues(struct fv_VuDev *vud)
+{
+    for (int i = 0; i < vud->nqueues; i++) {
+        if (!vud->qi[i]) {
+            continue;
+        }
+
+        fuse_log(FUSE_LOG_INFO, "%s: Stopping queue %d thread\n", __func__, i);
+        fv_queue_cleanup_thread(vud, i);
+    }
+}
+
 /* Callback from libvhost-user on start or stop of a queue */
 static void fv_queue_set_started(VuDev *dev, int qidx, bool started)
 {
@@ -870,15 +882,7 @@ int virtio_loop(struct fuse_session *se)
      * Make sure all fv_queue_thread()s quit on exit, as we're about to
      * free virtio dev and fuse session, no one should access them anymore.
      */
-    for (int i = 0; i < se->virtio_dev->nqueues; i++) {
-        if (!se->virtio_dev->qi[i]) {
-            continue;
-        }
-
-        fuse_log(FUSE_LOG_INFO, "%s: Stopping queue %d thread\n", __func__, i);
-        fv_queue_cleanup_thread(se->virtio_dev, i);
-    }
-
+    stop_all_queues(se->virtio_dev);
     fuse_log(FUSE_LOG_INFO, "%s: Exit\n", __func__);
 
     return 0;
