@@ -84,7 +84,9 @@
 #        This command merely requests that the guest begin the hot removal
 #        process.  Completion of the device removal process is signaled with a
 #        DEVICE_DELETED event. Guest reset will automatically complete removal
-#        for all devices.
+#        for all devices.  If a guest-side error in the hot removal process is
+#        detected, the device will not be removed and a DEVICE_UNPLUG_GUEST_ERROR
+#        event is sent.  Some errors cannot be detected.
 #
 # Since: 0.14
 #
@@ -108,9 +110,9 @@
 # At this point, it's safe to reuse the specified device ID. Device removal can
 # be initiated by the guest or by HMP/QMP commands.
 #
-# @device: device name
+# @device: the device's ID if it has one
 #
-# @path: device path
+# @path: the device's QOM path
 #
 # Since: 1.5
 #
@@ -123,4 +125,27 @@
 #
 ##
 { 'event': 'DEVICE_DELETED',
+  'data': { '*device': 'str', 'path': 'str' } }
+
+##
+# @DEVICE_UNPLUG_GUEST_ERROR:
+#
+# Emitted when a device hot unplug fails due to a guest reported error.
+#
+# @device: the device's ID if it has one
+#
+# @path: the device's QOM path
+#
+# Since: 6.2
+#
+# Example:
+#
+# <- { "event": "DEVICE_UNPLUG_GUEST_ERROR"
+#      "data": { "device": "core1",
+#                "path": "/machine/peripheral/core1" },
+#      },
+#      "timestamp": { "seconds": 1615570772, "microseconds": 202844 } }
+#
+##
+{ 'event': 'DEVICE_UNPLUG_GUEST_ERROR',
   'data': { '*device': 'str', 'path': 'str' } }

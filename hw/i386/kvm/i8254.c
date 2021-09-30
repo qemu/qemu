@@ -59,11 +59,6 @@ struct KVMPITClass {
     DeviceRealize parent_realize;
 };
 
-static int64_t abs64(int64_t v)
-{
-    return v < 0 ? -v : v;
-}
-
 static void kvm_pit_update_clock_offset(KVMPITState *s)
 {
     int64_t offset, clock_offset;
@@ -81,7 +76,7 @@ static void kvm_pit_update_clock_offset(KVMPITState *s)
         clock_gettime(CLOCK_MONOTONIC, &ts);
         offset -= ts.tv_nsec;
         offset -= (int64_t)ts.tv_sec * 1000000000;
-        if (abs64(offset) < abs64(clock_offset)) {
+        if (uabs64(offset) < uabs64(clock_offset)) {
             clock_offset = offset;
         }
     }

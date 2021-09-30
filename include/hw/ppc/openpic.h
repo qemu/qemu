@@ -21,7 +21,6 @@ enum {
 
 typedef struct IrqLines { qemu_irq irq[OPENPIC_OUTPUT_NB]; } IrqLines;
 
-#define OPENPIC_MODEL_RAVEN       0
 #define OPENPIC_MODEL_FSL_MPIC_20 1
 #define OPENPIC_MODEL_FSL_MPIC_42 2
 #define OPENPIC_MODEL_KEYLARGO    3
@@ -31,13 +30,6 @@ typedef struct IrqLines { qemu_irq irq[OPENPIC_OUTPUT_NB]; } IrqLines;
 #define OPENPIC_MAX_IPI     4
 #define OPENPIC_MAX_IRQ     (OPENPIC_MAX_SRC + OPENPIC_MAX_IPI + \
                              OPENPIC_MAX_TMR)
-
-/* Raven */
-#define RAVEN_MAX_CPU      2
-#define RAVEN_MAX_EXT     48
-#define RAVEN_MAX_IRQ     64
-#define RAVEN_MAX_TMR      OPENPIC_MAX_TMR
-#define RAVEN_MAX_IPI      OPENPIC_MAX_IPI
 
 /* KeyLargo */
 #define KEYLARGO_MAX_CPU  4
@@ -49,14 +41,6 @@ typedef struct IrqLines { qemu_irq irq[OPENPIC_OUTPUT_NB]; } IrqLines;
 /* Timers don't exist but this makes the code happy... */
 #define KEYLARGO_TMR_IRQ  (KEYLARGO_IPI_IRQ + KEYLARGO_MAX_IPI)
 
-/* Interrupt definitions */
-#define RAVEN_FE_IRQ     (RAVEN_MAX_EXT)     /* Internal functional IRQ */
-#define RAVEN_ERR_IRQ    (RAVEN_MAX_EXT + 1) /* Error IRQ */
-#define RAVEN_TMR_IRQ    (RAVEN_MAX_EXT + 2) /* First timer IRQ */
-#define RAVEN_IPI_IRQ    (RAVEN_TMR_IRQ + RAVEN_MAX_TMR) /* First IPI IRQ */
-/* First doorbell IRQ */
-#define RAVEN_DBL_IRQ    (RAVEN_IPI_IRQ + (RAVEN_MAX_CPU * RAVEN_MAX_IPI))
-
 typedef struct FslMpicInfo {
     int max_ext;
 } FslMpicInfo;
@@ -67,7 +51,8 @@ typedef enum IRQType {
     IRQ_TYPE_FSLSPECIAL,    /* FSL timer/IPI interrupt, edge, no polarity */
 } IRQType;
 
-/* Round up to the nearest 64 IRQs so that the queue length
+/*
+ * Round up to the nearest 64 IRQs so that the queue length
  * won't change when moving between 32 and 64 bit hosts.
  */
 #define IRQQUEUE_SIZE_BITS ((OPENPIC_MAX_IRQ + 63) & ~63)
@@ -117,8 +102,10 @@ typedef struct OpenPICTimer {
     bool                  qemu_timer_active; /* Is the qemu_timer is running? */
     struct QEMUTimer     *qemu_timer;
     struct OpenPICState  *opp;          /* Device timer is part of. */
-    /* The QEMU_CLOCK_VIRTUAL time (in ns) corresponding to the last
-       current_count written or read, only defined if qemu_timer_active. */
+    /*
+     * The QEMU_CLOCK_VIRTUAL time (in ns) corresponding to the last
+     * current_count written or read, only defined if qemu_timer_active.
+     */
     uint64_t              origin_time;
 } OpenPICTimer;
 

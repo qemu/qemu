@@ -97,7 +97,27 @@ vof_claimed(uint64_t start, uint64_t end, uint64_t size) "0x%"PRIx64"..0x%"PRIx6
 
 # ppc.c
 ppc_tb_adjust(uint64_t offs1, uint64_t offs2, int64_t diff, int64_t seconds) "adjusted from 0x%"PRIx64" to 0x%"PRIx64", diff %"PRId64" (%"PRId64"s)"
+ppc_tb_load(uint64_t tb) "tb 0x%016" PRIx64
+ppc_tb_store(uint64_t tb, uint64_t offset) "tb 0x%016" PRIx64 " offset 0x%08" PRIx64
 
+ppc_decr_load(uint64_t tb) "decr 0x%016" PRIx64
+ppc_decr_excp(const char *action) "%s decrementer"
+ppc_decr_store(uint32_t nr_bits, uint64_t decr, uint64_t value) "%d-bit 0x%016" PRIx64 " => 0x%016" PRIx64
+
+ppc4xx_fit(uint32_t ir, uint64_t tcr, uint64_t tsr) "ir %d TCR 0x%" PRIx64 " TSR 0x%" PRIx64
+ppc4xx_pit_stop(void) ""
+ppc4xx_pit_start(uint64_t reload) "PIT 0x%016" PRIx64
+ppc4xx_pit(uint32_t ar, uint32_t ir, uint64_t tcr, uint64_t tsr, uint64_t reload) "ar %d ir %d TCR 0x%" PRIx64 " TSR 0x%" PRIx64 " PIT 0x%016" PRIx64
+ppc4xx_wdt(uint64_t tcr, uint64_t tsr) "TCR 0x%" PRIx64 " TSR 0x%" PRIx64
+ppc40x_store_pit(uint64_t value) "val 0x%" PRIx64
+ppc40x_set_tb_clk(uint32_t value) "new frequency %" PRIu32
+ppc40x_timers_init(uint32_t value) "frequency %" PRIu32
+
+ppc_irq_set(void *env, uint32_t pin, uint32_t level) "env [%p] pin %d level %d"
+ppc_irq_set_exit(void *env, uint32_t n_IRQ, uint32_t level, uint32_t pending, uint32_t request) "env [%p] n_IRQ %d level %d => pending 0x%08" PRIx32 " req 0x%08" PRIx32
+ppc_irq_set_state(const char *name, uint32_t level) "\"%s\" level %d"
+ppc_irq_reset(const char *name) "%s"
+ppc_irq_cpu(const char *action) "%s"
 
 # prep_systemio.c
 prep_systemio_read(uint32_t addr, uint32_t val) "read addr=0x%x val=0x%x"

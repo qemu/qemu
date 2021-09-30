@@ -28,17 +28,6 @@
  */
 
 /*
- * Convert a priority number to an Interrupt Pending Buffer (IPB)
- * register, which indicates a pending interrupt at the priority
- * corresponding to the bit number
- */
-static uint8_t priority_to_ipb(uint8_t priority)
-{
-    return priority > XIVE_PRIORITY_MAX ?
-        0 : 1 << (XIVE_PRIORITY_MAX - priority);
-}
-
-/*
  * Convert an Interrupt Pending Buffer (IPB) register to a Pending
  * Interrupt Priority Register (PIPR), which contains the priority of
  * the most favored pending notification.
@@ -89,7 +78,7 @@ static uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t ring)
         regs[TM_CPPR] = cppr;
 
         /* Reset the pending buffer bit */
-        regs[TM_IPB] &= ~priority_to_ipb(cppr);
+        regs[TM_IPB] &= ~xive_priority_to_ipb(cppr);
         regs[TM_PIPR] = ipb_to_pipr(regs[TM_IPB]);
 
         /* Drop Exception bit */
@@ -150,11 +139,6 @@ void xive_tctx_ipb_update(XiveTCTX *tctx, uint8_t ring, uint8_t ipb)
     regs[TM_IPB] |= ipb;
     regs[TM_PIPR] = ipb_to_pipr(regs[TM_IPB]);
     xive_tctx_notify(tctx, ring);
-}
-
-static inline uint32_t xive_tctx_word2(uint8_t *ring)
-{
-    return *((uint32_t *) &ring[TM_WORD2]);
 }
 
 /*
@@ -353,7 +337,7 @@ static void xive_tm_set_os_cppr(XivePresenter *xptr, XiveTCTX *tctx,
 static void xive_tm_set_os_pending(XivePresenter *xptr, XiveTCTX *tctx,
                                    hwaddr offset, uint64_t value, unsigned size)
 {
-    xive_tctx_ipb_update(tctx, TM_QW1_OS, priority_to_ipb(value & 0xff));
+    xive_tctx_ipb_update(tctx, TM_QW1_OS, xive_priority_to_ipb(value & 0xff));
 }
 
 static void xive_os_cam_decode(uint32_t cam, uint8_t *nvt_blk,
@@ -1535,7 +1519,8 @@ bool xive_presenter_notify(XiveFabric *xfb, uint8_t format,
     /* handle CPU exception delivery */
     if (count) {
         trace_xive_presenter_notify(nvt_blk, nvt_idx, match.ring);
-        xive_tctx_ipb_update(match.tctx, match.ring, priority_to_ipb(priority));
+        xive_tctx_ipb_update(match.tctx, match.ring,
+                             xive_priority_to_ipb(priority));
     }
 
     return !!count;
@@ -1682,7 +1667,8 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
          * use. The presenter will resend the interrupt when the vCPU
          * is dispatched again on a HW thread.
          */
-        ipb = xive_get_field32(NVT_W4_IPB, nvt.w4) | priority_to_ipb(priority);
+        ipb = xive_get_field32(NVT_W4_IPB, nvt.w4) |
+            xive_priority_to_ipb(priority);
         nvt.w4 = xive_set_field32(NVT_W4_IPB, nvt.w4, ipb);
         xive_router_write_nvt(xrtr, nvt_blk, nvt_idx, &nvt, 4);
 

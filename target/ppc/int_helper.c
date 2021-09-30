@@ -2480,10 +2480,26 @@ uint32_t helper_bcdctz(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
+/**
+ * Compare 2 128-bit unsigned integers, passed in as unsigned 64-bit pairs
+ *
+ * Returns:
+ * > 0 if ahi|alo > bhi|blo,
+ * 0 if ahi|alo == bhi|blo,
+ * < 0 if ahi|alo < bhi|blo
+ */
+static inline int ucmp128(uint64_t alo, uint64_t ahi,
+                          uint64_t blo, uint64_t bhi)
+{
+    return (ahi == bhi) ?
+        (alo > blo ? 1 : (alo == blo ? 0 : -1)) :
+        (ahi > bhi ? 1 : -1);
+}
+
 uint32_t helper_bcdcfsq(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
 {
     int i;
-    int cr = 0;
+    int cr;
     uint64_t lo_value;
     uint64_t hi_value;
     ppc_avr_t ret = { .u64 = { 0, 0 } };
@@ -2492,28 +2508,47 @@ uint32_t helper_bcdcfsq(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
         lo_value = -b->VsrSD(1);
         hi_value = ~b->VsrD(0) + !lo_value;
         bcd_put_digit(&ret, 0xD, 0);
+
+        cr = CRF_LT;
     } else {
         lo_value = b->VsrD(1);
         hi_value = b->VsrD(0);
         bcd_put_digit(&ret, bcd_preferred_sgn(0, ps), 0);
+
+        if (hi_value == 0 && lo_value == 0) {
+            cr = CRF_EQ;
+        } else {
+            cr = CRF_GT;
+        }
     }
 
-    if (divu128(&lo_value, &hi_value, 1000000000000000ULL) ||
-            lo_value > 9999999999999999ULL) {
-        cr = CRF_SO;
+    /*
+     * Check src limits: abs(src) <= 10^31 - 1
+     *
+     * 10^31 - 1 = 0x0000007e37be2022 c0914b267fffffff
+     */
+    if (ucmp128(lo_value, hi_value,
+                0xc0914b267fffffffULL, 0x7e37be2022ULL) > 0) {
+        cr |= CRF_SO;
+
+        /*
+         * According to the ISA, if src wouldn't fit in the destination
+         * register, the result is undefined.
+         * In that case, we leave r unchanged.
+         */
+    } else {
+        divu128(&lo_value, &hi_value, 1000000000000000ULL);
+
+        for (i = 1; i < 16; hi_value /= 10, i++) {
+            bcd_put_digit(&ret, hi_value % 10, i);
+        }
+
+        for (; i < 32; lo_value /= 10, i++) {
+            bcd_put_digit(&ret, lo_value % 10, i);
+        }
+
+        *r = ret;
     }
-
-    for (i = 1; i < 16; hi_value /= 10, i++) {
-        bcd_put_digit(&ret, hi_value % 10, i);
-    }
-
-    for (; i < 32; lo_value /= 10, i++) {
-        bcd_put_digit(&ret, lo_value % 10, i);
-    }
-
-    cr |= bcd_cmp_zero(&ret);
-
-    *r = ret;
 
     return cr;
 }

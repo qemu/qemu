@@ -17,6 +17,7 @@
 #include "kvm_ppc.h"
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/spapr_ovec.h"
+#include "hw/ppc/spapr_numa.h"
 #include "mmu-book3s-v3.h"
 #include "hw/mem/memory-device.h"
 
@@ -1196,6 +1197,12 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
 
     spapr->cas_pre_isa3_guest = !spapr_ovec_test(ov1_guest, OV1_PPC_3_00);
     spapr_ovec_cleanup(ov1_guest);
+
+    /*
+     * Check for NUMA affinity conditions now that we know which NUMA
+     * affinity the guest will use.
+     */
+    spapr_numa_associativity_check(spapr);
 
     /*
      * Ensure the guest asks for an interrupt mode we support;

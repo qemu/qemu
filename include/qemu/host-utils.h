@@ -70,7 +70,7 @@ static inline int divs128(int64_t *plow, int64_t *phigh, int64_t divisor)
     if (divisor == 0) {
         return 1;
     } else {
-        __int128_t dividend = ((__int128_t)*phigh << 64) | *plow;
+        __int128_t dividend = ((__int128_t)*phigh << 64) | (uint64_t)*plow;
         __int128_t result = dividend / divisor;
         *plow = result;
         *phigh = dividend % divisor;
@@ -355,6 +355,14 @@ static inline uint64_t revbit64(uint64_t x)
       | ((x & 0x1111111111111111ull) << 3);
     return x;
 #endif
+}
+
+/**
+ * Return the absolute value of a 64-bit integer as an unsigned 64-bit value
+ */
+static inline uint64_t uabs64(int64_t v)
+{
+    return v < 0 ? -v : v;
 }
 
 /**

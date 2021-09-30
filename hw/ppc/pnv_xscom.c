@@ -284,6 +284,10 @@ int pnv_dt_xscom(PnvChip *chip, void *fdt, int root_offset,
     _FDT(xscom_offset);
     g_free(name);
     _FDT((fdt_setprop_cell(fdt, xscom_offset, "ibm,chip-id", chip->chip_id)));
+    /*
+     * On P10, the xscom bus id has been deprecated and the chip id is
+     * calculated from the "Primary topology table index". See skiboot.
+     */
     _FDT((fdt_setprop_cell(fdt, xscom_offset, "ibm,primary-topology-index",
                            chip->chip_id)));
     _FDT((fdt_setprop_cell(fdt, xscom_offset, "#address-cells", 1)));

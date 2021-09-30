@@ -67,7 +67,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(PnvQuad, PNV_QUAD)
 struct PnvQuad {
     DeviceState parent_obj;
 
-    uint32_t id;
+    uint32_t quad_id;
     MemoryRegion xscom_regs;
 };
 #endif /* PPC_PNV_CORE_H */

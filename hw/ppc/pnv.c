@@ -723,6 +723,8 @@ static uint64_t pnv_chip_get_ram_size(PnvMachineState *pnv, int chip_id)
         return QEMU_ALIGN_DOWN(ram_per_chip, 1 * MiB);
     }
 
+    assert(pnv->num_chips > 1);
+
     ram_per_chip = (machine->ram_size - 1 * GiB) / (pnv->num_chips - 1);
     return chip_id == 0 ? 1 * GiB : QEMU_ALIGN_DOWN(ram_per_chip, 1 * MiB);
 }
@@ -838,8 +840,7 @@ static void pnv_init(MachineState *machine)
     for (i = 0; i < pnv->num_chips; i++) {
         char chip_name[32];
         Object *chip = OBJECT(qdev_new(chip_typename));
-        int chip_id = i;
-        uint64_t chip_ram_size =  pnv_chip_get_ram_size(pnv, chip_id);
+        uint64_t chip_ram_size =  pnv_chip_get_ram_size(pnv, i);
 
         pnv->chips[i] = PNV_CHIP(chip);
 
@@ -850,9 +851,9 @@ static void pnv_init(MachineState *machine)
                                 &error_fatal);
         chip_ram_start += chip_ram_size;
 
-        snprintf(chip_name, sizeof(chip_name), "chip[%d]", chip_id);
+        snprintf(chip_name, sizeof(chip_name), "chip[%d]", i);
         object_property_add_child(OBJECT(pnv), chip_name, chip);
-        object_property_set_int(chip, "chip-id", chip_id, &error_fatal);
+        object_property_set_int(chip, "chip-id", i, &error_fatal);
         object_property_set_int(chip, "nr-cores", machine->smp.cores,
                                 &error_fatal);
         object_property_set_int(chip, "nr-threads", machine->smp.threads,
@@ -1369,10 +1370,10 @@ static void pnv_chip_quad_realize(Pnv9Chip *chip9, Error **errp)
                                            sizeof(*eq), TYPE_PNV_QUAD,
                                            &error_fatal, NULL);
 
-        object_property_set_int(OBJECT(eq), "id", core_id, &error_fatal);
+        object_property_set_int(OBJECT(eq), "quad-id", core_id, &error_fatal);
         qdev_realize(DEVICE(eq), NULL, &error_fatal);
 
-        pnv_xscom_add_subregion(chip, PNV9_XSCOM_EQ_BASE(eq->id),
+        pnv_xscom_add_subregion(chip, PNV9_XSCOM_EQ_BASE(eq->quad_id),
                                 &eq->xscom_regs);
     }
 }

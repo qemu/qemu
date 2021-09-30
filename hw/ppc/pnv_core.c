@@ -407,13 +407,13 @@ static void pnv_quad_realize(DeviceState *dev, Error **errp)
     PnvQuad *eq = PNV_QUAD(dev);
     char name[32];
 
-    snprintf(name, sizeof(name), "xscom-quad.%d", eq->id);
+    snprintf(name, sizeof(name), "xscom-quad.%d", eq->quad_id);
     pnv_xscom_region_init(&eq->xscom_regs, OBJECT(dev), &pnv_quad_xscom_ops,
                           eq, name, PNV9_XSCOM_EQ_SIZE);
 }
 
 static Property pnv_quad_properties[] = {
-    DEFINE_PROP_UINT32("id", PnvQuad, id, 0),
+    DEFINE_PROP_UINT32("quad-id", PnvQuad, quad_id, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

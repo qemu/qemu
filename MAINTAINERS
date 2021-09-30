@@ -271,8 +271,9 @@ M: Greg Kurz <groug@kaod.org>
 L: qemu-ppc@nongnu.org
 S: Maintained
 F: target/ppc/
-F: hw/ppc/
-F: include/hw/ppc/
+F: hw/ppc/ppc.c
+F: hw/ppc/ppc_booke.c
+F: include/hw/ppc/ppc.h
 F: disas/ppc.c
 
 RISC-V TCG CPUs
@@ -1235,24 +1236,18 @@ F: hw/openrisc/openrisc_sim.c
 PowerPC Machines
 ----------------
 405
-M: David Gibson <david@gibson.dropbear.id.au>
-M: Greg Kurz <groug@kaod.org>
 L: qemu-ppc@nongnu.org
-S: Odd Fixes
+S: Orphan
 F: hw/ppc/ppc405_boards.c
 
 Bamboo
-M: David Gibson <david@gibson.dropbear.id.au>
-M: Greg Kurz <groug@kaod.org>
 L: qemu-ppc@nongnu.org
-S: Odd Fixes
+S: Orphan
 F: hw/ppc/ppc440_bamboo.c
 
 e500
-M: David Gibson <david@gibson.dropbear.id.au>
-M: Greg Kurz <groug@kaod.org>
 L: qemu-ppc@nongnu.org
-S: Odd Fixes
+S: Orphan
 F: hw/ppc/e500*
 F: hw/gpio/mpc8xxx.c
 F: hw/i2c/mpc_i2c.c
@@ -1261,20 +1256,18 @@ F: hw/pci-host/ppce500.c
 F: include/hw/ppc/ppc_e500.h
 F: include/hw/pci-host/ppce500.h
 F: pc-bios/u-boot.e500
+F: hw/intc/openpic_kvm.h
+F: include/hw/ppc/openpic_kvm.h
 
 mpc8544ds
-M: David Gibson <david@gibson.dropbear.id.au>
-M: Greg Kurz <groug@kaod.org>
 L: qemu-ppc@nongnu.org
-S: Odd Fixes
+S: Orphan
 F: hw/ppc/mpc8544ds.c
 F: hw/ppc/mpc8544_guts.c
 F: tests/acceptance/ppc_mpc8544ds.py
 
 New World (mac99)
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
-R: David Gibson <david@gibson.dropbear.id.au>
-R: Greg Kurz <groug@kaod.org>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/mac_newworld.c
@@ -1293,8 +1286,6 @@ F: pc-bios/qemu_vga.ndrv
 
 Old World (g3beige)
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
-R: David Gibson <david@gibson.dropbear.id.au>
-R: Greg Kurz <groug@kaod.org>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/mac_oldworld.c
@@ -1308,8 +1299,6 @@ F: pc-bios/qemu_vga.ndrv
 
 PReP
 M: Hervé Poussineau <hpoussin@reactos.org>
-R: David Gibson <david@gibson.dropbear.id.au>
-R: Greg Kurz <groug@kaod.org>
 L: qemu-ppc@nongnu.org
 S: Maintained
 F: hw/ppc/prep.c
@@ -1328,7 +1317,7 @@ sPAPR
 M: David Gibson <david@gibson.dropbear.id.au>
 M: Greg Kurz <groug@kaod.org>
 L: qemu-ppc@nongnu.org
-S: Supported
+S: Maintained
 F: hw/*/spapr*
 F: include/hw/*/spapr*
 F: hw/*/xics*
@@ -1344,8 +1333,6 @@ F: tests/acceptance/ppc_pseries.py
 
 PowerNV (Non-Virtualized)
 M: Cédric Le Goater <clg@kaod.org>
-M: David Gibson <david@gibson.dropbear.id.au>
-M: Greg Kurz <groug@kaod.org>
 L: qemu-ppc@nongnu.org
 S: Maintained
 F: hw/ppc/pnv*
@@ -1366,8 +1353,6 @@ F: tests/acceptance/ppc_virtex_ml507.py
 
 sam460ex
 M: BALATON Zoltan <balaton@eik.bme.hu>
-R: David Gibson <david@gibson.dropbear.id.au>
-R: Greg Kurz <groug@kaod.org>
 L: qemu-ppc@nongnu.org
 S: Maintained
 F: hw/ppc/sam460ex.c
@@ -1381,7 +1366,6 @@ F: roms/u-boot-sam460ex
 
 pegasos2
 M: BALATON Zoltan <balaton@eik.bme.hu>
-R: David Gibson <david@gibson.dropbear.id.au>
 L: qemu-ppc@nongnu.org
 S: Maintained
 F: hw/ppc/pegasos2.c
@@ -1785,9 +1769,8 @@ F: include/hw/acpi/ghes.h
 F: docs/specs/acpi_hest_ghes.rst
 
 ppc4xx
-M: David Gibson <david@gibson.dropbear.id.au>
 L: qemu-ppc@nongnu.org
-S: Odd Fixes
+S: Orphan
 F: hw/ppc/ppc4*.c
 F: hw/i2c/ppc4xx_i2c.c
 F: include/hw/ppc/ppc4xx.h
@@ -2242,8 +2225,6 @@ T: git https://github.com/philmd/qemu.git fw_cfg-next
 
 XIVE
 M: Cédric Le Goater <clg@kaod.org>
-R: David Gibson <david@gibson.dropbear.id.au>
-R: Greg Kurz <groug@kaod.org>
 L: qemu-ppc@nongnu.org
 S: Supported
 F: hw/*/*xive*
@@ -2278,6 +2259,12 @@ W: https://canbus.pages.fel.cvut.cz/
 F: net/can/*
 F: hw/net/can/*
 F: include/net/can_*.h
+
+OpenPIC interrupt controller
+M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
+S: Odd Fixes
+F: hw/intc/openpic.c
+F: include/hw/ppc/openpic.h
 
 Subsystems
 ----------
