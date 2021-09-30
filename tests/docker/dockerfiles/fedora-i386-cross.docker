@@ -18,13 +18,14 @@ ENV PACKAGES \
     glibc-static.i686 \
     gnutls-devel.i686 \
     nettle-devel.i686 \
+    pcre-devel.i686 \
     perl-Test-Harness \
     pixman-devel.i686 \
     sysprof-capture-devel.i686 \
     zlib-devel.i686
 
-ENV QEMU_CONFIGURE_OPTS --extra-cflags=-m32 --disable-vhost-user
-ENV PKG_CONFIG_PATH /usr/lib/pkgconfig
+ENV QEMU_CONFIGURE_OPTS --cpu=i386 --disable-vhost-user
+ENV PKG_CONFIG_LIBDIR /usr/lib/pkgconfig
 
 RUN dnf update -y && dnf install -y $PACKAGES
 RUN rpm -q $PACKAGES | sort > /packages.txt
