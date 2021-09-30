@@ -250,21 +250,10 @@ static const VMStateDescription vmstate_gicv3 = {
 };
 
 void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
-                              const MemoryRegionOps *ops, Error **errp)
+                              const MemoryRegionOps *ops)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(s);
-    int rdist_capacity = 0;
     int i;
-
-    for (i = 0; i < s->nb_redist_regions; i++) {
-        rdist_capacity += s->redist_region_count[i];
-    }
-    if (rdist_capacity < s->num_cpu) {
-        error_setg(errp, "Capacity of the redist regions(%d) "
-                   "is less than number of vcpus(%d)",
-                   rdist_capacity, s->num_cpu);
-        return;
-    }
 
     /* For the GIC, also expose incoming GPIO lines for PPIs for each CPU.
      * GPIO array layout is thus:
@@ -308,7 +297,7 @@ void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
 static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
 {
     GICv3State *s = ARM_GICV3_COMMON(dev);
-    int i;
+    int i, rdist_capacity;
 
     /* revision property is actually reserved and currently used only in order
      * to keep the interface compatible with GICv2 code, avoiding extra
@@ -347,6 +336,17 @@ static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
 
     if (s->lpi_enable && !s->dma) {
         error_setg(errp, "Redist-ITS: Guest 'sysmem' reference link not set");
+        return;
+    }
+
+    rdist_capacity = 0;
+    for (i = 0; i < s->nb_redist_regions; i++) {
+        rdist_capacity += s->redist_region_count[i];
+    }
+    if (rdist_capacity < s->num_cpu) {
+        error_setg(errp, "Capacity of the redist regions(%d) "
+                   "is less than number of vcpus(%d)",
+                   rdist_capacity, s->num_cpu);
         return;
     }
 

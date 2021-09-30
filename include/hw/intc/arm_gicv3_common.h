@@ -306,6 +306,6 @@ struct ARMGICv3CommonClass {
 };
 
 void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
-                              const MemoryRegionOps *ops, Error **errp);
+                              const MemoryRegionOps *ops);
 
 #endif
