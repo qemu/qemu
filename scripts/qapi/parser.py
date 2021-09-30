@@ -478,6 +478,13 @@ class QAPIDoc:
         def connect(self, member):
             self.member = member
 
+    class NullSection(Section):
+        """
+        Immutable dummy section for use at the end of a doc block.
+        """
+        def append(self, line):
+            assert False, "Text appended after end_comment() called."
+
     def __init__(self, parser, info):
         # self._parser is used to report errors with QAPIParseError.  The
         # resulting error position depends on the state of the parser.
@@ -525,7 +532,7 @@ class QAPIDoc:
         self._append_line(line)
 
     def end_comment(self):
-        self._end_section()
+        self._switch_section(QAPIDoc.NullSection(self._parser))
 
     @staticmethod
     def _is_section_tag(name):
@@ -699,9 +706,9 @@ class QAPIDoc:
             raise QAPIParseError(self._parser,
                                  "'%s' parameter name duplicated" % name)
         assert not self.sections
-        self._end_section()
-        self._section = QAPIDoc.ArgSection(self._parser, name, indent)
-        symbols_dict[name] = self._section
+        new_section = QAPIDoc.ArgSection(self._parser, name, indent)
+        self._switch_section(new_section)
+        symbols_dict[name] = new_section
 
     def _start_args_section(self, name, indent):
         self._start_symbol_section(self.args, name, indent)
@@ -713,13 +720,11 @@ class QAPIDoc:
         if name in ('Returns', 'Since') and self.has_section(name):
             raise QAPIParseError(self._parser,
                                  "duplicated '%s' section" % name)
-        self._end_section()
-        self._section = QAPIDoc.Section(self._parser, name, indent)
-        self.sections.append(self._section)
+        new_section = QAPIDoc.Section(self._parser, name, indent)
+        self._switch_section(new_section)
+        self.sections.append(new_section)
 
-    def _end_section(self):
-        assert self._section is not None
-
+    def _switch_section(self, new_section):
         text = self._section.text = self._section.text.strip()
 
         # Only the 'body' section is allowed to have an empty body.
@@ -732,7 +737,7 @@ class QAPIDoc:
                 self._parser,
                 "empty doc section '%s'" % self._section.name)
 
-        self._section = None
+        self._section = new_section
 
     def _append_freeform(self, line):
         match = re.match(r'(@\S+:)', line)
