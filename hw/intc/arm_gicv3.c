@@ -387,12 +387,6 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (s->nb_redist_regions != 1) {
-        error_setg(errp, "VGICv3 redist region number(%d) not equal to 1",
-                   s->nb_redist_regions);
-        return;
-    }
-
     gicv3_init_irqs_and_mmio(s, gicv3_set_irq, gic_ops);
 
     gicv3_init_cpuif(s);

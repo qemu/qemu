@@ -425,22 +425,24 @@ static MemTxResult gicr_writell(GICv3CPUState *cs, hwaddr offset,
 MemTxResult gicv3_redist_read(void *opaque, hwaddr offset, uint64_t *data,
                               unsigned size, MemTxAttrs attrs)
 {
-    GICv3State *s = opaque;
+    GICv3RedistRegion *region = opaque;
+    GICv3State *s = region->gic;
     GICv3CPUState *cs;
     MemTxResult r;
     int cpuidx;
 
     assert((offset & (size - 1)) == 0);
 
-    /* This region covers all the redistributor pages; there are
-     * (for GICv3) two 64K pages per CPU. At the moment they are
-     * all contiguous (ie in this one region), though we might later
-     * want to allow splitting of redistributor pages into several
-     * blocks so we can support more CPUs.
+    /*
+     * There are (for GICv3) two 64K redistributor pages per CPU.
+     * In some cases the redistributor pages for all CPUs are not
+     * contiguous (eg on the virt board they are split into two
+     * parts if there are too many CPUs to all fit in the same place
+     * in the memory map); if so then the GIC has multiple MemoryRegions
+     * for the redistributors.
      */
-    cpuidx = offset / 0x20000;
-    offset %= 0x20000;
-    assert(cpuidx < s->num_cpu);
+    cpuidx = region->cpuidx + offset / GICV3_REDIST_SIZE;
+    offset %= GICV3_REDIST_SIZE;
 
     cs = &s->cpu[cpuidx];
 
@@ -482,22 +484,24 @@ MemTxResult gicv3_redist_read(void *opaque, hwaddr offset, uint64_t *data,
 MemTxResult gicv3_redist_write(void *opaque, hwaddr offset, uint64_t data,
                                unsigned size, MemTxAttrs attrs)
 {
-    GICv3State *s = opaque;
+    GICv3RedistRegion *region = opaque;
+    GICv3State *s = region->gic;
     GICv3CPUState *cs;
     MemTxResult r;
     int cpuidx;
 
     assert((offset & (size - 1)) == 0);
 
-    /* This region covers all the redistributor pages; there are
-     * (for GICv3) two 64K pages per CPU. At the moment they are
-     * all contiguous (ie in this one region), though we might later
-     * want to allow splitting of redistributor pages into several
-     * blocks so we can support more CPUs.
+    /*
+     * There are (for GICv3) two 64K redistributor pages per CPU.
+     * In some cases the redistributor pages for all CPUs are not
+     * contiguous (eg on the virt board they are split into two
+     * parts if there are too many CPUs to all fit in the same place
+     * in the memory map); if so then the GIC has multiple MemoryRegions
+     * for the redistributors.
      */
-    cpuidx = offset / 0x20000;
-    offset %= 0x20000;
-    assert(cpuidx < s->num_cpu);
+    cpuidx = region->cpuidx + offset / GICV3_REDIST_SIZE;
+    offset %= GICV3_REDIST_SIZE;
 
     cs = &s->cpu[cpuidx];
 

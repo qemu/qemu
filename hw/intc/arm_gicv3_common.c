@@ -254,6 +254,7 @@ void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(s);
     int i;
+    int cpuidx;
 
     /* For the GIC, also expose incoming GPIO lines for PPIs for each CPU.
      * GPIO array layout is thus:
@@ -282,14 +283,20 @@ void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
                           "gicv3_dist", 0x10000);
     sysbus_init_mmio(sbd, &s->iomem_dist);
 
-    s->iomem_redist = g_new0(MemoryRegion, s->nb_redist_regions);
+    s->redist_regions = g_new0(GICv3RedistRegion, s->nb_redist_regions);
+    cpuidx = 0;
     for (i = 0; i < s->nb_redist_regions; i++) {
         char *name = g_strdup_printf("gicv3_redist_region[%d]", i);
+        GICv3RedistRegion *region = &s->redist_regions[i];
 
-        memory_region_init_io(&s->iomem_redist[i], OBJECT(s),
-                              ops ? &ops[1] : NULL, s, name,
+        region->gic = s;
+        region->cpuidx = cpuidx;
+        cpuidx += s->redist_region_count[i];
+
+        memory_region_init_io(&region->iomem, OBJECT(s),
+                              ops ? &ops[1] : NULL, region, name,
                               s->redist_region_count[i] * GICV3_REDIST_SIZE);
-        sysbus_init_mmio(sbd, &s->iomem_redist[i]);
+        sysbus_init_mmio(sbd, &region->iomem);
         g_free(name);
     }
 }
