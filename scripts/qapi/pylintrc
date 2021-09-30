@@ -23,6 +23,7 @@ disable=fixme,
         too-many-branches,
         too-many-statements,
         too-many-instance-attributes,
+        consider-using-f-string,
 
 [REPORTS]
 
