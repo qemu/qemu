@@ -1140,6 +1140,7 @@
 
 ##
 # @GuestExec:
+#
 # @pid: pid of child process in guest OS
 #
 # Since: 2.5
@@ -1171,6 +1172,7 @@
 
 ##
 # @GuestHostName:
+#
 # @host-name: Fully qualified domain name of the guest OS
 #
 # Since: 2.10
@@ -1197,6 +1199,7 @@
 
 ##
 # @GuestUser:
+#
 # @user: Username
 # @domain: Logon domain (windows only)
 # @login-time: Time of login of this user on the computer. If multiple
