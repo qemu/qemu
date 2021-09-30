@@ -738,8 +738,8 @@ static void allwinner_sdhost_init(Object *obj)
 {
     AwSdHostState *s = AW_SDHOST(obj);
 
-    qbus_create_inplace(&s->sdbus, sizeof(s->sdbus),
-                         TYPE_AW_SDHOST_BUS, DEVICE(s), "sd-bus");
+    qbus_init(&s->sdbus, sizeof(s->sdbus),
+              TYPE_AW_SDHOST_BUS, DEVICE(s), "sd-bus");
 
     memory_region_init_io(&s->iomem, obj, &allwinner_sdhost_ops, s,
                            TYPE_AW_SDHOST, 4 * KiB);

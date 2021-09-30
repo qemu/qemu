@@ -2309,7 +2309,7 @@ static void lsi_scsi_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->ram_io);
     QTAILQ_INIT(&s->queue);
 
-    scsi_bus_new(&s->bus, sizeof(s->bus), d, &lsi_scsi_info, NULL);
+    scsi_bus_init(&s->bus, sizeof(s->bus), d, &lsi_scsi_info);
 }
 
 static void lsi_scsi_exit(PCIDevice *dev)

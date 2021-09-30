@@ -30,12 +30,12 @@ IPackDevice *ipack_device_find(IPackBus *bus, int32_t slot)
     return NULL;
 }
 
-void ipack_bus_new_inplace(IPackBus *bus, size_t bus_size,
-                           DeviceState *parent,
-                           const char *name, uint8_t n_slots,
-                           qemu_irq_handler handler)
+void ipack_bus_init(IPackBus *bus, size_t bus_size,
+                    DeviceState *parent,
+                    uint8_t n_slots,
+                    qemu_irq_handler handler)
 {
-    qbus_create_inplace(bus, bus_size, TYPE_IPACK_BUS, parent, name);
+    qbus_init(bus, bus_size, TYPE_IPACK_BUS, parent, NULL);
     bus->n_slots = n_slots;
     bus->set_irq = handler;
 }

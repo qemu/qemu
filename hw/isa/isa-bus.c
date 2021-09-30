@@ -64,7 +64,7 @@ ISABus *isa_bus_new(DeviceState *dev, MemoryRegion* address_space,
         sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     }
 
-    isabus = ISA_BUS(qbus_create(TYPE_ISA_BUS, dev, NULL));
+    isabus = ISA_BUS(qbus_new(TYPE_ISA_BUS, dev, NULL));
     isabus->address_space = address_space;
     isabus->address_space_io = address_space_io;
     return isabus;

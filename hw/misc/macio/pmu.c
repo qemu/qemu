@@ -754,8 +754,8 @@ static void pmu_realize(DeviceState *dev, Error **errp)
     timer_mod(s->one_sec_timer, s->one_sec_target);
 
     if (s->has_adb) {
-        qbus_create_inplace(&s->adb_bus, sizeof(s->adb_bus), TYPE_ADB_BUS,
-                            dev, "adb.0");
+        qbus_init(&s->adb_bus, sizeof(s->adb_bus), TYPE_ADB_BUS,
+                  dev, "adb.0");
         adb_register_autopoll_callback(adb_bus, pmu_adb_poll, s);
     }
 }

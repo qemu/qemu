@@ -1019,8 +1019,8 @@ static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    scsi_bus_new(&s->bus, sizeof(s->bus), dev,
-                 &virtio_scsi_scsi_info, vdev->bus_name);
+    scsi_bus_init_named(&s->bus, sizeof(s->bus), dev,
+                       &virtio_scsi_scsi_info, vdev->bus_name);
     /* override default SCSI bus hotplug-handler, with virtio-scsi's one */
     qbus_set_hotplug_handler(BUS(&s->bus), OBJECT(dev));
 

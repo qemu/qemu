@@ -98,6 +98,30 @@ static void zcu102_modify_dtb(const struct arm_boot_info *binfo, void *fdt)
     }
 }
 
+static void bbram_attach_drive(XlnxBBRam *dev)
+{
+    DriveInfo *dinfo;
+    BlockBackend *blk;
+
+    dinfo = drive_get_by_index(IF_PFLASH, 2);
+    blk = dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
+    if (blk) {
+        qdev_prop_set_drive(DEVICE(dev), "drive", blk);
+    }
+}
+
+static void efuse_attach_drive(XlnxEFuse *dev)
+{
+    DriveInfo *dinfo;
+    BlockBackend *blk;
+
+    dinfo = drive_get_by_index(IF_PFLASH, 3);
+    blk = dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
+    if (blk) {
+        qdev_prop_set_drive(DEVICE(dev), "drive", blk);
+    }
+}
+
 static void xlnx_zcu102_init(MachineState *machine)
 {
     XlnxZCU102 *s = ZCU102_MACHINE(machine);
@@ -135,6 +159,12 @@ static void xlnx_zcu102_init(MachineState *machine)
     }
 
     qdev_realize(DEVICE(&s->soc), NULL, &error_fatal);
+
+    /* Attach bbram backend, if given */
+    bbram_attach_drive(&s->soc.bbram);
+
+    /* Attach efuse backend, if given */
+    efuse_attach_drive(&s->soc.efuse);
 
     /* Create and plug in the SD cards */
     for (i = 0; i < XLNX_ZYNQMP_NUM_SDHCI; i++) {

@@ -1038,8 +1038,8 @@ static void mos6522_q800_via1_init(Object *obj)
     sysbus_init_mmio(sbd, &v1s->via_mem);
 
     /* ADB */
-    qbus_create_inplace((BusState *)&v1s->adb_bus, sizeof(v1s->adb_bus),
-                        TYPE_ADB_BUS, DEVICE(v1s), "adb.0");
+    qbus_init((BusState *)&v1s->adb_bus, sizeof(v1s->adb_bus),
+              TYPE_ADB_BUS, DEVICE(v1s), "adb.0");
 
     qdev_init_gpio_in(DEVICE(obj), via1_irq_request, VIA1_IRQ_NB);
 }

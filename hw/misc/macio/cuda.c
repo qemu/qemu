@@ -553,8 +553,8 @@ static void cuda_init(Object *obj)
     memory_region_init_io(&s->mem, obj, &mos6522_cuda_ops, s, "cuda", 0x2000);
     sysbus_init_mmio(sbd, &s->mem);
 
-    qbus_create_inplace(&s->adb_bus, sizeof(s->adb_bus), TYPE_ADB_BUS,
-                        DEVICE(obj), "adb.0");
+    qbus_init(&s->adb_bus, sizeof(s->adb_bus), TYPE_ADB_BUS,
+              DEVICE(obj), "adb.0");
 }
 
 static Property cuda_properties[] = {

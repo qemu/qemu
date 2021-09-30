@@ -107,7 +107,7 @@ DeviceState *ssi_create_peripheral(SSIBus *bus, const char *name)
 SSIBus *ssi_create_bus(DeviceState *parent, const char *name)
 {
     BusState *bus;
-    bus = qbus_create(TYPE_SSI_BUS, parent, name);
+    bus = qbus_new(TYPE_SSI_BUS, parent, name);
     return SSI_BUS(bus);
 }
 

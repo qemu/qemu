@@ -37,8 +37,7 @@ static void usb_msd_bot_realize(USBDevice *dev, Error **errp)
         s->dev.auto_attach = 0;
     }
 
-    scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(dev),
-                 &usb_msd_scsi_info_bot, NULL);
+    scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(dev), &usb_msd_scsi_info_bot);
     usb_msd_handle_reset(dev);
 }
 

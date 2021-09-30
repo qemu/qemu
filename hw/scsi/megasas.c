@@ -2416,8 +2416,7 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
         s->frames[i].state = s;
     }
 
-    scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(dev),
-                 &megasas_scsi_info, NULL);
+    scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(dev), &megasas_scsi_info);
 }
 
 static Property megasas_properties_gen1[] = {

@@ -405,9 +405,9 @@ static void pci_vpb_realize(DeviceState *dev, Error **errp)
     memory_region_init(&s->pci_io_space, OBJECT(s), "pci_io", 4 * GiB);
     memory_region_init(&s->pci_mem_space, OBJECT(s), "pci_mem", 4 * GiB);
 
-    pci_root_bus_new_inplace(&s->pci_bus, sizeof(s->pci_bus), dev, "pci",
-                             &s->pci_mem_space, &s->pci_io_space,
-                             PCI_DEVFN(11, 0), TYPE_PCI_BUS);
+    pci_root_bus_init(&s->pci_bus, sizeof(s->pci_bus), dev, "pci",
+                      &s->pci_mem_space, &s->pci_io_space,
+                      PCI_DEVFN(11, 0), TYPE_PCI_BUS);
     h->bus = &s->pci_bus;
 
     object_initialize(&s->pci_dev, sizeof(s->pci_dev), TYPE_VERSATILE_PCI_HOST);

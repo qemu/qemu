@@ -506,8 +506,7 @@ static void pl181_init(Object *obj)
     qdev_init_gpio_out_named(dev, &s->card_readonly, "card-read-only", 1);
     qdev_init_gpio_out_named(dev, &s->card_inserted, "card-inserted", 1);
 
-    qbus_create_inplace(&s->sdbus, sizeof(s->sdbus),
-                        TYPE_PL181_BUS, dev, "sd-bus");
+    qbus_init(&s->sdbus, sizeof(s->sdbus), TYPE_PL181_BUS, dev, "sd-bus");
 }
 
 static void pl181_class_init(ObjectClass *klass, void *data)
