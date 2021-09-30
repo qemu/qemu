@@ -297,7 +297,7 @@ void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
 static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
 {
     GICv3State *s = ARM_GICV3_COMMON(dev);
-    int i, rdist_capacity;
+    int i, rdist_capacity, cpuidx;
 
     /* revision property is actually reserved and currently used only in order
      * to keep the interface compatible with GICv2 code, avoiding extra
@@ -355,7 +355,6 @@ static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < s->num_cpu; i++) {
         CPUState *cpu = qemu_get_cpu(i);
         uint64_t cpu_affid;
-        int last;
 
         s->cpu[i].cpu = cpu;
         s->cpu[i].gic = s;
@@ -375,7 +374,6 @@ static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
          *  PLPIS == 0 (physical LPIs not supported)
          */
         cpu_affid = object_property_get_uint(OBJECT(cpu), "mp-affinity", NULL);
-        last = (i == s->num_cpu - 1);
 
         /* The CPU mp-affinity property is in MPIDR register format; squash
          * the affinity bytes into 32 bits as the GICR_TYPER has them.
@@ -384,12 +382,21 @@ static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
                      (cpu_affid & 0xFFFFFF);
         s->cpu[i].gicr_typer = (cpu_affid << 32) |
             (1 << 24) |
-            (i << 8) |
-            (last << 4);
+            (i << 8);
 
         if (s->lpi_enable) {
             s->cpu[i].gicr_typer |= GICR_TYPER_PLPIS;
         }
+    }
+
+    /*
+     * Now go through and set GICR_TYPER.Last for the final
+     * redistributor in each region.
+     */
+    cpuidx = 0;
+    for (i = 0; i < s->nb_redist_regions; i++) {
+        cpuidx += s->redist_region_count[i];
+        s->cpu[cpuidx - 1].gicr_typer |= GICR_TYPER_LAST;
     }
 }
 
