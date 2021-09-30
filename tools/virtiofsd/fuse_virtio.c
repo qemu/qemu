@@ -82,12 +82,6 @@ struct fv_VuDev {
     struct fv_QueueInfo **qi;
 };
 
-/* From spec */
-struct virtio_fs_config {
-    char tag[36];
-    uint32_t num_queues;
-};
-
 /* Callback from libvhost-user */
 static uint64_t fv_get_features(VuDev *dev)
 {
