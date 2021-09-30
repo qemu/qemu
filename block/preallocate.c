@@ -227,15 +227,15 @@ static void preallocate_reopen_abort(BDRVReopenState *state)
 }
 
 static coroutine_fn int preallocate_co_preadv_part(
-        BlockDriverState *bs, uint64_t offset, uint64_t bytes,
-        QEMUIOVector *qiov, size_t qiov_offset, int flags)
+        BlockDriverState *bs, int64_t offset, int64_t bytes,
+        QEMUIOVector *qiov, size_t qiov_offset, BdrvRequestFlags flags)
 {
     return bdrv_co_preadv_part(bs->file, offset, bytes, qiov, qiov_offset,
                                flags);
 }
 
 static int coroutine_fn preallocate_co_pdiscard(BlockDriverState *bs,
-                                               int64_t offset, int bytes)
+                                               int64_t offset, int64_t bytes)
 {
     return bdrv_co_pdiscard(bs->file, offset, bytes);
 }
@@ -337,7 +337,7 @@ static bool coroutine_fn handle_write(BlockDriverState *bs, int64_t offset,
 }
 
 static int coroutine_fn preallocate_co_pwrite_zeroes(BlockDriverState *bs,
-        int64_t offset, int bytes, BdrvRequestFlags flags)
+        int64_t offset, int64_t bytes, BdrvRequestFlags flags)
 {
     bool want_merge_zero =
         !(flags & ~(BDRV_REQ_ZERO_WRITE | BDRV_REQ_NO_FALLBACK));
@@ -349,11 +349,11 @@ static int coroutine_fn preallocate_co_pwrite_zeroes(BlockDriverState *bs,
 }
 
 static coroutine_fn int preallocate_co_pwritev_part(BlockDriverState *bs,
-                                                    uint64_t offset,
-                                                    uint64_t bytes,
+                                                    int64_t offset,
+                                                    int64_t bytes,
                                                     QEMUIOVector *qiov,
                                                     size_t qiov_offset,
-                                                    int flags)
+                                                    BdrvRequestFlags flags)
 {
     handle_write(bs, offset, bytes, false);
 

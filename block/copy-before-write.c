@@ -40,8 +40,8 @@ typedef struct BDRVCopyBeforeWriteState {
 } BDRVCopyBeforeWriteState;
 
 static coroutine_fn int cbw_co_preadv(
-        BlockDriverState *bs, uint64_t offset, uint64_t bytes,
-        QEMUIOVector *qiov, int flags)
+        BlockDriverState *bs, int64_t offset, int64_t bytes,
+        QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     return bdrv_co_preadv(bs->file, offset, bytes, qiov, flags);
 }
@@ -64,7 +64,7 @@ static coroutine_fn int cbw_do_copy_before_write(BlockDriverState *bs,
 }
 
 static int coroutine_fn cbw_co_pdiscard(BlockDriverState *bs,
-                                        int64_t offset, int bytes)
+                                        int64_t offset, int64_t bytes)
 {
     int ret = cbw_do_copy_before_write(bs, offset, bytes, 0);
     if (ret < 0) {
@@ -75,7 +75,7 @@ static int coroutine_fn cbw_co_pdiscard(BlockDriverState *bs,
 }
 
 static int coroutine_fn cbw_co_pwrite_zeroes(BlockDriverState *bs,
-        int64_t offset, int bytes, BdrvRequestFlags flags)
+        int64_t offset, int64_t bytes, BdrvRequestFlags flags)
 {
     int ret = cbw_do_copy_before_write(bs, offset, bytes, flags);
     if (ret < 0) {
@@ -86,9 +86,10 @@ static int coroutine_fn cbw_co_pwrite_zeroes(BlockDriverState *bs,
 }
 
 static coroutine_fn int cbw_co_pwritev(BlockDriverState *bs,
-                                       uint64_t offset,
-                                       uint64_t bytes,
-                                       QEMUIOVector *qiov, int flags)
+                                       int64_t offset,
+                                       int64_t bytes,
+                                       QEMUIOVector *qiov,
+                                       BdrvRequestFlags flags)
 {
     int ret = cbw_do_copy_before_write(bs, offset, bytes, flags);
     if (ret < 0) {

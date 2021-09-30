@@ -582,6 +582,7 @@ static void bdrv_qed_refresh_limits(BlockDriverState *bs, Error **errp)
     BDRVQEDState *s = bs->opaque;
 
     bs->bl.pwrite_zeroes_alignment = s->header.cluster_size;
+    bs->bl.max_pwrite_zeroes = QEMU_ALIGN_DOWN(INT_MAX, s->header.cluster_size);
 }
 
 /* We have nothing to do for QED reopen, stubs just return
@@ -1397,7 +1398,7 @@ static int coroutine_fn bdrv_qed_co_writev(BlockDriverState *bs,
 
 static int coroutine_fn bdrv_qed_co_pwrite_zeroes(BlockDriverState *bs,
                                                   int64_t offset,
-                                                  int bytes,
+                                                  int64_t bytes,
                                                   BdrvRequestFlags flags)
 {
     BDRVQEDState *s = bs->opaque;
@@ -1407,6 +1408,12 @@ static int coroutine_fn bdrv_qed_co_pwrite_zeroes(BlockDriverState *bs,
      * then it will be allocated during request processing.
      */
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, NULL, bytes);
+
+    /*
+     * QED is not prepared for 63bit write-zero requests, so rely on
+     * max_pwrite_zeroes.
+     */
+    assert(bytes <= INT_MAX);
 
     /* Fall back if the request is not aligned */
     if (qed_offset_into_cluster(s, offset) ||

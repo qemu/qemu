@@ -1164,17 +1164,17 @@ static int coroutine_fn qemu_rbd_start_co(BlockDriverState *bs,
 }
 
 static int
-coroutine_fn qemu_rbd_co_preadv(BlockDriverState *bs, uint64_t offset,
-                               uint64_t bytes, QEMUIOVector *qiov,
-                               int flags)
+coroutine_fn qemu_rbd_co_preadv(BlockDriverState *bs, int64_t offset,
+                                int64_t bytes, QEMUIOVector *qiov,
+                                BdrvRequestFlags flags)
 {
     return qemu_rbd_start_co(bs, offset, bytes, qiov, flags, RBD_AIO_READ);
 }
 
 static int
-coroutine_fn qemu_rbd_co_pwritev(BlockDriverState *bs, uint64_t offset,
-                                 uint64_t bytes, QEMUIOVector *qiov,
-                                 int flags)
+coroutine_fn qemu_rbd_co_pwritev(BlockDriverState *bs, int64_t offset,
+                                 int64_t bytes, QEMUIOVector *qiov,
+                                 BdrvRequestFlags flags)
 {
     BDRVRBDState *s = bs->opaque;
     /*
@@ -1197,17 +1197,17 @@ static int coroutine_fn qemu_rbd_co_flush(BlockDriverState *bs)
 }
 
 static int coroutine_fn qemu_rbd_co_pdiscard(BlockDriverState *bs,
-                                             int64_t offset, int count)
+                                             int64_t offset, int64_t bytes)
 {
-    return qemu_rbd_start_co(bs, offset, count, NULL, 0, RBD_AIO_DISCARD);
+    return qemu_rbd_start_co(bs, offset, bytes, NULL, 0, RBD_AIO_DISCARD);
 }
 
 #ifdef LIBRBD_SUPPORTS_WRITE_ZEROES
 static int
 coroutine_fn qemu_rbd_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
-                                      int count, BdrvRequestFlags flags)
+                                       int64_t bytes, BdrvRequestFlags flags)
 {
-    return qemu_rbd_start_co(bs, offset, count, NULL, flags,
+    return qemu_rbd_start_co(bs, offset, bytes, NULL, flags,
                              RBD_AIO_WRITE_ZEROES);
 }
 #endif

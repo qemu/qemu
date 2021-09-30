@@ -980,7 +980,7 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
     size_t i;
     size_t count = 0;
 
-    if (!client->structured_reply) {
+    if (client->opt == NBD_OPT_SET_META_CONTEXT && !client->structured_reply) {
         return nbd_opt_invalid(client, errp,
                                "request option '%s' when structured reply "
                                "is not negotiated",
