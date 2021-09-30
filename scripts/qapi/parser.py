@@ -718,13 +718,21 @@ class QAPIDoc:
         self.sections.append(self._section)
 
     def _end_section(self):
-        if self._section:
-            text = self._section.text = self._section.text.strip()
-            if self._section.name and (not text or text.isspace()):
-                raise QAPIParseError(
-                    self._parser,
-                    "empty doc section '%s'" % self._section.name)
-            self._section = None
+        assert self._section is not None
+
+        text = self._section.text = self._section.text.strip()
+
+        # Only the 'body' section is allowed to have an empty body.
+        # All other sections, including anonymous ones, must have text.
+        if self._section != self.body and not text:
+            # We do not create anonymous sections unless there is
+            # something to put in them; this is a parser bug.
+            assert self._section.name
+            raise QAPIParseError(
+                self._parser,
+                "empty doc section '%s'" % self._section.name)
+
+        self._section = None
 
     def _append_freeform(self, line):
         match = re.match(r'(@\S+:)', line)
