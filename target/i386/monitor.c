@@ -35,6 +35,7 @@
 #include "qapi/qapi-commands-misc-target.h"
 #include "qapi/qapi-commands-misc.h"
 #include "hw/i386/pc.h"
+#include "hw/i386/sgx.h"
 
 /* Perform linear address sign extension */
 static hwaddr addr_canonical(CPUArchState *env, hwaddr addr)
@@ -762,4 +763,35 @@ SevAttestationReport *
 qmp_query_sev_attestation_report(const char *mnonce, Error **errp)
 {
     return sev_get_attestation_report(mnonce, errp);
+}
+
+SGXInfo *qmp_query_sgx(Error **errp)
+{
+    return sgx_get_info(errp);
+}
+
+void hmp_info_sgx(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    g_autoptr(SGXInfo) info = qmp_query_sgx(&err);
+
+    if (err) {
+        error_report_err(err);
+        return;
+    }
+    monitor_printf(mon, "SGX support: %s\n",
+                   info->sgx ? "enabled" : "disabled");
+    monitor_printf(mon, "SGX1 support: %s\n",
+                   info->sgx1 ? "enabled" : "disabled");
+    monitor_printf(mon, "SGX2 support: %s\n",
+                   info->sgx2 ? "enabled" : "disabled");
+    monitor_printf(mon, "FLC support: %s\n",
+                   info->flc ? "enabled" : "disabled");
+    monitor_printf(mon, "size: %" PRIu64 "\n",
+                   info->section_size);
+}
+
+SGXInfo *qmp_query_sgx_capabilities(Error **errp)
+{
+    return sgx_get_capabilities(errp);
 }

@@ -565,7 +565,7 @@ static int
 sev_read_file_base64(const char *filename, guchar **data, gsize *len)
 {
     gsize sz;
-    gchar *base64;
+    g_autofree gchar *base64 = NULL;
     GError *error = NULL;
 
     if (!g_file_get_contents(filename, &base64, &sz, &error)) {

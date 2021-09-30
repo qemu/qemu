@@ -1366,6 +1366,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     hdev->features = features;
 
     hdev->memory_listener = (MemoryListener) {
+        .name = "vhost",
         .begin = vhost_begin,
         .commit = vhost_commit,
         .region_add = vhost_region_addnop,
@@ -1381,6 +1382,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     };
 
     hdev->iommu_listener = (MemoryListener) {
+        .name = "vhost-iommu",
         .region_add = vhost_iommu_region_add,
         .region_del = vhost_iommu_region_del,
     };

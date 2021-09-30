@@ -100,6 +100,8 @@ static bool query_is_ignored(const char *cmd)
         /* Success depends on Host or Hypervisor SEV support */
         "query-sev",
         "query-sev-capabilities",
+        "query-sgx",
+        "query-sgx-capabilities",
         NULL
     };
     int i;

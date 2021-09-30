@@ -721,6 +721,7 @@ static void xen_log_global_stop(MemoryListener *listener)
 }
 
 static MemoryListener xen_memory_listener = {
+    .name = "xen-memory",
     .region_add = xen_region_add,
     .region_del = xen_region_del,
     .log_start = xen_log_start,
@@ -732,6 +733,7 @@ static MemoryListener xen_memory_listener = {
 };
 
 static MemoryListener xen_io_listener = {
+    .name = "xen-io",
     .region_add = xen_io_add,
     .region_del = xen_io_del,
     .priority = 10,

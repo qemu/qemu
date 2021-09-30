@@ -285,6 +285,7 @@ static void hax_log_sync(MemoryListener *listener,
 }
 
 static MemoryListener hax_memory_listener = {
+    .name = "hax",
     .begin = hax_transaction_begin,
     .commit = hax_transaction_commit,
     .region_add = hax_region_add,

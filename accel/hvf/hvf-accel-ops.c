@@ -295,6 +295,7 @@ static void hvf_region_del(MemoryListener *listener,
 }
 
 static MemoryListener hvf_memory_listener = {
+    .name = "hvf",
     .priority = 10,
     .region_add = hvf_region_add,
     .region_del = hvf_region_del,
