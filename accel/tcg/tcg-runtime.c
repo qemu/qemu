@@ -404,6 +404,8 @@ __thread struct shadow_stack qasan_shadow_stack;
 
 #ifdef ASAN_GIOVESE
 
+#ifndef DO_NOT_USE_QASAN
+
 #include "qemuafl/asan-giovese-inl.h"
 
 #include <sys/types.h>
@@ -601,6 +603,7 @@ char* asan_giovese_printaddr(target_ulong guest_addr) {
 
 void HELPER(qasan_shadow_stack_push)(target_ulong ptr) {
 
+#ifndef DO_NOT_USE_QASAN
 #if defined(TARGET_ARM)
   ptr &= ~1;
 #endif
@@ -624,11 +627,13 @@ void HELPER(qasan_shadow_stack_push)(target_ulong ptr) {
       ns->index = 0;
       qasan_shadow_stack.first = ns;
   }
+#endif
 
 }
 
 void HELPER(qasan_shadow_stack_pop)(target_ulong ptr) {
 
+#ifndef DO_NOT_USE_QASAN
 #if defined(TARGET_ARM)
   ptr &= ~1;
 #endif
@@ -653,13 +658,17 @@ void HELPER(qasan_shadow_stack_pop)(target_ulong ptr) {
   } while(cur_bk->buf[cur_bk->index] != ptr);
   
   qasan_shadow_stack.first = cur_bk;
+#endif
 
 }
+
+#endif
 
 target_long qasan_actions_dispatcher(void *cpu_env,
                                      target_long action, target_long arg1,
                                      target_long arg2, target_long arg3) {
 
+#ifndef DO_NOT_USE_QASAN
     CPUArchState *env = cpu_env;
 
     switch(action) {
@@ -759,6 +768,7 @@ target_long qasan_actions_dispatcher(void *cpu_env,
         fprintf(stderr, "Invalid QASAN action " TARGET_FMT_ld "\n", action);
         abort();
     }
+#endif
 
     return 0;
 }
@@ -773,6 +783,7 @@ dh_ctype(tl) HELPER(qasan_fake_instr)(CPUArchState *env, dh_ctype(tl) action,
 
 void HELPER(qasan_load1)(CPUArchState *env, target_ulong addr) {
 
+#ifndef DO_NOT_USE_QASAN
   if (qasan_disabled) return;
   
   void* ptr = (void*)AFL_G2H(addr);
@@ -784,11 +795,13 @@ void HELPER(qasan_load1)(CPUArchState *env, target_ulong addr) {
 #else
   __asan_load1(ptr);
 #endif
+#endif
 
 }
 
 void HELPER(qasan_load2)(CPUArchState *env, target_ulong addr) {
 
+#ifndef DO_NOT_USE_QASAN
   if (qasan_disabled) return;
 
   void* ptr = (void*)AFL_G2H(addr);
@@ -800,11 +813,13 @@ void HELPER(qasan_load2)(CPUArchState *env, target_ulong addr) {
 #else
   __asan_load2(ptr);
 #endif
+#endif
 
 }
 
 void HELPER(qasan_load4)(CPUArchState *env, target_ulong addr) {
 
+#ifndef DO_NOT_USE_QASAN
   if (qasan_disabled) return;
   
   void* ptr = (void*)AFL_G2H(addr);
@@ -816,11 +831,13 @@ void HELPER(qasan_load4)(CPUArchState *env, target_ulong addr) {
 #else
   __asan_load4(ptr);
 #endif
+#endif
 
 }
 
 void HELPER(qasan_load8)(CPUArchState *env, target_ulong addr) {
 
+#ifndef DO_NOT_USE_QASAN
   if (qasan_disabled) return;
   
   void* ptr = (void*)AFL_G2H(addr);
@@ -832,11 +849,13 @@ void HELPER(qasan_load8)(CPUArchState *env, target_ulong addr) {
 #else
   __asan_load8(ptr);
 #endif
+#endif
 
 }
 
 void HELPER(qasan_store1)(CPUArchState *env, target_ulong addr) {
 
+#ifndef DO_NOT_USE_QASAN
   if (qasan_disabled) return;
   
   void* ptr = (void*)AFL_G2H(addr);
@@ -848,11 +867,13 @@ void HELPER(qasan_store1)(CPUArchState *env, target_ulong addr) {
 #else
   __asan_store1(ptr);
 #endif
+#endif
 
 }
 
 void HELPER(qasan_store2)(CPUArchState *env, target_ulong addr) {
 
+#ifndef DO_NOT_USE_QASAN
   if (qasan_disabled) return;
   
   void* ptr = (void*)AFL_G2H(addr);
@@ -864,11 +885,13 @@ void HELPER(qasan_store2)(CPUArchState *env, target_ulong addr) {
 #else
   __asan_store2(ptr);
 #endif
+#endif
 
 }
 
 void HELPER(qasan_store4)(CPUArchState *env, target_ulong addr) {
 
+#ifndef DO_NOT_USE_QASAN
   if (qasan_disabled) return;
   
   void* ptr = (void*)AFL_G2H(addr);
@@ -880,11 +903,13 @@ void HELPER(qasan_store4)(CPUArchState *env, target_ulong addr) {
 #else
   __asan_store4(ptr);
 #endif
+#endif
 
 }
 
 void HELPER(qasan_store8)(CPUArchState *env, target_ulong addr) {
 
+#ifndef DO_NOT_USE_QASAN
   if (qasan_disabled) return;
 
   void* ptr = (void*)AFL_G2H(addr);
@@ -895,6 +920,7 @@ void HELPER(qasan_store8)(CPUArchState *env, target_ulong addr) {
   }
 #else
   __asan_store8(ptr);
+#endif
 #endif
 
 }

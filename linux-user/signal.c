@@ -949,7 +949,7 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
                    sig != TARGET_SIGWINCH &&
                    sig != TARGET_SIGCONT) {
 
-#ifdef ASAN_GIOVESE
+#if defined(ASAN_GIOVESE) && !defined(DO_NOT_USE_QASAN)
             if (use_qasan) {
               if (sig == TARGET_SIGILL ||
                   sig != TARGET_SIGFPE ||
@@ -973,7 +973,7 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
         /* ignore sig */
     } else if (handler == TARGET_SIG_ERR) {
 
-#ifdef ASAN_GIOVESE
+#if defined(ASAN_GIOVESE) && !defined(DO_NOT_USE_QASAN)
       if (use_qasan) {
         if (sig == TARGET_SIGILL ||
             sig != TARGET_SIGFPE ||

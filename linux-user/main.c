@@ -708,7 +708,7 @@ int main(int argc, char **argv, char **envp)
     if (getenv("QASAN_SYMBOLIZE"))
       qasan_symbolize = atoi(getenv("QASAN_SYMBOLIZE"));
 
-#ifdef ASAN_GIOVESE
+#if defined(ASAN_GIOVESE) && !defined(DO_NOT_USE_QASAN)
     if (use_qasan)
       asan_giovese_init();
 #endif

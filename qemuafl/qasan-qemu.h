@@ -62,9 +62,6 @@ extern __thread struct shadow_stack qasan_shadow_stack;
 
 #ifdef ASAN_GIOVESE
 
-#define ASAN_NAME_STR "QEMU-AddressSanitizer"
-#include "asan-giovese.h"
-
 #if defined(TARGET_X86_64) || defined(TARGET_I386)
 
 #define PC_GET(env) ((env)->eip)
@@ -91,7 +88,13 @@ extern __thread struct shadow_stack qasan_shadow_stack;
 #define SP_GET(env) ((env)->active_tc.gpr[30])
 
 #else
-#error "Target not supported by asan-giovese"
+//#error "Target not supported by asan-giovese"
+#define DO_NOT_USE_QASAN 1
+#endif
+
+#ifndef DO_NOT_USE_QASAN
+#define ASAN_NAME_STR "QEMU-AddressSanitizer"
+#include "asan-giovese.h"
 #endif
 
 #else
