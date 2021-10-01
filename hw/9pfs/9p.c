@@ -50,6 +50,8 @@ enum {
     Oappend = 0x80,
 };
 
+P9ARRAY_DEFINE_TYPE(V9fsPath, v9fs_path_free);
+
 static ssize_t pdu_marshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
 {
     ssize_t ret;
