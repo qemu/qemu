@@ -27,6 +27,8 @@
 #ifndef QEMU_P9ARRAY_H
 #define QEMU_P9ARRAY_H
 
+#include "qemu/compiler.h"
+
 /**
  * P9Array provides a mechanism to access arrays in common C-style (e.g. by
  * square bracket [] operator) in conjunction with reference variables that
@@ -149,6 +151,10 @@
  * @param len - amount of array elements to be allocated immediately
  */
 #define P9ARRAY_NEW(scalar_type, auto_var, len) \
+    QEMU_BUILD_BUG_MSG( \
+        !__builtin_types_compatible_p(scalar_type, typeof(*auto_var)), \
+        "P9Array scalar type mismatch" \
+    ); \
     p9array_new_##scalar_type((&auto_var), len)
 
 #endif /* QEMU_P9ARRAY_H */
