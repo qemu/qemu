@@ -1,14 +1,16 @@
-This is the design document for multi-process QEMU. It does not
-necessarily reflect the status of the current implementation, which
-may lack features or be considerably different from what is described
-in this document. This document is still useful as a description of
-the goals and general direction of this feature.
-
-Please refer to the following wiki for latest details:
-https://wiki.qemu.org/Features/MultiProcessQEMU
-
 Multi-process QEMU
 ===================
+
+.. note::
+
+  This is the design document for multi-process QEMU. It does not
+  necessarily reflect the status of the current implementation, which
+  may lack features or be considerably different from what is described
+  in this document. This document is still useful as a description of
+  the goals and general direction of this feature.
+
+  Please refer to the following wiki for latest details:
+  https://wiki.qemu.org/Features/MultiProcessQEMU
 
 QEMU is often used as the hypervisor for virtual machines running in the
 Oracle cloud. Since one of the advantages of cloud computing is the

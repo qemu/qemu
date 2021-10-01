@@ -1,8 +1,7 @@
 .. _qgraph:
 
-========================================
 Qtest Driver Framework
-========================================
+======================
 
 In order to test a specific driver, plain libqos tests need to
 take care of booting QEMU with the right machine and devices.
@@ -31,13 +30,15 @@ so the sdhci-test should only care of linking its qgraph node with
 that interface. In this way, if the command line of a sdhci driver
 is changed, only the respective qgraph driver node has to be adjusted.
 
+QGraph concepts
+---------------
+
 The graph is composed by nodes that represent machines, drivers, tests
 and edges that define the relationships between them (``CONSUMES``, ``PRODUCES``, and
 ``CONTAINS``).
 
-
 Nodes
-^^^^^^
+~~~~~
 
 A node can be of four types:
 
@@ -64,7 +65,7 @@ Notes for the nodes:
   drivers name, otherwise they won't be discovered
 
 Edges
-^^^^^^
+~~~~~
 
 An edge relation between two nodes (drivers or machines) ``X`` and ``Y`` can be:
 
@@ -73,7 +74,7 @@ An edge relation between two nodes (drivers or machines) ``X`` and ``Y`` can be:
 - ``X CONTAINS Y``: ``Y`` is part of ``X`` component
 
 Execution steps
-^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~
 
 The basic framework steps are the following:
 
@@ -92,8 +93,64 @@ The basic framework steps are the following:
 Depending on the QEMU binary used, only some drivers/machines will be
 available and only test that are reached by them will be executed.
 
+Command line
+~~~~~~~~~~~~
+
+Command line is built by using node names and optional arguments
+passed by the user when building the edges.
+
+There are three types of command line arguments:
+
+- ``in node``      : created from the node name. For example, machines will
+  have ``-M <machine>`` to its command line, while devices
+  ``-device <device>``. It is automatically done by the framework.
+- ``after node``   : added as additional argument to the node name.
+  This argument is added optionally when creating edges,
+  by setting the parameter ``after_cmd_line`` and
+  ``extra_edge_opts`` in ``QOSGraphEdgeOptions``.
+  The framework automatically adds
+  a comma before ``extra_edge_opts``,
+  because it is going to add attributes
+  after the destination node pointed by
+  the edge containing these options, and automatically
+  adds a space before ``after_cmd_line``, because it
+  adds an additional device, not an attribute.
+- ``before node``  : added as additional argument to the node name.
+  This argument is added optionally when creating edges,
+  by setting the parameter ``before_cmd_line`` in
+  ``QOSGraphEdgeOptions``. This attribute
+  is going to add attributes before the destination node
+  pointed by the edge containing these options. It is
+  helpful to commands that are not node-representable,
+  such as ``-fdsev`` or ``-netdev``.
+
+While adding command line in edges is always used, not all nodes names are
+used in every path walk: this is because the contained or produced ones
+are already added by QEMU, so only nodes that "consumes" will be used to
+build the command line. Also, nodes that will have ``{ "abstract" : true }``
+as QMP attribute will loose their command line, since they are not proper
+devices to be added in QEMU.
+
+Example::
+
+    QOSGraphEdgeOptions opts = {
+        .before_cmd_line = "-drive id=drv0,if=none,file=null-co://,"
+                           "file.read-zeroes=on,format=raw",
+        .after_cmd_line = "-device scsi-hd,bus=vs0.0,drive=drv0",
+
+        opts.extra_device_opts = "id=vs0";
+    };
+
+    qos_node_create_driver("virtio-scsi-device",
+                            virtio_scsi_device_create);
+    qos_node_consumes("virtio-scsi-device", "virtio-bus", &opts);
+
+Will produce the following command line:
+``-drive id=drv0,if=none,file=null-co://, -device virtio-scsi-device,id=vs0 -device scsi-hd,bus=vs0.0,drive=drv0``
+
 Troubleshooting unavailable tests
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 If there is no path from an available machine to a test then that test will be
 unavailable and won't execute. This can happen if a test or driver did not set
 up its qgraph node correctly. It can also happen if the necessary machine type
@@ -151,7 +208,7 @@ Typically this is because the QEMU binary lacks support for the necessary
 machine type or device.
 
 Creating a new driver and its interface
-"""""""""""""""""""""""""""""""""""""""""
+---------------------------------------
 
 Here we continue the ``sdhci`` use case, with the following scenario:
 
@@ -489,7 +546,7 @@ or inverting the consumes edge in consumed_by::
             arm/raspi2b --contains--> generic-sdhci
 
 Adding a new test
-"""""""""""""""""
+-----------------
 
 Given the above setup, adding a new test is very simple.
 ``sdhci-test``, taken from ``tests/qtest/sdhci-test.c``::
@@ -565,62 +622,7 @@ and for the binary ``QTEST_QEMU_BINARY=./qemu-system-arm``:
 
 Additional examples are also in ``test-qgraph.c``
 
-Command line:
-""""""""""""""
-
-Command line is built by using node names and optional arguments
-passed by the user when building the edges.
-
-There are three types of command line arguments:
-
-- ``in node``      : created from the node name. For example, machines will
-  have ``-M <machine>`` to its command line, while devices
-  ``-device <device>``. It is automatically done by the framework.
-- ``after node``   : added as additional argument to the node name.
-  This argument is added optionally when creating edges,
-  by setting the parameter ``after_cmd_line`` and
-  ``extra_edge_opts`` in ``QOSGraphEdgeOptions``.
-  The framework automatically adds
-  a comma before ``extra_edge_opts``,
-  because it is going to add attributes
-  after the destination node pointed by
-  the edge containing these options, and automatically
-  adds a space before ``after_cmd_line``, because it
-  adds an additional device, not an attribute.
-- ``before node``  : added as additional argument to the node name.
-  This argument is added optionally when creating edges,
-  by setting the parameter ``before_cmd_line`` in
-  ``QOSGraphEdgeOptions``. This attribute
-  is going to add attributes before the destination node
-  pointed by the edge containing these options. It is
-  helpful to commands that are not node-representable,
-  such as ``-fdsev`` or ``-netdev``.
-
-While adding command line in edges is always used, not all nodes names are
-used in every path walk: this is because the contained or produced ones
-are already added by QEMU, so only nodes that "consumes" will be used to
-build the command line. Also, nodes that will have ``{ "abstract" : true }``
-as QMP attribute will loose their command line, since they are not proper
-devices to be added in QEMU.
-
-Example::
-
-    QOSGraphEdgeOptions opts = {
-        .before_cmd_line = "-drive id=drv0,if=none,file=null-co://,"
-                           "file.read-zeroes=on,format=raw",
-        .after_cmd_line = "-device scsi-hd,bus=vs0.0,drive=drv0",
-
-        opts.extra_device_opts = "id=vs0";
-    };
-
-    qos_node_create_driver("virtio-scsi-device",
-                            virtio_scsi_device_create);
-    qos_node_consumes("virtio-scsi-device", "virtio-bus", &opts);
-
-Will produce the following command line:
-``-drive id=drv0,if=none,file=null-co://, -device virtio-scsi-device,id=vs0 -device scsi-hd,bus=vs0.0,drive=drv0``
-
 Qgraph API reference
-^^^^^^^^^^^^^^^^^^^^
+--------------------
 
 .. kernel-doc:: tests/qtest/libqos/qgraph.h

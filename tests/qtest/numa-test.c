@@ -42,7 +42,8 @@ static void test_def_cpu_split(const void *data)
     g_autofree char *s = NULL;
     g_autofree char *cli = NULL;
 
-    cli = make_cli(data, "-machine smp.cpus=8 -numa node,memdev=ram -numa node");
+    cli = make_cli(data, "-machine smp.cpus=8,smp.sockets=8 "
+                         "-numa node,memdev=ram -numa node");
     qts = qtest_init(cli);
 
     s = qtest_hmp(qts, "info numa");
@@ -265,7 +266,8 @@ static void pc_dynamic_cpu_cfg(const void *data)
     QTestState *qs;
     g_autofree char *cli = NULL;
 
-    cli = make_cli(data, "-nodefaults --preconfig -machine smp.cpus=2");
+    cli = make_cli(data, "-nodefaults --preconfig "
+                         "-machine smp.cpus=2,smp.sockets=2");
     qs = qtest_init(cli);
 
     /* create 2 numa nodes */

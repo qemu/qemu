@@ -189,7 +189,15 @@ enabled.
 
 Requires: hv-vpindex, hv-synic, hv-time, hv-stimer
 
-3.17. hv-no-nonarch-coresharing=on/off/auto
+3.18. hv-avic (hv-apicv)
+=======================
+The enlightenment allows to use Hyper-V SynIC with hardware APICv/AVIC enabled.
+Normally, Hyper-V SynIC disables these hardware feature and suggests the guest
+to use paravirtualized AutoEOI feature.
+Note: enabling this feature on old hardware (without APICv/AVIC support) may
+have negative effect on guest's performace.
+
+3.19. hv-no-nonarch-coresharing=on/off/auto
 ===========================================
 This enlightenment tells guest OS that virtual processors will never share a
 physical core unless they are reported as sibling SMT threads. This information
@@ -203,8 +211,25 @@ When the option is set to 'on' QEMU will always enable the feature, regardless
 of host setup. To keep guests secure, this can only be used in conjunction with
 exposing correct vCPU topology and vCPU pinning.
 
-4. Development features
-========================
+3.20. hv-version-id-{build,major,minor,spack,sbranch,snumber}
+=============================================================
+This changes Hyper-V version identification in CPUID 0x40000002.EAX-EDX from the
+default (WS2016).
+- hv-version-id-build sets 'Build Number' (32 bits)
+- hv-version-id-major sets 'Major Version' (16 bits)
+- hv-version-id-minor sets 'Minor Version' (16 bits)
+- hv-version-id-spack sets 'Service Pack' (32 bits)
+- hv-version-id-sbranch sets 'Service Branch' (8 bits)
+- hv-version-id-snumber sets 'Service Number' (24 bits)
+
+Note: hv-version-id-* are not enlightenments and thus don't enable Hyper-V
+identification when specified without any other enlightenments.
+
+4. Supplementary features
+=========================
+
+4.1. hv-passthrough
+===================
 In some cases (e.g. during development) it may make sense to use QEMU in
 'pass-through' mode and give Windows guests all enlightenments currently
 supported by KVM. This pass-through mode is enabled by "hv-passthrough" CPU
@@ -215,8 +240,16 @@ values from KVM to QEMU. "hv-passthrough" overrides all other "hv-*" settings on
 the command line. Also, enabling this flag effectively prevents migration as the
 list of enabled enlightenments may differ between target and destination hosts.
 
+4.2. hv-enforce-cpuid
+=====================
+By default, KVM allows the guest to use all currently supported Hyper-V
+enlightenments when Hyper-V CPUID interface was exposed, regardless of if
+some features were not announced in guest visible CPUIDs. 'hv-enforce-cpuid'
+feature alters this behavior and only allows the guest to use exposed Hyper-V
+enlightenments.
 
-4. Useful links
+
+5. Useful links
 ================
 Hyper-V Top Level Functional specification and other information:
 https://github.com/MicrosoftDocs/Virtualization-Documentation

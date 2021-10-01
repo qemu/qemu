@@ -2815,6 +2815,7 @@ static void virt_machine_6_1_options(MachineClass *mc)
 
     virt_machine_6_2_options(mc);
     compat_props_add(mc->compat_props, hw_compat_6_1, hw_compat_6_1_len);
+    mc->smp_props.prefer_sockets = true;
 
     /* qemu ITS was introduced with 6.2 */
     vmc->no_tcg_its = true;
