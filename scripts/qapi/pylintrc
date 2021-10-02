@@ -2,8 +2,7 @@
 
 # Add files or directories matching the regex patterns to the ignore list.
 # The regex matches against base names, not paths.
-ignore-patterns=parser.py,
-                schema.py,
+ignore-patterns=schema.py,
 
 
 [MESSAGES CONTROL]
@@ -23,6 +22,7 @@ disable=fixme,
         too-many-branches,
         too-many-statements,
         too-many-instance-attributes,
+        consider-using-f-string,
 
 [REPORTS]
 

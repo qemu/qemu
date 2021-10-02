@@ -53,6 +53,7 @@
 
 ##
 # @Enum:
+#
 # @one: The _one_ {and only}
 #
 # Features:
@@ -67,6 +68,7 @@
 
 ##
 # @Base:
+#
 # @base1:
 # the first member
 ##
@@ -75,6 +77,7 @@
 
 ##
 # @Variant1:
+#
 # A paragraph
 #
 # Another paragraph (but no @var: line)
@@ -91,11 +94,13 @@
 
 ##
 # @Variant2:
+#
 ##
 { 'struct': 'Variant2', 'data': {} }
 
 ##
 # @Object:
+#
 # Features:
 # @union-feat1: a feature
 ##
@@ -109,6 +114,7 @@
 
 ##
 # @Alternate:
+#
 # @i: an integer
 #     @b is undocumented
 #
@@ -126,6 +132,7 @@
 
 ##
 # @cmd:
+#
 # @arg1: the first argument
 #
 # @arg2: the second
@@ -175,6 +182,7 @@
 
 ##
 # @EVT_BOXED:
+#
 # Features:
 # @feat3: a feature
 ##

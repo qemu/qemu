@@ -296,10 +296,9 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
         self._current_module = old_module
 
     def write(self, output_dir: str, opt_builtins: bool = False) -> None:
-        for name in self._module:
+        for name, (genc, genh) in self._module.items():
             if QAPISchemaModule.is_builtin_module(name) and not opt_builtins:
                 continue
-            (genc, genh) = self._module[name]
             genc.write(output_dir)
             genh.write(output_dir)
 
