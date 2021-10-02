@@ -49,6 +49,15 @@ typedef struct BostonState BostonState;
 DECLARE_INSTANCE_CHECKER(BostonState, BOSTON,
                          TYPE_BOSTON)
 
+#define FDT_IRQ_TYPE_NONE       0
+#define FDT_IRQ_TYPE_LEVEL_HIGH 4
+#define FDT_GIC_SHARED          0
+#define FDT_GIC_LOCAL           1
+#define FDT_BOSTON_CLK_SYS      1
+#define FDT_BOSTON_CLK_CPU      2
+#define FDT_PCI_IRQ_MAP_PINS    4
+#define FDT_PCI_IRQ_MAP_DESCS   6
+
 struct BostonState {
     SysBusDevice parent_obj;
 
@@ -437,6 +446,222 @@ xilinx_pcie_init(MemoryRegion *sys_mem, uint32_t bus_nr,
     return XILINX_PCIE_HOST(dev);
 }
 
+
+static void fdt_create_pcie(void *fdt, int gic_ph, int irq, hwaddr reg_base,
+                            hwaddr reg_size, hwaddr mmio_base, hwaddr mmio_size)
+{
+    int i;
+    char *name, *intc_name;
+    uint32_t intc_ph;
+    uint32_t interrupt_map[FDT_PCI_IRQ_MAP_PINS][FDT_PCI_IRQ_MAP_DESCS];
+
+    intc_ph = qemu_fdt_alloc_phandle(fdt);
+    name = g_strdup_printf("/soc/pci@%" HWADDR_PRIx, reg_base);
+    qemu_fdt_add_subnode(fdt, name);
+    qemu_fdt_setprop_string(fdt, name, "compatible",
+                            "xlnx,axi-pcie-host-1.00.a");
+    qemu_fdt_setprop_string(fdt, name, "device_type", "pci");
+    qemu_fdt_setprop_cells(fdt, name, "reg", reg_base, reg_size);
+
+    qemu_fdt_setprop_cell(fdt, name, "#address-cells", 3);
+    qemu_fdt_setprop_cell(fdt, name, "#size-cells", 2);
+    qemu_fdt_setprop_cell(fdt, name, "#interrupt-cells", 1);
+
+    qemu_fdt_setprop_cell(fdt, name, "interrupt-parent", gic_ph);
+    qemu_fdt_setprop_cells(fdt, name, "interrupts", FDT_GIC_SHARED, irq,
+                            FDT_IRQ_TYPE_LEVEL_HIGH);
+
+    qemu_fdt_setprop_cells(fdt, name, "ranges", 0x02000000, 0, mmio_base,
+                            mmio_base, 0, mmio_size);
+    qemu_fdt_setprop_cells(fdt, name, "bus-range", 0x00, 0xff);
+
+
+
+    intc_name = g_strdup_printf("%s/interrupt-controller", name);
+    qemu_fdt_add_subnode(fdt, intc_name);
+    qemu_fdt_setprop(fdt, intc_name, "interrupt-controller", NULL, 0);
+    qemu_fdt_setprop_cell(fdt, intc_name, "#address-cells", 0);
+    qemu_fdt_setprop_cell(fdt, intc_name, "#interrupt-cells", 1);
+    qemu_fdt_setprop_cell(fdt, intc_name, "phandle", intc_ph);
+
+    qemu_fdt_setprop_cells(fdt, name, "interrupt-map-mask", 0, 0, 0, 7);
+    for (i = 0; i < FDT_PCI_IRQ_MAP_PINS; i++) {
+        uint32_t *irqmap = interrupt_map[i];
+
+        irqmap[0] = cpu_to_be32(0);
+        irqmap[1] = cpu_to_be32(0);
+        irqmap[2] = cpu_to_be32(0);
+        irqmap[3] = cpu_to_be32(i + 1);
+        irqmap[4] = cpu_to_be32(intc_ph);
+        irqmap[5] = cpu_to_be32(i + 1);
+    }
+    qemu_fdt_setprop(fdt, name, "interrupt-map",
+                     &interrupt_map, sizeof(interrupt_map));
+
+    g_free(intc_name);
+    g_free(name);
+}
+
+static const void *create_fdt(BostonState *s,
+                              const MemMapEntry *memmap, int *dt_size)
+{
+    void *fdt;
+    int cpu;
+    MachineState *mc = s->mach;
+    uint32_t platreg_ph, gic_ph, clk_ph;
+    char *name, *gic_name, *platreg_name, *stdout_name;
+    static const char * const syscon_compat[2] = {
+        "img,boston-platform-regs", "syscon"
+    };
+
+    fdt = create_device_tree(dt_size);
+    if (!fdt) {
+        error_report("create_device_tree() failed");
+        exit(1);
+    }
+
+    platreg_ph = qemu_fdt_alloc_phandle(fdt);
+    gic_ph = qemu_fdt_alloc_phandle(fdt);
+    clk_ph = qemu_fdt_alloc_phandle(fdt);
+
+    qemu_fdt_setprop_string(fdt, "/", "model", "img,boston");
+    qemu_fdt_setprop_string(fdt, "/", "compatible", "img,boston");
+    qemu_fdt_setprop_cell(fdt, "/", "#size-cells", 0x1);
+    qemu_fdt_setprop_cell(fdt, "/", "#address-cells", 0x1);
+
+
+    qemu_fdt_add_subnode(fdt, "/cpus");
+    qemu_fdt_setprop_cell(fdt, "/cpus", "#size-cells", 0x0);
+    qemu_fdt_setprop_cell(fdt, "/cpus", "#address-cells", 0x1);
+
+    for (cpu = 0; cpu < mc->smp.cpus; cpu++) {
+        name = g_strdup_printf("/cpus/cpu@%d", cpu);
+        qemu_fdt_add_subnode(fdt, name);
+        qemu_fdt_setprop_string(fdt, name, "compatible", "img,mips");
+        qemu_fdt_setprop_string(fdt, name, "status", "okay");
+        qemu_fdt_setprop_cell(fdt, name, "reg", cpu);
+        qemu_fdt_setprop_string(fdt, name, "device_type", "cpu");
+        qemu_fdt_setprop_cells(fdt, name, "clocks", clk_ph, FDT_BOSTON_CLK_CPU);
+        g_free(name);
+    }
+
+    qemu_fdt_add_subnode(fdt, "/soc");
+    qemu_fdt_setprop(fdt, "/soc", "ranges", NULL, 0);
+    qemu_fdt_setprop_string(fdt, "/soc", "compatible", "simple-bus");
+    qemu_fdt_setprop_cell(fdt, "/soc", "#size-cells", 0x1);
+    qemu_fdt_setprop_cell(fdt, "/soc", "#address-cells", 0x1);
+
+    fdt_create_pcie(fdt, gic_ph, 2,
+                memmap[BOSTON_PCIE0].base, memmap[BOSTON_PCIE0].size,
+                memmap[BOSTON_PCIE0_MMIO].base, memmap[BOSTON_PCIE0_MMIO].size);
+
+    fdt_create_pcie(fdt, gic_ph, 1,
+                memmap[BOSTON_PCIE1].base, memmap[BOSTON_PCIE1].size,
+                memmap[BOSTON_PCIE1_MMIO].base, memmap[BOSTON_PCIE1_MMIO].size);
+
+    fdt_create_pcie(fdt, gic_ph, 0,
+                memmap[BOSTON_PCIE2].base, memmap[BOSTON_PCIE2].size,
+                memmap[BOSTON_PCIE2_MMIO].base, memmap[BOSTON_PCIE2_MMIO].size);
+
+    /* GIC with it's timer node */
+    gic_name = g_strdup_printf("/soc/interrupt-controller@%" HWADDR_PRIx,
+                                memmap[BOSTON_GIC].base);
+    qemu_fdt_add_subnode(fdt, gic_name);
+    qemu_fdt_setprop_string(fdt, gic_name, "compatible", "mti,gic");
+    qemu_fdt_setprop_cells(fdt, gic_name, "reg", memmap[BOSTON_GIC].base,
+                            memmap[BOSTON_GIC].size);
+    qemu_fdt_setprop(fdt, gic_name, "interrupt-controller", NULL, 0);
+    qemu_fdt_setprop_cell(fdt, gic_name, "#interrupt-cells", 3);
+    qemu_fdt_setprop_cell(fdt, gic_name, "phandle", gic_ph);
+
+    name = g_strdup_printf("%s/timer", gic_name);
+    qemu_fdt_add_subnode(fdt, name);
+    qemu_fdt_setprop_string(fdt, name, "compatible", "mti,gic-timer");
+    qemu_fdt_setprop_cells(fdt, name, "interrupts", FDT_GIC_LOCAL, 1,
+                            FDT_IRQ_TYPE_NONE);
+    qemu_fdt_setprop_cells(fdt, name, "clocks", clk_ph, FDT_BOSTON_CLK_CPU);
+    g_free(name);
+    g_free(gic_name);
+
+    /* CDMM node */
+    name = g_strdup_printf("/soc/cdmm@%" HWADDR_PRIx, memmap[BOSTON_CDMM].base);
+    qemu_fdt_add_subnode(fdt, name);
+    qemu_fdt_setprop_string(fdt, name, "compatible", "mti,mips-cdmm");
+    qemu_fdt_setprop_cells(fdt, name, "reg", memmap[BOSTON_CDMM].base,
+                            memmap[BOSTON_CDMM].size);
+    g_free(name);
+
+    /* CPC node */
+    name = g_strdup_printf("/soc/cpc@%" HWADDR_PRIx, memmap[BOSTON_CPC].base);
+    qemu_fdt_add_subnode(fdt, name);
+    qemu_fdt_setprop_string(fdt, name, "compatible", "mti,mips-cpc");
+    qemu_fdt_setprop_cells(fdt, name, "reg", memmap[BOSTON_CPC].base,
+                            memmap[BOSTON_CPC].size);
+    g_free(name);
+
+    /* platreg and it's clk node */
+    platreg_name = g_strdup_printf("/soc/system-controller@%" HWADDR_PRIx,
+                                   memmap[BOSTON_PLATREG].base);
+    qemu_fdt_add_subnode(fdt, platreg_name);
+    qemu_fdt_setprop_string_array(fdt, platreg_name, "compatible",
+                                 (char **)&syscon_compat,
+                                 ARRAY_SIZE(syscon_compat));
+    qemu_fdt_setprop_cells(fdt, platreg_name, "reg",
+                           memmap[BOSTON_PLATREG].base,
+                           memmap[BOSTON_PLATREG].size);
+    qemu_fdt_setprop_cell(fdt, platreg_name, "phandle", platreg_ph);
+
+    name = g_strdup_printf("%s/clock", platreg_name);
+    qemu_fdt_add_subnode(fdt, name);
+    qemu_fdt_setprop_string(fdt, name, "compatible", "img,boston-clock");
+    qemu_fdt_setprop_cell(fdt, name, "#clock-cells", 1);
+    qemu_fdt_setprop_cell(fdt, name, "phandle", clk_ph);
+    g_free(name);
+    g_free(platreg_name);
+
+    /* reboot node */
+    name = g_strdup_printf("/soc/reboot");
+    qemu_fdt_add_subnode(fdt, name);
+    qemu_fdt_setprop_string(fdt, name, "compatible", "syscon-reboot");
+    qemu_fdt_setprop_cell(fdt, name, "regmap", platreg_ph);
+    qemu_fdt_setprop_cell(fdt, name, "offset", 0x10);
+    qemu_fdt_setprop_cell(fdt, name, "mask", 0x10);
+    g_free(name);
+
+    /* uart node */
+    name = g_strdup_printf("/soc/uart@%" HWADDR_PRIx, memmap[BOSTON_UART].base);
+    qemu_fdt_add_subnode(fdt, name);
+    qemu_fdt_setprop_string(fdt, name, "compatible", "ns16550a");
+    qemu_fdt_setprop_cells(fdt, name, "reg", memmap[BOSTON_UART].base,
+                            memmap[BOSTON_UART].size);
+    qemu_fdt_setprop_cell(fdt, name, "reg-shift", 0x2);
+    qemu_fdt_setprop_cell(fdt, name, "interrupt-parent", gic_ph);
+    qemu_fdt_setprop_cells(fdt, name, "interrupts", FDT_GIC_SHARED, 3,
+                            FDT_IRQ_TYPE_LEVEL_HIGH);
+    qemu_fdt_setprop_cells(fdt, name, "clocks", clk_ph, FDT_BOSTON_CLK_SYS);
+
+    qemu_fdt_add_subnode(fdt, "/chosen");
+    stdout_name = g_strdup_printf("%s:115200", name);
+    qemu_fdt_setprop_string(fdt, "/chosen", "stdout-path", stdout_name);
+    g_free(stdout_name);
+    g_free(name);
+
+    /* lcd node */
+    name = g_strdup_printf("/soc/lcd@%" HWADDR_PRIx, memmap[BOSTON_LCD].base);
+    qemu_fdt_add_subnode(fdt, name);
+    qemu_fdt_setprop_string(fdt, name, "compatible", "img,boston-lcd");
+    qemu_fdt_setprop_cells(fdt, name, "reg", memmap[BOSTON_LCD].base,
+                            memmap[BOSTON_LCD].size);
+    g_free(name);
+
+    name = g_strdup_printf("/memory@0");
+    qemu_fdt_add_subnode(fdt, name);
+    qemu_fdt_setprop_string(fdt, name, "device_type", "memory");
+    g_free(name);
+
+    return fdt;
+}
+
 static void boston_mach_init(MachineState *machine)
 {
     DeviceState *dev;
@@ -560,22 +785,24 @@ static void boston_mach_init(MachineState *machine)
                            NULL, 0, EM_MIPS, 1, 0);
 
         if (kernel_size) {
+            int dt_size;
+            g_autofree const void *dtb_file_data, *dtb_load_data;
             hwaddr dtb_paddr = QEMU_ALIGN_UP(kernel_high, 64 * KiB);
             hwaddr dtb_vaddr = cpu_mips_phys_to_kseg0(NULL, dtb_paddr);
 
             s->kernel_entry = kernel_entry;
             if (machine->dtb) {
-                int dt_size;
-                g_autofree const void *dtb_file_data, *dtb_load_data;
-
                 dtb_file_data = load_device_tree(machine->dtb, &dt_size);
-                dtb_load_data = boston_fdt_filter(s, dtb_file_data,
-                                                  NULL, &dtb_vaddr);
-
-                /* Calculate real fdt size after filter */
-                dt_size = fdt_totalsize(dtb_load_data);
-                rom_add_blob_fixed("dtb", dtb_load_data, dt_size, dtb_paddr);
+            } else {
+                dtb_file_data = create_fdt(s, boston_memmap, &dt_size);
             }
+
+            dtb_load_data = boston_fdt_filter(s, dtb_file_data,
+                                              NULL, &dtb_vaddr);
+
+            /* Calculate real fdt size after filter */
+            dt_size = fdt_totalsize(dtb_load_data);
+            rom_add_blob_fixed("dtb", dtb_load_data, dt_size, dtb_paddr);
         } else {
             /* Try to load file as FIT */
             fit_err = load_fit(&boston_fit_loader, machine->kernel_filename, s);
