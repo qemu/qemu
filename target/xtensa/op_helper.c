@@ -38,12 +38,12 @@
 
 void HELPER(update_ccount)(CPUXtensaState *env)
 {
+    XtensaCPU *cpu = XTENSA_CPU(env_cpu(env));
     uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     env->ccount_time = now;
     env->sregs[CCOUNT] = env->ccount_base +
-        (uint32_t)((now - env->time_base) *
-                   env->config->clock_freq_khz / 1000000);
+        (uint32_t)clock_ns_to_ticks(cpu->clock, now - env->time_base);
 }
 
 void HELPER(wsr_ccount)(CPUXtensaState *env, uint32_t v)
@@ -59,6 +59,7 @@ void HELPER(wsr_ccount)(CPUXtensaState *env, uint32_t v)
 
 void HELPER(update_ccompare)(CPUXtensaState *env, uint32_t i)
 {
+    XtensaCPU *cpu = XTENSA_CPU(env_cpu(env));
     uint64_t dcc;
 
     qatomic_and(&env->sregs[INTSET],
@@ -66,7 +67,7 @@ void HELPER(update_ccompare)(CPUXtensaState *env, uint32_t i)
     HELPER(update_ccount)(env);
     dcc = (uint64_t)(env->sregs[CCOMPARE + i] - env->sregs[CCOUNT] - 1) + 1;
     timer_mod(env->ccompare[i].timer,
-              env->ccount_time + (dcc * 1000000) / env->config->clock_freq_khz);
+              env->ccount_time + clock_ticks_to_ns(cpu->clock, dcc));
     env->yield_needed = 1;
 }
 
