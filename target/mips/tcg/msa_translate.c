@@ -473,15 +473,12 @@ static void gen_msa_i8(DisasContext *ctx)
 static void gen_msa_i5(DisasContext *ctx)
 {
 #define MASK_MSA_I5(op)    (MASK_MSA_MINOR(op) | (op & (0x7 << 23)))
-    uint8_t df = (ctx->opcode >> 21) & 0x3;
     int8_t s5 = (int8_t) sextract32(ctx->opcode, 16, 5);
-    uint8_t u5 = (ctx->opcode >> 16) & 0x1f;
-    uint8_t ws = (ctx->opcode >> 11) & 0x1f;
-    uint8_t wd = (ctx->opcode >> 6) & 0x1f;
+    uint8_t u5 = extract32(ctx->opcode, 16, 5);
 
-    TCGv_i32 tdf = tcg_const_i32(df);
-    TCGv_i32 twd = tcg_const_i32(wd);
-    TCGv_i32 tws = tcg_const_i32(ws);
+    TCGv_i32 tdf = tcg_const_i32(extract32(ctx->opcode, 21, 2));
+    TCGv_i32 twd = tcg_const_i32(extract32(ctx->opcode, 11, 5));
+    TCGv_i32 tws = tcg_const_i32(extract32(ctx->opcode, 6, 5));
     TCGv_i32 timm = tcg_temp_new_i32();
     tcg_gen_movi_i32(timm, u5);
 
