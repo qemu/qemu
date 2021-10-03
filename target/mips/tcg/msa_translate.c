@@ -1790,10 +1790,22 @@ static void gen_msa_3rf(DisasContext *ctx)
     TCGv_i32 twd = tcg_const_i32(wd);
     TCGv_i32 tws = tcg_const_i32(ws);
     TCGv_i32 twt = tcg_const_i32(wt);
-    TCGv_i32 tdf = tcg_temp_new_i32();
+    TCGv_i32 tdf;
 
     /* adjust df value for floating-point instruction */
-    tcg_gen_movi_i32(tdf, df + 2);
+    switch (MASK_MSA_3RF(ctx->opcode)) {
+    case OPC_MUL_Q_df:
+    case OPC_MADD_Q_df:
+    case OPC_MSUB_Q_df:
+    case OPC_MULR_Q_df:
+    case OPC_MADDR_Q_df:
+    case OPC_MSUBR_Q_df:
+        tdf = tcg_constant_i32(df + 1);
+        break;
+    default:
+        tdf = tcg_constant_i32(df + 2);
+        break;
+    }
 
     switch (MASK_MSA_3RF(ctx->opcode)) {
     case OPC_FCAF_df:
@@ -1836,7 +1848,6 @@ static void gen_msa_3rf(DisasContext *ctx)
         gen_helper_msa_fmadd_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_MUL_Q_df:
-        tcg_gen_movi_i32(tdf, df + 1);
         gen_helper_msa_mul_q_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_FCULT_df:
@@ -1846,14 +1857,12 @@ static void gen_msa_3rf(DisasContext *ctx)
         gen_helper_msa_fmsub_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_MADD_Q_df:
-        tcg_gen_movi_i32(tdf, df + 1);
         gen_helper_msa_madd_q_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_FCLE_df:
         gen_helper_msa_fcle_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_MSUB_Q_df:
-        tcg_gen_movi_i32(tdf, df + 1);
         gen_helper_msa_msub_q_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_FCULE_df:
@@ -1896,7 +1905,6 @@ static void gen_msa_3rf(DisasContext *ctx)
         gen_helper_msa_fmin_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_MULR_Q_df:
-        tcg_gen_movi_i32(tdf, df + 1);
         gen_helper_msa_mulr_q_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_FSULT_df:
@@ -1906,7 +1914,6 @@ static void gen_msa_3rf(DisasContext *ctx)
         gen_helper_msa_fmin_a_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_MADDR_Q_df:
-        tcg_gen_movi_i32(tdf, df + 1);
         gen_helper_msa_maddr_q_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_FSLE_df:
@@ -1916,7 +1923,6 @@ static void gen_msa_3rf(DisasContext *ctx)
         gen_helper_msa_fmax_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_MSUBR_Q_df:
-        tcg_gen_movi_i32(tdf, df + 1);
         gen_helper_msa_msubr_q_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_FSULE_df:
@@ -1934,7 +1940,6 @@ static void gen_msa_3rf(DisasContext *ctx)
     tcg_temp_free_i32(twd);
     tcg_temp_free_i32(tws);
     tcg_temp_free_i32(twt);
-    tcg_temp_free_i32(tdf);
 }
 
 static void gen_msa_2r(DisasContext *ctx)
