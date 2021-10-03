@@ -1946,7 +1946,6 @@ static void gen_msa_2r(DisasContext *ctx)
     uint8_t df = (ctx->opcode >> 16) & 0x3;
     TCGv_i32 twd = tcg_const_i32(wd);
     TCGv_i32 tws = tcg_const_i32(ws);
-    TCGv_i32 tdf = tcg_const_i32(df);
 
     switch (MASK_MSA_2R(ctx->opcode)) {
     case OPC_FILL_df:
@@ -1957,7 +1956,8 @@ static void gen_msa_2r(DisasContext *ctx)
             break;
         }
 #endif
-        gen_helper_msa_fill_df(cpu_env, tdf, twd, tws); /* trs */
+        gen_helper_msa_fill_df(cpu_env, tcg_constant_i32(df),
+                               twd, tws); /* trs */
         break;
     case OPC_NLOC_df:
         switch (df) {
@@ -2015,7 +2015,6 @@ static void gen_msa_2r(DisasContext *ctx)
 
     tcg_temp_free_i32(twd);
     tcg_temp_free_i32(tws);
-    tcg_temp_free_i32(tdf);
 }
 
 static void gen_msa_2rf(DisasContext *ctx)
