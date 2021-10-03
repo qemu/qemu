@@ -190,7 +190,6 @@ static inline void gen_pred_cancel(TCGv pred, int slot_num)
     TCGv slot_mask = tcg_const_tl(1 << slot_num);
     TCGv tmp = tcg_temp_new();
     TCGv zero = tcg_const_tl(0);
-    TCGv one = tcg_const_tl(1);
     tcg_gen_or_tl(slot_mask, hex_slot_cancelled, slot_mask);
     tcg_gen_andi_tl(tmp, pred, 1);
     tcg_gen_movcond_tl(TCG_COND_EQ, hex_slot_cancelled, tmp, zero,
@@ -198,7 +197,6 @@ static inline void gen_pred_cancel(TCGv pred, int slot_num)
     tcg_temp_free(slot_mask);
     tcg_temp_free(tmp);
     tcg_temp_free(zero);
-    tcg_temp_free(one);
 }
 #define PRED_LOAD_CANCEL(PRED, EA) \
     gen_pred_cancel(PRED, insn->is_endloop ? 4 : insn->slot)
