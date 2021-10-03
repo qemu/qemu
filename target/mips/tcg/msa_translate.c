@@ -1650,7 +1650,7 @@ static void gen_msa_elm_df(DisasContext *ctx, uint32_t df, uint32_t n)
     TCGv_i32 tws = tcg_const_i32(ws);
     TCGv_i32 twd = tcg_const_i32(wd);
     TCGv_i32 tn  = tcg_const_i32(n);
-    TCGv_i32 tdf = tcg_const_i32(df);
+    TCGv_i32 tdf = tcg_constant_i32(df);
 
     switch (MASK_MSA_ELM(ctx->opcode)) {
     case OPC_SLDI_df:
@@ -1748,7 +1748,6 @@ static void gen_msa_elm_df(DisasContext *ctx, uint32_t df, uint32_t n)
     tcg_temp_free_i32(twd);
     tcg_temp_free_i32(tws);
     tcg_temp_free_i32(tn);
-    tcg_temp_free_i32(tdf);
 }
 
 static void gen_msa_elm(DisasContext *ctx)
