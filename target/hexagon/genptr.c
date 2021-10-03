@@ -29,7 +29,7 @@
 
 static inline void gen_log_predicated_reg_write(int rnum, TCGv val, int slot)
 {
-    TCGv zero = tcg_const_tl(0);
+    TCGv zero = tcg_constant_tl(0);
     TCGv slot_mask = tcg_temp_new();
 
     tcg_gen_andi_tl(slot_mask, hex_slot_cancelled, 1 << slot);
@@ -47,7 +47,6 @@ static inline void gen_log_predicated_reg_write(int rnum, TCGv val, int slot)
         tcg_gen_or_tl(hex_reg_written[rnum], hex_reg_written[rnum], slot_mask);
     }
 
-    tcg_temp_free(zero);
     tcg_temp_free(slot_mask);
 }
 
@@ -63,7 +62,7 @@ static inline void gen_log_reg_write(int rnum, TCGv val)
 static void gen_log_predicated_reg_write_pair(int rnum, TCGv_i64 val, int slot)
 {
     TCGv val32 = tcg_temp_new();
-    TCGv zero = tcg_const_tl(0);
+    TCGv zero = tcg_constant_tl(0);
     TCGv slot_mask = tcg_temp_new();
 
     tcg_gen_andi_tl(slot_mask, hex_slot_cancelled, 1 << slot);
@@ -92,7 +91,6 @@ static void gen_log_predicated_reg_write_pair(int rnum, TCGv_i64 val, int slot)
     }
 
     tcg_temp_free(val32);
-    tcg_temp_free(zero);
     tcg_temp_free(slot_mask);
 }
 
@@ -181,9 +179,8 @@ static inline void gen_read_ctrl_reg_pair(DisasContext *ctx, const int reg_num,
         tcg_gen_concat_i32_i64(dest, p3_0, hex_gpr[reg_num + 1]);
         tcg_temp_free(p3_0);
     } else if (reg_num == HEX_REG_PC - 1) {
-        TCGv pc = tcg_const_tl(ctx->base.pc_next);
+        TCGv pc = tcg_constant_tl(ctx->base.pc_next);
         tcg_gen_concat_i32_i64(dest, hex_gpr[reg_num], pc);
-        tcg_temp_free(pc);
     } else if (reg_num == HEX_REG_QEMU_PKT_CNT) {
         TCGv pkt_cnt = tcg_temp_new();
         TCGv insn_cnt = tcg_temp_new();
@@ -331,15 +328,13 @@ static inline void gen_store_conditional4(DisasContext *ctx,
 
     tcg_gen_brcond_tl(TCG_COND_NE, vaddr, hex_llsc_addr, fail);
 
-    one = tcg_const_tl(0xff);
-    zero = tcg_const_tl(0);
+    one = tcg_constant_tl(0xff);
+    zero = tcg_constant_tl(0);
     tmp = tcg_temp_new();
     tcg_gen_atomic_cmpxchg_tl(tmp, hex_llsc_addr, hex_llsc_val, src,
                               ctx->mem_idx, MO_32);
     tcg_gen_movcond_tl(TCG_COND_EQ, pred, tmp, hex_llsc_val,
                        one, zero);
-    tcg_temp_free(one);
-    tcg_temp_free(zero);
     tcg_temp_free(tmp);
     tcg_gen_br(done);
 
@@ -359,16 +354,14 @@ static inline void gen_store_conditional8(DisasContext *ctx,
 
     tcg_gen_brcond_tl(TCG_COND_NE, vaddr, hex_llsc_addr, fail);
 
-    one = tcg_const_i64(0xff);
-    zero = tcg_const_i64(0);
+    one = tcg_constant_i64(0xff);
+    zero = tcg_constant_i64(0);
     tmp = tcg_temp_new_i64();
     tcg_gen_atomic_cmpxchg_i64(tmp, hex_llsc_addr, hex_llsc_val_i64, src,
                                ctx->mem_idx, MO_64);
     tcg_gen_movcond_i64(TCG_COND_EQ, tmp, tmp, hex_llsc_val_i64,
                         one, zero);
     tcg_gen_extrl_i64_i32(pred, tmp);
-    tcg_temp_free_i64(one);
-    tcg_temp_free_i64(zero);
     tcg_temp_free_i64(tmp);
     tcg_gen_br(done);
 
@@ -396,9 +389,8 @@ static inline void gen_store1(TCGv_env cpu_env, TCGv vaddr, TCGv src,
 static inline void gen_store1i(TCGv_env cpu_env, TCGv vaddr, int32_t src,
                                DisasContext *ctx, int slot)
 {
-    TCGv tmp = tcg_const_tl(src);
+    TCGv tmp = tcg_constant_tl(src);
     gen_store1(cpu_env, vaddr, tmp, ctx, slot);
-    tcg_temp_free(tmp);
 }
 
 static inline void gen_store2(TCGv_env cpu_env, TCGv vaddr, TCGv src,
@@ -411,9 +403,8 @@ static inline void gen_store2(TCGv_env cpu_env, TCGv vaddr, TCGv src,
 static inline void gen_store2i(TCGv_env cpu_env, TCGv vaddr, int32_t src,
                                DisasContext *ctx, int slot)
 {
-    TCGv tmp = tcg_const_tl(src);
+    TCGv tmp = tcg_constant_tl(src);
     gen_store2(cpu_env, vaddr, tmp, ctx, slot);
-    tcg_temp_free(tmp);
 }
 
 static inline void gen_store4(TCGv_env cpu_env, TCGv vaddr, TCGv src,
@@ -426,9 +417,8 @@ static inline void gen_store4(TCGv_env cpu_env, TCGv vaddr, TCGv src,
 static inline void gen_store4i(TCGv_env cpu_env, TCGv vaddr, int32_t src,
                                DisasContext *ctx, int slot)
 {
-    TCGv tmp = tcg_const_tl(src);
+    TCGv tmp = tcg_constant_tl(src);
     gen_store4(cpu_env, vaddr, tmp, ctx, slot);
-    tcg_temp_free(tmp);
 }
 
 static inline void gen_store8(TCGv_env cpu_env, TCGv vaddr, TCGv_i64 src,
@@ -443,18 +433,15 @@ static inline void gen_store8(TCGv_env cpu_env, TCGv vaddr, TCGv_i64 src,
 static inline void gen_store8i(TCGv_env cpu_env, TCGv vaddr, int64_t src,
                                DisasContext *ctx, int slot)
 {
-    TCGv_i64 tmp = tcg_const_i64(src);
+    TCGv_i64 tmp = tcg_constant_i64(src);
     gen_store8(cpu_env, vaddr, tmp, ctx, slot);
-    tcg_temp_free_i64(tmp);
 }
 
 static TCGv gen_8bitsof(TCGv result, TCGv value)
 {
-    TCGv zero = tcg_const_tl(0);
-    TCGv ones = tcg_const_tl(0xff);
+    TCGv zero = tcg_constant_tl(0);
+    TCGv ones = tcg_constant_tl(0xff);
     tcg_gen_movcond_tl(TCG_COND_NE, result, value, zero, ones, zero);
-    tcg_temp_free(zero);
-    tcg_temp_free(ones);
 
     return result;
 }

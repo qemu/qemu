@@ -684,9 +684,8 @@
     gen_helper_sfmin(RdV, cpu_env, RsV, RtV)
 #define fGEN_TCG_F2_sfclass(SHORTCODE) \
     do { \
-        TCGv imm = tcg_const_tl(uiV); \
+        TCGv imm = tcg_constant_tl(uiV); \
         gen_helper_sfclass(PdV, cpu_env, RsV, imm); \
-        tcg_temp_free(imm); \
     } while (0)
 #define fGEN_TCG_F2_sffixupn(SHORTCODE) \
     gen_helper_sffixupn(RdV, cpu_env, RsV, RtV)
@@ -712,9 +711,8 @@
     gen_helper_dfcmpuo(PdV, cpu_env, RssV, RttV)
 #define fGEN_TCG_F2_dfclass(SHORTCODE) \
     do { \
-        TCGv imm = tcg_const_tl(uiV); \
+        TCGv imm = tcg_constant_tl(uiV); \
         gen_helper_dfclass(PdV, cpu_env, RssV, imm); \
-        tcg_temp_free(imm); \
     } while (0)
 #define fGEN_TCG_F2_sfmpy(SHORTCODE) \
     gen_helper_sfmpy(RdV, cpu_env, RsV, RtV)
