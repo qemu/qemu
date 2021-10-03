@@ -474,6 +474,10 @@ static unsigned int qapi_event_throttle_hash(const void *key)
         hash += g_str_hash(qdict_get_str(evstate->data, "node-name"));
     }
 
+    if (evstate->event == QAPI_EVENT_MEMORY_DEVICE_SIZE_CHANGE) {
+        hash += g_str_hash(qdict_get_str(evstate->data, "qom-path"));
+    }
+
     return hash;
 }
 
@@ -494,6 +498,11 @@ static gboolean qapi_event_throttle_equal(const void *a, const void *b)
     if (eva->event == QAPI_EVENT_QUORUM_REPORT_BAD) {
         return !strcmp(qdict_get_str(eva->data, "node-name"),
                        qdict_get_str(evb->data, "node-name"));
+    }
+
+    if (eva->event == QAPI_EVENT_MEMORY_DEVICE_SIZE_CHANGE) {
+        return !strcmp(qdict_get_str(eva->data, "qom-path"),
+                       qdict_get_str(evb->data, "qom-path"));
     }
 
     return TRUE;

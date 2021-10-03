@@ -1336,7 +1336,10 @@
 # action).
 #
 # @id: device's ID
+#
 # @size: the new size of memory that the device provides
+#
+# @qom-path: path to the device object in the QOM tree (since 6.2)
 #
 # Note: this event is rate-limited.
 #
@@ -1350,7 +1353,7 @@
 #
 ##
 { 'event': 'MEMORY_DEVICE_SIZE_CHANGE',
-  'data': { '*id': 'str', 'size': 'size' } }
+  'data': { '*id': 'str', 'size': 'size', 'qom-path' : 'str'} }
 
 
 ##
