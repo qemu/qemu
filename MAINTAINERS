@@ -236,11 +236,8 @@ R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
 S: Odd Fixes
 F: target/mips/
-F: configs/devices/mips*/*
 F: disas/mips.c
 F: docs/system/cpu-models-mips.rst.inc
-F: hw/mips/
-F: include/hw/mips/
 F: tests/tcg/mips/
 
 MIPS TCG CPUs (nanoMIPS ISA)
@@ -1169,6 +1166,13 @@ F: hw/microblaze/petalogix_ml605_mmu.c
 
 MIPS Machines
 -------------
+Overall MIPS Machines
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+S: Odd Fixes
+F: configs/devices/mips*/*
+F: hw/mips/
+F: include/hw/mips/
+
 Jazz
 M: Hervé Poussineau <hpoussin@reactos.org>
 R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
