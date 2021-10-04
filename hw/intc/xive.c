@@ -875,7 +875,7 @@ static bool xive_source_lsi_trigger(XiveSource *xsrc, uint32_t srcno)
 {
     uint8_t old_pq = xive_source_esb_get(xsrc, srcno);
 
-    xsrc->status[srcno] |= XIVE_STATUS_ASSERTED;
+    xive_source_set_asserted(xsrc, srcno, true);
 
     switch (old_pq) {
     case XIVE_ESB_RESET:
@@ -923,7 +923,7 @@ static bool xive_source_esb_eoi(XiveSource *xsrc, uint32_t srcno)
      * notification
      */
     if (xive_source_irq_is_lsi(xsrc, srcno) &&
-        xsrc->status[srcno] & XIVE_STATUS_ASSERTED) {
+        xive_source_is_asserted(xsrc, srcno)) {
         ret = xive_source_lsi_trigger(xsrc, srcno);
     }
 
@@ -1104,7 +1104,7 @@ void xive_source_set_irq(void *opaque, int srcno, int val)
         if (val) {
             notify = xive_source_lsi_trigger(xsrc, srcno);
         } else {
-            xsrc->status[srcno] &= ~XIVE_STATUS_ASSERTED;
+            xive_source_set_asserted(xsrc, srcno, false);
         }
     } else {
         if (val) {
@@ -1133,7 +1133,7 @@ void xive_source_pic_print_info(XiveSource *xsrc, uint32_t offset, Monitor *mon)
                        xive_source_irq_is_lsi(xsrc, i) ? "LSI" : "MSI",
                        pq & XIVE_ESB_VAL_P ? 'P' : '-',
                        pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
-                       xsrc->status[i] & XIVE_STATUS_ASSERTED ? 'A' : ' ');
+                       xive_source_is_asserted(xsrc, i) ? 'A' : ' ');
     }
 }
 
