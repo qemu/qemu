@@ -32,14 +32,6 @@ threadcount: LDFLAGS+=-lpthread
 
 signals: LDFLAGS+=-lrt -lpthread
 
-# This triggers failures on s390x hosts about 4% of the time
-# This triggers failures for hppa-linux about 1% of the time
-run-signals: signals
-	$(call skip-test, $<, "BROKEN awaiting sigframe clean-ups and vdso support")
-
-run-plugin-signals-with-%:
-	$(call skip-test, $<, "BROKEN awaiting sigframe clean-ups and vdso support")
-
 # We define the runner for test-mmap after the individual
 # architectures have defined their supported pages sizes. If no
 # additional page sizes are defined we only run the default test.

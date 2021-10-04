@@ -65,9 +65,6 @@ run-plugin-%-with-libinsn.so:
 	       -d plugin -D $*-with-libinsn.so.pout $*, \
 		"$* (inline) on $(TARGET_NAME)")
 
-run-plugin-signals-with-libinsn.so:
-	$(call skip-test, $<, "BROKEN awaiting sigframe clean-ups and vdso support")
-
 # Update TESTS
 I386_TESTS:=$(filter-out $(SKIP_I386_TESTS), $(ALL_X86_TESTS))
 TESTS=$(MULTIARCH_TESTS) $(I386_TESTS)
