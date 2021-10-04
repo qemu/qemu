@@ -205,10 +205,7 @@ HPPA (PA-RISC) TCG CPUs
 M: Richard Henderson <richard.henderson@linaro.org>
 S: Maintained
 F: target/hppa/
-F: hw/hppa/
 F: disas/hppa.c
-F: hw/net/*i82596*
-F: include/hw/net/lasi_82596.h
 
 M68K TCG CPUs
 M: Laurent Vivier <laurent@vivier.eu>
@@ -1099,6 +1096,8 @@ R: Helge Deller <deller@gmx.de>
 S: Odd Fixes
 F: configs/devices/hppa-softmmu/default.mak
 F: hw/hppa/
+F: hw/net/*i82596*
+F: include/hw/net/lasi_82596.h
 F: pc-bios/hppa-firmware.img
 
 M68K Machines
