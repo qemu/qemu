@@ -12,6 +12,7 @@ are useful for making QEMU interoperate with other software.
    bitmaps
    dbus
    dbus-vmstate
+   dbus-display
    live-block-operations
    pr-helper
    qemu-ga
