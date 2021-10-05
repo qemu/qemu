@@ -186,6 +186,7 @@ void HELPER(afl_cmplog_64)(target_ulong cur_loc, target_ulong arg1,
 }
 
 #include <sys/mman.h>
+#include "linux-user/qemu.h" /* access_ok decls. */
 
 /*
 static int area_is_mapped(void *ptr, size_t len) {
