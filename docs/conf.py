@@ -73,6 +73,12 @@ needs_sphinx = '1.6'
 # ones.
 extensions = ['kerneldoc', 'qmp_lexer', 'hxtool', 'depfile', 'qapidoc']
 
+if sphinx.version_info[:3] > (4, 0, 0):
+    tags.add('sphinx4')
+    extensions += ['dbusdoc']
+else:
+    extensions += ['fakedbusdoc']
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = [os.path.join(qemu_docdir, '_templates')]
 
@@ -311,3 +317,5 @@ kerneldoc_bin = ['perl', os.path.join(qemu_docdir, '../scripts/kernel-doc')]
 kerneldoc_srctree = os.path.join(qemu_docdir, '..')
 hxtool_srctree = os.path.join(qemu_docdir, '..')
 qapidoc_srctree = os.path.join(qemu_docdir, '..')
+dbusdoc_srctree = os.path.join(qemu_docdir, '..')
+dbus_index_common_prefix = ["org.qemu."]
