@@ -62,7 +62,7 @@
                    reg_field_info[FIELD].offset)
 
 #define SET_USR_FIELD(FIELD, VAL) \
-    fINSERT_BITS(env->gpr[HEX_REG_USR], reg_field_info[FIELD].width, \
+    fINSERT_BITS(env->new_value[HEX_REG_USR], reg_field_info[FIELD].width, \
                  reg_field_info[FIELD].offset, (VAL))
 #endif
 

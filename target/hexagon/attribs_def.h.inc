@@ -64,6 +64,7 @@ DEF_ATTRIB(IMPLICIT_WRITES_P1, "Writes Predicate 1", "", "UREG.P1")
 DEF_ATTRIB(IMPLICIT_WRITES_P2, "Writes Predicate 1", "", "UREG.P2")
 DEF_ATTRIB(IMPLICIT_WRITES_P3, "May write Predicate 3", "", "UREG.P3")
 DEF_ATTRIB(IMPLICIT_READS_PC, "Reads the PC register", "", "")
+DEF_ATTRIB(IMPLICIT_WRITES_USR, "May write USR", "", "")
 DEF_ATTRIB(WRITES_PRED_REG, "Writes a predicate register", "", "")
 
 DEF_ATTRIB(CRSLOT23, "Can execute in slot 2 or slot 3 (CR)", "", "")

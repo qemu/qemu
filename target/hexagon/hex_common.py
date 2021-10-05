@@ -73,6 +73,8 @@ def calculate_attribs():
     add_qemu_macro_attrib('fWRITE_P1', 'A_WRITES_PRED_REG')
     add_qemu_macro_attrib('fWRITE_P2', 'A_WRITES_PRED_REG')
     add_qemu_macro_attrib('fWRITE_P3', 'A_WRITES_PRED_REG')
+    add_qemu_macro_attrib('fSET_OVERFLOW', 'A_IMPLICIT_WRITES_USR')
+    add_qemu_macro_attrib('fSET_LPCFG', 'A_IMPLICIT_WRITES_USR')
 
     # Recurse down macros, find attributes from sub-macros
     macroValues = list(macros.values())
