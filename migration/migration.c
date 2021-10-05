@@ -3168,7 +3168,10 @@ static void migration_completion(MigrationState *s)
     } else if (s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE) {
         trace_migration_completion_postcopy_end();
 
+        qemu_mutex_lock_iothread();
         qemu_savevm_state_complete_postcopy(s->to_dst_file);
+        qemu_mutex_unlock_iothread();
+
         trace_migration_completion_postcopy_end_after_complete();
     } else if (s->state == MIGRATION_STATUS_CANCELLING) {
         goto fail;

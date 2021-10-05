@@ -66,3 +66,6 @@ static XtensaConfig $NAME __attribute__((unused)) = {
 
 REGISTER_CORE($NAME)
 EOF
+
+grep -qxf core-${NAME}.c "$BASE"/cores.list || \
+    echo core-${NAME}.c >> "$BASE"/cores.list

@@ -38,6 +38,171 @@
 #include "qemu/timer.h"
 #include "qom/object.h"
 
+#if defined(__APPLE__) && defined(__MACH__)
+#include <IOKit/IOKitLib.h>
+
+enum {
+    kSMCSuccess     = 0x00,
+    kSMCKeyNotFound = 0x84
+};
+
+enum {
+    kSMCUserClientOpen  = 0x00,
+    kSMCUserClientClose = 0x01,
+    kSMCHandleYPCEvent  = 0x02,
+    kSMCReadKey         = 0x05,
+    kSMCGetKeyInfo      = 0x09
+};
+
+typedef struct SMCVersion {
+    uint8_t  major;
+    uint8_t  minor;
+    uint8_t  build;
+    uint8_t  reserved;
+    uint16_t release;
+} SMCVersion;
+
+typedef struct SMCPLimitData {
+    uint16_t version;
+    uint16_t length;
+    uint32_t cpuPLimit;
+    uint32_t gpuPLimit;
+    uint32_t memPLimit;
+} SMCPLimitData;
+
+typedef struct SMCKeyInfoData {
+    IOByteCount dataSize;
+    uint32_t    dataType;
+    uint8_t     dataAttributes;
+} SMCKeyInfoData;
+
+typedef struct {
+    uint32_t       key;
+    SMCVersion     vers;
+    SMCPLimitData  pLimitData;
+    SMCKeyInfoData keyInfo;
+    uint8_t        result;
+    uint8_t        status;
+    uint8_t        data8;
+    uint32_t       data32;
+    uint8_t        bytes[32];
+} SMCParamStruct;
+
+static IOReturn smc_call_struct_method(uint32_t selector,
+                                       SMCParamStruct *inputStruct,
+                                       SMCParamStruct *outputStruct)
+{
+    IOReturn ret;
+
+    size_t inputStructCnt = sizeof(SMCParamStruct);
+    size_t outputStructCnt = sizeof(SMCParamStruct);
+
+    io_service_t smcService = IO_OBJECT_NULL;
+    io_connect_t smcConnect = IO_OBJECT_NULL;
+
+    smcService = IOServiceGetMatchingService(kIOMasterPortDefault,
+                                             IOServiceMatching("AppleSMC"));
+    if (smcService == IO_OBJECT_NULL) {
+        ret = kIOReturnNotFound;
+        goto exit;
+    }
+
+    ret = IOServiceOpen(smcService, mach_task_self(), 1, &smcConnect);
+    if (ret != kIOReturnSuccess) {
+        smcConnect = IO_OBJECT_NULL;
+        goto exit;
+    }
+    if (smcConnect == IO_OBJECT_NULL) {
+        ret = kIOReturnError;
+        goto exit;
+    }
+
+    ret = IOConnectCallMethod(smcConnect, kSMCUserClientOpen,
+                              NULL, 0, NULL, 0,
+                              NULL, NULL, NULL, NULL);
+    if (ret != kIOReturnSuccess) {
+        goto exit;
+    }
+
+    ret = IOConnectCallStructMethod(smcConnect, selector,
+                                    inputStruct, inputStructCnt,
+                                    outputStruct, &outputStructCnt);
+
+exit:
+    if (smcConnect != IO_OBJECT_NULL) {
+        IOConnectCallMethod(smcConnect, kSMCUserClientClose,
+                            NULL, 0, NULL, 0, NULL,
+                            NULL, NULL, NULL);
+        IOServiceClose(smcConnect);
+    }
+
+    return ret;
+}
+
+static IOReturn smc_read_key(uint32_t key,
+                             uint8_t *bytes,
+                             IOByteCount *dataSize)
+{
+    IOReturn ret;
+
+    SMCParamStruct inputStruct;
+    SMCParamStruct outputStruct;
+
+    if (key == 0 || bytes == NULL) {
+        ret = kIOReturnCannotWire;
+        goto exit;
+    }
+
+    /* determine key's data size */
+    memset(&inputStruct, 0, sizeof(SMCParamStruct));
+    inputStruct.data8 = kSMCGetKeyInfo;
+    inputStruct.key = key;
+
+    memset(&outputStruct, 0, sizeof(SMCParamStruct));
+    ret = smc_call_struct_method(kSMCHandleYPCEvent, &inputStruct, &outputStruct);
+    if (ret != kIOReturnSuccess) {
+        goto exit;
+    }
+    if (outputStruct.result == kSMCKeyNotFound) {
+        ret = kIOReturnNotFound;
+        goto exit;
+    }
+    if (outputStruct.result != kSMCSuccess) {
+        ret = kIOReturnInternalError;
+        goto exit;
+    }
+
+    /* get key value */
+    memset(&inputStruct, 0, sizeof(SMCParamStruct));
+    inputStruct.data8 = kSMCReadKey;
+    inputStruct.key = key;
+    inputStruct.keyInfo.dataSize = outputStruct.keyInfo.dataSize;
+
+    memset(&outputStruct, 0, sizeof(SMCParamStruct));
+    ret = smc_call_struct_method(kSMCHandleYPCEvent, &inputStruct, &outputStruct);
+    if (ret != kIOReturnSuccess) {
+        goto exit;
+    }
+    if (outputStruct.result == kSMCKeyNotFound) {
+        ret = kIOReturnNotFound;
+        goto exit;
+    }
+    if (outputStruct.result != kSMCSuccess) {
+        ret = kIOReturnInternalError;
+        goto exit;
+    }
+
+    memset(bytes, 0, *dataSize);
+    if (*dataSize > inputStruct.keyInfo.dataSize) {
+        *dataSize = inputStruct.keyInfo.dataSize;
+    }
+    memcpy(bytes, outputStruct.bytes, *dataSize);
+
+exit:
+    return ret;
+}
+#endif
+
 /* #define DEBUG_SMC */
 
 #define APPLESMC_DEFAULT_IOBASE        0x300
@@ -315,6 +480,7 @@ static const MemoryRegionOps applesmc_err_io_ops = {
 static void applesmc_isa_realize(DeviceState *dev, Error **errp)
 {
     AppleSMCState *s = APPLE_SMC(dev);
+    bool valid_key = false;
 
     memory_region_init_io(&s->io_data, OBJECT(s), &applesmc_data_io_ops, s,
                           "applesmc-data", 1);
@@ -331,7 +497,31 @@ static void applesmc_isa_realize(DeviceState *dev, Error **errp)
     isa_register_ioport(&s->parent_obj, &s->io_err,
                         s->iobase + APPLESMC_ERR_PORT);
 
-    if (!s->osk || (strlen(s->osk) != 64)) {
+    if (s->osk) {
+        valid_key = strlen(s->osk) == 64;
+    } else {
+#if defined(__APPLE__) && defined(__MACH__)
+        IOReturn ret;
+        IOByteCount size = 32;
+
+        ret = smc_read_key('OSK0', (uint8_t *) default_osk, &size);
+        if (ret != kIOReturnSuccess) {
+            goto failure;
+        }
+
+        ret = smc_read_key('OSK1', (uint8_t *) default_osk + size, &size);
+        if (ret != kIOReturnSuccess) {
+            goto failure;
+        }
+
+        warn_report("Using AppleSMC with host key");
+        valid_key = true;
+        s->osk = default_osk;
+failure:;
+#endif
+    }
+
+    if (!valid_key) {
         warn_report("Using AppleSMC with invalid key");
         s->osk = default_osk;
     }

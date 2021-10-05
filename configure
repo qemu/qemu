@@ -142,11 +142,11 @@ lines: ${BASH_LINENO[*]}"
 }
 
 do_cc() {
-    do_compiler "$cc" "$@"
+    do_compiler "$cc" $CPU_CFLAGS "$@"
 }
 
 do_cxx() {
-    do_compiler "$cxx" "$@"
+    do_compiler "$cxx" $CPU_CFLAGS "$@"
 }
 
 # Append $2 to the variable named $1, with space separation
@@ -1688,7 +1688,6 @@ esac
 
 eval "cross_cc_${cpu}=\$cc"
 cross_cc_vars="$cross_cc_vars cross_cc_${cpu}"
-QEMU_CFLAGS="$CPU_CFLAGS $QEMU_CFLAGS"
 
 # For user-mode emulation the host arch has to be one we explicitly
 # support, even if we're using TCI.
@@ -1995,7 +1994,7 @@ python_version=$($python -c 'import sys; print("%d.%d.%d" % (sys.version_info[0]
 python="$python -B"
 
 if test -z "$meson"; then
-    if test "$explicit_python" = no && has meson && version_ge "$(meson --version)" 0.55.3; then
+    if test "$explicit_python" = no && has meson && version_ge "$(meson --version)" 0.59.2; then
         meson=meson
     elif test $git_submodules_action != 'ignore' ; then
         meson=git
@@ -5114,9 +5113,9 @@ if test "$skip_meson" = no; then
   echo "c_link_args = [${LDFLAGS:+$(meson_quote $LDFLAGS)}]" >> $cross
   echo "cpp_link_args = [${LDFLAGS:+$(meson_quote $LDFLAGS)}]" >> $cross
   echo "[binaries]" >> $cross
-  echo "c = [$(meson_quote $cc)]" >> $cross
-  test -n "$cxx" && echo "cpp = [$(meson_quote $cxx)]" >> $cross
-  test -n "$objcc" && echo "objc = [$(meson_quote $objcc)]" >> $cross
+  echo "c = [$(meson_quote $cc $CPU_CFLAGS)]" >> $cross
+  test -n "$cxx" && echo "cpp = [$(meson_quote $cxx $CPU_CFLAGS)]" >> $cross
+  test -n "$objcc" && echo "objc = [$(meson_quote $objcc $CPU_CFLAGS)]" >> $cross
   echo "ar = [$(meson_quote $ar)]" >> $cross
   echo "nm = [$(meson_quote $nm)]" >> $cross
   echo "pkgconfig = [$(meson_quote $pkg_config_exe)]" >> $cross
@@ -5164,10 +5163,6 @@ if test "$skip_meson" = no; then
   mv $cross config-meson.cross
 
   rm -rf meson-private meson-info meson-logs
-  unset staticpic
-  if ! version_ge "$($meson --version)" 0.56.0; then
-    staticpic=$(if test "$pie" = yes; then echo true; else echo false; fi)
-  fi
   NINJA=$ninja $meson setup \
         --prefix "$prefix" \
         --libdir "$libdir" \
@@ -5187,7 +5182,6 @@ if test "$skip_meson" = no; then
         -Dwerror=$(if test "$werror" = yes; then echo true; else echo false; fi) \
         -Dstrip=$(if test "$strip_opt" = yes; then echo true; else echo false; fi) \
         -Db_pie=$(if test "$pie" = yes; then echo true; else echo false; fi) \
-        ${staticpic:+-Db_staticpic=$staticpic} \
         -Db_coverage=$(if test "$gcov" = yes; then echo true; else echo false; fi) \
         -Db_lto=$lto -Dcfi=$cfi -Dcfi_debug=$cfi_debug \
         -Dmalloc=$malloc -Dmalloc_trim=$malloc_trim -Dsparse=$sparse \
@@ -5223,6 +5217,7 @@ else
     perl -i -ne '
       s/^gettext = true$/gettext = auto/;
       s/^gettext = false$/gettext = disabled/;
+      /^b_staticpic/ && next;
       print;' meson-private/cmd_line.txt
   fi
 fi
