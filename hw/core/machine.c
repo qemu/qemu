@@ -37,7 +37,9 @@
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-pci.h"
 
-GlobalProperty hw_compat_6_1[] = {};
+GlobalProperty hw_compat_6_1[] = {
+    { "vhost-user-vsock-device", "seqpacket", "off" },
+};
 const size_t hw_compat_6_1_len = G_N_ELEMENTS(hw_compat_6_1);
 
 GlobalProperty hw_compat_6_0[] = {
@@ -46,6 +48,7 @@ GlobalProperty hw_compat_6_0[] = {
     { "nvme-ns", "eui64-default", "off"},
     { "e1000", "init-vet", "off" },
     { "e1000e", "init-vet", "off" },
+    { "vhost-vsock-device", "seqpacket", "off" },
 };
 const size_t hw_compat_6_0_len = G_N_ELEMENTS(hw_compat_6_0);
 

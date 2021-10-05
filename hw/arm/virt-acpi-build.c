@@ -240,6 +240,28 @@ static void acpi_dsdt_add_tpm(Aml *scope, VirtMachineState *vms)
 }
 #endif
 
+#define ID_MAPPING_ENTRY_SIZE 20
+#define SMMU_V3_ENTRY_SIZE 60
+#define ROOT_COMPLEX_ENTRY_SIZE 32
+#define IORT_NODE_OFFSET 48
+
+static void build_iort_id_mapping(GArray *table_data, uint32_t input_base,
+                                  uint32_t id_count, uint32_t out_ref)
+{
+    /* Identity RID mapping covering the whole input RID range */
+    build_append_int_noprefix(table_data, input_base, 4); /* Input base */
+    build_append_int_noprefix(table_data, id_count, 4); /* Number of IDs */
+    build_append_int_noprefix(table_data, input_base, 4); /* Output base */
+    build_append_int_noprefix(table_data, out_ref, 4); /* Output Reference */
+    build_append_int_noprefix(table_data, 0, 4); /* Flags */
+}
+
+struct AcpiIortIdMapping {
+    uint32_t input_base;
+    uint32_t id_count;
+};
+typedef struct AcpiIortIdMapping AcpiIortIdMapping;
+
 /* Build the iort ID mapping to SMMUv3 for a given PCI host bridge */
 static int
 iort_host_bridges(Object *obj, void *opaque)
@@ -273,20 +295,25 @@ static int iort_idmap_compare(gconstpointer a, gconstpointer b)
     return idmap_a->input_base - idmap_b->input_base;
 }
 
+/*
+ * Input Output Remapping Table (IORT)
+ * Conforms to "IO Remapping Table System Software on ARM Platforms",
+ * Document number: ARM DEN 0049B, October 2015
+ */
 static void
 build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 {
-    int i, nb_nodes, rc_mapping_count, iort_start = table_data->len;
+    int i, nb_nodes, rc_mapping_count;
+    const uint32_t iort_node_offset = IORT_NODE_OFFSET;
+    size_t node_size, smmu_offset = 0;
     AcpiIortIdMapping *idmap;
-    AcpiIortItsGroup *its;
-    AcpiIortTable *iort;
-    AcpiIortSmmu3 *smmu;
-    size_t node_size, iort_node_offset, iort_length, smmu_offset = 0;
-    AcpiIortRC *rc;
     GArray *smmu_idmaps = g_array_new(false, true, sizeof(AcpiIortIdMapping));
     GArray *its_idmaps = g_array_new(false, true, sizeof(AcpiIortIdMapping));
 
-    iort = acpi_data_push(table_data, sizeof(*iort));
+    AcpiTable table = { .sig = "IORT", .rev = 0, .oem_id = vms->oem_id,
+                        .oem_table_id = vms->oem_table_id };
+    /* Table 2 The IORT */
+    acpi_table_begin(&table, table_data);
 
     if (vms->iommu == VIRT_IOMMU_SMMUV3) {
         AcpiIortIdMapping next_range = {0};
@@ -324,186 +351,194 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
         nb_nodes = 2; /* RC, ITS */
         rc_mapping_count = 1;
     }
+    /* Number of IORT Nodes */
+    build_append_int_noprefix(table_data, nb_nodes, 4);
 
-    iort_length = sizeof(*iort);
-    iort->node_count = cpu_to_le32(nb_nodes);
-    /*
-     * Use a copy in case table_data->data moves during acpi_data_push
-     * operations.
-     */
-    iort_node_offset = sizeof(*iort);
-    iort->node_offset = cpu_to_le32(iort_node_offset);
+    /* Offset to Array of IORT Nodes */
+    build_append_int_noprefix(table_data, IORT_NODE_OFFSET, 4);
+    build_append_int_noprefix(table_data, 0, 4); /* Reserved */
 
-    /* ITS group node */
-    node_size =  sizeof(*its) + sizeof(uint32_t);
-    iort_length += node_size;
-    its = acpi_data_push(table_data, node_size);
-
-    its->type = ACPI_IORT_NODE_ITS_GROUP;
-    its->length = cpu_to_le16(node_size);
-    its->its_count = cpu_to_le32(1);
-    its->identifiers[0] = 0; /* MADT translation_id */
+    /* 3.1.1.3 ITS group node */
+    build_append_int_noprefix(table_data, 0 /* ITS Group */, 1); /* Type */
+    node_size =  20 /* fixed header size */ + 4 /* 1 GIC ITS Identifier */;
+    build_append_int_noprefix(table_data, node_size, 2); /* Length */
+    build_append_int_noprefix(table_data, 0, 1); /* Revision */
+    build_append_int_noprefix(table_data, 0, 4); /* Reserved */
+    build_append_int_noprefix(table_data, 0, 4); /* Number of ID mappings */
+    build_append_int_noprefix(table_data, 0, 4); /* Reference to ID Array */
+    build_append_int_noprefix(table_data, 1, 4); /* Number of ITSs */
+    /* GIC ITS Identifier Array */
+    build_append_int_noprefix(table_data, 0 /* MADT translation_id */, 4);
 
     if (vms->iommu == VIRT_IOMMU_SMMUV3) {
         int irq =  vms->irqmap[VIRT_SMMU] + ARM_SPI_BASE;
 
-        /* SMMUv3 node */
-        smmu_offset = iort_node_offset + node_size;
-        node_size = sizeof(*smmu) + sizeof(*idmap);
-        iort_length += node_size;
-        smmu = acpi_data_push(table_data, node_size);
+        smmu_offset = table_data->len - table.table_offset;
+        /* 3.1.1.2 SMMUv3 */
+        build_append_int_noprefix(table_data, 4 /* SMMUv3 */, 1); /* Type */
+        node_size =  SMMU_V3_ENTRY_SIZE + ID_MAPPING_ENTRY_SIZE;
+        build_append_int_noprefix(table_data, node_size, 2); /* Length */
+        build_append_int_noprefix(table_data, 0, 1); /* Revision */
+        build_append_int_noprefix(table_data, 0, 4); /* Reserved */
+        build_append_int_noprefix(table_data, 1, 4); /* Number of ID mappings */
+        /* Reference to ID Array */
+        build_append_int_noprefix(table_data, SMMU_V3_ENTRY_SIZE, 4);
+        /* Base address */
+        build_append_int_noprefix(table_data, vms->memmap[VIRT_SMMU].base, 8);
+        /* Flags */
+        build_append_int_noprefix(table_data, 1 /* COHACC OverrideNote */, 4);
+        build_append_int_noprefix(table_data, 0, 4); /* Reserved */
+        build_append_int_noprefix(table_data, 0, 8); /* VATOS address */
+        /* Model */
+        build_append_int_noprefix(table_data, 0 /* Generic SMMU-v3 */, 4);
+        build_append_int_noprefix(table_data, irq, 4); /* Event */
+        build_append_int_noprefix(table_data, irq + 1, 4); /* PRI */
+        build_append_int_noprefix(table_data, irq + 3, 4); /* GERR */
+        build_append_int_noprefix(table_data, irq + 2, 4); /* Sync */
 
-        smmu->type = ACPI_IORT_NODE_SMMU_V3;
-        smmu->length = cpu_to_le16(node_size);
-        smmu->mapping_count = cpu_to_le32(1);
-        smmu->mapping_offset = cpu_to_le32(sizeof(*smmu));
-        smmu->base_address = cpu_to_le64(vms->memmap[VIRT_SMMU].base);
-        smmu->flags = cpu_to_le32(ACPI_IORT_SMMU_V3_COHACC_OVERRIDE);
-        smmu->event_gsiv = cpu_to_le32(irq);
-        smmu->pri_gsiv = cpu_to_le32(irq + 1);
-        smmu->sync_gsiv = cpu_to_le32(irq + 2);
-        smmu->gerr_gsiv = cpu_to_le32(irq + 3);
-
-        /* Identity RID mapping covering the whole input RID range */
-        idmap = &smmu->id_mapping_array[0];
-        idmap->input_base = 0;
-        idmap->id_count = cpu_to_le32(0xFFFF);
-        idmap->output_base = 0;
         /* output IORT node is the ITS group node (the first node) */
-        idmap->output_reference = cpu_to_le32(iort_node_offset);
+        build_iort_id_mapping(table_data, 0, 0xFFFF, IORT_NODE_OFFSET);
     }
 
-    /* Root Complex Node */
-    node_size = sizeof(*rc) + sizeof(*idmap) * rc_mapping_count;
-    iort_length += node_size;
-    rc = acpi_data_push(table_data, node_size);
+    /* Table 16 Root Complex Node */
+    build_append_int_noprefix(table_data, 2 /* Root complex */, 1); /* Type */
+    node_size =  ROOT_COMPLEX_ENTRY_SIZE +
+                 ID_MAPPING_ENTRY_SIZE * rc_mapping_count;
+    build_append_int_noprefix(table_data, node_size, 2); /* Length */
+    build_append_int_noprefix(table_data, 0, 1); /* Revision */
+    build_append_int_noprefix(table_data, 0, 4); /* Reserved */
+    /* Number of ID mappings */
+    build_append_int_noprefix(table_data, rc_mapping_count, 4);
+    /* Reference to ID Array */
+    build_append_int_noprefix(table_data, ROOT_COMPLEX_ENTRY_SIZE, 4);
 
-    rc->type = ACPI_IORT_NODE_PCI_ROOT_COMPLEX;
-    rc->length = cpu_to_le16(node_size);
-    rc->mapping_count = cpu_to_le32(rc_mapping_count);
-    rc->mapping_offset = cpu_to_le32(sizeof(*rc));
+    /* Table 13 Memory access properties */
+    /* CCA: Cache Coherent Attribute */
+    build_append_int_noprefix(table_data, 1 /* fully coherent */, 4);
+    build_append_int_noprefix(table_data, 0, 1); /* AH: Note Allocation Hints */
+    build_append_int_noprefix(table_data, 0, 2); /* Reserved */
+    /* MAF: Note Memory Access Flags */
+    build_append_int_noprefix(table_data, 0x3 /* CCA = CPM = DCAS = 1 */, 1);
 
-    /* fully coherent device */
-    rc->memory_properties.cache_coherency = cpu_to_le32(1);
-    rc->memory_properties.memory_flags = 0x3; /* CCA = CPM = DCAS = 1 */
-    rc->pci_segment_number = 0; /* MCFG pci_segment */
+    build_append_int_noprefix(table_data, 0, 4); /* ATS Attribute */
+    /* MCFG pci_segment */
+    build_append_int_noprefix(table_data, 0, 4); /* PCI Segment number */
 
+    /* Output Reference */
     if (vms->iommu == VIRT_IOMMU_SMMUV3) {
         AcpiIortIdMapping *range;
 
         /* translated RIDs connect to SMMUv3 node: RC -> SMMUv3 -> ITS */
         for (i = 0; i < smmu_idmaps->len; i++) {
-            idmap = &rc->id_mapping_array[i];
             range = &g_array_index(smmu_idmaps, AcpiIortIdMapping, i);
-
-            idmap->input_base = cpu_to_le32(range->input_base);
-            idmap->id_count = cpu_to_le32(range->id_count);
-            idmap->output_base = cpu_to_le32(range->input_base);
             /* output IORT node is the smmuv3 node */
-            idmap->output_reference = cpu_to_le32(smmu_offset);
+            build_iort_id_mapping(table_data, range->input_base,
+                                  range->id_count, smmu_offset);
         }
 
         /* bypassed RIDs connect to ITS group node directly: RC -> ITS */
         for (i = 0; i < its_idmaps->len; i++) {
-            idmap = &rc->id_mapping_array[smmu_idmaps->len + i];
             range = &g_array_index(its_idmaps, AcpiIortIdMapping, i);
-
-            idmap->input_base = cpu_to_le32(range->input_base);
-            idmap->id_count = cpu_to_le32(range->id_count);
-            idmap->output_base = cpu_to_le32(range->input_base);
             /* output IORT node is the ITS group node (the first node) */
-            idmap->output_reference = cpu_to_le32(iort_node_offset);
+            build_iort_id_mapping(table_data, range->input_base,
+                                  range->id_count, iort_node_offset);
         }
     } else {
-        /* Identity RID mapping covering the whole input RID range */
-        idmap = &rc->id_mapping_array[0];
-        idmap->input_base = cpu_to_le32(0);
-        idmap->id_count = cpu_to_le32(0xFFFF);
-        idmap->output_base = cpu_to_le32(0);
         /* output IORT node is the ITS group node (the first node) */
-        idmap->output_reference = cpu_to_le32(iort_node_offset);
+        build_iort_id_mapping(table_data, 0, 0xFFFF, IORT_NODE_OFFSET);
     }
 
+    acpi_table_end(linker, &table);
     g_array_free(smmu_idmaps, true);
     g_array_free(its_idmaps, true);
-
-    /*
-     * Update the pointer address in case table_data->data moves during above
-     * acpi_data_push operations.
-     */
-    iort = (AcpiIortTable *)(table_data->data + iort_start);
-    iort->length = cpu_to_le32(iort_length);
-
-    build_header(linker, table_data, (void *)(table_data->data + iort_start),
-                 "IORT", table_data->len - iort_start, 0, vms->oem_id,
-                 vms->oem_table_id);
 }
 
+/*
+ * Serial Port Console Redirection Table (SPCR)
+ * Rev: 1.07
+ */
 static void
 build_spcr(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 {
-    AcpiSerialPortConsoleRedirection *spcr;
-    const MemMapEntry *uart_memmap = &vms->memmap[VIRT_UART];
-    int irq = vms->irqmap[VIRT_UART] + ARM_SPI_BASE;
-    int spcr_start = table_data->len;
+    AcpiTable table = { .sig = "SPCR", .rev = 2, .oem_id = vms->oem_id,
+                        .oem_table_id = vms->oem_table_id };
 
-    spcr = acpi_data_push(table_data, sizeof(*spcr));
+    acpi_table_begin(&table, table_data);
 
-    spcr->interface_type = 0x3;    /* ARM PL011 UART */
+    /* Interface Type */
+    build_append_int_noprefix(table_data, 3, 1); /* ARM PL011 UART */
+    build_append_int_noprefix(table_data, 0, 3); /* Reserved */
+    /* Base Address */
+    build_append_gas(table_data, AML_AS_SYSTEM_MEMORY, 8, 0, 1,
+                     vms->memmap[VIRT_UART].base);
+    /* Interrupt Type */
+    build_append_int_noprefix(table_data,
+        (1 << 3) /* Bit[3] ARMH GIC interrupt */, 1);
+    build_append_int_noprefix(table_data, 0, 1); /* IRQ */
+    /* Global System Interrupt */
+    build_append_int_noprefix(table_data,
+                              vms->irqmap[VIRT_UART] + ARM_SPI_BASE, 4);
+    build_append_int_noprefix(table_data, 3 /* 9600 */, 1); /* Baud Rate */
+    build_append_int_noprefix(table_data, 0 /* No Parity */, 1); /* Parity */
+    /* Stop Bits */
+    build_append_int_noprefix(table_data, 1 /* 1 Stop bit */, 1);
+    /* Flow Control */
+    build_append_int_noprefix(table_data,
+        (1 << 1) /* RTS/CTS hardware flow control */, 1);
+    /* Terminal Type */
+    build_append_int_noprefix(table_data, 0 /* VT100 */, 1);
+    build_append_int_noprefix(table_data, 0, 1); /* Language */
+    /* PCI Device ID  */
+    build_append_int_noprefix(table_data, 0xffff /* not a PCI device*/, 2);
+    /* PCI Vendor ID */
+    build_append_int_noprefix(table_data, 0xffff /* not a PCI device*/, 2);
+    build_append_int_noprefix(table_data, 0, 1); /* PCI Bus Number */
+    build_append_int_noprefix(table_data, 0, 1); /* PCI Device Number */
+    build_append_int_noprefix(table_data, 0, 1); /* PCI Function Number */
+    build_append_int_noprefix(table_data, 0, 4); /* PCI Flags */
+    build_append_int_noprefix(table_data, 0, 1); /* PCI Segment */
+    build_append_int_noprefix(table_data, 0, 4); /* Reserved */
 
-    spcr->base_address.space_id = AML_SYSTEM_MEMORY;
-    spcr->base_address.bit_width = 8;
-    spcr->base_address.bit_offset = 0;
-    spcr->base_address.access_width = 1;
-    spcr->base_address.address = cpu_to_le64(uart_memmap->base);
-
-    spcr->interrupt_types = (1 << 3); /* Bit[3] ARMH GIC interrupt */
-    spcr->gsi = cpu_to_le32(irq);  /* Global System Interrupt */
-
-    spcr->baud = 3;                /* Baud Rate: 3 = 9600 */
-    spcr->parity = 0;              /* No Parity */
-    spcr->stopbits = 1;            /* 1 Stop bit */
-    spcr->flowctrl = (1 << 1);     /* Bit[1] = RTS/CTS hardware flow control */
-    spcr->term_type = 0;           /* Terminal Type: 0 = VT100 */
-
-    spcr->pci_device_id = 0xffff;  /* PCI Device ID: not a PCI device */
-    spcr->pci_vendor_id = 0xffff;  /* PCI Vendor ID: not a PCI device */
-
-    build_header(linker, table_data, (void *)(table_data->data + spcr_start),
-                 "SPCR", table_data->len - spcr_start, 2, vms->oem_id,
-                 vms->oem_table_id);
+    acpi_table_end(linker, &table);
 }
 
+/*
+ * ACPI spec, Revision 5.1
+ * 5.2.16 System Resource Affinity Table (SRAT)
+ */
 static void
 build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 {
-    AcpiSystemResourceAffinityTable *srat;
-    AcpiSratProcessorGiccAffinity *core;
-    AcpiSratMemoryAffinity *numamem;
-    int i, srat_start;
+    int i;
     uint64_t mem_base;
     MachineClass *mc = MACHINE_GET_CLASS(vms);
     MachineState *ms = MACHINE(vms);
     const CPUArchIdList *cpu_list = mc->possible_cpu_arch_ids(ms);
+    AcpiTable table = { .sig = "SRAT", .rev = 3, .oem_id = vms->oem_id,
+                        .oem_table_id = vms->oem_table_id };
 
-    srat_start = table_data->len;
-    srat = acpi_data_push(table_data, sizeof(*srat));
-    srat->reserved1 = cpu_to_le32(1);
+    acpi_table_begin(&table, table_data);
+    build_append_int_noprefix(table_data, 1, 4); /* Reserved */
+    build_append_int_noprefix(table_data, 0, 8); /* Reserved */
 
     for (i = 0; i < cpu_list->len; ++i) {
-        core = acpi_data_push(table_data, sizeof(*core));
-        core->type = ACPI_SRAT_PROCESSOR_GICC;
-        core->length = sizeof(*core);
-        core->proximity = cpu_to_le32(cpu_list->cpus[i].props.node_id);
-        core->acpi_processor_uid = cpu_to_le32(i);
-        core->flags = cpu_to_le32(1);
+        uint32_t nodeid = cpu_list->cpus[i].props.node_id;
+        /*
+         * 5.2.16.4 GICC Affinity Structure
+         */
+        build_append_int_noprefix(table_data, 3, 1);      /* Type */
+        build_append_int_noprefix(table_data, 18, 1);     /* Length */
+        build_append_int_noprefix(table_data, nodeid, 4); /* Proximity Domain */
+        build_append_int_noprefix(table_data, i, 4); /* ACPI Processor UID */
+        /* Flags, Table 5-76 */
+        build_append_int_noprefix(table_data, 1 /* Enabled */, 4);
+        build_append_int_noprefix(table_data, 0, 4); /* Clock Domain */
     }
 
     mem_base = vms->memmap[VIRT_MEM].base;
     for (i = 0; i < ms->numa_state->num_nodes; ++i) {
         if (ms->numa_state->nodes[i].node_mem > 0) {
-            numamem = acpi_data_push(table_data, sizeof(*numamem));
-            build_srat_memory(numamem, mem_base,
+            build_srat_memory(table_data, mem_base,
                               ms->numa_state->nodes[i].node_mem, i,
                               MEM_AFFINITY_ENABLED);
             mem_base += ms->numa_state->nodes[i].node_mem;
@@ -515,142 +550,193 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     }
 
     if (ms->device_memory) {
-        numamem = acpi_data_push(table_data, sizeof *numamem);
-        build_srat_memory(numamem, ms->device_memory->base,
+        build_srat_memory(table_data, ms->device_memory->base,
                           memory_region_size(&ms->device_memory->mr),
                           ms->numa_state->num_nodes - 1,
                           MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED);
     }
 
-    build_header(linker, table_data, (void *)(table_data->data + srat_start),
-                 "SRAT", table_data->len - srat_start, 3, vms->oem_id,
-                 vms->oem_table_id);
+    acpi_table_end(linker, &table);
 }
 
-/* GTDT */
+/*
+ * ACPI spec, Revision 5.1
+ * 5.2.24 Generic Timer Description Table (GTDT)
+ */
 static void
 build_gtdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 {
     VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
-    int gtdt_start = table_data->len;
-    AcpiGenericTimerTable *gtdt;
-    uint32_t irqflags;
+    /*
+     * Table 5-117 Flag Definitions
+     * set only "Timer interrupt Mode" and assume "Timer Interrupt
+     * polarity" bit as '0: Interrupt is Active high'
+     */
+    uint32_t irqflags = vmc->claim_edge_triggered_timers ?
+        1 : /* Interrupt is Edge triggered */
+        0;  /* Interrupt is Level triggered  */
+    AcpiTable table = { .sig = "GTDT", .rev = 2, .oem_id = vms->oem_id,
+                        .oem_table_id = vms->oem_table_id };
 
-    if (vmc->claim_edge_triggered_timers) {
-        irqflags = ACPI_GTDT_INTERRUPT_MODE_EDGE;
-    } else {
-        irqflags = ACPI_GTDT_INTERRUPT_MODE_LEVEL;
-    }
+    acpi_table_begin(&table, table_data);
 
-    gtdt = acpi_data_push(table_data, sizeof *gtdt);
-    /* The interrupt values are the same with the device tree when adding 16 */
-    gtdt->secure_el1_interrupt = cpu_to_le32(ARCH_TIMER_S_EL1_IRQ + 16);
-    gtdt->secure_el1_flags = cpu_to_le32(irqflags);
+    /* CntControlBase Physical Address */
+    /* FIXME: invalid value, should be 0xFFFFFFFFFFFFFFFF if not impl. ? */
+    build_append_int_noprefix(table_data, 0, 8);
+    build_append_int_noprefix(table_data, 0, 4); /* Reserved */
+    /*
+     * FIXME: clarify comment:
+     * The interrupt values are the same with the device tree when adding 16
+     */
+    /* Secure EL1 timer GSIV */
+    build_append_int_noprefix(table_data, ARCH_TIMER_S_EL1_IRQ + 16, 4);
+    /* Secure EL1 timer Flags */
+    build_append_int_noprefix(table_data, irqflags, 4);
+    /* Non-Secure EL1 timer GSIV */
+    build_append_int_noprefix(table_data, ARCH_TIMER_NS_EL1_IRQ + 16, 4);
+    /* Non-Secure EL1 timer Flags */
+    build_append_int_noprefix(table_data, irqflags |
+                              1UL << 2, /* Always-on Capability */
+                              4);
+    /* Virtual timer GSIV */
+    build_append_int_noprefix(table_data, ARCH_TIMER_VIRT_IRQ + 16, 4);
+    /* Virtual Timer Flags */
+    build_append_int_noprefix(table_data, irqflags, 4);
+    /* Non-Secure EL2 timer GSIV */
+    build_append_int_noprefix(table_data, ARCH_TIMER_NS_EL2_IRQ + 16, 4);
+    /* Non-Secure EL2 timer Flags */
+    build_append_int_noprefix(table_data, irqflags, 4);
+    /* CntReadBase Physical address */
+    build_append_int_noprefix(table_data, 0, 8);
+    /* Platform Timer Count */
+    build_append_int_noprefix(table_data, 0, 4);
+    /* Platform Timer Offset */
+    build_append_int_noprefix(table_data, 0, 4);
 
-    gtdt->non_secure_el1_interrupt = cpu_to_le32(ARCH_TIMER_NS_EL1_IRQ + 16);
-    gtdt->non_secure_el1_flags = cpu_to_le32(irqflags |
-                                             ACPI_GTDT_CAP_ALWAYS_ON);
-
-    gtdt->virtual_timer_interrupt = cpu_to_le32(ARCH_TIMER_VIRT_IRQ + 16);
-    gtdt->virtual_timer_flags = cpu_to_le32(irqflags);
-
-    gtdt->non_secure_el2_interrupt = cpu_to_le32(ARCH_TIMER_NS_EL2_IRQ + 16);
-    gtdt->non_secure_el2_flags = cpu_to_le32(irqflags);
-
-    build_header(linker, table_data,
-                 (void *)(table_data->data + gtdt_start), "GTDT",
-                 table_data->len - gtdt_start, 2, vms->oem_id,
-                 vms->oem_table_id);
+    acpi_table_end(linker, &table);
 }
 
-/* MADT */
+/*
+ * ACPI spec, Revision 5.1 Errata A
+ * 5.2.12 Multiple APIC Description Table (MADT)
+ */
+static void build_append_gicr(GArray *table_data, uint64_t base, uint32_t size)
+{
+    build_append_int_noprefix(table_data, 0xE, 1);  /* Type */
+    build_append_int_noprefix(table_data, 16, 1);   /* Length */
+    build_append_int_noprefix(table_data, 0, 2);    /* Reserved */
+    /* Discovery Range Base Addres */
+    build_append_int_noprefix(table_data, base, 8);
+    build_append_int_noprefix(table_data, size, 4); /* Discovery Range Length */
+}
+
 static void
 build_madt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 {
-    VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
-    int madt_start = table_data->len;
-    const MemMapEntry *memmap = vms->memmap;
-    const int *irqmap = vms->irqmap;
-    AcpiMadtGenericDistributor *gicd;
-    AcpiMadtGenericMsiFrame *gic_msi;
     int i;
+    VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
+    const MemMapEntry *memmap = vms->memmap;
+    AcpiTable table = { .sig = "APIC", .rev = 3, .oem_id = vms->oem_id,
+                        .oem_table_id = vms->oem_table_id };
 
-    acpi_data_push(table_data, sizeof(AcpiMultipleApicTable));
+    acpi_table_begin(&table, table_data);
+    /* Local Interrupt Controller Address */
+    build_append_int_noprefix(table_data, 0, 4);
+    build_append_int_noprefix(table_data, 0, 4);   /* Flags */
 
-    gicd = acpi_data_push(table_data, sizeof *gicd);
-    gicd->type = ACPI_APIC_GENERIC_DISTRIBUTOR;
-    gicd->length = sizeof(*gicd);
-    gicd->base_address = cpu_to_le64(memmap[VIRT_GIC_DIST].base);
-    gicd->version = vms->gic_version;
+    /* 5.2.12.15 GIC Distributor Structure */
+    build_append_int_noprefix(table_data, 0xC, 1); /* Type */
+    build_append_int_noprefix(table_data, 24, 1);  /* Length */
+    build_append_int_noprefix(table_data, 0, 2);   /* Reserved */
+    build_append_int_noprefix(table_data, 0, 4);   /* GIC ID */
+    /* Physical Base Address */
+    build_append_int_noprefix(table_data, memmap[VIRT_GIC_DIST].base, 8);
+    build_append_int_noprefix(table_data, 0, 4);   /* System Vector Base */
+    /* GIC version */
+    build_append_int_noprefix(table_data, vms->gic_version, 1);
+    build_append_int_noprefix(table_data, 0, 3);   /* Reserved */
 
     for (i = 0; i < MACHINE(vms)->smp.cpus; i++) {
-        AcpiMadtGenericCpuInterface *gicc = acpi_data_push(table_data,
-                                                           sizeof(*gicc));
         ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(i));
+        uint64_t physical_base_address = 0, gich = 0, gicv = 0;
+        uint32_t vgic_interrupt = vms->virt ? PPI(ARCH_GIC_MAINT_IRQ) : 0;
+        uint32_t pmu_interrupt = arm_feature(&armcpu->env, ARM_FEATURE_PMU) ?
+                                             PPI(VIRTUAL_PMU_IRQ) : 0;
 
-        gicc->type = ACPI_APIC_GENERIC_CPU_INTERFACE;
-        gicc->length = sizeof(*gicc);
         if (vms->gic_version == 2) {
-            gicc->base_address = cpu_to_le64(memmap[VIRT_GIC_CPU].base);
-            gicc->gich_base_address = cpu_to_le64(memmap[VIRT_GIC_HYP].base);
-            gicc->gicv_base_address = cpu_to_le64(memmap[VIRT_GIC_VCPU].base);
+            physical_base_address = memmap[VIRT_GIC_CPU].base;
+            gicv = memmap[VIRT_GIC_VCPU].base;
+            gich = memmap[VIRT_GIC_HYP].base;
         }
-        gicc->cpu_interface_number = cpu_to_le32(i);
-        gicc->arm_mpidr = cpu_to_le64(armcpu->mp_affinity);
-        gicc->uid = cpu_to_le32(i);
-        gicc->flags = cpu_to_le32(ACPI_MADT_GICC_ENABLED);
 
-        if (arm_feature(&armcpu->env, ARM_FEATURE_PMU)) {
-            gicc->performance_interrupt = cpu_to_le32(PPI(VIRTUAL_PMU_IRQ));
-        }
-        if (vms->virt) {
-            gicc->vgic_interrupt = cpu_to_le32(PPI(ARCH_GIC_MAINT_IRQ));
-        }
+        /* 5.2.12.14 GIC Structure */
+        build_append_int_noprefix(table_data, 0xB, 1);  /* Type */
+        build_append_int_noprefix(table_data, 76, 1);   /* Length */
+        build_append_int_noprefix(table_data, 0, 2);    /* Reserved */
+        build_append_int_noprefix(table_data, i, 4);    /* GIC ID */
+        build_append_int_noprefix(table_data, i, 4);    /* ACPI Processor UID */
+        /* Flags */
+        build_append_int_noprefix(table_data, 1, 4);    /* Enabled */
+        /* Parking Protocol Version */
+        build_append_int_noprefix(table_data, 0, 4);
+        /* Performance Interrupt GSIV */
+        build_append_int_noprefix(table_data, pmu_interrupt, 4);
+        build_append_int_noprefix(table_data, 0, 8); /* Parked Address */
+        /* Physical Base Address */
+        build_append_int_noprefix(table_data, physical_base_address, 8);
+        build_append_int_noprefix(table_data, gicv, 8); /* GICV */
+        build_append_int_noprefix(table_data, gich, 8); /* GICH */
+        /* VGIC Maintenance interrupt */
+        build_append_int_noprefix(table_data, vgic_interrupt, 4);
+        build_append_int_noprefix(table_data, 0, 8);    /* GICR Base Address*/
+        /* MPIDR */
+        build_append_int_noprefix(table_data, armcpu->mp_affinity, 8);
     }
 
     if (vms->gic_version == 3) {
-        AcpiMadtGenericTranslator *gic_its;
-        int nb_redist_regions = virt_gicv3_redist_region_count(vms);
-        AcpiMadtGenericRedistributor *gicr = acpi_data_push(table_data,
-                                                         sizeof *gicr);
-
-        gicr->type = ACPI_APIC_GENERIC_REDISTRIBUTOR;
-        gicr->length = sizeof(*gicr);
-        gicr->base_address = cpu_to_le64(memmap[VIRT_GIC_REDIST].base);
-        gicr->range_length = cpu_to_le32(memmap[VIRT_GIC_REDIST].size);
-
-        if (nb_redist_regions == 2) {
-            gicr = acpi_data_push(table_data, sizeof(*gicr));
-            gicr->type = ACPI_APIC_GENERIC_REDISTRIBUTOR;
-            gicr->length = sizeof(*gicr);
-            gicr->base_address =
-                cpu_to_le64(memmap[VIRT_HIGH_GIC_REDIST2].base);
-            gicr->range_length =
-                cpu_to_le32(memmap[VIRT_HIGH_GIC_REDIST2].size);
+        build_append_gicr(table_data, memmap[VIRT_GIC_REDIST].base,
+                                      memmap[VIRT_GIC_REDIST].size);
+        if (virt_gicv3_redist_region_count(vms) == 2) {
+            build_append_gicr(table_data, memmap[VIRT_HIGH_GIC_REDIST2].base,
+                                          memmap[VIRT_HIGH_GIC_REDIST2].size);
         }
 
         if (its_class_name() && !vmc->no_its) {
-            gic_its = acpi_data_push(table_data, sizeof *gic_its);
-            gic_its->type = ACPI_APIC_GENERIC_TRANSLATOR;
-            gic_its->length = sizeof(*gic_its);
-            gic_its->translation_id = 0;
-            gic_its->base_address = cpu_to_le64(memmap[VIRT_GIC_ITS].base);
+            /*
+             * FIXME: Structure is from Revision 6.0 where 'GIC Structure'
+             * has additional fields on top of implemented 5.1 Errata A,
+             * to make it consistent with v6.0 we need to bump everything
+             * to v6.0
+             */
+            /*
+             * ACPI spec, Revision 6.0 Errata A
+             * (original 6.0 definition has invalid Length)
+             * 5.2.12.18 GIC ITS Structure
+             */
+            build_append_int_noprefix(table_data, 0xF, 1);  /* Type */
+            build_append_int_noprefix(table_data, 20, 1);   /* Length */
+            build_append_int_noprefix(table_data, 0, 2);    /* Reserved */
+            build_append_int_noprefix(table_data, 0, 4);    /* GIC ITS ID */
+            /* Physical Base Address */
+            build_append_int_noprefix(table_data, memmap[VIRT_GIC_ITS].base, 8);
+            build_append_int_noprefix(table_data, 0, 4);    /* Reserved */
         }
     } else {
-        gic_msi = acpi_data_push(table_data, sizeof *gic_msi);
-        gic_msi->type = ACPI_APIC_GENERIC_MSI_FRAME;
-        gic_msi->length = sizeof(*gic_msi);
-        gic_msi->gic_msi_frame_id = 0;
-        gic_msi->base_address = cpu_to_le64(memmap[VIRT_GIC_V2M].base);
-        gic_msi->flags = cpu_to_le32(1);
-        gic_msi->spi_count = cpu_to_le16(NUM_GICV2M_SPIS);
-        gic_msi->spi_base = cpu_to_le16(irqmap[VIRT_GIC_V2M] + ARM_SPI_BASE);
-    }
+        const uint16_t spi_base = vms->irqmap[VIRT_GIC_V2M] + ARM_SPI_BASE;
 
-    build_header(linker, table_data,
-                 (void *)(table_data->data + madt_start), "APIC",
-                 table_data->len - madt_start, 3, vms->oem_id,
-                 vms->oem_table_id);
+        /* 5.2.12.16 GIC MSI Frame Structure */
+        build_append_int_noprefix(table_data, 0xD, 1);  /* Type */
+        build_append_int_noprefix(table_data, 24, 1);   /* Length */
+        build_append_int_noprefix(table_data, 0, 2);    /* Reserved */
+        build_append_int_noprefix(table_data, 0, 4);    /* GIC MSI Frame ID */
+        /* Physical Base Address */
+        build_append_int_noprefix(table_data, memmap[VIRT_GIC_V2M].base, 8);
+        build_append_int_noprefix(table_data, 1, 4);    /* Flags */
+        /* SPI Count */
+        build_append_int_noprefix(table_data, NUM_GICV2M_SPIS, 2);
+        build_append_int_noprefix(table_data, spi_base, 2); /* SPI Base */
+    }
+    acpi_table_end(linker, &table);
 }
 
 /* FADT */
@@ -692,10 +778,11 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     MachineState *ms = MACHINE(vms);
     const MemMapEntry *memmap = vms->memmap;
     const int *irqmap = vms->irqmap;
+    AcpiTable table = { .sig = "DSDT", .rev = 2, .oem_id = vms->oem_id,
+                        .oem_table_id = vms->oem_table_id };
 
+    acpi_table_begin(&table, table_data);
     dsdt = init_aml_allocator();
-    /* Reserve space for header */
-    acpi_data_push(dsdt->buf, sizeof(AcpiTableHeader));
 
     /* When booting the VM with UEFI, UEFI takes ownership of the RTC hardware.
      * While UEFI can use libfdt to disable the RTC device node in the DTB that
@@ -742,12 +829,10 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 
     aml_append(dsdt, scope);
 
-    /* copy AML table into ACPI tables blob and patch header there */
+    /* copy AML table into ACPI tables blob */
     g_array_append_vals(table_data, dsdt->buf->data, dsdt->buf->len);
-    build_header(linker, table_data,
-        (void *)(table_data->data + table_data->len - dsdt->buf->len),
-                 "DSDT", dsdt->buf->len, 2, vms->oem_id,
-                 vms->oem_table_id);
+
+    acpi_table_end(linker, &table);
     free_aml_allocator();
 }
 

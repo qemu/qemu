@@ -52,6 +52,19 @@ static void build_append_byte(GArray *array, uint8_t val)
     g_array_append_val(array, val);
 }
 
+static void build_append_padded_str(GArray *array, const char *str,
+                                    size_t maxlen, char pad)
+{
+    size_t i;
+    size_t len = strlen(str);
+
+    g_assert(len <= maxlen);
+    g_array_append_vals(array, str, len);
+    for (i = maxlen - len; i > 0; i--) {
+        g_array_append_val(array, pad);
+    }
+}
+
 static void build_append_array(GArray *array, GArray *val)
 {
     g_array_append_vals(array, val->data, val->len);
@@ -1692,27 +1705,53 @@ Aml *aml_object_type(Aml *object)
     return var;
 }
 
-void
-build_header(BIOSLinker *linker, GArray *table_data,
-             AcpiTableHeader *h, const char *sig, int len, uint8_t rev,
-             const char *oem_id, const char *oem_table_id)
+void acpi_table_begin(AcpiTable *desc, GArray *array)
 {
-    unsigned tbl_offset = (char *)h - table_data->data;
-    unsigned checksum_offset = (char *)&h->checksum - table_data->data;
-    memcpy(&h->signature, sig, 4);
-    h->length = cpu_to_le32(len);
-    h->revision = rev;
 
-    strpadcpy((char *)h->oem_id, sizeof h->oem_id, oem_id, ' ');
-    strpadcpy((char *)h->oem_table_id, sizeof h->oem_table_id,
-              oem_table_id, ' ');
+    desc->array = array;
+    desc->table_offset = array->len;
 
-    h->oem_revision = cpu_to_le32(1);
-    memcpy(h->asl_compiler_id, ACPI_BUILD_APPNAME8, 4);
-    h->asl_compiler_revision = cpu_to_le32(1);
-    /* Checksum to be filled in by Guest linker */
+    /*
+     * ACPI spec 1.0b
+     * 5.2.3 System Description Table Header
+     */
+    g_assert(strlen(desc->sig) == 4);
+    g_array_append_vals(array, desc->sig, 4); /* Signature */
+    /*
+     * reserve space for Length field, which will be patched by
+     * acpi_table_end() when the table creation is finished.
+     */
+    build_append_int_noprefix(array, 0, 4); /* Length */
+    build_append_int_noprefix(array, desc->rev, 1); /* Revision */
+    build_append_int_noprefix(array, 0, 1); /* Checksum */
+    build_append_padded_str(array, desc->oem_id, 6, ' '); /* OEMID */
+    /* OEM Table ID */
+    build_append_padded_str(array, desc->oem_table_id, 8, ' ');
+    build_append_int_noprefix(array, 1, 4); /* OEM Revision */
+    g_array_append_vals(array, ACPI_BUILD_APPNAME8, 4); /* Creator ID */
+    build_append_int_noprefix(array, 1, 4); /* Creator Revision */
+}
+
+void acpi_table_end(BIOSLinker *linker, AcpiTable *desc)
+{
+    /*
+     * ACPI spec 1.0b
+     * 5.2.3 System Description Table Header
+     * Table 5-2 DESCRIPTION_HEADER Fields
+     */
+    const unsigned checksum_offset = 9;
+    uint32_t table_len = desc->array->len - desc->table_offset;
+    uint32_t table_len_le = cpu_to_le32(table_len);
+    gchar *len_ptr = &desc->array->data[desc->table_offset + 4];
+
+    /* patch "Length" field that has been reserved by acpi_table_begin()
+     * to the actual length, i.e. accumulated table length from
+     * acpi_table_begin() till acpi_table_end()
+     */
+    memcpy(len_ptr, &table_len_le, sizeof table_len_le);
+
     bios_linker_loader_add_checksum(linker, ACPI_BUILD_TABLE_FILE,
-        tbl_offset, len, checksum_offset);
+        desc->table_offset, table_len, desc->table_offset + checksum_offset);
 }
 
 void *acpi_data_push(GArray *table_data, unsigned size)
@@ -1822,73 +1861,81 @@ build_rsdp(GArray *tbl, BIOSLinker *linker, AcpiRsdpData *rsdp_data)
                                     32);
 }
 
-/* Build rsdt table */
+/*
+ * ACPI 1.0 Root System Description Table (RSDT)
+ */
 void
 build_rsdt(GArray *table_data, BIOSLinker *linker, GArray *table_offsets,
            const char *oem_id, const char *oem_table_id)
 {
     int i;
-    unsigned rsdt_entries_offset;
-    AcpiRsdtDescriptorRev1 *rsdt;
-    int rsdt_start = table_data->len;
-    const unsigned table_data_len = (sizeof(uint32_t) * table_offsets->len);
-    const unsigned rsdt_entry_size = sizeof(rsdt->table_offset_entry[0]);
-    const size_t rsdt_len = sizeof(*rsdt) + table_data_len;
+    AcpiTable table = { .sig = "RSDT", .rev = 1,
+                        .oem_id = oem_id, .oem_table_id = oem_table_id };
 
-    rsdt = acpi_data_push(table_data, rsdt_len);
-    rsdt_entries_offset = (char *)rsdt->table_offset_entry - table_data->data;
+    acpi_table_begin(&table, table_data);
     for (i = 0; i < table_offsets->len; ++i) {
         uint32_t ref_tbl_offset = g_array_index(table_offsets, uint32_t, i);
-        uint32_t rsdt_entry_offset = rsdt_entries_offset + rsdt_entry_size * i;
+        uint32_t rsdt_entry_offset = table.array->len;
 
-        /* rsdt->table_offset_entry to be filled by Guest linker */
+        /* reserve space for entry */
+        build_append_int_noprefix(table.array, 0, 4);
+
+        /* mark position of RSDT entry to be filled by Guest linker */
         bios_linker_loader_add_pointer(linker,
-            ACPI_BUILD_TABLE_FILE, rsdt_entry_offset, rsdt_entry_size,
+            ACPI_BUILD_TABLE_FILE, rsdt_entry_offset, 4,
             ACPI_BUILD_TABLE_FILE, ref_tbl_offset);
+
     }
-    build_header(linker, table_data,
-                 (void *)(table_data->data + rsdt_start),
-                 "RSDT", rsdt_len, 1, oem_id, oem_table_id);
+    acpi_table_end(linker, &table);
 }
 
-/* Build xsdt table */
+/*
+ * ACPI 2.0 eXtended System Description Table (XSDT)
+ */
 void
 build_xsdt(GArray *table_data, BIOSLinker *linker, GArray *table_offsets,
            const char *oem_id, const char *oem_table_id)
 {
     int i;
-    unsigned xsdt_entries_offset;
-    AcpiXsdtDescriptorRev2 *xsdt;
-    int xsdt_start = table_data->len;
-    const unsigned table_data_len = (sizeof(uint64_t) * table_offsets->len);
-    const unsigned xsdt_entry_size = sizeof(xsdt->table_offset_entry[0]);
-    const size_t xsdt_len = sizeof(*xsdt) + table_data_len;
+    AcpiTable table = { .sig = "XSDT", .rev = 1,
+                        .oem_id = oem_id, .oem_table_id = oem_table_id };
 
-    xsdt = acpi_data_push(table_data, xsdt_len);
-    xsdt_entries_offset = (char *)xsdt->table_offset_entry - table_data->data;
+    acpi_table_begin(&table, table_data);
+
     for (i = 0; i < table_offsets->len; ++i) {
         uint64_t ref_tbl_offset = g_array_index(table_offsets, uint32_t, i);
-        uint64_t xsdt_entry_offset = xsdt_entries_offset + xsdt_entry_size * i;
+        uint64_t xsdt_entry_offset = table.array->len;
 
-        /* xsdt->table_offset_entry to be filled by Guest linker */
+        /* reserve space for entry */
+        build_append_int_noprefix(table.array, 0, 8);
+
+        /* mark position of RSDT entry to be filled by Guest linker */
         bios_linker_loader_add_pointer(linker,
-            ACPI_BUILD_TABLE_FILE, xsdt_entry_offset, xsdt_entry_size,
+            ACPI_BUILD_TABLE_FILE, xsdt_entry_offset, 8,
             ACPI_BUILD_TABLE_FILE, ref_tbl_offset);
     }
-    build_header(linker, table_data,
-                 (void *)(table_data->data + xsdt_start),
-                 "XSDT", xsdt_len, 1, oem_id, oem_table_id);
+    acpi_table_end(linker, &table);
 }
 
-void build_srat_memory(AcpiSratMemoryAffinity *numamem, uint64_t base,
+/*
+ * ACPI spec, Revision 4.0
+ * 5.2.16.2 Memory Affinity Structure
+ */
+void build_srat_memory(GArray *table_data, uint64_t base,
                        uint64_t len, int node, MemoryAffinityFlags flags)
 {
-    numamem->type = ACPI_SRAT_MEMORY;
-    numamem->length = sizeof(*numamem);
-    numamem->proximity = cpu_to_le32(node);
-    numamem->flags = cpu_to_le32(flags);
-    numamem->base_addr = cpu_to_le64(base);
-    numamem->range_length = cpu_to_le64(len);
+    build_append_int_noprefix(table_data, 1, 1); /* Type */
+    build_append_int_noprefix(table_data, 40, 1); /* Length */
+    build_append_int_noprefix(table_data, node, 4); /* Proximity Domain */
+    build_append_int_noprefix(table_data, 0, 2); /* Reserved */
+    build_append_int_noprefix(table_data, base, 4); /* Base Address Low */
+    /* Base Address High */
+    build_append_int_noprefix(table_data, base >> 32, 4);
+    build_append_int_noprefix(table_data, len, 4); /* Length Low */
+    build_append_int_noprefix(table_data, len >> 32, 4); /* Length High */
+    build_append_int_noprefix(table_data, 0, 4); /* Reserved */
+    build_append_int_noprefix(table_data, flags, 4); /* Flags */
+    build_append_int_noprefix(table_data, 0, 8); /* Reserved */
 }
 
 /*
@@ -1898,11 +1945,12 @@ void build_srat_memory(AcpiSratMemoryAffinity *numamem, uint64_t base,
 void build_slit(GArray *table_data, BIOSLinker *linker, MachineState *ms,
                 const char *oem_id, const char *oem_table_id)
 {
-    int slit_start, i, j;
-    slit_start = table_data->len;
+    int i, j;
     int nb_numa_nodes = ms->numa_state->num_nodes;
+    AcpiTable table = { .sig = "SLIT", .rev = 1,
+                        .oem_id = oem_id, .oem_table_id = oem_table_id };
 
-    acpi_data_push(table_data, sizeof(AcpiTableHeader));
+    acpi_table_begin(&table, table_data);
 
     build_append_int_noprefix(table_data, nb_numa_nodes, 8);
     for (i = 0; i < nb_numa_nodes; i++) {
@@ -1913,11 +1961,7 @@ void build_slit(GArray *table_data, BIOSLinker *linker, MachineState *ms,
                                       1);
         }
     }
-
-    build_header(linker, table_data,
-                 (void *)(table_data->data + slit_start),
-                 "SLIT",
-                 table_data->len - slit_start, 1, oem_id, oem_table_id);
+    acpi_table_end(linker, &table);
 }
 
 /* build rev1/rev3/rev5.1 FADT */
@@ -1925,9 +1969,10 @@ void build_fadt(GArray *tbl, BIOSLinker *linker, const AcpiFadtData *f,
                 const char *oem_id, const char *oem_table_id)
 {
     int off;
-    int fadt_start = tbl->len;
+    AcpiTable table = { .sig = "FACP", .rev = f->rev,
+                        .oem_id = oem_id, .oem_table_id = oem_table_id };
 
-    acpi_data_push(tbl, sizeof(AcpiTableHeader));
+    acpi_table_begin(&table, tbl);
 
     /* FACS address to be filled by Guest linker at runtime */
     off = tbl->len;
@@ -1991,7 +2036,7 @@ void build_fadt(GArray *tbl, BIOSLinker *linker, const AcpiFadtData *f,
     build_append_int_noprefix(tbl, f->flags, 4); /* Flags */
 
     if (f->rev == 1) {
-        goto build_hdr;
+        goto done;
     }
 
     build_append_gas_from_struct(tbl, &f->reset_reg); /* RESET_REG */
@@ -2028,7 +2073,7 @@ void build_fadt(GArray *tbl, BIOSLinker *linker, const AcpiFadtData *f,
     build_append_gas(tbl, AML_AS_SYSTEM_MEMORY, 0 , 0, 0, 0); /* X_GPE1_BLK */
 
     if (f->rev <= 4) {
-        goto build_hdr;
+        goto done;
     }
 
     /* SLEEP_CONTROL_REG */
@@ -2039,9 +2084,8 @@ void build_fadt(GArray *tbl, BIOSLinker *linker, const AcpiFadtData *f,
     /* TODO: extra fields need to be added to support revisions above rev5 */
     assert(f->rev == 5);
 
-build_hdr:
-    build_header(linker, tbl, (void *)(tbl->data + fadt_start),
-                 "FACP", tbl->len - fadt_start, f->rev, oem_id, oem_table_id);
+done:
+    acpi_table_end(linker, &table);
 }
 
 #ifdef CONFIG_TPM
@@ -2054,13 +2098,14 @@ void build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog,
                 const char *oem_id, const char *oem_table_id)
 {
     uint8_t start_method_params[12] = {};
-    unsigned log_addr_offset, tpm2_start;
+    unsigned log_addr_offset;
     uint64_t control_area_start_address;
     TPMIf *tpmif = tpm_find();
     uint32_t start_method;
+    AcpiTable table = { .sig = "TPM2", .rev = 4,
+                        .oem_id = oem_id, .oem_table_id = oem_table_id };
 
-    tpm2_start = table_data->len;
-    acpi_data_push(table_data, sizeof(AcpiTableHeader));
+    acpi_table_begin(&table, table_data);
 
     /* Platform Class */
     build_append_int_noprefix(table_data, TPM2_ACPI_CLASS_CLIENT, 2);
@@ -2098,9 +2143,7 @@ void build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog,
     bios_linker_loader_add_pointer(linker, ACPI_BUILD_TABLE_FILE,
                                    log_addr_offset, 8,
                                    ACPI_BUILD_TPMLOG_FILE, 0);
-    build_header(linker, table_data,
-                 (void *)(table_data->data + tpm2_start),
-                 "TPM2", table_data->len - tpm2_start, 4, oem_id, oem_table_id);
+    acpi_table_end(linker, &table);
 }
 #endif
 

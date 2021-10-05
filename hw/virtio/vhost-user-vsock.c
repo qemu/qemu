@@ -81,7 +81,9 @@ static uint64_t vuv_get_features(VirtIODevice *vdev,
 {
     VHostVSockCommon *vvc = VHOST_VSOCK_COMMON(vdev);
 
-    return vhost_get_features(&vvc->vhost_dev, user_feature_bits, features);
+    features = vhost_get_features(&vvc->vhost_dev, user_feature_bits, features);
+
+    return vhost_vsock_common_get_features(vdev, features, errp);
 }
 
 static const VMStateDescription vuv_vmstate = {
