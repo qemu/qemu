@@ -407,8 +407,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         return NULL;
     }
 
-    if (perf->max_workers < 1) {
-        error_setg(errp, "max-workers must be greater than zero");
+    if (perf->max_workers < 1 || perf->max_workers > INT_MAX) {
+        error_setg(errp, "max-workers must be between 1 and %d", INT_MAX);
         return NULL;
     }
 
