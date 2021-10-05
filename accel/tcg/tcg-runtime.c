@@ -187,6 +187,7 @@ void HELPER(afl_cmplog_64)(target_ulong cur_loc, target_ulong arg1,
 
 #include <sys/mman.h>
 
+/*
 static int area_is_mapped(void *ptr, size_t len) {
 
   char *p = ptr;
@@ -197,34 +198,42 @@ static int area_is_mapped(void *ptr, size_t len) {
   return 1;
 
 }
+*/
 
 void HELPER(afl_cmplog_rtn)(CPUArchState *env) {
 
 #if defined(TARGET_X86_64)
 
-  void *ptr1 = AFL_G2H(env->regs[R_EDI]);
-  void *ptr2 = AFL_G2H(env->regs[R_ESI]);
+  target_ulong arg1 = env->regs[R_EDI];
+  target_ulong arg2 = env->regs[R_ESI];
 
 #elif defined(TARGET_I386)
 
   target_ulong *stack = AFL_G2H(env->regs[R_ESP]);
-
-  if (!area_is_mapped(stack, sizeof(target_ulong) * 2)) return;
+  
+  if (!access_ok(env_cpu(env), VERIFY_READ, env->regs[R_ESP],
+                 sizeof(target_ulong) * 2))
+    return;
 
   // when this hook is executed, the retaddr is not on stack yet
-  void *    ptr1 = AFL_G2H(stack[0]);
-  void *    ptr2 = AFL_G2H(stack[1]);
+  target_ulong arg1 = stack[0];
+  target_ulong arg2 = stack[1];
 
 #else
 
   // stupid code to make it compile
-  void *ptr1 = NULL;
-  void *ptr2 = NULL;
+  target_ulong arg1 = 0;
+  target_ulong arg2 = 0;
   return;
 
 #endif
 
-  if (!area_is_mapped(ptr1, 32) || !area_is_mapped(ptr2, 32)) return;
+  if (!access_ok(env_cpu(env), VERIFY_READ, arg1, 0x20) ||
+      !access_ok(env_cpu(env), VERIFY_READ, arg2, 0x20))
+    return;
+
+  void *ptr1 = AFL_G2H(arg1);
+  void *ptr2 = AFL_G2H(arg2);
 
 #if defined(TARGET_X86_64) || defined(TARGET_I386)
   uintptr_t k = (uintptr_t)env->eip;
