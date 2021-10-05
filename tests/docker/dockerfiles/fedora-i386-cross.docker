@@ -1,4 +1,5 @@
-FROM registry.fedoraproject.org/fedora:33
+FROM registry.fedoraproject.org/fedora:34
+
 ENV PACKAGES \
     bzip2 \
     ccache \
@@ -19,10 +20,11 @@ ENV PACKAGES \
     nettle-devel.i686 \
     perl-Test-Harness \
     pixman-devel.i686 \
+    sysprof-capture-devel.i686 \
     zlib-devel.i686
 
 ENV QEMU_CONFIGURE_OPTS --extra-cflags=-m32 --disable-vhost-user
 ENV PKG_CONFIG_PATH /usr/lib/pkgconfig
 
-RUN dnf install -y $PACKAGES
+RUN dnf update -y && dnf install -y $PACKAGES
 RUN rpm -q $PACKAGES | sort > /packages.txt
