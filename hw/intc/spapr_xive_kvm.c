@@ -301,9 +301,7 @@ static uint8_t xive_esb_read(XiveSource *xsrc, int srcno, uint32_t offset)
 
 static void kvmppc_xive_esb_trigger(XiveSource *xsrc, int srcno)
 {
-    uint64_t *addr = xsrc->esb_mmap + xive_source_esb_page(xsrc, srcno);
-
-    *addr = 0x0;
+    xive_esb_rw(xsrc, srcno, 0, 0, true);
 }
 
 uint64_t kvmppc_xive_esb_rw(XiveSource *xsrc, int srcno, uint32_t offset,
