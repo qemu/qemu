@@ -468,7 +468,9 @@ typedef struct NvmeCtrl {
             uint16_t temp_thresh_hi;
             uint16_t temp_thresh_low;
         };
-        uint32_t    async_config;
+
+        uint32_t                async_config;
+        NvmeHostBehaviorSupport hbs;
     } features;
 } NvmeCtrl;
 
