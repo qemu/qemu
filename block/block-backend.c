@@ -1161,11 +1161,11 @@ void blk_set_disable_request_queuing(BlockBackend *blk, bool disable)
 }
 
 static int blk_check_byte_request(BlockBackend *blk, int64_t offset,
-                                  size_t size)
+                                  int64_t bytes)
 {
     int64_t len;
 
-    if (size > INT_MAX) {
+    if (bytes < 0 || bytes > INT_MAX) {
         return -EIO;
     }
 
@@ -1183,7 +1183,7 @@ static int blk_check_byte_request(BlockBackend *blk, int64_t offset,
             return len;
         }
 
-        if (offset > len || len - offset < size) {
+        if (offset > len || len - offset < bytes) {
             return -EIO;
         }
     }
