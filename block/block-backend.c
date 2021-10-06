@@ -1330,7 +1330,7 @@ typedef struct BlkRwCo {
 } BlkRwCo;
 
 int blk_pwrite_zeroes(BlockBackend *blk, int64_t offset,
-                      int bytes, BdrvRequestFlags flags)
+                      int64_t bytes, BdrvRequestFlags flags)
 {
     return blk_pwritev_part(blk, offset, bytes, NULL, 0,
                             flags | BDRV_REQ_ZERO_WRITE);
@@ -1637,7 +1637,7 @@ int coroutine_fn blk_co_pdiscard(BlockBackend *blk, int64_t offset,
     return ret;
 }
 
-int blk_pdiscard(BlockBackend *blk, int64_t offset, int bytes)
+int blk_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes)
 {
     int ret;
 
@@ -2186,10 +2186,10 @@ int coroutine_fn blk_co_pwrite_zeroes(BlockBackend *blk, int64_t offset,
 }
 
 int blk_pwrite_compressed(BlockBackend *blk, int64_t offset, const void *buf,
-                          int count)
+                          int64_t bytes)
 {
-    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, count);
-    return blk_pwritev_part(blk, offset, count, &qiov, 0,
+    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
+    return blk_pwritev_part(blk, offset, bytes, &qiov, 0,
                             BDRV_REQ_WRITE_COMPRESSED);
 }
 
