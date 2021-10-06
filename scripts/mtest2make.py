@@ -79,7 +79,7 @@ def emit_prolog(suites, prefix):
     print(f'{prefix}-report.junit.xml $(all-{prefix}-xml): {prefix}-report%.junit.xml: run-ninja')
     print(f'\t$(MAKE) {prefix}$* MTESTARGS="$(MTESTARGS) --logbase {prefix}-report$*" && ln -f meson-logs/$@ .')
 
-def emit_suite(name, suite, prefix):
+def emit_suite_deps(name, suite, prefix):
     deps = ' '.join(suite.deps)
     targets = f'{prefix}-{name} {prefix}-report-{name}.junit.xml {prefix} {prefix}-report.junit.xml'
     print()
@@ -87,6 +87,10 @@ def emit_suite(name, suite, prefix):
     print(f'ifneq ($(filter {prefix}-build {targets}, $(MAKECMDGOALS)),)')
     print(f'.{prefix}.build-suites += {name}')
     print(f'endif')
+
+def emit_suite(name, suite, prefix):
+    emit_suite_deps(name, suite, prefix)
+    targets = f'{prefix}-{name} {prefix}-report-{name}.junit.xml {prefix} {prefix}-report.junit.xml'
     print(f'ifneq ($(filter {targets}, $(MAKECMDGOALS)),)')
     print(f'.{prefix}.mtest-suites += ' + ' '.join(suite.names(name)))
     print(f'endif')
@@ -97,6 +101,10 @@ targets = {t['id']: [os.path.relpath(f) for f in t['filename']]
 testsuites = defaultdict(Suite)
 for test in introspect['tests']:
     process_tests(test, targets, testsuites)
+# HACK: check-block is a separate target so that it runs with --verbose;
+# only write the dependencies
+emit_suite_deps('block', testsuites['block'], 'check')
+del testsuites['block']
 emit_prolog(testsuites, 'check')
 for name, suite in testsuites.items():
     emit_suite(name, suite, 'check')
