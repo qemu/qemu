@@ -217,7 +217,9 @@ const char *job_type_str(const Job *job)
 
 bool job_is_cancelled(Job *job)
 {
-    return job->cancelled && job->force_cancel;
+    /* force_cancel may be true only if cancelled is true, too */
+    assert(job->cancelled || !job->force_cancel);
+    return job->force_cancel;
 }
 
 bool job_cancel_requested(Job *job)
