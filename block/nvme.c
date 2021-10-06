@@ -183,15 +183,20 @@ static bool nvme_init_queue(BDRVNVMeState *s, NVMeQueue *q,
     return r == 0;
 }
 
+static void nvme_free_queue(NVMeQueue *q)
+{
+    qemu_vfree(q->queue);
+}
+
 static void nvme_free_queue_pair(NVMeQueuePair *q)
 {
     trace_nvme_free_queue_pair(q->index, q, &q->cq, &q->sq);
     if (q->completion_bh) {
         qemu_bh_delete(q->completion_bh);
     }
+    nvme_free_queue(&q->sq);
+    nvme_free_queue(&q->cq);
     qemu_vfree(q->prp_list_pages);
-    qemu_vfree(q->sq.queue);
-    qemu_vfree(q->cq.queue);
     qemu_mutex_destroy(&q->lock);
     g_free(q);
 }
