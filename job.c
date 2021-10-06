@@ -766,7 +766,12 @@ static void job_completed_txn_abort(Job *job)
         if (other_job != job) {
             ctx = other_job->aio_context;
             aio_context_acquire(ctx);
-            job_cancel_async(other_job, false);
+            /*
+             * This is a transaction: If one job failed, no result will matter.
+             * Therefore, pass force=true to terminate all other jobs as quickly
+             * as possible.
+             */
+            job_cancel_async(other_job, true);
             aio_context_release(ctx);
         }
     }
