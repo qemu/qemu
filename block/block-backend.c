@@ -1986,6 +1986,12 @@ uint32_t blk_get_max_transfer(BlockBackend *blk)
     return ROUND_DOWN(max, blk_get_request_alignment(blk));
 }
 
+int blk_get_max_hw_iov(BlockBackend *blk)
+{
+    return MIN_NON_ZERO(blk->root->bs->bl.max_hw_iov,
+                        blk->root->bs->bl.max_iov);
+}
+
 int blk_get_max_iov(BlockBackend *blk)
 {
     return blk->root->bs->bl.max_iov;

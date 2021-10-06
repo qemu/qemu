@@ -1604,16 +1604,26 @@ open_failed:
     return ret;
 }
 
-BlockDriverState *bdrv_new_open_driver(BlockDriver *drv, const char *node_name,
-                                       int flags, Error **errp)
+/*
+ * Create and open a block node.
+ *
+ * @options is a QDict of options to pass to the block drivers, or NULL for an
+ * empty set of options. The reference to the QDict belongs to the block layer
+ * after the call (even on failure), so if the caller intends to reuse the
+ * dictionary, it needs to use qobject_ref() before calling bdrv_open.
+ */
+BlockDriverState *bdrv_new_open_driver_opts(BlockDriver *drv,
+                                            const char *node_name,
+                                            QDict *options, int flags,
+                                            Error **errp)
 {
     BlockDriverState *bs;
     int ret;
 
     bs = bdrv_new();
     bs->open_flags = flags;
-    bs->explicit_options = qdict_new();
-    bs->options = qdict_new();
+    bs->options = options ?: qdict_new();
+    bs->explicit_options = qdict_clone_shallow(bs->options);
     bs->opaque = NULL;
 
     update_options_from_flags(bs->options, flags);
@@ -1629,6 +1639,13 @@ BlockDriverState *bdrv_new_open_driver(BlockDriver *drv, const char *node_name,
     }
 
     return bs;
+}
+
+/* Create and open a block node. */
+BlockDriverState *bdrv_new_open_driver(BlockDriver *drv, const char *node_name,
+                                       int flags, Error **errp)
+{
+    return bdrv_new_open_driver_opts(drv, node_name, NULL, flags, errp);
 }
 
 QemuOptsList bdrv_runtime_opts = {
@@ -5102,29 +5119,61 @@ static void bdrv_delete(BlockDriverState *bs)
     g_free(bs);
 }
 
-BlockDriverState *bdrv_insert_node(BlockDriverState *bs, QDict *node_options,
+
+/*
+ * Replace @bs by newly created block node.
+ *
+ * @options is a QDict of options to pass to the block drivers, or NULL for an
+ * empty set of options. The reference to the QDict belongs to the block layer
+ * after the call (even on failure), so if the caller intends to reuse the
+ * dictionary, it needs to use qobject_ref() before calling bdrv_open.
+ */
+BlockDriverState *bdrv_insert_node(BlockDriverState *bs, QDict *options,
                                    int flags, Error **errp)
 {
-    BlockDriverState *new_node_bs;
-    Error *local_err = NULL;
+    ERRP_GUARD();
+    int ret;
+    BlockDriverState *new_node_bs = NULL;
+    const char *drvname, *node_name;
+    BlockDriver *drv;
 
-    new_node_bs = bdrv_open(NULL, NULL, node_options, flags, errp);
-    if (new_node_bs == NULL) {
+    drvname = qdict_get_try_str(options, "driver");
+    if (!drvname) {
+        error_setg(errp, "driver is not specified");
+        goto fail;
+    }
+
+    drv = bdrv_find_format(drvname);
+    if (!drv) {
+        error_setg(errp, "Unknown driver: '%s'", drvname);
+        goto fail;
+    }
+
+    node_name = qdict_get_try_str(options, "node-name");
+
+    new_node_bs = bdrv_new_open_driver_opts(drv, node_name, options, flags,
+                                            errp);
+    options = NULL; /* bdrv_new_open_driver() eats options */
+    if (!new_node_bs) {
         error_prepend(errp, "Could not create node: ");
-        return NULL;
+        goto fail;
     }
 
     bdrv_drained_begin(bs);
-    bdrv_replace_node(bs, new_node_bs, &local_err);
+    ret = bdrv_replace_node(bs, new_node_bs, errp);
     bdrv_drained_end(bs);
 
-    if (local_err) {
-        bdrv_unref(new_node_bs);
-        error_propagate(errp, local_err);
-        return NULL;
+    if (ret < 0) {
+        error_prepend(errp, "Could not replace node: ");
+        goto fail;
     }
 
     return new_node_bs;
+
+fail:
+    qobject_unref(options);
+    bdrv_unref(new_node_bs);
+    return NULL;
 }
 
 /*

@@ -383,6 +383,10 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
                            const char *bdref_key, Error **errp);
 BlockDriverState *bdrv_open(const char *filename, const char *reference,
                             QDict *options, int flags, Error **errp);
+BlockDriverState *bdrv_new_open_driver_opts(BlockDriver *drv,
+                                            const char *node_name,
+                                            QDict *options, int flags,
+                                            Error **errp);
 BlockDriverState *bdrv_new_open_driver(BlockDriver *drv, const char *node_name,
                                        int flags, Error **errp);
 BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
@@ -751,9 +755,7 @@ bool bdrv_drain_poll(BlockDriverState *bs, bool recursive,
  * bdrv_drained_begin:
  *
  * Begin a quiesced section for exclusive access to the BDS, by disabling
- * external request sources including NBD server and device model. Note that
- * this doesn't block timers or coroutines from submitting more requests, which
- * means block_job_pause is still necessary.
+ * external request sources including NBD server, block jobs, and device model.
  *
  * This function can be recursive.
  */

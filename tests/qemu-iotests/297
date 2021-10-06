@@ -68,44 +68,34 @@ def run_linters():
     # Todo notes are fine, but fixme's or xxx's should probably just be
     # fixed (in tests, at least)
     env = os.environ.copy()
-    qemu_module_path = os.path.join(os.path.dirname(__file__),
-                                    '..', '..', 'python')
-    try:
-        env['PYTHONPATH'] += os.pathsep + qemu_module_path
-    except KeyError:
-        env['PYTHONPATH'] = qemu_module_path
     subprocess.run(('pylint-3', '--score=n', '--notes=FIXME,XXX', *files),
                    env=env, check=False)
 
     print('=== mypy ===')
     sys.stdout.flush()
 
-    # We have to call mypy separately for each file.  Otherwise, it
-    # will interpret all given files as belonging together (i.e., they
-    # may not both define the same classes, etc.; most notably, they
-    # must not both define the __main__ module).
     env['MYPYPATH'] = env['PYTHONPATH']
-    for filename in files:
-        p = subprocess.run(('mypy',
-                            '--warn-unused-configs',
-                            '--disallow-subclassing-any',
-                            '--disallow-any-generics',
-                            '--disallow-incomplete-defs',
-                            '--disallow-untyped-decorators',
-                            '--no-implicit-optional',
-                            '--warn-redundant-casts',
-                            '--warn-unused-ignores',
-                            '--no-implicit-reexport',
-                            '--namespace-packages',
-                            filename),
-                           env=env,
-                           check=False,
-                           stdout=subprocess.PIPE,
-                           stderr=subprocess.STDOUT,
-                           universal_newlines=True)
+    p = subprocess.run(('mypy',
+                        '--warn-unused-configs',
+                        '--disallow-subclassing-any',
+                        '--disallow-any-generics',
+                        '--disallow-incomplete-defs',
+                        '--disallow-untyped-decorators',
+                        '--no-implicit-optional',
+                        '--warn-redundant-casts',
+                        '--warn-unused-ignores',
+                        '--no-implicit-reexport',
+                        '--namespace-packages',
+                        '--scripts-are-modules',
+                        *files),
+                       env=env,
+                       check=False,
+                       stdout=subprocess.PIPE,
+                       stderr=subprocess.STDOUT,
+                       universal_newlines=True)
 
-        if p.returncode != 0:
-            print(p.stdout)
+    if p.returncode != 0:
+        print(p.stdout)
 
 
 for linter in ('pylint-3', 'mypy'):
