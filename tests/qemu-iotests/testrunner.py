@@ -341,6 +341,7 @@ class TestRunner(ContextManager['TestRunner']):
             elif res.status == 'not run':
                 notrun.append(name)
 
+            sys.stdout.flush()
             if res.interrupted:
                 break
 
