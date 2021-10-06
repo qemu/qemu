@@ -1184,7 +1184,7 @@ static bool mirror_drained_poll(BlockJob *job)
      * from one of our own drain sections, to avoid a deadlock waiting for
      * ourselves.
      */
-    if (!s->common.job.paused && !s->common.job.cancelled && !s->in_drain) {
+    if (!s->common.job.paused && !job_is_cancelled(&job->job) && !s->in_drain) {
         return true;
     }
 
