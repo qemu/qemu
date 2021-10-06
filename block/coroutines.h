@@ -27,6 +27,9 @@
 
 #include "block/block_int.h"
 
+/* For blk_bs() in generated block/block-gen.c */
+#include "sysemu/block-backend.h"
+
 int coroutine_fn bdrv_co_check(BlockDriverState *bs,
                                BdrvCheckResult *res, BdrvCheckMode fix);
 int coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs, Error **errp);
