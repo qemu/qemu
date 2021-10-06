@@ -54,9 +54,7 @@ static const char * const hexagon_prednames[] = {
 
 static void gen_exception_raw(int excp)
 {
-    TCGv_i32 helper_tmp = tcg_const_i32(excp);
-    gen_helper_raise_exception(cpu_env, helper_tmp);
-    tcg_temp_free_i32(helper_tmp);
+    gen_helper_raise_exception(cpu_env, tcg_constant_i32(excp));
 }
 
 static void gen_exec_counters(DisasContext *ctx)
@@ -288,7 +286,7 @@ static void gen_pred_writes(DisasContext *ctx, Packet *pkt)
      * write of the predicates.
      */
     if (pkt->pkt_has_endloop) {
-        TCGv zero = tcg_const_tl(0);
+        TCGv zero = tcg_constant_tl(0);
         TCGv pred_written = tcg_temp_new();
         for (i = 0; i < ctx->preg_log_idx; i++) {
             int pred_num = ctx->preg_log[i];
@@ -299,7 +297,6 @@ static void gen_pred_writes(DisasContext *ctx, Packet *pkt)
                                hex_new_pred_value[pred_num],
                                hex_pred[pred_num]);
         }
-        tcg_temp_free(zero);
         tcg_temp_free(pred_written);
     } else {
         for (i = 0; i < ctx->preg_log_idx; i++) {
@@ -317,11 +314,9 @@ static void gen_pred_writes(DisasContext *ctx, Packet *pkt)
 static void gen_check_store_width(DisasContext *ctx, int slot_num)
 {
     if (HEX_DEBUG) {
-        TCGv slot = tcg_const_tl(slot_num);
-        TCGv check = tcg_const_tl(ctx->store_width[slot_num]);
+        TCGv slot = tcg_constant_tl(slot_num);
+        TCGv check = tcg_constant_tl(ctx->store_width[slot_num]);
         gen_helper_debug_check_store_width(cpu_env, slot, check);
-        tcg_temp_free(slot);
-        tcg_temp_free(check);
     }
 }
 
@@ -403,9 +398,8 @@ void process_store(DisasContext *ctx, Packet *pkt, int slot_num)
                  * TCG generation time, we'll use a helper to
                  * avoid branching based on the width at runtime.
                  */
-                TCGv slot = tcg_const_tl(slot_num);
+                TCGv slot = tcg_constant_tl(slot_num);
                 gen_helper_commit_store(cpu_env, slot);
-                tcg_temp_free(slot);
             }
         }
         tcg_temp_free(address);
@@ -419,7 +413,7 @@ static void process_store_log(DisasContext *ctx, Packet *pkt)
 {
     /*
      *  When a packet has two stores, the hardware processes
-     *  slot 1 and then slot 2.  This will be important when
+     *  slot 1 and then slot 0.  This will be important when
      *  the memory accesses overlap.
      */
     if (pkt->pkt_has_store_s1 && !pkt->pkt_has_dczeroa) {
@@ -436,7 +430,7 @@ static void process_dczeroa(DisasContext *ctx, Packet *pkt)
     if (pkt->pkt_has_dczeroa) {
         /* Store 32 bytes of zero starting at (addr & ~0x1f) */
         TCGv addr = tcg_temp_new();
-        TCGv_i64 zero = tcg_const_i64(0);
+        TCGv_i64 zero = tcg_constant_i64(0);
 
         tcg_gen_andi_tl(addr, hex_dczero_addr, ~0x1f);
         tcg_gen_qemu_st64(zero, addr, ctx->mem_idx);
@@ -448,7 +442,6 @@ static void process_dczeroa(DisasContext *ctx, Packet *pkt)
         tcg_gen_qemu_st64(zero, addr, ctx->mem_idx);
 
         tcg_temp_free(addr);
-        tcg_temp_free_i64(zero);
     }
 }
 
@@ -471,22 +464,51 @@ static void update_exec_counters(DisasContext *ctx, Packet *pkt)
 
 static void gen_commit_packet(DisasContext *ctx, Packet *pkt)
 {
+    /*
+     * If there is more than one store in a packet, make sure they are all OK
+     * before proceeding with the rest of the packet commit.
+     *
+     * dczeroa has to be the only store operation in the packet, so we go
+     * ahead and process that first.
+     *
+     * When there are two scalar stores, we probe the one in slot 0.
+     *
+     * Note that we don't call the probe helper for packets with only one
+     * store.  Therefore, we call process_store_log before anything else
+     * involved in committing the packet.
+     */
+    bool has_store_s0 = pkt->pkt_has_store_s0;
+    bool has_store_s1 = (pkt->pkt_has_store_s1 && !ctx->s1_store_processed);
+    if (pkt->pkt_has_dczeroa) {
+        /*
+         * The dczeroa will be the store in slot 0, check that we don't have
+         * a store in slot 1.
+         */
+        g_assert(has_store_s0 && !has_store_s1);
+        process_dczeroa(ctx, pkt);
+    } else if (has_store_s0 && has_store_s1) {
+        /*
+         * process_store_log will execute the slot 1 store first,
+         * so we only have to probe the store in slot 0
+         */
+        TCGv mem_idx = tcg_const_tl(ctx->mem_idx);
+        gen_helper_probe_pkt_scalar_store_s0(cpu_env, mem_idx);
+        tcg_temp_free(mem_idx);
+    }
+
+    process_store_log(ctx, pkt);
+
     gen_reg_writes(ctx);
     gen_pred_writes(ctx, pkt);
-    process_store_log(ctx, pkt);
-    process_dczeroa(ctx, pkt);
     update_exec_counters(ctx, pkt);
     if (HEX_DEBUG) {
         TCGv has_st0 =
-            tcg_const_tl(pkt->pkt_has_store_s0 && !pkt->pkt_has_dczeroa);
+            tcg_constant_tl(pkt->pkt_has_store_s0 && !pkt->pkt_has_dczeroa);
         TCGv has_st1 =
-            tcg_const_tl(pkt->pkt_has_store_s1 && !pkt->pkt_has_dczeroa);
+            tcg_constant_tl(pkt->pkt_has_store_s1 && !pkt->pkt_has_dczeroa);
 
         /* Handy place to set a breakpoint at the end of execution */
         gen_helper_debug_commit_end(cpu_env, has_st0, has_st1);
-
-        tcg_temp_free(has_st0);
-        tcg_temp_free(has_st1);
     }
 
     if (pkt->pkt_has_cof) {

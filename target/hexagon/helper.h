@@ -89,3 +89,5 @@ DEF_HELPER_4(sffms_lib, f32, env, f32, f32, f32)
 
 DEF_HELPER_3(dfmpyfix, f64, env, f64, f64)
 DEF_HELPER_4(dfmpyhh, f64, env, f64, f64, f64)
+
+DEF_HELPER_2(probe_pkt_scalar_store_s0, void, env, int)
