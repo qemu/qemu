@@ -27,6 +27,7 @@
 
 #include "cpu.h"
 #include "exec/memop.h"
+#include "exec/memopidx.h"
 #include "qemu/bitops.h"
 #include "qemu/plugin.h"
 #include "qemu/queue.h"
@@ -1147,44 +1148,6 @@ static inline size_t tcg_current_code_size(TCGContext *s)
     return tcg_ptr_byte_diff(s->code_ptr, s->code_buf);
 }
 
-/* Combine the MemOp and mmu_idx parameters into a single value.  */
-typedef uint32_t TCGMemOpIdx;
-
-/**
- * make_memop_idx
- * @op: memory operation
- * @idx: mmu index
- *
- * Encode these values into a single parameter.
- */
-static inline TCGMemOpIdx make_memop_idx(MemOp op, unsigned idx)
-{
-    tcg_debug_assert(idx <= 15);
-    return (op << 4) | idx;
-}
-
-/**
- * get_memop
- * @oi: combined op/idx parameter
- *
- * Extract the memory operation from the combined value.
- */
-static inline MemOp get_memop(TCGMemOpIdx oi)
-{
-    return oi >> 4;
-}
-
-/**
- * get_mmuidx
- * @oi: combined op/idx parameter
- *
- * Extract the mmu index from the combined value.
- */
-static inline unsigned get_mmuidx(TCGMemOpIdx oi)
-{
-    return oi & 15;
-}
-
 /**
  * tcg_qemu_tb_exec:
  * @env: pointer to CPUArchState for the CPU
@@ -1272,52 +1235,64 @@ uint64_t dup_const(unsigned vece, uint64_t c);
         : (qemu_build_not_reached_always(), 0))                    \
      : dup_const(VECE, C))
 
+#if TARGET_LONG_BITS == 64
+# define dup_const_tl  dup_const
+#else
+# define dup_const_tl(VECE, C)                                     \
+    (__builtin_constant_p(VECE)                                    \
+     ? (  (VECE) == MO_8  ? 0x01010101ul * (uint8_t)(C)            \
+        : (VECE) == MO_16 ? 0x00010001ul * (uint16_t)(C)           \
+        : (VECE) == MO_32 ? 0x00000001ul * (uint32_t)(C)           \
+        : (qemu_build_not_reached_always(), 0))                    \
+     :  (target_long)dup_const(VECE, C))
+#endif
+
 /*
  * Memory helpers that will be used by TCG generated code.
  */
 #ifdef CONFIG_SOFTMMU
 /* Value zero-extended to tcg register size.  */
 tcg_target_ulong helper_ret_ldub_mmu(CPUArchState *env, target_ulong addr,
-                                     TCGMemOpIdx oi, uintptr_t retaddr);
+                                     MemOpIdx oi, uintptr_t retaddr);
 tcg_target_ulong helper_le_lduw_mmu(CPUArchState *env, target_ulong addr,
-                                    TCGMemOpIdx oi, uintptr_t retaddr);
+                                    MemOpIdx oi, uintptr_t retaddr);
 tcg_target_ulong helper_le_ldul_mmu(CPUArchState *env, target_ulong addr,
-                                    TCGMemOpIdx oi, uintptr_t retaddr);
+                                    MemOpIdx oi, uintptr_t retaddr);
 uint64_t helper_le_ldq_mmu(CPUArchState *env, target_ulong addr,
-                           TCGMemOpIdx oi, uintptr_t retaddr);
+                           MemOpIdx oi, uintptr_t retaddr);
 tcg_target_ulong helper_be_lduw_mmu(CPUArchState *env, target_ulong addr,
-                                    TCGMemOpIdx oi, uintptr_t retaddr);
+                                    MemOpIdx oi, uintptr_t retaddr);
 tcg_target_ulong helper_be_ldul_mmu(CPUArchState *env, target_ulong addr,
-                                    TCGMemOpIdx oi, uintptr_t retaddr);
+                                    MemOpIdx oi, uintptr_t retaddr);
 uint64_t helper_be_ldq_mmu(CPUArchState *env, target_ulong addr,
-                           TCGMemOpIdx oi, uintptr_t retaddr);
+                           MemOpIdx oi, uintptr_t retaddr);
 
 /* Value sign-extended to tcg register size.  */
 tcg_target_ulong helper_ret_ldsb_mmu(CPUArchState *env, target_ulong addr,
-                                     TCGMemOpIdx oi, uintptr_t retaddr);
+                                     MemOpIdx oi, uintptr_t retaddr);
 tcg_target_ulong helper_le_ldsw_mmu(CPUArchState *env, target_ulong addr,
-                                    TCGMemOpIdx oi, uintptr_t retaddr);
+                                    MemOpIdx oi, uintptr_t retaddr);
 tcg_target_ulong helper_le_ldsl_mmu(CPUArchState *env, target_ulong addr,
-                                    TCGMemOpIdx oi, uintptr_t retaddr);
+                                    MemOpIdx oi, uintptr_t retaddr);
 tcg_target_ulong helper_be_ldsw_mmu(CPUArchState *env, target_ulong addr,
-                                    TCGMemOpIdx oi, uintptr_t retaddr);
+                                    MemOpIdx oi, uintptr_t retaddr);
 tcg_target_ulong helper_be_ldsl_mmu(CPUArchState *env, target_ulong addr,
-                                    TCGMemOpIdx oi, uintptr_t retaddr);
+                                    MemOpIdx oi, uintptr_t retaddr);
 
 void helper_ret_stb_mmu(CPUArchState *env, target_ulong addr, uint8_t val,
-                        TCGMemOpIdx oi, uintptr_t retaddr);
+                        MemOpIdx oi, uintptr_t retaddr);
 void helper_le_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
-                       TCGMemOpIdx oi, uintptr_t retaddr);
+                       MemOpIdx oi, uintptr_t retaddr);
 void helper_le_stl_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
-                       TCGMemOpIdx oi, uintptr_t retaddr);
+                       MemOpIdx oi, uintptr_t retaddr);
 void helper_le_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
-                       TCGMemOpIdx oi, uintptr_t retaddr);
+                       MemOpIdx oi, uintptr_t retaddr);
 void helper_be_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
-                       TCGMemOpIdx oi, uintptr_t retaddr);
+                       MemOpIdx oi, uintptr_t retaddr);
 void helper_be_stl_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
-                       TCGMemOpIdx oi, uintptr_t retaddr);
+                       MemOpIdx oi, uintptr_t retaddr);
 void helper_be_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
-                       TCGMemOpIdx oi, uintptr_t retaddr);
+                       MemOpIdx oi, uintptr_t retaddr);
 
 /* Temporary aliases until backends are converted.  */
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -1345,30 +1320,30 @@ void helper_be_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
 
 uint32_t cpu_atomic_cmpxchgb_mmu(CPUArchState *env, target_ulong addr,
                                  uint32_t cmpv, uint32_t newv,
-                                 TCGMemOpIdx oi, uintptr_t retaddr);
+                                 MemOpIdx oi, uintptr_t retaddr);
 uint32_t cpu_atomic_cmpxchgw_le_mmu(CPUArchState *env, target_ulong addr,
                                     uint32_t cmpv, uint32_t newv,
-                                    TCGMemOpIdx oi, uintptr_t retaddr);
+                                    MemOpIdx oi, uintptr_t retaddr);
 uint32_t cpu_atomic_cmpxchgl_le_mmu(CPUArchState *env, target_ulong addr,
                                     uint32_t cmpv, uint32_t newv,
-                                    TCGMemOpIdx oi, uintptr_t retaddr);
+                                    MemOpIdx oi, uintptr_t retaddr);
 uint64_t cpu_atomic_cmpxchgq_le_mmu(CPUArchState *env, target_ulong addr,
                                     uint64_t cmpv, uint64_t newv,
-                                    TCGMemOpIdx oi, uintptr_t retaddr);
+                                    MemOpIdx oi, uintptr_t retaddr);
 uint32_t cpu_atomic_cmpxchgw_be_mmu(CPUArchState *env, target_ulong addr,
                                     uint32_t cmpv, uint32_t newv,
-                                    TCGMemOpIdx oi, uintptr_t retaddr);
+                                    MemOpIdx oi, uintptr_t retaddr);
 uint32_t cpu_atomic_cmpxchgl_be_mmu(CPUArchState *env, target_ulong addr,
                                     uint32_t cmpv, uint32_t newv,
-                                    TCGMemOpIdx oi, uintptr_t retaddr);
+                                    MemOpIdx oi, uintptr_t retaddr);
 uint64_t cpu_atomic_cmpxchgq_be_mmu(CPUArchState *env, target_ulong addr,
                                     uint64_t cmpv, uint64_t newv,
-                                    TCGMemOpIdx oi, uintptr_t retaddr);
+                                    MemOpIdx oi, uintptr_t retaddr);
 
 #define GEN_ATOMIC_HELPER(NAME, TYPE, SUFFIX)         \
 TYPE cpu_atomic_ ## NAME ## SUFFIX ## _mmu            \
     (CPUArchState *env, target_ulong addr, TYPE val,  \
-     TCGMemOpIdx oi, uintptr_t retaddr);
+     MemOpIdx oi, uintptr_t retaddr);
 
 #ifdef CONFIG_ATOMIC64
 #define GEN_ATOMIC_HELPER_ALL(NAME)          \
@@ -1415,19 +1390,19 @@ GEN_ATOMIC_HELPER_ALL(xchg)
 
 Int128 cpu_atomic_cmpxchgo_le_mmu(CPUArchState *env, target_ulong addr,
                                   Int128 cmpv, Int128 newv,
-                                  TCGMemOpIdx oi, uintptr_t retaddr);
+                                  MemOpIdx oi, uintptr_t retaddr);
 Int128 cpu_atomic_cmpxchgo_be_mmu(CPUArchState *env, target_ulong addr,
                                   Int128 cmpv, Int128 newv,
-                                  TCGMemOpIdx oi, uintptr_t retaddr);
+                                  MemOpIdx oi, uintptr_t retaddr);
 
 Int128 cpu_atomic_ldo_le_mmu(CPUArchState *env, target_ulong addr,
-                             TCGMemOpIdx oi, uintptr_t retaddr);
+                             MemOpIdx oi, uintptr_t retaddr);
 Int128 cpu_atomic_ldo_be_mmu(CPUArchState *env, target_ulong addr,
-                             TCGMemOpIdx oi, uintptr_t retaddr);
+                             MemOpIdx oi, uintptr_t retaddr);
 void cpu_atomic_sto_le_mmu(CPUArchState *env, target_ulong addr, Int128 val,
-                           TCGMemOpIdx oi, uintptr_t retaddr);
+                           MemOpIdx oi, uintptr_t retaddr);
 void cpu_atomic_sto_be_mmu(CPUArchState *env, target_ulong addr, Int128 val,
-                           TCGMemOpIdx oi, uintptr_t retaddr);
+                           MemOpIdx oi, uintptr_t retaddr);
 
 #ifdef CONFIG_DEBUG_TCG
 void tcg_assert_listed_vecop(TCGOpcode);

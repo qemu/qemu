@@ -10,6 +10,7 @@
  */
 REGS('r', ALL_GENERAL_REGS)
 REGS('L', ALL_GENERAL_REGS & ~SOFTMMU_RESERVE_REGS)
+REGS('v', ALL_VECTOR_REGS)
 /*
  * A (single) even/odd pair for division.
  * TODO: Add something to the register allocator to allow

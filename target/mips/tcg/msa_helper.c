@@ -8211,9 +8211,9 @@ void helper_msa_ffint_u_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 #define DF_ELEMENTS(df) (MSA_WRLEN / DF_BITS(df))
 
 #if !defined(CONFIG_USER_ONLY)
-#define MEMOP_IDX(DF)                                           \
-        TCGMemOpIdx oi = make_memop_idx(MO_TE | DF | MO_UNALN,  \
-                                        cpu_mmu_index(env, false));
+#define MEMOP_IDX(DF)                                                   \
+    MemOpIdx oi = make_memop_idx(MO_TE | DF | MO_UNALN,                 \
+                                 cpu_mmu_index(env, false));
 #else
 #define MEMOP_IDX(DF)
 #endif

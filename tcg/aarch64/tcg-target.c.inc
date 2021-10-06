@@ -1545,9 +1545,9 @@ static void tcg_out_cltz(TCGContext *s, TCGType ext, TCGReg d,
 #include "../tcg-ldst.c.inc"
 
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
- *                                     TCGMemOpIdx oi, uintptr_t ra)
+ *                                     MemOpIdx oi, uintptr_t ra)
  */
-static void * const qemu_ld_helpers[4] = {
+static void * const qemu_ld_helpers[MO_SIZE + 1] = {
     [MO_8]  = helper_ret_ldub_mmu,
 #ifdef HOST_WORDS_BIGENDIAN
     [MO_16] = helper_be_lduw_mmu,
@@ -1561,10 +1561,10 @@ static void * const qemu_ld_helpers[4] = {
 };
 
 /* helper signature: helper_ret_st_mmu(CPUState *env, target_ulong addr,
- *                                     uintxx_t val, TCGMemOpIdx oi,
+ *                                     uintxx_t val, MemOpIdx oi,
  *                                     uintptr_t ra)
  */
-static void * const qemu_st_helpers[4] = {
+static void * const qemu_st_helpers[MO_SIZE + 1] = {
     [MO_8]  = helper_ret_stb_mmu,
 #ifdef HOST_WORDS_BIGENDIAN
     [MO_16] = helper_be_stw_mmu,
@@ -1586,7 +1586,7 @@ static inline void tcg_out_adr(TCGContext *s, TCGReg rd, const void *target)
 
 static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 {
-    TCGMemOpIdx oi = lb->oi;
+    MemOpIdx oi = lb->oi;
     MemOp opc = get_memop(oi);
     MemOp size = opc & MO_SIZE;
 
@@ -1611,7 +1611,7 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 
 static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 {
-    TCGMemOpIdx oi = lb->oi;
+    MemOpIdx oi = lb->oi;
     MemOp opc = get_memop(oi);
     MemOp size = opc & MO_SIZE;
 
@@ -1629,7 +1629,7 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     return true;
 }
 
-static void add_qemu_ldst_label(TCGContext *s, bool is_ld, TCGMemOpIdx oi,
+static void add_qemu_ldst_label(TCGContext *s, bool is_ld, MemOpIdx oi,
                                 TCGType ext, TCGReg data_reg, TCGReg addr_reg,
                                 tcg_insn_unit *raddr, tcg_insn_unit *label_ptr)
 {
@@ -1778,7 +1778,7 @@ static void tcg_out_qemu_st_direct(TCGContext *s, MemOp memop,
 }
 
 static void tcg_out_qemu_ld(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
-                            TCGMemOpIdx oi, TCGType ext)
+                            MemOpIdx oi, TCGType ext)
 {
     MemOp memop = get_memop(oi);
     const TCGType otype = TARGET_LONG_BITS == 64 ? TCG_TYPE_I64 : TCG_TYPE_I32;
@@ -1803,7 +1803,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
 }
 
 static void tcg_out_qemu_st(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
-                            TCGMemOpIdx oi)
+                            MemOpIdx oi)
 {
     MemOp memop = get_memop(oi);
     const TCGType otype = TARGET_LONG_BITS == 64 ? TCG_TYPE_I64 : TCG_TYPE_I32;

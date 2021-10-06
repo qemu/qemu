@@ -45,7 +45,6 @@
 #include "qemu/osdep.h"
 #include "tcg/tcg.h"
 #include "tcg/tcg-op.h"
-#include "trace/mem.h"
 #include "exec/exec-all.h"
 #include "exec/plugin-gen.h"
 #include "exec/translator.h"
@@ -211,9 +210,9 @@ static void gen_mem_wrapped(enum plugin_gen_cb type,
                             const union mem_gen_fn *f, TCGv addr,
                             uint32_t info, bool is_mem)
 {
-    int wr = !!(info & TRACE_MEM_ST);
+    enum qemu_plugin_mem_rw rw = get_plugin_meminfo_rw(info);
 
-    gen_plugin_cb_start(PLUGIN_GEN_FROM_MEM, type, wr);
+    gen_plugin_cb_start(PLUGIN_GEN_FROM_MEM, type, rw);
     if (is_mem) {
         f->mem_fn(addr, info);
     } else {

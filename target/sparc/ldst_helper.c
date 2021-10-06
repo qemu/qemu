@@ -1318,7 +1318,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
     case ASI_SNF:
     case ASI_SNFL:
         {
-            TCGMemOpIdx oi;
+            MemOpIdx oi;
             int idx = (env->pstate & PS_PRIV
                        ? (asi & 1 ? MMU_KERNEL_SECONDARY_IDX : MMU_KERNEL_IDX)
                        : (asi & 1 ? MMU_USER_SECONDARY_IDX : MMU_USER_IDX));

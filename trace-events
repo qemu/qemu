@@ -120,26 +120,16 @@ vcpu guest_cpu_reset(void)
 # tcg/tcg-op.c
 
 # @vaddr: Access' virtual address.
-# @info : Access' information (see below).
+# @memopidx: Access' information (see below).
 #
 # Start virtual memory access (before any potential access violation).
-#
 # Does not include memory accesses performed by devices.
-#
-# Access information can be parsed as:
-#
-# struct mem_info {
-#     uint8_t size_shift : 4; /* interpreted as "1 << size_shift" bytes */
-#     bool    sign_extend: 1; /* sign-extended */
-#     uint8_t endianness : 1; /* 0: little, 1: big */
-#     bool    store      : 1; /* whether it is a store operation */
-#             pad        : 1;
-#     uint8_t mmuidx     : 4; /* mmuidx (softmmu only)  */
-# };
 #
 # Mode: user, softmmu
 # Targets: TCG(all)
-vcpu tcg guest_mem_before(TCGv vaddr, uint16_t info) "info=%d", "vaddr=0x%016"PRIx64" info=%d"
+vcpu tcg guest_ld_before(TCGv vaddr, uint32_t memopidx) "info=%d", "vaddr=0x%016"PRIx64" memopidx=0x%x"
+vcpu tcg guest_st_before(TCGv vaddr, uint32_t memopidx) "info=%d", "vaddr=0x%016"PRIx64" memopidx=0x%x"
+vcpu tcg guest_rmw_before(TCGv vaddr, uint32_t memopidx) "info=%d", "vaddr=0x%016"PRIx64" memopidx=0x%x"
 
 # include/user/syscall-trace.h
 

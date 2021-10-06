@@ -531,8 +531,8 @@ uint64_t HELPER(paired_cmpxchg64_le)(CPUARMState *env, uint64_t addr,
     clear_helper_retaddr();
 #else
     int mem_idx = cpu_mmu_index(env, false);
-    TCGMemOpIdx oi0 = make_memop_idx(MO_LEQ | MO_ALIGN_16, mem_idx);
-    TCGMemOpIdx oi1 = make_memop_idx(MO_LEQ, mem_idx);
+    MemOpIdx oi0 = make_memop_idx(MO_LEQ | MO_ALIGN_16, mem_idx);
+    MemOpIdx oi1 = make_memop_idx(MO_LEQ, mem_idx);
 
     o0 = helper_le_ldq_mmu(env, addr + 0, oi0, ra);
     o1 = helper_le_ldq_mmu(env, addr + 8, oi1, ra);
@@ -555,7 +555,7 @@ uint64_t HELPER(paired_cmpxchg64_le_parallel)(CPUARMState *env, uint64_t addr,
     uintptr_t ra = GETPC();
     bool success;
     int mem_idx;
-    TCGMemOpIdx oi;
+    MemOpIdx oi;
 
     assert(HAVE_CMPXCHG128);
 
@@ -601,8 +601,8 @@ uint64_t HELPER(paired_cmpxchg64_be)(CPUARMState *env, uint64_t addr,
     clear_helper_retaddr();
 #else
     int mem_idx = cpu_mmu_index(env, false);
-    TCGMemOpIdx oi0 = make_memop_idx(MO_BEQ | MO_ALIGN_16, mem_idx);
-    TCGMemOpIdx oi1 = make_memop_idx(MO_BEQ, mem_idx);
+    MemOpIdx oi0 = make_memop_idx(MO_BEQ | MO_ALIGN_16, mem_idx);
+    MemOpIdx oi1 = make_memop_idx(MO_BEQ, mem_idx);
 
     o1 = helper_be_ldq_mmu(env, addr + 0, oi0, ra);
     o0 = helper_be_ldq_mmu(env, addr + 8, oi1, ra);
@@ -625,7 +625,7 @@ uint64_t HELPER(paired_cmpxchg64_be_parallel)(CPUARMState *env, uint64_t addr,
     uintptr_t ra = GETPC();
     bool success;
     int mem_idx;
-    TCGMemOpIdx oi;
+    MemOpIdx oi;
 
     assert(HAVE_CMPXCHG128);
 
@@ -651,7 +651,7 @@ void HELPER(casp_le_parallel)(CPUARMState *env, uint32_t rs, uint64_t addr,
     Int128 oldv, cmpv, newv;
     uintptr_t ra = GETPC();
     int mem_idx;
-    TCGMemOpIdx oi;
+    MemOpIdx oi;
 
     assert(HAVE_CMPXCHG128);
 
@@ -672,7 +672,7 @@ void HELPER(casp_be_parallel)(CPUARMState *env, uint32_t rs, uint64_t addr,
     Int128 oldv, cmpv, newv;
     uintptr_t ra = GETPC();
     int mem_idx;
-    TCGMemOpIdx oi;
+    MemOpIdx oi;
 
     assert(HAVE_CMPXCHG128);
 
