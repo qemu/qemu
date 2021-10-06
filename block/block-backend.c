@@ -1166,7 +1166,7 @@ static int blk_check_byte_request(BlockBackend *blk, int64_t offset,
 {
     int64_t len;
 
-    if (bytes < 0 || bytes > INT_MAX) {
+    if (bytes < 0) {
         return -EIO;
     }
 
