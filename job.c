@@ -734,9 +734,19 @@ static void job_cancel_async(Job *job, bool force)
         assert(job->pause_count > 0);
         job->pause_count--;
     }
-    job->cancelled = true;
-    /* To prevent 'force == false' overriding a previous 'force == true' */
-    job->force_cancel |= force;
+
+    /*
+     * Ignore soft cancel requests after the job is already done
+     * (We will still invoke job->driver->cancel() above, but if the
+     * job driver supports soft cancelling and the job is done, that
+     * should be a no-op, too.  We still call it so it can override
+     * @force.)
+     */
+    if (force || !job->deferred_to_main_loop) {
+        job->cancelled = true;
+        /* To prevent 'force == false' overriding a previous 'force == true' */
+        job->force_cancel |= force;
+    }
 }
 
 static void job_completed_txn_abort(Job *job)
@@ -963,7 +973,14 @@ void job_cancel(Job *job, bool force)
     if (!job_started(job)) {
         job_completed(job);
     } else if (job->deferred_to_main_loop) {
-        job_completed_txn_abort(job);
+        /*
+         * job_cancel_async() ignores soft-cancel requests for jobs
+         * that are already done (i.e. deferred to the main loop).  We
+         * have to check again whether the job is really cancelled.
+         */
+        if (job_is_cancelled(job)) {
+            job_completed_txn_abort(job);
+        }
     } else {
         job_enter(job);
     }
