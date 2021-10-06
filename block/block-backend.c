@@ -1477,27 +1477,27 @@ BlockAIOCB *blk_aio_pwrite_zeroes(BlockBackend *blk, int64_t offset,
                         flags | BDRV_REQ_ZERO_WRITE, cb, opaque);
 }
 
-int blk_pread(BlockBackend *blk, int64_t offset, void *buf, int count)
+int blk_pread(BlockBackend *blk, int64_t offset, void *buf, int bytes)
 {
     int ret;
-    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, count);
+    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
 
     blk_inc_in_flight(blk);
-    ret = blk_do_preadv(blk, offset, count, &qiov, 0);
+    ret = blk_do_preadv(blk, offset, bytes, &qiov, 0);
     blk_dec_in_flight(blk);
 
-    return ret < 0 ? ret : count;
+    return ret < 0 ? ret : bytes;
 }
 
-int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int count,
+int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int bytes,
                BdrvRequestFlags flags)
 {
     int ret;
-    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, count);
+    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
 
-    ret = blk_pwritev_part(blk, offset, count, &qiov, 0, flags);
+    ret = blk_pwritev_part(blk, offset, bytes, &qiov, 0, flags);
 
-    return ret < 0 ? ret : count;
+    return ret < 0 ? ret : bytes;
 }
 
 int64_t blk_getlength(BlockBackend *blk)
