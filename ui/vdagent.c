@@ -17,6 +17,14 @@
 
 #include "spice/vd_agent.h"
 
+#define CHECK_SPICE_PROTOCOL_VERSION(major, minor, micro) \
+    (CONFIG_SPICE_PROTOCOL_MAJOR > (major) ||             \
+     (CONFIG_SPICE_PROTOCOL_MAJOR == (major) &&           \
+      CONFIG_SPICE_PROTOCOL_MINOR > (minor)) ||           \
+     (CONFIG_SPICE_PROTOCOL_MAJOR == (major) &&           \
+      CONFIG_SPICE_PROTOCOL_MINOR == (minor) &&           \
+      CONFIG_SPICE_PROTOCOL_MICRO >= (micro)))
+
 #define VDAGENT_BUFFER_LIMIT (1 * MiB)
 #define VDAGENT_MOUSE_DEFAULT true
 #define VDAGENT_CLIPBOARD_DEFAULT false
