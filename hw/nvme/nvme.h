@@ -128,6 +128,7 @@ typedef struct NvmeNamespace {
     int64_t      moff;
     NvmeIdNs     id_ns;
     NvmeLBAF     lbaf;
+    unsigned int nlbaf;
     size_t       lbasz;
     const uint32_t *iocs;
     uint8_t      csi;

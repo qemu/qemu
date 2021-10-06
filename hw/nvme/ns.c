@@ -112,10 +112,11 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
         [7] = { .ds = 12, .ms = 64 },
     };
 
-    memcpy(&id_ns->lbaf, &lbaf, sizeof(lbaf));
-    id_ns->nlbaf = 7;
+    ns->nlbaf = 8;
 
-    for (i = 0; i <= id_ns->nlbaf; i++) {
+    memcpy(&id_ns->lbaf, &lbaf, sizeof(lbaf));
+
+    for (i = 0; i < ns->nlbaf; i++) {
         NvmeLBAF *lbaf = &id_ns->lbaf[i];
         if (lbaf->ds == ds) {
             if (lbaf->ms == ms) {
@@ -126,12 +127,14 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     }
 
     /* add non-standard lba format */
-    id_ns->nlbaf++;
-    id_ns->lbaf[id_ns->nlbaf].ds = ds;
-    id_ns->lbaf[id_ns->nlbaf].ms = ms;
-    id_ns->flbas |= id_ns->nlbaf;
+    id_ns->lbaf[ns->nlbaf].ds = ds;
+    id_ns->lbaf[ns->nlbaf].ms = ms;
+    ns->nlbaf++;
+
+    id_ns->flbas |= i;
 
 lbaf_found:
+    id_ns->nlbaf = ns->nlbaf - 1;
     nvme_ns_init_format(ns);
 
     return 0;
