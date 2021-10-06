@@ -1425,6 +1425,7 @@ static int coroutine_fn bdrv_mirror_top_do_write(BlockDriverState *bs,
     bool copy_to_target;
 
     copy_to_target = s->job->ret >= 0 &&
+                     !job_is_cancelled(&s->job->common.job) &&
                      s->job->copy_mode == MIRROR_COPY_MODE_WRITE_BLOCKING;
 
     if (copy_to_target) {
@@ -1473,6 +1474,7 @@ static int coroutine_fn bdrv_mirror_top_pwritev(BlockDriverState *bs,
     bool copy_to_target;
 
     copy_to_target = s->job->ret >= 0 &&
+                     !job_is_cancelled(&s->job->common.job) &&
                      s->job->copy_mode == MIRROR_COPY_MODE_WRITE_BLOCKING;
 
     if (copy_to_target) {
