@@ -981,9 +981,21 @@ static void job_cancel_err(Job *job, Error **errp)
     job_cancel(job, false);
 }
 
-int job_cancel_sync(Job *job)
+/**
+ * Same as job_cancel_err(), but force-cancel.
+ */
+static void job_force_cancel_err(Job *job, Error **errp)
 {
-    return job_finish_sync(job, &job_cancel_err, NULL);
+    job_cancel(job, true);
+}
+
+int job_cancel_sync(Job *job, bool force)
+{
+    if (force) {
+        return job_finish_sync(job, &job_force_cancel_err, NULL);
+    } else {
+        return job_finish_sync(job, &job_cancel_err, NULL);
+    }
 }
 
 void job_cancel_sync_all(void)
@@ -994,7 +1006,7 @@ void job_cancel_sync_all(void)
     while ((job = job_next(NULL))) {
         aio_context = job->aio_context;
         aio_context_acquire(aio_context);
-        job_cancel_sync(job);
+        job_cancel_sync(job, true);
         aio_context_release(aio_context);
     }
 }

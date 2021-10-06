@@ -506,18 +506,18 @@ void job_user_cancel(Job *job, bool force, Error **errp);
 
 /**
  * Synchronously cancel the @job.  The completion callback is called
- * before the function returns.  The job may actually complete
- * instead of canceling itself; the circumstances under which this
- * happens depend on the kind of job that is active.
+ * before the function returns.  If @force is false, the job may
+ * actually complete instead of canceling itself; the circumstances
+ * under which this happens depend on the kind of job that is active.
  *
  * Returns the return value from the job if the job actually completed
  * during the call, or -ECANCELED if it was canceled.
  *
  * Callers must hold the AioContext lock of job->aio_context.
  */
-int job_cancel_sync(Job *job);
+int job_cancel_sync(Job *job, bool force);
 
-/** Synchronously cancels all jobs using job_cancel_sync(). */
+/** Synchronously force-cancels all jobs using job_cancel_sync(). */
 void job_cancel_sync_all(void);
 
 /**
