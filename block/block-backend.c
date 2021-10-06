@@ -1250,7 +1250,7 @@ int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
 
 /* To be called between exactly one pair of blk_inc/dec_in_flight() */
 static int coroutine_fn
-blk_do_pwritev_part(BlockBackend *blk, int64_t offset, unsigned int bytes,
+blk_do_pwritev_part(BlockBackend *blk, int64_t offset, int64_t bytes,
                     QEMUIOVector *qiov, size_t qiov_offset,
                     BdrvRequestFlags flags)
 {
@@ -1286,7 +1286,7 @@ blk_do_pwritev_part(BlockBackend *blk, int64_t offset, unsigned int bytes,
 }
 
 int coroutine_fn blk_co_pwritev_part(BlockBackend *blk, int64_t offset,
-                                     unsigned int bytes,
+                                     int64_t bytes,
                                      QEMUIOVector *qiov, size_t qiov_offset,
                                      BdrvRequestFlags flags)
 {
@@ -1300,7 +1300,7 @@ int coroutine_fn blk_co_pwritev_part(BlockBackend *blk, int64_t offset,
 }
 
 int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
-                                unsigned int bytes, QEMUIOVector *qiov,
+                                int64_t bytes, QEMUIOVector *qiov,
                                 BdrvRequestFlags flags)
 {
     return blk_co_pwritev_part(blk, offset, bytes, qiov, 0, flags);
@@ -2214,7 +2214,7 @@ void *blk_aio_get(const AIOCBInfo *aiocb_info, BlockBackend *blk,
 }
 
 int coroutine_fn blk_co_pwrite_zeroes(BlockBackend *blk, int64_t offset,
-                                      int bytes, BdrvRequestFlags flags)
+                                      int64_t bytes, BdrvRequestFlags flags)
 {
     return blk_co_pwritev(blk, offset, bytes, NULL,
                           flags | BDRV_REQ_ZERO_WRITE);
