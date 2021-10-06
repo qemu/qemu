@@ -151,6 +151,7 @@ ifeq ($(CONFIG_TOOLS)$(CONFIG_POSIX),yy)
 check: check-block
 export PYTHON
 check-block: $(SRC_PATH)/tests/check-block.sh qemu-img$(EXESUF) \
+		storage-daemon/qemu-storage-daemon$(EXESUF) \
 		qemu-io$(EXESUF) qemu-nbd$(EXESUF) $(QEMU_IOTESTS_HELPERS-y) \
 		$(filter qemu-system-%, $(ninja-targets))
 	@$<
