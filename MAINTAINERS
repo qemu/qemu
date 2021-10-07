@@ -417,7 +417,9 @@ M: Paolo Bonzini <pbonzini@redhat.com>
 M: Marcelo Tosatti <mtosatti@redhat.com>
 L: kvm@vger.kernel.org
 S: Supported
+F: docs/amd-memory-encryption.txt
 F: target/i386/kvm/
+F: target/i386/sev*
 F: scripts/kvm/vmxcap
 
 Guest CPU Cores (other accelerators)
