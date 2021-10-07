@@ -407,8 +407,10 @@ static void q800_init(MachineState *machine)
                     MAC_NUBUS_FIRST_SLOT * NUBUS_SUPER_SLOT_SIZE);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, NUBUS_SLOT_BASE +
                     MAC_NUBUS_FIRST_SLOT * NUBUS_SLOT_SIZE);
-
-    for (i = 0; i < VIA2_NUBUS_IRQ_NB; i++) {
+    qdev_connect_gpio_out(dev, 9,
+                          qdev_get_gpio_in_named(via2_dev, "nubus-irq",
+                          VIA2_NUBUS_IRQ_INTVIDEO));
+    for (i = 1; i < VIA2_NUBUS_IRQ_NB; i++) {
         qdev_connect_gpio_out(dev, 9 + i,
                               qdev_get_gpio_in_named(via2_dev, "nubus-irq",
                                                      VIA2_NUBUS_IRQ_9 + i));
@@ -419,6 +421,7 @@ static void q800_init(MachineState *machine)
     /* framebuffer in nubus slot #9 */
 
     dev = qdev_new(TYPE_NUBUS_MACFB);
+    qdev_prop_set_uint32(dev, "slot", 9);
     qdev_prop_set_uint32(dev, "width", graphic_width);
     qdev_prop_set_uint32(dev, "height", graphic_height);
     qdev_prop_set_uint8(dev, "depth", graphic_depth);
