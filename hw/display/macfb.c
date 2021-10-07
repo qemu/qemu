@@ -367,11 +367,10 @@ static bool macfb_common_realize(DeviceState *dev, MacfbState *s, Error **errp)
     memory_region_init_io(&s->mem_ctrl, OBJECT(dev), &macfb_ctrl_ops, s,
                           "macfb-ctrl", 0x1000);
 
-    memory_region_init_ram_nomigrate(&s->mem_vram, OBJECT(dev), "macfb-vram",
-                                     MACFB_VRAM_SIZE, &error_abort);
+    memory_region_init_ram(&s->mem_vram, OBJECT(dev), "macfb-vram",
+                           MACFB_VRAM_SIZE, &error_abort);
     s->vram = memory_region_get_ram_ptr(&s->mem_vram);
     s->vram_bit_mask = MACFB_VRAM_SIZE - 1;
-    vmstate_register_ram(&s->mem_vram, dev);
     memory_region_set_coalescing(&s->mem_vram);
 
     return true;
