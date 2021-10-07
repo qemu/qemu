@@ -1217,6 +1217,9 @@ if have_system
     'pa': pulse.found(),
     'sdl': sdl.found(),
   }
+  foreach k, v: audio_drivers_available
+    config_host_data.set('CONFIG_AUDIO_' + k.to_upper(), v)
+  endforeach
 
   # Default to native drivers first, OSS second, SDL third
   audio_drivers_priority = \
@@ -1239,9 +1242,6 @@ if have_system
     endif
   endforeach
 endif
-foreach k: audio_drivers_selected
-  config_host_data.set('CONFIG_AUDIO_' + k.to_upper(), true)
-endforeach
 config_host_data.set('CONFIG_AUDIO_DRIVERS',
                      '"' + '", "'.join(audio_drivers_selected) + '", ')
 
