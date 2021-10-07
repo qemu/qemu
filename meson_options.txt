@@ -6,9 +6,12 @@ option('qemu_firmwarepath', type : 'string', value : '',
        description: 'search PATH for firmware files')
 option('sphinx_build', type : 'string', value : '',
        description: 'Use specified sphinx-build [$sphinx_build] for building document (default to be empty)')
-
 option('default_devices', type : 'boolean', value : true,
        description: 'Include a default selection of devices in emulators')
+option('audio_drv_list', type: 'array', value: ['default'],
+       choices: ['alsa', 'coreaudio', 'default', 'dsound', 'jack', 'oss', 'pa', 'sdl'],
+       description: 'Set audio driver list')
+
 option('docs', type : 'feature', value : 'auto',
        description: 'Documentations build support')
 option('gettext', type : 'feature', value : 'auto',
@@ -138,6 +141,19 @@ option('fuse', type: 'feature', value: 'auto',
        description: 'FUSE block device export')
 option('fuse_lseek', type : 'feature', value : 'auto',
        description: 'SEEK_HOLE/SEEK_DATA support for FUSE exports')
+
+option('alsa', type: 'feature', value: 'auto',
+       description: 'ALSA sound support')
+option('coreaudio', type: 'feature', value: 'auto',
+       description: 'CoreAudio sound support')
+option('dsound', type: 'feature', value: 'auto',
+       description: 'DirectSound sound support')
+option('jack', type: 'feature', value: 'auto',
+       description: 'JACK sound support')
+option('oss', type: 'feature', value: 'auto',
+       description: 'OSS sound support')
+option('pa', type: 'feature', value: 'auto',
+       description: 'PulseAudio sound support')
 
 option('vhost_user_blk_server', type: 'feature', value: 'auto',
        description: 'build vhost-user-blk server')

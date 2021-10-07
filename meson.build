@@ -428,20 +428,23 @@ vde = not_found
 if config_host.has_key('CONFIG_VDE')
   vde = declare_dependency(link_args: config_host['VDE_LIBS'].split())
 endif
+
 pulse = not_found
-if 'CONFIG_LIBPULSE' in config_host
-  pulse = declare_dependency(compile_args: config_host['PULSE_CFLAGS'].split(),
-                             link_args: config_host['PULSE_LIBS'].split())
+if not get_option('pa').auto() or (targetos == 'linux' and have_system)
+  pulse = dependency('libpulse', required: get_option('pa'),
+                     method: 'pkg-config', kwargs: static_kwargs)
 endif
 alsa = not_found
-if 'CONFIG_ALSA' in config_host
-  alsa = declare_dependency(compile_args: config_host['ALSA_CFLAGS'].split(),
-                            link_args: config_host['ALSA_LIBS'].split())
+if not get_option('alsa').auto() or (targetos == 'linux' and have_system)
+  alsa = dependency('alsa', required: get_option('alsa'),
+                    method: 'pkg-config', kwargs: static_kwargs)
 endif
 jack = not_found
-if 'CONFIG_LIBJACK' in config_host
-  jack = declare_dependency(link_args: config_host['JACK_LIBS'].split())
+if not get_option('jack').auto() or have_system
+  jack = dependency('jack', required: get_option('jack'),
+                    method: 'pkg-config', kwargs: static_kwargs)
 endif
+
 spice = not_found
 spice_headers = not_found
 spice_protocol = not_found
@@ -801,16 +804,59 @@ if liblzfse.found() and not cc.links('''
 endif
 
 oss = not_found
-if 'CONFIG_AUDIO_OSS' in config_host
-  oss = declare_dependency(link_args: config_host['OSS_LIBS'].split())
+if not get_option('oss').auto() or have_system
+  if not cc.has_header('sys/soundcard.h')
+    # not found
+  elif targetos == 'netbsd'
+    oss = cc.find_library('ossaudio', required: get_option('oss'),
+                          kwargs: static_kwargs)
+  else
+    oss = declare_dependency()
+  endif
+
+  if not oss.found()
+    if get_option('oss').enabled()
+      error('OSS not found')
+    else
+      warning('OSS not found, disabling')
+    endif
+  endif
 endif
 dsound = not_found
-if 'CONFIG_AUDIO_DSOUND' in config_host
-  dsound = declare_dependency(link_args: config_host['DSOUND_LIBS'].split())
+if not get_option('dsound').auto() or (targetos == 'windows' and have_system)
+  if cc.has_header('dsound.h')
+    dsound = declare_dependency(link_args: ['-lole32', '-ldxguid'])
+  endif
+
+  if not dsound.found()
+    if get_option('dsound').enabled()
+      error('DirectSound not found')
+    else
+      warning('DirectSound not found, disabling')
+    endif
+  endif
 endif
+
 coreaudio = not_found
-if 'CONFIG_AUDIO_COREAUDIO' in config_host
-  coreaudio = declare_dependency(link_args: config_host['COREAUDIO_LIBS'].split())
+if not get_option('coreaudio').auto() or (targetos == 'darwin' and have_system)
+  coreaudio = dependency('appleframeworks', modules: 'CoreAudio',
+                         required: get_option('coreaudio'))
+  if coreaudio.found() and not cc.links('''
+    #include <CoreAudio/CoreAudio.h>
+    int main(void)
+    {
+      return (int)AudioGetCurrentHostTime();
+    }''')
+    coreaudio = not_found
+  endif
+
+  if not coreaudio.found()
+    if get_option('coreaudio').enabled()
+      error('CoreAudio not found')
+    else
+      warning('CoreAudio not found, disabling')
+    endif
+  endif
 endif
 
 opengl = not_found
@@ -1156,6 +1202,49 @@ if libbpf.found() and not cc.links('''
   endif
 endif
 
+#################
+# config-host.h #
+#################
+
+audio_drivers_selected = []
+if have_system
+  audio_drivers_available = {
+    'alsa': alsa.found(),
+    'coreaudio': coreaudio.found(),
+    'dsound': dsound.found(),
+    'jack': jack.found(),
+    'oss': oss.found(),
+    'pa': pulse.found(),
+    'sdl': sdl.found(),
+  }
+
+  # Default to native drivers first, OSS second, SDL third
+  audio_drivers_priority = \
+    [ 'pa', 'coreaudio', 'dsound', 'oss' ] + \
+    (targetos == 'linux' ? [] : [ 'sdl' ])
+  audio_drivers_default = []
+  foreach k: audio_drivers_priority
+    if audio_drivers_available[k]
+      audio_drivers_default += k
+    endif
+  endforeach
+
+  foreach k: get_option('audio_drv_list')
+    if k == 'default'
+      audio_drivers_selected += audio_drivers_default
+    elif not audio_drivers_available[k]
+      error('Audio driver "@0@" not available.'.format(k))
+    else
+      audio_drivers_selected += k
+    endif
+  endforeach
+endif
+foreach k: audio_drivers_selected
+  config_host_data.set('CONFIG_AUDIO_' + k.to_upper(), true)
+endforeach
+config_host_data.set('CONFIG_AUDIO_DRIVERS',
+                     '"' + '", "'.join(audio_drivers_selected) + '", ')
+
 if get_option('cfi')
   cfi_flags=[]
   # Check for dependency on LTO
@@ -1198,10 +1287,6 @@ endif
 
 have_host_block_device = (targetos != 'darwin' or
     cc.has_header('IOKit/storage/IOMedia.h'))
-
-#################
-# config-host.h #
-#################
 
 have_virtfs = (targetos == 'linux' and
     have_system and
@@ -1446,7 +1531,7 @@ config_host_data.set('HAVE_BROKEN_SIZE_MAX', not cc.compiles('''
 
 
 ignored = ['CONFIG_QEMU_INTERP_PREFIX'] # actually per-target
-arrays = ['CONFIG_AUDIO_DRIVERS', 'CONFIG_BDRV_RW_WHITELIST', 'CONFIG_BDRV_RO_WHITELIST']
+arrays = ['CONFIG_BDRV_RW_WHITELIST', 'CONFIG_BDRV_RO_WHITELIST']
 strings = ['HOST_DSOSUF', 'CONFIG_IASL']
 foreach k, v: config_host
   if ignored.contains(k)
@@ -2880,7 +2965,7 @@ if config_host.has_key('CONFIG_MODULES')
 endif
 summary_info += {'fuzzing support':   config_host.has_key('CONFIG_FUZZ')}
 if have_system
-  summary_info += {'Audio drivers':     config_host['CONFIG_AUDIO_DRIVERS']}
+  summary_info += {'Audio drivers':     ' '.join(audio_drivers_selected)}
 endif
 summary_info += {'Trace backends':    config_host['TRACE_BACKENDS']}
 if config_host['TRACE_BACKENDS'].split().contains('simple')
@@ -3068,6 +3153,18 @@ if vnc.found()
   summary_info += {'VNC JPEG support':  jpeg}
   summary_info += {'VNC PNG support':   png}
 endif
+if targetos not in ['darwin', 'haiku', 'windows']
+  summary_info += {'OSS support':     oss}
+elif targetos == 'darwin'
+  summary_info += {'CoreAudio support': coreaudio}
+elif targetos == 'windows'
+  summary_info += {'DirectSound support': dsound}
+endif
+if targetos == 'linux'
+  summary_info += {'ALSA support':    alsa}
+  summary_info += {'PulseAudio support': pulse}
+endif
+summary_info += {'JACK support':      jack}
 summary_info += {'brlapi support':    brlapi}
 summary_info += {'vde support':       config_host.has_key('CONFIG_VDE')}
 summary_info += {'netmap support':    config_host.has_key('CONFIG_NETMAP')}

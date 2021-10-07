@@ -240,7 +240,7 @@ interp_prefix="/usr/gnemul/qemu-%M"
 static="no"
 cross_compile="no"
 cross_prefix=""
-audio_drv_list=""
+audio_drv_list="default"
 block_drv_rw_whitelist=""
 block_drv_ro_whitelist=""
 block_drv_whitelist_tools="no"
@@ -299,7 +299,6 @@ fdt="auto"
 netmap="no"
 sdl="auto"
 sdl_image="auto"
-coreaudio="auto"
 virtiofsd="auto"
 virtfs="auto"
 libudev="auto"
@@ -356,7 +355,6 @@ module_upgrades="no"
 prefix="/usr/local"
 qemu_suffix="qemu"
 slirp="auto"
-oss_lib=""
 bsd="no"
 linux="no"
 solaris="no"
@@ -703,54 +701,35 @@ fi
 case $targetos in
 MINGW32*)
   mingw32="yes"
-  audio_possible_drivers="dsound sdl"
-  if check_include dsound.h; then
-    audio_drv_list="dsound"
-  else
-    audio_drv_list=""
-  fi
   supported_os="yes"
   plugins="no"
   pie="no"
 ;;
 GNU/kFreeBSD)
   bsd="yes"
-  audio_drv_list="oss try-sdl"
-  audio_possible_drivers="oss sdl pa"
 ;;
 FreeBSD)
   bsd="yes"
   bsd_user="yes"
   make="${MAKE-gmake}"
-  audio_drv_list="oss try-sdl"
-  audio_possible_drivers="oss sdl pa"
   # needed for kinfo_getvmmap(3) in libutil.h
   netmap=""  # enable netmap autodetect
 ;;
 DragonFly)
   bsd="yes"
   make="${MAKE-gmake}"
-  audio_drv_list="oss try-sdl"
-  audio_possible_drivers="oss sdl pa"
 ;;
 NetBSD)
   bsd="yes"
   make="${MAKE-gmake}"
-  audio_drv_list="oss try-sdl"
-  audio_possible_drivers="oss sdl"
-  oss_lib="-lossaudio"
 ;;
 OpenBSD)
   bsd="yes"
   make="${MAKE-gmake}"
-  audio_drv_list="try-sdl"
-  audio_possible_drivers="sdl"
 ;;
 Darwin)
   bsd="yes"
   darwin="yes"
-  audio_drv_list="try-coreaudio try-sdl"
-  audio_possible_drivers="coreaudio sdl"
   # Disable attempts to use ObjectiveC features in os/object.h since they
   # won't work when we're compiling with gcc as a C compiler.
   QEMU_CFLAGS="-DOS_OBJECT_USE_OBJC=0 $QEMU_CFLAGS"
@@ -759,10 +738,6 @@ SunOS)
   solaris="yes"
   make="${MAKE-gmake}"
   smbd="${SMBD-/usr/sfw/sbin/smbd}"
-  if test -f /usr/include/sys/soundcard.h ; then
-    audio_drv_list="oss try-sdl"
-  fi
-  audio_possible_drivers="oss sdl"
 # needed for CMSG_ macros in sys/socket.h
   QEMU_CFLAGS="-D_XOPEN_SOURCE=600 $QEMU_CFLAGS"
 # needed for TIOCWIN* defines in termios.h
@@ -774,8 +749,6 @@ Haiku)
   QEMU_CFLAGS="-DB_USE_POSITIVE_POSIX_ERRORS -D_BSD_SOURCE -fPIC $QEMU_CFLAGS"
 ;;
 Linux)
-  audio_drv_list="try-pa oss"
-  audio_possible_drivers="oss alsa sdl pa"
   linux="yes"
   linux_user="yes"
   vhost_user=${default_feature:-yes}
@@ -1796,8 +1769,7 @@ Advanced options (experts only):
   --disable-strip          disable stripping binaries
   --disable-werror         disable compilation abort on warning
   --disable-stack-protector disable compiler-provided stack protection
-  --audio-drv-list=LIST    set audio drivers list:
-                           Available drivers: $audio_possible_drivers
+  --audio-drv-list=LIST    set audio drivers list
   --block-drv-whitelist=L  Same as --block-drv-rw-whitelist=L
   --block-drv-rw-whitelist=L
                            set block driver read-write whitelist
@@ -2401,12 +2373,6 @@ if test -z "$want_tools"; then
 fi
 
 ##########################################
-# Disable features only meaningful for system-mode emulation
-if test "$softmmu" = "no"; then
-    audio_drv_list=""
-fi
-
-##########################################
 # L2TPV3 probe
 
 cat > $TMPC <<EOF
@@ -2983,130 +2949,6 @@ EOF
     netmap=no
   fi
 fi
-
-##########################################
-# detect CoreAudio
-if test "$coreaudio" != "no" ; then
-  coreaudio_libs="-framework CoreAudio"
-  cat > $TMPC << EOF
-#include <CoreAudio/CoreAudio.h>
-int main(void)
-{
-  return (int)AudioGetCurrentHostTime();
-}
-EOF
-  if compile_prog "" "$coreaudio_libs" ; then
-    coreaudio=yes
-  else
-    coreaudio=no
-  fi
-fi
-
-##########################################
-# Sound support libraries probe
-
-audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/,/ /g')
-for drv in $audio_drv_list; do
-    case $drv in
-    alsa | try-alsa)
-    if $pkg_config alsa --exists; then
-        alsa_libs=$($pkg_config alsa --libs)
-        alsa_cflags=$($pkg_config alsa --cflags)
-        alsa=yes
-        if test "$drv" = "try-alsa"; then
-            audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-alsa/alsa/')
-        fi
-    else
-        if test "$drv" = "try-alsa"; then
-            audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-alsa//')
-        else
-            error_exit "$drv check failed" \
-                "Make sure to have the $drv libs and headers installed."
-        fi
-    fi
-    ;;
-
-    pa | try-pa)
-    if $pkg_config libpulse --exists; then
-        libpulse=yes
-        pulse_libs=$($pkg_config libpulse --libs)
-        pulse_cflags=$($pkg_config libpulse --cflags)
-        if test "$drv" = "try-pa"; then
-            audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-pa/pa/')
-        fi
-    else
-        if test "$drv" = "try-pa"; then
-            audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-pa//')
-        else
-            error_exit "$drv check failed" \
-                "Make sure to have the $drv libs and headers installed."
-        fi
-    fi
-    ;;
-
-    sdl)
-    if test "$sdl" = "no"; then
-        error_exit "sdl not found or disabled, can not use sdl audio driver"
-    fi
-    ;;
-
-    try-sdl)
-    if test "$sdl" = "no"; then
-        audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-sdl//')
-    else
-        audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-sdl/sdl/')
-    fi
-    ;;
-
-    coreaudio | try-coreaudio)
-    if test "$coreaudio" = "no"; then
-      if test "$drv" = "try-coreaudio"; then
-        audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-coreaudio//')
-      else
-        error_exit "$drv check failed" \
-                "Make sure to have the $drv is available."
-      fi
-    else
-      coreaudio_libs="-framework CoreAudio"
-      if test "$drv" = "try-coreaudio"; then
-        audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-coreaudio/coreaudio/')
-      fi
-    fi
-    ;;
-
-    dsound)
-      dsound_libs="-lole32 -ldxguid"
-    ;;
-
-    oss)
-      oss_libs="$oss_lib"
-    ;;
-
-    jack | try-jack)
-    if $pkg_config jack --exists; then
-        libjack=yes
-        jack_libs=$($pkg_config jack --libs)
-        if test "$drv" = "try-jack"; then
-            audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-jack/jack/')
-        fi
-    else
-        if test "$drv" = "try-jack"; then
-            audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-jack//')
-        else
-            error_exit "$drv check failed" \
-                "Make sure to have the $drv libs and headers installed."
-        fi
-    fi
-    ;;
-
-    *)
-    echo "$audio_possible_drivers" | grep -q "\<$drv\>" || {
-        error_exit "Unknown driver '$drv' selected" \
-            "Possible drivers are: $audio_possible_drivers"
-    }
-    ;;
-    esac
-done
 
 ##########################################
 # plugin linker support probe
@@ -4538,28 +4380,6 @@ fi
 if test "$gprof" = "yes" ; then
   echo "CONFIG_GPROF=y" >> $config_host_mak
 fi
-echo "CONFIG_AUDIO_DRIVERS=$audio_drv_list" >> $config_host_mak
-for drv in $audio_drv_list; do
-    def=CONFIG_AUDIO_$(echo $drv | LC_ALL=C tr '[a-z]' '[A-Z]')
-    echo "$def=y" >> $config_host_mak
-done
-if test "$alsa" = "yes" ; then
-    echo "CONFIG_ALSA=y" >> $config_host_mak
-fi
-echo "ALSA_LIBS=$alsa_libs" >> $config_host_mak
-echo "ALSA_CFLAGS=$alsa_cflags" >> $config_host_mak
-if test "$libpulse" = "yes" ; then
-    echo "CONFIG_LIBPULSE=y" >> $config_host_mak
-fi
-echo "PULSE_LIBS=$pulse_libs" >> $config_host_mak
-echo "PULSE_CFLAGS=$pulse_cflags" >> $config_host_mak
-echo "COREAUDIO_LIBS=$coreaudio_libs" >> $config_host_mak
-echo "DSOUND_LIBS=$dsound_libs" >> $config_host_mak
-echo "OSS_LIBS=$oss_libs" >> $config_host_mak
-if test "$libjack" = "yes" ; then
-    echo "CONFIG_LIBJACK=y" >> $config_host_mak
-fi
-echo "JACK_LIBS=$jack_libs" >> $config_host_mak
 echo "CONFIG_BDRV_RW_WHITELIST=$block_drv_rw_whitelist" >> $config_host_mak
 echo "CONFIG_BDRV_RO_WHITELIST=$block_drv_ro_whitelist" >> $config_host_mak
 if test "$block_drv_whitelist_tools" = "yes" ; then
@@ -5197,7 +5017,7 @@ if test "$skip_meson" = no; then
         -Dvhost_user_blk_server=$vhost_user_blk_server -Dmultiprocess=$multiprocess \
         -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek -Dguest_agent_msi=$guest_agent_msi -Dbpf=$bpf\
         $(if test "$default_feature" = no; then echo "-Dauto_features=disabled"; fi) \
-	-Dtcg_interpreter=$tcg_interpreter \
+        -Daudio_drv_list=$audio_drv_list -Dtcg_interpreter=$tcg_interpreter \
         $cross_arg \
         "$PWD" "$source_path"
 
