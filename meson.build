@@ -1656,6 +1656,23 @@ config_host_data.set('HAVE_MLOCKALL', cc.links(gnu_source_prefix + '''
     return mlockall(MCL_FUTURE);
   }'''))
 
+have_netmap = false
+if not get_option('netmap').disabled() and have_system
+  have_netmap = cc.compiles('''
+    #include <inttypes.h>
+    #include <net/if.h>
+    #include <net/netmap.h>
+    #include <net/netmap_user.h>
+    #if (NETMAP_API < 11) || (NETMAP_API > 15)
+    #error
+    #endif
+    int main(void) { return 0; }''')
+  if not have_netmap and get_option('netmap').enabled()
+    error('Netmap headers not available')
+  endif
+endif
+config_host_data.set('CONFIG_NETMAP', have_netmap)
+
 # Work around a system header bug with some kernel/XFS header
 # versions where they both try to define 'struct fsxattr':
 # xfs headers will not try to redefine structs from linux headers
@@ -3311,7 +3328,7 @@ endif
 summary_info += {'JACK support':      jack}
 summary_info += {'brlapi support':    brlapi}
 summary_info += {'vde support':       vde}
-summary_info += {'netmap support':    config_host.has_key('CONFIG_NETMAP')}
+summary_info += {'netmap support':    have_netmap}
 summary_info += {'Linux AIO support': libaio}
 summary_info += {'Linux io_uring support': linux_io_uring}
 summary_info += {'ATTR/XATTR support': libattr}

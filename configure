@@ -292,7 +292,7 @@ iconv="auto"
 curses="auto"
 docs="auto"
 fdt="auto"
-netmap="no"
+netmap="auto"
 sdl="auto"
 sdl_image="auto"
 virtiofsd="auto"
@@ -701,7 +701,6 @@ FreeBSD)
   bsd_user="yes"
   make="${MAKE-gmake}"
   # needed for kinfo_getvmmap(3) in libutil.h
-  netmap=""  # enable netmap autodetect
 ;;
 DragonFly)
   bsd="yes"
@@ -1026,9 +1025,9 @@ for opt do
   ;;
   --enable-vde) vde="enabled"
   ;;
-  --disable-netmap) netmap="no"
+  --disable-netmap) netmap="disabled"
   ;;
-  --enable-netmap) netmap="yes"
+  --enable-netmap) netmap="enabled"
   ;;
   --disable-xen) xen="disabled"
   ;;
@@ -2904,34 +2903,6 @@ EOF
 fi
 
 ##########################################
-# netmap support probe
-# Apart from looking for netmap headers, we make sure that the host API version
-# supports the netmap backend (>=11). The upper bound (15) is meant to simulate
-# a minor/major version number. Minor new features will be marked with values up
-# to 15, and if something happens that requires a change to the backend we will
-# move above 15, submit the backend fixes and modify this two bounds.
-if test "$netmap" != "no" ; then
-  cat > $TMPC << EOF
-#include <inttypes.h>
-#include <net/if.h>
-#include <net/netmap.h>
-#include <net/netmap_user.h>
-#if (NETMAP_API < 11) || (NETMAP_API > 15)
-#error
-#endif
-int main(void) { return 0; }
-EOF
-  if compile_prog "" "" ; then
-    netmap=yes
-  else
-    if test "$netmap" = "yes" ; then
-      feature_not_found "netmap"
-    fi
-    netmap=no
-  fi
-fi
-
-##########################################
 # plugin linker support probe
 
 if test "$plugins" != "no"; then
@@ -4175,9 +4146,6 @@ if test "$slirp_smbd" = "yes" ; then
   echo "CONFIG_SLIRP_SMBD=y" >> $config_host_mak
   echo "CONFIG_SMBD_COMMAND=\"$smbd\"" >> $config_host_mak
 fi
-if test "$netmap" = "yes" ; then
-  echo "CONFIG_NETMAP=y" >> $config_host_mak
-fi
 if test "$l2tpv3" = "yes" ; then
   echo "CONFIG_L2TPV3=y" >> $config_host_mak
 fi
@@ -4724,7 +4692,7 @@ if test "$skip_meson" = no; then
         -Dalsa=$alsa -Dcoreaudio=$coreaudio -Ddsound=$dsound -Djack=$jack -Doss=$oss \
         -Dpa=$pa -Daudio_drv_list=$audio_drv_list -Dtcg_interpreter=$tcg_interpreter \
         -Dtrace_backends=$trace_backends -Dtrace_file=$trace_file -Dlinux_aio=$linux_aio \
-        -Dvde=$vde \
+        -Dnetmap=$netmap -Dvde=$vde \
         $cross_arg \
         "$PWD" "$source_path"
 
