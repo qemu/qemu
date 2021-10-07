@@ -20,6 +20,7 @@
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "trace.h"
 
 #define VIDEO_BASE 0x00001000
 #define DAFB_BASE  0x00800000
@@ -289,7 +290,10 @@ static uint64_t macfb_ctrl_read(void *opaque,
                                 hwaddr addr,
                                 unsigned int size)
 {
-    return 0;
+    uint64_t val = 0;
+
+    trace_macfb_ctrl_read(addr, val, size);
+    return val;
 }
 
 static void macfb_ctrl_write(void *opaque,
@@ -311,6 +315,8 @@ static void macfb_ctrl_write(void *opaque,
         }
         break;
     }
+
+    trace_macfb_ctrl_write(addr, val, size);
 }
 
 static const MemoryRegionOps macfb_ctrl_ops = {
