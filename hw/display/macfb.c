@@ -28,8 +28,66 @@
 #define MACFB_PAGE_SIZE 4096
 #define MACFB_VRAM_SIZE (4 * MiB)
 
-#define DAFB_RESET      0x200
-#define DAFB_LUT        0x213
+#define DAFB_MODE_SENSE     0x1c
+#define DAFB_RESET          0x200
+#define DAFB_LUT            0x213
+
+
+/*
+ * Quadra sense codes taken from Apple Technical Note HW26:
+ * "Macintosh Quadra Built-In Video". The sense codes and
+ * extended sense codes have different meanings:
+ *
+ * Sense:
+ *    bit 2: SENSE2 (pin 10)
+ *    bit 1: SENSE1 (pin 7)
+ *    bit 0: SENSE0 (pin 4)
+ *
+ * 0 = pin tied to ground
+ * 1 = pin unconnected
+ *
+ * Extended Sense:
+ *    bit 2: pins 4-10
+ *    bit 1: pins 10-7
+ *    bit 0: pins 7-4
+ *
+ * 0 = pins tied together
+ * 1 = pins unconnected
+ *
+ * Reads from the sense register appear to be active low, i.e. a 1 indicates
+ * that the pin is tied to ground, a 0 indicates the pin is disconnected.
+ *
+ * Writes to the sense register appear to activate pulldowns i.e. a 1 enables
+ * a pulldown on a particular pin.
+ *
+ * The MacOS toolbox appears to use a series of reads and writes to first
+ * determine if extended sense is to be used, and then check which pins are
+ * tied together in order to determine the display type.
+ */
+
+typedef struct MacFbSense {
+    uint8_t type;
+    uint8_t sense;
+    uint8_t ext_sense;
+} MacFbSense;
+
+static MacFbSense macfb_sense_table[] = {
+    { MACFB_DISPLAY_APPLE_21_COLOR, 0x0, 0 },
+    { MACFB_DISPLAY_APPLE_PORTRAIT, 0x1, 0 },
+    { MACFB_DISPLAY_APPLE_12_RGB, 0x2, 0 },
+    { MACFB_DISPLAY_APPLE_2PAGE_MONO, 0x3, 0 },
+    { MACFB_DISPLAY_NTSC_UNDERSCAN, 0x4, 0 },
+    { MACFB_DISPLAY_NTSC_OVERSCAN, 0x4, 0 },
+    { MACFB_DISPLAY_APPLE_12_MONO, 0x6, 0 },
+    { MACFB_DISPLAY_APPLE_13_RGB, 0x6, 0 },
+    { MACFB_DISPLAY_16_COLOR, 0x7, 0x3 },
+    { MACFB_DISPLAY_PAL1_UNDERSCAN, 0x7, 0x0 },
+    { MACFB_DISPLAY_PAL1_OVERSCAN, 0x7, 0x0 },
+    { MACFB_DISPLAY_PAL2_UNDERSCAN, 0x7, 0x6 },
+    { MACFB_DISPLAY_PAL2_OVERSCAN, 0x7, 0x6 },
+    { MACFB_DISPLAY_VGA, 0x7, 0x5 },
+    { MACFB_DISPLAY_SVGA, 0x7, 0x5 },
+};
 
 
 typedef void macfb_draw_line_func(MacfbState *s, uint8_t *d, uint32_t addr,
@@ -253,6 +311,50 @@ static void macfb_invalidate_display(void *opaque)
     memory_region_set_dirty(&s->mem_vram, 0, MACFB_VRAM_SIZE);
 }
 
+static uint32_t macfb_sense_read(MacfbState *s)
+{
+    MacFbSense *macfb_sense;
+    uint8_t sense;
+
+    macfb_sense = &macfb_sense_table[MACFB_DISPLAY_VGA];
+    if (macfb_sense->sense == 0x7) {
+        /* Extended sense */
+        sense = 0;
+        if (!(macfb_sense->ext_sense & 1)) {
+            /* Pins 7-4 together */
+            if (~s->sense & 3) {
+                sense = (~s->sense & 7) | 3;
+            }
+        }
+        if (!(macfb_sense->ext_sense & 2)) {
+            /* Pins 10-7 together */
+            if (~s->sense & 6) {
+                sense = (~s->sense & 7) | 6;
+            }
+        }
+        if (!(macfb_sense->ext_sense & 4)) {
+            /* Pins 4-10 together */
+            if (~s->sense & 5) {
+                sense = (~s->sense & 7) | 5;
+            }
+        }
+    } else {
+        /* Normal sense */
+        sense = (~macfb_sense->sense & 7) | (~s->sense & 7);
+    }
+
+    trace_macfb_sense_read(sense);
+    return sense;
+}
+
+static void macfb_sense_write(MacfbState *s, uint32_t val)
+{
+    s->sense = val;
+
+    trace_macfb_sense_write(val);
+    return;
+}
+
 static void macfb_update_display(void *opaque)
 {
     MacfbState *s = opaque;
@@ -290,7 +392,14 @@ static uint64_t macfb_ctrl_read(void *opaque,
                                 hwaddr addr,
                                 unsigned int size)
 {
+    MacfbState *s = opaque;
     uint64_t val = 0;
+
+    switch (addr) {
+    case DAFB_MODE_SENSE:
+        val = macfb_sense_read(s);
+        break;
+    }
 
     trace_macfb_ctrl_read(addr, val, size);
     return val;
@@ -303,6 +412,9 @@ static void macfb_ctrl_write(void *opaque,
 {
     MacfbState *s = opaque;
     switch (addr) {
+    case DAFB_MODE_SENSE:
+        macfb_sense_write(s, val);
+        break;
     case DAFB_RESET:
         s->palette_current = 0;
         break;
@@ -342,6 +454,7 @@ static const VMStateDescription vmstate_macfb = {
     .fields = (VMStateField[]) {
         VMSTATE_UINT8_ARRAY(color_palette, MacfbState, 256 * 3),
         VMSTATE_UINT32(palette_current, MacfbState),
+        VMSTATE_UINT32(sense, MacfbState),
         VMSTATE_END_OF_LIST()
     }
 };
