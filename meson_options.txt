@@ -13,6 +13,8 @@ option('audio_drv_list', type: 'array', value: ['default'],
        description: 'Set audio driver list')
 option('fuzzing_engine', type : 'string', value : '',
        description: 'fuzzing engine library for OSS-Fuzz')
+option('trace_file', type: 'string', value: 'trace',
+       description: 'Trace file prefix for simple backend')
 
 option('docs', type : 'feature', value : 'auto',
        description: 'Documentations build support')
@@ -145,6 +147,10 @@ option('fuse', type: 'feature', value: 'auto',
        description: 'FUSE block device export')
 option('fuse_lseek', type : 'feature', value : 'auto',
        description: 'SEEK_HOLE/SEEK_DATA support for FUSE exports')
+
+option('trace_backends', type: 'array', value: ['log'],
+       choices: ['dtrace', 'ftrace', 'log', 'nop', 'simple', 'syslog', 'ust'],
+       description: 'Set available tracing backends')
 
 option('alsa', type: 'feature', value: 'auto',
        description: 'ALSA sound support')

@@ -216,10 +216,6 @@ version_ge () {
     done
 }
 
-have_backend () {
-    echo "$trace_backends" | grep "$1" >/dev/null
-}
-
 glob() {
     eval test -z '"${1#'"$2"'}"'
 }
@@ -3515,56 +3511,6 @@ case "$capstone" in
 esac
 
 ##########################################
-# check if we have posix_syslog
-
-posix_syslog=no
-cat > $TMPC << EOF
-#include <syslog.h>
-int main(void) { openlog("qemu", LOG_PID, LOG_DAEMON); syslog(LOG_INFO, "configure"); return 0; }
-EOF
-if compile_prog "" "" ; then
-    posix_syslog=yes
-fi
-
-##########################################
-# check if trace backend exists
-
-$python "$source_path/scripts/tracetool.py" "--backends=$trace_backends" --check-backends  > /dev/null 2> /dev/null
-if test "$?" -ne 0 ; then
-  error_exit "invalid trace backends" \
-      "Please choose supported trace backends."
-fi
-
-##########################################
-# For 'ust' backend, test if ust headers are present
-if have_backend "ust"; then
-  if $pkg_config lttng-ust --exists; then
-    lttng_ust_libs=$($pkg_config --libs lttng-ust)
-  else
-    error_exit "Trace backend 'ust' missing lttng-ust header files"
-  fi
-fi
-
-##########################################
-# For 'dtrace' backend, test if 'dtrace' command is present
-if have_backend "dtrace"; then
-  if ! has 'dtrace' ; then
-    error_exit "dtrace command is not found in PATH $PATH"
-  fi
-  trace_backend_stap="no"
-  if has 'stap' ; then
-    trace_backend_stap="yes"
-
-    # Workaround to avoid dtrace(1) producing a file with 'hidden' symbol
-    # visibility. Define STAP_SDT_V2 to produce 'default' symbol visibility
-    # instead. QEMU --enable-modules depends on this because the SystemTap
-    # semaphores are linked into the main binary and not the module's shared
-    # object.
-    QEMU_CFLAGS="$QEMU_CFLAGS -DSTAP_SDT_V2"
-  fi
-fi
-
-##########################################
 # check and set a backend for coroutine
 
 # We prefer ucontext, but it's not always possible. The fallback
@@ -4574,42 +4520,6 @@ if test "$tpm" = "yes"; then
   echo 'CONFIG_TPM=y' >> $config_host_mak
 fi
 
-echo "TRACE_BACKENDS=$trace_backends" >> $config_host_mak
-if have_backend "nop"; then
-  echo "CONFIG_TRACE_NOP=y" >> $config_host_mak
-fi
-if have_backend "simple"; then
-  echo "CONFIG_TRACE_SIMPLE=y" >> $config_host_mak
-fi
-if have_backend "log"; then
-  echo "CONFIG_TRACE_LOG=y" >> $config_host_mak
-fi
-if have_backend "ust"; then
-  echo "CONFIG_TRACE_UST=y" >> $config_host_mak
-  echo "LTTNG_UST_LIBS=$lttng_ust_libs" >> $config_host_mak
-fi
-if have_backend "dtrace"; then
-  echo "CONFIG_TRACE_DTRACE=y" >> $config_host_mak
-  if test "$trace_backend_stap" = "yes" ; then
-    echo "CONFIG_TRACE_SYSTEMTAP=y" >> $config_host_mak
-  fi
-fi
-if have_backend "ftrace"; then
-  if test "$linux" = "yes" ; then
-    echo "CONFIG_TRACE_FTRACE=y" >> $config_host_mak
-  else
-    feature_not_found "ftrace(trace backend)" "ftrace requires Linux"
-  fi
-fi
-if have_backend "syslog"; then
-  if test "$posix_syslog" = "yes" ; then
-    echo "CONFIG_TRACE_SYSLOG=y" >> $config_host_mak
-  else
-    feature_not_found "syslog(trace backend)" "syslog not available"
-  fi
-fi
-echo "CONFIG_TRACE_FILE=$trace_file" >> $config_host_mak
-
 if test "$rdma" = "yes" ; then
   echo "CONFIG_RDMA=y" >> $config_host_mak
   echo "RDMA_LIBS=$rdma_libs" >> $config_host_mak
@@ -4992,6 +4902,7 @@ if test "$skip_meson" = no; then
         $(if test "$default_feature" = no; then echo "-Dauto_features=disabled"; fi) \
         -Dalsa=$alsa -Dcoreaudio=$coreaudio -Ddsound=$dsound -Djack=$jack -Doss=$oss \
         -Dpa=$pa -Daudio_drv_list=$audio_drv_list -Dtcg_interpreter=$tcg_interpreter \
+        -Dtrace_backends=$trace_backends -Dtrace_file=$trace_file \
         $cross_arg \
         "$PWD" "$source_path"
 
