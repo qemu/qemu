@@ -137,19 +137,23 @@ int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
                                BdrvRequestFlags flags);
 
 static inline int coroutine_fn blk_co_pread(BlockBackend *blk, int64_t offset,
-                                            unsigned int bytes, void *buf,
+                                            int64_t bytes, void *buf,
                                             BdrvRequestFlags flags)
 {
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
+
+    assert(bytes <= SIZE_MAX);
 
     return blk_co_preadv(blk, offset, bytes, &qiov, flags);
 }
 
 static inline int coroutine_fn blk_co_pwrite(BlockBackend *blk, int64_t offset,
-                                             unsigned int bytes, void *buf,
+                                             int64_t bytes, void *buf,
                                              BdrvRequestFlags flags)
 {
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
+
+    assert(bytes <= SIZE_MAX);
 
     return blk_co_pwritev(blk, offset, bytes, &qiov, flags);
 }
