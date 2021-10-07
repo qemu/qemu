@@ -310,6 +310,12 @@ vnc_sasl="auto"
 vnc_jpeg="auto"
 vnc_png="auto"
 xkbcommon="auto"
+alsa="auto"
+coreaudio="auto"
+dsound="auto"
+jack="auto"
+oss="auto"
+pa="auto"
 xen=${default_feature:+disabled}
 xen_ctrl_version="$default_feature"
 xen_pci_passthrough="auto"
@@ -1050,6 +1056,30 @@ for opt do
   --disable-xen-pci-passthrough) xen_pci_passthrough="disabled"
   ;;
   --enable-xen-pci-passthrough) xen_pci_passthrough="enabled"
+  ;;
+  --disable-alsa) alsa="disabled"
+  ;;
+  --enable-alsa) alsa="enabled"
+  ;;
+  --disable-coreaudio) coreaudio="disabled"
+  ;;
+  --enable-coreaudio) coreaudio="enabled"
+  ;;
+  --disable-dsound) dsound="disabled"
+  ;;
+  --enable-dsound) dsound="enabled"
+  ;;
+  --disable-jack) jack="disabled"
+  ;;
+  --enable-jack) jack="enabled"
+  ;;
+  --disable-oss) oss="disabled"
+  ;;
+  --enable-oss) oss="enabled"
+  ;;
+  --disable-pa) pa="disabled"
+  ;;
+  --enable-pa) pa="enabled"
   ;;
   --disable-brlapi) brlapi="disabled"
   ;;
@@ -1851,6 +1881,12 @@ disabled with --disable-FEATURE, default is enabled if available
   mpath           Multipath persistent reservation passthrough
   xen             xen backend driver support
   xen-pci-passthrough    PCI passthrough support for Xen
+  alsa            ALSA sound support
+  coreaudio       CoreAudio sound support
+  dsound          DirectSound sound support
+  jack            JACK sound support
+  oss             OSS sound support
+  pa              PulseAudio sound support
   brlapi          BrlAPI (Braile)
   curl            curl connectivity
   membarrier      membarrier system call (for Linux 4.14+ or Windows)
@@ -5017,7 +5053,8 @@ if test "$skip_meson" = no; then
         -Dvhost_user_blk_server=$vhost_user_blk_server -Dmultiprocess=$multiprocess \
         -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek -Dguest_agent_msi=$guest_agent_msi -Dbpf=$bpf\
         $(if test "$default_feature" = no; then echo "-Dauto_features=disabled"; fi) \
-        -Daudio_drv_list=$audio_drv_list -Dtcg_interpreter=$tcg_interpreter \
+        -Dalsa=$alsa -Dcoreaudio=$coreaudio -Ddsound=$dsound -Djack=$jack -Doss=$oss \
+        -Dpa=$pa -Daudio_drv_list=$audio_drv_list -Dtcg_interpreter=$tcg_interpreter \
         $cross_arg \
         "$PWD" "$source_path"
 
