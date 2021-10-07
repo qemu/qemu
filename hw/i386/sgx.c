@@ -115,13 +115,13 @@ SGXInfo *sgx_get_info(Error **errp)
     return info;
 }
 
-int sgx_epc_get_section(int section_nr, uint64_t *addr, uint64_t *size)
+bool sgx_epc_get_section(int section_nr, uint64_t *addr, uint64_t *size)
 {
     PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
     SGXEPCDevice *epc;
 
     if (pcms->sgx_epc.size == 0 || pcms->sgx_epc.nr_sections <= section_nr) {
-        return 1;
+        return true;
     }
 
     epc = pcms->sgx_epc.sections[section_nr];
@@ -129,7 +129,7 @@ int sgx_epc_get_section(int section_nr, uint64_t *addr, uint64_t *size)
     *addr = epc->addr;
     *size = memory_device_get_region_size(MEMORY_DEVICE(epc), &error_fatal);
 
-    return 0;
+    return false;
 }
 
 void pc_machine_init_sgx_epc(PCMachineState *pcms)

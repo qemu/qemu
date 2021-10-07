@@ -55,7 +55,7 @@ typedef struct SGXEPCState {
     int nr_sections;
 } SGXEPCState;
 
-int sgx_epc_get_section(int section_nr, uint64_t *addr, uint64_t *size);
+bool sgx_epc_get_section(int section_nr, uint64_t *addr, uint64_t *size);
 
 static inline uint64_t sgx_epc_above_4g_end(SGXEPCState *sgx_epc)
 {
