@@ -436,7 +436,7 @@ debug_mutex="no"
 libpmem="auto"
 default_devices="true"
 plugins="$default_feature"
-fuzzing="no"
+fuzzing="false"
 rng_none="no"
 secret_keyring="$default_feature"
 libdaxctl="auto"
@@ -563,15 +563,6 @@ EOF
 write_c_skeleton() {
     cat > $TMPC <<EOF
 int main(void) { return 0; }
-EOF
-}
-
-write_c_fuzzer_skeleton() {
-    cat > $TMPC <<EOF
-#include <stdint.h>
-#include <sys/types.h>
-int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size);
-int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) { return 0; }
 EOF
 }
 
@@ -1538,9 +1529,9 @@ for opt do
   ;;
   --disable-containers) use_containers="no"
   ;;
-  --enable-fuzzing) fuzzing=yes
+  --enable-fuzzing) fuzzing=true
   ;;
-  --disable-fuzzing) fuzzing=no
+  --disable-fuzzing) fuzzing=false
   ;;
   --gdb=*) gdb_bin="$optarg"
   ;;
@@ -4057,26 +4048,6 @@ EOF
   fi
 fi
 
-##########################################
-# checks for fuzzer
-if test "$fuzzing" = "yes" ; then
-  write_c_fuzzer_skeleton
-  if test -z "${LIB_FUZZING_ENGINE+xxx}"; then
-    if compile_prog "$CPU_CFLAGS -Werror -fsanitize=fuzzer" ""; then
-      have_fuzzer=yes
-    else
-      error_exit "Your compiler doesn't support -fsanitize=fuzzer"
-      exit 1
-    fi
-  fi
-
-  have_clang_coverage_filter=no
-  echo > $TMPTXT
-  if compile_prog "$CPU_CFLAGS -Werror -fsanitize=fuzzer -fsanitize-coverage-allowlist=$TMPTXT" ""; then
-    have_clang_coverage_filter=yes
-  fi
-fi
-
 # Thread sanitizer is, for now, much noisier than the other sanitizers;
 # keep it separate until that is not the case.
 if test "$tsan" = "yes" && test "$sanitizers" = "yes"; then
@@ -4702,34 +4673,6 @@ fi
 if test "$have_mlockall" = "yes" ; then
   echo "HAVE_MLOCKALL=y" >> $config_host_mak
 fi
-if test "$fuzzing" = "yes" ; then
-  # If LIB_FUZZING_ENGINE is set, assume we are running on OSS-Fuzz, and the
-  # needed CFLAGS have already been provided
-  if test -z "${LIB_FUZZING_ENGINE+xxx}" ; then
-    # Add CFLAGS to tell clang to add fuzzer-related instrumentation to all the
-    # compiled code.
-    QEMU_CFLAGS="$QEMU_CFLAGS -fsanitize=fuzzer-no-link"
-    # To build non-fuzzer binaries with --enable-fuzzing, link everything with
-    # fsanitize=fuzzer-no-link. Otherwise, the linker will be unable to bind
-    # the fuzzer-related callbacks added by instrumentation.
-    QEMU_LDFLAGS="$QEMU_LDFLAGS -fsanitize=fuzzer-no-link"
-    # For the actual fuzzer binaries, we need to link against the libfuzzer
-    # library. Provide the flags for doing this in FUZZ_EXE_LDFLAGS. The meson
-    # rule for the fuzzer adds these to the link_args. They need to be
-    # configurable, to support OSS-Fuzz
-    FUZZ_EXE_LDFLAGS="-fsanitize=fuzzer"
-  else
-    FUZZ_EXE_LDFLAGS="$LIB_FUZZING_ENGINE"
-  fi
-
-  # Specify a filter to only instrument code that is directly related to
-  # virtual-devices.
-  if test "$have_clang_coverage_filter" = "yes" ; then
-    cp "$source_path/scripts/oss-fuzz/instrumentation-filter-template" \
-       instrumentation-filter
-    QEMU_CFLAGS="$QEMU_CFLAGS -fsanitize-coverage-allowlist=instrumentation-filter"
-  fi
-fi
 
 if test "$plugins" = "yes" ; then
     echo "CONFIG_PLUGIN=y" >> $config_host_mak
@@ -4792,11 +4735,6 @@ echo "LIBS_QGA=$libs_qga" >> $config_host_mak
 if test "$gcov" = "yes" ; then
   echo "CONFIG_GCOV=y" >> $config_host_mak
 fi
-
-if test "$fuzzing" != "no"; then
-    echo "CONFIG_FUZZ=y" >> $config_host_mak
-fi
-echo "FUZZ_EXE_LDFLAGS=$FUZZ_EXE_LDFLAGS" >> $config_host_mak
 
 if test "$rng_none" = "yes"; then
   echo "CONFIG_RNG_NONE=y" >> $config_host_mak
@@ -5033,7 +4971,8 @@ if test "$skip_meson" = no; then
         -Dstrip=$(if test "$strip_opt" = yes; then echo true; else echo false; fi) \
         -Db_pie=$(if test "$pie" = yes; then echo true; else echo false; fi) \
         -Db_coverage=$(if test "$gcov" = yes; then echo true; else echo false; fi) \
-        -Db_lto=$lto -Dcfi=$cfi -Dcfi_debug=$cfi_debug \
+        -Db_lto=$lto -Dcfi=$cfi -Dcfi_debug=$cfi_debug -Dfuzzing=$fuzzing \
+        $(test -n "${LIB_FUZZING_ENGINE+xxx}" && echo "-Dfuzzing_engine=$LIB_FUZZING_ENGINE") \
         -Dmalloc=$malloc -Dmalloc_trim=$malloc_trim -Dsparse=$sparse \
         -Dkvm=$kvm -Dhax=$hax -Dwhpx=$whpx -Dhvf=$hvf -Dnvmm=$nvmm \
         -Dxen=$xen -Dxen_pci_passthrough=$xen_pci_passthrough -Dtcg=$tcg \

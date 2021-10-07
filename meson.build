@@ -117,10 +117,37 @@ endforeach
 
 # Specify linker-script with add_project_link_arguments so that it is not placed
 # within a linker --start-group/--end-group pair
-if 'CONFIG_FUZZ' in config_host
-   add_project_link_arguments(['-Wl,-T,',
-                               (meson.current_source_dir() / 'tests/qtest/fuzz/fork_fuzz.ld')],
+if get_option('fuzzing')
+  add_project_link_arguments(['-Wl,-T,',
+                              (meson.current_source_dir() / 'tests/qtest/fuzz/fork_fuzz.ld')],
+                             native: false, language: ['c', 'cpp', 'objc'])
+
+  # Specify a filter to only instrument code that is directly related to
+  # virtual-devices.
+  configure_file(output: 'instrumentation-filter',
+                 input: 'scripts/oss-fuzz/instrumentation-filter-template',
+                 copy: true)
+  add_global_arguments(
+      cc.get_supported_arguments('-fsanitize-coverage-allowlist=instrumentation-filter'),
+      native: false, language: ['c', 'cpp', 'objc'])
+
+  if get_option('fuzzing_engine') == ''
+    # Add CFLAGS to tell clang to add fuzzer-related instrumentation to all the
+    # compiled code.  To build non-fuzzer binaries with --enable-fuzzing, link
+    # everything with fsanitize=fuzzer-no-link. Otherwise, the linker will be
+    # unable to bind the fuzzer-related callbacks added by instrumentation.
+    add_global_arguments('-fsanitize=fuzzer-no-link',
+                         native: false, language: ['c', 'cpp', 'objc'])
+    add_global_link_arguments('-fsanitize=fuzzer-no-link',
                               native: false, language: ['c', 'cpp', 'objc'])
+    # For the actual fuzzer binaries, we need to link against the libfuzzer
+    # library. They need to be configurable, to support OSS-Fuzz
+    fuzz_exe_ldflags = ['-fsanitize=fuzzer']
+  else
+    # LIB_FUZZING_ENGINE was set; assume we are running on OSS-Fuzz, and
+    # the needed CFLAGS have already been provided
+    fuzz_exe_ldflags = get_option('fuzzing_engine').split()
+  endif
 endif
 
 add_global_arguments(config_host['QEMU_CFLAGS'].split(),
@@ -162,6 +189,17 @@ endif
 ###########################################
 # Target-specific checks and dependencies #
 ###########################################
+
+if get_option('fuzzing') and get_option('fuzzing_engine') == '' and \
+    not cc.links('''
+          #include <stdint.h>
+          #include <sys/types.h>
+          int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size);
+          int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) { return 0; }
+        ''',
+        args: ['-Werror', '-fsanitize=fuzzer'])
+  error('Your compiler does not support -fsanitize=fuzzer')
+endif
 
 if targetos != 'linux' and get_option('mpath').enabled()
   error('Multipath is supported only on Linux')
@@ -1325,6 +1363,7 @@ config_host_data.set_quoted('CONFIG_SYSCONFDIR', get_option('prefix') / get_opti
 config_host_data.set('CONFIG_ATTR', libattr.found())
 config_host_data.set('CONFIG_BRLAPI', brlapi.found())
 config_host_data.set('CONFIG_COCOA', cocoa.found())
+config_host_data.set('CONFIG_FUZZ', get_option('fuzzing'))
 config_host_data.set('CONFIG_LIBUDEV', libudev.found())
 config_host_data.set('CONFIG_LZO', lzo.found())
 config_host_data.set('CONFIG_MPATH', mpathpersist.found())
@@ -1599,7 +1638,7 @@ endif
 
 have_ivshmem = config_host_data.get('CONFIG_EVENTFD')
 host_kconfig = \
-  ('CONFIG_FUZZ' in config_host ? ['CONFIG_FUZZ=y'] : []) + \
+  (get_option('fuzzing') ? ['CONFIG_FUZZ=y'] : []) + \
   ('CONFIG_TPM' in config_host ? ['CONFIG_TPM=y'] : []) + \
   ('CONFIG_SPICE' in config_host ? ['CONFIG_SPICE=y'] : []) + \
   (have_ivshmem ? ['CONFIG_IVSHMEM=y'] : []) + \
@@ -2724,7 +2763,7 @@ foreach target : target_dirs
         'dependencies': []
       }]
     endif
-    if config_host.has_key('CONFIG_FUZZ')
+    if get_option('fuzzing')
       specific_fuzz = specific_fuzz_ss.apply(config_target, strict: false)
       execs += [{
         'name': 'qemu-fuzz-' + target_name,
@@ -2964,7 +3003,7 @@ summary_info += {'module support':    config_host.has_key('CONFIG_MODULES')}
 if config_host.has_key('CONFIG_MODULES')
   summary_info += {'alternative module path': config_host.has_key('CONFIG_MODULE_UPGRADES')}
 endif
-summary_info += {'fuzzing support':   config_host.has_key('CONFIG_FUZZ')}
+summary_info += {'fuzzing support':   get_option('fuzzing')}
 if have_system
   summary_info += {'Audio drivers':     ' '.join(audio_drivers_selected)}
 endif

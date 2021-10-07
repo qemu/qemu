@@ -11,9 +11,13 @@ option('default_devices', type : 'boolean', value : true,
 option('audio_drv_list', type: 'array', value: ['default'],
        choices: ['alsa', 'coreaudio', 'default', 'dsound', 'jack', 'oss', 'pa', 'sdl'],
        description: 'Set audio driver list')
+option('fuzzing_engine', type : 'string', value : '',
+       description: 'fuzzing engine library for OSS-Fuzz')
 
 option('docs', type : 'feature', value : 'auto',
        description: 'Documentations build support')
+option('fuzzing', type : 'boolean', value: false,
+       description: 'build fuzzing targets')
 option('gettext', type : 'feature', value : 'auto',
        description: 'Localization of the GTK+ user interface')
 option('install_blobs', type : 'boolean', value : true,

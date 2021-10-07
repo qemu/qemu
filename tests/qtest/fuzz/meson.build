@@ -1,3 +1,7 @@
+if not get_option('fuzzing')
+  subdir_done()
+endif
+
 specific_fuzz_ss.add(files('fuzz.c', 'fork_fuzz.c', 'qos_fuzz.c',
                            'qtest_wrappers.c'), qos)
 
@@ -9,7 +13,7 @@ specific_fuzz_ss.add(when: 'CONFIG_VIRTIO_BLK', if_true: files('virtio_blk_fuzz.
 specific_fuzz_ss.add(files('generic_fuzz.c'))
 
 fork_fuzz = declare_dependency(
-  link_args: config_host['FUZZ_EXE_LDFLAGS'].split() +
+  link_args: fuzz_exe_ldflags +
              ['-Wl,-wrap,qtest_inb',
               '-Wl,-wrap,qtest_inw',
               '-Wl,-wrap,qtest_inl',
