@@ -369,7 +369,7 @@ pie=""
 qom_cast_debug="yes"
 trace_backends="log"
 trace_file="trace"
-spice="$default_feature"
+spice="auto"
 spice_protocol="auto"
 rbd="auto"
 smartcard="auto"
@@ -3232,41 +3232,6 @@ EOF
 fi
 
 ##########################################
-# spice probe
-if test "$spice_protocol" != "no" ; then
-  spice_protocol_cflags=$($pkg_config --cflags spice-protocol 2>/dev/null)
-  if $pkg_config --atleast-version=0.12.3 spice-protocol; then
-    spice_protocol="yes"
-  else
-    if test "$spice_protocol" = "yes" ; then
-      feature_not_found "spice_protocol" \
-          "Install spice-protocol(>=0.12.3) devel"
-    fi
-    spice_protocol="no"
-  fi
-fi
-
-if test "$spice" != "no" ; then
-  cat > $TMPC << EOF
-#include <spice.h>
-int main(void) { spice_server_new(); return 0; }
-EOF
-  spice_cflags=$($pkg_config --cflags spice-protocol spice-server 2>/dev/null)
-  spice_libs=$($pkg_config --libs spice-protocol spice-server 2>/dev/null)
-  if $pkg_config --atleast-version=0.12.5 spice-server && \
-     test "$spice_protocol" = "yes" && \
-     compile_prog "$spice_cflags" "$spice_libs" ; then
-    spice="yes"
-  else
-    if test "$spice" = "yes" ; then
-      feature_not_found "spice" \
-          "Install spice-server(>=0.12.5) devel"
-    fi
-    spice="no"
-  fi
-fi
-
-##########################################
 # check if we have VSS SDK headers for win
 
 if test "$mingw32" = "yes" && test "$guest_agent" != "no" && \
@@ -4233,16 +4198,6 @@ if test "$membarrier" = "yes" ; then
 fi
 if test "$tcg" = "enabled" -a "$tcg_interpreter" = "true" ; then
   echo "CONFIG_TCG_INTERPRETER=y" >> $config_host_mak
-fi
-
-if test "$spice_protocol" = "yes" ; then
-  echo "CONFIG_SPICE_PROTOCOL=y" >> $config_host_mak
-  echo "SPICE_PROTOCOL_CFLAGS=$spice_protocol_cflags" >> $config_host_mak
-fi
-if test "$spice" = "yes" ; then
-  echo "CONFIG_SPICE=y" >> $config_host_mak
-  echo "SPICE_CFLAGS=$spice_cflags $spice_protocol_cflags" >> $config_host_mak
-  echo "SPICE_LIBS=$spice_libs" >> $config_host_mak
 fi
 
 if test "$opengl" = "yes" ; then
