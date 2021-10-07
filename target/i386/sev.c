@@ -685,8 +685,8 @@ sev_launch_get_measure(Notifier *notifier, void *unused)
 {
     SevGuestState *sev = sev_guest;
     int ret, error;
-    guchar *data;
-    struct kvm_sev_launch_measure *measurement;
+    g_autofree guchar *data = NULL;
+    g_autofree struct kvm_sev_launch_measure *measurement = NULL;
 
     if (!sev_check_state(sev, SEV_STATE_LAUNCH_UPDATE)) {
         return;
@@ -708,7 +708,7 @@ sev_launch_get_measure(Notifier *notifier, void *unused)
     if (!measurement->len) {
         error_report("%s: LAUNCH_MEASURE ret=%d fw_error=%d '%s'",
                      __func__, ret, error, fw_error_to_str(errno));
-        goto free_measurement;
+        return;
     }
 
     data = g_new0(guchar, measurement->len);
@@ -720,7 +720,7 @@ sev_launch_get_measure(Notifier *notifier, void *unused)
     if (ret) {
         error_report("%s: LAUNCH_MEASURE ret=%d fw_error=%d '%s'",
                      __func__, ret, error, fw_error_to_str(errno));
-        goto free_data;
+        return;
     }
 
     sev_set_guest_state(sev, SEV_STATE_LAUNCH_SECRET);
@@ -728,11 +728,6 @@ sev_launch_get_measure(Notifier *notifier, void *unused)
     /* encode the measurement value and emit the event */
     sev->measurement = g_base64_encode(data, measurement->len);
     trace_kvm_sev_launch_measurement(sev->measurement);
-
-free_data:
-    g_free(data);
-free_measurement:
-    g_free(measurement);
 }
 
 char *
