@@ -22,12 +22,16 @@
 #include "migration/vmstate.h"
 #include "trace.h"
 
-#define VIDEO_BASE 0x00001000
+#define VIDEO_BASE 0x0
 #define DAFB_BASE  0x00800000
 
 #define MACFB_PAGE_SIZE 4096
 #define MACFB_VRAM_SIZE (4 * MiB)
 
+#define DAFB_MODE_VADDR1    0x0
+#define DAFB_MODE_VADDR2    0x4
+#define DAFB_MODE_CTRL1     0x8
+#define DAFB_MODE_CTRL2     0xc
 #define DAFB_MODE_SENSE     0x1c
 #define DAFB_RESET          0x200
 #define DAFB_LUT            0x213
@@ -89,6 +93,22 @@ static MacFbSense macfb_sense_table[] = {
     { MACFB_DISPLAY_SVGA, 0x7, 0x5 },
 };
 
+static MacFbMode macfb_mode_table[] = {
+    { MACFB_DISPLAY_VGA, 1, 0x100, 0x71e, 640, 480, 0x400, 0x1000 },
+    { MACFB_DISPLAY_VGA, 2, 0x100, 0x70e, 640, 480, 0x400, 0x1000 },
+    { MACFB_DISPLAY_VGA, 4, 0x100, 0x706, 640, 480, 0x400, 0x1000 },
+    { MACFB_DISPLAY_VGA, 8, 0x100, 0x702, 640, 480, 0x400, 0x1000 },
+    { MACFB_DISPLAY_VGA, 24, 0x100, 0x7ff, 640, 480, 0x1000, 0x1000 },
+    { MACFB_DISPLAY_VGA, 1, 0xd0 , 0x70e, 800, 600, 0x340, 0xe00 },
+    { MACFB_DISPLAY_VGA, 2, 0xd0 , 0x706, 800, 600, 0x340, 0xe00 },
+    { MACFB_DISPLAY_VGA, 4, 0xd0 , 0x702, 800, 600, 0x340, 0xe00 },
+    { MACFB_DISPLAY_VGA, 8, 0xd0,  0x700, 800, 600, 0x340, 0xe00 },
+    { MACFB_DISPLAY_VGA, 24, 0x340, 0x100, 800, 600, 0xd00, 0xe00 },
+    { MACFB_DISPLAY_APPLE_21_COLOR, 1, 0x90, 0x506, 1152, 870, 0x240, 0x80 },
+    { MACFB_DISPLAY_APPLE_21_COLOR, 2, 0x90, 0x502, 1152, 870, 0x240, 0x80 },
+    { MACFB_DISPLAY_APPLE_21_COLOR, 4, 0x90, 0x500, 1152, 870, 0x240, 0x80 },
+    { MACFB_DISPLAY_APPLE_21_COLOR, 8, 0x120, 0x5ff, 1152, 870, 0x480, 0x80 },
+};
 
 typedef void macfb_draw_line_func(MacfbState *s, uint8_t *d, uint32_t addr,
                                   int width);
@@ -246,7 +266,7 @@ static void macfb_draw_graphic(MacfbState *s)
     ram_addr_t page;
     uint32_t v = 0;
     int y, ymin;
-    int macfb_stride = (s->depth * s->width + 7) / 8;
+    int macfb_stride = s->mode->stride;
     macfb_draw_line_func *macfb_draw_line;
 
     switch (s->depth) {
@@ -278,7 +298,7 @@ static void macfb_draw_graphic(MacfbState *s)
                                              DIRTY_MEMORY_VGA);
 
     ymin = -1;
-    page = 0;
+    page = s->mode->offset;
     for (y = 0; y < s->height; y++, page += macfb_stride) {
         if (macfb_check_dirty(s, snap, page, macfb_stride)) {
             uint8_t *data_display;
@@ -323,25 +343,26 @@ static uint32_t macfb_sense_read(MacfbState *s)
         sense = 0;
         if (!(macfb_sense->ext_sense & 1)) {
             /* Pins 7-4 together */
-            if (~s->sense & 3) {
-                sense = (~s->sense & 7) | 3;
+            if (~s->regs[DAFB_MODE_SENSE >> 2] & 3) {
+                sense = (~s->regs[DAFB_MODE_SENSE >> 2] & 7) | 3;
             }
         }
         if (!(macfb_sense->ext_sense & 2)) {
             /* Pins 10-7 together */
-            if (~s->sense & 6) {
-                sense = (~s->sense & 7) | 6;
+            if (~s->regs[DAFB_MODE_SENSE >> 2] & 6) {
+                sense = (~s->regs[DAFB_MODE_SENSE >> 2] & 7) | 6;
             }
         }
         if (!(macfb_sense->ext_sense & 4)) {
             /* Pins 4-10 together */
-            if (~s->sense & 5) {
-                sense = (~s->sense & 7) | 5;
+            if (~s->regs[DAFB_MODE_SENSE >> 2] & 5) {
+                sense = (~s->regs[DAFB_MODE_SENSE >> 2] & 7) | 5;
             }
         }
     } else {
         /* Normal sense */
-        sense = (~macfb_sense->sense & 7) | (~s->sense & 7);
+        sense = (~macfb_sense->sense & 7) |
+                (~s->regs[DAFB_MODE_SENSE >> 2] & 7);
     }
 
     trace_macfb_sense_read(sense);
@@ -350,11 +371,83 @@ static uint32_t macfb_sense_read(MacfbState *s)
 
 static void macfb_sense_write(MacfbState *s, uint32_t val)
 {
-    s->sense = val;
+    s->regs[DAFB_MODE_SENSE >> 2] = val;
 
     trace_macfb_sense_write(val);
     return;
 }
+
+static void macfb_update_mode(MacfbState *s)
+{
+    s->width = s->mode->width;
+    s->height = s->mode->height;
+    s->depth = s->mode->depth;
+
+    trace_macfb_update_mode(s->width, s->height, s->depth);
+    macfb_invalidate_display(s);
+}
+
+static void macfb_mode_write(MacfbState *s)
+{
+    MacFbMode *macfb_mode;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(macfb_mode_table); i++) {
+        macfb_mode = &macfb_mode_table[i];
+
+        if (s->type != macfb_mode->type) {
+            continue;
+        }
+
+        if ((s->regs[DAFB_MODE_CTRL1 >> 2] & 0xff) ==
+             (macfb_mode->mode_ctrl1 & 0xff) &&
+            (s->regs[DAFB_MODE_CTRL2 >> 2] & 0xff) ==
+             (macfb_mode->mode_ctrl2 & 0xff)) {
+            s->mode = macfb_mode;
+            macfb_update_mode(s);
+            break;
+        }
+    }
+}
+
+static MacFbMode *macfb_find_mode(MacfbDisplayType display_type,
+                                  uint16_t width, uint16_t height,
+                                  uint8_t depth)
+{
+    MacFbMode *macfb_mode;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(macfb_mode_table); i++) {
+        macfb_mode = &macfb_mode_table[i];
+
+        if (display_type == macfb_mode->type && width == macfb_mode->width &&
+                height == macfb_mode->height && depth == macfb_mode->depth) {
+            return macfb_mode;
+        }
+    }
+
+    return NULL;
+}
+
+static gchar *macfb_mode_list(void)
+{
+    gchar *list = NULL;
+    gchar *mode;
+    MacFbMode *macfb_mode;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(macfb_mode_table); i++) {
+        macfb_mode = &macfb_mode_table[i];
+
+        mode = g_strdup_printf("    %dx%dx%d\n", macfb_mode->width,
+                               macfb_mode->height, macfb_mode->depth);
+        list = g_strconcat(mode, list, NULL);
+        g_free(mode);
+    }
+
+    return list;
+}
+
 
 static void macfb_update_display(void *opaque)
 {
@@ -397,6 +490,12 @@ static uint64_t macfb_ctrl_read(void *opaque,
     uint64_t val = 0;
 
     switch (addr) {
+    case DAFB_MODE_VADDR1:
+    case DAFB_MODE_VADDR2:
+    case DAFB_MODE_CTRL1:
+    case DAFB_MODE_CTRL2:
+        val = s->regs[addr >> 2];
+        break;
     case DAFB_MODE_SENSE:
         val = macfb_sense_read(s);
         break;
@@ -413,6 +512,17 @@ static void macfb_ctrl_write(void *opaque,
 {
     MacfbState *s = opaque;
     switch (addr) {
+    case DAFB_MODE_VADDR1:
+    case DAFB_MODE_VADDR2:
+        s->regs[addr >> 2] = val;
+        break;
+    case DAFB_MODE_CTRL1 ... DAFB_MODE_CTRL1 + 3:
+    case DAFB_MODE_CTRL2 ... DAFB_MODE_CTRL2 + 3:
+        s->regs[addr >> 2] = val;
+        if (val) {
+            macfb_mode_write(s);
+        }
+        break;
     case DAFB_MODE_SENSE:
         macfb_sense_write(s, val);
         break;
@@ -442,7 +552,7 @@ static const MemoryRegionOps macfb_ctrl_ops = {
 
 static int macfb_post_load(void *opaque, int version_id)
 {
-    macfb_invalidate_display(opaque);
+    macfb_mode_write(opaque);
     return 0;
 }
 
@@ -455,7 +565,7 @@ static const VMStateDescription vmstate_macfb = {
     .fields = (VMStateField[]) {
         VMSTATE_UINT8_ARRAY(color_palette, MacfbState, 256 * 3),
         VMSTATE_UINT32(palette_current, MacfbState),
-        VMSTATE_UINT32(sense, MacfbState),
+        VMSTATE_UINT32_ARRAY(regs, MacfbState, MACFB_NUM_REGS),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -469,9 +579,15 @@ static bool macfb_common_realize(DeviceState *dev, MacfbState *s, Error **errp)
 {
     DisplaySurface *surface;
 
-    if (s->depth != 1 && s->depth != 2 && s->depth != 4 && s->depth != 8 &&
-        s->depth != 16 && s->depth != 24) {
-        error_setg(errp, "unknown guest depth %d", s->depth);
+    s->mode = macfb_find_mode(s->type, s->width, s->height, s->depth);
+    if (!s->mode) {
+        gchar *list;
+        error_setg(errp, "unknown display mode: width %d, height %d, depth %d",
+                   s->width, s->height, s->depth);
+        list =  macfb_mode_list();
+        error_append_hint(errp, "Available modes:\n%s", list);
+        g_free(list);
+
         return false;
     }
 
@@ -493,6 +609,7 @@ static bool macfb_common_realize(DeviceState *dev, MacfbState *s, Error **errp)
     s->vram_bit_mask = MACFB_VRAM_SIZE - 1;
     memory_region_set_coalescing(&s->mem_vram);
 
+    macfb_update_mode(s);
     return true;
 }
 

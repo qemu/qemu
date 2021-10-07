@@ -35,6 +35,19 @@ typedef enum  {
     MACFB_DISPLAY_SVGA = 14,
 } MacfbDisplayType;
 
+typedef struct MacFbMode {
+    uint8_t type;
+    uint8_t depth;
+    uint32_t mode_ctrl1;
+    uint32_t mode_ctrl2;
+    uint32_t width;
+    uint32_t height;
+    uint32_t stride;
+    uint32_t offset;
+} MacFbMode;
+
+#define MACFB_NUM_REGS      8
+
 typedef struct MacfbState {
     MemoryRegion mem_vram;
     MemoryRegion mem_ctrl;
@@ -48,7 +61,8 @@ typedef struct MacfbState {
     uint8_t depth;
     uint8_t type;
 
-    uint32_t sense;
+    uint32_t regs[MACFB_NUM_REGS];
+    MacFbMode *mode;
 } MacfbState;
 
 #define TYPE_MACFB "sysbus-macfb"
