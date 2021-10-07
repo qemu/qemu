@@ -379,6 +379,10 @@ static void macfb_sysbus_realize(DeviceState *dev, Error **errp)
     MacfbState *ms = &s->macfb;
 
     macfb_common_realize(dev, ms, errp);
+    if (*errp) {
+        return;
+    }
+
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &ms->mem_ctrl);
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &ms->mem_vram);
 }
@@ -391,8 +395,15 @@ static void macfb_nubus_realize(DeviceState *dev, Error **errp)
     MacfbState *ms = &s->macfb;
 
     ndc->parent_realize(dev, errp);
+    if (*errp) {
+        return;
+    }
 
     macfb_common_realize(dev, ms, errp);
+    if (*errp) {
+        return;
+    }
+
     memory_region_add_subregion(&nd->slot_mem, DAFB_BASE, &ms->mem_ctrl);
     memory_region_add_subregion(&nd->slot_mem, VIDEO_BASE, &ms->mem_vram);
 }
