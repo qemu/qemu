@@ -466,8 +466,7 @@ e_free:
     return 1;
 }
 
-SevCapability *
-sev_get_capabilities(Error **errp)
+static SevCapability *sev_get_capabilities(Error **errp)
 {
     SevCapability *cap = NULL;
     guchar *pdh_data = NULL;
@@ -515,6 +514,11 @@ out:
     g_free(cert_chain_data);
     close(fd);
     return cap;
+}
+
+SevCapability *qmp_query_sev_capabilities(Error **errp)
+{
+    return sev_get_capabilities(errp);
 }
 
 static SevAttestationReport *sev_get_attestation_report(const char *mnonce,

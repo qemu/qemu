@@ -27,7 +27,7 @@ char *sev_get_launch_measurement(void)
     return NULL;
 }
 
-SevCapability *sev_get_capabilities(Error **errp)
+SevCapability *qmp_query_sev_capabilities(Error **errp)
 {
     error_setg(errp, "SEV is not available in this QEMU");
     return NULL;
