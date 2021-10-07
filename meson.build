@@ -1463,6 +1463,7 @@ config_host_data.set('QEMU_VERSION_MICRO', meson.project_version().split('.')[2]
 
 config_host_data.set_quoted('CONFIG_HOST_DSOSUF', host_dsosuf)
 config_host_data.set('HAVE_HOST_BLOCK_DEVICE', have_host_block_device)
+config_host_data.set('HOST_WORDS_BIGENDIAN', host_machine.endian() == 'big')
 
 # has_header
 config_host_data.set('CONFIG_EPOLL', cc.has_header('sys/epoll.h'))
@@ -1622,7 +1623,7 @@ foreach k, v: config_host
     config_host_data.set('HOST_' + v.to_upper(), 1)
   elif strings.contains(k)
     config_host_data.set_quoted(k, v)
-  elif k.startswith('CONFIG_') or k.startswith('HAVE_') or k.startswith('HOST_')
+  elif k.startswith('CONFIG_') or k.startswith('HAVE_')
     config_host_data.set(k, v == 'y' ? 1 : v)
   endif
 endforeach

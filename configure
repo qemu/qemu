@@ -347,7 +347,6 @@ tsan="no"
 fortify_source="$default_feature"
 strip_opt="yes"
 tcg_interpreter="false"
-bigendian="no"
 mingw32="no"
 gcov="no"
 EXESUF=""
@@ -4263,9 +4262,6 @@ if test "$debug_tcg" = "yes" ; then
 fi
 if test "$strip_opt" = "yes" ; then
   echo "STRIP=${strip}" >> $config_host_mak
-fi
-if test "$bigendian" = "yes" ; then
-  echo "HOST_WORDS_BIGENDIAN=y" >> $config_host_mak
 fi
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
