@@ -2286,21 +2286,6 @@ EOF
   fi
 fi
 
-#########################################
-# Solaris specific configure tool chain decisions
-
-if test "$solaris" = "yes" ; then
-  if has ar; then
-    :
-  else
-    if test -f /usr/ccs/bin/ar ; then
-      error_exit "No path includes ar" \
-          "Add /usr/ccs/bin to your path and rerun configure"
-    fi
-    error_exit "No path includes ar"
-  fi
-fi
-
 if test "$tcg" = "enabled"; then
     git_submodules="$git_submodules tests/fp/berkeley-testfloat-3"
     git_submodules="$git_submodules tests/fp/berkeley-softfloat-3"
