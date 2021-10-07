@@ -2,6 +2,8 @@
 #include "hw/i386/pc.h"
 #include "hw/i386/sgx-epc.h"
 #include "hw/i386/sgx.h"
+#include "qapi/error.h"
+#include "qapi/qapi-commands-misc-target.h"
 
 SGXInfo *sgx_get_info(Error **errp)
 {
@@ -9,7 +11,7 @@ SGXInfo *sgx_get_info(Error **errp)
     return NULL;
 }
 
-SGXInfo *sgx_get_capabilities(Error **errp)
+SGXInfo *qmp_query_sgx_capabilities(Error **errp)
 {
     error_setg(errp, "SGX support is not compiled in");
     return NULL;

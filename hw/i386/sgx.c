@@ -16,6 +16,7 @@
 #include "hw/mem/memory-device.h"
 #include "monitor/qdev.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-misc-target.h"
 #include "exec/address-spaces.h"
 #include "hw/i386/sgx.h"
 #include "sysemu/hw_accel.h"
@@ -57,7 +58,7 @@ static uint64_t sgx_calc_host_epc_section_size(void)
     return size;
 }
 
-SGXInfo *sgx_get_capabilities(Error **errp)
+SGXInfo *qmp_query_sgx_capabilities(Error **errp)
 {
     SGXInfo *info = NULL;
     uint32_t eax, ebx, ecx, edx;
