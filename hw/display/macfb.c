@@ -224,10 +224,10 @@ static void macfb_draw_line24(MacfbState *s, uint8_t *d, uint32_t addr,
     int x;
 
     for (x = 0; x < width; x++) {
-        r = macfb_read_byte(s, addr);
-        g = macfb_read_byte(s, addr + 1);
-        b = macfb_read_byte(s, addr + 2);
-        addr += 3;
+        r = macfb_read_byte(s, addr + 1);
+        g = macfb_read_byte(s, addr + 2);
+        b = macfb_read_byte(s, addr + 3);
+        addr += 4;
 
         *(uint32_t *)d = rgb_to_pixel32(r, g, b);
         d += 4;
