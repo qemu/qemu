@@ -4580,8 +4580,6 @@ if have_backend "nop"; then
 fi
 if have_backend "simple"; then
   echo "CONFIG_TRACE_SIMPLE=y" >> $config_host_mak
-  # Set the appropriate trace file.
-  trace_file="\"$trace_file-\" FMT_pid"
 fi
 if have_backend "log"; then
   echo "CONFIG_TRACE_LOG=y" >> $config_host_mak
