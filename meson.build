@@ -1584,6 +1584,29 @@ config_host_data.set('CONFIG_POSIX_MADVISE', cc.links(gnu_source_prefix + '''
   #include <sys/mman.h>
   #include <stddef.h>
   int main(void) { return posix_madvise(NULL, 0, POSIX_MADV_DONTNEED); }'''))
+
+config_host_data.set('CONFIG_PTHREAD_SETNAME_NP_W_TID', cc.links('''
+  #include <pthread.h>
+
+  static void *f(void *p) { return NULL; }
+  int main(void)
+  {
+    pthread_t thread;
+    pthread_create(&thread, 0, f, 0);
+    pthread_setname_np(thread, "QEMU");
+    return 0;
+  }''', dependencies: threads))
+config_host_data.set('CONFIG_PTHREAD_SETNAME_NP_WO_TID', cc.links('''
+  #include <pthread.h>
+
+  static void *f(void *p) { pthread_setname_np("QEMU"); return NULL; }
+  int main(void)
+  {
+    pthread_t thread;
+    pthread_create(&thread, 0, f, 0);
+    return 0;
+  }''', dependencies: threads))
+
 config_host_data.set('CONFIG_SIGNALFD', cc.links(gnu_source_prefix + '''
   #include <sys/signalfd.h>
   #include <stddef.h>

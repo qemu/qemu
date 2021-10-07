@@ -23,7 +23,8 @@ void qemu_thread_naming(bool enable)
 {
     name_threads = enable;
 
-#ifndef CONFIG_THREAD_SETNAME_BYTHREAD
+#if !defined CONFIG_PTHREAD_SETNAME_NP_W_TID && \
+    !defined CONFIG_PTHREAD_SETNAME_NP_WO_TID
     /* This is a debugging option, not fatal */
     if (enable) {
         fprintf(stderr, "qemu: thread naming not supported on this host\n");
@@ -522,7 +523,6 @@ static void *qemu_thread_start(void *args)
     void *arg = qemu_thread_args->arg;
     void *r;
 
-#ifdef CONFIG_THREAD_SETNAME_BYTHREAD
     /* Attempt to set the threads name; note that this is for debug, so
      * we're not going to fail if we can't set it.
      */
@@ -533,7 +533,6 @@ static void *qemu_thread_start(void *args)
         pthread_setname_np(qemu_thread_args->name);
 # endif
     }
-#endif
     QEMU_TSAN_ANNOTATE_THREAD_NAME(qemu_thread_args->name);
     g_free(qemu_thread_args->name);
     g_free(qemu_thread_args);

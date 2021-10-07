@@ -3149,71 +3149,6 @@ if test "$modules" = yes; then
 fi
 
 ##########################################
-# pthread probe
-PTHREADLIBS_LIST="-pthread -lpthread -lpthreadGC2"
-
-pthread=no
-cat > $TMPC << EOF
-#include <pthread.h>
-static void *f(void *p) { return NULL; }
-int main(void) {
-  pthread_t thread;
-  pthread_create(&thread, 0, f, 0);
-  return 0;
-}
-EOF
-if compile_prog "" "" ; then
-  pthread=yes
-else
-  for pthread_lib in $PTHREADLIBS_LIST; do
-    if compile_prog "" "$pthread_lib" ; then
-      pthread=yes
-      break
-    fi
-  done
-fi
-
-if test "$mingw32" != yes && test "$pthread" = no; then
-  error_exit "pthread check failed" \
-      "Make sure to have the pthread libs and headers installed."
-fi
-
-# check for pthread_setname_np with thread id
-pthread_setname_np_w_tid=no
-cat > $TMPC << EOF
-#include <pthread.h>
-
-static void *f(void *p) { return NULL; }
-int main(void)
-{
-    pthread_t thread;
-    pthread_create(&thread, 0, f, 0);
-    pthread_setname_np(thread, "QEMU");
-    return 0;
-}
-EOF
-if compile_prog "" "$pthread_lib" ; then
-  pthread_setname_np_w_tid=yes
-fi
-
-# check for pthread_setname_np without thread id
-pthread_setname_np_wo_tid=no
-cat > $TMPC << EOF
-#include <pthread.h>
-
-static void *f(void *p) { pthread_setname_np("QEMU"); return NULL; }
-int main(void)
-{
-    pthread_t thread;
-    pthread_create(&thread, 0, f, 0);
-    return 0;
-}
-EOF
-if compile_prog "" "$pthread_lib" ; then
-  pthread_setname_np_wo_tid=yes
-fi
-
-##########################################
 # libssh probe
 if test "$libssh" != "no" ; then
   if $pkg_config --exists "libssh >= 0.8.7"; then
@@ -4496,19 +4431,6 @@ fi
 
 if test "$debug_mutex" = "yes" ; then
   echo "CONFIG_DEBUG_MUTEX=y" >> $config_host_mak
-fi
-
-# Hold two types of flag:
-#   CONFIG_THREAD_SETNAME_BYTHREAD  - we've got a way of setting the name on
-#                                     a thread we have a handle to
-#   CONFIG_PTHREAD_SETNAME_NP_W_TID - A way of doing it on a particular
-#                                     platform
-if test "$pthread_setname_np_w_tid" = "yes" ; then
-  echo "CONFIG_THREAD_SETNAME_BYTHREAD=y" >> $config_host_mak
-  echo "CONFIG_PTHREAD_SETNAME_NP_W_TID=y" >> $config_host_mak
-elif test "$pthread_setname_np_wo_tid" = "yes" ; then
-  echo "CONFIG_THREAD_SETNAME_BYTHREAD=y" >> $config_host_mak
-  echo "CONFIG_PTHREAD_SETNAME_NP_WO_TID=y" >> $config_host_mak
 fi
 
 if test "$bochs" = "yes" ; then
