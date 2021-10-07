@@ -34,7 +34,6 @@
 #include "qapi/qapi-commands-misc-target.h"
 #include "qapi/qapi-commands-misc.h"
 #include "hw/i386/pc.h"
-#include "hw/i386/sgx.h"
 
 /* Perform linear address sign extension */
 static hwaddr addr_canonical(CPUArchState *env, hwaddr addr)
@@ -673,30 +672,4 @@ void hmp_info_io_apic(Monitor *mon, const QDict *qdict)
 {
     monitor_printf(mon, "This command is obsolete and will be "
                    "removed soon. Please use 'info pic' instead.\n");
-}
-
-SGXInfo *qmp_query_sgx(Error **errp)
-{
-    return sgx_get_info(errp);
-}
-
-void hmp_info_sgx(Monitor *mon, const QDict *qdict)
-{
-    Error *err = NULL;
-    g_autoptr(SGXInfo) info = qmp_query_sgx(&err);
-
-    if (err) {
-        error_report_err(err);
-        return;
-    }
-    monitor_printf(mon, "SGX support: %s\n",
-                   info->sgx ? "enabled" : "disabled");
-    monitor_printf(mon, "SGX1 support: %s\n",
-                   info->sgx1 ? "enabled" : "disabled");
-    monitor_printf(mon, "SGX2 support: %s\n",
-                   info->sgx2 ? "enabled" : "disabled");
-    monitor_printf(mon, "FLC support: %s\n",
-                   info->flc ? "enabled" : "disabled");
-    monitor_printf(mon, "size: %" PRIu64 "\n",
-                   info->section_size);
 }
