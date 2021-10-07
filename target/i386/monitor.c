@@ -30,7 +30,6 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/kvm.h"
-#include "sysemu/sev.h"
 #include "qapi/error.h"
 #include "sev.h"
 #include "qapi/qapi-commands-misc-target.h"
