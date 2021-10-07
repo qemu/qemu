@@ -65,7 +65,6 @@ struct SevGuestState {
     uint8_t api_major;
     uint8_t api_minor;
     uint8_t build_id;
-    uint64_t me_mask;
     int sev_fd;
     SevState state;
     gchar *measurement;
@@ -387,12 +386,6 @@ bool
 sev_es_enabled(void)
 {
     return sev_enabled() && (sev_guest->policy & SEV_POLICY_ES);
-}
-
-uint64_t
-sev_get_me_mask(void)
-{
-    return sev_guest ? sev_guest->me_mask : ~0;
 }
 
 uint32_t
@@ -832,8 +825,6 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
                    " requested '%d'", __func__, sev->reduced_phys_bits);
         goto err;
     }
-
-    sev->me_mask = ~(1UL << sev->cbitpos);
 
     devname = object_property_get_str(OBJECT(sev), "sev-device", NULL);
     sev->sev_fd = open(devname, O_RDWR);
