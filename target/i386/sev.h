@@ -19,7 +19,6 @@
 #endif
 
 #include "exec/confidential-guest-support.h"
-#include "qapi/qapi-types-misc-target.h"
 
 #define SEV_POLICY_NODBG        0x1
 #define SEV_POLICY_NOKS         0x2
@@ -47,7 +46,6 @@ bool sev_es_enabled(void);
 #define sev_es_enabled() 0
 #endif
 
-extern SevInfo *sev_get_info(void);
 extern uint32_t sev_get_cbit_position(void);
 extern uint32_t sev_get_reduced_phys_bits(void);
 extern bool sev_add_kernel_loader_hashes(SevKernelLoaderContext *ctx, Error **errp);
