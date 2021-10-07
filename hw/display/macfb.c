@@ -303,7 +303,9 @@ static void macfb_ctrl_write(void *opaque,
         s->palette_current = 0;
         break;
     case DAFB_LUT:
-        s->color_palette[s->palette_current++] = val;
+        s->color_palette[s->palette_current] = val;
+        s->palette_current = (s->palette_current + 1) %
+                             ARRAY_SIZE(s->color_palette);
         if (s->palette_current % 3) {
             macfb_invalidate_display(s);
         }
