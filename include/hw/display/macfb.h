@@ -46,6 +46,7 @@ typedef struct MacfbState {
     uint8_t color_palette[256 * 3];
     uint32_t width, height; /* in pixels */
     uint8_t depth;
+    uint8_t type;
 
     uint32_t sense;
 } MacfbState;
