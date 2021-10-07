@@ -351,7 +351,6 @@ bigendian="no"
 mingw32="no"
 gcov="no"
 EXESUF=""
-HOST_DSOSUF=".so"
 modules="no"
 module_upgrades="no"
 prefix="/usr/local"
@@ -594,9 +593,6 @@ fi
 # cross-compiling to one of these OSes then you'll need to specify
 # the correct CPU with the --cpu option.
 case $targetos in
-Darwin)
-  HOST_DSOSUF=".dylib"
-  ;;
 SunOS)
   # $(uname -m) returns i86pc even on an x86_64 box, so default based on isainfo
   if test -z "$cpu" && test "$(isainfo -k)" = "amd64"; then
@@ -785,7 +781,6 @@ fi
 
 if test "$mingw32" = "yes" ; then
   EXESUF=".exe"
-  HOST_DSOSUF=".dll"
   # MinGW needs -mthreads for TLS and macro _MT.
   CONFIGURE_CFLAGS="-mthreads $CONFIGURE_CFLAGS"
   write_c_skeleton;
@@ -4638,7 +4633,6 @@ echo "GLIB_LIBS=$glib_libs" >> $config_host_mak
 echo "QEMU_LDFLAGS=$QEMU_LDFLAGS" >> $config_host_mak
 echo "LD_I386_EMULATION=$ld_i386_emulation" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
-echo "HOST_DSOSUF=$HOST_DSOSUF" >> $config_host_mak
 echo "LIBS_QGA=$libs_qga" >> $config_host_mak
 if test "$gcov" = "yes" ; then
   echo "CONFIG_GCOV=y" >> $config_host_mak
