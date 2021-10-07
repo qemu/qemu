@@ -440,7 +440,8 @@ sev_get_pdh_info(int fd, guchar **pdh, size_t *pdh_len, guchar **cert_chain,
     r = sev_platform_ioctl(fd, SEV_PDH_CERT_EXPORT, &export, &err);
     if (r < 0) {
         if (err != SEV_RET_INVALID_LEN) {
-            error_setg(errp, "failed to export PDH cert ret=%d fw_err=%d (%s)",
+            error_setg(errp, "SEV: Failed to export PDH cert"
+                             " ret=%d fw_err=%d (%s)",
                        r, err, fw_error_to_str(err));
             return 1;
         }
@@ -453,7 +454,7 @@ sev_get_pdh_info(int fd, guchar **pdh, size_t *pdh_len, guchar **cert_chain,
 
     r = sev_platform_ioctl(fd, SEV_PDH_CERT_EXPORT, &export, &err);
     if (r < 0) {
-        error_setg(errp, "failed to export PDH cert ret=%d fw_err=%d (%s)",
+        error_setg(errp, "SEV: Failed to export PDH cert ret=%d fw_err=%d (%s)",
                    r, err, fw_error_to_str(err));
         goto e_free;
     }
@@ -491,7 +492,7 @@ sev_get_capabilities(Error **errp)
 
     fd = open(DEFAULT_SEV_DEVICE, O_RDWR);
     if (fd < 0) {
-        error_setg_errno(errp, errno, "Failed to open %s",
+        error_setg_errno(errp, errno, "SEV: Failed to open %s",
                          DEFAULT_SEV_DEVICE);
         return NULL;
     }
@@ -557,8 +558,9 @@ sev_get_attestation_report(const char *mnonce, Error **errp)
             &input, &err);
     if (ret < 0) {
         if (err != SEV_RET_INVALID_LEN) {
-            error_setg(errp, "failed to query the attestation report length "
-                    "ret=%d fw_err=%d (%s)", ret, err, fw_error_to_str(err));
+            error_setg(errp, "SEV: Failed to query the attestation report"
+                             " length ret=%d fw_err=%d (%s)",
+                       ret, err, fw_error_to_str(err));
             g_free(buf);
             return NULL;
         }
@@ -572,7 +574,7 @@ sev_get_attestation_report(const char *mnonce, Error **errp)
     ret = sev_ioctl(sev->sev_fd, KVM_SEV_GET_ATTESTATION_REPORT,
             &input, &err);
     if (ret) {
-        error_setg_errno(errp, errno, "Failed to get attestation report"
+        error_setg_errno(errp, errno, "SEV: Failed to get attestation report"
                 " ret=%d fw_err=%d (%s)", ret, err, fw_error_to_str(err));
         goto e_free_data;
     }
@@ -596,7 +598,7 @@ sev_read_file_base64(const char *filename, guchar **data, gsize *len)
     GError *error = NULL;
 
     if (!g_file_get_contents(filename, &base64, &sz, &error)) {
-        error_report("failed to read '%s' (%s)", filename, error->message);
+        error_report("SEV: Failed to read '%s' (%s)", filename, error->message);
         g_error_free(error);
         return -1;
     }
@@ -911,7 +913,7 @@ sev_encrypt_flash(uint8_t *ptr, uint64_t len, Error **errp)
     if (sev_check_state(sev_guest, SEV_STATE_LAUNCH_UPDATE)) {
         int ret = sev_launch_update_data(sev_guest, ptr, len);
         if (ret < 0) {
-            error_setg(errp, "failed to encrypt pflash rom");
+            error_setg(errp, "SEV: Failed to encrypt pflash rom");
             return ret;
         }
     }
@@ -930,7 +932,7 @@ int sev_inject_launch_secret(const char *packet_hdr, const char *secret,
     MemoryRegion *mr = NULL;
 
     if (!sev_guest) {
-        error_setg(errp, "SEV: SEV not enabled.");
+        error_setg(errp, "SEV not enabled for guest");
         return 1;
     }
 

@@ -717,7 +717,7 @@ SevLaunchMeasureInfo *qmp_query_sev_launch_measure(Error **errp)
 
     data = sev_get_launch_measurement();
     if (!data) {
-        error_setg(errp, "Measurement is not available");
+        error_setg(errp, "SEV launch measurement is not available");
         return NULL;
     }
 
