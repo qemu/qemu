@@ -25,7 +25,7 @@
 #include "qemu/uuid.h"
 #include "crypto/hash.h"
 #include "sysemu/kvm.h"
-#include "sev_i386.h"
+#include "sev.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/runstate.h"
 #include "trace.h"

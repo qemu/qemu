@@ -13,7 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "sev_i386.h"
+#include "sev.h"
 
 bool sev_enabled(void)
 {

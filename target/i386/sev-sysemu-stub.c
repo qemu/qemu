@@ -14,7 +14,7 @@
 #include "qemu/osdep.h"
 #include "qapi/qapi-commands-misc-target.h"
 #include "qapi/error.h"
-#include "sev_i386.h"
+#include "sev.h"
 
 SevInfo *sev_get_info(void)
 {
