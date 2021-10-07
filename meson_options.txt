@@ -1,3 +1,7 @@
+# These options do not correspond to a --enable/--disable-* option
+# on the configure script command line.  If you add more, list them in
+# scripts/meson-buildoptions.py's SKIP_OPTIONS constant too.
+
 option('qemu_suffix', type : 'string', value: 'qemu',
        description: 'Suffix for QEMU data/modules/config directories (can be empty)')
 option('docdir', type : 'string', value : 'doc',
@@ -15,6 +19,10 @@ option('fuzzing_engine', type : 'string', value : '',
        description: 'fuzzing engine library for OSS-Fuzz')
 option('trace_file', type: 'string', value: 'trace',
        description: 'Trace file prefix for simple backend')
+
+# Everything else can be set via --enable/--disable-* option
+# on the configure script command line.  After adding an option
+# here make sure to run "make update-buildoptions".
 
 option('docs', type : 'feature', value : 'auto',
        description: 'Documentations build support')

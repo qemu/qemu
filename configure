@@ -286,41 +286,8 @@ for opt do
   esac
 done
 
-brlapi="auto"
-curl="auto"
-iconv="auto"
-curses="auto"
-docs="auto"
-fdt="auto"
-netmap="auto"
-sdl="auto"
-sdl_image="auto"
-virtiofsd="auto"
-virtfs="auto"
-libudev="auto"
-mpath="auto"
-vnc="auto"
-sparse="auto"
-vde="auto"
-vnc_sasl="auto"
-vnc_jpeg="auto"
-vnc_png="auto"
-xkbcommon="auto"
-alsa="auto"
-coreaudio="auto"
-dsound="auto"
-jack="auto"
-oss="auto"
-pa="auto"
-xen=${default_feature:+disabled}
 xen_ctrl_version="$default_feature"
-xen_pci_passthrough="auto"
-linux_aio="auto"
-linux_io_uring="auto"
-cap_ng="auto"
-attr="auto"
 xfs="$default_feature"
-tcg="enabled"
 membarrier="$default_feature"
 vhost_kernel="$default_feature"
 vhost_net="$default_feature"
@@ -328,15 +295,8 @@ vhost_crypto="$default_feature"
 vhost_scsi="$default_feature"
 vhost_vsock="$default_feature"
 vhost_user="no"
-vhost_user_blk_server="auto"
 vhost_user_fs="$default_feature"
 vhost_vdpa="$default_feature"
-bpf="auto"
-kvm="auto"
-hax="auto"
-hvf="auto"
-whpx="auto"
-nvmm="auto"
 rdma="$default_feature"
 pvrdma="$default_feature"
 gprof="no"
@@ -346,7 +306,6 @@ sanitizers="no"
 tsan="no"
 fortify_source="$default_feature"
 strip_opt="yes"
-tcg_interpreter="false"
 mingw32="no"
 gcov="no"
 EXESUF=""
@@ -354,68 +313,36 @@ modules="no"
 module_upgrades="no"
 prefix="/usr/local"
 qemu_suffix="qemu"
-slirp="auto"
 bsd="no"
 linux="no"
 solaris="no"
 profiler="no"
-cocoa="auto"
 softmmu="yes"
 linux_user="no"
 bsd_user="no"
-blobs="true"
 pkgversion=""
 pie=""
 qom_cast_debug="yes"
 trace_backends="log"
 trace_file="trace"
-spice="auto"
-spice_protocol="auto"
-rbd="auto"
-smartcard="auto"
-u2f="auto"
-libusb="auto"
-usb_redir="auto"
 opengl="$default_feature"
 cpuid_h="no"
 avx2_opt="$default_feature"
-capstone="auto"
-lzo="auto"
-snappy="auto"
-bzip2="auto"
-lzfse="auto"
-zstd="auto"
 guest_agent="$default_feature"
 guest_agent_with_vss="no"
 guest_agent_ntddscsi="no"
-guest_agent_msi="auto"
 vss_win32_sdk="$default_feature"
 win_sdk="no"
 want_tools="$default_feature"
-libiscsi="auto"
-libnfs="auto"
 coroutine=""
 coroutine_pool="$default_feature"
 debug_stack_usage="no"
 crypto_afalg="no"
-cfi="false"
-cfi_debug="false"
-seccomp="auto"
-glusterfs="auto"
-gtk="auto"
 tls_priority="NORMAL"
-gnutls="auto"
-nettle="auto"
-gcrypt="auto"
-auth_pam="auto"
-vte="auto"
-virglrenderer="auto"
 tpm="$default_feature"
 libssh="$default_feature"
 live_block_migration=${default_feature:-yes}
 numa="$default_feature"
-tcmalloc="no"
-jemalloc="no"
 replication=${default_feature:-yes}
 bochs=${default_feature:-yes}
 cloop=${default_feature:-yes}
@@ -425,26 +352,34 @@ vdi=${default_feature:-yes}
 vvfat=${default_feature:-yes}
 qed=${default_feature:-yes}
 parallels=${default_feature:-yes}
-libxml2="auto"
 debug_mutex="no"
-libpmem="auto"
-default_devices="true"
 plugins="$default_feature"
-fuzzing="false"
 rng_none="no"
 secret_keyring="$default_feature"
-libdaxctl="auto"
 meson=""
+meson_args=""
 ninja=""
+gio="$default_feature"
 skip_meson=no
-gettext="auto"
-fuse="auto"
-fuse_lseek="auto"
-multiprocess="auto"
 slirp_smbd="$default_feature"
 
-malloc_trim="auto"
-gio="$default_feature"
+# The following Meson options are handled manually (still they
+# are included in the automatically generated help message)
+
+# 1. Track which submodules are needed
+capstone="auto"
+fdt="auto"
+slirp="auto"
+
+# 2. Support --with/--without option
+default_devices="true"
+
+# 3. Automatically enable/disable other options
+tcg="enabled"
+cfi="false"
+
+# 4. Detection partly done in configure
+xen=${default_feature:+disabled}
 
 # parse CC options second
 for opt do
@@ -874,11 +809,6 @@ for opt do
                        error_exit "Can't mix --target-list-exclude with --target-list"
                    fi
   ;;
-  --enable-trace-backends=*) trace_backends="$optarg"
-  ;;
-  # XXX: backwards compatibility
-  --enable-trace-backend=*) trace_backends="$optarg"
-  ;;
   --with-trace-file=*) trace_file="$optarg"
   ;;
   --with-default-devices) default_devices="true"
@@ -941,41 +871,9 @@ for opt do
     # configure to be used by RPM and similar macros that set
     # lots of directory switches by default.
   ;;
-  --disable-sdl) sdl="disabled"
-  ;;
-  --enable-sdl) sdl="enabled"
-  ;;
-  --disable-sdl-image) sdl_image="disabled"
-  ;;
-  --enable-sdl-image) sdl_image="enabled"
-  ;;
   --disable-qom-cast-debug) qom_cast_debug="no"
   ;;
   --enable-qom-cast-debug) qom_cast_debug="yes"
-  ;;
-  --disable-virtfs) virtfs="disabled"
-  ;;
-  --enable-virtfs) virtfs="enabled"
-  ;;
-  --disable-libudev) libudev="disabled"
-  ;;
-  --enable-libudev) libudev="enabled"
-  ;;
-  --disable-virtiofsd) virtiofsd="disabled"
-  ;;
-  --enable-virtiofsd) virtiofsd="enabled"
-  ;;
-  --disable-mpath) mpath="disabled"
-  ;;
-  --enable-mpath) mpath="enabled"
-  ;;
-  --disable-vnc) vnc="disabled"
-  ;;
-  --enable-vnc) vnc="enabled"
-  ;;
-  --disable-gettext) gettext="disabled"
-  ;;
-  --enable-gettext) gettext="enabled"
   ;;
   --audio-drv-list=*) audio_drv_list="$optarg"
   ;;
@@ -1007,23 +905,7 @@ for opt do
   ;;
   --disable-tsan) tsan="no"
   ;;
-  --enable-sparse) sparse="enabled"
-  ;;
-  --disable-sparse) sparse="disabled"
-  ;;
   --disable-strip) strip_opt="no"
-  ;;
-  --disable-vnc-sasl) vnc_sasl="disabled"
-  ;;
-  --enable-vnc-sasl) vnc_sasl="enabled"
-  ;;
-  --disable-vnc-jpeg) vnc_jpeg="disabled"
-  ;;
-  --enable-vnc-jpeg) vnc_jpeg="enabled"
-  ;;
-  --disable-vnc-png) vnc_png="disabled"
-  ;;
-  --enable-vnc-png) vnc_png="enabled"
   ;;
   --disable-slirp) slirp="disabled"
   ;;
@@ -1033,112 +915,16 @@ for opt do
   ;;
   --enable-slirp=*) slirp="$optarg"
   ;;
-  --disable-vde) vde="disabled"
-  ;;
-  --enable-vde) vde="enabled"
-  ;;
-  --disable-netmap) netmap="disabled"
-  ;;
-  --enable-netmap) netmap="enabled"
-  ;;
   --disable-xen) xen="disabled"
   ;;
   --enable-xen) xen="enabled"
-  ;;
-  --disable-xen-pci-passthrough) xen_pci_passthrough="disabled"
-  ;;
-  --enable-xen-pci-passthrough) xen_pci_passthrough="enabled"
-  ;;
-  --disable-alsa) alsa="disabled"
-  ;;
-  --enable-alsa) alsa="enabled"
-  ;;
-  --disable-coreaudio) coreaudio="disabled"
-  ;;
-  --enable-coreaudio) coreaudio="enabled"
-  ;;
-  --disable-dsound) dsound="disabled"
-  ;;
-  --enable-dsound) dsound="enabled"
-  ;;
-  --disable-jack) jack="disabled"
-  ;;
-  --enable-jack) jack="enabled"
-  ;;
-  --disable-oss) oss="disabled"
-  ;;
-  --enable-oss) oss="enabled"
-  ;;
-  --disable-pa) pa="disabled"
-  ;;
-  --enable-pa) pa="enabled"
-  ;;
-  --disable-brlapi) brlapi="disabled"
-  ;;
-  --enable-brlapi) brlapi="enabled"
-  ;;
-  --disable-kvm) kvm="disabled"
-  ;;
-  --enable-kvm) kvm="enabled"
-  ;;
-  --disable-hax) hax="disabled"
-  ;;
-  --enable-hax) hax="enabled"
-  ;;
-  --disable-hvf) hvf="disabled"
-  ;;
-  --enable-hvf) hvf="enabled"
-  ;;
-  --disable-nvmm) nvmm="disabled"
-  ;;
-  --enable-nvmm) nvmm="enabled"
-  ;;
-  --disable-whpx) whpx="disabled"
-  ;;
-  --enable-whpx) whpx="enabled"
-  ;;
-  --disable-tcg-interpreter) tcg_interpreter="false"
-  ;;
-  --enable-tcg-interpreter) tcg_interpreter="true"
-  ;;
-  --disable-cap-ng)  cap_ng="disabled"
-  ;;
-  --enable-cap-ng) cap_ng="enabled"
   ;;
   --disable-tcg) tcg="disabled"
                  plugins="no"
   ;;
   --enable-tcg) tcg="enabled"
   ;;
-  --disable-malloc-trim) malloc_trim="disabled"
-  ;;
-  --enable-malloc-trim) malloc_trim="enabled"
-  ;;
-  --disable-spice) spice="no"
-  ;;
-  --enable-spice)
-      spice_protocol="yes"
-      spice="yes"
-  ;;
-  --disable-spice-protocol)
-      spice_protocol="no"
-      spice="no"
-  ;;
-  --enable-spice-protocol) spice_protocol="yes"
-  ;;
-  --disable-libiscsi) libiscsi="disabled"
-  ;;
-  --enable-libiscsi) libiscsi="enabled"
-  ;;
-  --disable-libnfs) libnfs="disabled"
-  ;;
-  --enable-libnfs) libnfs="enabled"
-  ;;
   --enable-profiler) profiler="yes"
-  ;;
-  --disable-cocoa) cocoa="disabled"
-  ;;
-  --enable-cocoa) cocoa="enabled"
   ;;
   --disable-system) softmmu="no"
   ;;
@@ -1183,22 +969,6 @@ for opt do
   ;;
   --disable-cfi) cfi="false"
   ;;
-  --enable-cfi-debug) cfi_debug="true"
-  ;;
-  --disable-cfi-debug) cfi_debug="false"
-  ;;
-  --disable-curses) curses="disabled"
-  ;;
-  --enable-curses) curses="enabled"
-  ;;
-  --disable-iconv) iconv="disabled"
-  ;;
-  --enable-iconv) iconv="enabled"
-  ;;
-  --disable-curl) curl="disabled"
-  ;;
-  --enable-curl) curl="enabled"
-  ;;
   --disable-fdt) fdt="disabled"
   ;;
   --enable-fdt) fdt="enabled"
@@ -1207,27 +977,9 @@ for opt do
   ;;
   --enable-fdt=*) fdt="$optarg"
   ;;
-  --disable-linux-aio) linux_aio="disabled"
-  ;;
-  --enable-linux-aio) linux_aio="enabled"
-  ;;
-  --disable-linux-io-uring) linux_io_uring="disabled"
-  ;;
-  --enable-linux-io-uring) linux_io_uring="enabled"
-  ;;
-  --disable-attr) attr="disabled"
-  ;;
-  --enable-attr) attr="enabled"
-  ;;
   --disable-membarrier) membarrier="no"
   ;;
   --enable-membarrier) membarrier="yes"
-  ;;
-  --disable-bpf) bpf="disabled"
-  ;;
-  --enable-bpf) bpf="enabled"
-  ;;
-  --disable-blobs) blobs="false"
   ;;
   --with-pkgversion=*) pkgversion="$optarg"
   ;;
@@ -1242,10 +994,6 @@ for opt do
   --enable-crypto-afalg) crypto_afalg="yes"
   ;;
   --disable-crypto-afalg) crypto_afalg="no"
-  ;;
-  --disable-docs) docs="disabled"
-  ;;
-  --enable-docs) docs="enabled"
   ;;
   --disable-vhost-net) vhost_net="no"
   ;;
@@ -1263,10 +1011,6 @@ for opt do
   ;;
   --enable-vhost-vsock) vhost_vsock="yes"
   ;;
-  --disable-vhost-user-blk-server) vhost_user_blk_server="disabled"
-  ;;
-  --enable-vhost-user-blk-server) vhost_user_blk_server="enabled"
-  ;;
   --disable-vhost-user-fs) vhost_user_fs="no"
   ;;
   --enable-vhost-user-fs) vhost_user_fs="yes"
@@ -1275,59 +1019,15 @@ for opt do
   ;;
   --enable-opengl) opengl="yes"
   ;;
-  --disable-rbd) rbd="disabled"
-  ;;
-  --enable-rbd) rbd="enabled"
-  ;;
   --disable-xfsctl) xfs="no"
   ;;
   --enable-xfsctl) xfs="yes"
   ;;
-  --disable-smartcard) smartcard="disabled"
-  ;;
-  --enable-smartcard) smartcard="enabled"
-  ;;
-  --disable-u2f) u2f="disabled"
-  ;;
-  --enable-u2f) u2f="enabled"
-  ;;
-  --disable-libusb) libusb="disabled"
-  ;;
-  --enable-libusb) libusb="enabled"
-  ;;
-  --disable-usb-redir) usb_redir="disabled"
-  ;;
-  --enable-usb-redir) usb_redir="enabled"
-  ;;
   --disable-zlib-test)
-  ;;
-  --disable-lzo) lzo="disabled"
-  ;;
-  --enable-lzo) lzo="enabled"
-  ;;
-  --disable-snappy) snappy="disabled"
-  ;;
-  --enable-snappy) snappy="enabled"
-  ;;
-  --disable-bzip2) bzip2="disabled"
-  ;;
-  --enable-bzip2) bzip2="enabled"
-  ;;
-  --enable-lzfse) lzfse="enabled"
-  ;;
-  --disable-lzfse) lzfse="disabled"
-  ;;
-  --disable-zstd) zstd="disabled"
-  ;;
-  --enable-zstd) zstd="enabled"
   ;;
   --enable-guest-agent) guest_agent="yes"
   ;;
   --disable-guest-agent) guest_agent="no"
-  ;;
-  --enable-guest-agent-msi) guest_agent_msi="enabled"
-  ;;
-  --disable-guest-agent-msi) guest_agent_msi="disabled"
   ;;
   --with-vss-sdk) vss_win32_sdk=""
   ;;
@@ -1345,12 +1045,6 @@ for opt do
   ;;
   --disable-tools) want_tools="no"
   ;;
-  --enable-seccomp) seccomp="enabled"
-  ;;
-  --disable-seccomp) seccomp="disabled"
-  ;;
-  --disable-glusterfs) glusterfs="disabled"
-  ;;
   --disable-avx2) avx2_opt="no"
   ;;
   --enable-avx2) avx2_opt="yes"
@@ -1358,9 +1052,6 @@ for opt do
   --disable-avx512f) avx512f_opt="no"
   ;;
   --enable-avx512f) avx512f_opt="yes"
-  ;;
-
-  --enable-glusterfs) glusterfs="enabled"
   ;;
   --disable-virtio-blk-data-plane|--enable-virtio-blk-data-plane)
       echo "$0: $opt is obsolete, virtio-blk data-plane is always on" >&2
@@ -1371,27 +1062,7 @@ for opt do
   --enable-uuid|--disable-uuid)
       echo "$0: $opt is obsolete, UUID support is always built" >&2
   ;;
-  --disable-gtk) gtk="disabled"
-  ;;
-  --enable-gtk) gtk="enabled"
-  ;;
   --tls-priority=*) tls_priority="$optarg"
-  ;;
-  --disable-gnutls) gnutls="disabled"
-  ;;
-  --enable-gnutls) gnutls="enabled"
-  ;;
-  --disable-nettle) nettle="disabled"
-  ;;
-  --enable-nettle) nettle="enabled"
-  ;;
-  --disable-gcrypt) gcrypt="disabled"
-  ;;
-  --enable-gcrypt) gcrypt="enabled"
-  ;;
-  --disable-auth-pam) auth_pam="disabled"
-  ;;
-  --enable-auth-pam) auth_pam="enabled"
   ;;
   --enable-rdma) rdma="yes"
   ;;
@@ -1400,14 +1071,6 @@ for opt do
   --enable-pvrdma) pvrdma="yes"
   ;;
   --disable-pvrdma) pvrdma="no"
-  ;;
-  --disable-vte) vte="disabled"
-  ;;
-  --enable-vte) vte="enabled"
-  ;;
-  --disable-virglrenderer) virglrenderer="disabled"
-  ;;
-  --enable-virglrenderer) virglrenderer="enabled"
   ;;
   --disable-tpm) tpm="no"
   ;;
@@ -1424,18 +1087,6 @@ for opt do
   --disable-numa) numa="no"
   ;;
   --enable-numa) numa="yes"
-  ;;
-  --disable-libxml2) libxml2="disabled"
-  ;;
-  --enable-libxml2) libxml2="enabled"
-  ;;
-  --disable-tcmalloc) tcmalloc="no"
-  ;;
-  --enable-tcmalloc) tcmalloc="yes"
-  ;;
-  --disable-jemalloc) jemalloc="no"
-  ;;
-  --enable-jemalloc) jemalloc="yes"
   ;;
   --disable-replication) replication="no"
   ;;
@@ -1502,14 +1153,6 @@ for opt do
   ;;
   --disable-debug-mutex) debug_mutex=no
   ;;
-  --enable-libpmem) libpmem="enabled"
-  ;;
-  --disable-libpmem) libpmem="disabled"
-  ;;
-  --enable-xkbcommon) xkbcommon="enabled"
-  ;;
-  --disable-xkbcommon) xkbcommon="disabled"
-  ;;
   --enable-plugins) if test "$mingw32" = "yes"; then
                         error_exit "TCG plugins not currently supported on Windows platforms"
                     else
@@ -1522,10 +1165,6 @@ for opt do
   ;;
   --disable-containers) use_containers="no"
   ;;
-  --enable-fuzzing) fuzzing=true
-  ;;
-  --disable-fuzzing) fuzzing=false
-  ;;
   --gdb=*) gdb_bin="$optarg"
   ;;
   --enable-rng-none) rng_none=yes
@@ -1536,22 +1175,6 @@ for opt do
   ;;
   --disable-keyring) secret_keyring="no"
   ;;
-  --enable-libdaxctl) libdaxctl="enabled"
-  ;;
-  --disable-libdaxctl) libdaxctl="disabled"
-  ;;
-  --enable-fuse) fuse="enabled"
-  ;;
-  --disable-fuse) fuse="disabled"
-  ;;
-  --enable-fuse-lseek) fuse_lseek="enabled"
-  ;;
-  --disable-fuse-lseek) fuse_lseek="disabled"
-  ;;
-  --enable-multiprocess) multiprocess="enabled"
-  ;;
-  --disable-multiprocess) multiprocess="disabled"
-  ;;
   --enable-gio) gio=yes
   ;;
   --disable-gio) gio=no
@@ -1560,6 +1183,16 @@ for opt do
   ;;
   --disable-slirp-smbd) slirp_smbd=no
   ;;
+  # backwards compatibility options
+  --enable-trace-backend=*) meson_option_parse "--enable-trace-backends=$optarg" "$optarg"
+  ;;
+  --disable-blobs) meson_option_parse --disable-install-blobs ""
+  ;;
+  --enable-tcmalloc) meson_option_parse --enable-malloc=tcmalloc tcmalloc
+  ;;
+  --enable-jemalloc) meson_option_parse --enable-malloc=jemalloc jemalloc
+  ;;
+  # everything else has the same name in configure and meson
   --enable-* | --disable-*) meson_option_parse "$opt" "$optarg"
   ;;
   *)
@@ -1716,9 +1349,6 @@ for config in $mak_wilds; do
     fi
 done
 
-# Enumerate public trace backends for --help output
-trace_backend_list=$(echo $(grep -le '^PUBLIC = True$' "$source_path"/scripts/tracetool/backend/*.py | sed -e 's/^.*\/\(.*\)\.py$/\1/'))
-
 if test x"$show_help" = x"yes" ; then
 cat << EOF
 
@@ -1795,18 +1425,12 @@ Advanced options (experts only):
                            (by default affects only QEMU, not tools like qemu-img)
   --enable-block-drv-whitelist-in-tools
                            use block whitelist also in tools instead of only QEMU
-  --enable-trace-backends=B Set trace backend
-                           Available backends: $trace_backend_list
   --with-trace-file=NAME   Full PATH,NAME of file to store traces
                            Default:trace-<pid>
-  --disable-slirp          disable SLIRP userspace network connectivity
-  --enable-tcg-interpreter enable TCI (TCG with bytecode interpreter, experimental and slow)
-  --enable-malloc-trim     enable libc malloc_trim() for memory optimization
   --cpu=CPU                Build for host CPU [$cpu]
   --with-coroutine=BACKEND coroutine backend. Supported options:
                            ucontext, sigaltstack, windows
   --enable-gcov            enable test coverage analysis with gcov
-  --disable-blobs          disable installing provided firmware blobs
   --with-vss-sdk=SDK-path  enable Windows VSS support in QEMU Guest Agent
   --with-win-sdk=SDK-path  path to Windows Platform SDK (to build VSS .tlb)
   --tls-priority           default TLS protocol/cipher priority string
@@ -1825,110 +1449,34 @@ cat << EOF
   user            supported user emulation targets
   linux-user      all linux usermode emulation targets
   bsd-user        all BSD usermode emulation targets
-  docs            build documentation
   guest-agent     build the QEMU Guest Agent
-  guest-agent-msi build guest agent Windows MSI installation package
   pie             Position Independent Executables
   modules         modules support (non-Windows)
   module-upgrades try to load modules from alternate paths for upgrades
   debug-tcg       TCG debugging (default is disabled)
   debug-info      debugging information
   lto             Enable Link-Time Optimization.
-  sparse          sparse checker
   safe-stack      SafeStack Stack Smash Protection. Depends on
                   clang/llvm >= 3.7 and requires coroutine backend ucontext.
-  cfi             Enable Control-Flow Integrity for indirect function calls.
-                  In case of a cfi violation, QEMU is terminated with SIGILL
-                  Depends on lto and is incompatible with modules
-                  Automatically enables Link-Time Optimization (lto)
-  cfi-debug       In case of a cfi violation, a message containing the line that
-                  triggered the error is written to stderr. After the error,
-                  QEMU is still terminated with SIGILL
-  gnutls          GNUTLS cryptography support
-  nettle          nettle cryptography support
-  gcrypt          libgcrypt cryptography support
-  auth-pam        PAM access control
-  sdl             SDL UI
-  sdl-image       SDL Image support for icons
-  gtk             gtk UI
-  vte             vte support for the gtk UI
-  curses          curses UI
-  iconv           font glyph conversion support
-  vnc             VNC UI support
-  vnc-sasl        SASL encryption for VNC server
-  vnc-jpeg        JPEG lossy compression for VNC server
-  vnc-png         PNG compression for VNC server
-  cocoa           Cocoa UI (Mac OS X only)
-  virtfs          VirtFS
-  virtiofsd       build virtiofs daemon (virtiofsd)
-  libudev         Use libudev to enumerate host devices
-  mpath           Multipath persistent reservation passthrough
-  xen             xen backend driver support
-  xen-pci-passthrough    PCI passthrough support for Xen
-  alsa            ALSA sound support
-  coreaudio       CoreAudio sound support
-  dsound          DirectSound sound support
-  jack            JACK sound support
-  oss             OSS sound support
-  pa              PulseAudio sound support
-  brlapi          BrlAPI (Braile)
-  curl            curl connectivity
   membarrier      membarrier system call (for Linux 4.14+ or Windows)
-  fdt             fdt device tree
-  kvm             KVM acceleration support
-  hax             HAX acceleration support
-  hvf             Hypervisor.framework acceleration support
-  nvmm            NVMM acceleration support
-  whpx            Windows Hypervisor Platform acceleration support
   rdma            Enable RDMA-based migration
   pvrdma          Enable PVRDMA support
-  vde             support for vde network
-  netmap          support for netmap network
-  linux-aio       Linux AIO support
-  linux-io-uring  Linux io_uring support
-  cap-ng          libcap-ng support
-  attr            attr and xattr support
   vhost-net       vhost-net kernel acceleration support
   vhost-vsock     virtio sockets device support
   vhost-scsi      vhost-scsi kernel target support
   vhost-crypto    vhost-user-crypto backend support
   vhost-kernel    vhost kernel backend support
   vhost-user      vhost-user backend support
-  vhost-user-blk-server    vhost-user-blk server support
   vhost-vdpa      vhost-vdpa kernel backend support
-  bpf             BPF kernel support
-  spice           spice
-  spice-protocol  spice-protocol
-  rbd             rados block device (rbd)
-  libiscsi        iscsi support
-  libnfs          nfs support
-  smartcard       smartcard support (libcacard)
-  u2f             U2F support (u2f-emu)
-  libusb          libusb (for usb passthrough)
   live-block-migration   Block migration in the main migration stream
-  usb-redir       usb network redirection support
-  lzo             support of lzo compression library
-  snappy          support of snappy compression library
-  bzip2           support of bzip2 compression library
-                  (for reading bzip2-compressed dmg images)
-  lzfse           support of lzfse compression library
-                  (for reading lzfse-compressed dmg images)
-  zstd            support for zstd compression library
-                  (for migration compression and qcow2 cluster compression)
-  seccomp         seccomp support
   coroutine-pool  coroutine freelist (better performance)
-  glusterfs       GlusterFS backend
   tpm             TPM support
   libssh          ssh block device support
   numa            libnuma support
-  libxml2         for Parallels image format
-  tcmalloc        tcmalloc support
-  jemalloc        jemalloc support
   avx2            AVX2 optimization support
   avx512f         AVX512F optimization support
   replication     replication support
   opengl          opengl support
-  virglrenderer   virgl rendering support
   xfsctl          xfsctl support
   qom-cast-debug  cast debugging support
   tools           build qemu-io, qemu-nbd and qemu-img tools
@@ -1941,15 +1489,8 @@ cat << EOF
   qed             qed image format support
   parallels       parallels image format support
   crypto-afalg    Linux AF_ALG crypto backend driver
-  capstone        capstone disassembler support
   debug-mutex     mutex debugging support
-  libpmem         libpmem support
-  xkbcommon       xkbcommon support
   rng-none        dummy RNG, avoid using /dev/(u)random and getrandom()
-  libdaxctl       libdaxctl support
-  fuse            FUSE block device export
-  fuse-lseek      SEEK_HOLE/SEEK_DATA support for FUSE exports
-  multiprocess    Out of process device emulation support
   gio             libgio support
   slirp-smbd      use smbd (at path --smbd=*) in slirp networking
 
@@ -3171,16 +2712,6 @@ EOF
     fi
     numa=no
   fi
-fi
-
-malloc=system
-if test "$tcmalloc" = "yes" && test "$jemalloc" = "yes" ; then
-    echo "ERROR: tcmalloc && jemalloc can't be used at the same time"
-    exit 1
-elif test "$tcmalloc" = "yes" ; then
-    malloc=tcmalloc
-elif test "$jemalloc" = "yes" ; then
-    malloc=jemalloc
 fi
 
 # check for usbfs
@@ -4513,40 +4044,23 @@ if test "$skip_meson" = no; then
         --sysconfdir "$sysconfdir" \
         --localedir "$localedir" \
         --localstatedir "$local_statedir" \
+        -Daudio_drv_list=$audio_drv_list \
+        -Ddefault_devices=$default_devices \
         -Ddocdir="$docdir" \
         -Dqemu_firmwarepath="$firmwarepath" \
         -Dqemu_suffix="$qemu_suffix" \
+        -Dsphinx_build="$sphinx_build" \
+        -Dtrace_file="$trace_file" \
         -Doptimization=$(if test "$debug" = yes; then echo 0; else echo 2; fi) \
         -Ddebug=$(if test "$debug_info" = yes; then echo true; else echo false; fi) \
         -Dwerror=$(if test "$werror" = yes; then echo true; else echo false; fi) \
         -Dstrip=$(if test "$strip_opt" = yes; then echo true; else echo false; fi) \
         -Db_pie=$(if test "$pie" = yes; then echo true; else echo false; fi) \
         -Db_coverage=$(if test "$gcov" = yes; then echo true; else echo false; fi) \
-        -Db_lto=$lto -Dcfi=$cfi -Dcfi_debug=$cfi_debug -Dfuzzing=$fuzzing \
+        -Db_lto=$lto -Dcfi=$cfi -Dtcg=$tcg -Dxen=$xen \
+        -Dcapstone=$capstone -Dfdt=$fdt -Dslirp=$slirp \
         $(test -n "${LIB_FUZZING_ENGINE+xxx}" && echo "-Dfuzzing_engine=$LIB_FUZZING_ENGINE") \
-        -Dmalloc=$malloc -Dmalloc_trim=$malloc_trim -Dsparse=$sparse \
-        -Dkvm=$kvm -Dhax=$hax -Dwhpx=$whpx -Dhvf=$hvf -Dnvmm=$nvmm \
-        -Dxen=$xen -Dxen_pci_passthrough=$xen_pci_passthrough -Dtcg=$tcg \
-        -Dcocoa=$cocoa -Dgtk=$gtk -Dmpath=$mpath -Dsdl=$sdl -Dsdl_image=$sdl_image \
-        -Dlibusb=$libusb -Dsmartcard=$smartcard -Dusb_redir=$usb_redir -Dvte=$vte \
-        -Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
-        -Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f -Dvirtiofsd=$virtiofsd \
-        -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt -Dbrlapi=$brlapi \
-        -Dcurl=$curl -Dglusterfs=$glusterfs -Dbzip2=$bzip2 -Dlibiscsi=$libiscsi \
-        -Dlibnfs=$libnfs -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
-        -Drbd=$rbd -Dlzo=$lzo -Dsnappy=$snappy -Dlzfse=$lzfse -Dlibxml2=$libxml2 \
-        -Dlibdaxctl=$libdaxctl -Dlibpmem=$libpmem -Dlinux_io_uring=$linux_io_uring \
-        -Dgnutls=$gnutls -Dnettle=$nettle -Dgcrypt=$gcrypt -Dauth_pam=$auth_pam \
-        -Dzstd=$zstd -Dseccomp=$seccomp -Dvirtfs=$virtfs -Dcap_ng=$cap_ng \
-        -Dattr=$attr -Ddefault_devices=$default_devices -Dvirglrenderer=$virglrenderer \
-        -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
-        -Dvhost_user_blk_server=$vhost_user_blk_server -Dmultiprocess=$multiprocess \
-        -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek -Dguest_agent_msi=$guest_agent_msi -Dbpf=$bpf\
         $(if test "$default_feature" = no; then echo "-Dauto_features=disabled"; fi) \
-        -Dalsa=$alsa -Dcoreaudio=$coreaudio -Ddsound=$dsound -Djack=$jack -Doss=$oss \
-        -Dpa=$pa -Daudio_drv_list=$audio_drv_list -Dtcg_interpreter=$tcg_interpreter \
-        -Dtrace_backends=$trace_backends -Dtrace_file=$trace_file -Dlinux_aio=$linux_aio \
-        -Dnetmap=$netmap -Dvde=$vde \
         "$@" $cross_arg "$PWD" "$source_path"
   }
   eval run_meson $meson_options
