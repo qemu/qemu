@@ -301,7 +301,7 @@ libudev="auto"
 mpath="auto"
 vnc="auto"
 sparse="auto"
-vde="$default_feature"
+vde="auto"
 vnc_sasl="auto"
 vnc_jpeg="auto"
 vnc_png="auto"
@@ -1022,9 +1022,9 @@ for opt do
   ;;
   --enable-slirp=system) slirp="system"
   ;;
-  --disable-vde) vde="no"
+  --disable-vde) vde="disabled"
   ;;
-  --enable-vde) vde="yes"
+  --enable-vde) vde="enabled"
   ;;
   --disable-netmap) netmap="no"
   ;;
@@ -2904,30 +2904,6 @@ EOF
 fi
 
 ##########################################
-# vde libraries probe
-if test "$vde" != "no" ; then
-  vde_libs="-lvdeplug"
-  cat > $TMPC << EOF
-#include <libvdeplug.h>
-int main(void)
-{
-    struct vde_open_args a = {0, 0, 0};
-    char s[] = "";
-    vde_open(s, s, &a);
-    return 0;
-}
-EOF
-  if compile_prog "" "$vde_libs" ; then
-    vde=yes
-  else
-    if test "$vde" = "yes" ; then
-      feature_not_found "vde" "Install vde (Virtual Distributed Ethernet) devel"
-    fi
-    vde=no
-  fi
-fi
-
-##########################################
 # netmap support probe
 # Apart from looking for netmap headers, we make sure that the host API version
 # supports the netmap backend (>=11). The upper bound (15) is meant to simulate
@@ -4199,10 +4175,6 @@ if test "$slirp_smbd" = "yes" ; then
   echo "CONFIG_SLIRP_SMBD=y" >> $config_host_mak
   echo "CONFIG_SMBD_COMMAND=\"$smbd\"" >> $config_host_mak
 fi
-if test "$vde" = "yes" ; then
-  echo "CONFIG_VDE=y" >> $config_host_mak
-  echo "VDE_LIBS=$vde_libs" >> $config_host_mak
-fi
 if test "$netmap" = "yes" ; then
   echo "CONFIG_NETMAP=y" >> $config_host_mak
 fi
@@ -4752,6 +4724,7 @@ if test "$skip_meson" = no; then
         -Dalsa=$alsa -Dcoreaudio=$coreaudio -Ddsound=$dsound -Djack=$jack -Doss=$oss \
         -Dpa=$pa -Daudio_drv_list=$audio_drv_list -Dtcg_interpreter=$tcg_interpreter \
         -Dtrace_backends=$trace_backends -Dtrace_file=$trace_file -Dlinux_aio=$linux_aio \
+        -Dvde=$vde \
         $cross_arg \
         "$PWD" "$source_path"
 
