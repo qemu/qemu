@@ -245,7 +245,6 @@ block_drv_rw_whitelist=""
 block_drv_ro_whitelist=""
 block_drv_whitelist_tools="no"
 host_cc="cc"
-audio_win_int=""
 libs_qga=""
 debug_info="yes"
 lto="false"
@@ -3077,7 +3076,6 @@ for drv in $audio_drv_list; do
 
     dsound)
       dsound_libs="-lole32 -ldxguid"
-      audio_win_int="yes"
     ;;
 
     oss)
@@ -4562,9 +4560,6 @@ if test "$libjack" = "yes" ; then
     echo "CONFIG_LIBJACK=y" >> $config_host_mak
 fi
 echo "JACK_LIBS=$jack_libs" >> $config_host_mak
-if test "$audio_win_int" = "yes" ; then
-  echo "CONFIG_AUDIO_WIN_INT=y" >> $config_host_mak
-fi
 echo "CONFIG_BDRV_RW_WHITELIST=$block_drv_rw_whitelist" >> $config_host_mak
 echo "CONFIG_BDRV_RO_WHITELIST=$block_drv_ro_whitelist" >> $config_host_mak
 if test "$block_drv_whitelist_tools" = "yes" ; then
