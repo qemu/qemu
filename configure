@@ -315,7 +315,7 @@ pa="auto"
 xen=${default_feature:+disabled}
 xen_ctrl_version="$default_feature"
 xen_pci_passthrough="auto"
-linux_aio="$default_feature"
+linux_aio="auto"
 linux_io_uring="auto"
 cap_ng="auto"
 attr="auto"
@@ -1196,9 +1196,9 @@ for opt do
   ;;
   --enable-fdt=system) fdt="system"
   ;;
-  --disable-linux-aio) linux_aio="no"
+  --disable-linux-aio) linux_aio="disabled"
   ;;
-  --enable-linux-aio) linux_aio="yes"
+  --enable-linux-aio) linux_aio="enabled"
   ;;
   --disable-linux-io-uring) linux_io_uring="disabled"
   ;;
@@ -3164,26 +3164,6 @@ if test "$libssh" != "no" ; then
 fi
 
 ##########################################
-# linux-aio probe
-
-if test "$linux_aio" != "no" ; then
-  cat > $TMPC <<EOF
-#include <libaio.h>
-#include <sys/eventfd.h>
-#include <stddef.h>
-int main(void) { io_setup(0, NULL); io_set_eventfd(NULL, 0); eventfd(0, 0); return 0; }
-EOF
-  if compile_prog "" "-laio" ; then
-    linux_aio=yes
-  else
-    if test "$linux_aio" = "yes" ; then
-      feature_not_found "linux AIO" "Install libaio devel"
-    fi
-    linux_aio=no
-  fi
-fi
-
-##########################################
 # TPM emulation is only on POSIX
 
 if test "$tpm" = ""; then
@@ -4272,9 +4252,6 @@ if test "$xen" = "enabled" ; then
   echo "XEN_CFLAGS=$xen_cflags" >> $config_host_mak
   echo "XEN_LIBS=$xen_libs" >> $config_host_mak
 fi
-if test "$linux_aio" = "yes" ; then
-  echo "CONFIG_LINUX_AIO=y" >> $config_host_mak
-fi
 if test "$vhost_scsi" = "yes" ; then
   echo "CONFIG_VHOST_SCSI=y" >> $config_host_mak
 fi
@@ -4774,7 +4751,7 @@ if test "$skip_meson" = no; then
         $(if test "$default_feature" = no; then echo "-Dauto_features=disabled"; fi) \
         -Dalsa=$alsa -Dcoreaudio=$coreaudio -Ddsound=$dsound -Djack=$jack -Doss=$oss \
         -Dpa=$pa -Daudio_drv_list=$audio_drv_list -Dtcg_interpreter=$tcg_interpreter \
-        -Dtrace_backends=$trace_backends -Dtrace_file=$trace_file \
+        -Dtrace_backends=$trace_backends -Dtrace_file=$trace_file -Dlinux_aio=$linux_aio \
         $cross_arg \
         "$PWD" "$source_path"
 

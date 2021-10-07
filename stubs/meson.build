@@ -20,7 +20,9 @@ endif
 stub_ss.add(files('iothread-lock.c'))
 stub_ss.add(files('isa-bus.c'))
 stub_ss.add(files('is-daemonized.c'))
-stub_ss.add(when: 'CONFIG_LINUX_AIO', if_true: files('linux-aio.c'))
+if libaio.found()
+  stub_ss.add(files('linux-aio.c'))
+endif
 stub_ss.add(files('migr-blocker.c'))
 stub_ss.add(files('module-opts.c'))
 stub_ss.add(files('monitor.c'))
