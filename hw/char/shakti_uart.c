@@ -168,6 +168,7 @@ static void shakti_uart_class_init(ObjectClass *klass, void *data)
     dc->reset = shakti_uart_reset;
     dc->realize = shakti_uart_realize;
     device_class_set_props(dc, shakti_uart_properties);
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo shakti_uart_info = {

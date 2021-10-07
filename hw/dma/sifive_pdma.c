@@ -232,7 +232,7 @@ static void sifive_pdma_write(void *opaque, hwaddr offset,
 {
     SiFivePDMAState *s = opaque;
     int ch = SIFIVE_PDMA_CHAN_NO(offset);
-    bool claimed;
+    bool claimed, run;
 
     if (ch >= SIFIVE_PDMA_CHANS) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid channel no %d\n",
@@ -243,7 +243,8 @@ static void sifive_pdma_write(void *opaque, hwaddr offset,
     offset &= 0xfff;
     switch (offset) {
     case DMA_CONTROL:
-        claimed = !!s->chan[ch].control & CONTROL_CLAIM;
+        claimed = !!(s->chan[ch].control & CONTROL_CLAIM);
+        run = !!(s->chan[ch].control & CONTROL_RUN);
 
         if (!claimed && (value & CONTROL_CLAIM)) {
             /* reset Next* registers */
@@ -254,13 +255,19 @@ static void sifive_pdma_write(void *opaque, hwaddr offset,
             s->chan[ch].next_src = 0;
         }
 
+        /* claim bit can only be cleared when run is low */
+        if (run && !(value & CONTROL_CLAIM)) {
+            value |= CONTROL_CLAIM;
+        }
+
         s->chan[ch].control = value;
 
         /*
          * If channel was not claimed before run bit is set,
+         * or if the channel is disclaimed when run was low,
          * DMA won't run.
          */
-        if (!claimed) {
+        if (!claimed || (!run && !(value & CONTROL_CLAIM))) {
             s->chan[ch].control &= ~CONTROL_RUN;
             return;
         }
