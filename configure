@@ -1019,7 +1019,7 @@ for opt do
   ;;
   --enable-slirp=git) slirp="internal"
   ;;
-  --enable-slirp=system) slirp="system"
+  --enable-slirp=*) slirp="$optarg"
   ;;
   --disable-vde) vde="disabled"
   ;;
@@ -1193,7 +1193,7 @@ for opt do
   ;;
   --enable-fdt=git) fdt="internal"
   ;;
-  --enable-fdt=system) fdt="system"
+  --enable-fdt=*) fdt="$optarg"
   ;;
   --disable-linux-aio) linux_aio="disabled"
   ;;
@@ -1479,7 +1479,7 @@ for opt do
   ;;
   --enable-capstone=git) capstone="internal"
   ;;
-  --enable-capstone=system) capstone="system"
+  --enable-capstone=*) capstone="$optarg"
   ;;
   --with-git=*) git="$optarg"
   ;;
