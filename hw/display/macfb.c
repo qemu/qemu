@@ -343,14 +343,14 @@ static const GraphicHwOps macfb_ops = {
     .gfx_update = macfb_update_display,
 };
 
-static void macfb_common_realize(DeviceState *dev, MacfbState *s, Error **errp)
+static bool macfb_common_realize(DeviceState *dev, MacfbState *s, Error **errp)
 {
     DisplaySurface *surface;
 
     if (s->depth != 1 && s->depth != 2 && s->depth != 4 && s->depth != 8 &&
         s->depth != 16 && s->depth != 24) {
         error_setg(errp, "unknown guest depth %d", s->depth);
-        return;
+        return false;
     }
 
     s->con = graphic_console_init(dev, 0, &macfb_ops, s);
@@ -359,18 +359,20 @@ static void macfb_common_realize(DeviceState *dev, MacfbState *s, Error **errp)
     if (surface_bits_per_pixel(surface) != 32) {
         error_setg(errp, "unknown host depth %d",
                    surface_bits_per_pixel(surface));
-        return;
+        return false;
     }
 
     memory_region_init_io(&s->mem_ctrl, OBJECT(dev), &macfb_ctrl_ops, s,
                           "macfb-ctrl", 0x1000);
 
     memory_region_init_ram_nomigrate(&s->mem_vram, OBJECT(s), "macfb-vram",
-                                     MACFB_VRAM_SIZE, errp);
+                                     MACFB_VRAM_SIZE, &error_abort);
     s->vram = memory_region_get_ram_ptr(&s->mem_vram);
     s->vram_bit_mask = MACFB_VRAM_SIZE - 1;
     vmstate_register_ram(&s->mem_vram, dev);
     memory_region_set_coalescing(&s->mem_vram);
+
+    return true;
 }
 
 static void macfb_sysbus_realize(DeviceState *dev, Error **errp)
@@ -378,8 +380,7 @@ static void macfb_sysbus_realize(DeviceState *dev, Error **errp)
     MacfbSysBusState *s = MACFB(dev);
     MacfbState *ms = &s->macfb;
 
-    macfb_common_realize(dev, ms, errp);
-    if (*errp) {
+    if (!macfb_common_realize(dev, ms, errp)) {
         return;
     }
 
@@ -399,8 +400,7 @@ static void macfb_nubus_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    macfb_common_realize(dev, ms, errp);
-    if (*errp) {
+    if (!macfb_common_realize(dev, ms, errp)) {
         return;
     }
 
