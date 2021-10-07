@@ -98,6 +98,8 @@ AioTaskPool *coroutine_fn aio_task_pool_new(int max_busy_tasks)
 {
     AioTaskPool *pool = g_new0(AioTaskPool, 1);
 
+    assert(max_busy_tasks > 0);
+
     pool->main_co = qemu_coroutine_self();
     pool->max_busy_tasks = max_busy_tasks;
 

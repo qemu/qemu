@@ -1847,7 +1847,7 @@ static void drive_backup_abort(BlkActionState *common)
         aio_context = bdrv_get_aio_context(state->bs);
         aio_context_acquire(aio_context);
 
-        job_cancel_sync(&state->job->job);
+        job_cancel_sync(&state->job->job, true);
 
         aio_context_release(aio_context);
     }
@@ -1948,7 +1948,7 @@ static void blockdev_backup_abort(BlkActionState *common)
         aio_context = bdrv_get_aio_context(state->bs);
         aio_context_acquire(aio_context);
 
-        job_cancel_sync(&state->job->job);
+        job_cancel_sync(&state->job->job, true);
 
         aio_context_release(aio_context);
     }
