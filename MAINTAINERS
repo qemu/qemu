@@ -2502,6 +2502,7 @@ Memory API
 M: Paolo Bonzini <pbonzini@redhat.com>
 M: Peter Xu <peterx@redhat.com>
 M: David Hildenbrand <david@redhat.com>
+R: Philippe Mathieu-Daudé <philmd@redhat.com>
 S: Supported
 F: include/exec/ioport.h
 F: include/exec/memop.h
