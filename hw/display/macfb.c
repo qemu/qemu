@@ -128,7 +128,9 @@ static void macfb_draw_line1(MacfbState *s, uint8_t *d, uint32_t addr,
     for (x = 0; x < width; x++) {
         int bit = x & 7;
         int idx = (macfb_read_byte(s, addr) >> (7 - bit)) & 1;
-        r = g = b  = ((1 - idx) << 7);
+        r = s->color_palette[idx * 3];
+        g = s->color_palette[idx * 3 + 1];
+        b = s->color_palette[idx * 3 + 2];
         addr += (bit == 7);
 
         *(uint32_t *)d = rgb_to_pixel32(r, g, b);
