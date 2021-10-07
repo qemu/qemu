@@ -2403,18 +2403,6 @@ else
   l2tpv3=no
 fi
 
-cat > $TMPC <<EOF
-#include <sys/mman.h>
-int main(int argc, char *argv[]) {
-    return mlockall(MCL_FUTURE);
-}
-EOF
-if compile_prog "" "" ; then
-  have_mlockall=yes
-else
-  have_mlockall=no
-fi
-
 #########################################
 # vhost interdependencies and host support
 
@@ -3843,21 +3831,6 @@ if test "$fortify_source" != "no"; then
 fi
 
 ##########################################
-# check if struct fsxattr is available via linux/fs.h
-
-have_fsxattr=no
-cat > $TMPC << EOF
-#include <linux/fs.h>
-struct fsxattr foo;
-int main(void) {
-  return 0;
-}
-EOF
-if compile_prog "" "" ; then
-    have_fsxattr=yes
-fi
-
-##########################################
 # check for usable membarrier system call
 if test "$membarrier" = "yes"; then
     have_membarrier=no
@@ -4358,13 +4331,6 @@ if test "$gdbus_codegen" != "" ; then
 fi
 echo "CONFIG_TLS_PRIORITY=\"$tls_priority\"" >> $config_host_mak
 
-# Work around a system header bug with some kernel/XFS header
-# versions where they both try to define 'struct fsxattr':
-# xfs headers will not try to redefine structs from linux headers
-# if this macro is set.
-if test "$have_fsxattr" = "yes" ; then
-    echo "HAVE_FSXATTR=y" >> $config_host_mak
-fi
 if test "$xen" = "enabled" ; then
   echo "CONFIG_XEN_BACKEND=y" >> $config_host_mak
   echo "CONFIG_XEN_CTRL_INTERFACE_VERSION=$xen_ctrl_version" >> $config_host_mak
@@ -4568,9 +4534,6 @@ if test "$qed" = "yes" ; then
 fi
 if test "$parallels" = "yes" ; then
   echo "CONFIG_PARALLELS=y" >> $config_host_mak
-fi
-if test "$have_mlockall" = "yes" ; then
-  echo "HAVE_MLOCKALL=y" >> $config_host_mak
 fi
 
 if test "$plugins" = "yes" ; then
