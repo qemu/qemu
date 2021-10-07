@@ -3111,19 +3111,6 @@ elif test "$tpm" = "yes"; then
 fi
 
 ##########################################
-# iovec probe
-cat > $TMPC <<EOF
-#include <sys/types.h>
-#include <sys/uio.h>
-#include <unistd.h>
-int main(void) { return sizeof(struct iovec); }
-EOF
-iovec=no
-if compile_prog "" "" ; then
-  iovec=yes
-fi
-
-##########################################
 # fdt probe
 
 case "$fdt" in
@@ -3564,42 +3551,6 @@ EOF
   fi
 fi
 
-#########################################
-# See if 64-bit atomic operations are supported.
-# Note that without __atomic builtins, we can only
-# assume atomic loads/stores max at pointer size.
-
-cat > $TMPC << EOF
-#include <stdint.h>
-int main(void)
-{
-  uint64_t x = 0, y = 0;
-  y = __atomic_load_n(&x, __ATOMIC_RELAXED);
-  __atomic_store_n(&x, y, __ATOMIC_RELAXED);
-  __atomic_compare_exchange_n(&x, &y, x, 0, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
-  __atomic_exchange_n(&x, y, __ATOMIC_RELAXED);
-  __atomic_fetch_add(&x, y, __ATOMIC_RELAXED);
-  return 0;
-}
-EOF
-if compile_prog "" "" ; then
-  atomic64=yes
-fi
-
-########################################
-# check if getauxval is available.
-
-getauxval=no
-cat > $TMPC << EOF
-#include <sys/auxv.h>
-int main(void) {
-  return getauxval(AT_HWCAP) == 0;
-}
-EOF
-if compile_prog "" "" ; then
-    getauxval=yes
-fi
-
 ########################################
 # check if ccache is interfering with
 # semantic analysis of macros
@@ -3671,33 +3622,6 @@ else
     # Do not enable it by default even for Mingw32, because it doesn't
     # work on Wine.
     membarrier=no
-fi
-
-##########################################
-# check for usable AF_VSOCK environment
-have_af_vsock=no
-cat > $TMPC << EOF
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#if !defined(AF_VSOCK)
-# error missing AF_VSOCK flag
-#endif
-#include <linux/vm_sockets.h>
-int main(void) {
-    int sock, ret;
-    struct sockaddr_vm svm;
-    socklen_t len = sizeof(svm);
-    sock = socket(AF_VSOCK, SOCK_STREAM, 0);
-    ret = getpeername(sock, (struct sockaddr *)&svm, &len);
-    if ((ret == -1) && (errno == ENOTCONN)) {
-        return 0;
-    }
-    return -1;
-}
-EOF
-if compile_prog "" "" ; then
-    have_af_vsock=yes
 fi
 
 ##########################################
@@ -4175,9 +4099,6 @@ fi
 if test "$vhost_user_fs" = "yes" ; then
   echo "CONFIG_VHOST_USER_FS=y" >> $config_host_mak
 fi
-if test "$iovec" = "yes" ; then
-  echo "CONFIG_IOVEC=y" >> $config_host_mak
-fi
 if test "$membarrier" = "yes" ; then
   echo "CONFIG_MEMBARRIER=y" >> $config_host_mak
 fi
@@ -4247,14 +4168,6 @@ if test "$cmpxchg128" = "yes" ; then
   echo "CONFIG_CMPXCHG128=y" >> $config_host_mak
 fi
 
-if test "$atomic64" = "yes" ; then
-  echo "CONFIG_ATOMIC64=y" >> $config_host_mak
-fi
-
-if test "$getauxval" = "yes" ; then
-  echo "CONFIG_GETAUXVAL=y" >> $config_host_mak
-fi
-
 if test "$libssh" = "yes" ; then
   echo "CONFIG_LIBSSH=y" >> $config_host_mak
   echo "LIBSSH_CFLAGS=$libssh_cflags" >> $config_host_mak
@@ -4280,10 +4193,6 @@ fi
 
 if test "$replication" = "yes" ; then
   echo "CONFIG_REPLICATION=y" >> $config_host_mak
-fi
-
-if test "$have_af_vsock" = "yes" ; then
-  echo "CONFIG_AF_VSOCK=y" >> $config_host_mak
 fi
 
 if test "$debug_mutex" = "yes" ; then

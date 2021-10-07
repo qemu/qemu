@@ -1550,6 +1550,8 @@ config_host_data.set('CONFIG_INOTIFY',
                      cc.has_header_symbol('sys/inotify.h', 'inotify_init'))
 config_host_data.set('CONFIG_INOTIFY1',
                      cc.has_header_symbol('sys/inotify.h', 'inotify_init1'))
+config_host_data.set('CONFIG_IOVEC',
+                     cc.has_header_symbol('sys/uio.h', 'struct iovec'))
 config_host_data.set('CONFIG_MACHINE_BSWAP_H',
                      cc.has_header_symbol('machine/bswap.h', 'bswap32',
                                           prefix: '''#include <sys/endian.h>
@@ -1696,6 +1698,48 @@ config_host_data.set('HAVE_BROKEN_SIZE_MAX', not cc.compiles('''
     int main(int argc, char *argv[]) {
         return printf("%zu", SIZE_MAX);
     }''', args: ['-Werror']))
+
+# See if 64-bit atomic operations are supported.
+# Note that without __atomic builtins, we can only
+# assume atomic loads/stores max at pointer size.
+config_host_data.set('CONFIG_ATOMIC64', cc.links('''
+  #include <stdint.h>
+  int main(void)
+  {
+    uint64_t x = 0, y = 0;
+    y = __atomic_load_n(&x, __ATOMIC_RELAXED);
+    __atomic_store_n(&x, y, __ATOMIC_RELAXED);
+    __atomic_compare_exchange_n(&x, &y, x, 0, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+    __atomic_exchange_n(&x, y, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&x, y, __ATOMIC_RELAXED);
+    return 0;
+  }'''))
+
+config_host_data.set('CONFIG_GETAUXVAL', cc.links(gnu_source_prefix + '''
+  #include <sys/auxv.h>
+  int main(void) {
+    return getauxval(AT_HWCAP) == 0;
+  }'''))
+
+config_host_data.set('CONFIG_AF_VSOCK', cc.compiles(gnu_source_prefix + '''
+  #include <errno.h>
+  #include <sys/types.h>
+  #include <sys/socket.h>
+  #if !defined(AF_VSOCK)
+  # error missing AF_VSOCK flag
+  #endif
+  #include <linux/vm_sockets.h>
+  int main(void) {
+    int sock, ret;
+    struct sockaddr_vm svm;
+    socklen_t len = sizeof(svm);
+    sock = socket(AF_VSOCK, SOCK_STREAM, 0);
+    ret = getpeername(sock, (struct sockaddr *)&svm, &len);
+    if ((ret == -1) && (errno == ENOTCONN)) {
+        return 0;
+    }
+    return -1;
+  }'''))
 
 ignored = ['CONFIG_QEMU_INTERP_PREFIX', # actually per-target
     'HAVE_GDB_BIN']
