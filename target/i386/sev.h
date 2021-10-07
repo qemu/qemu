@@ -14,6 +14,10 @@
 #ifndef QEMU_SEV_I386_H
 #define QEMU_SEV_I386_H
 
+#ifndef CONFIG_USER_ONLY
+#include CONFIG_DEVICES /* CONFIG_SEV */
+#endif
+
 #include "exec/confidential-guest-support.h"
 #include "qapi/qapi-types-misc-target.h"
 
@@ -35,8 +39,14 @@ typedef struct SevKernelLoaderContext {
     size_t cmdline_size;
 } SevKernelLoaderContext;
 
+#ifdef CONFIG_SEV
 bool sev_enabled(void);
-extern bool sev_es_enabled(void);
+bool sev_es_enabled(void);
+#else
+#define sev_enabled() 0
+#define sev_es_enabled() 0
+#endif
+
 extern SevInfo *sev_get_info(void);
 extern uint32_t sev_get_cbit_position(void);
 extern uint32_t sev_get_reduced_phys_bits(void);
