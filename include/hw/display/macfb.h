@@ -14,7 +14,9 @@
 #define MACFB_H
 
 #include "exec/memory.h"
+#include "hw/irq.h"
 #include "ui/console.h"
+#include "qemu/timer.h"
 #include "qom/object.h"
 
 typedef enum  {
@@ -63,6 +65,11 @@ typedef struct MacfbState {
 
     uint32_t regs[MACFB_NUM_REGS];
     MacFbMode *mode;
+
+    uint32_t irq_state;
+    uint32_t irq_mask;
+    QEMUTimer *vbl_timer;
+    qemu_irq irq;
 } MacfbState;
 
 #define TYPE_MACFB "sysbus-macfb"
@@ -81,6 +88,7 @@ struct MacfbNubusDeviceClass {
     DeviceClass parent_class;
 
     DeviceRealize parent_realize;
+    DeviceUnrealize parent_unrealize;
 };
 
 

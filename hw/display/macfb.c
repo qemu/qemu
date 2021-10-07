@@ -33,9 +33,16 @@
 #define DAFB_MODE_CTRL1     0x8
 #define DAFB_MODE_CTRL2     0xc
 #define DAFB_MODE_SENSE     0x1c
+#define DAFB_INTR_MASK      0x104
+#define DAFB_INTR_STAT      0x108
+#define DAFB_INTR_CLEAR     0x10c
 #define DAFB_RESET          0x200
 #define DAFB_LUT            0x213
 
+#define DAFB_INTR_VBL   0x4
+
+/* Vertical Blank period (60.15Hz) */
+#define DAFB_INTR_VBL_PERIOD_NS 16625800
 
 /*
  * Quadra sense codes taken from Apple Technical Note HW26:
@@ -470,6 +477,36 @@ static void macfb_update_display(void *opaque)
     macfb_draw_graphic(s);
 }
 
+static void macfb_update_irq(MacfbState *s)
+{
+    uint32_t irq_state = s->irq_state & s->irq_mask;
+
+    if (irq_state) {
+        qemu_irq_raise(s->irq);
+    } else {
+        qemu_irq_lower(s->irq);
+    }
+}
+
+static int64_t macfb_next_vbl(void)
+{
+    return (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + DAFB_INTR_VBL_PERIOD_NS) /
+            DAFB_INTR_VBL_PERIOD_NS * DAFB_INTR_VBL_PERIOD_NS;
+}
+
+static void macfb_vbl_timer(void *opaque)
+{
+    MacfbState *s = opaque;
+    int64_t next_vbl;
+
+    s->irq_state |= DAFB_INTR_VBL;
+    macfb_update_irq(s);
+
+    /* 60 Hz irq */
+    next_vbl = macfb_next_vbl();
+    timer_mod(s->vbl_timer, next_vbl);
+}
+
 static void macfb_reset(MacfbState *s)
 {
     int i;
@@ -498,6 +535,9 @@ static uint64_t macfb_ctrl_read(void *opaque,
     case DAFB_MODE_CTRL2:
         val = s->regs[addr >> 2];
         break;
+    case DAFB_INTR_STAT:
+        val = s->irq_state;
+        break;
     case DAFB_MODE_SENSE:
         val = macfb_sense_read(s);
         break;
@@ -513,6 +553,8 @@ static void macfb_ctrl_write(void *opaque,
                              unsigned int size)
 {
     MacfbState *s = opaque;
+    int64_t next_vbl;
+
     switch (addr) {
     case DAFB_MODE_VADDR1:
     case DAFB_MODE_VADDR2:
@@ -528,8 +570,23 @@ static void macfb_ctrl_write(void *opaque,
     case DAFB_MODE_SENSE:
         macfb_sense_write(s, val);
         break;
+    case DAFB_INTR_MASK:
+        s->irq_mask = val;
+        if (val & DAFB_INTR_VBL) {
+            next_vbl = macfb_next_vbl();
+            timer_mod(s->vbl_timer, next_vbl);
+        } else {
+            timer_del(s->vbl_timer);
+        }
+        break;
+    case DAFB_INTR_CLEAR:
+        s->irq_state &= ~DAFB_INTR_VBL;
+        macfb_update_irq(s);
+        break;
     case DAFB_RESET:
         s->palette_current = 0;
+        s->irq_state &= ~DAFB_INTR_VBL;
+        macfb_update_irq(s);
         break;
     case DAFB_LUT:
         s->color_palette[s->palette_current] = val;
@@ -611,6 +668,7 @@ static bool macfb_common_realize(DeviceState *dev, MacfbState *s, Error **errp)
     s->vram_bit_mask = MACFB_VRAM_SIZE - 1;
     memory_region_set_coalescing(&s->mem_vram);
 
+    s->vbl_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, macfb_vbl_timer, s);
     macfb_update_mode(s);
     return true;
 }
@@ -626,6 +684,16 @@ static void macfb_sysbus_realize(DeviceState *dev, Error **errp)
 
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &ms->mem_ctrl);
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &ms->mem_vram);
+
+    qdev_init_gpio_out(dev, &ms->irq, 1);
+}
+
+static void macfb_nubus_set_irq(void *opaque, int n, int level)
+{
+    MacfbNubusState *s = NUBUS_MACFB(opaque);
+    NubusDevice *nd = NUBUS_DEVICE(s);
+
+    nubus_set_irq(nd, level);
 }
 
 static void macfb_nubus_realize(DeviceState *dev, Error **errp)
@@ -646,6 +714,19 @@ static void macfb_nubus_realize(DeviceState *dev, Error **errp)
 
     memory_region_add_subregion(&nd->slot_mem, DAFB_BASE, &ms->mem_ctrl);
     memory_region_add_subregion(&nd->slot_mem, VIDEO_BASE, &ms->mem_vram);
+
+    ms->irq = qemu_allocate_irq(macfb_nubus_set_irq, s, 0);
+}
+
+static void macfb_nubus_unrealize(DeviceState *dev)
+{
+    MacfbNubusState *s = NUBUS_MACFB(dev);
+    MacfbNubusDeviceClass *ndc = NUBUS_MACFB_GET_CLASS(dev);
+    MacfbState *ms = &s->macfb;
+
+    ndc->parent_unrealize(dev);
+
+    qemu_free_irq(ms->irq);
 }
 
 static void macfb_sysbus_reset(DeviceState *d)
@@ -696,6 +777,8 @@ static void macfb_nubus_class_init(ObjectClass *klass, void *data)
 
     device_class_set_parent_realize(dc, macfb_nubus_realize,
                                     &ndc->parent_realize);
+    device_class_set_parent_unrealize(dc, macfb_nubus_unrealize,
+                                      &ndc->parent_unrealize);
     dc->desc = "Nubus Macintosh framebuffer";
     dc->reset = macfb_nubus_reset;
     dc->vmsd = &vmstate_macfb;
