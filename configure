@@ -1483,14 +1483,6 @@ for opt do
   ;;
   --with-git=*) git="$optarg"
   ;;
-  --enable-git-update)
-      git_submodules_action="update"
-      echo "--enable-git-update deprecated, use --with-git-submodules=update"
-  ;;
-  --disable-git-update)
-      git_submodules_action="validate"
-      echo "--disable-git-update deprecated, use --with-git-submodules=validate"
-  ;;
   --with-git-submodules=*)
       git_submodules_action="$optarg"
   ;;
