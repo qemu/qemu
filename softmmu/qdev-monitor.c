@@ -592,7 +592,8 @@ static BusState *qbus_find(const char *path, Error **errp)
     return bus;
 }
 
-void qdev_set_id(DeviceState *dev, const char *id)
+/* Takes ownership of @id, will be freed when deleting the device */
+void qdev_set_id(DeviceState *dev, char *id)
 {
     if (id) {
         dev->id = id;
@@ -690,7 +691,7 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
         }
     }
 
-    qdev_set_id(dev, qemu_opts_id(opts));
+    qdev_set_id(dev, g_strdup(qemu_opts_id(opts)));
 
     /* set properties */
     if (qemu_opt_foreach(opts, set_property, dev, errp)) {

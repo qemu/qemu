@@ -956,6 +956,7 @@ static void device_finalize(Object *obj)
     }
 
     qemu_opts_del(dev->opts);
+    g_free(dev->id);
 }
 
 static void device_class_base_init(ObjectClass *class, void *data)
