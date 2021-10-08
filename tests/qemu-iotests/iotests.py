@@ -621,7 +621,7 @@ class VM(qtest.QEMUQtestMachine):
         super()._post_shutdown()
         if not qemu_valgrind or not self._popen:
             return
-        valgrind_filename =  f"{test_dir}/{self._popen.pid}.valgrind"
+        valgrind_filename = f"{test_dir}/{self._popen.pid}.valgrind"
         if self.exitcode() == 99:
             with open(valgrind_filename, encoding='utf-8') as f:
                 print(f.read())
@@ -1363,8 +1363,9 @@ class ReproducibleStreamWrapper:
 
 class ReproducibleTestRunner(unittest.TextTestRunner):
     def __init__(self, stream: Optional[TextIO] = None,
-             resultclass: Type[unittest.TestResult] = ReproducibleTestResult,
-             **kwargs: Any) -> None:
+                 resultclass: Type[unittest.TestResult] =
+                 ReproducibleTestResult,
+                 **kwargs: Any) -> None:
         rstream = ReproducibleStreamWrapper(stream or sys.stdout)
         super().__init__(stream=rstream,           # type: ignore
                          descriptions=True,
