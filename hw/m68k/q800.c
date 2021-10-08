@@ -74,7 +74,7 @@
  * is needed by the kernel to have early display and
  * thus provided by the bootloader
  */
-#define VIDEO_BASE            0xf9001000
+#define VIDEO_BASE            0xf9000000
 
 #define MAC_CLOCK  3686418
 
@@ -221,6 +221,7 @@ static void q800_init(MachineState *machine)
     uint8_t *prom;
     const int io_slice_nb = (IO_SIZE / IO_SLICE) - 1;
     int i, checksum;
+    MacFbMode *macfb_mode;
     ram_addr_t ram_size = machine->ram_size;
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
@@ -406,8 +407,10 @@ static void q800_init(MachineState *machine)
                     MAC_NUBUS_FIRST_SLOT * NUBUS_SUPER_SLOT_SIZE);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, NUBUS_SLOT_BASE +
                     MAC_NUBUS_FIRST_SLOT * NUBUS_SLOT_SIZE);
-
-    for (i = 0; i < VIA2_NUBUS_IRQ_NB; i++) {
+    qdev_connect_gpio_out(dev, 9,
+                          qdev_get_gpio_in_named(via2_dev, "nubus-irq",
+                          VIA2_NUBUS_IRQ_INTVIDEO));
+    for (i = 1; i < VIA2_NUBUS_IRQ_NB; i++) {
         qdev_connect_gpio_out(dev, 9 + i,
                               qdev_get_gpio_in_named(via2_dev, "nubus-irq",
                                                      VIA2_NUBUS_IRQ_9 + i));
@@ -418,10 +421,18 @@ static void q800_init(MachineState *machine)
     /* framebuffer in nubus slot #9 */
 
     dev = qdev_new(TYPE_NUBUS_MACFB);
+    qdev_prop_set_uint32(dev, "slot", 9);
     qdev_prop_set_uint32(dev, "width", graphic_width);
     qdev_prop_set_uint32(dev, "height", graphic_height);
     qdev_prop_set_uint8(dev, "depth", graphic_depth);
+    if (graphic_width == 1152 && graphic_height == 870 && graphic_depth == 8) {
+        qdev_prop_set_uint8(dev, "display", MACFB_DISPLAY_APPLE_21_COLOR);
+    } else {
+        qdev_prop_set_uint8(dev, "display", MACFB_DISPLAY_VGA);
+    }
     qdev_realize_and_unref(dev, BUS(nubus), &error_fatal);
+
+    macfb_mode = (NUBUS_MACFB(dev)->macfb).mode;
 
     cs = CPU(cpu);
     if (linux_boot) {
@@ -445,12 +456,12 @@ static void q800_init(MachineState *machine)
         BOOTINFO1(cs->as, parameters_base,
                   BI_MAC_MEMSIZE, ram_size >> 20); /* in MB */
         BOOTINFO2(cs->as, parameters_base, BI_MEMCHUNK, 0, ram_size);
-        BOOTINFO1(cs->as, parameters_base, BI_MAC_VADDR, VIDEO_BASE);
+        BOOTINFO1(cs->as, parameters_base, BI_MAC_VADDR,
+                  VIDEO_BASE + macfb_mode->offset);
         BOOTINFO1(cs->as, parameters_base, BI_MAC_VDEPTH, graphic_depth);
         BOOTINFO1(cs->as, parameters_base, BI_MAC_VDIM,
                   (graphic_height << 16) | graphic_width);
-        BOOTINFO1(cs->as, parameters_base, BI_MAC_VROW,
-                  (graphic_width * graphic_depth + 7) / 8);
+        BOOTINFO1(cs->as, parameters_base, BI_MAC_VROW, macfb_mode->stride);
         BOOTINFO1(cs->as, parameters_base, BI_MAC_SCCBASE, SCC_BASE);
 
         rom = g_malloc(sizeof(*rom));
