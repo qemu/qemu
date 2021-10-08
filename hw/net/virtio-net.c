@@ -858,9 +858,11 @@ static void failover_add_primary(VirtIONet *n, Error **errp)
         return;
     }
 
-    dev = qdev_device_add(n->primary_opts, &err);
+    dev = qdev_device_add_from_qdict(n->primary_opts,
+                                     n->primary_opts_from_json,
+                                     &err);
     if (err) {
-        qemu_opts_del(n->primary_opts);
+        qobject_unref(n->primary_opts);
         n->primary_opts = NULL;
     } else {
         object_unref(OBJECT(dev));
@@ -3287,7 +3289,9 @@ static void virtio_net_migration_state_notifier(Notifier *notifier, void *data)
 }
 
 static bool failover_hide_primary_device(DeviceListener *listener,
-                                         QemuOpts *device_opts, Error **errp)
+                                         const QDict *device_opts,
+                                         bool from_json,
+                                         Error **errp)
 {
     VirtIONet *n = container_of(listener, VirtIONet, primary_listener);
     const char *standby_id;
@@ -3295,7 +3299,7 @@ static bool failover_hide_primary_device(DeviceListener *listener,
     if (!device_opts) {
         return false;
     }
-    standby_id = qemu_opt_get(device_opts, "failover_pair_id");
+    standby_id = qdict_get_try_str(device_opts, "failover_pair_id");
     if (g_strcmp0(standby_id, n->netclient_name) != 0) {
         return false;
     }
@@ -3306,12 +3310,8 @@ static bool failover_hide_primary_device(DeviceListener *listener,
         return false;
     }
 
-    /*
-     * Having a weak reference here should be okay because a device can't be
-     * deleted while it's hidden. This will be replaced soon with a QDict that
-     * has a clearer ownership model.
-     */
-    n->primary_opts = device_opts;
+    n->primary_opts = qdict_clone_shallow(device_opts);
+    n->primary_opts_from_json = from_json;
 
     /* failover_primary_hidden is set during feature negotiation */
     return qatomic_read(&n->failover_primary_hidden);
@@ -3502,8 +3502,11 @@ static void virtio_net_device_unrealize(DeviceState *dev)
     g_free(n->vlans);
 
     if (n->failover) {
+        qobject_unref(n->primary_opts);
         device_listener_unregister(&n->primary_listener);
         remove_migration_state_change_notifier(&n->migration_state);
+    } else {
+        assert(n->primary_opts == NULL);
     }
 
     max_queues = n->multiqueue ? n->max_queues : 1;

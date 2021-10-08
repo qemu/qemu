@@ -9,6 +9,8 @@ void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp);
 
 int qdev_device_help(QemuOpts *opts);
 DeviceState *qdev_device_add(QemuOpts *opts, Error **errp);
+DeviceState *qdev_device_add_from_qdict(const QDict *opts,
+                                        bool from_json, Error **errp);
 
 /**
  * qdev_set_id: parent the device and set its id if provided.
