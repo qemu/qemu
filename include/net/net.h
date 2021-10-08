@@ -62,6 +62,7 @@ typedef struct SocketReadState SocketReadState;
 typedef void (SocketReadStateFinalize)(SocketReadState *rs);
 typedef void (NetAnnounce)(NetClientState *);
 typedef bool (SetSteeringEBPF)(NetClientState *, int);
+typedef bool (NetCheckPeerType)(NetClientState *, ObjectClass *, Error **);
 
 typedef struct NetClientInfo {
     NetClientDriver type;
@@ -84,6 +85,7 @@ typedef struct NetClientInfo {
     SetVnetBE *set_vnet_be;
     NetAnnounce *announce;
     SetSteeringEBPF *set_steering_ebpf;
+    NetCheckPeerType *check_peer_type;
 } NetClientInfo;
 
 struct NetClientState {

@@ -431,6 +431,12 @@ static void set_netdev(Object *obj, Visitor *v, const char *name,
             goto out;
         }
 
+        if (peers[i]->info->check_peer_type) {
+            if (!peers[i]->info->check_peer_type(peers[i], obj->class, errp)) {
+                goto out;
+            }
+        }
+
         ncs[i] = peers[i];
         ncs[i]->queue_index = i;
     }
