@@ -321,7 +321,7 @@ static int hvf_accel_init(MachineState *ms)
 
     s = g_new0(HVFState, 1);
 
-    s->num_slots = 32;
+    s->num_slots = ARRAY_SIZE(s->slots);
     for (x = 0; x < s->num_slots; ++x) {
         s->slots[x].size = 0;
         s->slots[x].slot_id = x;
