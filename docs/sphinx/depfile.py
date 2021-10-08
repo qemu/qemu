@@ -27,7 +27,7 @@ def get_infiles(env):
             if mod.__file__:
                 yield mod.__file__
     # this is perhaps going to include unused files:
-    for static_path in env.config.html_static_path:
+    for static_path in env.config.html_static_path + env.config.templates_path:
         for path in Path(static_path).rglob('*'):
             yield str(path)
 
