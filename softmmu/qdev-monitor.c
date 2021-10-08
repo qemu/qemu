@@ -28,6 +28,8 @@
 #include "qapi/qmp/dispatch.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/qmp/qstring.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "qemu/help_option.h"
@@ -198,16 +200,28 @@ static int set_property(void *opaque, const char *name, const char *value,
                         Error **errp)
 {
     Object *obj = opaque;
+    QString *val;
+    Visitor *v;
+    int ret;
 
     if (strcmp(name, "driver") == 0)
         return 0;
     if (strcmp(name, "bus") == 0)
         return 0;
 
-    if (!object_property_parse(obj, name, value, errp)) {
-        return -1;
+    val = qstring_from_str(value);
+    v = qobject_input_visitor_new_keyval(QOBJECT(val));
+
+    if (!object_property_set(obj, name, v, errp)) {
+        ret = -1;
+        goto out;
     }
-    return 0;
+
+    ret = 0;
+out:
+    visit_free(v);
+    qobject_unref(val);
+    return ret;
 }
 
 static const char *find_typename_by_alias(const char *alias)
