@@ -182,6 +182,10 @@ html_css_files = [
     'theme_overrides.css',
 ]
 
+html_js_files = [
+    'custom.js',
+]
+
 html_context = {
     "display_gitlab": True,
     "gitlab_user": "qemu-project",
