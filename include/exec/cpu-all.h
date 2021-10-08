@@ -437,12 +437,10 @@ void dump_opcount_info(GString *buf);
 
 #endif /* !CONFIG_USER_ONLY */
 
-#ifdef CONFIG_TCG
 /* accel/tcg/cpu-exec.c */
 int cpu_exec(CPUState *cpu);
 void tcg_exec_realizefn(CPUState *cpu, Error **errp);
 void tcg_exec_unrealizefn(CPUState *cpu);
-#endif /* CONFIG_TCG */
 
 /* Returns: 0 on success, -1 on error */
 int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
