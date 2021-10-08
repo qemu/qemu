@@ -201,8 +201,12 @@ struct DeviceListener {
      * informs qdev if a device should be visible or hidden.  We can
      * hide a failover device depending for example on the device
      * opts.
+     *
+     * On errors, it returns false and errp is set. Device creation
+     * should fail in this case.
      */
-    bool (*hide_device)(DeviceListener *listener, QemuOpts *device_opts);
+    bool (*hide_device)(DeviceListener *listener, QemuOpts *device_opts,
+                        Error **errp);
     QTAILQ_ENTRY(DeviceListener) link;
 };
 
@@ -837,7 +841,7 @@ void device_listener_unregister(DeviceListener *listener);
  * When a device is added via qdev_device_add() this will be called,
  * and return if the device should be added now or not.
  */
-bool qdev_should_hide_device(QemuOpts *opts);
+bool qdev_should_hide_device(QemuOpts *opts, Error **errp);
 
 typedef enum MachineInitPhase {
     /* current_machine is NULL.  */
