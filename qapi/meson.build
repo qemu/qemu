@@ -10,6 +10,9 @@ util_ss.add(files(
   'string-input-visitor.c',
   'string-output-visitor.c',
 ))
+if have_system
+  util_ss.add(files('qapi-type-helpers.c'))
+endif
 if have_system or have_tools
   util_ss.add(files(
     'qmp-dispatch.c',
