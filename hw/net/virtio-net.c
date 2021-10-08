@@ -796,46 +796,32 @@ static inline uint64_t virtio_net_supported_guest_offloads(VirtIONet *n)
 
 typedef struct {
     VirtIONet *n;
-    char *id;
-} FailoverId;
+    DeviceState *dev;
+} FailoverDevice;
 
 /**
- * Set the id of the failover primary device
+ * Set the failover primary device
  *
  * @opaque: FailoverId to setup
  * @opts: opts for device we are handling
  * @errp: returns an error if this function fails
  */
-static int failover_set_primary(void *opaque, QemuOpts *opts, Error **errp)
+static int failover_set_primary(DeviceState *dev, void *opaque)
 {
-    FailoverId *fid = opaque;
-    const char *standby_id = qemu_opt_get(opts, "failover_pair_id");
+    FailoverDevice *fdev = opaque;
+    PCIDevice *pci_dev = (PCIDevice *)
+        object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE);
 
-    if (g_strcmp0(standby_id, fid->n->netclient_name) == 0) {
-        fid->id = g_strdup(opts->id);
+    if (!pci_dev) {
+        return 0;
+    }
+
+    if (!g_strcmp0(pci_dev->failover_pair_id, fdev->n->netclient_name)) {
+        fdev->dev = dev;
         return 1;
     }
 
     return 0;
-}
-
-/**
- * Find the primary device id for this failover virtio-net
- *
- * @n: VirtIONet device
- * @errp: returns an error if this function fails
- */
-static char *failover_find_primary_device_id(VirtIONet *n)
-{
-    Error *err = NULL;
-    FailoverId fid;
-
-    fid.n = n;
-    if (!qemu_opts_foreach(qemu_find_opts("device"),
-                           failover_set_primary, &fid, &err)) {
-        return NULL;
-    }
-    return fid.id;
 }
 
 /**
@@ -846,13 +832,13 @@ static char *failover_find_primary_device_id(VirtIONet *n)
  */
 static DeviceState *failover_find_primary_device(VirtIONet *n)
 {
-    char *id = failover_find_primary_device_id(n);
+    FailoverDevice fdev = {
+        .n = n,
+    };
 
-    if (!id) {
-        return NULL;
-    }
-
-    return qdev_find_recursive(sysbus_get_default(), id);
+    qbus_walk_children(sysbus_get_default(), failover_set_primary, NULL,
+                       NULL, NULL, &fdev);
+    return fdev.dev;
 }
 
 static void failover_add_primary(VirtIONet *n, Error **errp)
