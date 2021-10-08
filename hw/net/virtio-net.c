@@ -858,27 +858,24 @@ static DeviceState *failover_find_primary_device(VirtIONet *n)
 static void failover_add_primary(VirtIONet *n, Error **errp)
 {
     Error *err = NULL;
-    QemuOpts *opts;
-    char *id;
     DeviceState *dev = failover_find_primary_device(n);
 
     if (dev) {
         return;
     }
 
-    id = failover_find_primary_device_id(n);
-    if (!id) {
+    if (!n->primary_opts) {
         error_setg(errp, "Primary device not found");
         error_append_hint(errp, "Virtio-net failover will not work. Make "
                           "sure primary device has parameter"
                           " failover_pair_id=%s\n", n->netclient_name);
         return;
     }
-    opts = qemu_opts_find(qemu_find_opts("device"), id);
-    g_assert(opts); /* cannot be NULL because id was found using opts list */
-    dev = qdev_device_add(opts, &err);
+
+    dev = qdev_device_add(n->primary_opts, &err);
     if (err) {
-        qemu_opts_del(opts);
+        qemu_opts_del(n->primary_opts);
+        n->primary_opts = NULL;
     } else {
         object_unref(OBJECT(dev));
     }
@@ -3316,6 +3313,19 @@ static bool failover_hide_primary_device(DeviceListener *listener,
     if (g_strcmp0(standby_id, n->netclient_name) != 0) {
         return false;
     }
+
+    if (n->primary_opts) {
+        error_setg(errp, "Cannot attach more than one primary device to '%s'",
+                   n->netclient_name);
+        return false;
+    }
+
+    /*
+     * Having a weak reference here should be okay because a device can't be
+     * deleted while it's hidden. This will be replaced soon with a QDict that
+     * has a clearer ownership model.
+     */
+    n->primary_opts = device_opts;
 
     /* failover_primary_hidden is set during feature negotiation */
     return qatomic_read(&n->failover_primary_hidden);

@@ -209,6 +209,7 @@ struct VirtIONet {
     bool failover_primary_hidden;
     bool failover;
     DeviceListener primary_listener;
+    QemuOpts *primary_opts;
     Notifier migration_state;
     VirtioNetRssData rss_data;
     struct NetRxPkt *rx_pkt;
