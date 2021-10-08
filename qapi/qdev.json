@@ -32,17 +32,23 @@
 ##
 # @device_add:
 #
+# Add a device.
+#
 # @driver: the name of the new device's driver
 #
 # @bus: the device's parent bus (device tree path)
 #
 # @id: the device's ID, must be unique
 #
-# Additional arguments depend on the type.
-#
-# Add a device.
+# Features:
+# @json-cli: If present, the "-device" command line option supports JSON
+#            syntax with a structure identical to the arguments of this
+#            command.
 #
 # Notes:
+#
+# Additional arguments depend on the type.
+#
 # 1. For detailed information about this command, please refer to the
 #    'docs/qdev-device-use.txt' file.
 #
@@ -67,7 +73,8 @@
 ##
 { 'command': 'device_add',
   'data': {'driver': 'str', '*bus': 'str', '*id': 'str'},
-  'gen': false } # so we can get the additional arguments
+  'gen': false, # so we can get the additional arguments
+  'features': ['json-cli'] }
 
 ##
 # @device_del:
