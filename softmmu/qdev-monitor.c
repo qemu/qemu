@@ -593,22 +593,35 @@ static BusState *qbus_find(const char *path, Error **errp)
 }
 
 /* Takes ownership of @id, will be freed when deleting the device */
-void qdev_set_id(DeviceState *dev, char *id)
+const char *qdev_set_id(DeviceState *dev, char *id, Error **errp)
 {
-    if (id) {
-        dev->id = id;
-    }
+    ObjectProperty *prop;
 
-    if (dev->id) {
-        object_property_add_child(qdev_get_peripheral(), dev->id,
-                                  OBJECT(dev));
+    assert(!dev->id && !dev->realized);
+
+    /*
+     * object_property_[try_]add_child() below will assert the device
+     * has no parent
+     */
+    if (id) {
+        prop = object_property_try_add_child(qdev_get_peripheral(), id,
+                                             OBJECT(dev), NULL);
+        if (prop) {
+            dev->id = id;
+        } else {
+            g_free(id);
+            error_setg(errp, "Duplicate device ID '%s'", id);
+            return NULL;
+        }
     } else {
         static int anon_count;
         gchar *name = g_strdup_printf("device[%d]", anon_count++);
-        object_property_add_child(qdev_get_peripheral_anon(), name,
-                                  OBJECT(dev));
+        prop = object_property_add_child(qdev_get_peripheral_anon(), name,
+                                         OBJECT(dev));
         g_free(name);
     }
+
+    return prop->name;
 }
 
 DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
@@ -691,7 +704,13 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
         }
     }
 
-    qdev_set_id(dev, g_strdup(qemu_opts_id(opts)));
+    /*
+     * set dev's parent and register its id.
+     * If it fails it means the id is already taken.
+     */
+    if (!qdev_set_id(dev, g_strdup(qemu_opts_id(opts)), errp)) {
+        goto err_del_dev;
+    }
 
     /* set properties */
     if (qemu_opt_foreach(opts, set_property, dev, errp)) {
