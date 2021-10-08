@@ -40,12 +40,15 @@ config_host_data = configuration_data()
 genh = []
 
 target_dirs = config_host['TARGET_DIRS'].split()
-have_user = false
+have_linux_user = false
+have_bsd_user = false
 have_system = false
 foreach target : target_dirs
-  have_user = have_user or target.endswith('-user')
+  have_linux_user = have_linux_user or target.endswith('linux-user')
+  have_bsd_user = have_bsd_user or target.endswith('bsd-user')
   have_system = have_system or target.endswith('-softmmu')
 endforeach
+have_user = have_linux_user or have_bsd_user
 have_tools = 'CONFIG_TOOLS' in config_host
 have_block = have_system or have_tools
 
@@ -2595,10 +2598,11 @@ subdir('bsd-user')
 subdir('linux-user')
 subdir('ebpf')
 
-bsd_user_ss.add(files('gdbstub.c'))
+common_ss.add(libbpf)
+
 specific_ss.add_all(when: 'CONFIG_BSD_USER', if_true: bsd_user_ss)
 
-linux_user_ss.add(files('gdbstub.c', 'thunk.c'))
+linux_user_ss.add(files('thunk.c'))
 specific_ss.add_all(when: 'CONFIG_LINUX_USER', if_true: linux_user_ss)
 
 # needed for fuzzing binaries

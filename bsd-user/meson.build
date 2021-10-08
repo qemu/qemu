@@ -1,3 +1,7 @@
+if not have_bsd_user
+   subdir_done()
+endif
+
 bsd_user_ss.add(files(
   'bsdload.c',
   'elfload.c',
