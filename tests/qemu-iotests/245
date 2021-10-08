@@ -1189,10 +1189,10 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.run_test_iothreads('iothread0', 'iothread0')
 
     def test_iothreads_switch_backing(self):
-        self.run_test_iothreads('iothread0', None)
+        self.run_test_iothreads('iothread0', '')
 
     def test_iothreads_switch_overlay(self):
-        self.run_test_iothreads(None, 'iothread0')
+        self.run_test_iothreads('', 'iothread0')
 
 if __name__ == '__main__':
     iotests.activate_logging()
