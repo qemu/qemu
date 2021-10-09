@@ -404,14 +404,16 @@ endif
 add_project_arguments(config_host['GLIB_CFLAGS'].split(),
                       native: false, language: ['c', 'cpp', 'objc'])
 glib = declare_dependency(compile_args: config_host['GLIB_CFLAGS'].split(),
-                          link_args: config_host['GLIB_LIBS'].split())
+                          link_args: config_host['GLIB_LIBS'].split(),
+                          version: config_host['GLIB_VERSION'])
 # override glib dep with the configure results (for subprojects)
 meson.override_dependency('glib-2.0', glib)
 
 gio = not_found
 if 'CONFIG_GIO' in config_host
   gio = declare_dependency(compile_args: config_host['GIO_CFLAGS'].split(),
-                           link_args: config_host['GIO_LIBS'].split())
+                           link_args: config_host['GIO_LIBS'].split(),
+                           version: config_host['GLIB_VERSION'])
 endif
 lttng = not_found
 if 'ust' in get_option('trace_backends')
