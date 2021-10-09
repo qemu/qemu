@@ -14,6 +14,9 @@ softmmu_ss.add(files(
   'qemu-pixman.c',
   'util.c',
 ))
+if dbus_display
+  softmmu_ss.add(files('dbus-module.c'))
+endif
 softmmu_ss.add([spice_headers, files('spice-module.c')])
 softmmu_ss.add(when: spice_protocol, if_true: files('vdagent.c'))
 

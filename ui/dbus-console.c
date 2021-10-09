@@ -219,7 +219,7 @@ dbus_console_register_listener(DBusDisplayConsole *ddc,
     DBusDisplayListener *listener;
     int fd;
 
-    if (g_hash_table_contains(ddc->listeners, sender)) {
+    if (sender && g_hash_table_contains(ddc->listeners, sender)) {
         g_dbus_method_invocation_return_error(
             invocation,
             DBUS_DISPLAY_ERROR,

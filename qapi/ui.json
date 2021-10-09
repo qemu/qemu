@@ -1131,12 +1131,16 @@
 # @rendernode: Which DRM render node should be used. Default is the first
 #              available node on the host.
 #
+# @p2p: Whether to use peer-to-peer connections (accepted through
+#       ``add_client``).
+#
 # Since: 7.0
 #
 ##
 { 'struct'  : 'DisplayDBus',
   'data'    : { '*rendernode' : 'str',
-                '*addr': 'str' } }
+                '*addr': 'str',
+                '*p2p': 'bool' } }
 
  ##
  # @DisplayGLMode:

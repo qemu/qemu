@@ -440,7 +440,7 @@ dbus_display_listener_init(DBusDisplayListener *ddl)
 const char *
 dbus_display_listener_get_bus_name(DBusDisplayListener *ddl)
 {
-    return ddl->bus_name;
+    return ddl->bus_name ?: "p2p";
 }
 
 DBusDisplayConsole *

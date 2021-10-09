@@ -24,6 +24,7 @@
 #include "chardev/char.h"
 #include "ui/qemu-spice.h"
 #include "ui/console.h"
+#include "ui/dbus-display.h"
 #include "sysemu/kvm.h"
 #include "sysemu/runstate.h"
 #include "sysemu/runstate-action.h"
@@ -284,6 +285,18 @@ void qmp_add_client(const char *protocol, const char *fdname,
     } else if (strcmp(protocol, "vnc") == 0) {
         skipauth = has_skipauth ? skipauth : false;
         vnc_display_add_client(NULL, fd, skipauth);
+        return;
+#endif
+#ifdef CONFIG_DBUS_DISPLAY
+    } else if (strcmp(protocol, "@dbus-display") == 0) {
+        if (!qemu_using_dbus_display(errp)) {
+            close(fd);
+            return;
+        }
+        if (!qemu_dbus_display.add_client(fd, errp)) {
+            close(fd);
+            return;
+        }
         return;
 #endif
     } else if ((s = qemu_chr_find(protocol)) != NULL) {

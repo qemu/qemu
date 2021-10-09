@@ -1901,8 +1901,10 @@ SRST
 
         ``addr=<dbusaddr>`` : D-Bus bus address to connect to.
 
-        ``gl=on|off|core|es`` : Use OpenGL for rendering (the D-interface will
-        share framebuffers with DMABUF file descriptors).
+        ``p2p=yes|no`` : Use peer-to-peer connection, accepted via QMP ``add_client``.
+
+        ``gl=on|off|core|es`` : Use OpenGL for rendering (the D-Bus interface
+        will share framebuffers with DMABUF file descriptors).
 
     ``sdl``
         Display video output via SDL (usually in a separate graphics

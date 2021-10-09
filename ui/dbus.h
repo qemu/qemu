@@ -34,6 +34,7 @@ struct DBusDisplay {
     Object parent;
 
     DisplayGLMode gl_mode;
+    bool p2p;
     char *dbus_addr;
     DisplayGLCtx glctx;
 
@@ -41,6 +42,7 @@ struct DBusDisplay {
     GDBusObjectManagerServer *server;
     QemuDBusDisplay1VM *iface;
     GPtrArray *consoles;
+    GCancellable *add_client_cancellable;
 };
 
 #define TYPE_DBUS_DISPLAY "dbus-display"

@@ -22,16 +22,20 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "qemu/dbus.h"
 #include "qemu/option.h"
 #include "qom/object_interfaces.h"
 #include "sysemu/sysemu.h"
+#include "ui/dbus-module.h"
 #include "ui/egl-helpers.h"
 #include "ui/egl-context.h"
 #include "qapi/error.h"
 #include "trace.h"
 
 #include "dbus.h"
+
+static DBusDisplay *dbus_display;
 
 static QEMUGLContext dbus_create_context(DisplayGLCtx *dgc,
                                          QEMUGLParams *params)
@@ -73,9 +77,14 @@ dbus_display_finalize(Object *o)
 
     g_clear_object(&dd->server);
     g_clear_pointer(&dd->consoles, g_ptr_array_unref);
+    if (dd->add_client_cancellable) {
+        g_cancellable_cancel(dd->add_client_cancellable);
+    }
+    g_clear_object(&dd->add_client_cancellable);
     g_clear_object(&dd->bus);
     g_clear_object(&dd->iface);
     g_free(dd->dbus_addr);
+    dbus_display = NULL;
 }
 
 static bool
@@ -115,7 +124,10 @@ dbus_display_complete(UserCreatable *uc, Error **errp)
         return;
     }
 
-    if (dd->dbus_addr && *dd->dbus_addr) {
+    if (dd->p2p) {
+        /* wait for dbus_display_add_client() */
+        dbus_display = dd;
+    } else if (dd->dbus_addr && *dd->dbus_addr) {
         dd->bus = g_dbus_connection_new_for_address_sync(dd->dbus_addr,
                         G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_CLIENT |
                         G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION,
@@ -151,10 +163,85 @@ dbus_display_complete(UserCreatable *uc, Error **errp)
                  "console-ids", console_ids,
                  NULL);
 
-    g_dbus_object_manager_server_set_connection(dd->server, dd->bus);
-    g_bus_own_name_on_connection(dd->bus, "org.qemu",
-                                 G_BUS_NAME_OWNER_FLAGS_NONE,
-                                 NULL, NULL, NULL, NULL);
+    if (dd->bus) {
+        g_dbus_object_manager_server_set_connection(dd->server, dd->bus);
+        g_bus_own_name_on_connection(dd->bus, "org.qemu",
+                                     G_BUS_NAME_OWNER_FLAGS_NONE,
+                                     NULL, NULL, NULL, NULL);
+    }
+}
+
+static void
+dbus_display_add_client_ready(GObject *source_object,
+                              GAsyncResult *res,
+                              gpointer user_data)
+{
+    g_autoptr(GError) err = NULL;
+    g_autoptr(GDBusConnection) conn = NULL;
+
+    g_clear_object(&dbus_display->add_client_cancellable);
+
+    conn = g_dbus_connection_new_finish(res, &err);
+    if (!conn) {
+        error_printf("Failed to accept D-Bus client: %s", err->message);
+    }
+
+    g_dbus_object_manager_server_set_connection(dbus_display->server, conn);
+}
+
+
+static bool
+dbus_display_add_client(int csock, Error **errp)
+{
+    g_autoptr(GError) err = NULL;
+    g_autoptr(GSocket) socket = NULL;
+    g_autoptr(GSocketConnection) conn = NULL;
+    g_autofree char *guid = g_dbus_generate_guid();
+
+    if (!dbus_display) {
+        error_setg(errp, "p2p connections not accepted in bus mode");
+        return false;
+    }
+
+    if (dbus_display->add_client_cancellable) {
+        g_cancellable_cancel(dbus_display->add_client_cancellable);
+    }
+
+    socket = g_socket_new_from_fd(csock, &err);
+    if (!socket) {
+        error_setg(errp, "Failed to setup D-Bus socket: %s", err->message);
+        return false;
+    }
+
+    conn = g_socket_connection_factory_create_connection(socket);
+
+    dbus_display->add_client_cancellable = g_cancellable_new();
+
+    g_dbus_connection_new(G_IO_STREAM(conn),
+                          guid,
+                          G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_SERVER,
+                          NULL,
+                          dbus_display->add_client_cancellable,
+                          dbus_display_add_client_ready,
+                          NULL);
+
+    return true;
+}
+
+static bool
+get_dbus_p2p(Object *o, Error **errp)
+{
+    DBusDisplay *dd = DBUS_DISPLAY(o);
+
+    return dd->p2p;
+}
+
+static void
+set_dbus_p2p(Object *o, bool p2p, Error **errp)
+{
+    DBusDisplay *dd = DBUS_DISPLAY(o);
+
+    dd->p2p = p2p;
 }
 
 static char *
@@ -196,6 +283,7 @@ dbus_display_class_init(ObjectClass *oc, void *data)
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
     ucc->complete = dbus_display_complete;
+    object_class_property_add_bool(oc, "p2p", get_dbus_p2p, set_dbus_p2p);
     object_class_property_add_str(oc, "addr", get_dbus_addr, set_dbus_addr);
     object_class_property_add_enum(oc, "gl-mode",
                                    "DisplayGLMode", &DisplayGLMode_lookup,
@@ -222,11 +310,19 @@ dbus_init(DisplayState *ds, DisplayOptions *opts)
 {
     DisplayGLMode mode = opts->has_gl ? opts->gl : DISPLAYGL_MODE_OFF;
 
+    if (opts->u.dbus.addr && opts->u.dbus.p2p) {
+        error_report("dbus: can't accept both addr=X and p2p=yes options");
+        exit(1);
+    }
+
+    using_dbus_display = 1;
+
     object_new_with_props(TYPE_DBUS_DISPLAY,
                           object_get_objects_root(),
                           "dbus-display", &error_fatal,
                           "addr", opts->u.dbus.addr ?: "",
                           "gl-mode", DisplayGLMode_str(mode),
+                          "p2p", yes_no(opts->u.dbus.p2p),
                           NULL);
 }
 
@@ -251,6 +347,9 @@ static QemuDisplay qemu_display_dbus = {
 
 static void register_dbus(void)
 {
+    qemu_dbus_display = (struct QemuDBusDisplayOps) {
+        .add_client = dbus_display_add_client,
+    };
     type_register_static(&dbus_display_info);
     qemu_display_register(&qemu_display_dbus);
 }
