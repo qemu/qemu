@@ -179,6 +179,7 @@ typedef struct QemuDmaBuf {
 } QemuDmaBuf;
 
 typedef struct DisplayState DisplayState;
+typedef struct DisplayGLCtx DisplayGLCtx;
 
 typedef struct DisplayChangeListenerOps {
     const char *dpy_name;
@@ -212,16 +213,6 @@ typedef struct DisplayChangeListenerOps {
     /* optional */
     void (*dpy_cursor_define)(DisplayChangeListener *dcl,
                               QEMUCursor *cursor);
-
-    /* required if GL */
-    QEMUGLContext (*dpy_gl_ctx_create)(DisplayChangeListener *dcl,
-                                       QEMUGLParams *params);
-    /* required if GL */
-    void (*dpy_gl_ctx_destroy)(DisplayChangeListener *dcl,
-                               QEMUGLContext ctx);
-    /* required if GL */
-    int (*dpy_gl_ctx_make_current)(DisplayChangeListener *dcl,
-                                   QEMUGLContext ctx);
 
     /* required if GL */
     void (*dpy_gl_scanout_disable)(DisplayChangeListener *dcl);
@@ -261,6 +252,26 @@ struct DisplayChangeListener {
     QemuConsole *con;
 
     QLIST_ENTRY(DisplayChangeListener) next;
+};
+
+typedef struct DisplayGLCtxOps {
+    /*
+     * We only check if the GLCtx is compatible with a DCL via ops. A natural
+     * evolution of this would be a callback to check some runtime requirements
+     * and allow various DCL kinds.
+     */
+    const DisplayChangeListenerOps *compatible_dcl;
+
+    QEMUGLContext (*dpy_gl_ctx_create)(DisplayGLCtx *dgc,
+                                       QEMUGLParams *params);
+    void (*dpy_gl_ctx_destroy)(DisplayGLCtx *dgc,
+                               QEMUGLContext ctx);
+    int (*dpy_gl_ctx_make_current)(DisplayGLCtx *dgc,
+                                   QEMUGLContext ctx);
+} DisplayGLCtxOps;
+
+struct DisplayGLCtx {
+    const DisplayGLCtxOps *ops;
 };
 
 DisplayState *init_displaystate(void);
@@ -409,8 +420,7 @@ void graphic_hw_gl_block(QemuConsole *con, bool block);
 
 void qemu_console_early_init(void);
 
-void qemu_console_set_display_gl_ctx(QemuConsole *con,
-                                     DisplayChangeListener *dcl);
+void qemu_console_set_display_gl_ctx(QemuConsole *con, DisplayGLCtx *ctx);
 
 QemuConsole *qemu_console_lookup_by_index(unsigned int index);
 QemuConsole *qemu_console_lookup_by_device(DeviceState *dev, uint32_t head);

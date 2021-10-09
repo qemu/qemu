@@ -908,12 +908,12 @@ static void spice_gl_switch(DisplayChangeListener *dcl,
     }
 }
 
-static QEMUGLContext qemu_spice_gl_create_context(DisplayChangeListener *dcl,
+static QEMUGLContext qemu_spice_gl_create_context(DisplayGLCtx *dgc,
                                                   QEMUGLParams *params)
 {
     eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE,
                    qemu_egl_rn_ctx);
-    return qemu_egl_create_context(dcl, params);
+    return qemu_egl_create_context(dgc, params);
 }
 
 static void qemu_spice_gl_scanout_disable(DisplayChangeListener *dcl)
@@ -1105,10 +1105,6 @@ static const DisplayChangeListenerOps display_listener_gl_ops = {
     .dpy_mouse_set           = display_mouse_set,
     .dpy_cursor_define       = display_mouse_define,
 
-    .dpy_gl_ctx_create       = qemu_spice_gl_create_context,
-    .dpy_gl_ctx_destroy      = qemu_egl_destroy_context,
-    .dpy_gl_ctx_make_current = qemu_egl_make_context_current,
-
     .dpy_gl_scanout_disable  = qemu_spice_gl_scanout_disable,
     .dpy_gl_scanout_texture  = qemu_spice_gl_scanout_texture,
     .dpy_gl_scanout_dmabuf   = qemu_spice_gl_scanout_dmabuf,
@@ -1116,6 +1112,13 @@ static const DisplayChangeListenerOps display_listener_gl_ops = {
     .dpy_gl_cursor_position  = qemu_spice_gl_cursor_position,
     .dpy_gl_release_dmabuf   = qemu_spice_gl_release_dmabuf,
     .dpy_gl_update           = qemu_spice_gl_update,
+};
+
+static const DisplayGLCtxOps gl_ctx_ops = {
+    .compatible_dcl          = &display_listener_gl_ops,
+    .dpy_gl_ctx_create       = qemu_spice_gl_create_context,
+    .dpy_gl_ctx_destroy      = qemu_egl_destroy_context,
+    .dpy_gl_ctx_make_current = qemu_egl_make_context_current,
 };
 
 #endif /* HAVE_SPICE_GL */
@@ -1130,6 +1133,7 @@ static void qemu_spice_display_init_one(QemuConsole *con)
 #ifdef HAVE_SPICE_GL
     if (spice_opengl) {
         ssd->dcl.ops = &display_listener_gl_ops;
+        ssd->dgc.ops = &gl_ctx_ops;
         ssd->gl_unblock_bh = qemu_bh_new(qemu_spice_gl_unblock_bh, ssd);
         ssd->gl_unblock_timer = timer_new_ms(QEMU_CLOCK_REALTIME,
                                              qemu_spice_gl_block_timer, ssd);
@@ -1156,7 +1160,7 @@ static void qemu_spice_display_init_one(QemuConsole *con)
     qemu_spice_create_host_memslot(ssd);
 
     if (spice_opengl) {
-        qemu_console_set_display_gl_ctx(con, &ssd->dcl);
+        qemu_console_set_display_gl_ctx(con, &ssd->dgc);
     }
     register_displaychangelistener(&ssd->dcl);
 }

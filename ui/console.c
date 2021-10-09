@@ -78,7 +78,7 @@ struct QemuConsole {
     DisplayState *ds;
     DisplaySurface *surface;
     int dcls;
-    DisplayChangeListener *gl;
+    DisplayGLCtx *gl;
     int gl_block;
     QEMUTimer *gl_unblock_timer;
     int window_id;
@@ -1458,17 +1458,24 @@ static bool dpy_compatible_with(QemuConsole *con,
     return true;
 }
 
-void qemu_console_set_display_gl_ctx(QemuConsole *con,
-                                     DisplayChangeListener *dcl)
+void qemu_console_set_display_gl_ctx(QemuConsole *con, DisplayGLCtx *gl)
 {
     /* display has opengl support */
-    assert(dcl->con);
-    if (dcl->con->gl) {
-        fprintf(stderr, "can't register two opengl displays (%s, %s)\n",
-                dcl->ops->dpy_name, dcl->con->gl->ops->dpy_name);
+    assert(con);
+    if (con->gl) {
+        error_report("The console already has an OpenGL context.");
         exit(1);
     }
-    dcl->con->gl = dcl;
+    con->gl = gl;
+}
+
+static bool dpy_gl_compatible_with(QemuConsole *con, DisplayChangeListener *dcl)
+{
+    if (!con->gl) {
+        return true;
+    }
+
+    return con->gl->ops->compatible_dcl == dcl->ops;
 }
 
 void register_displaychangelistener(DisplayChangeListener *dcl)
@@ -1480,8 +1487,7 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
 
     assert(!dcl->ds);
 
-    if (dcl->con && dcl->con->gl &&
-        dcl->con->gl != dcl) {
+    if (dcl->con && !dpy_gl_compatible_with(dcl->con, dcl)) {
         error_report("Display %s is incompatible with the GL context",
                      dcl->ops->dpy_name);
         exit(1);
