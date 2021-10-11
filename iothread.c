@@ -215,36 +215,34 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
 typedef struct {
     const char *name;
     ptrdiff_t offset; /* field's byte offset in IOThread struct */
-} PollParamInfo;
+} IOThreadParamInfo;
 
-static PollParamInfo poll_max_ns_info = {
+static IOThreadParamInfo poll_max_ns_info = {
     "poll-max-ns", offsetof(IOThread, poll_max_ns),
 };
-static PollParamInfo poll_grow_info = {
+static IOThreadParamInfo poll_grow_info = {
     "poll-grow", offsetof(IOThread, poll_grow),
 };
-static PollParamInfo poll_shrink_info = {
+static IOThreadParamInfo poll_shrink_info = {
     "poll-shrink", offsetof(IOThread, poll_shrink),
 };
-static PollParamInfo aio_max_batch_info = {
+static IOThreadParamInfo aio_max_batch_info = {
     "aio-max-batch", offsetof(IOThread, aio_max_batch),
 };
 
 static void iothread_get_param(Object *obj, Visitor *v,
-        const char *name, void *opaque, Error **errp)
+        const char *name, IOThreadParamInfo *info, Error **errp)
 {
     IOThread *iothread = IOTHREAD(obj);
-    PollParamInfo *info = opaque;
     int64_t *field = (void *)iothread + info->offset;
 
     visit_type_int64(v, name, field, errp);
 }
 
 static bool iothread_set_param(Object *obj, Visitor *v,
-        const char *name, void *opaque, Error **errp)
+        const char *name, IOThreadParamInfo *info, Error **errp)
 {
     IOThread *iothread = IOTHREAD(obj);
-    PollParamInfo *info = opaque;
     int64_t *field = (void *)iothread + info->offset;
     int64_t value;
 
@@ -266,16 +264,18 @@ static bool iothread_set_param(Object *obj, Visitor *v,
 static void iothread_get_poll_param(Object *obj, Visitor *v,
         const char *name, void *opaque, Error **errp)
 {
+    IOThreadParamInfo *info = opaque;
 
-    iothread_get_param(obj, v, name, opaque, errp);
+    iothread_get_param(obj, v, name, info, errp);
 }
 
 static void iothread_set_poll_param(Object *obj, Visitor *v,
         const char *name, void *opaque, Error **errp)
 {
     IOThread *iothread = IOTHREAD(obj);
+    IOThreadParamInfo *info = opaque;
 
-    if (!iothread_set_param(obj, v, name, opaque, errp)) {
+    if (!iothread_set_param(obj, v, name, info, errp)) {
         return;
     }
 
@@ -291,16 +291,18 @@ static void iothread_set_poll_param(Object *obj, Visitor *v,
 static void iothread_get_aio_param(Object *obj, Visitor *v,
         const char *name, void *opaque, Error **errp)
 {
+    IOThreadParamInfo *info = opaque;
 
-    iothread_get_param(obj, v, name, opaque, errp);
+    iothread_get_param(obj, v, name, info, errp);
 }
 
 static void iothread_set_aio_param(Object *obj, Visitor *v,
         const char *name, void *opaque, Error **errp)
 {
     IOThread *iothread = IOTHREAD(obj);
+    IOThreadParamInfo *info = opaque;
 
-    if (!iothread_set_param(obj, v, name, opaque, errp)) {
+    if (!iothread_set_param(obj, v, name, info, errp)) {
         return;
     }
 
