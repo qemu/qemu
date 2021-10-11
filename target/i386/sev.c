@@ -729,7 +729,7 @@ sev_launch_get_measure(Notifier *notifier, void *unused)
     SevGuestState *sev = sev_guest;
     int ret, error;
     g_autofree guchar *data = NULL;
-    g_autofree struct kvm_sev_launch_measure *measurement = NULL;
+    struct kvm_sev_launch_measure measurement = {};
 
     if (!sev_check_state(sev, SEV_STATE_LAUNCH_UPDATE)) {
         return;
@@ -743,23 +743,21 @@ sev_launch_get_measure(Notifier *notifier, void *unused)
         }
     }
 
-    measurement = g_new0(struct kvm_sev_launch_measure, 1);
-
     /* query the measurement blob length */
     ret = sev_ioctl(sev->sev_fd, KVM_SEV_LAUNCH_MEASURE,
-                    measurement, &error);
-    if (!measurement->len) {
+                    &measurement, &error);
+    if (!measurement.len) {
         error_report("%s: LAUNCH_MEASURE ret=%d fw_error=%d '%s'",
                      __func__, ret, error, fw_error_to_str(errno));
         return;
     }
 
-    data = g_new0(guchar, measurement->len);
-    measurement->uaddr = (unsigned long)data;
+    data = g_new0(guchar, measurement.len);
+    measurement.uaddr = (unsigned long)data;
 
     /* get the measurement blob */
     ret = sev_ioctl(sev->sev_fd, KVM_SEV_LAUNCH_MEASURE,
-                    measurement, &error);
+                    &measurement, &error);
     if (ret) {
         error_report("%s: LAUNCH_MEASURE ret=%d fw_error=%d '%s'",
                      __func__, ret, error, fw_error_to_str(errno));
@@ -769,7 +767,7 @@ sev_launch_get_measure(Notifier *notifier, void *unused)
     sev_set_guest_state(sev, SEV_STATE_LAUNCH_SECRET);
 
     /* encode the measurement value and emit the event */
-    sev->measurement = g_base64_encode(data, measurement->len);
+    sev->measurement = g_base64_encode(data, measurement.len);
     trace_kvm_sev_launch_measurement(sev->measurement);
 }
 
