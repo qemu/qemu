@@ -647,31 +647,29 @@ sev_launch_start(SevGuestState *sev)
     gsize sz;
     int ret = 1;
     int fw_error, rc;
-    struct kvm_sev_launch_start *start;
+    struct kvm_sev_launch_start start = {
+        .handle = sev->handle, .policy = sev->policy
+    };
     guchar *session = NULL, *dh_cert = NULL;
 
-    start = g_new0(struct kvm_sev_launch_start, 1);
-
-    start->handle = sev->handle;
-    start->policy = sev->policy;
     if (sev->session_file) {
         if (sev_read_file_base64(sev->session_file, &session, &sz) < 0) {
             goto out;
         }
-        start->session_uaddr = (unsigned long)session;
-        start->session_len = sz;
+        start.session_uaddr = (unsigned long)session;
+        start.session_len = sz;
     }
 
     if (sev->dh_cert_file) {
         if (sev_read_file_base64(sev->dh_cert_file, &dh_cert, &sz) < 0) {
             goto out;
         }
-        start->dh_uaddr = (unsigned long)dh_cert;
-        start->dh_len = sz;
+        start.dh_uaddr = (unsigned long)dh_cert;
+        start.dh_len = sz;
     }
 
-    trace_kvm_sev_launch_start(start->policy, session, dh_cert);
-    rc = sev_ioctl(sev->sev_fd, KVM_SEV_LAUNCH_START, start, &fw_error);
+    trace_kvm_sev_launch_start(start.policy, session, dh_cert);
+    rc = sev_ioctl(sev->sev_fd, KVM_SEV_LAUNCH_START, &start, &fw_error);
     if (rc < 0) {
         error_report("%s: LAUNCH_START ret=%d fw_error=%d '%s'",
                 __func__, ret, fw_error, fw_error_to_str(fw_error));
@@ -679,11 +677,10 @@ sev_launch_start(SevGuestState *sev)
     }
 
     sev_set_guest_state(sev, SEV_STATE_LAUNCH_UPDATE);
-    sev->handle = start->handle;
+    sev->handle = start.handle;
     ret = 0;
 
 out:
-    g_free(start);
     g_free(session);
     g_free(dh_cert);
     return ret;
