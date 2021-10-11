@@ -816,6 +816,7 @@ vu_rem_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
             shadow_regions[j].gpa = dev->regions[i].gpa;
             shadow_regions[j].size = dev->regions[i].size;
             shadow_regions[j].qva = dev->regions[i].qva;
+            shadow_regions[j].mmap_addr = dev->regions[i].mmap_addr;
             shadow_regions[j].mmap_offset = dev->regions[i].mmap_offset;
             j++;
         } else {
