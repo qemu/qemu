@@ -187,10 +187,10 @@
 #ifdef QEMU_GENERATE
 static inline void gen_pred_cancel(TCGv pred, int slot_num)
  {
-    TCGv slot_mask = tcg_const_tl(1 << slot_num);
+    TCGv slot_mask = tcg_temp_new();
     TCGv tmp = tcg_temp_new();
     TCGv zero = tcg_constant_tl(0);
-    tcg_gen_or_tl(slot_mask, hex_slot_cancelled, slot_mask);
+    tcg_gen_ori_tl(slot_mask, hex_slot_cancelled, 1 << slot_num);
     tcg_gen_andi_tl(tmp, pred, 1);
     tcg_gen_movcond_tl(TCG_COND_EQ, hex_slot_cancelled, tmp, zero,
                        slot_mask, hex_slot_cancelled);
@@ -498,10 +498,9 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fPM_M(REG, MVAL)    tcg_gen_add_tl(REG, REG, MVAL)
 #define fPM_CIRI(REG, IMM, MVAL) \
     do { \
-        TCGv tcgv_siV = tcg_const_tl(siV); \
+        TCGv tcgv_siV = tcg_constant_tl(siV); \
         gen_helper_fcircadd(REG, REG, tcgv_siV, MuV, \
                             hex_gpr[HEX_REG_CS0 + MuN]); \
-        tcg_temp_free(tcgv_siV); \
     } while (0)
 #else
 #define fEA_IMM(IMM)        do { EA = (IMM); } while (0)

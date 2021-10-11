@@ -487,9 +487,8 @@ static void gen_commit_packet(DisasContext *ctx, Packet *pkt)
          * process_store_log will execute the slot 1 store first,
          * so we only have to probe the store in slot 0
          */
-        TCGv mem_idx = tcg_const_tl(ctx->mem_idx);
+        TCGv mem_idx = tcg_constant_tl(ctx->mem_idx);
         gen_helper_probe_pkt_scalar_store_s0(cpu_env, mem_idx);
-        tcg_temp_free(mem_idx);
     }
 
     process_store_log(ctx, pkt);
