@@ -22,7 +22,7 @@
 #include <float.h>
 #include <fenv.h>
 
-#include "float_helpers.h"
+#include "../float_helpers.h"
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 

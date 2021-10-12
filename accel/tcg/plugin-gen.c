@@ -162,11 +162,7 @@ static void gen_empty_mem_helper(void)
 static void gen_plugin_cb_start(enum plugin_gen_from from,
                                 enum plugin_gen_cb type, unsigned wr)
 {
-    TCGOp *op;
-
     tcg_gen_plugin_cb_start(from, type, wr);
-    op = tcg_last_op();
-    QSIMPLEQ_INSERT_TAIL(&tcg_ctx->plugin_ops, op, plugin_link);
 }
 
 static void gen_wrapped(enum plugin_gen_from from,
@@ -706,62 +702,6 @@ static void plugin_gen_disable_mem_helper(const struct qemu_plugin_tb *ptb,
     inject_mem_disable_helper(insn, begin_op);
 }
 
-static void plugin_inject_cb(const struct qemu_plugin_tb *ptb, TCGOp *begin_op,
-                             int insn_idx)
-{
-    enum plugin_gen_from from = begin_op->args[0];
-    enum plugin_gen_cb type = begin_op->args[1];
-
-    switch (from) {
-    case PLUGIN_GEN_FROM_TB:
-        switch (type) {
-        case PLUGIN_GEN_CB_UDATA:
-            plugin_gen_tb_udata(ptb, begin_op);
-            return;
-        case PLUGIN_GEN_CB_INLINE:
-            plugin_gen_tb_inline(ptb, begin_op);
-            return;
-        default:
-            g_assert_not_reached();
-        }
-    case PLUGIN_GEN_FROM_INSN:
-        switch (type) {
-        case PLUGIN_GEN_CB_UDATA:
-            plugin_gen_insn_udata(ptb, begin_op, insn_idx);
-            return;
-        case PLUGIN_GEN_CB_INLINE:
-            plugin_gen_insn_inline(ptb, begin_op, insn_idx);
-            return;
-        case PLUGIN_GEN_ENABLE_MEM_HELPER:
-            plugin_gen_enable_mem_helper(ptb, begin_op, insn_idx);
-            return;
-        default:
-            g_assert_not_reached();
-        }
-    case PLUGIN_GEN_FROM_MEM:
-        switch (type) {
-        case PLUGIN_GEN_CB_MEM:
-            plugin_gen_mem_regular(ptb, begin_op, insn_idx);
-            return;
-        case PLUGIN_GEN_CB_INLINE:
-            plugin_gen_mem_inline(ptb, begin_op, insn_idx);
-            return;
-        default:
-            g_assert_not_reached();
-        }
-    case PLUGIN_GEN_AFTER_INSN:
-        switch (type) {
-        case PLUGIN_GEN_DISABLE_MEM_HELPER:
-            plugin_gen_disable_mem_helper(ptb, begin_op, insn_idx);
-            return;
-        default:
-            g_assert_not_reached();
-        }
-    default:
-        g_assert_not_reached();
-    }
-}
-
 /* #define DEBUG_PLUGIN_GEN_OPS */
 static void pr_ops(void)
 {
@@ -819,21 +759,95 @@ static void pr_ops(void)
 static void plugin_gen_inject(const struct qemu_plugin_tb *plugin_tb)
 {
     TCGOp *op;
-    int insn_idx;
+    int insn_idx = -1;
 
     pr_ops();
-    insn_idx = -1;
-    QSIMPLEQ_FOREACH(op, &tcg_ctx->plugin_ops, plugin_link) {
-        enum plugin_gen_from from = op->args[0];
-        enum plugin_gen_cb type = op->args[1];
 
-        tcg_debug_assert(op->opc == INDEX_op_plugin_cb_start);
-        /* ENABLE_MEM_HELPER is the first callback of an instruction */
-        if (from == PLUGIN_GEN_FROM_INSN &&
-            type == PLUGIN_GEN_ENABLE_MEM_HELPER) {
+    QTAILQ_FOREACH(op, &tcg_ctx->ops, link) {
+        switch (op->opc) {
+        case INDEX_op_insn_start:
             insn_idx++;
+            break;
+        case INDEX_op_plugin_cb_start:
+        {
+            enum plugin_gen_from from = op->args[0];
+            enum plugin_gen_cb type = op->args[1];
+
+            switch (from) {
+            case PLUGIN_GEN_FROM_TB:
+            {
+                g_assert(insn_idx == -1);
+
+                switch (type) {
+                case PLUGIN_GEN_CB_UDATA:
+                    plugin_gen_tb_udata(plugin_tb, op);
+                    break;
+                case PLUGIN_GEN_CB_INLINE:
+                    plugin_gen_tb_inline(plugin_tb, op);
+                    break;
+                default:
+                    g_assert_not_reached();
+                }
+                break;
+            }
+            case PLUGIN_GEN_FROM_INSN:
+            {
+                g_assert(insn_idx >= 0);
+
+                switch (type) {
+                case PLUGIN_GEN_CB_UDATA:
+                    plugin_gen_insn_udata(plugin_tb, op, insn_idx);
+                    break;
+                case PLUGIN_GEN_CB_INLINE:
+                    plugin_gen_insn_inline(plugin_tb, op, insn_idx);
+                    break;
+                case PLUGIN_GEN_ENABLE_MEM_HELPER:
+                    plugin_gen_enable_mem_helper(plugin_tb, op, insn_idx);
+                    break;
+                default:
+                    g_assert_not_reached();
+                }
+                break;
+            }
+            case PLUGIN_GEN_FROM_MEM:
+            {
+                g_assert(insn_idx >= 0);
+
+                switch (type) {
+                case PLUGIN_GEN_CB_MEM:
+                    plugin_gen_mem_regular(plugin_tb, op, insn_idx);
+                    break;
+                case PLUGIN_GEN_CB_INLINE:
+                    plugin_gen_mem_inline(plugin_tb, op, insn_idx);
+                    break;
+                default:
+                    g_assert_not_reached();
+                }
+
+                break;
+            }
+            case PLUGIN_GEN_AFTER_INSN:
+            {
+                g_assert(insn_idx >= 0);
+
+                switch (type) {
+                case PLUGIN_GEN_DISABLE_MEM_HELPER:
+                    plugin_gen_disable_mem_helper(plugin_tb, op, insn_idx);
+                    break;
+                default:
+                    g_assert_not_reached();
+                }
+                break;
+            }
+            default:
+                g_assert_not_reached();
+            }
+            break;
         }
-        plugin_inject_cb(plugin_tb, op, insn_idx);
+        default:
+            /* plugins don't care about any other ops */
+            break;
+        }
     }
     pr_ops();
 }
@@ -846,7 +860,6 @@ bool plugin_gen_tb_start(CPUState *cpu, const TranslationBlock *tb, bool mem_onl
     if (test_bit(QEMU_PLUGIN_EV_VCPU_TB_TRANS, cpu->plugin_mask)) {
         ret = true;
 
-        QSIMPLEQ_INIT(&tcg_ctx->plugin_ops);
         ptb->vaddr = tb->pc;
         ptb->vaddr2 = -1;
         get_page_addr_code_hostp(cpu->env_ptr, tb->pc, &ptb->haddr1);

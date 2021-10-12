@@ -1,12 +1,48 @@
 #
-# Docker cross-compiler target
+# Docker cross-compiler target for riscv64
 #
-# This docker target builds on the debian Buster base image.
+# Currently the only distro that gets close to cross compiling riscv64
+# images is Debian Sid (with unofficial ports). As this is a moving
+# target we keep the library list minimal and are aiming to migrate
+# from this hack as soon as we are able.
 #
-FROM qemu/debian10
+FROM docker.io/library/debian:sid-slim
+
+# Add ports
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata && \
+    DEBIAN_FRONTEND=noninteractive eatmydata apt update -yy && \
+    DEBIAN_FRONTEND=noninteractive eatmydata apt upgrade -yy
+
+# Install common build utilities
+RUN DEBIAN_FRONTEND=noninteractive eatmydata apt install -yy \
+    bc \
+    build-essential \
+    ca-certificates \
+    debian-ports-archive-keyring \
+    dpkg-dev \
+    gettext \
+    git \
+    ninja-build \
+    pkg-config \
+    python3
+
+# Add ports and riscv64 architecture
+RUN echo "deb http://ftp.ports.debian.org/debian-ports/ sid main" >> /etc/apt/sources.list
+RUN dpkg --add-architecture riscv64
+
+# Duplicate deb line as deb-src
+RUN cat /etc/apt/sources.list | sed "s/^deb\ /deb-src /" >> /etc/apt/sources.list
 
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
     apt install -y --no-install-recommends \
-        gcc-riscv64-linux-gnu \
-        libc6-dev-riscv64-cross
+         gcc-riscv64-linux-gnu \
+         libc6-dev-riscv64-cross \
+         libffi-dev:riscv64 \
+         libglib2.0-dev:riscv64 \
+         libpixman-1-dev:riscv64
+
+# Specify the cross prefix for this image (see tests/docker/common.rc)
+ENV QEMU_CONFIGURE_OPTS --cross-prefix=riscv64-linux-gnu-
+ENV DEF_TARGET_LIST riscv64-softmmu,riscv64-linux-user

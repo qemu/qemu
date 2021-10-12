@@ -1,11 +1,14 @@
 {
   qemu_plugin_bool_parse;
   qemu_plugin_get_hwaddr;
+  qemu_plugin_hwaddr_device_name;
   qemu_plugin_hwaddr_is_io;
+  qemu_plugin_hwaddr_phys_addr;
   qemu_plugin_insn_data;
   qemu_plugin_insn_disas;
   qemu_plugin_insn_haddr;
   qemu_plugin_insn_size;
+  qemu_plugin_insn_symbol;
   qemu_plugin_insn_vaddr;
   qemu_plugin_mem_is_big_endian;
   qemu_plugin_mem_is_sign_extended;
