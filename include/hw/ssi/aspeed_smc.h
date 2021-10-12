@@ -29,66 +29,33 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
-typedef struct AspeedSegments {
-    hwaddr addr;
-    uint32_t size;
-} AspeedSegments;
-
 struct AspeedSMCState;
-typedef struct AspeedSMCController {
-    const char *name;
-    uint8_t r_conf;
-    uint8_t r_ce_ctrl;
-    uint8_t r_ctrl0;
-    uint8_t r_timings;
-    uint8_t nregs_timings;
-    uint8_t conf_enable_w0;
-    uint8_t max_peripherals;
-    const AspeedSegments *segments;
-    hwaddr flash_window_base;
-    uint32_t flash_window_size;
-    uint32_t features;
-    hwaddr dma_flash_mask;
-    hwaddr dma_dram_mask;
-    uint32_t nregs;
-    uint32_t (*segment_to_reg)(const struct AspeedSMCState *s,
-                               const AspeedSegments *seg);
-    void (*reg_to_segment)(const struct AspeedSMCState *s, uint32_t reg,
-                           AspeedSegments *seg);
-    void (*dma_ctrl)(struct AspeedSMCState *s, uint32_t value);
-} AspeedSMCController;
 
-typedef struct AspeedSMCFlash {
+#define TYPE_ASPEED_SMC_FLASH "aspeed.smc.flash"
+OBJECT_DECLARE_SIMPLE_TYPE(AspeedSMCFlash, ASPEED_SMC_FLASH)
+struct AspeedSMCFlash {
+    SysBusDevice parent_obj;
+
     struct AspeedSMCState *controller;
-
-    uint8_t id;
-    uint32_t size;
+    uint8_t cs;
 
     MemoryRegion mmio;
-    DeviceState *flash;
-} AspeedSMCFlash;
+};
 
 #define TYPE_ASPEED_SMC "aspeed.smc"
 OBJECT_DECLARE_TYPE(AspeedSMCState, AspeedSMCClass, ASPEED_SMC)
 
-struct AspeedSMCClass {
-    SysBusDevice parent_obj;
-    const AspeedSMCController *ctrl;
-};
-
 #define ASPEED_SMC_R_MAX        (0x100 / 4)
+#define ASPEED_SMC_CS_MAX       5
 
 struct AspeedSMCState {
     SysBusDevice parent_obj;
-
-    const AspeedSMCController *ctrl;
 
     MemoryRegion mmio;
     MemoryRegion mmio_flash;
     MemoryRegion mmio_flash_alias;
 
     qemu_irq irq;
-    int irqline;
 
     uint32_t num_cs;
     qemu_irq *cs_lines;
@@ -109,10 +76,41 @@ struct AspeedSMCState {
     MemoryRegion *dram_mr;
     AddressSpace dram_as;
 
-    AspeedSMCFlash *flashes;
+    AspeedSMCFlash flashes[ASPEED_SMC_CS_MAX];
 
     uint8_t snoop_index;
     uint8_t snoop_dummies;
+};
+
+typedef struct AspeedSegments {
+    hwaddr addr;
+    uint32_t size;
+} AspeedSegments;
+
+struct AspeedSMCClass {
+    SysBusDeviceClass parent_obj;
+
+    uint8_t r_conf;
+    uint8_t r_ce_ctrl;
+    uint8_t r_ctrl0;
+    uint8_t r_timings;
+    uint8_t nregs_timings;
+    uint8_t conf_enable_w0;
+    uint8_t max_peripherals;
+    const uint32_t *resets;
+    const AspeedSegments *segments;
+    hwaddr flash_window_base;
+    uint32_t flash_window_size;
+    uint32_t features;
+    hwaddr dma_flash_mask;
+    hwaddr dma_dram_mask;
+    uint32_t nregs;
+    uint32_t (*segment_to_reg)(const AspeedSMCState *s,
+                               const AspeedSegments *seg);
+    void (*reg_to_segment)(const AspeedSMCState *s, uint32_t reg,
+                           AspeedSegments *seg);
+    void (*dma_ctrl)(AspeedSMCState *s, uint32_t value);
+    int (*addr_width)(const AspeedSMCState *s);
 };
 
 #endif /* ASPEED_SMC_H */

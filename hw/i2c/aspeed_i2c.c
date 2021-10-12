@@ -740,20 +740,20 @@ static const VMStateDescription aspeed_i2c_vmstate = {
 
 static void aspeed_i2c_reset(DeviceState *dev)
 {
-    int i;
     AspeedI2CState *s = ASPEED_I2C(dev);
-    AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(s);
 
     s->intr_status = 0;
+}
+
+static void aspeed_i2c_instance_init(Object *obj)
+{
+    AspeedI2CState *s = ASPEED_I2C(obj);
+    AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(s);
+    int i;
 
     for (i = 0; i < aic->num_busses; i++) {
-        s->busses[i].intr_ctrl = 0;
-        s->busses[i].intr_status = 0;
-        s->busses[i].cmd = 0;
-        s->busses[i].buf = 0;
-        s->busses[i].dma_addr = 0;
-        s->busses[i].dma_len = 0;
-        i2c_end_transfer(s->busses[i].bus);
+        object_initialize_child(obj, "bus[*]", &s->busses[i],
+                                TYPE_ASPEED_I2C_BUS);
     }
 }
 
@@ -791,17 +791,21 @@ static void aspeed_i2c_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->iomem);
 
     for (i = 0; i < aic->num_busses; i++) {
-        char name[32];
+        Object *bus = OBJECT(&s->busses[i]);
         int offset = i < aic->gap ? 1 : 5;
 
-        sysbus_init_irq(sbd, &s->busses[i].irq);
-        snprintf(name, sizeof(name), "aspeed.i2c.%d", i);
-        s->busses[i].controller = s;
-        s->busses[i].id = i;
-        s->busses[i].bus = i2c_init_bus(dev, name);
-        memory_region_init_io(&s->busses[i].mr, OBJECT(dev),
-                              &aspeed_i2c_bus_ops, &s->busses[i], name,
-                              aic->reg_size);
+        if (!object_property_set_link(bus, "controller", OBJECT(s), errp)) {
+            return;
+        }
+
+        if (!object_property_set_uint(bus, "bus-id", i, errp)) {
+            return;
+        }
+
+        if (!sysbus_realize(SYS_BUS_DEVICE(bus), errp)) {
+            return;
+        }
+
         memory_region_add_subregion(&s->iomem, aic->reg_size * (i + offset),
                                     &s->busses[i].mr);
     }
@@ -841,10 +845,70 @@ static void aspeed_i2c_class_init(ObjectClass *klass, void *data)
 static const TypeInfo aspeed_i2c_info = {
     .name          = TYPE_ASPEED_I2C,
     .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_init = aspeed_i2c_instance_init,
     .instance_size = sizeof(AspeedI2CState),
     .class_init    = aspeed_i2c_class_init,
     .class_size = sizeof(AspeedI2CClass),
     .abstract   = true,
+};
+
+static void aspeed_i2c_bus_reset(DeviceState *dev)
+{
+    AspeedI2CBus *s = ASPEED_I2C_BUS(dev);
+
+    s->intr_ctrl = 0;
+    s->intr_status = 0;
+    s->cmd = 0;
+    s->buf = 0;
+    s->dma_addr = 0;
+    s->dma_len = 0;
+    i2c_end_transfer(s->bus);
+}
+
+static void aspeed_i2c_bus_realize(DeviceState *dev, Error **errp)
+{
+    AspeedI2CBus *s = ASPEED_I2C_BUS(dev);
+    AspeedI2CClass *aic;
+    g_autofree char *name = g_strdup_printf(TYPE_ASPEED_I2C_BUS ".%d", s->id);
+
+    if (!s->controller) {
+        error_setg(errp, TYPE_ASPEED_I2C_BUS ": 'controller' link not set");
+        return;
+    }
+
+    aic = ASPEED_I2C_GET_CLASS(s->controller);
+
+    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
+
+    s->bus = i2c_init_bus(dev, name);
+
+    memory_region_init_io(&s->mr, OBJECT(s), &aspeed_i2c_bus_ops,
+                          s, name, aic->reg_size);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mr);
+}
+
+static Property aspeed_i2c_bus_properties[] = {
+    DEFINE_PROP_UINT8("bus-id", AspeedI2CBus, id, 0),
+    DEFINE_PROP_LINK("controller", AspeedI2CBus, controller, TYPE_ASPEED_I2C,
+                     AspeedI2CState *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void aspeed_i2c_bus_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->desc = "Aspeed I2C Bus";
+    dc->realize = aspeed_i2c_bus_realize;
+    dc->reset = aspeed_i2c_bus_reset;
+    device_class_set_props(dc, aspeed_i2c_bus_properties);
+}
+
+static const TypeInfo aspeed_i2c_bus_info = {
+    .name           = TYPE_ASPEED_I2C_BUS,
+    .parent         = TYPE_SYS_BUS_DEVICE,
+    .instance_size  = sizeof(AspeedI2CBus),
+    .class_init     = aspeed_i2c_bus_class_init,
 };
 
 static qemu_irq aspeed_2400_i2c_bus_get_irq(AspeedI2CBus *bus)
@@ -951,6 +1015,7 @@ static const TypeInfo aspeed_2600_i2c_info = {
 
 static void aspeed_i2c_register_types(void)
 {
+    type_register_static(&aspeed_i2c_bus_info);
     type_register_static(&aspeed_i2c_info);
     type_register_static(&aspeed_2400_i2c_info);
     type_register_static(&aspeed_2500_i2c_info);
