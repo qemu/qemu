@@ -196,12 +196,9 @@
  * controller. These can be changed when board is initialized with the
  * Segment Address Registers.
  */
-static const AspeedSegments aspeed_2400_fmc_segments[];
 static const AspeedSegments aspeed_2400_spi1_segments[];
-static const AspeedSegments aspeed_2500_fmc_segments[];
 static const AspeedSegments aspeed_2500_spi1_segments[];
 static const AspeedSegments aspeed_2500_spi2_segments[];
-static const AspeedSegments aspeed_2600_fmc_segments[];
 
 #define ASPEED_SMC_FEATURE_DMA       0x1
 #define ASPEED_SMC_FEATURE_DMA_GRANT 0x2
@@ -686,7 +683,11 @@ static void aspeed_smc_reset(DeviceState *d)
     AspeedSMCClass *asc = ASPEED_SMC_GET_CLASS(s);
     int i;
 
-    memset(s->regs, 0, sizeof s->regs);
+    if (asc->resets) {
+        memcpy(s->regs, asc->resets, sizeof s->regs);
+    } else {
+        memset(s->regs, 0, sizeof s->regs);
+    }
 
     /* Unselect all peripherals */
     for (i = 0; i < s->num_cs; ++i) {
@@ -698,27 +699,6 @@ static void aspeed_smc_reset(DeviceState *d)
     for (i = 0; i < asc->max_peripherals; ++i) {
         aspeed_smc_flash_set_segment_region(s, i,
                     asc->segment_to_reg(s, &asc->segments[i]));
-    }
-
-    /* HW strapping flash type for the AST2600 controllers  */
-    if (asc->segments == aspeed_2600_fmc_segments) {
-        /* flash type is fixed to SPI for all */
-        s->regs[s->r_conf] |= (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0);
-        s->regs[s->r_conf] |= (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE1);
-        s->regs[s->r_conf] |= (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE2);
-    }
-
-    /* HW strapping flash type for FMC controllers  */
-    if (asc->segments == aspeed_2500_fmc_segments) {
-        /* flash type is fixed to SPI for CE0 and CE1 */
-        s->regs[s->r_conf] |= (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0);
-        s->regs[s->r_conf] |= (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE1);
-    }
-
-    /* HW strapping for AST2400 FMC controllers (SCU70). Let's use the
-     * configuration of the palmetto-bmc machine */
-    if (asc->segments == aspeed_2400_fmc_segments) {
-        s->regs[s->r_conf] |= (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0);
     }
 
     s->snoop_index = SNOOP_OFF;
@@ -1352,6 +1332,14 @@ static const TypeInfo aspeed_2400_smc_info = {
     .class_init = aspeed_2400_smc_class_init,
 };
 
+static const uint32_t aspeed_2400_fmc_resets[ASPEED_SMC_R_MAX] = {
+    /*
+     * CE0 and CE1 types are HW strapped in SCU70. Do it here to
+     * simplify the model.
+     */
+    [R_CONF] = CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0,
+};
+
 static const AspeedSegments aspeed_2400_fmc_segments[] = {
     { 0x20000000, 64 * MiB }, /* start address is readonly */
     { 0x24000000, 32 * MiB },
@@ -1374,6 +1362,7 @@ static void aspeed_2400_fmc_class_init(ObjectClass *klass, void *data)
     asc->conf_enable_w0    = CONF_ENABLE_W0;
     asc->max_peripherals   = 5;
     asc->segments          = aspeed_2400_fmc_segments;
+    asc->resets            = aspeed_2400_fmc_resets;
     asc->flash_window_base = 0x20000000;
     asc->flash_window_size = 0x10000000;
     asc->features          = ASPEED_SMC_FEATURE_DMA;
@@ -1424,6 +1413,11 @@ static const TypeInfo aspeed_2400_spi1_info = {
     .class_init = aspeed_2400_spi1_class_init,
 };
 
+static const uint32_t aspeed_2500_fmc_resets[ASPEED_SMC_R_MAX] = {
+    [R_CONF] = (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0 |
+                CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE1),
+};
+
 static const AspeedSegments aspeed_2500_fmc_segments[] = {
     { 0x20000000, 128 * MiB }, /* start address is readonly */
     { 0x28000000,  32 * MiB },
@@ -1444,6 +1438,7 @@ static void aspeed_2500_fmc_class_init(ObjectClass *klass, void *data)
     asc->conf_enable_w0    = CONF_ENABLE_W0;
     asc->max_peripherals   = 3;
     asc->segments          = aspeed_2500_fmc_segments;
+    asc->resets            = aspeed_2500_fmc_resets;
     asc->flash_window_base = 0x20000000;
     asc->flash_window_size = 0x10000000;
     asc->features          = ASPEED_SMC_FEATURE_DMA;
@@ -1569,6 +1564,12 @@ static void aspeed_2600_smc_reg_to_segment(const AspeedSMCState *s,
     }
 }
 
+static const uint32_t aspeed_2600_fmc_resets[ASPEED_SMC_R_MAX] = {
+    [R_CONF] = (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0 |
+                CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE1 |
+                CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE2),
+};
+
 static const AspeedSegments aspeed_2600_fmc_segments[] = {
     { 0x0, 128 * MiB }, /* start address is readonly */
     { 128 * MiB, 128 * MiB }, /* default is disabled but needed for -kernel */
@@ -1589,6 +1590,7 @@ static void aspeed_2600_fmc_class_init(ObjectClass *klass, void *data)
     asc->conf_enable_w0    = CONF_ENABLE_W0;
     asc->max_peripherals   = 3;
     asc->segments          = aspeed_2600_fmc_segments;
+    asc->resets            = aspeed_2600_fmc_resets;
     asc->flash_window_base = 0x20000000;
     asc->flash_window_size = 0x10000000;
     asc->features          = ASPEED_SMC_FEATURE_DMA |
