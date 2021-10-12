@@ -513,6 +513,9 @@ static void aspeed_2600_smc_reg_to_segment(const AspeedSMCState *s,
     }
 }
 
+#define aspeed_smc_error(fmt, ...)                                      \
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: " fmt "\n", __func__, ## __VA_ARGS__)
+
 static bool aspeed_smc_flash_overlap(const AspeedSMCState *s,
                                      const AspeedSegments *new,
                                      int cs)
@@ -529,11 +532,11 @@ static bool aspeed_smc_flash_overlap(const AspeedSMCState *s,
 
         if (new->addr + new->size > seg.addr &&
             new->addr < seg.addr + seg.size) {
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: new segment CS%d [ 0x%"
-                          HWADDR_PRIx" - 0x%"HWADDR_PRIx" ] overlaps with "
-                          "CS%d [ 0x%"HWADDR_PRIx" - 0x%"HWADDR_PRIx" ]\n",
-                          s->ctrl->name, cs, new->addr, new->addr + new->size,
-                          i, seg.addr, seg.addr + seg.size);
+            aspeed_smc_error("new segment CS%d [ 0x%"
+                             HWADDR_PRIx" - 0x%"HWADDR_PRIx" ] overlaps with "
+                             "CS%d [ 0x%"HWADDR_PRIx" - 0x%"HWADDR_PRIx" ]",
+                             cs, new->addr, new->addr + new->size,
+                             i, seg.addr, seg.addr + seg.size);
             return true;
         }
     }
@@ -568,9 +571,8 @@ static void aspeed_smc_flash_set_segment(AspeedSMCState *s, int cs,
 
     /* The start address of CS0 is read-only */
     if (cs == 0 && seg.addr != s->ctrl->flash_window_base) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Tried to change CS0 start address to 0x%"
-                      HWADDR_PRIx "\n", s->ctrl->name, seg.addr);
+        aspeed_smc_error("Tried to change CS0 start address to 0x%"
+                         HWADDR_PRIx, seg.addr);
         seg.addr = s->ctrl->flash_window_base;
         new = s->ctrl->segment_to_reg(s, &seg);
     }
@@ -584,9 +586,8 @@ static void aspeed_smc_flash_set_segment(AspeedSMCState *s, int cs,
         cs == s->ctrl->max_peripherals &&
         seg.addr + seg.size != s->ctrl->segments[cs].addr +
         s->ctrl->segments[cs].size) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Tried to change CS%d end address to 0x%"
-                      HWADDR_PRIx "\n", s->ctrl->name, cs, seg.addr + seg.size);
+        aspeed_smc_error("Tried to change CS%d end address to 0x%"
+                         HWADDR_PRIx, cs, seg.addr + seg.size);
         seg.size = s->ctrl->segments[cs].addr + s->ctrl->segments[cs].size -
             seg.addr;
         new = s->ctrl->segment_to_reg(s, &seg);
@@ -596,17 +597,17 @@ static void aspeed_smc_flash_set_segment(AspeedSMCState *s, int cs,
     if (seg.size &&
         (seg.addr + seg.size <= s->ctrl->flash_window_base ||
          seg.addr > s->ctrl->flash_window_base + s->ctrl->flash_window_size)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: new segment for CS%d is invalid : "
-                      "[ 0x%"HWADDR_PRIx" - 0x%"HWADDR_PRIx" ]\n",
-                      s->ctrl->name, cs, seg.addr, seg.addr + seg.size);
+        aspeed_smc_error("new segment for CS%d is invalid : "
+                         "[ 0x%"HWADDR_PRIx" - 0x%"HWADDR_PRIx" ]",
+                         cs, seg.addr, seg.addr + seg.size);
         return;
     }
 
     /* Check start address vs. alignment */
     if (seg.size && !QEMU_IS_ALIGNED(seg.addr, seg.size)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: new segment for CS%d is not "
-                      "aligned : [ 0x%"HWADDR_PRIx" - 0x%"HWADDR_PRIx" ]\n",
-                      s->ctrl->name, cs, seg.addr, seg.addr + seg.size);
+        aspeed_smc_error("new segment for CS%d is not "
+                         "aligned : [ 0x%"HWADDR_PRIx" - 0x%"HWADDR_PRIx" ]",
+                         cs, seg.addr, seg.addr + seg.size);
     }
 
     /* And segments should not overlap (in the specs) */
@@ -619,16 +620,15 @@ static void aspeed_smc_flash_set_segment(AspeedSMCState *s, int cs,
 static uint64_t aspeed_smc_flash_default_read(void *opaque, hwaddr addr,
                                               unsigned size)
 {
-    qemu_log_mask(LOG_GUEST_ERROR, "%s: To 0x%" HWADDR_PRIx " of size %u"
-                  PRIx64 "\n", __func__, addr, size);
+    aspeed_smc_error("To 0x%" HWADDR_PRIx " of size %u" PRIx64, addr, size);
     return 0;
 }
 
 static void aspeed_smc_flash_default_write(void *opaque, hwaddr addr,
                                            uint64_t data, unsigned size)
 {
-    qemu_log_mask(LOG_GUEST_ERROR, "%s: To 0x%" HWADDR_PRIx " of size %u: 0x%"
-                  PRIx64 "\n", __func__, addr, size, data);
+    aspeed_smc_error("To 0x%" HWADDR_PRIx " of size %u: 0x%" PRIx64,
+                     addr, size, data);
 }
 
 static const MemoryRegionOps aspeed_smc_flash_default_ops = {
@@ -671,8 +671,8 @@ static inline int aspeed_smc_flash_cmd(const AspeedSMCFlash *fl)
     }
 
     if (!cmd) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: no command defined for mode %d\n",
-                      __func__, aspeed_smc_flash_mode(fl));
+        aspeed_smc_error("no command defined for mode %d",
+                         aspeed_smc_flash_mode(fl));
     }
 
     return cmd;
@@ -716,11 +716,9 @@ static uint32_t aspeed_smc_check_segment_addr(const AspeedSMCFlash *fl,
 
     s->ctrl->reg_to_segment(s, s->regs[R_SEG_ADDR0 + fl->id], &seg);
     if ((addr % seg.size) != addr) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid address 0x%08x for CS%d segment : "
-                      "[ 0x%"HWADDR_PRIx" - 0x%"HWADDR_PRIx" ]\n",
-                      s->ctrl->name, addr, fl->id, seg.addr,
-                      seg.addr + seg.size);
+        aspeed_smc_error("invalid address 0x%08x for CS%d segment : "
+                         "[ 0x%"HWADDR_PRIx" - 0x%"HWADDR_PRIx" ]",
+                         addr, fl->id, seg.addr, seg.addr + seg.size);
         addr %= seg.size;
     }
 
@@ -796,8 +794,7 @@ static uint64_t aspeed_smc_flash_read(void *opaque, hwaddr addr, unsigned size)
         aspeed_smc_flash_unselect(fl);
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid flash mode %d\n",
-                      __func__, aspeed_smc_flash_mode(fl));
+        aspeed_smc_error("invalid flash mode %d", aspeed_smc_flash_mode(fl));
     }
 
     trace_aspeed_smc_flash_read(fl->id, addr, size, ret,
@@ -914,8 +911,7 @@ static void aspeed_smc_flash_write(void *opaque, hwaddr addr, uint64_t data,
                                  aspeed_smc_flash_mode(fl));
 
     if (!aspeed_smc_is_writable(fl)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: flash is not writable at 0x%"
-                      HWADDR_PRIx "\n", __func__, addr);
+        aspeed_smc_error("flash is not writable at 0x%" HWADDR_PRIx, addr);
         return;
     }
 
@@ -940,8 +936,7 @@ static void aspeed_smc_flash_write(void *opaque, hwaddr addr, uint64_t data,
         aspeed_smc_flash_unselect(fl);
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid flash mode %d\n",
-                      __func__, aspeed_smc_flash_mode(fl));
+        aspeed_smc_error("invalid flash mode %d", aspeed_smc_flash_mode(fl));
     }
 }
 
@@ -1067,7 +1062,7 @@ static uint8_t aspeed_smc_hclk_divisor(uint8_t hclk_mask)
         }
     }
 
-    qemu_log_mask(LOG_GUEST_ERROR, "invalid HCLK mask %x", hclk_mask);
+    aspeed_smc_error("invalid HCLK mask %x", hclk_mask);
     return 0;
 }
 
@@ -1147,8 +1142,7 @@ static void aspeed_smc_dma_checksum(AspeedSMCState *s)
     uint32_t data;
 
     if (s->regs[R_DMA_CTRL] & DMA_CTRL_WRITE) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid direction for DMA checksum\n",  __func__);
+        aspeed_smc_error("invalid direction for DMA checksum");
         return;
     }
 
@@ -1160,8 +1154,8 @@ static void aspeed_smc_dma_checksum(AspeedSMCState *s)
         data = address_space_ldl_le(&s->flash_as, s->regs[R_DMA_FLASH_ADDR],
                                     MEMTXATTRS_UNSPECIFIED, &result);
         if (result != MEMTX_OK) {
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: Flash read failed @%08x\n",
-                          __func__, s->regs[R_DMA_FLASH_ADDR]);
+            aspeed_smc_error("Flash read failed @%08x",
+                             s->regs[R_DMA_FLASH_ADDR]);
             return;
         }
         trace_aspeed_smc_dma_checksum(s->regs[R_DMA_FLASH_ADDR], data);
@@ -1196,32 +1190,32 @@ static void aspeed_smc_dma_rw(AspeedSMCState *s)
             data = address_space_ldl_le(&s->dram_as, s->regs[R_DMA_DRAM_ADDR],
                                         MEMTXATTRS_UNSPECIFIED, &result);
             if (result != MEMTX_OK) {
-                qemu_log_mask(LOG_GUEST_ERROR, "%s: DRAM read failed @%08x\n",
-                              __func__, s->regs[R_DMA_DRAM_ADDR]);
+                aspeed_smc_error("DRAM read failed @%08x",
+                                 s->regs[R_DMA_DRAM_ADDR]);
                 return;
             }
 
             address_space_stl_le(&s->flash_as, s->regs[R_DMA_FLASH_ADDR],
                                  data, MEMTXATTRS_UNSPECIFIED, &result);
             if (result != MEMTX_OK) {
-                qemu_log_mask(LOG_GUEST_ERROR, "%s: Flash write failed @%08x\n",
-                              __func__, s->regs[R_DMA_FLASH_ADDR]);
+                aspeed_smc_error("Flash write failed @%08x",
+                                 s->regs[R_DMA_FLASH_ADDR]);
                 return;
             }
         } else {
             data = address_space_ldl_le(&s->flash_as, s->regs[R_DMA_FLASH_ADDR],
                                         MEMTXATTRS_UNSPECIFIED, &result);
             if (result != MEMTX_OK) {
-                qemu_log_mask(LOG_GUEST_ERROR, "%s: Flash read failed @%08x\n",
-                              __func__, s->regs[R_DMA_FLASH_ADDR]);
+                aspeed_smc_error("Flash read failed @%08x",
+                                 s->regs[R_DMA_FLASH_ADDR]);
                 return;
             }
 
             address_space_stl_le(&s->dram_as, s->regs[R_DMA_DRAM_ADDR],
                                  data, MEMTXATTRS_UNSPECIFIED, &result);
             if (result != MEMTX_OK) {
-                qemu_log_mask(LOG_GUEST_ERROR, "%s: DRAM write failed @%08x\n",
-                              __func__, s->regs[R_DMA_DRAM_ADDR]);
+                aspeed_smc_error("DRAM write failed @%08x",
+                                 s->regs[R_DMA_DRAM_ADDR]);
                 return;
             }
         }
@@ -1281,7 +1275,7 @@ static void aspeed_smc_dma_ctrl(AspeedSMCState *s, uint32_t dma_ctrl)
     }
 
     if (aspeed_smc_dma_in_progress(s)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA in progress\n",  __func__);
+        aspeed_smc_error("DMA in progress !");
         return;
     }
 
@@ -1303,7 +1297,7 @@ static inline bool aspeed_smc_dma_granted(AspeedSMCState *s)
     }
 
     if (!(s->regs[R_DMA_CTRL] & DMA_CTRL_GRANT)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA not granted\n",  __func__);
+        aspeed_smc_error("DMA not granted");
         return false;
     }
 
@@ -1328,7 +1322,7 @@ static void aspeed_2600_smc_dma_ctrl(AspeedSMCState *s, uint32_t dma_ctrl)
     }
 
     if (!aspeed_smc_dma_granted(s)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA not granted\n",  __func__);
+        aspeed_smc_error("DMA not granted");
         return;
     }
 
@@ -1434,8 +1428,7 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
 
     /* Enforce some real HW limits */
     if (s->num_cs > s->ctrl->max_peripherals) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: num_cs cannot exceed: %d\n",
-                      __func__, s->ctrl->max_peripherals);
+        aspeed_smc_error("num_cs cannot exceed: %d", s->ctrl->max_peripherals);
         s->num_cs = s->ctrl->max_peripherals;
     }
 
