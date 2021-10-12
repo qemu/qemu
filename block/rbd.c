@@ -97,6 +97,12 @@ typedef struct RBDTask {
     int64_t ret;
 } RBDTask;
 
+typedef struct RBDDiffIterateReq {
+    uint64_t offs;
+    uint64_t bytes;
+    bool exists;
+} RBDDiffIterateReq;
+
 static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
                             BlockdevOptionsRbd *opts, bool cache,
                             const char *keypairs, const char *secretid,
@@ -1259,6 +1265,111 @@ static ImageInfoSpecific *qemu_rbd_get_specific_info(BlockDriverState *bs,
     return spec_info;
 }
 
+/*
+ * rbd_diff_iterate2 allows to interrupt the exection by returning a negative
+ * value in the callback routine. Choose a value that does not conflict with
+ * an existing exitcode and return it if we want to prematurely stop the
+ * execution because we detected a change in the allocation status.
+ */
+#define QEMU_RBD_EXIT_DIFF_ITERATE2 -9000
+
+static int qemu_rbd_diff_iterate_cb(uint64_t offs, size_t len,
+                                    int exists, void *opaque)
+{
+    RBDDiffIterateReq *req = opaque;
+
+    assert(req->offs + req->bytes <= offs);
+    /*
+     * we do not diff against a snapshot so we should never receive a callback
+     * for a hole.
+     */
+    assert(exists);
+
+    if (!req->exists && offs > req->offs) {
+        /*
+         * we started in an unallocated area and hit the first allocated
+         * block. req->bytes must be set to the length of the unallocated area
+         * before the allocated area. stop further processing.
+         */
+        req->bytes = offs - req->offs;
+        return QEMU_RBD_EXIT_DIFF_ITERATE2;
+    }
+
+    if (req->exists && offs > req->offs + req->bytes) {
+        /*
+         * we started in an allocated area and jumped over an unallocated area,
+         * req->bytes contains the length of the allocated area before the
+         * unallocated area. stop further processing.
+         */
+        return QEMU_RBD_EXIT_DIFF_ITERATE2;
+    }
+
+    req->bytes += len;
+    req->exists = true;
+
+    return 0;
+}
+
+static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,
+                                                 bool want_zero, int64_t offset,
+                                                 int64_t bytes, int64_t *pnum,
+                                                 int64_t *map,
+                                                 BlockDriverState **file)
+{
+    BDRVRBDState *s = bs->opaque;
+    int status, r;
+    RBDDiffIterateReq req = { .offs = offset };
+    uint64_t features, flags;
+
+    assert(offset + bytes <= s->image_size);
+
+    /* default to all sectors allocated */
+    status = BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID;
+    *map = offset;
+    *file = bs;
+    *pnum = bytes;
+
+    /* check if RBD image supports fast-diff */
+    r = rbd_get_features(s->image, &features);
+    if (r < 0) {
+        return status;
+    }
+    if (!(features & RBD_FEATURE_FAST_DIFF)) {
+        return status;
+    }
+
+    /* check if RBD fast-diff result is valid */
+    r = rbd_get_flags(s->image, &flags);
+    if (r < 0) {
+        return status;
+    }
+    if (flags & RBD_FLAG_FAST_DIFF_INVALID) {
+        return status;
+    }
+
+    r = rbd_diff_iterate2(s->image, NULL, offset, bytes, true, true,
+                          qemu_rbd_diff_iterate_cb, &req);
+    if (r < 0 && r != QEMU_RBD_EXIT_DIFF_ITERATE2) {
+        return status;
+    }
+    assert(req.bytes <= bytes);
+    if (!req.exists) {
+        if (r == 0) {
+            /*
+             * rbd_diff_iterate2 does not invoke callbacks for unallocated
+             * areas. This here catches the case where no callback was
+             * invoked at all (req.bytes == 0).
+             */
+            assert(req.bytes == 0);
+            req.bytes = bytes;
+        }
+        status = BDRV_BLOCK_ZERO | BDRV_BLOCK_OFFSET_VALID;
+    }
+
+    *pnum = req.bytes;
+    return status;
+}
+
 static int64_t qemu_rbd_getlength(BlockDriverState *bs)
 {
     BDRVRBDState *s = bs->opaque;
@@ -1494,6 +1605,7 @@ static BlockDriver bdrv_rbd = {
 #ifdef LIBRBD_SUPPORTS_WRITE_ZEROES
     .bdrv_co_pwrite_zeroes  = qemu_rbd_co_pwrite_zeroes,
 #endif
+    .bdrv_co_block_status   = qemu_rbd_co_block_status,
 
     .bdrv_snapshot_create   = qemu_rbd_snap_create,
     .bdrv_snapshot_delete   = qemu_rbd_snap_remove,
