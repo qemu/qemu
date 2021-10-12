@@ -88,3 +88,4 @@ Emulated Devices
    devices/usb.rst
    devices/vhost-user.rst
    devices/virtio-pmem.rst
+   devices/vhost-user-rng.rst
