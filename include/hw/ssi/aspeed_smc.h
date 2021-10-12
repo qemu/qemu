@@ -111,6 +111,7 @@ struct AspeedSMCClass {
     void (*reg_to_segment)(const AspeedSMCState *s, uint32_t reg,
                            AspeedSegments *seg);
     void (*dma_ctrl)(AspeedSMCState *s, uint32_t value);
+    int (*addr_width)(const AspeedSMCState *s);
 };
 
 #endif /* ASPEED_SMC_H */
