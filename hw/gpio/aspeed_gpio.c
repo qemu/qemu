@@ -16,11 +16,7 @@
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 
-#define GPIOS_PER_REG 32
-#define GPIOS_PER_SET GPIOS_PER_REG
-#define GPIO_PIN_GAP_SIZE 4
 #define GPIOS_PER_GROUP 8
-#define GPIO_GROUP_SHIFT 3
 
 /* GPIO Source Types */
 #define ASPEED_CMD_SRC_MASK         0x01010101
@@ -259,7 +255,7 @@ static void aspeed_gpio_update(AspeedGPIOState *s, GPIOSets *regs,
 
     diff = old ^ new;
     if (diff) {
-        for (gpio = 0; gpio < GPIOS_PER_REG; gpio++) {
+        for (gpio = 0; gpio < ASPEED_GPIOS_PER_SET; gpio++) {
             uint32_t mask = 1 << gpio;
 
             /* If the gpio needs to be updated... */
@@ -283,8 +279,7 @@ static void aspeed_gpio_update(AspeedGPIOState *s, GPIOSets *regs,
             if (direction & mask) {
                 /* ...trigger the line-state IRQ */
                 ptrdiff_t set = aspeed_gpio_set_idx(s, regs);
-                size_t offset = set * GPIOS_PER_SET + gpio;
-                qemu_set_irq(s->gpios[offset], !!(new & mask));
+                qemu_set_irq(s->gpios[set][gpio], !!(new & mask));
             } else {
                 /* ...otherwise if we meet the line's current IRQ policy... */
                 if (aspeed_evaluate_irq(regs, old & mask, gpio)) {
@@ -295,21 +290,6 @@ static void aspeed_gpio_update(AspeedGPIOState *s, GPIOSets *regs,
         }
     }
     qemu_set_irq(s->irq, !!(s->pending));
-}
-
-static uint32_t aspeed_adjust_pin(AspeedGPIOState *s, uint32_t pin)
-{
-    AspeedGPIOClass *agc = ASPEED_GPIO_GET_CLASS(s);
-    /*
-     * The 2500 has a 4 pin gap in group AB and the 2400 has a 4 pin
-     * gap in group Y (and only four pins in AB but this is the last group so
-     * it doesn't matter).
-     */
-    if (agc->gap && pin >= agc->gap) {
-        pin += GPIO_PIN_GAP_SIZE;
-    }
-
-    return pin;
 }
 
 static bool aspeed_gpio_get_pin_level(AspeedGPIOState *s, uint32_t set_idx,
@@ -367,7 +347,7 @@ static uint32_t update_value_control_source(GPIOSets *regs, uint32_t old_value,
     uint32_t new_value = 0;
 
     /* for each group in set */
-    for (i = 0; i < GPIOS_PER_REG; i += GPIOS_PER_GROUP) {
+    for (i = 0; i < ASPEED_GPIOS_PER_SET; i += GPIOS_PER_GROUP) {
         cmd_source = extract32(regs->cmd_source_0, i, 1)
                 | (extract32(regs->cmd_source_1, i, 1) << 1);
 
@@ -637,7 +617,7 @@ static void aspeed_gpio_write(void *opaque, hwaddr offset, uint64_t data,
          *   bidirectional  |   1       |   1        |  data
          *   input only     |   1       |   0        |   0
          *   output only    |   0       |   1        |   1
-         *   no pin / gap   |   0       |   0        |   0
+         *   no pin         |   0       |   0        |   0
          *
          *  which is captured by:
          *  data = ( data | ~input) & output;
@@ -779,7 +759,7 @@ static void aspeed_gpio_set_pin(Object *obj, Visitor *v, const char *name,
 }
 
 /****************** Setup functions ******************/
-static const GPIOSetProperties ast2400_set_props[] = {
+static const GPIOSetProperties ast2400_set_props[ASPEED_GPIO_MAX_NR_SETS] = {
     [0] = {0xffffffff,  0xffffffff,  {"A", "B", "C", "D"} },
     [1] = {0xffffffff,  0xffffffff,  {"E", "F", "G", "H"} },
     [2] = {0xffffffff,  0xffffffff,  {"I", "J", "K", "L"} },
@@ -789,7 +769,7 @@ static const GPIOSetProperties ast2400_set_props[] = {
     [6] = {0x0000000f,  0x0fffff0f,  {"Y", "Z", "AA", "AB"} },
 };
 
-static const GPIOSetProperties ast2500_set_props[] = {
+static const GPIOSetProperties ast2500_set_props[ASPEED_GPIO_MAX_NR_SETS] = {
     [0] = {0xffffffff,  0xffffffff,  {"A", "B", "C", "D"} },
     [1] = {0xffffffff,  0xffffffff,  {"E", "F", "G", "H"} },
     [2] = {0xffffffff,  0xffffffff,  {"I", "J", "K", "L"} },
@@ -800,7 +780,7 @@ static const GPIOSetProperties ast2500_set_props[] = {
     [7] = {0x000000ff,  0x000000ff,  {"AC"} },
 };
 
-static GPIOSetProperties ast2600_3_3v_set_props[] = {
+static GPIOSetProperties ast2600_3_3v_set_props[ASPEED_GPIO_MAX_NR_SETS] = {
     [0] = {0xffffffff,  0xffffffff,  {"A", "B", "C", "D"} },
     [1] = {0xffffffff,  0xffffffff,  {"E", "F", "G", "H"} },
     [2] = {0xffffffff,  0xffffffff,  {"I", "J", "K", "L"} },
@@ -810,7 +790,7 @@ static GPIOSetProperties ast2600_3_3v_set_props[] = {
     [6] = {0x0000ffff,  0x0000ffff,  {"Y", "Z"} },
 };
 
-static GPIOSetProperties ast2600_1_8v_set_props[] = {
+static GPIOSetProperties ast2600_1_8v_set_props[ASPEED_GPIO_MAX_NR_SETS] = {
     [0] = {0xffffffff,  0xffffffff,  {"18A", "18B", "18C", "18D"} },
     [1] = {0x0000000f,  0x0000000f,  {"18E"} },
 };
@@ -836,14 +816,20 @@ static void aspeed_gpio_realize(DeviceState *dev, Error **errp)
     AspeedGPIOState *s = ASPEED_GPIO(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     AspeedGPIOClass *agc = ASPEED_GPIO_GET_CLASS(s);
-    int pin;
 
     /* Interrupt parent line */
     sysbus_init_irq(sbd, &s->irq);
 
     /* Individual GPIOs */
-    for (pin = 0; pin < agc->nr_gpio_pins; pin++) {
-        sysbus_init_irq(sbd, &s->gpios[pin]);
+    for (int i = 0; i < ASPEED_GPIO_MAX_NR_SETS; i++) {
+        const GPIOSetProperties *props = &agc->props[i];
+        uint32_t skip = ~(props->input | props->output);
+        for (int j = 0; j < ASPEED_GPIOS_PER_SET; j++) {
+            if (skip >> j & 1) {
+                continue;
+            }
+            sysbus_init_irq(sbd, &s->gpios[i][j]);
+        }
     }
 
     memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_gpio_ops, s,
@@ -856,20 +842,22 @@ static void aspeed_gpio_init(Object *obj)
 {
     AspeedGPIOState *s = ASPEED_GPIO(obj);
     AspeedGPIOClass *agc = ASPEED_GPIO_GET_CLASS(s);
-    int pin;
 
-    for (pin = 0; pin < agc->nr_gpio_pins; pin++) {
-        char *name;
-        int set_idx = pin / GPIOS_PER_SET;
-        int pin_idx = aspeed_adjust_pin(s, pin) - (set_idx * GPIOS_PER_SET);
-        int group_idx = pin_idx >> GPIO_GROUP_SHIFT;
-        const GPIOSetProperties *props = &agc->props[set_idx];
-
-        name = g_strdup_printf("gpio%s%d", props->group_label[group_idx],
-                               pin_idx % GPIOS_PER_GROUP);
-        object_property_add(obj, name, "bool", aspeed_gpio_get_pin,
-                            aspeed_gpio_set_pin, NULL, NULL);
-        g_free(name);
+    for (int i = 0; i < ASPEED_GPIO_MAX_NR_SETS; i++) {
+        const GPIOSetProperties *props = &agc->props[i];
+        uint32_t skip = ~(props->input | props->output);
+        for (int j = 0; j < ASPEED_GPIOS_PER_SET; j++) {
+            if (skip >> j & 1) {
+                continue;
+            }
+            int group_idx = j / GPIOS_PER_GROUP;
+            int pin_idx = j % GPIOS_PER_GROUP;
+            const char *group = &props->group_label[group_idx][0];
+            char *name = g_strdup_printf("gpio%s%d", group, pin_idx);
+            object_property_add(obj, name, "bool", aspeed_gpio_get_pin,
+                                aspeed_gpio_set_pin, NULL, NULL);
+            g_free(name);
+        }
     }
 }
 
@@ -926,7 +914,6 @@ static void aspeed_gpio_ast2400_class_init(ObjectClass *klass, void *data)
     agc->props = ast2400_set_props;
     agc->nr_gpio_pins = 216;
     agc->nr_gpio_sets = 7;
-    agc->gap = 196;
     agc->reg_table = aspeed_3_3v_gpios;
 }
 
@@ -937,7 +924,6 @@ static void aspeed_gpio_2500_class_init(ObjectClass *klass, void *data)
     agc->props = ast2500_set_props;
     agc->nr_gpio_pins = 228;
     agc->nr_gpio_sets = 8;
-    agc->gap = 220;
     agc->reg_table = aspeed_3_3v_gpios;
 }
 
