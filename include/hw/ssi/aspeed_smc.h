@@ -29,35 +29,7 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
-typedef struct AspeedSegments {
-    hwaddr addr;
-    uint32_t size;
-} AspeedSegments;
-
 struct AspeedSMCState;
-typedef struct AspeedSMCController {
-    const char *name;
-    uint8_t r_conf;
-    uint8_t r_ce_ctrl;
-    uint8_t r_ctrl0;
-    uint8_t r_timings;
-    uint8_t nregs_timings;
-    uint8_t conf_enable_w0;
-    uint8_t max_peripherals;
-    const AspeedSegments *segments;
-    hwaddr flash_window_base;
-    uint32_t flash_window_size;
-    uint32_t features;
-    hwaddr dma_flash_mask;
-    hwaddr dma_dram_mask;
-    uint32_t nregs;
-    uint32_t (*segment_to_reg)(const struct AspeedSMCState *s,
-                               const AspeedSegments *seg);
-    void (*reg_to_segment)(const struct AspeedSMCState *s, uint32_t reg,
-                           AspeedSegments *seg);
-    void (*dma_ctrl)(struct AspeedSMCState *s, uint32_t value);
-} AspeedSMCController;
-
 typedef struct AspeedSMCFlash {
     struct AspeedSMCState *controller;
 
@@ -71,17 +43,10 @@ typedef struct AspeedSMCFlash {
 #define TYPE_ASPEED_SMC "aspeed.smc"
 OBJECT_DECLARE_TYPE(AspeedSMCState, AspeedSMCClass, ASPEED_SMC)
 
-struct AspeedSMCClass {
-    SysBusDevice parent_obj;
-    const AspeedSMCController *ctrl;
-};
-
 #define ASPEED_SMC_R_MAX        (0x100 / 4)
 
 struct AspeedSMCState {
     SysBusDevice parent_obj;
-
-    const AspeedSMCController *ctrl;
 
     MemoryRegion mmio;
     MemoryRegion mmio_flash;
@@ -113,6 +78,35 @@ struct AspeedSMCState {
 
     uint8_t snoop_index;
     uint8_t snoop_dummies;
+};
+
+typedef struct AspeedSegments {
+    hwaddr addr;
+    uint32_t size;
+} AspeedSegments;
+
+struct AspeedSMCClass {
+    SysBusDeviceClass parent_obj;
+
+    uint8_t r_conf;
+    uint8_t r_ce_ctrl;
+    uint8_t r_ctrl0;
+    uint8_t r_timings;
+    uint8_t nregs_timings;
+    uint8_t conf_enable_w0;
+    uint8_t max_peripherals;
+    const AspeedSegments *segments;
+    hwaddr flash_window_base;
+    uint32_t flash_window_size;
+    uint32_t features;
+    hwaddr dma_flash_mask;
+    hwaddr dma_dram_mask;
+    uint32_t nregs;
+    uint32_t (*segment_to_reg)(const AspeedSMCState *s,
+                               const AspeedSegments *seg);
+    void (*reg_to_segment)(const AspeedSMCState *s, uint32_t reg,
+                           AspeedSegments *seg);
+    void (*dma_ctrl)(AspeedSMCState *s, uint32_t value);
 };
 
 #endif /* ASPEED_SMC_H */
