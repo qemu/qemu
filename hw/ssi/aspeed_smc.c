@@ -728,7 +728,7 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
          addr < R_SEG_ADDR0 + asc->max_peripherals) ||
         (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + asc->max_peripherals)) {
 
-        trace_aspeed_smc_read(addr, size, s->regs[addr]);
+        trace_aspeed_smc_read(addr << 2, size, s->regs[addr]);
 
         return s->regs[addr];
     } else {
@@ -1029,9 +1029,9 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
     AspeedSMCClass *asc = ASPEED_SMC_GET_CLASS(s);
     uint32_t value = data;
 
-    addr >>= 2;
-
     trace_aspeed_smc_write(addr, size, data);
+
+    addr >>= 2;
 
     if (addr == s->r_conf ||
         (addr >= s->r_timings &&
