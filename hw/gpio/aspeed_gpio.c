@@ -796,7 +796,7 @@ static const GPIOSetProperties ast2500_set_props[] = {
     [3] = {0xffffffff,  0xffffffff,  {"M", "N", "O", "P"} },
     [4] = {0xffffffff,  0xffffffff,  {"Q", "R", "S", "T"} },
     [5] = {0xffffffff,  0x0000ffff,  {"U", "V", "W", "X"} },
-    [6] = {0xffffff0f,  0x0fffff0f,  {"Y", "Z", "AA", "AB"} },
+    [6] = {0x0fffffff,  0x0fffffff,  {"Y", "Z", "AA", "AB"} },
     [7] = {0x000000ff,  0x000000ff,  {"AC"} },
 };
 
@@ -805,9 +805,9 @@ static GPIOSetProperties ast2600_3_3v_set_props[] = {
     [1] = {0xffffffff,  0xffffffff,  {"E", "F", "G", "H"} },
     [2] = {0xffffffff,  0xffffffff,  {"I", "J", "K", "L"} },
     [3] = {0xffffffff,  0xffffffff,  {"M", "N", "O", "P"} },
-    [4] = {0xffffffff,  0xffffffff,  {"Q", "R", "S", "T"} },
-    [5] = {0xffffffff,  0x0000ffff,  {"U", "V", "W", "X"} },
-    [6] = {0xffff0000,  0x0fff0000,  {"Y", "Z", "", ""} },
+    [4] = {0xffffffff,  0x00ffffff,  {"Q", "R", "S", "T"} },
+    [5] = {0xffffffff,  0xffffff00,  {"U", "V", "W", "X"} },
+    [6] = {0x0000ffff,  0x0000ffff,  {"Y", "Z"} },
 };
 
 static GPIOSetProperties ast2600_1_8v_set_props[] = {
