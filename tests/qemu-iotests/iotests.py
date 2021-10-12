@@ -107,8 +107,6 @@ if os.environ.get('VALGRIND_QEMU') == "y" and \
 
     qemu_valgrind = ['valgrind', valgrind_logfile, '--error-exitcode=99']
 
-socket_scm_helper = os.environ.get('SOCKET_SCM_HELPER', 'socket_scm_helper')
-
 luks_default_secret_object = 'secret,id=keysec0,data=' + \
                              os.environ.get('IMGKEYSECRET', '')
 luks_default_key_secret_opt = 'key-secret=keysec0'
@@ -598,7 +596,6 @@ class VM(qtest.QEMUQtestMachine):
         super().__init__(qemu_prog, qemu_opts, wrapper=wrapper,
                          name=name,
                          base_temp_dir=test_dir,
-                         socket_scm_helper=socket_scm_helper,
                          sock_dir=sock_dir, qmp_timer=timer)
         self._num_drives = 0
 

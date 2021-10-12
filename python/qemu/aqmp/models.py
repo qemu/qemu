@@ -8,8 +8,10 @@ data to make sure it conforms to spec.
 # pylint: disable=too-few-public-methods
 
 from collections import abc
+import copy
 from typing import (
     Any,
+    Dict,
     Mapping,
     Optional,
     Sequence,
@@ -65,6 +67,17 @@ class Greeting(Model):
 
         self._check_member('QMP', abc.Mapping, "JSON object")
         self.QMP = QMPGreeting(self._raw['QMP'])
+
+    def _asdict(self) -> Dict[str, object]:
+        """
+        For compatibility with the iotests sync QMP wrapper.
+
+        The legacy QMP interface needs Greetings as a garden-variety Dict.
+
+        This interface is private in the hopes that it will be able to
+        be dropped again in the near-future. Caller beware!
+        """
+        return dict(copy.deepcopy(self._raw))
 
 
 class QMPGreeting(Model):

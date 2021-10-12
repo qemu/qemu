@@ -381,7 +381,6 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         if cmdline == '':
             for event in self.get_events():
                 print(event)
-            self.clear_events()
             return True
 
         return self._execute_cmd(cmdline)
