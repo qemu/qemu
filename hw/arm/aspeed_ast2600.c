@@ -337,11 +337,8 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < ASPEED_I2C_GET_CLASS(&s->i2c)->num_busses; i++) {
         qemu_irq irq = qdev_get_gpio_in(DEVICE(&s->a7mpcore),
                                         sc->irqmap[ASPEED_DEV_I2C] + i);
-        /*
-         * The AST2600 SoC has one IRQ per I2C bus. Skip the common
-         * IRQ (AST2400 and AST2500) and connect all bussses.
-         */
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c), i + 1, irq);
+        /* The AST2600 I2C controller has one IRQ per bus. */
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c.busses[i]), 0, irq);
     }
 
     /* FMC, The number of CS is set at the board level */
