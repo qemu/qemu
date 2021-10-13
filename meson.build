@@ -1609,7 +1609,8 @@ config_host_data.set('HAVE_BROKEN_SIZE_MAX', not cc.compiles('''
         return printf("%zu", SIZE_MAX);
     }''', args: ['-Werror']))
 
-ignored = ['CONFIG_QEMU_INTERP_PREFIX'] # actually per-target
+ignored = ['CONFIG_QEMU_INTERP_PREFIX', # actually per-target
+    'HAVE_GDB_BIN']
 arrays = ['CONFIG_BDRV_RW_WHITELIST', 'CONFIG_BDRV_RO_WHITELIST']
 strings = ['CONFIG_IASL']
 foreach k, v: config_host
