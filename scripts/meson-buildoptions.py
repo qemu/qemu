@@ -30,6 +30,7 @@ SKIP_OPTIONS = {
     "default_devices",
     "docdir",
     "fuzzing_engine",
+    "iasl",
     "qemu_firmwarepath",
     "qemu_suffix",
     "smbd",
