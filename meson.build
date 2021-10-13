@@ -1462,6 +1462,17 @@ config_host_data.set_quoted('CONFIG_QEMU_LOCALSTATEDIR', get_option('prefix') / 
 config_host_data.set_quoted('CONFIG_QEMU_MODDIR', get_option('prefix') / qemu_moddir)
 config_host_data.set_quoted('CONFIG_SYSCONFDIR', get_option('prefix') / get_option('sysconfdir'))
 
+have_slirp_smbd = get_option('slirp_smbd') \
+  .require(targetos != 'windows', error_message: 'Host smbd not supported on this platform.') \
+  .allowed()
+if have_slirp_smbd
+  smbd_path = get_option('smbd')
+  if smbd_path == ''
+    smbd_path = (targetos == 'solaris' ? '/usr/sfw/sbin/smbd' : '/usr/sbin/smbd')
+  endif
+  config_host_data.set_quoted('CONFIG_SMBD_COMMAND', smbd_path)
+endif
+
 config_host_data.set('HOST_' + host_arch.to_upper(), 1)
 
 config_host_data.set('CONFIG_ATTR', libattr.found())
@@ -3333,8 +3344,8 @@ summary_info += {'genisoimage':       config_host['GENISOIMAGE']}
 if targetos == 'windows' and config_host.has_key('CONFIG_GUEST_AGENT')
   summary_info += {'wixl':            wixl}
 endif
-if slirp_opt != 'disabled' and 'CONFIG_SLIRP_SMBD' in config_host
-  summary_info += {'smbd':            config_host['CONFIG_SMBD_COMMAND']}
+if slirp_opt != 'disabled' and have_system
+  summary_info += {'smbd':            have_slirp_smbd ? smbd_path : false}
 endif
 summary(summary_info, bool_yn: true, section: 'Host binaries')
 

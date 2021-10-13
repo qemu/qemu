@@ -32,6 +32,7 @@ SKIP_OPTIONS = {
     "fuzzing_engine",
     "qemu_firmwarepath",
     "qemu_suffix",
+    "smbd",
     "sphinx_build",
     "trace_file",
 }

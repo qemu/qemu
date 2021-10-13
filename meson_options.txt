@@ -8,6 +8,8 @@ option('docdir', type : 'string', value : 'doc',
        description: 'Base directory for documentation installation (can be empty)')
 option('qemu_firmwarepath', type : 'string', value : '',
        description: 'search PATH for firmware files')
+option('smbd', type : 'string', value : '',
+       description: 'Path to smbd for slirp networking')
 option('sphinx_build', type : 'string', value : '',
        description: 'Use specified sphinx-build [$sphinx_build] for building document (default to be empty)')
 option('default_devices', type : 'boolean', value : true,
@@ -258,3 +260,5 @@ option('gprof', type: 'boolean', value: false,
        description: 'QEMU profiling with gprof')
 option('profiler', type: 'boolean', value: false,
        description: 'profiler support')
+option('slirp_smbd', type : 'feature', value : 'auto',
+       description: 'use smbd (at path --smbd=*) in slirp networking')

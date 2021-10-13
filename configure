@@ -330,7 +330,6 @@ meson_args=""
 ninja=""
 gio="$default_feature"
 skip_meson=no
-slirp_smbd="$default_feature"
 
 # The following Meson options are handled manually (still they
 # are included in the automatically generated help message)
@@ -416,6 +415,7 @@ objcopy="${OBJCOPY-${cross_prefix}objcopy}"
 ld="${LD-${cross_prefix}ld}"
 ranlib="${RANLIB-${cross_prefix}ranlib}"
 nm="${NM-${cross_prefix}nm}"
+smbd="$SMBD"
 strip="${STRIP-${cross_prefix}strip}"
 windres="${WINDRES-${cross_prefix}windres}"
 pkg_config_exe="${PKG_CONFIG-${cross_prefix}pkg-config}"
@@ -535,7 +535,6 @@ darwin)
 sunos)
   solaris="yes"
   make="${MAKE-gmake}"
-  smbd="${SMBD-/usr/sfw/sbin/smbd}"
 # needed for CMSG_ macros in sys/socket.h
   QEMU_CFLAGS="-D_XOPEN_SOURCE=600 $QEMU_CFLAGS"
 # needed for TIOCWIN* defines in termios.h
@@ -1047,10 +1046,6 @@ for opt do
   ;;
   --disable-gio) gio=no
   ;;
-  --enable-slirp-smbd) slirp_smbd=yes
-  ;;
-  --disable-slirp-smbd) slirp_smbd=no
-  ;;
   # backwards compatibility options
   --enable-trace-backend=*) meson_option_parse "--enable-trace-backends=$optarg" "$optarg"
   ;;
@@ -1282,7 +1277,6 @@ cat << EOF
   opengl          opengl support
   tools           build qemu-io, qemu-nbd and qemu-img tools
   gio             libgio support
-  slirp-smbd      use smbd (at path --smbd=*) in slirp networking
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -2725,19 +2719,6 @@ case "$slirp" in
     ;;
 esac
 
-# Check for slirp smbd dupport
-: ${smbd=${SMBD-/usr/sbin/smbd}}
-if test "$slirp_smbd" != "no" ; then
-  if test "$mingw32" = "yes" ; then
-    if test "$slirp_smbd" = "yes" ; then
-      error_exit "Host smbd not supported on this platform."
-    fi
-    slirp_smbd=no
-  else
-    slirp_smbd=yes
-  fi
-fi
-
 ##########################################
 # check for usable __NR_keyctl syscall
 
@@ -2992,10 +2973,6 @@ if test "$want_tools" = "yes" ; then
 fi
 if test "$guest_agent" = "yes" ; then
   echo "CONFIG_GUEST_AGENT=y" >> $config_host_mak
-fi
-if test "$slirp_smbd" = "yes" ; then
-  echo "CONFIG_SLIRP_SMBD=y" >> $config_host_mak
-  echo "CONFIG_SMBD_COMMAND=\"$smbd\"" >> $config_host_mak
 fi
 echo "CONFIG_BDRV_RW_WHITELIST=$block_drv_rw_whitelist" >> $config_host_mak
 echo "CONFIG_BDRV_RO_WHITELIST=$block_drv_ro_whitelist" >> $config_host_mak
@@ -3355,6 +3332,7 @@ if test "$skip_meson" = no; then
         -Ddocdir="$docdir" \
         -Dqemu_firmwarepath="$firmwarepath" \
         -Dqemu_suffix="$qemu_suffix" \
+        -Dsmbd="$smbd" \
         -Dsphinx_build="$sphinx_build" \
         -Dtrace_file="$trace_file" \
         -Doptimization=$(if test "$debug" = yes; then echo 0; else echo 2; fi) \
