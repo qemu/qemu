@@ -249,13 +249,16 @@ static bool trans_rev8_64(DisasContext *ctx, arg_rev8_64 *a)
 static void gen_orc_b(TCGv ret, TCGv source1)
 {
     TCGv  tmp = tcg_temp_new();
-    TCGv  ones = tcg_constant_tl(dup_const_tl(MO_8, 0x01));
+    TCGv  low7 = tcg_constant_tl(dup_const_tl(MO_8, 0x7f));
 
-    /* Set lsb in each byte if the byte was zero. */
-    tcg_gen_sub_tl(tmp, source1, ones);
-    tcg_gen_andc_tl(tmp, tmp, source1);
+    /* Set msb in each byte if the byte was non-zero. */
+    tcg_gen_and_tl(tmp, source1, low7);
+    tcg_gen_add_tl(tmp, tmp, low7);
+    tcg_gen_or_tl(tmp, tmp, source1);
+
+    /* Extract the msb to the lsb in each byte */
+    tcg_gen_andc_tl(tmp, tmp, low7);
     tcg_gen_shri_tl(tmp, tmp, 7);
-    tcg_gen_andc_tl(tmp, ones, tmp);
 
     /* Replicate the lsb of each byte across the byte. */
     tcg_gen_muli_tl(ret, tmp, 0xff);
