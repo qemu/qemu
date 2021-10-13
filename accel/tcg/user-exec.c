@@ -218,9 +218,14 @@ static void validate_memop(MemOpIdx oi, MemOp expected)
 static void *cpu_mmu_lookup(CPUArchState *env, target_ulong addr,
                             MemOpIdx oi, uintptr_t ra, MMUAccessType type)
 {
+    MemOp mop = get_memop(oi);
+    int a_bits = get_alignment_bits(mop);
     void *ret;
 
-    /* TODO: Enforce guest required alignment.  */
+    /* Enforce guest required alignment.  */
+    if (unlikely(addr & ((1 << a_bits) - 1))) {
+        cpu_loop_exit_sigbus(env_cpu(env), addr, type, ra);
+    }
 
     ret = g2h(env_cpu(env), addr);
     set_helper_retaddr(ra);
