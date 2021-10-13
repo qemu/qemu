@@ -3463,14 +3463,14 @@ if have_block
   summary_info += {'build virtiofs daemon': have_virtiofsd}
   summary_info += {'Live block migration': config_host.has_key('CONFIG_LIVE_BLOCK_MIGRATION')}
   summary_info += {'replication support': config_host.has_key('CONFIG_REPLICATION')}
-  summary_info += {'bochs support':     config_host.has_key('CONFIG_BOCHS')}
-  summary_info += {'cloop support':     config_host.has_key('CONFIG_CLOOP')}
-  summary_info += {'dmg support':       config_host.has_key('CONFIG_DMG')}
-  summary_info += {'qcow v1 support':   config_host.has_key('CONFIG_QCOW1')}
-  summary_info += {'vdi support':       config_host.has_key('CONFIG_VDI')}
-  summary_info += {'vvfat support':     config_host.has_key('CONFIG_VVFAT')}
-  summary_info += {'qed support':       config_host.has_key('CONFIG_QED')}
-  summary_info += {'parallels support': config_host.has_key('CONFIG_PARALLELS')}
+  summary_info += {'bochs support':     get_option('bochs').allowed()}
+  summary_info += {'cloop support':     get_option('cloop').allowed()}
+  summary_info += {'dmg support':       get_option('dmg').allowed()}
+  summary_info += {'qcow v1 support':   get_option('qcow1').allowed()}
+  summary_info += {'vdi support':       get_option('vdi').allowed()}
+  summary_info += {'vvfat support':     get_option('vvfat').allowed()}
+  summary_info += {'qed support':       get_option('qed').allowed()}
+  summary_info += {'parallels support': get_option('parallels').allowed()}
   summary_info += {'FUSE exports':      fuse}
 endif
 summary(summary_info, bool_yn: true, section: 'Block layer support')

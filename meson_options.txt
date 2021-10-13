@@ -222,3 +222,19 @@ option('fdt', type: 'combo', value: 'auto',
 
 option('selinux', type: 'feature', value: 'auto',
        description: 'SELinux support in qemu-nbd')
+option('bochs', type: 'feature', value: 'auto',
+       description: 'bochs image format support')
+option('cloop', type: 'feature', value: 'auto',
+       description: 'cloop image format support')
+option('dmg', type: 'feature', value: 'auto',
+       description: 'dmg image format support')
+option('qcow1', type: 'feature', value: 'auto',
+       description: 'qcow1 image format support')
+option('vdi', type: 'feature', value: 'auto',
+       description: 'vdi image format support')
+option('vvfat', type: 'feature', value: 'auto',
+       description: 'vvfat image format support')
+option('qed', type: 'feature', value: 'auto',
+       description: 'qed image format support')
+option('parallels', type: 'feature', value: 'auto',
+       description: 'parallels image format support')

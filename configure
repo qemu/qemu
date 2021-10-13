@@ -331,14 +331,6 @@ debug_stack_usage="no"
 tls_priority="NORMAL"
 live_block_migration=${default_feature:-yes}
 replication=${default_feature:-yes}
-bochs=${default_feature:-yes}
-cloop=${default_feature:-yes}
-dmg=${default_feature:-yes}
-qcow1=${default_feature:-yes}
-vdi=${default_feature:-yes}
-vvfat=${default_feature:-yes}
-qed=${default_feature:-yes}
-parallels=${default_feature:-yes}
 debug_mutex="no"
 plugins="$default_feature"
 rng_none="no"
@@ -1044,38 +1036,6 @@ for opt do
   ;;
   --enable-replication) replication="yes"
   ;;
-  --disable-bochs) bochs="no"
-  ;;
-  --enable-bochs) bochs="yes"
-  ;;
-  --disable-cloop) cloop="no"
-  ;;
-  --enable-cloop) cloop="yes"
-  ;;
-  --disable-dmg) dmg="no"
-  ;;
-  --enable-dmg) dmg="yes"
-  ;;
-  --disable-qcow1) qcow1="no"
-  ;;
-  --enable-qcow1) qcow1="yes"
-  ;;
-  --disable-vdi) vdi="no"
-  ;;
-  --enable-vdi) vdi="yes"
-  ;;
-  --disable-vvfat) vvfat="no"
-  ;;
-  --enable-vvfat) vvfat="yes"
-  ;;
-  --disable-qed) qed="no"
-  ;;
-  --enable-qed) qed="yes"
-  ;;
-  --disable-parallels) parallels="no"
-  ;;
-  --enable-parallels) parallels="yes"
-  ;;
   --disable-vhost-user) vhost_user="no"
   ;;
   --enable-vhost-user) vhost_user="yes"
@@ -1375,14 +1335,6 @@ cat << EOF
   opengl          opengl support
   qom-cast-debug  cast debugging support
   tools           build qemu-io, qemu-nbd and qemu-img tools
-  bochs           bochs image format support
-  cloop           cloop image format support
-  dmg             dmg image format support
-  qcow1           qcow v1 image format support
-  vdi             vdi image format support
-  vvfat           vvfat image format support
-  qed             qed image format support
-  parallels       parallels image format support
   debug-mutex     mutex debugging support
   rng-none        dummy RNG, avoid using /dev/(u)random and getrandom()
   gio             libgio support
@@ -3262,31 +3214,6 @@ fi
 
 if test "$debug_mutex" = "yes" ; then
   echo "CONFIG_DEBUG_MUTEX=y" >> $config_host_mak
-fi
-
-if test "$bochs" = "yes" ; then
-  echo "CONFIG_BOCHS=y" >> $config_host_mak
-fi
-if test "$cloop" = "yes" ; then
-  echo "CONFIG_CLOOP=y" >> $config_host_mak
-fi
-if test "$dmg" = "yes" ; then
-  echo "CONFIG_DMG=y" >> $config_host_mak
-fi
-if test "$qcow1" = "yes" ; then
-  echo "CONFIG_QCOW1=y" >> $config_host_mak
-fi
-if test "$vdi" = "yes" ; then
-  echo "CONFIG_VDI=y" >> $config_host_mak
-fi
-if test "$vvfat" = "yes" ; then
-  echo "CONFIG_VVFAT=y" >> $config_host_mak
-fi
-if test "$qed" = "yes" ; then
-  echo "CONFIG_QED=y" >> $config_host_mak
-fi
-if test "$parallels" = "yes" ; then
-  echo "CONFIG_PARALLELS=y" >> $config_host_mak
 fi
 
 if test "$plugins" = "yes" ; then
