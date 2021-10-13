@@ -112,7 +112,7 @@ if have_block
   if nettle.found() or gcrypt.found()
     tests += {'test-crypto-pbkdf': [io]}
   endif
-  if 'CONFIG_EPOLL_CREATE1' in config_host
+  if config_host_data.get('CONFIG_EPOLL_CREATE1')
     tests += {'test-fdmon-epoll': [testblock]}
   endif
 endif
