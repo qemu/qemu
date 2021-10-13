@@ -106,7 +106,7 @@ if have_block
   if 'CONFIG_POSIX' in config_host
     tests += {'test-image-locking': [testblock]}
   endif
-  if 'CONFIG_REPLICATION' in config_host
+  if config_host_data.get('CONFIG_REPLICATION')
     tests += {'test-replication': [testblock]}
   endif
   if nettle.found() or gcrypt.found()
