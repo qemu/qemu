@@ -17,7 +17,7 @@
 #include "qemu/thread.h"
 
 #if defined(CONFIG_SIGNALFD)
-#include <sys/syscall.h>
+#include <sys/signalfd.h>
 #endif
 
 struct sigfd_compat_info {
@@ -96,9 +96,8 @@ int qemu_signalfd(const sigset_t *mask)
 #if defined(CONFIG_SIGNALFD)
     int ret;
 
-    ret = syscall(SYS_signalfd, -1, mask, _NSIG / 8);
+    ret = signalfd(-1, mask, SFD_CLOEXEC);
     if (ret != -1) {
-        qemu_set_cloexec(ret);
         return ret;
     }
 #endif

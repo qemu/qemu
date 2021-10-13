@@ -150,13 +150,21 @@ check:
 ifeq ($(CONFIG_TOOLS)$(CONFIG_POSIX),yy)
 check: check-block
 export PYTHON
-check-block: $(SRC_PATH)/tests/check-block.sh qemu-img$(EXESUF) \
-		qemu-io$(EXESUF) qemu-nbd$(EXESUF) $(QEMU_IOTESTS_HELPERS-y) \
-		$(filter qemu-system-%, $(ninja-targets))
+
+ifneq ($(filter check check-block check-build, $(MAKECMDGOALS)),)
+ninja-cmd-goals += \
+	qemu-img$(EXESUF) \
+	qemu-io$(EXESUF) \
+	qemu-nbd$(EXESUF) \
+	storage-daemon/qemu-storage-daemon$(EXESUF) \
+	$(filter qemu-system-%, $(ninja-targets))
+endif
+
+check-block: $(SRC_PATH)/tests/check-block.sh run-ninja
 	@$<
 endif
 
-check-build: $(QEMU_IOTESTS_HELPERS-y)
+check-build: run-ninja
 
 check-clean:
 	rm -rf $(TESTS_VENV_DIR) $(TESTS_RESULTS_DIR)

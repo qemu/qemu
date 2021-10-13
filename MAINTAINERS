@@ -417,7 +417,10 @@ M: Paolo Bonzini <pbonzini@redhat.com>
 M: Marcelo Tosatti <mtosatti@redhat.com>
 L: kvm@vger.kernel.org
 S: Supported
+F: docs/amd-memory-encryption.txt
+F: docs/system/i386/sgx.rst
 F: target/i386/kvm/
+F: target/i386/sev*
 F: scripts/kvm/vmxcap
 
 Guest CPU Cores (other accelerators)
@@ -2502,6 +2505,7 @@ Memory API
 M: Paolo Bonzini <pbonzini@redhat.com>
 M: Peter Xu <peterx@redhat.com>
 M: David Hildenbrand <david@redhat.com>
+R: Philippe Mathieu-Daudé <philmd@redhat.com>
 S: Supported
 F: include/exec/ioport.h
 F: include/exec/memop.h

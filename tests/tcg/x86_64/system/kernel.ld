@@ -16,7 +16,10 @@ SECTIONS {
 		*(.rodata)
 	} :text
 
-        /* Keep build ID and PVH notes in same section */
+        /DISCARD/ : {
+                *(.note.gnu*)
+        }
+
         .notes :  {
                *(.note.*)
         } :note

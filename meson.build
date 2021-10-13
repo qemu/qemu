@@ -1420,10 +1420,9 @@ config_host_data.set('CONFIG_POSIX_MADVISE', cc.links(gnu_source_prefix + '''
   #include <stddef.h>
   int main(void) { return posix_madvise(NULL, 0, POSIX_MADV_DONTNEED); }'''))
 config_host_data.set('CONFIG_SIGNALFD', cc.links(gnu_source_prefix + '''
-  #include <unistd.h>
-  #include <sys/syscall.h>
-  #include <signal.h>
-  int main(void) { return syscall(SYS_signalfd, -1, NULL, _NSIG / 8); }'''))
+  #include <sys/signalfd.h>
+  #include <stddef.h>
+  int main(void) { return signalfd(-1, NULL, SFD_CLOEXEC); }'''))
 config_host_data.set('CONFIG_SPLICE', cc.links(gnu_source_prefix + '''
   #include <unistd.h>
   #include <fcntl.h>
@@ -2300,8 +2299,6 @@ subdir('plugins')
 subdir('bsd-user')
 subdir('linux-user')
 subdir('ebpf')
-
-common_ss.add(libbpf)
 
 bsd_user_ss.add(files('gdbstub.c'))
 specific_ss.add_all(when: 'CONFIG_BSD_USER', if_true: bsd_user_ss)

@@ -15,9 +15,11 @@
 #include "hw/i386/sgx-epc.h"
 #include "hw/mem/memory-device.h"
 #include "monitor/qdev.h"
+#include "monitor/monitor.h"
+#include "monitor/hmp-target.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-misc-target.h"
 #include "exec/address-spaces.h"
-#include "hw/i386/sgx.h"
 #include "sysemu/hw_accel.h"
 
 #define SGX_MAX_EPC_SECTIONS            8
@@ -57,7 +59,7 @@ static uint64_t sgx_calc_host_epc_section_size(void)
     return size;
 }
 
-SGXInfo *sgx_get_capabilities(Error **errp)
+SGXInfo *qmp_query_sgx_capabilities(Error **errp)
 {
     SGXInfo *info = NULL;
     uint32_t eax, ebx, ecx, edx;
@@ -85,7 +87,7 @@ SGXInfo *sgx_get_capabilities(Error **errp)
     return info;
 }
 
-SGXInfo *sgx_get_info(Error **errp)
+SGXInfo *qmp_query_sgx(Error **errp)
 {
     SGXInfo *info = NULL;
     X86MachineState *x86ms;
@@ -115,13 +117,34 @@ SGXInfo *sgx_get_info(Error **errp)
     return info;
 }
 
-int sgx_epc_get_section(int section_nr, uint64_t *addr, uint64_t *size)
+void hmp_info_sgx(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    g_autoptr(SGXInfo) info = qmp_query_sgx(&err);
+
+    if (err) {
+        error_report_err(err);
+        return;
+    }
+    monitor_printf(mon, "SGX support: %s\n",
+                   info->sgx ? "enabled" : "disabled");
+    monitor_printf(mon, "SGX1 support: %s\n",
+                   info->sgx1 ? "enabled" : "disabled");
+    monitor_printf(mon, "SGX2 support: %s\n",
+                   info->sgx2 ? "enabled" : "disabled");
+    monitor_printf(mon, "FLC support: %s\n",
+                   info->flc ? "enabled" : "disabled");
+    monitor_printf(mon, "size: %" PRIu64 "\n",
+                   info->section_size);
+}
+
+bool sgx_epc_get_section(int section_nr, uint64_t *addr, uint64_t *size)
 {
     PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
     SGXEPCDevice *epc;
 
     if (pcms->sgx_epc.size == 0 || pcms->sgx_epc.nr_sections <= section_nr) {
-        return 1;
+        return true;
     }
 
     epc = pcms->sgx_epc.sections[section_nr];
@@ -129,7 +152,7 @@ int sgx_epc_get_section(int section_nr, uint64_t *addr, uint64_t *size)
     *addr = epc->addr;
     *size = memory_device_get_region_size(MEMORY_DEVICE(epc), &error_fatal);
 
-    return 0;
+    return false;
 }
 
 void pc_machine_init_sgx_epc(PCMachineState *pcms)
