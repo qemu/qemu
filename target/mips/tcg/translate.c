@@ -13796,8 +13796,7 @@ static void gen_mipsdsp_accinsn(DisasContext *ctx, uint32_t op1, uint32_t op2,
             break;
         case OPC_DEXTRV_S_H:
             tcg_gen_movi_tl(t0, v2);
-            tcg_gen_movi_tl(t1, v1);
-            gen_helper_dextr_s_h(cpu_gpr[ret], t0, t1, cpu_env);
+            gen_helper_dextr_s_h(cpu_gpr[ret], t0, v1_t, cpu_env);
             break;
         case OPC_DEXTRV_L:
             tcg_gen_movi_tl(t0, v2);
