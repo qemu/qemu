@@ -246,8 +246,12 @@ option('block_drv_whitelist_in_tools', type: 'boolean', value: false,
        description: 'use block whitelist also in tools instead of only QEMU')
 option('rng_none', type: 'boolean', value: false,
        description: 'dummy RNG, avoid using /dev/(u)random and getrandom()')
+option('coroutine_pool', type: 'boolean', value: true,
+       description: 'coroutine freelist (better performance)')
 option('debug_mutex', type: 'boolean', value: false,
        description: 'mutex debugging support')
+option('debug_stack_usage', type: 'boolean', value: false,
+       description: 'measure coroutine stack usage')
 option('qom_cast_debug', type: 'boolean', value: false,
        description: 'cast debugging support')
 option('gprof', type: 'boolean', value: false,
