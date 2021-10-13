@@ -1,4 +1,4 @@
-if have_tools and targetos != 'windows'
+if have_tools and targetos != 'windows' and not get_option('gprof')
   qemu_iotests_binaries = [qemu_img, qemu_io, qemu_nbd, qsd]
   qemu_iotests_env = {'PYTHON': python.full_path()}
   qemu_iotests_formats = {

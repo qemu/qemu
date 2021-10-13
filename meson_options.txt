@@ -242,3 +242,15 @@ option('qed', type: 'feature', value: 'auto',
        description: 'qed image format support')
 option('parallels', type: 'feature', value: 'auto',
        description: 'parallels image format support')
+option('block_drv_whitelist_in_tools', type: 'boolean', value: false,
+       description: 'use block whitelist also in tools instead of only QEMU')
+option('rng_none', type: 'boolean', value: false,
+       description: 'dummy RNG, avoid using /dev/(u)random and getrandom()')
+option('debug_mutex', type: 'boolean', value: false,
+       description: 'mutex debugging support')
+option('qom_cast_debug', type: 'boolean', value: false,
+       description: 'cast debugging support')
+option('gprof', type: 'boolean', value: false,
+       description: 'QEMU profiling with gprof')
+option('profiler', type: 'boolean', value: false,
+       description: 'profiler support')

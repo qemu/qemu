@@ -238,7 +238,6 @@ cross_prefix=""
 audio_drv_list="default"
 block_drv_rw_whitelist=""
 block_drv_ro_whitelist=""
-block_drv_whitelist_tools="no"
 host_cc="cc"
 debug_info="yes"
 lto="false"
@@ -299,7 +298,6 @@ vhost_user_fs="$default_feature"
 vhost_vdpa="$default_feature"
 rdma="$default_feature"
 pvrdma="$default_feature"
-gprof="no"
 debug_tcg="no"
 debug="no"
 sanitizers="no"
@@ -311,13 +309,11 @@ modules="no"
 module_upgrades="no"
 prefix="/usr/local"
 qemu_suffix="qemu"
-profiler="no"
 softmmu="yes"
 linux_user=""
 bsd_user=""
 pkgversion=""
 pie=""
-qom_cast_debug="yes"
 trace_backends="log"
 trace_file="trace"
 opengl="$default_feature"
@@ -329,9 +325,7 @@ coroutine=""
 coroutine_pool="$default_feature"
 debug_stack_usage="no"
 tls_priority="NORMAL"
-debug_mutex="no"
 plugins="$default_feature"
-rng_none="no"
 secret_keyring="$default_feature"
 meson=""
 meson_args=""
@@ -806,8 +800,6 @@ for opt do
   ;;
   --without-default-features) # processed above
   ;;
-  --enable-gprof) gprof="yes"
-  ;;
   --enable-gcov) gcov="yes"
   ;;
   --static)
@@ -848,19 +840,11 @@ for opt do
     # configure to be used by RPM and similar macros that set
     # lots of directory switches by default.
   ;;
-  --disable-qom-cast-debug) qom_cast_debug="no"
-  ;;
-  --enable-qom-cast-debug) qom_cast_debug="yes"
-  ;;
   --audio-drv-list=*) audio_drv_list="$optarg"
   ;;
   --block-drv-rw-whitelist=*|--block-drv-whitelist=*) block_drv_rw_whitelist=$(echo "$optarg" | sed -e 's/,/ /g')
   ;;
   --block-drv-ro-whitelist=*) block_drv_ro_whitelist=$(echo "$optarg" | sed -e 's/,/ /g')
-  ;;
-  --enable-block-drv-whitelist-in-tools) block_drv_whitelist_tools="yes"
-  ;;
-  --disable-block-drv-whitelist-in-tools) block_drv_whitelist_tools="no"
   ;;
   --enable-debug-tcg) debug_tcg="yes"
   ;;
@@ -869,7 +853,7 @@ for opt do
   --enable-debug)
       # Enable debugging options that aren't excessively noisy
       debug_tcg="yes"
-      debug_mutex="yes"
+      meson_option_parse --enable-debug-mutex ""
       debug="yes"
       fortify_source="no"
   ;;
@@ -897,8 +881,6 @@ for opt do
                  plugins="no"
   ;;
   --enable-tcg) tcg="enabled"
-  ;;
-  --enable-profiler) profiler="yes"
   ;;
   --disable-system) softmmu="no"
   ;;
@@ -1051,10 +1033,6 @@ for opt do
   --with-git-submodules=*)
       git_submodules_action="$optarg"
   ;;
-  --enable-debug-mutex) debug_mutex=yes
-  ;;
-  --disable-debug-mutex) debug_mutex=no
-  ;;
   --enable-plugins) if test "$mingw32" = "yes"; then
                         error_exit "TCG plugins not currently supported on Windows platforms"
                     else
@@ -1068,10 +1046,6 @@ for opt do
   --disable-containers) use_containers="no"
   ;;
   --gdb=*) gdb_bin="$optarg"
-  ;;
-  --enable-rng-none) rng_none=yes
-  ;;
-  --disable-rng-none) rng_none=no
   ;;
   --enable-keyring) secret_keyring="yes"
   ;;
@@ -1275,8 +1249,6 @@ Advanced options (experts only):
   --block-drv-ro-whitelist=L
                            set block driver read-only whitelist
                            (by default affects only QEMU, not tools like qemu-img)
-  --enable-block-drv-whitelist-in-tools
-                           use block whitelist also in tools instead of only QEMU
   --with-trace-file=NAME   Full PATH,NAME of file to store traces
                            Default:trace-<pid>
   --cpu=CPU                Build for host CPU [$cpu]
@@ -1286,8 +1258,6 @@ Advanced options (experts only):
   --with-vss-sdk=SDK-path  enable Windows VSS support in QEMU Guest Agent
   --with-win-sdk=SDK-path  path to Windows Platform SDK (to build VSS .tlb)
   --tls-priority           default TLS protocol/cipher priority string
-  --enable-gprof           QEMU profiling with gprof
-  --enable-profiler        profiler support
   --enable-debug-stack-usage
                            track the maximum stack usage of stacks created by qemu_alloc_stack
   --enable-plugins
@@ -1321,10 +1291,7 @@ cat << EOF
   vhost-vdpa      vhost-vdpa kernel backend support
   coroutine-pool  coroutine freelist (better performance)
   opengl          opengl support
-  qom-cast-debug  cast debugging support
   tools           build qemu-io, qemu-nbd and qemu-img tools
-  debug-mutex     mutex debugging support
-  rng-none        dummy RNG, avoid using /dev/(u)random and getrandom()
   gio             libgio support
   slirp-smbd      use smbd (at path --smbd=*) in slirp networking
 
@@ -2848,11 +2815,6 @@ alpha)
 ;;
 esac
 
-if test "$gprof" = "yes" ; then
-  QEMU_CFLAGS="-p $QEMU_CFLAGS"
-  QEMU_LDFLAGS="-p $QEMU_LDFLAGS"
-fi
-
 if test "$have_asan" = "yes"; then
   QEMU_CFLAGS="-fsanitize=address $QEMU_CFLAGS"
   QEMU_LDFLAGS="-fsanitize=address $QEMU_LDFLAGS"
@@ -3047,9 +3009,6 @@ fi
 if test "$static" = "yes" ; then
   echo "CONFIG_STATIC=y" >> $config_host_mak
 fi
-if test "$profiler" = "yes" ; then
-  echo "CONFIG_PROFILER=y" >> $config_host_mak
-fi
 if test "$want_tools" = "yes" ; then
   echo "CONFIG_TOOLS=y" >> $config_host_mak
 fi
@@ -3060,14 +3019,8 @@ if test "$slirp_smbd" = "yes" ; then
   echo "CONFIG_SLIRP_SMBD=y" >> $config_host_mak
   echo "CONFIG_SMBD_COMMAND=\"$smbd\"" >> $config_host_mak
 fi
-if test "$gprof" = "yes" ; then
-  echo "CONFIG_GPROF=y" >> $config_host_mak
-fi
 echo "CONFIG_BDRV_RW_WHITELIST=$block_drv_rw_whitelist" >> $config_host_mak
 echo "CONFIG_BDRV_RO_WHITELIST=$block_drv_ro_whitelist" >> $config_host_mak
-if test "$block_drv_whitelist_tools" = "yes" ; then
-  echo "CONFIG_BDRV_WHITELIST_TOOLS=y" >> $config_host_mak
-fi
 qemu_version=$(head $source_path/VERSION)
 echo "PKGVERSION=$pkgversion" >>$config_host_mak
 echo "SRC_PATH=$source_path" >> $config_host_mak
@@ -3148,10 +3101,6 @@ if [ "$bsd" = "yes" ] ; then
   echo "CONFIG_BSD=y" >> $config_host_mak
 fi
 
-if test "$qom_cast_debug" = "yes" ; then
-  echo "CONFIG_QOM_CAST_DEBUG=y" >> $config_host_mak
-fi
-
 echo "CONFIG_COROUTINE_BACKEND=$coroutine" >> $config_host_mak
 if test "$coroutine_pool" = "yes" ; then
   echo "CONFIG_COROUTINE_POOL=1" >> $config_host_mak
@@ -3190,10 +3139,6 @@ fi
 
 if test "$pvrdma" = "yes" ; then
   echo "CONFIG_PVRDMA=y" >> $config_host_mak
-fi
-
-if test "$debug_mutex" = "yes" ; then
-  echo "CONFIG_DEBUG_MUTEX=y" >> $config_host_mak
 fi
 
 if test "$plugins" = "yes" ; then
@@ -3238,10 +3183,6 @@ echo "QEMU_LDFLAGS=$QEMU_LDFLAGS" >> $config_host_mak
 echo "LD_I386_EMULATION=$ld_i386_emulation" >> $config_host_mak
 echo "STRIP=$strip" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
-
-if test "$rng_none" = "yes"; then
-  echo "CONFIG_RNG_NONE=y" >> $config_host_mak
-fi
 
 # use included Linux headers
 if test "$linux" = "yes" ; then

@@ -50,7 +50,7 @@ if gcrypt.found()
   util_ss.add(gcrypt, files('random-gcrypt.c'))
 elif gnutls.found()
   util_ss.add(gnutls, files('random-gnutls.c'))
-elif 'CONFIG_RNG_NONE' in config_host
+elif get_option('rng_none')
   util_ss.add(files('random-none.c'))
 else
   util_ss.add(files('random-platform.c'))
