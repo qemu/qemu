@@ -37,20 +37,36 @@ static Int128 vhost_vdpa_section_end(const MemoryRegionSection *section)
     return llend;
 }
 
-static bool vhost_vdpa_listener_skipped_section(MemoryRegionSection *section)
+static bool vhost_vdpa_listener_skipped_section(MemoryRegionSection *section,
+                                                uint64_t iova_min,
+                                                uint64_t iova_max)
 {
-    return (!memory_region_is_ram(section->mr) &&
-            !memory_region_is_iommu(section->mr)) ||
-            memory_region_is_protected(section->mr) ||
-           /* vhost-vDPA doesn't allow MMIO to be mapped  */
-            memory_region_is_ram_device(section->mr) ||
-           /*
-            * Sizing an enabled 64-bit BAR can cause spurious mappings to
-            * addresses in the upper part of the 64-bit address space.  These
-            * are never accessed by the CPU and beyond the address width of
-            * some IOMMU hardware.  TODO: VDPA should tell us the IOMMU width.
-            */
-           section->offset_within_address_space & (1ULL << 63);
+    Int128 llend;
+
+    if ((!memory_region_is_ram(section->mr) &&
+         !memory_region_is_iommu(section->mr)) ||
+        memory_region_is_protected(section->mr) ||
+        /* vhost-vDPA doesn't allow MMIO to be mapped  */
+        memory_region_is_ram_device(section->mr)) {
+        return true;
+    }
+
+    if (section->offset_within_address_space < iova_min) {
+        error_report("RAM section out of device range (min=0x%" PRIx64
+                     ", addr=0x%" HWADDR_PRIx ")",
+                     iova_min, section->offset_within_address_space);
+        return true;
+    }
+
+    llend = vhost_vdpa_section_end(section);
+    if (int128_gt(llend, int128_make64(iova_max))) {
+        error_report("RAM section out of device range (max=0x%" PRIx64
+                     ", end addr=0x%" PRIx64 ")",
+                     iova_max, int128_get64(llend));
+        return true;
+    }
+
+    return false;
 }
 
 static int vhost_vdpa_dma_map(struct vhost_vdpa *v, hwaddr iova, hwaddr size,
@@ -162,7 +178,8 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
     void *vaddr;
     int ret;
 
-    if (vhost_vdpa_listener_skipped_section(section)) {
+    if (vhost_vdpa_listener_skipped_section(section, v->iova_range.first,
+                                            v->iova_range.last)) {
         return;
     }
 
@@ -220,7 +237,8 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
     Int128 llend, llsize;
     int ret;
 
-    if (vhost_vdpa_listener_skipped_section(section)) {
+    if (vhost_vdpa_listener_skipped_section(section, v->iova_range.first,
+                                            v->iova_range.last)) {
         return;
     }
 
@@ -288,6 +306,19 @@ static void vhost_vdpa_add_status(struct vhost_dev *dev, uint8_t status)
     vhost_vdpa_call(dev, VHOST_VDPA_SET_STATUS, &s);
 }
 
+static void vhost_vdpa_get_iova_range(struct vhost_vdpa *v)
+{
+    int ret = vhost_vdpa_call(v->dev, VHOST_VDPA_GET_IOVA_RANGE,
+                              &v->iova_range);
+    if (ret != 0) {
+        v->iova_range.first = 0;
+        v->iova_range.last = UINT64_MAX;
+    }
+
+    trace_vhost_vdpa_get_iova_range(v->dev, v->iova_range.first,
+                                    v->iova_range.last);
+}
+
 static int vhost_vdpa_init(struct vhost_dev *dev, void *opaque, Error **errp)
 {
     struct vhost_vdpa *v;
@@ -300,6 +331,7 @@ static int vhost_vdpa_init(struct vhost_dev *dev, void *opaque, Error **errp)
     v->listener = vhost_vdpa_memory_listener;
     v->msg_type = VHOST_IOTLB_MSG_V2;
 
+    vhost_vdpa_get_iova_range(v);
     vhost_vdpa_add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE |
                                VIRTIO_CONFIG_S_DRIVER);
 
