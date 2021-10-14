@@ -194,7 +194,10 @@ static void pegasos2_init(MachineState *machine)
         if (!pm->vof) {
             warn_report("Option -kernel may be ineffective with -bios.");
         }
+    } else if (pm->vof) {
+        warn_report("Using Virtual OpenFirmware but no -kernel option.");
     }
+
     if (!pm->vof && machine->kernel_cmdline && machine->kernel_cmdline[0]) {
         warn_report("Option -append may be ineffective with -bios.");
     }
