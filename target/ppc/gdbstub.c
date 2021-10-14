@@ -159,7 +159,7 @@ int ppc_cpu_gdb_read_register(CPUState *cs, GByteArray *buf, int n)
             gdb_get_regl(buf, env->ctr);
             break;
         case 69:
-            gdb_get_reg32(buf, env->xer);
+            gdb_get_reg32(buf, cpu_read_xer(env));
             break;
         case 70:
             gdb_get_reg32(buf, env->fpscr);
@@ -217,7 +217,7 @@ int ppc_cpu_gdb_read_register_apple(CPUState *cs, GByteArray *buf, int n)
             gdb_get_reg64(buf, env->ctr);
             break;
         case 69 + 32:
-            gdb_get_reg32(buf, env->xer);
+            gdb_get_reg32(buf, cpu_read_xer(env));
             break;
         case 70 + 32:
             gdb_get_reg64(buf, env->fpscr);
@@ -269,7 +269,7 @@ int ppc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
             env->ctr = ldtul_p(mem_buf);
             break;
         case 69:
-            env->xer = ldl_p(mem_buf);
+            cpu_write_xer(env, ldl_p(mem_buf));
             break;
         case 70:
             /* fpscr */
@@ -319,7 +319,7 @@ int ppc_cpu_gdb_write_register_apple(CPUState *cs, uint8_t *mem_buf, int n)
             env->ctr = ldq_p(mem_buf);
             break;
         case 69 + 32:
-            env->xer = ldl_p(mem_buf);
+            cpu_write_xer(env, ldl_p(mem_buf));
             break;
         case 70 + 32:
             /* fpscr */
