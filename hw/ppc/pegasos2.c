@@ -22,6 +22,7 @@
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/qdev-properties.h"
 #include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/fw-path-provider.h"
@@ -429,6 +430,16 @@ static target_ulong pegasos2_rtas(PowerPCCPU *cpu, Pegasos2MachineState *pm,
         qemu_log_mask(LOG_UNIMP, "%c", ldl_be_phys(as, args));
         stl_be_phys(as, rets, 0);
         return H_SUCCESS;
+    case RTAS_POWER_OFF:
+    {
+        if (nargs != 2 || nrets != 1) {
+            stl_be_phys(as, rets, -1);
+            return H_PARAMETER;
+        }
+        qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+        stl_be_phys(as, rets, 0);
+        return H_SUCCESS;
+    }
     default:
         qemu_log_mask(LOG_UNIMP, "Unknown RTAS token %u (args=%u, rets=%u)\n",
                       token, nargs, nrets);
