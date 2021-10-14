@@ -2412,7 +2412,7 @@ enum {
 /*****************************************************************************/
 
 #define is_isa300(ctx) (!!(ctx->insns_flags2 & PPC2_ISA300))
-target_ulong cpu_read_xer(CPUPPCState *env);
+target_ulong cpu_read_xer(const CPUPPCState *env);
 void cpu_write_xer(CPUPPCState *env, target_ulong xer);
 
 /*

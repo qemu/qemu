@@ -27,7 +27,7 @@
 #include "helper_regs.h"
 #include "sysemu/tcg.h"
 
-target_ulong cpu_read_xer(CPUPPCState *env)
+target_ulong cpu_read_xer(const CPUPPCState *env)
 {
     if (is_isa300(env)) {
         return env->xer | (env->so << XER_SO) |
