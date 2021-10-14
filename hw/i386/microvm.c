@@ -28,6 +28,7 @@
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 #include "acpi-microvm.h"
+#include "microvm-dt.h"
 
 #include "hw/loader.h"
 #include "hw/irq.h"
@@ -626,6 +627,7 @@ static void microvm_machine_done(Notifier *notifier, void *data)
                                             machine_done);
 
     acpi_setup_microvm(mms);
+    dt_setup_microvm(mms);
 }
 
 static void microvm_powerdown_req(Notifier *notifier, void *data)

@@ -575,7 +575,6 @@ build-without-default-features:
     CONFIGURE_ARGS:
       --without-default-features
       --disable-capstone
-      --disable-fdt
       --disable-pie
       --disable-qom-cast-debug
       --disable-slirp
