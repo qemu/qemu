@@ -247,6 +247,9 @@ def qemu_io_wrap_args(args: Sequence[str]) -> List[str]:
     else:
         return qemu_io_args + list(args)
 
+def qemu_io_popen(*args):
+    return qemu_tool_popen(qemu_io_wrap_args(args))
+
 def qemu_io(*args):
     '''Run qemu-io and return the stdout data'''
     return qemu_tool_pipe_and_status('qemu-io', qemu_io_wrap_args(args))[0]
