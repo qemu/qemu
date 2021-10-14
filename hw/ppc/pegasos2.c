@@ -205,56 +205,49 @@ static void pegasos2_init(MachineState *machine)
     }
 }
 
-static uint32_t pegasos2_pci_config_read(AddressSpace *as, int bus,
+static uint32_t pegasos2_mv_reg_read(Pegasos2MachineState *pm,
+                                     uint32_t addr, uint32_t len)
+{
+    MemoryRegion *r = sysbus_mmio_get_region(SYS_BUS_DEVICE(pm->mv), 0);
+    uint64_t val = 0xffffffffULL;
+    memory_region_dispatch_read(r, addr, &val, size_memop(len) | MO_LE,
+                                MEMTXATTRS_UNSPECIFIED);
+    return val;
+}
+
+static void pegasos2_mv_reg_write(Pegasos2MachineState *pm, uint32_t addr,
+                                  uint32_t len, uint32_t val)
+{
+    MemoryRegion *r = sysbus_mmio_get_region(SYS_BUS_DEVICE(pm->mv), 0);
+    memory_region_dispatch_write(r, addr, val, size_memop(len) | MO_LE,
+                                 MEMTXATTRS_UNSPECIFIED);
+}
+
+static uint32_t pegasos2_pci_config_read(Pegasos2MachineState *pm, int bus,
                                          uint32_t addr, uint32_t len)
 {
-    hwaddr pcicfg = (bus ? 0xf1000c78 : 0xf1000cf8);
-    uint32_t val = 0xffffffff;
+    hwaddr pcicfg = bus ? 0xc78 : 0xcf8;
+    uint64_t val = 0xffffffffULL;
 
-    stl_le_phys(as, pcicfg, addr | BIT(31));
-    switch (len) {
-    case 4:
-        val = ldl_le_phys(as, pcicfg + 4);
-        break;
-    case 2:
-        val = lduw_le_phys(as, pcicfg + 4);
-        break;
-    case 1:
-        val = ldub_phys(as, pcicfg + 4);
-        break;
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid length\n", __func__);
-        break;
+    if (len <= 4) {
+        pegasos2_mv_reg_write(pm, pcicfg, 4, addr | BIT(31));
+        val = pegasos2_mv_reg_read(pm, pcicfg + 4, len);
     }
     return val;
 }
 
-static void pegasos2_pci_config_write(AddressSpace *as, int bus, uint32_t addr,
-                                      uint32_t len, uint32_t val)
+static void pegasos2_pci_config_write(Pegasos2MachineState *pm, int bus,
+                                      uint32_t addr, uint32_t len, uint32_t val)
 {
-    hwaddr pcicfg = (bus ? 0xf1000c78 : 0xf1000cf8);
+    hwaddr pcicfg = bus ? 0xc78 : 0xcf8;
 
-    stl_le_phys(as, pcicfg, addr | BIT(31));
-    switch (len) {
-    case 4:
-        stl_le_phys(as, pcicfg + 4, val);
-        break;
-    case 2:
-        stw_le_phys(as, pcicfg + 4, val);
-        break;
-    case 1:
-        stb_phys(as, pcicfg + 4, val);
-        break;
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid length\n", __func__);
-        break;
-    }
+    pegasos2_mv_reg_write(pm, pcicfg, 4, addr | BIT(31));
+    pegasos2_mv_reg_write(pm, pcicfg + 4, len, val);
 }
 
 static void pegasos2_machine_reset(MachineState *machine)
 {
     Pegasos2MachineState *pm = PEGASOS2_MACHINE(machine);
-    AddressSpace *as = CPU(pm->cpu)->as;
     void *fdt;
     uint64_t d[2];
     int sz;
@@ -265,51 +258,51 @@ static void pegasos2_machine_reset(MachineState *machine)
     }
 
     /* Otherwise, set up devices that board firmware would normally do */
-    stl_le_phys(as, 0xf1000000, 0x28020ff);
-    stl_le_phys(as, 0xf1000278, 0xa31fc);
-    stl_le_phys(as, 0xf100f300, 0x11ff0400);
-    stl_le_phys(as, 0xf100f10c, 0x80000000);
-    stl_le_phys(as, 0xf100001c, 0x8000000);
-    pegasos2_pci_config_write(as, 0, PCI_COMMAND, 2, PCI_COMMAND_IO |
+    pegasos2_mv_reg_write(pm, 0, 4, 0x28020ff);
+    pegasos2_mv_reg_write(pm, 0x278, 4, 0xa31fc);
+    pegasos2_mv_reg_write(pm, 0xf300, 4, 0x11ff0400);
+    pegasos2_mv_reg_write(pm, 0xf10c, 4, 0x80000000);
+    pegasos2_mv_reg_write(pm, 0x1c, 4, 0x8000000);
+    pegasos2_pci_config_write(pm, 0, PCI_COMMAND, 2, PCI_COMMAND_IO |
                               PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
-    pegasos2_pci_config_write(as, 1, PCI_COMMAND, 2, PCI_COMMAND_IO |
+    pegasos2_pci_config_write(pm, 1, PCI_COMMAND, 2, PCI_COMMAND_IO |
                               PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
 
-    pegasos2_pci_config_write(as, 1, (PCI_DEVFN(12, 0) << 8) |
+    pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 0) << 8) |
                               PCI_INTERRUPT_LINE, 2, 0x9);
-    pegasos2_pci_config_write(as, 1, (PCI_DEVFN(12, 0) << 8) |
+    pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 0) << 8) |
                               0x50, 1, 0x2);
 
-    pegasos2_pci_config_write(as, 1, (PCI_DEVFN(12, 1) << 8) |
+    pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 1) << 8) |
                               PCI_INTERRUPT_LINE, 2, 0x109);
-    pegasos2_pci_config_write(as, 1, (PCI_DEVFN(12, 1) << 8) |
+    pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 1) << 8) |
                               PCI_CLASS_PROG, 1, 0xf);
-    pegasos2_pci_config_write(as, 1, (PCI_DEVFN(12, 1) << 8) |
+    pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 1) << 8) |
                               0x40, 1, 0xb);
-    pegasos2_pci_config_write(as, 1, (PCI_DEVFN(12, 1) << 8) |
+    pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 1) << 8) |
                               0x50, 4, 0x17171717);
-    pegasos2_pci_config_write(as, 1, (PCI_DEVFN(12, 1) << 8) |
+    pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 1) << 8) |
                               PCI_COMMAND, 2, 0x87);
 
-    pegasos2_pci_config_write(as, 1, (PCI_DEVFN(12, 2) << 8) |
+    pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 2) << 8) |
                               PCI_INTERRUPT_LINE, 2, 0x409);
 
-    pegasos2_pci_config_write(as, 1, (PCI_DEVFN(12, 3) << 8) |
+    pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 3) << 8) |
                               PCI_INTERRUPT_LINE, 2, 0x409);
 
-    pegasos2_pci_config_write(as, 1, (PCI_DEVFN(12, 4) << 8) |
+    pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 4) << 8) |
                               PCI_INTERRUPT_LINE, 2, 0x9);
-    pegasos2_pci_config_write(as, 1, (PCI_DEVFN(12, 4) << 8) |
+    pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 4) << 8) |
                               0x48, 4, 0xf00);
-    pegasos2_pci_config_write(as, 1, (PCI_DEVFN(12, 4) << 8) |
+    pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 4) << 8) |
                               0x40, 4, 0x558020);
-    pegasos2_pci_config_write(as, 1, (PCI_DEVFN(12, 4) << 8) |
+    pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 4) << 8) |
                               0x90, 4, 0xd00);
 
-    pegasos2_pci_config_write(as, 1, (PCI_DEVFN(12, 5) << 8) |
+    pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 5) << 8) |
                               PCI_INTERRUPT_LINE, 2, 0x309);
 
-    pegasos2_pci_config_write(as, 1, (PCI_DEVFN(12, 6) << 8) |
+    pegasos2_pci_config_write(pm, 1, (PCI_DEVFN(12, 6) << 8) |
                               PCI_INTERRUPT_LINE, 2, 0x309);
 
     /* Device tree and VOF set up */
@@ -404,7 +397,7 @@ static target_ulong pegasos2_rtas(PowerPCCPU *cpu, Pegasos2MachineState *pm,
         }
         addr = ldl_be_phys(as, args);
         len = ldl_be_phys(as, args + 4);
-        val = pegasos2_pci_config_read(as, !(addr >> 24),
+        val = pegasos2_pci_config_read(pm, !(addr >> 24),
                                        addr & 0x0fffffff, len);
         stl_be_phys(as, rets, 0);
         stl_be_phys(as, rets + 4, val);
@@ -421,7 +414,7 @@ static target_ulong pegasos2_rtas(PowerPCCPU *cpu, Pegasos2MachineState *pm,
         addr = ldl_be_phys(as, args);
         len = ldl_be_phys(as, args + 4);
         val = ldl_be_phys(as, args + 8);
-        pegasos2_pci_config_write(as, !(addr >> 24),
+        pegasos2_pci_config_write(pm, !(addr >> 24),
                                   addr & 0x0fffffff, len, val);
         stl_be_phys(as, rets, 0);
         return H_SUCCESS;
