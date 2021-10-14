@@ -117,6 +117,10 @@ static void pegasos2_init(MachineState *machine)
     qemu_register_reset(pegasos2_cpu_reset, pm->cpu);
 
     /* RAM */
+    if (machine->ram_size > 2 * GiB) {
+        error_report("RAM size more than 2 GiB is not supported");
+        exit(1);
+    }
     memory_region_add_subregion(get_system_memory(), 0, machine->ram);
 
     /* allocate and load firmware */
