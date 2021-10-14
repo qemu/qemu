@@ -988,6 +988,13 @@ static int fv_create_listen_socket(struct fuse_session *se)
                          "vhost socket failed to set group to %s (%d): %m\n",
                          se->vu_socket_group, g->gr_gid);
             }
+        } else {
+            fuse_log(FUSE_LOG_ERR,
+                     "vhost socket: unable to find group '%s'\n",
+                     se->vu_socket_group);
+            close(listen_sock);
+            umask(old_umask);
+            return -1;
         }
     }
     umask(old_umask);
