@@ -7,23 +7,22 @@ softmmu_ss.add(files(
   'wavcapture.c',
 ))
 
-softmmu_ss.add(when: [coreaudio, 'CONFIG_AUDIO_COREAUDIO'], if_true: files('coreaudio.c'))
-softmmu_ss.add(when: [dsound, 'CONFIG_AUDIO_DSOUND'], if_true: files('dsoundaudio.c'))
-softmmu_ss.add(when: ['CONFIG_AUDIO_WIN_INT'], if_true: files('audio_win_int.c'))
+softmmu_ss.add(when: coreaudio, if_true: files('coreaudio.c'))
+softmmu_ss.add(when: dsound, if_true: files('dsoundaudio.c', 'audio_win_int.c'))
 
 audio_modules = {}
 foreach m : [
-  ['CONFIG_AUDIO_ALSA', 'alsa', alsa, 'alsaaudio.c'],
-  ['CONFIG_AUDIO_OSS', 'oss', oss, 'ossaudio.c'],
-  ['CONFIG_AUDIO_PA', 'pa', pulse, 'paaudio.c'],
-  ['CONFIG_AUDIO_SDL', 'sdl', sdl, 'sdlaudio.c'],
-  ['CONFIG_AUDIO_JACK', 'jack', jack, 'jackaudio.c'],
-  ['CONFIG_SPICE', 'spice', spice, 'spiceaudio.c']
+  ['alsa', alsa, files('alsaaudio.c')],
+  ['oss', oss, files('ossaudio.c')],
+  ['pa', pulse, files('paaudio.c')],
+  ['sdl', sdl, files('sdlaudio.c')],
+  ['jack', jack, files('jackaudio.c')],
+  ['spice', spice, files('spiceaudio.c')]
 ]
-  if config_host.has_key(m[0])
+  if m[1].found()
     module_ss = ss.source_set()
-    module_ss.add(when: m[2], if_true: files(m[3]))
-    audio_modules += {m[1] : module_ss}
+    module_ss.add(m[1], m[2])
+    audio_modules += {m[0] : module_ss}
   endif
 endforeach
 

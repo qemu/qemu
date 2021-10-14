@@ -1,3 +1,7 @@
+# These options do not correspond to a --enable/--disable-* option
+# on the configure script command line.  If you add more, list them in
+# scripts/meson-buildoptions.py's SKIP_OPTIONS constant too.
+
 option('qemu_suffix', type : 'string', value: 'qemu',
        description: 'Suffix for QEMU data/modules/config directories (can be empty)')
 option('docdir', type : 'string', value : 'doc',
@@ -6,11 +10,24 @@ option('qemu_firmwarepath', type : 'string', value : '',
        description: 'search PATH for firmware files')
 option('sphinx_build', type : 'string', value : '',
        description: 'Use specified sphinx-build [$sphinx_build] for building document (default to be empty)')
-
 option('default_devices', type : 'boolean', value : true,
        description: 'Include a default selection of devices in emulators')
+option('audio_drv_list', type: 'array', value: ['default'],
+       choices: ['alsa', 'coreaudio', 'default', 'dsound', 'jack', 'oss', 'pa', 'sdl'],
+       description: 'Set audio driver list')
+option('fuzzing_engine', type : 'string', value : '',
+       description: 'fuzzing engine library for OSS-Fuzz')
+option('trace_file', type: 'string', value: 'trace',
+       description: 'Trace file prefix for simple backend')
+
+# Everything else can be set via --enable/--disable-* option
+# on the configure script command line.  After adding an option
+# here make sure to run "make update-buildoptions".
+
 option('docs', type : 'feature', value : 'auto',
        description: 'Documentations build support')
+option('fuzzing', type : 'boolean', value: false,
+       description: 'build fuzzing targets')
 option('gettext', type : 'feature', value : 'auto',
        description: 'Localization of the GTK+ user interface')
 option('install_blobs', type : 'boolean', value : true,
@@ -94,6 +111,8 @@ option('libusb', type : 'feature', value : 'auto',
        description: 'libusb support for USB passthrough')
 option('libxml2', type : 'feature', value : 'auto',
        description: 'libxml2 support for Parallels image format')
+option('linux_aio', type : 'feature', value : 'auto',
+       description: 'Linux AIO support')
 option('linux_io_uring', type : 'feature', value : 'auto',
        description: 'Linux io_uring support')
 option('lzfse', type : 'feature', value : 'auto',
@@ -114,10 +133,18 @@ option('smartcard', type : 'feature', value : 'auto',
        description: 'CA smartcard emulation support')
 option('snappy', type : 'feature', value : 'auto',
        description: 'snappy compression support')
+option('spice', type : 'feature', value : 'auto',
+       description: 'Spice server support')
+option('spice_protocol', type : 'feature', value : 'auto',
+       description: 'Spice protocol support')
 option('u2f', type : 'feature', value : 'auto',
        description: 'U2F emulation support')
 option('usb_redir', type : 'feature', value : 'auto',
        description: 'libusbredir support')
+option('netmap', type : 'feature', value : 'auto',
+       description: 'netmap network backend support')
+option('vde', type : 'feature', value : 'auto',
+       description: 'vde network backend support')
 option('virglrenderer', type : 'feature', value : 'auto',
        description: 'virgl rendering support')
 option('vnc', type : 'feature', value : 'auto',
@@ -138,6 +165,23 @@ option('fuse', type: 'feature', value: 'auto',
        description: 'FUSE block device export')
 option('fuse_lseek', type : 'feature', value : 'auto',
        description: 'SEEK_HOLE/SEEK_DATA support for FUSE exports')
+
+option('trace_backends', type: 'array', value: ['log'],
+       choices: ['dtrace', 'ftrace', 'log', 'nop', 'simple', 'syslog', 'ust'],
+       description: 'Set available tracing backends')
+
+option('alsa', type: 'feature', value: 'auto',
+       description: 'ALSA sound support')
+option('coreaudio', type: 'feature', value: 'auto',
+       description: 'CoreAudio sound support')
+option('dsound', type: 'feature', value: 'auto',
+       description: 'DirectSound sound support')
+option('jack', type: 'feature', value: 'auto',
+       description: 'JACK sound support')
+option('oss', type: 'feature', value: 'auto',
+       description: 'OSS sound support')
+option('pa', type: 'feature', value: 'auto',
+       description: 'PulseAudio sound support')
 
 option('vhost_user_blk_server', type: 'feature', value: 'auto',
        description: 'build vhost-user-blk server')

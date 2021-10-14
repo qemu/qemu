@@ -111,16 +111,59 @@ foreach target : edk2_targets
   endif
 endforeach
 
+dtrace = not_found
+stap = not_found
+if 'dtrace' in get_option('trace_backends')
+  dtrace = find_program('dtrace', required: true)
+  stap = find_program('stap', required: false)
+  if stap.found()
+    # Workaround to avoid dtrace(1) producing a file with 'hidden' symbol
+    # visibility. Define STAP_SDT_V2 to produce 'default' symbol visibility
+    # instead. QEMU --enable-modules depends on this because the SystemTap
+    # semaphores are linked into the main binary and not the module's shared
+    # object.
+    add_global_arguments('-DSTAP_SDT_V2',
+                         native: false, language: ['c', 'cpp', 'objc'])
+  endif
+endif
+
 ##################
 # Compiler flags #
 ##################
 
 # Specify linker-script with add_project_link_arguments so that it is not placed
 # within a linker --start-group/--end-group pair
-if 'CONFIG_FUZZ' in config_host
-   add_project_link_arguments(['-Wl,-T,',
-                               (meson.current_source_dir() / 'tests/qtest/fuzz/fork_fuzz.ld')],
+if get_option('fuzzing')
+  add_project_link_arguments(['-Wl,-T,',
+                              (meson.current_source_dir() / 'tests/qtest/fuzz/fork_fuzz.ld')],
+                             native: false, language: ['c', 'cpp', 'objc'])
+
+  # Specify a filter to only instrument code that is directly related to
+  # virtual-devices.
+  configure_file(output: 'instrumentation-filter',
+                 input: 'scripts/oss-fuzz/instrumentation-filter-template',
+                 copy: true)
+  add_global_arguments(
+      cc.get_supported_arguments('-fsanitize-coverage-allowlist=instrumentation-filter'),
+      native: false, language: ['c', 'cpp', 'objc'])
+
+  if get_option('fuzzing_engine') == ''
+    # Add CFLAGS to tell clang to add fuzzer-related instrumentation to all the
+    # compiled code.  To build non-fuzzer binaries with --enable-fuzzing, link
+    # everything with fsanitize=fuzzer-no-link. Otherwise, the linker will be
+    # unable to bind the fuzzer-related callbacks added by instrumentation.
+    add_global_arguments('-fsanitize=fuzzer-no-link',
+                         native: false, language: ['c', 'cpp', 'objc'])
+    add_global_link_arguments('-fsanitize=fuzzer-no-link',
                               native: false, language: ['c', 'cpp', 'objc'])
+    # For the actual fuzzer binaries, we need to link against the libfuzzer
+    # library. They need to be configurable, to support OSS-Fuzz
+    fuzz_exe_ldflags = ['-fsanitize=fuzzer']
+  else
+    # LIB_FUZZING_ENGINE was set; assume we are running on OSS-Fuzz, and
+    # the needed CFLAGS have already been provided
+    fuzz_exe_ldflags = get_option('fuzzing_engine').split()
+  endif
 endif
 
 add_global_arguments(config_host['QEMU_CFLAGS'].split(),
@@ -163,6 +206,30 @@ endif
 # Target-specific checks and dependencies #
 ###########################################
 
+if get_option('fuzzing') and get_option('fuzzing_engine') == '' and \
+    not cc.links('''
+          #include <stdint.h>
+          #include <sys/types.h>
+          int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size);
+          int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) { return 0; }
+        ''',
+        args: ['-Werror', '-fsanitize=fuzzer'])
+  error('Your compiler does not support -fsanitize=fuzzer')
+endif
+
+if 'ftrace' in get_option('trace_backends') and targetos != 'linux'
+  error('ftrace is supported only on Linux')
+endif
+if 'syslog' in get_option('trace_backends') and not cc.compiles('''
+    #include <syslog.h>
+    int main(void) {
+        openlog("qemu", LOG_PID, LOG_DAEMON);
+        syslog(LOG_INFO, "configure");
+        return 0;
+    }''')
+  error('syslog is not supported on this system')
+endif
+
 if targetos != 'linux' and get_option('mpath').enabled()
   error('Multipath is supported only on Linux')
 endif
@@ -183,6 +250,7 @@ iokit = []
 emulator_link_args = []
 nvmm =not_found
 hvf = not_found
+host_dsosuf = '.so'
 if targetos == 'windows'
   socket = cc.find_library('ws2_32')
   winmm = cc.find_library('winmm')
@@ -191,9 +259,11 @@ if targetos == 'windows'
   version_res = win.compile_resources('version.rc',
                                       depend_files: files('pc-bios/qemu-nsis.ico'),
                                       include_directories: include_directories('.'))
+  host_dsosuf = '.dll'
 elif targetos == 'darwin'
   coref = dependency('appleframeworks', modules: 'CoreFoundation')
   iokit = dependency('appleframeworks', modules: 'IOKit', required: false)
+  host_dsosuf = '.dylib'
 elif targetos == 'sunos'
   socket = [cc.find_library('socket'),
             cc.find_library('nsl'),
@@ -321,17 +391,23 @@ if 'CONFIG_GIO' in config_host
                            link_args: config_host['GIO_LIBS'].split())
 endif
 lttng = not_found
-if 'CONFIG_TRACE_UST' in config_host
-  lttng = declare_dependency(link_args: config_host['LTTNG_UST_LIBS'].split())
+if 'ust' in get_option('trace_backends')
+  lttng = dependency('lttng-ust', required: true, method: 'pkg-config',
+                     kwargs: static_kwargs)
 endif
 pixman = not_found
 if have_system or have_tools
   pixman = dependency('pixman-1', required: have_system, version:'>=0.21.8',
                       method: 'pkg-config', kwargs: static_kwargs)
 endif
-libaio = cc.find_library('aio', required: false)
 zlib = dependency('zlib', required: true, kwargs: static_kwargs)
 
+libaio = not_found
+if not get_option('linux_aio').auto() or have_block
+  libaio = cc.find_library('aio', has_headers: ['libaio.h'],
+                           required: get_option('linux_aio'),
+                           kwargs: static_kwargs)
+endif
 linux_io_uring = not_found
 if not get_option('linux_io_uring').auto() or have_block
   linux_io_uring = dependency('liburing', required: get_option('linux_io_uring'),
@@ -424,35 +500,60 @@ else
   xkbcommon = dependency('xkbcommon', required: get_option('xkbcommon'),
                          method: 'pkg-config', kwargs: static_kwargs)
 endif
+
 vde = not_found
-if config_host.has_key('CONFIG_VDE')
-  vde = declare_dependency(link_args: config_host['VDE_LIBS'].split())
+if not get_option('vde').auto() or have_system or have_tools
+  vde = cc.find_library('vdeplug', has_headers: ['libvdeplug.h'],
+                           required: get_option('vde'),
+                           kwargs: static_kwargs)
 endif
+if vde.found() and not cc.links('''
+   #include <libvdeplug.h>
+   int main(void)
+   {
+     struct vde_open_args a = {0, 0, 0};
+     char s[] = "";
+     vde_open(s, s, &a);
+     return 0;
+   }''', dependencies: vde)
+  vde = not_found
+  if get_option('cap_ng').enabled()
+    error('could not link libvdeplug')
+  else
+    warning('could not link libvdeplug, disabling')
+  endif
+endif
+
 pulse = not_found
-if 'CONFIG_LIBPULSE' in config_host
-  pulse = declare_dependency(compile_args: config_host['PULSE_CFLAGS'].split(),
-                             link_args: config_host['PULSE_LIBS'].split())
+if not get_option('pa').auto() or (targetos == 'linux' and have_system)
+  pulse = dependency('libpulse', required: get_option('pa'),
+                     method: 'pkg-config', kwargs: static_kwargs)
 endif
 alsa = not_found
-if 'CONFIG_ALSA' in config_host
-  alsa = declare_dependency(compile_args: config_host['ALSA_CFLAGS'].split(),
-                            link_args: config_host['ALSA_LIBS'].split())
+if not get_option('alsa').auto() or (targetos == 'linux' and have_system)
+  alsa = dependency('alsa', required: get_option('alsa'),
+                    method: 'pkg-config', kwargs: static_kwargs)
 endif
 jack = not_found
-if 'CONFIG_LIBJACK' in config_host
-  jack = declare_dependency(link_args: config_host['JACK_LIBS'].split())
+if not get_option('jack').auto() or have_system
+  jack = dependency('jack', required: get_option('jack'),
+                    method: 'pkg-config', kwargs: static_kwargs)
+endif
+
+spice_protocol = not_found
+if not get_option('spice_protocol').auto() or have_system
+  spice_protocol = dependency('spice-protocol', version: '>=0.12.3',
+                              required: get_option('spice_protocol'),
+                              method: 'pkg-config', kwargs: static_kwargs)
 endif
 spice = not_found
-spice_headers = not_found
-spice_protocol = not_found
-if 'CONFIG_SPICE' in config_host
-  spice = declare_dependency(compile_args: config_host['SPICE_CFLAGS'].split(),
-                             link_args: config_host['SPICE_LIBS'].split())
-  spice_headers = declare_dependency(compile_args: config_host['SPICE_CFLAGS'].split())
+if not get_option('spice').auto() or have_system
+  spice = dependency('spice-server', version: '>=0.12.5',
+                     required: get_option('spice'),
+                     method: 'pkg-config', kwargs: static_kwargs)
 endif
-if 'CONFIG_SPICE_PROTOCOL' in config_host
-  spice_protocol = declare_dependency(compile_args: config_host['SPICE_PROTOCOL_CFLAGS'].split())
-endif
+spice_headers = spice.partial_dependency(compile_args: true, includes: true)
+
 rt = cc.find_library('rt', required: false)
 libdl = not_found
 if 'CONFIG_PLUGIN' in config_host
@@ -801,16 +902,59 @@ if liblzfse.found() and not cc.links('''
 endif
 
 oss = not_found
-if 'CONFIG_AUDIO_OSS' in config_host
-  oss = declare_dependency(link_args: config_host['OSS_LIBS'].split())
+if not get_option('oss').auto() or have_system
+  if not cc.has_header('sys/soundcard.h')
+    # not found
+  elif targetos == 'netbsd'
+    oss = cc.find_library('ossaudio', required: get_option('oss'),
+                          kwargs: static_kwargs)
+  else
+    oss = declare_dependency()
+  endif
+
+  if not oss.found()
+    if get_option('oss').enabled()
+      error('OSS not found')
+    else
+      warning('OSS not found, disabling')
+    endif
+  endif
 endif
 dsound = not_found
-if 'CONFIG_AUDIO_DSOUND' in config_host
-  dsound = declare_dependency(link_args: config_host['DSOUND_LIBS'].split())
+if not get_option('dsound').auto() or (targetos == 'windows' and have_system)
+  if cc.has_header('dsound.h')
+    dsound = declare_dependency(link_args: ['-lole32', '-ldxguid'])
+  endif
+
+  if not dsound.found()
+    if get_option('dsound').enabled()
+      error('DirectSound not found')
+    else
+      warning('DirectSound not found, disabling')
+    endif
+  endif
 endif
+
 coreaudio = not_found
-if 'CONFIG_AUDIO_COREAUDIO' in config_host
-  coreaudio = declare_dependency(link_args: config_host['COREAUDIO_LIBS'].split())
+if not get_option('coreaudio').auto() or (targetos == 'darwin' and have_system)
+  coreaudio = dependency('appleframeworks', modules: 'CoreAudio',
+                         required: get_option('coreaudio'))
+  if coreaudio.found() and not cc.links('''
+    #include <CoreAudio/CoreAudio.h>
+    int main(void)
+    {
+      return (int)AudioGetCurrentHostTime();
+    }''')
+    coreaudio = not_found
+  endif
+
+  if not coreaudio.found()
+    if get_option('coreaudio').enabled()
+      error('CoreAudio not found')
+    else
+      warning('CoreAudio not found, disabling')
+    endif
+  endif
 endif
 
 opengl = not_found
@@ -1156,6 +1300,49 @@ if libbpf.found() and not cc.links('''
   endif
 endif
 
+#################
+# config-host.h #
+#################
+
+audio_drivers_selected = []
+if have_system
+  audio_drivers_available = {
+    'alsa': alsa.found(),
+    'coreaudio': coreaudio.found(),
+    'dsound': dsound.found(),
+    'jack': jack.found(),
+    'oss': oss.found(),
+    'pa': pulse.found(),
+    'sdl': sdl.found(),
+  }
+  foreach k, v: audio_drivers_available
+    config_host_data.set('CONFIG_AUDIO_' + k.to_upper(), v)
+  endforeach
+
+  # Default to native drivers first, OSS second, SDL third
+  audio_drivers_priority = \
+    [ 'pa', 'coreaudio', 'dsound', 'oss' ] + \
+    (targetos == 'linux' ? [] : [ 'sdl' ])
+  audio_drivers_default = []
+  foreach k: audio_drivers_priority
+    if audio_drivers_available[k]
+      audio_drivers_default += k
+    endif
+  endforeach
+
+  foreach k: get_option('audio_drv_list')
+    if k == 'default'
+      audio_drivers_selected += audio_drivers_default
+    elif not audio_drivers_available[k]
+      error('Audio driver "@0@" not available.'.format(k))
+    else
+      audio_drivers_selected += k
+    endif
+  endforeach
+endif
+config_host_data.set('CONFIG_AUDIO_DRIVERS',
+                     '"' + '", "'.join(audio_drivers_selected) + '", ')
+
 if get_option('cfi')
   cfi_flags=[]
   # Check for dependency on LTO
@@ -1199,10 +1386,6 @@ endif
 have_host_block_device = (targetos != 'darwin' or
     cc.has_header('IOKit/storage/IOMedia.h'))
 
-#################
-# config-host.h #
-#################
-
 have_virtfs = (targetos == 'linux' and
     have_system and
     libattr.found() and
@@ -1224,6 +1407,11 @@ elif get_option('virtfs').disabled()
   have_virtfs = false
 endif
 
+foreach k : get_option('trace_backends')
+  config_host_data.set('CONFIG_TRACE_' + k.to_upper(), true)
+endforeach
+config_host_data.set_quoted('CONFIG_TRACE_FILE', get_option('trace_file'))
+
 config_host_data.set_quoted('CONFIG_BINDIR', get_option('prefix') / get_option('bindir'))
 config_host_data.set_quoted('CONFIG_PREFIX', get_option('prefix'))
 config_host_data.set_quoted('CONFIG_QEMU_CONFDIR', get_option('prefix') / qemu_confdir)
@@ -1240,6 +1428,8 @@ config_host_data.set_quoted('CONFIG_SYSCONFDIR', get_option('prefix') / get_opti
 config_host_data.set('CONFIG_ATTR', libattr.found())
 config_host_data.set('CONFIG_BRLAPI', brlapi.found())
 config_host_data.set('CONFIG_COCOA', cocoa.found())
+config_host_data.set('CONFIG_FUZZ', get_option('fuzzing'))
+config_host_data.set('CONFIG_GCOV', get_option('b_coverage'))
 config_host_data.set('CONFIG_LIBUDEV', libudev.found())
 config_host_data.set('CONFIG_LZO', lzo.found())
 config_host_data.set('CONFIG_MPATH', mpathpersist.found())
@@ -1264,6 +1454,7 @@ config_host_data.set('CONFIG_EBPF', libbpf.found())
 config_host_data.set('CONFIG_LIBDAXCTL', libdaxctl.found())
 config_host_data.set('CONFIG_LIBISCSI', libiscsi.found())
 config_host_data.set('CONFIG_LIBNFS', libnfs.found())
+config_host_data.set('CONFIG_LINUX_AIO', libaio.found())
 config_host_data.set('CONFIG_LINUX_IO_URING', linux_io_uring.found())
 config_host_data.set('CONFIG_LIBPMEM', libpmem.found())
 config_host_data.set('CONFIG_RBD', rbd.found())
@@ -1272,6 +1463,7 @@ config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
 config_host_data.set('CONFIG_SECCOMP', seccomp.found())
 config_host_data.set('CONFIG_SNAPPY', snappy.found())
 config_host_data.set('CONFIG_USB_LIBUSB', libusb.found())
+config_host_data.set('CONFIG_VDE', vde.found())
 config_host_data.set('CONFIG_VHOST_USER_BLK_SERVER', have_vhost_user_blk_server)
 config_host_data.set('CONFIG_VNC', vnc.found())
 config_host_data.set('CONFIG_VNC_JPEG', jpeg.found())
@@ -1292,6 +1484,8 @@ config_host_data.set('CONFIG_STATX', has_statx)
 config_host_data.set('CONFIG_ZSTD', zstd.found())
 config_host_data.set('CONFIG_FUSE', fuse.found())
 config_host_data.set('CONFIG_FUSE_LSEEK', fuse_lseek.found())
+config_host_data.set('CONFIG_SPICE_PROTOCOL', spice_protocol.found())
+config_host_data.set('CONFIG_SPICE', spice.found())
 config_host_data.set('CONFIG_X11', x11.found())
 config_host_data.set('CONFIG_CFI', get_option('cfi'))
 config_host_data.set('QEMU_VERSION', '"@0@"'.format(meson.project_version()))
@@ -1299,7 +1493,9 @@ config_host_data.set('QEMU_VERSION_MAJOR', meson.project_version().split('.')[0]
 config_host_data.set('QEMU_VERSION_MINOR', meson.project_version().split('.')[1])
 config_host_data.set('QEMU_VERSION_MICRO', meson.project_version().split('.')[2])
 
+config_host_data.set_quoted('CONFIG_HOST_DSOSUF', host_dsosuf)
 config_host_data.set('HAVE_HOST_BLOCK_DEVICE', have_host_block_device)
+config_host_data.set('HOST_WORDS_BIGENDIAN', host_machine.endian() == 'big')
 
 # has_header
 config_host_data.set('CONFIG_EPOLL', cc.has_header('sys/epoll.h'))
@@ -1354,6 +1550,8 @@ config_host_data.set('CONFIG_INOTIFY',
                      cc.has_header_symbol('sys/inotify.h', 'inotify_init'))
 config_host_data.set('CONFIG_INOTIFY1',
                      cc.has_header_symbol('sys/inotify.h', 'inotify_init1'))
+config_host_data.set('CONFIG_IOVEC',
+                     cc.has_header_symbol('sys/uio.h', 'struct iovec'))
 config_host_data.set('CONFIG_MACHINE_BSWAP_H',
                      cc.has_header_symbol('machine/bswap.h', 'bswap32',
                                           prefix: '''#include <sys/endian.h>
@@ -1419,6 +1617,29 @@ config_host_data.set('CONFIG_POSIX_MADVISE', cc.links(gnu_source_prefix + '''
   #include <sys/mman.h>
   #include <stddef.h>
   int main(void) { return posix_madvise(NULL, 0, POSIX_MADV_DONTNEED); }'''))
+
+config_host_data.set('CONFIG_PTHREAD_SETNAME_NP_W_TID', cc.links('''
+  #include <pthread.h>
+
+  static void *f(void *p) { return NULL; }
+  int main(void)
+  {
+    pthread_t thread;
+    pthread_create(&thread, 0, f, 0);
+    pthread_setname_np(thread, "QEMU");
+    return 0;
+  }''', dependencies: threads))
+config_host_data.set('CONFIG_PTHREAD_SETNAME_NP_WO_TID', cc.links('''
+  #include <pthread.h>
+
+  static void *f(void *p) { pthread_setname_np("QEMU"); return NULL; }
+  int main(void)
+  {
+    pthread_t thread;
+    pthread_create(&thread, 0, f, 0);
+    return 0;
+  }''', dependencies: threads))
+
 config_host_data.set('CONFIG_SIGNALFD', cc.links(gnu_source_prefix + '''
   #include <sys/signalfd.h>
   #include <stddef.h>
@@ -1436,6 +1657,40 @@ config_host_data.set('CONFIG_SPLICE', cc.links(gnu_source_prefix + '''
     return 0;
   }'''))
 
+config_host_data.set('HAVE_MLOCKALL', cc.links(gnu_source_prefix + '''
+  #include <sys/mman.h>
+  int main(int argc, char *argv[]) {
+    return mlockall(MCL_FUTURE);
+  }'''))
+
+have_netmap = false
+if not get_option('netmap').disabled() and have_system
+  have_netmap = cc.compiles('''
+    #include <inttypes.h>
+    #include <net/if.h>
+    #include <net/netmap.h>
+    #include <net/netmap_user.h>
+    #if (NETMAP_API < 11) || (NETMAP_API > 15)
+    #error
+    #endif
+    int main(void) { return 0; }''')
+  if not have_netmap and get_option('netmap').enabled()
+    error('Netmap headers not available')
+  endif
+endif
+config_host_data.set('CONFIG_NETMAP', have_netmap)
+
+# Work around a system header bug with some kernel/XFS header
+# versions where they both try to define 'struct fsxattr':
+# xfs headers will not try to redefine structs from linux headers
+# if this macro is set.
+config_host_data.set('HAVE_FSXATTR', cc.links('''
+  #include <linux/fs.h>'
+  struct fsxattr foo;
+  int main(void) {
+    return 0;
+  }'''))
+
 # Some versions of Mac OS X incorrectly define SIZE_MAX
 config_host_data.set('HAVE_BROKEN_SIZE_MAX', not cc.compiles('''
     #include <stdint.h>
@@ -1444,10 +1699,52 @@ config_host_data.set('HAVE_BROKEN_SIZE_MAX', not cc.compiles('''
         return printf("%zu", SIZE_MAX);
     }''', args: ['-Werror']))
 
+# See if 64-bit atomic operations are supported.
+# Note that without __atomic builtins, we can only
+# assume atomic loads/stores max at pointer size.
+config_host_data.set('CONFIG_ATOMIC64', cc.links('''
+  #include <stdint.h>
+  int main(void)
+  {
+    uint64_t x = 0, y = 0;
+    y = __atomic_load_n(&x, __ATOMIC_RELAXED);
+    __atomic_store_n(&x, y, __ATOMIC_RELAXED);
+    __atomic_compare_exchange_n(&x, &y, x, 0, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+    __atomic_exchange_n(&x, y, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&x, y, __ATOMIC_RELAXED);
+    return 0;
+  }'''))
 
-ignored = ['CONFIG_QEMU_INTERP_PREFIX'] # actually per-target
-arrays = ['CONFIG_AUDIO_DRIVERS', 'CONFIG_BDRV_RW_WHITELIST', 'CONFIG_BDRV_RO_WHITELIST']
-strings = ['HOST_DSOSUF', 'CONFIG_IASL']
+config_host_data.set('CONFIG_GETAUXVAL', cc.links(gnu_source_prefix + '''
+  #include <sys/auxv.h>
+  int main(void) {
+    return getauxval(AT_HWCAP) == 0;
+  }'''))
+
+config_host_data.set('CONFIG_AF_VSOCK', cc.compiles(gnu_source_prefix + '''
+  #include <errno.h>
+  #include <sys/types.h>
+  #include <sys/socket.h>
+  #if !defined(AF_VSOCK)
+  # error missing AF_VSOCK flag
+  #endif
+  #include <linux/vm_sockets.h>
+  int main(void) {
+    int sock, ret;
+    struct sockaddr_vm svm;
+    socklen_t len = sizeof(svm);
+    sock = socket(AF_VSOCK, SOCK_STREAM, 0);
+    ret = getpeername(sock, (struct sockaddr *)&svm, &len);
+    if ((ret == -1) && (errno == ENOTCONN)) {
+        return 0;
+    }
+    return -1;
+  }'''))
+
+ignored = ['CONFIG_QEMU_INTERP_PREFIX', # actually per-target
+    'HAVE_GDB_BIN']
+arrays = ['CONFIG_BDRV_RW_WHITELIST', 'CONFIG_BDRV_RO_WHITELIST']
+strings = ['CONFIG_IASL']
 foreach k, v: config_host
   if ignored.contains(k)
     # do nothing
@@ -1459,11 +1756,8 @@ foreach k, v: config_host
   elif k == 'ARCH'
     config_host_data.set('HOST_' + v.to_upper(), 1)
   elif strings.contains(k)
-    if not k.startswith('CONFIG_')
-      k = 'CONFIG_' + k.to_upper()
-    endif
     config_host_data.set_quoted(k, v)
-  elif k.startswith('CONFIG_') or k.startswith('HAVE_') or k.startswith('HOST_')
+  elif k.startswith('CONFIG_')
     config_host_data.set(k, v == 'y' ? 1 : v)
   endif
 endforeach
@@ -1514,8 +1808,9 @@ endif
 
 have_ivshmem = config_host_data.get('CONFIG_EVENTFD')
 host_kconfig = \
+  (get_option('fuzzing') ? ['CONFIG_FUZZ=y'] : []) + \
   ('CONFIG_TPM' in config_host ? ['CONFIG_TPM=y'] : []) + \
-  ('CONFIG_SPICE' in config_host ? ['CONFIG_SPICE=y'] : []) + \
+  (spice.found() ? ['CONFIG_SPICE=y'] : []) + \
   (have_ivshmem ? ['CONFIG_IVSHMEM=y'] : []) + \
   ('CONFIG_OPENGL' in config_host ? ['CONFIG_OPENGL=y'] : []) + \
   (x11.found() ? ['CONFIG_X11=y'] : []) + \
@@ -1984,7 +2279,7 @@ qapi_gen_depends = [ meson.current_source_dir() / 'scripts/qapi/__init__.py',
 
 tracetool = [
   python, files('scripts/tracetool.py'),
-   '--backend=' + config_host['TRACE_BACKENDS']
+   '--backend=' + ','.join(get_option('trace_backends'))
 ]
 tracetool_depends = files(
   'scripts/tracetool/backend/log.py',
@@ -2638,7 +2933,7 @@ foreach target : target_dirs
         'dependencies': []
       }]
     endif
-    if config_host.has_key('CONFIG_FUZZ')
+    if get_option('fuzzing')
       specific_fuzz = specific_fuzz_ss.apply(config_target, strict: false)
       execs += [{
         'name': 'qemu-fuzz-' + target_name,
@@ -2701,7 +2996,7 @@ foreach target : target_dirs
       emulators += {exe['name']: emulator}
     endif
 
-    if 'CONFIG_TRACE_SYSTEMTAP' in config_host
+    if stap.found()
       foreach stp: [
         {'ext': '.stp-build', 'fmt': 'stap', 'bin': meson.current_build_dir() / exe['name'], 'install': false},
         {'ext': '.stp', 'fmt': 'stap', 'bin': get_option('prefix') / get_option('bindir') / exe['name'], 'install': true},
@@ -2878,13 +3173,13 @@ summary_info += {'module support':    config_host.has_key('CONFIG_MODULES')}
 if config_host.has_key('CONFIG_MODULES')
   summary_info += {'alternative module path': config_host.has_key('CONFIG_MODULE_UPGRADES')}
 endif
-summary_info += {'fuzzing support':   config_host.has_key('CONFIG_FUZZ')}
+summary_info += {'fuzzing support':   get_option('fuzzing')}
 if have_system
-  summary_info += {'Audio drivers':     config_host['CONFIG_AUDIO_DRIVERS']}
+  summary_info += {'Audio drivers':     ' '.join(audio_drivers_selected)}
 endif
-summary_info += {'Trace backends':    config_host['TRACE_BACKENDS']}
-if config_host['TRACE_BACKENDS'].split().contains('simple')
-  summary_info += {'Trace output file': config_host['CONFIG_TRACE_FILE'] + '-<pid>'}
+summary_info += {'Trace backends':    ','.join(get_option('trace_backends'))}
+if 'simple' in get_option('trace_backends')
+  summary_info += {'Trace output file': get_option('trace_file') + '-<pid>'}
 endif
 summary_info += {'QOM debugging':     config_host.has_key('CONFIG_QOM_CAST_DEBUG')}
 summary_info += {'vhost-kernel support': config_host.has_key('CONFIG_VHOST_KERNEL')}
@@ -3068,10 +3363,22 @@ if vnc.found()
   summary_info += {'VNC JPEG support':  jpeg}
   summary_info += {'VNC PNG support':   png}
 endif
+if targetos not in ['darwin', 'haiku', 'windows']
+  summary_info += {'OSS support':     oss}
+elif targetos == 'darwin'
+  summary_info += {'CoreAudio support': coreaudio}
+elif targetos == 'windows'
+  summary_info += {'DirectSound support': dsound}
+endif
+if targetos == 'linux'
+  summary_info += {'ALSA support':    alsa}
+  summary_info += {'PulseAudio support': pulse}
+endif
+summary_info += {'JACK support':      jack}
 summary_info += {'brlapi support':    brlapi}
-summary_info += {'vde support':       config_host.has_key('CONFIG_VDE')}
-summary_info += {'netmap support':    config_host.has_key('CONFIG_NETMAP')}
-summary_info += {'Linux AIO support': config_host.has_key('CONFIG_LINUX_AIO')}
+summary_info += {'vde support':       vde}
+summary_info += {'netmap support':    have_netmap}
+summary_info += {'Linux AIO support': libaio}
 summary_info += {'Linux io_uring support': linux_io_uring}
 summary_info += {'ATTR/XATTR support': libattr}
 summary_info += {'RDMA support':      config_host.has_key('CONFIG_RDMA')}
@@ -3079,8 +3386,10 @@ summary_info += {'PVRDMA support':    config_host.has_key('CONFIG_PVRDMA')}
 summary_info += {'fdt support':       fdt_opt == 'disabled' ? false : fdt_opt}
 summary_info += {'libcap-ng support': libcap_ng}
 summary_info += {'bpf support':       libbpf}
-# TODO: add back protocol and server version
-summary_info += {'spice support':     config_host.has_key('CONFIG_SPICE')}
+summary_info += {'spice protocol support': spice_protocol}
+if spice_protocol.found()
+  summary_info += {'  spice server support': spice}
+endif
 summary_info += {'rbd support':       rbd}
 summary_info += {'xfsctl support':    config_host.has_key('CONFIG_XFS')}
 summary_info += {'smartcard support': cacard}
