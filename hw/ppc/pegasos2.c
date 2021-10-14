@@ -31,6 +31,8 @@
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "exec/address-spaces.h"
+#include "qom/qom-qobject.h"
+#include "qapi/qmp/qdict.h"
 #include "trace.h"
 #include "qemu/datadir.h"
 #include "sysemu/device_tree.h"
@@ -369,6 +371,29 @@ static target_ulong pegasos2_rtas(PowerPCCPU *cpu, Pegasos2MachineState *pm,
         return H_PARAMETER;
     }
     switch (token) {
+    case RTAS_GET_TIME_OF_DAY:
+    {
+        QObject *qo = object_property_get_qobject(qdev_get_machine(),
+                                                  "rtc-time", &error_fatal);
+        QDict *qd = qobject_to(QDict, qo);
+
+        if (nargs != 0 || nrets != 8 || !qd) {
+            stl_be_phys(as, rets, -1);
+            qobject_unref(qo);
+            return H_PARAMETER;
+        }
+
+        stl_be_phys(as, rets, 0);
+        stl_be_phys(as, rets + 4, qdict_get_int(qd, "tm_year") + 1900);
+        stl_be_phys(as, rets + 8, qdict_get_int(qd, "tm_mon") + 1);
+        stl_be_phys(as, rets + 12, qdict_get_int(qd, "tm_mday"));
+        stl_be_phys(as, rets + 16, qdict_get_int(qd, "tm_hour"));
+        stl_be_phys(as, rets + 20, qdict_get_int(qd, "tm_min"));
+        stl_be_phys(as, rets + 24, qdict_get_int(qd, "tm_sec"));
+        stl_be_phys(as, rets + 28, 0);
+        qobject_unref(qo);
+        return H_SUCCESS;
+    }
     case RTAS_READ_PCI_CONFIG:
     {
         uint32_t addr, len, val;
