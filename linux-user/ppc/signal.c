@@ -242,7 +242,7 @@ static void save_user_regs(CPUPPCState *env, struct target_mcontext *frame)
     __put_user(env->nip, &frame->mc_gregs[TARGET_PT_NIP]);
     __put_user(env->ctr, &frame->mc_gregs[TARGET_PT_CTR]);
     __put_user(env->lr, &frame->mc_gregs[TARGET_PT_LNK]);
-    __put_user(env->xer, &frame->mc_gregs[TARGET_PT_XER]);
+    __put_user(cpu_read_xer(env), &frame->mc_gregs[TARGET_PT_XER]);
 
     for (i = 0; i < ARRAY_SIZE(env->crf); i++) {
         ccr |= env->crf[i] << (32 - ((i + 1) * 4));
@@ -315,6 +315,7 @@ static void restore_user_regs(CPUPPCState *env,
 {
     target_ulong save_r2 = 0;
     target_ulong msr;
+    target_ulong xer;
     target_ulong ccr;
 
     int i;
@@ -330,9 +331,11 @@ static void restore_user_regs(CPUPPCState *env,
     __get_user(env->nip, &frame->mc_gregs[TARGET_PT_NIP]);
     __get_user(env->ctr, &frame->mc_gregs[TARGET_PT_CTR]);
     __get_user(env->lr, &frame->mc_gregs[TARGET_PT_LNK]);
-    __get_user(env->xer, &frame->mc_gregs[TARGET_PT_XER]);
-    __get_user(ccr, &frame->mc_gregs[TARGET_PT_CCR]);
 
+    __get_user(xer, &frame->mc_gregs[TARGET_PT_XER]);
+    cpu_write_xer(env, xer);
+
+    __get_user(ccr, &frame->mc_gregs[TARGET_PT_CCR]);
     for (i = 0; i < ARRAY_SIZE(env->crf); i++) {
         env->crf[i] = (ccr >> (32 - ((i + 1) * 4))) & 0xf;
     }

@@ -23,4 +23,6 @@ run-plugin-byte_reverse-with-%:
 	$(call skip-test, "RUN of byte_reverse ($*)", "not built")
 endif
 
+PPC64_TESTS += signal_save_restore_xer
+
 TESTS += $(PPC64_TESTS)
