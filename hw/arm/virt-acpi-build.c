@@ -241,19 +241,20 @@ static void acpi_dsdt_add_tpm(Aml *scope, VirtMachineState *vms)
 #endif
 
 #define ID_MAPPING_ENTRY_SIZE 20
-#define SMMU_V3_ENTRY_SIZE 60
-#define ROOT_COMPLEX_ENTRY_SIZE 32
+#define SMMU_V3_ENTRY_SIZE 68
+#define ROOT_COMPLEX_ENTRY_SIZE 36
 #define IORT_NODE_OFFSET 48
 
 static void build_iort_id_mapping(GArray *table_data, uint32_t input_base,
                                   uint32_t id_count, uint32_t out_ref)
 {
-    /* Identity RID mapping covering the whole input RID range */
+    /* Table 4 ID mapping format */
     build_append_int_noprefix(table_data, input_base, 4); /* Input base */
     build_append_int_noprefix(table_data, id_count, 4); /* Number of IDs */
     build_append_int_noprefix(table_data, input_base, 4); /* Output base */
     build_append_int_noprefix(table_data, out_ref, 4); /* Output Reference */
-    build_append_int_noprefix(table_data, 0, 4); /* Flags */
+    /* Flags */
+    build_append_int_noprefix(table_data, 0 /* Single mapping (disabled) */, 4);
 }
 
 struct AcpiIortIdMapping {
@@ -298,7 +299,7 @@ static int iort_idmap_compare(gconstpointer a, gconstpointer b)
 /*
  * Input Output Remapping Table (IORT)
  * Conforms to "IO Remapping Table System Software on ARM Platforms",
- * Document number: ARM DEN 0049B, October 2015
+ * Document number: ARM DEN 0049E.b, Feb 2021
  */
 static void
 build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
@@ -307,10 +308,11 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     const uint32_t iort_node_offset = IORT_NODE_OFFSET;
     size_t node_size, smmu_offset = 0;
     AcpiIortIdMapping *idmap;
+    uint32_t id = 0;
     GArray *smmu_idmaps = g_array_new(false, true, sizeof(AcpiIortIdMapping));
     GArray *its_idmaps = g_array_new(false, true, sizeof(AcpiIortIdMapping));
 
-    AcpiTable table = { .sig = "IORT", .rev = 0, .oem_id = vms->oem_id,
+    AcpiTable table = { .sig = "IORT", .rev = 3, .oem_id = vms->oem_id,
                         .oem_table_id = vms->oem_table_id };
     /* Table 2 The IORT */
     acpi_table_begin(&table, table_data);
@@ -358,12 +360,12 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     build_append_int_noprefix(table_data, IORT_NODE_OFFSET, 4);
     build_append_int_noprefix(table_data, 0, 4); /* Reserved */
 
-    /* 3.1.1.3 ITS group node */
+    /* Table 12 ITS Group Format */
     build_append_int_noprefix(table_data, 0 /* ITS Group */, 1); /* Type */
     node_size =  20 /* fixed header size */ + 4 /* 1 GIC ITS Identifier */;
     build_append_int_noprefix(table_data, node_size, 2); /* Length */
-    build_append_int_noprefix(table_data, 0, 1); /* Revision */
-    build_append_int_noprefix(table_data, 0, 4); /* Reserved */
+    build_append_int_noprefix(table_data, 1, 1); /* Revision */
+    build_append_int_noprefix(table_data, id++, 4); /* Identifier */
     build_append_int_noprefix(table_data, 0, 4); /* Number of ID mappings */
     build_append_int_noprefix(table_data, 0, 4); /* Reference to ID Array */
     build_append_int_noprefix(table_data, 1, 4); /* Number of ITSs */
@@ -374,19 +376,19 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
         int irq =  vms->irqmap[VIRT_SMMU] + ARM_SPI_BASE;
 
         smmu_offset = table_data->len - table.table_offset;
-        /* 3.1.1.2 SMMUv3 */
+        /* Table 9 SMMUv3 Format */
         build_append_int_noprefix(table_data, 4 /* SMMUv3 */, 1); /* Type */
         node_size =  SMMU_V3_ENTRY_SIZE + ID_MAPPING_ENTRY_SIZE;
         build_append_int_noprefix(table_data, node_size, 2); /* Length */
-        build_append_int_noprefix(table_data, 0, 1); /* Revision */
-        build_append_int_noprefix(table_data, 0, 4); /* Reserved */
+        build_append_int_noprefix(table_data, 4, 1); /* Revision */
+        build_append_int_noprefix(table_data, id++, 4); /* Identifier */
         build_append_int_noprefix(table_data, 1, 4); /* Number of ID mappings */
         /* Reference to ID Array */
         build_append_int_noprefix(table_data, SMMU_V3_ENTRY_SIZE, 4);
         /* Base address */
         build_append_int_noprefix(table_data, vms->memmap[VIRT_SMMU].base, 8);
         /* Flags */
-        build_append_int_noprefix(table_data, 1 /* COHACC OverrideNote */, 4);
+        build_append_int_noprefix(table_data, 1 /* COHACC Override */, 4);
         build_append_int_noprefix(table_data, 0, 4); /* Reserved */
         build_append_int_noprefix(table_data, 0, 8); /* VATOS address */
         /* Model */
@@ -395,34 +397,42 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
         build_append_int_noprefix(table_data, irq + 1, 4); /* PRI */
         build_append_int_noprefix(table_data, irq + 3, 4); /* GERR */
         build_append_int_noprefix(table_data, irq + 2, 4); /* Sync */
+        build_append_int_noprefix(table_data, 0, 4); /* Proximity domain */
+        /* DeviceID mapping index (ignored since interrupts are GSIV based) */
+        build_append_int_noprefix(table_data, 0, 4);
 
         /* output IORT node is the ITS group node (the first node) */
         build_iort_id_mapping(table_data, 0, 0xFFFF, IORT_NODE_OFFSET);
     }
 
-    /* Table 16 Root Complex Node */
+    /* Table 17 Root Complex Node */
     build_append_int_noprefix(table_data, 2 /* Root complex */, 1); /* Type */
     node_size =  ROOT_COMPLEX_ENTRY_SIZE +
                  ID_MAPPING_ENTRY_SIZE * rc_mapping_count;
     build_append_int_noprefix(table_data, node_size, 2); /* Length */
-    build_append_int_noprefix(table_data, 0, 1); /* Revision */
-    build_append_int_noprefix(table_data, 0, 4); /* Reserved */
+    build_append_int_noprefix(table_data, 3, 1); /* Revision */
+    build_append_int_noprefix(table_data, id++, 4); /* Identifier */
     /* Number of ID mappings */
     build_append_int_noprefix(table_data, rc_mapping_count, 4);
     /* Reference to ID Array */
     build_append_int_noprefix(table_data, ROOT_COMPLEX_ENTRY_SIZE, 4);
 
-    /* Table 13 Memory access properties */
+    /* Table 14 Memory access properties */
     /* CCA: Cache Coherent Attribute */
     build_append_int_noprefix(table_data, 1 /* fully coherent */, 4);
     build_append_int_noprefix(table_data, 0, 1); /* AH: Note Allocation Hints */
     build_append_int_noprefix(table_data, 0, 2); /* Reserved */
-    /* MAF: Note Memory Access Flags */
-    build_append_int_noprefix(table_data, 0x3 /* CCA = CPM = DCAS = 1 */, 1);
+    /* Table 15 Memory Access Flags */
+    build_append_int_noprefix(table_data, 0x3 /* CCA = CPM = DACS = 1 */, 1);
 
     build_append_int_noprefix(table_data, 0, 4); /* ATS Attribute */
     /* MCFG pci_segment */
     build_append_int_noprefix(table_data, 0, 4); /* PCI Segment number */
+
+    /* Memory address size limit */
+    build_append_int_noprefix(table_data, 64, 1);
+
+    build_append_int_noprefix(table_data, 0, 3); /* Reserved */
 
     /* Output Reference */
     if (vms->iommu == VIRT_IOMMU_SMMUV3) {
