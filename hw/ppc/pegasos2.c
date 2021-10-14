@@ -54,11 +54,13 @@
 
 #define BUS_FREQ_HZ 133333333
 
+#define PCI0_CFG_ADDR 0xcf8
 #define PCI0_MEM_BASE 0xc0000000
 #define PCI0_MEM_SIZE 0x20000000
 #define PCI0_IO_BASE  0xf8000000
 #define PCI0_IO_SIZE  0x10000
 
+#define PCI1_CFG_ADDR 0xc78
 #define PCI1_MEM_BASE 0x80000000
 #define PCI1_MEM_SIZE 0x40000000
 #define PCI1_IO_BASE  0xfe000000
@@ -226,7 +228,7 @@ static void pegasos2_mv_reg_write(Pegasos2MachineState *pm, uint32_t addr,
 static uint32_t pegasos2_pci_config_read(Pegasos2MachineState *pm, int bus,
                                          uint32_t addr, uint32_t len)
 {
-    hwaddr pcicfg = bus ? 0xc78 : 0xcf8;
+    hwaddr pcicfg = bus ? PCI1_CFG_ADDR : PCI0_CFG_ADDR;
     uint64_t val = 0xffffffffULL;
 
     if (len <= 4) {
@@ -239,7 +241,7 @@ static uint32_t pegasos2_pci_config_read(Pegasos2MachineState *pm, int bus,
 static void pegasos2_pci_config_write(Pegasos2MachineState *pm, int bus,
                                       uint32_t addr, uint32_t len, uint32_t val)
 {
-    hwaddr pcicfg = bus ? 0xc78 : 0xcf8;
+    hwaddr pcicfg = bus ? PCI1_CFG_ADDR : PCI0_CFG_ADDR;
 
     pegasos2_mv_reg_write(pm, pcicfg, 4, addr | BIT(31));
     pegasos2_mv_reg_write(pm, pcicfg + 4, len, val);
