@@ -1995,25 +1995,6 @@ if ! has "$pkg_config_exe"; then
 fi
 
 ##########################################
-# NPTL probe
-
-if test "$linux_user" = "yes"; then
-  cat > $TMPC <<EOF
-#include <sched.h>
-#include <linux/futex.h>
-int main(void) {
-#if !defined(CLONE_SETTLS) || !defined(FUTEX_WAIT)
-#error bork
-#endif
-  return 0;
-}
-EOF
-  if ! compile_object ; then
-    feature_not_found "nptl" "Install glibc and linux kernel headers."
-  fi
-fi
-
-##########################################
 # xen probe
 
 if test "$xen" != "disabled" ; then
