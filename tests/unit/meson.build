@@ -149,9 +149,7 @@ if have_system
   endif
 endif
 
-if 'CONFIG_TSAN' not in config_host and \
-   'CONFIG_GUEST_AGENT' in config_host and \
-   'CONFIG_LINUX' in config_host
+if have_ga and targetos == 'linux' and 'CONFIG_TSAN' not in config_host
   tests += {'test-qga': ['../qtest/libqtest.c']}
   test_deps += {'test-qga': qga}
 endif

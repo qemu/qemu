@@ -1,3 +1,10 @@
+if not have_ga
+  if get_option('guest_agent_msi').enabled()
+    error('Guest agent MSI requested, but the guest agent is not being built')
+  endif
+  subdir_done()
+endif
+
 all_qga = []
 
 qga_qapi_outputs = [

@@ -317,10 +317,8 @@ pie=""
 trace_backends="log"
 trace_file="trace"
 opengl="$default_feature"
-guest_agent="$default_feature"
 vss_win32_sdk="$default_feature"
 win_sdk="no"
-want_tools="$default_feature"
 coroutine=""
 tls_priority="NORMAL"
 plugins="$default_feature"
@@ -960,10 +958,6 @@ for opt do
   ;;
   --disable-zlib-test)
   ;;
-  --enable-guest-agent) guest_agent="yes"
-  ;;
-  --disable-guest-agent) guest_agent="no"
-  ;;
   --with-vss-sdk) vss_win32_sdk=""
   ;;
   --with-vss-sdk=*) vss_win32_sdk="$optarg"
@@ -975,10 +969,6 @@ for opt do
   --with-win-sdk=*) win_sdk="$optarg"
   ;;
   --without-win-sdk) win_sdk="no"
-  ;;
-  --enable-tools) want_tools="yes"
-  ;;
-  --disable-tools) want_tools="no"
   ;;
   --disable-virtio-blk-data-plane|--enable-virtio-blk-data-plane)
       echo "$0: $opt is obsolete, virtio-blk data-plane is always on" >&2
@@ -1256,7 +1246,6 @@ cat << EOF
   user            supported user emulation targets
   linux-user      all linux usermode emulation targets
   bsd-user        all BSD usermode emulation targets
-  guest-agent     build the QEMU Guest Agent
   pie             Position Independent Executables
   modules         modules support (non-Windows)
   module-upgrades try to load modules from alternate paths for upgrades
@@ -1275,7 +1264,6 @@ cat << EOF
   vhost-user      vhost-user backend support
   vhost-vdpa      vhost-vdpa kernel backend support
   opengl          opengl support
-  tools           build qemu-io, qemu-nbd and qemu-img tools
   gio             libgio support
 
 NOTE: The object files are built at the place where configure is launched
@@ -1676,16 +1664,6 @@ if compile_prog ; then
 else
     echo big/little test failed
     exit 1
-fi
-
-##########################################
-# system tools
-if test -z "$want_tools"; then
-    if test "$softmmu" = "no"; then
-        want_tools=no
-    else
-        want_tools=yes
-    fi
 fi
 
 #########################################
@@ -2344,7 +2322,7 @@ fi
 # check if we have VSS SDK headers for win
 
 guest_agent_with_vss="no"
-if test "$mingw32" = "yes" && test "$guest_agent" != "no" && \
+if test "$mingw32" = "yes" && \
         test "$vss_win32_sdk" != "no" ; then
   case "$vss_win32_sdk" in
     "")   vss_win32_include="-isystem $source_path" ;;
@@ -2381,7 +2359,7 @@ fi
 # VSS provider from the source. It is usually unnecessary because the
 # pre-compiled .tlb file is included.
 
-if test "$mingw32" = "yes" && test "$guest_agent" != "no" && \
+if test "$mingw32" = "yes" && \
         test "$guest_agent_with_vss" = "yes" ; then
   if test -z "$win_sdk"; then
     programfiles="$PROGRAMFILES"
@@ -2399,7 +2377,7 @@ fi
 ##########################################
 # check if mingw environment provides a recent ntddscsi.h
 guest_agent_ntddscsi="no"
-if test "$mingw32" = "yes" && test "$guest_agent" != "no"; then
+if test "$mingw32" = "yes"; then
   cat > $TMPC << EOF
 #include <windows.h>
 #include <ntddscsi.h>
@@ -2825,20 +2803,6 @@ if test "$mingw32" = "yes" ; then
     done
 fi
 
-# Probe for guest agent support/options
-
-if [ "$guest_agent" != "no" ]; then
-  if [ "$softmmu" = no -a "$want_tools" = no ] ; then
-      guest_agent=no
-  elif [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" -o "$mingw32" = "yes" ] ; then
-      guest_agent=yes
-  elif [ "$guest_agent" != yes ]; then
-      guest_agent=no
-  else
-      error_exit "Guest agent is not supported on this platform"
-  fi
-fi
-
 # Guest agent Windows MSI package
 
 if test "$QEMU_GA_MANUFACTURER" = ""; then
@@ -2967,12 +2931,6 @@ if test "$solaris" = "yes" ; then
 fi
 if test "$static" = "yes" ; then
   echo "CONFIG_STATIC=y" >> $config_host_mak
-fi
-if test "$want_tools" = "yes" ; then
-  echo "CONFIG_TOOLS=y" >> $config_host_mak
-fi
-if test "$guest_agent" = "yes" ; then
-  echo "CONFIG_GUEST_AGENT=y" >> $config_host_mak
 fi
 echo "CONFIG_BDRV_RW_WHITELIST=$block_drv_rw_whitelist" >> $config_host_mak
 echo "CONFIG_BDRV_RO_WHITELIST=$block_drv_ro_whitelist" >> $config_host_mak
