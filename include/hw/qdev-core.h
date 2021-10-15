@@ -176,11 +176,11 @@ struct DeviceState {
     Object parent_obj;
     /*< public >*/
 
-    const char *id;
+    char *id;
     char *canonical_path;
     bool realized;
     bool pending_deleted_event;
-    QemuOpts *opts;
+    QDict *opts;
     int hotplugged;
     bool allow_unplug_during_migration;
     BusState *parent_bus;
@@ -201,8 +201,12 @@ struct DeviceListener {
      * informs qdev if a device should be visible or hidden.  We can
      * hide a failover device depending for example on the device
      * opts.
+     *
+     * On errors, it returns false and errp is set. Device creation
+     * should fail in this case.
      */
-    bool (*hide_device)(DeviceListener *listener, QemuOpts *device_opts);
+    bool (*hide_device)(DeviceListener *listener, const QDict *device_opts,
+                        bool from_json, Error **errp);
     QTAILQ_ENTRY(DeviceListener) link;
 };
 
@@ -831,13 +835,15 @@ void device_listener_unregister(DeviceListener *listener);
 
 /**
  * @qdev_should_hide_device:
- * @opts: QemuOpts as passed on cmdline.
+ * @opts: options QDict
+ * @from_json: true if @opts entries are typed, false for all strings
+ * @errp: pointer to error object
  *
  * Check if a device should be added.
  * When a device is added via qdev_device_add() this will be called,
  * and return if the device should be added now or not.
  */
-bool qdev_should_hide_device(QemuOpts *opts);
+bool qdev_should_hide_device(const QDict *opts, bool from_json, Error **errp);
 
 typedef enum MachineInitPhase {
     /* current_machine is NULL.  */

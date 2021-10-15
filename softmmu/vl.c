@@ -144,6 +144,12 @@ typedef struct ObjectOption {
     QTAILQ_ENTRY(ObjectOption) next;
 } ObjectOption;
 
+typedef struct DeviceOption {
+    QDict *opts;
+    Location loc;
+    QTAILQ_ENTRY(DeviceOption) next;
+} DeviceOption;
+
 static const char *cpu_option;
 static const char *mem_path;
 static const char *incoming;
@@ -151,6 +157,7 @@ static const char *loadvm;
 static const char *accelerators;
 static QDict *machine_opts_dict;
 static QTAILQ_HEAD(, ObjectOption) object_opts = QTAILQ_HEAD_INITIALIZER(object_opts);
+static QTAILQ_HEAD(, DeviceOption) device_opts = QTAILQ_HEAD_INITIALIZER(device_opts);
 static ram_addr_t maxram_size;
 static uint64_t ram_slots;
 static int display_remote;
@@ -494,19 +501,37 @@ const char *qemu_get_vm_name(void)
     return qemu_name;
 }
 
-static int default_driver_check(void *opaque, QemuOpts *opts, Error **errp)
+static void default_driver_disable(const char *driver)
 {
-    const char *driver = qemu_opt_get(opts, "driver");
     int i;
 
-    if (!driver)
-        return 0;
+    if (!driver) {
+        return;
+    }
+
     for (i = 0; i < ARRAY_SIZE(default_list); i++) {
         if (strcmp(default_list[i].driver, driver) != 0)
             continue;
         *(default_list[i].flag) = 0;
     }
+}
+
+static int default_driver_check(void *opaque, QemuOpts *opts, Error **errp)
+{
+    const char *driver = qemu_opt_get(opts, "driver");
+
+    default_driver_disable(driver);
     return 0;
+}
+
+static void default_driver_check_json(void)
+{
+    DeviceOption *opt;
+
+    QTAILQ_FOREACH(opt, &device_opts, next) {
+        const char *driver = qdict_get_try_str(opt->opts, "driver");
+        default_driver_disable(driver);
+    }
 }
 
 static int parse_name(void *opaque, QemuOpts *opts, Error **errp)
@@ -1311,6 +1336,7 @@ static void qemu_disable_default_devices(void)
 {
     MachineClass *machine_class = MACHINE_GET_CLASS(current_machine);
 
+    default_driver_check_json();
     qemu_opts_foreach(qemu_find_opts("device"),
                       default_driver_check, NULL, NULL);
     qemu_opts_foreach(qemu_find_opts("global"),
@@ -2637,6 +2663,8 @@ static void qemu_init_board(void)
 
 static void qemu_create_cli_devices(void)
 {
+    DeviceOption *opt;
+
     soundhw_init();
 
     qemu_opts_foreach(qemu_find_opts("fw_cfg"),
@@ -2652,6 +2680,18 @@ static void qemu_create_cli_devices(void)
     rom_set_order_override(FW_CFG_ORDER_OVERRIDE_DEVICE);
     qemu_opts_foreach(qemu_find_opts("device"),
                       device_init_func, NULL, &error_fatal);
+    QTAILQ_FOREACH(opt, &device_opts, next) {
+        loc_push_restore(&opt->loc);
+        /*
+         * TODO Eventually we should call qmp_device_add() here to make sure it
+         * behaves the same, but QMP still has to accept incorrectly typed
+         * options until libvirt is fixed and we want to be strict on the CLI
+         * from the start, so call qdev_device_add_from_qdict() directly for
+         * now.
+         */
+        qdev_device_add_from_qdict(opt->opts, true, &error_fatal);
+        loc_pop(&opt->loc);
+    }
     rom_reset_order_override();
 }
 
@@ -3352,9 +3392,18 @@ void qemu_init(int argc, char **argv, char **envp)
                 add_device_config(DEV_USB, optarg);
                 break;
             case QEMU_OPTION_device:
-                if (!qemu_opts_parse_noisily(qemu_find_opts("device"),
-                                             optarg, true)) {
-                    exit(1);
+                if (optarg[0] == '{') {
+                    QObject *obj = qobject_from_json(optarg, &error_fatal);
+                    DeviceOption *opt = g_new0(DeviceOption, 1);
+                    opt->opts = qobject_to(QDict, obj);
+                    loc_save(&opt->loc);
+                    assert(opt->opts != NULL);
+                    QTAILQ_INSERT_TAIL(&device_opts, opt, next);
+                } else {
+                    if (!qemu_opts_parse_noisily(qemu_find_opts("device"),
+                                                 optarg, true)) {
+                        exit(1);
+                    }
                 }
                 break;
             case QEMU_OPTION_smp:

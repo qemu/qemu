@@ -1389,7 +1389,7 @@ bool object_property_get(Object *obj, const char *name, Visitor *v,
 bool object_property_set(Object *obj, const char *name, Visitor *v,
                          Error **errp)
 {
-    Error *err = NULL;
+    ERRP_GUARD();
     ObjectProperty *prop = object_property_find_err(obj, name, errp);
 
     if (prop == NULL) {
@@ -1400,9 +1400,8 @@ bool object_property_set(Object *obj, const char *name, Visitor *v,
         error_setg(errp, QERR_PERMISSION_DENIED);
         return false;
     }
-    prop->set(obj, v, name, prop->opaque, &err);
-    error_propagate(errp, err);
-    return !err;
+    prop->set(obj, v, name, prop->opaque, errp);
+    return !*errp;
 }
 
 bool object_property_set_str(Object *obj, const char *name,
