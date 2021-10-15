@@ -1263,45 +1263,20 @@ firmwarepath="${firmwarepath:-$datadir/qemu-firmware}"
 localedir="${localedir:-$datadir/locale}"
 
 case "$cpu" in
-    ppc)
-           CPU_CFLAGS="-m32"
-           QEMU_LDFLAGS="-m32 $QEMU_LDFLAGS"
-           ;;
-    ppc64)
-           CPU_CFLAGS="-m64"
-           QEMU_LDFLAGS="-m64 $QEMU_LDFLAGS"
-           ;;
-    sparc)
-           CPU_CFLAGS="-m32 -mv8plus -mcpu=ultrasparc"
-           QEMU_LDFLAGS="-m32 -mv8plus $QEMU_LDFLAGS"
-           ;;
-    sparc64)
-           CPU_CFLAGS="-m64 -mcpu=ultrasparc"
-           QEMU_LDFLAGS="-m64 $QEMU_LDFLAGS"
-           ;;
-    s390)
-           CPU_CFLAGS="-m31"
-           QEMU_LDFLAGS="-m31 $QEMU_LDFLAGS"
-           ;;
-    s390x)
-           CPU_CFLAGS="-m64"
-           QEMU_LDFLAGS="-m64 $QEMU_LDFLAGS"
-           ;;
-    i386)
-           CPU_CFLAGS="-m32"
-           QEMU_LDFLAGS="-m32 $QEMU_LDFLAGS"
-           ;;
-    x86_64)
-           # ??? Only extremely old AMD cpus do not have cmpxchg16b.
-           # If we truly care, we should simply detect this case at
-           # runtime and generate the fallback to serial emulation.
-           CPU_CFLAGS="-m64 -mcx16"
-           QEMU_LDFLAGS="-m64 $QEMU_LDFLAGS"
-           ;;
-    x32)
-           CPU_CFLAGS="-mx32"
-           QEMU_LDFLAGS="-mx32 $QEMU_LDFLAGS"
-           ;;
+    ppc) CPU_CFLAGS="-m32" ;;
+    ppc64) CPU_CFLAGS="-m64" ;;
+    sparc) CPU_CFLAGS="-m32 -mv8plus -mcpu=ultrasparc" ;;
+    sparc64) CPU_CFLAGS="-m64 -mcpu=ultrasparc" ;;
+    s390) CPU_CFLAGS="-m31" ;;
+    s390x) CPU_CFLAGS="-m64" ;;
+    i386) CPU_CFLAGS="-m32" ;;
+    x32) CPU_CFLAGS="-mx32" ;;
+
+    # ??? Only extremely old AMD cpus do not have cmpxchg16b.
+    # If we truly care, we should simply detect this case at
+    # runtime and generate the fallback to serial emulation.
+    x86_64) CPU_CFLAGS="-m64 -mcx16" ;;
+
     # No special flags required for other host CPUs
 esac
 
