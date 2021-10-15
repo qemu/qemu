@@ -1,3 +1,5 @@
+all_qga = []
+
 qga_qapi_outputs = [
   'qga-qapi-commands.c',
   'qga-qapi-commands.h',
@@ -50,19 +52,26 @@ qga_ss.add(when: 'CONFIG_WIN32', if_true: files(
 
 qga_ss = qga_ss.apply(config_host, strict: false)
 
+gen_tlb = []
+qga_libs = []
+if targetos == 'windows'
+  qga_libs += ['-lws2_32', '-lwinmm', '-lpowrprof', '-lwtsapi32', '-lwininet', '-liphlpapi', '-lnetapi32']
+  if 'CONFIG_QGA_VSS' in config_host
+    qga_libs += ['-lole32', '-loleaut32', '-lshlwapi', '-lstdc++', '-Wl,--enable-stdcall-fixup']
+    subdir('vss-win32')
+  endif
+  if 'CONFIG_QGA_NTDDSCSI' in config_host
+    qga_libs += ['-lsetupapi', '-lcfgmgr32']
+  endif
+endif
+
 qga = executable('qemu-ga', qga_ss.sources(),
-                 link_args: config_host['LIBS_QGA'].split(),
+                 link_args: qga_libs,
                  dependencies: [qemuutil, libudev],
                  install: true)
-all_qga = [qga]
+all_qga += qga
 
 if targetos == 'windows'
-  if 'CONFIG_QGA_VSS' in config_host
-    subdir('vss-win32')
-  else
-    gen_tlb = []
-  endif
-
   qemu_ga_msi_arch = {
     'x86': ['-D', 'Arch=32'],
     'x86_64': ['-a', 'x64', '-D', 'Arch=64']

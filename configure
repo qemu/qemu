@@ -240,7 +240,6 @@ block_drv_rw_whitelist=""
 block_drv_ro_whitelist=""
 block_drv_whitelist_tools="no"
 host_cc="cc"
-libs_qga=""
 debug_info="yes"
 lto="false"
 stack_protector=""
@@ -708,7 +707,6 @@ if test "$mingw32" = "yes" ; then
   write_c_skeleton;
   prefix="/qemu"
   qemu_suffix=""
-  libs_qga="-lws2_32 -lwinmm -lpowrprof -lwtsapi32 -lwininet -liphlpapi -lnetapi32 $libs_qga"
 fi
 
 werror=""
@@ -2475,8 +2473,6 @@ EOF
   if compile_prog "$vss_win32_include" "" ; then
     guest_agent_with_vss="yes"
     QEMU_CFLAGS="$QEMU_CFLAGS $vss_win32_include"
-    libs_qga="-lole32 -loleaut32 -lshlwapi -lstdc++ -Wl,--enable-stdcall-fixup $libs_qga"
-    qga_vss_provider="qga/vss-win32/qga-vss.dll qga/vss-win32/qga-vss.tlb"
   else
     if test "$vss_win32_sdk" != "" ; then
       echo "ERROR: Please download and install Microsoft VSS SDK:"
@@ -2527,7 +2523,6 @@ int main(void) {
 EOF
   if compile_prog "" "" ; then
     guest_agent_ntddscsi=yes
-    libs_qga="-lsetupapi -lcfgmgr32 $libs_qga"
   fi
 fi
 
@@ -3085,7 +3080,6 @@ if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
   if test "$guest_agent_with_vss" = "yes" ; then
     echo "CONFIG_QGA_VSS=y" >> $config_host_mak
-    echo "QGA_VSS_PROVIDER=$qga_vss_provider" >> $config_host_mak
     echo "WIN_SDK=\"$win_sdk\"" >> $config_host_mak
   fi
   if test "$guest_agent_ntddscsi" = "yes" ; then
@@ -3337,7 +3331,6 @@ echo "QEMU_LDFLAGS=$QEMU_LDFLAGS" >> $config_host_mak
 echo "LD_I386_EMULATION=$ld_i386_emulation" >> $config_host_mak
 echo "STRIP=$strip" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
-echo "LIBS_QGA=$libs_qga" >> $config_host_mak
 
 if test "$rng_none" = "yes"; then
   echo "CONFIG_RNG_NONE=y" >> $config_host_mak
