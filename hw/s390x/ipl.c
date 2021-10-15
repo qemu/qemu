@@ -38,6 +38,7 @@
 #define KERN_IMAGE_START                0x010000UL
 #define LINUX_MAGIC_ADDR                0x010008UL
 #define KERN_PARM_AREA                  0x010480UL
+#define KERN_PARM_AREA_SIZE             0x000380UL
 #define INITRD_START                    0x800000UL
 #define INITRD_PARM_START               0x010408UL
 #define PARMFILE_START                  0x001000UL
@@ -190,10 +191,19 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
          * loader) and it won't work. For this case we force it to 0x10000, too.
          */
         if (pentry == KERN_IMAGE_START || pentry == 0x800) {
-            char *parm_area = rom_ptr(KERN_PARM_AREA, strlen(ipl->cmdline) + 1);
+            size_t cmdline_size = strlen(ipl->cmdline) + 1;
+            char *parm_area = rom_ptr(KERN_PARM_AREA, cmdline_size);
+
             ipl->start_addr = KERN_IMAGE_START;
             /* Overwrite parameters in the kernel image, which are "rom" */
             if (parm_area) {
+                if (cmdline_size > KERN_PARM_AREA_SIZE) {
+                    error_setg(errp,
+                               "kernel command line exceeds maximum size: %zu > %lu",
+                               cmdline_size, KERN_PARM_AREA_SIZE);
+                    return;
+                }
+
                 strcpy(parm_area, ipl->cmdline);
             }
         } else {
