@@ -27,6 +27,9 @@
 
 #include "block/block_int.h"
 
+/* For blk_bs() in generated block/block-gen.c */
+#include "sysemu/block-backend.h"
+
 int coroutine_fn bdrv_co_check(BlockDriverState *bs,
                                BdrvCheckResult *res, BdrvCheckMode fix);
 int coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs, Error **errp);
@@ -71,5 +74,35 @@ nbd_do_establish_connection(BlockDriverState *bs, Error **errp);
 int coroutine_fn
 nbd_co_do_establish_connection(BlockDriverState *bs, Error **errp);
 
+
+int generated_co_wrapper
+blk_do_preadv(BlockBackend *blk, int64_t offset, int64_t bytes,
+              QEMUIOVector *qiov, BdrvRequestFlags flags);
+int coroutine_fn
+blk_co_do_preadv(BlockBackend *blk, int64_t offset, int64_t bytes,
+                 QEMUIOVector *qiov, BdrvRequestFlags flags);
+
+
+int generated_co_wrapper
+blk_do_pwritev_part(BlockBackend *blk, int64_t offset, int64_t bytes,
+                    QEMUIOVector *qiov, size_t qiov_offset,
+                    BdrvRequestFlags flags);
+int coroutine_fn
+blk_co_do_pwritev_part(BlockBackend *blk, int64_t offset, int64_t bytes,
+                       QEMUIOVector *qiov, size_t qiov_offset,
+                       BdrvRequestFlags flags);
+
+int generated_co_wrapper
+blk_do_ioctl(BlockBackend *blk, unsigned long int req, void *buf);
+int coroutine_fn
+blk_co_do_ioctl(BlockBackend *blk, unsigned long int req, void *buf);
+
+int generated_co_wrapper
+blk_do_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes);
+int coroutine_fn
+blk_co_do_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes);
+
+int generated_co_wrapper blk_do_flush(BlockBackend *blk);
+int coroutine_fn blk_co_do_flush(BlockBackend *blk);
 
 #endif /* BLOCK_COROUTINES_INT_H */
