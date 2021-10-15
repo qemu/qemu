@@ -434,11 +434,12 @@ static void zynqmp_efuse_pgm_addr_postw(RegisterInfo *reg, uint64_t val64)
     if (!errmsg) {
         ARRAY_FIELD_DP32(s->regs, EFUSE_ISR, PGM_ERROR, 0);
     } else {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+
         ARRAY_FIELD_DP32(s->regs, EFUSE_ISR, PGM_ERROR, 1);
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s - eFuse write error: %s; addr=0x%x\n",
-                      object_get_canonical_path(OBJECT(s)),
-                      errmsg, (unsigned)val64);
+                      path, errmsg, (unsigned)val64);
     }
 
     ARRAY_FIELD_DP32(s->regs, EFUSE_ISR, PGM_DONE, 1);
@@ -448,6 +449,7 @@ static void zynqmp_efuse_pgm_addr_postw(RegisterInfo *reg, uint64_t val64)
 static void zynqmp_efuse_rd_addr_postw(RegisterInfo *reg, uint64_t val64)
 {
     XlnxZynqMPEFuse *s = XLNX_ZYNQMP_EFUSE(reg->opaque);
+    g_autofree char *path = NULL;
 
     /*
      * Grant reads only to allowed bits; reference sources:
@@ -538,10 +540,10 @@ static void zynqmp_efuse_rd_addr_postw(RegisterInfo *reg, uint64_t val64)
     return;
 
  denied:
+    path = object_get_canonical_path(OBJECT(s));
     qemu_log_mask(LOG_GUEST_ERROR,
                   "%s: Denied efuse read from array %u, row %u\n",
-                  object_get_canonical_path(OBJECT(s)),
-                  efuse_ary, efuse_row);
+                  path, efuse_ary, efuse_row);
 
     s->regs[R_EFUSE_RD_DATA] = 0;
 
@@ -731,9 +733,11 @@ static void zynqmp_efuse_reg_write(void *opaque, hwaddr addr,
     s = XLNX_ZYNQMP_EFUSE(dev);
 
     if (addr != A_WR_LOCK && s->regs[R_WR_LOCK]) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s[reg_0x%02lx]: Attempt to write locked register.\n",
-                      object_get_canonical_path(OBJECT(s)), (long)addr);
+                      path, (long)addr);
     } else {
         register_write_memory(opaque, addr, data, size);
     }
@@ -784,8 +788,10 @@ static void zynqmp_efuse_realize(DeviceState *dev, Error **errp)
     XlnxZynqMPEFuse *s = XLNX_ZYNQMP_EFUSE(dev);
 
     if (!s->efuse) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+
         error_setg(errp, "%s.efuse: link property not connected to XLNX-EFUSE",
-                   object_get_canonical_path(OBJECT(dev)));
+                   path);
         return;
     }
 
