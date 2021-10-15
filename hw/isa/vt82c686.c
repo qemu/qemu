@@ -542,6 +542,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(ViaISAState, VIA_ISA)
 struct ViaISAState {
     PCIDevice dev;
     qemu_irq cpu_intr;
+    qemu_irq *isa_irqs;
     ISABus *isa_bus;
     ViaSuperIOState *via_sio;
 };
@@ -567,6 +568,12 @@ static const TypeInfo via_isa_info = {
     },
 };
 
+void via_isa_set_irq(PCIDevice *d, int n, int level)
+{
+    ViaISAState *s = VIA_ISA(d);
+    qemu_set_irq(s->isa_irqs[n], level);
+}
+
 static void via_isa_request_i8259_irq(void *opaque, int irq, int level)
 {
     ViaISAState *s = opaque;
@@ -584,7 +591,8 @@ static void via_isa_realize(PCIDevice *d, Error **errp)
     isa_irq = qemu_allocate_irqs(via_isa_request_i8259_irq, s, 1);
     s->isa_bus = isa_bus_new(dev, get_system_memory(), pci_address_space_io(d),
                           &error_fatal);
-    isa_bus_irqs(s->isa_bus, i8259_init(s->isa_bus, *isa_irq));
+    s->isa_irqs = i8259_init(s->isa_bus, *isa_irq);
+    isa_bus_irqs(s->isa_bus, s->isa_irqs);
     i8254_pit_init(s->isa_bus, 0x40, 0, NULL);
     i8257_dma_init(s->isa_bus, 0);
     mc146818_rtc_init(s->isa_bus, 2000, NULL);
