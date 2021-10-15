@@ -242,6 +242,7 @@ if build_docs
                                input: files('doc-good.json', 'doc-good.rst'),
                                build_by_default: true,
                                depend_files: sphinx_extn_depends,
+                               depfile: 'docs.d',
                                # We use -E to suppress Sphinx's caching, because
                                # we want it to always really run the QAPI doc
                                # generation code. It also means we don't
@@ -250,6 +251,8 @@ if build_docs
                                          '-b', 'text', '-E',
                                          '-c', meson.project_source_root() / 'docs',
                                          '-D', 'master_doc=doc-good',
+                                         '-Ddepfile=@DEPFILE@',
+                                         '-Ddepfile_stamp=doc-good.stamp',
                                          meson.current_source_dir(),
                                          meson.current_build_dir()])
 
