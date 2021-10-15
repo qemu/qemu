@@ -29,7 +29,7 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "sysemu/dma.h"
-
+#include "hw/isa/vt82c686.h"
 #include "hw/ide/pci.h"
 #include "trace.h"
 
@@ -112,7 +112,7 @@ static void via_ide_set_irq(void *opaque, int n, int level)
         d->config[0x70 + n * 8] &= ~0x80;
     }
 
-    qemu_set_irq(isa_get_irq(NULL, 14 + n), level);
+    via_isa_set_irq(pci_get_function_0(d), 14 + n, level);
 }
 
 static void via_ide_reset(DeviceState *dev)
