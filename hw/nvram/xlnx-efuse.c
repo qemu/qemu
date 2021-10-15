@@ -144,10 +144,11 @@ static bool efuse_ro_bits_find(XlnxEFuse *s, uint32_t k)
 bool xlnx_efuse_set_bit(XlnxEFuse *s, unsigned int bit)
 {
     if (efuse_ro_bits_find(s, bit)) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+
         qemu_log_mask(LOG_GUEST_ERROR, "%s: WARN: "
                       "Ignored setting of readonly efuse bit<%u,%u>!\n",
-                      object_get_canonical_path(OBJECT(s)),
-                      (bit / 32), (bit % 32));
+                      path, (bit / 32), (bit % 32));
         return false;
     }
 
@@ -202,9 +203,11 @@ static void efuse_realize(DeviceState *dev, Error **errp)
     efuse_ro_bits_sort(s);
 
     if ((s->efuse_size % 32) != 0) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+
         error_setg(errp,
                    "%s.efuse-size: %u: property value not multiple of 32.",
-                   object_get_canonical_path(OBJECT(dev)), s->efuse_size);
+                   path, s->efuse_size);
         return;
     }
 
