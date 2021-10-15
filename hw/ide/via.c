@@ -217,6 +217,9 @@ static void via_ide_class_init(ObjectClass *klass, void *data)
 
     dc->reset = via_ide_reset;
     dc->vmsd = &vmstate_ide_pci;
+    /* Reason: only works as function of VIA southbridge */
+    dc->user_creatable = false;
+
     k->realize = via_ide_realize;
     k->exit = via_ide_exitfn;
     k->vendor_id = PCI_VENDOR_ID_VIA;
