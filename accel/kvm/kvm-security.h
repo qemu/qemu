@@ -3,7 +3,7 @@
 
 #include <time.h>
 
-#define HYPERCALL_OFFSET 0x80
+#define HYPERCALL_OFFSET            0x80
 
 #define AGENT_HYPERCALL             1   /* DEPRECATED HYPERCALL*/
 
@@ -22,13 +22,13 @@
 /* Start monitoring kernel invariants */
 #define START_MONITOR_HYPERCALL     6   
 
-/* End the recording of accessed pages */
+/* End the recording of accessed pages. Also close the channel */
 #define END_RECORDING_HYPERCALL     7   
 
 /* setting the address of the page containing the list of the processes */
 #define SET_PROCESS_LIST_HYPERCALL  8
 
-/* used as notification, the list was updater */
+/* used as notification, the list was updated */
 #define PROCESS_LIST_HYPERCALL      9
 
 /* Call clear access log, testing experiment */
@@ -39,6 +39,11 @@
 #define EMPTY_HYPERCALL             11
 #define STOP_TIMER_HYPERCALL        12
 
+typedef enum channel_state { 
+    CLOSED,
+    OPENED
+} ChannelState;
+ChannelState channel_state = CLOSED;
 
 typedef enum recording_state {
     PRE_RECORDING, /* initial state */

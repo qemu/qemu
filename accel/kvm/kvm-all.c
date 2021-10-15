@@ -1467,6 +1467,8 @@ int kvm_set_irq(KVMState *s, int irq, int level)
         clock_gettime(CLOCK_REALTIME, &begin);
     }
 
+    channel_state = OPENED;
+
     ret = kvm_vm_ioctl(s, s->irq_set_ioctl, &event);
     if (ret < 0) {
         perror("kvm_set_irq");
@@ -2913,19 +2915,23 @@ static double get_elapsed_time(struct timespec *begin, struct timespec *end)
 }
  
 /* function for generic hypercall. It acts as a dispatcher by looking
-    at the type of hypercall. It also updates the recording state */
+    at the type of hypercall. It also updates the recording state 
+    and the channel state 
+*/
 static void execute_hypercall(CPUState *cpu)
 {
     struct kvm_regs regs;
     unsigned int type;
 
+    if(channel_state == CLOSED){
+        DBG("Attempted hypercall with closed channel! \n");
+        return;
+    }
+
     memset(&regs, 0, sizeof(regs));
     kvm_vcpu_ioctl(cpu, KVM_GET_REGS, &regs);
-    /*DBG("Hypercall type: %llx"
-            "\taddress: %llx "
-            "\tsize: %llx"
-            "\tflag: %llx\n", regs.r10, regs.r8, regs.r9, regs.r12);*/
     type = regs.r10;
+
     switch(type){
     case AGENT_HYPERCALL:
         break;
@@ -2938,10 +2944,6 @@ static void execute_hypercall(CPUState *cpu)
         break;
     case COMPARE_MEMORY_HYPERCALL:
         do_compare_memory_hypercall(cpu, &regs);
-        /* remember to put the result inside a register, 
-            to let the guest check if everything is ok */
-        /* otherwise, maybe you can directly restore the 
-            memory if the comparison fails. */
         break;
     case SET_IRQ_LINE_HYPERCALL:
         fx_irq_line = (int)regs.r8;
@@ -2967,6 +2969,7 @@ static void execute_hypercall(CPUState *cpu)
             recording_state = POST_RECORDING;
             do_end_recording_hypercall(cpu);
         }
+        channel_state = CLOSED;
         break;  
     } 
     case SET_PROCESS_LIST_HYPERCALL:
