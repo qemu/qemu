@@ -1245,6 +1245,7 @@ Bamboo
 L: qemu-ppc@nongnu.org
 S: Orphan
 F: hw/ppc/ppc440_bamboo.c
+F: tests/acceptance/ppc_bamboo.py
 
 e500
 L: qemu-ppc@nongnu.org
