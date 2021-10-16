@@ -110,14 +110,6 @@ void QEMU_NORETURN helper_pause(CPUX86State *env, int next_eip_addend)
     do_pause(env);
 }
 
-void QEMU_NORETURN helper_debug(CPUX86State *env)
-{
-    CPUState *cs = env_cpu(env);
-
-    cs->exception_index = EXCP_DEBUG;
-    cpu_loop_exit(cs);
-}
-
 uint64_t helper_rdpkru(CPUX86State *env, uint32_t ecx)
 {
     if ((env->cr[4] & CR4_PKE_MASK) == 0) {

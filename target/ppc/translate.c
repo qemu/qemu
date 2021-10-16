@@ -42,7 +42,6 @@
 
 #define CPU_SINGLE_STEP 0x1
 #define CPU_BRANCH_STEP 0x2
-#define GDBSTUB_SINGLE_STEP 0x4
 
 /* Include definitions for instructions classes and implementations flags */
 /* #define PPC_DEBUG_DISAS */
@@ -333,7 +332,7 @@ static uint32_t gen_prep_dbgex(DisasContext *ctx)
 
 static void gen_debug_exception(DisasContext *ctx)
 {
-    gen_helper_raise_exception(cpu_env, tcg_constant_i32(EXCP_DEBUG));
+    gen_helper_raise_exception(cpu_env, tcg_constant_i32(gen_prep_dbgex(ctx)));
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
@@ -4309,15 +4308,8 @@ static inline bool use_goto_tb(DisasContext *ctx, target_ulong dest)
 
 static void gen_lookup_and_goto_ptr(DisasContext *ctx)
 {
-    int sse = ctx->singlestep_enabled;
-    if (unlikely(sse)) {
-        if (sse & GDBSTUB_SINGLE_STEP) {
-            gen_debug_exception(ctx);
-        } else if (sse & (CPU_SINGLE_STEP | CPU_BRANCH_STEP)) {
-            gen_helper_raise_exception(cpu_env, tcg_constant_i32(gen_prep_dbgex(ctx)));
-        } else {
-            tcg_gen_exit_tb(NULL, 0);
-        }
+    if (unlikely(ctx->singlestep_enabled)) {
+        gen_debug_exception(ctx);
     } else {
         tcg_gen_lookup_and_goto_ptr();
     }
@@ -8563,16 +8555,10 @@ static void ppc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->singlestep_enabled = 0;
     if ((hflags >> HFLAGS_SE) & 1) {
         ctx->singlestep_enabled |= CPU_SINGLE_STEP;
+        ctx->base.max_insns = 1;
     }
     if ((hflags >> HFLAGS_BE) & 1) {
         ctx->singlestep_enabled |= CPU_BRANCH_STEP;
-    }
-    if (unlikely(ctx->base.singlestep_enabled)) {
-        ctx->singlestep_enabled |= GDBSTUB_SINGLE_STEP;
-    }
-
-    if (ctx->singlestep_enabled & (CPU_SINGLE_STEP | GDBSTUB_SINGLE_STEP)) {
-        ctx->base.max_insns = 1;
     }
 }
 
@@ -8642,7 +8628,6 @@ static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     DisasJumpType is_jmp = ctx->base.is_jmp;
     target_ulong nip = ctx->base.pc_next;
-    int sse;
 
     if (is_jmp == DISAS_NORETURN) {
         /* We have already exited the TB. */
@@ -8650,8 +8635,8 @@ static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     }
 
     /* Honor single stepping. */
-    sse = ctx->singlestep_enabled & (CPU_SINGLE_STEP | GDBSTUB_SINGLE_STEP);
-    if (unlikely(sse)) {
+    if (unlikely(ctx->singlestep_enabled & CPU_SINGLE_STEP)
+        && (nip <= 0x100 || nip > 0xf00)) {
         switch (is_jmp) {
         case DISAS_TOO_MANY:
         case DISAS_EXIT_UPDATE:
@@ -8665,15 +8650,8 @@ static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
             g_assert_not_reached();
         }
 
-        if (sse & GDBSTUB_SINGLE_STEP) {
-            gen_debug_exception(ctx);
-            return;
-        }
-        /* else CPU_SINGLE_STEP... */
-        if (nip <= 0x100 || nip > 0xf00) {
-            gen_helper_raise_exception(cpu_env, tcg_constant_i32(gen_prep_dbgex(ctx)));
-            return;
-        }
+        gen_debug_exception(ctx);
+        return;
     }
 
     switch (is_jmp) {

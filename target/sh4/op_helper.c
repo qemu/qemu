@@ -81,11 +81,6 @@ void helper_raise_slot_fpu_disable(CPUSH4State *env)
     raise_exception(env, 0x820, 0);
 }
 
-void helper_debug(CPUSH4State *env)
-{
-    raise_exception(env, EXCP_DEBUG, 0);
-}
-
 void helper_sleep(CPUSH4State *env)
 {
     CPUState *cs = env_cpu(env);

@@ -3005,17 +3005,10 @@ static void alpha_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         tcg_gen_movi_i64(cpu_pc, ctx->base.pc_next);
         /* FALLTHRU */
     case DISAS_PC_UPDATED:
-        if (!ctx->base.singlestep_enabled) {
-            tcg_gen_lookup_and_goto_ptr();
-            break;
-        }
-        /* FALLTHRU */
+        tcg_gen_lookup_and_goto_ptr();
+        break;
     case DISAS_PC_UPDATED_NOCHAIN:
-        if (ctx->base.singlestep_enabled) {
-            gen_excp_1(EXCP_DEBUG, 0);
-        } else {
-            tcg_gen_exit_tb(NULL, 0);
-        }
+        tcg_gen_exit_tb(NULL, 0);
         break;
     default:
         g_assert_not_reached();

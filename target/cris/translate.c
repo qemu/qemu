@@ -3249,22 +3249,6 @@ static void cris_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         }
     }
 
-    if (unlikely(dc->base.singlestep_enabled)) {
-        switch (is_jmp) {
-        case DISAS_TOO_MANY:
-        case DISAS_UPDATE_NEXT:
-            tcg_gen_movi_tl(env_pc, npc);
-            /* fall through */
-        case DISAS_JUMP:
-        case DISAS_UPDATE:
-            t_gen_raise_exception(EXCP_DEBUG);
-            return;
-        default:
-            break;
-        }
-        g_assert_not_reached();
-    }
-
     switch (is_jmp) {
     case DISAS_TOO_MANY:
         gen_goto_tb(dc, 0, npc);

@@ -69,11 +69,7 @@ static void gen_end_tb(DisasContext *ctx)
 {
     gen_exec_counters(ctx);
     tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], hex_next_PC);
-    if (ctx->base.singlestep_enabled) {
-        gen_exception_raw(EXCP_DEBUG);
-    } else {
-        tcg_gen_exit_tb(NULL, 0);
-    }
+    tcg_gen_exit_tb(NULL, 0);
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
@@ -614,11 +610,7 @@ static void hexagon_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
     case DISAS_TOO_MANY:
         gen_exec_counters(ctx);
         tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->base.pc_next);
-        if (ctx->base.singlestep_enabled) {
-            gen_exception_raw(EXCP_DEBUG);
-        } else {
-            tcg_gen_exit_tb(NULL, 0);
-        }
+        tcg_gen_exit_tb(NULL, 0);
         break;
     case DISAS_NORETURN:
         break;
