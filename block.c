@@ -84,6 +84,9 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
                                            BdrvChildRole child_role,
                                            Error **errp);
 
+static bool bdrv_recurse_has_child(BlockDriverState *bs,
+                                   BlockDriverState *child);
+
 static void bdrv_replace_child_noperm(BdrvChild *child,
                                       BlockDriverState *new_bs);
 static void bdrv_remove_file_or_backing_child(BlockDriverState *bs,
@@ -2673,6 +2676,7 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
     int drain_saldo;
 
     assert(!child->frozen);
+    assert(old_bs != new_bs);
 
     if (old_bs && new_bs) {
         assert(bdrv_get_aio_context(old_bs) == bdrv_get_aio_context(new_bs));
@@ -2891,6 +2895,12 @@ static int bdrv_attach_child_noperm(BlockDriverState *parent_bs,
     uint64_t perm, shared_perm;
 
     assert(parent_bs->drv);
+
+    if (bdrv_recurse_has_child(child_bs, parent_bs)) {
+        error_setg(errp, "Making '%s' a %s child of '%s' would create a cycle",
+                   child_bs->node_name, child_name, parent_bs->node_name);
+        return -EINVAL;
+    }
 
     bdrv_get_cumulative_perm(parent_bs, &perm, &shared_perm);
     bdrv_child_perm(parent_bs, child_bs, NULL, child_role, NULL,
