@@ -355,21 +355,6 @@ static const MemoryRegionOps sifive_plic_ops = {
     }
 };
 
-static Property sifive_plic_properties[] = {
-    DEFINE_PROP_STRING("hart-config", SiFivePLICState, hart_config),
-    DEFINE_PROP_UINT32("hartid-base", SiFivePLICState, hartid_base, 0),
-    DEFINE_PROP_UINT32("num-sources", SiFivePLICState, num_sources, 0),
-    DEFINE_PROP_UINT32("num-priorities", SiFivePLICState, num_priorities, 0),
-    DEFINE_PROP_UINT32("priority-base", SiFivePLICState, priority_base, 0),
-    DEFINE_PROP_UINT32("pending-base", SiFivePLICState, pending_base, 0),
-    DEFINE_PROP_UINT32("enable-base", SiFivePLICState, enable_base, 0),
-    DEFINE_PROP_UINT32("enable-stride", SiFivePLICState, enable_stride, 0),
-    DEFINE_PROP_UINT32("context-base", SiFivePLICState, context_base, 0),
-    DEFINE_PROP_UINT32("context-stride", SiFivePLICState, context_stride, 0),
-    DEFINE_PROP_UINT32("aperture-size", SiFivePLICState, aperture_size, 0),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 /*
  * parse PLIC hart/mode address offset config
  *
@@ -494,6 +479,21 @@ static const VMStateDescription vmstate_sifive_plic = {
                                   vmstate_info_uint32, uint32_t),
             VMSTATE_END_OF_LIST()
         }
+};
+
+static Property sifive_plic_properties[] = {
+    DEFINE_PROP_STRING("hart-config", SiFivePLICState, hart_config),
+    DEFINE_PROP_UINT32("hartid-base", SiFivePLICState, hartid_base, 0),
+    DEFINE_PROP_UINT32("num-sources", SiFivePLICState, num_sources, 0),
+    DEFINE_PROP_UINT32("num-priorities", SiFivePLICState, num_priorities, 0),
+    DEFINE_PROP_UINT32("priority-base", SiFivePLICState, priority_base, 0),
+    DEFINE_PROP_UINT32("pending-base", SiFivePLICState, pending_base, 0),
+    DEFINE_PROP_UINT32("enable-base", SiFivePLICState, enable_base, 0),
+    DEFINE_PROP_UINT32("enable-stride", SiFivePLICState, enable_stride, 0),
+    DEFINE_PROP_UINT32("context-base", SiFivePLICState, context_base, 0),
+    DEFINE_PROP_UINT32("context-stride", SiFivePLICState, context_stride, 0),
+    DEFINE_PROP_UINT32("aperture-size", SiFivePLICState, aperture_size, 0),
+    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void sifive_plic_class_init(ObjectClass *klass, void *data)
