@@ -473,15 +473,12 @@ static void gen_msa_i8(DisasContext *ctx)
 static void gen_msa_i5(DisasContext *ctx)
 {
 #define MASK_MSA_I5(op)    (MASK_MSA_MINOR(op) | (op & (0x7 << 23)))
-    uint8_t df = (ctx->opcode >> 21) & 0x3;
     int8_t s5 = (int8_t) sextract32(ctx->opcode, 16, 5);
-    uint8_t u5 = (ctx->opcode >> 16) & 0x1f;
-    uint8_t ws = (ctx->opcode >> 11) & 0x1f;
-    uint8_t wd = (ctx->opcode >> 6) & 0x1f;
+    uint8_t u5 = extract32(ctx->opcode, 16, 5);
 
-    TCGv_i32 tdf = tcg_const_i32(df);
-    TCGv_i32 twd = tcg_const_i32(wd);
-    TCGv_i32 tws = tcg_const_i32(ws);
+    TCGv_i32 tdf = tcg_const_i32(extract32(ctx->opcode, 21, 2));
+    TCGv_i32 twd = tcg_const_i32(extract32(ctx->opcode, 11, 5));
+    TCGv_i32 tws = tcg_const_i32(extract32(ctx->opcode, 6, 5));
     TCGv_i32 timm = tcg_temp_new_i32();
     tcg_gen_movi_i32(timm, u5);
 
@@ -1650,7 +1647,7 @@ static void gen_msa_elm_df(DisasContext *ctx, uint32_t df, uint32_t n)
     TCGv_i32 tws = tcg_const_i32(ws);
     TCGv_i32 twd = tcg_const_i32(wd);
     TCGv_i32 tn  = tcg_const_i32(n);
-    TCGv_i32 tdf = tcg_const_i32(df);
+    TCGv_i32 tdf = tcg_constant_i32(df);
 
     switch (MASK_MSA_ELM(ctx->opcode)) {
     case OPC_SLDI_df:
@@ -1748,7 +1745,6 @@ static void gen_msa_elm_df(DisasContext *ctx, uint32_t df, uint32_t n)
     tcg_temp_free_i32(twd);
     tcg_temp_free_i32(tws);
     tcg_temp_free_i32(tn);
-    tcg_temp_free_i32(tdf);
 }
 
 static void gen_msa_elm(DisasContext *ctx)
@@ -1791,10 +1787,22 @@ static void gen_msa_3rf(DisasContext *ctx)
     TCGv_i32 twd = tcg_const_i32(wd);
     TCGv_i32 tws = tcg_const_i32(ws);
     TCGv_i32 twt = tcg_const_i32(wt);
-    TCGv_i32 tdf = tcg_temp_new_i32();
+    TCGv_i32 tdf;
 
     /* adjust df value for floating-point instruction */
-    tcg_gen_movi_i32(tdf, df + 2);
+    switch (MASK_MSA_3RF(ctx->opcode)) {
+    case OPC_MUL_Q_df:
+    case OPC_MADD_Q_df:
+    case OPC_MSUB_Q_df:
+    case OPC_MULR_Q_df:
+    case OPC_MADDR_Q_df:
+    case OPC_MSUBR_Q_df:
+        tdf = tcg_constant_i32(df + 1);
+        break;
+    default:
+        tdf = tcg_constant_i32(df + 2);
+        break;
+    }
 
     switch (MASK_MSA_3RF(ctx->opcode)) {
     case OPC_FCAF_df:
@@ -1837,7 +1845,6 @@ static void gen_msa_3rf(DisasContext *ctx)
         gen_helper_msa_fmadd_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_MUL_Q_df:
-        tcg_gen_movi_i32(tdf, df + 1);
         gen_helper_msa_mul_q_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_FCULT_df:
@@ -1847,14 +1854,12 @@ static void gen_msa_3rf(DisasContext *ctx)
         gen_helper_msa_fmsub_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_MADD_Q_df:
-        tcg_gen_movi_i32(tdf, df + 1);
         gen_helper_msa_madd_q_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_FCLE_df:
         gen_helper_msa_fcle_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_MSUB_Q_df:
-        tcg_gen_movi_i32(tdf, df + 1);
         gen_helper_msa_msub_q_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_FCULE_df:
@@ -1897,7 +1902,6 @@ static void gen_msa_3rf(DisasContext *ctx)
         gen_helper_msa_fmin_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_MULR_Q_df:
-        tcg_gen_movi_i32(tdf, df + 1);
         gen_helper_msa_mulr_q_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_FSULT_df:
@@ -1907,7 +1911,6 @@ static void gen_msa_3rf(DisasContext *ctx)
         gen_helper_msa_fmin_a_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_MADDR_Q_df:
-        tcg_gen_movi_i32(tdf, df + 1);
         gen_helper_msa_maddr_q_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_FSLE_df:
@@ -1917,7 +1920,6 @@ static void gen_msa_3rf(DisasContext *ctx)
         gen_helper_msa_fmax_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_MSUBR_Q_df:
-        tcg_gen_movi_i32(tdf, df + 1);
         gen_helper_msa_msubr_q_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_FSULE_df:
@@ -1935,21 +1937,17 @@ static void gen_msa_3rf(DisasContext *ctx)
     tcg_temp_free_i32(twd);
     tcg_temp_free_i32(tws);
     tcg_temp_free_i32(twt);
-    tcg_temp_free_i32(tdf);
 }
 
 static void gen_msa_2r(DisasContext *ctx)
 {
 #define MASK_MSA_2R(op)     (MASK_MSA_MINOR(op) | (op & (0x1f << 21)) | \
                             (op & (0x7 << 18)))
-    uint8_t wt = (ctx->opcode >> 16) & 0x1f;
     uint8_t ws = (ctx->opcode >> 11) & 0x1f;
     uint8_t wd = (ctx->opcode >> 6) & 0x1f;
     uint8_t df = (ctx->opcode >> 16) & 0x3;
     TCGv_i32 twd = tcg_const_i32(wd);
     TCGv_i32 tws = tcg_const_i32(ws);
-    TCGv_i32 twt = tcg_const_i32(wt);
-    TCGv_i32 tdf = tcg_const_i32(df);
 
     switch (MASK_MSA_2R(ctx->opcode)) {
     case OPC_FILL_df:
@@ -1960,7 +1958,8 @@ static void gen_msa_2r(DisasContext *ctx)
             break;
         }
 #endif
-        gen_helper_msa_fill_df(cpu_env, tdf, twd, tws); /* trs */
+        gen_helper_msa_fill_df(cpu_env, tcg_constant_i32(df),
+                               twd, tws); /* trs */
         break;
     case OPC_NLOC_df:
         switch (df) {
@@ -2018,23 +2017,19 @@ static void gen_msa_2r(DisasContext *ctx)
 
     tcg_temp_free_i32(twd);
     tcg_temp_free_i32(tws);
-    tcg_temp_free_i32(twt);
-    tcg_temp_free_i32(tdf);
 }
 
 static void gen_msa_2rf(DisasContext *ctx)
 {
 #define MASK_MSA_2RF(op)    (MASK_MSA_MINOR(op) | (op & (0x1f << 21)) | \
                             (op & (0xf << 17)))
-    uint8_t wt = (ctx->opcode >> 16) & 0x1f;
     uint8_t ws = (ctx->opcode >> 11) & 0x1f;
     uint8_t wd = (ctx->opcode >> 6) & 0x1f;
     uint8_t df = (ctx->opcode >> 16) & 0x1;
     TCGv_i32 twd = tcg_const_i32(wd);
     TCGv_i32 tws = tcg_const_i32(ws);
-    TCGv_i32 twt = tcg_const_i32(wt);
     /* adjust df value for floating-point instruction */
-    TCGv_i32 tdf = tcg_const_i32(df + 2);
+    TCGv_i32 tdf = tcg_constant_i32(df + 2);
 
     switch (MASK_MSA_2RF(ctx->opcode)) {
     case OPC_FCLASS_df:
@@ -2089,8 +2084,6 @@ static void gen_msa_2rf(DisasContext *ctx)
 
     tcg_temp_free_i32(twd);
     tcg_temp_free_i32(tws);
-    tcg_temp_free_i32(twt);
-    tcg_temp_free_i32(tdf);
 }
 
 static void gen_msa_vec_v(DisasContext *ctx)

@@ -542,6 +542,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(ViaISAState, VIA_ISA)
 struct ViaISAState {
     PCIDevice dev;
     qemu_irq cpu_intr;
+    qemu_irq *isa_irqs;
+    ISABus *isa_bus;
     ViaSuperIOState *via_sio;
 };
 
@@ -566,10 +568,40 @@ static const TypeInfo via_isa_info = {
     },
 };
 
+void via_isa_set_irq(PCIDevice *d, int n, int level)
+{
+    ViaISAState *s = VIA_ISA(d);
+    qemu_set_irq(s->isa_irqs[n], level);
+}
+
 static void via_isa_request_i8259_irq(void *opaque, int irq, int level)
 {
     ViaISAState *s = opaque;
     qemu_set_irq(s->cpu_intr, level);
+}
+
+static void via_isa_realize(PCIDevice *d, Error **errp)
+{
+    ViaISAState *s = VIA_ISA(d);
+    DeviceState *dev = DEVICE(d);
+    qemu_irq *isa_irq;
+    int i;
+
+    qdev_init_gpio_out(dev, &s->cpu_intr, 1);
+    isa_irq = qemu_allocate_irqs(via_isa_request_i8259_irq, s, 1);
+    s->isa_bus = isa_bus_new(dev, get_system_memory(), pci_address_space_io(d),
+                          &error_fatal);
+    s->isa_irqs = i8259_init(s->isa_bus, *isa_irq);
+    isa_bus_irqs(s->isa_bus, s->isa_irqs);
+    i8254_pit_init(s->isa_bus, 0x40, 0, NULL);
+    i8257_dma_init(s->isa_bus, 0);
+    mc146818_rtc_init(s->isa_bus, 2000, NULL);
+
+    for (i = 0; i < PCI_CONFIG_HEADER_SIZE; i++) {
+        if (i < PCI_COMMAND || i >= PCI_REVISION_ID) {
+            d->wmask[i] = 0;
+        }
+    }
 }
 
 /* TYPE_VT82C686B_ISA */
@@ -610,27 +642,10 @@ static void vt82c686b_isa_reset(DeviceState *dev)
 static void vt82c686b_realize(PCIDevice *d, Error **errp)
 {
     ViaISAState *s = VIA_ISA(d);
-    DeviceState *dev = DEVICE(d);
-    ISABus *isa_bus;
-    qemu_irq *isa_irq;
-    int i;
 
-    qdev_init_gpio_out(dev, &s->cpu_intr, 1);
-    isa_irq = qemu_allocate_irqs(via_isa_request_i8259_irq, s, 1);
-    isa_bus = isa_bus_new(dev, get_system_memory(), pci_address_space_io(d),
-                          &error_fatal);
-    isa_bus_irqs(isa_bus, i8259_init(isa_bus, *isa_irq));
-    i8254_pit_init(isa_bus, 0x40, 0, NULL);
-    i8257_dma_init(isa_bus, 0);
-    s->via_sio = VIA_SUPERIO(isa_create_simple(isa_bus,
+    via_isa_realize(d, errp);
+    s->via_sio = VIA_SUPERIO(isa_create_simple(s->isa_bus,
                                                TYPE_VT82C686B_SUPERIO));
-    mc146818_rtc_init(isa_bus, 2000, NULL);
-
-    for (i = 0; i < PCI_CONFIG_HEADER_SIZE; i++) {
-        if (i < PCI_COMMAND || i >= PCI_REVISION_ID) {
-            d->wmask[i] = 0;
-        }
-    }
 }
 
 static void vt82c686b_class_init(ObjectClass *klass, void *data)
@@ -691,26 +706,10 @@ static void vt8231_isa_reset(DeviceState *dev)
 static void vt8231_realize(PCIDevice *d, Error **errp)
 {
     ViaISAState *s = VIA_ISA(d);
-    DeviceState *dev = DEVICE(d);
-    ISABus *isa_bus;
-    qemu_irq *isa_irq;
-    int i;
 
-    qdev_init_gpio_out(dev, &s->cpu_intr, 1);
-    isa_irq = qemu_allocate_irqs(via_isa_request_i8259_irq, s, 1);
-    isa_bus = isa_bus_new(dev, get_system_memory(), pci_address_space_io(d),
-                          &error_fatal);
-    isa_bus_irqs(isa_bus, i8259_init(isa_bus, *isa_irq));
-    i8254_pit_init(isa_bus, 0x40, 0, NULL);
-    i8257_dma_init(isa_bus, 0);
-    s->via_sio = VIA_SUPERIO(isa_create_simple(isa_bus, TYPE_VT8231_SUPERIO));
-    mc146818_rtc_init(isa_bus, 2000, NULL);
-
-    for (i = 0; i < PCI_CONFIG_HEADER_SIZE; i++) {
-        if (i < PCI_COMMAND || i >= PCI_REVISION_ID) {
-            d->wmask[i] = 0;
-        }
-    }
+    via_isa_realize(d, errp);
+    s->via_sio = VIA_SUPERIO(isa_create_simple(s->isa_bus,
+                                               TYPE_VT8231_SUPERIO));
 }
 
 static void vt8231_class_init(ObjectClass *klass, void *data)
