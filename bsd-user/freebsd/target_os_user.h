@@ -61,15 +61,7 @@ struct target_sockaddr_storage {
 /*
  * from sys/user.h
  */
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 1200031
 #define TARGET_KI_NSPARE_INT        2
-#elif defined(__FreeBSD_version) && __FreeBSD_version >= 1100000
-#define TARGET_KI_NSPARE_INT        4
-#elif defined(__FreeBSD_version) && __FreeBSD_version >= 1000000
-#define TARGET_KI_NSPARE_INT        7
-#else
-#define TARGET_KI_NSPARE_INT        9
-#endif /* ! __FreeBSD_version >= 1000000 */
 #define TARGET_KI_NSPARE_LONG       12
 #define TARGET_KI_NSPARE_PTR        6
 
@@ -116,11 +108,7 @@ struct target_kinfo_proc {
     int32_t     ki_tsid;            /* Terminal session ID */
     int16_t     ki_jobc;            /* job control counter */
     int16_t     ki_spare_short1;    /* unused (just here for alignment) */
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 1200031
     int32_t     ki_tdev__freebsd11; /* controlling tty dev */
-#else
-    int32_t     ki_tdev;            /* controlling tty dev */
-#endif
     target_sigset_t ki_siglist;     /* Signals arrived but not delivered */
     target_sigset_t ki_sigmask;     /* Current signal mask */
     target_sigset_t ki_sigignore;   /* Signals being ignored */
@@ -164,45 +152,24 @@ struct target_kinfo_proc {
     int8_t      ki_nice;            /* Process "nice" value */
     char        ki_lock;            /* Process lock (prevent swap) count */
     char        ki_rqindex;         /* Run queue index */
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 1100000
     u_char      ki_oncpu_old;       /* Which cpu we are on (legacy) */
     u_char      ki_lastcpu_old;     /* Last cpu we were on (legacy) */
-#else
-    u_char      ki_oncpu;           /* Which cpu we are on */
-    u_char      ki_lastcpu;         /* Last cpu we were on */
-#endif /* ! __FreeBSD_version >= 1100000 */
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 900000
     char        ki_tdname[TARGET_TDNAMLEN + 1];  /* thread name */
-#else
-    char        ki_ocomm[TARGET_TDNAMLEN + 1];   /* thread name */
-#endif /* ! __FreeBSD_version >= 900000 */
     char        ki_wmesg[TARGET_WMESGLEN + 1];   /* wchan message */
     char        ki_login[TARGET_LOGNAMELEN + 1]; /* setlogin name */
     char        ki_lockname[TARGET_LOCKNAMELEN + 1]; /* lock name */
     char        ki_comm[TARGET_COMMLEN + 1];     /* command name */
     char        ki_emul[TARGET_KI_EMULNAMELEN + 1];  /* emulation name */
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 900000
     char        ki_loginclass[TARGET_LOGINCLASSLEN + 1]; /* login class */
-#endif /* ! __FreeBSD_version >= 900000 */
 
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 900000
     char        ki_sparestrings[50];    /* spare string space */
-#else
-    char        ki_sparestrings[68];    /* spare string space */
-#endif /* ! __FreeBSD_version >= 900000 */
     int32_t     ki_spareints[TARGET_KI_NSPARE_INT]; /* spare room for growth */
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 1200031
- uint64_t ki_tdev;  /* controlling tty dev */
-#endif
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 1100000
+    uint64_t ki_tdev;  /* controlling tty dev */
     int32_t     ki_oncpu;           /* Which cpu we are on */
     int32_t     ki_lastcpu;         /* Last cpu we were on */
     int32_t     ki_tracer;          /* Pid of tracing process */
-#endif /* __FreeBSD_version >= 1100000 */
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 900000
     int32_t     ki_flag2;           /* P2_* flags */
     int32_t     ki_fibnum;          /* Default FIB number */
-#endif /* ! __FreeBSD_version >= 900000 */
     uint32_t    ki_cr_flags;        /* Credential flags */
     int32_t     ki_jid;             /* Process jail ID */
     int32_t     ki_numthreads;      /* XXXKSE number of threads in total */
@@ -234,18 +201,8 @@ struct target_kinfo_file {
     int32_t  kf_flags;  /* Flags. */
     int32_t  kf_pad0;  /* Round to 64 bit alignment. */
     int64_t  kf_offset;  /* Seek location. */
-#if defined(__FreeBSD_version) && __FreeBSD_version < 1200031
-    int32_t  kf_vnode_type;  /* Vnode type. */
-    int32_t  kf_sock_domain;  /* Socket domain. */
-    int32_t  kf_sock_type;  /* Socket type. */
-    int32_t  kf_sock_protocol; /* Socket protocol. */
-    struct target_sockaddr_storage kf_sa_local; /* Socket address. */
-    struct target_sockaddr_storage kf_sa_peer; /* Peer address. */
-#endif
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 900000
     union {
         struct {
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 1200031
             uint32_t kf_spareint;
             /* Socket domain. */
             int  kf_sock_domain0;
@@ -257,7 +214,6 @@ struct target_kinfo_file {
             struct sockaddr_storage kf_sa_local;
             /* Peer address. */
             struct sockaddr_storage kf_sa_peer;
-#endif
             /* Address of so_pcb. */
             uint64_t kf_sock_pcb;
             /* Address of inp_ppcb. */
@@ -272,7 +228,6 @@ struct target_kinfo_file {
             uint32_t kf_sock_pad0;
         } kf_sock;
         struct {
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 1200031
             /* Vnode type. */
             int  kf_file_type;
             /* Space for future use */
@@ -290,16 +245,6 @@ struct target_kinfo_file {
             uint32_t kf_file_fsid_freebsd11;
             /* File device, FreeBSD 11 compat. */
             uint32_t kf_file_rdev_freebsd11;
-#else
-            /* Global file id. */
-            uint64_t kf_file_fileid;
-            /* File size. */
-            uint64_t kf_file_size;
-            /* Vnode filesystem id. */
-            uint32_t kf_file_fsid;
-            /* File device. */
-            uint32_t kf_file_rdev;
-#endif
             /* File mode. */
             uint16_t kf_file_mode;
             /* Round to 64 bit alignment. */
@@ -307,18 +252,14 @@ struct target_kinfo_file {
             uint32_t kf_file_pad1;
         } kf_file;
         struct {
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 1200031
             uint32_t kf_spareint[4];
             uint64_t kf_spareint64[32];
-#endif
             uint32_t kf_sem_value;
             uint16_t kf_sem_mode;
         } kf_sem;
         struct {
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 1200031
             uint32_t kf_spareint[4];
             uint64_t kf_spareint64[32];
-#endif
             uint64_t kf_pipe_addr;
             uint64_t kf_pipe_peer;
             uint32_t kf_pipe_buffer_cnt;
@@ -326,7 +267,6 @@ struct target_kinfo_file {
             uint32_t kf_pipe_pad0[3];
         } kf_pipe;
         struct {
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 1200031
             uint32_t kf_spareint[4];
             uint64_t kf_spareint64[32];
             uint32_t kf_pts_dev_freebsd11;
@@ -334,34 +274,18 @@ struct target_kinfo_file {
             uint64_t kf_pts_dev;
             /* Round to 64 bit alignment. */
             uint32_t kf_pts_pad1[4];
-#else
-            uint32_t kf_pts_dev;
-            /* Round to 64 bit alignment. */
-            uint32_t kf_pts_pad0[7];
-#endif
         } kf_pts;
         struct {
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 1200031
             uint32_t kf_spareint[4];
             uint64_t kf_spareint64[32];
-#endif
             int32_t  kf_pid;
         } kf_proc;
     } kf_un;
     uint16_t kf_status;  /* Status flags. */
     uint16_t kf_pad1;  /* Round to 32 bit alignment. */
     int32_t  _kf_ispare0;  /* Space for more stuff. */
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 1000000
     target_cap_rights_t kf_cap_rights; /* Capability rights. */
     uint64_t _kf_cap_spare; /* Space for future cap_rights_t. */
-#else /* ! __FreeBSD_version >= 1000000 */
-    uint64_t        kf_cap_rights;
-    int  _kf_ispare[4];
-#endif /* ! __FreeBSD_version >= 1000000 */
-
-#else /* ! __FreeBSD_version >= 900000 */
-    int  _kf_ispare[16];
-#endif /* ! __FreeBSD_version >= 900000 */
     /* Truncated before copyout in sysctl */
     char  kf_path[PATH_MAX]; /* Path to file, if any. */
 };
@@ -372,34 +296,19 @@ struct target_kinfo_vmentry {
     uint64_t kve_start;   /* Starting address. */
     uint64_t kve_end;   /* Finishing address. */
     uint64_t kve_offset;   /* Mapping offset in object */
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 900000
     uint64_t kve_vn_fileid;   /* inode number if vnode */
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 1200031
     uint32_t kve_vn_fsid_freebsd11;  /* dev_t of vnode location */
-#else
-    uint32_t kve_vn_fsid;   /* dev_t of vnode location */
-#endif
-#else /* !  __FreeBSD_version >= 900000 */
-    uint64_t kve_fileid;   /* inode number if vnode */
-    uint32_t kve_fsid;   /* dev_t of vnode location */
-#endif /* !  __FreeBSD_version >= 900000 */
     int32_t  kve_flags;   /* Flags on map entry. */
     int32_t  kve_resident;   /* Number of resident pages. */
     int32_t  kve_private_resident;  /* Number of private pages. */
     int32_t  kve_protection;  /* Protection bitmask. */
     int32_t  kve_ref_count;   /* VM obj ref count. */
     int32_t  kve_shadow_count;  /* VM obj shadow count. */
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 900000
     int32_t  kve_vn_type;   /* Vnode type. */
     uint64_t kve_vn_size;   /* File size. */
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 1200031
     uint32_t kve_vn_rdev_freebsd11;  /* Device id if device. */
-#else
-    uint32_t kve_vn_rdev;   /* Device id if device. */
-#endif
     uint16_t kve_vn_mode;   /* File mode. */
     uint16_t kve_status;   /* Status flags. */
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 1200031
 #if (__FreeBSD_version >= 1300501 && __FreeBSD_version < 1400000) ||    \
     __FreeBSD_version >= 1400009
     union {
@@ -413,13 +322,6 @@ struct target_kinfo_vmentry {
 #endif
     uint64_t kve_vn_rdev;   /* Device id if device. */
     int  _kve_ispare[8];  /* Space for more stuff. */
-#else
-    int32_t  _kve_ispare[12];  /* Space for more stuff. */
-#endif
-#else /* !  __FreeBSD_version >= 900000 */
-    int  _kve_pad0;
-    int32_t  _kve_ispare[16];  /* Space for more stuff. */
-#endif /* !  __FreeBSD_version >= 900000 */
     /* Truncated before copyout in sysctl */
     char  kve_path[PATH_MAX];  /* Path to VM obj, if any. */
 };

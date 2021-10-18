@@ -27,8 +27,6 @@
 #define TARGET_MINSIGSTKSZ  (512 * 4)               /* min sig stack size */
 #define TARGET_SIGSTKSZ     (MINSIGSTKSZ + 32768)   /* recommended size */
 
-#define TARGET_MC_GET_CLEAR_RET 0x0001
-
 struct target_sigcontext {
     /* to be added */
 };

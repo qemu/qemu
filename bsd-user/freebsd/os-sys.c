@@ -1,7 +1,7 @@
 /*
- *  Emulation of BSD signals
+ *  FreeBSD sysctl() and sysarch() system call emulation
  *
- *  Copyright (c) 2003 - 2008 Fabrice Bellard
+ *  Copyright (c) 2013-15 Stacey D. Son
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,22 +17,11 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "qemu/osdep.h"
 #include "qemu.h"
+#include "target_arch_sysarch.h"
 
-/*
- * Queue a signal so that it will be send to the virtual CPU as soon as
- * possible.
- */
-void queue_signal(CPUArchState *env, int sig, target_siginfo_t *info)
+/* sysarch() is architecture dependent. */
+abi_long do_freebsd_sysarch(void *cpu_env, abi_long arg1, abi_long arg2)
 {
-    qemu_log_mask(LOG_UNIMP, "No signal queueing, dropping signal %d\n", sig);
-}
-
-void signal_init(void)
-{
-}
-
-void process_pending_signals(CPUArchState *cpu_env)
-{
+    return do_freebsd_arch_sysarch(cpu_env, arg1, arg2);
 }

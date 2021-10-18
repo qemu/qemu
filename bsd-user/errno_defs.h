@@ -1,6 +1,3 @@
-/*      $OpenBSD: errno.h,v 1.20 2007/09/03 14:37:52 millert Exp $      */
-/*      $NetBSD: errno.h,v 1.10 1996/01/20 01:33:53 jtc Exp $   */
-
 /*
  * Copyright (c) 1982, 1986, 1989, 1993
  *      The Regents of the University of California.  All rights reserved.
@@ -36,6 +33,9 @@
  *
  *      @(#)errno.h     8.5 (Berkeley) 1/21/94
  */
+
+#ifndef _ERRNO_DEFS_H_
+#define _ERRNO_DEFS_H_
 
 #define TARGET_EPERM            1               /* Operation not permitted */
 #define TARGET_ENOENT           2               /* No such file or directory */
@@ -147,3 +147,10 @@
 #define TARGET_EIDRM            89              /* Identifier removed */
 #define TARGET_ENOMSG           90              /* No message of desired type */
 #define TARGET_ELAST            90              /* Must be equal largest errno */
+
+/* Internal errors: */
+#define TARGET_EJUSTRETURN      254             /* Just return without modifing regs */
+#define TARGET_ERESTART         255             /* Restart syscall */
+#define TARGET_ERESTARTSYS      TARGET_ERESTART /* Linux compat */
+
+#endif /* !  _ERRNO_DEFS_H_ */

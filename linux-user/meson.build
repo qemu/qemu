@@ -1,3 +1,7 @@
+if not have_linux_user
+   subdir_done()
+endif
+
 linux_user_ss.add(files(
   'elfload.c',
   'exit.c',
