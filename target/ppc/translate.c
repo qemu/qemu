@@ -7486,6 +7486,8 @@ static int times_4(DisasContext *ctx, int x)
 
 #include "decode-insn32.c.inc"
 #include "decode-insn64.c.inc"
+#include "power8-pmu-regs.c.inc"
+
 #include "translate/fixedpoint-impl.c.inc"
 
 #include "translate/fp-impl.c.inc"
