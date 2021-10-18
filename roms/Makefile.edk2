@@ -51,7 +51,12 @@ all: $(foreach flashdev,$(flashdevs),../pc-bios/edk2-$(flashdev).fd.bz2) \
 # make-release/tarball scripts.
 submodules:
 	if test -d edk2/.git; then \
-		cd edk2 && git submodule update --init --force; \
+		cd edk2 && git submodule update --init --force -- \
+			ArmPkg/Library/ArmSoftFloatLib/berkeley-softfloat-3 \
+			BaseTools/Source/C/BrotliCompress/brotli \
+			CryptoPkg/Library/OpensslLib/openssl \
+			MdeModulePkg/Library/BrotliCustomDecompressLib/brotli \
+		; \
 	fi
 
 # See notes on the ".NOTPARALLEL" target and the "+" indicator in

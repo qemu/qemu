@@ -50,7 +50,11 @@ build-edk2:
    GIT_DEPTH: 3
  script: # Clone the required submodules and build EDK2
  - git submodule update --init roms/edk2
- - git -C roms/edk2 submodule update --init
+ - git -C roms/edk2 submodule update --init --
+     ArmPkg/Library/ArmSoftFloatLib/berkeley-softfloat-3
+     BaseTools/Source/C/BrotliCompress/brotli
+     CryptoPkg/Library/OpensslLib/openssl
+     MdeModulePkg/Library/BrotliCustomDecompressLib/brotli
  - export JOBS=$(($(getconf _NPROCESSORS_ONLN) + 1))
  - echo "=== Using ${JOBS} simultaneous jobs ==="
  - make -j${JOBS} -C roms efi 2>&1 1>edk2-stdout.log | tee -a edk2-stderr.log >&2
