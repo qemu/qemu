@@ -55,6 +55,33 @@ static bool spr_groupA_write_allowed(DisasContext *ctx)
     return false;
 }
 
+/*
+ * Helper function to avoid code repetition between MMCR0 and
+ * MMCR2 problem state write functions.
+ *
+ * 'ret' must be tcg_temp_freed() by the caller.
+ */
+static TCGv masked_gprn_for_spr_write(int gprn, int sprn,
+                                      uint64_t spr_mask)
+{
+    TCGv ret = tcg_temp_new();
+    TCGv t0 = tcg_temp_new();
+
+    /* 'ret' starts with all mask bits cleared */
+    gen_load_spr(ret, sprn);
+    tcg_gen_andi_tl(ret, ret, ~(spr_mask));
+
+    /* Apply the mask into 'gprn' in a temp var */
+    tcg_gen_andi_tl(t0, cpu_gpr[gprn], spr_mask);
+
+    /* Add the masked gprn bits into 'ret' */
+    tcg_gen_or_tl(ret, ret, t0);
+
+    tcg_temp_free(t0);
+
+    return ret;
+}
+
 void spr_read_MMCR0_ureg(DisasContext *ctx, int gprn, int sprn)
 {
     TCGv t0;
@@ -79,29 +106,68 @@ void spr_read_MMCR0_ureg(DisasContext *ctx, int gprn, int sprn)
 
 void spr_write_MMCR0_ureg(DisasContext *ctx, int sprn, int gprn)
 {
-    TCGv t0, t1;
+    TCGv masked_gprn;
 
     if (!spr_groupA_write_allowed(ctx)) {
         return;
     }
-
-    t0 = tcg_temp_new();
-    t1 = tcg_temp_new();
 
     /*
      * Filter out all bits but FC, PMAO, and PMAE, according
      * to ISA v3.1, in 10.4.4 Monitor Mode Control Register 0,
      * fourth paragraph.
      */
-    tcg_gen_andi_tl(t0, cpu_gpr[gprn], MMCR0_UREG_MASK);
-    gen_load_spr(t1, SPR_POWER_MMCR0);
-    tcg_gen_andi_tl(t1, t1, ~(MMCR0_UREG_MASK));
-    /* Keep all other bits intact */
-    tcg_gen_or_tl(t1, t1, t0);
-    gen_store_spr(SPR_POWER_MMCR0, t1);
+    masked_gprn = masked_gprn_for_spr_write(gprn, SPR_POWER_MMCR0,
+                                            MMCR0_UREG_MASK);
+    gen_store_spr(SPR_POWER_MMCR0, masked_gprn);
+
+    tcg_temp_free(masked_gprn);
+}
+
+void spr_read_MMCR2_ureg(DisasContext *ctx, int gprn, int sprn)
+{
+    TCGv t0;
+
+    if (!spr_groupA_read_allowed(ctx)) {
+        return;
+    }
+
+    t0 = tcg_temp_new();
+
+    /*
+     * On read, filter out all bits that are not FCnP0 bits.
+     * When MMCR0[PMCC] is set to 0b10 or 0b11, providing
+     * problem state programs read/write access to MMCR2,
+     * only the FCnP0 bits can be accessed. All other bits are
+     * not changed when mtspr is executed in problem state, and
+     * all other bits return 0s when mfspr is executed in problem
+     * state, according to ISA v3.1, section 10.4.6 Monitor Mode
+     * Control Register 2, p. 1316, third paragraph.
+     */
+    gen_load_spr(t0, SPR_POWER_MMCR2);
+    tcg_gen_andi_tl(t0, t0, MMCR2_UREG_MASK);
+    tcg_gen_mov_tl(cpu_gpr[gprn], t0);
 
     tcg_temp_free(t0);
-    tcg_temp_free(t1);
+}
+
+void spr_write_MMCR2_ureg(DisasContext *ctx, int sprn, int gprn)
+{
+    TCGv masked_gprn;
+
+    if (!spr_groupA_write_allowed(ctx)) {
+        return;
+    }
+
+    /*
+     * Filter the bits that can be written using MMCR2_UREG_MASK,
+     * similar to what is done in spr_write_MMCR0_ureg().
+     */
+    masked_gprn = masked_gprn_for_spr_write(gprn, SPR_POWER_MMCR2,
+                                            MMCR2_UREG_MASK);
+    gen_store_spr(SPR_POWER_MMCR2, masked_gprn);
+
+    tcg_temp_free(masked_gprn);
 }
 #else
 void spr_read_MMCR0_ureg(DisasContext *ctx, int gprn, int sprn)
@@ -110,6 +176,16 @@ void spr_read_MMCR0_ureg(DisasContext *ctx, int gprn, int sprn)
 }
 
 void spr_write_MMCR0_ureg(DisasContext *ctx, int sprn, int gprn)
+{
+    spr_noaccess(ctx, gprn, sprn);
+}
+
+void spr_read_MMCR2_ureg(DisasContext *ctx, int gprn, int sprn)
+{
+    spr_read_ureg(ctx, gprn, sprn);
+}
+
+void spr_write_MMCR2_ureg(DisasContext *ctx, int sprn, int gprn)
 {
     spr_noaccess(ctx, gprn, sprn);
 }
