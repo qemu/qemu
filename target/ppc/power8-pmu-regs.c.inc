@@ -169,6 +169,56 @@ void spr_write_MMCR2_ureg(DisasContext *ctx, int sprn, int gprn)
 
     tcg_temp_free(masked_gprn);
 }
+
+void spr_read_PMC14_ureg(DisasContext *ctx, int gprn, int sprn)
+{
+    if (!spr_groupA_read_allowed(ctx)) {
+        return;
+    }
+
+    spr_read_ureg(ctx, gprn, sprn);
+}
+
+void spr_read_PMC56_ureg(DisasContext *ctx, int gprn, int sprn)
+{
+    /*
+     * If PMCC = 0b11, PMC5 and PMC6 aren't included in the Performance
+     * Monitor, and a read attempt results in a Facility Unavailable
+     * Interrupt.
+     */
+    if (ctx->mmcr0_pmcc0 && ctx->mmcr0_pmcc1) {
+        gen_hvpriv_exception(ctx, POWERPC_EXCP_FU);
+        return;
+    }
+
+    /* The remaining steps are similar to PMCs 1-4 userspace read */
+    spr_read_PMC14_ureg(ctx, gprn, sprn);
+}
+
+void spr_write_PMC14_ureg(DisasContext *ctx, int sprn, int gprn)
+{
+    if (!spr_groupA_write_allowed(ctx)) {
+        return;
+    }
+
+    spr_write_ureg(ctx, sprn, gprn);
+}
+
+void spr_write_PMC56_ureg(DisasContext *ctx, int sprn, int gprn)
+{
+    /*
+     * If PMCC = 0b11, PMC5 and PMC6 aren't included in the Performance
+     * Monitor, and a write attempt results in a Facility Unavailable
+     * Interrupt.
+     */
+    if (ctx->mmcr0_pmcc0 && ctx->mmcr0_pmcc1) {
+        gen_hvpriv_exception(ctx, POWERPC_EXCP_FU);
+        return;
+    }
+
+    /* The remaining steps are similar to PMCs 1-4 userspace write */
+    spr_write_PMC14_ureg(ctx, sprn, gprn);
+}
 #else
 void spr_read_MMCR0_ureg(DisasContext *ctx, int gprn, int sprn)
 {
@@ -186,6 +236,26 @@ void spr_read_MMCR2_ureg(DisasContext *ctx, int gprn, int sprn)
 }
 
 void spr_write_MMCR2_ureg(DisasContext *ctx, int sprn, int gprn)
+{
+    spr_noaccess(ctx, gprn, sprn);
+}
+
+void spr_read_PMC14_ureg(DisasContext *ctx, int gprn, int sprn)
+{
+    spr_read_ureg(ctx, gprn, sprn);
+}
+
+void spr_read_PMC56_ureg(DisasContext *ctx, int gprn, int sprn)
+{
+    spr_read_ureg(ctx, gprn, sprn);
+}
+
+void spr_write_PMC14_ureg(DisasContext *ctx, int sprn, int gprn)
+{
+    spr_noaccess(ctx, gprn, sprn);
+}
+
+void spr_write_PMC56_ureg(DisasContext *ctx, int sprn, int gprn)
 {
     spr_noaccess(ctx, gprn, sprn);
 }
