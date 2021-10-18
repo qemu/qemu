@@ -427,14 +427,6 @@
 #define SATP64_ASID         0x0FFFF00000000000ULL
 #define SATP64_PPN          0x00000FFFFFFFFFFFULL
 
-/* VM modes (mstatus.vm) privileged ISA 1.9.1 */
-#define VM_1_09_MBARE       0
-#define VM_1_09_MBB         1
-#define VM_1_09_MBBID       2
-#define VM_1_09_SV32        8
-#define VM_1_09_SV39        9
-#define VM_1_09_SV48        10
-
 /* VM modes (satp.mode) privileged ISA 1.10 */
 #define VM_1_10_MBARE       0
 #define VM_1_10_SV32        1
