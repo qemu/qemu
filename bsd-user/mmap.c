@@ -127,7 +127,27 @@ error:
     return ret;
 }
 
-/* map an incomplete host page */
+/*
+ * map an incomplete host page
+ *
+ * mmap_frag can be called with a valid fd, if flags doesn't contain one of
+ * MAP_ANON, MAP_STACK, MAP_GUARD. If we need to map a page in those cases, we
+ * pass fd == -1. However, if flags contains MAP_GUARD then MAP_ANON cannot be
+ * added.
+ *
+ * * If fd is valid (not -1) we want to map the pages with MAP_ANON.
+ * * If flags contains MAP_GUARD we don't want to add MAP_ANON because it
+ *   will be rejected.  See kern_mmap's enforcing of constraints for MAP_GUARD
+ *   in sys/vm/vm_mmap.c.
+ * * If flags contains MAP_ANON it doesn't matter if we add it or not.
+ * * If flags contains MAP_STACK, mmap adds MAP_ANON when called so doesn't
+ *   matter if we add it or not either. See enforcing of constraints for
+ *   MAP_STACK in kern_mmap.
+ *
+ * Don't add MAP_ANON for the flags that use fd == -1 without specifying the
+ * flags directly, with the assumption that future flags that require fd == -1
+ * will also not require MAP_ANON.
+ */
 static int mmap_frag(abi_ulong real_start,
                      abi_ulong start, abi_ulong end,
                      int prot, int flags, int fd, abi_ulong offset)
@@ -147,9 +167,9 @@ static int mmap_frag(abi_ulong real_start,
     }
 
     if (prot1 == 0) {
-        /* no page was there, so we allocate one */
+        /* no page was there, so we allocate one. See also above. */
         void *p = mmap(host_start, qemu_host_page_size, prot,
-                       flags | MAP_ANON, -1, 0);
+                       flags | ((fd != -1) ? MAP_ANON : 0), -1, 0);
         if (p == MAP_FAILED)
             return -1;
         prot1 = prot;
@@ -157,7 +177,7 @@ static int mmap_frag(abi_ulong real_start,
     prot1 &= PAGE_BITS;
 
     prot_new = prot | prot1;
-    if (!(flags & MAP_ANON)) {
+    if (fd != -1) {
         /* msync() won't work here, so we return an error if write is
            possible while it is a shared mapping */
         if ((flags & TARGET_BSD_MAP_FLAGMASK) == MAP_SHARED &&
@@ -565,7 +585,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
          * worst case: we cannot map the file because the offset is not
          * aligned, so we read it
          */
-        if (!(flags & MAP_ANON) &&
+        if (fd != -1 &&
             (offset & ~qemu_host_page_mask) != (start & ~qemu_host_page_mask)) {
             /*
              * msync() won't work here, so we return an error if write is
