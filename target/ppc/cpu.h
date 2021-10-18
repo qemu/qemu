@@ -343,6 +343,10 @@ typedef struct ppc_v3_pate_t {
 #define MSR_RI   1  /* Recoverable interrupt                        1        */
 #define MSR_LE   0  /* Little-endian mode                           1 hflags */
 
+/* PMU bits */
+#define MMCR0_PMCC0  PPC_BIT(44)         /* PMC Control bit 0 */
+#define MMCR0_PMCC1  PPC_BIT(45)         /* PMC Control bit 1 */
+
 /* LPCR bits */
 #define LPCR_VPM0         PPC_BIT(0)
 #define LPCR_VPM1         PPC_BIT(1)
@@ -608,6 +612,8 @@ enum {
     HFLAGS_SE = 10,  /* MSR_SE -- from elsewhere on embedded ppc */
     HFLAGS_FP = 13,  /* MSR_FP */
     HFLAGS_PR = 14,  /* MSR_PR */
+    HFLAGS_PMCC0 = 15,  /* MMCR0 PMCC bit 0 */
+    HFLAGS_PMCC1 = 16,  /* MMCR0 PMCC bit 1 */
     HFLAGS_VSX = 23, /* MSR_VSX if cpu has VSX */
     HFLAGS_VR = 25,  /* MSR_VR if cpu has VRE */
 
