@@ -27,8 +27,6 @@ enum {
     OPC_MSA_I8_00   = 0x00 | OPC_MSA,
     OPC_MSA_I8_01   = 0x01 | OPC_MSA,
     OPC_MSA_I8_02   = 0x02 | OPC_MSA,
-    OPC_MSA_I5_06   = 0x06 | OPC_MSA,
-    OPC_MSA_I5_07   = 0x07 | OPC_MSA,
     OPC_MSA_BIT_09  = 0x09 | OPC_MSA,
     OPC_MSA_BIT_0A  = 0x0A | OPC_MSA,
     OPC_MSA_3R_0D   = 0x0D | OPC_MSA,
@@ -58,19 +56,6 @@ enum {
 };
 
 enum {
-    /* I5 instruction df(bits 22..21) = _b, _h, _w, _d */
-    OPC_ADDVI_df    = (0x0 << 23) | OPC_MSA_I5_06,
-    OPC_CEQI_df     = (0x0 << 23) | OPC_MSA_I5_07,
-    OPC_SUBVI_df    = (0x1 << 23) | OPC_MSA_I5_06,
-    OPC_MAXI_S_df   = (0x2 << 23) | OPC_MSA_I5_06,
-    OPC_CLTI_S_df   = (0x2 << 23) | OPC_MSA_I5_07,
-    OPC_MAXI_U_df   = (0x3 << 23) | OPC_MSA_I5_06,
-    OPC_CLTI_U_df   = (0x3 << 23) | OPC_MSA_I5_07,
-    OPC_MINI_S_df   = (0x4 << 23) | OPC_MSA_I5_06,
-    OPC_CLEI_S_df   = (0x4 << 23) | OPC_MSA_I5_07,
-    OPC_MINI_U_df   = (0x5 << 23) | OPC_MSA_I5_06,
-    OPC_CLEI_U_df   = (0x5 << 23) | OPC_MSA_I5_07,
-
     /* I8 instruction */
     OPC_ANDI_B      = (0x0 << 24) | OPC_MSA_I8_00,
     OPC_BMNZI_B     = (0x0 << 24) | OPC_MSA_I8_01,
@@ -314,6 +299,8 @@ static inline bool check_msa_enabled(DisasContext *ctx)
     return true;
 }
 
+typedef void gen_helper_piiii(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32);
+
 static void gen_check_zero_element(TCGv tresult, uint8_t df, uint8_t wt,
                                    TCGCond cond)
 {
@@ -463,68 +450,33 @@ static void gen_msa_i8(DisasContext *ctx)
     tcg_temp_free_i32(ti8);
 }
 
-static void gen_msa_i5(DisasContext *ctx)
+static bool trans_msa_i5(DisasContext *ctx, arg_msa_i *a,
+                         gen_helper_piiii *gen_msa_i5)
 {
-#define MASK_MSA_I5(op)    (MASK_MSA_MINOR(op) | (op & (0x7 << 23)))
-    int8_t s5 = (int8_t) sextract32(ctx->opcode, 16, 5);
-    uint8_t u5 = extract32(ctx->opcode, 16, 5);
-
-    TCGv_i32 tdf = tcg_const_i32(extract32(ctx->opcode, 21, 2));
-    TCGv_i32 twd = tcg_const_i32(extract32(ctx->opcode, 11, 5));
-    TCGv_i32 tws = tcg_const_i32(extract32(ctx->opcode, 6, 5));
-    TCGv_i32 timm = tcg_temp_new_i32();
-    tcg_gen_movi_i32(timm, u5);
-
-    switch (MASK_MSA_I5(ctx->opcode)) {
-    case OPC_ADDVI_df:
-        gen_helper_msa_addvi_df(cpu_env, tdf, twd, tws, timm);
-        break;
-    case OPC_SUBVI_df:
-        gen_helper_msa_subvi_df(cpu_env, tdf, twd, tws, timm);
-        break;
-    case OPC_MAXI_S_df:
-        tcg_gen_movi_i32(timm, s5);
-        gen_helper_msa_maxi_s_df(cpu_env, tdf, twd, tws, timm);
-        break;
-    case OPC_MAXI_U_df:
-        gen_helper_msa_maxi_u_df(cpu_env, tdf, twd, tws, timm);
-        break;
-    case OPC_MINI_S_df:
-        tcg_gen_movi_i32(timm, s5);
-        gen_helper_msa_mini_s_df(cpu_env, tdf, twd, tws, timm);
-        break;
-    case OPC_MINI_U_df:
-        gen_helper_msa_mini_u_df(cpu_env, tdf, twd, tws, timm);
-        break;
-    case OPC_CEQI_df:
-        tcg_gen_movi_i32(timm, s5);
-        gen_helper_msa_ceqi_df(cpu_env, tdf, twd, tws, timm);
-        break;
-    case OPC_CLTI_S_df:
-        tcg_gen_movi_i32(timm, s5);
-        gen_helper_msa_clti_s_df(cpu_env, tdf, twd, tws, timm);
-        break;
-    case OPC_CLTI_U_df:
-        gen_helper_msa_clti_u_df(cpu_env, tdf, twd, tws, timm);
-        break;
-    case OPC_CLEI_S_df:
-        tcg_gen_movi_i32(timm, s5);
-        gen_helper_msa_clei_s_df(cpu_env, tdf, twd, tws, timm);
-        break;
-    case OPC_CLEI_U_df:
-        gen_helper_msa_clei_u_df(cpu_env, tdf, twd, tws, timm);
-        break;
-    default:
-        MIPS_INVAL("MSA instruction");
-        gen_reserved_instruction(ctx);
-        break;
+    if (!check_msa_enabled(ctx)) {
+        return true;
     }
 
-    tcg_temp_free_i32(tdf);
-    tcg_temp_free_i32(twd);
-    tcg_temp_free_i32(tws);
-    tcg_temp_free_i32(timm);
+    gen_msa_i5(cpu_env,
+               tcg_constant_i32(a->df),
+               tcg_constant_i32(a->wd),
+               tcg_constant_i32(a->ws),
+               tcg_constant_i32(a->sa));
+
+    return true;
 }
+
+TRANS(ADDVI,    trans_msa_i5, gen_helper_msa_addvi_df);
+TRANS(SUBVI,    trans_msa_i5, gen_helper_msa_subvi_df);
+TRANS(MAXI_S,   trans_msa_i5, gen_helper_msa_maxi_s_df);
+TRANS(MAXI_U,   trans_msa_i5, gen_helper_msa_maxi_u_df);
+TRANS(MINI_S,   trans_msa_i5, gen_helper_msa_mini_s_df);
+TRANS(MINI_U,   trans_msa_i5, gen_helper_msa_mini_u_df);
+TRANS(CLTI_S,   trans_msa_i5, gen_helper_msa_clti_s_df);
+TRANS(CLTI_U,   trans_msa_i5, gen_helper_msa_clti_u_df);
+TRANS(CLEI_S,   trans_msa_i5, gen_helper_msa_clei_s_df);
+TRANS(CLEI_U,   trans_msa_i5, gen_helper_msa_clei_u_df);
+TRANS(CEQI,     trans_msa_i5, gen_helper_msa_ceqi_df);
 
 static bool trans_LDI(DisasContext *ctx, arg_msa_ldi *a)
 {
@@ -2167,10 +2119,6 @@ static bool trans_MSA(DisasContext *ctx, arg_MSA *a)
     case OPC_MSA_I8_01:
     case OPC_MSA_I8_02:
         gen_msa_i8(ctx);
-        break;
-    case OPC_MSA_I5_06:
-    case OPC_MSA_I5_07:
-        gen_msa_i5(ctx);
         break;
     case OPC_MSA_BIT_09:
     case OPC_MSA_BIT_0A:
