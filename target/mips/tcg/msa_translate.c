@@ -17,6 +17,9 @@
 #include "fpu_helper.h"
 #include "internal.h"
 
+static int bit_m(DisasContext *ctx, int x);
+static int bit_df(DisasContext *ctx, int x);
+
 /* Include the auto-generated decoder.  */
 #include "decode-msa.c.inc"
 
@@ -27,8 +30,6 @@ enum {
     OPC_MSA_I8_00   = 0x00 | OPC_MSA,
     OPC_MSA_I8_01   = 0x01 | OPC_MSA,
     OPC_MSA_I8_02   = 0x02 | OPC_MSA,
-    OPC_MSA_BIT_09  = 0x09 | OPC_MSA,
-    OPC_MSA_BIT_0A  = 0x0A | OPC_MSA,
     OPC_MSA_3R_0D   = 0x0D | OPC_MSA,
     OPC_MSA_3R_0E   = 0x0E | OPC_MSA,
     OPC_MSA_3R_0F   = 0x0F | OPC_MSA,
@@ -222,20 +223,6 @@ enum {
     OPC_MSUBR_Q_df  = (0xE << 22) | OPC_MSA_3RF_1C,
     OPC_FSULE_df    = (0xF << 22) | OPC_MSA_3RF_1A,
     OPC_FMAX_A_df   = (0xF << 22) | OPC_MSA_3RF_1B,
-
-    /* BIT instruction df(bits 22..16) = _B _H _W _D */
-    OPC_SLLI_df     = (0x0 << 23) | OPC_MSA_BIT_09,
-    OPC_SAT_S_df    = (0x0 << 23) | OPC_MSA_BIT_0A,
-    OPC_SRAI_df     = (0x1 << 23) | OPC_MSA_BIT_09,
-    OPC_SAT_U_df    = (0x1 << 23) | OPC_MSA_BIT_0A,
-    OPC_SRLI_df     = (0x2 << 23) | OPC_MSA_BIT_09,
-    OPC_SRARI_df    = (0x2 << 23) | OPC_MSA_BIT_0A,
-    OPC_BCLRI_df    = (0x3 << 23) | OPC_MSA_BIT_09,
-    OPC_SRLRI_df    = (0x3 << 23) | OPC_MSA_BIT_0A,
-    OPC_BSETI_df    = (0x4 << 23) | OPC_MSA_BIT_09,
-    OPC_BNEGI_df    = (0x5 << 23) | OPC_MSA_BIT_09,
-    OPC_BINSLI_df   = (0x6 << 23) | OPC_MSA_BIT_09,
-    OPC_BINSRI_df   = (0x7 << 23) | OPC_MSA_BIT_09,
 };
 
 static const char msaregnames[][6] = {
@@ -256,6 +243,59 @@ static const char msaregnames[][6] = {
     "w28.d0", "w28.d1", "w29.d0", "w29.d1",
     "w30.d0", "w30.d1", "w31.d0", "w31.d1",
 };
+
+/* Encoding of Operation Field (must be indexed by CPUMIPSMSADataFormat) */
+struct dfe {
+    int start;
+    int length;
+    uint32_t mask;
+};
+
+/*
+ * Extract immediate from df/{m,n} format (used by ELM & BIT instructions).
+ * Returns the immediate value, or -1 if the format does not match.
+ */
+static int df_extract_val(DisasContext *ctx, int x, const struct dfe *s)
+{
+    for (unsigned i = 0; i < 4; i++) {
+        if (extract32(x, s->start, s->length) == s->mask) {
+            return extract32(x, 0, s->start);
+        }
+    }
+    return -1;
+}
+
+/*
+ * Extract DataField from df/{m,n} format (used by ELM & BIT instructions).
+ * Returns the DataField, or -1 if the format does not match.
+ */
+static int df_extract_df(DisasContext *ctx, int x, const struct dfe *s)
+{
+    for (unsigned i = 0; i < 4; i++) {
+        if (extract32(x, s->start, s->length) == s->mask) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static const struct dfe df_bit[] = {
+    /* Table 3.28 BIT Instruction Format */
+    [DF_BYTE]   = {3, 4, 0b1110},
+    [DF_HALF]   = {4, 3, 0b110},
+    [DF_WORD]   = {5, 2, 0b10},
+    [DF_DOUBLE] = {6, 1, 0b0}
+};
+
+static int bit_m(DisasContext *ctx, int x)
+{
+    return df_extract_val(ctx, x, df_bit);
+}
+
+static int bit_df(DisasContext *ctx, int x)
+{
+    return df_extract_df(ctx, x, df_bit);
+}
 
 static TCGv_i64 msa_wr_d[64];
 
@@ -492,89 +532,38 @@ static bool trans_LDI(DisasContext *ctx, arg_msa_ldi *a)
     return true;
 }
 
-static void gen_msa_bit(DisasContext *ctx)
+static bool trans_msa_bit(DisasContext *ctx, arg_msa_bit *a,
+                          gen_helper_piiii *gen_msa_bit)
 {
-#define MASK_MSA_BIT(op)    (MASK_MSA_MINOR(op) | (op & (0x7 << 23)))
-    uint8_t dfm = (ctx->opcode >> 16) & 0x7f;
-    uint32_t df = 0, m = 0;
-    uint8_t ws = (ctx->opcode >> 11) & 0x1f;
-    uint8_t wd = (ctx->opcode >> 6) & 0x1f;
-
-    TCGv_i32 tdf;
-    TCGv_i32 tm;
-    TCGv_i32 twd;
-    TCGv_i32 tws;
-
-    if ((dfm & 0x40) == 0x00) {
-        m = dfm & 0x3f;
-        df = DF_DOUBLE;
-    } else if ((dfm & 0x60) == 0x40) {
-        m = dfm & 0x1f;
-        df = DF_WORD;
-    } else if ((dfm & 0x70) == 0x60) {
-        m = dfm & 0x0f;
-        df = DF_HALF;
-    } else if ((dfm & 0x78) == 0x70) {
-        m = dfm & 0x7;
-        df = DF_BYTE;
-    } else {
-        gen_reserved_instruction(ctx);
-        return;
+    if (a->df < 0) {
+        return false;
     }
 
-    tdf = tcg_const_i32(df);
-    tm  = tcg_const_i32(m);
-    twd = tcg_const_i32(wd);
-    tws = tcg_const_i32(ws);
-
-    switch (MASK_MSA_BIT(ctx->opcode)) {
-    case OPC_SLLI_df:
-        gen_helper_msa_slli_df(cpu_env, tdf, twd, tws, tm);
-        break;
-    case OPC_SRAI_df:
-        gen_helper_msa_srai_df(cpu_env, tdf, twd, tws, tm);
-        break;
-    case OPC_SRLI_df:
-        gen_helper_msa_srli_df(cpu_env, tdf, twd, tws, tm);
-        break;
-    case OPC_BCLRI_df:
-        gen_helper_msa_bclri_df(cpu_env, tdf, twd, tws, tm);
-        break;
-    case OPC_BSETI_df:
-        gen_helper_msa_bseti_df(cpu_env, tdf, twd, tws, tm);
-        break;
-    case OPC_BNEGI_df:
-        gen_helper_msa_bnegi_df(cpu_env, tdf, twd, tws, tm);
-        break;
-    case OPC_BINSLI_df:
-        gen_helper_msa_binsli_df(cpu_env, tdf, twd, tws, tm);
-        break;
-    case OPC_BINSRI_df:
-        gen_helper_msa_binsri_df(cpu_env, tdf, twd, tws, tm);
-        break;
-    case OPC_SAT_S_df:
-        gen_helper_msa_sat_s_df(cpu_env, tdf, twd, tws, tm);
-        break;
-    case OPC_SAT_U_df:
-        gen_helper_msa_sat_u_df(cpu_env, tdf, twd, tws, tm);
-        break;
-    case OPC_SRARI_df:
-        gen_helper_msa_srari_df(cpu_env, tdf, twd, tws, tm);
-        break;
-    case OPC_SRLRI_df:
-        gen_helper_msa_srlri_df(cpu_env, tdf, twd, tws, tm);
-        break;
-    default:
-        MIPS_INVAL("MSA instruction");
-        gen_reserved_instruction(ctx);
-        break;
+    if (!check_msa_enabled(ctx)) {
+        return true;
     }
 
-    tcg_temp_free_i32(tdf);
-    tcg_temp_free_i32(tm);
-    tcg_temp_free_i32(twd);
-    tcg_temp_free_i32(tws);
+    gen_msa_bit(cpu_env,
+                tcg_constant_i32(a->df),
+                tcg_constant_i32(a->wd),
+                tcg_constant_i32(a->ws),
+                tcg_constant_i32(a->m));
+
+    return true;
 }
+
+TRANS(SLLI,     trans_msa_bit, gen_helper_msa_slli_df);
+TRANS(SRAI,     trans_msa_bit, gen_helper_msa_srai_df);
+TRANS(SRLI,     trans_msa_bit, gen_helper_msa_srli_df);
+TRANS(BCLRI,    trans_msa_bit, gen_helper_msa_bclri_df);
+TRANS(BSETI,    trans_msa_bit, gen_helper_msa_bseti_df);
+TRANS(BNEGI,    trans_msa_bit, gen_helper_msa_bnegi_df);
+TRANS(BINSLI,   trans_msa_bit, gen_helper_msa_binsli_df);
+TRANS(BINSRI,   trans_msa_bit, gen_helper_msa_binsri_df);
+TRANS(SAT_S,    trans_msa_bit, gen_helper_msa_sat_u_df);
+TRANS(SAT_U,    trans_msa_bit, gen_helper_msa_sat_u_df);
+TRANS(SRARI,    trans_msa_bit, gen_helper_msa_srari_df);
+TRANS(SRLRI,    trans_msa_bit, gen_helper_msa_srlri_df);
 
 static void gen_msa_3r(DisasContext *ctx)
 {
@@ -2119,10 +2108,6 @@ static bool trans_MSA(DisasContext *ctx, arg_MSA *a)
     case OPC_MSA_I8_01:
     case OPC_MSA_I8_02:
         gen_msa_i8(ctx);
-        break;
-    case OPC_MSA_BIT_09:
-    case OPC_MSA_BIT_0A:
-        gen_msa_bit(ctx);
         break;
     case OPC_MSA_3R_0D:
     case OPC_MSA_3R_0E:
