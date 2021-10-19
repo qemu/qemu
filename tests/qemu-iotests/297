@@ -65,10 +65,8 @@ def run_linters():
     print('=== pylint ===')
     sys.stdout.flush()
 
-    # Todo notes are fine, but fixme's or xxx's should probably just be
-    # fixed (in tests, at least)
     env = os.environ.copy()
-    subprocess.run(('pylint-3', '--score=n', '--notes=FIXME,XXX', *files),
+    subprocess.run(('pylint-3', *files),
                    env=env, check=False)
 
     print('=== mypy ===')
