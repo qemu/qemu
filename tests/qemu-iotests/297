@@ -82,36 +82,51 @@ def run_linter(
     )
 
 
-def main() -> None:
-    for linter in ('pylint', 'mypy'):
-        try:
-            run_linter(linter, ['--version'], suppress_output=True)
-        except subprocess.CalledProcessError:
-            iotests.notrun(f"'{linter}' not found")
+def check_linter(linter: str) -> bool:
+    try:
+        run_linter(linter, ['--version'], suppress_output=True)
+    except subprocess.CalledProcessError:
+        iotests.case_notrun(f"'{linter}' not found")
+        return False
+    return True
 
+
+def test_pylint(files: List[str]) -> None:
+    print('=== pylint ===')
+    sys.stdout.flush()
+
+    if not check_linter('pylint'):
+        return
+
+    run_linter('pylint', files)
+
+
+def test_mypy(files: List[str]) -> None:
+    print('=== mypy ===')
+    sys.stdout.flush()
+
+    if not check_linter('mypy'):
+        return
+
+    env = os.environ.copy()
+    env['MYPYPATH'] = env['PYTHONPATH']
+
+    run_linter('mypy', files, env=env, suppress_output=True)
+
+
+def main() -> None:
     files = get_test_files()
 
     iotests.logger.debug('Files to be checked:')
     iotests.logger.debug(', '.join(sorted(files)))
 
-    env = os.environ.copy()
-    env['MYPYPATH'] = env['PYTHONPATH']
-
-    print('=== pylint ===')
-    sys.stdout.flush()
-    try:
-        run_linter('pylint', files, env=env)
-    except subprocess.CalledProcessError:
-        # pylint failure will be caught by diffing the IO.
-        pass
-
-    print('=== mypy ===')
-    sys.stdout.flush()
-    try:
-        run_linter('mypy', files, env=env, suppress_output=True)
-    except subprocess.CalledProcessError as exc:
-        if exc.output:
-            print(exc.output)
+    for test in (test_pylint, test_mypy):
+        try:
+            test(files)
+        except subprocess.CalledProcessError as exc:
+            # Linter failure will be caught by diffing the IO.
+            if exc.output:
+                print(exc.output)
 
 
 iotests.script_main(main)
