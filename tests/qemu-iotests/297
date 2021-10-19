@@ -70,21 +70,17 @@ def run_linter(
     """
     Run a python-based linting tool.
 
-    If suppress_output is True, capture stdout/stderr of the child
-    process and only print that information back to stdout if the child
-    process's return code was non-zero.
+    :param suppress_output: If True, suppress all stdout/stderr output.
+    :raise CalledProcessError: If the linter process exits with failure.
     """
-    p = subprocess.run(
+    subprocess.run(
         ('python3', '-m', tool, *args),
         env=env,
-        check=False,
+        check=True,
         stdout=subprocess.PIPE if suppress_output else None,
         stderr=subprocess.STDOUT if suppress_output else None,
         universal_newlines=True,
     )
-
-    if suppress_output and p.returncode != 0:
-        print(p.stdout)
 
 
 def main() -> None:
@@ -102,11 +98,19 @@ def main() -> None:
 
     print('=== pylint ===')
     sys.stdout.flush()
-    run_linter('pylint', files, env=env)
+    try:
+        run_linter('pylint', files, env=env)
+    except subprocess.CalledProcessError:
+        # pylint failure will be caught by diffing the IO.
+        pass
 
     print('=== mypy ===')
     sys.stdout.flush()
-    run_linter('mypy', files, env=env, suppress_output=True)
+    try:
+        run_linter('mypy', files, env=env, suppress_output=True)
+    except subprocess.CalledProcessError as exc:
+        if exc.output:
+            print(exc.output)
 
 
 iotests.script_main(main)
