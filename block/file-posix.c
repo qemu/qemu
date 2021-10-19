@@ -1807,7 +1807,7 @@ static int handle_aiocb_copy_range(void *opaque)
 static int handle_aiocb_discard(void *opaque)
 {
     RawPosixAIOData *aiocb = opaque;
-    int ret = -EOPNOTSUPP;
+    int ret = -ENOTSUP;
     BDRVRawState *s = aiocb->bs->opaque;
 
     if (!s->has_discard) {
@@ -1829,7 +1829,7 @@ static int handle_aiocb_discard(void *opaque)
 #ifdef CONFIG_FALLOCATE_PUNCH_HOLE
         ret = do_fallocate(s->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
                            aiocb->aio_offset, aiocb->aio_nbytes);
-        ret = translate_err(-errno);
+        ret = translate_err(ret);
 #elif defined(__APPLE__) && (__MACH__)
         fpunchhole_t fpunchhole;
         fpunchhole.fp_flags = 0;
