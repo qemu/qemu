@@ -1530,6 +1530,12 @@ config_host_data.set('HAVE_COPY_FILE_RANGE', cc.has_function('copy_file_range'))
 config_host_data.set('HAVE_OPENPTY', cc.has_function('openpty', dependencies: util))
 config_host_data.set('HAVE_STRCHRNUL', cc.has_function('strchrnul'))
 config_host_data.set('HAVE_SYSTEM_FUNCTION', cc.has_function('system', prefix: '#include <stdlib.h>'))
+if rdma.found()
+  config_host_data.set('HAVE_IBV_ADVISE_MR',
+                       cc.has_function('ibv_advise_mr',
+                                       args: config_host['RDMA_LIBS'].split(),
+                                       prefix: '#include <infiniband/verbs.h>'))
+endif
 
 # has_header_symbol
 config_host_data.set('CONFIG_BYTESWAP_H',
