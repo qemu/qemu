@@ -271,19 +271,28 @@ static void dump_aml_files(test_data *data, bool rebuild)
     }
 }
 
+static bool create_tmp_asl(AcpiSdtTable *sdt)
+{
+    GError *error = NULL;
+    gint fd;
+
+    fd = g_file_open_tmp("asl-XXXXXX.dsl", &sdt->asl_file, &error);
+    g_assert_no_error(error);
+    close(fd);
+
+    return false;
+}
+
 static bool load_asl(GArray *sdts, AcpiSdtTable *sdt)
 {
     AcpiSdtTable *temp;
     GError *error = NULL;
     GString *command_line = g_string_new(iasl);
-    gint fd;
     gchar *out, *out_err;
     gboolean ret;
     int i;
 
-    fd = g_file_open_tmp("asl-XXXXXX.dsl", &sdt->asl_file, &error);
-    g_assert_no_error(error);
-    close(fd);
+    create_tmp_asl(sdt);
 
     /* build command line */
     g_string_append_printf(command_line, " -p %s ", sdt->asl_file);
@@ -463,11 +472,20 @@ static void test_acpi_asl(test_data *data)
         err = load_asl(data->tables, sdt);
         asl = normalize_asl(sdt->asl);
 
-        exp_err = load_asl(exp_data.tables, exp_sdt);
-        exp_asl = normalize_asl(exp_sdt->asl);
+        /*
+         * If expected file is empty - it's likely that it was a stub just
+         * created for step 1 above: we do want to decompile the actual one.
+         */
+        if (exp_sdt->aml_len) {
+            exp_err = load_asl(exp_data.tables, exp_sdt);
+            exp_asl = normalize_asl(exp_sdt->asl);
+        } else {
+            exp_err = create_tmp_asl(exp_sdt);
+            exp_asl = g_string_new("");
+        }
 
         /* TODO: check for warnings */
-        g_assert(!err || exp_err);
+        g_assert(!err || exp_err || !exp_sdt->aml_len);
 
         if (g_strcmp0(asl->str, exp_asl->str)) {
             sdt->tmp_files_retain = true;
