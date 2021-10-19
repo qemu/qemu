@@ -763,13 +763,6 @@ TRANS(FTINT_U,  trans_msa_2rf, gen_helper_msa_ftint_u_df);
 TRANS(FFINT_S,  trans_msa_2rf, gen_helper_msa_ffint_s_df);
 TRANS(FFINT_U,  trans_msa_2rf, gen_helper_msa_ffint_u_df);
 
-static bool trans_MSA(DisasContext *ctx, arg_MSA *a)
-{
-    gen_reserved_instruction(ctx);
-
-    return true;
-}
-
 static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a,
                            gen_helper_piv *gen_msa_ldst)
 {
