@@ -18,7 +18,10 @@
 &msa_ldi            df  wd       sa
 &msa_i              df  wd ws    sa
 &msa_bit            df  wd ws       m
+&msa_elm_df         df  wd ws       n
 
+%elm_df             16:6 !function=elm_df
+%elm_n              16:6 !function=elm_n
 %bit_df             16:7 !function=bit_df
 %bit_m              16:7 !function=bit_m
 %2r_df_w            16:1 !function=plus_2
@@ -29,6 +32,7 @@
 @ldst               ...... sa:s10 ws:5 wd:5 .... df:2       &msa_i
 @bz_v               ...... ... ..    wt:5 sa:16             &msa_bz df=3
 @bz                 ...... ...  df:2 wt:5 sa:16             &msa_bz
+@elm_df             ...... .... ......    ws:5 wd:5 ......  &msa_elm_df df=%elm_df n=%elm_n
 @vec                ...... .....     wt:5 ws:5 wd:5 ......  &msa_r df=0
 @2r                 ...... ........  df:2 ws:5 wd:5 ......  &msa_r wt=0
 @2rf                ...... ......... .    ws:5 wd:5 ......  &msa_r wt=0 df=%2r_df_w
@@ -160,6 +164,10 @@ BNZ                 010001 111 .. ..... ................    @bz
   HADD_U            011110 101.. ..... ..... .....  010101  @3r
   HSUB_S            011110 110.. ..... ..... .....  010101  @3r
   HSUB_U            011110 111.. ..... ..... .....  010101  @3r
+
+  SLDI              011110 0000 ...... ..... .....  011001  @elm_df
+  SPLATI            011110 0001 ...... ..... .....  011001  @elm_df
+  INSVE             011110 0101 ...... ..... .....  011001  @elm_df
 
   FCAF              011110 0000 . ..... ..... ..... 011010  @3rf_w
   FCUN              011110 0001 . ..... ..... ..... 011010  @3rf_w
