@@ -3304,14 +3304,26 @@ static bool failover_hide_primary_device(DeviceListener *listener,
         return false;
     }
 
+    /*
+     * The hide helper can be called several times for a given device.
+     * Check there is only one primary for a virtio-net device but
+     * don't duplicate the qdict several times if it's called for the same
+     * device.
+     */
     if (n->primary_opts) {
-        error_setg(errp, "Cannot attach more than one primary device to '%s'",
-                   n->netclient_name);
-        return false;
+        const char *old, *new;
+        /* devices with failover_pair_id always have an id */
+        old = qdict_get_str(n->primary_opts, "id");
+        new = qdict_get_str(device_opts, "id");
+        if (strcmp(old, new) != 0) {
+            error_setg(errp, "Cannot attach more than one primary device to "
+                       "'%s': '%s' and '%s'", n->netclient_name, old, new);
+            return false;
+        }
+    } else {
+        n->primary_opts = qdict_clone_shallow(device_opts);
+        n->primary_opts_from_json = from_json;
     }
-
-    n->primary_opts = qdict_clone_shallow(device_opts);
-    n->primary_opts_from_json = from_json;
 
     /* failover_primary_hidden is set during feature negotiation */
     return qatomic_read(&n->failover_primary_hidden);
