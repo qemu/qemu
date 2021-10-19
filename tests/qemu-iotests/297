@@ -61,27 +61,29 @@ def get_test_files() -> List[str]:
     return list(filter(is_python_file, check_tests))
 
 
-def run_pylint(
-    files: List[str],
-    env: Optional[Mapping[str, str]] = None,
+def run_linter(
+        tool: str,
+        args: List[str],
+        env: Optional[Mapping[str, str]] = None,
+        suppress_output: bool = False,
 ) -> None:
+    """
+    Run a python-based linting tool.
 
-    subprocess.run(('python3', '-m', 'pylint', *files),
-                   env=env, check=False)
+    If suppress_output is True, capture stdout/stderr of the child
+    process and only print that information back to stdout if the child
+    process's return code was non-zero.
+    """
+    p = subprocess.run(
+        ('python3', '-m', tool, *args),
+        env=env,
+        check=False,
+        stdout=subprocess.PIPE if suppress_output else None,
+        stderr=subprocess.STDOUT if suppress_output else None,
+        universal_newlines=True,
+    )
 
-
-def run_mypy(
-    files: List[str],
-    env: Optional[Mapping[str, str]] = None,
-) -> None:
-    p = subprocess.run(('python3', '-m', 'mypy', *files),
-                       env=env,
-                       check=False,
-                       stdout=subprocess.PIPE,
-                       stderr=subprocess.STDOUT,
-                       universal_newlines=True)
-
-    if p.returncode != 0:
+    if suppress_output and p.returncode != 0:
         print(p.stdout)
 
 
@@ -100,11 +102,11 @@ def main() -> None:
 
     print('=== pylint ===')
     sys.stdout.flush()
-    run_pylint(files, env=env)
+    run_linter('pylint', files, env=env)
 
     print('=== mypy ===')
     sys.stdout.flush()
-    run_mypy(files, env=env)
+    run_linter('mypy', files, env=env, suppress_output=True)
 
 
 iotests.script_main(main)
