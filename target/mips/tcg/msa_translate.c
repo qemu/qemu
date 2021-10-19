@@ -45,19 +45,9 @@ enum {
     OPC_MSA_3RF_1A  = 0x1A | OPC_MSA,
     OPC_MSA_3RF_1B  = 0x1B | OPC_MSA,
     OPC_MSA_3RF_1C  = 0x1C | OPC_MSA,
-    OPC_MSA_VEC     = 0x1E | OPC_MSA,
 };
 
 enum {
-    /* VEC instruction */
-    OPC_AND_V       = (0x00 << 21) | OPC_MSA_VEC,
-    OPC_OR_V        = (0x01 << 21) | OPC_MSA_VEC,
-    OPC_NOR_V       = (0x02 << 21) | OPC_MSA_VEC,
-    OPC_XOR_V       = (0x03 << 21) | OPC_MSA_VEC,
-    OPC_BMNZ_V      = (0x04 << 21) | OPC_MSA_VEC,
-    OPC_BMZ_V       = (0x05 << 21) | OPC_MSA_VEC,
-    OPC_BSEL_V      = (0x06 << 21) | OPC_MSA_VEC,
-
     /* 3R instruction df(bits 22..21) = _b, _h, _w, d */
     OPC_SLL_df      = (0x0 << 23) | OPC_MSA_3R_0D,
     OPC_ADDV_df     = (0x0 << 23) | OPC_MSA_3R_0E,
@@ -516,6 +506,29 @@ TRANS(SAT_S,    trans_msa_bit, gen_helper_msa_sat_u_df);
 TRANS(SAT_U,    trans_msa_bit, gen_helper_msa_sat_u_df);
 TRANS(SRARI,    trans_msa_bit, gen_helper_msa_srari_df);
 TRANS(SRLRI,    trans_msa_bit, gen_helper_msa_srlri_df);
+
+static bool trans_msa_3r(DisasContext *ctx, arg_msa_r *a,
+                         gen_helper_piii *gen_msa_3r)
+{
+    if (!check_msa_enabled(ctx)) {
+        return true;
+    }
+
+    gen_msa_3r(cpu_env,
+               tcg_constant_i32(a->wd),
+               tcg_constant_i32(a->ws),
+               tcg_constant_i32(a->wt));
+
+    return true;
+}
+
+TRANS(AND_V,            trans_msa_3r,   gen_helper_msa_and_v);
+TRANS(OR_V,             trans_msa_3r,   gen_helper_msa_or_v);
+TRANS(NOR_V,            trans_msa_3r,   gen_helper_msa_nor_v);
+TRANS(XOR_V,            trans_msa_3r,   gen_helper_msa_xor_v);
+TRANS(BMNZ_V,           trans_msa_3r,   gen_helper_msa_bmnz_v);
+TRANS(BMZ_V,            trans_msa_3r,   gen_helper_msa_bmz_v);
+TRANS(BSEL_V,           trans_msa_3r,   gen_helper_msa_bsel_v);
 
 static void gen_msa_3r(DisasContext *ctx)
 {
@@ -1899,68 +1912,6 @@ TRANS(FTINT_U,  trans_msa_2rf, gen_helper_msa_ftint_u_df);
 TRANS(FFINT_S,  trans_msa_2rf, gen_helper_msa_ffint_s_df);
 TRANS(FFINT_U,  trans_msa_2rf, gen_helper_msa_ffint_u_df);
 
-static void gen_msa_vec_v(DisasContext *ctx)
-{
-#define MASK_MSA_VEC(op)    (MASK_MSA_MINOR(op) | (op & (0x1f << 21)))
-    uint8_t wt = (ctx->opcode >> 16) & 0x1f;
-    uint8_t ws = (ctx->opcode >> 11) & 0x1f;
-    uint8_t wd = (ctx->opcode >> 6) & 0x1f;
-    TCGv_i32 twd = tcg_const_i32(wd);
-    TCGv_i32 tws = tcg_const_i32(ws);
-    TCGv_i32 twt = tcg_const_i32(wt);
-
-    switch (MASK_MSA_VEC(ctx->opcode)) {
-    case OPC_AND_V:
-        gen_helper_msa_and_v(cpu_env, twd, tws, twt);
-        break;
-    case OPC_OR_V:
-        gen_helper_msa_or_v(cpu_env, twd, tws, twt);
-        break;
-    case OPC_NOR_V:
-        gen_helper_msa_nor_v(cpu_env, twd, tws, twt);
-        break;
-    case OPC_XOR_V:
-        gen_helper_msa_xor_v(cpu_env, twd, tws, twt);
-        break;
-    case OPC_BMNZ_V:
-        gen_helper_msa_bmnz_v(cpu_env, twd, tws, twt);
-        break;
-    case OPC_BMZ_V:
-        gen_helper_msa_bmz_v(cpu_env, twd, tws, twt);
-        break;
-    case OPC_BSEL_V:
-        gen_helper_msa_bsel_v(cpu_env, twd, tws, twt);
-        break;
-    default:
-        MIPS_INVAL("MSA instruction");
-        gen_reserved_instruction(ctx);
-        break;
-    }
-
-    tcg_temp_free_i32(twd);
-    tcg_temp_free_i32(tws);
-    tcg_temp_free_i32(twt);
-}
-
-static void gen_msa_vec(DisasContext *ctx)
-{
-    switch (MASK_MSA_VEC(ctx->opcode)) {
-    case OPC_AND_V:
-    case OPC_OR_V:
-    case OPC_NOR_V:
-    case OPC_XOR_V:
-    case OPC_BMNZ_V:
-    case OPC_BMZ_V:
-    case OPC_BSEL_V:
-        gen_msa_vec_v(ctx);
-        break;
-    default:
-        MIPS_INVAL("MSA instruction");
-        gen_reserved_instruction(ctx);
-        break;
-    }
-}
-
 static bool trans_MSA(DisasContext *ctx, arg_MSA *a)
 {
     uint32_t opcode = ctx->opcode;
@@ -1988,9 +1939,6 @@ static bool trans_MSA(DisasContext *ctx, arg_MSA *a)
     case OPC_MSA_3RF_1B:
     case OPC_MSA_3RF_1C:
         gen_msa_3rf(ctx);
-        break;
-    case OPC_MSA_VEC:
-        gen_msa_vec(ctx);
         break;
     default:
         MIPS_INVAL("MSA instruction");
