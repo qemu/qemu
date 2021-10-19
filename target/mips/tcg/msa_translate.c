@@ -70,7 +70,6 @@ enum {
     OPC_CLEI_S_df   = (0x4 << 23) | OPC_MSA_I5_07,
     OPC_MINI_U_df   = (0x5 << 23) | OPC_MSA_I5_06,
     OPC_CLEI_U_df   = (0x5 << 23) | OPC_MSA_I5_07,
-    OPC_LDI_df      = (0x6 << 23) | OPC_MSA_I5_07,
 
     /* I8 instruction */
     OPC_ANDI_B      = (0x0 << 24) | OPC_MSA_I8_00,
@@ -515,13 +514,6 @@ static void gen_msa_i5(DisasContext *ctx)
     case OPC_CLEI_U_df:
         gen_helper_msa_clei_u_df(cpu_env, tdf, twd, tws, timm);
         break;
-    case OPC_LDI_df:
-        {
-            int32_t s10 = sextract32(ctx->opcode, 11, 10);
-            tcg_gen_movi_i32(timm, s10);
-            gen_helper_msa_ldi_df(cpu_env, tdf, twd, timm);
-        }
-        break;
     default:
         MIPS_INVAL("MSA instruction");
         gen_reserved_instruction(ctx);
@@ -532,6 +524,20 @@ static void gen_msa_i5(DisasContext *ctx)
     tcg_temp_free_i32(twd);
     tcg_temp_free_i32(tws);
     tcg_temp_free_i32(timm);
+}
+
+static bool trans_LDI(DisasContext *ctx, arg_msa_ldi *a)
+{
+    if (!check_msa_enabled(ctx)) {
+        return true;
+    }
+
+    gen_helper_msa_ldi_df(cpu_env,
+                          tcg_constant_i32(a->df),
+                          tcg_constant_i32(a->wd),
+                          tcg_constant_i32(a->sa));
+
+    return true;
 }
 
 static void gen_msa_bit(DisasContext *ctx)
