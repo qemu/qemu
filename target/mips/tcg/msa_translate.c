@@ -58,15 +58,12 @@ enum {
     OPC_SUBS_S_df   = (0x0 << 23) | OPC_MSA_3R_11,
     OPC_MULV_df     = (0x0 << 23) | OPC_MSA_3R_12,
     OPC_DOTP_S_df   = (0x0 << 23) | OPC_MSA_3R_13,
-    OPC_SLD_df      = (0x0 << 23) | OPC_MSA_3R_14,
-    OPC_VSHF_df     = (0x0 << 23) | OPC_MSA_3R_15,
     OPC_SRA_df      = (0x1 << 23) | OPC_MSA_3R_0D,
     OPC_SUBV_df     = (0x1 << 23) | OPC_MSA_3R_0E,
     OPC_ADDS_A_df   = (0x1 << 23) | OPC_MSA_3R_10,
     OPC_SUBS_U_df   = (0x1 << 23) | OPC_MSA_3R_11,
     OPC_MADDV_df    = (0x1 << 23) | OPC_MSA_3R_12,
     OPC_DOTP_U_df   = (0x1 << 23) | OPC_MSA_3R_13,
-    OPC_SPLAT_df    = (0x1 << 23) | OPC_MSA_3R_14,
     OPC_SRAR_df     = (0x1 << 23) | OPC_MSA_3R_15,
     OPC_SRL_df      = (0x2 << 23) | OPC_MSA_3R_0D,
     OPC_MAX_S_df    = (0x2 << 23) | OPC_MSA_3R_0E,
@@ -504,6 +501,11 @@ TRANS(XOR_V,            trans_msa_3r,   gen_helper_msa_xor_v);
 TRANS(BMNZ_V,           trans_msa_3r,   gen_helper_msa_bmnz_v);
 TRANS(BMZ_V,            trans_msa_3r,   gen_helper_msa_bmz_v);
 TRANS(BSEL_V,           trans_msa_3r,   gen_helper_msa_bsel_v);
+
+TRANS(SLD,              trans_msa_3rf,  gen_helper_msa_sld_df);
+TRANS(SPLAT,            trans_msa_3rf,  gen_helper_msa_splat_df);
+
+TRANS(VSHF,             trans_msa_3rf,  gen_helper_msa_vshf_df);
 
 static void gen_msa_3r(DisasContext *ctx)
 {
@@ -1255,12 +1257,6 @@ static void gen_msa_3r(DisasContext *ctx)
             break;
         }
         break;
-    case OPC_SLD_df:
-        gen_helper_msa_sld_df(cpu_env, tdf, twd, tws, twt);
-        break;
-    case OPC_VSHF_df:
-        gen_helper_msa_vshf_df(cpu_env, tdf, twd, tws, twt);
-        break;
     case OPC_SUBV_df:
         switch (df) {
         case DF_BYTE:
@@ -1292,9 +1288,6 @@ static void gen_msa_3r(DisasContext *ctx)
             gen_helper_msa_subs_u_d(cpu_env, twd, tws, twt);
             break;
         }
-        break;
-    case OPC_SPLAT_df:
-        gen_helper_msa_splat_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_SUBSUS_U_df:
         switch (df) {
