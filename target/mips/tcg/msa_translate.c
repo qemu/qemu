@@ -48,7 +48,6 @@ enum {
     OPC_CFCMSA      = (0x1 << 22) | (0x3E << 16) | OPC_MSA_ELM,
     OPC_COPY_S_df   = (0x2 << 22) | (0x00 << 16) | OPC_MSA_ELM,
     OPC_MOVE_V      = (0x2 << 22) | (0x3E << 16) | OPC_MSA_ELM,
-    OPC_COPY_U_df   = (0x3 << 22) | (0x00 << 16) | OPC_MSA_ELM,
     OPC_INSERT_df   = (0x4 << 22) | (0x00 << 16) | OPC_MSA_ELM,
 };
 
@@ -592,6 +591,46 @@ TRANS(SLDI,   trans_msa_elm, gen_helper_msa_sldi_df);
 TRANS(SPLATI, trans_msa_elm, gen_helper_msa_splati_df);
 TRANS(INSVE,  trans_msa_elm, gen_helper_msa_insve_df);
 
+static bool trans_msa_elm_fn(DisasContext *ctx, arg_msa_elm_df *a,
+                             gen_helper_piii * const gen_msa_elm[4])
+{
+    if (a->df < 0 || !gen_msa_elm[a->df]) {
+        return false;
+    }
+
+    if (check_msa_enabled(ctx)) {
+        return true;
+    }
+
+    if (a->wd == 0) {
+        /* Treat as NOP. */
+        return true;
+    }
+
+    gen_msa_elm[a->df](cpu_env,
+                       tcg_constant_i32(a->wd),
+                       tcg_constant_i32(a->ws),
+                       tcg_constant_i32(a->n));
+
+    return true;
+}
+
+#if defined(TARGET_MIPS64)
+#define NULL_IF_MIPS32(function) function
+#else
+#define NULL_IF_MIPS32(function) NULL
+#endif
+
+static bool trans_COPY_U(DisasContext *ctx, arg_msa_elm_df *a)
+{
+    static gen_helper_piii * const gen_msa_copy_u[4] = {
+        gen_helper_msa_copy_u_b, gen_helper_msa_copy_u_h,
+        NULL_IF_MIPS32(gen_helper_msa_copy_u_w), NULL
+    };
+
+    return trans_msa_elm_fn(ctx, a, gen_msa_copy_u);
+}
+
 static void gen_msa_elm_df(DisasContext *ctx, uint32_t df, uint32_t n)
 {
 #define MASK_MSA_ELM(op)    (MASK_MSA_MINOR(op) | (op & (0xf << 22)))
@@ -604,16 +643,10 @@ static void gen_msa_elm_df(DisasContext *ctx, uint32_t df, uint32_t n)
 
     switch (MASK_MSA_ELM(ctx->opcode)) {
     case OPC_COPY_S_df:
-    case OPC_COPY_U_df:
     case OPC_INSERT_df:
 #if !defined(TARGET_MIPS64)
         /* Double format valid only for MIPS64 */
         if (df == DF_DOUBLE) {
-            gen_reserved_instruction(ctx);
-            break;
-        }
-        if ((MASK_MSA_ELM(ctx->opcode) == OPC_COPY_U_df) &&
-              (df == DF_WORD)) {
             gen_reserved_instruction(ctx);
             break;
         }
@@ -634,25 +667,6 @@ static void gen_msa_elm_df(DisasContext *ctx, uint32_t df, uint32_t n)
 #if defined(TARGET_MIPS64)
                 case DF_DOUBLE:
                     gen_helper_msa_copy_s_d(cpu_env, twd, tws, tn);
-                    break;
-#endif
-                default:
-                    assert(0);
-                }
-            }
-            break;
-        case OPC_COPY_U_df:
-            if (likely(wd != 0)) {
-                switch (df) {
-                case DF_BYTE:
-                    gen_helper_msa_copy_u_b(cpu_env, twd, tws, tn);
-                    break;
-                case DF_HALF:
-                    gen_helper_msa_copy_u_h(cpu_env, twd, tws, tn);
-                    break;
-#if defined(TARGET_MIPS64)
-                case DF_WORD:
-                    gen_helper_msa_copy_u_w(cpu_env, twd, tws, tn);
                     break;
 #endif
                 default:
