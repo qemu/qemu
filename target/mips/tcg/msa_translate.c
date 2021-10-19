@@ -340,7 +340,7 @@ static void gen_check_zero_element(TCGv tresult, uint8_t df, uint8_t wt,
     tcg_temp_free_i64(t1);
 }
 
-static bool gen_msa_BxZ_V(DisasContext *ctx, int wt, int s16, TCGCond cond)
+static bool gen_msa_BxZ_V(DisasContext *ctx, int wt, int sa, TCGCond cond)
 {
     TCGv_i64 t0;
 
@@ -358,7 +358,7 @@ static bool gen_msa_BxZ_V(DisasContext *ctx, int wt, int s16, TCGCond cond)
     tcg_gen_trunc_i64_tl(bcond, t0);
     tcg_temp_free_i64(t0);
 
-    ctx->btarget = ctx->base.pc_next + (s16 << 2) + 4;
+    ctx->btarget = ctx->base.pc_next + (sa << 2) + 4;
 
     ctx->hflags |= MIPS_HFLAG_BC;
     ctx->hflags |= MIPS_HFLAG_BDS32;
@@ -368,15 +368,15 @@ static bool gen_msa_BxZ_V(DisasContext *ctx, int wt, int s16, TCGCond cond)
 
 static bool trans_BZ_V(DisasContext *ctx, arg_msa_bz *a)
 {
-    return gen_msa_BxZ_V(ctx, a->wt, a->s16, TCG_COND_EQ);
+    return gen_msa_BxZ_V(ctx, a->wt, a->sa, TCG_COND_EQ);
 }
 
 static bool trans_BNZ_V(DisasContext *ctx, arg_msa_bz *a)
 {
-    return gen_msa_BxZ_V(ctx, a->wt, a->s16, TCG_COND_NE);
+    return gen_msa_BxZ_V(ctx, a->wt, a->sa, TCG_COND_NE);
 }
 
-static bool gen_msa_BxZ(DisasContext *ctx, int df, int wt, int s16, bool if_not)
+static bool gen_msa_BxZ(DisasContext *ctx, int df, int wt, int sa, bool if_not)
 {
     if (!check_msa_enabled(ctx)) {
         return true;
@@ -389,21 +389,21 @@ static bool gen_msa_BxZ(DisasContext *ctx, int df, int wt, int s16, bool if_not)
 
     gen_check_zero_element(bcond, df, wt, if_not ? TCG_COND_EQ : TCG_COND_NE);
 
-    ctx->btarget = ctx->base.pc_next + (s16 << 2) + 4;
+    ctx->btarget = ctx->base.pc_next + (sa << 2) + 4;
     ctx->hflags |= MIPS_HFLAG_BC;
     ctx->hflags |= MIPS_HFLAG_BDS32;
 
     return true;
 }
 
-static bool trans_BZ_x(DisasContext *ctx, arg_msa_bz *a)
+static bool trans_BZ(DisasContext *ctx, arg_msa_bz *a)
 {
-    return gen_msa_BxZ(ctx, a->df, a->wt, a->s16, false);
+    return gen_msa_BxZ(ctx, a->df, a->wt, a->sa, false);
 }
 
-static bool trans_BNZ_x(DisasContext *ctx, arg_msa_bz *a)
+static bool trans_BNZ(DisasContext *ctx, arg_msa_bz *a)
 {
-    return gen_msa_BxZ(ctx, a->df, a->wt, a->s16, true);
+    return gen_msa_BxZ(ctx, a->df, a->wt, a->sa, true);
 }
 
 static void gen_msa_i8(DisasContext *ctx)
