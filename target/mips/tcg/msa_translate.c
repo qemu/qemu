@@ -45,7 +45,6 @@ enum {
 enum {
     /* ELM instructions df(bits 21..16) = _b, _h, _w, _d */
     OPC_CTCMSA      = (0x0 << 22) | (0x3E << 16) | OPC_MSA_ELM,
-    OPC_CFCMSA      = (0x1 << 22) | (0x3E << 16) | OPC_MSA_ELM,
 };
 
 static const char msaregnames[][6] = {
@@ -551,17 +550,12 @@ static void gen_msa_elm_3e(DisasContext *ctx)
     uint8_t source = (ctx->opcode >> 11) & 0x1f;
     uint8_t dest = (ctx->opcode >> 6) & 0x1f;
     TCGv telm = tcg_temp_new();
-    TCGv_i32 tsr = tcg_const_i32(source);
     TCGv_i32 tdt = tcg_const_i32(dest);
 
     switch (MASK_MSA_ELM_DF3E(ctx->opcode)) {
     case OPC_CTCMSA:
         gen_load_gpr(telm, source);
         gen_helper_msa_ctcmsa(cpu_env, telm, tdt);
-        break;
-    case OPC_CFCMSA:
-        gen_helper_msa_cfcmsa(telm, cpu_env, tsr);
-        gen_store_gpr(telm, dest);
         break;
     default:
         MIPS_INVAL("MSA instruction");
@@ -571,7 +565,24 @@ static void gen_msa_elm_3e(DisasContext *ctx)
 
     tcg_temp_free(telm);
     tcg_temp_free_i32(tdt);
-    tcg_temp_free_i32(tsr);
+}
+
+static bool trans_CFCMSA(DisasContext *ctx, arg_msa_elm *a)
+{
+    TCGv telm;
+
+    if (!check_msa_enabled(ctx)) {
+        return true;
+    }
+
+    telm = tcg_temp_new();
+
+    gen_helper_msa_cfcmsa(telm, cpu_env, tcg_constant_i32(a->ws));
+    gen_store_gpr(telm, a->wd);
+
+    tcg_temp_free(telm);
+
+    return true;
 }
 
 static bool trans_msa_elm(DisasContext *ctx, arg_msa_elm_df *a,
@@ -663,7 +674,7 @@ static void gen_msa_elm(DisasContext *ctx)
     uint8_t dfn = (ctx->opcode >> 16) & 0x3f;
 
     if (dfn == 0x3E) {
-        /* CTCMSA, CFCMSA */
+        /* CTCMSA */
         gen_msa_elm_3e(ctx);
         return;
     } else {
