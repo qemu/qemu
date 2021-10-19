@@ -21,7 +21,7 @@ import re
 import shutil
 import subprocess
 import sys
-from typing import List
+from typing import List, Mapping, Optional
 
 import iotests
 
@@ -61,23 +61,19 @@ def get_test_files() -> List[str]:
     return list(filter(is_python_file, check_tests))
 
 
-def run_linters():
-    files = get_test_files()
+def run_pylint(
+    files: List[str],
+    env: Optional[Mapping[str, str]] = None,
+) -> None:
 
-    iotests.logger.debug('Files to be checked:')
-    iotests.logger.debug(', '.join(sorted(files)))
-
-    print('=== pylint ===')
-    sys.stdout.flush()
-
-    env = os.environ.copy()
     subprocess.run(('python3', '-m', 'pylint', *files),
                    env=env, check=False)
 
-    print('=== mypy ===')
-    sys.stdout.flush()
 
-    env['MYPYPATH'] = env['PYTHONPATH']
+def run_mypy(
+    files: List[str],
+    env: Optional[Mapping[str, str]] = None,
+) -> None:
     p = subprocess.run(('python3', '-m', 'mypy', *files),
                        env=env,
                        check=False,
@@ -94,7 +90,21 @@ def main() -> None:
         if shutil.which(linter) is None:
             iotests.notrun(f'{linter} not found')
 
-    run_linters()
+    files = get_test_files()
+
+    iotests.logger.debug('Files to be checked:')
+    iotests.logger.debug(', '.join(sorted(files)))
+
+    env = os.environ.copy()
+    env['MYPYPATH'] = env['PYTHONPATH']
+
+    print('=== pylint ===')
+    sys.stdout.flush()
+    run_pylint(files, env=env)
+
+    print('=== mypy ===')
+    sys.stdout.flush()
+    run_mypy(files, env=env)
 
 
 iotests.script_main(main)
