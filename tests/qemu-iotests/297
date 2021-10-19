@@ -71,14 +71,14 @@ def run_linters():
     sys.stdout.flush()
 
     env = os.environ.copy()
-    subprocess.run(('pylint-3', *files),
+    subprocess.run(('python3', '-m', 'pylint', *files),
                    env=env, check=False)
 
     print('=== mypy ===')
     sys.stdout.flush()
 
     env['MYPYPATH'] = env['PYTHONPATH']
-    p = subprocess.run(('mypy', *files),
+    p = subprocess.run(('python3', '-m', 'mypy', *files),
                        env=env,
                        check=False,
                        stdout=subprocess.PIPE,
