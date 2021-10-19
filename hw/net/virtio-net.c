@@ -3299,7 +3299,17 @@ static bool failover_hide_primary_device(DeviceListener *listener,
     if (!device_opts) {
         return false;
     }
-    standby_id = qdict_get_try_str(device_opts, "failover_pair_id");
+
+    if (!qdict_haskey(device_opts, "failover_pair_id")) {
+        return false;
+    }
+
+    if (!qdict_haskey(device_opts, "id")) {
+        error_setg(errp, "Device with failover_pair_id needs to have id");
+        return false;
+    }
+
+    standby_id = qdict_get_str(device_opts, "failover_pair_id");
     if (g_strcmp0(standby_id, n->netclient_name) != 0) {
         return false;
     }
