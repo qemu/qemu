@@ -1791,10 +1791,10 @@ static void gen_msa_3rf(DisasContext *ctx)
     case OPC_MULR_Q_df:
     case OPC_MADDR_Q_df:
     case OPC_MSUBR_Q_df:
-        tdf = tcg_constant_i32(df + 1);
+        tdf = tcg_constant_i32(DF_HALF + df);
         break;
     default:
-        tdf = tcg_constant_i32(df + 2);
+        tdf = tcg_constant_i32(DF_WORD + df);
         break;
     }
 
@@ -2023,7 +2023,7 @@ static void gen_msa_2rf(DisasContext *ctx)
     TCGv_i32 twd = tcg_const_i32(wd);
     TCGv_i32 tws = tcg_const_i32(ws);
     /* adjust df value for floating-point instruction */
-    TCGv_i32 tdf = tcg_constant_i32(df + 2);
+    TCGv_i32 tdf = tcg_constant_i32(DF_WORD + df);
 
     switch (MASK_MSA_2RF(ctx->opcode)) {
     case OPC_FCLASS_df:
