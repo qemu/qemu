@@ -16,6 +16,7 @@
 import os
 import re
 import subprocess
+import sys
 from typing import List, Mapping, Optional
 
 
@@ -74,3 +75,29 @@ def run_linter(
         stderr=subprocess.STDOUT if suppress_output else None,
         universal_newlines=True,
     )
+
+
+def main() -> None:
+    """
+    Used by the Python CI system as an entry point to run these linters.
+    """
+    def show_usage() -> None:
+        print(f"Usage: {sys.argv[0]} < --mypy | --pylint >", file=sys.stderr)
+        sys.exit(1)
+
+    if len(sys.argv) != 2:
+        show_usage()
+
+    files = get_test_files()
+
+    if sys.argv[1] == '--pylint':
+        run_linter('pylint', files)
+    elif sys.argv[1] == '--mypy':
+        run_linter('mypy', files)
+    else:
+        print(f"Unrecognized argument: '{sys.argv[1]}'", file=sys.stderr)
+        show_usage()
+
+
+if __name__ == '__main__':
+    main()
