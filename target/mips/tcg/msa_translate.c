@@ -35,18 +35,6 @@ static inline int plus_2(DisasContext *s, int x)
 /* Include the auto-generated decoder.  */
 #include "decode-msa.c.inc"
 
-#define OPC_MSA (0x1E << 26)
-
-#define MASK_MSA_MINOR(op)          (MASK_OP_MAJOR(op) | (op & 0x3F))
-enum {
-    OPC_MSA_ELM     = 0x19 | OPC_MSA,
-};
-
-enum {
-    /* ELM instructions df(bits 21..16) = _b, _h, _w, _d */
-    OPC_CTCMSA      = (0x0 << 22) | (0x3E << 16) | OPC_MSA_ELM,
-};
-
 static const char msaregnames[][6] = {
     "w0.d0",  "w0.d1",  "w1.d0",  "w1.d1",
     "w2.d0",  "w2.d1",  "w3.d0",  "w3.d1",
@@ -544,27 +532,22 @@ static bool trans_MOVE_V(DisasContext *ctx, arg_msa_elm *a)
     return true;
 }
 
-static void gen_msa_elm_3e(DisasContext *ctx)
+static bool trans_CTCMSA(DisasContext *ctx, arg_msa_elm *a)
 {
-#define MASK_MSA_ELM_DF3E(op)   (MASK_MSA_MINOR(op) | (op & (0x3FF << 16)))
-    uint8_t source = (ctx->opcode >> 11) & 0x1f;
-    uint8_t dest = (ctx->opcode >> 6) & 0x1f;
-    TCGv telm = tcg_temp_new();
-    TCGv_i32 tdt = tcg_const_i32(dest);
+    TCGv telm;
 
-    switch (MASK_MSA_ELM_DF3E(ctx->opcode)) {
-    case OPC_CTCMSA:
-        gen_load_gpr(telm, source);
-        gen_helper_msa_ctcmsa(cpu_env, telm, tdt);
-        break;
-    default:
-        MIPS_INVAL("MSA instruction");
-        gen_reserved_instruction(ctx);
-        break;
+    if (!check_msa_enabled(ctx)) {
+        return true;
     }
 
+    telm = tcg_temp_new();
+
+    gen_load_gpr(telm, a->ws);
+    gen_helper_msa_ctcmsa(cpu_env, telm, tcg_constant_i32(a->wd));
+
     tcg_temp_free(telm);
-    tcg_temp_free_i32(tdt);
+
+    return true;
 }
 
 static bool trans_CFCMSA(DisasContext *ctx, arg_msa_elm *a)
@@ -667,20 +650,6 @@ static bool trans_INSERT(DisasContext *ctx, arg_msa_elm_df *a)
     };
 
     return trans_msa_elm_fn(ctx, a, gen_msa_insert);
-}
-
-static void gen_msa_elm(DisasContext *ctx)
-{
-    uint8_t dfn = (ctx->opcode >> 16) & 0x3f;
-
-    if (dfn == 0x3E) {
-        /* CTCMSA */
-        gen_msa_elm_3e(ctx);
-        return;
-    } else {
-        gen_reserved_instruction(ctx);
-        return;
-    }
 }
 
 TRANS(FCAF,     trans_msa_3rf, gen_helper_msa_fcaf_df);
@@ -796,21 +765,7 @@ TRANS(FFINT_U,  trans_msa_2rf, gen_helper_msa_ffint_u_df);
 
 static bool trans_MSA(DisasContext *ctx, arg_MSA *a)
 {
-    uint32_t opcode = ctx->opcode;
-
-    if (!check_msa_enabled(ctx)) {
-        return true;
-    }
-
-    switch (MASK_MSA_MINOR(opcode)) {
-    case OPC_MSA_ELM:
-        gen_msa_elm(ctx);
-        break;
-    default:
-        MIPS_INVAL("MSA instruction");
-        gen_reserved_instruction(ctx);
-        break;
-    }
+    gen_reserved_instruction(ctx);
 
     return true;
 }
