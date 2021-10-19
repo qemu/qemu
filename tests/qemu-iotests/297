@@ -73,19 +73,7 @@ def run_linters():
     sys.stdout.flush()
 
     env['MYPYPATH'] = env['PYTHONPATH']
-    p = subprocess.run(('mypy',
-                        '--warn-unused-configs',
-                        '--disallow-subclassing-any',
-                        '--disallow-any-generics',
-                        '--disallow-incomplete-defs',
-                        '--disallow-untyped-decorators',
-                        '--no-implicit-optional',
-                        '--warn-redundant-casts',
-                        '--warn-unused-ignores',
-                        '--no-implicit-reexport',
-                        '--namespace-packages',
-                        '--scripts-are-modules',
-                        *files),
+    p = subprocess.run(('mypy', *files),
                        env=env,
                        check=False,
                        stdout=subprocess.PIPE,
