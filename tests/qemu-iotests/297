@@ -18,7 +18,6 @@
 
 import os
 import re
-import shutil
 import subprocess
 import sys
 from typing import List, Mapping, Optional
@@ -84,9 +83,11 @@ def run_linter(
 
 
 def main() -> None:
-    for linter in ('pylint-3', 'mypy'):
-        if shutil.which(linter) is None:
-            iotests.notrun(f'{linter} not found')
+    for linter in ('pylint', 'mypy'):
+        try:
+            run_linter(linter, ['--version'], suppress_output=True)
+        except subprocess.CalledProcessError:
+            iotests.notrun(f"'{linter}' not found")
 
     files = get_test_files()
 
