@@ -61,7 +61,6 @@ enum {
     OPC_MSA_2R      = (0x18 << 21) | OPC_MSA_VEC,
 
     /* 2R instruction df(bits 17..16) = _b, _h, _w, _d */
-    OPC_FILL_df     = (0x00 << 18) | OPC_MSA_2R,
     OPC_PCNT_df     = (0x01 << 18) | OPC_MSA_2R,
     OPC_NLOC_df     = (0x02 << 18) | OPC_MSA_2R,
     OPC_NLZC_df     = (0x03 << 18) | OPC_MSA_2R,
@@ -1847,17 +1846,6 @@ static void gen_msa_2r(DisasContext *ctx)
     TCGv_i32 tws = tcg_const_i32(ws);
 
     switch (MASK_MSA_2R(ctx->opcode)) {
-    case OPC_FILL_df:
-#if !defined(TARGET_MIPS64)
-        /* Double format valid only for MIPS64 */
-        if (df == DF_DOUBLE) {
-            gen_reserved_instruction(ctx);
-            break;
-        }
-#endif
-        gen_helper_msa_fill_df(cpu_env, tcg_constant_i32(df),
-                               twd, tws); /* trs */
-        break;
     case OPC_NLOC_df:
         switch (df) {
         case DF_BYTE:
@@ -1914,6 +1902,25 @@ static void gen_msa_2r(DisasContext *ctx)
 
     tcg_temp_free_i32(twd);
     tcg_temp_free_i32(tws);
+}
+
+static bool trans_FILL(DisasContext *ctx, arg_msa_r *a)
+{
+    if (TARGET_LONG_BITS != 64 && a->df == DF_DOUBLE) {
+        /* Double format valid only for MIPS64 */
+        return false;
+    }
+
+    if (!check_msa_enabled(ctx)) {
+        return true;
+    }
+
+    gen_helper_msa_fill_df(cpu_env,
+                           tcg_constant_i32(a->df),
+                           tcg_constant_i32(a->wd),
+                           tcg_constant_i32(a->ws));
+
+    return true;
 }
 
 static bool trans_msa_2rf(DisasContext *ctx, arg_msa_r *a,
