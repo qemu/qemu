@@ -41,16 +41,6 @@ enum {
     OPC_MSA_3RF_1B  = 0x1B | OPC_MSA,
     OPC_MSA_3RF_1C  = 0x1C | OPC_MSA,
     OPC_MSA_VEC     = 0x1E | OPC_MSA,
-
-    /* MI10 instruction */
-    OPC_LD_B        = (0x20) | OPC_MSA,
-    OPC_LD_H        = (0x21) | OPC_MSA,
-    OPC_LD_W        = (0x22) | OPC_MSA,
-    OPC_LD_D        = (0x23) | OPC_MSA,
-    OPC_ST_B        = (0x24) | OPC_MSA,
-    OPC_ST_H        = (0x25) | OPC_MSA,
-    OPC_ST_W        = (0x26) | OPC_MSA,
-    OPC_ST_D        = (0x27) | OPC_MSA,
 };
 
 enum {
@@ -324,8 +314,18 @@ static inline bool check_msa_enabled(DisasContext *ctx)
     return true;
 }
 
+typedef void gen_helper_piv(TCGv_ptr, TCGv_i32, TCGv);
 typedef void gen_helper_piii(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32);
 typedef void gen_helper_piiii(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32);
+
+#define TRANS_DF_x(TYPE, NAME, trans_func, gen_func) \
+    static gen_helper_p##TYPE * const NAME##_tab[4] = { \
+        gen_func##_b, gen_func##_h, gen_func##_w, gen_func##_d \
+    }; \
+    TRANS(NAME, trans_func, NAME##_tab[a->df])
+
+#define TRANS_DF_iv(NAME, trans_func, gen_func) \
+    TRANS_DF_x(iv, NAME, trans_func, gen_func)
 
 static void gen_check_zero_element(TCGv tresult, uint8_t df, uint8_t wt,
                                    TCGCond cond)
@@ -2096,55 +2096,6 @@ static bool trans_MSA(DisasContext *ctx, arg_MSA *a)
     case OPC_MSA_VEC:
         gen_msa_vec(ctx);
         break;
-    case OPC_LD_B:
-    case OPC_LD_H:
-    case OPC_LD_W:
-    case OPC_LD_D:
-    case OPC_ST_B:
-    case OPC_ST_H:
-    case OPC_ST_W:
-    case OPC_ST_D:
-        {
-            int32_t s10 = sextract32(ctx->opcode, 16, 10);
-            uint8_t rs = (ctx->opcode >> 11) & 0x1f;
-            uint8_t wd = (ctx->opcode >> 6) & 0x1f;
-            uint8_t df = (ctx->opcode >> 0) & 0x3;
-
-            TCGv_i32 twd = tcg_const_i32(wd);
-            TCGv taddr = tcg_temp_new();
-            gen_base_offset_addr(ctx, taddr, rs, s10 << df);
-
-            switch (MASK_MSA_MINOR(opcode)) {
-            case OPC_LD_B:
-                gen_helper_msa_ld_b(cpu_env, twd, taddr);
-                break;
-            case OPC_LD_H:
-                gen_helper_msa_ld_h(cpu_env, twd, taddr);
-                break;
-            case OPC_LD_W:
-                gen_helper_msa_ld_w(cpu_env, twd, taddr);
-                break;
-            case OPC_LD_D:
-                gen_helper_msa_ld_d(cpu_env, twd, taddr);
-                break;
-            case OPC_ST_B:
-                gen_helper_msa_st_b(cpu_env, twd, taddr);
-                break;
-            case OPC_ST_H:
-                gen_helper_msa_st_h(cpu_env, twd, taddr);
-                break;
-            case OPC_ST_W:
-                gen_helper_msa_st_w(cpu_env, twd, taddr);
-                break;
-            case OPC_ST_D:
-                gen_helper_msa_st_d(cpu_env, twd, taddr);
-                break;
-            }
-
-            tcg_temp_free_i32(twd);
-            tcg_temp_free(taddr);
-        }
-        break;
     default:
         MIPS_INVAL("MSA instruction");
         gen_reserved_instruction(ctx);
@@ -2153,6 +2104,28 @@ static bool trans_MSA(DisasContext *ctx, arg_MSA *a)
 
     return true;
 }
+
+static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a,
+                           gen_helper_piv *gen_msa_ldst)
+{
+    TCGv taddr;
+
+    if (!check_msa_enabled(ctx)) {
+        return true;
+    }
+
+    taddr = tcg_temp_new();
+
+    gen_base_offset_addr(ctx, taddr, a->ws, a->sa << a->df);
+    gen_msa_ldst(cpu_env, tcg_constant_i32(a->wd), taddr);
+
+    tcg_temp_free(taddr);
+
+    return true;
+}
+
+TRANS_DF_iv(LD, trans_msa_ldst, gen_helper_msa_ld);
+TRANS_DF_iv(ST, trans_msa_ldst, gen_helper_msa_st);
 
 static bool trans_LSA(DisasContext *ctx, arg_r *a)
 {
