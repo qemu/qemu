@@ -326,7 +326,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     VirtIONet *n = VIRTIO_NET(dev);
     int nvhosts = data_queue_pairs + cvq;
     struct vhost_net *net;
-    int r, e, i, last_index = data_qps * 2;
+    int r, e, i, last_index = data_queue_pairs * 2;
     NetClientState *peer;
 
     if (!cvq) {

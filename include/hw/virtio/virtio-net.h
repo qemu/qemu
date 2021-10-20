@@ -196,6 +196,7 @@ struct VirtIONet {
     int multiqueue;
     uint16_t max_queue_pairs;
     uint16_t curr_queue_pairs;
+    uint16_t max_ncs;
     size_t config_size;
     char *netclient_name;
     char *netclient_type;
