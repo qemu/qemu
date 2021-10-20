@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "hw/riscv/opentitan.h"
 #include "qapi/error.h"
 #include "hw/boards.h"
@@ -64,20 +65,25 @@ static const MemMapEntry ibex_memmap[] = {
 
 static void opentitan_board_init(MachineState *machine)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     const MemMapEntry *memmap = ibex_memmap;
     OpenTitanState *s = g_new0(OpenTitanState, 1);
     MemoryRegion *sys_mem = get_system_memory();
-    MemoryRegion *main_mem = g_new(MemoryRegion, 1);
+
+    if (machine->ram_size != mc->default_ram_size) {
+        char *sz = size_to_str(mc->default_ram_size);
+        error_report("Invalid RAM size, should be %s", sz);
+        g_free(sz);
+        exit(EXIT_FAILURE);
+    }
 
     /* Initialize SoC */
     object_initialize_child(OBJECT(machine), "soc", &s->soc,
                             TYPE_RISCV_IBEX_SOC);
     qdev_realize(DEVICE(&s->soc), NULL, &error_abort);
 
-    memory_region_init_ram(main_mem, NULL, "riscv.lowrisc.ibex.ram",
-        memmap[IBEX_DEV_RAM].size, &error_fatal);
     memory_region_add_subregion(sys_mem,
-        memmap[IBEX_DEV_RAM].base, main_mem);
+        memmap[IBEX_DEV_RAM].base, machine->ram);
 
     if (machine->firmware) {
         riscv_load_firmware(machine->firmware, memmap[IBEX_DEV_RAM].base, NULL);
@@ -95,6 +101,8 @@ static void opentitan_machine_init(MachineClass *mc)
     mc->init = opentitan_board_init;
     mc->max_cpus = 1;
     mc->default_cpu_type = TYPE_RISCV_CPU_IBEX;
+    mc->default_ram_id = "riscv.lowrisc.ibex.ram";
+    mc->default_ram_size = ibex_memmap[IBEX_DEV_RAM].size;
 }
 
 DEFINE_MACHINE("opentitan", opentitan_machine_init)
