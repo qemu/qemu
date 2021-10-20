@@ -111,6 +111,37 @@ struct GLUEState {
 
 #define GLUE_IRQ_NUBUS_9       0
 
+/*
+ * The GLUE logic on the Quadra 800 supports 2 different IRQ routing modes
+ * controlled from the VIA1 auxmode GPIO (port B bit 6) which are documented
+ * in NetBSD as follows:
+ *
+ * A/UX mode (Linux, NetBSD, auxmode GPIO low)
+ *
+ *   Level 0:        Spurious: ignored
+ *   Level 1:        Software
+ *   Level 2:        VIA2 (except ethernet, sound)
+ *   Level 3:        Ethernet
+ *   Level 4:        Serial (SCC)
+ *   Level 5:        Sound
+ *   Level 6:        VIA1
+ *   Level 7:        NMIs: parity errors, RESET button, YANCC error
+ *
+ * Classic mode (default: used by MacOS, A/UX 3.0.1, auxmode GPIO high)
+ *
+ *   Level 0:        Spurious: ignored
+ *   Level 1:        VIA1 (clock, ADB)
+ *   Level 2:        VIA2 (NuBus, SCSI)
+ *   Level 3:
+ *   Level 4:        Serial (SCC)
+ *   Level 5:
+ *   Level 6:
+ *   Level 7:        Non-maskable: parity errors, RESET button
+ *
+ * Note that despite references to A/UX mode in Linux and NetBSD, at least
+ * A/UX 3.0.1 still uses Classic mode.
+ */
+
 static void GLUE_set_irq(void *opaque, int irq, int level)
 {
     GLUEState *s = opaque;
@@ -119,10 +150,25 @@ static void GLUE_set_irq(void *opaque, int irq, int level)
     if (s->auxmode) {
         /* Classic mode */
         switch (irq) {
+        case GLUE_IRQ_IN_VIA1:
+            irq = 0;
+            break;
+
+        case GLUE_IRQ_IN_VIA2:
+            irq = 1;
+            break;
+
         case GLUE_IRQ_IN_SONIC:
             /* Route to VIA2 instead */
             qemu_set_irq(s->irqs[GLUE_IRQ_NUBUS_9], level);
             return;
+
+        case GLUE_IRQ_IN_ESCC:
+            irq = 3;
+            break;
+
+        default:
+            g_assert_not_reached();
         }
     } else {
         /* A/UX mode */
@@ -142,6 +188,9 @@ static void GLUE_set_irq(void *opaque, int irq, int level)
         case GLUE_IRQ_IN_ESCC:
             irq = 3;
             break;
+
+        default:
+            g_assert_not_reached();
         }
     }
 
