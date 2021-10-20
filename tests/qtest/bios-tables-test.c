@@ -271,19 +271,28 @@ static void dump_aml_files(test_data *data, bool rebuild)
     }
 }
 
+static bool create_tmp_asl(AcpiSdtTable *sdt)
+{
+    GError *error = NULL;
+    gint fd;
+
+    fd = g_file_open_tmp("asl-XXXXXX.dsl", &sdt->asl_file, &error);
+    g_assert_no_error(error);
+    close(fd);
+
+    return false;
+}
+
 static bool load_asl(GArray *sdts, AcpiSdtTable *sdt)
 {
     AcpiSdtTable *temp;
     GError *error = NULL;
     GString *command_line = g_string_new(iasl);
-    gint fd;
     gchar *out, *out_err;
     gboolean ret;
     int i;
 
-    fd = g_file_open_tmp("asl-XXXXXX.dsl", &sdt->asl_file, &error);
-    g_assert_no_error(error);
-    close(fd);
+    create_tmp_asl(sdt);
 
     /* build command line */
     g_string_append_printf(command_line, " -p %s ", sdt->asl_file);
@@ -463,11 +472,20 @@ static void test_acpi_asl(test_data *data)
         err = load_asl(data->tables, sdt);
         asl = normalize_asl(sdt->asl);
 
-        exp_err = load_asl(exp_data.tables, exp_sdt);
-        exp_asl = normalize_asl(exp_sdt->asl);
+        /*
+         * If expected file is empty - it's likely that it was a stub just
+         * created for step 1 above: we do want to decompile the actual one.
+         */
+        if (exp_sdt->aml_len) {
+            exp_err = load_asl(exp_data.tables, exp_sdt);
+            exp_asl = normalize_asl(exp_sdt->asl);
+        } else {
+            exp_err = create_tmp_asl(exp_sdt);
+            exp_asl = g_string_new("");
+        }
 
         /* TODO: check for warnings */
-        g_assert(!err || exp_err);
+        g_assert(!err || exp_err || !exp_sdt->aml_len);
 
         if (g_strcmp0(asl->str, exp_asl->str)) {
             sdt->tmp_files_retain = true;
@@ -722,13 +740,6 @@ static void test_acpi_one(const char *params, test_data *data)
     char *args;
     bool use_uefi = data->uefi_fl1 && data->uefi_fl2;
 
-#ifndef CONFIG_TCG
-    if (data->tcg_only) {
-        g_test_skip("TCG disabled, skipping ACPI tcg_only test");
-        return;
-    }
-#endif /* CONFIG_TCG */
-
     args = test_acpi_create_args(data, params, use_uefi);
     data->qts = qtest_init(args);
     test_acpi_load_tables(data, use_uefi);
@@ -855,6 +866,23 @@ static void test_acpi_q35_tcg_bridge(void)
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
     test_acpi_one("-device pci-bridge,chassis_nr=1",
+                  &data);
+    free_test_data(&data);
+}
+
+static void test_acpi_q35_multif_bridge(void)
+{
+    test_data data = {
+        .machine = MACHINE_Q35,
+        .variant = ".multi-bridge",
+    };
+    test_acpi_one("-device pcie-root-port,id=pcie-root-port-0,"
+                  "multifunction=on,"
+                  "port=0x0,chassis=1,addr=0x2,bus=pcie.0 "
+                  "-device pcie-root-port,id=pcie-root-port-1,"
+                  "port=0x1,chassis=2,addr=0x3.0x1,bus=pcie.0 "
+                  "-device virtio-balloon,id=balloon0,"
+                  "bus=pcie.0,addr=0x4.0x2",
                   &data);
     free_test_data(&data);
 }
@@ -1033,6 +1061,19 @@ static void test_acpi_q35_tcg_numamem(void)
     free_test_data(&data);
 }
 
+static void test_acpi_q35_kvm_xapic(void)
+{
+    test_data data;
+
+    memset(&data, 0, sizeof(data));
+    data.machine = MACHINE_Q35;
+    data.variant = ".xapic";
+    test_acpi_one(" -object memory-backend-ram,id=ram0,size=128M"
+                  " -numa node -numa node,memdev=ram0"
+                  " -machine kernel-irqchip=on -smp 1,maxcpus=288", &data);
+    free_test_data(&data);
+}
+
 static void test_acpi_q35_tcg_nosmm(void)
 {
     test_data data;
@@ -1074,6 +1115,30 @@ static void test_acpi_q35_tcg_nohpet(void)
     data.machine = MACHINE_Q35;
     data.variant = ".nohpet";
     test_acpi_one("-no-hpet", &data);
+    free_test_data(&data);
+}
+
+static void test_acpi_q35_kvm_dmar(void)
+{
+    test_data data;
+
+    memset(&data, 0, sizeof(data));
+    data.machine = MACHINE_Q35;
+    data.variant = ".dmar";
+    test_acpi_one("-machine kernel-irqchip=split -accel kvm"
+                  " -device intel-iommu,intremap=on,device-iotlb=on", &data);
+    free_test_data(&data);
+}
+
+static void test_acpi_q35_tcg_ivrs(void)
+{
+    test_data data;
+
+    memset(&data, 0, sizeof(data));
+    data.machine = MACHINE_Q35;
+    data.variant = ".ivrs";
+    data.tcg_only = true,
+    test_acpi_one(" -device amd-iommu", &data);
     free_test_data(&data);
 }
 
@@ -1393,9 +1458,6 @@ static void test_acpi_virt_tcg(void)
         .scan_len = 128ULL * 1024 * 1024,
     };
 
-    test_acpi_one("-cpu cortex-a57", &data);
-    free_test_data(&data);
-
     data.smbios_cpu_max_speed = 2900;
     data.smbios_cpu_curr_speed = 2700;
     test_acpi_one("-cpu cortex-a57 "
@@ -1509,6 +1571,8 @@ static void test_acpi_oem_fields_virt(void)
 int main(int argc, char *argv[])
 {
     const char *arch = qtest_get_arch();
+    const bool has_kvm = qtest_has_accel("kvm");
+    const bool has_tcg = qtest_has_accel("tcg");
     int ret;
 
     g_test_init(&argc, &argv, NULL);
@@ -1534,6 +1598,7 @@ int main(int argc, char *argv[])
                        test_acpi_piix4_no_acpi_pci_hotplug);
         qtest_add_func("acpi/q35", test_acpi_q35_tcg);
         qtest_add_func("acpi/q35/bridge", test_acpi_q35_tcg_bridge);
+        qtest_add_func("acpi/q35/multif-bridge", test_acpi_q35_multif_bridge);
         qtest_add_func("acpi/q35/mmio64", test_acpi_q35_tcg_mmio64);
         qtest_add_func("acpi/piix4/ipmi", test_acpi_piix4_tcg_ipmi);
         qtest_add_func("acpi/q35/ipmi", test_acpi_q35_tcg_ipmi);
@@ -1564,15 +1629,24 @@ int main(int argc, char *argv[])
         qtest_add_func("acpi/microvm/rtc", test_acpi_microvm_rtc_tcg);
         qtest_add_func("acpi/microvm/ioapic2", test_acpi_microvm_ioapic2_tcg);
         qtest_add_func("acpi/microvm/oem-fields", test_acpi_oem_fields_microvm);
-        if (strcmp(arch, "x86_64") == 0) {
-            qtest_add_func("acpi/microvm/pcie", test_acpi_microvm_pcie_tcg);
+        if (has_tcg) {
+            qtest_add_func("acpi/q35/ivrs", test_acpi_q35_tcg_ivrs);
+            if (strcmp(arch, "x86_64") == 0) {
+                qtest_add_func("acpi/microvm/pcie", test_acpi_microvm_pcie_tcg);
+            }
+        }
+        if (has_kvm) {
+            qtest_add_func("acpi/q35/kvm/xapic", test_acpi_q35_kvm_xapic);
+            qtest_add_func("acpi/q35/kvm/dmar", test_acpi_q35_kvm_dmar);
         }
     } else if (strcmp(arch, "aarch64") == 0) {
-        qtest_add_func("acpi/virt", test_acpi_virt_tcg);
-        qtest_add_func("acpi/virt/numamem", test_acpi_virt_tcg_numamem);
-        qtest_add_func("acpi/virt/memhp", test_acpi_virt_tcg_memhp);
-        qtest_add_func("acpi/virt/pxb", test_acpi_virt_tcg_pxb);
-        qtest_add_func("acpi/virt/oem-fields", test_acpi_oem_fields_virt);
+        if (has_tcg) {
+            qtest_add_func("acpi/virt", test_acpi_virt_tcg);
+            qtest_add_func("acpi/virt/numamem", test_acpi_virt_tcg_numamem);
+            qtest_add_func("acpi/virt/memhp", test_acpi_virt_tcg_memhp);
+            qtest_add_func("acpi/virt/pxb", test_acpi_virt_tcg_pxb);
+            qtest_add_func("acpi/virt/oem-fields", test_acpi_oem_fields_virt);
+        }
     }
     ret = g_test_run();
     boot_sector_cleanup(disk);
