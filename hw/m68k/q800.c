@@ -100,6 +100,7 @@ struct GLUEState {
     SysBusDevice parent_obj;
     M68kCPU *cpu;
     uint8_t ipr;
+    uint8_t auxmode;
 };
 
 #define GLUE_IRQ_IN_VIA1       0
@@ -145,11 +146,19 @@ static void GLUE_set_irq(void *opaque, int irq, int level)
     m68k_set_irq_level(s->cpu, 0, 0);
 }
 
+static void glue_auxmode_set_irq(void *opaque, int irq, int level)
+{
+    GLUEState *s = GLUE(opaque);
+
+    s->auxmode = level;
+}
+
 static void glue_reset(DeviceState *dev)
 {
     GLUEState *s = GLUE(dev);
 
     s->ipr = 0;
+    s->auxmode = 0;
 }
 
 static const VMStateDescription vmstate_glue = {
@@ -158,6 +167,7 @@ static const VMStateDescription vmstate_glue = {
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(ipr, GLUEState),
+        VMSTATE_UINT8(auxmode, GLUEState),
         VMSTATE_END_OF_LIST(),
     },
 };
@@ -178,6 +188,7 @@ static void glue_init(Object *obj)
     DeviceState *dev = DEVICE(obj);
 
     qdev_init_gpio_in(dev, GLUE_set_irq, 8);
+    qdev_init_gpio_in_named(dev, glue_auxmode_set_irq, "auxmode", 1);
 }
 
 static void glue_class_init(ObjectClass *klass, void *data)
@@ -308,6 +319,9 @@ static void q800_init(MachineState *machine)
     sysbus_realize_and_unref(sysbus, &error_fatal);
     sysbus_mmio_map(sysbus, 1, VIA_BASE);
     sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(glue, GLUE_IRQ_IN_VIA1));
+    /* A/UX mode */
+    qdev_connect_gpio_out(via1_dev, 0,
+                          qdev_get_gpio_in_named(glue, "auxmode", 0));
 
     adb_bus = qdev_get_child_bus(via1_dev, "adb.0");
     dev = qdev_new(TYPE_ADB_KEYBOARD);
