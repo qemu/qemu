@@ -584,7 +584,7 @@ static void q800_init(MachineState *machine)
     qdev_prop_set_uint32(dev, "width", graphic_width);
     qdev_prop_set_uint32(dev, "height", graphic_height);
     qdev_prop_set_uint8(dev, "depth", graphic_depth);
-    if (graphic_width == 1152 && graphic_height == 870 && graphic_depth == 8) {
+    if (graphic_width == 1152 && graphic_height == 870) {
         qdev_prop_set_uint8(dev, "display", MACFB_DISPLAY_APPLE_21_COLOR);
     } else {
         qdev_prop_set_uint8(dev, "display", MACFB_DISPLAY_VGA);
