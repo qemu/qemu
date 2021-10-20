@@ -45,7 +45,6 @@ static void shakti_c_machine_state_init(MachineState *mstate)
 {
     ShaktiCMachineState *sms = RISCV_SHAKTI_MACHINE(mstate);
     MemoryRegion *system_memory = get_system_memory();
-    MemoryRegion *main_mem = g_new(MemoryRegion, 1);
 
     /* Allow only Shakti C CPU for this platform */
     if (strcmp(mstate->cpu_type, TYPE_RISCV_CPU_SHAKTI_C) != 0) {
@@ -59,11 +58,9 @@ static void shakti_c_machine_state_init(MachineState *mstate)
     qdev_realize(DEVICE(&sms->soc), NULL, &error_abort);
 
     /* register RAM */
-    memory_region_init_ram(main_mem, NULL, "riscv.shakti.c.ram",
-                           mstate->ram_size, &error_fatal);
     memory_region_add_subregion(system_memory,
                                 shakti_c_memmap[SHAKTI_C_RAM].base,
-                                main_mem);
+                                mstate->ram);
 
     /* ROM reset vector */
     riscv_setup_rom_reset_vec(mstate, &sms->soc.cpus,
@@ -88,6 +85,7 @@ static void shakti_c_machine_class_init(ObjectClass *klass, void *data)
     mc->desc = "RISC-V Board compatible with Shakti SDK";
     mc->init = shakti_c_machine_state_init;
     mc->default_cpu_type = TYPE_RISCV_CPU_SHAKTI_C;
+    mc->default_ram_id = "riscv.shakti.c.ram";
 }
 
 static const TypeInfo shakti_c_machine_type_info = {
