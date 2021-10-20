@@ -43,6 +43,7 @@ struct MOS6522Q800VIA1State {
     MemoryRegion via_mem;
 
     qemu_irq irqs[VIA1_IRQ_NB];
+    qemu_irq auxmode_irq;
     uint8_t last_b;
 
     /* RTC */
