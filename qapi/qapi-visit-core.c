@@ -392,7 +392,8 @@ static bool input_type_enum(Visitor *v, const char *name, int *obj,
 
     value = qapi_enum_parse(lookup, enum_str, -1, NULL);
     if (value < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER, enum_str);
+        error_setg(errp, "Parameter '%s' does not accept value '%s'",
+                   name ? name : "null", enum_str);
         g_free(enum_str);
         return false;
     }

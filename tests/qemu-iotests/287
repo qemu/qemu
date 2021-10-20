@@ -53,7 +53,7 @@ CLUSTER_SIZE=65536
 
 # Check if we can run this test.
 output=$(_make_test_img -o 'compression_type=zstd' 64M; _cleanup_test_img)
-if echo "$output" | grep -q "Invalid parameter 'zstd'"; then
+if echo "$output" | grep -q "Parameter 'compression-type' does not accept value 'zstd'"; then
     _notrun "ZSTD is disabled"
 fi
 

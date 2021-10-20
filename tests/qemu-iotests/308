@@ -148,7 +148,7 @@ rmdir "$EXT_MP" 2>/dev/null
 rm -f "$EXT_MP"
 output=$(fuse_export_add 'export-err' "'mountpoint': '$EXT_MP'" error)
 
-if echo "$output" | grep -q "Invalid parameter 'fuse'"; then
+if echo "$output" | grep -q "Parameter 'type' does not accept value 'fuse'"; then
     _notrun 'No FUSE support'
 fi
 

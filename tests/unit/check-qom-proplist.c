@@ -488,7 +488,7 @@ static void test_dummy_badenum(void)
     g_assert(dobj == NULL);
     g_assert(err != NULL);
     g_assert_cmpstr(error_get_pretty(err), ==,
-                    "Invalid parameter 'yeti'");
+                    "Parameter 'av' does not accept value 'yeti'");
 
     g_assert(object_resolve_path_component(parent, "dummy0")
              == NULL);
