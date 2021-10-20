@@ -775,7 +775,7 @@ static inline bool is_64bit_semihosting(CPUArchState *env)
 #if defined(TARGET_ARM)
     return is_a64(env);
 #elif defined(TARGET_RISCV)
-    return !riscv_cpu_is_32bit(env);
+    return riscv_cpu_mxl(env) != MXL_RV32;
 #else
 #error un-handled architecture
 #endif
