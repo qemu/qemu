@@ -29,6 +29,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/boards.h"
@@ -71,22 +72,27 @@ static const MemMapEntry sifive_e_memmap[] = {
 
 static void sifive_e_machine_init(MachineState *machine)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     const MemMapEntry *memmap = sifive_e_memmap;
 
     SiFiveEState *s = RISCV_E_MACHINE(machine);
     MemoryRegion *sys_mem = get_system_memory();
-    MemoryRegion *main_mem = g_new(MemoryRegion, 1);
     int i;
+
+    if (machine->ram_size != mc->default_ram_size) {
+        char *sz = size_to_str(mc->default_ram_size);
+        error_report("Invalid RAM size, should be %s", sz);
+        g_free(sz);
+        exit(EXIT_FAILURE);
+    }
 
     /* Initialize SoC */
     object_initialize_child(OBJECT(machine), "soc", &s->soc, TYPE_RISCV_E_SOC);
     qdev_realize(DEVICE(&s->soc), NULL, &error_abort);
 
     /* Data Tightly Integrated Memory */
-    memory_region_init_ram(main_mem, NULL, "riscv.sifive.e.ram",
-        memmap[SIFIVE_E_DEV_DTIM].size, &error_fatal);
     memory_region_add_subregion(sys_mem,
-        memmap[SIFIVE_E_DEV_DTIM].base, main_mem);
+        memmap[SIFIVE_E_DEV_DTIM].base, machine->ram);
 
     /* Mask ROM reset vector */
     uint32_t reset_vec[4];
@@ -142,6 +148,8 @@ static void sifive_e_machine_class_init(ObjectClass *oc, void *data)
     mc->init = sifive_e_machine_init;
     mc->max_cpus = 1;
     mc->default_cpu_type = SIFIVE_E_CPU;
+    mc->default_ram_id = "riscv.sifive.e.ram";
+    mc->default_ram_size = sifive_e_memmap[SIFIVE_E_DEV_DTIM].size;
 
     object_class_property_add_bool(oc, "revb", sifive_e_machine_get_revb,
                                    sifive_e_machine_set_revb);
