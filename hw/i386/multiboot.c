@@ -143,7 +143,8 @@ static void mb_add_mod(MultibootState *s,
     s->mb_mods_count++;
 }
 
-int load_multiboot(FWCfgState *fw_cfg,
+int load_multiboot(X86MachineState *x86ms,
+                   FWCfgState *fw_cfg,
                    FILE *f,
                    const char *kernel_filename,
                    const char *initrd_filename,
@@ -151,6 +152,7 @@ int load_multiboot(FWCfgState *fw_cfg,
                    int kernel_file_size,
                    uint8_t *header)
 {
+    bool multiboot_dma_enabled = X86_MACHINE_GET_CLASS(x86ms)->fwcfg_dma_enabled;
     int i, is_multiboot = 0;
     uint32_t flags = 0;
     uint32_t mh_entry_addr;
@@ -401,7 +403,11 @@ int load_multiboot(FWCfgState *fw_cfg,
     fw_cfg_add_bytes(fw_cfg, FW_CFG_INITRD_DATA, mb_bootinfo_data,
                      sizeof(bootinfo));
 
-    option_rom[nb_option_roms].name = "multiboot.bin";
+    if (multiboot_dma_enabled) {
+        option_rom[nb_option_roms].name = "multiboot_dma.bin";
+    } else {
+        option_rom[nb_option_roms].name = "multiboot.bin";
+    }
     option_rom[nb_option_roms].bootindex = 0;
     nb_option_roms++;
 
