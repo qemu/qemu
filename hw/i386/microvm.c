@@ -331,7 +331,7 @@ static void microvm_memory_init(MicrovmMachineState *mms)
     rom_set_fw(fw_cfg);
 
     if (machine->kernel_filename != NULL) {
-        x86_load_linux(x86ms, fw_cfg, 0, true, true);
+        x86_load_linux(x86ms, fw_cfg, 0, true);
     }
 
     if (mms->option_roms) {
@@ -667,6 +667,7 @@ static void microvm_machine_initfn(Object *obj)
 
 static void microvm_class_init(ObjectClass *oc, void *data)
 {
+    X86MachineClass *x86mc = X86_MACHINE_CLASS(oc);
     MachineClass *mc = MACHINE_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
@@ -696,6 +697,8 @@ static void microvm_class_init(ObjectClass *oc, void *data)
     hc->plug = microvm_device_plug_cb;
     hc->unplug_request = microvm_device_unplug_request_cb;
     hc->unplug = microvm_device_unplug_cb;
+
+    x86mc->fwcfg_dma_enabled = true;
 
     object_class_property_add(oc, MICROVM_MACHINE_PIC, "OnOffAuto",
                               microvm_machine_get_pic,
