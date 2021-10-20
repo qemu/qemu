@@ -28,6 +28,7 @@
 #include "cpu.h"
 #include "hw/boards.h"
 #include "hw/or-irq.h"
+#include "hw/nmi.h"
 #include "elf.h"
 #include "hw/loader.h"
 #include "ui/console.h"
@@ -102,12 +103,14 @@ struct GLUEState {
     uint8_t ipr;
     uint8_t auxmode;
     qemu_irq irqs[1];
+    QEMUTimer *nmi_release;
 };
 
 #define GLUE_IRQ_IN_VIA1       0
 #define GLUE_IRQ_IN_VIA2       1
 #define GLUE_IRQ_IN_SONIC      2
 #define GLUE_IRQ_IN_ESCC       3
+#define GLUE_IRQ_IN_NMI        4
 
 #define GLUE_IRQ_NUBUS_9       0
 
@@ -167,6 +170,10 @@ static void GLUE_set_irq(void *opaque, int irq, int level)
             irq = 3;
             break;
 
+        case GLUE_IRQ_IN_NMI:
+            irq = 6;
+            break;
+
         default:
             g_assert_not_reached();
         }
@@ -187,6 +194,10 @@ static void GLUE_set_irq(void *opaque, int irq, int level)
 
         case GLUE_IRQ_IN_ESCC:
             irq = 3;
+            break;
+
+        case GLUE_IRQ_IN_NMI:
+            irq = 6;
             break;
 
         default:
@@ -216,12 +227,30 @@ static void glue_auxmode_set_irq(void *opaque, int irq, int level)
     s->auxmode = level;
 }
 
+static void glue_nmi(NMIState *n, int cpu_index, Error **errp)
+{
+    GLUEState *s = GLUE(n);
+
+    /* Hold NMI active for 100ms */
+    GLUE_set_irq(s, GLUE_IRQ_IN_NMI, 1);
+    timer_mod(s->nmi_release, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 100);
+}
+
+static void glue_nmi_release(void *opaque)
+{
+    GLUEState *s = GLUE(opaque);
+
+    GLUE_set_irq(s, GLUE_IRQ_IN_NMI, 0);
+}
+
 static void glue_reset(DeviceState *dev)
 {
     GLUEState *s = GLUE(dev);
 
     s->ipr = 0;
     s->auxmode = 0;
+
+    timer_del(s->nmi_release);
 }
 
 static const VMStateDescription vmstate_glue = {
@@ -231,6 +260,7 @@ static const VMStateDescription vmstate_glue = {
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(ipr, GLUEState),
         VMSTATE_UINT8(auxmode, GLUEState),
+        VMSTATE_TIMER_PTR(nmi_release, GLUEState),
         VMSTATE_END_OF_LIST(),
     },
 };
@@ -246,6 +276,13 @@ static Property glue_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void glue_finalize(Object *obj)
+{
+    GLUEState *s = GLUE(obj);
+
+    timer_free(s->nmi_release);
+}
+
 static void glue_init(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
@@ -255,15 +292,20 @@ static void glue_init(Object *obj)
     qdev_init_gpio_in_named(dev, glue_auxmode_set_irq, "auxmode", 1);
 
     qdev_init_gpio_out(dev, s->irqs, 1);
+
+    /* NMI release timer */
+    s->nmi_release = timer_new_ms(QEMU_CLOCK_VIRTUAL, glue_nmi_release, s);
 }
 
 static void glue_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    NMIClass *nc = NMI_CLASS(klass);
 
     dc->vmsd = &vmstate_glue;
     dc->reset = glue_reset;
     device_class_set_props(dc, glue_properties);
+    nc->nmi_monitor_handler = glue_nmi;
 }
 
 static const TypeInfo glue_info = {
@@ -271,7 +313,12 @@ static const TypeInfo glue_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GLUEState),
     .instance_init = glue_init,
+    .instance_finalize = glue_finalize,
     .class_init = glue_class_init,
+    .interfaces = (InterfaceInfo[]) {
+         { TYPE_NMI },
+         { }
+    },
 };
 
 static void main_cpu_reset(void *opaque)
