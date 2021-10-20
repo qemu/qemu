@@ -101,6 +101,7 @@ struct GLUEState {
     M68kCPU *cpu;
     uint8_t ipr;
     uint8_t auxmode;
+    qemu_irq irqs[1];
 };
 
 #define GLUE_IRQ_IN_VIA1       0
@@ -108,27 +109,40 @@ struct GLUEState {
 #define GLUE_IRQ_IN_SONIC      2
 #define GLUE_IRQ_IN_ESCC       3
 
+#define GLUE_IRQ_NUBUS_9       0
+
 static void GLUE_set_irq(void *opaque, int irq, int level)
 {
     GLUEState *s = opaque;
     int i;
 
-    switch (irq) {
-    case GLUE_IRQ_IN_VIA1:
-        irq = 5;
-        break;
+    if (s->auxmode) {
+        /* Classic mode */
+        switch (irq) {
+        case GLUE_IRQ_IN_SONIC:
+            /* Route to VIA2 instead */
+            qemu_set_irq(s->irqs[GLUE_IRQ_NUBUS_9], level);
+            return;
+        }
+    } else {
+        /* A/UX mode */
+        switch (irq) {
+        case GLUE_IRQ_IN_VIA1:
+            irq = 5;
+            break;
 
-    case GLUE_IRQ_IN_VIA2:
-        irq = 1;
-        break;
+        case GLUE_IRQ_IN_VIA2:
+            irq = 1;
+            break;
 
-    case GLUE_IRQ_IN_SONIC:
-        irq = 2;
-        break;
+        case GLUE_IRQ_IN_SONIC:
+            irq = 2;
+            break;
 
-    case GLUE_IRQ_IN_ESCC:
-        irq = 3;
-        break;
+        case GLUE_IRQ_IN_ESCC:
+            irq = 3;
+            break;
+        }
     }
 
     if (level) {
@@ -186,9 +200,12 @@ static Property glue_properties[] = {
 static void glue_init(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
+    GLUEState *s = GLUE(dev);
 
     qdev_init_gpio_in(dev, GLUE_set_irq, 8);
     qdev_init_gpio_in_named(dev, glue_auxmode_set_irq, "auxmode", 1);
+
+    qdev_init_gpio_out(dev, s->irqs, 1);
 }
 
 static void glue_class_init(ObjectClass *klass, void *data)
@@ -453,6 +470,14 @@ static void q800_init(MachineState *machine)
                               qdev_get_gpio_in_named(via2_dev, "nubus-irq",
                                                      VIA2_NUBUS_IRQ_9 + i));
     }
+
+    /*
+     * Since the framebuffer in slot 0x9 uses a separate IRQ, wire the unused
+     * IRQ via GLUE for use by SONIC Ethernet in classic mode
+     */
+    qdev_connect_gpio_out(glue, GLUE_IRQ_NUBUS_9,
+                          qdev_get_gpio_in_named(via2_dev, "nubus-irq",
+                                                 VIA2_NUBUS_IRQ_9));
 
     nubus = &NUBUS_BRIDGE(dev)->bus;
 
