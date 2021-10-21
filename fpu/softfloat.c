@@ -436,6 +436,11 @@ enum {
     minmax_isnum = 2,
     /* Set for the IEEE 754-2008 minNumMag() and minNumMag() operations. */
     minmax_ismag = 4,
+    /*
+     * Set for the IEEE 754-2019 minimumNumber() and maximumNumber()
+     * operations.
+     */
+    minmax_isnumber = 8,
 };
 
 /* Simple helpers for checking if, or what kind of, NaN we have */
@@ -3927,12 +3932,14 @@ static float128 float128_minmax(float128 a, float128 b,
     { return type##_minmax(a, b, s, flags); }
 
 #define MINMAX_2(type) \
-    MINMAX_1(type, max, 0)                                      \
-    MINMAX_1(type, maxnum, minmax_isnum)                        \
-    MINMAX_1(type, maxnummag, minmax_isnum | minmax_ismag)      \
-    MINMAX_1(type, min, minmax_ismin)                           \
-    MINMAX_1(type, minnum, minmax_ismin | minmax_isnum)         \
-    MINMAX_1(type, minnummag, minmax_ismin | minmax_isnum | minmax_ismag)
+    MINMAX_1(type, max, 0)                                                \
+    MINMAX_1(type, maxnum, minmax_isnum)                                  \
+    MINMAX_1(type, maxnummag, minmax_isnum | minmax_ismag)                \
+    MINMAX_1(type, maximum_number, minmax_isnumber)                       \
+    MINMAX_1(type, min, minmax_ismin)                                     \
+    MINMAX_1(type, minnum, minmax_ismin | minmax_isnum)                   \
+    MINMAX_1(type, minnummag, minmax_ismin | minmax_isnum | minmax_ismag) \
+    MINMAX_1(type, minimum_number, minmax_ismin | minmax_isnumber)        \
 
 MINMAX_2(float16)
 MINMAX_2(bfloat16)
