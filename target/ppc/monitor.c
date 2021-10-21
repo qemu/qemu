@@ -44,6 +44,13 @@ static target_long monitor_get_ccr(Monitor *mon, const struct MonitorDef *md,
     return u;
 }
 
+static target_long monitor_get_xer(Monitor *mon, const struct MonitorDef *md,
+                                   int val)
+{
+    CPUArchState *env = mon_get_cpu_env(mon);
+    return cpu_read_xer(env);
+}
+
 static target_long monitor_get_decr(Monitor *mon, const struct MonitorDef *md,
                                     int val)
 {
@@ -85,7 +92,7 @@ const MonitorDef monitor_defs[] = {
     { "decr", 0, &monitor_get_decr, },
     { "ccr|cr", 0, &monitor_get_ccr, },
     /* Machine state register */
-    { "xer", offsetof(CPUPPCState, xer) },
+    { "xer", 0, &monitor_get_xer },
     { "msr", offsetof(CPUPPCState, msr) },
     { "tbu", 0, &monitor_get_tbu, },
     { "tbl", 0, &monitor_get_tbl, },

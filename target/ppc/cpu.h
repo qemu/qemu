@@ -314,6 +314,7 @@ typedef struct ppc_v3_pate_t {
 #define MSR_AP   23 /* Access privilege state on 602                  hflags */
 #define MSR_VSX  23 /* Vector Scalar Extension (ISA 2.06 and later) x hflags */
 #define MSR_SA   22 /* Supervisor access mode on 602                  hflags */
+#define MSR_S    22 /* Secure state                                          */
 #define MSR_KEY  19 /* key bit on 603e                                       */
 #define MSR_POW  18 /* Power management                                      */
 #define MSR_TGPR 17 /* TGPR usage on 602/603                        x        */
@@ -341,6 +342,26 @@ typedef struct ppc_v3_pate_t {
 #define MSR_PMM  2  /* Performance monitor mark on POWER            x        */
 #define MSR_RI   1  /* Recoverable interrupt                        1        */
 #define MSR_LE   0  /* Little-endian mode                           1 hflags */
+
+/* PMU bits */
+#define MMCR0_FC     PPC_BIT(32)         /* Freeze Counters  */
+#define MMCR0_PMAO   PPC_BIT(56)         /* Perf Monitor Alert Ocurred */
+#define MMCR0_PMAE   PPC_BIT(37)         /* Perf Monitor Alert Enable */
+#define MMCR0_EBE    PPC_BIT(43)         /* Perf Monitor EBB Enable */
+#define MMCR0_FCECE  PPC_BIT(38)         /* FC on Enabled Cond or Event */
+#define MMCR0_PMCC0  PPC_BIT(44)         /* PMC Control bit 0 */
+#define MMCR0_PMCC1  PPC_BIT(45)         /* PMC Control bit 1 */
+/* MMCR0 userspace r/w mask */
+#define MMCR0_UREG_MASK (MMCR0_FC | MMCR0_PMAO | MMCR0_PMAE)
+/* MMCR2 userspace r/w mask */
+#define MMCR2_FC1P0  PPC_BIT(1)          /* MMCR2 FCnP0 for PMC1 */
+#define MMCR2_FC2P0  PPC_BIT(10)         /* MMCR2 FCnP0 for PMC2 */
+#define MMCR2_FC3P0  PPC_BIT(19)         /* MMCR2 FCnP0 for PMC3 */
+#define MMCR2_FC4P0  PPC_BIT(28)         /* MMCR2 FCnP0 for PMC4 */
+#define MMCR2_FC5P0  PPC_BIT(37)         /* MMCR2 FCnP0 for PMC5 */
+#define MMCR2_FC6P0  PPC_BIT(46)         /* MMCR2 FCnP0 for PMC6 */
+#define MMCR2_UREG_MASK (MMCR2_FC1P0 | MMCR2_FC2P0 | MMCR2_FC3P0 | \
+                         MMCR2_FC4P0 | MMCR2_FC5P0 | MMCR2_FC6P0)
 
 /* LPCR bits */
 #define LPCR_VPM0         PPC_BIT(0)
@@ -607,6 +628,8 @@ enum {
     HFLAGS_SE = 10,  /* MSR_SE -- from elsewhere on embedded ppc */
     HFLAGS_FP = 13,  /* MSR_FP */
     HFLAGS_PR = 14,  /* MSR_PR */
+    HFLAGS_PMCC0 = 15,  /* MMCR0 PMCC bit 0 */
+    HFLAGS_PMCC1 = 16,  /* MMCR0 PMCC bit 1 */
     HFLAGS_VSX = 23, /* MSR_VSX if cpu has VSX */
     HFLAGS_VR = 25,  /* MSR_VR if cpu has VRE */
 
@@ -2412,7 +2435,7 @@ enum {
 /*****************************************************************************/
 
 #define is_isa300(ctx) (!!(ctx->insns_flags2 & PPC2_ISA300))
-target_ulong cpu_read_xer(CPUPPCState *env);
+target_ulong cpu_read_xer(const CPUPPCState *env);
 void cpu_write_xer(CPUPPCState *env, target_ulong xer);
 
 /*

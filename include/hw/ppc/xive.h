@@ -286,6 +286,30 @@ uint8_t xive_esb_set(uint8_t *pq, uint8_t value);
 uint8_t xive_source_esb_get(XiveSource *xsrc, uint32_t srcno);
 uint8_t xive_source_esb_set(XiveSource *xsrc, uint32_t srcno, uint8_t pq);
 
+/*
+ * Source status helpers
+ */
+static inline void xive_source_set_status(XiveSource *xsrc, uint32_t srcno,
+                                          uint8_t status, bool enable)
+{
+    if (enable) {
+        xsrc->status[srcno] |= status;
+    } else {
+        xsrc->status[srcno] &= ~status;
+    }
+}
+
+static inline void xive_source_set_asserted(XiveSource *xsrc, uint32_t srcno,
+                                            bool enable)
+{
+    xive_source_set_status(xsrc, srcno, XIVE_STATUS_ASSERTED, enable);
+}
+
+static inline bool xive_source_is_asserted(XiveSource *xsrc, uint32_t srcno)
+{
+    return xsrc->status[srcno] & XIVE_STATUS_ASSERTED;
+}
+
 void xive_source_pic_print_info(XiveSource *xsrc, uint32_t offset,
                                 Monitor *mon);
 

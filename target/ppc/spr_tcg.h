@@ -32,6 +32,10 @@ void spr_write_lr(DisasContext *ctx, int sprn, int gprn);
 void spr_read_ctr(DisasContext *ctx, int gprn, int sprn);
 void spr_write_ctr(DisasContext *ctx, int sprn, int gprn);
 void spr_read_ureg(DisasContext *ctx, int gprn, int sprn);
+void spr_read_MMCR0_ureg(DisasContext *ctx, int gprn, int sprn);
+void spr_read_MMCR2_ureg(DisasContext *ctx, int gprn, int sprn);
+void spr_read_PMC14_ureg(DisasContext *ctx, int gprn, int sprn);
+void spr_read_PMC56_ureg(DisasContext *ctx, int gprn, int sprn);
 void spr_read_tbl(DisasContext *ctx, int gprn, int sprn);
 void spr_read_tbu(DisasContext *ctx, int gprn, int sprn);
 void spr_read_atbl(DisasContext *ctx, int gprn, int sprn);
@@ -40,6 +44,10 @@ void spr_read_601_rtcl(DisasContext *ctx, int gprn, int sprn);
 void spr_read_601_rtcu(DisasContext *ctx, int gprn, int sprn);
 void spr_read_spefscr(DisasContext *ctx, int gprn, int sprn);
 void spr_write_spefscr(DisasContext *ctx, int sprn, int gprn);
+void spr_write_MMCR0_ureg(DisasContext *ctx, int sprn, int gprn);
+void spr_write_MMCR2_ureg(DisasContext *ctx, int sprn, int gprn);
+void spr_write_PMC14_ureg(DisasContext *ctx, int sprn, int gprn);
+void spr_write_PMC56_ureg(DisasContext *ctx, int sprn, int gprn);
 
 #ifndef CONFIG_USER_ONLY
 void spr_write_generic32(DisasContext *ctx, int sprn, int gprn);

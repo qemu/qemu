@@ -175,6 +175,8 @@ struct DisasContext {
     bool tm_enabled;
     bool gtse;
     bool hr;
+    bool mmcr0_pmcc0;
+    bool mmcr0_pmcc1;
     ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
     int singlestep_enabled;
     uint32_t flags;
@@ -4934,32 +4936,40 @@ static void gen_mtmsrd(DisasContext *ctx)
     CHK_SV;
 
 #if !defined(CONFIG_USER_ONLY)
+    TCGv t0, t1;
+    target_ulong mask;
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+
     gen_icount_io_start(ctx);
+
     if (ctx->opcode & 0x00010000) {
         /* L=1 form only updates EE and RI */
-        TCGv t0 = tcg_temp_new();
-        TCGv t1 = tcg_temp_new();
-        tcg_gen_andi_tl(t0, cpu_gpr[rS(ctx->opcode)],
-                        (1 << MSR_RI) | (1 << MSR_EE));
-        tcg_gen_andi_tl(t1, cpu_msr,
-                        ~(target_ulong)((1 << MSR_RI) | (1 << MSR_EE)));
-        tcg_gen_or_tl(t1, t1, t0);
-
-        gen_helper_store_msr(cpu_env, t1);
-        tcg_temp_free(t0);
-        tcg_temp_free(t1);
-
+        mask = (1ULL << MSR_RI) | (1ULL << MSR_EE);
     } else {
+        /* mtmsrd does not alter HV, S, ME, or LE */
+        mask = ~((1ULL << MSR_LE) | (1ULL << MSR_ME) | (1ULL << MSR_S) |
+                 (1ULL << MSR_HV));
         /*
          * XXX: we need to update nip before the store if we enter
          *      power saving mode, we will exit the loop directly from
          *      ppc_store_msr
          */
         gen_update_nip(ctx, ctx->base.pc_next);
-        gen_helper_store_msr(cpu_env, cpu_gpr[rS(ctx->opcode)]);
     }
+
+    tcg_gen_andi_tl(t0, cpu_gpr[rS(ctx->opcode)], mask);
+    tcg_gen_andi_tl(t1, cpu_msr, ~mask);
+    tcg_gen_or_tl(t0, t0, t1);
+
+    gen_helper_store_msr(cpu_env, t0);
+
     /* Must stop the translation as machine state (may have) changed */
     ctx->base.is_jmp = DISAS_EXIT_UPDATE;
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
 #endif /* !defined(CONFIG_USER_ONLY) */
 }
 #endif /* defined(TARGET_PPC64) */
@@ -4969,23 +4979,19 @@ static void gen_mtmsr(DisasContext *ctx)
     CHK_SV;
 
 #if !defined(CONFIG_USER_ONLY)
+    TCGv t0, t1;
+    target_ulong mask = 0xFFFFFFFF;
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+
     gen_icount_io_start(ctx);
     if (ctx->opcode & 0x00010000) {
         /* L=1 form only updates EE and RI */
-        TCGv t0 = tcg_temp_new();
-        TCGv t1 = tcg_temp_new();
-        tcg_gen_andi_tl(t0, cpu_gpr[rS(ctx->opcode)],
-                        (1 << MSR_RI) | (1 << MSR_EE));
-        tcg_gen_andi_tl(t1, cpu_msr,
-                        ~(target_ulong)((1 << MSR_RI) | (1 << MSR_EE)));
-        tcg_gen_or_tl(t1, t1, t0);
-
-        gen_helper_store_msr(cpu_env, t1);
-        tcg_temp_free(t0);
-        tcg_temp_free(t1);
-
+        mask &= (1ULL << MSR_RI) | (1ULL << MSR_EE);
     } else {
-        TCGv msr = tcg_temp_new();
+        /* mtmsr does not alter S, ME, or LE */
+        mask &= ~((1ULL << MSR_LE) | (1ULL << MSR_ME) | (1ULL << MSR_S));
 
         /*
          * XXX: we need to update nip before the store if we enter
@@ -4993,16 +4999,19 @@ static void gen_mtmsr(DisasContext *ctx)
          *      ppc_store_msr
          */
         gen_update_nip(ctx, ctx->base.pc_next);
-#if defined(TARGET_PPC64)
-        tcg_gen_deposit_tl(msr, cpu_msr, cpu_gpr[rS(ctx->opcode)], 0, 32);
-#else
-        tcg_gen_mov_tl(msr, cpu_gpr[rS(ctx->opcode)]);
-#endif
-        gen_helper_store_msr(cpu_env, msr);
-        tcg_temp_free(msr);
     }
+
+    tcg_gen_andi_tl(t0, cpu_gpr[rS(ctx->opcode)], mask);
+    tcg_gen_andi_tl(t1, cpu_msr, ~mask);
+    tcg_gen_or_tl(t0, t0, t1);
+
+    gen_helper_store_msr(cpu_env, t0);
+
     /* Must stop the translation as machine state (may have) changed */
     ctx->base.is_jmp = DISAS_EXIT_UPDATE;
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
 #endif
 }
 
@@ -5068,19 +5077,15 @@ static void gen_mtspr(DisasContext *ctx)
 static void gen_setb(DisasContext *ctx)
 {
     TCGv_i32 t0 = tcg_temp_new_i32();
-    TCGv_i32 t8 = tcg_temp_new_i32();
-    TCGv_i32 tm1 = tcg_temp_new_i32();
+    TCGv_i32 t8 = tcg_constant_i32(8);
+    TCGv_i32 tm1 = tcg_constant_i32(-1);
     int crf = crfS(ctx->opcode);
 
     tcg_gen_setcondi_i32(TCG_COND_GEU, t0, cpu_crf[crf], 4);
-    tcg_gen_movi_i32(t8, 8);
-    tcg_gen_movi_i32(tm1, -1);
     tcg_gen_movcond_i32(TCG_COND_GEU, t0, cpu_crf[crf], t8, tm1, t0);
     tcg_gen_ext_i32_tl(cpu_gpr[rD(ctx->opcode)], t0);
 
     tcg_temp_free_i32(t0);
-    tcg_temp_free_i32(t8);
-    tcg_temp_free_i32(tm1);
 }
 #endif
 
@@ -7481,6 +7486,8 @@ static int times_4(DisasContext *ctx, int x)
 
 #include "decode-insn32.c.inc"
 #include "decode-insn64.c.inc"
+#include "power8-pmu-regs.c.inc"
+
 #include "translate/fixedpoint-impl.c.inc"
 
 #include "translate/fp-impl.c.inc"
@@ -7573,18 +7580,16 @@ static void gen_brw(DisasContext *ctx)
 /* brh */
 static void gen_brh(DisasContext *ctx)
 {
-    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 mask = tcg_constant_i64(0x00ff00ff00ff00ffull);
     TCGv_i64 t1 = tcg_temp_new_i64();
     TCGv_i64 t2 = tcg_temp_new_i64();
 
-    tcg_gen_movi_i64(t0, 0x00ff00ff00ff00ffull);
     tcg_gen_shri_i64(t1, cpu_gpr[rS(ctx->opcode)], 8);
-    tcg_gen_and_i64(t2, t1, t0);
-    tcg_gen_and_i64(t1, cpu_gpr[rS(ctx->opcode)], t0);
+    tcg_gen_and_i64(t2, t1, mask);
+    tcg_gen_and_i64(t1, cpu_gpr[rS(ctx->opcode)], mask);
     tcg_gen_shli_i64(t1, t1, 8);
     tcg_gen_or_i64(cpu_gpr[rA(ctx->opcode)], t1, t2);
 
-    tcg_temp_free_i64(t0);
     tcg_temp_free_i64(t1);
     tcg_temp_free_i64(t2);
 }
@@ -8551,6 +8556,8 @@ static void ppc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->tm_enabled = (hflags >> HFLAGS_TM) & 1;
     ctx->gtse = (hflags >> HFLAGS_GTSE) & 1;
     ctx->hr = (hflags >> HFLAGS_HR) & 1;
+    ctx->mmcr0_pmcc0 = (hflags >> HFLAGS_PMCC0) & 1;
+    ctx->mmcr0_pmcc1 = (hflags >> HFLAGS_PMCC1) & 1;
 
     ctx->singlestep_enabled = 0;
     if ((hflags >> HFLAGS_SE) & 1) {

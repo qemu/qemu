@@ -336,6 +336,8 @@ void store_40x_dbcr0(CPUPPCState *env, uint32_t val)
 {
     PowerPCCPU *cpu = env_archcpu(env);
 
+    qemu_mutex_lock_iothread();
+
     switch ((val >> 28) & 0x3) {
     case 0x0:
         /* No action */
@@ -353,6 +355,8 @@ void store_40x_dbcr0(CPUPPCState *env, uint32_t val)
         ppc40x_system_reset(cpu);
         break;
     }
+
+    qemu_mutex_unlock_iothread();
 }
 
 /* PowerPC 40x internal IRQ controller */
@@ -848,7 +852,7 @@ static void __cpu_ppc_store_decr(PowerPCCPU *cpu, uint64_t *nextp,
      * On MSB edge based DEC implementations the MSB going from 0 -> 1 triggers
      * an edge interrupt, so raise it here too.
      */
-    if ((signed_value < 3) ||
+    if ((value < 3) ||
         ((tb_env->flags & PPC_DECR_UNDERFLOW_LEVEL) && signed_value < 0) ||
         ((tb_env->flags & PPC_DECR_UNDERFLOW_TRIGGERED) && signed_value < 0
           && signed_decr >= 0)) {
