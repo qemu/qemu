@@ -27,7 +27,12 @@ git submodule update --init
 # don't necessarily have much control over how a submodule handles its
 # submodule dependencies, so we continue to handle these on a case-by-case
 # basis for now.
-(cd roms/edk2 && git submodule update --init)
+(cd roms/edk2 && \
+    git submodule update --init -- \
+        ArmPkg/Library/ArmSoftFloatLib/berkeley-softfloat-3 \
+        BaseTools/Source/C/BrotliCompress/brotli \
+        CryptoPkg/Library/OpensslLib/openssl \
+        MdeModulePkg/Library/BrotliCustomDecompressLib/brotli)
 popd
 tar --exclude=.git -cjf ${destination}.tar.bz2 ${destination}
 rm -rf ${destination}
