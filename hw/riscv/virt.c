@@ -758,7 +758,7 @@ static char *plic_hart_config_string(int hart_count)
     int i;
 
     for (i = 0; i < hart_count; i++) {
-        vals[i] = VIRT_PLIC_HART_CONFIG;
+        vals[i] = "MS";
     }
     vals[i] = NULL;
 
