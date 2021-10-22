@@ -150,7 +150,7 @@ static void mem_info_svxx(Monitor *mon, CPUArchState *env)
     target_ulong last_size;
     int last_attr;
 
-    if (riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) == MXL_RV32) {
         base = (hwaddr)get_field(env->satp, SATP32_PPN) << PGSHIFT;
         vm = get_field(env->satp, SATP32_MODE);
     } else {
@@ -220,7 +220,7 @@ void hmp_info_mem(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    if (riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) == MXL_RV32) {
         if (!(env->satp & SATP32_MODE)) {
             monitor_printf(mon, "No translation or protection\n");
             return;

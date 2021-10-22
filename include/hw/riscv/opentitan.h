@@ -20,7 +20,7 @@
 #define HW_OPENTITAN_H
 
 #include "hw/riscv/riscv_hart.h"
-#include "hw/intc/ibex_plic.h"
+#include "hw/intc/sifive_plic.h"
 #include "hw/char/ibex_uart.h"
 #include "hw/timer/ibex_timer.h"
 #include "qom/object.h"
@@ -34,7 +34,7 @@ struct LowRISCIbexSoCState {
 
     /*< public >*/
     RISCVHartArrayState cpus;
-    IbexPlicState plic;
+    SiFivePLICState plic;
     IbexUartState uart;
     IbexTimerState timer;
 
@@ -87,7 +87,7 @@ enum {
 };
 
 enum {
-    IBEX_TIMER_TIMEREXPIRED0_0 = 125,
+    IBEX_TIMER_TIMEREXPIRED0_0 = 126,
     IBEX_UART0_RX_PARITY_ERR_IRQ = 8,
     IBEX_UART0_RX_TIMEOUT_IRQ = 7,
     IBEX_UART0_RX_BREAK_ERR_IRQ = 6,

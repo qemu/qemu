@@ -39,7 +39,7 @@ static RISCVException fs(CPURISCVState *env, int csrno)
 {
 #if !defined(CONFIG_USER_ONLY)
     /* loose check condition for fcsr in vector extension */
-    if ((csrno == CSR_FCSR) && (env->misa & RVV)) {
+    if ((csrno == CSR_FCSR) && (env->misa_ext & RVV)) {
         return RISCV_EXCP_NONE;
     }
     if (!env->debugger && !riscv_cpu_fp_enabled(env)) {
@@ -51,7 +51,7 @@ static RISCVException fs(CPURISCVState *env, int csrno)
 
 static RISCVException vs(CPURISCVState *env, int csrno)
 {
-    if (env->misa & RVV) {
+    if (env->misa_ext & RVV) {
         return RISCV_EXCP_NONE;
     }
     return RISCV_EXCP_ILLEGAL_INST;
@@ -95,7 +95,7 @@ static RISCVException ctr(CPURISCVState *env, int csrno)
             }
             break;
         }
-        if (riscv_cpu_is_32bit(env)) {
+        if (riscv_cpu_mxl(env) == MXL_RV32) {
             switch (csrno) {
             case CSR_CYCLEH:
                 if (!get_field(env->hcounteren, COUNTEREN_CY) &&
@@ -130,7 +130,7 @@ static RISCVException ctr(CPURISCVState *env, int csrno)
 
 static RISCVException ctr32(CPURISCVState *env, int csrno)
 {
-    if (!riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) != MXL_RV32) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
@@ -145,7 +145,7 @@ static RISCVException any(CPURISCVState *env, int csrno)
 
 static RISCVException any32(CPURISCVState *env, int csrno)
 {
-    if (!riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) != MXL_RV32) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
@@ -180,7 +180,7 @@ static RISCVException hmode(CPURISCVState *env, int csrno)
 
 static RISCVException hmode32(CPURISCVState *env, int csrno)
 {
-    if (!riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) != MXL_RV32) {
         if (riscv_cpu_virt_enabled(env)) {
             return RISCV_EXCP_ILLEGAL_INST;
         } else {
@@ -477,16 +477,34 @@ static RISCVException read_mhartid(CPURISCVState *env, int csrno,
 }
 
 /* Machine Trap Setup */
+
+/* We do not store SD explicitly, only compute it on demand. */
+static uint64_t add_status_sd(RISCVMXL xl, uint64_t status)
+{
+    if ((status & MSTATUS_FS) == MSTATUS_FS ||
+        (status & MSTATUS_XS) == MSTATUS_XS) {
+        switch (xl) {
+        case MXL_RV32:
+            return status | MSTATUS32_SD;
+        case MXL_RV64:
+            return status | MSTATUS64_SD;
+        default:
+            g_assert_not_reached();
+        }
+    }
+    return status;
+}
+
 static RISCVException read_mstatus(CPURISCVState *env, int csrno,
                                    target_ulong *val)
 {
-    *val = env->mstatus;
+    *val = add_status_sd(riscv_cpu_mxl(env), env->mstatus);
     return RISCV_EXCP_NONE;
 }
 
 static int validate_vm(CPURISCVState *env, target_ulong vm)
 {
-    if (riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) == MXL_RV32) {
         return valid_vm_1_10_32[vm & 0xf];
     } else {
         return valid_vm_1_10_64[vm & 0xf];
@@ -498,7 +516,6 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
 {
     uint64_t mstatus = env->mstatus;
     uint64_t mask = 0;
-    int dirty;
 
     /* flush tlb on mstatus fields that affect VM */
     if ((val ^ mstatus) & (MSTATUS_MXR | MSTATUS_MPP | MSTATUS_MPV |
@@ -510,7 +527,7 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
         MSTATUS_MPP | MSTATUS_MXR | MSTATUS_TVM | MSTATUS_TSR |
         MSTATUS_TW;
 
-    if (!riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) != MXL_RV32) {
         /*
          * RV32: MPV and GVA are not in mstatus. The current plan is to
          * add them to mstatush. For now, we just don't support it.
@@ -520,12 +537,10 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
 
     mstatus = (mstatus & ~mask) | (val & mask);
 
-    dirty = ((mstatus & MSTATUS_FS) == MSTATUS_FS) |
-            ((mstatus & MSTATUS_XS) == MSTATUS_XS);
-    if (riscv_cpu_is_32bit(env)) {
-        mstatus = set_field(mstatus, MSTATUS32_SD, dirty);
-    } else {
-        mstatus = set_field(mstatus, MSTATUS64_SD, dirty);
+    if (riscv_cpu_mxl(env) == MXL_RV64) {
+        /* SXL and UXL fields are for now read only */
+        mstatus = set_field(mstatus, MSTATUS64_SXL, MXL_RV64);
+        mstatus = set_field(mstatus, MSTATUS64_UXL, MXL_RV64);
     }
     env->mstatus = mstatus;
 
@@ -557,7 +572,22 @@ static RISCVException write_mstatush(CPURISCVState *env, int csrno,
 static RISCVException read_misa(CPURISCVState *env, int csrno,
                                 target_ulong *val)
 {
-    *val = env->misa;
+    target_ulong misa;
+
+    switch (env->misa_mxl) {
+    case MXL_RV32:
+        misa = (target_ulong)MXL_RV32 << 30;
+        break;
+#ifdef TARGET_RISCV64
+    case MXL_RV64:
+        misa = (target_ulong)MXL_RV64 << 62;
+        break;
+#endif
+    default:
+        g_assert_not_reached();
+    }
+
+    *val = misa | env->misa_ext;
     return RISCV_EXCP_NONE;
 }
 
@@ -583,8 +613,13 @@ static RISCVException write_misa(CPURISCVState *env, int csrno,
         return RISCV_EXCP_NONE;
     }
 
+    /*
+     * misa.MXL writes are not supported by QEMU.
+     * Drop writes to those bits.
+     */
+
     /* Mask extensions that are not supported by this hart */
-    val &= env->misa_mask;
+    val &= env->misa_ext_mask;
 
     /* Mask extensions that are not supported by QEMU */
     val &= (RVI | RVE | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
@@ -601,20 +636,14 @@ static RISCVException write_misa(CPURISCVState *env, int csrno,
         val &= ~RVC;
     }
 
-    /* misa.MXL writes are not supported by QEMU */
-    if (riscv_cpu_is_32bit(env)) {
-        val = (env->misa & MISA32_MXL) | (val & ~MISA32_MXL);
-    } else {
-        val = (env->misa & MISA64_MXL) | (val & ~MISA64_MXL);
+    /* If nothing changed, do nothing. */
+    if (val == env->misa_ext) {
+        return RISCV_EXCP_NONE;
     }
 
     /* flush translation cache */
-    if (val != env->misa) {
-        tb_flush(env_cpu(env));
-    }
-
-    env->misa = val;
-
+    tb_flush(env_cpu(env));
+    env->misa_ext = val;
     return RISCV_EXCP_NONE;
 }
 
@@ -781,13 +810,8 @@ static RISCVException read_sstatus(CPURISCVState *env, int csrno,
 {
     target_ulong mask = (sstatus_v1_10_mask);
 
-    if (riscv_cpu_is_32bit(env)) {
-        mask |= SSTATUS32_SD;
-    } else {
-        mask |= SSTATUS64_SD;
-    }
-
-    *val = env->mstatus & mask;
+    /* TODO: Use SXL not MXL. */
+    *val = add_status_sd(riscv_cpu_mxl(env), env->mstatus & mask);
     return RISCV_EXCP_NONE;
 }
 
@@ -992,7 +1016,7 @@ static RISCVException write_satp(CPURISCVState *env, int csrno,
         return RISCV_EXCP_NONE;
     }
 
-    if (riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) == MXL_RV32) {
         vm = validate_vm(env, get_field(val, SATP32_MODE));
         mask = (val ^ env->satp) & (SATP32_MODE | SATP32_ASID | SATP32_PPN);
         asid = (val ^ env->satp) & SATP32_ASID;
@@ -1020,7 +1044,7 @@ static RISCVException read_hstatus(CPURISCVState *env, int csrno,
                                    target_ulong *val)
 {
     *val = env->hstatus;
-    if (!riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) != MXL_RV32) {
         /* We only support 64-bit VSXL */
         *val = set_field(*val, HSTATUS_VSXL, 2);
     }
@@ -1033,7 +1057,7 @@ static RISCVException write_hstatus(CPURISCVState *env, int csrno,
                                     target_ulong val)
 {
     env->hstatus = val;
-    if (!riscv_cpu_is_32bit(env) && get_field(val, HSTATUS_VSXL) != 2) {
+    if (riscv_cpu_mxl(env) != MXL_RV32 && get_field(val, HSTATUS_VSXL) != 2) {
         qemu_log_mask(LOG_UNIMP, "QEMU does not support mixed HSXLEN options.");
     }
     if (get_field(val, HSTATUS_VSBE) != 0) {
@@ -1201,7 +1225,7 @@ static RISCVException write_htimedelta(CPURISCVState *env, int csrno,
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
-    if (riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) == MXL_RV32) {
         env->htimedelta = deposit64(env->htimedelta, 0, 32, (uint64_t)val);
     } else {
         env->htimedelta = val;

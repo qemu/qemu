@@ -463,7 +463,7 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
     MemoryRegion *mem_low_alias = g_new(MemoryRegion, 1);
     MemoryRegion *mem_high = g_new(MemoryRegion, 1);
     MemoryRegion *mem_high_alias = g_new(MemoryRegion, 1);
-    uint64_t mem_high_size;
+    uint64_t mem_low_size, mem_high_size;
     hwaddr firmware_load_addr;
     const char *firmware_name;
     bool kernel_as_payload = false;
@@ -485,31 +485,34 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
                             TYPE_MICROCHIP_PFSOC);
     qdev_realize(DEVICE(&s->soc), NULL, &error_abort);
 
+    /* Split RAM into low and high regions using aliases to machine->ram */
+    mem_low_size = memmap[MICROCHIP_PFSOC_DRAM_LO].size;
+    mem_high_size = machine->ram_size - mem_low_size;
+    memory_region_init_alias(mem_low, NULL,
+                             "microchip.icicle.kit.ram_low", machine->ram,
+                             0, mem_low_size);
+    memory_region_init_alias(mem_high, NULL,
+                             "microchip.icicle.kit.ram_high", machine->ram,
+                             mem_low_size, mem_high_size);
+
     /* Register RAM */
-    memory_region_init_ram(mem_low, NULL, "microchip.icicle.kit.ram_low",
-                           memmap[MICROCHIP_PFSOC_DRAM_LO].size,
-                           &error_fatal);
-    memory_region_init_alias(mem_low_alias, NULL,
-                             "microchip.icicle.kit.ram_low.alias",
-                             mem_low, 0,
-                             memmap[MICROCHIP_PFSOC_DRAM_LO_ALIAS].size);
     memory_region_add_subregion(system_memory,
                                 memmap[MICROCHIP_PFSOC_DRAM_LO].base,
                                 mem_low);
     memory_region_add_subregion(system_memory,
+                                memmap[MICROCHIP_PFSOC_DRAM_HI].base,
+                                mem_high);
+
+    /* Create aliases for the low and high RAM regions */
+    memory_region_init_alias(mem_low_alias, NULL,
+                             "microchip.icicle.kit.ram_low.alias",
+                             mem_low, 0, mem_low_size);
+    memory_region_add_subregion(system_memory,
                                 memmap[MICROCHIP_PFSOC_DRAM_LO_ALIAS].base,
                                 mem_low_alias);
-
-    mem_high_size = machine->ram_size - 1 * GiB;
-
-    memory_region_init_ram(mem_high, NULL, "microchip.icicle.kit.ram_high",
-                           mem_high_size, &error_fatal);
     memory_region_init_alias(mem_high_alias, NULL,
                              "microchip.icicle.kit.ram_high.alias",
                              mem_high, 0, mem_high_size);
-    memory_region_add_subregion(system_memory,
-                                memmap[MICROCHIP_PFSOC_DRAM_HI].base,
-                                mem_high);
     memory_region_add_subregion(system_memory,
                                 memmap[MICROCHIP_PFSOC_DRAM_HI_ALIAS].base,
                                 mem_high_alias);
@@ -606,6 +609,7 @@ static void microchip_icicle_kit_machine_class_init(ObjectClass *oc, void *data)
                    MICROCHIP_PFSOC_COMPUTE_CPU_COUNT;
     mc->min_cpus = MICROCHIP_PFSOC_MANAGEMENT_CPU_COUNT + 1;
     mc->default_cpus = mc->min_cpus;
+    mc->default_ram_id = "microchip.icicle.kit.ram";
 
     /*
      * Map 513 MiB high memory, the mimimum required high memory size, because
