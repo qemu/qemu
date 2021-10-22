@@ -748,24 +748,6 @@ static FWCfgState *create_fw_cfg(const MachineState *mc)
     return fw_cfg;
 }
 
-/*
- * Return the per-socket PLIC hart topology configuration string
- * (caller must free with g_free())
- */
-static char *plic_hart_config_string(int hart_count)
-{
-    g_autofree const char **vals = g_new(const char *, hart_count + 1);
-    int i;
-
-    for (i = 0; i < hart_count; i++) {
-        vals[i] = "MS";
-    }
-    vals[i] = NULL;
-
-    /* g_strjoinv() obliges us to cast away const here */
-    return g_strjoinv(",", (char **)vals);
-}
-
 static void virt_machine_init(MachineState *machine)
 {
     const MemMapEntry *memmap = virt_memmap;
@@ -839,7 +821,7 @@ static void virt_machine_init(MachineState *machine)
         }
 
         /* Per-socket PLIC hart topology configuration string */
-        plic_hart_config = plic_hart_config_string(hart_count);
+        plic_hart_config = riscv_plic_hart_config_string(hart_count);
 
         /* Per-socket PLIC */
         s->plic[i] = sifive_plic_create(
