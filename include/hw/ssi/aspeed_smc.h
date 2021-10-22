@@ -52,8 +52,8 @@ struct AspeedSMCState {
     SysBusDevice parent_obj;
 
     MemoryRegion mmio;
+    MemoryRegion mmio_flash_container;
     MemoryRegion mmio_flash;
-    MemoryRegion mmio_flash_alias;
 
     qemu_irq irq;
 

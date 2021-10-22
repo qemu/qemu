@@ -68,3 +68,7 @@ pl181_fifo_push(uint32_t data) "FIFO push 0x%08" PRIx32
 pl181_fifo_pop(uint32_t data) "FIFO pop 0x%08" PRIx32
 pl181_fifo_transfer_complete(void) "FIFO transfer complete"
 pl181_data_engine_idle(void) "data engine idle"
+
+# aspeed_sdhci.c
+aspeed_sdhci_read(uint64_t addr, uint32_t size, uint64_t data) "@0x%" PRIx64 " size %u: 0x%" PRIx64
+aspeed_sdhci_write(uint64_t addr, uint32_t size, uint64_t data) "@0x%" PRIx64 " size %u: 0x%" PRIx64

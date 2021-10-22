@@ -1151,14 +1151,17 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
      * window in which the flash modules are mapped. The size and
      * address depends on the SoC model and controller type.
      */
+    memory_region_init(&s->mmio_flash_container, OBJECT(s),
+                       TYPE_ASPEED_SMC ".container",
+                       asc->flash_window_size);
+    sysbus_init_mmio(sbd, &s->mmio_flash_container);
+
     memory_region_init_io(&s->mmio_flash, OBJECT(s),
                           &aspeed_smc_flash_default_ops, s,
                           TYPE_ASPEED_SMC ".flash",
                           asc->flash_window_size);
-    memory_region_init_alias(&s->mmio_flash_alias, OBJECT(s),
-                             TYPE_ASPEED_SMC ".flash",
-                             &s->mmio_flash, 0, asc->flash_window_size);
-    sysbus_init_mmio(sbd, &s->mmio_flash_alias);
+    memory_region_add_subregion(&s->mmio_flash_container, 0x0,
+                                &s->mmio_flash);
 
     /*
      * Let's create a sub memory region for each possible peripheral. All

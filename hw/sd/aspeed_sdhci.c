@@ -14,6 +14,7 @@
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
+#include "trace.h"
 
 #define ASPEED_SDHCI_INFO            0x00
 #define  ASPEED_SDHCI_INFO_SLOT1     (1 << 17)
@@ -60,6 +61,8 @@ static uint64_t aspeed_sdhci_read(void *opaque, hwaddr addr, unsigned int size)
         }
     }
 
+    trace_aspeed_sdhci_read(addr, size, (uint64_t) val);
+
     return (uint64_t)val;
 }
 
@@ -67,6 +70,8 @@ static void aspeed_sdhci_write(void *opaque, hwaddr addr, uint64_t val,
                                unsigned int size)
 {
     AspeedSDHCIState *sdhci = opaque;
+
+    trace_aspeed_sdhci_write(addr, size, val);
 
     switch (addr) {
     case ASPEED_SDHCI_INFO:
