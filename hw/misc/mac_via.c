@@ -130,6 +130,10 @@
                                 * On SE/30, vertical sync interrupt enable.
                                 * 0=enabled. This vSync interrupt shows up
                                 * as a slot $E interrupt.
+                                * On Quadra 800 this bit toggles A/UX mode which
+                                * configures the glue logic to deliver some IRQs
+                                * at different levels compared to a classic
+                                * Mac.
                                 */
 #define VIA1B_vADBS2   0x20    /* ADB state input bit 1 (unused on IIfx) */
 #define VIA1B_vADBS1   0x10    /* ADB state input bit 0 (unused on IIfx) */
@@ -876,6 +880,21 @@ static void via1_adb_update(MOS6522Q800VIA1State *v1s)
     }
 }
 
+static void via1_auxmode_update(MOS6522Q800VIA1State *v1s)
+{
+    MOS6522State *s = MOS6522(v1s);
+    int oldirq, irq;
+
+    oldirq = (v1s->last_b & VIA1B_vMystery) ? 1 : 0;
+    irq = (s->b & VIA1B_vMystery) ? 1 : 0;
+
+    /* Check to see if the A/UX mode bit has changed */
+    if (irq != oldirq) {
+        trace_via1_auxmode(irq);
+        qemu_set_irq(v1s->auxmode_irq, irq);
+    }
+}
+
 static uint64_t mos6522_q800_via1_read(void *opaque, hwaddr addr, unsigned size)
 {
     MOS6522Q800VIA1State *s = MOS6522_Q800_VIA1(opaque);
@@ -898,6 +917,7 @@ static void mos6522_q800_via1_write(void *opaque, hwaddr addr, uint64_t val,
     case VIA_REG_B:
         via1_rtc_update(v1s);
         via1_adb_update(v1s);
+        via1_auxmode_update(v1s);
 
         v1s->last_b = ms->b;
         break;
@@ -1042,6 +1062,9 @@ static void mos6522_q800_via1_init(Object *obj)
               TYPE_ADB_BUS, DEVICE(v1s), "adb.0");
 
     qdev_init_gpio_in(DEVICE(obj), via1_irq_request, VIA1_IRQ_NB);
+
+    /* A/UX mode */
+    qdev_init_gpio_out(DEVICE(obj), &v1s->auxmode_irq, 1);
 }
 
 static const VMStateDescription vmstate_q800_via1 = {

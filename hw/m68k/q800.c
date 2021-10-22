@@ -28,6 +28,7 @@
 #include "cpu.h"
 #include "hw/boards.h"
 #include "hw/or-irq.h"
+#include "hw/nmi.h"
 #include "elf.h"
 #include "hw/loader.h"
 #include "ui/console.h"
@@ -100,12 +101,109 @@ struct GLUEState {
     SysBusDevice parent_obj;
     M68kCPU *cpu;
     uint8_t ipr;
+    uint8_t auxmode;
+    qemu_irq irqs[1];
+    QEMUTimer *nmi_release;
 };
+
+#define GLUE_IRQ_IN_VIA1       0
+#define GLUE_IRQ_IN_VIA2       1
+#define GLUE_IRQ_IN_SONIC      2
+#define GLUE_IRQ_IN_ESCC       3
+#define GLUE_IRQ_IN_NMI        4
+
+#define GLUE_IRQ_NUBUS_9       0
+
+/*
+ * The GLUE logic on the Quadra 800 supports 2 different IRQ routing modes
+ * controlled from the VIA1 auxmode GPIO (port B bit 6) which are documented
+ * in NetBSD as follows:
+ *
+ * A/UX mode (Linux, NetBSD, auxmode GPIO low)
+ *
+ *   Level 0:        Spurious: ignored
+ *   Level 1:        Software
+ *   Level 2:        VIA2 (except ethernet, sound)
+ *   Level 3:        Ethernet
+ *   Level 4:        Serial (SCC)
+ *   Level 5:        Sound
+ *   Level 6:        VIA1
+ *   Level 7:        NMIs: parity errors, RESET button, YANCC error
+ *
+ * Classic mode (default: used by MacOS, A/UX 3.0.1, auxmode GPIO high)
+ *
+ *   Level 0:        Spurious: ignored
+ *   Level 1:        VIA1 (clock, ADB)
+ *   Level 2:        VIA2 (NuBus, SCSI)
+ *   Level 3:
+ *   Level 4:        Serial (SCC)
+ *   Level 5:
+ *   Level 6:
+ *   Level 7:        Non-maskable: parity errors, RESET button
+ *
+ * Note that despite references to A/UX mode in Linux and NetBSD, at least
+ * A/UX 3.0.1 still uses Classic mode.
+ */
 
 static void GLUE_set_irq(void *opaque, int irq, int level)
 {
     GLUEState *s = opaque;
     int i;
+
+    if (s->auxmode) {
+        /* Classic mode */
+        switch (irq) {
+        case GLUE_IRQ_IN_VIA1:
+            irq = 0;
+            break;
+
+        case GLUE_IRQ_IN_VIA2:
+            irq = 1;
+            break;
+
+        case GLUE_IRQ_IN_SONIC:
+            /* Route to VIA2 instead */
+            qemu_set_irq(s->irqs[GLUE_IRQ_NUBUS_9], level);
+            return;
+
+        case GLUE_IRQ_IN_ESCC:
+            irq = 3;
+            break;
+
+        case GLUE_IRQ_IN_NMI:
+            irq = 6;
+            break;
+
+        default:
+            g_assert_not_reached();
+        }
+    } else {
+        /* A/UX mode */
+        switch (irq) {
+        case GLUE_IRQ_IN_VIA1:
+            irq = 5;
+            break;
+
+        case GLUE_IRQ_IN_VIA2:
+            irq = 1;
+            break;
+
+        case GLUE_IRQ_IN_SONIC:
+            irq = 2;
+            break;
+
+        case GLUE_IRQ_IN_ESCC:
+            irq = 3;
+            break;
+
+        case GLUE_IRQ_IN_NMI:
+            irq = 6;
+            break;
+
+        default:
+            g_assert_not_reached();
+        }
+    }
 
     if (level) {
         s->ipr |= 1 << irq;
@@ -122,11 +220,37 @@ static void GLUE_set_irq(void *opaque, int irq, int level)
     m68k_set_irq_level(s->cpu, 0, 0);
 }
 
+static void glue_auxmode_set_irq(void *opaque, int irq, int level)
+{
+    GLUEState *s = GLUE(opaque);
+
+    s->auxmode = level;
+}
+
+static void glue_nmi(NMIState *n, int cpu_index, Error **errp)
+{
+    GLUEState *s = GLUE(n);
+
+    /* Hold NMI active for 100ms */
+    GLUE_set_irq(s, GLUE_IRQ_IN_NMI, 1);
+    timer_mod(s->nmi_release, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 100);
+}
+
+static void glue_nmi_release(void *opaque)
+{
+    GLUEState *s = GLUE(opaque);
+
+    GLUE_set_irq(s, GLUE_IRQ_IN_NMI, 0);
+}
+
 static void glue_reset(DeviceState *dev)
 {
     GLUEState *s = GLUE(dev);
 
     s->ipr = 0;
+    s->auxmode = 0;
+
+    timer_del(s->nmi_release);
 }
 
 static const VMStateDescription vmstate_glue = {
@@ -135,6 +259,8 @@ static const VMStateDescription vmstate_glue = {
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(ipr, GLUEState),
+        VMSTATE_UINT8(auxmode, GLUEState),
+        VMSTATE_TIMER_PTR(nmi_release, GLUEState),
         VMSTATE_END_OF_LIST(),
     },
 };
@@ -150,20 +276,36 @@ static Property glue_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void glue_finalize(Object *obj)
+{
+    GLUEState *s = GLUE(obj);
+
+    timer_free(s->nmi_release);
+}
+
 static void glue_init(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
+    GLUEState *s = GLUE(dev);
 
     qdev_init_gpio_in(dev, GLUE_set_irq, 8);
+    qdev_init_gpio_in_named(dev, glue_auxmode_set_irq, "auxmode", 1);
+
+    qdev_init_gpio_out(dev, s->irqs, 1);
+
+    /* NMI release timer */
+    s->nmi_release = timer_new_ms(QEMU_CLOCK_VIRTUAL, glue_nmi_release, s);
 }
 
 static void glue_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    NMIClass *nc = NMI_CLASS(klass);
 
     dc->vmsd = &vmstate_glue;
     dc->reset = glue_reset;
     device_class_set_props(dc, glue_properties);
+    nc->nmi_monitor_handler = glue_nmi;
 }
 
 static const TypeInfo glue_info = {
@@ -171,7 +313,12 @@ static const TypeInfo glue_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GLUEState),
     .instance_init = glue_init,
+    .instance_finalize = glue_finalize,
     .class_init = glue_class_init,
+    .interfaces = (InterfaceInfo[]) {
+         { TYPE_NMI },
+         { }
+    },
 };
 
 static void main_cpu_reset(void *opaque)
@@ -284,7 +431,10 @@ static void q800_init(MachineState *machine)
     sysbus = SYS_BUS_DEVICE(via1_dev);
     sysbus_realize_and_unref(sysbus, &error_fatal);
     sysbus_mmio_map(sysbus, 1, VIA_BASE);
-    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(glue, 0));
+    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(glue, GLUE_IRQ_IN_VIA1));
+    /* A/UX mode */
+    qdev_connect_gpio_out(via1_dev, 0,
+                          qdev_get_gpio_in_named(glue, "auxmode", 0));
 
     adb_bus = qdev_get_child_bus(via1_dev, "adb.0");
     dev = qdev_new(TYPE_ADB_KEYBOARD);
@@ -297,7 +447,7 @@ static void q800_init(MachineState *machine)
     sysbus = SYS_BUS_DEVICE(via2_dev);
     sysbus_realize_and_unref(sysbus, &error_fatal);
     sysbus_mmio_map(sysbus, 1, VIA_BASE + VIA_SIZE);
-    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(glue, 1));
+    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(glue, GLUE_IRQ_IN_VIA2));
 
     /* MACSONIC */
 
@@ -330,7 +480,7 @@ static void q800_init(MachineState *machine)
     sysbus = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(sysbus, &error_fatal);
     sysbus_mmio_map(sysbus, 0, SONIC_BASE);
-    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(glue, 2));
+    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(glue, GLUE_IRQ_IN_SONIC));
 
     memory_region_init_rom(dp8393x_prom, NULL, "dp8393x-q800.prom",
                            SONIC_PROM_SIZE, &error_fatal);
@@ -366,7 +516,8 @@ static void q800_init(MachineState *machine)
     qdev_realize_and_unref(escc_orgate, NULL, &error_fatal);
     sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(escc_orgate, 0));
     sysbus_connect_irq(sysbus, 1, qdev_get_gpio_in(escc_orgate, 1));
-    qdev_connect_gpio_out(DEVICE(escc_orgate), 0, qdev_get_gpio_in(glue, 3));
+    qdev_connect_gpio_out(DEVICE(escc_orgate), 0,
+                          qdev_get_gpio_in(glue, GLUE_IRQ_IN_ESCC));
     sysbus_mmio_map(sysbus, 0, SCC_BASE);
 
     /* SCSI */
@@ -416,6 +567,14 @@ static void q800_init(MachineState *machine)
                                                      VIA2_NUBUS_IRQ_9 + i));
     }
 
+    /*
+     * Since the framebuffer in slot 0x9 uses a separate IRQ, wire the unused
+     * IRQ via GLUE for use by SONIC Ethernet in classic mode
+     */
+    qdev_connect_gpio_out(glue, GLUE_IRQ_NUBUS_9,
+                          qdev_get_gpio_in_named(via2_dev, "nubus-irq",
+                                                 VIA2_NUBUS_IRQ_9));
+
     nubus = &NUBUS_BRIDGE(dev)->bus;
 
     /* framebuffer in nubus slot #9 */
@@ -425,7 +584,7 @@ static void q800_init(MachineState *machine)
     qdev_prop_set_uint32(dev, "width", graphic_width);
     qdev_prop_set_uint32(dev, "height", graphic_height);
     qdev_prop_set_uint8(dev, "depth", graphic_depth);
-    if (graphic_width == 1152 && graphic_height == 870 && graphic_depth == 8) {
+    if (graphic_width == 1152 && graphic_height == 870) {
         qdev_prop_set_uint8(dev, "display", MACFB_DISPLAY_APPLE_21_COLOR);
     } else {
         qdev_prop_set_uint8(dev, "display", MACFB_DISPLAY_VGA);
