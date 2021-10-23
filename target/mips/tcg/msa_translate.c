@@ -295,19 +295,24 @@ void msa_translate_init(void)
     }
 }
 
-static inline int check_msa_access(DisasContext *ctx)
+/*
+ * Check if MSA is enabled.
+ * This function is always called with MSA available.
+ * If MSA is disabled, raise an exception.
+ */
+static inline bool check_msa_enabled(DisasContext *ctx)
 {
     if (unlikely((ctx->hflags & MIPS_HFLAG_FPU) &&
                  !(ctx->hflags & MIPS_HFLAG_F64))) {
         gen_reserved_instruction(ctx);
-        return 0;
+        return false;
     }
 
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_MSA))) {
         generate_exception_end(ctx, EXCP_MSADIS);
-        return 0;
+        return false;
     }
-    return 1;
+    return true;
 }
 
 static void gen_check_zero_element(TCGv tresult, uint8_t df, uint8_t wt,
@@ -339,7 +344,9 @@ static bool gen_msa_BxZ_V(DisasContext *ctx, int wt, int s16, TCGCond cond)
 {
     TCGv_i64 t0;
 
-    check_msa_access(ctx);
+    if (!check_msa_enabled(ctx)) {
+        return true;
+    }
 
     if (ctx->hflags & MIPS_HFLAG_BMASK) {
         gen_reserved_instruction(ctx);
@@ -371,7 +378,9 @@ static bool trans_BNZ_V(DisasContext *ctx, arg_msa_bz *a)
 
 static bool gen_msa_BxZ(DisasContext *ctx, int df, int wt, int s16, bool if_not)
 {
-    check_msa_access(ctx);
+    if (!check_msa_enabled(ctx)) {
+        return true;
+    }
 
     if (ctx->hflags & MIPS_HFLAG_BMASK) {
         gen_reserved_instruction(ctx);
@@ -2143,7 +2152,9 @@ static bool trans_MSA(DisasContext *ctx, arg_MSA *a)
 {
     uint32_t opcode = ctx->opcode;
 
-    check_msa_access(ctx);
+    if (!check_msa_enabled(ctx)) {
+        return true;
+    }
 
     switch (MASK_MSA_MINOR(opcode)) {
     case OPC_MSA_I8_00:
