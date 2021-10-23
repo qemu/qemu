@@ -2633,7 +2633,7 @@ static void tcg_log_global_after_sync(MemoryListener *listener)
          * In record/replay mode this causes a deadlock, because
          * run_on_cpu waits for rr mutex. Therefore no races are possible
          * in this case and no need for making run_on_cpu when
-         * record/replay is not enabled.
+         * record/replay is enabled.
          */
         cpuas = container_of(listener, CPUAddressSpace, tcg_as_listener);
         run_on_cpu(cpuas->cpu, do_nothing, RUN_ON_CPU_NULL);

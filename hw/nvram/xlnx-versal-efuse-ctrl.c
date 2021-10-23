@@ -439,9 +439,11 @@ static void efuse_pgm_addr_postw(RegisterInfo *reg, uint64_t val64)
      *       up to guest to do so (or by reset).
      */
     if (efuse_pgm_locked(s, bit)) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Denied setting of efuse<%u, %u, %u>\n",
-                      object_get_canonical_path(OBJECT(s)),
+                      path,
                       FIELD_EX32(bit, EFUSE_PGM_ADDR, PAGE),
                       FIELD_EX32(bit, EFUSE_PGM_ADDR, ROW),
                       FIELD_EX32(bit, EFUSE_PGM_ADDR, COLUMN));
@@ -478,9 +480,11 @@ static void efuse_rd_addr_postw(RegisterInfo *reg, uint64_t val64)
     s->regs[R_EFUSE_RD_DATA] = xlnx_versal_efuse_read_row(s->efuse,
                                                           bit, &denied);
     if (denied) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Denied reading of efuse<%u, %u>\n",
-                      object_get_canonical_path(OBJECT(s)),
+                      path,
                       FIELD_EX32(bit, EFUSE_RD_ADDR, PAGE),
                       FIELD_EX32(bit, EFUSE_RD_ADDR, ROW));
 
@@ -625,9 +629,11 @@ static void efuse_ctrl_reg_write(void *opaque, hwaddr addr,
     s = XLNX_VERSAL_EFUSE_CTRL(dev);
 
     if (addr != A_WR_LOCK && s->regs[R_WR_LOCK]) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s[reg_0x%02lx]: Attempt to write locked register.\n",
-                      object_get_canonical_path(OBJECT(s)), (long)addr);
+                      path, (long)addr);
     } else {
         register_write_memory(opaque, addr, data, size);
     }
@@ -681,16 +687,20 @@ static void efuse_ctrl_realize(DeviceState *dev, Error **errp)
     const uint32_t lks_sz = sizeof(XlnxEFuseLkSpec) / 2;
 
     if (!s->efuse) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+
         error_setg(errp, "%s.efuse: link property not connected to XLNX-EFUSE",
-                   object_get_canonical_path(OBJECT(dev)));
+                   path);
         return;
     }
 
     /* Sort property-defined pgm-locks for bsearch lookup */
     if ((s->extra_pg0_lock_n16 % lks_sz) != 0) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+
         error_setg(errp,
                    "%s.pg0-lock: array property item-count not multiple of %u",
-                   object_get_canonical_path(OBJECT(dev)), lks_sz);
+                   path, lks_sz);
         return;
     }
 

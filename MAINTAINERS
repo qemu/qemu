@@ -1617,6 +1617,7 @@ F: pc-bios/bios-microvm.bin
 Machine core
 M: Eduardo Habkost <ehabkost@redhat.com>
 M: Marcel Apfelbaum <marcel.apfelbaum@gmail.com>
+R: Philippe Mathieu-Daudé <philmd@redhat.com>
 S: Supported
 F: cpu.c
 F: hw/core/cpu.c
