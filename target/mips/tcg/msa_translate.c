@@ -315,28 +315,11 @@ static void gen_check_zero_element(TCGv tresult, uint8_t df, uint8_t wt,
 {
     /* generates tcg ops to check if any element is 0 */
     /* Note this function only works with MSA_WRLEN = 128 */
-    uint64_t eval_zero_or_big = 0;
-    uint64_t eval_big = 0;
+    uint64_t eval_zero_or_big = dup_const(df, 1);
+    uint64_t eval_big = eval_zero_or_big << ((8 << df) - 1);
     TCGv_i64 t0 = tcg_temp_new_i64();
     TCGv_i64 t1 = tcg_temp_new_i64();
-    switch (df) {
-    case DF_BYTE:
-        eval_zero_or_big = 0x0101010101010101ULL;
-        eval_big = 0x8080808080808080ULL;
-        break;
-    case DF_HALF:
-        eval_zero_or_big = 0x0001000100010001ULL;
-        eval_big = 0x8000800080008000ULL;
-        break;
-    case DF_WORD:
-        eval_zero_or_big = 0x0000000100000001ULL;
-        eval_big = 0x8000000080000000ULL;
-        break;
-    case DF_DOUBLE:
-        eval_zero_or_big = 0x0000000000000001ULL;
-        eval_big = 0x8000000000000000ULL;
-        break;
-    }
+
     tcg_gen_subi_i64(t0, msa_wr_d[wt << 1], eval_zero_or_big);
     tcg_gen_andc_i64(t0, t0, msa_wr_d[wt << 1]);
     tcg_gen_andi_i64(t0, t0, eval_big);
