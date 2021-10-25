@@ -1231,14 +1231,21 @@ Example: the SchemaInfo for ['str'] ::
       "element-type": "str" }
 
 The SchemaInfo for an enumeration type has meta-type "enum" and
-variant member "values".  The values are listed in no particular
-order; clients must search the entire enum when learning whether a
-particular value is supported.
+variant member "members".
+
+"members" is a JSON array describing the enumeration values.  Each
+element is a JSON object with member "name" (the member's name).  The
+"members" array is in no particular order; clients must search the
+entire array when learning whether a particular value is supported.
 
 Example: the SchemaInfo for MyEnum from section `Enumeration types`_ ::
 
     { "name": "MyEnum", "meta-type": "enum",
-      "values": [ "value1", "value2", "value3" ] }
+      "members": [
+        { "name": "value1" },
+        { "name": "value2" },
+        { "name": "value3" }
+      ] }
 
 The SchemaInfo for a built-in type has the same name as the type in
 the QAPI schema (see section `Built-in Types`_), with one exception

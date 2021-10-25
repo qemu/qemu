@@ -68,6 +68,7 @@ JSONValue = Union[_Value, 'Annotated[_Value]']
 # TypedDict constructs, so they are broadly typed here as simple
 # Python Dicts.
 SchemaInfo = Dict[str, object]
+SchemaInfoEnumMember = Dict[str, object]
 SchemaInfoObject = Dict[str, object]
 SchemaInfoObjectVariant = Dict[str, object]
 SchemaInfoObjectMember = Dict[str, object]
@@ -274,8 +275,16 @@ const QLitObject %(c_name)s = %(c_string)s;
             obj['features'] = self._gen_features(features)
         self._trees.append(Annotated(obj, ifcond, comment))
 
-    def _gen_member(self, member: QAPISchemaObjectTypeMember
-                    ) -> Annotated[SchemaInfoObjectMember]:
+    @staticmethod
+    def _gen_enum_member(member: QAPISchemaEnumMember
+                         ) -> Annotated[SchemaInfoEnumMember]:
+        obj: SchemaInfoEnumMember = {
+            'name': member.name,
+        }
+        return Annotated(obj, member.ifcond)
+
+    def _gen_object_member(self, member: QAPISchemaObjectTypeMember
+                           ) -> Annotated[SchemaInfoObjectMember]:
         obj: SchemaInfoObjectMember = {
             'name': member.name,
             'type': self._use_type(member.type)
@@ -305,7 +314,8 @@ const QLitObject %(c_name)s = %(c_string)s;
                         prefix: Optional[str]) -> None:
         self._gen_tree(
             name, 'enum',
-            {'values': [Annotated(m.name, m.ifcond) for m in members]},
+            {'members': [self._gen_enum_member(m) for m in members],
+             'values': [Annotated(m.name, m.ifcond) for m in members]},
             ifcond, features
         )
 
@@ -322,7 +332,7 @@ const QLitObject %(c_name)s = %(c_string)s;
                                members: List[QAPISchemaObjectTypeMember],
                                variants: Optional[QAPISchemaVariants]) -> None:
         obj: SchemaInfoObject = {
-            'members': [self._gen_member(m) for m in members]
+            'members': [self._gen_object_member(m) for m in members]
         }
         if variants:
             obj['tag'] = variants.tag_member.name

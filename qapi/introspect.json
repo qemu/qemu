@@ -142,14 +142,35 @@
 #
 # Additional SchemaInfo members for meta-type 'enum'.
 #
-# @values: the enumeration type's values, in no particular order.
+# @members: the enum type's members, in no particular order
+#           (since 6.2).
+#
+# @values: the enumeration type's member names, in no particular order.
+#          Redundant with @members.  Just for backward compatibility.
+#
+# Features:
+# @deprecated: Member @values is deprecated.  Use @members instead.
 #
 # Values of this type are JSON string on the wire.
 #
 # Since: 2.5
 ##
 { 'struct': 'SchemaInfoEnum',
-  'data': { 'values': ['str'] } }
+  'data': { 'members': [ 'SchemaInfoEnumMember' ],
+            'values': { 'type': [ 'str' ],
+                        'features': [ 'deprecated' ] } } }
+
+##
+# @SchemaInfoEnumMember:
+#
+# An object member.
+#
+# @name: the member's name, as defined in the QAPI schema.
+#
+# Since: 6.2
+##
+{ 'struct': 'SchemaInfoEnumMember',
+  'data': { 'name': 'str' } }
 
 ##
 # @SchemaInfoArray:
