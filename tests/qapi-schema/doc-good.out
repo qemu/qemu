@@ -13,6 +13,7 @@ module doc-good.json
 enum Enum
     member one
         if IFONE
+        feature enum-member-feat
     member two
     if IFCOND
     feature enum-feat
@@ -108,6 +109,8 @@ The _one_ {and only}
 
     feature=enum-feat
 Also _one_ {and only}
+    feature=enum-member-feat
+a member feature
     section=None
 @two is undocumented
 doc symbol=Base

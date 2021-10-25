@@ -275,12 +275,13 @@ const QLitObject %(c_name)s = %(c_string)s;
             obj['features'] = self._gen_features(features)
         self._trees.append(Annotated(obj, ifcond, comment))
 
-    @staticmethod
-    def _gen_enum_member(member: QAPISchemaEnumMember
+    def _gen_enum_member(self, member: QAPISchemaEnumMember
                          ) -> Annotated[SchemaInfoEnumMember]:
         obj: SchemaInfoEnumMember = {
             'name': member.name,
         }
+        if member.features:
+            obj['features'] = self._gen_features(member.features)
         return Annotated(obj, member.ifcond)
 
     def _gen_object_member(self, member: QAPISchemaObjectTypeMember

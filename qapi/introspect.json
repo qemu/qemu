@@ -167,10 +167,13 @@
 #
 # @name: the member's name, as defined in the QAPI schema.
 #
+# @features: names of features associated with the member, in no
+#            particular order.
+#
 # Since: 6.2
 ##
 { 'struct': 'SchemaInfoEnumMember',
-  'data': { 'name': 'str' } }
+  'data': { 'name': 'str', '*features': [ 'str' ] } }
 
 ##
 # @SchemaInfoArray:

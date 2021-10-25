@@ -1,3 +1,3 @@
 enum-dict-member-unknown.json: In enum 'MyEnum':
 enum-dict-member-unknown.json:2: 'data' member has unknown key 'bad-key'
-Valid keys are 'if', 'name'.
+Valid keys are 'features', 'if', 'name'.

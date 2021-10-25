@@ -37,6 +37,7 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
         for m in members:
             print('    member %s' % m.name)
             self._print_if(m.ifcond, indent=8)
+            self._print_features(m.features, indent=8)
         self._print_if(ifcond)
         self._print_features(features)
 

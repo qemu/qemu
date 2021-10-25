@@ -200,7 +200,9 @@ Syntax::
              '*if': COND,
              '*features': FEATURES }
     ENUM-VALUE = STRING
-               | { 'name': STRING, '*if': COND }
+               | { 'name': STRING,
+                   '*if': COND,
+                   '*features': FEATURES }
 
 Member 'enum' names the enum type.
 
@@ -706,8 +708,10 @@ QEMU shows a certain behaviour.
 Special features
 ~~~~~~~~~~~~~~~~
 
-Feature "deprecated" marks a command, event, or struct member as
-deprecated.  It is not supported elsewhere so far.
+Feature "deprecated" marks a command, event, enum value, or struct
+member as deprecated.  It is not supported elsewhere so far.
+Interfaces so marked may be withdrawn in future releases in accordance
+with QEMU's deprecation policy.
 
 
 Naming rules and reserved names
@@ -1157,7 +1161,8 @@ and "variants".
 
 "members" is a JSON array describing the object's common members, if
 any.  Each element is a JSON object with members "name" (the member's
-name), "type" (the name of its type), and optionally "default".  The
+name), "type" (the name of its type), "features" (a JSON array of
+feature strings), and "default".  The latter two are optional.  The
 member is optional if "default" is present.  Currently, "default" can
 only have value null.  Other values are reserved for future
 extensions.  The "members" array is in no particular order; clients
@@ -1234,7 +1239,8 @@ The SchemaInfo for an enumeration type has meta-type "enum" and
 variant member "members".
 
 "members" is a JSON array describing the enumeration values.  Each
-element is a JSON object with member "name" (the member's name).  The
+element is a JSON object with member "name" (the member's name), and
+optionally "features" (a JSON array of feature strings).  The
 "members" array is in no particular order; clients must search the
 entire array when learning whether a particular value is supported.
 
