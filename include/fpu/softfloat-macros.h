@@ -8,7 +8,6 @@
  * so some portions are provided under:
  *  the SoftFloat-2a license
  *  the BSD license
- *  GPL-v2-or-later
  *
  * Any future contributions to this file after December 1st 2014 will be
  * taken to be licensed under the Softfloat-2a license unless specifically
@@ -73,10 +72,6 @@ this code that are retained.
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- */
-
-/* Portions of this work are licensed under the terms of the GNU GPL,
- * version 2 or later. See the COPYING file in the top-level directory.
  */
 
 #ifndef FPU_SOFTFLOAT_MACROS_H
@@ -583,83 +578,6 @@ static inline uint64_t estimateDiv128To64(uint64_t a0, uint64_t a1, uint64_t b)
     z |= ( b0<<32 <= rem0 ) ? 0xFFFFFFFF : rem0 / b0;
     return z;
 
-}
-
-/* From the GNU Multi Precision Library - longlong.h __udiv_qrnnd
- * (https://gmplib.org/repo/gmp/file/tip/longlong.h)
- *
- * Licensed under the GPLv2/LGPLv3
- */
-static inline uint64_t udiv_qrnnd(uint64_t *r, uint64_t n1,
-                                  uint64_t n0, uint64_t d)
-{
-#if defined(__x86_64__)
-    uint64_t q;
-    asm("divq %4" : "=a"(q), "=d"(*r) : "0"(n0), "1"(n1), "rm"(d));
-    return q;
-#elif defined(__s390x__) && !defined(__clang__)
-    /* Need to use a TImode type to get an even register pair for DLGR.  */
-    unsigned __int128 n = (unsigned __int128)n1 << 64 | n0;
-    asm("dlgr %0, %1" : "+r"(n) : "r"(d));
-    *r = n >> 64;
-    return n;
-#elif defined(_ARCH_PPC64) && defined(_ARCH_PWR7)
-    /* From Power ISA 2.06, programming note for divdeu.  */
-    uint64_t q1, q2, Q, r1, r2, R;
-    asm("divdeu %0,%2,%4; divdu %1,%3,%4"
-        : "=&r"(q1), "=r"(q2)
-        : "r"(n1), "r"(n0), "r"(d));
-    r1 = -(q1 * d);         /* low part of (n1<<64) - (q1 * d) */
-    r2 = n0 - (q2 * d);
-    Q = q1 + q2;
-    R = r1 + r2;
-    if (R >= d || R < r2) { /* overflow implies R > d */
-        Q += 1;
-        R -= d;
-    }
-    *r = R;
-    return Q;
-#else
-    uint64_t d0, d1, q0, q1, r1, r0, m;
-
-    d0 = (uint32_t)d;
-    d1 = d >> 32;
-
-    r1 = n1 % d1;
-    q1 = n1 / d1;
-    m = q1 * d0;
-    r1 = (r1 << 32) | (n0 >> 32);
-    if (r1 < m) {
-        q1 -= 1;
-        r1 += d;
-        if (r1 >= d) {
-            if (r1 < m) {
-                q1 -= 1;
-                r1 += d;
-            }
-        }
-    }
-    r1 -= m;
-
-    r0 = r1 % d1;
-    q0 = r1 / d1;
-    m = q0 * d0;
-    r0 = (r0 << 32) | (uint32_t)n0;
-    if (r0 < m) {
-        q0 -= 1;
-        r0 += d;
-        if (r0 >= d) {
-            if (r0 < m) {
-                q0 -= 1;
-                r0 += d;
-            }
-        }
-    }
-    r0 -= m;
-
-    *r = r0;
-    return (q1 << 32) | q0;
-#endif
 }
 
 /*----------------------------------------------------------------------------
