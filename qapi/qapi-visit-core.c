@@ -393,7 +393,7 @@ static bool input_type_enum(Visitor *v, const char *name, int *obj,
                             const QEnumLookup *lookup, Error **errp)
 {
     int64_t value;
-    char *enum_str;
+    g_autofree char *enum_str = NULL;
 
     if (!visit_type_str(v, name, &enum_str, errp)) {
         return false;
@@ -403,11 +403,23 @@ static bool input_type_enum(Visitor *v, const char *name, int *obj,
     if (value < 0) {
         error_setg(errp, "Parameter '%s' does not accept value '%s'",
                    name ? name : "null", enum_str);
-        g_free(enum_str);
         return false;
     }
 
-    g_free(enum_str);
+    if (lookup->flags && (lookup->flags[value] & QAPI_ENUM_DEPRECATED)) {
+        switch (v->compat_policy.deprecated_input) {
+        case COMPAT_POLICY_INPUT_ACCEPT:
+            break;
+        case COMPAT_POLICY_INPUT_REJECT:
+            error_setg(errp, "Deprecated value '%s' disabled by policy",
+                       enum_str);
+            return false;
+        case COMPAT_POLICY_INPUT_CRASH:
+        default:
+            abort();
+        }
+    }
+
     *obj = value;
     return true;
 }
