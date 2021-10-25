@@ -324,8 +324,9 @@ static inline uint64_t clock_ns_to_ticks(const Clock *clk, uint64_t ns)
         return 0;
     }
     /*
-     * Ignore divu128() return value as we've caught div-by-zero and don't
-     * need different behaviour for overflow.
+     * BUG: when CONFIG_INT128 is not defined, the current implementation of
+     * divu128 does not return a valid truncated quotient, so the result will
+     * be wrong.
      */
     divu128(&lo, &hi, clk->period);
     return lo;

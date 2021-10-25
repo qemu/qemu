@@ -86,24 +86,23 @@ void muls64 (uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b)
     *phigh = rh;
 }
 
-/* Unsigned 128x64 division.  Returns 1 if overflow (divide by zero or */
-/* quotient exceeds 64 bits).  Otherwise returns quotient via plow and */
-/* remainder via phigh. */
-int divu128(uint64_t *plow, uint64_t *phigh, uint64_t divisor)
+/*
+ * Unsigned 128-by-64 division. Returns quotient via plow and
+ * remainder via phigh.
+ * The result must fit in 64 bits (plow) - otherwise, the result
+ * is undefined.
+ * This function will cause a division by zero if passed a zero divisor.
+ */
+void divu128(uint64_t *plow, uint64_t *phigh, uint64_t divisor)
 {
     uint64_t dhi = *phigh;
     uint64_t dlo = *plow;
     unsigned i;
     uint64_t carry = 0;
 
-    if (divisor == 0) {
-        return 1;
-    } else if (dhi == 0) {
+    if (divisor == 0 || dhi == 0) {
         *plow  = dlo / divisor;
         *phigh = dlo % divisor;
-        return 0;
-    } else if (dhi >= divisor) {
-        return 1;
     } else {
 
         for (i = 0; i < 64; i++) {
@@ -120,15 +119,20 @@ int divu128(uint64_t *plow, uint64_t *phigh, uint64_t divisor)
 
         *plow = dlo;
         *phigh = dhi;
-        return 0;
     }
 }
 
-int divs128(int64_t *plow, int64_t *phigh, int64_t divisor)
+/*
+ * Signed 128-by-64 division. Returns quotient via plow and
+ * remainder via phigh.
+ * The result must fit in 64 bits (plow) - otherwise, the result
+ * is undefined.
+ * This function will cause a division by zero if passed a zero divisor.
+ */
+void divs128(int64_t *plow, int64_t *phigh, int64_t divisor)
 {
     int sgn_dvdnd = *phigh < 0;
     int sgn_divsr = divisor < 0;
-    int overflow = 0;
 
     if (sgn_dvdnd) {
         *plow = ~(*plow);
@@ -145,19 +149,11 @@ int divs128(int64_t *plow, int64_t *phigh, int64_t divisor)
         divisor = 0 - divisor;
     }
 
-    overflow = divu128((uint64_t *)plow, (uint64_t *)phigh, (uint64_t)divisor);
+    divu128((uint64_t *)plow, (uint64_t *)phigh, (uint64_t)divisor);
 
     if (sgn_dvdnd  ^ sgn_divsr) {
         *plow = 0 - *plow;
     }
-
-    if (!overflow) {
-        if ((*plow < 0) ^ (sgn_dvdnd ^ sgn_divsr)) {
-            overflow = 1;
-        }
-    }
-
-    return overflow;
 }
 #endif
 
