@@ -85,6 +85,7 @@ typedef struct UHCIInfo {
     uint8_t    irq_pin;
     void       (*realize)(PCIDevice *dev, Error **errp);
     bool       unplug;
+    bool       notuser; /* disallow user_creatable */
 } UHCIInfo;
 
 void uhci_data_class_init(ObjectClass *klass, void *data);

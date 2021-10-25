@@ -1282,6 +1282,9 @@ void uhci_data_class_init(ObjectClass *klass, void *data)
     } else {
         device_class_set_props(dc, uhci_properties_standalone);
     }
+    if (info->notuser) {
+        dc->user_creatable = false;
+    }
     u->info = *info;
 }
 

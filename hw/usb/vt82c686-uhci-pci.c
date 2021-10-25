@@ -25,6 +25,8 @@ static UHCIInfo uhci_info[] = {
         .irq_pin   = 3,
         .realize   = usb_uhci_vt82c686b_realize,
         .unplug    = true,
+        /* Reason: only works as USB function of VT82xx superio chips */
+        .notuser   = true,
     }
 };
 
