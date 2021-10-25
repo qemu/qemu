@@ -87,72 +87,117 @@ void muls64 (uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b)
 }
 
 /*
- * Unsigned 128-by-64 division. Returns quotient via plow and
- * remainder via phigh.
- * The result must fit in 64 bits (plow) - otherwise, the result
- * is undefined.
- * This function will cause a division by zero if passed a zero divisor.
+ * Unsigned 128-by-64 division.
+ * Returns the remainder.
+ * Returns quotient via plow and phigh.
+ * Also returns the remainder via the function return value.
  */
-void divu128(uint64_t *plow, uint64_t *phigh, uint64_t divisor)
+uint64_t divu128(uint64_t *plow, uint64_t *phigh, uint64_t divisor)
 {
     uint64_t dhi = *phigh;
     uint64_t dlo = *plow;
-    unsigned i;
-    uint64_t carry = 0;
+    uint64_t rem, dhighest;
+    int sh;
 
     if (divisor == 0 || dhi == 0) {
         *plow  = dlo / divisor;
-        *phigh = dlo % divisor;
+        *phigh = 0;
+        return dlo % divisor;
     } else {
+        sh = clz64(divisor);
 
-        for (i = 0; i < 64; i++) {
-            carry = dhi >> 63;
-            dhi = (dhi << 1) | (dlo >> 63);
-            if (carry || (dhi >= divisor)) {
-                dhi -= divisor;
-                carry = 1;
-            } else {
-                carry = 0;
+        if (dhi < divisor) {
+            if (sh != 0) {
+                /* normalize the divisor, shifting the dividend accordingly */
+                divisor <<= sh;
+                dhi = (dhi << sh) | (dlo >> (64 - sh));
+                dlo <<= sh;
             }
-            dlo = (dlo << 1) | carry;
+
+            *phigh = 0;
+            *plow = udiv_qrnnd(&rem, dhi, dlo, divisor);
+        } else {
+            if (sh != 0) {
+                /* normalize the divisor, shifting the dividend accordingly */
+                divisor <<= sh;
+                dhighest = dhi >> (64 - sh);
+                dhi = (dhi << sh) | (dlo >> (64 - sh));
+                dlo <<= sh;
+
+                *phigh = udiv_qrnnd(&dhi, dhighest, dhi, divisor);
+            } else {
+                /**
+                 * dhi >= divisor
+                 * Since the MSB of divisor is set (sh == 0),
+                 * (dhi - divisor) < divisor
+                 *
+                 * Thus, the high part of the quotient is 1, and we can
+                 * calculate the low part with a single call to udiv_qrnnd
+                 * after subtracting divisor from dhi
+                 */
+                dhi -= divisor;
+                *phigh = 1;
+            }
+
+            *plow = udiv_qrnnd(&rem, dhi, dlo, divisor);
         }
 
-        *plow = dlo;
-        *phigh = dhi;
+        /*
+         * since the dividend/divisor might have been normalized,
+         * the remainder might also have to be shifted back
+         */
+        return rem >> sh;
     }
 }
 
 /*
- * Signed 128-by-64 division. Returns quotient via plow and
- * remainder via phigh.
- * The result must fit in 64 bits (plow) - otherwise, the result
- * is undefined.
- * This function will cause a division by zero if passed a zero divisor.
+ * Signed 128-by-64 division.
+ * Returns quotient via plow and phigh.
+ * Also returns the remainder via the function return value.
  */
-void divs128(int64_t *plow, int64_t *phigh, int64_t divisor)
+int64_t divs128(uint64_t *plow, int64_t *phigh, int64_t divisor)
 {
-    int sgn_dvdnd = *phigh < 0;
-    int sgn_divsr = divisor < 0;
+    bool neg_quotient = false, neg_remainder = false;
+    uint64_t unsig_hi = *phigh, unsig_lo = *plow;
+    uint64_t rem;
 
-    if (sgn_dvdnd) {
-        *plow = ~(*plow);
-        *phigh = ~(*phigh);
-        if (*plow == (int64_t)-1) {
+    if (*phigh < 0) {
+        neg_quotient = !neg_quotient;
+        neg_remainder = !neg_remainder;
+
+        if (unsig_lo == 0) {
+            unsig_hi = -unsig_hi;
+        } else {
+            unsig_hi = ~unsig_hi;
+            unsig_lo = -unsig_lo;
+        }
+    }
+
+    if (divisor < 0) {
+        neg_quotient = !neg_quotient;
+
+        divisor = -divisor;
+    }
+
+    rem = divu128(&unsig_lo, &unsig_hi, (uint64_t)divisor);
+
+    if (neg_quotient) {
+        if (unsig_lo == 0) {
+            *phigh = -unsig_hi;
             *plow = 0;
-            (*phigh)++;
-         } else {
-            (*plow)++;
-         }
+        } else {
+            *phigh = ~unsig_hi;
+            *plow = -unsig_lo;
+        }
+    } else {
+        *phigh = unsig_hi;
+        *plow = unsig_lo;
     }
 
-    if (sgn_divsr) {
-        divisor = 0 - divisor;
-    }
-
-    divu128((uint64_t *)plow, (uint64_t *)phigh, (uint64_t)divisor);
-
-    if (sgn_dvdnd  ^ sgn_divsr) {
-        *plow = 0 - *plow;
+    if (neg_remainder) {
+        return -rem;
+    } else {
+        return rem;
     }
 }
 #endif
