@@ -1624,7 +1624,11 @@ static bool fold_qemu_st(OptContext *ctx, TCGOp *op)
 
 static bool fold_remainder(OptContext *ctx, TCGOp *op)
 {
-    return fold_const2(ctx, op);
+    if (fold_const2(ctx, op) ||
+        fold_xx_to_i(ctx, op, 0)) {
+        return true;
+    }
+    return false;
 }
 
 static bool fold_setcond(OptContext *ctx, TCGOp *op)
