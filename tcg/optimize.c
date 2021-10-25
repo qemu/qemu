@@ -1461,7 +1461,8 @@ static bool fold_movcond(OptContext *ctx, TCGOp *op)
 static bool fold_mul(OptContext *ctx, TCGOp *op)
 {
     if (fold_const2(ctx, op) ||
-        fold_xi_to_i(ctx, op, 0)) {
+        fold_xi_to_i(ctx, op, 0) ||
+        fold_xi_to_x(ctx, op, 1)) {
         return true;
     }
     return false;
