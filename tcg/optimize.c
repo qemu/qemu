@@ -1218,7 +1218,11 @@ static bool fold_deposit(OptContext *ctx, TCGOp *op)
 
 static bool fold_divide(OptContext *ctx, TCGOp *op)
 {
-    return fold_const2(ctx, op);
+    if (fold_const2(ctx, op) ||
+        fold_xi_to_x(ctx, op, 1)) {
+        return true;
+    }
+    return false;
 }
 
 static bool fold_dup(OptContext *ctx, TCGOp *op)
