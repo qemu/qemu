@@ -19,6 +19,10 @@
 #include "qapi/visitor-impl.h"
 #include "trace.h"
 
+/* Zero-initialization must result in default policy */
+QEMU_BUILD_BUG_ON(COMPAT_POLICY_INPUT_ACCEPT || COMPAT_POLICY_OUTPUT_ACCEPT);
+
+
 void visit_complete(Visitor *v, void *opaque)
 {
     assert(v->type != VISITOR_OUTPUT || v->complete);
@@ -151,6 +155,11 @@ bool visit_deprecated(Visitor *v, const char *name)
         return v->deprecated(v, name);
     }
     return true;
+}
+
+void visit_set_policy(Visitor *v, CompatPolicy *policy)
+{
+    v->compat_policy = *policy;
 }
 
 bool visit_is_input(Visitor *v)

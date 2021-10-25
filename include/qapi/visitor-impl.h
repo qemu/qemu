@@ -122,6 +122,9 @@ struct Visitor
     /* Must be set */
     VisitorType type;
 
+    /* Optional */
+    struct CompatPolicy compat_policy;
+
     /* Must be set for output visitors, optional otherwise. */
     void (*complete)(Visitor *v, void *opaque);
 
