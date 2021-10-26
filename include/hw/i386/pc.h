@@ -35,6 +35,7 @@ typedef struct PCMachineState {
     I2CBus *smbus;
     PFlashCFI01 *flash[2];
     ISADevice *pcspk;
+    DeviceState *iommu;
 
     /* Configuration options: */
     uint64_t max_ram_below_4g;
