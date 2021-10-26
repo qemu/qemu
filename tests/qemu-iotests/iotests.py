@@ -30,7 +30,7 @@ import struct
 import subprocess
 import sys
 import time
-from typing import (Any, Callable, Dict, Iterable,
+from typing import (Any, Callable, Dict, Iterable, Iterator,
                     List, Optional, Sequence, TextIO, Tuple, Type, TypeVar)
 import unittest
 
@@ -112,6 +112,24 @@ luks_default_secret_object = 'secret,id=keysec0,data=' + \
 luks_default_key_secret_opt = 'key-secret=keysec0'
 
 sample_img_dir = os.environ['SAMPLE_IMG_DIR']
+
+
+@contextmanager
+def change_log_level(
+        logger_name: str, level: int = logging.CRITICAL) -> Iterator[None]:
+    """
+    Utility function for temporarily changing the log level of a logger.
+
+    This can be used to silence errors that are expected or uninteresting.
+    """
+    _logger = logging.getLogger(logger_name)
+    current_level = _logger.level
+    _logger.setLevel(level)
+
+    try:
+        yield
+    finally:
+        _logger.setLevel(current_level)
 
 
 def unarchive_sample_image(sample, fname):
