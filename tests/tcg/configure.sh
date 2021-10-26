@@ -55,6 +55,7 @@ fi
 : ${cross_cc_i386="i686-linux-gnu-gcc"}
 : ${cross_cc_cflags_i386="-m32"}
 : ${cross_cc_m68k="m68k-linux-gnu-gcc"}
+: ${cross_cc_microblaze="microblaze-linux-musl-gcc"}
 : $(cross_cc_mips64el="mips64el-linux-gnuabi64-gcc")
 : $(cross_cc_mips64="mips64-linux-gnuabi64-gcc")
 : $(cross_cc_mipsel="mipsel-linux-gnu-gcc")
@@ -132,6 +133,11 @@ for target in $target_list; do
       container_hosts=x86_64
       container_image=debian-m68k-cross
       container_cross_cc=m68k-linux-gnu-gcc
+      ;;
+    microblaze-*)
+      container_hosts=x86_64
+      container_image=debian-microblaze-cross
+      container_cross_cc=microblaze-linux-musl-gcc
       ;;
     mips64el-*)
       container_hosts=x86_64
