@@ -1568,3 +1568,15 @@
 { 'command': 'x-query-usb',
   'returns': 'HumanReadableText',
   'features': [ 'unstable' ] }
+
+##
+# @SmbiosEntryPointType:
+#
+# @32: SMBIOS version 2.1 (32-bit) Entry Point
+#
+# @64: SMBIOS version 3.0 (64-bit) Entry Point
+#
+# Since: 7.0
+##
+{ 'enum': 'SmbiosEntryPointType',
+  'data': [ '32', '64' ] }
