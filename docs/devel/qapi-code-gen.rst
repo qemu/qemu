@@ -956,15 +956,16 @@ definition must have documentation.
 Definition documentation starts with a line naming the definition,
 followed by an optional overview, a description of each argument (for
 commands and events), member (for structs and unions), branch (for
-alternates), or value (for enums), and finally optional tagged
-sections.
+alternates), or value (for enums), a description of each feature (if
+any), and finally optional tagged sections.
 
-Descriptions of arguments can span multiple lines.  The description
-text can start on the line following the '\@argname:', in which case it
-must not be indented at all.  It can also start on the same line as
-the '\@argname:'.  In this case if it spans multiple lines then second
-and subsequent lines must be indented to line up with the first
-character of the first line of the description::
+The description of an argument or feature 'name' starts with
+'\@name:'.  The description text can start on the line following the
+'\@name:', in which case it must not be indented at all.  It can also
+start on the same line as the '\@name:'.  In this case if it spans
+multiple lines then second and subsequent lines must be indented to
+line up with the first character of the first line of the
+description::
 
  # @argone:
  # This is a two line description
@@ -985,6 +986,12 @@ The number of spaces between the ':' and the text is not significant.
 
 Extensions added after the definition was first released carry a
 '(since x.y.z)' comment.
+
+The feature descriptions must be preceded by a line "Features:", like
+this::
+
+  # Features:
+  # @feature: Description text
 
 A tagged section starts with one of the following words:
 "Note:"/"Notes:", "Since:", "Example"/"Examples", "Returns:", "TODO:".
