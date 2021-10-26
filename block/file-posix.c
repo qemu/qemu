@@ -2066,7 +2066,8 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, uint64_t offset,
     } else if (s->use_linux_aio) {
         LinuxAioState *aio = aio_get_linux_aio(bdrv_get_aio_context(bs));
         assert(qiov->size == bytes);
-        return laio_co_submit(bs, aio, s->fd, offset, qiov, type);
+        return laio_co_submit(bs, aio, s->fd, offset, qiov, type,
+                              s->aio_max_batch);
 #endif
     }
 
