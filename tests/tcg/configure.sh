@@ -60,6 +60,7 @@ fi
 : ${cross_cc_mips64="mips64-linux-gnuabi64-gcc"}
 : ${cross_cc_mipsel="mipsel-linux-gnu-gcc"}
 : ${cross_cc_mips="mips-linux-gnu-gcc"}
+: ${cross_cc_nios2="nios2-linux-gnu-gcc"}
 : ${cross_cc_ppc="powerpc-linux-gnu-gcc"}
 : ${cross_cc_cflags_ppc="-m32"}
 : ${cross_cc_ppc64="powerpc64-linux-gnu-gcc"}
@@ -158,6 +159,11 @@ for target in $target_list; do
       container_hosts=x86_64
       container_image=debian-mips-cross
       container_cross_cc=mips-linux-gnu-gcc
+      ;;
+    nios2-*)
+      container_hosts=x86_64
+      container_image=debian-nios2-cross
+      container_cross_cc=nios2-linux-gnu-gcc
       ;;
     ppc-*|ppc64abi32-*)
       container_hosts=x86_64
