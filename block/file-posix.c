@@ -150,6 +150,8 @@ typedef struct BDRVRawState {
     uint64_t locked_perm;
     uint64_t locked_shared_perm;
 
+    uint64_t aio_max_batch;
+
     int perm_change_fd;
     int perm_change_flags;
     BDRVReopenState *reopen_state;
@@ -531,6 +533,11 @@ static QemuOptsList raw_runtime_opts = {
             .help = "host AIO implementation (threads, native, io_uring)",
         },
         {
+            .name = "aio-max-batch",
+            .type = QEMU_OPT_NUMBER,
+            .help = "AIO max batch size (0 = auto handled by AIO backend, default: 0)",
+        },
+        {
             .name = "locking",
             .type = QEMU_OPT_STRING,
             .help = "file locking mode (on/off/auto, default: auto)",
@@ -608,6 +615,8 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 #ifdef CONFIG_LINUX_IO_URING
     s->use_linux_io_uring = (aio == BLOCKDEV_AIO_OPTIONS_IO_URING);
 #endif
+
+    s->aio_max_batch = qemu_opt_get_number(opts, "aio-max-batch", 0);
 
     locking = qapi_enum_parse(&OnOffAuto_lookup,
                               qemu_opt_get(opts, "locking"),
