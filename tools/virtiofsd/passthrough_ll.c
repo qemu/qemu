@@ -2465,6 +2465,11 @@ static void lo_flock(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi,
  * Automatically reversed on read
  */
 #define XATTR_MAP_FLAG_PREFIX  (1 <<  2)
+/*
+ * The attribute is unsupported;
+ * ENOTSUP on write, hidden on read.
+ */
+#define XATTR_MAP_FLAG_UNSUPPORTED     (1 <<  3)
 
 /* scopes */
 /* Apply rule to get/set/remove */
@@ -2636,6 +2641,8 @@ static void parse_xattrmap(struct lo_data *lo)
             tmp_entry.flags |= XATTR_MAP_FLAG_OK;
         } else if (strstart(map, "bad", &map)) {
             tmp_entry.flags |= XATTR_MAP_FLAG_BAD;
+        } else if (strstart(map, "unsupported", &map)) {
+            tmp_entry.flags |= XATTR_MAP_FLAG_UNSUPPORTED;
         } else if (strstart(map, "map", &map)) {
             /*
              * map is sugar that adds a number of rules, and must be
@@ -2646,8 +2653,8 @@ static void parse_xattrmap(struct lo_data *lo)
         } else {
             fuse_log(FUSE_LOG_ERR,
                      "%s: Unexpected type;"
-                     "Expecting 'prefix', 'ok', 'bad' or 'map' in rule %zu\n",
-                     __func__, lo->xattr_map_nentries);
+                     "Expecting 'prefix', 'ok', 'bad', 'unsupported' or 'map'"
+                     " in rule %zu\n", __func__, lo->xattr_map_nentries);
             exit(1);
         }
 
@@ -2749,6 +2756,9 @@ static int xattr_map_client(const struct lo_data *lo, const char *client_name,
             if (cur_entry->flags & XATTR_MAP_FLAG_BAD) {
                 return -EPERM;
             }
+            if (cur_entry->flags & XATTR_MAP_FLAG_UNSUPPORTED) {
+                return -ENOTSUP;
+            }
             if (cur_entry->flags & XATTR_MAP_FLAG_OK) {
                 /* Unmodified name */
                 return 0;
@@ -2788,7 +2798,8 @@ static int xattr_map_server(const struct lo_data *lo, const char *server_name,
 
         if ((cur_entry->flags & XATTR_MAP_FLAG_SERVER) &&
             (strstart(server_name, cur_entry->prepend, &end))) {
-            if (cur_entry->flags & XATTR_MAP_FLAG_BAD) {
+            if (cur_entry->flags & XATTR_MAP_FLAG_BAD ||
+                cur_entry->flags & XATTR_MAP_FLAG_UNSUPPORTED) {
                 return -ENODATA;
             }
             if (cur_entry->flags & XATTR_MAP_FLAG_OK) {
