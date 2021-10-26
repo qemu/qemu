@@ -1150,11 +1150,18 @@ int hvf_vcpu_exec(CPUState *cpu)
         uint32_t sas = (syndrome >> 22) & 3;
         uint32_t len = 1 << sas;
         uint32_t srt = (syndrome >> 16) & 0x1f;
+        uint32_t cm = (syndrome >> 8) & 0x1;
         uint64_t val = 0;
 
         trace_hvf_data_abort(env->pc, hvf_exit->exception.virtual_address,
                              hvf_exit->exception.physical_address, isv,
                              iswrite, s1ptw, len, srt);
+
+        if (cm) {
+            /* We don't cache MMIO regions */
+            advance_pc = true;
+            break;
+        }
 
         assert(isv);
 
