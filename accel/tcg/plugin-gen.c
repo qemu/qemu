@@ -876,9 +876,8 @@ void plugin_gen_insn_start(CPUState *cpu, const DisasContextBase *db)
     struct qemu_plugin_tb *ptb = tcg_ctx->plugin_tb;
     struct qemu_plugin_insn *pinsn;
 
-    pinsn = qemu_plugin_tb_insn_get(ptb);
+    pinsn = qemu_plugin_tb_insn_get(ptb, db->pc_next);
     tcg_ctx->plugin_insn = pinsn;
-    pinsn->vaddr = db->pc_next;
     plugin_gen_empty_callback(PLUGIN_GEN_FROM_INSN);
 
     /*
