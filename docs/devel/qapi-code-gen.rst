@@ -1000,12 +1000,6 @@ multiline argument descriptions.
 A 'Since: x.y.z' tagged section lists the release that introduced the
 definition.
 
-The text of a section can start on a new line, in
-which case it must not be indented at all.  It can also start
-on the same line as the 'Note:', 'Returns:', etc tag.  In this
-case if it spans multiple lines then second and subsequent
-lines must be indented to match the first.
-
 An 'Example' or 'Examples' section is automatically rendered
 entirely as literal fixed-width text.  In other sections,
 the text is formatted, and rST markup can be used.
