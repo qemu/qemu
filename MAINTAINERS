@@ -225,6 +225,7 @@ S: Maintained
 F: target/microblaze/
 F: hw/microblaze/
 F: disas/microblaze.c
+F: tests/docker/dockerfiles/debian-microblaze-cross.d/build-toolchain.sh
 
 MIPS TCG CPUs
 M: Philippe Mathieu-Daudé <f4bug@amsat.org>
