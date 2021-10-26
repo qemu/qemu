@@ -614,6 +614,9 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
     caches_free(dcaches);
     caches_free(icaches);
 
+    g_free(dcache_locks);
+    g_free(icache_locks);
+
     g_hash_table_destroy(miss_ht);
 }
 
