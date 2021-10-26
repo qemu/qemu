@@ -16,7 +16,6 @@ MULTIARCH_SRCS += $(notdir $(wildcard $(MULTIARCH_SRC)/linux/*.c))
 endif
 MULTIARCH_TESTS = $(MULTIARCH_SRCS:.c=)
 
-$(info SRCS=${MULTIARCH_SRCS} and ${MULTIARCH_TESTS})
 #
 # The following are any additional rules needed to build things
 #
