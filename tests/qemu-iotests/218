@@ -187,4 +187,4 @@ with iotests.VM() as vm, \
     log(vm.qmp('quit'))
 
     with iotests.Timeout(5, 'Timeout waiting for VM to quit'):
-        vm.shutdown(has_quit=True)
+        vm.shutdown()
