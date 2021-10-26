@@ -361,8 +361,9 @@ which will output an execution trace following this structure::
 
 - contrib/plugins/cache.c
 
-Cache modelling plugin that measures the performance of a given cache
-configuration when a given working set is run::
+Cache modelling plugin that measures the performance of a given L1 cache
+configuration, and optionally a unified L2 per-core cache when a given working
+set is run::
 
     qemu-x86_64 -plugin ./contrib/plugins/libcache.so \
       -d plugin -D cache.log ./tests/tcg/x86_64-linux-user/float_convs
@@ -420,3 +421,18 @@ The plugin has a number of arguments, all of them are optional:
   Sets the number of cores for which we maintain separate icache and dcache.
   (default: for linux-user, N = 1, for full system emulation: N = cores
   available to guest)
+
+  * l2=on
+
+  Simulates a unified L2 cache (stores blocks for both instructions and data)
+  using the default L2 configuration (cache size = 2MB, associativity = 16-way,
+  block size = 64B).
+
+  * l2cachesize=N
+  * l2blksize=B
+  * l2assoc=A
+
+  L2 cache configuration arguments. They specify the cache size, block size, and
+  associativity of the L2 cache, respectively. Setting any of the L2
+  configuration arguments implies ``l2=on``.
+  (default: N = 2097152 (2MB), B = 64, A = 16)
