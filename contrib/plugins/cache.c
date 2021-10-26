@@ -11,6 +11,8 @@
 
 #include <qemu-plugin.h>
 
+#define STRTOLL(x) g_ascii_strtoll(x, NULL, 10)
+
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 
 static enum qemu_plugin_mem_rw rw = QEMU_PLUGIN_MEM_RW;
@@ -746,35 +748,36 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
 
     for (i = 0; i < argc; i++) {
         char *opt = argv[i];
-        if (g_str_has_prefix(opt, "iblksize=")) {
-            l1_iblksize = g_ascii_strtoll(opt + 9, NULL, 10);
-        } else if (g_str_has_prefix(opt, "iassoc=")) {
-            l1_iassoc = g_ascii_strtoll(opt + 7, NULL, 10);
-        } else if (g_str_has_prefix(opt, "icachesize=")) {
-            l1_icachesize = g_ascii_strtoll(opt + 11, NULL, 10);
-        } else if (g_str_has_prefix(opt, "dblksize=")) {
-            l1_dblksize = g_ascii_strtoll(opt + 9, NULL, 10);
-        } else if (g_str_has_prefix(opt, "dassoc=")) {
-            l1_dassoc = g_ascii_strtoll(opt + 7, NULL, 10);
-        } else if (g_str_has_prefix(opt, "dcachesize=")) {
-            l1_dcachesize = g_ascii_strtoll(opt + 11, NULL, 10);
-        } else if (g_str_has_prefix(opt, "limit=")) {
-            limit = g_ascii_strtoll(opt + 6, NULL, 10);
-        } else if (g_str_has_prefix(opt, "cores=")) {
-            cores = g_ascii_strtoll(opt + 6, NULL, 10);
-        } else if (g_str_has_prefix(opt, "l2cachesize=")) {
-            l2_cachesize = g_ascii_strtoll(opt + 6, NULL, 10);
-        } else if (g_str_has_prefix(opt, "l2blksize=")) {
-            l2_blksize = g_ascii_strtoll(opt + 6, NULL, 10);
-        } else if (g_str_has_prefix(opt, "l2assoc=")) {
-            l2_assoc = g_ascii_strtoll(opt + 6, NULL, 10);
-        } else if (g_str_has_prefix(opt, "evict=")) {
-            gchar *p = opt + 6;
-            if (g_strcmp0(p, "rand") == 0) {
+        g_autofree char **tokens = g_strsplit(opt, "=", 2);
+
+        if (g_strcmp0(tokens[0], "iblksize") == 0) {
+            l1_iblksize = STRTOLL(tokens[1]);
+        } else if (g_strcmp0(tokens[0], "iassoc") == 0) {
+            l1_iassoc = STRTOLL(tokens[1]);
+        } else if (g_strcmp0(tokens[0], "icachesize") == 0) {
+            l1_icachesize = STRTOLL(tokens[1]);
+        } else if (g_strcmp0(tokens[0], "dblksize") == 0) {
+            l1_dblksize = STRTOLL(tokens[1]);
+        } else if (g_strcmp0(tokens[0], "dassoc") == 0) {
+            l1_dassoc = STRTOLL(tokens[1]);
+        } else if (g_strcmp0(tokens[0], "dcachesize") == 0) {
+            l1_dcachesize = STRTOLL(tokens[1]);
+        } else if (g_strcmp0(tokens[0], "limit") == 0) {
+            limit = STRTOLL(tokens[1]);
+        } else if (g_strcmp0(tokens[0], "cores") == 0) {
+            cores = STRTOLL(tokens[1]);
+        } else if (g_strcmp0(tokens[0], "l2cachesize") == 0) {
+            l2_cachesize = STRTOLL(tokens[1]);
+        } else if (g_strcmp0(tokens[0], "l2blksize") == 0) {
+            l2_blksize = STRTOLL(tokens[1]);
+        } else if (g_strcmp0(tokens[0], "l2assoc") == 0) {
+            l2_assoc = STRTOLL(tokens[1]);
+        } else if (g_strcmp0(tokens[0], "evict") == 0) {
+            if (g_strcmp0(tokens[1], "rand") == 0) {
                 policy = RAND;
-            } else if (g_strcmp0(p, "lru") == 0) {
+            } else if (g_strcmp0(tokens[1], "lru") == 0) {
                 policy = LRU;
-            } else if (g_strcmp0(p, "fifo") == 0) {
+            } else if (g_strcmp0(tokens[1], "fifo") == 0) {
                 policy = FIFO;
             } else {
                 fprintf(stderr, "invalid eviction policy: %s\n", opt);
