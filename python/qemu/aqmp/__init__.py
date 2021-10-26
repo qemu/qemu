@@ -22,7 +22,6 @@ managing QMP events.
 # the COPYING file in the top-level directory.
 
 import logging
-import warnings
 
 from .error import AQMPError
 from .events import EventListener
@@ -30,17 +29,6 @@ from .message import Message
 from .protocol import ConnectError, Runstate, StateError
 from .qmp_client import ExecInterruptedError, ExecuteError, QMPClient
 
-
-_WMSG = """
-
-The Asynchronous QMP library is currently in development and its API
-should be considered highly fluid and subject to change. It should
-not be used by any other scripts checked into the QEMU tree.
-
-Proceed with caution!
-"""
-
-warnings.warn(_WMSG, FutureWarning)
 
 # Suppress logging unless an application engages it.
 logging.getLogger('qemu.aqmp').addHandler(logging.NullHandler())
