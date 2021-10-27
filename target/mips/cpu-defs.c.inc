@@ -369,7 +369,6 @@ const mips_def_t mips_defs[] =
          * Config3: VZ, CTXTC, CDMM, TL
          * Config4: MMUExtDef
          * Config5: MRP
-         * FIR(FCR0): Has2008
          * */
         .name = "P5600",
         .CP0_PRid = 0x0001A800,
