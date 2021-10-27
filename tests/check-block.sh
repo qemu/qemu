@@ -1,19 +1,16 @@
 #!/bin/sh
 
-# Honor the SPEED environment variable, just like we do it for "meson test"
-if [ "$SPEED" = "slow" ]; then
-    format_list="raw qcow2"
-    group=
-elif [ "$SPEED" = "thorough" ]; then
-    format_list="raw qcow2 qed vmdk vpc"
-    group=
-else
-    format_list=qcow2
-    group="-g auto"
+if [ "$#" -eq 0 ]; then
+    echo "Usage: $0 fmt..." >&2
+    exit 99
 fi
 
-if [ "$#" -ne 0 ]; then
-    format_list="$@"
+# Honor the SPEED environment variable, just like we do it for "meson test"
+format_list="$@"
+if [ "$SPEED" = "slow" ] || [ "$SPEED" = "thorough" ]; then
+    group=
+else
+    group="-g auto"
 fi
 
 skip() {
