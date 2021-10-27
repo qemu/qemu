@@ -76,20 +76,6 @@ int select_watchdog(const char *p)
     return 1;
 }
 
-int select_watchdog_action(const char *p)
-{
-    int action;
-    char *qapi_value;
-
-    qapi_value = g_ascii_strdown(p, -1);
-    action = qapi_enum_parse(&WatchdogAction_lookup, qapi_value, -1, NULL);
-    g_free(qapi_value);
-    if (action < 0)
-        return -1;
-    qmp_watchdog_set_action(action, &error_abort);
-    return 0;
-}
-
 WatchdogAction get_watchdog_action(void)
 {
     return watchdog_action;
