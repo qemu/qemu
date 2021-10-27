@@ -3256,6 +3256,7 @@ void qemu_init(int argc, char **argv, char **envp)
                     error_report("only one watchdog option may be given");
                     exit(1);
                 }
+                warn_report("-watchdog is deprecated; use -device instead.");
                 watchdog = optarg;
                 break;
             case QEMU_OPTION_action:

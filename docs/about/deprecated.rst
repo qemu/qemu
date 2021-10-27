@@ -160,6 +160,11 @@ Use ``-display sdl`` instead.
 
 Use ``-display curses`` instead.
 
+``-watchdog`` (since 6.2)
+'''''''''''''''''''''''''
+
+Use ``-device`` instead.
+
 ``-smp`` ("parameter=0" SMP configurations) (since 6.2)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
