@@ -341,6 +341,7 @@ enum FeatureEnum1
     member eins
     member zwei
     member drei
+        feature deprecated
     feature feature1
 object q_obj_FeatureUnion1-base
     member tag: FeatureEnum1 optional=False

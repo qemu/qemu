@@ -11,9 +11,13 @@
 #ifndef QAPI_UTIL_H
 #define QAPI_UTIL_H
 
+/* QEnumLookup flags */
+#define QAPI_ENUM_DEPRECATED 1
+
 typedef struct QEnumLookup {
     const char *const *array;
-    int size;
+    const unsigned char *const flags;
+    const int size;
 } QEnumLookup;
 
 const char *qapi_enum_lookup(const QEnumLookup *lookup, int val);

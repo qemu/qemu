@@ -19,6 +19,10 @@
 #include "qapi/visitor-impl.h"
 #include "trace.h"
 
+/* Zero-initialization must result in default policy */
+QEMU_BUILD_BUG_ON(COMPAT_POLICY_INPUT_ACCEPT || COMPAT_POLICY_OUTPUT_ACCEPT);
+
+
 void visit_complete(Visitor *v, void *opaque)
 {
     assert(v->type != VISITOR_OUTPUT || v->complete);
@@ -151,6 +155,11 @@ bool visit_deprecated(Visitor *v, const char *name)
         return v->deprecated(v, name);
     }
     return true;
+}
+
+void visit_set_policy(Visitor *v, CompatPolicy *policy)
+{
+    v->compat_policy = *policy;
 }
 
 bool visit_is_input(Visitor *v)
@@ -384,7 +393,7 @@ static bool input_type_enum(Visitor *v, const char *name, int *obj,
                             const QEnumLookup *lookup, Error **errp)
 {
     int64_t value;
-    char *enum_str;
+    g_autofree char *enum_str = NULL;
 
     if (!visit_type_str(v, name, &enum_str, errp)) {
         return false;
@@ -392,12 +401,25 @@ static bool input_type_enum(Visitor *v, const char *name, int *obj,
 
     value = qapi_enum_parse(lookup, enum_str, -1, NULL);
     if (value < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER, enum_str);
-        g_free(enum_str);
+        error_setg(errp, "Parameter '%s' does not accept value '%s'",
+                   name ? name : "null", enum_str);
         return false;
     }
 
-    g_free(enum_str);
+    if (lookup->flags && (lookup->flags[value] & QAPI_ENUM_DEPRECATED)) {
+        switch (v->compat_policy.deprecated_input) {
+        case COMPAT_POLICY_INPUT_ACCEPT:
+            break;
+        case COMPAT_POLICY_INPUT_REJECT:
+            error_setg(errp, "Deprecated value '%s' disabled by policy",
+                       enum_str);
+            return false;
+        case COMPAT_POLICY_INPUT_CRASH:
+        default:
+            abort();
+        }
+    }
+
     *obj = value;
     return true;
 }

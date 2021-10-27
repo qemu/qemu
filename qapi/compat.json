@@ -42,6 +42,9 @@
 # with feature 'deprecated'.  We may want to extend it to cover
 # semantic aspects, CLI, and experimental features.
 #
+# Limitation: deprecated-output policy @hide is not implemented for
+# enumeration values.  They behave the same as with policy @accept.
+#
 # @deprecated-input: how to handle deprecated input (default 'accept')
 # @deprecated-output: how to handle deprecated output (default 'accept')
 #

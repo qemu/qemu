@@ -13,7 +13,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/compat-policy.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/visitor-impl.h"
 #include "qemu/queue.h"
@@ -32,7 +31,6 @@ typedef struct QStackEntry {
 
 struct QObjectOutputVisitor {
     Visitor visitor;
-    CompatPolicyOutput deprecated_policy;
 
     QSLIST_HEAD(, QStackEntry) stack; /* Stack of unfinished containers */
     QObject *root; /* Root of the output visit */
@@ -212,9 +210,7 @@ static bool qobject_output_type_null(Visitor *v, const char *name,
 
 static bool qobject_output_deprecated(Visitor *v, const char *name)
 {
-    QObjectOutputVisitor *qov = to_qov(v);
-
-    return qov->deprecated_policy != COMPAT_POLICY_OUTPUT_HIDE;
+    return v->compat_policy.deprecated_output != COMPAT_POLICY_OUTPUT_HIDE;
 }
 
 /* Finish building, and return the root object.
@@ -274,12 +270,4 @@ Visitor *qobject_output_visitor_new(QObject **result)
     v->result = result;
 
     return &v->visitor;
-}
-
-void qobject_output_visitor_set_policy(Visitor *v,
-                                       CompatPolicyOutput deprecated)
-{
-    QObjectOutputVisitor *qov = to_qov(v);
-
-    qov->deprecated_policy = deprecated;
 }

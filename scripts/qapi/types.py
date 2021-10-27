@@ -38,6 +38,8 @@ objects_seen = set()
 def gen_enum_lookup(name: str,
                     members: List[QAPISchemaEnumMember],
                     prefix: Optional[str] = None) -> str:
+    max_index = c_enum_const(name, '_MAX', prefix)
+    flags = ''
     ret = mcgen('''
 
 const QEnumLookup %(c_name)s_lookup = {
@@ -52,13 +54,26 @@ const QEnumLookup %(c_name)s_lookup = {
 ''',
                      index=index, name=memb.name)
         ret += memb.ifcond.gen_endif()
+        if 'deprecated' in (f.name for f in memb.features):
+            flags += mcgen('''
+        [%(index)s] = QAPI_ENUM_DEPRECATED,
+''',
+                           index=index)
+
+    if flags:
+        ret += mcgen('''
+    },
+    .flags = (const unsigned char[%(max_index)s]) {
+''',
+                     max_index=max_index)
+        ret += flags
 
     ret += mcgen('''
     },
     .size = %(max_index)s
 };
 ''',
-                 max_index=c_enum_const(name, '_MAX', prefix))
+                 max_index=max_index)
     return ret
 
 

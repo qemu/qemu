@@ -56,6 +56,9 @@ Features
 "enum-feat"
    Also _one_ {and only}
 
+"enum-member-feat"
+   a member feature
+
 "two" is undocumented
 
 

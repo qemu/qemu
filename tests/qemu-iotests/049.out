@@ -174,11 +174,11 @@ Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 cluster_size=65536 extended_l2=off comp
 
 qemu-img create -f qcow2 -o compat=0.42 TEST_DIR/t.qcow2 64M
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 cluster_size=65536 extended_l2=off compression_type=zlib size=67108864 compat=0.42 lazy_refcounts=off refcount_bits=16
-qemu-img: TEST_DIR/t.qcow2: Invalid parameter '0.42'
+qemu-img: TEST_DIR/t.qcow2: Parameter 'version' does not accept value '0.42'
 
 qemu-img create -f qcow2 -o compat=foobar TEST_DIR/t.qcow2 64M
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 cluster_size=65536 extended_l2=off compression_type=zlib size=67108864 compat=foobar lazy_refcounts=off refcount_bits=16
-qemu-img: TEST_DIR/t.qcow2: Invalid parameter 'foobar'
+qemu-img: TEST_DIR/t.qcow2: Parameter 'version' does not accept value 'foobar'
 
 == Check preallocation option ==
 
@@ -190,7 +190,7 @@ Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 cluster_size=65536 extended_l2=off prea
 
 qemu-img create -f qcow2 -o preallocation=1234 TEST_DIR/t.qcow2 64M
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 cluster_size=65536 extended_l2=off preallocation=1234 compression_type=zlib size=67108864 lazy_refcounts=off refcount_bits=16
-qemu-img: TEST_DIR/t.qcow2: Invalid parameter '1234'
+qemu-img: TEST_DIR/t.qcow2: Parameter 'preallocation' does not accept value '1234'
 
 == Check encryption option ==
 

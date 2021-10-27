@@ -708,6 +708,19 @@ class QAPISchemaMember:
 class QAPISchemaEnumMember(QAPISchemaMember):
     role = 'value'
 
+    def __init__(self, name, info, ifcond=None, features=None):
+        super().__init__(name, info, ifcond)
+        for f in features or []:
+            assert isinstance(f, QAPISchemaFeature)
+            f.set_defined_in(name)
+        self.features = features or []
+
+    def connect_doc(self, doc):
+        super().connect_doc(doc)
+        if doc:
+            for f in self.features:
+                doc.connect_feature(f)
+
 
 class QAPISchemaFeature(QAPISchemaMember):
     role = 'feature'
@@ -980,9 +993,14 @@ class QAPISchema:
                                   QAPISchemaIfCond(f.get('if')))
                 for f in features]
 
+    def _make_enum_member(self, name, ifcond, features, info):
+        return QAPISchemaEnumMember(name, info,
+                                    QAPISchemaIfCond(ifcond),
+                                    self._make_features(features, info))
+
     def _make_enum_members(self, values, info):
-        return [QAPISchemaEnumMember(v['name'], info,
-                                     QAPISchemaIfCond(v.get('if')))
+        return [self._make_enum_member(v['name'], v.get('if'),
+                                       v.get('features'), info)
                 for v in values]
 
     def _make_array_type(self, element_type, info):

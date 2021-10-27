@@ -16,6 +16,7 @@
 #define QAPI_VISITOR_H
 
 #include "qapi/qapi-builtin-types.h"
+#include "qapi/qapi-types-compat.h"
 
 /*
  * The QAPI schema defines both a set of C data types, and a QMP wire
@@ -476,6 +477,14 @@ bool visit_deprecated_accept(Visitor *v, const char *name, Error **errp);
  * have deprecated members.
  */
 bool visit_deprecated(Visitor *v, const char *name);
+
+/*
+ * Set policy for handling deprecated management interfaces.
+ *
+ * Intended use: call visit_set_policy(v, &compat_policy) when
+ * visiting management interface input or output.
+ */
+void visit_set_policy(Visitor *v, CompatPolicy *policy);
 
 /*
  * Visit an enum value.

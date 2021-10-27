@@ -472,7 +472,7 @@ def check_enum(expr: _JSONObject, info: QAPISourceInfo) -> None:
                   for m in members]
     for member in members:
         source = "'data' member"
-        check_keys(member, info, source, ['name'], ['if'])
+        check_keys(member, info, source, ['name'], ['if', 'features'])
         member_name = member['name']
         check_name_is_str(member_name, info, source)
         source = "%s '%s'" % (source, member_name)
@@ -483,6 +483,7 @@ def check_enum(expr: _JSONObject, info: QAPISourceInfo) -> None:
                          permit_upper=permissive,
                          permit_underscore=permissive)
         check_if(member, info, source)
+        check_features(member.get('features'), info)
 
 
 def check_struct(expr: _JSONObject, info: QAPISourceInfo) -> None:

@@ -301,7 +301,8 @@
                                  'TEST_IF_COND_2'] } } ] }
 
 { 'enum': 'FeatureEnum1',
-  'data': [ 'eins', 'zwei', 'drei' ],
+  'data': [ 'eins', 'zwei',
+            { 'name': 'drei', 'features': [ 'deprecated' ] } ],
   'features': [ 'feature1' ] }
 
 { 'union': 'FeatureUnion1',

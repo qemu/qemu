@@ -58,11 +58,14 @@
 #
 # Features:
 # @enum-feat: Also _one_ {and only}
+# @enum-member-feat: a member feature
 #
 # @two is undocumented
 ##
 { 'enum': 'Enum',
-  'data': [ { 'name': 'one', 'if': 'IFONE' }, 'two' ],
+  'data': [ { 'name': 'one', 'if': 'IFONE',
+              'features': [ 'enum-member-feat' ] },
+            'two' ],
   'features': [ 'enum-feat' ],
   'if': 'IFCOND' }
 
