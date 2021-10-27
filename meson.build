@@ -75,7 +75,7 @@ else
   kvm_targets = []
 endif
 
-kvm_targets_c = ''
+kvm_targets_c = '""'
 if not get_option('kvm').disabled() and targetos == 'linux'
   kvm_targets_c = '"' + '" ,"'.join(kvm_targets) + '"'
 endif
