@@ -293,9 +293,10 @@ static void aspeed_wdt_class_init(ObjectClass *klass, void *data)
     dc->desc = "ASPEED Watchdog Controller";
     dc->realize = aspeed_wdt_realize;
     dc->reset = aspeed_wdt_reset;
-    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    set_bit(DEVICE_CATEGORY_WATCHDOG, dc->categories);
     dc->vmsd = &vmstate_aspeed_wdt;
     device_class_set_props(dc, aspeed_wdt_properties);
+    dc->desc = "Aspeed watchdog device";
 }
 
 static const TypeInfo aspeed_wdt_info = {

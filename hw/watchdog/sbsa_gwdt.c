@@ -273,8 +273,9 @@ static void wdt_sbsa_gwdt_class_init(ObjectClass *klass, void *data)
     dc->realize = wdt_sbsa_gwdt_realize;
     dc->reset = wdt_sbsa_gwdt_reset;
     dc->hotpluggable = false;
-    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    set_bit(DEVICE_CATEGORY_WATCHDOG, dc->categories);
     dc->vmsd = &vmstate_sbsa_gwdt;
+    dc->desc = "SBSA-compliant generic watchdog device";
 }
 
 static const TypeInfo wdt_sbsa_gwdt_info = {

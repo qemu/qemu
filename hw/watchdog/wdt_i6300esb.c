@@ -476,7 +476,8 @@ static void i6300esb_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_SYSTEM_OTHER;
     dc->reset = i6300esb_reset;
     dc->vmsd = &vmstate_i6300esb;
-    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    set_bit(DEVICE_CATEGORY_WATCHDOG, dc->categories);
+    dc->desc = "Intel 6300ESB";
 }
 
 static const TypeInfo i6300esb_info = {
