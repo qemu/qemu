@@ -1,10 +1,13 @@
 #ifndef QEMU_9P_MARSHAL_H
 #define QEMU_9P_MARSHAL_H
 
+#include "p9array.h"
+
 typedef struct V9fsString {
     uint16_t size;
     char *data;
 } V9fsString;
+P9ARRAY_DECLARE_TYPE(V9fsString);
 
 typedef struct V9fsQID {
     uint8_t type;
