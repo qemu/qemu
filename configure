@@ -1724,17 +1724,6 @@ if test "$static" = "yes" ; then
   fi
 fi
 
-# Unconditional check for compiler __thread support
-  cat > $TMPC << EOF
-static __thread int tls_var;
-int main(void) { return tls_var; }
-EOF
-
-if ! compile_prog "-Werror" "" ; then
-    error_exit "Your compiler does not support the __thread specifier for " \
-	"Thread-Local Storage (TLS). Please upgrade to a version that does."
-fi
-
 cat > $TMPC << EOF
 
 #ifdef __linux__
