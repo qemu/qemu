@@ -694,9 +694,7 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
         (!(old_slt_ctl & PCI_EXP_SLTCTL_PCC) ||
         (old_slt_ctl & PCI_EXP_SLTCTL_PIC_OFF) != PCI_EXP_SLTCTL_PIC_OFF)) {
         PCIBus *sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(dev));
-        pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
-                            pcie_unplug_device, NULL);
-
+        pci_for_each_device_under_bus(sec_bus, pcie_unplug_device, NULL);
         pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,
                                      PCI_EXP_SLTSTA_PDS);
         if (dev->cap_present & QEMU_PCIE_LNKSTA_DLLLA ||

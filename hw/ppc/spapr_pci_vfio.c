@@ -164,8 +164,8 @@ static void spapr_phb_vfio_eeh_clear_dev_msix(PCIBus *bus,
 
 static void spapr_phb_vfio_eeh_clear_bus_msix(PCIBus *bus, void *opaque)
 {
-       pci_for_each_device(bus, pci_bus_num(bus),
-                           spapr_phb_vfio_eeh_clear_dev_msix, NULL);
+       pci_for_each_device_under_bus(bus, spapr_phb_vfio_eeh_clear_dev_msix,
+                                     NULL);
 }
 
 static void spapr_phb_vfio_eeh_pre_reset(SpaprPhbState *sphb)

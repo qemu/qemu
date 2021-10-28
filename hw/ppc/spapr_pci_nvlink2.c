@@ -164,8 +164,7 @@ static void spapr_phb_pci_collect_nvgpu(PCIBus *bus, PCIDevice *pdev,
         return;
     }
 
-    pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
-                        spapr_phb_pci_collect_nvgpu, opaque);
+    pci_for_each_device_under_bus(sec_bus, spapr_phb_pci_collect_nvgpu, opaque);
 }
 
 void spapr_phb_nvgpu_setup(SpaprPhbState *sphb, Error **errp)
@@ -183,8 +182,8 @@ void spapr_phb_nvgpu_setup(SpaprPhbState *sphb, Error **errp)
     sphb->nvgpus->nv2_atsd_current = sphb->nv2_atsd_win_addr;
 
     bus = PCI_HOST_BRIDGE(sphb)->bus;
-    pci_for_each_device(bus, pci_bus_num(bus),
-                        spapr_phb_pci_collect_nvgpu, sphb->nvgpus);
+    pci_for_each_device_under_bus(bus, spapr_phb_pci_collect_nvgpu,
+                                  sphb->nvgpus);
 
     if (sphb->nvgpus->err) {
         error_propagate(errp, sphb->nvgpus->err);

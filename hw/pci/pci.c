@@ -1654,9 +1654,9 @@ static const pci_class_desc pci_class_descriptions[] =
     { 0, NULL}
 };
 
-static void pci_for_each_device_under_bus_reverse(PCIBus *bus,
-                                                  pci_bus_dev_fn fn,
-                                                  void *opaque)
+void pci_for_each_device_under_bus_reverse(PCIBus *bus,
+                                           pci_bus_dev_fn fn,
+                                           void *opaque)
 {
     PCIDevice *d;
     int devfn;
@@ -1679,8 +1679,8 @@ void pci_for_each_device_reverse(PCIBus *bus, int bus_num,
     }
 }
 
-static void pci_for_each_device_under_bus(PCIBus *bus,
-                                          pci_bus_dev_fn fn, void *opaque)
+void pci_for_each_device_under_bus(PCIBus *bus,
+                                   pci_bus_dev_fn fn, void *opaque)
 {
     PCIDevice *d;
     int devfn;

@@ -2134,8 +2134,7 @@ dmar_host_bridges(Object *obj, void *opaque)
         PCIBus *bus = PCI_HOST_BRIDGE(obj)->bus;
 
         if (bus && !pci_bus_bypass_iommu(bus)) {
-            pci_for_each_device(bus, pci_bus_num(bus), insert_scope,
-                                scope_blob);
+            pci_for_each_device_under_bus(bus, insert_scope, scope_blob);
         }
     }
 
@@ -2341,7 +2340,7 @@ ivrs_host_bridges(Object *obj, void *opaque)
         PCIBus *bus = PCI_HOST_BRIDGE(obj)->bus;
 
         if (bus && !pci_bus_bypass_iommu(bus)) {
-            pci_for_each_device(bus, pci_bus_num(bus), insert_ivhd, ivhd_blob);
+            pci_for_each_device_under_bus(bus, insert_ivhd, ivhd_blob);
         }
     }
 
