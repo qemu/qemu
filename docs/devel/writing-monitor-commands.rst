@@ -293,9 +293,7 @@ Here's the implementation of the "hello-world" HMP command::
      Error *err = NULL;
 
      qmp_hello_world(!!message, message, &err);
-     if (err) {
-         monitor_printf(mon, "%s\n", error_get_pretty(err));
-         error_free(err);
+     if (hmp_handle_error(mon, err)) {
          return;
      }
  }
@@ -307,9 +305,10 @@ There are three important points to be noticed:
 1. The "mon" and "qdict" arguments are mandatory for all HMP functions. The
    former is the monitor object. The latter is how the monitor passes
    arguments entered by the user to the command implementation
-2. hmp_hello_world() performs error checking. In this example we just print
-   the error description to the user, but we could do more, like taking
-   different actions depending on the error qmp_hello_world() returns
+2. hmp_hello_world() performs error checking. In this example we just call
+   hmp_handle_error() which prints a message to the user, but we could do
+   more, like taking different actions depending on the error
+   qmp_hello_world() returns
 3. The "err" variable must be initialized to NULL before performing the
    QMP call
 
@@ -466,9 +465,7 @@ Here's the HMP counterpart of the query-alarm-clock command::
      Error *err = NULL;
 
      clock = qmp_query_alarm_clock(&err);
-     if (err) {
-         monitor_printf(mon, "Could not query alarm clock information\n");
-         error_free(err);
+     if (hmp_handle_error(mon, err)) {
          return;
      }
 
@@ -607,9 +604,7 @@ has to traverse the list, it's shown below for reference::
      Error *err = NULL;
 
      method_list = qmp_query_alarm_methods(&err);
-     if (err) {
-         monitor_printf(mon, "Could not query alarm methods\n");
-         error_free(err);
+     if (hmp_handle_error(mon, err)) {
          return;
      }
 
