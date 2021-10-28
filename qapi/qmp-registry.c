@@ -16,7 +16,8 @@
 #include "qapi/qmp/dispatch.h"
 
 void qmp_register_command(QmpCommandList *cmds, const char *name,
-                          QmpCommandFunc *fn, QmpCommandOptions options)
+                          QmpCommandFunc *fn, QmpCommandOptions options,
+                          unsigned special_features)
 {
     QmpCommand *cmd = g_malloc0(sizeof(*cmd));
 
@@ -27,6 +28,7 @@ void qmp_register_command(QmpCommandList *cmds, const char *name,
     cmd->fn = fn;
     cmd->enabled = true;
     cmd->options = options;
+    cmd->special_features = special_features;
     QTAILQ_INSERT_TAIL(cmds, cmd, node);
 }
 
