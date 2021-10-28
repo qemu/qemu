@@ -1658,6 +1658,13 @@ config_host_data.set('HAVE_MLOCKALL', cc.links(gnu_source_prefix + '''
     return mlockall(MCL_FUTURE);
   }'''))
 
+have_l2tpv3 = false
+if not get_option('l2tpv3').disabled() and have_system
+  have_l2tpv3 = (cc.has_header_symbol('sys/socket.h', 'struct mmsghdr')
+                 and cc.has_header('linux/ip.h'))
+endif
+config_host_data.set('CONFIG_L2TPV3', have_l2tpv3)
+
 have_netmap = false
 if not get_option('netmap').disabled() and have_system
   have_netmap = cc.compiles('''
@@ -3377,6 +3384,7 @@ summary_info += {'JACK support':      jack}
 summary_info += {'brlapi support':    brlapi}
 summary_info += {'vde support':       vde}
 summary_info += {'netmap support':    have_netmap}
+summary_info += {'l2tpv3 support':    have_l2tpv3}
 summary_info += {'Linux AIO support': libaio}
 summary_info += {'Linux io_uring support': linux_io_uring}
 summary_info += {'ATTR/XATTR support': libattr}

@@ -1896,20 +1896,6 @@ if test -z "$want_tools"; then
     fi
 fi
 
-##########################################
-# L2TPV3 probe
-
-cat > $TMPC <<EOF
-#include <sys/socket.h>
-#include <linux/ip.h>
-int main(void) { return sizeof(struct mmsghdr); }
-EOF
-if compile_prog "" "" ; then
-  l2tpv3=yes
-else
-  l2tpv3=no
-fi
-
 #########################################
 # vhost interdependencies and host support
 
@@ -3513,9 +3499,6 @@ fi
 if test "$slirp_smbd" = "yes" ; then
   echo "CONFIG_SLIRP_SMBD=y" >> $config_host_mak
   echo "CONFIG_SMBD_COMMAND=\"$smbd\"" >> $config_host_mak
-fi
-if test "$l2tpv3" = "yes" ; then
-  echo "CONFIG_L2TPV3=y" >> $config_host_mak
 fi
 if test "$gprof" = "yes" ; then
   echo "CONFIG_GPROF=y" >> $config_host_mak
