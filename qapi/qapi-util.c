@@ -49,6 +49,12 @@ bool compat_policy_input_ok(unsigned special_features,
                                     error_class, kind, name, errp)) {
         return false;
     }
+    if ((special_features & (1u << QAPI_UNSTABLE))
+        && !compat_policy_input_ok1("Unstable",
+                                    policy->unstable_input,
+                                    error_class, kind, name, errp)) {
+        return false;
+    }
     return true;
 }
 

@@ -254,9 +254,11 @@ class QAPISchemaType(QAPISchemaEntity):
 
     def check(self, schema):
         QAPISchemaEntity.check(self, schema)
-        if 'deprecated' in [f.name for f in self.features]:
-            raise QAPISemError(
-                self.info, "feature 'deprecated' is not supported for types")
+        for feat in self.features:
+            if feat.is_special():
+                raise QAPISemError(
+                    self.info,
+                    f"feature '{feat.name}' is not supported for types")
 
     def describe(self):
         assert self.meta
@@ -726,7 +728,7 @@ class QAPISchemaFeature(QAPISchemaMember):
     role = 'feature'
 
     def is_special(self):
-        return self.name in ('deprecated')
+        return self.name in ('deprecated', 'unstable')
 
 
 class QAPISchemaObjectTypeMember(QAPISchemaMember):

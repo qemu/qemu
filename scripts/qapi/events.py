@@ -109,13 +109,15 @@ def gen_event_send(name: str,
         if not boxed:
             ret += gen_param_var(arg_type)
 
-    if 'deprecated' in [f.name for f in features]:
-        ret += mcgen('''
+    for f in features:
+        if f.is_special():
+            ret += mcgen('''
 
-    if (compat_policy.deprecated_output == COMPAT_POLICY_OUTPUT_HIDE) {
+    if (compat_policy.%(feat)s_output == COMPAT_POLICY_OUTPUT_HIDE) {
         return;
     }
-''')
+''',
+                         feat=f.name)
 
     ret += mcgen('''
 

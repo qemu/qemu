@@ -212,8 +212,12 @@ static bool qobject_output_type_null(Visitor *v, const char *name,
 static bool qobject_output_policy_skip(Visitor *v, const char *name,
                                        unsigned special_features)
 {
-    return !(special_features & 1u << QAPI_DEPRECATED)
-        || v->compat_policy.deprecated_output == COMPAT_POLICY_OUTPUT_HIDE;
+    CompatPolicy *pol = &v->compat_policy;
+
+    return ((special_features & 1u << QAPI_DEPRECATED)
+            && pol->deprecated_output == COMPAT_POLICY_OUTPUT_HIDE)
+        || ((special_features & 1u << QAPI_UNSTABLE)
+            && pol->unstable_output == COMPAT_POLICY_OUTPUT_HIDE);
 }
 
 /* Finish building, and return the root object.
