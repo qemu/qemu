@@ -11,6 +11,10 @@
 #ifndef QAPI_UTIL_H
 #define QAPI_UTIL_H
 
+typedef enum {
+    QAPI_DEPRECATED,
+} QapiSpecialFeature;
+
 /* QEnumLookup flags */
 #define QAPI_ENUM_DEPRECATED 1
 

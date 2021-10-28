@@ -725,6 +725,9 @@ class QAPISchemaEnumMember(QAPISchemaMember):
 class QAPISchemaFeature(QAPISchemaMember):
     role = 'feature'
 
+    def is_special(self):
+        return self.name in ('deprecated')
+
 
 class QAPISchemaObjectTypeMember(QAPISchemaMember):
     def __init__(self, name, info, typ, optional, ifcond=None, features=None):
