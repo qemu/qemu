@@ -16,7 +16,7 @@ This work is licensed under the terms of the GNU GPL, version 2.
 from typing import List, Optional
 
 from .common import c_enum_const, c_name, mcgen
-from .gen import QAPISchemaModularCVisitor, ifcontext
+from .gen import QAPISchemaModularCVisitor, gen_special_features, ifcontext
 from .schema import (
     QAPISchema,
     QAPISchemaEnumMember,
@@ -39,7 +39,7 @@ def gen_enum_lookup(name: str,
                     members: List[QAPISchemaEnumMember],
                     prefix: Optional[str] = None) -> str:
     max_index = c_enum_const(name, '_MAX', prefix)
-    flags = ''
+    feats = ''
     ret = mcgen('''
 
 const QEnumLookup %(c_name)s_lookup = {
@@ -54,19 +54,21 @@ const QEnumLookup %(c_name)s_lookup = {
 ''',
                      index=index, name=memb.name)
         ret += memb.ifcond.gen_endif()
-        if 'deprecated' in (f.name for f in memb.features):
-            flags += mcgen('''
-        [%(index)s] = QAPI_ENUM_DEPRECATED,
-''',
-                           index=index)
 
-    if flags:
+        special_features = gen_special_features(memb.features)
+        if special_features != '0':
+            feats += mcgen('''
+        [%(index)s] = %(special_features)s,
+''',
+                           index=index, special_features=special_features)
+
+    if feats:
         ret += mcgen('''
     },
-    .flags = (const unsigned char[%(max_index)s]) {
+    .special_features = (const unsigned char[%(max_index)s]) {
 ''',
                      max_index=max_index)
-        ret += flags
+        ret += feats
 
     ret += mcgen('''
     },

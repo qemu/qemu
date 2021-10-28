@@ -408,7 +408,8 @@ static bool input_type_enum(Visitor *v, const char *name, int *obj,
         return false;
     }
 
-    if (lookup->flags && (lookup->flags[value] & QAPI_ENUM_DEPRECATED)) {
+    if (lookup->special_features
+        && (lookup->special_features[value] & QAPI_DEPRECATED)) {
         switch (v->compat_policy.deprecated_input) {
         case COMPAT_POLICY_INPUT_ACCEPT:
             break;
