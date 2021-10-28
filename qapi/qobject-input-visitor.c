@@ -14,6 +14,7 @@
 
 #include "qemu/osdep.h"
 #include <math.h>
+#include "qapi/compat-policy.h"
 #include "qapi/error.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/visitor-impl.h"
@@ -666,21 +667,9 @@ static bool qobject_input_policy_reject(Visitor *v, const char *name,
                                         unsigned special_features,
                                         Error **errp)
 {
-    if (!(special_features & 1u << QAPI_DEPRECATED)) {
-        return false;
-    }
-
-    switch (v->compat_policy.deprecated_input) {
-    case COMPAT_POLICY_INPUT_ACCEPT:
-        return false;
-    case COMPAT_POLICY_INPUT_REJECT:
-        error_setg(errp, "Deprecated parameter '%s' disabled by policy",
-                   name);
-        return true;
-    case COMPAT_POLICY_INPUT_CRASH:
-    default:
-        abort();
-    }
+    return !compat_policy_input_ok(special_features, &v->compat_policy,
+                                   ERROR_CLASS_GENERIC_ERROR,
+                                   "parameter", name, errp);
 }
 
 static void qobject_input_free(Visitor *v)

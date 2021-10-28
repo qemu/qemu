@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/compat-policy.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
@@ -409,18 +410,11 @@ static bool input_type_enum(Visitor *v, const char *name, int *obj,
     }
 
     if (lookup->special_features
-        && (lookup->special_features[value] & QAPI_DEPRECATED)) {
-        switch (v->compat_policy.deprecated_input) {
-        case COMPAT_POLICY_INPUT_ACCEPT:
-            break;
-        case COMPAT_POLICY_INPUT_REJECT:
-            error_setg(errp, "Deprecated value '%s' disabled by policy",
-                       enum_str);
-            return false;
-        case COMPAT_POLICY_INPUT_CRASH:
-        default:
-            abort();
-        }
+        && !compat_policy_input_ok(lookup->special_features[value],
+                                   &v->compat_policy,
+                                   ERROR_CLASS_GENERIC_ERROR,
+                                   "value", enum_str, errp)) {
+        return false;
     }
 
     *obj = value;
