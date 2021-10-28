@@ -229,15 +229,12 @@ def gen_register_command(name: str,
     if coroutine:
         options += ['QCO_COROUTINE']
 
-    if not options:
-        options = ['QCO_NO_OPTIONS']
-
     ret = mcgen('''
     qmp_register_command(cmds, "%(name)s",
                          qmp_marshal_%(c_name)s, %(opts)s);
 ''',
                 name=name, c_name=c_name(name),
-                opts=" | ".join(options))
+                opts=' | '.join(options) or 0)
     return ret
 
 
