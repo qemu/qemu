@@ -713,6 +713,10 @@ member as deprecated.  It is not supported elsewhere so far.
 Interfaces so marked may be withdrawn in future releases in accordance
 with QEMU's deprecation policy.
 
+Feature "unstable" marks a command, event, enum value, or struct
+member as unstable.  It is not supported elsewhere so far.  Interfaces
+so marked may be withdrawn or changed incompatibly in future releases.
+
 
 Naming rules and reserved names
 -------------------------------
@@ -746,9 +750,8 @@ Member name ``u`` and names starting with ``has-`` or ``has_`` are reserved
 for the generator, which uses them for unions and for tracking
 optional members.
 
-Any name (command, event, type, member, or enum value) beginning with
-``x-`` is marked experimental, and may be withdrawn or changed
-incompatibly in a future release.
+Names beginning with ``x-`` used to signify "experimental".  This
+convention has been replaced by special feature "unstable".
 
 Pragmas ``command-name-exceptions`` and ``member-name-exceptions`` let
 you violate naming rules.  Use for new code is strongly discouraged. See
