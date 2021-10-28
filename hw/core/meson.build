@@ -1,5 +1,5 @@
 # core qdev-related obj files, also used by *-user and unit tests
-hwcore_files = files(
+hwcore_ss.add(files(
   'bus.c',
   'hotplug.c',
   'qdev-properties.c',
@@ -11,7 +11,7 @@ hwcore_files = files(
   'irq.c',
   'clock.c',
   'qdev-clock.c',
-)
+))
 
 common_ss.add(files('cpu-common.c'))
 softmmu_ss.add(when: 'CONFIG_FITLOADER', if_true: files('loader-fit.c'))
