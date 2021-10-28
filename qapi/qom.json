@@ -559,10 +559,8 @@
 #                                        for ramblock-id. Disable this for 4.0
 #                                        machine types or older to allow
 #                                        migration with newer QEMU versions.
-#                                        This option is considered stable
-#                                        despite the x- prefix. (default:
-#                                        false generally, but true for machine
-#                                        types <= 4.0)
+#                                        (default: false generally,
+#                                        but true for machine types <= 4.0)
 #
 # Note: prealloc=true and reserve=false cannot be set at the same time. With
 #       reserve=true, the behavior depends on the operating system: for example,
@@ -785,6 +783,9 @@
 ##
 # @ObjectType:
 #
+# Features:
+# @unstable: Member @x-remote-object is experimental.
+#
 # Since: 6.0
 ##
 { 'enum': 'ObjectType',
@@ -836,7 +837,7 @@
     'tls-creds-psk',
     'tls-creds-x509',
     'tls-cipher-suites',
-    'x-remote-object'
+    { 'name': 'x-remote-object', 'features': [ 'unstable' ] }
   ] }
 
 ##
