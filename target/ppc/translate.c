@@ -7305,6 +7305,11 @@ static inline void set_avr64(int regno, TCGv_i64 src, bool high)
 /*
  * Helpers for decodetree used by !function for decoding arguments.
  */
+static int times_2(DisasContext *ctx, int x)
+{
+    return x * 2;
+}
+
 static int times_4(DisasContext *ctx, int x)
 {
     return x * 4;

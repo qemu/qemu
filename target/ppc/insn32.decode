@@ -50,6 +50,10 @@
 &X_bfl          bf l:bool ra rb
 @X_bfl          ...... bf:3 - l:1 ra:5 rb:5 ..........- &X_bfl
 
+&X_frtp_vrb     frtp vrb
+%x_frtp         22:4 !function=times_2
+@X_frtp_vrb     ...... ....0 ..... vrb:5 .......... .           &X_frtp_vrb frtp=%x_frtp
+
 ### Fixed-Point Load Instructions
 
 LBZ             100010 ..... ..... ................     @D
@@ -159,6 +163,10 @@ SETBC           011111 ..... ..... ----- 0110000000 -   @X_bi
 SETBCR          011111 ..... ..... ----- 0110100000 -   @X_bi
 SETNBC          011111 ..... ..... ----- 0111000000 -   @X_bi
 SETNBCR         011111 ..... ..... ----- 0111100000 -   @X_bi
+
+### Decimal Floating-Point Conversion Instructions
+
+DCFFIXQQ        111111 ..... 00000 ..... 1111100010 -   @X_frtp_vrb
 
 ## Vector Bit Manipulation Instruction
 

@@ -230,3 +230,20 @@ GEN_DFP_T_FPR_I32_Rc(dscriq, rA, DCM)
 #undef GEN_DFP_T_A_B_I32_Rc
 #undef GEN_DFP_T_B_Rc
 #undef GEN_DFP_T_FPR_I32_Rc
+
+static bool trans_DCFFIXQQ(DisasContext *ctx, arg_DCFFIXQQ *a)
+{
+    TCGv_ptr rt, rb;
+
+    REQUIRE_INSNS_FLAGS2(ctx, DFP);
+    REQUIRE_FPU(ctx);
+    REQUIRE_VECTOR(ctx);
+
+    rt = gen_fprp_ptr(a->frtp);
+    rb = gen_avr_ptr(a->vrb);
+    gen_helper_DCFFIXQQ(cpu_env, rt, rb);
+    tcg_temp_free_ptr(rt);
+    tcg_temp_free_ptr(rb);
+
+    return true;
+}

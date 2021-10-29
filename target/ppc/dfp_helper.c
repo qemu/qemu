@@ -970,6 +970,18 @@ static void CFFIX_PPs(struct PPC_DFP *dfp)
 DFP_HELPER_CFFIX(dcffix, 64)
 DFP_HELPER_CFFIX(dcffixq, 128)
 
+void helper_DCFFIXQQ(CPUPPCState *env, ppc_fprp_t *t, ppc_avr_t *b)
+{
+    struct PPC_DFP dfp;
+
+    dfp_prepare_decimal128(&dfp, NULL, NULL, env);
+    decNumberFromInt128(&dfp.t, (uint64_t)b->VsrD(1), (int64_t)b->VsrD(0));
+    dfp_finalize_decimal128(&dfp);
+    CFFIX_PPs(&dfp);
+
+    set_dfp128(t, &dfp.vt);
+}
+
 #define DFP_HELPER_CTFIX(op, size)                                            \
 void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)              \
 {                                                                             \
