@@ -104,10 +104,11 @@ uint64_t helper_divdeu(CPUPPCState *env, uint64_t ra, uint64_t rb, uint32_t oe)
     uint64_t rt = 0;
     int overflow = 0;
 
-    overflow = divu128(&rt, &ra, rb);
-
-    if (unlikely(overflow)) {
+    if (unlikely(rb == 0 || ra >= rb)) {
+        overflow = 1;
         rt = 0; /* Undefined */
+    } else {
+        divu128(&rt, &ra, rb);
     }
 
     if (oe) {
@@ -119,13 +120,16 @@ uint64_t helper_divdeu(CPUPPCState *env, uint64_t ra, uint64_t rb, uint32_t oe)
 
 uint64_t helper_divde(CPUPPCState *env, uint64_t rau, uint64_t rbu, uint32_t oe)
 {
-    int64_t rt = 0;
+    uint64_t rt = 0;
     int64_t ra = (int64_t)rau;
     int64_t rb = (int64_t)rbu;
-    int overflow = divs128(&rt, &ra, rb);
+    int overflow = 0;
 
-    if (unlikely(overflow)) {
+    if (unlikely(rb == 0 || uabs64(ra) >= uabs64(rb))) {
+        overflow = 1;
         rt = 0; /* Undefined */
+    } else {
+        divs128(&rt, &ra, rb);
     }
 
     if (oe) {
@@ -2502,6 +2506,7 @@ uint32_t helper_bcdcfsq(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     int cr;
     uint64_t lo_value;
     uint64_t hi_value;
+    uint64_t rem;
     ppc_avr_t ret = { .u64 = { 0, 0 } };
 
     if (b->VsrSD(0) < 0) {
@@ -2537,10 +2542,10 @@ uint32_t helper_bcdcfsq(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
          * In that case, we leave r unchanged.
          */
     } else {
-        divu128(&lo_value, &hi_value, 1000000000000000ULL);
+        rem = divu128(&lo_value, &hi_value, 1000000000000000ULL);
 
-        for (i = 1; i < 16; hi_value /= 10, i++) {
-            bcd_put_digit(&ret, hi_value % 10, i);
+        for (i = 1; i < 16; rem /= 10, i++) {
+            bcd_put_digit(&ret, rem % 10, i);
         }
 
         for (; i < 32; lo_value /= 10, i++) {

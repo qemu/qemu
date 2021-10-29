@@ -323,10 +323,7 @@ static inline uint64_t clock_ns_to_ticks(const Clock *clk, uint64_t ns)
     if (clk->period == 0) {
         return 0;
     }
-    /*
-     * Ignore divu128() return value as we've caught div-by-zero and don't
-     * need different behaviour for overflow.
-     */
+
     divu128(&lo, &hi, clk->period);
     return lo;
 }
