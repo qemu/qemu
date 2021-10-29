@@ -57,6 +57,18 @@
 &X_bi           rt bi
 @X_bi           ...... rt:5 bi:5 ----- .......... -     &X_bi
 
+&X_bf           bf ra rb
+@X_bf           ...... bf:3 .. ra:5 rb:5 .......... .           &X_bf
+
+@X_bf_ap_bp     ...... bf:3 .. ....0 ....0 .......... .         &X_bf ra=%x_frap rb=%x_frbp
+
+@X_bf_a_bp      ...... bf:3 .. ra:5 ....0 .......... .          &X_bf rb=%x_frbp
+
+&X_bf_uim       bf uim rb
+@X_bf_uim       ...... bf:3 . uim:6 rb:5 .......... .           &X_bf_uim
+
+@X_bf_uim_bp    ...... bf:3 . uim:6 ....0 .......... .          &X_bf_uim rb=%x_frbp
+
 &X_bfl          bf l:bool ra rb
 @X_bfl          ...... bf:3 - l:1 ra:5 rb:5 ..........- &X_bfl
 
@@ -196,6 +208,14 @@ DMULQ           111111 ..... ..... ..... 0000100010 .   @X_tp_ap_bp_rc
 DDIV            111011 ..... ..... ..... 1000100010 .   @X_rc
 DDIVQ           111111 ..... ..... ..... 1000100010 .   @X_tp_ap_bp_rc
 
+### Decimal Floating-Point Compare Instructions
+
+DCMPU           111011 ... -- ..... ..... 1010000010 -  @X_bf
+DCMPUQ          111111 ... -- ..... ..... 1010000010 -  @X_bf_ap_bp
+
+DCMPO           111011 ... -- ..... ..... 0010000010 -  @X_bf
+DCMPOQ          111111 ... -- ..... ..... 0010000010 -  @X_bf_ap_bp
+
 ### Decimal Floating-Point Test Instructions
 
 DTSTDC          111011 ... -- ..... ...... 011000010 -  @Z22_bf_fra
@@ -203,6 +223,15 @@ DTSTDCQ         111111 ... -- ..... ...... 011000010 -  @Z22_bf_frap
 
 DTSTDG          111011 ... -- ..... ...... 011100010 -  @Z22_bf_fra
 DTSTDGQ         111111 ... -- ..... ...... 011100010 -  @Z22_bf_frap
+
+DTSTEX          111011 ... -- ..... ..... 0010100010 -  @X_bf
+DTSTEXQ         111111 ... -- ..... ..... 0010100010 -  @X_bf_ap_bp
+
+DTSTSF          111011 ... -- ..... ..... 1010100010 -  @X_bf
+DTSTSFQ         111111 ... -- ..... ..... 1010100010 -  @X_bf_a_bp
+
+DTSTSFI         111011 ... - ...... ..... 1010100011 -  @X_bf_uim
+DTSTSFIQ        111111 ... - ...... ..... 1010100011 -  @X_bf_uim_bp
 
 ### Decimal Floating-Point Conversion Instructions
 

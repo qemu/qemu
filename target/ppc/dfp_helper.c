@@ -507,8 +507,8 @@ static void CMPU_PPs(struct PPC_DFP *dfp)
     dfp_check_for_VXSNAN(dfp);
 }
 
-DFP_HELPER_BF_AB(dcmpu, decNumberCompare, CMPU_PPs, 64)
-DFP_HELPER_BF_AB(dcmpuq, decNumberCompare, CMPU_PPs, 128)
+DFP_HELPER_BF_AB(DCMPU, decNumberCompare, CMPU_PPs, 64)
+DFP_HELPER_BF_AB(DCMPUQ, decNumberCompare, CMPU_PPs, 128)
 
 static void CMPO_PPs(struct PPC_DFP *dfp)
 {
@@ -518,8 +518,8 @@ static void CMPO_PPs(struct PPC_DFP *dfp)
     dfp_check_for_VXVC(dfp);
 }
 
-DFP_HELPER_BF_AB(dcmpo, decNumberCompare, CMPO_PPs, 64)
-DFP_HELPER_BF_AB(dcmpoq, decNumberCompare, CMPO_PPs, 128)
+DFP_HELPER_BF_AB(DCMPO, decNumberCompare, CMPO_PPs, 64)
+DFP_HELPER_BF_AB(DCMPOQ, decNumberCompare, CMPO_PPs, 128)
 
 #define DFP_HELPER_TSTDC(op, size)                                       \
 uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, uint32_t dcm)      \
@@ -633,8 +633,8 @@ uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, ppc_fprp_t *b)     \
     return dfp.crbf;                                                     \
 }
 
-DFP_HELPER_TSTEX(dtstex, 64)
-DFP_HELPER_TSTEX(dtstexq, 128)
+DFP_HELPER_TSTEX(DTSTEX, 64)
+DFP_HELPER_TSTEX(DTSTEXQ, 128)
 
 #define DFP_HELPER_TSTSF(op, size)                                       \
 uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, ppc_fprp_t *b)     \
@@ -670,8 +670,8 @@ uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, ppc_fprp_t *b)     \
     return dfp.crbf;                                                     \
 }
 
-DFP_HELPER_TSTSF(dtstsf, 64)
-DFP_HELPER_TSTSF(dtstsfq, 128)
+DFP_HELPER_TSTSF(DTSTSF, 64)
+DFP_HELPER_TSTSF(DTSTSFQ, 128)
 
 #define DFP_HELPER_TSTSFI(op, size)                                     \
 uint32_t helper_##op(CPUPPCState *env, uint32_t a, ppc_fprp_t *b)       \
@@ -705,8 +705,8 @@ uint32_t helper_##op(CPUPPCState *env, uint32_t a, ppc_fprp_t *b)       \
     return dfp.crbf;                                                    \
 }
 
-DFP_HELPER_TSTSFI(dtstsfi, 64)
-DFP_HELPER_TSTSFI(dtstsfiq, 128)
+DFP_HELPER_TSTSFI(DTSTSFI, 64)
+DFP_HELPER_TSTSFI(DTSTSFIQ, 128)
 
 static void QUA_PPs(struct PPC_DFP *dfp)
 {
