@@ -31,8 +31,7 @@
 #include "chardev/char-fe.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
-
-//#define DEBUG_SERIAL
+#include "trace.h"
 
 #define SH_SERIAL_FLAG_TEND (1 << 0)
 #define SH_SERIAL_FLAG_TDE  (1 << 1)
@@ -89,10 +88,7 @@ static void sh_serial_write(void *opaque, hwaddr offs,
     sh_serial_state *s = opaque;
     unsigned char ch;
 
-#ifdef DEBUG_SERIAL
-    printf("sh_serial: write offs=0x%02x val=0x%02x\n",
-           offs, val);
-#endif
+    trace_sh_serial_write(size, offs, val);
     switch (offs) {
     case 0x00: /* SMR */
         s->smr = val & ((s->feat & SH_SERIAL_FEAT_SCIF) ? 0x7b : 0xff);
@@ -301,10 +297,7 @@ static uint64_t sh_serial_read(void *opaque, hwaddr offs,
             break;
         }
     }
-#ifdef DEBUG_SERIAL
-    printf("sh_serial: read offs=0x%02x val=0x%x\n",
-           offs, ret);
-#endif
+    trace_sh_serial_read(size, offs, ret);
 
     if (ret & ~((1 << 16) - 1)) {
         fprintf(stderr, "sh_serial: unsupported read from 0x%02"

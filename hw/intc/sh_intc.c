@@ -9,13 +9,12 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "cpu.h"
 #include "hw/sh4/sh_intc.h"
 #include "hw/irq.h"
 #include "hw/sh4/sh.h"
-
-//#define DEBUG_INTC
-//#define DEBUG_INTC_SOURCES
+#include "trace.h"
 
 #define INTC_A7(x) ((x) & 0x1fffffff)
 
@@ -57,20 +56,14 @@ void sh_intc_toggle_source(struct intc_source *source,
         }
     }
 
-  if (enable_changed || assert_adj || pending_changed) {
-#ifdef DEBUG_INTC_SOURCES
-            printf("sh_intc: (%d/%d/%d/%d) interrupt source 0x%x %s%s%s\n",
-                   source->parent->pending,
-                   source->asserted,
-                   source->enable_count,
-                   source->enable_max,
-                   source->vect,
-                   source->asserted ? "asserted " :
-                   assert_adj ? "deasserted" : "",
-                   enable_changed == 1 ? "enabled " :
-                   enable_changed == -1 ? "disabled " : "",
-                   source->pending ? "pending" : "");
-#endif
+    if (enable_changed || assert_adj || pending_changed) {
+        trace_sh_intc_sources(source->parent->pending, source->asserted,
+                              source->enable_count, source->enable_max,
+                              source->vect, source->asserted ? "asserted " :
+                              assert_adj ? "deasserted" : "",
+                              enable_changed == 1 ? "enabled " :
+                              enable_changed == -1 ? "disabled " : "",
+                              source->pending ? "pending" : "");
     }
 }
 
@@ -101,10 +94,7 @@ int sh_intc_get_pending_vector(struct intc_desc *desc, int imask)
         struct intc_source *source = desc->sources + i;
 
         if (source->pending) {
-#ifdef DEBUG_INTC_SOURCES
-            printf("sh_intc: (%d) returning interrupt source 0x%x\n",
-                   desc->pending, source->vect);
-#endif
+            trace_sh_intc_pending(desc->pending, source->vect);
             return source->vect;
         }
     }
@@ -199,30 +189,22 @@ static void sh_intc_toggle_mask(struct intc_desc *desc, intc_enum id,
         return;
     }
     if (!source->next_enum_id && (!source->enable_max || !source->vect)) {
-#ifdef DEBUG_INTC_SOURCES
-        printf("sh_intc: reserved interrupt source %d modified\n", id);
-#endif
+        qemu_log_mask(LOG_UNIMP,
+                      "sh_intc: reserved interrupt source %d modified\n", id);
         return;
     }
 
     if (source->vect) {
         sh_intc_toggle_source(source, enable ? 1 : -1, 0);
     }
-#ifdef DEBUG_INTC
-    else {
-        printf("setting interrupt group %d to %d\n", id, !!enable);
-    }
-#endif
 
     if ((is_group || !source->vect) && source->next_enum_id) {
         sh_intc_toggle_mask(desc, source->next_enum_id, enable, 1);
     }
 
-#ifdef DEBUG_INTC
     if (!source->vect) {
-        printf("setting interrupt group %d to %d - done\n", id, !!enable);
+        trace_sh_intc_set(id, !!enable);
     }
-#endif
 }
 
 static uint64_t sh_intc_read(void *opaque, hwaddr offset,
@@ -235,12 +217,9 @@ static uint64_t sh_intc_read(void *opaque, hwaddr offset,
     unsigned int mode = 0;
     unsigned long *valuep;
 
-#ifdef DEBUG_INTC
-    printf("sh_intc_read 0x%lx\n", (unsigned long) offset);
-#endif
-
     sh_intc_locate(desc, (unsigned long)offset, &valuep,
                    &enum_ids, &first, &width, &mode);
+    trace_sh_intc_read(size, (uint64_t)offset, *valuep);
     return *valuep;
 }
 
@@ -256,13 +235,9 @@ static void sh_intc_write(void *opaque, hwaddr offset,
     unsigned long *valuep;
     unsigned long mask;
 
-#ifdef DEBUG_INTC
-    printf("sh_intc_write 0x%lx 0x%08x\n", (unsigned long) offset, value);
-#endif
-
+    trace_sh_intc_write(size, (uint64_t)offset, value);
     sh_intc_locate(desc, (unsigned long)offset, &valuep,
                    &enum_ids, &first, &width, &mode);
-
     switch (mode) {
     case INTC_MODE_ENABLE_REG | INTC_MODE_IS_PRIO:
         break;
@@ -282,18 +257,10 @@ static void sh_intc_write(void *opaque, hwaddr offset,
         if ((*valuep & mask) == (value & mask)) {
             continue;
         }
-#if 0
-        printf("k = %d, first = %d, enum = %d, mask = 0x%08x\n",
-               k, first, enum_ids[k], (unsigned int)mask);
-#endif
         sh_intc_toggle_mask(desc, enum_ids[k], value & mask, 0);
     }
 
     *valuep = value;
-
-#ifdef DEBUG_INTC
-    printf("sh_intc_write 0x%lx -> 0x%08x\n", (unsigned long) offset, value);
-#endif
 }
 
 static const MemoryRegionOps sh_intc_ops = {
@@ -416,11 +383,8 @@ void sh_intc_register_sources(struct intc_desc *desc,
         s = sh_intc_source(desc, vect->enum_id);
         if (s) {
             s->vect = vect->vect;
-
-#ifdef DEBUG_INTC_SOURCES
-            printf("sh_intc: registered source %d -> 0x%04x (%d/%d)\n",
-                   vect->enum_id, s->vect, s->enable_count, s->enable_max);
-#endif
+            trace_sh_intc_register("source", vect->enum_id, s->vect,
+                                   s->enable_count, s->enable_max);
         }
     }
 
@@ -438,11 +402,8 @@ void sh_intc_register_sources(struct intc_desc *desc,
                 s = sh_intc_source(desc, gr->enum_ids[k - 1]);
                 s->next_enum_id = gr->enum_ids[k];
             }
-
-#ifdef DEBUG_INTC_SOURCES
-            printf("sh_intc: registered group %d (%d/%d)\n",
-                   gr->enum_id, s->enable_count, s->enable_max);
-#endif
+            trace_sh_intc_register("group", gr->enum_id, 0xffff,
+                                   s->enable_count, s->enable_max);
         }
     }
 }

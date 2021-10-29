@@ -32,6 +32,7 @@
 #include "hw/sh4/sh_intc.h"
 #include "hw/timer/tmu012.h"
 #include "exec/exec-all.h"
+#include "trace.h"
 
 #define NB_DEVICES 4
 
@@ -147,15 +148,11 @@ static void porta_changed(SH7750State *s, uint16_t prev)
     uint16_t currenta, changes;
     int i, r = 0;
 
-#if 0
-    fprintf(stderr, "porta changed from 0x%04x to 0x%04x\n",
-            prev, porta_lines(s));
-    fprintf(stderr, "pdtra=0x%04x, pctra=0x%08x\n", s->pdtra, s->pctra);
-#endif
     currenta = porta_lines(s);
     if (currenta == prev) {
         return;
     }
+    trace_sh7750_porta(prev, currenta, s->pdtra, s->pctra);
     changes = currenta ^ prev;
 
     for (i = 0; i < NB_DEVICES; i++) {
@@ -182,6 +179,7 @@ static void portb_changed(SH7750State *s, uint16_t prev)
     if (currentb == prev) {
         return;
     }
+    trace_sh7750_portb(prev, currentb, s->pdtrb, s->pctrb);
     changes = currentb ^ prev;
 
     for (i = 0; i < NB_DEVICES; i++) {
