@@ -195,14 +195,13 @@ static void sh_intc_toggle_mask(struct intc_desc *desc, intc_enum id,
     }
 }
 
-static uint64_t sh_intc_read(void *opaque, hwaddr offset,
-                             unsigned size)
+static uint64_t sh_intc_read(void *opaque, hwaddr offset, unsigned size)
 {
     struct intc_desc *desc = opaque;
-    intc_enum *enum_ids = NULL;
-    unsigned int first = 0;
-    unsigned int width = 0;
-    unsigned int mode = 0;
+    intc_enum *enum_ids;
+    unsigned int first;
+    unsigned int width;
+    unsigned int mode;
     unsigned long *valuep;
 
     sh_intc_locate(desc, (unsigned long)offset, &valuep,
@@ -215,12 +214,12 @@ static void sh_intc_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
     struct intc_desc *desc = opaque;
-    intc_enum *enum_ids = NULL;
-    unsigned int first = 0;
-    unsigned int width = 0;
-    unsigned int mode = 0;
-    unsigned int k;
+    intc_enum *enum_ids;
+    unsigned int first;
+    unsigned int width;
+    unsigned int mode;
     unsigned long *valuep;
+    unsigned int k;
     unsigned long mask;
 
     trace_sh_intc_write(size, (uint64_t)offset, value);
