@@ -572,18 +572,6 @@ bool device_type_is_dynamic_sysbus(MachineClass *mc, const char *type)
     return allowed;
 }
 
-static void validate_sysbus_device(SysBusDevice *sbdev, void *opaque)
-{
-    MachineState *machine = opaque;
-    MachineClass *mc = MACHINE_GET_CLASS(machine);
-
-    if (!device_is_dynamic_sysbus(mc, DEVICE(sbdev))) {
-        error_report("Option '-device %s' cannot be handled by this machine",
-                     object_class_get_name(object_get_class(OBJECT(sbdev))));
-        exit(1);
-    }
-}
-
 static char *machine_get_memdev(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
@@ -597,17 +585,6 @@ static void machine_set_memdev(Object *obj, const char *value, Error **errp)
 
     g_free(ms->ram_memdev_id);
     ms->ram_memdev_id = g_strdup(value);
-}
-
-static void machine_init_notify(Notifier *notifier, void *data)
-{
-    MachineState *machine = MACHINE(qdev_get_machine());
-
-    /*
-     * Loop through all dynamically created sysbus devices and check if they are
-     * all allowed.  If a device is not allowed, error out.
-     */
-    foreach_dynamic_sysbus_device(validate_sysbus_device, machine);
 }
 
 HotpluggableCPUList *machine_query_hotpluggable_cpus(MachineState *machine)
@@ -948,10 +925,6 @@ static void machine_initfn(Object *obj)
                                         "ACPI Heterogeneous Memory Attribute "
                                         "Table (HMAT)");
     }
-
-    /* Register notifier when init is done for sysbus sanity checks */
-    ms->sysbus_notifier.notify = machine_init_notify;
-    qemu_add_machine_init_done_notifier(&ms->sysbus_notifier);
 
     /* default to mc->default_cpus */
     ms->smp.cpus = mc->default_cpus;

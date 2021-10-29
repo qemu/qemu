@@ -317,7 +317,6 @@ typedef struct CpuTopology {
 struct MachineState {
     /*< private >*/
     Object parent_obj;
-    Notifier sysbus_notifier;
 
     /*< public >*/
 
