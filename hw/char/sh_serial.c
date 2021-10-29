@@ -381,6 +381,25 @@ static const MemoryRegionOps sh_serial_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static void sh_serial_reset(SHSerialState *s)
+{
+    s->flags = SH_SERIAL_FLAG_TEND | SH_SERIAL_FLAG_TDE;
+    s->rtrg = 1;
+
+    s->smr = 0;
+    s->brr = 0xff;
+    s->scr = 1 << 5; /* pretend that TX is enabled so early printk works */
+    s->sptr = 0;
+
+    if (s->feat & SH_SERIAL_FEAT_SCIF) {
+        s->fcr = 0;
+    } else {
+        s->dr = 0xff;
+    }
+
+    sh_serial_clear_fifo(s);
+}
+
 void sh_serial_init(MemoryRegion *sysmem,
                     hwaddr base, int feat,
                     uint32_t freq, Chardev *chr,
@@ -393,21 +412,7 @@ void sh_serial_init(MemoryRegion *sysmem,
     SHSerialState *s = g_malloc0(sizeof(*s));
 
     s->feat = feat;
-    s->flags = SH_SERIAL_FLAG_TEND | SH_SERIAL_FLAG_TDE;
-    s->rtrg = 1;
-
-    s->smr = 0;
-    s->brr = 0xff;
-    s->scr = 1 << 5; /* pretend that TX is enabled so early printk works */
-    s->sptr = 0;
-
-    if (feat & SH_SERIAL_FEAT_SCIF) {
-        s->fcr = 0;
-    } else {
-        s->dr = 0xff;
-    }
-
-    sh_serial_clear_fifo(s);
+    sh_serial_reset(s);
 
     memory_region_init_io(&s->iomem, NULL, &sh_serial_ops, s,
                           "serial", 0x100000000ULL);
