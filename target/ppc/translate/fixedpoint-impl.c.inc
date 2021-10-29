@@ -51,15 +51,7 @@ static bool do_ldst(DisasContext *ctx, int rt, int ra, TCGv displ, bool update,
     }
     gen_set_access_type(ctx, ACCESS_INT);
 
-    ea = tcg_temp_new();
-    if (ra) {
-        tcg_gen_add_tl(ea, cpu_gpr[ra], displ);
-    } else {
-        tcg_gen_mov_tl(ea, displ);
-    }
-    if (NARROW_MODE(ctx)) {
-        tcg_gen_ext32u_tl(ea, ea);
-    }
+    ea = do_ea_calc(ctx, ra, displ);
     mop ^= ctx->default_tcg_memop_mask;
     if (store) {
         tcg_gen_qemu_st_tl(cpu_gpr[rt], ea, ctx->mem_idx, mop);
