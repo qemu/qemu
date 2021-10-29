@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
 #include "hw/sh4/sh.h"
@@ -324,7 +325,7 @@ static void r2d_init(MachineState *machine)
                                           SDRAM_BASE + LINUX_LOAD_OFFSET,
                                           INITRD_LOAD_OFFSET - LINUX_LOAD_OFFSET);
         if (kernel_size < 0) {
-            fprintf(stderr, "qemu: could not load kernel '%s'\n", kernel_filename);
+            error_report("qemu: could not load kernel '%s'", kernel_filename);
             exit(1);
         }
 
@@ -345,7 +346,7 @@ static void r2d_init(MachineState *machine)
                                           SDRAM_SIZE - INITRD_LOAD_OFFSET);
 
         if (initrd_size < 0) {
-            fprintf(stderr, "qemu: could not load initrd '%s'\n", initrd_filename);
+            error_report("qemu: could not load initrd '%s'", initrd_filename);
             exit(1);
         }
 
