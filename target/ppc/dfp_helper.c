@@ -769,8 +769,8 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,        \
     set_dfp##size(t, &dfp.vt);                                          \
 }
 
-DFP_HELPER_QUA(dqua, 64)
-DFP_HELPER_QUA(dquaq, 128)
+DFP_HELPER_QUA(DQUA, 64)
+DFP_HELPER_QUA(DQUAQ, 128)
 
 static void _dfp_reround(uint8_t rmc, int32_t ref_sig, int32_t xmax,
                              struct PPC_DFP *dfp)
@@ -847,8 +847,8 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,        \
     set_dfp##size(t, &dfp.vt);                                          \
 }
 
-DFP_HELPER_RRND(drrnd, 64)
-DFP_HELPER_RRND(drrndq, 128)
+DFP_HELPER_RRND(DRRND, 64)
+DFP_HELPER_RRND(DRRNDQ, 128)
 
 #define DFP_HELPER_RINT(op, postprocs, size)                                   \
 void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,               \

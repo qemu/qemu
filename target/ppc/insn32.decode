@@ -84,11 +84,19 @@
 %z22_frap       17:4 !function=times_2
 @Z22_bf_frap    ...... bf:3 .. ....0 dm:6 ......... .           &Z22_bf_fra fra=%z22_frap
 
+&Z23_tab        frt fra frb rmc rc:bool
+@Z23_tab        ...... frt:5 fra:5 frb:5 rmc:2 ........ rc:1    &Z23_tab
+
+%z23_frtp       22:4 !function=times_2
+%z23_frap       17:4 !function=times_2
+%z23_frbp       12:4 !function=times_2
+@Z23_tabp       ...... ....0 ....0 ....0 rmc:2 ........ rc:1    &Z23_tab frt=%z23_frtp fra=%z23_frap frb=%z23_frbp
+
+@Z23_tp_a_bp    ...... ....0 fra:5 ....0 rmc:2 ........ rc:1    &Z23_tab frt=%z23_frtp frb=%z23_frbp
+
 &Z23_tb         frt frb r:bool rmc rc:bool
 @Z23_tb         ...... frt:5 .... r:1 frb:5 rmc:2 ........ rc:1 &Z23_tb
 
-%z23_frtp       22:4 !function=times_2
-%z23_frbp       12:4 !function=times_2
 @Z23_tbp        ...... ....0 .... r:1 ....0 rmc:2 ........ rc:1 &Z23_tb frt=%z23_frtp frb=%z23_frbp
 
 &Z23_te_tb      te frt frb rmc rc:bool
@@ -249,6 +257,12 @@ DTSTSFIQ        111111 ... - ...... ..... 1010100011 -  @X_bf_uim_bp
 
 DQUAI           111011 ..... ..... ..... .. 01000011 .  @Z23_te_tb
 DQUAIQ          111111 ..... ..... ..... .. 01000011 .  @Z23_te_tbp
+
+DQUA            111011 ..... ..... ..... .. 00000011 .  @Z23_tab
+DQUAQ           111111 ..... ..... ..... .. 00000011 .  @Z23_tabp
+
+DRRND           111011 ..... ..... ..... .. 00100011 .  @Z23_tab
+DRRNDQ          111111 ..... ..... ..... .. 00100011 .  @Z23_tp_a_bp
 
 DRINTX          111011 ..... ---- . ..... .. 01100011 . @Z23_tb
 DRINTXQ         111111 ..... ---- . ..... .. 01100011 . @Z23_tbp
