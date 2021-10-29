@@ -1342,6 +1342,16 @@ static bool do_lsfp_D(DisasContext *ctx, arg_D *a, bool update, bool store,
                      single);
 }
 
+static bool do_lsfp_PLS_D(DisasContext *ctx, arg_PLS_D *a, bool update,
+                          bool store, bool single)
+{
+    arg_D d;
+    if (!resolve_PLS_D(ctx, &d, a)) {
+        return true;
+    }
+    return do_lsfp_D(ctx, &d, update, store, single);
+}
+
 static bool do_lsfp_X(DisasContext *ctx, arg_X *a, bool update,
                       bool store, bool single)
 {
@@ -1352,21 +1362,25 @@ TRANS(LFS, do_lsfp_D, false, false, true)
 TRANS(LFSU, do_lsfp_D, true, false, true)
 TRANS(LFSX, do_lsfp_X, false, false, true)
 TRANS(LFSUX, do_lsfp_X, true, false, true)
+TRANS(PLFS, do_lsfp_PLS_D, false, false, true)
 
 TRANS(LFD, do_lsfp_D, false, false, false)
 TRANS(LFDU, do_lsfp_D, true, false, false)
 TRANS(LFDX, do_lsfp_X, false, false, false)
 TRANS(LFDUX, do_lsfp_X, true, false, false)
+TRANS(PLFD, do_lsfp_PLS_D, false, false, false)
 
 TRANS(STFS, do_lsfp_D, false, true, true)
 TRANS(STFSU, do_lsfp_D, true, true, true)
 TRANS(STFSX, do_lsfp_X, false, true, true)
 TRANS(STFSUX, do_lsfp_X, true, true, true)
+TRANS(PSTFS, do_lsfp_PLS_D, false, true, true)
 
 TRANS(STFD, do_lsfp_D, false, true, false)
 TRANS(STFDU, do_lsfp_D, true, true, false)
 TRANS(STFDX, do_lsfp_X, false, true, false)
 TRANS(STFDUX, do_lsfp_X, true, true, false)
+TRANS(PSTFD, do_lsfp_PLS_D, false, true, false)
 
 #undef _GEN_FLOAT_ACB
 #undef GEN_FLOAT_ACB
