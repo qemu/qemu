@@ -17,20 +17,12 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#define REQUIRE_ALTIVEC(CTX) \
-    do {                                                \
-        if (unlikely(!(CTX)->altivec_enabled)) {        \
-            gen_exception((CTX), POWERPC_EXCP_VPU);     \
-            return true;                                \
-        }                                               \
-    } while (0)
-
 static bool trans_VCFUGED(DisasContext *ctx, arg_VX *a)
 {
     TCGv_i64 tgt, src, mask;
 
     REQUIRE_INSNS_FLAGS2(ctx, ISA310);
-    REQUIRE_ALTIVEC(ctx);
+    REQUIRE_VECTOR(ctx);
 
     tgt = tcg_temp_new_i64();
     src = tcg_temp_new_i64();
