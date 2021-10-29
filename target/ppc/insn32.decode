@@ -124,6 +124,7 @@ ADDPCIS         010011 ..... ..... .......... 00010 .   @DX
 ## Fixed-Point Logical Instructions
 
 CFUGED          011111 ..... ..... ..... 0011011100 -   @X
+CNTLZDM         011111 ..... ..... ..... 0000111011 -   @X
 
 ### Float-Point Load Instructions
 

@@ -413,3 +413,39 @@ static bool trans_CFUGED(DisasContext *ctx, arg_X *a)
 #endif
     return true;
 }
+
+#if defined(TARGET_PPC64)
+static void do_cntlzdm(TCGv_i64 dst, TCGv_i64 src, TCGv_i64 mask)
+{
+    TCGv_i64 tmp;
+    TCGLabel *l1;
+
+    tmp = tcg_temp_local_new_i64();
+    l1 = gen_new_label();
+
+    tcg_gen_and_i64(tmp, src, mask);
+    tcg_gen_clzi_i64(tmp, tmp, 64);
+
+    tcg_gen_brcondi_i64(TCG_COND_EQ, tmp, 0, l1);
+
+    tcg_gen_subfi_i64(tmp, 64, tmp);
+    tcg_gen_shr_i64(tmp, mask, tmp);
+    tcg_gen_ctpop_i64(tmp, tmp);
+
+    gen_set_label(l1);
+
+    tcg_gen_mov_i64(dst, tmp);
+}
+#endif
+
+static bool trans_CNTLZDM(DisasContext *ctx, arg_X *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+#if defined(TARGET_PPC64)
+    do_cntlzdm(cpu_gpr[a->ra], cpu_gpr[a->rt], cpu_gpr[a->rb]);
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
