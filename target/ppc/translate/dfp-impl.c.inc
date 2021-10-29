@@ -60,21 +60,17 @@ static void gen_##name(DisasContext *ctx)         \
     tcg_temp_free_ptr(rb);                        \
 }
 
-#define GEN_DFP_BF_A_DCM(name)                    \
-static void gen_##name(DisasContext *ctx)         \
-{                                                 \
-    TCGv_ptr ra;                                  \
-    TCGv_i32 dcm;                                 \
-    if (unlikely(!ctx->fpu_enabled)) {            \
-        gen_exception(ctx, POWERPC_EXCP_FPU);     \
-        return;                                   \
-    }                                             \
-    ra = gen_fprp_ptr(rA(ctx->opcode));           \
-    dcm = tcg_const_i32(DCM(ctx->opcode));        \
-    gen_helper_##name(cpu_crf[crfD(ctx->opcode)], \
-                      cpu_env, ra, dcm);          \
-    tcg_temp_free_ptr(ra);                        \
-    tcg_temp_free_i32(dcm);                       \
+#define TRANS_DFP_BF_A_DCM(NAME)                             \
+static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a)   \
+{                                                            \
+    TCGv_ptr ra;                                             \
+    REQUIRE_INSNS_FLAGS2(ctx, DFP);                          \
+    REQUIRE_FPU(ctx);                                        \
+    ra = gen_fprp_ptr(a->fra);                               \
+    gen_helper_##NAME(cpu_crf[a->bf],                        \
+                      cpu_env, ra, tcg_constant_i32(a->dm)); \
+    tcg_temp_free_ptr(ra);                                   \
+    return true;                                             \
 }
 
 #define GEN_DFP_T_B_U32_U32_Rc(name, u32f1, u32f2)    \
@@ -174,10 +170,10 @@ GEN_DFP_BF_A_B(dcmpu)
 GEN_DFP_BF_A_B(dcmpuq)
 GEN_DFP_BF_A_B(dcmpo)
 GEN_DFP_BF_A_B(dcmpoq)
-GEN_DFP_BF_A_DCM(dtstdc)
-GEN_DFP_BF_A_DCM(dtstdcq)
-GEN_DFP_BF_A_DCM(dtstdg)
-GEN_DFP_BF_A_DCM(dtstdgq)
+TRANS_DFP_BF_A_DCM(DTSTDC)
+TRANS_DFP_BF_A_DCM(DTSTDCQ)
+TRANS_DFP_BF_A_DCM(DTSTDG)
+TRANS_DFP_BF_A_DCM(DTSTDGQ)
 GEN_DFP_BF_A_B(dtstex)
 GEN_DFP_BF_A_B(dtstexq)
 GEN_DFP_BF_A_B(dtstsf)
@@ -217,7 +213,6 @@ GEN_DFP_T_FPR_I32_Rc(dscriq, rA, DCM)
 
 #undef GEN_DFP_T_A_B_Rc
 #undef GEN_DFP_BF_A_B
-#undef GEN_DFP_BF_A_DCM
 #undef GEN_DFP_T_B_U32_U32_Rc
 #undef GEN_DFP_T_A_B_I32_Rc
 #undef GEN_DFP_T_B_Rc

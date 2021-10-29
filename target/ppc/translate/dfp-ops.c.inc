@@ -66,12 +66,6 @@ _GEN_DFP_QUAD(name, op1, op2, 0x00600801)
 #define GEN_DFP_BF_A_Bp_300(name, op1, op2)     \
 _GEN_DFP_QUAD_300(name, op1, op2, 0x00400001)
 
-#define GEN_DFP_BF_A_DCM(name, op1, op2) \
-_GEN_DFP_LONGx2(name, op1, op2, 0x00600001)
-
-#define GEN_DFP_BF_Ap_DCM(name, op1, op2) \
-_GEN_DFP_QUADx2(name, op1, op2, 0x00610001)
-
 #define GEN_DFP_T_A_B_RMC_Rc(name, op1, op2) \
 _GEN_DFP_LONGx4(name, op1, op2, 0x00000000)
 
@@ -123,10 +117,6 @@ GEN_DFP_BF_A_B(dcmpu, 0x02, 0x14),
 GEN_DFP_BF_Ap_Bp(dcmpuq, 0x02, 0x14),
 GEN_DFP_BF_A_B(dcmpo, 0x02, 0x04),
 GEN_DFP_BF_Ap_Bp(dcmpoq, 0x02, 0x04),
-GEN_DFP_BF_A_DCM(dtstdc, 0x02, 0x06),
-GEN_DFP_BF_Ap_DCM(dtstdcq, 0x02, 0x06),
-GEN_DFP_BF_A_DCM(dtstdg, 0x02, 0x07),
-GEN_DFP_BF_Ap_DCM(dtstdgq, 0x02, 0x07),
 GEN_DFP_BF_A_B(dtstex, 0x02, 0x05),
 GEN_DFP_BF_Ap_Bp(dtstexq, 0x02, 0x05),
 GEN_DFP_BF_A_B(dtstsf, 0x02, 0x15),

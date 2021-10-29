@@ -58,6 +58,12 @@
 %x_frbp         12:4 !function=times_2
 @X_vrt_frbp     ...... vrt:5 ..... ....0 .......... .           &X_vrt_frbp frbp=%x_frbp
 
+&Z22_bf_fra     bf fra dm
+@Z22_bf_fra     ...... bf:3 .. fra:5 dm:6 ......... .           &Z22_bf_fra
+
+%z22_frap       17:4 !function=times_2
+@Z22_bf_frap    ...... bf:3 .. ....0 dm:6 ......... .           &Z22_bf_fra fra=%z22_frap
+
 ### Fixed-Point Load Instructions
 
 LBZ             100010 ..... ..... ................     @D
@@ -167,6 +173,14 @@ SETBC           011111 ..... ..... ----- 0110000000 -   @X_bi
 SETBCR          011111 ..... ..... ----- 0110100000 -   @X_bi
 SETNBC          011111 ..... ..... ----- 0111000000 -   @X_bi
 SETNBCR         011111 ..... ..... ----- 0111100000 -   @X_bi
+
+### Decimal Floating-Point Test Instructions
+
+DTSTDC          111011 ... -- ..... ...... 011000010 -  @Z22_bf_fra
+DTSTDCQ         111111 ... -- ..... ...... 011000010 -  @Z22_bf_frap
+
+DTSTDG          111011 ... -- ..... ...... 011100010 -  @Z22_bf_fra
+DTSTDGQ         111111 ... -- ..... ...... 011100010 -  @Z22_bf_frap
 
 ### Decimal Floating-Point Conversion Instructions
 
