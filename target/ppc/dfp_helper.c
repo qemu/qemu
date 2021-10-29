@@ -751,8 +751,8 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,        \
     set_dfp##size(t, &dfp.vt);                                          \
 }
 
-DFP_HELPER_QUAI(dquai, 64)
-DFP_HELPER_QUAI(dquaiq, 128)
+DFP_HELPER_QUAI(DQUAI, 64)
+DFP_HELPER_QUAI(DQUAIQ, 128)
 
 #define DFP_HELPER_QUA(op, size)                                        \
 void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,        \
@@ -873,8 +873,8 @@ static void RINTX_PPs(struct PPC_DFP *dfp)
     dfp_check_for_VXSNAN(dfp);
 }
 
-DFP_HELPER_RINT(drintx, RINTX_PPs, 64)
-DFP_HELPER_RINT(drintxq, RINTX_PPs, 128)
+DFP_HELPER_RINT(DRINTX, RINTX_PPs, 64)
+DFP_HELPER_RINT(DRINTXQ, RINTX_PPs, 128)
 
 static void RINTN_PPs(struct PPC_DFP *dfp)
 {
@@ -882,8 +882,8 @@ static void RINTN_PPs(struct PPC_DFP *dfp)
     dfp_check_for_VXSNAN(dfp);
 }
 
-DFP_HELPER_RINT(drintn, RINTN_PPs, 64)
-DFP_HELPER_RINT(drintnq, RINTN_PPs, 128)
+DFP_HELPER_RINT(DRINTN, RINTN_PPs, 64)
+DFP_HELPER_RINT(DRINTNQ, RINTN_PPs, 128)
 
 void helper_dctdp(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
 {
