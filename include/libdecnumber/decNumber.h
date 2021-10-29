@@ -124,6 +124,8 @@
   uint32_t    decNumberToUInt32(const decNumber *, decContext *);
   int32_t     decNumberToInt32(const decNumber *, decContext *);
   int64_t     decNumberIntegralToInt64(const decNumber *dn, decContext *set);
+  void        decNumberIntegralToInt128(const decNumber *dn, decContext *set,
+        uint64_t *plow, uint64_t *phigh);
   uint8_t   * decNumberGetBCD(const decNumber *, uint8_t *);
   decNumber * decNumberSetBCD(decNumber *, const uint8_t *, uint32_t);
 
