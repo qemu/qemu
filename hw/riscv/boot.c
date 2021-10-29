@@ -38,6 +38,31 @@ bool riscv_is_32bit(RISCVHartArrayState *harts)
     return harts->harts[0].env.misa_mxl_max == MXL_RV32;
 }
 
+/*
+ * Return the per-socket PLIC hart topology configuration string
+ * (caller must free with g_free())
+ */
+char *riscv_plic_hart_config_string(int hart_count)
+{
+    g_autofree const char **vals = g_new(const char *, hart_count + 1);
+    int i;
+
+    for (i = 0; i < hart_count; i++) {
+        CPUState *cs = qemu_get_cpu(i);
+        CPURISCVState *env = &RISCV_CPU(cs)->env;
+
+        if (riscv_has_ext(env, RVS)) {
+            vals[i] = "MS";
+        } else {
+            vals[i] = "M";
+        }
+    }
+    vals[i] = NULL;
+
+    /* g_strjoinv() obliges us to cast away const here */
+    return g_strjoinv(",", (char **)vals);
+}
+
 target_ulong riscv_calc_kernel_start_addr(RISCVHartArrayState *harts,
                                           target_ulong firmware_end_addr) {
     if (riscv_is_32bit(harts)) {

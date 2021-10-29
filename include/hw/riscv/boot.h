@@ -31,6 +31,8 @@
 
 bool riscv_is_32bit(RISCVHartArrayState *harts);
 
+char *riscv_plic_hart_config_string(int hart_count);
+
 target_ulong riscv_calc_kernel_start_addr(RISCVHartArrayState *harts,
                                           target_ulong firmware_end_addr);
 target_ulong riscv_find_and_load_firmware(MachineState *machine,
