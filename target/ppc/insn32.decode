@@ -44,6 +44,16 @@
 &X              rt ra rb
 @X              ...... rt:5 ra:5 rb:5 .......... .      &X
 
+&X_rc           rt ra rb rc:bool
+@X_rc           ...... rt:5 ra:5 rb:5 .......... rc:1           &X_rc
+
+%x_frtp         22:4 !function=times_2
+%x_frap         17:4 !function=times_2
+%x_frbp         12:4 !function=times_2
+@X_tp_ap_bp_rc  ...... ....0 ....0 ....0 .......... rc:1        &X_rc rt=%x_frtp ra=%x_frap rb=%x_frbp
+
+@X_tp_a_bp_rc   ...... ....0 ra:5 ....0 .......... rc:1         &X_rc rt=%x_frtp rb=%x_frbp
+
 &X_bi           rt bi
 @X_bi           ...... rt:5 bi:5 ----- .......... -     &X_bi
 
@@ -51,11 +61,9 @@
 @X_bfl          ...... bf:3 - l:1 ra:5 rb:5 ..........- &X_bfl
 
 &X_frtp_vrb     frtp vrb
-%x_frtp         22:4 !function=times_2
 @X_frtp_vrb     ...... ....0 ..... vrb:5 .......... .           &X_frtp_vrb frtp=%x_frtp
 
 &X_vrt_frbp     vrt frbp
-%x_frbp         12:4 !function=times_2
 @X_vrt_frbp     ...... vrt:5 ..... ....0 .......... .           &X_vrt_frbp frbp=%x_frbp
 
 &Z22_bf_fra     bf fra dm
@@ -174,6 +182,20 @@ SETBCR          011111 ..... ..... ----- 0110100000 -   @X_bi
 SETNBC          011111 ..... ..... ----- 0111000000 -   @X_bi
 SETNBCR         011111 ..... ..... ----- 0111100000 -   @X_bi
 
+### Decimal Floating-Point Arithmetic Instructions
+
+DADD            111011 ..... ..... ..... 0000000010 .   @X_rc
+DADDQ           111111 ..... ..... ..... 0000000010 .   @X_tp_ap_bp_rc
+
+DSUB            111011 ..... ..... ..... 1000000010 .   @X_rc
+DSUBQ           111111 ..... ..... ..... 1000000010 .   @X_tp_ap_bp_rc
+
+DMUL            111011 ..... ..... ..... 0000100010 .   @X_rc
+DMULQ           111111 ..... ..... ..... 0000100010 .   @X_tp_ap_bp_rc
+
+DDIV            111011 ..... ..... ..... 1000100010 .   @X_rc
+DDIVQ           111111 ..... ..... ..... 1000100010 .   @X_tp_ap_bp_rc
+
 ### Decimal Floating-Point Test Instructions
 
 DTSTDC          111011 ... -- ..... ...... 011000010 -  @Z22_bf_fra
@@ -186,6 +208,11 @@ DTSTDGQ         111111 ... -- ..... ...... 011100010 -  @Z22_bf_frap
 
 DCFFIXQQ        111111 ..... 00000 ..... 1111100010 -   @X_frtp_vrb
 DCTFIXQQ        111111 ..... 00001 ..... 1111100010 -   @X_vrt_frbp
+
+### Decimal Floating-Point Format Instructions
+
+DIEX            111011 ..... ..... ..... 1101100010 .   @X_rc
+DIEXQ           111111 ..... ..... ..... 1101100010 .   @X_tp_a_bp_rc
 
 ## Vector Bit Manipulation Instruction
 

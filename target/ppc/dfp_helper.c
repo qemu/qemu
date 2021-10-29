@@ -445,8 +445,8 @@ static void ADD_PPs(struct PPC_DFP *dfp)
     dfp_check_for_VXISI_add(dfp);
 }
 
-DFP_HELPER_TAB(dadd, decNumberAdd, ADD_PPs, 64)
-DFP_HELPER_TAB(daddq, decNumberAdd, ADD_PPs, 128)
+DFP_HELPER_TAB(DADD, decNumberAdd, ADD_PPs, 64)
+DFP_HELPER_TAB(DADDQ, decNumberAdd, ADD_PPs, 128)
 
 static void SUB_PPs(struct PPC_DFP *dfp)
 {
@@ -458,8 +458,8 @@ static void SUB_PPs(struct PPC_DFP *dfp)
     dfp_check_for_VXISI_subtract(dfp);
 }
 
-DFP_HELPER_TAB(dsub, decNumberSubtract, SUB_PPs, 64)
-DFP_HELPER_TAB(dsubq, decNumberSubtract, SUB_PPs, 128)
+DFP_HELPER_TAB(DSUB, decNumberSubtract, SUB_PPs, 64)
+DFP_HELPER_TAB(DSUBQ, decNumberSubtract, SUB_PPs, 128)
 
 static void MUL_PPs(struct PPC_DFP *dfp)
 {
@@ -471,8 +471,8 @@ static void MUL_PPs(struct PPC_DFP *dfp)
     dfp_check_for_VXIMZ(dfp);
 }
 
-DFP_HELPER_TAB(dmul, decNumberMultiply, MUL_PPs, 64)
-DFP_HELPER_TAB(dmulq, decNumberMultiply, MUL_PPs, 128)
+DFP_HELPER_TAB(DMUL, decNumberMultiply, MUL_PPs, 64)
+DFP_HELPER_TAB(DMULQ, decNumberMultiply, MUL_PPs, 128)
 
 static void DIV_PPs(struct PPC_DFP *dfp)
 {
@@ -486,8 +486,8 @@ static void DIV_PPs(struct PPC_DFP *dfp)
     dfp_check_for_VXIDI(dfp);
 }
 
-DFP_HELPER_TAB(ddiv, decNumberDivide, DIV_PPs, 64)
-DFP_HELPER_TAB(ddivq, decNumberDivide, DIV_PPs, 128)
+DFP_HELPER_TAB(DDIV, decNumberDivide, DIV_PPs, 64)
+DFP_HELPER_TAB(DDIVQ, decNumberDivide, DIV_PPs, 128)
 
 #define DFP_HELPER_BF_AB(op, dnop, postprocs, size)                            \
 uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, ppc_fprp_t *b)           \
@@ -1299,8 +1299,8 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,          \
     set_dfp##size(t, &dfp.vt);                                            \
 }
 
-DFP_HELPER_IEX(diex, 64)
-DFP_HELPER_IEX(diexq, 128)
+DFP_HELPER_IEX(DIEX, 64)
+DFP_HELPER_IEX(DIEXQ, 128)
 
 static void dfp_clear_lmd_from_g5msb(uint64_t *t)
 {
