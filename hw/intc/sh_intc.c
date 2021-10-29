@@ -100,33 +100,26 @@ int sh_intc_get_pending_vector(struct intc_desc *desc, int imask)
     abort();
 }
 
-#define INTC_MODE_NONE       0
-#define INTC_MODE_DUAL_SET   1
-#define INTC_MODE_DUAL_CLR   2
-#define INTC_MODE_ENABLE_REG 3
-#define INTC_MODE_MASK_REG   4
-#define INTC_MODE_IS_PRIO    8
+typedef enum {
+    INTC_MODE_NONE,
+    INTC_MODE_DUAL_SET,
+    INTC_MODE_DUAL_CLR,
+    INTC_MODE_ENABLE_REG,
+    INTC_MODE_MASK_REG,
+} SHIntCMode;
+#define INTC_MODE_IS_PRIO 0x80
 
-static unsigned int sh_intc_mode(unsigned long address,
-                                 unsigned long set_reg, unsigned long clr_reg)
+static SHIntCMode sh_intc_mode(unsigned long address, unsigned long set_reg,
+                               unsigned long clr_reg)
 {
-    if ((address != A7ADDR(set_reg)) &&
-        (address != A7ADDR(clr_reg)))
+    if (address != A7ADDR(set_reg) && address != A7ADDR(clr_reg)) {
         return INTC_MODE_NONE;
-
+    }
     if (set_reg && clr_reg) {
-        if (address == A7ADDR(set_reg)) {
-            return INTC_MODE_DUAL_SET;
-        } else {
-            return INTC_MODE_DUAL_CLR;
-        }
+        return address == A7ADDR(set_reg) ?
+               INTC_MODE_DUAL_SET : INTC_MODE_DUAL_CLR;
     }
-
-    if (set_reg) {
-        return INTC_MODE_ENABLE_REG;
-    } else {
-        return INTC_MODE_MASK_REG;
-    }
+    return set_reg ? INTC_MODE_ENABLE_REG : INTC_MODE_MASK_REG;
 }
 
 static void sh_intc_locate(struct intc_desc *desc,
@@ -137,7 +130,8 @@ static void sh_intc_locate(struct intc_desc *desc,
                            unsigned int *width,
                            unsigned int *modep)
 {
-    unsigned int i, mode;
+    SHIntCMode mode;
+    unsigned int i;
 
     /* this is slow but works for now */
 
