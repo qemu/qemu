@@ -386,6 +386,26 @@ uint64_t helper_cfuged(uint64_t src, uint64_t mask)
     return left | (right >> n);
 }
 
+#if defined(TARGET_PPC64)
+uint64_t helper_PDEPD(uint64_t src, uint64_t mask)
+{
+    int i, o;
+    uint64_t result = 0;
+
+    if (mask == -1) {
+        return src;
+    }
+
+    for (i = 0; mask != 0; i++) {
+        o = ctz64(mask);
+        mask &= mask - 1;
+        result |= ((src >> i) & 1) << o;
+    }
+
+    return result;
+}
+#endif
+
 /*****************************************************************************/
 /* PowerPC 601 specific instructions (POWER bridge) */
 target_ulong helper_div(CPUPPCState *env, target_ulong arg1, target_ulong arg2)
