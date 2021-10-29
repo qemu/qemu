@@ -56,10 +56,10 @@
 #define LINUX_LOAD_OFFSET  0x0800000
 #define INITRD_LOAD_OFFSET 0x1800000
 
-#define PA_IRLMSK	0x00
-#define PA_POWOFF	0x30
-#define PA_VERREG	0x32
-#define PA_OUTPORT	0x36
+#define PA_IRLMSK 0x00
+#define PA_POWOFF 0x30
+#define PA_VERREG 0x32
+#define PA_OUTPORT 0x36
 
 typedef struct {
     uint16_t bcr;
@@ -96,19 +96,19 @@ enum r2d_fpga_irq {
 };
 
 static const struct { short irl; uint16_t msk; } irqtab[NR_IRQS] = {
-    [CF_IDE]	= {  1, 1<<9 },
-    [CF_CD]	= {  2, 1<<8 },
-    [PCI_INTA]	= {  9, 1<<14 },
-    [PCI_INTB]	= { 10, 1<<13 },
-    [PCI_INTC]	= {  3, 1<<12 },
-    [PCI_INTD]	= {  0, 1<<11 },
-    [SM501]	= {  4, 1<<10 },
-    [KEY]	= {  5, 1<<6 },
-    [RTC_A]	= {  6, 1<<5 },
-    [RTC_T]	= {  7, 1<<4 },
-    [SDCARD]	= {  8, 1<<7 },
-    [EXT]	= { 11, 1<<0 },
-    [TP]	= { 12, 1<<15 },
+    [CF_IDE] =   {  1, 1<<9 },
+    [CF_CD] =    {  2, 1<<8 },
+    [PCI_INTA] = {  9, 1<<14 },
+    [PCI_INTB] = { 10, 1<<13 },
+    [PCI_INTC] = {  3, 1<<12 },
+    [PCI_INTD] = {  0, 1<<11 },
+    [SM501] =    {  4, 1<<10 },
+    [KEY] =      {  5, 1<<6 },
+    [RTC_A] =    {  6, 1<<5 },
+    [RTC_T] =    {  7, 1<<4 },
+    [SDCARD] =   {  8, 1<<7 },
+    [EXT] =      { 11, 1<<0 },
+    [TP] =       { 12, 1<<15 },
 };
 
 static void update_irl(r2d_fpga_t *fpga)
