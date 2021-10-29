@@ -160,6 +160,16 @@ static bool do_ldst_quad(DisasContext *ctx, arg_D *a, bool store, bool prefixed)
     return true;
 }
 
+static bool do_ldst_quad_PLS_D(DisasContext *ctx, arg_PLS_D *a, bool store)
+{
+    arg_D d;
+    if (!resolve_PLS_D(ctx, &d, a)) {
+        return true;
+    }
+
+    return do_ldst_quad(ctx, &d, store, true);
+}
+
 /* Load Byte and Zero */
 TRANS(LBZ, do_ldst_D, false, false, MO_UB)
 TRANS(LBZX, do_ldst_X, false, false, MO_UB)
@@ -203,6 +213,7 @@ TRANS64(PLD, do_ldst_PLS_D, false, false, MO_Q)
 
 /* Load Quadword */
 TRANS64(LQ, do_ldst_quad, false, false);
+TRANS64(PLQ, do_ldst_quad_PLS_D, false);
 
 /* Store Byte */
 TRANS(STB, do_ldst_D, false, true, MO_UB)
@@ -234,6 +245,7 @@ TRANS64(PSTD, do_ldst_PLS_D, false, true, MO_Q)
 
 /* Store Quadword */
 TRANS64(STQ, do_ldst_quad, true, false);
+TRANS64(PSTQ, do_ldst_quad_PLS_D, true);
 
 /*
  * Fixed-Point Compare Instructions
