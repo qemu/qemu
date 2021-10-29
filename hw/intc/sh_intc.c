@@ -23,7 +23,7 @@ void sh_intc_toggle_source(struct intc_source *source,
     int pending_changed = 0;
     int old_pending;
 
-    if ((source->enable_count == source->enable_max) && (enable_adj == -1)) {
+    if (source->enable_count == source->enable_max && enable_adj == -1) {
         enable_changed = -1;
     }
     source->enable_count += enable_adj;
@@ -68,7 +68,7 @@ void sh_intc_toggle_source(struct intc_source *source,
 static void sh_intc_set_irq(void *opaque, int n, int level)
 {
     struct intc_desc *desc = opaque;
-    struct intc_source *source = &(desc->sources[n]);
+    struct intc_source *source = &desc->sources[n];
 
     if (level && !source->asserted) {
         sh_intc_toggle_source(source, 0, 1);
@@ -163,7 +163,7 @@ static void sh_intc_locate(struct intc_desc *desc,
             *modep = mode | INTC_MODE_IS_PRIO;
             *datap = &pr->value;
             *enums = pr->enum_ids;
-            *first = (pr->reg_width / pr->field_width) - 1;
+            *first = pr->reg_width / pr->field_width - 1;
             *width = pr->field_width;
             return;
         }
@@ -244,7 +244,8 @@ static void sh_intc_write(void *opaque, hwaddr offset,
     }
 
     for (k = 0; k <= first; k++) {
-        mask = ((1 << width) - 1) << ((first - k) * width);
+        mask = (1 << width) - 1;
+        mask <<= (first - k) * width;
 
         if ((*valuep & mask) == (value & mask)) {
             continue;
