@@ -139,15 +139,14 @@ static void sh_intc_locate(struct intc_desc *desc,
             struct intc_mask_reg *mr = &desc->mask_regs[i];
 
             mode = sh_intc_mode(address, mr->set_reg, mr->clr_reg);
-            if (mode == INTC_MODE_NONE) {
-                continue;
+            if (mode != INTC_MODE_NONE) {
+                *modep = mode;
+                *datap = &mr->value;
+                *enums = mr->enum_ids;
+                *first = mr->reg_width - 1;
+                *width = 1;
+                return;
             }
-            *modep = mode;
-            *datap = &mr->value;
-            *enums = mr->enum_ids;
-            *first = mr->reg_width - 1;
-            *width = 1;
-            return;
         }
     }
 
@@ -156,15 +155,14 @@ static void sh_intc_locate(struct intc_desc *desc,
             struct intc_prio_reg *pr = &desc->prio_regs[i];
 
             mode = sh_intc_mode(address, pr->set_reg, pr->clr_reg);
-            if (mode == INTC_MODE_NONE) {
-                continue;
+            if (mode != INTC_MODE_NONE) {
+                *modep = mode | INTC_MODE_IS_PRIO;
+                *datap = &pr->value;
+                *enums = pr->enum_ids;
+                *first = pr->reg_width / pr->field_width - 1;
+                *width = pr->field_width;
+                return;
             }
-            *modep = mode | INTC_MODE_IS_PRIO;
-            *datap = &pr->value;
-            *enums = pr->enum_ids;
-            *first = pr->reg_width / pr->field_width - 1;
-            *width = pr->field_width;
-            return;
         }
     }
     g_assert_not_reached();
@@ -245,10 +243,9 @@ static void sh_intc_write(void *opaque, hwaddr offset,
         mask = (1 << width) - 1;
         mask <<= (first - k) * width;
 
-        if ((*valuep & mask) == (value & mask)) {
-            continue;
+        if ((*valuep & mask) != (value & mask)) {
+            sh_intc_toggle_mask(desc, enum_ids[k], value & mask, 0);
         }
-        sh_intc_toggle_mask(desc, enum_ids[k], value & mask, 0);
     }
 
     *valuep = value;
@@ -341,12 +338,11 @@ void sh_intc_register_sources(struct intc_desc *desc,
             s->next_enum_id = gr->enum_ids[0];
 
             for (k = 1; k < ARRAY_SIZE(gr->enum_ids); k++) {
-                if (!gr->enum_ids[k]) {
-                    continue;
+                if (gr->enum_ids[k]) {
+                    id = gr->enum_ids[k - 1];
+                    s = &desc->sources[id];
+                    s->next_enum_id = gr->enum_ids[k];
                 }
-                id = gr->enum_ids[k - 1];
-                s = &desc->sources[id];
-                s->next_enum_id = gr->enum_ids[k];
             }
             trace_sh_intc_register("group", gr->enum_id, 0xffff,
                                    s->enable_count, s->enable_max);
