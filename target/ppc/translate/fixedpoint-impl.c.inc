@@ -69,6 +69,97 @@ static bool do_ldst_X(DisasContext *ctx, arg_X *a, bool update,
     return do_ldst(ctx, a->rt, a->ra, cpu_gpr[a->rb], update, store, mop);
 }
 
+static bool do_ldst_quad(DisasContext *ctx, arg_D *a, bool store, bool prefixed)
+{
+#if defined(TARGET_PPC64)
+    TCGv ea;
+    TCGv_i64 low_addr_gpr, high_addr_gpr;
+    MemOp mop;
+
+    REQUIRE_INSNS_FLAGS(ctx, 64BX);
+
+    if (!prefixed && !(ctx->insns_flags2 & PPC2_LSQ_ISA207)) {
+        if (ctx->pr) {
+            /* lq and stq were privileged prior to V. 2.07 */
+            gen_priv_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+            return true;
+        }
+
+        if (ctx->le_mode) {
+            gen_align_no_le(ctx);
+            return true;
+        }
+    }
+
+    if (!store && unlikely(a->ra == a->rt)) {
+        gen_invalid(ctx);
+        return true;
+    }
+
+    gen_set_access_type(ctx, ACCESS_INT);
+    ea = do_ea_calc(ctx, a->ra, tcg_constant_tl(a->si));
+
+    if (prefixed || !ctx->le_mode) {
+        low_addr_gpr = cpu_gpr[a->rt];
+        high_addr_gpr = cpu_gpr[a->rt + 1];
+    } else {
+        low_addr_gpr = cpu_gpr[a->rt + 1];
+        high_addr_gpr = cpu_gpr[a->rt];
+    }
+
+    if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+        if (HAVE_ATOMIC128) {
+            mop = DEF_MEMOP(MO_128);
+            TCGv_i32 oi = tcg_constant_i32(make_memop_idx(mop, ctx->mem_idx));
+            if (store) {
+                if (ctx->le_mode) {
+                    gen_helper_stq_le_parallel(cpu_env, ea, low_addr_gpr,
+                                               high_addr_gpr, oi);
+                } else {
+                    gen_helper_stq_be_parallel(cpu_env, ea, high_addr_gpr,
+                                               low_addr_gpr, oi);
+
+                }
+            } else {
+                if (ctx->le_mode) {
+                    gen_helper_lq_le_parallel(low_addr_gpr, cpu_env, ea, oi);
+                    tcg_gen_ld_i64(high_addr_gpr, cpu_env,
+                                   offsetof(CPUPPCState, retxh));
+                } else {
+                    gen_helper_lq_be_parallel(high_addr_gpr, cpu_env, ea, oi);
+                    tcg_gen_ld_i64(low_addr_gpr, cpu_env,
+                                   offsetof(CPUPPCState, retxh));
+                }
+            }
+        } else {
+            /* Restart with exclusive lock.  */
+            gen_helper_exit_atomic(cpu_env);
+            ctx->base.is_jmp = DISAS_NORETURN;
+        }
+    } else {
+        mop = DEF_MEMOP(MO_Q);
+        if (store) {
+            tcg_gen_qemu_st_i64(low_addr_gpr, ea, ctx->mem_idx, mop);
+        } else {
+            tcg_gen_qemu_ld_i64(low_addr_gpr, ea, ctx->mem_idx, mop);
+        }
+
+        gen_addr_add(ctx, ea, ea, 8);
+
+        if (store) {
+            tcg_gen_qemu_st_i64(high_addr_gpr, ea, ctx->mem_idx, mop);
+        } else {
+            tcg_gen_qemu_ld_i64(high_addr_gpr, ea, ctx->mem_idx, mop);
+        }
+    }
+    tcg_temp_free(ea);
+#else
+    qemu_build_not_reached();
+#endif
+
+    return true;
+}
+
 /* Load Byte and Zero */
 TRANS(LBZ, do_ldst_D, false, false, MO_UB)
 TRANS(LBZX, do_ldst_X, false, false, MO_UB)
@@ -110,6 +201,9 @@ TRANS64(LDU, do_ldst_D, true, false, MO_Q)
 TRANS64(LDUX, do_ldst_X, true, false, MO_Q)
 TRANS64(PLD, do_ldst_PLS_D, false, false, MO_Q)
 
+/* Load Quadword */
+TRANS64(LQ, do_ldst_quad, false, false);
+
 /* Store Byte */
 TRANS(STB, do_ldst_D, false, true, MO_UB)
 TRANS(STBX, do_ldst_X, false, true, MO_UB)
@@ -137,6 +231,9 @@ TRANS64(STDX, do_ldst_X, false, true, MO_Q)
 TRANS64(STDU, do_ldst_D, true, true, MO_Q)
 TRANS64(STDUX, do_ldst_X, true, true, MO_Q)
 TRANS64(PSTD, do_ldst_PLS_D, false, true, MO_Q)
+
+/* Store Quadword */
+TRANS64(STQ, do_ldst_quad, true, false);
 
 /*
  * Fixed-Point Compare Instructions

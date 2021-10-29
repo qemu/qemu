@@ -24,8 +24,15 @@
 @D_bfs          ...... bf:3 - l:1 ra:5 imm:s16          &D_bf
 @D_bfu          ...... bf:3 - l:1 ra:5 imm:16           &D_bf
 
+%dq_si          4:s12  !function=times_16
+%dq_rtp         22:4   !function=times_2
+@DQ_rtp         ...... ....0 ra:5 ............ ....             &D rt=%dq_rtp si=%dq_si
+
 %ds_si          2:s14  !function=times_4
 @DS             ...... rt:5 ra:5 .............. ..      &D si=%ds_si
+
+%ds_rtp         22:4   !function=times_2
+@DS_rtp         ...... ....0 ra:5 .............. ..             &D rt=%ds_rtp si=%ds_si
 
 &DX             rt d
 %dx_d           6:s10 16:5 0:1
@@ -74,6 +81,8 @@ LDU             111010 ..... ..... ..............01     @DS
 LDX             011111 ..... ..... ..... 0000010101 -   @X
 LDUX            011111 ..... ..... ..... 0000110101 -   @X
 
+LQ              111000 ..... ..... ............ ----    @DQ_rtp
+
 ### Fixed-Point Store Instructions
 
 STB             100110 ..... ..... ................     @D
@@ -95,6 +104,8 @@ STD             111110 ..... ..... ..............00     @DS
 STDU            111110 ..... ..... ..............01     @DS
 STDX            011111 ..... ..... ..... 0010010101 -   @X
 STDUX           011111 ..... ..... ..... 0010110101 -   @X
+
+STQ             111110 ..... ..... ..............10     @DS_rtp
 
 ### Fixed-Point Compare Instructions
 

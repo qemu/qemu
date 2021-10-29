@@ -3327,69 +3327,6 @@ GEN_LDX_HVRM(ldcix, ld64_i64, 0x15, 0x1b, PPC_CILDST)
 GEN_LDX_HVRM(lwzcix, ld32u, 0x15, 0x15, PPC_CILDST)
 GEN_LDX_HVRM(lhzcix, ld16u, 0x15, 0x19, PPC_CILDST)
 GEN_LDX_HVRM(lbzcix, ld8u, 0x15, 0x1a, PPC_CILDST)
-
-/* lq */
-static void gen_lq(DisasContext *ctx)
-{
-    int ra, rd;
-    TCGv EA, hi, lo;
-
-    /* lq is a legal user mode instruction starting in ISA 2.07 */
-    bool legal_in_user_mode = (ctx->insns_flags2 & PPC2_LSQ_ISA207) != 0;
-    bool le_is_supported = (ctx->insns_flags2 & PPC2_LSQ_ISA207) != 0;
-
-    if (!legal_in_user_mode && ctx->pr) {
-        gen_priv_exception(ctx, POWERPC_EXCP_PRIV_OPC);
-        return;
-    }
-
-    if (!le_is_supported && ctx->le_mode) {
-        gen_align_no_le(ctx);
-        return;
-    }
-    ra = rA(ctx->opcode);
-    rd = rD(ctx->opcode);
-    if (unlikely((rd & 1) || rd == ra)) {
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
-        return;
-    }
-
-    gen_set_access_type(ctx, ACCESS_INT);
-    EA = tcg_temp_new();
-    gen_addr_imm_index(ctx, EA, 0x0F);
-
-    /* Note that the low part is always in RD+1, even in LE mode.  */
-    lo = cpu_gpr[rd + 1];
-    hi = cpu_gpr[rd];
-
-    if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
-        if (HAVE_ATOMIC128) {
-            TCGv_i32 oi = tcg_temp_new_i32();
-            if (ctx->le_mode) {
-                tcg_gen_movi_i32(oi, make_memop_idx(MO_LEQ, ctx->mem_idx));
-                gen_helper_lq_le_parallel(lo, cpu_env, EA, oi);
-            } else {
-                tcg_gen_movi_i32(oi, make_memop_idx(MO_BEQ, ctx->mem_idx));
-                gen_helper_lq_be_parallel(lo, cpu_env, EA, oi);
-            }
-            tcg_temp_free_i32(oi);
-            tcg_gen_ld_i64(hi, cpu_env, offsetof(CPUPPCState, retxh));
-        } else {
-            /* Restart with exclusive lock.  */
-            gen_helper_exit_atomic(cpu_env);
-            ctx->base.is_jmp = DISAS_NORETURN;
-        }
-    } else if (ctx->le_mode) {
-        tcg_gen_qemu_ld_i64(lo, EA, ctx->mem_idx, MO_LEQ);
-        gen_addr_add(ctx, EA, EA, 8);
-        tcg_gen_qemu_ld_i64(hi, EA, ctx->mem_idx, MO_LEQ);
-    } else {
-        tcg_gen_qemu_ld_i64(hi, EA, ctx->mem_idx, MO_BEQ);
-        gen_addr_add(ctx, EA, EA, 8);
-        tcg_gen_qemu_ld_i64(lo, EA, ctx->mem_idx, MO_BEQ);
-    }
-    tcg_temp_free(EA);
-}
 #endif
 
 /***                              Integer store                            ***/
@@ -3435,90 +3372,6 @@ GEN_STX_HVRM(stdcix, st64_i64, 0x15, 0x1f, PPC_CILDST)
 GEN_STX_HVRM(stwcix, st32, 0x15, 0x1c, PPC_CILDST)
 GEN_STX_HVRM(sthcix, st16, 0x15, 0x1d, PPC_CILDST)
 GEN_STX_HVRM(stbcix, st8, 0x15, 0x1e, PPC_CILDST)
-
-static void gen_std(DisasContext *ctx)
-{
-    int rs;
-    TCGv EA;
-
-    rs = rS(ctx->opcode);
-    if ((ctx->opcode & 0x3) == 0x2) { /* stq */
-        bool legal_in_user_mode = (ctx->insns_flags2 & PPC2_LSQ_ISA207) != 0;
-        bool le_is_supported = (ctx->insns_flags2 & PPC2_LSQ_ISA207) != 0;
-        TCGv hi, lo;
-
-        if (!(ctx->insns_flags & PPC_64BX)) {
-            gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
-        }
-
-        if (!legal_in_user_mode && ctx->pr) {
-            gen_priv_exception(ctx, POWERPC_EXCP_PRIV_OPC);
-            return;
-        }
-
-        if (!le_is_supported && ctx->le_mode) {
-            gen_align_no_le(ctx);
-            return;
-        }
-
-        if (unlikely(rs & 1)) {
-            gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
-            return;
-        }
-        gen_set_access_type(ctx, ACCESS_INT);
-        EA = tcg_temp_new();
-        gen_addr_imm_index(ctx, EA, 0x03);
-
-        /* Note that the low part is always in RS+1, even in LE mode.  */
-        lo = cpu_gpr[rs + 1];
-        hi = cpu_gpr[rs];
-
-        if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
-            if (HAVE_ATOMIC128) {
-                TCGv_i32 oi = tcg_temp_new_i32();
-                if (ctx->le_mode) {
-                    tcg_gen_movi_i32(oi, make_memop_idx(MO_LE | MO_128,
-                                                        ctx->mem_idx));
-                    gen_helper_stq_le_parallel(cpu_env, EA, lo, hi, oi);
-                } else {
-                    tcg_gen_movi_i32(oi, make_memop_idx(MO_BE | MO_128,
-                                                        ctx->mem_idx));
-                    gen_helper_stq_be_parallel(cpu_env, EA, lo, hi, oi);
-                }
-                tcg_temp_free_i32(oi);
-            } else {
-                /* Restart with exclusive lock.  */
-                gen_helper_exit_atomic(cpu_env);
-                ctx->base.is_jmp = DISAS_NORETURN;
-            }
-        } else if (ctx->le_mode) {
-            tcg_gen_qemu_st_i64(lo, EA, ctx->mem_idx, MO_LEQ);
-            gen_addr_add(ctx, EA, EA, 8);
-            tcg_gen_qemu_st_i64(hi, EA, ctx->mem_idx, MO_LEQ);
-        } else {
-            tcg_gen_qemu_st_i64(hi, EA, ctx->mem_idx, MO_BEQ);
-            gen_addr_add(ctx, EA, EA, 8);
-            tcg_gen_qemu_st_i64(lo, EA, ctx->mem_idx, MO_BEQ);
-        }
-        tcg_temp_free(EA);
-    } else {
-        /* std / stdu */
-        if (Rc(ctx->opcode)) {
-            if (unlikely(rA(ctx->opcode) == 0)) {
-                gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
-                return;
-            }
-        }
-        gen_set_access_type(ctx, ACCESS_INT);
-        EA = tcg_temp_new();
-        gen_addr_imm_index(ctx, EA, 0x03);
-        gen_qemu_st64_i64(ctx, cpu_gpr[rs], EA);
-        if (Rc(ctx->opcode)) {
-            tcg_gen_mov_tl(cpu_gpr[rA(ctx->opcode)], EA);
-        }
-        tcg_temp_free(EA);
-    }
-}
 #endif
 /***                Integer load and store with byte reverse               ***/
 
@@ -7457,6 +7310,11 @@ static int times_4(DisasContext *ctx, int x)
     return x * 4;
 }
 
+static int times_16(DisasContext *ctx, int x)
+{
+    return x * 16;
+}
+
 /*
  * Helpers for trans_* functions to check for specific insns flags.
  * Use token pasting to ensure that we use the proper flag with the
@@ -7695,10 +7553,6 @@ GEN_HANDLER2_E(extswsli0, "extswsli", 0x1F, 0x1A, 0x1B, 0x00000000,
                PPC_NONE, PPC2_ISA300),
 GEN_HANDLER2_E(extswsli1, "extswsli", 0x1F, 0x1B, 0x1B, 0x00000000,
                PPC_NONE, PPC2_ISA300),
-#endif
-#if defined(TARGET_PPC64)
-GEN_HANDLER(lq, 0x38, 0xFF, 0xFF, 0x00000000, PPC_64BX),
-GEN_HANDLER(std, 0x3E, 0xFF, 0xFF, 0x00000000, PPC_64B),
 #endif
 /* handles lfdp, lxsd, lxssp */
 GEN_HANDLER_E(dform39, 0x39, 0xFF, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA205),
