@@ -269,36 +269,6 @@ struct intc_source *sh_intc_source(struct intc_desc *desc, intc_enum id)
     return NULL;
 }
 
-static unsigned int sh_intc_register(MemoryRegion *sysmem,
-                                     struct intc_desc *desc,
-                                     const unsigned long address,
-                                     const char *type,
-                                     const char *action,
-                                     const unsigned int index)
-{
-    char name[60];
-    MemoryRegion *iomem, *iomem_p4, *iomem_a7;
-
-    if (!address) {
-        return 0;
-    }
-
-    iomem = &desc->iomem;
-    iomem_p4 = desc->iomem_aliases + index;
-    iomem_a7 = iomem_p4 + 1;
-
-    snprintf(name, sizeof(name), "intc-%s-%s-%s", type, action, "p4");
-    memory_region_init_alias(iomem_p4, NULL, name, iomem, A7ADDR(address), 4);
-    memory_region_add_subregion(sysmem, P4ADDR(address), iomem_p4);
-
-    snprintf(name, sizeof(name), "intc-%s-%s-%s", type, action, "a7");
-    memory_region_init_alias(iomem_a7, NULL, name, iomem, A7ADDR(address), 4);
-    memory_region_add_subregion(sysmem, A7ADDR(address), iomem_a7);
-
-    /* used to increment aliases index */
-    return 2;
-}
-
 static void sh_intc_register_source(struct intc_desc *desc,
                                     intc_enum source,
                                     struct intc_group *groups,
@@ -396,6 +366,36 @@ void sh_intc_register_sources(struct intc_desc *desc,
                                    s->enable_count, s->enable_max);
         }
     }
+}
+
+static unsigned int sh_intc_register(MemoryRegion *sysmem,
+                                     struct intc_desc *desc,
+                                     const unsigned long address,
+                                     const char *type,
+                                     const char *action,
+                                     const unsigned int index)
+{
+    char name[60];
+    MemoryRegion *iomem, *iomem_p4, *iomem_a7;
+
+    if (!address) {
+        return 0;
+    }
+
+    iomem = &desc->iomem;
+    iomem_p4 = desc->iomem_aliases + index;
+    iomem_a7 = iomem_p4 + 1;
+
+    snprintf(name, sizeof(name), "intc-%s-%s-%s", type, action, "p4");
+    memory_region_init_alias(iomem_p4, NULL, name, iomem, A7ADDR(address), 4);
+    memory_region_add_subregion(sysmem, P4ADDR(address), iomem_p4);
+
+    snprintf(name, sizeof(name), "intc-%s-%s-%s", type, action, "a7");
+    memory_region_init_alias(iomem_a7, NULL, name, iomem, A7ADDR(address), 4);
+    memory_region_add_subregion(sysmem, A7ADDR(address), iomem_a7);
+
+    /* used to increment aliases index */
+    return 2;
 }
 
 int sh_intc_init(MemoryRegion *sysmem,
