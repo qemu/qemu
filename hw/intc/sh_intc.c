@@ -399,21 +399,14 @@ int sh_intc_init(MemoryRegion *sysmem,
     /* Allocate 4 MemoryRegions per register (2 actions * 2 aliases) */
     desc->iomem_aliases = g_new0(MemoryRegion,
                                  (nr_mask_regs + nr_prio_regs) * 4);
-
-    j = 0;
-    i = sizeof(struct intc_source) * nr_sources;
-    desc->sources = g_malloc0(i);
-
-    for (i = 0; i < desc->nr_sources; i++) {
-        struct intc_source *source = &desc->sources[i];
-
-        source->parent = desc;
+    desc->sources = g_new0(struct intc_source, nr_sources);
+    for (i = 0; i < nr_sources; i++) {
+        desc->sources[i].parent = desc;
     }
-
     desc->irqs = qemu_allocate_irqs(sh_intc_set_irq, desc, nr_sources);
     memory_region_init_io(&desc->iomem, NULL, &sh_intc_ops, desc, "intc",
                           0x100000000ULL);
-
+    j = 0;
     if (desc->mask_regs) {
         for (i = 0; i < desc->nr_mask_regs; i++) {
             struct intc_mask_reg *mr = &desc->mask_regs[i];
