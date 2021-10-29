@@ -81,6 +81,16 @@
 &X_bfl          bf l:bool ra rb
 @X_bfl          ...... bf:3 - l:1 ra:5 rb:5 ..........- &X_bfl
 
+&X_tb_sp_rc     rt rb sp rc:bool
+@X_tb_sp_rc     ...... rt:5 sp:2 ... rb:5 .......... rc:1       &X_tb_sp_rc
+
+@X_tbp_sp_rc    ...... ....0 sp:2 ... ....0 .......... rc:1     &X_tb_sp_rc rt=%x_frtp rb=%x_frbp
+
+&X_tb_s_rc      rt rb s:bool rc:bool
+@X_tb_s_rc      ...... rt:5 s:1 .... rb:5 .......... rc:1       &X_tb_s_rc
+
+@X_tbp_s_rc     ...... ....0 s:1 .... ....0 .......... rc:1     &X_tb_s_rc rt=%x_frtp rb=%x_frbp
+
 &X_frtp_vrb     frtp vrb
 @X_frtp_vrb     ...... ....0 ..... vrb:5 .......... .           &X_frtp_vrb frtp=%x_frtp
 
@@ -92,6 +102,12 @@
 
 %z22_frap       17:4 !function=times_2
 @Z22_bf_frap    ...... bf:3 .. ....0 dm:6 ......... .           &Z22_bf_fra fra=%z22_frap
+
+&Z22_ta_sh_rc   rt ra sh rc:bool
+@Z22_ta_sh_rc   ...... rt:5 ra:5 sh:6 ......... rc:1            &Z22_ta_sh_rc
+
+%z22_frtp       22:4 !function=times_2
+@Z22_tap_sh_rc  ...... ....0 ....0 sh:6 ......... rc:1          &Z22_ta_sh_rc rt=%z22_frtp ra=%z22_frap
 
 &Z23_tab        frt fra frb rmc rc:bool
 @Z23_tab        ...... frt:5 fra:5 frb:5 rmc:2 ........ rc:1    &Z23_tab
@@ -297,11 +313,23 @@ DCTFIXQQ        111111 ..... 00001 ..... 1111100010 -   @X_vrt_frbp
 
 ### Decimal Floating-Point Format Instructions
 
+DDEDPD          111011 ..... .. --- ..... 0101000010 .  @X_tb_sp_rc
+DDEDPDQ         111111 ..... .. --- ..... 0101000010 .  @X_tbp_sp_rc
+
+DENBCD          111011 ..... . ---- ..... 1101000010 .  @X_tb_s_rc
+DENBCDQ         111111 ..... . ---- ..... 1101000010 .  @X_tbp_s_rc
+
 DXEX            111011 ..... ----- ..... 0101100010 .   @X_tb_rc
 DXEXQ           111111 ..... ----- ..... 0101100010 .   @X_t_bp_rc
 
 DIEX            111011 ..... ..... ..... 1101100010 .   @X_rc
 DIEXQ           111111 ..... ..... ..... 1101100010 .   @X_tp_a_bp_rc
+
+DSCLI           111011 ..... ..... ...... 001000010 .   @Z22_ta_sh_rc
+DSCLIQ          111111 ..... ..... ...... 001000010 .   @Z22_tap_sh_rc
+
+DSCRI           111011 ..... ..... ...... 001100010 .   @Z22_ta_sh_rc
+DSCRIQ          111111 ..... ..... ...... 001100010 .   @Z22_tap_sh_rc
 
 ## Vector Bit Manipulation Instruction
 

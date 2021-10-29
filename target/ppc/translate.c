@@ -8079,8 +8079,6 @@ GEN_HANDLER2_E(trechkpt, "trechkpt", 0x1F, 0x0E, 0x1F, 0x03FFF800, \
 
 #include "translate/vsx-ops.c.inc"
 
-#include "translate/dfp-ops.c.inc"
-
 #include "translate/spe-ops.c.inc"
 };
 

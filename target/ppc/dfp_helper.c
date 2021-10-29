@@ -1131,8 +1131,8 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,          \
     set_dfp##size(t, &dfp.vt);                                            \
 }
 
-DFP_HELPER_DEDPD(ddedpd, 64)
-DFP_HELPER_DEDPD(ddedpdq, 128)
+DFP_HELPER_DEDPD(DDEDPD, 64)
+DFP_HELPER_DEDPD(DDEDPDQ, 128)
 
 static inline uint8_t dfp_get_bcd_digit_64(ppc_vsr_t *t, unsigned n)
 {
@@ -1199,8 +1199,8 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,             \
     set_dfp##size(t, &dfp.vt);                                               \
 }
 
-DFP_HELPER_ENBCD(denbcd, 64)
-DFP_HELPER_ENBCD(denbcdq, 128)
+DFP_HELPER_ENBCD(DENBCD, 64)
+DFP_HELPER_ENBCD(DENBCDQ, 128)
 
 #define DFP_HELPER_XEX(op, size)                               \
 void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b) \
@@ -1387,7 +1387,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,    \
     set_dfp##size(t, &dfp.vt);                                      \
 }
 
-DFP_HELPER_SHIFT(dscli, 64, 1)
-DFP_HELPER_SHIFT(dscliq, 128, 1)
-DFP_HELPER_SHIFT(dscri, 64, 0)
-DFP_HELPER_SHIFT(dscriq, 128, 0)
+DFP_HELPER_SHIFT(DSCLI, 64, 1)
+DFP_HELPER_SHIFT(DSCLIQ, 128, 1)
+DFP_HELPER_SHIFT(DSCRI, 64, 0)
+DFP_HELPER_SHIFT(DSCRIQ, 128, 0)
