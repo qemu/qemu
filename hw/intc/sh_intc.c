@@ -26,23 +26,23 @@ void sh_intc_toggle_source(struct intc_source *source,
     int pending_changed = 0;
     int old_pending;
 
-    if ((source->enable_count == source->enable_max) && (enable_adj == -1))
+    if ((source->enable_count == source->enable_max) && (enable_adj == -1)) {
         enable_changed = -1;
-
+    }
     source->enable_count += enable_adj;
 
-    if (source->enable_count == source->enable_max)
+    if (source->enable_count == source->enable_max) {
         enable_changed = 1;
-
+    }
     source->asserted += assert_adj;
 
     old_pending = source->pending;
     source->pending = source->asserted &&
       (source->enable_count == source->enable_max);
 
-    if (old_pending != source->pending)
+    if (old_pending != source->pending) {
         pending_changed = 1;
-
+    }
     if (pending_changed) {
         if (source->pending) {
             source->parent->pending++;
@@ -79,10 +79,11 @@ static void sh_intc_set_irq(void *opaque, int n, int level)
     struct intc_desc *desc = opaque;
     struct intc_source *source = &(desc->sources[n]);
 
-    if (level && !source->asserted)
-      sh_intc_toggle_source(source, 0, 1);
-    else if (!level && source->asserted)
-      sh_intc_toggle_source(source, 0, -1);
+    if (level && !source->asserted) {
+        sh_intc_toggle_source(source, 0, 1);
+    } else if (!level && source->asserted) {
+        sh_intc_toggle_source(source, 0, -1);
+    }
 }
 
 int sh_intc_get_pending_vector(struct intc_desc *desc, int imask)
@@ -126,16 +127,18 @@ static unsigned int sh_intc_mode(unsigned long address,
         return INTC_MODE_NONE;
 
     if (set_reg && clr_reg) {
-        if (address == INTC_A7(set_reg))
+        if (address == INTC_A7(set_reg)) {
             return INTC_MODE_DUAL_SET;
-        else
+        } else {
             return INTC_MODE_DUAL_CLR;
+        }
     }
 
-    if (set_reg)
+    if (set_reg) {
         return INTC_MODE_ENABLE_REG;
-    else
+    } else {
         return INTC_MODE_MASK_REG;
+    }
 }
 
 static void sh_intc_locate(struct intc_desc *desc,
@@ -155,9 +158,9 @@ static void sh_intc_locate(struct intc_desc *desc,
             struct intc_mask_reg *mr = desc->mask_regs + i;
 
             mode = sh_intc_mode(address, mr->set_reg, mr->clr_reg);
-            if (mode == INTC_MODE_NONE)
+            if (mode == INTC_MODE_NONE) {
                 continue;
-
+            }
             *modep = mode;
             *datap = &mr->value;
             *enums = mr->enum_ids;
@@ -172,9 +175,9 @@ static void sh_intc_locate(struct intc_desc *desc,
             struct intc_prio_reg *pr = desc->prio_regs + i;
 
             mode = sh_intc_mode(address, pr->set_reg, pr->clr_reg);
-            if (mode == INTC_MODE_NONE)
+            if (mode == INTC_MODE_NONE) {
                 continue;
-
+            }
             *modep = mode | INTC_MODE_IS_PRIO;
             *datap = &pr->value;
             *enums = pr->enum_ids;
@@ -192,9 +195,9 @@ static void sh_intc_toggle_mask(struct intc_desc *desc, intc_enum id,
 {
     struct intc_source *source = desc->sources + id;
 
-    if (!id)
+    if (!id) {
         return;
-
+    }
     if (!source->next_enum_id && (!source->enable_max || !source->vect)) {
 #ifdef DEBUG_INTC_SOURCES
         printf("sh_intc: reserved interrupt source %d modified\n", id);
@@ -202,9 +205,9 @@ static void sh_intc_toggle_mask(struct intc_desc *desc, intc_enum id,
         return;
     }
 
-    if (source->vect)
+    if (source->vect) {
         sh_intc_toggle_source(source, enable ? 1 : -1, 0);
-
+    }
 #ifdef DEBUG_INTC
     else {
         printf("setting interrupt group %d to %d\n", id, !!enable);
@@ -276,8 +279,9 @@ static void sh_intc_write(void *opaque, hwaddr offset,
     for (k = 0; k <= first; k++) {
         mask = ((1 << width) - 1) << ((first - k) * width);
 
-        if ((*valuep & mask) == (value & mask))
+        if ((*valuep & mask) == (value & mask)) {
             continue;
+        }
 #if 0
         printf("k = %d, first = %d, enum = %d, mask = 0x%08x\n",
                k, first, enum_ids[k], (unsigned int)mask);
@@ -300,9 +304,9 @@ static const MemoryRegionOps sh_intc_ops = {
 
 struct intc_source *sh_intc_source(struct intc_desc *desc, intc_enum id)
 {
-    if (id)
+    if (id) {
         return desc->sources + id;
-
+    }
     return NULL;
 }
 
@@ -351,12 +355,13 @@ static void sh_intc_register_source(struct intc_desc *desc,
             struct intc_mask_reg *mr = desc->mask_regs + i;
 
             for (k = 0; k < ARRAY_SIZE(mr->enum_ids); k++) {
-                if (mr->enum_ids[k] != source)
+                if (mr->enum_ids[k] != source) {
                     continue;
-
+                }
                 s = sh_intc_source(desc, mr->enum_ids[k]);
-                if (s)
+                if (s) {
                     s->enable_max++;
+                }
             }
         }
     }
@@ -366,12 +371,13 @@ static void sh_intc_register_source(struct intc_desc *desc,
             struct intc_prio_reg *pr = desc->prio_regs + i;
 
             for (k = 0; k < ARRAY_SIZE(pr->enum_ids); k++) {
-                if (pr->enum_ids[k] != source)
+                if (pr->enum_ids[k] != source) {
                     continue;
-
+                }
                 s = sh_intc_source(desc, pr->enum_ids[k]);
-                if (s)
+                if (s) {
                     s->enable_max++;
+                }
             }
         }
     }
@@ -381,12 +387,13 @@ static void sh_intc_register_source(struct intc_desc *desc,
             struct intc_group *gr = groups + i;
 
             for (k = 0; k < ARRAY_SIZE(gr->enum_ids); k++) {
-                if (gr->enum_ids[k] != source)
+                if (gr->enum_ids[k] != source) {
                     continue;
-
+                }
                 s = sh_intc_source(desc, gr->enum_ids[k]);
-                if (s)
+                if (s) {
                     s->enable_max++;
+                }
             }
         }
     }
@@ -425,9 +432,9 @@ void sh_intc_register_sources(struct intc_desc *desc,
             s->next_enum_id = gr->enum_ids[0];
 
             for (k = 1; k < ARRAY_SIZE(gr->enum_ids); k++) {
-                if (!gr->enum_ids[k])
+                if (!gr->enum_ids[k]) {
                     continue;
-
+                }
                 s = sh_intc_source(desc, gr->enum_ids[k - 1]);
                 s->next_enum_id = gr->enum_ids[k];
             }
@@ -512,11 +519,11 @@ void sh_intc_set_irl(void *opaque, int n, int level)
     struct intc_source *s = opaque;
     int i, irl = level ^ 15;
     for (i = 0; (s = sh_intc_source(s->parent, s->next_enum_id)); i++) {
-        if (i == irl)
+        if (i == irl) {
             sh_intc_toggle_source(s, s->enable_count ? 0 : 1,
                                   s->asserted ? 0 : 1);
-        else
-            if (s->asserted)
-                sh_intc_toggle_source(s, 0, -1);
+        } else if (s->asserted) {
+            sh_intc_toggle_source(s, 0, -1);
+        }
     }
 }

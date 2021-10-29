@@ -90,8 +90,9 @@ const char *regname(uint32_t addr)
     unsigned int i;
 
     for (i = 0; regnames[i].regaddr != (uint32_t)-1; i++) {
-        if (regnames[i].regaddr == addr)
+        if (regnames[i].regaddr == addr) {
             return regnames[i].regname;
+        }
     }
 
     return "<unknown reg>";

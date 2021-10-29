@@ -103,8 +103,9 @@ static void sh_serial_write(void *opaque, hwaddr offs,
     case 0x08: /* SCR */
         /* TODO : For SH7751, SCIF mask should be 0xfb. */
         s->scr = val & ((s->feat & SH_SERIAL_FEAT_SCIF) ? 0xfa : 0xff);
-        if (!(val & (1 << 5)))
+        if (!(val & (1 << 5))) {
             s->flags |= SH_SERIAL_FLAG_TEND;
+        }
         if ((s->feat & SH_SERIAL_FEAT_SCIF) && s->txi) {
             qemu_set_irq(s->txi, val & (1 << 7));
         }
@@ -133,16 +134,21 @@ static void sh_serial_write(void *opaque, hwaddr offs,
     if (s->feat & SH_SERIAL_FEAT_SCIF) {
         switch (offs) {
         case 0x10: /* FSR */
-            if (!(val & (1 << 6)))
+            if (!(val & (1 << 6))) {
                 s->flags &= ~SH_SERIAL_FLAG_TEND;
-            if (!(val & (1 << 5)))
+            }
+            if (!(val & (1 << 5))) {
                 s->flags &= ~SH_SERIAL_FLAG_TDE;
-            if (!(val & (1 << 4)))
+            }
+            if (!(val & (1 << 4))) {
                 s->flags &= ~SH_SERIAL_FLAG_BRK;
-            if (!(val & (1 << 1)))
+            }
+            if (!(val & (1 << 1))) {
                 s->flags &= ~SH_SERIAL_FLAG_RDF;
-            if (!(val & (1 << 0)))
+            }
+            if (!(val & (1 << 0))) {
                 s->flags &= ~SH_SERIAL_FLAG_DR;
+            }
 
             if (!(val & (1 << 1)) || !(val & (1 << 0))) {
                 if (s->rxi) {
@@ -231,29 +237,37 @@ static uint64_t sh_serial_read(void *opaque, hwaddr offs,
             break;
         case 0x10: /* FSR */
             ret = 0;
-            if (s->flags & SH_SERIAL_FLAG_TEND)
+            if (s->flags & SH_SERIAL_FLAG_TEND) {
                 ret |= (1 << 6);
-            if (s->flags & SH_SERIAL_FLAG_TDE)
+            }
+            if (s->flags & SH_SERIAL_FLAG_TDE) {
                 ret |= (1 << 5);
-            if (s->flags & SH_SERIAL_FLAG_BRK)
+            }
+            if (s->flags & SH_SERIAL_FLAG_BRK) {
                 ret |= (1 << 4);
-            if (s->flags & SH_SERIAL_FLAG_RDF)
+            }
+            if (s->flags & SH_SERIAL_FLAG_RDF) {
                 ret |= (1 << 1);
-            if (s->flags & SH_SERIAL_FLAG_DR)
+            }
+            if (s->flags & SH_SERIAL_FLAG_DR) {
                 ret |= (1 << 0);
+            }
 
-            if (s->scr & (1 << 5))
+            if (s->scr & (1 << 5)) {
                 s->flags |= SH_SERIAL_FLAG_TDE | SH_SERIAL_FLAG_TEND;
+            }
 
             break;
         case 0x14:
             if (s->rx_cnt > 0) {
                 ret = s->rx_fifo[s->rx_tail++];
                 s->rx_cnt--;
-                if (s->rx_tail == SH_RX_FIFO_LENGTH)
+                if (s->rx_tail == SH_RX_FIFO_LENGTH) {
                     s->rx_tail = 0;
-                if (s->rx_cnt < s->rtrg)
+                }
+                if (s->rx_cnt < s->rtrg) {
                     s->flags &= ~SH_SERIAL_FLAG_RDF;
+                }
             }
             break;
         case 0x18:
@@ -308,8 +322,9 @@ static int sh_serial_can_receive(sh_serial_state *s)
 
 static void sh_serial_receive_break(sh_serial_state *s)
 {
-    if (s->feat & SH_SERIAL_FEAT_SCIF)
+    if (s->feat & SH_SERIAL_FEAT_SCIF) {
         s->sr |= (1 << 4);
+    }
 }
 
 static int sh_serial_can_receive1(void *opaque)
@@ -361,8 +376,9 @@ static void sh_serial_receive1(void *opaque, const uint8_t *buf, int size)
 static void sh_serial_event(void *opaque, QEMUChrEvent event)
 {
     sh_serial_state *s = opaque;
-    if (event == CHR_EVENT_BREAK)
+    if (event == CHR_EVENT_BREAK) {
         sh_serial_receive_break(s);
+    }
 }
 
 static const MemoryRegionOps sh_serial_ops = {

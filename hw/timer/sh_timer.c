@@ -54,9 +54,9 @@ static void sh_timer_update(sh_timer_state *s)
 {
     int new_level = s->int_level && (s->tcr & TIMER_TCR_UNIE);
 
-    if (new_level != s->old_level)
+    if (new_level != s->old_level) {
         qemu_set_irq(s->irq, new_level);
-
+    }
     s->old_level = s->int_level;
     s->int_level = new_level;
 }
@@ -73,8 +73,9 @@ static uint32_t sh_timer_read(void *opaque, hwaddr offset)
     case OFFSET_TCR:
         return s->tcr | (s->int_level ? TIMER_TCR_UNF : 0);
     case OFFSET_TCPR:
-        if (s->feat & TIMER_FEAT_CAPT)
+        if (s->feat & TIMER_FEAT_CAPT) {
             return s->tcpr;
+        }
         /* fall through */
     default:
         hw_error("sh_timer_read: Bad offset %x\n", (int)offset);
@@ -279,17 +280,18 @@ static uint64_t tmu012_read(void *opaque, hwaddr offset,
         return sh_timer_read(s->timer[2], offset - 0x20);
     }
 
-    if (offset >= 0x14)
+    if (offset >= 0x14) {
         return sh_timer_read(s->timer[1], offset - 0x14);
-
-    if (offset >= 0x08)
+    }
+    if (offset >= 0x08) {
         return sh_timer_read(s->timer[0], offset - 0x08);
-
-    if (offset == 4)
+    }
+    if (offset == 4) {
         return s->tstr;
-
-    if ((s->feat & TMU012_FEAT_TOCR) && offset == 0)
+    }
+    if ((s->feat & TMU012_FEAT_TOCR) && offset == 0) {
         return s->tocr;
+    }
 
     hw_error("tmu012_write: Bad offset %x\n", (int)offset);
     return 0;

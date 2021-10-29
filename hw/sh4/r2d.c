@@ -114,20 +114,23 @@ static const struct { short irl; uint16_t msk; } irqtab[NR_IRQS] = {
 static void update_irl(r2d_fpga_t *fpga)
 {
     int i, irl = 15;
-    for (i = 0; i < NR_IRQS; i++)
-        if (fpga->irlmon & fpga->irlmsk & irqtab[i].msk)
-            if (irqtab[i].irl < irl)
-                irl = irqtab[i].irl;
+    for (i = 0; i < NR_IRQS; i++) {
+        if ((fpga->irlmon & fpga->irlmsk & irqtab[i].msk) &&
+            irqtab[i].irl < irl) {
+            irl = irqtab[i].irl;
+        }
+    }
     qemu_set_irq(fpga->irl, irl ^ 15);
 }
 
 static void r2d_fpga_irq_set(void *opaque, int n, int level)
 {
     r2d_fpga_t *fpga = opaque;
-    if (level)
+    if (level) {
         fpga->irlmon |= irqtab[n].msk;
-    else
+    } else {
         fpga->irlmon &= ~irqtab[n].msk;
+    }
     update_irl(fpga);
 }
 

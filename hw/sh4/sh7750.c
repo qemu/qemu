@@ -153,8 +153,9 @@ static void porta_changed(SH7750State *s, uint16_t prev)
     fprintf(stderr, "pdtra=0x%04x, pctra=0x%08x\n", s->pdtra, s->pctra);
 #endif
     currenta = porta_lines(s);
-    if (currenta == prev)
+    if (currenta == prev) {
         return;
+    }
     changes = currenta ^ prev;
 
     for (i = 0; i < NB_DEVICES; i++) {
@@ -167,8 +168,9 @@ static void porta_changed(SH7750State *s, uint16_t prev)
         }
     }
 
-    if (r)
+    if (r) {
         gen_port_interrupts(s);
+    }
 }
 
 static void portb_changed(SH7750State *s, uint16_t prev)
@@ -177,8 +179,9 @@ static void portb_changed(SH7750State *s, uint16_t prev)
     int i, r = 0;
 
     currentb = portb_lines(s);
-    if (currentb == prev)
+    if (currentb == prev) {
         return;
+    }
     changes = currentb ^ prev;
 
     for (i = 0; i < NB_DEVICES; i++) {
@@ -191,8 +194,9 @@ static void portb_changed(SH7750State *s, uint16_t prev)
         }
     }
 
-    if (r)
+    if (r) {
         gen_port_interrupts(s);
+    }
 }
 
 /*
@@ -228,8 +232,9 @@ static uint32_t sh7750_mem_readw(void *opaque, hwaddr addr)
     case SH7750_BCR2_A7:
         return s->bcr2;
     case SH7750_BCR3_A7:
-        if (!has_bcr3_and_bcr4(s))
+        if (!has_bcr3_and_bcr4(s)) {
             error_access("word read", addr);
+        }
         return s->bcr3;
     case SH7750_FRQCR_A7:
         return 0;
@@ -263,8 +268,9 @@ static uint32_t sh7750_mem_readl(void *opaque, hwaddr addr)
     case SH7750_BCR1_A7:
         return s->bcr1;
     case SH7750_BCR4_A7:
-        if (!has_bcr3_and_bcr4(s))
+        if (!has_bcr3_and_bcr4(s)) {
             error_access("long read", addr);
+        }
         return s->bcr4;
     case SH7750_WCR1_A7:
     case SH7750_WCR2_A7:
@@ -332,8 +338,9 @@ static void sh7750_mem_writew(void *opaque, hwaddr addr,
         s->bcr2 = mem_value;
         return;
     case SH7750_BCR3_A7:
-        if (!has_bcr3_and_bcr4(s))
+        if (!has_bcr3_and_bcr4(s)) {
             error_access("word write", addr);
+        }
         s->bcr3 = mem_value;
         return;
     case SH7750_PCR_A7:
@@ -384,8 +391,9 @@ static void sh7750_mem_writel(void *opaque, hwaddr addr,
         s->bcr1 = mem_value;
         return;
     case SH7750_BCR4_A7:
-        if (!has_bcr3_and_bcr4(s))
+        if (!has_bcr3_and_bcr4(s)) {
             error_access("long write", addr);
+        }
         s->bcr4 = mem_value;
         return;
     case SH7750_WCR1_A7:
