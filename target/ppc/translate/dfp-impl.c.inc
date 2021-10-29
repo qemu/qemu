@@ -106,23 +106,22 @@ static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a)   \
     return true;                                             \
 }
 
-#define GEN_DFP_T_B_Rc(name)                     \
-static void gen_##name(DisasContext *ctx)        \
-{                                                \
-    TCGv_ptr rt, rb;                             \
-    if (unlikely(!ctx->fpu_enabled)) {           \
-        gen_exception(ctx, POWERPC_EXCP_FPU);    \
-        return;                                  \
-    }                                            \
-    rt = gen_fprp_ptr(rD(ctx->opcode));          \
-    rb = gen_fprp_ptr(rB(ctx->opcode));          \
-    gen_helper_##name(cpu_env, rt, rb);          \
-    if (unlikely(Rc(ctx->opcode) != 0)) {        \
-        gen_set_cr1_from_fpscr(ctx);             \
-    }                                            \
-    tcg_temp_free_ptr(rt);                       \
-    tcg_temp_free_ptr(rb);                       \
-    }
+#define TRANS_DFP_T_B_Rc(NAME)                               \
+static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a)   \
+{                                                            \
+    TCGv_ptr rt, rb;                                         \
+    REQUIRE_INSNS_FLAGS2(ctx, DFP);                          \
+    REQUIRE_FPU(ctx);                                        \
+    rt = gen_fprp_ptr(a->rt);                                \
+    rb = gen_fprp_ptr(a->rb);                                \
+    gen_helper_##NAME(cpu_env, rt, rb);                      \
+    if (unlikely(a->rc)) {                                   \
+        gen_set_cr1_from_fpscr(ctx);                         \
+    }                                                        \
+    tcg_temp_free_ptr(rt);                                   \
+    tcg_temp_free_ptr(rb);                                   \
+    return true;                                             \
+}
 
 #define GEN_DFP_T_FPR_I32_Rc(name, fprfld, i32fld) \
 static void gen_##name(DisasContext *ctx)          \
@@ -177,20 +176,20 @@ TRANS_DFP_T_B_U32_U32_Rc(DRINTX, r, rmc)
 TRANS_DFP_T_B_U32_U32_Rc(DRINTXQ, r, rmc)
 TRANS_DFP_T_B_U32_U32_Rc(DRINTN, r, rmc)
 TRANS_DFP_T_B_U32_U32_Rc(DRINTNQ, r, rmc)
-GEN_DFP_T_B_Rc(dctdp)
-GEN_DFP_T_B_Rc(dctqpq)
-GEN_DFP_T_B_Rc(drsp)
-GEN_DFP_T_B_Rc(drdpq)
-GEN_DFP_T_B_Rc(dcffix)
-GEN_DFP_T_B_Rc(dcffixq)
-GEN_DFP_T_B_Rc(dctfix)
-GEN_DFP_T_B_Rc(dctfixq)
+TRANS_DFP_T_B_Rc(DCTDP)
+TRANS_DFP_T_B_Rc(DCTQPQ)
+TRANS_DFP_T_B_Rc(DRSP)
+TRANS_DFP_T_B_Rc(DRDPQ)
+TRANS_DFP_T_B_Rc(DCFFIX)
+TRANS_DFP_T_B_Rc(DCFFIXQ)
+TRANS_DFP_T_B_Rc(DCTFIX)
+TRANS_DFP_T_B_Rc(DCTFIXQ)
 GEN_DFP_T_FPR_I32_Rc(ddedpd, rB, SP)
 GEN_DFP_T_FPR_I32_Rc(ddedpdq, rB, SP)
 GEN_DFP_T_FPR_I32_Rc(denbcd, rB, SP)
 GEN_DFP_T_FPR_I32_Rc(denbcdq, rB, SP)
-GEN_DFP_T_B_Rc(dxex)
-GEN_DFP_T_B_Rc(dxexq)
+TRANS_DFP_T_B_Rc(DXEX)
+TRANS_DFP_T_B_Rc(DXEXQ)
 TRANS_DFP_T_A_B_Rc(DIEX)
 TRANS_DFP_T_A_B_Rc(DIEXQ)
 GEN_DFP_T_FPR_I32_Rc(dscli, rA, DCM)
@@ -198,7 +197,6 @@ GEN_DFP_T_FPR_I32_Rc(dscliq, rA, DCM)
 GEN_DFP_T_FPR_I32_Rc(dscri, rA, DCM)
 GEN_DFP_T_FPR_I32_Rc(dscriq, rA, DCM)
 
-#undef GEN_DFP_T_B_Rc
 #undef GEN_DFP_T_FPR_I32_Rc
 
 static bool trans_DCFFIXQQ(DisasContext *ctx, arg_DCFFIXQQ *a)

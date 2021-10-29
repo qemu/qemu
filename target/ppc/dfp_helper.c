@@ -885,7 +885,7 @@ static void RINTN_PPs(struct PPC_DFP *dfp)
 DFP_HELPER_RINT(DRINTN, RINTN_PPs, 64)
 DFP_HELPER_RINT(DRINTNQ, RINTN_PPs, 128)
 
-void helper_dctdp(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
+void helper_DCTDP(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
 {
     struct PPC_DFP dfp;
     ppc_vsr_t vb;
@@ -901,7 +901,7 @@ void helper_dctdp(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
     dfp_set_FPRF_from_FRT(&dfp);
 }
 
-void helper_dctqpq(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
+void helper_DCTQPQ(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
 {
     struct PPC_DFP dfp;
     ppc_vsr_t vb;
@@ -916,7 +916,7 @@ void helper_dctqpq(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
     set_dfp128(t, &dfp.vt);
 }
 
-void helper_drsp(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
+void helper_DRSP(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
 {
     struct PPC_DFP dfp;
     uint32_t t_short = 0;
@@ -934,7 +934,7 @@ void helper_drsp(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
     set_dfp64(t, &vt);
 }
 
-void helper_drdpq(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
+void helper_DRDPQ(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
 {
     struct PPC_DFP dfp;
     dfp_prepare_decimal128(&dfp, 0, b, env);
@@ -972,8 +972,8 @@ static void CFFIX_PPs(struct PPC_DFP *dfp)
     dfp_check_for_XX(dfp);
 }
 
-DFP_HELPER_CFFIX(dcffix, 64)
-DFP_HELPER_CFFIX(dcffixq, 128)
+DFP_HELPER_CFFIX(DCFFIX, 64)
+DFP_HELPER_CFFIX(DCFFIXQ, 128)
 
 void helper_DCFFIXQQ(CPUPPCState *env, ppc_fprp_t *t, ppc_avr_t *b)
 {
@@ -1022,8 +1022,8 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)              \
     set_dfp64(t, &dfp.vt);                                                    \
 }
 
-DFP_HELPER_CTFIX(dctfix, 64)
-DFP_HELPER_CTFIX(dctfixq, 128)
+DFP_HELPER_CTFIX(DCTFIX, 64)
+DFP_HELPER_CTFIX(DCTFIXQ, 128)
 
 void helper_DCTFIXQQ(CPUPPCState *env, ppc_avr_t *t, ppc_fprp_t *b)
 {
@@ -1233,8 +1233,8 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b) \
     }                                                          \
 }
 
-DFP_HELPER_XEX(dxex, 64)
-DFP_HELPER_XEX(dxexq, 128)
+DFP_HELPER_XEX(DXEX, 64)
+DFP_HELPER_XEX(DXEXQ, 128)
 
 static void dfp_set_raw_exp_64(ppc_vsr_t *t, uint64_t raw)
 {

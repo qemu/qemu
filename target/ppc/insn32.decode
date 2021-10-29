@@ -54,6 +54,15 @@
 
 @X_tp_a_bp_rc   ...... ....0 ra:5 ....0 .......... rc:1         &X_rc rt=%x_frtp rb=%x_frbp
 
+&X_tb_rc        rt rb rc:bool
+@X_tb_rc        ...... rt:5 ..... rb:5 .......... rc:1          &X_tb_rc
+
+@X_tbp_rc       ...... ....0 ..... ....0 .......... rc:1        &X_tb_rc rt=%x_frtp rb=%x_frbp
+
+@X_tp_b_rc      ...... ....0 ..... rb:5 .......... rc:1         &X_tb_rc rt=%x_frtp
+
+@X_t_bp_rc      ...... rt:5 ..... ....0 .......... rc:1         &X_tb_rc rb=%x_frbp
+
 &X_bi           rt bi
 @X_bi           ...... rt:5 bi:5 ----- .......... -     &X_bi
 
@@ -272,10 +281,24 @@ DRINTNQ         111111 ..... ---- . ..... .. 11100011 . @Z23_tbp
 
 ### Decimal Floating-Point Conversion Instructions
 
+DCTDP           111011 ..... ----- ..... 0100000010 .   @X_tb_rc
+DCTQPQ          111111 ..... ----- ..... 0100000010 .   @X_tp_b_rc
+
+DRSP            111011 ..... ----- ..... 1100000010 .   @X_tb_rc
+DRDPQ           111111 ..... ----- ..... 1100000010 .   @X_tbp_rc
+
+DCFFIX          111011 ..... ----- ..... 1100100010 .   @X_tb_rc
+DCFFIXQ         111111 ..... ----- ..... 1100100010 .   @X_tp_b_rc
 DCFFIXQQ        111111 ..... 00000 ..... 1111100010 -   @X_frtp_vrb
+
+DCTFIX          111011 ..... ----- ..... 0100100010 .   @X_tb_rc
+DCTFIXQ         111111 ..... ----- ..... 0100100010 .   @X_t_bp_rc
 DCTFIXQQ        111111 ..... 00001 ..... 1111100010 -   @X_vrt_frbp
 
 ### Decimal Floating-Point Format Instructions
+
+DXEX            111011 ..... ----- ..... 0101100010 .   @X_tb_rc
+DXEXQ           111111 ..... ----- ..... 0101100010 .   @X_t_bp_rc
 
 DIEX            111011 ..... ..... ..... 1101100010 .   @X_rc
 DIEXQ           111111 ..... ..... ..... 1101100010 .   @X_tp_a_bp_rc
