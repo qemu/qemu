@@ -167,6 +167,7 @@
 /* ------------------------------------------------------------------ */
 
 #include "qemu/osdep.h"
+#include "qemu/host-utils.h"
 #include "libdecnumber/dconfig.h"
 #include "libdecnumber/decNumber.h"
 #include "libdecnumber/decNumberLocal.h"
@@ -461,6 +462,41 @@ decNumber *decNumberFromUInt64(decNumber *dn, uint64_t uin)
     dn->digits = decGetDigits(dn->lsu, up-dn->lsu);
     return dn;
 } /* decNumberFromUInt64 */
+
+decNumber *decNumberFromInt128(decNumber *dn, uint64_t lo, int64_t hi)
+{
+    uint64_t unsig_hi = hi;
+    if (hi < 0) {
+        if (lo == 0) {
+            unsig_hi = -unsig_hi;
+        } else {
+            unsig_hi = ~unsig_hi;
+            lo = -lo;
+        }
+    }
+
+    decNumberFromUInt128(dn, lo, unsig_hi);
+    if (hi < 0) {
+        dn->bits = DECNEG;        /* sign needed */
+    }
+    return dn;
+} /* decNumberFromInt128 */
+
+decNumber *decNumberFromUInt128(decNumber *dn, uint64_t lo, uint64_t hi)
+{
+    uint64_t rem;
+    Unit *up;                             /* work pointer */
+    decNumberZero(dn);                    /* clean */
+    if (lo == 0 && hi == 0) {
+        return dn;                /* [or decGetDigits bad call] */
+    }
+    for (up = dn->lsu; hi > 0 || lo > 0; up++) {
+        rem = divu128(&lo, &hi, DECDPUNMAX + 1);
+        *up = (Unit)rem;
+    }
+    dn->digits = decGetDigits(dn->lsu, up - dn->lsu);
+    return dn;
+} /* decNumberFromUInt128 */
 
 /* ------------------------------------------------------------------ */
 /* to-int64 -- conversion to int64                                    */
