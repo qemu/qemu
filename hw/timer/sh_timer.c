@@ -45,11 +45,11 @@ typedef struct {
     int feat;
     int enabled;
     qemu_irq irq;
-} sh_timer_state;
+} SHTimerState;
 
 /* Check all active timers, and schedule the next timer interrupt. */
 
-static void sh_timer_update(sh_timer_state *s)
+static void sh_timer_update(SHTimerState *s)
 {
     int new_level = s->int_level && (s->tcr & TIMER_TCR_UNIE);
 
@@ -62,7 +62,7 @@ static void sh_timer_update(sh_timer_state *s)
 
 static uint32_t sh_timer_read(void *opaque, hwaddr offset)
 {
-    sh_timer_state *s = (sh_timer_state *)opaque;
+    SHTimerState *s = opaque;
 
     switch (offset >> 2) {
     case OFFSET_TCOR:
@@ -85,7 +85,7 @@ static uint32_t sh_timer_read(void *opaque, hwaddr offset)
 static void sh_timer_write(void *opaque, hwaddr offset,
                             uint32_t value)
 {
-    sh_timer_state *s = (sh_timer_state *)opaque;
+    SHTimerState *s = opaque;
     int freq;
 
     switch (offset >> 2) {
@@ -200,7 +200,7 @@ static void sh_timer_write(void *opaque, hwaddr offset,
 
 static void sh_timer_start_stop(void *opaque, int enable)
 {
-    sh_timer_state *s = (sh_timer_state *)opaque;
+    SHTimerState *s = opaque;
 
     trace_sh_timer_start_stop(enable, s->enabled);
     ptimer_transaction_begin(s->timer);
@@ -216,14 +216,14 @@ static void sh_timer_start_stop(void *opaque, int enable)
 
 static void sh_timer_tick(void *opaque)
 {
-    sh_timer_state *s = (sh_timer_state *)opaque;
+    SHTimerState *s = opaque;
     s->int_level = s->enabled;
     sh_timer_update(s);
 }
 
 static void *sh_timer_init(uint32_t freq, int feat, qemu_irq irq)
 {
-    sh_timer_state *s;
+    SHTimerState *s;
 
     s = g_malloc0(sizeof(*s));
     s->freq = freq;
@@ -259,7 +259,7 @@ typedef struct {
 static uint64_t tmu012_read(void *opaque, hwaddr offset,
                             unsigned size)
 {
-    tmu012_state *s = (tmu012_state *)opaque;
+    tmu012_state *s = opaque;
 
     trace_sh_timer_read(offset);
     if (offset >= 0x20) {
@@ -289,7 +289,7 @@ static uint64_t tmu012_read(void *opaque, hwaddr offset,
 static void tmu012_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
-    tmu012_state *s = (tmu012_state *)opaque;
+    tmu012_state *s = opaque;
 
     trace_sh_timer_write(offset, value);
     if (offset >= 0x20) {
