@@ -66,11 +66,10 @@
     } while (0)
 #define GET_EA_pci \
     do { \
-        TCGv tcgv_siV = tcg_const_tl(siV); \
+        TCGv tcgv_siV = tcg_constant_tl(siV); \
         tcg_gen_mov_tl(EA, RxV); \
         gen_helper_fcircadd(RxV, RxV, tcgv_siV, MuV, \
                             hex_gpr[HEX_REG_CS0 + MuN]); \
-        tcg_temp_free(tcgv_siV); \
     } while (0)
 #define GET_EA_pcr(SHIFT) \
     do { \
@@ -557,7 +556,7 @@
 #define fGEN_TCG_A4_addp_c(SHORTCODE) \
     do { \
         TCGv_i64 carry = tcg_temp_new_i64(); \
-        TCGv_i64 zero = tcg_const_i64(0); \
+        TCGv_i64 zero = tcg_constant_i64(0); \
         tcg_gen_extu_i32_i64(carry, PxV); \
         tcg_gen_andi_i64(carry, carry, 1); \
         tcg_gen_add2_i64(RddV, carry, RssV, zero, carry, zero); \
@@ -565,14 +564,13 @@
         tcg_gen_extrl_i64_i32(PxV, carry); \
         gen_8bitsof(PxV, PxV); \
         tcg_temp_free_i64(carry); \
-        tcg_temp_free_i64(zero); \
     } while (0)
 
 /* r5:4 = sub(r1:0, r3:2, p1):carry */
 #define fGEN_TCG_A4_subp_c(SHORTCODE) \
     do { \
         TCGv_i64 carry = tcg_temp_new_i64(); \
-        TCGv_i64 zero = tcg_const_i64(0); \
+        TCGv_i64 zero = tcg_constant_i64(0); \
         TCGv_i64 not_RttV = tcg_temp_new_i64(); \
         tcg_gen_extu_i32_i64(carry, PxV); \
         tcg_gen_andi_i64(carry, carry, 1); \
@@ -582,7 +580,6 @@
         tcg_gen_extrl_i64_i32(PxV, carry); \
         gen_8bitsof(PxV, PxV); \
         tcg_temp_free_i64(carry); \
-        tcg_temp_free_i64(zero); \
         tcg_temp_free_i64(not_RttV); \
     } while (0)
 

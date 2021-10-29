@@ -40,5 +40,6 @@ HEX_TESTS += load_unpack
 HEX_TESTS += load_align
 HEX_TESTS += atomics
 HEX_TESTS += fpstuff
+HEX_TESTS += overflow
 
 TESTS += $(HEX_TESTS)

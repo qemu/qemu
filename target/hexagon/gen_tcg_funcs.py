@@ -279,14 +279,11 @@ def gen_helper_call_opn(f, tag, regtype, regid, toss, numregs, i):
         print("Bad register parse: ",regtype,regid,toss,numregs)
 
 def gen_helper_decl_imm(f,immlett):
-    f.write("    TCGv tcgv_%s = tcg_const_tl(%s);\n" % \
+    f.write("    TCGv tcgv_%s = tcg_constant_tl(%s);\n" % \
         (hex_common.imm_name(immlett), hex_common.imm_name(immlett)))
 
 def gen_helper_call_imm(f,immlett):
     f.write(", tcgv_%s" % hex_common.imm_name(immlett))
-
-def gen_helper_free_imm(f,immlett):
-    f.write("    tcg_temp_free(tcgv_%s);\n" % hex_common.imm_name(immlett))
 
 def genptr_dst_write_pair(f, tag, regtype, regid):
     if ('A_CONDEXEC' in hex_common.attribdict[tag]):
@@ -401,7 +398,7 @@ def gen_tcg_func(f, tag, regs, imms):
         for immlett,bits,immshift in imms:
             gen_helper_decl_imm(f,immlett)
         if hex_common.need_part1(tag):
-            f.write("    TCGv part1 = tcg_const_tl(insn->part1);\n")
+            f.write("    TCGv part1 = tcg_constant_tl(insn->part1);\n")
         if hex_common.need_slot(tag):
             f.write("    TCGv slot = tcg_constant_tl(insn->slot);\n")
         f.write("    gen_helper_%s(" % (tag))
@@ -424,10 +421,6 @@ def gen_tcg_func(f, tag, regs, imms):
         if hex_common.need_slot(tag): f.write(", slot")
         if hex_common.need_part1(tag): f.write(", part1" )
         f.write(");\n")
-        if hex_common.need_part1(tag):
-            f.write("    tcg_temp_free(part1);\n")
-        for immlett,bits,immshift in imms:
-            gen_helper_free_imm(f,immlett)
 
     ## Write all the outputs
     for regtype,regid,toss,numregs in regs:
