@@ -415,7 +415,7 @@ static bool trans_CFUGED(DisasContext *ctx, arg_X *a)
 }
 
 #if defined(TARGET_PPC64)
-static void do_cntlzdm(TCGv_i64 dst, TCGv_i64 src, TCGv_i64 mask)
+static void do_cntzdm(TCGv_i64 dst, TCGv_i64 src, TCGv_i64 mask, bool trail)
 {
     TCGv_i64 tmp;
     TCGLabel *l1;
@@ -424,12 +424,20 @@ static void do_cntlzdm(TCGv_i64 dst, TCGv_i64 src, TCGv_i64 mask)
     l1 = gen_new_label();
 
     tcg_gen_and_i64(tmp, src, mask);
-    tcg_gen_clzi_i64(tmp, tmp, 64);
+    if (trail) {
+        tcg_gen_ctzi_i64(tmp, tmp, 64);
+    } else {
+        tcg_gen_clzi_i64(tmp, tmp, 64);
+    }
 
     tcg_gen_brcondi_i64(TCG_COND_EQ, tmp, 0, l1);
 
     tcg_gen_subfi_i64(tmp, 64, tmp);
-    tcg_gen_shr_i64(tmp, mask, tmp);
+    if (trail) {
+        tcg_gen_shl_i64(tmp, mask, tmp);
+    } else {
+        tcg_gen_shr_i64(tmp, mask, tmp);
+    }
     tcg_gen_ctpop_i64(tmp, tmp);
 
     gen_set_label(l1);
@@ -443,7 +451,19 @@ static bool trans_CNTLZDM(DisasContext *ctx, arg_X *a)
     REQUIRE_64BIT(ctx);
     REQUIRE_INSNS_FLAGS2(ctx, ISA310);
 #if defined(TARGET_PPC64)
-    do_cntlzdm(cpu_gpr[a->ra], cpu_gpr[a->rt], cpu_gpr[a->rb]);
+    do_cntzdm(cpu_gpr[a->ra], cpu_gpr[a->rt], cpu_gpr[a->rb], false);
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
+static bool trans_CNTTZDM(DisasContext *ctx, arg_X *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+#if defined(TARGET_PPC64)
+    do_cntzdm(cpu_gpr[a->ra], cpu_gpr[a->rt], cpu_gpr[a->rb], true);
 #else
     qemu_build_not_reached();
 #endif
