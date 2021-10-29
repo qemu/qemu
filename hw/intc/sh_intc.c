@@ -71,18 +71,18 @@ void sh_intc_toggle_source(struct intc_source *source,
                    enable_changed == -1 ? "disabled " : "",
                    source->pending ? "pending" : "");
 #endif
-  }
+    }
 }
 
-static void sh_intc_set_irq (void *opaque, int n, int level)
+static void sh_intc_set_irq(void *opaque, int n, int level)
 {
-  struct intc_desc *desc = opaque;
-  struct intc_source *source = &(desc->sources[n]);
+    struct intc_desc *desc = opaque;
+    struct intc_source *source = &(desc->sources[n]);
 
-  if (level && !source->asserted)
-    sh_intc_toggle_source(source, 0, 1);
-  else if (!level && source->asserted)
-    sh_intc_toggle_source(source, 0, -1);
+    if (level && !source->asserted)
+      sh_intc_toggle_source(source, 0, 1);
+    else if (!level && source->asserted)
+      sh_intc_toggle_source(source, 0, -1);
 }
 
 int sh_intc_get_pending_vector(struct intc_desc *desc, int imask)
@@ -236,7 +236,7 @@ static uint64_t sh_intc_read(void *opaque, hwaddr offset,
     printf("sh_intc_read 0x%lx\n", (unsigned long) offset);
 #endif
 
-    sh_intc_locate(desc, (unsigned long)offset, &valuep, 
+    sh_intc_locate(desc, (unsigned long)offset, &valuep,
                    &enum_ids, &first, &width, &mode);
     return *valuep;
 }
@@ -257,14 +257,20 @@ static void sh_intc_write(void *opaque, hwaddr offset,
     printf("sh_intc_write 0x%lx 0x%08x\n", (unsigned long) offset, value);
 #endif
 
-    sh_intc_locate(desc, (unsigned long)offset, &valuep, 
+    sh_intc_locate(desc, (unsigned long)offset, &valuep,
                    &enum_ids, &first, &width, &mode);
 
     switch (mode) {
-    case INTC_MODE_ENABLE_REG | INTC_MODE_IS_PRIO: break;
-    case INTC_MODE_DUAL_SET: value |= *valuep; break;
-    case INTC_MODE_DUAL_CLR: value = *valuep & ~value; break;
-    default: abort();
+    case INTC_MODE_ENABLE_REG | INTC_MODE_IS_PRIO:
+        break;
+    case INTC_MODE_DUAL_SET:
+        value |= *valuep;
+        break;
+    case INTC_MODE_DUAL_CLR:
+        value = *valuep & ~value;
+        break;
+    default:
+        abort();
     }
 
     for (k = 0; k <= first; k++) {
@@ -465,7 +471,7 @@ int sh_intc_init(MemoryRegion *sysmem,
     }
 
     desc->irqs = qemu_allocate_irqs(sh_intc_set_irq, desc, nr_sources);
- 
+
     memory_region_init_io(&desc->iomem, NULL, &sh_intc_ops, desc,
                           "interrupt-controller", 0x100000000ULL);
 
@@ -507,7 +513,8 @@ void sh_intc_set_irl(void *opaque, int n, int level)
     int i, irl = level ^ 15;
     for (i = 0; (s = sh_intc_source(s->parent, s->next_enum_id)); i++) {
         if (i == irl)
-            sh_intc_toggle_source(s, s->enable_count?0:1, s->asserted?0:1);
+            sh_intc_toggle_source(s, s->enable_count ? 0 : 1,
+                                  s->asserted ? 0 : 1);
         else
             if (s->asserted)
                 sh_intc_toggle_source(s, 0, -1);

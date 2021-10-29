@@ -55,7 +55,7 @@ static void sh_timer_update(sh_timer_state *s)
     int new_level = s->int_level && (s->tcr & TIMER_TCR_UNIE);
 
     if (new_level != s->old_level)
-      qemu_set_irq (s->irq, new_level);
+        qemu_set_irq(s->irq, new_level);
 
     s->old_level = s->int_level;
     s->int_level = new_level;
@@ -113,11 +113,21 @@ static void sh_timer_write(void *opaque, hwaddr offset,
         freq = s->freq;
         /* ??? Need to recalculate expiry time after changing divisor.  */
         switch (value & TIMER_TCR_TPSC) {
-        case 0: freq >>= 2; break;
-        case 1: freq >>= 4; break;
-        case 2: freq >>= 6; break;
-        case 3: freq >>= 8; break;
-        case 4: freq >>= 10; break;
+        case 0:
+            freq >>= 2;
+            break;
+        case 1:
+            freq >>= 4;
+            break;
+        case 2:
+            freq >>= 6;
+            break;
+        case 3:
+            freq >>= 8;
+            break;
+        case 4:
+            freq >>= 10;
+            break;
         case 6:
         case 7:
             if (s->feat & TIMER_FEAT_EXTCLK) {

@@ -78,7 +78,7 @@ typedef struct SH7750State {
     struct intc_desc intc;
 } SH7750State;
 
-static inline int has_bcr3_and_bcr4(SH7750State * s)
+static inline int has_bcr3_and_bcr4(SH7750State *s)
 {
     return s->cpu->env.features & SH_FEATURE_BCR3_AND_BCR4;
 }
@@ -87,7 +87,7 @@ static inline int has_bcr3_and_bcr4(SH7750State * s)
  * I/O ports
  */
 
-int sh7750_register_io_device(SH7750State * s, sh7750_io_device * device)
+int sh7750_register_io_device(SH7750State *s, sh7750_io_device *device)
 {
     int i;
 
@@ -102,7 +102,7 @@ int sh7750_register_io_device(SH7750State * s, sh7750_io_device * device)
 
 static uint16_t portdir(uint32_t v)
 {
-#define EVENPORTMASK(n) ((v & (1<<((n)<<1))) >> (n))
+#define EVENPORTMASK(n) ((v & (1 << ((n) << 1))) >> (n))
     return
         EVENPORTMASK(15) | EVENPORTMASK(14) | EVENPORTMASK(13) |
         EVENPORTMASK(12) | EVENPORTMASK(11) | EVENPORTMASK(10) |
@@ -114,7 +114,7 @@ static uint16_t portdir(uint32_t v)
 
 static uint16_t portpullup(uint32_t v)
 {
-#define ODDPORTMASK(n) ((v & (1<<(((n)<<1)+1))) >> (n))
+#define ODDPORTMASK(n) ((v & (1 << (((n) << 1) + 1))) >> (n))
     return
         ODDPORTMASK(15) | ODDPORTMASK(14) | ODDPORTMASK(13) |
         ODDPORTMASK(12) | ODDPORTMASK(11) | ODDPORTMASK(10) |
@@ -123,26 +123,26 @@ static uint16_t portpullup(uint32_t v)
         ODDPORTMASK(1) | ODDPORTMASK(0);
 }
 
-static uint16_t porta_lines(SH7750State * s)
+static uint16_t porta_lines(SH7750State *s)
 {
     return (s->portdira & s->pdtra) | /* CPU */
         (s->periph_portdira & s->periph_pdtra) | /* Peripherals */
         (~(s->portdira | s->periph_portdira) & s->portpullupa); /* Pullups */
 }
 
-static uint16_t portb_lines(SH7750State * s)
+static uint16_t portb_lines(SH7750State *s)
 {
     return (s->portdirb & s->pdtrb) | /* CPU */
         (s->periph_portdirb & s->periph_pdtrb) | /* Peripherals */
         (~(s->portdirb | s->periph_portdirb) & s->portpullupb); /* Pullups */
 }
 
-static void gen_port_interrupts(SH7750State * s)
+static void gen_port_interrupts(SH7750State *s)
 {
     /* XXXXX interrupts not generated */
 }
 
-static void porta_changed(SH7750State * s, uint16_t prev)
+static void porta_changed(SH7750State *s, uint16_t prev)
 {
     uint16_t currenta, changes;
     int i, r = 0;
@@ -171,7 +171,7 @@ static void porta_changed(SH7750State * s, uint16_t prev)
         gen_port_interrupts(s);
 }
 
-static void portb_changed(SH7750State * s, uint16_t prev)
+static void portb_changed(SH7750State *s, uint16_t prev)
 {
     uint16_t currentb, changes;
     int i, r = 0;
@@ -228,7 +228,7 @@ static uint32_t sh7750_mem_readw(void *opaque, hwaddr addr)
     case SH7750_BCR2_A7:
         return s->bcr2;
     case SH7750_BCR3_A7:
-        if(!has_bcr3_and_bcr4(s))
+        if (!has_bcr3_and_bcr4(s))
             error_access("word read", addr);
         return s->bcr3;
     case SH7750_FRQCR_A7:
@@ -263,7 +263,7 @@ static uint32_t sh7750_mem_readl(void *opaque, hwaddr addr)
     case SH7750_BCR1_A7:
         return s->bcr1;
     case SH7750_BCR4_A7:
-        if(!has_bcr3_and_bcr4(s))
+        if (!has_bcr3_and_bcr4(s))
             error_access("long read", addr);
         return s->bcr4;
     case SH7750_WCR1_A7:
@@ -332,7 +332,7 @@ static void sh7750_mem_writew(void *opaque, hwaddr addr,
         s->bcr2 = mem_value;
         return;
     case SH7750_BCR3_A7:
-        if(!has_bcr3_and_bcr4(s))
+        if (!has_bcr3_and_bcr4(s))
             error_access("word write", addr);
         s->bcr3 = mem_value;
         return;
@@ -384,7 +384,7 @@ static void sh7750_mem_writel(void *opaque, hwaddr addr,
         s->bcr1 = mem_value;
         return;
     case SH7750_BCR4_A7:
-        if(!has_bcr3_and_bcr4(s))
+        if (!has_bcr3_and_bcr4(s))
             error_access("long write", addr);
         s->bcr4 = mem_value;
         return;

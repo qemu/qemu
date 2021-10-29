@@ -75,7 +75,7 @@ typedef struct {
     qemu_irq bri;
 } sh_serial_state;
 
-static void sh_serial_clear_fifo(sh_serial_state * s)
+static void sh_serial_clear_fifo(sh_serial_state *s)
 {
     memset(s->rx_fifo, 0, SH_RX_FIFO_LENGTH);
     s->rx_cnt = 0;
@@ -93,7 +93,7 @@ static void sh_serial_write(void *opaque, hwaddr offs,
     printf("sh_serial: write offs=0x%02x val=0x%02x\n",
            offs, val);
 #endif
-    switch(offs) {
+    switch (offs) {
     case 0x00: /* SMR */
         s->smr = val & ((s->feat & SH_SERIAL_FEAT_SCIF) ? 0x7b : 0xff);
         return;
@@ -131,7 +131,7 @@ static void sh_serial_write(void *opaque, hwaddr offs,
 #endif
     }
     if (s->feat & SH_SERIAL_FEAT_SCIF) {
-        switch(offs) {
+        switch (offs) {
         case 0x10: /* FSR */
             if (!(val & (1 << 6)))
                 s->flags &= ~SH_SERIAL_FLAG_TEND;
@@ -178,9 +178,8 @@ static void sh_serial_write(void *opaque, hwaddr offs,
         case 0x24: /* LSR */
             return;
         }
-    }
-    else {
-        switch(offs) {
+    } else {
+        switch (offs) {
 #if 0
         case 0x0c:
             ret = s->dr;
@@ -207,7 +206,7 @@ static uint64_t sh_serial_read(void *opaque, hwaddr offs,
     uint32_t ret = ~0;
 
 #if 0
-    switch(offs) {
+    switch (offs) {
     case 0x00:
         ret = s->smr;
         break;
@@ -223,7 +222,7 @@ static uint64_t sh_serial_read(void *opaque, hwaddr offs,
     }
 #endif
     if (s->feat & SH_SERIAL_FEAT_SCIF) {
-        switch(offs) {
+        switch (offs) {
         case 0x00: /* SMR */
             ret = s->smr;
             break;
@@ -270,9 +269,8 @@ static uint64_t sh_serial_read(void *opaque, hwaddr offs,
             ret = 0;
             break;
         }
-    }
-    else {
-        switch(offs) {
+    } else {
+        switch (offs) {
 #if 0
         case 0x0c:
             ret = s->dr;
@@ -397,8 +395,7 @@ void sh_serial_init(MemoryRegion *sysmem,
 
     if (feat & SH_SERIAL_FEAT_SCIF) {
         s->fcr = 0;
-    }
-    else {
+    } else {
         s->dr = 0xff;
     }
 

@@ -1015,7 +1015,7 @@
  */
 
 /* DMA Source Address Register - SAR0, SAR1, SAR2, SAR3 */
-#define SH7750_SAR_REGOFS(n)  (0xA00000 + ((n)*16)) /* offset */
+#define SH7750_SAR_REGOFS(n)  (0xA00000 + ((n) * 16)) /* offset */
 #define SH7750_SAR(n)         SH7750_P4_REG32(SH7750_SAR_REGOFS(n))
 #define SH7750_SAR_A7(n)      SH7750_A7_REG32(SH7750_SAR_REGOFS(n))
 #define SH7750_SAR0           SH7750_SAR(0)
@@ -1028,7 +1028,7 @@
 #define SH7750_SAR3_A7        SH7750_SAR_A7(3)
 
 /* DMA Destination Address Register - DAR0, DAR1, DAR2, DAR3 */
-#define SH7750_DAR_REGOFS(n)  (0xA00004 + ((n)*16)) /* offset */
+#define SH7750_DAR_REGOFS(n)  (0xA00004 + ((n) * 16)) /* offset */
 #define SH7750_DAR(n)         SH7750_P4_REG32(SH7750_DAR_REGOFS(n))
 #define SH7750_DAR_A7(n)      SH7750_A7_REG32(SH7750_DAR_REGOFS(n))
 #define SH7750_DAR0           SH7750_DAR(0)
@@ -1041,7 +1041,7 @@
 #define SH7750_DAR3_A7        SH7750_DAR_A7(3)
 
 /* DMA Transfer Count Register - DMATCR0, DMATCR1, DMATCR2, DMATCR3 */
-#define SH7750_DMATCR_REGOFS(n)  (0xA00008 + ((n)*16)) /* offset */
+#define SH7750_DMATCR_REGOFS(n)  (0xA00008 + ((n) * 16)) /* offset */
 #define SH7750_DMATCR(n)      SH7750_P4_REG32(SH7750_DMATCR_REGOFS(n))
 #define SH7750_DMATCR_A7(n)   SH7750_A7_REG32(SH7750_DMATCR_REGOFS(n))
 #define SH7750_DMATCR0_P4     SH7750_DMATCR(0)
@@ -1054,7 +1054,7 @@
 #define SH7750_DMATCR3_A7     SH7750_DMATCR_A7(3)
 
 /* DMA Channel Control Register - CHCR0, CHCR1, CHCR2, CHCR3 */
-#define SH7750_CHCR_REGOFS(n)  (0xA0000C + ((n)*16)) /* offset */
+#define SH7750_CHCR_REGOFS(n)  (0xA0000C + ((n) * 16)) /* offset */
 #define SH7750_CHCR(n)        SH7750_P4_REG32(SH7750_CHCR_REGOFS(n))
 #define SH7750_CHCR_A7(n)     SH7750_A7_REG32(SH7750_CHCR_REGOFS(n))
 #define SH7750_CHCR0          SH7750_CHCR(0)
@@ -1208,9 +1208,9 @@
 #define SH7750_PCTRA_A7       SH7750_A7_REG32(SH7750_PCTRA_REGOFS)
 
 #define SH7750_PCTRA_PBPUP(n) 0 /* Bit n is pulled up */
-#define SH7750_PCTRA_PBNPUP(n) (1 << ((n)*2+1)) /* Bit n is not pulled up */
+#define SH7750_PCTRA_PBNPUP(n) (1 << ((n) * 2 + 1)) /* Bit n is not pulled up */
 #define SH7750_PCTRA_PBINP(n) 0 /* Bit n is an input */
-#define SH7750_PCTRA_PBOUT(n) (1 << ((n)*2)) /* Bit n is an output */
+#define SH7750_PCTRA_PBOUT(n) (1 << ((n) * 2)) /* Bit n is an output */
 
 /* Port Data Register A - PDTRA(half) */
 #define SH7750_PDTRA_REGOFS   0x800030 /* offset */
@@ -1225,16 +1225,16 @@
 #define SH7750_PCTRB_A7       SH7750_A7_REG32(SH7750_PCTRB_REGOFS)
 
 #define SH7750_PCTRB_PBPUP(n) 0 /* Bit n is pulled up */
-#define SH7750_PCTRB_PBNPUP(n) (1 << ((n-16)*2+1)) /* Bit n is not pulled up */
+#define SH7750_PCTRB_PBNPUP(n) (1 << ((n - 16) * 2 + 1)) /* Bit n is not pulled up */
 #define SH7750_PCTRB_PBINP(n) 0 /* Bit n is an input */
-#define SH7750_PCTRB_PBOUT(n) (1 << ((n-16)*2)) /* Bit n is an output */
+#define SH7750_PCTRB_PBOUT(n) (1 << ((n - 16) * 2)) /* Bit n is an output */
 
 /* Port Data Register B - PDTRB(half) */
 #define SH7750_PDTRB_REGOFS   0x800044 /* offset */
 #define SH7750_PDTRB          SH7750_P4_REG32(SH7750_PDTRB_REGOFS)
 #define SH7750_PDTRB_A7       SH7750_A7_REG32(SH7750_PDTRB_REGOFS)
 
-#define SH7750_PDTRB_BIT(n) (1 << ((n)-16))
+#define SH7750_PDTRB_BIT(n) (1 << ((n) - 16))
 
 /* GPIO Interrupt Control Register - GPIOIC(half) */
 #define SH7750_GPIOIC_REGOFS  0x800048 /* offset */

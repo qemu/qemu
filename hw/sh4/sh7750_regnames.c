@@ -81,14 +81,15 @@ static regname_t regnames[] = {
     REGNAME(SH7750_BCR3_A7)
     REGNAME(SH7750_BCR4_A7)
     REGNAME(SH7750_SDMR2_A7)
-    REGNAME(SH7750_SDMR3_A7) {(uint32_t) - 1, NULL}
+    REGNAME(SH7750_SDMR3_A7)
+    { (uint32_t)-1, NULL }
 };
 
 const char *regname(uint32_t addr)
 {
     unsigned int i;
 
-    for (i = 0; regnames[i].regaddr != (uint32_t) - 1; i++) {
+    for (i = 0; regnames[i].regaddr != (uint32_t)-1; i++) {
         if (regnames[i].regaddr == addr)
             return regnames[i].regname;
     }

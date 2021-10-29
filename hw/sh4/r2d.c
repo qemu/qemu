@@ -96,19 +96,19 @@ enum r2d_fpga_irq {
 };
 
 static const struct { short irl; uint16_t msk; } irqtab[NR_IRQS] = {
-    [CF_IDE] =   {  1, 1<<9 },
-    [CF_CD] =    {  2, 1<<8 },
-    [PCI_INTA] = {  9, 1<<14 },
-    [PCI_INTB] = { 10, 1<<13 },
-    [PCI_INTC] = {  3, 1<<12 },
-    [PCI_INTD] = {  0, 1<<11 },
-    [SM501] =    {  4, 1<<10 },
-    [KEY] =      {  5, 1<<6 },
-    [RTC_A] =    {  6, 1<<5 },
-    [RTC_T] =    {  7, 1<<4 },
-    [SDCARD] =   {  8, 1<<7 },
-    [EXT] =      { 11, 1<<0 },
-    [TP] =       { 12, 1<<15 },
+    [CF_IDE] =   {  1, 1 << 9 },
+    [CF_CD] =    {  2, 1 << 8 },
+    [PCI_INTA] = {  9, 1 << 14 },
+    [PCI_INTB] = { 10, 1 << 13 },
+    [PCI_INTC] = {  3, 1 << 12 },
+    [PCI_INTD] = {  0, 1 << 11 },
+    [SM501] =    {  4, 1 << 10 },
+    [KEY] =      {  5, 1 << 6 },
+    [RTC_A] =    {  6, 1 << 5 },
+    [RTC_T] =    {  7, 1 << 4 },
+    [SDCARD] =   {  8, 1 << 7 },
+    [EXT] =      { 11, 1 << 0 },
+    [TP] =       { 12, 1 << 15 },
 };
 
 static void update_irl(r2d_fpga_t *fpga)
@@ -306,7 +306,7 @@ static void r2d_init(MachineState *machine)
     /* NIC: rtl8139 on-board, and 2 slots. */
     for (i = 0; i < nb_nics; i++)
         pci_nic_init_nofail(&nd_table[i], pci_bus,
-                            "rtl8139", i==0 ? "2" : NULL);
+                            "rtl8139", i == 0 ? "2" : NULL);
 
     /* USB keyboard */
     usb_create_simple(usb_bus_find(-1), "usb-kbd");
@@ -321,8 +321,8 @@ static void r2d_init(MachineState *machine)
                                           SDRAM_BASE + LINUX_LOAD_OFFSET,
                                           INITRD_LOAD_OFFSET - LINUX_LOAD_OFFSET);
         if (kernel_size < 0) {
-          fprintf(stderr, "qemu: could not load kernel '%s'\n", kernel_filename);
-          exit(1);
+            fprintf(stderr, "qemu: could not load kernel '%s'\n", kernel_filename);
+            exit(1);
         }
 
         /* initialization which should be done by firmware */
@@ -330,7 +330,8 @@ static void r2d_init(MachineState *machine)
                           MEMTXATTRS_UNSPECIFIED, NULL); /* cs3 SDRAM */
         address_space_stw(&address_space_memory, SH7750_BCR2, 3 << (3 * 2),
                           MEMTXATTRS_UNSPECIFIED, NULL); /* cs3 32bit */
-        reset_info->vector = (SDRAM_BASE + LINUX_LOAD_OFFSET) | 0xa0000000; /* Start from P2 area */
+        /* Start from P2 area */
+        reset_info->vector = (SDRAM_BASE + LINUX_LOAD_OFFSET) | 0xa0000000;
     }
 
     if (initrd_filename) {
@@ -341,8 +342,8 @@ static void r2d_init(MachineState *machine)
                                           SDRAM_SIZE - INITRD_LOAD_OFFSET);
 
         if (initrd_size < 0) {
-          fprintf(stderr, "qemu: could not load initrd '%s'\n", initrd_filename);
-          exit(1);
+            fprintf(stderr, "qemu: could not load initrd '%s'\n", initrd_filename);
+            exit(1);
         }
 
         /* initialization which should be done by firmware */
