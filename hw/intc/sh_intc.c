@@ -89,7 +89,7 @@ int sh_intc_get_pending_vector(struct intc_desc *desc, int imask)
     }
 
     for (i = 0; i < desc->nr_sources; i++) {
-        struct intc_source *source = desc->sources + i;
+        struct intc_source *source = &desc->sources[i];
 
         if (source->pending) {
             trace_sh_intc_pending(desc->pending, source->vect);
@@ -137,7 +137,7 @@ static void sh_intc_locate(struct intc_desc *desc,
 
     if (desc->mask_regs) {
         for (i = 0; i < desc->nr_mask_regs; i++) {
-            struct intc_mask_reg *mr = desc->mask_regs + i;
+            struct intc_mask_reg *mr = &desc->mask_regs[i];
 
             mode = sh_intc_mode(address, mr->set_reg, mr->clr_reg);
             if (mode == INTC_MODE_NONE) {
@@ -154,7 +154,7 @@ static void sh_intc_locate(struct intc_desc *desc,
 
     if (desc->prio_regs) {
         for (i = 0; i < desc->nr_prio_regs; i++) {
-            struct intc_prio_reg *pr = desc->prio_regs + i;
+            struct intc_prio_reg *pr = &desc->prio_regs[i];
 
             mode = sh_intc_mode(address, pr->set_reg, pr->clr_reg);
             if (mode == INTC_MODE_NONE) {
@@ -175,7 +175,7 @@ static void sh_intc_locate(struct intc_desc *desc,
 static void sh_intc_toggle_mask(struct intc_desc *desc, intc_enum id,
                                 int enable, int is_group)
 {
-    struct intc_source *source = desc->sources + id;
+    struct intc_source *source = &desc->sources[id];
 
     if (!id) {
         return;
@@ -265,7 +265,7 @@ static const MemoryRegionOps sh_intc_ops = {
 struct intc_source *sh_intc_source(struct intc_desc *desc, intc_enum id)
 {
     if (id) {
-        return desc->sources + id;
+        return &desc->sources[id];
     }
     return NULL;
 }
@@ -280,7 +280,7 @@ static void sh_intc_register_source(struct intc_desc *desc,
 
     if (desc->mask_regs) {
         for (i = 0; i < desc->nr_mask_regs; i++) {
-            struct intc_mask_reg *mr = desc->mask_regs + i;
+            struct intc_mask_reg *mr = &desc->mask_regs[i];
 
             for (k = 0; k < ARRAY_SIZE(mr->enum_ids); k++) {
                 if (mr->enum_ids[k] != source) {
@@ -296,7 +296,7 @@ static void sh_intc_register_source(struct intc_desc *desc,
 
     if (desc->prio_regs) {
         for (i = 0; i < desc->nr_prio_regs; i++) {
-            struct intc_prio_reg *pr = desc->prio_regs + i;
+            struct intc_prio_reg *pr = &desc->prio_regs[i];
 
             for (k = 0; k < ARRAY_SIZE(pr->enum_ids); k++) {
                 if (pr->enum_ids[k] != source) {
@@ -312,7 +312,7 @@ static void sh_intc_register_source(struct intc_desc *desc,
 
     if (groups) {
         for (i = 0; i < nr_groups; i++) {
-            struct intc_group *gr = groups + i;
+            struct intc_group *gr = &groups[i];
 
             for (k = 0; k < ARRAY_SIZE(gr->enum_ids); k++) {
                 if (gr->enum_ids[k] != source) {
@@ -338,7 +338,7 @@ void sh_intc_register_sources(struct intc_desc *desc,
     struct intc_source *s;
 
     for (i = 0; i < nr_vectors; i++) {
-        struct intc_vect *vect = vectors + i;
+        struct intc_vect *vect = &vectors[i];
 
         sh_intc_register_source(desc, vect->enum_id, groups, nr_groups);
         s = sh_intc_source(desc, vect->enum_id);
@@ -351,7 +351,7 @@ void sh_intc_register_sources(struct intc_desc *desc,
 
     if (groups) {
         for (i = 0; i < nr_groups; i++) {
-            struct intc_group *gr = groups + i;
+            struct intc_group *gr = &groups[i];
 
             s = sh_intc_source(desc, gr->enum_id);
             s->next_enum_id = gr->enum_ids[0];
@@ -384,7 +384,7 @@ static unsigned int sh_intc_register(MemoryRegion *sysmem,
     }
 
     iomem = &desc->iomem;
-    iomem_p4 = desc->iomem_aliases + index;
+    iomem_p4 = &desc->iomem_aliases[index];
     iomem_a7 = iomem_p4 + 1;
 
     snprintf(name, sizeof(name), "intc-%s-%s-%s", type, action, "p4");
@@ -424,7 +424,7 @@ int sh_intc_init(MemoryRegion *sysmem,
     desc->sources = g_malloc0(i);
 
     for (i = 0; i < desc->nr_sources; i++) {
-        struct intc_source *source = desc->sources + i;
+        struct intc_source *source = &desc->sources[i];
 
         source->parent = desc;
     }
@@ -435,7 +435,7 @@ int sh_intc_init(MemoryRegion *sysmem,
 
     if (desc->mask_regs) {
         for (i = 0; i < desc->nr_mask_regs; i++) {
-            struct intc_mask_reg *mr = desc->mask_regs + i;
+            struct intc_mask_reg *mr = &desc->mask_regs[i];
 
             j += sh_intc_register(sysmem, desc, mr->set_reg, "mask", "set", j);
             j += sh_intc_register(sysmem, desc, mr->clr_reg, "mask", "clr", j);
@@ -444,7 +444,7 @@ int sh_intc_init(MemoryRegion *sysmem,
 
     if (desc->prio_regs) {
         for (i = 0; i < desc->nr_prio_regs; i++) {
-            struct intc_prio_reg *pr = desc->prio_regs + i;
+            struct intc_prio_reg *pr = &desc->prio_regs[i];
 
             j += sh_intc_register(sysmem, desc, pr->set_reg, "prio", "set", j);
             j += sh_intc_register(sysmem, desc, pr->clr_reg, "prio", "clr", j);
