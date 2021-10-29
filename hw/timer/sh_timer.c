@@ -10,7 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "exec/memory.h"
-#include "hw/hw.h"
+#include "qemu/log.h"
 #include "hw/irq.h"
 #include "hw/sh4/sh.h"
 #include "hw/timer/tmu012.h"
@@ -75,11 +75,10 @@ static uint32_t sh_timer_read(void *opaque, hwaddr offset)
         if (s->feat & TIMER_FEAT_CAPT) {
             return s->tcpr;
         }
-        /* fall through */
-    default:
-        hw_error("sh_timer_read: Bad offset %x\n", (int)offset);
-        return 0;
     }
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIx "\n",
+                  __func__, offset);
+    return 0;
 }
 
 static void sh_timer_write(void *opaque, hwaddr offset, uint32_t value)
@@ -134,7 +133,8 @@ static void sh_timer_write(void *opaque, hwaddr offset, uint32_t value)
             }
             /* fallthrough */
         default:
-            hw_error("sh_timer_write: Reserved TPSC value\n");
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Reserved TPSC value\n", __func__);
         }
         switch ((value & TIMER_TCR_CKEG) >> 3) {
         case 0:
@@ -147,7 +147,8 @@ static void sh_timer_write(void *opaque, hwaddr offset, uint32_t value)
             }
             /* fallthrough */
         default:
-            hw_error("sh_timer_write: Reserved CKEG value\n");
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Reserved CKEG value\n", __func__);
         }
         switch ((value & TIMER_TCR_ICPE) >> 6) {
         case 0:
@@ -159,7 +160,8 @@ static void sh_timer_write(void *opaque, hwaddr offset, uint32_t value)
             }
             /* fallthrough */
         default:
-            hw_error("sh_timer_write: Reserved ICPE value\n");
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Reserved ICPE value\n", __func__);
         }
         if ((value & TIMER_TCR_UNF) == 0) {
             s->int_level = 0;
@@ -168,13 +170,15 @@ static void sh_timer_write(void *opaque, hwaddr offset, uint32_t value)
         value &= ~TIMER_TCR_UNF;
 
         if ((value & TIMER_TCR_ICPF) && (!(s->feat & TIMER_FEAT_CAPT))) {
-            hw_error("sh_timer_write: Reserved ICPF value\n");
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Reserved ICPF value\n", __func__);
         }
 
         value &= ~TIMER_TCR_ICPF; /* capture not supported */
 
         if (value & TIMER_TCR_RESERVED) {
-            hw_error("sh_timer_write: Reserved TCR bits set\n");
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Reserved TCR bits set\n", __func__);
         }
         s->tcr = value;
         ptimer_set_limit(s->timer, s->tcor, 0);
@@ -192,7 +196,8 @@ static void sh_timer_write(void *opaque, hwaddr offset, uint32_t value)
         }
         /* fallthrough */
     default:
-        hw_error("sh_timer_write: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, offset);
     }
     sh_timer_update(s);
 }
@@ -262,7 +267,9 @@ static uint64_t tmu012_read(void *opaque, hwaddr offset, unsigned size)
     trace_sh_timer_read(offset);
     if (offset >= 0x20) {
         if (!(s->feat & TMU012_FEAT_3CHAN)) {
-            hw_error("tmu012_write: Bad channel offset %x\n", (int)offset);
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Bad channel offset 0x%" HWADDR_PRIx "\n",
+                          __func__, offset);
         }
         return sh_timer_read(s->timer[2], offset - 0x20);
     }
@@ -280,7 +287,8 @@ static uint64_t tmu012_read(void *opaque, hwaddr offset, unsigned size)
         return s->tocr;
     }
 
-    hw_error("tmu012_write: Bad offset %x\n", (int)offset);
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, offset);
     return 0;
 }
 
@@ -292,7 +300,9 @@ static void tmu012_write(void *opaque, hwaddr offset,
     trace_sh_timer_write(offset, value);
     if (offset >= 0x20) {
         if (!(s->feat & TMU012_FEAT_3CHAN)) {
-            hw_error("tmu012_write: Bad channel offset %x\n", (int)offset);
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Bad channel offset 0x%" HWADDR_PRIx "\n",
+                          __func__, offset);
         }
         sh_timer_write(s->timer[2], offset - 0x20, value);
         return;
@@ -315,7 +325,7 @@ static void tmu012_write(void *opaque, hwaddr offset,
             sh_timer_start_stop(s->timer[2], value & (1 << 2));
         } else {
             if (value & (1 << 2)) {
-                hw_error("tmu012_write: Bad channel\n");
+                qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad channel\n", __func__);
             }
         }
 
