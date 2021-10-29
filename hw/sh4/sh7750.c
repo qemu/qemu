@@ -82,9 +82,10 @@ static inline int has_bcr3_and_bcr4(SH7750State * s)
 {
     return s->cpu->env.features & SH_FEATURE_BCR3_AND_BCR4;
 }
-/**********************************************************************
- I/O ports
-**********************************************************************/
+
+/*
+ * I/O ports
+ */
 
 int sh7750_register_io_device(SH7750State * s, sh7750_io_device * device)
 {
@@ -194,9 +195,9 @@ static void portb_changed(SH7750State * s, uint16_t prev)
         gen_port_interrupts(s);
 }
 
-/**********************************************************************
- Memory
-**********************************************************************/
+/*
+ * Memory
+ */
 
 static void error_access(const char *kind, hwaddr addr)
 {
@@ -491,7 +492,8 @@ static const MemoryRegionOps sh7750_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-/* sh775x interrupt controller tables for sh_intc.c
+/*
+ * sh775x interrupt controller tables for sh_intc.c
  * stolen from linux/arch/sh/kernel/cpu/sh4/setup-sh7750.c
  */
 
@@ -642,9 +644,9 @@ static struct intc_group groups_irl[] = {
         IRL_7, IRL_8, IRL_9, IRL_A, IRL_B, IRL_C, IRL_D, IRL_E),
 };
 
-/**********************************************************************
- Memory mapped cache and TLB
-**********************************************************************/
+/*
+ * Memory mapped cache and TLB
+ */
 
 #define MM_REGION_MASK   0x07000000
 #define MM_ICACHE_ADDR   (0)

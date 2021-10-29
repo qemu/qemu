@@ -450,8 +450,7 @@ int sh_intc_init(MemoryRegion *sysmem,
     desc->nr_mask_regs = nr_mask_regs;
     desc->prio_regs = prio_regs;
     desc->nr_prio_regs = nr_prio_regs;
-    /* Allocate 4 MemoryRegions per register (2 actions * 2 aliases).
-     **/
+    /* Allocate 4 MemoryRegions per register (2 actions * 2 aliases) */
     desc->iomem_aliases = g_new0(MemoryRegion,
                                  (nr_mask_regs + nr_prio_regs) * 4);
 
@@ -498,8 +497,10 @@ int sh_intc_init(MemoryRegion *sysmem,
     return 0;
 }
 
-/* Assert level <n> IRL interrupt. 
-   0:deassert. 1:lowest priority,... 15:highest priority. */
+/*
+ * Assert level <n> IRL interrupt.
+ * 0:deassert. 1:lowest priority,... 15:highest priority
+ */
 void sh_intc_set_irl(void *opaque, int n, int level)
 {
     struct intc_source *s = opaque;

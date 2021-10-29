@@ -115,8 +115,10 @@ static void sh_serial_write(void *opaque, hwaddr offs,
     case 0x0c: /* FTDR / TDR */
         if (qemu_chr_fe_backend_connected(&s->chr)) {
             ch = val;
-            /* XXX this blocks entire thread. Rewrite to use
-             * qemu_chr_fe_write and background I/O callbacks */
+            /*
+             * XXX this blocks entire thread. Rewrite to use
+             * qemu_chr_fe_write and background I/O callbacks
+             */
             qemu_chr_fe_write_all(&s->chr, &ch, 1);
         }
         s->dr = val;

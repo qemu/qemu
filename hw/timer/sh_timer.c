@@ -104,9 +104,10 @@ static void sh_timer_write(void *opaque, hwaddr offset,
     case OFFSET_TCR:
         ptimer_transaction_begin(s->timer);
         if (s->enabled) {
-            /* Pause the timer if it is running.  This may cause some
-               inaccuracy dure to rounding, but avoids a whole lot of other
-               messyness.  */
+            /*
+             * Pause the timer if it is running. This may cause some inaccuracy
+             * dure to rounding, but avoids a whole lot of other messyness
+             */
             ptimer_stop(s->timer);
         }
         freq = s->freq;
