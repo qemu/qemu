@@ -31,6 +31,7 @@
 #include "chardev/char-fe.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
+#include "qemu/log.h"
 #include "trace.h"
 
 #define SH_SERIAL_FLAG_TEND (1 << 0)
@@ -195,17 +196,16 @@ static void sh_serial_write(void *opaque, hwaddr offs,
             return;
         }
     }
-
-    fprintf(stderr, "sh_serial: unsupported write to 0x%02"
-            HWADDR_PRIx "\n", offs);
-    abort();
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "%s: unsupported write to 0x%02" HWADDR_PRIx "\n",
+                  __func__, offs);
 }
 
 static uint64_t sh_serial_read(void *opaque, hwaddr offs,
                                unsigned size)
 {
     sh_serial_state *s = opaque;
-    uint32_t ret = ~0;
+    uint32_t ret = UINT32_MAX;
 
 #if 0
     switch (offs) {
@@ -299,10 +299,11 @@ static uint64_t sh_serial_read(void *opaque, hwaddr offs,
     }
     trace_sh_serial_read(size, offs, ret);
 
-    if (ret & ~((1 << 16) - 1)) {
-        fprintf(stderr, "sh_serial: unsupported read from 0x%02"
-                HWADDR_PRIx "\n", offs);
-        abort();
+    if (ret > UINT16_MAX) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: unsupported read from 0x%02" HWADDR_PRIx "\n",
+                      __func__, offs);
+        ret = 0;
     }
 
     return ret;
