@@ -16,8 +16,6 @@
 #include "hw/sh4/sh.h"
 #include "trace.h"
 
-#define INTC_A7(x) ((x) & 0x1fffffff)
-
 void sh_intc_toggle_source(struct intc_source *source,
                            int enable_adj, int assert_adj)
 {
@@ -112,12 +110,12 @@ int sh_intc_get_pending_vector(struct intc_desc *desc, int imask)
 static unsigned int sh_intc_mode(unsigned long address,
                                  unsigned long set_reg, unsigned long clr_reg)
 {
-    if ((address != INTC_A7(set_reg)) &&
-        (address != INTC_A7(clr_reg)))
+    if ((address != A7ADDR(set_reg)) &&
+        (address != A7ADDR(clr_reg)))
         return INTC_MODE_NONE;
 
     if (set_reg && clr_reg) {
-        if (address == INTC_A7(set_reg)) {
+        if (address == A7ADDR(set_reg)) {
             return INTC_MODE_DUAL_SET;
         } else {
             return INTC_MODE_DUAL_CLR;
@@ -297,11 +295,11 @@ static unsigned int sh_intc_register(MemoryRegion *sysmem,
 
 #define SH_INTC_IOMEM_FORMAT "interrupt-controller-%s-%s-%s"
     snprintf(name, sizeof(name), SH_INTC_IOMEM_FORMAT, type, action, "p4");
-    memory_region_init_alias(iomem_p4, NULL, name, iomem, INTC_A7(address), 4);
+    memory_region_init_alias(iomem_p4, NULL, name, iomem, A7ADDR(address), 4);
     memory_region_add_subregion(sysmem, P4ADDR(address), iomem_p4);
 
     snprintf(name, sizeof(name), SH_INTC_IOMEM_FORMAT, type, action, "a7");
-    memory_region_init_alias(iomem_a7, NULL, name, iomem, INTC_A7(address), 4);
+    memory_region_init_alias(iomem_a7, NULL, name, iomem, A7ADDR(address), 4);
     memory_region_add_subregion(sysmem, A7ADDR(address), iomem_a7);
 #undef SH_INTC_IOMEM_FORMAT
 
