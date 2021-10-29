@@ -404,6 +404,24 @@ uint64_t helper_PDEPD(uint64_t src, uint64_t mask)
 
     return result;
 }
+
+uint64_t helper_PEXTD(uint64_t src, uint64_t mask)
+{
+    int i, o;
+    uint64_t result = 0;
+
+    if (mask == -1) {
+        return src;
+    }
+
+    for (o = 0; mask != 0; o++) {
+        i = ctz64(mask);
+        mask &= mask - 1;
+        result |= ((src >> i) & 1) << o;
+    }
+
+    return result;
+}
 #endif
 
 /*****************************************************************************/
