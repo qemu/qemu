@@ -24,9 +24,13 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
+#include "hw/sysbus.h"
 #include "hw/irq.h"
 #include "hw/sh4/sh.h"
 #include "sysemu/sysemu.h"
+#include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "sh7750_regs.h"
 #include "sh7750_regnames.h"
 #include "hw/sh4/sh_intc.h"
@@ -762,6 +766,9 @@ static const MemoryRegionOps sh7750_mmct_ops = {
 SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
 {
     SH7750State *s;
+    DeviceState *dev;
+    SysBusDevice *sb;
+    MemoryRegion *mr, *alias;
 
     s = g_malloc0(sizeof(SH7750State));
     s->cpu = cpu;
@@ -807,21 +814,40 @@ SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
 
     cpu->env.intc_handle = &s->intc;
 
-    sh_serial_init(sysmem, 0x1fe00000,
-                   0, s->periph_freq, serial_hd(0),
-                   s->intc.irqs[SCI1_ERI],
-                   s->intc.irqs[SCI1_RXI],
-                   s->intc.irqs[SCI1_TXI],
-                   s->intc.irqs[SCI1_TEI],
-                   NULL);
-    sh_serial_init(sysmem, 0x1fe80000,
-                   SH_SERIAL_FEAT_SCIF,
-                   s->periph_freq, serial_hd(1),
-                   s->intc.irqs[SCIF_ERI],
-                   s->intc.irqs[SCIF_RXI],
-                   s->intc.irqs[SCIF_TXI],
-                   NULL,
-                   s->intc.irqs[SCIF_BRI]);
+    /* SCI */
+    dev = qdev_new(TYPE_SH_SERIAL);
+    dev->id = g_strdup("sci");
+    qdev_prop_set_chr(dev, "chardev", serial_hd(0));
+    sb = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sb, &error_fatal);
+    sysbus_mmio_map(sb, 0, 0xffe00000);
+    alias = g_malloc(sizeof(*alias));
+    mr = sysbus_mmio_get_region(sb, 0);
+    memory_region_init_alias(alias, OBJECT(dev), "sci-a7", mr,
+                             0, memory_region_size(mr));
+    memory_region_add_subregion(sysmem, A7ADDR(0xffe00000), alias);
+    qdev_connect_gpio_out_named(dev, "eri", 0, s->intc.irqs[SCI1_ERI]);
+    qdev_connect_gpio_out_named(dev, "rxi", 0, s->intc.irqs[SCI1_RXI]);
+    qdev_connect_gpio_out_named(dev, "txi", 0, s->intc.irqs[SCI1_TXI]);
+    qdev_connect_gpio_out_named(dev, "tei", 0, s->intc.irqs[SCI1_TEI]);
+
+    /* SCIF */
+    dev = qdev_new(TYPE_SH_SERIAL);
+    dev->id = g_strdup("scif");
+    qdev_prop_set_chr(dev, "chardev", serial_hd(1));
+    qdev_prop_set_uint8(dev, "features", SH_SERIAL_FEAT_SCIF);
+    sb = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sb, &error_fatal);
+    sysbus_mmio_map(sb, 0, 0xffe80000);
+    alias = g_malloc(sizeof(*alias));
+    mr = sysbus_mmio_get_region(sb, 0);
+    memory_region_init_alias(alias, OBJECT(dev), "scif-a7", mr,
+                             0, memory_region_size(mr));
+    memory_region_add_subregion(sysmem, A7ADDR(0xffe80000), alias);
+    qdev_connect_gpio_out_named(dev, "eri", 0, s->intc.irqs[SCIF_ERI]);
+    qdev_connect_gpio_out_named(dev, "rxi", 0, s->intc.irqs[SCIF_RXI]);
+    qdev_connect_gpio_out_named(dev, "txi", 0, s->intc.irqs[SCIF_TXI]);
+    qdev_connect_gpio_out_named(dev, "bri", 0, s->intc.irqs[SCIF_BRI]);
 
     tmu012_init(sysmem, 0x1fd80000,
                 TMU012_FEAT_TOCR | TMU012_FEAT_3CHAN | TMU012_FEAT_EXTCLK,

@@ -26,7 +26,11 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/sysbus.h"
 #include "hw/irq.h"
+#include "hw/qdev-core.h"
+#include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "hw/sh4/sh.h"
 #include "chardev/char-fe.h"
 #include "qapi/error.h"
@@ -42,10 +46,10 @@
 
 #define SH_RX_FIFO_LENGTH (16)
 
-typedef struct {
-    MemoryRegion iomem;
-    MemoryRegion iomem_p4;
-    MemoryRegion iomem_a7;
+OBJECT_DECLARE_SIMPLE_TYPE(SHSerialState, SH_SERIAL)
+
+struct SHSerialState {
+    SysBusDevice parent;
     uint8_t smr;
     uint8_t brr;
     uint8_t scr;
@@ -59,8 +63,7 @@ typedef struct {
     uint8_t rx_tail;
     uint8_t rx_head;
 
-    int freq;
-    int feat;
+    uint8_t feat;
     int flags;
     int rtrg;
 
@@ -73,7 +76,11 @@ typedef struct {
     qemu_irq txi;
     qemu_irq tei;
     qemu_irq bri;
-} SHSerialState;
+};
+
+typedef struct {} SHSerialStateClass;
+
+OBJECT_DEFINE_TYPE(SHSerialState, sh_serial, SH_SERIAL, SYS_BUS_DEVICE)
 
 static void sh_serial_clear_fifo(SHSerialState *s)
 {
@@ -381,8 +388,10 @@ static const MemoryRegionOps sh_serial_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void sh_serial_reset(SHSerialState *s)
+static void sh_serial_reset(DeviceState *dev)
 {
+    SHSerialState *s = SH_SERIAL(dev);
+
     s->flags = SH_SERIAL_FLAG_TEND | SH_SERIAL_FLAG_TDE;
     s->rtrg = 1;
 
@@ -400,33 +409,21 @@ static void sh_serial_reset(SHSerialState *s)
     sh_serial_clear_fifo(s);
 }
 
-void sh_serial_init(MemoryRegion *sysmem,
-                    hwaddr base, int feat,
-                    uint32_t freq, Chardev *chr,
-                    qemu_irq eri_source,
-                    qemu_irq rxi_source,
-                    qemu_irq txi_source,
-                    qemu_irq tei_source,
-                    qemu_irq bri_source)
+static void sh_serial_realize(DeviceState *d, Error **errp)
 {
-    SHSerialState *s = g_malloc0(sizeof(*s));
+    SHSerialState *s = SH_SERIAL(d);
+    MemoryRegion *iomem = g_malloc(sizeof(*iomem));
 
-    s->feat = feat;
-    sh_serial_reset(s);
+    assert(d->id);
+    memory_region_init_io(iomem, OBJECT(d), &sh_serial_ops, s, d->id, 0x28);
+    sysbus_init_mmio(SYS_BUS_DEVICE(d), iomem);
+    qdev_init_gpio_out_named(d, &s->eri, "eri", 1);
+    qdev_init_gpio_out_named(d, &s->rxi, "rxi", 1);
+    qdev_init_gpio_out_named(d, &s->txi, "txi", 1);
+    qdev_init_gpio_out_named(d, &s->tei, "tei", 1);
+    qdev_init_gpio_out_named(d, &s->bri, "bri", 1);
 
-    memory_region_init_io(&s->iomem, NULL, &sh_serial_ops, s,
-                          "serial", 0x100000000ULL);
-
-    memory_region_init_alias(&s->iomem_p4, NULL, "serial-p4", &s->iomem,
-                             0, 0x28);
-    memory_region_add_subregion(sysmem, P4ADDR(base), &s->iomem_p4);
-
-    memory_region_init_alias(&s->iomem_a7, NULL, "serial-a7", &s->iomem,
-                             0, 0x28);
-    memory_region_add_subregion(sysmem, A7ADDR(base), &s->iomem_a7);
-
-    if (chr) {
-        qemu_chr_fe_init(&s->chr, chr, &error_abort);
+    if (qemu_chr_fe_backend_connected(&s->chr)) {
         qemu_chr_fe_set_handlers(&s->chr, sh_serial_can_receive1,
                                  sh_serial_receive1,
                                  sh_serial_event, NULL, s, NULL, true);
@@ -435,9 +432,32 @@ void sh_serial_init(MemoryRegion *sysmem,
     timer_init_ns(&s->fifo_timeout_timer, QEMU_CLOCK_VIRTUAL,
                   sh_serial_timeout_int, s);
     s->etu = NANOSECONDS_PER_SECOND / 9600;
-    s->eri = eri_source;
-    s->rxi = rxi_source;
-    s->txi = txi_source;
-    s->tei = tei_source;
-    s->bri = bri_source;
+}
+
+static void sh_serial_finalize(Object *obj)
+{
+    SHSerialState *s = SH_SERIAL(obj);
+
+    timer_del(&s->fifo_timeout_timer);
+}
+
+static void sh_serial_init(Object *obj)
+{
+}
+
+static Property sh_serial_properties[] = {
+    DEFINE_PROP_CHR("chardev", SHSerialState, chr),
+    DEFINE_PROP_UINT8("features", SHSerialState, feat, 0),
+    DEFINE_PROP_END_OF_LIST()
+};
+
+static void sh_serial_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    device_class_set_props(dc, sh_serial_properties);
+    dc->realize = sh_serial_realize;
+    dc->reset = sh_serial_reset;
+    /* Reason: part of SuperH CPU/SoC, needs to be wired up */
+    dc->user_creatable = false;
 }
