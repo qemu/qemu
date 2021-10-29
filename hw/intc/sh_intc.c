@@ -262,33 +262,22 @@ static const MemoryRegionOps sh_intc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-struct intc_source *sh_intc_source(struct intc_desc *desc, intc_enum id)
-{
-    if (id) {
-        return &desc->sources[id];
-    }
-    return NULL;
-}
-
 static void sh_intc_register_source(struct intc_desc *desc,
                                     intc_enum source,
                                     struct intc_group *groups,
                                     int nr_groups)
 {
     unsigned int i, k;
-    struct intc_source *s;
+    intc_enum id;
 
     if (desc->mask_regs) {
         for (i = 0; i < desc->nr_mask_regs; i++) {
             struct intc_mask_reg *mr = &desc->mask_regs[i];
 
             for (k = 0; k < ARRAY_SIZE(mr->enum_ids); k++) {
-                if (mr->enum_ids[k] != source) {
-                    continue;
-                }
-                s = sh_intc_source(desc, mr->enum_ids[k]);
-                if (s) {
-                    s->enable_max++;
+                id = mr->enum_ids[k];
+                if (id && id == source) {
+                    desc->sources[id].enable_max++;
                 }
             }
         }
@@ -299,12 +288,9 @@ static void sh_intc_register_source(struct intc_desc *desc,
             struct intc_prio_reg *pr = &desc->prio_regs[i];
 
             for (k = 0; k < ARRAY_SIZE(pr->enum_ids); k++) {
-                if (pr->enum_ids[k] != source) {
-                    continue;
-                }
-                s = sh_intc_source(desc, pr->enum_ids[k]);
-                if (s) {
-                    s->enable_max++;
+                id = pr->enum_ids[k];
+                if (id && id == source) {
+                    desc->sources[id].enable_max++;
                 }
             }
         }
@@ -315,12 +301,9 @@ static void sh_intc_register_source(struct intc_desc *desc,
             struct intc_group *gr = &groups[i];
 
             for (k = 0; k < ARRAY_SIZE(gr->enum_ids); k++) {
-                if (gr->enum_ids[k] != source) {
-                    continue;
-                }
-                s = sh_intc_source(desc, gr->enum_ids[k]);
-                if (s) {
-                    s->enable_max++;
+                id = gr->enum_ids[k];
+                if (id && id == source) {
+                    desc->sources[id].enable_max++;
                 }
             }
         }
@@ -335,14 +318,16 @@ void sh_intc_register_sources(struct intc_desc *desc,
                               int nr_groups)
 {
     unsigned int i, k;
+    intc_enum id;
     struct intc_source *s;
 
     for (i = 0; i < nr_vectors; i++) {
         struct intc_vect *vect = &vectors[i];
 
         sh_intc_register_source(desc, vect->enum_id, groups, nr_groups);
-        s = sh_intc_source(desc, vect->enum_id);
-        if (s) {
+        id = vect->enum_id;
+        if (id) {
+            s = &desc->sources[id];
             s->vect = vect->vect;
             trace_sh_intc_register("source", vect->enum_id, s->vect,
                                    s->enable_count, s->enable_max);
@@ -353,14 +338,16 @@ void sh_intc_register_sources(struct intc_desc *desc,
         for (i = 0; i < nr_groups; i++) {
             struct intc_group *gr = &groups[i];
 
-            s = sh_intc_source(desc, gr->enum_id);
+            id = gr->enum_id;
+            s = &desc->sources[id];
             s->next_enum_id = gr->enum_ids[0];
 
             for (k = 1; k < ARRAY_SIZE(gr->enum_ids); k++) {
                 if (!gr->enum_ids[k]) {
                     continue;
                 }
-                s = sh_intc_source(desc, gr->enum_ids[k - 1]);
+                id = gr->enum_ids[k - 1];
+                s = &desc->sources[id];
                 s->next_enum_id = gr->enum_ids[k];
             }
             trace_sh_intc_register("group", gr->enum_id, 0xffff,
@@ -462,7 +449,10 @@ void sh_intc_set_irl(void *opaque, int n, int level)
 {
     struct intc_source *s = opaque;
     int i, irl = level ^ 15;
-    for (i = 0; (s = sh_intc_source(s->parent, s->next_enum_id)); i++) {
+    intc_enum id = s->next_enum_id;
+
+    for (i = 0; id; id = s->next_enum_id, i++) {
+        s = &s->parent->sources[id];
         if (i == irl) {
             sh_intc_toggle_source(s, s->enable_count ? 0 : 1,
                                   s->asserted ? 0 : 1);
