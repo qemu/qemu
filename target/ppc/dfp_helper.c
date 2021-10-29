@@ -51,6 +51,11 @@ static void set_dfp128(ppc_fprp_t *dfp, ppc_vsr_t *src)
     dfp[1].VsrD(0) = src->VsrD(1);
 }
 
+static void set_dfp128_to_avr(ppc_avr_t *dst, ppc_vsr_t *src)
+{
+    *dst = *src;
+}
+
 struct PPC_DFP {
     CPUPPCState *env;
     ppc_vsr_t vt, va, vb;
@@ -1019,6 +1024,53 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)              \
 
 DFP_HELPER_CTFIX(dctfix, 64)
 DFP_HELPER_CTFIX(dctfixq, 128)
+
+void helper_DCTFIXQQ(CPUPPCState *env, ppc_avr_t *t, ppc_fprp_t *b)
+{
+    struct PPC_DFP dfp;
+    dfp_prepare_decimal128(&dfp, 0, b, env);
+
+    if (unlikely(decNumberIsSpecial(&dfp.b))) {
+        uint64_t invalid_flags = FP_VX | FP_VXCVI;
+        if (decNumberIsInfinite(&dfp.b)) {
+            if (decNumberIsNegative(&dfp.b)) {
+                dfp.vt.VsrD(0) = INT64_MIN;
+                dfp.vt.VsrD(1) = 0;
+            } else {
+                dfp.vt.VsrD(0) = INT64_MAX;
+                dfp.vt.VsrD(1) = UINT64_MAX;
+            }
+        } else { /* NaN */
+            dfp.vt.VsrD(0) = INT64_MIN;
+            dfp.vt.VsrD(1) = 0;
+            if (decNumberIsSNaN(&dfp.b)) {
+                invalid_flags |= FP_VXSNAN;
+            }
+        }
+        dfp_set_FPSCR_flag(&dfp, invalid_flags, FP_VE);
+    } else if (unlikely(decNumberIsZero(&dfp.b))) {
+        dfp.vt.VsrD(0) = 0;
+        dfp.vt.VsrD(1) = 0;
+    } else {
+        decNumberToIntegralExact(&dfp.b, &dfp.b, &dfp.context);
+        decNumberIntegralToInt128(&dfp.b, &dfp.context,
+                &dfp.vt.VsrD(1), &dfp.vt.VsrD(0));
+        if (decContextTestStatus(&dfp.context, DEC_Invalid_operation)) {
+            if (decNumberIsNegative(&dfp.b)) {
+                dfp.vt.VsrD(0) = INT64_MIN;
+                dfp.vt.VsrD(1) = 0;
+            } else {
+                dfp.vt.VsrD(0) = INT64_MAX;
+                dfp.vt.VsrD(1) = UINT64_MAX;
+            }
+            dfp_set_FPSCR_flag(&dfp, FP_VX | FP_VXCVI, FP_VE);
+        } else {
+            dfp_check_for_XX(&dfp);
+        }
+    }
+
+    set_dfp128_to_avr(t, &dfp.vt);
+}
 
 static inline void dfp_set_bcd_digit_64(ppc_vsr_t *t, uint8_t digit,
                                         unsigned n)

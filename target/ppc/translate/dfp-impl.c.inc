@@ -247,3 +247,20 @@ static bool trans_DCFFIXQQ(DisasContext *ctx, arg_DCFFIXQQ *a)
 
     return true;
 }
+
+static bool trans_DCTFIXQQ(DisasContext *ctx, arg_DCTFIXQQ *a)
+{
+    TCGv_ptr rt, rb;
+
+    REQUIRE_INSNS_FLAGS2(ctx, DFP);
+    REQUIRE_FPU(ctx);
+    REQUIRE_VECTOR(ctx);
+
+    rt = gen_avr_ptr(a->vrt);
+    rb = gen_fprp_ptr(a->frbp);
+    gen_helper_DCTFIXQQ(cpu_env, rt, rb);
+    tcg_temp_free_ptr(rt);
+    tcg_temp_free_ptr(rb);
+
+    return true;
+}
