@@ -107,7 +107,7 @@ static void sh_timer_write(void *opaque, hwaddr offset,
         if (s->enabled) {
             /*
              * Pause the timer if it is running. This may cause some inaccuracy
-             * dure to rounding, but avoids a whole lot of other messyness
+             * due to rounding, but avoids a whole lot of other messiness
              */
             ptimer_stop(s->timer);
         }
