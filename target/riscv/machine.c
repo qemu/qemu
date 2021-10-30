@@ -76,56 +76,6 @@ static bool hyper_needed(void *opaque)
     return riscv_has_ext(env, RVH);
 }
 
-static bool vector_needed(void *opaque)
-{
-    RISCVCPU *cpu = opaque;
-    CPURISCVState *env = &cpu->env;
-
-    return riscv_has_ext(env, RVV);
-}
-
-static bool pointermasking_needed(void *opaque)
-{
-    RISCVCPU *cpu = opaque;
-    CPURISCVState *env = &cpu->env;
-
-    return riscv_has_ext(env, RVJ);
-}
-
-static const VMStateDescription vmstate_vector = {
-    .name = "cpu/vector",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .needed = vector_needed,
-    .fields = (VMStateField[]) {
-            VMSTATE_UINT64_ARRAY(env.vreg, RISCVCPU, 32 * RV_VLEN_MAX / 64),
-            VMSTATE_UINTTL(env.vxrm, RISCVCPU),
-            VMSTATE_UINTTL(env.vxsat, RISCVCPU),
-            VMSTATE_UINTTL(env.vl, RISCVCPU),
-            VMSTATE_UINTTL(env.vstart, RISCVCPU),
-            VMSTATE_UINTTL(env.vtype, RISCVCPU),
-            VMSTATE_END_OF_LIST()
-        }
-};
-
-static const VMStateDescription vmstate_pointermasking = {
-    .name = "cpu/pointer_masking",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .needed = pointermasking_needed,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINTTL(env.mmte, RISCVCPU),
-        VMSTATE_UINTTL(env.mpmmask, RISCVCPU),
-        VMSTATE_UINTTL(env.mpmbase, RISCVCPU),
-        VMSTATE_UINTTL(env.spmmask, RISCVCPU),
-        VMSTATE_UINTTL(env.spmbase, RISCVCPU),
-        VMSTATE_UINTTL(env.upmmask, RISCVCPU),
-        VMSTATE_UINTTL(env.upmbase, RISCVCPU),
-
-        VMSTATE_END_OF_LIST()
-    }
-};
-
 static const VMStateDescription vmstate_hyper = {
     .name = "cpu/hyper",
     .version_id = 1,
@@ -159,6 +109,56 @@ static const VMStateDescription vmstate_hyper = {
         VMSTATE_UINTTL(env.stval_hs, RISCVCPU),
         VMSTATE_UINTTL(env.satp_hs, RISCVCPU),
         VMSTATE_UINT64(env.mstatus_hs, RISCVCPU),
+
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool vector_needed(void *opaque)
+{
+    RISCVCPU *cpu = opaque;
+    CPURISCVState *env = &cpu->env;
+
+    return riscv_has_ext(env, RVV);
+}
+
+static const VMStateDescription vmstate_vector = {
+    .name = "cpu/vector",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = vector_needed,
+    .fields = (VMStateField[]) {
+            VMSTATE_UINT64_ARRAY(env.vreg, RISCVCPU, 32 * RV_VLEN_MAX / 64),
+            VMSTATE_UINTTL(env.vxrm, RISCVCPU),
+            VMSTATE_UINTTL(env.vxsat, RISCVCPU),
+            VMSTATE_UINTTL(env.vl, RISCVCPU),
+            VMSTATE_UINTTL(env.vstart, RISCVCPU),
+            VMSTATE_UINTTL(env.vtype, RISCVCPU),
+            VMSTATE_END_OF_LIST()
+        }
+};
+
+static bool pointermasking_needed(void *opaque)
+{
+    RISCVCPU *cpu = opaque;
+    CPURISCVState *env = &cpu->env;
+
+    return riscv_has_ext(env, RVJ);
+}
+
+static const VMStateDescription vmstate_pointermasking = {
+    .name = "cpu/pointer_masking",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = pointermasking_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINTTL(env.mmte, RISCVCPU),
+        VMSTATE_UINTTL(env.mpmmask, RISCVCPU),
+        VMSTATE_UINTTL(env.mpmbase, RISCVCPU),
+        VMSTATE_UINTTL(env.spmmask, RISCVCPU),
+        VMSTATE_UINTTL(env.spmbase, RISCVCPU),
+        VMSTATE_UINTTL(env.upmmask, RISCVCPU),
+        VMSTATE_UINTTL(env.upmbase, RISCVCPU),
 
         VMSTATE_END_OF_LIST()
     }
