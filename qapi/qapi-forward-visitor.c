@@ -246,25 +246,27 @@ static void forward_field_optional(Visitor *v, const char *name, bool *present)
     visit_optional(ffv->target, name, present);
 }
 
-static bool forward_field_deprecated_accept(Visitor *v, const char *name,
-                                            Error **errp)
+static bool forward_field_policy_reject(Visitor *v, const char *name,
+                                        unsigned special_features,
+                                        Error **errp)
 {
     ForwardFieldVisitor *ffv = to_ffv(v);
 
     if (!forward_field_translate_name(ffv, &name, errp)) {
-        return false;
+        return true;
     }
-    return visit_deprecated_accept(ffv->target, name, errp);
+    return visit_policy_reject(ffv->target, name, special_features, errp);
 }
 
-static bool forward_field_deprecated(Visitor *v, const char *name)
+static bool forward_field_policy_skip(Visitor *v, const char *name,
+                                      unsigned special_features)
 {
     ForwardFieldVisitor *ffv = to_ffv(v);
 
     if (!forward_field_translate_name(ffv, &name, NULL)) {
-        return false;
+        return true;
     }
-    return visit_deprecated(ffv->target, name);
+    return visit_policy_skip(ffv->target, name, special_features);
 }
 
 static void forward_field_complete(Visitor *v, void *opaque)
@@ -313,8 +315,8 @@ Visitor *visitor_forward_field(Visitor *target, const char *from, const char *to
     v->visitor.type_any = forward_field_type_any;
     v->visitor.type_null = forward_field_type_null;
     v->visitor.optional = forward_field_optional;
-    v->visitor.deprecated_accept = forward_field_deprecated_accept;
-    v->visitor.deprecated = forward_field_deprecated;
+    v->visitor.policy_reject = forward_field_policy_reject;
+    v->visitor.policy_skip = forward_field_policy_skip;
     v->visitor.complete = forward_field_complete;
     v->visitor.free = forward_field_free;
 

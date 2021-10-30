@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/compat-policy.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/visitor-impl.h"
 #include "qemu/queue.h"
@@ -208,9 +209,15 @@ static bool qobject_output_type_null(Visitor *v, const char *name,
     return true;
 }
 
-static bool qobject_output_deprecated(Visitor *v, const char *name)
+static bool qobject_output_policy_skip(Visitor *v, const char *name,
+                                       unsigned special_features)
 {
-    return v->compat_policy.deprecated_output != COMPAT_POLICY_OUTPUT_HIDE;
+    CompatPolicy *pol = &v->compat_policy;
+
+    return ((special_features & 1u << QAPI_DEPRECATED)
+            && pol->deprecated_output == COMPAT_POLICY_OUTPUT_HIDE)
+        || ((special_features & 1u << QAPI_UNSTABLE)
+            && pol->unstable_output == COMPAT_POLICY_OUTPUT_HIDE);
 }
 
 /* Finish building, and return the root object.
@@ -262,7 +269,7 @@ Visitor *qobject_output_visitor_new(QObject **result)
     v->visitor.type_number = qobject_output_type_number;
     v->visitor.type_any = qobject_output_type_any;
     v->visitor.type_null = qobject_output_type_null;
-    v->visitor.deprecated = qobject_output_deprecated;
+    v->visitor.policy_skip = qobject_output_policy_skip;
     v->visitor.complete = qobject_output_complete;
     v->visitor.free = qobject_output_free;
 

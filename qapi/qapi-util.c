@@ -11,9 +11,52 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/compat-policy.h"
 #include "qapi/error.h"
 #include "qemu/ctype.h"
 #include "qapi/qmp/qerror.h"
+
+CompatPolicy compat_policy;
+
+static bool compat_policy_input_ok1(const char *adjective,
+                                    CompatPolicyInput policy,
+                                    ErrorClass error_class,
+                                    const char *kind, const char *name,
+                                    Error **errp)
+{
+    switch (policy) {
+    case COMPAT_POLICY_INPUT_ACCEPT:
+        return true;
+    case COMPAT_POLICY_INPUT_REJECT:
+        error_set(errp, error_class, "%s %s %s disabled by policy",
+                  adjective, kind, name);
+        return false;
+    case COMPAT_POLICY_INPUT_CRASH:
+    default:
+        abort();
+    }
+}
+
+bool compat_policy_input_ok(unsigned special_features,
+                            const CompatPolicy *policy,
+                            ErrorClass error_class,
+                            const char *kind, const char *name,
+                            Error **errp)
+{
+    if ((special_features & 1u << QAPI_DEPRECATED)
+        && !compat_policy_input_ok1("Deprecated",
+                                    policy->deprecated_input,
+                                    error_class, kind, name, errp)) {
+        return false;
+    }
+    if ((special_features & (1u << QAPI_UNSTABLE))
+        && !compat_policy_input_ok1("Unstable",
+                                    policy->unstable_input,
+                                    error_class, kind, name, errp)) {
+        return false;
+    }
+    return true;
+}
 
 const char *qapi_enum_lookup(const QEnumLookup *lookup, int val)
 {

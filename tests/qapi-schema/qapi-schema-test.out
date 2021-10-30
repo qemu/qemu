@@ -308,6 +308,7 @@ object FeatureStruct1
     feature feature1
 object FeatureStruct2
     member foo: int optional=False
+        feature unstable
     feature feature1
 object FeatureStruct3
     member foo: int optional=False
@@ -373,6 +374,7 @@ command test-command-features1 None -> None
     feature deprecated
 command test-command-features3 None -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
+    feature unstable
     feature feature1
     feature feature2
 command test-command-cond-features1 None -> None
@@ -394,6 +396,9 @@ event TEST_EVENT_FEATURES0 FeatureStruct1
 event TEST_EVENT_FEATURES1 None
     boxed=False
     feature deprecated
+event TEST_EVENT_FEATURES2 None
+    boxed=False
+    feature unstable
 module include/sub-module.json
 include sub-sub-module.json
 object SecondArrayRef

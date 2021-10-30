@@ -26,8 +26,6 @@
 #include "qemu/coroutine.h"
 #include "qemu/main-loop.h"
 
-CompatPolicy compat_policy;
-
 Visitor *qobject_input_visitor_new_qmp(QObject *obj)
 {
     Visitor *v = qobject_input_visitor_new(obj);
@@ -176,19 +174,10 @@ QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
                   "The command %s has not been found", command);
         goto out;
     }
-    if (cmd->options & QCO_DEPRECATED) {
-        switch (compat_policy.deprecated_input) {
-        case COMPAT_POLICY_INPUT_ACCEPT:
-            break;
-        case COMPAT_POLICY_INPUT_REJECT:
-            error_set(&err, ERROR_CLASS_COMMAND_NOT_FOUND,
-                      "Deprecated command %s disabled by policy",
-                      command);
-            goto out;
-        case COMPAT_POLICY_INPUT_CRASH:
-        default:
-            abort();
-        }
+    if (!compat_policy_input_ok(cmd->special_features, &compat_policy,
+                                ERROR_CLASS_COMMAND_NOT_FOUND,
+                                "command", command, &err)) {
+        goto out;
     }
     if (!cmd->enabled) {
         error_set(&err, ERROR_CLASS_COMMAND_NOT_FOUND,

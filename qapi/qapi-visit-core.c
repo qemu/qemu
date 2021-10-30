@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/compat-policy.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
@@ -139,22 +140,24 @@ bool visit_optional(Visitor *v, const char *name, bool *present)
     return *present;
 }
 
-bool visit_deprecated_accept(Visitor *v, const char *name, Error **errp)
+bool visit_policy_reject(Visitor *v, const char *name,
+                         unsigned special_features, Error **errp)
 {
-    trace_visit_deprecated_accept(v, name);
-    if (v->deprecated_accept) {
-        return v->deprecated_accept(v, name, errp);
+    trace_visit_policy_reject(v, name);
+    if (v->policy_reject) {
+        return v->policy_reject(v, name, special_features, errp);
     }
-    return true;
+    return false;
 }
 
-bool visit_deprecated(Visitor *v, const char *name)
+bool visit_policy_skip(Visitor *v, const char *name,
+                       unsigned special_features)
 {
-    trace_visit_deprecated(v, name);
-    if (v->deprecated) {
-        return v->deprecated(v, name);
+    trace_visit_policy_skip(v, name);
+    if (v->policy_skip) {
+        return v->policy_skip(v, name, special_features);
     }
-    return true;
+    return false;
 }
 
 void visit_set_policy(Visitor *v, CompatPolicy *policy)
@@ -406,18 +409,12 @@ static bool input_type_enum(Visitor *v, const char *name, int *obj,
         return false;
     }
 
-    if (lookup->flags && (lookup->flags[value] & QAPI_ENUM_DEPRECATED)) {
-        switch (v->compat_policy.deprecated_input) {
-        case COMPAT_POLICY_INPUT_ACCEPT:
-            break;
-        case COMPAT_POLICY_INPUT_REJECT:
-            error_setg(errp, "Deprecated value '%s' disabled by policy",
-                       enum_str);
-            return false;
-        case COMPAT_POLICY_INPUT_CRASH:
-        default:
-            abort();
-        }
+    if (lookup->special_features
+        && !compat_policy_input_ok(lookup->special_features[value],
+                                   &v->compat_policy,
+                                   ERROR_CLASS_GENERIC_ERROR,
+                                   "value", enum_str, errp)) {
+        return false;
     }
 
     *obj = value;

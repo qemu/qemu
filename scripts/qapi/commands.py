@@ -26,6 +26,7 @@ from .gen import (
     QAPISchemaModularCVisitor,
     build_params,
     ifcontext,
+    gen_special_features,
 )
 from .schema import (
     QAPISchema,
@@ -217,9 +218,6 @@ def gen_register_command(name: str,
                          coroutine: bool) -> str:
     options = []
 
-    if 'deprecated' in [f.name for f in features]:
-        options += ['QCO_DEPRECATED']
-
     if not success_response:
         options += ['QCO_NO_SUCCESS_RESP']
     if allow_oob:
@@ -229,15 +227,13 @@ def gen_register_command(name: str,
     if coroutine:
         options += ['QCO_COROUTINE']
 
-    if not options:
-        options = ['QCO_NO_OPTIONS']
-
     ret = mcgen('''
     qmp_register_command(cmds, "%(name)s",
-                         qmp_marshal_%(c_name)s, %(opts)s);
+                         qmp_marshal_%(c_name)s, %(opts)s, %(feats)s);
 ''',
                 name=name, c_name=c_name(name),
-                opts=" | ".join(options))
+                opts=' | '.join(options) or 0,
+                feats=gen_special_features(features))
     return ret
 
 

@@ -452,14 +452,20 @@
 #                       procedure starts. The VM RAM is saved with running VM.
 #                       (since 6.0)
 #
+# Features:
+# @unstable: Members @x-colo and @x-ignore-shared are experimental.
+#
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
-           'compress', 'events', 'postcopy-ram', 'x-colo', 'release-ram',
+           'compress', 'events', 'postcopy-ram',
+           { 'name': 'x-colo', 'features': [ 'unstable' ] },
+           'release-ram',
            'block', 'return-path', 'pause-before-switchover', 'multifd',
            'dirty-bitmaps', 'postcopy-blocktime', 'late-block-activate',
-           'x-ignore-shared', 'validate-uuid', 'background-snapshot'] }
+           { 'name': 'x-ignore-shared', 'features': [ 'unstable' ] },
+           'validate-uuid', 'background-snapshot'] }
 
 ##
 # @MigrationCapabilityStatus:
@@ -743,6 +749,9 @@
 #                        block device name if there is one, and to their node name
 #                        otherwise. (Since 5.2)
 #
+# Features:
+# @unstable: Member @x-checkpoint-delay is experimental.
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
@@ -753,7 +762,9 @@
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'cpu-throttle-tailslow',
            'tls-creds', 'tls-hostname', 'tls-authz', 'max-bandwidth',
-           'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
+           'downtime-limit',
+           { 'name': 'x-checkpoint-delay', 'features': [ 'unstable' ] },
+           'block-incremental',
            'multifd-channels',
            'xbzrle-cache-size', 'max-postcopy-bandwidth',
            'max-cpu-throttle', 'multifd-compression',
@@ -903,6 +914,9 @@
 #                        block device name if there is one, and to their node name
 #                        otherwise. (Since 5.2)
 #
+# Features:
+# @unstable: Member @x-checkpoint-delay is experimental.
+#
 # Since: 2.4
 ##
 # TODO either fuse back into MigrationParameters, or make
@@ -925,7 +939,8 @@
             '*tls-authz': 'StrOrNull',
             '*max-bandwidth': 'size',
             '*downtime-limit': 'uint64',
-            '*x-checkpoint-delay': 'uint32',
+            '*x-checkpoint-delay': { 'type': 'uint32',
+                                     'features': [ 'unstable' ] },
             '*block-incremental': 'bool',
             '*multifd-channels': 'uint8',
             '*xbzrle-cache-size': 'size',
@@ -1099,6 +1114,9 @@
 #                        block device name if there is one, and to their node name
 #                        otherwise. (Since 5.2)
 #
+# Features:
+# @unstable: Member @x-checkpoint-delay is experimental.
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -1119,7 +1137,8 @@
             '*tls-authz': 'str',
             '*max-bandwidth': 'size',
             '*downtime-limit': 'uint64',
-            '*x-checkpoint-delay': 'uint32',
+            '*x-checkpoint-delay': { 'type': 'uint32',
+                                     'features': [ 'unstable' ] },
             '*block-incremental': 'bool',
             '*multifd-channels': 'uint8',
             '*xbzrle-cache-size': 'size',
@@ -1351,6 +1370,9 @@
 # If sent to the Secondary, the Secondary side will run failover work,
 # then takes over server operation to become the service VM.
 #
+# Features:
+# @unstable: This command is experimental.
+#
 # Since: 2.8
 #
 # Example:
@@ -1359,7 +1381,8 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'x-colo-lost-heartbeat' }
+{ 'command': 'x-colo-lost-heartbeat',
+  'features': [ 'unstable' ] }
 
 ##
 # @migrate_cancel:

@@ -14,6 +14,7 @@
 
 #include "qemu/osdep.h"
 #include <math.h>
+#include "qapi/compat-policy.h"
 #include "qapi/error.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/visitor-impl.h"
@@ -662,20 +663,13 @@ static void qobject_input_optional(Visitor *v, const char *name, bool *present)
     *present = true;
 }
 
-static bool qobject_input_deprecated_accept(Visitor *v, const char *name,
-                                            Error **errp)
+static bool qobject_input_policy_reject(Visitor *v, const char *name,
+                                        unsigned special_features,
+                                        Error **errp)
 {
-    switch (v->compat_policy.deprecated_input) {
-    case COMPAT_POLICY_INPUT_ACCEPT:
-        return true;
-    case COMPAT_POLICY_INPUT_REJECT:
-        error_setg(errp, "Deprecated parameter '%s' disabled by policy",
-                   name);
-        return false;
-    case COMPAT_POLICY_INPUT_CRASH:
-    default:
-        abort();
-    }
+    return !compat_policy_input_ok(special_features, &v->compat_policy,
+                                   ERROR_CLASS_GENERIC_ERROR,
+                                   "parameter", name, errp);
 }
 
 static void qobject_input_free(Visitor *v)
@@ -712,7 +706,7 @@ static QObjectInputVisitor *qobject_input_visitor_base_new(QObject *obj)
     v->visitor.end_list = qobject_input_end_list;
     v->visitor.start_alternate = qobject_input_start_alternate;
     v->visitor.optional = qobject_input_optional;
-    v->visitor.deprecated_accept = qobject_input_deprecated_accept;
+    v->visitor.policy_reject = qobject_input_policy_reject;
     v->visitor.free = qobject_input_free;
 
     v->root = qobject_ref(obj);

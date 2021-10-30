@@ -21,7 +21,7 @@ from .common import (
     indent,
     mcgen,
 )
-from .gen import QAPISchemaModularCVisitor, ifcontext
+from .gen import QAPISchemaModularCVisitor, gen_special_features, ifcontext
 from .schema import (
     QAPISchema,
     QAPISchemaEnumMember,
@@ -76,7 +76,6 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
                      c_type=base.c_name())
 
     for memb in members:
-        deprecated = 'deprecated' in [f.name for f in memb.features]
         ret += memb.ifcond.gen_if()
         if memb.optional:
             ret += mcgen('''
@@ -84,14 +83,15 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 ''',
                          name=memb.name, c_name=c_name(memb.name))
             indent.increase()
-        if deprecated:
+        special_features = gen_special_features(memb.features)
+        if special_features != '0':
             ret += mcgen('''
-    if (!visit_deprecated_accept(v, "%(name)s", errp)) {
+    if (visit_policy_reject(v, "%(name)s", %(special_features)s, errp)) {
         return false;
     }
-    if (visit_deprecated(v, "%(name)s")) {
+    if (!visit_policy_skip(v, "%(name)s", %(special_features)s)) {
 ''',
-                         name=memb.name)
+                         name=memb.name, special_features=special_features)
             indent.increase()
         ret += mcgen('''
     if (!visit_type_%(c_type)s(v, "%(name)s", &obj->%(c_name)s, errp)) {
@@ -100,7 +100,7 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 ''',
                      c_type=memb.type.c_name(), name=memb.name,
                      c_name=c_name(memb.name))
-        if deprecated:
+        if special_features != '0':
             indent.decrease()
             ret += mcgen('''
     }

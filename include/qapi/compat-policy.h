@@ -13,9 +13,16 @@
 #ifndef QAPI_COMPAT_POLICY_H
 #define QAPI_COMPAT_POLICY_H
 
+#include "qapi/error.h"
 #include "qapi/qapi-types-compat.h"
 
 extern CompatPolicy compat_policy;
+
+bool compat_policy_input_ok(unsigned special_features,
+                            const CompatPolicy *policy,
+                            ErrorClass error_class,
+                            const char *kind, const char *name,
+                            Error **errp);
 
 /*
  * Create a QObject input visitor for @obj for use with QMP

@@ -273,7 +273,7 @@
   'data': { 'foo': { 'type': 'int', 'features': [ 'deprecated' ] } },
   'features': [ 'feature1' ] }
 { 'struct': 'FeatureStruct2',
-  'data': { 'foo': 'int' },
+  'data': { 'foo': { 'type': 'int', 'features': [ 'unstable' ] } },
   'features': [ { 'name': 'feature1' } ] }
 { 'struct': 'FeatureStruct3',
   'data': { 'foo': 'int' },
@@ -331,7 +331,7 @@
 { 'command': 'test-command-features1',
   'features': [ 'deprecated' ] }
 { 'command': 'test-command-features3',
-  'features': [ 'feature1', 'feature2' ] }
+  'features': [ 'unstable', 'feature1', 'feature2' ] }
 
 { 'command': 'test-command-cond-features1',
   'features': [ { 'name': 'feature1', 'if': 'TEST_IF_FEATURE_1'} ] }
@@ -348,3 +348,6 @@
 
 { 'event': 'TEST_EVENT_FEATURES1',
   'features': [ 'deprecated' ] }
+
+{ 'event': 'TEST_EVENT_FEATURES2',
+  'features': [ 'unstable' ] }

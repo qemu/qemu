@@ -18,6 +18,7 @@ from typing import (
     Dict,
     Iterator,
     Optional,
+    Sequence,
     Tuple,
 )
 
@@ -29,12 +30,19 @@ from .common import (
     mcgen,
 )
 from .schema import (
+    QAPISchemaFeature,
     QAPISchemaIfCond,
     QAPISchemaModule,
     QAPISchemaObjectType,
     QAPISchemaVisitor,
 )
 from .source import QAPISourceInfo
+
+
+def gen_special_features(features: Sequence[QAPISchemaFeature]) -> str:
+    special_features = [f"1u << QAPI_{feat.name.upper()}"
+                        for feat in features if feat.is_special()]
+    return ' | '.join(special_features) or '0'
 
 
 class QAPIGen:
