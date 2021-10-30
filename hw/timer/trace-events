@@ -94,3 +94,8 @@ sifive_pwm_set_alarm(uint64_t alarm, uint64_t now) "Setting alarm to: 0x%" PRIx6
 sifive_pwm_interrupt(int num) "Interrupt %d"
 sifive_pwm_read(uint64_t offset) "Read at address: 0x%" PRIx64
 sifive_pwm_write(uint64_t data, uint64_t offset) "Write 0x%" PRIx64 " at address: 0x%" PRIx64
+
+# sh_timer.c
+sh_timer_start_stop(int enable, int current) "%d (%d)"
+sh_timer_read(uint64_t offset) "tmu012_read 0x%" PRIx64
+sh_timer_write(uint64_t offset, uint64_t value) "tmu012_write 0x%" PRIx64 " 0x%08" PRIx64

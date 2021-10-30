@@ -22,11 +22,11 @@
  * THE SOFTWARE.
  */
 /*
-   Shix 2.0 board by Alexis Polti, described at
-   https://web.archive.org/web/20070917001736/perso.enst.fr/~polti/realisations/shix20
-
-   More information in target/sh4/README.sh4
-*/
+ * Shix 2.0 board by Alexis Polti, described at
+ * https://web.archive.org/web/20070917001736/perso.enst.fr/~polti/realisations/shix20
+ *
+ * More information in target/sh4/README.sh4
+ */
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "cpu.h"
@@ -48,7 +48,7 @@ static void shix_init(MachineState *machine)
     MemoryRegion *rom = g_new(MemoryRegion, 1);
     MemoryRegion *sdram = g_new(MemoryRegion, 2);
     const char *bios_name = machine->firmware ?: BIOS_FILENAME;
-    
+
     cpu = SUPERH_CPU(cpu_create(machine->cpu_type));
 
     /* Allocate memory space */

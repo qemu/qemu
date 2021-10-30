@@ -238,3 +238,11 @@ goldfish_pic_write(void *dev, int idx, unsigned int addr, unsigned int size, uin
 goldfish_pic_reset(void *dev, int idx) "pic: %p goldfish-irq.%d"
 goldfish_pic_realize(void *dev, int idx) "pic: %p goldfish-irq.%d"
 goldfish_pic_instance_init(void *dev) "pic: %p goldfish-irq"
+
+# sh_intc.c
+sh_intc_sources(int p, int a, int c, int m, unsigned short v, const char *s1, const char *s2, const char *s3) "(%d/%d/%d/%d) interrupt source 0x%x %s%s%s"
+sh_intc_pending(int p, unsigned short v) "(%d) returning interrupt source 0x%x"
+sh_intc_register(const char *s, int id, unsigned short v, int c, int m) "%s %u -> 0x%04x (%d/%d)"
+sh_intc_read(unsigned size, uint64_t offset, unsigned long val) "size %u 0x%" PRIx64 " -> 0x%lx"
+sh_intc_write(unsigned size, uint64_t offset, unsigned long val) "size %u 0x%" PRIx64 " <- 0x%lx"
+sh_intc_set(int id, int enable) "setting interrupt group %d to %d"
