@@ -640,6 +640,7 @@ out:
      */
     if (s->rp_state.from_dst_file) {
         qemu_fclose(s->rp_state.from_dst_file);
+        s->rp_state.from_dst_file = NULL;
     }
 }
 
