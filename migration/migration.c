@@ -590,8 +590,10 @@ static void process_incoming_migration_co(void *opaque)
         mis->have_colo_incoming_thread = true;
         qemu_coroutine_yield();
 
+        qemu_mutex_unlock_iothread();
         /* Wait checkpoint incoming thread exit before free resource */
         qemu_thread_join(&mis->colo_incoming_thread);
+        qemu_mutex_lock_iothread();
         /* We hold the global iothread lock, so it is safe here */
         colo_release_ram_cache();
     }
