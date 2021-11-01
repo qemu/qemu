@@ -338,6 +338,21 @@
 
 
 ##
+# @SGXEPCSection:
+#
+# Information about intel SGX EPC section info
+#
+# @node: the numa node
+#
+# @size: the size of epc section
+#
+# Since: 6.2
+##
+{ 'struct': 'SGXEPCSection',
+  'data': { 'node': 'int',
+            'size': 'uint64'}}
+
+##
 # @SGXInfo:
 #
 # Information about intel Safe Guard eXtension (SGX) support
@@ -350,7 +365,7 @@
 #
 # @flc: true if FLC is supported
 #
-# @section-size: The EPC section size for guest
+# @sections: The EPC sections info for guest
 #
 # Since: 6.2
 ##
@@ -359,7 +374,7 @@
             'sgx1': 'bool',
             'sgx2': 'bool',
             'flc': 'bool',
-            'section-size': 'uint64'},
+            'sections': ['SGXEPCSection']},
    'if': 'TARGET_I386' }
 
 ##

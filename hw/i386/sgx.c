@@ -83,11 +83,13 @@ static uint64_t sgx_calc_section_metric(uint64_t low, uint64_t high)
            ((high & MAKE_64BIT_MASK(0, 20)) << 32);
 }
 
-static uint64_t sgx_calc_host_epc_section_size(void)
+static SGXEPCSectionList *sgx_calc_host_epc_sections(void)
 {
+    SGXEPCSectionList *head = NULL, **tail = &head;
+    SGXEPCSection *section;
     uint32_t i, type;
     uint32_t eax, ebx, ecx, edx;
-    uint64_t size = 0;
+    uint32_t j = 0;
 
     for (i = 0; i < SGX_MAX_EPC_SECTIONS; i++) {
         host_cpuid(0x12, i + 2, &eax, &ebx, &ecx, &edx);
@@ -101,10 +103,13 @@ static uint64_t sgx_calc_host_epc_section_size(void)
             break;
         }
 
-        size += sgx_calc_section_metric(ecx, edx);
+        section = g_new0(SGXEPCSection, 1);
+        section->node = j++;
+        section->size = sgx_calc_section_metric(ecx, edx);
+        QAPI_LIST_APPEND(tail, section);
     }
 
-    return size;
+    return head;
 }
 
 static void sgx_epc_reset(void *opaque)
@@ -168,11 +173,33 @@ SGXInfo *qmp_query_sgx_capabilities(Error **errp)
     info->sgx1 = eax & (1U << 0) ? true : false;
     info->sgx2 = eax & (1U << 1) ? true : false;
 
-    info->section_size = sgx_calc_host_epc_section_size();
+    info->sections = sgx_calc_host_epc_sections();
 
     close(fd);
 
     return info;
+}
+
+static SGXEPCSectionList *sgx_get_epc_sections_list(void)
+{
+    GSList *device_list = sgx_epc_get_device_list();
+    SGXEPCSectionList *head = NULL, **tail = &head;
+    SGXEPCSection *section;
+
+    for (; device_list; device_list = device_list->next) {
+        DeviceState *dev = device_list->data;
+        Object *obj = OBJECT(dev);
+
+        section = g_new0(SGXEPCSection, 1);
+        section->node = object_property_get_uint(obj, SGX_EPC_NUMA_NODE_PROP,
+                                                 &error_abort);
+        section->size = object_property_get_uint(obj, SGX_EPC_SIZE_PROP,
+                                                 &error_abort);
+        QAPI_LIST_APPEND(tail, section);
+    }
+    g_slist_free(device_list);
+
+    return head;
 }
 
 SGXInfo *qmp_query_sgx(Error **errp)
@@ -193,14 +220,13 @@ SGXInfo *qmp_query_sgx(Error **errp)
         return NULL;
     }
 
-    SGXEPCState *sgx_epc = &pcms->sgx_epc;
     info = g_new0(SGXInfo, 1);
 
     info->sgx = true;
     info->sgx1 = true;
     info->sgx2 = true;
     info->flc = true;
-    info->section_size = sgx_epc->size;
+    info->sections = sgx_get_epc_sections_list();
 
     return info;
 }
@@ -208,6 +234,7 @@ SGXInfo *qmp_query_sgx(Error **errp)
 void hmp_info_sgx(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
+    SGXEPCSectionList *section_list, *section;
     g_autoptr(SGXInfo) info = qmp_query_sgx(&err);
 
     if (err) {
@@ -222,8 +249,14 @@ void hmp_info_sgx(Monitor *mon, const QDict *qdict)
                    info->sgx2 ? "enabled" : "disabled");
     monitor_printf(mon, "FLC support: %s\n",
                    info->flc ? "enabled" : "disabled");
-    monitor_printf(mon, "size: %" PRIu64 "\n",
-                   info->section_size);
+
+    section_list = info->sections;
+    for (section = section_list; section; section = section->next) {
+        monitor_printf(mon, "NUMA node #%" PRId64 ": ",
+                       section->value->node);
+        monitor_printf(mon, "size=%" PRIu64 "\n",
+                       section->value->size);
+    }
 }
 
 bool sgx_epc_get_section(int section_nr, uint64_t *addr, uint64_t *size)
