@@ -205,7 +205,7 @@ void colo_do_failover(void)
         vm_stop_force_state(RUN_STATE_COLO);
     }
 
-    switch (get_colo_mode()) {
+    switch (last_colo_mode = get_colo_mode()) {
     case COLO_MODE_PRIMARY:
         primary_vm_do_failover();
         break;
@@ -530,8 +530,7 @@ static void colo_process_checkpoint(MigrationState *s)
     Error *local_err = NULL;
     int ret;
 
-    last_colo_mode = get_colo_mode();
-    if (last_colo_mode != COLO_MODE_PRIMARY) {
+    if (get_colo_mode() != COLO_MODE_PRIMARY) {
         error_report("COLO mode must be COLO_MODE_PRIMARY");
         return;
     }
@@ -830,8 +829,7 @@ void *colo_process_incoming_thread(void *opaque)
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_COLO);
 
-    last_colo_mode = get_colo_mode();
-    if (last_colo_mode != COLO_MODE_SECONDARY) {
+    if (get_colo_mode() != COLO_MODE_SECONDARY) {
         error_report("COLO mode must be COLO_MODE_SECONDARY");
         return NULL;
     }
