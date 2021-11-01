@@ -152,7 +152,7 @@ static void primary_vm_do_failover(void)
      * kick COLO thread which might wait at
      * qemu_sem_wait(&s->colo_checkpoint_sem).
      */
-    colo_checkpoint_notify(migrate_get_current());
+    colo_checkpoint_notify(s);
 
     /*
      * Wake up COLO thread which may blocked in recv() or send(),
