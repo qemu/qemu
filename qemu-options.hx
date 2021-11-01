@@ -127,11 +127,11 @@ SRST
 ERST
 
 DEF("M", HAS_ARG, QEMU_OPTION_M,
-    "                sgx-epc.0.memdev=memid\n",
+    "                sgx-epc.0.memdev=memid,sgx-epc.0.node=numaid\n",
     QEMU_ARCH_ALL)
 
 SRST
-``sgx-epc.0.memdev=@var{memid}``
+``sgx-epc.0.memdev=@var{memid},sgx-epc.0.node=@var{numaid}``
     Define an SGX EPC section.
 ERST
 

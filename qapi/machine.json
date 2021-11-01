@@ -1207,12 +1207,15 @@
 #
 # @memdev: memory backend linked with device
 #
+# @node: the numa node
+#
 # Since: 6.2
 ##
 { 'struct': 'SgxEPCDeviceInfo',
   'data': { '*id': 'str',
             'memaddr': 'size',
             'size': 'size',
+            'node': 'int',
             'memdev': 'str'
           }
 }
@@ -1285,10 +1288,15 @@
 #
 # @memdev: memory backend linked with device
 #
+# @node: the numa node
+#
 # Since: 6.2
 ##
 { 'struct': 'SgxEPC',
-  'data': { 'memdev': 'str' } }
+  'data': { 'memdev': 'str',
+            'node': 'int'
+          }
+}
 
 ##
 # @SgxEPCProperties:
