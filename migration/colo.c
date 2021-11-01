@@ -919,11 +919,6 @@ out:
     /* Hope this not to be too long to loop here */
     qemu_sem_wait(&mis->colo_incoming_sem);
     qemu_sem_destroy(&mis->colo_incoming_sem);
-    /* Must be called after failover BH is completed */
-    if (mis->to_src_file) {
-        qemu_fclose(mis->to_src_file);
-        mis->to_src_file = NULL;
-    }
 
     rcu_unregister_thread();
     return NULL;
