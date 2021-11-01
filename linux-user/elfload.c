@@ -925,8 +925,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUPPCState *en
 #endif
 #define ELF_ARCH    EM_MIPS
 
-#define elf_check_arch(x) ((x) == EM_MIPS || (x) == EM_NANOMIPS)
-
 #ifdef TARGET_ABI_MIPSN32
 #define elf_check_abi(x) ((x) & EF_MIPS_ABI2)
 #else
