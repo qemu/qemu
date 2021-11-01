@@ -17,89 +17,66 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-import re
-import shutil
 import subprocess
 import sys
+from typing import List
 
 import iotests
+import linters
 
 
-# TODO: Empty this list!
-SKIP_FILES = (
-    '030', '040', '041', '044', '045', '055', '056', '057', '065', '093',
-    '096', '118', '124', '132', '136', '139', '147', '148', '149',
-    '151', '152', '155', '163', '165', '194', '196', '202',
-    '203', '205', '206', '207', '208', '210', '211', '212', '213', '216',
-    '218', '219', '224', '228', '234', '235', '236', '237', '238',
-    '240', '242', '245', '246', '248', '255', '256', '257', '258', '260',
-    '262', '264', '266', '274', '277', '280', '281', '295', '296', '298',
-    '299', '302', '303', '304', '307',
-    'nbd-fault-injector.py', 'qcow2.py', 'qcow2_format.py', 'qed.py'
-)
+# Looking for something?
+#
+#  List of files to exclude from linting: linters.py
+#  mypy configuration:                    mypy.ini
+#  pylint configuration:                  pylintrc
 
 
-def is_python_file(filename):
-    if not os.path.isfile(filename):
+def check_linter(linter: str) -> bool:
+    try:
+        linters.run_linter(linter, ['--version'], suppress_output=True)
+    except subprocess.CalledProcessError:
+        iotests.case_notrun(f"'{linter}' not found")
         return False
-
-    if filename.endswith('.py'):
-        return True
-
-    with open(filename, encoding='utf-8') as f:
-        try:
-            first_line = f.readline()
-            return re.match('^#!.*python', first_line) is not None
-        except UnicodeDecodeError:  # Ignore binary files
-            return False
+    return True
 
 
-def run_linters():
-    named_tests = [f'tests/{entry}' for entry in os.listdir('tests')]
-    check_tests = set(os.listdir('.') + named_tests) - set(SKIP_FILES)
-    files = [filename for filename in check_tests if is_python_file(filename)]
+def test_pylint(files: List[str]) -> None:
+    print('=== pylint ===')
+    sys.stdout.flush()
+
+    if not check_linter('pylint'):
+        return
+
+    linters.run_linter('pylint', files)
+
+
+def test_mypy(files: List[str]) -> None:
+    print('=== mypy ===')
+    sys.stdout.flush()
+
+    if not check_linter('mypy'):
+        return
+
+    env = os.environ.copy()
+    env['MYPYPATH'] = env['PYTHONPATH']
+
+    linters.run_linter('mypy', files, env=env, suppress_output=True)
+
+
+def main() -> None:
+    files = linters.get_test_files()
 
     iotests.logger.debug('Files to be checked:')
     iotests.logger.debug(', '.join(sorted(files)))
 
-    print('=== pylint ===')
-    sys.stdout.flush()
-
-    # Todo notes are fine, but fixme's or xxx's should probably just be
-    # fixed (in tests, at least)
-    env = os.environ.copy()
-    subprocess.run(('pylint-3', '--score=n', '--notes=FIXME,XXX', *files),
-                   env=env, check=False)
-
-    print('=== mypy ===')
-    sys.stdout.flush()
-
-    env['MYPYPATH'] = env['PYTHONPATH']
-    p = subprocess.run(('mypy',
-                        '--warn-unused-configs',
-                        '--disallow-subclassing-any',
-                        '--disallow-any-generics',
-                        '--disallow-incomplete-defs',
-                        '--disallow-untyped-decorators',
-                        '--no-implicit-optional',
-                        '--warn-redundant-casts',
-                        '--warn-unused-ignores',
-                        '--no-implicit-reexport',
-                        '--namespace-packages',
-                        '--scripts-are-modules',
-                        *files),
-                       env=env,
-                       check=False,
-                       stdout=subprocess.PIPE,
-                       stderr=subprocess.STDOUT,
-                       universal_newlines=True)
-
-    if p.returncode != 0:
-        print(p.stdout)
+    for test in (test_pylint, test_mypy):
+        try:
+            test(files)
+        except subprocess.CalledProcessError as exc:
+            # Linter failure will be caught by diffing the IO.
+            if exc.output:
+                print(exc.output)
 
 
-for linter in ('pylint-3', 'mypy'):
-    if shutil.which(linter) is None:
-        iotests.notrun(f'{linter} not found')
-
-iotests.script_main(run_linters)
+iotests.script_main(main)

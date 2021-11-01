@@ -24,8 +24,6 @@ import random
 import re
 from typing import Dict, List, Optional
 
-from qemu.machine import machine
-
 import iotests
 
 
@@ -461,12 +459,11 @@ class TestBlockBitmapMappingErrors(TestDirtyBitmapMigration):
                       f"'{self.src_node_name}': Name is longer than 255 bytes",
                       log)
 
-        # Expect abnormal shutdown of the destination VM because of
-        # the failed migration
-        try:
-            self.vm_b.shutdown()
-        except machine.AbnormalShutdown:
-            pass
+        # Destination VM will terminate w/ error of its own accord
+        # due to the failed migration.
+        self.vm_b.wait()
+        rc = self.vm_b.exitcode()
+        assert rc is not None and rc > 0
 
     def test_aliased_bitmap_name_too_long(self) -> None:
         # Longer than the maximum for bitmap names

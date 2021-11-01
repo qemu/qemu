@@ -21,11 +21,12 @@
 
 import os
 
-from qemu import qmp
+from qemu.aqmp import ConnectError
 from qemu.machine import machine
+from qemu.qmp import QMPConnectError
 
 import iotests
-from iotests import qemu_img
+from iotests import change_log_level, qemu_img
 
 
 image_size = 1 * 1024 * 1024
@@ -99,10 +100,14 @@ class TestMirrorTopPerms(iotests.QMPTestCase):
         self.vm_b.add_blockdev(f'file,node-name=drive0,filename={source}')
         self.vm_b.add_device('virtio-blk,drive=drive0,share-rw=on')
         try:
-            self.vm_b.launch()
-            print('ERROR: VM B launched successfully, this should not have '
-                  'happened')
-        except qmp.QMPConnectError:
+            # Silence AQMP errors temporarily.
+            # TODO: Remove this and just allow the errors to be logged when
+            # AQMP fully replaces QMP.
+            with change_log_level('qemu.aqmp'):
+                self.vm_b.launch()
+                print('ERROR: VM B launched successfully, '
+                      'this should not have happened')
+        except (QMPConnectError, ConnectError):
             assert 'Is another process using the image' in self.vm_b.get_log()
 
         result = self.vm.qmp('block-job-cancel',

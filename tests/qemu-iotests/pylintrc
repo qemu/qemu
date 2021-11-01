@@ -31,6 +31,22 @@ disable=invalid-name,
         too-many-statements,
         consider-using-f-string,
 
+
+[REPORTS]
+
+# Activate the evaluation score.
+score=no
+
+
+[MISCELLANEOUS]
+
+# List of note tags to take in consideration, separated by a comma.
+# TODO notes are fine, but FIXMEs or XXXs should probably just be
+# fixed (in tests, at least).
+notes=FIXME,
+      XXX,
+
+
 [FORMAT]
 
 # Maximum number of characters on a single line.
