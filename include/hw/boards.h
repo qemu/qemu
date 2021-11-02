@@ -34,6 +34,7 @@ HotpluggableCPUList *machine_query_hotpluggable_cpus(MachineState *machine);
 void machine_set_cpu_numa_node(MachineState *machine,
                                const CpuInstanceProperties *props,
                                Error **errp);
+void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp);
 
 /**
  * machine_class_allow_dynamic_sysbus_dev: Add type to list of valid devices
@@ -50,6 +51,21 @@ void machine_set_cpu_numa_node(MachineState *machine,
  * to the list of specifically permitted devices.
  */
 void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc, const char *type);
+
+/**
+ * device_type_is_dynamic_sysbus: Check if type is an allowed sysbus device
+ * type for the machine class.
+ * @mc: Machine class
+ * @type: type to check (should be a subtype of TYPE_SYS_BUS_DEVICE)
+ *
+ * Returns: true if @type is a type in the machine's list of
+ * dynamically pluggable sysbus devices; otherwise false.
+ *
+ * Check if the QOM type @type is in the list of allowed sysbus device
+ * types (see machine_class_allowed_dynamic_sysbus_dev()).
+ * Note that if @type has a parent type in the list, it is allowed too.
+ */
+bool device_type_is_dynamic_sysbus(MachineClass *mc, const char *type);
 
 /**
  * device_is_dynamic_sysbus: test whether device is a dynamic sysbus device
@@ -301,7 +317,6 @@ typedef struct CpuTopology {
 struct MachineState {
     /*< private >*/
     Object parent_obj;
-    Notifier sysbus_notifier;
 
     /*< public >*/
 
