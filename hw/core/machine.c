@@ -1091,7 +1091,7 @@ MemoryRegion *machine_consume_memdev(MachineState *machine,
 {
     MemoryRegion *ret = host_memory_backend_get_memory(backend);
 
-    if (memory_region_is_mapped(ret)) {
+    if (host_memory_backend_is_mapped(backend)) {
         error_report("memory backend %s can't be used multiple times.",
                      object_get_canonical_path_component(OBJECT(backend)));
         exit(EXIT_FAILURE);
