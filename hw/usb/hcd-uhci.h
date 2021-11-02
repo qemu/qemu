@@ -60,7 +60,7 @@ typedef struct UHCIState {
     uint32_t frame_bandwidth;
     bool completions_only;
     UHCIPort ports[NB_PORTS];
-
+    qemu_irq irq;
     /* Interrupts that should be raised at the end of the current frame.  */
     uint32_t pending_int_mask;
 
@@ -85,6 +85,7 @@ typedef struct UHCIInfo {
     uint8_t    irq_pin;
     void       (*realize)(PCIDevice *dev, Error **errp);
     bool       unplug;
+    bool       notuser; /* disallow user_creatable */
 } UHCIInfo;
 
 void uhci_data_class_init(ObjectClass *klass, void *data);

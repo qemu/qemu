@@ -109,6 +109,12 @@ K: ^Subject:.*(?i)s390x?
 T: git https://gitlab.com/cohuck/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
+MIPS general architecture support
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+R: Jiaxun Yang <jiaxun.yang@flygoat.com>
+S: Odd Fixes
+K: ^Subject:.*(?i)mips
+
 Guest CPU cores (TCG)
 ---------------------
 Overall TCG CPUs
@@ -230,19 +236,9 @@ R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
 S: Odd Fixes
 F: target/mips/
-F: configs/devices/mips*/*
 F: disas/mips.c
 F: docs/system/cpu-models-mips.rst.inc
-F: hw/intc/mips_gic.c
-F: hw/mips/
-F: hw/misc/mips_*
-F: hw/timer/mips_gictimer.c
-F: include/hw/intc/mips_gic.h
-F: include/hw/mips/
-F: include/hw/misc/mips_*
-F: include/hw/timer/mips_gictimer.h
 F: tests/tcg/mips/
-K: ^Subject:.*(?i)mips
 
 MIPS TCG CPUs (nanoMIPS ISA)
 S: Orphan
@@ -1170,6 +1166,13 @@ F: hw/microblaze/petalogix_ml605_mmu.c
 
 MIPS Machines
 -------------
+Overall MIPS Machines
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+S: Odd Fixes
+F: configs/devices/mips*/*
+F: hw/mips/
+F: include/hw/mips/
+
 Jazz
 M: Hervé Poussineau <hpoussin@reactos.org>
 R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
@@ -2266,6 +2269,20 @@ M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
 S: Odd Fixes
 F: hw/intc/openpic.c
 F: include/hw/ppc/openpic.h
+
+MIPS CPS
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+S: Odd Fixes
+F: hw/misc/mips_*
+F: include/hw/misc/mips_*
+
+MIPS GIC
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+S: Odd Fixes
+F: hw/intc/mips_gic.c
+F: hw/timer/mips_gictimer.c
+F: include/hw/intc/mips_gic.h
+F: include/hw/timer/mips_gictimer.h
 
 Subsystems
 ----------

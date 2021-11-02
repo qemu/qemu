@@ -369,7 +369,6 @@ const mips_def_t mips_defs[] =
          * Config3: VZ, CTXTC, CDMM, TL
          * Config4: MMUExtDef
          * Config5: MRP
-         * FIR(FCR0): Has2008
          * */
         .name = "P5600",
         .CP0_PRid = 0x0001A800,
@@ -886,6 +885,7 @@ const mips_def_t mips_defs[] =
                     (0x1 << FCR0_D) | (0x1 << FCR0_S),
         .CP1_fcr31 = 0,
         .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
+        .MSAIR = (0x01 << MSAIR_ProcID) | (0x40 << MSAIR_Rev),
         .SEGBITS = 48,
         .PABITS = 48,
         .insn_flags = CPU_MIPS64R2 | INSN_LOONGSON3A |
