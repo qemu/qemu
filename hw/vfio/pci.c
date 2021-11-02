@@ -2453,7 +2453,12 @@ static int vfio_pci_load_config(VFIODevice *vbasedev, QEMUFile *f)
 {
     VFIOPCIDevice *vdev = container_of(vbasedev, VFIOPCIDevice, vbasedev);
     PCIDevice *pdev = &vdev->pdev;
-    int ret;
+    pcibus_t old_addr[PCI_NUM_REGIONS - 1];
+    int bar, ret;
+
+    for (bar = 0; bar < PCI_ROM_SLOT; bar++) {
+        old_addr[bar] = pdev->io_regions[bar].addr;
+    }
 
     ret = vmstate_load_state(f, &vmstate_vfio_pci_config, vdev, 1);
     if (ret) {
@@ -2462,6 +2467,18 @@ static int vfio_pci_load_config(VFIODevice *vbasedev, QEMUFile *f)
 
     vfio_pci_write_config(pdev, PCI_COMMAND,
                           pci_get_word(pdev->config + PCI_COMMAND), 2);
+
+    for (bar = 0; bar < PCI_ROM_SLOT; bar++) {
+        /*
+         * The address may not be changed in some scenarios
+         * (e.g. the VF driver isn't loaded in VM).
+         */
+        if (old_addr[bar] != pdev->io_regions[bar].addr &&
+            vdev->bars[bar].region.size > 0 &&
+            vdev->bars[bar].region.size < qemu_real_host_page_size) {
+            vfio_sub_page_bar_update_mapping(pdev, bar);
+        }
+    }
 
     if (msi_enabled(pdev)) {
         vfio_msi_enable(vdev);
