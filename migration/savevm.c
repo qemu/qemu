@@ -1567,6 +1567,7 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
 
     migrate_init(ms);
     memset(&ram_counters, 0, sizeof(ram_counters));
+    memset(&compression_counters, 0, sizeof(compression_counters));
     ms->to_dst_file = f;
 
     qemu_mutex_unlock_iothread();
