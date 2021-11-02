@@ -25,10 +25,15 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include "config.h"
 
 typedef uint8_t  u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
+#ifdef WORD_SIZE_64
+typedef unsigned __int128 uint128_t;
+typedef uint128_t         u128;
+#endif
 
 /* Extended forkserver option values */
 
@@ -41,6 +46,7 @@ typedef uint32_t u32;
 #define FS_ERROR_SHM_OPEN 4
 #define FS_ERROR_SHMAT 8
 #define FS_ERROR_MMAP 16
+#define FS_ERROR_OLD_CMPLOG 32
 
 /* Reporting options */
 #define FS_OPT_ENABLED 0x80000001
@@ -48,9 +54,10 @@ typedef uint32_t u32;
 #define FS_OPT_SNAPSHOT 0x20000000
 #define FS_OPT_AUTODICT 0x10000000
 #define FS_OPT_SHDMEM_FUZZ 0x01000000
+#define FS_OPT_NEWCMPLOG 0x02000000
 #define FS_OPT_OLD_AFLPP_WORKAROUND 0x0f000000
 // FS_OPT_MAX_MAPSIZE is 8388608 = 0x800000 = 2^23 = 1 << 22
-#define FS_OPT_MAX_MAPSIZE ((0x00fffffe >> 1) + 1)
+#define FS_OPT_MAX_MAPSIZE ((0x00fffffeU >> 1) + 1)
 #define FS_OPT_GET_MAPSIZE(x) (((x & 0x00fffffe) >> 1) + 1)
 #define FS_OPT_SET_MAPSIZE(x) \
   (x <= 1 || x > FS_OPT_MAX_MAPSIZE ? 0 : ((x - 1) << 1))
@@ -61,6 +68,10 @@ typedef int8_t  s8;
 typedef int16_t s16;
 typedef int32_t s32;
 typedef int64_t s64;
+#ifdef WORD_SIZE_64
+typedef __int128 int128_t;
+typedef int128_t s128;
+#endif
 
 #ifndef MIN
   #define MIN(a, b)           \
@@ -112,6 +123,33 @@ typedef int64_t s64;
         (_ret & 0x00FF00FF00FF00FF) << 8 | (_ret & 0xFF00FF00FF00FF00) >> 8;   \
     _ret;                                                                      \
                                                                                \
+  })
+
+// It is impossible to define 128 bit constants, so ...
+#ifdef WORD_SIZE_64
+  #define SWAPN(_x, _l)                            \
+    ({                                             \
+                                                   \
+      u128  _res = (_x), _ret;                     \
+      char *d = (char *)&_ret, *s = (char *)&_res; \
+      int   i;                                     \
+      for (i = 0; i < 16; i++)                     \
+        d[15 - i] = s[i];                          \
+      u32 sr = 128U - ((_l) << 3U);                \
+      (_ret >>= sr);                               \
+      (u128) _ret;                                 \
+                                                   \
+    })
+#endif
+
+#define SWAPNN(_x, _y, _l)                     \
+  ({                                           \
+                                               \
+    char *d = (char *)(_x), *s = (char *)(_y); \
+    u32   i, l = (_l)-1;                       \
+    for (i = 0; i <= l; i++)                   \
+      d[l - i] = s[i];                         \
+                                               \
   })
 
 #ifdef AFL_LLVM_PASS

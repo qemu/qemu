@@ -29,26 +29,27 @@
 #define _AFL_CMPLOG_H
 
 #include "config.h"
-//#include "forkserver.h"
+
+#define CMPLOG_LVL_MAX 3
 
 #define CMP_MAP_W 65536
-#define CMP_MAP_H 256
+#define CMP_MAP_H 32
 #define CMP_MAP_RTN_H (CMP_MAP_H / 4)
 
 #define SHAPE_BYTES(x) (x + 1)
 
-#define CMP_TYPE_INS 0
-#define CMP_TYPE_RTN 1
+#define CMP_TYPE_INS 1
+#define CMP_TYPE_RTN 2
 
 struct cmp_header {
 
-  unsigned hits : 20;
-
-  unsigned cnt : 20;
-  unsigned id : 16;
-
-  unsigned shape : 5;  // from 0 to 31
-  unsigned type : 1;
+  unsigned hits : 24;
+  unsigned id : 24;
+  unsigned shape : 5;
+  unsigned type : 2;
+  unsigned attribute : 4;
+  unsigned overflow : 1;
+  unsigned reserved : 4;
 
 } __attribute__((packed));
 
@@ -56,15 +57,19 @@ struct cmp_operands {
 
   u64 v0;
   u64 v1;
+  u64 v0_128;
+  u64 v1_128;
 
-};
+} __attribute__((packed));
 
 struct cmpfn_operands {
 
-  u8 v0[32];
-  u8 v1[32];
+  u8 v0[31];
+  u8 v0_len;
+  u8 v1[31];
+  u8 v1_len;
 
-};
+} __attribute__((packed));
 
 typedef struct cmp_operands cmp_map_list[CMP_MAP_H];
 
@@ -77,7 +82,8 @@ struct cmp_map {
 
 /* Execs the child */
 
-//void cmplog_exec_child(afl_forkserver_t *fsrv, char **argv);
+struct afl_forkserver;
+void cmplog_exec_child(struct afl_forkserver *fsrv, char **argv);
 
 #endif
 
