@@ -21,6 +21,11 @@
 #include "qemu.h"
 
 /*
+ * Stubbed out routines until we merge signal support from bsd-user
+ * fork.
+ */
+
+/*
  * Queue a signal so that it will be send to the virtual CPU as soon as
  * possible.
  */
@@ -35,4 +40,20 @@ void signal_init(void)
 
 void process_pending_signals(CPUArchState *cpu_env)
 {
+}
+
+void cpu_loop_exit_sigsegv(CPUState *cpu, target_ulong addr,
+                           MMUAccessType access_type, bool maperr, uintptr_t ra)
+{
+    qemu_log_mask(LOG_UNIMP, "No signal support for SIGSEGV\n");
+    /* unreachable */
+    abort();
+}
+
+void cpu_loop_exit_sigbus(CPUState *cpu, target_ulong addr,
+                          MMUAccessType access_type, uintptr_t ra)
+{
+    qemu_log_mask(LOG_UNIMP, "No signal support for SIGBUS\n");
+    /* unreachable */
+    abort();
 }
