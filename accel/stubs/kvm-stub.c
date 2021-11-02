@@ -147,4 +147,9 @@ bool kvm_arm_supports_user_irq(void)
 {
     return false;
 }
+
+bool kvm_dirty_ring_enabled(void)
+{
+    return false;
+}
 #endif
