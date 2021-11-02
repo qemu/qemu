@@ -214,7 +214,7 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
 static int vhost_vdpa_get_max_queue_pairs(int fd, int *has_cvq, Error **errp)
 {
     unsigned long config_size = offsetof(struct vhost_vdpa_config, buf);
-    struct vhost_vdpa_config *config;
+    g_autofree struct vhost_vdpa_config *config = NULL;
     __virtio16 *max_queue_pairs;
     uint64_t features;
     int ret;
