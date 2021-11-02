@@ -944,22 +944,6 @@ coreaudio = not_found
 if not get_option('coreaudio').auto() or (targetos == 'darwin' and have_system)
   coreaudio = dependency('appleframeworks', modules: 'CoreAudio',
                          required: get_option('coreaudio'))
-  if coreaudio.found() and not cc.links('''
-    #include <CoreAudio/CoreAudio.h>
-    int main(void)
-    {
-      return (int)AudioGetCurrentHostTime();
-    }''')
-    coreaudio = not_found
-  endif
-
-  if not coreaudio.found()
-    if get_option('coreaudio').enabled()
-      error('CoreAudio not found')
-    else
-      warning('CoreAudio not found, disabling')
-    endif
-  endif
 endif
 
 opengl = not_found
