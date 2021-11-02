@@ -1317,8 +1317,7 @@ static int spapr_dt_pci_bus(SpaprPhbState *sphb, PCIBus *bus,
                           RESOURCE_CELLS_SIZE));
 
     assert(bus);
-    pci_for_each_device_reverse(bus, pci_bus_num(bus),
-                                spapr_dt_pci_device_cb, &cbinfo);
+    pci_for_each_device_under_bus_reverse(bus, spapr_dt_pci_device_cb, &cbinfo);
     if (cbinfo.err) {
         return cbinfo.err;
     }
@@ -2306,8 +2305,8 @@ static void spapr_phb_pci_enumerate_bridge(PCIBus *bus, PCIDevice *pdev,
         return;
     }
 
-    pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
-                        spapr_phb_pci_enumerate_bridge, bus_no);
+    pci_for_each_device_under_bus(sec_bus, spapr_phb_pci_enumerate_bridge,
+                                  bus_no);
     pci_default_write_config(pdev, PCI_SUBORDINATE_BUS, *bus_no, 1);
 }
 
@@ -2316,9 +2315,8 @@ static void spapr_phb_pci_enumerate(SpaprPhbState *phb)
     PCIBus *bus = PCI_HOST_BRIDGE(phb)->bus;
     unsigned int bus_no = 0;
 
-    pci_for_each_device(bus, pci_bus_num(bus),
-                        spapr_phb_pci_enumerate_bridge,
-                        &bus_no);
+    pci_for_each_device_under_bus(bus, spapr_phb_pci_enumerate_bridge,
+                                  &bus_no);
 
 }
 

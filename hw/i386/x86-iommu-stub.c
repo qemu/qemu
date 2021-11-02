@@ -36,8 +36,3 @@ bool x86_iommu_ir_supported(X86IOMMUState *s)
 {
     return false;
 }
-
-IommuType x86_iommu_get_type(void)
-{
-    abort();
-}

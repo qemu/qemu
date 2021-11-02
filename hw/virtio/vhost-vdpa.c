@@ -331,6 +331,17 @@ static int vhost_vdpa_init(struct vhost_dev *dev, void *opaque, Error **errp)
     struct vhost_vdpa *v;
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_VDPA);
     trace_vhost_vdpa_init(dev, opaque);
+    int ret;
+
+    /*
+     * Similar to VFIO, we end up pinning all guest memory and have to
+     * disable discarding of RAM.
+     */
+    ret = ram_block_discard_disable(true);
+    if (ret) {
+        error_report("Cannot set discarding of RAM broken");
+        return ret;
+    }
 
     v = opaque;
     v->dev = dev;
@@ -442,6 +453,8 @@ static int vhost_vdpa_cleanup(struct vhost_dev *dev)
     memory_listener_unregister(&v->listener);
 
     dev->opaque = NULL;
+    ram_block_discard_disable(false);
+
     return 0;
 }
 
