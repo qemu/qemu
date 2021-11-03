@@ -183,15 +183,20 @@ static bool nvme_init_queue(BDRVNVMeState *s, NVMeQueue *q,
     return r == 0;
 }
 
+static void nvme_free_queue(NVMeQueue *q)
+{
+    qemu_vfree(q->queue);
+}
+
 static void nvme_free_queue_pair(NVMeQueuePair *q)
 {
-    trace_nvme_free_queue_pair(q->index, q);
+    trace_nvme_free_queue_pair(q->index, q, &q->cq, &q->sq);
     if (q->completion_bh) {
         qemu_bh_delete(q->completion_bh);
     }
+    nvme_free_queue(&q->sq);
+    nvme_free_queue(&q->cq);
     qemu_vfree(q->prp_list_pages);
-    qemu_vfree(q->sq.queue);
-    qemu_vfree(q->cq.queue);
     qemu_mutex_destroy(&q->lock);
     g_free(q);
 }
@@ -514,10 +519,10 @@ static bool nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
 {
     BDRVNVMeState *s = bs->opaque;
     bool ret = false;
-    union {
+    QEMU_AUTO_VFREE union {
         NvmeIdCtrl ctrl;
         NvmeIdNs ns;
-    } *id;
+    } *id = NULL;
     NvmeLBAF *lbaf;
     uint16_t oncs;
     int r;
@@ -595,7 +600,6 @@ static bool nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
     s->blkshift = lbaf->ds;
 out:
     qemu_vfio_dma_unmap(s->vfio, id);
-    qemu_vfree(id);
 
     return ret;
 }
@@ -1219,7 +1223,7 @@ static int nvme_co_prw(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
 {
     BDRVNVMeState *s = bs->opaque;
     int r;
-    uint8_t *buf = NULL;
+    QEMU_AUTO_VFREE uint8_t *buf = NULL;
     QEMUIOVector local_qiov;
     size_t len = QEMU_ALIGN_UP(bytes, qemu_real_host_page_size);
     assert(QEMU_IS_ALIGNED(offset, s->page_size));
@@ -1246,7 +1250,6 @@ static int nvme_co_prw(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     if (!r && !is_write) {
         qemu_iovec_from_buf(qiov, 0, buf, bytes);
     }
-    qemu_vfree(buf);
     return r;
 }
 
@@ -1365,7 +1368,7 @@ static int coroutine_fn nvme_co_pdiscard(BlockDriverState *bs,
     BDRVNVMeState *s = bs->opaque;
     NVMeQueuePair *ioq = s->queues[INDEX_IO(0)];
     NVMeRequest *req;
-    NvmeDsmRange *buf;
+    QEMU_AUTO_VFREE NvmeDsmRange *buf = NULL;
     QEMUIOVector local_qiov;
     int ret;
 
@@ -1440,7 +1443,6 @@ static int coroutine_fn nvme_co_pdiscard(BlockDriverState *bs,
     trace_nvme_dsm_done(s, offset, bytes, ret);
 out:
     qemu_iovec_destroy(&local_qiov);
-    qemu_vfree(buf);
     return ret;
 
 }

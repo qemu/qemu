@@ -31,6 +31,10 @@
 #include <fuse.h>
 #include <fuse_lowlevel.h>
 
+#if defined(CONFIG_FALLOCATE_ZERO_RANGE)
+#include <linux/falloc.h>
+#endif
+
 #ifdef __linux__
 #include <linux/fs.h>
 #endif

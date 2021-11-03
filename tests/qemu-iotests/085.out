@@ -217,15 +217,42 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/
                                      'overlay':'snap_13' } }
 {"error": {"class": "GenericError", "desc": "The overlay already has a backing image"}}
 
+=== Invalid command - creating loops ===
+
+Formatting 'TEST_DIR/14-snapshot-v0.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/13-snapshot-v0.IMGFMT backing_fmt=IMGFMT
+{ 'execute': 'blockdev-add', 'arguments':
+           { 'driver': 'IMGFMT', 'node-name': 'snap_14', 'backing': null,
+             'file':
+             { 'driver': 'file', 'filename': 'TEST_DIR/14-snapshot-v0.IMGFMT',
+               'node-name': 'file_14' } } }
+{"return": {}}
+{ 'execute': 'blockdev-snapshot',
+                     'arguments': { 'node':'snap_14',
+                                    'overlay':'snap_14' }
+                   }
+{"error": {"class": "GenericError", "desc": "Making 'snap_14' a backing child of 'snap_14' would create a cycle"}}
+Formatting 'TEST_DIR/15-snapshot-v0.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/14-snapshot-v0.IMGFMT backing_fmt=IMGFMT
+{ 'execute': 'blockdev-add', 'arguments':
+           { 'driver': 'IMGFMT', 'node-name': 'snap_15', 'backing': 'snap_14',
+             'file':
+             { 'driver': 'file', 'filename': 'TEST_DIR/15-snapshot-v0.IMGFMT',
+               'node-name': 'file_15' } } }
+{"return": {}}
+{ 'execute': 'blockdev-snapshot',
+                     'arguments': { 'node':'snap_15',
+                                    'overlay':'snap_14' }
+                   }
+{"error": {"class": "GenericError", "desc": "Making 'snap_15' a backing child of 'snap_14' would create a cycle"}}
+
 === Invalid command - The node does not exist ===
 
 { 'execute': 'blockdev-snapshot',
                       'arguments': { 'node': 'virtio0',
-                                     'overlay':'snap_14' } }
-{"error": {"class": "GenericError", "desc": "Cannot find device='snap_14' nor node-name='snap_14'"}}
+                                     'overlay':'snap_16' } }
+{"error": {"class": "GenericError", "desc": "Cannot find device='snap_16' nor node-name='snap_16'"}}
 { 'execute': 'blockdev-snapshot',
                      'arguments': { 'node':'nodevice',
-                                    'overlay':'snap_13' }
+                                    'overlay':'snap_15' }
                    }
 {"error": {"class": "GenericError", "desc": "Cannot find device='nodevice' nor node-name='nodevice'"}}
 *** done
