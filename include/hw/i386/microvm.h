@@ -104,6 +104,10 @@ struct MicrovmMachineState {
     Notifier machine_done;
     Notifier powerdown_req;
     struct GPEXConfig gpex;
+
+    /* device tree */
+    void *fdt;
+    uint32_t ioapic_phandle[2];
 };
 
 #define TYPE_MICROVM_MACHINE   MACHINE_TYPE_NAME("microvm")

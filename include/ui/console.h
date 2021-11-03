@@ -171,6 +171,7 @@ typedef struct QemuDmaBuf {
     void      *sync;
     int       fence_fd;
     bool      allow_fences;
+    bool      draw_submitted;
 } QemuDmaBuf;
 
 typedef struct DisplayState DisplayState;
