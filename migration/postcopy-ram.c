@@ -1457,6 +1457,10 @@ void postcopy_unregister_shared_ufd(struct PostCopyFD *pcfd)
     MigrationIncomingState *mis = migration_incoming_get_current();
     GArray *pcrfds = mis->postcopy_remote_fds;
 
+    if (!pcrfds) {
+        /* migration has already finished and freed the array */
+        return;
+    }
     for (i = 0; i < pcrfds->len; i++) {
         struct PostCopyFD *cur = &g_array_index(pcrfds, struct PostCopyFD, i);
         if (cur->fd == pcfd->fd) {
