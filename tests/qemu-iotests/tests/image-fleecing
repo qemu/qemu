@@ -115,8 +115,8 @@ def do_test(use_cbw, base_img_path, fleece_img_path, nbd_sock_path, vm):
 
     nbd_uri = 'nbd+unix:///%s?socket=%s' % (tmp_node, nbd_sock_path)
     log(vm.qmp('nbd-server-start',
-               {'addr': { 'type': 'unix',
-                          'data': { 'path': nbd_sock_path } } }))
+               {'addr': {'type': 'unix',
+                         'data': {'path': nbd_sock_path}}}))
 
     log(vm.qmp('nbd-server-add', device=tmp_node))
 

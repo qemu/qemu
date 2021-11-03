@@ -77,8 +77,8 @@ class TestStopWithBlockJob(iotests.QMPTestCase):
         self.do_test_stop("drive-backup", device="drive0",
                           target=self.target_img, format=iotests.imgfmt,
                           sync="full",
-                          x_perf={ 'max-chunk': 65536,
-                                   'max-workers': 8 })
+                          x_perf={'max-chunk': 65536,
+                                  'max-workers': 8})
 
     def test_block_commit(self):
         # Add overlay above the source node so that we actually use a
@@ -88,13 +88,13 @@ class TestStopWithBlockJob(iotests.QMPTestCase):
                          '1G')
 
         result = self.vm.qmp('blockdev-add', **{
-                                 'node-name': 'overlay',
-                                 'driver': iotests.imgfmt,
-                                 'file': {
-                                     'driver': 'file',
-                                     'filename': self.overlay_img
-                                 }
-                             })
+            'node-name': 'overlay',
+            'driver': iotests.imgfmt,
+            'file': {
+                'driver': 'file',
+                'filename': self.overlay_img
+            }
+        })
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('blockdev-snapshot',
