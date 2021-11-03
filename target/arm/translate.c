@@ -9618,25 +9618,25 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
     CPUARMState *env = cpu->env_ptr;
+    uint32_t pc = dc->base.pc_next;
     uint32_t insn;
     bool is_16bit;
 
     if (arm_pre_translate_insn(dc)) {
-        dc->base.pc_next += 2;
+        dc->base.pc_next = pc + 2;
         return;
     }
 
-    dc->pc_curr = dc->base.pc_next;
-    insn = arm_lduw_code(env, &dc->base, dc->base.pc_next, dc->sctlr_b);
+    dc->pc_curr = pc;
+    insn = arm_lduw_code(env, &dc->base, pc, dc->sctlr_b);
     is_16bit = thumb_insn_is_16bit(dc, dc->base.pc_next, insn);
-    dc->base.pc_next += 2;
+    pc += 2;
     if (!is_16bit) {
-        uint32_t insn2 = arm_lduw_code(env, &dc->base, dc->base.pc_next,
-                                       dc->sctlr_b);
-
+        uint32_t insn2 = arm_lduw_code(env, &dc->base, pc, dc->sctlr_b);
         insn = insn << 16 | insn2;
-        dc->base.pc_next += 2;
+        pc += 2;
     }
+    dc->base.pc_next = pc;
     dc->insn = insn;
 
     if (dc->pstate_il) {
