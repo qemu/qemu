@@ -9,6 +9,7 @@
 #include "cpu.h"
 #include "internals.h"
 #include "exec/exec-all.h"
+#include "exec/helper-proto.h"
 
 static inline uint32_t merge_syn_data_abort(uint32_t template_syn,
                                             unsigned int target_el,
@@ -132,6 +133,23 @@ void arm_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
 
     fi.type = ARMFault_Alignment;
     arm_deliver_fault(cpu, vaddr, access_type, mmu_idx, &fi);
+}
+
+void helper_exception_pc_alignment(CPUARMState *env, target_ulong pc)
+{
+    ARMMMUFaultInfo fi = { .type = ARMFault_Alignment };
+    int target_el = exception_target_el(env);
+    int mmu_idx = cpu_mmu_index(env, true);
+    uint32_t fsc;
+
+    env->exception.vaddress = pc;
+
+    /*
+     * Note that the fsc is not applicable to this exception,
+     * since any syndrome is pcalignment not insn_abort.
+     */
+    env->exception.fsr = compute_fsr_fsc(env, &fi, target_el, mmu_idx, &fsc);
+    raise_exception(env, EXCP_PREFETCH_ABORT, syn_pcalignment(), target_el);
 }
 
 #if !defined(CONFIG_USER_ONLY)
