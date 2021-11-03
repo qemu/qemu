@@ -92,6 +92,6 @@ static inline union ibv_gid *rdma_rm_get_gid(RdmaDeviceResources *dev_res,
 {
     return &dev_res->port.gid_tbl[sgid_idx].gid;
 }
-void rdma_dump_device_counters(Monitor *mon, RdmaDeviceResources *dev_res);
+void rdma_format_device_counters(RdmaDeviceResources *dev_res, GString *buf);
 
 #endif

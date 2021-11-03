@@ -1,8 +1,8 @@
-How to write QMP commands using the QAPI framework
-==================================================
+How to write monitor commands
+=============================
 
 This document is a step-by-step guide on how to write new QMP commands using
-the QAPI framework. It also shows how to implement new style HMP commands.
+the QAPI framework and HMP commands.
 
 This document doesn't discuss QMP protocol level details, nor does it dive
 into the QAPI framework implementation.
@@ -11,6 +11,14 @@ For an in-depth introduction to the QAPI framework, please refer to
 docs/devel/qapi-code-gen.txt. For documentation about the QMP protocol,
 start with docs/interop/qmp-intro.txt.
 
+New commands may be implemented in QMP only.  New HMP commands should be
+implemented on top of QMP.  The typical HMP command wraps around an
+equivalent QMP command, but HMP convenience commands built from QMP
+building blocks are also fine.  The long term goal is to make all
+existing HMP commands conform to this, to fully isolate HMP from the
+internals of QEMU. Refer to the `Writing a debugging aid returning
+unstructured text`_ section for further guidance on commands that
+would have traditionally been HMP only.
 
 Overview
 --------
@@ -85,8 +93,8 @@ any data". Now you're ready to enter the QMP example commands as explained in
 the following sections.
 
 
-Writing a command that doesn't return data
-------------------------------------------
+Writing a simple command: hello-world
+-------------------------------------
 
 That's the most simple QMP command that can be written. Usually, this kind of
 command carries some meaningful action in QEMU but here it will just print
@@ -293,9 +301,7 @@ Here's the implementation of the "hello-world" HMP command::
      Error *err = NULL;
 
      qmp_hello_world(!!message, message, &err);
-     if (err) {
-         monitor_printf(mon, "%s\n", error_get_pretty(err));
-         error_free(err);
+     if (hmp_handle_error(mon, err)) {
          return;
      }
  }
@@ -307,9 +313,10 @@ There are three important points to be noticed:
 1. The "mon" and "qdict" arguments are mandatory for all HMP functions. The
    former is the monitor object. The latter is how the monitor passes
    arguments entered by the user to the command implementation
-2. hmp_hello_world() performs error checking. In this example we just print
-   the error description to the user, but we could do more, like taking
-   different actions depending on the error qmp_hello_world() returns
+2. hmp_hello_world() performs error checking. In this example we just call
+   hmp_handle_error() which prints a message to the user, but we could do
+   more, like taking different actions depending on the error
+   qmp_hello_world() returns
 3. The "err" variable must be initialized to NULL before performing the
    QMP call
 
@@ -340,8 +347,8 @@ Please, check the "-monitor" command-line option to know how to open a user
 monitor.
 
 
-Writing a command that returns data
------------------------------------
+Writing more complex commands
+-----------------------------
 
 A QMP command is capable of returning any data the QAPI supports like integers,
 strings, booleans, enumerations and user defined types.
@@ -349,6 +356,35 @@ strings, booleans, enumerations and user defined types.
 In this section we will focus on user defined types. Please, check the QAPI
 documentation for information about the other types.
 
+
+Modelling data in QAPI
+~~~~~~~~~~~~~~~~~~~~~~
+
+For a QMP command that to be considered stable and supported long term,
+there is a requirement returned data should be explicitly modelled
+using fine-grained QAPI types. As a general guide, a caller of the QMP
+command should never need to parse individual returned data fields. If
+a field appears to need parsing, then it should be split into separate
+fields corresponding to each distinct data item. This should be the
+common case for any new QMP command that is intended to be used by
+machines, as opposed to exclusively human operators.
+
+Some QMP commands, however, are only intended as ad hoc debugging aids
+for human operators. While they may return large amounts of formatted
+data, it is not expected that machines will need to parse the result.
+The overhead of defining a fine grained QAPI type for the data may not
+be justified by the potential benefit. In such cases, it is permitted
+to have a command return a simple string that contains formatted data,
+however, it is mandatory for the command to use the 'x-' name prefix.
+This indicates that the command is not guaranteed to be long term
+stable / liable to change in future and is not following QAPI design
+best practices. An example where this approach is taken is the QMP
+command "x-query-registers". This returns a formatted dump of the
+architecture specific CPU state. The way the data is formatted varies
+across QEMU targets, is liable to change over time, and is only
+intended to be consumed as an opaque string by machines. Refer to the
+`Writing a debugging aid returning unstructured text`_ section for
+an illustration.
 
 User Defined Types
 ~~~~~~~~~~~~~~~~~~
@@ -466,9 +502,7 @@ Here's the HMP counterpart of the query-alarm-clock command::
      Error *err = NULL;
 
      clock = qmp_query_alarm_clock(&err);
-     if (err) {
-         monitor_printf(mon, "Could not query alarm clock information\n");
-         error_free(err);
+     if (hmp_handle_error(mon, err)) {
          return;
      }
 
@@ -607,9 +641,7 @@ has to traverse the list, it's shown below for reference::
      Error *err = NULL;
 
      method_list = qmp_query_alarm_methods(&err);
-     if (err) {
-         monitor_printf(mon, "Could not query alarm methods\n");
-         error_free(err);
+     if (hmp_handle_error(mon, err)) {
          return;
      }
 
@@ -620,3 +652,100 @@ has to traverse the list, it's shown below for reference::
 
      qapi_free_TimerAlarmMethodList(method_list);
  }
+
+Writing a debugging aid returning unstructured text
+---------------------------------------------------
+
+As discussed in section `Modelling data in QAPI`_, it is required that
+commands expecting machine usage be using fine-grained QAPI data types.
+The exception to this rule applies when the command is solely intended
+as a debugging aid and allows for returning unstructured text. This is
+commonly needed for query commands that report aspects of QEMU's
+internal state that are useful to human operators.
+
+In this example we will consider a simplified variant of the HMP
+command ``info roms``. Following the earlier rules, this command will
+need to live under the ``x-`` name prefix, so its QMP implementation
+will be called ``x-query-roms``. It will have no parameters and will
+return a single text string::
+
+ { 'struct': 'HumanReadableText',
+   'data': { 'human-readable-text': 'str' } }
+
+ { 'command': 'x-query-roms',
+   'returns': 'HumanReadableText' }
+
+The ``HumanReadableText`` struct is intended to be used for all
+commands, under the ``x-`` name prefix that are returning unstructured
+text targetted at humans. It should never be used for commands outside
+the ``x-`` name prefix, as those should be using structured QAPI types.
+
+Implementing the QMP command
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The QMP implementation will typically involve creating a ``GString``
+object and printing formatted data into it::
+
+ HumanReadableText *qmp_x_query_roms(Error **errp)
+ {
+     g_autoptr(GString) buf = g_string_new("");
+     Rom *rom;
+
+     QTAILQ_FOREACH(rom, &roms, next) {
+        g_string_append_printf("%s size=0x%06zx name=\"%s\"\n",
+                               memory_region_name(rom->mr),
+                               rom->romsize,
+                               rom->name);
+     }
+
+     return human_readable_text_from_str(buf);
+ }
+
+
+Implementing the HMP command
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Now that the QMP command is in place, we can also make it available in
+the human monitor (HMP) as shown in previous examples. The HMP
+implementations will all look fairly similar, as all they need do is
+invoke the QMP command and then print the resulting text or error
+message. Here's the implementation of the "info roms" HMP command::
+
+ void hmp_info_roms(Monitor *mon, const QDict *qdict)
+ {
+     Error err = NULL;
+     g_autoptr(HumanReadableText) info = qmp_x_query_roms(&err);
+
+     if (hmp_handle_error(mon, err)) {
+         return;
+     }
+     monitor_printf(mon, "%s", info->human_readable_text);
+ }
+
+Also, you have to add the function's prototype to the hmp.h file.
+
+There's one last step to actually make the command available to
+monitor users, we should add it to the hmp-commands-info.hx file::
+
+    {
+        .name       = "roms",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show roms",
+        .cmd        = hmp_info_roms,
+    },
+
+The case of writing a HMP info handler that calls a no-parameter QMP query
+command is quite common. To simplify the implementation there is a general
+purpose HMP info handler for this scenario. All that is required to expose
+a no-parameter QMP query command via HMP is to declare it using the
+'.cmd_info_hrt' field to point to the QMP handler, and leave the '.cmd'
+field NULL::
+
+    {
+        .name         = "roms",
+        .args_type    = "",
+        .params       = "",
+        .help         = "show roms",
+        .cmd_info_hrt = qmp_x_query_roms,
+    },
