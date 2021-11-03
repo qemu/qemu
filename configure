@@ -1259,45 +1259,20 @@ firmwarepath="${firmwarepath:-$datadir/qemu-firmware}"
 localedir="${localedir:-$datadir/locale}"
 
 case "$cpu" in
-    ppc)
-           CPU_CFLAGS="-m32"
-           QEMU_LDFLAGS="-m32 $QEMU_LDFLAGS"
-           ;;
-    ppc64)
-           CPU_CFLAGS="-m64"
-           QEMU_LDFLAGS="-m64 $QEMU_LDFLAGS"
-           ;;
-    sparc)
-           CPU_CFLAGS="-m32 -mv8plus -mcpu=ultrasparc"
-           QEMU_LDFLAGS="-m32 -mv8plus $QEMU_LDFLAGS"
-           ;;
-    sparc64)
-           CPU_CFLAGS="-m64 -mcpu=ultrasparc"
-           QEMU_LDFLAGS="-m64 $QEMU_LDFLAGS"
-           ;;
-    s390)
-           CPU_CFLAGS="-m31"
-           QEMU_LDFLAGS="-m31 $QEMU_LDFLAGS"
-           ;;
-    s390x)
-           CPU_CFLAGS="-m64"
-           QEMU_LDFLAGS="-m64 $QEMU_LDFLAGS"
-           ;;
-    i386)
-           CPU_CFLAGS="-m32"
-           QEMU_LDFLAGS="-m32 $QEMU_LDFLAGS"
-           ;;
-    x86_64)
-           # ??? Only extremely old AMD cpus do not have cmpxchg16b.
-           # If we truly care, we should simply detect this case at
-           # runtime and generate the fallback to serial emulation.
-           CPU_CFLAGS="-m64 -mcx16"
-           QEMU_LDFLAGS="-m64 $QEMU_LDFLAGS"
-           ;;
-    x32)
-           CPU_CFLAGS="-mx32"
-           QEMU_LDFLAGS="-mx32 $QEMU_LDFLAGS"
-           ;;
+    ppc) CPU_CFLAGS="-m32" ;;
+    ppc64) CPU_CFLAGS="-m64" ;;
+    sparc) CPU_CFLAGS="-m32 -mv8plus -mcpu=ultrasparc" ;;
+    sparc64) CPU_CFLAGS="-m64 -mcpu=ultrasparc" ;;
+    s390) CPU_CFLAGS="-m31" ;;
+    s390x) CPU_CFLAGS="-m64" ;;
+    i386) CPU_CFLAGS="-m32" ;;
+    x32) CPU_CFLAGS="-mx32" ;;
+
+    # ??? Only extremely old AMD cpus do not have cmpxchg16b.
+    # If we truly care, we should simply detect this case at
+    # runtime and generate the fallback to serial emulation.
+    x86_64) CPU_CFLAGS="-m64 -mcx16" ;;
+
     # No special flags required for other host CPUs
 esac
 
@@ -1411,7 +1386,7 @@ Advanced options (experts only):
   --disable-strip          disable stripping binaries
   --disable-werror         disable compilation abort on warning
   --disable-stack-protector disable compiler-provided stack protection
-  --audio-drv-list=LIST    set audio drivers list
+  --audio-drv-list=LIST    set audio drivers to try if -audiodev is not used
   --block-drv-whitelist=L  Same as --block-drv-rw-whitelist=L
   --block-drv-rw-whitelist=L
                            set block driver read-write whitelist
@@ -1521,7 +1496,7 @@ python_version=$($python -c 'import sys; print("%d.%d.%d" % (sys.version_info[0]
 python="$python -B"
 
 if test -z "$meson"; then
-    if test "$explicit_python" = no && has meson && version_ge "$(meson --version)" 0.59.2; then
+    if test "$explicit_python" = no && has meson && version_ge "$(meson --version)" 0.59.3; then
         meson=meson
     elif test $git_submodules_action != 'ignore' ; then
         meson=git
@@ -1745,17 +1720,6 @@ if test "$static" = "yes" ; then
   fi
 fi
 
-# Unconditional check for compiler __thread support
-  cat > $TMPC << EOF
-static __thread int tls_var;
-int main(void) { return tls_var; }
-EOF
-
-if ! compile_prog "-Werror" "" ; then
-    error_exit "Your compiler does not support the __thread specifier for " \
-	"Thread-Local Storage (TLS). Please upgrade to a version that does."
-fi
-
 cat > $TMPC << EOF
 
 #ifdef __linux__
@@ -1767,9 +1731,11 @@ static THREAD int tls_var;
 int main(void) { return tls_var; }
 EOF
 
-# Check we support --no-pie first; we will need this for building ROMs.
+# Check we support -fno-pie and -no-pie first; we will need the former for
+# building ROMs, and both for everything if --disable-pie is passed.
 if compile_prog "-Werror -fno-pie" "-no-pie"; then
   CFLAGS_NOPIE="-fno-pie"
+  LDFLAGS_NOPIE="-no-pie"
 fi
 
 if test "$static" = "yes"; then
@@ -1785,6 +1751,7 @@ if test "$static" = "yes"; then
   fi
 elif test "$pie" = "no"; then
   CONFIGURE_CFLAGS="$CFLAGS_NOPIE $CONFIGURE_CFLAGS"
+  CONFIGURE_LDFLAGS="$LDFLAGS_NOPIE $CONFIGURE_LDFLAGS"
 elif compile_prog "-Werror -fPIE -DPIE" "-pie"; then
   CONFIGURE_CFLAGS="-fPIE -DPIE $CONFIGURE_CFLAGS"
   CONFIGURE_LDFLAGS="-pie $CONFIGURE_LDFLAGS"
@@ -1914,20 +1881,6 @@ if test -z "$want_tools"; then
     fi
 fi
 
-##########################################
-# L2TPV3 probe
-
-cat > $TMPC <<EOF
-#include <sys/socket.h>
-#include <linux/ip.h>
-int main(void) { return sizeof(struct mmsghdr); }
-EOF
-if compile_prog "" "" ; then
-  l2tpv3=yes
-else
-  l2tpv3=no
-fi
-
 #########################################
 # vhost interdependencies and host support
 
@@ -1985,25 +1938,6 @@ fi
 
 if ! has "$pkg_config_exe"; then
   error_exit "pkg-config binary '$pkg_config_exe' not found"
-fi
-
-##########################################
-# NPTL probe
-
-if test "$linux_user" = "yes"; then
-  cat > $TMPC <<EOF
-#include <sched.h>
-#include <linux/futex.h>
-int main(void) {
-#if !defined(CLONE_SETTLS) || !defined(FUTEX_WAIT)
-#error bork
-#endif
-  return 0;
-}
-EOF
-  if ! compile_object ; then
-    feature_not_found "nptl" "Install glibc and linux kernel headers."
-  fi
 fi
 
 ##########################################
@@ -3551,9 +3485,6 @@ if test "$slirp_smbd" = "yes" ; then
   echo "CONFIG_SLIRP_SMBD=y" >> $config_host_mak
   echo "CONFIG_SMBD_COMMAND=\"$smbd\"" >> $config_host_mak
 fi
-if test "$l2tpv3" = "yes" ; then
-  echo "CONFIG_L2TPV3=y" >> $config_host_mak
-fi
 if test "$gprof" = "yes" ; then
   echo "CONFIG_GPROF=y" >> $config_host_mak
 fi
@@ -3955,6 +3886,10 @@ for rom in seabios; do
     echo "LD=$ld" >> $config_mak
     echo "RANLIB=$ranlib" >> $config_mak
 done
+
+config_mak=pc-bios/optionrom/config.mak
+echo "# Automatically generated by configure - do not modify" > $config_mak
+echo "TOPSRC_DIR=$source_path" >> $config_mak
 
 if test "$skip_meson" = no; then
   cross="config-meson.cross.new"

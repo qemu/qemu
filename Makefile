@@ -235,7 +235,8 @@ distclean: clean
 	rm -f linux-headers/asm
 	rm -Rf .sdk
 
-find-src-path = find "$(SRC_PATH)/" -path "$(SRC_PATH)/meson" -prune -o \( -name "*.[chsS]" -o -name "*.[ch].inc" \)
+find-src-path = find "$(SRC_PATH)" -path "$(SRC_PATH)/meson" -prune -o \
+	-type l -prune -o \( -name "*.[chsS]" -o -name "*.[ch].inc" \)
 
 .PHONY: ctags
 ctags:
@@ -256,7 +257,7 @@ gtags:
 		"GTAGS", "Remove old $@ files")
 	$(call quiet-command, 				\
 	        (cd $(SRC_PATH) && 			\
-		 $(find-src-path) | gtags -f -), 	\
+		 $(find-src-path) -print | gtags -f -),	\
 		"GTAGS", "Re-index $(SRC_PATH)")
 
 .PHONY: TAGS

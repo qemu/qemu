@@ -117,9 +117,6 @@ struct PCMachineClass {
     /* generate legacy CPU hotplug AML */
     bool legacy_cpu_hotplug;
 
-    /* use DMA capable linuxboot option rom */
-    bool linuxboot_dma_enabled;
-
     /* use PVH to load kernels that support this feature */
     bool pvh_enabled;
 

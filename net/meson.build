@@ -18,7 +18,9 @@ softmmu_ss.add(files(
 
 softmmu_ss.add(when: 'CONFIG_TCG', if_true: files('filter-replay.c'))
 
-softmmu_ss.add(when: 'CONFIG_L2TPV3', if_true: files('l2tpv3.c'))
+if have_l2tpv3
+  softmmu_ss.add(files('l2tpv3.c'))
+endif
 softmmu_ss.add(when: slirp, if_true: files('slirp.c'))
 softmmu_ss.add(when: vde, if_true: files('vde.c'))
 if have_netmap

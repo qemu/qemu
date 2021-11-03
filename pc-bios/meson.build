@@ -63,6 +63,7 @@ blobs = files(
   'petalogix-s3adsp1800.dtb',
   'petalogix-ml605.dtb',
   'multiboot.bin',
+  'multiboot_dma.bin',
   'linuxboot.bin',
   'linuxboot_dma.bin',
   'kvmvapic.bin',

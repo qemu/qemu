@@ -189,6 +189,40 @@ static void test_cancelled_request_ok(void)
     qtest_quit(s);
 }
 
+static void test_inflight_cancel_ok(void)
+{
+    QTestState *s = qtest_init(
+        "-device am53c974,id=scsi "
+        "-device scsi-hd,drive=disk0 -drive "
+        "id=disk0,if=none,file=null-co://,format=raw -nodefaults");
+    qtest_outl(s, 0xcf8, 0x80001000);
+    qtest_inw(s, 0xcfc);
+    qtest_outl(s, 0xcf8, 0x80001010);
+    qtest_outl(s, 0xcfc, 0xffffffff);
+    qtest_outl(s, 0xcf8, 0x80001010);
+    qtest_inl(s, 0xcfc);
+    qtest_outl(s, 0xcf8, 0x80001010);
+    qtest_outl(s, 0xcfc, 0xc001);
+    qtest_outl(s, 0xcf8, 0x80001004);
+    qtest_inw(s, 0xcfc);
+    qtest_outl(s, 0xcf8, 0x80001004);
+    qtest_outw(s, 0xcfc, 0x7);
+    qtest_outl(s, 0xcf8, 0x80001004);
+    qtest_inw(s, 0xcfc);
+    qtest_inb(s, 0xc000);
+    qtest_outb(s, 0xc008, 0x8);
+    qtest_outw(s, 0xc00b, 0x4100);
+    qtest_outb(s, 0xc009, 0x0);
+    qtest_outb(s, 0xc009, 0x0);
+    qtest_outw(s, 0xc00b, 0xc212);
+    qtest_outl(s, 0xc042, 0x2c2c5a88);
+    qtest_outw(s, 0xc00b, 0xc212);
+    qtest_outw(s, 0xc00b, 0x415a);
+    qtest_outl(s, 0xc03f, 0x3060303);
+    qtest_outl(s, 0xc00b, 0x5afa9054);
+    qtest_quit(s);
+}
+
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
@@ -212,6 +246,8 @@ int main(int argc, char **argv)
                        test_fifo_underflow_on_write_ok);
         qtest_add_func("am53c974/test_cancelled_request_ok",
                        test_cancelled_request_ok);
+        qtest_add_func("am53c974/test_inflight_cancel_ok",
+                       test_inflight_cancel_ok);
     }
 
     return g_test_run();

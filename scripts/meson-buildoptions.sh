@@ -49,6 +49,7 @@ meson_options_help() {
   printf "%s\n" '  iconv           Font glyph conversion support'
   printf "%s\n" '  jack            JACK sound support'
   printf "%s\n" '  kvm             KVM acceleration support'
+  printf "%s\n" '  l2tpv3          l2tpv3 network backend support'
   printf "%s\n" '  libdaxctl       libdaxctl support'
   printf "%s\n" '  libiscsi        libiscsi userspace initiator'
   printf "%s\n" '  libnfs          libnfs block device driver'
@@ -166,6 +167,8 @@ _meson_option_parse() {
     --disable-jack) printf "%s" -Djack=disabled ;;
     --enable-kvm) printf "%s" -Dkvm=enabled ;;
     --disable-kvm) printf "%s" -Dkvm=disabled ;;
+    --enable-l2tpv3) printf "%s" -Dl2tpv3=enabled ;;
+    --disable-l2tpv3) printf "%s" -Dl2tpv3=disabled ;;
     --enable-libdaxctl) printf "%s" -Dlibdaxctl=enabled ;;
     --disable-libdaxctl) printf "%s" -Dlibdaxctl=disabled ;;
     --enable-libiscsi) printf "%s" -Dlibiscsi=enabled ;;

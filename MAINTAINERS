@@ -1611,7 +1611,7 @@ microvm
 M: Sergio Lopez <slp@redhat.com>
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
-F: docs/microvm.rst
+F: docs/system/i386/microvm.rst
 F: hw/i386/microvm.c
 F: include/hw/i386/microvm.h
 F: pc-bios/bios-microvm.bin

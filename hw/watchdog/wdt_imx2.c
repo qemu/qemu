@@ -280,8 +280,8 @@ static void imx2_wdt_class_init(ObjectClass *klass, void *data)
     dc->realize = imx2_wdt_realize;
     dc->reset = imx2_wdt_reset;
     dc->vmsd = &vmstate_imx2_wdt;
-    dc->desc = "i.MX watchdog timer";
-    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    dc->desc = "i.MX2 watchdog timer";
+    set_bit(DEVICE_CATEGORY_WATCHDOG, dc->categories);
 }
 
 static const TypeInfo imx2_wdt_info = {

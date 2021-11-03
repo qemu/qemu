@@ -122,9 +122,10 @@ static void wdt_diag288_class_init(ObjectClass *klass, void *data)
     dc->unrealize = wdt_diag288_unrealize;
     dc->reset = wdt_diag288_reset;
     dc->hotpluggable = false;
-    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    set_bit(DEVICE_CATEGORY_WATCHDOG, dc->categories);
     dc->vmsd = &vmstate_diag288;
     diag288->handle_timer = wdt_diag288_handle_timer;
+    dc->desc = "diag288 device for s390x platform";
 }
 
 static const TypeInfo wdt_diag288_info = {

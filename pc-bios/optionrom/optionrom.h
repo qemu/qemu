@@ -37,6 +37,17 @@
 #define BIOS_CFG_IOPORT_CFG	0x510
 #define BIOS_CFG_IOPORT_DATA	0x511
 
+#define FW_CFG_DMA_CTL_ERROR   0x01
+#define FW_CFG_DMA_CTL_READ    0x02
+#define FW_CFG_DMA_CTL_SKIP    0x04
+#define FW_CFG_DMA_CTL_SELECT  0x08
+#define FW_CFG_DMA_CTL_WRITE   0x10
+
+#define FW_CFG_DMA_SIGNATURE 0x51454d5520434647ULL /* "QEMU CFG" */
+
+#define BIOS_CFG_DMA_ADDR_HIGH  0x514
+#define BIOS_CFG_DMA_ADDR_LOW   0x518
+
 /* Break the translation block flow so -d cpu shows us values */
 #define DEBUG_HERE \
 	jmp		1f;				\
@@ -61,6 +72,61 @@
 	inb		(%dx), %al
 	bswap		%eax
 .endm
+
+
+/*
+ * Read data from the fw_cfg device using DMA.
+ * Clobbers:	%edx, %eax, ADDR, SIZE, memory[%esp-16] to memory[%esp]
+ */
+.macro read_fw_dma VAR, SIZE, ADDR
+        /* Address */
+	bswapl		\ADDR
+	pushl		\ADDR
+
+	/* We only support 32 bit target addresses */
+	xorl		%eax, %eax
+	pushl		%eax
+	mov		$BIOS_CFG_DMA_ADDR_HIGH, %dx
+	outl		%eax, (%dx)
+
+	/* Size */
+	bswapl		\SIZE
+	pushl		\SIZE
+
+        /* Control */
+	movl		$(\VAR << 16) | (FW_CFG_DMA_CTL_READ | FW_CFG_DMA_CTL_SELECT), %eax
+	bswapl		%eax
+	pushl		%eax
+
+	movl		%esp, %eax /* Address of the struct we generated */
+	bswapl		%eax
+	mov		$BIOS_CFG_DMA_ADDR_LOW, %dx
+	outl		%eax, (%dx) /* Initiate DMA */
+
+1:  mov		(%esp), %eax /* Wait for completion */
+	bswapl		%eax
+	testl		$~FW_CFG_DMA_CTL_ERROR, %eax
+	jnz		1b
+       addl            $16, %esp
+.endm
+
+
+/*
+ * Read a blob from the fw_cfg device using DMA
+ * Requires _ADDR, _SIZE and _DATA values for the parameter.
+ *
+ * Clobbers:	%eax, %edx, %es, %ecx, %edi and adresses %esp-20 to %esp
+ */
+#ifdef USE_FW_CFG_DMA
+#define read_fw_blob_dma(var) \
+	read_fw		var ## _SIZE; \
+	mov		%eax, %ecx; \
+	read_fw		var ## _ADDR; \
+	mov		%eax, %edi ;\
+	read_fw_dma	var ## _DATA, %ecx, %edi
+#else
+#define read_fw_blob_dma(var) read_fw_blob(var)
+#endif
 
 #define read_fw_blob_pre(var)				\
 	read_fw		var ## _SIZE;			\

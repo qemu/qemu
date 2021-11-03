@@ -70,6 +70,7 @@
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-commands-qom.h"
+#include "qapi/qapi-commands-run-state.h"
 #include "qapi/qapi-commands-trace.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-init-commands.h"
@@ -472,10 +473,18 @@ static void hmp_gdbserver(Monitor *mon, const QDict *qdict)
 
 static void hmp_watchdog_action(Monitor *mon, const QDict *qdict)
 {
-    const char *action = qdict_get_str(qdict, "action");
-    if (select_watchdog_action(action) == -1) {
-        monitor_printf(mon, "Unknown watchdog action '%s'\n", action);
+    Error *err = NULL;
+    WatchdogAction action;
+    char *qapi_value;
+
+    qapi_value = g_ascii_strdown(qdict_get_str(qdict, "action"), -1);
+    action = qapi_enum_parse(&WatchdogAction_lookup, qapi_value, -1, &err);
+    g_free(qapi_value);
+    if (err) {
+        hmp_handle_error(mon, err);
+        return;
     }
+    qmp_watchdog_set_action(action, &error_abort);
 }
 
 static void monitor_printc(Monitor *mon, int c)

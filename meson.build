@@ -909,7 +909,7 @@ if liblzfse.found() and not cc.links('''
 endif
 
 oss = not_found
-if not get_option('oss').auto() or have_system
+if have_system and not get_option('oss').disabled()
   if not cc.has_header('sys/soundcard.h')
     # not found
   elif targetos == 'netbsd'
@@ -922,8 +922,6 @@ if not get_option('oss').auto() or have_system
   if not oss.found()
     if get_option('oss').enabled()
       error('OSS not found')
-    else
-      warning('OSS not found, disabling')
     endif
   endif
 endif
@@ -936,8 +934,6 @@ if not get_option('dsound').auto() or (targetos == 'windows' and have_system)
   if not dsound.found()
     if get_option('dsound').enabled()
       error('DirectSound not found')
-    else
-      warning('DirectSound not found, disabling')
     endif
   endif
 endif
@@ -946,22 +942,6 @@ coreaudio = not_found
 if not get_option('coreaudio').auto() or (targetos == 'darwin' and have_system)
   coreaudio = dependency('appleframeworks', modules: 'CoreAudio',
                          required: get_option('coreaudio'))
-  if coreaudio.found() and not cc.links('''
-    #include <CoreAudio/CoreAudio.h>
-    int main(void)
-    {
-      return (int)AudioGetCurrentHostTime();
-    }''')
-    coreaudio = not_found
-  endif
-
-  if not coreaudio.found()
-    if get_option('coreaudio').enabled()
-      error('CoreAudio not found')
-    else
-      warning('CoreAudio not found, disabling')
-    endif
-  endif
 endif
 
 opengl = not_found
@@ -1675,6 +1655,13 @@ config_host_data.set('HAVE_MLOCKALL', cc.links(gnu_source_prefix + '''
   int main(int argc, char *argv[]) {
     return mlockall(MCL_FUTURE);
   }'''))
+
+have_l2tpv3 = false
+if not get_option('l2tpv3').disabled() and have_system
+  have_l2tpv3 = (cc.has_header_symbol('sys/socket.h', 'struct mmsghdr')
+                 and cc.has_header('linux/ip.h'))
+endif
+config_host_data.set('CONFIG_L2TPV3', have_l2tpv3)
 
 have_netmap = false
 if not get_option('netmap').disabled() and have_system
@@ -3395,6 +3382,7 @@ summary_info += {'JACK support':      jack}
 summary_info += {'brlapi support':    brlapi}
 summary_info += {'vde support':       vde}
 summary_info += {'netmap support':    have_netmap}
+summary_info += {'l2tpv3 support':    have_l2tpv3}
 summary_info += {'Linux AIO support': libaio}
 summary_info += {'Linux io_uring support': linux_io_uring}
 summary_info += {'ATTR/XATTR support': libattr}
