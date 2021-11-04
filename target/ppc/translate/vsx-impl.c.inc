@@ -1945,11 +1945,12 @@ static void gen_xvxsigdp(DisasContext *ctx)
 }
 
 static bool do_lstxv(DisasContext *ctx, int ra, TCGv displ,
-                     int rt, bool store)
+                     int rt, bool store, bool paired)
 {
     TCGv ea;
     TCGv_i64 xt;
     MemOp mop;
+    int rt1, rt2;
 
     xt = tcg_temp_new_i64();
 
@@ -1958,18 +1959,42 @@ static bool do_lstxv(DisasContext *ctx, int ra, TCGv displ,
     gen_set_access_type(ctx, ACCESS_INT);
     ea = do_ea_calc(ctx, ra, displ);
 
+    if (paired && ctx->le_mode) {
+        rt1 = rt + 1;
+        rt2 = rt;
+    } else {
+        rt1 = rt;
+        rt2 = rt + 1;
+    }
+
     if (store) {
-        get_cpu_vsr(xt, rt, !ctx->le_mode);
+        get_cpu_vsr(xt, rt1, !ctx->le_mode);
         tcg_gen_qemu_st_i64(xt, ea, ctx->mem_idx, mop);
         gen_addr_add(ctx, ea, ea, 8);
-        get_cpu_vsr(xt, rt, ctx->le_mode);
+        get_cpu_vsr(xt, rt1, ctx->le_mode);
         tcg_gen_qemu_st_i64(xt, ea, ctx->mem_idx, mop);
+        if (paired) {
+            gen_addr_add(ctx, ea, ea, 8);
+            get_cpu_vsr(xt, rt2, !ctx->le_mode);
+            tcg_gen_qemu_st_i64(xt, ea, ctx->mem_idx, mop);
+            gen_addr_add(ctx, ea, ea, 8);
+            get_cpu_vsr(xt, rt2, ctx->le_mode);
+            tcg_gen_qemu_st_i64(xt, ea, ctx->mem_idx, mop);
+        }
     } else {
         tcg_gen_qemu_ld_i64(xt, ea, ctx->mem_idx, mop);
-        set_cpu_vsr(rt, xt, !ctx->le_mode);
+        set_cpu_vsr(rt1, xt, !ctx->le_mode);
         gen_addr_add(ctx, ea, ea, 8);
         tcg_gen_qemu_ld_i64(xt, ea, ctx->mem_idx, mop);
-        set_cpu_vsr(rt, xt, ctx->le_mode);
+        set_cpu_vsr(rt1, xt, ctx->le_mode);
+        if (paired) {
+            gen_addr_add(ctx, ea, ea, 8);
+            tcg_gen_qemu_ld_i64(xt, ea, ctx->mem_idx, mop);
+            set_cpu_vsr(rt2, xt, !ctx->le_mode);
+            gen_addr_add(ctx, ea, ea, 8);
+            tcg_gen_qemu_ld_i64(xt, ea, ctx->mem_idx, mop);
+            set_cpu_vsr(rt2, xt, ctx->le_mode);
+        }
     }
 
     tcg_temp_free(ea);
@@ -1977,17 +2002,21 @@ static bool do_lstxv(DisasContext *ctx, int ra, TCGv displ,
     return true;
 }
 
-static bool do_lstxv_D(DisasContext *ctx, arg_D *a, bool store)
+static bool do_lstxv_D(DisasContext *ctx, arg_D *a, bool store, bool paired)
 {
-    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    if (paired) {
+        REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    } else {
+        REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    }
 
-    if (a->rt >= 32) {
+    if (paired || a->rt >= 32) {
         REQUIRE_VSX(ctx);
     } else {
         REQUIRE_VECTOR(ctx);
     }
 
-    return do_lstxv(ctx, a->ra, tcg_constant_tl(a->si), a->rt, store);
+    return do_lstxv(ctx, a->ra, tcg_constant_tl(a->si), a->rt, store, paired);
 }
 
 static bool do_lstxv_X(DisasContext *ctx, arg_X *a, bool store)
@@ -2000,11 +2029,13 @@ static bool do_lstxv_X(DisasContext *ctx, arg_X *a, bool store)
         REQUIRE_VECTOR(ctx);
     }
 
-    return do_lstxv(ctx, a->ra, cpu_gpr[a->rb], a->rt, store);
+    return do_lstxv(ctx, a->ra, cpu_gpr[a->rb], a->rt, store, false);
 }
 
-TRANS(STXV, do_lstxv_D, true)
-TRANS(LXV, do_lstxv_D, false)
+TRANS(STXV, do_lstxv_D, true, false)
+TRANS(LXV, do_lstxv_D, false, false)
+TRANS(STXVP, do_lstxv_D, true, true)
+TRANS(LXVP, do_lstxv_D, false, true)
 TRANS(STXVX, do_lstxv_X, true)
 TRANS(LXVX, do_lstxv_X, false)
 
