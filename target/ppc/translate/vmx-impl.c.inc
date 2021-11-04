@@ -1559,6 +1559,22 @@ GEN_VXFORM3(vpermxor, 22, 0xFF)
 GEN_VXFORM_DUAL(vsldoi, PPC_ALTIVEC, PPC_NONE,
                 vpermxor, PPC_NONE, PPC2_ALTIVEC_207)
 
+static bool trans_VCFUGED(DisasContext *ctx, arg_VX *a)
+{
+    static const GVecGen3 g = {
+        .fni8 = gen_helper_CFUGED,
+        .vece = MO_64,
+    };
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    tcg_gen_gvec_3(avr_full_offset(a->vrt), avr_full_offset(a->vra),
+                   avr_full_offset(a->vrb), 16, 16, &g);
+
+    return true;
+}
+
 #undef GEN_VR_LDX
 #undef GEN_VR_STX
 #undef GEN_VR_LVE

@@ -324,7 +324,7 @@ target_ulong helper_popcntb(target_ulong val)
 }
 #endif
 
-uint64_t helper_cfuged(uint64_t src, uint64_t mask)
+uint64_t helper_CFUGED(uint64_t src, uint64_t mask)
 {
     /*
      * Instead of processing the mask bit-by-bit from the most significant to

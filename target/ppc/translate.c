@@ -7407,7 +7407,6 @@ static bool resolve_PLS_D(DisasContext *ctx, arg_D *d, arg_PLS_D *a)
 #include "translate/vmx-impl.c.inc"
 
 #include "translate/vsx-impl.c.inc"
-#include "translate/vector-impl.c.inc"
 
 #include "translate/dfp-impl.c.inc"
 
