@@ -1642,6 +1642,45 @@ VINSX(D, uint64_t)
 #undef ELEM_ADDR
 #undef VINSX
 #if defined(HOST_WORDS_BIGENDIAN)
+#define VEXTDVLX(NAME, SIZE) \
+void helper_##NAME(CPUPPCState *env, ppc_avr_t *t, ppc_avr_t *a, ppc_avr_t *b, \
+                   target_ulong index)                                         \
+{                                                                              \
+    const target_long idx = index;                                             \
+    ppc_avr_t tmp[2] = { *a, *b };                                             \
+    memset(t, 0, sizeof(*t));                                                  \
+    if (idx >= 0 && idx + SIZE <= sizeof(tmp)) {                               \
+        memcpy(&t->u8[ARRAY_SIZE(t->u8) / 2 - SIZE], (void *)tmp + idx, SIZE); \
+    } else {                                                                   \
+        qemu_log_mask(LOG_GUEST_ERROR, "Invalid index for " #NAME " after 0x"  \
+                      TARGET_FMT_lx ", RC = " TARGET_FMT_ld " > %d\n",         \
+                      env->nip, idx < 0 ? SIZE - idx : idx, 32 - SIZE);        \
+    }                                                                          \
+}
+#else
+#define VEXTDVLX(NAME, SIZE) \
+void helper_##NAME(CPUPPCState *env, ppc_avr_t *t, ppc_avr_t *a, ppc_avr_t *b, \
+                   target_ulong index)                                         \
+{                                                                              \
+    const target_long idx = index;                                             \
+    ppc_avr_t tmp[2] = { *b, *a };                                             \
+    memset(t, 0, sizeof(*t));                                                  \
+    if (idx >= 0 && idx + SIZE <= sizeof(tmp)) {                               \
+        memcpy(&t->u8[ARRAY_SIZE(t->u8) / 2],                                  \
+               (void *)tmp + sizeof(tmp) - SIZE - idx, SIZE);                  \
+    } else {                                                                   \
+        qemu_log_mask(LOG_GUEST_ERROR, "Invalid index for " #NAME " after 0x"  \
+                      TARGET_FMT_lx ", RC = " TARGET_FMT_ld " > %d\n",         \
+                      env->nip, idx < 0 ? SIZE - idx : idx, 32 - SIZE);        \
+    }                                                                          \
+}
+#endif
+VEXTDVLX(VEXTDUBVLX, 1)
+VEXTDVLX(VEXTDUHVLX, 2)
+VEXTDVLX(VEXTDUWVLX, 4)
+VEXTDVLX(VEXTDDVLX, 8)
+#undef VEXTDVLX
+#if defined(HOST_WORDS_BIGENDIAN)
 #define VEXTRACT(suffix, element)                                            \
     void helper_vextract##suffix(ppc_avr_t *r, ppc_avr_t *b, uint32_t index) \
     {                                                                        \

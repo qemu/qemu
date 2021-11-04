@@ -1228,6 +1228,43 @@ GEN_VXFORM_DUAL(vsplth, PPC_ALTIVEC, PPC_NONE,
 GEN_VXFORM_DUAL(vspltw, PPC_ALTIVEC, PPC_NONE,
                 vextractuw, PPC_NONE, PPC2_ISA300);
 
+static bool do_vextdx(DisasContext *ctx, arg_VA *a, int size, bool right,
+               void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv))
+{
+    TCGv_ptr vrt, vra, vrb;
+    TCGv rc;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    vrt = gen_avr_ptr(a->vrt);
+    vra = gen_avr_ptr(a->vra);
+    vrb = gen_avr_ptr(a->vrb);
+    rc = tcg_temp_new();
+
+    tcg_gen_andi_tl(rc, cpu_gpr[a->rc], 0x1F);
+    if (right) {
+        tcg_gen_subfi_tl(rc, 32 - size, rc);
+    }
+    gen_helper(cpu_env, vrt, vra, vrb, rc);
+
+    tcg_temp_free_ptr(vrt);
+    tcg_temp_free_ptr(vra);
+    tcg_temp_free_ptr(vrb);
+    tcg_temp_free(rc);
+    return true;
+}
+
+TRANS(VEXTDUBVLX, do_vextdx, 1, false, gen_helper_VEXTDUBVLX)
+TRANS(VEXTDUHVLX, do_vextdx, 2, false, gen_helper_VEXTDUHVLX)
+TRANS(VEXTDUWVLX, do_vextdx, 4, false, gen_helper_VEXTDUWVLX)
+TRANS(VEXTDDVLX, do_vextdx, 8, false, gen_helper_VEXTDDVLX)
+
+TRANS(VEXTDUBVRX, do_vextdx, 1, true, gen_helper_VEXTDUBVLX)
+TRANS(VEXTDUHVRX, do_vextdx, 2, true, gen_helper_VEXTDUHVLX)
+TRANS(VEXTDUWVRX, do_vextdx, 4, true, gen_helper_VEXTDUWVLX)
+TRANS(VEXTDDVRX, do_vextdx, 8, true, gen_helper_VEXTDDVLX)
+
 static bool do_vinsx(DisasContext *ctx, int vrt, int size, bool right, TCGv ra,
             TCGv_i64 rb, void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_i64, TCGv))
 {

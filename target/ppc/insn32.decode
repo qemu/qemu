@@ -38,6 +38,9 @@
 %dx_d           6:s10 16:5 0:1
 @DX             ...... rt:5  ..... .......... ..... .   &DX d=%dx_d
 
+&VA             vrt vra vrb rc
+@VA             ...... vrt:5 vra:5 vrb:5 rc:5 ......    &VA
+
 &VN             vrt vra vrb sh
 @VN             ...... vrt:5 vra:5 vrb:5 .. sh:3 ......         &VN
 
@@ -346,6 +349,15 @@ VPDEPD          000100 ..... ..... ..... 10111001101    @VX
 VPEXTD          000100 ..... ..... ..... 10110001101    @VX
 
 ## Vector Permute and Formatting Instruction
+
+VEXTDUBVLX      000100 ..... ..... ..... ..... 011000   @VA
+VEXTDUBVRX      000100 ..... ..... ..... ..... 011001   @VA
+VEXTDUHVLX      000100 ..... ..... ..... ..... 011010   @VA
+VEXTDUHVRX      000100 ..... ..... ..... ..... 011011   @VA
+VEXTDUWVLX      000100 ..... ..... ..... ..... 011100   @VA
+VEXTDUWVRX      000100 ..... ..... ..... ..... 011101   @VA
+VEXTDDVLX       000100 ..... ..... ..... ..... 011110   @VA
+VEXTDDVRX       000100 ..... ..... ..... ..... 011111   @VA
 
 VINSERTB        000100 ..... - .... ..... 01100001101   @VX_uim4
 VINSERTH        000100 ..... - .... ..... 01101001101   @VX_uim4
