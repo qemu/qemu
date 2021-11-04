@@ -307,7 +307,6 @@ static void gen_##name(DisasContext *ctx)                   \
     tcg_temp_free_i64(xtl);                                 \
 }
 
-VSX_VECTOR_LOAD(lxv, ld_i64, 0)
 VSX_VECTOR_LOAD(lxvx, ld_i64, 1)
 
 #define VSX_VECTOR_STORE(name, op, indexed)                 \
@@ -360,7 +359,6 @@ static void gen_##name(DisasContext *ctx)                   \
     tcg_temp_free_i64(xtl);                                 \
 }
 
-VSX_VECTOR_STORE(stxv, st_i64, 0)
 VSX_VECTOR_STORE(stxvx, st_i64, 1)
 
 #ifdef TARGET_PPC64
@@ -2051,6 +2049,55 @@ static void gen_xvxsigdp(DisasContext *ctx)
     tcg_temp_free_i64(xbh);
     tcg_temp_free_i64(xbl);
 }
+
+static bool do_lstxv(DisasContext *ctx, int ra, TCGv displ,
+                     int rt, bool store)
+{
+    TCGv ea;
+    TCGv_i64 xt;
+    MemOp mop;
+
+    xt = tcg_temp_new_i64();
+
+    mop = DEF_MEMOP(MO_Q);
+
+    gen_set_access_type(ctx, ACCESS_INT);
+    ea = do_ea_calc(ctx, ra, displ);
+
+    if (store) {
+        get_cpu_vsr(xt, rt, !ctx->le_mode);
+        tcg_gen_qemu_st_i64(xt, ea, ctx->mem_idx, mop);
+        gen_addr_add(ctx, ea, ea, 8);
+        get_cpu_vsr(xt, rt, ctx->le_mode);
+        tcg_gen_qemu_st_i64(xt, ea, ctx->mem_idx, mop);
+    } else {
+        tcg_gen_qemu_ld_i64(xt, ea, ctx->mem_idx, mop);
+        set_cpu_vsr(rt, xt, !ctx->le_mode);
+        gen_addr_add(ctx, ea, ea, 8);
+        tcg_gen_qemu_ld_i64(xt, ea, ctx->mem_idx, mop);
+        set_cpu_vsr(rt, xt, ctx->le_mode);
+    }
+
+    tcg_temp_free(ea);
+    tcg_temp_free_i64(xt);
+    return true;
+}
+
+static bool do_lstxv_D(DisasContext *ctx, arg_D *a, bool store)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+
+    if (a->rt >= 32) {
+        REQUIRE_VSX(ctx);
+    } else {
+        REQUIRE_VECTOR(ctx);
+    }
+
+    return do_lstxv(ctx, a->ra, tcg_constant_tl(a->si), a->rt, store);
+}
+
+TRANS(STXV, do_lstxv_D, true)
+TRANS(LXV, do_lstxv_D, false)
 
 #undef GEN_XX2FORM
 #undef GEN_XX3FORM

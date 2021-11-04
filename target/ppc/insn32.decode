@@ -28,6 +28,9 @@
 %dq_rtp         22:4   !function=times_2
 @DQ_rtp         ...... ....0 ra:5 ............ ....             &D rt=%dq_rtp si=%dq_si
 
+%dq_rt_tsx      3:1 21:5
+@DQ_TSX         ...... ..... ra:5 ............ ....             &D si=%dq_si rt=%dq_rt_tsx
+
 %ds_si          2:s14  !function=times_4
 @DS             ...... rt:5 ra:5 .............. ..      &D si=%ds_si
 
@@ -385,3 +388,8 @@ VINSWVRX        000100 ..... ..... ..... 00110001111    @VX
 
 VSLDBI          000100 ..... ..... ..... 00 ... 010110  @VN
 VSRDBI          000100 ..... ..... ..... 01 ... 010110  @VN
+
+# VSX Load/Store Instructions
+
+LXV             111101 ..... ..... ............ . 001   @DQ_TSX
+STXV            111101 ..... ..... ............ . 101   @DQ_TSX
