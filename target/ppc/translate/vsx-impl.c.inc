@@ -2019,6 +2019,20 @@ static bool do_lstxv_D(DisasContext *ctx, arg_D *a, bool store, bool paired)
     return do_lstxv(ctx, a->ra, tcg_constant_tl(a->si), a->rt, store, paired);
 }
 
+static bool do_lstxv_PLS_D(DisasContext *ctx, arg_PLS_D *a,
+                           bool store, bool paired)
+{
+    arg_D d;
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VSX(ctx);
+
+    if (!resolve_PLS_D(ctx, &d, a)) {
+        return true;
+    }
+
+    return do_lstxv(ctx, d.ra, tcg_constant_tl(d.si), d.rt, store, paired);
+}
+
 static bool do_lstxv_X(DisasContext *ctx, arg_X *a, bool store, bool paired)
 {
     if (paired) {
@@ -2044,6 +2058,8 @@ TRANS(STXVX, do_lstxv_X, true, false)
 TRANS(LXVX, do_lstxv_X, false, false)
 TRANS(STXVPX, do_lstxv_X, true, true)
 TRANS(LXVPX, do_lstxv_X, false, true)
+TRANS64(PSTXV, do_lstxv_PLS_D, true, false)
+TRANS64(PLXV, do_lstxv_PLS_D, false, false)
 
 #undef GEN_XX2FORM
 #undef GEN_XX3FORM
