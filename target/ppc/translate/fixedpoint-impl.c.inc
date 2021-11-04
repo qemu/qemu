@@ -416,32 +416,33 @@ static bool trans_CFUGED(DisasContext *ctx, arg_X *a)
 
 static void do_cntzdm(TCGv_i64 dst, TCGv_i64 src, TCGv_i64 mask, int64_t trail)
 {
-    TCGv_i64 tmp;
-    TCGLabel *l1;
+    TCGv_i64 t0, t1;
 
-    tmp = tcg_temp_local_new_i64();
-    l1 = gen_new_label();
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
 
-    tcg_gen_and_i64(tmp, src, mask);
+    tcg_gen_and_i64(t0, src, mask);
     if (trail) {
-        tcg_gen_ctzi_i64(tmp, tmp, 64);
+        tcg_gen_ctzi_i64(t0, t0, -1);
     } else {
-        tcg_gen_clzi_i64(tmp, tmp, 64);
+        tcg_gen_clzi_i64(t0, t0, -1);
     }
 
-    tcg_gen_brcondi_i64(TCG_COND_EQ, tmp, 0, l1);
-
-    tcg_gen_subfi_i64(tmp, 64, tmp);
+    tcg_gen_setcondi_i64(TCG_COND_NE, t1, t0, -1);
+    tcg_gen_andi_i64(t0, t0, 63);
+    tcg_gen_xori_i64(t0, t0, 63);
     if (trail) {
-        tcg_gen_shl_i64(tmp, mask, tmp);
+        tcg_gen_shl_i64(t0, mask, t0);
+        tcg_gen_shl_i64(t0, t0, t1);
     } else {
-        tcg_gen_shr_i64(tmp, mask, tmp);
+        tcg_gen_shr_i64(t0, mask, t0);
+        tcg_gen_shr_i64(t0, t0, t1);
     }
-    tcg_gen_ctpop_i64(tmp, tmp);
 
-    gen_set_label(l1);
+    tcg_gen_ctpop_i64(dst, t0);
 
-    tcg_gen_mov_i64(dst, tmp);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
 }
 
 static bool trans_CNTLZDM(DisasContext *ctx, arg_X *a)
