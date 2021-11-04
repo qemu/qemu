@@ -1238,6 +1238,56 @@ GEN_VXFORM_DUAL(vspltish, PPC_ALTIVEC, PPC_NONE,
 GEN_VXFORM_DUAL(vspltisw, PPC_ALTIVEC, PPC_NONE,
                 vinsertw, PPC_NONE, PPC2_ISA300);
 
+static bool do_vinsx(DisasContext *ctx, int vrt, int size, bool right, TCGv ra,
+            TCGv_i64 rb, void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_i64, TCGv))
+{
+    TCGv_ptr t;
+    TCGv idx;
+
+    t = gen_avr_ptr(vrt);
+    idx = tcg_temp_new();
+
+    tcg_gen_andi_tl(idx, ra, 0xF);
+    if (right) {
+        tcg_gen_subfi_tl(idx, 16 - size, idx);
+    }
+
+    gen_helper(cpu_env, t, rb, idx);
+
+    tcg_temp_free_ptr(t);
+    tcg_temp_free(idx);
+
+    return true;
+}
+
+static bool do_vinsx_VX(DisasContext *ctx, arg_VX *a, int size, bool right,
+                        void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_i64, TCGv))
+{
+    bool ok;
+    TCGv_i64 val;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    val = tcg_temp_new_i64();
+    tcg_gen_extu_tl_i64(val, cpu_gpr[a->vrb]);
+
+    ok = do_vinsx(ctx, a->vrt, size, right, cpu_gpr[a->vra], val, gen_helper);
+
+    tcg_temp_free_i64(val);
+    return ok;
+}
+
+TRANS(VINSBLX, do_vinsx_VX, 1, false, gen_helper_VINSBLX)
+TRANS(VINSHLX, do_vinsx_VX, 2, false, gen_helper_VINSHLX)
+TRANS(VINSWLX, do_vinsx_VX, 4, false, gen_helper_VINSWLX)
+TRANS(VINSDLX, do_vinsx_VX, 8, false, gen_helper_VINSDLX)
+
+TRANS(VINSBRX, do_vinsx_VX, 1, true, gen_helper_VINSBLX)
+TRANS(VINSHRX, do_vinsx_VX, 2, true, gen_helper_VINSHLX)
+TRANS(VINSWRX, do_vinsx_VX, 4, true, gen_helper_VINSWLX)
+TRANS(VINSDRX, do_vinsx_VX, 8, true, gen_helper_VINSDLX)
+
 static void gen_vsldoi(DisasContext *ctx)
 {
     TCGv_ptr ra, rb, rd;

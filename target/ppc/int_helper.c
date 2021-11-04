@@ -1632,6 +1632,36 @@ VINSERT(h, u16)
 VINSERT(w, u32)
 VINSERT(d, u64)
 #undef VINSERT
+
+#if defined(HOST_WORDS_BIGENDIAN)
+#define ELEM_ADDR(VEC, IDX, SIZE) (&(VEC)->u8[IDX])
+#else
+#define ELEM_ADDR(VEC, IDX, SIZE) (&(VEC)->u8[15 - (IDX)] - (SIZE) + 1)
+#endif
+
+#define VINSX(SUFFIX, TYPE) \
+void glue(glue(helper_VINS, SUFFIX), LX)(CPUPPCState *env, ppc_avr_t *t,       \
+                                         uint64_t val, target_ulong index)     \
+{                                                                              \
+    const int maxidx = ARRAY_SIZE(t->u8) - sizeof(TYPE);                       \
+    target_long idx = index;                                                   \
+                                                                               \
+    if (idx < 0 || idx > maxidx) {                                             \
+        idx =  idx < 0 ? sizeof(TYPE) - idx : idx;                             \
+        qemu_log_mask(LOG_GUEST_ERROR,                                         \
+            "Invalid index for Vector Insert Element after 0x" TARGET_FMT_lx   \
+            ", RA = " TARGET_FMT_ld " > %d\n", env->nip, idx, maxidx);         \
+    } else {                                                                   \
+        TYPE src = val;                                                        \
+        memcpy(ELEM_ADDR(t, idx, sizeof(TYPE)), &src, sizeof(TYPE));           \
+    }                                                                          \
+}
+VINSX(B, uint8_t)
+VINSX(H, uint16_t)
+VINSX(W, uint32_t)
+VINSX(D, uint64_t)
+#undef ELEM_ADDR
+#undef VINSX
 #if defined(HOST_WORDS_BIGENDIAN)
 #define VEXTRACT(suffix, element)                                            \
     void helper_vextract##suffix(ppc_avr_t *r, ppc_avr_t *b, uint32_t index) \
