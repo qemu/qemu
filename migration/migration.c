@@ -215,8 +215,11 @@ void migration_object_init(void)
     dirty_bitmap_mig_init();
 }
 
-void migration_cancel(void)
+void migration_cancel(const Error *error)
 {
+    if (error) {
+        migrate_set_error(current_migration, error);
+    }
     migrate_fd_cancel(current_migration);
 }
 
@@ -226,7 +229,7 @@ void migration_shutdown(void)
      * Cancel the current migration - that will (eventually)
      * stop the migration using this structure
      */
-    migration_cancel();
+    migration_cancel(NULL);
     object_unref(OBJECT(current_migration));
 
     /*
@@ -587,8 +590,10 @@ static void process_incoming_migration_co(void *opaque)
         mis->have_colo_incoming_thread = true;
         qemu_coroutine_yield();
 
+        qemu_mutex_unlock_iothread();
         /* Wait checkpoint incoming thread exit before free resource */
         qemu_thread_join(&mis->colo_incoming_thread);
+        qemu_mutex_lock_iothread();
         /* We hold the global iothread lock, so it is safe here */
         colo_release_ram_cache();
     }
@@ -2268,10 +2273,11 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
 
     migrate_init(s);
     /*
-     * set ram_counters memory to zero for a
+     * set ram_counters compression_counters memory to zero for a
      * new migration
      */
     memset(&ram_counters, 0, sizeof(ram_counters));
+    memset(&compression_counters, 0, sizeof(compression_counters));
 
     return true;
 }
@@ -2334,7 +2340,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
 
 void qmp_migrate_cancel(Error **errp)
 {
-    migration_cancel();
+    migration_cancel(NULL);
 }
 
 void qmp_migrate_continue(MigrationStatus state, Error **errp)
@@ -3622,7 +3628,9 @@ static void migration_iteration_finish(MigrationState *s)
     case MIGRATION_STATUS_CANCELLED:
     case MIGRATION_STATUS_CANCELLING:
         if (s->vm_was_running) {
-            vm_start();
+            if (!runstate_check(RUN_STATE_SHUTDOWN)) {
+                vm_start();
+            }
         } else {
             if (runstate_check(RUN_STATE_FINISH_MIGRATE)) {
                 runstate_set(RUN_STATE_POSTMIGRATE);

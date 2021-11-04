@@ -170,7 +170,7 @@ static bool packet_matches_str(const char *str,
         return false;
     }
 
-    return !memcmp(str, buf, strlen(str));
+    return !memcmp(str, buf, packet_len);
 }
 
 static void notify_remote_frame(CompareState *s)
@@ -264,7 +264,7 @@ static int packet_enqueue(CompareState *s, int mode, Connection **con)
         pkt = NULL;
         return -1;
     }
-    fill_connection_key(pkt, &key);
+    fill_connection_key(pkt, &key, false);
 
     conn = connection_get(s->connection_track_table,
                           &key,

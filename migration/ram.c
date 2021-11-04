@@ -56,6 +56,8 @@
 #include "multifd.h"
 #include "sysemu/runstate.h"
 
+#include "hw/boards.h" /* for machine_dump_guest_core() */
+
 #if defined(__linux__)
 #include "qemu/userfaultfd.h"
 #endif /* defined(__linux__) */
@@ -3542,6 +3544,10 @@ int colo_init_ram_cache(void)
                 }
                 return -errno;
             }
+            if (!machine_dump_guest_core(current_machine)) {
+                qemu_madvise(block->colo_cache, block->used_length,
+                             QEMU_MADV_DONTDUMP);
+            }
         }
     }
 
@@ -4323,9 +4329,8 @@ static void ram_mig_ram_block_resized(RAMBlockNotifier *n, void *host,
          * Abort and indicate a proper reason.
          */
         error_setg(&err, "RAM block '%s' resized during precopy.", rb->idstr);
-        migrate_set_error(migrate_get_current(), err);
+        migration_cancel(err);
         error_free(err);
-        migration_cancel();
     }
 
     switch (ps) {
