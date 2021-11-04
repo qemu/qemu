@@ -414,8 +414,7 @@ static bool trans_CFUGED(DisasContext *ctx, arg_X *a)
     return true;
 }
 
-#if defined(TARGET_PPC64)
-static void do_cntzdm(TCGv_i64 dst, TCGv_i64 src, TCGv_i64 mask, bool trail)
+static void do_cntzdm(TCGv_i64 dst, TCGv_i64 src, TCGv_i64 mask, int64_t trail)
 {
     TCGv_i64 tmp;
     TCGLabel *l1;
@@ -444,7 +443,6 @@ static void do_cntzdm(TCGv_i64 dst, TCGv_i64 src, TCGv_i64 mask, bool trail)
 
     tcg_gen_mov_i64(dst, tmp);
 }
-#endif
 
 static bool trans_CNTLZDM(DisasContext *ctx, arg_X *a)
 {
