@@ -90,7 +90,7 @@ static int mmu_translate(CPUState *cs, hwaddr addr, MMUTranslateFunc get_hphys_f
         target_ulong pdpe_addr;
 
 #ifdef TARGET_X86_64
-        if (env->hflags & HF_LMA_MASK) {
+        if (pg_mode & PG_MODE_LMA) {
             bool la57 = pg_mode & PG_MODE_LA57;
             uint64_t pml5e_addr, pml5e;
             uint64_t pml4e_addr, pml4e;
@@ -287,7 +287,7 @@ do_check_protect_pse36:
         *prot |= PAGE_EXEC;
     }
 
-    if (!(env->hflags & HF_LMA_MASK)) {
+    if (!(pg_mode & PG_MODE_LMA)) {
         pkr = 0;
     } else if (ptep & PG_USER_MASK) {
         pkr = pg_mode & PG_MODE_PKE ? env->pkru : 0;
