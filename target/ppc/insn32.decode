@@ -96,6 +96,10 @@
 &X_bfl          bf l:bool ra rb
 @X_bfl          ...... bf:3 - l:1 ra:5 rb:5 ..........- &X_bfl
 
+%x_xt           0:1 21:5
+&X_imm8         xt imm:uint8_t
+@X_imm8         ...... ..... .. imm:8 .......... .              &X_imm8 xt=%x_xt
+
 &X_tb_sp_rc     rt rb sp rc:bool
 @X_tb_sp_rc     ...... rt:5 sp:2 ... rb:5 .......... rc:1       &X_tb_sp_rc
 
@@ -414,4 +418,5 @@ STXVPX          011111 ..... ..... ..... 0111001101 -   @X_TSXP
 
 ## VSX splat instruction
 
+XXSPLTIB        111100 ..... 00 ........ 0101101000 .   @X_imm8
 XXSPLTW         111100 ..... ---.. ..... 010100100 . .  @XX2

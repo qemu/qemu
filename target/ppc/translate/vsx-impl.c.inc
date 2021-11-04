@@ -1455,23 +1455,15 @@ static bool trans_XXSPLTW(DisasContext *ctx, arg_XX2 *a)
 
 #define pattern(x) (((x) & 0xff) * (~(uint64_t)0 / 0xff))
 
-static void gen_xxspltib(DisasContext *ctx)
+static bool trans_XXSPLTIB(DisasContext *ctx, arg_X_imm8 *a)
 {
-    uint8_t uim8 = IMM8(ctx->opcode);
-    int rt = xT(ctx->opcode);
-
-    if (rt < 32) {
-        if (unlikely(!ctx->vsx_enabled)) {
-            gen_exception(ctx, POWERPC_EXCP_VSXU);
-            return;
-        }
+    if (a->xt < 32) {
+        REQUIRE_VSX(ctx);
     } else {
-        if (unlikely(!ctx->altivec_enabled)) {
-            gen_exception(ctx, POWERPC_EXCP_VPU);
-            return;
-        }
+        REQUIRE_VECTOR(ctx);
     }
-    tcg_gen_gvec_dup_imm(MO_8, vsr_full_offset(rt), 16, 16, uim8);
+    tcg_gen_gvec_dup_imm(MO_8, vsr_full_offset(a->xt), 16, 16, a->imm);
+    return true;
 }
 
 static void gen_xxsldwi(DisasContext *ctx)
