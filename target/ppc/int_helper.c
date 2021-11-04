@@ -386,7 +386,6 @@ uint64_t helper_CFUGED(uint64_t src, uint64_t mask)
     return left | (right >> n);
 }
 
-#if defined(TARGET_PPC64)
 uint64_t helper_PDEPD(uint64_t src, uint64_t mask)
 {
     int i, o;
@@ -422,7 +421,6 @@ uint64_t helper_PEXTD(uint64_t src, uint64_t mask)
 
     return result;
 }
-#endif
 
 /*****************************************************************************/
 /* PowerPC 601 specific instructions (POWER bridge) */

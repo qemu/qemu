@@ -1607,6 +1607,38 @@ static bool trans_VCTZDM(DisasContext *ctx, arg_VX *a)
     return true;
 }
 
+static bool trans_VPDEPD(DisasContext *ctx, arg_VX *a)
+{
+    static const GVecGen3 g = {
+        .fni8 = gen_helper_PDEPD,
+        .vece = MO_64,
+    };
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    tcg_gen_gvec_3(avr_full_offset(a->vrt), avr_full_offset(a->vra),
+                   avr_full_offset(a->vrb), 16, 16, &g);
+
+    return true;
+}
+
+static bool trans_VPEXTD(DisasContext *ctx, arg_VX *a)
+{
+    static const GVecGen3 g = {
+        .fni8 = gen_helper_PEXTD,
+        .vece = MO_64,
+    };
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    tcg_gen_gvec_3(avr_full_offset(a->vrt), avr_full_offset(a->vra),
+                   avr_full_offset(a->vrb), 16, 16, &g);
+
+    return true;
+}
+
 #undef GEN_VR_LDX
 #undef GEN_VR_STX
 #undef GEN_VR_LVE
