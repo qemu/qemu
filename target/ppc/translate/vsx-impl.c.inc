@@ -2060,6 +2060,8 @@ TRANS(STXVPX, do_lstxv_X, true, true)
 TRANS(LXVPX, do_lstxv_X, false, true)
 TRANS64(PSTXV, do_lstxv_PLS_D, true, false)
 TRANS64(PLXV, do_lstxv_PLS_D, false, false)
+TRANS64(PSTXVP, do_lstxv_PLS_D, true, true)
+TRANS64(PLXVP, do_lstxv_PLS_D, false, true)
 
 #undef GEN_XX2FORM
 #undef GEN_XX3FORM
