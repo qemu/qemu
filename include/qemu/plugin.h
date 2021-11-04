@@ -163,10 +163,12 @@ struct qemu_plugin_tb {
 
 /**
  * qemu_plugin_tb_insn_get(): get next plugin record for translation.
- *
+ * @tb: the internal tb context
+ * @pc: address of instruction
  */
 static inline
-struct qemu_plugin_insn *qemu_plugin_tb_insn_get(struct qemu_plugin_tb *tb)
+struct qemu_plugin_insn *qemu_plugin_tb_insn_get(struct qemu_plugin_tb *tb,
+                                                 uint64_t pc)
 {
     struct qemu_plugin_insn *insn;
     int i, j;
@@ -179,6 +181,7 @@ struct qemu_plugin_insn *qemu_plugin_tb_insn_get(struct qemu_plugin_tb *tb)
     g_byte_array_set_size(insn->data, 0);
     insn->calls_helpers = false;
     insn->mem_helper = false;
+    insn->vaddr = pc;
 
     for (i = 0; i < PLUGIN_N_CB_TYPES; i++) {
         for (j = 0; j < PLUGIN_N_CB_SUBTYPES; j++) {

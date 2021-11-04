@@ -11,8 +11,10 @@ HOST_ARCH = $(if $(ARCH),$(ARCH),$(shell uname -m))
 DOCKER_SUFFIX := .docker
 DOCKER_FILES_DIR := $(SRC_PATH)/tests/docker/dockerfiles
 # we don't run tests on intermediate images (used as base by another image)
-DOCKER_PARTIAL_IMAGES := debian10 debian11 debian-bootstrap empty
-DOCKER_IMAGES := $(sort $(notdir $(basename $(wildcard $(DOCKER_FILES_DIR)/*.docker))))
+DOCKER_PARTIAL_IMAGES := debian10 debian11
+# we don't directly build virtual images (they are used to build other images)
+DOCKER_VIRTUAL_IMAGES := debian-bootstrap debian-toolchain empty
+DOCKER_IMAGES := $(sort $(filter-out $(DOCKER_VIRTUAL_IMAGES), $(notdir $(basename $(wildcard $(DOCKER_FILES_DIR)/*.docker)))))
 DOCKER_TARGETS := $(patsubst %,docker-image-%,$(DOCKER_IMAGES))
 # Use a global constant ccache directory to speed up repetitive builds
 DOCKER_CCACHE_DIR := $$HOME/.cache/qemu-docker-ccache
@@ -171,10 +173,39 @@ docker-image-debian-hexagon-cross: $(DOCKER_FILES_DIR)/debian-hexagon-cross.dock
 				qemu/debian-hexagon-cross --add-current-user,		\
 			"PREPARE", "debian-hexagon-cross"))
 
+debian-toolchain-run = \
+	$(if $(NOCACHE), 						\
+		$(call quiet-command,					\
+			$(DOCKER_SCRIPT) build -t qemu/$1 -f $< 	\
+			$(if $V,,--quiet) --no-cache 			\
+			--registry $(DOCKER_REGISTRY) --extra-files	\
+			$(DOCKER_FILES_DIR)/$1.d/build-toolchain.sh,	\
+			"BUILD", $1),				        \
+		$(call quiet-command,					\
+			$(DOCKER_SCRIPT) fetch $(if $V,,--quiet)	\
+				qemu/$1 $(DOCKER_REGISTRY),		\
+			"FETCH", $1)					\
+		$(call quiet-command,					\
+			$(DOCKER_SCRIPT) update $(if $V,,--quiet) 	\
+				qemu/$1 				\
+				$(if $(NOUSER),,--add-current-user) 	\
+			"PREPARE", $1))
+debian-toolchain = $(call debian-toolchain-run,$(patsubst docker-image-%,%,$1))
+
+docker-image-debian-microblaze-cross: $(DOCKER_FILES_DIR)/debian-toolchain.docker \
+    $(DOCKER_FILES_DIR)/debian-microblaze-cross.d/build-toolchain.sh
+	$(call debian-toolchain, $@)
+
+docker-image-debian-nios2-cross: $(DOCKER_FILES_DIR)/debian-toolchain.docker \
+    $(DOCKER_FILES_DIR)/debian-nios2-cross.d/build-toolchain.sh
+	$(call debian-toolchain, $@)
+
 # Specialist build images, sometimes very limited tools
 docker-image-debian-tricore-cross: docker-image-debian10
 docker-image-debian-all-test-cross: docker-image-debian10
 docker-image-debian-arm64-test-cross: docker-image-debian11
+docker-image-debian-microblaze-cross: docker-image-debian10
+docker-image-debian-nios2-cross: docker-image-debian10
 docker-image-debian-powerpc-test-cross: docker-image-debian11
 
 # These images may be good enough for building tests but not for test builds
@@ -183,6 +214,8 @@ DOCKER_PARTIAL_IMAGES += debian-arm64-test-cross
 DOCKER_PARTIAL_IMAGES += debian-powerpc-test-cross
 DOCKER_PARTIAL_IMAGES += debian-hppa-cross
 DOCKER_PARTIAL_IMAGES += debian-m68k-cross debian-mips64-cross
+DOCKER_PARTIAL_IMAGES += debian-microblaze-cross
+DOCKER_PARTIAL_IMAGES += debian-nios2-cross
 DOCKER_PARTIAL_IMAGES += debian-sh4-cross debian-sparc64-cross
 DOCKER_PARTIAL_IMAGES += debian-tricore-cross
 DOCKER_PARTIAL_IMAGES += debian-xtensa-cross
@@ -195,7 +228,7 @@ DOCKER_PARTIAL_IMAGES += fedora-cris-cross
 # packages.
 
 # Expand all the pre-requistes for each docker image and test combination
-$(foreach i,$(filter-out $(DOCKER_PARTIAL_IMAGES),$(DOCKER_IMAGES)), \
+$(foreach i,$(filter-out $(DOCKER_PARTIAL_IMAGES) $(DOCKER_VIRTUAL_IMAGES),$(DOCKER_IMAGES)), \
 	$(foreach t,$(DOCKER_TESTS), \
 		$(eval .PHONY: docker-$t@$i) \
 		$(eval docker-$t@$i: docker-image-$i docker-run-$t@$i) \

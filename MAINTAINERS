@@ -225,6 +225,8 @@ S: Maintained
 F: target/microblaze/
 F: hw/microblaze/
 F: disas/microblaze.c
+F: tests/docker/dockerfiles/debian-microblaze-cross.d/build-toolchain.sh
+F: tests/tcg/nios2/Makefile.target
 
 MIPS TCG CPUs
 M: Philippe Mathieu-Daudé <f4bug@amsat.org>
@@ -250,6 +252,7 @@ F: target/nios2/
 F: hw/nios2/
 F: disas/nios2.c
 F: configs/devices/nios2-softmmu/default.mak
+F: tests/docker/dockerfiles/debian-nios2-cross.d/build-toolchain.sh
 
 OpenRISC TCG CPUs
 M: Stafford Horne <shorne@gmail.com>

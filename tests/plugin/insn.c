@@ -18,6 +18,8 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 
 static uint64_t insn_count;
 static bool do_inline;
+static bool do_size;
+static GArray *sizes;
 
 static void vcpu_insn_exec_before(unsigned int cpu_index, void *udata)
 {
@@ -49,13 +51,35 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
                 insn, vcpu_insn_exec_before, QEMU_PLUGIN_CB_NO_REGS,
                 GUINT_TO_POINTER(vaddr));
         }
+
+        if (do_size) {
+            size_t sz = qemu_plugin_insn_size(insn);
+            if (sz > sizes->len) {
+                g_array_set_size(sizes, sz);
+            }
+            unsigned long *cnt = &g_array_index(sizes, unsigned long, sz);
+            (*cnt)++;
+        }
     }
 }
 
 static void plugin_exit(qemu_plugin_id_t id, void *p)
 {
-    g_autofree gchar *out = g_strdup_printf("insns: %" PRIu64 "\n", insn_count);
-    qemu_plugin_outs(out);
+    g_autoptr(GString) out = g_string_new(NULL);
+
+    if (do_size) {
+        int i;
+        for (i = 0; i <= sizes->len; i++) {
+            unsigned long *cnt = &g_array_index(sizes, unsigned long, i);
+            if (*cnt) {
+                g_string_append_printf(out,
+                                       "len %d bytes: %ld insns\n", i, *cnt);
+            }
+        }
+    } else {
+        g_string_append_printf(out, "insns: %" PRIu64 "\n", insn_count);
+    }
+    qemu_plugin_outs(out->str);
 }
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
@@ -70,10 +94,19 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
                 fprintf(stderr, "boolean argument parsing failed: %s\n", opt);
                 return -1;
             }
+        } else if (g_strcmp0(tokens[0], "sizes") == 0) {
+            if (!qemu_plugin_bool_parse(tokens[0], tokens[1], &do_size)) {
+                fprintf(stderr, "boolean argument parsing failed: %s\n", opt);
+                return -1;
+            }
         } else {
             fprintf(stderr, "option parsing failed: %s\n", opt);
             return -1;
         }
+    }
+
+    if (do_size) {
+        sizes = g_array_new(true, true, sizeof(unsigned long));
     }
 
     qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans);
