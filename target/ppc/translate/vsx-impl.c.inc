@@ -2019,25 +2019,31 @@ static bool do_lstxv_D(DisasContext *ctx, arg_D *a, bool store, bool paired)
     return do_lstxv(ctx, a->ra, tcg_constant_tl(a->si), a->rt, store, paired);
 }
 
-static bool do_lstxv_X(DisasContext *ctx, arg_X *a, bool store)
+static bool do_lstxv_X(DisasContext *ctx, arg_X *a, bool store, bool paired)
 {
-    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    if (paired) {
+        REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    } else {
+        REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    }
 
-    if (a->rt >= 32) {
+    if (paired || a->rt >= 32) {
         REQUIRE_VSX(ctx);
     } else {
         REQUIRE_VECTOR(ctx);
     }
 
-    return do_lstxv(ctx, a->ra, cpu_gpr[a->rb], a->rt, store, false);
+    return do_lstxv(ctx, a->ra, cpu_gpr[a->rb], a->rt, store, paired);
 }
 
 TRANS(STXV, do_lstxv_D, true, false)
 TRANS(LXV, do_lstxv_D, false, false)
 TRANS(STXVP, do_lstxv_D, true, true)
 TRANS(LXVP, do_lstxv_D, false, true)
-TRANS(STXVX, do_lstxv_X, true)
-TRANS(LXVX, do_lstxv_X, false)
+TRANS(STXVX, do_lstxv_X, true, false)
+TRANS(LXVX, do_lstxv_X, false, false)
+TRANS(STXVPX, do_lstxv_X, true, true)
+TRANS(LXVPX, do_lstxv_X, false, true)
 
 #undef GEN_XX2FORM
 #undef GEN_XX3FORM
