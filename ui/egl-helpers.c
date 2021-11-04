@@ -90,14 +90,31 @@ void egl_fb_setup_new_tex(egl_fb *fb, int width, int height)
 
 void egl_fb_blit(egl_fb *dst, egl_fb *src, bool flip)
 {
-    GLuint y1, y2;
+    GLuint x1 = 0;
+    GLuint y1 = 0;
+    GLuint x2, y2;
+    GLuint w = src->width;
+    GLuint h = src->height;
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, src->framebuffer);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dst->framebuffer);
     glViewport(0, 0, dst->width, dst->height);
-    y1 = flip ? src->height : 0;
-    y2 = flip ? 0 : src->height;
-    glBlitFramebuffer(0, y1, src->width, y2,
+
+    if (src->dmabuf) {
+        x1 = src->dmabuf->x;
+        y1 = src->dmabuf->y;
+        w = src->dmabuf->scanout_width;
+        h = src->dmabuf->scanout_height;
+    }
+
+    w = (x1 + w) > src->width ? src->width - x1 : w;
+    h = (y1 + h) > src->height ? src->height - y1 : h;
+
+    y2 = flip ? y1 : h + y1;
+    y1 = flip ? h + y1 : y1;
+    x2 = x1 + w;
+
+    glBlitFramebuffer(x1, y1, x2, y2,
                       0, 0, dst->width, dst->height,
                       GL_COLOR_BUFFER_BIT, GL_LINEAR);
 }
