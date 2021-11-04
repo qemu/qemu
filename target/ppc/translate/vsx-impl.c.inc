@@ -1466,6 +1466,23 @@ static bool trans_XXSPLTIB(DisasContext *ctx, arg_X_imm8 *a)
     return true;
 }
 
+static bool trans_XXSPLTI32DX(DisasContext *ctx, arg_8RR_D_IX *a)
+{
+    TCGv_i32 imm;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VSX(ctx);
+
+    imm = tcg_constant_i32(a->si);
+
+    tcg_gen_st_i32(imm, cpu_env,
+        offsetof(CPUPPCState, vsr[a->xt].VsrW(0 + a->ix)));
+    tcg_gen_st_i32(imm, cpu_env,
+        offsetof(CPUPPCState, vsr[a->xt].VsrW(2 + a->ix)));
+
+    return true;
+}
+
 static void gen_xxsldwi(DisasContext *ctx)
 {
     TCGv_i64 xth, xtl;
