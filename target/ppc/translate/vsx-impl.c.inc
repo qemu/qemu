@@ -1476,6 +1476,16 @@ static bool trans_XXSPLTIW(DisasContext *ctx, arg_8RR_D *a)
     return true;
 }
 
+static bool trans_XXSPLTIDP(DisasContext *ctx, arg_8RR_D *a)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VSX(ctx);
+
+    tcg_gen_gvec_dup_imm(MO_64, vsr_full_offset(a->xt), 16, 16,
+                         helper_todouble(a->si));
+    return true;
+}
+
 static bool trans_XXSPLTI32DX(DisasContext *ctx, arg_8RR_D_IX *a)
 {
     TCGv_i32 imm;
