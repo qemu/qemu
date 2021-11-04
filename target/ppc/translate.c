@@ -7354,6 +7354,14 @@ static int times_16(DisasContext *ctx, int x)
         }                                               \
     } while (0)
 
+#define REQUIRE_VSX(CTX)                                \
+    do {                                                \
+        if (unlikely(!(CTX)->vsx_enabled)) {            \
+            gen_exception((CTX), POWERPC_EXCP_VSXU);    \
+            return true;                                \
+        }                                               \
+    } while (0)
+
 #define REQUIRE_FPU(ctx)                                \
     do {                                                \
         if (unlikely(!(ctx)->fpu_enabled)) {            \
