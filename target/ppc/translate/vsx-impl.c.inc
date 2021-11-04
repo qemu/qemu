@@ -255,112 +255,6 @@ static void gen_lxvb16x(DisasContext *ctx)
     tcg_temp_free_i64(xtl);
 }
 
-#define VSX_VECTOR_LOAD(name, op, indexed)                  \
-static void gen_##name(DisasContext *ctx)                   \
-{                                                           \
-    int xt;                                                 \
-    TCGv EA;                                                \
-    TCGv_i64 xth;                                           \
-    TCGv_i64 xtl;                                           \
-                                                            \
-    if (indexed) {                                          \
-        xt = xT(ctx->opcode);                               \
-    } else {                                                \
-        xt = DQxT(ctx->opcode);                             \
-    }                                                       \
-                                                            \
-    if (xt < 32) {                                          \
-        if (unlikely(!ctx->vsx_enabled)) {                  \
-            gen_exception(ctx, POWERPC_EXCP_VSXU);          \
-            return;                                         \
-        }                                                   \
-    } else {                                                \
-        if (unlikely(!ctx->altivec_enabled)) {              \
-            gen_exception(ctx, POWERPC_EXCP_VPU);           \
-            return;                                         \
-        }                                                   \
-    }                                                       \
-    xth = tcg_temp_new_i64();                               \
-    xtl = tcg_temp_new_i64();                               \
-    gen_set_access_type(ctx, ACCESS_INT);                   \
-    EA = tcg_temp_new();                                    \
-    if (indexed) {                                          \
-        gen_addr_reg_index(ctx, EA);                        \
-    } else {                                                \
-        gen_addr_imm_index(ctx, EA, 0x0F);                  \
-    }                                                       \
-    if (ctx->le_mode) {                                     \
-        tcg_gen_qemu_##op(xtl, EA, ctx->mem_idx, MO_LEQ);   \
-        set_cpu_vsr(xt, xtl, false);                        \
-        tcg_gen_addi_tl(EA, EA, 8);                         \
-        tcg_gen_qemu_##op(xth, EA, ctx->mem_idx, MO_LEQ);   \
-        set_cpu_vsr(xt, xth, true);                         \
-    } else {                                                \
-        tcg_gen_qemu_##op(xth, EA, ctx->mem_idx, MO_BEQ);   \
-        set_cpu_vsr(xt, xth, true);                         \
-        tcg_gen_addi_tl(EA, EA, 8);                         \
-        tcg_gen_qemu_##op(xtl, EA, ctx->mem_idx, MO_BEQ);   \
-        set_cpu_vsr(xt, xtl, false);                        \
-    }                                                       \
-    tcg_temp_free(EA);                                      \
-    tcg_temp_free_i64(xth);                                 \
-    tcg_temp_free_i64(xtl);                                 \
-}
-
-VSX_VECTOR_LOAD(lxvx, ld_i64, 1)
-
-#define VSX_VECTOR_STORE(name, op, indexed)                 \
-static void gen_##name(DisasContext *ctx)                   \
-{                                                           \
-    int xt;                                                 \
-    TCGv EA;                                                \
-    TCGv_i64 xth;                                           \
-    TCGv_i64 xtl;                                           \
-                                                            \
-    if (indexed) {                                          \
-        xt = xT(ctx->opcode);                               \
-    } else {                                                \
-        xt = DQxT(ctx->opcode);                             \
-    }                                                       \
-                                                            \
-    if (xt < 32) {                                          \
-        if (unlikely(!ctx->vsx_enabled)) {                  \
-            gen_exception(ctx, POWERPC_EXCP_VSXU);          \
-            return;                                         \
-        }                                                   \
-    } else {                                                \
-        if (unlikely(!ctx->altivec_enabled)) {              \
-            gen_exception(ctx, POWERPC_EXCP_VPU);           \
-            return;                                         \
-        }                                                   \
-    }                                                       \
-    xth = tcg_temp_new_i64();                               \
-    xtl = tcg_temp_new_i64();                               \
-    get_cpu_vsr(xth, xt, true);                             \
-    get_cpu_vsr(xtl, xt, false);                            \
-    gen_set_access_type(ctx, ACCESS_INT);                   \
-    EA = tcg_temp_new();                                    \
-    if (indexed) {                                          \
-        gen_addr_reg_index(ctx, EA);                        \
-    } else {                                                \
-        gen_addr_imm_index(ctx, EA, 0x0F);                  \
-    }                                                       \
-    if (ctx->le_mode) {                                     \
-        tcg_gen_qemu_##op(xtl, EA, ctx->mem_idx, MO_LEQ);   \
-        tcg_gen_addi_tl(EA, EA, 8);                         \
-        tcg_gen_qemu_##op(xth, EA, ctx->mem_idx, MO_LEQ);   \
-    } else {                                                \
-        tcg_gen_qemu_##op(xth, EA, ctx->mem_idx, MO_BEQ);   \
-        tcg_gen_addi_tl(EA, EA, 8);                         \
-        tcg_gen_qemu_##op(xtl, EA, ctx->mem_idx, MO_BEQ);   \
-    }                                                       \
-    tcg_temp_free(EA);                                      \
-    tcg_temp_free_i64(xth);                                 \
-    tcg_temp_free_i64(xtl);                                 \
-}
-
-VSX_VECTOR_STORE(stxvx, st_i64, 1)
-
 #ifdef TARGET_PPC64
 #define VSX_VECTOR_LOAD_STORE_LENGTH(name)                         \
 static void gen_##name(DisasContext *ctx)                          \
@@ -2096,8 +1990,23 @@ static bool do_lstxv_D(DisasContext *ctx, arg_D *a, bool store)
     return do_lstxv(ctx, a->ra, tcg_constant_tl(a->si), a->rt, store);
 }
 
+static bool do_lstxv_X(DisasContext *ctx, arg_X *a, bool store)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+
+    if (a->rt >= 32) {
+        REQUIRE_VSX(ctx);
+    } else {
+        REQUIRE_VECTOR(ctx);
+    }
+
+    return do_lstxv(ctx, a->ra, cpu_gpr[a->rb], a->rt, store);
+}
+
 TRANS(STXV, do_lstxv_D, true)
 TRANS(LXV, do_lstxv_D, false)
+TRANS(STXVX, do_lstxv_X, true)
+TRANS(LXVX, do_lstxv_X, false)
 
 #undef GEN_XX2FORM
 #undef GEN_XX3FORM
