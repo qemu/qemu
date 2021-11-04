@@ -1436,26 +1436,21 @@ static void gen_xxsel(DisasContext *ctx)
                         vsr_full_offset(rb), vsr_full_offset(ra), 16, 16);
 }
 
-static void gen_xxspltw(DisasContext *ctx)
+static bool trans_XXSPLTW(DisasContext *ctx, arg_XX2 *a)
 {
-    int rt = xT(ctx->opcode);
-    int rb = xB(ctx->opcode);
-    int uim = UIM(ctx->opcode);
     int tofs, bofs;
 
-    if (unlikely(!ctx->vsx_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VSXU);
-        return;
-    }
+    REQUIRE_VSX(ctx);
 
-    tofs = vsr_full_offset(rt);
-    bofs = vsr_full_offset(rb);
-    bofs += uim << MO_32;
+    tofs = vsr_full_offset(a->xt);
+    bofs = vsr_full_offset(a->xb);
+    bofs += a->uim << MO_32;
 #ifndef HOST_WORDS_BIG_ENDIAN
     bofs ^= 8 | 4;
 #endif
 
     tcg_gen_gvec_dup_mem(MO_32, tofs, bofs, 16, 16);
+    return true;
 }
 
 #define pattern(x) (((x) & 0xff) * (~(uint64_t)0 / 0xff))
