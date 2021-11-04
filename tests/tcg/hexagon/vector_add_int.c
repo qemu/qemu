@@ -15,29 +15,47 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HEXAGON_ARCH_TYPES_H
-#define HEXAGON_ARCH_TYPES_H
+#include <stdio.h>
 
-#include "qemu/osdep.h"
-#include "mmvec/mmvec.h"
-#include "qemu/int128.h"
+int gA[401];
+int gB[401];
+int gC[401];
 
-/*
- * These types are used by the code imported from the Hexagon
- * architecture library.
- */
-typedef uint8_t     size1u_t;
-typedef int8_t      size1s_t;
-typedef uint16_t    size2u_t;
-typedef int16_t     size2s_t;
-typedef uint32_t    size4u_t;
-typedef int32_t     size4s_t;
-typedef uint64_t    size8u_t;
-typedef int64_t     size8s_t;
-typedef Int128      size16s_t;
+void vector_add_int()
+{
+  int i;
+  for (i = 0; i < 400; i++) {
+    gA[i] = gB[i] + gC[i];
+  }
+}
 
-typedef MMVector          mmvector_t;
-typedef MMVectorPair      mmvector_pair_t;
-typedef MMQReg            mmqret_t;
-
-#endif
+int main()
+{
+  int error = 0;
+  int i;
+  for (i = 0; i < 400; i++) {
+    gB[i] = i * 2;
+    gC[i] = i * 3;
+  }
+  gA[400] = 17;
+  vector_add_int();
+  for (i = 0; i < 400; i++) {
+    if (gA[i] != i * 5) {
+        error++;
+        printf("ERROR: gB[%d] = %d\t", i, gB[i]);
+        printf("gC[%d] = %d\t", i, gC[i]);
+        printf("gA[%d] = %d\n", i, gA[i]);
+    }
+  }
+  if (gA[400] != 17) {
+    error++;
+    printf("ERROR: Overran the buffer\n");
+  }
+  if (!error) {
+    printf("PASS\n");
+    return 0;
+  } else {
+    printf("FAIL\n");
+    return 1;
+  }
+}

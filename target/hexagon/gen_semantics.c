@@ -44,6 +44,11 @@ int main(int argc, char *argv[])
  *         Q6INSN(A2_add,"Rd32=add(Rs32,Rt32)",ATTRIBS(),
  *         "Add 32-bit registers",
  *         { RdV=RsV+RtV;})
+ *     HVX instructions have the following form
+ *         EXTINSN(V6_vinsertwr, "Vx32.w=vinsert(Rt32)",
+ *         ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VX),
+ *         "Insert Word Scalar into Vector",
+ *         VxV.uw[0] = RtV;)
  */
 #define Q6INSN(TAG, BEH, ATTRIBS, DESCR, SEM) \
     do { \
@@ -59,8 +64,23 @@ int main(int argc, char *argv[])
                          ")\n", \
                 #TAG, STRINGIZE(ATTRIBS)); \
     } while (0);
+#define EXTINSN(TAG, BEH, ATTRIBS, DESCR, SEM) \
+    do { \
+        fprintf(outfile, "SEMANTICS( \\\n" \
+                         "    \"%s\", \\\n" \
+                         "    %s, \\\n" \
+                         "    \"\"\"%s\"\"\" \\\n" \
+                         ")\n", \
+                #TAG, STRINGIZE(BEH), STRINGIZE(SEM)); \
+        fprintf(outfile, "ATTRIBUTES( \\\n" \
+                         "    \"%s\", \\\n" \
+                         "    \"%s\" \\\n" \
+                         ")\n", \
+                #TAG, STRINGIZE(ATTRIBS)); \
+    } while (0);
 #include "imported/allidefs.def"
 #undef Q6INSN
+#undef EXTINSN
 
 /*
  * Process the macro definitions
@@ -81,6 +101,19 @@ int main(int argc, char *argv[])
                      ")\n", \
             #MNAME, STRINGIZE(BEH), STRINGIZE(ATTRS));
 #include "imported/macros.def"
+#undef DEF_MACRO
+
+/*
+ * Process the macros for HVX
+ */
+#define DEF_MACRO(MNAME, BEH, ATTRS) \
+    fprintf(outfile, "MACROATTRIB( \\\n" \
+                     "    \"%s\", \\\n" \
+                     "    \"\"\"%s\"\"\", \\\n" \
+                     "    \"%s\" \\\n" \
+                     ")\n", \
+            #MNAME, STRINGIZE(BEH), STRINGIZE(ATTRS));
+#include "imported/allext_macros.def"
 #undef DEF_MACRO
 
     fclose(outfile);

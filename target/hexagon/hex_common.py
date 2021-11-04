@@ -145,6 +145,9 @@ def compute_tag_immediates(tag):
 ##          P                predicate register
 ##          R                GPR register
 ##          M                modifier register
+##          Q                HVX predicate vector
+##          V                HVX vector register
+##          O                HVX new vector register
 ##      regid can be one of the following
 ##          d, e             destination register
 ##          dd               destination register pair
@@ -180,6 +183,9 @@ def is_readwrite(regid):
 def is_scalar_reg(regtype):
     return regtype in "RPC"
 
+def is_hvx_reg(regtype):
+    return regtype in "VQ"
+
 def is_old_val(regtype, regid, tag):
     return regtype+regid+'V' in semdict[tag]
 
@@ -202,6 +208,13 @@ def need_ea(tag):
 
 def skip_qemu_helper(tag):
     return tag in overrides.keys()
+
+def is_tmp_result(tag):
+    return ('A_CVI_TMP' in attribdict[tag] or
+            'A_CVI_TMP_DST' in attribdict[tag])
+
+def is_new_result(tag):
+    return ('A_CVI_NEW' in attribdict[tag])
 
 def imm_name(immlett):
     return "%siV" % immlett

@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,17 +15,10 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-/*
- * Top level instruction definition file
- */
+#ifndef HVX_HISTOGRAM_ROW_H
+#define HVX_HISTOGRAM_ROW_H
 
-#include "branch.idef"
-#include "ldst.idef"
-#include "compare.idef"
-#include "mpy.idef"
-#include "alu.idef"
-#include "float.idef"
-#include "shift.idef"
-#include "system.idef"
-#include "subinsns.idef"
-#include "allext.idef"
+void hvx_histogram_row(uint8_t *src, int stride, int width, int height,
+                       int *hist);
+
+#endif

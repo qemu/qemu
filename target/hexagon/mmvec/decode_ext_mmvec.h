@@ -15,29 +15,10 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HEXAGON_ARCH_TYPES_H
-#define HEXAGON_ARCH_TYPES_H
+#ifndef HEXAGON_DECODE_EXT_MMVEC_H
+#define HEXAGON_DECODE_EXT_MMVEC_H
 
-#include "qemu/osdep.h"
-#include "mmvec/mmvec.h"
-#include "qemu/int128.h"
-
-/*
- * These types are used by the code imported from the Hexagon
- * architecture library.
- */
-typedef uint8_t     size1u_t;
-typedef int8_t      size1s_t;
-typedef uint16_t    size2u_t;
-typedef int16_t     size2s_t;
-typedef uint32_t    size4u_t;
-typedef int32_t     size4s_t;
-typedef uint64_t    size8u_t;
-typedef int64_t     size8s_t;
-typedef Int128      size16s_t;
-
-typedef MMVector          mmvector_t;
-typedef MMVectorPair      mmvector_pair_t;
-typedef MMQReg            mmqret_t;
+void mmvec_ext_decode_checks(Packet *pkt, bool disas_only);
+SlotMask mmvec_ext_decode_find_iclass_slots(int opcode);
 
 #endif

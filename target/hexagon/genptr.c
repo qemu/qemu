@@ -19,13 +19,16 @@
 #include "cpu.h"
 #include "internal.h"
 #include "tcg/tcg-op.h"
+#include "tcg/tcg-op-gvec.h"
 #include "insn.h"
 #include "opcodes.h"
 #include "translate.h"
 #define QEMU_GENERATE       /* Used internally by macros.h */
 #include "macros.h"
+#include "mmvec/macros.h"
 #undef QEMU_GENERATE
 #include "gen_tcg.h"
+#include "gen_tcg_hvx.h"
 
 static inline void gen_log_predicated_reg_write(int rnum, TCGv val, int slot)
 {
@@ -165,6 +168,9 @@ static inline void gen_read_ctrl_reg(DisasContext *ctx, const int reg_num,
     } else if (reg_num == HEX_REG_QEMU_INSN_CNT) {
         tcg_gen_addi_tl(dest, hex_gpr[HEX_REG_QEMU_INSN_CNT],
                         ctx->num_insns);
+    } else if (reg_num == HEX_REG_QEMU_HVX_CNT) {
+        tcg_gen_addi_tl(dest, hex_gpr[HEX_REG_QEMU_HVX_CNT],
+                        ctx->num_hvx_insns);
     } else {
         tcg_gen_mov_tl(dest, hex_gpr[reg_num]);
     }
@@ -191,6 +197,12 @@ static inline void gen_read_ctrl_reg_pair(DisasContext *ctx, const int reg_num,
         tcg_gen_concat_i32_i64(dest, pkt_cnt, insn_cnt);
         tcg_temp_free(pkt_cnt);
         tcg_temp_free(insn_cnt);
+    } else if (reg_num == HEX_REG_QEMU_HVX_CNT) {
+        TCGv hvx_cnt = tcg_temp_new();
+        tcg_gen_addi_tl(hvx_cnt, hex_gpr[HEX_REG_QEMU_HVX_CNT],
+                        ctx->num_hvx_insns);
+        tcg_gen_concat_i32_i64(dest, hvx_cnt, hex_gpr[reg_num + 1]);
+        tcg_temp_free(hvx_cnt);
     } else {
         tcg_gen_concat_i32_i64(dest,
             hex_gpr[reg_num],
@@ -226,6 +238,9 @@ static inline void gen_write_ctrl_reg(DisasContext *ctx, int reg_num,
         if (reg_num == HEX_REG_QEMU_INSN_CNT) {
             ctx->num_insns = 0;
         }
+        if (reg_num == HEX_REG_QEMU_HVX_CNT) {
+            ctx->num_hvx_insns = 0;
+        }
     }
 }
 
@@ -246,6 +261,9 @@ static inline void gen_write_ctrl_reg_pair(DisasContext *ctx, int reg_num,
         if (reg_num == HEX_REG_QEMU_PKT_CNT) {
             ctx->num_packets = 0;
             ctx->num_insns = 0;
+        }
+        if (reg_num == HEX_REG_QEMU_HVX_CNT) {
+            ctx->num_hvx_insns = 0;
         }
     }
 }
@@ -444,6 +462,176 @@ static TCGv gen_8bitsof(TCGv result, TCGv value)
     tcg_gen_movcond_tl(TCG_COND_NE, result, value, zero, ones, zero);
 
     return result;
+}
+
+static intptr_t vreg_src_off(DisasContext *ctx, int num)
+{
+    intptr_t offset = offsetof(CPUHexagonState, VRegs[num]);
+
+    if (test_bit(num, ctx->vregs_select)) {
+        offset = ctx_future_vreg_off(ctx, num, 1, false);
+    }
+    if (test_bit(num, ctx->vregs_updated_tmp)) {
+        offset = ctx_tmp_vreg_off(ctx, num, 1, false);
+    }
+    return offset;
+}
+
+static void gen_log_vreg_write(DisasContext *ctx, intptr_t srcoff, int num,
+                               VRegWriteType type, int slot_num,
+                               bool is_predicated)
+{
+    TCGLabel *label_end = NULL;
+    intptr_t dstoff;
+
+    if (is_predicated) {
+        TCGv cancelled = tcg_temp_local_new();
+        label_end = gen_new_label();
+
+        /* Don't do anything if the slot was cancelled */
+        tcg_gen_extract_tl(cancelled, hex_slot_cancelled, slot_num, 1);
+        tcg_gen_brcondi_tl(TCG_COND_NE, cancelled, 0, label_end);
+        tcg_temp_free(cancelled);
+    }
+
+    if (type != EXT_TMP) {
+        dstoff = ctx_future_vreg_off(ctx, num, 1, true);
+        tcg_gen_gvec_mov(MO_64, dstoff, srcoff,
+                         sizeof(MMVector), sizeof(MMVector));
+        tcg_gen_ori_tl(hex_VRegs_updated, hex_VRegs_updated, 1 << num);
+    } else {
+        dstoff = ctx_tmp_vreg_off(ctx, num, 1, false);
+        tcg_gen_gvec_mov(MO_64, dstoff, srcoff,
+                         sizeof(MMVector), sizeof(MMVector));
+    }
+
+    if (is_predicated) {
+        gen_set_label(label_end);
+    }
+}
+
+static void gen_log_vreg_write_pair(DisasContext *ctx, intptr_t srcoff, int num,
+                                    VRegWriteType type, int slot_num,
+                                    bool is_predicated)
+{
+    gen_log_vreg_write(ctx, srcoff, num ^ 0, type, slot_num, is_predicated);
+    srcoff += sizeof(MMVector);
+    gen_log_vreg_write(ctx, srcoff, num ^ 1, type, slot_num, is_predicated);
+}
+
+static void gen_log_qreg_write(intptr_t srcoff, int num, int vnew,
+                               int slot_num, bool is_predicated)
+{
+    TCGLabel *label_end = NULL;
+    intptr_t dstoff;
+
+    if (is_predicated) {
+        TCGv cancelled = tcg_temp_local_new();
+        label_end = gen_new_label();
+
+        /* Don't do anything if the slot was cancelled */
+        tcg_gen_extract_tl(cancelled, hex_slot_cancelled, slot_num, 1);
+        tcg_gen_brcondi_tl(TCG_COND_NE, cancelled, 0, label_end);
+        tcg_temp_free(cancelled);
+    }
+
+    dstoff = offsetof(CPUHexagonState, future_QRegs[num]);
+    tcg_gen_gvec_mov(MO_64, dstoff, srcoff, sizeof(MMQReg), sizeof(MMQReg));
+
+    if (is_predicated) {
+        tcg_gen_ori_tl(hex_QRegs_updated, hex_QRegs_updated, 1 << num);
+        gen_set_label(label_end);
+    }
+}
+
+static void gen_vreg_load(DisasContext *ctx, intptr_t dstoff, TCGv src,
+                          bool aligned)
+{
+    TCGv_i64 tmp = tcg_temp_new_i64();
+    if (aligned) {
+        tcg_gen_andi_tl(src, src, ~((int32_t)sizeof(MMVector) - 1));
+    }
+    for (int i = 0; i < sizeof(MMVector) / 8; i++) {
+        tcg_gen_qemu_ld64(tmp, src, ctx->mem_idx);
+        tcg_gen_addi_tl(src, src, 8);
+        tcg_gen_st_i64(tmp, cpu_env, dstoff + i * 8);
+    }
+    tcg_temp_free_i64(tmp);
+}
+
+static void gen_vreg_store(DisasContext *ctx, Insn *insn, Packet *pkt,
+                           TCGv EA, intptr_t srcoff, int slot, bool aligned)
+{
+    intptr_t dstoff = offsetof(CPUHexagonState, vstore[slot].data);
+    intptr_t maskoff = offsetof(CPUHexagonState, vstore[slot].mask);
+
+    if (is_gather_store_insn(insn, pkt)) {
+        TCGv sl = tcg_constant_tl(slot);
+        gen_helper_gather_store(cpu_env, EA, sl);
+        return;
+    }
+
+    tcg_gen_movi_tl(hex_vstore_pending[slot], 1);
+    if (aligned) {
+        tcg_gen_andi_tl(hex_vstore_addr[slot], EA,
+                        ~((int32_t)sizeof(MMVector) - 1));
+    } else {
+        tcg_gen_mov_tl(hex_vstore_addr[slot], EA);
+    }
+    tcg_gen_movi_tl(hex_vstore_size[slot], sizeof(MMVector));
+
+    /* Copy the data to the vstore buffer */
+    tcg_gen_gvec_mov(MO_64, dstoff, srcoff, sizeof(MMVector), sizeof(MMVector));
+    /* Set the mask to all 1's */
+    tcg_gen_gvec_dup_imm(MO_64, maskoff, sizeof(MMQReg), sizeof(MMQReg), ~0LL);
+}
+
+static void gen_vreg_masked_store(DisasContext *ctx, TCGv EA, intptr_t srcoff,
+                                  intptr_t bitsoff, int slot, bool invert)
+{
+    intptr_t dstoff = offsetof(CPUHexagonState, vstore[slot].data);
+    intptr_t maskoff = offsetof(CPUHexagonState, vstore[slot].mask);
+
+    tcg_gen_movi_tl(hex_vstore_pending[slot], 1);
+    tcg_gen_andi_tl(hex_vstore_addr[slot], EA,
+                    ~((int32_t)sizeof(MMVector) - 1));
+    tcg_gen_movi_tl(hex_vstore_size[slot], sizeof(MMVector));
+
+    /* Copy the data to the vstore buffer */
+    tcg_gen_gvec_mov(MO_64, dstoff, srcoff, sizeof(MMVector), sizeof(MMVector));
+    /* Copy the mask */
+    tcg_gen_gvec_mov(MO_64, maskoff, bitsoff, sizeof(MMQReg), sizeof(MMQReg));
+    if (invert) {
+        tcg_gen_gvec_not(MO_64, maskoff, maskoff,
+                         sizeof(MMQReg), sizeof(MMQReg));
+    }
+}
+
+static void vec_to_qvec(size_t size, intptr_t dstoff, intptr_t srcoff)
+{
+    TCGv_i64 tmp = tcg_temp_new_i64();
+    TCGv_i64 word = tcg_temp_new_i64();
+    TCGv_i64 bits = tcg_temp_new_i64();
+    TCGv_i64 mask = tcg_temp_new_i64();
+    TCGv_i64 zero = tcg_constant_i64(0);
+    TCGv_i64 ones = tcg_constant_i64(~0);
+
+    for (int i = 0; i < sizeof(MMVector) / 8; i++) {
+        tcg_gen_ld_i64(tmp, cpu_env, srcoff + i * 8);
+        tcg_gen_movi_i64(mask, 0);
+
+        for (int j = 0; j < 8; j += size) {
+            tcg_gen_extract_i64(word, tmp, j * 8, size * 8);
+            tcg_gen_movcond_i64(TCG_COND_NE, bits, word, zero, ones, zero);
+            tcg_gen_deposit_i64(mask, mask, bits, j, size);
+        }
+
+        tcg_gen_st8_i64(mask, cpu_env, dstoff + i);
+    }
+    tcg_temp_free_i64(tmp);
+    tcg_temp_free_i64(word);
+    tcg_temp_free_i64(bits);
+    tcg_temp_free_i64(mask);
 }
 
 #include "tcg_funcs_generated.c.inc"

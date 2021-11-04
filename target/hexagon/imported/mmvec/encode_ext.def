@@ -1,0 +1,794 @@
+/*
+ *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+#define CONCAT(A,B) A##B
+#define EXTEXTNAME(X) CONCAT(EXT_,X)
+#define DEF_ENC(TAG,STR) DEF_EXT_ENC(TAG,EXTEXTNAME(EXTNAME),STR)
+
+
+#ifndef NO_MMVEC
+DEF_ENC(V6_extractw,  ICLASS_LD" 001 0 000sssss  PP0uuuuu  --1ddddd") /* coproc insn, returns Rd */
+#endif
+
+
+#ifndef NO_MMVEC
+
+
+
+DEF_CLASS32(ICLASS_NCJ" 1--- -------- PP------ --------",COPROC_VMEM)
+DEF_CLASS32(ICLASS_NCJ" 1000 0-0ttttt PPi--iii ---ddddd",BaseOffset_VMEM_Loads)
+DEF_CLASS32(ICLASS_NCJ" 1000 1-0ttttt PPivviii ---ddddd",BaseOffset_if_Pv_VMEM_Loads)
+DEF_CLASS32(ICLASS_NCJ" 1000 0-1ttttt PPi--iii --------",BaseOffset_VMEM_Stores1)
+DEF_CLASS32(ICLASS_NCJ" 1000 1-0ttttt PPi--iii 00------",BaseOffset_VMEM_Stores2)
+DEF_CLASS32(ICLASS_NCJ" 1000 1-1ttttt PPivviii --------",BaseOffset_if_Pv_VMEM_Stores)
+
+DEF_CLASS32(ICLASS_NCJ" 1001 0-0xxxxx PP---iii ---ddddd",PostImm_VMEM_Loads)
+DEF_CLASS32(ICLASS_NCJ" 1001 1-0xxxxx PP-vviii ---ddddd",PostImm_if_Pv_VMEM_Loads)
+DEF_CLASS32(ICLASS_NCJ" 1001 0-1xxxxx PP---iii --------",PostImm_VMEM_Stores1)
+DEF_CLASS32(ICLASS_NCJ" 1001 1-0xxxxx PP---iii 00------",PostImm_VMEM_Stores2)
+DEF_CLASS32(ICLASS_NCJ" 1001 1-1xxxxx PP-vviii --------",PostImm_if_Pv_VMEM_Stores)
+
+DEF_CLASS32(ICLASS_NCJ" 1011 0-0xxxxx PPu----- ---ddddd",PostM_VMEM_Loads)
+DEF_CLASS32(ICLASS_NCJ" 1011 1-0xxxxx PPuvv--- ---ddddd",PostM_if_Pv_VMEM_Loads)
+DEF_CLASS32(ICLASS_NCJ" 1011 0-1xxxxx PPu----- --------",PostM_VMEM_Stores1)
+DEF_CLASS32(ICLASS_NCJ" 1011 1-0xxxxx PPu----- 00------",PostM_VMEM_Stores2)
+DEF_CLASS32(ICLASS_NCJ" 1011 1-1xxxxx PPuvv--- --------",PostM_if_Pv_VMEM_Stores)
+
+DEF_CLASS32(ICLASS_NCJ" 110- 0------- PP------ --------",Z_Load)
+DEF_CLASS32(ICLASS_NCJ" 110- 1------- PP------ --------",Z_Load_if_Pv)
+
+DEF_CLASS32(ICLASS_NCJ" 1111 000ttttt PPu--0-- ---vvvvv",Gather)
+DEF_CLASS32(ICLASS_NCJ" 1111 000ttttt PPu--1-- -ssvvvvv",Gather_if_Qs)
+DEF_CLASS32(ICLASS_NCJ" 1111 001ttttt PPuvvvvv ---wwwww",Scatter)
+DEF_CLASS32(ICLASS_NCJ" 1111 001ttttt PPuvvvvv -----sss",Scatter_New)
+DEF_CLASS32(ICLASS_NCJ" 1111 1--ttttt PPuvvvvv -sswwwww",Scatter_if_Qs)
+
+
+DEF_FIELD32(ICLASS_NCJ" 1--- -!------ PP------ --------",NT,"NonTemporal")
+
+
+
+DEF_FIELDROW_DESC32(                ICLASS_NCJ" 1 000 --- ----- PP i --iii ----- ---","[#0] vmem(Rt+#s4)[:nt]")
+
+#define LDST_ENC(TAG,MAJ3,MID3,RREG,TINY6,MIN3,VREG) DEF_ENC(TAG, ICLASS_NCJ "1" #MAJ3 #MID3 #RREG "PP" #TINY6 #MIN3 #VREG)
+
+#define LDST_BO(TAGPRE,MID3,PRED,MIN3,VREG) LDST_ENC(TAGPRE##_ai, 000,MID3,ttttt,i PRED iii,MIN3,VREG)
+#define LDST_PI(TAGPRE,MID3,PRED,MIN3,VREG) LDST_ENC(TAGPRE##_pi, 001,MID3,xxxxx,- PRED iii,MIN3,VREG)
+#define LDST_PM(TAGPRE,MID3,PRED,MIN3,VREG) LDST_ENC(TAGPRE##_ppu,011,MID3,xxxxx,u PRED ---,MIN3,VREG)
+
+#define LDST_BASICLD(OP,TAGPRE) \
+    OP(TAGPRE,                000,00,000,ddddd) \
+    OP(TAGPRE##_nt,           010,00,000,ddddd) \
+    OP(TAGPRE##_cur,          000,00,001,ddddd) \
+    OP(TAGPRE##_nt_cur,       010,00,001,ddddd) \
+    OP(TAGPRE##_tmp,          000,00,010,ddddd) \
+    OP(TAGPRE##_nt_tmp,       010,00,010,ddddd)
+
+#define LDST_BASICST(OP,TAGPRE) \
+    OP(TAGPRE,           001,--,000,sssss) \
+    OP(TAGPRE##_nt,      011,--,000,sssss) \
+    OP(TAGPRE##_new,     001,--,001,-0sss) \
+    OP(TAGPRE##_srls,    001,--,001,-1---) \
+    OP(TAGPRE##_nt_new,  011,--,001,--sss) \
+
+
+#define LDST_QPREDST(OP,TAGPRE) \
+    OP(TAGPRE##_qpred,    100,vv,000,sssss) \
+    OP(TAGPRE##_nt_qpred, 110,vv,000,sssss) \
+    OP(TAGPRE##_nqpred,   100,vv,001,sssss) \
+    OP(TAGPRE##_nt_nqpred,110,vv,001,sssss) \
+
+#define LDST_CONDLD(OP,TAGPRE) \
+    OP(TAGPRE##_pred,         100,vv,010,ddddd) \
+    OP(TAGPRE##_nt_pred,      110,vv,010,ddddd) \
+    OP(TAGPRE##_npred,        100,vv,011,ddddd) \
+    OP(TAGPRE##_nt_npred,     110,vv,011,ddddd) \
+    OP(TAGPRE##_cur_pred,     100,vv,100,ddddd) \
+    OP(TAGPRE##_nt_cur_pred,  110,vv,100,ddddd) \
+    OP(TAGPRE##_cur_npred,    100,vv,101,ddddd) \
+    OP(TAGPRE##_nt_cur_npred, 110,vv,101,ddddd) \
+    OP(TAGPRE##_tmp_pred,     100,vv,110,ddddd) \
+    OP(TAGPRE##_nt_tmp_pred,  110,vv,110,ddddd) \
+    OP(TAGPRE##_tmp_npred,    100,vv,111,ddddd) \
+    OP(TAGPRE##_nt_tmp_npred, 110,vv,111,ddddd) \
+
+#define LDST_PREDST(OP,TAGPRE,NT,MIN2) \
+    OP(TAGPRE##_pred,      1 NT 1,vv,MIN2 0,sssss) \
+    OP(TAGPRE##_npred,     1 NT 1,vv,MIN2 1,sssss)
+
+#define LDST_PREDSTNEW(OP,TAGPRE,NT,MIN2) \
+    OP(TAGPRE##_pred,      1 NT 1,vv,MIN2 0,NT 0 sss) \
+    OP(TAGPRE##_npred,     1 NT 1,vv,MIN2 1,NT 1 sss)
+
+// 0.0,vv,0--,sssss: pred st
+#define LDST_BASICPREDST(OP,TAGPRE) \
+    LDST_PREDST(OP,TAGPRE,             0,00) \
+    LDST_PREDST(OP,TAGPRE##_nt,        1,00) \
+    LDST_PREDSTNEW(OP,TAGPRE##_new,    0,01) \
+    LDST_PREDSTNEW(OP,TAGPRE##_nt_new, 1,01)
+
+
+
+LDST_BASICLD(LDST_BO,V6_vL32b)
+LDST_CONDLD(LDST_BO,V6_vL32b)
+LDST_BASICLD(LDST_PI,V6_vL32b)
+LDST_CONDLD(LDST_PI,V6_vL32b)
+LDST_BASICLD(LDST_PM,V6_vL32b)
+LDST_CONDLD(LDST_PM,V6_vL32b)
+
+// Loads
+
+LDST_BO(V6_vL32Ub,000,00,111,ddddd)
+//Stores
+LDST_BASICST(LDST_BO,V6_vS32b)
+
+
+LDST_BO(V6_vS32Ub,001,--,111,sssss)
+
+
+
+
+// Byte Enabled Stores
+LDST_QPREDST(LDST_BO,V6_vS32b)
+
+// Scalar Predicated Stores
+LDST_BASICPREDST(LDST_BO,V6_vS32b)
+
+
+LDST_PREDST(LDST_BO,V6_vS32Ub,0,11)
+
+
+
+
+DEF_FIELDROW_DESC32(                ICLASS_NCJ" 1 001 --- ----- PP - ----- ddddd ---","[#1] vmem(Rx++#s3)[:nt]")
+
+// Loads
+LDST_PI(V6_vL32Ub,000,00,111,ddddd)
+
+//Stores
+LDST_BASICST(LDST_PI,V6_vS32b)
+
+
+
+LDST_PI(V6_vS32Ub,001,--,111,sssss)
+
+
+// Byte Enabled Stores
+LDST_QPREDST(LDST_PI,V6_vS32b)
+
+
+// Scalar Predicated Stores
+LDST_BASICPREDST(LDST_PI,V6_vS32b)
+
+
+LDST_PREDST(LDST_PI,V6_vS32Ub,0,11)
+
+
+
+DEF_FIELDROW_DESC32(            ICLASS_NCJ" 1 011 --- ----- PP - ----- ----- ---","[#3] vmem(Rx++#M)[:nt]")
+
+// Loads
+LDST_PM(V6_vL32Ub,000,00,111,ddddd)
+
+//Stores
+LDST_BASICST(LDST_PM,V6_vS32b)
+
+
+
+LDST_PM(V6_vS32Ub,001,--,111,sssss)
+
+// Byte Enabled Stores
+LDST_QPREDST(LDST_PM,V6_vS32b)
+
+// Scalar Predicated Stores
+LDST_BASICPREDST(LDST_PM,V6_vS32b)
+
+
+LDST_PREDST(LDST_PM,V6_vS32Ub,0,11)
+
+
+
+DEF_ENC(V6_vaddcarrysat,    ICLASS_CJ" 1 101 100 vvvvv PP 1 uuuuu 0ss ddddd") //
+DEF_ENC(V6_vaddcarryo,        ICLASS_CJ" 1 101 101 vvvvv PP 1 uuuuu 0ee ddddd") //
+DEF_ENC(V6_vsubcarryo,        ICLASS_CJ" 1 101 101 vvvvv PP 1 uuuuu 1ee ddddd") //
+DEF_ENC(V6_vsatdw,          ICLASS_CJ" 1 101 100 vvvvv PP 1 uuuuu 111 ddddd") //
+
+DEF_FIELDROW_DESC32(           ICLASS_NCJ" 1 111 --- ----- PP - ----- ----- ---","[#6] vgather,vscatter")
+DEF_ENC(V6_vgathermw,         ICLASS_NCJ" 1 111 000 ttttt PP u --000 --- vvvvv")    // vtmp.w=vmem(Rt32,Mu2,Vv32.w).w
+DEF_ENC(V6_vgathermh,         ICLASS_NCJ" 1 111 000 ttttt PP u --001 --- vvvvv")    // vtmp.h=vmem(Rt32,Mu2,Vv32.h).h
+DEF_ENC(V6_vgathermhw,         ICLASS_NCJ" 1 111 000 ttttt PP u --010 --- vvvvv")    // vtmp.h=vmem(Rt32,Mu2,Vvv32.w).h
+
+
+DEF_ENC(V6_vgathermwq,         ICLASS_NCJ" 1 111 000 ttttt PP u --100 -ss vvvvv")    // if (Qs4) vtmp.w=vmem(Rt32,Mu2,Vv32.w).w
+DEF_ENC(V6_vgathermhq,         ICLASS_NCJ" 1 111 000 ttttt PP u --101 -ss vvvvv")    // if (Qs4) vtmp.h=vmem(Rt32,Mu2,Vv32.h).h
+DEF_ENC(V6_vgathermhwq,     ICLASS_NCJ" 1 111 000 ttttt PP u --110 -ss vvvvv")    // if (Qs4) vtmp.h=vmem(Rt32,Mu2,Vvv32.w).h
+
+
+
+DEF_ENC(V6_vscattermw,         ICLASS_NCJ" 1 111 001 ttttt PP u vvvvv 000 wwwww")    // vmem(Rt32,Mu2,Vv32.w)=Vw32.w
+DEF_ENC(V6_vscattermh,         ICLASS_NCJ" 1 111 001 ttttt PP u vvvvv 001 wwwww")    // vmem(Rt32,Mu2,Vv32.h)=Vw32.h
+DEF_ENC(V6_vscattermhw,     ICLASS_NCJ" 1 111 001 ttttt PP u vvvvv 010 wwwww")    // vmem(Rt32,Mu2,Vv32.h)=Vw32.h
+
+DEF_ENC(V6_vscattermw_add,     ICLASS_NCJ" 1 111 001 ttttt PP u vvvvv 100 wwwww")    // vmem(Rt32,Mu2,Vv32.w) += Vw32.w
+DEF_ENC(V6_vscattermh_add,     ICLASS_NCJ" 1 111 001 ttttt PP u vvvvv 101 wwwww")    // vmem(Rt32,Mu2,Vv32.h) += Vw32.h
+DEF_ENC(V6_vscattermhw_add, ICLASS_NCJ" 1 111 001 ttttt PP u vvvvv 110 wwwww")    // vmem(Rt32,Mu2,Vv32.h) += Vw32.h
+
+
+DEF_ENC(V6_vscattermwq,     ICLASS_NCJ" 1 111 100 ttttt PP u vvvvv 0ss wwwww")    // if (Qs4) vmem(Rt32,Mu2,Vv32.w)=Vw32.w
+DEF_ENC(V6_vscattermhq,     ICLASS_NCJ" 1 111 100 ttttt PP u vvvvv 1ss wwwww")    // if (Qs4) vmem(Rt32,Mu2,Vv32.h)=Vw32.h
+DEF_ENC(V6_vscattermhwq,     ICLASS_NCJ" 1 111 101 ttttt PP u vvvvv 0ss wwwww")    // if (Qs4) vmem(Rt32,Mu2,Vv32.h)=Vw32.h
+
+
+
+
+
+DEF_CLASS32(ICLASS_CJ" 1--- -------- PP------ --------",COPROC_VX)
+
+
+
+/***************************************************************
+*
+*  Group #0, Uses Q6 Rt8: new in v61
+*
+****************************************************************/
+
+DEF_FIELDROW_DESC32(            ICLASS_CJ" 1 000 --- ----- PP - ----- ----- ---","[#1] Vd32=(Vu32, Vv32, Rt8)")
+DEF_ENC(V6_vasrhbsat,             ICLASS_CJ" 1 000 vvv vvttt PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vasruwuhrndsat,         ICLASS_CJ" 1 000 vvv vvttt PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vasrwuhrndsat,         ICLASS_CJ" 1 000 vvv vvttt PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vlutvvb_nm,             ICLASS_CJ" 1 000 vvv vvttt PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vlutvwh_nm,             ICLASS_CJ" 1 000 vvv vvttt PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vasruhubrndsat,         ICLASS_CJ" 1 000 vvv vvttt PP 0 uuuuu 111 ddddd") //
+
+DEF_ENC(V6_vasruwuhsat,         ICLASS_CJ" 1 000 vvv vvttt PP 1 uuuuu 100 ddddd") //
+DEF_ENC(V6_vasruhubsat,            ICLASS_CJ" 1 000 vvv vvttt PP 1 uuuuu 101 ddddd") //
+
+/***************************************************************
+*
+*  Group #1, Uses Q6 Rt32
+*
+****************************************************************/
+
+DEF_FIELDROW_DESC32(        ICLASS_CJ" 1 001 --- ----- PP - ----- ----- ---","[#1] Vd32=(Vu32, Rt32)")
+DEF_ENC(V6_vtmpyb,             ICLASS_CJ" 1 001 000 ttttt PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vtmpybus,         ICLASS_CJ" 1 001 000 ttttt PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vdmpyhb,         ICLASS_CJ" 1 001 000 ttttt PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vrmpyub,         ICLASS_CJ" 1 001 000 ttttt PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vrmpybus,         ICLASS_CJ" 1 001 000 ttttt PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vdsaduh,         ICLASS_CJ" 1 001 000 ttttt PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vdmpybus,         ICLASS_CJ" 1 001 000 ttttt PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vdmpybus_dv,     ICLASS_CJ" 1 001 000 ttttt PP 0 uuuuu 111 ddddd") //
+
+DEF_ENC(V6_vdmpyhsusat,     ICLASS_CJ" 1 001 001 ttttt PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vdmpyhsuisat,     ICLASS_CJ" 1 001 001 ttttt PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vdmpyhsat,         ICLASS_CJ" 1 001 001 ttttt PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vdmpyhisat,         ICLASS_CJ" 1 001 001 ttttt PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vdmpyhb_dv,         ICLASS_CJ" 1 001 001 ttttt PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vmpybus,         ICLASS_CJ" 1 001 001 ttttt PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vmpabus,         ICLASS_CJ" 1 001 001 ttttt PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vmpahb,             ICLASS_CJ" 1 001 001 ttttt PP 0 uuuuu 111 ddddd") //
+
+DEF_ENC(V6_vmpyh,             ICLASS_CJ" 1 001 010 ttttt PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vmpyhss,         ICLASS_CJ" 1 001 010 ttttt PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vmpyhsrs,         ICLASS_CJ" 1 001 010 ttttt PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vmpyuh,             ICLASS_CJ" 1 001 010 ttttt PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vrmpybusi,         ICLASS_CJ" 1 001 010 ttttt PP 0 uuuuu 10i ddddd") //
+DEF_ENC(V6_vrsadubi,         ICLASS_CJ" 1 001 010 ttttt PP 0 uuuuu 11i ddddd") //
+
+DEF_ENC(V6_vmpyihb,         ICLASS_CJ" 1 001 011 ttttt PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vror,             ICLASS_CJ" 1 001 011 ttttt PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vmpyuhe,         ICLASS_CJ" 1 001 011 ttttt PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vmpabuu,         ICLASS_CJ" 1 001 011 ttttt PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vlut4,            ICLASS_CJ" 1 001 011 ttttt PP 0 uuuuu 100 ddddd") //
+
+
+DEF_ENC(V6_vasrw,             ICLASS_CJ" 1 001 011 ttttt PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vasrh,             ICLASS_CJ" 1 001 011 ttttt PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vaslw,             ICLASS_CJ" 1 001 011 ttttt PP 0 uuuuu 111 ddddd") //
+
+DEF_ENC(V6_vaslh,             ICLASS_CJ" 1 001 100 ttttt PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vlsrw,             ICLASS_CJ" 1 001 100 ttttt PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vlsrh,             ICLASS_CJ" 1 001 100 ttttt PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vlsrb,            ICLASS_CJ" 1 001 100 ttttt PP 0 uuuuu 011 ddddd") //
+
+DEF_ENC(V6_vmpauhb,            ICLASS_CJ" 1 001 100 ttttt PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vmpyiwub,         ICLASS_CJ" 1 001 100 ttttt PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vmpyiwh,         ICLASS_CJ" 1 001 100 ttttt PP 0 uuuuu 111 ddddd") //
+
+DEF_ENC(V6_vmpyiwb,         ICLASS_CJ" 1 001 101 ttttt PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_lvsplatw,         ICLASS_CJ" 1 001 101 ttttt PP 0 ----0 001 ddddd") //
+
+
+
+DEF_ENC(V6_pred_scalar2,     ICLASS_CJ" 1 001 101 ttttt PP 0 ----- 010 -01dd") //
+DEF_ENC(V6_vandvrt,         ICLASS_CJ" 1 001 101 ttttt PP 0 uuuuu 010 -10dd") //
+DEF_ENC(V6_pred_scalar2v2,     ICLASS_CJ" 1 001 101 ttttt PP 0 ----- 010 -11dd") //
+
+DEF_ENC(V6_vtmpyhb,         ICLASS_CJ" 1 001 101 ttttt PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vandqrt,         ICLASS_CJ" 1 001 101 ttttt PP 0 --0uu 101 ddddd") //
+DEF_ENC(V6_vandnqrt,         ICLASS_CJ" 1 001 101 ttttt PP 0 --1uu 101 ddddd") //
+
+DEF_ENC(V6_vrmpyubi,         ICLASS_CJ" 1 001 101 ttttt PP 0 uuuuu 11i ddddd") //
+
+DEF_ENC(V6_vmpyub,             ICLASS_CJ" 1 001 110 ttttt PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_lvsplath,         ICLASS_CJ" 1 001 110 ttttt PP 0 ----- 001 ddddd") //
+DEF_ENC(V6_lvsplatb,         ICLASS_CJ" 1 001 110 ttttt PP 0 ----- 010 ddddd") //
+
+
+DEF_FIELDROW_DESC32(        ICLASS_CJ" 1 001 --- ----- PP - ----- ----- ---","[#1] Vx32=(Vu32, Rt32)")
+DEF_ENC(V6_vtmpyb_acc,         ICLASS_CJ" 1 001 000 ttttt PP 1 uuuuu 000 xxxxx") //
+DEF_ENC(V6_vtmpybus_acc,     ICLASS_CJ" 1 001 000 ttttt PP 1 uuuuu 001 xxxxx") //
+DEF_ENC(V6_vtmpyhb_acc,     ICLASS_CJ" 1 001 000 ttttt PP 1 uuuuu 010 xxxxx") //
+DEF_ENC(V6_vdmpyhb_acc,     ICLASS_CJ" 1 001 000 ttttt PP 1 uuuuu 011 xxxxx") //
+DEF_ENC(V6_vrmpyub_acc,     ICLASS_CJ" 1 001 000 ttttt PP 1 uuuuu 100 xxxxx") //
+DEF_ENC(V6_vrmpybus_acc,     ICLASS_CJ" 1 001 000 ttttt PP 1 uuuuu 101 xxxxx") //
+DEF_ENC(V6_vdmpybus_acc,     ICLASS_CJ" 1 001 000 ttttt PP 1 uuuuu 110 xxxxx") //
+DEF_ENC(V6_vdmpybus_dv_acc, ICLASS_CJ" 1 001 000 ttttt PP 1 uuuuu 111 xxxxx") //
+
+DEF_ENC(V6_vdmpyhsusat_acc, ICLASS_CJ" 1 001 001 ttttt PP 1 uuuuu 000 xxxxx") //
+DEF_ENC(V6_vdmpyhsuisat_acc,ICLASS_CJ" 1 001 001 ttttt PP 1 uuuuu 001 xxxxx") //
+DEF_ENC(V6_vdmpyhisat_acc,     ICLASS_CJ" 1 001 001 ttttt PP 1 uuuuu 010 xxxxx") //
+DEF_ENC(V6_vdmpyhsat_acc,     ICLASS_CJ" 1 001 001 ttttt PP 1 uuuuu 011 xxxxx") //
+DEF_ENC(V6_vdmpyhb_dv_acc,     ICLASS_CJ" 1 001 001 ttttt PP 1 uuuuu 100 xxxxx") //
+DEF_ENC(V6_vmpybus_acc,     ICLASS_CJ" 1 001 001 ttttt PP 1 uuuuu 101 xxxxx") //
+DEF_ENC(V6_vmpabus_acc,     ICLASS_CJ" 1 001 001 ttttt PP 1 uuuuu 110 xxxxx") //
+DEF_ENC(V6_vmpahb_acc,         ICLASS_CJ" 1 001 001 ttttt PP 1 uuuuu 111 xxxxx") //
+
+DEF_ENC(V6_vmpyhsat_acc,     ICLASS_CJ" 1 001 010 ttttt PP 1 uuuuu 000 xxxxx") //
+DEF_ENC(V6_vmpyuh_acc,         ICLASS_CJ" 1 001 010 ttttt PP 1 uuuuu 001 xxxxx") //
+DEF_ENC(V6_vmpyiwb_acc,     ICLASS_CJ" 1 001 010 ttttt PP 1 uuuuu 010 xxxxx") //
+DEF_ENC(V6_vmpyiwh_acc,     ICLASS_CJ" 1 001 010 ttttt PP 1 uuuuu 011 xxxxx") //
+DEF_ENC(V6_vrmpybusi_acc,     ICLASS_CJ" 1 001 010 ttttt PP 1 uuuuu 10i xxxxx") //
+DEF_ENC(V6_vrsadubi_acc,     ICLASS_CJ" 1 001 010 ttttt PP 1 uuuuu 11i xxxxx") //
+
+DEF_ENC(V6_vdsaduh_acc,     ICLASS_CJ" 1 001 011 ttttt PP 1 uuuuu 000 xxxxx") //
+DEF_ENC(V6_vmpyihb_acc,     ICLASS_CJ" 1 001 011 ttttt PP 1 uuuuu 001 xxxxx") //
+DEF_ENC(V6_vaslw_acc,         ICLASS_CJ" 1 001 011 ttttt PP 1 uuuuu 010 xxxxx") //
+DEF_ENC(V6_vandqrt_acc,     ICLASS_CJ" 1 001 011 ttttt PP 1 --0uu 011 xxxxx") //
+DEF_ENC(V6_vandnqrt_acc,     ICLASS_CJ" 1 001 011 ttttt PP 1 --1uu 011 xxxxx") //
+DEF_ENC(V6_vandvrt_acc,     ICLASS_CJ" 1 001 011 ttttt PP 1 uuuuu 100 ---xx") //
+DEF_ENC(V6_vasrw_acc,         ICLASS_CJ" 1 001 011 ttttt PP 1 uuuuu 101 xxxxx") //
+DEF_ENC(V6_vrmpyubi_acc,     ICLASS_CJ" 1 001 011 ttttt PP 1 uuuuu 11i xxxxx") //
+
+DEF_ENC(V6_vmpyub_acc,         ICLASS_CJ" 1 001 100 ttttt PP 1 uuuuu 000 xxxxx") //
+DEF_ENC(V6_vmpyiwub_acc,    ICLASS_CJ" 1 001 100 ttttt PP 1 uuuuu 001 xxxxx") //
+DEF_ENC(V6_vmpauhb_acc,        ICLASS_CJ" 1 001 100 ttttt PP 1 uuuuu 010 xxxxx") //
+DEF_ENC(V6_vmpyuhe_acc,        ICLASS_CJ" 1 001 100 ttttt PP 1 uuuuu 011 xxxxx")
+DEF_ENC(V6_vmpahhsat,        ICLASS_CJ" 1 001 100 ttttt PP 1 uuuuu 100 xxxxx") //
+DEF_ENC(V6_vmpauhuhsat,        ICLASS_CJ" 1 001 100 ttttt PP 1 uuuuu 101 xxxxx") //
+DEF_ENC(V6_vmpsuhuhsat,        ICLASS_CJ" 1 001 100 ttttt PP 1 uuuuu 110 xxxxx") //
+DEF_ENC(V6_vasrh_acc,         ICLASS_CJ" 1 001 100 ttttt PP 1 uuuuu 111 xxxxx") //
+
+
+
+
+DEF_ENC(V6_vinsertwr,        ICLASS_CJ" 1 001 101 ttttt PP 1 ----- 001 xxxxx")
+
+DEF_ENC(V6_vmpabuu_acc,        ICLASS_CJ" 1 001 101 ttttt PP 1 uuuuu 100 xxxxx") //
+DEF_ENC(V6_vaslh_acc,        ICLASS_CJ" 1 001 101 ttttt PP 1 uuuuu 101 xxxxx") //
+DEF_ENC(V6_vmpyh_acc,        ICLASS_CJ" 1 001 101 ttttt PP 1 uuuuu 110 xxxxx") //
+
+
+
+DEF_FIELDROW_DESC32(        ICLASS_CJ" 1 001 --- ----- PP - ----- ----- ---","[#1] (Vx32, Vy32, Rt32)")
+DEF_ENC(V6_vshuff,             ICLASS_CJ" 1 001 111 ttttt PP 1 yyyyy 001 xxxxx") //
+DEF_ENC(V6_vdeal,             ICLASS_CJ" 1 001 111 ttttt PP 1 yyyyy 010 xxxxx") //
+
+DEF_FIELDROW_DESC32(    ICLASS_CJ" 1 010 --- ----- PP - ----- ----- ---","[#2] if (Ps) Vd=Vu")
+DEF_ENC(V6_vcmov,         ICLASS_CJ" 1 010 000 ----- PP - uuuuu -ss ddddd")
+DEF_ENC(V6_vncmov,         ICLASS_CJ" 1 010 001 ----- PP - uuuuu -ss ddddd")
+DEF_ENC(V6_vnccombine,     ICLASS_CJ" 1 010 010 vvvvv PP - uuuuu -ss ddddd")
+DEF_ENC(V6_vccombine,     ICLASS_CJ" 1 010 011 vvvvv PP - uuuuu -ss ddddd")
+
+DEF_ENC(V6_vrotr,       ICLASS_CJ" 1 010 100 vvvvv PP 1 uuuuu 111 ddddd")
+DEF_ENC(V6_vasr_into,   ICLASS_CJ" 1 010 101 vvvvv PP 1 uuuuu 111 xxxxx")
+
+/***************************************************************
+*
+*  Group #3, Uses Q6 Rt8
+*
+****************************************************************/
+
+DEF_FIELDROW_DESC32(        ICLASS_CJ" 1 011 --- ----- PP - ----- ----- ---","[#3] Vd32=(Vu32, Vv32, Rt8)")
+DEF_ENC(V6_valignb,         ICLASS_CJ" 1 011 vvv vvttt PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vlalignb,         ICLASS_CJ" 1 011 vvv vvttt PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vasrwh,         ICLASS_CJ" 1 011 vvv vvttt PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vasrwhsat,         ICLASS_CJ" 1 011 vvv vvttt PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vasrwhrndsat,     ICLASS_CJ" 1 011 vvv vvttt PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vasrwuhsat,         ICLASS_CJ" 1 011 vvv vvttt PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vasrhubsat,         ICLASS_CJ" 1 011 vvv vvttt PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vasrhubrndsat,     ICLASS_CJ" 1 011 vvv vvttt PP 0 uuuuu 111 ddddd") //
+
+DEF_ENC(V6_vasrhbrndsat,     ICLASS_CJ" 1 011 vvv vvttt PP 1 uuuuu 000 ddddd") //
+DEF_ENC(V6_vlutvvb,            ICLASS_CJ" 1 011 vvv vvttt PP 1 uuuuu 001 ddddd")
+DEF_ENC(V6_vshuffvdd,         ICLASS_CJ" 1 011 vvv vvttt PP 1 uuuuu 011 ddddd") //
+DEF_ENC(V6_vdealvdd,         ICLASS_CJ" 1 011 vvv vvttt PP 1 uuuuu 100 ddddd") //
+DEF_ENC(V6_vlutvvb_oracc,    ICLASS_CJ" 1 011 vvv vvttt PP 1 uuuuu 101 xxxxx")
+DEF_ENC(V6_vlutvwh,            ICLASS_CJ" 1 011 vvv vvttt PP 1 uuuuu 110 ddddd")
+DEF_ENC(V6_vlutvwh_oracc,    ICLASS_CJ" 1 011 vvv vvttt PP 1 uuuuu 111 xxxxx")
+
+
+
+/***************************************************************
+*
+*  Group #4, No Q6 regs
+*
+****************************************************************/
+
+DEF_FIELDROW_DESC32(    ICLASS_CJ" 1 100 --- ----- PP 0 ----- ----- ---","[#4] Vd32=(Vu32, Vv32)")
+DEF_ENC(V6_vrmpyubv,     ICLASS_CJ" 1 100 000 vvvvv PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vrmpybv,     ICLASS_CJ" 1 100 000 vvvvv PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vrmpybusv,     ICLASS_CJ" 1 100 000 vvvvv PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vdmpyhvsat,     ICLASS_CJ" 1 100 000 vvvvv PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vmpybv,         ICLASS_CJ" 1 100 000 vvvvv PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vmpyubv,     ICLASS_CJ" 1 100 000 vvvvv PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vmpybusv,     ICLASS_CJ" 1 100 000 vvvvv PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vmpyhv,         ICLASS_CJ" 1 100 000 vvvvv PP 0 uuuuu 111 ddddd") //
+
+DEF_ENC(V6_vmpyuhv,     ICLASS_CJ" 1 100 001 vvvvv PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vmpyhvsrs,     ICLASS_CJ" 1 100 001 vvvvv PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vmpyhus,     ICLASS_CJ" 1 100 001 vvvvv PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vmpabusv,     ICLASS_CJ" 1 100 001 vvvvv PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vmpyih,         ICLASS_CJ" 1 100 001 vvvvv PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vand,         ICLASS_CJ" 1 100 001 vvvvv PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vor,         ICLASS_CJ" 1 100 001 vvvvv PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vxor,         ICLASS_CJ" 1 100 001 vvvvv PP 0 uuuuu 111 ddddd") //
+
+DEF_ENC(V6_vaddw,         ICLASS_CJ" 1 100 010 vvvvv PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vaddubsat,     ICLASS_CJ" 1 100 010 vvvvv PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vadduhsat,     ICLASS_CJ" 1 100 010 vvvvv PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vaddhsat,     ICLASS_CJ" 1 100 010 vvvvv PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vaddwsat,     ICLASS_CJ" 1 100 010 vvvvv PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vsubb,         ICLASS_CJ" 1 100 010 vvvvv PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vsubh,         ICLASS_CJ" 1 100 010 vvvvv PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vsubw,         ICLASS_CJ" 1 100 010 vvvvv PP 0 uuuuu 111 ddddd") //
+
+DEF_ENC(V6_vsububsat,     ICLASS_CJ" 1 100 011 vvvvv PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vsubuhsat,     ICLASS_CJ" 1 100 011 vvvvv PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vsubhsat,     ICLASS_CJ" 1 100 011 vvvvv PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vsubwsat,     ICLASS_CJ" 1 100 011 vvvvv PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vaddb_dv,     ICLASS_CJ" 1 100 011 vvvvv PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vaddh_dv,     ICLASS_CJ" 1 100 011 vvvvv PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vaddw_dv,     ICLASS_CJ" 1 100 011 vvvvv PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vaddubsat_dv,ICLASS_CJ" 1 100 011 vvvvv PP 0 uuuuu 111 ddddd") //
+
+DEF_ENC(V6_vadduhsat_dv,ICLASS_CJ" 1 100 100 vvvvv PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vaddhsat_dv, ICLASS_CJ" 1 100 100 vvvvv PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vaddwsat_dv, ICLASS_CJ" 1 100 100 vvvvv PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vsubb_dv,     ICLASS_CJ" 1 100 100 vvvvv PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vsubh_dv,     ICLASS_CJ" 1 100 100 vvvvv PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vsubw_dv,     ICLASS_CJ" 1 100 100 vvvvv PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vsububsat_dv,ICLASS_CJ" 1 100 100 vvvvv PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vsubuhsat_dv,ICLASS_CJ" 1 100 100 vvvvv PP 0 uuuuu 111 ddddd") //
+
+DEF_ENC(V6_vsubhsat_dv,    ICLASS_CJ" 1 100 101 vvvvv PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vsubwsat_dv, ICLASS_CJ" 1 100 101 vvvvv PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vaddubh,     ICLASS_CJ" 1 100 101 vvvvv PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vadduhw,     ICLASS_CJ" 1 100 101 vvvvv PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vaddhw,         ICLASS_CJ" 1 100 101 vvvvv PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vsububh,     ICLASS_CJ" 1 100 101 vvvvv PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vsubuhw,        ICLASS_CJ" 1 100 101 vvvvv PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vsubhw,        ICLASS_CJ" 1 100 101 vvvvv PP 0 uuuuu 111 ddddd") //
+
+DEF_ENC(V6_vabsdiffub,    ICLASS_CJ" 1 100 110 vvvvv PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vabsdiffh,     ICLASS_CJ" 1 100 110 vvvvv PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vabsdiffuh,     ICLASS_CJ" 1 100 110 vvvvv PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vabsdiffw,     ICLASS_CJ" 1 100 110 vvvvv PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vavgub,         ICLASS_CJ" 1 100 110 vvvvv PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vavguh,         ICLASS_CJ" 1 100 110 vvvvv PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vavgh,        ICLASS_CJ" 1 100 110 vvvvv PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vavgw,        ICLASS_CJ" 1 100 110 vvvvv PP 0 uuuuu 111 ddddd") //
+
+DEF_ENC(V6_vnavgub,        ICLASS_CJ" 1 100 111 vvvvv PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vnavgh,         ICLASS_CJ" 1 100 111 vvvvv PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vnavgw,         ICLASS_CJ" 1 100 111 vvvvv PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vavgubrnd,     ICLASS_CJ" 1 100 111 vvvvv PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vavguhrnd,     ICLASS_CJ" 1 100 111 vvvvv PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vavghrnd,     ICLASS_CJ" 1 100 111 vvvvv PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vavgwrnd,    ICLASS_CJ" 1 100 111 vvvvv PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vmpabuuv,    ICLASS_CJ" 1 100 111 vvvvv PP 0 uuuuu 111 ddddd") //
+
+DEF_FIELDROW_DESC32(        ICLASS_CJ" 1 100 --- ----- PP 1 ----- ----- ---","[#4] Vx32=(Vu32, Vv32)")
+DEF_ENC(V6_vrmpyubv_acc,      ICLASS_CJ" 1 100 000 vvvvv PP 1 uuuuu 000 xxxxx") //
+DEF_ENC(V6_vrmpybv_acc,       ICLASS_CJ" 1 100 000 vvvvv PP 1 uuuuu 001 xxxxx") //
+DEF_ENC(V6_vrmpybusv_acc,    ICLASS_CJ" 1 100 000 vvvvv PP 1 uuuuu 010 xxxxx") //
+DEF_ENC(V6_vdmpyhvsat_acc,    ICLASS_CJ" 1 100 000 vvvvv PP 1 uuuuu 011 xxxxx") //
+DEF_ENC(V6_vmpybv_acc,         ICLASS_CJ" 1 100 000 vvvvv PP 1 uuuuu 100 xxxxx") //
+DEF_ENC(V6_vmpyubv_acc,     ICLASS_CJ" 1 100 000 vvvvv PP 1 uuuuu 101 xxxxx") //
+DEF_ENC(V6_vmpybusv_acc,    ICLASS_CJ" 1 100 000 vvvvv PP 1 uuuuu 110 xxxxx") //
+DEF_ENC(V6_vmpyhv_acc,        ICLASS_CJ" 1 100 000 vvvvv PP 1 uuuuu 111 xxxxx") //
+
+DEF_ENC(V6_vmpyuhv_acc,        ICLASS_CJ" 1 100 001 vvvvv PP 1 uuuuu 000 xxxxx") //
+DEF_ENC(V6_vmpyhus_acc,     ICLASS_CJ" 1 100 001 vvvvv PP 1 uuuuu 001 xxxxx") //
+DEF_ENC(V6_vaddhw_acc,        ICLASS_CJ" 1 100 001 vvvvv PP 1 uuuuu 010 xxxxx") //
+DEF_ENC(V6_vmpyowh_64_acc,    ICLASS_CJ" 1 100 001 vvvvv PP 1 uuuuu 011 xxxxx")
+DEF_ENC(V6_vmpyih_acc,         ICLASS_CJ" 1 100 001 vvvvv PP 1 uuuuu 100 xxxxx") //
+DEF_ENC(V6_vmpyiewuh_acc,    ICLASS_CJ" 1 100 001 vvvvv PP 1 uuuuu 101 xxxxx") //
+DEF_ENC(V6_vmpyowh_sacc,    ICLASS_CJ" 1 100 001 vvvvv PP 1 uuuuu 110 xxxxx") //
+DEF_ENC(V6_vmpyowh_rnd_sacc,ICLASS_CJ" 1 100 001 vvvvv PP 1 uuuuu 111 xxxxx") //
+
+DEF_ENC(V6_vmpyiewh_acc,      ICLASS_CJ" 1 100 010 vvvvv PP 1 uuuuu 000 xxxxx") //
+
+DEF_ENC(V6_vadduhw_acc,          ICLASS_CJ" 1 100 010 vvvvv PP 1 uuuuu 100 xxxxx") //
+DEF_ENC(V6_vaddubh_acc,          ICLASS_CJ" 1 100 010 vvvvv PP 1 uuuuu 101 xxxxx") //
+
+DEF_FIELDROW_DESC32(    ICLASS_CJ" 1 100 100 ----- PP 1 ----- ----- ---","[#4] Qx4=(Vu32, Vv32)")
+// Grouped by element size (lsbs), operation (next-lsbs) and operation (next-lsbs)
+DEF_ENC(V6_veqb_and,     ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 000 000xx") //
+DEF_ENC(V6_veqh_and,     ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 000 001xx") //
+DEF_ENC(V6_veqw_and,     ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 000 010xx") //
+
+DEF_ENC(V6_vgtb_and,    ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 000 100xx") //
+DEF_ENC(V6_vgth_and,    ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 000 101xx") //
+DEF_ENC(V6_vgtw_and,    ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 000 110xx") //
+
+DEF_ENC(V6_vgtub_and,    ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 001 000xx") //
+DEF_ENC(V6_vgtuh_and,    ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 001 001xx") //
+DEF_ENC(V6_vgtuw_and,    ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 001 010xx") //
+
+DEF_ENC(V6_veqb_or,     ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 010 000xx") //
+DEF_ENC(V6_veqh_or,     ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 010 001xx") //
+DEF_ENC(V6_veqw_or,     ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 010 010xx") //
+
+DEF_ENC(V6_vgtb_or,        ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 010 100xx") //
+DEF_ENC(V6_vgth_or,        ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 010 101xx") //
+DEF_ENC(V6_vgtw_or,        ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 010 110xx") //
+
+DEF_ENC(V6_vgtub_or,    ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 011 000xx") //
+DEF_ENC(V6_vgtuh_or,    ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 011 001xx") //
+DEF_ENC(V6_vgtuw_or,    ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 011 010xx") //
+
+DEF_ENC(V6_veqb_xor,     ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 100 000xx") //
+DEF_ENC(V6_veqh_xor,     ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 100 001xx") //
+DEF_ENC(V6_veqw_xor,     ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 100 010xx") //
+
+DEF_ENC(V6_vgtb_xor,    ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 100 100xx") //
+DEF_ENC(V6_vgth_xor,    ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 100 101xx") //
+DEF_ENC(V6_vgtw_xor,    ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 100 110xx") //
+
+DEF_ENC(V6_vgtub_xor,    ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 101 000xx") //
+DEF_ENC(V6_vgtuh_xor,    ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 101 001xx") //
+DEF_ENC(V6_vgtuw_xor,    ICLASS_CJ" 1 100 100 vvvvv PP 1 uuuuu 101 010xx") //
+
+DEF_FIELDROW_DESC32(    ICLASS_CJ" 1 100 101 ----- PP 1 ----- ----- ---","[#4] Qx4,Vd32=(Vu32, Vv32)")
+DEF_ENC(V6_vaddcarry,    ICLASS_CJ" 1 100 101 vvvvv PP 1 uuuuu 0xx ddddd") //
+DEF_ENC(V6_vsubcarry,    ICLASS_CJ" 1 100 101 vvvvv PP 1 uuuuu 1xx ddddd") //
+
+DEF_FIELDROW_DESC32(        ICLASS_CJ" 1 100 11- ----- PP 1 ----- ----- ---","[#4] Vx32|=(Vu32, Vv32,#)")
+DEF_ENC(V6_vlutvvb_oracci,    ICLASS_CJ" 1 100 110 vvvvv PP 1 uuuuu iii xxxxx") //
+DEF_ENC(V6_vlutvwh_oracci,    ICLASS_CJ" 1 100 111 vvvvv PP 1 uuuuu iii xxxxx") //
+
+
+
+/***************************************************************
+*
+*  Group #5, Reserved/Deprecated. Uses Q6 Rx. Stupid FFT.
+*
+****************************************************************/
+
+
+
+
+/***************************************************************
+*
+*  Group #6, No Q6 regs
+*
+****************************************************************/
+
+DEF_FIELDROW_DESC32(    ICLASS_CJ" 1 110 --0 ----- PP 0 ----- ----- ---","[#6] Vd32=Vu32")
+DEF_ENC(V6_vabsh,         ICLASS_CJ" 1 110 --0 ---00 PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vabsh_sat,     ICLASS_CJ" 1 110 --0 ---00 PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vabsw,         ICLASS_CJ" 1 110 --0 ---00 PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vabsw_sat,     ICLASS_CJ" 1 110 --0 ---00 PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vnot,         ICLASS_CJ" 1 110 --0 ---00 PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vdealh,         ICLASS_CJ" 1 110 --0 ---00 PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vdealb,         ICLASS_CJ" 1 110 --0 ---00 PP 0 uuuuu 111 ddddd") //
+
+DEF_ENC(V6_vunpackub,     ICLASS_CJ" 1 110 --0 ---01 PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vunpackuh,     ICLASS_CJ" 1 110 --0 ---01 PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vunpackb,     ICLASS_CJ" 1 110 --0 ---01 PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vunpackh,     ICLASS_CJ" 1 110 --0 ---01 PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vabsb,         ICLASS_CJ" 1 110 --0 ---01 PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vabsb_sat,     ICLASS_CJ" 1 110 --0 ---01 PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vshuffh,     ICLASS_CJ" 1 110 --0 ---01 PP 0 uuuuu 111 ddddd") //
+
+DEF_ENC(V6_vshuffb,     ICLASS_CJ" 1 110 --0 ---10 PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vzb,         ICLASS_CJ" 1 110 --0 ---10 PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vzh,         ICLASS_CJ" 1 110 --0 ---10 PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vsb,         ICLASS_CJ" 1 110 --0 ---10 PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vsh,         ICLASS_CJ" 1 110 --0 ---10 PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vcl0w,         ICLASS_CJ" 1 110 --0 ---10 PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vpopcounth,     ICLASS_CJ" 1 110 --0 ---10 PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vcl0h,         ICLASS_CJ" 1 110 --0 ---10 PP 0 uuuuu 111 ddddd") //
+
+
+DEF_FIELDROW_DESC32(    ICLASS_CJ" 1 110 --0 ---11 PP 0 ----- ----- ---","[#6] Qd4=Qt4, Qs4")
+DEF_ENC(V6_pred_and,     ICLASS_CJ" 1 110 tt0 ---11 PP 0 ---ss 000 000dd") //
+DEF_ENC(V6_pred_or,     ICLASS_CJ" 1 110 tt0 ---11 PP 0 ---ss 000 001dd") //
+DEF_ENC(V6_pred_not,     ICLASS_CJ" 1 110 --0 ---11 PP 0 ---ss 000 010dd") //
+DEF_ENC(V6_pred_xor,     ICLASS_CJ" 1 110 tt0 ---11 PP 0 ---ss 000 011dd") //
+DEF_ENC(V6_pred_or_n,     ICLASS_CJ" 1 110 tt0 ---11 PP 0 ---ss 000 100dd") //
+DEF_ENC(V6_pred_and_n,     ICLASS_CJ" 1 110 tt0 ---11 PP 0 ---ss 000 101dd") //
+DEF_ENC(V6_shuffeqh,     ICLASS_CJ" 1 110 tt0 ---11 PP 0 ---ss 000 110dd") //
+DEF_ENC(V6_shuffeqw,     ICLASS_CJ" 1 110 tt0 ---11 PP 0 ---ss 000 111dd") //
+
+DEF_ENC(V6_vnormamtw,        ICLASS_CJ" 1 110 --0 ---11 PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vnormamth,        ICLASS_CJ" 1 110 --0 ---11 PP 0 uuuuu 101 ddddd") //
+
+DEF_FIELDROW_DESC32(        ICLASS_CJ" 1 110 --1 ----- PP 0 ----- ----- ---","[#6] Vd32=Vu32,Vv32")
+DEF_ENC(V6_vlutvvbi,        ICLASS_CJ" 1 110 001 vvvvv PP 0 uuuuu iii ddddd")
+DEF_ENC(V6_vlutvwhi,        ICLASS_CJ" 1 110 011 vvvvv PP 0 uuuuu iii ddddd")
+
+DEF_ENC(V6_vaddbsat_dv,        ICLASS_CJ" 1 110 101 vvvvv PP 0 uuuuu 000 ddddd")
+DEF_ENC(V6_vsubbsat_dv,        ICLASS_CJ" 1 110 101 vvvvv PP 0 uuuuu 001 ddddd")
+DEF_ENC(V6_vadduwsat_dv,    ICLASS_CJ" 1 110 101 vvvvv PP 0 uuuuu 010 ddddd")
+DEF_ENC(V6_vsubuwsat_dv,    ICLASS_CJ" 1 110 101 vvvvv PP 0 uuuuu 011 ddddd")
+DEF_ENC(V6_vaddububb_sat,    ICLASS_CJ" 1 110 101 vvvvv PP 0 uuuuu 100 ddddd")
+DEF_ENC(V6_vsubububb_sat,    ICLASS_CJ" 1 110 101 vvvvv PP 0 uuuuu 101 ddddd")
+DEF_ENC(V6_vmpyewuh_64,        ICLASS_CJ" 1 110 101 vvvvv PP 0 uuuuu 110 ddddd")
+
+DEF_FIELDROW_DESC32(        ICLASS_CJ" 1 110 --0 ----- PP 1 ----- ----- ---","Vx32=Vu32")
+DEF_ENC(V6_vunpackob,         ICLASS_CJ" 1 110 --0 ---00 PP 1 uuuuu 000 xxxxx") //
+DEF_ENC(V6_vunpackoh,         ICLASS_CJ" 1 110 --0 ---00 PP 1 uuuuu 001 xxxxx") //
+//DEF_ENC(V6_vunpackow,     ICLASS_CJ" 1 110 --0 ---00 PP 1 uuuuu 010 xxxxx") //
+
+DEF_ENC(V6_vhist,            ICLASS_CJ" 1 110 --0 ---00 PP 1 -000- 100 -----")
+DEF_ENC(V6_vwhist256,        ICLASS_CJ" 1 110 --0 ---00 PP 1 -0010 100 -----")
+DEF_ENC(V6_vwhist256_sat,    ICLASS_CJ" 1 110 --0 ---00 PP 1 -0011 100 -----")
+DEF_ENC(V6_vwhist128,        ICLASS_CJ" 1 110 --0 ---00 PP 1 -010- 100 -----")
+DEF_ENC(V6_vwhist128m,        ICLASS_CJ" 1 110 --0 ---00 PP 1 -011i 100 -----")
+
+DEF_FIELDROW_DESC32(        ICLASS_CJ" 1 110 --0 ----- PP 1 ----- ----- ---","if (Qv4) Vx32=Vu32")
+DEF_ENC(V6_vaddbq,             ICLASS_CJ" 1 110 vv0 ---01 PP 1 uuuuu 000 xxxxx") //
+DEF_ENC(V6_vaddhq,             ICLASS_CJ" 1 110 vv0 ---01 PP 1 uuuuu 001 xxxxx") //
+DEF_ENC(V6_vaddwq,             ICLASS_CJ" 1 110 vv0 ---01 PP 1 uuuuu 010 xxxxx") //
+DEF_ENC(V6_vaddbnq,         ICLASS_CJ" 1 110 vv0 ---01 PP 1 uuuuu 011 xxxxx") //
+DEF_ENC(V6_vaddhnq,         ICLASS_CJ" 1 110 vv0 ---01 PP 1 uuuuu 100 xxxxx") //
+DEF_ENC(V6_vaddwnq,         ICLASS_CJ" 1 110 vv0 ---01 PP 1 uuuuu 101 xxxxx") //
+DEF_ENC(V6_vsubbq,             ICLASS_CJ" 1 110 vv0 ---01 PP 1 uuuuu 110 xxxxx") //
+DEF_ENC(V6_vsubhq,             ICLASS_CJ" 1 110 vv0 ---01 PP 1 uuuuu 111 xxxxx") //
+
+DEF_ENC(V6_vsubwq,             ICLASS_CJ" 1 110 vv0 ---10 PP 1 uuuuu 000 xxxxx") //
+DEF_ENC(V6_vsubbnq,         ICLASS_CJ" 1 110 vv0 ---10 PP 1 uuuuu 001 xxxxx") //
+DEF_ENC(V6_vsubhnq,         ICLASS_CJ" 1 110 vv0 ---10 PP 1 uuuuu 010 xxxxx") //
+DEF_ENC(V6_vsubwnq,         ICLASS_CJ" 1 110 vv0 ---10 PP 1 uuuuu 011 xxxxx") //
+
+DEF_ENC(V6_vhistq,            ICLASS_CJ" 1 110 vv0 ---10 PP 1 --00- 100 -----")
+DEF_ENC(V6_vwhist256q,        ICLASS_CJ" 1 110 vv0 ---10 PP 1 --010 100 -----")
+DEF_ENC(V6_vwhist256q_sat,    ICLASS_CJ" 1 110 vv0 ---10 PP 1 --011 100 -----")
+DEF_ENC(V6_vwhist128q,        ICLASS_CJ" 1 110 vv0 ---10 PP 1 --10- 100 -----")
+DEF_ENC(V6_vwhist128qm,        ICLASS_CJ" 1 110 vv0 ---10 PP 1 --11i 100 -----")
+
+
+DEF_ENC(V6_vandvqv,            ICLASS_CJ" 1 110 vv0 ---11 PP 1 uuuuu 000 ddddd")
+DEF_ENC(V6_vandvnqv,        ICLASS_CJ" 1 110 vv0 ---11 PP 1 uuuuu 001 ddddd")
+
+
+DEF_ENC(V6_vprefixqb,       ICLASS_CJ" 1 110 vv0 ---11 PP 1 --000 010 ddddd") //
+DEF_ENC(V6_vprefixqh,       ICLASS_CJ" 1 110 vv0 ---11 PP 1 --001 010 ddddd") //
+DEF_ENC(V6_vprefixqw,       ICLASS_CJ" 1 110 vv0 ---11 PP 1 --010 010 ddddd") //
+
+
+
+
+DEF_ENC(V6_vassign,            ICLASS_CJ" 1 110 --0 ---11 PP 1 uuuuu 111 ddddd")
+
+DEF_ENC(V6_valignbi,         ICLASS_CJ" 1 110 001 vvvvv PP 1 uuuuu iii ddddd")
+DEF_ENC(V6_vlalignbi,         ICLASS_CJ" 1 110 011 vvvvv PP 1 uuuuu iii ddddd")
+DEF_ENC(V6_vswap,             ICLASS_CJ" 1 110 101 vvvvv PP 1 uuuuu -tt ddddd") //
+DEF_ENC(V6_vmux,             ICLASS_CJ" 1 110 111 vvvvv PP 1 uuuuu -tt ddddd") //
+
+
+
+/***************************************************************
+*
+*  Group #7, No Q6 regs
+*
+****************************************************************/
+
+DEF_FIELDROW_DESC32(    ICLASS_CJ" 1 111 --- ----- PP 0 ----- ----- ---","[#7] Vd32=(Vu32, Vv32)")
+DEF_ENC(V6_vaddbsat,    ICLASS_CJ" 1 111 000 vvvvv PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vminub,         ICLASS_CJ" 1 111 000 vvvvv PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vminuh,         ICLASS_CJ" 1 111 000 vvvvv PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vminh,         ICLASS_CJ" 1 111 000 vvvvv PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vminw,         ICLASS_CJ" 1 111 000 vvvvv PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vmaxub,         ICLASS_CJ" 1 111 000 vvvvv PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vmaxuh,         ICLASS_CJ" 1 111 000 vvvvv PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vmaxh,         ICLASS_CJ" 1 111 000 vvvvv PP 0 uuuuu 111 ddddd") //
+
+
+DEF_ENC(V6_vaddclbh,    ICLASS_CJ" 1 111 000 vvvvv PP 1 uuuuu 000 ddddd") //
+DEF_ENC(V6_vaddclbw,    ICLASS_CJ" 1 111 000 vvvvv PP 1 uuuuu 001 ddddd") //
+
+DEF_ENC(V6_vavguw,        ICLASS_CJ" 1 111 000 vvvvv PP 1 uuuuu 010 ddddd") //
+DEF_ENC(V6_vavguwrnd,    ICLASS_CJ" 1 111 000 vvvvv PP 1 uuuuu 011 ddddd") //
+DEF_ENC(V6_vavgb,        ICLASS_CJ" 1 111 000 vvvvv PP 1 uuuuu 100 ddddd") //
+DEF_ENC(V6_vavgbrnd,    ICLASS_CJ" 1 111 000 vvvvv PP 1 uuuuu 101 ddddd") //
+DEF_ENC(V6_vnavgb,        ICLASS_CJ" 1 111 000 vvvvv PP 1 uuuuu 110 ddddd") //
+
+
+DEF_ENC(V6_vmaxw,         ICLASS_CJ" 1 111 001 vvvvv PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vdelta,         ICLASS_CJ" 1 111 001 vvvvv PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vsubbsat,    ICLASS_CJ" 1 111 001 vvvvv PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vrdelta,     ICLASS_CJ" 1 111 001 vvvvv PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vminb,         ICLASS_CJ" 1 111 001 vvvvv PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vmaxb,         ICLASS_CJ" 1 111 001 vvvvv PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vsatuwuh,    ICLASS_CJ" 1 111 001 vvvvv PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vdealb4w,     ICLASS_CJ" 1 111 001 vvvvv PP 0 uuuuu 111 ddddd") //
+
+
+DEF_ENC(V6_vmpyowh_rnd,     ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vshuffeb,      ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vshuffob,      ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vshufeh,      ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vshufoh,      ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vshufoeh,      ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vshufoeb,      ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vcombine,     ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 111 ddddd") //
+
+DEF_ENC(V6_vmpyieoh,     ICLASS_CJ" 1 111 011 vvvvv PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vadduwsat,     ICLASS_CJ" 1 111 011 vvvvv PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vsathub,     ICLASS_CJ" 1 111 011 vvvvv PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vsatwh,         ICLASS_CJ" 1 111 011 vvvvv PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vroundwh,    ICLASS_CJ" 1 111 011 vvvvv PP 0 uuuuu 100 ddddd")
+DEF_ENC(V6_vroundwuh,    ICLASS_CJ" 1 111 011 vvvvv PP 0 uuuuu 101 ddddd")
+DEF_ENC(V6_vroundhb,    ICLASS_CJ" 1 111 011 vvvvv PP 0 uuuuu 110 ddddd")
+DEF_ENC(V6_vroundhub,    ICLASS_CJ" 1 111 011 vvvvv PP 0 uuuuu 111 ddddd")
+
+DEF_FIELDROW_DESC32(    ICLASS_CJ" 1 111 100 ----- PP - ----- ----- ---","[#7] Qd4=(Vu32, Vv32)")
+DEF_ENC(V6_veqb,         ICLASS_CJ" 1 111 100 vvvvv PP 0 uuuuu 000 000dd") //
+DEF_ENC(V6_veqh,         ICLASS_CJ" 1 111 100 vvvvv PP 0 uuuuu 000 001dd") //
+DEF_ENC(V6_veqw,         ICLASS_CJ" 1 111 100 vvvvv PP 0 uuuuu 000 010dd") //
+
+DEF_ENC(V6_vgtb,         ICLASS_CJ" 1 111 100 vvvvv PP 0 uuuuu 000 100dd") //
+DEF_ENC(V6_vgth,         ICLASS_CJ" 1 111 100 vvvvv PP 0 uuuuu 000 101dd") //
+DEF_ENC(V6_vgtw,         ICLASS_CJ" 1 111 100 vvvvv PP 0 uuuuu 000 110dd") //
+
+DEF_ENC(V6_vgtub,         ICLASS_CJ" 1 111 100 vvvvv PP 0 uuuuu 001 000dd") //
+DEF_ENC(V6_vgtuh,         ICLASS_CJ" 1 111 100 vvvvv PP 0 uuuuu 001 001dd") //
+DEF_ENC(V6_vgtuw,         ICLASS_CJ" 1 111 100 vvvvv PP 0 uuuuu 001 010dd") //
+
+
+DEF_ENC(V6_vasrwv,         ICLASS_CJ" 1 111 101 vvvvv PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vlsrwv,         ICLASS_CJ" 1 111 101 vvvvv PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vlsrhv,         ICLASS_CJ" 1 111 101 vvvvv PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vasrhv,         ICLASS_CJ" 1 111 101 vvvvv PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vaslwv,         ICLASS_CJ" 1 111 101 vvvvv PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vaslhv,         ICLASS_CJ" 1 111 101 vvvvv PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vaddb,         ICLASS_CJ" 1 111 101 vvvvv PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vaddh,         ICLASS_CJ" 1 111 101 vvvvv PP 0 uuuuu 111 ddddd") //
+
+
+DEF_ENC(V6_vmpyiewuh,     ICLASS_CJ" 1 111 110 vvvvv PP 0 uuuuu 000 ddddd")
+DEF_ENC(V6_vmpyiowh,    ICLASS_CJ" 1 111 110 vvvvv PP 0 uuuuu 001 ddddd")
+DEF_ENC(V6_vpackeb,     ICLASS_CJ" 1 111 110 vvvvv PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vpackeh,     ICLASS_CJ" 1 111 110 vvvvv PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vsubuwsat,     ICLASS_CJ" 1 111 110 vvvvv PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vpackhub_sat,ICLASS_CJ" 1 111 110 vvvvv PP 0 uuuuu 101 ddddd") //
+DEF_ENC(V6_vpackhb_sat, ICLASS_CJ" 1 111 110 vvvvv PP 0 uuuuu 110 ddddd") //
+DEF_ENC(V6_vpackwuh_sat,ICLASS_CJ" 1 111 110 vvvvv PP 0 uuuuu 111 ddddd") //
+
+DEF_ENC(V6_vpackwh_sat, ICLASS_CJ" 1 111 111 vvvvv PP 0 uuuuu 000 ddddd") //
+DEF_ENC(V6_vpackob,     ICLASS_CJ" 1 111 111 vvvvv PP 0 uuuuu 001 ddddd") //
+DEF_ENC(V6_vpackoh,     ICLASS_CJ" 1 111 111 vvvvv PP 0 uuuuu 010 ddddd") //
+DEF_ENC(V6_vrounduhub,     ICLASS_CJ" 1 111 111 vvvvv PP 0 uuuuu 011 ddddd") //
+DEF_ENC(V6_vrounduwuh,     ICLASS_CJ" 1 111 111 vvvvv PP 0 uuuuu 100 ddddd") //
+DEF_ENC(V6_vmpyewuh,    ICLASS_CJ" 1 111 111 vvvvv PP 0 uuuuu 101 ddddd")
+DEF_ENC(V6_vmpyowh,        ICLASS_CJ" 1 111 111 vvvvv PP 0 uuuuu 111 ddddd")
+
+
+#endif /* NO MMVEC */

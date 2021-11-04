@@ -266,6 +266,10 @@ static inline void gen_pred_cancel(TCGv pred, int slot_num)
 
 #define fNEWREG_ST(VAL) (VAL)
 
+#define fVSATUVALN(N, VAL) \
+    ({ \
+        (((int)(VAL)) < 0) ? 0 : ((1LL << (N)) - 1); \
+    })
 #define fSATUVALN(N, VAL) \
     ({ \
         fSET_OVERFLOW(); \
@@ -276,10 +280,16 @@ static inline void gen_pred_cancel(TCGv pred, int slot_num)
         fSET_OVERFLOW(); \
         ((VAL) < 0) ? (-(1LL << ((N) - 1))) : ((1LL << ((N) - 1)) - 1); \
     })
+#define fVSATVALN(N, VAL) \
+    ({ \
+        ((VAL) < 0) ? (-(1LL << ((N) - 1))) : ((1LL << ((N) - 1)) - 1); \
+    })
 #define fZXTN(N, M, VAL) (((N) != 0) ? extract64((VAL), 0, (N)) : 0LL)
 #define fSXTN(N, M, VAL) (((N) != 0) ? sextract64((VAL), 0, (N)) : 0LL)
 #define fSATN(N, VAL) \
     ((fSXTN(N, 64, VAL) == (VAL)) ? (VAL) : fSATVALN(N, VAL))
+#define fVSATN(N, VAL) \
+    ((fSXTN(N, 64, VAL) == (VAL)) ? (VAL) : fVSATVALN(N, VAL))
 #define fADDSAT64(DST, A, B) \
     do { \
         uint64_t __a = fCAST8u(A); \
@@ -302,12 +312,18 @@ static inline void gen_pred_cancel(TCGv pred, int slot_num)
             DST = __sum; \
         } \
     } while (0)
+#define fVSATUN(N, VAL) \
+    ((fZXTN(N, 64, VAL) == (VAL)) ? (VAL) : fVSATUVALN(N, VAL))
 #define fSATUN(N, VAL) \
     ((fZXTN(N, 64, VAL) == (VAL)) ? (VAL) : fSATUVALN(N, VAL))
 #define fSATH(VAL) (fSATN(16, VAL))
 #define fSATUH(VAL) (fSATUN(16, VAL))
+#define fVSATH(VAL) (fVSATN(16, VAL))
+#define fVSATUH(VAL) (fVSATUN(16, VAL))
 #define fSATUB(VAL) (fSATUN(8, VAL))
 #define fSATB(VAL) (fSATN(8, VAL))
+#define fVSATUB(VAL) (fVSATUN(8, VAL))
+#define fVSATB(VAL) (fVSATN(8, VAL))
 #define fIMMEXT(IMM) (IMM = IMM)
 #define fMUST_IMMEXT(IMM) fIMMEXT(IMM)
 
@@ -414,6 +430,8 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fCAST4s(A) ((int32_t)(A))
 #define fCAST8u(A) ((uint64_t)(A))
 #define fCAST8s(A) ((int64_t)(A))
+#define fCAST2_2s(A) ((int16_t)(A))
+#define fCAST2_2u(A) ((uint16_t)(A))
 #define fCAST4_4s(A) ((int32_t)(A))
 #define fCAST4_4u(A) ((uint32_t)(A))
 #define fCAST4_8s(A) ((int64_t)((int32_t)(A)))
@@ -510,7 +528,9 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fPM_M(REG, MVAL)    do { REG = REG + (MVAL); } while (0)
 #endif
 #define fSCALE(N, A) (((int64_t)(A)) << N)
+#define fVSATW(A) fVSATN(32, ((long long)A))
 #define fSATW(A) fSATN(32, ((long long)A))
+#define fVSAT(A) fVSATN(32, (A))
 #define fSAT(A) fSATN(32, (A))
 #define fSAT_ORIG_SHL(A, ORIG_REG) \
     ((((int32_t)((fSAT(A)) ^ ((int32_t)(ORIG_REG)))) < 0) \
@@ -647,12 +667,14 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
             fSETBIT(j, DST, VAL); \
         } \
     } while (0)
+#define fCOUNTONES_2(VAL) ctpop16(VAL)
 #define fCOUNTONES_4(VAL) ctpop32(VAL)
 #define fCOUNTONES_8(VAL) ctpop64(VAL)
 #define fBREV_8(VAL) revbit64(VAL)
 #define fBREV_4(VAL) revbit32(VAL)
 #define fCL1_8(VAL) clo64(VAL)
 #define fCL1_4(VAL) clo32(VAL)
+#define fCL1_2(VAL) (clz32(~(uint16_t)(VAL) & 0xffff) - 16)
 #define fINTERLEAVE(ODD, EVEN) interleave(ODD, EVEN)
 #define fDEINTERLEAVE(MIXED) deinterleave(MIXED)
 #define fHIDE(A) A

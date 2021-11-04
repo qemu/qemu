@@ -40,6 +40,11 @@ const char * const opcode_names[] = {
  *         Q6INSN(A2_add,"Rd32=add(Rs32,Rt32)",ATTRIBS(),
  *         "Add 32-bit registers",
  *         { RdV=RsV+RtV;})
+ *     HVX instructions have the following form
+ *         EXTINSN(V6_vinsertwr, "Vx32.w=vinsert(Rt32)",
+ *         ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VX,A_CVI_LATE),
+ *         "Insert Word Scalar into Vector",
+ *         VxV.uw[0] = RtV;)
  */
 const char * const opcode_syntax[XX_LAST_OPCODE] = {
 #define Q6INSN(TAG, BEH, ATTRIBS, DESCR, SEM) \
@@ -105,6 +110,14 @@ static const char *get_opcode_enc(int opcode)
 
 static const char *get_opcode_enc_class(int opcode)
 {
+    const char *tmp = opcode_encodings[opcode].encoding;
+    if (tmp == NULL) {
+        const char *test = "V6_";        /* HVX */
+        const char *name = opcode_names[opcode];
+        if (strncmp(name, test, strlen(test)) == 0) {
+            return "EXT_mmvec";
+        }
+    }
     return opcode_enc_class_names[opcode_encodings[opcode].enc_class];
 }
 
