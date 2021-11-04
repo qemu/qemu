@@ -1257,6 +1257,72 @@ static void gen_vsldoi(DisasContext *ctx)
     tcg_temp_free_i32(sh);
 }
 
+static bool trans_VSLDBI(DisasContext *ctx, arg_VN *a)
+{
+    TCGv_i64 t0, t1, t2;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
+
+    get_avr64(t0, a->vra, true);
+    get_avr64(t1, a->vra, false);
+
+    if (a->sh != 0) {
+        t2 = tcg_temp_new_i64();
+
+        get_avr64(t2, a->vrb, true);
+
+        tcg_gen_extract2_i64(t0, t1, t0, 64 - a->sh);
+        tcg_gen_extract2_i64(t1, t2, t1, 64 - a->sh);
+
+        tcg_temp_free_i64(t2);
+    }
+
+    set_avr64(a->vrt, t0, true);
+    set_avr64(a->vrt, t1, false);
+
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+
+    return true;
+}
+
+static bool trans_VSRDBI(DisasContext *ctx, arg_VN *a)
+{
+    TCGv_i64 t2, t1, t0;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
+
+    get_avr64(t0, a->vrb, false);
+    get_avr64(t1, a->vrb, true);
+
+    if (a->sh != 0) {
+        t2 = tcg_temp_new_i64();
+
+        get_avr64(t2, a->vra, false);
+
+        tcg_gen_extract2_i64(t0, t0, t1, a->sh);
+        tcg_gen_extract2_i64(t1, t1, t2, a->sh);
+
+        tcg_temp_free_i64(t2);
+    }
+
+    set_avr64(a->vrt, t0, false);
+    set_avr64(a->vrt, t1, true);
+
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+
+    return true;
+}
+
 #define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
 static void glue(gen_, name0##_##name1)(DisasContext *ctx)              \
     {                                                                   \
