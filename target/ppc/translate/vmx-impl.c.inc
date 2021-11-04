@@ -1278,6 +1278,40 @@ static bool do_vinsx_VX(DisasContext *ctx, arg_VX *a, int size, bool right,
     return ok;
 }
 
+static bool do_vins_VX_uim4(DisasContext *ctx, arg_VX_uim4 *a, int size,
+                        void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_i64, TCGv))
+{
+    bool ok;
+    TCGv_i64 val;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    if (a->uim > (16 - size)) {
+        /*
+         * PowerISA v3.1 says that the resulting value is undefined in this
+         * case, so just log a guest error and leave VRT unchanged. The
+         * real hardware would do a partial insert, e.g. if VRT is zeroed and
+         * RB is 0x12345678, executing "vinsw VRT,RB,14" results in
+         * VRT = 0x0000...00001234, but we don't bother to reproduce this
+         * behavior as software shouldn't rely on it.
+         */
+        qemu_log_mask(LOG_GUEST_ERROR, "Invalid index for VINS* at"
+            " 0x" TARGET_FMT_lx ", UIM = %d > %d\n", ctx->cia, a->uim,
+            16 - size);
+        return true;
+    }
+
+    val = tcg_temp_new_i64();
+    tcg_gen_extu_tl_i64(val, cpu_gpr[a->vrb]);
+
+    ok = do_vinsx(ctx, a->vrt, size, false, tcg_constant_tl(a->uim), val,
+                  gen_helper);
+
+    tcg_temp_free_i64(val);
+    return ok;
+}
+
 TRANS(VINSBLX, do_vinsx_VX, 1, false, gen_helper_VINSBLX)
 TRANS(VINSHLX, do_vinsx_VX, 2, false, gen_helper_VINSHLX)
 TRANS(VINSWLX, do_vinsx_VX, 4, false, gen_helper_VINSWLX)
@@ -1287,6 +1321,9 @@ TRANS(VINSBRX, do_vinsx_VX, 1, true, gen_helper_VINSBLX)
 TRANS(VINSHRX, do_vinsx_VX, 2, true, gen_helper_VINSHLX)
 TRANS(VINSWRX, do_vinsx_VX, 4, true, gen_helper_VINSWLX)
 TRANS(VINSDRX, do_vinsx_VX, 8, true, gen_helper_VINSDLX)
+
+TRANS(VINSW, do_vins_VX_uim4, 4, gen_helper_VINSWLX)
+TRANS(VINSD, do_vins_VX_uim4, 8, gen_helper_VINSDLX)
 
 static void gen_vsldoi(DisasContext *ctx)
 {
