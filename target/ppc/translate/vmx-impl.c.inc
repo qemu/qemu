@@ -1217,10 +1217,6 @@ GEN_VXFORM_UIMM_SPLAT(vextractub, 6, 8, 15);
 GEN_VXFORM_UIMM_SPLAT(vextractuh, 6, 9, 14);
 GEN_VXFORM_UIMM_SPLAT(vextractuw, 6, 10, 12);
 GEN_VXFORM_UIMM_SPLAT(vextractd, 6, 11, 8);
-GEN_VXFORM_UIMM_SPLAT(vinsertb, 6, 12, 15);
-GEN_VXFORM_UIMM_SPLAT(vinserth, 6, 13, 14);
-GEN_VXFORM_UIMM_SPLAT(vinsertw, 6, 14, 12);
-GEN_VXFORM_UIMM_SPLAT(vinsertd, 6, 15, 8);
 GEN_VXFORM_UIMM_ENV(vcfux, 5, 12);
 GEN_VXFORM_UIMM_ENV(vcfsx, 5, 13);
 GEN_VXFORM_UIMM_ENV(vctuxs, 5, 14);
@@ -1231,12 +1227,6 @@ GEN_VXFORM_DUAL(vsplth, PPC_ALTIVEC, PPC_NONE,
                 vextractuh, PPC_NONE, PPC2_ISA300);
 GEN_VXFORM_DUAL(vspltw, PPC_ALTIVEC, PPC_NONE,
                 vextractuw, PPC_NONE, PPC2_ISA300);
-GEN_VXFORM_DUAL(vspltisb, PPC_ALTIVEC, PPC_NONE,
-                vinsertb, PPC_NONE, PPC2_ISA300);
-GEN_VXFORM_DUAL(vspltish, PPC_ALTIVEC, PPC_NONE,
-                vinserth, PPC_NONE, PPC2_ISA300);
-GEN_VXFORM_DUAL(vspltisw, PPC_ALTIVEC, PPC_NONE,
-                vinsertw, PPC_NONE, PPC2_ISA300);
 
 static bool do_vinsx(DisasContext *ctx, int vrt, int size, bool right, TCGv ra,
             TCGv_i64 rb, void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_i64, TCGv))
@@ -1336,6 +1326,23 @@ static bool do_vins_VX_uim4(DisasContext *ctx, arg_VX_uim4 *a, int size,
     return ok;
 }
 
+static bool do_vinsert_VX_uim4(DisasContext *ctx, arg_VX_uim4 *a, int size,
+                        void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_i64, TCGv))
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_VECTOR(ctx);
+
+    if (a->uim > (16 - size)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Invalid index for VINSERT* at"
+            " 0x" TARGET_FMT_lx ", UIM = %d > %d\n", ctx->cia, a->uim,
+            16 - size);
+        return true;
+    }
+
+    return do_vinsvx(ctx, a->vrt, size, false, tcg_constant_tl(a->uim), a->vrb,
+                     gen_helper);
+}
+
 TRANS(VINSBLX, do_vinsx_VX, 1, false, gen_helper_VINSBLX)
 TRANS(VINSHLX, do_vinsx_VX, 2, false, gen_helper_VINSHLX)
 TRANS(VINSWLX, do_vinsx_VX, 4, false, gen_helper_VINSWLX)
@@ -1356,6 +1363,11 @@ TRANS(VINSWVLX, do_vinsvx_VX, 4, false, gen_helper_VINSWLX)
 TRANS(VINSBVRX, do_vinsvx_VX, 1, true, gen_helper_VINSBLX)
 TRANS(VINSHVRX, do_vinsvx_VX, 2, true, gen_helper_VINSHLX)
 TRANS(VINSWVRX, do_vinsvx_VX, 4, true, gen_helper_VINSWLX)
+
+TRANS(VINSERTB, do_vinsert_VX_uim4, 1, gen_helper_VINSBLX)
+TRANS(VINSERTH, do_vinsert_VX_uim4, 2, gen_helper_VINSHLX)
+TRANS(VINSERTW, do_vinsert_VX_uim4, 4, gen_helper_VINSWLX)
+TRANS(VINSERTD, do_vinsert_VX_uim4, 8, gen_helper_VINSDLX)
 
 static void gen_vsldoi(DisasContext *ctx)
 {

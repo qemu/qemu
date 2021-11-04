@@ -1613,27 +1613,6 @@ void helper_vslo(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 }
 
 #if defined(HOST_WORDS_BIGENDIAN)
-#define VINSERT(suffix, element)                                            \
-    void helper_vinsert##suffix(ppc_avr_t *r, ppc_avr_t *b, uint32_t index) \
-    {                                                                       \
-        memmove(&r->u8[index], &b->u8[8 - sizeof(r->element[0])],           \
-               sizeof(r->element[0]));                                      \
-    }
-#else
-#define VINSERT(suffix, element)                                            \
-    void helper_vinsert##suffix(ppc_avr_t *r, ppc_avr_t *b, uint32_t index) \
-    {                                                                       \
-        uint32_t d = (16 - index) - sizeof(r->element[0]);                  \
-        memmove(&r->u8[d], &b->u8[8], sizeof(r->element[0]));               \
-    }
-#endif
-VINSERT(b, u8)
-VINSERT(h, u16)
-VINSERT(w, u32)
-VINSERT(d, u64)
-#undef VINSERT
-
-#if defined(HOST_WORDS_BIGENDIAN)
 #define ELEM_ADDR(VEC, IDX, SIZE) (&(VEC)->u8[IDX])
 #else
 #define ELEM_ADDR(VEC, IDX, SIZE) (&(VEC)->u8[15 - (IDX)] - (SIZE) + 1)
