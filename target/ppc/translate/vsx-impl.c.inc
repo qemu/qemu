@@ -2087,6 +2087,61 @@ TRANS64(PLXV, do_lstxv_PLS_D, false, false)
 TRANS64(PSTXVP, do_lstxv_PLS_D, true, true)
 TRANS64(PLXVP, do_lstxv_PLS_D, false, true)
 
+static void gen_xxblendv_vec(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b,
+                             TCGv_vec c)
+{
+    TCGv_vec tmp = tcg_temp_new_vec_matching(c);
+    tcg_gen_sari_vec(vece, tmp, c, (8 << vece) - 1);
+    tcg_gen_bitsel_vec(vece, t, tmp, b, a);
+    tcg_temp_free_vec(tmp);
+}
+
+static bool do_xxblendv(DisasContext *ctx, arg_XX4 *a, unsigned vece)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_sari_vec, 0
+    };
+    static const GVecGen4 ops[4] = {
+        {
+            .fniv = gen_xxblendv_vec,
+            .fno = gen_helper_XXBLENDVB,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_xxblendv_vec,
+            .fno = gen_helper_XXBLENDVH,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_xxblendv_vec,
+            .fno = gen_helper_XXBLENDVW,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_xxblendv_vec,
+            .fno = gen_helper_XXBLENDVD,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        }
+    };
+
+    REQUIRE_VSX(ctx);
+
+    tcg_gen_gvec_4(vsr_full_offset(a->xt), vsr_full_offset(a->xa),
+                   vsr_full_offset(a->xb), vsr_full_offset(a->xc),
+                   16, 16, &ops[vece]);
+
+    return true;
+}
+
+TRANS(XXBLENDVB, do_xxblendv, MO_8)
+TRANS(XXBLENDVH, do_xxblendv, MO_16)
+TRANS(XXBLENDVW, do_xxblendv, MO_32)
+TRANS(XXBLENDVD, do_xxblendv, MO_64)
+
 #undef GEN_XX2FORM
 #undef GEN_XX3FORM
 #undef GEN_XX2IFORM

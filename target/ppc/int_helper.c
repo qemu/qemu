@@ -1737,6 +1737,21 @@ void helper_xxinsertw(CPUPPCState *env, ppc_vsr_t *xt,
     *xt = t;
 }
 
+#define XXBLEND(name, sz) \
+void glue(helper_XXBLENDV, name)(ppc_avr_t *t, ppc_avr_t *a, ppc_avr_t *b,  \
+                                 ppc_avr_t *c, uint32_t desc)               \
+{                                                                           \
+    for (int i = 0; i < ARRAY_SIZE(t->glue(u, sz)); i++) {                  \
+        t->glue(u, sz)[i] = (c->glue(s, sz)[i] >> (sz - 1)) ?               \
+            b->glue(u, sz)[i] : a->glue(u, sz)[i];                          \
+    }                                                                       \
+}
+XXBLEND(B, 8)
+XXBLEND(H, 16)
+XXBLEND(W, 32)
+XXBLEND(D, 64)
+#undef XXBLEND
+
 #define VEXT_SIGNED(name, element, cast)                            \
 void helper_##name(ppc_avr_t *r, ppc_avr_t *b)                      \
 {                                                                   \
