@@ -1503,6 +1503,49 @@ static bool trans_XXSPLTI32DX(DisasContext *ctx, arg_8RR_D_IX *a)
     return true;
 }
 
+static bool trans_LXVKQ(DisasContext *ctx, arg_X_uim5 *a)
+{
+    static const uint64_t values[32] = {
+        0, /* Unspecified */
+        0x3FFF000000000000llu, /* QP +1.0 */
+        0x4000000000000000llu, /* QP +2.0 */
+        0x4000800000000000llu, /* QP +3.0 */
+        0x4001000000000000llu, /* QP +4.0 */
+        0x4001400000000000llu, /* QP +5.0 */
+        0x4001800000000000llu, /* QP +6.0 */
+        0x4001C00000000000llu, /* QP +7.0 */
+        0x7FFF000000000000llu, /* QP +Inf */
+        0x7FFF800000000000llu, /* QP dQNaN */
+        0, /* Unspecified */
+        0, /* Unspecified */
+        0, /* Unspecified */
+        0, /* Unspecified */
+        0, /* Unspecified */
+        0, /* Unspecified */
+        0x8000000000000000llu, /* QP -0.0 */
+        0xBFFF000000000000llu, /* QP -1.0 */
+        0xC000000000000000llu, /* QP -2.0 */
+        0xC000800000000000llu, /* QP -3.0 */
+        0xC001000000000000llu, /* QP -4.0 */
+        0xC001400000000000llu, /* QP -5.0 */
+        0xC001800000000000llu, /* QP -6.0 */
+        0xC001C00000000000llu, /* QP -7.0 */
+        0xFFFF000000000000llu, /* QP -Inf */
+    };
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VSX(ctx);
+
+    if (values[a->uim]) {
+        set_cpu_vsr(a->xt, tcg_constant_i64(0x0), false);
+        set_cpu_vsr(a->xt, tcg_constant_i64(values[a->uim]), true);
+    } else {
+        gen_invalid(ctx);
+    }
+
+    return true;
+}
+
 static void gen_xxsldwi(DisasContext *ctx)
 {
     TCGv_i64 xth, xtl;
