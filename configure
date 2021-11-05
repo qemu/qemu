@@ -4057,9 +4057,12 @@ preserve_env AR
 preserve_env AS
 preserve_env CC
 preserve_env CPP
+preserve_env CFLAGS
 preserve_env CXX
+preserve_env CXXFLAGS
 preserve_env INSTALL
 preserve_env LD
+preserve_env LDFLAGS
 preserve_env LD_LIBRARY_PATH
 preserve_env LIBTOOL
 preserve_env MAKE
