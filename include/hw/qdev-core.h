@@ -504,7 +504,8 @@ qemu_irq qdev_get_gpio_in_named(DeviceState *dev, const char *name, int n);
 void qdev_connect_gpio_out(DeviceState *dev, int n, qemu_irq pin);
 
 /**
- * qdev_connect_gpio_out: Connect one of a device's anonymous output GPIO lines
+ * qdev_connect_gpio_out_named: Connect one of a device's named output
+ *                              GPIO lines
  * @dev: Device whose GPIO to connect
  * @name: Name of the output GPIO array
  * @n: Number of the anonymous output GPIO line (which must be in range)
@@ -526,7 +527,7 @@ void qdev_connect_gpio_out(DeviceState *dev, int n, qemu_irq pin);
  * qemu_irqs at once, or to connect multiple outbound GPIOs to the
  * same qemu_irq; see qdev_connect_gpio_out() for details.
  *
- * For named output GPIO lines, use qdev_connect_gpio_out_named().
+ * For anonymous output GPIO lines, use qdev_connect_gpio_out().
  */
 void qdev_connect_gpio_out_named(DeviceState *dev, const char *name, int n,
                                  qemu_irq pin);
