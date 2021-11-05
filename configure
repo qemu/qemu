@@ -3894,6 +3894,7 @@ echo "TOPSRC_DIR=$source_path" >> $config_mak
 if test "$skip_meson" = no; then
   cross="config-meson.cross.new"
   meson_quote() {
+    test $# = 0 && return
     echo "'$(echo $* | sed "s/ /','/g")'"
   }
 
@@ -3908,10 +3909,10 @@ if test "$skip_meson" = no; then
 
   test -z "$cxx" && echo "link_language = 'c'" >> $cross
   echo "[built-in options]" >> $cross
-  echo "c_args = [${CFLAGS:+$(meson_quote $CFLAGS)}]" >> $cross
-  echo "cpp_args = [${CXXFLAGS:+$(meson_quote $CXXFLAGS)}]" >> $cross
-  echo "c_link_args = [${LDFLAGS:+$(meson_quote $LDFLAGS)}]" >> $cross
-  echo "cpp_link_args = [${LDFLAGS:+$(meson_quote $LDFLAGS)}]" >> $cross
+  echo "c_args = [$(meson_quote $CFLAGS)]" >> $cross
+  echo "cpp_args = [$(meson_quote $CXXFLAGS)]" >> $cross
+  echo "c_link_args = [$(meson_quote $LDFLAGS)]" >> $cross
+  echo "cpp_link_args = [$(meson_quote $LDFLAGS)]" >> $cross
   echo "[binaries]" >> $cross
   echo "c = [$(meson_quote $cc $CPU_CFLAGS)]" >> $cross
   test -n "$cxx" && echo "cpp = [$(meson_quote $cxx $CPU_CFLAGS)]" >> $cross
