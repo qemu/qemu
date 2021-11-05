@@ -777,11 +777,6 @@ void i8042_isa_mouse_fake_event(ISAKBDState *isa)
     ps2_mouse_fake_event(&s->ps2mouse);
 }
 
-void i8042_setup_a20_line(ISADevice *dev, qemu_irq a20_out)
-{
-    qdev_connect_gpio_out_named(DEVICE(dev), I8042_A20_LINE, 0, a20_out);
-}
-
 static const VMStateDescription vmstate_kbd_isa = {
     .name = "pckbd",
     .version_id = 3,
