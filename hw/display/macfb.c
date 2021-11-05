@@ -440,21 +440,18 @@ static MacFbMode *macfb_find_mode(MacfbDisplayType display_type,
 
 static gchar *macfb_mode_list(void)
 {
-    gchar *list = NULL;
-    gchar *mode;
+    GString *list = g_string_new("");
     MacFbMode *macfb_mode;
     int i;
 
     for (i = 0; i < ARRAY_SIZE(macfb_mode_table); i++) {
         macfb_mode = &macfb_mode_table[i];
 
-        mode = g_strdup_printf("    %dx%dx%d\n", macfb_mode->width,
+        g_string_append_printf(list, "    %dx%dx%d\n", macfb_mode->width,
                                macfb_mode->height, macfb_mode->depth);
-        list = g_strconcat(mode, list, NULL);
-        g_free(mode);
     }
 
-    return list;
+    return g_string_free(list, FALSE);
 }
 
 
@@ -643,7 +640,7 @@ static bool macfb_common_realize(DeviceState *dev, MacfbState *s, Error **errp)
         gchar *list;
         error_setg(errp, "unknown display mode: width %d, height %d, depth %d",
                    s->width, s->height, s->depth);
-        list =  macfb_mode_list();
+        list = macfb_mode_list();
         error_append_hint(errp, "Available modes:\n%s", list);
         g_free(list);
 
