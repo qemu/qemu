@@ -653,17 +653,16 @@ supported. To start the fuzzer, run
 Alternatively, some command different from "qemu-img info" can be tested, by
 changing the ``-c`` option.
 
-Acceptance tests using the Avocado Framework
---------------------------------------------
+Integration tests using the Avocado Framework
+---------------------------------------------
 
-The ``tests/acceptance`` directory hosts functional tests, also known
-as acceptance level tests.  They're usually higher level tests, and
-may interact with external resources and with various guest operating
-systems.
+The ``tests/avocado`` directory hosts integration tests. They're usually
+higher level tests, and may interact with external resources and with
+various guest operating systems.
 
 These tests are written using the Avocado Testing Framework (which must
 be installed separately) in conjunction with a the ``avocado_qemu.Test``
-class, implemented at ``tests/acceptance/avocado_qemu``.
+class, implemented at ``tests/avocado/avocado_qemu``.
 
 Tests based on ``avocado_qemu.Test`` can easily:
 
@@ -695,11 +694,11 @@ Tests based on ``avocado_qemu.Test`` can easily:
 Running tests
 ~~~~~~~~~~~~~
 
-You can run the acceptance tests simply by executing:
+You can run the avocado tests simply by executing:
 
 .. code::
 
-  make check-acceptance
+  make check-avocado
 
 This involves the automatic creation of Python virtual environment
 within the build tree (at ``tests/venv``) which will have all the
@@ -714,12 +713,12 @@ specific version, they may be on packages named ``python3-venv`` and
 ``python3-pip``.
 
 It is also possible to run tests based on tags using the
-``make check-acceptance`` command and the ``AVOCADO_TAGS`` environment
+``make check-avocado`` command and the ``AVOCADO_TAGS`` environment
 variable:
 
 .. code::
 
-   make check-acceptance AVOCADO_TAGS=quick
+   make check-avocado AVOCADO_TAGS=quick
 
 Note that tags separated with commas have an AND behavior, while tags
 separated by spaces have an OR behavior. For more information on Avocado
@@ -728,31 +727,31 @@ tags, see:
  https://avocado-framework.readthedocs.io/en/latest/guides/user/chapters/tags.html
 
 To run a single test file, a couple of them, or a test within a file
-using the ``make check-acceptance`` command, set the ``AVOCADO_TESTS``
+using the ``make check-avocado`` command, set the ``AVOCADO_TESTS``
 environment variable with the test files or test names. To run all
 tests from a single file, use:
 
  .. code::
 
-  make check-acceptance AVOCADO_TESTS=$FILEPATH
+  make check-avocado AVOCADO_TESTS=$FILEPATH
 
 The same is valid to run tests from multiple test files:
 
  .. code::
 
-  make check-acceptance AVOCADO_TESTS='$FILEPATH1 $FILEPATH2'
+  make check-avocado AVOCADO_TESTS='$FILEPATH1 $FILEPATH2'
 
 To run a single test within a file, use:
 
  .. code::
 
-  make check-acceptance AVOCADO_TESTS=$FILEPATH:$TESTCLASS.$TESTNAME
+  make check-avocado AVOCADO_TESTS=$FILEPATH:$TESTCLASS.$TESTNAME
 
 The same is valid to run single tests from multiple test files:
 
  .. code::
 
-  make check-acceptance AVOCADO_TESTS='$FILEPATH1:$TESTCLASS1.$TESTNAME1 $FILEPATH2:$TESTCLASS2.$TESTNAME2'
+  make check-avocado AVOCADO_TESTS='$FILEPATH1:$TESTCLASS1.$TESTNAME1 $FILEPATH2:$TESTCLASS2.$TESTNAME2'
 
 The scripts installed inside the virtual environment may be used
 without an "activation".  For instance, the Avocado test runner
@@ -760,9 +759,9 @@ may be invoked by running:
 
  .. code::
 
-  tests/venv/bin/avocado run $OPTION1 $OPTION2 tests/acceptance/
+  tests/venv/bin/avocado run $OPTION1 $OPTION2 tests/avocado/
 
-Note that if ``make check-acceptance`` was not executed before, it is
+Note that if ``make check-avocado`` was not executed before, it is
 possible to create the Python virtual environment with the dependencies
 needed running:
 
@@ -775,20 +774,20 @@ a test file. To run tests from a single file within the build tree, use:
 
  .. code::
 
-  tests/venv/bin/avocado run tests/acceptance/$TESTFILE
+  tests/venv/bin/avocado run tests/avocado/$TESTFILE
 
 To run a single test within a test file, use:
 
  .. code::
 
-  tests/venv/bin/avocado run tests/acceptance/$TESTFILE:$TESTCLASS.$TESTNAME
+  tests/venv/bin/avocado run tests/avocado/$TESTFILE:$TESTCLASS.$TESTNAME
 
 Valid test names are visible in the output from any previous execution
-of Avocado or ``make check-acceptance``, and can also be queried using:
+of Avocado or ``make check-avocado``, and can also be queried using:
 
  .. code::
 
-  tests/venv/bin/avocado list tests/acceptance
+  tests/venv/bin/avocado list tests/avocado
 
 Manual Installation
 ~~~~~~~~~~~~~~~~~~~
@@ -806,7 +805,7 @@ Alternatively, follow the instructions on this link:
 Overview
 ~~~~~~~~
 
-The ``tests/acceptance/avocado_qemu`` directory provides the
+The ``tests/avocado/avocado_qemu`` directory provides the
 ``avocado_qemu`` Python module, containing the ``avocado_qemu.Test``
 class.  Here's a simple usage example:
 
@@ -913,7 +912,7 @@ like this:
           self.ssh_command('some_command_to_be_run_in_the_guest')
 
 Please refer to tests that use ``avocado_qemu.LinuxTest`` under
-``tests/acceptance`` for more examples.
+``tests/avocado`` for more examples.
 
 QEMUMachine
 ~~~~~~~~~~~
@@ -1204,7 +1203,7 @@ And remove any package you want with::
 
   pip uninstall <package_name>
 
-If you've used ``make check-acceptance``, the Python virtual environment where
+If you've used ``make check-avocado``, the Python virtual environment where
 Avocado is installed will be cleaned up as part of ``make check-clean``.
 
 .. _checktcg-ref:

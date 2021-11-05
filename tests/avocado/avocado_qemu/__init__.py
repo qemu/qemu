@@ -27,7 +27,7 @@ from avocado.utils.path import find_command
 BUILD_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 if os.path.islink(os.path.dirname(os.path.dirname(__file__))):
-    # The link to the acceptance tests dir in the source code directory
+    # The link to the avocado tests dir in the source code directory
     lnk = os.path.dirname(os.path.dirname(__file__))
     #: The QEMU root source directory
     SOURCE_DIR = os.path.dirname(os.path.dirname(os.readlink(lnk)))

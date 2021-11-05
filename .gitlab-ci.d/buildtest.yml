@@ -26,14 +26,14 @@ check-system-alpine:
     IMAGE: alpine
     MAKE_CHECK_ARGS: check
 
-acceptance-system-alpine:
-  extends: .acceptance_test_job_template
+avocado-system-alpine:
+  extends: .avocado_test_job_template
   needs:
     - job: build-system-alpine
       artifacts: true
   variables:
     IMAGE: alpine
-    MAKE_CHECK_ARGS: check-acceptance
+    MAKE_CHECK_ARGS: check-avocado
 
 build-system-ubuntu:
   extends: .native_build_job_template
@@ -59,14 +59,14 @@ check-system-ubuntu:
     IMAGE: ubuntu2004
     MAKE_CHECK_ARGS: check
 
-acceptance-system-ubuntu:
-  extends: .acceptance_test_job_template
+avocado-system-ubuntu:
+  extends: .avocado_test_job_template
   needs:
     - job: build-system-ubuntu
       artifacts: true
   variables:
     IMAGE: ubuntu2004
-    MAKE_CHECK_ARGS: check-acceptance
+    MAKE_CHECK_ARGS: check-avocado
 
 build-system-debian:
   extends: .native_build_job_template
@@ -91,14 +91,14 @@ check-system-debian:
     IMAGE: debian-amd64
     MAKE_CHECK_ARGS: check
 
-acceptance-system-debian:
-  extends: .acceptance_test_job_template
+avocado-system-debian:
+  extends: .avocado_test_job_template
   needs:
     - job: build-system-debian
       artifacts: true
   variables:
     IMAGE: debian-amd64
-    MAKE_CHECK_ARGS: check-acceptance
+    MAKE_CHECK_ARGS: check-avocado
 
 build-system-fedora:
   extends: .native_build_job_template
@@ -125,14 +125,14 @@ check-system-fedora:
     IMAGE: fedora
     MAKE_CHECK_ARGS: check
 
-acceptance-system-fedora:
-  extends: .acceptance_test_job_template
+avocado-system-fedora:
+  extends: .avocado_test_job_template
   needs:
     - job: build-system-fedora
       artifacts: true
   variables:
     IMAGE: fedora
-    MAKE_CHECK_ARGS: check-acceptance
+    MAKE_CHECK_ARGS: check-avocado
 
 build-system-centos:
   extends: .native_build_job_template
@@ -159,14 +159,14 @@ check-system-centos:
     IMAGE: centos8
     MAKE_CHECK_ARGS: check
 
-acceptance-system-centos:
-  extends: .acceptance_test_job_template
+avocado-system-centos:
+  extends: .avocado_test_job_template
   needs:
     - job: build-system-centos
       artifacts: true
   variables:
     IMAGE: centos8
-    MAKE_CHECK_ARGS: check-acceptance
+    MAKE_CHECK_ARGS: check-avocado
 
 build-system-opensuse:
   extends: .native_build_job_template
@@ -191,14 +191,14 @@ check-system-opensuse:
     IMAGE: opensuse-leap
     MAKE_CHECK_ARGS: check
 
-acceptance-system-opensuse:
-  extends: .acceptance_test_job_template
+avocado-system-opensuse:
+  extends: .avocado_test_job_template
   needs:
     - job: build-system-opensuse
       artifacts: true
   variables:
     IMAGE: opensuse-leap
-    MAKE_CHECK_ARGS: check-acceptance
+    MAKE_CHECK_ARGS: check-avocado
 
 
 # This jobs explicitly disable TCG (--disable-tcg), KVM is detected by
@@ -317,7 +317,7 @@ clang-user:
 # This can be accomplished by using -enable-slirp=git, which avoids the use of
 # a system-wide version of the library
 #
-# Split in three sets of build/check/acceptance to limit the execution time of each
+# Split in three sets of build/check/avocado to limit the execution time of each
 # job
 build-cfi-aarch64:
   extends: .native_build_job_template
@@ -352,14 +352,14 @@ check-cfi-aarch64:
     IMAGE: fedora
     MAKE_CHECK_ARGS: check
 
-acceptance-cfi-aarch64:
-  extends: .acceptance_test_job_template
+avocado-cfi-aarch64:
+  extends: .avocado_test_job_template
   needs:
     - job: build-cfi-aarch64
       artifacts: true
   variables:
     IMAGE: fedora
-    MAKE_CHECK_ARGS: check-acceptance
+    MAKE_CHECK_ARGS: check-avocado
 
 build-cfi-ppc64-s390x:
   extends: .native_build_job_template
@@ -394,14 +394,14 @@ check-cfi-ppc64-s390x:
     IMAGE: fedora
     MAKE_CHECK_ARGS: check
 
-acceptance-cfi-ppc64-s390x:
-  extends: .acceptance_test_job_template
+avocado-cfi-ppc64-s390x:
+  extends: .avocado_test_job_template
   needs:
     - job: build-cfi-ppc64-s390x
       artifacts: true
   variables:
     IMAGE: fedora
-    MAKE_CHECK_ARGS: check-acceptance
+    MAKE_CHECK_ARGS: check-avocado
 
 build-cfi-x86_64:
   extends: .native_build_job_template
@@ -430,14 +430,14 @@ check-cfi-x86_64:
     IMAGE: fedora
     MAKE_CHECK_ARGS: check
 
-acceptance-cfi-x86_64:
-  extends: .acceptance_test_job_template
+avocado-cfi-x86_64:
+  extends: .avocado_test_job_template
   needs:
     - job: build-cfi-x86_64
       artifacts: true
   variables:
     IMAGE: fedora
-    MAKE_CHECK_ARGS: check-acceptance
+    MAKE_CHECK_ARGS: check-avocado
 
 tsan-build:
   extends: .native_build_job_template

@@ -1,4 +1,4 @@
-# Linux initrd acceptance test.
+# Linux initrd integration test.
 #
 # Copyright (c) 2018 Red Hat, Inc.
 #

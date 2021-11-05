@@ -59,7 +59,7 @@ to system testing [5]_. Note that, in some cases, system testing may require
 interaction with third-party software, like operating system images, databases,
 networks, and so on.
 
-On QEMU, system testing is represented by the 'check-acceptance' target from
+On QEMU, system testing is represented by the 'check-avocado' target from
 'make'.
 
 Flaky tests
