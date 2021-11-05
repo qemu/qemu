@@ -464,11 +464,10 @@ Built by Meson:
   scripts/make_device_config.sh program, feeding it the
   default-configs/$TARGET-NAME file as input.
 
-``config-host.h``, ``$TARGET-NAME/config-target.h``, ``$TARGET-NAME/config-devices.h``
-  These files are used by source code to determine what features
-  are enabled.  They are generated from the contents of the corresponding
-  ``*.h`` files using the scripts/create_config program. This extracts
-  relevant variables and formats them as C preprocessor macros.
+``config-host.h``, ``$TARGET_NAME-config-target.h``, ``$TARGET_NAME-config-devices.h``
+  These files are used by source code to determine what features are
+  enabled.  They are generated from the contents of the corresponding
+  ``*.mak`` files using Meson's ``configure_file()`` function.
 
 ``build.ninja``
   The build rules.
