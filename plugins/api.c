@@ -206,6 +206,66 @@ qemu_plugin_tb_get_insn(const struct qemu_plugin_tb *tb, size_t idx)
 }
 
 /*
+ * Register information
+ *
+ * These queries allow the plugin to retrieve information about each
+ * the current state of registers in the CPU
+ */
+
+uint64_t qemu_plugin_get_pc(void) {
+    CPUState *cpu = current_cpu;
+    CPUArchState *env = (CPUArchState *)cpu->env_ptr;
+    target_ulong pc, cs_base;
+    uint32_t flags;
+    cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
+    return (uint64_t)pc;
+}
+
+int32_t qemu_plugin_get_reg32(unsigned int reg_idx, bool* error) {
+    // Should we directly use gdbsub.c's gdb_read_register?
+    CPUState *cpu = current_cpu;
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    GByteArray* result = g_byte_array_sized_new(4);
+
+    int32_t rv = 0;
+    int bytes_read = cc->gdb_read_register(cpu, result, reg_idx);
+    *error = (bytes_read == 0);
+
+    // XXX: buffer contains integer in target byte order
+
+    // There must be a better way to do this
+    for (int i=sizeof(rv)-1; i>=0; i--) {
+      rv = rv << 4;
+      rv += result->data[i];
+    }
+
+    g_byte_array_free(result, true);
+    return rv;
+}
+
+int64_t qemu_plugin_get_reg64(unsigned int reg_idx, bool* error) {
+    // Should we directly use gdbsub.c's gdb_read_register?
+    CPUState *cpu = current_cpu;
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    GByteArray* result = g_byte_array_sized_new(8);
+
+    int64_t rv = 0;
+    int bytes_read = cc->gdb_read_register(cpu, result, reg_idx);
+    *error = (bytes_read == 0);
+
+    // XXX: buffer contains integer in target byte order
+    // There must be a better way to do this
+    for (int i=sizeof(rv)-1; i>=0; i--) {
+      //printf("Byte %d has value %x\n", i, result->data[i]);
+      rv = rv << 4;
+      rv += result->data[i];
+    }
+
+    g_byte_array_free(result, true);
+    return rv;
+}
+
+/*
  * Instruction information
  *
  * These queries allow the plugin to retrieve information about each
