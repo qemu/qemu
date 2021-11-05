@@ -96,13 +96,4 @@ struct target_sigframe {
     uint32_t    __spare__[2];
 };
 
-abi_long set_sigtramp_args(CPUX86State *env, int sig,
-                           struct target_sigframe *frame,
-                           abi_ulong frame_addr,
-                           struct target_sigaction *ka);
-abi_long get_mcontext(CPUX86State *regs, target_mcontext_t *mcp, int flags);
-abi_long set_mcontext(CPUX86State *regs, target_mcontext_t *mcp, int srflag);
-abi_long get_ucontext_sigreturn(CPUX86State *regs, abi_ulong target_sf,
-                                abi_ulong *target_uc);
-
 #endif /* !TARGET_ARCH_SIGNAL_H_ */
