@@ -26,6 +26,7 @@
 #include "hw/sysbus.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
+#include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "hw/irq.h"
@@ -64,7 +65,7 @@ struct ETRAXTimerState {
     ptimer_state *ptimer_t1;
     ptimer_state *ptimer_wd;
 
-    int wd_hits;
+    uint32_t wd_hits;
 
     /* Control registers.  */
     uint32_t rw_tmr0_div;
@@ -81,6 +82,36 @@ struct ETRAXTimerState {
     uint32_t rw_ack_intr;
     uint32_t r_intr;
     uint32_t r_masked_intr;
+};
+
+static const VMStateDescription vmstate_etraxfs = {
+    .name = "etraxfs",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_PTIMER(ptimer_t0, ETRAXTimerState),
+        VMSTATE_PTIMER(ptimer_t1, ETRAXTimerState),
+        VMSTATE_PTIMER(ptimer_wd, ETRAXTimerState),
+
+        VMSTATE_UINT32(wd_hits, ETRAXTimerState),
+
+        VMSTATE_UINT32(rw_tmr0_div, ETRAXTimerState),
+        VMSTATE_UINT32(r_tmr0_data, ETRAXTimerState),
+        VMSTATE_UINT32(rw_tmr0_ctrl, ETRAXTimerState),
+
+        VMSTATE_UINT32(rw_tmr1_div, ETRAXTimerState),
+        VMSTATE_UINT32(r_tmr1_data, ETRAXTimerState),
+        VMSTATE_UINT32(rw_tmr1_ctrl, ETRAXTimerState),
+
+        VMSTATE_UINT32(rw_wd_ctrl, ETRAXTimerState),
+
+        VMSTATE_UINT32(rw_intr_mask, ETRAXTimerState),
+        VMSTATE_UINT32(rw_ack_intr, ETRAXTimerState),
+        VMSTATE_UINT32(r_intr, ETRAXTimerState),
+        VMSTATE_UINT32(r_masked_intr, ETRAXTimerState),
+
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 static uint64_t
@@ -357,6 +388,7 @@ static void etraxfs_timer_class_init(ObjectClass *klass, void *data)
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->realize = etraxfs_timer_realize;
+    dc->vmsd = &vmstate_etraxfs;
     rc->phases.enter = etraxfs_timer_reset_enter;
     rc->phases.hold = etraxfs_timer_reset_hold;
 }
