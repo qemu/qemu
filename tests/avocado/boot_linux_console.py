@@ -22,13 +22,6 @@ from avocado_qemu import interrupt_interactive_console_until_pattern
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import process
 from avocado.utils import archive
-from avocado.utils.path import find_command, CmdNotFoundError
-
-P7ZIP_AVAILABLE = True
-try:
-    find_command('7z')
-except CmdNotFoundError:
-    P7ZIP_AVAILABLE = False
 
 """
 Round up to next power of 2
