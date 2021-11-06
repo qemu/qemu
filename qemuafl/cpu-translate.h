@@ -35,6 +35,8 @@
 #include "tcg/tcg.h"
 #include "tcg/tcg-op.h"
 
+#include "qemu/xxhash.h"
+
 #if TARGET_LONG_BITS == 64
   #define _DEFAULT_MO MO_64
 #else
@@ -48,7 +50,7 @@ static void afl_gen_compcov(target_ulong cur_loc, TCGv arg1, TCGv arg2,
 
   if (__afl_cmp_map) {
 
-    cur_loc = (uintptr_t)(XXH64((u8 *)&cur_loc, sizeof(uintptr_t), HASH_CONST));
+    cur_loc = (uintptr_t)(qemu_xxhash64_4((uint64_t)cur_loc, 0, 0, HASH_CONST));
     cur_loc &= (CMP_MAP_W - 1);
 
     TCGv cur_loc_v = tcg_const_tl(cur_loc);
@@ -78,7 +80,7 @@ static void afl_gen_compcov(target_ulong cur_loc, TCGv arg1, TCGv arg2,
 
     if (!is_imm && afl_compcov_level < 2) return;
 
-    cur_loc = (uintptr_t)(XXH64((u8 *)&cur_loc, sizeof(uintptr_t), HASH_CONST));
+    cur_loc = (uintptr_t)(qemu_xxhash64_4((uint64_t)cur_loc, 0, 0, HASH_CONST));
     cur_loc &= (MAP_SIZE - 1);
 
     TCGv cur_loc_v = tcg_const_tl(cur_loc);

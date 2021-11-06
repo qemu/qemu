@@ -33,6 +33,7 @@
 #include "tcg/tcg.h"
 
 #include "qemuafl/common.h"
+#include "qemu/xxhash.h"
 
 void HELPER(afl_entry_routine)(CPUArchState *env) {
 
@@ -282,7 +283,7 @@ void HELPER(afl_cmplog_rtn)(CPUArchState *env) {
   uintptr_t k = 0;
 #endif
 
-  k = (uintptr_t)(XXH64((u8 *)&k, sizeof(uintptr_t), HASH_CONST));
+  k = (uintptr_t)(qemu_xxhash64_4((uint64_t)k, 0, 0, HASH_CONST));
   k &= (CMP_MAP_W - 1);
 
   u32 hits = 0;
