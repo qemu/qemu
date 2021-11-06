@@ -1740,7 +1740,7 @@
 #
 # @dirty-rate: dirty rate.
 #
-# Since: 6.1
+# Since: 6.2
 #
 ##
 { 'struct': 'DirtyRateVcpu',
@@ -1774,7 +1774,7 @@
 #
 # @dirty-bitmap: calculate dirtyrate by dirty bitmap.
 #
-# Since: 6.1
+# Since: 6.2
 #
 ##
 { 'enum': 'DirtyRateMeasureMode',
@@ -1796,13 +1796,13 @@
 # @calc-time: time in units of second for sample dirty pages
 #
 # @sample-pages: page count per GB for sample dirty pages
-#                the default value is 512 (since 6.1)
+#                the default value is 512 (since 6.2)
 #
 # @mode: mode containing method of calculate dirtyrate includes
-#        'page-sampling' and 'dirty-ring' (Since 6.1)
+#        'page-sampling' and 'dirty-ring' (Since 6.2)
 #
 # @vcpu-dirty-rate: dirtyrate for each vcpu if dirty-ring
-#                   mode specified (Since 6.1)
+#                   mode specified (Since 6.2)
 #
 # Since: 5.2
 #
