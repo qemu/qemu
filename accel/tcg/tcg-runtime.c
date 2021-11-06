@@ -282,8 +282,8 @@ void HELPER(afl_cmplog_rtn)(CPUArchState *env) {
   uintptr_t k = 0;
 #endif
 
-  k = (k >> 4) ^ (k << 8);
-  k &= CMP_MAP_W - 1;
+  k = (uintptr_t)(XXH64((u8 *)&k, sizeof(uintptr_t), HASH_CONST));
+  k &= (CMP_MAP_W - 1);
 
   u32 hits = 0;
 

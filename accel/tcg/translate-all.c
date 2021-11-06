@@ -106,7 +106,8 @@ static void afl_gen_trace(target_ulong cur_loc) {
 
   // cur_loc = (cur_loc >> 4) ^ (cur_loc << 8);
   // cur_loc &= MAP_SIZE - 1;
-  cur_loc = pc_hash(cur_loc) & (MAP_SIZE -1);
+  cur_loc = (uintptr_t)(XXH64((u8 *)&cur_loc, sizeof(uintptr_t), HASH_CONST));
+  cur_loc &= (MAP_SIZE - 1);
 
   /* Implement probabilistic instrumentation by looking at scrambled block
      address. This keeps the instrumented locations stable across runs. */

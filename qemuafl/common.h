@@ -38,6 +38,10 @@
 #include "imported/types.h"
 #include "imported/cmplog.h"
 
+#define XXH_INLINE_ALL
+#include "xxhash.h"
+#undef XXH_INLINE_ALL
+
 #include "api.h"
 
 #define AFL_G2H g2h_untagged

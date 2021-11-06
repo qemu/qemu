@@ -48,8 +48,8 @@ static void afl_gen_compcov(target_ulong cur_loc, TCGv arg1, TCGv arg2,
 
   if (__afl_cmp_map) {
 
-    cur_loc = (cur_loc >> 4) ^ (cur_loc << 8);
-    cur_loc &= CMP_MAP_W - 1;
+    cur_loc = (uintptr_t)(XXH64((u8 *)&cur_loc, sizeof(uintptr_t), HASH_CONST));
+    cur_loc &= (CMP_MAP_W - 1);
 
     TCGv cur_loc_v = tcg_const_tl(cur_loc);
 
@@ -78,8 +78,8 @@ static void afl_gen_compcov(target_ulong cur_loc, TCGv arg1, TCGv arg2,
 
     if (!is_imm && afl_compcov_level < 2) return;
 
-    cur_loc = (cur_loc >> 4) ^ (cur_loc << 8);
-    cur_loc &= MAP_SIZE - 7;
+    cur_loc = (uintptr_t)(XXH64((u8 *)&cur_loc, sizeof(uintptr_t), HASH_CONST));
+    cur_loc &= (MAP_SIZE - 1);
 
     TCGv cur_loc_v = tcg_const_tl(cur_loc);
 
