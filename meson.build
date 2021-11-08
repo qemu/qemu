@@ -67,6 +67,14 @@ endif
 
 targetos = host_machine.system()
 
+if cpu not in supported_cpus
+  host_arch = 'unknown'
+elif cpu == 'x86'
+  host_arch = 'i386'
+else
+  host_arch = cpu
+endif
+
 if cpu in ['x86', 'x86_64']
   kvm_targets = ['i386-softmmu', 'x86_64-softmmu']
 elif cpu == 'aarch64'
@@ -335,9 +343,9 @@ if targetos == 'netbsd'
   endif
 endif
 
-tcg_arch = config_host['ARCH']
+tcg_arch = host_arch
 if not get_option('tcg').disabled()
-  if cpu not in supported_cpus
+  if host_arch == 'unknown'
     if get_option('tcg_interpreter')
       warning('Unsupported CPU @0@, will use TCG with TCI (slow)'.format(cpu))
     else
@@ -353,11 +361,11 @@ if not get_option('tcg').disabled()
   endif
   if get_option('tcg_interpreter')
     tcg_arch = 'tci'
-  elif config_host['ARCH'] == 'sparc64'
+  elif host_arch == 'sparc64'
     tcg_arch = 'sparc'
-  elif config_host['ARCH'] == 'x86_64'
+  elif host_arch == 'x86_64'
     tcg_arch = 'i386'
-  elif config_host['ARCH'] == 'ppc64'
+  elif host_arch == 'ppc64'
     tcg_arch = 'ppc'
   endif
   add_project_arguments('-iquote', meson.current_source_dir() / 'tcg' / tcg_arch,
@@ -1426,6 +1434,8 @@ config_host_data.set_quoted('CONFIG_QEMU_LOCALSTATEDIR', get_option('prefix') / 
 config_host_data.set_quoted('CONFIG_QEMU_MODDIR', get_option('prefix') / qemu_moddir)
 config_host_data.set_quoted('CONFIG_SYSCONFDIR', get_option('prefix') / get_option('sysconfdir'))
 
+config_host_data.set('HOST_' + host_arch.to_upper(), 1)
+
 config_host_data.set('CONFIG_ATTR', libattr.found())
 config_host_data.set('CONFIG_BRLAPI', brlapi.found())
 config_host_data.set('CONFIG_COCOA', cocoa.found())
@@ -1775,8 +1785,6 @@ foreach k, v: config_host
       v = '"' + '", "'.join(v.split()) + '", '
     endif
     config_host_data.set(k, v)
-  elif k == 'ARCH'
-    config_host_data.set('HOST_' + v.to_upper(), 1)
   elif strings.contains(k)
     config_host_data.set_quoted(k, v)
   elif k.startswith('CONFIG_')
@@ -1919,7 +1927,7 @@ foreach target : target_dirs
   endif
 
   foreach k, v: disassemblers
-    if config_host['ARCH'].startswith(k) or config_target['TARGET_BASE_ARCH'].startswith(k)
+    if host_arch.startswith(k) or config_target['TARGET_BASE_ARCH'].startswith(k)
       foreach sym: v
         config_target += { sym: 'y' }
         config_all_disas += { sym: 'y' }
@@ -2888,7 +2896,7 @@ foreach target : target_dirs
     endif
     if 'CONFIG_LINUX_USER' in config_target
       base_dir = 'linux-user'
-      target_inc += include_directories('linux-user/host/' / config_host['ARCH'])
+      target_inc += include_directories('linux-user/host/' / host_arch)
     endif
     if 'CONFIG_BSD_USER' in config_target
       base_dir = 'bsd-user'

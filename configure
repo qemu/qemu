@@ -635,11 +635,9 @@ else
   cpu=$(uname -m)
 fi
 
-ARCH=
-# Normalise host CPU name, set ARCH and multilib cflags
+# Normalise host CPU name, set multilib cflags
 # Note that this case should only have supported host CPUs, not guests.
 case "$cpu" in
-  aarch64|riscv) ;;
   armv*b|armv*l|arm)
     cpu="arm" ;;
 
@@ -668,8 +666,7 @@ case "$cpu" in
     CPU_CFLAGS="-m64 -mlittle" ;;
 
   s390)
-    CPU_CFLAGS="-m31"
-    ARCH=unknown ;;
+    CPU_CFLAGS="-m31" ;;
   s390x)
     CPU_CFLAGS="-m64" ;;
 
@@ -678,15 +675,7 @@ case "$cpu" in
     CPU_CFLAGS="-m32 -mv8plus -mcpu=ultrasparc" ;;
   sparc64)
     CPU_CFLAGS="-m64 -mcpu=ultrasparc" ;;
-
-  *)
-    # This will result in either an error or falling back to TCI later
-    ARCH=unknown
-  ;;
 esac
-if test -z "$ARCH"; then
-  ARCH="$cpu"
-fi
 
 : ${make=${MAKE-make}}
 
@@ -3406,8 +3395,6 @@ echo "GIT=$git" >> $config_host_mak
 echo "GIT_SUBMODULES=$git_submodules" >> $config_host_mak
 echo "GIT_SUBMODULES_ACTION=$git_submodules_action" >> $config_host_mak
 
-echo "ARCH=$ARCH" >> $config_host_mak
-
 if test "$debug_tcg" = "yes" ; then
   echo "CONFIG_DEBUG_TCG=y" >> $config_host_mak
 fi
@@ -3898,12 +3885,12 @@ if test "$skip_meson" = no; then
     cross_arg="--cross-file config-meson.cross"
     echo "[host_machine]" >> $cross
     echo "system = '$targetos'" >> $cross
-    case "$ARCH" in
+    case "$cpu" in
         i386)
             echo "cpu_family = 'x86'" >> $cross
             ;;
         *)
-            echo "cpu_family = '$ARCH'" >> $cross
+            echo "cpu_family = '$cpu'" >> $cross
             ;;
     esac
     echo "cpu = '$cpu'" >> $cross
