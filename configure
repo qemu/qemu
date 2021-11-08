@@ -3801,7 +3801,6 @@ for bios_file in \
     $source_path/pc-bios/*.img \
     $source_path/pc-bios/openbios-* \
     $source_path/pc-bios/u-boot.* \
-    $source_path/pc-bios/edk2-*.fd.bz2 \
     $source_path/pc-bios/palcode-* \
     $source_path/pc-bios/qemu_vga.ndrv
 
