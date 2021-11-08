@@ -47,14 +47,14 @@ command line options for which a same-named Meson option exists;
 dashes in the command line are replaced with underscores.
 
 Many checks on the compilation environment are still found in configure
-rather than `meson.build`, but new checks should be added directly to
-`meson.build`.
+rather than ``meson.build``, but new checks should be added directly to
+``meson.build``.
 
 Patches are also welcome to move existing checks from the configure
-phase to `meson.build`.  When doing so, ensure that `meson.build` does
-not use anymore the keys that you have removed from `config-host.mak`.
-Typically these will be replaced in `meson.build` by boolean variables,
-``get_option('optname')`` invocations, or `dep.found()` expressions.
+phase to ``meson.build``.  When doing so, ensure that ``meson.build`` does
+not use anymore the keys that you have removed from ``config-host.mak``.
+Typically these will be replaced in ``meson.build`` by boolean variables,
+``get_option('optname')`` invocations, or ``dep.found()`` expressions.
 In general, the remaining checks have little or no interdependencies,
 so they can be moved one by one.
 
@@ -298,7 +298,7 @@ comprises the following tasks:
 
  - Add code to perform the actual feature check.
 
- - Add code to include the feature status in `config-host.h`
+ - Add code to include the feature status in ``config-host.h``
 
  - Add code to print out the feature status in the configure summary
    upon completion.
@@ -334,7 +334,7 @@ The other supporting code is generally simple::
 
 For the configure script to parse the new option, the
 ``scripts/meson-buildoptions.sh`` file must be up-to-date; ``make
-update-buildoptions`` (or just `make`) will take care of updating it.
+update-buildoptions`` (or just ``make``) will take care of updating it.
 
 
 Support scripts

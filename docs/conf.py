@@ -74,7 +74,7 @@ needs_sphinx = '1.6'
 extensions = ['kerneldoc', 'qmp_lexer', 'hxtool', 'depfile', 'qapidoc']
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = [os.path.join(qemu_docdir, '_templates')]
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
@@ -84,6 +84,11 @@ source_suffix = '.rst'
 
 # The master toctree document.
 master_doc = 'index'
+
+# Interpret `single-backticks` to be a cross-reference to any kind of
+# referenceable object. Unresolvable or ambiguous references will emit a
+# warning at build time.
+default_role = 'any'
 
 # General information about the project.
 project = u'QEMU'
@@ -166,6 +171,7 @@ html_theme = 'sphinx_rtd_theme'
 if LooseVersion(sphinx_rtd_theme.__version__) >= LooseVersion("0.4.3"):
     html_theme_options = {
         "style_nav_header_background": "#802400",
+        "navigation_with_keys": True,
     }
 
 html_logo = os.path.join(qemu_docdir, "../ui/icons/qemu_128x128.png")
@@ -179,6 +185,10 @@ html_static_path = [os.path.join(qemu_docdir, "sphinx-static")]
 
 html_css_files = [
     'theme_overrides.css',
+]
+
+html_js_files = [
+    'custom.js',
 ]
 
 html_context = {

@@ -12,6 +12,8 @@
 
 import os
 import sphinx
+import sys
+from pathlib import Path
 
 __version__ = '1.0'
 
@@ -20,8 +22,21 @@ def get_infiles(env):
         yield env.doc2path(x)
         yield from ((os.path.join(env.srcdir, dep)
                     for dep in env.dependencies[x]))
+    for mod in sys.modules.values():
+        if hasattr(mod, '__file__'):
+            if mod.__file__:
+                yield mod.__file__
+    # this is perhaps going to include unused files:
+    for static_path in env.config.html_static_path + env.config.templates_path:
+        for path in Path(static_path).rglob('*'):
+            yield str(path)
 
-def write_depfile(app, env):
+
+def write_depfile(app, exception):
+    if exception:
+        return
+
+    env = app.env
     if not env.config.depfile:
         return
 
@@ -42,7 +57,7 @@ def write_depfile(app, env):
 def setup(app):
     app.add_config_value('depfile', None, 'env')
     app.add_config_value('depfile_stamp', None, 'env')
-    app.connect('env-updated', write_depfile)
+    app.connect('build-finished', write_depfile)
 
     return dict(
         version = __version__,
