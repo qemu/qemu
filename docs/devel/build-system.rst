@@ -416,7 +416,7 @@ number of dynamically created files listed later.
 
 ``tests/Makefile.include``
   Rules for external test harnesses. These include the TCG tests,
-  ``qemu-iotests`` and the Avocado-based acceptance tests.
+  ``qemu-iotests`` and the Avocado-based integration tests.
 
 ``tests/docker/Makefile.include``
   Rules for Docker tests. Like tests/Makefile, this file is included

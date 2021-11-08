@@ -177,7 +177,7 @@ L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/smmu*
 F: include/hw/arm/smmu*
-F: tests/acceptance/smmu.py
+F: tests/avocado/smmu.py
 
 AVR TCG CPUs
 M: Michael Rolnik <mrolnik@gmail.com>
@@ -185,7 +185,7 @@ S: Maintained
 F: docs/system/target-avr.rst
 F: gdb-xml/avr-cpu.xml
 F: target/avr/
-F: tests/acceptance/machine_avr6.py
+F: tests/avocado/machine_avr6.py
 
 CRIS TCG CPUs
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
@@ -657,7 +657,7 @@ S: Odd Fixes
 F: include/hw/arm/digic.h
 F: hw/*/digic*
 F: include/hw/*/digic*
-F: tests/acceptance/machine_arm_canona1100.py
+F: tests/avocado/machine_arm_canona1100.py
 F: docs/system/arm/digic.rst
 
 Goldfish RTC
@@ -708,7 +708,7 @@ S: Maintained
 F: hw/arm/integratorcp.c
 F: hw/misc/arm_integrator_debug.c
 F: include/hw/misc/arm_integrator_debug.h
-F: tests/acceptance/machine_arm_integratorcp.py
+F: tests/avocado/machine_arm_integratorcp.py
 F: docs/system/arm/integratorcp.rst
 
 MCIMX6UL EVK / i.MX6ul
@@ -805,7 +805,7 @@ F: include/hw/display/blizzard.h
 F: include/hw/input/lm832x.h
 F: include/hw/input/tsc2xxx.h
 F: include/hw/misc/cbus.h
-F: tests/acceptance/machine_arm_n8x0.py
+F: tests/avocado/machine_arm_n8x0.py
 F: docs/system/arm/nseries.rst
 
 Palm
@@ -1159,7 +1159,7 @@ M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
 F: hw/microblaze/petalogix_s3adsp1800_mmu.c
 F: include/hw/char/xilinx_uartlite.h
-F: tests/acceptance/machine_microblaze.py
+F: tests/avocado/machine_microblaze.py
 
 petalogix_ml605
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
@@ -1192,8 +1192,8 @@ F: hw/acpi/piix4.c
 F: hw/mips/malta.c
 F: hw/mips/gt64xxx_pci.c
 F: include/hw/southbridge/piix.h
-F: tests/acceptance/linux_ssh_mips_malta.py
-F: tests/acceptance/machine_mips_malta.py
+F: tests/avocado/linux_ssh_mips_malta.py
+F: tests/avocado/machine_mips_malta.py
 
 Mipssim
 R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
@@ -1211,7 +1211,7 @@ F: hw/isa/vt82c686.c
 F: hw/pci-host/bonito.c
 F: hw/usb/vt82c686-uhci-pci.c
 F: include/hw/isa/vt82c686.h
-F: tests/acceptance/machine_mips_fuloong2e.py
+F: tests/avocado/machine_mips_fuloong2e.py
 
 Loongson-3 virtual platforms
 M: Huacai Chen <chenhuacai@kernel.org>
@@ -1221,7 +1221,7 @@ F: hw/intc/loongson_liointc.c
 F: hw/mips/loongson3_bootp.c
 F: hw/mips/loongson3_bootp.h
 F: hw/mips/loongson3_virt.c
-F: tests/acceptance/machine_mips_loongson3v.py
+F: tests/avocado/machine_mips_loongson3v.py
 
 Boston
 M: Paul Burton <paulburton@kernel.org>
@@ -1250,7 +1250,7 @@ Bamboo
 L: qemu-ppc@nongnu.org
 S: Orphan
 F: hw/ppc/ppc440_bamboo.c
-F: tests/acceptance/ppc_bamboo.py
+F: tests/avocado/ppc_bamboo.py
 
 e500
 L: qemu-ppc@nongnu.org
@@ -1271,7 +1271,7 @@ L: qemu-ppc@nongnu.org
 S: Orphan
 F: hw/ppc/mpc8544ds.c
 F: hw/ppc/mpc8544_guts.c
-F: tests/acceptance/ppc_mpc8544ds.py
+F: tests/avocado/ppc_mpc8544ds.py
 
 New World (mac99)
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
@@ -1318,7 +1318,7 @@ F: hw/dma/i82374.c
 F: hw/rtc/m48t59-isa.c
 F: include/hw/isa/pc87312.h
 F: include/hw/rtc/m48t59.h
-F: tests/acceptance/ppc_prep_40p.py
+F: tests/avocado/ppc_prep_40p.py
 
 sPAPR
 M: David Gibson <david@gibson.dropbear.id.au>
@@ -1336,7 +1336,7 @@ F: tests/qtest/spapr*
 F: tests/qtest/libqos/*spapr*
 F: tests/qtest/rtas*
 F: tests/qtest/libqos/rtas*
-F: tests/acceptance/ppc_pseries.py
+F: tests/avocado/ppc_pseries.py
 
 PowerNV (Non-Virtualized)
 M: Cédric Le Goater <clg@kaod.org>
@@ -1356,7 +1356,7 @@ M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/virtex_ml507.c
-F: tests/acceptance/ppc_virtex_ml507.py
+F: tests/avocado/ppc_virtex_ml507.py
 
 sam460ex
 M: BALATON Zoltan <balaton@eik.bme.hu>
@@ -1443,7 +1443,7 @@ R: Yoshinori Sato <ysato@users.sourceforge.jp>
 S: Orphan
 F: docs/system/target-rx.rst
 F: hw/rx/rx-gdbsim.c
-F: tests/acceptance/machine_rx_gdbsim.py
+F: tests/avocado/machine_rx_gdbsim.py
 
 SH4 Machines
 ------------
@@ -1497,7 +1497,7 @@ F: include/hw/pci-host/sabre.h
 F: hw/pci-bridge/simba.c
 F: include/hw/pci-bridge/simba.h
 F: pc-bios/openbios-sparc64
-F: tests/acceptance/machine_sparc64_sun4u.py
+F: tests/avocado/machine_sparc64_sun4u.py
 
 Sun4v
 M: Artyom Tarasenko <atar4qemu@gmail.com>
@@ -1513,7 +1513,7 @@ S: Maintained
 F: hw/sparc/leon3.c
 F: hw/*/grlib*
 F: include/hw/*/grlib*
-F: tests/acceptance/machine_sparc_leon3.py
+F: tests/avocado/machine_sparc_leon3.py
 
 S390 Machines
 -------------
@@ -1528,7 +1528,7 @@ F: include/hw/s390x/
 F: hw/watchdog/wdt_diag288.c
 F: include/hw/watchdog/wdt_diag288.h
 F: configs/devices/s390x-softmmu/default.mak
-F: tests/acceptance/machine_s390_ccw_virtio.py
+F: tests/avocado/machine_s390_ccw_virtio.py
 T: git https://github.com/borntraeger/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
@@ -2112,7 +2112,7 @@ M: Alex Bennée <alex.bennee@linaro.org>
 S: Maintained
 F: hw/core/guest-loader.c
 F: docs/system/guest-loader.rst
-F: tests/acceptance/boot_xen.py
+F: tests/avocado/boot_xen.py
 
 Intel Hexadecimal Object File Loader
 M: Su Hang <suhang16@mails.ucas.ac.cn>
@@ -2986,9 +2986,9 @@ F: net/filter-replay.c
 F: include/sysemu/replay.h
 F: docs/replay.txt
 F: stubs/replay.c
-F: tests/acceptance/replay_kernel.py
-F: tests/acceptance/replay_linux.py
-F: tests/acceptance/reverse_debugging.py
+F: tests/avocado/replay_kernel.py
+F: tests/avocado/replay_linux.py
+F: tests/avocado/reverse_debugging.py
 F: qapi/replay.json
 
 IOVA Tree
@@ -3105,7 +3105,7 @@ S: Maintained
 F: docs/devel/tcg-plugins.rst
 F: plugins/
 F: tests/plugin/
-F: tests/acceptance/tcg_plugins.py
+F: tests/avocado/tcg_plugins.py
 F: contrib/plugins/
 
 AArch64 TCG target
@@ -3494,14 +3494,14 @@ S: Maintained
 F: tests/tcg/Makefile
 F: tests/tcg/Makefile.include
 
-Acceptance (Integration) Testing with the Avocado framework
+Integration Testing with the Avocado framework
 W: https://trello.com/b/6Qi1pxVn/avocado-qemu
 R: Cleber Rosa <crosa@redhat.com>
 R: Philippe Mathieu-Daudé <philmd@redhat.com>
 R: Wainer dos Santos Moschetta <wainersm@redhat.com>
 R: Willian Rampazzo <willianr@redhat.com>
 S: Odd Fixes
-F: tests/acceptance/
+F: tests/avocado/
 
 Documentation
 -------------

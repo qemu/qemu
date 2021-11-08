@@ -250,14 +250,14 @@ and set the following environment variables before booting:
 Optionally you may save the environment variables to SD card with 'saveenv'.
 To continue booting simply give the 'boot' command and NetBSD boots.
 
-Orange Pi PC acceptance tests
-"""""""""""""""""""""""""""""
+Orange Pi PC integration tests
+""""""""""""""""""""""""""""""
 
-The Orange Pi PC machine has several acceptance tests included.
+The Orange Pi PC machine has several integration tests included.
 To run the whole set of tests, build QEMU from source and simply
 provide the following command:
 
 .. code-block:: bash
 
   $ AVOCADO_ALLOW_LARGE_STORAGE=yes avocado --show=app,console run \
-     -t machine:orangepi-pc tests/acceptance/boot_linux_console.py
+     -t machine:orangepi-pc tests/avocado/boot_linux_console.py
