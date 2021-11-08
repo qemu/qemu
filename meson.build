@@ -197,6 +197,10 @@ add_project_arguments('-iquote', '.',
 link_language = meson.get_external_property('link_language', 'cpp')
 if link_language == 'cpp'
   add_languages('cpp', required: true, native: false)
+  cxx = meson.get_compiler('cpp')
+  linker = cxx
+else
+  linker = cc
 endif
 if host_machine.system() == 'darwin'
   add_languages('objc', required: false, native: false)
@@ -1109,7 +1113,7 @@ if not get_option('snappy').auto() or have_system
                            required: get_option('snappy'),
                            kwargs: static_kwargs)
 endif
-if snappy.found() and not cc.links('''
+if snappy.found() and not linker.links('''
    #include <snappy-c.h>
    int main(void) { snappy_max_compressed_length(4096); return 0; }''', dependencies: snappy)
   snappy = not_found
