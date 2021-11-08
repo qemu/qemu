@@ -163,6 +163,10 @@ endif
 # Compiler flags #
 ##################
 
+qemu_cflags = config_host['QEMU_CFLAGS'].split()
+qemu_cxxflags = config_host['QEMU_CXXFLAGS'].split()
+qemu_ldflags = config_host['QEMU_LDFLAGS'].split()
+
 # Specify linker-script with add_project_link_arguments so that it is not placed
 # within a linker --start-group/--end-group pair
 if get_option('fuzzing')
@@ -198,12 +202,9 @@ if get_option('fuzzing')
   endif
 endif
 
-add_global_arguments(config_host['QEMU_CFLAGS'].split(),
-                     native: false, language: ['c', 'objc'])
-add_global_arguments(config_host['QEMU_CXXFLAGS'].split(),
-                     native: false, language: 'cpp')
-add_global_link_arguments(config_host['QEMU_LDFLAGS'].split(),
-                          native: false, language: ['c', 'cpp', 'objc'])
+add_global_arguments(qemu_cflags, native: false, language: ['c', 'objc'])
+add_global_arguments(qemu_cxxflags, native: false, language: ['cpp'])
+add_global_link_arguments(qemu_ldflags, native: false, language: ['c', 'cpp', 'objc'])
 
 if targetos == 'linux'
   add_project_arguments('-isystem', meson.current_source_dir() / 'linux-headers',
