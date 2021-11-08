@@ -143,6 +143,8 @@ static void dt_add_pcie(MicrovmMachineState *mms)
     nr_pcie_buses = PCIE_ECAM_SIZE / PCIE_MMCFG_SIZE_MIN;
     qemu_fdt_setprop_cells(mms->fdt, nodename, "bus-range", 0,
                            nr_pcie_buses - 1);
+
+    g_free(nodename);
 }
 
 static void dt_add_ioapic(MicrovmMachineState *mms, SysBusDevice *dev)
