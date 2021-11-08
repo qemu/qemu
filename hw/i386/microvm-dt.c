@@ -336,7 +336,10 @@ void dt_setup_microvm(MicrovmMachineState *mms)
 
     if (debug) {
         fprintf(stderr, "%s: writing microvm.fdt\n", __func__);
-        g_file_set_contents("microvm.fdt", mms->fdt, size, NULL);
+        if (!g_file_set_contents("microvm.fdt", mms->fdt, size, NULL)) {
+            fprintf(stderr, "%s: writing microvm.fdt failed\n", __func__);
+            return;
+        }
         int ret = system("dtc -I dtb -O dts microvm.fdt");
         if (ret != 0) {
             fprintf(stderr, "%s: oops, dtc not installed?\n", __func__);
