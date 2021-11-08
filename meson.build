@@ -2850,7 +2850,7 @@ emulators = {}
 foreach target : target_dirs
   config_target = config_target_mak[target]
   target_name = config_target['TARGET_NAME']
-  arch = config_target['TARGET_BASE_ARCH']
+  target_base_arch = config_target['TARGET_BASE_ARCH']
   arch_srcs = [config_target_h[target]]
   arch_deps = []
   c_args = ['-DNEED_CPU_H',
@@ -2866,11 +2866,11 @@ foreach target : target_dirs
   if target.endswith('-softmmu')
     qemu_target_name = 'qemu-system-' + target_name
     target_type='system'
-    t = target_softmmu_arch[arch].apply(config_target, strict: false)
+    t = target_softmmu_arch[target_base_arch].apply(config_target, strict: false)
     arch_srcs += t.sources()
     arch_deps += t.dependencies()
 
-    hw_dir = target_name == 'sparc64' ? 'sparc64' : arch
+    hw_dir = target_name == 'sparc64' ? 'sparc64' : target_base_arch
     hw = hw_arch[hw_dir].apply(config_target, strict: false)
     arch_srcs += hw.sources()
     arch_deps += hw.dependencies()
@@ -2881,8 +2881,8 @@ foreach target : target_dirs
     abi = config_target['TARGET_ABI_DIR']
     target_type='user'
     qemu_target_name = 'qemu-' + target_name
-    if arch in target_user_arch
-      t = target_user_arch[arch].apply(config_target, strict: false)
+    if target_base_arch in target_user_arch
+      t = target_user_arch[target_base_arch].apply(config_target, strict: false)
       arch_srcs += t.sources()
       arch_deps += t.dependencies()
     endif
@@ -2920,7 +2920,7 @@ foreach target : target_dirs
     arch_srcs += gdbstub_xml
   endif
 
-  t = target_arch[arch].apply(config_target, strict: false)
+  t = target_arch[target_base_arch].apply(config_target, strict: false)
   arch_srcs += t.sources()
   arch_deps += t.dependencies()
 
