@@ -329,7 +329,6 @@ want_tools="$default_feature"
 coroutine=""
 coroutine_pool="$default_feature"
 debug_stack_usage="no"
-crypto_afalg="no"
 tls_priority="NORMAL"
 tpm="$default_feature"
 live_block_migration=${default_feature:-yes}
@@ -976,10 +975,6 @@ for opt do
   ;;
   --enable-debug-stack-usage) debug_stack_usage="yes"
   ;;
-  --enable-crypto-afalg) crypto_afalg="yes"
-  ;;
-  --disable-crypto-afalg) crypto_afalg="no"
-  ;;
   --disable-vhost-net) vhost_net="no"
   ;;
   --enable-vhost-net) vhost_net="yes"
@@ -1402,7 +1397,6 @@ cat << EOF
   vvfat           vvfat image format support
   qed             qed image format support
   parallels       parallels image format support
-  crypto-afalg    Linux AF_ALG crypto backend driver
   debug-mutex     mutex debugging support
   rng-none        dummy RNG, avoid using /dev/(u)random and getrandom()
   gio             libgio support
@@ -2818,32 +2812,6 @@ if test "$fortify_source" != "no"; then
 fi
 
 ##########################################
-# check for usable AF_ALG environment
-have_afalg=no
-cat > $TMPC << EOF
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <linux/if_alg.h>
-int main(void) {
-    int sock;
-    sock = socket(AF_ALG, SOCK_SEQPACKET, 0);
-    return sock;
-}
-EOF
-if compile_prog "" "" ; then
-    have_afalg=yes
-fi
-if test "$crypto_afalg" = "yes"
-then
-    if test "$have_afalg" != "yes"
-    then
-	error_exit "AF_ALG requested but could not be detected"
-    fi
-fi
-
-
-##########################################
 # checks for sanitizers
 
 have_asan=no
@@ -3306,10 +3274,6 @@ fi
 
 if test "$debug_stack_usage" = "yes" ; then
   echo "CONFIG_DEBUG_STACK_USAGE=y" >> $config_host_mak
-fi
-
-if test "$crypto_afalg" = "yes" ; then
-  echo "CONFIG_AF_ALG=y" >> $config_host_mak
 fi
 
 if test "$have_asan_iface_fiber" = "yes" ; then

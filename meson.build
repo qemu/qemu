@@ -1828,6 +1828,20 @@ config_host_data.set('CONFIG_MEMBARRIER', get_option('membarrier') \
   .require(have_membarrier, error_message: 'membarrier system call not available') \
   .allowed())
 
+have_afalg = get_option('crypto_afalg') \
+  .require(cc.compiles(gnu_source_prefix + '''
+    #include <errno.h>
+    #include <sys/types.h>
+    #include <sys/socket.h>
+    #include <linux/if_alg.h>
+    int main(void) {
+      int sock;
+      sock = socket(AF_ALG, SOCK_SEQPACKET, 0);
+      return sock;
+    }
+  '''), error_message: 'AF_ALG requested but could not be detected').allowed()
+config_host_data.set('CONFIG_AF_ALG', have_afalg)
+
 config_host_data.set('CONFIG_AF_VSOCK', cc.compiles(gnu_source_prefix + '''
   #include <errno.h>
   #include <sys/types.h>
@@ -3453,7 +3467,7 @@ summary_info += {'nettle':            nettle}
 if nettle.found()
    summary_info += {'  XTS':             xts != 'private'}
 endif
-summary_info += {'crypto afalg':      config_host.has_key('CONFIG_AF_ALG')}
+summary_info += {'AF_ALG support':    have_afalg}
 summary_info += {'rng-none':          config_host.has_key('CONFIG_RNG_NONE')}
 summary_info += {'Linux keyring':     config_host.has_key('CONFIG_SECRET_KEYRING')}
 summary(summary_info, bool_yn: true, section: 'Crypto')
