@@ -323,8 +323,6 @@ qom_cast_debug="yes"
 trace_backends="log"
 trace_file="trace"
 opengl="$default_feature"
-cpuid_h="no"
-avx2_opt="$default_feature"
 guest_agent="$default_feature"
 vss_win32_sdk="$default_feature"
 win_sdk="no"
@@ -1033,14 +1031,6 @@ for opt do
   ;;
   --disable-tools) want_tools="no"
   ;;
-  --disable-avx2) avx2_opt="no"
-  ;;
-  --enable-avx2) avx2_opt="yes"
-  ;;
-  --disable-avx512f) avx512f_opt="no"
-  ;;
-  --enable-avx512f) avx512f_opt="yes"
-  ;;
   --disable-virtio-blk-data-plane|--enable-virtio-blk-data-plane)
       echo "$0: $opt is obsolete, virtio-blk data-plane is always on" >&2
   ;;
@@ -1406,8 +1396,6 @@ cat << EOF
   coroutine-pool  coroutine freelist (better performance)
   tpm             TPM support
   numa            libnuma support
-  avx2            AVX2 optimization support
-  avx512f         AVX512F optimization support
   replication     replication support
   opengl          opengl support
   qom-cast-debug  cast debugging support
@@ -2741,85 +2729,6 @@ fi
 fi
 
 ########################################
-# check if cpuid.h is usable.
-
-cat > $TMPC << EOF
-#include <cpuid.h>
-int main(void) {
-    unsigned a, b, c, d;
-    unsigned max = __get_cpuid_max(0, 0);
-
-    if (max >= 1) {
-        __cpuid(1, a, b, c, d);
-    }
-
-    if (max >= 7) {
-        __cpuid_count(7, 0, a, b, c, d);
-    }
-
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-    cpuid_h=yes
-fi
-
-##########################################
-# avx2 optimization requirement check
-#
-# There is no point enabling this if cpuid.h is not usable,
-# since we won't be able to select the new routines.
-
-if test "$cpuid_h" = "yes" && test "$avx2_opt" != "no"; then
-  cat > $TMPC << EOF
-#pragma GCC push_options
-#pragma GCC target("avx2")
-#include <cpuid.h>
-#include <immintrin.h>
-static int bar(void *a) {
-    __m256i x = *(__m256i *)a;
-    return _mm256_testz_si256(x, x);
-}
-int main(int argc, char *argv[]) { return bar(argv[0]); }
-EOF
-  if compile_object "-Werror" ; then
-    avx2_opt="yes"
-  else
-    avx2_opt="no"
-  fi
-fi
-
-##########################################
-# avx512f optimization requirement check
-#
-# There is no point enabling this if cpuid.h is not usable,
-# since we won't be able to select the new routines.
-# by default, it is turned off.
-# if user explicitly want to enable it, check environment
-
-if test "$cpuid_h" = "yes" && test "$avx512f_opt" = "yes"; then
-  cat > $TMPC << EOF
-#pragma GCC push_options
-#pragma GCC target("avx512f")
-#include <cpuid.h>
-#include <immintrin.h>
-static int bar(void *a) {
-    __m512i x = *(__m512i *)a;
-    return _mm512_test_epi64_mask(x, x);
-}
-int main(int argc, char *argv[])
-{
-	return bar(argv[0]);
-}
-EOF
-  if ! compile_object "-Werror" ; then
-    avx512f_opt="no"
-  fi
-else
-  avx512f_opt="no"
-fi
-
-########################################
 # check if __[u]int128_t is usable.
 
 int128=no
@@ -3419,14 +3328,6 @@ if test "$opengl" = "yes" ; then
   echo "OPENGL_LIBS=$opengl_libs" >> $config_host_mak
 fi
 
-if test "$avx2_opt" = "yes" ; then
-  echo "CONFIG_AVX2_OPT=y" >> $config_host_mak
-fi
-
-if test "$avx512f_opt" = "yes" ; then
-  echo "CONFIG_AVX512F_OPT=y" >> $config_host_mak
-fi
-
 # XXX: suppress that
 if [ "$bsd" = "yes" ] ; then
   echo "CONFIG_BSD=y" >> $config_host_mak
@@ -3457,10 +3358,6 @@ fi
 
 if test "$have_tsan" = "yes" && test "$have_tsan_iface_fiber" = "yes" ; then
     echo "CONFIG_TSAN=y" >> $config_host_mak
-fi
-
-if test "$cpuid_h" = "yes" ; then
-  echo "CONFIG_CPUID_H=y" >> $config_host_mak
 fi
 
 if test "$int128" = "yes" ; then

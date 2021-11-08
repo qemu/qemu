@@ -1762,6 +1762,52 @@ config_host_data.set('CONFIG_GETAUXVAL', cc.links(gnu_source_prefix + '''
     return getauxval(AT_HWCAP) == 0;
   }'''))
 
+have_cpuid_h = cc.links('''
+  #include <cpuid.h>
+  int main(void) {
+    unsigned a, b, c, d;
+    unsigned max = __get_cpuid_max(0, 0);
+
+    if (max >= 1) {
+        __cpuid(1, a, b, c, d);
+    }
+
+    if (max >= 7) {
+        __cpuid_count(7, 0, a, b, c, d);
+    }
+
+    return 0;
+  }''')
+config_host_data.set('CONFIG_CPUID_H', have_cpuid_h)
+
+config_host_data.set('CONFIG_AVX2_OPT', get_option('avx2') \
+  .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX2') \
+  .require(cc.links('''
+    #pragma GCC push_options
+    #pragma GCC target("avx2")
+    #include <cpuid.h>
+    #include <immintrin.h>
+    static int bar(void *a) {
+      __m256i x = *(__m256i *)a;
+      return _mm256_testz_si256(x, x);
+    }
+    int main(int argc, char *argv[]) { return bar(argv[0]); }
+  '''), error_message: 'AVX2 not available').allowed())
+
+config_host_data.set('CONFIG_AVX512F_OPT', get_option('avx512f') \
+  .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX512F') \
+  .require(cc.links('''
+    #pragma GCC push_options
+    #pragma GCC target("avx512f")
+    #include <cpuid.h>
+    #include <immintrin.h>
+    static int bar(void *a) {
+      __m512i x = *(__m512i *)a;
+      return _mm512_test_epi64_mask(x, x);
+    }
+    int main(int argc, char *argv[]) { return bar(argv[0]); }
+  '''), error_message: 'AVX512F not available').allowed())
+
 config_host_data.set('CONFIG_AF_VSOCK', cc.compiles(gnu_source_prefix + '''
   #include <errno.h>
   #include <sys/types.h>
@@ -3289,8 +3335,8 @@ summary_info += {'membarrier':        config_host.has_key('CONFIG_MEMBARRIER')}
 summary_info += {'debug stack usage': config_host.has_key('CONFIG_DEBUG_STACK_USAGE')}
 summary_info += {'mutex debugging':   config_host.has_key('CONFIG_DEBUG_MUTEX')}
 summary_info += {'memory allocator':  get_option('malloc')}
-summary_info += {'avx2 optimization': config_host.has_key('CONFIG_AVX2_OPT')}
-summary_info += {'avx512f optimization': config_host.has_key('CONFIG_AVX512F_OPT')}
+summary_info += {'avx2 optimization': config_host_data.get('CONFIG_AVX2_OPT')}
+summary_info += {'avx512f optimization': config_host_data.get('CONFIG_AVX512F_OPT')}
 summary_info += {'gprof enabled':     config_host.has_key('CONFIG_GPROF')}
 summary_info += {'gcov':              get_option('b_coverage')}
 summary_info += {'thread sanitizer':  config_host.has_key('CONFIG_TSAN')}

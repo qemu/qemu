@@ -68,6 +68,10 @@ option('multiprocess', type: 'feature', value: 'auto',
        description: 'Out of process device emulation support')
 option('dbus_display', type: 'feature', value: 'auto',
        description: '-display dbus support')
+option('avx2', type: 'feature', value: 'auto',
+       description: 'AVX2 optimizations')
+option('avx512f', type: 'feature', value: 'disabled',
+       description: 'AVX512F optimizations')
 
 option('attr', type : 'feature', value : 'auto',
        description: 'attr/xattr support')
