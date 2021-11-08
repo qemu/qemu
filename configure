@@ -527,16 +527,67 @@ else
   targetos=bogus
 fi
 
-# Some host OSes need non-standard checks for which CPU to use.
-# Note that these checks are broken for cross-compilation: if you're
-# cross-compiling to one of these OSes then you'll need to specify
-# the correct CPU with the --cpu option.
+# OS specific
+
 case $targetos in
+windows)
+  mingw32="yes"
+  plugins="no"
+  pie="no"
+;;
+gnu/kfreebsd)
+  bsd="yes"
+;;
+freebsd)
+  bsd="yes"
+  bsd_user="yes"
+  make="${MAKE-gmake}"
+  # needed for kinfo_getvmmap(3) in libutil.h
+;;
+dragonfly)
+  bsd="yes"
+  make="${MAKE-gmake}"
+;;
+netbsd)
+  bsd="yes"
+  make="${MAKE-gmake}"
+;;
+openbsd)
+  bsd="yes"
+  make="${MAKE-gmake}"
+;;
+darwin)
+  bsd="yes"
+  darwin="yes"
+  # Disable attempts to use ObjectiveC features in os/object.h since they
+  # won't work when we're compiling with gcc as a C compiler.
+  QEMU_CFLAGS="-DOS_OBJECT_USE_OBJC=0 $QEMU_CFLAGS"
+;;
 sunos)
+  solaris="yes"
+  make="${MAKE-gmake}"
+  smbd="${SMBD-/usr/sfw/sbin/smbd}"
+# needed for CMSG_ macros in sys/socket.h
+  QEMU_CFLAGS="-D_XOPEN_SOURCE=600 $QEMU_CFLAGS"
+# needed for TIOCWIN* defines in termios.h
+  QEMU_CFLAGS="-D__EXTENSIONS__ $QEMU_CFLAGS"
   # $(uname -m) returns i86pc even on an x86_64 box, so default based on isainfo
+  # Note that this check is broken for cross-compilation: if you're
+  # cross-compiling to one of these OSes then you'll need to specify
+  # the correct CPU with the --cpu option.
   if test -z "$cpu" && test "$(isainfo -k)" = "amd64"; then
     cpu="x86_64"
   fi
+;;
+haiku)
+  pie="no"
+  QEMU_CFLAGS="-DB_USE_POSITIVE_POSIX_ERRORS -D_BSD_SOURCE -fPIC $QEMU_CFLAGS"
+;;
+linux)
+  linux="yes"
+  linux_user="yes"
+  vhost_user=${default_feature:-yes}
+;;
 esac
 
 if test ! -z "$cpu" ; then
@@ -619,62 +670,6 @@ esac
 if test -z "$ARCH"; then
   ARCH="$cpu"
 fi
-
-# OS specific
-
-case $targetos in
-windows)
-  mingw32="yes"
-  plugins="no"
-  pie="no"
-;;
-gnu/kfreebsd)
-  bsd="yes"
-;;
-freebsd)
-  bsd="yes"
-  bsd_user="yes"
-  make="${MAKE-gmake}"
-  # needed for kinfo_getvmmap(3) in libutil.h
-;;
-dragonfly)
-  bsd="yes"
-  make="${MAKE-gmake}"
-;;
-netbsd)
-  bsd="yes"
-  make="${MAKE-gmake}"
-;;
-openbsd)
-  bsd="yes"
-  make="${MAKE-gmake}"
-;;
-darwin)
-  bsd="yes"
-  darwin="yes"
-  # Disable attempts to use ObjectiveC features in os/object.h since they
-  # won't work when we're compiling with gcc as a C compiler.
-  QEMU_CFLAGS="-DOS_OBJECT_USE_OBJC=0 $QEMU_CFLAGS"
-;;
-sunos)
-  solaris="yes"
-  make="${MAKE-gmake}"
-  smbd="${SMBD-/usr/sfw/sbin/smbd}"
-# needed for CMSG_ macros in sys/socket.h
-  QEMU_CFLAGS="-D_XOPEN_SOURCE=600 $QEMU_CFLAGS"
-# needed for TIOCWIN* defines in termios.h
-  QEMU_CFLAGS="-D__EXTENSIONS__ $QEMU_CFLAGS"
-;;
-haiku)
-  pie="no"
-  QEMU_CFLAGS="-DB_USE_POSITIVE_POSIX_ERRORS -D_BSD_SOURCE -fPIC $QEMU_CFLAGS"
-;;
-linux)
-  linux="yes"
-  linux_user="yes"
-  vhost_user=${default_feature:-yes}
-;;
-esac
 
 : ${make=${MAKE-make}}
 
