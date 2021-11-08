@@ -35,7 +35,9 @@ util_ss.add(files('crc32c.c'))
 util_ss.add(files('uuid.c'))
 util_ss.add(files('getauxval.c'))
 util_ss.add(files('rcu.c'))
-util_ss.add(when: 'CONFIG_MEMBARRIER', if_true: files('sys_membarrier.c'))
+if have_membarrier
+  util_ss.add(files('sys_membarrier.c'))
+endif
 util_ss.add(files('log.c'))
 util_ss.add(files('pagesize.c'))
 util_ss.add(files('qdist.c'))

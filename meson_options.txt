@@ -68,6 +68,12 @@ option('multiprocess', type: 'feature', value: 'auto',
        description: 'Out of process device emulation support')
 option('dbus_display', type: 'feature', value: 'auto',
        description: '-display dbus support')
+
+# Do not enable it by default even for Mingw32, because it doesn't
+# work on Wine.
+option('membarrier', type: 'feature', value: 'disabled',
+       description: 'membarrier system call (for Linux 4.14+ or Windows')
+
 option('avx2', type: 'feature', value: 'auto',
        description: 'AVX2 optimizations')
 option('avx512f', type: 'feature', value: 'disabled',
