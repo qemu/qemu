@@ -23,8 +23,9 @@ class Suite(object):
 print('''
 SPEED = quick
 
-.speed.quick = $(foreach s,$(sort $(filter-out %-slow, $1)), --suite $s)
-.speed.slow = $(foreach s,$(sort $1), --suite $s)
+.speed.quick = $(foreach s,$(sort $(filter-out %-slow %-thorough, $1)), --suite $s)
+.speed.slow = $(foreach s,$(sort $(filter-out %-thorough, $1)), --suite $s)
+.speed.thorough = $(foreach s,$(sort $1), --suite $s)
 
 .mtestargs = --no-rebuild -t 0
 ifneq ($(SPEED), quick)
@@ -52,11 +53,14 @@ def process_tests(test, targets, suites):
     for s in test_suites:
         # The suite name in the introspection info is "PROJECT:SUITE"
         s = s.split(':')[1]
-        if s == 'slow':
+        if s == 'slow' or s == 'thorough':
             continue
         if s.endswith('-slow'):
             s = s[:-5]
             suites[s].speeds.append('slow')
+        if s.endswith('-thorough'):
+            s = s[:-9]
+            suites[s].speeds.append('thorough')
         suites[s].deps.update(deps)
 
 def emit_prolog(suites, prefix):
