@@ -661,9 +661,10 @@ case "$cpu" in
   ppc)
     CPU_CFLAGS="-m32" ;;
   ppc64)
-    CPU_CFLAGS="-m64" ;;
+    CPU_CFLAGS="-m64 -mbig" ;;
   ppc64le)
-    ARCH="ppc64" ;;
+    cpu="ppc64"
+    CPU_CFLAGS="-m64 -mlittle" ;;
 
   s390)
     CPU_CFLAGS="-m31"
@@ -3721,7 +3722,7 @@ if test "$linux" = "yes" ; then
   i386|x86_64|x32)
     linux_arch=x86
     ;;
-  ppc|ppc64|ppc64le)
+  ppc|ppc64)
     linux_arch=powerpc
     ;;
   s390x)
@@ -3902,9 +3903,6 @@ if test "$skip_meson" = no; then
             ;;
         x86_64|x32)
             echo "cpu_family = 'x86_64'" >> $cross
-            ;;
-        ppc64le)
-            echo "cpu_family = 'ppc64'" >> $cross
             ;;
         *)
             echo "cpu_family = '$ARCH'" >> $cross
