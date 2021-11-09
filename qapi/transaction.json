@@ -54,6 +54,10 @@
 # @blockdev-snapshot-sync: since 1.1
 # @drive-backup: Since 1.6
 #
+# Features:
+# @deprecated: Member @drive-backup is deprecated.  Use member
+#              @blockdev-backup instead.
+#
 # Since: 1.1
 ##
 { 'enum': 'TransactionActionKind',
@@ -62,7 +66,7 @@
             'block-dirty-bitmap-disable', 'block-dirty-bitmap-merge',
             'blockdev-backup', 'blockdev-snapshot',
             'blockdev-snapshot-internal-sync', 'blockdev-snapshot-sync',
-            'drive-backup' ] }
+            { 'name': 'drive-backup', 'features': [ 'deprecated' ] } ] }
 
 ##
 # @AbortWrapper:

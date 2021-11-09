@@ -79,7 +79,7 @@ Primary |                 ||  Secondary disk <--------- hidden-disk 5 <---------
                           ||        |                         |
                           ||        |                         |
                           ||        '-------------------------'
-                          ||           drive-backup sync=none 6
+                          ||         blockdev-backup sync=none 6
 
 1) The disk on the primary is represented by a block device with two
 children, providing replication between a primary disk and the host that
@@ -101,7 +101,7 @@ should support bdrv_make_empty() and backing file.
 that is modified by the primary VM. It should also start as an empty disk,
 and the driver supports bdrv_make_empty() and backing file.
 
-6) The drive-backup job (sync=none) is run to allow hidden-disk to buffer
+6) The blockdev-backup job (sync=none) is run to allow hidden-disk to buffer
 any state that would otherwise be lost by the speculative write-through
 of the NBD server into the secondary disk. So before block replication,
 the primary disk and secondary disk should contain the same data.
