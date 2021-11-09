@@ -47,6 +47,7 @@ typedef uint128_t         u128;
 #define FS_ERROR_SHMAT 8
 #define FS_ERROR_MMAP 16
 #define FS_ERROR_OLD_CMPLOG 32
+#define FS_ERROR_OLD_CMPLOG_QEMU 64
 
 /* Reporting options */
 #define FS_OPT_ENABLED 0x80000001
