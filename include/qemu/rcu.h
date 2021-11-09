@@ -27,6 +27,7 @@
 #include "qemu/thread.h"
 #include "qemu/queue.h"
 #include "qemu/atomic.h"
+#include "qemu/notify.h"
 #include "qemu/sys_membarrier.h"
 
 #ifdef __cplusplus
@@ -66,6 +67,13 @@ struct rcu_reader_data {
 
     /* Data used for registry, protected by rcu_registry_lock */
     QLIST_ENTRY(rcu_reader_data) node;
+
+    /*
+     * NotifierList used to force an RCU grace period.  Accessed under
+     * rcu_registry_lock.  Note that the notifier is called _outside_
+     * the thread!
+     */
+    NotifierList force_rcu;
 };
 
 extern __thread struct rcu_reader_data rcu_reader;
@@ -179,6 +187,13 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(RCUReadAuto, rcu_read_auto_unlock)
 
 #define RCU_READ_LOCK_GUARD() \
     g_autoptr(RCUReadAuto) _rcu_read_auto __attribute__((unused)) = rcu_read_auto_lock()
+
+/*
+ * Force-RCU notifiers tell readers that they should exit their
+ * read-side critical section.
+ */
+void rcu_add_force_rcu_notifier(Notifier *n);
+void rcu_remove_force_rcu_notifier(Notifier *n);
 
 #ifdef __cplusplus
 }
