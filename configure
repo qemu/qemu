@@ -647,6 +647,7 @@ case "$cpu" in
     cpu="i386"
     CPU_CFLAGS="-m32" ;;
   x32)
+    cpu="x86_64"
     CPU_CFLAGS="-mx32" ;;
   x86_64|amd64)
     cpu="x86_64"
@@ -3719,7 +3720,7 @@ fi
 if test "$linux" = "yes" ; then
   mkdir -p linux-headers
   case "$cpu" in
-  i386|x86_64|x32)
+  i386|x86_64)
     linux_arch=x86
     ;;
   ppc|ppc64)
@@ -3900,9 +3901,6 @@ if test "$skip_meson" = no; then
     case "$ARCH" in
         i386)
             echo "cpu_family = 'x86'" >> $cross
-            ;;
-        x86_64|x32)
-            echo "cpu_family = 'x86_64'" >> $cross
             ;;
         *)
             echo "cpu_family = '$ARCH'" >> $cross
