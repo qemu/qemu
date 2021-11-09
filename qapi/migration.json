@@ -1796,7 +1796,7 @@
 # @calc-time: time in units of second for sample dirty pages
 #
 # @sample-pages: page count per GB for sample dirty pages
-#                the default value is 512 (since 6.2)
+#                the default value is 512 (since 6.1)
 #
 # @mode: mode containing method of calculate dirtyrate includes
 #        'page-sampling' and 'dirty-ring' (Since 6.2)
