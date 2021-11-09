@@ -636,32 +636,47 @@ else
 fi
 
 ARCH=
-# Normalise host CPU name and set ARCH.
+# Normalise host CPU name, set ARCH and multilib cflags
 # Note that this case should only have supported host CPUs, not guests.
 case "$cpu" in
-  ppc|ppc64|s390x|sparc64|x32|riscv)
-  ;;
-  ppc64le)
-    ARCH="ppc64"
-  ;;
+  aarch64|riscv) ;;
+  armv*b|armv*l|arm)
+    cpu="arm" ;;
+
   i386|i486|i586|i686|i86pc|BePC)
     cpu="i386"
-  ;;
+    CPU_CFLAGS="-m32" ;;
+  x32)
+    CPU_CFLAGS="-mx32" ;;
   x86_64|amd64)
     cpu="x86_64"
-  ;;
-  armv*b|armv*l|arm)
-    cpu="arm"
-  ;;
-  aarch64)
-    cpu="aarch64"
-  ;;
+    # ??? Only extremely old AMD cpus do not have cmpxchg16b.
+    # If we truly care, we should simply detect this case at
+    # runtime and generate the fallback to serial emulation.
+    CPU_CFLAGS="-m64 -mcx16" ;;
+
   mips*)
-    cpu="mips"
-  ;;
+    cpu="mips" ;;
+
+  ppc)
+    CPU_CFLAGS="-m32" ;;
+  ppc64)
+    CPU_CFLAGS="-m64" ;;
+  ppc64le)
+    ARCH="ppc64" ;;
+
+  s390)
+    CPU_CFLAGS="-m31"
+    ARCH=unknown ;;
+  s390x)
+    CPU_CFLAGS="-m64" ;;
+
   sparc|sun4[cdmuv])
     cpu="sparc"
-  ;;
+    CPU_CFLAGS="-m32 -mv8plus -mcpu=ultrasparc" ;;
+  sparc64)
+    CPU_CFLAGS="-m64 -mcpu=ultrasparc" ;;
+
   *)
     # This will result in either an error or falling back to TCI later
     ARCH=unknown
@@ -1251,24 +1266,6 @@ sysconfdir="${sysconfdir:-$prefix/etc}"
 local_statedir="${local_statedir:-$prefix/var}"
 firmwarepath="${firmwarepath:-$datadir/qemu-firmware}"
 localedir="${localedir:-$datadir/locale}"
-
-case "$cpu" in
-    ppc) CPU_CFLAGS="-m32" ;;
-    ppc64) CPU_CFLAGS="-m64" ;;
-    sparc) CPU_CFLAGS="-m32 -mv8plus -mcpu=ultrasparc" ;;
-    sparc64) CPU_CFLAGS="-m64 -mcpu=ultrasparc" ;;
-    s390) CPU_CFLAGS="-m31" ;;
-    s390x) CPU_CFLAGS="-m64" ;;
-    i386) CPU_CFLAGS="-m32" ;;
-    x32) CPU_CFLAGS="-mx32" ;;
-
-    # ??? Only extremely old AMD cpus do not have cmpxchg16b.
-    # If we truly care, we should simply detect this case at
-    # runtime and generate the fallback to serial emulation.
-    x86_64) CPU_CFLAGS="-m64 -mcx16" ;;
-
-    # No special flags required for other host CPUs
-esac
 
 if eval test -z "\${cross_cc_$cpu}"; then
     eval "cross_cc_${cpu}=\$cc"
