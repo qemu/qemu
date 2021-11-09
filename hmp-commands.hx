@@ -382,7 +382,7 @@ SRST
 ERST
 
     {
-        .name       = "stop",
+        .name       = "stop|s",
         .args_type  = "",
         .params     = "",
         .help       = "stop emulation",
@@ -390,7 +390,7 @@ ERST
     },
 
 SRST
-``stop``
+``stop`` or ``s``
   Stop emulation.
 ERST
 

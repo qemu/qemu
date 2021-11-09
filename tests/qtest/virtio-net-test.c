@@ -319,7 +319,7 @@ static void register_virtio_net_test(void)
         .before = virtio_net_test_setup,
     };
 
-    qos_add_test("hotplug", "virtio-pci", hotplug, &opts);
+    qos_add_test("hotplug", "virtio-net-pci", hotplug, &opts);
 #ifndef _WIN32
     qos_add_test("basic", "virtio-net", send_recv_test, &opts);
     qos_add_test("rx_stop_cont", "virtio-net", stop_cont_test, &opts);
