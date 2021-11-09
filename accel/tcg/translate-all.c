@@ -65,7 +65,7 @@
 
 #include "qemuafl/common.h"
 #include "tcg/tcg-op.h"
-#include "qemu/xxhash.h"
+#include "qemuaflimported/afl_hash.h"
 
 #include <math.h>
 
@@ -107,7 +107,7 @@ static void afl_gen_trace(target_ulong cur_loc) {
 
   // cur_loc = (cur_loc >> 4) ^ (cur_loc << 8);
   // cur_loc &= MAP_SIZE - 1;
-  cur_loc = (uintptr_t)(qemu_xxhash64_4((uint64_t)cur_loc, 0, 0, HASH_CONST));
+  cur_loc = (uintptr_t)(afl_hash_ip((uint64_t)cur_loc, 8));
   cur_loc &= (MAP_SIZE - 1);
 
   /* Implement probabilistic instrumentation by looking at scrambled block
