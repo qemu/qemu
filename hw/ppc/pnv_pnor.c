@@ -36,7 +36,7 @@ static void pnv_pnor_update(PnvPnor *s, int offset, int size)
     int offset_end;
     int ret;
 
-    if (s->blk) {
+    if (!s->blk || !blk_is_writable(s->blk)) {
         return;
     }
 

@@ -167,6 +167,7 @@
 /* ------------------------------------------------------------------ */
 
 #include "qemu/osdep.h"
+#include "qemu/host-utils.h"
 #include "libdecnumber/dconfig.h"
 #include "libdecnumber/decNumber.h"
 #include "libdecnumber/decNumberLocal.h"
@@ -263,6 +264,7 @@ static decNumber * decTrim(decNumber *, decContext *, Flag, Int *);
 static Int	   decUnitAddSub(const Unit *, Int, const Unit *, Int, Int,
 			      Unit *, Int);
 static Int	   decUnitCompare(const Unit *, Int, const Unit *, Int, Int);
+static bool        mulUInt128ByPowOf10(uLong *, uLong *, uInt);
 
 #if !DECSUBSET
 /* decFinish == decFinalize when no subset arithmetic needed */
@@ -462,6 +464,41 @@ decNumber *decNumberFromUInt64(decNumber *dn, uint64_t uin)
     return dn;
 } /* decNumberFromUInt64 */
 
+decNumber *decNumberFromInt128(decNumber *dn, uint64_t lo, int64_t hi)
+{
+    uint64_t unsig_hi = hi;
+    if (hi < 0) {
+        if (lo == 0) {
+            unsig_hi = -unsig_hi;
+        } else {
+            unsig_hi = ~unsig_hi;
+            lo = -lo;
+        }
+    }
+
+    decNumberFromUInt128(dn, lo, unsig_hi);
+    if (hi < 0) {
+        dn->bits = DECNEG;        /* sign needed */
+    }
+    return dn;
+} /* decNumberFromInt128 */
+
+decNumber *decNumberFromUInt128(decNumber *dn, uint64_t lo, uint64_t hi)
+{
+    uint64_t rem;
+    Unit *up;                             /* work pointer */
+    decNumberZero(dn);                    /* clean */
+    if (lo == 0 && hi == 0) {
+        return dn;                /* [or decGetDigits bad call] */
+    }
+    for (up = dn->lsu; hi > 0 || lo > 0; up++) {
+        rem = divu128(&lo, &hi, DECDPUNMAX + 1);
+        *up = (Unit)rem;
+    }
+    dn->digits = decGetDigits(dn->lsu, up - dn->lsu);
+    return dn;
+} /* decNumberFromUInt128 */
+
 /* ------------------------------------------------------------------ */
 /* to-int64 -- conversion to int64                                    */
 /*                                                                    */
@@ -506,6 +543,68 @@ Invalid:
     return 0;
 } /* decNumberIntegralToInt64 */
 
+/* ------------------------------------------------------------------ */
+/* decNumberIntegralToInt128 -- conversion to int128                  */
+/*                                                                    */
+/*  dn is the decNumber to convert.  dn is assumed to have been       */
+/*    rounded to a floating point integer value.                      */
+/*  set is the context for reporting errors                           */
+/*  returns the converted decNumber via plow and phigh                */
+/*                                                                    */
+/* Invalid is set if the decNumber is a NaN, Infinite or is out of    */
+/* range for a signed 128 bit integer.                                */
+/* ------------------------------------------------------------------ */
+
+void decNumberIntegralToInt128(const decNumber *dn, decContext *set,
+        uint64_t *plow, uint64_t *phigh)
+{
+    int d;        /* work */
+    const Unit *up;   /* .. */
+    uint64_t lo = 0, hi = 0;
+
+    if (decNumberIsSpecial(dn) || (dn->exponent < 0) ||
+       (dn->digits + dn->exponent > 39)) {
+        goto Invalid;
+    }
+
+    up = dn->lsu;     /* -> lsu */
+
+    for (d = (dn->digits - 1) / DECDPUN; d >= 0; d--) {
+        if (mulu128(&lo, &hi, DECDPUNMAX + 1)) {
+            /* overflow */
+            goto Invalid;
+        }
+        if (uadd64_overflow(lo, up[d], &lo)) {
+            if (uadd64_overflow(hi, 1, &hi)) {
+                /* overflow */
+                goto Invalid;
+            }
+        }
+    }
+
+    if (mulUInt128ByPowOf10(&lo, &hi, dn->exponent)) {
+        /* overflow */
+        goto Invalid;
+    }
+
+    if (decNumberIsNegative(dn)) {
+        if (lo == 0) {
+            *phigh = -hi;
+            *plow = 0;
+        } else {
+            *phigh = ~hi;
+            *plow = -lo;
+        }
+    } else {
+        *plow = lo;
+        *phigh = hi;
+    }
+
+    return;
+
+Invalid:
+    decContextSetStatus(set, DEC_Invalid_operation);
+} /* decNumberIntegralToInt128 */
 
 /* ------------------------------------------------------------------ */
 /* to-scientific-string -- conversion to numeric string		      */
@@ -7848,6 +7947,38 @@ static Int decGetDigits(Unit *uar, Int len) {
     } /* up */
   return digits;
   } /* decGetDigits */
+
+/* ------------------------------------------------------------------ */
+/* mulUInt128ByPowOf10 -- multiply a 128-bit unsigned integer by a    */
+/* power of 10.                                                       */
+/*                                                                    */
+/*   The 128-bit factor composed of plow and phigh is multiplied      */
+/*   by 10^exp.                                                       */
+/*                                                                    */
+/*   plow   pointer to the low 64 bits of the first factor            */
+/*   phigh  pointer to the high 64 bits of the first factor           */
+/*   exp    the exponent of the power of 10 of the second factor      */
+/*                                                                    */
+/* If the result fits in 128 bits, returns false and the              */
+/* multiplication result through plow and phigh.                      */
+/* Otherwise, returns true.                                           */
+/* ------------------------------------------------------------------ */
+static bool mulUInt128ByPowOf10(uLong *plow, uLong *phigh, uInt pow10)
+{
+    while (pow10 >= ARRAY_SIZE(powers)) {
+        if (mulu128(plow, phigh, powers[ARRAY_SIZE(powers) - 1])) {
+            /* Overflow */
+            return true;
+        }
+        pow10 -= ARRAY_SIZE(powers) - 1;
+    }
+
+    if (pow10 > 0) {
+        return mulu128(plow, phigh, powers[pow10]);
+    } else {
+        return false;
+    }
+}
 
 #if DECTRACE | DECCHECK
 /* ------------------------------------------------------------------ */

@@ -1217,10 +1217,6 @@ GEN_VXFORM_UIMM_SPLAT(vextractub, 6, 8, 15);
 GEN_VXFORM_UIMM_SPLAT(vextractuh, 6, 9, 14);
 GEN_VXFORM_UIMM_SPLAT(vextractuw, 6, 10, 12);
 GEN_VXFORM_UIMM_SPLAT(vextractd, 6, 11, 8);
-GEN_VXFORM_UIMM_SPLAT(vinsertb, 6, 12, 15);
-GEN_VXFORM_UIMM_SPLAT(vinserth, 6, 13, 14);
-GEN_VXFORM_UIMM_SPLAT(vinsertw, 6, 14, 12);
-GEN_VXFORM_UIMM_SPLAT(vinsertd, 6, 15, 8);
 GEN_VXFORM_UIMM_ENV(vcfux, 5, 12);
 GEN_VXFORM_UIMM_ENV(vcfsx, 5, 13);
 GEN_VXFORM_UIMM_ENV(vctuxs, 5, 14);
@@ -1231,12 +1227,184 @@ GEN_VXFORM_DUAL(vsplth, PPC_ALTIVEC, PPC_NONE,
                 vextractuh, PPC_NONE, PPC2_ISA300);
 GEN_VXFORM_DUAL(vspltw, PPC_ALTIVEC, PPC_NONE,
                 vextractuw, PPC_NONE, PPC2_ISA300);
-GEN_VXFORM_DUAL(vspltisb, PPC_ALTIVEC, PPC_NONE,
-                vinsertb, PPC_NONE, PPC2_ISA300);
-GEN_VXFORM_DUAL(vspltish, PPC_ALTIVEC, PPC_NONE,
-                vinserth, PPC_NONE, PPC2_ISA300);
-GEN_VXFORM_DUAL(vspltisw, PPC_ALTIVEC, PPC_NONE,
-                vinsertw, PPC_NONE, PPC2_ISA300);
+
+static bool do_vextdx(DisasContext *ctx, arg_VA *a, int size, bool right,
+               void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv))
+{
+    TCGv_ptr vrt, vra, vrb;
+    TCGv rc;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    vrt = gen_avr_ptr(a->vrt);
+    vra = gen_avr_ptr(a->vra);
+    vrb = gen_avr_ptr(a->vrb);
+    rc = tcg_temp_new();
+
+    tcg_gen_andi_tl(rc, cpu_gpr[a->rc], 0x1F);
+    if (right) {
+        tcg_gen_subfi_tl(rc, 32 - size, rc);
+    }
+    gen_helper(cpu_env, vrt, vra, vrb, rc);
+
+    tcg_temp_free_ptr(vrt);
+    tcg_temp_free_ptr(vra);
+    tcg_temp_free_ptr(vrb);
+    tcg_temp_free(rc);
+    return true;
+}
+
+TRANS(VEXTDUBVLX, do_vextdx, 1, false, gen_helper_VEXTDUBVLX)
+TRANS(VEXTDUHVLX, do_vextdx, 2, false, gen_helper_VEXTDUHVLX)
+TRANS(VEXTDUWVLX, do_vextdx, 4, false, gen_helper_VEXTDUWVLX)
+TRANS(VEXTDDVLX, do_vextdx, 8, false, gen_helper_VEXTDDVLX)
+
+TRANS(VEXTDUBVRX, do_vextdx, 1, true, gen_helper_VEXTDUBVLX)
+TRANS(VEXTDUHVRX, do_vextdx, 2, true, gen_helper_VEXTDUHVLX)
+TRANS(VEXTDUWVRX, do_vextdx, 4, true, gen_helper_VEXTDUWVLX)
+TRANS(VEXTDDVRX, do_vextdx, 8, true, gen_helper_VEXTDDVLX)
+
+static bool do_vinsx(DisasContext *ctx, int vrt, int size, bool right, TCGv ra,
+            TCGv_i64 rb, void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_i64, TCGv))
+{
+    TCGv_ptr t;
+    TCGv idx;
+
+    t = gen_avr_ptr(vrt);
+    idx = tcg_temp_new();
+
+    tcg_gen_andi_tl(idx, ra, 0xF);
+    if (right) {
+        tcg_gen_subfi_tl(idx, 16 - size, idx);
+    }
+
+    gen_helper(cpu_env, t, rb, idx);
+
+    tcg_temp_free_ptr(t);
+    tcg_temp_free(idx);
+
+    return true;
+}
+
+static bool do_vinsvx(DisasContext *ctx, int vrt, int size, bool right, TCGv ra,
+                int vrb, void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_i64, TCGv))
+{
+    bool ok;
+    TCGv_i64 val;
+
+    val = tcg_temp_new_i64();
+    get_avr64(val, vrb, true);
+    ok = do_vinsx(ctx, vrt, size, right, ra, val, gen_helper);
+
+    tcg_temp_free_i64(val);
+    return ok;
+}
+
+static bool do_vinsx_VX(DisasContext *ctx, arg_VX *a, int size, bool right,
+                        void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_i64, TCGv))
+{
+    bool ok;
+    TCGv_i64 val;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    val = tcg_temp_new_i64();
+    tcg_gen_extu_tl_i64(val, cpu_gpr[a->vrb]);
+
+    ok = do_vinsx(ctx, a->vrt, size, right, cpu_gpr[a->vra], val, gen_helper);
+
+    tcg_temp_free_i64(val);
+    return ok;
+}
+
+static bool do_vinsvx_VX(DisasContext *ctx, arg_VX *a, int size, bool right,
+                        void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_i64, TCGv))
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    return do_vinsvx(ctx, a->vrt, size, right, cpu_gpr[a->vra], a->vrb,
+                     gen_helper);
+}
+
+static bool do_vins_VX_uim4(DisasContext *ctx, arg_VX_uim4 *a, int size,
+                        void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_i64, TCGv))
+{
+    bool ok;
+    TCGv_i64 val;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    if (a->uim > (16 - size)) {
+        /*
+         * PowerISA v3.1 says that the resulting value is undefined in this
+         * case, so just log a guest error and leave VRT unchanged. The
+         * real hardware would do a partial insert, e.g. if VRT is zeroed and
+         * RB is 0x12345678, executing "vinsw VRT,RB,14" results in
+         * VRT = 0x0000...00001234, but we don't bother to reproduce this
+         * behavior as software shouldn't rely on it.
+         */
+        qemu_log_mask(LOG_GUEST_ERROR, "Invalid index for VINS* at"
+            " 0x" TARGET_FMT_lx ", UIM = %d > %d\n", ctx->cia, a->uim,
+            16 - size);
+        return true;
+    }
+
+    val = tcg_temp_new_i64();
+    tcg_gen_extu_tl_i64(val, cpu_gpr[a->vrb]);
+
+    ok = do_vinsx(ctx, a->vrt, size, false, tcg_constant_tl(a->uim), val,
+                  gen_helper);
+
+    tcg_temp_free_i64(val);
+    return ok;
+}
+
+static bool do_vinsert_VX_uim4(DisasContext *ctx, arg_VX_uim4 *a, int size,
+                        void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_i64, TCGv))
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_VECTOR(ctx);
+
+    if (a->uim > (16 - size)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Invalid index for VINSERT* at"
+            " 0x" TARGET_FMT_lx ", UIM = %d > %d\n", ctx->cia, a->uim,
+            16 - size);
+        return true;
+    }
+
+    return do_vinsvx(ctx, a->vrt, size, false, tcg_constant_tl(a->uim), a->vrb,
+                     gen_helper);
+}
+
+TRANS(VINSBLX, do_vinsx_VX, 1, false, gen_helper_VINSBLX)
+TRANS(VINSHLX, do_vinsx_VX, 2, false, gen_helper_VINSHLX)
+TRANS(VINSWLX, do_vinsx_VX, 4, false, gen_helper_VINSWLX)
+TRANS(VINSDLX, do_vinsx_VX, 8, false, gen_helper_VINSDLX)
+
+TRANS(VINSBRX, do_vinsx_VX, 1, true, gen_helper_VINSBLX)
+TRANS(VINSHRX, do_vinsx_VX, 2, true, gen_helper_VINSHLX)
+TRANS(VINSWRX, do_vinsx_VX, 4, true, gen_helper_VINSWLX)
+TRANS(VINSDRX, do_vinsx_VX, 8, true, gen_helper_VINSDLX)
+
+TRANS(VINSW, do_vins_VX_uim4, 4, gen_helper_VINSWLX)
+TRANS(VINSD, do_vins_VX_uim4, 8, gen_helper_VINSDLX)
+
+TRANS(VINSBVLX, do_vinsvx_VX, 1, false, gen_helper_VINSBLX)
+TRANS(VINSHVLX, do_vinsvx_VX, 2, false, gen_helper_VINSHLX)
+TRANS(VINSWVLX, do_vinsvx_VX, 4, false, gen_helper_VINSWLX)
+
+TRANS(VINSBVRX, do_vinsvx_VX, 1, true, gen_helper_VINSBLX)
+TRANS(VINSHVRX, do_vinsvx_VX, 2, true, gen_helper_VINSHLX)
+TRANS(VINSWVRX, do_vinsvx_VX, 4, true, gen_helper_VINSWLX)
+
+TRANS(VINSERTB, do_vinsert_VX_uim4, 1, gen_helper_VINSBLX)
+TRANS(VINSERTH, do_vinsert_VX_uim4, 2, gen_helper_VINSHLX)
+TRANS(VINSERTW, do_vinsert_VX_uim4, 4, gen_helper_VINSWLX)
+TRANS(VINSERTD, do_vinsert_VX_uim4, 8, gen_helper_VINSDLX)
 
 static void gen_vsldoi(DisasContext *ctx)
 {
@@ -1255,6 +1423,72 @@ static void gen_vsldoi(DisasContext *ctx)
     tcg_temp_free_ptr(rb);
     tcg_temp_free_ptr(rd);
     tcg_temp_free_i32(sh);
+}
+
+static bool trans_VSLDBI(DisasContext *ctx, arg_VN *a)
+{
+    TCGv_i64 t0, t1, t2;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
+
+    get_avr64(t0, a->vra, true);
+    get_avr64(t1, a->vra, false);
+
+    if (a->sh != 0) {
+        t2 = tcg_temp_new_i64();
+
+        get_avr64(t2, a->vrb, true);
+
+        tcg_gen_extract2_i64(t0, t1, t0, 64 - a->sh);
+        tcg_gen_extract2_i64(t1, t2, t1, 64 - a->sh);
+
+        tcg_temp_free_i64(t2);
+    }
+
+    set_avr64(a->vrt, t0, true);
+    set_avr64(a->vrt, t1, false);
+
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+
+    return true;
+}
+
+static bool trans_VSRDBI(DisasContext *ctx, arg_VN *a)
+{
+    TCGv_i64 t2, t1, t0;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
+
+    get_avr64(t0, a->vrb, false);
+    get_avr64(t1, a->vrb, true);
+
+    if (a->sh != 0) {
+        t2 = tcg_temp_new_i64();
+
+        get_avr64(t2, a->vra, false);
+
+        tcg_gen_extract2_i64(t0, t0, t1, a->sh);
+        tcg_gen_extract2_i64(t1, t1, t2, a->sh);
+
+        tcg_temp_free_i64(t2);
+    }
+
+    set_avr64(a->vrt, t0, false);
+    set_avr64(a->vrt, t1, true);
+
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+
+    return true;
 }
 
 #define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
@@ -1558,6 +1792,86 @@ VSHASIGMA(vshasigmad)
 GEN_VXFORM3(vpermxor, 22, 0xFF)
 GEN_VXFORM_DUAL(vsldoi, PPC_ALTIVEC, PPC_NONE,
                 vpermxor, PPC_NONE, PPC2_ALTIVEC_207)
+
+static bool trans_VCFUGED(DisasContext *ctx, arg_VX *a)
+{
+    static const GVecGen3 g = {
+        .fni8 = gen_helper_CFUGED,
+        .vece = MO_64,
+    };
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    tcg_gen_gvec_3(avr_full_offset(a->vrt), avr_full_offset(a->vra),
+                   avr_full_offset(a->vrb), 16, 16, &g);
+
+    return true;
+}
+
+static bool trans_VCLZDM(DisasContext *ctx, arg_VX *a)
+{
+    static const GVecGen3i g = {
+        .fni8 = do_cntzdm,
+        .vece = MO_64,
+    };
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    tcg_gen_gvec_3i(avr_full_offset(a->vrt), avr_full_offset(a->vra),
+                    avr_full_offset(a->vrb), 16, 16, false, &g);
+
+    return true;
+}
+
+static bool trans_VCTZDM(DisasContext *ctx, arg_VX *a)
+{
+    static const GVecGen3i g = {
+        .fni8 = do_cntzdm,
+        .vece = MO_64,
+    };
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    tcg_gen_gvec_3i(avr_full_offset(a->vrt), avr_full_offset(a->vra),
+                    avr_full_offset(a->vrb), 16, 16, true, &g);
+
+    return true;
+}
+
+static bool trans_VPDEPD(DisasContext *ctx, arg_VX *a)
+{
+    static const GVecGen3 g = {
+        .fni8 = gen_helper_PDEPD,
+        .vece = MO_64,
+    };
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    tcg_gen_gvec_3(avr_full_offset(a->vrt), avr_full_offset(a->vra),
+                   avr_full_offset(a->vrb), 16, 16, &g);
+
+    return true;
+}
+
+static bool trans_VPEXTD(DisasContext *ctx, arg_VX *a)
+{
+    static const GVecGen3 g = {
+        .fni8 = gen_helper_PEXTD,
+        .vece = MO_64,
+    };
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    tcg_gen_gvec_3(avr_full_offset(a->vrt), avr_full_offset(a->vra),
+                   avr_full_offset(a->vrb), 16, 16, &g);
+
+    return true;
+}
 
 #undef GEN_VR_LDX
 #undef GEN_VR_STX

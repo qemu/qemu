@@ -116,12 +116,16 @@
   decNumber * decNumberFromUInt32(decNumber *, uint32_t);
   decNumber *decNumberFromInt64(decNumber *, int64_t);
   decNumber *decNumberFromUInt64(decNumber *, uint64_t);
+  decNumber *decNumberFromInt128(decNumber *, uint64_t, int64_t);
+  decNumber *decNumberFromUInt128(decNumber *, uint64_t, uint64_t);
   decNumber * decNumberFromString(decNumber *, const char *, decContext *);
   char	    * decNumberToString(const decNumber *, char *);
   char	    * decNumberToEngString(const decNumber *, char *);
   uint32_t    decNumberToUInt32(const decNumber *, decContext *);
   int32_t     decNumberToInt32(const decNumber *, decContext *);
   int64_t     decNumberIntegralToInt64(const decNumber *dn, decContext *set);
+  void        decNumberIntegralToInt128(const decNumber *dn, decContext *set,
+        uint64_t *plow, uint64_t *phigh);
   uint8_t   * decNumberGetBCD(const decNumber *, uint8_t *);
   decNumber * decNumberSetBCD(decNumber *, const uint8_t *, uint32_t);
 

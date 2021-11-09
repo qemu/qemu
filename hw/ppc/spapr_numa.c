@@ -546,12 +546,24 @@ static void spapr_numa_FORM2_write_rtas_tables(SpaprMachineState *spapr,
              * NUMA nodes, but QEMU adds the default NUMA node without
              * adding the numa_info to retrieve distance info from.
              */
-            if (src == dst) {
-                distance_table[i++] = NUMA_DISTANCE_MIN;
-                continue;
+            distance_table[i] = numa_info[src].distance[dst];
+            if (distance_table[i] == 0) {
+                /*
+                 * In case QEMU adds a default NUMA single node when the user
+                 * did not add any, or where the user did not supply distances,
+                 * the value will be 0 here. Populate the table with a fallback
+                 * simple local / remote distance.
+                 */
+                if (src == dst) {
+                    distance_table[i] = NUMA_DISTANCE_MIN;
+                } else {
+                    distance_table[i] = numa_info[src].distance[dst];
+                    if (distance_table[i] < NUMA_DISTANCE_MIN) {
+                        distance_table[i] = NUMA_DISTANCE_DEFAULT;
+                    }
+                }
             }
-
-            distance_table[i++] = numa_info[src].distance[dst];
+            i++;
         }
     }
 
