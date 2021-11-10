@@ -629,7 +629,7 @@ void afl_forkserver(CPUState *cpu) {
     status |= (FS_OPT_SET_MAPSIZE(MAP_SIZE) | FS_OPT_MAPSIZE);
   if (lkm_snapshot) status |= FS_OPT_SNAPSHOT;
   if (sharedmem_fuzzing != 0) status |= FS_OPT_SHDMEM_FUZZ;
-  if (status) status |= (FS_OPT_ENABLED);
+  if (status) status |= (FS_OPT_ENABLED | FS_OPT_NEWCMPLOG);
   if (getenv("AFL_DEBUG"))
     fprintf(stderr, "Debug: Sending status %08x\n", status);
   memcpy(tmp, &status, 4);
