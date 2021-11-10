@@ -46,3 +46,4 @@ modifying QEMU's source code.
    qapi-code-gen
    writing-monitor-commands
    trivial-patches
+   submitting-a-pull-request
