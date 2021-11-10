@@ -2144,6 +2144,17 @@ Object *object_resolve_path(const char *path, bool *ambiguous)
     return object_resolve_path_type(path, TYPE_OBJECT, ambiguous);
 }
 
+Object *object_resolve_path_at(Object *parent, const char *path)
+{
+    g_auto(GStrv) parts = g_strsplit(path, "/", 0);
+
+    if (*path == '/') {
+        return object_resolve_abs_path(object_get_root(), parts + 1,
+                                       TYPE_OBJECT);
+    }
+    return object_resolve_abs_path(parent, parts, TYPE_OBJECT);
+}
+
 typedef struct StringProperty
 {
     char *(*get)(Object *, Error **);

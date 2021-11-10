@@ -871,14 +871,8 @@ void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
 
 static DeviceState *find_device_state(const char *id, Error **errp)
 {
-    Object *obj;
+    Object *obj = object_resolve_path_at(qdev_get_peripheral(), id);
     DeviceState *dev;
-
-    if (id[0] == '/') {
-        obj = object_resolve_path(id, NULL);
-    } else {
-        obj = object_resolve_path_component(qdev_get_peripheral(), id);
-    }
 
     if (!obj) {
         error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
