@@ -1417,17 +1417,24 @@
 #
 # Query interrupt statistics
 #
+# Features:
+# @unstable: This command is meant for debugging.
+#
 # Returns: interrupt statistics
 #
 # Since: 6.2
 ##
 { 'command': 'x-query-irq',
-  'returns': 'HumanReadableText' }
+  'returns': 'HumanReadableText',
+  'features': [ 'unstable' ] }
 
 ##
 # @x-query-jit:
 #
 # Query TCG compiler statistics
+#
+# Features:
+# @unstable: This command is meant for debugging.
 #
 # Returns: TCG compiler statistics
 #
@@ -1435,24 +1442,32 @@
 ##
 { 'command': 'x-query-jit',
   'returns': 'HumanReadableText',
-  'if': 'CONFIG_TCG' }
+  'if': 'CONFIG_TCG',
+  'features': [ 'unstable' ] }
 
 ##
 # @x-query-numa:
 #
 # Query NUMA topology information
 #
+# Features:
+# @unstable: This command is meant for debugging.
+#
 # Returns: topology information
 #
 # Since: 6.2
 ##
 { 'command': 'x-query-numa',
-  'returns': 'HumanReadableText' }
+  'returns': 'HumanReadableText',
+  'features': [ 'unstable' ] }
 
 ##
 # @x-query-opcount:
 #
 # Query TCG opcode counters
+#
+# Features:
+# @unstable: This command is meant for debugging.
 #
 # Returns: TCG opcode counters
 #
@@ -1460,64 +1475,85 @@
 ##
 { 'command': 'x-query-opcount',
   'returns': 'HumanReadableText',
-  'if': 'CONFIG_TCG' }
+  'if': 'CONFIG_TCG',
+  'features': [ 'unstable' ] }
 
 ##
 # @x-query-profile:
 #
 # Query TCG profiling information
 #
+# Features:
+# @unstable: This command is meant for debugging.
+#
 # Returns: profile information
 #
 # Since: 6.2
 ##
 { 'command': 'x-query-profile',
-  'returns': 'HumanReadableText' }
+  'returns': 'HumanReadableText',
+  'features': [ 'unstable' ] }
 
 ##
 # @x-query-ramblock:
 #
 # Query system ramblock information
 #
+# Features:
+# @unstable: This command is meant for debugging.
+#
 # Returns: system ramblock information
 #
 # Since: 6.2
 ##
 { 'command': 'x-query-ramblock',
-  'returns': 'HumanReadableText' }
+  'returns': 'HumanReadableText',
+  'features': [ 'unstable' ] }
 
 ##
 # @x-query-rdma:
 #
 # Query RDMA state
 #
+# Features:
+# @unstable: This command is meant for debugging.
+#
 # Returns: RDMA state
 #
 # Since: 6.2
 ##
 { 'command': 'x-query-rdma',
-  'returns': 'HumanReadableText' }
+  'returns': 'HumanReadableText',
+  'features': [ 'unstable' ] }
 
 ##
 # @x-query-roms:
 #
 # Query information on the registered ROMS
 #
+# Features:
+# @unstable: This command is meant for debugging.
+#
 # Returns: registered ROMs
 #
 # Since: 6.2
 ##
 { 'command': 'x-query-roms',
-  'returns': 'HumanReadableText' }
+  'returns': 'HumanReadableText',
+  'features': [ 'unstable' ] }
 
 ##
 # @x-query-usb:
 #
 # Query information on the USB devices
 #
+# Features:
+# @unstable: This command is meant for debugging.
+#
 # Returns: USB device information
 #
 # Since: 6.2
 ##
 { 'command': 'x-query-usb',
-  'returns': 'HumanReadableText' }
+  'returns': 'HumanReadableText',
+  'features': [ 'unstable' ] }
