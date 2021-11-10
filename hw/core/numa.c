@@ -756,6 +756,7 @@ static void numa_stat_memory_devices(NumaNodeMem node_mem[])
     PCDIMMDeviceInfo     *pcdimm_info;
     VirtioPMEMDeviceInfo *vpi;
     VirtioMEMDeviceInfo *vmi;
+    SgxEPCDeviceInfo *se;
 
     for (info = info_list; info; info = info->next) {
         MemoryDeviceInfo *value = info->value;
@@ -780,6 +781,12 @@ static void numa_stat_memory_devices(NumaNodeMem node_mem[])
                 vmi = value->u.virtio_mem.data;
                 node_mem[vmi->node].node_mem += vmi->size;
                 node_mem[vmi->node].node_plugged_mem += vmi->size;
+                break;
+            case MEMORY_DEVICE_INFO_KIND_SGX_EPC:
+                se = value->u.sgx_epc.data;
+                /* TODO: once we support numa, assign to right node */
+                node_mem[0].node_mem += se->size;
+                node_mem[0].node_plugged_mem += se->size;
                 break;
             default:
                 g_assert_not_reached();
