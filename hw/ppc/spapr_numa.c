@@ -66,16 +66,41 @@ static const uint32_t *get_associativity(SpaprMachineState *spapr, int node_id)
     return spapr->FORM1_assoc_array[node_id];
 }
 
+/*
+ * Wrapper that returns node distance from ms->numa_state->nodes
+ * after handling edge cases where the distance might be absent.
+ */
+static int get_numa_distance(MachineState *ms, int src, int dst)
+{
+    NodeInfo *numa_info = ms->numa_state->nodes;
+    int ret = numa_info[src].distance[dst];
+
+    if (ret != 0) {
+        return ret;
+    }
+
+    /*
+     * In case QEMU adds a default NUMA single node when the user
+     * did not add any, or where the user did not supply distances,
+     * the distance will be absent (zero). Return local/remote
+     * distance in this case.
+     */
+    if (src == dst) {
+        return NUMA_DISTANCE_MIN;
+    }
+
+    return NUMA_DISTANCE_DEFAULT;
+}
+
 static bool spapr_numa_is_symmetrical(MachineState *ms)
 {
-    int src, dst;
     int nb_numa_nodes = ms->numa_state->num_nodes;
-    NodeInfo *numa_info = ms->numa_state->nodes;
+    int src, dst;
 
     for (src = 0; src < nb_numa_nodes; src++) {
         for (dst = src; dst < nb_numa_nodes; dst++) {
-            if (numa_info[src].distance[dst] !=
-                numa_info[dst].distance[src]) {
+            if (get_numa_distance(ms, src, dst) !=
+                get_numa_distance(ms, dst, src)) {
                 return false;
             }
         }
@@ -133,7 +158,6 @@ static uint8_t spapr_numa_get_numa_level(uint8_t distance)
 static void spapr_numa_define_FORM1_domains(SpaprMachineState *spapr)
 {
     MachineState *ms = MACHINE(spapr);
-    NodeInfo *numa_info = ms->numa_state->nodes;
     int nb_numa_nodes = ms->numa_state->num_nodes;
     int src, dst, i, j;
 
@@ -170,7 +194,7 @@ static void spapr_numa_define_FORM1_domains(SpaprMachineState *spapr)
              * The PPC kernel expects the associativity domains of node 0 to
              * be always 0, and this algorithm will grant that by default.
              */
-            uint8_t distance = numa_info[src].distance[dst];
+            uint8_t distance = get_numa_distance(ms, src, dst);
             uint8_t n_level = spapr_numa_get_numa_level(distance);
             uint32_t assoc_src;
 
@@ -498,7 +522,6 @@ static void spapr_numa_FORM2_write_rtas_tables(SpaprMachineState *spapr,
                                                void *fdt, int rtas)
 {
     MachineState *ms = MACHINE(spapr);
-    NodeInfo *numa_info = ms->numa_state->nodes;
     int nb_numa_nodes = ms->numa_state->num_nodes;
     int distance_table_entries = nb_numa_nodes * nb_numa_nodes;
     g_autofree uint32_t *lookup_index_table = NULL;
@@ -540,30 +563,7 @@ static void spapr_numa_FORM2_write_rtas_tables(SpaprMachineState *spapr,
 
     for (src = 0; src < nb_numa_nodes; src++) {
         for (dst = 0; dst < nb_numa_nodes; dst++) {
-            /*
-             * We need to be explicit with the local distance
-             * value to cover the case where the user didn't added any
-             * NUMA nodes, but QEMU adds the default NUMA node without
-             * adding the numa_info to retrieve distance info from.
-             */
-            distance_table[i] = numa_info[src].distance[dst];
-            if (distance_table[i] == 0) {
-                /*
-                 * In case QEMU adds a default NUMA single node when the user
-                 * did not add any, or where the user did not supply distances,
-                 * the value will be 0 here. Populate the table with a fallback
-                 * simple local / remote distance.
-                 */
-                if (src == dst) {
-                    distance_table[i] = NUMA_DISTANCE_MIN;
-                } else {
-                    distance_table[i] = numa_info[src].distance[dst];
-                    if (distance_table[i] < NUMA_DISTANCE_MIN) {
-                        distance_table[i] = NUMA_DISTANCE_DEFAULT;
-                    }
-                }
-            }
-            i++;
+            distance_table[i++] = get_numa_distance(ms, src, dst);
         }
     }
 
