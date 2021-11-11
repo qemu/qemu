@@ -512,7 +512,7 @@ static void test_generic(void)
         smp_parse_test(ms, data, true);
     }
 
-    /* Reset the supported min CPUs and max CPUs */
+    /* Force invalid min CPUs and max CPUs */
     mc->min_cpus = 2;
     mc->max_cpus = 511;
 
@@ -522,6 +522,10 @@ static void test_generic(void)
 
         smp_parse_test(ms, data, false);
     }
+
+    /* Reset the supported min CPUs and max CPUs */
+    mc->min_cpus = MIN_CPUS;
+    mc->max_cpus = MAX_CPUS;
 
     object_unref(obj);
 }
@@ -536,6 +540,7 @@ static void test_with_dies(void)
     int i;
 
     smp_machine_class_init(mc);
+    /* Force the SMP compat properties */
     mc->smp_props.dies_supported = true;
 
     for (i = 0; i < ARRAY_SIZE(data_generic_valid); i++) {
@@ -574,6 +579,9 @@ static void test_with_dies(void)
 
         smp_parse_test(ms, data, false);
     }
+
+    /* Restore the SMP compat properties */
+    mc->smp_props.dies_supported = false;
 
     object_unref(obj);
 }
