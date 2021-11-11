@@ -391,6 +391,8 @@ static void init_gdbserver_state(void)
      */
     if (replay_mode != REPLAY_MODE_NONE) {
         gdbserver_state.supported_sstep_flags = SSTEP_ENABLE;
+    } else if (kvm_enabled()) {
+        gdbserver_state.supported_sstep_flags = kvm_get_supported_sstep_flags();
     } else {
         gdbserver_state.supported_sstep_flags =
             SSTEP_ENABLE | SSTEP_NOIRQ | SSTEP_NOTIMER;
@@ -400,7 +402,8 @@ static void init_gdbserver_state(void)
      * By default use no IRQs and no timers while single stepping so as to
      * make single stepping like an ICE HW step.
      */
-    gdbserver_state.sstep_flags = gdbserver_state.supported_sstep_flags;
+    gdbserver_state.sstep_flags = SSTEP_ENABLE | SSTEP_NOIRQ | SSTEP_NOTIMER;
+    gdbserver_state.sstep_flags &= gdbserver_state.supported_sstep_flags;
 
 }
 
@@ -3517,6 +3520,11 @@ int gdbserver_start(const char *device)
     if (!first_cpu) {
         error_report("gdbstub: meaningless to attach gdb to a "
                      "machine without any CPU.");
+        return -1;
+    }
+
+    if (kvm_enabled() && !kvm_supports_guest_debug()) {
+        error_report("gdbstub: KVM doesn't support guest debugging");
         return -1;
     }
 
