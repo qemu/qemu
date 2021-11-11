@@ -1223,6 +1223,14 @@ bool sev_add_kernel_loader_hashes(SevKernelLoaderContext *ctx, Error **errp)
     size_t hash_len = HASH_SIZE;
     int aligned_len;
 
+    /*
+     * Only add the kernel hashes if the sev-guest configuration explicitly
+     * stated kernel-hashes=on.
+     */
+    if (!sev_guest->kernel_hashes) {
+        return false;
+    }
+
     if (!pc_system_ovmf_table_find(SEV_HASH_TABLE_RV_GUID, &data, NULL)) {
         error_setg(errp, "SEV: kernel specified but OVMF has no hash table guid");
         return false;
