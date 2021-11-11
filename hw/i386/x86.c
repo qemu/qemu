@@ -1115,7 +1115,7 @@ void x86_bios_rom_init(MachineState *ms, const char *default_firmware,
     char *filename;
     MemoryRegion *bios, *isa_bios;
     int bios_size, isa_bios_size;
-    int ret;
+    ssize_t ret;
 
     /* BIOS load */
     bios_name = ms->firmware ?: default_firmware;

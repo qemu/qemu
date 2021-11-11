@@ -67,7 +67,7 @@ static void generic_loader_realize(DeviceState *dev, Error **errp)
     GenericLoaderState *s = GENERIC_LOADER(dev);
     hwaddr entry;
     int big_endian;
-    int size = 0;
+    ssize_t size = 0;
 
     s->set_pc = false;
 
