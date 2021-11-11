@@ -317,9 +317,7 @@ class QemuBinaryInfo(object):
         try:
             vm.launch()
             mi['runnable'] = True
-        except KeyboardInterrupt:
-            raise
-        except:
+        except Exception:
             dbg("exception trying to run binary=%s machine=%s", self.binary, machine, exc_info=sys.exc_info())
             dbg("log: %r", vm.get_log())
             mi['runnable'] = False
@@ -360,9 +358,7 @@ def checkOneCase(args, testcase):
     exc_traceback = None
     try:
         vm.launch()
-    except KeyboardInterrupt:
-        raise
-    except:
+    except Exception:
         exc_traceback = traceback.format_exc()
         dbg("Exception while running test case")
     finally:
