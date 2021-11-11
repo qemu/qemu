@@ -154,6 +154,7 @@ static void sgx_epc_class_init(ObjectClass *oc, void *data)
     dc->realize = sgx_epc_realize;
     dc->unrealize = sgx_epc_unrealize;
     dc->desc = "SGX EPC section";
+    dc->user_creatable = false;
     device_class_set_props(dc, sgx_epc_properties);
 
     mdc->get_addr = sgx_epc_md_get_addr;
