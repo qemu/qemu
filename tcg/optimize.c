@@ -1365,7 +1365,7 @@ static bool fold_extract2(OptContext *ctx, TCGOp *op)
             v2 <<= 64 - shr;
         } else {
             v1 = (uint32_t)v1 >> shr;
-            v2 = (int32_t)v2 << (32 - shr);
+            v2 = (uint64_t)((int32_t)v2 << (32 - shr));
         }
         return tcg_opt_gen_movi(ctx, op, op->args[0], v1 | v2);
     }

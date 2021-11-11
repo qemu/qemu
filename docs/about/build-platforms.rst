@@ -54,10 +54,12 @@ Those hosts are officially supported, with various accelerators:
    * - x86
      - hax, hvf (64 bit only), kvm, nvmm, tcg, whpx (64 bit only), xen
 
-Other host architectures are not supported. It is possible to build QEMU on an
-unsupported host architecture using the configure ``--enable-tcg-interpreter``
-option to enable the experimental TCI support, but note that this is very slow
-and is not recommended.
+Other host architectures are not supported. It is possible to build QEMU system
+emulation on an unsupported host architecture using the configure
+``--enable-tcg-interpreter`` option to enable the TCI support, but note that
+this is very slow and is not recommended for normal use. QEMU user emulation
+requires host-specific support for signal handling, therefore TCI won't help
+on unsupported host architectures.
 
 Non-supported architectures may be removed in the future following the
 :ref:`deprecation process<Deprecated features>`.
