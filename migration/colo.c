@@ -819,6 +819,26 @@ static void colo_wait_handle_message(MigrationIncomingState *mis,
     }
 }
 
+void colo_shutdown(void)
+{
+    MigrationIncomingState *mis = NULL;
+    MigrationState *s = NULL;
+
+    switch (get_colo_mode()) {
+    case COLO_MODE_PRIMARY:
+        s = migrate_get_current();
+        qemu_event_set(&s->colo_checkpoint_event);
+        qemu_sem_post(&s->colo_exit_sem);
+        break;
+    case COLO_MODE_SECONDARY:
+        mis = migration_incoming_get_current();
+        qemu_sem_post(&mis->colo_incoming_sem);
+        break;
+    default:
+        break;
+    }
+}
+
 void *colo_process_incoming_thread(void *opaque)
 {
     MigrationIncomingState *mis = opaque;

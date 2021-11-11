@@ -226,6 +226,12 @@ void migration_cancel(const Error *error)
 void migration_shutdown(void)
 {
     /*
+     * When the QEMU main thread exit, the COLO thread
+     * may wait a semaphore. So, we should wakeup the
+     * COLO thread before migration shutdown.
+     */
+    colo_shutdown();
+    /*
      * Cancel the current migration - that will (eventually)
      * stop the migration using this structure
      */
