@@ -79,7 +79,11 @@ class ConnectError(AQMPError):
         self.exc: Exception = exc
 
     def __str__(self) -> str:
-        return f"{self.error_message}: {self.exc!s}"
+        cause = str(self.exc)
+        if not cause:
+            # If there's no error string, use the exception name.
+            cause = exception_summary(self.exc)
+        return f"{self.error_message}: {cause}"
 
 
 class StateError(AQMPError):
