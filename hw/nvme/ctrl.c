@@ -395,7 +395,7 @@ static int nvme_addr_read(NvmeCtrl *n, hwaddr addr, void *buf, int size)
     return pci_dma_read(&n->parent_obj, addr, buf, size);
 }
 
-static int nvme_addr_write(NvmeCtrl *n, hwaddr addr, void *buf, int size)
+static int nvme_addr_write(NvmeCtrl *n, hwaddr addr, const void *buf, int size)
 {
     hwaddr hi = addr + size - 1;
     if (hi < addr) {
