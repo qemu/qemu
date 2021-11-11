@@ -507,11 +507,9 @@ static void vring_packed_desc_read_flags(VirtIODevice *vdev,
                                          MemoryRegionCache *cache,
                                          int i)
 {
-    address_space_read_cached(cache,
-                              i * sizeof(VRingPackedDesc) +
-                              offsetof(VRingPackedDesc, flags),
-                              flags, sizeof(*flags));
-    virtio_tswap16s(vdev, flags);
+    hwaddr off = i * sizeof(VRingPackedDesc) + offsetof(VRingPackedDesc, flags);
+
+    *flags = virtio_lduw_phys_cached(vdev, cache, off);
 }
 
 static void vring_packed_desc_read(VirtIODevice *vdev,
@@ -564,8 +562,7 @@ static void vring_packed_desc_write_flags(VirtIODevice *vdev,
 {
     hwaddr off = i * sizeof(VRingPackedDesc) + offsetof(VRingPackedDesc, flags);
 
-    virtio_tswap16s(vdev, &desc->flags);
-    address_space_write_cached(cache, off, &desc->flags, sizeof(desc->flags));
+    virtio_stw_phys_cached(vdev, cache, off, desc->flags);
     address_space_cache_invalidate(cache, off, sizeof(desc->flags));
 }
 
