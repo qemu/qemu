@@ -290,13 +290,6 @@ static ssize_t tcp_chr_recv(Chardev *chr, char *buf, size_t len)
                                      NULL);
     }
 
-    if (ret == QIO_CHANNEL_ERR_BLOCK) {
-        errno = EAGAIN;
-        ret = -1;
-    } else if (ret == -1) {
-        errno = EIO;
-    }
-
     if (msgfds_num) {
         /* close and clean read_msgfds */
         for (i = 0; i < s->read_msgfds_num; i++) {
@@ -323,6 +316,13 @@ static ssize_t tcp_chr_recv(Chardev *chr, char *buf, size_t len)
 #ifndef MSG_CMSG_CLOEXEC
         qemu_set_cloexec(fd);
 #endif
+    }
+
+    if (ret == QIO_CHANNEL_ERR_BLOCK) {
+        errno = EAGAIN;
+        ret = -1;
+    } else if (ret == -1) {
+        errno = EIO;
     }
 
     return ret;
