@@ -499,6 +499,12 @@ def main():
         lvl = logging.WARN
     logging.basicConfig(stream=sys.stdout, level=lvl, format='%(levelname)s: %(message)s')
 
+    if not args.debug:
+        # Async QMP, when in use, is chatty about connection failures.
+        # This script knowingly generates a ton of connection errors.
+        # Silence this logger.
+        logging.getLogger('qemu.aqmp.qmp_client').setLevel(logging.CRITICAL)
+
     fatal_failures = []
     wl_stats = {}
     skipped = 0
