@@ -36,6 +36,7 @@ from itertools import chain
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'python'))
 from qemu.machine import QEMUMachine
+from qemu.aqmp import ConnectError
 
 logger = logging.getLogger('device-crash-test')
 dbg = logger.debug
@@ -355,10 +356,12 @@ def checkOneCase(args, testcase):
     dbg("will launch QEMU: %s", cmdline)
     vm = QEMUMachine(binary=binary, args=args)
 
+    exc = None
     exc_traceback = None
     try:
         vm.launch()
-    except Exception:
+    except Exception as this_exc:
+        exc = this_exc
         exc_traceback = traceback.format_exc()
         dbg("Exception while running test case")
     finally:
@@ -366,8 +369,9 @@ def checkOneCase(args, testcase):
         ec = vm.exitcode()
         log = vm.get_log()
 
-    if exc_traceback is not None or ec != 0:
-        return {'exc_traceback':exc_traceback,
+    if exc is not None or ec != 0:
+        return {'exc': exc,
+                'exc_traceback':exc_traceback,
                 'exitcode':ec,
                 'log':log,
                 'testcase':testcase,
@@ -455,6 +459,17 @@ def logFailure(f, level):
     for l in f['log'].strip().split('\n'):
         logger.log(level, "log: %s", l)
     logger.log(level, "exit code: %r", f['exitcode'])
+
+    # If the Exception is merely a QMP connect error,
+    # reduce the logging level for its traceback to
+    # improve visual clarity.
+    if isinstance(f.get('exc'), ConnectError):
+        logger.log(level, "%s.%s: %s",
+                   type(f['exc']).__module__,
+                   type(f['exc']).__qualname__,
+                   str(f['exc']))
+        level = logging.DEBUG
+
     if f['exc_traceback']:
         logger.log(level, "exception:")
         for l in f['exc_traceback'].split('\n'):
