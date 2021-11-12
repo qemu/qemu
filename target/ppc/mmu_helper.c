@@ -1216,7 +1216,7 @@ void helper_booke206_tlbsx(CPUPPCState *env, target_ulong address)
 }
 
 static inline void booke206_invalidate_ea_tlb(CPUPPCState *env, int tlbn,
-                                              uint32_t ea)
+                                              vaddr ea)
 {
     int i;
     int ways = booke206_tlb_ways(env, tlbn);

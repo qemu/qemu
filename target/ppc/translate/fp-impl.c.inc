@@ -1328,7 +1328,7 @@ static bool do_lsfpsd(DisasContext *ctx, int rt, int ra, TCGv displ,
         set_fpr(rt, t0);
     }
     if (update) {
-        tcg_gen_mov_tl(cpu_gpr[rt], ea);
+        tcg_gen_mov_tl(cpu_gpr[ra], ea);
     }
     tcg_temp_free_i64(t0);
     tcg_temp_free(ea);
