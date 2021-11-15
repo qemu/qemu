@@ -31,6 +31,9 @@
  * tran_create(), call your "prepare" functions on it, and finally call
  * tran_abort() or tran_commit() to finalize the transaction by corresponding
  * finalization actions in reverse order.
+ *
+ * The clean() functions registered by the drivers in a transaction are called
+ * last, after all abort() or commit() functions have been called.
  */
 
 #ifndef QEMU_TRANSACTIONS_H

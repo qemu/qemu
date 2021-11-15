@@ -61,11 +61,13 @@ void tran_abort(Transaction *tran)
 {
     TransactionAction *act, *next;
 
-    QSLIST_FOREACH_SAFE(act, &tran->actions, entry, next) {
+    QSLIST_FOREACH(act, &tran->actions, entry) {
         if (act->drv->abort) {
             act->drv->abort(act->opaque);
         }
+    }
 
+    QSLIST_FOREACH_SAFE(act, &tran->actions, entry, next) {
         if (act->drv->clean) {
             act->drv->clean(act->opaque);
         }
@@ -80,11 +82,13 @@ void tran_commit(Transaction *tran)
 {
     TransactionAction *act, *next;
 
-    QSLIST_FOREACH_SAFE(act, &tran->actions, entry, next) {
+    QSLIST_FOREACH(act, &tran->actions, entry) {
         if (act->drv->commit) {
             act->drv->commit(act->opaque);
         }
+    }
 
+    QSLIST_FOREACH_SAFE(act, &tran->actions, entry, next) {
         if (act->drv->clean) {
             act->drv->clean(act->opaque);
         }
