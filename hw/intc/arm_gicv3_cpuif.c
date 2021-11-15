@@ -1,5 +1,5 @@
 /*
- * ARM Generic Interrupt Controller v3
+ * ARM Generic Interrupt Controller v3 (emulation)
  *
  * Copyright (c) 2016 Linaro Limited
  * Written by Peter Maydell
@@ -20,14 +20,6 @@
 #include "gicv3_internal.h"
 #include "hw/irq.h"
 #include "cpu.h"
-
-void gicv3_set_gicv3state(CPUState *cpu, GICv3CPUState *s)
-{
-    ARMCPU *arm_cpu = ARM_CPU(cpu);
-    CPUARMState *env = &arm_cpu->env;
-
-    env->gicv3state = (void *)s;
-};
 
 static GICv3CPUState *icc_cs_from_env(CPUARMState *env)
 {
