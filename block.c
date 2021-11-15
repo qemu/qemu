@@ -1387,6 +1387,8 @@ static void bdrv_child_cb_attach(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
 
+    QLIST_INSERT_HEAD(&bs->children, child, next);
+
     if (child->role & BDRV_CHILD_COW) {
         bdrv_backing_attach(child);
     }
@@ -1403,6 +1405,8 @@ static void bdrv_child_cb_detach(BdrvChild *child)
     }
 
     bdrv_unapply_subtree_drain(child, bs);
+
+    QLIST_REMOVE(child, next);
 }
 
 static int bdrv_child_cb_update_filename(BdrvChild *c, BlockDriverState *base,
@@ -2747,7 +2751,7 @@ static void bdrv_child_free(void *opaque)
 static void bdrv_remove_empty_child(BdrvChild *child)
 {
     assert(!child->bs);
-    QLIST_SAFE_REMOVE(child, next);
+    assert(!child->next.le_prev); /* not in children list */
     bdrv_child_free(child);
 }
 
@@ -2912,12 +2916,6 @@ static int bdrv_attach_child_noperm(BlockDriverState *parent_bs,
     if (ret < 0) {
         return ret;
     }
-
-    QLIST_INSERT_HEAD(&parent_bs->children, *child, next);
-    /*
-     * child is removed in bdrv_attach_child_common_abort(), so don't care to
-     * abort this change separately.
-     */
 
     return 0;
 }
@@ -4851,7 +4849,6 @@ static void bdrv_remove_filter_or_cow_child_abort(void *opaque)
     BdrvRemoveFilterOrCowChild *s = opaque;
     BlockDriverState *parent_bs = s->child->opaque;
 
-    QLIST_INSERT_HEAD(&parent_bs->children, s->child, next);
     if (s->is_backing) {
         parent_bs->backing = s->child;
     } else {
@@ -4906,7 +4903,6 @@ static void bdrv_remove_file_or_backing_child(BlockDriverState *bs,
     };
     tran_add(tran, &bdrv_remove_filter_or_cow_child_drv, s);
 
-    QLIST_SAFE_REMOVE(child, next);
     if (s->is_backing) {
         bs->backing = NULL;
     } else {
