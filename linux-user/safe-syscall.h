@@ -124,7 +124,7 @@
  * need to check SA_RESTART flags in QEMU or distinguish the various
  * kinds of restartability.
  */
-#ifdef HAVE_SAFE_SYSCALL
+
 /* The core part of this function is implemented in assembly */
 extern long safe_syscall_base(int *pending, long number, ...);
 extern long safe_syscall_set_errno_tail(int value);
@@ -136,16 +136,5 @@ extern char safe_syscall_end[];
 #define safe_syscall(...)                                                 \
     safe_syscall_base(&((TaskState *)thread_cpu->opaque)->signal_pending, \
                       __VA_ARGS__)
-
-#else
-
-/*
- * Fallback for architectures which don't yet provide a safe-syscall assembly
- * fragment; note that this is racy!
- * This should go away when all host architectures have been updated.
- */
-#define safe_syscall syscall
-
-#endif
 
 #endif

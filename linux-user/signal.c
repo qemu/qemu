@@ -798,7 +798,6 @@ int queue_signal(CPUArchState *env, int sig, int si_type,
 /* Adjust the signal context to rewind out of safe-syscall if we're in it */
 static inline void rewind_if_in_safe_syscall(void *puc)
 {
-#ifdef HAVE_SAFE_SYSCALL
     ucontext_t *uc = (ucontext_t *)puc;
     uintptr_t pcreg = host_signal_pc(uc);
 
@@ -806,7 +805,6 @@ static inline void rewind_if_in_safe_syscall(void *puc)
         && pcreg < (uintptr_t)safe_syscall_end) {
         host_signal_set_pc(uc, (uintptr_t)safe_syscall_start);
     }
-#endif
 }
 
 static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)

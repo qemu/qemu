@@ -10,10 +10,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "hostdep.h"
 #include "safe-syscall.h"
 
-#ifdef HAVE_SAFE_SYSCALL
 /*
  * This is intended to be invoked via tail-call on the error path
  * from the assembly in host/arch/safe-syscall.inc.S.  This takes
@@ -25,4 +23,3 @@ long safe_syscall_set_errno_tail(int value)
     errno = value;
     return -1;
 }
-#endif

@@ -18,7 +18,6 @@
 #ifndef LINUX_USER_USER_INTERNALS_H
 #define LINUX_USER_USER_INTERNALS_H
 
-#include "hostdep.h"
 #include "exec/user/thunk.h"
 #include "exec/exec-all.h"
 #include "qemu/log.h"
