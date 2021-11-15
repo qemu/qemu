@@ -12,4 +12,7 @@
 #ifndef SPARC64_HOSTDEP_H
 #define SPARC64_HOSTDEP_H
 
+/* We have a safe-syscall.inc.S */
+#define HAVE_SAFE_SYSCALL
+
 #endif
