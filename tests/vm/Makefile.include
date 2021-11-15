@@ -2,14 +2,22 @@
 
 .PHONY: vm-build-all vm-clean-all
 
+HOST_ARCH = $(if $(ARCH),$(ARCH),$(shell uname -m))
+
 EFI_AARCH64 = $(wildcard $(BUILD_DIR)/pc-bios/edk2-aarch64-code.fd)
 
-IMAGES := freebsd netbsd openbsd centos fedora haiku.x86_64
+X86_IMAGES := freebsd netbsd openbsd centos fedora haiku.x86_64
 ifneq ($(GENISOIMAGE),)
-IMAGES += ubuntu.i386 centos
+X86_IMAGES += ubuntu.i386 centos
 ifneq ($(EFI_AARCH64),)
-IMAGES += ubuntu.aarch64 centos.aarch64
+ARM64_IMAGES += ubuntu.aarch64 centos.aarch64
 endif
+endif
+
+ifeq ($(HOST_ARCH),x86_64)
+IMAGES=$(X86_IMAGES) $(if $(USE_TCG),$(ARM64_IMAGES))
+else ifeq ($(HOST_ARCH),aarch64)
+IMAGES=$(ARM64_IMAGES) $(if $(USE_TCG),$(X86_IMAGES))
 endif
 
 IMAGES_DIR := $(HOME)/.cache/qemu-vm/images
@@ -43,7 +51,7 @@ else
 endif
 	@echo "  vm-build-haiku.x86_64           - Build QEMU in Haiku VM"
 	@echo ""
-	@echo "  vm-build-all                    - Build QEMU in all VMs"
+	@echo "  vm-build-all                    - Build QEMU in: $(IMAGES)"
 	@echo "  vm-clean-all                    - Clean up VM images"
 	@echo
 	@echo "For trouble-shooting:"
@@ -56,6 +64,7 @@ endif
 	@echo '    EXTRA_CONFIGURE_OPTS="..."   - Pass to configure step'
 	@echo "    J=[0..9]*            	 - Override the -jN parameter for make commands"
 	@echo "    LOG_CONSOLE=1        	 - Log console to file in: ~/.cache/qemu-vm "
+	@echo "    USE_TCG=1        	         - Use TCG for cross-arch images"
 	@echo "    QEMU=/path/to/qemu		 - Change path to QEMU binary"
 ifeq ($(HAVE_PYTHON_YAML),yes)
 	@echo "    QEMU_CONFIG=/path/conf.yml   - Change path to VM configuration .yml file."
