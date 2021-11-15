@@ -487,9 +487,10 @@ static void machine_base_class_init(ObjectClass *oc, void *data)
     mc->name = g_strdup(SMP_MACHINE_NAME);
 }
 
-static void test_generic(void)
+static void test_generic(const void *opaque)
 {
-    Object *obj = object_new(TYPE_MACHINE);
+    const char *machine_type = opaque;
+    Object *obj = object_new(machine_type);
     MachineState *ms = MACHINE(obj);
     MachineClass *mc = MACHINE_GET_CLASS(obj);
     SMPTestData *data = &(SMPTestData){{ }};
@@ -525,9 +526,10 @@ static void test_generic(void)
     object_unref(obj);
 }
 
-static void test_with_dies(void)
+static void test_with_dies(const void *opaque)
 {
-    Object *obj = object_new(TYPE_MACHINE);
+    const char *machine_type = opaque;
+    Object *obj = object_new(machine_type);
     MachineState *ms = MACHINE(obj);
     MachineClass *mc = MACHINE_GET_CLASS(obj);
     SMPTestData *data = &(SMPTestData){{ }};
@@ -599,8 +601,12 @@ int main(int argc, char *argv[])
 
     g_test_init(&argc, &argv, NULL);
 
-    g_test_add_func("/test-smp-parse/generic", test_generic);
-    g_test_add_func("/test-smp-parse/with_dies", test_with_dies);
+    g_test_add_data_func("/test-smp-parse/generic",
+                         TYPE_MACHINE,
+                         test_generic);
+    g_test_add_data_func("/test-smp-parse/with_dies",
+                         TYPE_MACHINE,
+                         test_with_dies);
 
     g_test_run();
 
