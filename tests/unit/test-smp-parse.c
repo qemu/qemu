@@ -487,6 +487,16 @@ static void machine_base_class_init(ObjectClass *oc, void *data)
     mc->name = g_strdup(SMP_MACHINE_NAME);
 }
 
+static void machine_with_dies_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->min_cpus = MIN_CPUS;
+    mc->max_cpus = MAX_CPUS;
+
+    mc->smp_props.dies_supported = true;
+}
+
 static void test_generic_valid(const void *opaque)
 {
     const char *machine_type = opaque;
@@ -548,9 +558,6 @@ static void test_with_dies(const void *opaque)
     unsigned int num_dies = 2;
     int i;
 
-    /* Force the SMP compat properties */
-    mc->smp_props.dies_supported = true;
-
     for (i = 0; i < ARRAY_SIZE(data_generic_valid); i++) {
         *data = data_generic_valid[i];
         unsupported_params_init(mc, data);
@@ -588,9 +595,6 @@ static void test_with_dies(const void *opaque)
         smp_parse_test(ms, data, false);
     }
 
-    /* Restore the SMP compat properties */
-    mc->smp_props.dies_supported = false;
-
     object_unref(obj);
 }
 
@@ -602,6 +606,10 @@ static const TypeInfo smp_machine_types[] = {
         .class_init     = machine_base_class_init,
         .class_size     = sizeof(MachineClass),
         .instance_size  = sizeof(MachineState),
+    }, {
+        .name           = MACHINE_TYPE_NAME("smp-with-dies"),
+        .parent         = TYPE_MACHINE,
+        .class_init     = machine_with_dies_class_init,
     }
 };
 
@@ -620,7 +628,7 @@ int main(int argc, char *argv[])
                          TYPE_MACHINE,
                          test_generic_invalid);
     g_test_add_data_func("/test-smp-parse/with_dies",
-                         TYPE_MACHINE,
+                         MACHINE_TYPE_NAME("smp-with-dies"),
                          test_with_dies);
 
     g_test_run();
