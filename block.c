@@ -2740,19 +2740,19 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
     }
 }
 
-static void bdrv_child_free(void *opaque)
-{
-    BdrvChild *c = opaque;
-
-    g_free(c->name);
-    g_free(c);
-}
-
-static void bdrv_remove_empty_child(BdrvChild *child)
+/**
+ * Free the given @child.
+ *
+ * The child must be empty (i.e. `child->bs == NULL`) and it must be
+ * unused (i.e. not in a children list).
+ */
+static void bdrv_child_free(BdrvChild *child)
 {
     assert(!child->bs);
     assert(!child->next.le_prev); /* not in children list */
-    bdrv_child_free(child);
+
+    g_free(child->name);
+    g_free(child);
 }
 
 typedef struct BdrvAttachChildCommonState {
@@ -2786,7 +2786,7 @@ static void bdrv_attach_child_common_abort(void *opaque)
     }
 
     bdrv_unref(bs);
-    bdrv_remove_empty_child(child);
+    bdrv_child_free(child);
     *s->child = NULL;
 }
 
@@ -2859,7 +2859,7 @@ static int bdrv_attach_child_common(BlockDriverState *child_bs,
 
         if (ret < 0) {
             error_propagate(errp, local_err);
-            bdrv_remove_empty_child(new_child);
+            bdrv_child_free(new_child);
             return ret;
         }
     }
@@ -2925,7 +2925,7 @@ static void bdrv_detach_child(BdrvChild *child)
     BlockDriverState *old_bs = child->bs;
 
     bdrv_replace_child_noperm(child, NULL);
-    bdrv_remove_empty_child(child);
+    bdrv_child_free(child);
 
     if (old_bs) {
         /*
