@@ -2254,6 +2254,7 @@ static int bdrv_drv_set_perm(BlockDriverState *bs, uint64_t perm,
 
 typedef struct BdrvReplaceChildState {
     BdrvChild *child;
+    BdrvChild **childp;
     BlockDriverState *old_bs;
 } BdrvReplaceChildState;
 
@@ -2269,7 +2270,29 @@ static void bdrv_replace_child_abort(void *opaque)
     BdrvReplaceChildState *s = opaque;
     BlockDriverState *new_bs = s->child->bs;
 
-    /* old_bs reference is transparently moved from @s to @s->child */
+    /*
+     * old_bs reference is transparently moved from @s to s->child.
+     *
+     * Pass &s->child here instead of s->childp, because:
+     * (1) s->old_bs must be non-NULL, so bdrv_replace_child_noperm() will not
+     *     modify the BdrvChild * pointer we indirectly pass to it, i.e. it
+     *     will not modify s->child.  From that perspective, it does not matter
+     *     whether we pass s->childp or &s->child.
+     *     (TODO: Right now, bdrv_replace_child_noperm() never modifies that
+     *     pointer anyway (though it will in the future), so at this point it
+     *     absolutely does not matter whether we pass s->childp or &s->child.)
+     * (2) If new_bs is not NULL, s->childp will be NULL.  We then cannot use
+     *     it here.
+     * (3) If new_bs is NULL, *s->childp will have been NULLed by
+     *     bdrv_replace_child_tran()'s bdrv_replace_child_noperm() call, and we
+     *     must not pass a NULL *s->childp here.
+     *     (TODO: In its current state, bdrv_replace_child_noperm() will not
+     *     have NULLed *s->childp, so this does not apply yet.  It will in the
+     *     future.)
+     *
+     * So whether new_bs was NULL or not, we cannot pass s->childp here; and in
+     * any case, there is no reason to pass it anyway.
+     */
     bdrv_replace_child_noperm(&s->child, s->old_bs);
     bdrv_unref(new_bs);
 }
@@ -2286,22 +2309,32 @@ static TransactionActionDrv bdrv_replace_child_drv = {
  * Note: real unref of old_bs is done only on commit.
  *
  * The function doesn't update permissions, caller is responsible for this.
+ *
+ * Note that if new_bs == NULL, @childp is stored in a state object attached
+ * to @tran, so that the old child can be reinstated in the abort handler.
+ * Therefore, if @new_bs can be NULL, @childp must stay valid until the
+ * transaction is committed or aborted.
+ *
+ * (TODO: The reinstating does not happen yet, but it will once
+ * bdrv_replace_child_noperm() NULLs *childp when new_bs is NULL.)
  */
-static void bdrv_replace_child_tran(BdrvChild *child, BlockDriverState *new_bs,
+static void bdrv_replace_child_tran(BdrvChild **childp,
+                                    BlockDriverState *new_bs,
                                     Transaction *tran)
 {
     BdrvReplaceChildState *s = g_new(BdrvReplaceChildState, 1);
     *s = (BdrvReplaceChildState) {
-        .child = child,
-        .old_bs = child->bs,
+        .child = *childp,
+        .childp = new_bs == NULL ? childp : NULL,
+        .old_bs = (*childp)->bs,
     };
     tran_add(tran, &bdrv_replace_child_drv, s);
 
     if (new_bs) {
         bdrv_ref(new_bs);
     }
-    bdrv_replace_child_noperm(&child, new_bs);
-    /* old_bs reference is transparently moved from @child to @s */
+    bdrv_replace_child_noperm(childp, new_bs);
+    /* old_bs reference is transparently moved from *childp to @s */
 }
 
 /*
@@ -4844,6 +4877,7 @@ static bool should_update_child(BdrvChild *c, BlockDriverState *to)
 
 typedef struct BdrvRemoveFilterOrCowChild {
     BdrvChild *child;
+    BlockDriverState *bs;
     bool is_backing;
 } BdrvRemoveFilterOrCowChild;
 
@@ -4873,10 +4907,19 @@ static void bdrv_remove_filter_or_cow_child_commit(void *opaque)
     bdrv_child_free(s->child);
 }
 
+static void bdrv_remove_filter_or_cow_child_clean(void *opaque)
+{
+    BdrvRemoveFilterOrCowChild *s = opaque;
+
+    /* Drop the bs reference after the transaction is done */
+    bdrv_unref(s->bs);
+    g_free(s);
+}
+
 static TransactionActionDrv bdrv_remove_filter_or_cow_child_drv = {
     .abort = bdrv_remove_filter_or_cow_child_abort,
     .commit = bdrv_remove_filter_or_cow_child_commit,
-    .clean = g_free,
+    .clean = bdrv_remove_filter_or_cow_child_clean,
 };
 
 /*
@@ -4894,6 +4937,11 @@ static void bdrv_remove_file_or_backing_child(BlockDriverState *bs,
         return;
     }
 
+    /*
+     * Keep a reference to @bs so @childp will stay valid throughout the
+     * transaction (required by bdrv_replace_child_tran())
+     */
+    bdrv_ref(bs);
     if (child == bs->backing) {
         childp = &bs->backing;
     } else if (child == bs->file) {
@@ -4903,12 +4951,13 @@ static void bdrv_remove_file_or_backing_child(BlockDriverState *bs,
     }
 
     if (child->bs) {
-        bdrv_replace_child_tran(*childp, NULL, tran);
+        bdrv_replace_child_tran(childp, NULL, tran);
     }
 
     s = g_new(BdrvRemoveFilterOrCowChild, 1);
     *s = (BdrvRemoveFilterOrCowChild) {
         .child = child,
+        .bs = bs,
         .is_backing = (childp == &bs->backing),
     };
     tran_add(tran, &bdrv_remove_filter_or_cow_child_drv, s);
@@ -4934,6 +4983,8 @@ static int bdrv_replace_node_noperm(BlockDriverState *from,
 {
     BdrvChild *c, *next;
 
+    assert(to != NULL);
+
     QLIST_FOREACH_SAFE(c, &from->parents, next_parent, next) {
         assert(c->bs == from);
         if (!should_update_child(c, to)) {
@@ -4949,7 +5000,12 @@ static int bdrv_replace_node_noperm(BlockDriverState *from,
                        c->name, from->node_name);
             return -EPERM;
         }
-        bdrv_replace_child_tran(c, to, tran);
+
+        /*
+         * Passing a pointer to the local variable @c is fine here, because
+         * @to is not NULL, and so &c will not be attached to the transaction.
+         */
+        bdrv_replace_child_tran(&c, to, tran);
     }
 
     return 0;
@@ -4964,6 +5020,8 @@ static int bdrv_replace_node_noperm(BlockDriverState *from,
  *
  * With @detach_subchain=true @to must be in a backing chain of @from. In this
  * case backing link of the cow-parent of @to is removed.
+ *
+ * @to must not be NULL.
  */
 static int bdrv_replace_node_common(BlockDriverState *from,
                                     BlockDriverState *to,
@@ -4975,6 +5033,8 @@ static int bdrv_replace_node_common(BlockDriverState *from,
     g_autoptr(GSList) refresh_list = NULL;
     BlockDriverState *to_cow_parent = NULL;
     int ret;
+
+    assert(to != NULL);
 
     if (detach_subchain) {
         assert(bdrv_chain_contains(from, to));
@@ -5031,6 +5091,9 @@ out:
     return ret;
 }
 
+/**
+ * Replace node @from by @to (where neither may be NULL).
+ */
 int bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
                       Error **errp)
 {
@@ -5098,7 +5161,7 @@ int bdrv_replace_child_bs(BdrvChild *child, BlockDriverState *new_bs,
     bdrv_drained_begin(old_bs);
     bdrv_drained_begin(new_bs);
 
-    bdrv_replace_child_tran(child, new_bs, tran);
+    bdrv_replace_child_tran(&child, new_bs, tran);
 
     found = g_hash_table_new(NULL, NULL);
     refresh_list = bdrv_topological_dfs(refresh_list, found, old_bs);
