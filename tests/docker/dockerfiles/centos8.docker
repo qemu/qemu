@@ -51,6 +51,7 @@ ENV PACKAGES \
     libpng-devel \
     librbd-devel \
     libseccomp-devel \
+    libselinux-devel \
     libslirp-devel \
     libssh-devel \
     libtasn1-devel \

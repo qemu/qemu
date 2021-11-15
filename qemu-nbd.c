@@ -47,6 +47,10 @@
 #include "trace/control.h"
 #include "qemu-version.h"
 
+#ifdef CONFIG_SELINUX
+#include <selinux/selinux.h>
+#endif
+
 #ifdef __linux__
 #define HAVE_NBD_DEVICE 1
 #else
@@ -64,6 +68,7 @@
 #define QEMU_NBD_OPT_FORK          263
 #define QEMU_NBD_OPT_TLSAUTHZ      264
 #define QEMU_NBD_OPT_PID_FILE      265
+#define QEMU_NBD_OPT_SELINUX_LABEL 266
 
 #define MBR_SIZE 512
 
@@ -116,6 +121,9 @@ static void usage(const char *name)
 "  --fork                    fork off the server process and exit the parent\n"
 "                            once the server is running\n"
 "  --pid-file=PATH           store the server's process ID in the given file\n"
+#ifdef CONFIG_SELINUX
+"  --selinux-label=LABEL     set SELinux process label on listening socket\n"
+#endif
 #if HAVE_NBD_DEVICE
 "\n"
 "Kernel NBD client support:\n"
@@ -454,6 +462,7 @@ static const char *socket_activation_validate_opts(const char *device,
                                                    const char *sockpath,
                                                    const char *address,
                                                    const char *port,
+                                                   const char *selinux,
                                                    bool list)
 {
     if (device != NULL) {
@@ -470,6 +479,10 @@ static const char *socket_activation_validate_opts(const char *device,
 
     if (port != NULL) {
         return "TCP port number can't be set when using socket activation";
+    }
+
+    if (selinux != NULL) {
+        return "SELinux label can't be set when using socket activation";
     }
 
     if (list) {
@@ -534,6 +547,8 @@ int main(int argc, char **argv)
         { "trace", required_argument, NULL, 'T' },
         { "fork", no_argument, NULL, QEMU_NBD_OPT_FORK },
         { "pid-file", required_argument, NULL, QEMU_NBD_OPT_PID_FILE },
+        { "selinux-label", required_argument, NULL,
+          QEMU_NBD_OPT_SELINUX_LABEL },
         { NULL, 0, NULL, 0 }
     };
     int ch;
@@ -560,6 +575,7 @@ int main(int argc, char **argv)
     int old_stderr = -1;
     unsigned socket_activation;
     const char *pid_file_name = NULL;
+    const char *selinux_label = NULL;
     BlockExportOptions *export_opts;
 
 #ifdef CONFIG_POSIX
@@ -749,6 +765,9 @@ int main(int argc, char **argv)
         case QEMU_NBD_OPT_PID_FILE:
             pid_file_name = optarg;
             break;
+        case QEMU_NBD_OPT_SELINUX_LABEL:
+            selinux_label = optarg;
+            break;
         }
     }
 
@@ -788,6 +807,7 @@ int main(int argc, char **argv)
         /* Using socket activation - check user didn't use -p etc. */
         const char *err_msg = socket_activation_validate_opts(device, sockpath,
                                                               bindto, port,
+                                                              selinux_label,
                                                               list);
         if (err_msg != NULL) {
             error_report("%s", err_msg);
@@ -825,6 +845,18 @@ int main(int argc, char **argv)
             error_report("--tls-authz is not permitted without --tls-creds");
             exit(EXIT_FAILURE);
         }
+    }
+
+    if (selinux_label) {
+#ifdef CONFIG_SELINUX
+        if (sockpath == NULL && device == NULL) {
+            error_report("--selinux-label is not permitted without --socket");
+            exit(EXIT_FAILURE);
+        }
+#else
+        error_report("SELinux support not enabled in this binary");
+        exit(EXIT_FAILURE);
+#endif
     }
 
     if (list) {
@@ -940,6 +972,13 @@ int main(int argc, char **argv)
         } else {
             backlog = MIN(shared, SOMAXCONN);
         }
+#ifdef CONFIG_SELINUX
+        if (selinux_label && setsockcreatecon_raw(selinux_label) == -1) {
+            error_report("Cannot set SELinux socket create context to %s: %s",
+                         selinux_label, strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+#endif
         saddr = nbd_build_socket_address(sockpath, bindto, port);
         if (qio_net_listener_open_sync(server, saddr, backlog,
                                        &local_err) < 0) {
@@ -947,6 +986,13 @@ int main(int argc, char **argv)
             error_report_err(local_err);
             exit(EXIT_FAILURE);
         }
+#ifdef CONFIG_SELINUX
+        if (selinux_label && setsockcreatecon_raw(NULL) == -1) {
+            error_report("Cannot clear SELinux socket create context: %s",
+                         strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+#endif
     } else {
         size_t i;
         /* See comment in check_socket_activation above. */
