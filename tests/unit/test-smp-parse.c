@@ -487,7 +487,7 @@ static void machine_base_class_init(ObjectClass *oc, void *data)
     mc->name = g_strdup(SMP_MACHINE_NAME);
 }
 
-static void test_generic(const void *opaque)
+static void test_generic_valid(const void *opaque)
 {
     const char *machine_type = opaque;
     Object *obj = object_new(machine_type);
@@ -507,6 +507,18 @@ static void test_generic(const void *opaque)
         data->config.dies = 1;
         smp_parse_test(ms, data, true);
     }
+
+    object_unref(obj);
+}
+
+static void test_generic_invalid(const void *opaque)
+{
+    const char *machine_type = opaque;
+    Object *obj = object_new(machine_type);
+    MachineState *ms = MACHINE(obj);
+    MachineClass *mc = MACHINE_GET_CLASS(obj);
+    SMPTestData *data = &(SMPTestData){};
+    int i;
 
     /* Force invalid min CPUs and max CPUs */
     mc->min_cpus = 2;
@@ -601,9 +613,12 @@ int main(int argc, char *argv[])
 
     g_test_init(&argc, &argv, NULL);
 
-    g_test_add_data_func("/test-smp-parse/generic",
+    g_test_add_data_func("/test-smp-parse/generic/valid",
                          TYPE_MACHINE,
-                         test_generic);
+                         test_generic_valid);
+    g_test_add_data_func("/test-smp-parse/generic/invalid",
+                         TYPE_MACHINE,
+                         test_generic_invalid);
     g_test_add_data_func("/test-smp-parse/with_dies",
                          TYPE_MACHINE,
                          test_with_dies);
