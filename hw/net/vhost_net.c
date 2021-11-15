@@ -232,10 +232,10 @@ fail:
 }
 
 static void vhost_net_set_vq_index(struct vhost_net *net, int vq_index,
-                                   int last_index)
+                                   int vq_index_end)
 {
     net->dev.vq_index = vq_index;
-    net->dev.last_index = last_index;
+    net->dev.vq_index_end = vq_index_end;
 }
 
 static int vhost_net_start_one(struct vhost_net *net,
@@ -326,11 +326,11 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     VirtIONet *n = VIRTIO_NET(dev);
     int nvhosts = data_queue_pairs + cvq;
     struct vhost_net *net;
-    int r, e, i, last_index = data_queue_pairs * 2;
+    int r, e, i, index_end = data_queue_pairs * 2;
     NetClientState *peer;
 
-    if (!cvq) {
-        last_index -= 1;
+    if (cvq) {
+        index_end += 1;
     }
 
     if (!k->set_guest_notifiers) {
@@ -347,7 +347,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
         }
 
         net = get_vhost_net(peer);
-        vhost_net_set_vq_index(net, i * 2, last_index);
+        vhost_net_set_vq_index(net, i * 2, index_end);
 
         /* Suppress the masking guest notifiers on vhost user
          * because vhost user doesn't interrupt masking/unmasking

@@ -214,7 +214,7 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
 static int vhost_vdpa_get_max_queue_pairs(int fd, int *has_cvq, Error **errp)
 {
     unsigned long config_size = offsetof(struct vhost_vdpa_config, buf);
-    struct vhost_vdpa_config *config;
+    g_autofree struct vhost_vdpa_config *config = NULL;
     __virtio16 *max_queue_pairs;
     uint64_t features;
     int ret;
@@ -260,8 +260,12 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
 
     assert(netdev->type == NET_CLIENT_DRIVER_VHOST_VDPA);
     opts = &netdev->u.vhost_vdpa;
+    if (!opts->vhostdev) {
+        error_setg(errp, "vdpa character device not specified with vhostdev");
+        return -1;
+    }
 
-    vdpa_device_fd = qemu_open_old(opts->vhostdev, O_RDWR);
+    vdpa_device_fd = qemu_open(opts->vhostdev, O_RDWR, errp);
     if (vdpa_device_fd == -1) {
         return -errno;
     }

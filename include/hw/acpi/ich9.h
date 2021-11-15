@@ -56,6 +56,7 @@ typedef struct ICH9LPCPMRegs {
     AcpiCpuHotplug gpe_cpu;
     CPUHotplugState cpuhp_state;
 
+    bool keep_pci_slot_hpc;
     bool use_acpi_hotplug_bridge;
     AcpiPciHpState acpi_pci_hotplug;
     MemHotplugState acpi_memory_hotplug;

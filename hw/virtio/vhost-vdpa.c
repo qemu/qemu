@@ -645,7 +645,7 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
         vhost_vdpa_host_notifiers_uninit(dev, dev->nvqs);
     }
 
-    if (dev->vq_index + dev->nvqs != dev->last_index) {
+    if (dev->vq_index + dev->nvqs != dev->vq_index_end) {
         return 0;
     }
 
