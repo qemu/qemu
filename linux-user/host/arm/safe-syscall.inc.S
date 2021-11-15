@@ -27,9 +27,6 @@
          * first argument an 'int *' to the signal_pending flag, the
          * second one the system call number (as a 'long'), and all further
          * arguments being syscall arguments (also 'long').
-         * We return a long which is the syscall's return value, which
-         * may be negative-errno on failure. Conversion to the
-         * -1-and-errno-set convention is done by the calling wrapper.
          */
 safe_syscall_base:
         .fnstart
@@ -46,7 +43,7 @@ safe_syscall_base:
         .cfi_rel_offset lr, 20
 
         /* The syscall calling convention isn't the same as the C one:
-         * we enter with r0 == *signal_pending
+         * we enter with r0 == &signal_pending
          *               r1 == syscall number
          *               r2, r3, [sp+0] ... [sp+12] == syscall arguments
          *               and return the result in r0
@@ -74,17 +71,29 @@ safe_syscall_start:
         /* if signal_pending is non-zero, don't do the call */
         ldr     r12, [r8]               /* signal_pending */
         tst     r12, r12
-        bne     1f
+        bne     2f
         swi     0
 safe_syscall_end:
         /* code path for having successfully executed the syscall */
+        cmp     r0, #-4096
+        neghi   r0, r0
+        bhi     1f
         pop     { r4, r5, r6, r7, r8, pc }
 
-1:
         /* code path when we didn't execute the syscall */
-        ldr     r0, =-TARGET_ERESTARTSYS
-        pop     { r4, r5, r6, r7, r8, pc }
+2:      mov     r0, #TARGET_ERESTARTSYS
+
+        /* code path setting errno */
+1:      pop     { r4, r5, r6, r7, r8, lr }
+        .cfi_adjust_cfa_offset -24
+        .cfi_restore r4
+        .cfi_restore r5
+        .cfi_restore r6
+        .cfi_restore r7
+        .cfi_restore r8
+        .cfi_restore lr
+        b       safe_syscall_set_errno_tail
+
         .fnend
         .cfi_endproc
-
         .size   safe_syscall_base, .-safe_syscall_base

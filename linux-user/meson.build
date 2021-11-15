@@ -10,6 +10,7 @@ linux_user_ss.add(files(
   'main.c',
   'mmap.c',
   'safe-syscall.S',
+  'safe-syscall-error.c',
   'signal.c',
   'strace.c',
   'syscall.c',

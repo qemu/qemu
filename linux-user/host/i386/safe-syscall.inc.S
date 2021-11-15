@@ -20,9 +20,6 @@
          * first argument an 'int *' to the signal_pending flag, the
          * second one the system call number (as a 'long'), and all further
          * arguments being syscall arguments (also 'long').
-         * We return a long which is the syscall's return value, which
-         * may be negative-errno on failure. Conversion to the
-         * -1-and-errno-set convention is done by the calling wrapper.
          */
 safe_syscall_base:
         .cfi_startproc
@@ -41,7 +38,7 @@ safe_syscall_base:
 
         /* The syscall calling convention isn't the same as the C one:
          * we enter with 0(%esp) == return address
-         *               4(%esp) == *signal_pending
+         *               4(%esp) == &signal_pending
          *               8(%esp) == syscall number
          *               12(%esp) ... 32(%esp) == syscall arguments
          *               and return the result in eax
@@ -70,11 +67,13 @@ safe_syscall_start:
         /* if signal_pending is non-zero, don't do the call */
         mov     4+16(%esp), %eax        /* signal_pending */
         cmpl    $0, (%eax)
-        jnz     1f
+        jnz     2f
         mov     8+16(%esp), %eax        /* syscall number */
         int     $0x80
 safe_syscall_end:
         /* code path for having successfully executed the syscall */
+        cmp     $-4095, %eax
+        jae     0f
         pop     %ebx
         .cfi_remember_state
         .cfi_adjust_cfa_offset -4
@@ -89,12 +88,28 @@ safe_syscall_end:
         .cfi_adjust_cfa_offset -4
         .cfi_restore ebp
         ret
-
-1:
-        /* code path when we didn't execute the syscall */
         .cfi_restore_state
-        mov     $-TARGET_ERESTARTSYS, %eax
-        jmp     safe_syscall_end
-        .cfi_endproc
 
+0:      neg     %eax
+        jmp     1f
+
+        /* code path when we didn't execute the syscall */
+2:      mov     $TARGET_ERESTARTSYS, %eax
+
+        /* code path setting errno */
+1:      pop     %ebx
+        .cfi_adjust_cfa_offset -4
+        .cfi_restore ebx
+        pop     %edi
+        .cfi_adjust_cfa_offset -4
+        .cfi_restore edi
+        pop     %esi
+        .cfi_adjust_cfa_offset -4
+        .cfi_restore esi
+        pop     %ebp
+        .cfi_adjust_cfa_offset -4
+        .cfi_restore ebp
+        jmp     safe_syscall_set_errno_tail
+
+        .cfi_endproc
         .size   safe_syscall_base, .-safe_syscall_base

@@ -20,9 +20,6 @@
          * first argument an 'int *' to the signal_pending flag, the
          * second one the system call number (as a 'long'), and all further
          * arguments being syscall arguments (also 'long').
-         * We return a long which is the syscall's return value, which
-         * may be negative-errno on failure. Conversion to the
-         * -1-and-errno-set convention is done by the calling wrapper.
          */
 safe_syscall_base:
         .cfi_startproc
@@ -44,9 +41,9 @@ safe_syscall_base:
         stg     %r1,0(%r15)             /* store back chain */
         stg     %r0,8(%r15)             /* store eos */
 
-        /* The syscall calling convention isn't the same as the
-         * C one:
-         * we enter with r2 == *signal_pending
+        /*
+         * The syscall calling convention isn't the same as the C one:
+         * we enter with r2 == &signal_pending
          *               r3 == syscall number
          *               r4, r5, r6, (stack) == syscall arguments
          *               and return the result in r2
@@ -77,14 +74,25 @@ safe_syscall_start:
         svc     0
 safe_syscall_end:
 
-1:      lg      %r15,0(%r15)            /* load back chain */
+        /* code path for having successfully executed the syscall */
+        lg      %r15,0(%r15)            /* load back chain */
         .cfi_remember_state
         .cfi_adjust_cfa_offset -160
         lmg     %r6,%r15,48(%r15)       /* load saved registers */
-        br      %r14
-        .cfi_restore_state
-2:      lghi    %r2, -TARGET_ERESTARTSYS
-        j       1b
-        .cfi_endproc
 
+        lghi    %r0, -4095              /* check for syscall error */
+        clgr    %r2, %r0
+        blr     %r14                    /* return on success */
+        lcr     %r2, %r2                /* create positive errno */
+        jg      safe_syscall_set_errno_tail
+        .cfi_restore_state
+
+        /* code path when we didn't execute the syscall */
+2:      lg      %r15,0(%r15)            /* load back chain */
+        .cfi_adjust_cfa_offset -160
+        lmg     %r6,%r15,48(%r15)       /* load saved registers */
+        lghi    %r2, TARGET_ERESTARTSYS
+        jg      safe_syscall_set_errno_tail
+
+        .cfi_endproc
         .size   safe_syscall_base, .-safe_syscall_base

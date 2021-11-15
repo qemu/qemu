@@ -22,15 +22,12 @@
          * first argument an 'int *' to the signal_pending flag, the
          * second one the system call number (as a 'long'), and all further
          * arguments being syscall arguments (also 'long').
-         * We return a long which is the syscall's return value, which
-         * may be negative-errno on failure. Conversion to the
-         * -1-and-errno-set convention is done by the calling wrapper.
          */
 safe_syscall_base:
         .cfi_startproc
         /* The syscall calling convention isn't the same as the
          * C one:
-         * we enter with x0 == *signal_pending
+         * we enter with x0 == &signal_pending
          *               x1 == syscall number
          *               x2 ... x7, (stack) == syscall arguments
          *               and return the result in x0
@@ -60,16 +57,21 @@ safe_syscall_base:
 safe_syscall_start:
         /* if signal_pending is non-zero, don't do the call */
         ldr     w10, [x9]
-        cbnz    w10, 0f
+        cbnz    w10, 2f
         svc     0x0
 safe_syscall_end:
         /* code path for having successfully executed the syscall */
+        cmp     x0, #-4096
+        b.hi    0f
         ret
 
-0:
+        /* code path setting errno */
+0:      neg     w0, w0
+        b       safe_syscall_set_errno_tail
+
         /* code path when we didn't execute the syscall */
-        mov     x0, #-TARGET_ERESTARTSYS
-        ret
-        .cfi_endproc
+2:      mov     w0, #TARGET_ERESTARTSYS
+        b       safe_syscall_set_errno_tail
 
+        .cfi_endproc
         .size   safe_syscall_base, .-safe_syscall_base

@@ -22,9 +22,6 @@
          * first argument an 'int *' to the signal_pending flag, the
          * second one the system call number (as a 'long'), and all further
          * arguments being syscall arguments (also 'long').
-         * We return a long which is the syscall's return value, which
-         * may be negative-errno on failure. Conversion to the
-         * -1-and-errno-set convention is done by the calling wrapper.
          */
 #if _CALL_ELF == 2
 safe_syscall_base:
@@ -39,7 +36,7 @@ safe_syscall_base:
 .L.safe_syscall_base:
         .cfi_startproc
 #endif
-        /* We enter with r3 == *signal_pending
+        /* We enter with r3 == &signal_pending
          *               r4 == syscall number
          *               r5 ... r10 == syscall arguments
          *               and return the result in r3
@@ -71,21 +68,22 @@ safe_syscall_start:
         /* if signal_pending is non-zero, don't do the call */
         lwz     12, 0(14)
         cmpwi   0, 12, 0
-        bne-    0f
+        bne-    2f
         sc
 safe_syscall_end:
         /* code path when we did execute the syscall */
-        ld 14, 16(1) /* restore r14 to its original value */
-        bnslr+
-
-        /* syscall failed; return negative errno */
-        neg     3, 3
+        ld      14, 16(1) /* restore r14 */
+        bso-    1f
         blr
 
         /* code path when we didn't execute the syscall */
-0:      addi    3, 0, -TARGET_ERESTARTSYS
-        ld 14, 16(1) /* restore r14 to its original value */
-        blr
+2:      ld      14, 16(1) /* restore r14 */
+        addi    3, 0, TARGET_ERESTARTSYS
+
+        /* code path setting errno */
+1:      b       safe_syscall_set_errno_tail
+        nop     /* per abi, for the linker to modify */
+
         .cfi_endproc
 
 #if _CALL_ELF == 2
