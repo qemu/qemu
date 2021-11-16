@@ -24,6 +24,9 @@ static const struct edid_mode {
     { .xres = 2048,   .yres = 1152 },
     { .xres = 1920,   .yres = 1080,   .dta =  31 },
 
+    /* dea/dta extension timings (all @ 60 Hz) */
+    { .xres = 3840,   .yres = 2160,   .dta =  97 },
+
     /* additional standard timings 3 (all @ 60Hz) */
     { .xres = 1920,   .yres = 1200,   .xtra3 = 10,   .bit = 0 },
     { .xres = 1600,   .yres = 1200,   .xtra3 =  9,   .bit = 2 },
