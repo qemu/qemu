@@ -54,14 +54,17 @@ static int stream_prepare(Job *job)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
     BlockDriverState *unfiltered_bs = bdrv_skip_filters(s->target_bs);
-    BlockDriverState *base = bdrv_filter_or_cow_bs(s->above_base);
-    BlockDriverState *unfiltered_base = bdrv_skip_filters(base);
+    BlockDriverState *base;
+    BlockDriverState *unfiltered_base;
     Error *local_err = NULL;
     int ret = 0;
 
     /* We should drop filter at this point, as filter hold the backing chain */
     bdrv_cor_filter_drop(s->cor_filter_bs);
     s->cor_filter_bs = NULL;
+
+    base = bdrv_filter_or_cow_bs(s->above_base);
+    unfiltered_base = bdrv_skip_filters(base);
 
     if (bdrv_cow_child(unfiltered_bs)) {
         const char *base_id = NULL, *base_fmt = NULL;

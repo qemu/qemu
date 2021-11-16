@@ -250,6 +250,20 @@ options are removed in favor of using explicit ``blockdev-create`` and
 ``blockdev-add`` calls. See :doc:`/interop/live-block-operations` for
 details.
 
+Incorrectly typed ``device_add`` arguments (since 6.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Due to shortcomings in the internal implementation of ``device_add``, QEMU
+incorrectly accepts certain invalid arguments: Any object or list arguments are
+silently ignored. Other argument types are not checked, but an implicit
+conversion happens, so that e.g. string values can be assigned to integer
+device properties or vice versa.
+
+This is a bug in QEMU that will be fixed in the future so that previously
+accepted incorrect commands will return an error. Users should make sure that
+all arguments passed to ``device_add`` are consistent with the documented
+property types.
+
 System accelerators
 -------------------
 
