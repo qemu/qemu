@@ -215,13 +215,23 @@ struct GICv3CPUState {
     bool seenbetter;
 };
 
+/*
+ * The redistributor pages might be split into more than one region
+ * on some machine types if there are many CPUs.
+ */
+typedef struct GICv3RedistRegion {
+    GICv3State *gic;
+    MemoryRegion iomem;
+    uint32_t cpuidx; /* index of first CPU this region covers */
+} GICv3RedistRegion;
+
 struct GICv3State {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
 
     MemoryRegion iomem_dist; /* Distributor */
-    MemoryRegion *iomem_redist; /* Redistributor Regions */
+    GICv3RedistRegion *redist_regions; /* Redistributor Regions */
     uint32_t *redist_region_count; /* redistributor count within each region */
     uint32_t nb_redist_regions; /* number of redist regions */
 
@@ -306,6 +316,6 @@ struct ARMGICv3CommonClass {
 };
 
 void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
-                              const MemoryRegionOps *ops, Error **errp);
+                              const MemoryRegionOps *ops);
 
 #endif
