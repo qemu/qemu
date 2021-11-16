@@ -23,6 +23,8 @@
 #define MIN_CPUS 1   /* set the min CPUs supported by the machine as 1 */
 #define MAX_CPUS 512 /* set the max CPUs supported by the machine as 512 */
 
+#define SMP_MACHINE_NAME "TEST-SMP"
+
 /*
  * Used to define the generic 3-level CPU topology hierarchy
  *  -sockets/cores/threads
@@ -74,14 +76,6 @@ typedef struct SMPTestData {
     CpuTopology expect_prefer_cores;
     const char *expect_error;
 } SMPTestData;
-
-/* Type info of the tested machine */
-static const TypeInfo smp_machine_info = {
-    .name = TYPE_MACHINE,
-    .parent = TYPE_OBJECT,
-    .class_size = sizeof(MachineClass),
-    .instance_size = sizeof(MachineState),
-};
 
 /*
  * List all the possible valid sub-collections of the generic 5
@@ -315,13 +309,13 @@ static struct SMPTestData data_generic_invalid[] = {
          * should tweak the supported min CPUs to 2 for testing */
         .config = SMP_CONFIG_GENERIC(T, 1, F, 0, F, 0, F, 0, F, 0),
         .expect_error = "Invalid SMP CPUs 1. The min CPUs supported "
-                        "by machine '(null)' is 2",
+                        "by machine '" SMP_MACHINE_NAME "' is 2",
     }, {
         /* config: -smp 512
          * should tweak the supported max CPUs to 511 for testing */
         .config = SMP_CONFIG_GENERIC(T, 512, F, 0, F, 0, F, 0, F, 0),
         .expect_error = "Invalid SMP CPUs 512. The max CPUs supported "
-                        "by machine '(null)' is 511",
+                        "by machine '" SMP_MACHINE_NAME "' is 511",
     },
 };
 
@@ -480,14 +474,17 @@ static void unsupported_params_init(MachineClass *mc, SMPTestData *data)
     }
 }
 
-/* Reset the related machine properties before each sub-test */
-static void smp_machine_class_init(MachineClass *mc)
+static void machine_base_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->min_cpus = MIN_CPUS;
     mc->max_cpus = MAX_CPUS;
 
     mc->smp_props.prefer_sockets = true;
     mc->smp_props.dies_supported = false;
+
+    mc->name = g_strdup(SMP_MACHINE_NAME);
 }
 
 static void test_generic(void)
@@ -497,8 +494,6 @@ static void test_generic(void)
     MachineClass *mc = MACHINE_GET_CLASS(obj);
     SMPTestData *data = &(SMPTestData){{ }};
     int i;
-
-    smp_machine_class_init(mc);
 
     for (i = 0; i < ARRAY_SIZE(data_generic_valid); i++) {
         *data = data_generic_valid[i];
@@ -512,7 +507,7 @@ static void test_generic(void)
         smp_parse_test(ms, data, true);
     }
 
-    /* Reset the supported min CPUs and max CPUs */
+    /* Force invalid min CPUs and max CPUs */
     mc->min_cpus = 2;
     mc->max_cpus = 511;
 
@@ -522,6 +517,10 @@ static void test_generic(void)
 
         smp_parse_test(ms, data, false);
     }
+
+    /* Reset the supported min CPUs and max CPUs */
+    mc->min_cpus = MIN_CPUS;
+    mc->max_cpus = MAX_CPUS;
 
     object_unref(obj);
 }
@@ -535,7 +534,7 @@ static void test_with_dies(void)
     unsigned int num_dies = 2;
     int i;
 
-    smp_machine_class_init(mc);
+    /* Force the SMP compat properties */
     mc->smp_props.dies_supported = true;
 
     for (i = 0; i < ARRAY_SIZE(data_generic_valid); i++) {
@@ -575,15 +574,30 @@ static void test_with_dies(void)
         smp_parse_test(ms, data, false);
     }
 
+    /* Restore the SMP compat properties */
+    mc->smp_props.dies_supported = false;
+
     object_unref(obj);
 }
 
+/* Type info of the tested machine */
+static const TypeInfo smp_machine_types[] = {
+    {
+        .name           = TYPE_MACHINE,
+        .parent         = TYPE_OBJECT,
+        .class_init     = machine_base_class_init,
+        .class_size     = sizeof(MachineClass),
+        .instance_size  = sizeof(MachineState),
+    }
+};
+
+DEFINE_TYPES(smp_machine_types)
+
 int main(int argc, char *argv[])
 {
-    g_test_init(&argc, &argv, NULL);
-
     module_call_init(MODULE_INIT_QOM);
-    type_register_static(&smp_machine_info);
+
+    g_test_init(&argc, &argv, NULL);
 
     g_test_add_func("/test-smp-parse/generic", test_generic);
     g_test_add_func("/test-smp-parse/with_dies", test_with_dies);
