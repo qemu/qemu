@@ -8,6 +8,7 @@ ENV PACKAGES \
     gcc \
     git \
     libffi-devel.i686 \
+    libselinux-devel.i686 \
     libtasn1-devel.i686 \
     libzstd-devel.i686 \
     make \

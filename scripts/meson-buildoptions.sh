@@ -72,6 +72,7 @@ meson_options_help() {
   printf "%s\n" '  sdl             SDL user interface'
   printf "%s\n" '  sdl-image       SDL Image support for icons'
   printf "%s\n" '  seccomp         seccomp support'
+  printf "%s\n" '  selinux         SELinux support in qemu-nbd'
   printf "%s\n" '  smartcard       CA smartcard emulation support'
   printf "%s\n" '  snappy          snappy compression support'
   printf "%s\n" '  sparse          sparse checker'
@@ -215,6 +216,8 @@ _meson_option_parse() {
     --disable-sdl-image) printf "%s" -Dsdl_image=disabled ;;
     --enable-seccomp) printf "%s" -Dseccomp=enabled ;;
     --disable-seccomp) printf "%s" -Dseccomp=disabled ;;
+    --enable-selinux) printf "%s" -Dselinux=enabled ;;
+    --disable-selinux) printf "%s" -Dselinux=disabled ;;
     --enable-slirp) printf "%s" -Dslirp=enabled ;;
     --disable-slirp) printf "%s" -Dslirp=disabled ;;
     --enable-slirp=*) quote_sh "-Dslirp=$2" ;;

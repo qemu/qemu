@@ -55,6 +55,7 @@ ENV PACKAGES \
     libpulse-devel \
     librbd-devel \
     libseccomp-devel \
+    libselinux-devel \
     libspice-server-devel \
     libssh-devel \
     libtasn1-devel \
