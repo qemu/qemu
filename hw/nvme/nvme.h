@@ -102,6 +102,7 @@ typedef struct NvmeNamespaceParams {
     uint8_t  mset;
     uint8_t  pi;
     uint8_t  pil;
+    uint8_t  pif;
 
     uint16_t mssrl;
     uint32_t mcl;
@@ -127,6 +128,7 @@ typedef struct NvmeNamespace {
     int64_t      size;
     int64_t      moff;
     NvmeIdNs     id_ns;
+    NvmeIdNsNvm  id_ns_nvm;
     NvmeLBAF     lbaf;
     unsigned int nlbaf;
     size_t       lbasz;
@@ -134,6 +136,7 @@ typedef struct NvmeNamespace {
     uint8_t      csi;
     uint16_t     status;
     int          attached;
+    uint8_t      pif;
 
     struct {
         uint16_t zrwas;

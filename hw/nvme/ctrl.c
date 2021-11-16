@@ -2050,8 +2050,11 @@ static void nvme_verify_cb(void *opaque, int ret)
     uint8_t prinfo = NVME_RW_PRINFO(le16_to_cpu(rw->control));
     uint16_t apptag = le16_to_cpu(rw->apptag);
     uint16_t appmask = le16_to_cpu(rw->appmask);
-    uint32_t reftag = le32_to_cpu(rw->reftag);
+    uint64_t reftag = le32_to_cpu(rw->reftag);
+    uint64_t cdw3 = le32_to_cpu(rw->cdw3);
     uint16_t status;
+
+    reftag |= cdw3 << 32;
 
     trace_pci_nvme_verify_cb(nvme_cid(req), prinfo, apptag, appmask, reftag);
 
@@ -2141,13 +2144,16 @@ static void nvme_compare_mdata_cb(void *opaque, int ret)
     uint8_t prinfo = NVME_RW_PRINFO(le16_to_cpu(rw->control));
     uint16_t apptag = le16_to_cpu(rw->apptag);
     uint16_t appmask = le16_to_cpu(rw->appmask);
-    uint32_t reftag = le32_to_cpu(rw->reftag);
+    uint64_t reftag = le32_to_cpu(rw->reftag);
+    uint64_t cdw3 = le32_to_cpu(rw->cdw3);
     struct nvme_compare_ctx *ctx = req->opaque;
     g_autofree uint8_t *buf = NULL;
     BlockBackend *blk = ns->blkconf.blk;
     BlockAcctCookie *acct = &req->acct;
     BlockAcctStats *stats = blk_get_stats(blk);
     uint16_t status = NVME_SUCCESS;
+
+    reftag |= cdw3 << 32;
 
     trace_pci_nvme_compare_mdata_cb(nvme_cid(req));
 
@@ -2527,7 +2533,8 @@ typedef struct NvmeCopyAIOCB {
     QEMUBH *bh;
     int ret;
 
-    NvmeCopySourceRange *ranges;
+    void *ranges;
+    unsigned int format;
     int nr;
     int idx;
 
@@ -2538,7 +2545,7 @@ typedef struct NvmeCopyAIOCB {
         BlockAcctCookie write;
     } acct;
 
-    uint32_t reftag;
+    uint64_t reftag;
     uint64_t slba;
 
     NvmeZone *zone;
@@ -2592,13 +2599,101 @@ static void nvme_copy_bh(void *opaque)
 
 static void nvme_copy_cb(void *opaque, int ret);
 
+static void nvme_copy_source_range_parse_format0(void *ranges, int idx,
+                                                 uint64_t *slba, uint32_t *nlb,
+                                                 uint16_t *apptag,
+                                                 uint16_t *appmask,
+                                                 uint64_t *reftag)
+{
+    NvmeCopySourceRangeFormat0 *_ranges = ranges;
+
+    if (slba) {
+        *slba = le64_to_cpu(_ranges[idx].slba);
+    }
+
+    if (nlb) {
+        *nlb = le16_to_cpu(_ranges[idx].nlb) + 1;
+    }
+
+    if (apptag) {
+        *apptag = le16_to_cpu(_ranges[idx].apptag);
+    }
+
+    if (appmask) {
+        *appmask = le16_to_cpu(_ranges[idx].appmask);
+    }
+
+    if (reftag) {
+        *reftag = le32_to_cpu(_ranges[idx].reftag);
+    }
+}
+
+static void nvme_copy_source_range_parse_format1(void *ranges, int idx,
+                                                 uint64_t *slba, uint32_t *nlb,
+                                                 uint16_t *apptag,
+                                                 uint16_t *appmask,
+                                                 uint64_t *reftag)
+{
+    NvmeCopySourceRangeFormat1 *_ranges = ranges;
+
+    if (slba) {
+        *slba = le64_to_cpu(_ranges[idx].slba);
+    }
+
+    if (nlb) {
+        *nlb = le16_to_cpu(_ranges[idx].nlb) + 1;
+    }
+
+    if (apptag) {
+        *apptag = le16_to_cpu(_ranges[idx].apptag);
+    }
+
+    if (appmask) {
+        *appmask = le16_to_cpu(_ranges[idx].appmask);
+    }
+
+    if (reftag) {
+        *reftag = 0;
+
+        *reftag |= (uint64_t)_ranges[idx].sr[4] << 40;
+        *reftag |= (uint64_t)_ranges[idx].sr[5] << 32;
+        *reftag |= (uint64_t)_ranges[idx].sr[6] << 24;
+        *reftag |= (uint64_t)_ranges[idx].sr[7] << 16;
+        *reftag |= (uint64_t)_ranges[idx].sr[8] << 8;
+        *reftag |= (uint64_t)_ranges[idx].sr[9];
+    }
+}
+
+static void nvme_copy_source_range_parse(void *ranges, int idx, uint8_t format,
+                                         uint64_t *slba, uint32_t *nlb,
+                                         uint16_t *apptag, uint16_t *appmask,
+                                         uint64_t *reftag)
+{
+    switch (format) {
+    case NVME_COPY_FORMAT_0:
+        nvme_copy_source_range_parse_format0(ranges, idx, slba, nlb, apptag,
+                                             appmask, reftag);
+        break;
+
+    case NVME_COPY_FORMAT_1:
+        nvme_copy_source_range_parse_format1(ranges, idx, slba, nlb, apptag,
+                                             appmask, reftag);
+        break;
+
+    default:
+        abort();
+    }
+}
+
 static void nvme_copy_out_completed_cb(void *opaque, int ret)
 {
     NvmeCopyAIOCB *iocb = opaque;
     NvmeRequest *req = iocb->req;
     NvmeNamespace *ns = req->ns;
-    NvmeCopySourceRange *range = &iocb->ranges[iocb->idx];
-    uint32_t nlb = le32_to_cpu(range->nlb) + 1;
+    uint32_t nlb;
+
+    nvme_copy_source_range_parse(iocb->ranges, iocb->idx, iocb->format, NULL,
+                                 &nlb, NULL, NULL, NULL);
 
     if (ret < 0) {
         iocb->ret = ret;
@@ -2622,7 +2717,6 @@ static void nvme_copy_out_cb(void *opaque, int ret)
     NvmeCopyAIOCB *iocb = opaque;
     NvmeRequest *req = iocb->req;
     NvmeNamespace *ns = req->ns;
-    NvmeCopySourceRange *range;
     uint32_t nlb;
     size_t mlen;
     uint8_t *mbounce;
@@ -2639,8 +2733,8 @@ static void nvme_copy_out_cb(void *opaque, int ret)
         return;
     }
 
-    range = &iocb->ranges[iocb->idx];
-    nlb = le32_to_cpu(range->nlb) + 1;
+    nvme_copy_source_range_parse(iocb->ranges, iocb->idx, iocb->format, NULL,
+                                 &nlb, NULL, NULL, NULL);
 
     mlen = nvme_m2b(ns, nlb);
     mbounce = iocb->bounce + nvme_l2b(ns, nlb);
@@ -2663,8 +2757,10 @@ static void nvme_copy_in_completed_cb(void *opaque, int ret)
     NvmeCopyAIOCB *iocb = opaque;
     NvmeRequest *req = iocb->req;
     NvmeNamespace *ns = req->ns;
-    NvmeCopySourceRange *range;
     uint32_t nlb;
+    uint64_t slba;
+    uint16_t apptag, appmask;
+    uint64_t reftag;
     size_t len;
     uint16_t status;
 
@@ -2675,8 +2771,8 @@ static void nvme_copy_in_completed_cb(void *opaque, int ret)
         goto out;
     }
 
-    range = &iocb->ranges[iocb->idx];
-    nlb = le32_to_cpu(range->nlb) + 1;
+    nvme_copy_source_range_parse(iocb->ranges, iocb->idx, iocb->format, &slba,
+                                 &nlb, &apptag, &appmask, &reftag);
     len = nvme_l2b(ns, nlb);
 
     trace_pci_nvme_copy_out(iocb->slba, nlb);
@@ -2687,11 +2783,6 @@ static void nvme_copy_in_completed_cb(void *opaque, int ret)
         uint16_t prinfor = ((copy->control[0] >> 4) & 0xf);
         uint16_t prinfow = ((copy->control[2] >> 2) & 0xf);
 
-        uint16_t apptag = le16_to_cpu(range->apptag);
-        uint16_t appmask = le16_to_cpu(range->appmask);
-        uint32_t reftag = le32_to_cpu(range->reftag);
-
-        uint64_t slba = le64_to_cpu(range->slba);
         size_t mlen = nvme_m2b(ns, nlb);
         uint8_t *mbounce = iocb->bounce + nvme_l2b(ns, nlb);
 
@@ -2764,7 +2855,6 @@ static void nvme_copy_in_cb(void *opaque, int ret)
     NvmeCopyAIOCB *iocb = opaque;
     NvmeRequest *req = iocb->req;
     NvmeNamespace *ns = req->ns;
-    NvmeCopySourceRange *range;
     uint64_t slba;
     uint32_t nlb;
 
@@ -2780,9 +2870,8 @@ static void nvme_copy_in_cb(void *opaque, int ret)
         return;
     }
 
-    range = &iocb->ranges[iocb->idx];
-    slba = le64_to_cpu(range->slba);
-    nlb = le32_to_cpu(range->nlb) + 1;
+    nvme_copy_source_range_parse(iocb->ranges, iocb->idx, iocb->format, &slba,
+                                 &nlb, NULL, NULL, NULL);
 
     qemu_iovec_reset(&iocb->iov);
     qemu_iovec_add(&iocb->iov, iocb->bounce + nvme_l2b(ns, nlb),
@@ -2802,7 +2891,6 @@ static void nvme_copy_cb(void *opaque, int ret)
     NvmeCopyAIOCB *iocb = opaque;
     NvmeRequest *req = iocb->req;
     NvmeNamespace *ns = req->ns;
-    NvmeCopySourceRange *range;
     uint64_t slba;
     uint32_t nlb;
     size_t len;
@@ -2819,9 +2907,8 @@ static void nvme_copy_cb(void *opaque, int ret)
         goto done;
     }
 
-    range = &iocb->ranges[iocb->idx];
-    slba = le64_to_cpu(range->slba);
-    nlb = le32_to_cpu(range->nlb) + 1;
+    nvme_copy_source_range_parse(iocb->ranges, iocb->idx, iocb->format, &slba,
+                                 &nlb, NULL, NULL, NULL);
     len = nvme_l2b(ns, nlb);
 
     trace_pci_nvme_copy_source_range(slba, nlb);
@@ -2877,6 +2964,7 @@ static uint16_t nvme_copy(NvmeCtrl *n, NvmeRequest *req)
     uint8_t format = copy->control[0] & 0xf;
     uint16_t prinfor = ((copy->control[0] >> 4) & 0xf);
     uint16_t prinfow = ((copy->control[2] >> 2) & 0xf);
+    size_t len = sizeof(NvmeCopySourceRangeFormat0);
 
     uint16_t status;
 
@@ -2902,10 +2990,18 @@ static uint16_t nvme_copy(NvmeCtrl *n, NvmeRequest *req)
         goto invalid;
     }
 
-    iocb->ranges = g_new(NvmeCopySourceRange, nr);
+    if (ns->pif && format != 0x1) {
+        status = NVME_INVALID_FORMAT | NVME_DNR;
+        goto invalid;
+    }
 
-    status = nvme_h2c(n, (uint8_t *)iocb->ranges,
-                      sizeof(NvmeCopySourceRange) * nr, req);
+    if (ns->pif) {
+        len = sizeof(NvmeCopySourceRangeFormat1);
+    }
+
+    iocb->format = format;
+    iocb->ranges = g_malloc_n(nr, len);
+    status = nvme_h2c(n, (uint8_t *)iocb->ranges, len * nr, req);
     if (status) {
         goto invalid;
     }
@@ -2931,6 +3027,7 @@ static uint16_t nvme_copy(NvmeCtrl *n, NvmeRequest *req)
     iocb->nr = nr;
     iocb->idx = 0;
     iocb->reftag = le32_to_cpu(copy->reftag);
+    iocb->reftag |= (uint64_t)le32_to_cpu(copy->cdw3) << 32;
     iocb->bounce = g_malloc_n(le16_to_cpu(ns->id_ns.mssrl),
                               ns->lbasz + ns->lbaf.ms);
 
@@ -4717,7 +4814,8 @@ static uint16_t nvme_identify_ns_csi(NvmeCtrl *n, NvmeRequest *req,
     }
 
     if (c->csi == NVME_CSI_NVM) {
-        return nvme_rpt_empty_id_struct(n, req);
+        return nvme_c2h(n, (uint8_t *)&ns->id_ns_nvm, sizeof(NvmeIdNsNvm),
+                        req);
     } else if (c->csi == NVME_CSI_ZONED && ns->csi == NVME_CSI_ZONED) {
         return nvme_c2h(n, (uint8_t *)ns->id_ns_zoned, sizeof(NvmeIdNsZoned),
                         req);
@@ -5571,6 +5669,9 @@ static void nvme_format_bh(void *opaque)
     NvmeFormatAIOCB *iocb = opaque;
     NvmeRequest *req = iocb->req;
     NvmeCtrl *n = nvme_ctrl(req);
+    uint32_t dw10 = le32_to_cpu(req->cmd.cdw10);
+    uint8_t lbaf = dw10 & 0xf;
+    uint8_t pi = (dw10 >> 5) & 0x7;
     uint16_t status;
     int i;
 
@@ -5592,7 +5693,7 @@ static void nvme_format_bh(void *opaque)
         goto done;
     }
 
-    status = nvme_format_check(iocb->ns, iocb->lbaf, iocb->pi);
+    status = nvme_format_check(iocb->ns, lbaf, pi);
     if (status) {
         req->status = status;
         goto done;
@@ -6671,7 +6772,7 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
      */
     id->vwc = NVME_VWC_NSID_BROADCAST_SUPPORT | NVME_VWC_PRESENT;
 
-    id->ocfs = cpu_to_le16(NVME_OCFS_COPY_FORMAT_0);
+    id->ocfs = cpu_to_le16(NVME_OCFS_COPY_FORMAT_0 | NVME_OCFS_COPY_FORMAT_1);
     id->sgls = cpu_to_le32(NVME_CTRL_SGLS_SUPPORT_NO_ALIGN |
                            NVME_CTRL_SGLS_BITBUCKET);
 
