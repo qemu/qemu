@@ -2133,7 +2133,8 @@ struct target_stat64  {
     abi_ulong __unused5;
 };
 
-#elif defined(TARGET_OPENRISC) || defined(TARGET_NIOS2) || defined(TARGET_RISCV)
+#elif defined(TARGET_OPENRISC) || defined(TARGET_NIOS2) \
+        || defined(TARGET_RISCV) || defined(TARGET_HEXAGON)
 
 /* These are the asm-generic versions of the stat and stat64 structures */
 
@@ -2242,31 +2243,6 @@ struct target_stat64 {
     abi_int    target_st_ctime;
     abi_uint   target_st_ctime_nsec;
     uint64_t   st_ino;
-};
-
-#elif defined(TARGET_HEXAGON)
-
-struct target_stat {
-    unsigned long long st_dev;
-    unsigned long long st_ino;
-    unsigned int st_mode;
-    unsigned int st_nlink;
-    unsigned int st_uid;
-    unsigned int st_gid;
-    unsigned long long st_rdev;
-    target_ulong __pad1;
-    long long st_size;
-    target_long st_blksize;
-    int __pad2;
-    long long st_blocks;
-
-    target_long target_st_atime;
-    target_long target_st_atime_nsec;
-    target_long target_st_mtime;
-    target_long target_st_mtime_nsec;
-    target_long target_st_ctime;
-    target_long target_st_ctime_nsec;
-    int __unused[2];
 };
 
 #else
