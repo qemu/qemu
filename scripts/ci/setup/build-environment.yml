@@ -114,3 +114,41 @@
       when:
         - ansible_facts['distribution'] == 'Ubuntu'
         - ansible_facts['distribution_version'] == '20.04'
+
+    - name: Install basic packages to build QEMU on EL8
+      dnf:
+        # This list of packages start with tests/docker/dockerfiles/centos8.docker
+        # but only include files that are common to all distro variants and present
+        # in the standard repos (no add-ons)
+        name:
+          - bzip2
+          - bzip2-devel
+          - dbus-daemon
+          - diffutils
+          - gcc
+          - gcc-c++
+          - genisoimage
+          - gettext
+          - git
+          - glib2-devel
+          - libaio-devel
+          - libepoxy-devel
+          - libgcrypt-devel
+          - lzo-devel
+          - make
+          - mesa-libEGL-devel
+          - nettle-devel
+          - nmap-ncat
+          - perl-Test-Harness
+          - pixman-devel
+          - python36
+          - rdma-core-devel
+          - spice-glib-devel
+          - spice-server
+          - systemtap-sdt-devel
+          - tar
+          - zlib-devel
+        state: present
+      when:
+        - ansible_facts['distribution_file_variety'] == 'RedHat'
+        - ansible_facts['distribution_version'] == '8'

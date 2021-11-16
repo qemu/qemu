@@ -1,0 +1,17 @@
+This directory contains scripts for generating a build of QEMU that
+closely matches the CentOS Stream[1] builds of the qemu-kvm package.
+
+To have the environment ready to configure, build QEMU and run tests,
+please start with a CentOS Stream machine and:
+
+ * apply the generic "build-environment.yml" playbook located at
+   scripts/ci/setup
+
+ * apply the "build-environment.yml" in the directory following the
+   CentOS Stream version (such as "8").
+
+This currently only covers CentOS Stream 8 environments and
+packages[2].
+
+[1] https://www.centos.org/centos-stream/
+[2] https://git.centos.org/rpms/qemu-kvm/commits/c8s-stream-rhel

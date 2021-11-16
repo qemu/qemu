@@ -1,0 +1,51 @@
+---
+- name: Installation of extra packages to build QEMU
+  hosts: all
+  tasks:
+    - name: Extra check for CentOS Stream 8
+      lineinfile:
+        path: /etc/redhat-release
+        line: CentOS Stream release 8
+        state: present
+      check_mode: yes
+      register: centos_stream_8
+
+    - name: Enable PowerTools repo on CentOS Stream 8
+      ini_file:
+        path: /etc/yum.repos.d/CentOS-Stream-PowerTools.repo
+        section: powertools
+        option: enabled
+        value: "1"
+      when:
+        - ansible_facts['distribution'] == 'CentOS'
+        - ansible_facts['distribution_major_version'] == '8'
+        - centos_stream_8
+
+    - name: Install basic packages to build QEMU on CentOS Stream 8
+      dnf:
+        name:
+          - device-mapper-multipath-devel
+          - glusterfs-api-devel
+          - gnutls-devel
+          - libcap-ng-devel
+          - libcurl-devel
+          - libfdt-devel
+          - libiscsi-devel
+          - libpmem-devel
+          - librados-devel
+          - librbd-devel
+          - libseccomp-devel
+          - libssh-devel
+          - libxkbcommon-devel
+          - ninja-build
+          - numactl-devel
+          - python3-sphinx
+          - redhat-rpm-config
+          - snappy-devel
+          - spice-server-devel
+          - systemd-devel
+        state: present
+      when:
+        - ansible_facts['distribution'] == 'CentOS'
+        - ansible_facts['distribution_major_version'] == '8'
+        - centos_stream_8
