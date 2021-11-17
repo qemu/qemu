@@ -2,6 +2,8 @@ if not have_linux_user
    subdir_done()
 endif
 
+linux_user_ss = ss.source_set()
+
 common_user_inc += include_directories('host/' / host_arch)
 common_user_inc += include_directories('.')
 
@@ -42,3 +44,5 @@ subdir('sh4')
 subdir('sparc')
 subdir('x86_64')
 subdir('xtensa')
+
+specific_ss.add_all(when: 'CONFIG_LINUX_USER', if_true: linux_user_ss)
