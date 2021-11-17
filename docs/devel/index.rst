@@ -45,3 +45,6 @@ modifying QEMU's source code.
    vfio-migration
    qapi-code-gen
    writing-monitor-commands
+   trivial-patches
+   submitting-a-patch
+   submitting-a-pull-request
