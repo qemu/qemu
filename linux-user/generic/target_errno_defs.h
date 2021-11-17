@@ -162,6 +162,6 @@
  * ERESTART_NOINTR (which is kernel internal) to guarantee that we won't
  * clash with a valid guest errno now or in the future.
  */
-#define TARGET_QEMU_ESIGRETURN 513     /* Return from signal */
+#define QEMU_ESIGRETURN 513     /* Return from signal */
 
 #endif

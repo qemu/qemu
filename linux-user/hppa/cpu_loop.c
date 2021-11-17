@@ -134,7 +134,7 @@ void cpu_loop(CPUHPPAState *env)
                 env->iaoq_b = env->gr[31] + 4;
                 break;
             case -QEMU_ERESTARTSYS:
-            case -TARGET_QEMU_ESIGRETURN:
+            case -QEMU_ESIGRETURN:
                 break;
             }
             break;

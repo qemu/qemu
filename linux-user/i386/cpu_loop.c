@@ -181,7 +181,7 @@ static void emulate_vsyscall(CPUX86State *env)
                      env->regs[R_EDX], env->regs[10], env->regs[8],
                      env->regs[9], 0, 0);
     g_assert(ret != -QEMU_ERESTARTSYS);
-    g_assert(ret != -TARGET_QEMU_ESIGRETURN);
+    g_assert(ret != -QEMU_ESIGRETURN);
     if (ret == -TARGET_EFAULT) {
         goto sigsegv;
     }
@@ -225,7 +225,7 @@ void cpu_loop(CPUX86State *env)
                              0, 0);
             if (ret == -QEMU_ERESTARTSYS) {
                 env->eip -= 2;
-            } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+            } else if (ret != -QEMU_ESIGRETURN) {
                 env->regs[R_EAX] = ret;
             }
             break;
@@ -243,7 +243,7 @@ void cpu_loop(CPUX86State *env)
                              0, 0);
             if (ret == -QEMU_ERESTARTSYS) {
                 env->eip -= 2;
-            } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+            } else if (ret != -QEMU_ESIGRETURN) {
                 env->regs[R_EAX] = ret;
             }
             break;

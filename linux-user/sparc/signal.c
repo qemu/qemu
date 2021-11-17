@@ -431,12 +431,12 @@ long do_sigreturn(CPUSPARCState *env)
     set_sigmask(&host_set);
 
     unlock_user_struct(sf, sf_addr, 0);
-    return -TARGET_QEMU_ESIGRETURN;
+    return -QEMU_ESIGRETURN;
 
  segv_and_exit:
     unlock_user_struct(sf, sf_addr, 0);
     force_sig(TARGET_SIGSEGV);
-    return -TARGET_QEMU_ESIGRETURN;
+    return -QEMU_ESIGRETURN;
 #else
     return -TARGET_ENOSYS;
 #endif
@@ -495,12 +495,12 @@ long do_rt_sigreturn(CPUSPARCState *env)
     env->npc = tnpc;
 
     unlock_user_struct(sf, sf_addr, 0);
-    return -TARGET_QEMU_ESIGRETURN;
+    return -QEMU_ESIGRETURN;
 
  segv_and_exit:
     unlock_user_struct(sf, sf_addr, 0);
     force_sig(TARGET_SIGSEGV);
-    return -TARGET_QEMU_ESIGRETURN;
+    return -QEMU_ESIGRETURN;
 }
 
 #if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)

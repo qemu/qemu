@@ -145,7 +145,7 @@ done_syscall:
                 env->active_tc.PC -= 4;
                 break;
             }
-            if (ret == -TARGET_QEMU_ESIGRETURN) {
+            if (ret == -QEMU_ESIGRETURN) {
                 /* Returning from a successful sigreturn syscall.
                    Avoid clobbering register state.  */
                 break;
