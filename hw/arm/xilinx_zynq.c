@@ -125,9 +125,10 @@ static void gem_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     sysbus_connect_irq(s, 0, irq);
 }
 
-static inline void zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
-                                         bool is_qspi)
+static inline int zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
+                                        bool is_qspi, int unit0)
 {
+    int unit = unit0;
     DeviceState *dev;
     SysBusDevice *busdev;
     SSIBus *spi;
@@ -156,7 +157,7 @@ static inline void zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
         spi = (SSIBus *)qdev_get_child_bus(dev, bus_name);
 
         for (j = 0; j < num_ss; ++j) {
-            DriveInfo *dinfo = drive_get_next(IF_MTD);
+            DriveInfo *dinfo = drive_get(IF_MTD, 0, unit++);
             flash_dev = qdev_new("n25q128");
             if (dinfo) {
                 qdev_prop_set_drive_err(flash_dev, "drive",
@@ -170,6 +171,7 @@ static inline void zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
         }
     }
 
+    return unit;
 }
 
 static void zynq_init(MachineState *machine)
@@ -247,9 +249,9 @@ static void zynq_init(MachineState *machine)
         pic[n] = qdev_get_gpio_in(dev, n);
     }
 
-    zynq_init_spi_flashes(0xE0006000, pic[58-IRQ_OFFSET], false);
-    zynq_init_spi_flashes(0xE0007000, pic[81-IRQ_OFFSET], false);
-    zynq_init_spi_flashes(0xE000D000, pic[51-IRQ_OFFSET], true);
+    n = zynq_init_spi_flashes(0xE0006000, pic[58 - IRQ_OFFSET], false, 0);
+    n = zynq_init_spi_flashes(0xE0007000, pic[81 - IRQ_OFFSET], false, n);
+    n = zynq_init_spi_flashes(0xE000D000, pic[51 - IRQ_OFFSET], true, n);
 
     sysbus_create_simple(TYPE_CHIPIDEA, 0xE0002000, pic[53 - IRQ_OFFSET]);
     sysbus_create_simple(TYPE_CHIPIDEA, 0xE0003000, pic[76 - IRQ_OFFSET]);
@@ -298,7 +300,7 @@ static void zynq_init(MachineState *machine)
         sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, hci_addr);
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[hci_irq - IRQ_OFFSET]);
 
-        di = drive_get_next(IF_SD);
+        di = drive_get(IF_SD, 0, n);
         blk = di ? blk_by_legacy_dinfo(di) : NULL;
         carddev = qdev_new(TYPE_SD_CARD);
         qdev_prop_set_drive_err(carddev, "drive", blk, &error_fatal);
