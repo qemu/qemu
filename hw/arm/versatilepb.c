@@ -310,7 +310,7 @@ static void versatile_init(MachineState *machine, int board_id)
     qdev_connect_gpio_out(sysctl, 0, qdev_get_gpio_in(dev, 0));
 
     dev = sysbus_create_varargs("pl181", 0x10005000, sic[22], sic[1], NULL);
-    dinfo = drive_get_next(IF_SD);
+    dinfo = drive_get(IF_SD, 0, 0);
     if (dinfo) {
         DeviceState *card;
 
@@ -322,7 +322,7 @@ static void versatile_init(MachineState *machine, int board_id)
     }
 
     dev = sysbus_create_varargs("pl181", 0x1000b000, sic[23], sic[2], NULL);
-    dinfo = drive_get_next(IF_SD);
+    dinfo = drive_get(IF_SD, 0, 1);
     if (dinfo) {
         DeviceState *card;
 
