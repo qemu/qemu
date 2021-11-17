@@ -56,13 +56,13 @@ Supported devices
  * Front LEDs (PCA9552 on I2C bus)
  * LPC Peripheral Controller (a subset of subdevices are supported)
  * Hash/Crypto Engine (HACE) - Hash support only. TODO: HMAC and RSA
+ * ADC
 
 
 Missing devices
 ---------------
 
  * Coprocessor support
- * ADC (out of tree implementation)
  * PWM and Fan Controller
  * Slave GPIO Controller
  * Super I/O Controller
