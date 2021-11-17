@@ -81,7 +81,7 @@ static void cubieboard_init(MachineState *machine)
     }
 
     /* Retrieve SD bus */
-    di = drive_get_next(IF_SD);
+    di = drive_get(IF_SD, 0, 0);
     blk = di ? blk_by_legacy_dinfo(di) : NULL;
     bus = qdev_get_child_bus(DEVICE(a10), "sd-bus");
 
