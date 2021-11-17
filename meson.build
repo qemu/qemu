@@ -2375,7 +2375,6 @@ genh += hxdep
 authz_ss = ss.source_set()
 blockdev_ss = ss.source_set()
 block_ss = ss.source_set()
-bsd_user_ss = ss.source_set()
 chardev_ss = ss.source_set()
 common_ss = ss.source_set()
 common_user_ss = ss.source_set()
@@ -2629,8 +2628,6 @@ common_user_inc = []
 subdir('common-user')
 subdir('bsd-user')
 subdir('linux-user')
-
-specific_ss.add_all(when: 'CONFIG_BSD_USER', if_true: bsd_user_ss)
 
 common_user_ss = common_user_ss.apply(config_all, strict: false)
 common_user = static_library('common-user',
