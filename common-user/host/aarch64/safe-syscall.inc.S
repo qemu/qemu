@@ -1,7 +1,7 @@
 /*
  * safe-syscall.inc.S : host-specific assembly fragment
  * to handle signals occurring at the same time as system calls.
- * This is intended to be included by linux-user/safe-syscall.S
+ * This is intended to be included by common-user/safe-syscall.S
  *
  * Written by Richard Henderson <rth@twiddle.net>
  * Copyright (C) 2016 Red Hat, Inc.

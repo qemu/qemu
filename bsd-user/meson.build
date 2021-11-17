@@ -2,6 +2,8 @@ if not have_bsd_user
    subdir_done()
 endif
 
+common_user_inc += include_directories('.')
+
 bsd_user_ss.add(files(
   'bsdload.c',
   'elfload.c',

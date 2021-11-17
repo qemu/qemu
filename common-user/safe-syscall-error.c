@@ -10,7 +10,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "safe-syscall.h"
+#include "user/safe-syscall.h"
 
 /*
  * This is intended to be invoked via tail-call on the error path

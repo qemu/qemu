@@ -1,14 +1,20 @@
 /*
  * safe-syscall.inc.S : host-specific assembly fragment
  * to handle signals occurring at the same time as system calls.
- * This is intended to be included by linux-user/safe-syscall.S
+ * This is intended to be included by common-user/safe-syscall.S
  *
- * Written by Richard Henderson <rth@twiddle.net>
- * Copyright (C) 2018 Linaro, Inc.
+ * Written by Richard Henderson <richard.henderson@linaro.org>
+ * Copyright (C) 2021 Linaro, Inc.
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
+
+        .text
+        .balign 4
+
+        .register %g2, #scratch
+        .register %g3, #scratch
 
         .global safe_syscall_base
         .global safe_syscall_start
@@ -16,6 +22,9 @@
         .type   safe_syscall_base, @function
         .type   safe_syscall_start, @function
         .type   safe_syscall_end, @function
+
+#define STACK_BIAS  2047
+#define PARAM(N)    STACK_BIAS + N*8
 
         /*
          * This is the entry point for making a system call. The calling
@@ -27,26 +36,25 @@
 safe_syscall_base:
         .cfi_startproc
         /*
-         * The syscall calling convention is nearly the same as C:
-         * we enter with a0 == &signal_pending
-         *               a1 == syscall number
-         *               a2 ... a7 == syscall arguments
-         *               and return the result in a0
+         * The syscall calling convention isn't the same as the C one:
+         * we enter with o0 == &signal_pending
+         *               o1 == syscall number
+         *               o2 ... o5, (stack) == syscall arguments
+         *               and return the result in x0
          * and the syscall instruction needs
-         *               a7 == syscall number
-         *               a0 ... a5 == syscall arguments
-         *               and returns the result in a0
+         *               g1 == syscall number
+         *               o0 ... o5 == syscall arguments
+         *               and returns the result in o0
          * Shuffle everything around appropriately.
          */
-        mv      t0, a0          /* signal_pending pointer */
-        mv      t1, a1          /* syscall number */
-        mv      a0, a2          /* syscall arguments */
-        mv      a1, a3
-        mv      a2, a4
-        mv      a3, a5
-        mv      a4, a6
-        mv      a5, a7
-        mv      a7, t1
+        mov     %o0, %g2                /* signal_pending pointer */
+        mov     %o1, %g1                /* syscall number */
+        mov     %o2, %o0                /* syscall arguments */
+        mov     %o3, %o1
+        mov     %o4, %o2
+        mov     %o5, %o3
+        ldx     [%sp + PARAM(6)], %o4
+        ldx     [%sp + PARAM(7)], %o5
 
         /*
          * This next sequence of code works in conjunction with the
@@ -57,23 +65,25 @@ safe_syscall_base:
          * the syscall instruction must be the final one in the sequence.
          */
 safe_syscall_start:
-        /* If signal_pending is non-zero, don't do the call */
-        lw      t1, 0(t0)
-        bnez    t1, 2f
-        scall
+        /* if signal_pending is non-zero, don't do the call */
+        lduw    [%g2], %g3
+        brnz,pn %g3, 2f
+         nop
+        ta      0x6d
 safe_syscall_end:
         /* code path for having successfully executed the syscall */
-        li      t2, -4096
-        bgtu    a0, t2, 0f
+        bcs,pn  %xcc, 1f
+         nop
         ret
-
-        /* code path setting errno */
-0:      neg     a0, a0
-        j       safe_syscall_set_errno_tail
+         nop
 
         /* code path when we didn't execute the syscall */
-2:      li      a0, QEMU_ERESTARTSYS
-        j       safe_syscall_set_errno_tail
+2:      set     QEMU_ERESTARTSYS, %o0
+
+        /* code path setting errno */
+1:      mov     %o7, %g1
+        call    safe_syscall_set_errno_tail
+         mov    %g1, %o7
 
         .cfi_endproc
         .size   safe_syscall_base, .-safe_syscall_base
