@@ -15,6 +15,7 @@ linux_user_ss.add(files(
   'signal.c',
   'strace.c',
   'syscall.c',
+  'thunk.c',
   'uaccess.c',
   'uname.c',
 ))
