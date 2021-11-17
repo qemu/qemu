@@ -641,7 +641,7 @@ the CPU that issued the MMIO.
 +==========+========================+
 | rid      | range MMIO is within   |
 +----------+------------------------+
-| offset   | offset withing *rid*   |
+| offset   | offset within *rid*    |
 +----------+------------------------+
 | type     | e.g., load or store    |
 +----------+------------------------+
