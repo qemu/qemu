@@ -82,7 +82,7 @@ The Aspeed machines can be started using the ``-kernel`` option to
 load a Linux kernel or from a firmware. Images can be downloaded from
 the OpenBMC jenkins :
 
-   https://jenkins.openbmc.org/job/ci-openbmc/lastSuccessfulBuild/distro=ubuntu,label=docker-builder
+   https://jenkins.openbmc.org/job/ci-openbmc/lastSuccessfulBuild/
 
 or directly from the OpenBMC GitHub release repository :
 
