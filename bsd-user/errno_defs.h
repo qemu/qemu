@@ -151,6 +151,10 @@
 /* Internal errors: */
 #define TARGET_EJUSTRETURN      254             /* Just return without modifing regs */
 #define TARGET_ERESTART         255             /* Restart syscall */
-#define QEMU_ERESTARTSYS        TARGET_ERESTART
+
+#include "special-errno.h"
+
+_Static_assert(TARGET_ERESTART == QEMU_ERESTARTSYS,
+               "TARGET_ERESTART and QEMU_ERESTARTSYS expected to match");
 
 #endif /* !  _ERRNO_DEFS_H_ */
