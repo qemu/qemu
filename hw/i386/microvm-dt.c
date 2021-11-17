@@ -327,7 +327,9 @@ void dt_setup_microvm(MicrovmMachineState *mms)
     dt_setup_sys_bus(mms);
 
     /* add to fw_cfg */
-    fprintf(stderr, "%s: add etc/fdt to fw_cfg\n", __func__);
+    if (debug) {
+        fprintf(stderr, "%s: add etc/fdt to fw_cfg\n", __func__);
+    }
     fw_cfg_add_file(x86ms->fw_cfg, "etc/fdt", mms->fdt, size);
 
     if (debug) {
