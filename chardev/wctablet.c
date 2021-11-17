@@ -320,7 +320,6 @@ static void wctablet_chr_finalize(Object *obj)
     TabletChardev *tablet = WCTABLET_CHARDEV(obj);
 
     qemu_input_handler_unregister(tablet->hs);
-    g_free(tablet);
 }
 
 static void wctablet_chr_open(Chardev *chr,
