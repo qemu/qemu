@@ -10,7 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "target_errno_defs.h"
+#include "special-errno.h"
 
 /* We have the correct host directory on our include path
  * so that this will pull in the right fragment for the architecture.
