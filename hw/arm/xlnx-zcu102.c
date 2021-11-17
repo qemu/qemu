@@ -169,7 +169,7 @@ static void xlnx_zcu102_init(MachineState *machine)
     /* Create and plug in the SD cards */
     for (i = 0; i < XLNX_ZYNQMP_NUM_SDHCI; i++) {
         BusState *bus;
-        DriveInfo *di = drive_get_next(IF_SD);
+        DriveInfo *di = drive_get(IF_SD, 0, i);
         BlockBackend *blk = di ? blk_by_legacy_dinfo(di) : NULL;
         DeviceState *carddev;
         char *bus_name;
@@ -190,7 +190,7 @@ static void xlnx_zcu102_init(MachineState *machine)
         BusState *spi_bus;
         DeviceState *flash_dev;
         qemu_irq cs_line;
-        DriveInfo *dinfo = drive_get_next(IF_MTD);
+        DriveInfo *dinfo = drive_get(IF_MTD, 0, i);
         gchar *bus_name = g_strdup_printf("spi%d", i);
 
         spi_bus = qdev_get_child_bus(DEVICE(&s->soc), bus_name);
@@ -212,7 +212,7 @@ static void xlnx_zcu102_init(MachineState *machine)
         BusState *spi_bus;
         DeviceState *flash_dev;
         qemu_irq cs_line;
-        DriveInfo *dinfo = drive_get_next(IF_MTD);
+        DriveInfo *dinfo = drive_get(IF_MTD, 0, XLNX_ZYNQMP_NUM_SPIS + i);
         int bus = i / XLNX_ZYNQMP_NUM_QSPI_BUS_CS;
         gchar *bus_name = g_strdup_printf("qspi%d", bus);
 
