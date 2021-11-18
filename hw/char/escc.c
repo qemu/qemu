@@ -586,6 +586,20 @@ static void escc_mem_write(void *opaque, hwaddr addr,
             s->wregs[s->reg] = val;
             break;
         case W_TXCTRL1:
+            s->wregs[s->reg] = val;
+            /*
+             * The ESCC datasheet states that SPEC_ALLSENT is always set in
+             * sync mode, and set in async mode when all characters have
+             * cleared the transmitter. Since writes to SERIAL_DATA use the
+             * blocking qemu_chr_fe_write_all() function to write each
+             * character, the guest can never see the state when async data
+             * is in the process of being transmitted so we can set this bit
+             * unconditionally regardless of the state of the W_TXCTRL1 mode
+             * bits.
+             */
+            s->rregs[R_SPEC] |= SPEC_ALLSENT;
+            escc_update_parameters(s);
+            break;
         case W_TXCTRL2:
             s->wregs[s->reg] = val;
             escc_update_parameters(s);
