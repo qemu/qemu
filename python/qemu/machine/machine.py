@@ -141,12 +141,10 @@ class QEMUMachine:
 
         if monitor_address is not None:
             self._monitor_address = monitor_address
-            self._remove_monitor_sockfile = False
         else:
             self._monitor_address = os.path.join(
                 self.sock_dir, f"{self._name}-monitor.sock"
             )
-            self._remove_monitor_sockfile = True
 
         self._console_log_path = console_log
         if self._console_log_path:
@@ -315,8 +313,7 @@ class QEMUMachine:
             self._remove_files.append(self._console_address)
 
         if self._qmp_set:
-            if self._remove_monitor_sockfile:
-                assert isinstance(self._monitor_address, str)
+            if isinstance(self._monitor_address, str):
                 self._remove_files.append(self._monitor_address)
             self._qmp_connection = QEMUMonitorProtocol(
                 self._monitor_address,
