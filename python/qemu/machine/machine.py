@@ -134,8 +134,9 @@ class QEMUMachine:
         self._qmp_timer = qmp_timer
 
         self._name = name or "qemu-%d" % os.getpid()
+        self._temp_dir: Optional[str] = None
         self._base_temp_dir = base_temp_dir
-        self._sock_dir = sock_dir or self._base_temp_dir
+        self._sock_dir = sock_dir
         self._log_dir = log_dir
 
         if monitor_address is not None:
@@ -143,7 +144,7 @@ class QEMUMachine:
             self._remove_monitor_sockfile = False
         else:
             self._monitor_address = os.path.join(
-                self._sock_dir, f"{self._name}-monitor.sock"
+                self.sock_dir, f"{self._name}-monitor.sock"
             )
             self._remove_monitor_sockfile = True
 
@@ -163,14 +164,13 @@ class QEMUMachine:
         self._qmp_set = True   # Enable QMP monitor by default.
         self._qmp_connection: Optional[QEMUMonitorProtocol] = None
         self._qemu_full_args: Tuple[str, ...] = ()
-        self._temp_dir: Optional[str] = None
         self._launched = False
         self._machine: Optional[str] = None
         self._console_index = 0
         self._console_set = False
         self._console_device_type: Optional[str] = None
         self._console_address = os.path.join(
-            self._sock_dir, f"{self._name}-console.sock"
+            self.sock_dir, f"{self._name}-console.sock"
         )
         self._console_socket: Optional[socket.socket] = None
         self._remove_files: List[str] = []
@@ -815,6 +815,15 @@ class QEMUMachine:
             self._temp_dir = tempfile.mkdtemp(prefix="qemu-machine-",
                                               dir=self._base_temp_dir)
         return self._temp_dir
+
+    @property
+    def sock_dir(self) -> str:
+        """
+        Returns the directory used for sockfiles by this machine.
+        """
+        if self._sock_dir:
+            return self._sock_dir
+        return self.temp_dir
 
     @property
     def log_dir(self) -> str:
