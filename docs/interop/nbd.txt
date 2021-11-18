@@ -1,4 +1,4 @@
-Qemu supports the NBD protocol, and has an internal NBD client (see
+QEMU supports the NBD protocol, and has an internal NBD client (see
 block/nbd.c), an internal NBD server (see blockdev-nbd.c), and an
 external NBD server tool (see qemu-nbd.c). The common code is placed
 in nbd/*.
@@ -7,11 +7,11 @@ The NBD protocol is specified here:
 https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
 
 The following paragraphs describe some specific properties of NBD
-protocol realization in Qemu.
+protocol realization in QEMU.
 
 = Metadata namespaces =
 
-Qemu supports the "base:allocation" metadata context as defined in the
+QEMU supports the "base:allocation" metadata context as defined in the
 NBD protocol specification, and also defines an additional metadata
 namespace "qemu".
 

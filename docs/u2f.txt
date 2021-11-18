@@ -21,7 +21,7 @@ The second factor is materialized by a device implementing the U2F
 protocol. In case of a USB U2F security key, it is a USB HID device
 that implements the U2F protocol.
 
-In Qemu, the USB U2F key device offers a dedicated support of U2F, allowing
+In QEMU, the USB U2F key device offers a dedicated support of U2F, allowing
 guest USB FIDO/U2F security keys operating in two possible modes:
 pass-through and emulated.
 

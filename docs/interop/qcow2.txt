@@ -313,7 +313,7 @@ The fields of the bitmaps extension are:
                    The number of bitmaps contained in the image. Must be
                    greater than or equal to 1.
 
-                   Note: Qemu currently only supports up to 65535 bitmaps per
+                   Note: QEMU currently only supports up to 65535 bitmaps per
                    image.
 
           4 -  7:  Reserved, must be zero.
@@ -775,7 +775,7 @@ Structure of a bitmap directory entry:
                       2: extra_data_compatible
                          This flags is meaningful when the extra data is
                          unknown to the software (currently any extra data is
-                         unknown to Qemu).
+                         unknown to QEMU).
                          If it is set, the bitmap may be used as expected, extra
                          data must be left as is.
                          If it is not set, the bitmap must not be used, but
@@ -793,7 +793,7 @@ Structure of a bitmap directory entry:
              17:    granularity_bits
                     Granularity bits. Valid values: 0 - 63.
 
-                    Note: Qemu currently supports only values 9 - 31.
+                    Note: QEMU currently supports only values 9 - 31.
 
                     Granularity is calculated as
                         granularity = 1 << granularity_bits
@@ -804,7 +804,7 @@ Structure of a bitmap directory entry:
         18 - 19:    name_size
                     Size of the bitmap name. Must be non-zero.
 
-                    Note: Qemu currently doesn't support values greater than
+                    Note: QEMU currently doesn't support values greater than
                     1023.
 
         20 - 23:    extra_data_size

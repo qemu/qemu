@@ -20,13 +20,13 @@ report the same CPUID info to guest as on host for most of SGX CPUID. With
 reporting the same CPUID guest is able to use full capacity of SGX, and KVM
 doesn't need to emulate those info.
 
-The guest's EPC base and size are determined by Qemu, and KVM needs Qemu to
+The guest's EPC base and size are determined by QEMU, and KVM needs QEMU to
 notify such info to it before it can initialize SGX for guest.
 
 Virtual EPC
 ~~~~~~~~~~~
 
-By default, Qemu does not assign EPC to a VM, i.e. fully enabling SGX in a VM
+By default, QEMU does not assign EPC to a VM, i.e. fully enabling SGX in a VM
 requires explicit allocation of EPC to the VM. Similar to other specialized
 memory types, e.g. hugetlbfs, EPC is exposed as a memory backend.
 
@@ -35,12 +35,12 @@ prior to realizing the vCPUs themselves, which occurs long before generic
 devices are parsed and realized.  This limitation means that EPC does not
 require -maxmem as EPC is not treated as {cold,hot}plugged memory.
 
-Qemu does not artificially restrict the number of EPC sections exposed to a
-guest, e.g. Qemu will happily allow you to create 64 1M EPC sections. Be aware
+QEMU does not artificially restrict the number of EPC sections exposed to a
+guest, e.g. QEMU will happily allow you to create 64 1M EPC sections. Be aware
 that some kernels may not recognize all EPC sections, e.g. the Linux SGX driver
 is hardwired to support only 8 EPC sections.
 
-The following Qemu snippet creates two EPC sections, with 64M pre-allocated
+The following QEMU snippet creates two EPC sections, with 64M pre-allocated
 to the VM and an additional 28M mapped but not allocated::
 
  -object memory-backend-epc,id=mem1,size=64M,prealloc=on \
@@ -54,7 +54,7 @@ to physical EPC. Because physical EPC is protected via range registers,
 the size of the physical EPC must be a power of two (though software sees
 a subset of the full EPC, e.g. 92M or 128M) and the EPC must be naturally
 aligned.  KVM SGX's virtual EPC is purely a software construct and only
-requires the size and location to be page aligned. Qemu enforces the EPC
+requires the size and location to be page aligned. QEMU enforces the EPC
 size is a multiple of 4k and will ensure the base of the EPC is 4k aligned.
 To simplify the implementation, EPC is always located above 4g in the guest
 physical address space.
@@ -62,7 +62,7 @@ physical address space.
 Migration
 ~~~~~~~~~
 
-Qemu/KVM doesn't prevent live migrating SGX VMs, although from hardware's
+QEMU/KVM doesn't prevent live migrating SGX VMs, although from hardware's
 perspective, SGX doesn't support live migration, since both EPC and the SGX
 key hierarchy are bound to the physical platform. However live migration
 can be supported in the sense if guest software stack can support recreating
@@ -76,7 +76,7 @@ CPUID
 ~~~~~
 
 Due to its myriad dependencies, SGX is currently not listed as supported
-in any of Qemu's built-in CPU configuration. To expose SGX (and SGX Launch
+in any of QEMU's built-in CPU configuration. To expose SGX (and SGX Launch
 Control) to a guest, you must either use ``-cpu host`` to pass-through the
 host CPU model, or explicitly enable SGX when using a built-in CPU model,
 e.g. via ``-cpu <model>,+sgx`` or ``-cpu <model>,+sgx,+sgxlc``.
@@ -101,7 +101,7 @@ controlled via -cpu are prefixed with "sgx", e.g.::
   sgx2
   sgxlc
 
-The following Qemu snippet passes through the host CPU but restricts access to
+The following QEMU snippet passes through the host CPU but restricts access to
 the provision and EINIT token keys::
 
  -cpu host,-sgx-provisionkey,-sgx-tokenkey
@@ -112,11 +112,11 @@ in hardware cannot be forced on via '-cpu'.
 Virtualize SGX Launch Control
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Qemu SGX support for Launch Control (LC) is passive, in the sense that it
-does not actively change the LC configuration.  Qemu SGX provides the user
+QEMU SGX support for Launch Control (LC) is passive, in the sense that it
+does not actively change the LC configuration.  QEMU SGX provides the user
 the ability to set/clear the CPUID flag (and by extension the associated
 IA32_FEATURE_CONTROL MSR bit in fw_cfg) and saves/restores the LE Hash MSRs
-when getting/putting guest state, but Qemu does not add new controls to
+when getting/putting guest state, but QEMU does not add new controls to
 directly modify the LC configuration.  Similar to hardware behavior, locking
 the LC configuration to a non-Intel value is left to guest firmware.  Unlike
 host bios setting for SGX launch control(LC), there is no special bios setting
@@ -126,7 +126,7 @@ creating VM with SGX.
 Feature Control
 ~~~~~~~~~~~~~~~
 
-Qemu SGX updates the ``etc/msr_feature_control`` fw_cfg entry to set the SGX
+QEMU SGX updates the ``etc/msr_feature_control`` fw_cfg entry to set the SGX
 (bit 18) and SGX LC (bit 17) flags based on their respective CPUID support,
 i.e. existing guest firmware will automatically set SGX and SGX LC accordingly,
 assuming said firmware supports fw_cfg.msr_feature_control.

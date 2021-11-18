@@ -228,7 +228,7 @@ Emulated hardware state
 
 Currently thanks to KVM work any access to IO memory is automatically
 protected by the global iothread mutex, also known as the BQL (Big
-Qemu Lock). Any IO region that doesn't use global mutex is expected to
+QEMU Lock). Any IO region that doesn't use global mutex is expected to
 do its own locking.
 
 However IO memory isn't the only way emulated hardware state can be
