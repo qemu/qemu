@@ -639,9 +639,12 @@ class QMPClient(AsyncProtocol[Message], Events):
         if sock.family != socket.AF_UNIX:
             raise AQMPError("Sending file descriptors requires a UNIX socket.")
 
-        # Void the warranty sticker.
-        # Access to sendmsg in asyncio is scheduled for removal in Python 3.11.
-        sock = sock._sock  # pylint: disable=protected-access
+        if not hasattr(sock, 'sendmsg'):
+            # We need to void the warranty sticker.
+            # Access to sendmsg is scheduled for removal in Python 3.11.
+            # Find the real backing socket to use it anyway.
+            sock = sock._sock  # pylint: disable=protected-access
+
         sock.sendmsg(
             [b' '],
             [(socket.SOL_SOCKET, socket.SCM_RIGHTS, struct.pack('@i', fd))]
