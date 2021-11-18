@@ -354,6 +354,17 @@ static void escc_reset(DeviceState *d)
             cs->rregs[j] = 0;
             cs->wregs[j] = 0;
         }
+
+        /*
+         * ...but there is an exception. The "Transmit Interrupts and Transmit
+         * Buffer Empty Bit" section on page 50 of the ESCC datasheet says of
+         * the STATUS_TXEMPTY bit in R_STATUS: "After a hardware reset
+         * (including a hardware reset by software), or a channel reset, this
+         * bit is set to 1". The Sun PROM checks this bit early on startup and
+         * gets stuck in an infinite loop if it is not set.
+         */
+        cs->rregs[R_STATUS] |= STATUS_TXEMPTY;
+
         escc_reset_chn(cs);
     }
 }
