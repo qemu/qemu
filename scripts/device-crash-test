@@ -353,7 +353,7 @@ def checkOneCase(args, testcase):
             '-device', qemuOptsEscape(device)]
     cmdline = ' '.join([binary] + args)
     dbg("will launch QEMU: %s", cmdline)
-    vm = QEMUMachine(binary=binary, args=args)
+    vm = QEMUMachine(binary=binary, args=args, qmp_timer=15)
 
     exc = None
     exc_traceback = None
