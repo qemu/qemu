@@ -133,7 +133,7 @@ class QEMUMachine:
         self._wrapper = wrapper
         self._qmp_timer = qmp_timer
 
-        self._name = name or "qemu-%d" % os.getpid()
+        self._name = name or f"qemu-{os.getpid()}-{id(self):02x}"
         self._temp_dir: Optional[str] = None
         self._base_temp_dir = base_temp_dir
         self._sock_dir = sock_dir
