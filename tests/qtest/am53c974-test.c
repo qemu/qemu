@@ -223,6 +223,34 @@ static void test_inflight_cancel_ok(void)
     qtest_quit(s);
 }
 
+static void test_reset_before_transfer_ok(void)
+{
+    QTestState *s = qtest_init(
+        "-device am53c974,id=scsi "
+        "-device scsi-hd,drive=disk0 -drive "
+        "id=disk0,if=none,file=null-co://,format=raw -nodefaults");
+
+    qtest_outl(s, 0xcf8, 0x80001010);
+    qtest_outl(s, 0xcfc, 0xc000);
+    qtest_outl(s, 0xcf8, 0x80001004);
+    qtest_outw(s, 0xcfc, 0x01);
+    qtest_outl(s, 0xc007, 0x2500);
+    qtest_outl(s, 0xc00a, 0x410000);
+    qtest_outl(s, 0xc00a, 0x410000);
+    qtest_outw(s, 0xc00b, 0x0200);
+    qtest_outw(s, 0xc040, 0x03);
+    qtest_outw(s, 0xc009, 0x00);
+    qtest_outw(s, 0xc00b, 0x00);
+    qtest_outw(s, 0xc009, 0x00);
+    qtest_outw(s, 0xc00b, 0x00);
+    qtest_outw(s, 0xc009, 0x00);
+    qtest_outw(s, 0xc003, 0x1000);
+    qtest_outw(s, 0xc00b, 0x1000);
+    qtest_outl(s, 0xc00b, 0x9000);
+    qtest_outw(s, 0xc00b, 0x1000);
+    qtest_quit(s);
+}
+
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
@@ -248,6 +276,8 @@ int main(int argc, char **argv)
                        test_cancelled_request_ok);
         qtest_add_func("am53c974/test_inflight_cancel_ok",
                        test_inflight_cancel_ok);
+        qtest_add_func("am53c974/test_reset_before_transfer_ok",
+                       test_reset_before_transfer_ok);
     }
 
     return g_test_run();
