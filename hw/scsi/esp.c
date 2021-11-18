@@ -894,6 +894,7 @@ void esp_hard_reset(ESPState *s)
     memset(s->wregs, 0, ESP_REGS);
     s->tchi_written = 0;
     s->ti_size = 0;
+    s->async_len = 0;
     fifo8_reset(&s->fifo);
     fifo8_reset(&s->cmdfifo);
     s->dma = 0;
