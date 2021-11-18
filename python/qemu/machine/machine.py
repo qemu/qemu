@@ -327,6 +327,14 @@ class QEMUMachine:
         self._qemu_log_path = os.path.join(self.log_dir, self._name + ".log")
         self._qemu_log_file = open(self._qemu_log_path, 'wb')
 
+        self._iolog = None
+        self._qemu_full_args = tuple(chain(
+            self._wrapper,
+            [self._binary],
+            self._base_args,
+            self._args
+        ))
+
     def _post_launch(self) -> None:
         if self._qmp_connection:
             self._qmp.accept(self._qmp_timer)
@@ -390,8 +398,6 @@ class QEMUMachine:
         if self._launched:
             raise QEMUMachineError('VM already launched')
 
-        self._iolog = None
-        self._qemu_full_args = ()
         try:
             self._launch()
             self._launched = True
@@ -410,12 +416,6 @@ class QEMUMachine:
         Launch the VM and establish a QMP connection
         """
         self._pre_launch()
-        self._qemu_full_args = tuple(
-            chain(self._wrapper,
-                  [self._binary],
-                  self._base_args,
-                  self._args)
-        )
         LOG.debug('VM launch command: %r', ' '.join(self._qemu_full_args))
 
         # Cleaning up of this subprocess is guaranteed by _do_shutdown.
