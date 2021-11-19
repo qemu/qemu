@@ -195,6 +195,10 @@ Example::
  Resolves: https://gitlab.com/qemu-project/qemu/-/issues/42
  Buglink: https://bugs.launchpad.net/qemu/+bug/1804323``
 
+Some other tags that are used in commit messages include "Message-Id:"
+"Tested-by:", "Acked-by:", "Reported-by:", "Suggested-by:".  See ``git
+log`` for these keywords for example usage.
+
 .. _test_your_patches:
 
 Test your patches
