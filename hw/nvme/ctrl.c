@@ -4168,6 +4168,11 @@ static uint16_t nvme_changed_nslist(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
     int i = 0;
     uint32_t nsid;
 
+    if (off >= sizeof(nslist)) {
+        trace_pci_nvme_err_invalid_log_page_offset(off, sizeof(nslist));
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
     memset(nslist, 0x0, sizeof(nslist));
     trans_len = MIN(sizeof(nslist) - off, buf_len);
 
