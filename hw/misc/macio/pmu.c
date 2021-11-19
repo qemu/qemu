@@ -718,6 +718,7 @@ static const VMStateDescription vmstate_pmu = {
     },
     .subsections = (const VMStateDescription * []) {
         &vmstate_pmu_adb,
+        NULL
     }
 };
 
