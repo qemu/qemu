@@ -123,7 +123,7 @@ Background info is here:
 guest side with pci-bridge-seat
 -------------------------------
 
-Qemu version 2.4 and newer has a new pci-bridge-seat device which
+QEMU version 2.4 and newer has a new pci-bridge-seat device which
 can be used instead of pci-bridge.  Just swap the device name in the
 qemu command line above.  The only difference between the two devices
 is the pci id.  We can match the pci id instead of the device path
