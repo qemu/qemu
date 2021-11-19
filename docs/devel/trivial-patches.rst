@@ -1,3 +1,5 @@
+.. _trivial-patches:
+
 Trivial Patches
 ===============
 
