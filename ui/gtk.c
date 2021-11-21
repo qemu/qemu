@@ -589,11 +589,11 @@ void gd_hw_gl_flushed(void *vcon)
     VirtualConsole *vc = vcon;
     QemuDmaBuf *dmabuf = vc->gfx.guest_fb.dmabuf;
 
-    graphic_hw_gl_block(vc->gfx.dcl.con, false);
-    graphic_hw_gl_flushed(vc->gfx.dcl.con);
     qemu_set_fd_handler(dmabuf->fence_fd, NULL, NULL, NULL);
     close(dmabuf->fence_fd);
     dmabuf->fence_fd = -1;
+    graphic_hw_gl_block(vc->gfx.dcl.con, false);
+    graphic_hw_gl_flushed(vc->gfx.dcl.con);
 }
 
 /** DisplayState Callbacks (opengl version) **/
