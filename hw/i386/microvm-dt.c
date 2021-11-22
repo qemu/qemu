@@ -143,6 +143,8 @@ static void dt_add_pcie(MicrovmMachineState *mms)
     nr_pcie_buses = PCIE_ECAM_SIZE / PCIE_MMCFG_SIZE_MIN;
     qemu_fdt_setprop_cells(mms->fdt, nodename, "bus-range", 0,
                            nr_pcie_buses - 1);
+
+    g_free(nodename);
 }
 
 static void dt_add_ioapic(MicrovmMachineState *mms, SysBusDevice *dev)
@@ -327,12 +329,17 @@ void dt_setup_microvm(MicrovmMachineState *mms)
     dt_setup_sys_bus(mms);
 
     /* add to fw_cfg */
-    fprintf(stderr, "%s: add etc/fdt to fw_cfg\n", __func__);
+    if (debug) {
+        fprintf(stderr, "%s: add etc/fdt to fw_cfg\n", __func__);
+    }
     fw_cfg_add_file(x86ms->fw_cfg, "etc/fdt", mms->fdt, size);
 
     if (debug) {
         fprintf(stderr, "%s: writing microvm.fdt\n", __func__);
-        g_file_set_contents("microvm.fdt", mms->fdt, size, NULL);
+        if (!g_file_set_contents("microvm.fdt", mms->fdt, size, NULL)) {
+            fprintf(stderr, "%s: writing microvm.fdt failed\n", __func__);
+            return;
+        }
         int ret = system("dtc -I dtb -O dts microvm.fdt");
         if (ret != 0) {
             fprintf(stderr, "%s: oops, dtc not installed?\n", __func__);
