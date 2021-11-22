@@ -996,6 +996,8 @@ static void populate_time_info(MigrationInfo *info, MigrationState *s)
 
 static void populate_ram_info(MigrationInfo *info, MigrationState *s)
 {
+    size_t page_size = qemu_target_page_size();
+
     info->has_ram = true;
     info->ram = g_malloc0(sizeof(*info->ram));
     info->ram->transferred = ram_counters.transferred;
@@ -1004,12 +1006,11 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     /* legacy value.  It is not used anymore */
     info->ram->skipped = 0;
     info->ram->normal = ram_counters.normal;
-    info->ram->normal_bytes = ram_counters.normal *
-        qemu_target_page_size();
+    info->ram->normal_bytes = ram_counters.normal * page_size;
     info->ram->mbps = s->mbps;
     info->ram->dirty_sync_count = ram_counters.dirty_sync_count;
     info->ram->postcopy_requests = ram_counters.postcopy_requests;
-    info->ram->page_size = qemu_target_page_size();
+    info->ram->page_size = page_size;
     info->ram->multifd_bytes = ram_counters.multifd_bytes;
     info->ram->pages_per_second = s->pages_per_second;
 
