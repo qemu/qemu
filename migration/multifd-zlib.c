@@ -72,6 +72,7 @@ static int zlib_send_setup(MultiFDSendParams *p, Error **errp)
  * Close the channel and return memory.
  *
  * @p: Params for the channel that we are using
+ * @errp: pointer to an error
  */
 static void zlib_send_cleanup(MultiFDSendParams *p, Error **errp)
 {
@@ -94,6 +95,7 @@ static void zlib_send_cleanup(MultiFDSendParams *p, Error **errp)
  *
  * @p: Params for the channel that we are using
  * @used: number of pages used
+ * @errp: pointer to an error
  */
 static int zlib_send_prepare(MultiFDSendParams *p, uint32_t used, Error **errp)
 {
