@@ -225,7 +225,7 @@ static int zlib_recv_pages(MultiFDRecvParams *p, Error **errp)
     uint32_t in_size = p->next_packet_size;
     /* we measure the change of total_out */
     uint32_t out_size = zs->total_out;
-    uint32_t expected_size = p->pages->num * qemu_target_page_size();
+    uint32_t expected_size = p->normal_num * page_size;
     uint32_t flags = p->flags & MULTIFD_FLAG_COMPRESSION_MASK;
     int ret;
     int i;
@@ -244,16 +244,16 @@ static int zlib_recv_pages(MultiFDRecvParams *p, Error **errp)
     zs->avail_in = in_size;
     zs->next_in = z->zbuff;
 
-    for (i = 0; i < p->pages->num; i++) {
+    for (i = 0; i < p->normal_num; i++) {
         int flush = Z_NO_FLUSH;
         unsigned long start = zs->total_out;
 
-        if (i == p->pages->num - 1) {
+        if (i == p->normal_num - 1) {
             flush = Z_SYNC_FLUSH;
         }
 
         zs->avail_out = page_size;
-        zs->next_out = p->pages->block->host + p->pages->offset[i];
+        zs->next_out = p->pages->block->host + p->normal[i];
 
         /*
          * Welcome to inflate semantics

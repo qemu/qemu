@@ -146,11 +146,11 @@ static int nocomp_recv_pages(MultiFDRecvParams *p, Error **errp)
                    p->id, flags, MULTIFD_FLAG_NOCOMP);
         return -1;
     }
-    for (int i = 0; i < p->pages->num; i++) {
-        p->iov[i].iov_base = p->pages->block->host + p->pages->offset[i];
+    for (int i = 0; i < p->normal_num; i++) {
+        p->iov[i].iov_base = p->pages->block->host + p->normal[i];
         p->iov[i].iov_len = page_size;
     }
-    return qio_channel_readv_all(p->c, p->iov, p->pages->num, errp);
+    return qio_channel_readv_all(p->c, p->iov, p->normal_num, errp);
 }
 
 static MultiFDMethods multifd_nocomp_ops = {
@@ -282,7 +282,7 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
 {
     MultiFDPacket_t *packet = p->packet;
     size_t page_size = qemu_target_page_size();
-    uint32_t pages_max = MULTIFD_PACKET_SIZE / page_size;
+    uint32_t page_count = MULTIFD_PACKET_SIZE / page_size;
     RAMBlock *block;
     int i;
 
@@ -309,33 +309,25 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
      * If we received a packet that is 100 times bigger than expected
      * just stop migration.  It is a magic number.
      */
-    if (packet->pages_alloc > pages_max * 100) {
+    if (packet->pages_alloc > page_count) {
         error_setg(errp, "multifd: received packet "
-                   "with size %u and expected a maximum size of %u",
-                   packet->pages_alloc, pages_max * 100) ;
+                   "with size %u and expected a size of %u",
+                   packet->pages_alloc, page_count) ;
         return -1;
     }
-    /*
-     * We received a packet that is bigger than expected but inside
-     * reasonable limits (see previous comment).  Just reallocate.
-     */
-    if (packet->pages_alloc > p->pages->allocated) {
-        multifd_pages_clear(p->pages);
-        p->pages = multifd_pages_init(packet->pages_alloc);
-    }
 
-    p->pages->num = be32_to_cpu(packet->pages_used);
-    if (p->pages->num > packet->pages_alloc) {
+    p->normal_num = be32_to_cpu(packet->pages_used);
+    if (p->normal_num > packet->pages_alloc) {
         error_setg(errp, "multifd: received packet "
                    "with %u pages and expected maximum pages are %u",
-                   p->pages->num, packet->pages_alloc) ;
+                   p->normal_num, packet->pages_alloc) ;
         return -1;
     }
 
     p->next_packet_size = be32_to_cpu(packet->next_packet_size);
     p->packet_num = be64_to_cpu(packet->packet_num);
 
-    if (p->pages->num == 0) {
+    if (p->normal_num == 0) {
         return 0;
     }
 
@@ -349,7 +341,7 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
     }
 
     p->pages->block = block;
-    for (i = 0; i < p->pages->num; i++) {
+    for (i = 0; i < p->normal_num; i++) {
         uint64_t offset = be64_to_cpu(packet->offset[i]);
 
         if (offset > (block->used_length - page_size)) {
@@ -358,7 +350,7 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
                        offset, block->used_length);
             return -1;
         }
-        p->pages->offset[i] = offset;
+        p->normal[i] = offset;
     }
 
     return 0;
@@ -1022,6 +1014,8 @@ int multifd_load_cleanup(Error **errp)
         p->packet = NULL;
         g_free(p->iov);
         p->iov = NULL;
+        g_free(p->normal);
+        p->normal = NULL;
         multifd_recv_state->ops->recv_cleanup(p);
     }
     qemu_sem_destroy(&multifd_recv_state->sem_sync);
@@ -1095,13 +1089,13 @@ static void *multifd_recv_thread(void *opaque)
         flags = p->flags;
         /* recv methods don't know how to handle the SYNC flag */
         p->flags &= ~MULTIFD_FLAG_SYNC;
-        trace_multifd_recv(p->id, p->packet_num, p->pages->num, flags,
+        trace_multifd_recv(p->id, p->packet_num, p->normal_num, flags,
                            p->next_packet_size);
         p->num_packets++;
-        p->num_pages += p->pages->num;
+        p->total_normal_pages += p->normal_num;
         qemu_mutex_unlock(&p->mutex);
 
-        if (p->pages->num) {
+        if (p->normal_num) {
             ret = multifd_recv_state->ops->recv_pages(p, &local_err);
             if (ret != 0) {
                 break;
@@ -1123,7 +1117,7 @@ static void *multifd_recv_thread(void *opaque)
     qemu_mutex_unlock(&p->mutex);
 
     rcu_unregister_thread();
-    trace_multifd_recv_thread_end(p->id, p->num_packets, p->num_pages);
+    trace_multifd_recv_thread_end(p->id, p->num_packets, p->total_normal_pages);
 
     return NULL;
 }
@@ -1161,6 +1155,7 @@ int multifd_load_setup(Error **errp)
         p->packet = g_malloc0(p->packet_len);
         p->name = g_strdup_printf("multifdrecv_%d", i);
         p->iov = g_new0(struct iovec, page_count);
+        p->normal = g_new0(ram_addr_t, page_count);
     }
 
     for (i = 0; i < thread_count; i++) {

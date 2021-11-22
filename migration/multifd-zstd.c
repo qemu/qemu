@@ -242,7 +242,7 @@ static int zstd_recv_pages(MultiFDRecvParams *p, Error **errp)
     uint32_t in_size = p->next_packet_size;
     uint32_t out_size = 0;
     size_t page_size = qemu_target_page_size();
-    uint32_t expected_size = p->pages->num * page_size;
+    uint32_t expected_size = p->normal_num * page_size;
     uint32_t flags = p->flags & MULTIFD_FLAG_COMPRESSION_MASK;
     struct zstd_data *z = p->data;
     int ret;
@@ -263,8 +263,8 @@ static int zstd_recv_pages(MultiFDRecvParams *p, Error **errp)
     z->in.size = in_size;
     z->in.pos = 0;
 
-    for (i = 0; i < p->pages->num; i++) {
-        z->out.dst = p->pages->block->host + p->pages->offset[i];
+    for (i = 0; i < p->normal_num; i++) {
+        z->out.dst = p->pages->block->host + p->normal[i];
         z->out.size = page_size;
         z->out.pos = 0;
 
