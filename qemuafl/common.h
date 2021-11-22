@@ -37,8 +37,12 @@
 #include "imported/config.h"
 #include "imported/types.h"
 #include "imported/cmplog.h"
-
 #include "api.h"
+
+/* We use one additional file descriptor to relay "needs translation"
+   messages between the child and the fork server. */
+
+#define TSL_FD (FORKSRV_FD - 1)
 
 #define AFL_G2H g2h_untagged
 

@@ -8381,6 +8381,8 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         return ret;
 #endif
     case TARGET_NR_close:
+        if (unlikely(arg1 == TSL_FD))
+	    return 0x00;
         fd_trans_unregister(arg1);
         return get_errno(close(arg1));
 

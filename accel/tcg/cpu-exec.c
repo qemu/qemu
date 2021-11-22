@@ -58,11 +58,6 @@
  * VARIOUS AUXILIARY STUFF *
  ***************************/
 
-/* We use one additional file descriptor to relay "needs translation"
-   messages between the child and the fork server. */
-
-#define TSL_FD (FORKSRV_FD - 1)
-
 /* This is equivalent to afl-as.h: */
 
 static unsigned char
