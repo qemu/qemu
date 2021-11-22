@@ -213,7 +213,7 @@ int block_signals(void)
 
 /* Wrapper for sigprocmask function
  * Emulates a sigprocmask in a safe way for the guest. Note that set and oldset
- * are host signal set, not guest ones. Returns -TARGET_ERESTARTSYS if
+ * are host signal set, not guest ones. Returns -QEMU_ERESTARTSYS if
  * a signal was already pending and the syscall must be restarted, or
  * 0 on success.
  * If set is NULL, this is guaranteed not to fail.
@@ -230,7 +230,7 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
         int i;
 
         if (block_signals()) {
-            return -TARGET_ERESTARTSYS;
+            return -QEMU_ERESTARTSYS;
         }
 
         switch (how) {
@@ -985,7 +985,7 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     }
 
     if (block_signals()) {
-        return -TARGET_ERESTARTSYS;
+        return -QEMU_ERESTARTSYS;
     }
 
     k = &sigact_table[sig - 1];

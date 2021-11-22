@@ -70,8 +70,7 @@ safe_syscall_end:
         b       safe_syscall_set_errno_tail
 
         /* code path when we didn't execute the syscall */
-2:      mov     w0, #TARGET_ERESTARTSYS
+2:      mov     w0, #QEMU_ERESTARTSYS
         b       safe_syscall_set_errno_tail
-
         .cfi_endproc
         .size   safe_syscall_base, .-safe_syscall_base

@@ -80,7 +80,7 @@ void cpu_loop(CPUM68KState *env)
                                  env->dregs[5],
                                  env->aregs[0],
                                  0, 0);
-                if (ret == -TARGET_ERESTARTSYS) {
+                if (ret == -QEMU_ERESTARTSYS) {
                     env->pc -= 2;
                 } else if (ret != -TARGET_QEMU_ESIGRETURN) {
                     env->dregs[0] = ret;

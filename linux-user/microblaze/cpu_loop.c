@@ -53,7 +53,7 @@ void cpu_loop(CPUMBState *env)
                              env->regs[9], 
                              env->regs[10],
                              0, 0);
-            if (ret == -TARGET_ERESTARTSYS) {
+            if (ret == -QEMU_ERESTARTSYS) {
                 /* Wind back to before the syscall. */
                 env->pc -= 4;
             } else if (ret != -TARGET_QEMU_ESIGRETURN) {

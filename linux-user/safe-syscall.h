@@ -25,10 +25,10 @@
  *
  * Call a system call if guest signal not pending.
  * This has the same API as the libc syscall() function, except that it
- * may return -1 with errno == TARGET_ERESTARTSYS if a signal was pending.
+ * may return -1 with errno == QEMU_ERESTARTSYS if a signal was pending.
  *
  * Returns: the system call result, or -1 with an error code in errno
- * (Errnos are host errnos; we rely on TARGET_ERESTARTSYS not clashing
+ * (Errnos are host errnos; we rely on QEMU_ERESTARTSYS not clashing
  * with any of the host errno values.)
  */
 
@@ -81,7 +81,7 @@
  * which are only technically blocking (ie which we know in practice won't
  * stay in the host kernel indefinitely) it's OK to use libc if necessary.
  * You must be able to cope with backing out correctly if some safe_syscall
- * you make in the implementation returns either -TARGET_ERESTARTSYS or
+ * you make in the implementation returns either -QEMU_ERESTARTSYS or
  * EINTR though.)
  *
  * block_signals() cannot be used for interruptible syscalls.
@@ -94,7 +94,7 @@
  * handler checks the interrupted host PC against the addresse of that
  * known section. If the PC is before or at the address of the syscall
  * instruction then we change the PC to point at a "return
- * -TARGET_ERESTARTSYS" code path instead, and then exit the signal handler
+ * -QEMU_ERESTARTSYS" code path instead, and then exit the signal handler
  * (causing the safe_syscall() call to immediately return that value).
  * Then in the main.c loop if we see this magic return value we adjust
  * the guest PC to wind it back to before the system call, and invoke

@@ -91,7 +91,7 @@ safe_syscall_end:
 2:      lg      %r15,0(%r15)            /* load back chain */
         .cfi_adjust_cfa_offset -160
         lmg     %r6,%r15,48(%r15)       /* load saved registers */
-        lghi    %r2, TARGET_ERESTARTSYS
+        lghi    %r2, QEMU_ERESTARTSYS
         jg      safe_syscall_set_errno_tail
 
         .cfi_endproc

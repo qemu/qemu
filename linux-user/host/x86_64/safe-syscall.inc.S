@@ -82,7 +82,7 @@ safe_syscall_end:
         jmp     1f
 
         /* code path when we didn't execute the syscall */
-2:      mov     $TARGET_ERESTARTSYS, %eax
+2:      mov     $QEMU_ERESTARTSYS, %eax
 
         /* code path setting errno */
 1:      pop     %rbp

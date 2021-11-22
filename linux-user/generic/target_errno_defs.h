@@ -153,7 +153,7 @@
  * after handling any pending signals. They match with the ones the guest
  * kernel uses for the same purpose.
  */
-#define TARGET_ERESTARTSYS     512     /* Restart system call (if SA_RESTART) */
+#define QEMU_ERESTARTSYS     512     /* Restart system call (if SA_RESTART) */
 
 /* QEMU internal, not visible to the guest. This is returned by the
  * do_sigreturn() code after a successful sigreturn syscall, to indicate

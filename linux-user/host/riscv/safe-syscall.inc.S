@@ -72,7 +72,7 @@ safe_syscall_end:
         j       safe_syscall_set_errno_tail
 
         /* code path when we didn't execute the syscall */
-2:      li      a0, TARGET_ERESTARTSYS
+2:      li      a0, QEMU_ERESTARTSYS
         j       safe_syscall_set_errno_tail
 
         .cfi_endproc

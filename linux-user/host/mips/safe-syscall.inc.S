@@ -127,7 +127,7 @@ safe_syscall_end:
         PTR_ADDIU sp, sp, FRAME
         .cfi_adjust_cfa_offset -FRAME
         .cfi_restore s0
-        li      v0, TARGET_ERESTARTSYS
+        li      v0, QEMU_ERESTARTSYS
 
         /* code path setting errno */
         /*

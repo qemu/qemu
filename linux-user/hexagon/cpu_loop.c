@@ -55,7 +55,7 @@ void cpu_loop(CPUHexagonState *env)
                              env->gpr[4],
                              env->gpr[5],
                              0, 0);
-            if (ret == -TARGET_ERESTARTSYS) {
+            if (ret == -QEMU_ERESTARTSYS) {
                 env->gpr[HEX_REG_PC] -= 4;
             } else if (ret != -TARGET_QEMU_ESIGRETURN) {
                 env->gpr[0] = ret;

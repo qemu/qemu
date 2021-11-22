@@ -81,7 +81,7 @@ safe_syscall_end:
         pop     { r4, r5, r6, r7, r8, pc }
 
         /* code path when we didn't execute the syscall */
-2:      mov     r0, #TARGET_ERESTARTSYS
+2:      mov     r0, #QEMU_ERESTARTSYS
 
         /* code path setting errno */
 1:      pop     { r4, r5, r6, r7, r8, lr }

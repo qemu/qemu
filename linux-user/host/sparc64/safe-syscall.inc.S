@@ -78,7 +78,7 @@ safe_syscall_end:
          nop
 
         /* code path when we didn't execute the syscall */
-2:      set     TARGET_ERESTARTSYS, %o0
+2:      set     QEMU_ERESTARTSYS, %o0
 
         /* code path setting errno */
 1:      mov     %o7, %g1

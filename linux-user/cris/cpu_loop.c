@@ -50,7 +50,7 @@ void cpu_loop(CPUCRISState *env)
                              env->pregs[7], 
                              env->pregs[11],
                              0, 0);
-            if (ret == -TARGET_ERESTARTSYS) {
+            if (ret == -QEMU_ERESTARTSYS) {
                 env->pc -= 2;
             } else if (ret != -TARGET_QEMU_ESIGRETURN) {
                 env->regs[10] = ret;
