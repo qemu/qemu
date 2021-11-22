@@ -106,16 +106,16 @@ static int zlib_send_prepare(MultiFDSendParams *p, Error **errp)
     int ret;
     uint32_t i;
 
-    for (i = 0; i < p->pages->num; i++) {
+    for (i = 0; i < p->normal_num; i++) {
         uint32_t available = z->zbuff_len - out_size;
         int flush = Z_NO_FLUSH;
 
-        if (i == p->pages->num - 1) {
+        if (i == p->normal_num - 1) {
             flush = Z_SYNC_FLUSH;
         }
 
         zs->avail_in = page_size;
-        zs->next_in = p->pages->block->host + p->pages->offset[i];
+        zs->next_in = p->pages->block->host + p->normal[i];
 
         zs->avail_out = available;
         zs->next_out = z->zbuff + out_size;
