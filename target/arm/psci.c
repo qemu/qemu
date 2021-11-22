@@ -27,13 +27,15 @@
 
 bool arm_is_psci_call(ARMCPU *cpu, int excp_type)
 {
-    /*
-     * Return true if the exception type matches the configured PSCI conduit.
-     * This is called before the SMC/HVC instruction is executed, to decide
-     * whether we should treat it as a PSCI call or with the architecturally
+    /* Return true if the r0/x0 value indicates a PSCI call and
+     * the exception type matches the configured PSCI conduit. This is
+     * called before the SMC/HVC instruction is executed, to decide whether
+     * we should treat it as a PSCI call or with the architecturally
      * defined behaviour for an SMC or HVC (which might be UNDEF or trap
      * to EL2 or to EL3).
      */
+    CPUARMState *env = &cpu->env;
+    uint64_t param = is_a64(env) ? env->xregs[0] : env->regs[0];
 
     switch (excp_type) {
     case EXCP_HVC:
@@ -50,7 +52,27 @@ bool arm_is_psci_call(ARMCPU *cpu, int excp_type)
         return false;
     }
 
-    return true;
+    switch (param) {
+    case QEMU_PSCI_0_2_FN_PSCI_VERSION:
+    case QEMU_PSCI_0_2_FN_MIGRATE_INFO_TYPE:
+    case QEMU_PSCI_0_2_FN_AFFINITY_INFO:
+    case QEMU_PSCI_0_2_FN64_AFFINITY_INFO:
+    case QEMU_PSCI_0_2_FN_SYSTEM_RESET:
+    case QEMU_PSCI_0_2_FN_SYSTEM_OFF:
+    case QEMU_PSCI_0_1_FN_CPU_ON:
+    case QEMU_PSCI_0_2_FN_CPU_ON:
+    case QEMU_PSCI_0_2_FN64_CPU_ON:
+    case QEMU_PSCI_0_1_FN_CPU_OFF:
+    case QEMU_PSCI_0_2_FN_CPU_OFF:
+    case QEMU_PSCI_0_1_FN_CPU_SUSPEND:
+    case QEMU_PSCI_0_2_FN_CPU_SUSPEND:
+    case QEMU_PSCI_0_2_FN64_CPU_SUSPEND:
+    case QEMU_PSCI_0_1_FN_MIGRATE:
+    case QEMU_PSCI_0_2_FN_MIGRATE:
+        return true;
+    default:
+        return false;
+    }
 }
 
 void arm_handle_psci_call(ARMCPU *cpu)
@@ -172,9 +194,10 @@ void arm_handle_psci_call(ARMCPU *cpu)
         break;
     case QEMU_PSCI_0_1_FN_MIGRATE:
     case QEMU_PSCI_0_2_FN_MIGRATE:
-    default:
         ret = QEMU_PSCI_RET_NOT_SUPPORTED;
         break;
+    default:
+        g_assert_not_reached();
     }
 
 err:
