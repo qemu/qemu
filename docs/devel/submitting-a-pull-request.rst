@@ -1,10 +1,11 @@
-Submit a Pull Request
-=====================
+.. _submitting-a-pull-request:
+
+Submitting a Pull Request
+=========================
 
 QEMU welcomes contributions of code, but we generally expect these to be
 sent as simple patch emails to the mailing list (see our page on
-`submitting a patch
-<https://qemu-project.gitlab.io/qemu/devel/submitting-a-patch.html>`__
+:ref:`submitting-a-patch`
 for more details).  Generally only existing submaintainers of a tree
 will need to submit pull requests, although occasionally for a large
 patch series we might ask a submitter to send a pull request. This page

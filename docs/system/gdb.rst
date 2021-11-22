@@ -56,7 +56,7 @@ machine has more than one CPU, QEMU exposes each CPU cluster as a
 separate "inferior", where each CPU within the cluster is a separate
 "thread". Most QEMU machine types have identical CPUs, so there is a
 single cluster which has all the CPUs in it.  A few machine types are
-heterogenous and have multiple clusters: for example the ``sifive_u``
+heterogeneous and have multiple clusters: for example the ``sifive_u``
 machine has a cluster with one E51 core and a second cluster with four
 U54 cores. Here the E51 is the only thread in the first inferior, and
 the U54 cores are all threads in the second inferior.

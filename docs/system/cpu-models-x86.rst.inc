@@ -49,7 +49,7 @@ future OS and toolchains are likely to target newer ABIs. The
 table that follows illustrates which ABI compatibility levels
 can be satisfied by the QEMU CPU models. Note that the table only
 lists the long term stable CPU model versions (eg Haswell-v4).
-In addition to whats listed, there are also many CPU model
+In addition to what is listed, there are also many CPU model
 aliases which resolve to a different CPU model version,
 depending on the machine type is in use.
 

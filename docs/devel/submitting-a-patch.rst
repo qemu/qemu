@@ -1,3 +1,5 @@
+.. _submitting-a-patch:
+
 Submitting a Patch
 ==================
 
@@ -20,11 +22,11 @@ one-shot fix, the bare minimum we ask is that:
    should not be posted on the bug tracker, posted on forums, or
    externally hosted and linked to. (We have other mailing lists too,
    but all patches must go to qemu-devel, possibly with a Cc: to another
-   list.) ``git send-email`` works best for delivering the patch without
-   mangling it (`hints for setting it
-   up <http://lxr.free-electrons.com/source/Documentation/process/email-clients.rst>`__),
-   but attachments can be used as a last resort on a first-time
-   submission.
+   list.) ``git send-email`` (`step-by-step setup
+   guide <https://git-send-email.io/>`__ and `hints and
+   tips <https://elixir.bootlin.com/linux/latest/source/Documentation/process/email-clients.rst>`__)
+   works best for delivering the patch without mangling it, but
+   attachments can be used as a last resort on a first-time submission.
 -  You must read replies to your message, and be willing to act on them.
    Note, however, that maintainers are often willing to manually fix up
    first-time contributions, since there is a learning curve involved in
@@ -45,6 +47,8 @@ Reading the table of contents below should already give you an idea of
 the basic requirements. Use the table of contents as a reference, and
 read the parts that you have doubts about.
 
+.. contents:: Table of Contents
+
 .. _writing_your_patches:
 
 Writing your Patches
@@ -60,11 +64,9 @@ check that you are in compliance with our coding standards. Be aware
 that ``checkpatch.pl`` is not infallible, though, especially where C
 preprocessor macros are involved; use some common sense too. See also:
 
-- `QEMU Coding Style
-  <https://qemu-project.gitlab.io/qemu/devel/style.html>`__
-
+-  :ref:`coding-style`
 -  `Automate a checkpatch run on
-   commit <http://blog.vmsplice.net/2011/03/how-to-automatically-run-checkpatchpl.html>`__
+   commit <https://blog.vmsplice.net/2011/03/how-to-automatically-run-checkpatchpl.html>`__
 
 .. _base_patches_against_current_git_master:
 
@@ -75,6 +77,13 @@ There's no point submitting a patch which is based on a released version
 of QEMU because development will have moved on from then and it probably
 won't even apply to master. We only apply selected bugfixes to release
 branches and then only as backports once the code has gone into master.
+
+It is also okay to base patches on top of other on-going work that is
+not yet part of the git master branch. To aid continuous integration
+tools, such as `patchew <http://patchew.org/QEMU/>`__, you should `add a
+tag <https://lists.gnu.org/archive/html/qemu-devel/2017-08/msg01288.html>`__
+line ``Based-on: $MESSAGE_ID`` to your cover letter to make the series
+dependency obvious.
 
 .. _split_up_long_patches:
 
@@ -104,18 +113,17 @@ Make code motion patches easy to review
 If a series requires large blocks of code motion, there are tricks for
 making the refactoring easier to review. Split up the series so that
 semantic changes (or even function renames) are done in a separate patch
-from the raw code motion. Use a one-time setup of
-``git config diff.renames true; git config diff.algorithm patience``
-(Refer to `git-config <http://git-scm.com/docs/git-config>`__.)  The
-``diff.renames`` property ensures file rename patches will be given in a
-more compact representation that focuses only on the differences across
-the file rename, instead of showing the entire old file as a deletion
-and the new file as an insertion. Meanwhile, the 'diff.algorithm'
-property ensures that extracting a non-contiguous subset of one file
-into a new file, but where all extracted parts occur in the same order
-both before and after the patch, will reduce churn in trying to treat
-unrelated ``}`` lines in the original file as separating hunks of
-changes.
+from the raw code motion. Use a one-time setup of ``git config
+diff.renames true;`` ``git config diff.algorithm patience`` (refer to
+`git-config <http://git-scm.com/docs/git-config>`__). The 'diff.renames'
+property ensures file rename patches will be given in a more compact
+representation that focuses only on the differences across the file
+rename, instead of showing the entire old file as a deletion and the new
+file as an insertion. Meanwhile, the 'diff.algorithm' property ensures
+that extracting a non-contiguous subset of one file into a new file, but
+where all extracted parts occur in the same order both before and after
+the patch, will reduce churn in trying to treat unrelated ``}`` lines in
+the original file as separating hunks of changes.
 
 Ideally, a code motion patch can be reviewed by doing::
 
@@ -138,8 +146,7 @@ as a separate patch which makes no semantic changes; don't put it in the
 same patch as your bug fix.
 
 For smaller patches in less frequently changed areas of QEMU, consider
-using the `trivial patches process
-<https://qemu-project.gitlab.io/qemu/devel/style.html>`__.
+using the :ref:`trivial-patches` process.
 
 .. _write_a_meaningful_commit_message:
 
@@ -154,7 +161,7 @@ QEMU follows the usual standard for git commit messages: the first line
 (which becomes the email subject line) is "subsystem: single line
 summary of change". Whether the "single line summary of change" starts
 with a capital is a matter of taste, but we prefer that the summary does
-not end in ".". Look at ``git shortlog -30`` for an idea of sample
+not end in a dot. Look at ``git shortlog -30`` for an idea of sample
 subject lines. Then there is a blank line and a more detailed
 description of the patch, another blank and your Signed-off-by: line.
 Please do not use lines that are longer than 76 characters in your
@@ -170,10 +177,78 @@ displays the subject line some distance apart (that is, a body that
 starts with "... so that" as a continuation of the subject line is
 harder to follow).
 
+If your patch fixes a commit that is already in the repository, please
+add an additional line with "Fixes: <at-least-12-digits-of-SHA-commit-id>
+("Fixed commit subject")" below the patch description / before your
+"Signed-off-by:" line in the commit message.
+
+If your patch fixes a bug in the gitlab bug tracker, please add a line
+with "Resolves: <URL-of-the-bug>" to the commit message, too. Gitlab can
+close bugs automatically once commits with the "Resolved:" keyword get
+merged into the master branch of the project. And if your patch addresses
+a bug in another public bug tracker, you can also use a line with
+"Buglink: <URL-of-the-bug>" for reference here, too.
+
+Example::
+
+ Fixes: 14055ce53c2d ("s390x/tcg: avoid overflows in time2tod/tod2time")
+ Resolves: https://gitlab.com/qemu-project/qemu/-/issues/42
+ Buglink: https://bugs.launchpad.net/qemu/+bug/1804323``
+
+Some other tags that are used in commit messages include "Message-Id:"
+"Tested-by:", "Acked-by:", "Reported-by:", "Suggested-by:".  See ``git
+log`` for these keywords for example usage.
+
+.. _test_your_patches:
+
+Test your patches
+~~~~~~~~~~~~~~~~~
+
+Although QEMU has `continuous integration
+services <Testing#Continuous_Integration>`__ that attempt to test
+patches submitted to the list, it still saves everyone time if you have
+already tested that your patch compiles and works. Because QEMU is such
+a large project, it's okay to use configure arguments to limit what is
+built for faster turnaround during your development time; but it is
+still wise to also check that your patches work with a full build before
+submitting a series, especially if your changes might have an unintended
+effect on other areas of the code you don't normally experiment with.
+See `Testing <Testing>`__ for more details on what tests are available.
+Also, it is a wise idea to include a testsuite addition as part of your
+patches - either to ensure that future changes won't regress your new
+feature, or to add a test which exposes the bug that the rest of your
+series fixes. Keeping separate commits for the test and the fix allows
+reviewers to rebase the test to occur first to prove it catches the
+problem, then again to place it last in the series so that bisection
+doesn't land on a known-broken state.
+
 .. _submitting_your_patches:
 
 Submitting your Patches
 -----------------------
+
+.. _if_you_cannot_send_patch_emails:
+
+If you cannot send patch emails
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In rare cases it may not be possible to send properly formatted patch
+emails. You can use `sourcehut <https://sourcehut.org/>`__ to send your
+patches to the QEMU mailing list by following these steps:
+
+#. Register or sign in to your account
+#. Add your SSH public key in `meta \|
+   keys <https://meta.sr.ht/keys>`__.
+#. Publish your git branch using **git push git@git.sr.ht:~USERNAME/qemu
+   HEAD**
+#. Send your patches to the QEMU mailing list using the web-based
+   ``git-send-email`` UI at https://git.sr.ht/~USERNAME/qemu/send-email
+
+`This video
+<https://spacepub.space/videos/watch/ad258d23-0ac6-488c-83fc-2bacf578de3a>`__
+shows the web-based ``git-send-email`` workflow. Documentation is
+available `here
+<https://man.sr.ht/git.sr.ht/#sending-patches-upstream>`__.
 
 .. _cc_the_relevant_maintainer:
 
@@ -219,17 +294,26 @@ such as 'git-email' on Fedora-based systems.) Patch series need a cover
 letter, with shallow threading (all patches in the series are
 in-reply-to the cover letter, but not to each other); single unrelated
 patches do not need a cover letter (but if you do send a cover letter,
-use --numbered so the cover and the patch have distinct subject lines).
+use ``--numbered`` so the cover and the patch have distinct subject lines).
 Patches are easier to find if they start a new top-level thread, rather
 than being buried in-reply-to another existing thread.
+
+.. _avoid_posting_large_binary_blob:
+
+Avoid posting large binary blob
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you added binaries to the repository, consider producing the patch
+emails using ``git format-patch --no-binary`` and include a link to a
+git repository to fetch the original commit.
 
 .. _patch_emails_must_include_a_signed_off_by_line:
 
 Patch emails must include a ``Signed-off-by:`` line
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For more information see `1.12) Sign your work
-<http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/Documentation/SubmittingPatches?id=f6f94e2ab1b33f0082ac22d71f66385a60d8157f#n296>`__.
+For more information see `SubmittingPatches 1.12
+<http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/Documentation/SubmittingPatches?id=f6f94e2ab1b33f0082ac22d71f66385a60d8157f#n297>`__.
 This is vital or we will not be able to apply your patch! Please use
 your real name to sign a patch (not an alias or acronym).
 
@@ -246,8 +330,13 @@ that author's Signed-off-by: line is mandatory, with the same spelling.
 Include a meaningful cover letter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This usually applies only to a series that includes multiple patches;
-the cover letter explains the overall goal of such a series.
+This is a requirement for any series with multiple patches (as it aids
+continuous integration), but optional for an isolated patch. The cover
+letter explains the overall goal of such a series, and also provides a
+convenient 0/N email for others to reply to the series as a whole. A
+one-time setup of ``git config format.coverletter auto`` (refer to
+`git-config <http://git-scm.com/docs/git-config>`__) will generate the
+cover letter as needed.
 
 When reviewers don't know your goal at the start of their review, they
 may object to early changes that don't make sense until the end of the
@@ -287,6 +376,18 @@ it's best to:
 -  in the cover letter, be clear about why a patch is an RFC, what areas
    of the patchset you're looking for review on, and why reviewers
    should care
+
+.. _consider_whether_your_patch_is_applicable_for_stable:
+
+Consider whether your patch is applicable for stable
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If your patch fixes a severe issue or a regression, it may be applicable
+for stable. In that case, consider adding ``Cc: qemu-stable@nongnu.org``
+to your patch to notify the stable maintainers.
+
+For more details on how QEMU's stable process works, refer to the
+:ref:`stable-process` page.
 
 .. _participating_in_code_review:
 
@@ -367,19 +468,19 @@ Include version history in patchset revisions
 
 For later versions of patches, include a summary of changes from
 previous versions, but not in the commit message itself. In an email
-formatted as a git patch, the commit message is the part above the "---"
+formatted as a git patch, the commit message is the part above the ``---``
 line, and this will go into the git changelog when the patch is
 committed. This part should be a self-contained description of what this
 version of the patch does, written to make sense to anybody who comes
 back to look at this commit in git in six months' time. The part below
-the "---" line and above the patch proper (git format-patch puts the
+the ``---`` line and above the patch proper (git format-patch puts the
 diffstat here) is a good place to put remarks for people reading the
 patch email, and this is where the "changes since previous version"
-summary belongs. The
-`git-publish <https://github.com/stefanha/git-publish>`__ script can
-help with tracking a good summary across versions. Also, the
-`git-backport-diff <https://github.com/codyprime/git-scripts>`__ script
-can help focus reviewers on what changed between revisions.
+summary belongs. The `git-publish
+<https://github.com/stefanha/git-publish>`__ script can help with
+tracking a good summary across versions. Also, the `git-backport-diff
+<https://github.com/codyprime/git-scripts>`__ script can help focus
+reviewers on what changed between revisions.
 
 .. _tips_and_tricks:
 
@@ -411,27 +512,32 @@ If your patch seems to have been ignored
 If your patchset has received no replies you should "ping" it after a
 week or two, by sending an email as a reply-to-all to the patch mail,
 including the word "ping" and ideally also a link to the page for the
-patch on
-`patchwork <http://patchwork.ozlabs.org/project/qemu-devel/list/>`__ or
-GMANE. It's worth double-checking for reasons why your patch might have
-been ignored (forgot to CC the maintainer? annoyed people by failing to
-respond to review comments on an earlier version?), but often for
-less-maintained areas of QEMU patches do just slip through the cracks.
-If your ping is also ignored, ping again after another week or so. As
-the submitter, you are the person with the most motivation to get your
-patch applied, so you have to be persistent.
+patch on `patchew <https://patchew.org/QEMU/>`__ or
+`lore.kernel.org <https://lore.kernel.org/qemu-devel/>`__. It's worth
+double-checking for reasons why your patch might have been ignored
+(forgot to CC the maintainer? annoyed people by failing to respond to
+review comments on an earlier version?), but often for less-maintained
+areas of QEMU patches do just slip through the cracks. If your ping is
+also ignored, ping again after another week or so. As the submitter, you
+are the person with the most motivation to get your patch applied, so
+you have to be persistent.
 
 .. _is_my_patch_in:
 
 Is my patch in?
 ~~~~~~~~~~~~~~~
 
+QEMU has some Continuous Integration machines that try to catch patch
+submission problems as soon as possible.  `patchew
+<http://patchew.org/QEMU/>`__ includes a web interface for tracking the
+status of various threads that have been posted to the list, and may
+send you an automated mail if it detected a problem with your patch.
+
 Once your patch has had enough review on list, the maintainer for that
 area of code will send notification to the list that they are including
 your patch in a particular staging branch. Periodically, the maintainer
-then sends a `pull request
-<https://qemu-project.gitlab.io/qemu/devel/submitting-a-pull-request.html>`__
-for aggregating topic branches into mainline qemu. Generally, you do not
+then takes care of :ref:`submitting-a-pull-request`
+for aggregating topic branches into mainline QEMU. Generally, you do not
 need to send a pull request unless you have contributed enough patches
 to become a maintainer over a particular section of code. Maintainers
 may further modify your commit, by resolving simple merge conflicts or

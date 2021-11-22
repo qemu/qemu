@@ -70,7 +70,7 @@ namespaces and additional features, the ``nvme-ns`` device must be used.
 
 The namespaces defined by the ``nvme-ns`` device will attach to the most
 recently defined ``nvme-bus`` that is created by the ``nvme`` device. Namespace
-identifers are allocated automatically, starting from ``1``.
+identifiers are allocated automatically, starting from ``1``.
 
 There are a number of parameters available:
 

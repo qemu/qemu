@@ -156,15 +156,15 @@ Primary:
          children.0.driver=raw
 
   Run qmp command in primary qemu:
-    { 'execute': 'human-monitor-command',
-      'arguments': {
-          'command-line': 'drive_add -n buddy driver=replication,mode=primary,file.driver=nbd,file.host=xxxx,file.port=xxxx,file.export=colo1,node-name=nbd_client1'
+    { "execute": "human-monitor-command",
+      "arguments": {
+          "command-line": "drive_add -n buddy driver=replication,mode=primary,file.driver=nbd,file.host=xxxx,file.port=xxxx,file.export=colo1,node-name=nbd_client1"
       }
     }
-    { 'execute': 'x-blockdev-change',
-      'arguments': {
-          'parent': 'colo1',
-          'node': 'nbd_client1'
+    { "execute": "x-blockdev-change",
+      "arguments": {
+          "parent": "colo1",
+          "node": "nbd_client1"
       }
     }
   Note:
@@ -189,21 +189,21 @@ Secondary:
          vote-threshold=1,children.0=childs1
 
   Then run qmp command in secondary qemu:
-    { 'execute': 'nbd-server-start',
-      'arguments': {
-          'addr': {
-              'type': 'inet',
-              'data': {
-                  'host': 'xxx',
-                  'port': 'xxx'
+    { "execute": "nbd-server-start",
+      "arguments": {
+          "addr": {
+              "type": "inet",
+              "data": {
+                  "host": "xxx",
+                  "port": "xxx"
               }
           }
       }
     }
-    { 'execute': 'nbd-server-add',
-      'arguments': {
-          'device': 'colo1',
-          'writable': true
+    { "execute": "nbd-server-add",
+      "arguments": {
+          "device": "colo1",
+          "writable": true
       }
     }
 
@@ -223,22 +223,22 @@ After Failover:
 Primary:
   The secondary host is down, so we should run the following qmp command
   to remove the nbd child from the quorum:
-  { 'execute': 'x-blockdev-change',
-    'arguments': {
-        'parent': 'colo1',
-        'child': 'children.1'
+  { "execute": "x-blockdev-change",
+    "arguments": {
+        "parent": "colo1",
+        "child": "children.1"
     }
   }
-  { 'execute': 'human-monitor-command',
-    'arguments': {
-        'command-line': 'drive_del xxxx'
+  { "execute": "human-monitor-command",
+    "arguments": {
+        "command-line": "drive_del xxxx"
     }
   }
   Note: there is no qmp command to remove the blockdev now
 
 Secondary:
   The primary host is down, so we should do the following thing:
-  { 'execute': 'nbd-server-stop' }
+  { "execute": "nbd-server-stop" }
 
 Promote Secondary to Primary:
   see COLO-FT.txt

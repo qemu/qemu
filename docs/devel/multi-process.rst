@@ -187,9 +187,9 @@ desired, in which the emulation application should only be allowed to
 access the files or devices the VM it's running on behalf of can access.
 #### qemu-io model
 
-Qemu-io is a test harness used to test changes to the QEMU block backend
-object code. (e.g., the code that implements disk images for disk driver
-emulation) Qemu-io is not a device emulation application per se, but it
+``qemu-io`` is a test harness used to test changes to the QEMU block backend
+object code (e.g., the code that implements disk images for disk driver
+emulation). ``qemu-io`` is not a device emulation application per se, but it
 does compile the QEMU block objects into a separate binary from the main
 QEMU one. This could be useful for disk device emulation, since its
 emulation applications will need to include the QEMU block objects.
@@ -641,7 +641,7 @@ the CPU that issued the MMIO.
 +==========+========================+
 | rid      | range MMIO is within   |
 +----------+------------------------+
-| offset   | offset withing *rid*   |
+| offset   | offset within *rid*    |
 +----------+------------------------+
 | type     | e.g., load or store    |
 +----------+------------------------+

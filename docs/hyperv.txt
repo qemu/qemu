@@ -195,7 +195,7 @@ The enlightenment allows to use Hyper-V SynIC with hardware APICv/AVIC enabled.
 Normally, Hyper-V SynIC disables these hardware feature and suggests the guest
 to use paravirtualized AutoEOI feature.
 Note: enabling this feature on old hardware (without APICv/AVIC support) may
-have negative effect on guest's performace.
+have negative effect on guest's performance.
 
 3.19. hv-no-nonarch-coresharing=on/off/auto
 ===========================================

@@ -14,7 +14,7 @@ support that device.
 Using only libqos APIs, the test has to manually take care of
 covering all the setups, and build the correct command line.
 
-This also introduces backward compability issues: if a device/driver command
+This also introduces backward compatibility issues: if a device/driver command
 line name is changed, all tests that use that will not work
 properly anymore and need to be adjusted.
 

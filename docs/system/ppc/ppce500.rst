@@ -75,7 +75,7 @@ as the BIOS. QEMU follows below truth table to select which payload to execute:
 When both -bios and -kernel are present, QEMU loads U-Boot and U-Boot in turns
 automatically loads the kernel image specified by the -kernel parameter via
 U-Boot's built-in "bootm" command, hence a legacy uImage format is required in
-such senario.
+such scenario.
 
 Running Linux kernel
 --------------------

@@ -677,7 +677,7 @@ return a single text string::
 
 The ``HumanReadableText`` struct is intended to be used for all
 commands, under the ``x-`` name prefix that are returning unstructured
-text targetted at humans. It should never be used for commands outside
+text targeted at humans. It should never be used for commands outside
 the ``x-`` name prefix, as those should be using structured QAPI types.
 
 Implementing the QMP command

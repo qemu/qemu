@@ -209,9 +209,9 @@ children.0=childs0 \
 
 
 3. On Secondary VM's QEMU monitor, issue command
-{'execute':'qmp_capabilities'}
-{'execute': 'nbd-server-start', 'arguments': {'addr': {'type': 'inet', 'data': {'host': '0.0.0.0', 'port': '9999'} } } }
-{'execute': 'nbd-server-add', 'arguments': {'device': 'parent0', 'writable': true } }
+{"execute":"qmp_capabilities"}
+{"execute": "nbd-server-start", "arguments": {"addr": {"type": "inet", "data": {"host": "0.0.0.0", "port": "9999"} } } }
+{"execute": "nbd-server-add", "arguments": {"device": "parent0", "writable": true } }
 
 Note:
   a. The qmp command nbd-server-start and nbd-server-add must be run
@@ -222,11 +222,11 @@ Note:
      will be merged into the parent disk on failover.
 
 4. On Primary VM's QEMU monitor, issue command:
-{'execute':'qmp_capabilities'}
-{'execute': 'human-monitor-command', 'arguments': {'command-line': 'drive_add -n buddy driver=replication,mode=primary,file.driver=nbd,file.host=127.0.0.2,file.port=9999,file.export=parent0,node-name=replication0'}}
-{'execute': 'x-blockdev-change', 'arguments':{'parent': 'colo-disk0', 'node': 'replication0' } }
-{'execute': 'migrate-set-capabilities', 'arguments': {'capabilities': [ {'capability': 'x-colo', 'state': true } ] } }
-{'execute': 'migrate', 'arguments': {'uri': 'tcp:127.0.0.2:9998' } }
+{"execute":"qmp_capabilities"}
+{"execute": "human-monitor-command", "arguments": {"command-line": "drive_add -n buddy driver=replication,mode=primary,file.driver=nbd,file.host=127.0.0.2,file.port=9999,file.export=parent0,node-name=replication0"}}
+{"execute": "x-blockdev-change", "arguments":{"parent": "colo-disk0", "node": "replication0" } }
+{"execute": "migrate-set-capabilities", "arguments": {"capabilities": [ {"capability": "x-colo", "state": true } ] } }
+{"execute": "migrate", "arguments": {"uri": "tcp:127.0.0.2:9998" } }
 
   Note:
   a. There should be only one NBD Client for each primary disk.
@@ -249,59 +249,59 @@ if you want to resume the replication, follow "Secondary resume replication"
 == Primary Failover ==
 The Secondary died, resume on the Primary
 
-{'execute': 'x-blockdev-change', 'arguments':{ 'parent': 'colo-disk0', 'child': 'children.1'} }
-{'execute': 'human-monitor-command', 'arguments':{ 'command-line': 'drive_del replication0' } }
-{'execute': 'object-del', 'arguments':{ 'id': 'comp0' } }
-{'execute': 'object-del', 'arguments':{ 'id': 'iothread1' } }
-{'execute': 'object-del', 'arguments':{ 'id': 'm0' } }
-{'execute': 'object-del', 'arguments':{ 'id': 'redire0' } }
-{'execute': 'object-del', 'arguments':{ 'id': 'redire1' } }
-{'execute': 'x-colo-lost-heartbeat' }
+{"execute": "x-blockdev-change", "arguments":{ "parent": "colo-disk0", "child": "children.1"} }
+{"execute": "human-monitor-command", "arguments":{ "command-line": "drive_del replication0" } }
+{"execute": "object-del", "arguments":{ "id": "comp0" } }
+{"execute": "object-del", "arguments":{ "id": "iothread1" } }
+{"execute": "object-del", "arguments":{ "id": "m0" } }
+{"execute": "object-del", "arguments":{ "id": "redire0" } }
+{"execute": "object-del", "arguments":{ "id": "redire1" } }
+{"execute": "x-colo-lost-heartbeat" }
 
 == Secondary Failover ==
 The Primary died, resume on the Secondary and prepare to become the new Primary
 
-{'execute': 'nbd-server-stop'}
-{'execute': 'x-colo-lost-heartbeat'}
+{"execute": "nbd-server-stop"}
+{"execute": "x-colo-lost-heartbeat"}
 
-{'execute': 'object-del', 'arguments':{ 'id': 'f2' } }
-{'execute': 'object-del', 'arguments':{ 'id': 'f1' } }
-{'execute': 'chardev-remove', 'arguments':{ 'id': 'red1' } }
-{'execute': 'chardev-remove', 'arguments':{ 'id': 'red0' } }
+{"execute": "object-del", "arguments":{ "id": "f2" } }
+{"execute": "object-del", "arguments":{ "id": "f1" } }
+{"execute": "chardev-remove", "arguments":{ "id": "red1" } }
+{"execute": "chardev-remove", "arguments":{ "id": "red0" } }
 
-{'execute': 'chardev-add', 'arguments':{ 'id': 'mirror0', 'backend': {'type': 'socket', 'data': {'addr': { 'type': 'inet', 'data': { 'host': '0.0.0.0', 'port': '9003' } }, 'server': true } } } }
-{'execute': 'chardev-add', 'arguments':{ 'id': 'compare1', 'backend': {'type': 'socket', 'data': {'addr': { 'type': 'inet', 'data': { 'host': '0.0.0.0', 'port': '9004' } }, 'server': true } } } }
-{'execute': 'chardev-add', 'arguments':{ 'id': 'compare0', 'backend': {'type': 'socket', 'data': {'addr': { 'type': 'inet', 'data': { 'host': '127.0.0.1', 'port': '9001' } }, 'server': true } } } }
-{'execute': 'chardev-add', 'arguments':{ 'id': 'compare0-0', 'backend': {'type': 'socket', 'data': {'addr': { 'type': 'inet', 'data': { 'host': '127.0.0.1', 'port': '9001' } }, 'server': false } } } }
-{'execute': 'chardev-add', 'arguments':{ 'id': 'compare_out', 'backend': {'type': 'socket', 'data': {'addr': { 'type': 'inet', 'data': { 'host': '127.0.0.1', 'port': '9005' } }, 'server': true } } } }
-{'execute': 'chardev-add', 'arguments':{ 'id': 'compare_out0', 'backend': {'type': 'socket', 'data': {'addr': { 'type': 'inet', 'data': { 'host': '127.0.0.1', 'port': '9005' } }, 'server': false } } } }
+{"execute": "chardev-add", "arguments":{ "id": "mirror0", "backend": {"type": "socket", "data": {"addr": { "type": "inet", "data": { "host": "0.0.0.0", "port": "9003" } }, "server": true } } } }
+{"execute": "chardev-add", "arguments":{ "id": "compare1", "backend": {"type": "socket", "data": {"addr": { "type": "inet", "data": { "host": "0.0.0.0", "port": "9004" } }, "server": true } } } }
+{"execute": "chardev-add", "arguments":{ "id": "compare0", "backend": {"type": "socket", "data": {"addr": { "type": "inet", "data": { "host": "127.0.0.1", "port": "9001" } }, "server": true } } } }
+{"execute": "chardev-add", "arguments":{ "id": "compare0-0", "backend": {"type": "socket", "data": {"addr": { "type": "inet", "data": { "host": "127.0.0.1", "port": "9001" } }, "server": false } } } }
+{"execute": "chardev-add", "arguments":{ "id": "compare_out", "backend": {"type": "socket", "data": {"addr": { "type": "inet", "data": { "host": "127.0.0.1", "port": "9005" } }, "server": true } } } }
+{"execute": "chardev-add", "arguments":{ "id": "compare_out0", "backend": {"type": "socket", "data": {"addr": { "type": "inet", "data": { "host": "127.0.0.1", "port": "9005" } }, "server": false } } } }
 
 == Primary resume replication ==
 Resume replication after new Secondary is up.
 
 Start the new Secondary (Steps 2 and 3 above), then on the Primary:
-{'execute': 'drive-mirror', 'arguments':{ 'device': 'colo-disk0', 'job-id': 'resync', 'target': 'nbd://127.0.0.2:9999/parent0', 'mode': 'existing', 'format': 'raw', 'sync': 'full'} }
+{"execute": "drive-mirror", "arguments":{ "device": "colo-disk0", "job-id": "resync", "target": "nbd://127.0.0.2:9999/parent0", "mode": "existing", "format": "raw", "sync": "full"} }
 
 Wait until disk is synced, then:
-{'execute': 'stop'}
-{'execute': 'block-job-cancel', 'arguments':{ 'device': 'resync'} }
+{"execute": "stop"}
+{"execute": "block-job-cancel", "arguments":{ "device": "resync"} }
 
-{'execute': 'human-monitor-command', 'arguments':{ 'command-line': 'drive_add -n buddy driver=replication,mode=primary,file.driver=nbd,file.host=127.0.0.2,file.port=9999,file.export=parent0,node-name=replication0'}}
-{'execute': 'x-blockdev-change', 'arguments':{ 'parent': 'colo-disk0', 'node': 'replication0' } }
+{"execute": "human-monitor-command", "arguments":{ "command-line": "drive_add -n buddy driver=replication,mode=primary,file.driver=nbd,file.host=127.0.0.2,file.port=9999,file.export=parent0,node-name=replication0"}}
+{"execute": "x-blockdev-change", "arguments":{ "parent": "colo-disk0", "node": "replication0" } }
 
-{'execute': 'object-add', 'arguments':{ 'qom-type': 'filter-mirror', 'id': 'm0', 'props': { 'netdev': 'hn0', 'queue': 'tx', 'outdev': 'mirror0' } } }
-{'execute': 'object-add', 'arguments':{ 'qom-type': 'filter-redirector', 'id': 'redire0', 'props': { 'netdev': 'hn0', 'queue': 'rx', 'indev': 'compare_out' } } }
-{'execute': 'object-add', 'arguments':{ 'qom-type': 'filter-redirector', 'id': 'redire1', 'props': { 'netdev': 'hn0', 'queue': 'rx', 'outdev': 'compare0' } } }
-{'execute': 'object-add', 'arguments':{ 'qom-type': 'iothread', 'id': 'iothread1' } }
-{'execute': 'object-add', 'arguments':{ 'qom-type': 'colo-compare', 'id': 'comp0', 'props': { 'primary_in': 'compare0-0', 'secondary_in': 'compare1', 'outdev': 'compare_out0', 'iothread': 'iothread1' } } }
+{"execute": "object-add", "arguments":{ "qom-type": "filter-mirror", "id": "m0", "netdev": "hn0", "queue": "tx", "outdev": "mirror0" } }
+{"execute": "object-add", "arguments":{ "qom-type": "filter-redirector", "id": "redire0", "netdev": "hn0", "queue": "rx", "indev": "compare_out" } }
+{"execute": "object-add", "arguments":{ "qom-type": "filter-redirector", "id": "redire1", "netdev": "hn0", "queue": "rx", "outdev": "compare0" } }
+{"execute": "object-add", "arguments":{ "qom-type": "iothread", "id": "iothread1" } }
+{"execute": "object-add", "arguments":{ "qom-type": "colo-compare", "id": "comp0", "primary_in": "compare0-0", "secondary_in": "compare1", "outdev": "compare_out0", "iothread": "iothread1" } }
 
-{'execute': 'migrate-set-capabilities', 'arguments':{ 'capabilities': [ {'capability': 'x-colo', 'state': true } ] } }
-{'execute': 'migrate', 'arguments':{ 'uri': 'tcp:127.0.0.2:9998' } }
+{"execute": "migrate-set-capabilities", "arguments":{ "capabilities": [ {"capability": "x-colo", "state": true } ] } }
+{"execute": "migrate", "arguments":{ "uri": "tcp:127.0.0.2:9998" } }
 
 Note:
 If this Primary previously was a Secondary, then we need to insert the
 filters before the filter-rewriter by using the
-"'insert': 'before', 'position': 'id=rew0'" Options. See below.
+""insert": "before", "position": "id=rew0"" Options. See below.
 
 == Secondary resume replication ==
 Become Primary and resume replication after new Secondary is up. Note
@@ -309,23 +309,23 @@ that now 127.0.0.1 is the Secondary and 127.0.0.2 is the Primary.
 
 Start the new Secondary (Steps 2 and 3 above, but with primary_ip=127.0.0.2),
 then on the old Secondary:
-{'execute': 'drive-mirror', 'arguments':{ 'device': 'colo-disk0', 'job-id': 'resync', 'target': 'nbd://127.0.0.1:9999/parent0', 'mode': 'existing', 'format': 'raw', 'sync': 'full'} }
+{"execute": "drive-mirror", "arguments":{ "device": "colo-disk0", "job-id": "resync", "target": "nbd://127.0.0.1:9999/parent0", "mode": "existing", "format": "raw", "sync": "full"} }
 
 Wait until disk is synced, then:
-{'execute': 'stop'}
-{'execute': 'block-job-cancel', 'arguments':{ 'device': 'resync' } }
+{"execute": "stop"}
+{"execute": "block-job-cancel", "arguments":{ "device": "resync" } }
 
-{'execute': 'human-monitor-command', 'arguments':{ 'command-line': 'drive_add -n buddy driver=replication,mode=primary,file.driver=nbd,file.host=127.0.0.1,file.port=9999,file.export=parent0,node-name=replication0'}}
-{'execute': 'x-blockdev-change', 'arguments':{ 'parent': 'colo-disk0', 'node': 'replication0' } }
+{"execute": "human-monitor-command", "arguments":{ "command-line": "drive_add -n buddy driver=replication,mode=primary,file.driver=nbd,file.host=127.0.0.1,file.port=9999,file.export=parent0,node-name=replication0"}}
+{"execute": "x-blockdev-change", "arguments":{ "parent": "colo-disk0", "node": "replication0" } }
 
-{'execute': 'object-add', 'arguments':{ 'qom-type': 'filter-mirror', 'id': 'm0', 'props': { 'insert': 'before', 'position': 'id=rew0', 'netdev': 'hn0', 'queue': 'tx', 'outdev': 'mirror0' } } }
-{'execute': 'object-add', 'arguments':{ 'qom-type': 'filter-redirector', 'id': 'redire0', 'props': { 'insert': 'before', 'position': 'id=rew0', 'netdev': 'hn0', 'queue': 'rx', 'indev': 'compare_out' } } }
-{'execute': 'object-add', 'arguments':{ 'qom-type': 'filter-redirector', 'id': 'redire1', 'props': { 'insert': 'before', 'position': 'id=rew0', 'netdev': 'hn0', 'queue': 'rx', 'outdev': 'compare0' } } }
-{'execute': 'object-add', 'arguments':{ 'qom-type': 'iothread', 'id': 'iothread1' } }
-{'execute': 'object-add', 'arguments':{ 'qom-type': 'colo-compare', 'id': 'comp0', 'props': { 'primary_in': 'compare0-0', 'secondary_in': 'compare1', 'outdev': 'compare_out0', 'iothread': 'iothread1' } } }
+{"execute": "object-add", "arguments":{ "qom-type": "filter-mirror", "id": "m0", "insert": "before", "position": "id=rew0", "netdev": "hn0", "queue": "tx", "outdev": "mirror0" } }
+{"execute": "object-add", "arguments":{ "qom-type": "filter-redirector", "id": "redire0", "insert": "before", "position": "id=rew0", "netdev": "hn0", "queue": "rx", "indev": "compare_out" } }
+{"execute": "object-add", "arguments":{ "qom-type": "filter-redirector", "id": "redire1", "insert": "before", "position": "id=rew0", "netdev": "hn0", "queue": "rx", "outdev": "compare0" } }
+{"execute": "object-add", "arguments":{ "qom-type": "iothread", "id": "iothread1" } }
+{"execute": "object-add", "arguments":{ "qom-type": "colo-compare", "id": "comp0", "primary_in": "compare0-0", "secondary_in": "compare1", "outdev": "compare_out0", "iothread": "iothread1" } }
 
-{'execute': 'migrate-set-capabilities', 'arguments':{ 'capabilities': [ {'capability': 'x-colo', 'state': true } ] } }
-{'execute': 'migrate', 'arguments':{ 'uri': 'tcp:127.0.0.1:9998' } }
+{"execute": "migrate-set-capabilities", "arguments":{ "capabilities": [ {"capability": "x-colo", "state": true } ] } }
+{"execute": "migrate", "arguments":{ "uri": "tcp:127.0.0.1:9998" } }
 
 == TODO ==
 1. Support shared storage.

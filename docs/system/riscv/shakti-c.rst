@@ -45,7 +45,7 @@ Shakti SDK can be used to generate the baremetal example UART applications.
 Binary would be generated in:
   software/examples/uart_applns/loopback/output/loopback.shakti
 
-You could also download the precompiled example applicatons using below
+You could also download the precompiled example applications using below
 commands.
 
 .. code-block:: bash
