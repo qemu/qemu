@@ -273,11 +273,9 @@ A group can be created using the object-add QMP function:
      "arguments": {
        "qom-type": "throttle-group",
        "id": "group0",
-       "props": {
-         "limits" : {
-           "iops-total": 1000
-           "bps-write": 2097152
-         }
+       "limits" : {
+         "iops-total": 1000,
+         "bps-write": 2097152
        }
      }
    }

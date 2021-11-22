@@ -31,7 +31,7 @@ driver options if ``--image-opts`` is specified.
 
 *dev* is an NBD device.
 
-.. option:: --object type,id=ID,...props...
+.. option:: --object type,id=ID,...
 
   Define a new instance of the *type* object class identified by *ID*.
   See the :manpage:`qemu(1)` manual page for full details of the properties
