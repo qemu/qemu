@@ -1219,6 +1219,10 @@ struct target_rtc_pll_info {
 #define TARGET_LOOP_SET_STATUS64      0x4C04
 #define TARGET_LOOP_GET_STATUS64      0x4C05
 #define TARGET_LOOP_CHANGE_FD         0x4C06
+#define TARGET_LOOP_SET_CAPACITY      0x4C07
+#define TARGET_LOOP_SET_DIRECT_IO     0x4C08
+#define TARGET_LOOP_SET_BLOCK_SIZE    0x4C09
+#define TARGET_LOOP_CONFIGURE         0x4C0A
 
 #define TARGET_LOOP_CTL_ADD           0x4C80
 #define TARGET_LOOP_CTL_REMOVE        0x4C81
