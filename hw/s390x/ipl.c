@@ -37,8 +37,9 @@
 
 #define KERN_IMAGE_START                0x010000UL
 #define LINUX_MAGIC_ADDR                0x010008UL
+#define KERN_PARM_AREA_SIZE_ADDR        0x010430UL
 #define KERN_PARM_AREA                  0x010480UL
-#define KERN_PARM_AREA_SIZE             0x000380UL
+#define LEGACY_KERN_PARM_AREA_SIZE      0x000380UL
 #define INITRD_START                    0x800000UL
 #define INITRD_PARM_START               0x010408UL
 #define PARMFILE_START                  0x001000UL
@@ -108,6 +109,21 @@ static uint64_t bios_translate_addr(void *opaque, uint64_t srcaddr)
      * we can simply add the destination address for the final location
      */
     return srcaddr + dstaddr;
+}
+
+static uint64_t get_max_kernel_cmdline_size(void)
+{
+    uint64_t *size_ptr = rom_ptr(KERN_PARM_AREA_SIZE_ADDR, sizeof(*size_ptr));
+
+    if (size_ptr) {
+        uint64_t size;
+
+        size = be64_to_cpu(*size_ptr);
+        if (size) {
+            return size;
+        }
+    }
+    return LEGACY_KERN_PARM_AREA_SIZE;
 }
 
 static void s390_ipl_realize(DeviceState *dev, Error **errp)
@@ -197,10 +213,13 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
             ipl->start_addr = KERN_IMAGE_START;
             /* Overwrite parameters in the kernel image, which are "rom" */
             if (parm_area) {
-                if (cmdline_size > KERN_PARM_AREA_SIZE) {
+                uint64_t max_cmdline_size = get_max_kernel_cmdline_size();
+
+                if (cmdline_size > max_cmdline_size) {
                     error_setg(errp,
-                               "kernel command line exceeds maximum size: %zu > %lu",
-                               cmdline_size, KERN_PARM_AREA_SIZE);
+                               "kernel command line exceeds maximum size:"
+                               " %zu > %" PRIu64,
+                               cmdline_size, max_cmdline_size);
                     return;
                 }
 
