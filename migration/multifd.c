@@ -629,7 +629,6 @@ static void *multifd_send_thread(void *opaque)
     MultiFDSendParams *p = opaque;
     Error *local_err = NULL;
     int ret = 0;
-    uint32_t flags = 0;
 
     trace_multifd_send_thread_start(p->id);
     rcu_register_thread();
@@ -652,7 +651,7 @@ static void *multifd_send_thread(void *opaque)
         if (p->pending_job) {
             uint32_t used = p->pages->num;
             uint64_t packet_num = p->packet_num;
-            flags = p->flags;
+            uint32_t flags = p->flags;
 
             if (used) {
                 ret = multifd_send_state->ops->send_prepare(p, used,
