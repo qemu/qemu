@@ -82,13 +82,11 @@ static void nocomp_send_cleanup(MultiFDSendParams *p, Error **errp)
  * Returns 0 for success or -1 for error
  *
  * @p: Params for the channel that we are using
- * @used: number of pages used
  * @errp: pointer to an error
  */
-static int nocomp_send_prepare(MultiFDSendParams *p, uint32_t used,
-                               Error **errp)
+static int nocomp_send_prepare(MultiFDSendParams *p, Error **errp)
 {
-    p->next_packet_size = used * qemu_target_page_size();
+    p->next_packet_size = p->pages->num * qemu_target_page_size();
     p->flags |= MULTIFD_FLAG_NOCOMP;
     return 0;
 }
@@ -654,8 +652,7 @@ static void *multifd_send_thread(void *opaque)
             uint32_t flags = p->flags;
 
             if (used) {
-                ret = multifd_send_state->ops->send_prepare(p, used,
-                                                            &local_err);
+                ret = multifd_send_state->ops->send_prepare(p, &local_err);
                 if (ret != 0) {
                     qemu_mutex_unlock(&p->mutex);
                     break;

@@ -107,10 +107,9 @@ static void zstd_send_cleanup(MultiFDSendParams *p, Error **errp)
  * Returns 0 for success or -1 for error
  *
  * @p: Params for the channel that we are using
- * @used: number of pages used
  * @errp: pointer to an error
  */
-static int zstd_send_prepare(MultiFDSendParams *p, uint32_t used, Error **errp)
+static int zstd_send_prepare(MultiFDSendParams *p, Error **errp)
 {
     struct iovec *iov = p->pages->iov;
     struct zstd_data *z = p->data;
@@ -121,10 +120,10 @@ static int zstd_send_prepare(MultiFDSendParams *p, uint32_t used, Error **errp)
     z->out.size = z->zbuff_len;
     z->out.pos = 0;
 
-    for (i = 0; i < used; i++) {
+    for (i = 0; i < p->pages->num; i++) {
         ZSTD_EndDirective flush = ZSTD_e_continue;
 
-        if (i == used - 1) {
+        if (i == p->pages->num - 1) {
             flush = ZSTD_e_flush;
         }
         z->in.src = iov[i].iov_base;
