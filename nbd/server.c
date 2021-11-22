@@ -1418,6 +1418,9 @@ static int nbd_receive_request(NBDClient *client, NBDRequest *request,
     if (ret < 0) {
         return ret;
     }
+    if (ret == 0) {
+        return -EIO;
+    }
 
     /* Request
        [ 0 ..  3]   magic   (NBD_REQUEST_MAGIC)
@@ -2506,16 +2509,8 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
         if (request->flags & NBD_CMD_FLAG_FAST_ZERO) {
             flags |= BDRV_REQ_NO_FALLBACK;
         }
-        ret = 0;
-        /* FIXME simplify this when blk_pwrite_zeroes switches to 64-bit */
-        while (ret >= 0 && request->len) {
-            int align = client->check_align ?: 1;
-            int len = MIN(request->len, QEMU_ALIGN_DOWN(BDRV_REQUEST_MAX_BYTES,
-                                                        align));
-            ret = blk_pwrite_zeroes(exp->common.blk, request->from, len, flags);
-            request->len -= len;
-            request->from += len;
-        }
+        ret = blk_pwrite_zeroes(exp->common.blk, request->from, request->len,
+                                flags);
         return nbd_send_generic_reply(client, request->handle, ret,
                                       "writing to file failed", errp);
 
@@ -2529,16 +2524,7 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
                                       "flush failed", errp);
 
     case NBD_CMD_TRIM:
-        ret = 0;
-        /* FIXME simplify this when blk_co_pdiscard switches to 64-bit */
-        while (ret >= 0 && request->len) {
-            int align = client->check_align ?: 1;
-            int len = MIN(request->len, QEMU_ALIGN_DOWN(BDRV_REQUEST_MAX_BYTES,
-                                                        align));
-            ret = blk_co_pdiscard(exp->common.blk, request->from, len);
-            request->len -= len;
-            request->from += len;
-        }
+        ret = blk_co_pdiscard(exp->common.blk, request->from, request->len);
         if (ret >= 0 && request->flags & NBD_CMD_FLAG_FUA) {
             ret = blk_co_flush(exp->common.blk);
         }
