@@ -167,7 +167,7 @@ typedef struct {
     /* Cleanup for receiving side */
     void (*recv_cleanup)(MultiFDRecvParams *p);
     /* Read all pages */
-    int (*recv_pages)(MultiFDRecvParams *p, uint32_t used, Error **errp);
+    int (*recv_pages)(MultiFDRecvParams *p, Error **errp);
 } MultiFDMethods;
 
 void multifd_register_ops(int method, MultiFDMethods *ops);
