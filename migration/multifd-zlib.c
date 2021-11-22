@@ -253,7 +253,7 @@ static int zlib_recv_pages(MultiFDRecvParams *p, Error **errp)
         }
 
         zs->avail_out = page_size;
-        zs->next_out = p->pages->block->host + p->normal[i];
+        zs->next_out = p->host + p->normal[i];
 
         /*
          * Welcome to inflate semantics

@@ -264,7 +264,7 @@ static int zstd_recv_pages(MultiFDRecvParams *p, Error **errp)
     z->in.pos = 0;
 
     for (i = 0; i < p->normal_num; i++) {
-        z->out.dst = p->pages->block->host + p->normal[i];
+        z->out.dst = p->host + p->normal[i];
         z->out.size = page_size;
         z->out.pos = 0;
 
