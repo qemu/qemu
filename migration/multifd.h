@@ -55,7 +55,7 @@ typedef struct {
 
 typedef struct {
     /* number of used pages */
-    uint32_t used;
+    uint32_t num;
     /* number of allocated pages */
     uint32_t allocated;
     /* global number of generated multifd packets */
