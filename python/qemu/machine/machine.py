@@ -133,19 +133,18 @@ class QEMUMachine:
         self._wrapper = wrapper
         self._qmp_timer = qmp_timer
 
-        self._name = name or "qemu-%d" % os.getpid()
+        self._name = name or f"qemu-{os.getpid()}-{id(self):02x}"
+        self._temp_dir: Optional[str] = None
         self._base_temp_dir = base_temp_dir
-        self._sock_dir = sock_dir or self._base_temp_dir
+        self._sock_dir = sock_dir
         self._log_dir = log_dir
 
         if monitor_address is not None:
             self._monitor_address = monitor_address
-            self._remove_monitor_sockfile = False
         else:
             self._monitor_address = os.path.join(
-                self._sock_dir, f"{self._name}-monitor.sock"
+                self.sock_dir, f"{self._name}-monitor.sock"
             )
-            self._remove_monitor_sockfile = True
 
         self._console_log_path = console_log
         if self._console_log_path:
@@ -163,14 +162,13 @@ class QEMUMachine:
         self._qmp_set = True   # Enable QMP monitor by default.
         self._qmp_connection: Optional[QEMUMonitorProtocol] = None
         self._qemu_full_args: Tuple[str, ...] = ()
-        self._temp_dir: Optional[str] = None
         self._launched = False
         self._machine: Optional[str] = None
         self._console_index = 0
         self._console_set = False
         self._console_device_type: Optional[str] = None
         self._console_address = os.path.join(
-            self._sock_dir, f"{self._name}-console.sock"
+            self.sock_dir, f"{self._name}-console.sock"
         )
         self._console_socket: Optional[socket.socket] = None
         self._remove_files: List[str] = []
@@ -315,8 +313,7 @@ class QEMUMachine:
             self._remove_files.append(self._console_address)
 
         if self._qmp_set:
-            if self._remove_monitor_sockfile:
-                assert isinstance(self._monitor_address, str)
+            if isinstance(self._monitor_address, str):
                 self._remove_files.append(self._monitor_address)
             self._qmp_connection = QEMUMonitorProtocol(
                 self._monitor_address,
@@ -329,6 +326,14 @@ class QEMUMachine:
         # pylint: disable=consider-using-with
         self._qemu_log_path = os.path.join(self.log_dir, self._name + ".log")
         self._qemu_log_file = open(self._qemu_log_path, 'wb')
+
+        self._iolog = None
+        self._qemu_full_args = tuple(chain(
+            self._wrapper,
+            [self._binary],
+            self._base_args,
+            self._args
+        ))
 
     def _post_launch(self) -> None:
         if self._qmp_connection:
@@ -344,9 +349,6 @@ class QEMUMachine:
         Called to cleanup the VM instance after the process has exited.
         May also be called after a failed launch.
         """
-        # Comprehensive reset for the failed launch case:
-        self._early_cleanup()
-
         try:
             self._close_qmp_connection()
         except Exception as err:  # pylint: disable=broad-except
@@ -393,13 +395,18 @@ class QEMUMachine:
         if self._launched:
             raise QEMUMachineError('VM already launched')
 
-        self._iolog = None
-        self._qemu_full_args = ()
         try:
             self._launch()
-            self._launched = True
         except:
-            self._post_shutdown()
+            # We may have launched the process but it may
+            # have exited before we could connect via QMP.
+            # Assume the VM didn't launch or is exiting.
+            # If we don't wait for the process, exitcode() may still be
+            # 'None' by the time control is ceded back to the caller.
+            if self._launched:
+                self.wait()
+            else:
+                self._post_shutdown()
 
             LOG.debug('Error launching VM')
             if self._qemu_full_args:
@@ -413,12 +420,6 @@ class QEMUMachine:
         Launch the VM and establish a QMP connection
         """
         self._pre_launch()
-        self._qemu_full_args = tuple(
-            chain(self._wrapper,
-                  [self._binary],
-                  self._base_args,
-                  self._args)
-        )
         LOG.debug('VM launch command: %r', ' '.join(self._qemu_full_args))
 
         # Cleaning up of this subprocess is guaranteed by _do_shutdown.
@@ -429,6 +430,7 @@ class QEMUMachine:
                                        stderr=subprocess.STDOUT,
                                        shell=False,
                                        close_fds=False)
+        self._launched = True
         self._post_launch()
 
     def _close_qmp_connection(self) -> None:
@@ -460,8 +462,8 @@ class QEMUMachine:
         """
         Perform any cleanup that needs to happen before the VM exits.
 
-        May be invoked by both soft and hard shutdown in failover scenarios.
-        Called additionally by _post_shutdown for comprehensive cleanup.
+        This method may be called twice upon shutdown, once each by soft
+        and hard shutdown in failover scenarios.
         """
         # If we keep the console socket open, we may deadlock waiting
         # for QEMU to exit, while QEMU is waiting for the socket to
@@ -815,6 +817,15 @@ class QEMUMachine:
             self._temp_dir = tempfile.mkdtemp(prefix="qemu-machine-",
                                               dir=self._base_temp_dir)
         return self._temp_dir
+
+    @property
+    def sock_dir(self) -> str:
+        """
+        Returns the directory used for sockfiles by this machine.
+        """
+        if self._sock_dir:
+            return self._sock_dir
+        return self.temp_dir
 
     @property
     def log_dir(self) -> str:
