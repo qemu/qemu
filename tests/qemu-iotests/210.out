@@ -59,7 +59,7 @@ Format specific information:
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"cipher-alg": "twofish-128", "cipher-mode": "ctr", "driver": "luks", "file": {"driver": "file", "filename": "TEST_DIR/PID-t.luks"}, "hash-alg": "sha1", "iter-time": 10, "ivgen-alg": "plain64", "ivgen-hash-alg": "md5", "key-secret": "keysec0", "size": 67108864}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"cipher-alg": "aes-128", "cipher-mode": "cbc", "driver": "luks", "file": {"driver": "file", "filename": "TEST_DIR/PID-t.luks"}, "hash-alg": "sha1", "iter-time": 10, "ivgen-alg": "plain64", "ivgen-hash-alg": "md5", "key-secret": "keysec0", "size": 67108864}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -71,9 +71,9 @@ encrypted: yes
 Format specific information:
     ivgen alg: plain64
     hash alg: sha1
-    cipher alg: twofish-128
+    cipher alg: aes-128
     uuid: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
-    cipher mode: ctr
+    cipher mode: cbc
     slots:
         [0]:
             active: true

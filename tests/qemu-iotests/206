@@ -162,8 +162,8 @@ with iotests.FilePath('t.qcow2') as disk_path, \
                          'encrypt': {
                              'format': 'luks',
                              'key-secret': 'keysec0',
-                             'cipher-alg': 'twofish-128',
-                             'cipher-mode': 'ctr',
+                             'cipher-alg': 'aes-128',
+                             'cipher-mode': 'cbc',
                              'ivgen-alg': 'plain64',
                              'ivgen-hash-alg': 'md5',
                              'hash-alg': 'sha1',

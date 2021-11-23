@@ -97,7 +97,7 @@ Format specific information:
 
 === Successful image creation (encrypted) ===
 
-{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "qcow2", "encrypt": {"cipher-alg": "twofish-128", "cipher-mode": "ctr", "format": "luks", "hash-alg": "sha1", "iter-time": 10, "ivgen-alg": "plain64", "ivgen-hash-alg": "md5", "key-secret": "keysec0"}, "file": {"driver": "file", "filename": "TEST_DIR/PID-t.qcow2"}, "size": 33554432}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "qcow2", "encrypt": {"cipher-alg": "aes-128", "cipher-mode": "cbc", "format": "luks", "hash-alg": "sha1", "iter-time": 10, "ivgen-alg": "plain64", "ivgen-hash-alg": "md5", "key-secret": "keysec0"}, "file": {"driver": "file", "filename": "TEST_DIR/PID-t.qcow2"}, "size": 33554432}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -115,10 +115,10 @@ Format specific information:
     encrypt:
         ivgen alg: plain64
         hash alg: sha1
-        cipher alg: twofish-128
+        cipher alg: aes-128
         uuid: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
         format: luks
-        cipher mode: ctr
+        cipher mode: cbc
         slots:
             [0]:
                 active: true

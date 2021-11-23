@@ -1279,8 +1279,18 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
 
     qemu_co_mutex_init(&s->lock);
 
-    ret = 0;
+    qemu_opts_del(opts);
+
+    return 0;
+
 fail:
+    g_free(s->qcow_filename);
+    s->qcow_filename = NULL;
+    g_free(s->cluster_buffer);
+    s->cluster_buffer = NULL;
+    g_free(s->used_clusters);
+    s->used_clusters = NULL;
+
     qemu_opts_del(opts);
     return ret;
 }
@@ -3118,7 +3128,7 @@ static int enable_write_target(BlockDriverState *bs, Error **errp)
     int size = sector2cluster(s, s->sector_count);
     QDict *options;
 
-    s->used_clusters = calloc(size, 1);
+    s->used_clusters = g_malloc0(size);
 
     array_init(&(s->commits), sizeof(commit_t));
 
@@ -3166,8 +3176,6 @@ static int enable_write_target(BlockDriverState *bs, Error **errp)
     return 0;
 
 err:
-    g_free(s->qcow_filename);
-    s->qcow_filename = NULL;
     return ret;
 }
 
