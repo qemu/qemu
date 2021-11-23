@@ -68,9 +68,18 @@ safe_syscall_start:
         jnz     2f
         syscall
 safe_syscall_end:
+
         /* code path for having successfully executed the syscall */
+#if defined(__linux__)
+        /* Linux kernel returns (small) negative errno. */
         cmp     $-4095, %rax
         jae     0f
+#elif defined(__FreeBSD__)
+        /* FreeBSD kernel returns positive errno and C bit set. */
+        jc      1f
+#else
+#error "unsupported os"
+#endif
         pop     %rbp
         .cfi_remember_state
         .cfi_def_cfa_offset 8
@@ -78,8 +87,10 @@ safe_syscall_end:
         ret
         .cfi_restore_state
 
+#if defined(__linux__)
 0:      neg     %eax
         jmp     1f
+#endif
 
         /* code path when we didn't execute the syscall */
 2:      mov     $QEMU_ERESTARTSYS, %eax

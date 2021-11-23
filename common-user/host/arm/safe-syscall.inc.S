@@ -74,10 +74,19 @@ safe_syscall_start:
         bne     2f
         swi     0
 safe_syscall_end:
+
         /* code path for having successfully executed the syscall */
+#if defined(__linux__)
+        /* Linux kernel returns (small) negative errno. */
         cmp     r0, #-4096
         neghi   r0, r0
         bhi     1f
+#elif defined(__FreeBSD__)
+        /* FreeBSD kernel returns positive errno and C bit set. */
+        bcs     1f
+#else
+#error "unsupported os"
+#endif
         pop     { r4, r5, r6, r7, r8, pc }
 
         /* code path when we didn't execute the syscall */

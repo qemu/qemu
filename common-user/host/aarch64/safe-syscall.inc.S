@@ -60,17 +60,29 @@ safe_syscall_start:
         cbnz    w10, 2f
         svc     0x0
 safe_syscall_end:
+
         /* code path for having successfully executed the syscall */
+#if defined(__linux__)
+        /* Linux kernel returns (small) negative errno. */
         cmp     x0, #-4096
         b.hi    0f
+#elif defined(__FreeBSD__)
+        /* FreeBSD kernel returns positive errno and C bit set. */
+        b.cs    1f
+#else
+#error "unsupported os"
+#endif
         ret
 
+#if defined(__linux__)
         /* code path setting errno */
 0:      neg     w0, w0
         b       safe_syscall_set_errno_tail
+#endif
 
         /* code path when we didn't execute the syscall */
 2:      mov     w0, #QEMU_ERESTARTSYS
-        b       safe_syscall_set_errno_tail
+1:      b       safe_syscall_set_errno_tail
+
         .cfi_endproc
         .size   safe_syscall_base, .-safe_syscall_base
