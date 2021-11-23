@@ -67,7 +67,7 @@ safe_syscall_base:
          */
 safe_syscall_start:
         /* if signal_pending is non-zero, don't do the call */
-        cmpl	$0, (%rbp)
+        cmpl    $0, (%rbp)
         jnz     1f
         syscall
 safe_syscall_end:
