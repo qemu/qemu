@@ -256,9 +256,10 @@ static MemTxResult gicr_writel(GICv3CPUState *cs, hwaddr offset,
                 cs->gicr_ctlr |= GICR_CTLR_ENABLE_LPIS;
                 /* Check for any pending interr in pending table */
                 gicv3_redist_update_lpi(cs);
-                gicv3_redist_update(cs);
             } else {
                 cs->gicr_ctlr &= ~GICR_CTLR_ENABLE_LPIS;
+                /* cs->hppi might have been an LPI; recalculate */
+                gicv3_redist_update(cs);
             }
         }
         return MEMTX_OK;
@@ -571,7 +572,7 @@ static void gicv3_redist_check_lpi_priority(GICv3CPUState *cs, int irq)
     }
 }
 
-void gicv3_redist_update_lpi(GICv3CPUState *cs)
+void gicv3_redist_update_lpi_only(GICv3CPUState *cs)
 {
     /*
      * This function scans the LPI pending table and for each pending
@@ -614,6 +615,12 @@ void gicv3_redist_update_lpi(GICv3CPUState *cs)
     }
 }
 
+void gicv3_redist_update_lpi(GICv3CPUState *cs)
+{
+    gicv3_redist_update_lpi_only(cs);
+    gicv3_redist_update(cs);
+}
+
 void gicv3_redist_lpi_pending(GICv3CPUState *cs, int irq, int level)
 {
     /*
@@ -651,6 +658,7 @@ void gicv3_redist_lpi_pending(GICv3CPUState *cs, int irq, int level)
      */
     if (level) {
         gicv3_redist_check_lpi_priority(cs, irq);
+        gicv3_redist_update(cs);
     } else {
         if (irq == cs->hpplpi.irq) {
             gicv3_redist_update_lpi(cs);
@@ -673,8 +681,6 @@ void gicv3_redist_process_lpi(GICv3CPUState *cs, int irq, int level)
 
     /* set/clear the pending bit for this irq */
     gicv3_redist_lpi_pending(cs, irq, level);
-
-    gicv3_redist_update(cs);
 }
 
 void gicv3_redist_set_irq(GICv3CPUState *cs, int irq, int level)

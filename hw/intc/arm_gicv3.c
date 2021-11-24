@@ -186,7 +186,9 @@ static void gicv3_redist_update_noirqset(GICv3CPUState *cs)
      * interrupt has reduced in priority and any other interrupt could
      * now be the new best one).
      */
-    if (!seenbetter && cs->hppi.prio != 0xff && cs->hppi.irq < GIC_INTERNAL) {
+    if (!seenbetter && cs->hppi.prio != 0xff &&
+        (cs->hppi.irq < GIC_INTERNAL ||
+         cs->hppi.irq >= GICV3_LPI_INTID_START)) {
         gicv3_full_update_noirqset(cs->gic);
     }
 }
@@ -354,7 +356,7 @@ static void arm_gicv3_post_load(GICv3State *s)
      * pending interrupt, but don't set IRQ or FIQ lines.
      */
     for (i = 0; i < s->num_cpu; i++) {
-        gicv3_redist_update_lpi(&s->cpu[i]);
+        gicv3_redist_update_lpi_only(&s->cpu[i]);
     }
     gicv3_full_update_noirqset(s);
     /* Repopulate the cache of GICv3CPUState pointers for target CPUs */

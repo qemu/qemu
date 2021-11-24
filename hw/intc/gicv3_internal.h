@@ -463,7 +463,24 @@ void gicv3_dist_set_irq(GICv3State *s, int irq, int level);
 void gicv3_redist_set_irq(GICv3CPUState *cs, int irq, int level);
 void gicv3_redist_process_lpi(GICv3CPUState *cs, int irq, int level);
 void gicv3_redist_lpi_pending(GICv3CPUState *cs, int irq, int level);
+/**
+ * gicv3_redist_update_lpi:
+ * @cs: GICv3CPUState
+ *
+ * Scan the LPI pending table and recalculate the highest priority
+ * pending LPI and also the overall highest priority pending interrupt.
+ */
 void gicv3_redist_update_lpi(GICv3CPUState *cs);
+/**
+ * gicv3_redist_update_lpi_only:
+ * @cs: GICv3CPUState
+ *
+ * Scan the LPI pending table and recalculate cs->hpplpi only,
+ * without calling gicv3_redist_update() to recalculate the overall
+ * highest priority pending interrupt. This should be called after
+ * an incoming migration has loaded new state.
+ */
+void gicv3_redist_update_lpi_only(GICv3CPUState *cs);
 void gicv3_redist_send_sgi(GICv3CPUState *cs, int grp, int irq, bool ns);
 void gicv3_init_cpuif(GICv3State *s);
 
