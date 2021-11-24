@@ -32,6 +32,9 @@
 /* TODO actually test the results and get rid of this */
 #define qmp_discard_response(...) qobject_unref(qmp(__VA_ARGS__))
 
+#define DRIVE_FLOPPY_BLANK \
+    "-drive if=floppy,file=null-co://,file.read-zeroes=on,format=raw,size=1440k"
+
 #define TEST_IMAGE_SIZE 1440 * 1024
 
 #define FLOPPY_BASE 0x3f0
@@ -546,6 +549,40 @@ static void fuzz_registers(void)
     }
 }
 
+static bool qtest_check_clang_sanitizer(void)
+{
+#if defined(__SANITIZE_ADDRESS__) || __has_feature(address_sanitizer)
+    return true;
+#else
+    g_test_skip("QEMU not configured using --enable-sanitizers");
+    return false;
+#endif
+}
+static void test_cve_2021_20196(void)
+{
+    QTestState *s;
+
+    if (!qtest_check_clang_sanitizer()) {
+        return;
+    }
+
+    s = qtest_initf("-nographic -m 32M -nodefaults " DRIVE_FLOPPY_BLANK);
+
+    qtest_outw(s, 0x3f4, 0x0500);
+    qtest_outb(s, 0x3f5, 0x00);
+    qtest_outb(s, 0x3f5, 0x00);
+    qtest_outw(s, 0x3f4, 0x0000);
+    qtest_outb(s, 0x3f5, 0x00);
+    qtest_outw(s, 0x3f1, 0x0400);
+    qtest_outw(s, 0x3f4, 0x0000);
+    qtest_outw(s, 0x3f4, 0x0000);
+    qtest_outb(s, 0x3f5, 0x00);
+    qtest_outb(s, 0x3f5, 0x01);
+    qtest_outw(s, 0x3f1, 0x0500);
+    qtest_outb(s, 0x3f5, 0x00);
+    qtest_quit(s);
+}
+
 int main(int argc, char **argv)
 {
     int fd;
@@ -576,6 +613,7 @@ int main(int argc, char **argv)
     qtest_add_func("/fdc/read_no_dma_18", test_read_no_dma_18);
     qtest_add_func("/fdc/read_no_dma_19", test_read_no_dma_19);
     qtest_add_func("/fdc/fuzz-registers", fuzz_registers);
+    qtest_add_func("/fdc/fuzz/cve_2021_20196", test_cve_2021_20196);
 
     ret = g_test_run();
 
