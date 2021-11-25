@@ -2223,6 +2223,48 @@ VSX_MADD(xvnmaddsp, 4, float32, VsrW(i), NMADD_FLGS, 0, 0)
 VSX_MADD(xvnmsubsp, 4, float32, VsrW(i), NMSUB_FLGS, 0, 0)
 
 /*
+ * VSX_MADDQ - VSX floating point quad-precision muliply/add
+ *   op    - instruction mnemonic
+ *   maddflgs - flags for the float*muladd routine that control the
+ *           various forms (madd, msub, nmadd, nmsub)
+ *   ro    - round to odd
+ */
+#define VSX_MADDQ(op, maddflgs, ro)                                            \
+void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *s1, ppc_vsr_t *s2,\
+                 ppc_vsr_t *s3)                                                \
+{                                                                              \
+    ppc_vsr_t t = *xt;                                                         \
+                                                                               \
+    helper_reset_fpstatus(env);                                                \
+                                                                               \
+    float_status tstat = env->fp_status;                                       \
+    set_float_exception_flags(0, &tstat);                                      \
+    if (ro) {                                                                  \
+        tstat.float_rounding_mode = float_round_to_odd;                        \
+    }                                                                          \
+    t.f128 = float128_muladd(s1->f128, s3->f128, s2->f128, maddflgs, &tstat);  \
+    env->fp_status.float_exception_flags |= tstat.float_exception_flags;       \
+                                                                               \
+    if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {          \
+        float_invalid_op_madd(env, tstat.float_exception_flags,                \
+                              false, GETPC());                                 \
+    }                                                                          \
+                                                                               \
+    helper_compute_fprf_float128(env, t.f128);                                 \
+    *xt = t;                                                                   \
+    do_float_check_status(env, GETPC());                                       \
+}
+
+VSX_MADDQ(XSMADDQP, MADD_FLGS, 0)
+VSX_MADDQ(XSMADDQPO, MADD_FLGS, 1)
+VSX_MADDQ(XSMSUBQP, MSUB_FLGS, 0)
+VSX_MADDQ(XSMSUBQPO, MSUB_FLGS, 1)
+VSX_MADDQ(XSNMADDQP, NMADD_FLGS, 0)
+VSX_MADDQ(XSNMADDQPO, NMADD_FLGS, 1)
+VSX_MADDQ(XSNMSUBQP, NMSUB_FLGS, 0)
+VSX_MADDQ(XSNMSUBQPO, NMSUB_FLGS, 0)
+
+/*
  * VSX_SCALAR_CMP_DP - VSX scalar floating point compare double precision
  *   op    - instruction mnemonic
  *   cmp   - comparison operation
