@@ -190,6 +190,7 @@ static void blk_root_activate(BdrvChild *child, Error **errp)
 {
     BlockBackend *blk = child->opaque;
     Error *local_err = NULL;
+    uint64_t saved_shared_perm;
 
     if (!blk->disable_perm) {
         return;
@@ -197,12 +198,22 @@ static void blk_root_activate(BdrvChild *child, Error **errp)
 
     blk->disable_perm = false;
 
+    /*
+     * blk->shared_perm contains the permissions we want to share once
+     * migration is really completely done.  For now, we need to share
+     * all; but we also need to retain blk->shared_perm, which is
+     * overwritten by a successful blk_set_perm() call.  Save it and
+     * restore it below.
+     */
+    saved_shared_perm = blk->shared_perm;
+
     blk_set_perm(blk, blk->perm, BLK_PERM_ALL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         blk->disable_perm = true;
         return;
     }
+    blk->shared_perm = saved_shared_perm;
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         /* Activation can happen when migration process is still active, for
