@@ -15,6 +15,15 @@ static inline const char *cpu_get_model(uint32_t eflags)
     if ((eflags & EF_MIPS_MACH) == EF_MIPS_MACH_5900) {
         return "R5900";
     }
+    if ((eflags & EF_MIPS_MACH) == EF_MIPS_MACH_LS2E) {
+        return "Loongson-2E";
+    }
+    if ((eflags & EF_MIPS_MACH) == EF_MIPS_MACH_LS2F) {
+        return "Loongson-2F";
+    }
+    if ((eflags & EF_MIPS_MACH) == EF_MIPS_MACH_LS3A) {
+        return "Loongson-3A4000";
+    }
     return "5KEf";
 }
 #endif
