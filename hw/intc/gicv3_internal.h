@@ -412,6 +412,19 @@ FIELD(MAPC, RDBASE, 16, 32)
 /* Functions internal to the emulated GICv3 */
 
 /**
+ * gicv3_intid_is_special:
+ * @intid: interrupt ID
+ *
+ * Return true if @intid is a special interrupt ID (1020 to
+ * 1023 inclusive). This corresponds to the GIC spec pseudocode
+ * IsSpecial() function.
+ */
+static inline bool gicv3_intid_is_special(int intid)
+{
+    return intid >= INTID_SECURE && intid <= INTID_SPURIOUS;
+}
+
+/**
  * gicv3_redist_update:
  * @cs: GICv3CPUState for this redistributor
  *
