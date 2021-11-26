@@ -71,7 +71,6 @@ struct target_revectored_struct {
 
 #define TARGET_CLONE_BACKWARDS
 
-#define TARGET_MINSIGSTKSZ 2048
 #define TARGET_MCL_CURRENT 0x2000
 #define TARGET_MCL_FUTURE  0x4000
 #define TARGET_MCL_ONFAULT 0x8000
