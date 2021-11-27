@@ -234,6 +234,7 @@ qos_test_ss.add(
   'virtio-rng-test.c',
   'virtio-scsi-test.c',
   'virtio-serial-test.c',
+  'virtio-iommu-test.c',
   'vmxnet3-test.c',
 )
 if have_virtfs
