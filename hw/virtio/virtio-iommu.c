@@ -832,19 +832,6 @@ static void virtio_iommu_get_config(VirtIODevice *vdev, uint8_t *config_data)
     memcpy(config_data, &dev->config, sizeof(struct virtio_iommu_config));
 }
 
-static void virtio_iommu_set_config(VirtIODevice *vdev,
-                                      const uint8_t *config_data)
-{
-    struct virtio_iommu_config config;
-
-    memcpy(&config, config_data, sizeof(struct virtio_iommu_config));
-    trace_virtio_iommu_set_config(config.page_size_mask,
-                                  config.input_range.start,
-                                  config.input_range.end,
-                                  config.domain_range.end,
-                                  config.probe_size);
-}
-
 static uint64_t virtio_iommu_get_features(VirtIODevice *vdev, uint64_t f,
                                           Error **errp)
 {
@@ -1185,7 +1172,6 @@ static void virtio_iommu_class_init(ObjectClass *klass, void *data)
     vdc->unrealize = virtio_iommu_device_unrealize;
     vdc->reset = virtio_iommu_device_reset;
     vdc->get_config = virtio_iommu_get_config;
-    vdc->set_config = virtio_iommu_set_config;
     vdc->get_features = virtio_iommu_get_features;
     vdc->set_status = virtio_iommu_set_status;
     vdc->vmsd = &vmstate_virtio_iommu_device;
