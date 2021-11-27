@@ -978,8 +978,8 @@ static void virtio_iommu_device_realize(DeviceState *dev, Error **errp)
     s->event_vq = virtio_add_queue(vdev, VIOMMU_DEFAULT_QUEUE_SIZE, NULL);
 
     s->config.page_size_mask = TARGET_PAGE_MASK;
-    s->config.input_range.end = -1UL;
-    s->config.domain_range.end = 32;
+    s->config.input_range.end = UINT64_MAX;
+    s->config.domain_range.end = UINT32_MAX;
     s->config.probe_size = VIOMMU_PROBE_SIZE;
 
     virtio_add_feature(&s->features, VIRTIO_RING_F_EVENT_IDX);
