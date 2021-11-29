@@ -896,13 +896,14 @@ static bool its_writel(GICv3ITSState *s, hwaddr offset,
 
     switch (offset) {
     case GITS_CTLR:
-        s->ctlr |= (value & ~(s->ctlr));
-
-        if (s->ctlr & ITS_CTLR_ENABLED) {
+        if (value & R_GITS_CTLR_ENABLED_MASK) {
+            s->ctlr |= ITS_CTLR_ENABLED;
             extract_table_params(s);
             extract_cmdq_params(s);
             s->creadr = 0;
             process_cmdq(s);
+        } else {
+            s->ctlr &= ~ITS_CTLR_ENABLED;
         }
         break;
     case GITS_CBASER:
