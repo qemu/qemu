@@ -170,9 +170,17 @@ static bool vhost_vdpa_check_peer_type(NetClientState *nc, ObjectClass *oc,
     return true;
 }
 
+/** Dummy receive in case qemu falls back to userland tap networking */
+static ssize_t vhost_vdpa_receive(NetClientState *nc, const uint8_t *buf,
+                                  size_t size)
+{
+    return 0;
+}
+
 static NetClientInfo net_vhost_vdpa_info = {
         .type = NET_CLIENT_DRIVER_VHOST_VDPA,
         .size = sizeof(VhostVDPAState),
+        .receive = vhost_vdpa_receive,
         .cleanup = vhost_vdpa_cleanup,
         .has_vnet_hdr = vhost_vdpa_has_vnet_hdr,
         .has_ufo = vhost_vdpa_has_ufo,

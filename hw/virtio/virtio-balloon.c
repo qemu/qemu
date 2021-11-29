@@ -231,7 +231,7 @@ static void balloon_stats_poll_cb(void *opaque)
         return;
     }
 
-    virtqueue_push(s->svq, s->stats_vq_elem, s->stats_vq_offset);
+    virtqueue_push(s->svq, s->stats_vq_elem, 0);
     virtio_notify(vdev, s->svq);
     g_free(s->stats_vq_elem);
     s->stats_vq_elem = NULL;
@@ -438,7 +438,7 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
             memory_region_unref(section.mr);
         }
 
-        virtqueue_push(vq, elem, offset);
+        virtqueue_push(vq, elem, 0);
         virtio_notify(vdev, vq);
         g_free(elem);
         virtio_balloon_pbp_free(&pbp);
@@ -510,6 +510,7 @@ static bool get_free_page_hints(VirtIOBalloon *dev)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtQueue *vq = dev->free_page_vq;
     bool ret = true;
+    int i;
 
     while (dev->block_iothread) {
         qemu_cond_wait(&dev->free_page_cond, &dev->free_page_lock);
@@ -544,12 +545,14 @@ static bool get_free_page_hints(VirtIOBalloon *dev)
     }
 
     if (elem->in_num && dev->free_page_hint_status == FREE_PAGE_HINT_S_START) {
-        qemu_guest_free_page_hint(elem->in_sg[0].iov_base,
-                                  elem->in_sg[0].iov_len);
+        for (i = 0; i < elem->in_num; i++) {
+            qemu_guest_free_page_hint(elem->in_sg[i].iov_base,
+                                      elem->in_sg[i].iov_len);
+        }
     }
 
 out:
-    virtqueue_push(vq, elem, 1);
+    virtqueue_push(vq, elem, 0);
     g_free(elem);
     return ret;
 }
