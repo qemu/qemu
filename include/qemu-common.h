@@ -26,9 +26,6 @@
 int qemu_main(int argc, char **argv, char **envp);
 #endif
 
-void qemu_get_timedate(struct tm *tm, int offset);
-int qemu_timedate_diff(struct tm *tm);
-
 void *qemu_oom_check(void *ptr);
 
 ssize_t qemu_write_full(int fd, const void *buf, size_t count)

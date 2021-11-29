@@ -11,12 +11,12 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "hw/i2c/i2c.h"
 #include "migration/vmstate.h"
 #include "qemu/bcd.h"
 #include "qemu/module.h"
 #include "qom/object.h"
+#include "sysemu/rtc.h"
 
 /* Size of NVRAM including both the user-accessible area and the
  * secondary register area.
