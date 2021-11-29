@@ -147,8 +147,8 @@ struct VirtIOGPUBaseClass {
     DEFINE_PROP_UINT32("max_outputs", _state, _conf.max_outputs, 1),    \
     DEFINE_PROP_BIT("edid", _state, _conf.flags, \
                     VIRTIO_GPU_FLAG_EDID_ENABLED, true), \
-    DEFINE_PROP_UINT32("xres", _state, _conf.xres, 1024), \
-    DEFINE_PROP_UINT32("yres", _state, _conf.yres, 768)
+    DEFINE_PROP_UINT32("xres", _state, _conf.xres, 1280), \
+    DEFINE_PROP_UINT32("yres", _state, _conf.yres, 800)
 
 typedef struct VGPUDMABuf {
     QemuDmaBuf buf;

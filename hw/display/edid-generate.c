@@ -401,10 +401,10 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
         info->name = "QEMU Monitor";
     }
     if (!info->prefx) {
-        info->prefx = 1024;
+        info->prefx = 1280;
     }
     if (!info->prefy) {
-        info->prefy = 768;
+        info->prefy = 800;
     }
     if (info->prefx >= 4096 || info->prefy >= 4096) {
         large_screen = 1;
