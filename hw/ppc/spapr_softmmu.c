@@ -426,7 +426,7 @@ static void new_hpte_store(void *htab, uint64_t pteg, int slot,
     addr += slot * HASH_PTE_SIZE_64;
 
     stq_p(addr, pte0);
-    stq_p(addr + HASH_PTE_SIZE_64 / 2, pte1);
+    stq_p(addr + HPTE64_DW1, pte1);
 }
 
 static int rehash_hpte(PowerPCCPU *cpu,
