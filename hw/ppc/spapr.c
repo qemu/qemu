@@ -1414,7 +1414,7 @@ void spapr_store_hpte(PowerPCCPU *cpu, hwaddr ptex,
         kvmppc_write_hpte(ptex, pte0, pte1);
     } else {
         if (pte0 & HPTE64_V_VALID) {
-            stq_p(spapr->htab + offset + HASH_PTE_SIZE_64 / 2, pte1);
+            stq_p(spapr->htab + offset + HPTE64_DW1, pte1);
             /*
              * When setting valid, we write PTE1 first. This ensures
              * proper synchronization with the reading code in
@@ -1430,7 +1430,7 @@ void spapr_store_hpte(PowerPCCPU *cpu, hwaddr ptex,
              * ppc_hash64_pteg_search()
              */
             smp_wmb();
-            stq_p(spapr->htab + offset + HASH_PTE_SIZE_64 / 2, pte1);
+            stq_p(spapr->htab + offset + HPTE64_DW1, pte1);
         }
     }
 }
@@ -1438,7 +1438,7 @@ void spapr_store_hpte(PowerPCCPU *cpu, hwaddr ptex,
 static void spapr_hpte_set_c(PPCVirtualHypervisor *vhyp, hwaddr ptex,
                              uint64_t pte1)
 {
-    hwaddr offset = ptex * HASH_PTE_SIZE_64 + 15;
+    hwaddr offset = ptex * HASH_PTE_SIZE_64 + HPTE64_DW1_C;
     SpaprMachineState *spapr = SPAPR_MACHINE(vhyp);
 
     if (!spapr->htab) {
@@ -1454,7 +1454,7 @@ static void spapr_hpte_set_c(PPCVirtualHypervisor *vhyp, hwaddr ptex,
 static void spapr_hpte_set_r(PPCVirtualHypervisor *vhyp, hwaddr ptex,
                              uint64_t pte1)
 {
-    hwaddr offset = ptex * HASH_PTE_SIZE_64 + 14;
+    hwaddr offset = ptex * HASH_PTE_SIZE_64 + HPTE64_DW1_R;
     SpaprMachineState *spapr = SPAPR_MACHINE(vhyp);
 
     if (!spapr->htab) {
