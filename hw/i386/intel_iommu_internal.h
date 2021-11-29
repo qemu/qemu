@@ -388,6 +388,8 @@ typedef union VTDInvDesc VTDInvDesc;
 #define VTD_INV_DESC_DEVICE_IOTLB_RSVD_LO 0xffff0000ffe0fff8
 
 /* Rsvd field masks for spte */
+#define VTD_SPTE_SNP 0x800ULL
+
 #define VTD_SPTE_PAGE_L1_RSVD_MASK(aw, dt_supported) \
         dt_supported ? \
         (0x800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM | VTD_SL_TM)) : \
