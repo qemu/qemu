@@ -777,14 +777,15 @@ static void boston_mach_init(MachineState *machine)
             exit(1);
         }
     } else if (machine->kernel_filename) {
-        uint64_t kernel_entry, kernel_high, kernel_size;
+        uint64_t kernel_entry, kernel_high;
+        ssize_t kernel_size;
 
         kernel_size = load_elf(machine->kernel_filename, NULL,
                            cpu_mips_kseg0_to_phys, NULL,
                            &kernel_entry, NULL, &kernel_high,
                            NULL, 0, EM_MIPS, 1, 0);
 
-        if (kernel_size) {
+        if (kernel_size > 0) {
             int dt_size;
             g_autofree const void *dtb_file_data, *dtb_load_data;
             hwaddr dtb_paddr = QEMU_ALIGN_UP(kernel_high, 64 * KiB);
