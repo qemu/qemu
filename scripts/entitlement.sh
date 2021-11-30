@@ -15,7 +15,7 @@ ENTITLEMENT="$4"
 
 if $in_place; then
   trap 'rm "$DST.tmp"' exit
-  cp -af "$SRC" "$DST.tmp"
+  cp -pPf "$SRC" "$DST.tmp"
   SRC="$DST.tmp"
 else
   cd "$MESON_INSTALL_DESTDIR_PREFIX"
