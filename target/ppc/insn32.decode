@@ -155,6 +155,9 @@
 &XX2            xt xb uim:uint8_t
 @XX2            ...... ..... ... uim:2 ..... ......... ..       &XX2 xt=%xx_xt xb=%xx_xb
 
+&XX2_bf_xb      bf xb
+@XX2_bf_xb      ...... bf:3 .. ..... ..... ......... . .        &XX2_bf_xb xb=%xx_xb
+
 &XX3            xt xa xb
 @XX3            ...... ..... ..... ..... ........ ...           &XX3 xt=%xx_xt xa=%xx_xa xb=%xx_xb
 
@@ -603,6 +606,10 @@ XSMINJDP        111100 ..... ..... ..... 10011000 ...   @XX3
 ## VSX Binary Floating-Point Convert Instructions
 
 XSCVQPDP        111111 ..... 10100 ..... 1101000100 .   @X_tb_rc
+
+## VSX Vector Test Least-Significant Bit by Byte Instruction
+
+XVTLSBB         111100 ... -- 00010 ..... 111011011 . - @XX2_bf_xb
 
 ### rfebb
 &XL_s           s:uint8_t

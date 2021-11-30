@@ -1688,6 +1688,43 @@ static bool trans_LXVKQ(DisasContext *ctx, arg_X_uim5 *a)
     return true;
 }
 
+static bool trans_XVTLSBB(DisasContext *ctx, arg_XX2_bf_xb *a)
+{
+    TCGv_i64 xb, tmp, all_true, all_false, mask, zero;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VSX(ctx);
+
+    xb = tcg_temp_new_i64();
+    tmp = tcg_temp_new_i64();
+    all_true = tcg_const_i64(0b1000);
+    all_false = tcg_const_i64(0b0010);
+    mask = tcg_constant_i64(dup_const(MO_8, 1));
+    zero = tcg_constant_i64(0);
+
+    for (int dw = 0; dw < 2; dw++) {
+        get_cpu_vsr(xb, a->xb, dw);
+
+        tcg_gen_and_i64(tmp, mask, xb);
+        tcg_gen_movcond_i64(TCG_COND_EQ, all_true, tmp,
+                            mask, all_true, zero);
+
+        tcg_gen_andc_i64(tmp, mask, xb);
+        tcg_gen_movcond_i64(TCG_COND_EQ, all_false, tmp,
+                            mask, all_false, zero);
+    }
+
+    tcg_gen_or_i64(tmp, all_false, all_true);
+    tcg_gen_extrl_i64_i32(cpu_crf[a->bf], tmp);
+
+    tcg_temp_free_i64(xb);
+    tcg_temp_free_i64(tmp);
+    tcg_temp_free_i64(all_true);
+    tcg_temp_free_i64(all_false);
+
+    return true;
+}
+
 static void gen_xxsldwi(DisasContext *ctx)
 {
     TCGv_i64 xth, xtl;
