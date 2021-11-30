@@ -2794,6 +2794,8 @@ static VMChangeStateEntry *vmstate_change;
 
 void memory_global_dirty_log_start(unsigned int flags)
 {
+    unsigned int old_flags = global_dirty_tracking;
+
     if (vmstate_change) {
         qemu_del_vm_change_state_handler(vmstate_change);
         vmstate_change = NULL;
@@ -2802,15 +2804,14 @@ void memory_global_dirty_log_start(unsigned int flags)
     assert(flags && !(flags & (~GLOBAL_DIRTY_MASK)));
     assert(!(global_dirty_tracking & flags));
     global_dirty_tracking |= flags;
-
     trace_global_dirty_changed(global_dirty_tracking);
 
-    MEMORY_LISTENER_CALL_GLOBAL(log_global_start, Forward);
-
-    /* Refresh DIRTY_MEMORY_MIGRATION bit.  */
-    memory_region_transaction_begin();
-    memory_region_update_pending = true;
-    memory_region_transaction_commit();
+    if (!old_flags) {
+        MEMORY_LISTENER_CALL_GLOBAL(log_global_start, Forward);
+        memory_region_transaction_begin();
+        memory_region_update_pending = true;
+        memory_region_transaction_commit();
+    }
 }
 
 static void memory_global_dirty_log_do_stop(unsigned int flags)
@@ -2821,12 +2822,12 @@ static void memory_global_dirty_log_do_stop(unsigned int flags)
 
     trace_global_dirty_changed(global_dirty_tracking);
 
-    /* Refresh DIRTY_MEMORY_MIGRATION bit.  */
-    memory_region_transaction_begin();
-    memory_region_update_pending = true;
-    memory_region_transaction_commit();
-
-    MEMORY_LISTENER_CALL_GLOBAL(log_global_stop, Reverse);
+    if (!global_dirty_tracking) {
+        memory_region_transaction_begin();
+        memory_region_update_pending = true;
+        memory_region_transaction_commit();
+        MEMORY_LISTENER_CALL_GLOBAL(log_global_stop, Reverse);
+    }
 }
 
 static void memory_vm_change_state_handler(void *opaque, bool running,
