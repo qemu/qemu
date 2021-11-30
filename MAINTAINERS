@@ -324,7 +324,7 @@ F: disas/sparc.c
 X86 TCG CPUs
 M: Paolo Bonzini <pbonzini@redhat.com>
 M: Richard Henderson <richard.henderson@linaro.org>
-M: Eduardo Habkost <ehabkost@redhat.com>
+M: Eduardo Habkost <eduardo@habkost.net>
 S: Maintained
 F: target/i386/tcg/
 F: tests/tcg/i386/
@@ -1628,7 +1628,7 @@ F: include/hw/i386/microvm.h
 F: pc-bios/bios-microvm.bin
 
 Machine core
-M: Eduardo Habkost <ehabkost@redhat.com>
+M: Eduardo Habkost <eduardo@habkost.net>
 M: Marcel Apfelbaum <marcel.apfelbaum@gmail.com>
 R: Philippe Mathieu-Daudé <philmd@redhat.com>
 S: Supported
@@ -2648,13 +2648,13 @@ F: backends/cryptodev*.c
 Python library
 M: John Snow <jsnow@redhat.com>
 M: Cleber Rosa <crosa@redhat.com>
-R: Eduardo Habkost <ehabkost@redhat.com>
+R: Eduardo Habkost <eduardo@habkost.net>
 S: Maintained
 F: python/
 T: git https://gitlab.com/jsnow/qemu.git python
 
 Python scripts
-M: Eduardo Habkost <ehabkost@redhat.com>
+M: Eduardo Habkost <eduardo@habkost.net>
 M: Cleber Rosa <crosa@redhat.com>
 S: Odd Fixes
 F: scripts/*.py
@@ -2730,7 +2730,7 @@ T: git https://github.com/mdroth/qemu.git qga
 QOM
 M: Paolo Bonzini <pbonzini@redhat.com>
 R: Daniel P. Berrange <berrange@redhat.com>
-R: Eduardo Habkost <ehabkost@redhat.com>
+R: Eduardo Habkost <eduardo@habkost.net>
 S: Supported
 F: docs/qdev-device-use.txt
 F: hw/core/qdev*
@@ -2750,7 +2750,7 @@ F: tests/unit/check-qom-proplist.c
 F: tests/unit/test-qdev-global-props.c
 
 QOM boilerplate conversion script
-M: Eduardo Habkost <ehabkost@redhat.com>
+M: Eduardo Habkost <eduardo@habkost.net>
 S: Maintained
 F: scripts/codeconverter/
 
