@@ -138,6 +138,7 @@ qtests_ppc = \
   ['boot-order-test', 'prom-env-test', 'boot-serial-test']                 \
 
 qtests_ppc64 = \
+  qtests_ppc + \
   (config_all_devices.has_key('CONFIG_PSERIES') ? ['device-plug-test'] : []) +               \
   (config_all_devices.has_key('CONFIG_POWERNV') ? ['pnv-xscom-test'] : []) +                 \
   (config_all_devices.has_key('CONFIG_PSERIES') ? ['rtas-test'] : []) +                      \
