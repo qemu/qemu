@@ -1401,6 +1401,23 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine),
     }
 }
 
+bool qtest_has_machine(const char *machine)
+{
+    struct MachInfo *machines;
+    int i;
+
+    machines = qtest_get_machines();
+
+    for (i = 0; machines[i].name != NULL; i++) {
+        if (g_str_equal(machine, machines[i].name) ||
+            (machines[i].alias && g_str_equal(machine, machines[i].alias))) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 /*
  * Generic hot-plugging test via the device_add QMP commands.
  */

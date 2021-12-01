@@ -711,6 +711,14 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine),
                                 bool skip_old_versioned);
 
 /**
+ * qtest_has_machine:
+ * @machine: The machine to look for
+ *
+ * Returns: true if the machine is available in the target binary.
+ */
+bool qtest_has_machine(const char *machine);
+
+/**
  * qtest_qmp_device_add_qdict:
  * @qts: QTestState instance to operate on
  * @drv: Name of the device that should be added

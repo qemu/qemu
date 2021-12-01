@@ -285,7 +285,8 @@ int main(int argc, char *argv[])
     g_test_init(&argc, &argv, NULL);
 
     for (i = 0; tests[i].arch != NULL; i++) {
-        if (strcmp(arch, tests[i].arch) == 0) {
+        if (g_str_equal(arch, tests[i].arch) &&
+            qtest_has_machine(tests[i].machine)) {
             char *name = g_strdup_printf("boot-serial/%s", tests[i].machine);
             qtest_add_data_func(name, &tests[i], test_machine);
             g_free(name);
