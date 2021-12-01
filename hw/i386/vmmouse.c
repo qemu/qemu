@@ -286,6 +286,10 @@ static void vmmouse_realizefn(DeviceState *dev, Error **errp)
 
     DPRINTF("vmmouse_init\n");
 
+    if (!s->i8042) {
+        error_setg(errp, "'i8042' link is not set");
+        return;
+    }
     if (!object_resolve_path_type("", TYPE_VMPORT, NULL)) {
         error_setg(errp, "vmmouse needs a machine with vmport");
         return;
