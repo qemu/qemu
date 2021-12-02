@@ -33,7 +33,6 @@
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
 #include "qom/object.h"
-#include "qapi/error.h"
 
 #define TYPE_ISA_VGA "isa-vga"
 OBJECT_DECLARE_SIMPLE_TYPE(ISAVGAState, ISA_VGA)
@@ -61,15 +60,6 @@ static void vga_isa_realizefn(DeviceState *dev, Error **errp)
     VGACommonState *s = &d->state;
     MemoryRegion *vga_io_memory;
     const MemoryRegionPortio *vga_ports, *vbe_ports;
-
-    /*
-     * make sure this device is not being added twice, if so
-     * exit without crashing qemu
-     */
-    if (object_resolve_path_type("", TYPE_ISA_VGA, NULL)) {
-        error_setg(errp, "at most one %s device is permitted", TYPE_ISA_VGA);
-        return;
-    }
 
     s->global_vmstate = true;
     vga_common_init(s, OBJECT(dev));
