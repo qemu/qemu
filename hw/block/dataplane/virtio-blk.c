@@ -222,7 +222,7 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
             memory_region_transaction_commit();
 
             while (j--) {
-                virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), i);
+                virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), j);
             }
             goto fail_host_notifiers;
         }
