@@ -284,6 +284,12 @@ static void emc_halt_rx(NPCM7xxEMCState *emc, uint32_t mista_flag)
     emc_set_mista(emc, mista_flag);
 }
 
+static void emc_enable_rx_and_flush(NPCM7xxEMCState *emc)
+{
+    emc->rx_active = true;
+    qemu_flush_queued_packets(qemu_get_queue(emc->nic));
+}
+
 static void emc_set_next_tx_descriptor(NPCM7xxEMCState *emc,
                                        const NPCM7xxEMCTxDesc *tx_desc,
                                        uint32_t desc_addr)
@@ -581,13 +587,6 @@ static ssize_t emc_receive(NetClientState *nc, const uint8_t *buf, size_t len1)
     return len;
 }
 
-static void emc_try_receive_next_packet(NPCM7xxEMCState *emc)
-{
-    if (emc_can_receive(qemu_get_queue(emc->nic))) {
-        qemu_flush_queued_packets(qemu_get_queue(emc->nic));
-    }
-}
-
 static uint64_t npcm7xx_emc_read(void *opaque, hwaddr offset, unsigned size)
 {
     NPCM7xxEMCState *emc = opaque;
@@ -703,7 +702,7 @@ static void npcm7xx_emc_write(void *opaque, hwaddr offset,
             emc->regs[REG_MGSTA] |= REG_MGSTA_RXHA;
         }
         if (value & REG_MCMDR_RXON) {
-            emc->rx_active = true;
+            emc_enable_rx_and_flush(emc);
         } else {
             emc_halt_rx(emc, 0);
         }
@@ -739,8 +738,7 @@ static void npcm7xx_emc_write(void *opaque, hwaddr offset,
         break;
     case REG_RSDR:
         if (emc->regs[REG_MCMDR] & REG_MCMDR_RXON) {
-            emc->rx_active = true;
-            emc_try_receive_next_packet(emc);
+            emc_enable_rx_and_flush(emc);
         }
         break;
     case REG_MIIDA:
