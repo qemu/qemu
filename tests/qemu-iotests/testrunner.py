@@ -220,6 +220,12 @@ class TestRunner(ContextManager['TestRunner']):
         return f'{test}.out'
 
     def do_run_test(self, test: str) -> TestResult:
+        """
+        Run one test
+
+        :param test: test file path
+        """
+
         f_test = Path(test)
         f_bad = Path(f_test.name + '.out.bad')
         f_notrun = Path(f_test.name + '.notrun')
@@ -287,6 +293,13 @@ class TestRunner(ContextManager['TestRunner']):
 
     def run_test(self, test: str,
                  test_field_width: Optional[int] = None) -> TestResult:
+        """
+        Run one test and print short status
+
+        :param test: test file path
+        :param test_field_width: width for first field of status format
+        """
+
         last_el = self.last_elapsed.get(test)
         start = datetime.datetime.now().strftime('%H:%M:%S')
 
