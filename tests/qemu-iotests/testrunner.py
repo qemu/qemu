@@ -287,7 +287,6 @@ class TestRunner(ContextManager['TestRunner']):
                               diff=diff, casenotrun=casenotrun)
         else:
             f_bad.unlink()
-            self.last_elapsed.update(test, elapsed)
             return TestResult(status='pass', elapsed=elapsed,
                               casenotrun=casenotrun)
 
@@ -353,6 +352,9 @@ class TestRunner(ContextManager['TestRunner']):
                     print('\n'.join(res.diff))
             elif res.status == 'not run':
                 notrun.append(name)
+            elif res.status == 'pass':
+                assert res.elapsed is not None
+                self.last_elapsed.update(t, res.elapsed)
 
             sys.stdout.flush()
             if res.interrupted:
