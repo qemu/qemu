@@ -1993,11 +1993,9 @@ static int map_is_allocated(BlockDriverState *bs, int64_t offset,
                             int64_t bytes, int64_t *pnum)
 {
     int64_t num;
-    int num_checked;
     int ret, firstret;
 
-    num_checked = MIN(bytes, BDRV_REQUEST_MAX_BYTES);
-    ret = bdrv_is_allocated(bs, offset, num_checked, &num);
+    ret = bdrv_is_allocated(bs, offset, bytes, &num);
     if (ret < 0) {
         return ret;
     }
@@ -2009,8 +2007,7 @@ static int map_is_allocated(BlockDriverState *bs, int64_t offset,
         offset += num;
         bytes -= num;
 
-        num_checked = MIN(bytes, BDRV_REQUEST_MAX_BYTES);
-        ret = bdrv_is_allocated(bs, offset, num_checked, &num);
+        ret = bdrv_is_allocated(bs, offset, bytes, &num);
         if (ret == firstret && num) {
             *pnum += num;
         } else {
