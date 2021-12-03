@@ -603,10 +603,6 @@ static int do_co_pwrite_zeroes(BlockBackend *blk, int64_t offset,
         .done   = false,
     };
 
-    if (bytes > INT_MAX) {
-        return -ERANGE;
-    }
-
     co = qemu_coroutine_create(co_pwrite_zeroes_entry, &data);
     bdrv_coroutine_enter(blk_bs(blk), co);
     while (!data.done) {
@@ -1160,8 +1156,9 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
     if (count < 0) {
         print_cvtnum_err(count, argv[optind]);
         return count;
-    } else if (count > BDRV_REQUEST_MAX_BYTES) {
-        printf("length cannot exceed %" PRIu64 ", given %s\n",
+    } else if (count > BDRV_REQUEST_MAX_BYTES &&
+               !(flags & BDRV_REQ_NO_FALLBACK)) {
+        printf("length cannot exceed %" PRIu64 " without -n, given %s\n",
                (uint64_t)BDRV_REQUEST_MAX_BYTES, argv[optind]);
         return -EINVAL;
     }
