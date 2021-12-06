@@ -24,6 +24,8 @@ enum vga_retrace_method {
 
 extern enum vga_retrace_method vga_retrace_method;
 
+#define TYPE_VGA_MMIO "vga-mmio"
+
 int vga_mmio_init(hwaddr vram_base, hwaddr ctrl_base,
                   int it_shift, MemoryRegion *address_space);
 
