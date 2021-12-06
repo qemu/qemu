@@ -24,7 +24,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "hw/display/vga.h"
 #include "hw/sysbus.h"
 #include "hw/display/vga.h"
 #include "hw/qdev-properties.h"
@@ -83,24 +82,6 @@ static void vga_mmio_reset(DeviceState *dev)
     VGAMmioState *s = VGA_MMIO(dev);
 
     vga_common_reset(&s->vga);
-}
-
-int vga_mmio_init(hwaddr vram_base, hwaddr ctrl_base,
-                  int it_shift, MemoryRegion *address_space)
-{
-    DeviceState *dev;
-    SysBusDevice *s;
-
-    dev = qdev_new(TYPE_VGA_MMIO);
-    qdev_prop_set_uint8(dev, "it_shift", it_shift);
-    s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
-
-    sysbus_mmio_map(s, 0, ctrl_base);
-    sysbus_mmio_map(s, 1, vram_base + 0x000a0000);
-    sysbus_mmio_map(s, 2, VBE_DISPI_LFB_PHYSICAL_ADDRESS);
-
-    return 0;
 }
 
 static void vga_mmio_realizefn(DeviceState *dev, Error **errp)
