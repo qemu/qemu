@@ -65,11 +65,17 @@ static const MemoryRegionOps vga_mm_ctrl_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void vga_mm_init(VGAMmioState *s, hwaddr vram_base,
-                        hwaddr ctrl_base, int it_shift,
-                        MemoryRegion *address_space)
+int vga_mmio_init(hwaddr vram_base, hwaddr ctrl_base,
+                  int it_shift, MemoryRegion *address_space)
 {
+    VGAMmioState *s;
     MemoryRegion *s_ioport_ctrl, *vga_io_memory;
+
+    s = g_malloc0(sizeof(*s));
+
+    s->vga.vram_size_mb = VGA_RAM_SIZE / MiB;
+    s->vga.global_vmstate = true;
+    vga_common_init(&s->vga, NULL);
 
     s->it_shift = it_shift;
     s_ioport_ctrl = g_malloc(sizeof(*s_ioport_ctrl));
@@ -89,19 +95,6 @@ static void vga_mm_init(VGAMmioState *s, hwaddr vram_base,
     memory_region_add_subregion(address_space,
                                 vram_base + 0x000a0000, vga_io_memory);
     memory_region_set_coalescing(vga_io_memory);
-}
-
-int vga_mmio_init(hwaddr vram_base, hwaddr ctrl_base,
-                  int it_shift, MemoryRegion *address_space)
-{
-    VGAMmioState *s;
-
-    s = g_malloc0(sizeof(*s));
-
-    s->vga.vram_size_mb = VGA_RAM_SIZE / MiB;
-    s->vga.global_vmstate = true;
-    vga_common_init(&s->vga, NULL);
-    vga_mm_init(s, vram_base, ctrl_base, it_shift, address_space);
 
     s->vga.con = graphic_console_init(NULL, 0, s->vga.hw_ops, s);
 
