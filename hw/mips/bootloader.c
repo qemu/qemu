@@ -182,7 +182,11 @@ void bl_gen_write_ulong(uint32_t **p, target_ulong addr, target_ulong val)
 {
     bl_gen_load_ulong(p, BL_REG_K0, val);
     bl_gen_load_ulong(p, BL_REG_K1, addr);
-    bl_gen_sd(p, BL_REG_K0, BL_REG_K1, 0x0);
+    if (bootcpu_supports_isa(ISA_MIPS3)) {
+        bl_gen_sd(p, BL_REG_K0, BL_REG_K1, 0x0);
+    } else {
+        bl_gen_sw(p, BL_REG_K0, BL_REG_K1, 0x0);
+    }
 }
 
 void bl_gen_write_u32(uint32_t **p, target_ulong addr, uint32_t val)
