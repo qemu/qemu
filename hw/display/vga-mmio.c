@@ -1,5 +1,5 @@
 /*
- * QEMU ISA MM VGA Emulator.
+ * QEMU MMIO VGA Emulator.
  *
  * Copyright (c) 2003 Fabrice Bellard
  *
@@ -32,15 +32,15 @@
 
 #define VGA_RAM_SIZE (8 * MiB)
 
-typedef struct ISAVGAMMState {
+typedef struct VGAMmioState {
     VGACommonState vga;
     int it_shift;
-} ISAVGAMMState;
+} VGAMmioState;
 
 /* Memory mapped interface */
 static uint64_t vga_mm_read(void *opaque, hwaddr addr, unsigned size)
 {
-    ISAVGAMMState *s = opaque;
+    VGAMmioState *s = opaque;
 
     return vga_ioport_read(&s->vga, addr >> s->it_shift) &
         MAKE_64BIT_MASK(0, size * 8);
@@ -49,7 +49,7 @@ static uint64_t vga_mm_read(void *opaque, hwaddr addr, unsigned size)
 static void vga_mm_write(void *opaque, hwaddr addr, uint64_t value,
                          unsigned size)
 {
-    ISAVGAMMState *s = opaque;
+    VGAMmioState *s = opaque;
 
     vga_ioport_write(&s->vga, addr >> s->it_shift,
                      value & MAKE_64BIT_MASK(0, size * 8));
@@ -65,7 +65,7 @@ static const MemoryRegionOps vga_mm_ctrl_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void vga_mm_init(ISAVGAMMState *s, hwaddr vram_base,
+static void vga_mm_init(VGAMmioState *s, hwaddr vram_base,
                         hwaddr ctrl_base, int it_shift,
                         MemoryRegion *address_space)
 {
@@ -91,11 +91,10 @@ static void vga_mm_init(ISAVGAMMState *s, hwaddr vram_base,
     memory_region_set_coalescing(vga_io_memory);
 }
 
-int isa_vga_mm_init(hwaddr vram_base,
-                    hwaddr ctrl_base, int it_shift,
-                    MemoryRegion *address_space)
+int vga_mmio_init(hwaddr vram_base, hwaddr ctrl_base,
+                  int it_shift, MemoryRegion *address_space)
 {
-    ISAVGAMMState *s;
+    VGAMmioState *s;
 
     s = g_malloc0(sizeof(*s));
 

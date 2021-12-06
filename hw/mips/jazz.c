@@ -274,7 +274,7 @@ static void mips_jazz_init(MachineState *machine,
         }
         break;
     case JAZZ_PICA61:
-        isa_vga_mm_init(0x40000000, 0x60000000, 0, get_system_memory());
+        vga_mmio_init(0x40000000, 0x60000000, 0, get_system_memory());
         break;
     default:
         break;
