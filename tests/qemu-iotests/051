@@ -45,6 +45,10 @@ _supported_proto file
 _unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)' data_file
 _require_drivers nbd
 
+if [ "$QEMU_DEFAULT_MACHINE" = "pc" ]; then
+    _require_devices lsi53c895a
+fi
+
 do_run_qemu()
 {
     echo Testing: "$@"
