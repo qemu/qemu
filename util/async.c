@@ -362,7 +362,7 @@ aio_ctx_finalize(GSource     *source)
         g_free(bh);
     }
 
-    aio_set_event_notifier(ctx, &ctx->notifier, false, NULL, NULL);
+    aio_set_event_notifier(ctx, &ctx->notifier, false, NULL, NULL, NULL);
     event_notifier_cleanup(&ctx->notifier);
     qemu_rec_mutex_destroy(&ctx->lock);
     qemu_lockcnt_destroy(&ctx->list_lock);
@@ -485,6 +485,11 @@ static bool aio_context_notifier_poll(void *opaque)
     return qatomic_read(&ctx->notified);
 }
 
+static void aio_context_notifier_poll_ready(EventNotifier *e)
+{
+    /* Do nothing, we just wanted to kick the event loop */
+}
+
 static void co_schedule_bh_cb(void *opaque)
 {
     AioContext *ctx = opaque;
@@ -536,7 +541,8 @@ AioContext *aio_context_new(Error **errp)
     aio_set_event_notifier(ctx, &ctx->notifier,
                            false,
                            aio_context_notifier_cb,
-                           aio_context_notifier_poll);
+                           aio_context_notifier_poll,
+                           aio_context_notifier_poll_ready);
 #ifdef CONFIG_LINUX_AIO
     ctx->linux_aio = NULL;
 #endif

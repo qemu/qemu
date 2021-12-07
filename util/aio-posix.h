@@ -24,6 +24,7 @@ struct AioHandler {
     IOHandler *io_read;
     IOHandler *io_write;
     AioPollFn *io_poll;
+    IOHandler *io_poll_ready;
     IOHandler *io_poll_begin;
     IOHandler *io_poll_end;
     void *opaque;

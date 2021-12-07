@@ -582,7 +582,7 @@ void qemu_set_fd_handler(int fd,
 {
     iohandler_init();
     aio_set_fd_handler(iohandler_ctx, fd, false,
-                       fd_read, fd_write, NULL, opaque);
+                       fd_read, fd_write, NULL, NULL, opaque);
 }
 
 void event_notifier_set_handler(EventNotifier *e,
@@ -590,5 +590,5 @@ void event_notifier_set_handler(EventNotifier *e,
 {
     iohandler_init();
     aio_set_event_notifier(iohandler_ctx, e, false,
-                           handler, NULL);
+                           handler, NULL, NULL);
 }

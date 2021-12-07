@@ -469,6 +469,7 @@ void aio_set_fd_handler(AioContext *ctx,
                         IOHandler *io_read,
                         IOHandler *io_write,
                         AioPollFn *io_poll,
+                        IOHandler *io_poll_ready,
                         void *opaque);
 
 /* Set polling begin/end callbacks for a file descriptor that has already been
@@ -490,7 +491,8 @@ void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *notifier,
                             bool is_external,
                             EventNotifierHandler *io_read,
-                            AioPollFn *io_poll);
+                            AioPollFn *io_poll,
+                            EventNotifierHandler *io_poll_ready);
 
 /* Set polling begin/end callbacks for an event notifier that has already been
  * registered with aio_set_event_notifier.  Do nothing if the event notifier is
