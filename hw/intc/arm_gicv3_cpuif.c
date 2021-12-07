@@ -351,7 +351,8 @@ static uint32_t maintenance_interrupt_state(GICv3CPUState *cs)
     /* Scan list registers and fill in the U, NP and EOI bits */
     eoi_maintenance_interrupt_state(cs, &value);
 
-    if (cs->ich_hcr_el2 & (ICH_HCR_EL2_LRENPIE | ICH_HCR_EL2_EOICOUNT_MASK)) {
+    if ((cs->ich_hcr_el2 & ICH_HCR_EL2_LRENPIE) &&
+        (cs->ich_hcr_el2 & ICH_HCR_EL2_EOICOUNT_MASK)) {
         value |= ICH_MISR_EL2_LRENP;
     }
 
