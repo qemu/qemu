@@ -2523,8 +2523,13 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
         tcg_out_vldst(s, INSN_VLD1 | 0x7d0, arg, arg1, arg2);
         return;
     case TCG_TYPE_V128:
-        /* regs 2; size 8; align 16 */
-        tcg_out_vldst(s, INSN_VLD1 | 0xae0, arg, arg1, arg2);
+        /*
+         * We have only 8-byte alignment for the stack per the ABI.
+         * Rather than dynamically re-align the stack, it's easier
+         * to simply not request alignment beyond that.  So:
+         * regs 2; size 8; align 8
+         */
+        tcg_out_vldst(s, INSN_VLD1 | 0xad0, arg, arg1, arg2);
         return;
     default:
         g_assert_not_reached();
@@ -2543,8 +2548,8 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
         tcg_out_vldst(s, INSN_VST1 | 0x7d0, arg, arg1, arg2);
         return;
     case TCG_TYPE_V128:
-        /* regs 2; size 8; align 16 */
-        tcg_out_vldst(s, INSN_VST1 | 0xae0, arg, arg1, arg2);
+        /* See tcg_out_ld re alignment: regs 2; size 8; align 8 */
+        tcg_out_vldst(s, INSN_VST1 | 0xad0, arg, arg1, arg2);
         return;
     default:
         g_assert_not_reached();
