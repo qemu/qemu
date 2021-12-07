@@ -2565,6 +2565,8 @@ void helper_##name(CPUPPCState *env,                                          \
 
 VSX_MAX_MINC(XSMAXCDP, maxnum, float64, VsrD(0));
 VSX_MAX_MINC(XSMINCDP, minnum, float64, VsrD(0));
+VSX_MAX_MINC(XSMAXCQP, maxnum, float128, f128);
+VSX_MAX_MINC(XSMINCQP, minnum, float128, f128);
 
 #define VSX_MAX_MINJ(name, max)                                               \
 void helper_##name(CPUPPCState *env,                                          \
