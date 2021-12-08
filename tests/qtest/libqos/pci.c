@@ -13,6 +13,8 @@
 #include "qemu/osdep.h"
 #include "pci.h"
 
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_regs.h"
 #include "qemu/host-utils.h"
 #include "qgraph.h"
@@ -98,6 +100,123 @@ void qpci_device_init(QPCIDevice *dev, QPCIBus *bus, QPCIAddress *addr)
     g_assert(!addr->vendor_id || vendor_id == addr->vendor_id);
     g_assert(!addr->device_id || device_id == addr->device_id);
 }
+
+static uint8_t qpci_find_resource_reserve_capability(QPCIDevice *dev)
+{
+    uint16_t device_id;
+    uint8_t cap = 0;
+
+    if (qpci_config_readw(dev, PCI_VENDOR_ID) != PCI_VENDOR_ID_REDHAT) {
+        return 0;
+    }
+
+    device_id = qpci_config_readw(dev, PCI_DEVICE_ID);
+
+    if (device_id != PCI_DEVICE_ID_REDHAT_PCIE_RP &&
+        device_id != PCI_DEVICE_ID_REDHAT_BRIDGE) {
+        return 0;
+    }
+
+    do {
+        cap = qpci_find_capability(dev, PCI_CAP_ID_VNDR, cap);
+    } while (cap &&
+             qpci_config_readb(dev, cap + REDHAT_PCI_CAP_TYPE_OFFSET) !=
+             REDHAT_PCI_CAP_RESOURCE_RESERVE);
+    if (cap) {
+        uint8_t cap_len = qpci_config_readb(dev, cap + PCI_CAP_FLAGS);
+        if (cap_len < REDHAT_PCI_CAP_RES_RESERVE_CAP_SIZE) {
+            return 0;
+        }
+    }
+    return cap;
+}
+
+static void qpci_secondary_buses_rec(QPCIBus *qbus, int bus, int *pci_bus)
+{
+    QPCIDevice *dev;
+    uint16_t class;
+    uint8_t pribus, secbus, subbus;
+    int index;
+
+    for (index = 0; index < 32; index++) {
+        dev = qpci_device_find(qbus, QPCI_DEVFN(bus + index, 0));
+        if (dev == NULL) {
+            continue;
+        }
+        class = qpci_config_readw(dev, PCI_CLASS_DEVICE);
+        if (class == PCI_CLASS_BRIDGE_PCI) {
+            qpci_config_writeb(dev, PCI_SECONDARY_BUS, 255);
+            qpci_config_writeb(dev, PCI_SUBORDINATE_BUS, 0);
+        }
+        g_free(dev);
+    }
+
+    for (index = 0; index < 32; index++) {
+        dev = qpci_device_find(qbus, QPCI_DEVFN(bus + index, 0));
+        if (dev == NULL) {
+            continue;
+        }
+        class = qpci_config_readw(dev, PCI_CLASS_DEVICE);
+        if (class != PCI_CLASS_BRIDGE_PCI) {
+            g_free(dev);
+            continue;
+        }
+
+        pribus = qpci_config_readb(dev, PCI_PRIMARY_BUS);
+        if (pribus != bus) {
+            qpci_config_writeb(dev, PCI_PRIMARY_BUS, bus);
+        }
+
+        secbus = qpci_config_readb(dev, PCI_SECONDARY_BUS);
+        (*pci_bus)++;
+        if (*pci_bus != secbus) {
+            secbus = *pci_bus;
+            qpci_config_writeb(dev, PCI_SECONDARY_BUS, secbus);
+        }
+
+        subbus = qpci_config_readb(dev, PCI_SUBORDINATE_BUS);
+        qpci_config_writeb(dev, PCI_SUBORDINATE_BUS, 255);
+
+        qpci_secondary_buses_rec(qbus, secbus << 5, pci_bus);
+
+        if (subbus != *pci_bus) {
+            uint8_t res_bus = *pci_bus;
+            uint8_t cap = qpci_find_resource_reserve_capability(dev);
+
+            if (cap) {
+                uint32_t tmp_res_bus;
+
+                tmp_res_bus = qpci_config_readl(dev, cap +
+                                            REDHAT_PCI_CAP_RES_RESERVE_BUS_RES);
+                if (tmp_res_bus != (uint32_t)-1) {
+                    res_bus = tmp_res_bus & 0xFF;
+                    if ((uint8_t)(res_bus + secbus) < secbus ||
+                        (uint8_t)(res_bus + secbus) < res_bus) {
+                        res_bus = 0;
+                    }
+                    if (secbus + res_bus > *pci_bus) {
+                        res_bus = secbus + res_bus;
+                    }
+                }
+            }
+            subbus = res_bus;
+            *pci_bus = res_bus;
+        }
+
+        qpci_config_writeb(dev, PCI_SUBORDINATE_BUS, subbus);
+        g_free(dev);
+    }
+}
+
+int qpci_secondary_buses_init(QPCIBus *bus)
+{
+    int last_bus = 0;
+
+    qpci_secondary_buses_rec(bus, 0, &last_bus);
+
+    return last_bus;
+}
+
 
 void qpci_device_enable(QPCIDevice *dev)
 {
