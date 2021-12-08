@@ -206,8 +206,9 @@ static void nvme_free_req_queue_cb(void *opaque)
     NVMeQueuePair *q = opaque;
 
     qemu_mutex_lock(&q->lock);
-    while (qemu_co_enter_next(&q->free_req_queue, &q->lock)) {
-        /* Retry all pending requests */
+    while (q->free_req_head != -1 &&
+           qemu_co_enter_next(&q->free_req_queue, &q->lock)) {
+        /* Retry waiting requests */
     }
     qemu_mutex_unlock(&q->lock);
 }
