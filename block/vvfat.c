@@ -1230,6 +1230,7 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
                  dirname, cyls, heads, secs));
 
     s->sector_count = cyls * heads * secs - s->offset_to_bootsector;
+    bs->total_sectors = cyls * heads * secs;
 
     if (qemu_opt_get_bool(opts, "rw", false)) {
         if (!bdrv_is_read_only(bs)) {
@@ -1249,8 +1250,6 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
             goto fail;
         }
     }
-
-    bs->total_sectors = cyls * heads * secs;
 
     if (init_directories(s, dirname, heads, secs, errp)) {
         ret = -EIO;
@@ -3147,8 +3146,8 @@ static int enable_write_target(BlockDriverState *bs, Error **errp)
     }
 
     opts = qemu_opts_create(bdrv_qcow->create_opts, NULL, 0, &error_abort);
-    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, s->sector_count * 512,
-                        &error_abort);
+    qemu_opt_set_number(opts, BLOCK_OPT_SIZE,
+                        bs->total_sectors * BDRV_SECTOR_SIZE, &error_abort);
     qemu_opt_set(opts, BLOCK_OPT_BACKING_FILE, "fat:", &error_abort);
 
     ret = bdrv_create(bdrv_qcow, s->qcow_filename, opts, errp);
