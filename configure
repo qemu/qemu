@@ -344,7 +344,6 @@ debug_stack_usage="no"
 crypto_afalg="no"
 tls_priority="NORMAL"
 tpm="$default_feature"
-libssh="$default_feature"
 live_block_migration=${default_feature:-yes}
 numa="$default_feature"
 replication=${default_feature:-yes}
@@ -1078,10 +1077,6 @@ for opt do
   ;;
   --enable-tpm) tpm="yes"
   ;;
-  --disable-libssh) libssh="no"
-  ;;
-  --enable-libssh) libssh="yes"
-  ;;
   --disable-live-block-migration) live_block_migration="no"
   ;;
   --enable-live-block-migration) live_block_migration="yes"
@@ -1448,7 +1443,6 @@ cat << EOF
   live-block-migration   Block migration in the main migration stream
   coroutine-pool  coroutine freelist (better performance)
   tpm             TPM support
-  libssh          ssh block device support
   numa            libnuma support
   avx2            AVX2 optimization support
   avx512f         AVX512F optimization support
@@ -2562,21 +2556,6 @@ if test "$modules" = yes; then
 fi
 
 ##########################################
-# libssh probe
-if test "$libssh" != "no" ; then
-  if $pkg_config --exists "libssh >= 0.8.7"; then
-    libssh_cflags=$($pkg_config libssh --cflags)
-    libssh_libs=$($pkg_config libssh --libs)
-    libssh=yes
-  else
-    if test "$libssh" = "yes" ; then
-      error_exit "libssh required for --enable-libssh"
-    fi
-    libssh=no
-  fi
-fi
-
-##########################################
 # TPM emulation is only on POSIX
 
 if test "$tpm" = ""; then
@@ -3634,12 +3613,6 @@ fi
 
 if test "$cmpxchg128" = "yes" ; then
   echo "CONFIG_CMPXCHG128=y" >> $config_host_mak
-fi
-
-if test "$libssh" = "yes" ; then
-  echo "CONFIG_LIBSSH=y" >> $config_host_mak
-  echo "LIBSSH_CFLAGS=$libssh_cflags" >> $config_host_mak
-  echo "LIBSSH_LIBS=$libssh_libs" >> $config_host_mak
 fi
 
 if test "$live_block_migration" = "yes" ; then
