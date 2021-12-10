@@ -908,6 +908,7 @@ static void usb_uas_handle_data(USBDevice *dev, USBPacket *p)
         p->status = USB_RET_STALL;
         break;
     }
+    return;
 
 err_stream:
     error_report("%s: invalid stream %d", __func__, p->stream);
