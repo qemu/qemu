@@ -343,7 +343,11 @@ static RISCVException write_vstart(CPURISCVState *env, int csrno,
 #if !defined(CONFIG_USER_ONLY)
     env->mstatus |= MSTATUS_VS;
 #endif
-    env->vstart = val;
+    /*
+     * The vstart CSR is defined to have only enough writable bits
+     * to hold the largest element index, i.e. lg2(VLEN) bits.
+     */
+    env->vstart = val & ~(~0ULL << ctzl(env_archcpu(env)->cfg.vlen));
     return RISCV_EXCP_NONE;
 }
 

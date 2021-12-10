@@ -490,7 +490,7 @@ static bool vext_check_sds(DisasContext *s, int vd, int vs1, int vs2, int vm)
  */
 static bool vext_check_reduction(DisasContext *s, int vs2)
 {
-    return require_align(vs2, s->lmul);
+    return require_align(vs2, s->lmul) && (s->vstart == 0);
 }
 
 /*
@@ -2786,7 +2786,8 @@ GEN_MM_TRANS(vmxnor_mm)
 static bool trans_vcpop_m(DisasContext *s, arg_rmr *a)
 {
     if (require_rvv(s) &&
-        vext_check_isa_ill(s)) {
+        vext_check_isa_ill(s) &&
+        s->vstart == 0) {
         TCGv_ptr src2, mask;
         TCGv dst;
         TCGv_i32 desc;
@@ -2817,7 +2818,8 @@ static bool trans_vcpop_m(DisasContext *s, arg_rmr *a)
 static bool trans_vfirst_m(DisasContext *s, arg_rmr *a)
 {
     if (require_rvv(s) &&
-        vext_check_isa_ill(s)) {
+        vext_check_isa_ill(s) &&
+        s->vstart == 0) {
         TCGv_ptr src2, mask;
         TCGv dst;
         TCGv_i32 desc;
@@ -2852,7 +2854,8 @@ static bool trans_##NAME(DisasContext *s, arg_rmr *a)              \
     if (require_rvv(s) &&                                          \
         vext_check_isa_ill(s) &&                                   \
         require_vm(a->vm, a->rd) &&                                \
-        (a->rd != a->rs2)) {                                       \
+        (a->rd != a->rs2) &&                                       \
+        (s->vstart == 0)) {                                        \
         uint32_t data = 0;                                         \
         gen_helper_gvec_3_ptr *fn = gen_helper_##NAME;             \
         TCGLabel *over = gen_new_label();                          \
@@ -2888,7 +2891,8 @@ static bool trans_viota_m(DisasContext *s, arg_viota_m *a)
         vext_check_isa_ill(s) &&
         !is_overlapped(a->rd, 1 << MAX(s->lmul, 0), a->rs2, 1) &&
         require_vm(a->vm, a->rd) &&
-        require_align(a->rd, s->lmul)) {
+        require_align(a->rd, s->lmul) &&
+        (s->vstart == 0)) {
         uint32_t data = 0;
         TCGLabel *over = gen_new_label();
         tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_vl, 0, over);
@@ -3109,6 +3113,7 @@ static bool trans_vmv_s_x(DisasContext *s, arg_vmv_s_x *a)
         TCGLabel *over = gen_new_label();
 
         tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_vl, 0, over);
+        tcg_gen_brcond_tl(TCG_COND_GEU, cpu_vstart, cpu_vl, over);
 
         t1 = tcg_temp_new_i64();
 
@@ -3161,8 +3166,9 @@ static bool trans_vfmv_s_f(DisasContext *s, arg_vfmv_s_f *a)
         TCGv_i64 t1;
         TCGLabel *over = gen_new_label();
 
-        /* if vl == 0, skip vector register write back */
+        /* if vl == 0 or vstart >= vl, skip vector register write back */
         tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_vl, 0, over);
+        tcg_gen_brcond_tl(TCG_COND_GEU, cpu_vstart, cpu_vl, over);
 
         /* NaN-box f[rs1] */
         t1 = tcg_temp_new_i64();
@@ -3333,7 +3339,8 @@ static bool vcompress_vm_check(DisasContext *s, arg_r *a)
            require_align(a->rd, s->lmul) &&
            require_align(a->rs2, s->lmul) &&
            (a->rd != a->rs2) &&
-           !is_overlapped(a->rd, 1 << MAX(s->lmul, 0), a->rs1, 1);
+           !is_overlapped(a->rd, 1 << MAX(s->lmul, 0), a->rs1, 1) &&
+           (s->vstart == 0);
 }
 
 static bool trans_vcompress_vm(DisasContext *s, arg_r *a)
@@ -3363,26 +3370,40 @@ static bool trans_vcompress_vm(DisasContext *s, arg_r *a)
  * Whole Vector Register Move Instructions ignore vtype and vl setting.
  * Thus, we don't need to check vill bit. (Section 16.6)
  */
-#define GEN_VMV_WHOLE_TRANS(NAME, LEN)                          \
-static bool trans_##NAME(DisasContext *s, arg_##NAME * a)       \
-{                                                               \
-    if (require_rvv(s) &&                                       \
-        QEMU_IS_ALIGNED(a->rd, LEN) &&                          \
-        QEMU_IS_ALIGNED(a->rs2, LEN)) {                         \
-        /* EEW = 8 */                                           \
-        tcg_gen_gvec_mov(MO_8, vreg_ofs(s, a->rd),              \
-                         vreg_ofs(s, a->rs2),                   \
-                         s->vlen / 8 * LEN, s->vlen / 8 * LEN); \
-        mark_vs_dirty(s);                                       \
-        return true;                                            \
-    }                                                           \
-    return false;                                               \
+#define GEN_VMV_WHOLE_TRANS(NAME, LEN, SEQ)                             \
+static bool trans_##NAME(DisasContext *s, arg_##NAME * a)               \
+{                                                                       \
+    if (require_rvv(s) &&                                               \
+        QEMU_IS_ALIGNED(a->rd, LEN) &&                                  \
+        QEMU_IS_ALIGNED(a->rs2, LEN)) {                                 \
+        uint32_t maxsz = (s->vlen >> 3) * LEN;                          \
+        if (s->vstart == 0) {                                           \
+            /* EEW = 8 */                                               \
+            tcg_gen_gvec_mov(MO_8, vreg_ofs(s, a->rd),                  \
+                             vreg_ofs(s, a->rs2), maxsz, maxsz);        \
+            mark_vs_dirty(s);                                           \
+        } else {                                                        \
+            TCGLabel *over = gen_new_label();                           \
+            tcg_gen_brcondi_tl(TCG_COND_GEU, cpu_vstart, maxsz, over);  \
+                                                                        \
+            static gen_helper_gvec_2_ptr * const fns[4] = {             \
+                gen_helper_vmv1r_v, gen_helper_vmv2r_v,                 \
+                gen_helper_vmv4r_v, gen_helper_vmv8r_v,                 \
+            };                                                          \
+            tcg_gen_gvec_2_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, a->rs2), \
+                               cpu_env, maxsz, maxsz, 0, fns[SEQ]);     \
+            mark_vs_dirty(s);                                           \
+            gen_set_label(over);                                        \
+        }                                                               \
+        return true;                                                    \
+    }                                                                   \
+    return false;                                                       \
 }
 
-GEN_VMV_WHOLE_TRANS(vmv1r_v, 1)
-GEN_VMV_WHOLE_TRANS(vmv2r_v, 2)
-GEN_VMV_WHOLE_TRANS(vmv4r_v, 4)
-GEN_VMV_WHOLE_TRANS(vmv8r_v, 8)
+GEN_VMV_WHOLE_TRANS(vmv1r_v, 1, 0)
+GEN_VMV_WHOLE_TRANS(vmv2r_v, 2, 1)
+GEN_VMV_WHOLE_TRANS(vmv4r_v, 4, 2)
+GEN_VMV_WHOLE_TRANS(vmv8r_v, 8, 3)
 
 static bool int_ext_check(DisasContext *s, arg_rmr *a, uint8_t div)
 {

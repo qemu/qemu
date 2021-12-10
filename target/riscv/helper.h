@@ -1073,6 +1073,11 @@ DEF_HELPER_6(vcompress_vm_h, void, ptr, ptr, ptr, ptr, env, i32)
 DEF_HELPER_6(vcompress_vm_w, void, ptr, ptr, ptr, ptr, env, i32)
 DEF_HELPER_6(vcompress_vm_d, void, ptr, ptr, ptr, ptr, env, i32)
 
+DEF_HELPER_4(vmv1r_v, void, ptr, ptr, env, i32)
+DEF_HELPER_4(vmv2r_v, void, ptr, ptr, env, i32)
+DEF_HELPER_4(vmv4r_v, void, ptr, ptr, env, i32)
+DEF_HELPER_4(vmv8r_v, void, ptr, ptr, env, i32)
+
 DEF_HELPER_5(vzext_vf2_h, void, ptr, ptr, ptr, env, i32)
 DEF_HELPER_5(vzext_vf2_w, void, ptr, ptr, ptr, env, i32)
 DEF_HELPER_5(vzext_vf2_d, void, ptr, ptr, ptr, env, i32)
