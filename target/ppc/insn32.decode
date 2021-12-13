@@ -602,6 +602,9 @@ XSMAXCDP        111100 ..... ..... ..... 10000000 ...   @XX3
 XSMINCDP        111100 ..... ..... ..... 10001000 ...   @XX3
 XSMAXJDP        111100 ..... ..... ..... 10010000 ...   @XX3
 XSMINJDP        111100 ..... ..... ..... 10011000 ...   @XX3
+XSCMPEQQP       111111 ..... ..... ..... 0001000100 -   @X
+XSCMPGEQP       111111 ..... ..... ..... 0011000100 -   @X
+XSCMPGTQP       111111 ..... ..... ..... 0011100100 -   @X
 
 ## VSX Binary Floating-Point Convert Instructions
 

@@ -2311,6 +2311,10 @@ VSX_SCALAR_CMP(xscmpeqdp, float64, eq, VsrD(0), 1, 0)
 VSX_SCALAR_CMP(xscmpgedp, float64, le, VsrD(0), 1, 1)
 VSX_SCALAR_CMP(xscmpgtdp, float64, lt, VsrD(0), 1, 1)
 
+VSX_SCALAR_CMP(XSCMPEQQP, float128, eq, f128, 1, 0)
+VSX_SCALAR_CMP(XSCMPGEQP, float128, le, f128, 1, 1)
+VSX_SCALAR_CMP(XSCMPGTQP, float128, lt, f128, 1, 1)
+
 void helper_xscmpexpdp(CPUPPCState *env, uint32_t opcode,
                        ppc_vsr_t *xa, ppc_vsr_t *xb)
 {

@@ -2497,6 +2497,37 @@ TRANS(XSMINCDP, do_xsmaxmincjdp, gen_helper_xsmincdp)
 TRANS(XSMAXJDP, do_xsmaxmincjdp, gen_helper_xsmaxjdp)
 TRANS(XSMINJDP, do_xsmaxmincjdp, gen_helper_xsminjdp)
 
+static bool do_helper_X(arg_X *a,
+    void (*helper)(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr))
+{
+    TCGv_ptr rt, ra, rb;
+
+    rt = gen_avr_ptr(a->rt);
+    ra = gen_avr_ptr(a->ra);
+    rb = gen_avr_ptr(a->rb);
+
+    helper(cpu_env, rt, ra, rb);
+
+    tcg_temp_free_ptr(rt);
+    tcg_temp_free_ptr(ra);
+    tcg_temp_free_ptr(rb);
+
+    return true;
+}
+
+static bool do_xscmpqp(DisasContext *ctx, arg_X *a,
+    void (*helper)(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr))
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VSX(ctx);
+
+    return do_helper_X(a, helper);
+}
+
+TRANS(XSCMPEQQP, do_xscmpqp, gen_helper_XSCMPEQQP)
+TRANS(XSCMPGEQP, do_xscmpqp, gen_helper_XSCMPGEQP)
+TRANS(XSCMPGTQP, do_xscmpqp, gen_helper_XSCMPGTQP)
+
 #undef GEN_XX2FORM
 #undef GEN_XX3FORM
 #undef GEN_XX2IFORM
