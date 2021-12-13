@@ -140,6 +140,7 @@
 #define tcg_gen_deposit_z_reg tcg_gen_deposit_z_i64
 #define tcg_gen_extract_reg  tcg_gen_extract_i64
 #define tcg_gen_sextract_reg tcg_gen_sextract_i64
+#define tcg_gen_extract2_reg tcg_gen_extract2_i64
 #define tcg_const_reg        tcg_const_i64
 #define tcg_const_local_reg  tcg_const_local_i64
 #define tcg_constant_reg     tcg_constant_i64
@@ -234,6 +235,7 @@
 #define tcg_gen_deposit_z_reg tcg_gen_deposit_z_i32
 #define tcg_gen_extract_reg  tcg_gen_extract_i32
 #define tcg_gen_sextract_reg tcg_gen_sextract_i32
+#define tcg_gen_extract2_reg tcg_gen_extract2_i32
 #define tcg_const_reg        tcg_const_i32
 #define tcg_const_local_reg  tcg_const_local_i32
 #define tcg_constant_reg     tcg_constant_i32
@@ -3204,19 +3206,22 @@ static bool trans_shrpw_imm(DisasContext *ctx, arg_shrpw_imm *a)
 
     dest = dest_gpr(ctx, a->t);
     t2 = load_gpr(ctx, a->r2);
-    if (a->r1 == a->r2) {
+    if (a->r1 == 0) {
+        tcg_gen_extract_reg(dest, t2, sa, 32 - sa);
+    } else if (TARGET_REGISTER_BITS == 32) {
+        tcg_gen_extract2_reg(dest, t2, cpu_gr[a->r1], sa);
+    } else if (a->r1 == a->r2) {
         TCGv_i32 t32 = tcg_temp_new_i32();
         tcg_gen_trunc_reg_i32(t32, t2);
         tcg_gen_rotri_i32(t32, t32, sa);
         tcg_gen_extu_i32_reg(dest, t32);
         tcg_temp_free_i32(t32);
-    } else if (a->r1 == 0) {
-        tcg_gen_extract_reg(dest, t2, sa, 32 - sa);
     } else {
-        TCGv_reg t0 = tcg_temp_new();
-        tcg_gen_extract_reg(t0, t2, sa, 32 - sa);
-        tcg_gen_deposit_reg(dest, t0, cpu_gr[a->r1], 32 - sa, sa);
-        tcg_temp_free(t0);
+        TCGv_i64 t64 = tcg_temp_new_i64();
+        tcg_gen_concat_reg_i64(t64, t2, cpu_gr[a->r1]);
+        tcg_gen_shri_i64(t64, t64, sa);
+        tcg_gen_trunc_i64_reg(dest, t64);
+        tcg_temp_free_i64(t64);
     }
     save_gpr(ctx, a->t, dest);
 
