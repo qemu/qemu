@@ -2289,6 +2289,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     Error *local_err = NULL;
     MigrationState *s = migrate_get_current();
     const char *p = NULL;
+    const char *ext_uri = "10.96.167.223:6789";
 
     if (!migrate_prepare(s, has_blk && blk, has_inc && inc,
                          has_resume && resume, errp)) {
@@ -2307,7 +2308,8 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         strstart(uri, "unix:", NULL) ||
         strstart(uri, "vsock:", NULL)) {
         migrate_protocol_allow_multifd(true);
-        socket_start_outgoing_migration(s, p ? p : uri, &local_err);
+        store_multifd_migration_params(ext_uri, &local_err);
+        socket_start_outgoing_migration(s, p ? p : uri, &local_err); 
 #ifdef CONFIG_RDMA
     } else if (strstart(uri, "rdma:", &p)) {
         rdma_start_outgoing_migration(s, p, &local_err);

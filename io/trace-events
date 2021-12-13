@@ -14,7 +14,7 @@ qio_task_thread_source_cancel(void *task, void *source) "Task thread source canc
 qio_channel_socket_new(void *ioc) "Socket new ioc=%p"
 qio_channel_socket_new_fd(void *ioc, int fd) "Socket new ioc=%p fd=%d"
 qio_channel_socket_connect_sync(void *ioc, void *addr) "Socket connect sync ioc=%p addr=%p"
-qio_channel_socket_connect_async(void *ioc, void *addr) "Socket connect async ioc=%p addr=%p"
+qio_channel_socket_connect_async(void *ioc, void *addr) "Socket connect async ioc=%p addr=%p" 
 qio_channel_socket_connect_fail(void *ioc) "Socket connect fail ioc=%p"
 qio_channel_socket_connect_complete(void *ioc, int fd) "Socket connect complete ioc=%p fd=%d"
 qio_channel_socket_listen_sync(void *ioc, void *addr, int num) "Socket listen sync ioc=%p addr=%p num=%d"

@@ -110,13 +110,13 @@ int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
  * parameter will be copied, so may be freed as soon
  * as this function returns without waiting for completion.
  */
+
 void qio_channel_socket_connect_async(QIOChannelSocket *ioc,
                                       SocketAddress *addr,
                                       QIOTaskFunc callback,
                                       gpointer opaque,
                                       GDestroyNotify destroy,
                                       GMainContext *context);
-
 
 /**
  * qio_channel_socket_listen_sync:
