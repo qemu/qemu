@@ -32,18 +32,18 @@ struct SocketOutgoingArgs {
     SocketAddress *saddr;
 } outgoing_args, outgoing_args1;
 
-
+const char *src_uri = "10.16.60.24:6789";
 
 void socket_send_channel_create(QIOTaskFunc f, void *data)
 { 
     MultiFDSendParams *m =  data;  
     QIOChannelSocket *sioc = qio_channel_socket_new();
     if((m->id) == 0) {
-    	qio_channel_socket_connect_async(sioc, outgoing_args.saddr,
-                                     f, data, NULL, NULL);
+        qio_channel_socket_connect_async(sioc, outgoing_args.saddr,
+                                     f, data, NULL, NULL, src_uri);
     } else {
 	qio_channel_socket_connect_async(sioc, outgoing_args1.saddr,
-                                     f, data, NULL, NULL);
+                                     f, data, NULL, NULL, src_uri);
     } 
 /*
     qio_channel_socket_connect_async(sioc, outgoing_args.saddr,
@@ -96,6 +96,7 @@ static void socket_outgoing_migration(QIOTask *task,
 static void
 socket_start_outgoing_migration_internal(MigrationState *s,
                                          SocketAddress *saddr,
+                                         const char *src_uri,
                                          Error **errp) 
 {
     QIOChannelSocket *sioc = qio_channel_socket_new();
@@ -117,18 +118,19 @@ socket_start_outgoing_migration_internal(MigrationState *s,
                                      socket_outgoing_migration,
                                      data,
                                      socket_connect_data_free,
-                                     NULL); 
+                                     NULL, src_uri); 
 }
 
 
 void socket_start_outgoing_migration(MigrationState *s,
                                      const char *str,
+                                     const char *src_uri,
                                      Error **errp) 
 {
     Error *err = NULL;
     SocketAddress *saddr = socket_parse(str, &err); 
     if (!err) {
-        socket_start_outgoing_migration_internal(s, saddr, &err);
+        socket_start_outgoing_migration_internal(s, saddr, src_uri, &err);
     }
     error_propagate(errp, err);
 }

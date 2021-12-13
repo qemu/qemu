@@ -116,7 +116,8 @@ void qio_channel_socket_connect_async(QIOChannelSocket *ioc,
                                       QIOTaskFunc callback,
                                       gpointer opaque,
                                       GDestroyNotify destroy,
-                                      GMainContext *context);
+                                      GMainContext *context,
+                                      const char *src_uri);
 
 /**
  * qio_channel_socket_listen_sync:
