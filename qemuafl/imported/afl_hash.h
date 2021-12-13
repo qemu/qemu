@@ -6,6 +6,8 @@
 /* This is an exerpt of xxhash/XXH3 to prevent colliding with xxhash that is
    in QEMU */
 
+#pragma GCC optimize 3
+
 #include <stdio.h>
 #include <limits.h>
 #include <stdint.h>
