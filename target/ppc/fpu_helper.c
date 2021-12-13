@@ -2307,10 +2307,9 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                             \
     do_float_check_status(env, GETPC());                                      \
 }
 
-VSX_SCALAR_CMP(xscmpeqdp, float64, eq, VsrD(0), 1, 0)
-VSX_SCALAR_CMP(xscmpgedp, float64, le, VsrD(0), 1, 1)
-VSX_SCALAR_CMP(xscmpgtdp, float64, lt, VsrD(0), 1, 1)
-
+VSX_SCALAR_CMP(XSCMPEQDP, float64, eq, VsrD(0), 1, 0)
+VSX_SCALAR_CMP(XSCMPGEDP, float64, le, VsrD(0), 1, 1)
+VSX_SCALAR_CMP(XSCMPGTDP, float64, lt, VsrD(0), 1, 1)
 VSX_SCALAR_CMP(XSCMPEQQP, float128, eq, f128, 1, 0)
 VSX_SCALAR_CMP(XSCMPGEQP, float128, le, f128, 1, 1)
 VSX_SCALAR_CMP(XSCMPGTQP, float128, lt, f128, 1, 1)
