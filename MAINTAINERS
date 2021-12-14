@@ -3102,7 +3102,7 @@ F: include/qemu/yank.h
 F: qapi/yank.json
 
 COLO Framework
-M: zhanghailiang <zhang.zhanghailiang@huawei.com>
+M: Hailiang Zhang <zhanghailiang@xfusion.com>
 S: Maintained
 F: migration/colo*
 F: include/migration/colo.h
