@@ -691,7 +691,7 @@ char_socket_addr_to_opt_str(SocketAddress *addr, bool fd_pass,
         if (is_listen) {
             qio_channel_socket_listen_sync(ioc, addr, 1, &error_abort);
         } else {
-            qio_channel_socket_connect_sync(ioc, addr, &error_abort);
+            qio_channel_socket_connect_sync(ioc, addr, NULL, &error_abort);
         }
         fd = ioc->fd;
         ioc->fd = -1;
@@ -748,7 +748,7 @@ char_socket_server_client_thread(gpointer data)
     SocketAddress *addr = data;
     QIOChannelSocket *ioc = qio_channel_socket_new();
 
-    qio_channel_socket_connect_sync(ioc, addr, &error_abort);
+    qio_channel_socket_connect_sync(ioc, addr, NULL, &error_abort);
 
     char_socket_ping_pong(QIO_CHANNEL(ioc), &error_abort);
 
@@ -1147,7 +1147,7 @@ static void char_socket_server_two_clients_test(gconstpointer opaque)
                              &closed, NULL, true);
 
     ioc1 = qio_channel_socket_new();
-    qio_channel_socket_connect_sync(ioc1, addr, &error_abort);
+    qio_channel_socket_connect_sync(ioc1, addr, NULL, &error_abort);
     qemu_chr_wait_connected(chr, &error_abort);
 
     /* switch the chardev to another context */
@@ -1161,7 +1161,7 @@ static void char_socket_server_two_clients_test(gconstpointer opaque)
      * succeed immediately.
      */
     ioc2 = qio_channel_socket_new();
-    qio_channel_socket_connect_sync(ioc2, addr, &error_abort);
+    qio_channel_socket_connect_sync(ioc2, addr, NULL, &error_abort);
 
     object_unref(OBJECT(ioc1));
     /* The two connections should now be processed serially.  */

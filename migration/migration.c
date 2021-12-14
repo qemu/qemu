@@ -2290,7 +2290,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     MigrationState *s = migrate_get_current();
     const char *p = NULL;
     const char *ext_uri = "10.96.167.223:6789";
-    const char *src_uri = "10.16.60.24:6789";    
+    const char *src_uri = "10.96.166.102:6789";    
 
     if (!migrate_prepare(s, has_blk && blk, has_inc && inc,
                          has_resume && resume, errp)) {

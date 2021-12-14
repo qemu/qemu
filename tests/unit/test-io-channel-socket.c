@@ -72,7 +72,7 @@ static void test_io_channel_setup_sync(SocketAddress *listen_addr,
 
     *src = QIO_CHANNEL(qio_channel_socket_new());
     qio_channel_socket_connect_sync(
-        QIO_CHANNEL_SOCKET(*src), connect_addr, &error_abort);
+        QIO_CHANNEL_SOCKET(*src), connect_addr, NULL, &error_abort);
     qio_channel_set_delay(*src, false);
 
     qio_channel_wait(QIO_CHANNEL(lioc), G_IO_IN);

@@ -3945,7 +3945,7 @@ static int vnc_display_connect(VncDisplay *vd,
     vd->is_unix = saddr[0]->type == SOCKET_ADDRESS_TYPE_UNIX;
     sioc = qio_channel_socket_new();
     qio_channel_set_name(QIO_CHANNEL(sioc), "vnc-reverse");
-    if (qio_channel_socket_connect_sync(sioc, saddr[0], errp) < 0) {
+    if (qio_channel_socket_connect_sync(sioc, saddr[0], NULL, errp) < 0) {
         object_unref(OBJECT(sioc));
         return -1;
     }

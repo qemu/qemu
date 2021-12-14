@@ -45,10 +45,6 @@ void socket_send_channel_create(QIOTaskFunc f, void *data)
 	qio_channel_socket_connect_async(sioc, outgoing_args1.saddr,
                                      f, data, NULL, NULL, src_uri);
     } 
-/*
-    qio_channel_socket_connect_async(sioc, outgoing_args.saddr,
-                                     f, data, NULL, NULL);    
-    }  */
 }
 
 int socket_send_channel_destroy(QIOChannel *send)

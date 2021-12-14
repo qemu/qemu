@@ -506,7 +506,7 @@ static void input_barrier_complete(UserCreatable *uc, Error **errp)
     ib->sioc = qio_channel_socket_new();
     qio_channel_set_name(QIO_CHANNEL(ib->sioc), "barrier-client");
 
-    qio_channel_socket_connect_sync(ib->sioc, &ib->saddr, &local_err);
+    qio_channel_socket_connect_sync(ib->sioc, &ib->saddr, NULL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;

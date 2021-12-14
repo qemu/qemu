@@ -90,7 +90,8 @@ qio_channel_socket_new_fd(int fd,
  * an error occurs.
  */
 int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
-                                    SocketAddress *addr,
+                                    SocketAddress *dst_addr,
+                                    SocketAddress *src_addr,
                                     Error **errp);
 
 /**

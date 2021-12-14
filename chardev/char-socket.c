@@ -985,7 +985,7 @@ static int tcp_chr_connect_client_sync(Chardev *chr, Error **errp)
     QIOChannelSocket *sioc = qio_channel_socket_new();
     tcp_chr_change_state(s, TCP_CHARDEV_STATE_CONNECTING);
     tcp_chr_set_client_ioc_name(chr, sioc);
-    if (qio_channel_socket_connect_sync(sioc, s->addr, errp) < 0) {
+    if (qio_channel_socket_connect_sync(sioc, s->addr, NULL, errp) < 0) {
         tcp_chr_change_state(s, TCP_CHARDEV_STATE_DISCONNECTED);
         object_unref(OBJECT(sioc));
         return -1;
@@ -1173,7 +1173,7 @@ static void tcp_chr_connect_client_task(QIOTask *task,
     SocketAddress *addr = opaque;
     Error *err = NULL;
 
-    qio_channel_socket_connect_sync(ioc, addr, &err);
+    qio_channel_socket_connect_sync(ioc, addr, NULL, &err);
 
     qio_task_set_error(task, err);
 }

@@ -90,7 +90,7 @@ static void test_socket_fd_pass_name_good(void)
     addr.type = SOCKET_ADDRESS_TYPE_FD;
     addr.u.fd.str = g_strdup(mon_fdname);
 
-    fd = socket_connect(&addr, &error_abort);
+    fd = socket_connect(&addr, NULL, &error_abort);
     g_assert_cmpint(fd, !=, -1);
     g_assert_cmpint(fd, !=, mon_fd);
     close(fd);
@@ -122,7 +122,7 @@ static void test_socket_fd_pass_name_bad(void)
     addr.type = SOCKET_ADDRESS_TYPE_FD;
     addr.u.fd.str = g_strdup(mon_fdname);
 
-    fd = socket_connect(&addr, &err);
+    fd = socket_connect(&addr, NULL, &err);
     g_assert_cmpint(fd, ==, -1);
     error_free_or_abort(&err);
 
@@ -149,7 +149,7 @@ static void test_socket_fd_pass_name_nomon(void)
     addr.type = SOCKET_ADDRESS_TYPE_FD;
     addr.u.fd.str = g_strdup("myfd");
 
-    fd = socket_connect(&addr, &err);
+    fd = socket_connect(&addr, NULL, &err);
     g_assert_cmpint(fd, ==, -1);
     error_free_or_abort(&err);
 
@@ -173,7 +173,7 @@ static void test_socket_fd_pass_num_good(void)
     addr.type = SOCKET_ADDRESS_TYPE_FD;
     addr.u.fd.str = g_strdup_printf("%d", sfd);
 
-    fd = socket_connect(&addr, &error_abort);
+    fd = socket_connect(&addr, NULL, &error_abort);
     g_assert_cmpint(fd, ==, sfd);
 
     fd = socket_listen(&addr, 1, &error_abort);
@@ -195,7 +195,7 @@ static void test_socket_fd_pass_num_bad(void)
     addr.type = SOCKET_ADDRESS_TYPE_FD;
     addr.u.fd.str = g_strdup_printf("%d", sfd);
 
-    fd = socket_connect(&addr, &err);
+    fd = socket_connect(&addr, NULL, &err);
     g_assert_cmpint(fd, ==, -1);
     error_free_or_abort(&err);
 
@@ -218,7 +218,7 @@ static void test_socket_fd_pass_num_nocli(void)
     addr.type = SOCKET_ADDRESS_TYPE_FD;
     addr.u.fd.str = g_strdup_printf("%d", STDOUT_FILENO);
 
-    fd = socket_connect(&addr, &err);
+    fd = socket_connect(&addr, NULL, &err);
     g_assert_cmpint(fd, ==, -1);
     error_free_or_abort(&err);
 
@@ -247,10 +247,10 @@ static gpointer unix_client_thread_func(gpointer user_data)
 
     for (i = 0; i < ABSTRACT_SOCKET_VARIANTS; i++) {
         if (row->expect_connect[i]) {
-            fd = socket_connect(row->client[i], &error_abort);
+            fd = socket_connect(row->client[i], NULL, &error_abort);
             g_assert_cmpint(fd, >=, 0);
         } else {
-            fd = socket_connect(row->client[i], &err);
+            fd = socket_connect(row->client[i], NULL, &err);
             g_assert_cmpint(fd, ==, -1);
             error_free_or_abort(&err);
         }

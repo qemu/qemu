@@ -637,7 +637,7 @@ static int connect_to_ssh(BDRVSSHState *s, BlockdevOptionsSsh *opts,
     }
 
     /* Open the socket and connect. */
-    new_sock = inet_connect_saddr(s->inet, errp);
+    new_sock = inet_connect_saddr(s->inet, NULL, errp);
     if (new_sock < 0) {
         ret = -EIO;
         goto err;

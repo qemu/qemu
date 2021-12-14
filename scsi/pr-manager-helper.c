@@ -114,6 +114,7 @@ static int pr_manager_helper_initialize(PRManagerHelper *pr_mgr,
     qio_channel_set_name(QIO_CHANNEL(sioc), "pr-manager-helper");
     qio_channel_socket_connect_sync(sioc,
                                     &saddr,
+                                    NULL,
                                     &local_err);
     g_free(path);
     if (local_err) {
