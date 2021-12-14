@@ -512,6 +512,92 @@ DEFINE_GUID(GUID_DEVINTERFACE_STORAGEPORT,
         0x2accfe60L, 0xc130, 0x11d2, 0xb0, 0x82,
         0x00, 0xa0, 0xc9, 0x1e, 0xfb, 0x8b);
 
+static void get_pci_address_for_device(GuestPCIAddress *pci,
+                                       HDEVINFO dev_info)
+{
+    SP_DEVINFO_DATA dev_info_data;
+    DWORD j;
+    DWORD size;
+    bool partial_pci = false;
+
+    dev_info_data.cbSize = sizeof(SP_DEVINFO_DATA);
+
+    for (j = 0;
+         SetupDiEnumDeviceInfo(dev_info, j, &dev_info_data);
+         j++) {
+        DWORD addr, bus, ui_slot, type;
+        int func, slot;
+        size = sizeof(DWORD);
+
+        /*
+        * There is no need to allocate buffer in the next functions. The
+        * size is known and ULONG according to
+        * https://msdn.microsoft.com/en-us/library/windows/hardware/ff543095(v=vs.85).aspx
+        */
+        if (!SetupDiGetDeviceRegistryProperty(
+                dev_info, &dev_info_data, SPDRP_BUSNUMBER,
+                &type, (PBYTE)&bus, size, NULL)) {
+            debug_error("failed to get PCI bus");
+            bus = -1;
+            partial_pci = true;
+        }
+
+        /*
+        * The function retrieves the device's address. This value will be
+        * transformed into device function and number
+        */
+        if (!SetupDiGetDeviceRegistryProperty(
+                dev_info, &dev_info_data, SPDRP_ADDRESS,
+                &type, (PBYTE)&addr, size, NULL)) {
+            debug_error("failed to get PCI address");
+            addr = -1;
+            partial_pci = true;
+        }
+
+        /*
+        * This call returns UINumber of DEVICE_CAPABILITIES structure.
+        * This number is typically a user-perceived slot number.
+        */
+        if (!SetupDiGetDeviceRegistryProperty(
+                dev_info, &dev_info_data, SPDRP_UI_NUMBER,
+                &type, (PBYTE)&ui_slot, size, NULL)) {
+            debug_error("failed to get PCI slot");
+            ui_slot = -1;
+            partial_pci = true;
+        }
+
+        /*
+        * SetupApi gives us the same information as driver with
+        * IoGetDeviceProperty. According to Microsoft:
+        *
+        *   FunctionNumber = (USHORT)((propertyAddress) & 0x0000FFFF)
+        *   DeviceNumber = (USHORT)(((propertyAddress) >> 16) & 0x0000FFFF)
+        *   SPDRP_ADDRESS is propertyAddress, so we do the same.
+        *
+        * https://docs.microsoft.com/en-us/windows/desktop/api/setupapi/nf-setupapi-setupdigetdeviceregistrypropertya
+        */
+        if (partial_pci) {
+            pci->domain = -1;
+            pci->slot = -1;
+            pci->function = -1;
+            pci->bus = -1;
+            continue;
+        } else {
+            func = ((int)addr == -1) ? -1 : addr & 0x0000FFFF;
+            slot = ((int)addr == -1) ? -1 : (addr >> 16) & 0x0000FFFF;
+            if ((int)ui_slot != slot) {
+                g_debug("mismatch with reported slot values: %d vs %d",
+                        (int)ui_slot, slot);
+            }
+            pci->domain = 0;
+            pci->slot = (int)ui_slot;
+            pci->function = func;
+            pci->bus = (int)bus;
+            return;
+        }
+    }
+}
+
 static GuestPCIAddress *get_pci_info(int number, Error **errp)
 {
     HDEVINFO dev_info = INVALID_HANDLE_VALUE;
@@ -522,7 +608,6 @@ static GuestPCIAddress *get_pci_info(int number, Error **errp)
     HANDLE dev_file;
     int i;
     GuestPCIAddress *pci = NULL;
-    bool partial_pci = false;
 
     pci = g_malloc0(sizeof(*pci));
     pci->domain = -1;
@@ -545,7 +630,6 @@ static GuestPCIAddress *get_pci_info(int number, Error **errp)
         STORAGE_DEVICE_NUMBER sdn;
         char *parent_dev_id = NULL;
         SP_DEVINFO_DATA parent_dev_info_data;
-        DWORD j;
         DWORD size = 0;
 
         g_debug("getting device path");
@@ -672,79 +756,8 @@ static GuestPCIAddress *get_pci_info(int number, Error **errp)
             goto end;
         }
 
-        for (j = 0;
-             SetupDiEnumDeviceInfo(parent_dev_info, j, &parent_dev_info_data);
-             j++) {
-            DWORD addr, bus, ui_slot, type;
-            int func, slot;
+        get_pci_address_for_device(pci, parent_dev_info);
 
-            /*
-             * There is no need to allocate buffer in the next functions. The
-             * size is known and ULONG according to
-             * https://msdn.microsoft.com/en-us/library/windows/hardware/ff543095(v=vs.85).aspx
-             */
-            if (!SetupDiGetDeviceRegistryProperty(
-                  parent_dev_info, &parent_dev_info_data, SPDRP_BUSNUMBER,
-                  &type, (PBYTE)&bus, size, NULL)) {
-                debug_error("failed to get PCI bus");
-                bus = -1;
-                partial_pci = true;
-            }
-
-            /*
-             * The function retrieves the device's address. This value will be
-             * transformed into device function and number
-             */
-            if (!SetupDiGetDeviceRegistryProperty(
-                    parent_dev_info, &parent_dev_info_data, SPDRP_ADDRESS,
-                    &type, (PBYTE)&addr, size, NULL)) {
-                debug_error("failed to get PCI address");
-                addr = -1;
-                partial_pci = true;
-            }
-
-            /*
-             * This call returns UINumber of DEVICE_CAPABILITIES structure.
-             * This number is typically a user-perceived slot number.
-             */
-            if (!SetupDiGetDeviceRegistryProperty(
-                    parent_dev_info, &parent_dev_info_data, SPDRP_UI_NUMBER,
-                    &type, (PBYTE)&ui_slot, size, NULL)) {
-                debug_error("failed to get PCI slot");
-                ui_slot = -1;
-                partial_pci = true;
-            }
-
-            /*
-             * SetupApi gives us the same information as driver with
-             * IoGetDeviceProperty. According to Microsoft:
-             *
-             *   FunctionNumber = (USHORT)((propertyAddress) & 0x0000FFFF)
-             *   DeviceNumber = (USHORT)(((propertyAddress) >> 16) & 0x0000FFFF)
-             *   SPDRP_ADDRESS is propertyAddress, so we do the same.
-             *
-             * https://docs.microsoft.com/en-us/windows/desktop/api/setupapi/nf-setupapi-setupdigetdeviceregistrypropertya
-             */
-            if (partial_pci) {
-                pci->domain = -1;
-                pci->slot = -1;
-                pci->function = -1;
-                pci->bus = -1;
-                continue;
-            } else {
-                func = ((int)addr == -1) ? -1 : addr & 0x0000FFFF;
-                slot = ((int)addr == -1) ? -1 : (addr >> 16) & 0x0000FFFF;
-                if ((int)ui_slot != slot) {
-                    g_debug("mismatch with reported slot values: %d vs %d",
-                            (int)ui_slot, slot);
-                }
-                pci->domain = 0;
-                pci->slot = (int)ui_slot;
-                pci->function = func;
-                pci->bus = (int)bus;
-                break;
-            }
-        }
         break;
     }
 
