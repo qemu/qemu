@@ -680,8 +680,8 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
 
     qemu_mutex_lock_iothread();
     vm_stop_force_state(RUN_STATE_COLO);
-    trace_colo_vm_state_change("run", "stop");
     qemu_mutex_unlock_iothread();
+    trace_colo_vm_state_change("run", "stop");
 
     /* FIXME: This is unnecessary for periodic checkpoint mode */
     colo_send_message(mis->to_src_file, COLO_MESSAGE_CHECKPOINT_REPLY,
@@ -783,8 +783,8 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
 
     vmstate_loading = false;
     vm_start();
-    trace_colo_vm_state_change("stop", "run");
     qemu_mutex_unlock_iothread();
+    trace_colo_vm_state_change("stop", "run");
 
     if (failover_get_state() == FAILOVER_STATUS_RELAUNCH) {
         return;
@@ -887,8 +887,8 @@ void *colo_process_incoming_thread(void *opaque)
         abort();
 #endif
     vm_start();
-    trace_colo_vm_state_change("stop", "run");
     qemu_mutex_unlock_iothread();
+    trace_colo_vm_state_change("stop", "run");
 
     colo_send_message(mis->to_src_file, COLO_MESSAGE_CHECKPOINT_READY,
                       &local_err);
