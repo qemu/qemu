@@ -51,7 +51,7 @@ static int zlib_send_setup(MultiFDSendParams *p, Error **errp)
     zs->opaque = Z_NULL;
     if (deflateInit(zs, migrate_multifd_zlib_level()) != Z_OK) {
         g_free(z);
-        error_setg(errp, "multifd %d: deflate init failed", p->id);
+        error_setg(errp, "multifd %u: deflate init failed", p->id);
         return -1;
     }
     /* To be safe, we reserve twice the size of the packet */
@@ -60,7 +60,7 @@ static int zlib_send_setup(MultiFDSendParams *p, Error **errp)
     if (!z->zbuff) {
         deflateEnd(&z->zs);
         g_free(z);
-        error_setg(errp, "multifd %d: out of memory for zbuff", p->id);
+        error_setg(errp, "multifd %u: out of memory for zbuff", p->id);
         return -1;
     }
     p->data = z;
@@ -132,12 +132,12 @@ static int zlib_send_prepare(MultiFDSendParams *p, Error **errp)
             ret = deflate(zs, flush);
         } while (ret == Z_OK && zs->avail_in && zs->avail_out);
         if (ret == Z_OK && zs->avail_in) {
-            error_setg(errp, "multifd %d: deflate failed to compress all input",
+            error_setg(errp, "multifd %u: deflate failed to compress all input",
                        p->id);
             return -1;
         }
         if (ret != Z_OK) {
-            error_setg(errp, "multifd %d: deflate returned %d instead of Z_OK",
+            error_setg(errp, "multifd %u: deflate returned %d instead of Z_OK",
                        p->id, ret);
             return -1;
         }
@@ -190,7 +190,7 @@ static int zlib_recv_setup(MultiFDRecvParams *p, Error **errp)
     zs->avail_in = 0;
     zs->next_in = Z_NULL;
     if (inflateInit(zs) != Z_OK) {
-        error_setg(errp, "multifd %d: inflate init failed", p->id);
+        error_setg(errp, "multifd %u: inflate init failed", p->id);
         return -1;
     }
     /* To be safe, we reserve twice the size of the packet */
@@ -198,7 +198,7 @@ static int zlib_recv_setup(MultiFDRecvParams *p, Error **errp)
     z->zbuff = g_try_malloc(z->zbuff_len);
     if (!z->zbuff) {
         inflateEnd(zs);
-        error_setg(errp, "multifd %d: out of memory for zbuff", p->id);
+        error_setg(errp, "multifd %u: out of memory for zbuff", p->id);
         return -1;
     }
     return 0;
@@ -247,7 +247,7 @@ static int zlib_recv_pages(MultiFDRecvParams *p, Error **errp)
     int i;
 
     if (flags != MULTIFD_FLAG_ZLIB) {
-        error_setg(errp, "multifd %d: flags received %x flags expected %x",
+        error_setg(errp, "multifd %u: flags received %x flags expected %x",
                    p->id, flags, MULTIFD_FLAG_ZLIB);
         return -1;
     }
@@ -284,19 +284,19 @@ static int zlib_recv_pages(MultiFDRecvParams *p, Error **errp)
         } while (ret == Z_OK && zs->avail_in
                              && (zs->total_out - start) < page_size);
         if (ret == Z_OK && (zs->total_out - start) < page_size) {
-            error_setg(errp, "multifd %d: inflate generated too few output",
+            error_setg(errp, "multifd %u: inflate generated too few output",
                        p->id);
             return -1;
         }
         if (ret != Z_OK) {
-            error_setg(errp, "multifd %d: inflate returned %d instead of Z_OK",
+            error_setg(errp, "multifd %u: inflate returned %d instead of Z_OK",
                        p->id, ret);
             return -1;
         }
     }
     out_size = zs->total_out - out_size;
     if (out_size != expected_size) {
-        error_setg(errp, "multifd %d: packet size received %d size expected %d",
+        error_setg(errp, "multifd %u: packet size received %u size expected %u",
                    p->id, out_size, expected_size);
         return -1;
     }

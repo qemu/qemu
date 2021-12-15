@@ -148,7 +148,7 @@ static int nocomp_recv_pages(MultiFDRecvParams *p, Error **errp)
     uint32_t flags = p->flags & MULTIFD_FLAG_COMPRESSION_MASK;
 
     if (flags != MULTIFD_FLAG_NOCOMP) {
-        error_setg(errp, "multifd %d: flags received %x flags expected %x",
+        error_setg(errp, "multifd %u: flags received %x flags expected %x",
                    p->id, flags, MULTIFD_FLAG_NOCOMP);
         return -1;
     }
@@ -212,8 +212,8 @@ static int multifd_recv_initial_packet(QIOChannel *c, Error **errp)
     }
 
     if (msg.version != MULTIFD_VERSION) {
-        error_setg(errp, "multifd: received packet version %d "
-                   "expected %d", msg.version, MULTIFD_VERSION);
+        error_setg(errp, "multifd: received packet version %u "
+                   "expected %u", msg.version, MULTIFD_VERSION);
         return -1;
     }
 
@@ -229,8 +229,8 @@ static int multifd_recv_initial_packet(QIOChannel *c, Error **errp)
     }
 
     if (msg.id > migrate_multifd_channels()) {
-        error_setg(errp, "multifd: received channel version %d "
-                   "expected %d", msg.version, MULTIFD_VERSION);
+        error_setg(errp, "multifd: received channel version %u "
+                   "expected %u", msg.version, MULTIFD_VERSION);
         return -1;
     }
 
@@ -303,7 +303,7 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
     packet->version = be32_to_cpu(packet->version);
     if (packet->version != MULTIFD_VERSION) {
         error_setg(errp, "multifd: received packet "
-                   "version %d and expected version %d",
+                   "version %u and expected version %u",
                    packet->version, MULTIFD_VERSION);
         return -1;
     }
@@ -317,7 +317,7 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
      */
     if (packet->pages_alloc > pages_max * 100) {
         error_setg(errp, "multifd: received packet "
-                   "with size %d and expected a maximum size of %d",
+                   "with size %u and expected a maximum size of %u",
                    packet->pages_alloc, pages_max * 100) ;
         return -1;
     }
@@ -333,7 +333,7 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
     p->pages->num = be32_to_cpu(packet->pages_used);
     if (p->pages->num > packet->pages_alloc) {
         error_setg(errp, "multifd: received packet "
-                   "with %d pages and expected maximum pages are %d",
+                   "with %u pages and expected maximum pages are %u",
                    p->pages->num, packet->pages_alloc) ;
         return -1;
     }

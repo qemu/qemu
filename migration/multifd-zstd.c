@@ -55,7 +55,7 @@ static int zstd_send_setup(MultiFDSendParams *p, Error **errp)
     z->zcs = ZSTD_createCStream();
     if (!z->zcs) {
         g_free(z);
-        error_setg(errp, "multifd %d: zstd createCStream failed", p->id);
+        error_setg(errp, "multifd %u: zstd createCStream failed", p->id);
         return -1;
     }
 
@@ -63,7 +63,7 @@ static int zstd_send_setup(MultiFDSendParams *p, Error **errp)
     if (ZSTD_isError(res)) {
         ZSTD_freeCStream(z->zcs);
         g_free(z);
-        error_setg(errp, "multifd %d: initCStream failed with error %s",
+        error_setg(errp, "multifd %u: initCStream failed with error %s",
                    p->id, ZSTD_getErrorName(res));
         return -1;
     }
@@ -73,7 +73,7 @@ static int zstd_send_setup(MultiFDSendParams *p, Error **errp)
     if (!z->zbuff) {
         ZSTD_freeCStream(z->zcs);
         g_free(z);
-        error_setg(errp, "multifd %d: out of memory for zbuff", p->id);
+        error_setg(errp, "multifd %u: out of memory for zbuff", p->id);
         return -1;
     }
     return 0;
@@ -144,12 +144,12 @@ static int zstd_send_prepare(MultiFDSendParams *p, Error **errp)
         } while (ret > 0 && (z->in.size - z->in.pos > 0)
                          && (z->out.size - z->out.pos > 0));
         if (ret > 0 && (z->in.size - z->in.pos > 0)) {
-            error_setg(errp, "multifd %d: compressStream buffer too small",
+            error_setg(errp, "multifd %u: compressStream buffer too small",
                        p->id);
             return -1;
         }
         if (ZSTD_isError(ret)) {
-            error_setg(errp, "multifd %d: compressStream error %s",
+            error_setg(errp, "multifd %u: compressStream error %s",
                        p->id, ZSTD_getErrorName(ret));
             return -1;
         }
@@ -198,7 +198,7 @@ static int zstd_recv_setup(MultiFDRecvParams *p, Error **errp)
     z->zds = ZSTD_createDStream();
     if (!z->zds) {
         g_free(z);
-        error_setg(errp, "multifd %d: zstd createDStream failed", p->id);
+        error_setg(errp, "multifd %u: zstd createDStream failed", p->id);
         return -1;
     }
 
@@ -206,7 +206,7 @@ static int zstd_recv_setup(MultiFDRecvParams *p, Error **errp)
     if (ZSTD_isError(ret)) {
         ZSTD_freeDStream(z->zds);
         g_free(z);
-        error_setg(errp, "multifd %d: initDStream failed with error %s",
+        error_setg(errp, "multifd %u: initDStream failed with error %s",
                    p->id, ZSTD_getErrorName(ret));
         return -1;
     }
@@ -217,7 +217,7 @@ static int zstd_recv_setup(MultiFDRecvParams *p, Error **errp)
     if (!z->zbuff) {
         ZSTD_freeDStream(z->zds);
         g_free(z);
-        error_setg(errp, "multifd %d: out of memory for zbuff", p->id);
+        error_setg(errp, "multifd %u: out of memory for zbuff", p->id);
         return -1;
     }
     return 0;
@@ -265,7 +265,7 @@ static int zstd_recv_pages(MultiFDRecvParams *p, Error **errp)
     int i;
 
     if (flags != MULTIFD_FLAG_ZSTD) {
-        error_setg(errp, "multifd %d: flags received %x flags expected %x",
+        error_setg(errp, "multifd %u: flags received %x flags expected %x",
                    p->id, flags, MULTIFD_FLAG_ZSTD);
         return -1;
     }
@@ -297,19 +297,19 @@ static int zstd_recv_pages(MultiFDRecvParams *p, Error **errp)
         } while (ret > 0 && (z->in.size - z->in.pos > 0)
                          && (z->out.pos < page_size));
         if (ret > 0 && (z->out.pos < page_size)) {
-            error_setg(errp, "multifd %d: decompressStream buffer too small",
+            error_setg(errp, "multifd %u: decompressStream buffer too small",
                        p->id);
             return -1;
         }
         if (ZSTD_isError(ret)) {
-            error_setg(errp, "multifd %d: decompressStream returned %s",
+            error_setg(errp, "multifd %u: decompressStream returned %s",
                        p->id, ZSTD_getErrorName(ret));
             return ret;
         }
         out_size += z->out.pos;
     }
     if (out_size != expected_size) {
-        error_setg(errp, "multifd %d: packet size received %d size expected %d",
+        error_setg(errp, "multifd %u: packet size received %u size expected %u",
                    p->id, out_size, expected_size);
         return -1;
     }
