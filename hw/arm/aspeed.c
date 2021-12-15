@@ -284,12 +284,13 @@ static void write_boot_rom(DriveInfo *dinfo, hwaddr addr, size_t rom_size,
 }
 
 static void aspeed_board_init_flashes(AspeedSMCState *s,
-                                      const char *flashtype)
+                                      const char *flashtype,
+                                      int unit0)
 {
     int i ;
 
     for (i = 0; i < s->num_cs; ++i) {
-        DriveInfo *dinfo = drive_get_next(IF_MTD);
+        DriveInfo *dinfo = drive_get(IF_MTD, 0, unit0 + i);
         qemu_irq cs_line;
         DeviceState *dev;
 
@@ -382,10 +383,12 @@ static void aspeed_machine_init(MachineState *machine)
                           "max_ram", max_ram_size  - machine->ram_size);
     memory_region_add_subregion(&bmc->ram_container, machine->ram_size, &bmc->max_ram);
 
-    aspeed_board_init_flashes(&bmc->soc.fmc, bmc->fmc_model ?
-                              bmc->fmc_model : amc->fmc_model);
-    aspeed_board_init_flashes(&bmc->soc.spi[0], bmc->spi_model ?
-                              bmc->spi_model : amc->spi_model);
+    aspeed_board_init_flashes(&bmc->soc.fmc,
+                              bmc->fmc_model ? bmc->fmc_model : amc->fmc_model,
+                              0);
+    aspeed_board_init_flashes(&bmc->soc.spi[0],
+                              bmc->spi_model ? bmc->spi_model : amc->spi_model,
+                              bmc->soc.fmc.num_cs);
 
     /* Install first FMC flash content as a boot rom. */
     if (drive0) {
@@ -435,11 +438,13 @@ static void aspeed_machine_init(MachineState *machine)
     }
 
     for (i = 0; i < bmc->soc.sdhci.num_slots; i++) {
-        sdhci_attach_drive(&bmc->soc.sdhci.slots[i], drive_get_next(IF_SD));
+        sdhci_attach_drive(&bmc->soc.sdhci.slots[i],
+                           drive_get(IF_SD, 0, i));
     }
 
     if (bmc->soc.emmc.num_slots) {
-        sdhci_attach_drive(&bmc->soc.emmc.slots[0], drive_get_next(IF_SD));
+        sdhci_attach_drive(&bmc->soc.emmc.slots[0],
+                           drive_get(IF_SD, 0, bmc->soc.sdhci.num_slots));
     }
 
     arm_load_kernel(ARM_CPU(first_cpu), machine, &aspeed_board_binfo);

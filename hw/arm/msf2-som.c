@@ -45,7 +45,7 @@ static void emcraft_sf2_s2s010_init(MachineState *machine)
     DeviceState *spi_flash;
     MSF2State *soc;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
-    DriveInfo *dinfo = drive_get_next(IF_MTD);
+    DriveInfo *dinfo = drive_get(IF_MTD, 0, 0);
     qemu_irq cs_line;
     BusState *spi_bus;
     MemoryRegion *sysmem = get_system_memory();

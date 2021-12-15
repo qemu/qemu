@@ -303,16 +303,6 @@ int drive_get_max_bus(BlockInterfaceType type)
     return max_bus;
 }
 
-/* Get a block device.  This should only be used for single-drive devices
-   (e.g. SD/Floppy/MTD).  Multi-disk devices (scsi/ide) should use the
-   appropriate bus.  */
-DriveInfo *drive_get_next(BlockInterfaceType type)
-{
-    static int next_block_unit[IF_COUNT];
-
-    return drive_get(type, 0, next_block_unit[type]++);
-}
-
 static void bdrv_format_print(void *opaque, const char *name)
 {
     qemu_printf(" %s", name);

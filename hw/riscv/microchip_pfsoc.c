@@ -458,7 +458,7 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
     target_ulong firmware_end_addr, kernel_start_addr;
     uint64_t kernel_entry;
     uint32_t fdt_load_addr;
-    DriveInfo *dinfo = drive_get_next(IF_SD);
+    DriveInfo *dinfo = drive_get(IF_SD, 0, 0);
 
     /* Sanity check on RAM size */
     if (machine->ram_size < mc->default_ram_size) {
