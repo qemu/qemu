@@ -40,7 +40,7 @@ void socket_send_channel_create(QIOTaskFunc f, void *data)
     QIOChannelSocket *sioc = qio_channel_socket_new();
     if((m->id) < 2) {
         qio_channel_socket_connect_async(sioc, outgoing_args.saddr,
-                                     f, data, NULL, NULL, src_uri);
+                                     f, data, NULL, NULL, NULL);
     } else {
 	qio_channel_socket_connect_async(sioc, outgoing_args1.saddr,
                                      f, data, NULL, NULL, src_uri);
@@ -114,7 +114,7 @@ socket_start_outgoing_migration_internal(MigrationState *s,
                                      socket_outgoing_migration,
                                      data,
                                      socket_connect_data_free,
-                                     NULL, src_uri); 
+                                     NULL, NULL); 
 }
 
 

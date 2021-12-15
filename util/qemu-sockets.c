@@ -483,7 +483,7 @@ int inet_connect_saddr(InetSocketAddress *dst_addr, InetSocketAddress *src_addr,
             e->ai_protocol = IPPROTO_MPTCP;
         }
 #endif
-
+        
         sock = inet_connect_addr(dst_addr, src_addr, e, &local_err);
         if (sock >= 0) {
             break;
@@ -1121,7 +1121,10 @@ SocketAddress *socket_parse(const char *str, Error **errp)
     SocketAddress *addr;
 
     addr = g_new0(SocketAddress, 1);
-    if (strstart(str, "unix:", NULL)) {
+    if (str == NULL) {
+        return addr;
+    }
+    else if (strstart(str, "unix:", NULL)) {
         if (str[5] == '\0') {
             error_setg(errp, "invalid Unix socket address");
             goto fail;

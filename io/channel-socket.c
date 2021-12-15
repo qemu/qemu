@@ -200,7 +200,7 @@ void qio_channel_socket_connect_async(QIOChannelSocket *ioc,
     Error *err = NULL;
  
     data->dst_addr = QAPI_CLONE(SocketAddress, addr);
-
+    
     SocketAddress *s_addrCopy = socket_parse(src_uri, &err);
     data->src_addr = QAPI_CLONE(SocketAddress, s_addrCopy);
 
