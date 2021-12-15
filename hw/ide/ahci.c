@@ -1386,7 +1386,7 @@ static void ahci_pio_transfer(const IDEDMA *dma)
         if (is_write) {
             dma_buf_write(s->data_ptr, size, &s->sg, attrs);
         } else {
-            dma_buf_read(s->data_ptr, size, &s->sg);
+            dma_buf_read(s->data_ptr, size, &s->sg, attrs);
         }
     }
 
@@ -1479,7 +1479,7 @@ static int ahci_dma_rw_buf(const IDEDMA *dma, bool is_write)
     }
 
     if (is_write) {
-        dma_buf_read(p, l, &s->sg);
+        dma_buf_read(p, l, &s->sg, MEMTXATTRS_UNSPECIFIED);
     } else {
         dma_buf_write(p, l, &s->sg, MEMTXATTRS_UNSPECIFIED);
     }
