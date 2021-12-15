@@ -151,7 +151,6 @@
 --disable-whpx \
 --disable-xen \
 --disable-xen-pci-passthrough \
---disable-xfsctl \
 --disable-xkbcommon \
 --disable-zstd \
 --enable-attr \
