@@ -741,6 +741,7 @@ static void sdhci_do_adma(SDHCIState *s)
 {
     unsigned int begin, length;
     const uint16_t block_size = s->blksize & BLOCK_SIZE_MASK;
+    const MemTxAttrs attrs = { .memory = true };
     ADMADescr dscr = {};
     MemTxResult res;
     int i;
@@ -794,7 +795,7 @@ static void sdhci_do_adma(SDHCIState *s)
                     res = dma_memory_write(s->dma_as, dscr.addr,
                                            &s->fifo_buffer[begin],
                                            s->data_count - begin,
-                                           MEMTXATTRS_UNSPECIFIED);
+                                           attrs);
                     if (res != MEMTX_OK) {
                         break;
                     }
@@ -823,7 +824,7 @@ static void sdhci_do_adma(SDHCIState *s)
                     res = dma_memory_read(s->dma_as, dscr.addr,
                                           &s->fifo_buffer[begin],
                                           s->data_count - begin,
-                                          MEMTXATTRS_UNSPECIFIED);
+                                          attrs);
                     if (res != MEMTX_OK) {
                         break;
                     }
