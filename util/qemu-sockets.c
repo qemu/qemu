@@ -46,7 +46,8 @@
 # define AI_NUMERICSERV 0
 #endif
 
-
+uint32_t port_inc =  0;
+ 
 static int inet_getport(struct addrinfo *e)
 {
     struct sockaddr_in *i4;
@@ -375,11 +376,11 @@ static int inet_connect_addr(const InetSocketAddress *dst_addr,
     socket_set_fast_reuse(sock);
 
     /* to bind the socket */
-
+    
     struct sockaddr_in servaddr;
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = inet_addr(src_addr->host);
-    servaddr.sin_port = htons(*src_addr->port);
+    servaddr.sin_port = htons(*src_addr->port + port_inc++);
 
     if( bind(sock, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
         error_setg_errno(errp, errno, "Failed to bind socket");
