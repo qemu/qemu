@@ -20,7 +20,6 @@
 #define RX_CPU_H
 
 #include "qemu/bitops.h"
-#include "qemu-common.h"
 #include "hw/registerfields.h"
 #include "cpu-qom.h"
 

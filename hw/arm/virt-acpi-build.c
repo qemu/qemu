@@ -55,6 +55,7 @@
 #include "kvm_arm.h"
 #include "migration/vmstate.h"
 #include "hw/acpi/ghes.h"
+#include "hw/acpi/viot.h"
 
 #define ARM_SPI_BASE 32
 
@@ -1010,6 +1011,12 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
                    vms->oem_table_id);
     }
 #endif
+
+    if (vms->iommu == VIRT_IOMMU_VIRTIO) {
+        acpi_add_table(table_offsets, tables_blob);
+        build_viot(ms, tables_blob, tables->linker, vms->virtio_iommu_bdf,
+                   vms->oem_id, vms->oem_table_id);
+    }
 
     /* XSDT is pointed to by RSDP */
     xsdt = tables_blob->len;

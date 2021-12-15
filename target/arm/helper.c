@@ -4519,17 +4519,17 @@ static uint64_t tlbi_aa64_range_get_length(CPUARMState *env,
     uint64_t exponent;
     uint64_t length;
 
-    num = extract64(value, 39, 4);
+    num = extract64(value, 39, 5);
     scale = extract64(value, 44, 2);
     page_size_granule = extract64(value, 46, 2);
-
-    page_shift = page_size_granule * 2 + 12;
 
     if (page_size_granule == 0) {
         qemu_log_mask(LOG_GUEST_ERROR, "Invalid page size granule %d\n",
                       page_size_granule);
         return 0;
     }
+
+    page_shift = (page_size_granule - 1) * 2 + 12;
 
     exponent = (5 * scale) + 1;
     length = (num + 1) << (exponent + page_shift);
