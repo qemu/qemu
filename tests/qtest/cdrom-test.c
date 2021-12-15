@@ -109,9 +109,11 @@ static void test_cdrom_param(gconstpointer data)
 static void add_cdrom_param_tests(const char **machines)
 {
     while (*machines) {
-        char *testname = g_strdup_printf("cdrom/param/%s", *machines);
-        qtest_add_data_func(testname, *machines, test_cdrom_param);
-        g_free(testname);
+        if (qtest_has_machine(*machines)) {
+            char *testname = g_strdup_printf("cdrom/param/%s", *machines);
+            qtest_add_data_func(testname, *machines, test_cdrom_param);
+            g_free(testname);
+        }
         machines++;
     }
 }

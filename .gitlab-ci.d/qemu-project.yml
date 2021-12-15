@@ -11,3 +11,4 @@ include:
   - local: '/.gitlab-ci.d/static_checks.yml'
   - local: '/.gitlab-ci.d/custom-runners.yml'
   - local: '/.gitlab-ci.d/cirrus.yml'
+  - local: '/.gitlab-ci.d/windows.yml'

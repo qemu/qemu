@@ -822,27 +822,22 @@ unlock:
 static void virtio_iommu_get_config(VirtIODevice *vdev, uint8_t *config_data)
 {
     VirtIOIOMMU *dev = VIRTIO_IOMMU(vdev);
-    struct virtio_iommu_config *config = &dev->config;
+    struct virtio_iommu_config *dev_config = &dev->config;
+    struct virtio_iommu_config *out_config = (void *)config_data;
 
-    trace_virtio_iommu_get_config(config->page_size_mask,
-                                  config->input_range.start,
-                                  config->input_range.end,
-                                  config->domain_range.end,
-                                  config->probe_size);
-    memcpy(config_data, &dev->config, sizeof(struct virtio_iommu_config));
-}
+    out_config->page_size_mask = cpu_to_le64(dev_config->page_size_mask);
+    out_config->input_range.start = cpu_to_le64(dev_config->input_range.start);
+    out_config->input_range.end = cpu_to_le64(dev_config->input_range.end);
+    out_config->domain_range.start = cpu_to_le32(dev_config->domain_range.start);
+    out_config->domain_range.end = cpu_to_le32(dev_config->domain_range.end);
+    out_config->probe_size = cpu_to_le32(dev_config->probe_size);
 
-static void virtio_iommu_set_config(VirtIODevice *vdev,
-                                      const uint8_t *config_data)
-{
-    struct virtio_iommu_config config;
-
-    memcpy(&config, config_data, sizeof(struct virtio_iommu_config));
-    trace_virtio_iommu_set_config(config.page_size_mask,
-                                  config.input_range.start,
-                                  config.input_range.end,
-                                  config.domain_range.end,
-                                  config.probe_size);
+    trace_virtio_iommu_get_config(dev_config->page_size_mask,
+                                  dev_config->input_range.start,
+                                  dev_config->input_range.end,
+                                  dev_config->domain_range.start,
+                                  dev_config->domain_range.end,
+                                  dev_config->probe_size);
 }
 
 static uint64_t virtio_iommu_get_features(VirtIODevice *vdev, uint64_t f,
@@ -983,8 +978,8 @@ static void virtio_iommu_device_realize(DeviceState *dev, Error **errp)
     s->event_vq = virtio_add_queue(vdev, VIOMMU_DEFAULT_QUEUE_SIZE, NULL);
 
     s->config.page_size_mask = TARGET_PAGE_MASK;
-    s->config.input_range.end = -1UL;
-    s->config.domain_range.end = 32;
+    s->config.input_range.end = UINT64_MAX;
+    s->config.domain_range.end = UINT32_MAX;
     s->config.probe_size = VIOMMU_PROBE_SIZE;
 
     virtio_add_feature(&s->features, VIRTIO_RING_F_EVENT_IDX);
@@ -1185,7 +1180,6 @@ static void virtio_iommu_class_init(ObjectClass *klass, void *data)
     vdc->unrealize = virtio_iommu_device_unrealize;
     vdc->reset = virtio_iommu_device_reset;
     vdc->get_config = virtio_iommu_get_config;
-    vdc->set_config = virtio_iommu_set_config;
     vdc->get_features = virtio_iommu_get_features;
     vdc->set_status = virtio_iommu_set_status;
     vdc->vmsd = &vmstate_virtio_iommu_device;

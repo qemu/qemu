@@ -1,0 +1,98 @@
+.shared_msys2_builder:
+  tags:
+  - shared-windows
+  - windows
+  - windows-1809
+  cache:
+    key: "${CI_JOB_NAME}-cache"
+    paths:
+      - ${CI_PROJECT_DIR}/msys64/var/cache
+  needs: []
+  stage: build
+  timeout: 70m
+  before_script:
+  - If ( !(Test-Path -Path msys64\var\cache ) ) {
+      mkdir msys64\var\cache
+    }
+  - If ( !(Test-Path -Path msys64\var\cache\msys2.exe ) ) {
+      Invoke-WebRequest
+      "https://github.com/msys2/msys2-installer/releases/download/2021-07-25/msys2-base-x86_64-20210725.sfx.exe"
+      -outfile "msys64\var\cache\msys2.exe"
+    }
+  - msys64\var\cache\msys2.exe -y
+  - ((Get-Content -path .\msys64\etc\\post-install\\07-pacman-key.post -Raw)
+      -replace '--refresh-keys', '--version') |
+     Set-Content -Path ${CI_PROJECT_DIR}\msys64\etc\\post-install\\07-pacman-key.post
+  - .\msys64\usr\bin\bash -lc "sed -i 's/^CheckSpace/#CheckSpace/g' /etc/pacman.conf"
+  - .\msys64\usr\bin\bash -lc 'pacman --noconfirm -Syuu'  # Core update
+  - .\msys64\usr\bin\bash -lc 'pacman --noconfirm -Syuu'  # Normal update
+  - taskkill /F /FI "MODULES eq msys-2.0.dll"
+
+msys2-64bit:
+  extends: .shared_msys2_builder
+  script:
+  - .\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm --needed
+      diffutils git grep make sed
+      mingw-w64-x86_64-capstone
+      mingw-w64-x86_64-curl
+      mingw-w64-x86_64-cyrus-sasl
+      mingw-w64-x86_64-gcc
+      mingw-w64-x86_64-glib2
+      mingw-w64-x86_64-gnutls
+      mingw-w64-x86_64-libnfs
+      mingw-w64-x86_64-libpng
+      mingw-w64-x86_64-libssh
+      mingw-w64-x86_64-libtasn1
+      mingw-w64-x86_64-libusb
+      mingw-w64-x86_64-libxml2
+      mingw-w64-x86_64-nettle
+      mingw-w64-x86_64-ninja
+      mingw-w64-x86_64-pixman
+      mingw-w64-x86_64-pkgconf
+      mingw-w64-x86_64-python
+      mingw-w64-x86_64-SDL2
+      mingw-w64-x86_64-SDL2_image
+      mingw-w64-x86_64-snappy
+      mingw-w64-x86_64-usbredir
+      mingw-w64-x86_64-zstd "
+  - $env:CHERE_INVOKING = 'yes'  # Preserve the current working directory
+  - $env:MSYSTEM = 'MINGW64'     # Start a 64 bit Mingw environment
+  - .\msys64\usr\bin\bash -lc './configure --target-list=x86_64-softmmu
+      --enable-capstone=system'
+  - .\msys64\usr\bin\bash -lc "sed -i '/^ROMS=/d' build/config-host.mak"
+  - .\msys64\usr\bin\bash -lc 'make -j2'
+  - .\msys64\usr\bin\bash -lc 'make check'
+
+msys2-32bit:
+  extends: .shared_msys2_builder
+  script:
+  - .\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm --needed
+      diffutils git grep make sed
+      mingw-w64-i686-capstone
+      mingw-w64-i686-curl
+      mingw-w64-i686-cyrus-sasl
+      mingw-w64-i686-gcc
+      mingw-w64-i686-glib2
+      mingw-w64-i686-gnutls
+      mingw-w64-i686-gtk3
+      mingw-w64-i686-libgcrypt
+      mingw-w64-i686-libjpeg-turbo
+      mingw-w64-i686-libssh
+      mingw-w64-i686-libtasn1
+      mingw-w64-i686-libusb
+      mingw-w64-i686-libxml2
+      mingw-w64-i686-lzo2
+      mingw-w64-i686-ninja
+      mingw-w64-i686-pixman
+      mingw-w64-i686-pkgconf
+      mingw-w64-i686-python
+      mingw-w64-i686-snappy
+      mingw-w64-i686-usbredir "
+  - $env:CHERE_INVOKING = 'yes'  # Preserve the current working directory
+  - $env:MSYSTEM = 'MINGW32'     # Start a 32-bit MinG environment
+  - mkdir output
+  - cd output
+  - ..\msys64\usr\bin\bash -lc "../configure --target-list=ppc64-softmmu
+      --enable-capstone=system"
+  - ..\msys64\usr\bin\bash -lc 'make -j2'
+  - ..\msys64\usr\bin\bash -lc 'make check'
