@@ -32,13 +32,13 @@ struct SocketOutgoingArgs {
     SocketAddress *saddr;
 } outgoing_args, outgoing_args1;
 
-const char *src_uri = "10.16.60.24:6789";
+const char *src_uri = "10.96.166.102:7789";
 
 void socket_send_channel_create(QIOTaskFunc f, void *data)
 { 
     MultiFDSendParams *m =  data;  
     QIOChannelSocket *sioc = qio_channel_socket_new();
-    if((m->id) == 0) {
+    if((m->id) < 2) {
         qio_channel_socket_connect_async(sioc, outgoing_args.saddr,
                                      f, data, NULL, NULL, src_uri);
     } else {

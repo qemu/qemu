@@ -32,6 +32,7 @@
 #include "qapi/qobject-output-visitor.h"
 #include "qemu/cutils.h"
 #include "trace.h"
+#include <sys/socket.h>
 
 #ifndef AI_ADDRCONFIG
 # define AI_ADDRCONFIG 0
@@ -372,6 +373,19 @@ static int inet_connect_addr(const InetSocketAddress *dst_addr,
         return -1;
     }
     socket_set_fast_reuse(sock);
+
+    /* to bind the socket */
+
+    struct sockaddr_in servaddr;
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = inet_addr(src_addr->host);
+    servaddr.sin_port = htons(*src_addr->port);
+
+    if( bind(sock, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
+        error_setg_errno(errp, errno, "Failed to bind socket");
+        return -1;
+    }
+
 
     /* connect to peer */
     do {

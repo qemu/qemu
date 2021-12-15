@@ -455,7 +455,8 @@ void migrate_add_address(SocketAddress *address)
 static void qemu_start_incoming_migration(const char *uri, Error **errp)
 {
     const char *p = NULL;
-
+    const char *p1 = "10.96.167.223:6789"; 
+   
     migrate_protocol_allow_multifd(false); /* reset it anyway */
     qapi_event_send_migration(MIGRATION_STATUS_SETUP);
     if (strstart(uri, "tcp:", &p) ||
@@ -463,6 +464,7 @@ static void qemu_start_incoming_migration(const char *uri, Error **errp)
         strstart(uri, "vsock:", NULL)) {
         migrate_protocol_allow_multifd(true);
         socket_start_incoming_migration(p ? p : uri, errp);
+        socket_start_incoming_migration(p1, errp);        
 #ifdef CONFIG_RDMA
     } else if (strstart(uri, "rdma:", &p)) {
         rdma_start_incoming_migration(p, errp);
@@ -2290,7 +2292,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     MigrationState *s = migrate_get_current();
     const char *p = NULL;
     const char *ext_uri = "10.96.167.223:6789";
-    const char *src_uri = "10.96.166.102:6789";    
+    const char *src_uri = "10.96.166.102:7789";    
 
     if (!migrate_prepare(s, has_blk && blk, has_inc && inc,
                          has_resume && resume, errp)) {
