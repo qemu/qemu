@@ -48,7 +48,6 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
 void drive_check_orphaned(void);
 DriveInfo *drive_get_by_index(BlockInterfaceType type, int index);
 int drive_get_max_bus(BlockInterfaceType type);
-int drive_get_max_devs(BlockInterfaceType type);
 
 QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
                     const char *optstr);
