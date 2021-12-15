@@ -1941,7 +1941,7 @@ static void qemu_create_early_backends(void)
                      "for SDL, ignoring option");
     }
     if (dpy.has_window_close && !use_gtk && !use_sdl) {
-        error_report("-no-quit is only valid for GTK and SDL, "
+        error_report("window-close is only valid for GTK and SDL, "
                      "ignoring option");
     }
 
@@ -3300,12 +3300,6 @@ void qemu_init(int argc, char **argv, char **envp)
                 ctrl_grab = 1;
                 warn_report("-ctrl-grab is deprecated, please use "
                             "-display sdl,grab-mod=rctrl instead.");
-                break;
-            case QEMU_OPTION_no_quit:
-                dpy.has_window_close = true;
-                dpy.window_close = false;
-                warn_report("-no-quit is deprecated, please use "
-                            "-display ...,window-close=off instead.");
                 break;
             case QEMU_OPTION_sdl:
                 warn_report("-sdl is deprecated, use -display sdl instead.");
