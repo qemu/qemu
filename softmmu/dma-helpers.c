@@ -295,7 +295,7 @@ BlockAIOCB *dma_blk_write(BlockBackend *blk,
 
 
 static uint64_t dma_buf_rw(void *buf, int32_t len, QEMUSGList *sg,
-                           DMADirection dir)
+                           DMADirection dir, MemTxAttrs attrs)
 {
     uint8_t *ptr = buf;
     uint64_t resid;
@@ -307,8 +307,7 @@ static uint64_t dma_buf_rw(void *buf, int32_t len, QEMUSGList *sg,
     while (len > 0) {
         ScatterGatherEntry entry = sg->sg[sg_cur_index++];
         int32_t xfer = MIN(len, entry.len);
-        dma_memory_rw(sg->as, entry.base, ptr, xfer, dir,
-                      MEMTXATTRS_UNSPECIFIED);
+        dma_memory_rw(sg->as, entry.base, ptr, xfer, dir, attrs);
         ptr += xfer;
         len -= xfer;
         resid -= xfer;
@@ -319,12 +318,14 @@ static uint64_t dma_buf_rw(void *buf, int32_t len, QEMUSGList *sg,
 
 uint64_t dma_buf_read(void *ptr, int32_t len, QEMUSGList *sg)
 {
-    return dma_buf_rw(ptr, len, sg, DMA_DIRECTION_FROM_DEVICE);
+    return dma_buf_rw(ptr, len, sg, DMA_DIRECTION_FROM_DEVICE,
+                      MEMTXATTRS_UNSPECIFIED);
 }
 
 uint64_t dma_buf_write(void *ptr, int32_t len, QEMUSGList *sg)
 {
-    return dma_buf_rw(ptr, len, sg, DMA_DIRECTION_TO_DEVICE);
+    return dma_buf_rw(ptr, len, sg, DMA_DIRECTION_TO_DEVICE,
+                      MEMTXATTRS_UNSPECIFIED);
 }
 
 void dma_acct_start(BlockBackend *blk, BlockAcctCookie *cookie,
