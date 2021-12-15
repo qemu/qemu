@@ -1423,7 +1423,7 @@ void scsi_req_data(SCSIRequest *req, int len)
     if (req->cmd.mode == SCSI_XFER_FROM_DEV) {
         req->resid = dma_buf_read(buf, len, req->sg);
     } else {
-        req->resid = dma_buf_write(buf, len, req->sg);
+        req->resid = dma_buf_write(buf, len, req->sg, MEMTXATTRS_UNSPECIFIED);
     }
     scsi_req_continue(req);
 }
