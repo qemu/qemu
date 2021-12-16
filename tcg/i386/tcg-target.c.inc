@@ -262,6 +262,7 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
 #define P_SIMDF3        0x20000         /* 0xf3 opcode prefix */
 #define P_SIMDF2        0x40000         /* 0xf2 opcode prefix */
 #define P_VEXL          0x80000         /* Set VEX.L = 1 */
+#define P_EVEX          0x100000        /* Requires EVEX encoding */
 
 #define OPC_ARITH_EvIz	(0x81)
 #define OPC_ARITH_EvIb	(0x83)
@@ -626,9 +627,57 @@ static void tcg_out_vex_opc(TCGContext *s, int opc, int r, int v,
     tcg_out8(s, opc);
 }
 
+static void tcg_out_evex_opc(TCGContext *s, int opc, int r, int v,
+                             int rm, int index)
+{
+    /* The entire 4-byte evex prefix; with R' and V' set. */
+    uint32_t p = 0x08041062;
+    int mm, pp;
+
+    tcg_debug_assert(have_avx512vl);
+
+    /* EVEX.mm */
+    if (opc & P_EXT3A) {
+        mm = 3;
+    } else if (opc & P_EXT38) {
+        mm = 2;
+    } else if (opc & P_EXT) {
+        mm = 1;
+    } else {
+        g_assert_not_reached();
+    }
+
+    /* EVEX.pp */
+    if (opc & P_DATA16) {
+        pp = 1;                          /* 0x66 */
+    } else if (opc & P_SIMDF3) {
+        pp = 2;                          /* 0xf3 */
+    } else if (opc & P_SIMDF2) {
+        pp = 3;                          /* 0xf2 */
+    } else {
+        pp = 0;
+    }
+
+    p = deposit32(p, 8, 2, mm);
+    p = deposit32(p, 13, 1, (rm & 8) == 0);             /* EVEX.RXB.B */
+    p = deposit32(p, 14, 1, (index & 8) == 0);          /* EVEX.RXB.X */
+    p = deposit32(p, 15, 1, (r & 8) == 0);              /* EVEX.RXB.R */
+    p = deposit32(p, 16, 2, pp);
+    p = deposit32(p, 19, 4, ~v);
+    p = deposit32(p, 23, 1, (opc & P_VEXW) != 0);
+    p = deposit32(p, 29, 2, (opc & P_VEXL) != 0);
+
+    tcg_out32(s, p);
+    tcg_out8(s, opc);
+}
+
 static void tcg_out_vex_modrm(TCGContext *s, int opc, int r, int v, int rm)
 {
-    tcg_out_vex_opc(s, opc, r, v, rm, 0);
+    if (opc & P_EVEX) {
+        tcg_out_evex_opc(s, opc, r, v, rm, 0);
+    } else {
+        tcg_out_vex_opc(s, opc, r, v, rm, 0);
+    }
     tcg_out8(s, 0xc0 | (LOWREGMASK(r) << 3) | LOWREGMASK(rm));
 }
 
