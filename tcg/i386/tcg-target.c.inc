@@ -313,6 +313,7 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
 #define OPC_PABSB       (0x1c | P_EXT38 | P_DATA16)
 #define OPC_PABSW       (0x1d | P_EXT38 | P_DATA16)
 #define OPC_PABSD       (0x1e | P_EXT38 | P_DATA16)
+#define OPC_VPABSQ      (0x1f | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
 #define OPC_PACKSSDW    (0x6b | P_EXT | P_DATA16)
 #define OPC_PACKSSWB    (0x63 | P_EXT | P_DATA16)
 #define OPC_PACKUSDW    (0x2b | P_EXT38 | P_DATA16)
@@ -339,15 +340,19 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
 #define OPC_PMAXSB      (0x3c | P_EXT38 | P_DATA16)
 #define OPC_PMAXSW      (0xee | P_EXT | P_DATA16)
 #define OPC_PMAXSD      (0x3d | P_EXT38 | P_DATA16)
+#define OPC_VPMAXSQ     (0x3d | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
 #define OPC_PMAXUB      (0xde | P_EXT | P_DATA16)
 #define OPC_PMAXUW      (0x3e | P_EXT38 | P_DATA16)
 #define OPC_PMAXUD      (0x3f | P_EXT38 | P_DATA16)
+#define OPC_VPMAXUQ     (0x3f | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
 #define OPC_PMINSB      (0x38 | P_EXT38 | P_DATA16)
 #define OPC_PMINSW      (0xea | P_EXT | P_DATA16)
 #define OPC_PMINSD      (0x39 | P_EXT38 | P_DATA16)
+#define OPC_VPMINSQ     (0x39 | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
 #define OPC_PMINUB      (0xda | P_EXT | P_DATA16)
 #define OPC_PMINUW      (0x3a | P_EXT38 | P_DATA16)
 #define OPC_PMINUD      (0x3b | P_EXT38 | P_DATA16)
+#define OPC_VPMINUQ     (0x3b | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
 #define OPC_PMOVSXBW    (0x20 | P_EXT38 | P_DATA16)
 #define OPC_PMOVSXWD    (0x23 | P_EXT38 | P_DATA16)
 #define OPC_PMOVSXDQ    (0x25 | P_EXT38 | P_DATA16)
@@ -2841,16 +2846,16 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         OPC_PACKUSWB, OPC_PACKUSDW, OPC_UD2, OPC_UD2
     };
     static int const smin_insn[4] = {
-        OPC_PMINSB, OPC_PMINSW, OPC_PMINSD, OPC_UD2
+        OPC_PMINSB, OPC_PMINSW, OPC_PMINSD, OPC_VPMINSQ
     };
     static int const smax_insn[4] = {
-        OPC_PMAXSB, OPC_PMAXSW, OPC_PMAXSD, OPC_UD2
+        OPC_PMAXSB, OPC_PMAXSW, OPC_PMAXSD, OPC_VPMAXSQ
     };
     static int const umin_insn[4] = {
-        OPC_PMINUB, OPC_PMINUW, OPC_PMINUD, OPC_UD2
+        OPC_PMINUB, OPC_PMINUW, OPC_PMINUD, OPC_VPMINUQ
     };
     static int const umax_insn[4] = {
-        OPC_PMAXUB, OPC_PMAXUW, OPC_PMAXUD, OPC_UD2
+        OPC_PMAXUB, OPC_PMAXUW, OPC_PMAXUD, OPC_VPMAXUQ
     };
     static int const rotlv_insn[4] = {
         OPC_UD2, OPC_UD2, OPC_VPROLVD, OPC_VPROLVQ
@@ -2886,8 +2891,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         OPC_UD2, OPC_VPSHRDVW, OPC_VPSHRDVD, OPC_VPSHRDVQ
     };
     static int const abs_insn[4] = {
-        /* TODO: AVX512 adds support for MO_64.  */
-        OPC_PABSB, OPC_PABSW, OPC_PABSD, OPC_UD2
+        OPC_PABSB, OPC_PABSW, OPC_PABSD, OPC_VPABSQ
     };
 
     TCGType type = vecl + TCG_TYPE_V64;
@@ -3471,7 +3475,7 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_umin_vec:
     case INDEX_op_umax_vec:
     case INDEX_op_abs_vec:
-        return vece <= MO_32;
+        return vece <= MO_32 || have_avx512vl;
 
     default:
         return 0;
