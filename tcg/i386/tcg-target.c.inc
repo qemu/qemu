@@ -448,6 +448,7 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
 #define OPC_VPSRLVW     (0x10 | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
 #define OPC_VPSRLVD     (0x45 | P_EXT38 | P_DATA16)
 #define OPC_VPSRLVQ     (0x45 | P_EXT38 | P_DATA16 | P_VEXW)
+#define OPC_VPTERNLOGQ  (0x25 | P_EXT3A | P_DATA16 | P_VEXW | P_EVEX)
 #define OPC_VZEROUPPER  (0x77 | P_EXT)
 #define OPC_XCHG_ax_r32	(0x90)
 
@@ -3098,6 +3099,29 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         insn = vpshldi_insn[vece];
         sub = args[3];
         goto gen_simd_imm8;
+
+    case INDEX_op_not_vec:
+        insn = OPC_VPTERNLOGQ;
+        a2 = a1;
+        sub = 0x33; /* !B */
+        goto gen_simd_imm8;
+    case INDEX_op_nor_vec:
+        insn = OPC_VPTERNLOGQ;
+        sub = 0x11; /* norCB */
+        goto gen_simd_imm8;
+    case INDEX_op_nand_vec:
+        insn = OPC_VPTERNLOGQ;
+        sub = 0x77; /* nandCB */
+        goto gen_simd_imm8;
+    case INDEX_op_eqv_vec:
+        insn = OPC_VPTERNLOGQ;
+        sub = 0x99; /* xnorCB */
+        goto gen_simd_imm8;
+    case INDEX_op_orc_vec:
+        insn = OPC_VPTERNLOGQ;
+        sub = 0xdd; /* orB!C */
+        goto gen_simd_imm8;
+
     gen_simd_imm8:
         tcg_debug_assert(insn != OPC_UD2);
         if (type == TCG_TYPE_V256) {
@@ -3318,6 +3342,10 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_or_vec:
     case INDEX_op_xor_vec:
     case INDEX_op_andc_vec:
+    case INDEX_op_orc_vec:
+    case INDEX_op_nand_vec:
+    case INDEX_op_nor_vec:
+    case INDEX_op_eqv_vec:
     case INDEX_op_ssadd_vec:
     case INDEX_op_usadd_vec:
     case INDEX_op_sssub_vec:
@@ -3350,6 +3378,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 
     case INDEX_op_abs_vec:
     case INDEX_op_dup_vec:
+    case INDEX_op_not_vec:
     case INDEX_op_shli_vec:
     case INDEX_op_shri_vec:
     case INDEX_op_sari_vec:
@@ -3378,6 +3407,11 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_or_vec:
     case INDEX_op_xor_vec:
     case INDEX_op_andc_vec:
+    case INDEX_op_orc_vec:
+    case INDEX_op_nand_vec:
+    case INDEX_op_nor_vec:
+    case INDEX_op_eqv_vec:
+    case INDEX_op_not_vec:
         return 1;
     case INDEX_op_cmp_vec:
     case INDEX_op_cmpsel_vec:
