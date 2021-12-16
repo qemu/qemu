@@ -141,8 +141,7 @@ To launch a SGX guest:
   |qemu_system_x86| \\
    -cpu host,+sgx-provisionkey \\
    -object memory-backend-epc,id=mem1,size=64M,prealloc=on \\
-   -object memory-backend-epc,id=mem2,size=28M \\
-   -M sgx-epc.0.memdev=mem1,sgx-epc.1.memdev=mem2
+   -M sgx-epc.0.memdev=mem1,sgx-epc.0.node=0
 
 Utilizing SGX in the guest requires a kernel/OS with SGX support.
 The support can be determined in guest by::
@@ -152,8 +151,32 @@ The support can be determined in guest by::
 and SGX epc info by::
 
   $ dmesg | grep sgx
-  [    1.242142] sgx: EPC section 0x180000000-0x181bfffff
-  [    1.242319] sgx: EPC section 0x181c00000-0x1837fffff
+  [    0.182807] sgx: EPC section 0x140000000-0x143ffffff
+  [    0.183695] sgx: [Firmware Bug]: Unable to map EPC section to online node. Fallback to the NUMA node 0.
+
+To launch a SGX numa guest:
+
+.. parsed-literal::
+
+  |qemu_system_x86| \\
+   -cpu host,+sgx-provisionkey \\
+   -object memory-backend-ram,size=2G,host-nodes=0,policy=bind,id=node0 \\
+   -object memory-backend-epc,id=mem0,size=64M,prealloc=on,host-nodes=0,policy=bind \\
+   -numa node,nodeid=0,cpus=0-1,memdev=node0 \\
+   -object memory-backend-ram,size=2G,host-nodes=1,policy=bind,id=node1 \\
+   -object memory-backend-epc,id=mem1,size=28M,prealloc=on,host-nodes=1,policy=bind \\
+   -numa node,nodeid=1,cpus=2-3,memdev=node1 \\
+   -M sgx-epc.0.memdev=mem0,sgx-epc.0.node=0,sgx-epc.1.memdev=mem1,sgx-epc.1.node=1
+
+and SGX epc numa info by::
+
+  $ dmesg | grep sgx
+  [    0.369937] sgx: EPC section 0x180000000-0x183ffffff
+  [    0.370259] sgx: EPC section 0x184000000-0x185bfffff
+
+  $ dmesg | grep SRAT
+  [    0.009981] ACPI: SRAT: Node 0 PXM 0 [mem 0x180000000-0x183ffffff]
+  [    0.009982] ACPI: SRAT: Node 1 PXM 1 [mem 0x184000000-0x185bfffff]
 
 References
 ----------

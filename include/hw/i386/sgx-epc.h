@@ -25,6 +25,7 @@
 #define SGX_EPC_ADDR_PROP "addr"
 #define SGX_EPC_SIZE_PROP "size"
 #define SGX_EPC_MEMDEV_PROP "memdev"
+#define SGX_EPC_NUMA_NODE_PROP "node"
 
 /**
  * SGXEPCDevice:
@@ -38,6 +39,7 @@ typedef struct SGXEPCDevice {
 
     /* public */
     uint64_t addr;
+    uint32_t node;
     HostMemoryBackendEpc *hostmem;
 } SGXEPCDevice;
 
@@ -56,6 +58,7 @@ typedef struct SGXEPCState {
 } SGXEPCState;
 
 bool sgx_epc_get_section(int section_nr, uint64_t *addr, uint64_t *size);
+void sgx_epc_build_srat(GArray *table_data);
 
 static inline uint64_t sgx_epc_above_4g_end(SGXEPCState *sgx_epc)
 {

@@ -61,6 +61,10 @@
 #endif
 #define PAGE_SIZE qemu_real_host_page_size
 
+#ifndef KVM_GUESTDBG_BLOCKIRQ
+#define KVM_GUESTDBG_BLOCKIRQ 0
+#endif
+
 //#define DEBUG_KVM
 
 #ifdef DEBUG_KVM
@@ -168,6 +172,8 @@ bool kvm_vm_attributes_allowed;
 bool kvm_direct_msi_allowed;
 bool kvm_ioeventfd_any_length_allowed;
 bool kvm_msi_use_devid;
+bool kvm_has_guest_debug;
+int kvm_sstep_flags;
 static bool kvm_immediate_exit;
 static hwaddr kvm_max_slot_size = ~0;
 
@@ -2564,6 +2570,25 @@ static int kvm_init(MachineState *ms)
     kvm_ioeventfd_any_length_allowed =
         (kvm_check_extension(s, KVM_CAP_IOEVENTFD_ANY_LENGTH) > 0);
 
+#ifdef KVM_CAP_SET_GUEST_DEBUG
+    kvm_has_guest_debug =
+        (kvm_check_extension(s, KVM_CAP_SET_GUEST_DEBUG) > 0);
+#endif
+
+    kvm_sstep_flags = 0;
+    if (kvm_has_guest_debug) {
+        kvm_sstep_flags = SSTEP_ENABLE;
+
+#if defined KVM_CAP_SET_GUEST_DEBUG2
+        int guest_debug_flags =
+            kvm_check_extension(s, KVM_CAP_SET_GUEST_DEBUG2);
+
+        if (guest_debug_flags & KVM_GUESTDBG_BLOCKIRQ) {
+            kvm_sstep_flags |= SSTEP_NOIRQ;
+        }
+#endif
+    }
+
     kvm_state = s;
 
     ret = kvm_arch_init(ms, s);
@@ -3193,6 +3218,10 @@ int kvm_update_guest_debug(CPUState *cpu, unsigned long reinject_trap)
 
     if (cpu->singlestep_enabled) {
         data.dbg.control |= KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP;
+
+        if (cpu->singlestep_enabled & SSTEP_NOIRQ) {
+            data.dbg.control |= KVM_GUESTDBG_BLOCKIRQ;
+        }
     }
     kvm_arch_update_guest_debug(cpu, &data.dbg);
 

@@ -784,9 +784,8 @@ static void numa_stat_memory_devices(NumaNodeMem node_mem[])
                 break;
             case MEMORY_DEVICE_INFO_KIND_SGX_EPC:
                 se = value->u.sgx_epc.data;
-                /* TODO: once we support numa, assign to right node */
-                node_mem[0].node_mem += se->size;
-                node_mem[0].node_plugged_mem += se->size;
+                node_mem[se->node].node_mem += se->size;
+                node_mem[se->node].node_plugged_mem = 0;
                 break;
             default:
                 g_assert_not_reached();

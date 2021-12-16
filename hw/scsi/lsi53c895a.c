@@ -621,8 +621,7 @@ static void lsi_do_dma(LSIState *s, int out)
     dma_addr_t addr;
     SCSIDevice *dev;
 
-    assert(s->current);
-    if (!s->current->dma_len) {
+    if (!s->current || !s->current->dma_len) {
         /* Wait until data is available.  */
         trace_lsi_do_dma_unavailable();
         return;

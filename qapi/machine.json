@@ -867,7 +867,7 @@
 #
 # @node-id: NUMA node ID the CPU belongs to
 # @socket-id: socket number within node/board the CPU belongs to
-# @die-id: die number within node/board the CPU belongs to (Since 4.1)
+# @die-id: die number within socket the CPU belongs to (since 4.1)
 # @core-id: core number within die the CPU belongs to
 # @thread-id: thread number within core the CPU belongs to
 #
@@ -1207,12 +1207,15 @@
 #
 # @memdev: memory backend linked with device
 #
+# @node: the numa node
+#
 # Since: 6.2
 ##
 { 'struct': 'SgxEPCDeviceInfo',
   'data': { '*id': 'str',
             'memaddr': 'size',
             'size': 'size',
+            'node': 'int',
             'memdev': 'str'
           }
 }
@@ -1285,10 +1288,15 @@
 #
 # @memdev: memory backend linked with device
 #
+# @node: the numa node
+#
 # Since: 6.2
 ##
 { 'struct': 'SgxEPC',
-  'data': { 'memdev': 'str' } }
+  'data': { 'memdev': 'str',
+            'node': 'int'
+          }
+}
 
 ##
 # @SgxEPCProperties:

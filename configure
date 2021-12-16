@@ -625,7 +625,6 @@ fi
 case $targetos in
 MINGW32*)
   mingw32="yes"
-  supported_os="yes"
   plugins="no"
   pie="no"
 ;;
@@ -667,7 +666,6 @@ SunOS)
   QEMU_CFLAGS="-D__EXTENSIONS__ $QEMU_CFLAGS"
 ;;
 Haiku)
-  haiku="yes"
   pie="no"
   QEMU_CFLAGS="-DB_USE_POSITIVE_POSIX_ERRORS -D_BSD_SOURCE -fPIC $QEMU_CFLAGS"
 ;;
@@ -3450,9 +3448,6 @@ fi
 
 if test "$solaris" = "yes" ; then
   echo "CONFIG_SOLARIS=y" >> $config_host_mak
-fi
-if test "$haiku" = "yes" ; then
-  echo "CONFIG_HAIKU=y" >> $config_host_mak
 fi
 if test "$static" = "yes" ; then
   echo "CONFIG_STATIC=y" >> $config_host_mak
