@@ -321,24 +321,16 @@ static MemTxResult dma_buf_rw(void *buf, dma_addr_t len, dma_addr_t *residual,
     return res;
 }
 
-dma_addr_t dma_buf_read(void *ptr, dma_addr_t len,
+MemTxResult dma_buf_read(void *ptr, dma_addr_t len, dma_addr_t *residual,
                          QEMUSGList *sg, MemTxAttrs attrs)
 {
-    dma_addr_t residual;
-
-    dma_buf_rw(ptr, len, &residual, sg, DMA_DIRECTION_FROM_DEVICE, attrs);
-
-    return residual;
+    return dma_buf_rw(ptr, len, residual, sg, DMA_DIRECTION_FROM_DEVICE, attrs);
 }
 
-dma_addr_t dma_buf_write(void *ptr, dma_addr_t len,
+MemTxResult dma_buf_write(void *ptr, dma_addr_t len, dma_addr_t *residual,
                           QEMUSGList *sg, MemTxAttrs attrs)
 {
-    dma_addr_t residual;
-
-    dma_buf_rw(ptr, len, &residual, sg, DMA_DIRECTION_TO_DEVICE, attrs);
-
-    return residual;
+    return dma_buf_rw(ptr, len, residual, sg, DMA_DIRECTION_TO_DEVICE, attrs);
 }
 
 void dma_acct_start(BlockBackend *blk, BlockAcctCookie *cookie,

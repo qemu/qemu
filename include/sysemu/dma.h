@@ -301,9 +301,9 @@ BlockAIOCB *dma_blk_read(BlockBackend *blk,
 BlockAIOCB *dma_blk_write(BlockBackend *blk,
                           QEMUSGList *sg, uint64_t offset, uint32_t align,
                           BlockCompletionFunc *cb, void *opaque);
-dma_addr_t dma_buf_read(void *ptr, dma_addr_t len,
+MemTxResult dma_buf_read(void *ptr, dma_addr_t len, dma_addr_t *residual,
                          QEMUSGList *sg, MemTxAttrs attrs);
-dma_addr_t dma_buf_write(void *ptr, dma_addr_t len,
+MemTxResult dma_buf_write(void *ptr, dma_addr_t len, dma_addr_t *residual,
                           QEMUSGList *sg, MemTxAttrs attrs);
 
 void dma_acct_start(BlockBackend *blk, BlockAcctCookie *cookie,
