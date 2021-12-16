@@ -45,10 +45,11 @@ struct target_pt_regs {
 
 #ifdef TARGET_RISCV32
 #define UNAME_MACHINE "riscv32"
+#define UNAME_MINIMUM_RELEASE "5.4.0"
 #else
 #define UNAME_MACHINE "riscv64"
-#endif
 #define UNAME_MINIMUM_RELEASE "4.15.0"
+#endif
 
 #define TARGET_MINSIGSTKSZ 2048
 #define TARGET_MCL_CURRENT 1
