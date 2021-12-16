@@ -369,6 +369,7 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
 #define OPC_PSLLQ       (0xf3 | P_EXT | P_DATA16)
 #define OPC_PSRAW       (0xe1 | P_EXT | P_DATA16)
 #define OPC_PSRAD       (0xe2 | P_EXT | P_DATA16)
+#define OPC_VPSRAQ      (0x72 | P_EXT | P_DATA16 | P_VEXW | P_EVEX)
 #define OPC_PSRLW       (0xd1 | P_EXT | P_DATA16)
 #define OPC_PSRLD       (0xd2 | P_EXT | P_DATA16)
 #define OPC_PSRLQ       (0xd3 | P_EXT | P_DATA16)
@@ -2854,7 +2855,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         OPC_UD2, OPC_PSRLW, OPC_PSRLD, OPC_PSRLQ
     };
     static int const sars_insn[4] = {
-        OPC_UD2, OPC_PSRAW, OPC_PSRAD, OPC_UD2
+        OPC_UD2, OPC_PSRAW, OPC_PSRAD, OPC_VPSRAQ
     };
     static int const abs_insn[4] = {
         /* TODO: AVX512 adds support for MO_64.  */
@@ -3330,7 +3331,14 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_shrs_vec:
         return vece >= MO_16;
     case INDEX_op_sars_vec:
-        return vece >= MO_16 && vece <= MO_32;
+        switch (vece) {
+        case MO_16:
+        case MO_32:
+            return 1;
+        case MO_64:
+            return have_avx512vl;
+        }
+        return 0;
     case INDEX_op_rotls_vec:
         return vece >= MO_16 ? -1 : 0;
 
