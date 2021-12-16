@@ -103,6 +103,10 @@ extern bool have_bmi1;
 extern bool have_popcnt;
 extern bool have_avx1;
 extern bool have_avx2;
+extern bool have_avx512bw;
+extern bool have_avx512dq;
+extern bool have_avx512vbmi2;
+extern bool have_avx512vl;
 extern bool have_movbe;
 
 /* optional instructions */

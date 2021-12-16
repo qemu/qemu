@@ -171,6 +171,10 @@ bool have_bmi1;
 bool have_popcnt;
 bool have_avx1;
 bool have_avx2;
+bool have_avx512bw;
+bool have_avx512dq;
+bool have_avx512vbmi2;
+bool have_avx512vl;
 bool have_movbe;
 
 #ifdef CONFIG_CPUID_H
@@ -3839,12 +3843,12 @@ static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
 static void tcg_target_init(TCGContext *s)
 {
 #ifdef CONFIG_CPUID_H
-    unsigned a, b, c, d, b7 = 0;
+    unsigned a, b, c, d, b7 = 0, c7 = 0;
     unsigned max = __get_cpuid_max(0, 0);
 
     if (max >= 7) {
         /* BMI1 is available on AMD Piledriver and Intel Haswell CPUs.  */
-        __cpuid_count(7, 0, a, b7, c, d);
+        __cpuid_count(7, 0, a, b7, c7, d);
         have_bmi1 = (b7 & bit_BMI) != 0;
         have_bmi2 = (b7 & bit_BMI2) != 0;
     }
@@ -3874,6 +3878,22 @@ static void tcg_target_init(TCGContext *s)
             if ((xcrl & 6) == 6) {
                 have_avx1 = (c & bit_AVX) != 0;
                 have_avx2 = (b7 & bit_AVX2) != 0;
+
+                /*
+                 * There are interesting instructions in AVX512, so long
+                 * as we have AVX512VL, which indicates support for EVEX
+                 * on sizes smaller than 512 bits.  We are required to
+                 * check that OPMASK and all extended ZMM state are enabled
+                 * even if we're not using them -- the insns will fault.
+                 */
+                if ((xcrl & 0xe0) == 0xe0
+                    && (b7 & bit_AVX512F)
+                    && (b7 & bit_AVX512VL)) {
+                    have_avx512vl = true;
+                    have_avx512bw = (b7 & bit_AVX512BW) != 0;
+                    have_avx512dq = (b7 & bit_AVX512DQ) != 0;
+                    have_avx512vbmi2 = (c7 & bit_AVX512VBMI2) != 0;
+                }
             }
         }
     }
