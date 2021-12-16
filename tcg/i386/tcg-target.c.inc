@@ -3620,28 +3620,28 @@ static bool expand_vec_cmp_noinv(TCGType type, unsigned vece, TCGv_vec v0,
         fixup = NEED_SWAP | NEED_INV;
         break;
     case TCG_COND_LEU:
-        if (vece <= MO_32) {
+        if (tcg_can_emit_vec_op(INDEX_op_umin_vec, type, vece)) {
             fixup = NEED_UMIN;
         } else {
             fixup = NEED_BIAS | NEED_INV;
         }
         break;
     case TCG_COND_GTU:
-        if (vece <= MO_32) {
+        if (tcg_can_emit_vec_op(INDEX_op_umin_vec, type, vece)) {
             fixup = NEED_UMIN | NEED_INV;
         } else {
             fixup = NEED_BIAS;
         }
         break;
     case TCG_COND_GEU:
-        if (vece <= MO_32) {
+        if (tcg_can_emit_vec_op(INDEX_op_umax_vec, type, vece)) {
             fixup = NEED_UMAX;
         } else {
             fixup = NEED_BIAS | NEED_SWAP | NEED_INV;
         }
         break;
     case TCG_COND_LTU:
-        if (vece <= MO_32) {
+        if (tcg_can_emit_vec_op(INDEX_op_umax_vec, type, vece)) {
             fixup = NEED_UMAX | NEED_INV;
         } else {
             fixup = NEED_BIAS | NEED_SWAP;
