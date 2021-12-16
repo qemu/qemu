@@ -294,9 +294,10 @@ BlockAIOCB *dma_blk_write(BlockBackend *blk,
 }
 
 
-static uint64_t dma_buf_rw(uint8_t *ptr, int32_t len, QEMUSGList *sg,
+static uint64_t dma_buf_rw(void *buf, int32_t len, QEMUSGList *sg,
                            DMADirection dir)
 {
+    uint8_t *ptr = buf;
     uint64_t resid;
     int sg_cur_index;
 
