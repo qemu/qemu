@@ -2898,7 +2898,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
 
     TCGType type = vecl + TCG_TYPE_V64;
     int insn, sub;
-    TCGArg a0, a1, a2;
+    TCGArg a0, a1, a2, a3;
 
     a0 = args[0];
     a1 = args[1];
@@ -3120,6 +3120,22 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_orc_vec:
         insn = OPC_VPTERNLOGQ;
         sub = 0xdd; /* orB!C */
+        goto gen_simd_imm8;
+
+    case INDEX_op_bitsel_vec:
+        insn = OPC_VPTERNLOGQ;
+        a3 = args[3];
+        if (a0 == a1) {
+            a1 = a2;
+            a2 = a3;
+            sub = 0xca; /* A?B:C */
+        } else if (a0 == a2) {
+            a2 = a3;
+            sub = 0xe2; /* B?A:C */
+        } else {
+            tcg_out_mov(s, type, a0, a3);
+            sub = 0xb8; /* B?C:A */
+        }
         goto gen_simd_imm8;
 
     gen_simd_imm8:
@@ -3390,6 +3406,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_x86_vpshrdv_vec:
         return C_O1_I3(x, 0, x, x);
 
+    case INDEX_op_bitsel_vec:
     case INDEX_op_x86_vpblendvb_vec:
         return C_O1_I3(x, x, x, x);
 
@@ -3412,6 +3429,7 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_nor_vec:
     case INDEX_op_eqv_vec:
     case INDEX_op_not_vec:
+    case INDEX_op_bitsel_vec:
         return 1;
     case INDEX_op_cmp_vec:
     case INDEX_op_cmpsel_vec:
