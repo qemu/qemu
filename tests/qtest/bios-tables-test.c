@@ -1489,6 +1489,7 @@ static void test_acpi_virt_viot(void)
 {
     test_data data = {
         .machine = "virt",
+        .tcg_only = true,
         .uefi_fl1 = "pc-bios/edk2-aarch64-code.fd",
         .uefi_fl2 = "pc-bios/edk2-arm-vars.fd",
         .cd = "tests/data/uefi-boot-images/bios-tables-test.aarch64.iso.qcow2",
