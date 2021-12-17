@@ -765,20 +765,15 @@ float64 helper_fre(CPUPPCState *env, float64 arg)
 {
     /* "Estimate" the reciprocal with actual division.  */
     float64 ret = float64_div(float64_one, arg, &env->fp_status);
-    int status = get_float_exception_flags(&env->fp_status);
+    int flags = get_float_exception_flags(&env->fp_status);
 
-    if (unlikely(status)) {
-        if (status & float_flag_invalid) {
-            if (float64_is_signaling_nan(arg, &env->fp_status)) {
-                /* sNaN reciprocal */
-                float_invalid_op_vxsnan(env, GETPC());
-            }
-        }
-        if (status & float_flag_divbyzero) {
-            float_zero_divide_excp(env, GETPC());
-            /* For FPSCR.ZE == 0, the result is 1/2.  */
-            ret = float64_set_sign(float64_half, float64_is_neg(arg));
-        }
+    if (unlikely(flags & float_flag_invalid_snan)) {
+        float_invalid_op_vxsnan(env, GETPC());
+    }
+    if (unlikely(flags & float_flag_divbyzero)) {
+        float_zero_divide_excp(env, GETPC());
+        /* For FPSCR.ZE == 0, the result is 1/2.  */
+        ret = float64_set_sign(float64_half, float64_is_neg(arg));
     }
 
     return ret;
