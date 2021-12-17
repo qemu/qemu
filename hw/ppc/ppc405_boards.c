@@ -145,6 +145,7 @@ static void ref405ep_init(MachineState *machine)
     const char *initrd_filename = machine->initrd_filename;
     char *filename;
     ppc4xx_bd_info_t bd;
+    PowerPCCPU *cpu;
     CPUPPCState *env;
     DeviceState *dev;
     SysBusDevice *s;
@@ -180,8 +181,11 @@ static void ref405ep_init(MachineState *machine)
     memory_region_init(&ram_memories[1], NULL, "ef405ep.ram1", 0);
     ram_bases[1] = 0x00000000;
     ram_sizes[1] = 0x00000000;
-    env = ppc405ep_init(sysmem, ram_memories, ram_bases, ram_sizes,
+
+    cpu = ppc405ep_init(sysmem, ram_memories, ram_bases, ram_sizes,
                         33333333, &uicdev, kernel_filename == NULL ? 0 : 1);
+    env = &cpu->env;
+
     /* allocate SRAM */
     sram_size = 512 * KiB;
     memory_region_init_ram(sram, NULL, "ef405ep.sram", sram_size,

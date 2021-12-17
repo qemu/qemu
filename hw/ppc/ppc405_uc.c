@@ -1391,7 +1391,7 @@ static void ppc405ep_cpc_init (CPUPPCState *env, clk_setup_t clk_setup[8],
 #endif
 }
 
-CPUPPCState *ppc405ep_init(MemoryRegion *address_space_mem,
+PowerPCCPU *ppc405ep_init(MemoryRegion *address_space_mem,
                         MemoryRegion ram_memories[2],
                         hwaddr ram_bases[2],
                         hwaddr ram_sizes[2],
@@ -1490,5 +1490,5 @@ CPUPPCState *ppc405ep_init(MemoryRegion *address_space_mem,
     /* CPU control */
     ppc405ep_cpc_init(env, clk_setup, sysclk);
 
-    return env;
+    return cpu;
 }
