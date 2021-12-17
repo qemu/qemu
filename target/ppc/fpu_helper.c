@@ -521,6 +521,18 @@ float64 helper_fadd(CPUPPCState *env, float64 arg1, float64 arg2)
     return ret;
 }
 
+/* fadds - fadds. */
+float64 helper_fadds(CPUPPCState *env, float64 arg1, float64 arg2)
+{
+    float64 ret = float64r32_add(arg1, arg2, &env->fp_status);
+    int flags = get_float_exception_flags(&env->fp_status);
+
+    if (unlikely(flags & float_flag_invalid)) {
+        float_invalid_op_addsub(env, flags, 1, GETPC());
+    }
+    return ret;
+}
+
 /* fsub - fsub. */
 float64 helper_fsub(CPUPPCState *env, float64 arg1, float64 arg2)
 {
@@ -531,6 +543,18 @@ float64 helper_fsub(CPUPPCState *env, float64 arg1, float64 arg2)
         float_invalid_op_addsub(env, flags, 1, GETPC());
     }
 
+    return ret;
+}
+
+/* fsubs - fsubs. */
+float64 helper_fsubs(CPUPPCState *env, float64 arg1, float64 arg2)
+{
+    float64 ret = float64r32_sub(arg1, arg2, &env->fp_status);
+    int flags = get_float_exception_flags(&env->fp_status);
+
+    if (unlikely(flags & float_flag_invalid)) {
+        float_invalid_op_addsub(env, flags, 1, GETPC());
+    }
     return ret;
 }
 
@@ -573,6 +597,22 @@ static void float_invalid_op_div(CPUPPCState *env, int flags,
 float64 helper_fdiv(CPUPPCState *env, float64 arg1, float64 arg2)
 {
     float64 ret = float64_div(arg1, arg2, &env->fp_status);
+    int flags = get_float_exception_flags(&env->fp_status);
+
+    if (unlikely(flags & float_flag_invalid)) {
+        float_invalid_op_div(env, flags, 1, GETPC());
+    }
+    if (unlikely(flags & float_flag_divbyzero)) {
+        float_zero_divide_excp(env, GETPC());
+    }
+
+    return ret;
+}
+
+/* fdivs - fdivs. */
+float64 helper_fdivs(CPUPPCState *env, float64 arg1, float64 arg2)
+{
+    float64 ret = float64r32_div(arg1, arg2, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
     if (unlikely(flags & float_flag_invalid)) {
