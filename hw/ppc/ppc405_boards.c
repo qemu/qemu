@@ -261,7 +261,7 @@ static void ref405ep_init(MachineState *machine)
         bd.bi_plb_busfreq = 33333333;
         bd.bi_pci_busfreq = 33333333;
         bd.bi_opbfreq = 33333333;
-        bdloc = ppc405_set_bootinfo(env, &bd, 0x00000001);
+        bdloc = ppc405_set_bootinfo(env, &bd);
         env->gpr[3] = bdloc;
         kernel_base = KERNEL_LOAD_ADDR;
         /* now we can load the kernel */

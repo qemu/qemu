@@ -41,8 +41,7 @@
 #include "qapi/error.h"
 #include "trace.h"
 
-ram_addr_t ppc405_set_bootinfo (CPUPPCState *env, ppc4xx_bd_info_t *bd,
-                                uint32_t flags)
+ram_addr_t ppc405_set_bootinfo(CPUPPCState *env, ppc4xx_bd_info_t *bd)
 {
     CPUState *cs = env_cpu(env);
     ram_addr_t bdloc;
@@ -81,9 +80,8 @@ ram_addr_t ppc405_set_bootinfo (CPUPPCState *env, ppc4xx_bd_info_t *bd,
         stb_phys(cs->as, bdloc + 0x64 + i, bd->bi_pci_enetaddr[i]);
     }
     n = 0x6A;
-    if (flags & 0x00000001) {
-        for (i = 0; i < 6; i++)
-            stb_phys(cs->as, bdloc + n++, bd->bi_pci_enetaddr2[i]);
+    for (i = 0; i < 6; i++) {
+        stb_phys(cs->as, bdloc + n++, bd->bi_pci_enetaddr2[i]);
     }
     stl_be_phys(cs->as, bdloc + n, bd->bi_opbfreq);
     n += 4;
