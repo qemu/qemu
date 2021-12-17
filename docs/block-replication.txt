@@ -179,7 +179,7 @@ Primary:
 
 Secondary:
   -drive if=none,driver=raw,file.filename=1.raw,id=colo1 \
-  -drive if=none,id=childs1,driver=replication,mode=secondary,top-id=childs1
+  -drive if=none,id=childs1,driver=replication,mode=secondary,top-id=top-disk1
          file.file.filename=active_disk.qcow2,\
          file.driver=qcow2,\
          file.backing.file.filename=hidden_disk.qcow2,\
