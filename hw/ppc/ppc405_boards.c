@@ -139,24 +139,19 @@ static void ref405ep_fpga_init(MemoryRegion *sysmem, uint32_t base)
 static void ref405ep_init(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
-    const char *bios_name = machine->firmware ?: BIOS_FILENAME;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
-    char *filename;
     ppc4xx_bd_info_t bd;
     PowerPCCPU *cpu;
     CPUPPCState *env;
     DeviceState *dev;
     SysBusDevice *s;
-    MemoryRegion *bios;
     MemoryRegion *sram = g_new(MemoryRegion, 1);
     ram_addr_t bdloc;
     MemoryRegion *ram_memories = g_new(MemoryRegion, 2);
     hwaddr ram_bases[2], ram_sizes[2];
-    long bios_size;
-    //int phy_addr = 0;
-    //static int phy_addr = 1;
+    long bios_size = -1;
     target_ulong kernel_base, initrd_base;
     long kernel_size, initrd_size;
     int linux_boot;
@@ -190,31 +185,31 @@ static void ref405ep_init(MachineState *machine)
     memory_region_add_subregion(sysmem, PPC405EP_SRAM_BASE, sram);
 
     /* allocate and load BIOS */
-    {
-        bios = g_new(MemoryRegion, 1);
+    if (machine->firmware) {
+        MemoryRegion *bios = g_new(MemoryRegion, 1);
+        g_autofree char *filename;
+
         memory_region_init_rom(bios, NULL, "ef405ep.bios", BIOS_SIZE,
                                &error_fatal);
 
-        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-        if (filename) {
-            bios_size = load_image_size(filename,
-                                        memory_region_get_ram_ptr(bios),
-                                        BIOS_SIZE);
-            g_free(filename);
-            if (bios_size < 0) {
-                error_report("Could not load PowerPC BIOS '%s'", bios_name);
-                exit(1);
-            }
-            bios_size = (bios_size + 0xfff) & ~0xfff;
-            memory_region_add_subregion(sysmem, (uint32_t)(-bios_size), bios);
-        } else if (!qtest_enabled() || kernel_filename != NULL) {
-            error_report("Could not load PowerPC BIOS '%s'", bios_name);
+        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, machine->firmware);
+        if (!filename) {
+            error_report("Could not find firmware '%s'", machine->firmware);
             exit(1);
-        } else {
-            /* Avoid an uninitialized variable warning */
-            bios_size = -1;
         }
+
+        bios_size = load_image_size(filename,
+                                    memory_region_get_ram_ptr(bios),
+                                    BIOS_SIZE);
+        if (bios_size < 0) {
+            error_report("Could not load PowerPC BIOS '%s'", machine->firmware);
+            exit(1);
+        }
+
+        bios_size = (bios_size + 0xfff) & ~0xfff;
+        memory_region_add_subregion(sysmem, (uint32_t)(-bios_size), bios);
     }
+
     /* Register FPGA */
     ref405ep_fpga_init(sysmem, PPC405EP_FPGA_BASE);
     /* Register NVRAM */
