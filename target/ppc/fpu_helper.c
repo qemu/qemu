@@ -699,11 +699,8 @@ static float64 do_fmadd(CPUPPCState *env, float64 a, float64 b,
     float64 ret = float64_muladd(a, b, c, madd_flags, &env->fp_status);
     int flags = get_float_exception_flags(&env->fp_status);
 
-    if (flags) {
-        if (flags & float_flag_invalid) {
-            float_invalid_op_madd(env, flags, 1, retaddr);
-        }
-        do_float_check_status(env, retaddr);
+    if (unlikely(flags & float_flag_invalid)) {
+        float_invalid_op_madd(env, flags, 1, retaddr);
     }
     return ret;
 }
