@@ -909,6 +909,18 @@ static inline bool float64_unordered_quiet(float64 a, float64 b,
 float64 float64_default_nan(float_status *status);
 
 /*----------------------------------------------------------------------------
+| Software IEC/IEEE double-precision operations, rounding to single precision,
+| returning a result in double precision, with only one rounding step.
+*----------------------------------------------------------------------------*/
+
+float64 float64r32_add(float64, float64, float_status *status);
+float64 float64r32_sub(float64, float64, float_status *status);
+float64 float64r32_mul(float64, float64, float_status *status);
+float64 float64r32_div(float64, float64, float_status *status);
+float64 float64r32_muladd(float64, float64, float64, int, float_status *status);
+float64 float64r32_sqrt(float64, float_status *status);
+
+/*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision conversion routines.
 *----------------------------------------------------------------------------*/
 int32_t floatx80_to_int32(floatx80, float_status *status);
