@@ -248,13 +248,13 @@ static inline void dma_memory_unmap(AddressSpace *as,
         dma_memory_read(as, addr, &val, (_bits) / 8, attrs); \
         return _end##_bits##_to_cpu(val);                               \
     }                                                                   \
-    static inline void st##_sname##_##_end##_dma(AddressSpace *as,      \
-                                                 dma_addr_t addr,       \
-                                                 uint##_bits##_t val,   \
-                                                 MemTxAttrs attrs)      \
-    {                                                                   \
-        val = cpu_to_##_end##_bits(val);                                \
-        dma_memory_write(as, addr, &val, (_bits) / 8, attrs);           \
+    static inline MemTxResult st##_sname##_##_end##_dma(AddressSpace *as, \
+                                                        dma_addr_t addr, \
+                                                        uint##_bits##_t val, \
+                                                        MemTxAttrs attrs) \
+    { \
+        val = cpu_to_##_end##_bits(val); \
+        return dma_memory_write(as, addr, &val, (_bits) / 8, attrs); \
     }
 
 static inline uint8_t ldub_dma(AddressSpace *as, dma_addr_t addr, MemTxAttrs attrs)
@@ -265,10 +265,10 @@ static inline uint8_t ldub_dma(AddressSpace *as, dma_addr_t addr, MemTxAttrs att
     return val;
 }
 
-static inline void stb_dma(AddressSpace *as, dma_addr_t addr,
-                           uint8_t val, MemTxAttrs attrs)
+static inline MemTxResult stb_dma(AddressSpace *as, dma_addr_t addr,
+                                  uint8_t val, MemTxAttrs attrs)
 {
-    dma_memory_write(as, addr, &val, 1, attrs);
+    return dma_memory_write(as, addr, &val, 1, attrs);
 }
 
 DEFINE_LDST_DMA(uw, w, 16, le);
