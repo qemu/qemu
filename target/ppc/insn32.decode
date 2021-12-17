@@ -130,10 +130,14 @@
 &X_vrt_frbp     vrt frbp
 @X_vrt_frbp     ...... vrt:5 ..... ....0 .......... .           &X_vrt_frbp frbp=%x_frbp
 
+%xx_xt          0:1 21:5
+%xx_xb          1:1 11:5
+%xx_xa          2:1 16:5
 &XX2            xt xb uim:uint8_t
-%xx2_xt         0:1 21:5
-%xx2_xb         1:1 11:5
-@XX2            ...... ..... ... uim:2 ..... ......... ..       &XX2 xt=%xx2_xt xb=%xx2_xb
+@XX2            ...... ..... ... uim:2 ..... ......... ..       &XX2 xt=%xx_xt xb=%xx_xb
+
+&XX3            xt xa xb
+@XX3            ...... ..... ..... ..... ........ ...           &XX3 xt=%xx_xt xa=%xx_xa xb=%xx_xb
 
 &Z22_bf_fra     bf fra dm
 @Z22_bf_fra     ...... bf:3 .. fra:5 dm:6 ......... .           &Z22_bf_fra
@@ -455,3 +459,10 @@ XXSPLTW         111100 ..... ---.. ..... 010100100 . .  @XX2
 ## VSX Vector Load Special Value Instruction
 
 LXVKQ           111100 ..... 11111 ..... 0101101000 .   @X_uim5
+
+## VSX Comparison Instructions
+
+XSMAXCDP        111100 ..... ..... ..... 10000000 ...   @XX3
+XSMINCDP        111100 ..... ..... ..... 10001000 ...   @XX3
+XSMAXJDP        111100 ..... ..... ..... 10010000 ...   @XX3
+XSMINJDP        111100 ..... ..... ..... 10011000 ...   @XX3
