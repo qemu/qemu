@@ -112,6 +112,54 @@ static PMUEventType pmc_get_event(CPUPPCState *env, int sprn)
     return evt_type;
 }
 
+bool pmu_insn_cnt_enabled(CPUPPCState *env)
+{
+    int sprn;
+
+    for (sprn = SPR_POWER_PMC1; sprn <= SPR_POWER_PMC5; sprn++) {
+        if (pmc_get_event(env, sprn) == PMU_EVENT_INSTRUCTIONS) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool pmu_increment_insns(CPUPPCState *env, uint32_t num_insns)
+{
+    bool overflow_triggered = false;
+    int sprn;
+
+    /* PMC6 never counts instructions */
+    for (sprn = SPR_POWER_PMC1; sprn <= SPR_POWER_PMC5; sprn++) {
+        if (pmc_get_event(env, sprn) != PMU_EVENT_INSTRUCTIONS) {
+            continue;
+        }
+
+        env->spr[sprn] += num_insns;
+
+        if (env->spr[sprn] >= PMC_COUNTER_NEGATIVE_VAL &&
+            pmc_has_overflow_enabled(env, sprn)) {
+
+            overflow_triggered = true;
+
+            /*
+             * The real PMU will always trigger a counter overflow with
+             * PMC_COUNTER_NEGATIVE_VAL. We don't have an easy way to
+             * do that since we're counting block of instructions at
+             * the end of each translation block, and we're probably
+             * passing this value at this point.
+             *
+             * Let's write PMC_COUNTER_NEGATIVE_VAL to the overflowed
+             * counter to simulate what the real hardware would do.
+             */
+            env->spr[sprn] = PMC_COUNTER_NEGATIVE_VAL;
+        }
+    }
+
+    return overflow_triggered;
+}
+
 static void pmu_update_cycles(CPUPPCState *env)
 {
     uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -195,7 +243,7 @@ void helper_store_mmcr0(CPUPPCState *env, target_ulong value)
 
     env->spr[SPR_POWER_MMCR0] = value;
 
-    /* MMCR0 writes can change HFLAGS_PMCCCLEAR */
+    /* MMCR0 writes can change HFLAGS_PMCCCLEAR and HFLAGS_INSN_CNT */
     hreg_compute_hflags(env);
 
     /* Update cycle overflow timers with the current MMCR0 state */
@@ -207,6 +255,9 @@ void helper_store_mmcr1(CPUPPCState *env, uint64_t value)
     pmu_update_cycles(env);
 
     env->spr[SPR_POWER_MMCR1] = value;
+
+    /* MMCR1 writes can change HFLAGS_INSN_CNT */
+    hreg_compute_hflags(env);
 }
 
 target_ulong helper_read_pmc(CPUPPCState *env, uint32_t sprn)
@@ -235,6 +286,20 @@ static void fire_PMC_interrupt(PowerPCCPU *cpu)
 
     /* PMC interrupt not implemented yet */
     return;
+}
+
+/* This helper assumes that the PMC is running. */
+void helper_insns_inc(CPUPPCState *env, uint32_t num_insns)
+{
+    bool overflow_triggered;
+    PowerPCCPU *cpu;
+
+    overflow_triggered = pmu_increment_insns(env, num_insns);
+
+    if (overflow_triggered) {
+        cpu = env_archcpu(env);
+        fire_PMC_interrupt(cpu);
+    }
 }
 
 static void cpu_ppc_pmu_timer_cb(void *opaque)

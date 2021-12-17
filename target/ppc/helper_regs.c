@@ -23,6 +23,7 @@
 #include "exec/exec-all.h"
 #include "sysemu/kvm.h"
 #include "helper_regs.h"
+#include "power8-pmu.h"
 
 /* Swap temporary saved registers with GPRs */
 void hreg_swap_gpr_tgpr(CPUPPCState *env)
@@ -120,6 +121,12 @@ static uint32_t hreg_compute_hflags_value(CPUPPCState *env)
     if (!env->has_hv_mode || (msr & (1ull << MSR_HV))) {
         hflags |= 1 << HFLAGS_HV;
     }
+
+#if defined(TARGET_PPC64)
+    if (pmu_insn_cnt_enabled(env)) {
+        hflags |= 1 << HFLAGS_INSN_CNT;
+    }
+#endif
 
     /*
      * This is our encoding for server processors. The architecture

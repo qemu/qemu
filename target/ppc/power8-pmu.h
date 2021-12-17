@@ -21,5 +21,6 @@
 #include "qemu/main-loop.h"
 
 void cpu_ppc_pmu_init(CPUPPCState *env);
+bool pmu_insn_cnt_enabled(CPUPPCState *env);
 
 #endif
