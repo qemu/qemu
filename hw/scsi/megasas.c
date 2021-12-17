@@ -109,8 +109,8 @@ struct MegasasState {
     uint64_t reply_queue_pa;
     void *reply_queue;
     uint16_t reply_queue_len;
-    uint16_t reply_queue_head;
-    uint16_t reply_queue_tail;
+    uint32_t reply_queue_head;
+    uint32_t reply_queue_tail;
     uint64_t consumer_pa;
     uint64_t producer_pa;
 
