@@ -1491,6 +1491,40 @@ static bool trans_VSRDBI(DisasContext *ctx, arg_VN *a)
     return true;
 }
 
+static bool do_vexpand(DisasContext *ctx, arg_VX_tb *a, unsigned vece)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    tcg_gen_gvec_sari(vece, avr_full_offset(a->vrt), avr_full_offset(a->vrb),
+                      (8 << vece) - 1, 16, 16);
+
+    return true;
+}
+
+TRANS(VEXPANDBM, do_vexpand, MO_8)
+TRANS(VEXPANDHM, do_vexpand, MO_16)
+TRANS(VEXPANDWM, do_vexpand, MO_32)
+TRANS(VEXPANDDM, do_vexpand, MO_64)
+
+static bool trans_VEXPANDQM(DisasContext *ctx, arg_VX_tb *a)
+{
+    TCGv_i64 tmp;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    tmp = tcg_temp_new_i64();
+
+    get_avr64(tmp, a->vrb, true);
+    tcg_gen_sari_i64(tmp, tmp, 63);
+    set_avr64(a->vrt, tmp, false);
+    set_avr64(a->vrt, tmp, true);
+
+    tcg_temp_free_i64(tmp);
+    return true;
+}
+
 #define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
 static void glue(gen_, name0##_##name1)(DisasContext *ctx)              \
     {                                                                   \

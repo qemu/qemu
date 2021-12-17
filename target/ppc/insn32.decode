@@ -56,6 +56,9 @@
 &VX_uim4        vrt uim vrb
 @VX_uim4        ...... vrt:5 . uim:4 vrb:5 ...........  &VX_uim4
 
+&VX_tb          vrt vrb
+@VX_tb          ...... vrt:5 ..... vrb:5 ...........    &VX_tb
+
 &X              rt ra rb
 @X              ...... rt:5 ra:5 rb:5 .......... .      &X
 
@@ -407,6 +410,14 @@ VINSWVRX        000100 ..... ..... ..... 00110001111    @VX
 
 VSLDBI          000100 ..... ..... ..... 00 ... 010110  @VN
 VSRDBI          000100 ..... ..... ..... 01 ... 010110  @VN
+
+## Vector Mask Manipulation Instructions
+
+VEXPANDBM       000100 ..... 00000 ..... 11001000010    @VX_tb
+VEXPANDHM       000100 ..... 00001 ..... 11001000010    @VX_tb
+VEXPANDWM       000100 ..... 00010 ..... 11001000010    @VX_tb
+VEXPANDDM       000100 ..... 00011 ..... 11001000010    @VX_tb
+VEXPANDQM       000100 ..... 00100 ..... 11001000010    @VX_tb
 
 # VSX Load/Store Instructions
 
