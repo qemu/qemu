@@ -547,6 +547,7 @@ static void taihu_class_init(ObjectClass *oc, void *data)
     mc->init = taihu_405ep_init;
     mc->default_ram_size = 0x08000000;
     mc->default_ram_id = "taihu_405ep.ram";
+    mc->deprecation_reason = "incomplete, use 'ref405ep' instead";
 }
 
 static const TypeInfo taihu_type = {
