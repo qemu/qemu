@@ -23,6 +23,8 @@
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
 
+#define PMC_COUNTER_NEGATIVE_VAL 0x80000000UL
+
 static bool pmc_is_inactive(CPUPPCState *env, int sprn)
 {
     if (env->spr[SPR_POWER_MMCR0] & MMCR0_FC) {
@@ -34,6 +36,15 @@ static bool pmc_is_inactive(CPUPPCState *env, int sprn)
     }
 
     return env->spr[SPR_POWER_MMCR0] & MMCR0_FC56;
+}
+
+static bool pmc_has_overflow_enabled(CPUPPCState *env, int sprn)
+{
+    if (sprn == SPR_POWER_PMC1) {
+        return env->spr[SPR_POWER_MMCR0] & MMCR0_PMC1CE;
+    }
+
+    return env->spr[SPR_POWER_MMCR0] & MMCR0_PMCjCE;
 }
 
 /*
@@ -123,6 +134,61 @@ static void pmu_update_cycles(CPUPPCState *env)
     env->pmu_base_time = now;
 }
 
+/*
+ * Helper function to retrieve the cycle overflow timer of the
+ * 'sprn' counter.
+ */
+static QEMUTimer *get_cyc_overflow_timer(CPUPPCState *env, int sprn)
+{
+    return env->pmu_cyc_overflow_timers[sprn - SPR_POWER_PMC1];
+}
+
+static void pmc_update_overflow_timer(CPUPPCState *env, int sprn)
+{
+    QEMUTimer *pmc_overflow_timer = get_cyc_overflow_timer(env, sprn);
+    int64_t timeout;
+
+    /*
+     * PMC5 does not have an overflow timer and this pointer
+     * will be NULL.
+     */
+    if (!pmc_overflow_timer) {
+        return;
+    }
+
+    if (pmc_get_event(env, sprn) != PMU_EVENT_CYCLES ||
+        !pmc_has_overflow_enabled(env, sprn)) {
+        /* Overflow timer is not needed for this counter */
+        timer_del(pmc_overflow_timer);
+        return;
+    }
+
+    if (env->spr[sprn] >= PMC_COUNTER_NEGATIVE_VAL) {
+        timeout =  0;
+    } else {
+        timeout = PMC_COUNTER_NEGATIVE_VAL - env->spr[sprn];
+    }
+
+    /*
+     * Use timer_mod_anticipate() because an overflow timer might
+     * be already running for this PMC.
+     */
+    timer_mod_anticipate(pmc_overflow_timer, env->pmu_base_time + timeout);
+}
+
+static void pmu_update_overflow_timers(CPUPPCState *env)
+{
+    int sprn;
+
+    /*
+     * Scroll through all PMCs and start counter overflow timers for
+     * PM_CYC events, if needed.
+     */
+    for (sprn = SPR_POWER_PMC1; sprn <= SPR_POWER_PMC6; sprn++) {
+        pmc_update_overflow_timer(env, sprn);
+    }
+}
+
 void helper_store_mmcr0(CPUPPCState *env, target_ulong value)
 {
     pmu_update_cycles(env);
@@ -131,6 +197,9 @@ void helper_store_mmcr0(CPUPPCState *env, target_ulong value)
 
     /* MMCR0 writes can change HFLAGS_PMCCCLEAR */
     hreg_compute_hflags(env);
+
+    /* Update cycle overflow timers with the current MMCR0 state */
+    pmu_update_overflow_timers(env);
 }
 
 void helper_store_mmcr1(CPUPPCState *env, uint64_t value)
@@ -152,6 +221,8 @@ void helper_store_pmc(CPUPPCState *env, uint32_t sprn, uint64_t value)
     pmu_update_cycles(env);
 
     env->spr[sprn] = value;
+
+    pmc_update_overflow_timer(env, sprn);
 }
 
 static void fire_PMC_interrupt(PowerPCCPU *cpu)
