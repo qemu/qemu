@@ -3138,11 +3138,8 @@ void helper_xsrqpi(CPUPPCState *env, uint32_t opcode,
     t.f128 = float128_round_to_int(xb->f128, &tstat);
     env->fp_status.float_exception_flags |= tstat.float_exception_flags;
 
-    if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {
-        if (float128_is_signaling_nan(xb->f128, &tstat)) {
-            float_invalid_op_vxsnan(env, GETPC());
-            t.f128 = float128_snan_to_qnan(t.f128);
-        }
+    if (unlikely(tstat.float_exception_flags & float_flag_invalid_snan)) {
+        float_invalid_op_vxsnan(env, GETPC());
     }
 
     if (ex == 0 && (tstat.float_exception_flags & float_flag_inexact)) {
@@ -3196,11 +3193,9 @@ void helper_xsrqpxp(CPUPPCState *env, uint32_t opcode,
     t.f128 = floatx80_to_float128(round_res, &tstat);
     env->fp_status.float_exception_flags |= tstat.float_exception_flags;
 
-    if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {
-        if (float128_is_signaling_nan(xb->f128, &tstat)) {
-            float_invalid_op_vxsnan(env, GETPC());
-            t.f128 = float128_snan_to_qnan(t.f128);
-        }
+    if (unlikely(tstat.float_exception_flags & float_flag_invalid_snan)) {
+        float_invalid_op_vxsnan(env, GETPC());
+        t.f128 = float128_snan_to_qnan(t.f128);
     }
 
     helper_compute_fprf_float128(env, t.f128);
