@@ -759,6 +759,10 @@ enum {
                           FP_VXZDZ  | FP_VXIMZ  | FP_VXVC   | FP_VXSOFT | \
                           FP_VXSQRT | FP_VXCVI)
 
+/* FPSCR bits that can be set by mtfsf, mtfsfi and mtfsb1 */
+#define FPSCR_MTFS_MASK (~(MAKE_64BIT_MASK(36, 28) | PPC_BIT(28) |        \
+                           FP_FEX | FP_VX | PPC_BIT(52)))
+
 /*****************************************************************************/
 /* Vector status and control register */
 #define VSCR_NJ         16 /* Vector non-java */
