@@ -388,7 +388,6 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
         ppc6xx_tlb_invalidate_all(env);
         break;
     case POWERPC_MMU_SOFT_4xx:
-    case POWERPC_MMU_SOFT_4xx_Z:
         ppc4xx_tlb_invalidate_all(env);
         break;
     case POWERPC_MMU_REAL:

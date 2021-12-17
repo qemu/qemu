@@ -53,8 +53,6 @@ enum powerpc_mmu_t {
     POWERPC_MMU_SOFT_74xx  = 0x00000003,
     /* PowerPC 4xx MMU with software TLB                       */
     POWERPC_MMU_SOFT_4xx   = 0x00000004,
-    /* PowerPC 4xx MMU with software TLB and zones protections */
-    POWERPC_MMU_SOFT_4xx_Z = 0x00000005,
     /* PowerPC MMU in real mode only                           */
     POWERPC_MMU_REAL       = 0x00000006,
     /* Freescale MPC8xx MMU model                              */
@@ -149,8 +147,6 @@ enum powerpc_input_t {
     PPC_FLAGS_INPUT_POWER7,
     /* PowerPC POWER9 bus               */
     PPC_FLAGS_INPUT_POWER9,
-    /* PowerPC 401 bus                  */
-    PPC_FLAGS_INPUT_401,
     /* Freescale RCPU bus               */
     PPC_FLAGS_INPUT_RCPU,
 };

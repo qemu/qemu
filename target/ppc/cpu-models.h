@@ -38,27 +38,8 @@ extern PowerPCCPUAlias ppc_cpu_aliases[];
 /*****************************************************************************/
 /* PVR definitions for most known PowerPC                                    */
 enum {
-    /* PowerPC 401 family */
-    /* Generic PowerPC 401 */
-#define CPU_POWERPC_401              CPU_POWERPC_401G2
-    /* PowerPC 401 cores */
-    CPU_POWERPC_401A1              = 0x00210000,
-    CPU_POWERPC_401B2              = 0x00220000,
-    CPU_POWERPC_401C2              = 0x00230000,
-    CPU_POWERPC_401D2              = 0x00240000,
-    CPU_POWERPC_401E2              = 0x00250000,
-    CPU_POWERPC_401F2              = 0x00260000,
-    CPU_POWERPC_401G2              = 0x00270000,
-    /* PowerPC 401 microcontrolers */
-#define CPU_POWERPC_IOP480           CPU_POWERPC_401B2
     /* IBM Processor for Network Resources */
     CPU_POWERPC_COBRA              = 0x10100000, /* XXX: 405 ? */
-    /* PowerPC 403 family */
-    /* PowerPC 403 microcontrollers */
-    CPU_POWERPC_403GA              = 0x00200011,
-    CPU_POWERPC_403GB              = 0x00200100,
-    CPU_POWERPC_403GC              = 0x00200200,
-    CPU_POWERPC_403GCX             = 0x00201400,
     /* PowerPC 405 family */
     /* PowerPC 405 cores */
     CPU_POWERPC_405D2              = 0x20010000,
