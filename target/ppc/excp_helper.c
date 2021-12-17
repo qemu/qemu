@@ -672,7 +672,6 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         switch (excp_model) {
         case POWERPC_EXCP_602:
         case POWERPC_EXCP_603:
-        case POWERPC_EXCP_603E:
         case POWERPC_EXCP_G2:
             /* Swap temporary saved registers with GPRs */
             if (!(new_msr & ((target_ulong)1 << MSR_TGPR))) {
