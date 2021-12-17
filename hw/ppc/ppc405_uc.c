@@ -1381,9 +1381,9 @@ static void ppc405ep_cpc_reset (void *opaque)
 
     cpc->boot = 0x00000010;     /* Boot from PCI - IIC EEPROM disabled */
     cpc->epctl = 0x00000000;
-    cpc->pllmr[0] = 0x00011010;
-    cpc->pllmr[1] = 0x40000000;
-    cpc->ucr = 0x00000000;
+    cpc->pllmr[0] = 0x00021002;
+    cpc->pllmr[1] = 0x80a552be;
+    cpc->ucr = 0x00004646;
     cpc->srr = 0x00040000;
     cpc->pci = 0x00000000;
     cpc->er = 0x00000000;
