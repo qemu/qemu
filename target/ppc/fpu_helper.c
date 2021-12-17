@@ -775,6 +775,18 @@ float64 helper_fsqrt(CPUPPCState *env, float64 arg)
     return ret;
 }
 
+/* fsqrts - fsqrts. */
+float64 helper_fsqrts(CPUPPCState *env, float64 arg)
+{
+    float64 ret = float64r32_sqrt(arg, &env->fp_status);
+    int flags = get_float_exception_flags(&env->fp_status);
+
+    if (unlikely(flags & float_flag_invalid)) {
+        float_invalid_op_sqrt(env, flags, 1, GETPC());
+    }
+    return ret;
+}
+
 /* fre - fre. */
 float64 helper_fre(CPUPPCState *env, float64 arg)
 {
