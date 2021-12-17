@@ -1585,6 +1585,10 @@ void kvm_s390_set_diag318(CPUState *cs, uint64_t diag318_info)
         env->diag318_info = diag318_info;
         cs->kvm_run->s.regs.diag318 = diag318_info;
         cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_DIAG318;
+        /*
+         * diag 318 info is zeroed during a clear reset and
+         * diag 308 IPL subcodes.
+         */
     }
 }
 
