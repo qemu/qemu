@@ -638,16 +638,25 @@ static ISABus *pnv_isa_create(PnvChip *chip, Error **errp)
     return PNV_CHIP_GET_CLASS(chip)->isa_create(chip, errp);
 }
 
+static int pnv_chip_power8_pic_print_info_child(Object *child, void *opaque)
+{
+    Monitor *mon = opaque;
+    PnvPHB3 *phb3 = (PnvPHB3 *) object_dynamic_cast(child, TYPE_PNV_PHB3);
+
+    if (phb3) {
+        pnv_phb3_msi_pic_print_info(&phb3->msis, mon);
+        ics_pic_print_info(&phb3->lsis, mon);
+    }
+    return 0;
+}
+
 static void pnv_chip_power8_pic_print_info(PnvChip *chip, Monitor *mon)
 {
     Pnv8Chip *chip8 = PNV8_CHIP(chip);
-    int i;
 
     ics_pic_print_info(&chip8->psi.ics, mon);
-    for (i = 0; i < chip->num_phbs; i++) {
-        pnv_phb3_msi_pic_print_info(&chip8->phbs[i].msis, mon);
-        ics_pic_print_info(&chip8->phbs[i].lsis, mon);
-    }
+    object_child_foreach(OBJECT(chip),
+                         pnv_chip_power8_pic_print_info_child, mon);
 }
 
 static void pnv_chip_power9_pic_print_info(PnvChip *chip, Monitor *mon)
@@ -1789,10 +1798,32 @@ PowerPCCPU *pnv_chip_find_cpu(PnvChip *chip, uint32_t pir)
     return NULL;
 }
 
+typedef struct ForeachPhb3Args {
+    int irq;
+    ICSState *ics;
+} ForeachPhb3Args;
+
+static int pnv_ics_get_child(Object *child, void *opaque)
+{
+    ForeachPhb3Args *args = opaque;
+    PnvPHB3 *phb3 = (PnvPHB3 *) object_dynamic_cast(child, TYPE_PNV_PHB3);
+
+    if (phb3) {
+        if (ics_valid_irq(&phb3->lsis, args->irq)) {
+            args->ics = &phb3->lsis;
+        }
+        if (ics_valid_irq(ICS(&phb3->msis), args->irq)) {
+            args->ics = ICS(&phb3->msis);
+        }
+    }
+    return args->ics ? 1 : 0;
+}
+
 static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
 {
     PnvMachineState *pnv = PNV_MACHINE(xi);
-    int i, j;
+    ForeachPhb3Args args = { irq, NULL };
+    int i;
 
     for (i = 0; i < pnv->num_chips; i++) {
         PnvChip *chip = pnv->chips[i];
@@ -1801,32 +1832,37 @@ static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
         if (ics_valid_irq(&chip8->psi.ics, irq)) {
             return &chip8->psi.ics;
         }
-        for (j = 0; j < chip->num_phbs; j++) {
-            if (ics_valid_irq(&chip8->phbs[j].lsis, irq)) {
-                return &chip8->phbs[j].lsis;
-            }
-            if (ics_valid_irq(ICS(&chip8->phbs[j].msis), irq)) {
-                return ICS(&chip8->phbs[j].msis);
-            }
+
+        object_child_foreach(OBJECT(chip), pnv_ics_get_child, &args);
+        if (args.ics) {
+            return args.ics;
         }
     }
     return NULL;
 }
 
+static int pnv_ics_resend_child(Object *child, void *opaque)
+{
+    PnvPHB3 *phb3 = (PnvPHB3 *) object_dynamic_cast(child, TYPE_PNV_PHB3);
+
+    if (phb3) {
+        ics_resend(&phb3->lsis);
+        ics_resend(ICS(&phb3->msis));
+    }
+    return 0;
+}
+
 static void pnv_ics_resend(XICSFabric *xi)
 {
     PnvMachineState *pnv = PNV_MACHINE(xi);
-    int i, j;
+    int i;
 
     for (i = 0; i < pnv->num_chips; i++) {
         PnvChip *chip = pnv->chips[i];
         Pnv8Chip *chip8 = PNV8_CHIP(pnv->chips[i]);
 
         ics_resend(&chip8->psi.ics);
-        for (j = 0; j < chip->num_phbs; j++) {
-            ics_resend(&chip8->phbs[j].lsis);
-            ics_resend(ICS(&chip8->phbs[j].msis));
-        }
+        object_child_foreach(OBJECT(chip), pnv_ics_resend_child, NULL);
     }
 }
 
