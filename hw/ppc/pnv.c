@@ -1384,7 +1384,6 @@ static void pnv_chip_power9_phb_realize(PnvChip *chip, Error **errp)
 {
     Pnv9Chip *chip9 = PNV9_CHIP(chip);
     int i, j;
-    int phb_id = 0;
 
     for (i = 0; i < chip->num_pecs; i++) {
         PnvPhb4PecState *pec = &chip9->pecs[i];
@@ -1409,11 +1408,10 @@ static void pnv_chip_power9_phb_realize(PnvChip *chip, Error **errp)
         pnv_xscom_add_subregion(chip, pec_nest_base, &pec->nest_regs_mr);
         pnv_xscom_add_subregion(chip, pec_pci_base, &pec->pci_regs_mr);
 
-        for (j = 0; j < pec->num_stacks; j++, phb_id++) {
+        for (j = 0; j < pec->num_stacks; j++) {
             PnvPhb4PecStack *stack = &pec->stacks[j];
             Object *obj = OBJECT(&stack->phb);
 
-            object_property_set_int(obj, "index", phb_id, &error_fatal);
             object_property_set_int(obj, "chip-id", chip->chip_id,
                                     &error_fatal);
             object_property_set_int(obj, "version", pecc->version,
