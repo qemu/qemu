@@ -557,17 +557,14 @@ float64 helper_fmul(CPUPPCState *env, float64 arg1, float64 arg2)
     return ret;
 }
 
-static void float_invalid_op_div(CPUPPCState *env, bool set_fprc,
-                                 uintptr_t retaddr, int classes)
+static void float_invalid_op_div(CPUPPCState *env, int flags,
+                                 bool set_fprc, uintptr_t retaddr)
 {
-    classes &= ~is_neg;
-    if (classes == is_inf) {
-        /* Division of infinity by infinity */
+    if (flags & float_flag_invalid_idi) {
         float_invalid_op_vxidi(env, set_fprc, retaddr);
-    } else if (classes == is_zero) {
-        /* Division of zero by zero */
+    } else if (flags & float_flag_invalid_zdz) {
         float_invalid_op_vxzdz(env, set_fprc, retaddr);
-    } else if (classes & is_snan) {
+    } else if (flags & float_flag_invalid_snan) {
         float_invalid_op_vxsnan(env, retaddr);
     }
 }
@@ -576,17 +573,13 @@ static void float_invalid_op_div(CPUPPCState *env, bool set_fprc,
 float64 helper_fdiv(CPUPPCState *env, float64 arg1, float64 arg2)
 {
     float64 ret = float64_div(arg1, arg2, &env->fp_status);
-    int status = get_float_exception_flags(&env->fp_status);
+    int flags = get_float_exception_flags(&env->fp_status);
 
-    if (unlikely(status)) {
-        if (status & float_flag_invalid) {
-            float_invalid_op_div(env, 1, GETPC(),
-                                 float64_classify(arg1) |
-                                 float64_classify(arg2));
-        }
-        if (status & float_flag_divbyzero) {
-            float_zero_divide_excp(env, GETPC());
-        }
+    if (unlikely(flags & float_flag_invalid)) {
+        float_invalid_op_div(env, flags, 1, GETPC());
+    }
+    if (unlikely(flags & float_flag_divbyzero)) {
+        float_zero_divide_excp(env, GETPC());
     }
 
     return ret;
@@ -1803,9 +1796,8 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                             \
         env->fp_status.float_exception_flags |= tstat.float_exception_flags;  \
                                                                               \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {     \
-            float_invalid_op_div(env, sfprf, GETPC(),                         \
-                                 tp##_classify(xa->fld) |                     \
-                                 tp##_classify(xb->fld));                     \
+            float_invalid_op_div(env, tstat.float_exception_flags,            \
+                                 sfprf, GETPC());                             \
         }                                                                     \
         if (unlikely(tstat.float_exception_flags & float_flag_divbyzero)) {   \
             float_zero_divide_excp(env, GETPC());                             \
@@ -1846,9 +1838,7 @@ void helper_xsdivqp(CPUPPCState *env, uint32_t opcode,
     env->fp_status.float_exception_flags |= tstat.float_exception_flags;
 
     if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {
-        float_invalid_op_div(env, 1, GETPC(),
-                             float128_classify(xa->f128) |
-                             float128_classify(xb->f128));
+        float_invalid_op_div(env, tstat.float_exception_flags, 1, GETPC());
     }
     if (unlikely(tstat.float_exception_flags & float_flag_divbyzero)) {
         float_zero_divide_excp(env, GETPC());
