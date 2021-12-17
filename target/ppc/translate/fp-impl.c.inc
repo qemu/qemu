@@ -157,8 +157,9 @@ static void gen_f##name(DisasContext *ctx)                                    \
     gen_helper_f##name(t1, cpu_env, t0);                                      \
     set_fpr(rD(ctx->opcode), t1);                                             \
     if (set_fprf) {                                                           \
-        gen_compute_fprf_float64(t1);                                         \
+        gen_helper_compute_fprf_float64(cpu_env, t1);                         \
     }                                                                         \
+    gen_helper_float_check_status(cpu_env);                                   \
     if (unlikely(Rc(ctx->opcode) != 0)) {                                     \
         gen_set_cr1_from_fpscr(ctx);                                          \
     }                                                                         \

@@ -600,12 +600,9 @@ uint64_t helper_##op(CPUPPCState *env, float64 arg)                    \
     uint64_t ret = float64_to_##cvt(arg, &env->fp_status);             \
     int status = get_float_exception_flags(&env->fp_status);           \
                                                                        \
-    if (unlikely(status)) {                                            \
-        if (status & float_flag_invalid) {                             \
-            float_invalid_cvt(env, 1, GETPC(), float64_classify(arg)); \
-            ret = nanval;                                              \
-        }                                                              \
-        do_float_check_status(env, GETPC());                           \
+    if (unlikely(status & float_flag_invalid)) {                       \
+        float_invalid_cvt(env, 1, GETPC(), float64_classify(arg));     \
+        ret = nanval;                                                  \
     }                                                                  \
     return ret;                                                        \
 }
