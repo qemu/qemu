@@ -3163,26 +3163,25 @@ void helper_xststdcsp(CPUPPCState *env, uint32_t opcode, ppc_vsr_t *xb)
 {
     uint32_t dcmx, sign, exp;
     uint32_t cc, match = 0, not_sp = 0;
+    float64 arg = xb->VsrD(0);
+    float64 arg_sp;
 
     dcmx = DCMX(opcode);
-    exp = (xb->VsrD(0) >> 52) & 0x7FF;
+    exp = (arg >> 52) & 0x7FF;
+    sign = float64_is_neg(arg);
 
-    sign = float64_is_neg(xb->VsrD(0));
-    if (float64_is_any_nan(xb->VsrD(0))) {
+    if (float64_is_any_nan(arg)) {
         match = extract32(dcmx, 6, 1);
-    } else if (float64_is_infinity(xb->VsrD(0))) {
+    } else if (float64_is_infinity(arg)) {
         match = extract32(dcmx, 4 + !sign, 1);
-    } else if (float64_is_zero(xb->VsrD(0))) {
+    } else if (float64_is_zero(arg)) {
         match = extract32(dcmx, 2 + !sign, 1);
-    } else if (float64_is_zero_or_denormal(xb->VsrD(0)) ||
-               (exp > 0 && exp < 0x381)) {
+    } else if (float64_is_zero_or_denormal(arg) || (exp > 0 && exp < 0x381)) {
         match = extract32(dcmx, 0 + !sign, 1);
     }
 
-    not_sp = !float64_eq(xb->VsrD(0),
-                         float32_to_float64(
-                             float64_to_float32(xb->VsrD(0), &env->fp_status),
-                             &env->fp_status), &env->fp_status);
+    arg_sp = helper_todouble(helper_tosingle(arg));
+    not_sp = arg != arg_sp;
 
     cc = sign << CRF_LT_BIT | match << CRF_EQ_BIT | not_sp << CRF_SO_BIT;
     env->fpscr &= ~FP_FPCC;
