@@ -30,6 +30,7 @@ OBJECT_DECLARE_TYPE(VirtIOMEM, VirtIOMEMClass,
 #define VIRTIO_MEM_REQUESTED_SIZE_PROP "requested-size"
 #define VIRTIO_MEM_BLOCK_SIZE_PROP "block-size"
 #define VIRTIO_MEM_ADDR_PROP "memaddr"
+#define VIRTIO_MEM_PREALLOC_PROP "prealloc"
 
 struct VirtIOMEM {
     VirtIODevice parent_obj;
@@ -61,6 +62,9 @@ struct VirtIOMEM {
 
     /* block size and alignment */
     uint64_t block_size;
+
+    /* whether to prealloc memory when plugging new blocks */
+    bool prealloc;
 
     /* notifiers to notify when "size" changes */
     NotifierList size_change_notifiers;
