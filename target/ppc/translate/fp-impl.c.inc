@@ -31,7 +31,7 @@ static void gen_set_cr1_from_fpscr(DisasContext *ctx)
 #endif
 
 /***                       Floating-Point arithmetic                       ***/
-#define _GEN_FLOAT_ACB(name, op, op1, op2, isfloat, set_fprf, type)           \
+#define _GEN_FLOAT_ACB(name, op1, op2, set_fprf, type)                        \
 static void gen_f##name(DisasContext *ctx)                                    \
 {                                                                             \
     TCGv_i64 t0;                                                              \
@@ -50,10 +50,7 @@ static void gen_f##name(DisasContext *ctx)                                    \
     get_fpr(t0, rA(ctx->opcode));                                             \
     get_fpr(t1, rC(ctx->opcode));                                             \
     get_fpr(t2, rB(ctx->opcode));                                             \
-    gen_helper_f##op(t3, cpu_env, t0, t1, t2);                                \
-    if (isfloat) {                                                            \
-        gen_helper_frsp(t3, cpu_env, t3);                                     \
-    }                                                                         \
+    gen_helper_f##name(t3, cpu_env, t0, t1, t2);                              \
     set_fpr(rD(ctx->opcode), t3);                                             \
     if (set_fprf) {                                                           \
         gen_compute_fprf_float64(t3);                                         \
@@ -68,8 +65,8 @@ static void gen_f##name(DisasContext *ctx)                                    \
 }
 
 #define GEN_FLOAT_ACB(name, op2, set_fprf, type)                              \
-_GEN_FLOAT_ACB(name, name, 0x3F, op2, 0, set_fprf, type);                     \
-_GEN_FLOAT_ACB(name##s, name, 0x3B, op2, 1, set_fprf, type);
+_GEN_FLOAT_ACB(name, 0x3F, op2, set_fprf, type);                              \
+_GEN_FLOAT_ACB(name##s, 0x3B, op2, set_fprf, type);
 
 #define _GEN_FLOAT_AB(name, op, op1, op2, inval, isfloat, set_fprf, type)     \
 static void gen_f##name(DisasContext *ctx)                                    \
@@ -233,7 +230,7 @@ static void gen_frsqrtes(DisasContext *ctx)
 }
 
 /* fsel */
-_GEN_FLOAT_ACB(sel, sel, 0x3F, 0x17, 0, 0, PPC_FLOAT_FSEL);
+_GEN_FLOAT_ACB(sel, 0x3F, 0x17, 0, PPC_FLOAT_FSEL);
 /* fsub - fsubs */
 GEN_FLOAT_AB(sub, 0x14, 0x000007C0, 1, PPC_FLOAT);
 /* Optional: */

@@ -705,10 +705,25 @@ static float64 do_fmadd(CPUPPCState *env, float64 a, float64 b,
     return ret;
 }
 
+static uint64_t do_fmadds(CPUPPCState *env, float64 a, float64 b,
+                          float64 c, int madd_flags, uintptr_t retaddr)
+{
+    float64 ret = float64r32_muladd(a, b, c, madd_flags, &env->fp_status);
+    int flags = get_float_exception_flags(&env->fp_status);
+
+    if (unlikely(flags & float_flag_invalid)) {
+        float_invalid_op_madd(env, flags, 1, retaddr);
+    }
+    return ret;
+}
+
 #define FPU_FMADD(op, madd_flags)                                    \
     uint64_t helper_##op(CPUPPCState *env, uint64_t arg1,            \
                          uint64_t arg2, uint64_t arg3)               \
-    { return do_fmadd(env, arg1, arg2, arg3, madd_flags, GETPC()); }
+    { return do_fmadd(env, arg1, arg2, arg3, madd_flags, GETPC()); } \
+    uint64_t helper_##op##s(CPUPPCState *env, uint64_t arg1,         \
+                         uint64_t arg2, uint64_t arg3)               \
+    { return do_fmadds(env, arg1, arg2, arg3, madd_flags, GETPC()); }
 
 #define MADD_FLGS 0
 #define MSUB_FLGS float_muladd_negate_c
