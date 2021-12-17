@@ -464,15 +464,13 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         break;
     }
     case POWERPC_EXCP_ALIGN:     /* Alignment exception                      */
+        /* Get rS/rD and rA from faulting opcode */
         /*
-         * Get rS/rD and rA from faulting opcode.
-         * Note: We will only invoke ALIGN for atomic operations,
-         * so all instructions are X-form.
+         * Note: the opcode fields will not be set properly for a
+         * direct store load/store, but nobody cares as nobody
+         * actually uses direct store segments.
          */
-        {
-            uint32_t insn = cpu_ldl_code(env, env->nip);
-            env->spr[SPR_DSISR] |= (insn & 0x03FF0000) >> 16;
-        }
+        env->spr[SPR_DSISR] |= (env->error_code & 0x03FF0000) >> 16;
         break;
     case POWERPC_EXCP_PROGRAM:   /* Program exception                        */
         switch (env->error_code & ~0xF) {
@@ -1441,6 +1439,11 @@ void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
                                  int mmu_idx, uintptr_t retaddr)
 {
     CPUPPCState *env = cs->env_ptr;
+    uint32_t insn;
+
+    /* Restore state and reload the insn we executed, for filling in DSISR.  */
+    cpu_restore_state(cs, retaddr, true);
+    insn = cpu_ldl_code(env, env->nip);
 
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_4xx:
@@ -1456,8 +1459,8 @@ void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
     }
 
     cs->exception_index = POWERPC_EXCP_ALIGN;
-    env->error_code = 0;
-    cpu_loop_exit_restore(cs, retaddr);
+    env->error_code = insn & 0x03FF0000;
+    cpu_loop_exit(cs);
 }
 #endif /* CONFIG_TCG */
 #endif /* !CONFIG_USER_ONLY */
