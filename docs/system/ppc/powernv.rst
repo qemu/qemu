@@ -54,6 +54,19 @@ Prebuilt images of ``skiboot`` and ``skiroot`` are made available on the
 QEMU includes a prebuilt image of ``skiboot`` which is updated when a
 more recent version is required by the models.
 
+Current acceleration status
+---------------------------
+
+KVM acceleration in Linux Power hosts is provided by the kvm-hv and
+kvm-pr modules. kvm-hv is adherent to PAPR and it's not compliant with
+powernv. kvm-pr in theory could be used as a valid accel option but
+this isn't supported by kvm-pr at this moment.
+
+To spare users from dealing with not so informative errors when attempting
+to use accel=kvm, the powernv machine will throw an error informing that
+KVM is not supported. This can be revisited in the future if kvm-pr (or
+any other KVM alternative) is usable as KVM accel for this machine.
+
 Boot options
 ------------
 
