@@ -534,13 +534,12 @@ float64 helper_fsub(CPUPPCState *env, float64 arg1, float64 arg2)
     return ret;
 }
 
-static void float_invalid_op_mul(CPUPPCState *env, bool set_fprc,
-                                 uintptr_t retaddr, int classes)
+static void float_invalid_op_mul(CPUPPCState *env, int flags,
+                                 bool set_fprc, uintptr_t retaddr)
 {
-    if ((classes & (is_zero | is_inf)) == (is_zero | is_inf)) {
-        /* Multiplication of zero by infinity */
+    if (flags & float_flag_invalid_imz) {
         float_invalid_op_vximz(env, set_fprc, retaddr);
-    } else if (classes & is_snan) {
+    } else if (flags & float_flag_invalid_snan) {
         float_invalid_op_vxsnan(env, retaddr);
     }
 }
@@ -549,12 +548,10 @@ static void float_invalid_op_mul(CPUPPCState *env, bool set_fprc,
 float64 helper_fmul(CPUPPCState *env, float64 arg1, float64 arg2)
 {
     float64 ret = float64_mul(arg1, arg2, &env->fp_status);
-    int status = get_float_exception_flags(&env->fp_status);
+    int flags = get_float_exception_flags(&env->fp_status);
 
-    if (unlikely(status & float_flag_invalid)) {
-        float_invalid_op_mul(env, 1, GETPC(),
-                             float64_classify(arg1) |
-                             float64_classify(arg2));
+    if (unlikely(flags & float_flag_invalid)) {
+        float_invalid_op_mul(env, flags, 1, GETPC());
     }
 
     return ret;
@@ -1735,9 +1732,8 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                            \
         env->fp_status.float_exception_flags |= tstat.float_exception_flags; \
                                                                              \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {    \
-            float_invalid_op_mul(env, sfprf, GETPC(),                        \
-                                 tp##_classify(xa->fld) |                    \
-                                 tp##_classify(xb->fld));                    \
+            float_invalid_op_mul(env, tstat.float_exception_flags,           \
+                                 sfprf, GETPC());                            \
         }                                                                    \
                                                                              \
         if (r2sp) {                                                          \
@@ -1775,9 +1771,7 @@ void helper_xsmulqp(CPUPPCState *env, uint32_t opcode,
     env->fp_status.float_exception_flags |= tstat.float_exception_flags;
 
     if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {
-        float_invalid_op_mul(env, 1, GETPC(),
-                             float128_classify(xa->f128) |
-                             float128_classify(xb->f128));
+        float_invalid_op_mul(env, tstat.float_exception_flags, 1, GETPC());
     }
     helper_compute_fprf_float128(env, t.f128);
 
