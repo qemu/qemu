@@ -641,8 +641,8 @@ FPU_FCFI(fcfids, int64_to_float32, 1)
 FPU_FCFI(fcfidu, uint64_to_float64, 0)
 FPU_FCFI(fcfidus, uint64_to_float32, 1)
 
-static inline uint64_t do_fri(CPUPPCState *env, uint64_t arg,
-                              int rounding_mode)
+static uint64_t do_fri(CPUPPCState *env, uint64_t arg,
+                       int rounding_mode)
 {
     CPU_DoubleU farg;
     FloatRoundMode old_rounding_mode = get_float_rounding_mode(&env->fp_status);
