@@ -585,13 +585,20 @@ float64 helper_fdiv(CPUPPCState *env, float64 arg1, float64 arg2)
     return ret;
 }
 
-static void float_invalid_cvt(CPUPPCState *env, int flags,
-                              bool set_fprc, uintptr_t retaddr)
+static uint64_t float_invalid_cvt(CPUPPCState *env, int flags,
+                                  uint64_t ret, uint64_t ret_nan,
+                                  bool set_fprc, uintptr_t retaddr)
 {
-    float_invalid_op_vxcvi(env, set_fprc, retaddr);
+    /*
+     * VXCVI is different from most in that it sets two exception bits,
+     * VXCVI and VXSNAN for an SNaN input.
+     */
     if (flags & float_flag_invalid_snan) {
-        float_invalid_op_vxsnan(env, retaddr);
+        env->fpscr |= FP_VXSNAN;
     }
+    float_invalid_op_vxcvi(env, set_fprc, retaddr);
+
+    return flags & float_flag_invalid_cvti ? ret : ret_nan;
 }
 
 #define FPU_FCTI(op, cvt, nanval)                                      \
@@ -599,10 +606,8 @@ uint64_t helper_##op(CPUPPCState *env, float64 arg)                    \
 {                                                                      \
     uint64_t ret = float64_to_##cvt(arg, &env->fp_status);             \
     int flags = get_float_exception_flags(&env->fp_status);            \
-                                                                       \
     if (unlikely(flags & float_flag_invalid)) {                        \
-        float_invalid_cvt(env, flags, 1, GETPC());                     \
-        ret = nanval;                                                  \
+        ret = float_invalid_cvt(env, flags, ret, nanval, 1, GETPC());  \
     }                                                                  \
     return ret;                                                        \
 }
@@ -2794,8 +2799,7 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)             \
         t.tfld = stp##_to_##ttp##_round_to_zero(xb->sfld, &env->fp_status);  \
         flags = env->fp_status.float_exception_flags;                        \
         if (unlikely(flags & float_flag_invalid)) {                          \
-            float_invalid_cvt(env, flags, 0, GETPC());                       \
-            t.tfld = rnan;                                                   \
+            t.tfld = float_invalid_cvt(env, flags, t.tfld, rnan, 0, GETPC());\
         }                                                                    \
         all_flags |= flags;                                                  \
     }                                                                        \
@@ -2842,8 +2846,7 @@ void helper_##op(CPUPPCState *env, uint32_t opcode,                          \
     t.tfld = stp##_to_##ttp##_round_to_zero(xb->sfld, &env->fp_status);      \
     flags = get_float_exception_flags(&env->fp_status);                      \
     if (flags & float_flag_invalid) {                                        \
-        float_invalid_cvt(env, flags, 0, GETPC());                           \
-        t.tfld = rnan;                                                       \
+        t.tfld = float_invalid_cvt(env, flags, t.tfld, rnan, 0, GETPC());    \
     }                                                                        \
                                                                              \
     *xt = t;                                                                 \
