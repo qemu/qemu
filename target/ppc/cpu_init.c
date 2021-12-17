@@ -45,6 +45,7 @@
 #include "helper_regs.h"
 #include "internal.h"
 #include "spr_tcg.h"
+#include "power8-pmu.h"
 
 /* #define PPC_DEBUG_SPR */
 /* #define USE_APPLE_GDB */
@@ -6810,6 +6811,20 @@ static void register_power9_mmu_sprs(CPUPPCState *env)
 #endif
 }
 
+/*
+ * Initialize PMU counter overflow timers for Power8 and
+ * newer Power chips when using TCG.
+ */
+static void init_tcg_pmu_power8(CPUPPCState *env)
+{
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+    /* Init PMU overflow timers */
+    if (!kvm_enabled()) {
+        cpu_ppc_pmu_init(env);
+    }
+#endif
+}
+
 static void init_proc_book3s_common(CPUPPCState *env)
 {
     register_ne_601_sprs(env);
@@ -7127,6 +7142,9 @@ static void init_proc_POWER8(CPUPPCState *env)
     register_sdr1_sprs(env);
     register_book3s_207_dbg_sprs(env);
 
+    /* Common TCG PMU */
+    init_tcg_pmu_power8(env);
+
     /* POWER8 Specific Registers */
     register_book3s_ids_sprs(env);
     register_rmor_sprs(env);
@@ -7320,6 +7338,9 @@ static void init_proc_POWER9(CPUPPCState *env)
     /* Common Registers */
     init_proc_book3s_common(env);
     register_book3s_207_dbg_sprs(env);
+
+    /* Common TCG PMU */
+    init_tcg_pmu_power8(env);
 
     /* POWER8 Specific Registers */
     register_book3s_ids_sprs(env);
@@ -7536,6 +7557,9 @@ static void init_proc_POWER10(CPUPPCState *env)
     /* Common Registers */
     init_proc_book3s_common(env);
     register_book3s_207_dbg_sprs(env);
+
+    /* Common TCG PMU */
+    init_tcg_pmu_power8(env);
 
     /* POWER8 Specific Registers */
     register_book3s_ids_sprs(env);
