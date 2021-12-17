@@ -556,6 +556,10 @@ static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
 {
     PnvPhb4PecStack *stack = PNV_PHB4_PEC_STACK(dev);
     PnvPhb4PecState *pec = stack->pec;
+    PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
+    PnvChip *chip = pec->chip;
+    uint32_t pec_nest_base;
+    uint32_t pec_pci_base;
     char name[64];
 
     assert(pec);
@@ -579,10 +583,32 @@ static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
     pnv_xscom_region_init(&stack->phb_regs_mr, OBJECT(&stack->phb),
                           &pnv_phb4_xscom_ops, &stack->phb, name, 0x40);
 
-    /*
-     * Let the machine/chip realize the PHB object to customize more
-     * easily some fields
-     */
+    object_property_set_int(OBJECT(&stack->phb), "chip-id", pec->chip_id,
+                            &error_fatal);
+    object_property_set_int(OBJECT(&stack->phb), "version", pecc->version,
+                            &error_fatal);
+    object_property_set_int(OBJECT(&stack->phb), "device-id", pecc->device_id,
+                            &error_fatal);
+    object_property_set_link(OBJECT(&stack->phb), "stack", OBJECT(stack),
+                             &error_abort);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&stack->phb), errp)) {
+        return;
+    }
+
+    pec_nest_base = pecc->xscom_nest_base(pec);
+    pec_pci_base = pecc->xscom_pci_base(pec);
+
+    /* Populate the XSCOM address space. */
+    pnv_xscom_add_subregion(chip,
+                            pec_nest_base + 0x40 * (stack->stack_no + 1),
+                            &stack->nest_regs_mr);
+    pnv_xscom_add_subregion(chip,
+                            pec_pci_base + 0x40 * (stack->stack_no + 1),
+                            &stack->pci_regs_mr);
+    pnv_xscom_add_subregion(chip,
+                            pec_pci_base + PNV9_XSCOM_PEC_PCI_STK0 +
+                            0x40 * stack->stack_no,
+                            &stack->phb_regs_mr);
 }
 
 static Property pnv_pec_stk_properties[] = {
