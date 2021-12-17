@@ -57,7 +57,7 @@ struct ppc4xx_bd_info_t {
     uint32_t bi_plb_busfreq;
     uint32_t bi_pci_busfreq;
     uint8_t  bi_pci_enetaddr[6];
-    uint32_t bi_pci_enetaddr2[6];
+    uint8_t  bi_pci_enetaddr2[6]; /* PPC405EP specific */
     uint32_t bi_opbfreq;
     uint32_t bi_iic_fast[2];
 };
