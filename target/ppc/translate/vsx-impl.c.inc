@@ -913,8 +913,9 @@ static void gen_xscvqpdp(DisasContext *ctx)
         return;
     }
     opc = tcg_const_i32(ctx->opcode);
-    xt = gen_vsr_ptr(xT(ctx->opcode));
-    xb = gen_vsr_ptr(xB(ctx->opcode));
+
+    xt = gen_vsr_ptr(rD(ctx->opcode) + 32);
+    xb = gen_vsr_ptr(rB(ctx->opcode) + 32);
     gen_helper_xscvqpdp(cpu_env, opc, xt, xb);
     tcg_temp_free_i32(opc);
     tcg_temp_free_ptr(xt);
