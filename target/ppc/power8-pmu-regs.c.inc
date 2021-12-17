@@ -181,13 +181,23 @@ void spr_write_MMCR2_ureg(DisasContext *ctx, int sprn, int gprn)
     tcg_temp_free(masked_gprn);
 }
 
+void spr_read_PMC(DisasContext *ctx, int gprn, int sprn)
+{
+    TCGv_i32 t_sprn = tcg_const_i32(sprn);
+
+    gen_icount_io_start(ctx);
+    gen_helper_read_pmc(cpu_gpr[gprn], cpu_env, t_sprn);
+
+    tcg_temp_free_i32(t_sprn);
+}
+
 void spr_read_PMC14_ureg(DisasContext *ctx, int gprn, int sprn)
 {
     if (!spr_groupA_read_allowed(ctx)) {
         return;
     }
 
-    spr_read_ureg(ctx, gprn, sprn);
+    spr_read_PMC(ctx, gprn, sprn + 0x10);
 }
 
 void spr_read_PMC56_ureg(DisasContext *ctx, int gprn, int sprn)
@@ -206,13 +216,23 @@ void spr_read_PMC56_ureg(DisasContext *ctx, int gprn, int sprn)
     spr_read_PMC14_ureg(ctx, gprn, sprn);
 }
 
+void spr_write_PMC(DisasContext *ctx, int sprn, int gprn)
+{
+    TCGv_i32 t_sprn = tcg_const_i32(sprn);
+
+    gen_icount_io_start(ctx);
+    gen_helper_store_pmc(cpu_env, t_sprn, cpu_gpr[gprn]);
+
+    tcg_temp_free_i32(t_sprn);
+}
+
 void spr_write_PMC14_ureg(DisasContext *ctx, int sprn, int gprn)
 {
     if (!spr_groupA_write_allowed(ctx)) {
         return;
     }
 
-    spr_write_ureg(ctx, sprn, gprn);
+    spr_write_PMC(ctx, sprn + 0x10, gprn);
 }
 
 void spr_write_PMC56_ureg(DisasContext *ctx, int sprn, int gprn)
@@ -277,6 +297,11 @@ void spr_write_PMC56_ureg(DisasContext *ctx, int sprn, int gprn)
 }
 
 void spr_write_MMCR0(DisasContext *ctx, int sprn, int gprn)
+{
+    spr_write_generic(ctx, sprn, gprn);
+}
+
+void spr_write_PMC(DisasContext *ctx, int sprn, int gprn)
 {
     spr_write_generic(ctx, sprn, gprn);
 }

@@ -133,6 +133,20 @@ void helper_store_mmcr0(CPUPPCState *env, target_ulong value)
     hreg_compute_hflags(env);
 }
 
+target_ulong helper_read_pmc(CPUPPCState *env, uint32_t sprn)
+{
+    pmu_update_cycles(env);
+
+    return env->spr[sprn];
+}
+
+void helper_store_pmc(CPUPPCState *env, uint32_t sprn, uint64_t value)
+{
+    pmu_update_cycles(env);
+
+    env->spr[sprn] = value;
+}
+
 static void fire_PMC_interrupt(PowerPCCPU *cpu)
 {
     CPUPPCState *env = &cpu->env;
