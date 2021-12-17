@@ -590,11 +590,13 @@ static FloatPartsN *partsN(div)(FloatPartsN *a, FloatPartsN *b,
     }
 
     /* 0/0 or Inf/Inf => NaN */
-    if (unlikely(ab_mask == float_cmask_zero) ||
-        unlikely(ab_mask == float_cmask_inf)) {
-        float_raise(float_flag_invalid, s);
-        parts_default_nan(a, s);
-        return a;
+    if (unlikely(ab_mask == float_cmask_zero)) {
+        float_raise(float_flag_invalid | float_flag_invalid_zdz, s);
+        goto d_nan;
+    }
+    if (unlikely(ab_mask == float_cmask_inf)) {
+        float_raise(float_flag_invalid | float_flag_invalid_idi, s);
+        goto d_nan;
     }
 
     /* All the NaN cases */
@@ -624,6 +626,10 @@ static FloatPartsN *partsN(div)(FloatPartsN *a, FloatPartsN *b,
     g_assert(b->cls == float_class_zero);
     float_raise(float_flag_divbyzero, s);
     a->cls = float_class_inf;
+    return a;
+
+ d_nan:
+    parts_default_nan(a, s);
     return a;
 }
 
