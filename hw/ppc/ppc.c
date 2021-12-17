@@ -1367,6 +1367,7 @@ int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, uint32_t *valp)
     if (dcr->dcr_read == NULL)
         goto error;
     *valp = (*dcr->dcr_read)(dcr->opaque, dcrn);
+    trace_ppc_dcr_read(dcrn, *valp);
 
     return 0;
 
@@ -1386,6 +1387,7 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, uint32_t val)
     dcr = &dcr_env->dcrn[dcrn];
     if (dcr->dcr_write == NULL)
         goto error;
+    trace_ppc_dcr_write(dcrn, val);
     (*dcr->dcr_write)(dcr->opaque, dcrn, val);
 
     return 0;
