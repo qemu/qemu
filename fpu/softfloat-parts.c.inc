@@ -423,7 +423,7 @@ static FloatPartsN *partsN(mul)(FloatPartsN *a, FloatPartsN *b,
 
     /* Inf * Zero == NaN */
     if (unlikely(ab_mask == float_cmask_infzero)) {
-        float_raise(float_flag_invalid, s);
+        float_raise(float_flag_invalid | float_flag_invalid_imz, s);
         parts_default_nan(a, s);
         return a;
     }
@@ -489,6 +489,7 @@ static FloatPartsN *partsN(muladd)(FloatPartsN *a, FloatPartsN *b,
 
     if (unlikely(ab_mask != float_cmask_normal)) {
         if (unlikely(ab_mask == float_cmask_infzero)) {
+            float_raise(float_flag_invalid | float_flag_invalid_imz, s);
             goto d_nan;
         }
 
@@ -567,7 +568,6 @@ static FloatPartsN *partsN(muladd)(FloatPartsN *a, FloatPartsN *b,
     goto finish_sign;
 
  d_nan:
-    float_raise(float_flag_invalid, s);
     parts_default_nan(a, s);
     return a;
 }
