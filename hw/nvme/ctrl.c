@@ -357,6 +357,24 @@ static inline void *nvme_addr_to_pmr(NvmeCtrl *n, hwaddr addr)
     return memory_region_get_ram_ptr(&n->pmr.dev->mr) + (addr - n->pmr.cba);
 }
 
+static inline bool nvme_addr_is_iomem(NvmeCtrl *n, hwaddr addr)
+{
+    hwaddr hi, lo;
+
+    /*
+     * The purpose of this check is to guard against invalid "local" access to
+     * the iomem (i.e. controller registers). Thus, we check against the range
+     * covered by the 'bar0' MemoryRegion since that is currently composed of
+     * two subregions (the NVMe "MBAR" and the MSI-X table/pba). Note, however,
+     * that if the device model is ever changed to allow the CMB to be located
+     * in BAR0 as well, then this must be changed.
+     */
+    lo = n->bar0.addr;
+    hi = lo + int128_get64(n->bar0.size);
+
+    return addr >= lo && addr < hi;
+}
+
 static int nvme_addr_read(NvmeCtrl *n, hwaddr addr, void *buf, int size)
 {
     hwaddr hi = addr + size - 1;
@@ -613,6 +631,10 @@ static uint16_t nvme_map_addr(NvmeCtrl *n, NvmeSg *sg, hwaddr addr, size_t len)
     }
 
     trace_pci_nvme_map_addr(addr, len);
+
+    if (nvme_addr_is_iomem(n, addr)) {
+        return NVME_DATA_TRAS_ERROR;
+    }
 
     if (nvme_addr_is_cmb(n, addr)) {
         cmb = true;
