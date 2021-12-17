@@ -729,7 +729,7 @@ static uint64_t do_frsp(CPUPPCState *env, uint64_t arg, uintptr_t retaddr)
     if (unlikely(flags & float_flag_invalid_snan)) {
         float_invalid_op_vxsnan(env, retaddr);
     }
-    return float32_to_float64(f32, &env->fp_status);
+    return helper_todouble(f32);
 }
 
 uint64_t helper_frsp(CPUPPCState *env, uint64_t arg)
