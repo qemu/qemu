@@ -251,6 +251,7 @@ $QEMU_IO -c "write -P 0 0 64k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_test
 $QEMU_IO -c "write 0 1k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
 $QEMU_IO -c "write 8k 1k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
 $QEMU_IO -c "write 17k 1k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "write -P 0 65k 1k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
 
 for min_sparse in 4k 8k; do
     echo
