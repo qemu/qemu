@@ -654,16 +654,12 @@ static uint64_t do_fri(CPUPPCState *env, uint64_t arg,
         float_invalid_op_vxsnan(env, GETPC());
         farg.ll = arg | 0x0008000000000000ULL;
     } else {
-        int inexact = get_float_exception_flags(&env->fp_status) &
-                      float_flag_inexact;
         set_float_rounding_mode(rounding_mode, &env->fp_status);
         farg.ll = float64_round_to_int(farg.d, &env->fp_status);
         set_float_rounding_mode(old_rounding_mode, &env->fp_status);
 
         /* fri* does not set FPSCR[XX] */
-        if (!inexact) {
-            env->fp_status.float_exception_flags &= ~float_flag_inexact;
-        }
+        env->fp_status.float_exception_flags &= ~float_flag_inexact;
     }
     do_float_check_status(env, GETPC());
     return farg.ll;
