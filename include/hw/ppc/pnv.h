@@ -53,6 +53,7 @@ struct PnvChip {
     PnvCore      **cores;
 
     uint32_t     num_phbs;
+    uint32_t     num_pecs;
 
     MemoryRegion xscom_mmio;
     MemoryRegion xscom;
@@ -136,6 +137,7 @@ struct PnvChipClass {
     uint64_t     chip_cfam_id;
     uint64_t     cores_mask;
     uint32_t     num_phbs;
+    uint32_t     num_pecs;
 
     DeviceRealize parent_realize;
 

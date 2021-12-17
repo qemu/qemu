@@ -667,7 +667,7 @@ static void pnv_chip_power9_pic_print_info(PnvChip *chip, Monitor *mon)
     pnv_xive_pic_print_info(&chip9->xive, mon);
     pnv_psi_pic_print_info(&chip9->psi, mon);
 
-    for (i = 0; i < PNV9_CHIP_MAX_PEC; i++) {
+    for (i = 0; i < chip->num_pecs; i++) {
         PnvPhb4PecState *pec = &chip9->pecs[i];
         for (j = 0; j < pec->num_stacks; j++) {
             pnv_phb4_pic_print_info(&pec->stacks[j].phb, mon);
@@ -1344,15 +1344,13 @@ static void pnv_chip_power9_instance_init(Object *obj)
 
     object_initialize_child(obj, "homer", &chip9->homer, TYPE_PNV9_HOMER);
 
-    for (i = 0; i < PNV9_CHIP_MAX_PEC; i++) {
+    /* Number of PECs is the chip default */
+    chip->num_pecs = pcc->num_pecs;
+
+    for (i = 0; i < chip->num_pecs; i++) {
         object_initialize_child(obj, "pec[*]", &chip9->pecs[i],
                                 TYPE_PNV_PHB4_PEC);
     }
-
-    /*
-     * Number of PHBs is the chip default
-     */
-    chip->num_phbs = pcc->num_phbs;
 }
 
 static void pnv_chip_quad_realize(Pnv9Chip *chip9, Error **errp)
@@ -1388,7 +1386,7 @@ static void pnv_chip_power9_phb_realize(PnvChip *chip, Error **errp)
     int i, j;
     int phb_id = 0;
 
-    for (i = 0; i < PNV9_CHIP_MAX_PEC; i++) {
+    for (i = 0; i < chip->num_pecs; i++) {
         PnvPhb4PecState *pec = &chip9->pecs[i];
         PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
         uint32_t pec_nest_base;
@@ -1416,8 +1414,7 @@ static void pnv_chip_power9_phb_realize(PnvChip *chip, Error **errp)
         pnv_xscom_add_subregion(chip, pec_nest_base, &pec->nest_regs_mr);
         pnv_xscom_add_subregion(chip, pec_pci_base, &pec->pci_regs_mr);
 
-        for (j = 0; j < pec->num_stacks && phb_id < chip->num_phbs;
-             j++, phb_id++) {
+        for (j = 0; j < pec->num_stacks; j++, phb_id++) {
             PnvPhb4PecStack *stack = &pec->stacks[j];
             Object *obj = OBJECT(&stack->phb);
 
@@ -1573,7 +1570,7 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     k->xscom_core_base = pnv_chip_power9_xscom_core_base;
     k->xscom_pcba = pnv_chip_power9_xscom_pcba;
     dc->desc = "PowerNV Chip POWER9";
-    k->num_phbs = 6;
+    k->num_pecs = PNV9_CHIP_MAX_PEC;
 
     device_class_set_parent_realize(dc, pnv_chip_power9_realize,
                                     &k->parent_realize);
