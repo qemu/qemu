@@ -16,6 +16,7 @@
 #include "qom/object.h"
 
 typedef struct PnvPHB3 PnvPHB3;
+typedef struct PnvChip PnvChip;
 
 /*
  * PHB3 XICS Source for MSIs
@@ -157,6 +158,8 @@ struct PnvPHB3 {
     PnvPHB3RootPort root;
 
     QLIST_HEAD(, PnvPhb3DMASpace) dma_spaces;
+
+    PnvChip *chip;
 };
 
 uint64_t pnv_phb3_reg_read(void *opaque, hwaddr off, unsigned size);
