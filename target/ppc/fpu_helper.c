@@ -896,6 +896,25 @@ float64 helper_frsqrte(CPUPPCState *env, float64 arg)
     return retd;
 }
 
+/* frsqrtes  - frsqrtes. */
+float64 helper_frsqrtes(CPUPPCState *env, float64 arg)
+{
+    /* "Estimate" the reciprocal with actual division.  */
+    float64 rets = float64_sqrt(arg, &env->fp_status);
+    float64 retd = float64r32_div(float64_one, rets, &env->fp_status);
+    int flags = get_float_exception_flags(&env->fp_status);
+
+    if (unlikely(flags & float_flag_invalid)) {
+        float_invalid_op_sqrt(env, flags, 1, GETPC());
+    }
+    if (unlikely(flags & float_flag_divbyzero)) {
+        /* Reciprocal of (square root of) zero.  */
+        float_zero_divide_excp(env, GETPC());
+    }
+
+    return retd;
+}
+
 /* fsel - fsel. */
 uint64_t helper_fsel(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
                      uint64_t arg3)
