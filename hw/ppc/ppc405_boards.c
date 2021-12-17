@@ -161,7 +161,6 @@ static void ref405ep_init(MachineState *machine)
     long kernel_size, initrd_size;
     int linux_boot;
     int len;
-    DriveInfo *dinfo;
     MemoryRegion *sysmem = get_system_memory();
     DeviceState *uicdev;
 
@@ -189,19 +188,8 @@ static void ref405ep_init(MachineState *machine)
     memory_region_init_ram(sram, NULL, "ef405ep.sram", PPC405EP_SRAM_SIZE,
                            &error_fatal);
     memory_region_add_subregion(sysmem, PPC405EP_SRAM_BASE, sram);
+
     /* allocate and load BIOS */
-#ifdef USE_FLASH_BIOS
-    dinfo = drive_get(IF_PFLASH, 0, 0);
-    if (dinfo) {
-        bios_size = 8 * MiB;
-        pflash_cfi02_register((uint32_t)(-bios_size),
-                              "ef405ep.bios", bios_size,
-                              blk_by_legacy_dinfo(dinfo),
-                              64 * KiB, 1,
-                              2, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA,
-                              1);
-    } else
-#endif
     {
         bios = g_new(MemoryRegion, 1);
         memory_region_init_rom(bios, NULL, "ef405ep.bios", BIOS_SIZE,
