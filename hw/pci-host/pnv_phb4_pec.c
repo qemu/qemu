@@ -382,6 +382,11 @@ static void pnv_pec_realize(DeviceState *dev, Error **errp)
 
     assert(pec->system_memory);
 
+    if (pec->index >= PNV_CHIP_GET_CLASS(pec->chip)->num_pecs) {
+        error_setg(errp, "invalid PEC index: %d", pec->index);
+        return;
+    }
+
     /* Create stacks */
     for (i = 0; i < pec->num_stacks; i++) {
         PnvPhb4PecStack *stack = &pec->stacks[i];
@@ -462,6 +467,8 @@ static Property pnv_pec_properties[] = {
         DEFINE_PROP_UINT32("index", PnvPhb4PecState, index, 0),
         DEFINE_PROP_UINT32("num-stacks", PnvPhb4PecState, num_stacks, 0),
         DEFINE_PROP_UINT32("chip-id", PnvPhb4PecState, chip_id, 0),
+        DEFINE_PROP_LINK("chip", PnvPhb4PecState, chip, TYPE_PNV_CHIP,
+                         PnvChip *),
         DEFINE_PROP_LINK("system-memory", PnvPhb4PecState, system_memory,
                      TYPE_MEMORY_REGION, MemoryRegion *),
         DEFINE_PROP_END_OF_LIST(),

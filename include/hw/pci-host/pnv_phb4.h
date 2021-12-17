@@ -205,6 +205,8 @@ struct PnvPhb4PecState {
     #define PHB4_PEC_MAX_STACKS     3
     uint32_t num_stacks;
     PnvPhb4PecStack stacks[PHB4_PEC_MAX_STACKS];
+
+    PnvChip *chip;
 };
 
 
