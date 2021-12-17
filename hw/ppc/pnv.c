@@ -1771,7 +1771,6 @@ static Property pnv_chip_properties[] = {
     DEFINE_PROP_UINT32("nr-cores", PnvChip, nr_cores, 1),
     DEFINE_PROP_UINT64("cores-mask", PnvChip, cores_mask, 0x0),
     DEFINE_PROP_UINT32("nr-threads", PnvChip, nr_threads, 1),
-    DEFINE_PROP_UINT32("num-phbs", PnvChip, num_phbs, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
