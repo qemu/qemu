@@ -19,7 +19,7 @@ static void partsN(return_nan)(FloatPartsN *a, float_status *s)
 {
     switch (a->cls) {
     case float_class_snan:
-        float_raise(float_flag_invalid, s);
+        float_raise(float_flag_invalid | float_flag_invalid_snan, s);
         if (s->default_nan_mode) {
             parts_default_nan(a, s);
         } else {
@@ -40,7 +40,7 @@ static FloatPartsN *partsN(pick_nan)(FloatPartsN *a, FloatPartsN *b,
                                      float_status *s)
 {
     if (is_snan(a->cls) || is_snan(b->cls)) {
-        float_raise(float_flag_invalid, s);
+        float_raise(float_flag_invalid | float_flag_invalid_snan, s);
     }
 
     if (s->default_nan_mode) {
@@ -68,7 +68,7 @@ static FloatPartsN *partsN(pick_nan_muladd)(FloatPartsN *a, FloatPartsN *b,
     int which;
 
     if (unlikely(abc_mask & float_cmask_snan)) {
-        float_raise(float_flag_invalid, s);
+        float_raise(float_flag_invalid | float_flag_invalid_snan, s);
     }
 
     which = pickNaNMulAdd(a->cls, b->cls, c->cls,
@@ -354,7 +354,7 @@ static FloatPartsN *partsN(addsub)(FloatPartsN *a, FloatPartsN *b,
                 return a;
             }
             /* Inf - Inf */
-            float_raise(float_flag_invalid, s);
+            float_raise(float_flag_invalid | float_flag_invalid_isi, s);
             parts_default_nan(a, s);
             return a;
         }
@@ -423,7 +423,7 @@ static FloatPartsN *partsN(mul)(FloatPartsN *a, FloatPartsN *b,
 
     /* Inf * Zero == NaN */
     if (unlikely(ab_mask == float_cmask_infzero)) {
-        float_raise(float_flag_invalid, s);
+        float_raise(float_flag_invalid | float_flag_invalid_imz, s);
         parts_default_nan(a, s);
         return a;
     }
@@ -489,11 +489,13 @@ static FloatPartsN *partsN(muladd)(FloatPartsN *a, FloatPartsN *b,
 
     if (unlikely(ab_mask != float_cmask_normal)) {
         if (unlikely(ab_mask == float_cmask_infzero)) {
+            float_raise(float_flag_invalid | float_flag_invalid_imz, s);
             goto d_nan;
         }
 
         if (ab_mask & float_cmask_inf) {
             if (c->cls == float_class_inf && a->sign != c->sign) {
+                float_raise(float_flag_invalid | float_flag_invalid_isi, s);
                 goto d_nan;
             }
             goto return_inf;
@@ -566,7 +568,6 @@ static FloatPartsN *partsN(muladd)(FloatPartsN *a, FloatPartsN *b,
     goto finish_sign;
 
  d_nan:
-    float_raise(float_flag_invalid, s);
     parts_default_nan(a, s);
     return a;
 }
@@ -589,11 +590,13 @@ static FloatPartsN *partsN(div)(FloatPartsN *a, FloatPartsN *b,
     }
 
     /* 0/0 or Inf/Inf => NaN */
-    if (unlikely(ab_mask == float_cmask_zero) ||
-        unlikely(ab_mask == float_cmask_inf)) {
-        float_raise(float_flag_invalid, s);
-        parts_default_nan(a, s);
-        return a;
+    if (unlikely(ab_mask == float_cmask_zero)) {
+        float_raise(float_flag_invalid | float_flag_invalid_zdz, s);
+        goto d_nan;
+    }
+    if (unlikely(ab_mask == float_cmask_inf)) {
+        float_raise(float_flag_invalid | float_flag_invalid_idi, s);
+        goto d_nan;
     }
 
     /* All the NaN cases */
@@ -623,6 +626,10 @@ static FloatPartsN *partsN(div)(FloatPartsN *a, FloatPartsN *b,
     g_assert(b->cls == float_class_zero);
     float_raise(float_flag_divbyzero, s);
     a->cls = float_class_inf;
+    return a;
+
+ d_nan:
+    parts_default_nan(a, s);
     return a;
 }
 
@@ -862,7 +869,7 @@ static void partsN(sqrt)(FloatPartsN *a, float_status *status,
     return;
 
  d_nan:
-    float_raise(float_flag_invalid, status);
+    float_raise(float_flag_invalid | float_flag_invalid_sqrt, status);
     parts_default_nan(a, status);
 }
 
@@ -1042,13 +1049,15 @@ static int64_t partsN(float_to_sint)(FloatPartsN *p, FloatRoundMode rmode,
 
     switch (p->cls) {
     case float_class_snan:
+        flags |= float_flag_invalid_snan;
+        /* fall through */
     case float_class_qnan:
-        flags = float_flag_invalid;
+        flags |= float_flag_invalid;
         r = max;
         break;
 
     case float_class_inf:
-        flags = float_flag_invalid;
+        flags = float_flag_invalid | float_flag_invalid_cvti;
         r = p->sign ? min : max;
         break;
 
@@ -1070,11 +1079,11 @@ static int64_t partsN(float_to_sint)(FloatPartsN *p, FloatRoundMode rmode,
             if (r <= -(uint64_t)min) {
                 r = -r;
             } else {
-                flags = float_flag_invalid;
+                flags = float_flag_invalid | float_flag_invalid_cvti;
                 r = min;
             }
         } else if (r > max) {
-            flags = float_flag_invalid;
+            flags = float_flag_invalid | float_flag_invalid_cvti;
             r = max;
         }
         break;
@@ -1107,13 +1116,15 @@ static uint64_t partsN(float_to_uint)(FloatPartsN *p, FloatRoundMode rmode,
 
     switch (p->cls) {
     case float_class_snan:
+        flags |= float_flag_invalid_snan;
+        /* fall through */
     case float_class_qnan:
-        flags = float_flag_invalid;
+        flags |= float_flag_invalid;
         r = max;
         break;
 
     case float_class_inf:
-        flags = float_flag_invalid;
+        flags = float_flag_invalid | float_flag_invalid_cvti;
         r = p->sign ? 0 : max;
         break;
 
@@ -1131,15 +1142,15 @@ static uint64_t partsN(float_to_uint)(FloatPartsN *p, FloatRoundMode rmode,
         }
 
         if (p->sign) {
-            flags = float_flag_invalid;
+            flags = float_flag_invalid | float_flag_invalid_cvti;
             r = 0;
         } else if (p->exp > DECOMPOSED_BINARY_POINT) {
-            flags = float_flag_invalid;
+            flags = float_flag_invalid | float_flag_invalid_cvti;
             r = max;
         } else {
             r = p->frac_hi >> (DECOMPOSED_BINARY_POINT - p->exp);
             if (r > max) {
-                flags = float_flag_invalid;
+                flags = float_flag_invalid | float_flag_invalid_cvti;
                 r = max;
             }
         }
@@ -1334,7 +1345,9 @@ static FloatRelation partsN(compare)(FloatPartsN *a, FloatPartsN *b,
     }
 
     if (unlikely(ab_mask & float_cmask_anynan)) {
-        if (!is_quiet || (ab_mask & float_cmask_snan)) {
+        if (ab_mask & float_cmask_snan) {
+            float_raise(float_flag_invalid | float_flag_invalid_snan, s);
+        } else if (!is_quiet) {
             float_raise(float_flag_invalid, s);
         }
         return float_relation_unordered;

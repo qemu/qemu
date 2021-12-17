@@ -344,6 +344,16 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         excp = POWERPC_EXCP_PROGRAM;
     }
 
+#ifdef TARGET_PPC64
+    /*
+     * SPEU and VPU share the same IVOR but they exist in different
+     * processors. SPEU is e500v1/2 only and VPU is e6500 only.
+     */
+    if (excp_model == POWERPC_EXCP_BOOKE && excp == POWERPC_EXCP_VPU) {
+        excp = POWERPC_EXCP_SPEU;
+    }
+#endif
+
     switch (excp) {
     case POWERPC_EXCP_NONE:
         /* Should never happen */
@@ -454,15 +464,13 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         break;
     }
     case POWERPC_EXCP_ALIGN:     /* Alignment exception                      */
+        /* Get rS/rD and rA from faulting opcode */
         /*
-         * Get rS/rD and rA from faulting opcode.
-         * Note: We will only invoke ALIGN for atomic operations,
-         * so all instructions are X-form.
+         * Note: the opcode fields will not be set properly for a
+         * direct store load/store, but nobody cares as nobody
+         * actually uses direct store segments.
          */
-        {
-            uint32_t insn = cpu_ldl_code(env, env->nip);
-            env->spr[SPR_DSISR] |= (insn & 0x03FF0000) >> 16;
-        }
+        env->spr[SPR_DSISR] |= (env->error_code & 0x03FF0000) >> 16;
         break;
     case POWERPC_EXCP_PROGRAM:   /* Program exception                        */
         switch (env->error_code & ~0xF) {
@@ -569,7 +577,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             cpu_abort(cs, "Debug exception triggered on unsupported model\n");
         }
         break;
-    case POWERPC_EXCP_SPEU:      /* SPE/embedded floating-point unavailable  */
+    case POWERPC_EXCP_SPEU:   /* SPE/embedded floating-point unavailable/VPU  */
         env->spr[SPR_BOOKE_ESR] = ESR_SPV;
         break;
     case POWERPC_EXCP_EFPDI:     /* Embedded floating-point data interrupt   */
@@ -672,7 +680,6 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         switch (excp_model) {
         case POWERPC_EXCP_602:
         case POWERPC_EXCP_603:
-        case POWERPC_EXCP_603E:
         case POWERPC_EXCP_G2:
             /* Swap temporary saved registers with GPRs */
             if (!(new_msr & ((target_ulong)1 << MSR_TGPR))) {
@@ -713,35 +720,6 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             msr |= env->error_code; /* key, D/I, S/L bits */
             /* Set way using a LRU mechanism */
             msr |= ((env->last_way + 1) & (env->nb_ways - 1)) << 17;
-            break;
-        case POWERPC_EXCP_74xx:
-#if defined(DEBUG_SOFTWARE_TLB)
-            if (qemu_log_enabled()) {
-                const char *es;
-                target_ulong *miss, *cmp;
-                int en;
-
-                if (excp == POWERPC_EXCP_IFTLB) {
-                    es = "I";
-                    en = 'I';
-                    miss = &env->spr[SPR_TLBMISS];
-                    cmp = &env->spr[SPR_PTEHI];
-                } else {
-                    if (excp == POWERPC_EXCP_DLTLB) {
-                        es = "DL";
-                    } else {
-                        es = "DS";
-                    }
-                    en = 'D';
-                    miss = &env->spr[SPR_TLBMISS];
-                    cmp = &env->spr[SPR_PTEHI];
-                }
-                qemu_log("74xx %sTLB miss: %cM " TARGET_FMT_lx " %cC "
-                         TARGET_FMT_lx " %08x\n", es, en, *miss, en, *cmp,
-                         env->error_code);
-            }
-#endif
-            msr |= env->error_code; /* key bit */
             break;
         default:
             cpu_abort(cs, "Invalid TLB miss exception\n");
@@ -1250,6 +1228,37 @@ void helper_hrfid(CPUPPCState *env)
 }
 #endif
 
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+void helper_rfebb(CPUPPCState *env, target_ulong s)
+{
+    target_ulong msr = env->msr;
+
+    /*
+     * Handling of BESCR bits 32:33 according to PowerISA v3.1:
+     *
+     * "If BESCR 32:33 != 0b00 the instruction is treated as if
+     *  the instruction form were invalid."
+     */
+    if (env->spr[SPR_BESCR] & BESCR_INVALID) {
+        raise_exception_err(env, POWERPC_EXCP_PROGRAM,
+                            POWERPC_EXCP_INVAL | POWERPC_EXCP_INVAL_INVAL);
+    }
+
+    env->nip = env->spr[SPR_EBBRR];
+
+    /* Switching to 32-bit ? Crop the nip */
+    if (!msr_is_64bit(env, msr)) {
+        env->nip = (uint32_t)env->spr[SPR_EBBRR];
+    }
+
+    if (s) {
+        env->spr[SPR_BESCR] |= BESCR_GE;
+    } else {
+        env->spr[SPR_BESCR] &= ~BESCR_GE;
+    }
+}
+#endif
+
 /*****************************************************************************/
 /* Embedded PowerPC specific helpers */
 void helper_40x_rfci(CPUPPCState *env)
@@ -1461,10 +1470,14 @@ void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
                                  int mmu_idx, uintptr_t retaddr)
 {
     CPUPPCState *env = cs->env_ptr;
+    uint32_t insn;
+
+    /* Restore state and reload the insn we executed, for filling in DSISR.  */
+    cpu_restore_state(cs, retaddr, true);
+    insn = cpu_ldl_code(env, env->nip);
 
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_4xx:
-    case POWERPC_MMU_SOFT_4xx_Z:
         env->spr[SPR_40x_DEAR] = vaddr;
         break;
     case POWERPC_MMU_BOOKE:
@@ -1477,8 +1490,8 @@ void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
     }
 
     cs->exception_index = POWERPC_EXCP_ALIGN;
-    env->error_code = 0;
-    cpu_loop_exit_restore(cs, retaddr);
+    env->error_code = insn & 0x03FF0000;
+    cpu_loop_exit(cs);
 }
 #endif /* CONFIG_TCG */
 #endif /* !CONFIG_USER_ONLY */

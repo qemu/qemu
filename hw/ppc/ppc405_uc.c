@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
+#include "qemu/log.h"
 #include "cpu.h"
 #include "hw/ppc/ppc.h"
 #include "hw/i2c/ppc4xx_i2c.h"
@@ -38,18 +39,37 @@
 #include "hw/intc/ppc-uic.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
+#include "trace.h"
 
-//#define DEBUG_OPBA
-//#define DEBUG_SDRAM
-//#define DEBUG_GPIO
-//#define DEBUG_SERIAL
-//#define DEBUG_OCM
-//#define DEBUG_GPT
-//#define DEBUG_CLOCKS
-//#define DEBUG_CLOCKS_LL
+static void ppc405_set_default_bootinfo(ppc4xx_bd_info_t *bd,
+                                        ram_addr_t ram_size)
+{
+        memset(bd, 0, sizeof(*bd));
 
-ram_addr_t ppc405_set_bootinfo (CPUPPCState *env, ppc4xx_bd_info_t *bd,
-                                uint32_t flags)
+        bd->bi_memstart = PPC405EP_SDRAM_BASE;
+        bd->bi_memsize = ram_size;
+        bd->bi_sramstart = PPC405EP_SRAM_BASE;
+        bd->bi_sramsize = PPC405EP_SRAM_SIZE;
+        bd->bi_bootflags = 0;
+        bd->bi_intfreq = 133333333;
+        bd->bi_busfreq = 33333333;
+        bd->bi_baudrate = 115200;
+        bd->bi_s_version[0] = 'Q';
+        bd->bi_s_version[1] = 'M';
+        bd->bi_s_version[2] = 'U';
+        bd->bi_s_version[3] = '\0';
+        bd->bi_r_version[0] = 'Q';
+        bd->bi_r_version[1] = 'E';
+        bd->bi_r_version[2] = 'M';
+        bd->bi_r_version[3] = 'U';
+        bd->bi_r_version[4] = '\0';
+        bd->bi_procfreq = 133333333;
+        bd->bi_plb_busfreq = 33333333;
+        bd->bi_pci_busfreq = 33333333;
+        bd->bi_opbfreq = 33333333;
+}
+
+static ram_addr_t __ppc405_set_bootinfo(CPUPPCState *env, ppc4xx_bd_info_t *bd)
 {
     CPUState *cs = env_cpu(env);
     ram_addr_t bdloc;
@@ -82,15 +102,15 @@ ram_addr_t ppc405_set_bootinfo (CPUPPCState *env, ppc4xx_bd_info_t *bd,
     for (i = 0; i < 32; i++) {
         stb_phys(cs->as, bdloc + 0x3C + i, bd->bi_r_version[i]);
     }
-    stl_be_phys(cs->as, bdloc + 0x5C, bd->bi_plb_busfreq);
-    stl_be_phys(cs->as, bdloc + 0x60, bd->bi_pci_busfreq);
+    stl_be_phys(cs->as, bdloc + 0x5C, bd->bi_procfreq);
+    stl_be_phys(cs->as, bdloc + 0x60, bd->bi_plb_busfreq);
+    stl_be_phys(cs->as, bdloc + 0x64, bd->bi_pci_busfreq);
     for (i = 0; i < 6; i++) {
-        stb_phys(cs->as, bdloc + 0x64 + i, bd->bi_pci_enetaddr[i]);
+        stb_phys(cs->as, bdloc + 0x68 + i, bd->bi_pci_enetaddr[i]);
     }
-    n = 0x6A;
-    if (flags & 0x00000001) {
-        for (i = 0; i < 6; i++)
-            stb_phys(cs->as, bdloc + n++, bd->bi_pci_enetaddr2[i]);
+    n = 0x70; /* includes 2 bytes hole */
+    for (i = 0; i < 6; i++) {
+        stb_phys(cs->as, bdloc + n++, bd->bi_pci_enetaddr2[i]);
     }
     stl_be_phys(cs->as, bdloc + n, bd->bi_opbfreq);
     n += 4;
@@ -100,6 +120,17 @@ ram_addr_t ppc405_set_bootinfo (CPUPPCState *env, ppc4xx_bd_info_t *bd,
     }
 
     return bdloc;
+}
+
+ram_addr_t ppc405_set_bootinfo(CPUPPCState *env, ram_addr_t ram_size)
+{
+    ppc4xx_bd_info_t bd;
+
+    memset(&bd, 0, sizeof(bd));
+
+    ppc405_set_default_bootinfo(&bd, ram_size);
+
+    return __ppc405_set_bootinfo(env, &bd);
 }
 
 /*****************************************************************************/
@@ -287,13 +318,9 @@ struct ppc4xx_opba_t {
 
 static uint64_t opba_readb(void *opaque, hwaddr addr, unsigned size)
 {
-    ppc4xx_opba_t *opba;
+    ppc4xx_opba_t *opba = opaque;
     uint32_t ret;
 
-#ifdef DEBUG_OPBA
-    printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
-#endif
-    opba = opaque;
     switch (addr) {
     case 0x00:
         ret = opba->cr;
@@ -306,19 +333,17 @@ static uint64_t opba_readb(void *opaque, hwaddr addr, unsigned size)
         break;
     }
 
+    trace_opba_readb(addr, ret);
     return ret;
 }
 
 static void opba_writeb(void *opaque, hwaddr addr, uint64_t value,
                         unsigned size)
 {
-    ppc4xx_opba_t *opba;
+    ppc4xx_opba_t *opba = opaque;
 
-#ifdef DEBUG_OPBA
-    printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
-           value);
-#endif
-    opba = opaque;
+    trace_opba_writeb(addr, value);
+
     switch (addr) {
     case 0x00:
         opba->cr = value & 0xF8;
@@ -353,10 +378,9 @@ static void ppc4xx_opba_init(hwaddr base)
 {
     ppc4xx_opba_t *opba;
 
+    trace_opba_init(base);
+
     opba = g_malloc0(sizeof(ppc4xx_opba_t));
-#ifdef DEBUG_OPBA
-    printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
-#endif
     memory_region_init_io(&opba->io, NULL, &opba_ops, opba, "opba", 0x002);
     memory_region_add_subregion(get_system_memory(), base, &opba->io);
     qemu_register_reset(ppc4xx_opba_reset, opba);
@@ -707,20 +731,14 @@ struct ppc405_gpio_t {
 
 static uint64_t ppc405_gpio_read(void *opaque, hwaddr addr, unsigned size)
 {
-#ifdef DEBUG_GPIO
-    printf("%s: addr " TARGET_FMT_plx " size %d\n", __func__, addr, size);
-#endif
-
+    trace_ppc405_gpio_read(addr, size);
     return 0;
 }
 
 static void ppc405_gpio_write(void *opaque, hwaddr addr, uint64_t value,
                               unsigned size)
 {
-#ifdef DEBUG_GPIO
-    printf("%s: addr " TARGET_FMT_plx " size %d val %08" PRIx32 "\n",
-           __func__, addr, size, value);
-#endif
+    trace_ppc405_gpio_write(addr, size, value);
 }
 
 static const MemoryRegionOps ppc405_gpio_ops = {
@@ -737,10 +755,9 @@ static void ppc405_gpio_init(hwaddr base)
 {
     ppc405_gpio_t *gpio;
 
+    trace_ppc405_gpio_init(base);
+
     gpio = g_malloc0(sizeof(ppc405_gpio_t));
-#ifdef DEBUG_GPIO
-    printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
-#endif
     memory_region_init_io(&gpio->io, NULL, &ppc405_gpio_ops, gpio, "pgio", 0x038);
     memory_region_add_subregion(get_system_memory(), base, &gpio->io);
     qemu_register_reset(&ppc405_gpio_reset, gpio);
@@ -770,25 +787,19 @@ static void ocm_update_mappings (ppc405_ocm_t *ocm,
                                  uint32_t isarc, uint32_t isacntl,
                                  uint32_t dsarc, uint32_t dsacntl)
 {
-#ifdef DEBUG_OCM
-    printf("OCM update ISA %08" PRIx32 " %08" PRIx32 " (%08" PRIx32
-           " %08" PRIx32 ") DSA %08" PRIx32 " %08" PRIx32
-           " (%08" PRIx32 " %08" PRIx32 ")\n",
-           isarc, isacntl, dsarc, dsacntl,
-           ocm->isarc, ocm->isacntl, ocm->dsarc, ocm->dsacntl);
-#endif
+    trace_ocm_update_mappings(isarc, isacntl, dsarc, dsacntl, ocm->isarc,
+                              ocm->isacntl, ocm->dsarc, ocm->dsacntl);
+
     if (ocm->isarc != isarc ||
         (ocm->isacntl & 0x80000000) != (isacntl & 0x80000000)) {
         if (ocm->isacntl & 0x80000000) {
             /* Unmap previously assigned memory region */
-            printf("OCM unmap ISA %08" PRIx32 "\n", ocm->isarc);
+            trace_ocm_unmap("ISA", ocm->isarc);
             memory_region_del_subregion(get_system_memory(), &ocm->isarc_ram);
         }
         if (isacntl & 0x80000000) {
             /* Map new instruction memory region */
-#ifdef DEBUG_OCM
-            printf("OCM map ISA %08" PRIx32 "\n", isarc);
-#endif
+            trace_ocm_map("ISA", isarc);
             memory_region_add_subregion(get_system_memory(), isarc,
                                         &ocm->isarc_ram);
         }
@@ -799,9 +810,7 @@ static void ocm_update_mappings (ppc405_ocm_t *ocm,
             /* Beware not to unmap the region we just mapped */
             if (!(isacntl & 0x80000000) || ocm->dsarc != isarc) {
                 /* Unmap previously assigned memory region */
-#ifdef DEBUG_OCM
-                printf("OCM unmap DSA %08" PRIx32 "\n", ocm->dsarc);
-#endif
+                trace_ocm_unmap("DSA", ocm->dsarc);
                 memory_region_del_subregion(get_system_memory(),
                                             &ocm->dsarc_ram);
             }
@@ -810,9 +819,7 @@ static void ocm_update_mappings (ppc405_ocm_t *ocm,
             /* Beware not to remap the region we just mapped */
             if (!(isacntl & 0x80000000) || dsarc != isarc) {
                 /* Map new data memory region */
-#ifdef DEBUG_OCM
-                printf("OCM map DSA %08" PRIx32 "\n", dsarc);
-#endif
+                trace_ocm_map("DSA", dsarc);
                 memory_region_add_subregion(get_system_memory(), dsarc,
                                             &ocm->dsarc_ram);
             }
@@ -988,14 +995,12 @@ static void ppc4xx_gpt_compute_timer (ppc4xx_gpt_t *gpt)
 
 static uint64_t ppc4xx_gpt_read(void *opaque, hwaddr addr, unsigned size)
 {
-    ppc4xx_gpt_t *gpt;
+    ppc4xx_gpt_t *gpt = opaque;
     uint32_t ret;
     int idx;
 
-#ifdef DEBUG_GPT
-    printf("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
-#endif
-    gpt = opaque;
+    trace_ppc4xx_gpt_read(addr, size);
+
     switch (addr) {
     case 0x00:
         /* Time base counter */
@@ -1044,14 +1049,11 @@ static uint64_t ppc4xx_gpt_read(void *opaque, hwaddr addr, unsigned size)
 static void ppc4xx_gpt_write(void *opaque, hwaddr addr, uint64_t value,
                              unsigned size)
 {
-    ppc4xx_gpt_t *gpt;
+    ppc4xx_gpt_t *gpt = opaque;
     int idx;
 
-#ifdef DEBUG_I2C
-    printf("%s: addr " TARGET_FMT_plx " val %08" PRIx32 "\n", __func__, addr,
-           value);
-#endif
-    gpt = opaque;
+    trace_ppc4xx_gpt_write(addr, size, value);
+
     switch (addr) {
     case 0x00:
         /* Time base counter */
@@ -1144,14 +1146,13 @@ static void ppc4xx_gpt_init(hwaddr base, qemu_irq irqs[5])
     ppc4xx_gpt_t *gpt;
     int i;
 
+    trace_ppc4xx_gpt_init(base);
+
     gpt = g_malloc0(sizeof(ppc4xx_gpt_t));
     for (i = 0; i < 5; i++) {
         gpt->irqs[i] = irqs[i];
     }
     gpt->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &ppc4xx_gpt_cb, gpt);
-#ifdef DEBUG_GPT
-    printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
-#endif
     memory_region_init_io(&gpt->iomem, NULL, &gpt_ops, gpt, "gpt", 0x0d4);
     memory_region_add_subregion(get_system_memory(), base, &gpt->iomem);
     qemu_register_reset(ppc4xx_gpt_reset, gpt);
@@ -1215,17 +1216,14 @@ static void ppc405ep_compute_clocks (ppc405ep_cpc_t *cpc)
     VCO_out = 0;
     if ((cpc->pllmr[1] & 0x80000000) && !(cpc->pllmr[1] & 0x40000000)) {
         M = (((cpc->pllmr[1] >> 20) - 1) & 0xF) + 1; /* FBMUL */
-#ifdef DEBUG_CLOCKS_LL
-        printf("FBMUL %01" PRIx32 " %d\n", (cpc->pllmr[1] >> 20) & 0xF, M);
-#endif
+        trace_ppc405ep_clocks_compute("FBMUL", (cpc->pllmr[1] >> 20) & 0xF, M);
         D = 8 - ((cpc->pllmr[1] >> 16) & 0x7); /* FWDA */
-#ifdef DEBUG_CLOCKS_LL
-        printf("FWDA %01" PRIx32 " %d\n", (cpc->pllmr[1] >> 16) & 0x7, D);
-#endif
+        trace_ppc405ep_clocks_compute("FWDA", (cpc->pllmr[1] >> 16) & 0x7, D);
         VCO_out = (uint64_t)cpc->sysclk * M * D;
         if (VCO_out < 500000000UL || VCO_out > 1000000000UL) {
             /* Error - unlock the PLL */
-            printf("VCO out of range %" PRIu64 "\n", VCO_out);
+            qemu_log_mask(LOG_GUEST_ERROR, "VCO out of range %" PRIu64 "\n",
+                          VCO_out);
 #if 0
             cpc->pllmr[1] &= ~0x80000000;
             goto pll_bypass;
@@ -1246,54 +1244,43 @@ static void ppc405ep_compute_clocks (ppc405ep_cpc_t *cpc)
     }
     /* Now, compute all other clocks */
     D = ((cpc->pllmr[0] >> 20) & 0x3) + 1; /* CCDV */
-#ifdef DEBUG_CLOCKS_LL
-    printf("CCDV %01" PRIx32 " %d\n", (cpc->pllmr[0] >> 20) & 0x3, D);
-#endif
+     trace_ppc405ep_clocks_compute("CCDV", (cpc->pllmr[0] >> 20) & 0x3, D);
     CPU_clk = PLL_out / D;
     D = ((cpc->pllmr[0] >> 16) & 0x3) + 1; /* CBDV */
-#ifdef DEBUG_CLOCKS_LL
-    printf("CBDV %01" PRIx32 " %d\n", (cpc->pllmr[0] >> 16) & 0x3, D);
-#endif
+    trace_ppc405ep_clocks_compute("CBDV", (cpc->pllmr[0] >> 16) & 0x3, D);
     PLB_clk = CPU_clk / D;
     D = ((cpc->pllmr[0] >> 12) & 0x3) + 1; /* OPDV */
-#ifdef DEBUG_CLOCKS_LL
-    printf("OPDV %01" PRIx32 " %d\n", (cpc->pllmr[0] >> 12) & 0x3, D);
-#endif
+    trace_ppc405ep_clocks_compute("OPDV", (cpc->pllmr[0] >> 12) & 0x3, D);
     OPB_clk = PLB_clk / D;
     D = ((cpc->pllmr[0] >> 8) & 0x3) + 2; /* EPDV */
-#ifdef DEBUG_CLOCKS_LL
-    printf("EPDV %01" PRIx32 " %d\n", (cpc->pllmr[0] >> 8) & 0x3, D);
-#endif
+    trace_ppc405ep_clocks_compute("EPDV", (cpc->pllmr[0] >> 8) & 0x3, D);
     EBC_clk = PLB_clk / D;
     D = ((cpc->pllmr[0] >> 4) & 0x3) + 1; /* MPDV */
-#ifdef DEBUG_CLOCKS_LL
-    printf("MPDV %01" PRIx32 " %d\n", (cpc->pllmr[0] >> 4) & 0x3, D);
-#endif
+    trace_ppc405ep_clocks_compute("MPDV", (cpc->pllmr[0] >> 4) & 0x3, D);
     MAL_clk = PLB_clk / D;
     D = (cpc->pllmr[0] & 0x3) + 1; /* PPDV */
-#ifdef DEBUG_CLOCKS_LL
-    printf("PPDV %01" PRIx32 " %d\n", cpc->pllmr[0] & 0x3, D);
-#endif
+    trace_ppc405ep_clocks_compute("PPDV", cpc->pllmr[0] & 0x3, D);
     PCI_clk = PLB_clk / D;
     D = ((cpc->ucr - 1) & 0x7F) + 1; /* U0DIV */
-#ifdef DEBUG_CLOCKS_LL
-    printf("U0DIV %01" PRIx32 " %d\n", cpc->ucr & 0x7F, D);
-#endif
+    trace_ppc405ep_clocks_compute("U0DIV", cpc->ucr & 0x7F, D);
     UART0_clk = PLL_out / D;
     D = (((cpc->ucr >> 8) - 1) & 0x7F) + 1; /* U1DIV */
-#ifdef DEBUG_CLOCKS_LL
-    printf("U1DIV %01" PRIx32 " %d\n", (cpc->ucr >> 8) & 0x7F, D);
-#endif
+    trace_ppc405ep_clocks_compute("U1DIV", (cpc->ucr >> 8) & 0x7F, D);
     UART1_clk = PLL_out / D;
-#ifdef DEBUG_CLOCKS
-    printf("Setup PPC405EP clocks - sysclk %" PRIu32 " VCO %" PRIu64
-           " PLL out %" PRIu64 " Hz\n", cpc->sysclk, VCO_out, PLL_out);
-    printf("CPU %" PRIu32 " PLB %" PRIu32 " OPB %" PRIu32 " EBC %" PRIu32
-           " MAL %" PRIu32 " PCI %" PRIu32 " UART0 %" PRIu32
-           " UART1 %" PRIu32 "\n",
-           CPU_clk, PLB_clk, OPB_clk, EBC_clk, MAL_clk, PCI_clk,
-           UART0_clk, UART1_clk);
-#endif
+
+    if (trace_event_get_state_backends(TRACE_PPC405EP_CLOCKS_SETUP)) {
+        g_autofree char *trace = g_strdup_printf(
+            "Setup PPC405EP clocks - sysclk %" PRIu32 " VCO %" PRIu64
+            " PLL out %" PRIu64 " Hz\n"
+            "CPU %" PRIu32 " PLB %" PRIu32 " OPB %" PRIu32 " EBC %" PRIu32
+            " MAL %" PRIu32 " PCI %" PRIu32 " UART0 %" PRIu32
+            " UART1 %" PRIu32 "\n",
+            cpc->sysclk, VCO_out, PLL_out,
+            CPU_clk, PLB_clk, OPB_clk, EBC_clk, MAL_clk, PCI_clk,
+            UART0_clk, UART1_clk);
+        trace_ppc405ep_clocks_setup(trace);
+    }
+
     /* Setup CPU clocks */
     clk_setup(&cpc->clk_setup[PPC405EP_CPU_CLK], CPU_clk);
     /* Setup PLB clock */
@@ -1395,9 +1382,9 @@ static void ppc405ep_cpc_reset (void *opaque)
 
     cpc->boot = 0x00000010;     /* Boot from PCI - IIC EEPROM disabled */
     cpc->epctl = 0x00000000;
-    cpc->pllmr[0] = 0x00011010;
-    cpc->pllmr[1] = 0x40000000;
-    cpc->ucr = 0x00000000;
+    cpc->pllmr[0] = 0x00021002;
+    cpc->pllmr[1] = 0x80a552be;
+    cpc->ucr = 0x00004646;
     cpc->srr = 0x00040000;
     cpc->pci = 0x00000000;
     cpc->er = 0x00000000;
@@ -1444,7 +1431,7 @@ static void ppc405ep_cpc_init (CPUPPCState *env, clk_setup_t clk_setup[8],
 #endif
 }
 
-CPUPPCState *ppc405ep_init(MemoryRegion *address_space_mem,
+PowerPCCPU *ppc405ep_init(MemoryRegion *address_space_mem,
                         MemoryRegion ram_memories[2],
                         hwaddr ram_bases[2],
                         hwaddr ram_sizes[2],
@@ -1543,5 +1530,5 @@ CPUPPCState *ppc405ep_init(MemoryRegion *address_space_mem,
     /* CPU control */
     ppc405ep_cpc_init(env, clk_setup, sysclk);
 
-    return env;
+    return cpu;
 }

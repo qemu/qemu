@@ -205,6 +205,8 @@ struct PnvPhb4PecState {
     #define PHB4_PEC_MAX_STACKS     3
     uint32_t num_stacks;
     PnvPhb4PecStack stacks[PHB4_PEC_MAX_STACKS];
+
+    PnvChip *chip;
 };
 
 
@@ -219,6 +221,9 @@ struct PnvPhb4PecClass {
     int compat_size;
     const char *stk_compat;
     int stk_compat_size;
+    uint64_t version;
+    uint64_t device_id;
+    const uint32_t *num_stacks;
 };
 
 #endif /* PCI_HOST_PNV_PHB4_H */

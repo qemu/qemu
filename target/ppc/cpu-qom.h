@@ -45,12 +45,14 @@ enum powerpc_mmu_t {
     POWERPC_MMU_32B        = 0x00000001,
     /* PowerPC 6xx MMU with software TLB                       */
     POWERPC_MMU_SOFT_6xx   = 0x00000002,
-    /* PowerPC 74xx MMU with software TLB                      */
+    /*
+     * PowerPC 74xx MMU with software TLB (this has been
+     * disabled, see git history for more information.
+     * keywords: tlbld tlbli TLBMISS PTEHI PTELO)
+     */
     POWERPC_MMU_SOFT_74xx  = 0x00000003,
     /* PowerPC 4xx MMU with software TLB                       */
     POWERPC_MMU_SOFT_4xx   = 0x00000004,
-    /* PowerPC 4xx MMU with software TLB and zones protections */
-    POWERPC_MMU_SOFT_4xx_Z = 0x00000005,
     /* PowerPC MMU in real mode only                           */
     POWERPC_MMU_REAL       = 0x00000006,
     /* Freescale MPC8xx MMU model                              */
@@ -94,8 +96,6 @@ enum powerpc_excp_t {
     POWERPC_EXCP_602,
     /* PowerPC 603 exception model      */
     POWERPC_EXCP_603,
-    /* PowerPC 603e exception model     */
-    POWERPC_EXCP_603E,
     /* PowerPC G2 exception model       */
     POWERPC_EXCP_G2,
     /* PowerPC 604 exception model      */
@@ -147,8 +147,6 @@ enum powerpc_input_t {
     PPC_FLAGS_INPUT_POWER7,
     /* PowerPC POWER9 bus               */
     PPC_FLAGS_INPUT_POWER9,
-    /* PowerPC 401 bus                  */
-    PPC_FLAGS_INPUT_401,
     /* Freescale RCPU bus               */
     PPC_FLAGS_INPUT_RCPU,
 };

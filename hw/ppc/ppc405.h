@@ -27,6 +27,13 @@
 
 #include "hw/ppc/ppc4xx.h"
 
+#define PPC405EP_SDRAM_BASE 0x00000000
+#define PPC405EP_NVRAM_BASE 0xF0000000
+#define PPC405EP_FPGA_BASE  0xF0300000
+#define PPC405EP_SRAM_BASE  0xFFF00000
+#define PPC405EP_SRAM_SIZE  (512 * KiB)
+#define PPC405EP_FLASH_BASE 0xFFF80000
+
 /* Bootinfo as set-up by u-boot */
 typedef struct ppc4xx_bd_info_t ppc4xx_bd_info_t;
 struct ppc4xx_bd_info_t {
@@ -50,19 +57,18 @@ struct ppc4xx_bd_info_t {
     uint32_t bi_plb_busfreq;
     uint32_t bi_pci_busfreq;
     uint8_t  bi_pci_enetaddr[6];
-    uint32_t bi_pci_enetaddr2[6];
+    uint8_t  bi_pci_enetaddr2[6]; /* PPC405EP specific */
     uint32_t bi_opbfreq;
     uint32_t bi_iic_fast[2];
 };
 
 /* PowerPC 405 core */
-ram_addr_t ppc405_set_bootinfo (CPUPPCState *env, ppc4xx_bd_info_t *bd,
-                                uint32_t flags);
+ram_addr_t ppc405_set_bootinfo(CPUPPCState *env, ram_addr_t ram_size);
 
 void ppc4xx_plb_init(CPUPPCState *env);
 void ppc405_ebc_init(CPUPPCState *env);
 
-CPUPPCState *ppc405ep_init(MemoryRegion *address_space_mem,
+PowerPCCPU *ppc405ep_init(MemoryRegion *address_space_mem,
                         MemoryRegion ram_memories[2],
                         hwaddr ram_bases[2],
                         hwaddr ram_sizes[2],

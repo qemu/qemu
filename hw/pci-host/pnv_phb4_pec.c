@@ -124,7 +124,7 @@ static uint64_t pnv_pec_stk_nest_xscom_read(void *opaque, hwaddr addr,
 static void pnv_pec_stk_update_map(PnvPhb4PecStack *stack)
 {
     PnvPhb4PecState *pec = stack->pec;
-    MemoryRegion *sysmem = pec->system_memory;
+    MemoryRegion *sysmem = get_system_memory();
     uint64_t bar_en = stack->nest_regs[PEC_NEST_STK_BAR_EN];
     uint64_t bar, mask, size;
     char name[64];
@@ -374,20 +374,41 @@ static void pnv_pec_instance_init(Object *obj)
     }
 }
 
+static int pnv_pec_phb_offset(PnvPhb4PecState *pec)
+{
+    PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
+    int index = pec->index;
+    int offset = 0;
+
+    while (index--) {
+        offset += pecc->num_stacks[index];
+    }
+
+    return offset;
+}
+
 static void pnv_pec_realize(DeviceState *dev, Error **errp)
 {
     PnvPhb4PecState *pec = PNV_PHB4_PEC(dev);
+    PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
     char name[64];
     int i;
 
-    assert(pec->system_memory);
+    if (pec->index >= PNV_CHIP_GET_CLASS(pec->chip)->num_pecs) {
+        error_setg(errp, "invalid PEC index: %d", pec->index);
+        return;
+    }
+
+    pec->num_stacks = pecc->num_stacks[pec->index];
 
     /* Create stacks */
     for (i = 0; i < pec->num_stacks; i++) {
         PnvPhb4PecStack *stack = &pec->stacks[i];
         Object *stk_obj = OBJECT(stack);
+        int phb_id = pnv_pec_phb_offset(pec) + i;
 
         object_property_set_int(stk_obj, "stack-no", i, &error_abort);
+        object_property_set_int(stk_obj, "phb-id", phb_id, &error_abort);
         object_property_set_link(stk_obj, "pec", OBJECT(pec), &error_abort);
         if (!qdev_realize(DEVICE(stk_obj), NULL, errp)) {
             return;
@@ -460,10 +481,9 @@ static int pnv_pec_dt_xscom(PnvXScomInterface *dev, void *fdt,
 
 static Property pnv_pec_properties[] = {
         DEFINE_PROP_UINT32("index", PnvPhb4PecState, index, 0),
-        DEFINE_PROP_UINT32("num-stacks", PnvPhb4PecState, num_stacks, 0),
         DEFINE_PROP_UINT32("chip-id", PnvPhb4PecState, chip_id, 0),
-        DEFINE_PROP_LINK("system-memory", PnvPhb4PecState, system_memory,
-                     TYPE_MEMORY_REGION, MemoryRegion *),
+        DEFINE_PROP_LINK("chip", PnvPhb4PecState, chip, TYPE_PNV_CHIP,
+                         PnvChip *),
         DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -476,6 +496,13 @@ static uint32_t pnv_pec_xscom_nest_base(PnvPhb4PecState *pec)
 {
     return PNV9_XSCOM_PEC_NEST_BASE + 0x400 * pec->index;
 }
+
+/*
+ * PEC0 -> 1 stack
+ * PEC1 -> 2 stacks
+ * PEC2 -> 3 stacks
+ */
+static const uint32_t pnv_pec_num_stacks[] = { 1, 2, 3 };
 
 static void pnv_pec_class_init(ObjectClass *klass, void *data)
 {
@@ -499,6 +526,9 @@ static void pnv_pec_class_init(ObjectClass *klass, void *data)
     pecc->compat_size = sizeof(compat);
     pecc->stk_compat = stk_compat;
     pecc->stk_compat_size = sizeof(stk_compat);
+    pecc->version = PNV_PHB4_VERSION;
+    pecc->device_id = PNV_PHB4_DEVICE_ID;
+    pecc->num_stacks = pnv_pec_num_stacks;
 }
 
 static const TypeInfo pnv_pec_type_info = {
@@ -519,12 +549,17 @@ static void pnv_pec_stk_instance_init(Object *obj)
     PnvPhb4PecStack *stack = PNV_PHB4_PEC_STACK(obj);
 
     object_initialize_child(obj, "phb", &stack->phb, TYPE_PNV_PHB4);
+    object_property_add_alias(obj, "phb-id", OBJECT(&stack->phb), "index");
 }
 
 static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
 {
     PnvPhb4PecStack *stack = PNV_PHB4_PEC_STACK(dev);
     PnvPhb4PecState *pec = stack->pec;
+    PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
+    PnvChip *chip = pec->chip;
+    uint32_t pec_nest_base;
+    uint32_t pec_pci_base;
     char name[64];
 
     assert(pec);
@@ -548,10 +583,32 @@ static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
     pnv_xscom_region_init(&stack->phb_regs_mr, OBJECT(&stack->phb),
                           &pnv_phb4_xscom_ops, &stack->phb, name, 0x40);
 
-    /*
-     * Let the machine/chip realize the PHB object to customize more
-     * easily some fields
-     */
+    object_property_set_int(OBJECT(&stack->phb), "chip-id", pec->chip_id,
+                            &error_fatal);
+    object_property_set_int(OBJECT(&stack->phb), "version", pecc->version,
+                            &error_fatal);
+    object_property_set_int(OBJECT(&stack->phb), "device-id", pecc->device_id,
+                            &error_fatal);
+    object_property_set_link(OBJECT(&stack->phb), "stack", OBJECT(stack),
+                             &error_abort);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&stack->phb), errp)) {
+        return;
+    }
+
+    pec_nest_base = pecc->xscom_nest_base(pec);
+    pec_pci_base = pecc->xscom_pci_base(pec);
+
+    /* Populate the XSCOM address space. */
+    pnv_xscom_add_subregion(chip,
+                            pec_nest_base + 0x40 * (stack->stack_no + 1),
+                            &stack->nest_regs_mr);
+    pnv_xscom_add_subregion(chip,
+                            pec_pci_base + 0x40 * (stack->stack_no + 1),
+                            &stack->pci_regs_mr);
+    pnv_xscom_add_subregion(chip,
+                            pec_pci_base + PNV9_XSCOM_PEC_PCI_STK0 +
+                            0x40 * stack->stack_no,
+                            &stack->phb_regs_mr);
 }
 
 static Property pnv_pec_stk_properties[] = {

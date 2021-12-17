@@ -40,6 +40,10 @@
 %ds_rtp         22:4   !function=times_2
 @DS_rtp         ...... ....0 ra:5 .............. ..             &D rt=%ds_rtp si=%ds_si
 
+&DX_b           vrt b
+%dx_b           6:10 16:5 0:1
+@DX_b           ...... vrt:5  ..... .......... ..... .          &DX_b b=%dx_b
+
 &DX             rt d
 %dx_d           6:s10 16:5 0:1
 @DX             ...... rt:5  ..... .......... ..... .   &DX d=%dx_d
@@ -55,6 +59,9 @@
 
 &VX_uim4        vrt uim vrb
 @VX_uim4        ...... vrt:5 . uim:4 vrb:5 ...........  &VX_uim4
+
+&VX_tb          vrt vrb
+@VX_tb          ...... vrt:5 ..... vrb:5 ...........    &VX_tb
 
 &X              rt ra rb
 @X              ...... rt:5 ra:5 rb:5 .......... .      &X
@@ -123,10 +130,14 @@
 &X_vrt_frbp     vrt frbp
 @X_vrt_frbp     ...... vrt:5 ..... ....0 .......... .           &X_vrt_frbp frbp=%x_frbp
 
+%xx_xt          0:1 21:5
+%xx_xb          1:1 11:5
+%xx_xa          2:1 16:5
 &XX2            xt xb uim:uint8_t
-%xx2_xt         0:1 21:5
-%xx2_xb         1:1 11:5
-@XX2            ...... ..... ... uim:2 ..... ......... ..       &XX2 xt=%xx2_xt xb=%xx2_xb
+@XX2            ...... ..... ... uim:2 ..... ......... ..       &XX2 xt=%xx_xt xb=%xx_xb
+
+&XX3            xt xa xb
+@XX3            ...... ..... ..... ..... ........ ...           &XX3 xt=%xx_xt xa=%xx_xa xb=%xx_xb
 
 &Z22_bf_fra     bf fra dm
 @Z22_bf_fra     ...... bf:3 .. fra:5 dm:6 ......... .           &Z22_bf_fra
@@ -408,6 +419,27 @@ VINSWVRX        000100 ..... ..... ..... 00110001111    @VX
 VSLDBI          000100 ..... ..... ..... 00 ... 010110  @VN
 VSRDBI          000100 ..... ..... ..... 01 ... 010110  @VN
 
+## Vector Mask Manipulation Instructions
+
+MTVSRBM         000100 ..... 10000 ..... 11001000010    @VX_tb
+MTVSRHM         000100 ..... 10001 ..... 11001000010    @VX_tb
+MTVSRWM         000100 ..... 10010 ..... 11001000010    @VX_tb
+MTVSRDM         000100 ..... 10011 ..... 11001000010    @VX_tb
+MTVSRQM         000100 ..... 10100 ..... 11001000010    @VX_tb
+MTVSRBMI        000100 ..... ..... .......... 01010 .   @DX_b
+
+VEXPANDBM       000100 ..... 00000 ..... 11001000010    @VX_tb
+VEXPANDHM       000100 ..... 00001 ..... 11001000010    @VX_tb
+VEXPANDWM       000100 ..... 00010 ..... 11001000010    @VX_tb
+VEXPANDDM       000100 ..... 00011 ..... 11001000010    @VX_tb
+VEXPANDQM       000100 ..... 00100 ..... 11001000010    @VX_tb
+
+VEXTRACTBM      000100 ..... 01000 ..... 11001000010    @VX_tb
+VEXTRACTHM      000100 ..... 01001 ..... 11001000010    @VX_tb
+VEXTRACTWM      000100 ..... 01010 ..... 11001000010    @VX_tb
+VEXTRACTDM      000100 ..... 01011 ..... 11001000010    @VX_tb
+VEXTRACTQM      000100 ..... 01100 ..... 11001000010    @VX_tb
+
 # VSX Load/Store Instructions
 
 LXV             111101 ..... ..... ............ . 001   @DQ_TSX
@@ -427,3 +459,19 @@ XXSPLTW         111100 ..... ---.. ..... 010100100 . .  @XX2
 ## VSX Vector Load Special Value Instruction
 
 LXVKQ           111100 ..... 11111 ..... 0101101000 .   @X_uim5
+
+## VSX Comparison Instructions
+
+XSMAXCDP        111100 ..... ..... ..... 10000000 ...   @XX3
+XSMINCDP        111100 ..... ..... ..... 10001000 ...   @XX3
+XSMAXJDP        111100 ..... ..... ..... 10010000 ...   @XX3
+XSMINJDP        111100 ..... ..... ..... 10011000 ...   @XX3
+
+## VSX Binary Floating-Point Convert Instructions
+
+XSCVQPDP        111111 ..... 10100 ..... 1101000100 .   @X_tb_rc
+
+### rfebb
+&XL_s           s:uint8_t
+@XL_s           ......-------------- s:1 .......... -   &XL_s
+RFEBB           010011-------------- .   0010010010 -   @XL_s

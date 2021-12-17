@@ -1147,7 +1147,6 @@ void dump_mmu(CPUPPCState *env)
         mmubooke206_dump_mmu(env);
         break;
     case POWERPC_MMU_SOFT_6xx:
-    case POWERPC_MMU_SOFT_74xx:
         mmu6xx_dump_mmu(env);
         break;
 #if defined(TARGET_PPC64)
@@ -1174,53 +1173,23 @@ void dump_mmu(CPUPPCState *env)
 static int check_physical(CPUPPCState *env, mmu_ctx_t *ctx, target_ulong eaddr,
                           MMUAccessType access_type)
 {
-    int in_plb, ret;
-
     ctx->raddr = eaddr;
     ctx->prot = PAGE_READ | PAGE_EXEC;
-    ret = 0;
+
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
-    case POWERPC_MMU_SOFT_74xx:
     case POWERPC_MMU_SOFT_4xx:
     case POWERPC_MMU_REAL:
     case POWERPC_MMU_BOOKE:
         ctx->prot |= PAGE_WRITE;
         break;
 
-    case POWERPC_MMU_SOFT_4xx_Z:
-        if (unlikely(msr_pe != 0)) {
-            /*
-             * 403 family add some particular protections, using
-             * PBL/PBU registers for accesses with no translation.
-             */
-            in_plb =
-                /* Check PLB validity */
-                (env->pb[0] < env->pb[1] &&
-                 /* and address in plb area */
-                 eaddr >= env->pb[0] && eaddr < env->pb[1]) ||
-                (env->pb[2] < env->pb[3] &&
-                 eaddr >= env->pb[2] && eaddr < env->pb[3]) ? 1 : 0;
-            if (in_plb ^ msr_px) {
-                /* Access in protected area */
-                if (access_type == MMU_DATA_STORE) {
-                    /* Access is not allowed */
-                    ret = -2;
-                }
-            } else {
-                /* Read-write access is allowed */
-                ctx->prot |= PAGE_WRITE;
-            }
-        }
-        break;
-
     default:
         /* Caller's checks mean we should never get here for other models */
-        abort();
-        return -1;
+        g_assert_not_reached();
     }
 
-    return ret;
+    return 0;
 }
 
 int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
@@ -1234,7 +1203,6 @@ int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
 
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
-    case POWERPC_MMU_SOFT_74xx:
         if (real_mode) {
             ret = check_physical(env, ctx, eaddr, access_type);
         } else {
@@ -1250,7 +1218,6 @@ int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
         break;
 
     case POWERPC_MMU_SOFT_4xx:
-    case POWERPC_MMU_SOFT_4xx_Z:
         if (real_mode) {
             ret = check_physical(env, ctx, eaddr, access_type);
         } else {
@@ -1383,11 +1350,7 @@ static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
                     env->spr[SPR_IMISS] = eaddr;
                     env->spr[SPR_ICMP] = 0x80000000 | ctx.ptem;
                     goto tlb_miss;
-                case POWERPC_MMU_SOFT_74xx:
-                    cs->exception_index = POWERPC_EXCP_IFTLB;
-                    goto tlb_miss_74xx;
                 case POWERPC_MMU_SOFT_4xx:
-                case POWERPC_MMU_SOFT_4xx_Z:
                     cs->exception_index = POWERPC_EXCP_ITLB;
                     env->error_code = 0;
                     env->spr[SPR_40x_DEAR] = eaddr;
@@ -1454,21 +1417,7 @@ static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
                     env->spr[SPR_HASH2] = ppc_hash32_hpt_base(cpu) +
                         get_pteg_offset32(cpu, ctx.hash[1]);
                     break;
-                case POWERPC_MMU_SOFT_74xx:
-                    if (access_type == MMU_DATA_STORE) {
-                        cs->exception_index = POWERPC_EXCP_DSTLB;
-                    } else {
-                        cs->exception_index = POWERPC_EXCP_DLTLB;
-                    }
-                tlb_miss_74xx:
-                    /* Implement LRU algorithm */
-                    env->error_code = ctx.key << 19;
-                    env->spr[SPR_TLBMISS] = (eaddr & ~((target_ulong)0x3)) |
-                        ((env->last_way + 1) & (env->nb_ways - 1));
-                    env->spr[SPR_PTEHI] = 0x80000000 | ctx.ptem;
-                    break;
                 case POWERPC_MMU_SOFT_4xx:
-                case POWERPC_MMU_SOFT_4xx_Z:
                     cs->exception_index = POWERPC_EXCP_DTLB;
                     env->error_code = 0;
                     env->spr[SPR_40x_DEAR] = eaddr;
@@ -1501,8 +1450,7 @@ static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
                 /* Access rights violation */
                 cs->exception_index = POWERPC_EXCP_DSI;
                 env->error_code = 0;
-                if (env->mmu_model == POWERPC_MMU_SOFT_4xx
-                    || env->mmu_model == POWERPC_MMU_SOFT_4xx_Z) {
+                if (env->mmu_model == POWERPC_MMU_SOFT_4xx) {
                     env->spr[SPR_40x_DEAR] = eaddr;
                     if (access_type == MMU_DATA_STORE) {
                         env->spr[SPR_40x_ESR] |= 0x00800000;

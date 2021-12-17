@@ -1693,6 +1693,50 @@ static float64 float64_round_pack_canonical(FloatParts64 *p,
     return float64_pack_raw(p);
 }
 
+static float64 float64r32_round_pack_canonical(FloatParts64 *p,
+                                               float_status *s)
+{
+    parts_uncanon(p, s, &float32_params);
+
+    /*
+     * In parts_uncanon, we placed the fraction for float32 at the lsb.
+     * We need to adjust the fraction higher so that the least N bits are
+     * zero, and the fraction is adjacent to the float64 implicit bit.
+     */
+    switch (p->cls) {
+    case float_class_normal:
+        if (unlikely(p->exp == 0)) {
+            /*
+             * The result is denormal for float32, but can be represented
+             * in normalized form for float64.  Adjust, per canonicalize.
+             */
+            int shift = frac_normalize(p);
+            p->exp = (float32_params.frac_shift -
+                      float32_params.exp_bias - shift + 1 +
+                      float64_params.exp_bias);
+            frac_shr(p, float64_params.frac_shift);
+        } else {
+            frac_shl(p, float32_params.frac_shift - float64_params.frac_shift);
+            p->exp += float64_params.exp_bias - float32_params.exp_bias;
+        }
+        break;
+    case float_class_snan:
+    case float_class_qnan:
+        frac_shl(p, float32_params.frac_shift - float64_params.frac_shift);
+        p->exp = float64_params.exp_max;
+        break;
+    case float_class_inf:
+        p->exp = float64_params.exp_max;
+        break;
+    case float_class_zero:
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    return float64_pack_raw(p);
+}
+
 static void float128_unpack_canonical(FloatParts128 *p, float128 f,
                                       float_status *s)
 {
@@ -1938,6 +1982,28 @@ float64_sub(float64 a, float64 b, float_status *s)
     return float64_addsub(a, b, s, hard_f64_sub, soft_f64_sub);
 }
 
+static float64 float64r32_addsub(float64 a, float64 b, float_status *status,
+                                 bool subtract)
+{
+    FloatParts64 pa, pb, *pr;
+
+    float64_unpack_canonical(&pa, a, status);
+    float64_unpack_canonical(&pb, b, status);
+    pr = parts_addsub(&pa, &pb, status, subtract);
+
+    return float64r32_round_pack_canonical(pr, status);
+}
+
+float64 float64r32_add(float64 a, float64 b, float_status *status)
+{
+    return float64r32_addsub(a, b, status, false);
+}
+
+float64 float64r32_sub(float64 a, float64 b, float_status *status)
+{
+    return float64r32_addsub(a, b, status, true);
+}
+
 static bfloat16 QEMU_FLATTEN
 bfloat16_addsub(bfloat16 a, bfloat16 b, float_status *status, bool subtract)
 {
@@ -2067,6 +2133,17 @@ float64_mul(float64 a, float64 b, float_status *s)
 {
     return float64_gen2(a, b, s, hard_f64_mul, soft_f64_mul,
                         f64_is_zon2, f64_addsubmul_post);
+}
+
+float64 float64r32_mul(float64 a, float64 b, float_status *status)
+{
+    FloatParts64 pa, pb, *pr;
+
+    float64_unpack_canonical(&pa, a, status);
+    float64_unpack_canonical(&pb, b, status);
+    pr = parts_mul(&pa, &pb, status);
+
+    return float64r32_round_pack_canonical(pr, status);
 }
 
 bfloat16 QEMU_FLATTEN
@@ -2296,6 +2373,19 @@ float64_muladd(float64 xa, float64 xb, float64 xc, int flags, float_status *s)
     return soft_f64_muladd(ua.s, ub.s, uc.s, flags, s);
 }
 
+float64 float64r32_muladd(float64 a, float64 b, float64 c,
+                          int flags, float_status *status)
+{
+    FloatParts64 pa, pb, pc, *pr;
+
+    float64_unpack_canonical(&pa, a, status);
+    float64_unpack_canonical(&pb, b, status);
+    float64_unpack_canonical(&pc, c, status);
+    pr = parts_muladd(&pa, &pb, &pc, flags, status);
+
+    return float64r32_round_pack_canonical(pr, status);
+}
+
 bfloat16 QEMU_FLATTEN bfloat16_muladd(bfloat16 a, bfloat16 b, bfloat16 c,
                                       int flags, float_status *status)
 {
@@ -2417,6 +2507,17 @@ float64_div(float64 a, float64 b, float_status *s)
 {
     return float64_gen2(a, b, s, hard_f64_div, soft_f64_div,
                         f64_div_pre, f64_div_post);
+}
+
+float64 float64r32_div(float64 a, float64 b, float_status *status)
+{
+    FloatParts64 pa, pb, *pr;
+
+    float64_unpack_canonical(&pa, a, status);
+    float64_unpack_canonical(&pb, b, status);
+    pr = parts_div(&pa, &pb, status);
+
+    return float64r32_round_pack_canonical(pr, status);
 }
 
 bfloat16 QEMU_FLATTEN
@@ -2543,8 +2644,10 @@ floatx80 floatx80_mod(floatx80 a, floatx80 b, float_status *status)
 static void parts_float_to_ahp(FloatParts64 *a, float_status *s)
 {
     switch (a->cls) {
-    case float_class_qnan:
     case float_class_snan:
+        float_raise(float_flag_invalid_snan, s);
+        /* fall through */
+    case float_class_qnan:
         /*
          * There is no NaN in the destination format.  Raise Invalid
          * and return a zero with the sign of the input NaN.
@@ -4281,6 +4384,15 @@ float64 QEMU_FLATTEN float64_sqrt(float64 xa, float_status *s)
 
  soft:
     return soft_f64_sqrt(ua.s, s);
+}
+
+float64 float64r32_sqrt(float64 a, float_status *status)
+{
+    FloatParts64 p;
+
+    float64_unpack_canonical(&p, a, status);
+    parts_sqrt(&p, status, &float64_params);
+    return float64r32_round_pack_canonical(&p, status);
 }
 
 bfloat16 QEMU_FLATTEN bfloat16_sqrt(bfloat16 a, float_status *status)

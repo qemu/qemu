@@ -506,7 +506,7 @@ static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
      * the default NaN
      */
     if (infzero && is_qnan(c_cls)) {
-        float_raise(float_flag_invalid, status);
+        float_raise(float_flag_invalid | float_flag_invalid_imz, status);
         return 3;
     }
 
@@ -533,7 +533,7 @@ static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
          * case sets InvalidOp and returns the default NaN
          */
         if (infzero) {
-            float_raise(float_flag_invalid, status);
+            float_raise(float_flag_invalid | float_flag_invalid_imz, status);
             return 3;
         }
         /* Prefer sNaN over qNaN, in the a, b, c order. */
@@ -556,7 +556,7 @@ static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
          * case sets InvalidOp and returns the input value 'c'
          */
         if (infzero) {
-            float_raise(float_flag_invalid, status);
+            float_raise(float_flag_invalid | float_flag_invalid_imz, status);
             return 2;
         }
         /* Prefer sNaN over qNaN, in the c, a, b order. */
@@ -580,7 +580,7 @@ static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
      * a default NaN
      */
     if (infzero) {
-        float_raise(float_flag_invalid, status);
+        float_raise(float_flag_invalid | float_flag_invalid_imz, status);
         return 2;
     }
 
@@ -597,7 +597,7 @@ static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
 #elif defined(TARGET_RISCV)
     /* For RISC-V, InvalidOp is set when multiplicands are Inf and zero */
     if (infzero) {
-        float_raise(float_flag_invalid, status);
+        float_raise(float_flag_invalid | float_flag_invalid_imz, status);
     }
     return 3; /* default NaN */
 #elif defined(TARGET_XTENSA)
@@ -606,7 +606,7 @@ static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
      * an input NaN if we have one (ie c).
      */
     if (infzero) {
-        float_raise(float_flag_invalid, status);
+        float_raise(float_flag_invalid | float_flag_invalid_imz, status);
         return 2;
     }
     if (status->use_first_nan) {

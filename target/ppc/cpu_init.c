@@ -45,6 +45,7 @@
 #include "helper_regs.h"
 #include "internal.h"
 #include "spr_tcg.h"
+#include "power8-pmu.h"
 
 /* #define PPC_DEBUG_SPR */
 /* #define USE_APPLE_GDB */
@@ -945,31 +946,6 @@ static void register_l3_ctrl(CPUPPCState *env)
                  0x00000000);
 }
 
-static void register_74xx_soft_tlb(CPUPPCState *env, int nb_tlbs, int nb_ways)
-{
-#if !defined(CONFIG_USER_ONLY)
-    env->nb_tlb = nb_tlbs;
-    env->nb_ways = nb_ways;
-    env->id_tlbs = 1;
-    env->tlb_type = TLB_6XX;
-    /* XXX : not implemented */
-    spr_register(env, SPR_PTEHI, "PTEHI",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_PTELO, "PTELO",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_TLBMISS, "TLBMISS",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-#endif
-}
-
 static void register_usprg3_sprs(CPUPPCState *env)
 {
     spr_register(env, SPR_USPRG3, "USPRG3",
@@ -1578,169 +1554,6 @@ static void register_405_sprs(CPUPPCState *env)
     register_usprgh_sprs(env);
 }
 
-/* SPR shared between PowerPC 401 & 403 implementations */
-static void register_401_403_sprs(CPUPPCState *env)
-{
-    /* Time base */
-    spr_register(env, SPR_403_VTBL,  "TBL",
-                 &spr_read_tbl, SPR_NOACCESS,
-                 &spr_read_tbl, SPR_NOACCESS,
-                 0x00000000);
-    spr_register(env, SPR_403_TBL,   "TBL",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 SPR_NOACCESS, &spr_write_tbl,
-                 0x00000000);
-    spr_register(env, SPR_403_VTBU,  "TBU",
-                 &spr_read_tbu, SPR_NOACCESS,
-                 &spr_read_tbu, SPR_NOACCESS,
-                 0x00000000);
-    spr_register(env, SPR_403_TBU,   "TBU",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 SPR_NOACCESS, &spr_write_tbu,
-                 0x00000000);
-    /* Debug */
-    /* not emulated, as QEMU do not emulate caches */
-    spr_register(env, SPR_403_CDBCR, "CDBCR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-}
-
-/* SPR specific to PowerPC 401 implementation */
-static void register_401_sprs(CPUPPCState *env)
-{
-    /* Debug interface */
-    /* XXX : not implemented */
-    spr_register(env, SPR_40x_DBCR0, "DBCR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_40x_dbcr0,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_40x_DBSR, "DBSR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_clear,
-                 /* Last reset was system reset */
-                 0x00000300);
-    /* XXX : not implemented */
-    spr_register(env, SPR_40x_DAC1, "DAC",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_40x_IAC1, "IAC",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* Storage control */
-    /* XXX: TODO: not implemented */
-    spr_register(env, SPR_405_SLER, "SLER",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_40x_sler,
-                 0x00000000);
-    /* not emulated, as QEMU never does speculative access */
-    spr_register(env, SPR_40x_SGR, "SGR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0xFFFFFFFF);
-    /* not emulated, as QEMU do not emulate caches */
-    spr_register(env, SPR_40x_DCWR, "DCWR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-}
-
-static void register_401x2_sprs(CPUPPCState *env)
-{
-    register_401_sprs(env);
-    spr_register(env, SPR_40x_PID, "PID",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    spr_register(env, SPR_40x_ZPR, "ZPR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-}
-
-/* SPR specific to PowerPC 403 implementation */
-static void register_403_sprs(CPUPPCState *env)
-{
-    /* Debug interface */
-    /* XXX : not implemented */
-    spr_register(env, SPR_40x_DBCR0, "DBCR0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_40x_dbcr0,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_40x_DBSR, "DBSR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_clear,
-                 /* Last reset was system reset */
-                 0x00000300);
-    /* XXX : not implemented */
-    spr_register(env, SPR_40x_DAC1, "DAC1",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_40x_DAC2, "DAC2",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_40x_IAC1, "IAC1",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_40x_IAC2, "IAC2",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-}
-
-static void register_403_real_sprs(CPUPPCState *env)
-{
-    spr_register(env, SPR_403_PBL1,  "PBL1",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_403_pbr, &spr_write_403_pbr,
-                 0x00000000);
-    spr_register(env, SPR_403_PBU1,  "PBU1",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_403_pbr, &spr_write_403_pbr,
-                 0x00000000);
-    spr_register(env, SPR_403_PBL2,  "PBL2",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_403_pbr, &spr_write_403_pbr,
-                 0x00000000);
-    spr_register(env, SPR_403_PBU2,  "PBU2",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_403_pbr, &spr_write_403_pbr,
-                 0x00000000);
-}
-
-static void register_403_mmu_sprs(CPUPPCState *env)
-{
-    /* MMU */
-    spr_register(env, SPR_40x_PID, "PID",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    spr_register(env, SPR_40x_ZPR, "ZPR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-}
-
-/* SPR specific to PowerPC compression coprocessor extension */
-static void register_compress_sprs(CPUPPCState *env)
-{
-    /* XXX : not implemented */
-    spr_register(env, SPR_401_SKR, "SKR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-}
 
 static void register_5xx_8xx_sprs(CPUPPCState *env)
 {
@@ -2128,26 +1941,6 @@ static void register_8xx_sprs(CPUPPCState *env)
 
 /*****************************************************************************/
 /* Exception vectors models                                                  */
-static void init_excp_4xx_real(CPUPPCState *env)
-{
-#if !defined(CONFIG_USER_ONLY)
-    env->excp_vectors[POWERPC_EXCP_CRITICAL] = 0x00000100;
-    env->excp_vectors[POWERPC_EXCP_MCHECK]   = 0x00000200;
-    env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000500;
-    env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000600;
-    env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000700;
-    env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
-    env->excp_vectors[POWERPC_EXCP_PIT]      = 0x00001000;
-    env->excp_vectors[POWERPC_EXCP_FIT]      = 0x00001010;
-    env->excp_vectors[POWERPC_EXCP_WDT]      = 0x00001020;
-    env->excp_vectors[POWERPC_EXCP_DEBUG]    = 0x00002000;
-    env->ivor_mask = 0x0000FFF0UL;
-    env->ivpr_mask = 0xFFFF0000UL;
-    /* Hardware reset vector */
-    env->hreset_vector = 0xFFFFFFFCUL;
-#endif
-}
-
 static void init_excp_4xx_softmmu(CPUPPCState *env)
 {
 #if !defined(CONFIG_USER_ONLY)
@@ -2180,7 +1973,7 @@ static void init_excp_MPC5xx(CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000500;
     env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000600;
     env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000700;
-    env->excp_vectors[POWERPC_EXCP_FPU]      = 0x00000900;
+    env->excp_vectors[POWERPC_EXCP_FPU]      = 0x00000800;
     env->excp_vectors[POWERPC_EXCP_DECR]     = 0x00000900;
     env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
     env->excp_vectors[POWERPC_EXCP_TRACE]    = 0x00000D00;
@@ -2207,7 +2000,7 @@ static void init_excp_MPC8xx(CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_EXTERNAL] = 0x00000500;
     env->excp_vectors[POWERPC_EXCP_ALIGN]    = 0x00000600;
     env->excp_vectors[POWERPC_EXCP_PROGRAM]  = 0x00000700;
-    env->excp_vectors[POWERPC_EXCP_FPU]      = 0x00000900;
+    env->excp_vectors[POWERPC_EXCP_FPU]      = 0x00000800;
     env->excp_vectors[POWERPC_EXCP_DECR]     = 0x00000900;
     env->excp_vectors[POWERPC_EXCP_SYSCALL]  = 0x00000C00;
     env->excp_vectors[POWERPC_EXCP_TRACE]    = 0x00000D00;
@@ -2273,8 +2066,14 @@ static void init_excp_e200(CPUPPCState *env, target_ulong ivpr_mask)
     env->excp_vectors[POWERPC_EXCP_DTLB]     = 0x00000000;
     env->excp_vectors[POWERPC_EXCP_ITLB]     = 0x00000000;
     env->excp_vectors[POWERPC_EXCP_DEBUG]    = 0x00000000;
+    /*
+     * These two are the same IVOR as POWERPC_EXCP_VPU and
+     * POWERPC_EXCP_VPUA. We deal with that when dispatching at
+     * powerpc_excp().
+     */
     env->excp_vectors[POWERPC_EXCP_SPEU]     = 0x00000000;
     env->excp_vectors[POWERPC_EXCP_EFPDI]    = 0x00000000;
+
     env->excp_vectors[POWERPC_EXCP_EFPRI]    = 0x00000000;
     env->ivor_mask = 0x0000FFF7UL;
     env->ivpr_mask = ivpr_mask;
@@ -2537,9 +2336,6 @@ static void init_excp_7450(CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_TRACE]    = 0x00000D00;
     env->excp_vectors[POWERPC_EXCP_PERFM]    = 0x00000F00;
     env->excp_vectors[POWERPC_EXCP_VPU]      = 0x00000F20;
-    env->excp_vectors[POWERPC_EXCP_IFTLB]    = 0x00001000;
-    env->excp_vectors[POWERPC_EXCP_DLTLB]    = 0x00001100;
-    env->excp_vectors[POWERPC_EXCP_DSTLB]    = 0x00001200;
     env->excp_vectors[POWERPC_EXCP_IABR]     = 0x00001300;
     env->excp_vectors[POWERPC_EXCP_SMI]      = 0x00001400;
     env->excp_vectors[POWERPC_EXCP_VPUA]     = 0x00001600;
@@ -2689,335 +2485,6 @@ static int check_pow_hid0_74xx(CPUPPCState *env)
     type_init(glue(glue(ppc_, _name), _cpu_family_register_types))          \
                                                                             \
     static void glue(glue(ppc_, _name), _cpu_family_class_init)
-
-static void init_proc_401(CPUPPCState *env)
-{
-    register_40x_sprs(env);
-    register_401_403_sprs(env);
-    register_401_sprs(env);
-    init_excp_4xx_real(env);
-    env->dcache_line_size = 32;
-    env->icache_line_size = 32;
-    /* Allocate hardware IRQ controller */
-    ppc40x_irq_init(env_archcpu(env));
-
-    SET_FIT_PERIOD(12, 16, 20, 24);
-    SET_WDT_PERIOD(16, 20, 24, 28);
-}
-
-POWERPC_FAMILY(401)(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-
-    dc->desc = "PowerPC 401";
-    pcc->init_proc = init_proc_401;
-    pcc->check_pow = check_pow_nocheck;
-    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING |
-                       PPC_WRTEE | PPC_DCR |
-                       PPC_CACHE | PPC_CACHE_ICBI | PPC_40x_ICBT |
-                       PPC_CACHE_DCBZ |
-                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
-                       PPC_4xx_COMMON | PPC_40x_EXCP;
-    pcc->msr_mask = (1ull << MSR_KEY) |
-                    (1ull << MSR_POW) |
-                    (1ull << MSR_CE) |
-                    (1ull << MSR_ILE) |
-                    (1ull << MSR_EE) |
-                    (1ull << MSR_PR) |
-                    (1ull << MSR_ME) |
-                    (1ull << MSR_DE) |
-                    (1ull << MSR_LE);
-    pcc->mmu_model = POWERPC_MMU_REAL;
-    pcc->excp_model = POWERPC_EXCP_40x;
-    pcc->bus_model = PPC_FLAGS_INPUT_401;
-    pcc->bfd_mach = bfd_mach_ppc_403;
-    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DE |
-                 POWERPC_FLAG_BUS_CLK;
-}
-
-static void init_proc_401x2(CPUPPCState *env)
-{
-    register_40x_sprs(env);
-    register_401_403_sprs(env);
-    register_401x2_sprs(env);
-    register_compress_sprs(env);
-    /* Memory management */
-#if !defined(CONFIG_USER_ONLY)
-    env->nb_tlb = 64;
-    env->nb_ways = 1;
-    env->id_tlbs = 0;
-    env->tlb_type = TLB_EMB;
-#endif
-    init_excp_4xx_softmmu(env);
-    env->dcache_line_size = 32;
-    env->icache_line_size = 32;
-    /* Allocate hardware IRQ controller */
-    ppc40x_irq_init(env_archcpu(env));
-
-    SET_FIT_PERIOD(12, 16, 20, 24);
-    SET_WDT_PERIOD(16, 20, 24, 28);
-}
-
-POWERPC_FAMILY(401x2)(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-
-    dc->desc = "PowerPC 401x2";
-    pcc->init_proc = init_proc_401x2;
-    pcc->check_pow = check_pow_nocheck;
-    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
-                       PPC_DCR | PPC_WRTEE |
-                       PPC_CACHE | PPC_CACHE_ICBI | PPC_40x_ICBT |
-                       PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
-                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
-                       PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
-                       PPC_4xx_COMMON | PPC_40x_EXCP;
-    pcc->msr_mask = (1ull << 20) |
-                    (1ull << MSR_KEY) |
-                    (1ull << MSR_POW) |
-                    (1ull << MSR_CE) |
-                    (1ull << MSR_ILE) |
-                    (1ull << MSR_EE) |
-                    (1ull << MSR_PR) |
-                    (1ull << MSR_ME) |
-                    (1ull << MSR_DE) |
-                    (1ull << MSR_IR) |
-                    (1ull << MSR_DR) |
-                    (1ull << MSR_LE);
-    pcc->mmu_model = POWERPC_MMU_SOFT_4xx_Z;
-    pcc->excp_model = POWERPC_EXCP_40x;
-    pcc->bus_model = PPC_FLAGS_INPUT_401;
-    pcc->bfd_mach = bfd_mach_ppc_403;
-    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DE |
-                 POWERPC_FLAG_BUS_CLK;
-}
-
-static void init_proc_401x3(CPUPPCState *env)
-{
-    register_40x_sprs(env);
-    register_401_403_sprs(env);
-    register_401_sprs(env);
-    register_401x2_sprs(env);
-    register_compress_sprs(env);
-    init_excp_4xx_softmmu(env);
-    env->dcache_line_size = 32;
-    env->icache_line_size = 32;
-    /* Allocate hardware IRQ controller */
-    ppc40x_irq_init(env_archcpu(env));
-
-    SET_FIT_PERIOD(12, 16, 20, 24);
-    SET_WDT_PERIOD(16, 20, 24, 28);
-}
-
-POWERPC_FAMILY(401x3)(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-
-    dc->desc = "PowerPC 401x3";
-    pcc->init_proc = init_proc_401x3;
-    pcc->check_pow = check_pow_nocheck;
-    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
-                       PPC_DCR | PPC_WRTEE |
-                       PPC_CACHE | PPC_CACHE_ICBI | PPC_40x_ICBT |
-                       PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
-                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
-                       PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
-                       PPC_4xx_COMMON | PPC_40x_EXCP;
-    pcc->msr_mask = (1ull << 20) |
-                    (1ull << MSR_KEY) |
-                    (1ull << MSR_POW) |
-                    (1ull << MSR_CE) |
-                    (1ull << MSR_ILE) |
-                    (1ull << MSR_EE) |
-                    (1ull << MSR_PR) |
-                    (1ull << MSR_ME) |
-                    (1ull << MSR_DWE) |
-                    (1ull << MSR_DE) |
-                    (1ull << MSR_IR) |
-                    (1ull << MSR_DR) |
-                    (1ull << MSR_LE);
-    pcc->mmu_model = POWERPC_MMU_SOFT_4xx_Z;
-    pcc->excp_model = POWERPC_EXCP_40x;
-    pcc->bus_model = PPC_FLAGS_INPUT_401;
-    pcc->bfd_mach = bfd_mach_ppc_403;
-    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DE |
-                 POWERPC_FLAG_BUS_CLK;
-}
-
-static void init_proc_IOP480(CPUPPCState *env)
-{
-    register_40x_sprs(env);
-    register_401_403_sprs(env);
-    register_401x2_sprs(env);
-    register_compress_sprs(env);
-    /* Memory management */
-#if !defined(CONFIG_USER_ONLY)
-    env->nb_tlb = 64;
-    env->nb_ways = 1;
-    env->id_tlbs = 0;
-    env->tlb_type = TLB_EMB;
-#endif
-    init_excp_4xx_softmmu(env);
-    env->dcache_line_size = 32;
-    env->icache_line_size = 32;
-    /* Allocate hardware IRQ controller */
-    ppc40x_irq_init(env_archcpu(env));
-
-    SET_FIT_PERIOD(8, 12, 16, 20);
-    SET_WDT_PERIOD(16, 20, 24, 28);
-}
-
-POWERPC_FAMILY(IOP480)(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-
-    dc->desc = "IOP480";
-    pcc->init_proc = init_proc_IOP480;
-    pcc->check_pow = check_pow_nocheck;
-    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING |
-                       PPC_DCR | PPC_WRTEE |
-                       PPC_CACHE | PPC_CACHE_ICBI |  PPC_40x_ICBT |
-                       PPC_CACHE_DCBZ | PPC_CACHE_DCBA |
-                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
-                       PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
-                       PPC_4xx_COMMON | PPC_40x_EXCP;
-    pcc->msr_mask = (1ull << 20) |
-                    (1ull << MSR_KEY) |
-                    (1ull << MSR_POW) |
-                    (1ull << MSR_CE) |
-                    (1ull << MSR_ILE) |
-                    (1ull << MSR_EE) |
-                    (1ull << MSR_PR) |
-                    (1ull << MSR_ME) |
-                    (1ull << MSR_DE) |
-                    (1ull << MSR_IR) |
-                    (1ull << MSR_DR) |
-                    (1ull << MSR_LE);
-    pcc->mmu_model = POWERPC_MMU_SOFT_4xx_Z;
-    pcc->excp_model = POWERPC_EXCP_40x;
-    pcc->bus_model = PPC_FLAGS_INPUT_401;
-    pcc->bfd_mach = bfd_mach_ppc_403;
-    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DE |
-                 POWERPC_FLAG_BUS_CLK;
-}
-
-static void init_proc_403(CPUPPCState *env)
-{
-    register_40x_sprs(env);
-    register_401_403_sprs(env);
-    register_403_sprs(env);
-    register_403_real_sprs(env);
-    init_excp_4xx_real(env);
-    env->dcache_line_size = 32;
-    env->icache_line_size = 32;
-    /* Allocate hardware IRQ controller */
-    ppc40x_irq_init(env_archcpu(env));
-
-    SET_FIT_PERIOD(8, 12, 16, 20);
-    SET_WDT_PERIOD(16, 20, 24, 28);
-}
-
-POWERPC_FAMILY(403)(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-
-    dc->desc = "PowerPC 403";
-    pcc->init_proc = init_proc_403;
-    pcc->check_pow = check_pow_nocheck;
-    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING |
-                       PPC_DCR | PPC_WRTEE |
-                       PPC_CACHE | PPC_CACHE_ICBI | PPC_40x_ICBT |
-                       PPC_CACHE_DCBZ |
-                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
-                       PPC_4xx_COMMON | PPC_40x_EXCP;
-    pcc->msr_mask = (1ull << MSR_POW) |
-                    (1ull << MSR_CE) |
-                    (1ull << MSR_ILE) |
-                    (1ull << MSR_EE) |
-                    (1ull << MSR_PR) |
-                    (1ull << MSR_ME) |
-                    (1ull << MSR_PE) |
-                    (1ull << MSR_PX) |
-                    (1ull << MSR_LE);
-    pcc->mmu_model = POWERPC_MMU_REAL;
-    pcc->excp_model = POWERPC_EXCP_40x;
-    pcc->bus_model = PPC_FLAGS_INPUT_401;
-    pcc->bfd_mach = bfd_mach_ppc_403;
-    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_PX |
-                 POWERPC_FLAG_BUS_CLK;
-}
-
-static void init_proc_403GCX(CPUPPCState *env)
-{
-    register_40x_sprs(env);
-    register_401_403_sprs(env);
-    register_403_sprs(env);
-    register_403_real_sprs(env);
-    register_403_mmu_sprs(env);
-    /* Bus access control */
-    /* not emulated, as QEMU never does speculative access */
-    spr_register(env, SPR_40x_SGR, "SGR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0xFFFFFFFF);
-    /* not emulated, as QEMU do not emulate caches */
-    spr_register(env, SPR_40x_DCWR, "DCWR",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* Memory management */
-#if !defined(CONFIG_USER_ONLY)
-    env->nb_tlb = 64;
-    env->nb_ways = 1;
-    env->id_tlbs = 0;
-    env->tlb_type = TLB_EMB;
-#endif
-    init_excp_4xx_softmmu(env);
-    env->dcache_line_size = 32;
-    env->icache_line_size = 32;
-    /* Allocate hardware IRQ controller */
-    ppc40x_irq_init(env_archcpu(env));
-
-    SET_FIT_PERIOD(8, 12, 16, 20);
-    SET_WDT_PERIOD(16, 20, 24, 28);
-}
-
-POWERPC_FAMILY(403GCX)(ObjectClass *oc, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-
-    dc->desc = "PowerPC 403 GCX";
-    pcc->init_proc = init_proc_403GCX;
-    pcc->check_pow = check_pow_nocheck;
-    pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING |
-                       PPC_DCR | PPC_WRTEE |
-                       PPC_CACHE | PPC_CACHE_ICBI | PPC_40x_ICBT |
-                       PPC_CACHE_DCBZ |
-                       PPC_MEM_SYNC | PPC_MEM_EIEIO |
-                       PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
-                       PPC_4xx_COMMON | PPC_40x_EXCP;
-    pcc->msr_mask = (1ull << MSR_POW) |
-                    (1ull << MSR_CE) |
-                    (1ull << MSR_ILE) |
-                    (1ull << MSR_EE) |
-                    (1ull << MSR_PR) |
-                    (1ull << MSR_ME) |
-                    (1ull << MSR_PE) |
-                    (1ull << MSR_PX) |
-                    (1ull << MSR_LE);
-    pcc->mmu_model = POWERPC_MMU_SOFT_4xx_Z;
-    pcc->excp_model = POWERPC_EXCP_40x;
-    pcc->bus_model = PPC_FLAGS_INPUT_401;
-    pcc->bfd_mach = bfd_mach_ppc_403;
-    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_PX |
-                 POWERPC_FLAG_BUS_CLK;
-}
 
 static void init_proc_405(CPUPPCState *env)
 {
@@ -4607,6 +4074,7 @@ POWERPC_FAMILY(601v)(ObjectClass *oc, void *data)
                     (1ull << MSR_IR) |
                     (1ull << MSR_DR);
     pcc->mmu_model = POWERPC_MMU_601;
+    pcc->excp_model = POWERPC_EXCP_601;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_601;
     pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_RTC_CLK | POWERPC_FLAG_HID0_LE;
@@ -4749,41 +4217,13 @@ POWERPC_FAMILY(603)(ObjectClass *oc, void *data)
                  POWERPC_FLAG_BE | POWERPC_FLAG_BUS_CLK;
 }
 
-static void init_proc_603E(CPUPPCState *env)
-{
-    register_ne_601_sprs(env);
-    register_sdr1_sprs(env);
-    register_603_sprs(env);
-    /* Time base */
-    register_tbl(env);
-    /* hardware implementation registers */
-    /* XXX : not implemented */
-    spr_register(env, SPR_HID0, "HID0",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* XXX : not implemented */
-    spr_register(env, SPR_HID1, "HID1",
-                 SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
-                 0x00000000);
-    /* Memory management */
-    register_low_BATs(env);
-    register_6xx_7xx_soft_tlb(env, 64, 2);
-    init_excp_603(env);
-    env->dcache_line_size = 32;
-    env->icache_line_size = 32;
-    /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(env_archcpu(env));
-}
-
 POWERPC_FAMILY(603E)(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
 
     dc->desc = "PowerPC 603e";
-    pcc->init_proc = init_proc_603E;
+    pcc->init_proc = init_proc_603;
     pcc->check_pow = check_pow_hid0;
     pcc->insns_flags = PPC_INSNS_BASE | PPC_STRING | PPC_MFTB |
                        PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
@@ -4809,7 +4249,7 @@ POWERPC_FAMILY(603E)(ObjectClass *oc, void *data)
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
-    pcc->excp_model = POWERPC_EXCP_603E;
+    pcc->excp_model = POWERPC_EXCP_603;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_ec603e;
     pcc->flags = POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |
@@ -5932,7 +5372,6 @@ static void init_proc_7440(CPUPPCState *env)
                  0x00000000);
     /* Memory management */
     register_low_BATs(env);
-    register_74xx_soft_tlb(env, 128, 2);
     init_excp_7450(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
@@ -5956,7 +5395,7 @@ POWERPC_FAMILY(7440)(ObjectClass *oc, void *data)
                        PPC_CACHE_DCBA | PPC_CACHE_DCBZ |
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
-                       PPC_MEM_TLBIA | PPC_74xx_TLB |
+                       PPC_MEM_TLBIA |
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
     pcc->msr_mask = (1ull << MSR_VR) |
@@ -5976,7 +5415,7 @@ POWERPC_FAMILY(7440)(ObjectClass *oc, void *data)
                     (1ull << MSR_PMM) |
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
-    pcc->mmu_model = POWERPC_MMU_SOFT_74xx;
+    pcc->mmu_model = POWERPC_MMU_32B;
     pcc->excp_model = POWERPC_EXCP_74xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_7400;
@@ -6067,7 +5506,6 @@ static void init_proc_7450(CPUPPCState *env)
                  0x00000000);
     /* Memory management */
     register_low_BATs(env);
-    register_74xx_soft_tlb(env, 128, 2);
     init_excp_7450(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
@@ -6091,7 +5529,7 @@ POWERPC_FAMILY(7450)(ObjectClass *oc, void *data)
                        PPC_CACHE_DCBA | PPC_CACHE_DCBZ |
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
-                       PPC_MEM_TLBIA | PPC_74xx_TLB |
+                       PPC_MEM_TLBIA |
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
     pcc->msr_mask = (1ull << MSR_VR) |
@@ -6111,7 +5549,7 @@ POWERPC_FAMILY(7450)(ObjectClass *oc, void *data)
                     (1ull << MSR_PMM) |
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
-    pcc->mmu_model = POWERPC_MMU_SOFT_74xx;
+    pcc->mmu_model = POWERPC_MMU_32B;
     pcc->excp_model = POWERPC_EXCP_74xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_7400;
@@ -6205,7 +5643,6 @@ static void init_proc_7445(CPUPPCState *env)
     /* Memory management */
     register_low_BATs(env);
     register_high_BATs(env);
-    register_74xx_soft_tlb(env, 128, 2);
     init_excp_7450(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
@@ -6229,7 +5666,7 @@ POWERPC_FAMILY(7445)(ObjectClass *oc, void *data)
                        PPC_CACHE_DCBA | PPC_CACHE_DCBZ |
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
-                       PPC_MEM_TLBIA | PPC_74xx_TLB |
+                       PPC_MEM_TLBIA |
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
     pcc->msr_mask = (1ull << MSR_VR) |
@@ -6249,7 +5686,7 @@ POWERPC_FAMILY(7445)(ObjectClass *oc, void *data)
                     (1ull << MSR_PMM) |
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
-    pcc->mmu_model = POWERPC_MMU_SOFT_74xx;
+    pcc->mmu_model = POWERPC_MMU_32B;
     pcc->excp_model = POWERPC_EXCP_74xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_7400;
@@ -6345,7 +5782,6 @@ static void init_proc_7455(CPUPPCState *env)
     /* Memory management */
     register_low_BATs(env);
     register_high_BATs(env);
-    register_74xx_soft_tlb(env, 128, 2);
     init_excp_7450(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
@@ -6369,7 +5805,7 @@ POWERPC_FAMILY(7455)(ObjectClass *oc, void *data)
                        PPC_CACHE_DCBA | PPC_CACHE_DCBZ |
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
-                       PPC_MEM_TLBIA | PPC_74xx_TLB |
+                       PPC_MEM_TLBIA |
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
     pcc->msr_mask = (1ull << MSR_VR) |
@@ -6389,7 +5825,7 @@ POWERPC_FAMILY(7455)(ObjectClass *oc, void *data)
                     (1ull << MSR_PMM) |
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
-    pcc->mmu_model = POWERPC_MMU_SOFT_74xx;
+    pcc->mmu_model = POWERPC_MMU_32B;
     pcc->excp_model = POWERPC_EXCP_74xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_7400;
@@ -6509,7 +5945,6 @@ static void init_proc_7457(CPUPPCState *env)
     /* Memory management */
     register_low_BATs(env);
     register_high_BATs(env);
-    register_74xx_soft_tlb(env, 128, 2);
     init_excp_7450(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
@@ -6533,7 +5968,7 @@ POWERPC_FAMILY(7457)(ObjectClass *oc, void *data)
                        PPC_CACHE_DCBA | PPC_CACHE_DCBZ |
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
-                       PPC_MEM_TLBIA | PPC_74xx_TLB |
+                       PPC_MEM_TLBIA |
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
     pcc->msr_mask = (1ull << MSR_VR) |
@@ -6553,7 +5988,7 @@ POWERPC_FAMILY(7457)(ObjectClass *oc, void *data)
                     (1ull << MSR_PMM) |
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
-    pcc->mmu_model = POWERPC_MMU_SOFT_74xx;
+    pcc->mmu_model = POWERPC_MMU_32B;
     pcc->excp_model = POWERPC_EXCP_74xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_7400;
@@ -6648,7 +6083,6 @@ static void init_proc_e600(CPUPPCState *env)
     /* Memory management */
     register_low_BATs(env);
     register_high_BATs(env);
-    register_74xx_soft_tlb(env, 128, 2);
     init_excp_7450(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
@@ -6672,7 +6106,7 @@ POWERPC_FAMILY(e600)(ObjectClass *oc, void *data)
                        PPC_CACHE_DCBA | PPC_CACHE_DCBZ |
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
-                       PPC_MEM_TLBIA | PPC_74xx_TLB |
+                       PPC_MEM_TLBIA |
                        PPC_SEGMENT | PPC_EXTERN |
                        PPC_ALTIVEC;
     pcc->insns_flags2 = PPC_NONE;
@@ -6748,7 +6182,7 @@ static void register_book3s_ctrl_sprs(CPUPPCState *env)
 {
     spr_register(env, SPR_CTRL, "SPR_CTRL",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 SPR_NOACCESS, &spr_write_generic,
+                 SPR_NOACCESS, &spr_write_CTRL,
                  0x00000000);
     spr_register(env, SPR_UCTRL, "SPR_UCTRL",
                  &spr_read_ureg, SPR_NOACCESS,
@@ -6820,11 +6254,11 @@ static void register_book3s_pmu_sup_sprs(CPUPPCState *env)
 {
     spr_register_kvm(env, SPR_POWER_MMCR0, "MMCR0",
                      SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
-                     KVM_REG_PPC_MMCR0, 0x00000000);
+                     &spr_read_generic, &spr_write_MMCR0,
+                     KVM_REG_PPC_MMCR0, 0x80000000);
     spr_register_kvm(env, SPR_POWER_MMCR1, "MMCR1",
                      SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
+                     &spr_read_generic, &spr_write_MMCR1,
                      KVM_REG_PPC_MMCR1, 0x00000000);
     spr_register_kvm(env, SPR_POWER_MMCRA, "MMCRA",
                      SPR_NOACCESS, SPR_NOACCESS,
@@ -6832,27 +6266,27 @@ static void register_book3s_pmu_sup_sprs(CPUPPCState *env)
                      KVM_REG_PPC_MMCRA, 0x00000000);
     spr_register_kvm(env, SPR_POWER_PMC1, "PMC1",
                      SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
+                     &spr_read_PMC, &spr_write_PMC,
                      KVM_REG_PPC_PMC1, 0x00000000);
     spr_register_kvm(env, SPR_POWER_PMC2, "PMC2",
                      SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
+                     &spr_read_PMC, &spr_write_PMC,
                      KVM_REG_PPC_PMC2, 0x00000000);
     spr_register_kvm(env, SPR_POWER_PMC3, "PMC3",
                      SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
+                     &spr_read_PMC, &spr_write_PMC,
                      KVM_REG_PPC_PMC3, 0x00000000);
     spr_register_kvm(env, SPR_POWER_PMC4, "PMC4",
                      SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
+                     &spr_read_PMC, &spr_write_PMC,
                      KVM_REG_PPC_PMC4, 0x00000000);
     spr_register_kvm(env, SPR_POWER_PMC5, "PMC5",
                      SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
+                     &spr_read_PMC, &spr_write_PMC,
                      KVM_REG_PPC_PMC5, 0x00000000);
     spr_register_kvm(env, SPR_POWER_PMC6, "PMC6",
                      SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
+                     &spr_read_PMC, &spr_write_PMC,
                      KVM_REG_PPC_PMC6, 0x00000000);
     spr_register_kvm(env, SPR_POWER_SIAR, "SIAR",
                      SPR_NOACCESS, SPR_NOACCESS,
@@ -6869,7 +6303,7 @@ static void register_book3s_pmu_user_sprs(CPUPPCState *env)
     spr_register(env, SPR_POWER_UMMCR0, "UMMCR0",
                  &spr_read_MMCR0_ureg, &spr_write_MMCR0_ureg,
                  &spr_read_ureg, &spr_write_ureg,
-                 0x00000000);
+                 0x80000000);
     spr_register(env, SPR_POWER_UMMCR1, "UMMCR1",
                  &spr_read_ureg, SPR_NOACCESS,
                  &spr_read_ureg, &spr_write_ureg,
@@ -7377,6 +6811,20 @@ static void register_power9_mmu_sprs(CPUPPCState *env)
 #endif
 }
 
+/*
+ * Initialize PMU counter overflow timers for Power8 and
+ * newer Power chips when using TCG.
+ */
+static void init_tcg_pmu_power8(CPUPPCState *env)
+{
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+    /* Init PMU overflow timers */
+    if (!kvm_enabled()) {
+        cpu_ppc_pmu_init(env);
+    }
+#endif
+}
+
 static void init_proc_book3s_common(CPUPPCState *env)
 {
     register_ne_601_sprs(env);
@@ -7694,6 +7142,9 @@ static void init_proc_POWER8(CPUPPCState *env)
     register_sdr1_sprs(env);
     register_book3s_207_dbg_sprs(env);
 
+    /* Common TCG PMU */
+    init_tcg_pmu_power8(env);
+
     /* POWER8 Specific Registers */
     register_book3s_ids_sprs(env);
     register_rmor_sprs(env);
@@ -7887,6 +7338,9 @@ static void init_proc_POWER9(CPUPPCState *env)
     /* Common Registers */
     init_proc_book3s_common(env);
     register_book3s_207_dbg_sprs(env);
+
+    /* Common TCG PMU */
+    init_tcg_pmu_power8(env);
 
     /* POWER8 Specific Registers */
     register_book3s_ids_sprs(env);
@@ -8103,6 +7557,9 @@ static void init_proc_POWER10(CPUPPCState *env)
     /* Common Registers */
     init_proc_book3s_common(env);
     register_book3s_207_dbg_sprs(env);
+
+    /* Common TCG PMU */
+    init_tcg_pmu_power8(env);
 
     /* POWER8 Specific Registers */
     register_book3s_ids_sprs(env);
@@ -9247,7 +8704,6 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
     case POWERPC_MMU_SOFT_6xx:
-    case POWERPC_MMU_SOFT_74xx:
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_03:

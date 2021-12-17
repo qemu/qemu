@@ -100,7 +100,7 @@ typedef enum {
 | Routine to raise any or all of the software IEC/IEEE floating-point
 | exception flags.
 *----------------------------------------------------------------------------*/
-static inline void float_raise(uint8_t flags, float_status *status)
+static inline void float_raise(uint16_t flags, float_status *status)
 {
     status->float_exception_flags |= flags;
 }
@@ -907,6 +907,18 @@ static inline bool float64_unordered_quiet(float64 a, float64 b,
 | The pattern for a default generated double-precision NaN.
 *----------------------------------------------------------------------------*/
 float64 float64_default_nan(float_status *status);
+
+/*----------------------------------------------------------------------------
+| Software IEC/IEEE double-precision operations, rounding to single precision,
+| returning a result in double precision, with only one rounding step.
+*----------------------------------------------------------------------------*/
+
+float64 float64r32_add(float64, float64, float_status *status);
+float64 float64r32_sub(float64, float64, float_status *status);
+float64 float64r32_mul(float64, float64, float_status *status);
+float64 float64r32_div(float64, float64, float_status *status);
+float64 float64r32_muladd(float64, float64, float64, int, float_status *status);
+float64 float64r32_sqrt(float64, float_status *status);
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE extended double-precision conversion routines.

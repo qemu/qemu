@@ -385,11 +385,9 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
 #endif /* defined(TARGET_PPC64) */
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
-    case POWERPC_MMU_SOFT_74xx:
         ppc6xx_tlb_invalidate_all(env);
         break;
     case POWERPC_MMU_SOFT_4xx:
-    case POWERPC_MMU_SOFT_4xx_Z:
         ppc4xx_tlb_invalidate_all(env);
         break;
     case POWERPC_MMU_REAL:
@@ -434,7 +432,6 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
 #endif /* defined(TARGET_PPC64) */
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
-    case POWERPC_MMU_SOFT_74xx:
         ppc6xx_tlb_invalidate_virt(env, addr, 0);
         if (env->id_tlbs == 1) {
             ppc6xx_tlb_invalidate_virt(env, addr, 1);
@@ -569,35 +566,6 @@ void helper_6xx_tlbd(CPUPPCState *env, target_ulong EPN)
 void helper_6xx_tlbi(CPUPPCState *env, target_ulong EPN)
 {
     do_6xx_tlb(env, EPN, 1);
-}
-
-/* PowerPC 74xx software TLB load instructions helpers */
-static void do_74xx_tlb(CPUPPCState *env, target_ulong new_EPN, int is_code)
-{
-    target_ulong RPN, CMP, EPN;
-    int way;
-
-    RPN = env->spr[SPR_PTELO];
-    CMP = env->spr[SPR_PTEHI];
-    EPN = env->spr[SPR_TLBMISS] & ~0x3;
-    way = env->spr[SPR_TLBMISS] & 0x3;
-    (void)EPN; /* avoid a compiler warning */
-    LOG_SWTLB("%s: EPN " TARGET_FMT_lx " " TARGET_FMT_lx " PTE0 " TARGET_FMT_lx
-              " PTE1 " TARGET_FMT_lx " way %d\n", __func__, new_EPN, EPN, CMP,
-              RPN, way);
-    /* Store this TLB */
-    ppc6xx_tlb_store(env, (uint32_t)(new_EPN & TARGET_PAGE_MASK),
-                     way, is_code, CMP, RPN);
-}
-
-void helper_74xx_tlbd(CPUPPCState *env, target_ulong EPN)
-{
-    do_74xx_tlb(env, EPN, 0);
-}
-
-void helper_74xx_tlbi(CPUPPCState *env, target_ulong EPN)
-{
-    do_74xx_tlb(env, EPN, 1);
 }
 
 /*****************************************************************************/

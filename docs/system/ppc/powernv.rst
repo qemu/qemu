@@ -1,7 +1,7 @@
-PowerNV family boards (``powernv8``, ``powernv9``)
+PowerNV family boards (``powernv8``, ``powernv9``, ``powernv10``)
 ==================================================================
 
-PowerNV (as Non-Virtualized) is the "baremetal" platform using the
+PowerNV (as Non-Virtualized) is the "bare metal" platform using the
 OPAL firmware. It runs Linux on IBM and OpenPOWER systems and it can
 be used as an hypervisor OS, running KVM guests, or simply as a host
 OS.
@@ -16,16 +16,14 @@ Supported devices
 -----------------
 
  * Multi processor support for POWER8, POWER8NVL and POWER9.
- * XSCOM, serial communication sideband bus to configure chiplets
- * Simple LPC Controller
- * Processor Service Interface (PSI) Controller
- * Interrupt Controller, XICS (POWER8) and XIVE (POWER9)
- * POWER8 PHB3 PCIe Host bridge and POWER9 PHB4 PCIe Host bridge
- * Simple OCC is an on-chip microcontroller used for power management
-   tasks
- * iBT device to handle BMC communication, with the internal BMC
-   simulator provided by QEMU or an external BMC such as an Aspeed
-   QEMU machine.
+ * XSCOM, serial communication sideband bus to configure chiplets.
+ * Simple LPC Controller.
+ * Processor Service Interface (PSI) Controller.
+ * Interrupt Controller, XICS (POWER8) and XIVE (POWER9) and XIVE2 (Power10).
+ * POWER8 PHB3 PCIe Host bridge and POWER9 PHB4 PCIe Host bridge.
+ * Simple OCC is an on-chip micro-controller used for power management tasks.
+ * iBT device to handle BMC communication, with the internal BMC simulator
+   provided by QEMU or an external BMC such as an Aspeed QEMU machine.
  * PNOR containing the different firmware partitions.
 
 Missing devices
@@ -33,30 +31,41 @@ Missing devices
 
 A lot is missing, among which :
 
- * POWER10 processor
- * XIVE2 (POWER10) interrupt controller
- * I2C controllers (yet to be merged)
- * NPU/NPU2/NPU3 controllers
- * EEH support for PCIe Host bridge controllers
- * NX controller
- * VAS controller
- * chipTOD (Time Of Day)
+ * I2C controllers (yet to be merged).
+ * NPU/NPU2/NPU3 controllers.
+ * EEH support for PCIe Host bridge controllers.
+ * NX controller.
+ * VAS controller.
+ * chipTOD (Time Of Day).
  * Self Boot Engine (SBE).
- * FSI bus
+ * FSI bus.
 
 Firmware
 --------
 
 The OPAL firmware (OpenPower Abstraction Layer) for OpenPower systems
 includes the runtime services ``skiboot`` and the bootloader kernel and
-initramfs ``skiroot``. Source code can be found on GitHub:
+initramfs ``skiroot``. Source code can be found on the `OpenPOWER account at
+GitHub <https://github.com/open-power>`_.
 
-  https://github.com/open-power.
-
-Prebuilt images of ``skiboot`` and ``skiroot`` are made available on the `OpenPOWER <https://github.com/open-power/op-build/releases/>`__ site.
+Prebuilt images of ``skiboot`` and ``skiroot`` are made available on the
+`OpenPOWER <https://github.com/open-power/op-build/releases/>`__ site.
 
 QEMU includes a prebuilt image of ``skiboot`` which is updated when a
 more recent version is required by the models.
+
+Current acceleration status
+---------------------------
+
+KVM acceleration in Linux Power hosts is provided by the kvm-hv and
+kvm-pr modules. kvm-hv is adherent to PAPR and it's not compliant with
+powernv. kvm-pr in theory could be used as a valid accel option but
+this isn't supported by kvm-pr at this moment.
+
+To spare users from dealing with not so informative errors when attempting
+to use accel=kvm, the powernv machine will throw an error informing that
+KVM is not supported. This can be revisited in the future if kvm-pr (or
+any other KVM alternative) is usable as KVM accel for this machine.
 
 Boot options
 ------------
@@ -83,6 +92,7 @@ and a SATA disk :
 
 Complex PCIe configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Six PHBs are defined per chip (POWER9) but no default PCI layout is
 provided (to be compatible with libvirt). One PCI device can be added
 on any of the available PCIe slots using command line options such as:
@@ -157,7 +167,7 @@ one on the command line :
 The files `palmetto-SDR.bin <http://www.kaod.org/qemu/powernv/palmetto-SDR.bin>`__
 and `palmetto-FRU.bin <http://www.kaod.org/qemu/powernv/palmetto-FRU.bin>`__
 define a Sensor Data Record repository and a Field Replaceable Unit
-inventory for a palmetto BMC. They can be used to extend the QEMU BMC
+inventory for a Palmetto BMC. They can be used to extend the QEMU BMC
 simulator.
 
 .. code-block:: bash
@@ -189,4 +199,8 @@ CAVEATS
 -------
 
  * No support for multiple HW threads (SMT=1). Same as pseries.
- * CPU can hang when doing intensive I/Os. Use ``-append powersave=off`` in that case.
+
+Maintainer contact information
+------------------------------
+
+Cédric Le Goater <clg@kaod.org>

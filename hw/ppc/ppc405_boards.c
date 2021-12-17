@@ -41,11 +41,12 @@
 #include "qemu/error-report.h"
 #include "hw/loader.h"
 #include "qemu/cutils.h"
+#include "elf.h"
 
 #define BIOS_FILENAME "ppc405_rom.bin"
 #define BIOS_SIZE (2 * MiB)
 
-#define KERNEL_LOAD_ADDR 0x00000000
+#define KERNEL_LOAD_ADDR 0x01000000
 #define INITRD_LOAD_ADDR 0x01800000
 
 #define USE_FLASH_BIOS
@@ -136,32 +137,101 @@ static void ref405ep_fpga_init(MemoryRegion *sysmem, uint32_t base)
     qemu_register_reset(&ref405ep_fpga_reset, fpga);
 }
 
+/*
+ * CPU reset handler when booting directly from a loaded kernel
+ */
+static struct boot_info {
+    uint32_t entry;
+    uint32_t bdloc;
+    uint32_t initrd_base;
+    uint32_t initrd_size;
+    uint32_t cmdline_base;
+    uint32_t cmdline_size;
+} boot_info;
+
+static void main_cpu_reset(void *opaque)
+{
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
+    struct boot_info *bi = env->load_info;
+
+    cpu_reset(CPU(cpu));
+
+    /* stack: top of sram */
+    env->gpr[1] = PPC405EP_SRAM_BASE + PPC405EP_SRAM_SIZE - 8;
+
+    /* Tune our boot state */
+    env->gpr[3] = bi->bdloc;
+    env->gpr[4] = bi->initrd_base;
+    env->gpr[5] = bi->initrd_base + bi->initrd_size;
+    env->gpr[6] = bi->cmdline_base;
+    env->gpr[7] = bi->cmdline_size;
+
+    env->nip = bi->entry;
+}
+
+static void boot_from_kernel(MachineState *machine, PowerPCCPU *cpu)
+{
+    CPUPPCState *env = &cpu->env;
+    hwaddr boot_entry;
+    hwaddr kernel_base;
+    int kernel_size;
+    hwaddr initrd_base;
+    int initrd_size;
+    ram_addr_t bdloc;
+    int len;
+
+    bdloc = ppc405_set_bootinfo(env, machine->ram_size);
+    boot_info.bdloc = bdloc;
+
+    kernel_size = load_elf(machine->kernel_filename, NULL, NULL, NULL,
+                           &boot_entry, &kernel_base, NULL, NULL,
+                           1, PPC_ELF_MACHINE, 0, 0);
+    if (kernel_size < 0) {
+        error_report("Could not load kernel '%s' : %s",
+                     machine->kernel_filename, load_elf_strerror(kernel_size));
+        exit(1);
+    }
+    boot_info.entry = boot_entry;
+
+    /* load initrd */
+    if (machine->initrd_filename) {
+        initrd_base = INITRD_LOAD_ADDR;
+        initrd_size = load_image_targphys(machine->initrd_filename, initrd_base,
+                                          machine->ram_size - initrd_base);
+        if (initrd_size < 0) {
+            error_report("could not load initial ram disk '%s'",
+                         machine->initrd_filename);
+            exit(1);
+        }
+
+        boot_info.initrd_base = initrd_base;
+        boot_info.initrd_size = initrd_size;
+    }
+
+    if (machine->kernel_cmdline) {
+        len = strlen(machine->kernel_cmdline);
+        bdloc -= ((len + 255) & ~255);
+        cpu_physical_memory_write(bdloc, machine->kernel_cmdline, len + 1);
+        boot_info.cmdline_base = bdloc;
+        boot_info.cmdline_size = bdloc + len;
+    }
+
+    /* Install our custom reset handler to start from Linux */
+    qemu_register_reset(main_cpu_reset, cpu);
+    env->load_info = &boot_info;
+}
+
 static void ref405ep_init(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
-    const char *bios_name = machine->firmware ?: BIOS_FILENAME;
     const char *kernel_filename = machine->kernel_filename;
-    const char *kernel_cmdline = machine->kernel_cmdline;
-    const char *initrd_filename = machine->initrd_filename;
-    char *filename;
-    ppc4xx_bd_info_t bd;
-    CPUPPCState *env;
+    PowerPCCPU *cpu;
     DeviceState *dev;
     SysBusDevice *s;
-    MemoryRegion *bios;
     MemoryRegion *sram = g_new(MemoryRegion, 1);
-    ram_addr_t bdloc;
     MemoryRegion *ram_memories = g_new(MemoryRegion, 2);
     hwaddr ram_bases[2], ram_sizes[2];
-    target_ulong sram_size;
-    long bios_size;
-    //int phy_addr = 0;
-    //static int phy_addr = 1;
-    target_ulong kernel_base, initrd_base;
-    long kernel_size, initrd_size;
-    int linux_boot;
-    int len;
-    DriveInfo *dinfo;
     MemoryRegion *sysmem = get_system_memory();
     DeviceState *uicdev;
 
@@ -180,132 +250,80 @@ static void ref405ep_init(MachineState *machine)
     memory_region_init(&ram_memories[1], NULL, "ef405ep.ram1", 0);
     ram_bases[1] = 0x00000000;
     ram_sizes[1] = 0x00000000;
-    env = ppc405ep_init(sysmem, ram_memories, ram_bases, ram_sizes,
+
+    cpu = ppc405ep_init(sysmem, ram_memories, ram_bases, ram_sizes,
                         33333333, &uicdev, kernel_filename == NULL ? 0 : 1);
+
     /* allocate SRAM */
-    sram_size = 512 * KiB;
-    memory_region_init_ram(sram, NULL, "ef405ep.sram", sram_size,
+    memory_region_init_ram(sram, NULL, "ef405ep.sram", PPC405EP_SRAM_SIZE,
                            &error_fatal);
-    memory_region_add_subregion(sysmem, 0xFFF00000, sram);
+    memory_region_add_subregion(sysmem, PPC405EP_SRAM_BASE, sram);
+
     /* allocate and load BIOS */
-#ifdef USE_FLASH_BIOS
-    dinfo = drive_get(IF_PFLASH, 0, 0);
-    if (dinfo) {
-        bios_size = 8 * MiB;
-        pflash_cfi02_register((uint32_t)(-bios_size),
-                              "ef405ep.bios", bios_size,
-                              blk_by_legacy_dinfo(dinfo),
-                              64 * KiB, 1,
-                              2, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA,
-                              1);
-    } else
-#endif
-    {
-        bios = g_new(MemoryRegion, 1);
+    if (machine->firmware) {
+        MemoryRegion *bios = g_new(MemoryRegion, 1);
+        g_autofree char *filename;
+        long bios_size;
+
         memory_region_init_rom(bios, NULL, "ef405ep.bios", BIOS_SIZE,
                                &error_fatal);
 
-        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-        if (filename) {
-            bios_size = load_image_size(filename,
-                                        memory_region_get_ram_ptr(bios),
-                                        BIOS_SIZE);
-            g_free(filename);
-            if (bios_size < 0) {
-                error_report("Could not load PowerPC BIOS '%s'", bios_name);
-                exit(1);
-            }
-            bios_size = (bios_size + 0xfff) & ~0xfff;
-            memory_region_add_subregion(sysmem, (uint32_t)(-bios_size), bios);
-        } else if (!qtest_enabled() || kernel_filename != NULL) {
-            error_report("Could not load PowerPC BIOS '%s'", bios_name);
+        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, machine->firmware);
+        if (!filename) {
+            error_report("Could not find firmware '%s'", machine->firmware);
             exit(1);
-        } else {
-            /* Avoid an uninitialized variable warning */
-            bios_size = -1;
         }
+
+        bios_size = load_image_size(filename,
+                                    memory_region_get_ram_ptr(bios),
+                                    BIOS_SIZE);
+        if (bios_size < 0) {
+            error_report("Could not load PowerPC BIOS '%s'", machine->firmware);
+            exit(1);
+        }
+
+        bios_size = (bios_size + 0xfff) & ~0xfff;
+        memory_region_add_subregion(sysmem, (uint32_t)(-bios_size), bios);
     }
+
     /* Register FPGA */
-    ref405ep_fpga_init(sysmem, 0xF0300000);
+    ref405ep_fpga_init(sysmem, PPC405EP_FPGA_BASE);
     /* Register NVRAM */
     dev = qdev_new("sysbus-m48t08");
     qdev_prop_set_int32(dev, "base-year", 1968);
     s = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(s, &error_fatal);
-    sysbus_mmio_map(s, 0, 0xF0000000);
-    /* Load kernel */
-    linux_boot = (kernel_filename != NULL);
-    if (linux_boot) {
-        memset(&bd, 0, sizeof(bd));
-        bd.bi_memstart = 0x00000000;
-        bd.bi_memsize = machine->ram_size;
-        bd.bi_flashstart = -bios_size;
-        bd.bi_flashsize = -bios_size;
-        bd.bi_flashoffset = 0;
-        bd.bi_sramstart = 0xFFF00000;
-        bd.bi_sramsize = sram_size;
-        bd.bi_bootflags = 0;
-        bd.bi_intfreq = 133333333;
-        bd.bi_busfreq = 33333333;
-        bd.bi_baudrate = 115200;
-        bd.bi_s_version[0] = 'Q';
-        bd.bi_s_version[1] = 'M';
-        bd.bi_s_version[2] = 'U';
-        bd.bi_s_version[3] = '\0';
-        bd.bi_r_version[0] = 'Q';
-        bd.bi_r_version[1] = 'E';
-        bd.bi_r_version[2] = 'M';
-        bd.bi_r_version[3] = 'U';
-        bd.bi_r_version[4] = '\0';
-        bd.bi_procfreq = 133333333;
-        bd.bi_plb_busfreq = 33333333;
-        bd.bi_pci_busfreq = 33333333;
-        bd.bi_opbfreq = 33333333;
-        bdloc = ppc405_set_bootinfo(env, &bd, 0x00000001);
-        env->gpr[3] = bdloc;
+    sysbus_mmio_map(s, 0, PPC405EP_NVRAM_BASE);
+
+    /* Load kernel and initrd using U-Boot images */
+    if (kernel_filename && machine->firmware) {
+        target_ulong kernel_base, initrd_base;
+        long kernel_size, initrd_size;
+
         kernel_base = KERNEL_LOAD_ADDR;
-        /* now we can load the kernel */
         kernel_size = load_image_targphys(kernel_filename, kernel_base,
                                           machine->ram_size - kernel_base);
         if (kernel_size < 0) {
             error_report("could not load kernel '%s'", kernel_filename);
             exit(1);
         }
-        printf("Load kernel size %ld at " TARGET_FMT_lx,
-               kernel_size, kernel_base);
+
         /* load initrd */
-        if (initrd_filename) {
+        if (machine->initrd_filename) {
             initrd_base = INITRD_LOAD_ADDR;
-            initrd_size = load_image_targphys(initrd_filename, initrd_base,
+            initrd_size = load_image_targphys(machine->initrd_filename,
+                                              initrd_base,
                                               machine->ram_size - initrd_base);
             if (initrd_size < 0) {
                 error_report("could not load initial ram disk '%s'",
-                             initrd_filename);
+                             machine->initrd_filename);
                 exit(1);
             }
-        } else {
-            initrd_base = 0;
-            initrd_size = 0;
         }
-        env->gpr[4] = initrd_base;
-        env->gpr[5] = initrd_size;
-        if (kernel_cmdline != NULL) {
-            len = strlen(kernel_cmdline);
-            bdloc -= ((len + 255) & ~255);
-            cpu_physical_memory_write(bdloc, kernel_cmdline, len + 1);
-            env->gpr[6] = bdloc;
-            env->gpr[7] = bdloc + len;
-        } else {
-            env->gpr[6] = 0;
-            env->gpr[7] = 0;
-        }
-        env->nip = KERNEL_LOAD_ADDR;
-    } else {
-        kernel_base = 0;
-        kernel_size = 0;
-        initrd_base = 0;
-        initrd_size = 0;
-        bdloc = 0;
+
+    /* Load ELF kernel and rootfs.cpio */
+    } else if (kernel_filename && !machine->firmware) {
+        boot_from_kernel(machine, cpu);
     }
 }
 
@@ -547,6 +565,7 @@ static void taihu_class_init(ObjectClass *oc, void *data)
     mc->init = taihu_405ep_init;
     mc->default_ram_size = 0x08000000;
     mc->default_ram_id = "taihu_405ep.ram";
+    mc->deprecation_reason = "incomplete, use 'ref405ep' instead";
 }
 
 static const TypeInfo taihu_type = {
