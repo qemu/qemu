@@ -869,7 +869,7 @@ static void partsN(sqrt)(FloatPartsN *a, float_status *status,
     return;
 
  d_nan:
-    float_raise(float_flag_invalid, status);
+    float_raise(float_flag_invalid | float_flag_invalid_sqrt, status);
     parts_default_nan(a, status);
 }
 
