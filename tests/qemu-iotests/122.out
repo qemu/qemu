@@ -201,9 +201,7 @@ convert -S 4k
 { "start": 8192, "length": 4096, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
 { "start": 12288, "length": 4096, "depth": 0, "present": false, "zero": true, "data": false},
 { "start": 16384, "length": 4096, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 20480, "length": 46080, "depth": 0, "present": false, "zero": true, "data": false},
-{ "start": 66560, "length": 1024, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 67584, "length": 67041280, "depth": 0, "present": false, "zero": true, "data": false}]
+{ "start": 20480, "length": 67088384, "depth": 0, "present": false, "zero": true, "data": false}]
 
 convert -c -S 4k
 [{ "start": 0, "length": 1024, "depth": 0, "present": true, "zero": false, "data": true},
@@ -215,9 +213,7 @@ convert -c -S 4k
 
 convert -S 8k
 [{ "start": 0, "length": 24576, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 24576, "length": 41984, "depth": 0, "present": false, "zero": true, "data": false},
-{ "start": 66560, "length": 1024, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 67584, "length": 67041280, "depth": 0, "present": false, "zero": true, "data": false}]
+{ "start": 24576, "length": 67084288, "depth": 0, "present": false, "zero": true, "data": false}]
 
 convert -c -S 8k
 [{ "start": 0, "length": 1024, "depth": 0, "present": true, "zero": false, "data": true},
