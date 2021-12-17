@@ -255,6 +255,12 @@ void spr_write_MMCR0(DisasContext *ctx, int sprn, int gprn)
 {
     write_MMCR0_common(ctx, cpu_gpr[gprn]);
 }
+
+void spr_write_MMCR1(DisasContext *ctx, int sprn, int gprn)
+{
+    gen_icount_io_start(ctx);
+    gen_helper_store_mmcr1(cpu_env, cpu_gpr[gprn]);
+}
 #else
 void spr_read_MMCR0_ureg(DisasContext *ctx, int gprn, int sprn)
 {
@@ -297,6 +303,11 @@ void spr_write_PMC56_ureg(DisasContext *ctx, int sprn, int gprn)
 }
 
 void spr_write_MMCR0(DisasContext *ctx, int sprn, int gprn)
+{
+    spr_write_generic(ctx, sprn, gprn);
+}
+
+void spr_write_MMCR1(DisasContext *ctx, int sprn, int gprn)
 {
     spr_write_generic(ctx, sprn, gprn);
 }
