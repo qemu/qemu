@@ -861,20 +861,20 @@ float64 helper_fre(CPUPPCState *env, float64 arg)
 /* fres - fres. */
 uint64_t helper_fres(CPUPPCState *env, uint64_t arg)
 {
-    CPU_DoubleU farg;
-    float32 f32;
+    /* "Estimate" the reciprocal with actual division.  */
+    float64 ret = float64r32_div(float64_one, arg, &env->fp_status);
+    int flags = get_float_exception_flags(&env->fp_status);
 
-    farg.ll = arg;
-
-    if (unlikely(float64_is_signaling_nan(farg.d, &env->fp_status))) {
-        /* sNaN reciprocal */
+    if (unlikely(flags & float_flag_invalid_snan)) {
         float_invalid_op_vxsnan(env, GETPC());
     }
-    farg.d = float64_div(float64_one, farg.d, &env->fp_status);
-    f32 = float64_to_float32(farg.d, &env->fp_status);
-    farg.d = float32_to_float64(f32, &env->fp_status);
+    if (unlikely(flags & float_flag_divbyzero)) {
+        float_zero_divide_excp(env, GETPC());
+        /* For FPSCR.ZE == 0, the result is 1/2.  */
+        ret = float64_set_sign(float64_half, float64_is_neg(arg));
+    }
 
-    return farg.ll;
+    return ret;
 }
 
 /* frsqrte  - frsqrte. */
