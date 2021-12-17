@@ -41,6 +41,7 @@
 #include "qemu/error-report.h"
 #include "hw/loader.h"
 #include "qemu/cutils.h"
+#include "elf.h"
 
 #define BIOS_FILENAME "ppc405_rom.bin"
 #define BIOS_SIZE (2 * MiB)
@@ -136,25 +137,101 @@ static void ref405ep_fpga_init(MemoryRegion *sysmem, uint32_t base)
     qemu_register_reset(&ref405ep_fpga_reset, fpga);
 }
 
+/*
+ * CPU reset handler when booting directly from a loaded kernel
+ */
+static struct boot_info {
+    uint32_t entry;
+    uint32_t bdloc;
+    uint32_t initrd_base;
+    uint32_t initrd_size;
+    uint32_t cmdline_base;
+    uint32_t cmdline_size;
+} boot_info;
+
+static void main_cpu_reset(void *opaque)
+{
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
+    struct boot_info *bi = env->load_info;
+
+    cpu_reset(CPU(cpu));
+
+    /* stack: top of sram */
+    env->gpr[1] = PPC405EP_SRAM_BASE + PPC405EP_SRAM_SIZE - 8;
+
+    /* Tune our boot state */
+    env->gpr[3] = bi->bdloc;
+    env->gpr[4] = bi->initrd_base;
+    env->gpr[5] = bi->initrd_base + bi->initrd_size;
+    env->gpr[6] = bi->cmdline_base;
+    env->gpr[7] = bi->cmdline_size;
+
+    env->nip = bi->entry;
+}
+
+static void boot_from_kernel(MachineState *machine, PowerPCCPU *cpu)
+{
+    CPUPPCState *env = &cpu->env;
+    hwaddr boot_entry;
+    hwaddr kernel_base;
+    int kernel_size;
+    hwaddr initrd_base;
+    int initrd_size;
+    ram_addr_t bdloc;
+    int len;
+
+    bdloc = ppc405_set_bootinfo(env, machine->ram_size);
+    boot_info.bdloc = bdloc;
+
+    kernel_size = load_elf(machine->kernel_filename, NULL, NULL, NULL,
+                           &boot_entry, &kernel_base, NULL, NULL,
+                           1, PPC_ELF_MACHINE, 0, 0);
+    if (kernel_size < 0) {
+        error_report("Could not load kernel '%s' : %s",
+                     machine->kernel_filename, load_elf_strerror(kernel_size));
+        exit(1);
+    }
+    boot_info.entry = boot_entry;
+
+    /* load initrd */
+    if (machine->initrd_filename) {
+        initrd_base = INITRD_LOAD_ADDR;
+        initrd_size = load_image_targphys(machine->initrd_filename, initrd_base,
+                                          machine->ram_size - initrd_base);
+        if (initrd_size < 0) {
+            error_report("could not load initial ram disk '%s'",
+                         machine->initrd_filename);
+            exit(1);
+        }
+
+        boot_info.initrd_base = initrd_base;
+        boot_info.initrd_size = initrd_size;
+    }
+
+    if (machine->kernel_cmdline) {
+        len = strlen(machine->kernel_cmdline);
+        bdloc -= ((len + 255) & ~255);
+        cpu_physical_memory_write(bdloc, machine->kernel_cmdline, len + 1);
+        boot_info.cmdline_base = bdloc;
+        boot_info.cmdline_size = bdloc + len;
+    }
+
+    /* Install our custom reset handler to start from Linux */
+    qemu_register_reset(main_cpu_reset, cpu);
+    env->load_info = &boot_info;
+}
+
 static void ref405ep_init(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     const char *kernel_filename = machine->kernel_filename;
-    const char *kernel_cmdline = machine->kernel_cmdline;
-    const char *initrd_filename = machine->initrd_filename;
     PowerPCCPU *cpu;
-    CPUPPCState *env;
     DeviceState *dev;
     SysBusDevice *s;
     MemoryRegion *sram = g_new(MemoryRegion, 1);
-    ram_addr_t bdloc;
     MemoryRegion *ram_memories = g_new(MemoryRegion, 2);
     hwaddr ram_bases[2], ram_sizes[2];
-    long bios_size = -1;
-    target_ulong kernel_base, initrd_base;
-    long kernel_size, initrd_size;
-    int linux_boot;
-    int len;
     MemoryRegion *sysmem = get_system_memory();
     DeviceState *uicdev;
 
@@ -176,7 +253,6 @@ static void ref405ep_init(MachineState *machine)
 
     cpu = ppc405ep_init(sysmem, ram_memories, ram_bases, ram_sizes,
                         33333333, &uicdev, kernel_filename == NULL ? 0 : 1);
-    env = &cpu->env;
 
     /* allocate SRAM */
     memory_region_init_ram(sram, NULL, "ef405ep.sram", PPC405EP_SRAM_SIZE,
@@ -187,6 +263,7 @@ static void ref405ep_init(MachineState *machine)
     if (machine->firmware) {
         MemoryRegion *bios = g_new(MemoryRegion, 1);
         g_autofree char *filename;
+        long bios_size;
 
         memory_region_init_rom(bios, NULL, "ef405ep.bios", BIOS_SIZE,
                                &error_fatal);
@@ -217,54 +294,36 @@ static void ref405ep_init(MachineState *machine)
     s = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, PPC405EP_NVRAM_BASE);
-    /* Load kernel */
-    linux_boot = (kernel_filename != NULL);
-    if (linux_boot) {
-        bdloc = ppc405_set_bootinfo(env, machine->ram_size);
-        env->gpr[3] = bdloc;
+
+    /* Load kernel and initrd using U-Boot images */
+    if (kernel_filename && machine->firmware) {
+        target_ulong kernel_base, initrd_base;
+        long kernel_size, initrd_size;
+
         kernel_base = KERNEL_LOAD_ADDR;
-        /* now we can load the kernel */
         kernel_size = load_image_targphys(kernel_filename, kernel_base,
                                           machine->ram_size - kernel_base);
         if (kernel_size < 0) {
             error_report("could not load kernel '%s'", kernel_filename);
             exit(1);
         }
-        printf("Load kernel size %ld at " TARGET_FMT_lx,
-               kernel_size, kernel_base);
+
         /* load initrd */
-        if (initrd_filename) {
+        if (machine->initrd_filename) {
             initrd_base = INITRD_LOAD_ADDR;
-            initrd_size = load_image_targphys(initrd_filename, initrd_base,
+            initrd_size = load_image_targphys(machine->initrd_filename,
+                                              initrd_base,
                                               machine->ram_size - initrd_base);
             if (initrd_size < 0) {
                 error_report("could not load initial ram disk '%s'",
-                             initrd_filename);
+                             machine->initrd_filename);
                 exit(1);
             }
-        } else {
-            initrd_base = 0;
-            initrd_size = 0;
         }
-        env->gpr[4] = initrd_base;
-        env->gpr[5] = initrd_size;
-        if (kernel_cmdline != NULL) {
-            len = strlen(kernel_cmdline);
-            bdloc -= ((len + 255) & ~255);
-            cpu_physical_memory_write(bdloc, kernel_cmdline, len + 1);
-            env->gpr[6] = bdloc;
-            env->gpr[7] = bdloc + len;
-        } else {
-            env->gpr[6] = 0;
-            env->gpr[7] = 0;
-        }
-        env->nip = KERNEL_LOAD_ADDR;
-    } else {
-        kernel_base = 0;
-        kernel_size = 0;
-        initrd_base = 0;
-        initrd_size = 0;
-        bdloc = 0;
+
+    /* Load ELF kernel and rootfs.cpio */
+    } else if (kernel_filename && !machine->firmware) {
+        boot_from_kernel(machine, cpu);
     }
 }
 
