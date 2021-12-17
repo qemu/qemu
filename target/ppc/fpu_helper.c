@@ -723,18 +723,13 @@ FPU_FMADD(fnmsub, NMSUB_FLGS)
 /* frsp - frsp. */
 static uint64_t do_frsp(CPUPPCState *env, uint64_t arg, uintptr_t retaddr)
 {
-    CPU_DoubleU farg;
-    float32 f32;
+    float32 f32 = float64_to_float32(arg, &env->fp_status);
+    int flags = get_float_exception_flags(&env->fp_status);
 
-    farg.ll = arg;
-
-    if (unlikely(float64_is_signaling_nan(farg.d, &env->fp_status))) {
+    if (unlikely(flags & float_flag_invalid_snan)) {
         float_invalid_op_vxsnan(env, retaddr);
     }
-    f32 = float64_to_float32(farg.d, &env->fp_status);
-    farg.d = float32_to_float64(f32, &env->fp_status);
-
-    return farg.ll;
+    return float32_to_float64(f32, &env->fp_status);
 }
 
 uint64_t helper_frsp(CPUPPCState *env, uint64_t arg)
