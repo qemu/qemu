@@ -154,7 +154,6 @@ static void ref405ep_init(MachineState *machine)
     ram_addr_t bdloc;
     MemoryRegion *ram_memories = g_new(MemoryRegion, 2);
     hwaddr ram_bases[2], ram_sizes[2];
-    target_ulong sram_size;
     long bios_size;
     //int phy_addr = 0;
     //static int phy_addr = 1;
@@ -187,10 +186,9 @@ static void ref405ep_init(MachineState *machine)
     env = &cpu->env;
 
     /* allocate SRAM */
-    sram_size = 512 * KiB;
-    memory_region_init_ram(sram, NULL, "ef405ep.sram", sram_size,
+    memory_region_init_ram(sram, NULL, "ef405ep.sram", PPC405EP_SRAM_SIZE,
                            &error_fatal);
-    memory_region_add_subregion(sysmem, 0xFFF00000, sram);
+    memory_region_add_subregion(sysmem, PPC405EP_SRAM_BASE, sram);
     /* allocate and load BIOS */
 #ifdef USE_FLASH_BIOS
     dinfo = drive_get(IF_PFLASH, 0, 0);
@@ -230,24 +228,24 @@ static void ref405ep_init(MachineState *machine)
         }
     }
     /* Register FPGA */
-    ref405ep_fpga_init(sysmem, 0xF0300000);
+    ref405ep_fpga_init(sysmem, PPC405EP_FPGA_BASE);
     /* Register NVRAM */
     dev = qdev_new("sysbus-m48t08");
     qdev_prop_set_int32(dev, "base-year", 1968);
     s = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(s, &error_fatal);
-    sysbus_mmio_map(s, 0, 0xF0000000);
+    sysbus_mmio_map(s, 0, PPC405EP_NVRAM_BASE);
     /* Load kernel */
     linux_boot = (kernel_filename != NULL);
     if (linux_boot) {
         memset(&bd, 0, sizeof(bd));
-        bd.bi_memstart = 0x00000000;
+        bd.bi_memstart = PPC405EP_SDRAM_BASE;
         bd.bi_memsize = machine->ram_size;
         bd.bi_flashstart = -bios_size;
         bd.bi_flashsize = -bios_size;
         bd.bi_flashoffset = 0;
-        bd.bi_sramstart = 0xFFF00000;
-        bd.bi_sramsize = sram_size;
+        bd.bi_sramstart = PPC405EP_SRAM_BASE;
+        bd.bi_sramsize = PPC405EP_SRAM_SIZE;
         bd.bi_bootflags = 0;
         bd.bi_intfreq = 133333333;
         bd.bi_busfreq = 33333333;
