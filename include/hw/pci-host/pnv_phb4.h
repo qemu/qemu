@@ -219,6 +219,8 @@ struct PnvPhb4PecClass {
     int compat_size;
     const char *stk_compat;
     int stk_compat_size;
+    uint64_t version;
+    uint64_t device_id;
 };
 
 #endif /* PCI_HOST_PNV_PHB4_H */

@@ -1421,9 +1421,9 @@ static void pnv_chip_power9_phb_realize(PnvChip *chip, Error **errp)
             object_property_set_int(obj, "index", phb_id, &error_fatal);
             object_property_set_int(obj, "chip-id", chip->chip_id,
                                     &error_fatal);
-            object_property_set_int(obj, "version", PNV_PHB4_VERSION,
+            object_property_set_int(obj, "version", pecc->version,
                                     &error_fatal);
-            object_property_set_int(obj, "device-id", PNV_PHB4_DEVICE_ID,
+            object_property_set_int(obj, "device-id", pecc->device_id,
                                     &error_fatal);
             object_property_set_link(obj, "stack", OBJECT(stack),
                                      &error_abort);

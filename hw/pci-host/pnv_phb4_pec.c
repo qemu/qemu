@@ -499,6 +499,8 @@ static void pnv_pec_class_init(ObjectClass *klass, void *data)
     pecc->compat_size = sizeof(compat);
     pecc->stk_compat = stk_compat;
     pecc->stk_compat_size = sizeof(stk_compat);
+    pecc->version = PNV_PHB4_VERSION;
+    pecc->device_id = PNV_PHB4_DEVICE_ID;
 }
 
 static const TypeInfo pnv_pec_type_info = {
