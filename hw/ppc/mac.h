@@ -36,9 +36,6 @@
 #include "hw/pci-host/uninorth.h"
 #include "qom/object.h"
 
-/* SMP is not enabled, for now */
-#define MAX_CPUS 1
-
 #define NVRAM_SIZE        0x2000
 #define PROM_FILENAME    "openbios-ppc"
 
