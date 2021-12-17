@@ -19,7 +19,7 @@ static void partsN(return_nan)(FloatPartsN *a, float_status *s)
 {
     switch (a->cls) {
     case float_class_snan:
-        float_raise(float_flag_invalid, s);
+        float_raise(float_flag_invalid | float_flag_invalid_snan, s);
         if (s->default_nan_mode) {
             parts_default_nan(a, s);
         } else {
@@ -40,7 +40,7 @@ static FloatPartsN *partsN(pick_nan)(FloatPartsN *a, FloatPartsN *b,
                                      float_status *s)
 {
     if (is_snan(a->cls) || is_snan(b->cls)) {
-        float_raise(float_flag_invalid, s);
+        float_raise(float_flag_invalid | float_flag_invalid_snan, s);
     }
 
     if (s->default_nan_mode) {
@@ -68,7 +68,7 @@ static FloatPartsN *partsN(pick_nan_muladd)(FloatPartsN *a, FloatPartsN *b,
     int which;
 
     if (unlikely(abc_mask & float_cmask_snan)) {
-        float_raise(float_flag_invalid, s);
+        float_raise(float_flag_invalid | float_flag_invalid_snan, s);
     }
 
     which = pickNaNMulAdd(a->cls, b->cls, c->cls,
@@ -1049,8 +1049,10 @@ static int64_t partsN(float_to_sint)(FloatPartsN *p, FloatRoundMode rmode,
 
     switch (p->cls) {
     case float_class_snan:
+        flags |= float_flag_invalid_snan;
+        /* fall through */
     case float_class_qnan:
-        flags = float_flag_invalid;
+        flags |= float_flag_invalid;
         r = max;
         break;
 
@@ -1114,8 +1116,10 @@ static uint64_t partsN(float_to_uint)(FloatPartsN *p, FloatRoundMode rmode,
 
     switch (p->cls) {
     case float_class_snan:
+        flags |= float_flag_invalid_snan;
+        /* fall through */
     case float_class_qnan:
-        flags = float_flag_invalid;
+        flags |= float_flag_invalid;
         r = max;
         break;
 
@@ -1341,7 +1345,9 @@ static FloatRelation partsN(compare)(FloatPartsN *a, FloatPartsN *b,
     }
 
     if (unlikely(ab_mask & float_cmask_anynan)) {
-        if (!is_quiet || (ab_mask & float_cmask_snan)) {
+        if (ab_mask & float_cmask_snan) {
+            float_raise(float_flag_invalid | float_flag_invalid_snan, s);
+        } else if (!is_quiet) {
             float_raise(float_flag_invalid, s);
         }
         return float_relation_unordered;
