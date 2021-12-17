@@ -354,7 +354,7 @@ static FloatPartsN *partsN(addsub)(FloatPartsN *a, FloatPartsN *b,
                 return a;
             }
             /* Inf - Inf */
-            float_raise(float_flag_invalid, s);
+            float_raise(float_flag_invalid | float_flag_invalid_isi, s);
             parts_default_nan(a, s);
             return a;
         }
@@ -494,6 +494,7 @@ static FloatPartsN *partsN(muladd)(FloatPartsN *a, FloatPartsN *b,
 
         if (ab_mask & float_cmask_inf) {
             if (c->cls == float_class_inf && a->sign != c->sign) {
+                float_raise(float_flag_invalid | float_flag_invalid_isi, s);
                 goto d_nan;
             }
             goto return_inf;

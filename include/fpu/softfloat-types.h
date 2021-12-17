@@ -152,6 +152,7 @@ enum {
     float_flag_inexact         = 0x0010,
     float_flag_input_denormal  = 0x0020,
     float_flag_output_denormal = 0x0040,
+    float_flag_invalid_isi     = 0x0080,  /* inf - inf */
 };
 
 /*
