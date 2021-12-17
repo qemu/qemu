@@ -168,14 +168,16 @@ static void megasas_frame_set_cmd_status(MegasasState *s,
                                          unsigned long frame, uint8_t v)
 {
     PCIDevice *pci = &s->parent_obj;
-    stb_pci_dma(pci, frame + offsetof(struct mfi_frame_header, cmd_status), v);
+    stb_pci_dma(pci, frame + offsetof(struct mfi_frame_header, cmd_status),
+                v, MEMTXATTRS_UNSPECIFIED);
 }
 
 static void megasas_frame_set_scsi_status(MegasasState *s,
                                           unsigned long frame, uint8_t v)
 {
     PCIDevice *pci = &s->parent_obj;
-    stb_pci_dma(pci, frame + offsetof(struct mfi_frame_header, scsi_status), v);
+    stb_pci_dma(pci, frame + offsetof(struct mfi_frame_header, scsi_status),
+                v, MEMTXATTRS_UNSPECIFIED);
 }
 
 static inline const char *mfi_frame_desc(unsigned int cmd)
@@ -542,6 +544,7 @@ static MegasasCmd *megasas_enqueue_frame(MegasasState *s,
 
 static void megasas_complete_frame(MegasasState *s, uint64_t context)
 {
+    const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     PCIDevice *pci_dev = PCI_DEVICE(s);
     int tail, queue_offset;
 
@@ -555,10 +558,12 @@ static void megasas_complete_frame(MegasasState *s, uint64_t context)
          */
         if (megasas_use_queue64(s)) {
             queue_offset = s->reply_queue_head * sizeof(uint64_t);
-            stq_le_pci_dma(pci_dev, s->reply_queue_pa + queue_offset, context);
+            stq_le_pci_dma(pci_dev, s->reply_queue_pa + queue_offset,
+                           context, attrs);
         } else {
             queue_offset = s->reply_queue_head * sizeof(uint32_t);
-            stl_le_pci_dma(pci_dev, s->reply_queue_pa + queue_offset, context);
+            stl_le_pci_dma(pci_dev, s->reply_queue_pa + queue_offset,
+                           context, attrs);
         }
         s->reply_queue_tail = ldl_le_pci_dma(pci_dev, s->consumer_pa);
         trace_megasas_qf_complete(context, s->reply_queue_head,
@@ -572,7 +577,7 @@ static void megasas_complete_frame(MegasasState *s, uint64_t context)
         s->reply_queue_head = megasas_next_index(s, tail, s->fw_cmds);
         trace_megasas_qf_update(s->reply_queue_head, s->reply_queue_tail,
                                 s->busy);
-        stl_le_pci_dma(pci_dev, s->producer_pa, s->reply_queue_head);
+        stl_le_pci_dma(pci_dev, s->producer_pa, s->reply_queue_head, attrs);
         /* Notify HBA */
         if (msix_enabled(pci_dev)) {
             trace_megasas_msix_raise(0);

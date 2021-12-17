@@ -55,7 +55,8 @@
                  (m)->rs_pa + offsetof(struct PVSCSIRingsState, field)))
 #define RS_SET_FIELD(m, field, val) \
     (stl_le_pci_dma(&container_of(m, PVSCSIState, rings)->parent_obj, \
-                 (m)->rs_pa + offsetof(struct PVSCSIRingsState, field), val))
+                 (m)->rs_pa + offsetof(struct PVSCSIRingsState, field), val, \
+                 MEMTXATTRS_UNSPECIFIED))
 
 struct PVSCSIClass {
     PCIDeviceClass parent_class;
