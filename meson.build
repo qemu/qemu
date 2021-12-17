@@ -621,7 +621,9 @@ if not get_option('zstd').auto() or have_block
                     method: 'pkg-config', kwargs: static_kwargs)
 endif
 virgl = not_found
-if not get_option('virglrenderer').auto() or have_system
+
+have_vhost_user_gpu = have_tools and targetos == 'linux' and pixman.found()
+if not get_option('virglrenderer').auto() or have_system or have_vhost_user_gpu
   virgl = dependency('virglrenderer',
                      method: 'pkg-config',
                      required: get_option('virglrenderer'),
@@ -1000,6 +1002,7 @@ if (have_system or have_tools) and (virgl.found() or opengl.found())
   gbm = dependency('gbm', method: 'pkg-config', required: false,
                    kwargs: static_kwargs)
 endif
+have_vhost_user_gpu = have_vhost_user_gpu and virgl.found() and gbm.found()
 
 gnutls = not_found
 gnutls_crypto = not_found
