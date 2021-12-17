@@ -142,7 +142,6 @@ static void ref405ep_init(MachineState *machine)
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
-    ppc4xx_bd_info_t bd;
     PowerPCCPU *cpu;
     CPUPPCState *env;
     DeviceState *dev;
@@ -221,32 +220,7 @@ static void ref405ep_init(MachineState *machine)
     /* Load kernel */
     linux_boot = (kernel_filename != NULL);
     if (linux_boot) {
-        memset(&bd, 0, sizeof(bd));
-        bd.bi_memstart = PPC405EP_SDRAM_BASE;
-        bd.bi_memsize = machine->ram_size;
-        bd.bi_flashstart = -bios_size;
-        bd.bi_flashsize = -bios_size;
-        bd.bi_flashoffset = 0;
-        bd.bi_sramstart = PPC405EP_SRAM_BASE;
-        bd.bi_sramsize = PPC405EP_SRAM_SIZE;
-        bd.bi_bootflags = 0;
-        bd.bi_intfreq = 133333333;
-        bd.bi_busfreq = 33333333;
-        bd.bi_baudrate = 115200;
-        bd.bi_s_version[0] = 'Q';
-        bd.bi_s_version[1] = 'M';
-        bd.bi_s_version[2] = 'U';
-        bd.bi_s_version[3] = '\0';
-        bd.bi_r_version[0] = 'Q';
-        bd.bi_r_version[1] = 'E';
-        bd.bi_r_version[2] = 'M';
-        bd.bi_r_version[3] = 'U';
-        bd.bi_r_version[4] = '\0';
-        bd.bi_procfreq = 133333333;
-        bd.bi_plb_busfreq = 33333333;
-        bd.bi_pci_busfreq = 33333333;
-        bd.bi_opbfreq = 33333333;
-        bdloc = ppc405_set_bootinfo(env, &bd);
+        bdloc = ppc405_set_bootinfo(env, machine->ram_size);
         env->gpr[3] = bdloc;
         kernel_base = KERNEL_LOAD_ADDR;
         /* now we can load the kernel */
