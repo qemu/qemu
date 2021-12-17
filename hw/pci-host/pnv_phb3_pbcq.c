@@ -284,6 +284,17 @@ static void pnv_pbcq_realize(DeviceState *dev, Error **errp)
     pnv_xscom_region_init(&pbcq->xscom_spci_regs, OBJECT(dev),
                           &pnv_pbcq_spci_xscom_ops, pbcq, name,
                           PNV_XSCOM_PBCQ_SPCI_SIZE);
+
+    /* Populate the XSCOM address space. */
+    pnv_xscom_add_subregion(phb->chip,
+                            PNV_XSCOM_PBCQ_NEST_BASE + 0x400 * phb->phb_id,
+                            &pbcq->xscom_nest_regs);
+    pnv_xscom_add_subregion(phb->chip,
+                            PNV_XSCOM_PBCQ_PCI_BASE + 0x400 * phb->phb_id,
+                            &pbcq->xscom_pci_regs);
+    pnv_xscom_add_subregion(phb->chip,
+                            PNV_XSCOM_PBCQ_SPCI_BASE + 0x040 * phb->phb_id,
+                            &pbcq->xscom_spci_regs);
 }
 
 static int pnv_pbcq_dt_xscom(PnvXScomInterface *dev, void *fdt,

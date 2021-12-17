@@ -1226,7 +1226,6 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     /* PHB3 controllers */
     for (i = 0; i < chip->num_phbs; i++) {
         PnvPHB3 *phb = &chip8->phbs[i];
-        PnvPBCQState *pbcq = &phb->pbcq;
 
         object_property_set_int(OBJECT(phb), "index", i, &error_fatal);
         object_property_set_int(OBJECT(phb), "chip-id", chip->chip_id,
@@ -1236,17 +1235,6 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
         if (!sysbus_realize(SYS_BUS_DEVICE(phb), errp)) {
             return;
         }
-
-        /* Populate the XSCOM address space. */
-        pnv_xscom_add_subregion(chip,
-                                PNV_XSCOM_PBCQ_NEST_BASE + 0x400 * phb->phb_id,
-                                &pbcq->xscom_nest_regs);
-        pnv_xscom_add_subregion(chip,
-                                PNV_XSCOM_PBCQ_PCI_BASE + 0x400 * phb->phb_id,
-                                &pbcq->xscom_pci_regs);
-        pnv_xscom_add_subregion(chip,
-                                PNV_XSCOM_PBCQ_SPCI_BASE + 0x040 * phb->phb_id,
-                                &pbcq->xscom_spci_regs);
     }
 }
 
