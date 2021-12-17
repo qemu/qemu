@@ -737,22 +737,24 @@ uint64_t helper_frsp(CPUPPCState *env, uint64_t arg)
     return do_frsp(env, arg, GETPC());
 }
 
+static void float_invalid_op_sqrt(CPUPPCState *env, int flags,
+                                  bool set_fpcc, uintptr_t retaddr)
+{
+    if (unlikely(flags & float_flag_invalid_sqrt)) {
+        float_invalid_op_vxsqrt(env, set_fpcc, retaddr);
+    } else if (unlikely(flags & float_flag_invalid_snan)) {
+        float_invalid_op_vxsnan(env, retaddr);
+    }
+}
+
 /* fsqrt - fsqrt. */
 float64 helper_fsqrt(CPUPPCState *env, float64 arg)
 {
     float64 ret = float64_sqrt(arg, &env->fp_status);
-    int status = get_float_exception_flags(&env->fp_status);
+    int flags = get_float_exception_flags(&env->fp_status);
 
-    if (unlikely(status & float_flag_invalid)) {
-        if (unlikely(float64_is_any_nan(arg))) {
-            if (unlikely(float64_is_signaling_nan(arg, &env->fp_status))) {
-                /* sNaN square root */
-                float_invalid_op_vxsnan(env, GETPC());
-            }
-        } else {
-            /* Square root of a negative nonzero number */
-            float_invalid_op_vxsqrt(env, 1, GETPC());
-        }
+    if (unlikely(flags & float_flag_invalid)) {
+        float_invalid_op_sqrt(env, flags, 1, GETPC());
     }
 
     return ret;
@@ -807,22 +809,14 @@ float64 helper_frsqrte(CPUPPCState *env, float64 arg)
     /* "Estimate" the reciprocal with actual division.  */
     float64 rets = float64_sqrt(arg, &env->fp_status);
     float64 retd = float64_div(float64_one, rets, &env->fp_status);
-    int status = get_float_exception_flags(&env->fp_status);
+    int flags = get_float_exception_flags(&env->fp_status);
 
-    if (unlikely(status)) {
-        if (status & float_flag_invalid) {
-            if (float64_is_signaling_nan(arg, &env->fp_status)) {
-                /* sNaN reciprocal */
-                float_invalid_op_vxsnan(env, GETPC());
-            } else {
-                /* Square root of a negative nonzero number */
-                float_invalid_op_vxsqrt(env, 1, GETPC());
-            }
-        }
-        if (status & float_flag_divbyzero) {
-            /* Reciprocal of (square root of) zero.  */
-            float_zero_divide_excp(env, GETPC());
-        }
+    if (unlikely(flags & float_flag_invalid)) {
+        float_invalid_op_sqrt(env, flags, 1, GETPC());
+    }
+    if (unlikely(flags & float_flag_divbyzero)) {
+        /* Reciprocal of (square root of) zero.  */
+        float_zero_divide_excp(env, GETPC());
     }
 
     return retd;
@@ -1884,11 +1878,8 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)             \
         env->fp_status.float_exception_flags |= tstat.float_exception_flags; \
                                                                              \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {    \
-            if (tp##_is_neg(xb->fld) && !tp##_is_zero(xb->fld)) {            \
-                float_invalid_op_vxsqrt(env, sfprf, GETPC());                \
-            } else if (tp##_is_signaling_nan(xb->fld, &tstat)) {             \
-                float_invalid_op_vxsnan(env, GETPC());                       \
-            }                                                                \
+            float_invalid_op_sqrt(env, tstat.float_exception_flags,          \
+                                  sfprf, GETPC());                           \
         }                                                                    \
                                                                              \
         if (r2sp) {                                                          \
@@ -1931,15 +1922,10 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)             \
         t.fld = tp##_sqrt(xb->fld, &tstat);                                  \
         t.fld = tp##_div(tp##_one, t.fld, &tstat);                           \
         env->fp_status.float_exception_flags |= tstat.float_exception_flags; \
-                                                                             \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {    \
-            if (tp##_is_neg(xb->fld) && !tp##_is_zero(xb->fld)) {            \
-                float_invalid_op_vxsqrt(env, sfprf, GETPC());                \
-            } else if (tp##_is_signaling_nan(xb->fld, &tstat)) {             \
-                float_invalid_op_vxsnan(env, GETPC());                       \
-            }                                                                \
+            float_invalid_op_sqrt(env, tstat.float_exception_flags,          \
+                                  sfprf, GETPC());                           \
         }                                                                    \
-                                                                             \
         if (r2sp) {                                                          \
             t.fld = do_frsp(env, t.fld, GETPC());                            \
         }                                                                    \
@@ -3240,15 +3226,7 @@ void helper_xssqrtqp(CPUPPCState *env, uint32_t opcode,
     env->fp_status.float_exception_flags |= tstat.float_exception_flags;
 
     if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {
-        if (float128_is_signaling_nan(xb->f128, &tstat)) {
-            float_invalid_op_vxsnan(env, GETPC());
-            t.f128 = float128_snan_to_qnan(xb->f128);
-        } else if (float128_is_quiet_nan(xb->f128, &tstat)) {
-            t.f128 = xb->f128;
-        } else if (float128_is_neg(xb->f128) && !float128_is_zero(xb->f128)) {
-            float_invalid_op_vxsqrt(env, 1, GETPC());
-            t.f128 = float128_default_nan(&env->fp_status);
-        }
+        float_invalid_op_sqrt(env, tstat.float_exception_flags, 1, GETPC());
     }
 
     helper_compute_fprf_float128(env, t.f128);
