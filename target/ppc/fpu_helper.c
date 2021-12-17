@@ -683,38 +683,15 @@ uint64_t helper_frim(CPUPPCState *env, uint64_t arg)
     return do_fri(env, arg, float_round_down);
 }
 
-#define FPU_MADDSUB_UPDATE(NAME, TP)                                    \
-static void NAME(CPUPPCState *env, TP arg1, TP arg2, TP arg3,           \
-                 unsigned int madd_flags, uintptr_t retaddr)            \
-{                                                                       \
-    if (TP##_is_signaling_nan(arg1, &env->fp_status) ||                 \
-        TP##_is_signaling_nan(arg2, &env->fp_status) ||                 \
-        TP##_is_signaling_nan(arg3, &env->fp_status)) {                 \
-        /* sNaN operation */                                            \
-        float_invalid_op_vxsnan(env, retaddr);                          \
-    }                                                                   \
-    if ((TP##_is_infinity(arg1) && TP##_is_zero(arg2)) ||               \
-        (TP##_is_zero(arg1) && TP##_is_infinity(arg2))) {               \
-        /* Multiplication of zero by infinity */                        \
-        float_invalid_op_vximz(env, 1, retaddr);                        \
-    }                                                                   \
-    if ((TP##_is_infinity(arg1) || TP##_is_infinity(arg2)) &&           \
-        TP##_is_infinity(arg3)) {                                       \
-        uint8_t aSign, bSign, cSign;                                    \
-                                                                        \
-        aSign = TP##_is_neg(arg1);                                      \
-        bSign = TP##_is_neg(arg2);                                      \
-        cSign = TP##_is_neg(arg3);                                      \
-        if (madd_flags & float_muladd_negate_c) {                       \
-            cSign ^= 1;                                                 \
-        }                                                               \
-        if (aSign ^ bSign ^ cSign) {                                    \
-            float_invalid_op_vxisi(env, 1, retaddr);                    \
-        }                                                               \
-    }                                                                   \
+static void float_invalid_op_madd(CPUPPCState *env, int flags,
+                                  bool set_fpcc, uintptr_t retaddr)
+{
+    if (flags & float_flag_invalid_imz) {
+        float_invalid_op_vximz(env, set_fpcc, retaddr);
+    } else {
+        float_invalid_op_addsub(env, flags, set_fpcc, retaddr);
+    }
 }
-FPU_MADDSUB_UPDATE(float32_maddsub_update_excp, float32)
-FPU_MADDSUB_UPDATE(float64_maddsub_update_excp, float64)
 
 #define FPU_FMADD(op, madd_flags)                                       \
 uint64_t helper_##op(CPUPPCState *env, uint64_t arg1,                   \
@@ -726,8 +703,7 @@ uint64_t helper_##op(CPUPPCState *env, uint64_t arg1,                   \
     flags = get_float_exception_flags(&env->fp_status);                 \
     if (flags) {                                                        \
         if (flags & float_flag_invalid) {                               \
-            float64_maddsub_update_excp(env, arg1, arg2, arg3,          \
-                                        madd_flags, GETPC());           \
+            float_invalid_op_madd(env, flags, 1, GETPC());              \
         }                                                               \
         do_float_check_status(env, GETPC());                            \
     }                                                                   \
@@ -2131,8 +2107,8 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                             \
         env->fp_status.float_exception_flags |= tstat.float_exception_flags;  \
                                                                               \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {     \
-            tp##_maddsub_update_excp(env, xa->fld, b->fld,                    \
-                                     c->fld, maddflgs, GETPC());              \
+            float_invalid_op_madd(env, tstat.float_exception_flags,           \
+                                  sfprf, GETPC());                            \
         }                                                                     \
                                                                               \
         if (r2sp) {                                                           \
