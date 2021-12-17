@@ -157,6 +157,7 @@ enum {
     float_flag_invalid_idi     = 0x0200,  /* inf / inf */
     float_flag_invalid_zdz     = 0x0400,  /* 0 / 0 */
     float_flag_invalid_sqrt    = 0x0800,  /* sqrt(-x) */
+    float_flag_invalid_cvti    = 0x1000,  /* non-nan to integer */
 };
 
 /*

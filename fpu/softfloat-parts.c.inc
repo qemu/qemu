@@ -1055,7 +1055,7 @@ static int64_t partsN(float_to_sint)(FloatPartsN *p, FloatRoundMode rmode,
         break;
 
     case float_class_inf:
-        flags = float_flag_invalid;
+        flags = float_flag_invalid | float_flag_invalid_cvti;
         r = p->sign ? min : max;
         break;
 
@@ -1077,11 +1077,11 @@ static int64_t partsN(float_to_sint)(FloatPartsN *p, FloatRoundMode rmode,
             if (r <= -(uint64_t)min) {
                 r = -r;
             } else {
-                flags = float_flag_invalid;
+                flags = float_flag_invalid | float_flag_invalid_cvti;
                 r = min;
             }
         } else if (r > max) {
-            flags = float_flag_invalid;
+            flags = float_flag_invalid | float_flag_invalid_cvti;
             r = max;
         }
         break;
@@ -1120,7 +1120,7 @@ static uint64_t partsN(float_to_uint)(FloatPartsN *p, FloatRoundMode rmode,
         break;
 
     case float_class_inf:
-        flags = float_flag_invalid;
+        flags = float_flag_invalid | float_flag_invalid_cvti;
         r = p->sign ? 0 : max;
         break;
 
@@ -1138,15 +1138,15 @@ static uint64_t partsN(float_to_uint)(FloatPartsN *p, FloatRoundMode rmode,
         }
 
         if (p->sign) {
-            flags = float_flag_invalid;
+            flags = float_flag_invalid | float_flag_invalid_cvti;
             r = 0;
         } else if (p->exp > DECOMPOSED_BINARY_POINT) {
-            flags = float_flag_invalid;
+            flags = float_flag_invalid | float_flag_invalid_cvti;
             r = max;
         } else {
             r = p->frac_hi >> (DECOMPOSED_BINARY_POINT - p->exp);
             if (r > max) {
-                flags = float_flag_invalid;
+                flags = float_flag_invalid | float_flag_invalid_cvti;
                 r = max;
             }
         }
