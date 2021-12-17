@@ -16,6 +16,7 @@ byte_reverse: CFLAGS += -mcpu=power10
 run-byte_reverse: QEMU_OPTS+=-cpu POWER10
 run-plugin-byte_reverse-with-%: QEMU_OPTS+=-cpu POWER10
 
+PPC64LE_TESTS += mtfsf
 PPC64LE_TESTS += signal_save_restore_xer
 
 TESTS += $(PPC64LE_TESTS)
