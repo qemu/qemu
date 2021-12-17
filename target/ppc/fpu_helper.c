@@ -2751,18 +2751,14 @@ VSX_CVT_FP_TO_FP_HP(xscvhpdp, 1, float16, float64, VsrH(3), VsrD(0), 1)
 VSX_CVT_FP_TO_FP_HP(xvcvsphp, 4, float32, float16, VsrW(i), VsrH(2 * i  + 1), 0)
 VSX_CVT_FP_TO_FP_HP(xvcvhpsp, 4, float16, float32, VsrH(2 * i + 1), VsrW(i), 0)
 
-/*
- * xscvqpdp isn't using VSX_CVT_FP_TO_FP() because xscvqpdpo will be
- * added to this later.
- */
-void helper_xscvqpdp(CPUPPCState *env, uint32_t opcode,
-                     ppc_vsr_t *xt, ppc_vsr_t *xb)
+void helper_XSCVQPDP(CPUPPCState *env, uint32_t ro, ppc_vsr_t *xt,
+                     ppc_vsr_t *xb)
 {
     ppc_vsr_t t = { };
     float_status tstat;
 
     tstat = env->fp_status;
-    if (unlikely(Rc(opcode) != 0)) {
+    if (ro != 0) {
         tstat.float_rounding_mode = float_round_to_odd;
     }
 

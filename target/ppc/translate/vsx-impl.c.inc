@@ -904,22 +904,24 @@ VSX_CMP(xvcmpgesp, 0x0C, 0x0A, 0, PPC2_VSX)
 VSX_CMP(xvcmpgtsp, 0x0C, 0x09, 0, PPC2_VSX)
 VSX_CMP(xvcmpnesp, 0x0C, 0x0B, 0, PPC2_VSX)
 
-static void gen_xscvqpdp(DisasContext *ctx)
+static bool trans_XSCVQPDP(DisasContext *ctx, arg_X_tb_rc *a)
 {
-    TCGv_i32 opc;
+    TCGv_i32 ro;
     TCGv_ptr xt, xb;
-    if (unlikely(!ctx->vsx_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VSXU);
-        return;
-    }
-    opc = tcg_const_i32(ctx->opcode);
 
-    xt = gen_vsr_ptr(rD(ctx->opcode) + 32);
-    xb = gen_vsr_ptr(rB(ctx->opcode) + 32);
-    gen_helper_xscvqpdp(cpu_env, opc, xt, xb);
-    tcg_temp_free_i32(opc);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_VSX(ctx);
+
+    ro = tcg_const_i32(a->rc);
+
+    xt = gen_avr_ptr(a->rt);
+    xb = gen_avr_ptr(a->rb);
+    gen_helper_XSCVQPDP(cpu_env, ro, xt, xb);
+    tcg_temp_free_i32(ro);
     tcg_temp_free_ptr(xt);
     tcg_temp_free_ptr(xb);
+
+    return true;
 }
 
 #define GEN_VSX_HELPER_2(name, op1, op2, inval, type)                         \

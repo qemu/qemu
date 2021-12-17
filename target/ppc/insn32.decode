@@ -466,3 +466,7 @@ XSMAXCDP        111100 ..... ..... ..... 10000000 ...   @XX3
 XSMINCDP        111100 ..... ..... ..... 10001000 ...   @XX3
 XSMAXJDP        111100 ..... ..... ..... 10010000 ...   @XX3
 XSMINJDP        111100 ..... ..... ..... 10011000 ...   @XX3
+
+## VSX Binary Floating-Point Convert Instructions
+
+XSCVQPDP        111111 ..... 10100 ..... 1101000100 .   @X_tb_rc
