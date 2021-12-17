@@ -644,25 +644,23 @@ FPU_FCFI(fcfidus, uint64_to_float32, 1)
 static uint64_t do_fri(CPUPPCState *env, uint64_t arg,
                        FloatRoundMode rounding_mode)
 {
-    CPU_DoubleU farg;
     FloatRoundMode old_rounding_mode = get_float_rounding_mode(&env->fp_status);
+    int flags;
 
-    farg.ll = arg;
+    set_float_rounding_mode(rounding_mode, &env->fp_status);
+    arg = float64_round_to_int(arg, &env->fp_status);
+    set_float_rounding_mode(old_rounding_mode, &env->fp_status);
 
-    if (unlikely(float64_is_signaling_nan(farg.d, &env->fp_status))) {
-        /* sNaN round */
+    flags = get_float_exception_flags(&env->fp_status);
+    if (flags & float_flag_invalid_snan) {
         float_invalid_op_vxsnan(env, GETPC());
-        farg.ll = arg | 0x0008000000000000ULL;
-    } else {
-        set_float_rounding_mode(rounding_mode, &env->fp_status);
-        farg.ll = float64_round_to_int(farg.d, &env->fp_status);
-        set_float_rounding_mode(old_rounding_mode, &env->fp_status);
-
-        /* fri* does not set FPSCR[XX] */
-        env->fp_status.float_exception_flags &= ~float_flag_inexact;
     }
+
+    /* fri* does not set FPSCR[XX] */
+    set_float_exception_flags(flags & ~float_flag_inexact, &env->fp_status);
     do_float_check_status(env, GETPC());
-    return farg.ll;
+
+    return arg;
 }
 
 uint64_t helper_frin(CPUPPCState *env, uint64_t arg)
