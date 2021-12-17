@@ -360,7 +360,7 @@ static void fw_cfg_dma_transfer(FWCfgState *s)
     if (dma_memory_read(s->dma_as, dma_addr,
                         &dma, sizeof(dma), MEMTXATTRS_UNSPECIFIED)) {
         stl_be_dma(s->dma_as, dma_addr + offsetof(FWCfgDmaAccess, control),
-                   FW_CFG_DMA_CTL_ERROR);
+                   FW_CFG_DMA_CTL_ERROR, MEMTXATTRS_UNSPECIFIED);
         return;
     }
 
@@ -446,7 +446,7 @@ static void fw_cfg_dma_transfer(FWCfgState *s)
     }
 
     stl_be_dma(s->dma_as, dma_addr + offsetof(FWCfgDmaAccess, control),
-                dma.control);
+                dma.control, MEMTXATTRS_UNSPECIFIED);
 
     trace_fw_cfg_read(s, 0);
 }

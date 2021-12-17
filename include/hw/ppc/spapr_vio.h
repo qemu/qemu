@@ -118,10 +118,14 @@ static inline int spapr_vio_dma_set(SpaprVioDevice *dev, uint64_t taddr,
         H_DEST_PARM : H_SUCCESS;
 }
 
-#define vio_stb(_dev, _addr, _val) (stb_dma(&(_dev)->as, (_addr), (_val)))
-#define vio_sth(_dev, _addr, _val) (stw_be_dma(&(_dev)->as, (_addr), (_val)))
-#define vio_stl(_dev, _addr, _val) (stl_be_dma(&(_dev)->as, (_addr), (_val)))
-#define vio_stq(_dev, _addr, _val) (stq_be_dma(&(_dev)->as, (_addr), (_val)))
+#define vio_stb(_dev, _addr, _val) \
+        (stb_dma(&(_dev)->as, (_addr), (_val), MEMTXATTRS_UNSPECIFIED))
+#define vio_sth(_dev, _addr, _val) \
+        (stw_be_dma(&(_dev)->as, (_addr), (_val), MEMTXATTRS_UNSPECIFIED))
+#define vio_stl(_dev, _addr, _val) \
+        (stl_be_dma(&(_dev)->as, (_addr), (_val), MEMTXATTRS_UNSPECIFIED))
+#define vio_stq(_dev, _addr, _val) \
+        (stq_be_dma(&(_dev)->as, (_addr), (_val), MEMTXATTRS_UNSPECIFIED))
 #define vio_ldq(_dev, _addr) (ldq_be_dma(&(_dev)->as, (_addr)))
 
 int spapr_vio_send_crq(SpaprVioDevice *dev, uint8_t *crq);
