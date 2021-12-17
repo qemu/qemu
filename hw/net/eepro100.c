@@ -737,6 +737,7 @@ static void read_cb(EEPRO100State *s)
 
 static void tx_command(EEPRO100State *s)
 {
+    const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     uint32_t tbd_array = s->tx.tbd_array_addr;
     uint16_t tcb_bytes = s->tx.tcb_bytes & 0x3fff;
     /* Sends larger than MAX_ETH_FRAME_SIZE are allowed, up to 2600 bytes. */
@@ -772,11 +773,14 @@ static void tx_command(EEPRO100State *s)
             /* Extended Flexible TCB. */
             for (; tbd_count < 2; tbd_count++) {
                 uint32_t tx_buffer_address = ldl_le_pci_dma(&s->dev,
-                                                            tbd_address);
+                                                            tbd_address,
+                                                            attrs);
                 uint16_t tx_buffer_size = lduw_le_pci_dma(&s->dev,
-                                                          tbd_address + 4);
+                                                          tbd_address + 4,
+                                                          attrs);
                 uint16_t tx_buffer_el = lduw_le_pci_dma(&s->dev,
-                                                        tbd_address + 6);
+                                                        tbd_address + 6,
+                                                        attrs);
                 tbd_address += 8;
                 TRACE(RXTX, logout
                     ("TBD (extended flexible mode): buffer address 0x%08x, size 0x%04x\n",
@@ -792,9 +796,12 @@ static void tx_command(EEPRO100State *s)
         }
         tbd_address = tbd_array;
         for (; tbd_count < s->tx.tbd_count; tbd_count++) {
-            uint32_t tx_buffer_address = ldl_le_pci_dma(&s->dev, tbd_address);
-            uint16_t tx_buffer_size = lduw_le_pci_dma(&s->dev, tbd_address + 4);
-            uint16_t tx_buffer_el = lduw_le_pci_dma(&s->dev, tbd_address + 6);
+            uint32_t tx_buffer_address = ldl_le_pci_dma(&s->dev, tbd_address,
+                                                        attrs);
+            uint16_t tx_buffer_size = lduw_le_pci_dma(&s->dev, tbd_address + 4,
+                                                      attrs);
+            uint16_t tx_buffer_el = lduw_le_pci_dma(&s->dev, tbd_address + 6,
+                                                    attrs);
             tbd_address += 8;
             TRACE(RXTX, logout
                 ("TBD (flexible mode): buffer address 0x%08x, size 0x%04x\n",

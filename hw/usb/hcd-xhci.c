@@ -3440,6 +3440,7 @@ static int usb_xhci_post_load(void *opaque, int version_id)
         }
         ldq_le_dma(xhci->as, dcbaap + 8 * slotid, &addr, MEMTXATTRS_UNSPECIFIED);
         slot->ctx = xhci_mask64(addr);
+
         xhci_dma_read_u32s(xhci, slot->ctx, slot_ctx, sizeof(slot_ctx));
         slot->uport = xhci_lookup_uport(xhci, slot_ctx);
         if (!slot->uport) {

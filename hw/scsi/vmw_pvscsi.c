@@ -52,7 +52,8 @@
 
 #define RS_GET_FIELD(m, field) \
     (ldl_le_pci_dma(&container_of(m, PVSCSIState, rings)->parent_obj, \
-                 (m)->rs_pa + offsetof(struct PVSCSIRingsState, field)))
+                 (m)->rs_pa + offsetof(struct PVSCSIRingsState, field), \
+                 MEMTXATTRS_UNSPECIFIED))
 #define RS_SET_FIELD(m, field, val) \
     (stl_le_pci_dma(&container_of(m, PVSCSIState, rings)->parent_obj, \
                  (m)->rs_pa + offsetof(struct PVSCSIRingsState, field), val, \

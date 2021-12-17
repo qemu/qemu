@@ -852,11 +852,11 @@ static inline MemTxResult pci_dma_write(PCIDevice *dev, dma_addr_t addr,
 
 #define PCI_DMA_DEFINE_LDST(_l, _s, _bits)                              \
     static inline uint##_bits##_t ld##_l##_pci_dma(PCIDevice *dev,      \
-                                                   dma_addr_t addr)     \
+                                                   dma_addr_t addr, \
+                                                   MemTxAttrs attrs) \
     {                                                                   \
         uint##_bits##_t val; \
-        ld##_l##_dma(pci_get_address_space(dev), addr, &val, \
-                     MEMTXATTRS_UNSPECIFIED); \
+        ld##_l##_dma(pci_get_address_space(dev), addr, &val, attrs); \
         return val; \
     }                                                                   \
     static inline void st##_s##_pci_dma(PCIDevice *dev, \

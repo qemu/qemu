@@ -70,16 +70,18 @@ static const VMStateDescription vmstate_pci_tulip = {
 static void tulip_desc_read(TULIPState *s, hwaddr p,
         struct tulip_descriptor *desc)
 {
+    const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
+
     if (s->csr[0] & CSR0_DBO) {
-        desc->status = ldl_be_pci_dma(&s->dev, p);
-        desc->control = ldl_be_pci_dma(&s->dev, p + 4);
-        desc->buf_addr1 = ldl_be_pci_dma(&s->dev, p + 8);
-        desc->buf_addr2 = ldl_be_pci_dma(&s->dev, p + 12);
+        desc->status = ldl_be_pci_dma(&s->dev, p, attrs);
+        desc->control = ldl_be_pci_dma(&s->dev, p + 4, attrs);
+        desc->buf_addr1 = ldl_be_pci_dma(&s->dev, p + 8, attrs);
+        desc->buf_addr2 = ldl_be_pci_dma(&s->dev, p + 12, attrs);
     } else {
-        desc->status = ldl_le_pci_dma(&s->dev, p);
-        desc->control = ldl_le_pci_dma(&s->dev, p + 4);
-        desc->buf_addr1 = ldl_le_pci_dma(&s->dev, p + 8);
-        desc->buf_addr2 = ldl_le_pci_dma(&s->dev, p + 12);
+        desc->status = ldl_le_pci_dma(&s->dev, p, attrs);
+        desc->control = ldl_le_pci_dma(&s->dev, p + 4, attrs);
+        desc->buf_addr1 = ldl_le_pci_dma(&s->dev, p + 8, attrs);
+        desc->buf_addr2 = ldl_le_pci_dma(&s->dev, p + 12, attrs);
     }
 }
 
