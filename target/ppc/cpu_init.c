@@ -2065,8 +2065,14 @@ static void init_excp_e200(CPUPPCState *env, target_ulong ivpr_mask)
     env->excp_vectors[POWERPC_EXCP_DTLB]     = 0x00000000;
     env->excp_vectors[POWERPC_EXCP_ITLB]     = 0x00000000;
     env->excp_vectors[POWERPC_EXCP_DEBUG]    = 0x00000000;
+    /*
+     * These two are the same IVOR as POWERPC_EXCP_VPU and
+     * POWERPC_EXCP_VPUA. We deal with that when dispatching at
+     * powerpc_excp().
+     */
     env->excp_vectors[POWERPC_EXCP_SPEU]     = 0x00000000;
     env->excp_vectors[POWERPC_EXCP_EFPDI]    = 0x00000000;
+
     env->excp_vectors[POWERPC_EXCP_EFPRI]    = 0x00000000;
     env->ivor_mask = 0x0000FFF7UL;
     env->ivpr_mask = ivpr_mask;

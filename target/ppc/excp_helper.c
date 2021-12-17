@@ -344,6 +344,16 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         excp = POWERPC_EXCP_PROGRAM;
     }
 
+#ifdef TARGET_PPC64
+    /*
+     * SPEU and VPU share the same IVOR but they exist in different
+     * processors. SPEU is e500v1/2 only and VPU is e6500 only.
+     */
+    if (excp_model == POWERPC_EXCP_BOOKE && excp == POWERPC_EXCP_VPU) {
+        excp = POWERPC_EXCP_SPEU;
+    }
+#endif
+
     switch (excp) {
     case POWERPC_EXCP_NONE:
         /* Should never happen */
@@ -569,7 +579,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             cpu_abort(cs, "Debug exception triggered on unsupported model\n");
         }
         break;
-    case POWERPC_EXCP_SPEU:      /* SPE/embedded floating-point unavailable  */
+    case POWERPC_EXCP_SPEU:   /* SPE/embedded floating-point unavailable/VPU  */
         env->spr[SPR_BOOKE_ESR] = ESR_SPV;
         break;
     case POWERPC_EXCP_EFPDI:     /* Embedded floating-point data interrupt   */
