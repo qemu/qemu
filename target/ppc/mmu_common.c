@@ -1147,7 +1147,6 @@ void dump_mmu(CPUPPCState *env)
         mmubooke206_dump_mmu(env);
         break;
     case POWERPC_MMU_SOFT_6xx:
-    case POWERPC_MMU_SOFT_74xx:
         mmu6xx_dump_mmu(env);
         break;
 #if defined(TARGET_PPC64)
@@ -1181,7 +1180,6 @@ static int check_physical(CPUPPCState *env, mmu_ctx_t *ctx, target_ulong eaddr,
     ret = 0;
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
-    case POWERPC_MMU_SOFT_74xx:
     case POWERPC_MMU_SOFT_4xx:
     case POWERPC_MMU_REAL:
     case POWERPC_MMU_BOOKE:
@@ -1234,7 +1232,6 @@ int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
 
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
-    case POWERPC_MMU_SOFT_74xx:
         if (real_mode) {
             ret = check_physical(env, ctx, eaddr, access_type);
         } else {
@@ -1383,9 +1380,6 @@ static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
                     env->spr[SPR_IMISS] = eaddr;
                     env->spr[SPR_ICMP] = 0x80000000 | ctx.ptem;
                     goto tlb_miss;
-                case POWERPC_MMU_SOFT_74xx:
-                    cs->exception_index = POWERPC_EXCP_IFTLB;
-                    goto tlb_miss_74xx;
                 case POWERPC_MMU_SOFT_4xx:
                 case POWERPC_MMU_SOFT_4xx_Z:
                     cs->exception_index = POWERPC_EXCP_ITLB;
@@ -1453,19 +1447,6 @@ static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
                         get_pteg_offset32(cpu, ctx.hash[0]);
                     env->spr[SPR_HASH2] = ppc_hash32_hpt_base(cpu) +
                         get_pteg_offset32(cpu, ctx.hash[1]);
-                    break;
-                case POWERPC_MMU_SOFT_74xx:
-                    if (access_type == MMU_DATA_STORE) {
-                        cs->exception_index = POWERPC_EXCP_DSTLB;
-                    } else {
-                        cs->exception_index = POWERPC_EXCP_DLTLB;
-                    }
-                tlb_miss_74xx:
-                    /* Implement LRU algorithm */
-                    env->error_code = ctx.key << 19;
-                    env->spr[SPR_TLBMISS] = (eaddr & ~((target_ulong)0x3)) |
-                        ((env->last_way + 1) & (env->nb_ways - 1));
-                    env->spr[SPR_PTEHI] = 0x80000000 | ctx.ptem;
                     break;
                 case POWERPC_MMU_SOFT_4xx:
                 case POWERPC_MMU_SOFT_4xx_Z:
