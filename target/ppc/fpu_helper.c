@@ -581,6 +581,18 @@ float64 helper_fmul(CPUPPCState *env, float64 arg1, float64 arg2)
     return ret;
 }
 
+/* fmuls - fmuls. */
+float64 helper_fmuls(CPUPPCState *env, float64 arg1, float64 arg2)
+{
+    float64 ret = float64r32_mul(arg1, arg2, &env->fp_status);
+    int flags = get_float_exception_flags(&env->fp_status);
+
+    if (unlikely(flags & float_flag_invalid)) {
+        float_invalid_op_mul(env, flags, 1, GETPC());
+    }
+    return ret;
+}
+
 static void float_invalid_op_div(CPUPPCState *env, int flags,
                                  bool set_fprc, uintptr_t retaddr)
 {

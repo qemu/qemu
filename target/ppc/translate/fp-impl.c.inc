@@ -100,7 +100,7 @@ static void gen_f##name(DisasContext *ctx)                                    \
 _GEN_FLOAT_AB(name, 0x3F, op2, inval, set_fprf, type);                        \
 _GEN_FLOAT_AB(name##s, 0x3B, op2, inval, set_fprf, type);
 
-#define _GEN_FLOAT_AC(name, op, op1, op2, inval, isfloat, set_fprf, type)     \
+#define _GEN_FLOAT_AC(name, op1, op2, inval, set_fprf, type)                  \
 static void gen_f##name(DisasContext *ctx)                                    \
 {                                                                             \
     TCGv_i64 t0;                                                              \
@@ -116,10 +116,7 @@ static void gen_f##name(DisasContext *ctx)                                    \
     gen_reset_fpstatus();                                                     \
     get_fpr(t0, rA(ctx->opcode));                                             \
     get_fpr(t1, rC(ctx->opcode));                                             \
-    gen_helper_f##op(t2, cpu_env, t0, t1);                                    \
-    if (isfloat) {                                                            \
-        gen_helper_frsp(t2, cpu_env, t2);                                     \
-    }                                                                         \
+    gen_helper_f##name(t2, cpu_env, t0, t1);                                  \
     set_fpr(rD(ctx->opcode), t2);                                             \
     if (set_fprf) {                                                           \
         gen_compute_fprf_float64(t2);                                         \
@@ -132,8 +129,8 @@ static void gen_f##name(DisasContext *ctx)                                    \
     tcg_temp_free_i64(t2);                                                    \
 }
 #define GEN_FLOAT_AC(name, op2, inval, set_fprf, type)                        \
-_GEN_FLOAT_AC(name, name, 0x3F, op2, inval, 0, set_fprf, type);               \
-_GEN_FLOAT_AC(name##s, name, 0x3B, op2, inval, 1, set_fprf, type);
+_GEN_FLOAT_AC(name, 0x3F, op2, inval, set_fprf, type);                        \
+_GEN_FLOAT_AC(name##s, 0x3B, op2, inval, set_fprf, type);
 
 #define GEN_FLOAT_B(name, op2, op3, set_fprf, type)                           \
 static void gen_f##name(DisasContext *ctx)                                    \
