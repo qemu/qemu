@@ -1525,6 +1525,88 @@ static bool trans_VEXPANDQM(DisasContext *ctx, arg_VX_tb *a)
     return true;
 }
 
+static bool do_vextractm(DisasContext *ctx, arg_VX_tb *a, unsigned vece)
+{
+    const uint64_t elem_width = 8 << vece, elem_count_half = 8 >> vece,
+                   mask = dup_const(vece, 1 << (elem_width - 1));
+    uint64_t i, j;
+    TCGv_i64 lo, hi, t0, t1;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    hi = tcg_temp_new_i64();
+    lo = tcg_temp_new_i64();
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
+
+    get_avr64(lo, a->vrb, false);
+    get_avr64(hi, a->vrb, true);
+
+    tcg_gen_andi_i64(lo, lo, mask);
+    tcg_gen_andi_i64(hi, hi, mask);
+
+    /*
+     * Gather the most significant bit of each element in the highest element
+     * element. E.g. for bytes:
+     * aXXXXXXXbXXXXXXXcXXXXXXXdXXXXXXXeXXXXXXXfXXXXXXXgXXXXXXXhXXXXXXX
+     *     & dup(1 << (elem_width - 1))
+     * a0000000b0000000c0000000d0000000e0000000f0000000g0000000h0000000
+     *     << 32 - 4
+     * 0000e0000000f0000000g0000000h00000000000000000000000000000000000
+     *     |
+     * a000e000b000f000c000g000d000h000e0000000f0000000g0000000h0000000
+     *     << 16 - 2
+     * 00c000g000d000h000e0000000f0000000g0000000h000000000000000000000
+     *     |
+     * a0c0e0g0b0d0f0h0c0e0g000d0f0h000e0g00000f0h00000g0000000h0000000
+     *     << 8 - 1
+     * 0b0d0f0h0c0e0g000d0f0h000e0g00000f0h00000g0000000h00000000000000
+     *     |
+     * abcdefghbcdefgh0cdefgh00defgh000efgh0000fgh00000gh000000h0000000
+     */
+    for (i = elem_count_half / 2, j = 32; i > 0; i >>= 1, j >>= 1) {
+        tcg_gen_shli_i64(t0, hi, j - i);
+        tcg_gen_shli_i64(t1, lo, j - i);
+        tcg_gen_or_i64(hi, hi, t0);
+        tcg_gen_or_i64(lo, lo, t1);
+    }
+
+    tcg_gen_shri_i64(hi, hi, 64 - elem_count_half);
+    tcg_gen_extract2_i64(lo, lo, hi, 64 - elem_count_half);
+    tcg_gen_trunc_i64_tl(cpu_gpr[a->vrt], lo);
+
+    tcg_temp_free_i64(hi);
+    tcg_temp_free_i64(lo);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+
+    return true;
+}
+
+TRANS(VEXTRACTBM, do_vextractm, MO_8)
+TRANS(VEXTRACTHM, do_vextractm, MO_16)
+TRANS(VEXTRACTWM, do_vextractm, MO_32)
+TRANS(VEXTRACTDM, do_vextractm, MO_64)
+
+static bool trans_VEXTRACTQM(DisasContext *ctx, arg_VX_tb *a)
+{
+    TCGv_i64 tmp;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    tmp = tcg_temp_new_i64();
+
+    get_avr64(tmp, a->vrb, true);
+    tcg_gen_shri_i64(tmp, tmp, 63);
+    tcg_gen_trunc_i64_tl(cpu_gpr[a->vrt], tmp);
+
+    tcg_temp_free_i64(tmp);
+
+    return true;
+}
+
 #define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
 static void glue(gen_, name0##_##name1)(DisasContext *ctx)              \
     {                                                                   \
