@@ -850,15 +850,14 @@ static inline MemTxResult pci_dma_write(PCIDevice *dev, dma_addr_t addr,
                       DMA_DIRECTION_FROM_DEVICE, MEMTXATTRS_UNSPECIFIED);
 }
 
-#define PCI_DMA_DEFINE_LDST(_l, _s, _bits)                              \
-    static inline uint##_bits##_t ld##_l##_pci_dma(PCIDevice *dev,      \
-                                                   dma_addr_t addr, \
-                                                   MemTxAttrs attrs) \
-    {                                                                   \
-        uint##_bits##_t val; \
-        ld##_l##_dma(pci_get_address_space(dev), addr, &val, attrs); \
-        return val; \
-    }                                                                   \
+#define PCI_DMA_DEFINE_LDST(_l, _s, _bits) \
+    static inline MemTxResult ld##_l##_pci_dma(PCIDevice *dev, \
+                                               dma_addr_t addr, \
+                                               uint##_bits##_t *val, \
+                                               MemTxAttrs attrs) \
+    { \
+        return ld##_l##_dma(pci_get_address_space(dev), addr, val, attrs); \
+    } \
     static inline MemTxResult st##_s##_pci_dma(PCIDevice *dev, \
                                                dma_addr_t addr, \
                                                uint##_bits##_t val, \
