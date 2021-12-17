@@ -1607,6 +1607,121 @@ static bool trans_VEXTRACTQM(DisasContext *ctx, arg_VX_tb *a)
     return true;
 }
 
+static bool do_mtvsrm(DisasContext *ctx, arg_VX_tb *a, unsigned vece)
+{
+    const uint64_t elem_width = 8 << vece, elem_count_half = 8 >> vece;
+    uint64_t c;
+    int i, j;
+    TCGv_i64 hi, lo, t0, t1;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    hi = tcg_temp_new_i64();
+    lo = tcg_temp_new_i64();
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
+
+    tcg_gen_extu_tl_i64(t0, cpu_gpr[a->vrb]);
+    tcg_gen_extract_i64(hi, t0, elem_count_half, elem_count_half);
+    tcg_gen_extract_i64(lo, t0, 0, elem_count_half);
+
+    /*
+     * Spread the bits into their respective elements.
+     * E.g. for bytes:
+     * 00000000000000000000000000000000000000000000000000000000abcdefgh
+     *   << 32 - 4
+     * 0000000000000000000000000000abcdefgh0000000000000000000000000000
+     *   |
+     * 0000000000000000000000000000abcdefgh00000000000000000000abcdefgh
+     *   << 16 - 2
+     * 00000000000000abcdefgh00000000000000000000abcdefgh00000000000000
+     *   |
+     * 00000000000000abcdefgh000000abcdefgh000000abcdefgh000000abcdefgh
+     *   << 8 - 1
+     * 0000000abcdefgh000000abcdefgh000000abcdefgh000000abcdefgh0000000
+     *   |
+     * 0000000abcdefgXbcdefgXbcdefgXbcdefgXbcdefgXbcdefgXbcdefgXbcdefgh
+     *   & dup(1)
+     * 0000000a0000000b0000000c0000000d0000000e0000000f0000000g0000000h
+     *   * 0xff
+     * aaaaaaaabbbbbbbbccccccccddddddddeeeeeeeeffffffffgggggggghhhhhhhh
+     */
+    for (i = elem_count_half / 2, j = 32; i > 0; i >>= 1, j >>= 1) {
+        tcg_gen_shli_i64(t0, hi, j - i);
+        tcg_gen_shli_i64(t1, lo, j - i);
+        tcg_gen_or_i64(hi, hi, t0);
+        tcg_gen_or_i64(lo, lo, t1);
+    }
+
+    c = dup_const(vece, 1);
+    tcg_gen_andi_i64(hi, hi, c);
+    tcg_gen_andi_i64(lo, lo, c);
+
+    c = MAKE_64BIT_MASK(0, elem_width);
+    tcg_gen_muli_i64(hi, hi, c);
+    tcg_gen_muli_i64(lo, lo, c);
+
+    set_avr64(a->vrt, lo, false);
+    set_avr64(a->vrt, hi, true);
+
+    tcg_temp_free_i64(hi);
+    tcg_temp_free_i64(lo);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+
+    return true;
+}
+
+TRANS(MTVSRBM, do_mtvsrm, MO_8)
+TRANS(MTVSRHM, do_mtvsrm, MO_16)
+TRANS(MTVSRWM, do_mtvsrm, MO_32)
+TRANS(MTVSRDM, do_mtvsrm, MO_64)
+
+static bool trans_MTVSRQM(DisasContext *ctx, arg_VX_tb *a)
+{
+    TCGv_i64 tmp;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    tmp = tcg_temp_new_i64();
+
+    tcg_gen_ext_tl_i64(tmp, cpu_gpr[a->vrb]);
+    tcg_gen_sextract_i64(tmp, tmp, 0, 1);
+    set_avr64(a->vrt, tmp, false);
+    set_avr64(a->vrt, tmp, true);
+
+    tcg_temp_free_i64(tmp);
+
+    return true;
+}
+
+static bool trans_MTVSRBMI(DisasContext *ctx, arg_DX_b *a)
+{
+    const uint64_t mask = dup_const(MO_8, 1);
+    uint64_t hi, lo;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    hi = extract16(a->b, 8, 8);
+    lo = extract16(a->b, 0, 8);
+
+    for (int i = 4, j = 32; i > 0; i >>= 1, j >>= 1) {
+        hi |= hi << (j - i);
+        lo |= lo << (j - i);
+    }
+
+    hi = (hi & mask) * 0xFF;
+    lo = (lo & mask) * 0xFF;
+
+    set_avr64(a->vrt, tcg_constant_i64(hi), true);
+    set_avr64(a->vrt, tcg_constant_i64(lo), false);
+
+    return true;
+}
+
 #define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
 static void glue(gen_, name0##_##name1)(DisasContext *ctx)              \
     {                                                                   \
