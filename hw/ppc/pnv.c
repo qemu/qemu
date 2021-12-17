@@ -1393,13 +1393,6 @@ static void pnv_chip_power9_phb_realize(PnvChip *chip, Error **errp)
         uint32_t pec_pci_base;
 
         object_property_set_int(OBJECT(pec), "index", i, &error_fatal);
-        /*
-         * PEC0 -> 1 stack
-         * PEC1 -> 2 stacks
-         * PEC2 -> 3 stacks
-         */
-        object_property_set_int(OBJECT(pec), "num-stacks", i + 1,
-                                &error_fatal);
         object_property_set_int(OBJECT(pec), "chip-id", chip->chip_id,
                                 &error_fatal);
         object_property_set_link(OBJECT(pec), "chip", OBJECT(chip),

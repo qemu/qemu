@@ -377,6 +377,7 @@ static void pnv_pec_instance_init(Object *obj)
 static void pnv_pec_realize(DeviceState *dev, Error **errp)
 {
     PnvPhb4PecState *pec = PNV_PHB4_PEC(dev);
+    PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
     char name[64];
     int i;
 
@@ -386,6 +387,8 @@ static void pnv_pec_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "invalid PEC index: %d", pec->index);
         return;
     }
+
+    pec->num_stacks = pecc->num_stacks[pec->index];
 
     /* Create stacks */
     for (i = 0; i < pec->num_stacks; i++) {
@@ -465,7 +468,6 @@ static int pnv_pec_dt_xscom(PnvXScomInterface *dev, void *fdt,
 
 static Property pnv_pec_properties[] = {
         DEFINE_PROP_UINT32("index", PnvPhb4PecState, index, 0),
-        DEFINE_PROP_UINT32("num-stacks", PnvPhb4PecState, num_stacks, 0),
         DEFINE_PROP_UINT32("chip-id", PnvPhb4PecState, chip_id, 0),
         DEFINE_PROP_LINK("chip", PnvPhb4PecState, chip, TYPE_PNV_CHIP,
                          PnvChip *),
@@ -483,6 +485,13 @@ static uint32_t pnv_pec_xscom_nest_base(PnvPhb4PecState *pec)
 {
     return PNV9_XSCOM_PEC_NEST_BASE + 0x400 * pec->index;
 }
+
+/*
+ * PEC0 -> 1 stack
+ * PEC1 -> 2 stacks
+ * PEC2 -> 3 stacks
+ */
+static const uint32_t pnv_pec_num_stacks[] = { 1, 2, 3 };
 
 static void pnv_pec_class_init(ObjectClass *klass, void *data)
 {
@@ -508,6 +517,7 @@ static void pnv_pec_class_init(ObjectClass *klass, void *data)
     pecc->stk_compat_size = sizeof(stk_compat);
     pecc->version = PNV_PHB4_VERSION;
     pecc->device_id = PNV_PHB4_DEVICE_ID;
+    pecc->num_stacks = pnv_pec_num_stacks;
 }
 
 static const TypeInfo pnv_pec_type_info = {
