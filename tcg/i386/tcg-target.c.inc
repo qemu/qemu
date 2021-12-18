@@ -420,6 +420,10 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
 #define OPC_VPBROADCASTQ (0x59 | P_EXT38 | P_DATA16)
 #define OPC_VPERMQ      (0x00 | P_EXT3A | P_DATA16 | P_VEXW)
 #define OPC_VPERM2I128  (0x46 | P_EXT3A | P_DATA16 | P_VEXL)
+#define OPC_VPROLVD     (0x15 | P_EXT38 | P_DATA16 | P_EVEX)
+#define OPC_VPROLVQ     (0x15 | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
+#define OPC_VPRORVD     (0x14 | P_EXT38 | P_DATA16 | P_EVEX)
+#define OPC_VPRORVQ     (0x14 | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
 #define OPC_VPSLLVW     (0x12 | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
 #define OPC_VPSLLVD     (0x47 | P_EXT38 | P_DATA16)
 #define OPC_VPSLLVQ     (0x47 | P_EXT38 | P_DATA16 | P_VEXW)
@@ -2839,6 +2843,12 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     static int const umax_insn[4] = {
         OPC_PMAXUB, OPC_PMAXUW, OPC_PMAXUD, OPC_UD2
     };
+    static int const rotlv_insn[4] = {
+        OPC_UD2, OPC_UD2, OPC_VPROLVD, OPC_VPROLVQ
+    };
+    static int const rotrv_insn[4] = {
+        OPC_UD2, OPC_UD2, OPC_VPRORVD, OPC_VPRORVQ
+    };
     static int const shlv_insn[4] = {
         OPC_UD2, OPC_VPSLLVW, OPC_VPSLLVD, OPC_VPSLLVQ
     };
@@ -2921,6 +2931,12 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         goto gen_simd;
     case INDEX_op_sarv_vec:
         insn = sarv_insn[vece];
+        goto gen_simd;
+    case INDEX_op_rotlv_vec:
+        insn = rotlv_insn[vece];
+        goto gen_simd;
+    case INDEX_op_rotrv_vec:
+        insn = rotrv_insn[vece];
         goto gen_simd;
     case INDEX_op_shls_vec:
         insn = shls_insn[vece];
@@ -3275,6 +3291,8 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_shlv_vec:
     case INDEX_op_shrv_vec:
     case INDEX_op_sarv_vec:
+    case INDEX_op_rotlv_vec:
+    case INDEX_op_rotrv_vec:
     case INDEX_op_shls_vec:
     case INDEX_op_shrs_vec:
     case INDEX_op_sars_vec:
@@ -3387,7 +3405,12 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
         return 0;
     case INDEX_op_rotlv_vec:
     case INDEX_op_rotrv_vec:
-        return have_avx2 && vece >= MO_32 ? -1 : 0;
+        switch (vece) {
+        case MO_32:
+        case MO_64:
+            return have_avx512vl ? 1 : have_avx2 ? -1 : 0;
+        }
+        return 0;
 
     case INDEX_op_mul_vec:
         if (vece == MO_8) {
