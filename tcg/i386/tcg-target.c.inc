@@ -3444,6 +3444,8 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_rotlv_vec:
     case INDEX_op_rotrv_vec:
         switch (vece) {
+        case MO_16:
+            return have_avx512vbmi2 ? -1 : 0;
         case MO_32:
         case MO_64:
             return have_avx512vl ? 1 : have_avx2 ? -1 : 0;
@@ -3588,6 +3590,12 @@ static void expand_vec_rotli(TCGType type, unsigned vece,
         return;
     }
 
+    if (have_avx512vbmi2) {
+        vec_gen_4(INDEX_op_x86_vpshldi_vec, type, vece,
+                  tcgv_vec_arg(v0), tcgv_vec_arg(v1), tcgv_vec_arg(v1), imm);
+        return;
+    }
+
     t = tcg_temp_new_vec(type);
     tcg_gen_shli_vec(vece, t, v1, imm);
     tcg_gen_shri_vec(vece, v0, v1, (8 << vece) - imm);
@@ -3618,8 +3626,16 @@ static void expand_vec_rotls(TCGType type, unsigned vece,
 static void expand_vec_rotv(TCGType type, unsigned vece, TCGv_vec v0,
                             TCGv_vec v1, TCGv_vec sh, bool right)
 {
-    TCGv_vec t = tcg_temp_new_vec(type);
+    TCGv_vec t;
 
+    if (have_avx512vbmi2) {
+        vec_gen_4(right ? INDEX_op_x86_vpshrdv_vec : INDEX_op_x86_vpshldv_vec,
+                  type, vece, tcgv_vec_arg(v0), tcgv_vec_arg(v1),
+                  tcgv_vec_arg(v1), tcgv_vec_arg(sh));
+        return;
+    }
+
+    t = tcg_temp_new_vec(type);
     tcg_gen_dupi_vec(vece, t, 8 << vece);
     tcg_gen_sub_vec(vece, t, t, sh);
     if (right) {
