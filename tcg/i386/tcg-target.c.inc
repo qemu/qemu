@@ -3602,26 +3602,6 @@ static void expand_vec_rotli(TCGType type, unsigned vece,
     tcg_temp_free_vec(t);
 }
 
-static void expand_vec_rotls(TCGType type, unsigned vece,
-                             TCGv_vec v0, TCGv_vec v1, TCGv_i32 lsh)
-{
-    TCGv_i32 rsh;
-    TCGv_vec t;
-
-    tcg_debug_assert(vece != MO_8);
-
-    t = tcg_temp_new_vec(type);
-    rsh = tcg_temp_new_i32();
-
-    tcg_gen_neg_i32(rsh, lsh);
-    tcg_gen_andi_i32(rsh, rsh, (8 << vece) - 1);
-    tcg_gen_shls_vec(vece, t, v1, lsh);
-    tcg_gen_shrs_vec(vece, v0, v1, rsh);
-    tcg_gen_or_vec(vece, v0, v0, t);
-    tcg_temp_free_vec(t);
-    tcg_temp_free_i32(rsh);
-}
-
 static void expand_vec_rotv(TCGType type, unsigned vece, TCGv_vec v0,
                             TCGv_vec v1, TCGv_vec sh, bool right)
 {
@@ -3645,6 +3625,35 @@ static void expand_vec_rotv(TCGType type, unsigned vece, TCGv_vec v0,
         tcg_gen_shlv_vec(vece, v0, v1, sh);
     }
     tcg_gen_or_vec(vece, v0, v0, t);
+    tcg_temp_free_vec(t);
+}
+
+static void expand_vec_rotls(TCGType type, unsigned vece,
+                             TCGv_vec v0, TCGv_vec v1, TCGv_i32 lsh)
+{
+    TCGv_vec t = tcg_temp_new_vec(type);
+
+    tcg_debug_assert(vece != MO_8);
+
+    if (vece >= MO_32 ? have_avx512vl : have_avx512vbmi2) {
+        tcg_gen_dup_i32_vec(vece, t, lsh);
+        if (vece >= MO_32) {
+            tcg_gen_rotlv_vec(vece, v0, v1, t);
+        } else {
+            expand_vec_rotv(type, vece, v0, v1, t, false);
+        }
+    } else {
+        TCGv_i32 rsh = tcg_temp_new_i32();
+
+        tcg_gen_neg_i32(rsh, lsh);
+        tcg_gen_andi_i32(rsh, rsh, (8 << vece) - 1);
+        tcg_gen_shls_vec(vece, t, v1, lsh);
+        tcg_gen_shrs_vec(vece, v0, v1, rsh);
+        tcg_gen_or_vec(vece, v0, v0, t);
+
+        tcg_temp_free_i32(rsh);
+    }
+
     tcg_temp_free_vec(t);
 }
 
