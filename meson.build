@@ -1,4 +1,4 @@
-project('qemu', ['c'], meson_version: '>=0.58.2',
+project('qemu', ['c'], meson_version: '>=0.59.3',
         default_options: ['warning_level=1', 'c_std=gnu11', 'cpp_std=gnu++11', 'b_colorout=auto',
                           'b_staticpic=false', 'stdsplit=false'],
         version: files('VERSION'))
@@ -99,7 +99,7 @@ else
 endif
 
 kvm_targets_c = '""'
-if not get_option('kvm').disabled() and targetos == 'linux'
+if get_option('kvm').allowed() and targetos == 'linux'
   kvm_targets_c = '"' + '" ,"'.join(kvm_targets) + '"'
 endif
 config_host_data.set('CONFIG_KVM_TARGETS', kvm_targets_c)
@@ -276,7 +276,7 @@ endif
 if targetos != 'linux' and get_option('multiprocess').enabled()
   error('Multiprocess QEMU is supported only on Linux')
 endif
-multiprocess_allowed = targetos == 'linux' and not get_option('multiprocess').disabled()
+multiprocess_allowed = targetos == 'linux' and get_option('multiprocess').allowed()
 
 # Target-specific libraries and flags
 libm = cc.find_library('m', required: false)
@@ -313,7 +313,7 @@ elif targetos == 'haiku'
             cc.find_library('network'),
             cc.find_library('bsd')]
 elif targetos == 'openbsd'
-  if not get_option('tcg').disabled() and target_dirs.length() > 0
+  if get_option('tcg').allowed() and target_dirs.length() > 0
     # Disable OpenBSD W^X if available
     emulator_link_args = cc.get_supported_link_arguments('-Wl,-z,wxneeded')
   endif
@@ -321,16 +321,16 @@ endif
 
 # Target-specific configuration of accelerators
 accelerators = []
-if not get_option('kvm').disabled() and targetos == 'linux'
+if get_option('kvm').allowed() and targetos == 'linux'
   accelerators += 'CONFIG_KVM'
 endif
-if not get_option('xen').disabled() and 'CONFIG_XEN_BACKEND' in config_host
+if get_option('xen').allowed() and 'CONFIG_XEN_BACKEND' in config_host
   accelerators += 'CONFIG_XEN'
-  have_xen_pci_passthrough = not get_option('xen_pci_passthrough').disabled() and targetos == 'linux'
+  have_xen_pci_passthrough = get_option('xen_pci_passthrough').allowed() and targetos == 'linux'
 else
   have_xen_pci_passthrough = false
 endif
-if not get_option('whpx').disabled() and targetos == 'windows'
+if get_option('whpx').allowed() and targetos == 'windows'
   if get_option('whpx').enabled() and host_machine.cpu() != 'x86_64'
     error('WHPX requires 64-bit host')
   elif cc.has_header('WinHvPlatform.h', required: get_option('whpx')) and \
@@ -338,14 +338,14 @@ if not get_option('whpx').disabled() and targetos == 'windows'
     accelerators += 'CONFIG_WHPX'
   endif
 endif
-if not get_option('hvf').disabled()
+if get_option('hvf').allowed()
   hvf = dependency('appleframeworks', modules: 'Hypervisor',
                    required: get_option('hvf'))
   if hvf.found()
     accelerators += 'CONFIG_HVF'
   endif
 endif
-if not get_option('hax').disabled()
+if get_option('hax').allowed()
   if get_option('hax').enabled() or targetos in ['windows', 'darwin', 'netbsd']
     accelerators += 'CONFIG_HAX'
   endif
@@ -358,7 +358,7 @@ if targetos == 'netbsd'
 endif
 
 tcg_arch = host_arch
-if not get_option('tcg').disabled()
+if get_option('tcg').allowed()
   if host_arch == 'unknown'
     if get_option('tcg_interpreter')
       warning('Unsupported CPU @0@, will use TCG with TCI (slow)'.format(cpu))
@@ -472,7 +472,7 @@ libattr_test = '''
 
 libattr = not_found
 have_old_libattr = false
-if not get_option('attr').disabled()
+if get_option('attr').allowed()
   if cc.links(libattr_test)
     libattr = declare_dependency()
   else
@@ -628,7 +628,7 @@ endif
 mpathlibs = [libudev]
 mpathpersist = not_found
 mpathpersist_new_api = false
-if targetos == 'linux' and have_tools and not get_option('mpath').disabled()
+if targetos == 'linux' and have_tools and get_option('mpath').allowed()
   mpath_test_source_new = '''
     #include <libudev.h>
     #include <mpath_persist.h>
@@ -697,7 +697,7 @@ endif
 
 iconv = not_found
 curses = not_found
-if have_system and not get_option('curses').disabled()
+if have_system and get_option('curses').allowed()
   curses_test = '''
     #if defined(__APPLE__) || defined(__OpenBSD__)
     #define _XOPEN_SOURCE_EXTENDED 1
@@ -759,7 +759,7 @@ if have_system and not get_option('curses').disabled()
       endforeach
     endif
   endif
-  if not get_option('iconv').disabled()
+  if get_option('iconv').allowed()
     foreach link_args : [ ['-liconv'], [] ]
       # Programs will be linked with glib and this will bring in libiconv on FreeBSD.
       # We need to use libiconv if available because mixing libiconv's headers with
@@ -938,7 +938,7 @@ if liblzfse.found() and not cc.links('''
 endif
 
 oss = not_found
-if have_system and not get_option('oss').disabled()
+if get_option('oss').allowed() and have_system
   if not cc.has_header('sys/soundcard.h')
     # not found
   elif targetos == 'netbsd'
@@ -1092,7 +1092,7 @@ vnc = not_found
 png = not_found
 jpeg = not_found
 sasl = not_found
-if have_system and not get_option('vnc').disabled()
+if get_option('vnc').allowed() and have_system
   vnc = declare_dependency() # dummy dependency
   png = dependency('libpng', required: get_option('vnc_png'),
                    method: 'pkg-config', kwargs: static_kwargs)
@@ -1236,7 +1236,7 @@ selinux = dependency('libselinux',
 malloc = []
 if get_option('malloc') == 'system'
   has_malloc_trim = \
-    not get_option('malloc_trim').disabled() and \
+    get_option('malloc_trim').allowed() and \
     cc.links('''#include <malloc.h>
                 int main(void) { malloc_trim(0); return 0; }''')
 else
@@ -1291,7 +1291,7 @@ fuse = dependency('fuse3', required: get_option('fuse'),
                   kwargs: static_kwargs)
 
 fuse_lseek = not_found
-if not get_option('fuse_lseek').disabled()
+if get_option('fuse_lseek').allowed()
   if fuse.version().version_compare('>=3.8')
     # Dummy dependency
     fuse_lseek = declare_dependency()
@@ -1714,7 +1714,7 @@ config_host_data.set('HAVE_MLOCKALL', cc.links(gnu_source_prefix + '''
   }'''))
 
 have_l2tpv3 = false
-if not get_option('l2tpv3').disabled() and have_system
+if get_option('l2tpv3').allowed() and have_system
   have_l2tpv3 = cc.has_type('struct mmsghdr',
     prefix: gnu_source_prefix + '''
       #include <sys/socket.h>
@@ -1723,7 +1723,7 @@ endif
 config_host_data.set('CONFIG_L2TPV3', have_l2tpv3)
 
 have_netmap = false
-if not get_option('netmap').disabled() and have_system
+if get_option('netmap').allowed() and have_system
   have_netmap = cc.compiles('''
     #include <inttypes.h>
     #include <net/if.h>

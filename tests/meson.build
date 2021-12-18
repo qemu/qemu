@@ -85,7 +85,7 @@ if 'CONFIG_TCG' in config_all
   subdir('fp')
 endif
 
-if not get_option('tcg').disabled()
+if get_option('tcg').allowed()
   if 'CONFIG_PLUGIN' in config_host
     subdir('plugin')
   endif
