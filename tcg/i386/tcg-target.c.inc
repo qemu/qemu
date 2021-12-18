@@ -424,6 +424,15 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
 #define OPC_VPROLVQ     (0x15 | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
 #define OPC_VPRORVD     (0x14 | P_EXT38 | P_DATA16 | P_EVEX)
 #define OPC_VPRORVQ     (0x14 | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
+#define OPC_VPSHLDW     (0x70 | P_EXT3A | P_DATA16 | P_VEXW | P_EVEX)
+#define OPC_VPSHLDD     (0x71 | P_EXT3A | P_DATA16 | P_EVEX)
+#define OPC_VPSHLDQ     (0x71 | P_EXT3A | P_DATA16 | P_VEXW | P_EVEX)
+#define OPC_VPSHLDVW    (0x70 | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
+#define OPC_VPSHLDVD    (0x71 | P_EXT38 | P_DATA16 | P_EVEX)
+#define OPC_VPSHLDVQ    (0x71 | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
+#define OPC_VPSHRDVW    (0x72 | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
+#define OPC_VPSHRDVD    (0x73 | P_EXT38 | P_DATA16 | P_EVEX)
+#define OPC_VPSHRDVQ    (0x73 | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
 #define OPC_VPSLLVW     (0x12 | P_EXT38 | P_DATA16 | P_VEXW | P_EVEX)
 #define OPC_VPSLLVD     (0x47 | P_EXT38 | P_DATA16)
 #define OPC_VPSLLVQ     (0x47 | P_EXT38 | P_DATA16 | P_VEXW)
@@ -2867,6 +2876,15 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     static int const sars_insn[4] = {
         OPC_UD2, OPC_PSRAW, OPC_PSRAD, OPC_VPSRAQ
     };
+    static int const vpshldi_insn[4] = {
+        OPC_UD2, OPC_VPSHLDW, OPC_VPSHLDD, OPC_VPSHLDQ
+    };
+    static int const vpshldv_insn[4] = {
+        OPC_UD2, OPC_VPSHLDVW, OPC_VPSHLDVD, OPC_VPSHLDVQ
+    };
+    static int const vpshrdv_insn[4] = {
+        OPC_UD2, OPC_VPSHRDVW, OPC_VPSHRDVD, OPC_VPSHRDVQ
+    };
     static int const abs_insn[4] = {
         /* TODO: AVX512 adds support for MO_64.  */
         OPC_PABSB, OPC_PABSW, OPC_PABSD, OPC_UD2
@@ -2958,6 +2976,16 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         goto gen_simd;
     case INDEX_op_x86_packus_vec:
         insn = packus_insn[vece];
+        goto gen_simd;
+    case INDEX_op_x86_vpshldv_vec:
+        insn = vpshldv_insn[vece];
+        a1 = a2;
+        a2 = args[3];
+        goto gen_simd;
+    case INDEX_op_x86_vpshrdv_vec:
+        insn = vpshrdv_insn[vece];
+        a1 = a2;
+        a2 = args[3];
         goto gen_simd;
 #if TCG_TARGET_REG_BITS == 32
     case INDEX_op_dup2_vec:
@@ -3061,7 +3089,12 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         insn = OPC_VPERM2I128;
         sub = args[3];
         goto gen_simd_imm8;
+    case INDEX_op_x86_vpshldi_vec:
+        insn = vpshldi_insn[vece];
+        sub = args[3];
+        goto gen_simd_imm8;
     gen_simd_imm8:
+        tcg_debug_assert(insn != OPC_UD2);
         if (type == TCG_TYPE_V256) {
             insn |= P_VEXL;
         }
@@ -3305,6 +3338,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_x86_vperm2i128_vec:
     case INDEX_op_x86_punpckl_vec:
     case INDEX_op_x86_punpckh_vec:
+    case INDEX_op_x86_vpshldi_vec:
 #if TCG_TARGET_REG_BITS == 32
     case INDEX_op_dup2_vec:
 #endif
@@ -3318,6 +3352,10 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_rotli_vec:
     case INDEX_op_x86_psrldq_vec:
         return C_O1_I1(x, x);
+
+    case INDEX_op_x86_vpshldv_vec:
+    case INDEX_op_x86_vpshrdv_vec:
+        return C_O1_I3(x, 0, x, x);
 
     case INDEX_op_x86_vpblendvb_vec:
         return C_O1_I3(x, x, x, x);
