@@ -269,14 +269,12 @@ if 'syslog' in get_option('trace_backends') and not cc.compiles('''
 endif
 
 # Miscellaneous Linux-only features
-if targetos != 'linux' and get_option('mpath').enabled()
-  error('Multipath is supported only on Linux')
-endif
+get_option('mpath') \
+  .require(targetos == 'linux', error_message: 'Multipath is supported only on Linux')
 
-if targetos != 'linux' and get_option('multiprocess').enabled()
-  error('Multiprocess QEMU is supported only on Linux')
-endif
-multiprocess_allowed = targetos == 'linux' and get_option('multiprocess').allowed()
+multiprocess_allowed = get_option('multiprocess') \
+  .require(targetos == 'linux', error_message: 'Multiprocess QEMU is supported only on Linux') \
+  .allowed()
 
 # Target-specific libraries and flags
 libm = cc.find_library('m', required: false)
@@ -1268,19 +1266,13 @@ statx_test = gnu_source_prefix + '''
 
 has_statx = cc.links(statx_test)
 
-have_vhost_user_blk_server = (targetos == 'linux' and
-    'CONFIG_VHOST_USER' in config_host)
-
-if get_option('vhost_user_blk_server').enabled()
-    if targetos != 'linux'
-        error('vhost_user_blk_server requires linux')
-    elif 'CONFIG_VHOST_USER' not in config_host
-        error('vhost_user_blk_server requires vhost-user support')
-    endif
-elif get_option('vhost_user_blk_server').disabled() or not have_system
-    have_vhost_user_blk_server = false
-endif
-
+have_vhost_user_blk_server = get_option('vhost_user_blk_server') \
+  .require(targetos == 'linux',
+           error_message: 'vhost_user_blk_server requires linux') \
+  .require('CONFIG_VHOST_USER' in config_host,
+           error_message: 'vhost_user_blk_server requires vhost-user support') \
+  .disable_auto_if(not have_system) \
+  .allowed()
 
 if get_option('fuse').disabled() and get_option('fuse_lseek').enabled()
   error('Cannot enable fuse-lseek while fuse is disabled')
@@ -1407,35 +1399,25 @@ endif
 have_host_block_device = (targetos != 'darwin' or
     cc.has_header('IOKit/storage/IOMedia.h'))
 
-dbus_display = false
-if not get_option('dbus_display').disabled()
-  # FIXME enable_modules shouldn't be necessary, but: https://github.com/mesonbuild/meson/issues/8333
-  dbus_display = gio.version().version_compare('>=2.64') and config_host.has_key('GDBUS_CODEGEN') and enable_modules
-  if get_option('dbus_display').enabled() and not dbus_display
-    error('Requirements missing to enable -display dbus (glib>=2.64 && --enable-modules)')
-  endif
-endif
+# FIXME enable_modules shouldn't be necessary, but: https://github.com/mesonbuild/meson/issues/8333
+dbus_display = get_option('dbus_display') \
+  .require(gio.version().version_compare('>=2.64'),
+           error_message: '-display dbus requires glib>=2.64') \
+  .require(enable_modules,
+           error_message: '-display dbus requires --enable-modules') \
+  .require(config_host.has_key('GDBUS_CODEGEN'),
+           error_message: '-display dbus requires gdbus-codegen') \
+  .allowed()
 
-have_virtfs = (targetos == 'linux' and
-    have_system and
-    libattr.found() and
-    libcap_ng.found())
+have_virtfs = get_option('virtfs') \
+    .require(targetos == 'linux',
+             error_message: 'virtio-9p (virtfs) requires Linux') \
+    .require(libattr.found() and libcap_ng.found(),
+             error_message: 'virtio-9p (virtfs) requires libcap-ng-devel and libattr-devel') \
+    .disable_auto_if(not have_tools and not have_system) \
+    .allowed()
 
 have_virtfs_proxy_helper = have_virtfs and have_tools
-
-if get_option('virtfs').enabled()
-  if not have_virtfs
-    if targetos != 'linux'
-      error('virtio-9p (virtfs) requires Linux')
-    elif not libcap_ng.found() or not libattr.found()
-      error('virtio-9p (virtfs) requires libcap-ng-devel and libattr-devel')
-    elif not have_system
-      error('virtio-9p (virtfs) needs system emulation support')
-    endif
-  endif
-elif get_option('virtfs').disabled()
-  have_virtfs = false
-endif
 
 foreach k : get_option('trace_backends')
   config_host_data.set('CONFIG_TRACE_' + k.to_upper(), true)
