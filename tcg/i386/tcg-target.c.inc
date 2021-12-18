@@ -2986,17 +2986,22 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_shli_vec:
+        insn = shift_imm_insn[vece];
         sub = 6;
         goto gen_shift;
     case INDEX_op_shri_vec:
+        insn = shift_imm_insn[vece];
         sub = 2;
         goto gen_shift;
     case INDEX_op_sari_vec:
-        tcg_debug_assert(vece != MO_64);
+        if (vece == MO_64) {
+            insn = OPC_PSHIFTD_Ib | P_VEXW | P_EVEX;
+        } else {
+            insn = shift_imm_insn[vece];
+        }
         sub = 4;
     gen_shift:
         tcg_debug_assert(vece != MO_8);
-        insn = shift_imm_insn[vece];
         if (type == TCG_TYPE_V256) {
             insn |= P_VEXL;
         }
@@ -3316,16 +3321,23 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
         return vece == MO_8 ? -1 : 1;
 
     case INDEX_op_sari_vec:
-        /* We must expand the operation for MO_8.  */
-        if (vece == MO_8) {
+        switch (vece) {
+        case MO_8:
             return -1;
-        }
-        /* We can emulate this for MO_64, but it does not pay off
-           unless we're producing at least 4 values.  */
-        if (vece == MO_64) {
+        case MO_16:
+        case MO_32:
+            return 1;
+        case MO_64:
+            if (have_avx512vl) {
+                return 1;
+            }
+            /*
+             * We can emulate this for MO_64, but it does not pay off
+             * unless we're producing at least 4 values.
+             */
             return type >= TCG_TYPE_V256 ? -1 : 0;
         }
-        return 1;
+        return 0;
 
     case INDEX_op_shls_vec:
     case INDEX_op_shrs_vec:
