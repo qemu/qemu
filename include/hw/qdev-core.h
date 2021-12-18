@@ -621,7 +621,7 @@ void qdev_init_gpio_in(DeviceState *dev, qemu_irq_handler handler, int n);
 void qdev_init_gpio_out(DeviceState *dev, qemu_irq *pins, int n);
 
 /**
- * qdev_init_gpio_out: create an array of named output GPIO lines
+ * qdev_init_gpio_out_named: create an array of named output GPIO lines
  * @dev: Device to create output GPIOs for
  * @pins: Pointer to qemu_irq or qemu_irq array for the GPIO lines
  * @name: Name to give this array of GPIO lines
