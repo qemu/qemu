@@ -362,7 +362,7 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
 #define OPC_PSHUFLW     (0x70 | P_EXT | P_SIMDF2)
 #define OPC_PSHUFHW     (0x70 | P_EXT | P_SIMDF3)
 #define OPC_PSHIFTW_Ib  (0x71 | P_EXT | P_DATA16) /* /2 /6 /4 */
-#define OPC_PSHIFTD_Ib  (0x72 | P_EXT | P_DATA16) /* /2 /6 /4 */
+#define OPC_PSHIFTD_Ib  (0x72 | P_EXT | P_DATA16) /* /1 /2 /6 /4 */
 #define OPC_PSHIFTQ_Ib  (0x73 | P_EXT | P_DATA16) /* /2 /6 /4 */
 #define OPC_PSLLW       (0xf1 | P_EXT | P_DATA16)
 #define OPC_PSLLD       (0xf2 | P_EXT | P_DATA16)
@@ -3000,6 +3000,14 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
             insn = shift_imm_insn[vece];
         }
         sub = 4;
+        goto gen_shift;
+    case INDEX_op_rotli_vec:
+        insn = OPC_PSHIFTD_Ib | P_EVEX;  /* VPROL[DQ] */
+        if (vece == MO_64) {
+            insn |= P_VEXW;
+        }
+        sub = 1;
+        goto gen_shift;
     gen_shift:
         tcg_debug_assert(vece != MO_8);
         if (type == TCG_TYPE_V256) {
@@ -3289,6 +3297,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_shli_vec:
     case INDEX_op_shri_vec:
     case INDEX_op_sari_vec:
+    case INDEX_op_rotli_vec:
     case INDEX_op_x86_psrldq_vec:
         return C_O1_I1(x, x);
 
@@ -3310,10 +3319,12 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_xor_vec:
     case INDEX_op_andc_vec:
         return 1;
-    case INDEX_op_rotli_vec:
     case INDEX_op_cmp_vec:
     case INDEX_op_cmpsel_vec:
         return -1;
+
+    case INDEX_op_rotli_vec:
+        return have_avx512vl && vece >= MO_32 ? 1 : -1;
 
     case INDEX_op_shli_vec:
     case INDEX_op_shri_vec:
