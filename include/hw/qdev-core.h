@@ -321,6 +321,7 @@ compat_props_add(GPtrArray *arr,
  * The returned object has a reference count of 1.
  */
 DeviceState *qdev_new(const char *name);
+
 /**
  * qdev_try_new: Try to create a device on the heap
  * @name: device type to create
@@ -329,6 +330,7 @@ DeviceState *qdev_new(const char *name);
  * does not exist, rather than asserting.
  */
 DeviceState *qdev_try_new(const char *name);
+
 /**
  * qdev_realize: Realize @dev.
  * @dev: device to realize
@@ -347,6 +349,7 @@ DeviceState *qdev_try_new(const char *name);
  * qdev_realize_and_unref() instead.
  */
 bool qdev_realize(DeviceState *dev, BusState *bus, Error **errp);
+
 /**
  * qdev_realize_and_unref: Realize @dev and drop a reference
  * @dev: device to realize
@@ -372,6 +375,7 @@ bool qdev_realize(DeviceState *dev, BusState *bus, Error **errp);
  * would be incorrect. For that use case you want qdev_realize().
  */
 bool qdev_realize_and_unref(DeviceState *dev, BusState *bus, Error **errp);
+
 /**
  * qdev_unrealize: Unrealize a device
  * @dev: device to unrealize
@@ -450,6 +454,7 @@ typedef enum {
  * For named input GPIO lines, use qdev_get_gpio_in_named().
  */
 qemu_irq qdev_get_gpio_in(DeviceState *dev, int n);
+
 /**
  * qdev_get_gpio_in_named: Get one of a device's named input GPIO lines
  * @dev: Device whose GPIO we want
@@ -497,6 +502,7 @@ qemu_irq qdev_get_gpio_in_named(DeviceState *dev, const char *name, int n);
  * For named output GPIO lines, use qdev_connect_gpio_out_named().
  */
 void qdev_connect_gpio_out(DeviceState *dev, int n, qemu_irq pin);
+
 /**
  * qdev_connect_gpio_out: Connect one of a device's anonymous output GPIO lines
  * @dev: Device whose GPIO to connect
@@ -524,6 +530,7 @@ void qdev_connect_gpio_out(DeviceState *dev, int n, qemu_irq pin);
  */
 void qdev_connect_gpio_out_named(DeviceState *dev, const char *name, int n,
                                  qemu_irq pin);
+
 /**
  * qdev_get_gpio_out_connector: Get the qemu_irq connected to an output GPIO
  * @dev: Device whose output GPIO we are interested in
@@ -541,6 +548,7 @@ void qdev_connect_gpio_out_named(DeviceState *dev, const char *name, int n,
  * by the platform-bus subsystem.
  */
 qemu_irq qdev_get_gpio_out_connector(DeviceState *dev, const char *name, int n);
+
 /**
  * qdev_intercept_gpio_out: Intercept an existing GPIO connection
  * @dev: Device to intercept the outbound GPIO line from
@@ -582,6 +590,7 @@ BusState *qdev_get_child_bus(DeviceState *dev, const char *name);
  * hold of an input GPIO line to manipulate it.
  */
 void qdev_init_gpio_in(DeviceState *dev, qemu_irq_handler handler, int n);
+
 /**
  * qdev_init_gpio_out: create an array of anonymous output GPIO lines
  * @dev: Device to create output GPIOs for
@@ -610,6 +619,7 @@ void qdev_init_gpio_in(DeviceState *dev, qemu_irq_handler handler, int n);
  * handler.
  */
 void qdev_init_gpio_out(DeviceState *dev, qemu_irq *pins, int n);
+
 /**
  * qdev_init_gpio_out: create an array of named output GPIO lines
  * @dev: Device to create output GPIOs for
@@ -623,6 +633,7 @@ void qdev_init_gpio_out(DeviceState *dev, qemu_irq *pins, int n);
  */
 void qdev_init_gpio_out_named(DeviceState *dev, qemu_irq *pins,
                               const char *name, int n);
+
 /**
  * qdev_init_gpio_in_named_with_opaque: create an array of input GPIO lines
  *   for the specified device
