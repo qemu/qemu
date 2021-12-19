@@ -182,6 +182,8 @@ enum {
     QEMU_IFLA_BRPORT_BACKUP_PORT,
     QEMU_IFLA_BRPORT_MRP_RING_OPEN,
     QEMU_IFLA_BRPORT_MRP_IN_OPEN,
+    QEMU_IFLA_BRPORT_MCAST_EHT_HOSTS_LIMIT,
+    QEMU_IFLA_BRPORT_MCAST_EHT_HOSTS_CNT,
     QEMU___IFLA_BRPORT_MAX
 };
 
@@ -607,6 +609,8 @@ static abi_long host_to_target_slave_data_bridge_nlattr(struct nlattr *nlattr,
     /* uin32_t */
     case QEMU_IFLA_BRPORT_COST:
     case QEMU_IFLA_BRPORT_BACKUP_PORT:
+    case QEMU_IFLA_BRPORT_MCAST_EHT_HOSTS_LIMIT:
+    case QEMU_IFLA_BRPORT_MCAST_EHT_HOSTS_CNT:
         u32 = NLA_DATA(nlattr);
         *u32 = tswap32(*u32);
         break;
