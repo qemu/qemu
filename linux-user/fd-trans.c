@@ -138,6 +138,9 @@ enum {
     QEMU_IFLA_PROP_LIST,
     QEMU_IFLA_ALT_IFNAME,
     QEMU_IFLA_PERM_ADDRESS,
+    QEMU_IFLA_PROTO_DOWN_REASON,
+    QEMU_IFLA_PARENT_DEV_NAME,
+    QEMU_IFLA_PARENT_DEV_BUS_NAME,
     QEMU___IFLA_MAX
 };
 
@@ -818,9 +821,12 @@ static abi_long host_to_target_data_link_rtattr(struct rtattr *rtattr)
     case QEMU_IFLA_ADDRESS:
     case QEMU_IFLA_BROADCAST:
     case QEMU_IFLA_PERM_ADDRESS:
+    case QEMU_IFLA_PHYS_PORT_ID:
     /* string */
     case QEMU_IFLA_IFNAME:
     case QEMU_IFLA_QDISC:
+    case QEMU_IFLA_PARENT_DEV_NAME:
+    case QEMU_IFLA_PARENT_DEV_BUS_NAME:
         break;
     /* uin8_t */
     case QEMU_IFLA_OPERSTATE:
