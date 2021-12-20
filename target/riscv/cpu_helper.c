@@ -1038,6 +1038,9 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             write_gva = true;
             tval = env->badaddr;
             break;
+        case RISCV_EXCP_ILLEGAL_INST:
+            tval = env->bins;
+            break;
         default:
             break;
         }
