@@ -34,6 +34,11 @@ static void test_a_boot_order(const char *machine,
     uint64_t actual;
     QTestState *qts;
 
+    if (machine && !qtest_has_machine(machine)) {
+        g_test_skip("Machine is not available");
+        return;
+    }
+
     qts = qtest_initf("-nodefaults%s%s %s", machine ? " -M " : "",
                       machine ?: "", test_args);
     actual = read_boot_order(qts);
