@@ -303,6 +303,7 @@ static int megasas_map_sgl(MegasasState *s, MegasasCmd *cmd, union mfi_sgl *sgl)
     }
     if (cmd->iov_size > iov_size) {
         trace_megasas_iovec_overflow(cmd->index, iov_size, cmd->iov_size);
+        goto unmap;
     } else if (cmd->iov_size < iov_size) {
         trace_megasas_iovec_underflow(cmd->index, iov_size, cmd->iov_size);
     }

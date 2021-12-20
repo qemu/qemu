@@ -158,7 +158,7 @@ struct SCSIBus {
  * provided by the caller. It is the caller's responsibility to make
  * sure that name does not clash with the name of any other bus in the
  * system. Unless you need the new bus to have a specific name, you
- * should use scsi_bus_new() instead.
+ * should use scsi_bus_init() instead.
  */
 void scsi_bus_init_named(SCSIBus *bus, size_t bus_size, DeviceState *host,
                          const SCSIBusInfo *info, const char *bus_name);

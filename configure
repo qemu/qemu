@@ -501,42 +501,93 @@ EOF
 }
 
 if check_define __linux__ ; then
-  targetos="Linux"
+  targetos=linux
 elif check_define _WIN32 ; then
-  targetos='MINGW32'
+  targetos=windows
 elif check_define __OpenBSD__ ; then
-  targetos='OpenBSD'
+  targetos=openbsd
 elif check_define __sun__ ; then
-  targetos='SunOS'
+  targetos=sunos
 elif check_define __HAIKU__ ; then
-  targetos='Haiku'
+  targetos=haiku
 elif check_define __FreeBSD__ ; then
-  targetos='FreeBSD'
+  targetos=freebsd
 elif check_define __FreeBSD_kernel__ && check_define __GLIBC__; then
-  targetos='GNU/kFreeBSD'
+  targetos=gnu/kfreebsd
 elif check_define __DragonFly__ ; then
-  targetos='DragonFly'
+  targetos=dragonfly
 elif check_define __NetBSD__; then
-  targetos='NetBSD'
+  targetos=netbsd
 elif check_define __APPLE__; then
-  targetos='Darwin'
+  targetos=darwin
 else
   # This is a fatal error, but don't report it yet, because we
   # might be going to just print the --help text, or it might
   # be the result of a missing compiler.
-  targetos='bogus'
+  targetos=bogus
 fi
 
-# Some host OSes need non-standard checks for which CPU to use.
-# Note that these checks are broken for cross-compilation: if you're
-# cross-compiling to one of these OSes then you'll need to specify
-# the correct CPU with the --cpu option.
+# OS specific
+
 case $targetos in
-SunOS)
+windows)
+  mingw32="yes"
+  plugins="no"
+  pie="no"
+;;
+gnu/kfreebsd)
+  bsd="yes"
+;;
+freebsd)
+  bsd="yes"
+  bsd_user="yes"
+  make="${MAKE-gmake}"
+  # needed for kinfo_getvmmap(3) in libutil.h
+;;
+dragonfly)
+  bsd="yes"
+  make="${MAKE-gmake}"
+;;
+netbsd)
+  bsd="yes"
+  make="${MAKE-gmake}"
+;;
+openbsd)
+  bsd="yes"
+  make="${MAKE-gmake}"
+;;
+darwin)
+  bsd="yes"
+  darwin="yes"
+  # Disable attempts to use ObjectiveC features in os/object.h since they
+  # won't work when we're compiling with gcc as a C compiler.
+  QEMU_CFLAGS="-DOS_OBJECT_USE_OBJC=0 $QEMU_CFLAGS"
+;;
+sunos)
+  solaris="yes"
+  make="${MAKE-gmake}"
+  smbd="${SMBD-/usr/sfw/sbin/smbd}"
+# needed for CMSG_ macros in sys/socket.h
+  QEMU_CFLAGS="-D_XOPEN_SOURCE=600 $QEMU_CFLAGS"
+# needed for TIOCWIN* defines in termios.h
+  QEMU_CFLAGS="-D__EXTENSIONS__ $QEMU_CFLAGS"
   # $(uname -m) returns i86pc even on an x86_64 box, so default based on isainfo
+  # Note that this check is broken for cross-compilation: if you're
+  # cross-compiling to one of these OSes then you'll need to specify
+  # the correct CPU with the --cpu option.
   if test -z "$cpu" && test "$(isainfo -k)" = "amd64"; then
     cpu="x86_64"
   fi
+;;
+haiku)
+  pie="no"
+  QEMU_CFLAGS="-DB_USE_POSITIVE_POSIX_ERRORS -D_BSD_SOURCE -fPIC $QEMU_CFLAGS"
+;;
+linux)
+  linux="yes"
+  linux_user="yes"
+  vhost_user=${default_feature:-yes}
+;;
 esac
 
 if test ! -z "$cpu" ; then
@@ -584,96 +635,46 @@ else
   cpu=$(uname -m)
 fi
 
-ARCH=
-# Normalise host CPU name and set ARCH.
+# Normalise host CPU name, set multilib cflags
 # Note that this case should only have supported host CPUs, not guests.
 case "$cpu" in
-  ppc|ppc64|s390x|sparc64|x32|riscv)
-  ;;
-  ppc64le)
-    ARCH="ppc64"
-  ;;
+  armv*b|armv*l|arm)
+    cpu="arm" ;;
+
   i386|i486|i586|i686|i86pc|BePC)
     cpu="i386"
-  ;;
+    CPU_CFLAGS="-m32" ;;
+  x32)
+    cpu="x86_64"
+    CPU_CFLAGS="-mx32" ;;
   x86_64|amd64)
     cpu="x86_64"
-  ;;
-  armv*b|armv*l|arm)
-    cpu="arm"
-  ;;
-  aarch64)
-    cpu="aarch64"
-  ;;
+    # ??? Only extremely old AMD cpus do not have cmpxchg16b.
+    # If we truly care, we should simply detect this case at
+    # runtime and generate the fallback to serial emulation.
+    CPU_CFLAGS="-m64 -mcx16" ;;
+
   mips*)
-    cpu="mips"
-  ;;
+    cpu="mips" ;;
+
+  ppc)
+    CPU_CFLAGS="-m32" ;;
+  ppc64)
+    CPU_CFLAGS="-m64 -mbig" ;;
+  ppc64le)
+    cpu="ppc64"
+    CPU_CFLAGS="-m64 -mlittle" ;;
+
+  s390)
+    CPU_CFLAGS="-m31" ;;
+  s390x)
+    CPU_CFLAGS="-m64" ;;
+
   sparc|sun4[cdmuv])
     cpu="sparc"
-  ;;
-  *)
-    # This will result in either an error or falling back to TCI later
-    ARCH=unknown
-  ;;
-esac
-if test -z "$ARCH"; then
-  ARCH="$cpu"
-fi
-
-# OS specific
-
-case $targetos in
-MINGW32*)
-  mingw32="yes"
-  plugins="no"
-  pie="no"
-;;
-GNU/kFreeBSD)
-  bsd="yes"
-;;
-FreeBSD)
-  bsd="yes"
-  bsd_user="yes"
-  make="${MAKE-gmake}"
-  # needed for kinfo_getvmmap(3) in libutil.h
-;;
-DragonFly)
-  bsd="yes"
-  make="${MAKE-gmake}"
-;;
-NetBSD)
-  bsd="yes"
-  make="${MAKE-gmake}"
-;;
-OpenBSD)
-  bsd="yes"
-  make="${MAKE-gmake}"
-;;
-Darwin)
-  bsd="yes"
-  darwin="yes"
-  # Disable attempts to use ObjectiveC features in os/object.h since they
-  # won't work when we're compiling with gcc as a C compiler.
-  QEMU_CFLAGS="-DOS_OBJECT_USE_OBJC=0 $QEMU_CFLAGS"
-;;
-SunOS)
-  solaris="yes"
-  make="${MAKE-gmake}"
-  smbd="${SMBD-/usr/sfw/sbin/smbd}"
-# needed for CMSG_ macros in sys/socket.h
-  QEMU_CFLAGS="-D_XOPEN_SOURCE=600 $QEMU_CFLAGS"
-# needed for TIOCWIN* defines in termios.h
-  QEMU_CFLAGS="-D__EXTENSIONS__ $QEMU_CFLAGS"
-;;
-Haiku)
-  pie="no"
-  QEMU_CFLAGS="-DB_USE_POSITIVE_POSIX_ERRORS -D_BSD_SOURCE -fPIC $QEMU_CFLAGS"
-;;
-Linux)
-  linux="yes"
-  linux_user="yes"
-  vhost_user=${default_feature:-yes}
-;;
+    CPU_CFLAGS="-m32 -mv8plus -mcpu=ultrasparc" ;;
+  sparc64)
+    CPU_CFLAGS="-m64 -mcpu=ultrasparc" ;;
 esac
 
 : ${make=${MAKE-make}}
@@ -1256,24 +1257,6 @@ sysconfdir="${sysconfdir:-$prefix/etc}"
 local_statedir="${local_statedir:-$prefix/var}"
 firmwarepath="${firmwarepath:-$datadir/qemu-firmware}"
 localedir="${localedir:-$datadir/locale}"
-
-case "$cpu" in
-    ppc) CPU_CFLAGS="-m32" ;;
-    ppc64) CPU_CFLAGS="-m64" ;;
-    sparc) CPU_CFLAGS="-m32 -mv8plus -mcpu=ultrasparc" ;;
-    sparc64) CPU_CFLAGS="-m64 -mcpu=ultrasparc" ;;
-    s390) CPU_CFLAGS="-m31" ;;
-    s390x) CPU_CFLAGS="-m64" ;;
-    i386) CPU_CFLAGS="-m32" ;;
-    x32) CPU_CFLAGS="-mx32" ;;
-
-    # ??? Only extremely old AMD cpus do not have cmpxchg16b.
-    # If we truly care, we should simply detect this case at
-    # runtime and generate the fallback to serial emulation.
-    x86_64) CPU_CFLAGS="-m64 -mcx16" ;;
-
-    # No special flags required for other host CPUs
-esac
 
 if eval test -z "\${cross_cc_$cpu}"; then
     eval "cross_cc_${cpu}=\$cc"
@@ -3334,8 +3317,8 @@ QEMU_GA_MSI_MINGW_DLL_PATH="$($pkg_config --variable=prefix glib-2.0)/bin"
 # Mac OS X ships with a broken assembler
 roms=
 if { test "$cpu" = "i386" || test "$cpu" = "x86_64"; } && \
-        test "$targetos" != "Darwin" && test "$targetos" != "SunOS" && \
-        test "$targetos" != "Haiku" && test "$softmmu" = yes ; then
+        test "$targetos" != "darwin" && test "$targetos" != "sunos" && \
+        test "$targetos" != "haiku" && test "$softmmu" = yes ; then
     # Different host OS linkers have different ideas about the name of the ELF
     # emulation. Linux and OpenBSD/amd64 use 'elf_i386'; FreeBSD uses the _fbsd
     # variant; OpenBSD/i386 uses the _obsd variant; and Windows uses i386pe.
@@ -3411,8 +3394,6 @@ echo all: >> $config_host_mak
 echo "GIT=$git" >> $config_host_mak
 echo "GIT_SUBMODULES=$git_submodules" >> $config_host_mak
 echo "GIT_SUBMODULES_ACTION=$git_submodules_action" >> $config_host_mak
-
-echo "ARCH=$ARCH" >> $config_host_mak
 
 if test "$debug_tcg" = "yes" ; then
   echo "CONFIG_DEBUG_TCG=y" >> $config_host_mak
@@ -3726,10 +3707,10 @@ fi
 if test "$linux" = "yes" ; then
   mkdir -p linux-headers
   case "$cpu" in
-  i386|x86_64|x32)
+  i386|x86_64)
     linux_arch=x86
     ;;
-  ppc|ppc64|ppc64le)
+  ppc|ppc64)
     linux_arch=powerpc
     ;;
   s390x)
@@ -3781,7 +3762,6 @@ if test "$safe_stack" = "yes"; then
 fi
 
 # If we're using a separate build tree, set it up now.
-# DIRS are directories which we simply mkdir in the build tree;
 # LINKS are things to symlink back into the source tree
 # (these can be both files and directories).
 # Caution: do not add files or directories here using wildcards. This
@@ -3793,12 +3773,6 @@ fi
 # UNLINK is used to remove symlinks from older development versions
 # that might get into the way when doing "git update" without doing
 # a "make distclean" in between.
-DIRS="tests tests/tcg tests/qapi-schema tests/qtest/libqos"
-DIRS="$DIRS tests/qtest tests/qemu-iotests tests/vm tests/fp tests/qgraph"
-DIRS="$DIRS docs docs/interop fsdev scsi"
-DIRS="$DIRS pc-bios/optionrom pc-bios/s390-ccw"
-DIRS="$DIRS roms/seabios"
-DIRS="$DIRS contrib/plugins/"
 LINKS="Makefile"
 LINKS="$LINKS tests/tcg/Makefile.target"
 LINKS="$LINKS pc-bios/optionrom/Makefile"
@@ -3820,16 +3794,15 @@ for bios_file in \
     $source_path/pc-bios/*.img \
     $source_path/pc-bios/openbios-* \
     $source_path/pc-bios/u-boot.* \
-    $source_path/pc-bios/edk2-*.fd.bz2 \
     $source_path/pc-bios/palcode-* \
     $source_path/pc-bios/qemu_vga.ndrv
 
 do
     LINKS="$LINKS pc-bios/$(basename $bios_file)"
 done
-mkdir -p $DIRS
 for f in $LINKS ; do
     if [ -e "$source_path/$f" ]; then
+        mkdir -p `dirname ./$f`
         symlink "$source_path/$f" "$f"
     fi
 done
@@ -3903,27 +3876,13 @@ if test "$skip_meson" = no; then
   if test "$cross_compile" = "yes"; then
     cross_arg="--cross-file config-meson.cross"
     echo "[host_machine]" >> $cross
-    if test "$mingw32" = "yes" ; then
-        echo "system = 'windows'" >> $cross
-    fi
-    if test "$linux" = "yes" ; then
-        echo "system = 'linux'" >> $cross
-    fi
-    if test "$darwin" = "yes" ; then
-        echo "system = 'darwin'" >> $cross
-    fi
-    case "$ARCH" in
+    echo "system = '$targetos'" >> $cross
+    case "$cpu" in
         i386)
             echo "cpu_family = 'x86'" >> $cross
             ;;
-        x86_64|x32)
-            echo "cpu_family = 'x86_64'" >> $cross
-            ;;
-        ppc64le)
-            echo "cpu_family = 'ppc64'" >> $cross
-            ;;
         *)
-            echo "cpu_family = '$ARCH'" >> $cross
+            echo "cpu_family = '$cpu'" >> $cross
             ;;
     esac
     echo "cpu = '$cpu'" >> $cross

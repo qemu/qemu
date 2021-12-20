@@ -18,12 +18,12 @@ if sphinx_build.found()
   # This is a bit awkward but works: create a trivial document and
   # try to run it with our configuration file (which enforces a
   # version requirement). This will fail if sphinx-build is too old.
-  run_command('mkdir', ['-p', tmpdir / 'sphinx'])
-  run_command('touch', [tmpdir / 'sphinx/index.rst'])
+  run_command('mkdir', ['-p', tmpdir / 'sphinx'], check: true)
+  run_command('touch', [tmpdir / 'sphinx/index.rst'], check: true)
   sphinx_build_test_out = run_command(SPHINX_ARGS + [
     '-c', meson.current_source_dir(),
     '-b', 'html', tmpdir / 'sphinx',
-    tmpdir / 'sphinx/out'])
+    tmpdir / 'sphinx/out'], check: false)
   build_docs = (sphinx_build_test_out.returncode() == 0)
 
   if not build_docs
