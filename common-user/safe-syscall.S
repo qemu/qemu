@@ -10,15 +10,12 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "hostdep.h"
-#include "target_errno_defs.h"
+#include "special-errno.h"
 
 /* We have the correct host directory on our include path
  * so that this will pull in the right fragment for the architecture.
  */
-#ifdef HAVE_SAFE_SYSCALL
 #include "safe-syscall.inc.S"
-#endif
 
 /* We must specifically say that we're happy for the stack to not be
  * executable, otherwise the toolchain will default to assuming our

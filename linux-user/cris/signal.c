@@ -177,10 +177,10 @@ long do_sigreturn(CPUCRISState *env)
 
     restore_sigcontext(&frame->sc, env);
     unlock_user_struct(frame, frame_addr, 0);
-    return -TARGET_QEMU_ESIGRETURN;
+    return -QEMU_ESIGRETURN;
 badframe:
     force_sig(TARGET_SIGSEGV);
-    return -TARGET_QEMU_ESIGRETURN;
+    return -QEMU_ESIGRETURN;
 }
 
 long do_rt_sigreturn(CPUCRISState *env)

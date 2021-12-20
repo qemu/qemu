@@ -407,9 +407,9 @@ void cpu_loop(CPUARMState *env)
                                      env->regs[4],
                                      env->regs[5],
                                      0, 0);
-                    if (ret == -TARGET_ERESTARTSYS) {
+                    if (ret == -QEMU_ERESTARTSYS) {
                         env->regs[15] -= env->thumb ? 2 : 4;
-                    } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+                    } else if (ret != -QEMU_ESIGRETURN) {
                         env->regs[0] = ret;
                     }
                 }

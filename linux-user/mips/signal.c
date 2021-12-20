@@ -281,11 +281,11 @@ long do_sigreturn(CPUMIPSState *regs)
     /* I am not sure this is right, but it seems to work
     * maybe a problem with nested signals ? */
     regs->CP0_EPC = 0;
-    return -TARGET_QEMU_ESIGRETURN;
+    return -QEMU_ESIGRETURN;
 
 badframe:
     force_sig(TARGET_SIGSEGV);
-    return -TARGET_QEMU_ESIGRETURN;
+    return -QEMU_ESIGRETURN;
 }
 # endif /* O32 */
 
@@ -371,11 +371,11 @@ long do_rt_sigreturn(CPUMIPSState *env)
     /* I am not sure this is right, but it seems to work
     * maybe a problem with nested signals ? */
     env->CP0_EPC = 0;
-    return -TARGET_QEMU_ESIGRETURN;
+    return -QEMU_ESIGRETURN;
 
 badframe:
     force_sig(TARGET_SIGSEGV);
-    return -TARGET_QEMU_ESIGRETURN;
+    return -QEMU_ESIGRETURN;
 }
 
 void setup_sigtramp(abi_ulong sigtramp_page)

@@ -98,11 +98,11 @@ void cpu_loop(CPUAlphaState *env)
                                     env->ir[IR_A2], env->ir[IR_A3],
                                     env->ir[IR_A4], env->ir[IR_A5],
                                     0, 0);
-                if (sysret == -TARGET_ERESTARTSYS) {
+                if (sysret == -QEMU_ERESTARTSYS) {
                     env->pc -= 4;
                     break;
                 }
-                if (sysret == -TARGET_QEMU_ESIGRETURN) {
+                if (sysret == -QEMU_ESIGRETURN) {
                     break;
                 }
                 /* Syscall writes 0 to V0 to bypass error check, similar

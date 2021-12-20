@@ -1,7 +1,7 @@
 /*
  * safe-syscall.inc.S : host-specific assembly fragment
  * to handle signals occurring at the same time as system calls.
- * This is intended to be included by linux-user/safe-syscall.S
+ * This is intended to be included by common-user/safe-syscall.S
  *
  * Copyright (C) 2015 Timothy Edward Baldwin <T.E.Baldwin99@members.leeds.ac.uk>
  *
@@ -19,9 +19,6 @@
          * first argument an 'int *' to the signal_pending flag, the
          * second one the system call number (as a 'long'), and all further
          * arguments being syscall arguments (also 'long').
-         * We return a long which is the syscall's return value, which
-         * may be negative-errno on failure. Conversion to the
-         * -1-and-errno-set convention is done by the calling wrapper.
          */
 safe_syscall_base:
         .cfi_startproc
@@ -35,9 +32,9 @@ safe_syscall_base:
         .cfi_adjust_cfa_offset 8
         .cfi_rel_offset rbp, 0
 
-        /* The syscall calling convention isn't the same as the
-         * C one:
-         * we enter with rdi == *signal_pending
+        /*
+         * The syscall calling convention isn't the same as the C one:
+         * we enter with rdi == &signal_pending
          *               rsi == syscall number
          *               rdx, rcx, r8, r9, (stack), (stack) == syscall arguments
          *               and return the result in rax
@@ -67,25 +64,42 @@ safe_syscall_base:
          */
 safe_syscall_start:
         /* if signal_pending is non-zero, don't do the call */
-        cmpl	$0, (%rbp)
-        jnz     1f
+        cmpl    $0, (%rbp)
+        jnz     2f
         syscall
 safe_syscall_end:
+
         /* code path for having successfully executed the syscall */
+#if defined(__linux__)
+        /* Linux kernel returns (small) negative errno. */
+        cmp     $-4095, %rax
+        jae     0f
+#elif defined(__FreeBSD__)
+        /* FreeBSD kernel returns positive errno and C bit set. */
+        jc      1f
+#else
+#error "unsupported os"
+#endif
         pop     %rbp
         .cfi_remember_state
         .cfi_def_cfa_offset 8
         .cfi_restore rbp
         ret
-
-1:
-        /* code path when we didn't execute the syscall */
         .cfi_restore_state
-        mov     $-TARGET_ERESTARTSYS, %rax
-        pop     %rbp
+
+#if defined(__linux__)
+0:      neg     %eax
+        jmp     1f
+#endif
+
+        /* code path when we didn't execute the syscall */
+2:      mov     $QEMU_ERESTARTSYS, %eax
+
+        /* code path setting errno */
+1:      pop     %rbp
         .cfi_def_cfa_offset 8
         .cfi_restore rbp
-        ret
+        jmp     safe_syscall_set_errno_tail
         .cfi_endproc
 
         .size   safe_syscall_base, .-safe_syscall_base

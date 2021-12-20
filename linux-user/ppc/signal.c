@@ -591,13 +591,13 @@ long do_sigreturn(CPUPPCState *env)
 
     unlock_user_struct(sr, sr_addr, 1);
     unlock_user_struct(sc, sc_addr, 1);
-    return -TARGET_QEMU_ESIGRETURN;
+    return -QEMU_ESIGRETURN;
 
 sigsegv:
     unlock_user_struct(sr, sr_addr, 1);
     unlock_user_struct(sc, sc_addr, 1);
     force_sig(TARGET_SIGSEGV);
-    return -TARGET_QEMU_ESIGRETURN;
+    return -QEMU_ESIGRETURN;
 }
 #endif /* !defined(TARGET_PPC64) */
 
@@ -646,12 +646,12 @@ long do_rt_sigreturn(CPUPPCState *env)
     target_restore_altstack(&rt_sf->uc.tuc_stack, env);
 
     unlock_user_struct(rt_sf, rt_sf_addr, 1);
-    return -TARGET_QEMU_ESIGRETURN;
+    return -QEMU_ESIGRETURN;
 
 sigsegv:
     unlock_user_struct(rt_sf, rt_sf_addr, 1);
     force_sig(TARGET_SIGSEGV);
-    return -TARGET_QEMU_ESIGRETURN;
+    return -QEMU_ESIGRETURN;
 }
 
 /* This syscall implements {get,set,swap}context for userland.  */
@@ -704,7 +704,7 @@ abi_long do_swapcontext(CPUArchState *env, abi_ulong uold_ctx,
             /* We cannot return to a partially updated context.  */
             force_sig(TARGET_SIGSEGV);
         }
-        return -TARGET_QEMU_ESIGRETURN;
+        return -QEMU_ESIGRETURN;
     }
 
     return 0;

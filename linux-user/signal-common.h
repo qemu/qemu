@@ -20,6 +20,8 @@
 #ifndef SIGNAL_COMMON_H
 #define SIGNAL_COMMON_H
 
+#include "special-errno.h"
+
 /* Fallback addresses into sigtramp page. */
 extern abi_ulong default_sigreturn;
 extern abi_ulong default_rt_sigreturn;
@@ -76,7 +78,7 @@ abi_long do_swapcontext(CPUArchState *env, abi_ulong uold_ctx,
  * Block all signals, and arrange that the signal mask is returned to
  * its correct value for the guest before we resume execution of guest code.
  * If this function returns non-zero, then the caller should immediately
- * return -TARGET_ERESTARTSYS to the main loop, which will take the pending
+ * return -QEMU_ERESTARTSYS to the main loop, which will take the pending
  * signal and restart execution of the syscall.
  * If block_signals() returns zero, then the caller can continue with
  * emulation of the system call knowing that no signals can be taken

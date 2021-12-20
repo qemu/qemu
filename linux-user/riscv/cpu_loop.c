@@ -69,9 +69,9 @@ void cpu_loop(CPURISCVState *env)
                                  env->gpr[xA5],
                                  0, 0);
             }
-            if (ret == -TARGET_ERESTARTSYS) {
+            if (ret == -QEMU_ERESTARTSYS) {
                 env->pc -= 4;
-            } else if (ret != -TARGET_QEMU_ESIGRETURN) {
+            } else if (ret != -QEMU_ESIGRETURN) {
                 env->gpr[xA0] = ret;
             }
             if (cs->singlestep_enabled) {

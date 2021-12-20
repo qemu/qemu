@@ -25,10 +25,10 @@
  *
  * Call a system call if guest signal not pending.
  * This has the same API as the libc syscall() function, except that it
- * may return -1 with errno == TARGET_ERESTARTSYS if a signal was pending.
+ * may return -1 with errno == QEMU_ERESTARTSYS if a signal was pending.
  *
  * Returns: the system call result, or -1 with an error code in errno
- * (Errnos are host errnos; we rely on TARGET_ERESTARTSYS not clashing
+ * (Errnos are host errnos; we rely on QEMU_ERESTARTSYS not clashing
  * with any of the host errno values.)
  */
 
@@ -81,7 +81,7 @@
  * which are only technically blocking (ie which we know in practice won't
  * stay in the host kernel indefinitely) it's OK to use libc if necessary.
  * You must be able to cope with backing out correctly if some safe_syscall
- * you make in the implementation returns either -TARGET_ERESTARTSYS or
+ * you make in the implementation returns either -QEMU_ERESTARTSYS or
  * EINTR though.)
  *
  * block_signals() cannot be used for interruptible syscalls.
@@ -94,7 +94,7 @@
  * handler checks the interrupted host PC against the addresse of that
  * known section. If the PC is before or at the address of the syscall
  * instruction then we change the PC to point at a "return
- * -TARGET_ERESTARTSYS" code path instead, and then exit the signal handler
+ * -QEMU_ERESTARTSYS" code path instead, and then exit the signal handler
  * (causing the safe_syscall() call to immediately return that value).
  * Then in the main.c loop if we see this magic return value we adjust
  * the guest PC to wind it back to before the system call, and invoke
@@ -124,34 +124,17 @@
  * need to check SA_RESTART flags in QEMU or distinguish the various
  * kinds of restartability.
  */
-#ifdef HAVE_SAFE_SYSCALL
+
 /* The core part of this function is implemented in assembly */
 extern long safe_syscall_base(int *pending, long number, ...);
+extern long safe_syscall_set_errno_tail(int value);
+
 /* These are defined by the safe-syscall.inc.S file */
 extern char safe_syscall_start[];
 extern char safe_syscall_end[];
 
-#define safe_syscall(...)                                               \
-    ({                                                                  \
-        long ret_;                                                      \
-        int *psp_ = &((TaskState *)thread_cpu->opaque)->signal_pending; \
-        ret_ = safe_syscall_base(psp_, __VA_ARGS__);                    \
-        if (is_error(ret_)) {                                           \
-            errno = -ret_;                                              \
-            ret_ = -1;                                                  \
-        }                                                               \
-        ret_;                                                           \
-    })
-
-#else
-
-/*
- * Fallback for architectures which don't yet provide a safe-syscall assembly
- * fragment; note that this is racy!
- * This should go away when all host architectures have been updated.
- */
-#define safe_syscall syscall
-
-#endif
+#define safe_syscall(...)                                                 \
+    safe_syscall_base(&((TaskState *)thread_cpu->opaque)->signal_pending, \
+                      __VA_ARGS__)
 
 #endif
