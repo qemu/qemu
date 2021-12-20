@@ -28,12 +28,7 @@ static void test_mirror(void)
     char *recv_buf;
     uint32_t size = sizeof(send_buf);
     size = htonl(size);
-    const char *devstr = "e1000";
     QTestState *qts;
-
-    if (g_str_equal(qtest_get_arch(), "s390x")) {
-        devstr = "virtio-net-ccw";
-    }
 
     ret = socketpair(PF_UNIX, SOCK_STREAM, 0, send_sock);
     g_assert_cmpint(ret, !=, -1);
@@ -42,11 +37,10 @@ static void test_mirror(void)
     g_assert_cmpint(ret, !=, -1);
 
     qts = qtest_initf(
-        "-netdev socket,id=qtest-bn0,fd=%d "
-        "-device %s,netdev=qtest-bn0,id=qtest-e0 "
+        "-nic socket,id=qtest-bn0,fd=%d "
         "-chardev socket,id=mirror0,fd=%d "
         "-object filter-mirror,id=qtest-f0,netdev=qtest-bn0,queue=tx,outdev=mirror0 "
-        , send_sock[1], devstr, recv_sock[1]);
+        , send_sock[1], recv_sock[1]);
 
     struct iovec iov[] = {
         {
