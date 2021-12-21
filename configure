@@ -631,6 +631,8 @@ elif check_define __arm__ ; then
   cpu="arm"
 elif check_define __aarch64__ ; then
   cpu="aarch64"
+elif check_define __loongarch64 ; then
+  cpu="loongarch64"
 else
   cpu=$(uname -m)
 fi
@@ -3719,6 +3721,9 @@ if test "$linux" = "yes" ; then
     ;;
   aarch64)
     linux_arch=arm64
+    ;;
+  loongarch*)
+    linux_arch=loongarch
     ;;
   mips64)
     linux_arch=mips
