@@ -2987,6 +2987,7 @@ F: docs/colo-proxy.txt
 F: net/colo*
 F: net/filter-rewriter.c
 F: net/filter-mirror.c
+F: tests/qtest/test-filter*
 
 Record/replay
 M: Pavel Dovgalyuk <pavel.dovgaluk@ispras.ru>
