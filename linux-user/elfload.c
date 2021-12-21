@@ -1099,6 +1099,47 @@ static void init_thread(struct target_pt_regs *regs, struct image_info *infop)
     regs->estatus = 0x3;
 }
 
+#define LO_COMMPAGE  TARGET_PAGE_SIZE
+
+static bool init_guest_commpage(void)
+{
+    static const uint8_t kuser_page[4 + 2 * 64] = {
+        /* __kuser_helper_version */
+        [0x00] = 0x02, 0x00, 0x00, 0x00,
+
+        /* __kuser_cmpxchg */
+        [0x04] = 0x3a, 0x6c, 0x3b, 0x00,  /* trap 16 */
+                 0x3a, 0x28, 0x00, 0xf8,  /* ret */
+
+        /* __kuser_sigtramp */
+        [0x44] = 0xc4, 0x22, 0x80, 0x00,  /* movi r2, __NR_rt_sigreturn */
+                 0x3a, 0x68, 0x3b, 0x00,  /* trap 0 */
+    };
+
+    void *want = g2h_untagged(LO_COMMPAGE & -qemu_host_page_size);
+    void *addr = mmap(want, qemu_host_page_size, PROT_READ | PROT_WRITE,
+                      MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
+
+    if (addr == MAP_FAILED) {
+        perror("Allocating guest commpage");
+        exit(EXIT_FAILURE);
+    }
+    if (addr != want) {
+        return false;
+    }
+
+    memcpy(addr, kuser_page, sizeof(kuser_page));
+
+    if (mprotect(addr, qemu_host_page_size, PROT_READ)) {
+        perror("Protecting guest commpage");
+        exit(EXIT_FAILURE);
+    }
+
+    page_set_flags(LO_COMMPAGE, LO_COMMPAGE + TARGET_PAGE_SIZE,
+                   PAGE_READ | PAGE_EXEC | PAGE_VALID);
+    return true;
+}
+
 #define ELF_EXEC_PAGESIZE        4096
 
 #define USE_ELF_CORE_DUMP
@@ -2160,8 +2201,13 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     return sp;
 }
 
-#ifndef HI_COMMPAGE
+#if defined(HI_COMMPAGE)
+#define LO_COMMPAGE 0
+#elif defined(LO_COMMPAGE)
 #define HI_COMMPAGE 0
+#else
+#define HI_COMMPAGE 0
+#define LO_COMMPAGE 0
 #define init_guest_commpage() true
 #endif
 
@@ -2374,6 +2420,8 @@ static void pgb_static(const char *image_name, abi_ulong orig_loaddr,
         } else {
             offset = -(HI_COMMPAGE & -align);
         }
+    } else if (LO_COMMPAGE) {
+        loaddr = MIN(loaddr, LO_COMMPAGE & -align);
     }
 
     addr = pgb_find_hole(loaddr, hiaddr - loaddr, align, offset);
