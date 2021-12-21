@@ -68,6 +68,8 @@ option('multiprocess', type: 'feature', value: 'auto',
        description: 'Out of process device emulation support')
 option('dbus_display', type: 'feature', value: 'auto',
        description: '-display dbus support')
+option('tpm', type : 'feature', value : 'auto',
+       description: 'TPM support')
 
 # Do not enable it by default even for Mingw32, because it doesn't
 # work on Wine.

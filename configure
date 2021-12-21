@@ -330,7 +330,6 @@ coroutine=""
 coroutine_pool="$default_feature"
 debug_stack_usage="no"
 tls_priority="NORMAL"
-tpm="$default_feature"
 live_block_migration=${default_feature:-yes}
 replication=${default_feature:-yes}
 bochs=${default_feature:-yes}
@@ -1039,10 +1038,6 @@ for opt do
   ;;
   --disable-pvrdma) pvrdma="no"
   ;;
-  --disable-tpm) tpm="no"
-  ;;
-  --enable-tpm) tpm="yes"
-  ;;
   --disable-live-block-migration) live_block_migration="no"
   ;;
   --enable-live-block-migration) live_block_migration="yes"
@@ -1378,7 +1373,6 @@ cat << EOF
   vhost-vdpa      vhost-vdpa kernel backend support
   live-block-migration   Block migration in the main migration stream
   coroutine-pool  coroutine freelist (better performance)
-  tpm             TPM support
   replication     replication support
   opengl          opengl support
   qom-cast-debug  cast debugging support
@@ -2396,21 +2390,6 @@ if test "$modules" = yes; then
 fi
 
 ##########################################
-# TPM emulation is only on POSIX
-
-if test "$tpm" = ""; then
-  if test "$mingw32" = "yes"; then
-    tpm=no
-  else
-    tpm=yes
-  fi
-elif test "$tpm" = "yes"; then
-  if test "$mingw32" = "yes" ; then
-    error_exit "TPM emulation only available on POSIX systems"
-  fi
-fi
-
-##########################################
 # fdt probe
 
 case "$fdt" in
@@ -3272,10 +3251,6 @@ fi
 
 if test "$live_block_migration" = "yes" ; then
   echo "CONFIG_LIVE_BLOCK_MIGRATION=y" >> $config_host_mak
-fi
-
-if test "$tpm" = "yes"; then
-  echo 'CONFIG_TPM=y' >> $config_host_mak
 fi
 
 if test "$rdma" = "yes" ; then

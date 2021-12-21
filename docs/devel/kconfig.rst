@@ -301,7 +301,7 @@ and also listed as follows in the top-level meson.build's host_kconfig
 variable::
 
     host_kconfig = \
-      ('CONFIG_TPM' in config_host ? ['CONFIG_TPM=y'] : []) + \
+      (have_tpm ? ['CONFIG_TPM=y'] : []) + \
       ('CONFIG_SPICE' in config_host ? ['CONFIG_SPICE=y'] : []) + \
       (have_ivshmem ? ['CONFIG_IVSHMEM=y'] : []) + \
       ...
