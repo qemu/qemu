@@ -168,8 +168,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     target_save_altstack(&frame->uc.tuc_stack, env);
     rt_setup_ucontext(&frame->uc, env);
     for (i = 0; i < TARGET_NSIG_WORDS; i++) {
-        __put_user((abi_ulong)set->sig[i],
-                   (abi_ulong *)&frame->uc.tuc_sigmask.sig[i]);
+        __put_user(set->sig[i], &frame->uc.tuc_sigmask.sig[i]);
     }
 
     /* Set up to return from userspace; jump to fixed address sigreturn
