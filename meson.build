@@ -1164,13 +1164,27 @@ if lzo.found() and not cc.links('''
   endif
 endif
 
+numa = not_found
+if not get_option('numa').auto() or have_system or have_tools
+  numa = cc.find_library('numa', has_headers: ['numa.h'],
+                              required: get_option('numa'),
+                              kwargs: static_kwargs)
+endif
+if numa.found() and not cc.links('''
+   #include <numa.h>
+   int main(void) { return numa_available(); }
+   ''', dependencies: numa)
+  numa = not_found
+  if get_option('numa').enabled()
+    error('could not link numa')
+  else
+    warning('could not link numa, disabling')
+  endif
+endif
+
 rdma = not_found
 if 'CONFIG_RDMA' in config_host
   rdma = declare_dependency(link_args: config_host['RDMA_LIBS'].split())
-endif
-numa = not_found
-if 'CONFIG_NUMA' in config_host
-  numa = declare_dependency(link_args: config_host['NUMA_LIBS'].split())
 endif
 xen = not_found
 if 'CONFIG_XEN_BACKEND' in config_host
@@ -1472,6 +1486,7 @@ config_host_data.set('CONFIG_LIBSSH', libssh.found())
 config_host_data.set('CONFIG_LINUX_AIO', libaio.found())
 config_host_data.set('CONFIG_LINUX_IO_URING', linux_io_uring.found())
 config_host_data.set('CONFIG_LIBPMEM', libpmem.found())
+config_host_data.set('CONFIG_NUMA', numa.found())
 config_host_data.set('CONFIG_RBD', rbd.found())
 config_host_data.set('CONFIG_SDL', sdl.found())
 config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
@@ -3548,7 +3563,7 @@ summary_info += {'snappy support':    snappy}
 summary_info += {'bzip2 support':     libbzip2}
 summary_info += {'lzfse support':     liblzfse}
 summary_info += {'zstd support':      zstd}
-summary_info += {'NUMA host support': config_host.has_key('CONFIG_NUMA')}
+summary_info += {'NUMA host support': numa}
 summary_info += {'capstone':          capstone_opt == 'internal' ? capstone_opt : capstone}
 summary_info += {'libpmem support':   libpmem}
 summary_info += {'libdaxctl support': libdaxctl}

@@ -103,6 +103,8 @@ option('libnfs', type : 'feature', value : 'auto',
        description: 'libnfs block device driver')
 option('mpath', type : 'feature', value : 'auto',
        description: 'Multipath persistent reservation passthrough')
+option('numa', type : 'feature', value : 'auto',
+       description: 'libnuma support')
 option('iconv', type : 'feature', value : 'auto',
        description: 'Font glyph conversion support')
 option('curses', type : 'feature', value : 'auto',

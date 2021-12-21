@@ -332,7 +332,6 @@ debug_stack_usage="no"
 tls_priority="NORMAL"
 tpm="$default_feature"
 live_block_migration=${default_feature:-yes}
-numa="$default_feature"
 replication=${default_feature:-yes}
 bochs=${default_feature:-yes}
 cloop=${default_feature:-yes}
@@ -1048,10 +1047,6 @@ for opt do
   ;;
   --enable-live-block-migration) live_block_migration="yes"
   ;;
-  --disable-numa) numa="no"
-  ;;
-  --enable-numa) numa="yes"
-  ;;
   --disable-replication) replication="no"
   ;;
   --enable-replication) replication="yes"
@@ -1384,7 +1379,6 @@ cat << EOF
   live-block-migration   Block migration in the main migration stream
   coroutine-pool  coroutine freelist (better performance)
   tpm             TPM support
-  numa            libnuma support
   replication     replication support
   opengl          opengl support
   qom-cast-debug  cast debugging support
@@ -2455,26 +2449,6 @@ EOF
   fi
 fi
 
-##########################################
-# libnuma probe
-
-if test "$numa" != "no" ; then
-  cat > $TMPC << EOF
-#include <numa.h>
-int main(void) { return numa_available(); }
-EOF
-
-  if compile_prog "" "-lnuma" ; then
-    numa=yes
-    numa_libs="-lnuma"
-  else
-    if test "$numa" = "yes" ; then
-      feature_not_found "numa" "install numactl devel"
-    fi
-    numa=no
-  fi
-fi
-
 # check for usbfs
 have_usbfs=no
 if test "$linux_user" = "yes"; then
@@ -3440,11 +3414,6 @@ done
 echo "CONFIG_QEMU_INTERP_PREFIX=$interp_prefix" | sed 's/%M/@0@/' >> $config_host_mak
 if test "$default_targets" = "yes"; then
   echo "CONFIG_DEFAULT_TARGETS=y" >> $config_host_mak
-fi
-
-if test "$numa" = "yes"; then
-  echo "CONFIG_NUMA=y" >> $config_host_mak
-  echo "NUMA_LIBS=$numa_libs" >> $config_host_mak
 fi
 
 if test "$ccache_cpp2" = "yes"; then
