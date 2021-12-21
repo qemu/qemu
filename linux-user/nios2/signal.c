@@ -205,7 +205,7 @@ long do_rt_sigreturn(CPUNios2State *env)
     }
 
     target_to_host_sigset(&set, &frame->uc.tuc_sigmask);
-    do_sigprocmask(SIG_SETMASK, &set, NULL);
+    set_sigmask(&set);
 
     if (rt_restore_ucontext(env, &frame->uc, &rval)) {
         goto badframe;
