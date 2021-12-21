@@ -155,9 +155,6 @@ void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
     env->regs[R_SP] = regs->sp;
     env->regs[R_GP] = regs->gp;
     env->regs[CR_ESTATUS] = regs->estatus;
-    env->regs[R_EA] = regs->ea;
-    /* TODO: unsigned long  orig_r7; */
-
-    /* Emulate eret when starting thread. */
     env->regs[R_PC] = regs->ea;
+    /* TODO: unsigned long  orig_r7; */
 }
