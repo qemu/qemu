@@ -14,8 +14,8 @@
 # Allow client connections for VNC, Spice and socket based
 # character devices to be passed in to QEMU via SCM_RIGHTS.
 #
-# @protocol: protocol name. Valid names are "vnc", "spice" or the
-#            name of a character device (eg. from -chardev id=XXXX)
+# @protocol: protocol name. Valid names are "vnc", "spice", "@dbus-display" or
+#            the name of a character device (eg. from -chardev id=XXXX)
 #
 # @fdname: file descriptor name previously passed via 'getfd' command
 #

@@ -17,6 +17,14 @@
 
 #include "spice/vd_agent.h"
 
+#define CHECK_SPICE_PROTOCOL_VERSION(major, minor, micro) \
+    (CONFIG_SPICE_PROTOCOL_MAJOR > (major) ||             \
+     (CONFIG_SPICE_PROTOCOL_MAJOR == (major) &&           \
+      CONFIG_SPICE_PROTOCOL_MINOR > (minor)) ||           \
+     (CONFIG_SPICE_PROTOCOL_MAJOR == (major) &&           \
+      CONFIG_SPICE_PROTOCOL_MINOR == (minor) &&           \
+      CONFIG_SPICE_PROTOCOL_MICRO >= (micro)))
+
 #define VDAGENT_BUFFER_LIMIT (1 * MiB)
 #define VDAGENT_MOUSE_DEFAULT true
 #define VDAGENT_CLIPBOARD_DEFAULT false
@@ -51,6 +59,7 @@ struct VDAgentChardev {
 
     /* clipboard */
     QemuClipboardPeer cbpeer;
+    uint32_t last_serial[QEMU_CLIPBOARD_SELECTION__COUNT];
     uint32_t cbpending[QEMU_CLIPBOARD_SELECTION__COUNT];
 };
 typedef struct VDAgentChardev VDAgentChardev;
@@ -79,8 +88,10 @@ static const char *cap_name[] = {
     [VD_AGENT_CAP_MONITORS_CONFIG_POSITION]       = "monitors-config-position",
     [VD_AGENT_CAP_FILE_XFER_DISABLED]             = "file-xfer-disabled",
     [VD_AGENT_CAP_FILE_XFER_DETAILED_ERRORS]      = "file-xfer-detailed-errors",
-#if 0
+#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 0)
     [VD_AGENT_CAP_GRAPHICS_DEVICE_INFO]           = "graphics-device-info",
+#endif
+#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 1)
     [VD_AGENT_CAP_CLIPBOARD_NO_RELEASE_ON_REGRAB] = "clipboard-no-release-on-regrab",
     [VD_AGENT_CAP_CLIPBOARD_GRAB_SERIAL]          = "clipboard-grab-serial",
 #endif
@@ -102,7 +113,7 @@ static const char *msg_name[] = {
     [VD_AGENT_CLIENT_DISCONNECTED]   = "client-disconnected",
     [VD_AGENT_MAX_CLIPBOARD]         = "max-clipboard",
     [VD_AGENT_AUDIO_VOLUME_SYNC]     = "audio-volume-sync",
-#if 0
+#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 0)
     [VD_AGENT_GRAPHICS_DEVICE_INFO]  = "graphics-device-info",
 #endif
 };
@@ -120,7 +131,7 @@ static const char *type_name[] = {
     [VD_AGENT_CLIPBOARD_IMAGE_BMP]  = "bmp",
     [VD_AGENT_CLIPBOARD_IMAGE_TIFF] = "tiff",
     [VD_AGENT_CLIPBOARD_IMAGE_JPG]  = "jpg",
-#if 0
+#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 3)
     [VD_AGENT_CLIPBOARD_FILE_LIST]  = "files",
 #endif
 };
@@ -193,6 +204,9 @@ static void vdagent_send_caps(VDAgentChardev *vd)
     if (vd->clipboard) {
         caps->caps[0] |= (1 << VD_AGENT_CAP_CLIPBOARD_BY_DEMAND);
         caps->caps[0] |= (1 << VD_AGENT_CAP_CLIPBOARD_SELECTION);
+#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 1)
+        caps->caps[0] |= (1 << VD_AGENT_CAP_CLIPBOARD_GRAB_SERIAL);
+#endif
     }
 
     vdagent_send_msg(vd, msg);
@@ -323,7 +337,8 @@ static void vdagent_send_clipboard_grab(VDAgentChardev *vd,
 {
     g_autofree VDAgentMessage *msg =
         g_malloc0(sizeof(VDAgentMessage) +
-                  sizeof(uint32_t) * (QEMU_CLIPBOARD_TYPE__COUNT + 1));
+                  sizeof(uint32_t) * (QEMU_CLIPBOARD_TYPE__COUNT + 1) +
+                  sizeof(uint32_t));
     uint8_t *s = msg->data;
     uint32_t *data = (uint32_t *)msg->data;
     uint32_t q, type;
@@ -335,6 +350,19 @@ static void vdagent_send_clipboard_grab(VDAgentChardev *vd,
     } else if (info->selection != QEMU_CLIPBOARD_SELECTION_CLIPBOARD) {
         return;
     }
+
+#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 1)
+    if (vd->caps & (1 << VD_AGENT_CAP_CLIPBOARD_GRAB_SERIAL)) {
+        if (!info->has_serial) {
+            /* client should win */
+            info->serial = vd->last_serial[info->selection]++;
+            info->has_serial = true;
+        }
+        *data = info->serial;
+        data++;
+        msg->size += sizeof(uint32_t);
+    }
+#endif
 
     for (q = 0; q < QEMU_CLIPBOARD_TYPE__COUNT; q++) {
         type = type_qemu_to_vdagent(q);
@@ -407,10 +435,9 @@ static void vdagent_send_empty_clipboard_data(VDAgentChardev *vd,
     vdagent_send_clipboard_data(vd, info, type);
 }
 
-static void vdagent_clipboard_notify(Notifier *notifier, void *data)
+static void vdagent_clipboard_update_info(VDAgentChardev *vd,
+                                          QemuClipboardInfo *info)
 {
-    VDAgentChardev *vd = container_of(notifier, VDAgentChardev, cbpeer.update);
-    QemuClipboardInfo *info = data;
     QemuClipboardSelection s = info->selection;
     QemuClipboardType type;
     bool self_update = info->owner == &vd->cbpeer;
@@ -436,6 +463,31 @@ static void vdagent_clipboard_notify(Notifier *notifier, void *data)
             vd->cbpending[s] &= ~(1 << type);
             vdagent_send_clipboard_data(vd, info, type);
         }
+    }
+}
+
+static void vdagent_clipboard_reset_serial(VDAgentChardev *vd)
+{
+    Chardev *chr = CHARDEV(vd);
+
+    /* reopen the agent connection to reset the serial state */
+    qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+}
+
+static void vdagent_clipboard_notify(Notifier *notifier, void *data)
+{
+    VDAgentChardev *vd =
+        container_of(notifier, VDAgentChardev, cbpeer.notifier);
+    QemuClipboardNotify *notify = data;
+
+    switch (notify->type) {
+    case QEMU_CLIPBOARD_UPDATE_INFO:
+        vdagent_clipboard_update_info(vd, notify->info);
+        return;
+    case QEMU_CLIPBOARD_RESET_SERIAL:
+        vdagent_clipboard_reset_serial(vd);
+        return;
     }
 }
 
@@ -472,6 +524,24 @@ static void vdagent_clipboard_recv_grab(VDAgentChardev *vd, uint8_t s, uint32_t 
 
     trace_vdagent_cb_grab_selection(GET_NAME(sel_name, s));
     info = qemu_clipboard_info_new(&vd->cbpeer, s);
+#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 1)
+    if (vd->caps & (1 << VD_AGENT_CAP_CLIPBOARD_GRAB_SERIAL)) {
+        if (size < sizeof(uint32_t)) {
+            /* this shouldn't happen! */
+            return;
+        }
+
+        info->has_serial = true;
+        info->serial = *(uint32_t *)data;
+        if (info->serial < vd->last_serial[s]) {
+            /* discard lower-ordering guest grab */
+            return;
+        }
+        vd->last_serial[s] = info->serial;
+        data += sizeof(uint32_t);
+        size -= sizeof(uint32_t);
+    }
+#endif
     if (size > sizeof(uint32_t) * 10) {
         /*
          * spice has 6 types as of 2021. Limiting to 10 entries
@@ -648,9 +718,10 @@ static void vdagent_chr_recv_caps(VDAgentChardev *vd, VDAgentMessage *msg)
     if (have_mouse(vd) && vd->mouse_hs) {
         qemu_input_handler_activate(vd->mouse_hs);
     }
-    if (have_clipboard(vd) && vd->cbpeer.update.notify == NULL) {
+    if (have_clipboard(vd) && vd->cbpeer.notifier.notify == NULL) {
+        memset(vd->last_serial, 0, sizeof(vd->last_serial));
         vd->cbpeer.name = "vdagent";
-        vd->cbpeer.update.notify = vdagent_clipboard_notify;
+        vd->cbpeer.notifier.notify = vdagent_clipboard_notify;
         vd->cbpeer.request = vdagent_clipboard_request;
         qemu_clipboard_peer_register(&vd->cbpeer);
     }
@@ -789,7 +860,7 @@ static void vdagent_disconnect(VDAgentChardev *vd)
     if (vd->mouse_hs) {
         qemu_input_handler_deactivate(vd->mouse_hs);
     }
-    if (vd->cbpeer.update.notify) {
+    if (vd->cbpeer.notifier.notify) {
         qemu_clipboard_peer_unregister(&vd->cbpeer);
         memset(&vd->cbpeer, 0, sizeof(vd->cbpeer));
     }
@@ -797,11 +868,8 @@ static void vdagent_disconnect(VDAgentChardev *vd)
 
 static void vdagent_chr_set_fe_open(struct Chardev *chr, int fe_open)
 {
-    VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(chr);
-
     if (!fe_open) {
         trace_vdagent_close();
-        vdagent_disconnect(vd);
         return;
     }
 

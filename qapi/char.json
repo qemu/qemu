@@ -359,6 +359,20 @@
   'if': 'CONFIG_SPICE' }
 
 ##
+# @ChardevDBus:
+#
+# Configuration info for DBus chardevs.
+#
+# @name: name of the channel (following docs/spice-port-fqdn.txt)
+#
+# Since: 7.0
+##
+{ 'struct': 'ChardevDBus',
+  'data': { 'name': 'str' },
+  'base': 'ChardevCommon',
+  'if': 'CONFIG_DBUS_DISPLAY' }
+
+##
 # @ChardevVC:
 #
 # Configuration info for virtual console chardevs.
@@ -422,6 +436,7 @@
 # @spicevmc: Since 1.5
 # @spiceport: Since 1.5
 # @qemu-vdagent: Since 6.1
+# @dbus: Since 7.0
 # @vc: v1.5
 # @ringbuf: Since 1.6
 # @memory: Since 1.5
@@ -447,6 +462,7 @@
             { 'name': 'spicevmc', 'if': 'CONFIG_SPICE' },
             { 'name': 'spiceport', 'if': 'CONFIG_SPICE' },
             { 'name': 'qemu-vdagent', 'if': 'CONFIG_SPICE_PROTOCOL' },
+            { 'name': 'dbus', 'if': 'CONFIG_DBUS_DISPLAY' },
             'vc',
             'ringbuf',
             # next one is just for compatibility
@@ -536,6 +552,15 @@
   'if': 'CONFIG_SPICE_PROTOCOL' }
 
 ##
+# @ChardevDBusWrapper:
+#
+# Since: 7.0
+##
+{ 'struct': 'ChardevDBusWrapper',
+  'data': { 'data': 'ChardevDBus' },
+  'if': 'CONFIG_DBUS_DISPLAY' }
+
+##
 # @ChardevVCWrapper:
 #
 # Since: 1.5
@@ -582,6 +607,8 @@
                            'if': 'CONFIG_SPICE' },
             'qemu-vdagent': { 'type': 'ChardevQemuVDAgentWrapper',
                               'if': 'CONFIG_SPICE_PROTOCOL' },
+            'dbus': { 'type': 'ChardevDBusWrapper',
+                      'if': 'CONFIG_DBUS_DISPLAY' },
             'vc': 'ChardevVCWrapper',
             'ringbuf': 'ChardevRingbufWrapper',
             # next one is just for compatibility

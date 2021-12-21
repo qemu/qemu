@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
+  <!--
+      org.qemu.VMState1:
+
+      This interface must be implemented at the object path
+      ``/org/qemu/VMState1`` to support helper migration.
+  -->
+  <interface name="org.qemu.VMState1">
+
+    <!--
+        Id:
+
+        A string that identifies the helper uniquely. (maximum 256 bytes
+        including terminating NUL byte)
+
+        .. note::
+
+           The VMState helper ID namespace is its own namespace. In particular,
+           it is not related to QEMU "id" used in -object/-device objects.
+    -->
+    <property name="Id" type="s" access="read"/>
+
+    <!--
+        Load:
+        @data: data to restore the state.
+
+        The method called on destination with the state to restore.
+
+        The helper may be initially started in a waiting state (with an
+        ``-incoming`` argument for example), and it may resume on success.
+
+        An error may be returned to the caller.
+    -->
+    <method name="Load">
+      <arg type="ay" name="data" direction="in"/>
+    </method>
+
+    <!--
+        Save:
+        @data: state data to save for later resume.
+
+        The method called on the source to get the current state to be
+        migrated. The helper should continue to run normally.
+
+        An error may be returned to the caller.
+    -->
+    <method name="Save">
+      <arg type="ay" name="data" direction="out"/>
+    </method>
+  </interface>
+</node>

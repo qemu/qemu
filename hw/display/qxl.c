@@ -2171,12 +2171,17 @@ static void qxl_realize_common(PCIQXLDevice *qxl, Error **errp)
     }
 
 #if SPICE_SERVER_VERSION >= 0x000e02 /* release 0.14.2 */
+    Error *err = NULL;
     char device_address[256] = "";
-    if (qemu_spice_fill_device_address(qxl->vga.con, device_address, 256)) {
+    if (qemu_console_fill_device_address(qxl->vga.con,
+                                         device_address, sizeof(device_address),
+                                         &err)) {
         spice_qxl_set_device_info(&qxl->ssd.qxl,
                                   device_address,
                                   0,
                                   qxl->max_outputs);
+    } else {
+        error_report_err(err);
     }
 #endif
 

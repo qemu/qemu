@@ -1121,6 +1121,30 @@
 { 'struct'  : 'DisplayEGLHeadless',
   'data'    : { '*rendernode' : 'str' } }
 
+##
+# @DisplayDBus:
+#
+# DBus display options.
+#
+# @addr: The D-Bus bus address (default to the session bus).
+#
+# @rendernode: Which DRM render node should be used. Default is the first
+#              available node on the host.
+#
+# @p2p: Whether to use peer-to-peer connections (accepted through
+#       ``add_client``).
+#
+# @audiodev: Use the specified DBus audiodev to export audio.
+#
+# Since: 7.0
+#
+##
+{ 'struct'  : 'DisplayDBus',
+  'data'    : { '*rendernode' : 'str',
+                '*addr': 'str',
+                '*p2p': 'bool',
+                '*audiodev': 'str' } }
+
  ##
  # @DisplayGLMode:
  #
@@ -1186,6 +1210,8 @@
 #             application to connect to it. The server will redirect
 #             the serial console and QEMU monitors. (Since 4.0)
 #
+# @dbus: Start a D-Bus service for the display. (Since 7.0)
+#
 # Since: 2.12
 #
 ##
@@ -1199,7 +1225,10 @@
               'if': { 'all': ['CONFIG_OPENGL', 'CONFIG_GBM'] } },
     { 'name': 'curses', 'if': 'CONFIG_CURSES' },
     { 'name': 'cocoa', 'if': 'CONFIG_COCOA' },
-    { 'name': 'spice-app', 'if': 'CONFIG_SPICE'} ] }
+    { 'name': 'spice-app', 'if': 'CONFIG_SPICE' },
+    { 'name': 'dbus', 'if': 'CONFIG_DBUS_DISPLAY' }
+  ]
+}
 
 ##
 # @DisplayOptions:
@@ -1227,7 +1256,8 @@
       'gtk': { 'type': 'DisplayGTK', 'if': 'CONFIG_GTK' },
       'curses': { 'type': 'DisplayCurses', 'if': 'CONFIG_CURSES' },
       'egl-headless': { 'type': 'DisplayEGLHeadless',
-                        'if': { 'all': ['CONFIG_OPENGL', 'CONFIG_GBM'] } }
+                        'if': { 'all': ['CONFIG_OPENGL', 'CONFIG_GBM'] } },
+      'dbus': { 'type': 'DisplayDBus', 'if': 'CONFIG_DBUS_DISPLAY' }
   }
 }
 

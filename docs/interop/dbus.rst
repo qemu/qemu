@@ -108,3 +108,5 @@ QEMU Interfaces
 ===============
 
 :doc:`dbus-vmstate`
+
+:doc:`dbus-display`

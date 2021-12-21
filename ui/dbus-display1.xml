@@ -1,0 +1,761 @@
+<?xml version="1.0" encoding="utf-8"?>
+<node>
+  <!--
+      org.qemu.Display1.VM:
+
+      This interface is implemented on ``/org/qemu/Display1/VM``.
+  -->
+  <interface name="org.qemu.Display1.VM">
+    <!--
+        Name:
+
+        The name of the VM.
+    -->
+    <property name="Name" type="s" access="read"/>
+
+    <!--
+        UUID:
+
+        The UUID of the VM.
+    -->
+    <property name="UUID" type="s" access="read"/>
+
+    <!--
+        ConsoleIDs:
+
+        The list of consoles available on ``/org/qemu/Display1/Console_$id``.
+    -->
+    <property name="ConsoleIDs" type="au" access="read"/>
+  </interface>
+
+  <!--
+      org.qemu.Display1.Console:
+
+      This interface is implemented on ``/org/qemu/Display1/Console_$id``. You
+      may discover available consoles through introspection or with the
+      :dbus:prop:`org.qemu.Display1.VM.ConsoleIDs` property.
+
+      A console is attached to a video device head. It may be "Graphic" or
+      "Text" (see :dbus:prop:`Type` and other properties).
+
+      Interactions with a console may be done with
+      :dbus:iface:`org.qemu.Display1.Keyboard` and
+      :dbus:iface:`org.qemu.Display1.Mouse` interfaces when available.
+  -->
+  <interface name="org.qemu.Display1.Console">
+    <!--
+        RegisterListener:
+        @listener: a Unix socket FD, for peer-to-peer D-Bus communication.
+
+        Register a console listener, which will receive display updates, until
+        it is disconnected.
+
+        Multiple listeners may be registered simultaneously.
+
+        The listener is expected to implement the
+        :dbus:iface:`org.qemu.Display1.Listener` interface.
+    -->
+    <method name="RegisterListener">
+      <arg type="h" name="listener" direction="in"/>
+    </method>
+
+    <!--
+        SetUIInfo:
+        @width_mm: the physical display width in millimeters.
+        @height_mm: the physical display height in millimeters.
+        @xoff: horizontal offset, in pixels.
+        @yoff: vertical offset, in pixels.
+        @width: console width, in pixels.
+        @height: console height, in pixels.
+
+        Modify the dimensions and display settings.
+    -->
+    <method name="SetUIInfo">
+      <arg name="width_mm" type="q" direction="in"/>
+      <arg name="height_mm" type="q" direction="in"/>
+      <arg name="xoff" type="i" direction="in"/>
+      <arg name="yoff" type="i" direction="in"/>
+      <arg name="width" type="u" direction="in"/>
+      <arg name="height" type="u" direction="in"/>
+    </method>
+
+    <!--
+        Label:
+
+        A user-friendly name for the console (for ex: "VGA").
+    -->
+    <property name="Label" type="s" access="read"/>
+
+    <!--
+        Head:
+
+        Graphical device head number.
+    -->
+    <property name="Head" type="u" access="read"/>
+
+    <!--
+        Type:
+
+        Console type ("Graphic" or "Text").
+    -->
+    <property name="Type" type="s" access="read"/>
+
+    <!--
+        Width:
+
+        Console width, in pixels.
+    -->
+    <property name="Width" type="u" access="read"/>
+
+    <!--
+        Height:
+
+        Console height, in pixels.
+    -->
+    <property name="Height" type="u" access="read"/>
+
+    <!--
+        DeviceAddress:
+
+        The device address (ex: "pci/0000/02.0").
+    -->
+    <property name="DeviceAddress" type="s" access="read"/>
+  </interface>
+
+  <!--
+      org.qemu.Display1.Keyboard:
+
+      This interface in implemented on ``/org/qemu/Display1/Console_$id`` (see
+      :dbus:iface:`~org.qemu.Display1.Console`).
+  -->
+  <interface name="org.qemu.Display1.Keyboard">
+    <!--
+        Press:
+        @keycode: QEMU key number (xtkbd + special re-encoding of high bit)
+
+        Send a key press event.
+    -->
+    <method name="Press">
+      <arg type="u" name="keycode" direction="in"/>
+    </method>
+
+    <!--
+        Release:
+        @keycode: QEMU key number (xtkbd + special re-encoding of high bit)
+
+        Send a key release event.
+    -->
+    <method name="Release">
+      <arg type="u" name="keycode" direction="in"/>
+    </method>
+
+    <!--
+        Modifiers:
+
+        The active keyboard modifiers::
+
+          Scroll = 1 << 0
+          Num    = 1 << 1
+          Caps   = 1 << 2
+    -->
+    <property name="Modifiers" type="u" access="read"/>
+  </interface>
+
+  <!--
+      org.qemu.Display1.Mouse:
+
+      This interface in implemented on ``/org/qemu/Display1/Console_$id`` (see
+      :dbus:iface:`~org.qemu.Display1.Console` documentation).
+
+      .. _dbus-button-values:
+
+      **Button values**::
+
+        Left       = 0
+        Middle     = 1
+        Right      = 2
+        Wheel-up   = 3
+        Wheel-down = 4
+        Side       = 5
+        Extra      = 6
+  -->
+  <interface name="org.qemu.Display1.Mouse">
+    <!--
+        Press:
+        @button: :ref:`button value<dbus-button-values>`.
+
+        Send a mouse button press event.
+    -->
+    <method name="Press">
+      <arg type="u" name="button" direction="in"/>
+    </method>
+
+    <!--
+        Release:
+        @button: :ref:`button value<dbus-button-values>`.
+
+        Send a mouse button release event.
+    -->
+    <method name="Release">
+      <arg type="u" name="button" direction="in"/>
+    </method>
+
+    <!--
+        SetAbsPosition:
+        @x: X position, in pixels.
+        @y: Y position, in pixels.
+
+        Set the mouse pointer position.
+
+        Returns an error if not :dbus:prop:`IsAbsolute`.
+    -->
+    <method name="SetAbsPosition">
+      <arg type="u" name="x" direction="in"/>
+      <arg type="u" name="y" direction="in"/>
+    </method>
+
+    <!--
+        RelMotion:
+        @dx: X-delta, in pixels.
+        @dy: Y-delta, in pixels.
+
+        Move the mouse pointer position, relative to the current position.
+
+        Returns an error if :dbus:prop:`IsAbsolute`.
+    -->
+    <method name="RelMotion">
+      <arg type="i" name="dx" direction="in"/>
+      <arg type="i" name="dy" direction="in"/>
+    </method>
+
+    <!--
+        IsAbsolute:
+
+        Whether the mouse is using absolute movements.
+    -->
+    <property name="IsAbsolute" type="b" access="read"/>
+  </interface>
+
+  <!--
+      org.qemu.Display1.Listener:
+
+      This client-side interface must be available on
+      ``/org/qemu/Display1/Listener`` when registering the peer-to-peer
+      connection with :dbus:meth:`~org.qemu.Display1.Console.Register`.
+  -->
+  <interface name="org.qemu.Display1.Listener">
+    <!--
+        Scanout:
+        @width: display width, in pixels.
+        @height: display height, in pixels.
+        @stride: data stride, in bytes.
+        @pixman_format: image format (ex: ``PIXMAN_X8R8G8B8``).
+        @data: image data.
+
+        Resize and update the display content.
+
+        The data to transfer for the display update may be large. The preferred
+        scanout method is :dbus:meth:`ScanoutDMABUF`, used whenever possible.
+    -->
+    <method name="Scanout">
+      <arg type="u" name="width" direction="in"/>
+      <arg type="u" name="height" direction="in"/>
+      <arg type="u" name="stride" direction="in"/>
+      <arg type="u" name="pixman_format" direction="in"/>
+      <arg type="ay" name="data" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+
+    <!--
+        Update:
+        @x: X update position, in pixels.
+        @y: Y update position, in pixels.
+        @width: update width, in pixels.
+        @height: update height, in pixels.
+        @stride: data stride, in bytes.
+        @pixman_format: image format (ex: ``PIXMAN_X8R8G8B8``).
+        @data: display image data.
+
+        Update the display content.
+
+        This method is only called after a :dbus:meth:`Scanout` call.
+    -->
+    <method name="Update">
+      <arg type="i" name="x" direction="in"/>
+      <arg type="i" name="y" direction="in"/>
+      <arg type="i" name="width" direction="in"/>
+      <arg type="i" name="height" direction="in"/>
+      <arg type="u" name="stride" direction="in"/>
+      <arg type="u" name="pixman_format" direction="in"/>
+      <arg type="ay" name="data" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+
+    <!--
+        ScanoutDMABUF:
+        @dmabuf: the DMABUF file descriptor.
+        @width: display width, in pixels.
+        @height: display height, in pixels.
+        @stride: stride, in bytes.
+        @fourcc: DMABUF fourcc.
+        @modifier: DMABUF modifier.
+        @y0_top: whether Y position 0 is the top or not.
+
+        Resize and update the display content with a DMABUF.
+    -->
+    <method name="ScanoutDMABUF">
+      <arg type="h" name="dmabuf" direction="in"/>
+      <arg type="u" name="width" direction="in"/>
+      <arg type="u" name="height" direction="in"/>
+      <arg type="u" name="stride" direction="in"/>
+      <arg type="u" name="fourcc" direction="in"/>
+      <!-- xywh? -->
+      <arg type="t" name="modifier" direction="in"/>
+      <arg type="b" name="y0_top" direction="in"/>
+    </method>
+
+    <!--
+        UpdateDMABUF:
+        @x: the X update position, in pixels.
+        @y: the Y update position, in pixels.
+        @width: the update width, in pixels.
+        @height: the update height, in pixels.
+
+        Update the display content with the current DMABUF and the given region.
+    -->
+    <method name="UpdateDMABUF">
+      <arg type="i" name="x" direction="in"/>
+      <arg type="i" name="y" direction="in"/>
+      <arg type="i" name="width" direction="in"/>
+      <arg type="i" name="height" direction="in"/>
+    </method>
+
+    <!--
+        Disable:
+
+        Disable the display (turn it off).
+    -->
+    <method name="Disable">
+    </method>
+
+    <!--
+        MouseSet:
+        @x: X mouse position, in pixels.
+        @y: Y mouse position, in pixels.
+        @on: whether the mouse is visible or not.
+
+        Set the mouse position and visibility.
+    -->
+    <method name="MouseSet">
+      <arg type="i" name="x" direction="in"/>
+      <arg type="i" name="y" direction="in"/>
+      <arg type="i" name="on" direction="in"/>
+    </method>
+
+    <!--
+        CursorDefine:
+        @width: cursor width, in pixels.
+        @height: cursor height, in pixels.
+        @hot_x: hot-spot X position, in pixels.
+        @hot_y: hot-spot Y position, in pixels.
+        @data: the cursor data.
+
+        Set the mouse cursor shape and hot-spot. The "data" must be ARGB, 32-bit
+        per pixel.
+    -->
+    <method name="CursorDefine">
+      <arg type="i" name="width" direction="in"/>
+      <arg type="i" name="height" direction="in"/>
+      <arg type="i" name="hot_x" direction="in"/>
+      <arg type="i" name="hot_y" direction="in"/>
+      <arg type="ay" name="data" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+  </interface>
+
+  <!--
+      org.qemu.Display1.Clipboard:
+
+      This interface must be implemented by both the client and the server on
+      ``/org/qemu/Display1/Clipboard`` to support clipboard sharing between
+      the client and the guest.
+
+      Once :dbus:meth:`Register`'ed, method calls may be sent and received in both
+      directions. Unregistered callers will get error replies.
+
+      .. _dbus-clipboard-selection:
+
+      **Selection values**::
+
+        Clipboard   = 0
+        Primary     = 1
+        Secondary   = 2
+
+      .. _dbus-clipboard-serial:
+
+      **Serial counter**
+
+      To solve potential clipboard races, clipboard grabs have an associated
+      serial counter. It is set to 0 on registration, and incremented by 1 for
+      each grab. The peer with the highest serial is the clipboard grab owner.
+
+      When a grab with a lower serial is received, it should be discarded.
+
+      When a grab is attempted with the same serial number as the current grab,
+      the one coming from the client should have higher priority, and the client
+      should gain clipboard grab ownership.
+  -->
+  <interface name="org.qemu.Display1.Clipboard">
+    <!--
+        Register:
+
+        Register a clipboard session and reinitialize the serial counter.
+
+        The client must register itself, and is granted an exclusive
+        access for handling the clipboard.
+
+        The server can reinitialize the session as well (to reset the counter).
+    -->
+    <method name="Register"/>
+
+    <!--
+        Unregister:
+
+        Unregister the clipboard session.
+    -->
+    <method name="Unregister"/>
+    <!--
+        Grab:
+        @selection: a :ref:`selection value<dbus-clipboard-selection>`.
+        @serial: the current grab :ref:`serial<dbus-clipboard-serial>`.
+        @mimes: the list of available content MIME types.
+
+        Grab the clipboard, claiming current clipboard content.
+    -->
+    <method name="Grab">
+      <arg type="u" name="selection"/>
+      <arg type="u" name="serial"/>
+      <arg type="as" name="mimes"/>
+    </method>
+
+    <!--
+        Release:
+        @selection: a :ref:`selection value<dbus-clipboard-selection>`.
+
+        Release the clipboard (does nothing if not the current owner).
+    -->
+    <method name="Release">
+      <arg type="u" name="selection"/>
+    </method>
+
+    <!--
+        Request:
+        @selection: a :ref:`selection value<dbus-clipboard-selection>`
+        @mimes: requested MIME types (by order of preference).
+        @reply_mime: the returned data MIME type.
+        @data: the clipboard data.
+
+        Request the clipboard content.
+
+        Return an error if the clipboard is empty, or the requested MIME types
+        are unavailable.
+    -->
+    <method name="Request">
+      <arg type="u" name="selection"/>
+      <arg type="as" name="mimes"/>
+      <arg type="s" name="reply_mime" direction="out"/>
+      <arg type="ay" name="data" direction="out">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+  </interface>
+
+  <!--
+      org.qemu.Display1.Audio:
+
+      Audio backend may be available on ``/org/qemu/Display1/Audio``.
+  -->
+  <interface name="org.qemu.Display1.Audio">
+    <!--
+        RegisterOutListener:
+        @listener: a Unix socket FD, for peer-to-peer D-Bus communication.
+
+        Register an audio backend playback handler.
+
+        Multiple listeners may be registered simultaneously.
+
+        The listener is expected to implement the
+        :dbus:iface:`org.qemu.Display1.AudioOutListener` interface.
+    -->
+    <method name="RegisterOutListener">
+      <arg type="h" name="listener" direction="in"/>
+    </method>
+
+    <!--
+        RegisterInListener:
+        @listener: a Unix socket FD, for peer-to-peer D-Bus communication.
+
+        Register an audio backend record handler.
+
+        Multiple listeners may be registered simultaneously.
+
+        The listener is expected to implement the
+        :dbus:iface:`org.qemu.Display1.AudioInListener` interface.
+    -->
+    <method name="RegisterInListener">
+      <arg type="h" name="listener" direction="in"/>
+    </method>
+  </interface>
+
+  <!--
+      org.qemu.Display1.AudioOutListener:
+
+      This client-side interface must be available on
+      ``/org/qemu/Display1/AudioOutListener`` when registering the peer-to-peer
+      connection with :dbus:meth:`~org.qemu.Display1.Audio.RegisterOutListener`.
+  -->
+  <interface name="org.qemu.Display1.AudioOutListener">
+    <!--
+        Init:
+        @id: the stream ID.
+        @bits: PCM bits per sample.
+        @is_signed: whether the PCM data is signed.
+        @is_float: PCM floating point format.
+        @freq: the PCM frequency in Hz.
+        @nchannels: the number of channels.
+        @bytes_per_frame: the bytes per frame.
+        @bytes_per_second: the bytes per second.
+        @be: whether using big-endian format.
+
+        Initializes a PCM playback stream.
+    -->
+    <method name="Init">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="bits" type="y" direction="in"/>
+      <arg name="is_signed" type="b" direction="in"/>
+      <arg name="is_float" type="b" direction="in"/>
+      <arg name="freq" type="u" direction="in"/>
+      <arg name="nchannels" type="y" direction="in"/>
+      <arg name="bytes_per_frame" type="u" direction="in"/>
+      <arg name="bytes_per_second" type="u" direction="in"/>
+      <arg name="be" type="b" direction="in"/>
+    </method>
+
+    <!--
+        Fini:
+        @id: the stream ID.
+
+        Finish & close a playback stream.
+    -->
+    <method name="Fini">
+      <arg name="id" type="t" direction="in"/>
+    </method>
+
+    <!--
+        SetEnabled:
+        @id: the stream ID.
+
+        Resume or suspend the playback stream.
+    -->
+    <method name="SetEnabled">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="enabled" type="b" direction="in"/>
+    </method>
+
+    <!--
+        SetVolume:
+        @id: the stream ID.
+        @mute: whether the stream is muted.
+        @volume: the volume per-channel.
+
+        Set the stream volume and mute state (volume without unit, 0-255).
+    -->
+    <method name="SetVolume">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="mute" type="b" direction="in"/>
+      <arg name="volume" type="ay" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+
+    <!--
+        Write:
+        @id: the stream ID.
+        @data: the PCM data.
+
+        PCM stream to play.
+    -->
+    <method name="Write">
+      <arg name="id" type="t" direction="in"/>
+      <arg type="ay" name="data" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+  </interface>
+
+  <!--
+      org.qemu.Display1.AudioInListener:
+
+      This client-side interface must be available on
+      ``/org/qemu/Display1/AudioInListener`` when registering the peer-to-peer
+      connection with :dbus:meth:`~org.qemu.Display1.Audio.RegisterInListener`.
+  -->
+  <interface name="org.qemu.Display1.AudioInListener">
+    <!--
+        Init:
+        @id: the stream ID.
+        @bits: PCM bits per sample.
+        @is_signed: whether the PCM data is signed.
+        @is_float: PCM floating point format.
+        @freq: the PCM frequency in Hz.
+        @nchannels: the number of channels.
+        @bytes_per_frame: the bytes per frame.
+        @bytes_per_second: the bytes per second.
+        @be: whether using big-endian format.
+
+        Initializes a PCM record stream.
+    -->
+    <method name="Init">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="bits" type="y" direction="in"/>
+      <arg name="is_signed" type="b" direction="in"/>
+      <arg name="is_float" type="b" direction="in"/>
+      <arg name="freq" type="u" direction="in"/>
+      <arg name="nchannels" type="y" direction="in"/>
+      <arg name="bytes_per_frame" type="u" direction="in"/>
+      <arg name="bytes_per_second" type="u" direction="in"/>
+      <arg name="be" type="b" direction="in"/>
+    </method>
+
+    <!--
+        Fini:
+        @id: the stream ID.
+
+        Finish & close a record stream.
+    -->
+    <method name="Fini">
+      <arg name="id" type="t" direction="in"/>
+    </method>
+
+    <!--
+        SetEnabled:
+        @id: the stream ID.
+
+        Resume or suspend the record stream.
+    -->
+    <method name="SetEnabled">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="enabled" type="b" direction="in"/>
+    </method>
+
+    <!--
+        SetVolume:
+        @id: the stream ID.
+        @mute: whether the stream is muted.
+        @volume: the volume per-channel.
+
+        Set the stream volume and mute state (volume without unit, 0-255).
+    -->
+    <method name="SetVolume">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="mute" type="b" direction="in"/>
+      <arg name="volume" type="ay" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+
+    <!--
+        Read:
+        @id: the stream ID.
+        @size: the amount to read, in bytes.
+        @data: the recorded data (which may be less than requested).
+
+        Read "size" bytes from the record stream.
+    -->
+    <method name="Read">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="size" type="t" direction="in"/>
+      <arg type="ay" name="data" direction="out">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+  </interface>
+
+  <!--
+      org.qemu.Display1.Chardev:
+
+      Character devices may be available on ``/org/qemu/Display1/Chardev_$id``.
+
+      They may be used for different kind of streams, which are identified via
+      their FQDN :dbus:prop:`Name`.
+
+      .. _dbus-chardev-fqdn:
+
+      Here are some known reserved kind names (the ``org.qemu`` prefix is
+      reserved by QEMU):
+
+      org.qemu.console.serial.0
+        A serial console stream.
+
+      org.qemu.monitor.hmp.0
+        A QEMU HMP human monitor.
+
+      org.qemu.monitor.qmp.0
+        A QEMU QMP monitor.
+
+      org.qemu.usbredir
+        A usbredir stream.
+  -->
+  <interface name="org.qemu.Display1.Chardev">
+    <!--
+        Register:
+        @stream: a Unix FD to redirect the stream to.
+
+        Register a file-descriptor for the stream handling.
+
+        The current handler, if any, will be replaced.
+    -->
+    <method name="Register">
+      <arg type="h" name="stream" direction="in"/>
+    </method>
+
+    <!--
+        SendBreak:
+
+        Send a break event to the character device.
+    -->
+    <method name="SendBreak"/>
+
+    <!--
+        Name:
+
+        The FQDN name to identify the kind of stream. See :ref:`reserved
+        names<dbus-chardev-fqdn>`.
+    -->
+    <property name="Name" type="s" access="read"/>
+
+    <!--
+        FEOpened:
+
+        Whether the front-end side is opened.
+    -->
+    <property name="FEOpened" type="b" access="read"/>
+
+    <!--
+        Echo:
+
+        Whether the input should be echo'ed (for serial streams).
+    -->
+    <property name="Echo" type="b" access="read"/>
+
+    <!--
+        Owner:
+
+        The D-Bus unique name of the registered handler.
+    -->
+    <property name="Owner" type="s" access="read"/>
+  </interface>
+</node>

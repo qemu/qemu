@@ -660,6 +660,9 @@ DEF("audiodev", HAS_ARG, QEMU_OPTION_audiodev,
 #ifdef CONFIG_SPICE
     "-audiodev spice,id=id[,prop[=value][,...]]\n"
 #endif
+#ifdef CONFIG_DBUS_DISPLAY
+    "-audiodev dbus,id=id[,prop[=value][,...]]\n"
+#endif
     "-audiodev wav,id=id[,prop[=value][,...]]\n"
     "                path= path of wav file to record\n",
     QEMU_ARCH_ALL)
@@ -1863,6 +1866,10 @@ DEF("display", HAS_ARG, QEMU_OPTION_display,
 #if defined(CONFIG_OPENGL)
     "-display egl-headless[,rendernode=<file>]\n"
 #endif
+#if defined(CONFIG_DBUS_DISPLAY)
+    "-display dbus[,addr=<dbusaddr>]\n"
+    "             [,gl=on|core|es|off][,rendernode=<file>]\n"
+#endif
     "-display none\n"
     "                select display backend type\n"
     "                The default display is equivalent to\n                "
@@ -1888,6 +1895,19 @@ SRST
         Start QEMU as a Spice server and launch the default Spice client
         application. The Spice server will redirect the serial consoles
         and QEMU monitors. (Since 4.0)
+
+    ``dbus``
+        Export the display over D-Bus interfaces. (Since 7.0)
+
+        The connection is registered with the "org.qemu" name (and queued when
+        already owned).
+
+        ``addr=<dbusaddr>`` : D-Bus bus address to connect to.
+
+        ``p2p=yes|no`` : Use peer-to-peer connection, accepted via QMP ``add_client``.
+
+        ``gl=on|off|core|es`` : Use OpenGL for rendering (the D-Bus interface
+        will share framebuffers with DMABUF file descriptors).
 
     ``sdl``
         Display video output via SDL (usually in a separate graphics

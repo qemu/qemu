@@ -209,4 +209,9 @@ int qemu_pstrcmp0(const char **str1, const char **str2);
  */
 char *get_relocated_path(const char *dir);
 
+static inline const char *yes_no(bool b)
+{
+     return b ? "yes" : "no";
+}
+
 #endif

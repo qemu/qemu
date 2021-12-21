@@ -8,7 +8,7 @@ static QemuClipboardInfo *cbinfo[QEMU_CLIPBOARD_SELECTION__COUNT];
 
 void qemu_clipboard_peer_register(QemuClipboardPeer *peer)
 {
-    notifier_list_add(&clipboard_notifiers, &peer->update);
+    notifier_list_add(&clipboard_notifiers, &peer->notifier);
 }
 
 void qemu_clipboard_peer_unregister(QemuClipboardPeer *peer)
@@ -18,8 +18,7 @@ void qemu_clipboard_peer_unregister(QemuClipboardPeer *peer)
     for (i = 0; i < QEMU_CLIPBOARD_SELECTION__COUNT; i++) {
         qemu_clipboard_peer_release(peer, i);
     }
-
-    notifier_remove(&peer->update);
+    notifier_remove(&peer->notifier);
 }
 
 bool qemu_clipboard_peer_owns(QemuClipboardPeer *peer,
@@ -42,12 +41,32 @@ void qemu_clipboard_peer_release(QemuClipboardPeer *peer,
     }
 }
 
+bool qemu_clipboard_check_serial(QemuClipboardInfo *info, bool client)
+{
+    if (!info->has_serial ||
+        !cbinfo[info->selection] ||
+        !cbinfo[info->selection]->has_serial) {
+        return true;
+    }
+
+    if (client) {
+        return cbinfo[info->selection]->serial >= info->serial;
+    } else {
+        return cbinfo[info->selection]->serial > info->serial;
+    }
+}
+
 void qemu_clipboard_update(QemuClipboardInfo *info)
 {
+    QemuClipboardNotify notify = {
+        .type = QEMU_CLIPBOARD_UPDATE_INFO,
+        .info = info,
+    };
     g_autoptr(QemuClipboardInfo) old = NULL;
+
     assert(info->selection < QEMU_CLIPBOARD_SELECTION__COUNT);
 
-    notifier_list_notify(&clipboard_notifiers, info);
+    notifier_list_notify(&clipboard_notifiers, &notify);
 
     old = cbinfo[info->selection];
     cbinfo[info->selection] = qemu_clipboard_info_ref(info);
@@ -108,6 +127,13 @@ void qemu_clipboard_request(QemuClipboardInfo *info,
 
     info->types[type].requested = true;
     info->owner->request(info, type);
+}
+
+void qemu_clipboard_reset_serial(void)
+{
+    QemuClipboardNotify notify = { .type = QEMU_CLIPBOARD_RESET_SERIAL };
+
+    notifier_list_notify(&clipboard_notifiers, &notify);
 }
 
 void qemu_clipboard_set_data(QemuClipboardPeer *peer,

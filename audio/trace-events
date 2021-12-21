@@ -13,6 +13,11 @@ alsa_resume_out(void) "Resuming suspended output stream"
 # ossaudio.c
 oss_version(int version) "OSS version = 0x%x"
 
+# dbusaudio.c
+dbus_audio_register(const char *s, const char *dir) "sender = %s, dir = %s"
+dbus_audio_put_buffer_out(size_t len) "len = %zu"
+dbus_audio_read(size_t len) "len = %zu"
+
 # audio.c
 audio_timer_start(int interval) "interval %d ms"
 audio_timer_stop(void) ""

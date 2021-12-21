@@ -38,12 +38,12 @@ static void egl_gfx_switch(DisplayChangeListener *dcl,
     edpy->ds = new_surface;
 }
 
-static QEMUGLContext egl_create_context(DisplayChangeListener *dcl,
+static QEMUGLContext egl_create_context(DisplayGLCtx *dgc,
                                         QEMUGLParams *params)
 {
     eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE,
                    qemu_egl_rn_ctx);
-    return qemu_egl_create_context(dcl, params);
+    return qemu_egl_create_context(dgc, params);
 }
 
 static void egl_scanout_disable(DisplayChangeListener *dcl)
@@ -157,10 +157,6 @@ static const DisplayChangeListenerOps egl_ops = {
     .dpy_gfx_update          = egl_gfx_update,
     .dpy_gfx_switch          = egl_gfx_switch,
 
-    .dpy_gl_ctx_create       = egl_create_context,
-    .dpy_gl_ctx_destroy      = qemu_egl_destroy_context,
-    .dpy_gl_ctx_make_current = qemu_egl_make_context_current,
-
     .dpy_gl_scanout_disable  = egl_scanout_disable,
     .dpy_gl_scanout_texture  = egl_scanout_texture,
     .dpy_gl_scanout_dmabuf   = egl_scanout_dmabuf,
@@ -168,6 +164,13 @@ static const DisplayChangeListenerOps egl_ops = {
     .dpy_gl_cursor_position  = egl_cursor_position,
     .dpy_gl_release_dmabuf   = egl_release_dmabuf,
     .dpy_gl_update           = egl_scanout_flush,
+};
+
+static const DisplayGLCtxOps eglctx_ops = {
+    .compatible_dcl          = &egl_ops,
+    .dpy_gl_ctx_create       = egl_create_context,
+    .dpy_gl_ctx_destroy      = qemu_egl_destroy_context,
+    .dpy_gl_ctx_make_current = qemu_egl_make_context_current,
 };
 
 static void early_egl_headless_init(DisplayOptions *opts)
@@ -188,6 +191,8 @@ static void egl_headless_init(DisplayState *ds, DisplayOptions *opts)
     }
 
     for (idx = 0;; idx++) {
+        DisplayGLCtx *ctx;
+
         con = qemu_console_lookup_by_index(idx);
         if (!con || !qemu_console_is_graphic(con)) {
             break;
@@ -197,6 +202,9 @@ static void egl_headless_init(DisplayState *ds, DisplayOptions *opts)
         edpy->dcl.con = con;
         edpy->dcl.ops = &egl_ops;
         edpy->gls = qemu_gl_init_shader();
+        ctx = g_new0(DisplayGLCtx, 1);
+        ctx->ops = &eglctx_ops;
+        qemu_console_set_display_gl_ctx(con, ctx);
         register_displaychangelistener(&edpy->dcl);
     }
 }
