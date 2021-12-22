@@ -62,16 +62,6 @@
 /* TODO actually test the results and get rid of this */
 #define qmp_discard_response(qs, ...) qobject_unref(qtest_qmp(qs, __VA_ARGS__))
 
-static const char *get_devstr(void)
-{
-    if (g_str_equal(qtest_get_arch(), "s390x")) {
-        return "virtio-net-ccw";
-    }
-
-    return "rtl8139";
-}
-
-
 static void test_redirector_tx(void)
 {
     int backend_sock[2], recv_sock;
@@ -93,8 +83,7 @@ static void test_redirector_tx(void)
     g_assert_cmpint(ret, !=, -1);
 
     qts = qtest_initf(
-        "-netdev socket,id=qtest-bn0,fd=%d "
-        "-device %s,netdev=qtest-bn0,id=qtest-e0 "
+        "-nic socket,id=qtest-bn0,fd=%d "
         "-chardev socket,id=redirector0,path=%s,server=on,wait=off "
         "-chardev socket,id=redirector1,path=%s,server=on,wait=off "
         "-chardev socket,id=redirector2,path=%s "
@@ -103,7 +92,7 @@ static void test_redirector_tx(void)
         "-object filter-redirector,id=qtest-f1,netdev=qtest-bn0,"
         "queue=tx,indev=redirector2 "
         "-object filter-redirector,id=qtest-f2,netdev=qtest-bn0,"
-        "queue=tx,outdev=redirector1 ", backend_sock[1], get_devstr(),
+        "queue=tx,outdev=redirector1 ", backend_sock[1],
         sock_path0, sock_path1, sock_path0);
 
     recv_sock = unix_connect(sock_path1, NULL);
@@ -163,8 +152,7 @@ static void test_redirector_rx(void)
     g_assert_cmpint(ret, !=, -1);
 
     qts = qtest_initf(
-        "-netdev socket,id=qtest-bn0,fd=%d "
-        "-device %s,netdev=qtest-bn0,id=qtest-e0 "
+        "-nic socket,id=qtest-bn0,fd=%d "
         "-chardev socket,id=redirector0,path=%s,server=on,wait=off "
         "-chardev socket,id=redirector1,path=%s,server=on,wait=off "
         "-chardev socket,id=redirector2,path=%s "
@@ -173,7 +161,7 @@ static void test_redirector_rx(void)
         "-object filter-redirector,id=qtest-f1,netdev=qtest-bn0,"
         "queue=rx,outdev=redirector2 "
         "-object filter-redirector,id=qtest-f2,netdev=qtest-bn0,"
-        "queue=rx,indev=redirector1 ", backend_sock[1], get_devstr(),
+        "queue=rx,indev=redirector1 ", backend_sock[1],
         sock_path0, sock_path1, sock_path0);
 
     struct iovec iov[] = {

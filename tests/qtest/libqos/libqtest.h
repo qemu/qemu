@@ -719,6 +719,14 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine),
 bool qtest_has_machine(const char *machine);
 
 /**
+ * qtest_has_device:
+ * @device: The device to look for
+ *
+ * Returns: true if the device is available in the target binary.
+ */
+bool qtest_has_device(const char *device);
+
+/**
  * qtest_qmp_device_add_qdict:
  * @qts: QTestState instance to operate on
  * @drv: Name of the device that should be added
