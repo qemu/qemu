@@ -34,6 +34,8 @@ def make_argparser() -> argparse.ArgumentParser:
                    help='show me, do not run tests')
     p.add_argument('-makecheck', action='store_true',
                    help='pretty print output for make check')
+    p.add_argument('-j', dest='jobs', type=int, default=1,
+                   help='run tests in multiple parallel jobs')
 
     p.add_argument('-d', dest='debug', action='store_true', help='debug')
     p.add_argument('-p', dest='print', action='store_true',
@@ -165,6 +167,6 @@ if __name__ == '__main__':
         with TestRunner(env, makecheck=args.makecheck,
                         color=args.color) as tr:
             paths = [os.path.join(env.source_iotests, t) for t in tests]
-            ok = tr.run_tests(paths)
+            ok = tr.run_tests(paths, args.jobs)
             if not ok:
                 sys.exit(1)
