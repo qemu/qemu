@@ -1306,12 +1306,14 @@ static void test_multi_in(gconstpointer opaque)
 
 int main(int argc, char **argv)
 {
-    const gchar *tmpdir = g_get_tmp_dir();
-    gchar *tmpfile = g_strdup_printf("%s/failover_test_migrate-%u-%u",
-                                     tmpdir, getpid(), g_test_rand_int());
+    gchar *tmpfile;
     int ret;
 
     g_test_init(&argc, &argv, NULL);
+
+    ret = g_file_open_tmp("failover_test_migrate-XXXXXX", &tmpfile, NULL);
+    g_assert_true(ret >= 0);
+    close(ret);
 
     qtest_add_func("failover-virtio-net/params/error/id", test_error_id);
     qtest_add_func("failover-virtio-net/params/error/pcie", test_error_pcie);
