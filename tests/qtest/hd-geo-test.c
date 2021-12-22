@@ -960,9 +960,11 @@ int main(int argc, char **argv)
     qtest_add_func("hd-geo/ide/device/user/chst", test_ide_device_user_chst);
     if (have_qemu_img()) {
         qtest_add_func("hd-geo/override/ide", test_override_ide);
-        qtest_add_func("hd-geo/override/scsi", test_override_scsi);
-        qtest_add_func("hd-geo/override/scsi_2_controllers",
-                       test_override_scsi_2_controllers);
+        if (qtest_has_device("lsi53c895a")) {
+            qtest_add_func("hd-geo/override/scsi", test_override_scsi);
+            qtest_add_func("hd-geo/override/scsi_2_controllers",
+                           test_override_scsi_2_controllers);
+        }
         qtest_add_func("hd-geo/override/virtio_blk", test_override_virtio_blk);
         qtest_add_func("hd-geo/override/zero_chs", test_override_zero_chs);
         qtest_add_func("hd-geo/override/scsi_hot_unplug",
