@@ -1,7 +1,10 @@
 project('qemu', ['c'], meson_version: '>=0.58.2',
         default_options: ['warning_level=1', 'c_std=gnu11', 'cpp_std=gnu++11', 'b_colorout=auto',
-                          'b_staticpic=false'],
+                          'b_staticpic=false', 'stdsplit=false'],
         version: files('VERSION'))
+
+add_test_setup('quick', exclude_suites: 'slow', is_default: true)
+add_test_setup('slow', env: ['G_TEST_SLOW=1', 'SPEED=slow'])
 
 not_found = dependency('', required: false)
 keyval = import('keyval')
