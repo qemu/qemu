@@ -138,7 +138,7 @@ else
   if get_option('guest_agent_msi').enabled()
     error('MSI guest agent package is available only for MinGW Windows cross-compilation')
   endif
-  install_subdir('run', install_dir: get_option('localstatedir'))
+  install_emptydir(get_option('localstatedir') / 'run')
 endif
 
 alias_target('qemu-ga', all_qga)

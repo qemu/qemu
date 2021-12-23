@@ -1,4 +1,4 @@
-project('qemu', ['c'], meson_version: '>=0.59.3',
+project('qemu', ['c'], meson_version: '>=0.61.3',
         default_options: ['warning_level=1', 'c_std=gnu11', 'cpp_std=gnu++11', 'b_colorout=auto',
                           'b_staticpic=false', 'stdsplit=false', 'optimization=2', 'b_pie=true'],
         version: files('VERSION'))
@@ -1674,12 +1674,9 @@ endif
 have_host_block_device = (targetos != 'darwin' or
     cc.has_header('IOKit/storage/IOMedia.h'))
 
-# FIXME enable_modules shouldn't be necessary, but: https://github.com/mesonbuild/meson/issues/8333
 dbus_display = get_option('dbus_display') \
   .require(gio.version().version_compare('>=2.64'),
            error_message: '-display dbus requires glib>=2.64') \
-  .require(enable_modules,
-           error_message: '-display dbus requires --enable-modules') \
   .require(gdbus_codegen.found(),
            error_message: gdbus_codegen_error.format('-display dbus')) \
   .require(opengl.found() and gbm.found(),
