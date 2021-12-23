@@ -2523,7 +2523,7 @@ static void xhci_process_commands(XHCIState *xhci)
         case CR_VENDOR_NEC_FIRMWARE_REVISION:
             if (xhci->nec_quirks) {
                 event.type = 48; /* NEC reply */
-                event.length = 0x3025;
+                event.length = 0x3034;
             } else {
                 event.ccode = CC_TRB_ERROR;
             }
