@@ -1226,6 +1226,17 @@ def _verify_virtio_scsi_pci_or_ccw() -> None:
         notrun('Missing virtio-scsi-pci or virtio-scsi-ccw in QEMU binary')
 
 
+def _verify_imgopts(unsupported: Sequence[str] = ()) -> None:
+    imgopts = os.environ.get('IMGOPTS')
+    # One of usage examples for IMGOPTS is "data_file=$TEST_IMG.ext_data_file"
+    # but it supported only for bash tests. We don't have a concept of global
+    # TEST_IMG in iotests.py, not saying about somehow parsing $variables.
+    # So, for simplicity let's just not support any IMGOPTS with '$' inside.
+    unsup = list(unsupported) + ['$']
+    if imgopts and any(x in imgopts for x in unsup):
+        notrun(f'not suitable for this imgopts: {imgopts}')
+
+
 def supports_quorum():
     return 'quorum' in qemu_img_pipe('--help')
 
@@ -1402,7 +1413,8 @@ def execute_setup_common(supported_fmts: Sequence[str] = (),
                          unsupported_fmts: Sequence[str] = (),
                          supported_protocols: Sequence[str] = (),
                          unsupported_protocols: Sequence[str] = (),
-                         required_fmts: Sequence[str] = ()) -> bool:
+                         required_fmts: Sequence[str] = (),
+                         unsupported_imgopts: Sequence[str] = ()) -> bool:
     """
     Perform necessary setup for either script-style or unittest-style tests.
 
@@ -1422,6 +1434,7 @@ def execute_setup_common(supported_fmts: Sequence[str] = (),
     _verify_aio_mode(supported_aio_modes)
     _verify_formats(required_fmts)
     _verify_virtio_blk()
+    _verify_imgopts(unsupported_imgopts)
 
     return debug
 
