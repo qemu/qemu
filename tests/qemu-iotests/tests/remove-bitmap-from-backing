@@ -21,7 +21,8 @@
 import iotests
 from iotests import log, qemu_img_create, qemu_img, qemu_img_pipe
 
-iotests.script_initialize(supported_fmts=['qcow2'])
+iotests.script_initialize(supported_fmts=['qcow2'],
+                          unsupported_imgopts=['compat'])
 
 top, base = iotests.file_path('top', 'base')
 size = '1M'
