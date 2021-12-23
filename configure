@@ -1136,7 +1136,7 @@ if ! $mkvenv ensure \
      $mkvenv_flags \
      --dir "${source_path}/python/wheels" \
      --diagnose "meson" \
-     "meson>=0.61.5" ;
+     "meson>=0.63.0" ;
 then
     exit 1
 fi
