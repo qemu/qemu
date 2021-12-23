@@ -39,16 +39,18 @@ struct NBDClientConnection {
 
     QemuMutex mutex;
 
-    /*
-     * @sioc and @err represent a connection attempt.  While running
-     * is true, they are only used by the connection thread, and mutex
-     * locking is not needed.  Once the thread finishes,
-     * nbd_co_establish_connection then steals these pointers while
-     * under the mutex.
-     */
     NBDExportInfo updated_info;
+    /*
+     * @sioc represents a successful result. While thread is running, @sioc is
+     * used only by thread and not protected by mutex. When thread is not
+     * running, @sioc is stolen by nbd_co_establish_connection() under mutex.
+     */
     QIOChannelSocket *sioc;
     QIOChannel *ioc;
+    /*
+     * @err represents previous attempt. It may be copied by
+     * nbd_co_establish_connection() when it reports failure.
+     */
     Error *err;
 
     /* All further fields are accessed only under mutex */
@@ -170,18 +172,18 @@ static void *connect_thread_func(void *opaque)
 
     qemu_mutex_lock(&conn->mutex);
     while (!conn->detached) {
+        Error *local_err = NULL;
+
         assert(!conn->sioc);
         conn->sioc = qio_channel_socket_new();
 
         qemu_mutex_unlock(&conn->mutex);
 
-        error_free(conn->err);
-        conn->err = NULL;
         conn->updated_info = conn->initial_info;
 
         ret = nbd_connect(conn->sioc, conn->saddr,
                           conn->do_negotiation ? &conn->updated_info : NULL,
-                          conn->tlscreds, &conn->ioc, &conn->err);
+                          conn->tlscreds, &conn->ioc, &local_err);
 
         /*
          * conn->updated_info will finally be returned to the user. Clear the
@@ -193,6 +195,10 @@ static void *connect_thread_func(void *opaque)
         conn->updated_info.name = NULL;
 
         qemu_mutex_lock(&conn->mutex);
+
+        error_free(conn->err);
+        conn->err = NULL;
+        error_propagate(&conn->err, local_err);
 
         if (ret < 0) {
             object_unref(OBJECT(conn->sioc));
@@ -311,14 +317,17 @@ nbd_co_establish_connection(NBDClientConnection *conn, NBDExportInfo *info,
             }
 
             conn->running = true;
-            error_free(conn->err);
-            conn->err = NULL;
             qemu_thread_create(&thread, "nbd-connect",
                                connect_thread_func, conn, QEMU_THREAD_DETACHED);
         }
 
         if (!blocking) {
-            error_setg(errp, "No connection at the moment");
+            if (conn->err) {
+                error_propagate(errp, error_copy(conn->err));
+            } else {
+                error_setg(errp, "No connection at the moment");
+            }
+
             return NULL;
         }
 
@@ -339,14 +348,30 @@ nbd_co_establish_connection(NBDClientConnection *conn, NBDExportInfo *info,
              * attempt as failed, but leave the connection thread running,
              * to reuse it for the next connection attempt.
              */
-            error_setg(errp, "Connection attempt cancelled by other operation");
+            if (conn->err) {
+                error_propagate(errp, error_copy(conn->err));
+            } else {
+                /*
+                 * The only possible case here is cancelling by open_timer
+                 * during nbd_open(). So, the error message is for that case.
+                 * If we have more use cases, we can refactor
+                 * nbd_co_establish_connection_cancel() to take an additional
+                 * parameter cancel_reason, that would be passed than to the
+                 * caller of cancelled nbd_co_establish_connection().
+                 */
+                error_setg(errp, "Connection attempt cancelled by timeout");
+            }
+
             return NULL;
         } else {
-            error_propagate(errp, conn->err);
-            conn->err = NULL;
-            if (!conn->sioc) {
+            /* Thread finished. There must be either error or sioc */
+            assert(!conn->err != !conn->sioc);
+
+            if (conn->err) {
+                error_propagate(errp, error_copy(conn->err));
                 return NULL;
             }
+
             if (conn->do_negotiation) {
                 memcpy(info, &conn->updated_info, sizeof(*info));
                 if (conn->ioc) {

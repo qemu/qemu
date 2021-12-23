@@ -138,14 +138,22 @@ def unarchive_sample_image(sample, fname):
         shutil.copyfileobj(f_in, f_out)
 
 
+def qemu_tool_popen(args: Sequence[str],
+                    connect_stderr: bool = True) -> 'subprocess.Popen[str]':
+    stderr = subprocess.STDOUT if connect_stderr else None
+    # pylint: disable=consider-using-with
+    return subprocess.Popen(args,
+                            stdout=subprocess.PIPE,
+                            stderr=stderr,
+                            universal_newlines=True)
+
+
 def qemu_tool_pipe_and_status(tool: str, args: Sequence[str],
                               connect_stderr: bool = True) -> Tuple[str, int]:
     """
     Run a tool and return both its output and its exit code
     """
-    stderr = subprocess.STDOUT if connect_stderr else None
-    with subprocess.Popen(args, stdout=subprocess.PIPE,
-                          stderr=stderr, universal_newlines=True) as subp:
+    with qemu_tool_popen(args, connect_stderr) as subp:
         output = subp.communicate()[0]
         if subp.returncode < 0:
             cmd = ' '.join(args)
@@ -233,10 +241,18 @@ def img_info_log(filename, filter_path=None, imgopts=False, extra_args=()):
         filter_path = filename
     log(filter_img_info(output, filter_path))
 
+def qemu_io_wrap_args(args: Sequence[str]) -> List[str]:
+    if '-f' in args or '--image-opts' in args:
+        return qemu_io_args_no_fmt + list(args)
+    else:
+        return qemu_io_args + list(args)
+
+def qemu_io_popen(*args):
+    return qemu_tool_popen(qemu_io_wrap_args(args))
+
 def qemu_io(*args):
     '''Run qemu-io and return the stdout data'''
-    args = qemu_io_args + list(args)
-    return qemu_tool_pipe_and_status('qemu-io', args)[0]
+    return qemu_tool_pipe_and_status('qemu-io', qemu_io_wrap_args(args))[0]
 
 def qemu_io_log(*args):
     result = qemu_io(*args)
@@ -245,12 +261,7 @@ def qemu_io_log(*args):
 
 def qemu_io_silent(*args):
     '''Run qemu-io and return the exit code, suppressing stdout'''
-    if '-f' in args or '--image-opts' in args:
-        default_args = qemu_io_args_no_fmt
-    else:
-        default_args = qemu_io_args
-
-    args = default_args + list(args)
+    args = qemu_io_wrap_args(args)
     result = subprocess.run(args, stdout=subprocess.DEVNULL, check=False)
     if result.returncode < 0:
         sys.stderr.write('qemu-io received signal %i: %s\n' %
@@ -259,14 +270,14 @@ def qemu_io_silent(*args):
 
 def qemu_io_silent_check(*args):
     '''Run qemu-io and return the true if subprocess returned 0'''
-    args = qemu_io_args + list(args)
+    args = qemu_io_wrap_args(args)
     result = subprocess.run(args, stdout=subprocess.DEVNULL,
                             stderr=subprocess.STDOUT, check=False)
     return result.returncode == 0
 
 class QemuIoInteractive:
     def __init__(self, *args):
-        self.args = qemu_io_args_no_fmt + list(args)
+        self.args = qemu_io_wrap_args(args)
         # We need to keep the Popen objext around, and not
         # close it immediately. Therefore, disable the pylint check:
         # pylint: disable=consider-using-with
