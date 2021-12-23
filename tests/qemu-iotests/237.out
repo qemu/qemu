@@ -129,11 +129,8 @@ Job failed: Cannot find device='this doesn't exist' nor node-name='this doesn't 
 
 === Other subformats ===
 
-Formatting 'TEST_DIR/PID-t.vmdk.1', fmt=vmdk size=0 compat6=off hwversion=undefined
 
-Formatting 'TEST_DIR/PID-t.vmdk.2', fmt=vmdk size=0 compat6=off hwversion=undefined
 
-Formatting 'TEST_DIR/PID-t.vmdk.3', fmt=vmdk size=0 compat6=off hwversion=undefined
 
 == Missing extent ==
 
