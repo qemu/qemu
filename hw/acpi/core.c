@@ -345,8 +345,8 @@ int acpi_get_slic_oem(AcpiSlicOem *oem)
         struct acpi_table_header *hdr = (void *)(u - sizeof(hdr->_length));
 
         if (memcmp(hdr->sig, "SLIC", 4) == 0) {
-            oem->id = hdr->oem_id;
-            oem->table_id = hdr->oem_table_id;
+            oem->id = g_strndup(hdr->oem_id, 6);
+            oem->table_id = g_strndup(hdr->oem_table_id, 8);
             return 0;
         }
     }
