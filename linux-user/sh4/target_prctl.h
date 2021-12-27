@@ -1,1 +1,1 @@
-/* No special prctl support required. */
+#include "../generic/target_prctl_unalign.h"
