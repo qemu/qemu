@@ -1631,6 +1631,7 @@ Machine core
 M: Eduardo Habkost <eduardo@habkost.net>
 M: Marcel Apfelbaum <marcel.apfelbaum@gmail.com>
 R: Philippe Mathieu-Daudé <philmd@redhat.com>
+R: Yanan Wang <wangyanan55@huawei.com>
 S: Supported
 F: cpu.c
 F: hw/core/cpu.c
