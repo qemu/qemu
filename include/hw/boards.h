@@ -129,10 +129,12 @@ typedef struct {
  * SMPCompatProps:
  * @prefer_sockets - whether sockets are preferred over cores in smp parsing
  * @dies_supported - whether dies are supported by the machine
+ * @clusters_supported - whether clusters are supported by the machine
  */
 typedef struct {
     bool prefer_sockets;
     bool dies_supported;
+    bool clusters_supported;
 } SMPCompatProps;
 
 /**
@@ -299,7 +301,8 @@ typedef struct DeviceMemoryState {
  * @cpus: the number of present logical processors on the machine
  * @sockets: the number of sockets on the machine
  * @dies: the number of dies in one socket
- * @cores: the number of cores in one die
+ * @clusters: the number of clusters in one die
+ * @cores: the number of cores in one cluster
  * @threads: the number of threads in one core
  * @max_cpus: the maximum number of logical processors on the machine
  */
@@ -307,6 +310,7 @@ typedef struct CpuTopology {
     unsigned int cpus;
     unsigned int sockets;
     unsigned int dies;
+    unsigned int clusters;
     unsigned int cores;
     unsigned int threads;
     unsigned int max_cpus;
