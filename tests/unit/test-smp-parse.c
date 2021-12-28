@@ -61,6 +61,20 @@
             .has_maxcpus = hf, .maxcpus = f,                  \
         }
 
+/*
+ * Currently a 4-level topology hierarchy is supported on ARM virt machines
+ *  -sockets/clusters/cores/threads
+ */
+#define SMP_CONFIG_WITH_CLUSTERS(ha, a, hb, b, hc, c, hd, d, he, e, hf, f) \
+        {                                                     \
+            .has_cpus     = ha, .cpus     = a,                \
+            .has_sockets  = hb, .sockets  = b,                \
+            .has_clusters = hc, .clusters = c,                \
+            .has_cores    = hd, .cores    = d,                \
+            .has_threads  = he, .threads  = e,                \
+            .has_maxcpus  = hf, .maxcpus  = f,                \
+        }
+
 /**
  * @config - the given SMP configuration
  * @expect_prefer_sockets - the expected parsing result for the
@@ -291,6 +305,10 @@ static const struct SMPTestData data_generic_invalid[] = {
         .config = SMP_CONFIG_WITH_DIES(T, 2, F, 0, T, 2, F, 0, F, 0, F, 0),
         .expect_error = "dies not supported by this machine's CPU topology",
     }, {
+        /* config: -smp 2,clusters=2 */
+        .config = SMP_CONFIG_WITH_CLUSTERS(T, 2, F, 0, T, 2, F, 0, F, 0, F, 0),
+        .expect_error = "clusters not supported by this machine's CPU topology",
+    }, {
         /* config: -smp 8,sockets=2,cores=4,threads=2,maxcpus=8 */
         .config = SMP_CONFIG_GENERIC(T, 8, T, 2, T, 4, T, 2, T, 8),
         .expect_error = "Invalid CPU topology: "
@@ -337,20 +355,40 @@ static const struct SMPTestData data_with_dies_invalid[] = {
     },
 };
 
+static const struct SMPTestData data_with_clusters_invalid[] = {
+    {
+        /* config: -smp 16,sockets=2,clusters=2,cores=4,threads=2,maxcpus=16 */
+        .config = SMP_CONFIG_WITH_CLUSTERS(T, 16, T, 2, T, 2, T, 4, T, 2, T, 16),
+        .expect_error = "Invalid CPU topology: "
+                        "product of the hierarchy must match maxcpus: "
+                        "sockets (2) * clusters (2) * cores (4) * threads (2) "
+                        "!= maxcpus (16)",
+    }, {
+        /* config: -smp 34,sockets=2,clusters=2,cores=4,threads=2,maxcpus=32 */
+        .config = SMP_CONFIG_WITH_CLUSTERS(T, 34, T, 2, T, 2, T, 4, T, 2, T, 32),
+        .expect_error = "Invalid CPU topology: "
+                        "maxcpus must be equal to or greater than smp: "
+                        "sockets (2) * clusters (2) * cores (4) * threads (2) "
+                        "== maxcpus (32) < smp_cpus (34)",
+    },
+};
+
 static char *smp_config_to_string(const SMPConfiguration *config)
 {
     return g_strdup_printf(
         "(SMPConfiguration) {\n"
-        "    .has_cpus    = %5s, cpus    = %" PRId64 ",\n"
-        "    .has_sockets = %5s, sockets = %" PRId64 ",\n"
-        "    .has_dies    = %5s, dies    = %" PRId64 ",\n"
-        "    .has_cores   = %5s, cores   = %" PRId64 ",\n"
-        "    .has_threads = %5s, threads = %" PRId64 ",\n"
-        "    .has_maxcpus = %5s, maxcpus = %" PRId64 ",\n"
+        "    .has_cpus     = %5s, cpus     = %" PRId64 ",\n"
+        "    .has_sockets  = %5s, sockets  = %" PRId64 ",\n"
+        "    .has_dies     = %5s, dies     = %" PRId64 ",\n"
+        "    .has_clusters = %5s, clusters = %" PRId64 ",\n"
+        "    .has_cores    = %5s, cores    = %" PRId64 ",\n"
+        "    .has_threads  = %5s, threads  = %" PRId64 ",\n"
+        "    .has_maxcpus  = %5s, maxcpus  = %" PRId64 ",\n"
         "}",
         config->has_cpus ? "true" : "false", config->cpus,
         config->has_sockets ? "true" : "false", config->sockets,
         config->has_dies ? "true" : "false", config->dies,
+        config->has_clusters ? "true" : "false", config->clusters,
         config->has_cores ? "true" : "false", config->cores,
         config->has_threads ? "true" : "false", config->threads,
         config->has_maxcpus ? "true" : "false", config->maxcpus);
@@ -363,11 +401,12 @@ static char *cpu_topology_to_string(const CpuTopology *topo)
         "    .cpus     = %u,\n"
         "    .sockets  = %u,\n"
         "    .dies     = %u,\n"
+        "    .clusters = %u,\n"
         "    .cores    = %u,\n"
         "    .threads  = %u,\n"
         "    .max_cpus = %u,\n"
         "}",
-        topo->cpus, topo->sockets, topo->dies,
+        topo->cpus, topo->sockets, topo->dies, topo->clusters,
         topo->cores, topo->threads, topo->max_cpus);
 }
 
@@ -391,6 +430,7 @@ static void check_parse(MachineState *ms, const SMPConfiguration *config,
             (ms->smp.cpus == expect_topo->cpus) &&
             (ms->smp.sockets == expect_topo->sockets) &&
             (ms->smp.dies == expect_topo->dies) &&
+            (ms->smp.clusters == expect_topo->clusters) &&
             (ms->smp.cores == expect_topo->cores) &&
             (ms->smp.threads == expect_topo->threads) &&
             (ms->smp.max_cpus == expect_topo->max_cpus)) {
@@ -472,6 +512,11 @@ static void unsupported_params_init(const MachineClass *mc, SMPTestData *data)
         data->expect_prefer_sockets.dies = 1;
         data->expect_prefer_cores.dies = 1;
     }
+
+    if (!mc->smp_props.clusters_supported) {
+        data->expect_prefer_sockets.clusters = 1;
+        data->expect_prefer_cores.clusters = 1;
+    }
 }
 
 static void machine_base_class_init(ObjectClass *oc, void *data)
@@ -491,6 +536,7 @@ static void machine_generic_valid_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = MAX_CPUS;
 
     mc->smp_props.dies_supported = false;
+    mc->smp_props.clusters_supported = false;
 }
 
 static void machine_generic_invalid_class_init(ObjectClass *oc, void *data)
@@ -502,6 +548,7 @@ static void machine_generic_invalid_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 511;
 
     mc->smp_props.dies_supported = false;
+    mc->smp_props.clusters_supported = false;
 }
 
 static void machine_with_dies_class_init(ObjectClass *oc, void *data)
@@ -512,6 +559,18 @@ static void machine_with_dies_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = MAX_CPUS;
 
     mc->smp_props.dies_supported = true;
+    mc->smp_props.clusters_supported = false;
+}
+
+static void machine_with_clusters_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->min_cpus = MIN_CPUS;
+    mc->max_cpus = MAX_CPUS;
+
+    mc->smp_props.clusters_supported = true;
+    mc->smp_props.dies_supported = false;
 }
 
 static void test_generic_valid(const void *opaque)
@@ -607,6 +666,56 @@ static void test_with_dies(const void *opaque)
     object_unref(obj);
 }
 
+static void test_with_clusters(const void *opaque)
+{
+    const char *machine_type = opaque;
+    Object *obj = object_new(machine_type);
+    MachineState *ms = MACHINE(obj);
+    MachineClass *mc = MACHINE_GET_CLASS(obj);
+    SMPTestData data = {};
+    unsigned int num_clusters = 2;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(data_generic_valid); i++) {
+        data = data_generic_valid[i];
+        unsupported_params_init(mc, &data);
+
+        /* when clusters parameter is omitted, it will be set as 1 */
+        data.expect_prefer_sockets.clusters = 1;
+        data.expect_prefer_cores.clusters = 1;
+
+        smp_parse_test(ms, &data, true);
+
+        /* when clusters parameter is specified */
+        data.config.has_clusters = true;
+        data.config.clusters = num_clusters;
+        if (data.config.has_cpus) {
+            data.config.cpus *= num_clusters;
+        }
+        if (data.config.has_maxcpus) {
+            data.config.maxcpus *= num_clusters;
+        }
+
+        data.expect_prefer_sockets.clusters = num_clusters;
+        data.expect_prefer_sockets.cpus *= num_clusters;
+        data.expect_prefer_sockets.max_cpus *= num_clusters;
+        data.expect_prefer_cores.clusters = num_clusters;
+        data.expect_prefer_cores.cpus *= num_clusters;
+        data.expect_prefer_cores.max_cpus *= num_clusters;
+
+        smp_parse_test(ms, &data, true);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(data_with_clusters_invalid); i++) {
+        data = data_with_clusters_invalid[i];
+        unsupported_params_init(mc, &data);
+
+        smp_parse_test(ms, &data, false);
+    }
+
+    object_unref(obj);
+}
+
 /* Type info of the tested machine */
 static const TypeInfo smp_machine_types[] = {
     {
@@ -628,6 +737,10 @@ static const TypeInfo smp_machine_types[] = {
         .name           = MACHINE_TYPE_NAME("smp-with-dies"),
         .parent         = TYPE_MACHINE,
         .class_init     = machine_with_dies_class_init,
+    }, {
+        .name           = MACHINE_TYPE_NAME("smp-with-clusters"),
+        .parent         = TYPE_MACHINE,
+        .class_init     = machine_with_clusters_class_init,
     }
 };
 
@@ -648,6 +761,9 @@ int main(int argc, char *argv[])
     g_test_add_data_func("/test-smp-parse/with_dies",
                          MACHINE_TYPE_NAME("smp-with-dies"),
                          test_with_dies);
+    g_test_add_data_func("/test-smp-parse/with_clusters",
+                         MACHINE_TYPE_NAME("smp-with-clusters"),
+                         test_with_clusters);
 
     g_test_run();
 
