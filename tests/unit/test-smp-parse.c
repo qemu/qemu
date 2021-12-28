@@ -523,15 +523,10 @@ static void machine_base_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->name = g_strdup(SMP_MACHINE_NAME);
-}
-
-static void machine_generic_valid_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-
     mc->min_cpus = MIN_CPUS;
     mc->max_cpus = MAX_CPUS;
+
+    mc->name = g_strdup(SMP_MACHINE_NAME);
 }
 
 static void machine_generic_invalid_class_init(ObjectClass *oc, void *data)
@@ -547,18 +542,12 @@ static void machine_with_dies_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->min_cpus = MIN_CPUS;
-    mc->max_cpus = MAX_CPUS;
-
     mc->smp_props.dies_supported = true;
 }
 
 static void machine_with_clusters_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
-
-    mc->min_cpus = MIN_CPUS;
-    mc->max_cpus = MAX_CPUS;
 
     mc->smp_props.clusters_supported = true;
 }
@@ -718,7 +707,6 @@ static const TypeInfo smp_machine_types[] = {
     }, {
         .name           = MACHINE_TYPE_NAME("smp-generic-valid"),
         .parent         = TYPE_MACHINE,
-        .class_init     = machine_generic_valid_class_init,
     }, {
         .name           = MACHINE_TYPE_NAME("smp-generic-invalid"),
         .parent         = TYPE_MACHINE,
