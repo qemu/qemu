@@ -523,8 +523,6 @@ static void machine_base_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->smp_props.prefer_sockets = true;
-
     mc->name = g_strdup(SMP_MACHINE_NAME);
 }
 
@@ -534,9 +532,6 @@ static void machine_generic_valid_class_init(ObjectClass *oc, void *data)
 
     mc->min_cpus = MIN_CPUS;
     mc->max_cpus = MAX_CPUS;
-
-    mc->smp_props.dies_supported = false;
-    mc->smp_props.clusters_supported = false;
 }
 
 static void machine_generic_invalid_class_init(ObjectClass *oc, void *data)
@@ -546,9 +541,6 @@ static void machine_generic_invalid_class_init(ObjectClass *oc, void *data)
     /* Force invalid min CPUs and max CPUs */
     mc->min_cpus = 2;
     mc->max_cpus = 511;
-
-    mc->smp_props.dies_supported = false;
-    mc->smp_props.clusters_supported = false;
 }
 
 static void machine_with_dies_class_init(ObjectClass *oc, void *data)
@@ -559,7 +551,6 @@ static void machine_with_dies_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = MAX_CPUS;
 
     mc->smp_props.dies_supported = true;
-    mc->smp_props.clusters_supported = false;
 }
 
 static void machine_with_clusters_class_init(ObjectClass *oc, void *data)
@@ -570,7 +561,6 @@ static void machine_with_clusters_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = MAX_CPUS;
 
     mc->smp_props.clusters_supported = true;
-    mc->smp_props.dies_supported = false;
 }
 
 static void test_generic_valid(const void *opaque)
