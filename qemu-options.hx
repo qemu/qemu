@@ -207,14 +207,26 @@ ERST
 
 DEF("smp", HAS_ARG, QEMU_OPTION_smp,
     "-smp [[cpus=]n][,maxcpus=maxcpus][,sockets=sockets][,dies=dies][,cores=cores][,threads=threads]\n"
-    "                set the number of CPUs to 'n' [default=1]\n"
+    "                set the number of initial CPUs to 'n' [default=1]\n"
     "                maxcpus= maximum number of total CPUs, including\n"
     "                offline CPUs for hotplug, etc\n"
-    "                sockets= number of discrete sockets in the system\n"
-    "                dies= number of CPU dies on one socket (for PC only)\n"
-    "                cores= number of CPU cores on one socket (for PC, it's on one die)\n"
-    "                threads= number of threads on one CPU core\n",
-        QEMU_ARCH_ALL)
+    "                sockets= number of sockets on the machine board\n"
+    "                dies= number of dies in one socket\n"
+    "                cores= number of cores in one die\n"
+    "                threads= number of threads in one core\n"
+    "Note: Different machines may have different subsets of the CPU topology\n"
+    "      parameters supported, so the actual meaning of the supported parameters\n"
+    "      will vary accordingly. For example, for a machine type that supports a\n"
+    "      three-level CPU hierarchy of sockets/cores/threads, the parameters will\n"
+    "      sequentially mean as below:\n"
+    "                sockets means the number of sockets on the machine board\n"
+    "                cores means the number of cores in one socket\n"
+    "                threads means the number of threads in one core\n"
+    "      For a particular machine type board, an expected CPU topology hierarchy\n"
+    "      can be defined through the supported sub-option. Unsupported parameters\n"
+    "      can also be provided in addition to the sub-option, but their values\n"
+    "      must be set as 1 in the purpose of correct parsing.\n",
+    QEMU_ARCH_ALL)
 SRST
 ``-smp [[cpus=]n][,maxcpus=maxcpus][,sockets=sockets][,dies=dies][,cores=cores][,threads=threads]``
     Simulate a SMP system with '\ ``n``\ ' CPUs initially present on
@@ -225,27 +237,57 @@ SRST
     initial CPU count will match the maximum number. When only one of them
     is given then the omitted one will be set to its counterpart's value.
     Both parameters may be specified, but the maximum number of CPUs must
-    be equal to or greater than the initial CPU count. Both parameters are
-    subject to an upper limit that is determined by the specific machine
-    type chosen.
+    be equal to or greater than the initial CPU count. Product of the
+    CPU topology hierarchy must be equal to the maximum number of CPUs.
+    Both parameters are subject to an upper limit that is determined by
+    the specific machine type chosen.
 
-    To control reporting of CPU topology information, the number of sockets,
-    dies per socket, cores per die, and threads per core can be specified.
-    The sum `` sockets * cores * dies * threads `` must be equal to the
-    maximum CPU count. CPU targets may only support a subset of the topology
-    parameters. Where a CPU target does not support use of a particular
-    topology parameter, its value should be assumed to be 1 for the purpose
-    of computing the CPU maximum count.
+    To control reporting of CPU topology information, values of the topology
+    parameters can be specified. Machines may only support a subset of the
+    parameters and different machines may have different subsets supported
+    which vary depending on capacity of the corresponding CPU targets. So
+    for a particular machine type board, an expected topology hierarchy can
+    be defined through the supported sub-option. Unsupported parameters can
+    also be provided in addition to the sub-option, but their values must be
+    set as 1 in the purpose of correct parsing.
 
     Either the initial CPU count, or at least one of the topology parameters
     must be specified. The specified parameters must be greater than zero,
     explicit configuration like "cpus=0" is not allowed. Values for any
     omitted parameters will be computed from those which are given.
+
+    For example, the following sub-option defines a CPU topology hierarchy
+    (2 sockets totally on the machine, 2 cores per socket, 2 threads per
+    core) for a machine that only supports sockets/cores/threads.
+    Some members of the option can be omitted but their values will be
+    automatically computed:
+
+    ::
+
+        -smp 8,sockets=2,cores=2,threads=2,maxcpus=8
+
+    The following sub-option defines a CPU topology hierarchy (2 sockets
+    totally on the machine, 2 dies per socket, 2 cores per die, 2 threads
+    per core) for PC machines which support sockets/dies/cores/threads.
+    Some members of the option can be omitted but their values will be
+    automatically computed:
+
+    ::
+
+        -smp 16,sockets=2,dies=2,cores=2,threads=2,maxcpus=16
+
     Historically preference was given to the coarsest topology parameters
     when computing missing values (ie sockets preferred over cores, which
     were preferred over threads), however, this behaviour is considered
     liable to change. Prior to 6.2 the preference was sockets over cores
     over threads. Since 6.2 the preference is cores over sockets over threads.
+
+    For example, the following option defines a machine board with 2 sockets
+    of 1 core before 6.2 and 1 socket of 2 cores after 6.2:
+
+    ::
+
+        -smp 2
 ERST
 
 DEF("numa", HAS_ARG, QEMU_OPTION_numa,
