@@ -2790,6 +2790,27 @@ VSX_CVT_FP_TO_FP_HP(xscvhpdp, 1, float16, float64, VsrH(3), VsrD(0), 1)
 VSX_CVT_FP_TO_FP_HP(xvcvsphp, 4, float32, float16, VsrW(i), VsrH(2 * i  + 1), 0)
 VSX_CVT_FP_TO_FP_HP(xvcvhpsp, 4, float16, float32, VsrH(2 * i + 1), VsrW(i), 0)
 
+void helper_XVCVSPBF16(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)
+{
+    ppc_vsr_t t = { };
+    int i;
+
+    helper_reset_fpstatus(env);
+    for (i = 0; i < 4; i++) {
+        if (unlikely(float32_is_signaling_nan(xb->VsrW(i), &env->fp_status))) {
+            float_invalid_op_vxsnan(env, GETPC());
+            t.VsrH(2 * i + 1) = float32_to_bfloat16(
+                float32_snan_to_qnan(xb->VsrW(i)), &env->fp_status);
+        } else {
+            t.VsrH(2 * i + 1) =
+                float32_to_bfloat16(xb->VsrW(i), &env->fp_status);
+        }
+    }
+
+    *xt = t;
+    do_float_check_status(env, GETPC());
+}
+
 void helper_XSCVQPDP(CPUPPCState *env, uint32_t ro, ppc_vsr_t *xt,
                      ppc_vsr_t *xb)
 {

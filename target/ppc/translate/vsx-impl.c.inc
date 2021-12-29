@@ -1565,7 +1565,7 @@ static bool trans_XXSEL(DisasContext *ctx, arg_XX4 *a)
     return true;
 }
 
-static bool trans_XXSPLTW(DisasContext *ctx, arg_XX2 *a)
+static bool trans_XXSPLTW(DisasContext *ctx, arg_XX2_uim2 *a)
 {
     int tofs, bofs;
 
@@ -2491,6 +2491,35 @@ TRANS(XSCMPGEQP, do_xscmpqp, gen_helper_XSCMPGEQP)
 TRANS(XSCMPGTQP, do_xscmpqp, gen_helper_XSCMPGTQP)
 TRANS(XSMAXCQP, do_xscmpqp, gen_helper_XSMAXCQP)
 TRANS(XSMINCQP, do_xscmpqp, gen_helper_XSMINCQP)
+
+static bool trans_XVCVSPBF16(DisasContext *ctx, arg_XX2 *a)
+{
+    TCGv_ptr xt, xb;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VSX(ctx);
+
+    xt = gen_vsr_ptr(a->xt);
+    xb = gen_vsr_ptr(a->xb);
+
+    gen_helper_XVCVSPBF16(cpu_env, xt, xb);
+
+    tcg_temp_free_ptr(xt);
+    tcg_temp_free_ptr(xb);
+
+    return true;
+}
+
+static bool trans_XVCVBF16SPN(DisasContext *ctx, arg_XX2 *a)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VSX(ctx);
+
+    tcg_gen_gvec_shli(MO_32, vsr_full_offset(a->xt), vsr_full_offset(a->xb),
+                      16, 16, 16);
+
+    return true;
+}
 
 #undef GEN_XX2FORM
 #undef GEN_XX3FORM

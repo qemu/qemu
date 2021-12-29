@@ -152,8 +152,11 @@
 %xx_xb          1:1 11:5
 %xx_xa          2:1 16:5
 %xx_xc          3:1 6:5
-&XX2            xt xb uim:uint8_t
-@XX2            ...... ..... ... uim:2 ..... ......... ..       &XX2 xt=%xx_xt xb=%xx_xb
+&XX2            xt xb
+@XX2            ...... ..... ..... ..... ......... ..           &XX2 xt=%xx_xt xb=%xx_xb
+
+&XX2_uim2       xt xb uim:uint8_t
+@XX2_uim2       ...... ..... ... uim:2 ..... ......... ..       &XX2_uim2 xt=%xx_xt xb=%xx_xb
 
 &XX2_bf_xb      bf xb
 @XX2_bf_xb      ...... bf:3 .. ..... ..... ......... . .        &XX2_bf_xb xb=%xx_xb
@@ -575,7 +578,7 @@ XSNMSUBQP       111111 ..... ..... ..... 0111100100 .   @X_rc
 ## VSX splat instruction
 
 XXSPLTIB        111100 ..... 00 ........ 0101101000 .   @X_imm8
-XXSPLTW         111100 ..... ---.. ..... 010100100 . .  @XX2
+XXSPLTW         111100 ..... ---.. ..... 010100100 . .  @XX2_uim2
 
 ## VSX Permute Instructions
 
@@ -615,6 +618,8 @@ XSCMPGTQP       111111 ..... ..... ..... 0011100100 -   @X
 ## VSX Binary Floating-Point Convert Instructions
 
 XSCVQPDP        111111 ..... 10100 ..... 1101000100 .   @X_tb_rc
+XVCVBF16SPN     111100 ..... 10000 ..... 111011011 ..   @XX2
+XVCVSPBF16      111100 ..... 10001 ..... 111011011 ..   @XX2
 
 ## VSX Vector Test Least-Significant Bit by Byte Instruction
 
