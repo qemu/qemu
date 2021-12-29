@@ -86,7 +86,6 @@ void block_job_free(Job *job)
     BlockJob *bjob = container_of(job, BlockJob, job);
 
     block_job_remove_all_bdrv(bjob);
-    blk_unref(bjob->blk);
     ratelimit_destroy(&bjob->limit);
     error_free(bjob->blocker);
 }
@@ -433,22 +432,16 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
                        uint64_t shared_perm, int64_t speed, int flags,
                        BlockCompletionFunc *cb, void *opaque, Error **errp)
 {
-    BlockBackend *blk;
     BlockJob *job;
+    int ret;
 
     if (job_id == NULL && !(flags & JOB_INTERNAL)) {
         job_id = bdrv_get_device_name(bs);
     }
 
-    blk = blk_new_with_bs(bs, perm, shared_perm, errp);
-    if (!blk) {
-        return NULL;
-    }
-
-    job = job_create(job_id, &driver->job_driver, txn, blk_get_aio_context(blk),
+    job = job_create(job_id, &driver->job_driver, txn, bdrv_get_aio_context(bs),
                      flags, cb, opaque, errp);
     if (job == NULL) {
-        blk_unref(blk);
         return NULL;
     }
 
@@ -457,8 +450,6 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     assert(job->job.driver->user_resume == &block_job_user_resume);
 
     ratelimit_init(&job->limit);
-
-    job->blk = blk;
 
     job->finalize_cancelled_notifier.notify = block_job_event_cancelled;
     job->finalize_completed_notifier.notify = block_job_event_completed;
@@ -476,21 +467,23 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
 
     error_setg(&job->blocker, "block device is in use by block job: %s",
                job_type_str(&job->job));
-    block_job_add_bdrv(job, "main node", bs, 0, BLK_PERM_ALL, &error_abort);
+
+    ret = block_job_add_bdrv(job, "main node", bs, perm, shared_perm, errp);
+    if (ret < 0) {
+        goto fail;
+    }
 
     bdrv_op_unblock(bs, BLOCK_OP_TYPE_DATAPLANE, job->blocker);
 
-    /* Disable request queuing in the BlockBackend to avoid deadlocks on drain:
-     * The job reports that it's busy until it reaches a pause point. */
-    blk_set_disable_request_queuing(blk, true);
-    blk_set_allow_aio_context_change(blk, true);
-
     if (!block_job_set_speed(job, speed, errp)) {
-        job_early_fail(&job->job);
-        return NULL;
+        goto fail;
     }
 
     return job;
+
+fail:
+    job_early_fail(&job->job);
+    return NULL;
 }
 
 void block_job_iostatus_reset(BlockJob *job)
@@ -546,4 +539,9 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
         block_job_iostatus_set_err(job, error);
     }
     return action;
+}
+
+AioContext *block_job_get_aio_context(BlockJob *job)
+{
+    return job->job.aio_context;
 }

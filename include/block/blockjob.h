@@ -43,9 +43,6 @@ typedef struct BlockJob {
     /** Data belonging to the generic Job infrastructure */
     Job job;
 
-    /** The block device on which the job is operating.  */
-    BlockBackend *blk;
-
     /** Status that is published by the query-block-jobs QMP API */
     BlockDeviceIoStatus iostatus;
 
@@ -172,5 +169,12 @@ bool block_job_is_internal(BlockJob *job);
  * Returns the driver associated with a block job.
  */
 const BlockJobDriver *block_job_driver(BlockJob *job);
+
+/*
+ * block_job_get_aio_context:
+ *
+ * Returns aio context associated with a block job.
+ */
+AioContext *block_job_get_aio_context(BlockJob *job);
 
 #endif
