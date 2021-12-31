@@ -115,17 +115,18 @@ qemu_irq qdev_get_gpio_in(DeviceState *dev, int n)
 }
 
 void qdev_connect_gpio_out_named(DeviceState *dev, const char *name, int n,
-                                 qemu_irq pin)
+                                 qemu_irq input_pin)
 {
     char *propname = g_strdup_printf("%s[%d]",
                                      name ? name : "unnamed-gpio-out", n);
-    if (pin && !OBJECT(pin)->parent) {
+    if (input_pin && !OBJECT(input_pin)->parent) {
         /* We need a name for object_property_set_link to work */
         object_property_add_child(container_get(qdev_get_machine(),
                                                 "/unattached"),
-                                  "non-qdev-gpio[*]", OBJECT(pin));
+                                  "non-qdev-gpio[*]", OBJECT(input_pin));
     }
-    object_property_set_link(OBJECT(dev), propname, OBJECT(pin), &error_abort);
+    object_property_set_link(OBJECT(dev), propname,
+                             OBJECT(input_pin), &error_abort);
     g_free(propname);
 }
 
@@ -165,9 +166,9 @@ qemu_irq qdev_intercept_gpio_out(DeviceState *dev, qemu_irq icpt,
     return disconnected;
 }
 
-void qdev_connect_gpio_out(DeviceState *dev, int n, qemu_irq pin)
+void qdev_connect_gpio_out(DeviceState *dev, int n, qemu_irq input_pin)
 {
-    qdev_connect_gpio_out_named(dev, NULL, n, pin);
+    qdev_connect_gpio_out_named(dev, NULL, n, input_pin);
 }
 
 void qdev_pass_gpios(DeviceState *dev, DeviceState *container,

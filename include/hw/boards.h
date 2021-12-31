@@ -34,7 +34,8 @@ HotpluggableCPUList *machine_query_hotpluggable_cpus(MachineState *machine);
 void machine_set_cpu_numa_node(MachineState *machine,
                                const CpuInstanceProperties *props,
                                Error **errp);
-void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp);
+void machine_parse_smp_config(MachineState *ms,
+                              const SMPConfiguration *config, Error **errp);
 
 /**
  * machine_class_allow_dynamic_sysbus_dev: Add type to list of valid devices
@@ -128,10 +129,12 @@ typedef struct {
  * SMPCompatProps:
  * @prefer_sockets - whether sockets are preferred over cores in smp parsing
  * @dies_supported - whether dies are supported by the machine
+ * @clusters_supported - whether clusters are supported by the machine
  */
 typedef struct {
     bool prefer_sockets;
     bool dies_supported;
+    bool clusters_supported;
 } SMPCompatProps;
 
 /**
@@ -298,7 +301,8 @@ typedef struct DeviceMemoryState {
  * @cpus: the number of present logical processors on the machine
  * @sockets: the number of sockets on the machine
  * @dies: the number of dies in one socket
- * @cores: the number of cores in one die
+ * @clusters: the number of clusters in one die
+ * @cores: the number of cores in one cluster
  * @threads: the number of threads in one core
  * @max_cpus: the maximum number of logical processors on the machine
  */
@@ -306,6 +310,7 @@ typedef struct CpuTopology {
     unsigned int cpus;
     unsigned int sockets;
     unsigned int dies;
+    unsigned int clusters;
     unsigned int cores;
     unsigned int threads;
     unsigned int max_cpus;

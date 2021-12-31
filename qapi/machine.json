@@ -1404,7 +1404,9 @@
 #
 # @dies: number of dies per socket in the CPU topology
 #
-# @cores: number of cores per die in the CPU topology
+# @clusters: number of clusters per die in the CPU topology (since 7.0)
+#
+# @cores: number of cores per cluster in the CPU topology
 #
 # @threads: number of threads per core in the CPU topology
 #
@@ -1416,6 +1418,7 @@
      '*cpus': 'int',
      '*sockets': 'int',
      '*dies': 'int',
+     '*clusters': 'int',
      '*cores': 'int',
      '*threads': 'int',
      '*maxcpus': 'int' } }
