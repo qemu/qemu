@@ -20,7 +20,7 @@
 void *rdma_pci_dma_map(PCIDevice *dev, dma_addr_t addr, dma_addr_t len)
 {
     void *p;
-    hwaddr pci_len = len;
+    dma_addr_t pci_len = len;
 
     if (!addr) {
         rdma_error_report("addr is NULL");

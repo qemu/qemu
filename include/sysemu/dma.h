@@ -38,7 +38,7 @@ struct QEMUSGList {
     ScatterGatherEntry *sg;
     int nsg;
     int nalloc;
-    size_t size;
+    dma_addr_t size;
     DeviceState *dev;
     AddressSpace *as;
 };
@@ -301,8 +301,10 @@ BlockAIOCB *dma_blk_read(BlockBackend *blk,
 BlockAIOCB *dma_blk_write(BlockBackend *blk,
                           QEMUSGList *sg, uint64_t offset, uint32_t align,
                           BlockCompletionFunc *cb, void *opaque);
-uint64_t dma_buf_read(void *ptr, int32_t len, QEMUSGList *sg, MemTxAttrs attrs);
-uint64_t dma_buf_write(void *ptr, int32_t len, QEMUSGList *sg, MemTxAttrs attrs);
+dma_addr_t dma_buf_read(void *ptr, dma_addr_t len,
+                         QEMUSGList *sg, MemTxAttrs attrs);
+dma_addr_t dma_buf_write(void *ptr, dma_addr_t len,
+                          QEMUSGList *sg, MemTxAttrs attrs);
 
 void dma_acct_start(BlockBackend *blk, BlockAcctCookie *cookie,
                     QEMUSGList *sg, enum BlockAcctType type);
