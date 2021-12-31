@@ -700,6 +700,8 @@ static void set_ru_state(EEPRO100State * s, ru_state_t state)
 
 static void dump_statistics(EEPRO100State * s)
 {
+    const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
+
     /* Dump statistical data. Most data is never changed by the emulation
      * and always 0, so we first just copy the whole block and then those
      * values which really matter.
@@ -707,16 +709,18 @@ static void dump_statistics(EEPRO100State * s)
      */
     pci_dma_write(&s->dev, s->statsaddr, &s->statistics, s->stats_size);
     stl_le_pci_dma(&s->dev, s->statsaddr + 0,
-                   s->statistics.tx_good_frames);
+                   s->statistics.tx_good_frames, attrs);
     stl_le_pci_dma(&s->dev, s->statsaddr + 36,
-                   s->statistics.rx_good_frames);
+                   s->statistics.rx_good_frames, attrs);
     stl_le_pci_dma(&s->dev, s->statsaddr + 48,
-                   s->statistics.rx_resource_errors);
+                   s->statistics.rx_resource_errors, attrs);
     stl_le_pci_dma(&s->dev, s->statsaddr + 60,
-                   s->statistics.rx_short_frame_errors);
+                   s->statistics.rx_short_frame_errors, attrs);
 #if 0
-    stw_le_pci_dma(&s->dev, s->statsaddr + 76, s->statistics.xmt_tco_frames);
-    stw_le_pci_dma(&s->dev, s->statsaddr + 78, s->statistics.rcv_tco_frames);
+    stw_le_pci_dma(&s->dev, s->statsaddr + 76,
+                   s->statistics.xmt_tco_frames, attrs);
+    stw_le_pci_dma(&s->dev, s->statsaddr + 78,
+                   s->statistics.rcv_tco_frames, attrs);
     missing("CU dump statistical counters");
 #endif
 }
@@ -733,6 +737,7 @@ static void read_cb(EEPRO100State *s)
 
 static void tx_command(EEPRO100State *s)
 {
+    const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     uint32_t tbd_array = s->tx.tbd_array_addr;
     uint16_t tcb_bytes = s->tx.tcb_bytes & 0x3fff;
     /* Sends larger than MAX_ETH_FRAME_SIZE are allowed, up to 2600 bytes. */
@@ -764,15 +769,16 @@ static void tx_command(EEPRO100State *s)
     } else {
         /* Flexible mode. */
         uint8_t tbd_count = 0;
+        uint32_t tx_buffer_address;
+        uint16_t tx_buffer_size;
+        uint16_t tx_buffer_el;
+
         if (s->has_extended_tcb_support && !(s->configuration[6] & BIT(4))) {
             /* Extended Flexible TCB. */
             for (; tbd_count < 2; tbd_count++) {
-                uint32_t tx_buffer_address = ldl_le_pci_dma(&s->dev,
-                                                            tbd_address);
-                uint16_t tx_buffer_size = lduw_le_pci_dma(&s->dev,
-                                                          tbd_address + 4);
-                uint16_t tx_buffer_el = lduw_le_pci_dma(&s->dev,
-                                                        tbd_address + 6);
+                ldl_le_pci_dma(&s->dev, tbd_address, &tx_buffer_address, attrs);
+                lduw_le_pci_dma(&s->dev, tbd_address + 4, &tx_buffer_size, attrs);
+                lduw_le_pci_dma(&s->dev, tbd_address + 6, &tx_buffer_el, attrs);
                 tbd_address += 8;
                 TRACE(RXTX, logout
                     ("TBD (extended flexible mode): buffer address 0x%08x, size 0x%04x\n",
@@ -788,9 +794,9 @@ static void tx_command(EEPRO100State *s)
         }
         tbd_address = tbd_array;
         for (; tbd_count < s->tx.tbd_count; tbd_count++) {
-            uint32_t tx_buffer_address = ldl_le_pci_dma(&s->dev, tbd_address);
-            uint16_t tx_buffer_size = lduw_le_pci_dma(&s->dev, tbd_address + 4);
-            uint16_t tx_buffer_el = lduw_le_pci_dma(&s->dev, tbd_address + 6);
+            ldl_le_pci_dma(&s->dev, tbd_address, &tx_buffer_address, attrs);
+            lduw_le_pci_dma(&s->dev, tbd_address + 4, &tx_buffer_size, attrs);
+            lduw_le_pci_dma(&s->dev, tbd_address + 6, &tx_buffer_el, attrs);
             tbd_address += 8;
             TRACE(RXTX, logout
                 ("TBD (flexible mode): buffer address 0x%08x, size 0x%04x\n",
@@ -833,6 +839,7 @@ static void set_multicast_list(EEPRO100State *s)
 
 static void action_command(EEPRO100State *s)
 {
+    const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     /* The loop below won't stop if it gets special handcrafted data.
        Therefore we limit the number of iterations. */
     unsigned max_loop_count = 16;
@@ -911,7 +918,7 @@ static void action_command(EEPRO100State *s)
         }
         /* Write new status. */
         stw_le_pci_dma(&s->dev, s->cb_address,
-                       s->tx.status | ok_status | STATUS_C);
+                       s->tx.status | ok_status | STATUS_C, attrs);
         if (bit_i) {
             /* CU completed action. */
             eepro100_cx_interrupt(s);
@@ -937,6 +944,7 @@ static void action_command(EEPRO100State *s)
 
 static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
 {
+    const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     cu_state_t cu_state;
     switch (val) {
     case CU_NOP:
@@ -986,7 +994,7 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
         /* Dump statistical counters. */
         TRACE(OTHER, logout("val=0x%02x (dump stats)\n", val));
         dump_statistics(s);
-        stl_le_pci_dma(&s->dev, s->statsaddr + s->stats_size, 0xa005);
+        stl_le_pci_dma(&s->dev, s->statsaddr + s->stats_size, 0xa005, attrs);
         break;
     case CU_CMD_BASE:
         /* Load CU base. */
@@ -997,7 +1005,7 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
         /* Dump and reset statistical counters. */
         TRACE(OTHER, logout("val=0x%02x (dump stats and reset)\n", val));
         dump_statistics(s);
-        stl_le_pci_dma(&s->dev, s->statsaddr + s->stats_size, 0xa007);
+        stl_le_pci_dma(&s->dev, s->statsaddr + s->stats_size, 0xa007, attrs);
         memset(&s->statistics, 0, sizeof(s->statistics));
         break;
     case CU_SRESUME:
@@ -1612,6 +1620,7 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
      * - Magic packets should set bit 30 in power management driver register.
      * - Interesting packets should set bit 29 in power management driver register.
      */
+    const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     EEPRO100State *s = qemu_get_nic_opaque(nc);
     uint16_t rfd_status = 0xa000;
 #if defined(CONFIG_PAD_RECEIVED_FRAMES)
@@ -1726,9 +1735,9 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
     TRACE(OTHER, logout("command 0x%04x, link 0x%08x, addr 0x%08x, size %u\n",
           rfd_command, rx.link, rx.rx_buf_addr, rfd_size));
     stw_le_pci_dma(&s->dev, s->ru_base + s->ru_offset +
-                offsetof(eepro100_rx_t, status), rfd_status);
+                offsetof(eepro100_rx_t, status), rfd_status, attrs);
     stw_le_pci_dma(&s->dev, s->ru_base + s->ru_offset +
-                offsetof(eepro100_rx_t, count), size);
+                offsetof(eepro100_rx_t, count), size, attrs);
     /* Early receive interrupt not supported. */
 #if 0
     eepro100_er_interrupt(s);

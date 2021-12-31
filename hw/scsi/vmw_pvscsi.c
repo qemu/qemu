@@ -50,12 +50,14 @@
 #define PVSCSI_MAX_CMD_DATA_WORDS \
     (sizeof(PVSCSICmdDescSetupRings)/sizeof(uint32_t))
 
-#define RS_GET_FIELD(m, field) \
-    (ldl_le_pci_dma(&container_of(m, PVSCSIState, rings)->parent_obj, \
-                 (m)->rs_pa + offsetof(struct PVSCSIRingsState, field)))
+#define RS_GET_FIELD(pval, m, field) \
+    ldl_le_pci_dma(&container_of(m, PVSCSIState, rings)->parent_obj, \
+                 (m)->rs_pa + offsetof(struct PVSCSIRingsState, field), \
+                 pval, MEMTXATTRS_UNSPECIFIED)
 #define RS_SET_FIELD(m, field, val) \
     (stl_le_pci_dma(&container_of(m, PVSCSIState, rings)->parent_obj, \
-                 (m)->rs_pa + offsetof(struct PVSCSIRingsState, field), val))
+                 (m)->rs_pa + offsetof(struct PVSCSIRingsState, field), val, \
+                 MEMTXATTRS_UNSPECIFIED))
 
 struct PVSCSIClass {
     PCIDeviceClass parent_class;
@@ -247,10 +249,11 @@ pvscsi_ring_cleanup(PVSCSIRingInfo *mgr)
 static hwaddr
 pvscsi_ring_pop_req_descr(PVSCSIRingInfo *mgr)
 {
-    uint32_t ready_ptr = RS_GET_FIELD(mgr, reqProdIdx);
+    uint32_t ready_ptr;
     uint32_t ring_size = PVSCSI_MAX_NUM_PAGES_REQ_RING
                             * PVSCSI_MAX_NUM_REQ_ENTRIES_PER_PAGE;
 
+    RS_GET_FIELD(&ready_ptr, mgr, reqProdIdx);
     if (ready_ptr != mgr->consumed_ptr
         && ready_ptr - mgr->consumed_ptr < ring_size) {
         uint32_t next_ready_ptr =
@@ -321,8 +324,11 @@ pvscsi_ring_flush_cmp(PVSCSIRingInfo *mgr)
 static bool
 pvscsi_ring_msg_has_room(PVSCSIRingInfo *mgr)
 {
-    uint32_t prodIdx = RS_GET_FIELD(mgr, msgProdIdx);
-    uint32_t consIdx = RS_GET_FIELD(mgr, msgConsIdx);
+    uint32_t prodIdx;
+    uint32_t consIdx;
+
+    RS_GET_FIELD(&prodIdx, mgr, msgProdIdx);
+    RS_GET_FIELD(&consIdx, mgr, msgConsIdx);
 
     return (prodIdx - consIdx) < (mgr->msg_len_mask + 1);
 }

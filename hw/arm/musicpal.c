@@ -185,13 +185,13 @@ static void eth_rx_desc_put(AddressSpace *dma_as, uint32_t addr,
     cpu_to_le16s(&desc->buffer_size);
     cpu_to_le32s(&desc->buffer);
     cpu_to_le32s(&desc->next);
-    dma_memory_write(dma_as, addr, desc, sizeof(*desc));
+    dma_memory_write(dma_as, addr, desc, sizeof(*desc), MEMTXATTRS_UNSPECIFIED);
 }
 
 static void eth_rx_desc_get(AddressSpace *dma_as, uint32_t addr,
                             mv88w8618_rx_desc *desc)
 {
-    dma_memory_read(dma_as, addr, desc, sizeof(*desc));
+    dma_memory_read(dma_as, addr, desc, sizeof(*desc), MEMTXATTRS_UNSPECIFIED);
     le32_to_cpus(&desc->cmdstat);
     le16_to_cpus(&desc->bytes);
     le16_to_cpus(&desc->buffer_size);
@@ -215,7 +215,7 @@ static ssize_t eth_receive(NetClientState *nc, const uint8_t *buf, size_t size)
             eth_rx_desc_get(&s->dma_as, desc_addr, &desc);
             if ((desc.cmdstat & MP_ETH_RX_OWN) && desc.buffer_size >= size) {
                 dma_memory_write(&s->dma_as, desc.buffer + s->vlan_header,
-                                          buf, size);
+                                 buf, size, MEMTXATTRS_UNSPECIFIED);
                 desc.bytes = size + s->vlan_header;
                 desc.cmdstat &= ~MP_ETH_RX_OWN;
                 s->cur_rx[i] = desc.next;
@@ -241,13 +241,13 @@ static void eth_tx_desc_put(AddressSpace *dma_as, uint32_t addr,
     cpu_to_le16s(&desc->bytes);
     cpu_to_le32s(&desc->buffer);
     cpu_to_le32s(&desc->next);
-    dma_memory_write(dma_as, addr, desc, sizeof(*desc));
+    dma_memory_write(dma_as, addr, desc, sizeof(*desc), MEMTXATTRS_UNSPECIFIED);
 }
 
 static void eth_tx_desc_get(AddressSpace *dma_as, uint32_t addr,
                             mv88w8618_tx_desc *desc)
 {
-    dma_memory_read(dma_as, addr, desc, sizeof(*desc));
+    dma_memory_read(dma_as, addr, desc, sizeof(*desc), MEMTXATTRS_UNSPECIFIED);
     le32_to_cpus(&desc->cmdstat);
     le16_to_cpus(&desc->res);
     le16_to_cpus(&desc->bytes);
@@ -269,7 +269,8 @@ static void eth_send(mv88w8618_eth_state *s, int queue_index)
         if (desc.cmdstat & MP_ETH_TX_OWN) {
             len = desc.bytes;
             if (len < 2048) {
-                dma_memory_read(&s->dma_as, desc.buffer, buf, len);
+                dma_memory_read(&s->dma_as, desc.buffer, buf, len,
+                                MEMTXATTRS_UNSPECIFIED);
                 qemu_send_packet(qemu_get_queue(s->nic), buf, len);
             }
             desc.cmdstat &= ~MP_ETH_TX_OWN;

@@ -569,7 +569,8 @@ static int vtd_get_root_entry(IntelIOMMUState *s, uint8_t index,
     dma_addr_t addr;
 
     addr = s->root + index * sizeof(*re);
-    if (dma_memory_read(&address_space_memory, addr, re, sizeof(*re))) {
+    if (dma_memory_read(&address_space_memory, addr,
+                        re, sizeof(*re), MEMTXATTRS_UNSPECIFIED)) {
         re->lo = 0;
         return -VTD_FR_ROOT_TABLE_INV;
     }
@@ -602,7 +603,8 @@ static int vtd_get_context_entry_from_root(IntelIOMMUState *s,
     }
 
     addr = addr + index * ce_size;
-    if (dma_memory_read(&address_space_memory, addr, ce, ce_size)) {
+    if (dma_memory_read(&address_space_memory, addr,
+                        ce, ce_size, MEMTXATTRS_UNSPECIFIED)) {
         return -VTD_FR_CONTEXT_TABLE_INV;
     }
 
@@ -639,8 +641,8 @@ static uint64_t vtd_get_slpte(dma_addr_t base_addr, uint32_t index)
     assert(index < VTD_SL_PT_ENTRY_NR);
 
     if (dma_memory_read(&address_space_memory,
-                        base_addr + index * sizeof(slpte), &slpte,
-                        sizeof(slpte))) {
+                        base_addr + index * sizeof(slpte),
+                        &slpte, sizeof(slpte), MEMTXATTRS_UNSPECIFIED)) {
         slpte = (uint64_t)-1;
         return slpte;
     }
@@ -704,7 +706,8 @@ static int vtd_get_pdire_from_pdir_table(dma_addr_t pasid_dir_base,
     index = VTD_PASID_DIR_INDEX(pasid);
     entry_size = VTD_PASID_DIR_ENTRY_SIZE;
     addr = pasid_dir_base + index * entry_size;
-    if (dma_memory_read(&address_space_memory, addr, pdire, entry_size)) {
+    if (dma_memory_read(&address_space_memory, addr,
+                        pdire, entry_size, MEMTXATTRS_UNSPECIFIED)) {
         return -VTD_FR_PASID_TABLE_INV;
     }
 
@@ -728,7 +731,8 @@ static int vtd_get_pe_in_pasid_leaf_table(IntelIOMMUState *s,
     index = VTD_PASID_TABLE_INDEX(pasid);
     entry_size = VTD_PASID_ENTRY_SIZE;
     addr = addr + index * entry_size;
-    if (dma_memory_read(&address_space_memory, addr, pe, entry_size)) {
+    if (dma_memory_read(&address_space_memory, addr,
+                        pe, entry_size, MEMTXATTRS_UNSPECIFIED)) {
         return -VTD_FR_PASID_TABLE_INV;
     }
 
@@ -2275,7 +2279,8 @@ static bool vtd_get_inv_desc(IntelIOMMUState *s,
     uint32_t dw = s->iq_dw ? 32 : 16;
     dma_addr_t addr = base_addr + offset * dw;
 
-    if (dma_memory_read(&address_space_memory, addr, inv_desc, dw)) {
+    if (dma_memory_read(&address_space_memory, addr,
+                        inv_desc, dw, MEMTXATTRS_UNSPECIFIED)) {
         error_report_once("Read INV DESC failed.");
         return false;
     }
@@ -2308,8 +2313,9 @@ static bool vtd_process_wait_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
         dma_addr_t status_addr = inv_desc->hi;
         trace_vtd_inv_desc_wait_sw(status_addr, status_data);
         status_data = cpu_to_le32(status_data);
-        if (dma_memory_write(&address_space_memory, status_addr, &status_data,
-                             sizeof(status_data))) {
+        if (dma_memory_write(&address_space_memory, status_addr,
+                             &status_data, sizeof(status_data),
+                             MEMTXATTRS_UNSPECIFIED)) {
             trace_vtd_inv_desc_wait_write_fail(inv_desc->hi, inv_desc->lo);
             return false;
         }
@@ -3120,8 +3126,8 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
     }
 
     addr = iommu->intr_root + index * sizeof(*entry);
-    if (dma_memory_read(&address_space_memory, addr, entry,
-                        sizeof(*entry))) {
+    if (dma_memory_read(&address_space_memory, addr,
+                        entry, sizeof(*entry), MEMTXATTRS_UNSPECIFIED)) {
         error_report_once("%s: read failed: ind=0x%x addr=0x%" PRIx64,
                           __func__, index, addr);
         return -VTD_FR_IR_ROOT_INVAL;

@@ -69,7 +69,8 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
             break;
         case 0x00010003: /* Get board MAC address */
             resplen = sizeof(s->macaddr.a);
-            dma_memory_write(&s->dma_as, value + 12, s->macaddr.a, resplen);
+            dma_memory_write(&s->dma_as, value + 12, s->macaddr.a, resplen,
+                             MEMTXATTRS_UNSPECIFIED);
             break;
         case 0x00010004: /* Get board serial */
             qemu_log_mask(LOG_UNIMP,

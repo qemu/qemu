@@ -1146,12 +1146,13 @@ static uint16_t nvme_tx(NvmeCtrl *n, NvmeSg *sg, uint8_t *ptr, uint32_t len,
     assert(sg->flags & NVME_SG_ALLOC);
 
     if (sg->flags & NVME_SG_DMA) {
+        const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
         uint64_t residual;
 
         if (dir == NVME_TX_DIRECTION_TO_DEVICE) {
-            residual = dma_buf_write(ptr, len, &sg->qsg);
+            residual = dma_buf_write(ptr, len, &sg->qsg, attrs);
         } else {
-            residual = dma_buf_read(ptr, len, &sg->qsg);
+            residual = dma_buf_read(ptr, len, &sg->qsg, attrs);
         }
 
         if (unlikely(residual)) {

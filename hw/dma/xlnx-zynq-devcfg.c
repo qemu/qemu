@@ -161,12 +161,14 @@ static void xlnx_zynq_devcfg_dma_go(XlnxZynqDevcfg *s)
             btt = MIN(btt, dmah->dest_len);
         }
         DB_PRINT("reading %x bytes from %x\n", btt, dmah->src_addr);
-        dma_memory_read(&address_space_memory, dmah->src_addr, buf, btt);
+        dma_memory_read(&address_space_memory, dmah->src_addr, buf, btt,
+                        MEMTXATTRS_UNSPECIFIED);
         dmah->src_len -= btt;
         dmah->src_addr += btt;
         if (loopback && (dmah->src_len || dmah->dest_len)) {
             DB_PRINT("writing %x bytes from %x\n", btt, dmah->dest_addr);
-            dma_memory_write(&address_space_memory, dmah->dest_addr, buf, btt);
+            dma_memory_write(&address_space_memory, dmah->dest_addr, buf, btt,
+                             MEMTXATTRS_UNSPECIFIED);
             dmah->dest_len -= btt;
             dmah->dest_addr += btt;
         }
