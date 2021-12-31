@@ -74,6 +74,8 @@ if cpu not in supported_cpus
   host_arch = 'unknown'
 elif cpu == 'x86'
   host_arch = 'i386'
+elif cpu == 'mips64'
+  host_arch = 'mips'
 else
   host_arch = cpu
 endif
