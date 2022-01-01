@@ -17,7 +17,7 @@ You can create a disk image with the command::
    qemu-img create myimage.img mysize
 
 where myimage.img is the disk image filename and mysize is its size in
-kilobytes. You can add an ``M`` suffix to give the size in megabytes and
+bytes. You can add an ``M`` suffix to give the size in megabytes and
 a ``G`` suffix for gigabytes.
 
 See the ``qemu-img`` invocation documentation for more information.
