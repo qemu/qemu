@@ -95,6 +95,7 @@ static DisplayChangeListener dcl = {
 };
 static int last_buttons;
 static int cursor_hide = 1;
+static int left_command_key_enabled = 1;
 
 static int gArgc;
 static char **gArgv;
@@ -853,7 +854,8 @@ QemuCocoaView *cocoaView;
                 /* Don't pass command key changes to guest unless mouse is grabbed */
                 case kVK_Command:
                     if (isMouseGrabbed &&
-                        !!(modifiers & NSEventModifierFlagCommand)) {
+                        !!(modifiers & NSEventModifierFlagCommand) &&
+                        left_command_key_enabled) {
                         [self toggleKey:Q_KEY_CODE_META_L];
                     }
                     break;
@@ -2000,6 +2002,10 @@ static void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
     }
     if (opts->has_show_cursor && opts->show_cursor) {
         cursor_hide = 0;
+    }
+
+    if (opts->u.cocoa.has_left_command_key && !opts->u.cocoa.left_command_key) {
+        left_command_key_enabled = 0;
     }
 
     // register vga output callbacks
