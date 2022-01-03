@@ -34,13 +34,6 @@ bool use_idiv_instructions;
 bool use_neon_instructions;
 #endif
 
-/* ??? Ought to think about changing CONFIG_SOFTMMU to always defined.  */
-#ifdef CONFIG_SOFTMMU
-# define USING_SOFTMMU 1
-#else
-# define USING_SOFTMMU 0
-#endif
-
 #ifdef CONFIG_DEBUG_TCG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "%r0",  "%r1",  "%r2",  "%r3",  "%r4",  "%r5",  "%r6",  "%r7",
@@ -1621,8 +1614,8 @@ static void tcg_out_qemu_ld_index(TCGContext *s, MemOp opc,
         tcg_out_ld32_r(s, COND_AL, datalo, addrlo, addend);
         break;
     case MO_UQ:
-        /* Avoid ldrd for user-only emulation, to handle unaligned.  */
-        if (USING_SOFTMMU
+        /* LDRD requires alignment; double-check that. */
+        if (get_alignment_bits(opc) >= MO_64
             && (datalo & 1) == 0 && datahi == datalo + 1) {
             tcg_out_ldrd_r(s, COND_AL, datalo, addrlo, addend);
         } else if (datalo != addend) {
@@ -1664,8 +1657,8 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, MemOp opc, TCGReg datalo,
         tcg_out_ld32_12(s, COND_AL, datalo, addrlo, 0);
         break;
     case MO_UQ:
-        /* Avoid ldrd for user-only emulation, to handle unaligned.  */
-        if (USING_SOFTMMU
+        /* LDRD requires alignment; double-check that. */
+        if (get_alignment_bits(opc) >= MO_64
             && (datalo & 1) == 0 && datahi == datalo + 1) {
             tcg_out_ldrd_8(s, COND_AL, datalo, addrlo, 0);
         } else if (datalo == addrlo) {
@@ -1741,8 +1734,8 @@ static void tcg_out_qemu_st_index(TCGContext *s, ARMCond cond, MemOp opc,
         tcg_out_st32_r(s, cond, datalo, addrlo, addend);
         break;
     case MO_64:
-        /* Avoid strd for user-only emulation, to handle unaligned.  */
-        if (USING_SOFTMMU
+        /* STRD requires alignment; double-check that. */
+        if (get_alignment_bits(opc) >= MO_64
             && (datalo & 1) == 0 && datahi == datalo + 1) {
             tcg_out_strd_r(s, cond, datalo, addrlo, addend);
         } else {
@@ -1773,8 +1766,8 @@ static void tcg_out_qemu_st_direct(TCGContext *s, MemOp opc, TCGReg datalo,
         tcg_out_st32_12(s, COND_AL, datalo, addrlo, 0);
         break;
     case MO_64:
-        /* Avoid strd for user-only emulation, to handle unaligned.  */
-        if (USING_SOFTMMU
+        /* STRD requires alignment; double-check that. */
+        if (get_alignment_bits(opc) >= MO_64
             && (datalo & 1) == 0 && datahi == datalo + 1) {
             tcg_out_strd_8(s, COND_AL, datalo, addrlo, 0);
         } else {
