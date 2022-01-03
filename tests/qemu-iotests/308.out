@@ -95,7 +95,7 @@ virtual size: 0 B (0 bytes)
               'mountpoint': 'TEST_DIR/t.IMGFMT.fuse', 'writable': true
           } }
 {"return": {}}
-qemu-io: can't open device TEST_DIR/t.IMGFMT: Could not open 'TEST_DIR/t.IMGFMT': Permission denied
+Writing to read-only export failed: OK
 wrote 65536/65536 bytes at offset 1048576
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 65536/65536 bytes at offset 1048576
