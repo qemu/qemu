@@ -596,11 +596,7 @@ static void tcg_out_b_reg(TCGContext *s, ARMCond cond, TCGReg rn)
      * Unless the C portion of QEMU is compiled as thumb, we don't need
      * true BX semantics; merely a branch to an address held in a register.
      */
-    if (use_armv5t_instructions) {
-        tcg_out_bx_reg(s, cond, rn);
-    } else {
-        tcg_out_mov_reg(s, cond, TCG_REG_PC, rn);
-    }
+    tcg_out_bx_reg(s, cond, rn);
 }
 
 static void tcg_out_dat_imm(TCGContext *s, ARMCond cond, ARMInsn opc,
@@ -1247,14 +1243,7 @@ static void tcg_out_goto(TCGContext *s, ARMCond cond, const tcg_insn_unit *addr)
     }
 
     /* LDR is interworking from v5t. */
-    if (arm_mode || use_armv5t_instructions) {
-        tcg_out_movi_pool(s, cond, TCG_REG_PC, addri);
-        return;
-    }
-
-    /* else v4t */
-    tcg_out_movi32(s, COND_AL, TCG_REG_TMP, addri);
-    tcg_out_bx_reg(s, COND_AL, TCG_REG_TMP);
+    tcg_out_movi_pool(s, cond, TCG_REG_PC, addri);
 }
 
 /*
@@ -1270,26 +1259,14 @@ static void tcg_out_call(TCGContext *s, const tcg_insn_unit *addr)
     if (disp - 8 < 0x02000000 && disp - 8 >= -0x02000000) {
         if (arm_mode) {
             tcg_out_bl_imm(s, COND_AL, disp);
-            return;
-        }
-        if (use_armv5t_instructions) {
+        } else {
             tcg_out_blx_imm(s, disp);
-            return;
         }
+        return;
     }
 
-    if (use_armv5t_instructions) {
-        tcg_out_movi32(s, COND_AL, TCG_REG_TMP, addri);
-        tcg_out_blx_reg(s, COND_AL, TCG_REG_TMP);
-    } else if (arm_mode) {
-        /* ??? Know that movi_pool emits exactly 1 insn.  */
-        tcg_out_mov_reg(s, COND_AL, TCG_REG_R14, TCG_REG_PC);
-        tcg_out_movi_pool(s, COND_AL, TCG_REG_PC, addri);
-    } else {
-        tcg_out_movi32(s, COND_AL, TCG_REG_TMP, addri);
-        tcg_out_mov_reg(s, COND_AL, TCG_REG_R14, TCG_REG_PC);
-        tcg_out_bx_reg(s, COND_AL, TCG_REG_TMP);
-    }
+    tcg_out_movi32(s, COND_AL, TCG_REG_TMP, addri);
+    tcg_out_blx_reg(s, COND_AL, TCG_REG_TMP);
 }
 
 static void tcg_out_goto_label(TCGContext *s, ARMCond cond, TCGLabel *l)
