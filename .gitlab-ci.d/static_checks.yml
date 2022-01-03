@@ -46,4 +46,6 @@ check-python-tox:
     QEMU_TOX_EXTRA_ARGS: --skip-missing-interpreters=false
   needs:
     job: python-container
+  rules:
+    - when: manual
   allow_failure: true
