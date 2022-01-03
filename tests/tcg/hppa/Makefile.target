@@ -12,3 +12,8 @@ run-signals: signals
 	$(call skip-test, $<, "BROKEN awaiting vdso support")
 run-plugin-signals-with-%:
 	$(call skip-test, $<, "BROKEN awaiting vdso support")
+
+VPATH += $(SRC_PATH)/tests/tcg/hppa
+TESTS += stby
+
+stby: CFLAGS += -pthread

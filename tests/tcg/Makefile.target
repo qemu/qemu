@@ -82,13 +82,12 @@ QEMU_OPTS=
 
 
 # If TCG debugging, or TCI is enabled things are a lot slower
-ifneq ($(CONFIG_TCG_INTERPRETER),)
+# ??? Makefile no longer has any indication that TCI is enabled,
+# but for the record:
+#   15s    original default
+#   60s    with --enable-debug
+#   90s    with --enable-tcg-interpreter
 TIMEOUT=90
-else ifneq ($(CONFIG_DEBUG_TCG),)
-TIMEOUT=60
-else
-TIMEOUT=15
-endif
 
 ifdef CONFIG_USER_ONLY
 # The order we include is important. We include multiarch first and
@@ -144,7 +143,6 @@ PLUGINS=$(patsubst %.c, lib%.so, $(notdir $(wildcard $(PLUGIN_SRC)/*.c)))
 $(foreach p,$(PLUGINS), \
 	$(foreach t,$(TESTS),\
 		$(eval run-plugin-$(t)-with-$(p): $t $p) \
-		$(eval run-plugin-$(t)-with-$(p): TIMEOUT=60) \
 		$(eval RUN_TESTS+=run-plugin-$(t)-with-$(p))))
 endif
 

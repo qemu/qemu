@@ -326,7 +326,7 @@ for target in $target_list; do
   elif test $got_cross_cc = no && test "$container" != no && \
           test -n "$container_image"; then
       for host in $container_hosts; do
-          if test "$host" = "$ARCH"; then
+          if test "$host" = "$cpu"; then
               echo "DOCKER_IMAGE=$container_image" >> $config_target_mak
               echo "DOCKER_CROSS_CC_GUEST=$container_cross_cc" >> \
                    $config_target_mak
