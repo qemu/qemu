@@ -923,17 +923,6 @@ static void tcg_out_dat_rIN(TCGContext *s, ARMCond cond, ARMInsn opc,
 static void tcg_out_mul32(TCGContext *s, ARMCond cond, TCGReg rd,
                           TCGReg rn, TCGReg rm)
 {
-    /* if ArchVersion() < 6 && d == n then UNPREDICTABLE;  */
-    if (!use_armv6_instructions && rd == rn) {
-        if (rd == rm) {
-            /* rd == rn == rm; copy an input to tmp first.  */
-            tcg_out_mov_reg(s, cond, TCG_REG_TMP, rn);
-            rm = rn = TCG_REG_TMP;
-        } else {
-            rn = rm;
-            rm = rd;
-        }
-    }
     /* mul */
     tcg_out32(s, (cond << 28) | 0x90 | (rd << 16) | (rm << 8) | rn);
 }
@@ -941,17 +930,6 @@ static void tcg_out_mul32(TCGContext *s, ARMCond cond, TCGReg rd,
 static void tcg_out_umull32(TCGContext *s, ARMCond cond, TCGReg rd0,
                             TCGReg rd1, TCGReg rn, TCGReg rm)
 {
-    /* if ArchVersion() < 6 && (dHi == n || dLo == n) then UNPREDICTABLE;  */
-    if (!use_armv6_instructions && (rd0 == rn || rd1 == rn)) {
-        if (rd0 == rm || rd1 == rm) {
-            tcg_out_mov_reg(s, cond, TCG_REG_TMP, rn);
-            rn = TCG_REG_TMP;
-        } else {
-            TCGReg t = rn;
-            rn = rm;
-            rm = t;
-        }
-    }
     /* umull */
     tcg_out32(s, (cond << 28) | 0x00800090 |
               (rd1 << 16) | (rd0 << 12) | (rm << 8) | rn);
@@ -960,17 +938,6 @@ static void tcg_out_umull32(TCGContext *s, ARMCond cond, TCGReg rd0,
 static void tcg_out_smull32(TCGContext *s, ARMCond cond, TCGReg rd0,
                             TCGReg rd1, TCGReg rn, TCGReg rm)
 {
-    /* if ArchVersion() < 6 && (dHi == n || dLo == n) then UNPREDICTABLE;  */
-    if (!use_armv6_instructions && (rd0 == rn || rd1 == rn)) {
-        if (rd0 == rm || rd1 == rm) {
-            tcg_out_mov_reg(s, cond, TCG_REG_TMP, rn);
-            rn = TCG_REG_TMP;
-        } else {
-            TCGReg t = rn;
-            rn = rm;
-            rm = t;
-        }
-    }
     /* smull */
     tcg_out32(s, (cond << 28) | 0x00c00090 |
               (rd1 << 16) | (rd0 << 12) | (rm << 8) | rn);
@@ -990,15 +957,8 @@ static void tcg_out_udiv(TCGContext *s, ARMCond cond,
 
 static void tcg_out_ext8s(TCGContext *s, ARMCond cond, TCGReg rd, TCGReg rn)
 {
-    if (use_armv6_instructions) {
-        /* sxtb */
-        tcg_out32(s, 0x06af0070 | (cond << 28) | (rd << 12) | rn);
-    } else {
-        tcg_out_dat_reg(s, cond, ARITH_MOV,
-                        rd, 0, rn, SHIFT_IMM_LSL(24));
-        tcg_out_dat_reg(s, cond, ARITH_MOV,
-                        rd, 0, rd, SHIFT_IMM_ASR(24));
-    }
+    /* sxtb */
+    tcg_out32(s, 0x06af0070 | (cond << 28) | (rd << 12) | rn);
 }
 
 static void __attribute__((unused))
@@ -1009,113 +969,37 @@ tcg_out_ext8u(TCGContext *s, ARMCond cond, TCGReg rd, TCGReg rn)
 
 static void tcg_out_ext16s(TCGContext *s, ARMCond cond, TCGReg rd, TCGReg rn)
 {
-    if (use_armv6_instructions) {
-        /* sxth */
-        tcg_out32(s, 0x06bf0070 | (cond << 28) | (rd << 12) | rn);
-    } else {
-        tcg_out_dat_reg(s, cond, ARITH_MOV,
-                        rd, 0, rn, SHIFT_IMM_LSL(16));
-        tcg_out_dat_reg(s, cond, ARITH_MOV,
-                        rd, 0, rd, SHIFT_IMM_ASR(16));
-    }
+    /* sxth */
+    tcg_out32(s, 0x06bf0070 | (cond << 28) | (rd << 12) | rn);
 }
 
 static void tcg_out_ext16u(TCGContext *s, ARMCond cond, TCGReg rd, TCGReg rn)
 {
-    if (use_armv6_instructions) {
-        /* uxth */
-        tcg_out32(s, 0x06ff0070 | (cond << 28) | (rd << 12) | rn);
-    } else {
-        tcg_out_dat_reg(s, cond, ARITH_MOV,
-                        rd, 0, rn, SHIFT_IMM_LSL(16));
-        tcg_out_dat_reg(s, cond, ARITH_MOV,
-                        rd, 0, rd, SHIFT_IMM_LSR(16));
-    }
+    /* uxth */
+    tcg_out32(s, 0x06ff0070 | (cond << 28) | (rd << 12) | rn);
 }
 
 static void tcg_out_bswap16(TCGContext *s, ARMCond cond,
                             TCGReg rd, TCGReg rn, int flags)
 {
-    if (use_armv6_instructions) {
-        if (flags & TCG_BSWAP_OS) {
-            /* revsh */
-            tcg_out32(s, 0x06ff0fb0 | (cond << 28) | (rd << 12) | rn);
-            return;
-        }
-
-        /* rev16 */
-        tcg_out32(s, 0x06bf0fb0 | (cond << 28) | (rd << 12) | rn);
-        if ((flags & (TCG_BSWAP_IZ | TCG_BSWAP_OZ)) == TCG_BSWAP_OZ) {
-            /* uxth */
-            tcg_out32(s, 0x06ff0070 | (cond << 28) | (rd << 12) | rd);
-        }
+    if (flags & TCG_BSWAP_OS) {
+        /* revsh */
+        tcg_out32(s, 0x06ff0fb0 | (cond << 28) | (rd << 12) | rn);
         return;
     }
 
-    if (flags == 0) {
-        /*
-         * For stores, no input or output extension:
-         *                              rn  = xxAB
-         * lsr tmp, rn, #8              tmp = 0xxA
-         * and tmp, tmp, #0xff          tmp = 000A
-         * orr rd, tmp, rn, lsl #8      rd  = xABA
-         */
-        tcg_out_dat_reg(s, cond, ARITH_MOV,
-                        TCG_REG_TMP, 0, rn, SHIFT_IMM_LSR(8));
-        tcg_out_dat_imm(s, cond, ARITH_AND, TCG_REG_TMP, TCG_REG_TMP, 0xff);
-        tcg_out_dat_reg(s, cond, ARITH_ORR,
-                        rd, TCG_REG_TMP, rn, SHIFT_IMM_LSL(8));
-        return;
+    /* rev16 */
+    tcg_out32(s, 0x06bf0fb0 | (cond << 28) | (rd << 12) | rn);
+    if ((flags & (TCG_BSWAP_IZ | TCG_BSWAP_OZ)) == TCG_BSWAP_OZ) {
+        /* uxth */
+        tcg_out32(s, 0x06ff0070 | (cond << 28) | (rd << 12) | rd);
     }
-
-    /*
-     * Byte swap, leaving the result at the top of the register.
-     * We will then shift down, zero or sign-extending.
-     */
-    if (flags & TCG_BSWAP_IZ) {
-        /*
-         *                              rn  = 00AB
-         * ror tmp, rn, #8              tmp = B00A
-         * orr tmp, tmp, tmp, lsl #16   tmp = BA00
-         */
-        tcg_out_dat_reg(s, cond, ARITH_MOV,
-                        TCG_REG_TMP, 0, rn, SHIFT_IMM_ROR(8));
-        tcg_out_dat_reg(s, cond, ARITH_ORR,
-                        TCG_REG_TMP, TCG_REG_TMP, TCG_REG_TMP,
-                        SHIFT_IMM_LSL(16));
-    } else {
-        /*
-         *                              rn  = xxAB
-         * and tmp, rn, #0xff00         tmp = 00A0
-         * lsl tmp, tmp, #8             tmp = 0A00
-         * orr tmp, tmp, rn, lsl #24    tmp = BA00
-         */
-        tcg_out_dat_rI(s, cond, ARITH_AND, TCG_REG_TMP, rn, 0xff00, 1);
-        tcg_out_dat_reg(s, cond, ARITH_MOV,
-                        TCG_REG_TMP, 0, TCG_REG_TMP, SHIFT_IMM_LSL(8));
-        tcg_out_dat_reg(s, cond, ARITH_ORR,
-                        TCG_REG_TMP, TCG_REG_TMP, rn, SHIFT_IMM_LSL(24));
-    }
-    tcg_out_dat_reg(s, cond, ARITH_MOV, rd, 0, TCG_REG_TMP,
-                    (flags & TCG_BSWAP_OS
-                     ? SHIFT_IMM_ASR(8) : SHIFT_IMM_LSR(8)));
 }
 
 static void tcg_out_bswap32(TCGContext *s, ARMCond cond, TCGReg rd, TCGReg rn)
 {
-    if (use_armv6_instructions) {
-        /* rev */
-        tcg_out32(s, 0x06bf0f30 | (cond << 28) | (rd << 12) | rn);
-    } else {
-        tcg_out_dat_reg(s, cond, ARITH_EOR,
-                        TCG_REG_TMP, rn, rn, SHIFT_IMM_ROR(16));
-        tcg_out_dat_imm(s, cond, ARITH_BIC,
-                        TCG_REG_TMP, TCG_REG_TMP, 0xff | 0x800);
-        tcg_out_dat_reg(s, cond, ARITH_MOV,
-                        rd, 0, rn, SHIFT_IMM_ROR(8));
-        tcg_out_dat_reg(s, cond, ARITH_EOR,
-                        rd, rd, TCG_REG_TMP, SHIFT_IMM_LSR(8));
-    }
+    /* rev */
+    tcg_out32(s, 0x06bf0f30 | (cond << 28) | (rd << 12) | rn);
 }
 
 static void tcg_out_deposit(TCGContext *s, ARMCond cond, TCGReg rd,
@@ -1283,7 +1167,7 @@ static void tcg_out_mb(TCGContext *s, TCGArg a0)
 {
     if (use_armv7_instructions) {
         tcg_out32(s, INSN_DMB_ISH);
-    } else if (use_armv6_instructions) {
+    } else {
         tcg_out32(s, INSN_DMB_MCR);
     }
 }
@@ -1489,8 +1373,7 @@ static TCGReg tcg_out_arg_reg64(TCGContext *s, TCGReg argreg,
     if (argreg & 1) {
         argreg++;
     }
-    if (use_armv6_instructions && argreg >= 4
-        && (arglo & 1) == 0 && arghi == arglo + 1) {
+    if (argreg >= 4 && (arglo & 1) == 0 && arghi == arglo + 1) {
         tcg_out_strd_8(s, COND_AL, arglo,
                        TCG_REG_CALL_STACK, (argreg - 4) * 4);
         return argreg + 2;
@@ -1520,8 +1403,6 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
     int cmp_off = (is_load ? offsetof(CPUTLBEntry, addr_read)
                    : offsetof(CPUTLBEntry, addr_write));
     int fast_off = TLB_MASK_TABLE_OFS(mem_index);
-    int mask_off = fast_off + offsetof(CPUTLBDescFast, mask);
-    int table_off = fast_off + offsetof(CPUTLBDescFast, table);
     unsigned s_bits = opc & MO_SIZE;
     unsigned a_bits = get_alignment_bits(opc);
 
@@ -1534,12 +1415,7 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
     }
 
     /* Load env_tlb(env)->f[mmu_idx].{mask,table} into {r0,r1}.  */
-    if (use_armv6_instructions) {
-        tcg_out_ldrd_8(s, COND_AL, TCG_REG_R0, TCG_AREG0, fast_off);
-    } else {
-        tcg_out_ld(s, TCG_TYPE_I32, TCG_REG_R0, TCG_AREG0, mask_off);
-        tcg_out_ld(s, TCG_TYPE_I32, TCG_REG_R1, TCG_AREG0, table_off);
-    }
+    tcg_out_ldrd_8(s, COND_AL, TCG_REG_R0, TCG_AREG0, fast_off);
 
     /* Extract the tlb index from the address into R0.  */
     tcg_out_dat_reg(s, COND_AL, ARITH_AND, TCG_REG_R0, TCG_REG_R0, addrlo,
@@ -1550,7 +1426,7 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
      * Load the tlb comparator into R2/R3 and the fast path addend into R1.
      */
     if (cmp_off == 0) {
-        if (use_armv6_instructions && TARGET_LONG_BITS == 64) {
+        if (TARGET_LONG_BITS == 64) {
             tcg_out_ldrd_rwb(s, COND_AL, TCG_REG_R2, TCG_REG_R1, TCG_REG_R0);
         } else {
             tcg_out_ld32_rwb(s, COND_AL, TCG_REG_R2, TCG_REG_R1, TCG_REG_R0);
@@ -1558,14 +1434,11 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
     } else {
         tcg_out_dat_reg(s, COND_AL, ARITH_ADD,
                         TCG_REG_R1, TCG_REG_R1, TCG_REG_R0, 0);
-        if (use_armv6_instructions && TARGET_LONG_BITS == 64) {
+        if (TARGET_LONG_BITS == 64) {
             tcg_out_ldrd_8(s, COND_AL, TCG_REG_R2, TCG_REG_R1, cmp_off);
         } else {
             tcg_out_ld32_12(s, COND_AL, TCG_REG_R2, TCG_REG_R1, cmp_off);
         }
-    }
-    if (!use_armv6_instructions && TARGET_LONG_BITS == 64) {
-        tcg_out_ld32_12(s, COND_AL, TCG_REG_R3, TCG_REG_R1, cmp_off + 4);
     }
 
     /* Load the tlb addend.  */
@@ -1631,7 +1504,6 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     TCGReg argreg, datalo, datahi;
     MemOpIdx oi = lb->oi;
     MemOp opc = get_memop(oi);
-    void *func;
 
     if (!reloc_pc24(lb->label_ptr[0], tcg_splitwx_to_rx(s->code_ptr))) {
         return false;
@@ -1646,18 +1518,8 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     argreg = tcg_out_arg_imm32(s, argreg, oi);
     argreg = tcg_out_arg_reg32(s, argreg, TCG_REG_R14);
 
-    /* For armv6 we can use the canonical unsigned helpers and minimize
-       icache usage.  For pre-armv6, use the signed helpers since we do
-       not have a single insn sign-extend.  */
-    if (use_armv6_instructions) {
-        func = qemu_ld_helpers[opc & MO_SIZE];
-    } else {
-        func = qemu_ld_helpers[opc & MO_SSIZE];
-        if (opc & MO_SIGN) {
-            opc = MO_UL;
-        }
-    }
-    tcg_out_call(s, func);
+    /* Use the canonical unsigned helpers and minimize icache usage. */
+    tcg_out_call(s, qemu_ld_helpers[opc & MO_SIZE]);
 
     datalo = lb->datalo_reg;
     datahi = lb->datahi_reg;
@@ -1760,7 +1622,7 @@ static void tcg_out_qemu_ld_index(TCGContext *s, MemOp opc,
         break;
     case MO_UQ:
         /* Avoid ldrd for user-only emulation, to handle unaligned.  */
-        if (USING_SOFTMMU && use_armv6_instructions
+        if (USING_SOFTMMU
             && (datalo & 1) == 0 && datahi == datalo + 1) {
             tcg_out_ldrd_r(s, COND_AL, datalo, addrlo, addend);
         } else if (datalo != addend) {
@@ -1803,7 +1665,7 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, MemOp opc, TCGReg datalo,
         break;
     case MO_UQ:
         /* Avoid ldrd for user-only emulation, to handle unaligned.  */
-        if (USING_SOFTMMU && use_armv6_instructions
+        if (USING_SOFTMMU
             && (datalo & 1) == 0 && datahi == datalo + 1) {
             tcg_out_ldrd_8(s, COND_AL, datalo, addrlo, 0);
         } else if (datalo == addrlo) {
@@ -1880,7 +1742,7 @@ static void tcg_out_qemu_st_index(TCGContext *s, ARMCond cond, MemOp opc,
         break;
     case MO_64:
         /* Avoid strd for user-only emulation, to handle unaligned.  */
-        if (USING_SOFTMMU && use_armv6_instructions
+        if (USING_SOFTMMU
             && (datalo & 1) == 0 && datahi == datalo + 1) {
             tcg_out_strd_r(s, cond, datalo, addrlo, addend);
         } else {
@@ -1912,7 +1774,7 @@ static void tcg_out_qemu_st_direct(TCGContext *s, MemOp opc, TCGReg datalo,
         break;
     case MO_64:
         /* Avoid strd for user-only emulation, to handle unaligned.  */
-        if (USING_SOFTMMU && use_armv6_instructions
+        if (USING_SOFTMMU
             && (datalo & 1) == 0 && datahi == datalo + 1) {
             tcg_out_strd_8(s, COND_AL, datalo, addrlo, 0);
         } else {

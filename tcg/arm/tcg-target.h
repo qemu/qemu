@@ -28,7 +28,6 @@
 
 extern int arm_arch;
 
-#define use_armv6_instructions  (__ARM_ARCH >= 6 || arm_arch >= 6)
 #define use_armv7_instructions  (__ARM_ARCH >= 7 || arm_arch >= 7)
 
 #undef TCG_TARGET_STACK_GROWSUP
