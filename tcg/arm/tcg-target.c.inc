@@ -2474,6 +2474,11 @@ static void tcg_target_init(TCGContext *s)
         if (pl != NULL && pl[0] == 'v' && pl[1] >= '4' && pl[1] <= '9') {
             arm_arch = pl[1] - '0';
         }
+
+        if (arm_arch < 6) {
+            error_report("TCG: ARMv%d is unsupported; exiting", arm_arch);
+            exit(EXIT_FAILURE);
+        }
     }
 
     tcg_target_available_regs[TCG_TYPE_I32] = ALL_GENERAL_REGS;
