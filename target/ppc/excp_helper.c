@@ -370,7 +370,7 @@ static void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     target_ulong msr, new_msr, vector;
-    int srr0, srr1, asrr0, asrr1, lev = -1;
+    int srr0, srr1, lev = -1;
 
     qemu_log_mask(CPU_LOG_INT, "Raise exception at " TARGET_FMT_lx
                   " => %s (%d) error=%02x\n", env->nip, powerpc_excp_name(excp),
@@ -392,8 +392,6 @@ static void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     /* target registers */
     srr0 = SPR_SRR0;
     srr1 = SPR_SRR1;
-    asrr0 = -1;
-    asrr1 = -1;
 
     /*
      * check for special resume at 0x100 from doze/nap/sleep/winkle on
@@ -483,8 +481,9 @@ static void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             /* FIXME: choose one or the other based on CPU type */
             srr0 = SPR_BOOKE_MCSRR0;
             srr1 = SPR_BOOKE_MCSRR1;
-            asrr0 = SPR_BOOKE_CSRR0;
-            asrr1 = SPR_BOOKE_CSRR1;
+
+            env->spr[SPR_BOOKE_CSRR0] = env->nip;
+            env->spr[SPR_BOOKE_CSRR1] = msr;
             break;
         default:
             break;
@@ -643,8 +642,10 @@ static void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             /* FIXME: choose one or the other based on CPU type */
             srr0 = SPR_BOOKE_DSRR0;
             srr1 = SPR_BOOKE_DSRR1;
-            asrr0 = SPR_BOOKE_CSRR0;
-            asrr1 = SPR_BOOKE_CSRR1;
+
+            env->spr[SPR_BOOKE_CSRR0] = env->nip;
+            env->spr[SPR_BOOKE_CSRR1] = msr;
+
             /* DBSR already modified by caller */
         } else {
             cpu_abort(cs, "Debug exception triggered on unsupported model\n");
@@ -910,14 +911,6 @@ static void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     }
 
     vector |= env->excp_prefix;
-
-    /* If any alternate SRR register are defined, duplicate saved values */
-    if (asrr0 != -1) {
-        env->spr[asrr0] = env->nip;
-    }
-    if (asrr1 != -1) {
-        env->spr[asrr1] = msr;
-    }
 
 #if defined(TARGET_PPC64)
     if (excp_model == POWERPC_EXCP_BOOKE) {
