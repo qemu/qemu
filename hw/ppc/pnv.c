@@ -1314,7 +1314,7 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
 
     k->chip_cfam_id = 0x120d304980000000ull;  /* P8 Naples DD1.0 */
     k->cores_mask = POWER8_CORE_MASK;
-    k->num_phbs = 3;
+    k->num_phbs = 4;
     k->core_pir = pnv_chip_core_pir_p8;
     k->intc_create = pnv_chip_power8_intc_create;
     k->intc_reset = pnv_chip_power8_intc_reset;
