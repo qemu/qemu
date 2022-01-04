@@ -890,6 +890,14 @@ void spr_write_40x_tsr(DisasContext *ctx, int sprn, int gprn)
     gen_helper_store_40x_tsr(cpu_env, cpu_gpr[gprn]);
 }
 
+void spr_write_40x_pid(DisasContext *ctx, int sprn, int gprn)
+{
+    TCGv t0 = tcg_temp_new();
+    tcg_gen_andi_tl(t0, cpu_gpr[gprn], 0xFF);
+    gen_store_spr(SPR_40x_PID, t0);
+    tcg_temp_free(t0);
+}
+
 void spr_write_booke_tcr(DisasContext *ctx, int sprn, int gprn)
 {
     gen_icount_io_start(ctx);

@@ -1454,7 +1454,7 @@ static void register_405_sprs(CPUPPCState *env)
     /* MMU */
     spr_register(env, SPR_40x_PID, "PID",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_40x_pid,
                  0x00000000);
     spr_register(env, SPR_4xx_CCR0, "CCR0",
                  SPR_NOACCESS, SPR_NOACCESS,
