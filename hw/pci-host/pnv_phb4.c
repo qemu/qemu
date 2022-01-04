@@ -1201,7 +1201,7 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     memory_region_init(&phb->pci_mmio, OBJECT(phb), name,
                        PCI_MMIO_TOTAL_SIZE);
 
-    pci->bus = pci_register_root_bus(dev, "root-bus",
+    pci->bus = pci_register_root_bus(dev, dev->id,
                                      pnv_phb4_set_irq, pnv_phb4_map_irq, phb,
                                      &phb->pci_mmio, &phb->pci_io,
                                      0, 4, TYPE_PNV_PHB4_ROOT_BUS);
