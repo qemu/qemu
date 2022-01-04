@@ -8648,16 +8648,17 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
                  env->spr[SPR_SPRG4], env->spr[SPR_SPRG5],
                  env->spr[SPR_SPRG6], env->spr[SPR_SPRG7]);
 
+    switch (env->excp_model) {
 #if defined(TARGET_PPC64)
-    if (env->excp_model == POWERPC_EXCP_POWER7 ||
-        env->excp_model == POWERPC_EXCP_POWER8 ||
-        env->excp_model == POWERPC_EXCP_POWER9 ||
-        env->excp_model == POWERPC_EXCP_POWER10)  {
+    case POWERPC_EXCP_POWER7:
+    case POWERPC_EXCP_POWER8:
+    case POWERPC_EXCP_POWER9:
+    case POWERPC_EXCP_POWER10:
         qemu_fprintf(f, "HSRR0 " TARGET_FMT_lx " HSRR1 " TARGET_FMT_lx "\n",
                      env->spr[SPR_HSRR0], env->spr[SPR_HSRR1]);
-    }
+        break;
 #endif
-    if (env->excp_model == POWERPC_EXCP_BOOKE) {
+    case POWERPC_EXCP_BOOKE:
         qemu_fprintf(f, "CSRR0 " TARGET_FMT_lx " CSRR1 " TARGET_FMT_lx
                      " MCSRR0 " TARGET_FMT_lx " MCSRR1 " TARGET_FMT_lx "\n",
                      env->spr[SPR_BOOKE_CSRR0], env->spr[SPR_BOOKE_CSRR1],
@@ -8688,6 +8689,20 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
          * IVORs are left out as they are large and do not change often --
          * they can be read with "p $ivor0", "p $ivor1", etc.
          */
+        break;
+    case POWERPC_EXCP_40x:
+        qemu_fprintf(f, "  TCR " TARGET_FMT_lx "   TSR " TARGET_FMT_lx
+                     "    ESR " TARGET_FMT_lx "   DEAR " TARGET_FMT_lx "\n",
+                     env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR],
+                     env->spr[SPR_40x_ESR], env->spr[SPR_40x_DEAR]);
+
+        qemu_fprintf(f, " EVPR " TARGET_FMT_lx "  SRR2 " TARGET_FMT_lx
+                     "   SRR3 " TARGET_FMT_lx  "   PID " TARGET_FMT_lx "\n",
+                     env->spr[SPR_40x_EVPR], env->spr[SPR_40x_SRR2],
+                     env->spr[SPR_40x_SRR3], env->spr[SPR_40x_PID]);
+        break;
+    default:
+        break;
     }
 
 #if defined(TARGET_PPC64)
