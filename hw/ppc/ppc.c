@@ -1124,14 +1124,12 @@ struct ppc40x_timer_t {
 /* Fixed interval timer */
 static void cpu_4xx_fit_cb (void *opaque)
 {
-    PowerPCCPU *cpu;
-    CPUPPCState *env;
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
     ppc_tb_t *tb_env;
     ppc40x_timer_t *ppc40x_timer;
     uint64_t now, next;
 
-    env = opaque;
-    cpu = env_archcpu(env);
     tb_env = env->tb_env;
     ppc40x_timer = tb_env->opaque;
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -1193,13 +1191,11 @@ static void start_stop_pit (CPUPPCState *env, ppc_tb_t *tb_env, int is_excp)
 
 static void cpu_4xx_pit_cb (void *opaque)
 {
-    PowerPCCPU *cpu;
-    CPUPPCState *env;
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
     ppc_tb_t *tb_env;
     ppc40x_timer_t *ppc40x_timer;
 
-    env = opaque;
-    cpu = env_archcpu(env);
     tb_env = env->tb_env;
     ppc40x_timer = tb_env->opaque;
     env->spr[SPR_40x_TSR] |= 1 << 27;
@@ -1216,14 +1212,12 @@ static void cpu_4xx_pit_cb (void *opaque)
 /* Watchdog timer */
 static void cpu_4xx_wdt_cb (void *opaque)
 {
-    PowerPCCPU *cpu;
-    CPUPPCState *env;
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
     ppc_tb_t *tb_env;
     ppc40x_timer_t *ppc40x_timer;
     uint64_t now, next;
 
-    env = opaque;
-    cpu = env_archcpu(env);
     tb_env = env->tb_env;
     ppc40x_timer = tb_env->opaque;
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -1341,24 +1335,26 @@ clk_setup_cb ppc_40x_timers_init (CPUPPCState *env, uint32_t freq,
 {
     ppc_tb_t *tb_env;
     ppc40x_timer_t *ppc40x_timer;
+    PowerPCCPU *cpu = env_archcpu(env);
+
+    trace_ppc40x_timers_init(freq);
 
     tb_env = g_malloc0(sizeof(ppc_tb_t));
+    ppc40x_timer = g_malloc0(sizeof(ppc40x_timer_t));
+
     env->tb_env = tb_env;
     tb_env->flags = PPC_DECR_UNDERFLOW_TRIGGERED;
-    ppc40x_timer = g_malloc0(sizeof(ppc40x_timer_t));
     tb_env->tb_freq = freq;
     tb_env->decr_freq = freq;
     tb_env->opaque = ppc40x_timer;
-    trace_ppc40x_timers_init(freq);
-    if (ppc40x_timer != NULL) {
-        /* We use decr timer for PIT */
-        tb_env->decr_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &cpu_4xx_pit_cb, env);
-        ppc40x_timer->fit_timer =
-            timer_new_ns(QEMU_CLOCK_VIRTUAL, &cpu_4xx_fit_cb, env);
-        ppc40x_timer->wdt_timer =
-            timer_new_ns(QEMU_CLOCK_VIRTUAL, &cpu_4xx_wdt_cb, env);
-        ppc40x_timer->decr_excp = decr_excp;
-    }
+
+    /* We use decr timer for PIT */
+    tb_env->decr_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &cpu_4xx_pit_cb, cpu);
+    ppc40x_timer->fit_timer =
+        timer_new_ns(QEMU_CLOCK_VIRTUAL, &cpu_4xx_fit_cb, cpu);
+    ppc40x_timer->wdt_timer =
+        timer_new_ns(QEMU_CLOCK_VIRTUAL, &cpu_4xx_wdt_cb, cpu);
+    ppc40x_timer->decr_excp = decr_excp;
 
     return &ppc_40x_set_tb_clk;
 }
