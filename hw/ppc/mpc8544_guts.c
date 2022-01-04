@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
+#include "qemu/log.h"
 #include "sysemu/runstate.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
@@ -82,7 +83,9 @@ static uint64_t mpc8544_guts_read(void *opaque, hwaddr addr,
         value = env->spr[SPR_E500_SVR];
         break;
     default:
-        fprintf(stderr, "guts: Unknown register read: %x\n", (int)addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Unknown register 0x%" HWADDR_PRIx "\n",
+                      __func__, addr);
         break;
     }
 
@@ -101,8 +104,8 @@ static void mpc8544_guts_write(void *opaque, hwaddr addr,
         }
         break;
     default:
-        fprintf(stderr, "guts: Unknown register write: %x = %x\n",
-                (int)addr, (unsigned)value);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown register 0x%" HWADDR_PRIx
+                       " = 0x%" PRIx64 "\n", __func__, addr, value);
         break;
     }
 }

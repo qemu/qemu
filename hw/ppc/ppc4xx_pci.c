@@ -20,6 +20,7 @@
  * 4xx SoCs, such as the 440EP. */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "hw/irq.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/ppc4xx.h"
@@ -152,8 +153,9 @@ static void ppc4xx_pci_reg_write4(void *opaque, hwaddr offset,
         break;
 
     default:
-        printf("%s: unhandled PCI internal register 0x%lx\n", __func__,
-               (unsigned long)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                     "%s: unhandled PCI internal register 0x%" HWADDR_PRIx "\n",
+                     __func__, offset);
         break;
     }
 }
@@ -218,8 +220,9 @@ static uint64_t ppc4xx_pci_reg_read4(void *opaque, hwaddr offset,
         break;
 
     default:
-        printf("%s: invalid PCI internal register 0x%lx\n", __func__,
-               (unsigned long)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid PCI internal register 0x%" HWADDR_PRIx "\n",
+                      __func__, offset);
         value = 0;
     }
 
