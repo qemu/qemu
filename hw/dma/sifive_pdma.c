@@ -444,6 +444,10 @@ static const MemoryRegionOps sifive_pdma_ops = {
     .impl = {
         .min_access_size = 4,
         .max_access_size = 8,
+    },
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 8,
     }
 };
 
