@@ -32,6 +32,11 @@ static bool ppc_radix64_get_fully_qualified_addr(const CPUPPCState *env,
                                                  vaddr eaddr,
                                                  uint64_t *lpid, uint64_t *pid)
 {
+    /* When EA(2:11) are nonzero, raise a segment interrupt */
+    if (eaddr & ~R_EADDR_VALID_MASK) {
+        return false;
+    }
+
     if (msr_hv) { /* MSR[HV] -> Hypervisor/bare metal */
         switch (eaddr & R_EADDR_QUADRANT) {
         case R_EADDR_QUADRANT0:
