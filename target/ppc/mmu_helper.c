@@ -36,22 +36,7 @@
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
 
-/* #define DEBUG_BATS */
-/* #define DEBUG_SOFTWARE_TLB */
-/* #define DUMP_PAGE_TABLES */
 /* #define FLUSH_ALL_TLBS */
-
-#ifdef DEBUG_SOFTWARE_TLB
-#  define LOG_SWTLB(...) qemu_log_mask(CPU_LOG_MMU, __VA_ARGS__)
-#else
-#  define LOG_SWTLB(...) do { } while (0)
-#endif
-
-#ifdef DEBUG_BATS
-#  define LOG_BATS(...) qemu_log_mask(CPU_LOG_MMU, __VA_ARGS__)
-#else
-#  define LOG_BATS(...) do { } while (0)
-#endif
 
 /*****************************************************************************/
 /* PowerPC MMU emulation */
@@ -89,8 +74,8 @@ static inline void ppc6xx_tlb_invalidate_virt2(CPUPPCState *env,
         nr = ppc6xx_tlb_getnum(env, eaddr, way, is_code);
         tlb = &env->tlb.tlb6[nr];
         if (pte_is_valid(tlb->pte0) && (match_epn == 0 || eaddr == tlb->EPN)) {
-            LOG_SWTLB("TLB invalidate %d/%d " TARGET_FMT_lx "\n", nr,
-                      env->nb_tlb, eaddr);
+            qemu_log_mask(CPU_LOG_MMU, "TLB invalidate %d/%d "
+                          TARGET_FMT_lx "\n", nr, env->nb_tlb, eaddr);
             pte_invalidate(&tlb->pte0);
             tlb_flush_page(cs, tlb->EPN);
         }
@@ -115,8 +100,9 @@ static void ppc6xx_tlb_store(CPUPPCState *env, target_ulong EPN, int way,
 
     nr = ppc6xx_tlb_getnum(env, EPN, way, is_code);
     tlb = &env->tlb.tlb6[nr];
-    LOG_SWTLB("Set TLB %d/%d EPN " TARGET_FMT_lx " PTE0 " TARGET_FMT_lx
-              " PTE1 " TARGET_FMT_lx "\n", nr, env->nb_tlb, EPN, pte0, pte1);
+    qemu_log_mask(CPU_LOG_MMU, "Set TLB %d/%d EPN " TARGET_FMT_lx " PTE0 "
+                  TARGET_FMT_lx " PTE1 " TARGET_FMT_lx "\n", nr, env->nb_tlb,
+                  EPN, pte0, pte1);
     /* Invalidate any pending reference in QEMU for this virtual address */
     ppc6xx_tlb_invalidate_virt2(env, EPN, is_code, 1);
     tlb->pte0 = pte0;
@@ -204,25 +190,27 @@ static inline void do_invalidate_BAT(CPUPPCState *env, target_ulong BATu,
     end = base + mask + 0x00020000;
     if (((end - base) >> TARGET_PAGE_BITS) > 1024) {
         /* Flushing 1024 4K pages is slower than a complete flush */
-        LOG_BATS("Flush all BATs\n");
+        qemu_log_mask(CPU_LOG_MMU, "Flush all BATs\n");
         tlb_flush(cs);
-        LOG_BATS("Flush done\n");
+        qemu_log_mask(CPU_LOG_MMU, "Flush done\n");
         return;
     }
-    LOG_BATS("Flush BAT from " TARGET_FMT_lx " to " TARGET_FMT_lx " ("
-             TARGET_FMT_lx ")\n", base, end, mask);
+    qemu_log_mask(CPU_LOG_MMU, "Flush BAT from " TARGET_FMT_lx
+                  " to " TARGET_FMT_lx " (" TARGET_FMT_lx ")\n",
+                  base, end, mask);
     for (page = base; page != end; page += TARGET_PAGE_SIZE) {
         tlb_flush_page(cs, page);
     }
-    LOG_BATS("Flush done\n");
+    qemu_log_mask(CPU_LOG_MMU, "Flush done\n");
 }
 #endif
 
 static inline void dump_store_bat(CPUPPCState *env, char ID, int ul, int nr,
                                   target_ulong value)
 {
-    LOG_BATS("Set %cBAT%d%c to " TARGET_FMT_lx " (" TARGET_FMT_lx ")\n", ID,
-             nr, ul == 0 ? 'u' : 'l', value, env->nip);
+    qemu_log_mask(CPU_LOG_MMU, "Set %cBAT%d%c to " TARGET_FMT_lx " ("
+                  TARGET_FMT_lx ")\n", ID, nr, ul == 0 ? 'u' : 'l',
+                  value, env->nip);
 }
 
 void helper_store_ibatu(CPUPPCState *env, uint32_t nr, target_ulong value)
@@ -550,9 +538,9 @@ static void do_6xx_tlb(CPUPPCState *env, target_ulong new_EPN, int is_code)
     }
     way = (env->spr[SPR_SRR1] >> 17) & 1;
     (void)EPN; /* avoid a compiler warning */
-    LOG_SWTLB("%s: EPN " TARGET_FMT_lx " " TARGET_FMT_lx " PTE0 " TARGET_FMT_lx
-              " PTE1 " TARGET_FMT_lx " way %d\n", __func__, new_EPN, EPN, CMP,
-              RPN, way);
+    qemu_log_mask(CPU_LOG_MMU, "%s: EPN " TARGET_FMT_lx " " TARGET_FMT_lx
+                  " PTE0 " TARGET_FMT_lx " PTE1 " TARGET_FMT_lx " way %d\n",
+                  __func__, new_EPN, EPN, CMP, RPN, way);
     /* Store this TLB */
     ppc6xx_tlb_store(env, (uint32_t)(new_EPN & TARGET_PAGE_MASK),
                      way, is_code, CMP, RPN);
@@ -721,15 +709,17 @@ void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
     ppcemb_tlb_t *tlb;
     target_ulong page, end;
 
-    LOG_SWTLB("%s entry %d val " TARGET_FMT_lx "\n", __func__, (int)entry,
+    qemu_log_mask(CPU_LOG_MMU, "%s entry %d val " TARGET_FMT_lx "\n",
+                  __func__, (int)entry,
               val);
     entry &= PPC4XX_TLB_ENTRY_MASK;
     tlb = &env->tlb.tlbe[entry];
     /* Invalidate previous TLB (if it's valid) */
     if (tlb->prot & PAGE_VALID) {
         end = tlb->EPN + tlb->size;
-        LOG_SWTLB("%s: invalidate old TLB %d start " TARGET_FMT_lx " end "
-                  TARGET_FMT_lx "\n", __func__, (int)entry, tlb->EPN, end);
+        qemu_log_mask(CPU_LOG_MMU, "%s: invalidate old TLB %d start "
+                      TARGET_FMT_lx " end " TARGET_FMT_lx "\n", __func__,
+                      (int)entry, tlb->EPN, end);
         for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE) {
             tlb_flush_page(cs, page);
         }
@@ -758,18 +748,20 @@ void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
         tlb->prot &= ~PAGE_VALID;
     }
     tlb->PID = env->spr[SPR_40x_PID]; /* PID */
-    LOG_SWTLB("%s: set up TLB %d RPN " TARGET_FMT_plx " EPN " TARGET_FMT_lx
-              " size " TARGET_FMT_lx " prot %c%c%c%c PID %d\n", __func__,
-              (int)entry, tlb->RPN, tlb->EPN, tlb->size,
-              tlb->prot & PAGE_READ ? 'r' : '-',
-              tlb->prot & PAGE_WRITE ? 'w' : '-',
-              tlb->prot & PAGE_EXEC ? 'x' : '-',
-              tlb->prot & PAGE_VALID ? 'v' : '-', (int)tlb->PID);
+    qemu_log_mask(CPU_LOG_MMU, "%s: set up TLB %d RPN " TARGET_FMT_plx
+                  " EPN " TARGET_FMT_lx " size " TARGET_FMT_lx
+                  " prot %c%c%c%c PID %d\n", __func__,
+                  (int)entry, tlb->RPN, tlb->EPN, tlb->size,
+                  tlb->prot & PAGE_READ ? 'r' : '-',
+                  tlb->prot & PAGE_WRITE ? 'w' : '-',
+                  tlb->prot & PAGE_EXEC ? 'x' : '-',
+                  tlb->prot & PAGE_VALID ? 'v' : '-', (int)tlb->PID);
     /* Invalidate new TLB (if valid) */
     if (tlb->prot & PAGE_VALID) {
         end = tlb->EPN + tlb->size;
-        LOG_SWTLB("%s: invalidate TLB %d start " TARGET_FMT_lx " end "
-                  TARGET_FMT_lx "\n", __func__, (int)entry, tlb->EPN, end);
+        qemu_log_mask(CPU_LOG_MMU, "%s: invalidate TLB %d start "
+                      TARGET_FMT_lx " end " TARGET_FMT_lx "\n", __func__,
+                      (int)entry, tlb->EPN, end);
         for (page = tlb->EPN; page < end; page += TARGET_PAGE_SIZE) {
             tlb_flush_page(cs, page);
         }
@@ -781,8 +773,8 @@ void helper_4xx_tlbwe_lo(CPUPPCState *env, target_ulong entry,
 {
     ppcemb_tlb_t *tlb;
 
-    LOG_SWTLB("%s entry %i val " TARGET_FMT_lx "\n", __func__, (int)entry,
-              val);
+    qemu_log_mask(CPU_LOG_MMU, "%s entry %i val " TARGET_FMT_lx "\n",
+                  __func__, (int)entry, val);
     entry &= PPC4XX_TLB_ENTRY_MASK;
     tlb = &env->tlb.tlbe[entry];
     tlb->attr = val & PPC4XX_TLBLO_ATTR_MASK;
@@ -794,13 +786,14 @@ void helper_4xx_tlbwe_lo(CPUPPCState *env, target_ulong entry,
     if (val & PPC4XX_TLBLO_WR) {
         tlb->prot |= PAGE_WRITE;
     }
-    LOG_SWTLB("%s: set up TLB %d RPN " TARGET_FMT_plx " EPN " TARGET_FMT_lx
-              " size " TARGET_FMT_lx " prot %c%c%c%c PID %d\n", __func__,
-              (int)entry, tlb->RPN, tlb->EPN, tlb->size,
-              tlb->prot & PAGE_READ ? 'r' : '-',
-              tlb->prot & PAGE_WRITE ? 'w' : '-',
-              tlb->prot & PAGE_EXEC ? 'x' : '-',
-              tlb->prot & PAGE_VALID ? 'v' : '-', (int)tlb->PID);
+    qemu_log_mask(CPU_LOG_MMU, "%s: set up TLB %d RPN " TARGET_FMT_plx
+                  " EPN " TARGET_FMT_lx
+                  " size " TARGET_FMT_lx " prot %c%c%c%c PID %d\n", __func__,
+                  (int)entry, tlb->RPN, tlb->EPN, tlb->size,
+                  tlb->prot & PAGE_READ ? 'r' : '-',
+                  tlb->prot & PAGE_WRITE ? 'w' : '-',
+                  tlb->prot & PAGE_EXEC ? 'x' : '-',
+                  tlb->prot & PAGE_VALID ? 'v' : '-', (int)tlb->PID);
 }
 
 target_ulong helper_4xx_tlbsx(CPUPPCState *env, target_ulong address)
@@ -816,8 +809,8 @@ void helper_440_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
     target_ulong EPN, RPN, size;
     int do_flush_tlbs;
 
-    LOG_SWTLB("%s word %d entry %d value " TARGET_FMT_lx "\n",
-              __func__, word, (int)entry, value);
+    qemu_log_mask(CPU_LOG_MMU, "%s word %d entry %d value " TARGET_FMT_lx "\n",
+                  __func__, word, (int)entry, value);
     do_flush_tlbs = 0;
     entry &= 0x3F;
     tlb = &env->tlb.tlbe[entry];

@@ -1461,8 +1461,6 @@ PowerPCCPU *ppc405ep_init(MemoryRegion *address_space_mem,
     ppc4xx_pob_init(env);
     /* OBP arbitrer */
     ppc4xx_opba_init(0xef600600);
-    /* Initialize timers */
-    ppc_booke_timers_init(cpu, sysclk, 0);
     /* Universal interrupt controller */
     uicdev = qdev_new(TYPE_PPC_UIC);
     uicsbd = SYS_BUS_DEVICE(uicdev);

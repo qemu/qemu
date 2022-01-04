@@ -123,7 +123,7 @@ static uint32_t hreg_compute_hflags_value(CPUPPCState *env)
     }
 
 #if defined(TARGET_PPC64)
-    if (pmu_insn_cnt_enabled(env)) {
+    if (env->pmc_ins_cnt) {
         hflags |= 1 << HFLAGS_INSN_CNT;
     }
 #endif

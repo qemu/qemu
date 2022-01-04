@@ -13,14 +13,12 @@
 #ifndef POWER8_PMU
 #define POWER8_PMU
 
-#include "qemu/osdep.h"
-#include "cpu.h"
-#include "exec/exec-all.h"
-#include "exec/helper-proto.h"
-#include "qemu/error-report.h"
-#include "qemu/main-loop.h"
-
 void cpu_ppc_pmu_init(CPUPPCState *env);
-bool pmu_insn_cnt_enabled(CPUPPCState *env);
+
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+void pmu_update_summaries(CPUPPCState *env);
+#else
+static inline void pmu_update_summaries(CPUPPCState *env) { }
+#endif
 
 #endif
