@@ -1230,18 +1230,6 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     phb->qirqs = qemu_allocate_irqs(xive_source_set_irq, xsrc, xsrc->nr_irqs);
 }
 
-static void pnv_phb4_reset(DeviceState *dev)
-{
-    PnvPHB4 *phb = PNV_PHB4(dev);
-    PCIDevice *root_dev = PCI_DEVICE(&phb->root);
-
-    /*
-     * Configure PCI device id at reset using a property.
-     */
-    pci_config_set_vendor_id(root_dev->config, PCI_VENDOR_ID_IBM);
-    pci_config_set_device_id(root_dev->config, phb->device_id);
-}
-
 static const char *pnv_phb4_root_bus_path(PCIHostState *host_bridge,
                                           PCIBus *rootbus)
 {
@@ -1291,7 +1279,6 @@ static void pnv_phb4_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, pnv_phb4_properties);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->user_creatable  = false;
-    dc->reset           = pnv_phb4_reset;
 
     xfc->notify         = pnv_phb4_xive_notify;
 }
