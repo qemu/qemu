@@ -24,19 +24,6 @@
 
 #define PMC_COUNTER_NEGATIVE_VAL 0x80000000UL
 
-static bool pmc_is_inactive(CPUPPCState *env, int sprn)
-{
-    if (env->spr[SPR_POWER_MMCR0] & MMCR0_FC) {
-        return true;
-    }
-
-    if (sprn < SPR_POWER_PMC5) {
-        return env->spr[SPR_POWER_MMCR0] & MMCR0_FC14;
-    }
-
-    return env->spr[SPR_POWER_MMCR0] & MMCR0_FC56;
-}
-
 static bool pmc_has_overflow_enabled(CPUPPCState *env, int sprn)
 {
     if (sprn == SPR_POWER_PMC1) {
@@ -44,80 +31,6 @@ static bool pmc_has_overflow_enabled(CPUPPCState *env, int sprn)
     }
 
     return env->spr[SPR_POWER_MMCR0] & MMCR0_PMCjCE;
-}
-
-/*
- * For PMCs 1-4, IBM POWER chips has support for an implementation
- * dependent event, 0x1E, that enables cycle counting. The Linux kernel
- * makes extensive use of 0x1E, so let's also support it.
- *
- * Likewise, event 0x2 is an implementation-dependent event that IBM
- * POWER chips implement (at least since POWER8) that is equivalent to
- * PM_INST_CMPL. Let's support this event on PMCs 1-4 as well.
- */
-static PMUEventType pmc_get_event(CPUPPCState *env, int sprn)
-{
-    uint8_t mmcr1_evt_extr[] = { MMCR1_PMC1EVT_EXTR, MMCR1_PMC2EVT_EXTR,
-                                 MMCR1_PMC3EVT_EXTR, MMCR1_PMC4EVT_EXTR };
-    PMUEventType evt_type = PMU_EVENT_INVALID;
-    uint8_t pmcsel;
-    int i;
-
-    if (pmc_is_inactive(env, sprn)) {
-        return PMU_EVENT_INACTIVE;
-    }
-
-    if (sprn == SPR_POWER_PMC5) {
-        return PMU_EVENT_INSTRUCTIONS;
-    }
-
-    if (sprn == SPR_POWER_PMC6) {
-        return PMU_EVENT_CYCLES;
-    }
-
-    i = sprn - SPR_POWER_PMC1;
-    pmcsel = extract64(env->spr[SPR_POWER_MMCR1], mmcr1_evt_extr[i],
-                       MMCR1_EVT_SIZE);
-
-    switch (pmcsel) {
-    case 0x2:
-        evt_type = PMU_EVENT_INSTRUCTIONS;
-        break;
-    case 0x1E:
-        evt_type = PMU_EVENT_CYCLES;
-        break;
-    case 0xF0:
-        /*
-         * PMC1SEL = 0xF0 is the architected PowerISA v3.1
-         * event that counts cycles using PMC1.
-         */
-        if (sprn == SPR_POWER_PMC1) {
-            evt_type = PMU_EVENT_CYCLES;
-        }
-        break;
-    case 0xFA:
-        /*
-         * PMC4SEL = 0xFA is the "instructions completed
-         * with run latch set" event.
-         */
-        if (sprn == SPR_POWER_PMC4) {
-            evt_type = PMU_EVENT_INSN_RUN_LATCH;
-        }
-        break;
-    case 0xFE:
-        /*
-         * PMC1SEL = 0xFE is the architected PowerISA v3.1
-         * event to sample instructions using PMC1.
-         */
-        if (sprn == SPR_POWER_PMC1) {
-            evt_type = PMU_EVENT_INSTRUCTIONS;
-        }
-        break;
-    default:
-        break;
-    }
-
-    return evt_type;
 }
 
 void pmu_update_summaries(CPUPPCState *env)
@@ -238,18 +151,16 @@ static void pmu_update_cycles(CPUPPCState *env)
 {
     uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     uint64_t time_delta = now - env->pmu_base_time;
-    int sprn;
+    int sprn, cyc_cnt = env->pmc_cyc_cnt;
 
     for (sprn = SPR_POWER_PMC1; sprn <= SPR_POWER_PMC6; sprn++) {
-        if (pmc_get_event(env, sprn) != PMU_EVENT_CYCLES) {
-            continue;
+        if (cyc_cnt & (1 << (sprn - SPR_POWER_PMC1 + 1))) {
+            /*
+             * The pseries and powernv clock runs at 1Ghz, meaning
+             * that 1 nanosec equals 1 cycle.
+             */
+            env->spr[sprn] += time_delta;
         }
-
-        /*
-         * The pseries and powernv clock runs at 1Ghz, meaning
-         * that 1 nanosec equals 1 cycle.
-         */
-        env->spr[sprn] += time_delta;
     }
 
     /* Update base_time for future calculations */
@@ -278,7 +189,7 @@ static void pmc_update_overflow_timer(CPUPPCState *env, int sprn)
         return;
     }
 
-    if (pmc_get_event(env, sprn) != PMU_EVENT_CYCLES ||
+    if (!(env->pmc_cyc_cnt & (1 << (sprn - SPR_POWER_PMC1 + 1))) ||
         !pmc_has_overflow_enabled(env, sprn)) {
         /* Overflow timer is not needed for this counter */
         timer_del(pmc_overflow_timer);
@@ -286,7 +197,7 @@ static void pmc_update_overflow_timer(CPUPPCState *env, int sprn)
     }
 
     if (env->spr[sprn] >= PMC_COUNTER_NEGATIVE_VAL) {
-        timeout =  0;
+        timeout = 0;
     } else {
         timeout = PMC_COUNTER_NEGATIVE_VAL - env->spr[sprn];
     }
