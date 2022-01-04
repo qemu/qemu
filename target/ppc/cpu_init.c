@@ -8313,6 +8313,7 @@ static void ppc_cpu_reset(DeviceState *dev)
 #endif /* CONFIG_TCG */
 #endif
 
+    pmu_update_summaries(env);
     hreg_compute_hflags(env);
     env->reserve_addr = (target_ulong)-1ULL;
     /* Be sure no exception or interrupt is pending */

@@ -11,8 +11,6 @@
  */
 
 #include "qemu/osdep.h"
-
-#include "power8-pmu.h"
 #include "cpu.h"
 #include "helper_regs.h"
 #include "exec/exec-all.h"
@@ -20,6 +18,7 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "hw/ppc/ppc.h"
+#include "power8-pmu.h"
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
 
@@ -121,18 +120,52 @@ static PMUEventType pmc_get_event(CPUPPCState *env, int sprn)
     return evt_type;
 }
 
-bool pmu_insn_cnt_enabled(CPUPPCState *env)
+void pmu_update_summaries(CPUPPCState *env)
 {
-    int sprn;
+    target_ulong mmcr0 = env->spr[SPR_POWER_MMCR0];
+    target_ulong mmcr1 = env->spr[SPR_POWER_MMCR1];
+    int ins_cnt = 0;
+    int cyc_cnt = 0;
 
-    for (sprn = SPR_POWER_PMC1; sprn <= SPR_POWER_PMC5; sprn++) {
-        if (pmc_get_event(env, sprn) == PMU_EVENT_INSTRUCTIONS ||
-            pmc_get_event(env, sprn) == PMU_EVENT_INSN_RUN_LATCH) {
-            return true;
-        }
+    if (mmcr0 & MMCR0_FC) {
+        goto hflags_calc;
     }
 
-    return false;
+    if (!(mmcr0 & MMCR0_FC14) && mmcr1 != 0) {
+        target_ulong sel;
+
+        sel = extract64(mmcr1, MMCR1_PMC1EVT_EXTR, MMCR1_EVT_SIZE);
+        switch (sel) {
+        case 0x02:
+        case 0xfe:
+            ins_cnt |= 1 << 1;
+            break;
+        case 0x1e:
+        case 0xf0:
+            cyc_cnt |= 1 << 1;
+            break;
+        }
+
+        sel = extract64(mmcr1, MMCR1_PMC2EVT_EXTR, MMCR1_EVT_SIZE);
+        ins_cnt |= (sel == 0x02) << 2;
+        cyc_cnt |= (sel == 0x1e) << 2;
+
+        sel = extract64(mmcr1, MMCR1_PMC3EVT_EXTR, MMCR1_EVT_SIZE);
+        ins_cnt |= (sel == 0x02) << 3;
+        cyc_cnt |= (sel == 0x1e) << 3;
+
+        sel = extract64(mmcr1, MMCR1_PMC4EVT_EXTR, MMCR1_EVT_SIZE);
+        ins_cnt |= ((sel == 0xfa) || (sel == 0x2)) << 4;
+        cyc_cnt |= (sel == 0x1e) << 4;
+    }
+
+    ins_cnt |= !(mmcr0 & MMCR0_FC56) << 5;
+    cyc_cnt |= !(mmcr0 & MMCR0_FC56) << 6;
+
+ hflags_calc:
+    env->pmc_ins_cnt = ins_cnt;
+    env->pmc_cyc_cnt = cyc_cnt;
+    env->hflags = deposit32(env->hflags, HFLAGS_INSN_CNT, 1, ins_cnt != 0);
 }
 
 static bool pmu_increment_insns(CPUPPCState *env, uint32_t num_insns)
@@ -264,8 +297,9 @@ void helper_store_mmcr0(CPUPPCState *env, target_ulong value)
 
     env->spr[SPR_POWER_MMCR0] = value;
 
-    /* MMCR0 writes can change HFLAGS_PMCCCLEAR and HFLAGS_INSN_CNT */
+    /* MMCR0 writes can change HFLAGS_PMCC[01] and HFLAGS_INSN_CNT */
     hreg_compute_hflags(env);
+    pmu_update_summaries(env);
 
     /* Update cycle overflow timers with the current MMCR0 state */
     pmu_update_overflow_timers(env);
@@ -278,7 +312,7 @@ void helper_store_mmcr1(CPUPPCState *env, uint64_t value)
     env->spr[SPR_POWER_MMCR1] = value;
 
     /* MMCR1 writes can change HFLAGS_INSN_CNT */
-    hreg_compute_hflags(env);
+    pmu_update_summaries(env);
 }
 
 target_ulong helper_read_pmc(CPUPPCState *env, uint32_t sprn)

@@ -8,6 +8,7 @@
 #include "qapi/error.h"
 #include "qemu/main-loop.h"
 #include "kvm_ppc.h"
+#include "power8-pmu.h"
 
 static void post_load_update_msr(CPUPPCState *env)
 {
@@ -19,6 +20,7 @@ static void post_load_update_msr(CPUPPCState *env)
      */
     env->msr ^= env->msr_mask & ~((1ULL << MSR_TGPR) | MSR_HVB);
     ppc_store_msr(env, msr);
+    pmu_update_summaries(env);
 }
 
 static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
