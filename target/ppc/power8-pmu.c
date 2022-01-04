@@ -224,12 +224,17 @@ static void pmu_update_overflow_timers(CPUPPCState *env)
 
 void helper_store_mmcr0(CPUPPCState *env, target_ulong value)
 {
+    bool hflags_pmcc0 = (value & MMCR0_PMCC0) != 0;
+    bool hflags_pmcc1 = (value & MMCR0_PMCC1) != 0;
+
     pmu_update_cycles(env);
 
     env->spr[SPR_POWER_MMCR0] = value;
 
     /* MMCR0 writes can change HFLAGS_PMCC[01] and HFLAGS_INSN_CNT */
-    hreg_compute_hflags(env);
+    env->hflags = deposit32(env->hflags, HFLAGS_PMCC0, 1, hflags_pmcc0);
+    env->hflags = deposit32(env->hflags, HFLAGS_PMCC1, 1, hflags_pmcc1);
+
     pmu_update_summaries(env);
 
     /* Update cycle overflow timers with the current MMCR0 state */
