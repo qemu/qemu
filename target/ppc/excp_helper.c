@@ -623,6 +623,11 @@ static void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         env->nip += 4;
         new_msr |= env->msr & ((target_ulong)1 << MSR_EE);
         new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
+
+        vector += lev * 0x20;
+
+        env->lr = env->nip;
+        env->ctr = msr;
         break;
     case POWERPC_EXCP_FPU:       /* Floating-point unavailable exception     */
     case POWERPC_EXCP_APU:       /* Auxiliary processor unavailable          */
@@ -936,14 +941,6 @@ static void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
 
         /* Save MSR */
         env->spr[srr1] = msr;
-
-#if defined(TARGET_PPC64)
-    } else {
-        vector += lev * 0x20;
-
-        env->lr = env->nip;
-        env->ctr = msr;
-#endif
     }
 
     /* This can update new_msr and vector if AIL applies */
