@@ -120,6 +120,7 @@ safe_syscall_end:
         pop     %ebp
         .cfi_adjust_cfa_offset -4
         .cfi_restore ebp
+        mov     %eax, (%esp)
         jmp     safe_syscall_set_errno_tail
 
         .cfi_endproc

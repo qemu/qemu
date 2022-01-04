@@ -99,6 +99,7 @@ safe_syscall_end:
 1:      pop     %rbp
         .cfi_def_cfa_offset 8
         .cfi_restore rbp
+        mov     %eax, %edi
         jmp     safe_syscall_set_errno_tail
         .cfi_endproc
 
