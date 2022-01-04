@@ -84,7 +84,6 @@ struct PnvPHB4 {
     uint32_t phb_id;
 
     uint64_t version;
-    uint16_t device_id;
 
     char bus_path[8];
 
@@ -222,7 +221,6 @@ struct PnvPhb4PecClass {
     const char *stk_compat;
     int stk_compat_size;
     uint64_t version;
-    uint64_t device_id;
     const uint32_t *num_stacks;
 };
 

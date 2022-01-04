@@ -527,7 +527,6 @@ static void pnv_pec_class_init(ObjectClass *klass, void *data)
     pecc->stk_compat = stk_compat;
     pecc->stk_compat_size = sizeof(stk_compat);
     pecc->version = PNV_PHB4_VERSION;
-    pecc->device_id = PNV_PHB4_DEVICE_ID;
     pecc->num_stacks = pnv_pec_num_stacks;
 }
 
@@ -586,8 +585,6 @@ static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
     object_property_set_int(OBJECT(&stack->phb), "chip-id", pec->chip_id,
                             &error_fatal);
     object_property_set_int(OBJECT(&stack->phb), "version", pecc->version,
-                            &error_fatal);
-    object_property_set_int(OBJECT(&stack->phb), "device-id", pecc->device_id,
                             &error_fatal);
     object_property_set_link(OBJECT(&stack->phb), "stack", OBJECT(stack),
                              &error_abort);
