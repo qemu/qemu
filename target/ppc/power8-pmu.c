@@ -170,45 +170,65 @@ void pmu_update_summaries(CPUPPCState *env)
 
 static bool pmu_increment_insns(CPUPPCState *env, uint32_t num_insns)
 {
+    target_ulong mmcr0 = env->spr[SPR_POWER_MMCR0];
+    unsigned ins_cnt = env->pmc_ins_cnt;
     bool overflow_triggered = false;
-    int sprn;
+    target_ulong tmp;
 
-    /* PMC6 never counts instructions */
-    for (sprn = SPR_POWER_PMC1; sprn <= SPR_POWER_PMC5; sprn++) {
-        PMUEventType evt_type = pmc_get_event(env, sprn);
-        bool insn_event = evt_type == PMU_EVENT_INSTRUCTIONS ||
-                          evt_type == PMU_EVENT_INSN_RUN_LATCH;
-
-        if (pmc_is_inactive(env, sprn) || !insn_event) {
-            continue;
+    if (unlikely(ins_cnt & 0x1e)) {
+        if (ins_cnt & (1 << 1)) {
+            tmp = env->spr[SPR_POWER_PMC1];
+            tmp += num_insns;
+            if (tmp >= PMC_COUNTER_NEGATIVE_VAL && (mmcr0 & MMCR0_PMC1CE)) {
+                tmp = PMC_COUNTER_NEGATIVE_VAL;
+                overflow_triggered = true;
+            }
+            env->spr[SPR_POWER_PMC1] = tmp;
         }
 
-        if (evt_type == PMU_EVENT_INSTRUCTIONS) {
-            env->spr[sprn] += num_insns;
+        if (ins_cnt & (1 << 2)) {
+            tmp = env->spr[SPR_POWER_PMC2];
+            tmp += num_insns;
+            if (tmp >= PMC_COUNTER_NEGATIVE_VAL && (mmcr0 & MMCR0_PMCjCE)) {
+                tmp = PMC_COUNTER_NEGATIVE_VAL;
+                overflow_triggered = true;
+            }
+            env->spr[SPR_POWER_PMC2] = tmp;
         }
 
-        if (evt_type == PMU_EVENT_INSN_RUN_LATCH &&
-            env->spr[SPR_CTRL] & CTRL_RUN) {
-            env->spr[sprn] += num_insns;
+        if (ins_cnt & (1 << 3)) {
+            tmp = env->spr[SPR_POWER_PMC3];
+            tmp += num_insns;
+            if (tmp >= PMC_COUNTER_NEGATIVE_VAL && (mmcr0 & MMCR0_PMCjCE)) {
+                tmp = PMC_COUNTER_NEGATIVE_VAL;
+                overflow_triggered = true;
+            }
+            env->spr[SPR_POWER_PMC3] = tmp;
         }
 
-        if (env->spr[sprn] >= PMC_COUNTER_NEGATIVE_VAL &&
-            pmc_has_overflow_enabled(env, sprn)) {
+        if (ins_cnt & (1 << 4)) {
+            target_ulong mmcr1 = env->spr[SPR_POWER_MMCR1];
+            int sel = extract64(mmcr1, MMCR1_PMC4EVT_EXTR, MMCR1_EVT_SIZE);
+            if (sel == 0x02 || (env->spr[SPR_CTRL] & CTRL_RUN)) {
+                tmp = env->spr[SPR_POWER_PMC4];
+                tmp += num_insns;
+                if (tmp >= PMC_COUNTER_NEGATIVE_VAL && (mmcr0 & MMCR0_PMCjCE)) {
+                    tmp = PMC_COUNTER_NEGATIVE_VAL;
+                    overflow_triggered = true;
+                }
+                env->spr[SPR_POWER_PMC4] = tmp;
+            }
+        }
+    }
 
+    if (ins_cnt & (1 << 5)) {
+        tmp = env->spr[SPR_POWER_PMC5];
+        tmp += num_insns;
+        if (tmp >= PMC_COUNTER_NEGATIVE_VAL && (mmcr0 & MMCR0_PMCjCE)) {
+            tmp = PMC_COUNTER_NEGATIVE_VAL;
             overflow_triggered = true;
-
-            /*
-             * The real PMU will always trigger a counter overflow with
-             * PMC_COUNTER_NEGATIVE_VAL. We don't have an easy way to
-             * do that since we're counting block of instructions at
-             * the end of each translation block, and we're probably
-             * passing this value at this point.
-             *
-             * Let's write PMC_COUNTER_NEGATIVE_VAL to the overflowed
-             * counter to simulate what the real hardware would do.
-             */
-            env->spr[sprn] = PMC_COUNTER_NEGATIVE_VAL;
         }
+        env->spr[SPR_POWER_PMC5] = tmp;
     }
 
     return overflow_triggered;
