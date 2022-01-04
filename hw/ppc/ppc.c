@@ -1300,6 +1300,31 @@ target_ulong load_40x_pit (CPUPPCState *env)
     return cpu_ppc_load_decr(env);
 }
 
+void store_40x_tsr(CPUPPCState *env, target_ulong val)
+{
+    PowerPCCPU *cpu = env_archcpu(env);
+
+    trace_ppc40x_store_tcr(val);
+
+    env->spr[SPR_40x_TSR] &= ~(val & 0xFC000000);
+    if (val & 0x80000000) {
+        ppc_set_irq(cpu, PPC_INTERRUPT_PIT, 0);
+    }
+}
+
+void store_40x_tcr(CPUPPCState *env, target_ulong val)
+{
+    PowerPCCPU *cpu = env_archcpu(env);
+    ppc_tb_t *tb_env;
+
+    trace_ppc40x_store_tsr(val);
+
+    tb_env = env->tb_env;
+    env->spr[SPR_40x_TCR] = val & 0xFFC00000;
+    start_stop_pit(env, tb_env, 1);
+    cpu_4xx_wdt_cb(cpu);
+}
+
 static void ppc_40x_set_tb_clk (void *opaque, uint32_t freq)
 {
     CPUPPCState *env = opaque;

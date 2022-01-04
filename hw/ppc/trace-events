@@ -110,6 +110,8 @@ ppc4xx_pit_start(uint64_t reload) "PIT 0x%016" PRIx64
 ppc4xx_pit(uint32_t ar, uint32_t ir, uint64_t tcr, uint64_t tsr, uint64_t reload) "ar %d ir %d TCR 0x%" PRIx64 " TSR 0x%" PRIx64 " PIT 0x%016" PRIx64
 ppc4xx_wdt(uint64_t tcr, uint64_t tsr) "TCR 0x%" PRIx64 " TSR 0x%" PRIx64
 ppc40x_store_pit(uint64_t value) "val 0x%" PRIx64
+ppc40x_store_tcr(uint64_t value) "val 0x%" PRIx64
+ppc40x_store_tsr(uint64_t value) "val 0x%" PRIx64
 ppc40x_set_tb_clk(uint32_t value) "new frequency %" PRIu32
 ppc40x_timers_init(uint32_t value) "frequency %" PRIu32
 

@@ -1440,11 +1440,11 @@ static void register_40x_sprs(CPUPPCState *env)
                  0x00000000);
     spr_register(env, SPR_40x_TCR, "TCR",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_booke_tcr,
+                 &spr_read_generic, &spr_write_40x_tcr,
                  0x00000000);
     spr_register(env, SPR_40x_TSR, "TSR",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_booke_tsr,
+                 &spr_read_generic, &spr_write_40x_tsr,
                  0x00000000);
 }
 
