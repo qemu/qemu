@@ -36,7 +36,7 @@
 /* Exception processing */
 #if !defined(CONFIG_USER_ONLY)
 
-static inline void dump_syscall(CPUPPCState *env)
+static void dump_syscall(CPUPPCState *env)
 {
     qemu_log_mask(CPU_LOG_INT, "syscall r0=%016" PRIx64
                   " r3=%016" PRIx64 " r4=%016" PRIx64 " r5=%016" PRIx64
@@ -48,7 +48,7 @@ static inline void dump_syscall(CPUPPCState *env)
                   ppc_dump_gpr(env, 8), env->nip);
 }
 
-static inline void dump_hcall(CPUPPCState *env)
+static void dump_hcall(CPUPPCState *env)
 {
     qemu_log_mask(CPU_LOG_INT, "hypercall r3=%016" PRIx64
                   " r4=%016" PRIx64 " r5=%016" PRIx64 " r6=%016" PRIx64
@@ -161,7 +161,7 @@ static int powerpc_reset_wakeup(CPUState *cs, CPUPPCState *env, int excp,
  * | a         | h          | 11          | 1       | 1           | h   |
  * +--------------------------------------------------------------------+
  */
-static inline void ppc_excp_apply_ail(PowerPCCPU *cpu, int excp_model, int excp,
+static void ppc_excp_apply_ail(PowerPCCPU *cpu, int excp_model, int excp,
                                       target_ulong msr,
                                       target_ulong *new_msr,
                                       target_ulong *vector)
@@ -258,7 +258,7 @@ static inline void ppc_excp_apply_ail(PowerPCCPU *cpu, int excp_model, int excp,
 #endif
 }
 
-static inline void powerpc_set_excp_state(PowerPCCPU *cpu,
+static void powerpc_set_excp_state(PowerPCCPU *cpu,
                                           target_ulong vector, target_ulong msr)
 {
     CPUState *cs = CPU(cpu);
@@ -293,7 +293,7 @@ static inline void powerpc_set_excp_state(PowerPCCPU *cpu,
  * Note that this function should be greatly optimized when called
  * with a constant excp, from ppc_hw_interrupt
  */
-static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
+static void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
@@ -1167,7 +1167,7 @@ void helper_pminsn(CPUPPCState *env, powerpc_pm_insn_t insn)
 #endif /* defined(TARGET_PPC64) */
 #endif /* CONFIG_TCG */
 
-static inline void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr)
+static void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr)
 {
     CPUState *cs = env_cpu(env);
 
