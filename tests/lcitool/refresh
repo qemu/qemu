@@ -61,6 +61,8 @@ def generate_dockerfile(host, target, cross=None, trailer=None):
    generate(filename, cmd, trailer)
 
 try:
+   generate_dockerfile("centos8", "centos-8")
+
    sys.exit(0)
 except Exception as ex:
    print(str(ex), file=sys.stderr)
