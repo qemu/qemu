@@ -35,9 +35,9 @@ ENV PACKAGES \
 	ncurses-dev \
 	perl \
 	pulseaudio-dev \
-	python3 \
 	py3-sphinx \
 	py3-sphinx_rtd_theme \
+	python3 \
 	samurai \
 	snappy-dev \
 	spice-dev \
