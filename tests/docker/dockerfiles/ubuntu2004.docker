@@ -46,6 +46,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             libepoxy-dev \
             libfdt-dev \
             libffi-dev \
+            libfuse3-dev \
             libgbm-dev \
             libgcrypt20-dev \
             libglib2.0-dev \

@@ -18,6 +18,7 @@ packages:
  - diffutils
  - dtrace
  - findutils
+ - fuse3
  - g++
  - gcc
  - gcovr

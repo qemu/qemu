@@ -29,6 +29,7 @@ RUN apk update && \
         dtc-dev \
         eudev-dev \
         findutils \
+        fuse3-dev \
         g++ \
         gcc \
         gcovr \

@@ -22,6 +22,7 @@ RUN zypper update -y && \
            dbus-1 \
            diffutils \
            findutils \
+           fuse3-devel \
            gcc \
            gcc-c++ \
            gcovr \
