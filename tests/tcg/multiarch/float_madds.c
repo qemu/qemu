@@ -54,8 +54,8 @@ static void print_result(float r, int j, int k)
 {
     char *r_fmt, *flag_fmt;
 
-    r_fmt = fmt_f32(r);
     flag_fmt = fmt_flags();
+    r_fmt = fmt_f32(r);
 
     printf("res: %s flags=%s (%d/%d)\n", r_fmt, flag_fmt, j, k);
 
