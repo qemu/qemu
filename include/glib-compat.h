@@ -46,9 +46,9 @@
  *    int g_foo(const char *wibble)
  *
  * We must define a static inline function with the same signature that does
- * what we need, but with a "_qemu" suffix e.g.
+ * what we need, but with a "_compat" suffix e.g.
  *
- * static inline void g_foo_qemu(const char *wibble)
+ * static inline void g_foo_compat(const char *wibble)
  * {
  *     #if GLIB_CHECK_VERSION(X, Y, 0)
  *        g_foo(wibble)
@@ -61,7 +61,7 @@
  * ensuring this wrapper function impl doesn't trigger the compiler warning
  * about using too new glib APIs. Finally we can do
  *
- *   #define g_foo(a) g_foo_qemu(a)
+ *   #define g_foo(a) g_foo_compat(a)
  *
  * So now the code elsewhere in QEMU, which *does* have the
  * -Wdeprecated-declarations warning active, can call g_foo(...) as normal,
