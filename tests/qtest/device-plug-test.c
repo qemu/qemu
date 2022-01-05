@@ -77,6 +77,23 @@ static void test_pci_unplug_request(void)
     qtest_quit(qtest);
 }
 
+static void test_pci_unplug_json_request(void)
+{
+    QTestState *qtest = qtest_initf(
+        "-device '{\"driver\": \"virtio-mouse-pci\", \"id\": \"dev0\"}'");
+
+    /*
+     * Request device removal. As the guest is not running, the request won't
+     * be processed. However during system reset, the removal will be
+     * handled, removing the device.
+     */
+    device_del(qtest, "dev0");
+    system_reset(qtest);
+    wait_device_deleted_event(qtest, "dev0");
+
+    qtest_quit(qtest);
+}
+
 static void test_ccw_unplug(void)
 {
     QTestState *qtest = qtest_initf("-device virtio-balloon-ccw,id=dev0");
@@ -145,6 +162,8 @@ int main(int argc, char **argv)
      */
     qtest_add_func("/device-plug/pci-unplug-request",
                    test_pci_unplug_request);
+    qtest_add_func("/device-plug/pci-unplug-json-request",
+                   test_pci_unplug_json_request);
 
     if (!strcmp(arch, "s390x")) {
         qtest_add_func("/device-plug/ccw-unplug",
