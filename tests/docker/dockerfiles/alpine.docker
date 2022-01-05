@@ -8,9 +8,7 @@ RUN apk upgrade
 ENV PACKAGES \
 	alsa-lib-dev \
 	bash \
-	binutils \
 	ccache \
-	coreutils \
 	curl-dev \
 	g++ \
 	gcc \
@@ -33,22 +31,18 @@ ENV PACKAGES \
 	lzo-dev \
 	make \
 	mesa-dev \
-	mesa-egl \
-	mesa-gbm \
 	meson \
 	ncurses-dev \
-	ninja \
 	perl \
 	pulseaudio-dev \
 	python3 \
 	py3-sphinx \
 	py3-sphinx_rtd_theme \
-	shadow \
+	samurai \
 	snappy-dev \
 	spice-dev \
 	texinfo \
 	usbredir-dev \
-	util-linux-dev \
 	vde2-dev \
 	virglrenderer-dev \
 	vte3-dev \
