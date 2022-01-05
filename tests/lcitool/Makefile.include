@@ -1,0 +1,17 @@
+
+LCITOOL_REFRESH = $(SRC_PATH)/tests/lcitool/refresh
+
+lcitool:
+	@echo 'Manage build environment manifests'
+	@echo
+	@echo 'Available targets:'
+	@echo
+	@echo '    lcitool:             Print this help.'
+	@echo '    lcitool-refresh:     Re-generate all build environment manifests.'
+	@echo
+
+lcitool-help: lcitool
+
+lcitool-refresh:
+	$(call quiet-command, git submodule update --init $(SRC_PATH)/tests/lcitool/libvirt-ci)
+	$(call quiet-command, $(LCITOOL_REFRESH))
