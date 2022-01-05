@@ -60,9 +60,16 @@ def generate_dockerfile(host, target, cross=None, trailer=None):
    cmd.extend([target, "qemu"])
    generate(filename, cmd, trailer)
 
+ubuntu1804_skipssh = [
+   "# https://bugs.launchpad.net/qemu/+bug/1838763\n",
+   "ENV QEMU_CONFIGURE_OPTS --disable-libssh\n"
+]
+
 try:
    generate_dockerfile("centos8", "centos-8")
    generate_dockerfile("fedora", "fedora-35")
+   generate_dockerfile("ubuntu1804", "ubuntu-1804",
+                       trailer="".join(ubuntu1804_skipssh))
 
    sys.exit(0)
 except Exception as ex:
