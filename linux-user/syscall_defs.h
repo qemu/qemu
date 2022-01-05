@@ -2904,4 +2904,8 @@ struct target_sched_attr {
     abi_uint sched_util_max;
 };
 
+struct target_sched_param {
+    abi_int sched_priority;
+};
+
 #endif
