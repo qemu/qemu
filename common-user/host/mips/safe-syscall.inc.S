@@ -141,6 +141,7 @@ safe_syscall_end:
 1:      USE_ALT_CP(t0)
         SETUP_GPX(t1)
         SETUP_GPX64(t0, t1)
+        move    a0, v0
         PTR_LA  t9, safe_syscall_set_errno_tail
         jr      t9
 
