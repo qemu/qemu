@@ -60,6 +60,11 @@ def generate_dockerfile(host, target, cross=None, trailer=None):
    cmd.extend([target, "qemu"])
    generate(filename, cmd, trailer)
 
+def generate_cirrus(target, trailer=None):
+   filename = Path(src_dir, ".gitlab-ci.d", "cirrus", target + ".vars")
+   cmd = [lcitool_path, "variables", target, "qemu"]
+   generate(filename, cmd, trailer)
+
 ubuntu1804_skipssh = [
    "# https://bugs.launchpad.net/qemu/+bug/1838763\n",
    "ENV QEMU_CONFIGURE_OPTS --disable-libssh\n"
@@ -79,6 +84,11 @@ try:
    generate_dockerfile("ubuntu2004", "ubuntu-2004",
                        trailer="".join(ubuntu2004_tsanhack))
    generate_dockerfile("opensuse-leap", "opensuse-leap-152")
+
+   generate_cirrus("freebsd-12")
+   generate_cirrus("freebsd-13")
+   generate_cirrus("macos-11")
+
    sys.exit(0)
 except Exception as ex:
    print(str(ex), file=sys.stderr)
