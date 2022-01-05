@@ -1354,11 +1354,11 @@ void vnc_disconnect_finish(VncState *vs)
         /* last client gone */
         vnc_update_server_surface(vs->vd);
     }
+    vnc_unlock_output(vs);
+
     if (vs->cbpeer.notifier.notify) {
         qemu_clipboard_peer_unregister(&vs->cbpeer);
     }
-
-    vnc_unlock_output(vs);
 
     qemu_mutex_destroy(&vs->output_mutex);
     if (vs->bh != NULL) {
