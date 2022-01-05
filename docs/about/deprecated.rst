@@ -134,12 +134,6 @@ specified.
 Use ``-display sdl,window-close=...`` instead (i.e. with a minus instead of
 an underscore between "window" and "close").
 
-``-no-quit`` (since 6.1)
-''''''''''''''''''''''''
-
-The ``-no-quit`` is a synonym for ``-display ...,window-close=off`` which
-should be used instead.
-
 ``-alt-grab`` and ``-display sdl,alt_grab=on`` (since 6.2)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 

@@ -7,12 +7,12 @@
 # Author: Marc-André Lureau <marcandre.lureau@redhat.com>
 """dbus-doc is a Sphinx extension that provides documentation from D-Bus XML."""
 
+from docutils.parsers.rst import Directive
 from sphinx.application import Sphinx
-from sphinx.util.docutils import SphinxDirective
 from typing import Any, Dict
 
 
-class FakeDBusDocDirective(SphinxDirective):
+class FakeDBusDocDirective(Directive):
     has_content = True
     required_arguments = 1
 

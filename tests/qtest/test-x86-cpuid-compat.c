@@ -302,54 +302,65 @@ int main(int argc, char **argv)
 
     /* Check compatibility of old machine-types that didn't
      * auto-increase level/xlevel/xlevel2: */
-
-    add_cpuid_test("x86/cpuid/auto-level/pc-2.7",
-                   "-machine pc-i440fx-2.7 -cpu 486,arat=on,avx512vbmi=on,xsaveopt=on",
-                   "level", 1);
-    add_cpuid_test("x86/cpuid/auto-xlevel/pc-2.7",
-                   "-machine pc-i440fx-2.7 -cpu 486,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
-                   "xlevel", 0);
-    add_cpuid_test("x86/cpuid/auto-xlevel2/pc-2.7",
-                   "-machine pc-i440fx-2.7 -cpu 486,xstore=on",
-                   "xlevel2", 0);
+    if (qtest_has_machine("pc-i440fx-2.7")) {
+        add_cpuid_test("x86/cpuid/auto-level/pc-2.7",
+                       "-machine pc-i440fx-2.7 -cpu 486,arat=on,avx512vbmi=on,xsaveopt=on",
+                       "level", 1);
+        add_cpuid_test("x86/cpuid/auto-xlevel/pc-2.7",
+                       "-machine pc-i440fx-2.7 -cpu 486,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
+                       "xlevel", 0);
+        add_cpuid_test("x86/cpuid/auto-xlevel2/pc-2.7",
+                       "-machine pc-i440fx-2.7 -cpu 486,xstore=on",
+                       "xlevel2", 0);
+    }
     /*
      * QEMU 1.4.0 had auto-level enabled for CPUID[7], already,
      * and the compat code that sets default level shouldn't
      * disable the auto-level=7 code:
      */
-    add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-1.4/off",
-                   "-machine pc-i440fx-1.4 -cpu Nehalem",
-                   "level", 2);
-    add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-1.5/on",
-                   "-machine pc-i440fx-1.4 -cpu Nehalem,smap=on",
-                   "level", 7);
-    add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.3/off",
-                   "-machine pc-i440fx-2.3 -cpu Penryn",
-                   "level", 4);
-    add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.3/on",
-                   "-machine pc-i440fx-2.3 -cpu Penryn,erms=on",
-                   "level", 7);
-    add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.9/off",
-                   "-machine pc-i440fx-2.9 -cpu Conroe",
-                   "level", 10);
-    add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.9/on",
-                   "-machine pc-i440fx-2.9 -cpu Conroe,erms=on",
-                   "level", 10);
+    if (qtest_has_machine("pc-i440fx-1.4")) {
+        add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-1.4/off",
+                       "-machine pc-i440fx-1.4 -cpu Nehalem",
+                       "level", 2);
+        add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-1.5/on",
+                       "-machine pc-i440fx-1.4 -cpu Nehalem,smap=on",
+                       "level", 7);
+    }
+    if (qtest_has_machine("pc-i440fx-2.3")) {
+        add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.3/off",
+                       "-machine pc-i440fx-2.3 -cpu Penryn",
+                       "level", 4);
+        add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.3/on",
+                       "-machine pc-i440fx-2.3 -cpu Penryn,erms=on",
+                       "level", 7);
+    }
+    if (qtest_has_machine("pc-i440fx-2.9")) {
+        add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.9/off",
+                       "-machine pc-i440fx-2.9 -cpu Conroe",
+                       "level", 10);
+        add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.9/on",
+                       "-machine pc-i440fx-2.9 -cpu Conroe,erms=on",
+                       "level", 10);
+    }
 
     /*
      * xlevel doesn't have any feature that triggers auto-level
      * code on old machine-types.  Just check that the compat code
      * is working correctly:
      */
-    add_cpuid_test("x86/cpuid/xlevel-compat/pc-i440fx-2.3",
-                   "-machine pc-i440fx-2.3 -cpu SandyBridge",
-                   "xlevel", 0x8000000a);
-    add_cpuid_test("x86/cpuid/xlevel-compat/pc-i440fx-2.4/npt-off",
-                   "-machine pc-i440fx-2.4 -cpu SandyBridge,",
-                   "xlevel", 0x80000008);
-    add_cpuid_test("x86/cpuid/xlevel-compat/pc-i440fx-2.4/npt-on",
-                   "-machine pc-i440fx-2.4 -cpu SandyBridge,svm=on,npt=on",
-                   "xlevel", 0x80000008);
+    if (qtest_has_machine("pc-i440fx-2.3")) {
+        add_cpuid_test("x86/cpuid/xlevel-compat/pc-i440fx-2.3",
+                       "-machine pc-i440fx-2.3 -cpu SandyBridge",
+                       "xlevel", 0x8000000a);
+    }
+    if (qtest_has_machine("pc-i440fx-2.4")) {
+        add_cpuid_test("x86/cpuid/xlevel-compat/pc-i440fx-2.4/npt-off",
+                       "-machine pc-i440fx-2.4 -cpu SandyBridge,",
+                       "xlevel", 0x80000008);
+        add_cpuid_test("x86/cpuid/xlevel-compat/pc-i440fx-2.4/npt-on",
+                       "-machine pc-i440fx-2.4 -cpu SandyBridge,svm=on,npt=on",
+                       "xlevel", 0x80000008);
+    }
 
     /* Test feature parsing */
     add_feature_test("x86/cpuid/features/plus",

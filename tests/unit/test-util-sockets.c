@@ -305,9 +305,11 @@ static void test_socket_unix_abstract(void)
     };
     int i;
 
+    i = g_file_open_tmp("unix-XXXXXX", &addr.u.q_unix.path, NULL);
+    g_assert_true(i >= 0);
+    close(i);
+
     addr.type = SOCKET_ADDRESS_TYPE_UNIX;
-    addr.u.q_unix.path = g_strdup_printf("unix-%d-%u",
-                                         getpid(), g_random_int());
     addr.u.q_unix.has_abstract = true;
     addr.u.q_unix.abstract = true;
     addr.u.q_unix.has_tight = false;
