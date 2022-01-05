@@ -62,13 +62,11 @@ void qemu_clipboard_update(QemuClipboardInfo *info)
         .type = QEMU_CLIPBOARD_UPDATE_INFO,
         .info = info,
     };
-    g_autoptr(QemuClipboardInfo) old = NULL;
-
     assert(info->selection < QEMU_CLIPBOARD_SELECTION__COUNT);
 
     notifier_list_notify(&clipboard_notifiers, &notify);
 
-    old = cbinfo[info->selection];
+    qemu_clipboard_info_unref(cbinfo[info->selection]);
     cbinfo[info->selection] = qemu_clipboard_info_ref(info);
 }
 
