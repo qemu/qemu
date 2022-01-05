@@ -84,6 +84,7 @@ try:
    generate_dockerfile("ubuntu2004", "ubuntu-2004",
                        trailer="".join(ubuntu2004_tsanhack))
    generate_dockerfile("opensuse-leap", "opensuse-leap-152")
+   generate_dockerfile("alpine", "alpine-edge")
 
    generate_cirrus("freebsd-12")
    generate_cirrus("freebsd-13")
