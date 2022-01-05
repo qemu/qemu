@@ -78,6 +78,7 @@ try:
                        trailer="".join(ubuntu1804_skipssh))
    generate_dockerfile("ubuntu2004", "ubuntu-2004",
                        trailer="".join(ubuntu2004_tsanhack))
+   generate_dockerfile("opensuse-leap", "opensuse-leap-152")
    sys.exit(0)
 except Exception as ex:
    print(str(ex), file=sys.stderr)
