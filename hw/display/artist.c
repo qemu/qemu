@@ -80,6 +80,7 @@ struct ARTISTState {
     uint32_t line_pattern_skip;
 
     uint32_t cursor_pos;
+    uint32_t cursor_cntrl;
 
     uint32_t cursor_height;
     uint32_t cursor_width;
@@ -301,19 +302,42 @@ static void artist_get_cursor_pos(ARTISTState *s, int *x, int *y)
 {
     /*
      * Don't know whether these magic offset values are configurable via
-     * some register. They are the same for all resolutions, so don't
-     * bother about it.
+     * some register. They seem to be the same for all resolutions.
+     * The cursor values provided in the registers are:
+     * X-value: -295 (for HP-UX 11) and 338 (for HP-UX 10.20) up to 2265
+     * Y-value: 1146 down to 0
+     * The emulated Artist graphic is like a CRX graphic, and as such
+     * it's usually fixed at 1280x1024 pixels.
+     * Because of the maximum Y-value of 1146 you can not choose a higher
+     * vertical resolution on HP-UX (unless you disable the mouse).
      */
 
-    *y = 0x47a - artist_get_y(s->cursor_pos);
-    *x = ((artist_get_x(s->cursor_pos) - 338) / 2);
+    static int offset = 338;
+    int lx;
+
+    /* ignore if uninitialized */
+    if (s->cursor_pos == 0) {
+        *x = *y = 0;
+        return;
+    }
+
+    lx = artist_get_x(s->cursor_pos);
+    if (lx < offset)
+        offset = lx;
+    *x = (lx - offset) / 2;
+
+    *y = 1146 - artist_get_y(s->cursor_pos);
+
+    /* subtract cursor offset from cursor control register */
+    *x -= (s->cursor_cntrl & 0xf0) >> 4;
+    *y -= (s->cursor_cntrl & 0x0f);
 
     if (*x > s->width) {
-        *x = 0;
+        *x = s->width;
     }
 
     if (*y > s->height) {
-        *y = 0;
+        *y = s->height;
     }
 }
 
@@ -1027,6 +1051,7 @@ static void artist_reg_write(void *opaque, hwaddr addr, uint64_t val,
         break;
 
     case CURSOR_CTRL:
+        combine_write_reg(addr, val, size, &s->cursor_cntrl);
         break;
 
     case IMAGE_BITMAP_OP:
@@ -1331,8 +1356,8 @@ static int vmstate_artist_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_artist = {
     .name = "artist",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .post_load = vmstate_artist_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT16(height, ARTISTState),
@@ -1352,6 +1377,7 @@ static const VMStateDescription vmstate_artist = {
         VMSTATE_UINT32(line_end, ARTISTState),
         VMSTATE_UINT32(line_xy, ARTISTState),
         VMSTATE_UINT32(cursor_pos, ARTISTState),
+        VMSTATE_UINT32(cursor_cntrl, ARTISTState),
         VMSTATE_UINT32(cursor_height, ARTISTState),
         VMSTATE_UINT32(cursor_width, ARTISTState),
         VMSTATE_UINT32(plane_mask, ARTISTState),
