@@ -6444,7 +6444,8 @@ static abi_long do_prctl(CPUArchState *env, abi_long option, abi_long arg2,
             int deathsig;
             ret = get_errno(prctl(PR_GET_PDEATHSIG, &deathsig,
                                   arg3, arg4, arg5));
-            if (!is_error(ret) && put_user_s32(deathsig, arg2)) {
+            if (!is_error(ret) &&
+                put_user_s32(host_to_target_signal(deathsig), arg2)) {
                 return -TARGET_EFAULT;
             }
             return ret;
