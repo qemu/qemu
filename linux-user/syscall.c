@@ -6450,6 +6450,9 @@ static abi_long do_prctl(CPUArchState *env, abi_long option, abi_long arg2,
             }
             return ret;
         }
+    case PR_SET_PDEATHSIG:
+        return get_errno(prctl(PR_SET_PDEATHSIG, target_to_host_signal(arg2),
+                               arg3, arg4, arg5));
     case PR_GET_NAME:
         {
             void *name = lock_user(VERIFY_WRITE, arg2, 16, 1);
