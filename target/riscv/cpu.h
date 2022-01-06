@@ -25,6 +25,7 @@
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat-types.h"
 #include "qom/object.h"
+#include "qemu/int128.h"
 #include "cpu_bits.h"
 
 #define TCG_GUEST_DEFAULT_MO 0
@@ -499,6 +500,10 @@ typedef RISCVException (*riscv_csr_op_fn)(CPURISCVState *env, int csrno,
                                           target_ulong *ret_value,
                                           target_ulong new_value,
                                           target_ulong write_mask);
+
+RISCVException riscv_csrrw_i128(CPURISCVState *env, int csrno,
+                                Int128 *ret_value,
+                                Int128 new_value, Int128 write_mask);
 
 typedef struct {
     const char *name;
