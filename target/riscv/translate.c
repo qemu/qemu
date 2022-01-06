@@ -581,57 +581,96 @@ static bool gen_logic(DisasContext *ctx, arg_r *a,
 }
 
 static bool gen_arith_imm_fn(DisasContext *ctx, arg_i *a, DisasExtend ext,
-                             void (*func)(TCGv, TCGv, target_long))
+                             void (*func)(TCGv, TCGv, target_long),
+                             void (*f128)(TCGv, TCGv, TCGv, TCGv, target_long))
 {
     TCGv dest = dest_gpr(ctx, a->rd);
     TCGv src1 = get_gpr(ctx, a->rs1, ext);
 
-    func(dest, src1, a->imm);
+    if (get_ol(ctx) < MXL_RV128) {
+        func(dest, src1, a->imm);
+        gen_set_gpr(ctx, a->rd, dest);
+    } else {
+        if (f128 == NULL) {
+            return false;
+        }
 
-    gen_set_gpr(ctx, a->rd, dest);
+        TCGv src1h = get_gprh(ctx, a->rs1);
+        TCGv desth = dest_gprh(ctx, a->rd);
+
+        f128(dest, desth, src1, src1h, a->imm);
+        gen_set_gpr128(ctx, a->rd, dest, desth);
+    }
     return true;
 }
 
 static bool gen_arith_imm_tl(DisasContext *ctx, arg_i *a, DisasExtend ext,
-                             void (*func)(TCGv, TCGv, TCGv))
+                             void (*func)(TCGv, TCGv, TCGv),
+                             void (*f128)(TCGv, TCGv, TCGv, TCGv, TCGv, TCGv))
 {
     TCGv dest = dest_gpr(ctx, a->rd);
     TCGv src1 = get_gpr(ctx, a->rs1, ext);
     TCGv src2 = tcg_constant_tl(a->imm);
 
-    func(dest, src1, src2);
+    if (get_ol(ctx) < MXL_RV128) {
+        func(dest, src1, src2);
+        gen_set_gpr(ctx, a->rd, dest);
+    } else {
+        if (f128 == NULL) {
+            return false;
+        }
 
-    gen_set_gpr(ctx, a->rd, dest);
+        TCGv src1h = get_gprh(ctx, a->rs1);
+        TCGv src2h = tcg_constant_tl(-(a->imm < 0));
+        TCGv desth = dest_gprh(ctx, a->rd);
+
+        f128(dest, desth, src1, src1h, src2, src2h);
+        gen_set_gpr128(ctx, a->rd, dest, desth);
+    }
     return true;
 }
 
 static bool gen_arith(DisasContext *ctx, arg_r *a, DisasExtend ext,
-                      void (*func)(TCGv, TCGv, TCGv))
+                      void (*func)(TCGv, TCGv, TCGv),
+                      void (*f128)(TCGv, TCGv, TCGv, TCGv, TCGv, TCGv))
 {
     TCGv dest = dest_gpr(ctx, a->rd);
     TCGv src1 = get_gpr(ctx, a->rs1, ext);
     TCGv src2 = get_gpr(ctx, a->rs2, ext);
 
-    func(dest, src1, src2);
+    if (get_ol(ctx) < MXL_RV128) {
+        func(dest, src1, src2);
+        gen_set_gpr(ctx, a->rd, dest);
+    } else {
+        if (f128 == NULL) {
+            return false;
+        }
 
-    gen_set_gpr(ctx, a->rd, dest);
+        TCGv src1h = get_gprh(ctx, a->rs1);
+        TCGv src2h = get_gprh(ctx, a->rs2);
+        TCGv desth = dest_gprh(ctx, a->rd);
+
+        f128(dest, desth, src1, src1h, src2, src2h);
+        gen_set_gpr128(ctx, a->rd, dest, desth);
+    }
     return true;
 }
 
 static bool gen_arith_per_ol(DisasContext *ctx, arg_r *a, DisasExtend ext,
                              void (*f_tl)(TCGv, TCGv, TCGv),
-                             void (*f_32)(TCGv, TCGv, TCGv))
+                             void (*f_32)(TCGv, TCGv, TCGv),
+                             void (*f_128)(TCGv, TCGv, TCGv, TCGv, TCGv, TCGv))
 {
     int olen = get_olen(ctx);
 
     if (olen != TARGET_LONG_BITS) {
         if (olen == 32) {
             f_tl = f_32;
-        } else {
+        } else if (olen != 128) {
             g_assert_not_reached();
         }
     }
-    return gen_arith(ctx, a, ext, f_tl);
+    return gen_arith(ctx, a, ext, f_tl, f_128);
 }
 
 static bool gen_shift_imm_fn(DisasContext *ctx, arg_shift *a, DisasExtend ext,
