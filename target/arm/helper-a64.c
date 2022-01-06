@@ -513,8 +513,8 @@ uint64_t HELPER(paired_cmpxchg64_le)(CPUARMState *env, uint64_t addr,
     uint64_t o0, o1;
     bool success;
     int mem_idx = cpu_mmu_index(env, false);
-    MemOpIdx oi0 = make_memop_idx(MO_LEQ | MO_ALIGN_16, mem_idx);
-    MemOpIdx oi1 = make_memop_idx(MO_LEQ, mem_idx);
+    MemOpIdx oi0 = make_memop_idx(MO_LEUQ | MO_ALIGN_16, mem_idx);
+    MemOpIdx oi1 = make_memop_idx(MO_LEUQ, mem_idx);
 
     o0 = cpu_ldq_le_mmu(env, addr + 0, oi0, ra);
     o1 = cpu_ldq_le_mmu(env, addr + 8, oi1, ra);
@@ -565,8 +565,8 @@ uint64_t HELPER(paired_cmpxchg64_be)(CPUARMState *env, uint64_t addr,
     uint64_t o0, o1;
     bool success;
     int mem_idx = cpu_mmu_index(env, false);
-    MemOpIdx oi0 = make_memop_idx(MO_BEQ | MO_ALIGN_16, mem_idx);
-    MemOpIdx oi1 = make_memop_idx(MO_BEQ, mem_idx);
+    MemOpIdx oi0 = make_memop_idx(MO_BEUQ | MO_ALIGN_16, mem_idx);
+    MemOpIdx oi1 = make_memop_idx(MO_BEUQ, mem_idx);
 
     o1 = cpu_ldq_be_mmu(env, addr + 0, oi0, ra);
     o0 = cpu_ldq_be_mmu(env, addr + 8, oi1, ra);

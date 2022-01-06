@@ -117,13 +117,13 @@ void gen_aa32_st_i64(DisasContext *s, TCGv_i64 val, TCGv_i32 a32,
 static inline void gen_aa32_ld64(DisasContext *s, TCGv_i64 val,
                                  TCGv_i32 a32, int index)
 {
-    gen_aa32_ld_i64(s, val, a32, index, MO_Q);
+    gen_aa32_ld_i64(s, val, a32, index, MO_UQ);
 }
 
 static inline void gen_aa32_st64(DisasContext *s, TCGv_i64 val,
                                  TCGv_i32 a32, int index)
 {
-    gen_aa32_st_i64(s, val, a32, index, MO_Q);
+    gen_aa32_st_i64(s, val, a32, index, MO_UQ);
 }
 
 DO_GEN_LD(8u, MO_UB)

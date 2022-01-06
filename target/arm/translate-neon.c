@@ -73,7 +73,7 @@ static void neon_load_element64(TCGv_i64 var, int reg, int ele, MemOp mop)
     case MO_UL:
         tcg_gen_ld32u_i64(var, cpu_env, offset);
         break;
-    case MO_Q:
+    case MO_UQ:
         tcg_gen_ld_i64(var, cpu_env, offset);
         break;
     default:
@@ -1830,7 +1830,7 @@ static bool do_prewiden_3d(DisasContext *s, arg_3diff *a,
         return false;
     }
 
-    if ((a->vd & 1) || (src1_mop == MO_Q && (a->vn & 1))) {
+    if ((a->vd & 1) || (src1_mop == MO_UQ && (a->vn & 1))) {
         return false;
     }
 
@@ -1910,7 +1910,7 @@ static bool do_prewiden_3d(DisasContext *s, arg_3diff *a,
         };                                                              \
         int narrow_mop = a->size == MO_32 ? MO_32 | SIGN : -1;          \
         return do_prewiden_3d(s, a, widenfn[a->size], addfn[a->size],   \
-                              SRC1WIDE ? MO_Q : narrow_mop,             \
+                              SRC1WIDE ? MO_UQ : narrow_mop,             \
                               narrow_mop);                              \
     }
 

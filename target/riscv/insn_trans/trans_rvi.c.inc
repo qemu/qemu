@@ -216,13 +216,13 @@ static bool trans_lwu(DisasContext *ctx, arg_lwu *a)
 static bool trans_ld(DisasContext *ctx, arg_ld *a)
 {
     REQUIRE_64BIT(ctx);
-    return gen_load(ctx, a, MO_TEQ);
+    return gen_load(ctx, a, MO_TEUQ);
 }
 
 static bool trans_sd(DisasContext *ctx, arg_sd *a)
 {
     REQUIRE_64BIT(ctx);
-    return gen_store(ctx, a, MO_TEQ);
+    return gen_store(ctx, a, MO_TEUQ);
 }
 
 static bool trans_addi(DisasContext *ctx, arg_addi *a)

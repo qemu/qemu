@@ -309,7 +309,7 @@ static uint64_t tci_qemu_ld(CPUArchState *env, target_ulong taddr,
         return helper_le_ldul_mmu(env, taddr, oi, ra);
     case MO_LESL:
         return helper_le_ldsl_mmu(env, taddr, oi, ra);
-    case MO_LEQ:
+    case MO_LEUQ:
         return helper_le_ldq_mmu(env, taddr, oi, ra);
     case MO_BEUW:
         return helper_be_lduw_mmu(env, taddr, oi, ra);
@@ -319,7 +319,7 @@ static uint64_t tci_qemu_ld(CPUArchState *env, target_ulong taddr,
         return helper_be_ldul_mmu(env, taddr, oi, ra);
     case MO_BESL:
         return helper_be_ldsl_mmu(env, taddr, oi, ra);
-    case MO_BEQ:
+    case MO_BEUQ:
         return helper_be_ldq_mmu(env, taddr, oi, ra);
     default:
         g_assert_not_reached();
@@ -348,7 +348,7 @@ static uint64_t tci_qemu_ld(CPUArchState *env, target_ulong taddr,
     case MO_LESL:
         ret = (int32_t)ldl_le_p(haddr);
         break;
-    case MO_LEQ:
+    case MO_LEUQ:
         ret = ldq_le_p(haddr);
         break;
     case MO_BEUW:
@@ -363,7 +363,7 @@ static uint64_t tci_qemu_ld(CPUArchState *env, target_ulong taddr,
     case MO_BESL:
         ret = (int32_t)ldl_be_p(haddr);
         break;
-    case MO_BEQ:
+    case MO_BEUQ:
         ret = ldq_be_p(haddr);
         break;
     default:
@@ -391,7 +391,7 @@ static void tci_qemu_st(CPUArchState *env, target_ulong taddr, uint64_t val,
     case MO_LEUL:
         helper_le_stl_mmu(env, taddr, val, oi, ra);
         break;
-    case MO_LEQ:
+    case MO_LEUQ:
         helper_le_stq_mmu(env, taddr, val, oi, ra);
         break;
     case MO_BEUW:
@@ -400,7 +400,7 @@ static void tci_qemu_st(CPUArchState *env, target_ulong taddr, uint64_t val,
     case MO_BEUL:
         helper_be_stl_mmu(env, taddr, val, oi, ra);
         break;
-    case MO_BEQ:
+    case MO_BEUQ:
         helper_be_stq_mmu(env, taddr, val, oi, ra);
         break;
     default:
@@ -420,7 +420,7 @@ static void tci_qemu_st(CPUArchState *env, target_ulong taddr, uint64_t val,
     case MO_LEUL:
         stl_le_p(haddr, val);
         break;
-    case MO_LEQ:
+    case MO_LEUQ:
         stq_le_p(haddr, val);
         break;
     case MO_BEUW:
@@ -429,7 +429,7 @@ static void tci_qemu_st(CPUArchState *env, target_ulong taddr, uint64_t val,
     case MO_BEUL:
         stl_be_p(haddr, val);
         break;
-    case MO_BEQ:
+    case MO_BEUQ:
         stq_be_p(haddr, val);
         break;
     default:

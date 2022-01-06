@@ -355,12 +355,12 @@ static bool trans_LQ(DisasContext *ctx, arg_i *a)
     tcg_gen_andi_tl(addr, addr, ~0xf);
 
     /* Lower half */
-    tcg_gen_qemu_ld_i64(t0, addr, ctx->mem_idx, MO_TEQ);
+    tcg_gen_qemu_ld_i64(t0, addr, ctx->mem_idx, MO_TEUQ);
     gen_store_gpr(t0, a->rt);
 
     /* Upper half */
     tcg_gen_addi_i64(addr, addr, 8);
-    tcg_gen_qemu_ld_i64(t0, addr, ctx->mem_idx, MO_TEQ);
+    tcg_gen_qemu_ld_i64(t0, addr, ctx->mem_idx, MO_TEUQ);
     gen_store_gpr_hi(t0, a->rt);
 
     tcg_temp_free(t0);
@@ -383,12 +383,12 @@ static bool trans_SQ(DisasContext *ctx, arg_i *a)
 
     /* Lower half */
     gen_load_gpr(t0, a->rt);
-    tcg_gen_qemu_st_i64(t0, addr, ctx->mem_idx, MO_TEQ);
+    tcg_gen_qemu_st_i64(t0, addr, ctx->mem_idx, MO_TEUQ);
 
     /* Upper half */
     tcg_gen_addi_i64(addr, addr, 8);
     gen_load_gpr_hi(t0, a->rt);
-    tcg_gen_qemu_st_i64(t0, addr, ctx->mem_idx, MO_TEQ);
+    tcg_gen_qemu_st_i64(t0, addr, ctx->mem_idx, MO_TEUQ);
 
     tcg_temp_free(addr);
     tcg_temp_free(t0);

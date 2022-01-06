@@ -862,7 +862,7 @@ static void * const qemu_ld_helpers[MO_SSIZE + 1] = {
 #if TCG_TARGET_REG_BITS == 64
     [MO_SL] = helper_be_ldsl_mmu,
 #endif
-    [MO_Q]  = helper_be_ldq_mmu,
+    [MO_UQ] = helper_be_ldq_mmu,
 #else
     [MO_UW] = helper_le_lduw_mmu,
     [MO_SW] = helper_le_ldsw_mmu,
@@ -870,7 +870,7 @@ static void * const qemu_ld_helpers[MO_SSIZE + 1] = {
 #if TCG_TARGET_REG_BITS == 64
     [MO_SL] = helper_le_ldsl_mmu,
 #endif
-    [MO_Q]  = helper_le_ldq_mmu,
+    [MO_UQ] = helper_le_ldq_mmu,
 #endif
 };
 
@@ -1083,7 +1083,7 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGReg lo, TCGReg hi,
     case MO_SL:
         tcg_out_opc_imm(s, OPC_LW, lo, base, 0);
         break;
-    case MO_Q:
+    case MO_UQ:
         /* Prefer to load from offset 0 first, but allow for overlap.  */
         if (TCG_TARGET_REG_BITS == 64) {
             tcg_out_opc_imm(s, OPC_LD, lo, base, 0);

@@ -45,7 +45,7 @@ uint32_t cpu_ldl_be_mmuidx_ra(CPUArchState *env, abi_ptr addr,
 uint64_t cpu_ldq_be_mmuidx_ra(CPUArchState *env, abi_ptr addr,
                               int mmu_idx, uintptr_t ra)
 {
-    MemOpIdx oi = make_memop_idx(MO_BEQ | MO_UNALN, mmu_idx);
+    MemOpIdx oi = make_memop_idx(MO_BEUQ | MO_UNALN, mmu_idx);
     return cpu_ldq_be_mmu(env, addr, oi, ra);
 }
 
@@ -72,7 +72,7 @@ uint32_t cpu_ldl_le_mmuidx_ra(CPUArchState *env, abi_ptr addr,
 uint64_t cpu_ldq_le_mmuidx_ra(CPUArchState *env, abi_ptr addr,
                               int mmu_idx, uintptr_t ra)
 {
-    MemOpIdx oi = make_memop_idx(MO_LEQ | MO_UNALN, mmu_idx);
+    MemOpIdx oi = make_memop_idx(MO_LEUQ | MO_UNALN, mmu_idx);
     return cpu_ldq_le_mmu(env, addr, oi, ra);
 }
 
@@ -100,7 +100,7 @@ void cpu_stl_be_mmuidx_ra(CPUArchState *env, abi_ptr addr, uint32_t val,
 void cpu_stq_be_mmuidx_ra(CPUArchState *env, abi_ptr addr, uint64_t val,
                           int mmu_idx, uintptr_t ra)
 {
-    MemOpIdx oi = make_memop_idx(MO_BEQ | MO_UNALN, mmu_idx);
+    MemOpIdx oi = make_memop_idx(MO_BEUQ | MO_UNALN, mmu_idx);
     cpu_stq_be_mmu(env, addr, val, oi, ra);
 }
 
@@ -121,7 +121,7 @@ void cpu_stl_le_mmuidx_ra(CPUArchState *env, abi_ptr addr, uint32_t val,
 void cpu_stq_le_mmuidx_ra(CPUArchState *env, abi_ptr addr, uint64_t val,
                           int mmu_idx, uintptr_t ra)
 {
-    MemOpIdx oi = make_memop_idx(MO_LEQ | MO_UNALN, mmu_idx);
+    MemOpIdx oi = make_memop_idx(MO_LEUQ | MO_UNALN, mmu_idx);
     cpu_stq_le_mmu(env, addr, val, oi, ra);
 }
 
