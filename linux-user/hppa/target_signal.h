@@ -64,7 +64,6 @@ typedef struct target_sigaltstack {
 #define TARGET_SA_NOCLDWAIT     0x00000080
 
 #define TARGET_MINSIGSTKSZ	2048
-#define TARGET_SIGSTKSZ		8192
 
 /* bit-flags */
 #define TARGET_SS_AUTODISARM (1U << 31) /* disable sas during sighandling */

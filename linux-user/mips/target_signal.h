@@ -67,7 +67,6 @@ typedef struct target_sigaltstack {
 #define TARGET_SA_RESTORER      0x04000000      /* Only for O32 */
 
 #define TARGET_MINSIGSTKSZ    2048
-#define TARGET_SIGSTKSZ       8192
 
 #if defined(TARGET_ABI_MIPSO32)
 /* compare linux/arch/mips/kernel/signal.c:setup_frame() */

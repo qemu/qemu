@@ -258,7 +258,6 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
     return 0;
 }
 
-#if !defined(TARGET_NIOS2)
 /* Just set the guest's signal mask to the specified value; the
  * caller is assumed to have called block_signals() already.
  */
@@ -268,7 +267,6 @@ void set_sigmask(const sigset_t *set)
 
     ts->signal_mask = *set;
 }
-#endif
 
 /* sigaltstack management */
 
@@ -406,7 +404,12 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
         case TARGET_SIGCHLD:
             tinfo->_sifields._sigchld._pid = info->si_pid;
             tinfo->_sifields._sigchld._uid = info->si_uid;
-            tinfo->_sifields._sigchld._status = info->si_status;
+            if (si_code == CLD_EXITED)
+                tinfo->_sifields._sigchld._status = info->si_status;
+            else
+                tinfo->_sifields._sigchld._status
+                    = host_to_target_signal(info->si_status & 0x7f)
+                        | (info->si_status & ~0x7f);
             tinfo->_sifields._sigchld._utime = info->si_utime;
             tinfo->_sifields._sigchld._stime = info->si_stime;
             si_type = QEMU_SI_CHLD;

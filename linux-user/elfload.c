@@ -390,11 +390,11 @@ enum {
 
 /* The commpage only exists for 32 bit kernels */
 
-#define ARM_COMMPAGE (intptr_t)0xffff0f00u
+#define HI_COMMPAGE (intptr_t)0xffff0f00u
 
 static bool init_guest_commpage(void)
 {
-    void *want = g2h_untagged(ARM_COMMPAGE & -qemu_host_page_size);
+    void *want = g2h_untagged(HI_COMMPAGE & -qemu_host_page_size);
     void *addr = mmap(want, qemu_host_page_size, PROT_READ | PROT_WRITE,
                       MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
 
@@ -1097,6 +1097,47 @@ static void init_thread(struct target_pt_regs *regs, struct image_info *infop)
     regs->ea = infop->entry;
     regs->sp = infop->start_stack;
     regs->estatus = 0x3;
+}
+
+#define LO_COMMPAGE  TARGET_PAGE_SIZE
+
+static bool init_guest_commpage(void)
+{
+    static const uint8_t kuser_page[4 + 2 * 64] = {
+        /* __kuser_helper_version */
+        [0x00] = 0x02, 0x00, 0x00, 0x00,
+
+        /* __kuser_cmpxchg */
+        [0x04] = 0x3a, 0x6c, 0x3b, 0x00,  /* trap 16 */
+                 0x3a, 0x28, 0x00, 0xf8,  /* ret */
+
+        /* __kuser_sigtramp */
+        [0x44] = 0xc4, 0x22, 0x80, 0x00,  /* movi r2, __NR_rt_sigreturn */
+                 0x3a, 0x68, 0x3b, 0x00,  /* trap 0 */
+    };
+
+    void *want = g2h_untagged(LO_COMMPAGE & -qemu_host_page_size);
+    void *addr = mmap(want, qemu_host_page_size, PROT_READ | PROT_WRITE,
+                      MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
+
+    if (addr == MAP_FAILED) {
+        perror("Allocating guest commpage");
+        exit(EXIT_FAILURE);
+    }
+    if (addr != want) {
+        return false;
+    }
+
+    memcpy(addr, kuser_page, sizeof(kuser_page));
+
+    if (mprotect(addr, qemu_host_page_size, PROT_READ)) {
+        perror("Protecting guest commpage");
+        exit(EXIT_FAILURE);
+    }
+
+    page_set_flags(LO_COMMPAGE, LO_COMMPAGE + TARGET_PAGE_SIZE,
+                   PAGE_READ | PAGE_EXEC | PAGE_VALID);
+    return true;
 }
 
 #define ELF_EXEC_PAGESIZE        4096
@@ -2160,8 +2201,13 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     return sp;
 }
 
-#ifndef ARM_COMMPAGE
-#define ARM_COMMPAGE 0
+#if defined(HI_COMMPAGE)
+#define LO_COMMPAGE 0
+#elif defined(LO_COMMPAGE)
+#define HI_COMMPAGE 0
+#else
+#define HI_COMMPAGE 0
+#define LO_COMMPAGE 0
 #define init_guest_commpage() true
 #endif
 
@@ -2361,7 +2407,7 @@ static void pgb_static(const char *image_name, abi_ulong orig_loaddr,
     }
 
     loaddr &= -align;
-    if (ARM_COMMPAGE) {
+    if (HI_COMMPAGE) {
         /*
          * Extend the allocation to include the commpage.
          * For a 64-bit host, this is just 4GiB; for a 32-bit host we
@@ -2372,14 +2418,16 @@ static void pgb_static(const char *image_name, abi_ulong orig_loaddr,
         if (sizeof(uintptr_t) == 8 || loaddr >= 0x80000000u) {
             hiaddr = (uintptr_t) 4 << 30;
         } else {
-            offset = -(ARM_COMMPAGE & -align);
+            offset = -(HI_COMMPAGE & -align);
         }
+    } else if (LO_COMMPAGE) {
+        loaddr = MIN(loaddr, LO_COMMPAGE & -align);
     }
 
     addr = pgb_find_hole(loaddr, hiaddr - loaddr, align, offset);
     if (addr == -1) {
         /*
-         * If ARM_COMMPAGE, there *might* be a non-consecutive allocation
+         * If HI_COMMPAGE, there *might* be a non-consecutive allocation
          * that can satisfy both.  But as the normal arm32 link base address
          * is ~32k, and we extend down to include the commpage, making the
          * overhead only ~96k, this is unlikely.
@@ -2400,7 +2448,7 @@ static void pgb_dynamic(const char *image_name, long align)
      * All we need is a commpage that satisfies align.
      * If we do not need a commpage, leave guest_base == 0.
      */
-    if (ARM_COMMPAGE) {
+    if (HI_COMMPAGE) {
         uintptr_t addr, commpage;
 
         /* 64-bit hosts should have used reserved_va. */
@@ -2410,7 +2458,7 @@ static void pgb_dynamic(const char *image_name, long align)
          * By putting the commpage at the first hole, that puts guest_base
          * just above that, and maximises the positive guest addresses.
          */
-        commpage = ARM_COMMPAGE & -align;
+        commpage = HI_COMMPAGE & -align;
         addr = pgb_find_hole(commpage, -commpage, align, 0);
         assert(addr != -1);
         guest_base = addr;

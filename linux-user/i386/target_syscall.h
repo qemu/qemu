@@ -150,7 +150,6 @@ struct target_vm86plus_struct {
 #define UNAME_MINIMUM_RELEASE "2.6.32"
 
 #define TARGET_CLONE_BACKWARDS
-#define TARGET_MINSIGSTKSZ 2048
 #define TARGET_MCL_CURRENT 1
 #define TARGET_MCL_FUTURE  2
 #define TARGET_MCL_ONFAULT 4

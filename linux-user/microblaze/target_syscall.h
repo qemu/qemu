@@ -49,7 +49,6 @@ struct target_pt_regs {
 };
 
 #define TARGET_CLONE_BACKWARDS
-#define TARGET_MINSIGSTKSZ      2048
 #define TARGET_MCL_CURRENT 1
 #define TARGET_MCL_FUTURE  2
 #define TARGET_MCL_ONFAULT 4
