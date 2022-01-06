@@ -143,6 +143,9 @@ struct CPURISCVState {
     uint32_t misa_ext;      /* current extensions */
     uint32_t misa_ext_mask; /* max ext for this cpu */
 
+    /* 128-bit helpers upper part return value */
+    target_ulong retxh;
+
     uint32_t features;
 
 #ifdef CONFIG_USER_ONLY

@@ -1101,3 +1101,9 @@ DEF_HELPER_5(vsext_vf2_d, void, ptr, ptr, ptr, env, i32)
 DEF_HELPER_5(vsext_vf4_w, void, ptr, ptr, ptr, env, i32)
 DEF_HELPER_5(vsext_vf4_d, void, ptr, ptr, ptr, env, i32)
 DEF_HELPER_5(vsext_vf8_d, void, ptr, ptr, ptr, env, i32)
+
+/* 128-bit integer multiplication and division */
+DEF_HELPER_5(divu_i128, tl, env, tl, tl, tl, tl)
+DEF_HELPER_5(divs_i128, tl, env, tl, tl, tl, tl)
+DEF_HELPER_5(remu_i128, tl, env, tl, tl, tl, tl)
+DEF_HELPER_5(rems_i128, tl, env, tl, tl, tl, tl)
