@@ -59,6 +59,7 @@ typedef struct DisasContext {
     /* pc_succ_insn points to the instruction following base.pc_next */
     target_ulong pc_succ_insn;
     target_ulong priv_ver;
+    RISCVMXL misa_mxl_max;
     RISCVMXL xl;
     uint32_t misa_ext;
     uint32_t opcode;
@@ -140,6 +141,13 @@ static inline int get_olen(DisasContext *ctx)
 {
     return 16 << get_ol(ctx);
 }
+
+/* The maximum register length */
+#ifdef TARGET_RISCV32
+#define get_xl_max(ctx)    MXL_RV32
+#else
+#define get_xl_max(ctx)    ((ctx)->misa_mxl_max)
+#endif
 
 /*
  * RISC-V requires NaN-boxing of narrower width floating point values.
@@ -260,11 +268,21 @@ static TCGv get_gpr(DisasContext *ctx, int reg_num, DisasExtend ext)
         }
         break;
     case MXL_RV64:
+    case MXL_RV128:
         break;
     default:
         g_assert_not_reached();
     }
     return cpu_gpr[reg_num];
+}
+
+static TCGv get_gprh(DisasContext *ctx, int reg_num)
+{
+    assert(get_xl(ctx) == MXL_RV128);
+    if (reg_num == 0) {
+        return ctx->zero;
+    }
+    return cpu_gprh[reg_num];
 }
 
 static TCGv dest_gpr(DisasContext *ctx, int reg_num)
@@ -275,6 +293,14 @@ static TCGv dest_gpr(DisasContext *ctx, int reg_num)
     return cpu_gpr[reg_num];
 }
 
+static TCGv dest_gprh(DisasContext *ctx, int reg_num)
+{
+    if (reg_num == 0) {
+        return temp_new(ctx);
+    }
+    return cpu_gprh[reg_num];
+}
+
 static void gen_set_gpr(DisasContext *ctx, int reg_num, TCGv t)
 {
     if (reg_num != 0) {
@@ -283,11 +309,25 @@ static void gen_set_gpr(DisasContext *ctx, int reg_num, TCGv t)
             tcg_gen_ext32s_tl(cpu_gpr[reg_num], t);
             break;
         case MXL_RV64:
+        case MXL_RV128:
             tcg_gen_mov_tl(cpu_gpr[reg_num], t);
             break;
         default:
             g_assert_not_reached();
         }
+
+        if (get_xl_max(ctx) == MXL_RV128) {
+            tcg_gen_sari_tl(cpu_gprh[reg_num], cpu_gpr[reg_num], 63);
+        }
+    }
+}
+
+static void gen_set_gpr128(DisasContext *ctx, int reg_num, TCGv rl, TCGv rh)
+{
+    assert(get_ol(ctx) == MXL_RV128);
+    if (reg_num != 0) {
+        tcg_gen_mov_tl(cpu_gpr[reg_num], rl);
+        tcg_gen_mov_tl(cpu_gprh[reg_num], rh);
     }
 }
 
@@ -754,6 +794,7 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->lmul = sextract32(FIELD_EX32(tb_flags, TB_FLAGS, LMUL), 0, 3);
     ctx->vstart = env->vstart;
     ctx->vl_eq_vlmax = FIELD_EX32(tb_flags, TB_FLAGS, VL_EQ_VLMAX);
+    ctx->misa_mxl_max = env->misa_mxl_max;
     ctx->xl = FIELD_EX32(tb_flags, TB_FLAGS, XL);
     ctx->cs = cs;
     ctx->ntemp = 0;
