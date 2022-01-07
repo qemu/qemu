@@ -63,6 +63,9 @@
 &VX_bf          bf vra vrb
 @VX_bf          ...... bf:3 .. vra:5 vrb:5 ...........          &VX_bf
 
+&VX_tb_rc       vrt vrb rc:bool
+@VX_tb_rc       ...... vrt:5 ..... vrb:5 rc:1 ..........        &VX_tb_rc
+
 &VX_uim4        vrt uim vrb
 @VX_uim4        ...... vrt:5 . uim:4 vrb:5 ...........  &VX_uim4
 
@@ -490,6 +493,13 @@ VEXTRACTQM      000100 ..... 01100 ..... 11001000010    @VX_tb
 
 VMSUMCUD        000100 ..... ..... ..... ..... 010111   @VA
 VMSUMUDM        000100 ..... ..... ..... ..... 100011   @VA
+
+## Vector String Instructions
+
+VSTRIBL         000100 ..... 00000 ..... . 0000001101   @VX_tb_rc
+VSTRIBR         000100 ..... 00001 ..... . 0000001101   @VX_tb_rc
+VSTRIHL         000100 ..... 00010 ..... . 0000001101   @VX_tb_rc
+VSTRIHR         000100 ..... 00011 ..... . 0000001101   @VX_tb_rc
 
 # VSX Load/Store Instructions
 
