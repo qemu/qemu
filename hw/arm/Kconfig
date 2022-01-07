@@ -94,6 +94,9 @@ config MUSCA
     select SPLIT_IRQ
     select UNIMP
 
+config MARVELL_88W8618
+    bool
+
 config MUSICPAL
     bool
     select OR_IRQ
