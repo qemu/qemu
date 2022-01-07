@@ -985,10 +985,6 @@ static void glue(gen_, name0##_##name1)(DisasContext *ctx)             \
     }                                                                  \
 }
 
-GEN_VXRFORM(vcmpnezb, 3, 4)
-GEN_VXRFORM(vcmpnezh, 3, 5)
-GEN_VXRFORM(vcmpnezw, 3, 6)
-
 static void do_vcmp_rc(int vrt)
 {
     TCGv_i64 t0, t1;
@@ -1050,6 +1046,71 @@ TRANS_FLAGS2(ALTIVEC_207, VCMPGTUD, do_vcmp, TCG_COND_GTU, MO_64)
 TRANS_FLAGS2(ISA300, VCMPNEB, do_vcmp, TCG_COND_NE, MO_8)
 TRANS_FLAGS2(ISA300, VCMPNEH, do_vcmp, TCG_COND_NE, MO_16)
 TRANS_FLAGS2(ISA300, VCMPNEW, do_vcmp, TCG_COND_NE, MO_32)
+
+static void gen_vcmpnez_vec(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec t0, t1, zero;
+
+    t0 = tcg_temp_new_vec_matching(t);
+    t1 = tcg_temp_new_vec_matching(t);
+    zero = tcg_constant_vec_matching(t, vece, 0);
+
+    tcg_gen_cmp_vec(TCG_COND_EQ, vece, t0, a, zero);
+    tcg_gen_cmp_vec(TCG_COND_EQ, vece, t1, b, zero);
+    tcg_gen_cmp_vec(TCG_COND_NE, vece, t, a, b);
+
+    tcg_gen_or_vec(vece, t, t, t0);
+    tcg_gen_or_vec(vece, t, t, t1);
+
+    tcg_gen_shli_vec(vece, t, t, (8 << vece) - 1);
+    tcg_gen_sari_vec(vece, t, t, (8 << vece) - 1);
+
+    tcg_temp_free_vec(t0);
+    tcg_temp_free_vec(t1);
+}
+
+static bool do_vcmpnez(DisasContext *ctx, arg_VC *a, int vece)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_cmp_vec, INDEX_op_shli_vec, INDEX_op_sari_vec, 0
+    };
+    static const GVecGen3 ops[3] = {
+        {
+            .fniv = gen_vcmpnez_vec,
+            .fno = gen_helper_VCMPNEZB,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_vcmpnez_vec,
+            .fno = gen_helper_VCMPNEZH,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_vcmpnez_vec,
+            .fno = gen_helper_VCMPNEZW,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        }
+    };
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_VECTOR(ctx);
+
+    tcg_gen_gvec_3(avr_full_offset(a->vrt), avr_full_offset(a->vra),
+                   avr_full_offset(a->vrb), 16, 16, &ops[vece]);
+
+    if (a->rc) {
+        do_vcmp_rc(a->vrt);
+    }
+
+    return true;
+}
+
+TRANS(VCMPNEZB, do_vcmpnez, MO_8)
+TRANS(VCMPNEZH, do_vcmpnez, MO_16)
+TRANS(VCMPNEZW, do_vcmpnez, MO_32)
 
 GEN_VXRFORM(vcmpeqfp, 3, 3)
 GEN_VXRFORM(vcmpgefp, 3, 7)

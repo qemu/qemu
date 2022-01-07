@@ -749,46 +749,18 @@ VCF(ux, uint32_to_float32, u32)
 VCF(sx, int32_to_float32, s32)
 #undef VCF
 
-#define VCMPNE_DO(suffix, element, etype, cmpzero, record)              \
-void helper_vcmpne##suffix(CPUPPCState *env, ppc_avr_t *r,              \
-                            ppc_avr_t *a, ppc_avr_t *b)                 \
-{                                                                       \
-    etype ones = (etype)-1;                                             \
-    etype all = ones;                                                   \
-    etype result, none = 0;                                             \
-    int i;                                                              \
-                                                                        \
-    for (i = 0; i < ARRAY_SIZE(r->element); i++) {                      \
-        if (cmpzero) {                                                  \
-            result = ((a->element[i] == 0)                              \
-                           || (b->element[i] == 0)                      \
-                           || (a->element[i] != b->element[i]) ?        \
-                           ones : 0x0);                                 \
-        } else {                                                        \
-            result = (a->element[i] != b->element[i]) ? ones : 0x0;     \
-        }                                                               \
-        r->element[i] = result;                                         \
-        all &= result;                                                  \
-        none |= result;                                                 \
-    }                                                                   \
-    if (record) {                                                       \
-        env->crf[6] = ((all != 0) << 3) | ((none == 0) << 1);           \
-    }                                                                   \
+#define VCMPNEZ(NAME, ELEM) \
+void helper_##NAME(ppc_vsr_t *t, ppc_vsr_t *a, ppc_vsr_t *b, uint32_t desc) \
+{                                                                           \
+    for (int i = 0; i < ARRAY_SIZE(t->ELEM); i++) {                         \
+        t->ELEM[i] = ((a->ELEM[i] == 0) || (b->ELEM[i] == 0) ||             \
+                      (a->ELEM[i] != b->ELEM[i])) ? -1 : 0;                 \
+    }                                                                       \
 }
-
-/*
- * VCMPNEZ - Vector compare not equal to zero
- *   suffix  - instruction mnemonic suffix (b: byte, h: halfword, w: word)
- *   element - element type to access from vector
- */
-#define VCMPNE(suffix, element, etype, cmpzero)         \
-    VCMPNE_DO(suffix, element, etype, cmpzero, 0)       \
-    VCMPNE_DO(suffix##_dot, element, etype, cmpzero, 1)
-VCMPNE(zb, u8, uint8_t, 1)
-VCMPNE(zh, u16, uint16_t, 1)
-VCMPNE(zw, u32, uint32_t, 1)
-#undef VCMPNE_DO
-#undef VCMPNE
+VCMPNEZ(VCMPNEZB, u8)
+VCMPNEZ(VCMPNEZH, u16)
+VCMPNEZ(VCMPNEZW, u32)
+#undef VCMPNEZ
 
 #define VCMPFP_DO(suffix, compare, order, record)                       \
     void helper_vcmp##suffix(CPUPPCState *env, ppc_avr_t *r,            \

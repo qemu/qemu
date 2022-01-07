@@ -184,9 +184,6 @@ GEN_HANDLER2_E(name, str, 0x4, opc2, opc3, 0x00000000, PPC_NONE, PPC2_ISA300),
     GEN_VXRFORM1_300(name, name, #name, opc2, opc3)                         \
     GEN_VXRFORM1_300(name##_dot, name##_, #name ".", opc2, (opc3 | (0x1 << 4)))
 
-GEN_VXRFORM_300(vcmpnezb, 3, 4)
-GEN_VXRFORM_300(vcmpnezh, 3, 5)
-GEN_VXRFORM_300(vcmpnezw, 3, 6)
 GEN_VXRFORM(vcmpeqfp, 3, 3)
 GEN_VXRFORM(vcmpgefp, 3, 7)
 GEN_VXRFORM(vcmpgtfp, 3, 11)
