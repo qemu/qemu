@@ -1956,6 +1956,62 @@ TRANS(VSTRIBR, do_vstri, gen_helper_VSTRIBR)
 TRANS(VSTRIHL, do_vstri, gen_helper_VSTRIHL)
 TRANS(VSTRIHR, do_vstri, gen_helper_VSTRIHR)
 
+static bool trans_VCLRLB(DisasContext *ctx, arg_VX *a)
+{
+    TCGv_i64 hi, lo, rb;
+    TCGLabel *l, *end;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    l = gen_new_label();
+    end = gen_new_label();
+
+    hi = tcg_const_local_i64(0);
+    lo = tcg_const_local_i64(0);
+    rb = tcg_temp_local_new_i64();
+
+    tcg_gen_extu_tl_i64(rb, cpu_gpr[a->vrb]);
+
+    /* RB == 0: all zeros */
+    tcg_gen_brcondi_i64(TCG_COND_EQ, rb, 0, end);
+
+    get_avr64(lo, a->vra, false);
+
+    /* RB <= 8 */
+    tcg_gen_brcondi_i64(TCG_COND_LEU, rb, 8, l);
+
+    get_avr64(hi, a->vra, true);
+
+    /* RB >= 16: just copy VRA to VRB */
+    tcg_gen_brcondi_i64(TCG_COND_GEU, rb, 16, end);
+
+    /* 8 < RB < 16: copy lo and partially clear hi */
+    tcg_gen_subfi_i64(rb, 16, rb);
+    tcg_gen_shli_i64(rb, rb, 3);
+    tcg_gen_shl_i64(hi, hi, rb);
+    tcg_gen_shr_i64(hi, hi, rb);
+    tcg_gen_br(end);
+
+    /* 0 < RB <= 8: zeroes hi and partially clears lo */
+    gen_set_label(l);
+    tcg_gen_subfi_i64(rb, 8, rb);
+    tcg_gen_shli_i64(rb, rb, 3);
+    tcg_gen_shl_i64(lo, lo, rb);
+    tcg_gen_shr_i64(lo, lo, rb);
+
+    /* Update VRT */
+    gen_set_label(end);
+    set_avr64(a->vrt, hi, true);
+    set_avr64(a->vrt, lo, false);
+
+    tcg_temp_free_i64(hi);
+    tcg_temp_free_i64(lo);
+    tcg_temp_free_i64(rb);
+
+    return true;
+}
+
 #define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
 static void glue(gen_, name0##_##name1)(DisasContext *ctx)              \
     {                                                                   \
