@@ -1932,6 +1932,38 @@ static bool trans_MTVSRBMI(DisasContext *ctx, arg_DX_b *a)
     return true;
 }
 
+static bool do_vcntmb(DisasContext *ctx, arg_VX_mp *a, int vece)
+{
+    TCGv_i64 rt, vrb, mask;
+    rt = tcg_const_i64(0);
+    vrb = tcg_temp_new_i64();
+    mask = tcg_constant_i64(dup_const(vece, 1ULL << ((8 << vece) - 1)));
+
+    for (int i = 0; i < 2; i++) {
+        get_avr64(vrb, a->vrb, i);
+        if (a->mp) {
+            tcg_gen_and_i64(vrb, mask, vrb);
+        } else {
+            tcg_gen_andc_i64(vrb, mask, vrb);
+        }
+        tcg_gen_ctpop_i64(vrb, vrb);
+        tcg_gen_add_i64(rt, rt, vrb);
+    }
+
+    tcg_gen_shli_i64(rt, rt, TARGET_LONG_BITS - 8 + vece);
+    tcg_gen_trunc_i64_tl(cpu_gpr[a->rt], rt);
+
+    tcg_temp_free_i64(vrb);
+    tcg_temp_free_i64(rt);
+
+    return true;
+}
+
+TRANS(VCNTMBB, do_vcntmb, MO_8)
+TRANS(VCNTMBH, do_vcntmb, MO_16)
+TRANS(VCNTMBW, do_vcntmb, MO_32)
+TRANS(VCNTMBD, do_vcntmb, MO_64)
+
 static bool do_vstri(DisasContext *ctx, arg_VX_tb_rc *a,
                      void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv))
 {

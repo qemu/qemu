@@ -63,6 +63,9 @@
 &VX_bf          bf vra vrb
 @VX_bf          ...... bf:3 .. vra:5 vrb:5 ...........          &VX_bf
 
+&VX_mp          rt mp:bool vrb
+@VX_mp          ...... rt:5 .... mp:1 vrb:5 ...........         &VX_mp
+
 &VX_tb_rc       vrt vrb rc:bool
 @VX_tb_rc       ...... vrt:5 ..... vrb:5 rc:1 ..........        &VX_tb_rc
 
@@ -488,6 +491,11 @@ VEXTRACTHM      000100 ..... 01001 ..... 11001000010    @VX_tb
 VEXTRACTWM      000100 ..... 01010 ..... 11001000010    @VX_tb
 VEXTRACTDM      000100 ..... 01011 ..... 11001000010    @VX_tb
 VEXTRACTQM      000100 ..... 01100 ..... 11001000010    @VX_tb
+
+VCNTMBB         000100 ..... 1100 . ..... 11001000010   @VX_mp
+VCNTMBH         000100 ..... 1101 . ..... 11001000010   @VX_mp
+VCNTMBW         000100 ..... 1110 . ..... 11001000010   @VX_mp
+VCNTMBD         000100 ..... 1111 . ..... 11001000010   @VX_mp
 
 ## Vector Multiply-Sum Instructions
 
