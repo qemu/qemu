@@ -749,57 +749,6 @@ VCF(ux, uint32_to_float32, u32)
 VCF(sx, int32_to_float32, s32)
 #undef VCF
 
-#define VCMP_DO(suffix, compare, element, record)                       \
-    void helper_vcmp##suffix(CPUPPCState *env, ppc_avr_t *r,            \
-                             ppc_avr_t *a, ppc_avr_t *b)                \
-    {                                                                   \
-        uint64_t ones = (uint64_t)-1;                                   \
-        uint64_t all = ones;                                            \
-        uint64_t none = 0;                                              \
-        int i;                                                          \
-                                                                        \
-        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-            uint64_t result = (a->element[i] compare b->element[i] ?    \
-                               ones : 0x0);                             \
-            switch (sizeof(a->element[0])) {                            \
-            case 8:                                                     \
-                r->u64[i] = result;                                     \
-                break;                                                  \
-            case 4:                                                     \
-                r->u32[i] = result;                                     \
-                break;                                                  \
-            case 2:                                                     \
-                r->u16[i] = result;                                     \
-                break;                                                  \
-            case 1:                                                     \
-                r->u8[i] = result;                                      \
-                break;                                                  \
-            }                                                           \
-            all &= result;                                              \
-            none |= result;                                             \
-        }                                                               \
-        if (record) {                                                   \
-            env->crf[6] = ((all != 0) << 3) | ((none == 0) << 1);       \
-        }                                                               \
-    }
-#define VCMP(suffix, compare, element)          \
-    VCMP_DO(suffix, compare, element, 0)        \
-    VCMP_DO(suffix##_dot, compare, element, 1)
-VCMP(equb, ==, u8)
-VCMP(equh, ==, u16)
-VCMP(equw, ==, u32)
-VCMP(equd, ==, u64)
-VCMP(gtub, >, u8)
-VCMP(gtuh, >, u16)
-VCMP(gtuw, >, u32)
-VCMP(gtud, >, u64)
-VCMP(gtsb, >, s8)
-VCMP(gtsh, >, s16)
-VCMP(gtsw, >, s32)
-VCMP(gtsd, >, s64)
-#undef VCMP_DO
-#undef VCMP
-
 #define VCMPNE_DO(suffix, element, etype, cmpzero, record)              \
 void helper_vcmpne##suffix(CPUPPCState *env, ppc_avr_t *r,              \
                             ppc_avr_t *a, ppc_avr_t *b)                 \
@@ -838,9 +787,6 @@ void helper_vcmpne##suffix(CPUPPCState *env, ppc_avr_t *r,              \
 VCMPNE(zb, u8, uint8_t, 1)
 VCMPNE(zh, u16, uint16_t, 1)
 VCMPNE(zw, u32, uint32_t, 1)
-VCMPNE(b, u8, uint8_t, 0)
-VCMPNE(h, u16, uint16_t, 0)
-VCMPNE(w, u32, uint32_t, 0)
 #undef VCMPNE_DO
 #undef VCMPNE
 
