@@ -795,7 +795,7 @@ static void extract_table_params(GICv3ITSState *s)
             s->dt.valid = FIELD_EX64(value, GITS_BASER, VALID);
 
             if (!s->dt.valid) {
-                return;
+                break;
             }
 
             s->dt.page_sz = page_sz;
@@ -826,7 +826,7 @@ static void extract_table_params(GICv3ITSState *s)
              * hence writes are discarded if ct.valid is 0
              */
             if (!s->ct.valid) {
-                return;
+                break;
             }
 
             s->ct.page_sz = page_sz;
