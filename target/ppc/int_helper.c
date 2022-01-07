@@ -1150,7 +1150,7 @@ void helper_vmsumuhs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
 }
 
 #define VMUL_DO_EVN(name, mul_element, mul_access, prod_access, cast)   \
-    void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
+    void helper_V##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
     {                                                                   \
         int i;                                                          \
                                                                         \
@@ -1161,7 +1161,7 @@ void helper_vmsumuhs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
     }
 
 #define VMUL_DO_ODD(name, mul_element, mul_access, prod_access, cast)   \
-    void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
+    void helper_V##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
     {                                                                   \
         int i;                                                          \
                                                                         \
@@ -1172,17 +1172,33 @@ void helper_vmsumuhs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
     }
 
 #define VMUL(suffix, mul_element, mul_access, prod_access, cast)       \
-    VMUL_DO_EVN(mule##suffix, mul_element, mul_access, prod_access, cast)  \
-    VMUL_DO_ODD(mulo##suffix, mul_element, mul_access, prod_access, cast)
-VMUL(sb, s8, VsrSB, VsrSH, int16_t)
-VMUL(sh, s16, VsrSH, VsrSW, int32_t)
-VMUL(sw, s32, VsrSW, VsrSD, int64_t)
-VMUL(ub, u8, VsrB, VsrH, uint16_t)
-VMUL(uh, u16, VsrH, VsrW, uint32_t)
-VMUL(uw, u32, VsrW, VsrD, uint64_t)
+    VMUL_DO_EVN(MULE##suffix, mul_element, mul_access, prod_access, cast)  \
+    VMUL_DO_ODD(MULO##suffix, mul_element, mul_access, prod_access, cast)
+VMUL(SB, s8, VsrSB, VsrSH, int16_t)
+VMUL(SH, s16, VsrSH, VsrSW, int32_t)
+VMUL(SW, s32, VsrSW, VsrSD, int64_t)
+VMUL(UB, u8, VsrB, VsrH, uint16_t)
+VMUL(UH, u16, VsrH, VsrW, uint32_t)
+VMUL(UW, u32, VsrW, VsrD, uint64_t)
 #undef VMUL_DO_EVN
 #undef VMUL_DO_ODD
 #undef VMUL
+void helper_VMULESD(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    muls64(&r->VsrD(1), &r->VsrD(0), a->VsrSD(0), b->VsrSD(0));
+}
+void helper_VMULOSD(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    muls64(&r->VsrD(1), &r->VsrD(0), a->VsrSD(1), b->VsrSD(1));
+}
+void helper_VMULEUD(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    mulu64(&r->VsrD(1), &r->VsrD(0), a->VsrD(0), b->VsrD(0));
+}
+void helper_VMULOUD(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    mulu64(&r->VsrD(1), &r->VsrD(0), a->VsrD(1), b->VsrD(1));
+}
 
 void helper_vmulhsw(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {

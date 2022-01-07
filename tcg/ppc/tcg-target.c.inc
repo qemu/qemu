@@ -3905,3 +3905,9 @@ void tcg_register_jit(const void *buf, size_t buf_size)
     tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
 }
 #endif /* __ELF__ */
+#undef VMULEUB
+#undef VMULEUH
+#undef VMULEUW
+#undef VMULOUB
+#undef VMULOUH
+#undef VMULOUW

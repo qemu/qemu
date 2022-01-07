@@ -798,29 +798,11 @@ static void trans_vclzd(DisasContext *ctx)
     tcg_temp_free_i64(avr);
 }
 
-GEN_VXFORM(vmuloub, 4, 0);
-GEN_VXFORM(vmulouh, 4, 1);
-GEN_VXFORM(vmulouw, 4, 2);
 GEN_VXFORM_V(vmuluwm, MO_32, tcg_gen_gvec_mul, 4, 2);
-GEN_VXFORM_DUAL(vmulouw, PPC_ALTIVEC, PPC_NONE,
-                vmuluwm, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXFORM(vmulosb, 4, 4);
-GEN_VXFORM(vmulosh, 4, 5);
-GEN_VXFORM(vmulosw, 4, 6);
 GEN_VXFORM_V(vmulld, MO_64, tcg_gen_gvec_mul, 4, 7);
-GEN_VXFORM(vmuleub, 4, 8);
-GEN_VXFORM(vmuleuh, 4, 9);
-GEN_VXFORM(vmuleuw, 4, 10);
 GEN_VXFORM(vmulhuw, 4, 10);
 GEN_VXFORM(vmulhud, 4, 11);
-GEN_VXFORM_DUAL(vmuleuw, PPC_ALTIVEC, PPC_NONE,
-                vmulhuw, PPC_NONE, PPC2_ISA310);
-GEN_VXFORM(vmulesb, 4, 12);
-GEN_VXFORM(vmulesh, 4, 13);
-GEN_VXFORM(vmulesw, 4, 14);
 GEN_VXFORM(vmulhsw, 4, 14);
-GEN_VXFORM_DUAL(vmulesw, PPC_ALTIVEC, PPC_NONE,
-                vmulhsw, PPC_NONE, PPC2_ISA310);
 GEN_VXFORM(vmulhsd, 4, 15);
 GEN_VXFORM_V(vslb, MO_8, tcg_gen_gvec_shlv, 2, 4);
 GEN_VXFORM_V(vslh, MO_16, tcg_gen_gvec_shlv, 2, 5);
@@ -2103,6 +2085,40 @@ static bool trans_VPEXTD(DisasContext *ctx, arg_VX *a)
 
     return true;
 }
+
+static bool do_vx_helper(DisasContext *ctx, arg_VX *a,
+                         void (*gen_helper) (TCGv_ptr, TCGv_ptr, TCGv_ptr))
+{
+    TCGv_ptr ra, rb, rd;
+    REQUIRE_VECTOR(ctx);
+
+    ra = gen_avr_ptr(a->vra);
+    rb = gen_avr_ptr(a->vrb);
+    rd = gen_avr_ptr(a->vrt);
+    gen_helper(rd, ra, rb);
+    tcg_temp_free_ptr(ra);
+    tcg_temp_free_ptr(rb);
+    tcg_temp_free_ptr(rd);
+
+    return true;
+}
+
+TRANS_FLAGS2(ALTIVEC_207, VMULESB, do_vx_helper, gen_helper_VMULESB)
+TRANS_FLAGS2(ALTIVEC_207, VMULOSB, do_vx_helper, gen_helper_VMULOSB)
+TRANS_FLAGS2(ALTIVEC_207, VMULEUB, do_vx_helper, gen_helper_VMULEUB)
+TRANS_FLAGS2(ALTIVEC_207, VMULOUB, do_vx_helper, gen_helper_VMULOUB)
+TRANS_FLAGS2(ALTIVEC_207, VMULESH, do_vx_helper, gen_helper_VMULESH)
+TRANS_FLAGS2(ALTIVEC_207, VMULOSH, do_vx_helper, gen_helper_VMULOSH)
+TRANS_FLAGS2(ALTIVEC_207, VMULEUH, do_vx_helper, gen_helper_VMULEUH)
+TRANS_FLAGS2(ALTIVEC_207, VMULOUH, do_vx_helper, gen_helper_VMULOUH)
+TRANS_FLAGS2(ALTIVEC_207, VMULESW, do_vx_helper, gen_helper_VMULESW)
+TRANS_FLAGS2(ALTIVEC_207, VMULOSW, do_vx_helper, gen_helper_VMULOSW)
+TRANS_FLAGS2(ALTIVEC_207, VMULEUW, do_vx_helper, gen_helper_VMULEUW)
+TRANS_FLAGS2(ALTIVEC_207, VMULOUW, do_vx_helper, gen_helper_VMULOUW)
+TRANS_FLAGS2(ISA310, VMULESD, do_vx_helper, gen_helper_VMULESD)
+TRANS_FLAGS2(ISA310, VMULOSD, do_vx_helper, gen_helper_VMULOSD)
+TRANS_FLAGS2(ISA310, VMULEUD, do_vx_helper, gen_helper_VMULEUD)
+TRANS_FLAGS2(ISA310, VMULOUD, do_vx_helper, gen_helper_VMULOUD)
 
 #undef GEN_VR_LDX
 #undef GEN_VR_STX
