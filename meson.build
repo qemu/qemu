@@ -2866,8 +2866,10 @@ common_ss.add(hwcore)
 # Targets #
 ###########
 
+emulator_modules = []
 foreach m : block_mods + softmmu_mods
-  shared_module(m.name(),
+  emulator_modules += shared_module(m.name(),
+                build_by_default: true,
                 name_prefix: '',
                 link_whole: m,
                 install: true,
