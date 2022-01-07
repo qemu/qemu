@@ -1772,11 +1772,26 @@ GEN_VXFORM_TRANS(vclzw, 1, 30)
 GEN_VXFORM_TRANS(vclzd, 1, 31)
 GEN_VXFORM_NOA_2(vnegw, 1, 24, 6)
 GEN_VXFORM_NOA_2(vnegd, 1, 24, 7)
-GEN_VXFORM_NOA_2(vextsb2w, 1, 24, 16)
-GEN_VXFORM_NOA_2(vextsh2w, 1, 24, 17)
-GEN_VXFORM_NOA_2(vextsb2d, 1, 24, 24)
-GEN_VXFORM_NOA_2(vextsh2d, 1, 24, 25)
-GEN_VXFORM_NOA_2(vextsw2d, 1, 24, 26)
+
+static bool do_vexts(DisasContext *ctx, arg_VX_tb *a, int vece, int s)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_VECTOR(ctx);
+
+    tcg_gen_gvec_shli(vece, avr_full_offset(a->vrt), avr_full_offset(a->vrb),
+                      s, 16, 16);
+    tcg_gen_gvec_sari(vece, avr_full_offset(a->vrt), avr_full_offset(a->vrt),
+                      s, 16, 16);
+
+    return true;
+}
+
+TRANS(VEXTSB2W, do_vexts, MO_32, 24);
+TRANS(VEXTSH2W, do_vexts, MO_32, 16);
+TRANS(VEXTSB2D, do_vexts, MO_64, 56);
+TRANS(VEXTSH2D, do_vexts, MO_64, 48);
+TRANS(VEXTSW2D, do_vexts, MO_64, 32);
+
 GEN_VXFORM_NOA_2(vctzb, 1, 24, 28)
 GEN_VXFORM_NOA_2(vctzh, 1, 24, 29)
 GEN_VXFORM_NOA_2(vctzw, 1, 24, 30)

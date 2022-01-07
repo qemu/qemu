@@ -1768,21 +1768,6 @@ XXBLEND(W, 32)
 XXBLEND(D, 64)
 #undef XXBLEND
 
-#define VEXT_SIGNED(name, element, cast)                            \
-void helper_##name(ppc_avr_t *r, ppc_avr_t *b)                      \
-{                                                                   \
-    int i;                                                          \
-    for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-        r->element[i] = (cast)b->element[i];                        \
-    }                                                               \
-}
-VEXT_SIGNED(vextsb2w, s32, int8_t)
-VEXT_SIGNED(vextsb2d, s64, int8_t)
-VEXT_SIGNED(vextsh2w, s32, int16_t)
-VEXT_SIGNED(vextsh2d, s64, int16_t)
-VEXT_SIGNED(vextsw2d, s64, int32_t)
-#undef VEXT_SIGNED
-
 #define VNEG(name, element)                                         \
 void helper_##name(ppc_avr_t *r, ppc_avr_t *b)                      \
 {                                                                   \
