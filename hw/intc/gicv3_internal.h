@@ -393,9 +393,10 @@ FIELD(ITE_H, VPEID, 16, 16)
  * Valid = 1 bit,ITTAddr = 44 bits,Size = 5 bits
  */
 #define GITS_DTE_SIZE                 (0x8ULL)
-#define GITS_DTE_ITTADDR_SHIFT           6
-#define GITS_DTE_ITTADDR_MASK         MAKE_64BIT_MASK(GITS_DTE_ITTADDR_SHIFT, \
-                                                      ITTADDR_LENGTH)
+
+FIELD(DTE, VALID, 0, 1)
+FIELD(DTE, SIZE, 1, 5)
+FIELD(DTE, ITTADDR, 6, 44)
 
 /*
  * 8 bytes Collection Table Entry size

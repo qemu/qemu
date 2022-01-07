@@ -114,7 +114,7 @@ static bool update_ite(GICv3ITSState *s, uint32_t eventid, uint64_t dte,
     uint64_t itt_addr;
     MemTxResult res = MEMTX_OK;
 
-    itt_addr = (dte & GITS_DTE_ITTADDR_MASK) >> GITS_DTE_ITTADDR_SHIFT;
+    itt_addr = FIELD_EX64(dte, DTE, ITTADDR);
     itt_addr <<= ITTADDR_SHIFT; /* 256 byte aligned */
 
     address_space_stq_le(as, itt_addr + (eventid * (sizeof(uint64_t) +
@@ -141,7 +141,7 @@ static bool get_ite(GICv3ITSState *s, uint32_t eventid, uint64_t dte,
     bool status = false;
     IteEntry ite = {};
 
-    itt_addr = (dte & GITS_DTE_ITTADDR_MASK) >> GITS_DTE_ITTADDR_SHIFT;
+    itt_addr = FIELD_EX64(dte, DTE, ITTADDR);
     itt_addr <<= ITTADDR_SHIFT; /* 256 byte aligned */
 
     ite.itel = address_space_ldq_le(as, itt_addr +
@@ -255,10 +255,10 @@ static bool process_its_cmd(GICv3ITSState *s, uint64_t value, uint32_t offset,
     if (res != MEMTX_OK) {
         return result;
     }
-    dte_valid = dte & TABLE_ENTRY_VALID_MASK;
+    dte_valid = FIELD_EX64(dte, DTE, VALID);
 
     if (dte_valid) {
-        max_eventid = (1UL << (((dte >> 1U) & SIZE_MASK) + 1));
+        max_eventid = 1UL << (FIELD_EX64(dte, DTE, SIZE) + 1);
 
         ite_valid = get_ite(s, eventid, dte, &icid, &pIntid, &res);
 
@@ -375,10 +375,8 @@ static bool process_mapti(GICv3ITSState *s, uint64_t value, uint32_t offset,
     if (res != MEMTX_OK) {
         return result;
     }
-    dte_valid = dte & TABLE_ENTRY_VALID_MASK;
-
-    max_eventid = (1UL << (((dte >> 1U) & SIZE_MASK) + 1));
-
+    dte_valid = FIELD_EX64(dte, DTE, VALID);
+    max_eventid = 1UL << (FIELD_EX64(dte, DTE, SIZE) + 1);
     max_Intid = (1ULL << (GICD_TYPER_IDBITS + 1)) - 1;
 
     if ((devid > s->dt.max_ids) || (icid > s->ct.max_ids)
@@ -529,9 +527,9 @@ static bool update_dte(GICv3ITSState *s, uint32_t devid, bool valid,
     if (s->dt.valid) {
         if (valid) {
             /* add mapping entry to device table */
-            dte = (valid & TABLE_ENTRY_VALID_MASK) |
-                  ((size & SIZE_MASK) << 1U) |
-                  (itt_addr << GITS_DTE_ITTADDR_SHIFT);
+            dte = FIELD_DP64(dte, DTE, VALID, 1);
+            dte = FIELD_DP64(dte, DTE, SIZE, size);
+            dte = FIELD_DP64(dte, DTE, ITTADDR, itt_addr);
         }
     } else {
         return true;
