@@ -2126,10 +2126,156 @@ TRANS_FLAGS2(ISA310, VMULOSD, do_vx_helper, gen_helper_VMULOSD)
 TRANS_FLAGS2(ISA310, VMULEUD, do_vx_helper, gen_helper_VMULEUD)
 TRANS_FLAGS2(ISA310, VMULOUD, do_vx_helper, gen_helper_VMULOUD)
 
-TRANS_FLAGS2(ISA310, VMULHSW, do_vx_helper, gen_helper_VMULHSW)
-TRANS_FLAGS2(ISA310, VMULHSD, do_vx_helper, gen_helper_VMULHSD)
-TRANS_FLAGS2(ISA310, VMULHUW, do_vx_helper, gen_helper_VMULHUW)
-TRANS_FLAGS2(ISA310, VMULHUD, do_vx_helper, gen_helper_VMULHUD)
+static void do_vx_vmulhu_vec(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec a1, b1, mask, w, k;
+    unsigned bits;
+    bits = (vece == MO_32) ? 16 : 32;
+
+    a1 = tcg_temp_new_vec_matching(t);
+    b1 = tcg_temp_new_vec_matching(t);
+    w  = tcg_temp_new_vec_matching(t);
+    k  = tcg_temp_new_vec_matching(t);
+    mask = tcg_temp_new_vec_matching(t);
+
+    tcg_gen_dupi_vec(vece, mask, (vece == MO_32) ? 0xFFFF : 0xFFFFFFFF);
+    tcg_gen_and_vec(vece, a1, a, mask);
+    tcg_gen_and_vec(vece, b1, b, mask);
+    tcg_gen_mul_vec(vece, t, a1, b1);
+    tcg_gen_shri_vec(vece, k, t, bits);
+
+    tcg_gen_shri_vec(vece, a1, a, bits);
+    tcg_gen_mul_vec(vece, t, a1, b1);
+    tcg_gen_add_vec(vece, t, t, k);
+    tcg_gen_and_vec(vece, k, t, mask);
+    tcg_gen_shri_vec(vece, w, t, bits);
+
+    tcg_gen_and_vec(vece, a1, a, mask);
+    tcg_gen_shri_vec(vece, b1, b, bits);
+    tcg_gen_mul_vec(vece, t, a1, b1);
+    tcg_gen_add_vec(vece, t, t, k);
+    tcg_gen_shri_vec(vece, k, t, bits);
+
+    tcg_gen_shri_vec(vece, a1, a, bits);
+    tcg_gen_mul_vec(vece, t, a1, b1);
+    tcg_gen_add_vec(vece, t, t, w);
+    tcg_gen_add_vec(vece, t, t, k);
+
+    tcg_temp_free_vec(a1);
+    tcg_temp_free_vec(b1);
+    tcg_temp_free_vec(w);
+    tcg_temp_free_vec(k);
+    tcg_temp_free_vec(mask);
+}
+
+static bool do_vx_mulhu(DisasContext *ctx, arg_VX *a, unsigned vece)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_mul_vec, INDEX_op_add_vec, INDEX_op_shri_vec, 0
+    };
+
+    static const GVecGen3 op[2] = {
+        {
+            .fniv = do_vx_vmulhu_vec,
+            .fno  = gen_helper_VMULHUW,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = do_vx_vmulhu_vec,
+            .fno  = gen_helper_VMULHUD,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_3(avr_full_offset(a->vrt), avr_full_offset(a->vra),
+                    avr_full_offset(a->vrb), 16, 16, &op[vece - MO_32]);
+
+    return true;
+
+}
+
+static void do_vx_vmulhs_vec(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec a1, b1, mask, w, k;
+    unsigned bits;
+    bits = (vece == MO_32) ? 16 : 32;
+
+    a1 = tcg_temp_new_vec_matching(t);
+    b1 = tcg_temp_new_vec_matching(t);
+    w  = tcg_temp_new_vec_matching(t);
+    k  = tcg_temp_new_vec_matching(t);
+    mask = tcg_temp_new_vec_matching(t);
+
+    tcg_gen_dupi_vec(vece, mask, (vece == MO_32) ? 0xFFFF : 0xFFFFFFFF);
+    tcg_gen_and_vec(vece, a1, a, mask);
+    tcg_gen_and_vec(vece, b1, b, mask);
+    tcg_gen_mul_vec(vece, t, a1, b1);
+    tcg_gen_shri_vec(vece, k, t, bits);
+
+    tcg_gen_sari_vec(vece, a1, a, bits);
+    tcg_gen_mul_vec(vece, t, a1, b1);
+    tcg_gen_add_vec(vece, t, t, k);
+    tcg_gen_and_vec(vece, k, t, mask);
+    tcg_gen_sari_vec(vece, w, t, bits);
+
+    tcg_gen_and_vec(vece, a1, a, mask);
+    tcg_gen_sari_vec(vece, b1, b, bits);
+    tcg_gen_mul_vec(vece, t, a1, b1);
+    tcg_gen_add_vec(vece, t, t, k);
+    tcg_gen_sari_vec(vece, k, t, bits);
+
+    tcg_gen_sari_vec(vece, a1, a, bits);
+    tcg_gen_mul_vec(vece, t, a1, b1);
+    tcg_gen_add_vec(vece, t, t, w);
+    tcg_gen_add_vec(vece, t, t, k);
+
+    tcg_temp_free_vec(a1);
+    tcg_temp_free_vec(b1);
+    tcg_temp_free_vec(w);
+    tcg_temp_free_vec(k);
+    tcg_temp_free_vec(mask);
+}
+
+static bool do_vx_mulhs(DisasContext *ctx, arg_VX *a, unsigned vece)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_mul_vec, INDEX_op_add_vec, INDEX_op_shri_vec,
+        INDEX_op_sari_vec, 0
+    };
+
+    static const GVecGen3 op[2] = {
+        {
+            .fniv = do_vx_vmulhs_vec,
+            .fno  = gen_helper_VMULHSW,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = do_vx_vmulhs_vec,
+            .fno  = gen_helper_VMULHSD,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_3(avr_full_offset(a->vrt), avr_full_offset(a->vra),
+                    avr_full_offset(a->vrb), 16, 16, &op[vece - MO_32]);
+
+    return true;
+}
+
+TRANS(VMULHSW, do_vx_mulhs, MO_32)
+TRANS(VMULHSD, do_vx_mulhs, MO_64)
+TRANS(VMULHUW, do_vx_mulhu, MO_32)
+TRANS(VMULHUD, do_vx_mulhu, MO_64)
 
 #undef GEN_VR_LDX
 #undef GEN_VR_STX
