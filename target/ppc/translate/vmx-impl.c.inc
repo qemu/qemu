@@ -2081,6 +2081,59 @@ static bool trans_VPEXTD(DisasContext *ctx, arg_VX *a)
     return true;
 }
 
+static bool trans_VMSUMCUD(DisasContext *ctx, arg_VA *a)
+{
+    TCGv_i64 tmp0, tmp1, prod1h, prod1l, prod0h, prod0l, zero;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    tmp0 = tcg_temp_new_i64();
+    tmp1 = tcg_temp_new_i64();
+    prod1h = tcg_temp_new_i64();
+    prod1l = tcg_temp_new_i64();
+    prod0h = tcg_temp_new_i64();
+    prod0l = tcg_temp_new_i64();
+    zero = tcg_constant_i64(0);
+
+    /* prod1 = vsr[vra+32].dw[1] * vsr[vrb+32].dw[1] */
+    get_avr64(tmp0, a->vra, false);
+    get_avr64(tmp1, a->vrb, false);
+    tcg_gen_mulu2_i64(prod1l, prod1h, tmp0, tmp1);
+
+    /* prod0 = vsr[vra+32].dw[0] * vsr[vrb+32].dw[0] */
+    get_avr64(tmp0, a->vra, true);
+    get_avr64(tmp1, a->vrb, true);
+    tcg_gen_mulu2_i64(prod0l, prod0h, tmp0, tmp1);
+
+    /* Sum lower 64-bits elements */
+    get_avr64(tmp1, a->rc, false);
+    tcg_gen_add2_i64(tmp1, tmp0, tmp1, zero, prod1l, zero);
+    tcg_gen_add2_i64(tmp1, tmp0, tmp1, tmp0, prod0l, zero);
+
+    /*
+     * Discard lower 64-bits, leaving the carry into bit 64.
+     * Then sum the higher 64-bit elements.
+     */
+    tcg_gen_mov_i64(tmp1, tmp0);
+    get_avr64(tmp0, a->rc, true);
+    tcg_gen_add2_i64(tmp1, tmp0, tmp0, zero, prod1h, zero);
+    tcg_gen_add2_i64(tmp1, tmp0, tmp1, tmp0, prod0h, zero);
+
+    /* Discard 64 more bits to complete the CHOP128(temp >> 128) */
+    set_avr64(a->vrt, tmp0, false);
+    set_avr64(a->vrt, zero, true);
+
+    tcg_temp_free_i64(tmp0);
+    tcg_temp_free_i64(tmp1);
+    tcg_temp_free_i64(prod1h);
+    tcg_temp_free_i64(prod1l);
+    tcg_temp_free_i64(prod0h);
+    tcg_temp_free_i64(prod0l);
+
+    return true;
+}
+
 static bool do_vx_helper(DisasContext *ctx, arg_VX *a,
                          void (*gen_helper) (TCGv_ptr, TCGv_ptr, TCGv_ptr))
 {
