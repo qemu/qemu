@@ -328,6 +328,13 @@ static void quanta_gbs_i2c_init(NPCM7xxState *soc)
      */
 }
 
+static void kudo_bmc_i2c_init(NPCM7xxState *soc)
+{
+    at24c_eeprom_init(soc, 4, 0x50, 8192); /* mbfru */
+    at24c_eeprom_init(soc, 14, 0x55, 8192); /* bmcfru */
+    /* TODO: Add remaining i2c devices. */
+}
+
 static void npcm750_evb_init(MachineState *machine)
 {
     NPCM7xxState *soc;
@@ -391,6 +398,7 @@ static void kudo_bmc_init(MachineState *machine)
     npcm7xx_connect_flash(&soc->fiu[1], 0, "mx66u51235f",
                           drive_get(IF_MTD, 3, 0));
 
+    kudo_bmc_i2c_init(soc);
     npcm7xx_load_kernel(machine, soc);
 }
 
