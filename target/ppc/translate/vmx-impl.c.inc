@@ -2081,6 +2081,40 @@ static bool trans_VPEXTD(DisasContext *ctx, arg_VX *a)
     return true;
 }
 
+static bool trans_VMSUMUDM(DisasContext *ctx, arg_VA *a)
+{
+    TCGv_i64 rl, rh, src1, src2;
+    int dw;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_VECTOR(ctx);
+
+    rh = tcg_temp_new_i64();
+    rl = tcg_temp_new_i64();
+    src1 = tcg_temp_new_i64();
+    src2 = tcg_temp_new_i64();
+
+    get_avr64(rl, a->rc, false);
+    get_avr64(rh, a->rc, true);
+
+    for (dw = 0; dw < 2; dw++) {
+        get_avr64(src1, a->vra, dw);
+        get_avr64(src2, a->vrb, dw);
+        tcg_gen_mulu2_i64(src1, src2, src1, src2);
+        tcg_gen_add2_i64(rl, rh, rl, rh, src1, src2);
+    }
+
+    set_avr64(a->vrt, rl, false);
+    set_avr64(a->vrt, rh, true);
+
+    tcg_temp_free_i64(rl);
+    tcg_temp_free_i64(rh);
+    tcg_temp_free_i64(src1);
+    tcg_temp_free_i64(src2);
+
+    return true;
+}
+
 static bool trans_VMSUMCUD(DisasContext *ctx, arg_VA *a)
 {
     TCGv_i64 tmp0, tmp1, prod1h, prod1l, prod0h, prod0l, zero;

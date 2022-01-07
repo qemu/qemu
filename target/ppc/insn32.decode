@@ -443,6 +443,7 @@ VEXTRACTQM      000100 ..... 01100 ..... 11001000010    @VX_tb
 ## Vector Multiply-Sum Instructions
 
 VMSUMCUD        000100 ..... ..... ..... ..... 010111   @VA
+VMSUMUDM        000100 ..... ..... ..... ..... 100011   @VA
 
 # VSX Load/Store Instructions
 
