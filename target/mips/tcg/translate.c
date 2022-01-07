@@ -1367,6 +1367,16 @@ void generate_exception_end(DisasContext *ctx, int excp)
     generate_exception_err(ctx, excp, 0);
 }
 
+void generate_exception_break(DisasContext *ctx, int code)
+{
+#ifdef CONFIG_USER_ONLY
+    /* Pass the break code along to cpu_loop. */
+    tcg_gen_st_i32(tcg_constant_i32(code), cpu_env,
+                   offsetof(CPUMIPSState, error_code));
+#endif
+    generate_exception_end(ctx, EXCP_BREAK);
+}
+
 void gen_reserved_instruction(DisasContext *ctx)
 {
     generate_exception_end(ctx, EXCP_RI);
@@ -14160,7 +14170,7 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
         generate_exception_end(ctx, EXCP_SYSCALL);
         break;
     case OPC_BREAK:
-        generate_exception_end(ctx, EXCP_BREAK);
+        generate_exception_break(ctx, extract32(ctx->opcode, 6, 20));
         break;
     case OPC_SYNC:
         check_insn(ctx, ISA_MIPS2);
