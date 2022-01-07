@@ -354,28 +354,30 @@ FIELD(MAPC, RDBASE, 16, 32)
 #define L2_TABLE_VALID_MASK       CMD_FIELD_VALID_MASK
 #define TABLE_ENTRY_VALID_MASK    (1ULL << 0)
 
-/**
- * Default features advertised by this version of ITS
- */
-/* Physical LPIs supported */
-#define GITS_TYPE_PHYSICAL           (1U << 0)
-
 /*
  * 12 bytes Interrupt translation Table Entry size
  * as per Table 5.3 in GICv3 spec
  * ITE Lower 8 Bytes
  *   Bits:    | 49 ... 26 | 25 ... 2 |   1     |   0    |
- *   Values:  |    1023   |  IntNum  | IntType |  Valid |
+ *   Values:  |  Doorbell |  IntNum  | IntType |  Valid |
  * ITE Higher 4 Bytes
  *   Bits:    | 31 ... 16 | 15 ...0 |
  *   Values:  |  vPEID    |  ICID   |
+ * (When Doorbell is unused, as it always is in GICv3, it is 1023)
  */
 #define ITS_ITT_ENTRY_SIZE            0xC
-#define ITE_ENTRY_INTTYPE_SHIFT        1
-#define ITE_ENTRY_INTID_SHIFT          2
-#define ITE_ENTRY_INTID_MASK         MAKE_64BIT_MASK(2, 24)
-#define ITE_ENTRY_INTSP_SHIFT          26
-#define ITE_ENTRY_ICID_MASK          MAKE_64BIT_MASK(0, 16)
+
+FIELD(ITE_L, VALID, 0, 1)
+FIELD(ITE_L, INTTYPE, 1, 1)
+FIELD(ITE_L, INTID, 2, 24)
+FIELD(ITE_L, DOORBELL, 26, 24)
+
+FIELD(ITE_H, ICID, 0, 16)
+FIELD(ITE_H, VPEID, 16, 16)
+
+/* Possible values for ITE_L INTTYPE */
+#define ITE_INTTYPE_VIRTUAL 0
+#define ITE_INTTYPE_PHYSICAL 1
 
 /* 16 bits EventId */
 #define ITS_IDBITS                   GICD_TYPER_IDBITS
