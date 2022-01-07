@@ -1155,6 +1155,55 @@ static bool trans_VCMPEQUQ(DisasContext *ctx, arg_VC *a)
     return true;
 }
 
+static bool do_vcmpgtq(DisasContext *ctx, arg_VC *a, bool sign)
+{
+    TCGv_i64 t0, t1;
+    TCGLabel *l1, *l2, *l3;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    t0 = tcg_temp_local_new_i64();
+    t1 = tcg_temp_local_new_i64();
+    l1 = gen_new_label();
+    l2 = gen_new_label();
+    l3 = gen_new_label();
+
+    get_avr64(t0, a->vra, true);
+    get_avr64(t1, a->vrb, true);
+    tcg_gen_brcond_i64(sign ? TCG_COND_GT : TCG_COND_GTU, t0, t1, l1);
+    tcg_gen_brcond_i64(sign ? TCG_COND_LT : TCG_COND_LTU, t0, t1, l2);
+
+    get_avr64(t0, a->vra, false);
+    get_avr64(t1, a->vrb, false);
+    tcg_gen_brcond_i64(TCG_COND_GTU, t0, t1, l1);
+    tcg_gen_br(l2);
+
+    gen_set_label(l1);
+    set_avr64(a->vrt, tcg_constant_i64(-1), true);
+    set_avr64(a->vrt, tcg_constant_i64(-1), false);
+    if (a->rc) {
+        tcg_gen_movi_i32(cpu_crf[6], 1 << 3);
+    }
+    tcg_gen_br(l3);
+
+    gen_set_label(l2);
+    set_avr64(a->vrt, tcg_constant_i64(0), true);
+    set_avr64(a->vrt, tcg_constant_i64(0), false);
+    if (a->rc) {
+        tcg_gen_movi_i32(cpu_crf[6], 1 << 1);
+    }
+
+    gen_set_label(l3);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+
+    return true;
+}
+
+TRANS(VCMPGTSQ, do_vcmpgtq, true)
+TRANS(VCMPGTUQ, do_vcmpgtq, false)
+
 GEN_VXRFORM(vcmpeqfp, 3, 3)
 GEN_VXRFORM(vcmpgefp, 3, 7)
 GEN_VXRFORM(vcmpgtfp, 3, 11)
