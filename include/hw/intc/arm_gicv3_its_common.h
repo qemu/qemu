@@ -47,10 +47,7 @@ typedef struct {
     uint16_t entry_sz;
     uint32_t page_sz;
     uint32_t max_entries;
-    union {
-        uint32_t max_devids;
-        uint32_t max_collids;
-    } maxids;
+    uint32_t max_ids;
     uint64_t base_addr;
 } TableDesc;
 
