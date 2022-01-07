@@ -399,6 +399,7 @@ static void kudo_bmc_init(MachineState *machine)
                           drive_get(IF_MTD, 3, 0));
 
     kudo_bmc_i2c_init(soc);
+    sdhci_attach_drive(&soc->mmc.sdhci, 0);
     npcm7xx_load_kernel(machine, soc);
 }
 
