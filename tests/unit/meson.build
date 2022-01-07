@@ -129,7 +129,7 @@ if have_system
     'test-vmstate': [migration, io],
     'test-yank': ['socket-helpers.c', qom, io, chardev]
   }
-  if 'CONFIG_INOTIFY1' in config_host
+  if config_host_data.get('CONFIG_INOTIFY1')
     tests += {'test-util-filemonitor': []}
   endif
 
