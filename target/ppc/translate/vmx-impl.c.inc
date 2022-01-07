@@ -1438,6 +1438,50 @@ GEN_VXFORM_DUAL(vsplth, PPC_ALTIVEC, PPC_NONE,
 GEN_VXFORM_DUAL(vspltw, PPC_ALTIVEC, PPC_NONE,
                 vextractuw, PPC_NONE, PPC2_ISA300);
 
+static bool trans_VGNB(DisasContext *ctx, arg_VX_n *a)
+{
+    TCGv_i64 vrb, tmp, rt;
+    int in = 63, out = 63;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    if (a->n < 2) {
+        /*
+         * "N can be any value between 2 and 7, inclusive." Otherwise, the
+         * result is undefined, so we don't need to change RT. Also, N > 7 is
+         * impossible since the immediate field is 3 bits only.
+         */
+        return true;
+    }
+
+    vrb = tcg_temp_new_i64();
+    tmp = tcg_temp_new_i64();
+    rt = tcg_const_i64(0);
+
+    for (int dw = 1; dw >= 0; dw--) {
+        get_avr64(vrb, a->vrb, dw);
+        for (; in >= 0; in -= a->n, out--) {
+            if (in > out) {
+                tcg_gen_shri_i64(tmp, vrb, in - out);
+            } else {
+                tcg_gen_shli_i64(tmp, vrb, out - in);
+            }
+            tcg_gen_andi_i64(tmp, tmp, 1ULL << out);
+            tcg_gen_or_i64(rt, rt, tmp);
+        }
+        in += 64;
+    }
+
+    tcg_gen_trunc_i64_tl(cpu_gpr[a->rt], rt);
+
+    tcg_temp_free_i64(vrb);
+    tcg_temp_free_i64(tmp);
+    tcg_temp_free_i64(rt);
+
+    return true;
+}
+
 static bool do_vextdx(DisasContext *ctx, arg_VA *a, int size, bool right,
                void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv))
 {

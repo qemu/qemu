@@ -66,6 +66,9 @@
 &VX_mp          rt mp:bool vrb
 @VX_mp          ...... rt:5 .... mp:1 vrb:5 ...........         &VX_mp
 
+&VX_n           rt vrb n
+@VX_n           ...... rt:5 .. n:3 vrb:5 ...........            &VX_n
+
 &VX_tb_rc       vrt vrb rc:bool
 @VX_tb_rc       ...... vrt:5 ..... vrb:5 rc:1 ..........        &VX_tb_rc
 
@@ -417,6 +420,8 @@ VCMPSQ          000100 ... -- ..... ..... 00101000001   @VX_bf
 VCMPUQ          000100 ... -- ..... ..... 00100000001   @VX_bf
 
 ## Vector Bit Manipulation Instruction
+
+VGNB            000100 ..... -- ... ..... 10011001100   @VX_n
 
 VCFUGED         000100 ..... ..... ..... 10101001101    @VX
 VCLZDM          000100 ..... ..... ..... 11110000100    @VX
