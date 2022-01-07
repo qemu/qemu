@@ -22,6 +22,7 @@ if have_tools and targetos != 'windows'
     endif
     test('qemu-iotests ' + format, sh, args: [files('../check-block.sh'), format],
          depends: qemu_iotests_binaries, env: qemu_iotests_env,
+         protocol: 'tap',
          suite: suites,
          timeout: 0,
          is_parallel: false)

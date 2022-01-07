@@ -287,21 +287,21 @@ class TestEnv(ContextManager['TestEnv']):
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         self.close()
 
-    def print_env(self) -> None:
+    def print_env(self, prefix: str = '') -> None:
         template = """\
-QEMU          -- "{QEMU_PROG}" {QEMU_OPTIONS}
-QEMU_IMG      -- "{QEMU_IMG_PROG}" {QEMU_IMG_OPTIONS}
-QEMU_IO       -- "{QEMU_IO_PROG}" {QEMU_IO_OPTIONS}
-QEMU_NBD      -- "{QEMU_NBD_PROG}" {QEMU_NBD_OPTIONS}
-IMGFMT        -- {IMGFMT}{imgopts}
-IMGPROTO      -- {IMGPROTO}
-PLATFORM      -- {platform}
-TEST_DIR      -- {TEST_DIR}
-SOCK_DIR      -- {SOCK_DIR}
-GDB_OPTIONS   -- {GDB_OPTIONS}
-VALGRIND_QEMU -- {VALGRIND_QEMU}
-PRINT_QEMU_OUTPUT -- {PRINT_QEMU}
-"""
+{prefix}QEMU          -- "{QEMU_PROG}" {QEMU_OPTIONS}
+{prefix}QEMU_IMG      -- "{QEMU_IMG_PROG}" {QEMU_IMG_OPTIONS}
+{prefix}QEMU_IO       -- "{QEMU_IO_PROG}" {QEMU_IO_OPTIONS}
+{prefix}QEMU_NBD      -- "{QEMU_NBD_PROG}" {QEMU_NBD_OPTIONS}
+{prefix}IMGFMT        -- {IMGFMT}{imgopts}
+{prefix}IMGPROTO      -- {IMGPROTO}
+{prefix}PLATFORM      -- {platform}
+{prefix}TEST_DIR      -- {TEST_DIR}
+{prefix}SOCK_DIR      -- {SOCK_DIR}
+{prefix}GDB_OPTIONS   -- {GDB_OPTIONS}
+{prefix}VALGRIND_QEMU -- {VALGRIND_QEMU}
+{prefix}PRINT_QEMU_OUTPUT -- {PRINT_QEMU}
+{prefix}"""
 
         args = collections.defaultdict(str, self.get_env())
 
@@ -310,5 +310,5 @@ PRINT_QEMU_OUTPUT -- {PRINT_QEMU}
 
         u = os.uname()
         args['platform'] = f'{u.sysname}/{u.machine} {u.nodename} {u.release}'
-
+        args['prefix'] = prefix
         print(template.format_map(args))
