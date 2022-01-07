@@ -289,8 +289,6 @@ FIELD(GITS_TYPER, CIL, 36, 1)
 
 #define GITS_IDREGS           0xFFD0
 
-#define ITS_CTLR_ENABLED               (1U)  /* ITS Enabled */
-
 #define GITS_BASER_RO_MASK                  (R_GITS_BASER_ENTRYSIZE_MASK | \
                                               R_GITS_BASER_TYPE_MASK)
 

@@ -651,7 +651,7 @@ static void process_cmdq(GICv3ITSState *s)
     uint8_t cmd;
     int i;
 
-    if (!(s->ctlr & ITS_CTLR_ENABLED)) {
+    if (!(s->ctlr & R_GITS_CTLR_ENABLED_MASK)) {
         return;
     }
 
@@ -887,7 +887,7 @@ static MemTxResult gicv3_its_translation_write(void *opaque, hwaddr offset,
 
     switch (offset) {
     case GITS_TRANSLATER:
-        if (s->ctlr & ITS_CTLR_ENABLED) {
+        if (s->ctlr & R_GITS_CTLR_ENABLED_MASK) {
             devid = attrs.requester_id;
             result = process_its_cmd(s, data, devid, NONE);
         }
@@ -912,13 +912,13 @@ static bool its_writel(GICv3ITSState *s, hwaddr offset,
     switch (offset) {
     case GITS_CTLR:
         if (value & R_GITS_CTLR_ENABLED_MASK) {
-            s->ctlr |= ITS_CTLR_ENABLED;
+            s->ctlr |= R_GITS_CTLR_ENABLED_MASK;
             extract_table_params(s);
             extract_cmdq_params(s);
             s->creadr = 0;
             process_cmdq(s);
         } else {
-            s->ctlr &= ~ITS_CTLR_ENABLED;
+            s->ctlr &= ~R_GITS_CTLR_ENABLED_MASK;
         }
         break;
     case GITS_CBASER:
@@ -926,7 +926,7 @@ static bool its_writel(GICv3ITSState *s, hwaddr offset,
          * IMPDEF choice:- GITS_CBASER register becomes RO if ITS is
          *                 already enabled
          */
-        if (!(s->ctlr & ITS_CTLR_ENABLED)) {
+        if (!(s->ctlr & R_GITS_CTLR_ENABLED_MASK)) {
             s->cbaser = deposit64(s->cbaser, 0, 32, value);
             s->creadr = 0;
             s->cwriter = s->creadr;
@@ -937,7 +937,7 @@ static bool its_writel(GICv3ITSState *s, hwaddr offset,
          * IMPDEF choice:- GITS_CBASER register becomes RO if ITS is
          *                 already enabled
          */
-        if (!(s->ctlr & ITS_CTLR_ENABLED)) {
+        if (!(s->ctlr & R_GITS_CTLR_ENABLED_MASK)) {
             s->cbaser = deposit64(s->cbaser, 32, 32, value);
             s->creadr = 0;
             s->cwriter = s->creadr;
@@ -979,7 +979,7 @@ static bool its_writel(GICv3ITSState *s, hwaddr offset,
          * IMPDEF choice:- GITS_BASERn register becomes RO if ITS is
          *                 already enabled
          */
-        if (!(s->ctlr & ITS_CTLR_ENABLED)) {
+        if (!(s->ctlr & R_GITS_CTLR_ENABLED_MASK)) {
             index = (offset - GITS_BASER) / 8;
 
             if (offset & 7) {
@@ -1076,7 +1076,7 @@ static bool its_writell(GICv3ITSState *s, hwaddr offset,
          * IMPDEF choice:- GITS_BASERn register becomes RO if ITS is
          *                 already enabled
          */
-        if (!(s->ctlr & ITS_CTLR_ENABLED)) {
+        if (!(s->ctlr & R_GITS_CTLR_ENABLED_MASK)) {
             index = (offset - GITS_BASER) / 8;
             s->baser[index] &= GITS_BASER_RO_MASK;
             s->baser[index] |= (value & ~GITS_BASER_RO_MASK);
@@ -1087,7 +1087,7 @@ static bool its_writell(GICv3ITSState *s, hwaddr offset,
          * IMPDEF choice:- GITS_CBASER register becomes RO if ITS is
          *                 already enabled
          */
-        if (!(s->ctlr & ITS_CTLR_ENABLED)) {
+        if (!(s->ctlr & R_GITS_CTLR_ENABLED_MASK)) {
             s->cbaser = value;
             s->creadr = 0;
             s->cwriter = s->creadr;
@@ -1298,7 +1298,7 @@ static void gicv3_its_reset(DeviceState *dev)
 
 static void gicv3_its_post_load(GICv3ITSState *s)
 {
-    if (s->ctlr & ITS_CTLR_ENABLED) {
+    if (s->ctlr & R_GITS_CTLR_ENABLED_MASK) {
         extract_table_params(s);
         extract_cmdq_params(s);
     }
