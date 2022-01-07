@@ -74,7 +74,7 @@ static bool get_cte(GICv3ITSState *s, uint16_t icid, uint64_t *cte,
     uint64_t value;
     bool valid_l2t;
     uint32_t l2t_id;
-    uint32_t max_l2_entries;
+    uint32_t num_l2_entries;
 
     if (s->ct.indirect) {
         l2t_id = icid / (s->ct.page_sz / L1TABLE_ENTRY_SIZE);
@@ -88,12 +88,12 @@ static bool get_cte(GICv3ITSState *s, uint16_t icid, uint64_t *cte,
             valid_l2t = (value & L2_TABLE_VALID_MASK) != 0;
 
             if (valid_l2t) {
-                max_l2_entries = s->ct.page_sz / s->ct.entry_sz;
+                num_l2_entries = s->ct.page_sz / s->ct.entry_sz;
 
                 l2t_addr = value & ((1ULL << 51) - 1);
 
                 *cte =  address_space_ldq_le(as, l2t_addr +
-                                    ((icid % max_l2_entries) * GITS_CTE_SIZE),
+                                    ((icid % num_l2_entries) * GITS_CTE_SIZE),
                                     MEMTXATTRS_UNSPECIFIED, res);
            }
        }
@@ -176,7 +176,7 @@ static uint64_t get_dte(GICv3ITSState *s, uint32_t devid, MemTxResult *res)
     uint64_t value;
     bool valid_l2t;
     uint32_t l2t_id;
-    uint32_t max_l2_entries;
+    uint32_t num_l2_entries;
 
     if (s->dt.indirect) {
         l2t_id = devid / (s->dt.page_sz / L1TABLE_ENTRY_SIZE);
@@ -190,12 +190,12 @@ static uint64_t get_dte(GICv3ITSState *s, uint32_t devid, MemTxResult *res)
             valid_l2t = (value & L2_TABLE_VALID_MASK) != 0;
 
             if (valid_l2t) {
-                max_l2_entries = s->dt.page_sz / s->dt.entry_sz;
+                num_l2_entries = s->dt.page_sz / s->dt.entry_sz;
 
                 l2t_addr = value & ((1ULL << 51) - 1);
 
                 value =  address_space_ldq_le(as, l2t_addr +
-                                   ((devid % max_l2_entries) * GITS_DTE_SIZE),
+                                   ((devid % num_l2_entries) * GITS_DTE_SIZE),
                                    MEMTXATTRS_UNSPECIFIED, res);
             }
         }
@@ -416,7 +416,7 @@ static bool update_cte(GICv3ITSState *s, uint16_t icid, bool valid,
     uint64_t l2t_addr;
     bool valid_l2t;
     uint32_t l2t_id;
-    uint32_t max_l2_entries;
+    uint32_t num_l2_entries;
     uint64_t cte = 0;
     MemTxResult res = MEMTX_OK;
 
@@ -450,12 +450,12 @@ static bool update_cte(GICv3ITSState *s, uint16_t icid, bool valid,
         valid_l2t = (value & L2_TABLE_VALID_MASK) != 0;
 
         if (valid_l2t) {
-            max_l2_entries = s->ct.page_sz / s->ct.entry_sz;
+            num_l2_entries = s->ct.page_sz / s->ct.entry_sz;
 
             l2t_addr = value & ((1ULL << 51) - 1);
 
             address_space_stq_le(as, l2t_addr +
-                                 ((icid % max_l2_entries) * GITS_CTE_SIZE),
+                                 ((icid % num_l2_entries) * GITS_CTE_SIZE),
                                  cte, MEMTXATTRS_UNSPECIFIED, &res);
         }
     } else {
@@ -521,7 +521,7 @@ static bool update_dte(GICv3ITSState *s, uint32_t devid, bool valid,
     uint64_t l2t_addr;
     bool valid_l2t;
     uint32_t l2t_id;
-    uint32_t max_l2_entries;
+    uint32_t num_l2_entries;
     uint64_t dte = 0;
     MemTxResult res = MEMTX_OK;
 
@@ -556,12 +556,12 @@ static bool update_dte(GICv3ITSState *s, uint32_t devid, bool valid,
         valid_l2t = (value & L2_TABLE_VALID_MASK) != 0;
 
         if (valid_l2t) {
-            max_l2_entries = s->dt.page_sz / s->dt.entry_sz;
+            num_l2_entries = s->dt.page_sz / s->dt.entry_sz;
 
             l2t_addr = value & ((1ULL << 51) - 1);
 
             address_space_stq_le(as, l2t_addr +
-                                 ((devid % max_l2_entries) * GITS_DTE_SIZE),
+                                 ((devid % num_l2_entries) * GITS_DTE_SIZE),
                                  dte, MEMTXATTRS_UNSPECIFIED, &res);
         }
     } else {
