@@ -354,7 +354,9 @@ static bool process_mapti(GICv3ITSState *s, uint64_t value, uint32_t offset,
 
     eventid = (value & EVENTID_MASK);
 
-    if (!ignore_pInt) {
+    if (ignore_pInt) {
+        pIntid = eventid;
+    } else {
         pIntid = ((value & pINTID_MASK) >> pINTID_SHIFT);
     }
 
@@ -377,14 +379,12 @@ static bool process_mapti(GICv3ITSState *s, uint64_t value, uint32_t offset,
 
     max_eventid = (1UL << (((dte >> 1U) & SIZE_MASK) + 1));
 
-    if (!ignore_pInt) {
-        max_Intid = (1ULL << (GICD_TYPER_IDBITS + 1)) - 1;
-    }
+    max_Intid = (1ULL << (GICD_TYPER_IDBITS + 1)) - 1;
 
     if ((devid > s->dt.max_ids) || (icid > s->ct.max_ids)
             || !dte_valid || (eventid > max_eventid) ||
-            (!ignore_pInt && (((pIntid < GICV3_LPI_INTID_START) ||
-            (pIntid > max_Intid)) && (pIntid != INTID_SPURIOUS)))) {
+            (((pIntid < GICV3_LPI_INTID_START) || (pIntid > max_Intid)) &&
+             (pIntid != INTID_SPURIOUS))) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid command attributes "
                       "devid %d or icid %d or eventid %d or pIntid %d or"
@@ -400,11 +400,7 @@ static bool process_mapti(GICv3ITSState *s, uint64_t value, uint32_t offset,
         IteEntry ite = {};
         ite.itel = FIELD_DP64(ite.itel, ITE_L, VALID, dte_valid);
         ite.itel = FIELD_DP64(ite.itel, ITE_L, INTTYPE, ITE_INTTYPE_PHYSICAL);
-        if (ignore_pInt) {
-            ite.itel = FIELD_DP64(ite.itel, ITE_L, INTID, eventid);
-        } else {
-            ite.itel = FIELD_DP64(ite.itel, ITE_L, INTID, pIntid);
-        }
+        ite.itel = FIELD_DP64(ite.itel, ITE_L, INTID, pIntid);
         ite.itel = FIELD_DP64(ite.itel, ITE_L, DOORBELL, INTID_SPURIOUS);
         ite.iteh = FIELD_DP32(ite.iteh, ITE_H, ICID, icid);
 
