@@ -829,7 +829,7 @@ static void extract_table_params(GICv3ITSState *s)
         }
         td->page_sz = page_sz;
         td->indirect = FIELD_EX64(value, GITS_BASER, INDIRECT);
-        td->entry_sz = FIELD_EX64(value, GITS_BASER, ENTRYSIZE);
+        td->entry_sz = FIELD_EX64(value, GITS_BASER, ENTRYSIZE) + 1;
         td->base_addr = baser_base_addr(value, page_sz);
         if (!td->indirect) {
             td->max_entries = (num_pages * page_sz) / td->entry_sz;
