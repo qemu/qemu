@@ -1956,7 +1956,7 @@ TRANS(VSTRIBR, do_vstri, gen_helper_VSTRIBR)
 TRANS(VSTRIHL, do_vstri, gen_helper_VSTRIHL)
 TRANS(VSTRIHR, do_vstri, gen_helper_VSTRIHR)
 
-static bool trans_VCLRLB(DisasContext *ctx, arg_VX *a)
+static bool do_vclrb(DisasContext *ctx, arg_VX *a, bool right)
 {
     TCGv_i64 hi, lo, rb;
     TCGLabel *l, *end;
@@ -1976,29 +1976,51 @@ static bool trans_VCLRLB(DisasContext *ctx, arg_VX *a)
     /* RB == 0: all zeros */
     tcg_gen_brcondi_i64(TCG_COND_EQ, rb, 0, end);
 
-    get_avr64(lo, a->vra, false);
+    if (right) {
+        get_avr64(hi, a->vra, true);
+    } else {
+        get_avr64(lo, a->vra, false);
+    }
 
     /* RB <= 8 */
     tcg_gen_brcondi_i64(TCG_COND_LEU, rb, 8, l);
 
-    get_avr64(hi, a->vra, true);
+    if (right) {
+        get_avr64(lo, a->vra, false);
+    } else {
+        get_avr64(hi, a->vra, true);
+    }
 
     /* RB >= 16: just copy VRA to VRB */
     tcg_gen_brcondi_i64(TCG_COND_GEU, rb, 16, end);
 
-    /* 8 < RB < 16: copy lo and partially clear hi */
+    /* 8 < RB < 16: */
     tcg_gen_subfi_i64(rb, 16, rb);
     tcg_gen_shli_i64(rb, rb, 3);
-    tcg_gen_shl_i64(hi, hi, rb);
-    tcg_gen_shr_i64(hi, hi, rb);
+    if (right) {
+        /* copy hi and partially clear lo */
+        tcg_gen_shr_i64(lo, lo, rb);
+        tcg_gen_shl_i64(lo, lo, rb);
+    } else {
+        /* copy lo and partially clear hi */
+        tcg_gen_shl_i64(hi, hi, rb);
+        tcg_gen_shr_i64(hi, hi, rb);
+    }
     tcg_gen_br(end);
 
-    /* 0 < RB <= 8: zeroes hi and partially clears lo */
+    /* 0 < RB <= 8: */
     gen_set_label(l);
     tcg_gen_subfi_i64(rb, 8, rb);
     tcg_gen_shli_i64(rb, rb, 3);
-    tcg_gen_shl_i64(lo, lo, rb);
-    tcg_gen_shr_i64(lo, lo, rb);
+    if (right) {
+        /* zeroes lo and partially clears hi */
+        tcg_gen_shr_i64(hi, hi, rb);
+        tcg_gen_shl_i64(hi, hi, rb);
+    } else {
+        /* zeroes hi and partially clears lo */
+        tcg_gen_shl_i64(lo, lo, rb);
+        tcg_gen_shr_i64(lo, lo, rb);
+    }
 
     /* Update VRT */
     gen_set_label(end);
@@ -2011,6 +2033,9 @@ static bool trans_VCLRLB(DisasContext *ctx, arg_VX *a)
 
     return true;
 }
+
+TRANS(VCLRLB, do_vclrb, false)
+TRANS(VCLRRB, do_vclrb, true)
 
 #define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
 static void glue(gen_, name0##_##name1)(DisasContext *ctx)              \
