@@ -566,7 +566,7 @@ int qemu_fdt_add_path(void *fdt, const char *path)
         return -1;
     }
 
-    while (p) {
+    do {
         name = p + 1;
         p = strchr(name, '/');
         namelen = p != NULL ? p - name : strlen(name);
@@ -586,7 +586,7 @@ int qemu_fdt_add_path(void *fdt, const char *path)
         }
 
         parent = retval;
-    }
+    } while (p);
 
     return retval;
 }
