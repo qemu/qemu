@@ -73,7 +73,7 @@ static inline void target_cpu_loop(CPUARMState *env)
                     int32_t syscall_nr = n;
                     int32_t arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8;
 
-                    /* See arm/arm/trap.c cpu_fetch_syscall_args() */
+                    /* See arm/arm/syscall.c cpu_fetch_syscall_args() */
                     if (syscall_nr == TARGET_FREEBSD_NR_syscall) {
                         syscall_nr = env->regs[0];
                         arg1 = env->regs[1];
