@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu.h"
+#include "signal-common.h"
 
 /*
  * Stubbed out routines until we merge signal support from bsd-user
@@ -32,6 +33,23 @@
 void queue_signal(CPUArchState *env, int sig, target_siginfo_t *info)
 {
     qemu_log_mask(LOG_UNIMP, "No signal queueing, dropping signal %d\n", sig);
+}
+
+/*
+ * Force a synchronously taken QEMU_SI_FAULT signal. For QEMU the
+ * 'force' part is handled in process_pending_signals().
+ */
+void force_sig_fault(int sig, int code, abi_ulong addr)
+{
+    CPUState *cpu = thread_cpu;
+    CPUArchState *env = cpu->env_ptr;
+    target_siginfo_t info = {};
+
+    info.si_signo = sig;
+    info.si_errno = 0;
+    info.si_code = code;
+    info.si_addr = addr;
+    queue_signal(env, sig, &info);
 }
 
 void signal_init(void)
