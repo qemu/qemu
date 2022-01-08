@@ -85,19 +85,19 @@ static void gen_lxvw4x(DisasContext *ctx)
         TCGv_i64 t0 = tcg_temp_new_i64();
         TCGv_i64 t1 = tcg_temp_new_i64();
 
-        tcg_gen_qemu_ld_i64(t0, EA, ctx->mem_idx, MO_LEQ);
+        tcg_gen_qemu_ld_i64(t0, EA, ctx->mem_idx, MO_LEUQ);
         tcg_gen_shri_i64(t1, t0, 32);
         tcg_gen_deposit_i64(xth, t1, t0, 32, 32);
         tcg_gen_addi_tl(EA, EA, 8);
-        tcg_gen_qemu_ld_i64(t0, EA, ctx->mem_idx, MO_LEQ);
+        tcg_gen_qemu_ld_i64(t0, EA, ctx->mem_idx, MO_LEUQ);
         tcg_gen_shri_i64(t1, t0, 32);
         tcg_gen_deposit_i64(xtl, t1, t0, 32, 32);
         tcg_temp_free_i64(t0);
         tcg_temp_free_i64(t1);
     } else {
-        tcg_gen_qemu_ld_i64(xth, EA, ctx->mem_idx, MO_BEQ);
+        tcg_gen_qemu_ld_i64(xth, EA, ctx->mem_idx, MO_BEUQ);
         tcg_gen_addi_tl(EA, EA, 8);
-        tcg_gen_qemu_ld_i64(xtl, EA, ctx->mem_idx, MO_BEQ);
+        tcg_gen_qemu_ld_i64(xtl, EA, ctx->mem_idx, MO_BEUQ);
     }
     set_cpu_vsr(xT(ctx->opcode), xth, true);
     set_cpu_vsr(xT(ctx->opcode), xtl, false);
@@ -152,8 +152,8 @@ static void gen_lxvdsx(DisasContext *ctx)
     gen_addr_reg_index(ctx, EA);
 
     data = tcg_temp_new_i64();
-    tcg_gen_qemu_ld_i64(data, EA, ctx->mem_idx, DEF_MEMOP(MO_Q));
-    tcg_gen_gvec_dup_i64(MO_Q, vsr_full_offset(xT(ctx->opcode)), 16, 16, data);
+    tcg_gen_qemu_ld_i64(data, EA, ctx->mem_idx, DEF_MEMOP(MO_UQ));
+    tcg_gen_gvec_dup_i64(MO_UQ, vsr_full_offset(xT(ctx->opcode)), 16, 16, data);
 
     tcg_temp_free(EA);
     tcg_temp_free_i64(data);
@@ -217,9 +217,9 @@ static void gen_lxvh8x(DisasContext *ctx)
 
     EA = tcg_temp_new();
     gen_addr_reg_index(ctx, EA);
-    tcg_gen_qemu_ld_i64(xth, EA, ctx->mem_idx, MO_BEQ);
+    tcg_gen_qemu_ld_i64(xth, EA, ctx->mem_idx, MO_BEUQ);
     tcg_gen_addi_tl(EA, EA, 8);
-    tcg_gen_qemu_ld_i64(xtl, EA, ctx->mem_idx, MO_BEQ);
+    tcg_gen_qemu_ld_i64(xtl, EA, ctx->mem_idx, MO_BEUQ);
     if (ctx->le_mode) {
         gen_bswap16x8(xth, xtl, xth, xtl);
     }
@@ -245,9 +245,9 @@ static void gen_lxvb16x(DisasContext *ctx)
     gen_set_access_type(ctx, ACCESS_INT);
     EA = tcg_temp_new();
     gen_addr_reg_index(ctx, EA);
-    tcg_gen_qemu_ld_i64(xth, EA, ctx->mem_idx, MO_BEQ);
+    tcg_gen_qemu_ld_i64(xth, EA, ctx->mem_idx, MO_BEUQ);
     tcg_gen_addi_tl(EA, EA, 8);
-    tcg_gen_qemu_ld_i64(xtl, EA, ctx->mem_idx, MO_BEQ);
+    tcg_gen_qemu_ld_i64(xtl, EA, ctx->mem_idx, MO_BEUQ);
     set_cpu_vsr(xT(ctx->opcode), xth, true);
     set_cpu_vsr(xT(ctx->opcode), xtl, false);
     tcg_temp_free(EA);
@@ -382,17 +382,17 @@ static void gen_stxvw4x(DisasContext *ctx)
 
         tcg_gen_shri_i64(t0, xsh, 32);
         tcg_gen_deposit_i64(t1, t0, xsh, 32, 32);
-        tcg_gen_qemu_st_i64(t1, EA, ctx->mem_idx, MO_LEQ);
+        tcg_gen_qemu_st_i64(t1, EA, ctx->mem_idx, MO_LEUQ);
         tcg_gen_addi_tl(EA, EA, 8);
         tcg_gen_shri_i64(t0, xsl, 32);
         tcg_gen_deposit_i64(t1, t0, xsl, 32, 32);
-        tcg_gen_qemu_st_i64(t1, EA, ctx->mem_idx, MO_LEQ);
+        tcg_gen_qemu_st_i64(t1, EA, ctx->mem_idx, MO_LEUQ);
         tcg_temp_free_i64(t0);
         tcg_temp_free_i64(t1);
     } else {
-        tcg_gen_qemu_st_i64(xsh, EA, ctx->mem_idx, MO_BEQ);
+        tcg_gen_qemu_st_i64(xsh, EA, ctx->mem_idx, MO_BEUQ);
         tcg_gen_addi_tl(EA, EA, 8);
-        tcg_gen_qemu_st_i64(xsl, EA, ctx->mem_idx, MO_BEQ);
+        tcg_gen_qemu_st_i64(xsl, EA, ctx->mem_idx, MO_BEUQ);
     }
     tcg_temp_free(EA);
     tcg_temp_free_i64(xsh);
@@ -421,15 +421,15 @@ static void gen_stxvh8x(DisasContext *ctx)
         TCGv_i64 outl = tcg_temp_new_i64();
 
         gen_bswap16x8(outh, outl, xsh, xsl);
-        tcg_gen_qemu_st_i64(outh, EA, ctx->mem_idx, MO_BEQ);
+        tcg_gen_qemu_st_i64(outh, EA, ctx->mem_idx, MO_BEUQ);
         tcg_gen_addi_tl(EA, EA, 8);
-        tcg_gen_qemu_st_i64(outl, EA, ctx->mem_idx, MO_BEQ);
+        tcg_gen_qemu_st_i64(outl, EA, ctx->mem_idx, MO_BEUQ);
         tcg_temp_free_i64(outh);
         tcg_temp_free_i64(outl);
     } else {
-        tcg_gen_qemu_st_i64(xsh, EA, ctx->mem_idx, MO_BEQ);
+        tcg_gen_qemu_st_i64(xsh, EA, ctx->mem_idx, MO_BEUQ);
         tcg_gen_addi_tl(EA, EA, 8);
-        tcg_gen_qemu_st_i64(xsl, EA, ctx->mem_idx, MO_BEQ);
+        tcg_gen_qemu_st_i64(xsl, EA, ctx->mem_idx, MO_BEUQ);
     }
     tcg_temp_free(EA);
     tcg_temp_free_i64(xsh);
@@ -453,9 +453,9 @@ static void gen_stxvb16x(DisasContext *ctx)
     gen_set_access_type(ctx, ACCESS_INT);
     EA = tcg_temp_new();
     gen_addr_reg_index(ctx, EA);
-    tcg_gen_qemu_st_i64(xsh, EA, ctx->mem_idx, MO_BEQ);
+    tcg_gen_qemu_st_i64(xsh, EA, ctx->mem_idx, MO_BEUQ);
     tcg_gen_addi_tl(EA, EA, 8);
-    tcg_gen_qemu_st_i64(xsl, EA, ctx->mem_idx, MO_BEQ);
+    tcg_gen_qemu_st_i64(xsl, EA, ctx->mem_idx, MO_BEUQ);
     tcg_temp_free(EA);
     tcg_temp_free_i64(xsh);
     tcg_temp_free_i64(xsl);
@@ -2020,7 +2020,7 @@ static bool do_lstxv(DisasContext *ctx, int ra, TCGv displ,
 
     xt = tcg_temp_new_i64();
 
-    mop = DEF_MEMOP(MO_Q);
+    mop = DEF_MEMOP(MO_UQ);
 
     gen_set_access_type(ctx, ACCESS_INT);
     ea = do_ea_calc(ctx, ra, displ);

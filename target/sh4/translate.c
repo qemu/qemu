@@ -1010,7 +1010,7 @@ static void _decode_opc(DisasContext * ctx)
         if (ctx->tbflags & FPSCR_SZ) {
             TCGv_i64 fp = tcg_temp_new_i64();
             gen_load_fpr64(ctx, fp, XHACK(B7_4));
-            tcg_gen_qemu_st_i64(fp, REG(B11_8), ctx->memidx, MO_TEQ);
+            tcg_gen_qemu_st_i64(fp, REG(B11_8), ctx->memidx, MO_TEUQ);
             tcg_temp_free_i64(fp);
 	} else {
             tcg_gen_qemu_st_i32(FREG(B7_4), REG(B11_8), ctx->memidx, MO_TEUL);
@@ -1020,7 +1020,7 @@ static void _decode_opc(DisasContext * ctx)
 	CHECK_FPU_ENABLED
         if (ctx->tbflags & FPSCR_SZ) {
             TCGv_i64 fp = tcg_temp_new_i64();
-            tcg_gen_qemu_ld_i64(fp, REG(B7_4), ctx->memidx, MO_TEQ);
+            tcg_gen_qemu_ld_i64(fp, REG(B7_4), ctx->memidx, MO_TEUQ);
             gen_store_fpr64(ctx, fp, XHACK(B11_8));
             tcg_temp_free_i64(fp);
 	} else {
@@ -1031,7 +1031,7 @@ static void _decode_opc(DisasContext * ctx)
 	CHECK_FPU_ENABLED
         if (ctx->tbflags & FPSCR_SZ) {
             TCGv_i64 fp = tcg_temp_new_i64();
-            tcg_gen_qemu_ld_i64(fp, REG(B7_4), ctx->memidx, MO_TEQ);
+            tcg_gen_qemu_ld_i64(fp, REG(B7_4), ctx->memidx, MO_TEUQ);
             gen_store_fpr64(ctx, fp, XHACK(B11_8));
             tcg_temp_free_i64(fp);
             tcg_gen_addi_i32(REG(B7_4), REG(B7_4), 8);
@@ -1048,7 +1048,7 @@ static void _decode_opc(DisasContext * ctx)
                 TCGv_i64 fp = tcg_temp_new_i64();
                 gen_load_fpr64(ctx, fp, XHACK(B7_4));
                 tcg_gen_subi_i32(addr, REG(B11_8), 8);
-                tcg_gen_qemu_st_i64(fp, addr, ctx->memidx, MO_TEQ);
+                tcg_gen_qemu_st_i64(fp, addr, ctx->memidx, MO_TEUQ);
                 tcg_temp_free_i64(fp);
             } else {
                 tcg_gen_subi_i32(addr, REG(B11_8), 4);
@@ -1065,7 +1065,7 @@ static void _decode_opc(DisasContext * ctx)
 	    tcg_gen_add_i32(addr, REG(B7_4), REG(0));
             if (ctx->tbflags & FPSCR_SZ) {
                 TCGv_i64 fp = tcg_temp_new_i64();
-                tcg_gen_qemu_ld_i64(fp, addr, ctx->memidx, MO_TEQ);
+                tcg_gen_qemu_ld_i64(fp, addr, ctx->memidx, MO_TEUQ);
                 gen_store_fpr64(ctx, fp, XHACK(B11_8));
                 tcg_temp_free_i64(fp);
 	    } else {
@@ -1082,7 +1082,7 @@ static void _decode_opc(DisasContext * ctx)
             if (ctx->tbflags & FPSCR_SZ) {
                 TCGv_i64 fp = tcg_temp_new_i64();
                 gen_load_fpr64(ctx, fp, XHACK(B7_4));
-                tcg_gen_qemu_st_i64(fp, addr, ctx->memidx, MO_TEQ);
+                tcg_gen_qemu_st_i64(fp, addr, ctx->memidx, MO_TEUQ);
                 tcg_temp_free_i64(fp);
 	    } else {
                 tcg_gen_qemu_st_i32(FREG(B7_4), addr, ctx->memidx, MO_TEUL);

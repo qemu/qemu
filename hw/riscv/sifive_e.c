@@ -88,7 +88,7 @@ static void sifive_e_machine_init(MachineState *machine)
 
     /* Initialize SoC */
     object_initialize_child(OBJECT(machine), "soc", &s->soc, TYPE_RISCV_E_SOC);
-    qdev_realize(DEVICE(&s->soc), NULL, &error_abort);
+    qdev_realize(DEVICE(&s->soc), NULL, &error_fatal);
 
     /* Data Tightly Integrated Memory */
     memory_region_add_subregion(sys_mem,

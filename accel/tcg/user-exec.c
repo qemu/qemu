@@ -294,7 +294,7 @@ uint64_t cpu_ldq_be_mmu(CPUArchState *env, abi_ptr addr,
     void *haddr;
     uint64_t ret;
 
-    validate_memop(oi, MO_BEQ);
+    validate_memop(oi, MO_BEUQ);
     trace_guest_ld_before_exec(env_cpu(env), addr, oi);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_LOAD);
     ret = ldq_be_p(haddr);
@@ -339,7 +339,7 @@ uint64_t cpu_ldq_le_mmu(CPUArchState *env, abi_ptr addr,
     void *haddr;
     uint64_t ret;
 
-    validate_memop(oi, MO_LEQ);
+    validate_memop(oi, MO_LEUQ);
     trace_guest_ld_before_exec(env_cpu(env), addr, oi);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_LOAD);
     ret = ldq_le_p(haddr);
@@ -392,7 +392,7 @@ void cpu_stq_be_mmu(CPUArchState *env, abi_ptr addr, uint64_t val,
 {
     void *haddr;
 
-    validate_memop(oi, MO_BEQ);
+    validate_memop(oi, MO_BEUQ);
     trace_guest_st_before_exec(env_cpu(env), addr, oi);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_STORE);
     stq_be_p(haddr, val);
@@ -431,7 +431,7 @@ void cpu_stq_le_mmu(CPUArchState *env, abi_ptr addr, uint64_t val,
 {
     void *haddr;
 
-    validate_memop(oi, MO_LEQ);
+    validate_memop(oi, MO_LEUQ);
     trace_guest_st_before_exec(env_cpu(env), addr, oi);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_STORE);
     stq_le_p(haddr, val);

@@ -471,7 +471,7 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
     /* Initialize SoC */
     object_initialize_child(OBJECT(machine), "soc", &s->soc,
                             TYPE_MICROCHIP_PFSOC);
-    qdev_realize(DEVICE(&s->soc), NULL, &error_abort);
+    qdev_realize(DEVICE(&s->soc), NULL, &error_fatal);
 
     /* Split RAM into low and high regions using aliases to machine->ram */
     mem_low_size = memmap[MICROCHIP_PFSOC_DRAM_LO].size;

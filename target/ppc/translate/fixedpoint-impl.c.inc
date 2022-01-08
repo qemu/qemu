@@ -137,7 +137,7 @@ static bool do_ldst_quad(DisasContext *ctx, arg_D *a, bool store, bool prefixed)
             ctx->base.is_jmp = DISAS_NORETURN;
         }
     } else {
-        mop = DEF_MEMOP(MO_Q);
+        mop = DEF_MEMOP(MO_UQ);
         if (store) {
             tcg_gen_qemu_st_i64(low_addr_gpr, ea, ctx->mem_idx, mop);
         } else {
@@ -205,11 +205,11 @@ TRANS64(LWAUX, do_ldst_X, true, false, MO_SL)
 TRANS64(PLWA, do_ldst_PLS_D, false, false, MO_SL)
 
 /* Load Doubleword */
-TRANS64(LD, do_ldst_D, false, false, MO_Q)
-TRANS64(LDX, do_ldst_X, false, false, MO_Q)
-TRANS64(LDU, do_ldst_D, true, false, MO_Q)
-TRANS64(LDUX, do_ldst_X, true, false, MO_Q)
-TRANS64(PLD, do_ldst_PLS_D, false, false, MO_Q)
+TRANS64(LD, do_ldst_D, false, false, MO_UQ)
+TRANS64(LDX, do_ldst_X, false, false, MO_UQ)
+TRANS64(LDU, do_ldst_D, true, false, MO_UQ)
+TRANS64(LDUX, do_ldst_X, true, false, MO_UQ)
+TRANS64(PLD, do_ldst_PLS_D, false, false, MO_UQ)
 
 /* Load Quadword */
 TRANS64(LQ, do_ldst_quad, false, false);
@@ -237,11 +237,11 @@ TRANS(STWUX, do_ldst_X, true, true, MO_UL)
 TRANS(PSTW, do_ldst_PLS_D, false, true, MO_UL)
 
 /* Store Doubleword */
-TRANS64(STD, do_ldst_D, false, true, MO_Q)
-TRANS64(STDX, do_ldst_X, false, true, MO_Q)
-TRANS64(STDU, do_ldst_D, true, true, MO_Q)
-TRANS64(STDUX, do_ldst_X, true, true, MO_Q)
-TRANS64(PSTD, do_ldst_PLS_D, false, true, MO_Q)
+TRANS64(STD, do_ldst_D, false, true, MO_UQ)
+TRANS64(STDX, do_ldst_X, false, true, MO_UQ)
+TRANS64(STDU, do_ldst_D, true, true, MO_UQ)
+TRANS64(STDUX, do_ldst_X, true, true, MO_UQ)
+TRANS64(PSTD, do_ldst_PLS_D, false, true, MO_UQ)
 
 /* Store Quadword */
 TRANS64(STQ, do_ldst_quad, true, false);

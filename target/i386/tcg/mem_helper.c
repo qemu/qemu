@@ -67,7 +67,7 @@ void helper_cmpxchg8b(CPUX86State *env, target_ulong a0)
     {
         uintptr_t ra = GETPC();
         int mem_idx = cpu_mmu_index(env, false);
-        MemOpIdx oi = make_memop_idx(MO_TEQ, mem_idx);
+        MemOpIdx oi = make_memop_idx(MO_TEUQ, mem_idx);
         oldv = cpu_atomic_cmpxchgq_le_mmu(env, a0, cmpv, newv, oi, ra);
     }
 

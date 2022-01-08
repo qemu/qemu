@@ -177,6 +177,101 @@ static inline void sifive_pdma_update_irq(SiFivePDMAState *s, int ch)
     s->chan[ch].state = DMA_CHAN_STATE_IDLE;
 }
 
+static uint64_t sifive_pdma_readq(SiFivePDMAState *s, int ch, hwaddr offset)
+{
+    uint64_t val = 0;
+
+    offset &= 0xfff;
+    switch (offset) {
+    case DMA_NEXT_BYTES:
+        val = s->chan[ch].next_bytes;
+        break;
+    case DMA_NEXT_DST:
+        val = s->chan[ch].next_dst;
+        break;
+    case DMA_NEXT_SRC:
+        val = s->chan[ch].next_src;
+        break;
+    case DMA_EXEC_BYTES:
+        val = s->chan[ch].exec_bytes;
+        break;
+    case DMA_EXEC_DST:
+        val = s->chan[ch].exec_dst;
+        break;
+    case DMA_EXEC_SRC:
+        val = s->chan[ch].exec_src;
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Unexpected 64-bit access to 0x%" HWADDR_PRIX "\n",
+                      __func__, offset);
+        break;
+    }
+
+    return val;
+}
+
+static uint32_t sifive_pdma_readl(SiFivePDMAState *s, int ch, hwaddr offset)
+{
+    uint32_t val = 0;
+
+    offset &= 0xfff;
+    switch (offset) {
+    case DMA_CONTROL:
+        val = s->chan[ch].control;
+        break;
+    case DMA_NEXT_CONFIG:
+        val = s->chan[ch].next_config;
+        break;
+    case DMA_NEXT_BYTES:
+        val = extract64(s->chan[ch].next_bytes, 0, 32);
+        break;
+    case DMA_NEXT_BYTES + 4:
+        val = extract64(s->chan[ch].next_bytes, 32, 32);
+        break;
+    case DMA_NEXT_DST:
+        val = extract64(s->chan[ch].next_dst, 0, 32);
+        break;
+    case DMA_NEXT_DST + 4:
+        val = extract64(s->chan[ch].next_dst, 32, 32);
+        break;
+    case DMA_NEXT_SRC:
+        val = extract64(s->chan[ch].next_src, 0, 32);
+        break;
+    case DMA_NEXT_SRC + 4:
+        val = extract64(s->chan[ch].next_src, 32, 32);
+        break;
+    case DMA_EXEC_CONFIG:
+        val = s->chan[ch].exec_config;
+        break;
+    case DMA_EXEC_BYTES:
+        val = extract64(s->chan[ch].exec_bytes, 0, 32);
+        break;
+    case DMA_EXEC_BYTES + 4:
+        val = extract64(s->chan[ch].exec_bytes, 32, 32);
+        break;
+    case DMA_EXEC_DST:
+        val = extract64(s->chan[ch].exec_dst, 0, 32);
+        break;
+    case DMA_EXEC_DST + 4:
+        val = extract64(s->chan[ch].exec_dst, 32, 32);
+        break;
+    case DMA_EXEC_SRC:
+        val = extract64(s->chan[ch].exec_src, 0, 32);
+        break;
+    case DMA_EXEC_SRC + 4:
+        val = extract64(s->chan[ch].exec_src, 32, 32);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Unexpected 32-bit access to 0x%" HWADDR_PRIX "\n",
+                      __func__, offset);
+        break;
+    }
+
+    return val;
+}
+
 static uint64_t sifive_pdma_read(void *opaque, hwaddr offset, unsigned size)
 {
     SiFivePDMAState *s = opaque;
@@ -189,56 +284,53 @@ static uint64_t sifive_pdma_read(void *opaque, hwaddr offset, unsigned size)
         return 0;
     }
 
-    offset &= 0xfff;
-    switch (offset) {
-    case DMA_CONTROL:
-        val = s->chan[ch].control;
+    switch (size) {
+    case 8:
+        val = sifive_pdma_readq(s, ch, offset);
         break;
-    case DMA_NEXT_CONFIG:
-        val = s->chan[ch].next_config;
-        break;
-    case DMA_NEXT_BYTES:
-        val = s->chan[ch].next_bytes;
-        break;
-    case DMA_NEXT_DST:
-        val = s->chan[ch].next_dst;
-        break;
-    case DMA_NEXT_SRC:
-        val = s->chan[ch].next_src;
-        break;
-    case DMA_EXEC_CONFIG:
-        val = s->chan[ch].exec_config;
-        break;
-    case DMA_EXEC_BYTES:
-        val = s->chan[ch].exec_bytes;
-        break;
-    case DMA_EXEC_DST:
-        val = s->chan[ch].exec_dst;
-        break;
-    case DMA_EXEC_SRC:
-        val = s->chan[ch].exec_src;
+    case 4:
+        val = sifive_pdma_readl(s, ch, offset);
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIX "\n",
-                      __func__, offset);
-        break;
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid read size %u to PDMA\n",
+                      __func__, size);
+        return 0;
     }
 
     return val;
 }
 
-static void sifive_pdma_write(void *opaque, hwaddr offset,
-                              uint64_t value, unsigned size)
+static void sifive_pdma_writeq(SiFivePDMAState *s, int ch,
+                               hwaddr offset, uint64_t value)
 {
-    SiFivePDMAState *s = opaque;
-    int ch = SIFIVE_PDMA_CHAN_NO(offset);
-    bool claimed, run;
-
-    if (ch >= SIFIVE_PDMA_CHANS) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid channel no %d\n",
-                      __func__, ch);
-        return;
+    offset &= 0xfff;
+    switch (offset) {
+    case DMA_NEXT_BYTES:
+        s->chan[ch].next_bytes = value;
+        break;
+    case DMA_NEXT_DST:
+        s->chan[ch].next_dst = value;
+        break;
+    case DMA_NEXT_SRC:
+        s->chan[ch].next_src = value;
+        break;
+    case DMA_EXEC_BYTES:
+    case DMA_EXEC_DST:
+    case DMA_EXEC_SRC:
+        /* these are read-only registers */
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Unexpected 64-bit access to 0x%" HWADDR_PRIX "\n",
+                      __func__, offset);
+        break;
     }
+}
+
+static void sifive_pdma_writel(SiFivePDMAState *s, int ch,
+                               hwaddr offset, uint32_t value)
+{
+    bool claimed, run;
 
     offset &= 0xfff;
     switch (offset) {
@@ -282,23 +374,64 @@ static void sifive_pdma_write(void *opaque, hwaddr offset,
         s->chan[ch].next_config = value;
         break;
     case DMA_NEXT_BYTES:
-        s->chan[ch].next_bytes = value;
+        s->chan[ch].next_bytes =
+            deposit64(s->chan[ch].next_bytes, 0, 32, value);
+        break;
+    case DMA_NEXT_BYTES + 4:
+        s->chan[ch].next_bytes =
+            deposit64(s->chan[ch].next_bytes, 32, 32, value);
         break;
     case DMA_NEXT_DST:
-        s->chan[ch].next_dst = value;
+        s->chan[ch].next_dst = deposit64(s->chan[ch].next_dst, 0, 32, value);
+        break;
+    case DMA_NEXT_DST + 4:
+        s->chan[ch].next_dst = deposit64(s->chan[ch].next_dst, 32, 32, value);
         break;
     case DMA_NEXT_SRC:
-        s->chan[ch].next_src = value;
+        s->chan[ch].next_src = deposit64(s->chan[ch].next_src, 0, 32, value);
+        break;
+    case DMA_NEXT_SRC + 4:
+        s->chan[ch].next_src = deposit64(s->chan[ch].next_src, 32, 32, value);
         break;
     case DMA_EXEC_CONFIG:
     case DMA_EXEC_BYTES:
+    case DMA_EXEC_BYTES + 4:
     case DMA_EXEC_DST:
+    case DMA_EXEC_DST + 4:
     case DMA_EXEC_SRC:
+    case DMA_EXEC_SRC + 4:
         /* these are read-only registers */
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIX "\n",
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Unexpected 32-bit access to 0x%" HWADDR_PRIX "\n",
                       __func__, offset);
+        break;
+    }
+}
+
+static void sifive_pdma_write(void *opaque, hwaddr offset,
+                              uint64_t value, unsigned size)
+{
+    SiFivePDMAState *s = opaque;
+    int ch = SIFIVE_PDMA_CHAN_NO(offset);
+
+    if (ch >= SIFIVE_PDMA_CHANS) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid channel no %d\n",
+                      __func__, ch);
+        return;
+    }
+
+    switch (size) {
+    case 8:
+        sifive_pdma_writeq(s, ch, offset, value);
+        break;
+    case 4:
+        sifive_pdma_writel(s, ch, offset, (uint32_t) value);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid write size %u to PDMA\n",
+                      __func__, size);
         break;
     }
 }
@@ -309,6 +442,10 @@ static const MemoryRegionOps sifive_pdma_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
     /* there are 32-bit and 64-bit wide registers */
     .impl = {
+        .min_access_size = 4,
+        .max_access_size = 8,
+    },
+    .valid = {
         .min_access_size = 4,
         .max_access_size = 8,
     }

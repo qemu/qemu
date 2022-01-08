@@ -2031,7 +2031,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         gen_store_gpr(t0, rt);
         break;
     case OPC_LD:
-        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEQ |
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEUQ |
                            ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rt);
         break;
@@ -2053,7 +2053,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         }
         tcg_gen_shli_tl(t1, t1, 3);
         tcg_gen_andi_tl(t0, t0, ~7);
-        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEQ);
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEUQ);
         tcg_gen_shl_tl(t0, t0, t1);
         t2 = tcg_const_tl(-1);
         tcg_gen_shl_tl(t2, t2, t1);
@@ -2077,7 +2077,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         }
         tcg_gen_shli_tl(t1, t1, 3);
         tcg_gen_andi_tl(t0, t0, ~7);
-        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEQ);
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEUQ);
         tcg_gen_shr_tl(t0, t0, t1);
         tcg_gen_xori_tl(t1, t1, 63);
         t2 = tcg_const_tl(0xfffffffffffffffeull);
@@ -2093,7 +2093,7 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         t1 = tcg_const_tl(pc_relative_pc(ctx));
         gen_op_addr_add(ctx, t0, t0, t1);
         tcg_temp_free(t1);
-        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEQ);
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEUQ);
         gen_store_gpr(t0, rt);
         break;
 #endif
@@ -2224,7 +2224,7 @@ static void gen_st(DisasContext *ctx, uint32_t opc, int rt,
     switch (opc) {
 #if defined(TARGET_MIPS64)
     case OPC_SD:
-        tcg_gen_qemu_st_tl(t1, t0, mem_idx, MO_TEQ |
+        tcg_gen_qemu_st_tl(t1, t0, mem_idx, MO_TEUQ |
                            ctx->default_tcg_memop_mask);
         break;
     case OPC_SDL:
@@ -2334,7 +2334,7 @@ static void gen_flt_ldst(DisasContext *ctx, uint32_t opc, int ft,
     case OPC_LDC1:
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
-            tcg_gen_qemu_ld_i64(fp0, t0, ctx->mem_idx, MO_TEQ |
+            tcg_gen_qemu_ld_i64(fp0, t0, ctx->mem_idx, MO_TEUQ |
                                 ctx->default_tcg_memop_mask);
             gen_store_fpr64(ctx, fp0, ft);
             tcg_temp_free_i64(fp0);
@@ -2344,7 +2344,7 @@ static void gen_flt_ldst(DisasContext *ctx, uint32_t opc, int ft,
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             gen_load_fpr64(ctx, fp0, ft);
-            tcg_gen_qemu_st_i64(fp0, t0, ctx->mem_idx, MO_TEQ |
+            tcg_gen_qemu_st_i64(fp0, t0, ctx->mem_idx, MO_TEUQ |
                                 ctx->default_tcg_memop_mask);
             tcg_temp_free_i64(fp0);
         }
@@ -3092,7 +3092,7 @@ static inline void gen_pcrel(DisasContext *ctx, int opc, target_ulong pc,
             check_mips_64(ctx);
             offset = sextract32(ctx->opcode << 3, 0, 21);
             addr = addr_add(ctx, (pc & ~0x7), offset);
-            gen_r6_ld(addr, rs, ctx->mem_idx, MO_TEQ);
+            gen_r6_ld(addr, rs, ctx->mem_idx, MO_TEUQ);
             break;
 #endif
         default:
@@ -4344,10 +4344,10 @@ static void gen_loongson_lswc2(DisasContext *ctx, int rt,
     case OPC_GSLQ:
         t1 = tcg_temp_new();
         gen_base_offset_addr(ctx, t0, rs, lsq_offset);
-        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_TEQ |
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_TEUQ |
                            ctx->default_tcg_memop_mask);
         gen_base_offset_addr(ctx, t0, rs, lsq_offset + 8);
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ |
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUQ |
                            ctx->default_tcg_memop_mask);
         gen_store_gpr(t1, rt);
         gen_store_gpr(t0, lsq_rt1);
@@ -4357,10 +4357,10 @@ static void gen_loongson_lswc2(DisasContext *ctx, int rt,
         check_cp1_enabled(ctx);
         t1 = tcg_temp_new();
         gen_base_offset_addr(ctx, t0, rs, lsq_offset);
-        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_TEQ |
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_TEUQ |
                            ctx->default_tcg_memop_mask);
         gen_base_offset_addr(ctx, t0, rs, lsq_offset + 8);
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ |
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUQ |
                            ctx->default_tcg_memop_mask);
         gen_store_fpr64(ctx, t1, rt);
         gen_store_fpr64(ctx, t0, lsq_rt1);
@@ -4370,11 +4370,11 @@ static void gen_loongson_lswc2(DisasContext *ctx, int rt,
         t1 = tcg_temp_new();
         gen_base_offset_addr(ctx, t0, rs, lsq_offset);
         gen_load_gpr(t1, rt);
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEQ |
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUQ |
                            ctx->default_tcg_memop_mask);
         gen_base_offset_addr(ctx, t0, rs, lsq_offset + 8);
         gen_load_gpr(t1, lsq_rt1);
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEQ |
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUQ |
                            ctx->default_tcg_memop_mask);
         tcg_temp_free(t1);
         break;
@@ -4383,11 +4383,11 @@ static void gen_loongson_lswc2(DisasContext *ctx, int rt,
         t1 = tcg_temp_new();
         gen_base_offset_addr(ctx, t0, rs, lsq_offset);
         gen_load_fpr64(ctx, t1, rt);
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEQ |
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUQ |
                            ctx->default_tcg_memop_mask);
         gen_base_offset_addr(ctx, t0, rs, lsq_offset + 8);
         gen_load_fpr64(ctx, t1, lsq_rt1);
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEQ |
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUQ |
                            ctx->default_tcg_memop_mask);
         tcg_temp_free(t1);
         break;
@@ -4467,7 +4467,7 @@ static void gen_loongson_lswc2(DisasContext *ctx, int rt,
             }
             tcg_gen_shli_tl(t1, t1, 3);
             tcg_gen_andi_tl(t0, t0, ~7);
-            tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ);
+            tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUQ);
             tcg_gen_shl_tl(t0, t0, t1);
             t2 = tcg_const_tl(-1);
             tcg_gen_shl_tl(t2, t2, t1);
@@ -4489,7 +4489,7 @@ static void gen_loongson_lswc2(DisasContext *ctx, int rt,
             }
             tcg_gen_shli_tl(t1, t1, 3);
             tcg_gen_andi_tl(t0, t0, ~7);
-            tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ);
+            tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUQ);
             tcg_gen_shr_tl(t0, t0, t1);
             tcg_gen_xori_tl(t1, t1, 63);
             t2 = tcg_const_tl(0xfffffffffffffffeull);
@@ -4642,7 +4642,7 @@ static void gen_loongson_lsdc2(DisasContext *ctx, int rt,
         if (rd) {
             gen_op_addr_add(ctx, t0, cpu_gpr[rd], t0);
         }
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ |
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUQ |
                            ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rt);
         break;
@@ -4664,7 +4664,7 @@ static void gen_loongson_lsdc2(DisasContext *ctx, int rt,
         if (rd) {
             gen_op_addr_add(ctx, t0, cpu_gpr[rd], t0);
         }
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ |
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUQ |
                            ctx->default_tcg_memop_mask);
         gen_store_fpr64(ctx, t0, rt);
         break;
@@ -4693,7 +4693,7 @@ static void gen_loongson_lsdc2(DisasContext *ctx, int rt,
     case OPC_GSSDX:
         t1 = tcg_temp_new();
         gen_load_gpr(t1, rt);
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEQ |
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUQ |
                            ctx->default_tcg_memop_mask);
         tcg_temp_free(t1);
         break;
@@ -4709,7 +4709,7 @@ static void gen_loongson_lsdc2(DisasContext *ctx, int rt,
     case OPC_GSSDXC1:
         t1 = tcg_temp_new();
         gen_load_fpr64(ctx, t1, rt);
-        tcg_gen_qemu_st_i64(t1, t0, ctx->mem_idx, MO_TEQ |
+        tcg_gen_qemu_st_i64(t1, t0, ctx->mem_idx, MO_TEUQ |
                             ctx->default_tcg_memop_mask);
         tcg_temp_free(t1);
         break;
@@ -11330,7 +11330,7 @@ static void gen_flt3_ldst(DisasContext *ctx, uint32_t opc,
         check_cp1_registers(ctx, fd);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
-            tcg_gen_qemu_ld_i64(fp0, t0, ctx->mem_idx, MO_TEQ);
+            tcg_gen_qemu_ld_i64(fp0, t0, ctx->mem_idx, MO_TEUQ);
             gen_store_fpr64(ctx, fp0, fd);
             tcg_temp_free_i64(fp0);
         }
@@ -11341,7 +11341,7 @@ static void gen_flt3_ldst(DisasContext *ctx, uint32_t opc,
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
 
-            tcg_gen_qemu_ld_i64(fp0, t0, ctx->mem_idx, MO_TEQ);
+            tcg_gen_qemu_ld_i64(fp0, t0, ctx->mem_idx, MO_TEUQ);
             gen_store_fpr64(ctx, fp0, fd);
             tcg_temp_free_i64(fp0);
         }
@@ -11361,7 +11361,7 @@ static void gen_flt3_ldst(DisasContext *ctx, uint32_t opc,
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             gen_load_fpr64(ctx, fp0, fs);
-            tcg_gen_qemu_st_i64(fp0, t0, ctx->mem_idx, MO_TEQ);
+            tcg_gen_qemu_st_i64(fp0, t0, ctx->mem_idx, MO_TEUQ);
             tcg_temp_free_i64(fp0);
         }
         break;
@@ -11371,7 +11371,7 @@ static void gen_flt3_ldst(DisasContext *ctx, uint32_t opc,
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             gen_load_fpr64(ctx, fp0, fs);
-            tcg_gen_qemu_st_i64(fp0, t0, ctx->mem_idx, MO_TEQ);
+            tcg_gen_qemu_st_i64(fp0, t0, ctx->mem_idx, MO_TEUQ);
             tcg_temp_free_i64(fp0);
         }
         break;
@@ -12187,7 +12187,7 @@ static void gen_mipsdsp_ld(DisasContext *ctx, uint32_t opc,
         break;
 #if defined(TARGET_MIPS64)
     case OPC_LDX:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUQ);
         gen_store_gpr(t0, rd);
         break;
 #endif
@@ -14403,7 +14403,7 @@ static void decode_opc_special3_r6(CPUMIPSState *env, DisasContext *ctx)
 #endif
 #if defined(TARGET_MIPS64)
     case R6_OPC_SCD:
-        gen_st_cond(ctx, rt, rs, imm, MO_TEQ, false);
+        gen_st_cond(ctx, rt, rs, imm, MO_TEUQ, false);
         break;
     case R6_OPC_LLD:
         gen_ld(ctx, op1, rt, rs, imm);
@@ -15843,7 +15843,7 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
             check_insn_opc_user_only(ctx, INSN_R5900);
         }
         check_mips_64(ctx);
-        gen_st_cond(ctx, rt, rs, imm, MO_TEQ, false);
+        gen_st_cond(ctx, rt, rs, imm, MO_TEUQ, false);
         break;
     case OPC_BNVC: /* OPC_BNEZALC, OPC_BNEC, OPC_DADDI */
         if (ctx->insn_flags & ISA_MIPS_R6) {

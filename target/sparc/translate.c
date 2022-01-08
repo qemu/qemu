@@ -2464,7 +2464,7 @@ static void gen_ldstub_asi(DisasContext *dc, TCGv dst, TCGv addr, int insn)
 static void gen_ldf_asi(DisasContext *dc, TCGv addr,
                         int insn, int size, int rd)
 {
-    DisasASI da = get_asi(dc, insn, (size == 4 ? MO_TEUL : MO_TEQ));
+    DisasASI da = get_asi(dc, insn, (size == 4 ? MO_TEUL : MO_TEUQ));
     TCGv_i32 d32;
     TCGv_i64 d64;
 
@@ -2578,7 +2578,7 @@ static void gen_ldf_asi(DisasContext *dc, TCGv addr,
 static void gen_stf_asi(DisasContext *dc, TCGv addr,
                         int insn, int size, int rd)
 {
-    DisasASI da = get_asi(dc, insn, (size == 4 ? MO_TEUL : MO_TEQ));
+    DisasASI da = get_asi(dc, insn, (size == 4 ? MO_TEUL : MO_TEUQ));
     TCGv_i32 d32;
 
     switch (da.type) {
@@ -2660,7 +2660,7 @@ static void gen_stf_asi(DisasContext *dc, TCGv addr,
 
 static void gen_ldda_asi(DisasContext *dc, TCGv addr, int insn, int rd)
 {
-    DisasASI da = get_asi(dc, insn, MO_TEQ);
+    DisasASI da = get_asi(dc, insn, MO_TEUQ);
     TCGv_i64 hi = gen_dest_gpr(dc, rd);
     TCGv_i64 lo = gen_dest_gpr(dc, rd + 1);
 
@@ -2727,7 +2727,7 @@ static void gen_ldda_asi(DisasContext *dc, TCGv addr, int insn, int rd)
 static void gen_stda_asi(DisasContext *dc, TCGv hi, TCGv addr,
                          int insn, int rd)
 {
-    DisasASI da = get_asi(dc, insn, MO_TEQ);
+    DisasASI da = get_asi(dc, insn, MO_TEUQ);
     TCGv lo = gen_load_gpr(dc, rd + 1);
 
     switch (da.type) {
@@ -2787,7 +2787,7 @@ static void gen_stda_asi(DisasContext *dc, TCGv hi, TCGv addr,
 static void gen_casx_asi(DisasContext *dc, TCGv addr, TCGv cmpv,
                          int insn, int rd)
 {
-    DisasASI da = get_asi(dc, insn, MO_TEQ);
+    DisasASI da = get_asi(dc, insn, MO_TEUQ);
     TCGv oldv;
 
     switch (da.type) {
@@ -2817,7 +2817,7 @@ static void gen_ldda_asi(DisasContext *dc, TCGv addr, int insn, int rd)
     TCGv lo = gen_dest_gpr(dc, rd | 1);
     TCGv hi = gen_dest_gpr(dc, rd);
     TCGv_i64 t64 = tcg_temp_new_i64();
-    DisasASI da = get_asi(dc, insn, MO_TEQ);
+    DisasASI da = get_asi(dc, insn, MO_TEUQ);
 
     switch (da.type) {
     case GET_ASI_EXCP:
@@ -2830,7 +2830,7 @@ static void gen_ldda_asi(DisasContext *dc, TCGv addr, int insn, int rd)
     default:
         {
             TCGv_i32 r_asi = tcg_const_i32(da.asi);
-            TCGv_i32 r_mop = tcg_const_i32(MO_Q);
+            TCGv_i32 r_mop = tcg_const_i32(MO_UQ);
 
             save_state(dc);
             gen_helper_ld_asi(t64, cpu_env, addr, r_asi, r_mop);
@@ -2849,7 +2849,7 @@ static void gen_ldda_asi(DisasContext *dc, TCGv addr, int insn, int rd)
 static void gen_stda_asi(DisasContext *dc, TCGv hi, TCGv addr,
                          int insn, int rd)
 {
-    DisasASI da = get_asi(dc, insn, MO_TEQ);
+    DisasASI da = get_asi(dc, insn, MO_TEUQ);
     TCGv lo = gen_load_gpr(dc, rd + 1);
     TCGv_i64 t64 = tcg_temp_new_i64();
 
@@ -2886,7 +2886,7 @@ static void gen_stda_asi(DisasContext *dc, TCGv hi, TCGv addr,
     default:
         {
             TCGv_i32 r_asi = tcg_const_i32(da.asi);
-            TCGv_i32 r_mop = tcg_const_i32(MO_Q);
+            TCGv_i32 r_mop = tcg_const_i32(MO_UQ);
 
             save_state(dc);
             gen_helper_st_asi(cpu_env, addr, t64, r_asi, r_mop);
@@ -5479,7 +5479,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     gen_ld_asi(dc, cpu_val, cpu_addr, insn, MO_TESL);
                     break;
                 case 0x1b: /* V9 ldxa */
-                    gen_ld_asi(dc, cpu_val, cpu_addr, insn, MO_TEQ);
+                    gen_ld_asi(dc, cpu_val, cpu_addr, insn, MO_TEUQ);
                     break;
                 case 0x2d: /* V9 prefetch, no effect */
                     goto skip_move;
@@ -5533,7 +5533,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (rd == 1) {
                         TCGv_i64 t64 = tcg_temp_new_i64();
                         tcg_gen_qemu_ld_i64(t64, cpu_addr,
-                                            dc->mem_idx, MO_TEQ);
+                                            dc->mem_idx, MO_TEUQ);
                         gen_helper_ldxfsr(cpu_fsr, cpu_env, cpu_fsr, t64);
                         tcg_temp_free_i64(t64);
                         break;
@@ -5549,11 +5549,11 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     gen_address_mask(dc, cpu_addr);
                     cpu_src1_64 = tcg_temp_new_i64();
                     tcg_gen_qemu_ld_i64(cpu_src1_64, cpu_addr, dc->mem_idx,
-                                        MO_TEQ | MO_ALIGN_4);
+                                        MO_TEUQ | MO_ALIGN_4);
                     tcg_gen_addi_tl(cpu_addr, cpu_addr, 8);
                     cpu_src2_64 = tcg_temp_new_i64();
                     tcg_gen_qemu_ld_i64(cpu_src2_64, cpu_addr, dc->mem_idx,
-                                        MO_TEQ | MO_ALIGN_4);
+                                        MO_TEUQ | MO_ALIGN_4);
                     gen_store_fpr_Q(dc, rd, cpu_src1_64, cpu_src2_64);
                     tcg_temp_free_i64(cpu_src1_64);
                     tcg_temp_free_i64(cpu_src2_64);
@@ -5562,7 +5562,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     gen_address_mask(dc, cpu_addr);
                     cpu_dst_64 = gen_dest_fpr_D(dc, rd);
                     tcg_gen_qemu_ld_i64(cpu_dst_64, cpu_addr, dc->mem_idx,
-                                        MO_TEQ | MO_ALIGN_4);
+                                        MO_TEUQ | MO_ALIGN_4);
                     gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
                 default:
@@ -5623,7 +5623,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     tcg_gen_qemu_st64(cpu_val, cpu_addr, dc->mem_idx);
                     break;
                 case 0x1e: /* V9 stxa */
-                    gen_st_asi(dc, cpu_val, cpu_addr, insn, MO_TEQ);
+                    gen_st_asi(dc, cpu_val, cpu_addr, insn, MO_TEUQ);
                     break;
 #endif
                 default:
@@ -5664,11 +5664,11 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                        before performing the first write.  */
                     cpu_src1_64 = gen_load_fpr_Q0(dc, rd);
                     tcg_gen_qemu_st_i64(cpu_src1_64, cpu_addr,
-                                        dc->mem_idx, MO_TEQ | MO_ALIGN_16);
+                                        dc->mem_idx, MO_TEUQ | MO_ALIGN_16);
                     tcg_gen_addi_tl(cpu_addr, cpu_addr, 8);
                     cpu_src2_64 = gen_load_fpr_Q1(dc, rd);
                     tcg_gen_qemu_st_i64(cpu_src1_64, cpu_addr,
-                                        dc->mem_idx, MO_TEQ);
+                                        dc->mem_idx, MO_TEUQ);
                     break;
 #else /* !TARGET_SPARC64 */
                     /* stdfq, store floating point queue */
@@ -5687,7 +5687,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     gen_address_mask(dc, cpu_addr);
                     cpu_src1_64 = gen_load_fpr_D(dc, rd);
                     tcg_gen_qemu_st_i64(cpu_src1_64, cpu_addr, dc->mem_idx,
-                                        MO_TEQ | MO_ALIGN_4);
+                                        MO_TEUQ | MO_ALIGN_4);
                     break;
                 default:
                     goto illegal_insn;

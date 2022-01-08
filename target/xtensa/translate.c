@@ -7077,7 +7077,7 @@ static void translate_ldsti_d(DisasContext *dc, const OpcodeArg arg[],
     } else {
         addr = arg[1].in;
     }
-    mop = gen_load_store_alignment(dc, MO_TEQ, addr);
+    mop = gen_load_store_alignment(dc, MO_TEUQ, addr);
     if (par[0]) {
         tcg_gen_qemu_st_i64(arg[0].in, addr, dc->cring, mop);
     } else {
@@ -7142,7 +7142,7 @@ static void translate_ldstx_d(DisasContext *dc, const OpcodeArg arg[],
     } else {
         addr = arg[1].in;
     }
-    mop = gen_load_store_alignment(dc, MO_TEQ, addr);
+    mop = gen_load_store_alignment(dc, MO_TEUQ, addr);
     if (par[0]) {
         tcg_gen_qemu_st_i64(arg[0].in, addr, dc->cring, mop);
     } else {

@@ -438,22 +438,22 @@ static void * const qemu_ld_helpers[(MO_SSIZE | MO_BSWAP) + 1] = {
     [MO_LESW] = helper_le_ldsw_mmu,
     [MO_LEUL] = helper_le_ldul_mmu,
     [MO_LESL] = helper_le_ldsl_mmu,
-    [MO_LEQ]  = helper_le_ldq_mmu,
+    [MO_LEUQ] = helper_le_ldq_mmu,
     [MO_BEUW] = helper_be_lduw_mmu,
     [MO_BESW] = helper_be_ldsw_mmu,
     [MO_BEUL] = helper_be_ldul_mmu,
     [MO_BESL] = helper_be_ldsl_mmu,
-    [MO_BEQ]  = helper_be_ldq_mmu,
+    [MO_BEUQ] = helper_be_ldq_mmu,
 };
 
 static void * const qemu_st_helpers[(MO_SIZE | MO_BSWAP) + 1] = {
     [MO_UB]   = helper_ret_stb_mmu,
     [MO_LEUW] = helper_le_stw_mmu,
     [MO_LEUL] = helper_le_stl_mmu,
-    [MO_LEQ]  = helper_le_stq_mmu,
+    [MO_LEUQ] = helper_le_stq_mmu,
     [MO_BEUW] = helper_be_stw_mmu,
     [MO_BEUL] = helper_be_stl_mmu,
-    [MO_BEQ]  = helper_be_stq_mmu,
+    [MO_BEUQ] = helper_be_stq_mmu,
 };
 #endif
 
@@ -1745,10 +1745,10 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, MemOp opc, TCGReg data,
         tcg_out_insn(s, RXY, LGF, data, base, index, disp);
         break;
 
-    case MO_Q | MO_BSWAP:
+    case MO_UQ | MO_BSWAP:
         tcg_out_insn(s, RXY, LRVG, data, base, index, disp);
         break;
-    case MO_Q:
+    case MO_UQ:
         tcg_out_insn(s, RXY, LG, data, base, index, disp);
         break;
 
@@ -1791,10 +1791,10 @@ static void tcg_out_qemu_st_direct(TCGContext *s, MemOp opc, TCGReg data,
         }
         break;
 
-    case MO_Q | MO_BSWAP:
+    case MO_UQ | MO_BSWAP:
         tcg_out_insn(s, RXY, STRVG, data, base, index, disp);
         break;
-    case MO_Q:
+    case MO_UQ:
         tcg_out_insn(s, RXY, STG, data, base, index, disp);
         break;
 
@@ -1928,7 +1928,7 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     case MO_UL:
         tgen_ext32u(s, TCG_REG_R4, data_reg);
         break;
-    case MO_Q:
+    case MO_UQ:
         tcg_out_mov(s, TCG_TYPE_I64, TCG_REG_R4, data_reg);
         break;
     default:

@@ -889,20 +889,20 @@ static void build_trampolines(TCGContext *s)
         [MO_LEUW] = helper_le_lduw_mmu,
         [MO_LESW] = helper_le_ldsw_mmu,
         [MO_LEUL] = helper_le_ldul_mmu,
-        [MO_LEQ]  = helper_le_ldq_mmu,
+        [MO_LEUQ] = helper_le_ldq_mmu,
         [MO_BEUW] = helper_be_lduw_mmu,
         [MO_BESW] = helper_be_ldsw_mmu,
         [MO_BEUL] = helper_be_ldul_mmu,
-        [MO_BEQ]  = helper_be_ldq_mmu,
+        [MO_BEUQ] = helper_be_ldq_mmu,
     };
     static void * const qemu_st_helpers[] = {
         [MO_UB]   = helper_ret_stb_mmu,
         [MO_LEUW] = helper_le_stw_mmu,
         [MO_LEUL] = helper_le_stl_mmu,
-        [MO_LEQ]  = helper_le_stq_mmu,
+        [MO_LEUQ] = helper_le_stq_mmu,
         [MO_BEUW] = helper_be_stw_mmu,
         [MO_BEUL] = helper_be_stl_mmu,
-        [MO_BEQ]  = helper_be_stq_mmu,
+        [MO_BEUQ] = helper_be_stq_mmu,
     };
 
     int i;
@@ -1126,13 +1126,13 @@ static const int qemu_ld_opc[(MO_SSIZE | MO_BSWAP) + 1] = {
     [MO_BESW] = LDSH,
     [MO_BEUL] = LDUW,
     [MO_BESL] = LDSW,
-    [MO_BEQ]  = LDX,
+    [MO_BEUQ] = LDX,
 
     [MO_LEUW] = LDUH_LE,
     [MO_LESW] = LDSH_LE,
     [MO_LEUL] = LDUW_LE,
     [MO_LESL] = LDSW_LE,
-    [MO_LEQ]  = LDX_LE,
+    [MO_LEUQ] = LDX_LE,
 };
 
 static const int qemu_st_opc[(MO_SIZE | MO_BSWAP) + 1] = {
@@ -1140,11 +1140,11 @@ static const int qemu_st_opc[(MO_SIZE | MO_BSWAP) + 1] = {
 
     [MO_BEUW] = STH,
     [MO_BEUL] = STW,
-    [MO_BEQ]  = STX,
+    [MO_BEUQ] = STX,
 
     [MO_LEUW] = STH_LE,
     [MO_LEUL] = STW_LE,
-    [MO_LEQ]  = STX_LE,
+    [MO_LEUQ] = STX_LE,
 };
 
 static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,

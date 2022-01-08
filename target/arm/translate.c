@@ -1217,7 +1217,7 @@ void read_neon_element64(TCGv_i64 dest, int reg, int ele, MemOp memop)
     case MO_UL:
         tcg_gen_ld32u_i64(dest, cpu_env, off);
         break;
-    case MO_Q:
+    case MO_UQ:
         tcg_gen_ld_i64(dest, cpu_env, off);
         break;
     default:
