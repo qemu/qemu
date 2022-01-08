@@ -13,8 +13,10 @@ long do_rt_sigreturn(CPUArchState *env);
 abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp);
 long do_sigreturn(CPUArchState *env);
 void force_sig_fault(int sig, int code, abi_ulong addr);
+int host_to_target_signal(int sig);
 void process_pending_signals(CPUArchState *env);
 void queue_signal(CPUArchState *env, int sig, target_siginfo_t *info);
 void signal_init(void);
+int target_to_host_signal(int sig);
 
 #endif
