@@ -51,18 +51,19 @@ static inline void target_cpu_loop(CPUARMState *env)
         process_queued_cpu_work(cs);
         switch (trapnr) {
         case EXCP_UDEF:
-            {
-                /* See arm/arm/undefined.c undefinedinstruction(); */
-                info.si_addr = env->regs[15];
-
-                /* illegal instruction */
-                info.si_signo = TARGET_SIGILL;
-                info.si_errno = 0;
-                info.si_code = TARGET_ILL_ILLOPC;
-                queue_signal(env, info.si_signo, &info);
-
-                /* TODO: What about instruction emulation? */
-            }
+        case EXCP_NOCP:
+        case EXCP_INVSTATE:
+            /*
+             * See arm/arm/undefined.c undefinedinstruction();
+             *
+             * A number of details aren't emulated (they likely don't matter):
+             * o Misaligned PC generates ILL_ILLADR (these can't come from qemu)
+             * o Thumb-2 instructions generate ILLADR
+             * o Both modes implement coprocessor instructions, which we don't
+             *   do here. FreeBSD just implements them for the VFP coprocessor
+             *   and special kernel breakpoints, trace points, dtrace, etc.
+             */
+            force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPC, env->regs[15]);
             break;
         case EXCP_SWI:
             {
