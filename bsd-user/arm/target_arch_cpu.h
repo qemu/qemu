@@ -39,8 +39,7 @@ static inline void target_cpu_init(CPUARMState *env,
 
 static inline void target_cpu_loop(CPUARMState *env)
 {
-    int trapnr;
-    target_siginfo_t info;
+    int trapnr, si_signo, si_code;
     unsigned int n;
     CPUState *cs = env_cpu(env);
 
@@ -150,15 +149,41 @@ static inline void target_cpu_loop(CPUARMState *env)
             /* just indicate that signals should be handled asap */
             break;
         case EXCP_PREFETCH_ABORT:
-            /* See arm/arm/trap.c prefetch_abort_handler() */
         case EXCP_DATA_ABORT:
-            /* See arm/arm/trap.c data_abort_handler() */
-            info.si_signo = TARGET_SIGSEGV;
-            info.si_errno = 0;
-            /* XXX: check env->error_code */
-            info.si_code = 0;
-            info.si_addr = env->exception.vaddress;
-            queue_signal(env, info.si_signo, &info);
+            /*
+             * See arm/arm/trap-v6.c prefetch_abort_handler() and
+             * data_abort_handler()
+             *
+             * However, FreeBSD maps these to a generic value and then uses that
+             * to maybe fault in pages in vm/vm_fault.c:vm_fault_trap(). I
+             * believe that the indirection maps the same as Linux, but haven't
+             * chased down every single possible indirection.
+             */
+
+            /* For user-only we don't set TTBCR_EAE, so look at the FSR. */
+            switch (env->exception.fsr & 0x1f) {
+            case 0x1: /* Alignment */
+                si_signo = TARGET_SIGBUS;
+                si_code = TARGET_BUS_ADRALN;
+                break;
+            case 0x3: /* Access flag fault, level 1 */
+            case 0x6: /* Access flag fault, level 2 */
+            case 0x9: /* Domain fault, level 1 */
+            case 0xb: /* Domain fault, level 2 */
+            case 0xd: /* Permission fault, level 1 */
+            case 0xf: /* Permission fault, level 2 */
+                si_signo = TARGET_SIGSEGV;
+                si_code = TARGET_SEGV_ACCERR;
+                break;
+            case 0x5: /* Translation fault, level 1 */
+            case 0x7: /* Translation fault, level 2 */
+                si_signo = TARGET_SIGSEGV;
+                si_code = TARGET_SEGV_MAPERR;
+                break;
+            default:
+                g_assert_not_reached();
+            }
+            force_sig_fault(si_signo, si_code, env->exception.vaddress);
             break;
         case EXCP_DEBUG:
         case EXCP_BKPT:
