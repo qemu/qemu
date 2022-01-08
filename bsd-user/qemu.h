@@ -94,6 +94,13 @@ typedef struct TaskState {
      * from multiple threads.)
      */
     int signal_pending;
+    /*
+     * This thread's signal mask, as requested by the guest program.
+     * The actual signal mask of this thread may differ:
+     *  + we don't let SIGSEGV and SIGBUS be blocked while running guest code
+     *  + sometimes we block all signals to avoid races
+     */
+    sigset_t signal_mask;
 
     uint8_t stack[];
 } __attribute__((aligned(16))) TaskState;

@@ -28,6 +28,9 @@
  * fork.
  */
 
+static struct target_sigaction sigact_table[TARGET_NSIG];
+static void host_signal_handler(int host_sig, siginfo_t *info, void *puc);
+
 /*
  * The BSD ABIs use the same singal numbers across all the CPU architectures, so
  * (unlike Linux) these functions are just the identity mapping. This might not
@@ -52,6 +55,28 @@ void queue_signal(CPUArchState *env, int sig, target_siginfo_t *info)
     qemu_log_mask(LOG_UNIMP, "No signal queueing, dropping signal %d\n", sig);
 }
 
+static int fatal_signal(int sig)
+{
+
+    switch (sig) {
+    case TARGET_SIGCHLD:
+    case TARGET_SIGURG:
+    case TARGET_SIGWINCH:
+    case TARGET_SIGINFO:
+        /* Ignored by default. */
+        return 0;
+    case TARGET_SIGCONT:
+    case TARGET_SIGSTOP:
+    case TARGET_SIGTSTP:
+    case TARGET_SIGTTIN:
+    case TARGET_SIGTTOU:
+        /* Job control signals.  */
+        return 0;
+    default:
+        return 1;
+    }
+}
+
 /*
  * Force a synchronously taken QEMU_SI_FAULT signal. For QEMU the
  * 'force' part is handled in process_pending_signals().
@@ -69,8 +94,50 @@ void force_sig_fault(int sig, int code, abi_ulong addr)
     queue_signal(env, sig, &info);
 }
 
+static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
+{
+}
+
 void signal_init(void)
 {
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    struct sigaction act;
+    struct sigaction oact;
+    int i;
+    int host_sig;
+
+    /* Set the signal mask from the host mask. */
+    sigprocmask(0, 0, &ts->signal_mask);
+
+    sigfillset(&act.sa_mask);
+    act.sa_sigaction = host_signal_handler;
+    act.sa_flags = SA_SIGINFO;
+
+    for (i = 1; i <= TARGET_NSIG; i++) {
+#ifdef CONFIG_GPROF
+        if (i == TARGET_SIGPROF) {
+            continue;
+        }
+#endif
+        host_sig = target_to_host_signal(i);
+        sigaction(host_sig, NULL, &oact);
+        if (oact.sa_sigaction == (void *)SIG_IGN) {
+            sigact_table[i - 1]._sa_handler = TARGET_SIG_IGN;
+        } else if (oact.sa_sigaction == (void *)SIG_DFL) {
+            sigact_table[i - 1]._sa_handler = TARGET_SIG_DFL;
+        }
+        /*
+         * If there's already a handler installed then something has
+         * gone horribly wrong, so don't even try to handle that case.
+         * Install some handlers for our own use.  We need at least
+         * SIGSEGV and SIGBUS, to detect exceptions.  We can not just
+         * trap all signals because it affects syscall interrupt
+         * behavior.  But do trap all default-fatal signals.
+         */
+        if (fatal_signal(i)) {
+            sigaction(host_sig, &act, NULL);
+        }
+    }
 }
 
 void process_pending_signals(CPUArchState *cpu_env)
