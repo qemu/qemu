@@ -25,11 +25,6 @@
 #include "hw/core/tcg-cpu-ops.h"
 #include "host-signal.h"
 
-/*
- * Stubbed out routines until we merge signal support from bsd-user
- * fork.
- */
-
 static struct target_sigaction sigact_table[TARGET_NSIG];
 static void host_signal_handler(int host_sig, siginfo_t *info, void *puc);
 static void target_to_host_sigset_internal(sigset_t *d,
@@ -571,6 +566,73 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
 
     /* Interrupt the virtual CPU as soon as possible. */
     cpu_exit(thread_cpu);
+}
+
+/* do_sigaltstack() returns target values and errnos. */
+/* compare to kern/kern_sig.c sys_sigaltstack() and kern_sigaltstack() */
+abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp)
+{
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    int ret;
+    target_stack_t oss;
+
+    if (uoss_addr) {
+        /* Save current signal stack params */
+        oss.ss_sp = tswapl(ts->sigaltstack_used.ss_sp);
+        oss.ss_size = tswapl(ts->sigaltstack_used.ss_size);
+        oss.ss_flags = tswapl(sas_ss_flags(ts, sp));
+    }
+
+    if (uss_addr) {
+        target_stack_t *uss;
+        target_stack_t ss;
+        size_t minstacksize = TARGET_MINSIGSTKSZ;
+
+        ret = -TARGET_EFAULT;
+        if (!lock_user_struct(VERIFY_READ, uss, uss_addr, 1)) {
+            goto out;
+        }
+        __get_user(ss.ss_sp, &uss->ss_sp);
+        __get_user(ss.ss_size, &uss->ss_size);
+        __get_user(ss.ss_flags, &uss->ss_flags);
+        unlock_user_struct(uss, uss_addr, 0);
+
+        ret = -TARGET_EPERM;
+        if (on_sig_stack(ts, sp)) {
+            goto out;
+        }
+
+        ret = -TARGET_EINVAL;
+        if (ss.ss_flags != TARGET_SS_DISABLE
+            && ss.ss_flags != TARGET_SS_ONSTACK
+            && ss.ss_flags != 0) {
+            goto out;
+        }
+
+        if (ss.ss_flags == TARGET_SS_DISABLE) {
+            ss.ss_size = 0;
+            ss.ss_sp = 0;
+        } else {
+            ret = -TARGET_ENOMEM;
+            if (ss.ss_size < minstacksize) {
+                goto out;
+            }
+        }
+
+        ts->sigaltstack_used.ss_sp = ss.ss_sp;
+        ts->sigaltstack_used.ss_size = ss.ss_size;
+    }
+
+    if (uoss_addr) {
+        ret = -TARGET_EFAULT;
+        if (copy_to_user(uoss_addr, &oss, sizeof(oss))) {
+            goto out;
+        }
+    }
+
+    ret = 0;
+out:
+    return ret;
 }
 
 /* do_sigaction() return host values and errnos */
