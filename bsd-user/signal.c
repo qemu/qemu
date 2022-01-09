@@ -22,6 +22,7 @@
 #include "qemu.h"
 #include "signal-common.h"
 #include "hw/core/tcg-cpu-ops.h"
+#include "host-signal.h"
 
 /*
  * Stubbed out routines until we merge signal support from bsd-user
