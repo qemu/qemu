@@ -32,6 +32,9 @@
 
 static struct target_sigaction sigact_table[TARGET_NSIG];
 static void host_signal_handler(int host_sig, siginfo_t *info, void *puc);
+static void target_to_host_sigset_internal(sigset_t *d,
+        const target_sigset_t *s);
+
 
 /*
  * The BSD ABIs use the same singal numbers across all the CPU architectures, so
@@ -48,6 +51,25 @@ int target_to_host_signal(int sig)
     return sig;
 }
 
+static inline void target_sigemptyset(target_sigset_t *set)
+{
+    memset(set, 0, sizeof(*set));
+}
+
+static inline void target_sigaddset(target_sigset_t *set, int signum)
+{
+    signum--;
+    uint32_t mask = (uint32_t)1 << (signum % TARGET_NSIG_BPW);
+    set->__bits[signum / TARGET_NSIG_BPW] |= mask;
+}
+
+static inline int target_sigismember(const target_sigset_t *set, int signum)
+{
+    signum--;
+    abi_ulong mask = (abi_ulong)1 << (signum % TARGET_NSIG_BPW);
+    return (set->__bits[signum / TARGET_NSIG_BPW] & mask) != 0;
+}
+
 /* Adjust the signal context to rewind out of safe-syscall if we're in it */
 static inline void rewind_if_in_safe_syscall(void *puc)
 {
@@ -58,6 +80,58 @@ static inline void rewind_if_in_safe_syscall(void *puc)
         && pcreg < (uintptr_t)safe_syscall_end) {
         host_signal_set_pc(uc, (uintptr_t)safe_syscall_start);
     }
+}
+
+/*
+ * Note: The following take advantage of the BSD signal property that all
+ * signals are available on all architectures.
+ */
+static void host_to_target_sigset_internal(target_sigset_t *d,
+        const sigset_t *s)
+{
+    int i;
+
+    target_sigemptyset(d);
+    for (i = 1; i <= NSIG; i++) {
+        if (sigismember(s, i)) {
+            target_sigaddset(d, host_to_target_signal(i));
+        }
+    }
+}
+
+void host_to_target_sigset(target_sigset_t *d, const sigset_t *s)
+{
+    target_sigset_t d1;
+    int i;
+
+    host_to_target_sigset_internal(&d1, s);
+    for (i = 0; i < _SIG_WORDS; i++) {
+        d->__bits[i] = tswap32(d1.__bits[i]);
+    }
+}
+
+static void target_to_host_sigset_internal(sigset_t *d,
+        const target_sigset_t *s)
+{
+    int i;
+
+    sigemptyset(d);
+    for (i = 1; i <= TARGET_NSIG; i++) {
+        if (target_sigismember(s, i)) {
+            sigaddset(d, target_to_host_signal(i));
+        }
+    }
+}
+
+void target_to_host_sigset(sigset_t *d, const target_sigset_t *s)
+{
+    target_sigset_t s1;
+    int i;
+
+    for (i = 0; i < TARGET_NSIG_WORDS; i++) {
+        s1.__bits[i] = tswap32(s->__bits[i]);
+    }
+    target_to_host_sigset_internal(d, &s1);
 }
 
 static bool has_trapno(int tsig)

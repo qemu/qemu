@@ -14,11 +14,13 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp);
 long do_sigreturn(CPUArchState *env);
 void force_sig_fault(int sig, int code, abi_ulong addr);
 int host_to_target_signal(int sig);
+void host_to_target_sigset(target_sigset_t *d, const sigset_t *s);
 void process_pending_signals(CPUArchState *env);
 void queue_signal(CPUArchState *env, int sig, int si_type,
                   target_siginfo_t *info);
 void signal_init(void);
 int target_to_host_signal(int sig);
+void target_to_host_sigset(sigset_t *d, const target_sigset_t *s);
 
 /*
  * Within QEMU the top 8 bits of si_code indicate which of the parts of the
