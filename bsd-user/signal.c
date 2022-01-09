@@ -256,6 +256,59 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
     tinfo->si_code = deposit32(si_code, 24, 8, si_type);
 }
 
+static void tswap_siginfo(target_siginfo_t *tinfo, const target_siginfo_t *info)
+{
+    int si_type = extract32(info->si_code, 24, 8);
+    int si_code = sextract32(info->si_code, 0, 24);
+
+    __put_user(info->si_signo, &tinfo->si_signo);
+    __put_user(info->si_errno, &tinfo->si_errno);
+    __put_user(si_code, &tinfo->si_code); /* Zero out si_type, it's internal */
+    __put_user(info->si_pid, &tinfo->si_pid);
+    __put_user(info->si_uid, &tinfo->si_uid);
+    __put_user(info->si_status, &tinfo->si_status);
+    __put_user(info->si_addr, &tinfo->si_addr);
+    /*
+     * Unswapped, because we passed it through mostly untouched.  si_value is
+     * opaque to the kernel, so we didn't bother with potentially wasting cycles
+     * to swap it into host byte order.
+     */
+    tinfo->si_value.sival_ptr = info->si_value.sival_ptr;
+
+    /*
+     * We can use our internal marker of which fields in the structure
+     * are valid, rather than duplicating the guesswork of
+     * host_to_target_siginfo_noswap() here.
+     */
+    switch (si_type) {
+    case QEMU_SI_NOINFO:        /* No additional info */
+        break;
+    case QEMU_SI_FAULT:
+        __put_user(info->_reason._fault._trapno,
+                   &tinfo->_reason._fault._trapno);
+        break;
+    case QEMU_SI_TIMER:
+        __put_user(info->_reason._timer._timerid,
+                   &tinfo->_reason._timer._timerid);
+        __put_user(info->_reason._timer._overrun,
+                   &tinfo->_reason._timer._overrun);
+        break;
+    case QEMU_SI_MESGQ:
+        __put_user(info->_reason._mesgq._mqd, &tinfo->_reason._mesgq._mqd);
+        break;
+    case QEMU_SI_POLL:
+        /* Note: Not generated on FreeBSD */
+        __put_user(info->_reason._poll._band, &tinfo->_reason._poll._band);
+        break;
+    case QEMU_SI_CAPSICUM:
+        __put_user(info->_reason._capsicum._syscall,
+                   &tinfo->_reason._capsicum._syscall);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 /* Returns 1 if given signal should dump core if not handled. */
 static int core_dump_signal(int sig)
 {
