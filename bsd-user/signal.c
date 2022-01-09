@@ -627,6 +627,62 @@ static void setup_frame(int sig, int code, struct target_sigaction *ka,
     unlock_user_struct(frame, frame_addr, 1);
 }
 
+static int reset_signal_mask(target_ucontext_t *ucontext)
+{
+    int i;
+    sigset_t blocked;
+    target_sigset_t target_set;
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
+
+    for (i = 0; i < TARGET_NSIG_WORDS; i++) {
+        if (__get_user(target_set.__bits[i],
+                    &ucontext->uc_sigmask.__bits[i])) {
+            return -TARGET_EFAULT;
+        }
+    }
+    target_to_host_sigset_internal(&blocked, &target_set);
+    ts->signal_mask = blocked;
+
+    return 0;
+}
+
+/* See sys/$M/$M/exec_machdep.c sigreturn() */
+long do_sigreturn(CPUArchState *env, abi_ulong addr)
+{
+    long ret;
+    abi_ulong target_ucontext;
+    target_ucontext_t *ucontext = NULL;
+
+    /* Get the target ucontext address from the stack frame */
+    ret = get_ucontext_sigreturn(env, addr, &target_ucontext);
+    if (is_error(ret)) {
+        return ret;
+    }
+    trace_user_do_sigreturn(env, addr);
+    if (!lock_user_struct(VERIFY_READ, ucontext, target_ucontext, 0)) {
+        goto badframe;
+    }
+
+    /* Set the register state back to before the signal. */
+    if (set_mcontext(env, &ucontext->uc_mcontext, 1)) {
+        goto badframe;
+    }
+
+    /* And reset the signal mask. */
+    if (reset_signal_mask(ucontext)) {
+        goto badframe;
+    }
+
+    unlock_user_struct(ucontext, target_ucontext, 0);
+    return -TARGET_EJUSTRETURN;
+
+badframe:
+    if (ucontext != NULL) {
+        unlock_user_struct(ucontext, target_ucontext, 0);
+    }
+    return -TARGET_EFAULT;
+}
+
 void signal_init(void)
 {
     TaskState *ts = (TaskState *)thread_cpu->opaque;
