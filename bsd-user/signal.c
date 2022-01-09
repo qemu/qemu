@@ -756,8 +756,62 @@ static void handle_pending_signal(CPUArchState *env, int sig,
     }
 }
 
-void process_pending_signals(CPUArchState *cpu_env)
+void process_pending_signals(CPUArchState *env)
 {
+    CPUState *cpu = env_cpu(env);
+    int sig;
+    sigset_t *blocked_set, set;
+    struct emulated_sigtable *k;
+    TaskState *ts = cpu->opaque;
+
+    while (qatomic_read(&ts->signal_pending)) {
+        sigfillset(&set);
+        sigprocmask(SIG_SETMASK, &set, 0);
+
+    restart_scan:
+        sig = ts->sync_signal.pending;
+        if (sig) {
+            /*
+             * Synchronous signals are forced by the emulated CPU in some way.
+             * If they are set to ignore, restore the default handler (see
+             * sys/kern_sig.c trapsignal() and execsigs() for this behavior)
+             * though maybe this is done only when forcing exit for non SIGCHLD.
+             */
+            if (sigismember(&ts->signal_mask, target_to_host_signal(sig)) ||
+                sigact_table[sig - 1]._sa_handler == TARGET_SIG_IGN) {
+                sigdelset(&ts->signal_mask, target_to_host_signal(sig));
+                sigact_table[sig - 1]._sa_handler = TARGET_SIG_DFL;
+            }
+            handle_pending_signal(env, sig, &ts->sync_signal);
+        }
+
+        k = ts->sigtab;
+        for (sig = 1; sig <= TARGET_NSIG; sig++, k++) {
+            blocked_set = ts->in_sigsuspend ?
+                &ts->sigsuspend_mask : &ts->signal_mask;
+            if (k->pending &&
+                !sigismember(blocked_set, target_to_host_signal(sig))) {
+                handle_pending_signal(env, sig, k);
+                /*
+                 * Restart scan from the beginning, as handle_pending_signal
+                 * might have resulted in a new synchronous signal (eg SIGSEGV).
+                 */
+                goto restart_scan;
+            }
+        }
+
+        /*
+         * Unblock signals and check one more time. Unblocking signals may cause
+         * us to take another host signal, which will set signal_pending again.
+         */
+        qatomic_set(&ts->signal_pending, 0);
+        ts->in_sigsuspend = false;
+        set = ts->signal_mask;
+        sigdelset(&set, SIGSEGV);
+        sigdelset(&set, SIGBUS);
+        sigprocmask(SIG_SETMASK, &set, 0);
+    }
+    ts->in_sigsuspend = false;
 }
 
 void cpu_loop_exit_sigsegv(CPUState *cpu, target_ulong addr,
