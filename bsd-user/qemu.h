@@ -107,7 +107,8 @@ typedef struct TaskState {
      */
     sigset_t signal_mask;
 
-    uint8_t stack[];
+    /* This thread's sigaltstack, if it has one */
+    struct target_sigaltstack sigaltstack_used;
 } __attribute__((aligned(16))) TaskState;
 
 void stop_all_tasks(void);
