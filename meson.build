@@ -2458,8 +2458,11 @@ trace_events_subdirs = [
   'monitor',
   'util',
 ]
-if have_user
+if have_linux_user
   trace_events_subdirs += [ 'linux-user' ]
+endif
+if have_bsd_user
+  trace_events_subdirs += [ 'bsd-user' ]
 endif
 if have_block
   trace_events_subdirs += [

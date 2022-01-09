@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "qemu.h"
 #include "signal-common.h"
+#include "trace.h"
 #include "hw/core/tcg-cpu-ops.h"
 #include "host-signal.h"
 
