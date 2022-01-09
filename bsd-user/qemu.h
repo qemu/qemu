@@ -446,4 +446,6 @@ static inline void *lock_user_string(abi_ulong guest_addr)
 
 #include <pthread.h>
 
+#include "user/safe-syscall.h"
+
 #endif /* QEMU_H */
