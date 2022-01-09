@@ -255,7 +255,18 @@ static void QEMU_NORETURN dump_core_and_abort(int target_sig)
 void queue_signal(CPUArchState *env, int sig, int si_type,
                   target_siginfo_t *info)
 {
-    qemu_log_mask(LOG_UNIMP, "No signal queueing, dropping signal %d\n", sig);
+    CPUState *cpu = env_cpu(env);
+    TaskState *ts = cpu->opaque;
+
+    trace_user_queue_signal(env, sig);
+
+    info->si_code = deposit32(info->si_code, 24, 8, si_type);
+
+    ts->sync_signal.info = *info;
+    ts->sync_signal.pending = sig;
+    /* Signal that a new signal is pending. */
+    qatomic_set(&ts->signal_pending, 1);
+    return;
 }
 
 static int fatal_signal(int sig)
