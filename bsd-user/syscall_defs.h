@@ -21,6 +21,7 @@
 #define _SYSCALL_DEFS_H_
 
 #include <sys/syscall.h>
+#include <sys/resource.h>
 
 #include "errno_defs.h"
 

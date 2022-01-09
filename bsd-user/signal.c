@@ -172,6 +172,82 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
     tinfo->si_code = deposit32(si_code, 24, 8, si_type);
 }
 
+/* Returns 1 if given signal should dump core if not handled. */
+static int core_dump_signal(int sig)
+{
+    switch (sig) {
+    case TARGET_SIGABRT:
+    case TARGET_SIGFPE:
+    case TARGET_SIGILL:
+    case TARGET_SIGQUIT:
+    case TARGET_SIGSEGV:
+    case TARGET_SIGTRAP:
+    case TARGET_SIGBUS:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+/* Abort execution with signal. */
+static void QEMU_NORETURN dump_core_and_abort(int target_sig)
+{
+    CPUArchState *env = thread_cpu->env_ptr;
+    CPUState *cpu = env_cpu(env);
+    TaskState *ts = cpu->opaque;
+    int core_dumped = 0;
+    int host_sig;
+    struct sigaction act;
+
+    host_sig = target_to_host_signal(target_sig);
+    gdb_signalled(env, target_sig);
+
+    /* Dump core if supported by target binary format */
+    if (core_dump_signal(target_sig) && (ts->bprm->core_dump != NULL)) {
+        stop_all_tasks();
+        core_dumped =
+            ((*ts->bprm->core_dump)(target_sig, env) == 0);
+    }
+    if (core_dumped) {
+        struct rlimit nodump;
+
+        /*
+         * We already dumped the core of target process, we don't want
+         * a coredump of qemu itself.
+         */
+         getrlimit(RLIMIT_CORE, &nodump);
+         nodump.rlim_cur = 0;
+         setrlimit(RLIMIT_CORE, &nodump);
+         (void) fprintf(stderr, "qemu: uncaught target signal %d (%s) "
+             "- %s\n", target_sig, strsignal(host_sig), "core dumped");
+    }
+
+    /*
+     * The proper exit code for dying from an uncaught signal is
+     * -<signal>.  The kernel doesn't allow exit() or _exit() to pass
+     * a negative value.  To get the proper exit code we need to
+     * actually die from an uncaught signal.  Here the default signal
+     * handler is installed, we send ourself a signal and we wait for
+     * it to arrive.
+     */
+    memset(&act, 0, sizeof(act));
+    sigfillset(&act.sa_mask);
+    act.sa_handler = SIG_DFL;
+    sigaction(host_sig, &act, NULL);
+
+    kill(getpid(), host_sig);
+
+    /*
+     * Make sure the signal isn't masked (just reuse the mask inside
+     * of act).
+     */
+    sigdelset(&act.sa_mask, host_sig);
+    sigsuspend(&act.sa_mask);
+
+    /* unreachable */
+    abort();
+}
+
 /*
  * Queue a signal so that it will be send to the virtual CPU as soon as
  * possible.
