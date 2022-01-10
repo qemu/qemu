@@ -443,7 +443,7 @@ from typing import (
     Union,
 )
 
-from .error import AQMPError
+from .error import QMPError
 from .message import Message
 
 
@@ -451,7 +451,7 @@ EventNames = Union[str, Iterable[str], None]
 EventFilter = Callable[[Message], bool]
 
 
-class ListenerError(AQMPError):
+class ListenerError(QMPError):
     """
     Generic error class for `EventListener`-related problems.
     """

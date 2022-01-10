@@ -29,7 +29,7 @@ from typing import (
     cast,
 )
 
-from .error import AQMPError
+from .error import QMPError
 from .util import (
     bottom_half,
     create_task,
@@ -65,7 +65,7 @@ class Runstate(Enum):
     DISCONNECTING = 3
 
 
-class ConnectError(AQMPError):
+class ConnectError(QMPError):
     """
     Raised when the initial connection process has failed.
 
@@ -90,7 +90,7 @@ class ConnectError(AQMPError):
         return f"{self.error_message}: {cause}"
 
 
-class StateError(AQMPError):
+class StateError(QMPError):
     """
     An API command (connect, execute, etc) was issued at an inappropriate time.
 
@@ -363,7 +363,7 @@ class AsyncProtocol(Generic[T]):
             This exception will wrap a more concrete one. In most cases,
             the wrapped exception will be `OSError` or `EOFError`. If a
             protocol-level failure occurs while establishing a new
-            session, the wrapped error may also be an `AQMPError`.
+            session, the wrapped error may also be an `QMPError`.
         """
         assert self.runstate == Runstate.IDLE
 

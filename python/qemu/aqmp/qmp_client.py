@@ -20,7 +20,7 @@ from typing import (
     cast,
 )
 
-from .error import AQMPError, ProtocolError
+from .error import ProtocolError, QMPError
 from .events import Events
 from .message import Message
 from .models import ErrorResponse, Greeting
@@ -66,7 +66,7 @@ class NegotiationError(_WrappedProtocolError):
     """
 
 
-class ExecuteError(AQMPError):
+class ExecuteError(QMPError):
     """
     Exception raised by `QMPClient.execute()` on RPC failure.
 
@@ -87,7 +87,7 @@ class ExecuteError(AQMPError):
         self.error_class: str = error_response.error.class_
 
 
-class ExecInterruptedError(AQMPError):
+class ExecInterruptedError(QMPError):
     """
     Exception raised by `execute()` (et al) when an RPC is interrupted.
 
@@ -641,7 +641,7 @@ class QMPClient(AsyncProtocol[Message], Events):
         sock = self._writer.transport.get_extra_info('socket')
 
         if sock.family != socket.AF_UNIX:
-            raise AQMPError("Sending file descriptors requires a UNIX socket.")
+            raise QMPError("Sending file descriptors requires a UNIX socket.")
 
         if not hasattr(sock, 'sendmsg'):
             # We need to void the warranty sticker.

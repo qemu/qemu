@@ -17,7 +17,7 @@ from typing import (
 
 import qemu.qmp
 
-from .error import AQMPError
+from .error import QMPError
 from .protocol import Runstate, SocketAddrT
 from .qmp_client import QMPClient
 
@@ -168,7 +168,7 @@ class QEMUMonitorProtocol(qemu.qmp.QEMUMonitorProtocol):
             # Nothing we can do about it now, but if we don't raise our
             # own error, the user will be treated to a lot of traceback
             # they might not understand.
-            raise AQMPError(
+            raise QMPError(
                 "QEMUMonitorProtocol.close()"
                 " was not called before object was garbage collected"
             )
