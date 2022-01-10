@@ -22,6 +22,9 @@ from .protocol import Runstate, SocketAddrT
 from .qmp_client import QMPClient
 
 
+# (Temporarily) Re-export QMPBadPortError
+QMPBadPortError = qemu.qmp.QMPBadPortError
+
 #: QMPMessage is an entire QMP message of any kind.
 QMPMessage = Dict[str, Any]
 
