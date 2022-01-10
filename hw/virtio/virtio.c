@@ -3494,14 +3494,7 @@ static void virtio_queue_guest_notifier_read(EventNotifier *n)
         virtio_irq(vq);
     }
 }
-static void virtio_config_guest_notifier_read(EventNotifier *n)
-{
-    VirtIODevice *vdev = container_of(n, VirtIODevice, config_notifier);
 
-    if (event_notifier_test_and_clear(n)) {
-        virtio_notify_config(vdev);
-    }
-}
 void virtio_queue_set_guest_notifier_fd_handler(VirtQueue *vq, bool assign,
                                                 bool with_irqfd)
 {
@@ -3515,23 +3508,6 @@ void virtio_queue_set_guest_notifier_fd_handler(VirtQueue *vq, bool assign,
         /* Test and clear notifier before closing it,
          * in case poll callback didn't have time to run. */
         virtio_queue_guest_notifier_read(&vq->guest_notifier);
-    }
-}
-
-void virtio_config_set_guest_notifier_fd_handler(VirtIODevice *vdev,
-                                                 bool assign, bool with_irqfd)
-{
-    EventNotifier *n;
-    n = &vdev->config_notifier;
-    if (assign && !with_irqfd) {
-        event_notifier_set_handler(n, virtio_config_guest_notifier_read);
-    } else {
-        event_notifier_set_handler(n, NULL);
-    }
-    if (!assign) {
-        /* Test and clear notifier before closing it,*/
-        /* in case poll callback didn't have time to run. */
-        virtio_config_guest_notifier_read(n);
     }
 }
 
@@ -3606,11 +3582,6 @@ void virtio_queue_host_notifier_read(EventNotifier *n)
 EventNotifier *virtio_queue_get_host_notifier(VirtQueue *vq)
 {
     return &vq->host_notifier;
-}
-
-EventNotifier *virtio_config_get_guest_notifier(VirtIODevice *vdev)
-{
-    return &vdev->config_notifier;
 }
 
 void virtio_queue_set_host_notifier_enabled(VirtQueue *vq, bool enabled)
