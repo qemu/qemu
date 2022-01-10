@@ -67,11 +67,15 @@ MemoryRegion):
 
   You initialize a pure container with memory_region_init().
 
-- alias: a subsection of another region.  Aliases allow a region to be
-  split apart into discontiguous regions.  Examples of uses are memory banks
-  used when the guest address space is smaller than the amount of RAM
-  addressed, or a memory controller that splits main memory to expose a "PCI
-  hole".  Aliases may point to any type of region, including other aliases,
+- alias: a subsection of another region. Aliases allow a region to be
+  split apart into discontiguous regions. Examples of uses are memory
+  banks used when the guest address space is smaller than the amount
+  of RAM addressed, or a memory controller that splits main memory to
+  expose a "PCI hole". You can also create aliases to avoid trying to
+  add the original region to multiple parents via
+  `memory_region_add_subregion`.
+
+  Aliases may point to any type of region, including other aliases,
   but an alias may not point back to itself, directly or indirectly.
   You initialize these with memory_region_init_alias().
 
