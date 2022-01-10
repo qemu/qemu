@@ -25,10 +25,8 @@ import json
 from graphviz import Digraph
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'python'))
-from qemu.qmp import (
-    QEMUMonitorProtocol,
-    QMPResponseError,
-)
+from qemu.aqmp import QMPError
+from qemu.aqmp.legacy import QEMUMonitorProtocol
 
 
 def perm(arr):
@@ -104,7 +102,7 @@ class LibvirtGuest():
         reply = json.loads(subprocess.check_output(ar))
 
         if 'error' in reply:
-            raise QMPResponseError(reply)
+            raise QMPError(reply)
 
         return reply['return']
 
