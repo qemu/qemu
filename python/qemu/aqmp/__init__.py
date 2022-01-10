@@ -26,7 +26,12 @@ import logging
 from .error import AQMPError
 from .events import EventListener
 from .message import Message
-from .protocol import ConnectError, Runstate, StateError
+from .protocol import (
+    ConnectError,
+    Runstate,
+    SocketAddrT,
+    StateError,
+)
 from .qmp_client import ExecInterruptedError, ExecuteError, QMPClient
 
 
@@ -48,4 +53,7 @@ __all__ = (
     'ConnectError',
     'ExecuteError',
     'ExecInterruptedError',
+
+    # Type aliases
+    'SocketAddrT',
 )
