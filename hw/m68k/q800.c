@@ -672,12 +672,13 @@ static void q800_init(MachineState *machine)
 
         /* Remove qtest_enabled() check once firmware files are in the tree */
         if (!qtest_enabled()) {
-            if (bios_size < 0 || bios_size > MACROM_SIZE) {
+            if (bios_size <= 0 || bios_size > MACROM_SIZE) {
                 error_report("could not load MacROM '%s'", bios_name);
                 exit(1);
             }
 
-            ptr = rom_ptr(MACROM_ADDR, MACROM_SIZE);
+            ptr = rom_ptr(MACROM_ADDR, bios_size);
+            assert(ptr != NULL);
             stl_phys(cs->as, 0, ldl_p(ptr));    /* reset initial SP */
             stl_phys(cs->as, 4,
                      MACROM_ADDR + ldl_p(ptr + 4)); /* reset initial PC */

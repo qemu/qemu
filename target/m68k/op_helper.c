@@ -415,7 +415,10 @@ static void m68k_interrupt_all(CPUM68KState *env, int is_hw)
         oldsr = sr;
         env->aregs[7] = sp;
         cpu_m68k_set_sr(env, sr &= ~SR_M);
-        sp = env->aregs[7] & ~1;
+        sp = env->aregs[7];
+        if (!m68k_feature(env, M68K_FEATURE_UNALIGNED_DATA)) {
+            sp &= ~1;
+        }
         do_stack_frame(env, &sp, 1, oldsr, 0, retaddr);
     } else {
         do_stack_frame(env, &sp, 0, oldsr, 0, retaddr);
