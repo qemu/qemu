@@ -214,6 +214,9 @@
     POWERPC_DEF("440spe",        CPU_POWERPC_440SPE,                 440EP,
                 "PowerPC 440 SPE")
 #endif
+    /* PowerPC 476FP */
+    POWERPC_DEF("476fp",         CPU_POWERPC_476FP,                  476FP,
+                "PowerPC 476 FP")
     /* Freescale embedded PowerPC cores                                      */
     /* MPC5xx family (aka RCPU)                                              */
 #if defined(TODO_USER_ONLY)

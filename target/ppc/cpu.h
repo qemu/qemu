@@ -1826,6 +1826,7 @@ typedef PowerPCCPU ArchCPU;
 #define SPR_440_CCR1          (0x378)
 #define SPR_TACR              (0x378)
 #define SPR_TCSCR             (0x379)
+#define SPR_476_CCR2          (0x379)
 #define SPR_CSIGR             (0x37a)
 #define SPR_DCRIPR            (0x37B)
 #define SPR_POWER_SPMC1       (0x37C)

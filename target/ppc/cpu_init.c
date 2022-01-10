@@ -3532,6 +3532,179 @@ POWERPC_FAMILY(440x5wDFPU)(ObjectClass *oc, void *data)
                  POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK;
 }
 
+static void init_proc_476FP(CPUPPCState *env)
+{
+    /* Time base */
+    register_tbl(env);
+
+    // FIXME: (больше, чем по мануалу) и другие регистры (1 лишний?)
+    register_BookE_sprs(env, 0x000000000000FFFFULL);
+
+    // FIXME: большинства регистров вообще в 476 нет..
+    register_440_sprs(env);
+
+    // FIXME: почему то они повторяются, но с разными индексами
+    register_usprgh_sprs(env);
+
+    // FIXME: далее идут специфичные регистры, по-моему некоторых нет в 476
+
+    /* Processor identification */
+    spr_register(env, SPR_BOOKE_PIR, "PIR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_pir,
+                 0x00000000);
+    /* XXX : not implemented */
+    spr_register(env, SPR_BOOKE_IAC3, "IAC3",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    /* XXX : not implemented */
+    spr_register(env, SPR_BOOKE_IAC4, "IAC4",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    /* XXX : not implemented */
+    spr_register(env, SPR_BOOKE_DVC1, "DVC1",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    /* XXX : not implemented */
+    spr_register(env, SPR_BOOKE_DVC2, "DVC2",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    /* XXX : not implemented */
+    spr_register(env, SPR_BOOKE_MCSR, "MCSR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_MCSRR0, "MCSRR0",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_MCSRR1, "MCSRR1",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    /* XXX : not implemented */
+    spr_register(env, SPR_440_CCR1, "CCR1",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    /* XXX : not implemented */
+    spr_register(env, SPR_476_CCR2, "CCR2",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+
+    /* Memory management */
+#if !defined(CONFIG_USER_ONLY)
+    /* Total number of TLB */
+    env->nb_tlb = 1024;
+
+    /* Number of ways in the TLB set */
+    env->nb_ways = 4;
+
+    /* If 1, MMU has separated TLBs for instructions & data */
+    env->id_tlbs = 0;
+
+    /* Type of TLB we're dealing with */
+    // FIXME: у нас скорее всего тоже самое, что и у 4хх?
+    env->tlb_type = TLB_EMB;
+#endif
+
+    init_excp_BookE(env);
+
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
+
+    // FIXME: не нашел где проверить, те ли прерывания или нет
+    ppc40x_irq_init(env_archcpu(env));
+
+    // FIXME: нашел в мануале числа периодов, но там они +1 все (что это значит?)
+    SET_FIT_PERIOD(12, 16, 20, 24);
+    SET_WDT_PERIOD(20, 24, 28, 32);
+}
+
+POWERPC_FAMILY(476FP)(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+
+    dc->desc = "PowerPC 476FP";
+    pcc->init_proc = init_proc_476FP;
+    pcc->check_pow = check_pow_nocheck;
+
+    // FIXME: разобраться надо бы в целом в наборе инструкций (каждый флаг изучить)
+    pcc->insns_flags =
+        PPC_INSNS_BASE | // base instr set (?)
+        PPC_ISEL | // integer select (?)
+        PPC_POPCNTB | // popcntb instruction (?)
+        PPC_STRING |
+        PPC_FLOAT |
+        PPC_FLOAT_FSQRT |
+        PPC_FLOAT_FRES |
+        PPC_FLOAT_FRSQRTE |
+        PPC_FLOAT_FRSQRTES |
+        PPC_FLOAT_FSEL |
+        PPC_FLOAT_STFIWX |
+        PPC_SPE |
+        PPC_SPE_SINGLE |
+        PPC_SPE_DOUBLE |
+        PPC_MEM_TLBIA |
+        PPC_MEM_TLBIE |
+        PPC_MEM_TLBSYNC |
+        // FIXME: эти инструкции конфликтуют с инструкциями из BOOKE
+        // PPC_MEM_SYNC |
+        // PPC_MEM_EIEIO |
+        PPC_CACHE |
+        PPC_CACHE_ICBI |
+        PPC_CACHE_DCBZ |
+        PPC_CACHE_DCBA |
+        PPC_WRTEE |
+        PPC_440_SPEC | // 440 specific instr (?)
+        PPC_BOOKE | // booke embeded instr (?)
+        PPC_MFAPIDI |
+        PPC_TLBIVAX |
+        PPC_4xx_COMMON | // 4xx common instr (?)
+        PPC_RFMCI |
+        PPC_RFDI |
+        PPC_DCR |
+        PPC_DCRX |
+        PPC_DCRUX |
+        PPC2_DFP |
+        PPC2_PRCNTL | // Embedded Processor Control (?)
+        PPC2_ISA205 | // ISE 2.05 (is it the same ?)
+        PPC_MFTB;
+
+    // Machine State Register bits
+    pcc->msr_mask = (1ull << MSR_POW) |
+                    (1ull << MSR_CE) |
+                    (1ull << MSR_EE) |
+                    (1ull << MSR_PR) |
+                    (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
+                    (1ull << MSR_FE0) |
+                    (1ull << MSR_DWE) |
+                    (1ull << MSR_DE) |
+                    (1ull << MSR_FE1) |
+                    (1ull << MSR_IS) |
+                    (1ull << MSR_DS) |
+                    (1ull << MSR_PMM);
+
+    // FIXME: соответствует ли нашему?
+    pcc->mmu_model = POWERPC_MMU_BOOKE;
+    pcc->excp_model = POWERPC_EXCP_BOOKE;
+    pcc->bus_model = PPC_FLAGS_INPUT_BookE;
+
+    // FIXME: ?
+    pcc->bfd_mach = bfd_mach_ppc_403;
+
+    pcc->flags = POWERPC_FLAG_CE | POWERPC_FLAG_DWE |
+                 POWERPC_FLAG_DE | POWERPC_FLAG_PMM |
+                 POWERPC_FLAG_BUS_CLK;
+}
+
 static void init_proc_MPC5xx(CPUPPCState *env)
 {
     /* Time base */

@@ -109,6 +109,8 @@ enum {
     CPU_POWERPC_440SP2             = 0x53221891,
     CPU_POWERPC_440SPE             = 0x53421890,
     CPU_POWERPC_460EXb             = 0x130218A4, /* called 460 but 440 core */
+    /* PowerPC 476FP */
+    CPU_POWERPC_476FP              = 0x7ff520c0,
     /* Freescale embedded PowerPC cores */
     /* PowerPC MPC 5xx cores (aka RCPU) */
     CPU_POWERPC_MPC5xx             = 0x00020020,
