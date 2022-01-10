@@ -37,8 +37,8 @@ See also: https://wiki.qemu.org/Features/QAPI/GuestAgent
 # the COPYING file in the top-level directory.
 
 import argparse
+import asyncio
 import base64
-import errno
 import os
 import random
 import sys
@@ -50,8 +50,8 @@ from typing import (
     Sequence,
 )
 
-from qemu import qmp
-from qemu.qmp import SocketAddrT
+from qemu.aqmp import ConnectError, SocketAddrT
+from qemu.aqmp.legacy import QEMUMonitorProtocol
 
 
 # This script has not seen many patches or careful attention in quite
@@ -61,7 +61,7 @@ from qemu.qmp import SocketAddrT
 # pylint: disable=missing-docstring
 
 
-class QemuGuestAgent(qmp.QEMUMonitorProtocol):
+class QemuGuestAgent(QEMUMonitorProtocol):
     def __getattr__(self, name: str) -> Callable[..., Any]:
         def wrapper(**kwds: object) -> object:
             return self.command('guest-' + name.replace('_', '-'), **kwds)
@@ -149,7 +149,7 @@ class QemuGuestAgentClient:
         self.qga.settimeout(timeout)
         try:
             self.qga.ping()
-        except TimeoutError:
+        except asyncio.TimeoutError:
             return False
         return True
 
@@ -172,7 +172,7 @@ class QemuGuestAgentClient:
         try:
             getattr(self.qga, 'suspend' + '_' + mode)()
             # On error exception will raise
-        except TimeoutError:
+        except asyncio.TimeoutError:
             # On success command will timed out
             return
 
@@ -182,7 +182,7 @@ class QemuGuestAgentClient:
 
         try:
             self.qga.shutdown(mode=mode)
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pass
 
 
@@ -277,7 +277,7 @@ commands = [m.replace('_cmd_', '') for m in dir() if '_cmd_' in m]
 
 def send_command(address: str, cmd: str, args: Sequence[str]) -> None:
     if not os.path.exists(address):
-        print('%s not found' % address)
+        print(f"'{address}' not found. (Is QEMU running?)")
         sys.exit(1)
 
     if cmd not in commands:
@@ -287,10 +287,10 @@ def send_command(address: str, cmd: str, args: Sequence[str]) -> None:
 
     try:
         client = QemuGuestAgentClient(address)
-    except OSError as err:
+    except ConnectError as err:
         print(err)
-        if err.errno == errno.ECONNREFUSED:
-            print('Hint: qemu is not running?')
+        if isinstance(err.exc, ConnectionError):
+            print('(Is QEMU running?)')
         sys.exit(1)
 
     if cmd == 'fsfreeze' and args[0] == 'freeze':
