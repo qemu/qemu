@@ -48,7 +48,8 @@ from typing import (
 import fuse
 from fuse import FUSE, FuseOSError, Operations
 
-from . import QMPResponseError
+from qemu.aqmp import ExecuteError
+
 from .qom_common import QOMCommand
 
 
@@ -99,7 +100,7 @@ class QOMFuse(QOMCommand, Operations):
         try:
             self.qom_list(path)
             return True
-        except QMPResponseError:
+        except ExecuteError:
             return False
 
     def is_property(self, path: str) -> bool:
@@ -112,7 +113,7 @@ class QOMFuse(QOMCommand, Operations):
                 if item.name == prop:
                     return True
             return False
-        except QMPResponseError:
+        except ExecuteError:
             return False
 
     def is_link(self, path: str) -> bool:
@@ -125,7 +126,7 @@ class QOMFuse(QOMCommand, Operations):
                 if item.name == prop and item.link:
                     return True
             return False
-        except QMPResponseError:
+        except ExecuteError:
             return False
 
     def read(self, path: str, size: int, offset: int, fh: IO[bytes]) -> bytes:
@@ -138,7 +139,7 @@ class QOMFuse(QOMCommand, Operations):
         try:
             data = str(self.qmp.command('qom-get', path=path, property=prop))
             data += '\n'  # make values shell friendly
-        except QMPResponseError as err:
+        except ExecuteError as err:
             raise FuseOSError(EPERM) from err
 
         if offset > len(data):
