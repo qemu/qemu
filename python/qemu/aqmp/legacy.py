@@ -16,6 +16,8 @@ from typing import (
 import qemu.qmp
 from qemu.qmp import QMPMessage, QMPReturnValue, SocketAddrT
 
+from .error import AQMPError
+from .protocol import Runstate
 from .qmp_client import QMPClient
 
 
@@ -136,3 +138,19 @@ class QEMUMonitorProtocol(qemu.qmp.QEMUMonitorProtocol):
 
     def send_fd_scm(self, fd: int) -> None:
         self._aqmp.send_fd_scm(fd)
+
+    def __del__(self) -> None:
+        if self._aqmp.runstate == Runstate.IDLE:
+            return
+
+        if not self._aloop.is_running():
+            self.close()
+        else:
+            # Garbage collection ran while the event loop was running.
+            # Nothing we can do about it now, but if we don't raise our
+            # own error, the user will be treated to a lot of traceback
+            # they might not understand.
+            raise AQMPError(
+                "QEMUMonitorProtocol.close()"
+                " was not called before object was garbage collected"
+            )
