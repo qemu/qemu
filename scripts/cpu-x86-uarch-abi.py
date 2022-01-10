@@ -6,7 +6,7 @@
 # compatibility levels for each CPU model.
 #
 
-from qemu import qmp
+from qemu.aqmp.legacy import QEMUMonitorProtocol
 import sys
 
 if len(sys.argv) != 2:
@@ -66,7 +66,7 @@ levels = [
 
 
 sock = sys.argv[1]
-shell = qmp.QEMUMonitorProtocol(sock)
+shell = QEMUMonitorProtocol(sock)
 shell.connect()
 
 models = shell.cmd("query-cpu-definitions")
