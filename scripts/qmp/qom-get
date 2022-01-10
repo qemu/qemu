@@ -4,7 +4,7 @@ import os
 import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
-from qemu.qmp.qom import QOMGet
+from qemu.utils.qom import QOMGet
 
 
 if __name__ == '__main__':
