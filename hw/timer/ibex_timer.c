@@ -130,7 +130,6 @@ static void ibex_timer_reset(DeviceState *dev)
     s->timer_compare_upper0 = 0xFFFFFFFF;
     s->timer_intr_enable = 0x00000000;
     s->timer_intr_state = 0x00000000;
-    s->timer_intr_test = 0x00000000;
 
     ibex_timer_update_irqs(s);
 }
@@ -168,7 +167,8 @@ static uint64_t ibex_timer_read(void *opaque, hwaddr addr,
         retvalue = s->timer_intr_state;
         break;
     case R_INTR_TEST:
-        retvalue = s->timer_intr_test;
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "Attempted to read INTR_TEST, a write only register");
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -215,10 +215,7 @@ static void ibex_timer_write(void *opaque, hwaddr addr,
         s->timer_intr_state &= ~val;
         break;
     case R_INTR_TEST:
-        s->timer_intr_test = val;
-        if (s->timer_intr_enable &
-            s->timer_intr_test &
-            R_INTR_ENABLE_IE_0_MASK) {
+        if (s->timer_intr_enable & val & R_INTR_ENABLE_IE_0_MASK) {
             s->timer_intr_state |= R_INTR_STATE_IS_0_MASK;
             qemu_set_irq(s->irq, true);
         }
@@ -247,8 +244,8 @@ static int ibex_timer_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_ibex_timer = {
     .name = TYPE_IBEX_TIMER,
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .post_load = ibex_timer_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(timer_ctrl, IbexTimerState),
@@ -257,7 +254,6 @@ static const VMStateDescription vmstate_ibex_timer = {
         VMSTATE_UINT32(timer_compare_upper0, IbexTimerState),
         VMSTATE_UINT32(timer_intr_enable, IbexTimerState),
         VMSTATE_UINT32(timer_intr_state, IbexTimerState),
-        VMSTATE_UINT32(timer_intr_test, IbexTimerState),
         VMSTATE_END_OF_LIST()
     }
 };
