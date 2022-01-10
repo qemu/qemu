@@ -5,7 +5,7 @@ Usage:
 
 Start QEMU with:
 
-# qemu [...] -chardev socket,path=/tmp/qga.sock,server,wait=off,id=qga0 \
+# qemu [...] -chardev socket,path=/tmp/qga.sock,server=on,wait=off,id=qga0 \
   -device virtio-serial \
   -device virtserialport,chardev=qga0,name=org.qemu.guest_agent.0
 
