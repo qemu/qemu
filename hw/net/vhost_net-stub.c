@@ -101,12 +101,3 @@ int vhost_net_set_mtu(struct vhost_net *net, uint16_t mtu)
 {
     return 0;
 }
-
-bool vhost_net_config_pending(VHostNetState *net)
-{
-    return false;
-}
-
-void vhost_net_config_mask(VHostNetState *net, VirtIODevice *dev, bool mask)
-{
-}
