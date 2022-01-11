@@ -2420,7 +2420,7 @@ static void pgb_static(const char *image_name, abi_ulong orig_loaddr,
         } else {
             offset = -(HI_COMMPAGE & -align);
         }
-    } else if (LO_COMMPAGE) {
+    } else if (LO_COMMPAGE != 0) {
         loaddr = MIN(loaddr, LO_COMMPAGE & -align);
     }
 
