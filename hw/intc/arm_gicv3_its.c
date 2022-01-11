@@ -255,6 +255,13 @@ static ItsCmdResult process_its_cmd(GICv3ITSState *s, uint64_t value,
 
     eventid = (value & EVENTID_MASK);
 
+    if (devid >= s->dt.num_ids) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid command attributes: devid %d>=%d",
+                      __func__, devid, s->dt.num_ids);
+        return CMD_CONTINUE;
+    }
+
     dte = get_dte(s, devid, &res);
 
     if (res != MEMTX_OK) {
@@ -271,6 +278,14 @@ static ItsCmdResult process_its_cmd(GICv3ITSState *s, uint64_t value,
     }
 
     num_eventids = 1ULL << (FIELD_EX64(dte, DTE, SIZE) + 1);
+
+    if (eventid >= num_eventids) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid command attributes: eventid %d >= %"
+                      PRId64 "\n",
+                      __func__, eventid, num_eventids);
+        return CMD_CONTINUE;
+    }
 
     ite_valid = get_ite(s, eventid, dte, &icid, &pIntid, &res);
     if (res != MEMTX_OK) {
@@ -293,20 +308,6 @@ static ItsCmdResult process_its_cmd(GICv3ITSState *s, uint64_t value,
                       "%s: invalid command attributes: "
                       "invalid cte: %"PRIx64"\n",
                       __func__, cte);
-        return CMD_CONTINUE;
-    }
-
-    if (devid >= s->dt.num_ids) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: devid %d>=%d",
-                      __func__, devid, s->dt.num_ids);
-        return CMD_CONTINUE;
-    }
-    if (eventid >= num_eventids) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: eventid %d >= %"
-                      PRId64 "\n",
-                      __func__, eventid, num_eventids);
         return CMD_CONTINUE;
     }
 
@@ -375,6 +376,13 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, uint64_t value,
 
     icid = value & ICID_MASK;
 
+    if (devid >= s->dt.num_ids) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid command attributes: devid %d>=%d",
+                      __func__, devid, s->dt.num_ids);
+        return CMD_CONTINUE;
+    }
+
     dte = get_dte(s, devid, &res);
 
     if (res != MEMTX_OK) {
@@ -384,14 +392,14 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, uint64_t value,
     num_eventids = 1ULL << (FIELD_EX64(dte, DTE, SIZE) + 1);
     num_intids = 1ULL << (GICD_TYPER_IDBITS + 1);
 
-    if ((devid >= s->dt.num_ids) || (icid >= s->ct.num_ids)
+    if ((icid >= s->ct.num_ids)
             || !dte_valid || (eventid >= num_eventids) ||
             (((pIntid < GICV3_LPI_INTID_START) || (pIntid >= num_intids)) &&
              (pIntid != INTID_SPURIOUS))) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid command attributes "
-                      "devid %d or icid %d or eventid %d or pIntid %d or"
-                      "unmapped dte %d\n", __func__, devid, icid, eventid,
+                      "icid %d or eventid %d or pIntid %d or"
+                      "unmapped dte %d\n", __func__, icid, eventid,
                       pIntid, dte_valid);
         /*
          * in this implementation, in case of error
