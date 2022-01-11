@@ -44,6 +44,7 @@ const VMStateDescription vmstate_muldiv = {
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(multiplier, Clock),
         VMSTATE_UINT32(divider, Clock),
+        VMSTATE_END_OF_LIST()
     },
 };
 
