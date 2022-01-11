@@ -25,7 +25,7 @@ from bench_block_job import bench_block_copy, drv_file, drv_nbd
 
 def bench_func(env, case):
     """ Handle one "cell" of benchmarking table. """
-    return bench_block_copy(env['qemu_binary'], env['cmd'], {}
+    return bench_block_copy(env['qemu_binary'], env['cmd'], {},
                             case['source'], case['target'])
 
 
