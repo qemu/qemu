@@ -28,6 +28,7 @@ config ARM_VIRT
     select ACPI_HW_REDUCED
     select ACPI_APEI
     select ACPI_VIOT
+    select VIRTIO_MEM_SUPPORTED
 
 config CHEETAH
     bool
