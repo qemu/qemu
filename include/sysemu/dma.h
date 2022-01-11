@@ -15,21 +15,10 @@
 #include "block/block.h"
 #include "block/accounting.h"
 
-typedef struct ScatterGatherEntry ScatterGatherEntry;
-
 typedef enum {
     DMA_DIRECTION_TO_DEVICE = 0,
     DMA_DIRECTION_FROM_DEVICE = 1,
 } DMADirection;
-
-struct QEMUSGList {
-    ScatterGatherEntry *sg;
-    int nsg;
-    int nalloc;
-    size_t size;
-    DeviceState *dev;
-    AddressSpace *as;
-};
 
 /*
  * When an IOMMU is present, bus addresses become distinct from
@@ -42,6 +31,17 @@ typedef uint64_t dma_addr_t;
 
 #define DMA_ADDR_BITS 64
 #define DMA_ADDR_FMT "%" PRIx64
+
+typedef struct ScatterGatherEntry ScatterGatherEntry;
+
+struct QEMUSGList {
+    ScatterGatherEntry *sg;
+    int nsg;
+    int nalloc;
+    size_t size;
+    DeviceState *dev;
+    AddressSpace *as;
+};
 
 static inline void dma_barrier(AddressSpace *as, DMADirection dir)
 {
