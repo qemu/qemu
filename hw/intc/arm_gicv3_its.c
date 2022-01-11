@@ -299,6 +299,13 @@ static ItsCmdResult process_its_cmd(GICv3ITSState *s, uint64_t value,
         return CMD_CONTINUE;
     }
 
+    if (icid >= s->ct.num_ids) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid ICID 0x%x in ITE (table corrupted?)\n",
+                      __func__, icid);
+        return CMD_CONTINUE;
+    }
+
     cte_valid = get_cte(s, icid, &cte, &res);
     if (res != MEMTX_OK) {
         return CMD_STALL;
