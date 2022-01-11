@@ -83,44 +83,62 @@ static uint64_t baser_base_addr(uint64_t value, uint32_t page_sz)
     return result;
 }
 
+static uint64_t table_entry_addr(GICv3ITSState *s, TableDesc *td,
+                                 uint32_t idx, MemTxResult *res)
+{
+    /*
+     * Given a TableDesc describing one of the ITS in-guest-memory
+     * tables and an index into it, return the guest address
+     * corresponding to that table entry.
+     * If there was a memory error reading the L1 table of an
+     * indirect table, *res is set accordingly, and we return -1.
+     * If the L1 table entry is marked not valid, we return -1 with
+     * *res set to MEMTX_OK.
+     *
+     * The specification defines the format of level 1 entries of a
+     * 2-level table, but the format of level 2 entries and the format
+     * of flat-mapped tables is IMPDEF.
+     */
+    AddressSpace *as = &s->gicv3->dma_as;
+    uint32_t l2idx;
+    uint64_t l2;
+    uint32_t num_l2_entries;
+
+    *res = MEMTX_OK;
+
+    if (!td->indirect) {
+        /* Single level table */
+        return td->base_addr + idx * td->entry_sz;
+    }
+
+    /* Two level table */
+    l2idx = idx / (td->page_sz / L1TABLE_ENTRY_SIZE);
+
+    l2 = address_space_ldq_le(as,
+                              td->base_addr + (l2idx * L1TABLE_ENTRY_SIZE),
+                              MEMTXATTRS_UNSPECIFIED, res);
+    if (*res != MEMTX_OK) {
+        return -1;
+    }
+    if (!(l2 & L2_TABLE_VALID_MASK)) {
+        return -1;
+    }
+
+    num_l2_entries = td->page_sz / td->entry_sz;
+    return (l2 & ((1ULL << 51) - 1)) + (idx % num_l2_entries) * td->entry_sz;
+}
+
 static bool get_cte(GICv3ITSState *s, uint16_t icid, uint64_t *cte,
                     MemTxResult *res)
 {
     AddressSpace *as = &s->gicv3->dma_as;
-    uint64_t l2t_addr;
-    uint64_t value;
-    bool valid_l2t;
-    uint32_t l2t_id;
-    uint32_t num_l2_entries;
+    uint64_t entry_addr = table_entry_addr(s, &s->ct, icid, res);
 
-    if (s->ct.indirect) {
-        l2t_id = icid / (s->ct.page_sz / L1TABLE_ENTRY_SIZE);
-
-        value = address_space_ldq_le(as,
-                                     s->ct.base_addr +
-                                     (l2t_id * L1TABLE_ENTRY_SIZE),
-                                     MEMTXATTRS_UNSPECIFIED, res);
-
-        if (*res == MEMTX_OK) {
-            valid_l2t = (value & L2_TABLE_VALID_MASK) != 0;
-
-            if (valid_l2t) {
-                num_l2_entries = s->ct.page_sz / s->ct.entry_sz;
-
-                l2t_addr = value & ((1ULL << 51) - 1);
-
-                *cte =  address_space_ldq_le(as, l2t_addr +
-                                    ((icid % num_l2_entries) * GITS_CTE_SIZE),
-                                    MEMTXATTRS_UNSPECIFIED, res);
-           }
-       }
-    } else {
-        /* Flat level table */
-        *cte =  address_space_ldq_le(as, s->ct.base_addr +
-                                     (icid * GITS_CTE_SIZE),
-                                      MEMTXATTRS_UNSPECIFIED, res);
+    if (entry_addr == -1) {
+        return false; /* not valid */
     }
 
+    *cte = address_space_ldq_le(as, entry_addr, MEMTXATTRS_UNSPECIFIED, res);
     return FIELD_EX64(*cte, CTE, VALID);
 }
 
@@ -189,41 +207,12 @@ static bool get_ite(GICv3ITSState *s, uint32_t eventid, uint64_t dte,
 static uint64_t get_dte(GICv3ITSState *s, uint32_t devid, MemTxResult *res)
 {
     AddressSpace *as = &s->gicv3->dma_as;
-    uint64_t l2t_addr;
-    uint64_t value;
-    bool valid_l2t;
-    uint32_t l2t_id;
-    uint32_t num_l2_entries;
+    uint64_t entry_addr = table_entry_addr(s, &s->dt, devid, res);
 
-    if (s->dt.indirect) {
-        l2t_id = devid / (s->dt.page_sz / L1TABLE_ENTRY_SIZE);
-
-        value = address_space_ldq_le(as,
-                                     s->dt.base_addr +
-                                     (l2t_id * L1TABLE_ENTRY_SIZE),
-                                     MEMTXATTRS_UNSPECIFIED, res);
-
-        if (*res == MEMTX_OK) {
-            valid_l2t = (value & L2_TABLE_VALID_MASK) != 0;
-
-            if (valid_l2t) {
-                num_l2_entries = s->dt.page_sz / s->dt.entry_sz;
-
-                l2t_addr = value & ((1ULL << 51) - 1);
-
-                value =  address_space_ldq_le(as, l2t_addr +
-                                   ((devid % num_l2_entries) * GITS_DTE_SIZE),
-                                   MEMTXATTRS_UNSPECIFIED, res);
-            }
-        }
-    } else {
-        /* Flat level table */
-        value = address_space_ldq_le(as, s->dt.base_addr +
-                                     (devid * GITS_DTE_SIZE),
-                                     MEMTXATTRS_UNSPECIFIED, res);
+    if (entry_addr == -1) {
+        return 0; /* a DTE entry with the Valid bit clear */
     }
-
-    return value;
+    return address_space_ldq_le(as, entry_addr, MEMTXATTRS_UNSPECIFIED, res);
 }
 
 /*
@@ -426,11 +415,7 @@ static bool update_cte(GICv3ITSState *s, uint16_t icid, bool valid,
                        uint64_t rdbase)
 {
     AddressSpace *as = &s->gicv3->dma_as;
-    uint64_t value;
-    uint64_t l2t_addr;
-    bool valid_l2t;
-    uint32_t l2t_id;
-    uint32_t num_l2_entries;
+    uint64_t entry_addr;
     uint64_t cte = 0;
     MemTxResult res = MEMTX_OK;
 
@@ -444,44 +429,18 @@ static bool update_cte(GICv3ITSState *s, uint16_t icid, bool valid,
         cte = FIELD_DP64(cte, CTE, RDBASE, rdbase);
     }
 
-    /*
-     * The specification defines the format of level 1 entries of a
-     * 2-level table, but the format of level 2 entries and the format
-     * of flat-mapped tables is IMPDEF.
-     */
-    if (s->ct.indirect) {
-        l2t_id = icid / (s->ct.page_sz / L1TABLE_ENTRY_SIZE);
-
-        value = address_space_ldq_le(as,
-                                     s->ct.base_addr +
-                                     (l2t_id * L1TABLE_ENTRY_SIZE),
-                                     MEMTXATTRS_UNSPECIFIED, &res);
-
-        if (res != MEMTX_OK) {
-            return false;
-        }
-
-        valid_l2t = (value & L2_TABLE_VALID_MASK) != 0;
-
-        if (valid_l2t) {
-            num_l2_entries = s->ct.page_sz / s->ct.entry_sz;
-
-            l2t_addr = value & ((1ULL << 51) - 1);
-
-            address_space_stq_le(as, l2t_addr +
-                                 ((icid % num_l2_entries) * GITS_CTE_SIZE),
-                                 cte, MEMTXATTRS_UNSPECIFIED, &res);
-        }
-    } else {
-        /* Flat level table */
-        address_space_stq_le(as, s->ct.base_addr + (icid * GITS_CTE_SIZE),
-                             cte, MEMTXATTRS_UNSPECIFIED, &res);
-    }
+    entry_addr = table_entry_addr(s, &s->ct, icid, &res);
     if (res != MEMTX_OK) {
+        /* memory access error: stall */
         return false;
-    } else {
+    }
+    if (entry_addr == -1) {
+        /* No L2 table for this index: discard write and continue */
         return true;
     }
+
+    address_space_stq_le(as, entry_addr, cte, MEMTXATTRS_UNSPECIFIED, &res);
+    return res == MEMTX_OK;
 }
 
 static ItsCmdResult process_mapc(GICv3ITSState *s, uint32_t offset)
@@ -529,11 +488,7 @@ static bool update_dte(GICv3ITSState *s, uint32_t devid, bool valid,
                        uint8_t size, uint64_t itt_addr)
 {
     AddressSpace *as = &s->gicv3->dma_as;
-    uint64_t value;
-    uint64_t l2t_addr;
-    bool valid_l2t;
-    uint32_t l2t_id;
-    uint32_t num_l2_entries;
+    uint64_t entry_addr;
     uint64_t dte = 0;
     MemTxResult res = MEMTX_OK;
 
@@ -548,44 +503,17 @@ static bool update_dte(GICv3ITSState *s, uint32_t devid, bool valid,
         return true;
     }
 
-    /*
-     * The specification defines the format of level 1 entries of a
-     * 2-level table, but the format of level 2 entries and the format
-     * of flat-mapped tables is IMPDEF.
-     */
-    if (s->dt.indirect) {
-        l2t_id = devid / (s->dt.page_sz / L1TABLE_ENTRY_SIZE);
-
-        value = address_space_ldq_le(as,
-                                     s->dt.base_addr +
-                                     (l2t_id * L1TABLE_ENTRY_SIZE),
-                                     MEMTXATTRS_UNSPECIFIED, &res);
-
-        if (res != MEMTX_OK) {
-            return false;
-        }
-
-        valid_l2t = (value & L2_TABLE_VALID_MASK) != 0;
-
-        if (valid_l2t) {
-            num_l2_entries = s->dt.page_sz / s->dt.entry_sz;
-
-            l2t_addr = value & ((1ULL << 51) - 1);
-
-            address_space_stq_le(as, l2t_addr +
-                                 ((devid % num_l2_entries) * GITS_DTE_SIZE),
-                                 dte, MEMTXATTRS_UNSPECIFIED, &res);
-        }
-    } else {
-        /* Flat level table */
-        address_space_stq_le(as, s->dt.base_addr + (devid * GITS_DTE_SIZE),
-                             dte, MEMTXATTRS_UNSPECIFIED, &res);
-    }
+    entry_addr = table_entry_addr(s, &s->dt, devid, &res);
     if (res != MEMTX_OK) {
+        /* memory access error: stall */
         return false;
-    } else {
+    }
+    if (entry_addr == -1) {
+        /* No L2 table for this index: discard write and continue */
         return true;
     }
+    address_space_stq_le(as, entry_addr, dte, MEMTXATTRS_UNSPECIFIED, &res);
+    return res == MEMTX_OK;
 }
 
 static ItsCmdResult process_mapd(GICv3ITSState *s, uint64_t value,
