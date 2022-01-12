@@ -230,6 +230,39 @@ nested. Combinations not shown in the table are not available.
 
 .. [3] Introduced on Power10 machines.
 
+
+POWER (PAPR) Protected Execution Facility (PEF)
+-----------------------------------------------
+
+Protected Execution Facility (PEF), also known as Secure Guest support
+is a feature found on IBM POWER9 and POWER10 processors.
+
+If a suitable firmware including an Ultravisor is installed, it adds
+an extra memory protection mode to the CPU.  The ultravisor manages a
+pool of secure memory which cannot be accessed by the hypervisor.
+
+When this feature is enabled in QEMU, a guest can use ultracalls to
+enter "secure mode".  This transfers most of its memory to secure
+memory, where it cannot be eavesdropped by a compromised hypervisor.
+
+Launching
+^^^^^^^^^
+
+To launch a guest which will be permitted to enter PEF secure mode::
+
+  $ qemu-system-ppc64 \
+      -object pef-guest,id=pef0 \
+      -machine confidential-guest-support=pef0 \
+      ...
+
+Live Migration
+^^^^^^^^^^^^^^
+
+Live migration is not yet implemented for PEF guests.  For
+consistency, QEMU currently prevents migration if the PEF feature is
+enabled, whether or not the guest has actually entered secure mode.
+
+
 Maintainer contact information
 ------------------------------
 
