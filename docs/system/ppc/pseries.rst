@@ -1,19 +1,18 @@
+===================================
 pSeries family boards (``pseries``)
 ===================================
 
-The Power machine para-virtualized environment described by the `Linux on Power
-Architecture Reference document (LoPAR)
-<https://openpowerfoundation.org/wp-content/uploads/2020/07/LoPAR-20200812.pdf>`_
-is called pSeries. This environment is also known as sPAPR, System p guests, or
-simply Power Linux guests (although it is capable of running other operating
-systems, such as AIX).
+The Power machine para-virtualized environment described by the Linux on Power
+Architecture Reference ([LoPAR]_) document is called pSeries. This environment
+is also known as sPAPR, System p guests, or simply Power Linux guests (although
+it is capable of running other operating systems, such as AIX).
 
 Even though pSeries is designed to behave as a guest environment, it is also
 capable of acting as a hypervisor OS, providing, on that role, nested
 virtualization capabilities.
 
 Supported devices
------------------
+=================
 
  * Multi processor support for many Power processors generations: POWER7,
    POWER7+, POWER8, POWER8NVL, POWER9, and Power10. Support for POWER5+ exists,
@@ -26,12 +25,12 @@ Supported devices
  * PCIe device pass through.
 
 Missing devices
----------------
+===============
 
  * SPICE support.
 
 Firmware
---------
+========
 
 `SLOF <https://github.com/aik/SLOF>`_ (Slimline Open Firmware) is an
 implementation of the `IEEE 1275-1994, Standard for Boot (Initialization
@@ -42,14 +41,14 @@ QEMU includes a prebuilt image of SLOF which is updated when a more recent
 version is required.
 
 Build directions
-----------------
+================
 
 .. code-block:: bash
 
   ./configure --target-list=ppc64-softmmu && make
 
 Running instructions
---------------------
+====================
 
 Someone can select the pSeries machine type by running QEMU with the following
 options:
@@ -59,7 +58,7 @@ options:
   qemu-system-ppc64 -M pseries <other QEMU arguments>
 
 sPAPR devices
--------------
+=============
 
 The sPAPR specification defines a set of para-virtualized devices, which are
 also supported by the pSeries machine in QEMU and can be instantiated with the
@@ -102,11 +101,9 @@ device, or specify one with an ID
 NVRAM device with ``-global spapr-nvram.drive=pfid``.
 
 sPAPR specification
-^^^^^^^^^^^^^^^^^^^
+-------------------
 
-The main source of documentation on the sPAPR standard is the `Linux on Power
-Architecture Reference document (LoPAR)
-<https://openpowerfoundation.org/wp-content/uploads/2020/07/LoPAR-20200812.pdf>`_.
+The main source of documentation on the sPAPR standard is the [LoPAR]_ document.
 However, documentation specific to QEMU's implementation of the specification
 can  also be found in QEMU documentation:
 
@@ -124,7 +121,7 @@ Other documentation available in QEMU docs directory:
   (``/docs/specs/ppc-spapr-uv-hcalls.txt``).
 
 Switching between the KVM-PR and KVM-HV kernel module
------------------------------------------------------
+=====================================================
 
 Currently, there are two implementations of KVM on Power, ``kvm_hv.ko`` and
 ``kvm_pr.ko``.
@@ -139,7 +136,7 @@ possible to switch between the two modes with the ``kvm-type`` parameter:
   instead.
 
 KVM-PR
-^^^^^^
+------
 
 KVM-PR uses the so-called **PR**\ oblem state of the PPC CPUs to run the guests,
 i.e. the virtual machine is run in user mode and all privileged instructions
@@ -166,7 +163,7 @@ In order to run KVM-PR guests with POWER9 processors, someone will need to start
 QEMU with ``kernel_irqchip=off`` command line option.
 
 KVM-HV
-^^^^^^
+------
 
 KVM-HV uses the hypervisor mode of more recent Power processors, that allow
 access to the bare metal hardware directly. Although POWER7 had this capability,
@@ -188,7 +185,7 @@ CPUs generations, e.g. you can run a POWER7 guest on a POWER8 host by using
 ``-cpu POWER8,compat=power7`` as parameter to QEMU.
 
 Modules support
----------------
+===============
 
 As noticed in the sections above, each module can run in a different
 environment. The following table shows with which environment each module can
@@ -264,8 +261,11 @@ enabled, whether or not the guest has actually entered secure mode.
 
 
 Maintainer contact information
-------------------------------
+==============================
 
 Cédric Le Goater <clg@kaod.org>
 
 Daniel Henrique Barboza <danielhb413@gmail.com>
+
+.. [LoPAR] `Linux on Power Architecture Reference document (LoPAR) revision
+   2.9 <https://openpowerfoundation.org/wp-content/uploads/2020/07/LoPAR-20200812.pdf>`_.
