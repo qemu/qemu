@@ -1525,6 +1525,7 @@ S390 Machines
 S390 Virtio-ccw
 M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
+M: Eric Farman <farman@linux.ibm.com>
 S: Supported
 F: hw/s390x/
 F: include/hw/s390x/
@@ -1555,6 +1556,7 @@ L: qemu-s390x@nongnu.org
 S390 channel subsystem
 M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
+M: Eric Farman <farman@linux.ibm.com>
 S: Supported
 F: hw/s390x/ccw-device.[ch]
 F: hw/s390x/css.c
@@ -1987,6 +1989,7 @@ T: git https://github.com/stefanha/qemu.git block
 virtio-ccw
 M: Cornelia Huck <cohuck@redhat.com>
 M: Halil Pasic <pasic@linux.ibm.com>
+M: Eric Farman <farman@linux.ibm.com>
 S: Supported
 F: hw/s390x/virtio-ccw*.[hc]
 F: hw/s390x/vhost-vsock-ccw.c
