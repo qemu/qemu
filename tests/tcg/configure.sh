@@ -167,7 +167,7 @@ for target in $target_list; do
       container_image=debian-nios2-cross
       container_cross_cc=nios2-linux-gnu-gcc
       ;;
-    ppc-*|ppc64abi32-*)
+    ppc-*)
       container_hosts=x86_64
       container_image=debian-powerpc-test-cross
       container_cross_cc=powerpc-linux-gnu-gcc-10

@@ -1558,7 +1558,7 @@ struct target_stat64 {
 struct target_stat {
 	abi_ulong st_dev;
 	abi_ulong st_ino;
-#if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
+#if defined(TARGET_PPC64)
 	abi_ulong st_nlink;
 	unsigned int st_mode;
 #else
@@ -1579,12 +1579,12 @@ struct target_stat {
 	abi_ulong  target_st_ctime_nsec;
 	abi_ulong  __unused4;
 	abi_ulong  __unused5;
-#if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
+#if defined(TARGET_PPC64)
 	abi_ulong  __unused6;
 #endif
 };
 
-#if !defined(TARGET_PPC64) || defined(TARGET_ABI32)
+#if !defined(TARGET_PPC64)
 #define TARGET_HAS_STRUCT_STAT64
 struct QEMU_PACKED target_stat64 {
 	unsigned long long st_dev;
