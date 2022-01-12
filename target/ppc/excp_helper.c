@@ -396,7 +396,7 @@ static void powerpc_set_excp_state(PowerPCCPU *cpu,
  * Note that this function should be greatly optimized when called
  * with a constant excp, from ppc_hw_interrupt
  */
-static void powerpc_excp(PowerPCCPU *cpu, int excp)
+static inline void powerpc_excp_legacy(PowerPCCPU *cpu, int excp)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
@@ -865,6 +865,16 @@ static void powerpc_excp(PowerPCCPU *cpu, int excp)
     ppc_excp_apply_ail(cpu, excp_model, excp, msr, &new_msr, &vector);
 
     powerpc_set_excp_state(cpu, vector, new_msr);
+}
+
+static void powerpc_excp(PowerPCCPU *cpu, int excp)
+{
+    CPUPPCState *env = &cpu->env;
+
+    switch (env->excp_model) {
+    default:
+        powerpc_excp_legacy(cpu, excp);
+    }
 }
 
 void ppc_cpu_do_interrupt(CPUState *cs)
