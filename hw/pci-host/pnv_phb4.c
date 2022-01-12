@@ -868,6 +868,32 @@ static uint64_t pnv_pec_stk_nest_xscom_read(void *opaque, hwaddr addr,
     return stack->nest_regs[reg];
 }
 
+static void pnv_phb4_update_regions(PnvPhb4PecStack *stack)
+{
+    PnvPHB4 *phb = stack->phb;
+
+    /* Unmap first always */
+    if (memory_region_is_mapped(&phb->mr_regs)) {
+        memory_region_del_subregion(&stack->phbbar, &phb->mr_regs);
+    }
+    if (memory_region_is_mapped(&phb->xsrc.esb_mmio)) {
+        memory_region_del_subregion(&stack->intbar, &phb->xsrc.esb_mmio);
+    }
+
+    /* Map registers if enabled */
+    if (memory_region_is_mapped(&stack->phbbar)) {
+        memory_region_add_subregion(&stack->phbbar, 0, &phb->mr_regs);
+    }
+
+    /* Map ESB if enabled */
+    if (memory_region_is_mapped(&stack->intbar)) {
+        memory_region_add_subregion(&stack->intbar, 0, &phb->xsrc.esb_mmio);
+    }
+
+    /* Check/update m32 */
+    pnv_phb4_check_all_mbt(phb);
+}
+
 static void pnv_pec_stk_update_map(PnvPhb4PecStack *stack)
 {
     PnvPhb4PecState *pec = stack->pec;
@@ -1795,32 +1821,6 @@ static void pnv_phb4_register_types(void)
 }
 
 type_init(pnv_phb4_register_types);
-
-void pnv_phb4_update_regions(PnvPhb4PecStack *stack)
-{
-    PnvPHB4 *phb = stack->phb;
-
-    /* Unmap first always */
-    if (memory_region_is_mapped(&phb->mr_regs)) {
-        memory_region_del_subregion(&stack->phbbar, &phb->mr_regs);
-    }
-    if (memory_region_is_mapped(&phb->xsrc.esb_mmio)) {
-        memory_region_del_subregion(&stack->intbar, &phb->xsrc.esb_mmio);
-    }
-
-    /* Map registers if enabled */
-    if (memory_region_is_mapped(&stack->phbbar)) {
-        memory_region_add_subregion(&stack->phbbar, 0, &phb->mr_regs);
-    }
-
-    /* Map ESB if enabled */
-    if (memory_region_is_mapped(&stack->intbar)) {
-        memory_region_add_subregion(&stack->intbar, 0, &phb->xsrc.esb_mmio);
-    }
-
-    /* Check/update m32 */
-    pnv_phb4_check_all_mbt(phb);
-}
 
 void pnv_phb4_pic_print_info(PnvPHB4 *phb, Monitor *mon)
 {
