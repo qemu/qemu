@@ -69,6 +69,65 @@ static const USBDescStrings desc_strings = {
     [STR_SERIALNUMBER]     = "1",
 };
 
+static const uint8_t qemu_wacom_hid_report_descriptor[] = {
+    0x05, 0x01,      /* Usage Page (Desktop) */
+    0x09, 0x02,      /* Usage (Mouse) */
+    0xa1, 0x01,      /* Collection (Application) */
+    0x85, 0x01,      /*    Report ID (1) */
+    0x09, 0x01,      /*    Usage (Pointer) */
+    0xa1, 0x00,      /*    Collection (Physical) */
+    0x05, 0x09,      /*       Usage Page (Button) */
+    0x19, 0x01,      /*       Usage Minimum (01h) */
+    0x29, 0x03,      /*       Usage Maximum (03h) */
+    0x15, 0x00,      /*       Logical Minimum (0) */
+    0x25, 0x01,      /*       Logical Maximum (1) */
+    0x95, 0x03,      /*       Report Count (3) */
+    0x75, 0x01,      /*       Report Size (1) */
+    0x81, 0x02,      /*       Input (Data, Variable, Absolute) */
+    0x95, 0x01,      /*       Report Count (1) */
+    0x75, 0x05,      /*       Report Size (5) */
+    0x81, 0x01,      /*       Input (Constant) */
+    0x05, 0x01,      /*       Usage Page (Desktop) */
+    0x09, 0x30,      /*       Usage (X) */
+    0x09, 0x31,      /*       Usage (Y) */
+    0x09, 0x38,      /*       Usage (Wheel) */
+    0x15, 0x81,      /*       Logical Minimum (-127) */
+    0x25, 0x7f,      /*       Logical Maximum (127) */
+    0x75, 0x08,      /*       Report Size (8) */
+    0x95, 0x03,      /*       Report Count (3) */
+    0x81, 0x06,      /*       Input (Data, Variable, Relative) */
+    0x95, 0x03,      /*       Report Count (3) */
+    0x81, 0x01,      /*       Input (Constant) */
+    0xc0,            /*    End Collection */
+    0xc0,            /* End Collection */
+    0x05, 0x0d,      /* Usage Page (Digitizer) */
+    0x09, 0x01,      /* Usage (Digitizer) */
+    0xa1, 0x01,      /* Collection (Application) */
+    0x85, 0x02,      /*    Report ID (2) */
+    0xa1, 0x00,      /*    Collection (Physical) */
+    0x06, 0x00, 0xff,/*       Usage Page (ff00h), vendor-defined */
+    0x09, 0x01,      /*       Usage (01h) */
+    0x15, 0x00,      /*       Logical Minimum (0) */
+    0x26, 0xff, 0x00,/*       Logical Maximum (255) */
+    0x75, 0x08,      /*       Report Size (8) */
+    0x95, 0x07,      /*       Report Count (7) */
+    0x81, 0x02,      /*       Input (Data, Variable, Absolute) */
+    0xc0,            /*    End Collection */
+    0x09, 0x01,      /*    Usage (01h) */
+    0x85, 0x63,      /*    Report ID (99) */
+    0x95, 0x07,      /*    Report Count (7) */
+    0x81, 0x02,      /*    Input (Data, Variable, Absolute) */
+    0x09, 0x01,      /*    Usage (01h) */
+    0x85, 0x02,      /*    Report ID (2) */
+    0x95, 0x01,      /*    Report Count (1) */
+    0xb1, 0x02,      /*    Feature (Variable) */
+    0x09, 0x01,      /*    Usage (01h) */
+    0x85, 0x03,      /*    Report ID (3) */
+    0x95, 0x01,      /*    Report Count (1) */
+    0xb1, 0x02,      /*    Feature (Variable) */
+    0xc0             /* End Collection */
+};
+
 static const USBDescIface desc_iface_wacom = {
     .bInterfaceNumber              = 0,
     .bNumEndpoints                 = 1,
@@ -86,7 +145,7 @@ static const USBDescIface desc_iface_wacom = {
                 0x00,          /*  u8  country_code */
                 0x01,          /*  u8  num_descriptors */
                 USB_DT_REPORT, /*  u8  type: Report */
-                0x6e, 0,       /*  u16 len */
+                sizeof(qemu_wacom_hid_report_descriptor), 0, /*  u16 len */
             },
         },
     },
@@ -266,6 +325,17 @@ static void usb_wacom_handle_control(USBDevice *dev, USBPacket *p,
     }
 
     switch (request) {
+    case InterfaceRequest | USB_REQ_GET_DESCRIPTOR:
+        switch (value >> 8) {
+        case 0x22:
+                memcpy(data, qemu_wacom_hid_report_descriptor,
+                       sizeof(qemu_wacom_hid_report_descriptor));
+                p->actual_length = sizeof(qemu_wacom_hid_report_descriptor);
+            break;
+        default:
+            return;
+        }
+        break;
     case WACOM_SET_REPORT:
         if (s->mouse_grabbed) {
             qemu_remove_mouse_event_handler(s->eh_entry);
