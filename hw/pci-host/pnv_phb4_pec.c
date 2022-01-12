@@ -449,8 +449,7 @@ static int pnv_pec_dt_xscom(PnvXScomInterface *dev, void *fdt,
                       pecc->compat_size)));
 
     for (i = 0; i < pec->num_stacks; i++) {
-        PnvPhb4PecStack *stack = &pec->stacks[i];
-        PnvPHB4 *phb = &stack->phb;
+        int phb_id = pnv_phb4_pec_get_phb_id(pec, i);
         int stk_offset;
 
         name = g_strdup_printf("stack@%x", i);
@@ -460,7 +459,7 @@ static int pnv_pec_dt_xscom(PnvXScomInterface *dev, void *fdt,
         _FDT((fdt_setprop(fdt, stk_offset, "compatible", pecc->stk_compat,
                           pecc->stk_compat_size)));
         _FDT((fdt_setprop_cell(fdt, stk_offset, "reg", i)));
-        _FDT((fdt_setprop_cell(fdt, stk_offset, "ibm,phb-index", phb->phb_id)));
+        _FDT((fdt_setprop_cell(fdt, stk_offset, "ibm,phb-index", phb_id)));
     }
 
     return 0;
