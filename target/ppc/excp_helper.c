@@ -1070,7 +1070,7 @@ void ppc_cpu_do_fwnmi_machine_check(CPUState *cs, target_ulong vector)
      */
     msr = (1ULL << MSR_ME);
     msr |= env->msr & (1ULL << MSR_SF);
-    if (ppc_interrupts_little_endian(cpu)) {
+    if (ppc_interrupts_little_endian(cpu, false)) {
         msr |= (1ULL << MSR_LE);
     }
 

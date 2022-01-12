@@ -2728,20 +2728,27 @@ static inline bool ppc_has_spr(PowerPCCPU *cpu, int spr)
     return cpu->env.spr_cb[spr].name != NULL;
 }
 
-static inline bool ppc_interrupts_little_endian(PowerPCCPU *cpu)
+#if !defined(CONFIG_USER_ONLY)
+static inline bool ppc_interrupts_little_endian(PowerPCCPU *cpu, bool hv)
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    CPUPPCState *env = &cpu->env;
+    bool ile = false;
 
-    /*
-     * Only models that have an LPCR and know about LPCR_ILE can do little
-     * endian.
-     */
-    if (pcc->lpcr_mask & LPCR_ILE) {
-        return !!(cpu->env.spr[SPR_LPCR] & LPCR_ILE);
+    if (hv && env->has_hv_mode) {
+        if (is_isa300(pcc)) {
+            ile = !!(env->spr[SPR_HID0] & HID0_POWER9_HILE);
+        } else {
+            ile = !!(env->spr[SPR_HID0] & HID0_HILE);
+        }
+
+    } else if (pcc->lpcr_mask & LPCR_ILE) {
+        ile = !!(env->spr[SPR_LPCR] & LPCR_ILE);
     }
 
-    return false;
+    return ile;
 }
+#endif
 
 void dump_mmu(CPUPPCState *env);
 
