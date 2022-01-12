@@ -392,10 +392,8 @@ static void pnv_pec_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < pec->num_stacks; i++) {
         PnvPhb4PecStack *stack = &pec->stacks[i];
         Object *stk_obj = OBJECT(stack);
-        int phb_id = pnv_phb4_pec_get_phb_id(pec, i);
 
         object_property_set_int(stk_obj, "stack-no", i, &error_abort);
-        object_property_set_int(stk_obj, "phb-id", phb_id, &error_abort);
         object_property_set_link(stk_obj, "pec", OBJECT(pec), &error_abort);
         if (!qdev_realize(DEVICE(stk_obj), NULL, errp)) {
             return;
@@ -534,7 +532,6 @@ static void pnv_pec_stk_instance_init(Object *obj)
     PnvPhb4PecStack *stack = PNV_PHB4_PEC_STACK(obj);
 
     object_initialize_child(obj, "phb", &stack->phb, TYPE_PNV_PHB4);
-    object_property_add_alias(obj, "phb-id", OBJECT(&stack->phb), "index");
 }
 
 static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
@@ -543,6 +540,7 @@ static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
     PnvPhb4PecState *pec = stack->pec;
     PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
     PnvChip *chip = pec->chip;
+    int phb_id = pnv_phb4_pec_get_phb_id(pec, stack->stack_no);
     uint32_t pec_nest_base;
     uint32_t pec_pci_base;
     char name[64];
@@ -569,6 +567,8 @@ static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
                           &pnv_phb4_xscom_ops, &stack->phb, name, 0x40);
 
     object_property_set_int(OBJECT(&stack->phb), "chip-id", pec->chip_id,
+                            &error_fatal);
+    object_property_set_int(OBJECT(&stack->phb), "index", phb_id,
                             &error_fatal);
     object_property_set_int(OBJECT(&stack->phb), "version", pecc->version,
                             &error_fatal);
