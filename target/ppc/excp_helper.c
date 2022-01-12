@@ -135,6 +135,41 @@ static void dump_hcall(CPUPPCState *env)
                   env->nip);
 }
 
+static void ppc_excp_debug_sw_tlb(CPUPPCState *env, int excp)
+{
+#if defined(DEBUG_SOFTWARE_TLB)
+    const char *es;
+    target_ulong *miss, *cmp;
+    int en;
+
+    if (!qemu_log_enabled()) {
+        return;
+    }
+
+    if (excp == POWERPC_EXCP_IFTLB) {
+        es = "I";
+        en = 'I';
+        miss = &env->spr[SPR_IMISS];
+        cmp = &env->spr[SPR_ICMP];
+    } else {
+        if (excp == POWERPC_EXCP_DLTLB) {
+            es = "DL";
+        } else {
+            es = "DS";
+        }
+        en = 'D';
+        miss = &env->spr[SPR_DMISS];
+        cmp = &env->spr[SPR_DCMP];
+    }
+    qemu_log("6xx %sTLB miss: %cM " TARGET_FMT_lx " %cC "
+             TARGET_FMT_lx " H1 " TARGET_FMT_lx " H2 "
+             TARGET_FMT_lx " %08x\n", es, en, *miss, en, *cmp,
+             env->spr[SPR_HASH1], env->spr[SPR_HASH2],
+             env->error_code);
+#endif
+}
+
+
 static int powerpc_reset_wakeup(CPUState *cs, CPUPPCState *env, int excp,
                                 target_ulong *msr)
 {
@@ -777,34 +812,8 @@ static void powerpc_excp(PowerPCCPU *cpu, int excp)
             }
             /* fall through */
         case POWERPC_EXCP_7x5:
-#if defined(DEBUG_SOFTWARE_TLB)
-            if (qemu_log_enabled()) {
-                const char *es;
-                target_ulong *miss, *cmp;
-                int en;
+            ppc_excp_debug_sw_tlb(env, excp);
 
-                if (excp == POWERPC_EXCP_IFTLB) {
-                    es = "I";
-                    en = 'I';
-                    miss = &env->spr[SPR_IMISS];
-                    cmp = &env->spr[SPR_ICMP];
-                } else {
-                    if (excp == POWERPC_EXCP_DLTLB) {
-                        es = "DL";
-                    } else {
-                        es = "DS";
-                    }
-                    en = 'D';
-                    miss = &env->spr[SPR_DMISS];
-                    cmp = &env->spr[SPR_DCMP];
-                }
-                qemu_log("6xx %sTLB miss: %cM " TARGET_FMT_lx " %cC "
-                         TARGET_FMT_lx " H1 " TARGET_FMT_lx " H2 "
-                         TARGET_FMT_lx " %08x\n", es, en, *miss, en, *cmp,
-                         env->spr[SPR_HASH1], env->spr[SPR_HASH2],
-                         env->error_code);
-            }
-#endif
             msr |= env->crf[0] << 28;
             msr |= env->error_code; /* key, D/I, S/L bits */
             /* Set way using a LRU mechanism */
