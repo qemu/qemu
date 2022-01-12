@@ -71,9 +71,10 @@
 
 #define ACPI_REBUILD_EXPECTED_AML "TEST_ACPI_REBUILD_AML"
 
-#define OEM_ID             "TEST"
-#define OEM_TABLE_ID       "OEM"
-#define OEM_TEST_ARGS      "-machine x-oem-id="OEM_ID",x-oem-table-id="OEM_TABLE_ID
+#define OEM_ID             "TEST  "
+#define OEM_TABLE_ID       "OEM     "
+#define OEM_TEST_ARGS      "-machine x-oem-id='" OEM_ID "',x-oem-table-id='" \
+                           OEM_TABLE_ID "'"
 
 typedef struct {
     bool tcg_only;
@@ -1519,11 +1520,7 @@ static void test_acpi_q35_slic(void)
 static void test_oem_fields(test_data *data)
 {
     int i;
-    char oem_id[6];
-    char oem_table_id[8];
 
-    strpadcpy(oem_id, sizeof oem_id, OEM_ID, ' ');
-    strpadcpy(oem_table_id, sizeof oem_table_id, OEM_TABLE_ID, ' ');
     for (i = 0; i < data->tables->len; ++i) {
         AcpiSdtTable *sdt;
 
@@ -1533,8 +1530,8 @@ static void test_oem_fields(test_data *data)
             continue;
         }
 
-        g_assert(memcmp(sdt->aml + 10, oem_id, 6) == 0);
-        g_assert(memcmp(sdt->aml + 16, oem_table_id, 8) == 0);
+        g_assert(memcmp(sdt->aml + 10, OEM_ID, 6) == 0);
+        g_assert(memcmp(sdt->aml + 16, OEM_TABLE_ID, 8) == 0);
     }
 }
 
