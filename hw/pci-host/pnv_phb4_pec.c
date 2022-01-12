@@ -19,6 +19,7 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/ppc/pnv.h"
 #include "hw/qdev-properties.h"
+#include "sysemu/sysemu.h"
 
 #include <libfdt.h>
 
@@ -275,9 +276,9 @@ static const TypeInfo pnv_pec_type_info = {
     }
 };
 
-static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
+static void pnv_pec_stk_default_phb_realize(PnvPhb4PecStack *stack,
+                                            Error **errp)
 {
-    PnvPhb4PecStack *stack = PNV_PHB4_PEC_STACK(dev);
     PnvPhb4PecState *pec = stack->pec;
     PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
     int phb_id = pnv_phb4_pec_get_phb_id(pec, stack->stack_no);
@@ -292,9 +293,21 @@ static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
                             &error_fatal);
     object_property_set_link(OBJECT(stack->phb), "stack", OBJECT(stack),
                              &error_abort);
+
     if (!sysbus_realize(SYS_BUS_DEVICE(stack->phb), errp)) {
         return;
     }
+}
+
+static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
+{
+    PnvPhb4PecStack *stack = PNV_PHB4_PEC_STACK(dev);
+
+    if (!defaults_enabled()) {
+        return;
+    }
+
+    pnv_pec_stk_default_phb_realize(stack, errp);
 }
 
 static Property pnv_pec_stk_properties[] = {
