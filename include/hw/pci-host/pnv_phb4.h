@@ -78,8 +78,6 @@ OBJECT_DECLARE_SIMPLE_TYPE(PnvPHB4, PNV_PHB4)
 struct PnvPHB4 {
     PCIExpressHost parent_obj;
 
-    PnvPHB4RootPort root;
-
     uint32_t chip_id;
     uint32_t phb_id;
 

@@ -22,6 +22,7 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "qom/object.h"
+#include "sysemu/sysemu.h"
 #include "trace.h"
 
 #define phb_error(phb, fmt, ...)                                        \
@@ -1159,12 +1160,6 @@ static void pnv_phb4_instance_init(Object *obj)
 
     /* XIVE interrupt source object */
     object_initialize_child(obj, "source", &phb->xsrc, TYPE_XIVE_SOURCE);
-
-    /* Root Port */
-    object_initialize_child(obj, "root", &phb->root, TYPE_PNV_PHB4_ROOT_PORT);
-
-    qdev_prop_set_int32(DEVICE(&phb->root), "addr", PCI_DEVFN(0, 0));
-    qdev_prop_set_bit(DEVICE(&phb->root), "multifunction", false);
 }
 
 static void pnv_phb4_realize(DeviceState *dev, Error **errp)
@@ -1208,10 +1203,11 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     pci_setup_iommu(pci->bus, pnv_phb4_dma_iommu, phb);
     pci->bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
 
-    /* Add a single Root port */
-    qdev_prop_set_uint8(DEVICE(&phb->root), "chassis", phb->chip_id);
-    qdev_prop_set_uint16(DEVICE(&phb->root), "slot", phb->phb_id);
-    qdev_realize(DEVICE(&phb->root), BUS(pci->bus), &error_fatal);
+    /* Add a single Root port if running with defaults */
+    if (defaults_enabled()) {
+        pnv_phb_attach_root_port(PCI_HOST_BRIDGE(phb),
+                                 TYPE_PNV_PHB4_ROOT_PORT);
+    }
 
     /* Setup XIVE Source */
     if (phb->big_phb) {
@@ -1369,7 +1365,7 @@ static void pnv_phb4_root_port_class_init(ObjectClass *klass, void *data)
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_CLASS(klass);
 
     dc->desc     = "IBM PHB4 PCIE Root Port";
-    dc->user_creatable = false;
+    dc->user_creatable = true;
 
     device_class_set_parent_realize(dc, pnv_phb4_root_port_realize,
                                     &rpc->parent_realize);
