@@ -275,13 +275,6 @@ static const TypeInfo pnv_pec_type_info = {
     }
 };
 
-static void pnv_pec_stk_instance_init(Object *obj)
-{
-    PnvPhb4PecStack *stack = PNV_PHB4_PEC_STACK(obj);
-
-    object_initialize_child(obj, "phb", &stack->phb, TYPE_PNV_PHB4);
-}
-
 static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
 {
     PnvPhb4PecStack *stack = PNV_PHB4_PEC_STACK(dev);
@@ -289,15 +282,17 @@ static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
     PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
     int phb_id = pnv_phb4_pec_get_phb_id(pec, stack->stack_no);
 
-    object_property_set_int(OBJECT(&stack->phb), "chip-id", pec->chip_id,
+    stack->phb = PNV_PHB4(qdev_new(TYPE_PNV_PHB4));
+
+    object_property_set_int(OBJECT(stack->phb), "chip-id", pec->chip_id,
                             &error_fatal);
-    object_property_set_int(OBJECT(&stack->phb), "index", phb_id,
+    object_property_set_int(OBJECT(stack->phb), "index", phb_id,
                             &error_fatal);
-    object_property_set_int(OBJECT(&stack->phb), "version", pecc->version,
+    object_property_set_int(OBJECT(stack->phb), "version", pecc->version,
                             &error_fatal);
-    object_property_set_link(OBJECT(&stack->phb), "stack", OBJECT(stack),
+    object_property_set_link(OBJECT(stack->phb), "stack", OBJECT(stack),
                              &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&stack->phb), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(stack->phb), errp)) {
         return;
     }
 }
@@ -324,7 +319,6 @@ static const TypeInfo pnv_pec_stk_type_info = {
     .name          = TYPE_PNV_PHB4_PEC_STACK,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PnvPhb4PecStack),
-    .instance_init = pnv_pec_stk_instance_init,
     .class_init    = pnv_pec_stk_class_init,
     .interfaces    = (InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
