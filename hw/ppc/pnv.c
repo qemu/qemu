@@ -1099,7 +1099,6 @@ static void pnv_chip_power10_intc_print_info(PnvChip *chip, PowerPCCPU *cpu,
 
 static void pnv_chip_power8_instance_init(Object *obj)
 {
-    PnvChip *chip = PNV_CHIP(obj);
     Pnv8Chip *chip8 = PNV8_CHIP(obj);
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(obj);
     int i;
@@ -1118,10 +1117,10 @@ static void pnv_chip_power8_instance_init(Object *obj)
     object_initialize_child(obj, "homer", &chip8->homer, TYPE_PNV8_HOMER);
 
     if (defaults_enabled()) {
-        chip->num_phbs = pcc->num_phbs;
+        chip8->num_phbs = pcc->num_phbs;
     }
 
-    for (i = 0; i < chip->num_phbs; i++) {
+    for (i = 0; i < chip8->num_phbs; i++) {
         object_initialize_child(obj, "phb[*]", &chip8->phbs[i], TYPE_PNV_PHB3);
     }
 
@@ -1247,7 +1246,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
                                 &chip8->homer.regs);
 
     /* PHB3 controllers */
-    for (i = 0; i < chip->num_phbs; i++) {
+    for (i = 0; i < chip8->num_phbs; i++) {
         PnvPHB3 *phb = &chip8->phbs[i];
 
         object_property_set_int(OBJECT(phb), "index", i, &error_fatal);

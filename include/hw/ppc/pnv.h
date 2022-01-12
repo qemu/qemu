@@ -52,7 +52,6 @@ struct PnvChip {
     uint64_t     cores_mask;
     PnvCore      **cores;
 
-    uint32_t     num_phbs;
     uint32_t     num_pecs;
 
     MemoryRegion xscom_mmio;
@@ -82,6 +81,7 @@ struct Pnv8Chip {
 
 #define PNV8_CHIP_PHB3_MAX 4
     PnvPHB3      phbs[PNV8_CHIP_PHB3_MAX];
+    uint32_t     num_phbs;
 
     XICSFabric    *xics;
 };
@@ -136,8 +136,8 @@ struct PnvChipClass {
     /*< public >*/
     uint64_t     chip_cfam_id;
     uint64_t     cores_mask;
-    uint32_t     num_phbs;
     uint32_t     num_pecs;
+    uint32_t     num_phbs;
 
     DeviceRealize parent_realize;
 
