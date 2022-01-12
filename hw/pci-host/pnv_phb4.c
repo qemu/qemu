@@ -152,7 +152,10 @@ static void pnv_phb4_rc_config_write(PnvPHB4 *phb, unsigned off,
     }
 
     pdev = pci_find_device(pci->bus, 0, 0);
-    assert(pdev);
+    if (!pdev) {
+        phb_error(phb, "rc_config_write device not found\n");
+        return;
+    }
 
     pci_host_config_write_common(pdev, off, PHB_RC_CONFIG_SIZE,
                                  bswap32(val), 4);
@@ -171,7 +174,10 @@ static uint64_t pnv_phb4_rc_config_read(PnvPHB4 *phb, unsigned off,
     }
 
     pdev = pci_find_device(pci->bus, 0, 0);
-    assert(pdev);
+    if (!pdev) {
+        phb_error(phb, "rc_config_read device not found\n");
+        return ~0ull;
+    }
 
     val = pci_host_config_read_common(pdev, off, PHB_RC_CONFIG_SIZE, 4);
     return bswap32(val);
