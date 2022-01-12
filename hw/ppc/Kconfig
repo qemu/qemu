@@ -151,3 +151,8 @@ config FDT_PPC
 
 config VOF
     bool
+
+config MM7705
+    bool
+    default y
+    select PL011
