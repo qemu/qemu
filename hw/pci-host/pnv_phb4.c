@@ -1070,6 +1070,23 @@ static const TypeInfo pnv_phb4_iommu_memory_region_info = {
 };
 
 /*
+ * Return the index/phb-id of a PHB4 that belongs to a
+ * pec->stacks[stack_index] stack.
+ */
+int pnv_phb4_pec_get_phb_id(PnvPhb4PecState *pec, int stack_index)
+{
+    PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
+    int index = pec->index;
+    int offset = 0;
+
+    while (index--) {
+        offset += pecc->num_stacks[index];
+    }
+
+    return offset + stack_index;
+}
+
+/*
  * MSI/MSIX memory region implementation.
  * The handler handles both MSI and MSIX.
  */

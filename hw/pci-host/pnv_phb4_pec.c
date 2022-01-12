@@ -374,19 +374,6 @@ static void pnv_pec_instance_init(Object *obj)
     }
 }
 
-static int pnv_pec_phb_offset(PnvPhb4PecState *pec)
-{
-    PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
-    int index = pec->index;
-    int offset = 0;
-
-    while (index--) {
-        offset += pecc->num_stacks[index];
-    }
-
-    return offset;
-}
-
 static void pnv_pec_realize(DeviceState *dev, Error **errp)
 {
     PnvPhb4PecState *pec = PNV_PHB4_PEC(dev);
@@ -405,7 +392,7 @@ static void pnv_pec_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < pec->num_stacks; i++) {
         PnvPhb4PecStack *stack = &pec->stacks[i];
         Object *stk_obj = OBJECT(stack);
-        int phb_id = pnv_pec_phb_offset(pec) + i;
+        int phb_id = pnv_phb4_pec_get_phb_id(pec, i);
 
         object_property_set_int(stk_obj, "stack-no", i, &error_abort);
         object_property_set_int(stk_obj, "phb-id", phb_id, &error_abort);
