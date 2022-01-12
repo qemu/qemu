@@ -1086,39 +1086,39 @@ static void pnv_pec_stk_pci_xscom_write(void *opaque, hwaddr addr,
 
     switch (reg) {
     case PEC_PCI_STK_PCI_FIR:
-        stack->nest_regs[reg] = val;
+        stack->pci_regs[reg] = val;
         break;
     case PEC_PCI_STK_PCI_FIR_CLR:
-        stack->nest_regs[PEC_PCI_STK_PCI_FIR] &= val;
+        stack->pci_regs[PEC_PCI_STK_PCI_FIR] &= val;
         break;
     case PEC_PCI_STK_PCI_FIR_SET:
-        stack->nest_regs[PEC_PCI_STK_PCI_FIR] |= val;
+        stack->pci_regs[PEC_PCI_STK_PCI_FIR] |= val;
         break;
     case PEC_PCI_STK_PCI_FIR_MSK:
-        stack->nest_regs[reg] = val;
+        stack->pci_regs[reg] = val;
         break;
     case PEC_PCI_STK_PCI_FIR_MSKC:
-        stack->nest_regs[PEC_PCI_STK_PCI_FIR_MSK] &= val;
+        stack->pci_regs[PEC_PCI_STK_PCI_FIR_MSK] &= val;
         break;
     case PEC_PCI_STK_PCI_FIR_MSKS:
-        stack->nest_regs[PEC_PCI_STK_PCI_FIR_MSK] |= val;
+        stack->pci_regs[PEC_PCI_STK_PCI_FIR_MSK] |= val;
         break;
     case PEC_PCI_STK_PCI_FIR_ACT0:
     case PEC_PCI_STK_PCI_FIR_ACT1:
-        stack->nest_regs[reg] = val;
+        stack->pci_regs[reg] = val;
         break;
     case PEC_PCI_STK_PCI_FIR_WOF:
-        stack->nest_regs[reg] = 0;
+        stack->pci_regs[reg] = 0;
         break;
     case PEC_PCI_STK_ETU_RESET:
-        stack->nest_regs[reg] = val & 0x8000000000000000ull;
+        stack->pci_regs[reg] = val & 0x8000000000000000ull;
         /* TODO: Implement reset */
         break;
     case PEC_PCI_STK_PBAIB_ERR_REPORT:
         break;
     case PEC_PCI_STK_PBAIB_TX_CMD_CRED:
     case PEC_PCI_STK_PBAIB_TX_DAT_CRED:
-        stack->nest_regs[reg] = val;
+        stack->pci_regs[reg] = val;
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "phb4_pec_stk: pci_xscom_write 0x%"HWADDR_PRIx
