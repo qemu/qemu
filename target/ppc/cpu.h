@@ -2733,7 +2733,7 @@ static inline bool ppc_interrupts_little_endian(PowerPCCPU *cpu, bool hv)
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
-    bool ile = false;
+    bool ile;
 
     if (hv && env->has_hv_mode) {
         if (is_isa300(pcc)) {
@@ -2744,6 +2744,8 @@ static inline bool ppc_interrupts_little_endian(PowerPCCPU *cpu, bool hv)
 
     } else if (pcc->lpcr_mask & LPCR_ILE) {
         ile = !!(env->spr[SPR_LPCR] & LPCR_ILE);
+    } else {
+        ile = !!(msr_ile);
     }
 
     return ile;
