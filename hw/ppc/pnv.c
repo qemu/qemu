@@ -1156,6 +1156,14 @@ static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
     }
 }
 
+/* Attach a root port device */
+void pnv_phb_attach_root_port(PCIHostState *pci, const char *name)
+{
+    PCIDevice *root = pci_new(PCI_DEVFN(0, 0), name);
+
+    pci_realize_and_unref(root, pci->bus, &error_fatal);
+}
+
 static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
 {
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(dev);

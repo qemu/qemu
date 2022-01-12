@@ -155,8 +155,6 @@ struct PnvPHB3 {
 
     PnvPBCQState pbcq;
 
-    PnvPHB3RootPort root;
-
     QLIST_HEAD(, PnvPhb3DMASpace) dma_spaces;
 
     PnvChip *chip;
