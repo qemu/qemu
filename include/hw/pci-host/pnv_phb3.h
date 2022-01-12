@@ -105,7 +105,7 @@ struct PnvPBCQState {
 /*
  * PHB3 PCIe Root port
  */
-#define TYPE_PNV_PHB3_ROOT_BUS "pnv-phb3-root-bus"
+#define TYPE_PNV_PHB3_ROOT_BUS "pnv-phb3-root"
 
 #define TYPE_PNV_PHB3_ROOT_PORT "pnv-phb3-root-port"
 
