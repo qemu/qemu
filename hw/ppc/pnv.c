@@ -1117,14 +1117,14 @@ static void pnv_chip_power8_instance_init(Object *obj)
 
     object_initialize_child(obj, "homer", &chip8->homer, TYPE_PNV8_HOMER);
 
-    for (i = 0; i < pcc->num_phbs; i++) {
+    if (defaults_enabled()) {
+        chip->num_phbs = pcc->num_phbs;
+    }
+
+    for (i = 0; i < chip->num_phbs; i++) {
         object_initialize_child(obj, "phb[*]", &chip8->phbs[i], TYPE_PNV_PHB3);
     }
 
-    /*
-     * Number of PHBs is the chip default
-     */
-    chip->num_phbs = pcc->num_phbs;
 }
 
 static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
@@ -1809,6 +1809,19 @@ static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
         object_child_foreach(OBJECT(chip), pnv_ics_get_child, &args);
         if (args.ics) {
             return args.ics;
+        }
+    }
+    return NULL;
+}
+
+PnvChip *pnv_get_chip(PnvMachineState *pnv, uint32_t chip_id)
+{
+    int i;
+
+    for (i = 0; i < pnv->num_chips; i++) {
+        PnvChip *chip = pnv->chips[i];
+        if (chip->chip_id == chip_id) {
+            return chip;
         }
     }
     return NULL;

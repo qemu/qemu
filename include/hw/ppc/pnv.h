@@ -218,6 +218,8 @@ struct PnvMachineState {
     hwaddr       fw_load_addr;
 };
 
+PnvChip *pnv_get_chip(PnvMachineState *pnv, uint32_t chip_id);
+
 #define PNV_FDT_ADDR          0x01000000
 #define PNV_TIMEBASE_FREQ     512000000ULL
 
