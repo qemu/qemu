@@ -993,6 +993,9 @@ static void pnv_phb3_realize(DeviceState *dev, Error **errp)
 
     /* User created devices */
     if (!phb->chip) {
+        Error *local_err = NULL;
+        BusState *s;
+
         phb->chip = pnv_get_chip(pnv, phb->chip_id);
         if (!phb->chip) {
             error_setg(errp, "invalid chip id: %d", phb->chip_id);
@@ -1004,6 +1007,12 @@ static void pnv_phb3_realize(DeviceState *dev, Error **errp)
          * correctly the device tree.
          */
         pnv_chip_parent_fixup(phb->chip, OBJECT(phb), phb->phb_id);
+
+        s = qdev_get_parent_bus(DEVICE(phb->chip));
+        if (!qdev_set_parent_bus(DEVICE(phb), s, &local_err)) {
+            error_propagate(errp, local_err);
+            return;
+        }
     }
 
     if (phb->phb_id >= PNV_CHIP_GET_CLASS(phb->chip)->num_phbs) {
