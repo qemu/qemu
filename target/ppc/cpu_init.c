@@ -6953,10 +6953,12 @@ POWERPC_FAMILY(POWER5P)(ObjectClass *oc, void *data)
                        PPC_FLOAT | PPC_FLOAT_FSEL | PPC_FLOAT_FRES |
                        PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |
                        PPC_FLOAT_STFIWX |
+                       PPC_FLOAT_EXT |
                        PPC_CACHE | PPC_CACHE_ICBI | PPC_CACHE_DCBZ |
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_MEM_TLBIE | PPC_MEM_TLBSYNC |
                        PPC_64B |
+                       PPC_POPCNTB |
                        PPC_SEGMENT_64B | PPC_SLBI;
     pcc->insns_flags2 = PPC2_FP_CVT_S64;
     pcc->msr_mask = (1ull << MSR_SF) |

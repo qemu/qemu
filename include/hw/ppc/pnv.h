@@ -52,7 +52,6 @@ struct PnvChip {
     uint64_t     cores_mask;
     PnvCore      **cores;
 
-    uint32_t     num_phbs;
     uint32_t     num_pecs;
 
     MemoryRegion xscom_mmio;
@@ -82,6 +81,7 @@ struct Pnv8Chip {
 
 #define PNV8_CHIP_PHB3_MAX 4
     PnvPHB3      phbs[PNV8_CHIP_PHB3_MAX];
+    uint32_t     num_phbs;
 
     XICSFabric    *xics;
 };
@@ -136,8 +136,8 @@ struct PnvChipClass {
     /*< public >*/
     uint64_t     chip_cfam_id;
     uint64_t     cores_mask;
-    uint32_t     num_phbs;
     uint32_t     num_pecs;
+    uint32_t     num_phbs;
 
     DeviceRealize parent_realize;
 
@@ -177,6 +177,8 @@ DECLARE_INSTANCE_CHECKER(PnvChip, PNV_CHIP_POWER10,
                          TYPE_PNV_CHIP_POWER10)
 
 PowerPCCPU *pnv_chip_find_cpu(PnvChip *chip, uint32_t pir);
+void pnv_phb_attach_root_port(PCIHostState *pci, const char *name);
+void pnv_chip_parent_fixup(PnvChip *chip, Object *obj, int index);
 
 #define TYPE_PNV_MACHINE       MACHINE_TYPE_NAME("powernv")
 typedef struct PnvMachineClass PnvMachineClass;
@@ -216,6 +218,8 @@ struct PnvMachineState {
 
     hwaddr       fw_load_addr;
 };
+
+PnvChip *pnv_get_chip(PnvMachineState *pnv, uint32_t chip_id);
 
 #define PNV_FDT_ADDR          0x01000000
 #define PNV_TIMEBASE_FREQ     512000000ULL

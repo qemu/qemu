@@ -1245,7 +1245,7 @@ F: hw/openrisc/openrisc_sim.c
 
 PowerPC Machines
 ----------------
-405
+405 (ref405ep and taihu)
 L: qemu-ppc@nongnu.org
 S: Orphan
 F: hw/ppc/ppc405_boards.c
@@ -1281,6 +1281,7 @@ New World (mac99)
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
+F: docs/system/ppc/powermac.rst
 F: hw/ppc/mac_newworld.c
 F: hw/pci-host/uninorth.c
 F: hw/pci-bridge/dec.[hc]
@@ -1299,6 +1300,7 @@ Old World (g3beige)
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
+F: docs/system/ppc/powermac.rst
 F: hw/ppc/mac_oldworld.c
 F: hw/pci-host/grackle.c
 F: hw/misc/macio/
@@ -1312,6 +1314,7 @@ PReP
 M: Hervé Poussineau <hpoussin@reactos.org>
 L: qemu-ppc@nongnu.org
 S: Maintained
+F: docs/system/ppc/prep.rst
 F: hw/ppc/prep.c
 F: hw/ppc/prep_systemio.c
 F: hw/ppc/rs6000_mc.c
@@ -1324,7 +1327,7 @@ F: include/hw/isa/pc87312.h
 F: include/hw/rtc/m48t59.h
 F: tests/avocado/ppc_prep_40p.py
 
-sPAPR
+sPAPR (pseries)
 M: Cédric Le Goater <clg@kaod.org>
 M: Daniel Henrique Barboza <danielhb413@gmail.com>
 R: David Gibson <david@gibson.dropbear.id.au>
@@ -1336,8 +1339,8 @@ F: include/hw/*/spapr*
 F: hw/*/xics*
 F: include/hw/*/xics*
 F: pc-bios/slof.bin
-F: docs/specs/ppc-spapr-hcalls.txt
-F: docs/specs/ppc-spapr-hotplug.txt
+F: docs/system/ppc/pseries.rst
+F: docs/specs/ppc-spapr-*
 F: tests/qtest/spapr*
 F: tests/qtest/libqos/*spapr*
 F: tests/qtest/rtas*
@@ -1348,6 +1351,7 @@ PowerNV (Non-Virtualized)
 M: Cédric Le Goater <clg@kaod.org>
 L: qemu-ppc@nongnu.org
 S: Maintained
+F: docs/system/ppc/powernv.rst
 F: hw/ppc/pnv*
 F: hw/intc/pnv*
 F: hw/intc/xics_pnv.c

@@ -1,13 +1,12 @@
+======================
 sPAPR hypervisor calls
-----------------------
+======================
 
 When used with the ``pseries`` machine type, ``qemu-system-ppc64`` implements
-a set of hypervisor calls (a.k.a. hcalls) defined in the `Linux on Power
-Architecture Reference document (LoPAR)
-<https://cdn.openpowerfoundation.org/wp-content/uploads/2020/07/LoPAR-20200812.pdf>`_.
-This document is a subset of the Power Architecture Platform Reference (PAPR+)
-specification (IBM internal only), which is what PowerVM, the IBM proprietary
-hypervisor, adheres to.
+a set of hypervisor calls (a.k.a. hcalls) defined in the Linux on Power
+Architecture Reference ([LoPAR]_) document. This document is a subset of the
+Power Architecture Platform Reference (PAPR+) specification (IBM internal only),
+which is what PowerVM, the IBM proprietary hypervisor, adheres to.
 
 The subset in LoPAR is selected based on the requirements of Linux as a guest.
 
@@ -18,8 +17,8 @@ running in the guest and QEMU.
 All those hypercalls start at hcall number 0xf000 which correspond
 to an implementation specific range in PAPR.
 
-H_RTAS (0xf000)
-^^^^^^^^^^^^^^^
+``H_RTAS (0xf000)``
+===================
 
 RTAS stands for Run-Time Abstraction Sercies and is a set of runtime services
 generally provided by the firmware inside the guest to the operating system. It
@@ -44,8 +43,8 @@ Returns:
 
   ``H_PARAMETER``: Unknown token.
 
-H_LOGICAL_MEMOP (0xf001)
-^^^^^^^^^^^^^^^^^^^^^^^^
+``H_LOGICAL_MEMOP (0xf001)``
+============================
 
 When the guest runs in "real mode" (in powerpc terminology this means with MMU
 disabled, i.e. guest effective address equals to guest physical address), it

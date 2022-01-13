@@ -1099,7 +1099,6 @@ static void pnv_chip_power10_intc_print_info(PnvChip *chip, PowerPCCPU *cpu,
 
 static void pnv_chip_power8_instance_init(Object *obj)
 {
-    PnvChip *chip = PNV_CHIP(obj);
     Pnv8Chip *chip8 = PNV8_CHIP(obj);
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(obj);
     int i;
@@ -1117,14 +1116,14 @@ static void pnv_chip_power8_instance_init(Object *obj)
 
     object_initialize_child(obj, "homer", &chip8->homer, TYPE_PNV8_HOMER);
 
-    for (i = 0; i < pcc->num_phbs; i++) {
+    if (defaults_enabled()) {
+        chip8->num_phbs = pcc->num_phbs;
+    }
+
+    for (i = 0; i < chip8->num_phbs; i++) {
         object_initialize_child(obj, "phb[*]", &chip8->phbs[i], TYPE_PNV_PHB3);
     }
 
-    /*
-     * Number of PHBs is the chip default
-     */
-    chip->num_phbs = pcc->num_phbs;
 }
 
 static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
@@ -1154,6 +1153,14 @@ static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
                                         &icp->mmio);
         }
     }
+}
+
+/* Attach a root port device */
+void pnv_phb_attach_root_port(PCIHostState *pci, const char *name)
+{
+    PCIDevice *root = pci_new(PCI_DEVFN(0, 0), name);
+
+    pci_realize_and_unref(root, pci->bus, &error_fatal);
 }
 
 static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
@@ -1239,7 +1246,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
                                 &chip8->homer.regs);
 
     /* PHB3 controllers */
-    for (i = 0; i < chip->num_phbs; i++) {
+    for (i = 0; i < chip8->num_phbs; i++) {
         PnvPHB3 *phb = &chip8->phbs[i];
 
         object_property_set_int(OBJECT(phb), "index", i, &error_fatal);
@@ -1806,6 +1813,36 @@ static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
     return NULL;
 }
 
+void pnv_chip_parent_fixup(PnvChip *chip, Object *obj, int index)
+{
+    Object *parent = OBJECT(chip);
+    g_autofree char *default_id =
+        g_strdup_printf("%s[%d]", object_get_typename(obj), index);
+
+    if (obj->parent == parent) {
+        return;
+    }
+
+    object_ref(obj);
+    object_unparent(obj);
+    object_property_add_child(
+        parent, DEVICE(obj)->id ? DEVICE(obj)->id : default_id, obj);
+    object_unref(obj);
+}
+
+PnvChip *pnv_get_chip(PnvMachineState *pnv, uint32_t chip_id)
+{
+    int i;
+
+    for (i = 0; i < pnv->num_chips; i++) {
+        PnvChip *chip = pnv->chips[i];
+        if (chip->chip_id == chip_id) {
+            return chip;
+        }
+    }
+    return NULL;
+}
+
 static int pnv_ics_resend_child(Object *child, void *opaque)
 {
     PnvPHB3 *phb3 = (PnvPHB3 *) object_dynamic_cast(child, TYPE_PNV_PHB3);
@@ -1903,6 +1940,8 @@ static void pnv_machine_power8_class_init(ObjectClass *oc, void *data)
 
     pmc->compat = compat;
     pmc->compat_size = sizeof(compat);
+
+    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_PNV_PHB3);
 }
 
 static void pnv_machine_power9_class_init(ObjectClass *oc, void *data)
@@ -1921,6 +1960,8 @@ static void pnv_machine_power9_class_init(ObjectClass *oc, void *data)
     pmc->compat = compat;
     pmc->compat_size = sizeof(compat);
     pmc->dt_power_mgt = pnv_dt_power_mgt;
+
+    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_PNV_PHB4);
 }
 
 static void pnv_machine_power10_class_init(ObjectClass *oc, void *data)
