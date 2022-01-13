@@ -4,8 +4,8 @@ endif
 
 linux_user_ss = ss.source_set()
 
-common_user_inc += include_directories('host/' / host_arch)
-common_user_inc += include_directories('.')
+common_user_inc += include_directories('include/host/' / host_arch)
+common_user_inc += include_directories('include')
 
 linux_user_ss.add(files(
   'elfload.c',

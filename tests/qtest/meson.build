@@ -335,10 +335,9 @@ foreach dir : target_dirs
         test: executable(test, src, dependencies: deps)
       }
     endif
-    # FIXME: missing dependency on the emulator binary and qemu-img
     test('qtest-@0@/@1@'.format(target_base, test),
          qtest_executables[test],
-         depends: [test_deps, qtest_emulator],
+         depends: [test_deps, qtest_emulator, emulator_modules],
          env: qtest_env,
          args: ['--tap', '-k'],
          protocol: 'tap',

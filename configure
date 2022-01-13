@@ -78,7 +78,6 @@ TMPC="${TMPDIR1}/${TMPB}.c"
 TMPO="${TMPDIR1}/${TMPB}.o"
 TMPCXX="${TMPDIR1}/${TMPB}.cxx"
 TMPE="${TMPDIR1}/${TMPB}.exe"
-TMPTXT="${TMPDIR1}/${TMPB}.txt"
 
 rm -f config.log
 
@@ -291,7 +290,6 @@ EXTRA_CXXFLAGS=""
 EXTRA_LDFLAGS=""
 
 xen_ctrl_version="$default_feature"
-xfs="$default_feature"
 membarrier="$default_feature"
 vhost_kernel="$default_feature"
 vhost_net="$default_feature"
@@ -309,21 +307,16 @@ debug="no"
 sanitizers="no"
 tsan="no"
 fortify_source="$default_feature"
-strip_opt="yes"
-mingw32="no"
 gcov="no"
 EXESUF=""
 modules="no"
 module_upgrades="no"
 prefix="/usr/local"
 qemu_suffix="qemu"
-bsd="no"
-linux="no"
-solaris="no"
 profiler="no"
 softmmu="yes"
-linux_user="no"
-bsd_user="no"
+linux_user=""
+bsd_user=""
 pkgversion=""
 pie=""
 qom_cast_debug="yes"
@@ -333,8 +326,6 @@ opengl="$default_feature"
 cpuid_h="no"
 avx2_opt="$default_feature"
 guest_agent="$default_feature"
-guest_agent_with_vss="no"
-guest_agent_ntddscsi="no"
 vss_win32_sdk="$default_feature"
 win_sdk="no"
 want_tools="$default_feature"
@@ -529,6 +520,10 @@ fi
 
 # OS specific
 
+mingw32="no"
+bsd="no"
+linux="no"
+solaris="no"
 case $targetos in
 windows)
   mingw32="yes"
@@ -540,7 +535,6 @@ gnu/kfreebsd)
 ;;
 freebsd)
   bsd="yes"
-  bsd_user="yes"
   make="${MAKE-gmake}"
   # needed for kinfo_getvmmap(3) in libutil.h
 ;;
@@ -585,7 +579,6 @@ haiku)
 ;;
 linux)
   linux="yes"
-  linux_user="yes"
   vhost_user=${default_feature:-yes}
 ;;
 esac
@@ -896,7 +889,6 @@ for opt do
       debug_tcg="yes"
       debug_mutex="yes"
       debug="yes"
-      strip_opt="no"
       fortify_source="no"
   ;;
   --enable-sanitizers) sanitizers="yes"
@@ -906,8 +898,6 @@ for opt do
   --enable-tsan) tsan="yes"
   ;;
   --disable-tsan) tsan="no"
-  ;;
-  --disable-strip) strip_opt="no"
   ;;
   --disable-slirp) slirp="disabled"
   ;;
@@ -1020,10 +1010,6 @@ for opt do
   --disable-opengl) opengl="no"
   ;;
   --enable-opengl) opengl="yes"
-  ;;
-  --disable-xfsctl) xfs="no"
-  ;;
-  --enable-xfsctl) xfs="yes"
   ;;
   --disable-zlib-test)
   ;;
@@ -1265,18 +1251,26 @@ if eval test -z "\${cross_cc_$cpu}"; then
     cross_cc_vars="$cross_cc_vars cross_cc_${cpu}"
 fi
 
-# For user-mode emulation the host arch has to be one we explicitly
-# support, even if we're using TCI.
-if [ "$ARCH" = "unknown" ]; then
-  bsd_user="no"
-  linux_user="no"
-fi
-
 default_target_list=""
 deprecated_targets_list=ppc64abi32-linux-user
 deprecated_features=""
 mak_wilds=""
 
+if [ "$linux_user" != no ]; then
+    if [ "$targetos" = linux ] && [ -d $source_path/linux-user/include/host/$cpu ]; then
+        linux_user=yes
+    elif [ "$linux_user" = yes ]; then
+        error_exit "linux-user not supported on this architecture"
+    fi
+fi
+if [ "$bsd_user" != no ]; then
+    if [ "$bsd_user" = "" ]; then
+        test $targetos = freebsd && bsd_user=yes
+    fi
+    if [ "$bsd_user" = yes ] && ! [ -d $source_path/bsd-user/$targetos ]; then
+        error_exit "bsd-user not supported on this host OS"
+    fi
+fi
 if [ "$softmmu" = "yes" ]; then
     mak_wilds="${mak_wilds} $source_path/configs/targets/*-softmmu.mak"
 fi
@@ -1367,7 +1361,6 @@ Advanced options (experts only):
   --enable-debug           enable common debug build options
   --enable-sanitizers      enable default sanitizers
   --enable-tsan            enable thread sanitizer
-  --disable-strip          disable stripping binaries
   --disable-werror         disable compilation abort on warning
   --disable-stack-protector disable compiler-provided stack protection
   --audio-drv-list=LIST    set audio drivers to try if -audiodev is not used
@@ -1431,7 +1424,6 @@ cat << EOF
   avx512f         AVX512F optimization support
   replication     replication support
   opengl          opengl support
-  xfsctl          xfsctl support
   qom-cast-debug  cast debugging support
   tools           build qemu-io, qemu-nbd and qemu-img tools
   bochs           bochs image format support
@@ -1702,6 +1694,7 @@ if test "$static" = "yes" ; then
     plugins="no"
   fi
 fi
+test "$plugins" = "" && plugins=yes
 
 cat > $TMPC << EOF
 
@@ -2324,91 +2317,6 @@ EOF
 fi
 
 ##########################################
-# xfsctl() probe, used for file-posix.c
-if test "$xfs" != "no" ; then
-  cat > $TMPC << EOF
-#include <stddef.h>  /* NULL */
-#include <xfs/xfs.h>
-int main(void)
-{
-    xfsctl(NULL, 0, 0, NULL);
-    return 0;
-}
-EOF
-  if compile_prog "" "" ; then
-    xfs="yes"
-  else
-    if test "$xfs" = "yes" ; then
-      feature_not_found "xfs" "Install xfsprogs/xfslibs devel"
-    fi
-    xfs=no
-  fi
-fi
-
-##########################################
-# plugin linker support probe
-
-if test "$plugins" != "no"; then
-
-    #########################################
-    # See if --dynamic-list is supported by the linker
-
-    ld_dynamic_list="no"
-    cat > $TMPTXT <<EOF
-{
-  foo;
-};
-EOF
-
-        cat > $TMPC <<EOF
-#include <stdio.h>
-void foo(void);
-
-void foo(void)
-{
-  printf("foo\n");
-}
-
-int main(void)
-{
-  foo();
-  return 0;
-}
-EOF
-
-    if compile_prog "" "-Wl,--dynamic-list=$TMPTXT" ; then
-        ld_dynamic_list="yes"
-    fi
-
-    #########################################
-    # See if -exported_symbols_list is supported by the linker
-
-    ld_exported_symbols_list="no"
-    cat > $TMPTXT <<EOF
-  _foo
-EOF
-
-    if compile_prog "" "-Wl,-exported_symbols_list,$TMPTXT" ; then
-        ld_exported_symbols_list="yes"
-    fi
-
-    if test "$ld_dynamic_list" = "no" &&
-       test "$ld_exported_symbols_list" = "no" ; then
-        if test "$plugins" = "yes"; then
-            error_exit \
-                "Plugin support requires dynamic linking and specifying a set of symbols " \
-                "that are exported to plugins. Unfortunately your linker doesn't " \
-                "support the flag (--dynamic-list or -exported_symbols_list) used " \
-                "for this purpose."
-        else
-            plugins="no"
-        fi
-    else
-        plugins="yes"
-    fi
-fi
-
-##########################################
 # glib support probe
 
 glib_req_ver=2.56
@@ -2639,6 +2547,7 @@ fi
 ##########################################
 # check if we have VSS SDK headers for win
 
+guest_agent_with_vss="no"
 if test "$mingw32" = "yes" && test "$guest_agent" != "no" && \
         test "$vss_win32_sdk" != "no" ; then
   case "$vss_win32_sdk" in
@@ -2669,7 +2578,6 @@ EOF
       echo "ERROR: The headers are extracted in the directory \`inc'."
       feature_not_found "VSS support"
     fi
-    guest_agent_with_vss="no"
   fi
 fi
 
@@ -2696,6 +2604,7 @@ fi
 
 ##########################################
 # check if mingw environment provides a recent ntddscsi.h
+guest_agent_ntddscsi="no"
 if test "$mingw32" = "yes" && test "$guest_agent" != "no"; then
   cat > $TMPC << EOF
 #include <windows.h>
@@ -3400,9 +3309,6 @@ echo "GIT_SUBMODULES_ACTION=$git_submodules_action" >> $config_host_mak
 if test "$debug_tcg" = "yes" ; then
   echo "CONFIG_DEBUG_TCG=y" >> $config_host_mak
 fi
-if test "$strip_opt" = "yes" ; then
-  echo "STRIP=${strip}" >> $config_host_mak
-fi
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
   if test "$guest_agent_with_vss" = "yes" ; then
@@ -3455,9 +3361,6 @@ echo "CONFIG_BDRV_RW_WHITELIST=$block_drv_rw_whitelist" >> $config_host_mak
 echo "CONFIG_BDRV_RO_WHITELIST=$block_drv_ro_whitelist" >> $config_host_mak
 if test "$block_drv_whitelist_tools" = "yes" ; then
   echo "CONFIG_BDRV_WHITELIST_TOOLS=y" >> $config_host_mak
-fi
-if test "$xfs" = "yes" ; then
-  echo "CONFIG_XFS=y" >> $config_host_mak
 fi
 qemu_version=$(head $source_path/VERSION)
 echo "PKGVERSION=$pkgversion" >>$config_host_mak
@@ -3645,22 +3548,6 @@ fi
 
 if test "$plugins" = "yes" ; then
     echo "CONFIG_PLUGIN=y" >> $config_host_mak
-    # Copy the export object list to the build dir
-    if test "$ld_dynamic_list" = "yes" ; then
-	echo "CONFIG_HAS_LD_DYNAMIC_LIST=yes" >> $config_host_mak
-	ld_symbols=qemu-plugins-ld.symbols
-	cp "$source_path/plugins/qemu-plugins.symbols" $ld_symbols
-    elif test "$ld_exported_symbols_list" = "yes" ; then
-	echo "CONFIG_HAS_LD_EXPORTED_SYMBOLS_LIST=yes" >> $config_host_mak
-	ld64_symbols=qemu-plugins-ld64.symbols
-	echo "# Automatically generated by configure - do not modify" > $ld64_symbols
-	grep 'qemu_' "$source_path/plugins/qemu-plugins.symbols" | sed 's/;//g' | \
-	    sed -E 's/^[[:space:]]*(.*)/_\1/' >> $ld64_symbols
-    else
-	error_exit \
-	    "If \$plugins=yes, either \$ld_dynamic_list or " \
-	    "\$ld_exported_symbols_list should have been set to 'yes'."
-    fi
 fi
 
 if test -n "$gdb_bin"; then
@@ -3699,6 +3586,7 @@ echo "GLIB_LIBS=$glib_libs" >> $config_host_mak
 echo "GLIB_VERSION=$(pkg-config --modversion glib-2.0)" >> $config_host_mak
 echo "QEMU_LDFLAGS=$QEMU_LDFLAGS" >> $config_host_mak
 echo "LD_I386_EMULATION=$ld_i386_emulation" >> $config_host_mak
+echo "STRIP=$strip" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
 echo "LIBS_QGA=$libs_qga" >> $config_host_mak
 
@@ -3776,9 +3664,6 @@ fi
 # so the build tree will be missing the link back to the new file, and
 # tests might fail. Prefer to keep the relevant files in their own
 # directory and symlink the directory instead.
-# UNLINK is used to remove symlinks from older development versions
-# that might get into the way when doing "git update" without doing
-# a "make distclean" in between.
 LINKS="Makefile"
 LINKS="$LINKS tests/tcg/Makefile.target"
 LINKS="$LINKS pc-bios/optionrom/Makefile"
@@ -3790,7 +3675,6 @@ LINKS="$LINKS tests/avocado tests/data"
 LINKS="$LINKS tests/qemu-iotests/check"
 LINKS="$LINKS python"
 LINKS="$LINKS contrib/plugins/Makefile "
-UNLINK="pc-bios/keymaps"
 for bios_file in \
     $source_path/pc-bios/*.bin \
     $source_path/pc-bios/*.elf \
@@ -3812,11 +3696,6 @@ for f in $LINKS ; do
         symlink "$source_path/$f" "$f"
     fi
 done
-for f in $UNLINK ; do
-    if [ -L "$f" ]; then
-        rm -f "$f"
-    fi
-done
 
 (for i in $cross_cc_vars; do
   export $i
@@ -3825,7 +3704,8 @@ export target_list source_path use_containers cpu
 $source_path/tests/tcg/configure.sh)
 
 # temporary config to build submodules
-for rom in seabios; do
+if test -f $source_path/roms/seabios/Makefile; then
+  for rom in seabios; do
     config_mak=roms/$rom/config.mak
     echo "# Automatically generated by configure - do not modify" > $config_mak
     echo "SRC_PATH=$source_path/roms/$rom" >> $config_mak
@@ -3838,7 +3718,8 @@ for rom in seabios; do
     echo "IASL=$iasl" >> $config_mak
     echo "LD=$ld" >> $config_mak
     echo "RANLIB=$ranlib" >> $config_mak
-done
+  done
+fi
 
 config_mak=pc-bios/optionrom/config.mak
 echo "# Automatically generated by configure - do not modify" > $config_mak
@@ -3925,7 +3806,6 @@ if test "$skip_meson" = no; then
         -Doptimization=$(if test "$debug" = yes; then echo 0; else echo 2; fi) \
         -Ddebug=$(if test "$debug_info" = yes; then echo true; else echo false; fi) \
         -Dwerror=$(if test "$werror" = yes; then echo true; else echo false; fi) \
-        -Dstrip=$(if test "$strip_opt" = yes; then echo true; else echo false; fi) \
         -Db_pie=$(if test "$pie" = yes; then echo true; else echo false; fi) \
         -Db_coverage=$(if test "$gcov" = yes; then echo true; else echo false; fi) \
         -Db_lto=$lto -Dcfi=$cfi -Dtcg=$tcg -Dxen=$xen \
@@ -3954,17 +3834,6 @@ if test -n "${deprecated_features}"; then
     echo "Warning, deprecated features enabled."
     echo "Please see docs/about/deprecated.rst"
     echo "  features: ${deprecated_features}"
-fi
-
-# Create list of config switches that should be poisoned in common code...
-# but filter out CONFIG_TCG and CONFIG_USER_ONLY which are special.
-target_configs_h=$(ls *-config-devices.h *-config-target.h 2>/dev/null)
-if test -n "$target_configs_h" ; then
-    sed -n -e '/CONFIG_TCG/d' -e '/CONFIG_USER_ONLY/d' \
-        -e '/^#define / { s///; s/ .*//; s/^/#pragma GCC poison /p; }' \
-        $target_configs_h | sort -u > config-poison.h
-else
-    :> config-poison.h
 fi
 
 # Save the configure command line for later reuse.
