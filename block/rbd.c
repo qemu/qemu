@@ -1279,11 +1279,11 @@ static int qemu_rbd_diff_iterate_cb(uint64_t offs, size_t len,
     RBDDiffIterateReq *req = opaque;
 
     assert(req->offs + req->bytes <= offs);
-    /*
-     * we do not diff against a snapshot so we should never receive a callback
-     * for a hole.
-     */
-    assert(exists);
+
+    /* treat a hole like an unallocated area and bail out */
+    if (!exists) {
+        return 0;
+    }
 
     if (!req->exists && offs > req->offs) {
         /*
