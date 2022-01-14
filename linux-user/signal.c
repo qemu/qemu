@@ -734,7 +734,7 @@ static void QEMU_NORETURN dump_core_and_abort(int target_sig)
     struct sigaction act;
 
     host_sig = target_to_host_signal(target_sig);
-    trace_user_force_sig(env, target_sig, host_sig);
+    trace_user_dump_core_and_abort(env, target_sig, host_sig);
     gdb_signalled(env, target_sig);
 
     /* dump core if supported by target binary format */
