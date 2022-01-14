@@ -26,6 +26,7 @@ ENV PACKAGES \
     mingw64-libusbx \
     mingw64-pixman \
     mingw64-pkg-config \
+    msitools \
     perl \
     perl-Test-Harness \
     python3 \
