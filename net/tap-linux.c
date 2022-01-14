@@ -150,6 +150,7 @@ void tap_set_sndbuf(int fd, const NetdevTapOptions *tap, Error **errp)
 int tap_probe_vnet_hdr(int fd, Error **errp)
 {
     struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
 
     if (ioctl(fd, TUNGETIFF, &ifr) != 0) {
         /* TUNGETIFF is available since kernel v2.6.27 */
