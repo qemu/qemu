@@ -71,10 +71,10 @@
 
 #define ACPI_REBUILD_EXPECTED_AML "TEST_ACPI_REBUILD_AML"
 
-#define OEM_ID             "TEST  "
-#define OEM_TABLE_ID       "OEM     "
-#define OEM_TEST_ARGS      "-machine x-oem-id='" OEM_ID "',x-oem-table-id='" \
-                           OEM_TABLE_ID "'"
+#define OEM_ID             "TEST"
+#define OEM_TABLE_ID       "OEM"
+#define OEM_TEST_ARGS      "-machine x-oem-id=" OEM_ID ",x-oem-table-id=" \
+                           OEM_TABLE_ID
 
 typedef struct {
     bool tcg_only;
@@ -1530,8 +1530,8 @@ static void test_oem_fields(test_data *data)
             continue;
         }
 
-        g_assert(memcmp(sdt->aml + 10, OEM_ID, 6) == 0);
-        g_assert(memcmp(sdt->aml + 16, OEM_TABLE_ID, 8) == 0);
+        g_assert(strncmp((char *)sdt->aml + 10, OEM_ID, 6) == 0);
+        g_assert(strncmp((char *)sdt->aml + 16, OEM_TABLE_ID, 8) == 0);
     }
 }
 
