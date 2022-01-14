@@ -75,7 +75,7 @@ if targetos == 'windows'
     endif
     qga_msi = custom_target('QGA MSI',
                             input: files('installer/qemu-ga.wxs'),
-                            output: 'qemu-ga-@0@.msi'.format(config_host['ARCH']),
+                            output: 'qemu-ga-@0@.msi'.format(host_arch),
                             depends: deps,
                             command: [
                               find_program('env'),
