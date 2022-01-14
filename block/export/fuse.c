@@ -223,7 +223,7 @@ static int setup_fuse_export(FuseExport *exp, const char *mountpoint,
 
     aio_set_fd_handler(exp->common.ctx,
                        fuse_session_fd(exp->fuse_session), true,
-                       read_from_fuse_export, NULL, NULL, exp);
+                       read_from_fuse_export, NULL, NULL, NULL, exp);
     exp->fd_handler_set_up = true;
 
     return 0;
@@ -267,7 +267,7 @@ static void fuse_export_shutdown(BlockExport *blk_exp)
         if (exp->fd_handler_set_up) {
             aio_set_fd_handler(exp->common.ctx,
                                fuse_session_fd(exp->fuse_session), true,
-                               NULL, NULL, NULL, NULL);
+                               NULL, NULL, NULL, NULL, NULL);
             exp->fd_handler_set_up = false;
         }
     }

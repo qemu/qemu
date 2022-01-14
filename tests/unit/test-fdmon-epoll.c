@@ -22,14 +22,14 @@ static void add_event_notifiers(EventNotifier *notifiers, size_t n)
     for (size_t i = 0; i < n; i++) {
         event_notifier_init(&notifiers[i], false);
         aio_set_event_notifier(ctx, &notifiers[i], false,
-                               dummy_fd_handler, NULL);
+                               dummy_fd_handler, NULL, NULL);
     }
 }
 
 static void remove_event_notifiers(EventNotifier *notifiers, size_t n)
 {
     for (size_t i = 0; i < n; i++) {
-        aio_set_event_notifier(ctx, &notifiers[i], false, NULL, NULL);
+        aio_set_event_notifier(ctx, &notifiers[i], false, NULL, NULL, NULL);
         event_notifier_cleanup(&notifiers[i]);
     }
 }

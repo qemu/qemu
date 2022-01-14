@@ -720,7 +720,7 @@ static void virtio_scsi_handle_cmd(VirtIODevice *vdev, VirtQueue *vq)
     /* use non-QOM casts in the data path */
     VirtIOSCSI *s = (VirtIOSCSI *)vdev;
 
-    if (s->ctx) {
+    if (s->ctx && !s->dataplane_started) {
         virtio_device_start_ioeventfd(vdev);
         if (!s->dataplane_fenced) {
             return;

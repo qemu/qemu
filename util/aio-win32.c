@@ -68,6 +68,7 @@ void aio_set_fd_handler(AioContext *ctx,
                         IOHandler *io_read,
                         IOHandler *io_write,
                         AioPollFn *io_poll,
+                        IOHandler *io_poll_ready,
                         void *opaque)
 {
     /* fd is a SOCKET in our case */
@@ -136,7 +137,8 @@ void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *e,
                             bool is_external,
                             EventNotifierHandler *io_notify,
-                            AioPollFn *io_poll)
+                            AioPollFn *io_poll,
+                            EventNotifierHandler *io_poll_ready)
 {
     AioHandler *node;
 
