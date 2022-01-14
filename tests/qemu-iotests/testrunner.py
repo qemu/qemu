@@ -174,18 +174,16 @@ class TestRunner(ContextManager['TestRunner']):
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         self._stack.close()
 
-    def test_print_one_line(self, test: str, starttime: str,
+    def test_print_one_line(self, test: str,
+                            test_field_width: int,
+                            starttime: str,
                             endtime: Optional[str] = None, status: str = '...',
                             lasttime: Optional[float] = None,
                             thistime: Optional[float] = None,
                             description: str = '',
-                            test_field_width: Optional[int] = None,
                             end: str = '\n') -> None:
         """ Print short test info before/after test run """
         test = os.path.basename(test)
-
-        if test_field_width is None:
-            test_field_width = 8
 
         if self.makecheck and status != '...':
             if status and status != 'pass':
@@ -328,7 +326,7 @@ class TestRunner(ContextManager['TestRunner']):
                               casenotrun=casenotrun)
 
     def run_test(self, test: str,
-                 test_field_width: Optional[int] = None,
+                 test_field_width: int,
                  mp: bool = False) -> TestResult:
         """
         Run one test and print short status
@@ -347,20 +345,21 @@ class TestRunner(ContextManager['TestRunner']):
 
         if not self.makecheck:
             self.test_print_one_line(test=test,
+                                     test_field_width=test_field_width,
                                      status = 'started' if mp else '...',
                                      starttime=start,
                                      lasttime=last_el,
-                                     end = '\n' if mp else '\r',
-                                     test_field_width=test_field_width)
+                                     end = '\n' if mp else '\r')
 
         res = self.do_run_test(test, mp)
 
         end = datetime.datetime.now().strftime('%H:%M:%S')
-        self.test_print_one_line(test=test, status=res.status,
+        self.test_print_one_line(test=test,
+                                 test_field_width=test_field_width,
+                                 status=res.status,
                                  starttime=start, endtime=end,
                                  lasttime=last_el, thistime=res.elapsed,
-                                 description=res.description,
-                                 test_field_width=test_field_width)
+                                 description=res.description)
 
         if res.casenotrun:
             print(res.casenotrun)

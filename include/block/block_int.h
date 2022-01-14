@@ -1122,9 +1122,6 @@ BlockDriver *bdrv_probe_all(const uint8_t *buf, int buf_size,
 void bdrv_parse_filename_strip_prefix(const char *filename, const char *prefix,
                                       QDict *options);
 
-bool bdrv_backing_overridden(BlockDriverState *bs);
-
-
 /**
  * bdrv_add_aio_context_notifier:
  *

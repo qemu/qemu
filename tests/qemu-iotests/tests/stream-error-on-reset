@@ -1,0 +1,140 @@
+#!/usr/bin/env python3
+# group: rw quick
+#
+# Test what happens when a stream job completes in a blk_drain().
+#
+# Copyright (C) 2022 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import iotests
+from iotests import imgfmt, qemu_img_create, qemu_io_silent, QMPTestCase
+
+
+image_size = 1 * 1024 * 1024
+data_size = 64 * 1024
+base = os.path.join(iotests.test_dir, 'base.img')
+top = os.path.join(iotests.test_dir, 'top.img')
+
+
+# We want to test completing a stream job in a blk_drain().
+#
+# The blk_drain() we are going to use is a virtio-scsi device resetting,
+# which we can trigger by resetting the system.
+#
+# In order to have the block job complete on drain, we (1) throttle its
+# base image so we can start the drain after it has begun, but before it
+# completes, and (2) make it encounter an I/O error on the ensuing write.
+# (If it completes regularly, the completion happens after the drain for
+# some reason.)
+
+class TestStreamErrorOnReset(QMPTestCase):
+    def setUp(self) -> None:
+        """
+        Create two images:
+        - base image {base} with {data_size} bytes allocated
+        - top image {top} without any data allocated
+
+        And the following VM configuration:
+        - base image throttled to {data_size}
+        - top image with a blkdebug configuration so the first write access
+          to it will result in an error
+        - top image is attached to a virtio-scsi device
+        """
+        assert qemu_img_create('-f', imgfmt, base, str(image_size)) == 0
+        assert qemu_io_silent('-c', f'write 0 {data_size}', base) == 0
+        assert qemu_img_create('-f', imgfmt, top, str(image_size)) == 0
+
+        self.vm = iotests.VM()
+        self.vm.add_args('-accel', 'tcg') # Make throttling work properly
+        self.vm.add_object(self.vm.qmp_to_opts({
+            'qom-type': 'throttle-group',
+            'id': 'thrgr',
+            'x-bps-total': str(data_size)
+        }))
+        self.vm.add_blockdev(self.vm.qmp_to_opts({
+            'driver': imgfmt,
+            'node-name': 'base',
+            'file': {
+                'driver': 'throttle',
+                'throttle-group': 'thrgr',
+                'file': {
+                    'driver': 'file',
+                    'filename': base
+                }
+            }
+        }))
+        self.vm.add_blockdev(self.vm.qmp_to_opts({
+            'driver': imgfmt,
+            'node-name': 'top',
+            'file': {
+                'driver': 'blkdebug',
+                'node-name': 'top-blkdebug',
+                'inject-error': [{
+                    'event': 'pwritev',
+                    'immediately': 'true',
+                    'once': 'true'
+                }],
+                'image': {
+                    'driver': 'file',
+                    'filename': top
+                }
+            },
+            'backing': 'base'
+        }))
+        self.vm.add_device(self.vm.qmp_to_opts({
+            'driver': 'virtio-scsi',
+            'id': 'vscsi'
+        }))
+        self.vm.add_device(self.vm.qmp_to_opts({
+            'driver': 'scsi-hd',
+            'bus': 'vscsi.0',
+            'drive': 'top'
+        }))
+        self.vm.launch()
+
+    def tearDown(self) -> None:
+        self.vm.shutdown()
+        os.remove(top)
+        os.remove(base)
+
+    def test_stream_error_on_reset(self) -> None:
+        # Launch a stream job, which will take at least a second to
+        # complete, because the base image is throttled (so we can
+        # get in between it having started and it having completed)
+        res = self.vm.qmp('block-stream', job_id='stream', device='top')
+        self.assert_qmp(res, 'return', {})
+
+        while True:
+            ev = self.vm.event_wait('JOB_STATUS_CHANGE')
+            if ev['data']['status'] == 'running':
+                # Once the stream job is running, reset the system, which
+                # forces the virtio-scsi device to be reset, thus draining
+                # the stream job, and making it complete.  Completing
+                # inside of that drain should not result in a segfault.
+                res = self.vm.qmp('system_reset')
+                self.assert_qmp(res, 'return', {})
+            elif ev['data']['status'] == 'null':
+                # The test is done once the job is gone
+                break
+
+
+if __name__ == '__main__':
+    # Passes with any format with backing file support, but qed and
+    # qcow1 do not seem to exercise the used-to-be problematic code
+    # path, so there is no point in having them in this list
+    iotests.main(supported_fmts=['qcow2', 'vmdk'],
+                 supported_protocols=['file'])

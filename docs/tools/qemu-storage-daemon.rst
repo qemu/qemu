@@ -201,7 +201,7 @@ Export raw image file ``disk.img`` over NBD UNIX domain socket ``nbd.sock``::
       --nbd-server addr.type=unix,addr.path=nbd.sock \
       --export type=nbd,id=export,node-name=disk,writable=on
 
-Export a qcow2 image file ``disk.qcow2`` as a vhosts-user-blk device over UNIX
+Export a qcow2 image file ``disk.qcow2`` as a vhost-user-blk device over UNIX
 domain socket ``vhost-user-blk.sock``::
 
   $ qemu-storage-daemon \

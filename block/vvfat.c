@@ -882,7 +882,7 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
     return 0;
 }
 
-static inline uint32_t sector2cluster(BDRVVVFATState* s,off_t sector_num)
+static inline int32_t sector2cluster(BDRVVVFATState* s,off_t sector_num)
 {
     return (sector_num - s->offset_to_root_dir) / s->sectors_per_cluster;
 }
@@ -1230,6 +1230,7 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
                  dirname, cyls, heads, secs));
 
     s->sector_count = cyls * heads * secs - s->offset_to_bootsector;
+    bs->total_sectors = cyls * heads * secs;
 
     if (qemu_opt_get_bool(opts, "rw", false)) {
         if (!bdrv_is_read_only(bs)) {
@@ -1249,8 +1250,6 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
             goto fail;
         }
     }
-
-    bs->total_sectors = cyls * heads * secs;
 
     if (init_directories(s, dirname, heads, secs, errp)) {
         ret = -EIO;
@@ -2982,6 +2981,7 @@ static int vvfat_write(BlockDriverState *bs, int64_t sector_num,
 {
     BDRVVVFATState *s = bs->opaque;
     int i, ret;
+    int first_cluster, last_cluster;
 
 DLOG(checkpoint());
 
@@ -3000,9 +3000,20 @@ DLOG(checkpoint());
     if (sector_num < s->offset_to_fat)
         return -1;
 
-    for (i = sector2cluster(s, sector_num);
-            i <= sector2cluster(s, sector_num + nb_sectors - 1);) {
-        mapping_t* mapping = find_mapping_for_cluster(s, i);
+    /*
+     * Values will be negative for writes to the FAT, which is located before
+     * the root directory.
+     */
+    first_cluster = sector2cluster(s, sector_num);
+    last_cluster = sector2cluster(s, sector_num + nb_sectors - 1);
+
+    for (i = first_cluster; i <= last_cluster;) {
+        mapping_t *mapping = NULL;
+
+        if (i >= 0) {
+            mapping = find_mapping_for_cluster(s, i);
+        }
+
         if (mapping) {
             if (mapping->read_only) {
                 fprintf(stderr, "Tried to write to write-protected file %s\n",
@@ -3042,8 +3053,9 @@ DLOG(checkpoint());
                 }
             }
             i = mapping->end;
-        } else
+        } else {
             i++;
+        }
     }
 
     /*
@@ -3057,10 +3069,11 @@ DLOG(fprintf(stderr, "Write to qcow backend: %d + %d\n", (int)sector_num, nb_sec
         return ret;
     }
 
-    for (i = sector2cluster(s, sector_num);
-            i <= sector2cluster(s, sector_num + nb_sectors - 1); i++)
-        if (i >= 0)
+    for (i = first_cluster; i <= last_cluster; i++) {
+        if (i >= 0) {
             s->used_clusters[i] |= USED_ALLOCATED;
+        }
+    }
 
 DLOG(checkpoint());
     /* TODO: add timeout */
@@ -3147,8 +3160,8 @@ static int enable_write_target(BlockDriverState *bs, Error **errp)
     }
 
     opts = qemu_opts_create(bdrv_qcow->create_opts, NULL, 0, &error_abort);
-    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, s->sector_count * 512,
-                        &error_abort);
+    qemu_opt_set_number(opts, BLOCK_OPT_SIZE,
+                        bs->total_sectors * BDRV_SECTOR_SIZE, &error_abort);
     qemu_opt_set(opts, BLOCK_OPT_BACKING_FILE, "fat:", &error_abort);
 
     ret = bdrv_create(bdrv_qcow, s->qcow_filename, opts, errp);

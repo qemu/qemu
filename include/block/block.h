@@ -269,12 +269,13 @@ enum {
     BLK_PERM_RESIZE             = 0x08,
 
     /**
-     * This permission is required to change the node that this BdrvChild
-     * points to.
+     * There was a now-removed bit BLK_PERM_GRAPH_MOD, with value of 0x10. QEMU
+     * 6.1 and earlier may still lock the corresponding byte in block/file-posix
+     * locking.  So, implementing some new permission should be very careful to
+     * not interfere with this old unused thing.
      */
-    BLK_PERM_GRAPH_MOD          = 0x10,
 
-    BLK_PERM_ALL                = 0x1f,
+    BLK_PERM_ALL                = 0x0f,
 
     DEFAULT_PERM_PASSTHROUGH    = BLK_PERM_CONSISTENT_READ
                                  | BLK_PERM_WRITE
