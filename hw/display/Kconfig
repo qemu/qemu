@@ -49,7 +49,7 @@ config VGA_ISA
     depends on ISA_BUS
     select VGA
 
-config VGA_ISA_MM
+config VGA_MMIO
     bool
     select VGA
 

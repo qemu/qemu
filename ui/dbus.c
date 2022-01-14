@@ -405,6 +405,7 @@ dbus_vc_class_init(ObjectClass *oc, void *data)
 static const TypeInfo dbus_vc_type_info = {
     .name = TYPE_CHARDEV_VC,
     .parent = TYPE_CHARDEV_DBUS,
+    .class_size = sizeof(DBusVCClass),
     .class_init = dbus_vc_class_init,
 };
 

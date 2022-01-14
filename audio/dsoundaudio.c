@@ -536,13 +536,12 @@ static void *dsound_get_buffer_in(HWVoiceIn *hw, size_t *size)
     DSoundVoiceIn *ds = (DSoundVoiceIn *) hw;
     LPDIRECTSOUNDCAPTUREBUFFER dscb = ds->dsound_capture_buffer;
     HRESULT hr;
-    DWORD cpos, rpos, act_size;
+    DWORD rpos, act_size;
     size_t req_size;
     int err;
     void *ret;
 
-    hr = IDirectSoundCaptureBuffer_GetCurrentPosition(
-        dscb, &cpos, ds->first_time ? &rpos : NULL);
+    hr = IDirectSoundCaptureBuffer_GetCurrentPosition(dscb, NULL, &rpos);
     if (FAILED(hr)) {
         dsound_logerr(hr, "Could not get capture buffer position\n");
         *size = 0;
@@ -554,7 +553,7 @@ static void *dsound_get_buffer_in(HWVoiceIn *hw, size_t *size)
         ds->first_time = false;
     }
 
-    req_size = audio_ring_dist(cpos, hw->pos_emul, hw->size_emul);
+    req_size = audio_ring_dist(rpos, hw->pos_emul, hw->size_emul);
     req_size = MIN(*size, MIN(req_size, hw->size_emul - hw->pos_emul));
 
     if (req_size == 0) {

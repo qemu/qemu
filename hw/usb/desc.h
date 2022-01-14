@@ -199,6 +199,7 @@ struct USBDesc {
     const USBDescMSOS         *msos;
 };
 
+#define USB_DESC_MAX_LEN    8192
 #define USB_DESC_FLAG_SUPER (1 << 1)
 
 /* little helpers */

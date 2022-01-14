@@ -581,7 +581,7 @@ static void intel_hda_set_st_ctl(IntelHDAState *d, const IntelHDAReg *reg, uint3
     if (st->ctl & 0x01) {
         /* reset */
         dprint(d, 1, "st #%d: reset\n", reg->stream);
-        st->ctl = SD_STS_FIFO_READY << 24;
+        st->ctl = SD_STS_FIFO_READY << 24 | SD_CTL_STREAM_RESET;
     }
     if ((st->ctl & 0x02) != (old & 0x02)) {
         uint32_t stnr = (st->ctl >> 20) & 0x0f;

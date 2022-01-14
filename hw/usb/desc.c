@@ -632,7 +632,8 @@ int usb_desc_get_descriptor(USBDevice *dev, USBPacket *p,
     bool msos = (dev->flags & (1 << USB_DEV_FLAG_MSOS_DESC_IN_USE));
     const USBDesc *desc = usb_device_get_usb_desc(dev);
     const USBDescDevice *other_dev;
-    uint8_t buf[256];
+    size_t buflen = USB_DESC_MAX_LEN;
+    g_autofree uint8_t *buf = g_malloc(buflen);
     uint8_t type = value >> 8;
     uint8_t index = value & 0xff;
     int flags, ret = -1;
@@ -650,36 +651,36 @@ int usb_desc_get_descriptor(USBDevice *dev, USBPacket *p,
 
     switch(type) {
     case USB_DT_DEVICE:
-        ret = usb_desc_device(&desc->id, dev->device, msos, buf, sizeof(buf));
+        ret = usb_desc_device(&desc->id, dev->device, msos, buf, buflen);
         trace_usb_desc_device(dev->addr, len, ret);
         break;
     case USB_DT_CONFIG:
         if (index < dev->device->bNumConfigurations) {
             ret = usb_desc_config(dev->device->confs + index, flags,
-                                  buf, sizeof(buf));
+                                  buf, buflen);
         }
         trace_usb_desc_config(dev->addr, index, len, ret);
         break;
     case USB_DT_STRING:
-        ret = usb_desc_string(dev, index, buf, sizeof(buf));
+        ret = usb_desc_string(dev, index, buf, buflen);
         trace_usb_desc_string(dev->addr, index, len, ret);
         break;
     case USB_DT_DEVICE_QUALIFIER:
         if (other_dev != NULL) {
-            ret = usb_desc_device_qualifier(other_dev, buf, sizeof(buf));
+            ret = usb_desc_device_qualifier(other_dev, buf, buflen);
         }
         trace_usb_desc_device_qualifier(dev->addr, len, ret);
         break;
     case USB_DT_OTHER_SPEED_CONFIG:
         if (other_dev != NULL && index < other_dev->bNumConfigurations) {
             ret = usb_desc_config(other_dev->confs + index, flags,
-                                  buf, sizeof(buf));
+                                  buf, buflen);
             buf[0x01] = USB_DT_OTHER_SPEED_CONFIG;
         }
         trace_usb_desc_other_speed_config(dev->addr, index, len, ret);
         break;
     case USB_DT_BOS:
-        ret = usb_desc_bos(desc, buf, sizeof(buf));
+        ret = usb_desc_bos(desc, buf, buflen);
         trace_usb_desc_bos(dev->addr, len, ret);
         break;
 
