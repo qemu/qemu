@@ -304,11 +304,13 @@ void HELPER(m68k_movec_to)(CPUM68KState *env, uint32_t reg, uint32_t val)
         break;
     /* Unimplemented Registers */
     case M68K_CR_CAAR:
-    case M68K_CR_PCR:
     case M68K_CR_BUSCR:
         cpu_abort(env_cpu(env),
                   "Unimplemented control register write 0x%x = 0x%x\n",
                   reg, val);
+
+    case M68K_CR_PCR:
+	break;
     }
 
     /* Invalid control registers will generate an exception. */
@@ -409,10 +411,12 @@ uint32_t HELPER(m68k_movec_from)(CPUM68KState *env, uint32_t reg)
         break;
     /* Unimplemented Registers */
     case M68K_CR_CAAR:
-    case M68K_CR_PCR:
     case M68K_CR_BUSCR:
         cpu_abort(env_cpu(env), "Unimplemented control register read 0x%x\n",
                   reg);
+
+    case M68K_CR_PCR:
+	break;
     }
 
     /* Invalid control registers will generate an exception. */

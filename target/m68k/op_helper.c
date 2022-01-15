@@ -21,6 +21,7 @@
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
+#include "exec/log.h"
 #include "semihosting/semihost.h"
 
 #if !defined(CONFIG_USER_ONLY)
@@ -231,6 +232,7 @@ static void cf_interrupt_all(CPUM68KState *env, int is_hw)
         qemu_log("INT %6d: %s(%#x) pc=%08x sp=%08x sr=%04x\n",
                  ++count, m68k_exception_name(cs->exception_index),
                  vector, env->pc, env->aregs[7], sr);
+	//log_target_disas(cs, env->pc, 64);
     }
 
     fmt |= 0x40000000;
@@ -462,6 +464,7 @@ void m68k_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
     cpu_restore_state(cs, retaddr, true);
 
     if (m68k_feature(env, M68K_FEATURE_M68040)) {
+	//fprintf(stderr,"bus error: phys:%p virt:%p\n",(void *)physaddr,(void *)addr);
         env->mmu.mmusr = 0;
 
         /*
@@ -508,6 +511,9 @@ void m68k_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
     }
 }
 
+/*extern clock_t irq_pre,irq_post;
+long irq_counter = 0;
+long elapsed_counter = 0;*/
 bool m68k_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     M68kCPU *cpu = M68K_CPU(cs);
@@ -521,6 +527,14 @@ bool m68k_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
          * this, so we provide/save the vector when the interrupt is
          * first signalled.
          */
+
+/*    	irq_post = clock();
+    	clock_t elapsed = irq_post-irq_pre;
+	elapsed_counter+=elapsed;
+	irq_counter+=1;
+	if (0==(irq_counter%100))
+	    	fprintf(stderr,"IRQ:%f(%f):%d:%d\n",((double)(elapsed))/CLOCKS_PER_SEC,((double)(elapsed_counter/irq_counter))/CLOCKS_PER_SEC,env->pending_level,gettid());*/
+
         cs->exception_index = env->pending_vector;
         do_interrupt_m68k_hardirq(env);
         return true;
