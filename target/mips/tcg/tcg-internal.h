@@ -19,8 +19,8 @@ void mips_tcg_init(void);
 
 void mips_cpu_synchronize_from_tb(CPUState *cs, const TranslationBlock *tb);
 void mips_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
-                                  MMUAccessType access_type, int mmu_idx,
-                                  uintptr_t retaddr) QEMU_NORETURN;
+                                  MMUAccessType access_type,
+                                  int mmu_idx, uintptr_t retaddr);
 
 const char *mips_exception_name(int32_t exception);
 
