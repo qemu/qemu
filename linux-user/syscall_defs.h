@@ -730,44 +730,41 @@ struct target_rlimit {
 #define TARGET_RLIM_INFINITY	((abi_ulong)-1)
 #endif
 
+#define TARGET_RLIMIT_CPU        0
+#define TARGET_RLIMIT_FSIZE      1
+#define TARGET_RLIMIT_DATA       2
+#define TARGET_RLIMIT_STACK      3
+#define TARGET_RLIMIT_CORE       4
 #if defined(TARGET_MIPS)
-#define TARGET_RLIMIT_CPU		0
-#define TARGET_RLIMIT_FSIZE		1
-#define TARGET_RLIMIT_DATA		2
-#define TARGET_RLIMIT_STACK		3
-#define TARGET_RLIMIT_CORE		4
-#define TARGET_RLIMIT_RSS		7
-#define TARGET_RLIMIT_NPROC		8
-#define TARGET_RLIMIT_NOFILE		5
-#define TARGET_RLIMIT_MEMLOCK		9
-#define TARGET_RLIMIT_AS		6
-#define TARGET_RLIMIT_LOCKS		10
-#define TARGET_RLIMIT_SIGPENDING	11
-#define TARGET_RLIMIT_MSGQUEUE		12
-#define TARGET_RLIMIT_NICE		13
-#define TARGET_RLIMIT_RTPRIO		14
+#define TARGET_RLIMIT_NOFILE     5
+#define TARGET_RLIMIT_AS         6
+#define TARGET_RLIMIT_RSS        7
+#define TARGET_RLIMIT_NPROC      8
+#define TARGET_RLIMIT_MEMLOCK    9
+#elif defined(TARGET_ALPHA)
+#define TARGET_RLIMIT_RSS        5
+#define TARGET_RLIMIT_NOFILE     6
+#define TARGET_RLIMIT_AS         7
+#define TARGET_RLIMIT_NPROC      8
+#define TARGET_RLIMIT_MEMLOCK    9
+#elif defined(TARGET_SPARC)
+#define TARGET_RLIMIT_RSS        5
+#define TARGET_RLIMIT_NOFILE     6
+#define TARGET_RLIMIT_NPROC      7
+#define TARGET_RLIMIT_MEMLOCK    8
+#define TARGET_RLIMIT_AS         9
 #else
-#define TARGET_RLIMIT_CPU		0
-#define TARGET_RLIMIT_FSIZE		1
-#define TARGET_RLIMIT_DATA		2
-#define TARGET_RLIMIT_STACK		3
-#define TARGET_RLIMIT_CORE		4
-#define TARGET_RLIMIT_RSS		5
-#if defined(TARGET_SPARC)
-#define TARGET_RLIMIT_NOFILE		6
-#define TARGET_RLIMIT_NPROC		7
-#else
-#define TARGET_RLIMIT_NPROC		6
-#define TARGET_RLIMIT_NOFILE		7
+#define TARGET_RLIMIT_RSS        5
+#define TARGET_RLIMIT_NPROC      6
+#define TARGET_RLIMIT_NOFILE     7
+#define TARGET_RLIMIT_MEMLOCK    8
+#define TARGET_RLIMIT_AS         9
 #endif
-#define TARGET_RLIMIT_MEMLOCK		8
-#define TARGET_RLIMIT_AS		9
-#define TARGET_RLIMIT_LOCKS		10
-#define TARGET_RLIMIT_SIGPENDING	11
-#define TARGET_RLIMIT_MSGQUEUE		12
-#define TARGET_RLIMIT_NICE		13
-#define TARGET_RLIMIT_RTPRIO		14
-#endif
+#define TARGET_RLIMIT_LOCKS      10
+#define TARGET_RLIMIT_SIGPENDING 11
+#define TARGET_RLIMIT_MSGQUEUE   12
+#define TARGET_RLIMIT_NICE       13
+#define TARGET_RLIMIT_RTPRIO     14
 
 struct target_pollfd {
     int fd;           /* file descriptor */
