@@ -2741,6 +2741,14 @@ F: scripts/qemu-guest-agent/
 F: tests/unit/test-qga.c
 T: git https://github.com/mdroth/qemu.git qga
 
+QEMU Guest Agent Win32
+M: Konstantin Kostiuk <kkostiuk@redhat.com>
+S: Maintained
+F: qga/*win32*
+F: qga/vss-win32/
+F: qga/installer/
+T: git https://github.com/kostyanf14/qemu.git qga-win32
+
 QOM
 M: Paolo Bonzini <pbonzini@redhat.com>
 R: Daniel P. Berrange <berrange@redhat.com>
