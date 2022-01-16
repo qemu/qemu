@@ -70,17 +70,9 @@ struct image_info {
     uint32_t  elf_flags;
 };
 
-#define MAX_SIGQUEUE_SIZE 1024
-
-struct qemu_sigqueue {
-    struct qemu_sigqueue *next;
-    target_siginfo_t info;
-};
-
 struct emulated_sigtable {
     int pending; /* true if signal is pending */
-    struct qemu_sigqueue *first;
-    struct qemu_sigqueue info;  /* Put first signal info here */
+    target_siginfo_t info;
 };
 
 /*
@@ -94,14 +86,11 @@ typedef struct TaskState {
     struct image_info *info;
 
     struct emulated_sigtable sigtab[TARGET_NSIG];
-    struct qemu_sigqueue sigqueue_table[MAX_SIGQUEUE_SIZE]; /* siginfo queue */
-    struct qemu_sigqueue *first_free; /* first free siginfo queue entry */
     int signal_pending; /* non zero if a signal may be pending */
 
     uint8_t stack[];
 } __attribute__((aligned(16))) TaskState;
 
-void init_task_state(TaskState *ts);
 void stop_all_tasks(void);
 extern const char *qemu_uname_release;
 
