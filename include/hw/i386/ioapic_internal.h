@@ -112,7 +112,6 @@ struct IOAPICCommonState {
 
 void ioapic_reset_common(DeviceState *dev);
 
-void ioapic_print_redtbl(Monitor *mon, IOAPICCommonState *s);
 void ioapic_stat_update_irq(IOAPICCommonState *s, int irq, int level);
 
 #endif /* QEMU_IOAPIC_INTERNAL_H */
