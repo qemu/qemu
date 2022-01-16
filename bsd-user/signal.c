@@ -50,7 +50,8 @@ int target_to_host_signal(int sig)
  * Queue a signal so that it will be send to the virtual CPU as soon as
  * possible.
  */
-void queue_signal(CPUArchState *env, int sig, target_siginfo_t *info)
+void queue_signal(CPUArchState *env, int sig, int si_type,
+                  target_siginfo_t *info)
 {
     qemu_log_mask(LOG_UNIMP, "No signal queueing, dropping signal %d\n", sig);
 }
@@ -91,7 +92,7 @@ void force_sig_fault(int sig, int code, abi_ulong addr)
     info.si_errno = 0;
     info.si_code = code;
     info.si_addr = addr;
-    queue_signal(env, sig, &info);
+    queue_signal(env, sig, QEMU_SI_FAULT, &info);
 }
 
 static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
