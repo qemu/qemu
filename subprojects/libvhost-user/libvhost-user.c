@@ -868,6 +868,8 @@ vu_rem_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
         vu_panic(dev, "Specified region not found\n");
     }
 
+    close(vmsg->fds[0]);
+
     return true;
 }
 
