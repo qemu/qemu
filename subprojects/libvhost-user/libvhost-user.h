@@ -129,6 +129,8 @@ typedef struct VhostUserMemoryRegion {
     uint64_t mmap_offset;
 } VhostUserMemoryRegion;
 
+#define VHOST_USER_MEM_REG_SIZE (sizeof(VhostUserMemoryRegion))
+
 typedef struct VhostUserMemory {
     uint32_t nregions;
     uint32_t padding;
