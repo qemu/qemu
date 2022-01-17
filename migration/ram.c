@@ -2179,7 +2179,6 @@ static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss)
  * Returns the number of pages written or negative on error
  *
  * @rs: current RAM state
- * @ms: current migration state
  * @pss: data about the page we want to send
  */
 static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss)
