@@ -2352,7 +2352,7 @@ static void lsi53c810_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_LSI_53C810;
 }
 
-static TypeInfo lsi53c810_info = {
+static const TypeInfo lsi53c810_info = {
     .name          = TYPE_LSI53C810,
     .parent        = TYPE_LSI53C895A,
     .class_init    = lsi53c810_class_init,

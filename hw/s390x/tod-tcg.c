@@ -73,7 +73,7 @@ static void qemu_s390_tod_init(Object *obj)
     }
 }
 
-static TypeInfo qemu_s390_tod_info = {
+static const TypeInfo qemu_s390_tod_info = {
     .name = TYPE_QEMU_S390_TOD,
     .parent = TYPE_S390_TOD,
     .instance_size = sizeof(S390TODState),

@@ -323,7 +323,7 @@ static void bcm2835_mbox_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_bcm2835_mbox;
 }
 
-static TypeInfo bcm2835_mbox_info = {
+static const TypeInfo bcm2835_mbox_info = {
     .name          = TYPE_BCM2835_MBOX,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BCM2835MboxState),

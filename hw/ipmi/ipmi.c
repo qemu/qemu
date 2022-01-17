@@ -85,7 +85,7 @@ static void ipmi_interface_class_init(ObjectClass *class, void *data)
     ik->do_hw_op = ipmi_do_hw_op;
 }
 
-static TypeInfo ipmi_interface_type_info = {
+static const TypeInfo ipmi_interface_type_info = {
     .name = TYPE_IPMI_INTERFACE,
     .parent = TYPE_INTERFACE,
     .class_size = sizeof(IPMIInterfaceClass),
@@ -120,7 +120,7 @@ static void bmc_class_init(ObjectClass *oc, void *data)
     device_class_set_props(dc, ipmi_bmc_properties);
 }
 
-static TypeInfo ipmi_bmc_type_info = {
+static const TypeInfo ipmi_bmc_type_info = {
     .name = TYPE_IPMI_BMC,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(IPMIBmc),

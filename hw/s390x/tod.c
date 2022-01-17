@@ -123,7 +123,7 @@ static void s390_tod_class_init(ObjectClass *oc, void *data)
     dc->user_creatable = false;
 }
 
-static TypeInfo s390_tod_info = {
+static const TypeInfo s390_tod_info = {
     .name = TYPE_S390_TOD,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(S390TODState),

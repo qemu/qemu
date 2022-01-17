@@ -291,7 +291,7 @@ static void pc_dimm_class_init(ObjectClass *oc, void *data)
     mdc->fill_device_info = pc_dimm_md_fill_device_info;
 }
 
-static TypeInfo pc_dimm_info = {
+static const TypeInfo pc_dimm_info = {
     .name          = TYPE_PC_DIMM,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PCDIMMDevice),

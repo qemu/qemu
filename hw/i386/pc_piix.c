@@ -867,7 +867,7 @@ static void isa_bridge_class_init(ObjectClass *klass, void *data)
     k->class_id     = PCI_CLASS_BRIDGE_ISA;
 };
 
-static TypeInfo isa_bridge_info = {
+static const TypeInfo isa_bridge_info = {
     .name          = "igd-passthrough-isa-bridge",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),

@@ -220,7 +220,7 @@ static void virtio_vga_base_class_init(ObjectClass *klass, void *data)
                                    virtio_vga_set_big_endian_fb);
 }
 
-static TypeInfo virtio_vga_base_info = {
+static const TypeInfo virtio_vga_base_info = {
     .name          = TYPE_VIRTIO_VGA_BASE,
     .parent        = TYPE_VIRTIO_PCI,
     .instance_size = sizeof(VirtIOVGABase),

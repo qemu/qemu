@@ -131,7 +131,7 @@ static void bcm2835_rng_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_bcm2835_rng;
 }
 
-static TypeInfo bcm2835_rng_info = {
+static const TypeInfo bcm2835_rng_info = {
     .name          = TYPE_BCM2835_RNG,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BCM2835RngState),

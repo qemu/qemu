@@ -2793,13 +2793,13 @@ static void object_class_init(ObjectClass *klass, void *data)
 
 static void register_types(void)
 {
-    static TypeInfo interface_info = {
+    static const TypeInfo interface_info = {
         .name = TYPE_INTERFACE,
         .class_size = sizeof(InterfaceClass),
         .abstract = true,
     };
 
-    static TypeInfo object_info = {
+    static const TypeInfo object_info = {
         .name = TYPE_OBJECT,
         .instance_size = sizeof(Object),
         .class_init = object_class_init,

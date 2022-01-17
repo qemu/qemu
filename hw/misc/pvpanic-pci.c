@@ -74,7 +74,7 @@ static void pvpanic_pci_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static TypeInfo pvpanic_pci_info = {
+static const TypeInfo pvpanic_pci_info = {
     .name          = TYPE_PVPANIC_PCI_DEVICE,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PVPanicPCIState),

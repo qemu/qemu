@@ -77,7 +77,7 @@ static void pvpanic_isa_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static TypeInfo pvpanic_isa_info = {
+static const TypeInfo pvpanic_isa_info = {
     .name          = TYPE_PVPANIC_ISA_DEVICE,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(PVPanicISAState),

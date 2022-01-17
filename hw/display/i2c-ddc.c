@@ -113,7 +113,7 @@ static void i2c_ddc_class_init(ObjectClass *oc, void *data)
     isc->send = i2c_ddc_tx;
 }
 
-static TypeInfo i2c_ddc_info = {
+static const TypeInfo i2c_ddc_info = {
     .name = TYPE_I2CDDC,
     .parent = TYPE_I2C_SLAVE,
     .instance_size = sizeof(I2CDDCState),

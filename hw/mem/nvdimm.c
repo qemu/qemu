@@ -264,7 +264,7 @@ static void nvdimm_class_init(ObjectClass *oc, void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static TypeInfo nvdimm_info = {
+static const TypeInfo nvdimm_info = {
     .name          = TYPE_NVDIMM,
     .parent        = TYPE_PC_DIMM,
     .class_size    = sizeof(NVDIMMClass),

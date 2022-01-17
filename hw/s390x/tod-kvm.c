@@ -147,7 +147,7 @@ static void kvm_s390_tod_init(Object *obj)
     td->stopped = false;
 }
 
-static TypeInfo kvm_s390_tod_info = {
+static const TypeInfo kvm_s390_tod_info = {
     .name = TYPE_KVM_S390_TOD,
     .parent = TYPE_S390_TOD,
     .instance_size = sizeof(S390TODState),
