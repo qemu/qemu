@@ -705,6 +705,14 @@ vu_add_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
         return false;
     }
 
+    if (dev->nregions == VHOST_USER_MAX_RAM_SLOTS) {
+        close(vmsg->fds[0]);
+        vu_panic(dev, "failing attempt to hot add memory via "
+                      "VHOST_USER_ADD_MEM_REG message because the backend has "
+                      "no free ram slots available");
+        return false;
+    }
+
     /*
      * If we are in postcopy mode and we receive a u64 payload with a 0 value
      * we know all the postcopy client bases have been received, and we
