@@ -421,7 +421,6 @@ static const VMStateDescription vmstate_tm = {
     .name = "cpu/tm",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .needed = tm_needed,
     .fields      = (VMStateField []) {
         VMSTATE_UINTTL_ARRAY(env.tm_gpr, PowerPCCPU, 32),
@@ -672,7 +671,6 @@ const VMStateDescription vmstate_ppc_cpu = {
     .name = "cpu",
     .version_id = 5,
     .minimum_version_id = 5,
-    .minimum_version_id_old = 4,
     .pre_save = cpu_pre_save,
     .post_load = cpu_post_load,
     .fields = (VMStateField[]) {
