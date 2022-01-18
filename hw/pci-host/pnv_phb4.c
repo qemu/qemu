@@ -1071,7 +1071,7 @@ static const MemoryRegionOps pnv_pec_stk_nest_xscom_ops = {
 static uint64_t pnv_pec_stk_pci_xscom_read(void *opaque, hwaddr addr,
                                            unsigned size)
 {
-    PnvPhb4PecStack *stack = PNV_PHB4_PEC_STACK(opaque);
+    PnvPhb4PecStack *stack = PNV_PHB4(opaque)->stack;
     uint32_t reg = addr >> 3;
 
     /* TODO: add list of allowed registers and error out if not */
@@ -1081,7 +1081,7 @@ static uint64_t pnv_pec_stk_pci_xscom_read(void *opaque, hwaddr addr,
 static void pnv_pec_stk_pci_xscom_write(void *opaque, hwaddr addr,
                                         uint64_t val, unsigned size)
 {
-    PnvPhb4PecStack *stack = PNV_PHB4_PEC_STACK(opaque);
+    PnvPhb4PecStack *stack = PNV_PHB4(opaque)->stack;
     uint32_t reg = addr >> 3;
 
     switch (reg) {
@@ -1475,10 +1475,10 @@ static void pnv_phb4_xscom_realize(PnvPHB4 *phb)
                           &pnv_pec_stk_nest_xscom_ops, stack, name,
                           PHB4_PEC_NEST_STK_REGS_COUNT);
 
-    snprintf(name, sizeof(name), "xscom-pec-%d.%d-pci-stack-%d",
+    snprintf(name, sizeof(name), "xscom-pec-%d.%d-pci-phb-%d",
              pec->chip_id, pec->index, stack->stack_no);
-    pnv_xscom_region_init(&stack->pci_regs_mr, OBJECT(stack),
-                          &pnv_pec_stk_pci_xscom_ops, stack, name,
+    pnv_xscom_region_init(&stack->pci_regs_mr, OBJECT(phb),
+                          &pnv_pec_stk_pci_xscom_ops, phb, name,
                           PHB4_PEC_PCI_STK_REGS_COUNT);
 
     /* PHB pass-through */
