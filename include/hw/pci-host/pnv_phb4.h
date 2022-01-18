@@ -115,6 +115,12 @@ struct PnvPHB4 {
     /* Memory windows from PowerBus to PHB */
     MemoryRegion phbbar;
     MemoryRegion intbar;
+    MemoryRegion mmbar0;
+    MemoryRegion mmbar1;
+    uint64_t mmio0_base;
+    uint64_t mmio0_size;
+    uint64_t mmio1_base;
+    uint64_t mmio1_size;
 
     /* On-chip IODA tables */
     uint64_t ioda_LIST[PNV_PHB4_MAX_LSIs];
@@ -166,14 +172,6 @@ struct PnvPhb4PecStack {
 
     /* PHB pass-through XSCOM */
     MemoryRegion phb_regs_mr;
-
-    /* Memory windows from PowerBus to PHB */
-    MemoryRegion mmbar0;
-    MemoryRegion mmbar1;
-    uint64_t mmio0_base;
-    uint64_t mmio0_size;
-    uint64_t mmio1_base;
-    uint64_t mmio1_size;
 
     /* The owner PEC */
     PnvPhb4PecState *pec;

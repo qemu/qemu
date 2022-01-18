@@ -228,16 +228,16 @@ static void pnv_phb4_check_mbt(PnvPHB4 *phb, uint32_t index)
     /* TODO: Figure out how to implemet/decode AOMASK */
 
     /* Check if it matches an enabled MMIO region in the PEC stack */
-    if (memory_region_is_mapped(&phb->stack->mmbar0) &&
-        base >= phb->stack->mmio0_base &&
-        (base + size) <= (phb->stack->mmio0_base + phb->stack->mmio0_size)) {
-        parent = &phb->stack->mmbar0;
-        base -= phb->stack->mmio0_base;
-    } else if (memory_region_is_mapped(&phb->stack->mmbar1) &&
-        base >= phb->stack->mmio1_base &&
-        (base + size) <= (phb->stack->mmio1_base + phb->stack->mmio1_size)) {
-        parent = &phb->stack->mmbar1;
-        base -= phb->stack->mmio1_base;
+    if (memory_region_is_mapped(&phb->mmbar0) &&
+        base >= phb->mmio0_base &&
+        (base + size) <= (phb->mmio0_base + phb->mmio0_size)) {
+        parent = &phb->mmbar0;
+        base -= phb->mmio0_base;
+    } else if (memory_region_is_mapped(&phb->mmbar1) &&
+        base >= phb->mmio1_base &&
+        (base + size) <= (phb->mmio1_base + phb->mmio1_size)) {
+        parent = &phb->mmbar1;
+        base -= phb->mmio1_base;
     } else {
         phb_error(phb, "PHB MBAR %d out of parent bounds", index);
         return;
@@ -910,13 +910,13 @@ static void pnv_pec_stk_update_map(PnvPhb4PecStack *stack)
      */
 
     /* Handle unmaps */
-    if (memory_region_is_mapped(&stack->mmbar0) &&
+    if (memory_region_is_mapped(&phb->mmbar0) &&
         !(bar_en & PEC_NEST_STK_BAR_EN_MMIO0)) {
-        memory_region_del_subregion(sysmem, &stack->mmbar0);
+        memory_region_del_subregion(sysmem, &phb->mmbar0);
     }
-    if (memory_region_is_mapped(&stack->mmbar1) &&
+    if (memory_region_is_mapped(&phb->mmbar1) &&
         !(bar_en & PEC_NEST_STK_BAR_EN_MMIO1)) {
-        memory_region_del_subregion(sysmem, &stack->mmbar1);
+        memory_region_del_subregion(sysmem, &phb->mmbar1);
     }
     if (memory_region_is_mapped(&phb->phbbar) &&
         !(bar_en & PEC_NEST_STK_BAR_EN_PHB)) {
@@ -931,29 +931,29 @@ static void pnv_pec_stk_update_map(PnvPhb4PecStack *stack)
     pnv_phb4_update_regions(phb);
 
     /* Handle maps */
-    if (!memory_region_is_mapped(&stack->mmbar0) &&
+    if (!memory_region_is_mapped(&phb->mmbar0) &&
         (bar_en & PEC_NEST_STK_BAR_EN_MMIO0)) {
         bar = stack->nest_regs[PEC_NEST_STK_MMIO_BAR0] >> 8;
         mask = stack->nest_regs[PEC_NEST_STK_MMIO_BAR0_MASK];
         size = ((~mask) >> 8) + 1;
-        snprintf(name, sizeof(name), "pec-%d.%d-stack-%d-mmio0",
+        snprintf(name, sizeof(name), "pec-%d.%d-phb-%d-mmio0",
                  pec->chip_id, pec->index, stack->stack_no);
-        memory_region_init(&stack->mmbar0, OBJECT(stack), name, size);
-        memory_region_add_subregion(sysmem, bar, &stack->mmbar0);
-        stack->mmio0_base = bar;
-        stack->mmio0_size = size;
+        memory_region_init(&phb->mmbar0, OBJECT(phb), name, size);
+        memory_region_add_subregion(sysmem, bar, &phb->mmbar0);
+        phb->mmio0_base = bar;
+        phb->mmio0_size = size;
     }
-    if (!memory_region_is_mapped(&stack->mmbar1) &&
+    if (!memory_region_is_mapped(&phb->mmbar1) &&
         (bar_en & PEC_NEST_STK_BAR_EN_MMIO1)) {
         bar = stack->nest_regs[PEC_NEST_STK_MMIO_BAR1] >> 8;
         mask = stack->nest_regs[PEC_NEST_STK_MMIO_BAR1_MASK];
         size = ((~mask) >> 8) + 1;
-        snprintf(name, sizeof(name), "pec-%d.%d-stack-%d-mmio1",
+        snprintf(name, sizeof(name), "pec-%d.%d-phb-%d-mmio1",
                  pec->chip_id, pec->index, stack->stack_no);
-        memory_region_init(&stack->mmbar1, OBJECT(stack), name, size);
-        memory_region_add_subregion(sysmem, bar, &stack->mmbar1);
-        stack->mmio1_base = bar;
-        stack->mmio1_size = size;
+        memory_region_init(&phb->mmbar1, OBJECT(phb), name, size);
+        memory_region_add_subregion(sysmem, bar, &phb->mmbar1);
+        phb->mmio1_base = bar;
+        phb->mmio1_size = size;
     }
     if (!memory_region_is_mapped(&phb->phbbar) &&
         (bar_en & PEC_NEST_STK_BAR_EN_PHB)) {
