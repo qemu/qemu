@@ -84,6 +84,9 @@ struct PnvPHB4 {
 
     uint64_t version;
 
+    /* The owner PEC */
+    PnvPhb4PecState *pec;
+
     char bus_path[8];
 
     /* Main register images */
@@ -107,6 +110,29 @@ struct PnvPHB4 {
     MemoryRegion pci_mmio;
     MemoryRegion pci_io;
 
+    /* PCI registers (excluding pass-through) */
+#define PHB4_PEC_PCI_STK_REGS_COUNT  0xf
+    uint64_t pci_regs[PHB4_PEC_PCI_STK_REGS_COUNT];
+    MemoryRegion pci_regs_mr;
+
+    /* Nest registers */
+#define PHB4_PEC_NEST_STK_REGS_COUNT  0x17
+    uint64_t nest_regs[PHB4_PEC_NEST_STK_REGS_COUNT];
+    MemoryRegion nest_regs_mr;
+
+    /* PHB pass-through XSCOM */
+    MemoryRegion phb_regs_mr;
+
+    /* Memory windows from PowerBus to PHB */
+    MemoryRegion phbbar;
+    MemoryRegion intbar;
+    MemoryRegion mmbar0;
+    MemoryRegion mmbar1;
+    uint64_t mmio0_base;
+    uint64_t mmio0_size;
+    uint64_t mmio1_base;
+    uint64_t mmio1_size;
+
     /* On-chip IODA tables */
     uint64_t ioda_LIST[PNV_PHB4_MAX_LSIs];
     uint64_t ioda_MIST[PNV_PHB4_MAX_MIST];
@@ -125,8 +151,6 @@ struct PnvPHB4 {
     XiveSource xsrc;
     qemu_irq *qirqs;
 
-    PnvPhb4PecStack *stack;
-
     QLIST_HEAD(, PnvPhb4DMASpace) dma_spaces;
 };
 
@@ -139,49 +163,6 @@ extern const MemoryRegionOps pnv_phb4_xscom_ops;
  */
 #define TYPE_PNV_PHB4_PEC "pnv-phb4-pec"
 OBJECT_DECLARE_TYPE(PnvPhb4PecState, PnvPhb4PecClass, PNV_PHB4_PEC)
-
-#define TYPE_PNV_PHB4_PEC_STACK "pnv-phb4-pec-stack"
-OBJECT_DECLARE_SIMPLE_TYPE(PnvPhb4PecStack, PNV_PHB4_PEC_STACK)
-
-/* Per-stack data */
-struct PnvPhb4PecStack {
-    DeviceState parent;
-
-    /* My own stack number */
-    uint32_t stack_no;
-
-    /* Nest registers */
-#define PHB4_PEC_NEST_STK_REGS_COUNT  0x17
-    uint64_t nest_regs[PHB4_PEC_NEST_STK_REGS_COUNT];
-    MemoryRegion nest_regs_mr;
-
-    /* PCI registers (excluding pass-through) */
-#define PHB4_PEC_PCI_STK_REGS_COUNT  0xf
-    uint64_t pci_regs[PHB4_PEC_PCI_STK_REGS_COUNT];
-    MemoryRegion pci_regs_mr;
-
-    /* PHB pass-through XSCOM */
-    MemoryRegion phb_regs_mr;
-
-    /* Memory windows from PowerBus to PHB */
-    MemoryRegion mmbar0;
-    MemoryRegion mmbar1;
-    MemoryRegion phbbar;
-    MemoryRegion intbar;
-    uint64_t mmio0_base;
-    uint64_t mmio0_size;
-    uint64_t mmio1_base;
-    uint64_t mmio1_size;
-
-    /* The owner PEC */
-    PnvPhb4PecState *pec;
-
-    /*
-     * PHB4 pointer. pnv_phb4_update_regions() needs to access
-     * the PHB4 via a PnvPhb4PecStack pointer.
-     */
-    PnvPHB4 *phb;
-};
 
 struct PnvPhb4PecState {
     DeviceState parent;
@@ -202,10 +183,8 @@ struct PnvPhb4PecState {
     uint64_t pci_regs[PHB4_PEC_PCI_REGS_COUNT];
     MemoryRegion pci_regs_mr;
 
-    /* Stacks */
-    #define PHB4_PEC_MAX_STACKS     3
-    uint32_t num_stacks;
-    PnvPhb4PecStack stacks[PHB4_PEC_MAX_STACKS];
+    /* PHBs */
+    uint32_t num_phbs;
 
     PnvChip *chip;
 };
@@ -223,7 +202,8 @@ struct PnvPhb4PecClass {
     const char *stk_compat;
     int stk_compat_size;
     uint64_t version;
-    const uint32_t *num_stacks;
+    const uint32_t *num_phbs;
+    const char *rp_model;
 };
 
 #endif /* PCI_HOST_PNV_PHB4_H */

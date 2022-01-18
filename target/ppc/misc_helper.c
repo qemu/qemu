@@ -226,15 +226,6 @@ void helper_store_hid0_601(CPUPPCState *env, target_ulong val)
     }
 }
 
-void helper_store_403_pbr(CPUPPCState *env, uint32_t num, target_ulong value)
-{
-    if (likely(env->pb[num] != value)) {
-        env->pb[num] = value;
-        /* Should be optimized */
-        tlb_flush(env_cpu(env));
-    }
-}
-
 void helper_store_40x_dbcr0(CPUPPCState *env, target_ulong val)
 {
     /* Bits 26 & 27 affect single-stepping. */

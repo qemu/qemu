@@ -112,15 +112,28 @@ static const MemoryRegionOps pnv_pec_pci_xscom_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void pnv_pec_instance_init(Object *obj)
+static void pnv_pec_default_phb_realize(PnvPhb4PecState *pec,
+                                        int stack_no,
+                                        Error **errp)
 {
-    PnvPhb4PecState *pec = PNV_PHB4_PEC(obj);
-    int i;
+    PnvPHB4 *phb = PNV_PHB4(qdev_new(TYPE_PNV_PHB4));
+    int phb_id = pnv_phb4_pec_get_phb_id(pec, stack_no);
 
-    for (i = 0; i < PHB4_PEC_MAX_STACKS; i++) {
-        object_initialize_child(obj, "stack[*]", &pec->stacks[i],
-                                TYPE_PNV_PHB4_PEC_STACK);
+    object_property_set_link(OBJECT(phb), "pec", OBJECT(pec),
+                             &error_abort);
+    object_property_set_int(OBJECT(phb), "chip-id", pec->chip_id,
+                            &error_fatal);
+    object_property_set_int(OBJECT(phb), "index", phb_id,
+                            &error_fatal);
+
+    if (!sysbus_realize(SYS_BUS_DEVICE(phb), errp)) {
+        return;
     }
+
+    /* Add a single Root port if running with defaults */
+    pnv_phb_attach_root_port(PCI_HOST_BRIDGE(phb),
+                             PNV_PHB4_PEC_GET_CLASS(pec)->rp_model);
+
 }
 
 static void pnv_pec_realize(DeviceState *dev, Error **errp)
@@ -135,21 +148,13 @@ static void pnv_pec_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    pec->num_stacks = pecc->num_stacks[pec->index];
+    pec->num_phbs = pecc->num_phbs[pec->index];
 
-    /* Create stacks */
-    for (i = 0; i < pec->num_stacks; i++) {
-        PnvPhb4PecStack *stack = &pec->stacks[i];
-        Object *stk_obj = OBJECT(stack);
-
-        object_property_set_int(stk_obj, "stack-no", i, &error_abort);
-        object_property_set_link(stk_obj, "pec", OBJECT(pec), &error_abort);
-        if (!qdev_realize(DEVICE(stk_obj), NULL, errp)) {
-            return;
+    /* Create PHBs if running with defaults */
+    if (defaults_enabled()) {
+        for (i = 0; i < pec->num_phbs; i++) {
+            pnv_pec_default_phb_realize(pec, i, errp);
         }
-    }
-    for (; i < PHB4_PEC_MAX_STACKS; i++) {
-        object_unparent(OBJECT(&pec->stacks[i]));
     }
 
     /* Initialize the XSCOM regions for the PEC registers */
@@ -195,7 +200,7 @@ static int pnv_pec_dt_xscom(PnvXScomInterface *dev, void *fdt,
     _FDT((fdt_setprop(fdt, offset, "compatible", pecc->compat,
                       pecc->compat_size)));
 
-    for (i = 0; i < pec->num_stacks; i++) {
+    for (i = 0; i < pec->num_phbs; i++) {
         int phb_id = pnv_phb4_pec_get_phb_id(pec, i);
         int stk_offset;
 
@@ -231,11 +236,11 @@ static uint32_t pnv_pec_xscom_nest_base(PnvPhb4PecState *pec)
 }
 
 /*
- * PEC0 -> 1 stack
- * PEC1 -> 2 stacks
- * PEC2 -> 3 stacks
+ * PEC0 -> 1 phb
+ * PEC1 -> 2 phb
+ * PEC2 -> 3 phbs
  */
-static const uint32_t pnv_pec_num_stacks[] = { 1, 2, 3 };
+static const uint32_t pnv_pec_num_phbs[] = { 1, 2, 3 };
 
 static void pnv_pec_class_init(ObjectClass *klass, void *data)
 {
@@ -260,79 +265,16 @@ static void pnv_pec_class_init(ObjectClass *klass, void *data)
     pecc->stk_compat = stk_compat;
     pecc->stk_compat_size = sizeof(stk_compat);
     pecc->version = PNV_PHB4_VERSION;
-    pecc->num_stacks = pnv_pec_num_stacks;
+    pecc->num_phbs = pnv_pec_num_phbs;
+    pecc->rp_model = TYPE_PNV_PHB4_ROOT_PORT;
 }
 
 static const TypeInfo pnv_pec_type_info = {
     .name          = TYPE_PNV_PHB4_PEC,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PnvPhb4PecState),
-    .instance_init = pnv_pec_instance_init,
     .class_init    = pnv_pec_class_init,
     .class_size    = sizeof(PnvPhb4PecClass),
-    .interfaces    = (InterfaceInfo[]) {
-        { TYPE_PNV_XSCOM_INTERFACE },
-        { }
-    }
-};
-
-static void pnv_pec_stk_default_phb_realize(PnvPhb4PecStack *stack,
-                                            Error **errp)
-{
-    PnvPhb4PecState *pec = stack->pec;
-    PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
-    int phb_id = pnv_phb4_pec_get_phb_id(pec, stack->stack_no);
-
-    stack->phb = PNV_PHB4(qdev_new(TYPE_PNV_PHB4));
-
-    object_property_set_int(OBJECT(stack->phb), "chip-id", pec->chip_id,
-                            &error_fatal);
-    object_property_set_int(OBJECT(stack->phb), "index", phb_id,
-                            &error_fatal);
-    object_property_set_int(OBJECT(stack->phb), "version", pecc->version,
-                            &error_fatal);
-    object_property_set_link(OBJECT(stack->phb), "stack", OBJECT(stack),
-                             &error_abort);
-
-    if (!sysbus_realize(SYS_BUS_DEVICE(stack->phb), errp)) {
-        return;
-    }
-}
-
-static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
-{
-    PnvPhb4PecStack *stack = PNV_PHB4_PEC_STACK(dev);
-
-    if (!defaults_enabled()) {
-        return;
-    }
-
-    pnv_pec_stk_default_phb_realize(stack, errp);
-}
-
-static Property pnv_pec_stk_properties[] = {
-        DEFINE_PROP_UINT32("stack-no", PnvPhb4PecStack, stack_no, 0),
-        DEFINE_PROP_LINK("pec", PnvPhb4PecStack, pec, TYPE_PNV_PHB4_PEC,
-                         PnvPhb4PecState *),
-        DEFINE_PROP_END_OF_LIST(),
-};
-
-static void pnv_pec_stk_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_props(dc, pnv_pec_stk_properties);
-    dc->realize = pnv_pec_stk_realize;
-    dc->user_creatable = false;
-
-    /* TODO: reset regs ? */
-}
-
-static const TypeInfo pnv_pec_stk_type_info = {
-    .name          = TYPE_PNV_PHB4_PEC_STACK,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(PnvPhb4PecStack),
-    .class_init    = pnv_pec_stk_class_init,
     .interfaces    = (InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
         { }
@@ -342,7 +284,6 @@ static const TypeInfo pnv_pec_stk_type_info = {
 static void pnv_pec_register_types(void)
 {
     type_register_static(&pnv_pec_type_info);
-    type_register_static(&pnv_pec_stk_type_info);
 }
 
 type_init(pnv_pec_register_types);
