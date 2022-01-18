@@ -750,7 +750,6 @@
 /* PowerPC CPU aliases                                                     */
 
 PowerPCCPUAlias ppc_cpu_aliases[] = {
-    { "403", "403gc" },
     { "405", "405d4" },
     { "405cr", "405crc" },
     { "405gp", "405gpd" },

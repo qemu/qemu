@@ -598,25 +598,6 @@ static bool tlbemb_needed(void *opaque)
     return env->nb_tlb && (env->tlb_type == TLB_EMB);
 }
 
-static bool pbr403_needed(void *opaque)
-{
-    PowerPCCPU *cpu = opaque;
-    uint32_t pvr = cpu->env.spr[SPR_PVR];
-
-    return (pvr & 0xffff0000) == 0x00200000;
-}
-
-static const VMStateDescription vmstate_pbr403 = {
-    .name = "cpu/pbr403",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .needed = pbr403_needed,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINTTL_ARRAY(env.pb, PowerPCCPU, 4),
-        VMSTATE_END_OF_LIST()
-    },
-};
-
 static const VMStateDescription vmstate_tlbemb = {
     .name = "cpu/tlb6xx",
     .version_id = 1,
@@ -628,13 +609,8 @@ static const VMStateDescription vmstate_tlbemb = {
                                             env.nb_tlb,
                                             vmstate_tlbemb_entry,
                                             ppcemb_tlb_t),
-        /* 403 protection registers */
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
-        &vmstate_pbr403,
-        NULL
-    }
 };
 
 static const VMStateDescription vmstate_tlbmas_entry = {
