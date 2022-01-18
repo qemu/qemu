@@ -2279,7 +2279,7 @@ if have_system
     if fdt.found() and cc.links('''
        #include <libfdt.h>
        #include <libfdt_env.h>
-       int main(void) { fdt_check_full(NULL, 0); return 0; }''',
+       int main(void) { fdt_find_max_phandle(NULL, NULL); return 0; }''',
          dependencies: fdt)
       fdt_opt = 'system'
     elif fdt_opt == 'system'
