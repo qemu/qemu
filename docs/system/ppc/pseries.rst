@@ -113,12 +113,8 @@ can  also be found in QEMU documentation:
    ../../specs/ppc-spapr-hotplug.rst
    ../../specs/ppc-spapr-hcalls.rst
    ../../specs/ppc-spapr-numa.rst
+   ../../specs/ppc-spapr-uv-hcalls.rst
    ../../specs/ppc-spapr-xive.rst
-
-Other documentation available in QEMU docs directory:
-
-* Hypervisor calls needed by the Ultravisor
-  (``/docs/specs/ppc-spapr-uv-hcalls.txt``).
 
 Switching between the KVM-PR and KVM-HV kernel module
 =====================================================
