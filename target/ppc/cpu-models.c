@@ -636,13 +636,13 @@
                 "PowerPC 7410 v1.3 (G4)")
     POWERPC_DEF("7410_v1.4",     CPU_POWERPC_7410_v14,               7410,
                 "PowerPC 7410 v1.4 (G4)")
-    POWERPC_DEF("7448_v1.0",     CPU_POWERPC_7448_v10,               7400,
+    POWERPC_DEF("7448_v1.0",     CPU_POWERPC_7448_v10,               7445,
                 "PowerPC 7448 v1.0 (G4)")
-    POWERPC_DEF("7448_v1.1",     CPU_POWERPC_7448_v11,               7400,
+    POWERPC_DEF("7448_v1.1",     CPU_POWERPC_7448_v11,               7445,
                 "PowerPC 7448 v1.1 (G4)")
-    POWERPC_DEF("7448_v2.0",     CPU_POWERPC_7448_v20,               7400,
+    POWERPC_DEF("7448_v2.0",     CPU_POWERPC_7448_v20,               7445,
                 "PowerPC 7448 v2.0 (G4)")
-    POWERPC_DEF("7448_v2.1",     CPU_POWERPC_7448_v21,               7400,
+    POWERPC_DEF("7448_v2.1",     CPU_POWERPC_7448_v21,               7445,
                 "PowerPC 7448 v2.1 (G4)")
     POWERPC_DEF("7450_v1.0",     CPU_POWERPC_7450_v10,               7450,
                 "PowerPC 7450 v1.0 (G4)")
