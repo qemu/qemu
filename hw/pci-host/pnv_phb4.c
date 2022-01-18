@@ -877,7 +877,7 @@ static void pnv_phb4_update_regions(PnvPhb4PecStack *stack)
         memory_region_del_subregion(&phb->phbbar, &phb->mr_regs);
     }
     if (memory_region_is_mapped(&phb->xsrc.esb_mmio)) {
-        memory_region_del_subregion(&stack->intbar, &phb->xsrc.esb_mmio);
+        memory_region_del_subregion(&phb->intbar, &phb->xsrc.esb_mmio);
     }
 
     /* Map registers if enabled */
@@ -886,8 +886,8 @@ static void pnv_phb4_update_regions(PnvPhb4PecStack *stack)
     }
 
     /* Map ESB if enabled */
-    if (memory_region_is_mapped(&stack->intbar)) {
-        memory_region_add_subregion(&stack->intbar, 0, &phb->xsrc.esb_mmio);
+    if (memory_region_is_mapped(&phb->intbar)) {
+        memory_region_add_subregion(&phb->intbar, 0, &phb->xsrc.esb_mmio);
     }
 
     /* Check/update m32 */
@@ -924,9 +924,9 @@ static void pnv_pec_stk_update_map(PnvPhb4PecStack *stack)
         !(bar_en & PEC_NEST_STK_BAR_EN_PHB)) {
         memory_region_del_subregion(sysmem, &phb->phbbar);
     }
-    if (memory_region_is_mapped(&stack->intbar) &&
+    if (memory_region_is_mapped(&phb->intbar) &&
         !(bar_en & PEC_NEST_STK_BAR_EN_INT)) {
-        memory_region_del_subregion(sysmem, &stack->intbar);
+        memory_region_del_subregion(sysmem, &phb->intbar);
     }
 
     /* Update PHB */
@@ -966,14 +966,14 @@ static void pnv_pec_stk_update_map(PnvPhb4PecStack *stack)
         memory_region_init(&phb->phbbar, OBJECT(phb), name, size);
         memory_region_add_subregion(sysmem, bar, &phb->phbbar);
     }
-    if (!memory_region_is_mapped(&stack->intbar) &&
+    if (!memory_region_is_mapped(&phb->intbar) &&
         (bar_en & PEC_NEST_STK_BAR_EN_INT)) {
         bar = stack->nest_regs[PEC_NEST_STK_INT_BAR] >> 8;
         size = PNV_PHB4_MAX_INTs << 16;
-        snprintf(name, sizeof(name), "pec-%d.%d-stack-%d-int",
+        snprintf(name, sizeof(name), "pec-%d.%d-phb-%d-int",
                  stack->pec->chip_id, stack->pec->index, stack->stack_no);
-        memory_region_init(&stack->intbar, OBJECT(stack), name, size);
-        memory_region_add_subregion(sysmem, bar, &stack->intbar);
+        memory_region_init(&phb->intbar, OBJECT(phb), name, size);
+        memory_region_add_subregion(sysmem, bar, &phb->intbar);
     }
 
     /* Update PHB */
