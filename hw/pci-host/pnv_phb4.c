@@ -868,10 +868,8 @@ static uint64_t pnv_pec_stk_nest_xscom_read(void *opaque, hwaddr addr,
     return stack->nest_regs[reg];
 }
 
-static void pnv_phb4_update_regions(PnvPhb4PecStack *stack)
+static void pnv_phb4_update_regions(PnvPHB4 *phb)
 {
-    PnvPHB4 *phb = stack->phb;
-
     /* Unmap first always */
     if (memory_region_is_mapped(&phb->mr_regs)) {
         memory_region_del_subregion(&phb->phbbar, &phb->mr_regs);
@@ -930,7 +928,7 @@ static void pnv_pec_stk_update_map(PnvPhb4PecStack *stack)
     }
 
     /* Update PHB */
-    pnv_phb4_update_regions(stack);
+    pnv_phb4_update_regions(phb);
 
     /* Handle maps */
     if (!memory_region_is_mapped(&stack->mmbar0) &&
@@ -977,7 +975,7 @@ static void pnv_pec_stk_update_map(PnvPhb4PecStack *stack)
     }
 
     /* Update PHB */
-    pnv_phb4_update_regions(stack);
+    pnv_phb4_update_regions(phb);
 }
 
 static void pnv_pec_stk_nest_xscom_write(void *opaque, hwaddr addr,
