@@ -112,6 +112,30 @@ static const MemoryRegionOps pnv_pec_pci_xscom_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
+static void pnv_pec_default_phb_realize(PnvPhb4PecStack *stack,
+                                        int stack_no,
+                                        Error **errp)
+{
+    PnvPhb4PecState *pec = stack->pec;
+    PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
+    int phb_id = pnv_phb4_pec_get_phb_id(pec, stack_no);
+
+    stack->phb = PNV_PHB4(qdev_new(TYPE_PNV_PHB4));
+
+    object_property_set_link(OBJECT(stack->phb), "pec", OBJECT(pec),
+                             &error_abort);
+    object_property_set_int(OBJECT(stack->phb), "chip-id", pec->chip_id,
+                            &error_fatal);
+    object_property_set_int(OBJECT(stack->phb), "index", phb_id,
+                            &error_fatal);
+    object_property_set_int(OBJECT(stack->phb), "version", pecc->version,
+                            &error_fatal);
+
+    if (!sysbus_realize(SYS_BUS_DEVICE(stack->phb), errp)) {
+        return;
+    }
+}
+
 static void pnv_pec_instance_init(Object *obj)
 {
     PnvPhb4PecState *pec = PNV_PHB4_PEC(obj);
@@ -144,6 +168,15 @@ static void pnv_pec_realize(DeviceState *dev, Error **errp)
 
         object_property_set_int(stk_obj, "stack-no", i, &error_abort);
         object_property_set_link(stk_obj, "pec", OBJECT(pec), &error_abort);
+
+        if (defaults_enabled()) {
+            pnv_pec_default_phb_realize(stack, i, errp);
+        }
+
+        /*
+         * qdev gets angry if we don't realize 'stack' here, even
+         * if stk_realize() is now empty.
+         */
         if (!qdev_realize(DEVICE(stk_obj), NULL, errp)) {
             return;
         }
@@ -276,38 +309,8 @@ static const TypeInfo pnv_pec_type_info = {
     }
 };
 
-static void pnv_pec_stk_default_phb_realize(PnvPhb4PecStack *stack,
-                                            Error **errp)
-{
-    PnvPhb4PecState *pec = stack->pec;
-    PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
-    int phb_id = pnv_phb4_pec_get_phb_id(pec, stack->stack_no);
-
-    stack->phb = PNV_PHB4(qdev_new(TYPE_PNV_PHB4));
-
-    object_property_set_link(OBJECT(stack->phb), "pec", OBJECT(pec),
-                             &error_abort);
-    object_property_set_int(OBJECT(stack->phb), "chip-id", pec->chip_id,
-                            &error_fatal);
-    object_property_set_int(OBJECT(stack->phb), "index", phb_id,
-                            &error_fatal);
-    object_property_set_int(OBJECT(stack->phb), "version", pecc->version,
-                            &error_fatal);
-
-    if (!sysbus_realize(SYS_BUS_DEVICE(stack->phb), errp)) {
-        return;
-    }
-}
-
 static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
 {
-    PnvPhb4PecStack *stack = PNV_PHB4_PEC_STACK(dev);
-
-    if (!defaults_enabled()) {
-        return;
-    }
-
-    pnv_pec_stk_default_phb_realize(stack, errp);
 }
 
 static Property pnv_pec_stk_properties[] = {
