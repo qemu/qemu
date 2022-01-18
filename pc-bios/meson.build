@@ -80,8 +80,6 @@ blobs = files(
   'hppa-firmware.img',
   'opensbi-riscv32-generic-fw_dynamic.bin',
   'opensbi-riscv64-generic-fw_dynamic.bin',
-  'opensbi-riscv32-generic-fw_dynamic.elf',
-  'opensbi-riscv64-generic-fw_dynamic.elf',
   'npcm7xx_bootrom.bin',
 )
 
