@@ -285,6 +285,8 @@ static void pnv_pec_stk_default_phb_realize(PnvPhb4PecStack *stack,
 
     stack->phb = PNV_PHB4(qdev_new(TYPE_PNV_PHB4));
 
+    object_property_set_link(OBJECT(stack->phb), "pec", OBJECT(pec),
+                             &error_abort);
     object_property_set_int(OBJECT(stack->phb), "chip-id", pec->chip_id,
                             &error_fatal);
     object_property_set_int(OBJECT(stack->phb), "index", phb_id,

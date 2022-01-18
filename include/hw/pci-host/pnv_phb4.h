@@ -84,6 +84,9 @@ struct PnvPHB4 {
 
     uint64_t version;
 
+    /* The owner PEC */
+    PnvPhb4PecState *pec;
+
     char bus_path[8];
 
     /* Main register images */
