@@ -1481,9 +1481,9 @@ static void pnv_phb4_xscom_realize(PnvPHB4 *phb)
                           PHB4_PEC_PCI_STK_REGS_COUNT);
 
     /* PHB pass-through */
-    snprintf(name, sizeof(name), "xscom-pec-%d.%d-pci-stack-%d-phb",
+    snprintf(name, sizeof(name), "xscom-pec-%d.%d-pci-phb-%d",
              pec->chip_id, pec->index, stack->stack_no);
-    pnv_xscom_region_init(&stack->phb_regs_mr, OBJECT(phb),
+    pnv_xscom_region_init(&phb->phb_regs_mr, OBJECT(phb),
                           &pnv_phb4_xscom_ops, phb, name, 0x40);
 
     pec_nest_base = pecc->xscom_nest_base(pec);
@@ -1499,7 +1499,7 @@ static void pnv_phb4_xscom_realize(PnvPHB4 *phb)
     pnv_xscom_add_subregion(pec->chip,
                             pec_pci_base + PNV9_XSCOM_PEC_PCI_STK0 +
                             0x40 * stack->stack_no,
-                            &stack->phb_regs_mr);
+                            &phb->phb_regs_mr);
 }
 
 static void pnv_phb4_instance_init(Object *obj)
