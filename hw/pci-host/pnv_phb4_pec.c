@@ -117,7 +117,6 @@ static void pnv_pec_default_phb_realize(PnvPhb4PecState *pec,
                                         Error **errp)
 {
     PnvPHB4 *phb = PNV_PHB4(qdev_new(TYPE_PNV_PHB4));
-    PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
     int phb_id = pnv_phb4_pec_get_phb_id(pec, stack_no);
 
     object_property_set_link(OBJECT(phb), "pec", OBJECT(pec),
@@ -125,8 +124,6 @@ static void pnv_pec_default_phb_realize(PnvPhb4PecState *pec,
     object_property_set_int(OBJECT(phb), "chip-id", pec->chip_id,
                             &error_fatal);
     object_property_set_int(OBJECT(phb), "index", phb_id,
-                            &error_fatal);
-    object_property_set_int(OBJECT(phb), "version", pecc->version,
                             &error_fatal);
 
     if (!sysbus_realize(SYS_BUS_DEVICE(phb), errp)) {

@@ -672,7 +672,7 @@ static uint64_t pnv_phb4_reg_read(void *opaque, hwaddr off, unsigned size)
 
     switch (off) {
     case PHB_VERSION:
-        return phb->version;
+        return PNV_PHB4_PEC_GET_CLASS(phb->pec)->version;
 
         /* Read-only */
     case PHB_PHB4_GEN_CAP:
@@ -1575,7 +1575,6 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     if (!phb->pec) {
         PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
         PnvChip *chip = pnv_get_chip(pnv, phb->chip_id);
-        PnvPhb4PecClass *pecc;
         BusState *s;
 
         if (!chip) {
@@ -1588,11 +1587,6 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
             error_propagate(errp, local_err);
             return;
         }
-
-        /* All other phb properties are already set */
-        pecc = PNV_PHB4_PEC_GET_CLASS(phb->pec);
-        object_property_set_int(OBJECT(phb), "version", pecc->version,
-                                &error_fatal);
 
         /*
          * Reparent user created devices to the chip to build
@@ -1688,7 +1682,6 @@ static void pnv_phb4_xive_notify(XiveNotifier *xf, uint32_t srcno)
 static Property pnv_phb4_properties[] = {
         DEFINE_PROP_UINT32("index", PnvPHB4, phb_id, 0),
         DEFINE_PROP_UINT32("chip-id", PnvPHB4, chip_id, 0),
-        DEFINE_PROP_UINT64("version", PnvPHB4, version, 0),
         DEFINE_PROP_LINK("pec", PnvPHB4, pec, TYPE_PNV_PHB4_PEC,
                          PnvPhb4PecState *),
         DEFINE_PROP_END_OF_LIST(),
