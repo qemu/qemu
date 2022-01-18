@@ -868,6 +868,28 @@ static uint64_t pnv_pec_stk_nest_xscom_read(void *opaque, hwaddr addr,
     return phb->nest_regs[reg];
 }
 
+/*
+ * Return the 'stack_no' of a PHB4. 'stack_no' is the order
+ * the PHB4 occupies in the PEC. This is the reverse of what
+ * pnv_phb4_pec_get_phb_id() does.
+ *
+ * E.g. a phb with phb_id = 4 and pec->index = 1 (PEC1) will
+ * be the second phb (stack_no = 1) of the PEC.
+ */
+static int pnv_phb4_get_phb_stack_no(PnvPHB4 *phb)
+{
+    PnvPhb4PecState *pec = phb->pec;
+    PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
+    int index = pec->index;
+    int stack_no = phb->phb_id;
+
+    while (index--) {
+        stack_no -= pecc->num_stacks[index];
+    }
+
+    return stack_no;
+}
+
 static void pnv_phb4_update_regions(PnvPHB4 *phb)
 {
     /* Unmap first always */
@@ -894,10 +916,10 @@ static void pnv_phb4_update_regions(PnvPHB4 *phb)
 
 static void pnv_pec_stk_update_map(PnvPHB4 *phb)
 {
-    PnvPhb4PecStack *stack = phb->stack;
     PnvPhb4PecState *pec = phb->pec;
     MemoryRegion *sysmem = get_system_memory();
     uint64_t bar_en = phb->nest_regs[PEC_NEST_STK_BAR_EN];
+    int stack_no = pnv_phb4_get_phb_stack_no(phb);
     uint64_t bar, mask, size;
     char name[64];
 
@@ -937,7 +959,7 @@ static void pnv_pec_stk_update_map(PnvPHB4 *phb)
         mask = phb->nest_regs[PEC_NEST_STK_MMIO_BAR0_MASK];
         size = ((~mask) >> 8) + 1;
         snprintf(name, sizeof(name), "pec-%d.%d-phb-%d-mmio0",
-                 pec->chip_id, pec->index, stack->stack_no);
+                 pec->chip_id, pec->index, stack_no);
         memory_region_init(&phb->mmbar0, OBJECT(phb), name, size);
         memory_region_add_subregion(sysmem, bar, &phb->mmbar0);
         phb->mmio0_base = bar;
@@ -949,7 +971,7 @@ static void pnv_pec_stk_update_map(PnvPHB4 *phb)
         mask = phb->nest_regs[PEC_NEST_STK_MMIO_BAR1_MASK];
         size = ((~mask) >> 8) + 1;
         snprintf(name, sizeof(name), "pec-%d.%d-phb-%d-mmio1",
-                 pec->chip_id, pec->index, stack->stack_no);
+                 pec->chip_id, pec->index, stack_no);
         memory_region_init(&phb->mmbar1, OBJECT(phb), name, size);
         memory_region_add_subregion(sysmem, bar, &phb->mmbar1);
         phb->mmio1_base = bar;
@@ -960,7 +982,7 @@ static void pnv_pec_stk_update_map(PnvPHB4 *phb)
         bar = phb->nest_regs[PEC_NEST_STK_PHB_REGS_BAR] >> 8;
         size = PNV_PHB4_NUM_REGS << 3;
         snprintf(name, sizeof(name), "pec-%d.%d-phb-%d",
-                 pec->chip_id, pec->index, stack->stack_no);
+                 pec->chip_id, pec->index, stack_no);
         memory_region_init(&phb->phbbar, OBJECT(phb), name, size);
         memory_region_add_subregion(sysmem, bar, &phb->phbbar);
     }
@@ -969,7 +991,7 @@ static void pnv_pec_stk_update_map(PnvPHB4 *phb)
         bar = phb->nest_regs[PEC_NEST_STK_INT_BAR] >> 8;
         size = PNV_PHB4_MAX_INTs << 16;
         snprintf(name, sizeof(name), "pec-%d.%d-phb-%d-int",
-                 phb->pec->chip_id, phb->pec->index, stack->stack_no);
+                 phb->pec->chip_id, phb->pec->index, stack_no);
         memory_region_init(&phb->intbar, OBJECT(phb), name, size);
         memory_region_add_subregion(sysmem, bar, &phb->intbar);
     }
@@ -1458,9 +1480,9 @@ static AddressSpace *pnv_phb4_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 
 static void pnv_phb4_xscom_realize(PnvPHB4 *phb)
 {
-    PnvPhb4PecStack *stack = phb->stack;
     PnvPhb4PecState *pec = phb->pec;
     PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
+    int stack_no = pnv_phb4_get_phb_stack_no(phb);
     uint32_t pec_nest_base;
     uint32_t pec_pci_base;
     char name[64];
@@ -1469,20 +1491,20 @@ static void pnv_phb4_xscom_realize(PnvPHB4 *phb)
 
     /* Initialize the XSCOM regions for the stack registers */
     snprintf(name, sizeof(name), "xscom-pec-%d.%d-nest-phb-%d",
-             pec->chip_id, pec->index, stack->stack_no);
+             pec->chip_id, pec->index, stack_no);
     pnv_xscom_region_init(&phb->nest_regs_mr, OBJECT(phb),
                           &pnv_pec_stk_nest_xscom_ops, phb, name,
                           PHB4_PEC_NEST_STK_REGS_COUNT);
 
     snprintf(name, sizeof(name), "xscom-pec-%d.%d-pci-phb-%d",
-             pec->chip_id, pec->index, stack->stack_no);
+             pec->chip_id, pec->index, stack_no);
     pnv_xscom_region_init(&phb->pci_regs_mr, OBJECT(phb),
                           &pnv_pec_stk_pci_xscom_ops, phb, name,
                           PHB4_PEC_PCI_STK_REGS_COUNT);
 
     /* PHB pass-through */
     snprintf(name, sizeof(name), "xscom-pec-%d.%d-pci-phb-%d",
-             pec->chip_id, pec->index, stack->stack_no);
+             pec->chip_id, pec->index, stack_no);
     pnv_xscom_region_init(&phb->phb_regs_mr, OBJECT(phb),
                           &pnv_phb4_xscom_ops, phb, name, 0x40);
 
@@ -1491,14 +1513,14 @@ static void pnv_phb4_xscom_realize(PnvPHB4 *phb)
 
     /* Populate the XSCOM address space. */
     pnv_xscom_add_subregion(pec->chip,
-                            pec_nest_base + 0x40 * (stack->stack_no + 1),
+                            pec_nest_base + 0x40 * (stack_no + 1),
                             &phb->nest_regs_mr);
     pnv_xscom_add_subregion(pec->chip,
-                            pec_pci_base + 0x40 * (stack->stack_no + 1),
+                            pec_pci_base + 0x40 * (stack_no + 1),
                             &phb->pci_regs_mr);
     pnv_xscom_add_subregion(pec->chip,
                             pec_pci_base + PNV9_XSCOM_PEC_PCI_STK0 +
-                            0x40 * stack->stack_no,
+                            0x40 * stack_no,
                             &phb->phb_regs_mr);
 }
 
