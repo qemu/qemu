@@ -293,8 +293,6 @@ static void pnv_pec_stk_default_phb_realize(PnvPhb4PecStack *stack,
                             &error_fatal);
     object_property_set_int(OBJECT(stack->phb), "version", pecc->version,
                             &error_fatal);
-    object_property_set_link(OBJECT(stack->phb), "stack", OBJECT(stack),
-                             &error_abort);
 
     if (!sysbus_realize(SYS_BUS_DEVICE(stack->phb), errp)) {
         return;

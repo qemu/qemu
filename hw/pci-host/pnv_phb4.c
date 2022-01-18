@@ -1573,9 +1573,10 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     char name[32];
 
     /* User created PHB */
-    if (!phb->stack) {
+    if (!phb->pec) {
         PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
         PnvChip *chip = pnv_get_chip(pnv, phb->chip_id);
+        PnvPhb4PecStack *stack;
         PnvPhb4PecClass *pecc;
         BusState *s;
 
@@ -1584,7 +1585,7 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
             return;
         }
 
-        phb->stack = pnv_phb4_get_stack(chip, phb, &local_err);
+        stack = pnv_phb4_get_stack(chip, phb, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
@@ -1594,17 +1595,11 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
          * All other phb properties but 'pec' ad 'version' are
          * already set.
          */
-        object_property_set_link(OBJECT(phb), "pec", OBJECT(phb->stack->pec),
+        object_property_set_link(OBJECT(phb), "pec", OBJECT(stack->pec),
                                  &error_abort);
         pecc = PNV_PHB4_PEC_GET_CLASS(phb->pec);
         object_property_set_int(OBJECT(phb), "version", pecc->version,
                                 &error_fatal);
-
-        /*
-         * Assign stack->phb since pnv_phb4_update_regions() uses it
-         * to access the phb.
-         */
-        phb->stack->phb = phb;
 
         /*
          * Reparent user created devices to the chip to build
@@ -1707,8 +1702,6 @@ static Property pnv_phb4_properties[] = {
         DEFINE_PROP_UINT32("index", PnvPHB4, phb_id, 0),
         DEFINE_PROP_UINT32("chip-id", PnvPHB4, chip_id, 0),
         DEFINE_PROP_UINT64("version", PnvPHB4, version, 0),
-        DEFINE_PROP_LINK("stack", PnvPHB4, stack, TYPE_PNV_PHB4_PEC_STACK,
-                         PnvPhb4PecStack *),
         DEFINE_PROP_LINK("pec", PnvPHB4, pec, TYPE_PNV_PHB4_PEC,
                          PnvPhb4PecState *),
         DEFINE_PROP_END_OF_LIST(),
