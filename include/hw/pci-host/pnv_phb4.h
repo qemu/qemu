@@ -107,6 +107,11 @@ struct PnvPHB4 {
     MemoryRegion pci_mmio;
     MemoryRegion pci_io;
 
+    /* PCI registers (excluding pass-through) */
+#define PHB4_PEC_PCI_STK_REGS_COUNT  0xf
+    uint64_t pci_regs[PHB4_PEC_PCI_STK_REGS_COUNT];
+    MemoryRegion pci_regs_mr;
+
     /* On-chip IODA tables */
     uint64_t ioda_LIST[PNV_PHB4_MAX_LSIs];
     uint64_t ioda_MIST[PNV_PHB4_MAX_MIST];
@@ -154,11 +159,6 @@ struct PnvPhb4PecStack {
 #define PHB4_PEC_NEST_STK_REGS_COUNT  0x17
     uint64_t nest_regs[PHB4_PEC_NEST_STK_REGS_COUNT];
     MemoryRegion nest_regs_mr;
-
-    /* PCI registers (excluding pass-through) */
-#define PHB4_PEC_PCI_STK_REGS_COUNT  0xf
-    uint64_t pci_regs[PHB4_PEC_PCI_STK_REGS_COUNT];
-    MemoryRegion pci_regs_mr;
 
     /* PHB pass-through XSCOM */
     MemoryRegion phb_regs_mr;

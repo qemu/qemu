@@ -1071,54 +1071,54 @@ static const MemoryRegionOps pnv_pec_stk_nest_xscom_ops = {
 static uint64_t pnv_pec_stk_pci_xscom_read(void *opaque, hwaddr addr,
                                            unsigned size)
 {
-    PnvPhb4PecStack *stack = PNV_PHB4(opaque)->stack;
+    PnvPHB4 *phb = PNV_PHB4(opaque);
     uint32_t reg = addr >> 3;
 
     /* TODO: add list of allowed registers and error out if not */
-    return stack->pci_regs[reg];
+    return phb->pci_regs[reg];
 }
 
 static void pnv_pec_stk_pci_xscom_write(void *opaque, hwaddr addr,
                                         uint64_t val, unsigned size)
 {
-    PnvPhb4PecStack *stack = PNV_PHB4(opaque)->stack;
+    PnvPHB4 *phb = PNV_PHB4(opaque);
     uint32_t reg = addr >> 3;
 
     switch (reg) {
     case PEC_PCI_STK_PCI_FIR:
-        stack->pci_regs[reg] = val;
+        phb->pci_regs[reg] = val;
         break;
     case PEC_PCI_STK_PCI_FIR_CLR:
-        stack->pci_regs[PEC_PCI_STK_PCI_FIR] &= val;
+        phb->pci_regs[PEC_PCI_STK_PCI_FIR] &= val;
         break;
     case PEC_PCI_STK_PCI_FIR_SET:
-        stack->pci_regs[PEC_PCI_STK_PCI_FIR] |= val;
+        phb->pci_regs[PEC_PCI_STK_PCI_FIR] |= val;
         break;
     case PEC_PCI_STK_PCI_FIR_MSK:
-        stack->pci_regs[reg] = val;
+        phb->pci_regs[reg] = val;
         break;
     case PEC_PCI_STK_PCI_FIR_MSKC:
-        stack->pci_regs[PEC_PCI_STK_PCI_FIR_MSK] &= val;
+        phb->pci_regs[PEC_PCI_STK_PCI_FIR_MSK] &= val;
         break;
     case PEC_PCI_STK_PCI_FIR_MSKS:
-        stack->pci_regs[PEC_PCI_STK_PCI_FIR_MSK] |= val;
+        phb->pci_regs[PEC_PCI_STK_PCI_FIR_MSK] |= val;
         break;
     case PEC_PCI_STK_PCI_FIR_ACT0:
     case PEC_PCI_STK_PCI_FIR_ACT1:
-        stack->pci_regs[reg] = val;
+        phb->pci_regs[reg] = val;
         break;
     case PEC_PCI_STK_PCI_FIR_WOF:
-        stack->pci_regs[reg] = 0;
+        phb->pci_regs[reg] = 0;
         break;
     case PEC_PCI_STK_ETU_RESET:
-        stack->pci_regs[reg] = val & 0x8000000000000000ull;
+        phb->pci_regs[reg] = val & 0x8000000000000000ull;
         /* TODO: Implement reset */
         break;
     case PEC_PCI_STK_PBAIB_ERR_REPORT:
         break;
     case PEC_PCI_STK_PBAIB_TX_CMD_CRED:
     case PEC_PCI_STK_PBAIB_TX_DAT_CRED:
-        stack->pci_regs[reg] = val;
+        phb->pci_regs[reg] = val;
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "phb4_pec_stk: pci_xscom_write 0x%"HWADDR_PRIx
@@ -1477,7 +1477,7 @@ static void pnv_phb4_xscom_realize(PnvPHB4 *phb)
 
     snprintf(name, sizeof(name), "xscom-pec-%d.%d-pci-phb-%d",
              pec->chip_id, pec->index, stack->stack_no);
-    pnv_xscom_region_init(&stack->pci_regs_mr, OBJECT(phb),
+    pnv_xscom_region_init(&phb->pci_regs_mr, OBJECT(phb),
                           &pnv_pec_stk_pci_xscom_ops, phb, name,
                           PHB4_PEC_PCI_STK_REGS_COUNT);
 
@@ -1496,7 +1496,7 @@ static void pnv_phb4_xscom_realize(PnvPHB4 *phb)
                             &stack->nest_regs_mr);
     pnv_xscom_add_subregion(pec->chip,
                             pec_pci_base + 0x40 * (stack->stack_no + 1),
-                            &stack->pci_regs_mr);
+                            &phb->pci_regs_mr);
     pnv_xscom_add_subregion(pec->chip,
                             pec_pci_base + PNV9_XSCOM_PEC_PCI_STK0 +
                             0x40 * stack->stack_no,
