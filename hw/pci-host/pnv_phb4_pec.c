@@ -112,38 +112,25 @@ static const MemoryRegionOps pnv_pec_pci_xscom_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void pnv_pec_default_phb_realize(PnvPhb4PecStack *stack,
+static void pnv_pec_default_phb_realize(PnvPhb4PecState *pec,
                                         int stack_no,
                                         Error **errp)
 {
-    PnvPhb4PecState *pec = stack->pec;
+    PnvPHB4 *phb = PNV_PHB4(qdev_new(TYPE_PNV_PHB4));
     PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
     int phb_id = pnv_phb4_pec_get_phb_id(pec, stack_no);
 
-    stack->phb = PNV_PHB4(qdev_new(TYPE_PNV_PHB4));
-
-    object_property_set_link(OBJECT(stack->phb), "pec", OBJECT(pec),
+    object_property_set_link(OBJECT(phb), "pec", OBJECT(pec),
                              &error_abort);
-    object_property_set_int(OBJECT(stack->phb), "chip-id", pec->chip_id,
+    object_property_set_int(OBJECT(phb), "chip-id", pec->chip_id,
                             &error_fatal);
-    object_property_set_int(OBJECT(stack->phb), "index", phb_id,
+    object_property_set_int(OBJECT(phb), "index", phb_id,
                             &error_fatal);
-    object_property_set_int(OBJECT(stack->phb), "version", pecc->version,
+    object_property_set_int(OBJECT(phb), "version", pecc->version,
                             &error_fatal);
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(stack->phb), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(phb), errp)) {
         return;
-    }
-}
-
-static void pnv_pec_instance_init(Object *obj)
-{
-    PnvPhb4PecState *pec = PNV_PHB4_PEC(obj);
-    int i;
-
-    for (i = 0; i < PHB4_PEC_MAX_STACKS; i++) {
-        object_initialize_child(obj, "stack[*]", &pec->stacks[i],
-                                TYPE_PNV_PHB4_PEC_STACK);
     }
 }
 
@@ -159,29 +146,13 @@ static void pnv_pec_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    pec->num_stacks = pecc->num_stacks[pec->index];
+    pec->num_phbs = pecc->num_phbs[pec->index];
 
-    /* Create stacks */
-    for (i = 0; i < pec->num_stacks; i++) {
-        PnvPhb4PecStack *stack = &pec->stacks[i];
-        Object *stk_obj = OBJECT(stack);
-
-        object_property_set_link(stk_obj, "pec", OBJECT(pec), &error_abort);
-
-        if (defaults_enabled()) {
-            pnv_pec_default_phb_realize(stack, i, errp);
+    /* Create PHBs if running with defaults */
+    if (defaults_enabled()) {
+        for (i = 0; i < pec->num_phbs; i++) {
+            pnv_pec_default_phb_realize(pec, i, errp);
         }
-
-        /*
-         * qdev gets angry if we don't realize 'stack' here, even
-         * if stk_realize() is now empty.
-         */
-        if (!qdev_realize(DEVICE(stk_obj), NULL, errp)) {
-            return;
-        }
-    }
-    for (; i < PHB4_PEC_MAX_STACKS; i++) {
-        object_unparent(OBJECT(&pec->stacks[i]));
     }
 
     /* Initialize the XSCOM regions for the PEC registers */
@@ -227,7 +198,7 @@ static int pnv_pec_dt_xscom(PnvXScomInterface *dev, void *fdt,
     _FDT((fdt_setprop(fdt, offset, "compatible", pecc->compat,
                       pecc->compat_size)));
 
-    for (i = 0; i < pec->num_stacks; i++) {
+    for (i = 0; i < pec->num_phbs; i++) {
         int phb_id = pnv_phb4_pec_get_phb_id(pec, i);
         int stk_offset;
 
@@ -263,11 +234,11 @@ static uint32_t pnv_pec_xscom_nest_base(PnvPhb4PecState *pec)
 }
 
 /*
- * PEC0 -> 1 stack
- * PEC1 -> 2 stacks
- * PEC2 -> 3 stacks
+ * PEC0 -> 1 phb
+ * PEC1 -> 2 phb
+ * PEC2 -> 3 phbs
  */
-static const uint32_t pnv_pec_num_stacks[] = { 1, 2, 3 };
+static const uint32_t pnv_pec_num_phbs[] = { 1, 2, 3 };
 
 static void pnv_pec_class_init(ObjectClass *klass, void *data)
 {
@@ -292,14 +263,13 @@ static void pnv_pec_class_init(ObjectClass *klass, void *data)
     pecc->stk_compat = stk_compat;
     pecc->stk_compat_size = sizeof(stk_compat);
     pecc->version = PNV_PHB4_VERSION;
-    pecc->num_stacks = pnv_pec_num_stacks;
+    pecc->num_phbs = pnv_pec_num_phbs;
 }
 
 static const TypeInfo pnv_pec_type_info = {
     .name          = TYPE_PNV_PHB4_PEC,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PnvPhb4PecState),
-    .instance_init = pnv_pec_instance_init,
     .class_init    = pnv_pec_class_init,
     .class_size    = sizeof(PnvPhb4PecClass),
     .interfaces    = (InterfaceInfo[]) {

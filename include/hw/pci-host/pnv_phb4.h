@@ -200,10 +200,8 @@ struct PnvPhb4PecState {
     uint64_t pci_regs[PHB4_PEC_PCI_REGS_COUNT];
     MemoryRegion pci_regs_mr;
 
-    /* Stacks */
-    #define PHB4_PEC_MAX_STACKS     3
-    uint32_t num_stacks;
-    PnvPhb4PecStack stacks[PHB4_PEC_MAX_STACKS];
+    /* PHBs */
+    uint32_t num_phbs;
 
     PnvChip *chip;
 };
@@ -221,7 +219,7 @@ struct PnvPhb4PecClass {
     const char *stk_compat;
     int stk_compat_size;
     uint64_t version;
-    const uint32_t *num_stacks;
+    const uint32_t *num_phbs;
 };
 
 #endif /* PCI_HOST_PNV_PHB4_H */
