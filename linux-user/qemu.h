@@ -89,8 +89,6 @@ struct vm86_saved_state {
 #include "nwfpe/fpa11.h"
 #endif
 
-#define MAX_SIGQUEUE_SIZE 1024
-
 struct emulated_sigtable {
     int pending; /* true if signal is pending */
     target_siginfo_t info;

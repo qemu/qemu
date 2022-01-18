@@ -434,8 +434,8 @@ void cpu_loop(CPUARMState *env)
             case 0x6: /* Access flag fault, level 2 */
             case 0x9: /* Domain fault, level 1 */
             case 0xb: /* Domain fault, level 2 */
-            case 0xd: /* Permision fault, level 1 */
-            case 0xf: /* Permision fault, level 2 */
+            case 0xd: /* Permission fault, level 1 */
+            case 0xf: /* Permission fault, level 2 */
                 si_signo = TARGET_SIGSEGV;
                 si_code = TARGET_SEGV_ACCERR;
                 break;

@@ -493,7 +493,7 @@ qemu_irq qdev_get_gpio_in_named(DeviceState *dev, const char *name, int n);
  * qemu_irqs at once, or to connect multiple outbound GPIOs to the
  * same qemu_irq. (Warning: there is no assertion or other guard to
  * catch this error: the model will just not do the right thing.)
- * Instead, for fan-out you can use the TYPE_IRQ_SPLIT device: connect
+ * Instead, for fan-out you can use the TYPE_SPLIT_IRQ device: connect
  * a device's outbound GPIO to the splitter's input, and connect each
  * of the splitter's outputs to a different device.  For fan-in you
  * can use the TYPE_OR_IRQ device, which is a model of a logical OR
