@@ -203,6 +203,7 @@ struct PnvPhb4PecClass {
     int stk_compat_size;
     uint64_t version;
     const uint32_t *num_phbs;
+    const char *rp_model;
 };
 
 #endif /* PCI_HOST_PNV_PHB4_H */

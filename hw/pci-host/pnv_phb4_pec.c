@@ -134,7 +134,9 @@ static void pnv_pec_default_phb_realize(PnvPhb4PecState *pec,
     }
 
     /* Add a single Root port if running with defaults */
-    pnv_phb_attach_root_port(PCI_HOST_BRIDGE(phb), TYPE_PNV_PHB4_ROOT_PORT);
+    pnv_phb_attach_root_port(PCI_HOST_BRIDGE(phb),
+                             PNV_PHB4_PEC_GET_CLASS(pec)->rp_model);
+
 }
 
 static void pnv_pec_realize(DeviceState *dev, Error **errp)
@@ -267,6 +269,7 @@ static void pnv_pec_class_init(ObjectClass *klass, void *data)
     pecc->stk_compat_size = sizeof(stk_compat);
     pecc->version = PNV_PHB4_VERSION;
     pecc->num_phbs = pnv_pec_num_phbs;
+    pecc->rp_model = TYPE_PNV_PHB4_ROOT_PORT;
 }
 
 static const TypeInfo pnv_pec_type_info = {
