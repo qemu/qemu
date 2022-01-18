@@ -23,117 +23,6 @@ static void post_load_update_msr(CPUPPCState *env)
     pmu_update_summaries(env);
 }
 
-static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
-{
-    PowerPCCPU *cpu = opaque;
-    CPUPPCState *env = &cpu->env;
-    unsigned int i, j;
-    target_ulong sdr1;
-    uint32_t fpscr, vscr;
-#if defined(TARGET_PPC64)
-    int32_t slb_nr;
-#endif
-    target_ulong xer;
-
-    for (i = 0; i < 32; i++) {
-        qemu_get_betls(f, &env->gpr[i]);
-    }
-#if !defined(TARGET_PPC64)
-    for (i = 0; i < 32; i++) {
-        qemu_get_betls(f, &env->gprh[i]);
-    }
-#endif
-    qemu_get_betls(f, &env->lr);
-    qemu_get_betls(f, &env->ctr);
-    for (i = 0; i < 8; i++) {
-        qemu_get_be32s(f, &env->crf[i]);
-    }
-    qemu_get_betls(f, &xer);
-    cpu_write_xer(env, xer);
-    qemu_get_betls(f, &env->reserve_addr);
-    qemu_get_betls(f, &env->msr);
-    for (i = 0; i < 4; i++) {
-        qemu_get_betls(f, &env->tgpr[i]);
-    }
-    for (i = 0; i < 32; i++) {
-        union {
-            float64 d;
-            uint64_t l;
-        } u;
-        u.l = qemu_get_be64(f);
-        *cpu_fpr_ptr(env, i) = u.d;
-    }
-    qemu_get_be32s(f, &fpscr);
-    env->fpscr = fpscr;
-    qemu_get_sbe32s(f, &env->access_type);
-#if defined(TARGET_PPC64)
-    qemu_get_betls(f, &env->spr[SPR_ASR]);
-    qemu_get_sbe32s(f, &slb_nr);
-#endif
-    qemu_get_betls(f, &sdr1);
-    for (i = 0; i < 32; i++) {
-        qemu_get_betls(f, &env->sr[i]);
-    }
-    for (i = 0; i < 2; i++) {
-        for (j = 0; j < 8; j++) {
-            qemu_get_betls(f, &env->DBAT[i][j]);
-        }
-    }
-    for (i = 0; i < 2; i++) {
-        for (j = 0; j < 8; j++) {
-            qemu_get_betls(f, &env->IBAT[i][j]);
-        }
-    }
-    qemu_get_sbe32s(f, &env->nb_tlb);
-    qemu_get_sbe32s(f, &env->tlb_per_way);
-    qemu_get_sbe32s(f, &env->nb_ways);
-    qemu_get_sbe32s(f, &env->last_way);
-    qemu_get_sbe32s(f, &env->id_tlbs);
-    qemu_get_sbe32s(f, &env->nb_pids);
-    if (env->tlb.tlb6) {
-        /* XXX assumes 6xx */
-        for (i = 0; i < env->nb_tlb; i++) {
-            qemu_get_betls(f, &env->tlb.tlb6[i].pte0);
-            qemu_get_betls(f, &env->tlb.tlb6[i].pte1);
-            qemu_get_betls(f, &env->tlb.tlb6[i].EPN);
-        }
-    }
-    for (i = 0; i < 4; i++) {
-        qemu_get_betls(f, &env->pb[i]);
-    }
-    for (i = 0; i < 1024; i++) {
-        qemu_get_betls(f, &env->spr[i]);
-    }
-    if (!cpu->vhyp) {
-        ppc_store_sdr1(env, sdr1);
-    }
-    qemu_get_be32s(f, &vscr);
-    ppc_store_vscr(env, vscr);
-    qemu_get_be64s(f, &env->spe_acc);
-    qemu_get_be32s(f, &env->spe_fscr);
-    qemu_get_betls(f, &env->msr_mask);
-    qemu_get_be32s(f, &env->flags);
-    qemu_get_sbe32s(f, &env->error_code);
-    qemu_get_be32s(f, &env->pending_interrupts);
-    qemu_get_be32s(f, &env->irq_input_state);
-    for (i = 0; i < POWERPC_EXCP_NB; i++) {
-        qemu_get_betls(f, &env->excp_vectors[i]);
-    }
-    qemu_get_betls(f, &env->excp_prefix);
-    qemu_get_betls(f, &env->ivor_mask);
-    qemu_get_betls(f, &env->ivpr_mask);
-    qemu_get_betls(f, &env->hreset_vector);
-    qemu_get_betls(f, &env->nip);
-    qemu_get_sbetl(f); /* Discard unused hflags */
-    qemu_get_sbetl(f); /* Discard unused hflags_nmsr */
-    qemu_get_sbe32(f); /* Discard unused mmu_idx */
-    qemu_get_sbe32(f); /* Discard unused power_mode */
-
-    post_load_update_msr(env);
-
-    return 0;
-}
-
 static int get_avr(QEMUFile *f, void *pv, size_t size,
                    const VMStateField *field)
 {
@@ -808,7 +697,6 @@ const VMStateDescription vmstate_ppc_cpu = {
     .version_id = 5,
     .minimum_version_id = 5,
     .minimum_version_id_old = 4,
-    .load_state_old = cpu_load_old,
     .pre_save = cpu_pre_save,
     .post_load = cpu_post_load,
     .fields = (VMStateField[]) {
