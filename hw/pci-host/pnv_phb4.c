@@ -893,10 +893,10 @@ static void pnv_phb4_update_regions(PnvPHB4 *phb)
     pnv_phb4_check_all_mbt(phb);
 }
 
-static void pnv_pec_stk_update_map(PnvPhb4PecStack *stack)
+static void pnv_pec_stk_update_map(PnvPHB4 *phb)
 {
+    PnvPhb4PecStack *stack = phb->stack;
     PnvPhb4PecState *pec = stack->pec;
-    PnvPHB4 *phb = stack->phb;
     MemoryRegion *sysmem = get_system_memory();
     uint64_t bar_en = phb->nest_regs[PEC_NEST_STK_BAR_EN];
     uint64_t bar, mask, size;
@@ -1046,7 +1046,7 @@ static void pnv_pec_stk_nest_xscom_write(void *opaque, hwaddr addr,
         break;
     case PEC_NEST_STK_BAR_EN:
         phb->nest_regs[reg] = val & 0xf000000000000000ull;
-        pnv_pec_stk_update_map(stack);
+        pnv_pec_stk_update_map(phb);
         break;
     case PEC_NEST_STK_DATA_FRZ_TYPE:
     case PEC_NEST_STK_PBCQ_TUN_BAR:
