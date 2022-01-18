@@ -115,6 +115,7 @@ struct PnvPHB4 {
     /* Nest registers */
 #define PHB4_PEC_NEST_STK_REGS_COUNT  0x17
     uint64_t nest_regs[PHB4_PEC_NEST_STK_REGS_COUNT];
+    MemoryRegion nest_regs_mr;
 
     /* Memory windows from PowerBus to PHB */
     MemoryRegion phbbar;
@@ -168,8 +169,6 @@ struct PnvPhb4PecStack {
 
     /* My own stack number */
     uint32_t stack_no;
-
-    MemoryRegion nest_regs_mr;
 
     /* PHB pass-through XSCOM */
     MemoryRegion phb_regs_mr;

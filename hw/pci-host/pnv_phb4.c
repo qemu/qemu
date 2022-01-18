@@ -861,8 +861,7 @@ const MemoryRegionOps pnv_phb4_xscom_ops = {
 static uint64_t pnv_pec_stk_nest_xscom_read(void *opaque, hwaddr addr,
                                             unsigned size)
 {
-    PnvPhb4PecStack *stack = PNV_PHB4_PEC_STACK(opaque);
-    PnvPHB4 *phb = stack->phb;
+    PnvPHB4 *phb = PNV_PHB4(opaque);
     uint32_t reg = addr >> 3;
 
     /* TODO: add list of allowed registers and error out if not */
@@ -982,9 +981,8 @@ static void pnv_pec_stk_update_map(PnvPHB4 *phb)
 static void pnv_pec_stk_nest_xscom_write(void *opaque, hwaddr addr,
                                          uint64_t val, unsigned size)
 {
-    PnvPhb4PecStack *stack = PNV_PHB4_PEC_STACK(opaque);
-    PnvPHB4 *phb = stack->phb;
-    PnvPhb4PecState *pec = stack->pec;
+    PnvPHB4 *phb = PNV_PHB4(opaque);
+    PnvPhb4PecState *pec = phb->stack->pec;
     uint32_t reg = addr >> 3;
 
     switch (reg) {
@@ -1470,10 +1468,10 @@ static void pnv_phb4_xscom_realize(PnvPHB4 *phb)
     assert(pec);
 
     /* Initialize the XSCOM regions for the stack registers */
-    snprintf(name, sizeof(name), "xscom-pec-%d.%d-nest-stack-%d",
+    snprintf(name, sizeof(name), "xscom-pec-%d.%d-nest-phb-%d",
              pec->chip_id, pec->index, stack->stack_no);
-    pnv_xscom_region_init(&stack->nest_regs_mr, OBJECT(stack),
-                          &pnv_pec_stk_nest_xscom_ops, stack, name,
+    pnv_xscom_region_init(&phb->nest_regs_mr, OBJECT(phb),
+                          &pnv_pec_stk_nest_xscom_ops, phb, name,
                           PHB4_PEC_NEST_STK_REGS_COUNT);
 
     snprintf(name, sizeof(name), "xscom-pec-%d.%d-pci-phb-%d",
@@ -1494,7 +1492,7 @@ static void pnv_phb4_xscom_realize(PnvPHB4 *phb)
     /* Populate the XSCOM address space. */
     pnv_xscom_add_subregion(pec->chip,
                             pec_nest_base + 0x40 * (stack->stack_no + 1),
-                            &stack->nest_regs_mr);
+                            &phb->nest_regs_mr);
     pnv_xscom_add_subregion(pec->chip,
                             pec_pci_base + 0x40 * (stack->stack_no + 1),
                             &phb->pci_regs_mr);
