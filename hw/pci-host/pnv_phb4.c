@@ -862,10 +862,11 @@ static uint64_t pnv_pec_stk_nest_xscom_read(void *opaque, hwaddr addr,
                                             unsigned size)
 {
     PnvPhb4PecStack *stack = PNV_PHB4_PEC_STACK(opaque);
+    PnvPHB4 *phb = stack->phb;
     uint32_t reg = addr >> 3;
 
     /* TODO: add list of allowed registers and error out if not */
-    return stack->nest_regs[reg];
+    return phb->nest_regs[reg];
 }
 
 static void pnv_phb4_update_regions(PnvPHB4 *phb)
@@ -897,7 +898,7 @@ static void pnv_pec_stk_update_map(PnvPhb4PecStack *stack)
     PnvPhb4PecState *pec = stack->pec;
     PnvPHB4 *phb = stack->phb;
     MemoryRegion *sysmem = get_system_memory();
-    uint64_t bar_en = stack->nest_regs[PEC_NEST_STK_BAR_EN];
+    uint64_t bar_en = phb->nest_regs[PEC_NEST_STK_BAR_EN];
     uint64_t bar, mask, size;
     char name[64];
 
@@ -933,8 +934,8 @@ static void pnv_pec_stk_update_map(PnvPhb4PecStack *stack)
     /* Handle maps */
     if (!memory_region_is_mapped(&phb->mmbar0) &&
         (bar_en & PEC_NEST_STK_BAR_EN_MMIO0)) {
-        bar = stack->nest_regs[PEC_NEST_STK_MMIO_BAR0] >> 8;
-        mask = stack->nest_regs[PEC_NEST_STK_MMIO_BAR0_MASK];
+        bar = phb->nest_regs[PEC_NEST_STK_MMIO_BAR0] >> 8;
+        mask = phb->nest_regs[PEC_NEST_STK_MMIO_BAR0_MASK];
         size = ((~mask) >> 8) + 1;
         snprintf(name, sizeof(name), "pec-%d.%d-phb-%d-mmio0",
                  pec->chip_id, pec->index, stack->stack_no);
@@ -945,8 +946,8 @@ static void pnv_pec_stk_update_map(PnvPhb4PecStack *stack)
     }
     if (!memory_region_is_mapped(&phb->mmbar1) &&
         (bar_en & PEC_NEST_STK_BAR_EN_MMIO1)) {
-        bar = stack->nest_regs[PEC_NEST_STK_MMIO_BAR1] >> 8;
-        mask = stack->nest_regs[PEC_NEST_STK_MMIO_BAR1_MASK];
+        bar = phb->nest_regs[PEC_NEST_STK_MMIO_BAR1] >> 8;
+        mask = phb->nest_regs[PEC_NEST_STK_MMIO_BAR1_MASK];
         size = ((~mask) >> 8) + 1;
         snprintf(name, sizeof(name), "pec-%d.%d-phb-%d-mmio1",
                  pec->chip_id, pec->index, stack->stack_no);
@@ -957,7 +958,7 @@ static void pnv_pec_stk_update_map(PnvPhb4PecStack *stack)
     }
     if (!memory_region_is_mapped(&phb->phbbar) &&
         (bar_en & PEC_NEST_STK_BAR_EN_PHB)) {
-        bar = stack->nest_regs[PEC_NEST_STK_PHB_REGS_BAR] >> 8;
+        bar = phb->nest_regs[PEC_NEST_STK_PHB_REGS_BAR] >> 8;
         size = PNV_PHB4_NUM_REGS << 3;
         snprintf(name, sizeof(name), "pec-%d.%d-phb-%d",
                  pec->chip_id, pec->index, stack->stack_no);
@@ -966,7 +967,7 @@ static void pnv_pec_stk_update_map(PnvPhb4PecStack *stack)
     }
     if (!memory_region_is_mapped(&phb->intbar) &&
         (bar_en & PEC_NEST_STK_BAR_EN_INT)) {
-        bar = stack->nest_regs[PEC_NEST_STK_INT_BAR] >> 8;
+        bar = phb->nest_regs[PEC_NEST_STK_INT_BAR] >> 8;
         size = PNV_PHB4_MAX_INTs << 16;
         snprintf(name, sizeof(name), "pec-%d.%d-phb-%d-int",
                  stack->pec->chip_id, stack->pec->index, stack->stack_no);
@@ -982,34 +983,35 @@ static void pnv_pec_stk_nest_xscom_write(void *opaque, hwaddr addr,
                                          uint64_t val, unsigned size)
 {
     PnvPhb4PecStack *stack = PNV_PHB4_PEC_STACK(opaque);
+    PnvPHB4 *phb = stack->phb;
     PnvPhb4PecState *pec = stack->pec;
     uint32_t reg = addr >> 3;
 
     switch (reg) {
     case PEC_NEST_STK_PCI_NEST_FIR:
-        stack->nest_regs[PEC_NEST_STK_PCI_NEST_FIR] = val;
+        phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR] = val;
         break;
     case PEC_NEST_STK_PCI_NEST_FIR_CLR:
-        stack->nest_regs[PEC_NEST_STK_PCI_NEST_FIR] &= val;
+        phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR] &= val;
         break;
     case PEC_NEST_STK_PCI_NEST_FIR_SET:
-        stack->nest_regs[PEC_NEST_STK_PCI_NEST_FIR] |= val;
+        phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR] |= val;
         break;
     case PEC_NEST_STK_PCI_NEST_FIR_MSK:
-        stack->nest_regs[PEC_NEST_STK_PCI_NEST_FIR_MSK] = val;
+        phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR_MSK] = val;
         break;
     case PEC_NEST_STK_PCI_NEST_FIR_MSKC:
-        stack->nest_regs[PEC_NEST_STK_PCI_NEST_FIR_MSK] &= val;
+        phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR_MSK] &= val;
         break;
     case PEC_NEST_STK_PCI_NEST_FIR_MSKS:
-        stack->nest_regs[PEC_NEST_STK_PCI_NEST_FIR_MSK] |= val;
+        phb->nest_regs[PEC_NEST_STK_PCI_NEST_FIR_MSK] |= val;
         break;
     case PEC_NEST_STK_PCI_NEST_FIR_ACT0:
     case PEC_NEST_STK_PCI_NEST_FIR_ACT1:
-        stack->nest_regs[reg] = val;
+        phb->nest_regs[reg] = val;
         break;
     case PEC_NEST_STK_PCI_NEST_FIR_WOF:
-        stack->nest_regs[reg] = 0;
+        phb->nest_regs[reg] = 0;
         break;
     case PEC_NEST_STK_ERR_REPORT_0:
     case PEC_NEST_STK_ERR_REPORT_1:
@@ -1017,39 +1019,39 @@ static void pnv_pec_stk_nest_xscom_write(void *opaque, hwaddr addr,
         /* Flag error ? */
         break;
     case PEC_NEST_STK_PBCQ_MODE:
-        stack->nest_regs[reg] = val & 0xff00000000000000ull;
+        phb->nest_regs[reg] = val & 0xff00000000000000ull;
         break;
     case PEC_NEST_STK_MMIO_BAR0:
     case PEC_NEST_STK_MMIO_BAR0_MASK:
     case PEC_NEST_STK_MMIO_BAR1:
     case PEC_NEST_STK_MMIO_BAR1_MASK:
-        if (stack->nest_regs[PEC_NEST_STK_BAR_EN] &
+        if (phb->nest_regs[PEC_NEST_STK_BAR_EN] &
             (PEC_NEST_STK_BAR_EN_MMIO0 |
              PEC_NEST_STK_BAR_EN_MMIO1)) {
             phb_pec_error(pec, "Changing enabled BAR unsupported\n");
         }
-        stack->nest_regs[reg] = val & 0xffffffffff000000ull;
+        phb->nest_regs[reg] = val & 0xffffffffff000000ull;
         break;
     case PEC_NEST_STK_PHB_REGS_BAR:
-        if (stack->nest_regs[PEC_NEST_STK_BAR_EN] & PEC_NEST_STK_BAR_EN_PHB) {
+        if (phb->nest_regs[PEC_NEST_STK_BAR_EN] & PEC_NEST_STK_BAR_EN_PHB) {
             phb_pec_error(pec, "Changing enabled BAR unsupported\n");
         }
-        stack->nest_regs[reg] = val & 0xffffffffffc00000ull;
+        phb->nest_regs[reg] = val & 0xffffffffffc00000ull;
         break;
     case PEC_NEST_STK_INT_BAR:
-        if (stack->nest_regs[PEC_NEST_STK_BAR_EN] & PEC_NEST_STK_BAR_EN_INT) {
+        if (phb->nest_regs[PEC_NEST_STK_BAR_EN] & PEC_NEST_STK_BAR_EN_INT) {
             phb_pec_error(pec, "Changing enabled BAR unsupported\n");
         }
-        stack->nest_regs[reg] = val & 0xfffffff000000000ull;
+        phb->nest_regs[reg] = val & 0xfffffff000000000ull;
         break;
     case PEC_NEST_STK_BAR_EN:
-        stack->nest_regs[reg] = val & 0xf000000000000000ull;
+        phb->nest_regs[reg] = val & 0xf000000000000000ull;
         pnv_pec_stk_update_map(stack);
         break;
     case PEC_NEST_STK_DATA_FRZ_TYPE:
     case PEC_NEST_STK_PBCQ_TUN_BAR:
         /* Not used for now */
-        stack->nest_regs[reg] = val;
+        phb->nest_regs[reg] = val;
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "phb4_pec: nest_xscom_write 0x%"HWADDR_PRIx
