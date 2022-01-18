@@ -15,23 +15,10 @@
 #include "block/block.h"
 #include "block/accounting.h"
 
-typedef struct ScatterGatherEntry ScatterGatherEntry;
-
 typedef enum {
     DMA_DIRECTION_TO_DEVICE = 0,
     DMA_DIRECTION_FROM_DEVICE = 1,
 } DMADirection;
-
-struct QEMUSGList {
-    ScatterGatherEntry *sg;
-    int nsg;
-    int nalloc;
-    size_t size;
-    DeviceState *dev;
-    AddressSpace *as;
-};
-
-#ifndef CONFIG_USER_ONLY
 
 /*
  * When an IOMMU is present, bus addresses become distinct from
@@ -44,6 +31,17 @@ typedef uint64_t dma_addr_t;
 
 #define DMA_ADDR_BITS 64
 #define DMA_ADDR_FMT "%" PRIx64
+
+typedef struct ScatterGatherEntry ScatterGatherEntry;
+
+struct QEMUSGList {
+    ScatterGatherEntry *sg;
+    int nsg;
+    int nalloc;
+    dma_addr_t size;
+    DeviceState *dev;
+    AddressSpace *as;
+};
 
 static inline void dma_barrier(AddressSpace *as, DMADirection dir)
 {
@@ -288,7 +286,6 @@ void qemu_sglist_init(QEMUSGList *qsg, DeviceState *dev, int alloc_hint,
                       AddressSpace *as);
 void qemu_sglist_add(QEMUSGList *qsg, dma_addr_t base, dma_addr_t len);
 void qemu_sglist_destroy(QEMUSGList *qsg);
-#endif
 
 typedef BlockAIOCB *DMAIOFunc(int64_t offset, QEMUIOVector *iov,
                               BlockCompletionFunc *cb, void *cb_opaque,
@@ -304,8 +301,10 @@ BlockAIOCB *dma_blk_read(BlockBackend *blk,
 BlockAIOCB *dma_blk_write(BlockBackend *blk,
                           QEMUSGList *sg, uint64_t offset, uint32_t align,
                           BlockCompletionFunc *cb, void *opaque);
-uint64_t dma_buf_read(void *ptr, int32_t len, QEMUSGList *sg, MemTxAttrs attrs);
-uint64_t dma_buf_write(void *ptr, int32_t len, QEMUSGList *sg, MemTxAttrs attrs);
+MemTxResult dma_buf_read(void *ptr, dma_addr_t len, dma_addr_t *residual,
+                         QEMUSGList *sg, MemTxAttrs attrs);
+MemTxResult dma_buf_write(void *ptr, dma_addr_t len, dma_addr_t *residual,
+                          QEMUSGList *sg, MemTxAttrs attrs);
 
 void dma_acct_start(BlockBackend *blk, BlockAcctCookie *cookie,
                     QEMUSGList *sg, enum BlockAcctType type);

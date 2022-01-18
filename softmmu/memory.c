@@ -1444,6 +1444,11 @@ MemTxResult memory_region_dispatch_read(MemoryRegion *mr,
     unsigned size = memop_size(op);
     MemTxResult r;
 
+    if (mr->alias) {
+        return memory_region_dispatch_read(mr->alias,
+                                           mr->alias_offset + addr,
+                                           pval, op, attrs);
+    }
     if (!memory_region_access_valid(mr, addr, size, false, attrs)) {
         *pval = unassigned_mem_read(mr, addr, size);
         return MEMTX_DECODE_ERROR;
@@ -1488,6 +1493,11 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
 {
     unsigned size = memop_size(op);
 
+    if (mr->alias) {
+        return memory_region_dispatch_write(mr->alias,
+                                            mr->alias_offset + addr,
+                                            data, op, attrs);
+    }
     if (!memory_region_access_valid(mr, addr, size, true, attrs)) {
         unassigned_mem_write(mr, addr, data, size);
         return MEMTX_DECODE_ERROR;
@@ -2535,8 +2545,13 @@ static void memory_region_add_subregion_common(MemoryRegion *mr,
                                                hwaddr offset,
                                                MemoryRegion *subregion)
 {
+    MemoryRegion *alias;
+
     assert(!subregion->container);
     subregion->container = mr;
+    for (alias = subregion->alias; alias; alias = alias->alias) {
+        alias->mapped_via_alias++;
+    }
     subregion->addr = offset;
     memory_region_update_container_subregions(subregion);
 }
@@ -2561,9 +2576,15 @@ void memory_region_add_subregion_overlap(MemoryRegion *mr,
 void memory_region_del_subregion(MemoryRegion *mr,
                                  MemoryRegion *subregion)
 {
+    MemoryRegion *alias;
+
     memory_region_transaction_begin();
     assert(subregion->container == mr);
     subregion->container = NULL;
+    for (alias = subregion->alias; alias; alias = alias->alias) {
+        alias->mapped_via_alias--;
+        assert(alias->mapped_via_alias >= 0);
+    }
     QTAILQ_REMOVE(&mr->subregions, subregion, subregions_link);
     memory_region_unref(subregion);
     memory_region_update_pending |= mr->enabled && subregion->enabled;
@@ -2660,7 +2681,7 @@ static FlatRange *flatview_lookup(FlatView *view, AddrRange addr)
 
 bool memory_region_is_mapped(MemoryRegion *mr)
 {
-    return mr->container ? true : false;
+    return !!mr->container || mr->mapped_via_alias;
 }
 
 /* Same as memory_region_find, but it does not add a reference to the
@@ -2773,6 +2794,8 @@ static VMChangeStateEntry *vmstate_change;
 
 void memory_global_dirty_log_start(unsigned int flags)
 {
+    unsigned int old_flags = global_dirty_tracking;
+
     if (vmstate_change) {
         qemu_del_vm_change_state_handler(vmstate_change);
         vmstate_change = NULL;
@@ -2781,15 +2804,14 @@ void memory_global_dirty_log_start(unsigned int flags)
     assert(flags && !(flags & (~GLOBAL_DIRTY_MASK)));
     assert(!(global_dirty_tracking & flags));
     global_dirty_tracking |= flags;
-
     trace_global_dirty_changed(global_dirty_tracking);
 
-    MEMORY_LISTENER_CALL_GLOBAL(log_global_start, Forward);
-
-    /* Refresh DIRTY_MEMORY_MIGRATION bit.  */
-    memory_region_transaction_begin();
-    memory_region_update_pending = true;
-    memory_region_transaction_commit();
+    if (!old_flags) {
+        MEMORY_LISTENER_CALL_GLOBAL(log_global_start, Forward);
+        memory_region_transaction_begin();
+        memory_region_update_pending = true;
+        memory_region_transaction_commit();
+    }
 }
 
 static void memory_global_dirty_log_do_stop(unsigned int flags)
@@ -2800,12 +2822,12 @@ static void memory_global_dirty_log_do_stop(unsigned int flags)
 
     trace_global_dirty_changed(global_dirty_tracking);
 
-    /* Refresh DIRTY_MEMORY_MIGRATION bit.  */
-    memory_region_transaction_begin();
-    memory_region_update_pending = true;
-    memory_region_transaction_commit();
-
-    MEMORY_LISTENER_CALL_GLOBAL(log_global_stop, Reverse);
+    if (!global_dirty_tracking) {
+        memory_region_transaction_begin();
+        memory_region_update_pending = true;
+        memory_region_transaction_commit();
+        MEMORY_LISTENER_CALL_GLOBAL(log_global_stop, Reverse);
+    }
 }
 
 static void memory_vm_change_state_handler(void *opaque, bool running,
@@ -3274,57 +3296,114 @@ static gboolean mtree_info_flatview_free(gpointer key, gpointer value,
     return true;
 }
 
-void mtree_info(bool flatview, bool dispatch_tree, bool owner, bool disabled)
+static void mtree_info_flatview(bool dispatch_tree, bool owner)
+{
+    struct FlatViewInfo fvi = {
+        .counter = 0,
+        .dispatch_tree = dispatch_tree,
+        .owner = owner,
+    };
+    AddressSpace *as;
+    FlatView *view;
+    GArray *fv_address_spaces;
+    GHashTable *views = g_hash_table_new(g_direct_hash, g_direct_equal);
+    AccelClass *ac = ACCEL_GET_CLASS(current_accel());
+
+    if (ac->has_memory) {
+        fvi.ac = ac;
+    }
+
+    /* Gather all FVs in one table */
+    QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
+        view = address_space_get_flatview(as);
+
+        fv_address_spaces = g_hash_table_lookup(views, view);
+        if (!fv_address_spaces) {
+            fv_address_spaces = g_array_new(false, false, sizeof(as));
+            g_hash_table_insert(views, view, fv_address_spaces);
+        }
+
+        g_array_append_val(fv_address_spaces, as);
+    }
+
+    /* Print */
+    g_hash_table_foreach(views, mtree_print_flatview, &fvi);
+
+    /* Free */
+    g_hash_table_foreach_remove(views, mtree_info_flatview_free, 0);
+    g_hash_table_unref(views);
+}
+
+struct AddressSpaceInfo {
+    MemoryRegionListHead *ml_head;
+    bool owner;
+    bool disabled;
+};
+
+/* Returns negative value if a < b; zero if a = b; positive value if a > b. */
+static gint address_space_compare_name(gconstpointer a, gconstpointer b)
+{
+    const AddressSpace *as_a = a;
+    const AddressSpace *as_b = b;
+
+    return g_strcmp0(as_a->name, as_b->name);
+}
+
+static void mtree_print_as_name(gpointer data, gpointer user_data)
+{
+    AddressSpace *as = data;
+
+    qemu_printf("address-space: %s\n", as->name);
+}
+
+static void mtree_print_as(gpointer key, gpointer value, gpointer user_data)
+{
+    MemoryRegion *mr = key;
+    GSList *as_same_root_mr_list = value;
+    struct AddressSpaceInfo *asi = user_data;
+
+    g_slist_foreach(as_same_root_mr_list, mtree_print_as_name, NULL);
+    mtree_print_mr(mr, 1, 0, asi->ml_head, asi->owner, asi->disabled);
+    qemu_printf("\n");
+}
+
+static gboolean mtree_info_as_free(gpointer key, gpointer value,
+                                   gpointer user_data)
+{
+    GSList *as_same_root_mr_list = value;
+
+    g_slist_free(as_same_root_mr_list);
+
+    return true;
+}
+
+static void mtree_info_as(bool dispatch_tree, bool owner, bool disabled)
 {
     MemoryRegionListHead ml_head;
     MemoryRegionList *ml, *ml2;
     AddressSpace *as;
-
-    if (flatview) {
-        FlatView *view;
-        struct FlatViewInfo fvi = {
-            .counter = 0,
-            .dispatch_tree = dispatch_tree,
-            .owner = owner,
-        };
-        GArray *fv_address_spaces;
-        GHashTable *views = g_hash_table_new(g_direct_hash, g_direct_equal);
-        AccelClass *ac = ACCEL_GET_CLASS(current_accel());
-
-        if (ac->has_memory) {
-            fvi.ac = ac;
-        }
-
-        /* Gather all FVs in one table */
-        QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-            view = address_space_get_flatview(as);
-
-            fv_address_spaces = g_hash_table_lookup(views, view);
-            if (!fv_address_spaces) {
-                fv_address_spaces = g_array_new(false, false, sizeof(as));
-                g_hash_table_insert(views, view, fv_address_spaces);
-            }
-
-            g_array_append_val(fv_address_spaces, as);
-        }
-
-        /* Print */
-        g_hash_table_foreach(views, mtree_print_flatview, &fvi);
-
-        /* Free */
-        g_hash_table_foreach_remove(views, mtree_info_flatview_free, 0);
-        g_hash_table_unref(views);
-
-        return;
-    }
+    GHashTable *views = g_hash_table_new(g_direct_hash, g_direct_equal);
+    GSList *as_same_root_mr_list;
+    struct AddressSpaceInfo asi = {
+        .ml_head = &ml_head,
+        .owner = owner,
+        .disabled = disabled,
+    };
 
     QTAILQ_INIT(&ml_head);
 
     QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-        qemu_printf("address-space: %s\n", as->name);
-        mtree_print_mr(as->root, 1, 0, &ml_head, owner, disabled);
-        qemu_printf("\n");
+        /* Create hashtable, key=AS root MR, value = list of AS */
+        as_same_root_mr_list = g_hash_table_lookup(views, as->root);
+        as_same_root_mr_list = g_slist_insert_sorted(as_same_root_mr_list, as,
+                                                     address_space_compare_name);
+        g_hash_table_insert(views, as->root, as_same_root_mr_list);
     }
+
+    /* print address spaces */
+    g_hash_table_foreach(views, mtree_print_as, &asi);
+    g_hash_table_foreach_remove(views, mtree_info_as_free, 0);
+    g_hash_table_unref(views);
 
     /* print aliased regions */
     QTAILQ_FOREACH(ml, &ml_head, mrqueue) {
@@ -3335,6 +3414,15 @@ void mtree_info(bool flatview, bool dispatch_tree, bool owner, bool disabled)
 
     QTAILQ_FOREACH_SAFE(ml, &ml_head, mrqueue, ml2) {
         g_free(ml);
+    }
+}
+
+void mtree_info(bool flatview, bool dispatch_tree, bool owner, bool disabled)
+{
+    if (flatview) {
+        mtree_info_flatview(dispatch_tree, owner);
+    } else {
+        mtree_info_as(dispatch_tree, owner, disabled);
     }
 }
 

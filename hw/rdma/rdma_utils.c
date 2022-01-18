@@ -17,29 +17,29 @@
 #include "trace.h"
 #include "rdma_utils.h"
 
-void *rdma_pci_dma_map(PCIDevice *dev, dma_addr_t addr, dma_addr_t plen)
+void *rdma_pci_dma_map(PCIDevice *dev, dma_addr_t addr, dma_addr_t len)
 {
     void *p;
-    hwaddr len = plen;
+    dma_addr_t pci_len = len;
 
     if (!addr) {
         rdma_error_report("addr is NULL");
         return NULL;
     }
 
-    p = pci_dma_map(dev, addr, &len, DMA_DIRECTION_TO_DEVICE);
+    p = pci_dma_map(dev, addr, &pci_len, DMA_DIRECTION_TO_DEVICE);
     if (!p) {
         rdma_error_report("pci_dma_map fail, addr=0x%"PRIx64", len=%"PRId64,
-                          addr, len);
+                          addr, pci_len);
         return NULL;
     }
 
-    if (len != plen) {
-        rdma_pci_dma_unmap(dev, p, len);
+    if (pci_len != len) {
+        rdma_pci_dma_unmap(dev, p, pci_len);
         return NULL;
     }
 
-    trace_rdma_pci_dma_map(addr, p, len);
+    trace_rdma_pci_dma_map(addr, p, pci_len);
 
     return p;
 }
