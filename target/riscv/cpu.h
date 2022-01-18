@@ -340,6 +340,7 @@ struct RISCVCPU {
         bool ext_icsr;
         bool ext_zfh;
         bool ext_zfhmin;
+        bool ext_zve64f;
 
         char *priv_spec;
         char *user_spec;
