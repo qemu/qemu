@@ -2497,8 +2497,12 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
              * non-protocol nodes, and then it is never used.  However, filling
              * the cache requires an RCU update, so double check here to avoid
              * such an update if possible.
+             *
+             * Check want_zero, because we only want to update the cache when we
+             * have accurate information about what is zero and what is data.
              */
-            if (ret == (BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID) &&
+            if (want_zero &&
+                ret == (BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID) &&
                 QLIST_EMPTY(&bs->children))
             {
                 /*
