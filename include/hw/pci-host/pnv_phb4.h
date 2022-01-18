@@ -164,23 +164,6 @@ extern const MemoryRegionOps pnv_phb4_xscom_ops;
 #define TYPE_PNV_PHB4_PEC "pnv-phb4-pec"
 OBJECT_DECLARE_TYPE(PnvPhb4PecState, PnvPhb4PecClass, PNV_PHB4_PEC)
 
-#define TYPE_PNV_PHB4_PEC_STACK "pnv-phb4-pec-stack"
-OBJECT_DECLARE_SIMPLE_TYPE(PnvPhb4PecStack, PNV_PHB4_PEC_STACK)
-
-/* Per-stack data */
-struct PnvPhb4PecStack {
-    DeviceState parent;
-
-    /* The owner PEC */
-    PnvPhb4PecState *pec;
-
-    /*
-     * PHB4 pointer. pnv_phb4_update_regions() needs to access
-     * the PHB4 via a PnvPhb4PecStack pointer.
-     */
-    PnvPHB4 *phb;
-};
-
 struct PnvPhb4PecState {
     DeviceState parent;
 

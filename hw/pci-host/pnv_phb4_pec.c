@@ -278,42 +278,9 @@ static const TypeInfo pnv_pec_type_info = {
     }
 };
 
-static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
-{
-}
-
-static Property pnv_pec_stk_properties[] = {
-        DEFINE_PROP_LINK("pec", PnvPhb4PecStack, pec, TYPE_PNV_PHB4_PEC,
-                         PnvPhb4PecState *),
-        DEFINE_PROP_END_OF_LIST(),
-};
-
-static void pnv_pec_stk_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_props(dc, pnv_pec_stk_properties);
-    dc->realize = pnv_pec_stk_realize;
-    dc->user_creatable = false;
-
-    /* TODO: reset regs ? */
-}
-
-static const TypeInfo pnv_pec_stk_type_info = {
-    .name          = TYPE_PNV_PHB4_PEC_STACK,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(PnvPhb4PecStack),
-    .class_init    = pnv_pec_stk_class_init,
-    .interfaces    = (InterfaceInfo[]) {
-        { TYPE_PNV_XSCOM_INTERFACE },
-        { }
-    }
-};
-
 static void pnv_pec_register_types(void)
 {
     type_register_static(&pnv_pec_type_info);
-    type_register_static(&pnv_pec_stk_type_info);
 }
 
 type_init(pnv_pec_register_types);
