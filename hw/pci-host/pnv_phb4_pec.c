@@ -166,7 +166,6 @@ static void pnv_pec_realize(DeviceState *dev, Error **errp)
         PnvPhb4PecStack *stack = &pec->stacks[i];
         Object *stk_obj = OBJECT(stack);
 
-        object_property_set_int(stk_obj, "stack-no", i, &error_abort);
         object_property_set_link(stk_obj, "pec", OBJECT(pec), &error_abort);
 
         if (defaults_enabled()) {
@@ -314,7 +313,6 @@ static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
 }
 
 static Property pnv_pec_stk_properties[] = {
-        DEFINE_PROP_UINT32("stack-no", PnvPhb4PecStack, stack_no, 0),
         DEFINE_PROP_LINK("pec", PnvPhb4PecStack, pec, TYPE_PNV_PHB4_PEC,
                          PnvPhb4PecState *),
         DEFINE_PROP_END_OF_LIST(),

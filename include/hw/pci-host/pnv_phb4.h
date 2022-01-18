@@ -171,9 +171,6 @@ OBJECT_DECLARE_SIMPLE_TYPE(PnvPhb4PecStack, PNV_PHB4_PEC_STACK)
 struct PnvPhb4PecStack {
     DeviceState parent;
 
-    /* My own stack number */
-    uint32_t stack_no;
-
     /* The owner PEC */
     PnvPhb4PecState *pec;
 
