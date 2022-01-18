@@ -1,0 +1,139 @@
+#!/usr/bin/env python3
+# group: rw quick
+#
+# Test cases for the block-status cache.
+#
+# Copyright (C) 2022 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import signal
+import iotests
+from iotests import qemu_img_create, qemu_img_pipe, qemu_nbd
+
+
+image_size = 1 * 1024 * 1024
+test_img = os.path.join(iotests.test_dir, 'test.img')
+
+nbd_pidfile = os.path.join(iotests.test_dir, 'nbd.pid')
+nbd_sock = os.path.join(iotests.sock_dir, 'nbd.sock')
+
+
+class TestBscWithNbd(iotests.QMPTestCase):
+    def setUp(self) -> None:
+        """Just create an empty image with a read-only NBD server on it"""
+        assert qemu_img_create('-f', iotests.imgfmt, test_img,
+                               str(image_size)) == 0
+
+        # Pass --allocation-depth to enable the qemu:allocation-depth context,
+        # which we are going to query to provoke a block-status inquiry with
+        # want_zero=false.
+        assert qemu_nbd(f'--socket={nbd_sock}',
+                        f'--format={iotests.imgfmt}',
+                        '--persistent',
+                        '--allocation-depth',
+                        '--read-only',
+                        f'--pid-file={nbd_pidfile}',
+                        test_img) \
+            == 0
+
+    def tearDown(self) -> None:
+        with open(nbd_pidfile, encoding='utf-8') as f:
+            pid = int(f.read())
+        os.kill(pid, signal.SIGTERM)
+        os.remove(nbd_pidfile)
+        os.remove(test_img)
+
+    def test_with_zero_bug(self) -> None:
+        """
+        Verify that the block-status cache is not corrupted by a
+        want_zero=false call.
+        We can provoke a want_zero=false call with `qemu-img map` over NBD with
+        x-dirty-bitmap=qemu:allocation-depth, so we first run a normal `map`
+        (which results in want_zero=true), then using said
+        qemu:allocation-depth context, and finally another normal `map` to
+        verify that the cache has not been corrupted.
+        """
+
+        nbd_img_opts = f'driver=nbd,server.type=unix,server.path={nbd_sock}'
+        nbd_img_opts_alloc_depth = nbd_img_opts + \
+            ',x-dirty-bitmap=qemu:allocation-depth'
+
+        # Normal map, results in want_zero=true.
+        # This will probably detect an allocated data sector first (qemu likes
+        # to allocate the first sector to facilitate alignment probing), and
+        # then the rest to be zero.  The BSC will thus contain (if anything)
+        # one range covering the first sector.
+        map_pre = qemu_img_pipe('map', '--output=json', '--image-opts',
+                                nbd_img_opts)
+
+        # qemu:allocation-depth maps for want_zero=false.
+        # want_zero=false should (with the file driver, which the server is
+        # using) report everything as data.  While this is sufficient for
+        # want_zero=false, this is nothing that should end up in the
+        # block-status cache.
+        # Due to a bug, this information did end up in the cache, though, and
+        # this would lead to wrong information being returned on subsequent
+        # want_zero=true calls.
+        #
+        # We need to run this map twice: On the first call, we probably still
+        # have the first sector in the cache, and so this will be served from
+        # the cache; and only the subsequent range will be queried from the
+        # block driver.  This subsequent range will then be entered into the
+        # cache.
+        # If we did a want_zero=true call at this point, we would thus get
+        # correct information: The first sector is not covered by the cache, so
+        # we would get fresh block-status information from the driver, which
+        # would return a data range, and this would then go into the cache,
+        # evicting the wrong range from the want_zero=false call before.
+        #
+        # Therefore, we need a second want_zero=false map to reproduce:
+        # Since the first sector is not in the cache, the query for its status
+        # will go to the driver, which will return a result that reports the
+        # whole image to be a single data area.  This result will then go into
+        # the cache, and so the cache will then report the whole image to
+        # contain data.
+        #
+        # Note that once the cache reports the whole image to contain data, any
+        # subsequent map operation will be served from the cache, and so we can
+        # never loop too many times here.
+        for _ in range(2):
+            # (Ignore the result, this is just to contaminate the cache)
+            qemu_img_pipe('map', '--output=json', '--image-opts',
+                          nbd_img_opts_alloc_depth)
+
+        # Now let's see whether the cache reports everything as data, or
+        # whether we get correct information (i.e. the same as we got on our
+        # first attempt).
+        map_post = qemu_img_pipe('map', '--output=json', '--image-opts',
+                                 nbd_img_opts)
+
+        if map_pre != map_post:
+            print('ERROR: Map information differs before and after querying ' +
+                  'qemu:allocation-depth')
+            print('Before:')
+            print(map_pre)
+            print('After:')
+            print(map_post)
+
+            self.fail("Map information differs")
+
+
+if __name__ == '__main__':
+    # The block-status cache only works on the protocol layer, so to test it,
+    # we can only use the raw format
+    iotests.main(supported_fmts=['raw'],
+                 supported_protocols=['file'])
