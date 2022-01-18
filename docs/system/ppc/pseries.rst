@@ -110,13 +110,13 @@ can  also be found in QEMU documentation:
 .. toctree::
    :maxdepth: 1
 
+   ../../specs/ppc-spapr-hotplug.rst
    ../../specs/ppc-spapr-hcalls.rst
    ../../specs/ppc-spapr-numa.rst
    ../../specs/ppc-spapr-xive.rst
 
 Other documentation available in QEMU docs directory:
 
-* Hot plug (``/docs/specs/ppc-spapr-hotplug.txt``).
 * Hypervisor calls needed by the Ultravisor
   (``/docs/specs/ppc-spapr-uv-hcalls.txt``).
 
