@@ -112,6 +112,9 @@ struct PnvPHB4 {
     uint64_t pci_regs[PHB4_PEC_PCI_STK_REGS_COUNT];
     MemoryRegion pci_regs_mr;
 
+    /* Memory windows from PowerBus to PHB */
+    MemoryRegion phbbar;
+
     /* On-chip IODA tables */
     uint64_t ioda_LIST[PNV_PHB4_MAX_LSIs];
     uint64_t ioda_MIST[PNV_PHB4_MAX_MIST];
@@ -166,7 +169,6 @@ struct PnvPhb4PecStack {
     /* Memory windows from PowerBus to PHB */
     MemoryRegion mmbar0;
     MemoryRegion mmbar1;
-    MemoryRegion phbbar;
     MemoryRegion intbar;
     uint64_t mmio0_base;
     uint64_t mmio0_size;

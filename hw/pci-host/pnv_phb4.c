@@ -874,15 +874,15 @@ static void pnv_phb4_update_regions(PnvPhb4PecStack *stack)
 
     /* Unmap first always */
     if (memory_region_is_mapped(&phb->mr_regs)) {
-        memory_region_del_subregion(&stack->phbbar, &phb->mr_regs);
+        memory_region_del_subregion(&phb->phbbar, &phb->mr_regs);
     }
     if (memory_region_is_mapped(&phb->xsrc.esb_mmio)) {
         memory_region_del_subregion(&stack->intbar, &phb->xsrc.esb_mmio);
     }
 
     /* Map registers if enabled */
-    if (memory_region_is_mapped(&stack->phbbar)) {
-        memory_region_add_subregion(&stack->phbbar, 0, &phb->mr_regs);
+    if (memory_region_is_mapped(&phb->phbbar)) {
+        memory_region_add_subregion(&phb->phbbar, 0, &phb->mr_regs);
     }
 
     /* Map ESB if enabled */
@@ -897,6 +897,7 @@ static void pnv_phb4_update_regions(PnvPhb4PecStack *stack)
 static void pnv_pec_stk_update_map(PnvPhb4PecStack *stack)
 {
     PnvPhb4PecState *pec = stack->pec;
+    PnvPHB4 *phb = stack->phb;
     MemoryRegion *sysmem = get_system_memory();
     uint64_t bar_en = stack->nest_regs[PEC_NEST_STK_BAR_EN];
     uint64_t bar, mask, size;
@@ -919,9 +920,9 @@ static void pnv_pec_stk_update_map(PnvPhb4PecStack *stack)
         !(bar_en & PEC_NEST_STK_BAR_EN_MMIO1)) {
         memory_region_del_subregion(sysmem, &stack->mmbar1);
     }
-    if (memory_region_is_mapped(&stack->phbbar) &&
+    if (memory_region_is_mapped(&phb->phbbar) &&
         !(bar_en & PEC_NEST_STK_BAR_EN_PHB)) {
-        memory_region_del_subregion(sysmem, &stack->phbbar);
+        memory_region_del_subregion(sysmem, &phb->phbbar);
     }
     if (memory_region_is_mapped(&stack->intbar) &&
         !(bar_en & PEC_NEST_STK_BAR_EN_INT)) {
@@ -956,14 +957,14 @@ static void pnv_pec_stk_update_map(PnvPhb4PecStack *stack)
         stack->mmio1_base = bar;
         stack->mmio1_size = size;
     }
-    if (!memory_region_is_mapped(&stack->phbbar) &&
+    if (!memory_region_is_mapped(&phb->phbbar) &&
         (bar_en & PEC_NEST_STK_BAR_EN_PHB)) {
         bar = stack->nest_regs[PEC_NEST_STK_PHB_REGS_BAR] >> 8;
         size = PNV_PHB4_NUM_REGS << 3;
-        snprintf(name, sizeof(name), "pec-%d.%d-stack-%d-phb",
+        snprintf(name, sizeof(name), "pec-%d.%d-phb-%d",
                  pec->chip_id, pec->index, stack->stack_no);
-        memory_region_init(&stack->phbbar, OBJECT(stack), name, size);
-        memory_region_add_subregion(sysmem, bar, &stack->phbbar);
+        memory_region_init(&phb->phbbar, OBJECT(phb), name, size);
+        memory_region_add_subregion(sysmem, bar, &phb->phbbar);
     }
     if (!memory_region_is_mapped(&stack->intbar) &&
         (bar_en & PEC_NEST_STK_BAR_EN_INT)) {
