@@ -3608,6 +3608,10 @@ static void gen_isync(DisasContext *ctx)
     if (!ctx->pr) {
         gen_check_tlb_flush(ctx, false);
     }
+
+    // TODO: добавить сюда проверку бита, а то нехорошо получается
+    gen_helper_476_shadow_tlb_flush(cpu_env);
+
     tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
     ctx->base.is_jmp = DISAS_EXIT_UPDATE;
 }
@@ -4439,6 +4443,9 @@ static void gen_rfi(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
         return;
     }
+
+    gen_helper_476_shadow_tlb_flush(cpu_env);
+
     /* Restore CPU state */
     CHK_SV;
     gen_icount_io_start(ctx);
@@ -4502,6 +4509,8 @@ static void gen_hrfid(DisasContext *ctx)
 static void gen_sc(DisasContext *ctx)
 {
     uint32_t lev;
+
+    gen_helper_476_shadow_tlb_flush(cpu_env);
 
     lev = (ctx->opcode >> 5) & 0x7F;
     gen_exception_err(ctx, POWERPC_SYSCALL, lev);
@@ -6724,6 +6733,9 @@ static void gen_rfci_40x(DisasContext *ctx)
 #else
     CHK_SV;
     /* Restore CPU state */
+
+    gen_helper_476_shadow_tlb_flush(cpu_env);
+
     gen_helper_40x_rfci(cpu_env);
     ctx->base.is_jmp = DISAS_EXIT;
 #endif /* defined(CONFIG_USER_ONLY) */
@@ -6736,6 +6748,9 @@ static void gen_rfci(DisasContext *ctx)
 #else
     CHK_SV;
     /* Restore CPU state */
+
+    gen_helper_476_shadow_tlb_flush(cpu_env);
+
     gen_helper_rfci(cpu_env);
     ctx->base.is_jmp = DISAS_EXIT;
 #endif /* defined(CONFIG_USER_ONLY) */
@@ -6764,6 +6779,9 @@ static void gen_rfmci(DisasContext *ctx)
 #else
     CHK_SV;
     /* Restore CPU state */
+
+    gen_helper_476_shadow_tlb_flush(cpu_env);
+
     gen_helper_rfmci(cpu_env);
     ctx->base.is_jmp = DISAS_EXIT;
 #endif /* defined(CONFIG_USER_ONLY) */

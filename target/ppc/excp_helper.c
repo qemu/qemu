@@ -287,6 +287,8 @@ static inline void powerpc_set_excp_state(PowerPCCPU *cpu,
      * a delayed flush on ppc64
      */
     check_tlb_flush(env, false);
+
+    helper_476_shadow_tlb_flush(env);
 }
 
 /*

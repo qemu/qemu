@@ -1236,6 +1236,14 @@ void helper_476_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
     }
 }
 
+void helper_476_shadow_tlb_flush(CPUPPCState *env)
+{
+    env->curr_d_shadow_tlb = 0;
+    env->curr_i_shadow_tlb = 0;
+    env->last_d_shadow_tlb = 0;
+    env->last_i_shadow_tlb = 0;
+}
+
 /* PowerPC BookE 2.06 TLB management */
 
 static ppcmas_tlb_t *booke206_cur_tlb(CPUPPCState *env)

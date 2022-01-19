@@ -683,16 +683,51 @@ static int mmubooke_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
 
     ret = -1;
     raddr = (hwaddr)-1ULL;
-    for (i = 0; i < env->nb_tlb; i++) {
-        tlb = &env->tlb.tlbe[i];
-        ret = mmubooke_check_tlb(env, tlb, &raddr, &ctx->prot, address,
+
+    /* Firstly search in corresponded shadow TLB */
+    bool found_in_shadow_tlb = 0;
+    ppcemb_tlb_t *shadow_tlb =
+        access_type == MMU_INST_FETCH ? env->i_shadow_tlb : env->d_shadow_tlb;
+    int *shadow_tlb_size =
+        access_type == MMU_INST_FETCH ? &env->curr_i_shadow_tlb : &env->curr_d_shadow_tlb;
+
+    for (i = 0; i < *shadow_tlb_size; i++) {
+        ret = mmubooke_check_tlb(env, shadow_tlb + i, &raddr, &ctx->prot, address,
                                  access_type, i);
         if (ret != -1) {
+            found_in_shadow_tlb = 1;
             break;
         }
     }
 
+    /* Search in main TLB if not found in shadow TLB */
+    if (!found_in_shadow_tlb) {
+        for (i = 0; i < env->nb_tlb; i++) {
+            tlb = &env->tlb.tlbe[i];
+            ret = mmubooke_check_tlb(env, tlb, &raddr, &ctx->prot, address,
+                                     access_type, i);
+            if (ret != -1) {
+                break;
+            }
+        }
+    }
+
     if (ret >= 0) {
+        /* Modify shadow tlb if found entry in main TLB */
+        if (!found_in_shadow_tlb) {
+            int *shadow_tlb_last =
+                access_type == MMU_INST_FETCH ?
+                &env->last_i_shadow_tlb :
+                &env->last_d_shadow_tlb;
+
+            memcpy(&shadow_tlb[*shadow_tlb_last], tlb, sizeof(ppcemb_tlb_t));
+            *shadow_tlb_last = (*shadow_tlb_last + 1) % 8;
+
+            if (*shadow_tlb_size < 8) {
+                (*shadow_tlb_size)++;
+            }
+        }
+
         ctx->raddr = raddr;
         LOG_SWTLB("%s: access granted " TARGET_FMT_lx " => " TARGET_FMT_plx
                   " %d %d\n", __func__, address, ctx->raddr, ctx->prot,
@@ -937,22 +972,11 @@ static const char *book3e_tsize_to_str[32] = {
     "1T", "2T"
 };
 
-static void mmubooke_dump_mmu(CPUPPCState *env)
+static void mmubooke_print_mmu_entries(ppcemb_tlb_t *entry, int size)
 {
-    ppcemb_tlb_t *entry;
     int i;
 
-    if (kvm_enabled() && !env->kvm_sw_tlb) {
-        qemu_printf("Cannot access KVM TLB\n");
-        return;
-    }
-
-    qemu_printf("\nTLB:\n");
-    qemu_printf("Effective          Physical           Size PID   Prot     "
-                "Attr\n");
-
-    entry = &env->tlb.tlbe[0];
-    for (i = 0; i < env->nb_tlb; i++, entry++) {
+    for (i = 0; i < size; i++, entry++) {
         hwaddr ea, pa;
         target_ulong mask;
         uint64_t size = (uint64_t)entry->size;
@@ -977,7 +1001,32 @@ static void mmubooke_dump_mmu(CPUPPCState *env)
                     (uint64_t)ea, (uint64_t)pa, size_buf, (uint32_t)entry->PID,
                     entry->prot, entry->attr);
     }
+}
 
+static void mmubooke_dump_mmu(CPUPPCState *env)
+{
+    if (kvm_enabled() && !env->kvm_sw_tlb) {
+        qemu_printf("Cannot access KVM TLB\n");
+        return;
+    }
+
+    qemu_printf("\nShadow ITLB:\n");
+    qemu_printf("Effective          Physical           Size PID   Prot     "
+                "Attr\n");
+
+    mmubooke_print_mmu_entries(env->i_shadow_tlb, env->curr_i_shadow_tlb);
+
+    qemu_printf("\nShadow DTLB:\n");
+    qemu_printf("Effective          Physical           Size PID   Prot     "
+                "Attr\n");
+
+    mmubooke_print_mmu_entries(env->d_shadow_tlb, env->curr_d_shadow_tlb);
+
+    qemu_printf("\nTLB:\n");
+    qemu_printf("Effective          Physical           Size PID   Prot     "
+                "Attr\n");
+
+    mmubooke_print_mmu_entries(&env->tlb.tlbe[0], env->nb_tlb);
 }
 
 static void mmubooke206_dump_one_tlb(CPUPPCState *env, int tlbn, int offset,

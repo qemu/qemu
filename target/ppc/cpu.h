@@ -1093,6 +1093,13 @@ struct CPUPPCState {
     /* PowerPC 476fp data */
     /* Array of counters for Hardware Assisted Way Selection */
     uint8_t *tlb_way_selection;
+    /* Data and instruction shadow TLB */
+    ppcemb_tlb_t d_shadow_tlb[8];
+    ppcemb_tlb_t i_shadow_tlb[8];
+    int last_d_shadow_tlb; /* last added entry in data shadow tlb */
+    int last_i_shadow_tlb; /* last added entry in instruction shadow tlb */
+    int curr_d_shadow_tlb; /* current number of entries in data shadow tlb */
+    int curr_i_shadow_tlb; /* current number of entries in instruction shadow tlb */
 #define TLB_NEED_LOCAL_FLUSH   0x1
 #define TLB_NEED_GLOBAL_FLUSH  0x2
 #endif

@@ -23,6 +23,7 @@ DEF_HELPER_2(store_pcr, void, env, tl)
 #endif
 DEF_HELPER_1(check_tlb_flush_local, void, env)
 DEF_HELPER_1(check_tlb_flush_global, void, env)
+DEF_HELPER_1(476_shadow_tlb_flush, void, env)
 #endif
 
 DEF_HELPER_3(lmw, void, env, tl, i32)

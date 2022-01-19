@@ -8647,6 +8647,11 @@ static void init_ppc_proc(PowerPCCPU *cpu)
         env->tlb_per_way = env->nb_tlb / env->nb_ways;
 
         env->tlb_way_selection = g_new0(uint8_t, env->tlb_per_way);
+
+        env->curr_d_shadow_tlb = 0;
+        env->curr_i_shadow_tlb = 0;
+        env->last_d_shadow_tlb = 0;
+        env->last_i_shadow_tlb = 0;
     }
     if (env->irq_inputs == NULL) {
         warn_report("no internal IRQ controller registered."
@@ -9054,9 +9059,16 @@ static void ppc_cpu_reset(DeviceState *dev)
         env->spr[i] = spr->default_value;
     }
 
+#if !defined(CONFIG_USER_ONLY)
     if (env->tlb_way_selection) {
         memset(env->tlb_way_selection, 0, env->tlb_per_way);
     }
+
+    env->curr_d_shadow_tlb = 0;
+    env->curr_i_shadow_tlb = 0;
+    env->last_d_shadow_tlb = 0;
+    env->last_i_shadow_tlb = 0;
+#endif
 }
 
 #ifndef CONFIG_USER_ONLY
