@@ -54,7 +54,7 @@ struct EEPROMState {
 static
 int at24c_eeprom_event(I2CSlave *s, enum i2c_event event)
 {
-    EEPROMState *ee = container_of(s, EEPROMState, parent_obj);
+    EEPROMState *ee = AT24C_EE(s);
 
     switch (event) {
     case I2C_START_SEND:
