@@ -155,4 +155,8 @@ config VOF
 config MM7705
     bool
     default y
-    select PL011
+    select PL011 # UART
+    select PL022 # SPI
+    select PL061 # GPIO
+    select SSI_M25P80
+    select GRETH
