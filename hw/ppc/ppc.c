@@ -1350,9 +1350,8 @@ struct ppc_dcrn_t {
 /* XXX: on 460, DCR addresses are 32 bits wide,
  *      using DCRIPR to get the 22 upper bits of the DCR address
  */
-#define DCRN_NB 1024
 struct ppc_dcr_t {
-    ppc_dcrn_t dcrn[DCRN_NB];
+    GHashTable *dcrn_hash;
     int (*read_error)(int dcrn);
     int (*write_error)(int dcrn);
 };
@@ -1361,10 +1360,8 @@ int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, uint32_t *valp)
 {
     ppc_dcrn_t *dcr;
 
-    if (dcrn < 0 || dcrn >= DCRN_NB)
-        goto error;
-    dcr = &dcr_env->dcrn[dcrn];
-    if (dcr->dcr_read == NULL)
+    dcr = g_hash_table_lookup(dcr_env->dcrn_hash, GUINT_TO_POINTER(dcrn));
+    if (dcr == NULL || dcr->dcr_read == NULL)
         goto error;
     *valp = (*dcr->dcr_read)(dcr->opaque, dcrn);
 
@@ -1381,10 +1378,8 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, uint32_t val)
 {
     ppc_dcrn_t *dcr;
 
-    if (dcrn < 0 || dcrn >= DCRN_NB)
-        goto error;
-    dcr = &dcr_env->dcrn[dcrn];
-    if (dcr->dcr_write == NULL)
+    dcr = g_hash_table_lookup(dcr_env->dcrn_hash, GUINT_TO_POINTER(dcrn));
+    if (dcr == NULL || dcr->dcr_write == NULL)
         goto error;
     (*dcr->dcr_write)(dcr->opaque, dcrn, val);
 
@@ -1406,16 +1401,17 @@ int ppc_dcr_register (CPUPPCState *env, int dcrn, void *opaque,
     dcr_env = env->dcr_env;
     if (dcr_env == NULL)
         return -1;
-    if (dcrn < 0 || dcrn >= DCRN_NB)
+    if (g_hash_table_lookup(dcr_env->dcrn_hash, GUINT_TO_POINTER(dcrn)) != NULL)
         return -1;
-    dcr = &dcr_env->dcrn[dcrn];
-    if (dcr->opaque != NULL ||
-        dcr->dcr_read != NULL ||
-        dcr->dcr_write != NULL)
+
+    dcr = g_malloc0(sizeof(ppc_dcrn_t));
+    if (dcr == NULL)
         return -1;
     dcr->opaque = opaque;
     dcr->dcr_read = dcr_read;
     dcr->dcr_write = dcr_write;
+
+    g_hash_table_insert(dcr_env->dcrn_hash, GUINT_TO_POINTER(dcrn), dcr);
 
     return 0;
 }
@@ -1426,6 +1422,7 @@ int ppc_dcr_init (CPUPPCState *env, int (*read_error)(int dcrn),
     ppc_dcr_t *dcr_env;
 
     dcr_env = g_malloc0(sizeof(ppc_dcr_t));
+    dcr_env->dcrn_hash = g_hash_table_new(g_direct_hash, g_direct_equal);
     dcr_env->read_error = read_error;
     dcr_env->write_error = write_error;
     env->dcr_env = dcr_env;
