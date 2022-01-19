@@ -6917,6 +6917,32 @@ static void gen_tlbwe_440(DisasContext *ctx)
 #endif /* defined(CONFIG_USER_ONLY) */
 }
 
+/* TLB management - PowerPC 476FP implementation */
+/* tlbwe */
+static void gen_tlbwe_476(DisasContext *ctx)
+{
+#if defined(CONFIG_USER_ONLY)
+    GEN_PRIV;
+#else
+    CHK_SV;
+    switch (rB(ctx->opcode)) {
+    case 0:
+    case 1:
+    case 2:
+        {
+            TCGv_i32 t0 = tcg_const_i32(rB(ctx->opcode));
+            gen_helper_476_tlbwe(cpu_env, t0, cpu_gpr[rA(ctx->opcode)],
+                                 cpu_gpr[rS(ctx->opcode)]);
+            tcg_temp_free_i32(t0);
+        }
+        break;
+    default:
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
+        break;
+    }
+#endif /* defined(CONFIG_USER_ONLY) */
+}
+
 /* TLB management - PowerPC BookE 2.06 implementation */
 
 /* tlbre */
@@ -7784,6 +7810,9 @@ GEN_HANDLER2_E(tlbivax_booke206, "tlbivax", 0x1F, 0x12, 0x18, 0x00000001,
                PPC_NONE, PPC2_BOOKE206),
 GEN_HANDLER2_E(tlbilx_booke206, "tlbilx", 0x1F, 0x12, 0x00, 0x03800001,
                PPC_NONE, PPC2_BOOKE206),
+GEN_HANDLER2_E(tlbre_440, "tlbre", 0x1F, 0x12, 0x1D, 0x00000001, PPC_NONE, PPC2_476_TLB),
+GEN_HANDLER2_E(tlbsx_440, "tlbsx", 0x1F, 0x12, 0x1C, 0x00000000, PPC_NONE, PPC2_476_TLB),
+GEN_HANDLER2_E(tlbwe_476, "tlbwe", 0x1F, 0x12, 0x1E, 0x00000001, PPC_NONE, PPC2_476_TLB),
 GEN_HANDLER2_E(msgsnd, "msgsnd", 0x1F, 0x0E, 0x06, 0x03ff0001,
                PPC_NONE, PPC2_PRCNTL),
 GEN_HANDLER2_E(msgclr, "msgclr", 0x1F, 0x0E, 0x07, 0x03ff0001,
@@ -7796,6 +7825,7 @@ GEN_HANDLER(dlmzb, 0x1F, 0x0E, 0x02, 0x00000000, PPC_440_SPEC),
 GEN_HANDLER_E(mbar, 0x1F, 0x16, 0x1a, 0x001FF801,
               PPC_BOOKE, PPC2_BOOKE206),
 GEN_HANDLER(msync_4xx, 0x1F, 0x16, 0x12, 0x039FF801, PPC_BOOKE),
+GEN_HANDLER(msync_4xx, 0x1F, 0x16, 0x12, 0x039FF801, PPC2_476_TLB),
 GEN_HANDLER2_E(icbt_440, "icbt", 0x1F, 0x16, 0x00, 0x03E00001,
                PPC_BOOKE, PPC2_BOOKE206),
 GEN_HANDLER2(icbt_440, "icbt", 0x1F, 0x06, 0x08, 0x03E00001,

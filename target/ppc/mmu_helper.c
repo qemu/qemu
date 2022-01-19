@@ -975,6 +975,267 @@ target_ulong helper_440_tlbsx(CPUPPCState *env, target_ulong address)
     return ppcemb_tlb_search(env, address, env->spr[SPR_440_MMUCR] & 0xFF);
 }
 
+/* PowerPC 476FP TLB management */
+
+#define PPC476_TLB_PAGE_SIZE_MASK       0x3f0
+#define PPC476_TLB_PAGE_SIZE_SHIFT      4
+// translation space bit
+#define PPC476_TLB_TS_BIT               0x400
+#define PPC476_TLB_VALID_BIT            0x800
+#define PPC476_TLB_EPN_MASK             0xfffff000
+#define PPC476_TLB_EPN_SHIFT            12
+#define PPC476_TLB_BOLTED_INDEX_MASK    0x7000000
+#define PPC476_TLB_BOLTED_INDEX_SHIFT   24
+#define PPC476_TLB_BOLTED_ENTRY         0x8000000
+#define PPC476_TLB_MANUAL_WAY_MASK      0x60000000
+#define PPC476_TLB_MANUAL_WAY_SHIFT     29
+#define PPC476_TLB_MANUAL_WAY_SEL       0x80000000
+#define PPC476_TLB_RPN_MASK             0xfffff000
+#define PPC476_TLB_ERPN_MASK            0x3ff
+#define PPC476_TLB_ERPN_SHIFT           32
+#define PPC476_TLB_ACCESS_PARAMS        0x3ff80
+
+#define PPC476_MMUCR_STID_MASK          0xffff
+#define PPC476_MMUCR_LINDEX_MASK        0x1fe0000
+#define PPC476_MMUCR_LINDEX_SHIFT       17
+#define PPC476_MMUCR_LVALID_MASK        0x10000000
+#define PPC476_MMUCR_LVALID_SHIFT       28
+#define PPC476_MMUCR_LWAY_MASK          0x60000000
+#define PPC476_MMUCR_LWAY_SHIFT         29
+
+#define PPC476_MMUBE_VALID_0            0x4
+#define PPC476_MMUBE_VALID_1            0x2
+#define PPC476_MMUBE_VALID_2            0x1
+#define PPC476_MMUBE_INDEX_MASK         0xff
+#define PPC476_MMUBE_INDEX_SHIFT_0      24
+#define PPC476_MMUBE_INDEX_SHIFT_1      16
+#define PPC476_MMUBE_INDEX_SHIFT_2      8
+
+/* Total number of bolted entries */
+#define PPC476_BOLTED_ENTRY_COUNT       6
+
+static void update_476_bolted_entry(CPUPPCState *env, int entry_num, uint32_t index)
+{
+    target_ulong *ptr;
+
+    // first three entries are in MMUBE0, others three in MMUBE1
+    ptr = entry_num < PPC476_BOLTED_ENTRY_COUNT / 2 ?
+        &env->spr[SPR_476_MMUBE0] : &env->spr[SPR_476_MMUBE1];
+
+    switch (entry_num % (PPC476_BOLTED_ENTRY_COUNT / 2)) {
+    case 0:
+        *ptr &= ~(PPC476_MMUBE_INDEX_MASK << PPC476_MMUBE_INDEX_SHIFT_0);
+        *ptr |= (index & PPC476_MMUBE_INDEX_MASK) << PPC476_MMUBE_INDEX_SHIFT_0;
+        *ptr |= PPC476_MMUBE_VALID_0;
+        break;
+
+    case 1:
+        *ptr &= ~(PPC476_MMUBE_INDEX_MASK << PPC476_MMUBE_INDEX_SHIFT_1);
+        *ptr |= (index & PPC476_MMUBE_INDEX_MASK) << PPC476_MMUBE_INDEX_SHIFT_1;
+        *ptr |= PPC476_MMUBE_VALID_1;
+        break;
+
+    case 2:
+        *ptr &= ~(PPC476_MMUBE_INDEX_MASK << PPC476_MMUBE_INDEX_SHIFT_2);
+        *ptr |= (index & PPC476_MMUBE_INDEX_MASK) << PPC476_MMUBE_INDEX_SHIFT_2;
+        *ptr |= PPC476_MMUBE_VALID_2;
+        break;
+    }
+}
+
+static void remove_476_bolted_entry(CPUPPCState *env, uint32_t index)
+{
+    target_ulong *regs[] = {&env->spr[SPR_476_MMUBE0], &env->spr[SPR_476_MMUBE1]};
+
+    for (int i = 0; i < ARRAY_SIZE(regs); i++) {
+        target_ulong reg = *regs[i];
+
+        for (int j = 0; j < PPC476_BOLTED_ENTRY_COUNT / 2; j++) {
+            reg >>= PPC476_MMUBE_INDEX_SHIFT_2;
+
+            if ((reg & PPC476_MMUBE_INDEX_MASK) == (index & PPC476_MMUBE_INDEX_MASK)) {
+                *regs[i] &= ~(1 << j);
+                return;
+            }
+        }
+    }
+}
+
+/* Exclusive OR (XOR) based hash function is used when an entry is searched
+ *
+ * Entry bits values are calculated by using tid bits and address bits
+ *
+ * | entry bits    | 7| 6| 5| 4| 3| 2| 1| 0|
+ * |---------------|--|--|--|--|--|--|--|--|
+ * | tid bits      | 7| 6| 5| 4| 3| 2| 1| 0|
+ * |---------------|--|--|--|--|--|--|--|--|
+ * | address bits  |19|18|17|16|15|14|13|12|
+ * |               |11|10| 9| 8|  |  |  |  |
+ * |               | 7| 6| 5| 4| 3| 2| 1| 0|
+ */
+static inline uint8_t calc_476_tlb_entry_index(target_ulong addr, uint32_t tid)
+{
+    return (tid & 0xff) ^ (addr & 0xff) ^ ((addr >> 4) & 0xf0) ^ ((addr >> 12) & 0xff);
+}
+
+/* Linearise ppc tlb representation in qemu internal tlb array */
+static inline int calc_476_tlb_entry(uint32_t index, uint32_t way, int cnt)
+{
+    return index + way * cnt;
+}
+
+static uint32_t calc_476_page_size(uint32_t size) {
+    switch (size) {
+    case 0x00: return   4 * KiB;
+    case 0x01: return  16 * KiB;
+    case 0x03: return  64 * KiB;
+    case 0x07: return   1 * MiB;
+    case 0x0f: return  16 * MiB;
+    case 0x1f: return 256 * MiB;
+    case 0x3f: return   1 * GiB;
+    default: return 0;
+    }
+}
+
+void helper_476_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
+                      target_ulong value)
+{
+    uint32_t way, index, tid;
+    uint32_t addr, valid;
+    ppcemb_tlb_t *tlb;
+    // FIXME: нормально ли так сохранять инфу об этом?
+    static int increment_hardware_way;
+    static int bolted_entry_num;
+
+    LOG_SWTLB("%s word %d entry %x value " TARGET_FMT_lx "\n",
+        __func__, word, (unsigned)entry, value);
+
+    switch (word) {
+    default:
+    case 0:
+        addr = value & PPC476_TLB_EPN_MASK;
+        valid = value & PPC476_TLB_VALID_BIT ? 1 : 0;
+
+        tid = env->spr[SPR_440_MMUCR] & PPC476_MMUCR_STID_MASK;
+
+        index = calc_476_tlb_entry_index(addr >> PPC476_TLB_EPN_SHIFT, tid);
+
+        if (entry & PPC476_TLB_BOLTED_ENTRY) {
+            way = 0;
+            bolted_entry_num =
+                (entry & PPC476_TLB_BOLTED_INDEX_MASK) >> PPC476_TLB_BOLTED_INDEX_SHIFT;
+        } else if (entry & PPC476_TLB_MANUAL_WAY_SEL) {
+            way = (entry & PPC476_TLB_MANUAL_WAY_MASK) >> PPC476_TLB_MANUAL_WAY_SHIFT;
+        } else {
+            way = env->tlb_way_selection[index];
+        }
+
+        increment_hardware_way =
+            !(entry & PPC476_TLB_BOLTED_ENTRY || entry & PPC476_TLB_MANUAL_WAY_SEL || !valid);
+
+        // get tlb entry pointer
+        tlb = &env->tlb.tlbe[calc_476_tlb_entry(index, way, env->tlb_per_way)];
+
+        // select next way if Hardware Assisted Way Selection got us a BOLTED entry
+        if (!(entry & PPC476_TLB_BOLTED_ENTRY) && !(entry & PPC476_TLB_MANUAL_WAY_SEL) &&
+            (tlb->attr & PPC476_TLB_BOLTED_ENTRY)) {
+            way = ++env->tlb_way_selection[index];
+            tlb = &env->tlb.tlbe[calc_476_tlb_entry(index, way, env->tlb_per_way)];
+        }
+
+        // remove old index, valid bit and way
+        env->spr[SPR_440_MMUCR] &=
+            ~(PPC476_MMUCR_LVALID_MASK | PPC476_MMUCR_LWAY_MASK | PPC476_MMUCR_LINDEX_MASK);
+
+        env->spr[SPR_440_MMUCR] |= index << PPC476_MMUCR_LINDEX_SHIFT;
+        env->spr[SPR_440_MMUCR] |= valid << PPC476_MMUCR_LVALID_SHIFT;
+        env->spr[SPR_440_MMUCR] |= way << PPC476_MMUCR_LWAY_SHIFT;
+
+        tlb->prot &= ~PAGE_VALID;
+
+        if (valid) {
+            tlb->EPN = addr;
+            tlb->size = calc_476_page_size(
+                (value & PPC476_TLB_PAGE_SIZE_MASK) >> PPC476_TLB_PAGE_SIZE_SHIFT);
+            tlb->PID = tid;
+            // make it BOLTED if it should be
+            tlb->attr = entry & PPC476_TLB_BOLTED_ENTRY;
+            // update TS bit
+            tlb->attr &= ~0x1;
+            tlb->attr |= value & PPC476_TLB_TS_BIT ? 0x1 : 0;
+        } else {
+            // we just invalidated an entry so this way is free for next entry
+            env->tlb_way_selection[index] = way;
+
+            // we can invalidate entry with only one tlbwe command
+            tlb_flush(env_cpu(env));
+
+            // update MMUBE0 or MMUBE1 if this entry is bolted
+            if (tlb->attr & PPC476_TLB_BOLTED_ENTRY) {
+                remove_476_bolted_entry(env, index);
+            }
+        }
+        break;
+
+    case 1:
+        index =
+            (env->spr[SPR_440_MMUCR] & PPC476_MMUCR_LINDEX_MASK) >> PPC476_MMUCR_LINDEX_SHIFT;
+        way =
+            (env->spr[SPR_440_MMUCR] & PPC476_MMUCR_LWAY_MASK) >> PPC476_MMUCR_LWAY_SHIFT;
+        tlb = &env->tlb.tlbe[calc_476_tlb_entry(index, way, env->tlb_per_way)];
+
+        tlb->RPN = value & PPC476_TLB_RPN_MASK;
+        tlb->RPN |= (value & PPC476_TLB_ERPN_MASK) << PPC476_TLB_ERPN_SHIFT;
+        break;
+
+    case 2:
+        index =
+            (env->spr[SPR_440_MMUCR] & PPC476_MMUCR_LINDEX_MASK) >> PPC476_MMUCR_LINDEX_SHIFT;
+        way =
+            (env->spr[SPR_440_MMUCR] & PPC476_MMUCR_LWAY_MASK) >> PPC476_MMUCR_LWAY_SHIFT;
+        tlb = &env->tlb.tlbe[calc_476_tlb_entry(index, way, env->tlb_per_way)];
+
+        // make it bolted if it was
+        tlb->attr = (value & PPC476_TLB_ACCESS_PARAMS) |
+            (tlb->attr & PPC476_TLB_BOLTED_ENTRY) | (tlb->attr & 0x1);
+
+        if (increment_hardware_way) {
+            env->tlb_way_selection[index]++;
+            env->tlb_way_selection[index] %= env->nb_ways;
+        }
+
+        if (value & 0x1) {
+            tlb->prot |= PAGE_READ << 4;
+        }
+        if (value & 0x2) {
+            tlb->prot |= PAGE_WRITE << 4;
+        }
+        if (value & 0x4) {
+            tlb->prot |= PAGE_EXEC << 4;
+        }
+        if (value & 0x8) {
+            tlb->prot |= PAGE_READ;
+        }
+        if (value & 0x10) {
+            tlb->prot |= PAGE_WRITE;
+        }
+        if (value & 0x20) {
+            tlb->prot |= PAGE_EXEC;
+        }
+
+        if (env->spr[SPR_440_MMUCR] & PPC476_MMUCR_LVALID_MASK) {
+            tlb->prot |= PAGE_VALID;
+
+            // update MMUBE0 or MMUBE1 if this entry is bolted
+            if (tlb->attr & PPC476_TLB_BOLTED_ENTRY) {
+                update_476_bolted_entry(env, bolted_entry_num, index);
+            }
+        }
+        tlb_flush(env_cpu(env));
+        break;
+    }
+}
+
 /* PowerPC BookE 2.06 TLB management */
 
 static ppcmas_tlb_t *booke206_cur_tlb(CPUPPCState *env)

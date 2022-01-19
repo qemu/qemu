@@ -3663,7 +3663,7 @@ POWERPC_FAMILY(476FP)(ObjectClass *oc, void *data)
         PPC_CACHE_DCBA |
         PPC_WRTEE |
         PPC_440_SPEC | // 440 specific instr (?)
-        PPC_BOOKE | // booke embeded instr (?)
+//        PPC_BOOKE | // booke embeded instr (?)
         PPC_MFAPIDI |
         PPC_TLBIVAX |
         PPC_4xx_COMMON | // 4xx common instr (?)
@@ -3676,6 +3676,8 @@ POWERPC_FAMILY(476FP)(ObjectClass *oc, void *data)
         PPC2_PRCNTL | // Embedded Processor Control (?)
         PPC2_ISA205 | // ISE 2.05 (is it the same ?)
         PPC_MFTB;
+
+    pcc->insns_flags2 = PPC2_476_TLB;
 
     // Machine State Register bits
     pcc->msr_mask = (1ull << MSR_POW) |
@@ -8643,6 +8645,8 @@ static void init_ppc_proc(PowerPCCPU *cpu)
         }
         /* Pre-compute some useful values */
         env->tlb_per_way = env->nb_tlb / env->nb_ways;
+
+        env->tlb_way_selection = g_new0(uint8_t, env->tlb_per_way);
     }
     if (env->irq_inputs == NULL) {
         warn_report("no internal IRQ controller registered."
@@ -9048,6 +9052,10 @@ static void ppc_cpu_reset(DeviceState *dev)
             continue;
         }
         env->spr[i] = spr->default_value;
+    }
+
+    if (env->tlb_way_selection) {
+        memset(env->tlb_way_selection, 0, env->tlb_per_way);
     }
 }
 
