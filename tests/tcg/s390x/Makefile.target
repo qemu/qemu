@@ -9,6 +9,7 @@ TESTS+=exrl-trtr
 TESTS+=pack
 TESTS+=mvo
 TESTS+=mvc
+TESTS+=shift
 TESTS+=trap
 TESTS+=signals-s390x
 
