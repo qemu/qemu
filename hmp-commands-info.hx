@@ -358,6 +358,7 @@ SRST
     Show host USB devices.
 ERST
 
+#if defined(CONFIG_TCG)
     {
         .name       = "profile",
         .args_type  = "",
@@ -365,6 +366,7 @@ ERST
         .help       = "show profiling information",
         .cmd_info_hrt = qmp_x_query_profile,
     },
+#endif
 
 SRST
   ``info profile``

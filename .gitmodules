@@ -64,3 +64,6 @@
 [submodule "roms/vbootrom"]
 	path = roms/vbootrom
 	url = https://gitlab.com/qemu-project/vbootrom.git
+[submodule "tests/lcitool/libvirt-ci"]
+	path = tests/lcitool/libvirt-ci
+	url = http://gitlab.com/libvirt/libvirt-ci

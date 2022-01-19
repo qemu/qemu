@@ -445,7 +445,8 @@ if not get_option('linux_aio').auto() or have_block
 endif
 linux_io_uring = not_found
 if not get_option('linux_io_uring').auto() or have_block
-  linux_io_uring = dependency('liburing', required: get_option('linux_io_uring'),
+  linux_io_uring = dependency('liburing', version: '>=0.3',
+                              required: get_option('linux_io_uring'),
                               method: 'pkg-config', kwargs: static_kwargs)
 endif
 libxml2 = not_found

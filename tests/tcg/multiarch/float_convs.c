@@ -51,8 +51,8 @@ static void convert_single_to_double(float input)
 
     output = input;
 
-    out_fmt = fmt_f64(output);
     flag_fmt = fmt_flags();
+    out_fmt = fmt_f64(output);
     printf("  to double: %s (%s)\n", out_fmt, flag_fmt);
     free(out_fmt);
     free(flag_fmt);

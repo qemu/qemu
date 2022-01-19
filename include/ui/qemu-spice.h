@@ -40,6 +40,12 @@ int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
 #define SPICE_NEEDS_SET_MM_TIME 0
 #endif
 
+#if defined(SPICE_SERVER_VERSION) && (SPICE_SERVER_VERSION >= 0x000f00)
+#define SPICE_HAS_ATTACHED_WORKER 1
+#else
+#define SPICE_HAS_ATTACHED_WORKER 0
+#endif
+
 #else  /* CONFIG_SPICE */
 
 #include "qemu/error-report.h"

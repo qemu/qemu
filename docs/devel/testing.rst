@@ -382,13 +382,111 @@ Along with many other images, the ``centos8`` image is defined in a Dockerfile
 in ``tests/docker/dockerfiles/``, called ``centos8.docker``. ``make docker-help``
 command will list all the available images.
 
-To add a new image, simply create a new ``.docker`` file under the
-``tests/docker/dockerfiles/`` directory.
-
 A ``.pre`` script can be added beside the ``.docker`` file, which will be
 executed before building the image under the build context directory. This is
 mainly used to do necessary host side setup. One such setup is ``binfmt_misc``,
 for example, to make qemu-user powered cross build containers work.
+
+Most of the existing Dockerfiles were written by hand, simply by creating a
+a new ``.docker`` file under the ``tests/docker/dockerfiles/`` directory.
+This has led to an inconsistent set of packages being present across the
+different containers.
+
+Thus going forward, QEMU is aiming to automatically generate the Dockerfiles
+using the ``lcitool`` program provided by the ``libvirt-ci`` project:
+
+  https://gitlab.com/libvirt/libvirt-ci
+
+In that project, there is a ``mappings.yml`` file defining the distro native
+package names for a wide variety of third party projects. This is processed
+in combination with a project defined list of build pre-requisites to determine
+the list of native packages to install on each distribution. This can be used
+to generate dockerfiles, VM package lists and Cirrus CI variables needed to
+setup build environments across OS distributions with a consistent set of
+packages present.
+
+When preparing a patch series that adds a new build pre-requisite to QEMU,
+updates to various lcitool data files may be required.
+
+
+Adding new build pre-requisites
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In the simple case where the pre-requisite is already known to ``libvirt-ci``
+the following steps are needed
+
+ * Edit ``tests/lcitool/projects/qemu.yml`` and add the pre-requisite
+
+ * Run ``make lcitool-refresh`` to re-generate all relevant build environment
+   manifests
+
+In some cases ``libvirt-ci`` will not know about the build pre-requisite and
+thus some extra preparation steps will be required first
+
+ * Fork the ``libvirt-ci`` project on gitlab
+
+ * Edit the ``mappings.yml`` change to add an entry for the new build
+   prerequisite, listing its native package name on as many OS distros
+   as practical.
+
+ * Commit the ``mappings.yml`` change and submit a merge request to
+   the ``libvirt-ci`` project, noting in the description that this
+   is a new build pre-requisite desired for use with QEMU
+
+ * CI pipeline will run to validate that the changes to ``mappings.yml``
+   are correct, by attempting to install the newly listed package on
+   all OS distributions supported by ``libvirt-ci``.
+
+ * Once the merge request is accepted, go back to QEMU and update
+   the ``libvirt-ci`` submodule to point to a commit that contains
+   the ``mappings.yml`` update.
+
+
+Adding new OS distros
+^^^^^^^^^^^^^^^^^^^^^
+
+In some cases ``libvirt-ci`` will not know about the OS distro that is
+desired to be tested. Before adding a new OS distro, discuss the proposed
+addition:
+
+ * Send a mail to qemu-devel, copying people listed in the
+   MAINTAINERS file for ``Build and test automation``.
+
+   There are limited CI compute resources available to QEMU, so the
+   cost/benefit tradeoff of adding new OS distros needs to be considered.
+
+ * File an issue at https://gitlab.com/libvirt/libvirt-ci/-/issues
+   pointing to the qemu-devel mail thread in the archives.
+
+   This alerts other people who might be interested in the work
+   to avoid duplication, as well as to get feedback from libvirt-ci
+   maintainers on any tips to ease the addition
+
+Assuming there is agreement to add a new OS distro then
+
+ * Fork the ``libvirt-ci`` project on gitlab
+
+ * Add metadata under ``guests/lcitool/lcitool/ansible/group_vars/``
+   for the new OS distro. There might be code changes required if
+   the OS distro uses a package format not currently known. The
+   ``libvirt-ci`` maintainers can advise on this when the issue
+   is file.
+
+ * Edit the ``mappings.yml`` change to update all the existing package
+   entries, providing details of the new OS distro
+
+ * Commit the ``mappings.yml`` change and submit a merge request to
+   the ``libvirt-ci`` project, noting in the description that this
+   is a new build pre-requisite desired for use with QEMU
+
+ * CI pipeline will run to validate that the changes to ``mappings.yml``
+   are correct, by attempting to install the newly listed package on
+   all OS distributions supported by ``libvirt-ci``.
+
+ * Once the merge request is accepted, go back to QEMU and update
+   the ``libvirt-ci`` submodule to point to a commit that contains
+   the ``mappings.yml`` update.
+
 
 Tests
 ~~~~~

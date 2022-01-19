@@ -2267,6 +2267,9 @@ static void pgb_have_guest_base(const char *image_name, abi_ulong guest_loaddr,
     if (test != addr) {
         pgb_fail_in_use(image_name);
     }
+    qemu_log_mask(CPU_LOG_PAGE,
+                  "%s: base @ %p for " TARGET_ABI_FMT_ld " bytes\n",
+                  __func__, addr, guest_hiaddr - guest_loaddr);
 }
 
 /**
@@ -2309,6 +2312,9 @@ static uintptr_t pgd_find_hole_fallback(uintptr_t guest_size, uintptr_t brk,
             if (mmap_start != MAP_FAILED) {
                 munmap(mmap_start, guest_size);
                 if (mmap_start == (void *) align_start) {
+                    qemu_log_mask(CPU_LOG_PAGE,
+                                  "%s: base @ %p for %" PRIdPTR" bytes\n",
+                                  __func__, mmap_start + offset, guest_size);
                     return (uintptr_t) mmap_start + offset;
                 }
             }
@@ -2333,8 +2339,7 @@ static uintptr_t pgb_find_hole(uintptr_t guest_loaddr, uintptr_t guest_size,
     brk = (uintptr_t)sbrk(0);
 
     if (!maps) {
-        ret = pgd_find_hole_fallback(guest_size, brk, align, offset);
-        return ret == -1 ? -1 : ret - guest_loaddr;
+        return pgd_find_hole_fallback(guest_size, brk, align, offset);
     }
 
     /* The first hole is before the first map entry. */
@@ -2374,7 +2379,7 @@ static uintptr_t pgb_find_hole(uintptr_t guest_loaddr, uintptr_t guest_size,
 
         /* Record the lowest successful match. */
         if (ret < 0) {
-            ret = align_start - guest_loaddr;
+            ret = align_start;
         }
         /* If this hole contains the identity map, select it. */
         if (align_start <= guest_loaddr &&
@@ -2387,6 +2392,12 @@ static uintptr_t pgb_find_hole(uintptr_t guest_loaddr, uintptr_t guest_size,
         }
     }
     free_self_maps(maps);
+
+    if (ret != -1) {
+        qemu_log_mask(CPU_LOG_PAGE, "%s: base @ %" PRIxPTR
+                      " for %" PRIuPTR " bytes\n",
+                      __func__, ret, guest_size);
+    }
 
     return ret;
 }
@@ -2439,6 +2450,9 @@ static void pgb_static(const char *image_name, abi_ulong orig_loaddr,
     }
 
     guest_base = addr;
+
+    qemu_log_mask(CPU_LOG_PAGE, "%s: base @ %"PRIxPTR" for %" PRIuPTR" bytes\n",
+                  __func__, addr, hiaddr - loaddr);
 }
 
 static void pgb_dynamic(const char *image_name, long align)
@@ -2495,6 +2509,9 @@ static void pgb_reserved_va(const char *image_name, abi_ulong guest_loaddr,
                      "using -R option)", reserved_va, test, strerror(errno));
         exit(EXIT_FAILURE);
     }
+
+    qemu_log_mask(CPU_LOG_PAGE, "%s: base @ %p for %lu bytes\n",
+                  __func__, addr, reserved_va);
 }
 
 void probe_guest_base(const char *image_name, abi_ulong guest_loaddr,
@@ -2783,11 +2800,17 @@ static void load_elf_image(const char *image_name, int image_fd,
          * and the stack, lest they be placed immediately after
          * the data segment and block allocation from the brk.
          *
-         * 16MB is chosen as "large enough" without being so large
-         * as to allow the result to not fit with a 32-bit guest on
-         * a 32-bit host.
+         * 16MB is chosen as "large enough" without being so large as
+         * to allow the result to not fit with a 32-bit guest on a
+         * 32-bit host. However some 64 bit guests (e.g. s390x)
+         * attempt to place their heap further ahead and currently
+         * nothing stops them smashing into QEMUs address space.
          */
+#if TARGET_LONG_BITS == 64
+        info->reserve_brk = 32 * MiB;
+#else
         info->reserve_brk = 16 * MiB;
+#endif
         hiaddr += info->reserve_brk;
 
         if (ehdr->e_type == ET_EXEC) {

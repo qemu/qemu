@@ -29,11 +29,6 @@ amd64-ubuntu2004-container:
   variables:
     NAME: ubuntu2004
 
-amd64-ubuntu-container:
-  extends: .container_job_template
-  variables:
-    NAME: ubuntu
-
 amd64-opensuse-leap-container:
   extends: .container_job_template
   variables:

@@ -1,59 +1,123 @@
+# THIS FILE WAS AUTO-GENERATED
+#
+#  $ lcitool dockerfile alpine-edge qemu
+#
+# https://gitlab.com/libvirt/libvirt-ci
 
-FROM alpine:edge
+FROM docker.io/library/alpine:edge
 
-RUN apk update
-RUN apk upgrade
+RUN apk update && \
+    apk upgrade && \
+    apk add \
+        alsa-lib-dev \
+        attr-dev \
+        bash \
+        bc \
+        bzip2 \
+        bzip2-dev \
+        ca-certificates \
+        capstone-dev \
+        ccache \
+        cdrkit \
+        ceph-dev \
+        clang \
+        ctags \
+        curl-dev \
+        cyrus-sasl-dev \
+        dbus \
+        diffutils \
+        dtc-dev \
+        eudev-dev \
+        findutils \
+        fuse3-dev \
+        g++ \
+        gcc \
+        gcovr \
+        gettext \
+        git \
+        glib-dev \
+        glib-static \
+        gnutls-dev \
+        gtk+3.0-dev \
+        libaio-dev \
+        libbpf-dev \
+        libcap-ng-dev \
+        libdrm-dev \
+        libepoxy-dev \
+        libffi-dev \
+        libgcrypt-dev \
+        libjpeg-turbo-dev \
+        libnfs-dev \
+        libpng-dev \
+        libseccomp-dev \
+        libselinux-dev \
+        libslirp-dev \
+        libssh-dev \
+        libtasn1-dev \
+        liburing-dev \
+        libusb-dev \
+        libxml2-dev \
+        linux-pam-dev \
+        llvm11 \
+        lttng-ust-dev \
+        lzo-dev \
+        make \
+        mesa-dev \
+        meson \
+        multipath-tools \
+        ncurses-dev \
+        ndctl-dev \
+        net-tools \
+        nettle-dev \
+        nmap-ncat \
+        numactl-dev \
+        openssh-client \
+        pcre-dev \
+        perl \
+        perl-test-harness \
+        pixman-dev \
+        pkgconf \
+        pulseaudio-dev \
+        py3-numpy \
+        py3-pillow \
+        py3-pip \
+        py3-sphinx \
+        py3-sphinx_rtd_theme \
+        py3-virtualenv \
+        py3-yaml \
+        python3 \
+        rpm2cpio \
+        samurai \
+        sdl2-dev \
+        sdl2_image-dev \
+        sed \
+        snappy-dev \
+        sparse \
+        spice-dev \
+        spice-protocol \
+        tar \
+        tesseract-ocr \
+        texinfo \
+        usbredir-dev \
+        util-linux \
+        vde2-dev \
+        virglrenderer-dev \
+        vte3-dev \
+        which \
+        xen-dev \
+        xfsprogs-dev \
+        zlib-dev \
+        zlib-static \
+        zstd-dev && \
+    mkdir -p /usr/libexec/ccache-wrappers && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/c++ && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/cc && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/clang && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/g++ && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/gcc
 
-# Please keep this list sorted alphabetically
-ENV PACKAGES \
-	alsa-lib-dev \
-	bash \
-	binutils \
-	ccache \
-	coreutils \
-	curl-dev \
-	g++ \
-	gcc \
-	git \
-	glib-dev \
-	glib-static \
-	gnutls-dev \
-	gtk+3.0-dev \
-	libaio-dev \
-	libbpf-dev \
-	libcap-ng-dev \
-	libffi-dev \
-	libjpeg-turbo-dev \
-	libnfs-dev \
-	libpng-dev \
-	libseccomp-dev \
-	libssh-dev \
-	libusb-dev \
-	libxml2-dev \
-	lzo-dev \
-	make \
-	mesa-dev \
-	mesa-egl \
-	mesa-gbm \
-	meson \
-	ncurses-dev \
-	ninja \
-	perl \
-	pulseaudio-dev \
-	python3 \
-	py3-sphinx \
-	py3-sphinx_rtd_theme \
-	shadow \
-	snappy-dev \
-	spice-dev \
-	texinfo \
-	usbredir-dev \
-	util-linux-dev \
-	vde2-dev \
-	virglrenderer-dev \
-	vte3-dev \
-	xfsprogs-dev \
-	zlib-dev \
-	zlib-static
-
-RUN apk add $PACKAGES
+ENV LANG "en_US.UTF-8"
+ENV MAKE "/usr/bin/make"
+ENV NINJA "/usr/bin/ninja"
+ENV PYTHON "/usr/bin/python3"
+ENV CCACHE_WRAPPERSDIR "/usr/libexec/ccache-wrappers"
