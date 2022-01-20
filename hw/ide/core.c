@@ -434,12 +434,16 @@ static const AIOCBInfo trim_aiocb_info = {
 static void ide_trim_bh_cb(void *opaque)
 {
     TrimAIOCB *iocb = opaque;
+    BlockBackend *blk = iocb->s->blk;
 
     iocb->common.cb(iocb->common.opaque, iocb->ret);
 
     qemu_bh_delete(iocb->bh);
     iocb->bh = NULL;
     qemu_aio_unref(iocb);
+
+    /* Paired with an increment in ide_issue_trim() */
+    blk_dec_in_flight(blk);
 }
 
 static void ide_issue_trim_cb(void *opaque, int ret)
@@ -508,6 +512,9 @@ BlockAIOCB *ide_issue_trim(
 {
     IDEState *s = opaque;
     TrimAIOCB *iocb;
+
+    /* Paired with a decrement in ide_trim_bh_cb() */
+    blk_inc_in_flight(s->blk);
 
     iocb = blk_aio_get(&trim_aiocb_info, s->blk, cb, cb_opaque);
     iocb->s = s;
