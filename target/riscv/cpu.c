@@ -422,6 +422,16 @@ static void riscv_cpu_reset(DeviceState *dev)
          */
         env->mstatus = set_field(env->mstatus, MSTATUS64_SXL, env->misa_mxl);
         env->mstatus = set_field(env->mstatus, MSTATUS64_UXL, env->misa_mxl);
+        if (riscv_has_ext(env, RVH)) {
+            env->vsstatus = set_field(env->vsstatus,
+                                      MSTATUS64_SXL, env->misa_mxl);
+            env->vsstatus = set_field(env->vsstatus,
+                                      MSTATUS64_UXL, env->misa_mxl);
+            env->mstatus_hs = set_field(env->mstatus_hs,
+                                        MSTATUS64_SXL, env->misa_mxl);
+            env->mstatus_hs = set_field(env->mstatus_hs,
+                                        MSTATUS64_UXL, env->misa_mxl);
+        }
     }
     env->mcause = 0;
     env->pc = env->resetvec;
