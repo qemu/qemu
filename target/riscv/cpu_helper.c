@@ -35,37 +35,6 @@ int riscv_cpu_mmu_index(CPURISCVState *env, bool ifetch)
 #endif
 }
 
-static RISCVMXL cpu_get_xl(CPURISCVState *env)
-{
-#if defined(TARGET_RISCV32)
-    return MXL_RV32;
-#elif defined(CONFIG_USER_ONLY)
-    return MXL_RV64;
-#else
-    RISCVMXL xl = riscv_cpu_mxl(env);
-
-    /*
-     * When emulating a 32-bit-only cpu, use RV32.
-     * When emulating a 64-bit cpu, and MXL has been reduced to RV32,
-     * MSTATUSH doesn't have UXL/SXL, therefore XLEN cannot be widened
-     * back to RV64 for lower privs.
-     */
-    if (xl != MXL_RV32) {
-        switch (env->priv) {
-        case PRV_M:
-            break;
-        case PRV_U:
-            xl = get_field(env->mstatus, MSTATUS64_UXL);
-            break;
-        default: /* PRV_S | PRV_H */
-            xl = get_field(env->mstatus, MSTATUS64_SXL);
-            break;
-        }
-    }
-    return xl;
-#endif
-}
-
 void cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
                           target_ulong *cs_base, uint32_t *pflags)
 {
@@ -148,7 +117,7 @@ void cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
     }
 #endif
 
-    flags = FIELD_DP32(flags, TB_FLAGS, XL, cpu_get_xl(env));
+    flags = FIELD_DP32(flags, TB_FLAGS, XL, env->xl);
 
     *pflags = flags;
 }
@@ -364,6 +333,7 @@ void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv)
     }
     /* tlb_flush is unnecessary as mode is contained in mmu_idx */
     env->priv = newpriv;
+    env->xl = cpu_recompute_xl(env);
 
     /*
      * Clear the load reservation - otherwise a reservation placed in one
