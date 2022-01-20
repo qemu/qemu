@@ -1324,7 +1324,7 @@ for the architecture in question, for example::
 
   $(configure) --cross-cc-aarch64=aarch64-cc
 
-There is also a ``--cross-cc-flags-ARCH`` flag in case additional
+There is also a ``--cross-cc-cflags-ARCH`` flag in case additional
 compiler flags are needed to build for a given target.
 
 If you have the ability to run containers as the user the build system
