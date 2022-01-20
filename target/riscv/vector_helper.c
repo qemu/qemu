@@ -139,6 +139,11 @@ static inline uint32_t vext_max_elems(uint32_t desc, uint32_t esz)
     return scale < 0 ? vlenb >> -scale : vlenb << scale;
 }
 
+static inline target_ulong adjust_addr(CPURISCVState *env, target_ulong addr)
+{
+    return (addr & env->cur_pmmask) | env->cur_pmbase;
+}
+
 /*
  * This function checks watchpoint before real load operation.
  *
@@ -156,12 +161,12 @@ static void probe_pages(CPURISCVState *env, target_ulong addr,
     target_ulong pagelen = -(addr | TARGET_PAGE_MASK);
     target_ulong curlen = MIN(pagelen, len);
 
-    probe_access(env, addr, curlen, access_type,
+    probe_access(env, adjust_addr(env, addr), curlen, access_type,
                  cpu_mmu_index(env, false), ra);
     if (len > curlen) {
         addr += curlen;
         curlen = len - curlen;
-        probe_access(env, addr, curlen, access_type,
+        probe_access(env, adjust_addr(env, addr), curlen, access_type,
                      cpu_mmu_index(env, false), ra);
     }
 }
@@ -239,7 +244,7 @@ vext_ldst_stride(void *vd, void *v0, target_ulong base,
         k = 0;
         while (k < nf) {
             target_ulong addr = base + stride * i + (k << esz);
-            ldst_elem(env, addr, i + k * max_elems, vd, ra);
+            ldst_elem(env, adjust_addr(env, addr), i + k * max_elems, vd, ra);
             k++;
         }
     }
@@ -295,7 +300,7 @@ vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
         k = 0;
         while (k < nf) {
             target_ulong addr = base + ((i * nf + k) << esz);
-            ldst_elem(env, addr, i + k * max_elems, vd, ra);
+            ldst_elem(env, adjust_addr(env, addr), i + k * max_elems, vd, ra);
             k++;
         }
     }
@@ -409,7 +414,7 @@ vext_ldst_index(void *vd, void *v0, target_ulong base,
         k = 0;
         while (k < nf) {
             abi_ptr addr = get_index_addr(base, i, vs2) + (k << esz);
-            ldst_elem(env, addr, i + k * max_elems, vd, ra);
+            ldst_elem(env, adjust_addr(env, addr), i + k * max_elems, vd, ra);
             k++;
         }
     }
@@ -488,7 +493,7 @@ vext_ldff(void *vd, void *v0, target_ulong base,
         if (!vm && !vext_elem_mask(v0, i)) {
             continue;
         }
-        addr = base + i * (nf << esz);
+        addr = adjust_addr(env, base + i * (nf << esz));
         if (i == 0) {
             probe_pages(env, addr, nf << esz, ra, MMU_DATA_LOAD);
         } else {
@@ -515,7 +520,7 @@ vext_ldff(void *vd, void *v0, target_ulong base,
                     break;
                 }
                 remain -= offset;
-                addr += offset;
+                addr = adjust_addr(env, addr + offset);
             }
         }
     }
@@ -531,7 +536,7 @@ ProbeSuccess:
         }
         while (k < nf) {
             target_ulong addr = base + ((i * nf + k) << esz);
-            ldst_elem(env, addr, i + k * max_elems, vd, ra);
+            ldst_elem(env, adjust_addr(env, addr), i + k * max_elems, vd, ra);
             k++;
         }
     }
@@ -585,7 +590,7 @@ vext_ldst_whole(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
         /* load/store rest of elements of current segment pointed by vstart */
         for (pos = off; pos < max_elems; pos++, env->vstart++) {
             target_ulong addr = base + ((pos + k * max_elems) << esz);
-            ldst_elem(env, addr, pos + k * max_elems, vd, ra);
+            ldst_elem(env, adjust_addr(env, addr), pos + k * max_elems, vd, ra);
         }
         k++;
     }
@@ -594,7 +599,7 @@ vext_ldst_whole(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
     for (; k < nf; k++) {
         for (i = 0; i < max_elems; i++, env->vstart++) {
             target_ulong addr = base + ((i + k * max_elems) << esz);
-            ldst_elem(env, addr, i + k * max_elems, vd, ra);
+            ldst_elem(env, adjust_addr(env, addr), i + k * max_elems, vd, ra);
         }
     }
 
