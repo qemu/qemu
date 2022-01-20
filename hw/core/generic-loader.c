@@ -56,7 +56,7 @@ static void generic_loader_reset(void *opaque)
     }
 
     if (s->data_len) {
-        assert(s->data_len < sizeof(s->data));
+        assert(s->data_len <= sizeof(s->data));
         dma_memory_write(s->cpu->as, s->addr, &s->data, s->data_len,
                          MEMTXATTRS_UNSPECIFIED);
     }
