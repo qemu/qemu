@@ -82,6 +82,7 @@ Emulated Devices
 .. toctree::
    :maxdepth: 1
 
+   devices/can.rst
    devices/ivshmem.rst
    devices/net.rst
    devices/nvme.rst

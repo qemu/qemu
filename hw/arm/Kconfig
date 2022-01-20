@@ -28,6 +28,7 @@ config ARM_VIRT
     select ACPI_HW_REDUCED
     select ACPI_APEI
     select ACPI_VIOT
+    select VIRTIO_MEM_SUPPORTED
 
 config CHEETAH
     bool
@@ -93,6 +94,9 @@ config MUSCA
     select PL031
     select SPLIT_IRQ
     select UNIMP
+
+config MARVELL_88W8618
+    bool
 
 config MUSICPAL
     bool

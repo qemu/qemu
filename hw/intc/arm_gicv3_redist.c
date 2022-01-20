@@ -462,7 +462,7 @@ MemTxResult gicv3_redist_read(void *opaque, hwaddr offset, uint64_t *data,
         break;
     }
 
-    if (r == MEMTX_ERROR) {
+    if (r != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid guest read at offset " TARGET_FMT_plx
                       " size %u\n", __func__, offset, size);
@@ -521,7 +521,7 @@ MemTxResult gicv3_redist_write(void *opaque, hwaddr offset, uint64_t data,
         break;
     }
 
-    if (r == MEMTX_ERROR) {
+    if (r != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid guest write at offset " TARGET_FMT_plx
                       " size %u\n", __func__, offset, size);
