@@ -520,8 +520,8 @@ static const VMStateDescription vmstate_armv7m = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_CLOCK(refclk, SysTickState),
-        VMSTATE_CLOCK(cpuclk, SysTickState),
+        VMSTATE_CLOCK(refclk, ARMv7MState),
+        VMSTATE_CLOCK(cpuclk, ARMv7MState),
         VMSTATE_END_OF_LIST()
     }
 };
