@@ -194,7 +194,7 @@ static bool do_vsetvl(DisasContext *s, int rd, int rs1, TCGv s2)
     gen_set_gpr(s, rd, dst);
     mark_vs_dirty(s);
 
-    tcg_gen_movi_tl(cpu_pc, s->pc_succ_insn);
+    gen_set_pc_imm(s, s->pc_succ_insn);
     tcg_gen_lookup_and_goto_ptr();
     s->base.is_jmp = DISAS_NORETURN;
 
@@ -219,7 +219,7 @@ static bool do_vsetivli(DisasContext *s, int rd, TCGv s1, TCGv s2)
     gen_helper_vsetvl(dst, cpu_env, s1, s2);
     gen_set_gpr(s, rd, dst);
     mark_vs_dirty(s);
-    tcg_gen_movi_tl(cpu_pc, s->pc_succ_insn);
+    gen_set_pc_imm(s, s->pc_succ_insn);
     tcg_gen_lookup_and_goto_ptr();
     s->base.is_jmp = DISAS_NORETURN;
 
