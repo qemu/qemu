@@ -52,7 +52,8 @@ target_ulong HELPER(vsetvl)(CPURISCVState *env, target_ulong s1,
         || (ediv != 0)
         || (reserved != 0)) {
         /* only set vill bit. */
-        env->vtype = FIELD_DP64(0, VTYPE, VILL, 1);
+        env->vill = 1;
+        env->vtype = 0;
         env->vl = 0;
         env->vstart = 0;
         return 0;
