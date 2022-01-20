@@ -491,6 +491,11 @@ static inline RISCVMXL cpu_recompute_xl(CPURISCVState *env)
 }
 #endif
 
+static inline int riscv_cpu_xlen(CPURISCVState *env)
+{
+    return 16 << env->xl;
+}
+
 /*
  * Encode LMUL to lmul as follows:
  *     LMUL    vlmul    lmul
