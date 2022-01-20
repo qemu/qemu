@@ -924,7 +924,8 @@ static bool do_csrrw_i128(DisasContext *ctx, int rd, int rc,
 
 static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
 {
-    if (get_xl(ctx) < MXL_RV128) {
+    RISCVMXL xl = get_xl(ctx);
+    if (xl < MXL_RV128) {
         TCGv src = get_gpr(ctx, a->rs1, EXT_NONE);
 
         /*
@@ -935,7 +936,8 @@ static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
             return do_csrw(ctx, a->csr, src);
         }
 
-        TCGv mask = tcg_constant_tl(-1);
+        TCGv mask = tcg_constant_tl(xl == MXL_RV32 ? UINT32_MAX :
+                                                     (target_ulong)-1);
         return do_csrrw(ctx, a->rd, a->csr, src, mask);
     } else {
         TCGv srcl = get_gpr(ctx, a->rs1, EXT_NONE);
@@ -1013,7 +1015,8 @@ static bool trans_csrrc(DisasContext *ctx, arg_csrrc *a)
 
 static bool trans_csrrwi(DisasContext *ctx, arg_csrrwi *a)
 {
-    if (get_xl(ctx) < MXL_RV128) {
+    RISCVMXL xl = get_xl(ctx);
+    if (xl < MXL_RV128) {
         TCGv src = tcg_constant_tl(a->rs1);
 
         /*
@@ -1024,7 +1027,8 @@ static bool trans_csrrwi(DisasContext *ctx, arg_csrrwi *a)
             return do_csrw(ctx, a->csr, src);
         }
 
-        TCGv mask = tcg_constant_tl(-1);
+        TCGv mask = tcg_constant_tl(xl == MXL_RV32 ? UINT32_MAX :
+                                                     (target_ulong)-1);
         return do_csrrw(ctx, a->rd, a->csr, src, mask);
     } else {
         TCGv src = tcg_constant_tl(a->rs1);
