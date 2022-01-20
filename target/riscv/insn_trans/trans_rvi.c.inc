@@ -68,9 +68,7 @@ static bool trans_jalr(DisasContext *ctx, arg_jalr *a)
         tcg_temp_free(t0);
     }
 
-    if (a->rd != 0) {
-        tcg_gen_movi_tl(cpu_gpr[a->rd], ctx->pc_succ_insn);
-    }
+    gen_set_gpri(ctx, a->rd, ctx->pc_succ_insn);
     tcg_gen_lookup_and_goto_ptr();
 
     if (misaligned) {
