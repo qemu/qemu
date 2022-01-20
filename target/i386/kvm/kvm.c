@@ -569,7 +569,7 @@ static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
 
     if (code == BUS_MCEERR_AR) {
         status |= MCI_STATUS_AR | 0x134;
-        mcg_status |= MCG_STATUS_EIPV;
+        mcg_status |= MCG_STATUS_RIPV | MCG_STATUS_EIPV;
     } else {
         status |= 0xc0;
         mcg_status |= MCG_STATUS_RIPV;
