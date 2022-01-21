@@ -30,6 +30,7 @@
 #include "elf.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/qtest.h"
+#include "sysemu/kvm.h"
 
 #include <libfdt.h>
 
@@ -51,7 +52,9 @@ char *riscv_plic_hart_config_string(int hart_count)
         CPUState *cs = qemu_get_cpu(i);
         CPURISCVState *env = &RISCV_CPU(cs)->env;
 
-        if (riscv_has_ext(env, RVS)) {
+        if (kvm_enabled()) {
+            vals[i] = "S";
+        } else if (riscv_has_ext(env, RVS)) {
             vals[i] = "MS";
         } else {
             vals[i] = "M";
@@ -323,4 +326,15 @@ void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState *harts
                                  kernel_entry);
 
     return;
+}
+
+void riscv_setup_direct_kernel(hwaddr kernel_addr, hwaddr fdt_addr)
+{
+    CPUState *cs;
+
+    for (cs = first_cpu; cs; cs = CPU_NEXT(cs)) {
+        RISCVCPU *riscv_cpu = RISCV_CPU(cs);
+        riscv_cpu->env.kernel_addr = kernel_addr;
+        riscv_cpu->env.fdt_addr = fdt_addr;
+    }
 }

@@ -228,13 +228,25 @@ static const MemoryRegionOps htif_mm_ops = {
     .write = htif_mm_write,
 };
 
-HTIFState *htif_mm_init(MemoryRegion *address_space, MemoryRegion *main_mem,
-    CPURISCVState *env, Chardev *chr)
+bool htif_uses_elf_symbols(void)
 {
-    uint64_t base = MIN(tohost_addr, fromhost_addr);
-    uint64_t size = MAX(tohost_addr + 8, fromhost_addr + 8) - base;
-    uint64_t tohost_offset = tohost_addr - base;
-    uint64_t fromhost_offset = fromhost_addr - base;
+    return (address_symbol_set == 3) ? true : false;
+}
+
+HTIFState *htif_mm_init(MemoryRegion *address_space, MemoryRegion *main_mem,
+    CPURISCVState *env, Chardev *chr, uint64_t nonelf_base)
+{
+    uint64_t base, size, tohost_offset, fromhost_offset;
+
+    if (!htif_uses_elf_symbols()) {
+        fromhost_addr = nonelf_base;
+        tohost_addr = nonelf_base + 8;
+    }
+
+    base = MIN(tohost_addr, fromhost_addr);
+    size = MAX(tohost_addr + 8, fromhost_addr + 8) - base;
+    tohost_offset = tohost_addr - base;
+    fromhost_offset = fromhost_addr - base;
 
     HTIFState *s = g_malloc0(sizeof(HTIFState));
     s->address_space = address_space;
@@ -249,12 +261,11 @@ HTIFState *htif_mm_init(MemoryRegion *address_space, MemoryRegion *main_mem,
     qemu_chr_fe_init(&s->chr, chr, &error_abort);
     qemu_chr_fe_set_handlers(&s->chr, htif_can_recv, htif_recv, htif_event,
         htif_be_change, s, NULL, true);
-    if (address_symbol_set == 3) {
-        memory_region_init_io(&s->mmio, NULL, &htif_mm_ops, s,
-                              TYPE_HTIF_UART, size);
-        memory_region_add_subregion_overlap(address_space, base,
-                                            &s->mmio, 1);
-    }
+
+    memory_region_init_io(&s->mmio, NULL, &htif_mm_ops, s,
+                          TYPE_HTIF_UART, size);
+    memory_region_add_subregion_overlap(address_space, base,
+                                        &s->mmio, 1);
 
     return s;
 }

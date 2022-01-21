@@ -43,9 +43,7 @@ build-opensbi:
  artifacts:
    paths: # 'artifacts.zip' will contains the following files:
    - pc-bios/opensbi-riscv32-generic-fw_dynamic.bin
-   - pc-bios/opensbi-riscv32-generic-fw_dynamic.elf
    - pc-bios/opensbi-riscv64-generic-fw_dynamic.bin
-   - pc-bios/opensbi-riscv64-generic-fw_dynamic.elf
    - opensbi32-generic-stdout.log
    - opensbi32-generic-stderr.log
    - opensbi64-generic-stdout.log

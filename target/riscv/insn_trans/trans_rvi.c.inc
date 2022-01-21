@@ -59,6 +59,7 @@ static bool trans_jalr(DisasContext *ctx, arg_jalr *a)
     tcg_gen_addi_tl(cpu_pc, get_gpr(ctx, a->rs1, EXT_NONE), a->imm);
     tcg_gen_andi_tl(cpu_pc, cpu_pc, (target_ulong)-2);
 
+    gen_set_pc(ctx, cpu_pc);
     if (!has_ext(ctx, RVC)) {
         TCGv t0 = tcg_temp_new();
 
@@ -68,9 +69,7 @@ static bool trans_jalr(DisasContext *ctx, arg_jalr *a)
         tcg_temp_free(t0);
     }
 
-    if (a->rd != 0) {
-        tcg_gen_movi_tl(cpu_gpr[a->rd], ctx->pc_succ_insn);
-    }
+    gen_set_gpri(ctx, a->rd, ctx->pc_succ_insn);
     tcg_gen_lookup_and_goto_ptr();
 
     if (misaligned) {
@@ -227,14 +226,7 @@ static bool trans_bgeu(DisasContext *ctx, arg_bgeu *a)
 static bool gen_load_tl(DisasContext *ctx, arg_lb *a, MemOp memop)
 {
     TCGv dest = dest_gpr(ctx, a->rd);
-    TCGv addr = get_gpr(ctx, a->rs1, EXT_NONE);
-
-    if (a->imm) {
-        TCGv temp = temp_new(ctx);
-        tcg_gen_addi_tl(temp, addr, a->imm);
-        addr = temp;
-    }
-    addr = gen_pm_adjust_address(ctx, addr);
+    TCGv addr = get_address(ctx, a->rs1, a->imm);
 
     tcg_gen_qemu_ld_tl(dest, addr, ctx->mem_idx, memop);
     gen_set_gpr(ctx, a->rd, dest);
@@ -331,15 +323,8 @@ static bool trans_ldu(DisasContext *ctx, arg_ldu *a)
 
 static bool gen_store_tl(DisasContext *ctx, arg_sb *a, MemOp memop)
 {
-    TCGv addr = get_gpr(ctx, a->rs1, EXT_NONE);
+    TCGv addr = get_address(ctx, a->rs1, a->imm);
     TCGv data = get_gpr(ctx, a->rs2, EXT_NONE);
-
-    if (a->imm) {
-        TCGv temp = temp_new(ctx);
-        tcg_gen_addi_tl(temp, addr, a->imm);
-        addr = temp;
-    }
-    addr = gen_pm_adjust_address(ctx, addr);
 
     tcg_gen_qemu_st_tl(data, addr, ctx->mem_idx, memop);
     return true;
@@ -829,7 +814,7 @@ static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
      * FENCE_I is a no-op in QEMU,
      * however we need to end the translation block
      */
-    tcg_gen_movi_tl(cpu_pc, ctx->pc_succ_insn);
+    gen_set_pc_imm(ctx, ctx->pc_succ_insn);
     tcg_gen_exit_tb(NULL, 0);
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;
@@ -838,7 +823,7 @@ static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
 static bool do_csr_post(DisasContext *ctx)
 {
     /* We may have changed important cpu state -- exit to main loop. */
-    tcg_gen_movi_tl(cpu_pc, ctx->pc_succ_insn);
+    gen_set_pc_imm(ctx, ctx->pc_succ_insn);
     tcg_gen_exit_tb(NULL, 0);
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;
@@ -925,7 +910,8 @@ static bool do_csrrw_i128(DisasContext *ctx, int rd, int rc,
 
 static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
 {
-    if (get_xl(ctx) < MXL_RV128) {
+    RISCVMXL xl = get_xl(ctx);
+    if (xl < MXL_RV128) {
         TCGv src = get_gpr(ctx, a->rs1, EXT_NONE);
 
         /*
@@ -936,7 +922,8 @@ static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
             return do_csrw(ctx, a->csr, src);
         }
 
-        TCGv mask = tcg_constant_tl(-1);
+        TCGv mask = tcg_constant_tl(xl == MXL_RV32 ? UINT32_MAX :
+                                                     (target_ulong)-1);
         return do_csrrw(ctx, a->rd, a->csr, src, mask);
     } else {
         TCGv srcl = get_gpr(ctx, a->rs1, EXT_NONE);
@@ -1014,7 +1001,8 @@ static bool trans_csrrc(DisasContext *ctx, arg_csrrc *a)
 
 static bool trans_csrrwi(DisasContext *ctx, arg_csrrwi *a)
 {
-    if (get_xl(ctx) < MXL_RV128) {
+    RISCVMXL xl = get_xl(ctx);
+    if (xl < MXL_RV128) {
         TCGv src = tcg_constant_tl(a->rs1);
 
         /*
@@ -1025,7 +1013,8 @@ static bool trans_csrrwi(DisasContext *ctx, arg_csrrwi *a)
             return do_csrw(ctx, a->csr, src);
         }
 
-        TCGv mask = tcg_constant_tl(-1);
+        TCGv mask = tcg_constant_tl(xl == MXL_RV32 ? UINT32_MAX :
+                                                     (target_ulong)-1);
         return do_csrrw(ctx, a->rd, a->csr, src, mask);
     } else {
         TCGv src = tcg_constant_tl(a->rs1);

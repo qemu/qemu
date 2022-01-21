@@ -449,6 +449,9 @@ typedef enum {
 #define COUNTEREN_IR         (1 << 2)
 #define COUNTEREN_HPM3       (1 << 3)
 
+/* vsstatus CSR bits */
+#define VSSTATUS64_UXL       0x0000000300000000ULL
+
 /* Privilege modes */
 #define PRV_U 0
 #define PRV_S 1
