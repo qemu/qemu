@@ -365,7 +365,7 @@ static void fdt_add_bbram_node(VersalVirt *s)
     qemu_fdt_add_subnode(s->fdt, name);
 
     qemu_fdt_setprop_cells(s->fdt, name, "interrupts",
-                           GIC_FDT_IRQ_TYPE_SPI, VERSAL_BBRAM_APB_IRQ_0,
+                           GIC_FDT_IRQ_TYPE_SPI, VERSAL_PMC_APB_IRQ,
                            GIC_FDT_IRQ_FLAGS_LEVEL_HI);
     qemu_fdt_setprop(s->fdt, name, "interrupt-names",
                      interrupt_names, sizeof(interrupt_names));
