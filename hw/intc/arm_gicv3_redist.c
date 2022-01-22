@@ -591,8 +591,7 @@ void gicv3_redist_update_lpi_only(GICv3CPUState *cs)
     idbits = MIN(FIELD_EX64(cs->gicr_propbaser, GICR_PROPBASER, IDBITS),
                  GICD_TYPER_IDBITS);
 
-    if (!(cs->gicr_ctlr & GICR_CTLR_ENABLE_LPIS) || !cs->gicr_propbaser ||
-        !cs->gicr_pendbaser) {
+    if (!(cs->gicr_ctlr & GICR_CTLR_ENABLE_LPIS)) {
         return;
     }
 
@@ -673,9 +672,8 @@ void gicv3_redist_process_lpi(GICv3CPUState *cs, int irq, int level)
     idbits = MIN(FIELD_EX64(cs->gicr_propbaser, GICR_PROPBASER, IDBITS),
                  GICD_TYPER_IDBITS);
 
-    if (!(cs->gicr_ctlr & GICR_CTLR_ENABLE_LPIS) || !cs->gicr_propbaser ||
-         !cs->gicr_pendbaser || (irq > (1ULL << (idbits + 1)) - 1) ||
-         irq < GICV3_LPI_INTID_START) {
+    if (!(cs->gicr_ctlr & GICR_CTLR_ENABLE_LPIS) ||
+        (irq > (1ULL << (idbits + 1)) - 1) || irq < GICV3_LPI_INTID_START) {
         return;
     }
 
