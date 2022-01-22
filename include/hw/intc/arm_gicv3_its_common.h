@@ -47,7 +47,6 @@ typedef struct {
     uint16_t entry_sz;
     uint32_t page_sz;
     uint32_t num_entries;
-    uint32_t num_ids;
     uint64_t base_addr;
 } TableDesc;
 
