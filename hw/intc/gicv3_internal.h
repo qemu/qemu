@@ -315,6 +315,7 @@ FIELD(GITS_TYPER, CIL, 36, 1)
 #define CMD_MASK                  0xff
 
 /* ITS Commands */
+#define GITS_CMD_MOVI             0x01
 #define GITS_CMD_INT              0x03
 #define GITS_CMD_CLEAR            0x04
 #define GITS_CMD_SYNC             0x05
@@ -359,6 +360,11 @@ FIELD(MAPC, RDBASE, 16, 32)
 /* MOVALL command fields */
 FIELD(MOVALL_2, RDBASE1, 16, 36)
 FIELD(MOVALL_3, RDBASE2, 16, 36)
+
+/* MOVI command fields */
+FIELD(MOVI_0, DEVICEID, 32, 32)
+FIELD(MOVI_1, EVENTID, 0, 32)
+FIELD(MOVI_2, ICID, 0, 16)
 
 /*
  * 12 bytes Interrupt translation Table Entry size
@@ -502,6 +508,16 @@ void gicv3_redist_update_lpi(GICv3CPUState *cs);
  * an incoming migration has loaded new state.
  */
 void gicv3_redist_update_lpi_only(GICv3CPUState *cs);
+/**
+ * gicv3_redist_mov_lpi:
+ * @src: source redistributor
+ * @dest: destination redistributor
+ * @irq: LPI to update
+ *
+ * Move the pending state of the specified LPI from @src to @dest,
+ * as required by the ITS MOVI command.
+ */
+void gicv3_redist_mov_lpi(GICv3CPUState *src, GICv3CPUState *dest, int irq);
 /**
  * gicv3_redist_movall_lpis:
  * @src: source redistributor

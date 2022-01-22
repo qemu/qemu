@@ -634,6 +634,149 @@ static ItsCmdResult process_movall(GICv3ITSState *s, uint64_t value,
     return CMD_CONTINUE;
 }
 
+static ItsCmdResult process_movi(GICv3ITSState *s, uint64_t value,
+                                 uint32_t offset)
+{
+    AddressSpace *as = &s->gicv3->dma_as;
+    MemTxResult res = MEMTX_OK;
+    uint32_t devid, eventid, intid;
+    uint16_t old_icid, new_icid;
+    uint64_t old_cte, new_cte;
+    uint64_t old_rdbase, new_rdbase;
+    uint64_t dte;
+    bool dte_valid, ite_valid, cte_valid;
+    uint64_t num_eventids;
+    IteEntry ite = {};
+
+    devid = FIELD_EX64(value, MOVI_0, DEVICEID);
+
+    offset += NUM_BYTES_IN_DW;
+    value = address_space_ldq_le(as, s->cq.base_addr + offset,
+                                 MEMTXATTRS_UNSPECIFIED, &res);
+    if (res != MEMTX_OK) {
+        return CMD_STALL;
+    }
+    eventid = FIELD_EX64(value, MOVI_1, EVENTID);
+
+    offset += NUM_BYTES_IN_DW;
+    value = address_space_ldq_le(as, s->cq.base_addr + offset,
+                                 MEMTXATTRS_UNSPECIFIED, &res);
+    if (res != MEMTX_OK) {
+        return CMD_STALL;
+    }
+    new_icid = FIELD_EX64(value, MOVI_2, ICID);
+
+    if (devid >= s->dt.num_entries) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid command attributes: devid %d>=%d",
+                      __func__, devid, s->dt.num_entries);
+        return CMD_CONTINUE;
+    }
+    dte = get_dte(s, devid, &res);
+    if (res != MEMTX_OK) {
+        return CMD_STALL;
+    }
+
+    dte_valid = FIELD_EX64(dte, DTE, VALID);
+    if (!dte_valid) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid command attributes: "
+                      "invalid dte: %"PRIx64" for %d\n",
+                      __func__, dte, devid);
+        return CMD_CONTINUE;
+    }
+
+    num_eventids = 1ULL << (FIELD_EX64(dte, DTE, SIZE) + 1);
+    if (eventid >= num_eventids) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid command attributes: eventid %d >= %"
+                      PRId64 "\n",
+                      __func__, eventid, num_eventids);
+        return CMD_CONTINUE;
+    }
+
+    ite_valid = get_ite(s, eventid, dte, &old_icid, &intid, &res);
+    if (res != MEMTX_OK) {
+        return CMD_STALL;
+    }
+
+    if (!ite_valid) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid command attributes: invalid ITE\n",
+                      __func__);
+        return CMD_CONTINUE;
+    }
+
+    if (old_icid >= s->ct.num_entries) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid ICID 0x%x in ITE (table corrupted?)\n",
+                      __func__, old_icid);
+        return CMD_CONTINUE;
+    }
+
+    if (new_icid >= s->ct.num_entries) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid command attributes: ICID 0x%x\n",
+                      __func__, new_icid);
+        return CMD_CONTINUE;
+    }
+
+    cte_valid = get_cte(s, old_icid, &old_cte, &res);
+    if (res != MEMTX_OK) {
+        return CMD_STALL;
+    }
+    if (!cte_valid) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid command attributes: "
+                      "invalid cte: %"PRIx64"\n",
+                      __func__, old_cte);
+        return CMD_CONTINUE;
+    }
+
+    cte_valid = get_cte(s, new_icid, &new_cte, &res);
+    if (res != MEMTX_OK) {
+        return CMD_STALL;
+    }
+    if (!cte_valid) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid command attributes: "
+                      "invalid cte: %"PRIx64"\n",
+                      __func__, new_cte);
+        return CMD_CONTINUE;
+    }
+
+    old_rdbase = FIELD_EX64(old_cte, CTE, RDBASE);
+    if (old_rdbase >= s->gicv3->num_cpu) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: CTE has invalid rdbase 0x%"PRIx64"\n",
+                      __func__, old_rdbase);
+        return CMD_CONTINUE;
+    }
+
+    new_rdbase = FIELD_EX64(new_cte, CTE, RDBASE);
+    if (new_rdbase >= s->gicv3->num_cpu) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: CTE has invalid rdbase 0x%"PRIx64"\n",
+                      __func__, new_rdbase);
+        return CMD_CONTINUE;
+    }
+
+    if (old_rdbase != new_rdbase) {
+        /* Move the LPI from the old redistributor to the new one */
+        gicv3_redist_mov_lpi(&s->gicv3->cpu[old_rdbase],
+                             &s->gicv3->cpu[new_rdbase],
+                             intid);
+    }
+
+    /* Update the ICID field in the interrupt translation table entry */
+    ite.itel = FIELD_DP64(ite.itel, ITE_L, VALID, 1);
+    ite.itel = FIELD_DP64(ite.itel, ITE_L, INTTYPE, ITE_INTTYPE_PHYSICAL);
+    ite.itel = FIELD_DP64(ite.itel, ITE_L, INTID, intid);
+    ite.itel = FIELD_DP64(ite.itel, ITE_L, DOORBELL, INTID_SPURIOUS);
+    ite.iteh = FIELD_DP32(ite.iteh, ITE_H, ICID, new_icid);
+    return update_ite(s, eventid, dte, ite) ? CMD_CONTINUE : CMD_STALL;
+}
+
 /*
  * Current implementation blocks until all
  * commands are processed
@@ -730,6 +873,9 @@ static void process_cmdq(GICv3ITSState *s)
             for (i = 0; i < s->gicv3->num_cpu; i++) {
                 gicv3_redist_update_lpi(&s->gicv3->cpu[i]);
             }
+            break;
+        case GITS_CMD_MOVI:
+            result = process_movi(s, data, cq_offset);
             break;
         case GITS_CMD_MOVALL:
             result = process_movall(s, data, cq_offset);
