@@ -929,6 +929,10 @@ static bool its_writel(GICv3ITSState *s, hwaddr offset,
         if (!(s->ctlr & R_GITS_CTLR_ENABLED_MASK)) {
             index = (offset - GITS_BASER) / 8;
 
+            if (s->baser[index] == 0) {
+                /* Unimplemented GITS_BASERn: RAZ/WI */
+                break;
+            }
             if (offset & 7) {
                 value <<= 32;
                 value &= ~GITS_BASER_RO_MASK;
@@ -1025,6 +1029,10 @@ static bool its_writell(GICv3ITSState *s, hwaddr offset,
          */
         if (!(s->ctlr & R_GITS_CTLR_ENABLED_MASK)) {
             index = (offset - GITS_BASER) / 8;
+            if (s->baser[index] == 0) {
+                /* Unimplemented GITS_BASERn: RAZ/WI */
+                break;
+            }
             s->baser[index] &= GITS_BASER_RO_MASK;
             s->baser[index] |= (value & ~GITS_BASER_RO_MASK);
         }
