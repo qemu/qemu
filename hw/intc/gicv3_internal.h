@@ -110,6 +110,7 @@
 #define GICR_NSACR            (GICR_SGI_OFFSET + 0x0E00)
 
 #define GICR_CTLR_ENABLE_LPIS        (1U << 0)
+#define GICR_CTLR_CES                (1U << 1)
 #define GICR_CTLR_RWP                (1U << 3)
 #define GICR_CTLR_DPG0               (1U << 24)
 #define GICR_CTLR_DPG1NS             (1U << 25)
