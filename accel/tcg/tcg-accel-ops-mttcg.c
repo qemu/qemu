@@ -27,6 +27,7 @@
 #include "qemu-common.h"
 #include "sysemu/tcg.h"
 #include "sysemu/replay.h"
+#include "sysemu/cpu-timers.h"
 #include "qemu/main-loop.h"
 #include "qemu/notify.h"
 #include "qemu/guest-random.h"
