@@ -37,31 +37,19 @@ static char *concat_path(const char* a, const char* b)
     return g_build_filename(a, b, NULL);
 }
 
-static void init_local_test_path(void)
+void virtio_9p_create_local_test_dir(void)
 {
+    struct stat st;
     char *pwd = g_get_current_dir();
     char *template = concat_path(pwd, "qtest-9p-local-XXXXXX");
+
     local_test_path = mkdtemp(template);
     if (!local_test_path) {
         g_test_message("mkdtemp('%s') failed: %s", template, strerror(errno));
     }
-    g_assert(local_test_path);
     g_free(pwd);
-}
-
-void virtio_9p_create_local_test_dir(void)
-{
-    struct stat st;
-    int res;
-
-    init_local_test_path();
 
     g_assert(local_test_path != NULL);
-    res = mkdir(local_test_path, 0777);
-    if (res < 0) {
-        g_test_message("mkdir('%s') failed: %s", local_test_path,
-                       strerror(errno));
-    }
 
     /* ensure test directory exists now ... */
     g_assert(stat(local_test_path, &st) == 0);
