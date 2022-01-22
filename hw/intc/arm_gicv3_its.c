@@ -853,7 +853,6 @@ static bool its_writel(GICv3ITSState *s, hwaddr offset,
             s->ctlr |= R_GITS_CTLR_ENABLED_MASK;
             extract_table_params(s);
             extract_cmdq_params(s);
-            s->creadr = 0;
             process_cmdq(s);
         } else {
             s->ctlr &= ~R_GITS_CTLR_ENABLED_MASK;
