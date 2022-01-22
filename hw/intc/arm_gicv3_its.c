@@ -866,7 +866,6 @@ static bool its_writel(GICv3ITSState *s, hwaddr offset,
         if (!(s->ctlr & R_GITS_CTLR_ENABLED_MASK)) {
             s->cbaser = deposit64(s->cbaser, 0, 32, value);
             s->creadr = 0;
-            s->cwriter = s->creadr;
         }
         break;
     case GITS_CBASER + 4:
@@ -877,7 +876,6 @@ static bool its_writel(GICv3ITSState *s, hwaddr offset,
         if (!(s->ctlr & R_GITS_CTLR_ENABLED_MASK)) {
             s->cbaser = deposit64(s->cbaser, 32, 32, value);
             s->creadr = 0;
-            s->cwriter = s->creadr;
         }
         break;
     case GITS_CWRITER:
@@ -1027,7 +1025,6 @@ static bool its_writell(GICv3ITSState *s, hwaddr offset,
         if (!(s->ctlr & R_GITS_CTLR_ENABLED_MASK)) {
             s->cbaser = value;
             s->creadr = 0;
-            s->cwriter = s->creadr;
         }
         break;
     case GITS_CWRITER:
