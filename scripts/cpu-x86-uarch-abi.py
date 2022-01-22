@@ -6,10 +6,10 @@
 # compatibility levels for each CPU model.
 #
 
-from qemu import qmp
+from qemu.aqmp.legacy import QEMUMonitorProtocol
 import sys
 
-if len(sys.argv) != 1:
+if len(sys.argv) != 2:
     print("syntax: %s QMP-SOCK\n\n" % __file__ +
           "Where QMP-SOCK points to a QEMU process such as\n\n" +
           " # qemu-system-x86_64 -qmp unix:/tmp/qmp,server,nowait " +
@@ -66,8 +66,7 @@ levels = [
 
 
 sock = sys.argv[1]
-cmd = sys.argv[2]
-shell = qmp.QEMUMonitorProtocol(sock)
+shell = QEMUMonitorProtocol(sock)
 shell.connect()
 
 models = shell.cmd("query-cpu-definitions")

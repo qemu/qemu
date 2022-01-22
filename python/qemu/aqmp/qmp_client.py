@@ -20,7 +20,7 @@ from typing import (
     cast,
 )
 
-from .error import AQMPError, ProtocolError
+from .error import ProtocolError, QMPError
 from .events import Events
 from .message import Message
 from .models import ErrorResponse, Greeting
@@ -66,7 +66,7 @@ class NegotiationError(_WrappedProtocolError):
     """
 
 
-class ExecuteError(AQMPError):
+class ExecuteError(QMPError):
     """
     Exception raised by `QMPClient.execute()` on RPC failure.
 
@@ -87,7 +87,7 @@ class ExecuteError(AQMPError):
         self.error_class: str = error_response.error.class_
 
 
-class ExecInterruptedError(AQMPError):
+class ExecInterruptedError(QMPError):
     """
     Exception raised by `execute()` (et al) when an RPC is interrupted.
 
@@ -435,7 +435,11 @@ class QMPClient(AsyncProtocol[Message], Events):
             msg_id = msg['id']
 
         self._pending[msg_id] = asyncio.Queue(maxsize=1)
-        await self._outgoing.put(msg)
+        try:
+            await self._outgoing.put(msg)
+        except:
+            del self._pending[msg_id]
+            raise
 
         return msg_id
 
@@ -452,9 +456,9 @@ class QMPClient(AsyncProtocol[Message], Events):
             was lost, or some other problem.
         """
         queue = self._pending[msg_id]
-        result = await queue.get()
 
         try:
+            result = await queue.get()
             if isinstance(result, ExecInterruptedError):
                 raise result
             return result
@@ -637,7 +641,7 @@ class QMPClient(AsyncProtocol[Message], Events):
         sock = self._writer.transport.get_extra_info('socket')
 
         if sock.family != socket.AF_UNIX:
-            raise AQMPError("Sending file descriptors requires a UNIX socket.")
+            raise QMPError("Sending file descriptors requires a UNIX socket.")
 
         if not hasattr(sock, 'sendmsg'):
             # We need to void the warranty sticker.

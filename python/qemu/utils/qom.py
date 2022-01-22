@@ -32,7 +32,8 @@ QOM commands:
 
 import argparse
 
-from . import QMPResponseError
+from qemu.aqmp import ExecuteError
+
 from .qom_common import QOMCommand
 
 
@@ -233,7 +234,7 @@ class QOMTree(QOMCommand):
                 rsp = self.qmp.command('qom-get', path=path,
                                        property=item.name)
                 print(f"  {item.name}: {rsp} ({item.type})")
-            except QMPResponseError as err:
+            except ExecuteError as err:
                 print(f"  {item.name}: <EXCEPTION: {err!s}> ({item.type})")
         print('')
         for item in items:

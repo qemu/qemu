@@ -95,8 +95,13 @@ from typing import (
     Sequence,
 )
 
-from qemu import qmp
-from qemu.qmp import QMPMessage
+from qemu.aqmp import ConnectError, QMPError, SocketAddrT
+from qemu.aqmp.legacy import (
+    QEMUMonitorProtocol,
+    QMPBadPortError,
+    QMPMessage,
+    QMPObject,
+)
 
 
 LOG = logging.getLogger(__name__)
@@ -125,7 +130,7 @@ class QMPCompleter:
         return None
 
 
-class QMPShellError(qmp.QMPError):
+class QMPShellError(QMPError):
     """
     QMP Shell Base error class.
     """
@@ -153,7 +158,7 @@ class FuzzyJSON(ast.NodeTransformer):
         return node
 
 
-class QMPShell(qmp.QEMUMonitorProtocol):
+class QMPShell(QEMUMonitorProtocol):
     """
     QMPShell provides a basic readline-based QMP shell.
 
@@ -161,7 +166,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
     :param pretty: Pretty-print QMP messages.
     :param verbose: Echo outgoing QMP messages to console.
     """
-    def __init__(self, address: qmp.SocketAddrT,
+    def __init__(self, address: SocketAddrT,
                  pretty: bool = False, verbose: bool = False):
         super().__init__(address)
         self._greeting: Optional[QMPMessage] = None
@@ -237,7 +242,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
 
     def _cli_expr(self,
                   tokens: Sequence[str],
-                  parent: qmp.QMPObject) -> None:
+                  parent: QMPObject) -> None:
         for arg in tokens:
             (key, sep, val) = arg.partition('=')
             if sep != '=':
@@ -403,7 +408,7 @@ class HMPShell(QMPShell):
     :param pretty: Pretty-print QMP messages.
     :param verbose: Echo outgoing QMP messages to console.
     """
-    def __init__(self, address: qmp.SocketAddrT,
+    def __init__(self, address: SocketAddrT,
                  pretty: bool = False, verbose: bool = False):
         super().__init__(address, pretty, verbose)
         self._cpu_index = 0
@@ -512,19 +517,17 @@ def main() -> None:
 
     try:
         address = shell_class.parse_address(args.qmp_server)
-    except qmp.QMPBadPortError:
+    except QMPBadPortError:
         parser.error(f"Bad port number: {args.qmp_server}")
         return  # pycharm doesn't know error() is noreturn
 
     with shell_class(address, args.pretty, args.verbose) as qemu:
         try:
             qemu.connect(negotiate=not args.skip_negotiation)
-        except qmp.QMPConnectError:
-            die("Didn't get QMP greeting message")
-        except qmp.QMPCapabilitiesError:
-            die("Couldn't negotiate capabilities")
-        except OSError as err:
-            die(f"Couldn't connect to {args.qmp_server}: {err!s}")
+        except ConnectError as err:
+            if isinstance(err.exc, OSError):
+                die(f"Couldn't connect to {args.qmp_server}: {err!s}")
+            die(str(err))
 
         for _ in qemu.repl():
             pass
