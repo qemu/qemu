@@ -813,6 +813,18 @@ static void extract_cmdq_params(GICv3ITSState *s)
     }
 }
 
+static MemTxResult gicv3_its_translation_read(void *opaque, hwaddr offset,
+                                              uint64_t *data, unsigned size,
+                                              MemTxAttrs attrs)
+{
+    /*
+     * GITS_TRANSLATER is write-only, and all other addresses
+     * in the interrupt translation space frame are RES0.
+     */
+    *data = 0;
+    return MEMTX_OK;
+}
+
 static MemTxResult gicv3_its_translation_write(void *opaque, hwaddr offset,
                                                uint64_t data, unsigned size,
                                                MemTxAttrs attrs)
@@ -1168,6 +1180,7 @@ static const MemoryRegionOps gicv3_its_control_ops = {
 };
 
 static const MemoryRegionOps gicv3_its_translation_ops = {
+    .read_with_attrs = gicv3_its_translation_read,
     .write_with_attrs = gicv3_its_translation_write,
     .valid.min_access_size = 2,
     .valid.max_access_size = 4,
