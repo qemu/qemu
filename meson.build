@@ -3052,17 +3052,14 @@ foreach target : target_dirs
         install_input += meson.current_source_dir() / entitlements
       endif
 
+      entitlement = find_program('scripts/entitlement.sh')
       emulators += {exe['name'] : custom_target(exe['name'],
                    input: build_input,
                    output: exe['name'],
-                   command: [
-                     files('scripts/entitlement.sh'),
-                     '@OUTPUT@',
-                     '@INPUT@'
-                   ])
+                   command: [entitlement, '@OUTPUT@', '@INPUT@'])
       }
 
-      meson.add_install_script('scripts/entitlement.sh', '--install',
+      meson.add_install_script(entitlement, '--install',
                                get_option('bindir') / exe['name'],
                                install_input)
     else
