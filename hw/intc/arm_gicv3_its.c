@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "trace.h"
 #include "hw/qdev-properties.h"
 #include "hw/intc/arm_gicv3_its_common.h"
 #include "gicv3_internal.h"
@@ -634,6 +635,8 @@ static void process_cmdq(GICv3ITSState *s)
 
         cmd = (data & CMD_MASK);
 
+        trace_gicv3_its_process_command(rd_offset, cmd);
+
         switch (cmd) {
         case GITS_CMD_INT:
             result = process_its_cmd(s, data, cq_offset, INTERRUPT);
@@ -817,6 +820,8 @@ static MemTxResult gicv3_its_translation_write(void *opaque, hwaddr offset,
     GICv3ITSState *s = (GICv3ITSState *)opaque;
     bool result = true;
     uint32_t devid = 0;
+
+    trace_gicv3_its_translation_write(offset, data, size, attrs.requester_id);
 
     switch (offset) {
     case GITS_TRANSLATER:
@@ -1107,6 +1112,7 @@ static MemTxResult gicv3_its_read(void *opaque, hwaddr offset, uint64_t *data,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid guest read at offset " TARGET_FMT_plx
                       "size %u\n", __func__, offset, size);
+        trace_gicv3_its_badread(offset, size);
         /*
          * The spec requires that reserved registers are RAZ/WI;
          * so use false returns from leaf functions as a way to
@@ -1114,6 +1120,8 @@ static MemTxResult gicv3_its_read(void *opaque, hwaddr offset, uint64_t *data,
          * the caller, or we'll cause a spurious guest data abort.
          */
         *data = 0;
+    } else {
+        trace_gicv3_its_read(offset, *data, size);
     }
     return MEMTX_OK;
 }
@@ -1140,12 +1148,15 @@ static MemTxResult gicv3_its_write(void *opaque, hwaddr offset, uint64_t data,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid guest write at offset " TARGET_FMT_plx
                       "size %u\n", __func__, offset, size);
+        trace_gicv3_its_badwrite(offset, data, size);
         /*
          * The spec requires that reserved registers are RAZ/WI;
          * so use false returns from leaf functions as a way to
          * trigger the guest-error logging but don't return it to
          * the caller, or we'll cause a spurious guest data abort.
          */
+    } else {
+        trace_gicv3_its_write(offset, data, size);
     }
     return MEMTX_OK;
 }
