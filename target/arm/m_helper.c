@@ -2206,7 +2206,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
     uint32_t lr;
     bool ignore_stackfaults;
 
-    arm_log_exception(cs->exception_index);
+    arm_log_exception(cs);
 
     /*
      * For exceptions we just mark as pending on the NVIC, and let that

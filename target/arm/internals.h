@@ -1130,7 +1130,7 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
                    ARMMMUFaultInfo *fi, ARMCacheAttrs *cacheattrs)
     __attribute__((nonnull));
 
-void arm_log_exception(int idx);
+void arm_log_exception(CPUState *cs);
 
 #endif /* !CONFIG_USER_ONLY */
 
