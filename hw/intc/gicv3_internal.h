@@ -324,6 +324,7 @@ FIELD(GITS_TYPER, CIL, 36, 1)
 #define GITS_CMD_MAPI             0x0B
 #define GITS_CMD_INV              0x0C
 #define GITS_CMD_INVALL           0x0D
+#define GITS_CMD_MOVALL           0x0E
 #define GITS_CMD_DISCARD          0x0F
 
 /* MAPC command fields */
@@ -354,6 +355,10 @@ FIELD(MAPC, RDBASE, 16, 32)
 #define CMD_FIELD_VALID_MASK      (1ULL << VALID_SHIFT)
 #define L2_TABLE_VALID_MASK       CMD_FIELD_VALID_MASK
 #define TABLE_ENTRY_VALID_MASK    (1ULL << 0)
+
+/* MOVALL command fields */
+FIELD(MOVALL_2, RDBASE1, 16, 36)
+FIELD(MOVALL_3, RDBASE2, 16, 36)
 
 /*
  * 12 bytes Interrupt translation Table Entry size
@@ -497,6 +502,17 @@ void gicv3_redist_update_lpi(GICv3CPUState *cs);
  * an incoming migration has loaded new state.
  */
 void gicv3_redist_update_lpi_only(GICv3CPUState *cs);
+/**
+ * gicv3_redist_movall_lpis:
+ * @src: source redistributor
+ * @dest: destination redistributor
+ *
+ * Scan the LPI pending table for @src, and for each pending LPI there
+ * mark it as not-pending for @src and pending for @dest, as required
+ * by the ITS MOVALL command.
+ */
+void gicv3_redist_movall_lpis(GICv3CPUState *src, GICv3CPUState *dest);
+
 void gicv3_redist_send_sgi(GICv3CPUState *cs, int grp, int irq, bool ns);
 void gicv3_init_cpuif(GICv3State *s);
 

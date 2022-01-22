@@ -582,6 +582,58 @@ static ItsCmdResult process_mapd(GICv3ITSState *s, uint64_t value,
     return update_dte(s, devid, valid, size, itt_addr) ? CMD_CONTINUE : CMD_STALL;
 }
 
+static ItsCmdResult process_movall(GICv3ITSState *s, uint64_t value,
+                                   uint32_t offset)
+{
+    AddressSpace *as = &s->gicv3->dma_as;
+    MemTxResult res = MEMTX_OK;
+    uint64_t rd1, rd2;
+
+    /* No fields in dwords 0 or 1 */
+    offset += NUM_BYTES_IN_DW;
+    offset += NUM_BYTES_IN_DW;
+    value = address_space_ldq_le(as, s->cq.base_addr + offset,
+                                 MEMTXATTRS_UNSPECIFIED, &res);
+    if (res != MEMTX_OK) {
+        return CMD_STALL;
+    }
+
+    rd1 = FIELD_EX64(value, MOVALL_2, RDBASE1);
+    if (rd1 >= s->gicv3->num_cpu) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: RDBASE1 %" PRId64
+                      " out of range (must be less than %d)\n",
+                      __func__, rd1, s->gicv3->num_cpu);
+        return CMD_CONTINUE;
+    }
+
+    offset += NUM_BYTES_IN_DW;
+    value = address_space_ldq_le(as, s->cq.base_addr + offset,
+                                 MEMTXATTRS_UNSPECIFIED, &res);
+    if (res != MEMTX_OK) {
+        return CMD_STALL;
+    }
+
+    rd2 = FIELD_EX64(value, MOVALL_3, RDBASE2);
+    if (rd2 >= s->gicv3->num_cpu) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: RDBASE2 %" PRId64
+                      " out of range (must be less than %d)\n",
+                      __func__, rd2, s->gicv3->num_cpu);
+        return CMD_CONTINUE;
+    }
+
+    if (rd1 == rd2) {
+        /* Move to same target must succeed as a no-op */
+        return CMD_CONTINUE;
+    }
+
+    /* Move all pending LPIs from redistributor 1 to redistributor 2 */
+    gicv3_redist_movall_lpis(&s->gicv3->cpu[rd1], &s->gicv3->cpu[rd2]);
+
+    return CMD_CONTINUE;
+}
+
 /*
  * Current implementation blocks until all
  * commands are processed
@@ -678,6 +730,9 @@ static void process_cmdq(GICv3ITSState *s)
             for (i = 0; i < s->gicv3->num_cpu; i++) {
                 gicv3_redist_update_lpi(&s->gicv3->cpu[i]);
             }
+            break;
+        case GITS_CMD_MOVALL:
+            result = process_movall(s, data, cq_offset);
             break;
         default:
             break;
