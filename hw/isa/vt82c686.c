@@ -554,7 +554,7 @@ struct ViaISAState {
     PCIIDEState ide;
     UHCIState uhci[2];
     ViaPMState pm;
-    PCIDevice ac97;
+    ViaAC97State ac97;
     PCIDevice mc97;
 };
 
