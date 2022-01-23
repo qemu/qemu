@@ -553,10 +553,11 @@ static void draw_line(ARTISTState *s,
         }
         x++;
     } while (x <= x2 && (max_pix == -1 || --max_pix > 0));
+
     if (c1)
-        artist_invalidate_lines(buf, x, dy+1);
+        artist_invalidate_lines(buf, x1, x2 - x1);
     else
-        artist_invalidate_lines(buf, y, dx+1);
+        artist_invalidate_lines(buf, y1 > y2 ? y2 : y1, x2 - x1);
 }
 
 static void draw_line_pattern_start(ARTISTState *s)
