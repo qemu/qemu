@@ -238,9 +238,9 @@ static inline void target_cpu_clone_regs(CPUX86State *env, target_ulong newsp)
     env->regs[R_EAX] = 0;
 }
 
-static inline void target_cpu_reset(CPUArchState *cpu)
+static inline void target_cpu_reset(CPUArchState *env)
 {
-    cpu_reset(env_cpu(cpu));
+    cpu_reset(env_cpu(env));
 }
 
 #endif /* ! _TARGET_ARCH_CPU_H_ */
