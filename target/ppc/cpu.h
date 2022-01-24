@@ -321,9 +321,7 @@ typedef enum {
 #define MSR_UCLE 26 /* User-mode cache lock enable for BookE                 */
 #define MSR_VR   25 /* altivec available                            x hflags */
 #define MSR_SPE  25 /* SPE enable for BookE                         x hflags */
-#define MSR_AP   23 /* Access privilege state on 602                  hflags */
 #define MSR_VSX  23 /* Vector Scalar Extension (ISA 2.06 and later) x hflags */
-#define MSR_SA   22 /* Supervisor access mode on 602                  hflags */
 #define MSR_S    22 /* Secure state                                          */
 #define MSR_KEY  19 /* key bit on 603e                                       */
 #define MSR_POW  18 /* Power management                                      */
@@ -477,9 +475,7 @@ typedef enum {
 #define msr_ucle ((env->msr >> MSR_UCLE) & 1)
 #define msr_vr   ((env->msr >> MSR_VR)   & 1)
 #define msr_spe  ((env->msr >> MSR_SPE)  & 1)
-#define msr_ap   ((env->msr >> MSR_AP)   & 1)
 #define msr_vsx  ((env->msr >> MSR_VSX)  & 1)
-#define msr_sa   ((env->msr >> MSR_SA)   & 1)
 #define msr_key  ((env->msr >> MSR_KEY)  & 1)
 #define msr_pow  ((env->msr >> MSR_POW)  & 1)
 #define msr_tgpr ((env->msr >> MSR_TGPR) & 1)
@@ -2142,8 +2138,6 @@ enum {
     PPC_MFTB           = 0x0000000000000200ULL,
 
     /* Fixed-point unit extensions                                           */
-    /*   PowerPC 602 specific                                                */
-    PPC_602_SPEC       = 0x0000000000000400ULL,
     /*   isel instruction                                                    */
     PPC_ISEL           = 0x0000000000000800ULL,
     /*   popcntb instruction                                                 */
@@ -2245,7 +2239,7 @@ enum {
 #define PPC_TCG_INSNS  (PPC_INSNS_BASE | PPC_POWER | PPC_POWER2 \
                         | PPC_POWER_RTC | PPC_POWER_BR | PPC_64B \
                         | PPC_64BX | PPC_64H | PPC_WAIT | PPC_MFTB \
-                        | PPC_602_SPEC | PPC_ISEL | PPC_POPCNTB \
+                        | PPC_ISEL | PPC_POPCNTB \
                         | PPC_STRING | PPC_FLOAT | PPC_FLOAT_EXT \
                         | PPC_FLOAT_FSQRT | PPC_FLOAT_FRES \
                         | PPC_FLOAT_FRSQRTE | PPC_FLOAT_FRSQRTES \

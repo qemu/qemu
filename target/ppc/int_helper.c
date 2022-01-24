@@ -489,27 +489,6 @@ target_ulong helper_divso(CPUPPCState *env, target_ulong arg1,
 }
 
 /*****************************************************************************/
-/* 602 specific instructions */
-/* mfrom is the most crazy instruction ever seen, imho ! */
-/* Real implementation uses a ROM table. Do the same */
-/*
- * Extremely decomposed:
- *                      -arg / 256
- * return 256 * log10(10           + 1.0) + 0.5
- */
-#if !defined(CONFIG_USER_ONLY)
-target_ulong helper_602_mfrom(target_ulong arg)
-{
-    if (likely(arg < 602)) {
-#include "mfrom_table.c.inc"
-        return mfrom_ROM_table[arg];
-    } else {
-        return 0;
-    }
-}
-#endif
-
-/*****************************************************************************/
 /* Altivec extension helpers */
 #if defined(HOST_WORDS_BIGENDIAN)
 #define VECTOR_FOR_INORDER_I(index, element)                    \

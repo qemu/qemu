@@ -1422,7 +1422,6 @@ static inline void powerpc_excp_legacy(PowerPCCPU *cpu, int excp)
     case POWERPC_EXCP_DLTLB:     /* Data load TLB miss                       */
     case POWERPC_EXCP_DSTLB:     /* Data store TLB miss                      */
         switch (excp_model) {
-        case POWERPC_EXCP_602:
         case POWERPC_EXCP_603:
         case POWERPC_EXCP_G2:
             /* Swap temporary saved registers with GPRs */
