@@ -20,6 +20,7 @@
 #define _TARGET_ARCH_CPU_H_
 
 #include "target_arch.h"
+#include "signal-common.h"
 
 #define TARGET_DEFAULT_CPU_MODEL "qemu64"
 
