@@ -71,11 +71,24 @@ typedef struct target_siginfo {
             int32_t _mqd;
         } _mesgp;
 
-        /* SIGPOLL */
+        /* SIGPOLL -- Not really genreated in FreeBSD ??? */
         struct {
             int _band;  /* POLL_IN, POLL_OUT, POLL_MSG */
         } _poll;
 
+        struct {
+            int _mqd;
+        } _mesgq;
+
+        struct {
+            /*
+             * Syscall number for signals delivered as a result of system calls
+             * denied by Capsicum.
+             */
+            int _syscall;
+        } _capsicum;
+
+        /* Spare for future growth */
         struct {
             abi_long __spare1__;
             int32_t  __spare2_[7];
