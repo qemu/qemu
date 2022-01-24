@@ -528,9 +528,8 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     switch (env->misa_mxl_max) {
 #ifdef TARGET_RISCV64
     case MXL_RV64:
-        cc->gdb_core_xml_file = "riscv-64bit-cpu.xml";
-        break;
     case MXL_RV128:
+        cc->gdb_core_xml_file = "riscv-64bit-cpu.xml";
         break;
 #endif
     case MXL_RV32:
