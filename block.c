@@ -3341,6 +3341,8 @@ int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
     int ret;
     Transaction *tran = tran_new();
 
+    bdrv_drained_begin(bs);
+
     ret = bdrv_set_backing_noperm(bs, backing_hd, tran, errp);
     if (ret < 0) {
         goto out;
@@ -3349,6 +3351,8 @@ int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
     ret = bdrv_refresh_perms(bs, errp);
 out:
     tran_finalize(tran, ret);
+
+    bdrv_drained_end(bs);
 
     return ret;
 }
