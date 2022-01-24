@@ -109,6 +109,15 @@ abi_long get_mcontext(CPUARMState *env, target_mcontext_t *mcp, int flags)
     gr[TARGET_REG_LR] = tswap32(env->regs[14]);
     gr[TARGET_REG_PC] = tswap32(env->regs[15]);
 
+    /*
+     * FreeBSD's get_mcontext doesn't save VFP info, but sets the pointer and
+     * size to zero.  Applications that need the VFP state use
+     * sysarch(ARM_GET_VFPSTATE) and are expected to adjust mcontext after that.
+     */
+    mcp->mc_vfp_size = 0;
+    mcp->mc_vfp_ptr = 0;
+    memset(&mcp->mc_spare, 0, sizeof(mcp->mc_spare));
+
     return 0;
 }
 
