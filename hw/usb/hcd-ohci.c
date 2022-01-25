@@ -58,8 +58,6 @@ struct ohci_hcca {
 #define ED_WBACK_OFFSET offsetof(struct ohci_ed, head)
 #define ED_WBACK_SIZE   4
 
-static void ohci_async_cancel_device(OHCIState *ohci, USBDevice *dev);
-
 /* Bitfields for the first word of an Endpoint Desciptor.  */
 #define OHCI_ED_FA_SHIFT  0
 #define OHCI_ED_FA_MASK   (0x7f<<OHCI_ED_FA_SHIFT)
@@ -259,92 +257,6 @@ static inline void ohci_set_interrupt(OHCIState *ohci, uint32_t intr)
 {
     ohci->intr_status |= intr;
     ohci_intr_update(ohci);
-}
-
-/* Attach or detach a device on a root hub port.  */
-static void ohci_attach(USBPort *port1)
-{
-    OHCIState *s = port1->opaque;
-    OHCIPort *port = &s->rhport[port1->index];
-    uint32_t old_state = port->ctrl;
-
-    /* set connect status */
-    port->ctrl |= OHCI_PORT_CCS | OHCI_PORT_CSC;
-
-    /* update speed */
-    if (port->port.dev->speed == USB_SPEED_LOW) {
-        port->ctrl |= OHCI_PORT_LSDA;
-    } else {
-        port->ctrl &= ~OHCI_PORT_LSDA;
-    }
-
-    /* notify of remote-wakeup */
-    if ((s->ctl & OHCI_CTL_HCFS) == OHCI_USB_SUSPEND) {
-        ohci_set_interrupt(s, OHCI_INTR_RD);
-    }
-
-    trace_usb_ohci_port_attach(port1->index);
-
-    if (old_state != port->ctrl) {
-        ohci_set_interrupt(s, OHCI_INTR_RHSC);
-    }
-}
-
-static void ohci_detach(USBPort *port1)
-{
-    OHCIState *s = port1->opaque;
-    OHCIPort *port = &s->rhport[port1->index];
-    uint32_t old_state = port->ctrl;
-
-    ohci_async_cancel_device(s, port1->dev);
-
-    /* set connect status */
-    if (port->ctrl & OHCI_PORT_CCS) {
-        port->ctrl &= ~OHCI_PORT_CCS;
-        port->ctrl |= OHCI_PORT_CSC;
-    }
-    /* disable port */
-    if (port->ctrl & OHCI_PORT_PES) {
-        port->ctrl &= ~OHCI_PORT_PES;
-        port->ctrl |= OHCI_PORT_PESC;
-    }
-    trace_usb_ohci_port_detach(port1->index);
-
-    if (old_state != port->ctrl) {
-        ohci_set_interrupt(s, OHCI_INTR_RHSC);
-    }
-}
-
-static void ohci_wakeup(USBPort *port1)
-{
-    OHCIState *s = port1->opaque;
-    OHCIPort *port = &s->rhport[port1->index];
-    uint32_t intr = 0;
-    if (port->ctrl & OHCI_PORT_PSS) {
-        trace_usb_ohci_port_wakeup(port1->index);
-        port->ctrl |= OHCI_PORT_PSSC;
-        port->ctrl &= ~OHCI_PORT_PSS;
-        intr = OHCI_INTR_RHSC;
-    }
-    /* Note that the controller can be suspended even if this port is not */
-    if ((s->ctl & OHCI_CTL_HCFS) == OHCI_USB_SUSPEND) {
-        trace_usb_ohci_remote_wakeup(s->name);
-        /* This is the one state transition the controller can do by itself */
-        s->ctl &= ~OHCI_CTL_HCFS;
-        s->ctl |= OHCI_USB_RESUME;
-        /* In suspend mode only ResumeDetected is possible, not RHSC:
-         * see the OHCI spec 5.1.2.3.
-         */
-        intr = OHCI_INTR_RD;
-    }
-    ohci_set_interrupt(s, intr);
-}
-
-static void ohci_child_detach(USBPort *port1, USBDevice *child)
-{
-    OHCIState *s = port1->opaque;
-
-    ohci_async_cancel_device(s, child);
 }
 
 static USBDevice *ohci_find_device(OHCIState *ohci, uint8_t addr)
@@ -632,17 +544,6 @@ static int ohci_copy_iso_td(OHCIState *ohci,
         return -1;
     }
     return 0;
-}
-
-static void ohci_process_lists(OHCIState *ohci, int completion);
-
-static void ohci_async_complete_packet(USBPort *port, USBPacket *packet)
-{
-    OHCIState *ohci = container_of(packet, OHCIState, usb_packet);
-
-    trace_usb_ohci_async_complete();
-    ohci->async_complete = true;
-    ohci_process_lists(ohci, 1);
 }
 
 #define USUB(a, b) ((int16_t)((uint16_t)(a) - (uint16_t)(b)))
@@ -1789,6 +1690,41 @@ static void ohci_mem_write(void *opaque,
     }
 }
 
+static const MemoryRegionOps ohci_mem_ops = {
+    .read = ohci_mem_read,
+    .write = ohci_mem_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+/* USBPortOps */
+static void ohci_attach(USBPort *port1)
+{
+    OHCIState *s = port1->opaque;
+    OHCIPort *port = &s->rhport[port1->index];
+    uint32_t old_state = port->ctrl;
+
+    /* set connect status */
+    port->ctrl |= OHCI_PORT_CCS | OHCI_PORT_CSC;
+
+    /* update speed */
+    if (port->port.dev->speed == USB_SPEED_LOW) {
+        port->ctrl |= OHCI_PORT_LSDA;
+    } else {
+        port->ctrl &= ~OHCI_PORT_LSDA;
+    }
+
+    /* notify of remote-wakeup */
+    if ((s->ctl & OHCI_CTL_HCFS) == OHCI_USB_SUSPEND) {
+        ohci_set_interrupt(s, OHCI_INTR_RD);
+    }
+
+    trace_usb_ohci_port_attach(port1->index);
+
+    if (old_state != port->ctrl) {
+        ohci_set_interrupt(s, OHCI_INTR_RHSC);
+    }
+}
+
 static void ohci_async_cancel_device(OHCIState *ohci, USBDevice *dev)
 {
     if (ohci->async_td &&
@@ -1799,11 +1735,72 @@ static void ohci_async_cancel_device(OHCIState *ohci, USBDevice *dev)
     }
 }
 
-static const MemoryRegionOps ohci_mem_ops = {
-    .read = ohci_mem_read,
-    .write = ohci_mem_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
+static void ohci_child_detach(USBPort *port1, USBDevice *child)
+{
+    OHCIState *s = port1->opaque;
+
+    ohci_async_cancel_device(s, child);
+}
+
+static void ohci_detach(USBPort *port1)
+{
+    OHCIState *s = port1->opaque;
+    OHCIPort *port = &s->rhport[port1->index];
+    uint32_t old_state = port->ctrl;
+
+    ohci_async_cancel_device(s, port1->dev);
+
+    /* set connect status */
+    if (port->ctrl & OHCI_PORT_CCS) {
+        port->ctrl &= ~OHCI_PORT_CCS;
+        port->ctrl |= OHCI_PORT_CSC;
+    }
+    /* disable port */
+    if (port->ctrl & OHCI_PORT_PES) {
+        port->ctrl &= ~OHCI_PORT_PES;
+        port->ctrl |= OHCI_PORT_PESC;
+    }
+    trace_usb_ohci_port_detach(port1->index);
+
+    if (old_state != port->ctrl) {
+        ohci_set_interrupt(s, OHCI_INTR_RHSC);
+    }
+}
+
+static void ohci_wakeup(USBPort *port1)
+{
+    OHCIState *s = port1->opaque;
+    OHCIPort *port = &s->rhport[port1->index];
+    uint32_t intr = 0;
+    if (port->ctrl & OHCI_PORT_PSS) {
+        trace_usb_ohci_port_wakeup(port1->index);
+        port->ctrl |= OHCI_PORT_PSSC;
+        port->ctrl &= ~OHCI_PORT_PSS;
+        intr = OHCI_INTR_RHSC;
+    }
+    /* Note that the controller can be suspended even if this port is not */
+    if ((s->ctl & OHCI_CTL_HCFS) == OHCI_USB_SUSPEND) {
+        trace_usb_ohci_remote_wakeup(s->name);
+        /* This is the one state transition the controller can do by itself */
+        s->ctl &= ~OHCI_CTL_HCFS;
+        s->ctl |= OHCI_USB_RESUME;
+        /*
+         * In suspend mode only ResumeDetected is possible, not RHSC:
+         * see the OHCI spec 5.1.2.3.
+         */
+        intr = OHCI_INTR_RD;
+    }
+    ohci_set_interrupt(s, intr);
+}
+
+static void ohci_async_complete_packet(USBPort *port, USBPacket *packet)
+{
+    OHCIState *ohci = container_of(packet, OHCIState, usb_packet);
+
+    trace_usb_ohci_async_complete();
+    ohci->async_complete = true;
+    ohci_process_lists(ohci, 1);
+}
 
 static USBPortOps ohci_port_ops = {
     .attach = ohci_attach,
