@@ -272,7 +272,7 @@ static void init_accel(unsigned cache)
 
 static void __attribute__((constructor)) init_cpuid_cache(void)
 {
-    int max = __get_cpuid_max(0, NULL);
+    unsigned max = __get_cpuid_max(0, NULL);
     int a, b, c, d;
     unsigned cache = 0;
 
