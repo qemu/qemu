@@ -1725,8 +1725,10 @@ static void ohci_attach(USBPort *port1)
     }
 }
 
-static void ohci_async_cancel_device(OHCIState *ohci, USBDevice *dev)
+static void ohci_child_detach(USBPort *port1, USBDevice *dev)
 {
+    OHCIState *ohci = port1->opaque;
+
     if (ohci->async_td &&
         usb_packet_is_inflight(&ohci->usb_packet) &&
         ohci->usb_packet.ep->dev == dev) {
@@ -1735,20 +1737,13 @@ static void ohci_async_cancel_device(OHCIState *ohci, USBDevice *dev)
     }
 }
 
-static void ohci_child_detach(USBPort *port1, USBDevice *child)
-{
-    OHCIState *s = port1->opaque;
-
-    ohci_async_cancel_device(s, child);
-}
-
 static void ohci_detach(USBPort *port1)
 {
     OHCIState *s = port1->opaque;
     OHCIPort *port = &s->rhport[port1->index];
     uint32_t old_state = port->ctrl;
 
-    ohci_async_cancel_device(s, port1->dev);
+    ohci_child_detach(port1, port1->dev);
 
     /* set connect status */
     if (port->ctrl & OHCI_PORT_CCS) {
