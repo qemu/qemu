@@ -74,6 +74,20 @@ static void panic_cb(VuDev *vu_dev, const char *buf)
     error_report("vu_panic: %s", buf);
 }
 
+void vhost_user_server_ref(VuServer *server)
+{
+    assert(!server->wait_idle);
+    server->refcount++;
+}
+
+void vhost_user_server_unref(VuServer *server)
+{
+    server->refcount--;
+    if (server->wait_idle && !server->refcount) {
+        aio_co_wake(server->co_trip);
+    }
+}
+
 static bool coroutine_fn
 vu_message_read(VuDev *vu_dev, int conn_fd, VhostUserMsg *vmsg)
 {
@@ -176,6 +190,14 @@ static coroutine_fn void vu_client_trip(void *opaque)
     while (!vu_dev->broken && vu_dispatch(vu_dev)) {
         /* Keep running */
     }
+
+    if (server->refcount) {
+        /* Wait for requests to complete before we can unmap the memory */
+        server->wait_idle = true;
+        qemu_coroutine_yield();
+        server->wait_idle = false;
+    }
+    assert(server->refcount == 0);
 
     vu_deinit(vu_dev);
 

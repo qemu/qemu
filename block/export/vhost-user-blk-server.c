@@ -172,6 +172,7 @@ vu_blk_discard_write_zeroes(VuBlkExport *vexp, struct iovec *iov,
     return VIRTIO_BLK_S_IOERR;
 }
 
+/* Called with server refcount increased, must decrease before returning */
 static void coroutine_fn vu_blk_virtio_process_req(void *opaque)
 {
     VuBlkReq *req = opaque;
@@ -286,10 +287,12 @@ static void coroutine_fn vu_blk_virtio_process_req(void *opaque)
     }
 
     vu_blk_req_complete(req);
+    vhost_user_server_unref(server);
     return;
 
 err:
     free(req);
+    vhost_user_server_unref(server);
 }
 
 static void vu_blk_process_vq(VuDev *vu_dev, int idx)
@@ -310,6 +313,8 @@ static void vu_blk_process_vq(VuDev *vu_dev, int idx)
 
         Coroutine *co =
             qemu_coroutine_create(vu_blk_virtio_process_req, req);
+
+        vhost_user_server_ref(server);
         qemu_coroutine_enter(co);
     }
 }
