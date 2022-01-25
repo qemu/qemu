@@ -6936,6 +6936,32 @@ static void gen_tlbwe_440(DisasContext *ctx)
 }
 
 /* TLB management - PowerPC 476FP implementation */
+/* tlbre */
+static void gen_tlbre_476(DisasContext *ctx)
+{
+#if defined(CONFIG_USER_ONLY)
+    GEN_PRIV;
+#else
+    CHK_SV;
+
+    switch (rB(ctx->opcode)) {
+    case 0:
+    case 1:
+    case 2:
+        {
+            TCGv_i32 t0 = tcg_const_i32(rB(ctx->opcode));
+            gen_helper_476_tlbre(cpu_gpr[rD(ctx->opcode)], cpu_env,
+                                 t0, cpu_gpr[rA(ctx->opcode)]);
+            tcg_temp_free_i32(t0);
+        }
+        break;
+    default:
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
+        break;
+    }
+#endif /* defined(CONFIG_USER_ONLY) */
+}
+
 /* tlbwe */
 static void gen_tlbwe_476(DisasContext *ctx)
 {
@@ -6957,6 +6983,29 @@ static void gen_tlbwe_476(DisasContext *ctx)
     default:
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
         break;
+    }
+#endif /* defined(CONFIG_USER_ONLY) */
+}
+
+/* tlbsx - tlbsx. */
+static void gen_tlbsx_476(DisasContext *ctx)
+{
+#if defined(CONFIG_USER_ONLY)
+    GEN_PRIV;
+#else
+    TCGv t0;
+
+    CHK_SV;
+    t0 = tcg_temp_new();
+    gen_addr_reg_index(ctx, t0);
+    gen_helper_476_tlbsx(cpu_gpr[rD(ctx->opcode)], cpu_env, t0);
+    tcg_temp_free(t0);
+    if (Rc(ctx->opcode)) {
+        TCGLabel *l1 = gen_new_label();
+        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
+        tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_gpr[rD(ctx->opcode)], -1, l1);
+        tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], 0x02);
+        gen_set_label(l1);
     }
 #endif /* defined(CONFIG_USER_ONLY) */
 }
@@ -7828,8 +7877,8 @@ GEN_HANDLER2_E(tlbivax_booke206, "tlbivax", 0x1F, 0x12, 0x18, 0x00000001,
                PPC_NONE, PPC2_BOOKE206),
 GEN_HANDLER2_E(tlbilx_booke206, "tlbilx", 0x1F, 0x12, 0x00, 0x03800001,
                PPC_NONE, PPC2_BOOKE206),
-GEN_HANDLER2_E(tlbre_440, "tlbre", 0x1F, 0x12, 0x1D, 0x00000001, PPC_NONE, PPC2_476_TLB),
-GEN_HANDLER2_E(tlbsx_440, "tlbsx", 0x1F, 0x12, 0x1C, 0x00000000, PPC_NONE, PPC2_476_TLB),
+GEN_HANDLER2_E(tlbre_476, "tlbre", 0x1F, 0x12, 0x1D, 0x00000001, PPC_NONE, PPC2_476_TLB),
+GEN_HANDLER2_E(tlbsx_476, "tlbsx", 0x1F, 0x12, 0x1C, 0x00000000, PPC_NONE, PPC2_476_TLB),
 GEN_HANDLER2_E(tlbwe_476, "tlbwe", 0x1F, 0x12, 0x1E, 0x00000001, PPC_NONE, PPC2_476_TLB),
 GEN_HANDLER2_E(msgsnd, "msgsnd", 0x1F, 0x0E, 0x06, 0x03ff0001,
                PPC_NONE, PPC2_PRCNTL),

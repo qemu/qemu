@@ -1084,7 +1084,16 @@ static inline int calc_476_tlb_entry(uint32_t index, uint32_t way, int cnt)
     return index + way * cnt;
 }
 
-static uint32_t calc_476_page_size(uint32_t size) {
+/* Unlinearise internal tlb index */
+static inline target_ulong get_476_tlb_index_and_way(target_ulong entry, uint32_t cnt,
+                                                     uint32_t *way)
+{
+    *way = entry / cnt;
+    return entry % cnt;
+}
+
+static uint32_t calc_476_tlb_to_page_size(uint32_t size)
+{
     switch (size) {
     case 0x00: return   4 * KiB;
     case 0x01: return  16 * KiB;
@@ -1093,6 +1102,20 @@ static uint32_t calc_476_page_size(uint32_t size) {
     case 0x0f: return  16 * MiB;
     case 0x1f: return 256 * MiB;
     case 0x3f: return   1 * GiB;
+    default: return 0;
+    }
+}
+
+static uint32_t calc_476_page_size_to_tlb(uint32_t size)
+{
+    switch (size) {
+    case   4 * KiB: return 0x00;
+    case  16 * KiB: return 0x01;
+    case  64 * KiB: return 0x03;
+    case   1 * MiB: return 0x07;
+    case  16 * MiB: return 0x0f;
+    case 256 * MiB: return 0x1f;
+    case   1 * GiB: return 0x3f;
     default: return 0;
     }
 }
@@ -1155,7 +1178,7 @@ void helper_476_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
 
         if (valid) {
             tlb->EPN = addr;
-            tlb->size = calc_476_page_size(
+            tlb->size = calc_476_tlb_to_page_size(
                 (value & PPC476_TLB_PAGE_SIZE_MASK) >> PPC476_TLB_PAGE_SIZE_SHIFT);
             tlb->PID = tid;
             // make it BOLTED if it should be
@@ -1234,6 +1257,79 @@ void helper_476_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
         tlb_flush(env_cpu(env));
         break;
     }
+}
+
+target_ulong helper_476_tlbre(CPUPPCState *env, uint32_t word,
+                              target_ulong entry)
+{
+    ppcemb_tlb_t *tlb;
+    uint32_t way, index;
+    target_ulong ret;
+
+    way = (entry & PPC476_TLB_MANUAL_WAY_MASK) >> PPC476_TLB_MANUAL_WAY_SHIFT;
+    index = (entry & 0xff0000) >> 16;
+
+    tlb = &env->tlb.tlbe[calc_476_tlb_entry(index, way, env->tlb_per_way)];
+    switch (word) {
+    default:
+        /* Just here to please gcc */
+    case 0:
+        ret = tlb->EPN;
+        if (tlb->prot & PAGE_VALID) {
+            ret |= PPC476_TLB_VALID_BIT;
+        }
+        if (tlb->attr & 0x1) {
+            ret |= PPC476_TLB_TS_BIT;
+        }
+        ret |= calc_476_page_size_to_tlb(tlb->size) << PPC476_TLB_PAGE_SIZE_SHIFT;
+        if (tlb->attr & PPC476_TLB_BOLTED_ENTRY) {
+            ret |= 1 << 3;
+        }
+
+        env->spr[SPR_440_MMUCR] &= ~PPC476_MMUCR_STID_MASK;
+        env->spr[SPR_440_MMUCR] |= tlb->PID;
+        break;
+    case 1:
+        ret = tlb->RPN & PPC476_TLB_RPN_MASK;
+        ret |= (tlb->RPN >> PPC476_TLB_ERPN_SHIFT) & PPC476_TLB_ERPN_MASK;
+        break;
+    case 2:
+        ret = tlb->attr & PPC476_TLB_ACCESS_PARAMS;
+        if (tlb->prot & (PAGE_READ << 4)) {
+            ret |= 0x1;
+        }
+        if (tlb->prot & (PAGE_WRITE << 4)) {
+            ret |= 0x2;
+        }
+        if (tlb->prot & (PAGE_EXEC << 4)) {
+            ret |= 0x4;
+        }
+        if (tlb->prot & PAGE_READ) {
+            ret |= 0x8;
+        }
+        if (tlb->prot & PAGE_WRITE) {
+            ret |= 0x10;
+        }
+        if (tlb->prot & PAGE_EXEC) {
+            ret |= 0x20;
+        }
+        break;
+    }
+    return ret;
+}
+
+target_ulong helper_476_tlbsx(CPUPPCState *env, target_ulong address)
+{
+    target_ulong entry = ppcemb_tlb_search(env, address,
+        env->spr[SPR_440_MMUCR] & PPC476_MMUCR_STID_MASK);
+
+    uint32_t way;
+    target_ulong result = get_476_tlb_index_and_way(entry, env->tlb_per_way, &way);
+
+    result <<= 16;
+    result |= way << 29;
+
+    return result;
 }
 
 void helper_476_shadow_tlb_flush(CPUPPCState *env)
