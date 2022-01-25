@@ -1033,21 +1033,21 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
         ohci->async_td = 0;
         ohci->async_complete = false;
     } else {
-        if (ohci->async_td) {
-            /* ??? The hardware should allow one active packet per
-               endpoint.  We only allow one active packet per controller.
-               This should be sufficient as long as devices respond in a
-               timely manner.
-            */
-            trace_usb_ohci_td_too_many_pending();
-            return 1;
-        }
         dev = ohci_find_device(ohci, OHCI_BM(ed->flags, ED_FA));
         if (dev == NULL) {
             trace_usb_ohci_td_dev_error();
             return 1;
         }
         ep = usb_ep_get(dev, pid, OHCI_BM(ed->flags, ED_EN));
+        if (ohci->async_td) {
+            /* ??? The hardware should allow one active packet per
+               endpoint.  We only allow one active packet per controller.
+               This should be sufficient as long as devices respond in a
+               timely manner.
+            */
+            trace_usb_ohci_td_too_many_pending(ep->nr);
+            return 1;
+        }
         usb_packet_setup(&ohci->usb_packet, pid, ep, 0, addr, !flag_r,
                          OHCI_BM(td.flags, TD_DI) == 0);
         usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, pktlen);
