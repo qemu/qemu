@@ -111,7 +111,7 @@ static void help(void)
 "                         export the specified block node as a\n"
 "                         vhost-user-blk device over UNIX domain socket\n"
 "  --export [type=]vhost-user-blk,id=<id>,node-name=<node-name>,\n"
-"           fd,addr.str=<fd>[,writable=on|off]\n"
+"           addr.type=fd,addr.str=<fd>[,writable=on|off]\n"
 "           [,logical-block-size=<block-size>][,num-queues=<num-queues>]\n"
 "                         export the specified block node as a\n"
 "                         vhost-user-blk device over file descriptor\n"
