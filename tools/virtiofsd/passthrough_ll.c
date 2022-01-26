@@ -54,6 +54,7 @@
 #include <sys/wait.h>
 #include <sys/xattr.h>
 #include <syslog.h>
+#include <grp.h>
 
 #include "qemu/cutils.h"
 #include "passthrough_helpers.h"
@@ -1160,6 +1161,30 @@ static void lo_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
 #else
 #define OURSYS_setresuid SYS_setresuid
 #endif
+
+static void drop_supplementary_groups(void)
+{
+    int ret;
+
+    ret = getgroups(0, NULL);
+    if (ret == -1) {
+        fuse_log(FUSE_LOG_ERR, "getgroups() failed with error=%d:%s\n",
+                 errno, strerror(errno));
+        exit(1);
+    }
+
+    if (!ret) {
+        return;
+    }
+
+    /* Drop all supplementary groups. We should not need it */
+    ret = setgroups(0, NULL);
+    if (ret == -1) {
+        fuse_log(FUSE_LOG_ERR, "setgroups() failed with error=%d:%s\n",
+                 errno, strerror(errno));
+        exit(1);
+    }
+}
 
 /*
  * Change to uid/gid of caller so that file is created with
@@ -3925,6 +3950,8 @@ int main(int argc, char *argv[])
     umask(0);
 
     qemu_init_exec_dir(argv[0]);
+
+    drop_supplementary_groups();
 
     pthread_mutex_init(&lo.mutex, NULL);
     lo.inodes = g_hash_table_new(lo_key_hash, lo_key_equal);
