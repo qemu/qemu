@@ -272,9 +272,6 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 #if defined(__NR_futex_time64)
 # define __NR_sys_futex_time64 __NR_futex_time64
 #endif
-#define __NR_sys_inotify_init __NR_inotify_init
-#define __NR_sys_inotify_add_watch __NR_inotify_add_watch
-#define __NR_sys_inotify_rm_watch __NR_inotify_rm_watch
 #define __NR_sys_statx __NR_statx
 
 #if defined(__alpha__) || defined(__x86_64__) || defined(__s390x__)
@@ -477,33 +474,6 @@ static int sys_renameat2(int oldfd, const char *old,
 
 #ifdef CONFIG_INOTIFY
 #include <sys/inotify.h>
-
-#if defined(TARGET_NR_inotify_init) && defined(__NR_inotify_init)
-static int sys_inotify_init(void)
-{
-  return (inotify_init());
-}
-#endif
-#if defined(TARGET_NR_inotify_add_watch) && defined(__NR_inotify_add_watch)
-static int sys_inotify_add_watch(int fd,const char *pathname, int32_t mask)
-{
-  return (inotify_add_watch(fd, pathname, mask));
-}
-#endif
-#if defined(TARGET_NR_inotify_rm_watch) && defined(__NR_inotify_rm_watch)
-static int sys_inotify_rm_watch(int fd, int32_t wd)
-{
-  return (inotify_rm_watch(fd, wd));
-}
-#endif
-#ifdef CONFIG_INOTIFY1
-#if defined(TARGET_NR_inotify_init1) && defined(__NR_inotify_init1)
-static int sys_inotify_init1(int flags)
-{
-  return (inotify_init1(flags));
-}
-#endif
-#endif
 #else
 /* Userspace can usually survive runtime without inotify */
 #undef TARGET_NR_inotify_init
@@ -12341,35 +12311,35 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_futex_time64:
         return do_futex_time64(cpu, arg1, arg2, arg3, arg4, arg5, arg6);
 #endif
-#if defined(TARGET_NR_inotify_init) && defined(__NR_inotify_init)
+#ifdef CONFIG_INOTIFY
+#if defined(TARGET_NR_inotify_init)
     case TARGET_NR_inotify_init:
-        ret = get_errno(sys_inotify_init());
+        ret = get_errno(inotify_init());
         if (ret >= 0) {
             fd_trans_register(ret, &target_inotify_trans);
         }
         return ret;
 #endif
-#ifdef CONFIG_INOTIFY1
-#if defined(TARGET_NR_inotify_init1) && defined(__NR_inotify_init1)
+#if defined(TARGET_NR_inotify_init1) && defined(CONFIG_INOTIFY1)
     case TARGET_NR_inotify_init1:
-        ret = get_errno(sys_inotify_init1(target_to_host_bitmask(arg1,
+        ret = get_errno(inotify_init1(target_to_host_bitmask(arg1,
                                           fcntl_flags_tbl)));
         if (ret >= 0) {
             fd_trans_register(ret, &target_inotify_trans);
         }
         return ret;
 #endif
-#endif
-#if defined(TARGET_NR_inotify_add_watch) && defined(__NR_inotify_add_watch)
+#if defined(TARGET_NR_inotify_add_watch)
     case TARGET_NR_inotify_add_watch:
         p = lock_user_string(arg2);
-        ret = get_errno(sys_inotify_add_watch(arg1, path(p), arg3));
+        ret = get_errno(inotify_add_watch(arg1, path(p), arg3));
         unlock_user(p, arg2, 0);
         return ret;
 #endif
-#if defined(TARGET_NR_inotify_rm_watch) && defined(__NR_inotify_rm_watch)
+#if defined(TARGET_NR_inotify_rm_watch)
     case TARGET_NR_inotify_rm_watch:
-        return get_errno(sys_inotify_rm_watch(arg1, arg2));
+        return get_errno(inotify_rm_watch(arg1, arg2));
+#endif
 #endif
 
 #if defined(TARGET_NR_mq_open) && defined(__NR_mq_open)

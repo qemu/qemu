@@ -1644,9 +1644,8 @@ TargetFdTrans target_eventfd_trans = {
     .target_to_host_data = swap_data_eventfd,
 };
 
-#if (defined(TARGET_NR_inotify_init) && defined(__NR_inotify_init)) || \
-    (defined(CONFIG_INOTIFY1) && defined(TARGET_NR_inotify_init1) && \
-     defined(__NR_inotify_init1))
+#if defined(CONFIG_INOTIFY) && (defined(TARGET_NR_inotify_init) || \
+        defined(TARGET_NR_inotify_init1))
 static abi_long host_to_target_data_inotify(void *buf, size_t len)
 {
     struct inotify_event *ev;
