@@ -12,7 +12,6 @@
 #include "qemu/main-loop.h"
 #include "sysemu/replay.h"
 #include "migration/vmstate.h"
-#include "sysemu/cpu-timers.h"
 
 #include "ptimer-test.h"
 
