@@ -61,7 +61,6 @@
 
 #include "exec/memory-internal.h"
 #include "exec/ram_addr.h"
-#include "exec/log.h"
 
 #include "qemu/pmem.h"
 
