@@ -15,6 +15,13 @@ qga_qapi_outputs = [
   'qga-qapi-visit.h',
 ]
 
+# Problem: to generate trace events, we'd have to add the .trace-events
+# file to qapi_trace_events like we do in qapi/meson.build.  Since
+# qapi_trace_events is used by trace/meson.build, we'd have to move
+# subdir('qga') above subdir('trace') in the top-level meson.build.
+# Can't, because it would break the dependency of qga on qemuutil (which
+# depends on trace_ss).  Not worth solving now; simply suppress trace
+# event generation instead.
 qga_qapi_files = custom_target('QGA QAPI files',
                                output: qga_qapi_outputs,
                                input: 'qapi-schema.json',
