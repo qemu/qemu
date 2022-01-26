@@ -76,10 +76,10 @@ def main() -> int:
                         dest='unmask',
                         help="expose non-ABI names in introspection")
 
-    # Option --gen-trace exists so we can avoid solving build system
+    # Option --suppress-tracing exists so we can avoid solving build system
     # problems.  TODO Drop it when we no longer need it.
-    parser.add_argument('--gen-trace', action='store_true',
-                        help="add trace events to qmp marshals")
+    parser.add_argument('--suppress-tracing', action='store_true',
+                        help="suppress adding trace events to qmp marshals")
 
     parser.add_argument('schema', action='store')
     args = parser.parse_args()
@@ -96,7 +96,7 @@ def main() -> int:
                  prefix=args.prefix,
                  unmask=args.unmask,
                  builtins=args.builtins,
-                 gen_tracing=args.gen_trace)
+                 gen_tracing=not args.suppress_tracing)
     except QAPIError as err:
         print(f"{sys.argv[0]}: {str(err)}", file=sys.stderr)
         return 1
