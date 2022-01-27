@@ -37,6 +37,7 @@ static void mcimx7d_sabre_init(MachineState *machine)
         .board_id = -1,
         .ram_size = machine->ram_size,
         .nb_cpus = machine->smp.cpus,
+        .psci_conduit = QEMU_PSCI_CONDUIT_SMC,
     };
 
     s = FSL_IMX7(object_new(TYPE_FSL_IMX7));

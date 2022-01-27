@@ -159,9 +159,6 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < smp_cpus; i++) {
         o = OBJECT(&s->cpu[i]);
 
-        object_property_set_int(o, "psci-conduit", QEMU_PSCI_CONDUIT_SMC,
-                                &error_abort);
-
         /* On uniprocessor, the CBAR is set to 0 */
         if (smp_cpus > 1) {
             object_property_set_int(o, "reset-cbar", FSL_IMX7_A7MPCORE_ADDR,
@@ -169,7 +166,10 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
         }
 
         if (i) {
-            /* Secondary CPUs start in PSCI powered-down state */
+            /*
+             * Secondary CPUs start in powered-down state (and can be
+             * powered up via the SRC system reset controller)
+             */
             object_property_set_bool(o, "start-powered-off", true,
                                      &error_abort);
         }
