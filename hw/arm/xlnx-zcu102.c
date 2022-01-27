@@ -236,6 +236,7 @@ static void xlnx_zcu102_init(MachineState *machine)
     s->binfo.ram_size = ram_size;
     s->binfo.loader_start = 0;
     s->binfo.modify_dtb = zcu102_modify_dtb;
+    s->binfo.psci_conduit = QEMU_PSCI_CONDUIT_SMC;
     arm_load_kernel(s->soc.boot_cpu_ptr, machine, &s->binfo);
 }
 
