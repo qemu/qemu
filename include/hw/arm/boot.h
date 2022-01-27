@@ -70,6 +70,9 @@ struct arm_boot_info {
      * boot loader/boot ROM code, and secondary_cpu_reset_hook() should
      * perform any necessary CPU reset handling and set the PC for the
      * secondary CPUs to point at this boot blob.
+     *
+     * These hooks won't be called if secondary CPUs are booting via
+     * emulated PSCI (see psci_conduit below).
      */
     void (*write_secondary_boot)(ARMCPU *cpu,
                                  const struct arm_boot_info *info);
