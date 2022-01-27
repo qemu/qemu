@@ -478,12 +478,13 @@ static void fdt_add_psci_node(void *fdt)
     }
 
     /*
-     * If /psci node is present in provided DTB, assume that no fixup
-     * is necessary and all PSCI configuration should be taken as-is
+     * A pre-existing /psci node might specify function ID values
+     * that don't match QEMU's PSCI implementation. Delete the whole
+     * node and put our own in instead.
      */
     rc = fdt_path_offset(fdt, "/psci");
     if (rc >= 0) {
-        return;
+        qemu_fdt_nop_node(fdt, "/psci");
     }
 
     qemu_fdt_add_subnode(fdt, "/psci");
