@@ -1299,6 +1299,8 @@ void arm_load_kernel(ARMCPU *cpu, MachineState *ms, struct arm_boot_info *info)
 {
     CPUState *cs;
     AddressSpace *as = arm_boot_address_space(cpu, info);
+    int boot_el;
+    CPUARMState *env = &cpu->env;
 
     /*
      * CPU objects (unlike devices) are not automatically reset on system
@@ -1329,6 +1331,54 @@ void arm_load_kernel(ARMCPU *cpu, MachineState *ms, struct arm_boot_info *info)
         arm_setup_direct_kernel_boot(cpu, info);
     }
 
+    /*
+     * Disable the PSCI conduit if it is set up to target the same
+     * or a lower EL than the one we're going to start the guest code in.
+     * This logic needs to agree with the code in do_cpu_reset() which
+     * decides whether we're going to boot the guest in the highest
+     * supported exception level or in a lower one.
+     */
+
+    /* Boot into highest supported EL ... */
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        boot_el = 3;
+    } else if (arm_feature(env, ARM_FEATURE_EL2)) {
+        boot_el = 2;
+    } else {
+        boot_el = 1;
+    }
+    /* ...except that if we're booting Linux we adjust the EL we boot into */
+    if (info->is_linux && !info->secure_boot) {
+        boot_el = arm_feature(env, ARM_FEATURE_EL2) ? 2 : 1;
+    }
+
+    if ((info->psci_conduit == QEMU_PSCI_CONDUIT_HVC && boot_el >= 2) ||
+        (info->psci_conduit == QEMU_PSCI_CONDUIT_SMC && boot_el == 3)) {
+        info->psci_conduit = QEMU_PSCI_CONDUIT_DISABLED;
+    }
+
+    if (info->psci_conduit != QEMU_PSCI_CONDUIT_DISABLED) {
+        for (cs = first_cpu; cs; cs = CPU_NEXT(cs)) {
+            Object *cpuobj = OBJECT(cs);
+
+            object_property_set_int(cpuobj, "psci-conduit", info->psci_conduit,
+                                    &error_abort);
+            /*
+             * Secondary CPUs start in PSCI powered-down state. Like the
+             * code in do_cpu_reset(), we assume first_cpu is the primary
+             * CPU.
+             */
+            if (cs != first_cpu) {
+                object_property_set_bool(cpuobj, "start-powered-off", true,
+                                         &error_abort);
+            }
+        }
+    }
+
+    /*
+     * arm_load_dtb() may add a PSCI node so it must be called after we have
+     * decided whether to enable PSCI and set the psci-conduit CPU properties.
+     */
     if (!info->skip_dtb_autoload && have_dtb(info)) {
         if (arm_load_dtb(info->dtb_start, info, info->dtb_limit, as, ms) < 0) {
             exit(1);

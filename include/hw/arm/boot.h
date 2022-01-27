@@ -86,6 +86,16 @@ struct arm_boot_info {
      * the user it should implement this hook.
      */
     void (*modify_dtb)(const struct arm_boot_info *info, void *fdt);
+    /*
+     * If a board wants to use the QEMU emulated-firmware PSCI support,
+     * it should set this to QEMU_PSCI_CONDUIT_HVC or QEMU_PSCI_CONDUIT_SMC
+     * as appropriate. arm_load_kernel() will set the psci-conduit and
+     * start-powered-off properties on the CPUs accordingly.
+     * Note that if the guest image is started at the same exception level
+     * as the conduit specifies calls should go to (eg guest firmware booted
+     * to EL3) then PSCI will not be enabled.
+     */
+    int psci_conduit;
     /* Used internally by arm_boot.c */
     int is_linux;
     hwaddr initrd_start;
