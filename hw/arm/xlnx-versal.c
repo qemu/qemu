@@ -40,10 +40,8 @@ static void versal_create_apu_cpus(Versal *s)
         object_initialize_child(OBJECT(s), "apu-cpu[*]", &s->fpd.apu.cpu[i],
                                 XLNX_VERSAL_ACPU_TYPE);
         obj = OBJECT(&s->fpd.apu.cpu[i]);
-        object_property_set_int(obj, "psci-conduit", s->cfg.psci_conduit,
-                                &error_abort);
         if (i) {
-            /* Secondary CPUs start in PSCI powered-down state */
+            /* Secondary CPUs start in powered-down state */
             object_property_set_bool(obj, "start-powered-off", true,
                                      &error_abort);
         }
@@ -667,7 +665,6 @@ static void versal_init(Object *obj)
 static Property versal_properties[] = {
     DEFINE_PROP_LINK("ddr", Versal, cfg.mr_ddr, TYPE_MEMORY_REGION,
                      MemoryRegion *),
-    DEFINE_PROP_UINT32("psci-conduit", Versal, cfg.psci_conduit, 0),
     DEFINE_PROP_END_OF_LIST()
 };
 

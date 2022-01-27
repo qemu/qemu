@@ -103,7 +103,6 @@ struct Versal {
 
     struct {
         MemoryRegion *mr_ddr;
-        uint32_t psci_conduit;
     } cfg;
 };
 
