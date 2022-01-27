@@ -192,6 +192,11 @@ class QAPIGenH(QAPIGenC):
         return guardend(self.fname)
 
 
+class QAPIGenTrace(QAPIGen):
+    def _top(self) -> str:
+        return super()._top() + '# AUTOMATICALLY GENERATED, DO NOT MODIFY\n\n'
+
+
 @contextmanager
 def ifcontext(ifcond: QAPISchemaIfCond, *args: QAPIGenCCode) -> Iterator[None]:
     """
@@ -244,15 +249,18 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
                  what: str,
                  user_blurb: str,
                  builtin_blurb: Optional[str],
-                 pydoc: str):
+                 pydoc: str,
+                 gen_tracing: bool = False):
         self._prefix = prefix
         self._what = what
         self._user_blurb = user_blurb
         self._builtin_blurb = builtin_blurb
         self._pydoc = pydoc
         self._current_module: Optional[str] = None
-        self._module: Dict[str, Tuple[QAPIGenC, QAPIGenH]] = {}
+        self._module: Dict[str, Tuple[QAPIGenC, QAPIGenH,
+                                      Optional[QAPIGenTrace]]] = {}
         self._main_module: Optional[str] = None
+        self._gen_tracing = gen_tracing
 
     @property
     def _genc(self) -> QAPIGenC:
@@ -263,6 +271,14 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
     def _genh(self) -> QAPIGenH:
         assert self._current_module is not None
         return self._module[self._current_module][1]
+
+    @property
+    def _gen_trace_events(self) -> QAPIGenTrace:
+        assert self._gen_tracing
+        assert self._current_module is not None
+        gent = self._module[self._current_module][2]
+        assert gent is not None
+        return gent
 
     @staticmethod
     def _module_dirname(name: str) -> str:
@@ -293,7 +309,12 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
         basename = self._module_filename(self._what, name)
         genc = QAPIGenC(basename + '.c', blurb, self._pydoc)
         genh = QAPIGenH(basename + '.h', blurb, self._pydoc)
-        self._module[name] = (genc, genh)
+
+        gent: Optional[QAPIGenTrace] = None
+        if self._gen_tracing:
+            gent = QAPIGenTrace(basename + '.trace-events')
+
+        self._module[name] = (genc, genh, gent)
         self._current_module = name
 
     @contextmanager
@@ -304,11 +325,13 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
         self._current_module = old_module
 
     def write(self, output_dir: str, opt_builtins: bool = False) -> None:
-        for name, (genc, genh) in self._module.items():
+        for name, (genc, genh, gent) in self._module.items():
             if QAPISchemaModule.is_builtin_module(name) and not opt_builtins:
                 continue
             genc.write(output_dir)
             genh.write(output_dir)
+            if gent is not None:
+                gent.write(output_dir)
 
     def _begin_builtin_module(self) -> None:
         pass
