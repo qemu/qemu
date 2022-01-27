@@ -48,12 +48,6 @@
 
 /* Board init.  */
 
-static void hb_write_board_setup(ARMCPU *cpu,
-                                 const struct arm_boot_info *info)
-{
-    arm_write_secure_board_setup_dummy_smc(cpu, info, MVBAR_ADDR);
-}
-
 static void hb_write_secondary(ARMCPU *cpu, const struct arm_boot_info *info)
 {
     int n;
@@ -389,8 +383,6 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     highbank_binfo.write_secondary_boot = hb_write_secondary;
     highbank_binfo.secondary_cpu_reset_hook = hb_reset_secondary;
     highbank_binfo.board_setup_addr = BOARD_SETUP_ADDR;
-    highbank_binfo.write_board_setup = hb_write_board_setup;
-    highbank_binfo.secure_board_setup = true;
     highbank_binfo.psci_conduit = QEMU_PSCI_CONDUIT_SMC;
 
     arm_load_kernel(ARM_CPU(first_cpu), machine, &highbank_binfo);
