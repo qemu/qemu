@@ -324,7 +324,6 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
      * clear that the value is meaningless.
      */
     highbank_binfo.board_id = -1;
-    highbank_binfo.nb_cpus = smp_cpus;
     highbank_binfo.loader_start = 0;
     highbank_binfo.board_setup_addr = BOARD_SETUP_ADDR;
     highbank_binfo.psci_conduit = QEMU_PSCI_CONDUIT_SMC;

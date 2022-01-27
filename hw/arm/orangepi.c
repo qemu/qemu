@@ -25,9 +25,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/arm/allwinner-h3.h"
 
-static struct arm_boot_info orangepi_binfo = {
-    .nb_cpus = AW_H3_NUM_CPUS,
-};
+static struct arm_boot_info orangepi_binfo;
 
 static void orangepi_init(MachineState *machine)
 {

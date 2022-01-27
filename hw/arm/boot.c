@@ -1030,9 +1030,6 @@ static void arm_setup_direct_kernel_boot(ARMCPU *cpu,
         elf_machine = EM_ARM;
     }
 
-    if (info->nb_cpus == 0)
-        info->nb_cpus = 1;
-
     /* Assume that raw images are linux kernels, and ELF images are not.  */
     kernel_size = arm_load_elf(info, &elf_entry, &image_low_addr,
                                &image_high_addr, elf_machine, as);
@@ -1291,6 +1288,7 @@ void arm_load_kernel(ARMCPU *cpu, MachineState *ms, struct arm_boot_info *info)
     AddressSpace *as = arm_boot_address_space(cpu, info);
     int boot_el;
     CPUARMState *env = &cpu->env;
+    int nb_cpus = 0;
 
     /*
      * CPU objects (unlike devices) are not automatically reset on system
@@ -1300,6 +1298,7 @@ void arm_load_kernel(ARMCPU *cpu, MachineState *ms, struct arm_boot_info *info)
      */
     for (cs = first_cpu; cs; cs = CPU_NEXT(cs)) {
         qemu_register_reset(do_cpu_reset, ARM_CPU(cs));
+        nb_cpus++;
     }
 
     /*
@@ -1376,7 +1375,7 @@ void arm_load_kernel(ARMCPU *cpu, MachineState *ms, struct arm_boot_info *info)
     }
 
     if (info->psci_conduit == QEMU_PSCI_CONDUIT_DISABLED &&
-        info->is_linux && info->nb_cpus > 1) {
+        info->is_linux && nb_cpus > 1) {
         /*
          * We're booting Linux but not using PSCI, so for SMP we need
          * to write a custom secondary CPU boot loader stub, and arrange

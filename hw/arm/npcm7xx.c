@@ -355,10 +355,7 @@ static struct arm_boot_info npcm7xx_binfo = {
 
 void npcm7xx_load_kernel(MachineState *machine, NPCM7xxState *soc)
 {
-    NPCM7xxClass *sc = NPCM7XX_GET_CLASS(soc);
-
     npcm7xx_binfo.ram_size = machine->ram_size;
-    npcm7xx_binfo.nb_cpus = sc->num_cpus;
 
     arm_load_kernel(&soc->cpu[0], machine, &npcm7xx_binfo);
 }

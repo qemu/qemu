@@ -56,7 +56,6 @@ struct arm_boot_info {
     hwaddr smp_loader_start;
     hwaddr smp_bootreg_addr;
     hwaddr gic_cpu_if_addr;
-    int nb_cpus;
     int board_id;
     /* ARM machines that support the ARM Security Extensions use this field to
      * control whether Linux is booted as secure(true) or non-secure(false).
