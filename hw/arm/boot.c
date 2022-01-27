@@ -1339,6 +1339,16 @@ void arm_load_kernel(ARMCPU *cpu, MachineState *ms, struct arm_boot_info *info)
      * supported exception level or in a lower one.
      */
 
+    /*
+     * If PSCI is enabled, then SMC calls all go to the PSCI handler and
+     * are never emulated to trap into guest code. It therefore does not
+     * make sense for the board to have a setup code fragment that runs
+     * in Secure, because this will probably need to itself issue an SMC of some
+     * kind as part of its operation.
+     */
+    assert(info->psci_conduit == QEMU_PSCI_CONDUIT_DISABLED ||
+           !info->secure_board_setup);
+
     /* Boot into highest supported EL ... */
     if (arm_feature(env, ARM_FEATURE_EL3)) {
         boot_el = 3;
