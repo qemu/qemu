@@ -37,6 +37,11 @@ static void spapr_reset_vcpu(PowerPCCPU *cpu)
 
     cpu_reset(cs);
 
+    /*
+     * "PowerPC Processor binding to IEEE 1275" defines the initial MSR state
+     * as 32bit (MSR_SF=0) in "8.2.1. Initial Register Values".
+     */
+    env->msr &= ~(1ULL << MSR_SF);
     env->spr[SPR_HIOR] = 0;
 
     lpcr = env->spr[SPR_LPCR];
