@@ -1367,22 +1367,34 @@ static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
             case -2:
                 /* Access rights violation */
                 cs->exception_index = POWERPC_EXCP_ISI;
-                env->error_code = 0x08000000;
+                if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
+                    (env->mmu_model == POWERPC_MMU_BOOKE206)) {
+                    env->error_code = 0;
+                } else {
+                    env->error_code = 0x08000000;
+                }
                 break;
             case -3:
                 /* No execute protection violation */
                 if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
                     (env->mmu_model == POWERPC_MMU_BOOKE206)) {
                     env->spr[SPR_BOOKE_ESR] = 0x00000000;
+                    env->error_code = 0;
+                } else {
+                    env->error_code = 0x10000000;
                 }
                 cs->exception_index = POWERPC_EXCP_ISI;
-                env->error_code = 0x10000000;
                 break;
             case -4:
                 /* Direct store exception */
                 /* No code fetch is allowed in direct-store areas */
                 cs->exception_index = POWERPC_EXCP_ISI;
-                env->error_code = 0x10000000;
+                if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
+                    (env->mmu_model == POWERPC_MMU_BOOKE206)) {
+                    env->error_code = 0;
+                } else {
+                    env->error_code = 0x10000000;
+                }
                 break;
             }
         } else {
