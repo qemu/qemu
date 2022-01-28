@@ -591,8 +591,7 @@ void gicv3_redist_update_lpi_only(GICv3CPUState *cs)
     idbits = MIN(FIELD_EX64(cs->gicr_propbaser, GICR_PROPBASER, IDBITS),
                  GICD_TYPER_IDBITS);
 
-    if (!(cs->gicr_ctlr & GICR_CTLR_ENABLE_LPIS) || !cs->gicr_propbaser ||
-        !cs->gicr_pendbaser) {
+    if (!(cs->gicr_ctlr & GICR_CTLR_ENABLE_LPIS)) {
         return;
     }
 
@@ -673,14 +672,120 @@ void gicv3_redist_process_lpi(GICv3CPUState *cs, int irq, int level)
     idbits = MIN(FIELD_EX64(cs->gicr_propbaser, GICR_PROPBASER, IDBITS),
                  GICD_TYPER_IDBITS);
 
-    if (!(cs->gicr_ctlr & GICR_CTLR_ENABLE_LPIS) || !cs->gicr_propbaser ||
-         !cs->gicr_pendbaser || (irq > (1ULL << (idbits + 1)) - 1) ||
-         irq < GICV3_LPI_INTID_START) {
+    if (!(cs->gicr_ctlr & GICR_CTLR_ENABLE_LPIS) ||
+        (irq > (1ULL << (idbits + 1)) - 1) || irq < GICV3_LPI_INTID_START) {
         return;
     }
 
     /* set/clear the pending bit for this irq */
     gicv3_redist_lpi_pending(cs, irq, level);
+}
+
+void gicv3_redist_mov_lpi(GICv3CPUState *src, GICv3CPUState *dest, int irq)
+{
+    /*
+     * Move the specified LPI's pending state from the source redistributor
+     * to the destination.
+     *
+     * If LPIs are disabled on dest this is CONSTRAINED UNPREDICTABLE:
+     * we choose to NOP. If LPIs are disabled on source there's nothing
+     * to be transferred anyway.
+     */
+    AddressSpace *as = &src->gic->dma_as;
+    uint64_t idbits;
+    uint32_t pendt_size;
+    uint64_t src_baddr;
+    uint8_t src_pend;
+
+    if (!(src->gicr_ctlr & GICR_CTLR_ENABLE_LPIS) ||
+        !(dest->gicr_ctlr & GICR_CTLR_ENABLE_LPIS)) {
+        return;
+    }
+
+    idbits = MIN(FIELD_EX64(src->gicr_propbaser, GICR_PROPBASER, IDBITS),
+                 GICD_TYPER_IDBITS);
+    idbits = MIN(FIELD_EX64(dest->gicr_propbaser, GICR_PROPBASER, IDBITS),
+                 idbits);
+
+    pendt_size = 1ULL << (idbits + 1);
+    if ((irq / 8) >= pendt_size) {
+        return;
+    }
+
+    src_baddr = src->gicr_pendbaser & R_GICR_PENDBASER_PHYADDR_MASK;
+
+    address_space_read(as, src_baddr + (irq / 8),
+                       MEMTXATTRS_UNSPECIFIED, &src_pend, sizeof(src_pend));
+    if (!extract32(src_pend, irq % 8, 1)) {
+        /* Not pending on source, nothing to do */
+        return;
+    }
+    src_pend &= ~(1 << (irq % 8));
+    address_space_write(as, src_baddr + (irq / 8),
+                        MEMTXATTRS_UNSPECIFIED, &src_pend, sizeof(src_pend));
+    if (irq == src->hpplpi.irq) {
+        /*
+         * We just made this LPI not-pending so only need to update
+         * if it was previously the highest priority pending LPI
+         */
+        gicv3_redist_update_lpi(src);
+    }
+    /* Mark it pending on the destination */
+    gicv3_redist_lpi_pending(dest, irq, 1);
+}
+
+void gicv3_redist_movall_lpis(GICv3CPUState *src, GICv3CPUState *dest)
+{
+    /*
+     * We must move all pending LPIs from the source redistributor
+     * to the destination. That is, for every pending LPI X on
+     * src, we must set it not-pending on src and pending on dest.
+     * LPIs that are already pending on dest are not cleared.
+     *
+     * If LPIs are disabled on dest this is CONSTRAINED UNPREDICTABLE:
+     * we choose to NOP. If LPIs are disabled on source there's nothing
+     * to be transferred anyway.
+     */
+    AddressSpace *as = &src->gic->dma_as;
+    uint64_t idbits;
+    uint32_t pendt_size;
+    uint64_t src_baddr, dest_baddr;
+    int i;
+
+    if (!(src->gicr_ctlr & GICR_CTLR_ENABLE_LPIS) ||
+        !(dest->gicr_ctlr & GICR_CTLR_ENABLE_LPIS)) {
+        return;
+    }
+
+    idbits = MIN(FIELD_EX64(src->gicr_propbaser, GICR_PROPBASER, IDBITS),
+                 GICD_TYPER_IDBITS);
+    idbits = MIN(FIELD_EX64(dest->gicr_propbaser, GICR_PROPBASER, IDBITS),
+                 idbits);
+
+    pendt_size = 1ULL << (idbits + 1);
+    src_baddr = src->gicr_pendbaser & R_GICR_PENDBASER_PHYADDR_MASK;
+    dest_baddr = dest->gicr_pendbaser & R_GICR_PENDBASER_PHYADDR_MASK;
+
+    for (i = GICV3_LPI_INTID_START / 8; i < pendt_size / 8; i++) {
+        uint8_t src_pend, dest_pend;
+
+        address_space_read(as, src_baddr + i, MEMTXATTRS_UNSPECIFIED,
+                           &src_pend, sizeof(src_pend));
+        if (!src_pend) {
+            continue;
+        }
+        address_space_read(as, dest_baddr + i, MEMTXATTRS_UNSPECIFIED,
+                           &dest_pend, sizeof(dest_pend));
+        dest_pend |= src_pend;
+        src_pend = 0;
+        address_space_write(as, src_baddr + i, MEMTXATTRS_UNSPECIFIED,
+                            &src_pend, sizeof(src_pend));
+        address_space_write(as, dest_baddr + i, MEMTXATTRS_UNSPECIFIED,
+                            &dest_pend, sizeof(dest_pend));
+    }
+
+    gicv3_redist_update_lpi(src);
+    gicv3_redist_update_lpi(dest);
 }
 
 void gicv3_redist_set_irq(GICv3CPUState *cs, int irq, int level)

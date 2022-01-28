@@ -9,6 +9,22 @@
 #
 # This work is licensed under the terms of the GNU GPL version 2.
 # See the COPYING file in the top-level directory.
+#
+# The script will copy the headers into two target folders:
+#
+# - linux-headers/ for files that are required for compiling for a
+#   Linux host.  Generally we have these so we can use kernel structs
+#   and defines that are more recent than the headers that might be
+#   installed on the host system.  Usually this script can do simple
+#   file copies for these headers.
+#
+# - include/standard-headers/ for files that are used for guest
+#   device emulation and are required on all hosts.  For instance, we
+#   get our definitions of the virtio structures from the Linux
+#   kernel headers, but we need those definitions regardless of which
+#   host OS we are building for.  This script has to be careful to
+#   sanitize the headers to remove any use of Linux-specifics such as
+#   types like "__u64".  This work is done in the cp_portable function.
 
 tmpdir=$(mktemp -d)
 linux="$1"

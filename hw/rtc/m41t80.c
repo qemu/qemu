@@ -8,13 +8,13 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "qemu/bcd.h"
 #include "hw/i2c/i2c.h"
 #include "qom/object.h"
+#include "sysemu/rtc.h"
 
 #define TYPE_M41T80 "m41t80"
 OBJECT_DECLARE_SIMPLE_TYPE(M41t80State, M41T80)

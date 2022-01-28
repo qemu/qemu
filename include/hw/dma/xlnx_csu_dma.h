@@ -21,6 +21,11 @@
 #ifndef XLNX_CSU_DMA_H
 #define XLNX_CSU_DMA_H
 
+#include "hw/sysbus.h"
+#include "hw/register.h"
+#include "hw/ptimer.h"
+#include "hw/stream.h"
+
 #define TYPE_XLNX_CSU_DMA "xlnx.csu_dma"
 
 #define XLNX_CSU_DMA_R_MAX (0x2c / 4)
@@ -46,7 +51,22 @@ typedef struct XlnxCSUDMA {
     RegisterInfo regs_info[XLNX_CSU_DMA_R_MAX];
 } XlnxCSUDMA;
 
-#define XLNX_CSU_DMA(obj) \
-    OBJECT_CHECK(XlnxCSUDMA, (obj), TYPE_XLNX_CSU_DMA)
+OBJECT_DECLARE_TYPE(XlnxCSUDMA, XlnxCSUDMAClass, XLNX_CSU_DMA)
+
+struct XlnxCSUDMAClass {
+    SysBusDeviceClass parent_class;
+
+    /*
+     * read: Start a read transfer on a Xilinx CSU DMA engine
+     *
+     * @s: the Xilinx CSU DMA engine to start the transfer on
+     * @addr: the address to read
+     * @len: the number of bytes to read at 'addr'
+     *
+     * @return a MemTxResult indicating whether the operation succeeded ('len'
+     * bytes were read) or failed.
+     */
+    MemTxResult (*read)(XlnxCSUDMA *s, hwaddr addr, uint32_t len);
+};
 
 #endif

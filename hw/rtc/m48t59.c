@@ -24,12 +24,12 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/rtc/m48t59.h"
 #include "qemu/timer.h"
 #include "sysemu/runstate.h"
+#include "sysemu/rtc.h"
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
 #include "qapi/error.h"

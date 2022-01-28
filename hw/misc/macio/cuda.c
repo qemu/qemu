@@ -24,7 +24,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "hw/ppc/mac.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
@@ -34,6 +33,7 @@
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "sysemu/runstate.h"
+#include "sysemu/rtc.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"

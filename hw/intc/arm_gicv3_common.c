@@ -357,6 +357,11 @@ static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (s->lpi_enable) {
+        address_space_init(&s->dma_as, s->dma,
+                           "gicv3-its-sysmem");
+    }
+
     s->cpu = g_new0(GICv3CPUState, s->num_cpu);
 
     for (i = 0; i < s->num_cpu; i++) {
@@ -424,6 +429,10 @@ static void arm_gicv3_common_reset(DeviceState *dev)
 
         cs->level = 0;
         cs->gicr_ctlr = 0;
+        if (s->lpi_enable) {
+            /* Our implementation supports clearing GICR_CTLR.EnableLPIs */
+            cs->gicr_ctlr |= GICR_CTLR_CES;
+        }
         cs->gicr_statusr[GICV3_S] = 0;
         cs->gicr_statusr[GICV3_NS] = 0;
         cs->gicr_waker = GICR_WAKER_ProcessorSleep | GICR_WAKER_ChildrenAsleep;

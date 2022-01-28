@@ -26,7 +26,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/sysbus.h"
@@ -39,6 +38,7 @@
 
 #include "hw/arm/exynos4210.h"
 #include "qom/object.h"
+#include "sysemu/rtc.h"
 
 #define DEBUG_RTC 0
 

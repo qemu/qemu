@@ -110,6 +110,7 @@
 #define GICR_NSACR            (GICR_SGI_OFFSET + 0x0E00)
 
 #define GICR_CTLR_ENABLE_LPIS        (1U << 0)
+#define GICR_CTLR_CES                (1U << 1)
 #define GICR_CTLR_RWP                (1U << 3)
 #define GICR_CTLR_DPG0               (1U << 24)
 #define GICR_CTLR_DPG1NS             (1U << 25)
@@ -314,16 +315,18 @@ FIELD(GITS_TYPER, CIL, 36, 1)
 #define CMD_MASK                  0xff
 
 /* ITS Commands */
-#define GITS_CMD_CLEAR            0x04
-#define GITS_CMD_DISCARD          0x0F
+#define GITS_CMD_MOVI             0x01
 #define GITS_CMD_INT              0x03
-#define GITS_CMD_MAPC             0x09
+#define GITS_CMD_CLEAR            0x04
+#define GITS_CMD_SYNC             0x05
 #define GITS_CMD_MAPD             0x08
-#define GITS_CMD_MAPI             0x0B
+#define GITS_CMD_MAPC             0x09
 #define GITS_CMD_MAPTI            0x0A
+#define GITS_CMD_MAPI             0x0B
 #define GITS_CMD_INV              0x0C
 #define GITS_CMD_INVALL           0x0D
-#define GITS_CMD_SYNC             0x05
+#define GITS_CMD_MOVALL           0x0E
+#define GITS_CMD_DISCARD          0x0F
 
 /* MAPC command fields */
 #define ICID_LENGTH                  16
@@ -353,6 +356,15 @@ FIELD(MAPC, RDBASE, 16, 32)
 #define CMD_FIELD_VALID_MASK      (1ULL << VALID_SHIFT)
 #define L2_TABLE_VALID_MASK       CMD_FIELD_VALID_MASK
 #define TABLE_ENTRY_VALID_MASK    (1ULL << 0)
+
+/* MOVALL command fields */
+FIELD(MOVALL_2, RDBASE1, 16, 36)
+FIELD(MOVALL_3, RDBASE2, 16, 36)
+
+/* MOVI command fields */
+FIELD(MOVI_0, DEVICEID, 32, 32)
+FIELD(MOVI_1, EVENTID, 0, 32)
+FIELD(MOVI_2, ICID, 0, 16)
 
 /*
  * 12 bytes Interrupt translation Table Entry size
@@ -496,6 +508,27 @@ void gicv3_redist_update_lpi(GICv3CPUState *cs);
  * an incoming migration has loaded new state.
  */
 void gicv3_redist_update_lpi_only(GICv3CPUState *cs);
+/**
+ * gicv3_redist_mov_lpi:
+ * @src: source redistributor
+ * @dest: destination redistributor
+ * @irq: LPI to update
+ *
+ * Move the pending state of the specified LPI from @src to @dest,
+ * as required by the ITS MOVI command.
+ */
+void gicv3_redist_mov_lpi(GICv3CPUState *src, GICv3CPUState *dest, int irq);
+/**
+ * gicv3_redist_movall_lpis:
+ * @src: source redistributor
+ * @dest: destination redistributor
+ *
+ * Scan the LPI pending table for @src, and for each pending LPI there
+ * mark it as not-pending for @src and pending for @dest, as required
+ * by the ITS MOVALL command.
+ */
+void gicv3_redist_movall_lpis(GICv3CPUState *src, GICv3CPUState *dest);
+
 void gicv3_redist_send_sgi(GICv3CPUState *cs, int grp, int irq, bool ns);
 void gicv3_init_cpuif(GICv3State *s);
 

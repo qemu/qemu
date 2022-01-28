@@ -23,7 +23,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
@@ -33,6 +32,7 @@
 #include "qom/object.h"
 #include "sysemu/replay.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/rtc.h"
 
 static enum {
     RTC_BASE_UTC,
