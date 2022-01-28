@@ -201,7 +201,11 @@ void cpu_get_tb_cpu_state(CPUPPCState *env, target_ulong *pc,
 
 void cpu_interrupt_exittb(CPUState *cs)
 {
-    if (!kvm_enabled()) {
+    /*
+     * We don't need to worry about translation blocks
+     * when running with KVM.
+     */
+    if (kvm_enabled()) {
         return;
     }
 
