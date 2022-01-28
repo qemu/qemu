@@ -1,24 +1,25 @@
 #!/bin/sh
 
-# Honor the SPEED environment variable, just like we do it for the qtests.
-if [ "$SPEED" = "slow" ]; then
-    format_list="raw qcow2"
-    group=
-elif [ "$SPEED" = "thorough" ]; then
-    format_list="raw qcow2 qed vmdk vpc"
+if [ "$#" -eq 0 ]; then
+    echo "Usage: $0 fmt..." >&2
+    exit 99
+fi
+
+# Honor the SPEED environment variable, just like we do it for "meson test"
+format_list="$@"
+if [ "$SPEED" = "slow" ] || [ "$SPEED" = "thorough" ]; then
     group=
 else
-    format_list=qcow2
     group="-g auto"
 fi
 
-if [ "$#" -ne 0 ]; then
-    format_list="$@"
-fi
+skip() {
+    echo "1..0 #SKIP $*"
+    exit 0
+}
 
 if grep -q "CONFIG_GPROF=y" config-host.mak 2>/dev/null ; then
-    echo "GPROF is enabled ==> Not running the qemu-iotests."
-    exit 0
+    skip "GPROF is enabled ==> Not running the qemu-iotests."
 fi
 
 # Disable tests with any sanitizer except for specific ones
@@ -36,36 +37,30 @@ for j in ${ALLOWED_SANITIZE_FLAGS}; do
 done
 if echo ${SANITIZE_FLAGS} | grep -q "\-fsanitize" 2>/dev/null; then
     # Have a sanitize flag that is not allowed, stop
-    echo "Sanitizers are enabled ==> Not running the qemu-iotests."
-    exit 0
+    skip "Sanitizers are enabled ==> Not running the qemu-iotests."
 fi
 
 if [ -z "$(find . -name 'qemu-system-*' -print)" ]; then
-    echo "No qemu-system binary available ==> Not running the qemu-iotests."
-    exit 0
+    skip "No qemu-system binary available ==> Not running the qemu-iotests."
 fi
 
 if ! command -v bash >/dev/null 2>&1 ; then
-    echo "bash not available ==> Not running the qemu-iotests."
-    exit 0
+    skip "bash not available ==> Not running the qemu-iotests."
 fi
 
 if LANG=C bash --version | grep -q 'GNU bash, version [123]' ; then
-    echo "bash version too old ==> Not running the qemu-iotests."
-    exit 0
+    skip "bash version too old ==> Not running the qemu-iotests."
 fi
 
 if ! (sed --version | grep 'GNU sed') > /dev/null 2>&1 ; then
     if ! command -v gsed >/dev/null 2>&1; then
-        echo "GNU sed not available ==> Not running the qemu-iotests."
-        exit 0
+        skip "GNU sed not available ==> Not running the qemu-iotests."
     fi
 else
     # Double-check that we're not using BusyBox' sed which says
     # that "This is not GNU sed version 4.0" ...
     if sed --version | grep -q 'not GNU sed' ; then
-        echo "BusyBox sed not supported ==> Not running the qemu-iotests."
-        exit 0
+        skip "BusyBox sed not supported ==> Not running the qemu-iotests."
     fi
 fi
 
@@ -74,10 +69,17 @@ cd tests/qemu-iotests
 # QEMU_CHECK_BLOCK_AUTO is used to disable some unstable sub-tests
 export QEMU_CHECK_BLOCK_AUTO=1
 export PYTHONUTF8=1
+# If make was called with -jN we want to call ./check with -j N. Extract the
+# flag from MAKEFLAGS, so that if it absent (or MAKEFLAGS is not defined), JOBS
+# would be an empty line otherwise JOBS is prepared string of flag with value:
+# "-j N"
+# Note, that the following works even if make was called with "-j N" or even
+# "--jobs N", as all these variants becomes simply "-jN" in MAKEFLAGS variable.
+JOBS=$(echo "$MAKEFLAGS" | sed -n 's/\(^\|.* \)-j\([0-9]\+\)\( .*\|$\)/-j \2/p')
 
 ret=0
 for fmt in $format_list ; do
-    ${PYTHON} ./check -makecheck -$fmt $group || ret=1
+    ${PYTHON} ./check $JOBS -tap -$fmt $group || ret=1
 done
 
 exit $ret

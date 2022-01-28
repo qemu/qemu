@@ -3,8 +3,9 @@ project('qemu', ['c'], meson_version: '>=0.58.2',
                           'b_staticpic=false', 'stdsplit=false'],
         version: files('VERSION'))
 
-add_test_setup('quick', exclude_suites: 'slow', is_default: true)
-add_test_setup('slow', env: ['G_TEST_SLOW=1', 'SPEED=slow'])
+add_test_setup('quick', exclude_suites: ['block', 'slow', 'thorough'], is_default: true)
+add_test_setup('slow', exclude_suites: ['block', 'thorough'], env: ['G_TEST_SLOW=1', 'SPEED=slow'])
+add_test_setup('thorough', exclude_suites: ['block'], env: ['G_TEST_SLOW=1', 'SPEED=thorough'])
 
 not_found = dependency('', required: false)
 keyval = import('keyval')
@@ -2280,7 +2281,7 @@ if have_system
     if fdt.found() and cc.links('''
        #include <libfdt.h>
        #include <libfdt_env.h>
-       int main(void) { fdt_check_full(NULL, 0); return 0; }''',
+       int main(void) { fdt_find_max_phandle(NULL, NULL); return 0; }''',
          dependencies: fdt)
       fdt_opt = 'system'
     elif fdt_opt == 'system'
@@ -3055,17 +3056,14 @@ foreach target : target_dirs
         install_input += meson.current_source_dir() / entitlements
       endif
 
+      entitlement = find_program('scripts/entitlement.sh')
       emulators += {exe['name'] : custom_target(exe['name'],
                    input: build_input,
                    output: exe['name'],
-                   command: [
-                     files('scripts/entitlement.sh'),
-                     '@OUTPUT@',
-                     '@INPUT@'
-                   ])
+                   command: [entitlement, '@OUTPUT@', '@INPUT@'])
       }
 
-      meson.add_install_script('scripts/entitlement.sh', '--install',
+      meson.add_install_script(entitlement, '--install',
                                get_option('bindir') / exe['name'],
                                install_input)
     else

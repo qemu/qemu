@@ -344,9 +344,9 @@
 #
 # @node: the numa node
 #
-# @size: the size of epc section
+# @size: the size of EPC section
 #
-# Since: 6.2
+# Since: 7.0
 ##
 { 'struct': 'SGXEPCSection',
   'data': { 'node': 'int',
@@ -365,7 +365,13 @@
 #
 # @flc: true if FLC is supported
 #
-# @sections: The EPC sections info for guest
+# @section-size: The EPC section size for guest
+#                Redundant with @sections.  Just for backward compatibility.
+#
+# @sections: The EPC sections info for guest (Since: 7.0)
+#
+# Features:
+# @deprecated: Member @section-size is deprecated.  Use @sections instead.
 #
 # Since: 6.2
 ##
@@ -374,6 +380,8 @@
             'sgx1': 'bool',
             'sgx2': 'bool',
             'flc': 'bool',
+            'section-size': { 'type': 'uint64',
+                    'features': [ 'deprecated' ] },
             'sections': ['SGXEPCSection']},
    'if': 'TARGET_I386' }
 
@@ -390,7 +398,9 @@
 #
 # -> { "execute": "query-sgx" }
 # <- { "return": { "sgx": true, "sgx1" : true, "sgx2" : true,
-#                  "flc": true, "section-size" : 0 } }
+#                  "flc": true,  "section-size" : 96468992,
+#                  "sections": [{"node": 0, "size": 67108864},
+#                  {"node": 1, "size": 29360128}]} }
 #
 ##
 { 'command': 'query-sgx', 'returns': 'SGXInfo', 'if': 'TARGET_I386' }
@@ -408,7 +418,9 @@
 #
 # -> { "execute": "query-sgx-capabilities" }
 # <- { "return": { "sgx": true, "sgx1" : true, "sgx2" : true,
-#                  "flc": true, "section-size" : 0 } }
+#                  "flc": true, "section-size" : 96468992,
+#                  "section" : [{"node": 0, "size": 67108864},
+#                  {"node": 1, "size": 29360128}]} }
 #
 ##
 { 'command': 'query-sgx-capabilities', 'returns': 'SGXInfo', 'if': 'TARGET_I386' }

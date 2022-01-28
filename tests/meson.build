@@ -1,6 +1,7 @@
 py3 = import('python').find_installation()
 
 subdir('bench')
+subdir('qemu-iotests')
 
 test_qapi_outputs = [
   'qapi-builtin-types.c',

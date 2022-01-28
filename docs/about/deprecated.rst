@@ -264,6 +264,19 @@ accepted incorrect commands will return an error. Users should make sure that
 all arguments passed to ``device_add`` are consistent with the documented
 property types.
 
+``query-sgx`` return value member ``section-size`` (since 7.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Member ``section-size`` in return value elements with meta-type ``uint64`` is
+deprecated.  Use ``sections`` instead.
+
+
+``query-sgx-capabilities`` return value member ``section-size`` (since 7.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Member ``section-size`` in return value elements with meta-type ``uint64`` is
+deprecated.  Use ``sections`` instead.
+
 System accelerators
 -------------------
 

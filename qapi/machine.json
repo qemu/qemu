@@ -1207,7 +1207,7 @@
 #
 # @memdev: memory backend linked with device
 #
-# @node: the numa node
+# @node: the numa node (Since: 7.0)
 #
 # Since: 6.2
 ##
@@ -1288,7 +1288,7 @@
 #
 # @memdev: memory backend linked with device
 #
-# @node: the numa node
+# @node: the numa node (Since: 7.0)
 #
 # Since: 6.2
 ##
