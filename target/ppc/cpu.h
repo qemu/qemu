@@ -327,6 +327,7 @@ typedef enum {
 #define MSR_S    22 /* Secure state                                          */
 #define MSR_KEY  19 /* key bit on 603e                                       */
 #define MSR_POW  18 /* Power management                                      */
+#define MSR_WE   18 /* Wait State Enable on 405                              */
 #define MSR_TGPR 17 /* TGPR usage on 602/603                        x        */
 #define MSR_CE   17 /* Critical interrupt enable on embedded PowerPC x       */
 #define MSR_ILE  16 /* Interrupt little-endian mode                          */

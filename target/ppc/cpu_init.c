@@ -2535,7 +2535,7 @@ POWERPC_FAMILY(405)(ObjectClass *oc, void *data)
                        PPC_MEM_SYNC | PPC_MEM_EIEIO |
                        PPC_40x_TLB | PPC_MEM_TLBIA | PPC_MEM_TLBSYNC |
                        PPC_4xx_COMMON | PPC_405_MAC | PPC_40x_EXCP;
-    pcc->msr_mask = (1ull << MSR_POW) |
+    pcc->msr_mask = (1ull << MSR_WE) |
                     (1ull << MSR_CE) |
                     (1ull << MSR_EE) |
                     (1ull << MSR_PR) |
