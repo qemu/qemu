@@ -2540,6 +2540,7 @@ POWERPC_FAMILY(405)(ObjectClass *oc, void *data)
                     (1ull << MSR_EE) |
                     (1ull << MSR_PR) |
                     (1ull << MSR_FP) |
+                    (1ull << MSR_ME) |
                     (1ull << MSR_DWE) |
                     (1ull << MSR_DE) |
                     (1ull << MSR_IR) |
