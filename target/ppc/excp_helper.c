@@ -483,30 +483,19 @@ static void powerpc_excp_40x(PowerPCCPU *cpu, int excp)
                 env->error_code = 0;
                 return;
             }
-
-            /*
-             * FP exceptions always have NIP pointing to the faulting
-             * instruction, so always use store_next and claim we are
-             * precise in the MSR.
-             */
-            msr |= 0x00100000;
-            env->spr[SPR_BOOKE_ESR] = ESR_FP;
+            env->spr[SPR_40x_ESR] = ESR_FP;
             break;
         case POWERPC_EXCP_INVAL:
             trace_ppc_excp_inval(env->nip);
-            msr |= 0x00080000;
-            env->spr[SPR_BOOKE_ESR] = ESR_PIL;
+            env->spr[SPR_40x_ESR] = ESR_PIL;
             break;
         case POWERPC_EXCP_PRIV:
-            msr |= 0x00040000;
-            env->spr[SPR_BOOKE_ESR] = ESR_PPR;
+            env->spr[SPR_40x_ESR] = ESR_PPR;
             break;
         case POWERPC_EXCP_TRAP:
-            msr |= 0x00020000;
-            env->spr[SPR_BOOKE_ESR] = ESR_PTR;
+            env->spr[SPR_40x_ESR] = ESR_PTR;
             break;
         default:
-            /* Should never occur */
             cpu_abort(cs, "Invalid program exception %d. Aborting\n",
                       env->error_code);
             break;
