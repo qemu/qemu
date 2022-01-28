@@ -644,28 +644,15 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
     {
         bool lpes0;
 
-        cs = CPU(cpu);
-
         /*
-         * Exception targeting modifiers
-         *
-         * LPES0 is supported on POWER7/8/9
-         * LPES1 is not supported (old iSeries mode)
-         *
-         * On anything else, we behave as if LPES0 is 1
-         * (externals don't alter MSR:HV)
+         * LPES0 is only taken into consideration if we support HV
+         * mode for this CPU.
          */
-#if defined(TARGET_PPC64)
-        if (excp_model == POWERPC_EXCP_POWER7 ||
-            excp_model == POWERPC_EXCP_POWER8 ||
-            excp_model == POWERPC_EXCP_POWER9 ||
-            excp_model == POWERPC_EXCP_POWER10) {
-            lpes0 = !!(env->spr[SPR_LPCR] & LPCR_LPES0);
-        } else
-#endif /* defined(TARGET_PPC64) */
-        {
-            lpes0 = true;
+        if (!env->has_hv_mode) {
+            break;
         }
+
+        lpes0 = !!(env->spr[SPR_LPCR] & LPCR_LPES0);
 
         if (!lpes0) {
             new_msr |= (target_ulong)MSR_HVB;
@@ -673,10 +660,7 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
             srr0 = SPR_HSRR0;
             srr1 = SPR_HSRR1;
         }
-        if (env->mpic_proxy) {
-            /* IACK the IRQ on delivery */
-            env->spr[SPR_BOOKE_EPR] = ldl_phys(cs->as, env->mpic_iack);
-        }
+
         break;
     }
     case POWERPC_EXCP_ALIGN:     /* Alignment exception                      */
