@@ -86,6 +86,7 @@ import logging
 import os
 import re
 import readline
+from subprocess import Popen
 import sys
 from typing import (
     Iterator,
@@ -167,8 +168,10 @@ class QMPShell(QEMUMonitorProtocol):
     :param verbose: Echo outgoing QMP messages to console.
     """
     def __init__(self, address: SocketAddrT,
-                 pretty: bool = False, verbose: bool = False):
-        super().__init__(address)
+                 pretty: bool = False,
+                 verbose: bool = False,
+                 server: bool = False):
+        super().__init__(address, server=server)
         self._greeting: Optional[QMPMessage] = None
         self._completer = QMPCompleter()
         self._transmode = False
@@ -409,8 +412,10 @@ class HMPShell(QMPShell):
     :param verbose: Echo outgoing QMP messages to console.
     """
     def __init__(self, address: SocketAddrT,
-                 pretty: bool = False, verbose: bool = False):
-        super().__init__(address, pretty, verbose)
+                 pretty: bool = False,
+                 verbose: bool = False,
+                 server: bool = False):
+        super().__init__(address, pretty, verbose, server)
         self._cpu_index = 0
 
     def _cmd_completion(self) -> None:
@@ -531,6 +536,58 @@ def main() -> None:
 
         for _ in qemu.repl():
             pass
+
+
+def main_wrap() -> None:
+    """
+    qmp-shell-wrap entry point: parse command line arguments and
+    start the REPL.
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-H', '--hmp', action='store_true',
+                        help='Use HMP interface')
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help='Verbose (echo commands sent and received)')
+    parser.add_argument('-p', '--pretty', action='store_true',
+                        help='Pretty-print JSON')
+
+    parser.add_argument('command', nargs=argparse.REMAINDER,
+                        help='QEMU command line to invoke')
+
+    args = parser.parse_args()
+
+    cmd = args.command
+    if len(cmd) != 0 and cmd[0] == '--':
+        cmd = cmd[1:]
+    if len(cmd) == 0:
+        cmd = ["qemu-system-x86_64"]
+
+    sockpath = "qmp-shell-wrap-%d" % os.getpid()
+    cmd += ["-qmp", "unix:%s" % sockpath]
+
+    shell_class = HMPShell if args.hmp else QMPShell
+
+    try:
+        address = shell_class.parse_address(sockpath)
+    except QMPBadPortError:
+        parser.error(f"Bad port number: {sockpath}")
+        return  # pycharm doesn't know error() is noreturn
+
+    try:
+        with shell_class(address, args.pretty, args.verbose, True) as qemu:
+            with Popen(cmd):
+
+                try:
+                    qemu.accept()
+                except ConnectError as err:
+                    if isinstance(err.exc, OSError):
+                        die(f"Couldn't connect to {args.qmp_server}: {err!s}")
+                    die(str(err))
+
+                for _ in qemu.repl():
+                    pass
+    finally:
+        os.unlink(sockpath)
 
 
 if __name__ == '__main__':
