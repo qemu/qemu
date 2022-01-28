@@ -894,7 +894,7 @@ void spr_write_40x_pid(DisasContext *ctx, int sprn, int gprn)
 {
     TCGv t0 = tcg_temp_new();
     tcg_gen_andi_tl(t0, cpu_gpr[gprn], 0xFF);
-    gen_store_spr(SPR_40x_PID, t0);
+    gen_helper_store_40x_pid(cpu_env, t0);
     tcg_temp_free(t0);
 }
 
