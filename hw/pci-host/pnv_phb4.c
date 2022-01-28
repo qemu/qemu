@@ -1267,7 +1267,9 @@ static void pnv_phb4_translate_tve(PnvPhb4DMASpace *ds, hwaddr addr,
         /* TODO: Limit to support IO page sizes */
 
         /* TODO: Multi-level untested */
-        while ((lev--) >= 0) {
+        do {
+            lev--;
+
             /* Grab the TCE address */
             taddr = base | (((addr >> sh) & ((1ul << tbl_shift) - 1)) << 3);
             if (dma_memory_read(&address_space_memory, taddr, &tce,
@@ -1288,7 +1290,7 @@ static void pnv_phb4_translate_tve(PnvPhb4DMASpace *ds, hwaddr addr,
             }
             sh -= tbl_shift;
             base = tce & ~0xfffull;
-        }
+        } while (lev >= 0);
 
         /* We exit the loop with TCE being the final TCE */
         if ((is_write & !(tce & 2)) || ((!is_write) && !(tce & 1))) {
