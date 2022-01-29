@@ -717,54 +717,7 @@ typedef struct target_siginfo {
 #define TARGET_TRAP_HWBKPT      (4)     /* hardware breakpoint/watchpoint */
 #define TARGET_TRAP_UNK         (5)     /* undiagnosed trap */
 
-struct target_rlimit {
-        abi_ulong   rlim_cur;
-        abi_ulong   rlim_max;
-};
-
-#if defined(TARGET_ALPHA)
-#define TARGET_RLIM_INFINITY	0x7fffffffffffffffull
-#elif defined(TARGET_MIPS) || (defined(TARGET_SPARC) && TARGET_ABI_BITS == 32)
-#define TARGET_RLIM_INFINITY	0x7fffffffUL
-#else
-#define TARGET_RLIM_INFINITY	((abi_ulong)-1)
-#endif
-
-#define TARGET_RLIMIT_CPU        0
-#define TARGET_RLIMIT_FSIZE      1
-#define TARGET_RLIMIT_DATA       2
-#define TARGET_RLIMIT_STACK      3
-#define TARGET_RLIMIT_CORE       4
-#if defined(TARGET_MIPS)
-#define TARGET_RLIMIT_NOFILE     5
-#define TARGET_RLIMIT_AS         6
-#define TARGET_RLIMIT_RSS        7
-#define TARGET_RLIMIT_NPROC      8
-#define TARGET_RLIMIT_MEMLOCK    9
-#elif defined(TARGET_ALPHA)
-#define TARGET_RLIMIT_RSS        5
-#define TARGET_RLIMIT_NOFILE     6
-#define TARGET_RLIMIT_AS         7
-#define TARGET_RLIMIT_NPROC      8
-#define TARGET_RLIMIT_MEMLOCK    9
-#elif defined(TARGET_SPARC)
-#define TARGET_RLIMIT_RSS        5
-#define TARGET_RLIMIT_NOFILE     6
-#define TARGET_RLIMIT_NPROC      7
-#define TARGET_RLIMIT_MEMLOCK    8
-#define TARGET_RLIMIT_AS         9
-#else
-#define TARGET_RLIMIT_RSS        5
-#define TARGET_RLIMIT_NPROC      6
-#define TARGET_RLIMIT_NOFILE     7
-#define TARGET_RLIMIT_MEMLOCK    8
-#define TARGET_RLIMIT_AS         9
-#endif
-#define TARGET_RLIMIT_LOCKS      10
-#define TARGET_RLIMIT_SIGPENDING 11
-#define TARGET_RLIMIT_MSGQUEUE   12
-#define TARGET_RLIMIT_NICE       13
-#define TARGET_RLIMIT_RTPRIO     14
+#include "target_resource.h"
 
 struct target_pollfd {
     int fd;           /* file descriptor */
@@ -2769,10 +2722,6 @@ struct target_epoll_event {
 #define TARGET_EP_MAX_EVENTS (INT_MAX / sizeof(struct target_epoll_event))
 
 #endif
-struct target_rlimit64 {
-    uint64_t rlim_cur;
-    uint64_t rlim_max;
-};
 
 struct target_ucred {
     uint32_t pid;
