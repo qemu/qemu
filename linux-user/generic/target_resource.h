@@ -33,5 +33,6 @@ struct target_rlimit64 {
 #define TARGET_RLIMIT_MSGQUEUE          12
 #define TARGET_RLIMIT_NICE              13
 #define TARGET_RLIMIT_RTPRIO            14
+#define TARGET_RLIMIT_RTTIME            15
 
 #endif
