@@ -209,7 +209,6 @@ static const VMStateDescription vmstate_spk = {
     .name = "pcspk",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .needed = migrate_needed,
     .fields      = (VMStateField[]) {
         VMSTATE_UINT8(data_on, PCSpkState),

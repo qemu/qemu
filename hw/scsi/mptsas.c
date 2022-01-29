@@ -1363,7 +1363,6 @@ static const VMStateDescription vmstate_mptsas = {
     .name = "mptsas",
     .version_id = 0,
     .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
     .post_load = mptsas_post_load,
     .fields      = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, MPTSASState),

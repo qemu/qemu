@@ -616,7 +616,6 @@ static const VMStateDescription vmstate_macfb = {
     .name = "macfb",
     .version_id = 1,
     .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
     .post_load = macfb_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8_ARRAY(color_palette, MacfbState, 256 * 3),
