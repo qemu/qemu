@@ -32,9 +32,7 @@ static inline void target_thread_init(struct target_pt_regs *regs,
     regs->rax = 0;
     regs->rsp = infop->start_stack;
     regs->rip = infop->entry;
-    if (bsd_type == target_freebsd) {
-        regs->rdi = infop->start_stack;
-    }
+    regs->rdi = infop->start_stack;
 }
 
 #endif /* !_TARGET_ARCH_THREAD_H_ */
