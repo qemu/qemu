@@ -681,20 +681,13 @@ static void versal_virt_init(MachineState *machine)
     s->binfo.get_dtb = versal_virt_get_dtb;
     s->binfo.modify_dtb = versal_virt_modify_dtb;
     s->binfo.psci_conduit = psci_conduit;
-    if (machine->kernel_filename) {
-        arm_load_kernel(&s->soc.fpd.apu.cpu[0], machine, &s->binfo);
-    } else {
-        AddressSpace *as = arm_boot_address_space(&s->soc.fpd.apu.cpu[0],
-                                                  &s->binfo);
+    if (!machine->kernel_filename) {
         /* Some boot-loaders (e.g u-boot) don't like blobs at address 0 (NULL).
          * Offset things by 4K.  */
         s->binfo.loader_start = 0x1000;
         s->binfo.dtb_limit = 0x1000000;
-        if (arm_load_dtb(s->binfo.loader_start,
-                         &s->binfo, s->binfo.dtb_limit, as, machine) < 0) {
-            exit(EXIT_FAILURE);
-        }
     }
+    arm_load_kernel(&s->soc.fpd.apu.cpu[0], machine, &s->binfo);
 
     for (i = 0; i < XLNX_VERSAL_NUM_OSPI_FLASH; i++) {
         BusState *spi_bus;
