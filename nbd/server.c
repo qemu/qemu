@@ -77,7 +77,6 @@ static int system_errno_to_nbd_errno(int err)
 typedef struct NBDRequestData NBDRequestData;
 
 struct NBDRequestData {
-    QSIMPLEQ_ENTRY(NBDRequestData) entry;
     NBDClient *client;
     uint8_t *data;
     bool complete;
