@@ -126,25 +126,14 @@ static inline void target_cpu_loop(CPUX86State *env)
         switch (trapnr) {
         case EXCP_SYSCALL:
             /* syscall from syscall instruction */
-            if (bsd_type == target_freebsd) {
-                env->regs[R_EAX] = do_freebsd_syscall(env,
-                                                      env->regs[R_EAX],
-                                                      env->regs[R_EDI],
-                                                      env->regs[R_ESI],
-                                                      env->regs[R_EDX],
-                                                      env->regs[R_ECX],
-                                                      env->regs[8],
-                                                      env->regs[9], 0, 0);
-            } else { /* if (bsd_type == target_openbsd) */
-                env->regs[R_EAX] = do_openbsd_syscall(env,
-                                                      env->regs[R_EAX],
-                                                      env->regs[R_EDI],
-                                                      env->regs[R_ESI],
-                                                      env->regs[R_EDX],
-                                                      env->regs[10],
-                                                      env->regs[8],
-                                                      env->regs[9]);
-            }
+            env->regs[R_EAX] = do_freebsd_syscall(env,
+                                                  env->regs[R_EAX],
+                                                  env->regs[R_EDI],
+                                                  env->regs[R_ESI],
+                                                  env->regs[R_EDX],
+                                                  env->regs[R_ECX],
+                                                  env->regs[8],
+                                                  env->regs[9], 0, 0);
             env->eip = env->exception_next_eip;
             if (((abi_ulong)env->regs[R_EAX]) >= (abi_ulong)(-515)) {
                 env->regs[R_EAX] = -env->regs[R_EAX];
