@@ -2458,8 +2458,11 @@ trace_events_subdirs = [
   'monitor',
   'util',
 ]
-if have_user
+if have_linux_user
   trace_events_subdirs += [ 'linux-user' ]
+endif
+if have_bsd_user
+  trace_events_subdirs += [ 'bsd-user' ]
 endif
 if have_block
   trace_events_subdirs += [
@@ -2947,6 +2950,7 @@ foreach target : target_dirs
     if 'CONFIG_BSD_USER' in config_target
       base_dir = 'bsd-user'
       target_inc += include_directories('bsd-user/' / targetos)
+      target_inc += include_directories('bsd-user/host/' / host_arch)
       dir = base_dir / abi
       arch_srcs += files(dir / 'signal.c', dir / 'target_arch_cpu.c')
     endif

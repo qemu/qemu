@@ -3186,6 +3186,7 @@ R: Kyle Evans <kevans@freebsd.org>
 S: Maintained
 F: bsd-user/
 F: configs/targets/*-bsd-user.mak
+F: tests/vm/*bsd
 T: git https://github.com/qemu-bsd-user/qemu-bsd-user bsd-user-rebase-3.1
 
 Linux user

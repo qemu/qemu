@@ -36,9 +36,9 @@ abi_long set_sigtramp_args(CPUArchState *env, int sig,
                            struct target_sigframe *frame,
                            abi_ulong frame_addr,
                            struct target_sigaction *ka);
-abi_long get_mcontext(CPUArchState *regs, target_mcontext_t *mcp, int flags);
-abi_long set_mcontext(CPUArchState *regs, target_mcontext_t *mcp, int srflag);
-abi_long get_ucontext_sigreturn(CPUArchState *regs, abi_ulong target_sf,
+abi_long get_mcontext(CPUArchState *env, target_mcontext_t *mcp, int flags);
+abi_long set_mcontext(CPUArchState *env, target_mcontext_t *mcp, int srflag);
+abi_long get_ucontext_sigreturn(CPUArchState *env, abi_ulong target_sf,
                                 abi_ulong *target_uc);
 
 #endif /* TARGET_OS_UCONTEXT_H */

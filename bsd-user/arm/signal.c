@@ -59,18 +59,30 @@ abi_long set_sigtramp_args(CPUARMState *env, int sig,
     return 0;
 }
 
+static abi_long get_vfpcontext(CPUARMState *env, abi_ulong frame_addr,
+                               struct target_sigframe *frame)
+{
+    /* see sendsig and get_vfpcontext in sys/arm/arm/exec_machdep.c */
+    target_mcontext_vfp_t *vfp = &frame->sf_vfp;
+    target_mcontext_t *mcp = &frame->sf_uc.uc_mcontext;
+
+    /* Assumes that mcp and vfp are locked */
+    for (int i = 0; i < 32; i++) {
+        vfp->mcv_reg[i] = tswap64(*aa32_vfp_dreg(env, i));
+    }
+    vfp->mcv_fpscr = tswap32(vfp_get_fpscr(env));
+    mcp->mc_vfp_size = tswap32(sizeof(*vfp));
+    mcp->mc_vfp_ptr = tswap32(frame_addr + ((uintptr_t)vfp - (uintptr_t)frame));
+    return 0;
+}
+
 /*
- * Compare to arm/arm/machdep.c get_mcontext()
+ * Compare to arm/arm/exec_machdep.c get_mcontext()
  * Assumes that the memory is locked if mcp points to user memory.
  */
 abi_long get_mcontext(CPUARMState *env, target_mcontext_t *mcp, int flags)
 {
-    int err = 0;
     uint32_t *gr = mcp->__gregs;
-
-    if (mcp->mc_vfp_size != 0 && mcp->mc_vfp_size != sizeof(target_mcontext_vfp_t)) {
-        return -TARGET_EINVAL;
-    }
 
     gr[TARGET_REG_CPSR] = tswap32(cpsr_read(env));
     if (flags & TARGET_MC_GET_CLEAR_RET) {
@@ -97,17 +109,30 @@ abi_long get_mcontext(CPUARMState *env, target_mcontext_t *mcp, int flags)
     gr[TARGET_REG_LR] = tswap32(env->regs[14]);
     gr[TARGET_REG_PC] = tswap32(env->regs[15]);
 
-    if (mcp->mc_vfp_size != 0 && mcp->mc_vfp_ptr != 0) {
-        /* see get_vfpcontext in sys/arm/arm/exec_machdep.c */
-        target_mcontext_vfp_t *vfp;
-        vfp = lock_user(VERIFY_WRITE, mcp->mc_vfp_ptr, sizeof(*vfp), 0);
-        for (int i = 0; i < 32; i++) {
-            vfp->mcv_reg[i] = tswap64(*aa32_vfp_dreg(env, i));
-        }
-        vfp->mcv_fpscr = tswap32(vfp_get_fpscr(env));
-        unlock_user(vfp, mcp->mc_vfp_ptr, sizeof(*vfp));
-    }
-    return err;
+    /*
+     * FreeBSD's get_mcontext doesn't save VFP info, but sets the pointer and
+     * size to zero.  Applications that need the VFP state use
+     * sysarch(ARM_GET_VFPSTATE) and are expected to adjust mcontext after that.
+     */
+    mcp->mc_vfp_size = 0;
+    mcp->mc_vfp_ptr = 0;
+    memset(&mcp->mc_spare, 0, sizeof(mcp->mc_spare));
+
+    return 0;
+}
+
+/*
+ * Compare to arm/arm/exec_machdep.c sendsig()
+ * Assumes that the memory is locked if frame points to user memory.
+ */
+abi_long setup_sigframe_arch(CPUARMState *env, abi_ulong frame_addr,
+                             struct target_sigframe *frame, int flags)
+{
+    target_mcontext_t *mcp = &frame->sf_uc.uc_mcontext;
+
+    get_mcontext(env, mcp, flags);
+    get_vfpcontext(env, frame_addr, frame);
+    return 0;
 }
 
 /* Compare to arm/arm/exec_machdep.c set_mcontext() */
