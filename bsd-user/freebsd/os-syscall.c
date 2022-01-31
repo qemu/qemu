@@ -41,6 +41,8 @@
 #include "signal-common.h"
 #include "user/syscall-trace.h"
 
+#include "bsd-file.h"
+
 void target_set_brk(abi_ulong new_brk)
 {
 }
