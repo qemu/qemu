@@ -100,7 +100,7 @@ static void help(void)
 "\n"
 #ifdef CONFIG_FUSE
 "  --export [type=]fuse,id=<id>,node-name=<node-name>,mountpoint=<file>\n"
-"           [,growable=on|off][,writable=on|off]\n"
+"           [,growable=on|off][,writable=on|off][,allow-other=on|off|auto]\n"
 "                         export the specified block node over FUSE\n"
 "\n"
 #endif /* CONFIG_FUSE */

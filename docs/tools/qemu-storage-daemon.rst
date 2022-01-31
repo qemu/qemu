@@ -76,7 +76,7 @@ Standard options:
 .. option:: --export [type=]nbd,id=<id>,node-name=<node-name>[,name=<export-name>][,writable=on|off][,bitmap=<name>]
   --export [type=]vhost-user-blk,id=<id>,node-name=<node-name>,addr.type=unix,addr.path=<socket-path>[,writable=on|off][,logical-block-size=<block-size>][,num-queues=<num-queues>]
   --export [type=]vhost-user-blk,id=<id>,node-name=<node-name>,addr.type=fd,addr.str=<fd>[,writable=on|off][,logical-block-size=<block-size>][,num-queues=<num-queues>]
-  --export [type=]fuse,id=<id>,node-name=<node-name>,mountpoint=<file>[,growable=on|off][,writable=on|off]
+  --export [type=]fuse,id=<id>,node-name=<node-name>,mountpoint=<file>[,growable=on|off][,writable=on|off][,allow-other=on|off|auto]
 
   is a block export definition. ``node-name`` is the block node that should be
   exported. ``writable`` determines whether or not the export allows write
@@ -103,7 +103,12 @@ Standard options:
   mounted). Consequently, applications that have opened the given file before
   the export became active will continue to see its original content. If
   ``growable`` is set, writes after the end of the exported file will grow the
-  block node to fit.
+  block node to fit.  The ``allow-other`` option controls whether users other
+  than the user running the process will be allowed to access the export.  Note
+  that enabling this option as a non-root user requires enabling the
+  user_allow_other option in the global fuse.conf configuration file.  Setting
+  ``allow-other`` to auto (the default) will try enabling this option, and on
+  error fall back to disabling it.
 
 .. option:: --monitor MONITORDEF
 
