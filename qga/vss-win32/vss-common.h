@@ -46,11 +46,7 @@
 #undef VSS_E_MAXIMUM_NUMBER_OF_VOLUMES_REACHED
 #undef VSS_E_MAXIMUM_NUMBER_OF_SNAPSHOTS_REACHED
 
-/*
- * VSS headers must be installed from Microsoft VSS SDK 7.2 available at:
- * http://www.microsoft.com/en-us/download/details.aspx?id=23490
- */
-#include <inc/win2003/vss.h>
+#include <vss.h>
 #include "vss-handles.h"
 
 /* Macros to convert char definitions to wchar */

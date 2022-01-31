@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 
 #include "vss-common.h"
-#include <inc/win2003/vscoordint.h>
+#include <vscoordint.h>
 #include "install.h"
 #include <wbemidl.h>
 #include <comdef.h>
