@@ -35,6 +35,7 @@ extern char **environ;
 #include "target_syscall.h"
 #include "target_os_vmparam.h"
 #include "target_os_signal.h"
+#include "target.h"
 #include "exec/gdbstub.h"
 
 /*
