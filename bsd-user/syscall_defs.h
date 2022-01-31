@@ -179,4 +179,51 @@ struct target_freebsd__wrusage {
     struct target_freebsd_rusage wru_children;
 };
 
+#define safe_syscall0(type, name) \
+type safe_##name(void) \
+{ \
+    return safe_syscall(SYS_##name); \
+}
+
+#define safe_syscall1(type, name, type1, arg1) \
+type safe_##name(type1 arg1) \
+{ \
+    return safe_syscall(SYS_##name, arg1); \
+}
+
+#define safe_syscall2(type, name, type1, arg1, type2, arg2) \
+type safe_##name(type1 arg1, type2 arg2) \
+{ \
+    return safe_syscall(SYS_##name, arg1, arg2); \
+}
+
+#define safe_syscall3(type, name, type1, arg1, type2, arg2, type3, arg3) \
+type safe_##name(type1 arg1, type2 arg2, type3 arg3) \
+{ \
+    return safe_syscall(SYS_##name, arg1, arg2, arg3); \
+}
+
+#define safe_syscall4(type, name, type1, arg1, type2, arg2, type3, arg3, \
+    type4, arg4) \
+type safe_##name(type1 arg1, type2 arg2, type3 arg3, type4 arg4) \
+{ \
+    return safe_syscall(SYS_##name, arg1, arg2, arg3, arg4); \
+}
+
+#define safe_syscall5(type, name, type1, arg1, type2, arg2, type3, arg3, \
+    type4, arg4, type5, arg5) \
+type safe_##name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, \
+    type5 arg5) \
+{ \
+    return safe_syscall(SYS_##name, arg1, arg2, arg3, arg4, arg5); \
+}
+
+#define safe_syscall6(type, name, type1, arg1, type2, arg2, type3, arg3, \
+    type4, arg4, type5, arg5, type6, arg6) \
+type safe_##name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, \
+    type5 arg5, type6 arg6) \
+{ \
+    return safe_syscall(SYS_##name, arg1, arg2, arg3, arg4, arg5, arg6); \
+}
+
 #endif /* ! _SYSCALL_DEFS_H_ */
