@@ -45,9 +45,30 @@ void target_set_brk(abi_ulong new_brk)
 {
 }
 
+/*
+ * errno conversion.
+ */
+abi_long get_errno(abi_long ret)
+{
+    if (ret == -1) {
+        return -host_to_target_errno(errno);
+    } else {
+        return ret;
+    }
+}
+
+int host_to_target_errno(int err)
+{
+    /*
+     * All the BSDs have the property that the error numbers are uniform across
+     * all architectures for a given BSD, though they may vary between different
+     * BSDs.
+     */
+    return err;
+}
+
 bool is_error(abi_long ret)
 {
-
     return (abi_ulong)ret >= (abi_ulong)(-4096);
 }
 

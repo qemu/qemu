@@ -246,9 +246,10 @@ extern unsigned long target_dflssiz;
 extern unsigned long target_maxssiz;
 extern unsigned long target_sgrowsiz;
 
-/* syscall.c */
+/* os-syscall.c */
 abi_long get_errno(abi_long ret);
 bool is_error(abi_long ret);
+int host_to_target_errno(int err);
 
 /* os-sys.c */
 abi_long do_freebsd_sysarch(void *cpu_env, abi_long arg1, abi_long arg2);
