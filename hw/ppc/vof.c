@@ -16,7 +16,6 @@
 #include "qemu/units.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
-#include "exec/ram_addr.h"
 #include "exec/address-spaces.h"
 #include "hw/ppc/vof.h"
 #include "hw/ppc/fdt.h"

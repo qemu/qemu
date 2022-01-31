@@ -3053,7 +3053,7 @@ static char *spapr_get_fw_dev_path(FWPathProvider *p, BusState *bus,
     VHostSCSICommon *vsc = CAST(VHostSCSICommon, dev, TYPE_VHOST_SCSI_COMMON);
     PCIDevice *pcidev = CAST(PCIDevice, dev, TYPE_PCI_DEVICE);
 
-    if (d) {
+    if (d && bus) {
         void *spapr = CAST(void, bus->parent, "spapr-vscsi");
         VirtIOSCSI *virtio = CAST(VirtIOSCSI, bus->parent, TYPE_VIRTIO_SCSI);
         USBDevice *usb = CAST(USBDevice, bus->parent, TYPE_USB_DEVICE);

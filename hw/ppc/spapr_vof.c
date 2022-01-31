@@ -88,8 +88,6 @@ void spapr_vof_reset(SpaprMachineState *spapr, void *fdt, Error **errp)
     spapr_cpu_set_entry_state(first_ppc_cpu, SPAPR_ENTRY_POINT,
                               stack_ptr, spapr->initrd_base,
                               spapr->initrd_size);
-    /* VOF is 32bit BE so enforce MSR here */
-    first_ppc_cpu->env.msr &= ~((1ULL << MSR_SF) | (1ULL << MSR_LE));
 
     /*
      * At this point the expected allocation map is:

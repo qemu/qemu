@@ -428,8 +428,6 @@
                 "PowerPC 601v1")
     POWERPC_DEF("601_v2",        CPU_POWERPC_601_v2,                 601v,
                 "PowerPC 601v2")
-    POWERPC_DEF("602",           CPU_POWERPC_602,                    602,
-                "PowerPC 602")
     POWERPC_DEF("603",           CPU_POWERPC_603,                    603,
                 "PowerPC 603")
     POWERPC_DEF("603e_v1.1",     CPU_POWERPC_603E_v11,               603E,

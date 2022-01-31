@@ -156,7 +156,8 @@ static uint32_t hreg_compute_hflags_value(CPUPPCState *env)
      */
     unsigned immu_idx, dmmu_idx;
     dmmu_idx = msr & (1 << MSR_PR) ? 0 : 1;
-    if (env->mmu_model & POWERPC_MMU_BOOKE) {
+    if (env->mmu_model == POWERPC_MMU_BOOKE ||
+        env->mmu_model == POWERPC_MMU_BOOKE206) {
         dmmu_idx |= msr & (1 << MSR_GS) ? 4 : 0;
         immu_idx = dmmu_idx;
         immu_idx |= msr & (1 << MSR_IS) ? 2 : 0;
@@ -201,7 +202,11 @@ void cpu_get_tb_cpu_state(CPUPPCState *env, target_ulong *pc,
 
 void cpu_interrupt_exittb(CPUState *cs)
 {
-    if (!kvm_enabled()) {
+    /*
+     * We don't need to worry about translation blocks
+     * when running with KVM.
+     */
+    if (kvm_enabled()) {
         return;
     }
 
@@ -233,7 +238,8 @@ int hreg_store_msr(CPUPPCState *env, target_ulong value, int alter_hv)
         ((value >> MSR_DR) & 1) != msr_dr) {
         cpu_interrupt_exittb(cs);
     }
-    if ((env->mmu_model & POWERPC_MMU_BOOKE) &&
+    if ((env->mmu_model == POWERPC_MMU_BOOKE ||
+         env->mmu_model == POWERPC_MMU_BOOKE206) &&
         ((value >> MSR_GS) & 1) != msr_gs) {
         cpu_interrupt_exittb(cs);
     }

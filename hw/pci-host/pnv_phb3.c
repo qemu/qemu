@@ -792,7 +792,9 @@ static void pnv_phb3_translate_tve(PnvPhb3DMASpace *ds, hwaddr addr,
         sh = tbl_shift * lev + tce_shift;
 
         /* TODO: Multi-level untested */
-        while ((lev--) >= 0) {
+        do {
+            lev--;
+
             /* Grab the TCE address */
             taddr = base | (((addr >> sh) & ((1ul << tbl_shift) - 1)) << 3);
             if (dma_memory_read(&address_space_memory, taddr, &tce,
@@ -813,21 +815,22 @@ static void pnv_phb3_translate_tve(PnvPhb3DMASpace *ds, hwaddr addr,
             }
             sh -= tbl_shift;
             base = tce & ~0xfffull;
-        }
+        } while (lev >= 0);
 
         /* We exit the loop with TCE being the final TCE */
-        tce_mask = ~((1ull << tce_shift) - 1);
-        tlb->iova = addr & tce_mask;
-        tlb->translated_addr = tce & tce_mask;
-        tlb->addr_mask = ~tce_mask;
-        tlb->perm = tce & 3;
         if ((is_write & !(tce & 2)) || ((!is_write) && !(tce & 1))) {
             phb3_error(phb, "TCE access fault at 0x%"PRIx64, taddr);
             phb3_error(phb, " xlate %"PRIx64":%c TVE=%"PRIx64, addr,
                        is_write ? 'W' : 'R', tve);
             phb3_error(phb, " tta=%"PRIx64" lev=%d tts=%d tps=%d",
                        tta, lev, tts, tps);
+            return;
         }
+        tce_mask = ~((1ull << tce_shift) - 1);
+        tlb->iova = addr & tce_mask;
+        tlb->translated_addr = tce & tce_mask;
+        tlb->addr_mask = ~tce_mask;
+        tlb->perm = tce & 3;
     }
 }
 

@@ -208,7 +208,6 @@ enum {
     CPU_POWERPC_601_v0             = 0x00010001,
     CPU_POWERPC_601_v1             = 0x00010001,
     CPU_POWERPC_601_v2             = 0x00010002,
-    CPU_POWERPC_602                = 0x00050100,
     CPU_POWERPC_603                = 0x00030100,
     CPU_POWERPC_603E_v11           = 0x00060101,
     CPU_POWERPC_603E_v12           = 0x00060102,
