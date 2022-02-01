@@ -465,20 +465,23 @@ static ItsCmdResult process_mapc(GICv3ITSState *s, const uint64_t *cmdpkt)
     return update_cte(s, icid, valid, rdbase) ? CMD_CONTINUE : CMD_STALL;
 }
 
-static bool update_dte(GICv3ITSState *s, uint32_t devid, bool valid,
-                       uint8_t size, uint64_t itt_addr)
+/*
+ * Update the Device Table entry for @devid to @dte. Returns true
+ * on success, false if there was a memory access error.
+ */
+static bool update_dte(GICv3ITSState *s, uint32_t devid, const DTEntry *dte)
 {
     AddressSpace *as = &s->gicv3->dma_as;
     uint64_t entry_addr;
-    uint64_t dte = 0;
+    uint64_t dteval = 0;
     MemTxResult res = MEMTX_OK;
 
     if (s->dt.valid) {
-        if (valid) {
+        if (dte->valid) {
             /* add mapping entry to device table */
-            dte = FIELD_DP64(dte, DTE, VALID, 1);
-            dte = FIELD_DP64(dte, DTE, SIZE, size);
-            dte = FIELD_DP64(dte, DTE, ITTADDR, itt_addr);
+            dteval = FIELD_DP64(dteval, DTE, VALID, 1);
+            dteval = FIELD_DP64(dteval, DTE, SIZE, dte->size);
+            dteval = FIELD_DP64(dteval, DTE, ITTADDR, dte->ittaddr);
         }
     } else {
         return true;
@@ -493,27 +496,25 @@ static bool update_dte(GICv3ITSState *s, uint32_t devid, bool valid,
         /* No L2 table for this index: discard write and continue */
         return true;
     }
-    address_space_stq_le(as, entry_addr, dte, MEMTXATTRS_UNSPECIFIED, &res);
+    address_space_stq_le(as, entry_addr, dteval, MEMTXATTRS_UNSPECIFIED, &res);
     return res == MEMTX_OK;
 }
 
 static ItsCmdResult process_mapd(GICv3ITSState *s, const uint64_t *cmdpkt)
 {
     uint32_t devid;
-    uint8_t size;
-    uint64_t itt_addr;
-    bool valid;
+    DTEntry dte;
 
     devid = (cmdpkt[0] & DEVID_MASK) >> DEVID_SHIFT;
-    size = cmdpkt[1] & SIZE_MASK;
-    itt_addr = (cmdpkt[2] & ITTADDR_MASK) >> ITTADDR_SHIFT;
-    valid = cmdpkt[2] & CMD_FIELD_VALID_MASK;
+    dte.size = cmdpkt[1] & SIZE_MASK;
+    dte.ittaddr = (cmdpkt[2] & ITTADDR_MASK) >> ITTADDR_SHIFT;
+    dte.valid = cmdpkt[2] & CMD_FIELD_VALID_MASK;
 
     if ((devid >= s->dt.num_entries) ||
-        (size > FIELD_EX64(s->typer, GITS_TYPER, IDBITS))) {
+        (dte.size > FIELD_EX64(s->typer, GITS_TYPER, IDBITS))) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "ITS MAPD: invalid device table attributes "
-                      "devid %d or size %d\n", devid, size);
+                      "devid %d or size %d\n", devid, dte.size);
         /*
          * in this implementation, in case of error
          * we ignore this command and move onto the next
@@ -522,7 +523,7 @@ static ItsCmdResult process_mapd(GICv3ITSState *s, const uint64_t *cmdpkt)
         return CMD_CONTINUE;
     }
 
-    return update_dte(s, devid, valid, size, itt_addr) ? CMD_CONTINUE : CMD_STALL;
+    return update_dte(s, devid, &dte) ? CMD_CONTINUE : CMD_STALL;
 }
 
 static ItsCmdResult process_movall(GICv3ITSState *s, const uint64_t *cmdpkt)
