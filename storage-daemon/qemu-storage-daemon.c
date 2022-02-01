@@ -100,7 +100,7 @@ static void help(void)
 "\n"
 #ifdef CONFIG_FUSE
 "  --export [type=]fuse,id=<id>,node-name=<node-name>,mountpoint=<file>\n"
-"           [,growable=on|off][,writable=on|off]\n"
+"           [,growable=on|off][,writable=on|off][,allow-other=on|off|auto]\n"
 "                         export the specified block node over FUSE\n"
 "\n"
 #endif /* CONFIG_FUSE */
@@ -111,7 +111,7 @@ static void help(void)
 "                         export the specified block node as a\n"
 "                         vhost-user-blk device over UNIX domain socket\n"
 "  --export [type=]vhost-user-blk,id=<id>,node-name=<node-name>,\n"
-"           fd,addr.str=<fd>[,writable=on|off]\n"
+"           addr.type=fd,addr.str=<fd>[,writable=on|off]\n"
 "           [,logical-block-size=<block-size>][,num-queues=<num-queues>]\n"
 "                         export the specified block node as a\n"
 "                         vhost-user-blk device over file descriptor\n"

@@ -625,11 +625,33 @@ static void fuse_fallocate(fuse_req_t req, fuse_ino_t inode, int mode,
         return;
     }
 
+#ifdef CONFIG_FALLOCATE_PUNCH_HOLE
     if (mode & FALLOC_FL_KEEP_SIZE) {
         length = MIN(length, blk_len - offset);
     }
+#endif /* CONFIG_FALLOCATE_PUNCH_HOLE */
 
-    if (mode & FALLOC_FL_PUNCH_HOLE) {
+    if (!mode) {
+        /* We can only fallocate at the EOF with a truncate */
+        if (offset < blk_len) {
+            fuse_reply_err(req, EOPNOTSUPP);
+            return;
+        }
+
+        if (offset > blk_len) {
+            /* No preallocation needed here */
+            ret = fuse_do_truncate(exp, offset, true, PREALLOC_MODE_OFF);
+            if (ret < 0) {
+                fuse_reply_err(req, -ret);
+                return;
+            }
+        }
+
+        ret = fuse_do_truncate(exp, offset + length, true,
+                               PREALLOC_MODE_FALLOC);
+    }
+#ifdef CONFIG_FALLOCATE_PUNCH_HOLE
+    else if (mode & FALLOC_FL_PUNCH_HOLE) {
         if (!(mode & FALLOC_FL_KEEP_SIZE)) {
             fuse_reply_err(req, EINVAL);
             return;
@@ -643,6 +665,7 @@ static void fuse_fallocate(fuse_req_t req, fuse_ino_t inode, int mode,
             length -= size;
         } while (ret == 0 && length > 0);
     }
+#endif /* CONFIG_FALLOCATE_PUNCH_HOLE */
 #ifdef CONFIG_FALLOCATE_ZERO_RANGE
     else if (mode & FALLOC_FL_ZERO_RANGE) {
         if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + length > blk_len) {
@@ -665,25 +688,7 @@ static void fuse_fallocate(fuse_req_t req, fuse_ino_t inode, int mode,
         } while (ret == 0 && length > 0);
     }
 #endif /* CONFIG_FALLOCATE_ZERO_RANGE */
-    else if (!mode) {
-        /* We can only fallocate at the EOF with a truncate */
-        if (offset < blk_len) {
-            fuse_reply_err(req, EOPNOTSUPP);
-            return;
-        }
-
-        if (offset > blk_len) {
-            /* No preallocation needed here */
-            ret = fuse_do_truncate(exp, offset, true, PREALLOC_MODE_OFF);
-            if (ret < 0) {
-                fuse_reply_err(req, -ret);
-                return;
-            }
-        }
-
-        ret = fuse_do_truncate(exp, offset + length, true,
-                               PREALLOC_MODE_FALLOC);
-    } else {
+    else {
         ret = -EOPNOTSUPP;
     }
 

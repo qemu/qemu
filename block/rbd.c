@@ -1279,11 +1279,11 @@ static int qemu_rbd_diff_iterate_cb(uint64_t offs, size_t len,
     RBDDiffIterateReq *req = opaque;
 
     assert(req->offs + req->bytes <= offs);
-    /*
-     * we do not diff against a snapshot so we should never receive a callback
-     * for a hole.
-     */
-    assert(exists);
+
+    /* treat a hole like an unallocated area and bail out */
+    if (!exists) {
+        return 0;
+    }
 
     if (!req->exists && offs > req->offs) {
         /*
@@ -1320,6 +1320,7 @@ static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,
     int status, r;
     RBDDiffIterateReq req = { .offs = offset };
     uint64_t features, flags;
+    uint64_t head = 0;
 
     assert(offset + bytes <= s->image_size);
 
@@ -1347,7 +1348,43 @@ static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,
         return status;
     }
 
-    r = rbd_diff_iterate2(s->image, NULL, offset, bytes, true, true,
+#if LIBRBD_VERSION_CODE < LIBRBD_VERSION(1, 17, 0)
+    /*
+     * librbd had a bug until early 2022 that affected all versions of ceph that
+     * supported fast-diff. This bug results in reporting of incorrect offsets
+     * if the offset parameter to rbd_diff_iterate2 is not object aligned.
+     * Work around this bug by rounding down the offset to object boundaries.
+     * This is OK because we call rbd_diff_iterate2 with whole_object = true.
+     * However, this workaround only works for non cloned images with default
+     * striping.
+     *
+     * See: https://tracker.ceph.com/issues/53784
+     */
+
+    /* check if RBD image has non-default striping enabled */
+    if (features & RBD_FEATURE_STRIPINGV2) {
+        return status;
+    }
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    /*
+     * check if RBD image is a clone (= has a parent).
+     *
+     * rbd_get_parent_info is deprecated from Nautilus onwards, but the
+     * replacement rbd_get_parent is not present in Luminous and Mimic.
+     */
+    if (rbd_get_parent_info(s->image, NULL, 0, NULL, 0, NULL, 0) != -ENOENT) {
+        return status;
+    }
+#pragma GCC diagnostic pop
+
+    head = req.offs & (s->object_size - 1);
+    req.offs -= head;
+    bytes += head;
+#endif
+
+    r = rbd_diff_iterate2(s->image, NULL, req.offs, bytes, true, true,
                           qemu_rbd_diff_iterate_cb, &req);
     if (r < 0 && r != QEMU_RBD_EXIT_DIFF_ITERATE2) {
         return status;
@@ -1366,7 +1403,8 @@ static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,
         status = BDRV_BLOCK_ZERO | BDRV_BLOCK_OFFSET_VALID;
     }
 
-    *pnum = req.bytes;
+    assert(req.bytes > head);
+    *pnum = req.bytes - head;
     return status;
 }
 
