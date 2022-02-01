@@ -442,10 +442,6 @@ static bool update_cte(GICv3ITSState *s, uint16_t icid, const CTEntry *cte)
     uint64_t cteval = 0;
     MemTxResult res = MEMTX_OK;
 
-    if (!s->ct.valid) {
-        return true;
-    }
-
     if (cte->valid) {
         /* add mapping entry to collection table */
         cteval = FIELD_DP64(cteval, CTE, VALID, 1);
@@ -504,15 +500,11 @@ static bool update_dte(GICv3ITSState *s, uint32_t devid, const DTEntry *dte)
     uint64_t dteval = 0;
     MemTxResult res = MEMTX_OK;
 
-    if (s->dt.valid) {
-        if (dte->valid) {
-            /* add mapping entry to device table */
-            dteval = FIELD_DP64(dteval, DTE, VALID, 1);
-            dteval = FIELD_DP64(dteval, DTE, SIZE, dte->size);
-            dteval = FIELD_DP64(dteval, DTE, ITTADDR, dte->ittaddr);
-        }
-    } else {
-        return true;
+    if (dte->valid) {
+        /* add mapping entry to device table */
+        dteval = FIELD_DP64(dteval, DTE, VALID, 1);
+        dteval = FIELD_DP64(dteval, DTE, SIZE, dte->size);
+        dteval = FIELD_DP64(dteval, DTE, ITTADDR, dte->ittaddr);
     }
 
     entry_addr = table_entry_addr(s, &s->dt, devid, &res);
@@ -901,7 +893,6 @@ static void extract_table_params(GICv3ITSState *s)
         }
 
         memset(td, 0, sizeof(*td));
-        td->valid = FIELD_EX64(value, GITS_BASER, VALID);
         /*
          * If GITS_BASER<n>.Valid is 0 for any <n> then we will not process
          * interrupts. (GITS_TYPER.HCC is 0 for this implementation, so we
@@ -909,8 +900,15 @@ static void extract_table_params(GICv3ITSState *s)
          * for the register corresponding to the Collection table but we
          * still have to process interrupts using non-memory-backed
          * Collection table entries.)
+         * The specification makes it UNPREDICTABLE to enable the ITS without
+         * marking each BASER<n> as valid. We choose to handle these as if
+         * the table was zero-sized, so commands using the table will fail
+         * and interrupts requested via GITS_TRANSLATER writes will be ignored.
+         * This happens automatically by leaving the num_entries field at
+         * zero, which will be caught by the bounds checks we have before
+         * every table lookup anyway.
          */
-        if (!td->valid) {
+        if (!FIELD_EX64(value, GITS_BASER, VALID)) {
             continue;
         }
         td->page_sz = page_sz;
@@ -936,9 +934,8 @@ static void extract_cmdq_params(GICv3ITSState *s)
     num_pages = FIELD_EX64(value, GITS_CBASER, SIZE) + 1;
 
     memset(&s->cq, 0 , sizeof(s->cq));
-    s->cq.valid = FIELD_EX64(value, GITS_CBASER, VALID);
 
-    if (s->cq.valid) {
+    if (FIELD_EX64(value, GITS_CBASER, VALID)) {
         s->cq.num_entries = (num_pages * GITS_PAGE_SIZE_4K) /
                              GITS_CMDQ_ENTRY_SIZE;
         s->cq.base_addr = FIELD_EX64(value, GITS_CBASER, PHYADDR);
