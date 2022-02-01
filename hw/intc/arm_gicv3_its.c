@@ -224,11 +224,9 @@ static uint64_t get_dte(GICv3ITSState *s, uint32_t devid, MemTxResult *res)
  * 3. handling of ITS CLEAR command
  * 4. handling of ITS DISCARD command
  */
-static ItsCmdResult process_its_cmd(GICv3ITSState *s, uint64_t value,
-                                    uint32_t offset, ItsCmdType cmd)
+static ItsCmdResult do_process_its_cmd(GICv3ITSState *s, uint32_t devid,
+                                       uint32_t eventid, ItsCmdType cmd)
 {
-    AddressSpace *as = &s->gicv3->dma_as;
-    uint32_t devid, eventid;
     MemTxResult res = MEMTX_OK;
     bool dte_valid;
     uint64_t dte = 0;
@@ -239,22 +237,6 @@ static ItsCmdResult process_its_cmd(GICv3ITSState *s, uint64_t value,
     uint64_t cte = 0;
     bool cte_valid = false;
     uint64_t rdbase;
-
-    if (cmd == NONE) {
-        devid = offset;
-    } else {
-        devid = ((value & DEVID_MASK) >> DEVID_SHIFT);
-
-        offset += NUM_BYTES_IN_DW;
-        value = address_space_ldq_le(as, s->cq.base_addr + offset,
-                                     MEMTXATTRS_UNSPECIFIED, &res);
-    }
-
-    if (res != MEMTX_OK) {
-        return CMD_STALL;
-    }
-
-    eventid = (value & EVENTID_MASK);
 
     if (devid >= s->dt.num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -342,11 +324,19 @@ static ItsCmdResult process_its_cmd(GICv3ITSState *s, uint64_t value,
     }
     return CMD_CONTINUE;
 }
-
-static ItsCmdResult process_mapti(GICv3ITSState *s, uint64_t value,
-                                  uint32_t offset, bool ignore_pInt)
+static ItsCmdResult process_its_cmd(GICv3ITSState *s, const uint64_t *cmdpkt,
+                                    ItsCmdType cmd)
 {
-    AddressSpace *as = &s->gicv3->dma_as;
+    uint32_t devid, eventid;
+
+    devid = (cmdpkt[0] & DEVID_MASK) >> DEVID_SHIFT;
+    eventid = cmdpkt[1] & EVENTID_MASK;
+    return do_process_its_cmd(s, devid, eventid, cmd);
+}
+
+static ItsCmdResult process_mapti(GICv3ITSState *s, const uint64_t *cmdpkt,
+                                  bool ignore_pInt)
+{
     uint32_t devid, eventid;
     uint32_t pIntid = 0;
     uint64_t num_eventids;
@@ -357,32 +347,16 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, uint64_t value,
     uint64_t dte = 0;
     IteEntry ite = {};
 
-    devid = ((value & DEVID_MASK) >> DEVID_SHIFT);
-    offset += NUM_BYTES_IN_DW;
-    value = address_space_ldq_le(as, s->cq.base_addr + offset,
-                                 MEMTXATTRS_UNSPECIFIED, &res);
-
-    if (res != MEMTX_OK) {
-        return CMD_STALL;
-    }
-
-    eventid = (value & EVENTID_MASK);
+    devid = (cmdpkt[0] & DEVID_MASK) >> DEVID_SHIFT;
+    eventid = cmdpkt[1] & EVENTID_MASK;
 
     if (ignore_pInt) {
         pIntid = eventid;
     } else {
-        pIntid = ((value & pINTID_MASK) >> pINTID_SHIFT);
+        pIntid = (cmdpkt[1] & pINTID_MASK) >> pINTID_SHIFT;
     }
 
-    offset += NUM_BYTES_IN_DW;
-    value = address_space_ldq_le(as, s->cq.base_addr + offset,
-                                 MEMTXATTRS_UNSPECIFIED, &res);
-
-    if (res != MEMTX_OK) {
-        return CMD_STALL;
-    }
-
-    icid = value & ICID_MASK;
+    icid = cmdpkt[2] & ICID_MASK;
 
     if (devid >= s->dt.num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -459,31 +433,18 @@ static bool update_cte(GICv3ITSState *s, uint16_t icid, bool valid,
     return res == MEMTX_OK;
 }
 
-static ItsCmdResult process_mapc(GICv3ITSState *s, uint32_t offset)
+static ItsCmdResult process_mapc(GICv3ITSState *s, const uint64_t *cmdpkt)
 {
-    AddressSpace *as = &s->gicv3->dma_as;
     uint16_t icid;
     uint64_t rdbase;
     bool valid;
-    MemTxResult res = MEMTX_OK;
-    uint64_t value;
 
-    offset += NUM_BYTES_IN_DW;
-    offset += NUM_BYTES_IN_DW;
+    icid = cmdpkt[2] & ICID_MASK;
 
-    value = address_space_ldq_le(as, s->cq.base_addr + offset,
-                                 MEMTXATTRS_UNSPECIFIED, &res);
-
-    if (res != MEMTX_OK) {
-        return CMD_STALL;
-    }
-
-    icid = value & ICID_MASK;
-
-    rdbase = (value & R_MAPC_RDBASE_MASK) >> R_MAPC_RDBASE_SHIFT;
+    rdbase = (cmdpkt[2] & R_MAPC_RDBASE_MASK) >> R_MAPC_RDBASE_SHIFT;
     rdbase &= RDBASE_PROCNUM_MASK;
 
-    valid = (value & CMD_FIELD_VALID_MASK);
+    valid = cmdpkt[2] & CMD_FIELD_VALID_MASK;
 
     if ((icid >= s->ct.num_entries) || (rdbase >= s->gicv3->num_cpu)) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -532,39 +493,17 @@ static bool update_dte(GICv3ITSState *s, uint32_t devid, bool valid,
     return res == MEMTX_OK;
 }
 
-static ItsCmdResult process_mapd(GICv3ITSState *s, uint64_t value,
-                                 uint32_t offset)
+static ItsCmdResult process_mapd(GICv3ITSState *s, const uint64_t *cmdpkt)
 {
-    AddressSpace *as = &s->gicv3->dma_as;
     uint32_t devid;
     uint8_t size;
     uint64_t itt_addr;
     bool valid;
-    MemTxResult res = MEMTX_OK;
 
-    devid = ((value & DEVID_MASK) >> DEVID_SHIFT);
-
-    offset += NUM_BYTES_IN_DW;
-    value = address_space_ldq_le(as, s->cq.base_addr + offset,
-                                 MEMTXATTRS_UNSPECIFIED, &res);
-
-    if (res != MEMTX_OK) {
-        return CMD_STALL;
-    }
-
-    size = (value & SIZE_MASK);
-
-    offset += NUM_BYTES_IN_DW;
-    value = address_space_ldq_le(as, s->cq.base_addr + offset,
-                                 MEMTXATTRS_UNSPECIFIED, &res);
-
-    if (res != MEMTX_OK) {
-        return CMD_STALL;
-    }
-
-    itt_addr = (value & ITTADDR_MASK) >> ITTADDR_SHIFT;
-
-    valid = (value & CMD_FIELD_VALID_MASK);
+    devid = (cmdpkt[0] & DEVID_MASK) >> DEVID_SHIFT;
+    size = cmdpkt[1] & SIZE_MASK;
+    itt_addr = (cmdpkt[2] & ITTADDR_MASK) >> ITTADDR_SHIFT;
+    valid = cmdpkt[2] & CMD_FIELD_VALID_MASK;
 
     if ((devid >= s->dt.num_entries) ||
         (size > FIELD_EX64(s->typer, GITS_TYPER, IDBITS))) {
@@ -582,23 +521,13 @@ static ItsCmdResult process_mapd(GICv3ITSState *s, uint64_t value,
     return update_dte(s, devid, valid, size, itt_addr) ? CMD_CONTINUE : CMD_STALL;
 }
 
-static ItsCmdResult process_movall(GICv3ITSState *s, uint64_t value,
-                                   uint32_t offset)
+static ItsCmdResult process_movall(GICv3ITSState *s, const uint64_t *cmdpkt)
 {
-    AddressSpace *as = &s->gicv3->dma_as;
-    MemTxResult res = MEMTX_OK;
     uint64_t rd1, rd2;
 
-    /* No fields in dwords 0 or 1 */
-    offset += NUM_BYTES_IN_DW;
-    offset += NUM_BYTES_IN_DW;
-    value = address_space_ldq_le(as, s->cq.base_addr + offset,
-                                 MEMTXATTRS_UNSPECIFIED, &res);
-    if (res != MEMTX_OK) {
-        return CMD_STALL;
-    }
+    rd1 = FIELD_EX64(cmdpkt[2], MOVALL_2, RDBASE1);
+    rd2 = FIELD_EX64(cmdpkt[3], MOVALL_3, RDBASE2);
 
-    rd1 = FIELD_EX64(value, MOVALL_2, RDBASE1);
     if (rd1 >= s->gicv3->num_cpu) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: RDBASE1 %" PRId64
@@ -606,15 +535,6 @@ static ItsCmdResult process_movall(GICv3ITSState *s, uint64_t value,
                       __func__, rd1, s->gicv3->num_cpu);
         return CMD_CONTINUE;
     }
-
-    offset += NUM_BYTES_IN_DW;
-    value = address_space_ldq_le(as, s->cq.base_addr + offset,
-                                 MEMTXATTRS_UNSPECIFIED, &res);
-    if (res != MEMTX_OK) {
-        return CMD_STALL;
-    }
-
-    rd2 = FIELD_EX64(value, MOVALL_3, RDBASE2);
     if (rd2 >= s->gicv3->num_cpu) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: RDBASE2 %" PRId64
@@ -634,10 +554,8 @@ static ItsCmdResult process_movall(GICv3ITSState *s, uint64_t value,
     return CMD_CONTINUE;
 }
 
-static ItsCmdResult process_movi(GICv3ITSState *s, uint64_t value,
-                                 uint32_t offset)
+static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
 {
-    AddressSpace *as = &s->gicv3->dma_as;
     MemTxResult res = MEMTX_OK;
     uint32_t devid, eventid, intid;
     uint16_t old_icid, new_icid;
@@ -648,23 +566,9 @@ static ItsCmdResult process_movi(GICv3ITSState *s, uint64_t value,
     uint64_t num_eventids;
     IteEntry ite = {};
 
-    devid = FIELD_EX64(value, MOVI_0, DEVICEID);
-
-    offset += NUM_BYTES_IN_DW;
-    value = address_space_ldq_le(as, s->cq.base_addr + offset,
-                                 MEMTXATTRS_UNSPECIFIED, &res);
-    if (res != MEMTX_OK) {
-        return CMD_STALL;
-    }
-    eventid = FIELD_EX64(value, MOVI_1, EVENTID);
-
-    offset += NUM_BYTES_IN_DW;
-    value = address_space_ldq_le(as, s->cq.base_addr + offset,
-                                 MEMTXATTRS_UNSPECIFIED, &res);
-    if (res != MEMTX_OK) {
-        return CMD_STALL;
-    }
-    new_icid = FIELD_EX64(value, MOVI_2, ICID);
+    devid = FIELD_EX64(cmdpkt[0], MOVI_0, DEVICEID);
+    eventid = FIELD_EX64(cmdpkt[1], MOVI_1, EVENTID);
+    new_icid = FIELD_EX64(cmdpkt[2], MOVI_2, ICID);
 
     if (devid >= s->dt.num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -786,9 +690,7 @@ static void process_cmdq(GICv3ITSState *s)
     uint32_t wr_offset = 0;
     uint32_t rd_offset = 0;
     uint32_t cq_offset = 0;
-    uint64_t data;
     AddressSpace *as = &s->gicv3->dma_as;
-    MemTxResult res = MEMTX_OK;
     uint8_t cmd;
     int i;
 
@@ -816,28 +718,40 @@ static void process_cmdq(GICv3ITSState *s)
 
     while (wr_offset != rd_offset) {
         ItsCmdResult result = CMD_CONTINUE;
+        void *hostmem;
+        hwaddr buflen;
+        uint64_t cmdpkt[GITS_CMDQ_ENTRY_WORDS];
 
         cq_offset = (rd_offset * GITS_CMDQ_ENTRY_SIZE);
-        data = address_space_ldq_le(as, s->cq.base_addr + cq_offset,
-                                    MEMTXATTRS_UNSPECIFIED, &res);
-        if (res != MEMTX_OK) {
+
+        buflen = GITS_CMDQ_ENTRY_SIZE;
+        hostmem = address_space_map(as, s->cq.base_addr + cq_offset,
+                                    &buflen, false, MEMTXATTRS_UNSPECIFIED);
+        if (!hostmem || buflen != GITS_CMDQ_ENTRY_SIZE) {
+            if (hostmem) {
+                address_space_unmap(as, hostmem, buflen, false, 0);
+            }
             s->creadr = FIELD_DP64(s->creadr, GITS_CREADR, STALLED, 1);
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: could not read command at 0x%" PRIx64 "\n",
                           __func__, s->cq.base_addr + cq_offset);
             break;
         }
+        for (i = 0; i < ARRAY_SIZE(cmdpkt); i++) {
+            cmdpkt[i] = ldq_le_p(hostmem + i * sizeof(uint64_t));
+        }
+        address_space_unmap(as, hostmem, buflen, false, 0);
 
-        cmd = (data & CMD_MASK);
+        cmd = cmdpkt[0] & CMD_MASK;
 
         trace_gicv3_its_process_command(rd_offset, cmd);
 
         switch (cmd) {
         case GITS_CMD_INT:
-            result = process_its_cmd(s, data, cq_offset, INTERRUPT);
+            result = process_its_cmd(s, cmdpkt, INTERRUPT);
             break;
         case GITS_CMD_CLEAR:
-            result = process_its_cmd(s, data, cq_offset, CLEAR);
+            result = process_its_cmd(s, cmdpkt, CLEAR);
             break;
         case GITS_CMD_SYNC:
             /*
@@ -848,19 +762,19 @@ static void process_cmdq(GICv3ITSState *s)
              */
             break;
         case GITS_CMD_MAPD:
-            result = process_mapd(s, data, cq_offset);
+            result = process_mapd(s, cmdpkt);
             break;
         case GITS_CMD_MAPC:
-            result = process_mapc(s, cq_offset);
+            result = process_mapc(s, cmdpkt);
             break;
         case GITS_CMD_MAPTI:
-            result = process_mapti(s, data, cq_offset, false);
+            result = process_mapti(s, cmdpkt, false);
             break;
         case GITS_CMD_MAPI:
-            result = process_mapti(s, data, cq_offset, true);
+            result = process_mapti(s, cmdpkt, true);
             break;
         case GITS_CMD_DISCARD:
-            result = process_its_cmd(s, data, cq_offset, DISCARD);
+            result = process_its_cmd(s, cmdpkt, DISCARD);
             break;
         case GITS_CMD_INV:
         case GITS_CMD_INVALL:
@@ -875,10 +789,10 @@ static void process_cmdq(GICv3ITSState *s)
             }
             break;
         case GITS_CMD_MOVI:
-            result = process_movi(s, data, cq_offset);
+            result = process_movi(s, cmdpkt);
             break;
         case GITS_CMD_MOVALL:
-            result = process_movall(s, data, cq_offset);
+            result = process_movall(s, cmdpkt);
             break;
         default:
             break;
@@ -1032,15 +946,13 @@ static MemTxResult gicv3_its_translation_write(void *opaque, hwaddr offset,
 {
     GICv3ITSState *s = (GICv3ITSState *)opaque;
     bool result = true;
-    uint32_t devid = 0;
 
     trace_gicv3_its_translation_write(offset, data, size, attrs.requester_id);
 
     switch (offset) {
     case GITS_TRANSLATER:
         if (s->ctlr & R_GITS_CTLR_ENABLED_MASK) {
-            devid = attrs.requester_id;
-            result = process_its_cmd(s, data, devid, NONE);
+            result = do_process_its_cmd(s, attrs.requester_id, data, NONE);
         }
         break;
     default:
