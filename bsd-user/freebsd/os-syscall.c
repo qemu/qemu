@@ -41,6 +41,7 @@
 #include "user/syscall-trace.h"
 
 #include "bsd-file.h"
+#include "bsd-proc.h"
 
 /* I/O */
 safe_syscall3(ssize_t, read, int, fd, void *, buf, size_t, nbytes);
@@ -215,6 +216,12 @@ static abi_long freebsd_syscall(void *cpu_env, int num, abi_long arg1,
     abi_long ret;
 
     switch (num) {
+        /*
+         * process system calls
+         */
+    case TARGET_FREEBSD_NR_exit: /* exit(2) */
+        ret = do_bsd_exit(cpu_env, arg1);
+        break;
 
         /*
          * File system calls.
