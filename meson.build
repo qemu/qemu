@@ -1926,6 +1926,14 @@ config_host_data.set('CONFIG_AF_VSOCK', cc.compiles(gnu_source_prefix + '''
     return -1;
   }'''))
 
+have_vss = false
+if targetos == 'windows' and link_language == 'cpp'
+  have_vss = cxx.compiles('''
+    #define __MIDL_user_allocate_free_DEFINED__
+    #include <inc/win2003/vss.h>
+    int main(void) { return VSS_CTX_BACKUP; }''')
+endif
+
 ignored = ['CONFIG_QEMU_INTERP_PREFIX', # actually per-target
     'HAVE_GDB_BIN']
 arrays = ['CONFIG_BDRV_RW_WHITELIST', 'CONFIG_BDRV_RO_WHITELIST']
@@ -3592,7 +3600,7 @@ summary_info += {'libiscsi support':  libiscsi}
 summary_info += {'libnfs support':    libnfs}
 if targetos == 'windows'
   if have_ga
-    summary_info += {'QGA VSS support':   config_host.has_key('CONFIG_QGA_VSS')}
+    summary_info += {'QGA VSS support':   have_qga_vss}
     summary_info += {'QGA w32 disk info': config_host.has_key('CONFIG_QGA_NTDDSCSI')}
   endif
 endif

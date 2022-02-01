@@ -317,7 +317,6 @@ pie=""
 trace_backends="log"
 trace_file="trace"
 opengl="$default_feature"
-vss_win32_sdk="$default_feature"
 coroutine=""
 tls_priority="NORMAL"
 plugins="$default_feature"
@@ -957,12 +956,6 @@ for opt do
   ;;
   --disable-zlib-test)
   ;;
-  --with-vss-sdk) vss_win32_sdk=""
-  ;;
-  --with-vss-sdk=*) vss_win32_sdk="$optarg"
-  ;;
-  --without-vss-sdk) vss_win32_sdk="no"
-  ;;
   --disable-virtio-blk-data-plane|--enable-virtio-blk-data-plane)
       echo "$0: $opt is obsolete, virtio-blk data-plane is always on" >&2
   ;;
@@ -1225,8 +1218,6 @@ Advanced options (experts only):
   --with-coroutine=BACKEND coroutine backend. Supported options:
                            ucontext, sigaltstack, windows
   --enable-gcov            enable test coverage analysis with gcov
-  --with-vss-sdk=SDK-path  enable Windows VSS support in QEMU Guest Agent
-  --with-win-sdk=SDK-path  path to Windows Platform SDK (to build VSS .tlb)
   --tls-priority           default TLS protocol/cipher priority string
   --enable-plugins
                            enable plugins via shared library loading
@@ -2312,41 +2303,6 @@ EOF
 fi
 
 ##########################################
-# check if we have VSS SDK headers for win
-
-guest_agent_with_vss="no"
-if test "$mingw32" = "yes" && \
-        test "$vss_win32_sdk" != "no" ; then
-  case "$vss_win32_sdk" in
-    "")   vss_win32_include="-isystem $source_path" ;;
-    *\ *) # The SDK is installed in "Program Files" by default, but we cannot
-          # handle path with spaces. So we symlink the headers into ".sdk/vss".
-          vss_win32_include="-isystem $source_path/.sdk/vss"
-	  symlink "$vss_win32_sdk/inc" "$source_path/.sdk/vss/inc"
-	  ;;
-    *)    vss_win32_include="-isystem $vss_win32_sdk"
-  esac
-  cat > $TMPC << EOF
-#define __MIDL_user_allocate_free_DEFINED__
-#include <inc/win2003/vss.h>
-int main(void) { return VSS_CTX_BACKUP; }
-EOF
-  if compile_prog "$vss_win32_include" "" ; then
-    guest_agent_with_vss="yes"
-    QEMU_CFLAGS="$QEMU_CFLAGS $vss_win32_include"
-  else
-    if test "$vss_win32_sdk" != "" ; then
-      echo "ERROR: Please download and install Microsoft VSS SDK:"
-      echo "ERROR:   http://www.microsoft.com/en-us/download/details.aspx?id=23490"
-      echo "ERROR: On POSIX-systems, you can extract the SDK headers by:"
-      echo "ERROR:   scripts/extract-vsssdk-headers setup.exe"
-      echo "ERROR: The headers are extracted in the directory \`inc'."
-      feature_not_found "VSS support"
-    fi
-  fi
-fi
-
-##########################################
 # check if mingw environment provides a recent ntddscsi.h
 guest_agent_ntddscsi="no"
 if test "$mingw32" = "yes"; then
@@ -2875,9 +2831,6 @@ if test "$debug_tcg" = "yes" ; then
 fi
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
-  if test "$guest_agent_with_vss" = "yes" ; then
-    echo "CONFIG_QGA_VSS=y" >> $config_host_mak
-  fi
   if test "$guest_agent_ntddscsi" = "yes" ; then
     echo "CONFIG_QGA_NTDDSCSI=y" >> $config_host_mak
   fi
