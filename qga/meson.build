@@ -20,6 +20,8 @@ have_qga_vss = get_option('qga_vss') \
     $ scripts/extract-vsssdk-headers setup.exe
     The headers are extracted in the directory 'inc/win2003'.
     Then run configure with: --extra-cxxflags="-isystem /path/to/vss/inc/win2003"''') \
+  .require(midl.found() or widl.found(),
+           error_message: 'VSS support requires midl or widl') \
   .allowed()
 
 all_qga = []
