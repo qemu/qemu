@@ -41,7 +41,7 @@ void virtio_9p_create_local_test_dir(void)
 {
     g_assert(local_test_path == NULL);
     struct stat st;
-    char *pwd = g_get_current_dir();
+    g_autofree char *pwd = g_get_current_dir();
     /*
      * template gets cached into local_test_path and freed in
      * virtio_9p_remove_local_test_dir().
@@ -52,7 +52,6 @@ void virtio_9p_create_local_test_dir(void)
     if (!local_test_path) {
         g_test_message("mkdtemp('%s') failed: %s", template, strerror(errno));
     }
-    g_free(pwd);
 
     g_assert(local_test_path != NULL);
 
@@ -65,12 +64,11 @@ void virtio_9p_create_local_test_dir(void)
 void virtio_9p_remove_local_test_dir(void)
 {
     g_assert(local_test_path != NULL);
-    char *cmd = g_strdup_printf("rm -fr '%s'\n", local_test_path);
+    g_autofree char *cmd = g_strdup_printf("rm -fr '%s'\n", local_test_path);
     int res = system(cmd);
     if (res < 0) {
         /* ignore error, dummy check to prevent compiler error */
     }
-    g_free(cmd);
     g_free(local_test_path);
     local_test_path = NULL;
 }
@@ -216,8 +214,8 @@ static void *virtio_9p_pci_create(void *pci_bus, QGuestAllocator *t_alloc,
 static void regex_replace(GString *haystack, const char *pattern,
                           const char *replace_fmt, ...)
 {
-    GRegex *regex;
-    char *replace, *s;
+    g_autoptr(GRegex) regex = NULL;
+    g_autofree char *replace = NULL, *s = NULL;
     va_list argp;
 
     va_start(argp, replace_fmt);
@@ -227,9 +225,6 @@ static void regex_replace(GString *haystack, const char *pattern,
     regex = g_regex_new(pattern, 0, 0, NULL);
     s = g_regex_replace(regex, haystack->str, -1, 0, replace, 0, NULL);
     g_string_assign(haystack, s);
-    g_free(s);
-    g_regex_unref(regex);
-    g_free(replace);
 }
 
 void virtio_9p_assign_local_driver(GString *cmd_line, const char *args)
