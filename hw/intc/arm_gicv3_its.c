@@ -41,11 +41,6 @@ typedef enum ItsCmdType {
     INTERRUPT = 3,
 } ItsCmdType;
 
-typedef struct {
-    uint32_t iteh;
-    uint64_t itel;
-} IteEntry;
-
 typedef struct DTEntry {
     bool valid;
     unsigned size;
@@ -178,24 +173,35 @@ static MemTxResult get_cte(GICv3ITSState *s, uint16_t icid, CTEntry *cte)
     return MEMTX_OK;
 }
 
+/*
+ * Update the Interrupt Table entry at index @evinted in the table specified
+ * by the dte @dte. Returns true on success, false if there was a memory
+ * access error.
+ */
 static bool update_ite(GICv3ITSState *s, uint32_t eventid, const DTEntry *dte,
-                       IteEntry ite)
+                       const ITEntry *ite)
 {
     AddressSpace *as = &s->gicv3->dma_as;
     MemTxResult res = MEMTX_OK;
     hwaddr iteaddr = dte->ittaddr + eventid * ITS_ITT_ENTRY_SIZE;
+    uint64_t itel = 0;
+    uint32_t iteh = 0;
 
-    address_space_stq_le(as, iteaddr, ite.itel, MEMTXATTRS_UNSPECIFIED, &res);
-
-    if (res == MEMTX_OK) {
-        address_space_stl_le(as, iteaddr + 8, ite.iteh,
-                             MEMTXATTRS_UNSPECIFIED, &res);
+    if (ite->valid) {
+        itel = FIELD_DP64(itel, ITE_L, VALID, 1);
+        itel = FIELD_DP64(itel, ITE_L, INTTYPE, ite->inttype);
+        itel = FIELD_DP64(itel, ITE_L, INTID, ite->intid);
+        itel = FIELD_DP64(itel, ITE_L, ICID, ite->icid);
+        itel = FIELD_DP64(itel, ITE_L, VPEID, ite->vpeid);
+        iteh = FIELD_DP32(iteh, ITE_H, DOORBELL, ite->doorbell);
     }
+
+    address_space_stq_le(as, iteaddr, itel, MEMTXATTRS_UNSPECIFIED, &res);
     if (res != MEMTX_OK) {
         return false;
-    } else {
-        return true;
     }
+    address_space_stl_le(as, iteaddr + 8, iteh, MEMTXATTRS_UNSPECIFIED, &res);
+    return res == MEMTX_OK;
 }
 
 /*
@@ -346,9 +352,10 @@ static ItsCmdResult do_process_its_cmd(GICv3ITSState *s, uint32_t devid,
     }
 
     if (cmd == DISCARD) {
-        IteEntry itee = {};
+        ITEntry ite = {};
         /* remove mapping from interrupt translation table */
-        return update_ite(s, eventid, &dte, itee) ? CMD_CONTINUE : CMD_STALL;
+        ite.valid = false;
+        return update_ite(s, eventid, &dte, &ite) ? CMD_CONTINUE : CMD_STALL;
     }
     return CMD_CONTINUE;
 }
@@ -370,8 +377,8 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, const uint64_t *cmdpkt,
     uint64_t num_eventids;
     uint32_t num_intids;
     uint16_t icid = 0;
-    IteEntry ite = {};
     DTEntry dte;
+    ITEntry ite;
 
     devid = (cmdpkt[0] & DEVID_MASK) >> DEVID_SHIFT;
     eventid = cmdpkt[1] & EVENTID_MASK;
@@ -415,13 +422,13 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, const uint64_t *cmdpkt,
     }
 
     /* add ite entry to interrupt translation table */
-    ite.itel = FIELD_DP64(ite.itel, ITE_L, VALID, true);
-    ite.itel = FIELD_DP64(ite.itel, ITE_L, INTTYPE, ITE_INTTYPE_PHYSICAL);
-    ite.itel = FIELD_DP64(ite.itel, ITE_L, INTID, pIntid);
-    ite.itel = FIELD_DP64(ite.itel, ITE_L, ICID, icid);
-    ite.iteh = FIELD_DP32(ite.iteh, ITE_H, DOORBELL, INTID_SPURIOUS);
-
-    return update_ite(s, eventid, &dte, ite) ? CMD_CONTINUE : CMD_STALL;
+    ite.valid = true;
+    ite.inttype = ITE_INTTYPE_PHYSICAL;
+    ite.intid = pIntid;
+    ite.icid = icid;
+    ite.doorbell = INTID_SPURIOUS;
+    ite.vpeid = 0;
+    return update_ite(s, eventid, &dte, &ite) ? CMD_CONTINUE : CMD_STALL;
 }
 
 /*
@@ -585,7 +592,6 @@ static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
     uint32_t devid, eventid;
     uint16_t new_icid;
     uint64_t num_eventids;
-    IteEntry ite = {};
     DTEntry dte;
     CTEntry old_cte, new_cte;
     ITEntry old_ite;
@@ -689,12 +695,8 @@ static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
     }
 
     /* Update the ICID field in the interrupt translation table entry */
-    ite.itel = FIELD_DP64(ite.itel, ITE_L, VALID, 1);
-    ite.itel = FIELD_DP64(ite.itel, ITE_L, INTTYPE, ITE_INTTYPE_PHYSICAL);
-    ite.itel = FIELD_DP64(ite.itel, ITE_L, INTID, old_ite.intid);
-    ite.itel = FIELD_DP64(ite.itel, ITE_L, ICID, new_icid);
-    ite.iteh = FIELD_DP32(ite.iteh, ITE_H, DOORBELL, INTID_SPURIOUS);
-    return update_ite(s, eventid, &dte, ite) ? CMD_CONTINUE : CMD_STALL;
+    old_ite.icid = new_icid;
+    return update_ite(s, eventid, &dte, &old_ite) ? CMD_CONTINUE : CMD_STALL;
 }
 
 /*
