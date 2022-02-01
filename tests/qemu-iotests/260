@@ -23,7 +23,8 @@ import iotests
 from iotests import qemu_img_create, file_path, log, filter_qmp_event
 
 iotests.script_initialize(
-    supported_fmts=['qcow2']
+    supported_fmts=['qcow2'],
+    unsupported_imgopts=['compat']
 )
 
 base, top = file_path('base', 'top')

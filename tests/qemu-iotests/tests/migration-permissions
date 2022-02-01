@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+# group: migration
+#
+# Copyright (C) 2021 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import iotests
+from iotests import imgfmt, qemu_img_create, qemu_io
+
+
+test_img = os.path.join(iotests.test_dir, 'test.img')
+mig_sock = os.path.join(iotests.sock_dir, 'mig.sock')
+
+
+class TestMigrationPermissions(iotests.QMPTestCase):
+    def setUp(self):
+        qemu_img_create('-f', imgfmt, test_img, '1M')
+
+        # Set up two VMs (source and destination) accessing the same raw
+        # image file with a virtio-blk device; prepare the destination for
+        # migration with .add_incoming() and enable migration events
+        vms = [None, None]
+        for i in range(2):
+            vms[i] = iotests.VM(path_suffix=f'{i}')
+            vms[i].add_blockdev(f'file,node-name=prot,filename={test_img}')
+            vms[i].add_blockdev(f'{imgfmt},node-name=fmt,file=prot')
+            vms[i].add_device('virtio-blk,drive=fmt')
+
+            if i == 1:
+                vms[i].add_incoming(f'unix:{mig_sock}')
+
+            vms[i].launch()
+
+            result = vms[i].qmp('migrate-set-capabilities',
+                                capabilities=[
+                                    {'capability': 'events', 'state': True}
+                                ])
+            self.assert_qmp(result, 'return', {})
+
+        self.vm_s = vms[0]
+        self.vm_d = vms[1]
+
+    def tearDown(self):
+        self.vm_s.shutdown()
+        self.vm_d.shutdown()
+        try:
+            os.remove(mig_sock)
+        except FileNotFoundError:
+            pass
+        os.remove(test_img)
+
+    # Migrate an image in use by a virtio-blk device to another VM and
+    # verify that the WRITE permission is unshared both before and after
+    # migration
+    def test_post_migration_permissions(self):
+        # Try to access the image R/W, which should fail because virtio-blk
+        # has not been configured with share-rw=on
+        log = qemu_io('-f', imgfmt, '-c', 'quit', test_img)
+        if not log.strip():
+            print('ERROR (pre-migration): qemu-io should not be able to '
+                  'access this image, but it reported no error')
+        else:
+            # This is the expected output
+            assert 'Is another process using the image' in log
+
+        # Now migrate the VM
+        self.vm_s.qmp('migrate', uri=f'unix:{mig_sock}')
+        assert self.vm_s.wait_migration(None)
+        assert self.vm_d.wait_migration(None)
+
+        # Try the same qemu-io access again, verifying that the WRITE
+        # permission remains unshared
+        log = qemu_io('-f', imgfmt, '-c', 'quit', test_img)
+        if not log.strip():
+            print('ERROR (post-migration): qemu-io should not be able to '
+                  'access this image, but it reported no error')
+        else:
+            # This is the expected output
+            assert 'Is another process using the image' in log
+
+
+if __name__ == '__main__':
+    # Only works with raw images because we are testing the
+    # BlockBackend permissions; image format drivers may additionally
+    # unshare permissions and thus tamper with the result
+    iotests.main(supported_fmts=['raw'],
+                 supported_protocols=['file'])

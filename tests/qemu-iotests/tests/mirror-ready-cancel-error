@@ -36,6 +36,11 @@ class TestMirrorReadyCancelError(iotests.QMPTestCase):
         assert iotests.qemu_img_create('-f', iotests.imgfmt, target,
                                        str(image_size)) == 0
 
+        # Ensure that mirror will copy something before READY so the
+        # target format layer will forward the pre-READY flush to its
+        # file child
+        assert iotests.qemu_io_silent('-c', 'write -P 1 0 64k', source) == 0
+
         self.vm = iotests.VM()
         self.vm.launch()
 
@@ -97,7 +102,7 @@ class TestMirrorReadyCancelError(iotests.QMPTestCase):
         # Write something so will not leave the job immediately, but
         # flush first (which will fail, thanks to blkdebug)
         res = self.vm.qmp('human-monitor-command',
-                          command_line='qemu-io mirror-top "write 0 64k"')
+                          command_line='qemu-io mirror-top "write -P 2 0 64k"')
         self.assert_qmp(res, 'return', '')
 
         # Drain status change events

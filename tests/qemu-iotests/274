@@ -23,7 +23,8 @@
 import iotests
 
 iotests.script_initialize(supported_fmts=['qcow2'],
-                          supported_platforms=['linux'])
+                          supported_platforms=['linux'],
+                          unsupported_imgopts=['refcount_bits', 'compat'])
 
 size_short = 1 * 1024 * 1024
 size_long = 2 * 1024 * 1024

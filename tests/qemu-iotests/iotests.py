@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import argparse
 import atexit
 import bz2
 from collections import OrderedDict
@@ -149,7 +150,9 @@ def qemu_tool_popen(args: Sequence[str],
 
 
 def qemu_tool_pipe_and_status(tool: str, args: Sequence[str],
-                              connect_stderr: bool = True) -> Tuple[str, int]:
+                              connect_stderr: bool = True,
+                              drop_successful_output: bool = False) \
+        -> Tuple[str, int]:
     """
     Run a tool and return both its output and its exit code
     """
@@ -159,14 +162,56 @@ def qemu_tool_pipe_and_status(tool: str, args: Sequence[str],
             cmd = ' '.join(args)
             sys.stderr.write(f'{tool} received signal \
                                {-subp.returncode}: {cmd}\n')
+        if drop_successful_output and subp.returncode == 0:
+            output = ''
         return (output, subp.returncode)
+
+def qemu_img_create_prepare_args(args: List[str]) -> List[str]:
+    if not args or args[0] != 'create':
+        return list(args)
+    args = args[1:]
+
+    p = argparse.ArgumentParser(allow_abbrev=False)
+    # -o option may be specified several times
+    p.add_argument('-o', action='append', default=[])
+    p.add_argument('-f')
+    parsed, remaining = p.parse_known_args(args)
+
+    opts_list = parsed.o
+
+    result = ['create']
+    if parsed.f is not None:
+        result += ['-f', parsed.f]
+
+    # IMGOPTS most probably contain options specific for the selected format,
+    # like extended_l2 or compression_type for qcow2. Test may want to create
+    # additional images in other formats that doesn't support these options.
+    # So, use IMGOPTS only for images created in imgfmt format.
+    imgopts = os.environ.get('IMGOPTS')
+    if imgopts and parsed.f == imgfmt:
+        opts_list.insert(0, imgopts)
+
+    # default luks support
+    if parsed.f == 'luks' and \
+            all('key-secret' not in opts for opts in opts_list):
+        result += ['--object', luks_default_secret_object]
+        opts_list.append(luks_default_key_secret_opt)
+
+    for opts in opts_list:
+        result += ['-o', opts]
+
+    result += remaining
+
+    return result
 
 def qemu_img_pipe_and_status(*args: str) -> Tuple[str, int]:
     """
     Run qemu-img and return both its output and its exit code
     """
-    full_args = qemu_img_args + list(args)
-    return qemu_tool_pipe_and_status('qemu-img', full_args)
+    is_create = bool(args and args[0] == 'create')
+    full_args = qemu_img_args + qemu_img_create_prepare_args(list(args))
+    return qemu_tool_pipe_and_status('qemu-img', full_args,
+                                     drop_successful_output=is_create)
 
 def qemu_img(*args: str) -> int:
     '''Run qemu-img and return the exit code'''
@@ -186,37 +231,13 @@ def ordered_qmp(qmsg, conv_keys=True):
     return qmsg
 
 def qemu_img_create(*args):
-    args = list(args)
-
-    # default luks support
-    if '-f' in args and args[args.index('-f') + 1] == 'luks':
-        if '-o' in args:
-            i = args.index('-o')
-            if 'key-secret' not in args[i + 1]:
-                args[i + 1].append(luks_default_key_secret_opt)
-                args.insert(i + 2, '--object')
-                args.insert(i + 3, luks_default_secret_object)
-        else:
-            args = ['-o', luks_default_key_secret_opt,
-                    '--object', luks_default_secret_object] + args
-
-    args.insert(0, 'create')
-
-    return qemu_img(*args)
+    return qemu_img('create', *args)
 
 def qemu_img_measure(*args):
     return json.loads(qemu_img_pipe("measure", "--output", "json", *args))
 
 def qemu_img_check(*args):
     return json.loads(qemu_img_pipe("check", "--output", "json", *args))
-
-def qemu_img_verbose(*args):
-    '''Run qemu-img without suppressing its output and return the exit code'''
-    exitcode = subprocess.call(qemu_img_args + list(args))
-    if exitcode < 0:
-        sys.stderr.write('qemu-img received signal %i: %s\n'
-                         % (-exitcode, ' '.join(qemu_img_args + list(args))))
-    return exitcode
 
 def qemu_img_pipe(*args: str) -> str:
     '''Run qemu-img and return its output'''
@@ -227,9 +248,10 @@ def qemu_img_log(*args):
     log(result, filters=[filter_testfiles])
     return result
 
-def img_info_log(filename, filter_path=None, imgopts=False, extra_args=()):
+def img_info_log(filename, filter_path=None, use_image_opts=False,
+                 extra_args=()):
     args = ['info']
-    if imgopts:
+    if use_image_opts:
         args.append('--image-opts')
     else:
         args += ['-f', imgfmt]
@@ -475,6 +497,8 @@ def filter_img_info(output, filename):
                       'uuid: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX',
                       line)
         line = re.sub('cid: [0-9]+', 'cid: XXXXXXXXXX', line)
+        line = re.sub('(compression type: )(zlib|zstd)', r'\1COMPRESSION_TYPE',
+                      line)
         lines.append(line)
     return '\n'.join(lines)
 
@@ -1225,6 +1249,17 @@ def _verify_virtio_scsi_pci_or_ccw() -> None:
         notrun('Missing virtio-scsi-pci or virtio-scsi-ccw in QEMU binary')
 
 
+def _verify_imgopts(unsupported: Sequence[str] = ()) -> None:
+    imgopts = os.environ.get('IMGOPTS')
+    # One of usage examples for IMGOPTS is "data_file=$TEST_IMG.ext_data_file"
+    # but it supported only for bash tests. We don't have a concept of global
+    # TEST_IMG in iotests.py, not saying about somehow parsing $variables.
+    # So, for simplicity let's just not support any IMGOPTS with '$' inside.
+    unsup = list(unsupported) + ['$']
+    if imgopts and any(x in imgopts for x in unsup):
+        notrun(f'not suitable for this imgopts: {imgopts}')
+
+
 def supports_quorum():
     return 'quorum' in qemu_img_pipe('--help')
 
@@ -1401,7 +1436,8 @@ def execute_setup_common(supported_fmts: Sequence[str] = (),
                          unsupported_fmts: Sequence[str] = (),
                          supported_protocols: Sequence[str] = (),
                          unsupported_protocols: Sequence[str] = (),
-                         required_fmts: Sequence[str] = ()) -> bool:
+                         required_fmts: Sequence[str] = (),
+                         unsupported_imgopts: Sequence[str] = ()) -> bool:
     """
     Perform necessary setup for either script-style or unittest-style tests.
 
@@ -1421,6 +1457,7 @@ def execute_setup_common(supported_fmts: Sequence[str] = (),
     _verify_aio_mode(supported_aio_modes)
     _verify_formats(required_fmts)
     _verify_virtio_blk()
+    _verify_imgopts(unsupported_imgopts)
 
     return debug
 
