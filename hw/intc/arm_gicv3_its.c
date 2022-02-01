@@ -404,19 +404,29 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, const uint64_t *cmdpkt,
     num_eventids = 1ULL << (dte.size + 1);
     num_intids = 1ULL << (GICD_TYPER_IDBITS + 1);
 
-    if ((icid >= s->ct.num_entries)
-            || !dte.valid || (eventid >= num_eventids) ||
-            (((pIntid < GICV3_LPI_INTID_START) || (pIntid >= num_intids)))) {
+    if (icid >= s->ct.num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes "
-                      "icid %d or eventid %d or pIntid %d or"
-                      "unmapped dte %d\n", __func__, icid, eventid,
-                      pIntid, dte.valid);
-        /*
-         * in this implementation, in case of error
-         * we ignore this command and move onto the next
-         * command in the queue
-         */
+                      "%s: invalid ICID 0x%x >= 0x%x\n",
+                      __func__, icid, s->ct.num_entries);
+        return CMD_CONTINUE;
+    }
+
+    if (!dte.valid) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: no valid DTE for devid 0x%x\n", __func__, devid);
+        return CMD_CONTINUE;
+    }
+
+    if (eventid >= num_eventids) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid event ID 0x%x >= 0x%" PRIx64 "\n",
+                      __func__, eventid, num_eventids);
+        return CMD_CONTINUE;
+    }
+
+    if (pIntid < GICV3_LPI_INTID_START || pIntid >= num_intids) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid interrupt ID 0x%x\n", __func__, pIntid);
         return CMD_CONTINUE;
     }
 
@@ -529,16 +539,16 @@ static ItsCmdResult process_mapd(GICv3ITSState *s, const uint64_t *cmdpkt)
     dte.ittaddr = (cmdpkt[2] & ITTADDR_MASK) >> ITTADDR_SHIFT;
     dte.valid = cmdpkt[2] & CMD_FIELD_VALID_MASK;
 
-    if ((devid >= s->dt.num_entries) ||
-        (dte.size > FIELD_EX64(s->typer, GITS_TYPER, IDBITS))) {
+    if (devid >= s->dt.num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "ITS MAPD: invalid device table attributes "
-                      "devid %d or size %d\n", devid, dte.size);
-        /*
-         * in this implementation, in case of error
-         * we ignore this command and move onto the next
-         * command in the queue
-         */
+                      "ITS MAPD: invalid device ID field 0x%x >= 0x%x\n",
+                      devid, s->dt.num_entries);
+        return CMD_CONTINUE;
+    }
+
+    if (dte.size > FIELD_EX64(s->typer, GITS_TYPER, IDBITS)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "ITS MAPD: invalid size %d\n", dte.size);
         return CMD_CONTINUE;
     }
 
