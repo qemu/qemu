@@ -468,21 +468,21 @@ static ItsCmdResult process_mapc(GICv3ITSState *s, const uint64_t *cmdpkt)
     CTEntry cte;
 
     icid = cmdpkt[2] & ICID_MASK;
-
-    cte.rdbase = (cmdpkt[2] & R_MAPC_RDBASE_MASK) >> R_MAPC_RDBASE_SHIFT;
-    cte.rdbase &= RDBASE_PROCNUM_MASK;
-
     cte.valid = cmdpkt[2] & CMD_FIELD_VALID_MASK;
+    if (cte.valid) {
+        cte.rdbase = (cmdpkt[2] & R_MAPC_RDBASE_MASK) >> R_MAPC_RDBASE_SHIFT;
+        cte.rdbase &= RDBASE_PROCNUM_MASK;
+    } else {
+        cte.rdbase = 0;
+    }
 
-    if ((icid >= s->ct.num_entries) || (cte.rdbase >= s->gicv3->num_cpu)) {
+    if (icid >= s->ct.num_entries) {
+        qemu_log_mask(LOG_GUEST_ERROR, "ITS MAPC: invalid ICID 0x%d", icid);
+        return CMD_CONTINUE;
+    }
+    if (cte.valid && cte.rdbase >= s->gicv3->num_cpu) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "ITS MAPC: invalid collection table attributes "
-                      "icid %d rdbase %u\n",  icid, cte.rdbase);
-        /*
-         * in this implementation, in case of error
-         * we ignore this command and move onto the next
-         * command in the queue
-         */
+                      "ITS MAPC: invalid RDBASE %u ", cte.rdbase);
         return CMD_CONTINUE;
     }
 
