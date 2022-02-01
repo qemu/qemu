@@ -197,20 +197,22 @@ static bool get_ite(GICv3ITSState *s, uint32_t eventid, const DTEntry *dte,
     hwaddr iteaddr = dte->ittaddr + eventid * ITS_ITT_ENTRY_SIZE;
 
     ite.itel = address_space_ldq_le(as, iteaddr, MEMTXATTRS_UNSPECIFIED, res);
+    if (*res != MEMTX_OK) {
+        return false;
+    }
 
-    if (*res == MEMTX_OK) {
-        ite.iteh = address_space_ldl_le(as, iteaddr + 8,
-                                        MEMTXATTRS_UNSPECIFIED, res);
+    ite.iteh = address_space_ldl_le(as, iteaddr + 8,
+                                    MEMTXATTRS_UNSPECIFIED, res);
+    if (*res != MEMTX_OK) {
+        return false;
+    }
 
-        if (*res == MEMTX_OK) {
-            if (FIELD_EX64(ite.itel, ITE_L, VALID)) {
-                int inttype = FIELD_EX64(ite.itel, ITE_L, INTTYPE);
-                if (inttype == ITE_INTTYPE_PHYSICAL) {
-                    *pIntid = FIELD_EX64(ite.itel, ITE_L, INTID);
-                    *icid = FIELD_EX64(ite.itel, ITE_L, ICID);
-                    status = true;
-                }
-            }
+    if (FIELD_EX64(ite.itel, ITE_L, VALID)) {
+        int inttype = FIELD_EX64(ite.itel, ITE_L, INTTYPE);
+        if (inttype == ITE_INTTYPE_PHYSICAL) {
+            *pIntid = FIELD_EX64(ite.itel, ITE_L, INTID);
+            *icid = FIELD_EX64(ite.itel, ITE_L, ICID);
+            status = true;
         }
     }
     return status;
