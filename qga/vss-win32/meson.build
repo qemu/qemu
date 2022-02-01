@@ -26,8 +26,7 @@ if midl.found()
   gen_tlb = custom_target('gen-tlb',
                           input: 'qga-vss.idl',
                           output: 'qga-vss.tlb',
-                          command: [midl, '-tlb', '-I' + config_host['WIN_SDK'],
-                                     '@INPUT@', '@OUTPUT@'])
+                          command: [midl, '@INPUT@', '/tlb', '@OUTPUT@'])
 else
   gen_tlb = custom_target('gen-tlb',
                           input: 'qga-vss.tlb',
