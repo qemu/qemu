@@ -59,12 +59,17 @@ void target_to_host_sigset(sigset_t *d, const target_sigset_t *s);
  * For FreeBSD, we have si_pid, si_uid, si_status, and si_addr always. Linux and
  * {Open,Net}BSD have a different approach (where their reason field is larger,
  * but whose siginfo has fewer fields always).
+ *
+ * QEMU_SI_CAPSICUM is currently only FreeBSD 14 current only, so only define
+ * it where _capsicum is available.
  */
 #define QEMU_SI_NOINFO   0      /* nothing other than si_signo valid */
 #define QEMU_SI_FAULT    1      /* _fault is valid in _reason */
 #define QEMU_SI_TIMER    2      /* _timer is valid in _reason */
 #define QEMU_SI_MESGQ    3      /* _mesgq is valid in _reason */
 #define QEMU_SI_POLL     4      /* _poll is valid in _reason */
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 1400026
 #define QEMU_SI_CAPSICUM 5      /* _capsicum is valid in _reason */
+#endif
 
 #endif
