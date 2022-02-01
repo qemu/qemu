@@ -39,8 +39,13 @@ static char *concat_path(const char* a, const char* b)
 
 void virtio_9p_create_local_test_dir(void)
 {
+    g_assert(local_test_path == NULL);
     struct stat st;
     char *pwd = g_get_current_dir();
+    /*
+     * template gets cached into local_test_path and freed in
+     * virtio_9p_remove_local_test_dir().
+     */
     char *template = concat_path(pwd, "qtest-9p-local-XXXXXX");
 
     local_test_path = mkdtemp(template);
@@ -66,6 +71,8 @@ void virtio_9p_remove_local_test_dir(void)
         /* ignore error, dummy check to prevent compiler error */
     }
     g_free(cmd);
+    g_free(local_test_path);
+    local_test_path = NULL;
 }
 
 char *virtio_9p_test_path(const char *path)
