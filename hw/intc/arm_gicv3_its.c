@@ -173,14 +173,12 @@ static bool update_ite(GICv3ITSState *s, uint32_t eventid, const DTEntry *dte,
 {
     AddressSpace *as = &s->gicv3->dma_as;
     MemTxResult res = MEMTX_OK;
+    hwaddr iteaddr = dte->ittaddr + eventid * ITS_ITT_ENTRY_SIZE;
 
-    address_space_stq_le(as, dte->ittaddr + (eventid * (sizeof(uint64_t) +
-                         sizeof(uint32_t))), ite.itel, MEMTXATTRS_UNSPECIFIED,
-                         &res);
+    address_space_stq_le(as, iteaddr, ite.itel, MEMTXATTRS_UNSPECIFIED, &res);
 
     if (res == MEMTX_OK) {
-        address_space_stl_le(as, dte->ittaddr + (eventid * (sizeof(uint64_t) +
-                             sizeof(uint32_t))) + sizeof(uint32_t), ite.iteh,
+        address_space_stl_le(as, iteaddr + 8, ite.iteh,
                              MEMTXATTRS_UNSPECIFIED, &res);
     }
     if (res != MEMTX_OK) {
@@ -196,16 +194,12 @@ static bool get_ite(GICv3ITSState *s, uint32_t eventid, const DTEntry *dte,
     AddressSpace *as = &s->gicv3->dma_as;
     bool status = false;
     IteEntry ite = {};
+    hwaddr iteaddr = dte->ittaddr + eventid * ITS_ITT_ENTRY_SIZE;
 
-    ite.itel = address_space_ldq_le(as, dte->ittaddr +
-                                    (eventid * (sizeof(uint64_t) +
-                                    sizeof(uint32_t))), MEMTXATTRS_UNSPECIFIED,
-                                    res);
+    ite.itel = address_space_ldq_le(as, iteaddr, MEMTXATTRS_UNSPECIFIED, res);
 
     if (*res == MEMTX_OK) {
-        ite.iteh = address_space_ldl_le(as, dte->ittaddr +
-                                        (eventid * (sizeof(uint64_t) +
-                                        sizeof(uint32_t))) + sizeof(uint32_t),
+        ite.iteh = address_space_ldl_le(as, iteaddr + 8,
                                         MEMTXATTRS_UNSPECIFIED, res);
 
         if (*res == MEMTX_OK) {
@@ -213,7 +207,7 @@ static bool get_ite(GICv3ITSState *s, uint32_t eventid, const DTEntry *dte,
                 int inttype = FIELD_EX64(ite.itel, ITE_L, INTTYPE);
                 if (inttype == ITE_INTTYPE_PHYSICAL) {
                     *pIntid = FIELD_EX64(ite.itel, ITE_L, INTID);
-                    *icid = FIELD_EX32(ite.iteh, ITE_H, ICID);
+                    *icid = FIELD_EX64(ite.itel, ITE_L, ICID);
                     status = true;
                 }
             }
@@ -412,8 +406,8 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, const uint64_t *cmdpkt,
     ite.itel = FIELD_DP64(ite.itel, ITE_L, VALID, true);
     ite.itel = FIELD_DP64(ite.itel, ITE_L, INTTYPE, ITE_INTTYPE_PHYSICAL);
     ite.itel = FIELD_DP64(ite.itel, ITE_L, INTID, pIntid);
-    ite.itel = FIELD_DP64(ite.itel, ITE_L, DOORBELL, INTID_SPURIOUS);
-    ite.iteh = FIELD_DP32(ite.iteh, ITE_H, ICID, icid);
+    ite.itel = FIELD_DP64(ite.itel, ITE_L, ICID, icid);
+    ite.iteh = FIELD_DP32(ite.iteh, ITE_H, DOORBELL, INTID_SPURIOUS);
 
     return update_ite(s, eventid, &dte, ite) ? CMD_CONTINUE : CMD_STALL;
 }
@@ -688,8 +682,8 @@ static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
     ite.itel = FIELD_DP64(ite.itel, ITE_L, VALID, 1);
     ite.itel = FIELD_DP64(ite.itel, ITE_L, INTTYPE, ITE_INTTYPE_PHYSICAL);
     ite.itel = FIELD_DP64(ite.itel, ITE_L, INTID, intid);
-    ite.itel = FIELD_DP64(ite.itel, ITE_L, DOORBELL, INTID_SPURIOUS);
-    ite.iteh = FIELD_DP32(ite.iteh, ITE_H, ICID, new_icid);
+    ite.itel = FIELD_DP64(ite.itel, ITE_L, ICID, new_icid);
+    ite.iteh = FIELD_DP32(ite.iteh, ITE_H, DOORBELL, INTID_SPURIOUS);
     return update_ite(s, eventid, &dte, ite) ? CMD_CONTINUE : CMD_STALL;
 }
 
