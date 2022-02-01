@@ -71,6 +71,7 @@ target_ulong HELPER(vsetvl)(CPURISCVState *env, target_ulong s1,
     env->vl = vl;
     env->vtype = s2;
     env->vstart = 0;
+    env->vill = 0;
     return vl;
 }
 
