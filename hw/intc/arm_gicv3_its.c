@@ -57,6 +57,16 @@ typedef struct CTEntry {
     uint32_t rdbase;
 } CTEntry;
 
+typedef struct ITEntry {
+    bool valid;
+    int inttype;
+    uint32_t intid;
+    uint32_t doorbell;
+    uint32_t icid;
+    uint32_t vpeid;
+} ITEntry;
+
+
 /*
  * The ITS spec permits a range of CONSTRAINED UNPREDICTABLE options
  * if a command parameter is not correct. These include both "stall
@@ -188,34 +198,38 @@ static bool update_ite(GICv3ITSState *s, uint32_t eventid, const DTEntry *dte,
     }
 }
 
-static bool get_ite(GICv3ITSState *s, uint32_t eventid, const DTEntry *dte,
-                    uint16_t *icid, uint32_t *pIntid, MemTxResult *res)
+/*
+ * Read the Interrupt Table entry at index @eventid from the table specified
+ * by the DTE @dte. On success, we return MEMTX_OK and populate the ITEntry
+ * struct @ite accordingly. If there is an error reading memory then we return
+ * the error code.
+ */
+static MemTxResult get_ite(GICv3ITSState *s, uint32_t eventid,
+                           const DTEntry *dte, ITEntry *ite)
 {
     AddressSpace *as = &s->gicv3->dma_as;
-    bool status = false;
-    IteEntry ite = {};
+    MemTxResult res = MEMTX_OK;
+    uint64_t itel;
+    uint32_t iteh;
     hwaddr iteaddr = dte->ittaddr + eventid * ITS_ITT_ENTRY_SIZE;
 
-    ite.itel = address_space_ldq_le(as, iteaddr, MEMTXATTRS_UNSPECIFIED, res);
-    if (*res != MEMTX_OK) {
-        return false;
+    itel = address_space_ldq_le(as, iteaddr, MEMTXATTRS_UNSPECIFIED, &res);
+    if (res != MEMTX_OK) {
+        return res;
     }
 
-    ite.iteh = address_space_ldl_le(as, iteaddr + 8,
-                                    MEMTXATTRS_UNSPECIFIED, res);
-    if (*res != MEMTX_OK) {
-        return false;
+    iteh = address_space_ldl_le(as, iteaddr + 8, MEMTXATTRS_UNSPECIFIED, &res);
+    if (res != MEMTX_OK) {
+        return res;
     }
 
-    if (FIELD_EX64(ite.itel, ITE_L, VALID)) {
-        int inttype = FIELD_EX64(ite.itel, ITE_L, INTTYPE);
-        if (inttype == ITE_INTTYPE_PHYSICAL) {
-            *pIntid = FIELD_EX64(ite.itel, ITE_L, INTID);
-            *icid = FIELD_EX64(ite.itel, ITE_L, ICID);
-            status = true;
-        }
-    }
-    return status;
+    ite->valid = FIELD_EX64(itel, ITE_L, VALID);
+    ite->inttype = FIELD_EX64(itel, ITE_L, INTTYPE);
+    ite->intid = FIELD_EX64(itel, ITE_L, INTID);
+    ite->icid = FIELD_EX64(itel, ITE_L, ICID);
+    ite->vpeid = FIELD_EX64(itel, ITE_L, VPEID);
+    ite->doorbell = FIELD_EX64(iteh, ITE_H, DOORBELL);
+    return MEMTX_OK;
 }
 
 /*
@@ -258,13 +272,10 @@ static MemTxResult get_dte(GICv3ITSState *s, uint32_t devid, DTEntry *dte)
 static ItsCmdResult do_process_its_cmd(GICv3ITSState *s, uint32_t devid,
                                        uint32_t eventid, ItsCmdType cmd)
 {
-    MemTxResult res = MEMTX_OK;
     uint64_t num_eventids;
-    uint16_t icid = 0;
-    uint32_t pIntid = 0;
-    bool ite_valid = false;
     DTEntry dte;
     CTEntry cte;
+    ITEntry ite;
 
     if (devid >= s->dt.num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -292,26 +303,25 @@ static ItsCmdResult do_process_its_cmd(GICv3ITSState *s, uint32_t devid,
         return CMD_CONTINUE;
     }
 
-    ite_valid = get_ite(s, eventid, &dte, &icid, &pIntid, &res);
-    if (res != MEMTX_OK) {
+    if (get_ite(s, eventid, &dte, &ite) != MEMTX_OK) {
         return CMD_STALL;
     }
 
-    if (!ite_valid) {
+    if (!ite.valid || ite.inttype != ITE_INTTYPE_PHYSICAL) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid command attributes: invalid ITE\n",
                       __func__);
         return CMD_CONTINUE;
     }
 
-    if (icid >= s->ct.num_entries) {
+    if (ite.icid >= s->ct.num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid ICID 0x%x in ITE (table corrupted?)\n",
-                      __func__, icid);
+                      __func__, ite.icid);
         return CMD_CONTINUE;
     }
 
-    if (get_cte(s, icid, &cte) != MEMTX_OK) {
+    if (get_cte(s, ite.icid, &cte) != MEMTX_OK) {
         return CMD_STALL;
     }
     if (!cte.valid) {
@@ -330,15 +340,15 @@ static ItsCmdResult do_process_its_cmd(GICv3ITSState *s, uint32_t devid,
     }
 
     if ((cmd == CLEAR) || (cmd == DISCARD)) {
-        gicv3_redist_process_lpi(&s->gicv3->cpu[cte.rdbase], pIntid, 0);
+        gicv3_redist_process_lpi(&s->gicv3->cpu[cte.rdbase], ite.intid, 0);
     } else {
-        gicv3_redist_process_lpi(&s->gicv3->cpu[cte.rdbase], pIntid, 1);
+        gicv3_redist_process_lpi(&s->gicv3->cpu[cte.rdbase], ite.intid, 1);
     }
 
     if (cmd == DISCARD) {
-        IteEntry ite = {};
+        IteEntry itee = {};
         /* remove mapping from interrupt translation table */
-        return update_ite(s, eventid, &dte, ite) ? CMD_CONTINUE : CMD_STALL;
+        return update_ite(s, eventid, &dte, itee) ? CMD_CONTINUE : CMD_STALL;
     }
     return CMD_CONTINUE;
 }
@@ -572,14 +582,13 @@ static ItsCmdResult process_movall(GICv3ITSState *s, const uint64_t *cmdpkt)
 
 static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
 {
-    MemTxResult res = MEMTX_OK;
-    uint32_t devid, eventid, intid;
-    uint16_t old_icid, new_icid;
-    bool ite_valid;
+    uint32_t devid, eventid;
+    uint16_t new_icid;
     uint64_t num_eventids;
     IteEntry ite = {};
     DTEntry dte;
     CTEntry old_cte, new_cte;
+    ITEntry old_ite;
 
     devid = FIELD_EX64(cmdpkt[0], MOVI_0, DEVICEID);
     eventid = FIELD_EX64(cmdpkt[1], MOVI_1, EVENTID);
@@ -611,22 +620,21 @@ static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
         return CMD_CONTINUE;
     }
 
-    ite_valid = get_ite(s, eventid, &dte, &old_icid, &intid, &res);
-    if (res != MEMTX_OK) {
+    if (get_ite(s, eventid, &dte, &old_ite) != MEMTX_OK) {
         return CMD_STALL;
     }
 
-    if (!ite_valid) {
+    if (!old_ite.valid || old_ite.inttype != ITE_INTTYPE_PHYSICAL) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid command attributes: invalid ITE\n",
                       __func__);
         return CMD_CONTINUE;
     }
 
-    if (old_icid >= s->ct.num_entries) {
+    if (old_ite.icid >= s->ct.num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid ICID 0x%x in ITE (table corrupted?)\n",
-                      __func__, old_icid);
+                      __func__, old_ite.icid);
         return CMD_CONTINUE;
     }
 
@@ -637,14 +645,14 @@ static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
         return CMD_CONTINUE;
     }
 
-    if (get_cte(s, old_icid, &old_cte) != MEMTX_OK) {
+    if (get_cte(s, old_ite.icid, &old_cte) != MEMTX_OK) {
         return CMD_STALL;
     }
     if (!old_cte.valid) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid command attributes: "
                       "invalid CTE for old ICID 0x%x\n",
-                      __func__, old_icid);
+                      __func__, old_ite.icid);
         return CMD_CONTINUE;
     }
 
@@ -677,13 +685,13 @@ static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
         /* Move the LPI from the old redistributor to the new one */
         gicv3_redist_mov_lpi(&s->gicv3->cpu[old_cte.rdbase],
                              &s->gicv3->cpu[new_cte.rdbase],
-                             intid);
+                             old_ite.intid);
     }
 
     /* Update the ICID field in the interrupt translation table entry */
     ite.itel = FIELD_DP64(ite.itel, ITE_L, VALID, 1);
     ite.itel = FIELD_DP64(ite.itel, ITE_L, INTTYPE, ITE_INTTYPE_PHYSICAL);
-    ite.itel = FIELD_DP64(ite.itel, ITE_L, INTID, intid);
+    ite.itel = FIELD_DP64(ite.itel, ITE_L, INTID, old_ite.intid);
     ite.itel = FIELD_DP64(ite.itel, ITE_L, ICID, new_icid);
     ite.iteh = FIELD_DP32(ite.iteh, ITE_H, DOORBELL, INTID_SPURIOUS);
     return update_ite(s, eventid, &dte, ite) ? CMD_CONTINUE : CMD_STALL;
