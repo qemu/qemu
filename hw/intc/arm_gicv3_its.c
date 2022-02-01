@@ -418,22 +418,25 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, const uint64_t *cmdpkt,
     return update_ite(s, eventid, &dte, ite) ? CMD_CONTINUE : CMD_STALL;
 }
 
-static bool update_cte(GICv3ITSState *s, uint16_t icid, bool valid,
-                       uint64_t rdbase)
+/*
+ * Update the Collection Table entry for @icid to @cte. Returns true
+ * on success, false if there was a memory access error.
+ */
+static bool update_cte(GICv3ITSState *s, uint16_t icid, const CTEntry *cte)
 {
     AddressSpace *as = &s->gicv3->dma_as;
     uint64_t entry_addr;
-    uint64_t cte = 0;
+    uint64_t cteval = 0;
     MemTxResult res = MEMTX_OK;
 
     if (!s->ct.valid) {
         return true;
     }
 
-    if (valid) {
+    if (cte->valid) {
         /* add mapping entry to collection table */
-        cte = FIELD_DP64(cte, CTE, VALID, 1);
-        cte = FIELD_DP64(cte, CTE, RDBASE, rdbase);
+        cteval = FIELD_DP64(cteval, CTE, VALID, 1);
+        cteval = FIELD_DP64(cteval, CTE, RDBASE, cte->rdbase);
     }
 
     entry_addr = table_entry_addr(s, &s->ct, icid, &res);
@@ -446,27 +449,26 @@ static bool update_cte(GICv3ITSState *s, uint16_t icid, bool valid,
         return true;
     }
 
-    address_space_stq_le(as, entry_addr, cte, MEMTXATTRS_UNSPECIFIED, &res);
+    address_space_stq_le(as, entry_addr, cteval, MEMTXATTRS_UNSPECIFIED, &res);
     return res == MEMTX_OK;
 }
 
 static ItsCmdResult process_mapc(GICv3ITSState *s, const uint64_t *cmdpkt)
 {
     uint16_t icid;
-    uint64_t rdbase;
-    bool valid;
+    CTEntry cte;
 
     icid = cmdpkt[2] & ICID_MASK;
 
-    rdbase = (cmdpkt[2] & R_MAPC_RDBASE_MASK) >> R_MAPC_RDBASE_SHIFT;
-    rdbase &= RDBASE_PROCNUM_MASK;
+    cte.rdbase = (cmdpkt[2] & R_MAPC_RDBASE_MASK) >> R_MAPC_RDBASE_SHIFT;
+    cte.rdbase &= RDBASE_PROCNUM_MASK;
 
-    valid = cmdpkt[2] & CMD_FIELD_VALID_MASK;
+    cte.valid = cmdpkt[2] & CMD_FIELD_VALID_MASK;
 
-    if ((icid >= s->ct.num_entries) || (rdbase >= s->gicv3->num_cpu)) {
+    if ((icid >= s->ct.num_entries) || (cte.rdbase >= s->gicv3->num_cpu)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "ITS MAPC: invalid collection table attributes "
-                      "icid %d rdbase %" PRIu64 "\n",  icid, rdbase);
+                      "icid %d rdbase %u\n",  icid, cte.rdbase);
         /*
          * in this implementation, in case of error
          * we ignore this command and move onto the next
@@ -475,7 +477,7 @@ static ItsCmdResult process_mapc(GICv3ITSState *s, const uint64_t *cmdpkt)
         return CMD_CONTINUE;
     }
 
-    return update_cte(s, icid, valid, rdbase) ? CMD_CONTINUE : CMD_STALL;
+    return update_cte(s, icid, &cte) ? CMD_CONTINUE : CMD_STALL;
 }
 
 /*
