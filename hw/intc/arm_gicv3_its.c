@@ -52,6 +52,11 @@ typedef struct DTEntry {
     uint64_t ittaddr;
 } DTEntry;
 
+typedef struct CTEntry {
+    bool valid;
+    uint32_t rdbase;
+} CTEntry;
+
 /*
  * The ITS spec permits a range of CONSTRAINED UNPREDICTABLE options
  * if a command parameter is not correct. These include both "stall
@@ -135,18 +140,32 @@ static uint64_t table_entry_addr(GICv3ITSState *s, TableDesc *td,
     return (l2 & ((1ULL << 51) - 1)) + (idx % num_l2_entries) * td->entry_sz;
 }
 
-static bool get_cte(GICv3ITSState *s, uint16_t icid, uint64_t *cte,
-                    MemTxResult *res)
+/*
+ * Read the Collection Table entry at index @icid. On success (including
+ * successfully determining that there is no valid CTE for this index),
+ * we return MEMTX_OK and populate the CTEntry struct @cte accordingly.
+ * If there is an error reading memory then we return the error code.
+ */
+static MemTxResult get_cte(GICv3ITSState *s, uint16_t icid, CTEntry *cte)
 {
     AddressSpace *as = &s->gicv3->dma_as;
-    uint64_t entry_addr = table_entry_addr(s, &s->ct, icid, res);
+    MemTxResult res = MEMTX_OK;
+    uint64_t entry_addr = table_entry_addr(s, &s->ct, icid, &res);
+    uint64_t cteval;
 
     if (entry_addr == -1) {
-        return false; /* not valid */
+        /* No L2 table entry, i.e. no valid CTE, or a memory error */
+        cte->valid = false;
+        return res;
     }
 
-    *cte = address_space_ldq_le(as, entry_addr, MEMTXATTRS_UNSPECIFIED, res);
-    return FIELD_EX64(*cte, CTE, VALID);
+    cteval = address_space_ldq_le(as, entry_addr, MEMTXATTRS_UNSPECIFIED, &res);
+    if (res != MEMTX_OK) {
+        return res;
+    }
+    cte->valid = FIELD_EX64(cteval, CTE, VALID);
+    cte->rdbase = FIELD_EX64(cteval, CTE, RDBASE);
+    return MEMTX_OK;
 }
 
 static bool update_ite(GICv3ITSState *s, uint32_t eventid, const DTEntry *dte,
@@ -248,10 +267,8 @@ static ItsCmdResult do_process_its_cmd(GICv3ITSState *s, uint32_t devid,
     uint16_t icid = 0;
     uint32_t pIntid = 0;
     bool ite_valid = false;
-    uint64_t cte = 0;
-    bool cte_valid = false;
-    uint64_t rdbase;
     DTEntry dte;
+    CTEntry cte;
 
     if (devid >= s->dt.num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -298,15 +315,13 @@ static ItsCmdResult do_process_its_cmd(GICv3ITSState *s, uint32_t devid,
         return CMD_CONTINUE;
     }
 
-    cte_valid = get_cte(s, icid, &cte, &res);
-    if (res != MEMTX_OK) {
+    if (get_cte(s, icid, &cte) != MEMTX_OK) {
         return CMD_STALL;
     }
-    if (!cte_valid) {
+    if (!cte.valid) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: "
-                      "invalid cte: %"PRIx64"\n",
-                      __func__, cte);
+                      "%s: invalid command attributes: invalid CTE\n",
+                      __func__);
         return CMD_CONTINUE;
     }
 
@@ -314,16 +329,14 @@ static ItsCmdResult do_process_its_cmd(GICv3ITSState *s, uint32_t devid,
      * Current implementation only supports rdbase == procnum
      * Hence rdbase physical address is ignored
      */
-    rdbase = FIELD_EX64(cte, CTE, RDBASE);
-
-    if (rdbase >= s->gicv3->num_cpu) {
+    if (cte.rdbase >= s->gicv3->num_cpu) {
         return CMD_CONTINUE;
     }
 
     if ((cmd == CLEAR) || (cmd == DISCARD)) {
-        gicv3_redist_process_lpi(&s->gicv3->cpu[rdbase], pIntid, 0);
+        gicv3_redist_process_lpi(&s->gicv3->cpu[cte.rdbase], pIntid, 0);
     } else {
-        gicv3_redist_process_lpi(&s->gicv3->cpu[rdbase], pIntid, 1);
+        gicv3_redist_process_lpi(&s->gicv3->cpu[cte.rdbase], pIntid, 1);
     }
 
     if (cmd == DISCARD) {
@@ -564,12 +577,11 @@ static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
     MemTxResult res = MEMTX_OK;
     uint32_t devid, eventid, intid;
     uint16_t old_icid, new_icid;
-    uint64_t old_cte, new_cte;
-    uint64_t old_rdbase, new_rdbase;
-    bool ite_valid, cte_valid;
+    bool ite_valid;
     uint64_t num_eventids;
     IteEntry ite = {};
     DTEntry dte;
+    CTEntry old_cte, new_cte;
 
     devid = FIELD_EX64(cmdpkt[0], MOVI_0, DEVICEID);
     eventid = FIELD_EX64(cmdpkt[1], MOVI_1, EVENTID);
@@ -627,50 +639,46 @@ static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
         return CMD_CONTINUE;
     }
 
-    cte_valid = get_cte(s, old_icid, &old_cte, &res);
-    if (res != MEMTX_OK) {
+    if (get_cte(s, old_icid, &old_cte) != MEMTX_OK) {
         return CMD_STALL;
     }
-    if (!cte_valid) {
+    if (!old_cte.valid) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid command attributes: "
-                      "invalid cte: %"PRIx64"\n",
-                      __func__, old_cte);
+                      "invalid CTE for old ICID 0x%x\n",
+                      __func__, old_icid);
         return CMD_CONTINUE;
     }
 
-    cte_valid = get_cte(s, new_icid, &new_cte, &res);
-    if (res != MEMTX_OK) {
+    if (get_cte(s, new_icid, &new_cte) != MEMTX_OK) {
         return CMD_STALL;
     }
-    if (!cte_valid) {
+    if (!new_cte.valid) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid command attributes: "
-                      "invalid cte: %"PRIx64"\n",
-                      __func__, new_cte);
+                      "invalid CTE for new ICID 0x%x\n",
+                      __func__, new_icid);
         return CMD_CONTINUE;
     }
 
-    old_rdbase = FIELD_EX64(old_cte, CTE, RDBASE);
-    if (old_rdbase >= s->gicv3->num_cpu) {
+    if (old_cte.rdbase >= s->gicv3->num_cpu) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: CTE has invalid rdbase 0x%"PRIx64"\n",
-                      __func__, old_rdbase);
+                      "%s: CTE has invalid rdbase 0x%x\n",
+                      __func__, old_cte.rdbase);
         return CMD_CONTINUE;
     }
 
-    new_rdbase = FIELD_EX64(new_cte, CTE, RDBASE);
-    if (new_rdbase >= s->gicv3->num_cpu) {
+    if (new_cte.rdbase >= s->gicv3->num_cpu) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: CTE has invalid rdbase 0x%"PRIx64"\n",
-                      __func__, new_rdbase);
+                      "%s: CTE has invalid rdbase 0x%x\n",
+                      __func__, new_cte.rdbase);
         return CMD_CONTINUE;
     }
 
-    if (old_rdbase != new_rdbase) {
+    if (old_cte.rdbase != new_cte.rdbase) {
         /* Move the LPI from the old redistributor to the new one */
-        gicv3_redist_mov_lpi(&s->gicv3->cpu[old_rdbase],
-                             &s->gicv3->cpu[new_rdbase],
+        gicv3_redist_mov_lpi(&s->gicv3->cpu[old_cte.rdbase],
+                             &s->gicv3->cpu[new_cte.rdbase],
                              intid);
     }
 
