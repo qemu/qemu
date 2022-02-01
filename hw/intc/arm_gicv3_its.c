@@ -406,8 +406,7 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, const uint64_t *cmdpkt,
 
     if ((icid >= s->ct.num_entries)
             || !dte.valid || (eventid >= num_eventids) ||
-            (((pIntid < GICV3_LPI_INTID_START) || (pIntid >= num_intids)) &&
-             (pIntid != INTID_SPURIOUS))) {
+            (((pIntid < GICV3_LPI_INTID_START) || (pIntid >= num_intids)))) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid command attributes "
                       "icid %d or eventid %d or pIntid %d or"
