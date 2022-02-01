@@ -74,6 +74,35 @@ class QEMUMachineAddDeviceError(QEMUMachineError):
     """
 
 
+class VMLaunchFailure(QEMUMachineError):
+    """
+    Exception raised when a VM launch was attempted, but failed.
+    """
+    def __init__(self, exitcode: Optional[int],
+                 command: str, output: Optional[str]):
+        super().__init__(exitcode, command, output)
+        self.exitcode = exitcode
+        self.command = command
+        self.output = output
+
+    def __str__(self) -> str:
+        ret = ''
+        if self.__cause__ is not None:
+            name = type(self.__cause__).__name__
+            reason = str(self.__cause__)
+            if reason:
+                ret += f"{name}: {reason}"
+            else:
+                ret += f"{name}"
+        ret += '\n'
+
+        if self.exitcode is not None:
+            ret += f"\tExit code: {self.exitcode}\n"
+        ret += f"\tCommand: {self.command}\n"
+        ret += f"\tOutput: {self.output}\n"
+        return ret
+
+
 class AbnormalShutdown(QEMUMachineError):
     """
     Exception raised when a graceful shutdown was requested, but not performed.
@@ -397,7 +426,7 @@ class QEMUMachine:
 
         try:
             self._launch()
-        except:
+        except BaseException as exc:
             # We may have launched the process but it may
             # have exited before we could connect via QMP.
             # Assume the VM didn't launch or is exiting.
@@ -408,11 +437,15 @@ class QEMUMachine:
             else:
                 self._post_shutdown()
 
-            LOG.debug('Error launching VM')
-            if self._qemu_full_args:
-                LOG.debug('Command: %r', ' '.join(self._qemu_full_args))
-            if self._iolog:
-                LOG.debug('Output: %r', self._iolog)
+            if isinstance(exc, Exception):
+                raise VMLaunchFailure(
+                    exitcode=self.exitcode(),
+                    command=' '.join(self._qemu_full_args),
+                    output=self._iolog
+                ) from exc
+
+            # Don't wrap 'BaseException'; doing so would downgrade
+            # that exception. However, we still want to clean up.
             raise
 
     def _launch(self) -> None:
