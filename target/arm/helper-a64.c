@@ -83,12 +83,14 @@ void HELPER(msr_i_daifset)(CPUARMState *env, uint32_t imm)
 {
     daif_check(env, 0x1e, imm, GETPC());
     env->daif |= (imm << 6) & PSTATE_DAIF;
+    arm_rebuild_hflags(env);
 }
 
 void HELPER(msr_i_daifclear)(CPUARMState *env, uint32_t imm)
 {
     daif_check(env, 0x1f, imm, GETPC());
     env->daif &= ~((imm << 6) & PSTATE_DAIF);
+    arm_rebuild_hflags(env);
 }
 
 /* Convert a softfloat float_relation_ (as returned by
