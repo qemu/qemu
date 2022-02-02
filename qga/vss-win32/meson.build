@@ -1,4 +1,3 @@
-glib_dynamic = dependency('glib-2.0', static: false)
 link_args = cc.get_supported_link_arguments([
   '-fstack-protector-all',
   '-fstack-protector-strong',
@@ -14,7 +13,8 @@ qga_vss = shared_module(
   link_args: link_args,
   vs_module_defs: 'qga-vss.def',
   dependencies: [
-    glib_dynamic, socket,
+    glib,
+    socket,
     cc.find_library('ole32'),
     cc.find_library('oleaut32'),
     cc.find_library('shlwapi'),
