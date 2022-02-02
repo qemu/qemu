@@ -77,11 +77,6 @@ typedef struct DisasContext {
     RISCVMXL ol;
     bool virt_enabled;
     const RISCVCPUConfig *cfg_ptr;
-    bool ext_ifencei;
-    bool ext_zfh;
-    bool ext_zfhmin;
-    bool ext_zve32f;
-    bool ext_zve64f;
     bool hlsx;
     /* vector extension */
     bool vill;
@@ -99,8 +94,6 @@ typedef struct DisasContext {
      */
     int8_t lmul;
     uint8_t sew;
-    uint16_t vlen;
-    uint16_t elen;
     target_ulong vstart;
     bool vl_eq_vlmax;
     uint8_t ntemp;
@@ -910,13 +903,6 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->misa_ext = env->misa_ext;
     ctx->frm = -1;  /* unknown rounding mode */
     ctx->cfg_ptr = &(cpu->cfg);
-    ctx->ext_ifencei = cpu->cfg.ext_ifencei;
-    ctx->ext_zfh = cpu->cfg.ext_zfh;
-    ctx->ext_zfhmin = cpu->cfg.ext_zfhmin;
-    ctx->ext_zve32f = cpu->cfg.ext_zve32f;
-    ctx->ext_zve64f = cpu->cfg.ext_zve64f;
-    ctx->vlen = cpu->cfg.vlen;
-    ctx->elen = cpu->cfg.elen;
     ctx->mstatus_hs_fs = FIELD_EX32(tb_flags, TB_FLAGS, MSTATUS_HS_FS);
     ctx->mstatus_hs_vs = FIELD_EX32(tb_flags, TB_FLAGS, MSTATUS_HS_VS);
     ctx->hlsx = FIELD_EX32(tb_flags, TB_FLAGS, HLSX);

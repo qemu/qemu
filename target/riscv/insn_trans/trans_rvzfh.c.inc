@@ -17,13 +17,13 @@
  */
 
 #define REQUIRE_ZFH(ctx) do { \
-    if (!ctx->ext_zfh) {      \
+    if (!ctx->cfg_ptr->ext_zfh) {      \
         return false;         \
     }                         \
 } while (0)
 
 #define REQUIRE_ZFH_OR_ZFHMIN(ctx) do {       \
-    if (!(ctx->ext_zfh || ctx->ext_zfhmin)) { \
+    if (!(ctx->cfg_ptr->ext_zfh || ctx->cfg_ptr->ext_zfhmin)) { \
         return false;                         \
     }                                         \
 } while (0)
