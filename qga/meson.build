@@ -88,7 +88,7 @@ if targetos == 'windows'
     qga_libs += ['-lole32', '-loleaut32', '-lshlwapi', '-lstdc++', '-Wl,--enable-stdcall-fixup']
     subdir('vss-win32')
   endif
-  if 'CONFIG_QGA_NTDDSCSI' in config_host
+  if have_ntddscsi
     qga_libs += ['-lsetupapi', '-lcfgmgr32']
   endif
 endif

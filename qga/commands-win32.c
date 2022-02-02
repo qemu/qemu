@@ -18,7 +18,7 @@
 #include <ws2tcpip.h>
 #include <iptypes.h>
 #include <iphlpapi.h>
-#ifdef CONFIG_QGA_NTDDSCSI
+#ifdef HAVE_NTDDSCSI
 #include <winioctl.h>
 #include <ntddscsi.h>
 #endif
@@ -474,7 +474,7 @@ void qmp_guest_file_flush(int64_t handle, Error **errp)
     }
 }
 
-#ifdef CONFIG_QGA_NTDDSCSI
+#ifdef HAVE_NTDDSCSI
 
 static GuestDiskBusType win2qemu[] = {
     [BusTypeUnknown] = GUEST_DISK_BUS_TYPE_UNKNOWN,
@@ -1111,7 +1111,7 @@ GuestDiskInfoList *qmp_guest_get_disks(Error **errp)
     return NULL;
 }
 
-#endif /* CONFIG_QGA_NTDDSCSI */
+#endif /* HAVE_NTDDSCSI */
 
 static GuestFilesystemInfo *build_guest_fsinfo(char *guid, Error **errp)
 {
