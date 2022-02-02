@@ -222,6 +222,7 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
          * We have to go based on the signal number now to figure out
          * what's valid.
          */
+        si_type = QEMU_SI_NOINFO;
         if (has_trapno(sig)) {
             tinfo->_reason._fault._trapno = info->_reason._fault._trapno;
             si_type = QEMU_SI_FAULT;
@@ -241,11 +242,13 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
          * capsicum is somewhere between weak and non-existant, but if we get
          * one, then we know what to save.
          */
+#ifdef QEMU_SI_CAPSICUM
         if (sig == TARGET_SIGTRAP) {
             tinfo->_reason._capsicum._syscall =
                 info->_reason._capsicum._syscall;
             si_type = QEMU_SI_CAPSICUM;
         }
+#endif
         break;
     }
     tinfo->si_code = deposit32(si_code, 24, 8, si_type);
@@ -295,10 +298,12 @@ static void tswap_siginfo(target_siginfo_t *tinfo, const target_siginfo_t *info)
         /* Note: Not generated on FreeBSD */
         __put_user(info->_reason._poll._band, &tinfo->_reason._poll._band);
         break;
+#ifdef QEMU_SI_CAPSICUM
     case QEMU_SI_CAPSICUM:
         __put_user(info->_reason._capsicum._syscall,
                    &tinfo->_reason._capsicum._syscall);
         break;
+#endif
     default:
         g_assert_not_reached();
     }
