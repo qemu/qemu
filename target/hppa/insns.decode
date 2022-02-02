@@ -111,6 +111,7 @@ rfi_r           000000 ----- ----- --- 01100101 00000
 # They are allocated from the unassigned instruction space.
 halt            1111 1111 1111 1101 1110 1010 1101 0000
 reset           1111 1111 1111 1101 1110 1010 1101 0001
+getshadowregs   1111 1111 1111 1101 1110 1010 1101 0010
 
 ####
 # Memory Management

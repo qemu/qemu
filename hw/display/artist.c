@@ -80,6 +80,7 @@ struct ARTISTState {
     uint32_t line_pattern_skip;
 
     uint32_t cursor_pos;
+    uint32_t cursor_cntrl;
 
     uint32_t cursor_height;
     uint32_t cursor_width;
@@ -91,7 +92,6 @@ struct ARTISTState {
     uint32_t reg_300208;
     uint32_t reg_300218;
 
-    uint32_t cmap_bm_access;
     uint32_t dst_bm_access;
     uint32_t src_bm_access;
     uint32_t control_plane;
@@ -134,7 +134,7 @@ typedef enum {
     PATTERN_LINE_START = 0x100ecc,
     LINE_SIZE = 0x100e04,
     LINE_END = 0x100e44,
-    CMAP_BM_ACCESS = 0x118000,
+    DST_SRC_BM_ACCESS = 0x118000,
     DST_BM_ACCESS = 0x118004,
     SRC_BM_ACCESS = 0x118008,
     CONTROL_PLANE = 0x11800c,
@@ -176,7 +176,7 @@ static const char *artist_reg_name(uint64_t addr)
     REG_NAME(TRANSFER_DATA);
     REG_NAME(CONTROL_PLANE);
     REG_NAME(IMAGE_BITMAP_OP);
-    REG_NAME(CMAP_BM_ACCESS);
+    REG_NAME(DST_SRC_BM_ACCESS);
     REG_NAME(DST_BM_ACCESS);
     REG_NAME(SRC_BM_ACCESS);
     REG_NAME(CURSOR_POS);
@@ -222,40 +222,14 @@ static void artist_invalidate_lines(struct vram_buffer *buf,
     }
 }
 
-static int vram_write_pix_per_transfer(ARTISTState *s)
-{
-    if (s->cmap_bm_access) {
-        return 1 << ((s->cmap_bm_access >> 27) & 0x0f);
-    } else {
-        return 1 << ((s->dst_bm_access >> 27) & 0x0f);
-    }
-}
-
-static int vram_pixel_length(ARTISTState *s)
-{
-    if (s->cmap_bm_access) {
-        return (s->cmap_bm_access >> 24) & 0x07;
-    } else {
-        return (s->dst_bm_access >> 24) & 0x07;
-    }
-}
-
 static int vram_write_bufidx(ARTISTState *s)
 {
-    if (s->cmap_bm_access) {
-        return (s->cmap_bm_access >> 12) & 0x0f;
-    } else {
-        return (s->dst_bm_access >> 12) & 0x0f;
-    }
+    return (s->dst_bm_access >> 12) & 0x0f;
 }
 
 static int vram_read_bufidx(ARTISTState *s)
 {
-    if (s->cmap_bm_access) {
-        return (s->cmap_bm_access >> 12) & 0x0f;
-    } else {
-        return (s->src_bm_access >> 12) & 0x0f;
-    }
+    return (s->src_bm_access >> 12) & 0x0f;
 }
 
 static struct vram_buffer *vram_read_buffer(ARTISTState *s)
@@ -328,19 +302,42 @@ static void artist_get_cursor_pos(ARTISTState *s, int *x, int *y)
 {
     /*
      * Don't know whether these magic offset values are configurable via
-     * some register. They are the same for all resolutions, so don't
-     * bother about it.
+     * some register. They seem to be the same for all resolutions.
+     * The cursor values provided in the registers are:
+     * X-value: -295 (for HP-UX 11) and 338 (for HP-UX 10.20) up to 2265
+     * Y-value: 1146 down to 0
+     * The emulated Artist graphic is like a CRX graphic, and as such
+     * it's usually fixed at 1280x1024 pixels.
+     * Because of the maximum Y-value of 1146 you can not choose a higher
+     * vertical resolution on HP-UX (unless you disable the mouse).
      */
 
-    *y = 0x47a - artist_get_y(s->cursor_pos);
-    *x = ((artist_get_x(s->cursor_pos) - 338) / 2);
+    static int offset = 338;
+    int lx;
+
+    /* ignore if uninitialized */
+    if (s->cursor_pos == 0) {
+        *x = *y = 0;
+        return;
+    }
+
+    lx = artist_get_x(s->cursor_pos);
+    if (lx < offset)
+        offset = lx;
+    *x = (lx - offset) / 2;
+
+    *y = 1146 - artist_get_y(s->cursor_pos);
+
+    /* subtract cursor offset from cursor control register */
+    *x -= (s->cursor_cntrl & 0xf0) >> 4;
+    *y -= (s->cursor_cntrl & 0x0f);
 
     if (*x > s->width) {
-        *x = 0;
+        *x = s->width;
     }
 
     if (*y > s->height) {
-        *y = 0;
+        *y = s->height;
     }
 }
 
@@ -350,130 +347,6 @@ static void artist_invalidate_cursor(ARTISTState *s)
     artist_get_cursor_pos(s, &x, &y);
     artist_invalidate_lines(&s->vram_buffer[ARTIST_BUFFER_AP],
                             y, s->cursor_height);
-}
-
-static void vram_bit_write(ARTISTState *s, int posy, bool incr_x,
-                           int size, uint32_t data)
-{
-    struct vram_buffer *buf;
-    uint32_t vram_bitmask = s->vram_bitmask;
-    int mask, i, pix_count, pix_length;
-    unsigned int posx, offset, width;
-    uint8_t *data8, *p;
-
-    pix_count = vram_write_pix_per_transfer(s);
-    pix_length = vram_pixel_length(s);
-
-    buf = vram_write_buffer(s);
-    width = buf->width;
-
-    if (s->cmap_bm_access) {
-        offset = s->vram_pos;
-    } else {
-        posx = ADDR_TO_X(s->vram_pos >> 2);
-        posy += ADDR_TO_Y(s->vram_pos >> 2);
-        offset = posy * width + posx;
-    }
-
-    if (!buf->size || offset >= buf->size) {
-        return;
-    }
-
-    p = buf->data;
-
-    if (pix_count > size * 8) {
-        pix_count = size * 8;
-    }
-
-    switch (pix_length) {
-    case 0:
-        if (s->image_bitmap_op & 0x20000000) {
-            data &= vram_bitmask;
-        }
-
-        for (i = 0; i < pix_count; i++) {
-            uint32_t off = offset + pix_count - 1 - i;
-            if (off < buf->size) {
-                artist_rop8(s, buf, off,
-                            (data & 1) ? (s->plane_mask >> 24) : 0);
-            }
-            data >>= 1;
-        }
-        memory_region_set_dirty(&buf->mr, offset, pix_count);
-        break;
-
-    case 3:
-        if (s->cmap_bm_access) {
-            if (offset + 3 < buf->size) {
-                *(uint32_t *)(p + offset) = data;
-            }
-            break;
-        }
-        data8 = (uint8_t *)&data;
-
-        for (i = 3; i >= 0; i--) {
-            if (!(s->image_bitmap_op & 0x20000000) ||
-                s->vram_bitmask & (1 << (28 + i))) {
-                uint32_t off = offset + 3 - i;
-                if (off < buf->size) {
-                    artist_rop8(s, buf, off, data8[ROP8OFF(i)]);
-                }
-            }
-        }
-        memory_region_set_dirty(&buf->mr, offset, 3);
-        break;
-
-    case 6:
-        switch (size) {
-        default:
-        case 4:
-            vram_bitmask = s->vram_bitmask;
-            break;
-
-        case 2:
-            vram_bitmask = s->vram_bitmask >> 16;
-            break;
-
-        case 1:
-            vram_bitmask = s->vram_bitmask >> 24;
-            break;
-        }
-
-        for (i = 0; i < pix_count && offset + i < buf->size; i++) {
-            mask = 1 << (pix_count - 1 - i);
-
-            if (!(s->image_bitmap_op & 0x20000000) ||
-                (vram_bitmask & mask)) {
-                if (data & mask) {
-                    artist_rop8(s, buf, offset + i, s->fg_color);
-                } else {
-                    if (!(s->image_bitmap_op & 0x10000002)) {
-                        artist_rop8(s, buf, offset + i, s->bg_color);
-                    }
-                }
-            }
-        }
-        memory_region_set_dirty(&buf->mr, offset, pix_count);
-        break;
-
-    default:
-        qemu_log_mask(LOG_UNIMP, "%s: unknown pixel length %d\n",
-                      __func__, pix_length);
-        break;
-    }
-
-    if (incr_x) {
-        if (s->cmap_bm_access) {
-            s->vram_pos += 4;
-        } else {
-            s->vram_pos += pix_count << 2;
-        }
-    }
-
-    if (vram_write_bufidx(s) == ARTIST_BUFFER_CURSOR1 ||
-        vram_write_bufidx(s) == ARTIST_BUFFER_CURSOR2) {
-        artist_invalidate_cursor(s);
-    }
 }
 
 static void block_move(ARTISTState *s,
@@ -680,10 +553,11 @@ static void draw_line(ARTISTState *s,
         }
         x++;
     } while (x <= x2 && (max_pix == -1 || --max_pix > 0));
+
     if (c1)
-        artist_invalidate_lines(buf, x, dy+1);
+        artist_invalidate_lines(buf, x1, x2 - x1);
     else
-        artist_invalidate_lines(buf, y, dx+1);
+        artist_invalidate_lines(buf, y1 > y2 ? y2 : y1, x2 - x1);
 }
 
 static void draw_line_pattern_start(ARTISTState *s)
@@ -860,6 +734,151 @@ static void combine_write_reg(hwaddr addr, uint64_t val, int size, void *out)
     }
 }
 
+static void artist_vram_write4(ARTISTState *s, struct vram_buffer *buf,
+                               uint32_t offset, uint32_t data)
+{
+    int i;
+    int mask = s->vram_bitmask >> 28;
+
+    for (i = 0; i < 4; i++) {
+        if (!(s->image_bitmap_op & 0x20000000) || (mask & 8)) {
+            artist_rop8(s, buf, offset + i, data >> 24);
+            data <<= 8;
+            mask <<= 1;
+        }
+    }
+    memory_region_set_dirty(&buf->mr, offset, 3);
+}
+
+static void artist_vram_write32(ARTISTState *s, struct vram_buffer *buf,
+                                uint32_t offset, int size, uint32_t data,
+                                int fg, int bg)
+{
+    uint32_t mask, vram_bitmask = s->vram_bitmask >> ((4 - size) * 8);
+    int i, pix_count = size * 8;
+
+    for (i = 0; i < pix_count && offset + i < buf->size; i++) {
+        mask = 1 << (pix_count - 1 - i);
+
+        if (!(s->image_bitmap_op & 0x20000000) || (vram_bitmask & mask)) {
+            if (data & mask) {
+                artist_rop8(s, buf, offset + i, fg);
+            } else {
+                if (!(s->image_bitmap_op & 0x10000002)) {
+                    artist_rop8(s, buf, offset + i, bg);
+                }
+            }
+        }
+    }
+    memory_region_set_dirty(&buf->mr, offset, pix_count);
+}
+
+static int get_vram_offset(ARTISTState *s, struct vram_buffer *buf,
+                           int pos, int posy)
+{
+    unsigned int posx, width;
+
+    width = buf->width;
+    posx = ADDR_TO_X(pos);
+    posy += ADDR_TO_Y(pos);
+    return posy * width + posx;
+}
+
+static int vram_bit_write(ARTISTState *s, uint32_t pos, int posy,
+                          uint32_t data, int size)
+{
+    struct vram_buffer *buf = vram_write_buffer(s);
+
+    switch (s->dst_bm_access >> 16) {
+    case 0x3ba0:
+    case 0xbbe0:
+        artist_vram_write4(s, buf, pos, bswap32(data));
+        pos += 4;
+        break;
+
+    case 0x1360: /* linux */
+        artist_vram_write4(s, buf, get_vram_offset(s, buf, pos, posy), data);
+        pos += 4;
+        break;
+
+    case 0x13a0:
+        artist_vram_write4(s, buf, get_vram_offset(s, buf, pos >> 2, posy),
+                           data);
+        pos += 16;
+        break;
+
+    case 0x2ea0:
+        artist_vram_write32(s, buf, get_vram_offset(s, buf, pos >> 2, posy),
+                            size, data, s->fg_color, s->bg_color);
+        pos += 4;
+        break;
+
+    case 0x28a0:
+        artist_vram_write32(s, buf, get_vram_offset(s, buf, pos >> 2, posy),
+                            size, data, 1, 0);
+        pos += 4;
+        break;
+
+    default:
+        qemu_log_mask(LOG_UNIMP, "%s: unknown dst bm access %08x\n",
+                      __func__, s->dst_bm_access);
+        break;
+    }
+
+    if (vram_write_bufidx(s) == ARTIST_BUFFER_CURSOR1 ||
+        vram_write_bufidx(s) == ARTIST_BUFFER_CURSOR2) {
+        artist_invalidate_cursor(s);
+    }
+    return pos;
+}
+
+static void artist_vram_write(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned size)
+{
+    ARTISTState *s = opaque;
+    s->vram_char_y = 0;
+    trace_artist_vram_write(size, addr, val);
+    vram_bit_write(opaque, addr, 0, val, size);
+}
+
+static uint64_t artist_vram_read(void *opaque, hwaddr addr, unsigned size)
+{
+    ARTISTState *s = opaque;
+    struct vram_buffer *buf;
+    unsigned int offset;
+    uint64_t val;
+
+    buf = vram_read_buffer(s);
+    if (!buf->size) {
+        return 0;
+    }
+
+    offset = get_vram_offset(s, buf, addr >> 2, 0);
+
+    if (offset > buf->size) {
+        return 0;
+    }
+
+    switch (s->src_bm_access >> 16) {
+    case 0x3ba0:
+        val = *(uint32_t *)(buf->data + offset);
+        break;
+
+    case 0x13a0:
+    case 0x2ea0:
+        val = bswap32(*(uint32_t *)(buf->data + offset));
+        break;
+
+    default:
+        qemu_log_mask(LOG_UNIMP, "%s: unknown src bm access %08x\n",
+                      __func__, s->dst_bm_access);
+        val = -1ULL;
+        break;
+    }
+    trace_artist_vram_read(size, addr, val);
+    return val;
+}
+
 static void artist_reg_write(void *opaque, hwaddr addr, uint64_t val,
                              unsigned size)
 {
@@ -886,12 +905,12 @@ static void artist_reg_write(void *opaque, hwaddr addr, uint64_t val,
         break;
 
     case VRAM_WRITE_INCR_Y:
-        vram_bit_write(s, s->vram_char_y++, false, size, val);
+        vram_bit_write(s, s->vram_pos, s->vram_char_y++, val, size);
         break;
 
     case VRAM_WRITE_INCR_X:
     case VRAM_WRITE_INCR_X2:
-        vram_bit_write(s, s->vram_char_y, true, size, val);
+        s->vram_pos = vram_bit_write(s, s->vram_pos, s->vram_char_y, val, size);
         break;
 
     case VRAM_IDX:
@@ -993,18 +1012,17 @@ static void artist_reg_write(void *opaque, hwaddr addr, uint64_t val,
         combine_write_reg(addr, val, size, &s->plane_mask);
         break;
 
-    case CMAP_BM_ACCESS:
-        combine_write_reg(addr, val, size, &s->cmap_bm_access);
+    case DST_SRC_BM_ACCESS:
+        combine_write_reg(addr, val, size, &s->dst_bm_access);
+        combine_write_reg(addr, val, size, &s->src_bm_access);
         break;
 
     case DST_BM_ACCESS:
         combine_write_reg(addr, val, size, &s->dst_bm_access);
-        s->cmap_bm_access = 0;
         break;
 
     case SRC_BM_ACCESS:
         combine_write_reg(addr, val, size, &s->src_bm_access);
-        s->cmap_bm_access = 0;
         break;
 
     case CONTROL_PLANE:
@@ -1034,6 +1052,7 @@ static void artist_reg_write(void *opaque, hwaddr addr, uint64_t val,
         break;
 
     case CURSOR_CTRL:
+        combine_write_reg(addr, val, size, &s->cursor_cntrl);
         break;
 
     case IMAGE_BITMAP_OP:
@@ -1149,98 +1168,6 @@ static uint64_t artist_reg_read(void *opaque, hwaddr addr, unsigned size)
     }
     val = combine_read_reg(addr, size, &val);
     trace_artist_reg_read(size, addr, artist_reg_name(addr & ~3ULL), val);
-    return val;
-}
-
-static void artist_vram_write(void *opaque, hwaddr addr, uint64_t val,
-                              unsigned size)
-{
-    ARTISTState *s = opaque;
-    struct vram_buffer *buf;
-    unsigned int posy, posx;
-    unsigned int offset;
-    trace_artist_vram_write(size, addr, val);
-
-    if (s->cmap_bm_access) {
-        buf = &s->vram_buffer[ARTIST_BUFFER_CMAP];
-        if (addr + 3 < buf->size) {
-            *(uint32_t *)(buf->data + addr) = val;
-        }
-        return;
-    }
-
-    buf = vram_write_buffer(s);
-    posy = ADDR_TO_Y(addr >> 2);
-    posx = ADDR_TO_X(addr >> 2);
-
-    if (!buf->size) {
-        return;
-    }
-
-    if (posy > buf->height || posx > buf->width) {
-        return;
-    }
-
-    offset = posy * buf->width + posx;
-    if (offset >= buf->size) {
-        return;
-    }
-
-    switch (size) {
-    case 4:
-        if (offset + 3 < buf->size) {
-            *(uint32_t *)(buf->data + offset) = be32_to_cpu(val);
-            memory_region_set_dirty(&buf->mr, offset, 4);
-        }
-        break;
-    case 2:
-        if (offset + 1 < buf->size) {
-            *(uint16_t *)(buf->data + offset) = be16_to_cpu(val);
-            memory_region_set_dirty(&buf->mr, offset, 2);
-        }
-        break;
-    case 1:
-        if (offset < buf->size) {
-            *(uint8_t *)(buf->data + offset) = val;
-            memory_region_set_dirty(&buf->mr, offset, 1);
-        }
-        break;
-    default:
-        break;
-    }
-}
-
-static uint64_t artist_vram_read(void *opaque, hwaddr addr, unsigned size)
-{
-    ARTISTState *s = opaque;
-    struct vram_buffer *buf;
-    uint64_t val;
-    unsigned int posy, posx;
-
-    if (s->cmap_bm_access) {
-        buf = &s->vram_buffer[ARTIST_BUFFER_CMAP];
-        val = 0;
-        if (addr < buf->size && addr + 3 < buf->size) {
-            val = *(uint32_t *)(buf->data + addr);
-        }
-        trace_artist_vram_read(size, addr, 0, 0, val);
-        return val;
-    }
-
-    buf = vram_read_buffer(s);
-    if (!buf->size) {
-        return 0;
-    }
-
-    posy = ADDR_TO_Y(addr >> 2);
-    posx = ADDR_TO_X(addr >> 2);
-
-    if (posy > buf->height || posx > buf->width) {
-        return 0;
-    }
-
-    val = cpu_to_be32(*(uint32_t *)(buf->data + posy * buf->width + posx));
-    trace_artist_vram_read(size, addr, posx, posy, val);
     return val;
 }
 
@@ -1410,6 +1337,14 @@ static void artist_realizefn(DeviceState *dev, Error **errp)
     s->cursor_height = 32;
     s->cursor_width = 32;
 
+    /*
+     * These two registers are not initialized by seabios's STI implementation.
+     * Initialize them here to sane values so artist also works with older
+     * (not-fixed) seabios versions.
+     */
+    s->image_bitmap_op = 0x23000300;
+    s->plane_mask = 0xff;
+
     s->con = graphic_console_init(dev, 0, &artist_ops, s);
     qemu_console_resize(s->con, s->width, s->height);
 }
@@ -1422,8 +1357,8 @@ static int vmstate_artist_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_artist = {
     .name = "artist",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .post_load = vmstate_artist_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT16(height, ARTISTState),
@@ -1443,6 +1378,7 @@ static const VMStateDescription vmstate_artist = {
         VMSTATE_UINT32(line_end, ARTISTState),
         VMSTATE_UINT32(line_xy, ARTISTState),
         VMSTATE_UINT32(cursor_pos, ARTISTState),
+        VMSTATE_UINT32(cursor_cntrl, ARTISTState),
         VMSTATE_UINT32(cursor_height, ARTISTState),
         VMSTATE_UINT32(cursor_width, ARTISTState),
         VMSTATE_UINT32(plane_mask, ARTISTState),
@@ -1450,7 +1386,6 @@ static const VMStateDescription vmstate_artist = {
         VMSTATE_UINT32(reg_300200, ARTISTState),
         VMSTATE_UINT32(reg_300208, ARTISTState),
         VMSTATE_UINT32(reg_300218, ARTISTState),
-        VMSTATE_UINT32(cmap_bm_access, ARTISTState),
         VMSTATE_UINT32(dst_bm_access, ARTISTState),
         VMSTATE_UINT32(src_bm_access, ARTISTState),
         VMSTATE_UINT32(control_plane, ARTISTState),

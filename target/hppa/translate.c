@@ -2393,6 +2393,16 @@ static bool trans_reset(DisasContext *ctx, arg_reset *a)
 #endif
 }
 
+static bool trans_getshadowregs(DisasContext *ctx, arg_getshadowregs *a)
+{
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
+    nullify_over(ctx);
+    gen_helper_getshadowregs(cpu_env);
+    return nullify_end(ctx);
+#endif
+}
+
 static bool trans_nop_addrx(DisasContext *ctx, arg_ldst *a)
 {
     if (a->m) {

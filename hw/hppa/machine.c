@@ -17,6 +17,7 @@
 #include "hw/timer/i8254.h"
 #include "hw/char/serial.h"
 #include "hw/net/lasi_82596.h"
+#include "hw/nmi.h"
 #include "hppa_sys.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
@@ -355,6 +356,14 @@ static void hppa_machine_reset(MachineState *ms)
     cpu[0]->env.gr[19] = FW_CFG_IO_BASE;
 }
 
+static void hppa_nmi(NMIState *n, int cpu_index, Error **errp)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        cpu_interrupt(cs, CPU_INTERRUPT_NMI);
+    }
+}
 
 static void machine_hppa_machine_init(MachineClass *mc)
 {
@@ -371,4 +380,28 @@ static void machine_hppa_machine_init(MachineClass *mc)
     mc->default_ram_id = "ram";
 }
 
-DEFINE_MACHINE("hppa", machine_hppa_machine_init)
+static void machine_hppa_machine_init_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    machine_hppa_machine_init(mc);
+
+    NMIClass *nc = NMI_CLASS(oc);
+    nc->nmi_monitor_handler = hppa_nmi;
+}
+
+static const TypeInfo machine_hppa_machine_init_typeinfo = {
+    .name = ("hppa" "-machine"),
+    .parent = "machine",
+    .class_init = machine_hppa_machine_init_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_NMI },
+        { }
+    },
+};
+
+static void machine_hppa_machine_init_register_types(void)
+{
+    type_register_static(&machine_hppa_machine_init_typeinfo);
+}
+
+type_init(machine_hppa_machine_init_register_types)

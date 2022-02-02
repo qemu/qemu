@@ -23,6 +23,7 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "hw/core/cpu.h"
+#include "hw/hppa/hppa_hardware.h"
 
 #ifndef CONFIG_USER_ONLY
 static void eval_interrupt(HPPACPU *cpu)
@@ -181,7 +182,14 @@ void hppa_cpu_do_interrupt(CPUState *cs)
     }
 
     /* step 7 */
-    env->iaoq_f = env->cr[CR_IVA] + 32 * i;
+    if (i == EXCP_TOC) {
+        env->iaoq_f = FIRMWARE_START;
+        /* help SeaBIOS and provide iaoq_b and iasq_back in shadow regs */
+        env->gr[24] = env->cr_back[0];
+        env->gr[25] = env->cr_back[1];
+    } else {
+        env->iaoq_f = env->cr[CR_IVA] + 32 * i;
+    }
     env->iaoq_b = env->iaoq_f + 4;
     env->iasq_f = 0;
     env->iasq_b = 0;
@@ -219,6 +227,7 @@ void hppa_cpu_do_interrupt(CPUState *cs)
             [EXCP_PER_INTERRUPT] = "performance monitor interrupt",
             [EXCP_SYSCALL]       = "syscall",
             [EXCP_SYSCALL_LWS]   = "syscall-lws",
+            [EXCP_TOC]           = "TOC (transfer of control)",
         };
         static int count;
         const char *name = NULL;
@@ -247,6 +256,14 @@ bool hppa_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     HPPACPU *cpu = HPPA_CPU(cs);
     CPUHPPAState *env = &cpu->env;
+
+    if (interrupt_request & CPU_INTERRUPT_NMI) {
+        /* Raise TOC (NMI) interrupt */
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_NMI);
+        cs->exception_index = EXCP_TOC;
+        hppa_cpu_do_interrupt(cs);
+        return true;
+    }
 
     /* If interrupts are requested and enabled, raise them.  */
     if ((env->psw & PSW_I) && (interrupt_request & CPU_INTERRUPT_HARD)) {
