@@ -292,9 +292,9 @@ class QMPClient(AsyncProtocol[Message], Events):
         """
         self.logger.debug("Negotiating capabilities ...")
 
-        arguments: Dict[str, List[str]] = {'enable': []}
+        arguments: Dict[str, List[str]] = {}
         if self._greeting and 'oob' in self._greeting.QMP.capabilities:
-            arguments['enable'].append('oob')
+            arguments.setdefault('enable', []).append('oob')
         msg = self.make_execute_msg('qmp_capabilities', arguments=arguments)
 
         # It's not safe to use execute() here, because the reader/writers

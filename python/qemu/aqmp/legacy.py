@@ -56,6 +56,9 @@ class QEMUMonitorProtocol(qemu.qmp.QEMUMonitorProtocol):
         self._address = address
         self._timeout: Optional[float] = None
 
+        if server:
+            self._aqmp._bind_hack(address)  # pylint: disable=protected-access
+
     _T = TypeVar('_T')
 
     def _sync(
