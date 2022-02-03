@@ -90,9 +90,11 @@ bool cpu_thread_is_idle(CPUState *cpu)
     if (cpu_is_stopped(cpu)) {
         return true;
     }
-    if (!cpu->halted || cpu_has_work(cpu) ||
-        kvm_halt_in_kernel() || whpx_apic_in_platform()) {
+    if (!cpu->halted || cpu_has_work(cpu)) {
         return false;
+    }
+    if (cpus_accel->cpu_thread_is_idle) {
+        return cpus_accel->cpu_thread_is_idle(cpu);
     }
     return true;
 }
