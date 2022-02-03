@@ -3530,6 +3530,7 @@ void qmp_blockdev_reopen(BlockdevOptionsList *reopen_list, Error **errp)
 {
     BlockReopenQueue *queue = NULL;
     GSList *drained = NULL;
+    GSList *p;
 
     /* Add each one of the BDS that we want to reopen to the queue */
     for (; reopen_list != NULL; reopen_list = reopen_list->next) {
@@ -3579,7 +3580,15 @@ void qmp_blockdev_reopen(BlockdevOptionsList *reopen_list, Error **errp)
 
 fail:
     bdrv_reopen_queue_free(queue);
-    g_slist_free_full(drained, (GDestroyNotify) bdrv_subtree_drained_end);
+    for (p = drained; p; p = p->next) {
+        BlockDriverState *bs = p->data;
+        AioContext *ctx = bdrv_get_aio_context(bs);
+
+        aio_context_acquire(ctx);
+        bdrv_subtree_drained_end(bs);
+        aio_context_release(ctx);
+    }
+    g_slist_free(drained);
 }
 
 void qmp_blockdev_del(const char *node_name, Error **errp)
