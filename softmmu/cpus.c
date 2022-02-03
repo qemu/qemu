@@ -195,7 +195,10 @@ void cpu_synchronize_pre_loadvm(CPUState *cpu)
 
 bool cpus_are_resettable(void)
 {
-    return cpu_check_are_resettable();
+    if (cpus_accel->cpus_are_resettable) {
+        return cpus_accel->cpus_are_resettable();
+    }
+    return true;
 }
 
 int64_t cpus_get_virtual_clock(void)
