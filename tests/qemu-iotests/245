@@ -1138,12 +1138,13 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.assertEqual(self.get_node('hd1'), None)
         self.assert_qmp(self.get_node('hd2'), 'ro', True)
 
-    def run_test_iothreads(self, iothread_a, iothread_b, errmsg = None):
-        opts = hd_opts(0)
+    def run_test_iothreads(self, iothread_a, iothread_b, errmsg = None,
+                           opts_a = None, opts_b = None):
+        opts = opts_a or hd_opts(0)
         result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
         self.assert_qmp(result, 'return', {})
 
-        opts2 = hd_opts(2)
+        opts2 = opts_b or hd_opts(2)
         result = self.vm.qmp('blockdev-add', conv_keys = False, **opts2)
         self.assert_qmp(result, 'return', {})
 
@@ -1193,6 +1194,35 @@ class TestBlockdevReopen(iotests.QMPTestCase):
 
     def test_iothreads_switch_overlay(self):
         self.run_test_iothreads('', 'iothread0')
+
+    def test_iothreads_with_throttling(self):
+        # Create a throttle-group object
+        opts = { 'qom-type': 'throttle-group', 'id': 'group0',
+                 'limits': { 'iops-total': 1000 } }
+        result = self.vm.qmp('object-add', conv_keys = False, **opts)
+        self.assert_qmp(result, 'return', {})
+
+        # Options with a throttle filter between format and protocol
+        opts = [
+            {
+                'driver': iotests.imgfmt,
+                'node-name': f'hd{idx}',
+                'file' : {
+                    'node-name': f'hd{idx}-throttle',
+                    'driver': 'throttle',
+                    'throttle-group': 'group0',
+                    'file': {
+                        'driver': 'file',
+                        'node-name': f'hd{idx}-file',
+                        'filename': hd_path[idx],
+                    },
+                },
+            }
+            for idx in (0, 2)
+        ]
+
+        self.run_test_iothreads('iothread0', 'iothread0', None,
+                                opts[0], opts[1])
 
 if __name__ == '__main__':
     iotests.activate_logging()

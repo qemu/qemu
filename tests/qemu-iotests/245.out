@@ -17,8 +17,8 @@ read 1/1 bytes at offset 262152
 read 1/1 bytes at offset 262160
 1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
-...............
+................
 ----------------------------------------------------------------------
-Ran 25 tests
+Ran 26 tests
 
 OK
