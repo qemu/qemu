@@ -224,32 +224,27 @@ static char *get_mac(QTestState *qts, const char *name)
     return mac;
 }
 
-static void check_one_card(QTestState *qts, bool present,
-                           const char *id, const char *mac)
-{
-    QDict *device;
-    QDict *bus;
-    char *addr;
-
-    bus = get_bus(qts, 0);
-    device = find_device(bus, id);
-    if (present) {
-        char *path;
-
-        g_assert_nonnull(device);
-        qobject_unref(device);
-
-        path = g_strdup_printf("/machine/peripheral/%s", id);
-        addr = get_mac(qts, path);
-        g_free(path);
-        g_assert_cmpstr(mac, ==, addr);
-        g_free(addr);
-    } else {
-       g_assert_null(device);
-    }
-
-    qobject_unref(bus);
-}
+#define check_one_card(qts, present, id, mac)                   \
+do {                                                            \
+    QDict *device;                                              \
+    QDict *bus;                                                 \
+    char *addr;                                                 \
+    bus = get_bus(qts, 0);                                      \
+    device = find_device(bus, id);                              \
+    if (present) {                                              \
+        char *path;                                             \
+        g_assert_nonnull(device);                               \
+        qobject_unref(device);                                  \
+        path = g_strdup_printf("/machine/peripheral/%s", id);   \
+        addr = get_mac(qts, path);                              \
+        g_free(path);                                           \
+        g_assert_cmpstr(mac, ==, addr);                         \
+        g_free(addr);                                           \
+    } else {                                                    \
+       g_assert_null(device);                                   \
+    }                                                           \
+    qobject_unref(bus);                                         \
+} while (0)
 
 static void test_on(void)
 {
