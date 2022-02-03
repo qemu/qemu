@@ -116,8 +116,6 @@ struct RXCPU {
 
 typedef RXCPU ArchCPU;
 
-#define ENV_OFFSET offsetof(RXCPU, env)
-
 #define RX_CPU_TYPE_SUFFIX "-" TYPE_RX_CPU
 #define RX_CPU_TYPE_NAME(model) model RX_CPU_TYPE_SUFFIX
 #define CPU_RESOLVING_TYPE TYPE_RX_CPU
