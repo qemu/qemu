@@ -28,4 +28,6 @@ enum {
 
 extern const uint32_t arch_type;
 
+void qemu_init_arch_modules(void);
+
 #endif
