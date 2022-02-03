@@ -50,6 +50,7 @@
 #define LQSPI_ADDR          0xc0000000
 #define QSPI_IRQ            15
 #define QSPI_DMA_ADDR       0xff0f0800
+#define NUM_QSPI_IRQ_LINES  2
 
 #define DP_ADDR             0xfd4a0000
 #define DP_IRQ              113
@@ -362,6 +363,8 @@ static void xlnx_zynqmp_init(Object *obj)
     }
 
     object_initialize_child(obj, "qspi-dma", &s->qspi_dma, TYPE_XLNX_CSU_DMA);
+    object_initialize_child(obj, "qspi-irq-orgate",
+                            &s->qspi_irq_orgate, TYPE_OR_IRQ);
 }
 
 static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
@@ -709,6 +712,11 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
                            gic_spi[adma_ch_intr[i]]);
     }
 
+    object_property_set_int(OBJECT(&s->qspi_irq_orgate),
+                            "num-lines", NUM_QSPI_IRQ_LINES, &error_fatal);
+    qdev_realize(DEVICE(&s->qspi_irq_orgate), NULL, &error_fatal);
+    qdev_connect_gpio_out(DEVICE(&s->qspi_irq_orgate), 0, gic_spi[QSPI_IRQ]);
+
     if (!object_property_set_link(OBJECT(&s->qspi_dma), "dma",
                                   OBJECT(system_memory), errp)) {
         return;
@@ -718,7 +726,8 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     }
 
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->qspi_dma), 0, QSPI_DMA_ADDR);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->qspi_dma), 0, gic_spi[QSPI_IRQ]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->qspi_dma), 0,
+                       qdev_get_gpio_in(DEVICE(&s->qspi_irq_orgate), 0));
 
     if (!object_property_set_link(OBJECT(&s->qspi), "stream-connected-dma",
                                   OBJECT(&s->qspi_dma), errp)) {
@@ -729,7 +738,8 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->qspi), 0, QSPI_ADDR);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->qspi), 1, LQSPI_ADDR);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->qspi), 0, gic_spi[QSPI_IRQ]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->qspi), 0,
+                       qdev_get_gpio_in(DEVICE(&s->qspi_irq_orgate), 1));
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_QSPI_BUS; i++) {
         g_autofree gchar *bus_name = g_strdup_printf("qspi%d", i);
