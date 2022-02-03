@@ -67,6 +67,11 @@
 
 static QemuMutex qemu_global_mutex;
 
+/*
+ * The chosen accelerator is supposed to register this.
+ */
+static const AccelOpsClass *cpus_accel;
+
 bool cpu_is_stopped(CPUState *cpu)
 {
     return cpu->stopped || !runstate_is_running();
@@ -121,11 +126,6 @@ void hw_error(const char *fmt, ...)
     va_end(ap);
     abort();
 }
-
-/*
- * The chosen accelerator is supposed to register this.
- */
-static const AccelOpsClass *cpus_accel;
 
 void cpu_synchronize_all_states(void)
 {
