@@ -1315,6 +1315,7 @@ int main(int argc, char **argv)
     g_assert_true(ret >= 0);
     close(ret);
 
+    /* parameters tests */
     qtest_add_func("failover-virtio-net/params/error/id", test_error_id);
     qtest_add_func("failover-virtio-net/params/error/pcie", test_error_pcie);
     qtest_add_func("failover-virtio-net/params/on", test_on);
@@ -1322,15 +1323,19 @@ int main(int argc, char **argv)
                    test_on_mismatch);
     qtest_add_func("failover-virtio-net/params/off", test_off);
     qtest_add_func("failover-virtio-net/params/enabled", test_enabled);
-    qtest_add_func("failover-virtio-net/hotplug_1", test_hotplug_1);
-    qtest_add_func("failover-virtio-net/hotplug_1_reverse",
+
+    /* hotplug tests */
+    qtest_add_func("failover-virtio-net/hotplug/1", test_hotplug_1);
+    qtest_add_func("failover-virtio-net/hotplug/1_reverse",
                    test_hotplug_1_reverse);
-    qtest_add_func("failover-virtio-net/hotplug_2", test_hotplug_2);
-    qtest_add_func("failover-virtio-net/hotplug_2_reverse",
+    qtest_add_func("failover-virtio-net/hotplug/2", test_hotplug_2);
+    qtest_add_func("failover-virtio-net/hotplug/2_reverse",
                    test_hotplug_2_reverse);
-    qtest_add_data_func("failover-virtio-net/migrate/out", tmpfile,
+
+    /* migration tests */
+    qtest_add_data_func("failover-virtio-net/migrate/on/out", tmpfile,
                         test_migrate_out);
-    qtest_add_data_func("failover-virtio-net/migrate/in", tmpfile,
+    qtest_add_data_func("failover-virtio-net/migrate/on/in", tmpfile,
                         test_migrate_in);
     qtest_add_data_func("failover-virtio-net/migrate/abort/wait-unplug",
                         tmpfile, test_migrate_abort_wait_unplug);
@@ -1340,9 +1345,9 @@ int main(int argc, char **argv)
         qtest_add_data_func("failover-virtio-net/migrate/abort/timeout",
                             tmpfile, test_migrate_abort_timeout);
     }
-    qtest_add_data_func("failover-virtio-net/multi/out",
+    qtest_add_data_func("failover-virtio-net/migrate/multi/out",
                         tmpfile, test_multi_out);
-    qtest_add_data_func("failover-virtio-net/multi/in",
+    qtest_add_data_func("failover-virtio-net/migrate/multi/in",
                    tmpfile, test_multi_in);
 
     ret = g_test_run();
