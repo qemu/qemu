@@ -77,7 +77,7 @@ ubuntu2004_tsanhack = [
 ]
 
 try:
-   generate_dockerfile("centos8", "centos-8")
+   generate_dockerfile("centos8", "centos-stream-8")
    generate_dockerfile("fedora", "fedora-35")
    generate_dockerfile("ubuntu1804", "ubuntu-1804",
                        trailer="".join(ubuntu1804_skipssh))
