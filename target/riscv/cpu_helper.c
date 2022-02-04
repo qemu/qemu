@@ -326,6 +326,19 @@ void riscv_cpu_set_virt_enabled(CPURISCVState *env, bool enable)
     }
 
     env->virt = set_field(env->virt, VIRT_ONOFF, enable);
+
+    if (enable) {
+        /*
+         * The guest external interrupts from an interrupt controller are
+         * delivered only when the Guest/VM is running (i.e. V=1). This means
+         * any guest external interrupt which is triggered while the Guest/VM
+         * is not running (i.e. V=0) will be missed on QEMU resulting in guest
+         * with sluggish response to serial console input and other I/O events.
+         *
+         * To solve this, we check and inject interrupt after setting V=1.
+         */
+        riscv_cpu_update_mip(env_archcpu(env), 0, 0);
+    }
 }
 
 bool riscv_cpu_two_stage_lookup(int mmu_idx)
