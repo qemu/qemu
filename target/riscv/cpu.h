@@ -359,6 +359,8 @@ struct RISCVCPUConfig {
     bool ext_counters;
     bool ext_ifencei;
     bool ext_icsr;
+    bool ext_svnapot;
+    bool ext_svpbmt;
     bool ext_zfh;
     bool ext_zfhmin;
     bool ext_zve32f;
@@ -557,6 +559,19 @@ static inline int riscv_cpu_xlen(CPURISCVState *env)
 {
     return 16 << env->xl;
 }
+
+#ifdef TARGET_RISCV32
+#define riscv_cpu_sxl(env)  ((void)(env), MXL_RV32)
+#else
+static inline RISCVMXL riscv_cpu_sxl(CPURISCVState *env)
+{
+#ifdef CONFIG_USER_ONLY
+    return env->misa_mxl;
+#else
+    return get_field(env->mstatus, MSTATUS64_SXL);
+#endif
+}
+#endif
 
 /*
  * Encode LMUL to lmul as follows:
