@@ -854,10 +854,20 @@ static void plugin_gen_inject(const struct qemu_plugin_tb *plugin_tb)
 
 bool plugin_gen_tb_start(CPUState *cpu, const TranslationBlock *tb, bool mem_only)
 {
-    struct qemu_plugin_tb *ptb = tcg_ctx->plugin_tb;
     bool ret = false;
 
     if (test_bit(QEMU_PLUGIN_EV_VCPU_TB_TRANS, cpu->plugin_mask)) {
+        struct qemu_plugin_tb *ptb = tcg_ctx->plugin_tb;
+        int i;
+
+        /* reset callbacks */
+        for (i = 0; i < PLUGIN_N_CB_SUBTYPES; i++) {
+            if (ptb->cbs[i]) {
+                g_array_set_size(ptb->cbs[i], 0);
+            }
+        }
+        ptb->n = 0;
+
         ret = true;
 
         ptb->vaddr = tb->pc;
@@ -868,6 +878,9 @@ bool plugin_gen_tb_start(CPUState *cpu, const TranslationBlock *tb, bool mem_onl
 
         plugin_gen_empty_callback(PLUGIN_GEN_FROM_TB);
     }
+
+    tcg_ctx->plugin_insn = NULL;
+
     return ret;
 }
 
@@ -904,23 +917,19 @@ void plugin_gen_insn_end(void)
     plugin_gen_empty_callback(PLUGIN_GEN_AFTER_INSN);
 }
 
+/*
+ * There are cases where we never get to finalise a translation - for
+ * example a page fault during translation. As a result we shouldn't
+ * do any clean-up here and make sure things are reset in
+ * plugin_gen_tb_start.
+ */
 void plugin_gen_tb_end(CPUState *cpu)
 {
     struct qemu_plugin_tb *ptb = tcg_ctx->plugin_tb;
-    int i;
 
     /* collect instrumentation requests */
     qemu_plugin_tb_trans_cb(cpu, ptb);
 
     /* inject the instrumentation at the appropriate places */
     plugin_gen_inject(ptb);
-
-    /* clean up */
-    for (i = 0; i < PLUGIN_N_CB_SUBTYPES; i++) {
-        if (ptb->cbs[i]) {
-            g_array_set_size(ptb->cbs[i], 0);
-        }
-    }
-    ptb->n = 0;
-    tcg_ctx->plugin_insn = NULL;
 }
