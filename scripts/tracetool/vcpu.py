@@ -19,19 +19,9 @@ from tracetool import Arguments, try_import
 def transform_event(event):
     """Transform event to comply with the 'vcpu' property (if present)."""
     if "vcpu" in event.properties:
-        # events with 'tcg-trans' and 'tcg-exec' are auto-generated from
-        # already-patched events
-        assert "tcg-trans" not in event.properties
-        assert "tcg-exec" not in event.properties
-
         event.args = Arguments([("void *", "__cpu"), event.args])
-        if "tcg" in event.properties:
-            fmt = "\"cpu=%p \""
-            event.fmt = [fmt + event.fmt[0],
-                         fmt + event.fmt[1]]
-        else:
-            fmt = "\"cpu=%p \""
-            event.fmt = fmt + event.fmt
+        fmt = "\"cpu=%p \""
+        event.fmt = fmt + event.fmt
     return event
 
 
