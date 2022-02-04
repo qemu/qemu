@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# group: rw quick
+# group: rw
 #
 # Test cases for blockdev + IOThread interactions
 #
@@ -20,8 +20,9 @@
 #
 
 import os
+import time
 import iotests
-from iotests import qemu_img
+from iotests import qemu_img, QemuStorageDaemon
 
 image_len = 64 * 1024 * 1024
 
@@ -242,6 +243,80 @@ class TestBlockdevBackupAbort(iotests.QMPTestCase):
 
         # Hangs on failure, we expect this error.
         self.assert_qmp(result, 'error/class', 'GenericError')
+
+# Test for RHBZ#2033626
+class TestYieldingAndTimers(iotests.QMPTestCase):
+    sock = os.path.join(iotests.sock_dir, 'nbd.sock')
+    qsd = None
+
+    def setUp(self):
+        self.create_nbd_export()
+
+        # Simple VM with an NBD block device connected to the NBD export
+        # provided by the QSD
+        self.vm = iotests.VM()
+        self.vm.add_blockdev('nbd,node-name=nbd,server.type=unix,' +
+                             f'server.path={self.sock},export=exp,' +
+                             'reconnect-delay=1,open-timeout=1')
+
+        self.vm.launch()
+
+    def tearDown(self):
+        self.stop_nbd_export()
+        self.vm.shutdown()
+
+    def test_timers_with_blockdev_del(self):
+        # The NBD BDS will have had an active open timer, because setUp() gave
+        # a positive value for @open-timeout.  It should be gone once the BDS
+        # has been opened.
+        # (But there used to be a bug where it remained active, which will
+        # become important below.)
+
+        # Stop and restart the NBD server, and do some I/O on the client to
+        # trigger a reconnect and start the reconnect delay timer
+        self.stop_nbd_export()
+        self.create_nbd_export()
+
+        result = self.vm.qmp('human-monitor-command',
+                             command_line='qemu-io nbd "write 0 512"')
+        self.assert_qmp(result, 'return', '')
+
+        # Reconnect is done, so the reconnect delay timer should be gone.
+        # (This is similar to how the open timer should be gone after open,
+        # and similarly there used to be a bug where it was not gone.)
+
+        # Delete the BDS to see whether both timers are gone.  If they are not,
+        # they will remain active, fire later, and then access freed data.
+        # (Or, with "block/nbd: Assert there are no timers when closed"
+        # applied, the assertions added in that patch will fail.)
+        result = self.vm.qmp('blockdev-del', node_name='nbd')
+        self.assert_qmp(result, 'return', {})
+
+        # Give the timers some time to fire (both have a timeout of 1 s).
+        # (Sleeping in an iotest may ring some alarm bells, but note that if
+        # the timing is off here, the test will just always pass.  If we kill
+        # the VM too early, then we just kill the timers before they can fire,
+        # thus not see the error, and so the test will pass.)
+        time.sleep(2)
+
+    def create_nbd_export(self):
+        assert self.qsd is None
+
+        # Simple NBD export of a null-co BDS
+        self.qsd = QemuStorageDaemon(
+            '--blockdev',
+            'null-co,node-name=null,read-zeroes=true',
+
+            '--nbd-server',
+            f'addr.type=unix,addr.path={self.sock}',
+
+            '--export',
+            'nbd,id=exp,node-name=null,name=exp,writable=true'
+        )
+
+    def stop_nbd_export(self):
+        self.qsd.stop()
+        self.qsd = None
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2'],
