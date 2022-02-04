@@ -633,9 +633,10 @@ void arm_cpu_pauth_finalize(ARMCPU *cpu, Error **errp)
     uint64_t t;
 
     /* Exit early if PAuth is enabled, and fall through to disable it */
-    if (kvm_enabled() && cpu->prop_pauth) {
+    if ((kvm_enabled() || hvf_enabled()) && cpu->prop_pauth) {
         if (!cpu_isar_feature(aa64_pauth, cpu)) {
-            error_setg(errp, "'pauth' feature not supported by KVM on this host");
+            error_setg(errp, "'pauth' feature not supported by %s on this host",
+                       kvm_enabled() ? "KVM" : "hvf");
         }
 
         return;
@@ -672,10 +673,14 @@ void aarch64_add_pauth_properties(Object *obj)
 
     /* Default to PAUTH on, with the architected algorithm on TCG. */
     qdev_property_add_static(DEVICE(obj), &arm_cpu_pauth_property);
-    if (kvm_enabled()) {
+    if (kvm_enabled() || hvf_enabled()) {
         /*
          * Mirror PAuth support from the probed sysregs back into the
-         * property for KVM. Is it just a bit backward? Yes it is!
+         * property for KVM or hvf. Is it just a bit backward? Yes it is!
+         * Note that prop_pauth is true whether the host CPU supports the
+         * architected QARMA5 algorithm or the IMPDEF one. We don't
+         * provide the separate pauth-impdef property for KVM or hvf,
+         * only for TCG.
          */
         cpu->prop_pauth = cpu_isar_feature(aa64_pauth, cpu);
     } else {
@@ -695,6 +700,7 @@ static void aarch64_host_initfn(Object *obj)
 #elif defined(CONFIG_HVF)
     ARMCPU *cpu = ARM_CPU(obj);
     hvf_arm_set_cpu_features_from_host(cpu);
+    aarch64_add_pauth_properties(obj);
 #else
     g_assert_not_reached();
 #endif
