@@ -15,3 +15,4 @@ GTAGS
 *.depend_raw
 *.swp
 *.patch
+*.gcov
