@@ -376,6 +376,7 @@ struct RISCVCPUConfig {
     bool mmu;
     bool pmp;
     bool epmp;
+    bool aia;
     uint64_t resetvec;
 };
 
