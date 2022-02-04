@@ -253,8 +253,9 @@ class TestYieldingAndTimers(iotests.QMPTestCase):
         self.create_nbd_export()
 
         # Simple VM with an NBD block device connected to the NBD export
-        # provided by the QSD
+        # provided by the QSD, and an (initially unused) iothread
         self.vm = iotests.VM()
+        self.vm.add_object('iothread,id=iothr')
         self.vm.add_blockdev('nbd,node-name=nbd,server.type=unix,' +
                              f'server.path={self.sock},export=exp,' +
                              'reconnect-delay=1,open-timeout=1')
@@ -299,19 +300,40 @@ class TestYieldingAndTimers(iotests.QMPTestCase):
         # thus not see the error, and so the test will pass.)
         time.sleep(2)
 
+    def test_yield_in_iothread(self):
+        # Move the NBD node to the I/O thread; the NBD block driver should
+        # attach the connection's QIOChannel to that thread's AioContext, too
+        result = self.vm.qmp('x-blockdev-set-iothread',
+                             node_name='nbd', iothread='iothr')
+        self.assert_qmp(result, 'return', {})
+
+        # Do some I/O that will be throttled by the QSD, so that the network
+        # connection hopefully will yield here.  When it is resumed, it must
+        # then be resumed in the I/O thread's AioContext.
+        result = self.vm.qmp('human-monitor-command',
+                             command_line='qemu-io nbd "read 0 128K"')
+        self.assert_qmp(result, 'return', '')
+
     def create_nbd_export(self):
         assert self.qsd is None
 
-        # Simple NBD export of a null-co BDS
+        # Export a throttled null-co BDS: Reads are throttled (max 64 kB/s),
+        # writes are not.
         self.qsd = QemuStorageDaemon(
+            '--object',
+            'throttle-group,id=thrgr,x-bps-read=65536,x-bps-read-max=65536',
+
             '--blockdev',
             'null-co,node-name=null,read-zeroes=true',
+
+            '--blockdev',
+            'throttle,node-name=thr,file=null,throttle-group=thrgr',
 
             '--nbd-server',
             f'addr.type=unix,addr.path={self.sock}',
 
             '--export',
-            'nbd,id=exp,node-name=null,name=exp,writable=true'
+            'nbd,id=exp,node-name=thr,name=exp,writable=true'
         )
 
     def stop_nbd_export(self):
