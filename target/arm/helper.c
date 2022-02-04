@@ -13037,7 +13037,7 @@ int fp_exception_el(CPUARMState *env, int cur_el)
     }
 
     /* CPTR_EL3 : present in v8 */
-    if (extract32(env->cp15.cptr_el[3], 10, 1)) {
+    if (env->cp15.cptr_el[3] & CPTR_TFP) {
         /* Trap all FP ops to EL3 */
         return 3;
     }
