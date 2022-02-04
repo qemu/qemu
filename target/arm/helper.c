@@ -6180,15 +6180,41 @@ int sve_exception_el(CPUARMState *env, int el)
         }
     }
 
-    /* CPTR_EL2.  Since TZ and TFP are positive,
-     * they will be zero when EL2 is not present.
+    /*
+     * CPTR_EL2 changes format with HCR_EL2.E2H (regardless of TGE).
      */
-    if (el <= 2 && arm_is_el2_enabled(env)) {
-        if (env->cp15.cptr_el[2] & CPTR_TZ) {
-            return 2;
-        }
-        if (env->cp15.cptr_el[2] & CPTR_TFP) {
-            return 0;
+    if (el <= 2) {
+        if (hcr_el2 & HCR_E2H) {
+            /* Check CPTR_EL2.ZEN.  */
+            switch (extract32(env->cp15.cptr_el[2], 16, 2)) {
+            case 1:
+                if (el != 0 || !(hcr_el2 & HCR_TGE)) {
+                    break;
+                }
+                /* fall through */
+            case 0:
+            case 2:
+                return 2;
+            }
+
+            /* Check CPTR_EL2.FPEN.  */
+            switch (extract32(env->cp15.cptr_el[2], 20, 2)) {
+            case 1:
+                if (el == 2 || !(hcr_el2 & HCR_TGE)) {
+                    break;
+                }
+                /* fall through */
+            case 0:
+            case 2:
+                return 0;
+            }
+        } else if (arm_is_el2_enabled(env)) {
+            if (env->cp15.cptr_el[2] & CPTR_TZ) {
+                return 2;
+            }
+            if (env->cp15.cptr_el[2] & CPTR_TFP) {
+                return 0;
+            }
         }
     }
 
@@ -12912,6 +12938,8 @@ uint32_t HELPER(crc32c)(uint32_t acc, uint32_t val, uint32_t bytes)
 int fp_exception_el(CPUARMState *env, int cur_el)
 {
 #ifndef CONFIG_USER_ONLY
+    uint64_t hcr_el2;
+
     /* CPACR and the CPTR registers don't exist before v6, so FP is
      * always accessible
      */
@@ -12935,13 +12963,15 @@ int fp_exception_el(CPUARMState *env, int cur_el)
         return 0;
     }
 
+    hcr_el2 = arm_hcr_el2_eff(env);
+
     /* The CPACR controls traps to EL1, or PL1 if we're 32 bit:
      * 0, 2 : trap EL0 and EL1/PL1 accesses
      * 1    : trap only EL0 accesses
      * 3    : trap no accesses
      * This register is ignored if E2H+TGE are both set.
      */
-    if ((arm_hcr_el2_eff(env) & (HCR_E2H | HCR_TGE)) != (HCR_E2H | HCR_TGE)) {
+    if ((hcr_el2 & (HCR_E2H | HCR_TGE)) != (HCR_E2H | HCR_TGE)) {
         int fpen = extract32(env->cp15.cpacr_el1, 20, 2);
 
         switch (fpen) {
@@ -12982,15 +13012,28 @@ int fp_exception_el(CPUARMState *env, int cur_el)
         }
     }
 
-    /* For the CPTR registers we don't need to guard with an ARM_FEATURE
-     * check because zero bits in the registers mean "don't trap".
+    /*
+     * CPTR_EL2 is present in v7VE or v8, and changes format
+     * with HCR_EL2.E2H (regardless of TGE).
      */
-
-    /* CPTR_EL2 : present in v7VE or v8 */
-    if (cur_el <= 2 && extract32(env->cp15.cptr_el[2], 10, 1)
-        && arm_is_el2_enabled(env)) {
-        /* Trap FP ops at EL2, NS-EL1 or NS-EL0 to EL2 */
-        return 2;
+    if (cur_el <= 2) {
+        if (hcr_el2 & HCR_E2H) {
+            /* Check CPTR_EL2.FPEN.  */
+            switch (extract32(env->cp15.cptr_el[2], 20, 2)) {
+            case 1:
+                if (cur_el != 0 || !(hcr_el2 & HCR_TGE)) {
+                    break;
+                }
+                /* fall through */
+            case 0:
+            case 2:
+                return 2;
+            }
+        } else if (arm_is_el2_enabled(env)) {
+            if (env->cp15.cptr_el[2] & CPTR_TFP) {
+                return 2;
+            }
+        }
     }
 
     /* CPTR_EL3 : present in v8 */
