@@ -29,6 +29,7 @@
 #include "hw/loader.h"
 #endif
 #include "sysemu/kvm.h"
+#include "sysemu/hvf.h"
 #include "kvm_arm.h"
 #include "hvf_arm.h"
 #include "qapi/visitor.h"
@@ -710,8 +711,8 @@ static void aarch64_max_initfn(Object *obj)
     uint64_t t;
     uint32_t u;
 
-    if (kvm_enabled()) {
-        /* With KVM, '-cpu max' is identical to '-cpu host' */
+    if (kvm_enabled() || hvf_enabled()) {
+        /* With KVM or HVF, '-cpu max' is identical to '-cpu host' */
         aarch64_host_initfn(obj);
         return;
     }
