@@ -30,6 +30,7 @@
 #endif
 #include "sysemu/kvm.h"
 #include "kvm_arm.h"
+#include "hvf_arm.h"
 #include "qapi/visitor.h"
 #include "hw/qdev-properties.h"
 
@@ -681,6 +682,31 @@ void aarch64_add_pauth_properties(Object *obj)
     }
 }
 
+#if defined(CONFIG_KVM) || defined(CONFIG_HVF)
+static void arm_host_initfn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+#ifdef CONFIG_KVM
+    kvm_arm_set_cpu_features_from_host(cpu);
+    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+        aarch64_add_sve_properties(obj);
+        aarch64_add_pauth_properties(obj);
+    }
+#else
+    hvf_arm_set_cpu_features_from_host(cpu);
+#endif
+    arm_cpu_post_init(obj);
+}
+
+static const TypeInfo host_arm_cpu_type_info = {
+    .name = TYPE_ARM_HOST_CPU,
+    .parent = TYPE_AARCH64_CPU,
+    .instance_init = arm_host_initfn,
+};
+
+#endif
+
 /* -cpu max: if KVM is enabled, like -cpu host (best possible with this host);
  * otherwise, a CPU with as many features enabled as our emulation supports.
  * The version of '-cpu max' for qemu-system-arm is defined in cpu.c;
@@ -1023,6 +1049,10 @@ static void aarch64_cpu_register_types(void)
     for (i = 0; i < ARRAY_SIZE(aarch64_cpus); ++i) {
         aarch64_cpu_register(&aarch64_cpus[i]);
     }
+
+#if defined(CONFIG_KVM) || defined(CONFIG_HVF)
+    type_register_static(&host_arm_cpu_type_info);
+#endif
 }
 
 type_init(aarch64_cpu_register_types)
