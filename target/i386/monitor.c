@@ -667,3 +667,46 @@ void hmp_info_local_apic(Monitor *mon, const QDict *qdict)
     }
     x86_cpu_dump_local_apic_state(cs, CPU_DUMP_FPU);
 }
+
+void hmp_dump_stackframe(Monitor *mon, const QDict *qdict)
+{
+    bool has_addr = qdict_haskey(qdict, "addr");
+    uintptr_t bp = 0;
+    int depth = 20;
+    CPUArchState *env;
+    CPUState *cpu;
+    cpu = mon_get_cpu(mon);
+    env = mon_get_cpu_env(mon);
+    if (!env || !cpu) {
+        monitor_printf(mon, "No CPU available\n");
+        return;
+    }
+
+    if(has_addr)
+    {
+        bp = qdict_get_int(qdict, "addr");
+    }
+    else
+    {
+        bp = env->regs[R_EBP];
+    }
+    monitor_printf(mon, "dumping stackframe at %lx: \n", bp);
+    while(bp && (depth--) >= 0)
+    {
+        uintptr_t nrbp = 0;
+        uintptr_t nrip = 0;
+        if(cpu_memory_rw_debug(cpu, bp, &nrbp, sizeof(uint64_t), false))
+        {
+            monitor_printf(mon, "failed to read at addr: %lx \n", bp);
+            return;
+        }
+        if(cpu_memory_rw_debug(cpu, bp + sizeof(uint64_t), &nrip, sizeof(uint64_t), false))
+        {
+            monitor_printf(mon, "failed to read at addr: %lx \n", bp);
+            return;
+        }
+        monitor_printf(mon, "at[%lx]: %lx \n", bp, nrip );
+        bp = nrbp;
+    }
+
+}

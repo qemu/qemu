@@ -1098,6 +1098,17 @@ SRST
     together with *begin*.
 
 ERST
+    {
+        .name       = "dump-stackframe",
+        .args_type  = "addr:l?",
+        .params     = "[addr]",
+        .help       = "dump guest stackframe\n",
+        .cmd        = hmp_dump_stackframe,
+    },
+
+SRST
+
+ERST
 
 #if defined(TARGET_S390X)
     {
