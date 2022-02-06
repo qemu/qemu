@@ -80,7 +80,7 @@ struct vmsvga_state_s {
     struct vmsvga_rect_s {
         int x, y, w, h;
     } redraw_fifo[REDRAW_FIFO_LEN];
-    int redraw_fifo_first, redraw_fifo_last;
+    int redraw_fifo_last;
 };
 
 #define TYPE_VMWARE_SVGA "vmware-svga"
@@ -380,33 +380,39 @@ static inline void vmsvga_update_rect(struct vmsvga_state_s *s,
     dpy_gfx_update(s->vga.con, x, y, w, h);
 }
 
-static inline void vmsvga_update_rect_delayed(struct vmsvga_state_s *s,
-                int x, int y, int w, int h)
-{
-    struct vmsvga_rect_s *rect = &s->redraw_fifo[s->redraw_fifo_last++];
-
-    s->redraw_fifo_last &= REDRAW_FIFO_LEN - 1;
-    rect->x = x;
-    rect->y = y;
-    rect->w = w;
-    rect->h = h;
-}
-
 static inline void vmsvga_update_rect_flush(struct vmsvga_state_s *s)
 {
     struct vmsvga_rect_s *rect;
 
     if (s->invalidated) {
-        s->redraw_fifo_first = s->redraw_fifo_last;
+        s->redraw_fifo_last = 0;
         return;
     }
     /* Overlapping region updates can be optimised out here - if someone
      * knows a smart algorithm to do that, please share.  */
-    while (s->redraw_fifo_first != s->redraw_fifo_last) {
-        rect = &s->redraw_fifo[s->redraw_fifo_first++];
-        s->redraw_fifo_first &= REDRAW_FIFO_LEN - 1;
+    for (int i = 0; i < s->redraw_fifo_last; i++) {
+        rect = &s->redraw_fifo[i];
         vmsvga_update_rect(s, rect->x, rect->y, rect->w, rect->h);
     }
+
+    s->redraw_fifo_last = 0;
+}
+
+static inline void vmsvga_update_rect_delayed(struct vmsvga_state_s *s,
+                int x, int y, int w, int h)
+{
+
+    if (s->redraw_fifo_last >= REDRAW_FIFO_LEN) {
+        trace_vmware_update_rect_delayed_flush();
+        vmsvga_update_rect_flush(s);
+    }
+
+    struct vmsvga_rect_s *rect = &s->redraw_fifo[s->redraw_fifo_last++];
+
+    rect->x = x;
+    rect->y = y;
+    rect->w = w;
+    rect->h = h;
 }
 
 #ifdef HW_RECT_ACCEL
@@ -1161,7 +1167,6 @@ static void vmsvga_reset(DeviceState *dev)
     s->config = 0;
     s->svgaid = SVGA_ID;
     s->cursor.on = 0;
-    s->redraw_fifo_first = 0;
     s->redraw_fifo_last = 0;
     s->syncing = 0;
 
