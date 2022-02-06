@@ -871,7 +871,7 @@ static void tcg_out_qemu_ld_indexed(TCGContext *s, TCGReg rd, TCGReg rj,
     case MO_SL:
         tcg_out_opc_ldx_w(s, rd, rj, rk);
         break;
-    case MO_Q:
+    case MO_UQ:
         tcg_out_opc_ldx_d(s, rd, rj, rk);
         break;
     default:
