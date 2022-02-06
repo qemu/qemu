@@ -2768,7 +2768,7 @@ cat > $TMPC << EOF
 #include <cpuid.h>
 int main(void) {
     unsigned a, b, c, d;
-    int max = __get_cpuid_max(0, 0);
+    unsigned max = __get_cpuid_max(0, 0);
 
     if (max >= 1) {
         __cpuid(1, a, b, c, d);
