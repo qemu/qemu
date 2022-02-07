@@ -8,6 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "qemu/log.h"
 #include "target/arm/idau.h"
 #include "trace.h"
 #include "cpu.h"

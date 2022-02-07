@@ -19,6 +19,7 @@
 #define HEXAGON_TRANSLATE_H
 
 #include "qemu/bitmap.h"
+#include "qemu/log.h"
 #include "cpu.h"
 #include "exec/translator.h"
 #include "tcg/tcg-op.h"

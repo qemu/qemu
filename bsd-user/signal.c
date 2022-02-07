@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "qemu.h"
 #include "signal-common.h"
 #include "trace.h"
