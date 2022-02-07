@@ -31,6 +31,8 @@ OBJECT_DECLARE_TYPE(S390CPU, S390CPUClass,
 typedef struct S390CPUModel S390CPUModel;
 typedef struct S390CPUDef S390CPUDef;
 
+typedef struct CPUArchState CPUS390XState;
+
 typedef enum cpu_reset_type {
     S390_CPU_RESET_NORMAL,
     S390_CPU_RESET_INITIAL,
@@ -62,7 +64,5 @@ struct S390CPUClass {
     void (*load_normal)(CPUState *cpu);
     void (*reset)(CPUState *cpu, cpu_reset_type type);
 };
-
-typedef struct CPUS390XState CPUS390XState;
 
 #endif

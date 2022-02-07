@@ -25,7 +25,7 @@
 #include "hw/core/cpu.h"
 #include "qom/object.h"
 
-typedef struct CPUNios2State CPUNios2State;
+typedef struct CPUArchState CPUNios2State;
 #if !defined(CONFIG_USER_ONLY)
 #include "mmu.h"
 #endif
@@ -155,7 +155,7 @@ struct Nios2CPUClass {
 
 #define CPU_INTERRUPT_NMI       CPU_INTERRUPT_TGT_EXT_3
 
-struct CPUNios2State {
+struct CPUArchState {
     uint32_t regs[NUM_CORE_REGS];
 
 #if !defined(CONFIG_USER_ONLY)

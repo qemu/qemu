@@ -45,6 +45,4 @@ struct RXCPUClass {
     DeviceReset parent_reset;
 };
 
-#define CPUArchState struct CPURXState
-
 #endif

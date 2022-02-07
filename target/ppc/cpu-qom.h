@@ -32,7 +32,7 @@
 OBJECT_DECLARE_TYPE(PowerPCCPU, PowerPCCPUClass,
                     POWERPC_CPU)
 
-typedef struct CPUPPCState CPUPPCState;
+typedef struct CPUArchState CPUPPCState;
 typedef struct ppc_tb_t ppc_tb_t;
 typedef struct ppc_dcr_t ppc_dcr_t;
 
