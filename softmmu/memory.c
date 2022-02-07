@@ -2790,19 +2790,32 @@ void memory_global_after_dirty_log_sync(void)
     MEMORY_LISTENER_CALL_GLOBAL(log_global_after_sync, Forward);
 }
 
+/*
+ * Dirty track stop flags that are postponed due to VM being stopped.  Should
+ * only be used within vmstate_change hook.
+ */
+static unsigned int postponed_stop_flags;
 static VMChangeStateEntry *vmstate_change;
+static void memory_global_dirty_log_stop_postponed_run(void);
 
 void memory_global_dirty_log_start(unsigned int flags)
 {
-    unsigned int old_flags = global_dirty_tracking;
-
-    if (vmstate_change) {
-        qemu_del_vm_change_state_handler(vmstate_change);
-        vmstate_change = NULL;
-    }
+    unsigned int old_flags;
 
     assert(flags && !(flags & (~GLOBAL_DIRTY_MASK)));
-    assert(!(global_dirty_tracking & flags));
+
+    if (vmstate_change) {
+        /* If there is postponed stop(), operate on it first */
+        postponed_stop_flags &= ~flags;
+        memory_global_dirty_log_stop_postponed_run();
+    }
+
+    flags &= ~global_dirty_tracking;
+    if (!flags) {
+        return;
+    }
+
+    old_flags = global_dirty_tracking;
     global_dirty_tracking |= flags;
     trace_global_dirty_changed(global_dirty_tracking);
 
@@ -2830,29 +2843,45 @@ static void memory_global_dirty_log_do_stop(unsigned int flags)
     }
 }
 
+/*
+ * Execute the postponed dirty log stop operations if there is, then reset
+ * everything (including the flags and the vmstate change hook).
+ */
+static void memory_global_dirty_log_stop_postponed_run(void)
+{
+    /* This must be called with the vmstate handler registered */
+    assert(vmstate_change);
+
+    /* Note: postponed_stop_flags can be cleared in log start routine */
+    if (postponed_stop_flags) {
+        memory_global_dirty_log_do_stop(postponed_stop_flags);
+        postponed_stop_flags = 0;
+    }
+
+    qemu_del_vm_change_state_handler(vmstate_change);
+    vmstate_change = NULL;
+}
+
 static void memory_vm_change_state_handler(void *opaque, bool running,
                                            RunState state)
 {
-    unsigned int flags = (unsigned int)(uintptr_t)opaque;
     if (running) {
-        memory_global_dirty_log_do_stop(flags);
-
-        if (vmstate_change) {
-            qemu_del_vm_change_state_handler(vmstate_change);
-            vmstate_change = NULL;
-        }
+        memory_global_dirty_log_stop_postponed_run();
     }
 }
 
 void memory_global_dirty_log_stop(unsigned int flags)
 {
     if (!runstate_is_running()) {
+        /* Postpone the dirty log stop, e.g., to when VM starts again */
         if (vmstate_change) {
-            return;
+            /* Batch with previous postponed flags */
+            postponed_stop_flags |= flags;
+        } else {
+            postponed_stop_flags = flags;
+            vmstate_change = qemu_add_vm_change_state_handler(
+                memory_vm_change_state_handler, NULL);
         }
-        vmstate_change = qemu_add_vm_change_state_handler(
-                                memory_vm_change_state_handler,
-                                (void *)(uintptr_t)flags);
         return;
     }
 
