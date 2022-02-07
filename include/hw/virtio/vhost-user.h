@@ -12,8 +12,10 @@
 #include "hw/virtio/virtio.h"
 
 typedef struct VhostUserHostNotifier {
+    struct rcu_head rcu;
     MemoryRegion mr;
     void *addr;
+    void *unmap_addr;
 } VhostUserHostNotifier;
 
 typedef struct VhostUserState {
