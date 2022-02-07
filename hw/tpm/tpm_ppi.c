@@ -14,9 +14,9 @@
 #include "qemu/osdep.h"
 
 #include "qapi/error.h"
-#include "cpu.h"
 #include "sysemu/memory_mapping.h"
 #include "migration/vmstate.h"
+#include "hw/qdev-core.h"
 #include "hw/acpi/tpm.h"
 #include "tpm_ppi.h"
 #include "trace.h"
@@ -44,7 +44,7 @@ void tpm_ppi_reset(TPMPPI *tpmppi)
     }
 }
 
-void tpm_ppi_init(TPMPPI *tpmppi, struct MemoryRegion *m,
+void tpm_ppi_init(TPMPPI *tpmppi, MemoryRegion *m,
                   hwaddr addr, Object *obj)
 {
     tpmppi->buf = qemu_memalign(qemu_real_host_page_size,
