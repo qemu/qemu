@@ -318,6 +318,12 @@ static void a9_gtimer_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static bool vmstate_a9_gtimer_control_needed(void *opaque)
+{
+    A9GTimerState *s = opaque;
+    return s->control != 0;
+}
+
 static const VMStateDescription vmstate_a9_gtimer_per_cpu = {
     .name = "arm.cortex-a9-global-timer.percpu",
     .version_id = 1,
@@ -327,6 +333,17 @@ static const VMStateDescription vmstate_a9_gtimer_per_cpu = {
         VMSTATE_UINT64(compare, A9GTimerPerCPU),
         VMSTATE_UINT32(status, A9GTimerPerCPU),
         VMSTATE_UINT32(inc, A9GTimerPerCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_a9_gtimer_control = {
+    .name = "arm.cortex-a9-global-timer.control",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = vmstate_a9_gtimer_control_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(control, A9GTimerState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -344,6 +361,10 @@ static const VMStateDescription vmstate_a9_gtimer = {
                                      1, vmstate_a9_gtimer_per_cpu,
                                      A9GTimerPerCPU),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_a9_gtimer_control,
+        NULL
     }
 };
 
