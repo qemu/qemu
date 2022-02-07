@@ -13,6 +13,6 @@
 
 #include "cpu.h"
 
-void hvf_arm_set_cpu_features_from_host(struct ARMCPU *cpu);
+void hvf_arm_set_cpu_features_from_host(ARMCPU *cpu);
 
 #endif
