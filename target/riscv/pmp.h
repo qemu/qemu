@@ -22,6 +22,8 @@
 #ifndef RISCV_PMP_H
 #define RISCV_PMP_H
 
+#include "cpu.h"
+
 typedef enum {
     PMP_READ  = 1 << 0,
     PMP_WRITE = 1 << 1,
