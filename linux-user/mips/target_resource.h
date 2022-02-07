@@ -1,0 +1,24 @@
+#ifndef MIPS_TARGET_RESOURCE_H
+#define MIPS_TARGET_RESOURCE_H
+
+#include "../generic/target_resource.h"
+
+#undef TARGET_RLIM_INFINITY
+#define TARGET_RLIM_INFINITY    0x7fffffffUL
+
+#undef TARGET_RLIMIT_NOFILE
+#define TARGET_RLIMIT_NOFILE    5
+
+#undef TARGET_RLIMIT_AS
+#define TARGET_RLIMIT_AS        6
+
+#undef TARGET_RLIMIT_RSS
+#define TARGET_RLIMIT_RSS       7
+
+#undef TARGET_RLIMIT_NPROC
+#define TARGET_RLIMIT_NPROC     8
+
+#undef TARGET_RLIMIT_MEMLOCK
+#define TARGET_RLIMIT_MEMLOCK   9
+
+#endif

@@ -94,10 +94,6 @@ struct emulated_sigtable {
     target_siginfo_t info;
 };
 
-/*
- * NOTE: we force a big alignment so that the stack stored after is
- * aligned too
- */
 typedef struct TaskState {
     pid_t ts_tid;     /* tid (or pid) of this task */
 #ifdef TARGET_ARM
@@ -158,7 +154,10 @@ typedef struct TaskState {
 
     /* This thread's sigaltstack, if it has one */
     struct target_sigaltstack sigaltstack_used;
-} __attribute__((aligned(16))) TaskState;
+
+    /* Start time of task after system boot in clock ticks */
+    uint64_t start_boottime;
+} TaskState;
 
 abi_long do_brk(abi_ulong new_brk);
 
