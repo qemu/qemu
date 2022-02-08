@@ -11,22 +11,23 @@
 #ifndef SPARC64_HOST_SIGNAL_H
 #define SPARC64_HOST_SIGNAL_H
 
-/* FIXME: the third argument to a SA_SIGINFO handler is *not* ucontext_t. */
-typedef ucontext_t host_sigcontext;
+/* The third argument to a SA_SIGINFO handler is struct sigcontext.  */
+typedef struct sigcontext host_sigcontext;
 
-static inline uintptr_t host_signal_pc(host_sigcontext *uc)
+static inline uintptr_t host_signal_pc(host_sigcontext *sc)
 {
-    return uc->uc_mcontext.mc_gregs[MC_PC];
+    return sc->sigc_regs.tpc;
 }
 
-static inline void host_signal_set_pc(host_sigcontext *uc, uintptr_t pc)
+static inline void host_signal_set_pc(host_sigcontext *sc, uintptr_t pc)
 {
-    uc->uc_mcontext.mc_gregs[MC_PC] = pc;
+    sc->sigc_regs.tpc = pc;
+    sc->sigc_regs.tnpc = pc + 4;
 }
 
-static inline void *host_signal_mask(host_sigcontext *uc)
+static inline void *host_signal_mask(host_sigcontext *sc)
 {
-    return &uc->uc_sigmask;
+    return &sc->sigc_mask;
 }
 
 static inline bool host_signal_write(siginfo_t *info, host_sigcontext *uc)
