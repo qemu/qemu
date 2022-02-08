@@ -284,6 +284,12 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* cpuclk must be connected; refclk is optional */
+    if (!clock_has_source(s->cpuclk)) {
+        error_setg(errp, "armv7m: cpuclk must be connected");
+        return;
+    }
+
     memory_region_add_subregion_overlap(&s->container, 0, s->board_memory, -1);
 
     s->cpu = ARM_CPU(object_new_with_props(s->cpu_type, OBJECT(s), "cpu",
@@ -420,8 +426,18 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
                                     &s->sysreg_ns_mem);
     }
 
-    /* Create and map the systick devices */
-    qdev_connect_clock_in(DEVICE(&s->systick[M_REG_NS]), "refclk", s->refclk);
+    /*
+     * Create and map the systick devices. Note that we only connect
+     * refclk if it has been connected to us; otherwise the systick
+     * device gets the wrong answer for clock_has_source(refclk), because
+     * it has an immediate source (the ARMv7M's clock object) but not
+     * an ultimate source, and then it won't correctly auto-select the
+     * CPU clock as its only possible clock source.
+     */
+    if (clock_has_source(s->refclk)) {
+        qdev_connect_clock_in(DEVICE(&s->systick[M_REG_NS]), "refclk",
+                              s->refclk);
+    }
     qdev_connect_clock_in(DEVICE(&s->systick[M_REG_NS]), "cpuclk", s->cpuclk);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->systick[M_REG_NS]), errp)) {
         return;
@@ -438,8 +454,10 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
          */
         object_initialize_child(OBJECT(dev), "systick-reg-s",
                                 &s->systick[M_REG_S], TYPE_SYSTICK);
-        qdev_connect_clock_in(DEVICE(&s->systick[M_REG_S]), "refclk",
-                              s->refclk);
+        if (clock_has_source(s->refclk)) {
+            qdev_connect_clock_in(DEVICE(&s->systick[M_REG_S]), "refclk",
+                                  s->refclk);
+        }
         qdev_connect_clock_in(DEVICE(&s->systick[M_REG_S]), "cpuclk",
                               s->cpuclk);
 
