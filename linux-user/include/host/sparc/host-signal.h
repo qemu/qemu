@@ -29,6 +29,11 @@ static inline void host_signal_set_pc(ucontext_t *uc, uintptr_t pc)
 #endif
 }
 
+static inline void *host_signal_mask(ucontext_t *uc)
+{
+    return &uc->uc_sigmask;
+}
+
 static inline bool host_signal_write(siginfo_t *info, ucontext_t *uc)
 {
     uint32_t insn = *(uint32_t *)host_signal_pc(uc);

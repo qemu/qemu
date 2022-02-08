@@ -820,6 +820,7 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
     int guest_sig;
     uintptr_t pc = 0;
     bool sync_sig = false;
+    void *sigmask = host_signal_mask(uc);
 
     /*
      * Non-spoofed SIGSEGV and SIGBUS are synchronous, and need special
@@ -849,8 +850,7 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
             if (info->si_code == SEGV_ACCERR && h2g_valid(host_addr)) {
                 /* If this was a write to a TB protected page, restart. */
                 if (is_write &&
-                    handle_sigsegv_accerr_write(cpu, &uc->uc_sigmask,
-                                                pc, guest_addr)) {
+                    handle_sigsegv_accerr_write(cpu, sigmask, pc, guest_addr)) {
                     return;
                 }
 
@@ -865,10 +865,10 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
                 }
             }
 
-            sigprocmask(SIG_SETMASK, &uc->uc_sigmask, NULL);
+            sigprocmask(SIG_SETMASK, sigmask, NULL);
             cpu_loop_exit_sigsegv(cpu, guest_addr, access_type, maperr, pc);
         } else {
-            sigprocmask(SIG_SETMASK, &uc->uc_sigmask, NULL);
+            sigprocmask(SIG_SETMASK, sigmask, NULL);
             if (info->si_code == BUS_ADRALN) {
                 cpu_loop_exit_sigbus(cpu, guest_addr, access_type, pc);
             }
@@ -909,17 +909,15 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
      * now and it getting out to the main loop. Signals will be
      * unblocked again in process_pending_signals().
      *
-     * WARNING: we cannot use sigfillset() here because the uc_sigmask
+     * WARNING: we cannot use sigfillset() here because the sigmask
      * field is a kernel sigset_t, which is much smaller than the
      * libc sigset_t which sigfillset() operates on. Using sigfillset()
      * would write 0xff bytes off the end of the structure and trash
      * data on the struct.
-     * We can't use sizeof(uc->uc_sigmask) either, because the libc
-     * headers define the struct field with the wrong (too large) type.
      */
-    memset(&uc->uc_sigmask, 0xff, SIGSET_T_SIZE);
-    sigdelset(&uc->uc_sigmask, SIGSEGV);
-    sigdelset(&uc->uc_sigmask, SIGBUS);
+    memset(sigmask, 0xff, SIGSET_T_SIZE);
+    sigdelset(sigmask, SIGSEGV);
+    sigdelset(sigmask, SIGBUS);
 
     /* interrupt the virtual CPU as soon as possible */
     cpu_exit(thread_cpu);
