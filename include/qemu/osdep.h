@@ -496,10 +496,6 @@ void sigaction_invoke(struct sigaction *action,
                       struct qemu_signalfd_siginfo *info);
 #endif
 
-int qemu_mprotect_rw(void *addr, size_t size);
-int qemu_mprotect_rwx(void *addr, size_t size);
-int qemu_mprotect_none(void *addr, size_t size);
-
 /*
  * Don't introduce new usage of this function, prefer the following
  * qemu_open/qemu_create that take an "Error **errp"
