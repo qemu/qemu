@@ -23,9 +23,9 @@ The ``virt`` machine supports the following devices:
 * 1 generic PCIe host bridge
 * The fw_cfg device that allows a guest to obtain data from QEMU
 
-Note that the default CPU is a generic RV32GC/RV64GC. Optional extensions
-can be enabled via command line parameters, e.g.: ``-cpu rv64,x-h=true``
-enables the hypervisor extension for RV64.
+The hypervisor extension has been enabled for the default CPU, so virtual
+machines with hypervisor extension can simply be used without explicitly
+declaring.
 
 Hardware configuration information
 ----------------------------------
