@@ -402,6 +402,8 @@
 #define __NR_landlock_add_rule 445
 #define __NR_landlock_restrict_self 446
 #define __NR_process_mrelease 448
+#define __NR_futex_waitv 449
+#define __NR_set_mempolicy_home_node 450
 
 
 #endif /* _ASM_UNISTD_64_H */
