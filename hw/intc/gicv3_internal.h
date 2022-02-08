@@ -309,8 +309,8 @@ FIELD(GITS_TYPER, CIL, 36, 1)
 #define LPI_CTE_ENABLED          TABLE_ENTRY_VALID_MASK
 #define LPI_PRIORITY_MASK         0xfc
 
-#define GITS_CMDQ_ENTRY_SIZE               32
-#define NUM_BYTES_IN_DW                     8
+#define GITS_CMDQ_ENTRY_WORDS 4
+#define GITS_CMDQ_ENTRY_SIZE  (GITS_CMDQ_ENTRY_WORDS * sizeof(uint64_t))
 
 #define CMD_MASK                  0xff
 
@@ -370,22 +370,23 @@ FIELD(MOVI_2, ICID, 0, 16)
  * 12 bytes Interrupt translation Table Entry size
  * as per Table 5.3 in GICv3 spec
  * ITE Lower 8 Bytes
- *   Bits:    | 49 ... 26 | 25 ... 2 |   1     |   0    |
- *   Values:  |  Doorbell |  IntNum  | IntType |  Valid |
+ *   Bits:    | 63 ... 48 | 47 ... 32 | 31 ... 26 | 25 ... 2 |   1     |  0    |
+ *   Values:  | vPEID     | ICID      | unused    |  IntNum  | IntType | Valid |
  * ITE Higher 4 Bytes
- *   Bits:    | 31 ... 16 | 15 ...0 |
- *   Values:  |  vPEID    |  ICID   |
- * (When Doorbell is unused, as it always is in GICv3, it is 1023)
+ *   Bits:    | 31 ... 25 | 24 ... 0 |
+ *   Values:  | unused    | Doorbell |
+ * (When Doorbell is unused, as it always is for INTYPE_PHYSICAL,
+ * the value of that field in memory cannot be relied upon -- older
+ * versions of QEMU did not correctly write to that memory.)
  */
 #define ITS_ITT_ENTRY_SIZE            0xC
 
 FIELD(ITE_L, VALID, 0, 1)
 FIELD(ITE_L, INTTYPE, 1, 1)
 FIELD(ITE_L, INTID, 2, 24)
-FIELD(ITE_L, DOORBELL, 26, 24)
-
-FIELD(ITE_H, ICID, 0, 16)
-FIELD(ITE_H, VPEID, 16, 16)
+FIELD(ITE_L, ICID, 32, 16)
+FIELD(ITE_L, VPEID, 48, 16)
+FIELD(ITE_H, DOORBELL, 0, 24)
 
 /* Possible values for ITE_L INTTYPE */
 #define ITE_INTTYPE_VIRTUAL 0

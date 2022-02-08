@@ -21,3 +21,7 @@ config ADM1272
 config MAX34451
     bool
     depends on I2C
+
+config LSM303DLHC_MAG
+    bool
+    depends on I2C

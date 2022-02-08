@@ -478,12 +478,13 @@ static void fdt_add_psci_node(void *fdt)
     }
 
     /*
-     * If /psci node is present in provided DTB, assume that no fixup
-     * is necessary and all PSCI configuration should be taken as-is
+     * A pre-existing /psci node might specify function ID values
+     * that don't match QEMU's PSCI implementation. Delete the whole
+     * node and put our own in instead.
      */
     rc = fdt_path_offset(fdt, "/psci");
     if (rc >= 0) {
-        return;
+        qemu_fdt_nop_node(fdt, "/psci");
     }
 
     qemu_fdt_add_subnode(fdt, "/psci");
@@ -804,7 +805,7 @@ static void do_cpu_reset(void *opaque)
                         set_kernel_args(info, as);
                     }
                 }
-            } else {
+            } else if (info->secondary_cpu_reset_hook) {
                 info->secondary_cpu_reset_hook(cpu, info);
             }
         }
@@ -1030,16 +1031,6 @@ static void arm_setup_direct_kernel_boot(ARMCPU *cpu,
         elf_machine = EM_ARM;
     }
 
-    if (!info->secondary_cpu_reset_hook) {
-        info->secondary_cpu_reset_hook = default_reset_secondary;
-    }
-    if (!info->write_secondary_boot) {
-        info->write_secondary_boot = default_write_secondary;
-    }
-
-    if (info->nb_cpus == 0)
-        info->nb_cpus = 1;
-
     /* Assume that raw images are linux kernels, and ELF images are not.  */
     kernel_size = arm_load_elf(info, &elf_entry, &image_low_addr,
                                &image_high_addr, elf_machine, as);
@@ -1216,9 +1207,6 @@ static void arm_setup_direct_kernel_boot(ARMCPU *cpu,
         write_bootloader("bootloader", info->loader_start,
                          primary_loader, fixupcontext, as);
 
-        if (info->nb_cpus > 1) {
-            info->write_secondary_boot(cpu, info);
-        }
         if (info->write_board_setup) {
             info->write_board_setup(cpu, info);
         }
@@ -1299,6 +1287,9 @@ void arm_load_kernel(ARMCPU *cpu, MachineState *ms, struct arm_boot_info *info)
 {
     CPUState *cs;
     AddressSpace *as = arm_boot_address_space(cpu, info);
+    int boot_el;
+    CPUARMState *env = &cpu->env;
+    int nb_cpus = 0;
 
     /*
      * CPU objects (unlike devices) are not automatically reset on system
@@ -1308,6 +1299,7 @@ void arm_load_kernel(ARMCPU *cpu, MachineState *ms, struct arm_boot_info *info)
      */
     for (cs = first_cpu; cs; cs = CPU_NEXT(cs)) {
         qemu_register_reset(do_cpu_reset, ARM_CPU(cs));
+        nb_cpus++;
     }
 
     /*
@@ -1329,6 +1321,87 @@ void arm_load_kernel(ARMCPU *cpu, MachineState *ms, struct arm_boot_info *info)
         arm_setup_direct_kernel_boot(cpu, info);
     }
 
+    /*
+     * Disable the PSCI conduit if it is set up to target the same
+     * or a lower EL than the one we're going to start the guest code in.
+     * This logic needs to agree with the code in do_cpu_reset() which
+     * decides whether we're going to boot the guest in the highest
+     * supported exception level or in a lower one.
+     */
+
+    /*
+     * If PSCI is enabled, then SMC calls all go to the PSCI handler and
+     * are never emulated to trap into guest code. It therefore does not
+     * make sense for the board to have a setup code fragment that runs
+     * in Secure, because this will probably need to itself issue an SMC of some
+     * kind as part of its operation.
+     */
+    assert(info->psci_conduit == QEMU_PSCI_CONDUIT_DISABLED ||
+           !info->secure_board_setup);
+
+    /* Boot into highest supported EL ... */
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        boot_el = 3;
+    } else if (arm_feature(env, ARM_FEATURE_EL2)) {
+        boot_el = 2;
+    } else {
+        boot_el = 1;
+    }
+    /* ...except that if we're booting Linux we adjust the EL we boot into */
+    if (info->is_linux && !info->secure_boot) {
+        boot_el = arm_feature(env, ARM_FEATURE_EL2) ? 2 : 1;
+    }
+
+    if ((info->psci_conduit == QEMU_PSCI_CONDUIT_HVC && boot_el >= 2) ||
+        (info->psci_conduit == QEMU_PSCI_CONDUIT_SMC && boot_el == 3)) {
+        info->psci_conduit = QEMU_PSCI_CONDUIT_DISABLED;
+    }
+
+    if (info->psci_conduit != QEMU_PSCI_CONDUIT_DISABLED) {
+        for (cs = first_cpu; cs; cs = CPU_NEXT(cs)) {
+            Object *cpuobj = OBJECT(cs);
+
+            object_property_set_int(cpuobj, "psci-conduit", info->psci_conduit,
+                                    &error_abort);
+            /*
+             * Secondary CPUs start in PSCI powered-down state. Like the
+             * code in do_cpu_reset(), we assume first_cpu is the primary
+             * CPU.
+             */
+            if (cs != first_cpu) {
+                object_property_set_bool(cpuobj, "start-powered-off", true,
+                                         &error_abort);
+            }
+        }
+    }
+
+    if (info->psci_conduit == QEMU_PSCI_CONDUIT_DISABLED &&
+        info->is_linux && nb_cpus > 1) {
+        /*
+         * We're booting Linux but not using PSCI, so for SMP we need
+         * to write a custom secondary CPU boot loader stub, and arrange
+         * for the secondary CPU reset to make the accompanying initialization.
+         */
+        if (!info->secondary_cpu_reset_hook) {
+            info->secondary_cpu_reset_hook = default_reset_secondary;
+        }
+        if (!info->write_secondary_boot) {
+            info->write_secondary_boot = default_write_secondary;
+        }
+        info->write_secondary_boot(cpu, info);
+    } else {
+        /*
+         * No secondary boot stub; don't use the reset hook that would
+         * have set the CPU up to call it
+         */
+        info->write_secondary_boot = NULL;
+        info->secondary_cpu_reset_hook = NULL;
+    }
+
+    /*
+     * arm_load_dtb() may add a PSCI node so it must be called after we have
+     * decided whether to enable PSCI and set the psci-conduit CPU properties.
+     */
     if (!info->skip_dtb_autoload && have_dtb(info)) {
         if (arm_load_dtb(info->dtb_start, info, info->dtb_limit, as, ms) < 0) {
             exit(1);

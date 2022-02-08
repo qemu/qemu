@@ -628,6 +628,9 @@ static void versal_virt_init(MachineState *machine)
      * When loading an OS, we turn on QEMU's PSCI implementation with SMC
      * as the PSCI conduit. When there's no -kernel, we assume the user
      * provides EL3 firmware to handle PSCI.
+     *
+     * Even if the user provides a kernel filename, arm_load_kernel()
+     * may suppress PSCI if it's going to boot that guest code at EL3.
      */
     if (machine->kernel_filename) {
         psci_conduit = QEMU_PSCI_CONDUIT_SMC;
@@ -637,8 +640,6 @@ static void versal_virt_init(MachineState *machine)
                             TYPE_XLNX_VERSAL);
     object_property_set_link(OBJECT(&s->soc), "ddr", OBJECT(machine->ram),
                              &error_abort);
-    object_property_set_int(OBJECT(&s->soc), "psci-conduit", psci_conduit,
-                            &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&s->soc), &error_fatal);
 
     fdt_create(s);
@@ -679,20 +680,14 @@ static void versal_virt_init(MachineState *machine)
     s->binfo.loader_start = 0x0;
     s->binfo.get_dtb = versal_virt_get_dtb;
     s->binfo.modify_dtb = versal_virt_modify_dtb;
-    if (machine->kernel_filename) {
-        arm_load_kernel(&s->soc.fpd.apu.cpu[0], machine, &s->binfo);
-    } else {
-        AddressSpace *as = arm_boot_address_space(&s->soc.fpd.apu.cpu[0],
-                                                  &s->binfo);
+    s->binfo.psci_conduit = psci_conduit;
+    if (!machine->kernel_filename) {
         /* Some boot-loaders (e.g u-boot) don't like blobs at address 0 (NULL).
          * Offset things by 4K.  */
         s->binfo.loader_start = 0x1000;
         s->binfo.dtb_limit = 0x1000000;
-        if (arm_load_dtb(s->binfo.loader_start,
-                         &s->binfo, s->binfo.dtb_limit, as, machine) < 0) {
-            exit(EXIT_FAILURE);
-        }
     }
+    arm_load_kernel(&s->soc.fpd.apu.cpu[0], machine, &s->binfo);
 
     for (i = 0; i < XLNX_VERSAL_NUM_OSPI_FLASH; i++) {
         BusState *spi_bus;

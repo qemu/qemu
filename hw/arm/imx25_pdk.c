@@ -114,8 +114,7 @@ static void imx25_pdk_init(MachineState *machine)
 
     imx25_pdk_binfo.ram_size = machine->ram_size;
     imx25_pdk_binfo.loader_start = FSL_IMX25_SDRAM0_ADDR;
-    imx25_pdk_binfo.board_id = 1771,
-    imx25_pdk_binfo.nb_cpus = 1;
+    imx25_pdk_binfo.board_id = 1771;
 
     for (i = 0; i < FSL_IMX25_NUM_ESDHCS; i++) {
         BusState *bus;
