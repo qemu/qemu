@@ -378,6 +378,11 @@ struct fuse_file_info {
 #define FUSE_CAP_SETXATTR_EXT (1 << 29)
 
 /**
+ * Indicates that file server supports creating file security context
+ */
+#define FUSE_CAP_SECURITY_CTX (1ULL << 32)
+
+/**
  * Ioctl flags
  *
  * FUSE_IOCTL_COMPAT: 32bit compat ioctl on 64bit machine
