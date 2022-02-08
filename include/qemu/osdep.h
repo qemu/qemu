@@ -616,11 +616,6 @@ pid_t qemu_fork(Error **errp);
 extern uintptr_t qemu_real_host_page_size;
 extern intptr_t qemu_real_host_page_mask;
 
-extern int qemu_icache_linesize;
-extern int qemu_icache_linesize_log;
-extern int qemu_dcache_linesize;
-extern int qemu_dcache_linesize_log;
-
 /*
  * After using getopt or getopt_long, if you need to parse another set
  * of options, then you must reset optind.  Unfortunately the way to

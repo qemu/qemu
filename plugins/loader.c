@@ -24,6 +24,7 @@
 #include "qemu/rcu_queue.h"
 #include "qemu/qht.h"
 #include "qemu/bitmap.h"
+#include "qemu/cacheinfo.h"
 #include "qemu/xxhash.h"
 #include "qemu/plugin.h"
 #include "hw/core/cpu.h"
