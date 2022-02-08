@@ -192,11 +192,15 @@ declares its dependencies in different ways:
   no directive and are not used in the Makefile either; they only appear
   as conditions for ``default y`` directives.
 
-  QEMU currently has two device groups, ``PCI_DEVICES`` and
-  ``TEST_DEVICES``.  PCI devices usually have a ``default y if
+  QEMU currently has three device groups, ``PCI_DEVICES``, ``I2C_DEVICES``,
+  and ``TEST_DEVICES``.  PCI devices usually have a ``default y if
   PCI_DEVICES`` directive rather than just ``default y``.  This lets
   some boards (notably s390) easily support a subset of PCI devices,
   for example only VFIO (passthrough) and virtio-pci devices.
+  ``I2C_DEVICES`` is similar to ``PCI_DEVICES``. It contains i2c devices
+  that users might reasonably want to plug in to an i2c bus on any
+  board (and not ones which are very board-specific or that need
+  to be wired up in a way that can't be done on the command line).
   ``TEST_DEVICES`` instead is used for devices that are rarely used on
   production virtual machines, but provide useful hooks to test QEMU
   or KVM.
