@@ -30,6 +30,7 @@
 #include "qemu/cutils.h"
 #include "qemu/bitops.h"
 #include "qemu/bitmap.h"
+#include "qemu/madvise.h"
 #include "qemu/main-loop.h"
 #include "xbzrle.h"
 #include "ram.h"

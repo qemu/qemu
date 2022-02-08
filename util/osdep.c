@@ -38,6 +38,7 @@ extern int madvise(char *, size_t, int);
 #include "qemu/cutils.h"
 #include "qemu/sockets.h"
 #include "qemu/error-report.h"
+#include "qemu/madvise.h"
 #include "monitor/monitor.h"
 
 static bool fips_enabled = false;
