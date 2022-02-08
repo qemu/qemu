@@ -21,6 +21,7 @@
 #include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "qemu/qemu-print.h"
+#include "qemu/hw-version.h"
 #include "cpu.h"
 #include "tcg/helper-tcg.h"
 #include "sysemu/reset.h"

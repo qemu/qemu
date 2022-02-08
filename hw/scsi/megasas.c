@@ -28,6 +28,7 @@
 #include "hw/pci/msix.h"
 #include "qemu/iov.h"
 #include "qemu/module.h"
+#include "qemu/hw-version.h"
 #include "hw/scsi/scsi.h"
 #include "scsi/constants.h"
 #include "trace.h"
