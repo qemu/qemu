@@ -24,7 +24,8 @@
         .type   safe_syscall_end, @function
 
 #define STACK_BIAS  2047
-#define PARAM(N)    STACK_BIAS + N*8
+#define WINDOW_SIZE 16 * 8
+#define PARAM(N)    STACK_BIAS + WINDOW_SIZE + N * 8
 
         /*
          * This is the entry point for making a system call. The calling
@@ -74,7 +75,7 @@ safe_syscall_end:
         /* code path for having successfully executed the syscall */
         bcs,pn  %xcc, 1f
          nop
-        ret
+        retl
          nop
 
         /* code path when we didn't execute the syscall */
