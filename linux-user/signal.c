@@ -800,7 +800,7 @@ void queue_signal(CPUArchState *env, int sig, int si_type,
 /* Adjust the signal context to rewind out of safe-syscall if we're in it */
 static inline void rewind_if_in_safe_syscall(void *puc)
 {
-    ucontext_t *uc = (ucontext_t *)puc;
+    host_sigcontext *uc = (host_sigcontext *)puc;
     uintptr_t pcreg = host_signal_pc(uc);
 
     if (pcreg > (uintptr_t)safe_syscall_start
@@ -815,7 +815,7 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
     CPUState *cpu = env_cpu(env);
     TaskState *ts = cpu->opaque;
     target_siginfo_t tinfo;
-    ucontext_t *uc = puc;
+    host_sigcontext *uc = puc;
     struct emulated_sigtable *k;
     int guest_sig;
     uintptr_t pc = 0;

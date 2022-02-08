@@ -11,7 +11,10 @@
 #ifndef SPARC_HOST_SIGNAL_H
 #define SPARC_HOST_SIGNAL_H
 
-static inline uintptr_t host_signal_pc(ucontext_t *uc)
+/* FIXME: the third argument to a SA_SIGINFO handler is *not* ucontext_t. */
+typedef ucontext_t host_sigcontext;
+
+static inline uintptr_t host_signal_pc(host_sigcontext *uc)
 {
 #ifdef __arch64__
     return uc->uc_mcontext.mc_gregs[MC_PC];
@@ -20,7 +23,7 @@ static inline uintptr_t host_signal_pc(ucontext_t *uc)
 #endif
 }
 
-static inline void host_signal_set_pc(ucontext_t *uc, uintptr_t pc)
+static inline void host_signal_set_pc(host_sigcontext *uc, uintptr_t pc)
 {
 #ifdef __arch64__
     uc->uc_mcontext.mc_gregs[MC_PC] = pc;
@@ -29,12 +32,12 @@ static inline void host_signal_set_pc(ucontext_t *uc, uintptr_t pc)
 #endif
 }
 
-static inline void *host_signal_mask(ucontext_t *uc)
+static inline void *host_signal_mask(host_sigcontext *uc)
 {
     return &uc->uc_sigmask;
 }
 
-static inline bool host_signal_write(siginfo_t *info, ucontext_t *uc)
+static inline bool host_signal_write(siginfo_t *info, host_sigcontext *uc)
 {
     uint32_t insn = *(uint32_t *)host_signal_pc(uc);
 
