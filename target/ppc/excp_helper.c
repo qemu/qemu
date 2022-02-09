@@ -364,6 +364,8 @@ static void powerpc_set_excp_state(PowerPCCPU *cpu,
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
 
+    assert((msr & env->msr_mask) == msr);
+
     /*
      * We don't use hreg_store_msr here as already have treated any
      * special case that could occur. Just store MSR and update hflags
@@ -372,7 +374,7 @@ static void powerpc_set_excp_state(PowerPCCPU *cpu,
      * will prevent setting of the HV bit which some exceptions might need
      * to do.
      */
-    env->msr = msr & env->msr_mask;
+    env->msr = msr;
     hreg_compute_hflags(env);
     env->nip = vector;
     /* Reset exception state */
@@ -517,18 +519,6 @@ static void powerpc_excp_40x(PowerPCCPU *cpu, int excp)
     default:
         cpu_abort(cs, "Invalid PowerPC exception %d. Aborting\n", excp);
         break;
-    }
-
-    /* Sanity check */
-    if (!(env->msr_mask & MSR_HVB)) {
-        if (new_msr & MSR_HVB) {
-            cpu_abort(cs, "Trying to deliver HV exception (MSR) %d with "
-                      "no HV support\n", excp);
-        }
-        if (srr0 == SPR_HSRR0) {
-            cpu_abort(cs, "Trying to deliver HV exception (HSRR) %d with "
-                      "no HV support\n", excp);
-        }
     }
 
     /* Save PC */
@@ -697,14 +687,6 @@ static void powerpc_excp_6xx(PowerPCCPU *cpu, int excp)
     default:
         cpu_abort(cs, "Invalid PowerPC exception %d. Aborting\n", excp);
         break;
-    }
-
-    /* Sanity check */
-    if (!(env->msr_mask & MSR_HVB)) {
-        if (new_msr & MSR_HVB) {
-            cpu_abort(cs, "Trying to deliver HV exception (MSR) %d with "
-                      "no HV support\n", excp);
-        }
     }
 
     /*
@@ -893,14 +875,6 @@ static void powerpc_excp_7xx(PowerPCCPU *cpu, int excp)
         break;
     }
 
-    /* Sanity check */
-    if (!(env->msr_mask & MSR_HVB)) {
-        if (new_msr & MSR_HVB) {
-            cpu_abort(cs, "Trying to deliver HV exception (MSR) %d with "
-                      "no HV support\n", excp);
-        }
-    }
-
     /*
      * Sort out endianness of interrupt, this differs depending on the
      * CPU, the HV mode, etc...
@@ -1077,14 +1051,6 @@ static void powerpc_excp_74xx(PowerPCCPU *cpu, int excp)
     default:
         cpu_abort(cs, "Invalid PowerPC exception %d. Aborting\n", excp);
         break;
-    }
-
-    /* Sanity check */
-    if (!(env->msr_mask & MSR_HVB)) {
-        if (new_msr & MSR_HVB) {
-            cpu_abort(cs, "Trying to deliver HV exception (MSR) %d with "
-                      "no HV support\n", excp);
-        }
     }
 
     /*
@@ -1289,18 +1255,6 @@ static void powerpc_excp_booke(PowerPCCPU *cpu, int excp)
     default:
         cpu_abort(cs, "Invalid PowerPC exception %d. Aborting\n", excp);
         break;
-    }
-
-    /* Sanity check */
-    if (!(env->msr_mask & MSR_HVB)) {
-        if (new_msr & MSR_HVB) {
-            cpu_abort(cs, "Trying to deliver HV exception (MSR) %d with "
-                      "no HV support\n", excp);
-        }
-        if (srr0 == SPR_HSRR0) {
-            cpu_abort(cs, "Trying to deliver HV exception (HSRR) %d with "
-                      "no HV support\n", excp);
-        }
     }
 
 #if defined(TARGET_PPC64)
@@ -1573,15 +1527,9 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
     }
 
     /* Sanity check */
-    if (!(env->msr_mask & MSR_HVB)) {
-        if (new_msr & MSR_HVB) {
-            cpu_abort(cs, "Trying to deliver HV exception (MSR) %d with "
-                      "no HV support\n", excp);
-        }
-        if (srr0 == SPR_HSRR0) {
-            cpu_abort(cs, "Trying to deliver HV exception (HSRR) %d with "
-                      "no HV support\n", excp);
-        }
+    if (!(env->msr_mask & MSR_HVB) && srr0 == SPR_HSRR0) {
+        cpu_abort(cs, "Trying to deliver HV exception (HSRR) %d with "
+                  "no HV support\n", excp);
     }
 
     /*
