@@ -205,9 +205,6 @@ enum {
 #define CPU_POWERPC_MPC8641          CPU_POWERPC_e600
 #define CPU_POWERPC_MPC8641D         CPU_POWERPC_e600
     /* PowerPC 6xx cores */
-    CPU_POWERPC_601_v0             = 0x00010001,
-    CPU_POWERPC_601_v1             = 0x00010001,
-    CPU_POWERPC_601_v2             = 0x00010002,
     CPU_POWERPC_603                = 0x00030100,
     CPU_POWERPC_603E_v11           = 0x00060101,
     CPU_POWERPC_603E_v12           = 0x00060102,

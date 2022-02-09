@@ -73,8 +73,6 @@ static const char *powerpc_excp_name(int excp)
     case POWERPC_EXCP_HISEG:    return "HISEG";
     case POWERPC_EXCP_VPU:      return "VPU";
     case POWERPC_EXCP_PIT:      return "PIT";
-    case POWERPC_EXCP_IO:       return "IO";
-    case POWERPC_EXCP_RUNM:     return "RUNM";
     case POWERPC_EXCP_EMUL:     return "EMUL";
     case POWERPC_EXCP_IFTLB:    return "IFTLB";
     case POWERPC_EXCP_DLTLB:    return "DLTLB";
@@ -1671,9 +1669,6 @@ static inline void powerpc_excp_legacy(PowerPCCPU *cpu, int excp)
     case POWERPC_EXCP_EFPDI:     /* Embedded floating-point data interrupt   */
     case POWERPC_EXCP_EFPRI:     /* Embedded floating-point round interrupt  */
     case POWERPC_EXCP_EPERFM:    /* Embedded performance monitor interrupt   */
-    case POWERPC_EXCP_IO:        /* IO error exception                       */
-    case POWERPC_EXCP_RUNM:      /* Run mode exception                       */
-    case POWERPC_EXCP_EMUL:      /* Emulation trap exception                 */
     case POWERPC_EXCP_FPA:       /* Floating-point assist exception          */
     case POWERPC_EXCP_DABR:      /* Data address breakpoint                  */
     case POWERPC_EXCP_IABR:      /* Instruction address breakpoint           */
@@ -2202,14 +2197,8 @@ void helper_td(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
-/*****************************************************************************/
-/* PowerPC 601 specific instructions (POWER bridge) */
 
 #ifdef CONFIG_TCG
-void helper_rfsvc(CPUPPCState *env)
-{
-    do_rfi(env, env->lr, env->ctr & 0x0000FFFF);
-}
 
 /* Embedded.Processor Control */
 static int dbell2irq(target_ulong rb)

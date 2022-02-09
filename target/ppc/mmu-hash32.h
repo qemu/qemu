@@ -34,15 +34,6 @@ bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
 #define BATL32_WIMG             0x00000078
 #define BATL32_PP               0x00000003
 
-/* PowerPC 601 has slightly different BAT registers */
-
-#define BATU32_601_KS           0x00000008
-#define BATU32_601_KP           0x00000004
-#define BATU32_601_PP           0x00000003
-
-#define BATL32_601_V            0x00000040
-#define BATL32_601_BL           0x0000003f
-
 /*
  * Hash page table definitions
  */
