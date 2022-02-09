@@ -778,6 +778,37 @@ block_crypto_get_specific_info_luks(BlockDriverState *bs, Error **errp)
 }
 
 static int
+block_crypto_amend_prepare(BlockDriverState *bs, Error **errp)
+{
+    BlockCrypto *crypto = bs->opaque;
+    int ret;
+
+    /* apply for exclusive read/write permissions to the underlying file */
+    crypto->updating_keys = true;
+    ret = bdrv_child_refresh_perms(bs, bs->file, errp);
+    if (ret < 0) {
+        /* Well, in this case we will not be updating any keys */
+        crypto->updating_keys = false;
+    }
+    return ret;
+}
+
+static void
+block_crypto_amend_cleanup(BlockDriverState *bs)
+{
+    BlockCrypto *crypto = bs->opaque;
+    Error *errp = NULL;
+
+    /* release exclusive read/write permissions to the underlying file */
+    crypto->updating_keys = false;
+    bdrv_child_refresh_perms(bs, bs->file, &errp);
+
+    if (errp) {
+        error_report_err(errp);
+    }
+}
+
+static int
 block_crypto_amend_options_generic_luks(BlockDriverState *bs,
                                         QCryptoBlockAmendOptions *amend_options,
                                         bool force,
@@ -931,6 +962,8 @@ static BlockDriver bdrv_crypto_luks = {
     .bdrv_get_specific_info = block_crypto_get_specific_info_luks,
     .bdrv_amend_options = block_crypto_amend_options_luks,
     .bdrv_co_amend      = block_crypto_co_amend_luks,
+    .bdrv_amend_pre_run = block_crypto_amend_prepare,
+    .bdrv_amend_clean   = block_crypto_amend_cleanup,
 
     .is_format          = true,
 

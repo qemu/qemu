@@ -1,11 +1,9 @@
 
+{"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
-Job failed: Failed to get shared "consistent read" lock
-{"execute": "job-dismiss", "arguments": {"id": "job0"}}
-{"return": {}}
-Job failed: Failed to get shared "consistent read" lock
-{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"error": {"class": "GenericError", "desc": "Failed to get shared \"consistent read\" lock"}}
+{"error": {"class": "GenericError", "desc": "Failed to get shared \"consistent read\" lock"}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -13,14 +11,9 @@ qemu-img: Failed to get shared "consistent read" lock
 Is another process using the image [TEST_DIR/test.img]?
 
 .
-Job failed: Block node is read-only
-{"execute": "job-dismiss", "arguments": {"id": "job0"}}
-{"return": {}}
-Job failed: Failed to get shared "consistent read" lock
-{"execute": "job-dismiss", "arguments": {"id": "job0"}}
-{"return": {}}
-Job failed: Failed to get shared "consistent read" lock
-{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"error": {"class": "GenericError", "desc": "Block node is read-only"}}
+{"error": {"class": "GenericError", "desc": "Failed to get shared \"consistent read\" lock"}}
+{"error": {"class": "GenericError", "desc": "Failed to get shared \"consistent read\" lock"}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}

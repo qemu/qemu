@@ -124,6 +124,20 @@ struct BlockDriver {
      * on those children.
      */
     bool is_format;
+
+    /*
+     * This function is invoked under BQL before .bdrv_co_amend()
+     * (which in contrast does not necessarily run under the BQL)
+     * to allow driver-specific initialization code that requires
+     * the BQL, like setting up specific permission flags.
+     */
+    int (*bdrv_amend_pre_run)(BlockDriverState *bs, Error **errp);
+    /*
+     * This function is invoked under BQL after .bdrv_co_amend()
+     * to allow cleaning up what was done in .bdrv_amend_pre_run().
+     */
+    void (*bdrv_amend_clean)(BlockDriverState *bs);
+
     /*
      * Return true if @to_replace can be replaced by a BDS with the
      * same data as @bs without it affecting @bs's behavior (that is,
