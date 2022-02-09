@@ -282,7 +282,7 @@ static void test_sync_op_check(BdrvChild *c)
 static void test_sync_op_invalidate_cache(BdrvChild *c)
 {
     /* Early success: Image is not inactive */
-    bdrv_invalidate_cache(c->bs, NULL);
+    bdrv_activate(c->bs, NULL);
 }
 
 

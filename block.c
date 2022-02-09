@@ -6393,6 +6393,11 @@ void bdrv_init_with_whitelist(void)
     bdrv_init();
 }
 
+int bdrv_activate(BlockDriverState *bs, Error **errp)
+{
+    return bdrv_invalidate_cache(bs, errp);
+}
+
 int coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
     BdrvChild *child, *parent;
@@ -6478,7 +6483,7 @@ void bdrv_invalidate_cache_all(Error **errp)
         int ret;
 
         aio_context_acquire(aio_context);
-        ret = bdrv_invalidate_cache(bs, errp);
+        ret = bdrv_activate(bs, errp);
         aio_context_release(aio_context);
         if (ret < 0) {
             bdrv_next_cleanup(&it);

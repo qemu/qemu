@@ -139,7 +139,7 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
      * access since the export could be available before migration handover.
      * ctx was acquired in the caller.
      */
-    bdrv_invalidate_cache(bs, NULL);
+    bdrv_activate(bs, NULL);
 
     perm = BLK_PERM_CONSISTENT_READ;
     if (export->writable) {
