@@ -747,6 +747,7 @@ static void glue(gen_, name)(DisasContext *ctx)                   \
             }                                                     \
         }                                                         \
         set_cpu_vsr(xT(ctx->opcode), xb, true);                   \
+        set_cpu_vsr(xT(ctx->opcode), tcg_constant_i64(0), false); \
         tcg_temp_free_i64(xb);                                    \
         tcg_temp_free_i64(sgm);                                   \
     }
@@ -1073,6 +1074,7 @@ static void gen_##name(DisasContext *ctx)                     \
     get_cpu_vsr(t0, xB(ctx->opcode), true);                   \
     gen_helper_##name(t1, cpu_env, t0);                       \
     set_cpu_vsr(xT(ctx->opcode), t1, true);                   \
+    set_cpu_vsr(xT(ctx->opcode), tcg_constant_i64(0), false); \
     tcg_temp_free_i64(t0);                                    \
     tcg_temp_free_i64(t1);                                    \
 }
@@ -1700,7 +1702,7 @@ static void gen_xsiexpdp(DisasContext *ctx)
     tcg_gen_shli_i64(t0, t0, 52);
     tcg_gen_or_i64(xth, xth, t0);
     set_cpu_vsr(xT(ctx->opcode), xth, true);
-    /* dword[1] is undefined */
+    set_cpu_vsr(xT(ctx->opcode), tcg_constant_i64(0), false);
     tcg_temp_free_i64(t0);
     tcg_temp_free_i64(xth);
 }
