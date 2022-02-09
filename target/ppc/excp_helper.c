@@ -262,11 +262,10 @@ static int powerpc_reset_wakeup(CPUState *cs, CPUPPCState *env, int excp,
  * | a         | h          | 11          | 1       | 1           | h   |
  * +--------------------------------------------------------------------+
  */
-static void ppc_excp_apply_ail(PowerPCCPU *cpu, int excp_model, int excp,
-                                      target_ulong msr,
-                                      target_ulong *new_msr,
-                                      target_ulong *vector)
+static void ppc_excp_apply_ail(PowerPCCPU *cpu, int excp, target_ulong msr,
+                               target_ulong *new_msr, target_ulong *vector)
 {
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
     bool mmu_all_on = ((msr >> MSR_IR) & 1) && ((msr >> MSR_DR) & 1);
     bool hv_escalation = !(msr & MSR_HVB) && (*new_msr & MSR_HVB);
@@ -279,8 +278,13 @@ static void ppc_excp_apply_ail(PowerPCCPU *cpu, int excp_model, int excp,
         return;
     }
 
-    if (excp_model == POWERPC_EXCP_POWER8 ||
-        excp_model == POWERPC_EXCP_POWER9) {
+    if (!(pcc->lpcr_mask & LPCR_AIL)) {
+        /* This CPU does not have AIL */
+        return;
+    }
+
+    /* P8 & P9 */
+    if (!(pcc->lpcr_mask & LPCR_HAIL)) {
         if (!mmu_all_on) {
             /* AIL only works if MSR[IR] and MSR[DR] are both enabled. */
             return;
@@ -303,7 +307,8 @@ static void ppc_excp_apply_ail(PowerPCCPU *cpu, int excp_model, int excp,
             return;
         }
 
-    } else if (excp_model == POWERPC_EXCP_POWER10) {
+    /* P10 and up */
+    } else {
         if (!mmu_all_on && !hv_escalation) {
             /*
              * AIL works for HV interrupts even with guest MSR[IR/DR] disabled.
@@ -328,9 +333,6 @@ static void ppc_excp_apply_ail(PowerPCCPU *cpu, int excp_model, int excp,
             /* AIL=1 and AIL=2 are reserved, treat them like AIL=0 */
             return;
         }
-    } else {
-        /* Other processors do not support AIL */
-        return;
     }
 
     /*
@@ -1280,7 +1282,6 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    int excp_model = env->excp_model;
     target_ulong msr, new_msr, vector;
     int srr0, srr1, lev = -1;
 
@@ -1551,7 +1552,7 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
     }
 
     /* This can update new_msr and vector if AIL applies */
-    ppc_excp_apply_ail(cpu, excp_model, excp, msr, &new_msr, &vector);
+    ppc_excp_apply_ail(cpu, excp, msr, &new_msr, &vector);
 
     powerpc_set_excp_state(cpu, vector, new_msr);
 }
