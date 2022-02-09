@@ -4021,7 +4021,7 @@ POWERPC_FAMILY(740)(ObjectClass *oc, void *data)
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_32B;
-    pcc->excp_model = POWERPC_EXCP_7x0;
+    pcc->excp_model = POWERPC_EXCP_7xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_750;
     pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
@@ -4098,7 +4098,7 @@ POWERPC_FAMILY(750)(ObjectClass *oc, void *data)
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_32B;
-    pcc->excp_model = POWERPC_EXCP_7x0;
+    pcc->excp_model = POWERPC_EXCP_7xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_750;
     pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
@@ -4298,7 +4298,7 @@ POWERPC_FAMILY(750cl)(ObjectClass *oc, void *data)
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_32B;
-    pcc->excp_model = POWERPC_EXCP_7x0;
+    pcc->excp_model = POWERPC_EXCP_7xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_750;
     pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
@@ -4378,7 +4378,7 @@ POWERPC_FAMILY(750cx)(ObjectClass *oc, void *data)
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_32B;
-    pcc->excp_model = POWERPC_EXCP_7x0;
+    pcc->excp_model = POWERPC_EXCP_7xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_750;
     pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
@@ -4463,7 +4463,7 @@ POWERPC_FAMILY(750fx)(ObjectClass *oc, void *data)
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_32B;
-    pcc->excp_model = POWERPC_EXCP_7x0;
+    pcc->excp_model = POWERPC_EXCP_7xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_750;
     pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
@@ -4548,7 +4548,7 @@ POWERPC_FAMILY(750gx)(ObjectClass *oc, void *data)
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_32B;
-    pcc->excp_model = POWERPC_EXCP_7x0;
+    pcc->excp_model = POWERPC_EXCP_7xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_750;
     pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
@@ -4624,7 +4624,7 @@ POWERPC_FAMILY(745)(ObjectClass *oc, void *data)
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
-    pcc->excp_model = POWERPC_EXCP_7x5;
+    pcc->excp_model = POWERPC_EXCP_7xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_750;
     pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
@@ -4711,7 +4711,7 @@ POWERPC_FAMILY(755)(ObjectClass *oc, void *data)
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
-    pcc->excp_model = POWERPC_EXCP_7x5;
+    pcc->excp_model = POWERPC_EXCP_7xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_750;
     pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |

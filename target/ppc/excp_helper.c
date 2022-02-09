@@ -1844,7 +1844,7 @@ static inline void powerpc_excp_legacy(PowerPCCPU *cpu, int excp)
                 hreg_swap_gpr_tgpr(env);
             }
             /* fall through */
-        case POWERPC_EXCP_7x5:
+        case POWERPC_EXCP_7xx:
             ppc_excp_debug_sw_tlb(env, excp);
 
             msr |= env->crf[0] << 28;
