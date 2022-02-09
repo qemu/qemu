@@ -552,10 +552,10 @@ static bool do_constant_folding_cond_eq(TCGCond c)
 static int do_constant_folding_cond(TCGType type, TCGArg x,
                                     TCGArg y, TCGCond c)
 {
-    uint64_t xv = arg_info(x)->val;
-    uint64_t yv = arg_info(y)->val;
-
     if (arg_is_const(x) && arg_is_const(y)) {
+        uint64_t xv = arg_info(x)->val;
+        uint64_t yv = arg_info(y)->val;
+
         switch (type) {
         case TCG_TYPE_I32:
             return do_constant_folding_cond_32(xv, yv, c);
@@ -567,7 +567,7 @@ static int do_constant_folding_cond(TCGType type, TCGArg x,
         }
     } else if (args_are_copies(x, y)) {
         return do_constant_folding_cond_eq(c);
-    } else if (arg_is_const(y) && yv == 0) {
+    } else if (arg_is_const(y) && arg_info(y)->val == 0) {
         switch (c) {
         case TCG_COND_LTU:
             return 0;
