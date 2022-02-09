@@ -2782,7 +2782,7 @@ POWERPC_FAMILY(MPC5xx)(ObjectClass *oc, void *data)
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_REAL;
-    pcc->excp_model = POWERPC_EXCP_603;
+    pcc->excp_model = POWERPC_EXCP_6xx;
     pcc->bus_model = PPC_FLAGS_INPUT_RCPU;
     pcc->bfd_mach = bfd_mach_ppc_505;
     pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
@@ -2825,7 +2825,7 @@ POWERPC_FAMILY(MPC8xx)(ObjectClass *oc, void *data)
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_MPC8xx;
-    pcc->excp_model = POWERPC_EXCP_603;
+    pcc->excp_model = POWERPC_EXCP_6xx;
     pcc->bus_model = PPC_FLAGS_INPUT_RCPU;
     pcc->bfd_mach = bfd_mach_ppc_860;
     pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
@@ -2906,7 +2906,7 @@ POWERPC_FAMILY(G2)(ObjectClass *oc, void *data)
                     (1ull << MSR_DR) |
                     (1ull << MSR_RI);
     pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
-    pcc->excp_model = POWERPC_EXCP_G2;
+    pcc->excp_model = POWERPC_EXCP_6xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_ec603e;
     pcc->flags = POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |
@@ -2988,7 +2988,7 @@ POWERPC_FAMILY(G2LE)(ObjectClass *oc, void *data)
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
-    pcc->excp_model = POWERPC_EXCP_G2;
+    pcc->excp_model = POWERPC_EXCP_6xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_ec603e;
     pcc->flags = POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |
@@ -3243,7 +3243,7 @@ POWERPC_FAMILY(e300)(ObjectClass *oc, void *data)
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
-    pcc->excp_model = POWERPC_EXCP_603;
+    pcc->excp_model = POWERPC_EXCP_6xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_603;
     pcc->flags = POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |
@@ -3772,7 +3772,7 @@ POWERPC_FAMILY(603)(ObjectClass *oc, void *data)
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
-    pcc->excp_model = POWERPC_EXCP_603;
+    pcc->excp_model = POWERPC_EXCP_6xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_603;
     pcc->flags = POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |
@@ -3811,7 +3811,7 @@ POWERPC_FAMILY(603E)(ObjectClass *oc, void *data)
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_SOFT_6xx;
-    pcc->excp_model = POWERPC_EXCP_603;
+    pcc->excp_model = POWERPC_EXCP_6xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_ec603e;
     pcc->flags = POWERPC_FLAG_TGPR | POWERPC_FLAG_SE |
@@ -3872,7 +3872,7 @@ POWERPC_FAMILY(604)(ObjectClass *oc, void *data)
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_32B;
-    pcc->excp_model = POWERPC_EXCP_604;
+    pcc->excp_model = POWERPC_EXCP_6xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_604;
     pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |
@@ -3953,7 +3953,7 @@ POWERPC_FAMILY(604E)(ObjectClass *oc, void *data)
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
     pcc->mmu_model = POWERPC_MMU_32B;
-    pcc->excp_model = POWERPC_EXCP_604;
+    pcc->excp_model = POWERPC_EXCP_6xx;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_604;
     pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_BE |

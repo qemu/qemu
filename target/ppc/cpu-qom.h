@@ -88,12 +88,8 @@ enum powerpc_excp_t {
     POWERPC_EXCP_STD,
     /* PowerPC 40x exception model      */
     POWERPC_EXCP_40x,
-    /* PowerPC 603 exception model      */
-    POWERPC_EXCP_603,
-    /* PowerPC G2 exception model       */
-    POWERPC_EXCP_G2,
-    /* PowerPC 604 exception model      */
-    POWERPC_EXCP_604,
+    /* PowerPC 603/604/G2 exception model */
+    POWERPC_EXCP_6xx,
     /* PowerPC 7x0 exception model      */
     POWERPC_EXCP_7x0,
     /* PowerPC 7x5 exception model      */

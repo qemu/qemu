@@ -1357,7 +1357,7 @@ static inline void powerpc_excp_legacy(PowerPCCPU *cpu, int excp)
             srr0 = SPR_BOOKE_CSRR0;
             srr1 = SPR_BOOKE_CSRR1;
             break;
-        case POWERPC_EXCP_G2:
+        case POWERPC_EXCP_6xx:
             break;
         default:
             goto excp_invalid;
@@ -1645,8 +1645,7 @@ static inline void powerpc_excp_legacy(PowerPCCPU *cpu, int excp)
     case POWERPC_EXCP_DLTLB:     /* Data load TLB miss                       */
     case POWERPC_EXCP_DSTLB:     /* Data store TLB miss                      */
         switch (excp_model) {
-        case POWERPC_EXCP_603:
-        case POWERPC_EXCP_G2:
+        case POWERPC_EXCP_6xx:
             /* Swap temporary saved registers with GPRs */
             if (!(new_msr & ((target_ulong)1 << MSR_TGPR))) {
                 new_msr |= (target_ulong)1 << MSR_TGPR;
