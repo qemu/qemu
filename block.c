@@ -6473,7 +6473,7 @@ int coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs, Error **errp)
     return 0;
 }
 
-void bdrv_invalidate_cache_all(Error **errp)
+void bdrv_activate_all(Error **errp)
 {
     BlockDriverState *bs;
     BdrvNextIterator it;

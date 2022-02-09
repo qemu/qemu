@@ -932,7 +932,7 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
                     return -EINVAL;
                 }
 
-                blk_invalidate_cache(blk, &local_err);
+                blk_activate(blk, &local_err);
                 if (local_err) {
                     error_report_err(local_err);
                     return -EINVAL;

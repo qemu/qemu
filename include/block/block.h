@@ -493,8 +493,8 @@ int bdrv_co_ioctl(BlockDriverState *bs, int req, void *buf);
 /* Invalidate any cached metadata used by image formats */
 int generated_co_wrapper bdrv_invalidate_cache(BlockDriverState *bs,
                                                Error **errp);
-void bdrv_invalidate_cache_all(Error **errp);
 int bdrv_activate(BlockDriverState *bs, Error **errp);
+void bdrv_activate_all(Error **errp);
 int bdrv_inactivate_all(void);
 
 /* Ensure contents are flushed to disk.  */

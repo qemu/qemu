@@ -144,7 +144,7 @@ void qmp_cont(Error **errp)
      * If there are no inactive block nodes (e.g. because the VM was just
      * paused rather than completing a migration), bdrv_inactivate_all() simply
      * doesn't do anything. */
-    bdrv_invalidate_cache_all(&local_err);
+    bdrv_activate_all(&local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;

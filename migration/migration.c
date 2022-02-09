@@ -503,9 +503,9 @@ static void process_incoming_migration_bh(void *opaque)
     if (!migrate_late_block_activate() ||
          (autostart && (!global_state_received() ||
             global_state_get_runstate() == RUN_STATE_RUNNING))) {
-        /* Make sure all file formats flush their mutable metadata.
+        /* Make sure all file formats throw away their mutable metadata.
          * If we get an error here, just don't restart the VM yet. */
-        bdrv_invalidate_cache_all(&local_err);
+        bdrv_activate_all(&local_err);
         if (local_err) {
             error_report_err(local_err);
             local_err = NULL;
@@ -591,8 +591,8 @@ static void process_incoming_migration_co(void *opaque)
 
     /* we get COLO info, and know if we are in COLO mode */
     if (!ret && migration_incoming_colo_enabled()) {
-        /* Make sure all file formats flush their mutable metadata */
-        bdrv_invalidate_cache_all(&local_err);
+        /* Make sure all file formats throw away their mutable metadata */
+        bdrv_activate_all(&local_err);
         if (local_err) {
             error_report_err(local_err);
             goto fail;
@@ -1932,7 +1932,7 @@ static void migrate_fd_cancel(MigrationState *s)
     if (s->state == MIGRATION_STATUS_CANCELLING && s->block_inactive) {
         Error *local_err = NULL;
 
-        bdrv_invalidate_cache_all(&local_err);
+        bdrv_activate_all(&local_err);
         if (local_err) {
             error_report_err(local_err);
         } else {
@@ -3111,7 +3111,7 @@ fail:
          */
         Error *local_err = NULL;
 
-        bdrv_invalidate_cache_all(&local_err);
+        bdrv_activate_all(&local_err);
         if (local_err) {
             error_report_err(local_err);
         }
@@ -3256,7 +3256,7 @@ fail_invalidate:
         Error *local_err = NULL;
 
         qemu_mutex_lock_iothread();
-        bdrv_invalidate_cache_all(&local_err);
+        bdrv_activate_all(&local_err);
         if (local_err) {
             error_report_err(local_err);
         } else {
