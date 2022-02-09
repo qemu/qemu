@@ -34,3 +34,4 @@ or Hypervisor.Framework.
    targets
    security
    multi-process
+   confidential-guest-support

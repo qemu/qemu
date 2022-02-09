@@ -19,10 +19,10 @@ Running a Confidential Guest
 
 To run a confidential guest you need to add two command line parameters:
 
-1. Use "-object" to create a "confidential guest support" object.  The
+1. Use ``-object`` to create a "confidential guest support" object.  The
    type and parameters will vary with the specific mechanism to be
    used
-2. Set the "confidential-guest-support" machine parameter to the ID of
+2. Set the ``confidential-guest-support`` machine parameter to the ID of
    the object from (1).
 
 Example (for AMD SEV)::
@@ -37,13 +37,8 @@ Supported mechanisms
 
 Currently supported confidential guest mechanisms are:
 
-AMD Secure Encrypted Virtualization (SEV)
-    docs/amd-memory-encryption.txt
-
-POWER Protected Execution Facility (PEF)
-    docs/papr-pef.txt
-
-s390x Protected Virtualization (PV)
-    docs/system/s390x/protvirt.rst
+* AMD Secure Encrypted Virtualization (SEV) (see :doc:`i386/amd-memory-encryption`)
+* POWER Protected Execution Facility (PEF) (see :ref:`power-papr-protected-execution-facility-pef`)
+* s390x Protected Virtualization (PV) (see :doc:`s390x/protvirt`)
 
 Other mechanisms may be supported in future.

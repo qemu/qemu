@@ -224,6 +224,8 @@ nested. Combinations not shown in the table are not available.
 .. [3] Introduced on Power10 machines.
 
 
+.. _power-papr-protected-execution-facility-pef:
+
 POWER (PAPR) Protected Execution Facility (PEF)
 -----------------------------------------------
 
