@@ -1,5 +1,5 @@
 ##
-##  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@ first: $(HEX_SRC)/first.S
 HEX_TESTS = first
 HEX_TESTS += hex_sigsegv
 HEX_TESTS += misc
+HEX_TESTS += usr
 HEX_TESTS += preg_alias
 HEX_TESTS += dual_stores
 HEX_TESTS += multi_result
@@ -43,3 +44,8 @@ HEX_TESTS += fpstuff
 HEX_TESTS += overflow
 
 TESTS += $(HEX_TESTS)
+
+# This test has to be compiled for the -mv67t target
+usr: usr.c
+	$(CC) $(CFLAGS) -mv67t -O2 -Wno-inline-asm -Wno-expansion-to-defined $< -o $@ $(LDFLAGS)
+
