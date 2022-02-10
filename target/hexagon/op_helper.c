@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -304,8 +304,8 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
 
 int32_t HELPER(fcircadd)(int32_t RxV, int32_t offset, int32_t M, int32_t CS)
 {
-    int32_t K_const = sextract32(M, 24, 4);
-    int32_t length = sextract32(M, 0, 17);
+    uint32_t K_const = extract32(M, 24, 4);
+    uint32_t length = extract32(M, 0, 17);
     uint32_t new_ptr = RxV + offset;
     uint32_t start_addr;
     uint32_t end_addr;
