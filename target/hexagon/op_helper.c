@@ -829,7 +829,7 @@ uint32_t HELPER(conv_df2uw_chop)(CPUHexagonState *env, float64 RssV)
     uint32_t RdV;
     arch_fpop_start(env);
     /* Hexagon checks the sign before rounding */
-    if (float64_is_neg(RssV) && !float32_is_any_nan(RssV)) {
+    if (float64_is_neg(RssV) && !float64_is_any_nan(RssV)) {
         float_raise(float_flag_invalid, &env->fp_status);
         RdV = 0;
     } else {

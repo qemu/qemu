@@ -1068,6 +1068,10 @@ int main()
     TEST_P_OP_P(conv_df2d,        DF_SNaN,  0xffffffffffffffffULL,  USR_FPINVF);
     TEST_R_OP_P(conv_df2uw_chop,  DF_QNaN,  0xffffffff,             USR_FPINVF);
     TEST_R_OP_P(conv_df2uw_chop,  DF_SNaN,  0xffffffff,             USR_FPINVF);
+
+    /* Test for typo in HELPER(conv_df2uw_chop) */
+    TEST_R_OP_P(conv_df2uw_chop, 0xffffff7f00000001ULL, 0xffffffff, USR_FPINVF);
+
     TEST_R_OP_P(conv_df2w_chop,   DF_QNaN,  0xffffffff,             USR_FPINVF);
     TEST_R_OP_P(conv_df2w_chop,   DF_SNaN,  0xffffffff,             USR_FPINVF);
     TEST_P_OP_P(conv_df2ud_chop,  DF_QNaN,  0xffffffffffffffffULL,  USR_FPINVF);
