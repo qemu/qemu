@@ -97,6 +97,42 @@ static inline void creg_alias_pair(unsigned int cval, PRegs *pregs)
   check(c5, 0xdeadbeef);
 }
 
+static void test_packet(void)
+{
+    /*
+     * Test that setting c4 inside a packet doesn't impact the predicates
+     * that are read during the packet.
+     */
+
+    int result;
+    int old_val = 0x0000001c;
+
+    /* Test a predicated register transfer */
+    result = old_val;
+    asm (
+         "c4 = %1\n\t"
+         "{\n\t"
+         "    c4 = %2\n\t"
+         "    if (!p2) %0 = %3\n\t"
+         "}\n\t"
+         : "+r"(result)
+         : "r"(0xffffffff), "r"(0xff00ffff), "r"(0x837ed653)
+         : "p0", "p1", "p2", "p3");
+    check(result, old_val);
+
+    /* Test a predicated store */
+    result = 0xffffffff;
+    asm ("c4 = %0\n\t"
+         "{\n\t"
+         "    c4 = %1\n\t"
+         "    if (!p2) memw(%2) = #0\n\t"
+         "}\n\t"
+         :
+         : "r"(0), "r"(0xffffffff), "r"(&result)
+         : "p0", "p1", "p2", "p3", "memory");
+    check(result, 0x0);
+}
+
 int main()
 {
     int c4;
@@ -161,6 +197,8 @@ int main()
     check(pregs.creg, 0x000000ff);
     creg_alias_pair(0xffffffff, &pregs);
     check(pregs.creg, 0xffffffff);
+
+    test_packet();
 
     puts(err ? "FAIL" : "PASS");
     return err;
