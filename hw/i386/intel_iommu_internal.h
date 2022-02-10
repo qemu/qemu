@@ -304,11 +304,6 @@ typedef enum VTDFaultReason {
 
     VTD_FR_PASID_TABLE_INV = 0x58,  /*Invalid PASID table entry */
 
-    /* This is not a normal fault reason. We use this to indicate some faults
-     * that are not referenced by the VT-d specification.
-     * Fault event with such reason should not be recorded.
-     */
-    VTD_FR_RESERVED_ERR,
     VTD_FR_MAX,                 /* Guard */
 } VTDFaultReason;
 
