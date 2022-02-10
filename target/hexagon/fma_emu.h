@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,6 +24,10 @@ static inline bool is_finite(float64 x)
 }
 
 int32_t float64_getexp(float64 f64);
+static inline uint32_t float32_getexp_raw(float32 f32)
+{
+    return extract32(f32, 23, 8);
+}
 int32_t float32_getexp(float32 f32);
 float32 infinite_float32(uint8_t sign);
 float32 internal_fmafx(float32 a, float32 b, float32 c,
