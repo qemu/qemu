@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -268,7 +268,7 @@ static inline void gen_pred_cancel(TCGv pred, int slot_num)
 
 #define fVSATUVALN(N, VAL) \
     ({ \
-        (((int)(VAL)) < 0) ? 0 : ((1LL << (N)) - 1); \
+        (((int64_t)(VAL)) < 0) ? 0 : ((1LL << (N)) - 1); \
     })
 #define fSATUVALN(N, VAL) \
     ({ \
