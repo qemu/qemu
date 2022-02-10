@@ -78,6 +78,34 @@ static void __check64(int line, uint64_t val, uint64_t expect)
 #define USR_FPUNFF           (1 << USR_FPUNFF_BIT)
 #define USR_FPINPF           (1 << USR_FPINPF_BIT)
 
+/* Some useful floating point values */
+const uint32_t SF_INF =              0x7f800000;
+const uint32_t SF_QNaN =             0x7fc00000;
+const uint32_t SF_SNaN =             0x7fb00000;
+const uint32_t SF_QNaN_neg =         0xffc00000;
+const uint32_t SF_SNaN_neg =         0xffb00000;
+const uint32_t SF_HEX_NaN =          0xffffffff;
+const uint32_t SF_zero =             0x00000000;
+const uint32_t SF_one =              0x3f800000;
+const uint32_t SF_one_recip =        0x3f7f0001;         /* 0.9960...  */
+const uint32_t SF_one_invsqrta =     0x3f7f0000;         /* 0.99609375 */
+const uint32_t SF_two =              0x40000000;
+const uint32_t SF_four =             0x40800000;
+const uint32_t SF_small_neg =        0xab98fba8;
+const uint32_t SF_large_pos =        0x5afa572e;
+
+const uint64_t DF_QNaN =             0x7ff8000000000000ULL;
+const uint64_t DF_SNaN =             0x7ff7000000000000ULL;
+const uint64_t DF_QNaN_neg =         0xfff8000000000000ULL;
+const uint64_t DF_SNaN_neg =         0xfff7000000000000ULL;
+const uint64_t DF_HEX_NaN =          0xffffffffffffffffULL;
+const uint64_t DF_zero =             0x0000000000000000ULL;
+const uint64_t DF_any =              0x3f80000000000000ULL;
+const uint64_t DF_one =              0x3ff0000000000000ULL;
+const uint64_t DF_one_hh =           0x3ff001ff80000000ULL;     /* 1.00048... */
+const uint64_t DF_small_neg =        0xbd731f7500000000ULL;
+const uint64_t DF_large_pos =        0x7f80000000000001ULL;
+
 /*
  * Templates for functions to execute an instruction
  *
@@ -309,6 +337,29 @@ static RESTYPE NAME(RESTYPE result, SRC1TYPE src1, SRC2TYPE src2, uint8_t pred,\
 #define FUNC_XR_OP_RRp(NAME, INSN) \
 FUNC_Xx_OP_xxp(uint32_t, uint32_t, uint32_t, NAME, INSN)
 
+/* Template for compare instructions with two register operands */
+#define FUNC_CMP_xx(SRC1TYPE, SRC2TYPE, NAME, INSN) \
+static uint32_t NAME(SRC1TYPE src1, SRC2TYPE src2, uint32_t *usr_result) \
+{ \
+    uint32_t result; \
+    uint32_t usr; \
+    asm(CLEAR_USRBITS \
+        INSN "\n\t" \
+        "%0 = p1\n\t" \
+        "%1 = usr\n\t" \
+        : "=r"(result), "=r"(usr) \
+        : "r"(src1), "r"(src2) \
+        : "p1", "r2", "usr"); \
+    *usr_result = usr & 0x3f; \
+    return result; \
+}
+
+#define FUNC_CMP_RR(NAME, INSN) \
+FUNC_CMP_xx(uint32_t, uint32_t, NAME, INSN)
+
+#define FUNC_CMP_PP(NAME, INSN) \
+FUNC_CMP_xx(uint64_t, uint64_t, NAME, INSN)
+
 /*
  * Function declarations using the templates
  */
@@ -378,6 +429,69 @@ FUNC_R_OP_RI(round_ri_sat,      "%0 = round(%2, #%3):sat")
 FUNC_R_OP_RR(asr_r_r_sat,       "%0 = asr(%2, %3):sat")
 
 FUNC_XPp_OP_PP(ACS,             "%0, p2 = vacsh(%3, %4)")
+
+/* Floating point */
+FUNC_R_OP_RR(sfmin,             "%0 = sfmin(%2, %3)")
+FUNC_R_OP_RR(sfmax,             "%0 = sfmax(%2, %3)")
+FUNC_R_OP_RR(sfadd,             "%0 = sfadd(%2, %3)")
+FUNC_R_OP_RR(sfsub,             "%0 = sfsub(%2, %3)")
+FUNC_R_OP_RR(sfmpy,             "%0 = sfmpy(%2, %3)")
+FUNC_XR_OP_RR(sffma,            "%0 += sfmpy(%2, %3)")
+FUNC_XR_OP_RR(sffms,            "%0 -= sfmpy(%2, %3)")
+FUNC_CMP_RR(sfcmpuo,            "p1 = sfcmp.uo(%2, %3)")
+FUNC_CMP_RR(sfcmpeq,            "p1 = sfcmp.eq(%2, %3)")
+FUNC_CMP_RR(sfcmpgt,            "p1 = sfcmp.gt(%2, %3)")
+FUNC_CMP_RR(sfcmpge,            "p1 = sfcmp.ge(%2, %3)")
+
+FUNC_P_OP_PP(dfadd,             "%0 = dfadd(%2, %3)")
+FUNC_P_OP_PP(dfsub,             "%0 = dfsub(%2, %3)")
+
+#if CORE_IS_V67
+FUNC_P_OP_PP(dfmin,             "%0 = dfmin(%2, %3)")
+FUNC_P_OP_PP(dfmax,             "%0 = dfmax(%2, %3)")
+FUNC_XP_OP_PP(dfmpyhh,          "%0 += dfmpyhh(%2, %3)")
+#endif
+
+FUNC_CMP_PP(dfcmpuo,            "p1 = dfcmp.uo(%2, %3)")
+FUNC_CMP_PP(dfcmpeq,            "p1 = dfcmp.eq(%2, %3)")
+FUNC_CMP_PP(dfcmpgt,            "p1 = dfcmp.gt(%2, %3)")
+FUNC_CMP_PP(dfcmpge,            "p1 = dfcmp.ge(%2, %3)")
+
+/* Conversions from sf */
+FUNC_P_OP_R(conv_sf2df,         "%0 = convert_sf2df(%2)")
+FUNC_R_OP_R(conv_sf2uw,         "%0 = convert_sf2uw(%2)")
+FUNC_R_OP_R(conv_sf2w,          "%0 = convert_sf2w(%2)")
+FUNC_P_OP_R(conv_sf2ud,         "%0 = convert_sf2ud(%2)")
+FUNC_P_OP_R(conv_sf2d,          "%0 = convert_sf2d(%2)")
+FUNC_R_OP_R(conv_sf2uw_chop,    "%0 = convert_sf2uw(%2):chop")
+FUNC_R_OP_R(conv_sf2w_chop,     "%0 = convert_sf2w(%2):chop")
+FUNC_P_OP_R(conv_sf2ud_chop,    "%0 = convert_sf2ud(%2):chop")
+FUNC_P_OP_R(conv_sf2d_chop,     "%0 = convert_sf2d(%2):chop")
+
+/* Conversions from df */
+FUNC_R_OP_P(conv_df2sf,         "%0 = convert_df2sf(%2)")
+FUNC_R_OP_P(conv_df2uw,         "%0 = convert_df2uw(%2)")
+FUNC_R_OP_P(conv_df2w,          "%0 = convert_df2w(%2)")
+FUNC_P_OP_P(conv_df2ud,         "%0 = convert_df2ud(%2)")
+FUNC_P_OP_P(conv_df2d,          "%0 = convert_df2d(%2)")
+FUNC_R_OP_P(conv_df2uw_chop,    "%0 = convert_df2uw(%2):chop")
+FUNC_R_OP_P(conv_df2w_chop,     "%0 = convert_df2w(%2):chop")
+FUNC_P_OP_P(conv_df2ud_chop,    "%0 = convert_df2ud(%2):chop")
+FUNC_P_OP_P(conv_df2d_chop,     "%0 = convert_df2d(%2):chop")
+
+/* Integer to float conversions */
+FUNC_R_OP_R(conv_uw2sf,         "%0 = convert_uw2sf(%2)")
+FUNC_R_OP_R(conv_w2sf,          "%0 = convert_w2sf(%2)")
+FUNC_R_OP_P(conv_ud2sf,         "%0 = convert_ud2sf(%2)")
+FUNC_R_OP_P(conv_d2sf,          "%0 = convert_d2sf(%2)")
+
+/* Special purpose floating point instructions */
+FUNC_XR_OP_RRp(sffma_sc,        "%0 += sfmpy(%2, %3, p2):scale")
+FUNC_Rp_OP_RR(sfrecipa,         "%0, p2 = sfrecipa(%3, %4)")
+FUNC_R_OP_RR(sffixupn,          "%0 = sffixupn(%2, %3)")
+FUNC_R_OP_RR(sffixupd,          "%0 = sffixupd(%2, %3)")
+FUNC_R_OP_R(sffixupr,           "%0 = sffixupr(%2)")
+FUNC_Rp_OP_R(sfinvsqrta,        "%0, p2 = sfinvsqrta(%3)")
 
 /*
  * Templates for test cases
@@ -553,6 +667,24 @@ TEST_Xxp_OP_xx(uint64_t, check64, uint64_t, uint64_t, FUNC, RESIN, SRC1, SRC2, \
 #define TEST_XR_OP_RRp(FUNC, RESIN, SRC1, SRC2, PRED, RES, USR_RES) \
 TEST_Xx_OP_xxp(uint32_t, check32, uint32_t, uint32_t, \
               FUNC, RESIN, SRC1, SRC2, PRED, RES, USR_RES)
+
+#define TEST_CMP_xx(SRC1TYPE, SRC2TYPE, \
+                    FUNC, SRC1, SRC2, RES, USR_RES) \
+    do { \
+        uint32_t result; \
+        SRC1TYPE src1 = SRC1; \
+        SRC2TYPE src2 = SRC2; \
+        uint32_t usr_result; \
+        result = FUNC(src1, src2, &usr_result); \
+        check(result, RES); \
+        check(usr_result, USR_RES); \
+    } while (0)
+
+#define TEST_CMP_RR(FUNC, SRC1, SRC2, RES, USR_RES) \
+TEST_CMP_xx(uint32_t, uint32_t, FUNC, SRC1, SRC2, RES, USR_RES)
+
+#define TEST_CMP_PP(FUNC, SRC1, SRC2, RES, USR_RES) \
+TEST_CMP_xx(uint64_t, uint64_t, FUNC, SRC1, SRC2, RES, USR_RES)
 
 int main()
 {
@@ -792,6 +924,213 @@ int main()
     TEST_XPp_OP_PP(ACS, 0x00047fff00020001ULL, 0x00017fff00030004ULL,
                    0x000a0fff000d0000ULL, 0x000e7fff000f0004ULL, 0xf0,
                    USR_OVF);
+
+    /* Floating point */
+    TEST_R_OP_RR(sfmin,  SF_one,      SF_small_neg,   SF_small_neg, USR_CLEAR);
+    TEST_R_OP_RR(sfmin,  SF_one,      SF_SNaN,        SF_one,       USR_FPINVF);
+    TEST_R_OP_RR(sfmin,  SF_SNaN,     SF_one,         SF_one,       USR_FPINVF);
+    TEST_R_OP_RR(sfmin,  SF_one,      SF_QNaN,        SF_one,       USR_CLEAR);
+    TEST_R_OP_RR(sfmin,  SF_QNaN,     SF_one,         SF_one,       USR_CLEAR);
+    TEST_R_OP_RR(sfmin,  SF_SNaN,     SF_QNaN,        SF_HEX_NaN,   USR_FPINVF);
+    TEST_R_OP_RR(sfmin,  SF_QNaN,     SF_SNaN,        SF_HEX_NaN,   USR_FPINVF);
+
+    TEST_R_OP_RR(sfmax,  SF_one,      SF_small_neg,   SF_one,       USR_CLEAR);
+    TEST_R_OP_RR(sfmax,  SF_one,      SF_SNaN,        SF_one,       USR_FPINVF);
+    TEST_R_OP_RR(sfmax,  SF_SNaN,     SF_one,         SF_one,       USR_FPINVF);
+    TEST_R_OP_RR(sfmax,  SF_one,      SF_QNaN,        SF_one,       USR_CLEAR);
+    TEST_R_OP_RR(sfmax,  SF_QNaN,     SF_one,         SF_one,       USR_CLEAR);
+    TEST_R_OP_RR(sfmax,  SF_SNaN,     SF_QNaN,        SF_HEX_NaN,   USR_FPINVF);
+    TEST_R_OP_RR(sfmax,  SF_QNaN,     SF_SNaN,        SF_HEX_NaN,   USR_FPINVF);
+
+    TEST_R_OP_RR(sfadd,  SF_one,      SF_QNaN,        SF_HEX_NaN,   USR_CLEAR);
+    TEST_R_OP_RR(sfadd,  SF_one,      SF_SNaN,        SF_HEX_NaN,   USR_FPINVF);
+    TEST_R_OP_RR(sfadd,  SF_QNaN,     SF_SNaN,        SF_HEX_NaN,   USR_FPINVF);
+    TEST_R_OP_RR(sfadd,  SF_SNaN,     SF_QNaN,        SF_HEX_NaN,   USR_FPINVF);
+
+    TEST_R_OP_RR(sfsub,  SF_one,      SF_QNaN,        SF_HEX_NaN,   USR_CLEAR);
+    TEST_R_OP_RR(sfsub,  SF_one,      SF_SNaN,        SF_HEX_NaN,   USR_FPINVF);
+    TEST_R_OP_RR(sfsub,  SF_QNaN,     SF_SNaN,        SF_HEX_NaN,   USR_FPINVF);
+    TEST_R_OP_RR(sfsub,  SF_SNaN,     SF_QNaN,        SF_HEX_NaN,   USR_FPINVF);
+
+    TEST_R_OP_RR(sfmpy,  SF_one,      SF_QNaN,        SF_HEX_NaN,   USR_CLEAR);
+    TEST_R_OP_RR(sfmpy,  SF_one,      SF_SNaN,        SF_HEX_NaN,   USR_FPINVF);
+    TEST_R_OP_RR(sfmpy,  SF_QNaN,     SF_SNaN,        SF_HEX_NaN,   USR_FPINVF);
+    TEST_R_OP_RR(sfmpy,  SF_SNaN,     SF_QNaN,        SF_HEX_NaN,   USR_FPINVF);
+
+    TEST_XR_OP_RR(sffma, SF_one,   SF_one,    SF_one,   SF_two,     USR_CLEAR);
+    TEST_XR_OP_RR(sffma, SF_zero,  SF_one,    SF_QNaN,  SF_HEX_NaN, USR_CLEAR);
+    TEST_XR_OP_RR(sffma, SF_zero,  SF_one,    SF_SNaN,  SF_HEX_NaN, USR_FPINVF);
+    TEST_XR_OP_RR(sffma, SF_zero,  SF_QNaN,   SF_SNaN,  SF_HEX_NaN, USR_FPINVF);
+    TEST_XR_OP_RR(sffma, SF_zero,  SF_SNaN,   SF_QNaN,  SF_HEX_NaN, USR_FPINVF);
+
+    TEST_XR_OP_RR(sffms, SF_one,   SF_one,    SF_one,   SF_zero,    USR_CLEAR);
+    TEST_XR_OP_RR(sffms, SF_zero,  SF_one,    SF_QNaN,  SF_HEX_NaN, USR_CLEAR);
+    TEST_XR_OP_RR(sffms, SF_zero,  SF_one,    SF_SNaN,  SF_HEX_NaN, USR_FPINVF);
+    TEST_XR_OP_RR(sffms, SF_zero,  SF_QNaN,   SF_SNaN,  SF_HEX_NaN, USR_FPINVF);
+    TEST_XR_OP_RR(sffms, SF_zero,  SF_SNaN,   SF_QNaN,  SF_HEX_NaN, USR_FPINVF);
+
+    TEST_CMP_RR(sfcmpuo, SF_one,      SF_large_pos,    0x00,    USR_CLEAR);
+    TEST_CMP_RR(sfcmpuo, SF_INF,      SF_large_pos,    0x00,    USR_CLEAR);
+    TEST_CMP_RR(sfcmpuo, SF_QNaN,     SF_large_pos,    0xff,    USR_CLEAR);
+    TEST_CMP_RR(sfcmpuo, SF_QNaN_neg, SF_large_pos,    0xff,    USR_CLEAR);
+    TEST_CMP_RR(sfcmpuo, SF_SNaN,     SF_large_pos,    0xff,    USR_FPINVF);
+    TEST_CMP_RR(sfcmpuo, SF_SNaN_neg, SF_large_pos,    0xff,    USR_FPINVF);
+    TEST_CMP_RR(sfcmpuo, SF_QNaN,     SF_QNaN,         0xff,    USR_CLEAR);
+    TEST_CMP_RR(sfcmpuo, SF_QNaN,     SF_SNaN,         0xff,    USR_FPINVF);
+
+    TEST_CMP_RR(sfcmpeq, SF_one,      SF_QNaN,         0x00,    USR_CLEAR);
+    TEST_CMP_RR(sfcmpeq, SF_one,      SF_SNaN,         0x00,    USR_FPINVF);
+    TEST_CMP_RR(sfcmpgt, SF_one,      SF_QNaN,         0x00,    USR_CLEAR);
+    TEST_CMP_RR(sfcmpgt, SF_one,      SF_SNaN,         0x00,    USR_FPINVF);
+    TEST_CMP_RR(sfcmpge, SF_one,      SF_QNaN,         0x00,    USR_CLEAR);
+    TEST_CMP_RR(sfcmpge, SF_one,      SF_SNaN,         0x00,    USR_FPINVF);
+
+    TEST_P_OP_PP(dfadd,  DF_any,    DF_QNaN,         DF_HEX_NaN,    USR_CLEAR);
+    TEST_P_OP_PP(dfadd,  DF_any,    DF_SNaN,         DF_HEX_NaN,    USR_FPINVF);
+    TEST_P_OP_PP(dfadd,  DF_QNaN,   DF_SNaN,         DF_HEX_NaN,    USR_FPINVF);
+    TEST_P_OP_PP(dfadd,  DF_SNaN,   DF_QNaN,         DF_HEX_NaN,    USR_FPINVF);
+
+    TEST_P_OP_PP(dfsub,  DF_any,    DF_QNaN,         DF_HEX_NaN,    USR_CLEAR);
+    TEST_P_OP_PP(dfsub,  DF_any,    DF_SNaN,         DF_HEX_NaN,    USR_FPINVF);
+    TEST_P_OP_PP(dfsub,  DF_QNaN,   DF_SNaN,         DF_HEX_NaN,    USR_FPINVF);
+    TEST_P_OP_PP(dfsub,  DF_SNaN,   DF_QNaN,         DF_HEX_NaN,    USR_FPINVF);
+
+#if CORE_IS_V67
+    TEST_P_OP_PP(dfmin,  DF_any,    DF_small_neg,    DF_small_neg,  USR_CLEAR);
+    TEST_P_OP_PP(dfmin,  DF_any,    DF_SNaN,         DF_any,        USR_FPINVF);
+    TEST_P_OP_PP(dfmin,  DF_SNaN,   DF_any,          DF_any,        USR_FPINVF);
+    TEST_P_OP_PP(dfmin,  DF_any,    DF_QNaN,         DF_any,        USR_CLEAR);
+    TEST_P_OP_PP(dfmin,  DF_QNaN,   DF_any,          DF_any,        USR_CLEAR);
+    TEST_P_OP_PP(dfmin,  DF_SNaN,   DF_QNaN,         DF_HEX_NaN,    USR_FPINVF);
+    TEST_P_OP_PP(dfmin,  DF_QNaN,   DF_SNaN,         DF_HEX_NaN,    USR_FPINVF);
+
+    TEST_P_OP_PP(dfmax,  DF_any,    DF_small_neg,    DF_any,        USR_CLEAR);
+    TEST_P_OP_PP(dfmax,  DF_any,    DF_SNaN,         DF_any,        USR_FPINVF);
+    TEST_P_OP_PP(dfmax,  DF_SNaN,   DF_any,          DF_any,        USR_FPINVF);
+    TEST_P_OP_PP(dfmax,  DF_any,    DF_QNaN,         DF_any,        USR_CLEAR);
+    TEST_P_OP_PP(dfmax,  DF_QNaN,   DF_any,          DF_any,        USR_CLEAR);
+    TEST_P_OP_PP(dfmax,  DF_SNaN,   DF_QNaN,         DF_HEX_NaN,    USR_FPINVF);
+    TEST_P_OP_PP(dfmax,  DF_QNaN,   DF_SNaN,         DF_HEX_NaN,    USR_FPINVF);
+
+    TEST_XP_OP_PP(dfmpyhh, DF_one,   DF_one,  DF_one,   DF_one_hh,  USR_CLEAR);
+    TEST_XP_OP_PP(dfmpyhh, DF_zero,  DF_any,  DF_QNaN,  DF_HEX_NaN, USR_CLEAR);
+    TEST_XP_OP_PP(dfmpyhh, DF_zero,  DF_any,  DF_SNaN,  DF_HEX_NaN, USR_FPINVF);
+    TEST_XP_OP_PP(dfmpyhh, DF_zero,  DF_QNaN, DF_SNaN,  DF_HEX_NaN, USR_FPINVF);
+    TEST_XP_OP_PP(dfmpyhh, DF_zero,  DF_SNaN, DF_QNaN,  DF_HEX_NaN, USR_FPINVF);
+#else
+    printf("v67 instructions skipped\n");
+#endif
+
+    TEST_CMP_PP(dfcmpuo, DF_small_neg, DF_any,          0x00,    USR_CLEAR);
+    TEST_CMP_PP(dfcmpuo, DF_large_pos, DF_any,          0x00,    USR_CLEAR);
+    TEST_CMP_PP(dfcmpuo, DF_QNaN,      DF_any,          0xff,    USR_CLEAR);
+    TEST_CMP_PP(dfcmpuo, DF_QNaN_neg,  DF_any,          0xff,    USR_CLEAR);
+    TEST_CMP_PP(dfcmpuo, DF_SNaN,      DF_any,          0xff,    USR_FPINVF);
+    TEST_CMP_PP(dfcmpuo, DF_SNaN_neg,  DF_any,          0xff,    USR_FPINVF);
+    TEST_CMP_PP(dfcmpuo, DF_QNaN,      DF_QNaN,         0xff,    USR_CLEAR);
+    TEST_CMP_PP(dfcmpuo, DF_QNaN,      DF_SNaN,         0xff,    USR_FPINVF);
+
+    TEST_CMP_PP(dfcmpeq, DF_any,       DF_QNaN,         0x00,    USR_CLEAR);
+    TEST_CMP_PP(dfcmpeq, DF_any,       DF_SNaN,         0x00,    USR_FPINVF);
+    TEST_CMP_PP(dfcmpgt, DF_any,       DF_QNaN,         0x00,    USR_CLEAR);
+    TEST_CMP_PP(dfcmpgt, DF_any,       DF_SNaN,         0x00,    USR_FPINVF);
+    TEST_CMP_PP(dfcmpge, DF_any,       DF_QNaN,         0x00,    USR_CLEAR);
+    TEST_CMP_PP(dfcmpge, DF_any,       DF_SNaN,         0x00,    USR_FPINVF);
+
+    TEST_P_OP_R(conv_sf2df,       SF_QNaN,  DF_HEX_NaN,             USR_CLEAR);
+    TEST_P_OP_R(conv_sf2df,       SF_SNaN,  DF_HEX_NaN,             USR_FPINVF);
+    TEST_R_OP_R(conv_sf2uw,       SF_QNaN,  0xffffffff,             USR_FPINVF);
+    TEST_R_OP_R(conv_sf2uw,       SF_SNaN,  0xffffffff,             USR_FPINVF);
+    TEST_R_OP_R(conv_sf2w,        SF_QNaN,  0xffffffff,             USR_FPINVF);
+    TEST_R_OP_R(conv_sf2w,        SF_SNaN,  0xffffffff,             USR_FPINVF);
+    TEST_P_OP_R(conv_sf2ud,       SF_QNaN,  0xffffffffffffffffULL,  USR_FPINVF);
+    TEST_P_OP_R(conv_sf2ud,       SF_SNaN,  0xffffffffffffffffULL,  USR_FPINVF);
+    TEST_P_OP_R(conv_sf2d,        SF_QNaN,  0xffffffffffffffffULL,  USR_FPINVF);
+    TEST_P_OP_R(conv_sf2d,        SF_SNaN,  0xffffffffffffffffULL,  USR_FPINVF);
+    TEST_R_OP_R(conv_sf2uw_chop,  SF_QNaN,  0xffffffff,             USR_FPINVF);
+    TEST_R_OP_R(conv_sf2uw_chop,  SF_SNaN,  0xffffffff,             USR_FPINVF);
+    TEST_R_OP_R(conv_sf2w_chop,   SF_QNaN,  0xffffffff,             USR_FPINVF);
+    TEST_R_OP_R(conv_sf2w_chop,   SF_SNaN,  0xffffffff,             USR_FPINVF);
+    TEST_P_OP_R(conv_sf2ud_chop,  SF_QNaN,  0xffffffffffffffffULL,  USR_FPINVF);
+    TEST_P_OP_R(conv_sf2ud_chop,  SF_SNaN,  0xffffffffffffffffULL,  USR_FPINVF);
+    TEST_P_OP_R(conv_sf2d_chop,   SF_QNaN,  0xffffffffffffffffULL,  USR_FPINVF);
+    TEST_P_OP_R(conv_sf2d_chop,   SF_SNaN,  0xffffffffffffffffULL,  USR_FPINVF);
+
+    TEST_R_OP_P(conv_df2sf,       DF_QNaN,  SF_HEX_NaN,             USR_CLEAR);
+    TEST_R_OP_P(conv_df2sf,       DF_SNaN,  SF_HEX_NaN,             USR_FPINVF);
+    TEST_R_OP_P(conv_df2uw,       DF_QNaN,  0xffffffff,             USR_FPINVF);
+    TEST_R_OP_P(conv_df2uw,       DF_SNaN,  0xffffffff,             USR_FPINVF);
+    TEST_R_OP_P(conv_df2w,        DF_QNaN,  0xffffffff,             USR_FPINVF);
+    TEST_R_OP_P(conv_df2w,        DF_SNaN,  0xffffffff,             USR_FPINVF);
+    TEST_P_OP_P(conv_df2ud,       DF_QNaN,  0xffffffffffffffffULL,  USR_FPINVF);
+    TEST_P_OP_P(conv_df2ud,       DF_SNaN,  0xffffffffffffffffULL,  USR_FPINVF);
+    TEST_P_OP_P(conv_df2d,        DF_QNaN,  0xffffffffffffffffULL,  USR_FPINVF);
+    TEST_P_OP_P(conv_df2d,        DF_SNaN,  0xffffffffffffffffULL,  USR_FPINVF);
+    TEST_R_OP_P(conv_df2uw_chop,  DF_QNaN,  0xffffffff,             USR_FPINVF);
+    TEST_R_OP_P(conv_df2uw_chop,  DF_SNaN,  0xffffffff,             USR_FPINVF);
+    TEST_R_OP_P(conv_df2w_chop,   DF_QNaN,  0xffffffff,             USR_FPINVF);
+    TEST_R_OP_P(conv_df2w_chop,   DF_SNaN,  0xffffffff,             USR_FPINVF);
+    TEST_P_OP_P(conv_df2ud_chop,  DF_QNaN,  0xffffffffffffffffULL,  USR_FPINVF);
+    TEST_P_OP_P(conv_df2ud_chop,  DF_SNaN,  0xffffffffffffffffULL,  USR_FPINVF);
+    TEST_P_OP_P(conv_df2d_chop,   DF_QNaN,  0xffffffffffffffffULL,  USR_FPINVF);
+    TEST_P_OP_P(conv_df2d_chop,   DF_SNaN,  0xffffffffffffffffULL,  USR_FPINVF);
+
+    TEST_R_OP_R(conv_uw2sf,    0x00000001,             SF_one,      USR_CLEAR);
+    TEST_R_OP_R(conv_uw2sf,    0x010020a5,             0x4b801052,  USR_FPINPF);
+    TEST_R_OP_R(conv_w2sf,     0x00000001,             SF_one,      USR_CLEAR);
+    TEST_R_OP_R(conv_w2sf,     0x010020a5,             0x4b801052,  USR_FPINPF);
+    TEST_R_OP_P(conv_ud2sf,    0x0000000000000001ULL,  SF_one,      USR_CLEAR);
+    TEST_R_OP_P(conv_ud2sf,    0x00000000010020a5ULL,  0x4b801052,  USR_FPINPF);
+    TEST_R_OP_P(conv_d2sf,     0x0000000000000001ULL,  SF_one,      USR_CLEAR);
+    TEST_R_OP_P(conv_d2sf,     0x00000000010020a5ULL,  0x4b801052,  USR_FPINPF);
+
+    TEST_XR_OP_RRp(sffma_sc, SF_one,   SF_one,    SF_one,   1, SF_four,
+                   USR_CLEAR);
+    TEST_XR_OP_RRp(sffma_sc, SF_QNaN,  SF_one,    SF_one,   1, SF_HEX_NaN,
+                   USR_CLEAR);
+    TEST_XR_OP_RRp(sffma_sc, SF_one,   SF_QNaN,   SF_one,   1, SF_HEX_NaN,
+                   USR_CLEAR);
+    TEST_XR_OP_RRp(sffma_sc, SF_one,   SF_one,    SF_QNaN,  1, SF_HEX_NaN,
+                   USR_CLEAR);
+    TEST_XR_OP_RRp(sffma_sc, SF_SNaN,  SF_one,    SF_one,   1, SF_HEX_NaN,
+                   USR_FPINVF);
+    TEST_XR_OP_RRp(sffma_sc, SF_one,   SF_SNaN,   SF_one,   1, SF_HEX_NaN,
+                   USR_FPINVF);
+    TEST_XR_OP_RRp(sffma_sc, SF_one,   SF_one,    SF_SNaN,  1, SF_HEX_NaN,
+                   USR_FPINVF);
+
+    TEST_Rp_OP_RR(sfrecipa, SF_one,    SF_one,    SF_one_recip,   0x00,
+                  USR_CLEAR);
+    TEST_Rp_OP_RR(sfrecipa, SF_QNaN,   SF_one,    SF_HEX_NaN,     0x00,
+                  USR_CLEAR);
+    TEST_Rp_OP_RR(sfrecipa, SF_one,    SF_QNaN,   SF_HEX_NaN,     0x00,
+                  USR_CLEAR);
+    TEST_Rp_OP_RR(sfrecipa, SF_one,    SF_SNaN,   SF_HEX_NaN,     0x00,
+                  USR_FPINVF);
+    TEST_Rp_OP_RR(sfrecipa, SF_SNaN,   SF_one,    SF_HEX_NaN,     0x00,
+                  USR_FPINVF);
+
+    TEST_R_OP_RR(sffixupn, SF_one,     SF_one,    SF_one,       USR_CLEAR);
+    TEST_R_OP_RR(sffixupn, SF_QNaN,    SF_one,    SF_HEX_NaN,   USR_CLEAR);
+    TEST_R_OP_RR(sffixupn, SF_one,     SF_QNaN,   SF_HEX_NaN,   USR_CLEAR);
+    TEST_R_OP_RR(sffixupn, SF_SNaN,    SF_one,    SF_HEX_NaN,   USR_FPINVF);
+    TEST_R_OP_RR(sffixupn, SF_one,     SF_SNaN,   SF_HEX_NaN,   USR_FPINVF);
+
+    TEST_R_OP_RR(sffixupd, SF_one,     SF_one,    SF_one,       USR_CLEAR);
+    TEST_R_OP_RR(sffixupd, SF_QNaN,    SF_one,    SF_HEX_NaN,   USR_CLEAR);
+    TEST_R_OP_RR(sffixupd, SF_one,     SF_QNaN,   SF_HEX_NaN,   USR_CLEAR);
+    TEST_R_OP_RR(sffixupd, SF_SNaN,    SF_one,    SF_HEX_NaN,   USR_FPINVF);
+    TEST_R_OP_RR(sffixupd, SF_one,     SF_SNaN,   SF_HEX_NaN,   USR_FPINVF);
+
+    TEST_R_OP_R(sffixupr, SF_one,             SF_one,           USR_CLEAR);
+    TEST_R_OP_R(sffixupr, SF_QNaN,            SF_HEX_NaN,       USR_CLEAR);
+    TEST_R_OP_R(sffixupr, SF_SNaN,            SF_HEX_NaN,       USR_FPINVF);
+
+    TEST_Rp_OP_R(sfinvsqrta, SF_one,        SF_one_invsqrta,  0x00, USR_CLEAR);
+    TEST_Rp_OP_R(sfinvsqrta, SF_zero,       SF_one,           0x00, USR_CLEAR);
+    TEST_Rp_OP_R(sfinvsqrta, SF_QNaN,       SF_HEX_NaN,       0x00, USR_CLEAR);
+    TEST_Rp_OP_R(sfinvsqrta, SF_small_neg,  SF_HEX_NaN,       0x00, USR_FPINVF);
+    TEST_Rp_OP_R(sfinvsqrta, SF_SNaN,       SF_HEX_NaN,       0x00, USR_FPINVF);
 
     puts(err ? "FAIL" : "PASS");
     return err;
