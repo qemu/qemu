@@ -37,6 +37,11 @@ tfcflags = [
   '-Wno-error',
 ]
 
+if cc.get_id() == 'clang'
+  # Clang does not support '#pragma STDC FENV_ACCESS'
+  tfcflags += [ '-Wno-ignored-pragmas' ]
+endif
+
 tfgencases = [
   tfdir / 'genCases_ui32.c',
   tfdir / 'genCases_ui64.c',
