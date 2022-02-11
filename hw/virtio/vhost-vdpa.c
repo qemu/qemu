@@ -431,6 +431,7 @@ static int vhost_vdpa_host_notifier_init(struct vhost_dev *dev, int queue_index)
     g_free(name);
 
     if (virtio_queue_set_host_notifier_mr(vdev, queue_index, &n->mr, true)) {
+        object_unparent(OBJECT(&n->mr));
         munmap(addr, page_size);
         goto err;
     }
