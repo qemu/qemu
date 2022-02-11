@@ -34,16 +34,12 @@ disable=fixme,
 
 [BASIC]
 
-# Good variable names which should always be accepted, separated by a comma.
-good-names=i,
-           j,
-           k,
-           ex,
-           Run,
-           _,
-           fp,  # fp = open(...)
-           fd,  # fd = os.open(...)
-           ch,
+# Good variable names regexes, separated by a comma. If names match any regex,
+# they will always be accepted.
+#
+# Suppress complaints about short names.  PEP-8 is cool with them,
+# and so are we.
+good-names-rgxs=^[_a-z][_a-z0-9]?$
 
 [VARIABLES]
 
