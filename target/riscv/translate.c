@@ -426,6 +426,10 @@ static void mark_fs_dirty(DisasContext *ctx)
 {
     TCGv tmp;
 
+    if (!has_ext(ctx, RVF)) {
+        return;
+    }
+
     if (ctx->mstatus_fs != MSTATUS_FS) {
         /* Remember the state change for the rest of the TB. */
         ctx->mstatus_fs = MSTATUS_FS;
