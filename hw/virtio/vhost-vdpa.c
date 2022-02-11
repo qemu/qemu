@@ -395,15 +395,6 @@ static void vhost_vdpa_host_notifier_uninit(struct vhost_dev *dev,
     }
 }
 
-static void vhost_vdpa_host_notifiers_uninit(struct vhost_dev *dev, int n)
-{
-    int i;
-
-    for (i = 0; i < n; i++) {
-        vhost_vdpa_host_notifier_uninit(dev, i);
-    }
-}
-
 static int vhost_vdpa_host_notifier_init(struct vhost_dev *dev, int queue_index)
 {
     size_t page_size = qemu_real_host_page_size;
@@ -443,6 +434,15 @@ err:
     return -1;
 }
 
+static void vhost_vdpa_host_notifiers_uninit(struct vhost_dev *dev, int n)
+{
+    int i;
+
+    for (i = dev->vq_index; i < dev->vq_index + n; i++) {
+        vhost_vdpa_host_notifier_uninit(dev, i);
+    }
+}
+
 static void vhost_vdpa_host_notifiers_init(struct vhost_dev *dev)
 {
     int i;
@@ -456,7 +456,7 @@ static void vhost_vdpa_host_notifiers_init(struct vhost_dev *dev)
     return;
 
 err:
-    vhost_vdpa_host_notifiers_uninit(dev, i);
+    vhost_vdpa_host_notifiers_uninit(dev, i - dev->vq_index);
     return;
 }
 
