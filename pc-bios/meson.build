@@ -83,6 +83,8 @@ blobs = files(
   'opensbi-riscv32-generic-fw_dynamic.elf',
   'opensbi-riscv64-generic-fw_dynamic.elf',
   'npcm7xx_bootrom.bin',
+  'module_mm7705_rumboot.bin',
+  'module_mm7705_u-boot.bin',
 )
 
 if get_option('install_blobs')
