@@ -16,7 +16,7 @@ RUN apt update && \
 
 # Specify the cross prefix for this image (see tests/docker/common.rc)
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=powerpc64le-linux-gnu-
-ENV DEF_TARGET_LIST ppc64-softmmu,ppc64-linux-user,ppc64abi32-linux-user
+ENV DEF_TARGET_LIST ppc64-softmmu,ppc64-linux-user
 
 # Install extra libraries to increase code coverage
 RUN apt update && \

@@ -453,11 +453,6 @@ if not get_option('linux_io_uring').auto() or have_block
                               required: get_option('linux_io_uring'),
                               method: 'pkg-config', kwargs: static_kwargs)
 endif
-libxml2 = not_found
-if not get_option('libxml2').auto() or have_block
-  libxml2 = dependency('libxml-2.0', required: get_option('libxml2'),
-                       method: 'pkg-config', kwargs: static_kwargs)
-endif
 libnfs = not_found
 if not get_option('libnfs').auto() or have_block
   libnfs = dependency('libnfs', version: '>=1.9.3',
@@ -2362,19 +2357,15 @@ tracetool_depends = files(
   'scripts/tracetool/backend/simple.py',
   'scripts/tracetool/backend/syslog.py',
   'scripts/tracetool/backend/ust.py',
-  'scripts/tracetool/format/tcg_h.py',
   'scripts/tracetool/format/ust_events_c.py',
   'scripts/tracetool/format/ust_events_h.py',
   'scripts/tracetool/format/__init__.py',
   'scripts/tracetool/format/d.py',
-  'scripts/tracetool/format/tcg_helper_c.py',
   'scripts/tracetool/format/simpletrace_stap.py',
   'scripts/tracetool/format/c.py',
   'scripts/tracetool/format/h.py',
-  'scripts/tracetool/format/tcg_helper_h.py',
   'scripts/tracetool/format/log_stap.py',
   'scripts/tracetool/format/stap.py',
-  'scripts/tracetool/format/tcg_helper_wrapper_h.py',
   'scripts/tracetool/__init__.py',
   'scripts/tracetool/transform.py',
   'scripts/tracetool/vcpu.py'
@@ -3496,7 +3487,6 @@ summary_info += {'bzip2 support':     libbzip2}
 summary_info += {'lzfse support':     liblzfse}
 summary_info += {'zstd support':      zstd}
 summary_info += {'NUMA host support': config_host.has_key('CONFIG_NUMA')}
-summary_info += {'libxml2':           libxml2}
 summary_info += {'capstone':          capstone_opt == 'internal' ? capstone_opt : capstone}
 summary_info += {'libpmem support':   libpmem}
 summary_info += {'libdaxctl support': libdaxctl}
