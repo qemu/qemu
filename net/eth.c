@@ -389,7 +389,6 @@ eth_is_ip6_extension_header_type(uint8_t hdr_type)
     case IP6_HOP_BY_HOP:
     case IP6_ROUTING:
     case IP6_FRAGMENT:
-    case IP6_ESP:
     case IP6_AUTHENTICATION:
     case IP6_DESTINATON:
     case IP6_MOBILITY:
