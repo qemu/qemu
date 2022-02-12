@@ -73,6 +73,8 @@ if os.environ.get('QEMU_NBD_OPTIONS'):
 qemu_prog = os.environ.get('QEMU_PROG', 'qemu')
 qemu_opts = os.environ.get('QEMU_OPTIONS', '').strip().split(' ')
 
+qsd_prog = os.environ.get('QSD_PROG', 'qemu-storage-daemon')
+
 gdb_qemu_env = os.environ.get('GDB_OPTIONS')
 qemu_gdb = []
 if gdb_qemu_env:
@@ -343,6 +345,44 @@ class QemuIoInteractive:
         self._p.stdin.write(cmd + '\n')
         self._p.stdin.flush()
         return self._read_output()
+
+
+class QemuStorageDaemon:
+    def __init__(self, *args: str, instance_id: str = 'a'):
+        assert '--pidfile' not in args
+        self.pidfile = os.path.join(test_dir, f'qsd-{instance_id}-pid')
+        all_args = [qsd_prog] + list(args) + ['--pidfile', self.pidfile]
+
+        # Cannot use with here, we want the subprocess to stay around
+        # pylint: disable=consider-using-with
+        self._p = subprocess.Popen(all_args)
+        while not os.path.exists(self.pidfile):
+            if self._p.poll() is not None:
+                cmd = ' '.join(all_args)
+                raise RuntimeError(
+                    'qemu-storage-daemon terminated with exit code ' +
+                    f'{self._p.returncode}: {cmd}')
+
+            time.sleep(0.01)
+
+        with open(self.pidfile, encoding='utf-8') as f:
+            self._pid = int(f.read().strip())
+
+        assert self._pid == self._p.pid
+
+    def stop(self, kill_signal=15):
+        self._p.send_signal(kill_signal)
+        self._p.wait()
+        self._p = None
+
+        try:
+            os.remove(self.pidfile)
+        except OSError:
+            pass
+
+    def __del__(self):
+        if self._p is not None:
+            self.stop(kill_signal=9)
 
 
 def qemu_nbd(*args):
