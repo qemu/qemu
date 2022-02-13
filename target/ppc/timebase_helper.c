@@ -63,16 +63,6 @@ void helper_store_purr(CPUPPCState *env, target_ulong val)
 }
 #endif
 
-target_ulong helper_load_601_rtcl(CPUPPCState *env)
-{
-    return cpu_ppc601_load_rtcl(env);
-}
-
-target_ulong helper_load_601_rtcu(CPUPPCState *env)
-{
-    return cpu_ppc601_load_rtcu(env);
-}
-
 #if !defined(CONFIG_USER_ONLY)
 void helper_store_tbl(CPUPPCState *env, target_ulong val)
 {
@@ -92,16 +82,6 @@ void helper_store_atbl(CPUPPCState *env, target_ulong val)
 void helper_store_atbu(CPUPPCState *env, target_ulong val)
 {
     cpu_ppc_store_atbu(env, val);
-}
-
-void helper_store_601_rtcl(CPUPPCState *env, target_ulong val)
-{
-    cpu_ppc601_store_rtcl(env, val);
-}
-
-void helper_store_601_rtcu(CPUPPCState *env, target_ulong val)
-{
-    cpu_ppc601_store_rtcu(env, val);
 }
 
 target_ulong helper_load_decr(CPUPPCState *env)

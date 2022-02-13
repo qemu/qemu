@@ -327,13 +327,9 @@ static int ppc_radix64_partition_scoped_xlate(PowerPCCPU *cpu,
     uint64_t pte;
 
     qemu_log_mask(CPU_LOG_MMU, "%s for %s @0x%"VADDR_PRIx
-                  " mmu_idx %u (prot %c%c%c) 0x%"HWADDR_PRIx"\n",
+                  " mmu_idx %u 0x%"HWADDR_PRIx"\n",
                   __func__, access_str(access_type),
-                  eaddr, mmu_idx,
-                  *h_prot & PAGE_READ ? 'r' : '-',
-                  *h_prot & PAGE_WRITE ? 'w' : '-',
-                  *h_prot & PAGE_EXEC ? 'x' : '-',
-                  g_raddr);
+                  eaddr, mmu_idx, g_raddr);
 
     *h_page_size = PRTBE_R_GET_RTS(pate.dw0);
     /* No valid pte or access denied due to protection */

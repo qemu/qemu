@@ -1083,27 +1083,6 @@ clk_setup_cb cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq)
     return &cpu_ppc_set_tb_clk;
 }
 
-/* Specific helpers for POWER & PowerPC 601 RTC */
-void cpu_ppc601_store_rtcu (CPUPPCState *env, uint32_t value)
-{
-    _cpu_ppc_store_tbu(env, value);
-}
-
-uint32_t cpu_ppc601_load_rtcu (CPUPPCState *env)
-{
-    return _cpu_ppc_load_tbu(env);
-}
-
-void cpu_ppc601_store_rtcl (CPUPPCState *env, uint32_t value)
-{
-    cpu_ppc_store_tbl(env, value & 0x3FFFFF80);
-}
-
-uint32_t cpu_ppc601_load_rtcl (CPUPPCState *env)
-{
-    return cpu_ppc_load_tbl(env) & 0x3FFFFF80;
-}
-
 /*****************************************************************************/
 /* PowerPC 40x timers */
 

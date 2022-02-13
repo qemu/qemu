@@ -211,21 +211,6 @@ void helper_store_lpidr(CPUPPCState *env, target_ulong val)
     tlb_flush(env_cpu(env));
 }
 
-void helper_store_hid0_601(CPUPPCState *env, target_ulong val)
-{
-    target_ulong hid0;
-
-    hid0 = env->spr[SPR_HID0];
-    env->spr[SPR_HID0] = (uint32_t)val;
-
-    if ((val ^ hid0) & 0x00000008) {
-        /* Change current endianness */
-        hreg_compute_hflags(env);
-        qemu_log("%s: set endianness to %c => %08x\n", __func__,
-                 val & 0x8 ? 'l' : 'b', env->hflags);
-    }
-}
-
 void helper_store_40x_dbcr0(CPUPPCState *env, target_ulong val)
 {
     /* Bits 26 & 27 affect single-stepping. */
@@ -239,31 +224,6 @@ void helper_store_40x_sler(CPUPPCState *env, target_ulong val)
     store_40x_sler(env, val);
 }
 #endif
-/*****************************************************************************/
-/* PowerPC 601 specific instructions (POWER bridge) */
-
-target_ulong helper_clcs(CPUPPCState *env, uint32_t arg)
-{
-    switch (arg) {
-    case 0x0CUL:
-        /* Instruction cache line size */
-        return env->icache_line_size;
-    case 0x0DUL:
-        /* Data cache line size */
-        return env->dcache_line_size;
-    case 0x0EUL:
-        /* Minimum cache line size */
-        return (env->icache_line_size < env->dcache_line_size) ?
-            env->icache_line_size : env->dcache_line_size;
-    case 0x0FUL:
-        /* Maximum cache line size */
-        return (env->icache_line_size > env->dcache_line_size) ?
-            env->icache_line_size : env->dcache_line_size;
-    default:
-        /* Undefined */
-        return 0;
-    }
-}
 
 /*****************************************************************************/
 /* Special registers manipulation */
