@@ -27,6 +27,7 @@ typedef struct CPUHexagonState CPUHexagonState;
 #include "hex_regs.h"
 #include "mmvec/mmvec.h"
 #include "qom/object.h"
+#include "hw/core/cpu.h"
 
 #define NUM_PREGS 4
 #define TOTAL_PER_THREAD_REGS 64
