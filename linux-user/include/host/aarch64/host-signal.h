@@ -11,6 +11,9 @@
 #ifndef AARCH64_HOST_SIGNAL_H
 #define AARCH64_HOST_SIGNAL_H
 
+/* The third argument to a SA_SIGINFO handler is ucontext_t. */
+typedef ucontext_t host_sigcontext;
+
 /* Pre-3.16 kernel headers don't have these, so provide fallback definitions */
 #ifndef ESR_MAGIC
 #define ESR_MAGIC 0x45535201
@@ -20,7 +23,7 @@ struct esr_context {
 };
 #endif
 
-static inline struct _aarch64_ctx *first_ctx(ucontext_t *uc)
+static inline struct _aarch64_ctx *first_ctx(host_sigcontext *uc)
 {
     return (struct _aarch64_ctx *)&uc->uc_mcontext.__reserved;
 }
@@ -30,17 +33,22 @@ static inline struct _aarch64_ctx *next_ctx(struct _aarch64_ctx *hdr)
     return (struct _aarch64_ctx *)((char *)hdr + hdr->size);
 }
 
-static inline uintptr_t host_signal_pc(ucontext_t *uc)
+static inline uintptr_t host_signal_pc(host_sigcontext *uc)
 {
     return uc->uc_mcontext.pc;
 }
 
-static inline void host_signal_set_pc(ucontext_t *uc, uintptr_t pc)
+static inline void host_signal_set_pc(host_sigcontext *uc, uintptr_t pc)
 {
     uc->uc_mcontext.pc = pc;
 }
 
-static inline bool host_signal_write(siginfo_t *info, ucontext_t *uc)
+static inline void *host_signal_mask(host_sigcontext *uc)
+{
+    return &uc->uc_sigmask;
+}
+
+static inline bool host_signal_write(siginfo_t *info, host_sigcontext *uc)
 {
     struct _aarch64_ctx *hdr;
     uint32_t insn;

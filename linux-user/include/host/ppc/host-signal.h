@@ -11,17 +11,25 @@
 #ifndef PPC_HOST_SIGNAL_H
 #define PPC_HOST_SIGNAL_H
 
-static inline uintptr_t host_signal_pc(ucontext_t *uc)
+/* The third argument to a SA_SIGINFO handler is ucontext_t. */
+typedef ucontext_t host_sigcontext;
+
+static inline uintptr_t host_signal_pc(host_sigcontext *uc)
 {
     return uc->uc_mcontext.regs->nip;
 }
 
-static inline void host_signal_set_pc(ucontext_t *uc, uintptr_t pc)
+static inline void host_signal_set_pc(host_sigcontext *uc, uintptr_t pc)
 {
     uc->uc_mcontext.regs->nip = pc;
 }
 
-static inline bool host_signal_write(siginfo_t *info, ucontext_t *uc)
+static inline void *host_signal_mask(host_sigcontext *uc)
+{
+    return &uc->uc_sigmask;
+}
+
+static inline bool host_signal_write(siginfo_t *info, host_sigcontext *uc)
 {
     return uc->uc_mcontext.regs->trap != 0x400
         && (uc->uc_mcontext.regs->dsisr & 0x02000000);
