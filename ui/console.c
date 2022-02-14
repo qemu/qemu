@@ -2400,13 +2400,12 @@ static void vc_chr_open(Chardev *chr,
 
 void qemu_console_resize(QemuConsole *s, int width, int height)
 {
-    DisplaySurface *surface = qemu_console_surface(s);
+    DisplaySurface *surface;
 
     assert(s->console_type == GRAPHIC_CONSOLE);
 
-    if (surface && (surface->flags & QEMU_ALLOCATED_FLAG) &&
-        pixman_image_get_width(surface->image) == width &&
-        pixman_image_get_height(surface->image) == height) {
+    if (qemu_console_get_width(s, -1) == width &&
+        qemu_console_get_height(s, -1) == height) {
         return;
     }
 
