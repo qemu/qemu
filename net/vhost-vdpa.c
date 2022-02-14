@@ -263,7 +263,8 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
 {
     const NetdevVhostVDPAOptions *opts;
     int vdpa_device_fd;
-    NetClientState **ncs, *nc;
+    g_autofree NetClientState **ncs = NULL;
+    NetClientState *nc;
     int queue_pairs, i, has_cvq = 0;
 
     assert(netdev->type == NET_CLIENT_DRIVER_VHOST_VDPA);
@@ -301,7 +302,6 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
             goto err;
     }
 
-    g_free(ncs);
     return 0;
 
 err:
@@ -309,7 +309,6 @@ err:
         qemu_del_net_client(ncs[0]);
     }
     qemu_close(vdpa_device_fd);
-    g_free(ncs);
 
     return -1;
 }
