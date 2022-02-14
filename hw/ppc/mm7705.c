@@ -11,6 +11,7 @@
 #include "hw/ssi/pl022.h"
 #include "hw/ssi/ssi.h"
 #include "hw/net/greth.h"
+#include "hw/sd/keyasic_sd.h"
 #include "hw/irq.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
@@ -33,6 +34,8 @@ typedef struct {
 
     GRETHState greth[3];
     GRETHState gb_greth[2];
+
+    KeyasicSdState sdio;
 } MM7705MachineState;
 
 #define TYPE_MM7705_MACHINE MACHINE_TYPE_NAME("mm7705")
@@ -459,6 +462,14 @@ static void mm7705_init(MachineState *machine)
         memory_region_add_subregion(get_system_memory(), 0x103c034000,
                                     sysbus_mmio_get_region(busdev, 0));
         sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(DEVICE(&s->mpic), 108));
+    }
+
+    {
+        object_initialize_child(OBJECT(s), "sdio", &s->sdio, TYPE_KEYASIC_SD);
+        sysbus_realize(SYS_BUS_DEVICE(&s->sdio), &error_fatal);
+        SysBusDevice *busdev = SYS_BUS_DEVICE(&s->sdio);
+        memory_region_add_subregion(get_system_memory(), 0x103c064000,
+                                    sysbus_mmio_get_region(busdev, 0));
     }
 
     {
