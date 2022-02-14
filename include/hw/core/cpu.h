@@ -55,6 +55,24 @@ typedef struct CPUClass CPUClass;
 DECLARE_CLASS_CHECKERS(CPUClass, CPU,
                        TYPE_CPU)
 
+/**
+ * OBJECT_DECLARE_CPU_TYPE:
+ * @CpuInstanceType: instance struct name
+ * @CpuClassType: class struct name
+ * @CPU_MODULE_OBJ_NAME: the CPU name in uppercase with underscore separators
+ *
+ * This macro is typically used in "cpu-qom.h" header file, and will:
+ *
+ *   - create the typedefs for the CPU object and class structs
+ *   - register the type for use with g_autoptr
+ *   - provide three standard type cast functions
+ *
+ * The object struct and class struct need to be declared manually.
+ */
+#define OBJECT_DECLARE_CPU_TYPE(CpuInstanceType, CpuClassType, CPU_MODULE_OBJ_NAME) \
+    OBJECT_DECLARE_TYPE(CpuInstanceType, CpuClassType, CPU_MODULE_OBJ_NAME); \
+    typedef CpuInstanceType ArchCPU;
+
 typedef enum MMUAccessType {
     MMU_DATA_LOAD  = 0,
     MMU_DATA_STORE = 1,

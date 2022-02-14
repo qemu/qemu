@@ -25,8 +25,7 @@
 
 #define TYPE_MICROBLAZE_CPU "microblaze-cpu"
 
-OBJECT_DECLARE_TYPE(MicroBlazeCPU, MicroBlazeCPUClass,
-                    MICROBLAZE_CPU)
+OBJECT_DECLARE_CPU_TYPE(MicroBlazeCPU, MicroBlazeCPUClass, MICROBLAZE_CPU)
 
 /**
  * MicroBlazeCPUClass:

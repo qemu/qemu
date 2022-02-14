@@ -283,8 +283,6 @@ int alpha_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 
 #define cpu_list alpha_cpu_list
 
-typedef AlphaCPU ArchCPU;
-
 #include "exec/cpu-all.h"
 
 enum {

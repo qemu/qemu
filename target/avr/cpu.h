@@ -143,14 +143,14 @@ typedef struct CPUArchState {
  *
  *  A AVR CPU.
  */
-typedef struct AVRCPU {
+struct AVRCPU {
     /*< private >*/
     CPUState parent_obj;
     /*< public >*/
 
     CPUNegativeOffsetState neg;
     CPUAVRState env;
-} AVRCPU;
+};
 
 extern const struct VMStateDescription vms_avr_cpu;
 
@@ -244,8 +244,6 @@ static inline void cpu_set_sreg(CPUAVRState *env, uint8_t sreg)
 bool avr_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                       MMUAccessType access_type, int mmu_idx,
                       bool probe, uintptr_t retaddr);
-
-typedef AVRCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

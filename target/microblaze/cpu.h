@@ -394,8 +394,6 @@ void mb_tcg_init(void);
 #define MMU_USER_IDX    2
 /* See NB_MMU_MODES further up the file.  */
 
-typedef MicroBlazeCPU ArchCPU;
-
 #include "exec/cpu-all.h"
 
 /* Ensure there is no overlap between the two masks. */

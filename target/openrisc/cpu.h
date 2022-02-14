@@ -24,13 +24,9 @@
 #include "hw/core/cpu.h"
 #include "qom/object.h"
 
-/* cpu_openrisc_map_address_* in CPUOpenRISCTLBContext need this decl.  */
-struct OpenRISCCPU;
-
 #define TYPE_OPENRISC_CPU "or1k-cpu"
 
-OBJECT_DECLARE_TYPE(OpenRISCCPU, OpenRISCCPUClass,
-                    OPENRISC_CPU)
+OBJECT_DECLARE_CPU_TYPE(OpenRISCCPU, OpenRISCCPUClass, OPENRISC_CPU)
 
 /**
  * OpenRISCCPUClass:
@@ -347,8 +343,6 @@ void cpu_openrisc_count_stop(OpenRISCCPU *cpu);
 #define OPENRISC_CPU_TYPE_SUFFIX "-" TYPE_OPENRISC_CPU
 #define OPENRISC_CPU_TYPE_NAME(model) model OPENRISC_CPU_TYPE_SUFFIX
 #define CPU_RESOLVING_TYPE TYPE_OPENRISC_CPU
-
-typedef OpenRISCCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

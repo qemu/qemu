@@ -29,8 +29,7 @@
 #define TYPE_SPARC_CPU "sparc-cpu"
 #endif
 
-OBJECT_DECLARE_TYPE(SPARCCPU, SPARCCPUClass,
-                    SPARC_CPU)
+OBJECT_DECLARE_CPU_TYPE(SPARCCPU, SPARCCPUClass, SPARC_CPU)
 
 typedef struct sparc_def_t sparc_def_t;
 /**

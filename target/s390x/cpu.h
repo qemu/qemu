@@ -840,8 +840,6 @@ uint64_t s390_cpu_get_psw_mask(CPUS390XState *env);
 /* outside of target/s390x/ */
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
 
-typedef S390CPU ArchCPU;
-
 #include "exec/cpu-all.h"
 
 #endif

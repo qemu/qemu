@@ -130,7 +130,7 @@ typedef struct CPUArchState {
     VTCMStoreLog vtcm_log;
 } CPUHexagonState;
 
-OBJECT_DECLARE_TYPE(HexagonCPU, HexagonCPUClass, HEXAGON_CPU)
+OBJECT_DECLARE_CPU_TYPE(HexagonCPU, HexagonCPUClass, HEXAGON_CPU)
 
 typedef struct HexagonCPUClass {
     /*< private >*/
@@ -140,7 +140,7 @@ typedef struct HexagonCPUClass {
     DeviceReset parent_reset;
 } HexagonCPUClass;
 
-typedef struct HexagonCPU {
+struct HexagonCPU {
     /*< private >*/
     CPUState parent_obj;
     /*< public >*/
@@ -149,7 +149,7 @@ typedef struct HexagonCPU {
 
     bool lldb_compat;
     target_ulong lldb_stack_adjust;
-} HexagonCPU;
+};
 
 #include "cpu_bits.h"
 

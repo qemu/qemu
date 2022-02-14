@@ -2074,8 +2074,6 @@ static inline int cpu_mmu_index_kernel(CPUX86State *env)
 #define CC_SRC2 (env->cc_src2)
 #define CC_OP   (env->cc_op)
 
-typedef X86CPU ArchCPU;
-
 #include "exec/cpu-all.h"
 #include "svm.h"
 

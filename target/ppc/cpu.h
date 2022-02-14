@@ -1477,8 +1477,6 @@ void ppc_compat_add_property(Object *obj, const char *name,
                              uint32_t *compat_pvr, const char *basedesc);
 #endif /* defined(TARGET_PPC64) */
 
-typedef PowerPCCPU ArchCPU;
-
 #include "exec/cpu-all.h"
 
 /*****************************************************************************/

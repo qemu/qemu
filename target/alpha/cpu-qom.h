@@ -25,8 +25,7 @@
 
 #define TYPE_ALPHA_CPU "alpha-cpu"
 
-OBJECT_DECLARE_TYPE(AlphaCPU, AlphaCPUClass,
-                    ALPHA_CPU)
+OBJECT_DECLARE_CPU_TYPE(AlphaCPU, AlphaCPUClass, ALPHA_CPU)
 
 /**
  * AlphaCPUClass:

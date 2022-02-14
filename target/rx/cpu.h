@@ -114,8 +114,6 @@ struct RXCPU {
     CPURXState env;
 };
 
-typedef RXCPU ArchCPU;
-
 #define RX_CPU_TYPE_SUFFIX "-" TYPE_RX_CPU
 #define RX_CPU_TYPE_NAME(model) model RX_CPU_TYPE_SUFFIX
 #define CPU_RESOLVING_TYPE TYPE_RX_CPU

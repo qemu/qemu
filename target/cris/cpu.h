@@ -265,8 +265,6 @@ static inline int cpu_mmu_index (CPUCRISState *env, bool ifetch)
 #define SFR_RW_MM_TLB_LO   env->pregs[PR_SRS]][5
 #define SFR_RW_MM_TLB_HI   env->pregs[PR_SRS]][6
 
-typedef CRISCPU ArchCPU;
-
 #include "exec/cpu-all.h"
 
 static inline void cpu_get_tb_cpu_state(CPUCRISState *env, target_ulong *pc,

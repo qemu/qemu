@@ -223,8 +223,6 @@ struct HPPACPU {
     QEMUTimer *alarm_timer;
 };
 
-typedef HPPACPU ArchCPU;
-
 #include "exec/cpu-all.h"
 
 static inline int cpu_mmu_index(CPUHPPAState *env, bool ifetch)

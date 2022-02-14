@@ -743,8 +743,6 @@ static inline int cpu_pil_allowed(CPUSPARCState *env1, int pil)
 #endif
 }
 
-typedef SPARCCPU ArchCPU;
-
 #include "exec/cpu-all.h"
 
 #ifdef TARGET_SPARC64

@@ -1217,8 +1217,6 @@ static inline int cpu_mmu_index(CPUMIPSState *env, bool ifetch)
     return hflags_mmu_index(env->hflags);
 }
 
-typedef MIPSCPU ArchCPU;
-
 #include "exec/cpu-all.h"
 
 /* Exceptions */

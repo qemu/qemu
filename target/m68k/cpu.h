@@ -574,8 +574,6 @@ void m68k_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
                                  int mmu_idx, MemTxAttrs attrs,
                                  MemTxResult response, uintptr_t retaddr);
 
-typedef M68kCPU ArchCPU;
-
 #include "exec/cpu-all.h"
 
 /* TB flags */

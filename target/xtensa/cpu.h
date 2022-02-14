@@ -722,8 +722,6 @@ static inline int cpu_mmu_index(CPUXtensaState *env, bool ifetch)
 #define XTENSA_CSBASE_LBEG_OFF_MASK 0x00ff0000
 #define XTENSA_CSBASE_LBEG_OFF_SHIFT 16
 
-typedef XtensaCPU ArchCPU;
-
 #include "exec/cpu-all.h"
 
 static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,

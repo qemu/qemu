@@ -264,8 +264,6 @@ static inline int cpu_mmu_index (CPUSH4State *env, bool ifetch)
     }
 }
 
-typedef SuperHCPU ArchCPU;
-
 #include "exec/cpu-all.h"
 
 /* MMU control register */

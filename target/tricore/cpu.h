@@ -368,8 +368,6 @@ static inline int cpu_mmu_index(CPUTriCoreState *env, bool ifetch)
     return 0;
 }
 
-typedef TriCoreCPU ArchCPU;
-
 #include "exec/cpu-all.h"
 
 void cpu_state_reset(CPUTriCoreState *s);
