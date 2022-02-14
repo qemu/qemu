@@ -216,6 +216,7 @@ int cmos_get_fd_drive_type(FloppyDriveType fd0)
 
 static void fdc_isa_build_aml(ISADevice *isadev, Aml *scope)
 {
+    FDCtrlISABus *isa = ISA_FDC(isadev);
     Aml *dev;
     Aml *crs;
     int i;
@@ -227,11 +228,13 @@ static void fdc_isa_build_aml(ISADevice *isadev, Aml *scope)
     };
 
     crs = aml_resource_template();
-    aml_append(crs, aml_io(AML_DECODE16, 0x03F2, 0x03F2, 0x00, 0x04));
-    aml_append(crs, aml_io(AML_DECODE16, 0x03F7, 0x03F7, 0x00, 0x01));
-    aml_append(crs, aml_irq_no_flags(6));
     aml_append(crs,
-        aml_dma(AML_COMPATIBILITY, AML_NOTBUSMASTER, AML_TRANSFER8, 2));
+        aml_io(AML_DECODE16, isa->iobase + 2, isa->iobase + 2, 0x00, 0x04));
+    aml_append(crs,
+        aml_io(AML_DECODE16, isa->iobase + 7, isa->iobase + 7, 0x00, 0x01));
+    aml_append(crs, aml_irq_no_flags(isa->irq));
+    aml_append(crs,
+        aml_dma(AML_COMPATIBILITY, AML_NOTBUSMASTER, AML_TRANSFER8, isa->dma));
 
     dev = aml_device("FDC0");
     aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0700")));
