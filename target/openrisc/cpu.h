@@ -297,7 +297,7 @@ typedef struct CPUArchState {
  *
  * A OpenRISC CPU.
  */
-struct OpenRISCCPU {
+struct ArchCPU {
     /*< private >*/
     CPUState parent_obj;
     /*< public >*/

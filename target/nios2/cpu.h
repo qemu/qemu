@@ -169,7 +169,7 @@ struct CPUArchState {
  *
  * A Nios2 CPU.
  */
-struct Nios2CPU {
+struct ArchCPU {
     /*< private >*/
     CPUState parent_obj;
     /*< public >*/

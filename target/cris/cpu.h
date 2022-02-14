@@ -173,7 +173,7 @@ typedef struct CPUArchState {
  *
  * A CRIS CPU.
  */
-struct CRISCPU {
+struct ArchCPU {
     /*< private >*/
     CPUState parent_obj;
     /*< public >*/

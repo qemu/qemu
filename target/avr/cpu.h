@@ -143,7 +143,7 @@ typedef struct CPUArchState {
  *
  *  A AVR CPU.
  */
-struct AVRCPU {
+struct ArchCPU {
     /*< private >*/
     CPUState parent_obj;
     /*< public >*/
