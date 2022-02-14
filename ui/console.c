@@ -1860,7 +1860,9 @@ void dpy_gl_scanout_disable(QemuConsole *con)
         con->scanout.kind = SCANOUT_NONE;
     }
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        dcl->ops->dpy_gl_scanout_disable(dcl);
+        if (dcl->ops->dpy_gl_scanout_disable) {
+            dcl->ops->dpy_gl_scanout_disable(dcl);
+        }
     }
 }
 
@@ -1881,10 +1883,12 @@ void dpy_gl_scanout_texture(QemuConsole *con,
         x, y, width, height
     };
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        dcl->ops->dpy_gl_scanout_texture(dcl, backing_id,
-                                         backing_y_0_top,
-                                         backing_width, backing_height,
-                                         x, y, width, height);
+        if (dcl->ops->dpy_gl_scanout_texture) {
+            dcl->ops->dpy_gl_scanout_texture(dcl, backing_id,
+                                             backing_y_0_top,
+                                             backing_width, backing_height,
+                                             x, y, width, height);
+        }
     }
 }
 
@@ -1897,7 +1901,9 @@ void dpy_gl_scanout_dmabuf(QemuConsole *con,
     con->scanout.kind = SCANOUT_DMABUF;
     con->scanout.dmabuf = dmabuf;
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        dcl->ops->dpy_gl_scanout_dmabuf(dcl, dmabuf);
+        if (dcl->ops->dpy_gl_scanout_dmabuf) {
+            dcl->ops->dpy_gl_scanout_dmabuf(dcl, dmabuf);
+        }
     }
 }
 
@@ -1951,7 +1957,9 @@ void dpy_gl_update(QemuConsole *con,
 
     graphic_hw_gl_block(con, true);
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        dcl->ops->dpy_gl_update(dcl, x, y, w, h);
+        if (dcl->ops->dpy_gl_update) {
+            dcl->ops->dpy_gl_update(dcl, x, y, w, h);
+        }
     }
     graphic_hw_gl_block(con, false);
 }
