@@ -23,3 +23,6 @@ config SDHCI_PCI
 config CADENCE_SDHCI
     bool
     select SDHCI
+
+config KEYASIC_SD
+    bool
