@@ -839,7 +839,7 @@ static void test_override_scsi_hot_unplug(void)
 
     joined_args = g_strjoinv(" ", args->argv);
 
-    qts = qtest_init(joined_args);
+    qts = qtest_initf("-machine pc %s", joined_args);
     fw_cfg = pc_fw_cfg_init(qts);
 
     read_bootdevices(fw_cfg, expected);
@@ -899,7 +899,7 @@ static void test_override_virtio_hot_unplug(void)
 
     joined_args = g_strjoinv(" ", args->argv);
 
-    qts = qtest_init(joined_args);
+    qts = qtest_initf("-machine pc %s", joined_args);
     fw_cfg = pc_fw_cfg_init(qts);
 
     read_bootdevices(fw_cfg, expected);

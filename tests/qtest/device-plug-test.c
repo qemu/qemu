@@ -63,7 +63,15 @@ static void wait_device_deleted_event(QTestState *qtest, const char *id)
 
 static void test_pci_unplug_request(void)
 {
-    QTestState *qtest = qtest_initf("-device virtio-mouse-pci,id=dev0");
+    const char *arch = qtest_get_arch();
+    const char *machine_addition = "";
+
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        machine_addition = "-machine pc";
+    }
+
+    QTestState *qtest = qtest_initf("%s -device virtio-mouse-pci,id=dev0",
+                                    machine_addition);
 
     /*
      * Request device removal. As the guest is not running, the request won't
@@ -79,8 +87,16 @@ static void test_pci_unplug_request(void)
 
 static void test_pci_unplug_json_request(void)
 {
+    const char *arch = qtest_get_arch();
+    const char *machine_addition = "";
+
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        machine_addition = "-machine pc";
+    }
+
     QTestState *qtest = qtest_initf(
-        "-device '{\"driver\": \"virtio-mouse-pci\", \"id\": \"dev0\"}'");
+        "%s -device '{\"driver\": \"virtio-mouse-pci\", \"id\": \"dev0\"}'",
+        machine_addition);
 
     /*
      * Request device removal. As the guest is not running, the request won't

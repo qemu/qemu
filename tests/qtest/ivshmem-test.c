@@ -385,7 +385,12 @@ static void test_ivshmem_hotplug(void)
     QTestState *qts;
     const char *arch = qtest_get_arch();
 
-    qts = qtest_init("-object memory-backend-ram,size=1M,id=mb1");
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        qts = qtest_init("-object memory-backend-ram,size=1M,id=mb1"
+                         " -machine pc");
+    } else {
+        qts = qtest_init("-object memory-backend-ram,size=1M,id=mb1");
+    }
 
     qtest_qmp_device_add(qts, "ivshmem-plain", "iv1",
                          "{'addr': %s, 'memdev': 'mb1'}",

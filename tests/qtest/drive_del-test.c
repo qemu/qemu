@@ -235,14 +235,21 @@ static void test_drive_del_device_del(void)
 static void test_cli_device_del(void)
 {
     QTestState *qts;
+    const char *arch = qtest_get_arch();
+    const char *machine_addition = "";
+
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        machine_addition = "-machine pc";
+    }
 
     /*
      * -drive/-device and device_del.  Start with a drive used by a
      * device that unplugs after reset.
      */
-    qts = qtest_initf("-drive if=none,id=drive0,file=null-co://,"
+    qts = qtest_initf("%s -drive if=none,id=drive0,file=null-co://,"
                       "file.read-zeroes=on,format=raw"
                       " -device virtio-blk-%s,drive=drive0,id=dev0",
+                      machine_addition,
                       qvirtio_get_dev_type());
 
     device_del(qts, true);
@@ -266,13 +273,19 @@ static void test_empty_device_del(void)
 static void test_device_add_and_del(void)
 {
     QTestState *qts;
+    const char *arch = qtest_get_arch();
+    const char *machine_addition = "";
+
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        machine_addition = "-machine pc";
+    }
 
     /*
      * -drive/device_add and device_del.  Start with a drive used by a
      * device that unplugs after reset.
      */
-    qts = qtest_init("-drive if=none,id=drive0,file=null-co://,"
-                     "file.read-zeroes=on,format=raw");
+    qts = qtest_initf("%s -drive if=none,id=drive0,file=null-co://,"
+                     "file.read-zeroes=on,format=raw", machine_addition);
 
     device_add(qts);
     device_del(qts, true);
@@ -284,8 +297,14 @@ static void test_device_add_and_del(void)
 static void test_drive_add_device_add_and_del(void)
 {
     QTestState *qts;
+    const char *arch = qtest_get_arch();
+    const char *machine_addition = "";
 
-    qts = qtest_init("");
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        machine_addition = "-machine pc";
+    }
+
+    qts = qtest_init(machine_addition);
 
     /*
      * drive_add/device_add and device_del.  The drive is used by a
@@ -302,8 +321,14 @@ static void test_drive_add_device_add_and_del(void)
 static void test_blockdev_add_device_add_and_del(void)
 {
     QTestState *qts;
+    const char *arch = qtest_get_arch();
+    const char *machine_addition = "";
 
-    qts = qtest_init("");
+    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        machine_addition = "-machine pc";
+    }
+
+    qts = qtest_init(machine_addition);
 
     /*
      * blockdev_add/device_add and device_del.  The it drive is used by a
