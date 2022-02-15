@@ -691,7 +691,6 @@ if get_option('tcg').allowed()
   endif
   if get_option('tcg_interpreter')
     tcg_arch = 'tci'
-    config_host += { 'CONFIG_TCG_INTERPRETER': 'y' }
   elif host_arch == 'x86_64'
     tcg_arch = 'i386'
   elif host_arch == 'ppc64'
@@ -701,7 +700,6 @@ if get_option('tcg').allowed()
                         language: all_languages)
 
   accelerators += 'CONFIG_TCG'
-  config_host += { 'CONFIG_TCG': 'y' }
 endif
 
 if 'CONFIG_KVM' not in accelerators and get_option('kvm').enabled()
@@ -2132,6 +2130,10 @@ if seccomp.found()
 endif
 config_host_data.set('CONFIG_SNAPPY', snappy.found())
 config_host_data.set('CONFIG_SOLARIS', targetos == 'sunos')
+if get_option('tcg').allowed()
+  config_host_data.set('CONFIG_TCG', 1)
+  config_host_data.set('CONFIG_TCG_INTERPRETER', tcg_arch == 'tci')
+endif
 config_host_data.set('CONFIG_TPM', have_tpm)
 config_host_data.set('CONFIG_TSAN', get_option('tsan'))
 config_host_data.set('CONFIG_USB_LIBUSB', libusb.found())
@@ -2759,12 +2761,6 @@ if targetos == 'windows' and 'cpp' in all_languages
   have_vss_sdk = cxx.has_header('vscoordint.h')
 endif
 config_host_data.set('HAVE_VSS_SDK', have_vss_sdk)
-
-foreach k, v: config_host
-  if k.startswith('CONFIG_')
-    config_host_data.set(k, v == 'y' ? 1 : v)
-  endif
-endforeach
 
 # Older versions of MinGW do not import _lock_file and _unlock_file properly.
 # This was fixed for v6.0.0 with commit b48e3ac8969d.
