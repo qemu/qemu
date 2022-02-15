@@ -128,10 +128,11 @@ static char debug_path[] = "/tmp/qtest-blkdebug.XXXXXX";
 static QTestState *ide_test_start(const char *cmdline_fmt, ...)
 {
     QTestState *qts;
+    g_autofree char *full_fmt = g_strdup_printf("-machine pc %s", cmdline_fmt);
     va_list ap;
 
     va_start(ap, cmdline_fmt);
-    qts = qtest_vinitf(cmdline_fmt, ap);
+    qts = qtest_vinitf(full_fmt, ap);
     va_end(ap);
 
     pc_alloc_init(&guest_malloc, qts, 0);

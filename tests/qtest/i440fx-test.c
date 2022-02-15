@@ -35,7 +35,7 @@ static QPCIBus *test_start_get_bus(const TestData *s)
 {
     char *cmdline;
 
-    cmdline = g_strdup_printf("-smp %d", s->num_cpus);
+    cmdline = g_strdup_printf("-machine pc -smp %d", s->num_cpus);
     qtest_start(cmdline);
     g_free(cmdline);
     return qpci_new_pc(global_qtest, NULL);
