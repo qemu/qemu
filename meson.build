@@ -173,11 +173,13 @@ endif
 
 qemu_cflags = config_host['QEMU_CFLAGS'].split()
 qemu_cxxflags = config_host['QEMU_CXXFLAGS'].split()
+qemu_objcflags = config_host['QEMU_OBJCFLAGS'].split()
 qemu_ldflags = config_host['QEMU_LDFLAGS'].split()
 
 if get_option('gprof')
   qemu_cflags += ['-p']
   qemu_cxxflags += ['-p']
+  qemu_objcflags += ['-p']
   qemu_ldflags += ['-p']
 endif
 
@@ -216,8 +218,9 @@ if get_option('fuzzing')
   endif
 endif
 
-add_global_arguments(qemu_cflags, native: false, language: ['c', 'objc'])
+add_global_arguments(qemu_cflags, native: false, language: ['c'])
 add_global_arguments(qemu_cxxflags, native: false, language: ['cpp'])
+add_global_arguments(qemu_objcflags, native: false, language: ['objc'])
 add_global_link_arguments(qemu_ldflags, native: false, language: ['c', 'cpp', 'objc'])
 
 if targetos == 'linux'
@@ -3481,6 +3484,7 @@ if link_args.length() > 0
 endif
 summary_info += {'QEMU_CFLAGS':       config_host['QEMU_CFLAGS']}
 summary_info += {'QEMU_CXXFLAGS':     config_host['QEMU_CXXFLAGS']}
+summary_info += {'QEMU_OBJCFLAGS':    config_host['QEMU_OBJCFLAGS']}
 summary_info += {'QEMU_LDFLAGS':      config_host['QEMU_LDFLAGS']}
 summary_info += {'profiler':          get_option('profiler')}
 summary_info += {'link-time optimization (LTO)': get_option('b_lto')}
