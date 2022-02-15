@@ -890,6 +890,8 @@ enum NvmeStatusCodes {
     NVME_INVALID_PROT_INFO      = 0x0181,
     NVME_WRITE_TO_RO            = 0x0182,
     NVME_CMD_SIZE_LIMIT         = 0x0183,
+    NVME_INVALID_ZONE_OP        = 0x01b6,
+    NVME_NOZRWA                 = 0x01b7,
     NVME_ZONE_BOUNDARY_ERROR    = 0x01b8,
     NVME_ZONE_FULL              = 0x01b9,
     NVME_ZONE_READ_ONLY         = 0x01ba,
@@ -1345,11 +1347,25 @@ typedef struct QEMU_PACKED NvmeIdNsZoned {
     uint32_t    mor;
     uint32_t    rrl;
     uint32_t    frl;
-    uint8_t     rsvd20[2796];
+    uint8_t     rsvd12[24];
+    uint32_t    numzrwa;
+    uint16_t    zrwafg;
+    uint16_t    zrwas;
+    uint8_t     zrwacap;
+    uint8_t     rsvd53[2763];
     NvmeLBAFE   lbafe[16];
     uint8_t     rsvd3072[768];
     uint8_t     vs[256];
 } NvmeIdNsZoned;
+
+enum NvmeIdNsZonedOzcs {
+    NVME_ID_NS_ZONED_OZCS_RAZB    = 1 << 0,
+    NVME_ID_NS_ZONED_OZCS_ZRWASUP = 1 << 1,
+};
+
+enum NvmeIdNsZonedZrwacap {
+    NVME_ID_NS_ZONED_ZRWACAP_EXPFLUSHSUP = 1 << 0,
+};
 
 /*Deallocate Logical Block Features*/
 #define NVME_ID_NS_DLFEAT_GUARD_CRC(dlfeat)       ((dlfeat) & 0x10)
@@ -1404,6 +1420,7 @@ enum NvmeZoneAttr {
     NVME_ZA_FINISHED_BY_CTLR         = 1 << 0,
     NVME_ZA_FINISH_RECOMMENDED       = 1 << 1,
     NVME_ZA_RESET_RECOMMENDED        = 1 << 2,
+    NVME_ZA_ZRWA_VALID               = 1 << 3,
     NVME_ZA_ZD_EXT_VALID             = 1 << 7,
 };
 
@@ -1433,6 +1450,21 @@ enum NvmeZoneType {
     NVME_ZONE_TYPE_SEQ_WRITE         = 0x02,
 };
 
+typedef struct QEMU_PACKED NvmeZoneSendCmd {
+    uint8_t     opcode;
+    uint8_t     flags;
+    uint16_t    cid;
+    uint32_t    nsid;
+    uint32_t    rsvd8[4];
+    NvmeCmdDptr dptr;
+    uint64_t    slba;
+    uint32_t    rsvd48;
+    uint8_t     zsa;
+    uint8_t     zsflags;
+    uint8_t     rsvd54[2];
+    uint32_t    rsvd56[2];
+} NvmeZoneSendCmd;
+
 enum NvmeZoneSendAction {
     NVME_ZONE_ACTION_RSD             = 0x00,
     NVME_ZONE_ACTION_CLOSE           = 0x01,
@@ -1441,6 +1473,12 @@ enum NvmeZoneSendAction {
     NVME_ZONE_ACTION_RESET           = 0x04,
     NVME_ZONE_ACTION_OFFLINE         = 0x05,
     NVME_ZONE_ACTION_SET_ZD_EXT      = 0x10,
+    NVME_ZONE_ACTION_ZRWA_FLUSH      = 0x11,
+};
+
+enum {
+    NVME_ZSFLAG_SELECT_ALL = 1 << 0,
+    NVME_ZSFLAG_ZRWA_ALLOC = 1 << 1,
 };
 
 typedef struct QEMU_PACKED NvmeZoneDescr {

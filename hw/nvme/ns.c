@@ -266,13 +266,31 @@ static void nvme_ns_init_zoned(NvmeNamespace *ns)
     id_ns_z->mar = cpu_to_le32(ns->params.max_active_zones - 1);
     id_ns_z->mor = cpu_to_le32(ns->params.max_open_zones - 1);
     id_ns_z->zoc = 0;
-    id_ns_z->ozcs = ns->params.cross_zone_read ? 0x01 : 0x00;
+    id_ns_z->ozcs = ns->params.cross_zone_read ?
+        NVME_ID_NS_ZONED_OZCS_RAZB : 0x00;
 
     for (i = 0; i <= ns->id_ns.nlbaf; i++) {
         id_ns_z->lbafe[i].zsze = cpu_to_le64(ns->zone_size);
         id_ns_z->lbafe[i].zdes =
             ns->params.zd_extension_size >> 6; /* Units of 64B */
     }
+
+    if (ns->params.zrwas) {
+        ns->zns.numzrwa = ns->params.numzrwa ?
+            ns->params.numzrwa : ns->num_zones;
+
+        ns->zns.zrwas = ns->params.zrwas >> ns->lbaf.ds;
+        ns->zns.zrwafg = ns->params.zrwafg >> ns->lbaf.ds;
+
+        id_ns_z->ozcs |= NVME_ID_NS_ZONED_OZCS_ZRWASUP;
+        id_ns_z->zrwacap = NVME_ID_NS_ZONED_ZRWACAP_EXPFLUSHSUP;
+
+        id_ns_z->numzrwa = cpu_to_le32(ns->params.numzrwa);
+        id_ns_z->zrwas = cpu_to_le16(ns->zns.zrwas);
+        id_ns_z->zrwafg = cpu_to_le16(ns->zns.zrwafg);
+    }
+
+    id_ns_z->ozcs = cpu_to_le16(id_ns_z->ozcs);
 
     ns->csi = NVME_CSI_ZONED;
     ns->id_ns.nsze = cpu_to_le64(ns->num_zones * ns->zone_size);
@@ -314,6 +332,10 @@ static void nvme_clear_zone(NvmeNamespace *ns, NvmeZone *zone)
         QTAILQ_INSERT_HEAD(&ns->closed_zones, zone, entry);
     } else {
         trace_pci_nvme_clear_ns_reset(state, zone->d.zslba);
+        if (zone->d.za & NVME_ZA_ZRWA_VALID) {
+            zone->d.za &= ~NVME_ZA_ZRWA_VALID;
+            ns->zns.numzrwa++;
+        }
         nvme_set_zone_state(zone, NVME_ZONE_STATE_EMPTY);
     }
 }
@@ -389,6 +411,40 @@ static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
                 error_setg(errp,
                            "zone descriptor extension size is too large");
                 return -1;
+            }
+        }
+
+        if (ns->params.zrwas) {
+            if (ns->params.zrwas % ns->blkconf.logical_block_size) {
+                error_setg(errp, "zone random write area size (zoned.zrwas "
+                           "%"PRIu64") must be a multiple of the logical "
+                           "block size (logical_block_size %"PRIu32")",
+                           ns->params.zrwas, ns->blkconf.logical_block_size);
+                return -1;
+            }
+
+            if (ns->params.zrwafg == -1) {
+                ns->params.zrwafg = ns->blkconf.logical_block_size;
+            }
+
+            if (ns->params.zrwas % ns->params.zrwafg) {
+                error_setg(errp, "zone random write area size (zoned.zrwas "
+                           "%"PRIu64") must be a multiple of the zone random "
+                           "write area flush granularity (zoned.zrwafg, "
+                           "%"PRIu64")", ns->params.zrwas, ns->params.zrwafg);
+                return -1;
+            }
+
+            if (ns->params.max_active_zones) {
+                if (ns->params.numzrwa > ns->params.max_active_zones) {
+                    error_setg(errp, "number of zone random write area "
+                               "resources (zoned.numzrwa, %d) must be less "
+                               "than or equal to maximum active resources "
+                               "(zoned.max_active_zones, %d)",
+                               ns->params.numzrwa,
+                               ns->params.max_active_zones);
+                    return -1;
+                }
             }
         }
     }
@@ -550,6 +606,9 @@ static Property nvme_ns_props[] = {
                        params.max_open_zones, 0),
     DEFINE_PROP_UINT32("zoned.descr_ext_size", NvmeNamespace,
                        params.zd_extension_size, 0),
+    DEFINE_PROP_UINT32("zoned.numzrwa", NvmeNamespace, params.numzrwa, 0),
+    DEFINE_PROP_SIZE("zoned.zrwas", NvmeNamespace, params.zrwas, 0),
+    DEFINE_PROP_SIZE("zoned.zrwafg", NvmeNamespace, params.zrwafg, -1),
     DEFINE_PROP_BOOL("eui64-default", NvmeNamespace, params.eui64_default,
                      true),
     DEFINE_PROP_END_OF_LIST(),
