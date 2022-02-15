@@ -112,7 +112,8 @@ typedef enum {
 
     /*
      * If we need to wait for other requests, just fail immediately. Used
-     * only together with BDRV_REQ_SERIALISING.
+     * only together with BDRV_REQ_SERIALISING. Used only with requests aligned
+     * to request_alignment (corresponding assertions are in block/io.c).
      */
     BDRV_REQ_NO_WAIT = 0x400,
 
