@@ -41,7 +41,8 @@ const int SF_small_neg =                  0xab98fba8;
 const int SF_denorm =                     0x00000001;
 const int SF_random =                     0x346001d6;
 
-const long long DF_NaN =                  0x7ff8000000000000ULL;
+const long long DF_QNaN =                 0x7ff8000000000000ULL;
+const long long DF_SNaN =                 0x7ff7000000000000ULL;
 const long long DF_ANY =                  0x3f80000000000000ULL;
 const long long DF_HEX_NAN =              0xffffffffffffffffULL;
 const long long DF_small_neg =            0xbd731f7500000000ULL;
@@ -128,7 +129,7 @@ static void check_compare_exception(void)
          "p0 = dfcmp.eq(%2, %3)\n\t"
          "%0 = p0\n\t"
          "%1 = usr\n\t"
-         : "=r"(cmp), "=r"(usr) : "r"(DF_NaN), "r"(DF_ANY)
+         : "=r"(cmp), "=r"(usr) : "r"(DF_QNaN), "r"(DF_ANY)
          : "r2", "p0", "usr");
     check32(cmp, 0);
     check_fpstatus(usr, 0);
@@ -137,7 +138,7 @@ static void check_compare_exception(void)
          "p0 = dfcmp.gt(%2, %3)\n\t"
          "%0 = p0\n\t"
          "%1 = usr\n\t"
-         : "=r"(cmp), "=r"(usr) : "r"(DF_NaN), "r"(DF_ANY)
+         : "=r"(cmp), "=r"(usr) : "r"(DF_QNaN), "r"(DF_ANY)
          : "r2", "p0", "usr");
     check32(cmp, 0);
     check_fpstatus(usr, 0);
@@ -146,7 +147,7 @@ static void check_compare_exception(void)
          "p0 = dfcmp.ge(%2, %3)\n\t"
          "%0 = p0\n\t"
          "%1 = usr\n\t"
-         : "=r"(cmp), "=r"(usr) : "r"(DF_NaN), "r"(DF_ANY)
+         : "=r"(cmp), "=r"(usr) : "r"(DF_QNaN), "r"(DF_ANY)
          : "r2", "p0", "usr");
     check32(cmp, 0);
     check_fpstatus(usr, 0);
@@ -208,7 +209,7 @@ static void check_dfminmax(void)
     int usr;
 
     /*
-     * Execute dfmin/dfmax instructions with one operand as NaN
+     * Execute dfmin/dfmax instructions with one operand as SNaN
      * Check that
      *     Result is the other operand
      *     Invalid bit in USR is set
@@ -216,7 +217,7 @@ static void check_dfminmax(void)
      asm (CLEAR_FPSTATUS
          "%0 = dfmin(%2, %3)\n\t"
          "%1 = usr\n\t"
-         : "=r"(minmax), "=r"(usr) : "r"(DF_NaN), "r"(DF_ANY)
+         : "=r"(minmax), "=r"(usr) : "r"(DF_SNaN), "r"(DF_ANY)
          : "r2", "usr");
     check64(minmax, DF_ANY);
     check_fpstatus(usr, FPINVF);
@@ -224,13 +225,35 @@ static void check_dfminmax(void)
     asm (CLEAR_FPSTATUS
          "%0 = dfmax(%2, %3)\n\t"
          "%1 = usr\n\t"
-         : "=r"(minmax), "=r"(usr) : "r"(DF_NaN), "r"(DF_ANY)
+         : "=r"(minmax), "=r"(usr) : "r"(DF_SNaN), "r"(DF_ANY)
          : "r2", "usr");
     check64(minmax, DF_ANY);
     check_fpstatus(usr, FPINVF);
 
     /*
-     * Execute dfmin/dfmax instructions with both operands NaN
+     * Execute dfmin/dfmax instructions with one operand as QNaN
+     * Check that
+     *     Result is the other operand
+     *     No bit in USR is set
+     */
+     asm (CLEAR_FPSTATUS
+         "%0 = dfmin(%2, %3)\n\t"
+         "%1 = usr\n\t"
+         : "=r"(minmax), "=r"(usr) : "r"(DF_QNaN), "r"(DF_ANY)
+         : "r2", "usr");
+    check64(minmax, DF_ANY);
+    check_fpstatus(usr, 0);
+
+    asm (CLEAR_FPSTATUS
+         "%0 = dfmax(%2, %3)\n\t"
+         "%1 = usr\n\t"
+         : "=r"(minmax), "=r"(usr) : "r"(DF_QNaN), "r"(DF_ANY)
+         : "r2", "usr");
+    check64(minmax, DF_ANY);
+    check_fpstatus(usr, 0);
+
+    /*
+     * Execute dfmin/dfmax instructions with both operands SNaN
      * Check that
      *     Result is DF_HEX_NAN
      *     Invalid bit in USR is set
@@ -238,7 +261,7 @@ static void check_dfminmax(void)
     asm (CLEAR_FPSTATUS
          "%0 = dfmin(%2, %3)\n\t"
          "%1 = usr\n\t"
-         : "=r"(minmax), "=r"(usr) : "r"(DF_NaN), "r"(DF_NaN)
+         : "=r"(minmax), "=r"(usr) : "r"(DF_SNaN), "r"(DF_SNaN)
          : "r2", "usr");
     check64(minmax, DF_HEX_NAN);
     check_fpstatus(usr, FPINVF);
@@ -246,10 +269,32 @@ static void check_dfminmax(void)
     asm (CLEAR_FPSTATUS
          "%0 = dfmax(%2, %3)\n\t"
          "%1 = usr\n\t"
-         : "=r"(minmax), "=r"(usr) : "r"(DF_NaN), "r"(DF_NaN)
+         : "=r"(minmax), "=r"(usr) : "r"(DF_SNaN), "r"(DF_SNaN)
          : "r2", "usr");
     check64(minmax, DF_HEX_NAN);
     check_fpstatus(usr, FPINVF);
+
+    /*
+     * Execute dfmin/dfmax instructions with both operands QNaN
+     * Check that
+     *     Result is DF_HEX_NAN
+     *     No bit in USR is set
+     */
+    asm (CLEAR_FPSTATUS
+         "%0 = dfmin(%2, %3)\n\t"
+         "%1 = usr\n\t"
+         : "=r"(minmax), "=r"(usr) : "r"(DF_QNaN), "r"(DF_QNaN)
+         : "r2", "usr");
+    check64(minmax, DF_HEX_NAN);
+    check_fpstatus(usr, 0);
+
+    asm (CLEAR_FPSTATUS
+         "%0 = dfmax(%2, %3)\n\t"
+         "%1 = usr\n\t"
+         : "=r"(minmax), "=r"(usr) : "r"(DF_QNaN), "r"(DF_QNaN)
+         : "r2", "usr");
+    check64(minmax, DF_HEX_NAN);
+    check_fpstatus(usr, 0);
 }
 
 static void check_sfrecipa(void)
@@ -425,7 +470,7 @@ static void check_canonical_NaN(void)
     asm(CLEAR_FPSTATUS
         "%0 = convert_df2sf(%2)\n\t"
         "%1 = usr\n\t"
-        : "=r"(sf_result), "=r"(usr) : "r"(DF_NaN)
+        : "=r"(sf_result), "=r"(usr) : "r"(DF_QNaN)
         : "r2", "usr");
     check32(sf_result, SF_HEX_NAN);
     check_fpstatus(usr, 0);
@@ -433,7 +478,7 @@ static void check_canonical_NaN(void)
     asm(CLEAR_FPSTATUS
         "%0 = dfadd(%2, %3)\n\t"
         "%1 = usr\n\t"
-        : "=r"(df_result), "=r"(usr) : "r"(DF_NaN), "r"(DF_ANY)
+        : "=r"(df_result), "=r"(usr) : "r"(DF_QNaN), "r"(DF_ANY)
         : "r2", "usr");
     check64(df_result, DF_HEX_NAN);
     check_fpstatus(usr, 0);
@@ -441,7 +486,7 @@ static void check_canonical_NaN(void)
     asm(CLEAR_FPSTATUS
         "%0 = dfsub(%2, %3)\n\t"
         "%1 = usr\n\t"
-        : "=r"(df_result), "=r"(usr) : "r"(DF_NaN), "r"(DF_ANY)
+        : "=r"(df_result), "=r"(usr) : "r"(DF_QNaN), "r"(DF_ANY)
         : "r2", "usr");
     check64(df_result, DF_HEX_NAN);
     check_fpstatus(usr, 0);
@@ -603,7 +648,7 @@ static void check_float2int_convs()
     asm(CLEAR_FPSTATUS
         "%0 = convert_df2w(%2)\n\t"
         "%1 = usr\n\t"
-        : "=r"(res32), "=r"(usr) : "r"(DF_NaN)
+        : "=r"(res32), "=r"(usr) : "r"(DF_QNaN)
         : "r2", "usr");
     check32(res32, -1);
     check_fpstatus(usr, FPINVF);
@@ -611,7 +656,7 @@ static void check_float2int_convs()
     asm(CLEAR_FPSTATUS
         "%0 = convert_df2w(%2):chop\n\t"
         "%1 = usr\n\t"
-        : "=r"(res32), "=r"(usr) : "r"(DF_NaN)
+        : "=r"(res32), "=r"(usr) : "r"(DF_QNaN)
         : "r2", "usr");
     check32(res32, -1);
     check_fpstatus(usr, FPINVF);
@@ -619,7 +664,7 @@ static void check_float2int_convs()
     asm(CLEAR_FPSTATUS
         "%0 = convert_df2d(%2)\n\t"
         "%1 = usr\n\t"
-        : "=r"(res64), "=r"(usr) : "r"(DF_NaN)
+        : "=r"(res64), "=r"(usr) : "r"(DF_QNaN)
         : "r2", "usr");
     check64(res64, -1);
     check_fpstatus(usr, FPINVF);
@@ -627,7 +672,7 @@ static void check_float2int_convs()
     asm(CLEAR_FPSTATUS
         "%0 = convert_df2d(%2):chop\n\t"
         "%1 = usr\n\t"
-        : "=r"(res64), "=r"(usr) : "r"(DF_NaN)
+        : "=r"(res64), "=r"(usr) : "r"(DF_QNaN)
         : "r2", "usr");
     check64(res64, -1);
     check_fpstatus(usr, FPINVF);

@@ -947,7 +947,7 @@ float32 HELPER(sfmax)(CPUHexagonState *env, float32 RsV, float32 RtV)
 {
     float32 RdV;
     arch_fpop_start(env);
-    RdV = float32_maxnum(RsV, RtV, &env->fp_status);
+    RdV = float32_maximum_number(RsV, RtV, &env->fp_status);
     arch_fpop_end(env);
     return RdV;
 }
@@ -956,7 +956,7 @@ float32 HELPER(sfmin)(CPUHexagonState *env, float32 RsV, float32 RtV)
 {
     float32 RdV;
     arch_fpop_start(env);
-    RdV = float32_minnum(RsV, RtV, &env->fp_status);
+    RdV = float32_minimum_number(RsV, RtV, &env->fp_status);
     arch_fpop_end(env);
     return RdV;
 }
@@ -1040,10 +1040,7 @@ float64 HELPER(dfmax)(CPUHexagonState *env, float64 RssV, float64 RttV)
 {
     float64 RddV;
     arch_fpop_start(env);
-    RddV = float64_maxnum(RssV, RttV, &env->fp_status);
-    if (float64_is_any_nan(RssV) || float64_is_any_nan(RttV)) {
-        float_raise(float_flag_invalid, &env->fp_status);
-    }
+    RddV = float64_maximum_number(RssV, RttV, &env->fp_status);
     arch_fpop_end(env);
     return RddV;
 }
@@ -1052,10 +1049,7 @@ float64 HELPER(dfmin)(CPUHexagonState *env, float64 RssV, float64 RttV)
 {
     float64 RddV;
     arch_fpop_start(env);
-    RddV = float64_minnum(RssV, RttV, &env->fp_status);
-    if (float64_is_any_nan(RssV) || float64_is_any_nan(RttV)) {
-        float_raise(float_flag_invalid, &env->fp_status);
-    }
+    RddV = float64_minimum_number(RssV, RttV, &env->fp_status);
     arch_fpop_end(env);
     return RddV;
 }
