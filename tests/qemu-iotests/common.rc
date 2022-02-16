@@ -17,17 +17,28 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-SED=
-for sed in sed gsed; do
-    ($sed --version | grep 'GNU sed') > /dev/null 2>&1
-    if [ "$?" -eq 0 ]; then
-        SED=$sed
-        break
+# bail out, setting up .notrun file
+_notrun()
+{
+    echo "$*" >"$OUTPUT_DIR/$seq.notrun"
+    echo "$seq not run: $*"
+    status=0
+    exit
+}
+
+if ! command -v gsed >/dev/null 2>&1; then
+    if sed --version 2>&1 | grep -v 'not GNU sed' | grep 'GNU sed' > /dev/null;
+    then
+        gsed()
+        {
+            sed "$@"
+        }
+    else
+        gsed()
+        {
+            _notrun "GNU sed not available"
+        }
     fi
-done
-if [ -z "$SED" ]; then
-    echo "$0: GNU sed not found"
-    exit 1
 fi
 
 dd()
@@ -722,16 +733,6 @@ _img_info()
         done
 }
 
-# bail out, setting up .notrun file
-#
-_notrun()
-{
-    echo "$*" >"$OUTPUT_DIR/$seq.notrun"
-    echo "$seq not run: $*"
-    status=0
-    exit
-}
-
 # bail out, setting up .casenotrun file
 # The function _casenotrun() is used as a notifier. It is the
 # caller's responsibility to make skipped a particular test.
@@ -920,7 +921,7 @@ _require_working_luks()
     IMGFMT='luks' _rm_test_img "$file"
 
     if [ $status != 0 ]; then
-        reason=$(echo "$output" | grep "$file:" | $SED -e "s#.*$file: *##")
+        reason=$(echo "$output" | grep "$file:" | sed -e "s#.*$file: *##")
         if [ -z "$reason" ]; then
             reason="Failed to create a LUKS image"
         fi

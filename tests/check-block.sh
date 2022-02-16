@@ -48,18 +48,6 @@ if LANG=C bash --version | grep -q 'GNU bash, version [123]' ; then
     skip "bash version too old ==> Not running the qemu-iotests."
 fi
 
-if ! (sed --version | grep 'GNU sed') > /dev/null 2>&1 ; then
-    if ! command -v gsed >/dev/null 2>&1; then
-        skip "GNU sed not available ==> Not running the qemu-iotests."
-    fi
-else
-    # Double-check that we're not using BusyBox' sed which says
-    # that "This is not GNU sed version 4.0" ...
-    if sed --version | grep -q 'not GNU sed' ; then
-        skip "BusyBox sed not supported ==> Not running the qemu-iotests."
-    fi
-fi
-
 cd tests/qemu-iotests
 
 # QEMU_CHECK_BLOCK_AUTO is used to disable some unstable sub-tests
