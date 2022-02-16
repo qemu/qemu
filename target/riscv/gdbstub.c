@@ -64,6 +64,7 @@ int riscv_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     case MXL_RV32:
         return gdb_get_reg32(mem_buf, tmp);
     case MXL_RV64:
+    case MXL_RV128:
         return gdb_get_reg64(mem_buf, tmp);
     default:
         g_assert_not_reached();
@@ -84,6 +85,7 @@ int riscv_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         length = 4;
         break;
     case MXL_RV64:
+    case MXL_RV128:
         if (env->xl < MXL_RV64) {
             tmp = (int32_t)ldq_p(mem_buf);
         } else {
@@ -420,6 +422,7 @@ void riscv_cpu_register_gdb_regs_for_features(CPUState *cs)
                                  1, "riscv-32bit-virtual.xml", 0);
         break;
     case MXL_RV64:
+    case MXL_RV128:
         gdb_register_coprocessor(cs, riscv_gdb_get_virtual,
                                  riscv_gdb_set_virtual,
                                  1, "riscv-64bit-virtual.xml", 0);
