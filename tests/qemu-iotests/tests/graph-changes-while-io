@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+# group: rw
+#
+# Test graph changes while I/O is happening
+#
+# Copyright (C) 2022 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+from threading import Thread
+import iotests
+from iotests import imgfmt, qemu_img, qemu_img_create, QMPTestCase, \
+        QemuStorageDaemon
+
+
+top = os.path.join(iotests.test_dir, 'top.img')
+nbd_sock = os.path.join(iotests.sock_dir, 'nbd.sock')
+
+
+def do_qemu_img_bench() -> None:
+    """
+    Do some I/O requests on `nbd_sock`.
+    """
+    assert qemu_img('bench', '-f', 'raw', '-c', '2000000',
+                    f'nbd+unix:///node0?socket={nbd_sock}') == 0
+
+
+class TestGraphChangesWhileIO(QMPTestCase):
+    def setUp(self) -> None:
+        # Create an overlay that can be added at runtime on top of the
+        # null-co block node that will receive I/O
+        assert qemu_img_create('-f', imgfmt, '-F', 'raw', '-b', 'null-co://',
+                               top) == 0
+
+        # QSD instance with a null-co block node in an I/O thread,
+        # exported over NBD (on `nbd_sock`, export name "node0")
+        self.qsd = QemuStorageDaemon(
+            '--object', 'iothread,id=iothread0',
+            '--blockdev', 'null-co,node-name=node0,read-zeroes=true',
+            '--nbd-server', f'addr.type=unix,addr.path={nbd_sock}',
+            '--export', 'nbd,id=exp0,node-name=node0,iothread=iothread0,' +
+                        'fixed-iothread=true,writable=true',
+            qmp=True
+        )
+
+    def tearDown(self) -> None:
+        self.qsd.stop()
+
+    def test_blockdev_add_while_io(self) -> None:
+        # Run qemu-img bench in the background
+        bench_thr = Thread(target=do_qemu_img_bench)
+        bench_thr.start()
+
+        # While qemu-img bench is running, repeatedly add and remove an
+        # overlay to/from node0
+        while bench_thr.is_alive():
+            result = self.qsd.qmp('blockdev-add', {
+                'driver': imgfmt,
+                'node-name': 'overlay',
+                'backing': 'node0',
+                'file': {
+                    'driver': 'file',
+                    'filename': top
+                }
+            })
+            self.assert_qmp(result, 'return', {})
+
+            result = self.qsd.qmp('blockdev-del', {
+                'node-name': 'overlay'
+            })
+            self.assert_qmp(result, 'return', {})
+
+        bench_thr.join()
+
+if __name__ == '__main__':
+    # Format must support raw backing files
+    iotests.main(supported_fmts=['qcow', 'qcow2', 'qed'],
+                 supported_protocols=['file'])
