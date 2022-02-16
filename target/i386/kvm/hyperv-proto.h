@@ -19,6 +19,9 @@
 #define HV_CPUID_ENLIGHTMENT_INFO             0x40000004
 #define HV_CPUID_IMPLEMENT_LIMITS             0x40000005
 #define HV_CPUID_NESTED_FEATURES              0x4000000A
+#define HV_CPUID_SYNDBG_VENDOR_AND_MAX_FUNCTIONS    0x40000080
+#define HV_CPUID_SYNDBG_INTERFACE                   0x40000081
+#define HV_CPUID_SYNDBG_PLATFORM_CAPABILITIES       0x40000082
 #define HV_CPUID_MIN                          0x40000005
 #define HV_CPUID_MAX                          0x4000ffff
 #define HV_HYPERVISOR_PRESENT_BIT             0x80000000
@@ -55,7 +58,13 @@
 #define HV_GUEST_IDLE_STATE_AVAILABLE           (1u << 5)
 #define HV_FREQUENCY_MSRS_AVAILABLE             (1u << 8)
 #define HV_GUEST_CRASH_MSR_AVAILABLE            (1u << 10)
+#define HV_FEATURE_DEBUG_MSRS_AVAILABLE         (1u << 11)
 #define HV_STIMER_DIRECT_MODE_AVAILABLE         (1u << 19)
+
+/*
+ * HV_CPUID_FEATURES.EBX bits
+ */
+#define HV_PARTITION_DEBUGGING_ALLOWED          (1u << 12)
 
 /*
  * HV_CPUID_ENLIGHTMENT_INFO.EAX bits
@@ -71,6 +80,11 @@
 #define HV_EX_PROCESSOR_MASKS_RECOMMENDED   (1u << 11)
 #define HV_ENLIGHTENED_VMCS_RECOMMENDED     (1u << 14)
 #define HV_NO_NONARCH_CORESHARING           (1u << 18)
+
+/*
+ * HV_CPUID_SYNDBG_PLATFORM_CAPABILITIES.EAX bits
+ */
+#define HV_SYNDBG_CAP_ALLOW_KERNEL_DEBUGGING    (1u << 1)
 
 /*
  * Basic virtualized MSRs
@@ -131,6 +145,18 @@
 #define HV_X64_MSR_STIMER3_COUNT                0x400000B7
 
 /*
+ * Hyper-V Synthetic debug options MSR
+ */
+#define HV_X64_MSR_SYNDBG_CONTROL               0x400000F1
+#define HV_X64_MSR_SYNDBG_STATUS                0x400000F2
+#define HV_X64_MSR_SYNDBG_SEND_BUFFER           0x400000F3
+#define HV_X64_MSR_SYNDBG_RECV_BUFFER           0x400000F4
+#define HV_X64_MSR_SYNDBG_PENDING_BUFFER        0x400000F5
+#define HV_X64_MSR_SYNDBG_OPTIONS               0x400000FF
+
+#define HV_X64_SYNDBG_OPTION_USE_HCALLS         BIT(2)
+
+/*
  * Guest crash notification MSRs
  */
 #define HV_X64_MSR_CRASH_P0                     0x40000100
@@ -168,5 +194,16 @@
 
 #define HV_STIMER_COUNT                       4
 
+/*
+ * Synthetic debugger control definitions
+ */
+#define HV_SYNDBG_CONTROL_SEND              (1u << 0)
+#define HV_SYNDBG_CONTROL_RECV              (1u << 1)
+#define HV_SYNDBG_CONTROL_SEND_SIZE(ctl)    ((ctl >> 16) & 0xffff)
+#define HV_SYNDBG_STATUS_INVALID            (0)
+#define HV_SYNDBG_STATUS_SEND_SUCCESS       (1u << 0)
+#define HV_SYNDBG_STATUS_RECV_SUCCESS       (1u << 2)
+#define HV_SYNDBG_STATUS_RESET              (1u << 3)
+#define HV_SYNDBG_STATUS_SET_SIZE(st, sz)   (st | (sz << 16))
 
 #endif
