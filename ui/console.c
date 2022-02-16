@@ -1482,6 +1482,12 @@ static bool dpy_compatible_with(QemuConsole *con,
 
     flags = con->hw_ops->get_flags ? con->hw_ops->get_flags(con->hw) : 0;
 
+    if (console_has_gl(con) && con->gl->ops->compatible_dcl != dcl->ops) {
+        error_setg(errp, "Display %s is incompatible with the GL context",
+                   dcl->ops->dpy_name);
+        return false;
+    }
+
     if (flags & GRAPHIC_FLAGS_GL &&
         !console_has_gl(con)) {
         error_setg(errp, "The console requires a GL context.");
@@ -1509,26 +1515,11 @@ void qemu_console_set_display_gl_ctx(QemuConsole *con, DisplayGLCtx *gl)
     con->gl = gl;
 }
 
-static bool dpy_gl_compatible_with(QemuConsole *con, DisplayChangeListener *dcl)
-{
-    if (!con->gl) {
-        return true;
-    }
-
-    return con->gl->ops->compatible_dcl == dcl->ops;
-}
-
 void register_displaychangelistener(DisplayChangeListener *dcl)
 {
     QemuConsole *con;
 
     assert(!dcl->ds);
-
-    if (dcl->con && !dpy_gl_compatible_with(dcl->con, dcl)) {
-        error_report("Display %s is incompatible with the GL context",
-                     dcl->ops->dpy_name);
-        exit(1);
-    }
 
     if (dcl->con) {
         dpy_compatible_with(dcl->con, dcl, &error_fatal);
