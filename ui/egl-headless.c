@@ -170,6 +170,14 @@ static bool
 egl_is_compatible_dcl(DisplayGLCtx *dgc,
                       DisplayChangeListener *dcl)
 {
+    if (!dcl->ops->dpy_gl_update) {
+        /*
+         * egl-headless is compatible with all 2d listeners, as it blits the GL
+         * updates on the 2d console surface.
+         */
+        return true;
+    }
+
     return dcl->ops == &egl_ops;
 }
 
