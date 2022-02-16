@@ -36,7 +36,6 @@ struct _DBusDisplayConsole {
     DisplayChangeListener dcl;
 
     DBusDisplay *display;
-    QemuConsole *con;
     GHashTable *listeners;
     QemuDBusDisplay1Console *iface;
 
@@ -118,7 +117,7 @@ dbus_gl_scanout_update(DisplayChangeListener *dcl,
 {
 }
 
-static const DisplayChangeListenerOps dbus_console_dcl_ops = {
+const DisplayChangeListenerOps dbus_console_dcl_ops = {
     .dpy_name                = "dbus-console",
     .dpy_gfx_switch          = dbus_gfx_switch,
     .dpy_gfx_update          = dbus_gfx_update,
@@ -191,7 +190,7 @@ dbus_console_set_ui_info(DBusDisplayConsole *ddc,
         .height = arg_height,
     };
 
-    if (!dpy_ui_info_supported(ddc->con)) {
+    if (!dpy_ui_info_supported(ddc->dcl.con)) {
         g_dbus_method_invocation_return_error(invocation,
                                               DBUS_DISPLAY_ERROR,
                                               DBUS_DISPLAY_ERROR_UNSUPPORTED,
@@ -199,7 +198,7 @@ dbus_console_set_ui_info(DBusDisplayConsole *ddc,
         return DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-    dpy_set_ui_info(ddc->con, &info, false);
+    dpy_set_ui_info(ddc->dcl.con, &info, false);
     qemu_dbus_display1_console_complete_set_uiinfo(ddc->iface, invocation);
     return DBUS_METHOD_INVOCATION_HANDLED;
 }
@@ -335,8 +334,8 @@ dbus_mouse_rel_motion(DBusDisplayConsole *ddc,
         return DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-    qemu_input_queue_rel(ddc->con, INPUT_AXIS_X, dx);
-    qemu_input_queue_rel(ddc->con, INPUT_AXIS_Y, dy);
+    qemu_input_queue_rel(ddc->dcl.con, INPUT_AXIS_X, dx);
+    qemu_input_queue_rel(ddc->dcl.con, INPUT_AXIS_Y, dy);
     qemu_input_event_sync();
 
     qemu_dbus_display1_mouse_complete_rel_motion(ddc->iface_mouse,
@@ -362,8 +361,8 @@ dbus_mouse_set_pos(DBusDisplayConsole *ddc,
         return DBUS_METHOD_INVOCATION_HANDLED;
     }
 
-    width = qemu_console_get_width(ddc->con, 0);
-    height = qemu_console_get_height(ddc->con, 0);
+    width = qemu_console_get_width(ddc->dcl.con, 0);
+    height = qemu_console_get_height(ddc->dcl.con, 0);
     if (x >= width || y >= height) {
         g_dbus_method_invocation_return_error(
             invocation, DBUS_DISPLAY_ERROR,
@@ -371,8 +370,8 @@ dbus_mouse_set_pos(DBusDisplayConsole *ddc,
             "Invalid mouse position");
         return DBUS_METHOD_INVOCATION_HANDLED;
     }
-    qemu_input_queue_abs(ddc->con, INPUT_AXIS_X, x, 0, width);
-    qemu_input_queue_abs(ddc->con, INPUT_AXIS_Y, y, 0, height);
+    qemu_input_queue_abs(ddc->dcl.con, INPUT_AXIS_X, x, 0, width);
+    qemu_input_queue_abs(ddc->dcl.con, INPUT_AXIS_Y, y, 0, height);
     qemu_input_event_sync();
 
     qemu_dbus_display1_mouse_complete_set_abs_position(ddc->iface_mouse,
@@ -388,7 +387,7 @@ dbus_mouse_press(DBusDisplayConsole *ddc,
 {
     trace_dbus_mouse_press(button);
 
-    qemu_input_queue_btn(ddc->con, button, true);
+    qemu_input_queue_btn(ddc->dcl.con, button, true);
     qemu_input_event_sync();
 
     qemu_dbus_display1_mouse_complete_press(ddc->iface_mouse, invocation);
@@ -403,7 +402,7 @@ dbus_mouse_release(DBusDisplayConsole *ddc,
 {
     trace_dbus_mouse_release(button);
 
-    qemu_input_queue_btn(ddc->con, button, false);
+    qemu_input_queue_btn(ddc->dcl.con, button, false);
     qemu_input_event_sync();
 
     qemu_dbus_display1_mouse_complete_release(ddc->iface_mouse, invocation);
@@ -424,7 +423,7 @@ dbus_mouse_mode_change(Notifier *notify, void *data)
 
 int dbus_display_console_get_index(DBusDisplayConsole *ddc)
 {
-    return qemu_console_get_index(ddc->con);
+    return qemu_console_get_index(ddc->dcl.con);
 }
 
 DBusDisplayConsole *
@@ -446,7 +445,7 @@ dbus_display_console_new(DBusDisplay *display, QemuConsole *con)
                         "g-object-path", path,
                         NULL);
     ddc->display = display;
-    ddc->con = con;
+    ddc->dcl.con = con;
     /* handle errors, and skip non graphics? */
     qemu_console_fill_device_address(
         con, device_addr, sizeof(device_addr), NULL);

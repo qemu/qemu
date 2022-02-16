@@ -52,7 +52,7 @@ static bool
 dbus_is_compatible_dcl(DisplayGLCtx *dgc,
                        DisplayChangeListener *dcl)
 {
-    return dcl->ops == &dbus_gl_dcl_ops;
+    return dcl->ops == &dbus_gl_dcl_ops || dcl->ops == &dbus_console_dcl_ops;
 }
 
 static const DisplayGLCtxOps dbus_gl_ops = {

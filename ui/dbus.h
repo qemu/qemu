@@ -79,6 +79,9 @@ dbus_display_console_new(DBusDisplay *display, QemuConsole *con);
 int
 dbus_display_console_get_index(DBusDisplayConsole *ddc);
 
+
+extern const DisplayChangeListenerOps dbus_console_dcl_ops;
+
 #define DBUS_DISPLAY_TYPE_LISTENER dbus_display_listener_get_type()
 G_DECLARE_FINAL_TYPE(DBusDisplayListener,
                      dbus_display_listener,
