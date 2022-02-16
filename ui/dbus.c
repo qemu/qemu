@@ -48,8 +48,15 @@ static QEMUGLContext dbus_create_context(DisplayGLCtx *dgc,
     return qemu_egl_create_context(dgc, params);
 }
 
+static bool
+dbus_is_compatible_dcl(DisplayGLCtx *dgc,
+                       DisplayChangeListener *dcl)
+{
+    return dcl->ops == &dbus_gl_dcl_ops;
+}
+
 static const DisplayGLCtxOps dbus_gl_ops = {
-    .compatible_dcl          = &dbus_gl_dcl_ops,
+    .dpy_gl_ctx_is_compatible_dcl = dbus_is_compatible_dcl,
     .dpy_gl_ctx_create       = dbus_create_context,
     .dpy_gl_ctx_destroy      = qemu_egl_destroy_context,
     .dpy_gl_ctx_make_current = qemu_egl_make_context_current,

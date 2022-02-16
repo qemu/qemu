@@ -166,8 +166,15 @@ static const DisplayChangeListenerOps egl_ops = {
     .dpy_gl_update           = egl_scanout_flush,
 };
 
+static bool
+egl_is_compatible_dcl(DisplayGLCtx *dgc,
+                      DisplayChangeListener *dcl)
+{
+    return dcl->ops == &egl_ops;
+}
+
 static const DisplayGLCtxOps eglctx_ops = {
-    .compatible_dcl          = &egl_ops,
+    .dpy_gl_ctx_is_compatible_dcl = egl_is_compatible_dcl,
     .dpy_gl_ctx_create       = egl_create_context,
     .dpy_gl_ctx_destroy      = qemu_egl_destroy_context,
     .dpy_gl_ctx_make_current = qemu_egl_make_context_current,
