@@ -704,3 +704,246 @@ uint16_t hyperv_hcall_signal_event(uint64_t param, bool fast)
     }
     return HV_STATUS_INVALID_CONNECTION_ID;
 }
+
+static HvSynDbgHandler hv_syndbg_handler;
+static void *hv_syndbg_context;
+
+void hyperv_set_syndbg_handler(HvSynDbgHandler handler, void *context)
+{
+    assert(!hv_syndbg_handler);
+    hv_syndbg_handler = handler;
+    hv_syndbg_context = context;
+}
+
+uint16_t hyperv_hcall_reset_dbg_session(uint64_t outgpa)
+{
+    uint16_t ret;
+    HvSynDbgMsg msg;
+    struct hyperv_reset_debug_session_output *reset_dbg_session = NULL;
+    hwaddr len;
+
+    if (!hv_syndbg_handler) {
+        ret = HV_STATUS_INVALID_HYPERCALL_CODE;
+        goto cleanup;
+    }
+
+    len = sizeof(*reset_dbg_session);
+    reset_dbg_session = cpu_physical_memory_map(outgpa, &len, 1);
+    if (!reset_dbg_session || len < sizeof(*reset_dbg_session)) {
+        ret = HV_STATUS_INSUFFICIENT_MEMORY;
+        goto cleanup;
+    }
+
+    msg.type = HV_SYNDBG_MSG_CONNECTION_INFO;
+    ret = hv_syndbg_handler(hv_syndbg_context, &msg);
+    if (ret) {
+        goto cleanup;
+    }
+
+    reset_dbg_session->host_ip = msg.u.connection_info.host_ip;
+    reset_dbg_session->host_port = msg.u.connection_info.host_port;
+    /* The following fields are only used as validation for KDVM */
+    memset(&reset_dbg_session->host_mac, 0,
+           sizeof(reset_dbg_session->host_mac));
+    reset_dbg_session->target_ip = msg.u.connection_info.host_ip;
+    reset_dbg_session->target_port = msg.u.connection_info.host_port;
+    memset(&reset_dbg_session->target_mac, 0,
+           sizeof(reset_dbg_session->target_mac));
+cleanup:
+    if (reset_dbg_session) {
+        cpu_physical_memory_unmap(reset_dbg_session,
+                                  sizeof(*reset_dbg_session), 1, len);
+    }
+
+    return ret;
+}
+
+uint16_t hyperv_hcall_retreive_dbg_data(uint64_t ingpa, uint64_t outgpa,
+                                        bool fast)
+{
+    uint16_t ret;
+    struct hyperv_retrieve_debug_data_input *debug_data_in = NULL;
+    struct hyperv_retrieve_debug_data_output *debug_data_out = NULL;
+    hwaddr in_len, out_len;
+    HvSynDbgMsg msg;
+
+    if (fast || !hv_syndbg_handler) {
+        ret = HV_STATUS_INVALID_HYPERCALL_CODE;
+        goto cleanup;
+    }
+
+    in_len = sizeof(*debug_data_in);
+    debug_data_in = cpu_physical_memory_map(ingpa, &in_len, 0);
+    if (!debug_data_in || in_len < sizeof(*debug_data_in)) {
+        ret = HV_STATUS_INSUFFICIENT_MEMORY;
+        goto cleanup;
+    }
+
+    out_len = sizeof(*debug_data_out);
+    debug_data_out = cpu_physical_memory_map(outgpa, &out_len, 1);
+    if (!debug_data_out || out_len < sizeof(*debug_data_out)) {
+        ret = HV_STATUS_INSUFFICIENT_MEMORY;
+        goto cleanup;
+    }
+
+    msg.type = HV_SYNDBG_MSG_RECV;
+    msg.u.recv.buf_gpa = outgpa + sizeof(*debug_data_out);
+    msg.u.recv.count = TARGET_PAGE_SIZE - sizeof(*debug_data_out);
+    msg.u.recv.options = debug_data_in->options;
+    msg.u.recv.timeout = debug_data_in->timeout;
+    msg.u.recv.is_raw = true;
+    ret = hv_syndbg_handler(hv_syndbg_context, &msg);
+    if (ret == HV_STATUS_NO_DATA) {
+        debug_data_out->retrieved_count = 0;
+        debug_data_out->remaining_count = debug_data_in->count;
+        goto cleanup;
+    } else if (ret != HV_STATUS_SUCCESS) {
+        goto cleanup;
+    }
+
+    debug_data_out->retrieved_count = msg.u.recv.retrieved_count;
+    debug_data_out->remaining_count =
+        debug_data_in->count - msg.u.recv.retrieved_count;
+cleanup:
+    if (debug_data_out) {
+        cpu_physical_memory_unmap(debug_data_out, sizeof(*debug_data_out), 1,
+                                  out_len);
+    }
+
+    if (debug_data_in) {
+        cpu_physical_memory_unmap(debug_data_in, sizeof(*debug_data_in), 0,
+                                  in_len);
+    }
+
+    return ret;
+}
+
+uint16_t hyperv_hcall_post_dbg_data(uint64_t ingpa, uint64_t outgpa, bool fast)
+{
+    uint16_t ret;
+    struct hyperv_post_debug_data_input *post_data_in = NULL;
+    struct hyperv_post_debug_data_output *post_data_out = NULL;
+    hwaddr in_len, out_len;
+    HvSynDbgMsg msg;
+
+    if (fast || !hv_syndbg_handler) {
+        ret = HV_STATUS_INVALID_HYPERCALL_CODE;
+        goto cleanup;
+    }
+
+    in_len = sizeof(*post_data_in);
+    post_data_in = cpu_physical_memory_map(ingpa, &in_len, 0);
+    if (!post_data_in || in_len < sizeof(*post_data_in)) {
+        ret = HV_STATUS_INSUFFICIENT_MEMORY;
+        goto cleanup;
+    }
+
+    if (post_data_in->count > TARGET_PAGE_SIZE - sizeof(*post_data_in)) {
+        ret = HV_STATUS_INVALID_PARAMETER;
+        goto cleanup;
+    }
+
+    out_len = sizeof(*post_data_out);
+    post_data_out = cpu_physical_memory_map(outgpa, &out_len, 1);
+    if (!post_data_out || out_len < sizeof(*post_data_out)) {
+        ret = HV_STATUS_INSUFFICIENT_MEMORY;
+        goto cleanup;
+    }
+
+    msg.type = HV_SYNDBG_MSG_SEND;
+    msg.u.send.buf_gpa = ingpa + sizeof(*post_data_in);
+    msg.u.send.count = post_data_in->count;
+    msg.u.send.is_raw = true;
+    ret = hv_syndbg_handler(hv_syndbg_context, &msg);
+    if (ret != HV_STATUS_SUCCESS) {
+        goto cleanup;
+    }
+
+    post_data_out->pending_count = msg.u.send.pending_count;
+    ret = post_data_out->pending_count ? HV_STATUS_INSUFFICIENT_BUFFERS :
+                                         HV_STATUS_SUCCESS;
+cleanup:
+    if (post_data_out) {
+        cpu_physical_memory_unmap(post_data_out,
+                                  sizeof(*post_data_out), 1, out_len);
+    }
+
+    if (post_data_in) {
+        cpu_physical_memory_unmap(post_data_in,
+                                  sizeof(*post_data_in), 0, in_len);
+    }
+
+    return ret;
+}
+
+uint32_t hyperv_syndbg_send(uint64_t ingpa, uint32_t count)
+{
+    HvSynDbgMsg msg;
+
+    if (!hv_syndbg_handler) {
+        return HV_SYNDBG_STATUS_INVALID;
+    }
+
+    msg.type = HV_SYNDBG_MSG_SEND;
+    msg.u.send.buf_gpa = ingpa;
+    msg.u.send.count = count;
+    msg.u.send.is_raw = false;
+    if (hv_syndbg_handler(hv_syndbg_context, &msg)) {
+        return HV_SYNDBG_STATUS_INVALID;
+    }
+
+    return HV_SYNDBG_STATUS_SEND_SUCCESS;
+}
+
+uint32_t hyperv_syndbg_recv(uint64_t ingpa, uint32_t count)
+{
+    uint16_t ret;
+    HvSynDbgMsg msg;
+
+    if (!hv_syndbg_handler) {
+        return HV_SYNDBG_STATUS_INVALID;
+    }
+
+    msg.type = HV_SYNDBG_MSG_RECV;
+    msg.u.recv.buf_gpa = ingpa;
+    msg.u.recv.count = count;
+    msg.u.recv.options = 0;
+    msg.u.recv.timeout = 0;
+    msg.u.recv.is_raw = false;
+    ret = hv_syndbg_handler(hv_syndbg_context, &msg);
+    if (ret != HV_STATUS_SUCCESS) {
+        return 0;
+    }
+
+    return HV_SYNDBG_STATUS_SET_SIZE(HV_SYNDBG_STATUS_RECV_SUCCESS,
+                                     msg.u.recv.retrieved_count);
+}
+
+void hyperv_syndbg_set_pending_page(uint64_t ingpa)
+{
+    HvSynDbgMsg msg;
+
+    if (!hv_syndbg_handler) {
+        return;
+    }
+
+    msg.type = HV_SYNDBG_MSG_SET_PENDING_PAGE;
+    msg.u.pending_page.buf_gpa = ingpa;
+    hv_syndbg_handler(hv_syndbg_context, &msg);
+}
+
+uint64_t hyperv_syndbg_query_options(void)
+{
+    HvSynDbgMsg msg;
+
+    if (!hv_syndbg_handler) {
+        return 0;
+    }
+
+    msg.type = HV_SYNDBG_MSG_QUERY_OPTIONS;
+    if (hv_syndbg_handler(hv_syndbg_context, &msg) != HV_STATUS_SUCCESS) {
+        return 0;
+    }
+
+    return msg.u.query_options.options;
+}

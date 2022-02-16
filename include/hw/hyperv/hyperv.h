@@ -81,4 +81,62 @@ void hyperv_synic_update(CPUState *cs, bool enable,
                          hwaddr msg_page_addr, hwaddr event_page_addr);
 bool hyperv_is_synic_enabled(void);
 
+/*
+ * Process HVCALL_RESET_DEBUG_SESSION hypercall.
+ */
+uint16_t hyperv_hcall_reset_dbg_session(uint64_t outgpa);
+/*
+ * Process HVCALL_RETREIVE_DEBUG_DATA hypercall.
+ */
+uint16_t hyperv_hcall_retreive_dbg_data(uint64_t ingpa, uint64_t outgpa,
+                                        bool fast);
+/*
+ * Process HVCALL_POST_DEBUG_DATA hypercall.
+ */
+uint16_t hyperv_hcall_post_dbg_data(uint64_t ingpa, uint64_t outgpa, bool fast);
+
+uint32_t hyperv_syndbg_send(uint64_t ingpa, uint32_t count);
+uint32_t hyperv_syndbg_recv(uint64_t ingpa, uint32_t count);
+void hyperv_syndbg_set_pending_page(uint64_t ingpa);
+uint64_t hyperv_syndbg_query_options(void);
+
+typedef enum HvSynthDbgMsgType {
+    HV_SYNDBG_MSG_CONNECTION_INFO,
+    HV_SYNDBG_MSG_SEND,
+    HV_SYNDBG_MSG_RECV,
+    HV_SYNDBG_MSG_SET_PENDING_PAGE,
+    HV_SYNDBG_MSG_QUERY_OPTIONS
+} HvDbgSynthMsgType;
+
+typedef struct HvSynDbgMsg {
+    HvDbgSynthMsgType type;
+    union {
+        struct {
+            uint32_t host_ip;
+            uint16_t host_port;
+        } connection_info;
+        struct {
+            uint64_t buf_gpa;
+            uint32_t count;
+            uint32_t pending_count;
+            bool is_raw;
+        } send;
+        struct {
+            uint64_t buf_gpa;
+            uint32_t count;
+            uint32_t options;
+            uint64_t timeout;
+            uint32_t retrieved_count;
+            bool is_raw;
+        } recv;
+        struct {
+            uint64_t buf_gpa;
+        } pending_page;
+        struct {
+            uint64_t options;
+        } query_options;
+    } u;
+} HvSynDbgMsg;
+typedef uint16_t (*HvSynDbgHandler)(void *context, HvSynDbgMsg *msg);
+void hyperv_set_syndbg_handler(HvSynDbgHandler handler, void *context);
 #endif

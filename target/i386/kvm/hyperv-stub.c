@@ -28,6 +28,12 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
     case KVM_EXIT_HYPERV_HCALL:
         exit->u.hcall.result = HV_STATUS_INVALID_HYPERCALL_CODE;
         return 0;
+    case KVM_EXIT_HYPERV_SYNDBG:
+        if (!hyperv_feat_enabled(cpu, HYPERV_FEAT_SYNDBG)) {
+            return -1;
+        }
+
+        return 0;
     default:
         return -1;
     }
