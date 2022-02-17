@@ -1006,14 +1006,11 @@ static int gt64120_pci_map_irq(PCIDevice *pci_dev, int irq_num)
     }
 }
 
-static int pci_irq_levels[4];
-
 static void gt64120_pci_set_irq(void *opaque, int irq_num, int level)
 {
     int i, pic_irq, pic_level;
     qemu_irq *pic = opaque;
-
-    pci_irq_levels[irq_num] = level;
+    PCIBus *bus = pci_get_bus(piix4_dev);
 
     /* now we change the pic irq level according to the piix irq mappings */
     /* XXX: optimize */
@@ -1023,7 +1020,7 @@ static void gt64120_pci_set_irq(void *opaque, int irq_num, int level)
         pic_level = 0;
         for (i = 0; i < 4; i++) {
             if (pic_irq == piix4_dev->config[PIIX_PIRQCA + i]) {
-                pic_level |= pci_irq_levels[i];
+                pic_level |= pci_bus_get_irq_level(bus, i);
             }
         }
         qemu_set_irq(pic[pic_irq], pic_level);
