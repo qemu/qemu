@@ -1390,7 +1390,8 @@ void mips_malta_init(MachineState *machine)
     stl_p(memory_region_get_ram_ptr(bios_copy) + 0x10, 0x00000420);
 
     /* Northbridge */
-    pci_bus = gt64120_register();
+    dev = sysbus_create_simple("gt64120", -1, NULL);
+    pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci"));
     /*
      * The whole address space decoded by the GT-64120A doesn't generate
      * exception when accessing invalid memory. Create an empty slot to
