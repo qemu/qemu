@@ -172,5 +172,8 @@ void qemu_gl_fini_shader(QemuGLShader *gls)
     if (!gls) {
         return;
     }
+    glDeleteProgram(gls->texture_blit_prog);
+    glDeleteProgram(gls->texture_blit_flip_prog);
+    glDeleteProgram(gls->texture_blit_vao);
     g_free(gls);
 }
