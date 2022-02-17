@@ -1,7 +1,9 @@
 #if TARGET_REGISTER_BITS == 64
 # define dh_alias_tr     i64
+# define dh_typecode_tr  dh_typecode_i64
 #else
 # define dh_alias_tr     i32
+# define dh_typecode_tr  dh_typecode_i32
 #endif
 #define dh_ctype_tr      target_ureg
 

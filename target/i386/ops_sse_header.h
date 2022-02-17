@@ -30,6 +30,9 @@
 #define dh_ctype_Reg Reg *
 #define dh_ctype_ZMMReg ZMMReg *
 #define dh_ctype_MMXReg MMXReg *
+#define dh_typecode_Reg dh_typecode_ptr
+#define dh_typecode_ZMMReg dh_typecode_ptr
+#define dh_typecode_MMXReg dh_typecode_ptr
 
 DEF_HELPER_3(glue(psrlw, SUFFIX), void, env, Reg, Reg)
 DEF_HELPER_3(glue(psraw, SUFFIX), void, env, Reg, Reg)
