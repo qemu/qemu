@@ -1058,6 +1058,15 @@ static void console_putchar(QemuConsole *s, int ch)
     }
 }
 
+static void displaychangelistener_gfx_switch(DisplayChangeListener *dcl,
+                                             struct DisplaySurface *new_surface)
+{
+    if (dcl->ops->dpy_gfx_switch) {
+        dcl->ops->dpy_gfx_switch(dcl, new_surface);
+    }
+}
+
+
 static void displaychangelistener_display_console(DisplayChangeListener *dcl,
                                                   QemuConsole *con,
                                                   Error **errp)
@@ -1067,13 +1076,10 @@ static void displaychangelistener_display_console(DisplayChangeListener *dcl,
     static DisplaySurface *dummy;
 
     if (!con || !console_compatible_with(con, dcl, errp)) {
-        if (!dcl->ops->dpy_gfx_switch) {
-            return;
-        }
         if (!dummy) {
             dummy = qemu_create_placeholder_surface(640, 480, nodev);
         }
-        dcl->ops->dpy_gfx_switch(dcl, dummy);
+        displaychangelistener_gfx_switch(dcl, dummy);
         return;
     }
 
@@ -1091,9 +1097,8 @@ static void displaychangelistener_display_console(DisplayChangeListener *dcl,
                                          con->scanout.texture.y,
                                          con->scanout.texture.width,
                                          con->scanout.texture.height);
-    } else if (con->scanout.kind == SCANOUT_SURFACE &&
-               dcl->ops->dpy_gfx_switch) {
-        dcl->ops->dpy_gfx_switch(dcl, con->surface);
+    } else if (con->scanout.kind == SCANOUT_SURFACE) {
+        displaychangelistener_gfx_switch(dcl, con->surface);
     }
 
     dcl->ops->dpy_gfx_update(dcl, 0, 0,
@@ -1677,9 +1682,7 @@ void dpy_gfx_replace_surface(QemuConsole *con,
         if (con != (dcl->con ? dcl->con : active_console)) {
             continue;
         }
-        if (dcl->ops->dpy_gfx_switch) {
-            dcl->ops->dpy_gfx_switch(dcl, surface);
-        }
+        displaychangelistener_gfx_switch(dcl, surface);
     }
     qemu_free_displaysurface(old_surface);
 }
