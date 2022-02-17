@@ -7,9 +7,6 @@
 /* PCI includes legacy ISA access.  */
 #include "hw/isa/isa.h"
 
-#include "hw/pci/pcie.h"
-#include "qom/object.h"
-
 extern bool pci_available;
 
 /* PCI bus */
@@ -157,6 +154,7 @@ enum {
 #define QEMU_PCI_VGA_IO_HI_SIZE 0x20
 
 #include "hw/pci/pci_regs.h"
+#include "hw/pci/pcie.h"
 
 /* PCI HEADER_TYPE */
 #define  PCI_HEADER_TYPE_MULTI_FUNCTION 0x80
@@ -499,6 +497,9 @@ typedef AddressSpace *(*PCIIOMMUFunc)(PCIBus *, void *, int);
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
 void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque);
 
+pcibus_t pci_bar_address(PCIDevice *d,
+                         int reg, uint8_t type, pcibus_t size);
+
 static inline void
 pci_set_byte(uint8_t *config, uint8_t val)
 {
@@ -777,6 +778,11 @@ static inline int pci_is_express_downstream_port(const PCIDevice *d)
     type = pcie_cap_get_type(d);
 
     return type == PCI_EXP_TYPE_DOWNSTREAM || type == PCI_EXP_TYPE_ROOT_PORT;
+}
+
+static inline int pci_is_vf(const PCIDevice *d)
+{
+    return d->exp.sriov_vf.pf != NULL;
 }
 
 static inline uint32_t pci_config_size(const PCIDevice *d)
