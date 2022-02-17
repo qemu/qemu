@@ -17,6 +17,7 @@
 #include "qapi/error.h"
 #include <sys/ioctl.h>
 #include <sys/utsname.h>
+#include <sys/syscall.h>
 
 #include <linux/kvm.h>
 #include "standard-headers/asm-x86/kvm_para.h"
@@ -349,6 +350,7 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
     struct kvm_cpuid2 *cpuid;
     uint32_t ret = 0;
     uint32_t cpuid_1_edx;
+    uint64_t bitmask;
 
     cpuid = get_supported_cpuid(s);
 
@@ -406,6 +408,25 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         if (!has_msr_arch_capabs) {
             ret &= ~CPUID_7_0_EDX_ARCH_CAPABILITIES;
         }
+    } else if (function == 0xd && index == 0 &&
+               (reg == R_EAX || reg == R_EDX)) {
+        struct kvm_device_attr attr = {
+            .group = 0,
+            .attr = KVM_X86_XCOMP_GUEST_SUPP,
+            .addr = (unsigned long) &bitmask
+        };
+
+        bool sys_attr = kvm_check_extension(s, KVM_CAP_SYS_ATTRIBUTES);
+        if (!sys_attr) {
+            warn_report("cannot get sys attribute capabilities %d", sys_attr);
+        }
+
+        int rc = kvm_ioctl(s, KVM_GET_DEVICE_ATTR, &attr);
+        if (rc == -1 && (errno == ENXIO || errno == EINVAL)) {
+            warn_report("KVM_GET_DEVICE_ATTR(0, KVM_X86_XCOMP_GUEST_SUPP) "
+                        "error: %d", rc);
+        }
+        ret = (reg == R_EAX) ? bitmask : bitmask >> 32;
     } else if (function == 0x80000001 && reg == R_ECX) {
         /*
          * It's safe to enable TOPOEXT even if it's not returned by
@@ -5150,4 +5171,40 @@ bool kvm_has_waitpkg(void)
 bool kvm_arch_cpu_check_are_resettable(void)
 {
     return !sev_es_enabled();
+}
+
+#define ARCH_REQ_XCOMP_GUEST_PERM       0x1025
+
+void kvm_request_xsave_components(X86CPU *cpu, uint64_t mask)
+{
+    KVMState *s = kvm_state;
+    uint64_t supported;
+
+    mask &= XSTATE_DYNAMIC_MASK;
+    if (!mask) {
+        return;
+    }
+    /*
+     * Just ignore bits that are not in CPUID[EAX=0xD,ECX=0].
+     * ARCH_REQ_XCOMP_GUEST_PERM would fail, and QEMU has warned
+     * about them already because they are not supported features.
+     */
+    supported = kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EAX);
+    supported |= (uint64_t)kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EDX) << 32;
+    mask &= supported;
+
+    while (mask) {
+        int bit = ctz64(mask);
+        int rc = syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_GUEST_PERM, bit);
+        if (rc) {
+            /*
+             * Older kernel version (<5.17) do not support
+             * ARCH_REQ_XCOMP_GUEST_PERM, but also do not return
+             * any dynamic feature from kvm_arch_get_supported_cpuid.
+             */
+            warn_report("prctl(ARCH_REQ_XCOMP_GUEST_PERM) failure "
+                        "for feature bit %d", bit);
+        }
+        mask &= ~BIT_ULL(bit);
+    }
 }

@@ -6007,6 +6007,7 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
     CPUX86State *env = &cpu->env;
     int i;
     uint64_t mask;
+    static bool request_perm;
 
     if (!(env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE)) {
         env->features[FEAT_XSAVE_COMP_LO] = 0;
@@ -6020,6 +6021,12 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
         if (env->features[esa->feature] & esa->bits) {
             mask |= (1ULL << i);
         }
+    }
+
+    /* Only request permission for first vcpu */
+    if (kvm_enabled() && !request_perm) {
+        kvm_request_xsave_components(cpu, mask);
+        request_perm = true;
     }
 
     env->features[FEAT_XSAVE_COMP_LO] = mask;
