@@ -44,7 +44,7 @@
 
 #include "helper_regs.h"
 #include "internal.h"
-#include "spr_tcg.h"
+#include "spr_common.h"
 #include "power8-pmu.h"
 
 /* #define PPC_DEBUG_SPR */
