@@ -84,8 +84,8 @@ qcrypto_afalg_cipher_ctx_new(QCryptoCipherAlgorithm alg,
     g_free(name);
 
     /* setkey */
-    if (qemu_setsockopt(afalg->tfmfd, SOL_ALG, ALG_SET_KEY, key,
-                        nkey) != 0) {
+    if (setsockopt(afalg->tfmfd, SOL_ALG, ALG_SET_KEY, key,
+                   nkey) != 0) {
         error_setg_errno(errp, errno, "Set key failed");
         qcrypto_afalg_comm_free(afalg);
         return NULL;
