@@ -63,6 +63,7 @@ struct PCDIMMDeviceClass {
 
     /* public */
     void (*realize)(PCDIMMDevice *dimm, Error **errp);
+    void (*unrealize)(PCDIMMDevice *dimm);
 };
 
 void pc_dimm_pre_plug(PCDIMMDevice *dimm, MachineState *machine,
