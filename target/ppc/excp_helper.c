@@ -360,10 +360,19 @@ static void ppc_excp_apply_ail(PowerPCCPU *cpu, int excp, target_ulong msr,
 }
 #endif
 
-static void powerpc_set_excp_state(PowerPCCPU *cpu,
-                                          target_ulong vector, target_ulong msr)
+static void powerpc_reset_excp_state(PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+
+    /* Reset exception state */
+    cs->exception_index = POWERPC_EXCP_NONE;
+    env->error_code = 0;
+}
+
+static void powerpc_set_excp_state(PowerPCCPU *cpu, target_ulong vector,
+                                   target_ulong msr)
+{
     CPUPPCState *env = &cpu->env;
 
     assert((msr & env->msr_mask) == msr);
@@ -376,21 +385,20 @@ static void powerpc_set_excp_state(PowerPCCPU *cpu,
      * will prevent setting of the HV bit which some exceptions might need
      * to do.
      */
+    env->nip = vector;
     env->msr = msr;
     hreg_compute_hflags(env);
-    env->nip = vector;
-    /* Reset exception state */
-    cs->exception_index = POWERPC_EXCP_NONE;
-    env->error_code = 0;
 
-    /* Reset the reservation */
-    env->reserve_addr = -1;
+    powerpc_reset_excp_state(cpu);
 
     /*
      * Any interrupt is context synchronizing, check if TCG TLB needs
      * a delayed flush on ppc64
      */
     check_tlb_flush(env, false);
+
+    /* Reset the reservation */
+    env->reserve_addr = -1;
 }
 
 static void powerpc_excp_40x(PowerPCCPU *cpu, int excp)
@@ -471,8 +479,7 @@ static void powerpc_excp_40x(PowerPCCPU *cpu, int excp)
         case POWERPC_EXCP_FP:
             if ((msr_fe0 == 0 && msr_fe1 == 0) || msr_fp == 0) {
                 trace_ppc_excp_fp_ignore();
-                cs->exception_index = POWERPC_EXCP_NONE;
-                env->error_code = 0;
+                powerpc_reset_excp_state(cpu);
                 return;
             }
             env->spr[SPR_40x_ESR] = ESR_FP;
@@ -609,8 +616,7 @@ static void powerpc_excp_6xx(PowerPCCPU *cpu, int excp)
         case POWERPC_EXCP_FP:
             if ((msr_fe0 == 0 && msr_fe1 == 0) || msr_fp == 0) {
                 trace_ppc_excp_fp_ignore();
-                cs->exception_index = POWERPC_EXCP_NONE;
-                env->error_code = 0;
+                powerpc_reset_excp_state(cpu);
                 return;
             }
 
@@ -783,8 +789,7 @@ static void powerpc_excp_7xx(PowerPCCPU *cpu, int excp)
         case POWERPC_EXCP_FP:
             if ((msr_fe0 == 0 && msr_fe1 == 0) || msr_fp == 0) {
                 trace_ppc_excp_fp_ignore();
-                cs->exception_index = POWERPC_EXCP_NONE;
-                env->error_code = 0;
+                powerpc_reset_excp_state(cpu);
                 return;
             }
 
@@ -969,8 +974,7 @@ static void powerpc_excp_74xx(PowerPCCPU *cpu, int excp)
         case POWERPC_EXCP_FP:
             if ((msr_fe0 == 0 && msr_fe1 == 0) || msr_fp == 0) {
                 trace_ppc_excp_fp_ignore();
-                cs->exception_index = POWERPC_EXCP_NONE;
-                env->error_code = 0;
+                powerpc_reset_excp_state(cpu);
                 return;
             }
 
@@ -1168,8 +1172,7 @@ static void powerpc_excp_booke(PowerPCCPU *cpu, int excp)
         case POWERPC_EXCP_FP:
             if ((msr_fe0 == 0 && msr_fe1 == 0) || msr_fp == 0) {
                 trace_ppc_excp_fp_ignore();
-                cs->exception_index = POWERPC_EXCP_NONE;
-                env->error_code = 0;
+                powerpc_reset_excp_state(cpu);
                 return;
             }
 
@@ -1406,8 +1409,7 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
         case POWERPC_EXCP_FP:
             if ((msr_fe0 == 0 && msr_fe1 == 0) || msr_fp == 0) {
                 trace_ppc_excp_fp_ignore();
-                cs->exception_index = POWERPC_EXCP_NONE;
-                env->error_code = 0;
+                powerpc_reset_excp_state(cpu);
                 return;
             }
 
