@@ -1128,8 +1128,6 @@ static void register_BookE206_sprs(CPUPPCState *env, uint32_t mas_mask,
         break;
     }
 #endif
-
-    register_usprgh_sprs(env);
 }
 
 /* SPR specific to PowerPC 440 implementation */
@@ -1427,7 +1425,6 @@ static void register_405_sprs(CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  spr_read_generic, &spr_write_generic,
                  0x00000000);
-    register_usprgh_sprs(env);
 }
 
 
@@ -2318,6 +2315,7 @@ static void init_proc_405(CPUPPCState *env)
 {
     register_40x_sprs(env);
     register_405_sprs(env);
+    register_usprgh_sprs(env);
     /* Bus access control */
     /* not emulated, as QEMU never does speculative access */
     spr_register(env, SPR_40x_SGR, "SGR",
@@ -2947,6 +2945,7 @@ static void init_proc_e200(CPUPPCState *env)
                  0x00000000);
     /* Memory management */
     register_BookE206_sprs(env, 0x0000005D, NULL, 0);
+    register_usprgh_sprs(env);
 
     spr_register(env, SPR_HID0, "HID0",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -3294,6 +3293,7 @@ static void init_proc_e500(CPUPPCState *env, int version)
                   env->spr[SPR_PVR]);
     }
     register_BookE206_sprs(env, 0x000000DF, tlbncfg, mmucfg);
+    register_usprgh_sprs(env);
 
     spr_register(env, SPR_HID0, "HID0",
                  SPR_NOACCESS, SPR_NOACCESS,
