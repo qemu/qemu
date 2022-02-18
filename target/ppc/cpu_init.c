@@ -241,7 +241,7 @@ static void register_generic_sprs(PowerPCCPU *cpu)
                  0x00000000);
 }
 
-static void register_non_embedded_sprs(CPUPPCState *env)
+void register_non_embedded_sprs(CPUPPCState *env)
 {
     /* Exception processing */
     spr_register_kvm(env, SPR_DSISR, "DSISR",
@@ -260,7 +260,7 @@ static void register_non_embedded_sprs(CPUPPCState *env)
 }
 
 /* Storage Description Register 1 */
-static void register_sdr1_sprs(CPUPPCState *env)
+void register_sdr1_sprs(CPUPPCState *env)
 {
 #ifndef CONFIG_USER_ONLY
     if (env->has_hv_mode) {
@@ -283,7 +283,7 @@ static void register_sdr1_sprs(CPUPPCState *env)
 }
 
 /* BATs 0-3 */
-static void register_low_BATs(CPUPPCState *env)
+void register_low_BATs(CPUPPCState *env)
 {
 #if !defined(CONFIG_USER_ONLY)
     spr_register(env, SPR_IBAT0U, "IBAT0U",
@@ -355,7 +355,7 @@ static void register_low_BATs(CPUPPCState *env)
 }
 
 /* BATs 4-7 */
-static void register_high_BATs(CPUPPCState *env)
+void register_high_BATs(CPUPPCState *env)
 {
 #if !defined(CONFIG_USER_ONLY)
     spr_register(env, SPR_IBAT4U, "IBAT4U",
@@ -427,7 +427,7 @@ static void register_high_BATs(CPUPPCState *env)
 }
 
 /* Softare table search registers */
-static void register_6xx_7xx_soft_tlb(CPUPPCState *env, int nb_tlbs, int nb_ways)
+void register_6xx_7xx_soft_tlb(CPUPPCState *env, int nb_tlbs, int nb_ways)
 {
 #if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = nb_tlbs;
@@ -667,7 +667,7 @@ static void register_iamr_sprs(CPUPPCState *env)
 }
 #endif /* TARGET_PPC64 */
 
-static void register_thrm_sprs(CPUPPCState *env)
+void register_thrm_sprs(CPUPPCState *env)
 {
     /* Thermal management */
     spr_register(env, SPR_THRM1, "THRM1",
@@ -1072,7 +1072,7 @@ static void register_l3_ctrl(CPUPPCState *env)
                  0x00000000);
 }
 
-static void register_usprgh_sprs(CPUPPCState *env)
+void register_usprgh_sprs(CPUPPCState *env)
 {
     spr_register(env, SPR_USPRG4, "USPRG4",
                  &spr_read_ureg, SPR_NOACCESS,
