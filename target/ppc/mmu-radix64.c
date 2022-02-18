@@ -354,6 +354,17 @@ static int ppc_radix64_partition_scoped_xlate(PowerPCCPU *cpu,
     return 0;
 }
 
+/*
+ * The spapr vhc has a flat partition scope provided by qemu memory.
+ */
+static bool vhyp_flat_addressing(PowerPCCPU *cpu)
+{
+    if (cpu->vhyp) {
+        return true;
+    }
+    return false;
+}
+
 static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
                                             MMUAccessType access_type,
                                             vaddr eaddr, uint64_t pid,
@@ -385,7 +396,7 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
     }
     prtbe_addr = (pate.dw1 & PATE1_R_PRTB) + offset;
 
-    if (cpu->vhyp) {
+    if (vhyp_flat_addressing(cpu)) {
         prtbe0 = ldq_phys(cs->as, prtbe_addr);
     } else {
         /*
@@ -411,7 +422,7 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
     *g_page_size = PRTBE_R_GET_RTS(prtbe0);
     base_addr = prtbe0 & PRTBE_R_RPDB;
     nls = prtbe0 & PRTBE_R_RPDS;
-    if (msr_hv || cpu->vhyp) {
+    if (msr_hv || vhyp_flat_addressing(cpu)) {
         /*
          * Can treat process table addresses as real addresses
          */
@@ -515,7 +526,7 @@ static bool ppc_radix64_xlate_impl(PowerPCCPU *cpu, vaddr eaddr,
     relocation = !mmuidx_real(mmu_idx);
 
     /* HV or virtual hypervisor Real Mode Access */
-    if (!relocation && (mmuidx_hv(mmu_idx) || cpu->vhyp)) {
+    if (!relocation && (mmuidx_hv(mmu_idx) || vhyp_flat_addressing(cpu))) {
         /* In real mode top 4 effective addr bits (mostly) ignored */
         *raddr = eaddr & 0x0FFFFFFFFFFFFFFFULL;
 
@@ -594,7 +605,7 @@ static bool ppc_radix64_xlate_impl(PowerPCCPU *cpu, vaddr eaddr,
         g_raddr = eaddr & R_EADDR_MASK;
     }
 
-    if (cpu->vhyp) {
+    if (vhyp_flat_addressing(cpu)) {
         *raddr = g_raddr;
     } else {
         /*
