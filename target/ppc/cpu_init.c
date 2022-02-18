@@ -221,6 +221,24 @@ static void register_generic_sprs(PowerPCCPU *cpu)
                          pcc->svr);
         }
     }
+
+    /* Time base */
+    spr_register(env, SPR_VTBL,  "TBL",
+                 &spr_read_tbl, SPR_NOACCESS,
+                 &spr_read_tbl, SPR_NOACCESS,
+                 0x00000000);
+    spr_register(env, SPR_TBL,   "TBL",
+                 &spr_read_tbl, SPR_NOACCESS,
+                 &spr_read_tbl, &spr_write_tbl,
+                 0x00000000);
+    spr_register(env, SPR_VTBU,  "TBU",
+                 &spr_read_tbu, SPR_NOACCESS,
+                 &spr_read_tbu, SPR_NOACCESS,
+                 0x00000000);
+    spr_register(env, SPR_TBU,   "TBU",
+                 &spr_read_tbu, SPR_NOACCESS,
+                 &spr_read_tbu, &spr_write_tbu,
+                 0x00000000);
 }
 
 /* SPR common to all non-embedded PowerPC, including 601 */
@@ -407,27 +425,6 @@ static void register_high_BATs(CPUPPCState *env)
                  0x00000000);
     env->nb_BATs += 4;
 #endif
-}
-
-/* Generic PowerPC time base */
-static void register_tbl(CPUPPCState *env)
-{
-    spr_register(env, SPR_VTBL,  "TBL",
-                 &spr_read_tbl, SPR_NOACCESS,
-                 &spr_read_tbl, SPR_NOACCESS,
-                 0x00000000);
-    spr_register(env, SPR_TBL,   "TBL",
-                 &spr_read_tbl, SPR_NOACCESS,
-                 &spr_read_tbl, &spr_write_tbl,
-                 0x00000000);
-    spr_register(env, SPR_VTBU,  "TBU",
-                 &spr_read_tbu, SPR_NOACCESS,
-                 &spr_read_tbu, SPR_NOACCESS,
-                 0x00000000);
-    spr_register(env, SPR_TBU,   "TBU",
-                 &spr_read_tbu, SPR_NOACCESS,
-                 &spr_read_tbu, &spr_write_tbu,
-                 0x00000000);
 }
 
 /* Softare table search registers */
@@ -2319,8 +2316,6 @@ static int check_pow_hid0_74xx(CPUPPCState *env)
 
 static void init_proc_405(CPUPPCState *env)
 {
-    /* Time base */
-    register_tbl(env);
     register_40x_sprs(env);
     register_405_sprs(env);
     /* Bus access control */
@@ -2386,8 +2381,6 @@ POWERPC_FAMILY(405)(ObjectClass *oc, void *data)
 
 static void init_proc_440EP(CPUPPCState *env)
 {
-    /* Time base */
-    register_tbl(env);
     register_BookE_sprs(env, 0x000000000000FFFFULL);
     register_440_sprs(env);
     register_usprgh_sprs(env);
@@ -2528,8 +2521,6 @@ POWERPC_FAMILY(460EX)(ObjectClass *oc, void *data)
 
 static void init_proc_440GP(CPUPPCState *env)
 {
-    /* Time base */
-    register_tbl(env);
     register_BookE_sprs(env, 0x000000000000FFFFULL);
     register_440_sprs(env);
     register_usprgh_sprs(env);
@@ -2611,8 +2602,6 @@ POWERPC_FAMILY(440GP)(ObjectClass *oc, void *data)
 
 static void init_proc_440x5(CPUPPCState *env)
 {
-    /* Time base */
-    register_tbl(env);
     register_BookE_sprs(env, 0x000000000000FFFFULL);
     register_440_sprs(env);
     register_usprgh_sprs(env);
@@ -2750,8 +2739,6 @@ POWERPC_FAMILY(440x5wDFPU)(ObjectClass *oc, void *data)
 
 static void init_proc_MPC5xx(CPUPPCState *env)
 {
-    /* Time base */
-    register_tbl(env);
     register_5xx_8xx_sprs(env);
     register_5xx_sprs(env);
     init_excp_MPC5xx(env);
@@ -2794,8 +2781,6 @@ POWERPC_FAMILY(MPC5xx)(ObjectClass *oc, void *data)
 
 static void init_proc_MPC8xx(CPUPPCState *env)
 {
-    /* Time base */
-    register_tbl(env);
     register_5xx_8xx_sprs(env);
     register_8xx_sprs(env);
     init_excp_MPC8xx(env);
@@ -2843,8 +2828,6 @@ static void init_proc_G2(CPUPPCState *env)
     register_sdr1_sprs(env);
     register_G2_755_sprs(env);
     register_G2_sprs(env);
-    /* Time base */
-    register_tbl(env);
     /* External access control */
     spr_register(env, SPR_EAR, "EAR",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -2956,8 +2939,6 @@ POWERPC_FAMILY(G2LE)(ObjectClass *oc, void *data)
 
 static void init_proc_e200(CPUPPCState *env)
 {
-    /* Time base */
-    register_tbl(env);
     register_BookE_sprs(env, 0x000000070000FFFFULL);
 
     spr_register(env, SPR_BOOKE_SPEFSCR, "SPEFSCR",
@@ -3114,8 +3095,6 @@ static void init_proc_e300(CPUPPCState *env)
     register_ne_601_sprs(env);
     register_sdr1_sprs(env);
     register_603_sprs(env);
-    /* Time base */
-    register_tbl(env);
     /* hardware implementation registers */
     spr_register(env, SPR_HID0, "HID0",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -3229,8 +3208,6 @@ static void init_proc_e500(CPUPPCState *env, int version)
     int i;
 #endif
 
-    /* Time base */
-    register_tbl(env);
     /*
      * XXX The e500 doesn't implement IVOR7 and IVOR9, but doesn't
      *     complain when accessing them.
@@ -3674,8 +3651,6 @@ static void init_proc_603(CPUPPCState *env)
     register_ne_601_sprs(env);
     register_sdr1_sprs(env);
     register_603_sprs(env);
-    /* Time base */
-    register_tbl(env);
     /* hardware implementation registers */
     spr_register(env, SPR_HID0, "HID0",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -3779,8 +3754,6 @@ static void init_proc_604(CPUPPCState *env)
     register_ne_601_sprs(env);
     register_sdr1_sprs(env);
     register_604_sprs(env);
-    /* Time base */
-    register_tbl(env);
     /* Hardware implementation registers */
     spr_register(env, SPR_HID0, "HID0",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -3854,8 +3827,6 @@ static void init_proc_604E(CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
-    /* Time base */
-    register_tbl(env);
     /* Hardware implementation registers */
     spr_register(env, SPR_HID0, "HID0",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -3919,8 +3890,6 @@ static void init_proc_740(CPUPPCState *env)
     register_ne_601_sprs(env);
     register_sdr1_sprs(env);
     register_7xx_sprs(env);
-    /* Time base */
-    register_tbl(env);
     /* Thermal management */
     register_thrm_sprs(env);
     /* Hardware implementation registers */
@@ -3991,8 +3960,6 @@ static void init_proc_750(CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, spr_access_nop,
                  0x00000000);
-    /* Time base */
-    register_tbl(env);
     /* Thermal management */
     register_thrm_sprs(env);
     /* Hardware implementation registers */
@@ -4067,8 +4034,6 @@ static void init_proc_750cl(CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, spr_access_nop,
                  0x00000000);
-    /* Time base */
-    register_tbl(env);
     /* Thermal management */
     /* Those registers are fake on 750CL */
     spr_register(env, SPR_THRM1, "THRM1",
@@ -4264,8 +4229,6 @@ static void init_proc_750cx(CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, spr_access_nop,
                  0x00000000);
-    /* Time base */
-    register_tbl(env);
     /* Thermal management */
     register_thrm_sprs(env);
 
@@ -4343,8 +4306,6 @@ static void init_proc_750fx(CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, spr_access_nop,
                  0x00000000);
-    /* Time base */
-    register_tbl(env);
     /* Thermal management */
     register_thrm_sprs(env);
 
@@ -4427,8 +4388,6 @@ static void init_proc_750gx(CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, spr_access_nop,
                  0x00000000);
-    /* Time base */
-    register_tbl(env);
     /* Thermal management */
     register_thrm_sprs(env);
 
@@ -4507,8 +4466,6 @@ static void init_proc_745(CPUPPCState *env)
     register_sdr1_sprs(env);
     register_7xx_sprs(env);
     register_G2_755_sprs(env);
-    /* Time base */
-    register_tbl(env);
     /* Thermal management */
     register_thrm_sprs(env);
     /* Hardware implementation registers */
@@ -4582,8 +4539,6 @@ static void init_proc_755(CPUPPCState *env)
     register_sdr1_sprs(env);
     register_7xx_sprs(env);
     register_G2_755_sprs(env);
-    /* Time base */
-    register_tbl(env);
     /* L2 cache control */
     spr_register(env, SPR_L2CR, "L2CR",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -4666,8 +4621,6 @@ static void init_proc_7400(CPUPPCState *env)
     register_ne_601_sprs(env);
     register_sdr1_sprs(env);
     register_7xx_sprs(env);
-    /* Time base */
-    register_tbl(env);
     /* 74xx specific SPR */
     register_74xx_sprs(env);
     vscr_init(env, 0x00010000);
@@ -4742,8 +4695,6 @@ static void init_proc_7410(CPUPPCState *env)
     register_ne_601_sprs(env);
     register_sdr1_sprs(env);
     register_7xx_sprs(env);
-    /* Time base */
-    register_tbl(env);
     /* 74xx specific SPR */
     register_74xx_sprs(env);
     vscr_init(env, 0x00010000);
@@ -4825,8 +4776,6 @@ static void init_proc_7440(CPUPPCState *env)
     register_ne_601_sprs(env);
     register_sdr1_sprs(env);
     register_7xx_sprs(env);
-    /* Time base */
-    register_tbl(env);
     /* 74xx specific SPR */
     register_74xx_sprs(env);
     vscr_init(env, 0x00010000);
@@ -4929,8 +4878,6 @@ static void init_proc_7450(CPUPPCState *env)
     register_ne_601_sprs(env);
     register_sdr1_sprs(env);
     register_7xx_sprs(env);
-    /* Time base */
-    register_tbl(env);
     /* 74xx specific SPR */
     register_74xx_sprs(env);
     vscr_init(env, 0x00010000);
@@ -5055,8 +5002,6 @@ static void init_proc_7445(CPUPPCState *env)
     register_ne_601_sprs(env);
     register_sdr1_sprs(env);
     register_7xx_sprs(env);
-    /* Time base */
-    register_tbl(env);
     /* 74xx specific SPR */
     register_74xx_sprs(env);
     vscr_init(env, 0x00010000);
@@ -5188,8 +5133,6 @@ static void init_proc_7455(CPUPPCState *env)
     register_ne_601_sprs(env);
     register_sdr1_sprs(env);
     register_7xx_sprs(env);
-    /* Time base */
-    register_tbl(env);
     /* 74xx specific SPR */
     register_74xx_sprs(env);
     vscr_init(env, 0x00010000);
@@ -5323,8 +5266,6 @@ static void init_proc_7457(CPUPPCState *env)
     register_ne_601_sprs(env);
     register_sdr1_sprs(env);
     register_7xx_sprs(env);
-    /* Time base */
-    register_tbl(env);
     /* 74xx specific SPR */
     register_74xx_sprs(env);
     vscr_init(env, 0x00010000);
@@ -5478,8 +5419,6 @@ static void init_proc_e600(CPUPPCState *env)
     register_ne_601_sprs(env);
     register_sdr1_sprs(env);
     register_7xx_sprs(env);
-    /* Time base */
-    register_tbl(env);
     /* 74xx specific SPR */
     register_74xx_sprs(env);
     vscr_init(env, 0x00010000);
@@ -6303,7 +6242,6 @@ static void init_tcg_pmu_power8(CPUPPCState *env)
 static void init_proc_book3s_common(CPUPPCState *env)
 {
     register_ne_601_sprs(env);
-    register_tbl(env);
     register_usprg3_sprs(env);
     register_book3s_altivec_sprs(env);
     register_book3s_pmu_sup_sprs(env);
