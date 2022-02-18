@@ -1280,6 +1280,18 @@ static void powerpc_excp_booke(PowerPCCPU *cpu, int excp)
     powerpc_set_excp_state(cpu, vector, new_msr);
 }
 
+/*
+ * When running a nested HV guest under vhyp, external interrupts are
+ * delivered as HVIRT.
+ */
+static bool books_vhyp_promotes_external_to_hvirt(PowerPCCPU *cpu)
+{
+    if (cpu->vhyp) {
+        return vhyp_cpu_in_nested(cpu);
+    }
+    return false;
+}
+
 #ifdef TARGET_PPC64
 /*
  * When running under vhyp, hcalls are always intercepted and sent to the
@@ -1288,7 +1300,21 @@ static void powerpc_excp_booke(PowerPCCPU *cpu, int excp)
 static bool books_vhyp_handles_hcall(PowerPCCPU *cpu)
 {
     if (cpu->vhyp) {
-        return true;
+        return !vhyp_cpu_in_nested(cpu);
+    }
+    return false;
+}
+
+/*
+ * When running a nested KVM HV guest under vhyp, HV exceptions are not
+ * delivered to the guest (because there is no concept of HV support), but
+ * rather they are sent tothe vhyp to exit from the L2 back to the L1 and
+ * return from the H_ENTER_NESTED hypercall.
+ */
+static bool books_vhyp_handles_hv_excp(PowerPCCPU *cpu)
+{
+    if (cpu->vhyp) {
+        return vhyp_cpu_in_nested(cpu);
     }
     return false;
 }
@@ -1541,12 +1567,6 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
         break;
     }
 
-    /* Sanity check */
-    if (!(env->msr_mask & MSR_HVB) && srr0 == SPR_HSRR0) {
-        cpu_abort(cs, "Trying to deliver HV exception (HSRR) %d with "
-                  "no HV support\n", excp);
-    }
-
     /*
      * Sort out endianness of interrupt, this differs depending on the
      * CPU, the HV mode, etc...
@@ -1565,10 +1585,26 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
         env->spr[srr1] = msr;
     }
 
-    /* This can update new_msr and vector if AIL applies */
-    ppc_excp_apply_ail(cpu, excp, msr, &new_msr, &vector);
+    if ((new_msr & MSR_HVB) && books_vhyp_handles_hv_excp(cpu)) {
+        PPCVirtualHypervisorClass *vhc =
+            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+        /* Deliver interrupt to L1 by returning from the H_ENTER_NESTED call */
+        vhc->deliver_hv_excp(cpu, excp);
 
-    powerpc_set_excp_state(cpu, vector, new_msr);
+        powerpc_reset_excp_state(cpu);
+
+    } else {
+        /* Sanity check */
+        if (!(env->msr_mask & MSR_HVB) && srr0 == SPR_HSRR0) {
+            cpu_abort(cs, "Trying to deliver HV exception (HSRR) %d with "
+                      "no HV support\n", excp);
+        }
+
+        /* This can update new_msr and vector if AIL applies */
+        ppc_excp_apply_ail(cpu, excp, msr, &new_msr, &vector);
+
+        powerpc_set_excp_state(cpu, vector, new_msr);
+    }
 }
 #else
 static inline void powerpc_excp_books(PowerPCCPU *cpu, int excp)
@@ -1688,7 +1724,11 @@ static void ppc_hw_interrupt(CPUPPCState *env)
         /* HEIC blocks delivery to the hypervisor */
         if ((async_deliver && !(heic && msr_hv && !msr_pr)) ||
             (env->has_hv_mode && msr_hv == 0 && !lpes0)) {
-            powerpc_excp(cpu, POWERPC_EXCP_EXTERNAL);
+            if (books_vhyp_promotes_external_to_hvirt(cpu)) {
+                powerpc_excp(cpu, POWERPC_EXCP_HVIRT);
+            } else {
+                powerpc_excp(cpu, POWERPC_EXCP_EXTERNAL);
+            }
             return;
         }
     }
@@ -1797,6 +1837,8 @@ void ppc_cpu_do_fwnmi_machine_check(CPUState *cs, target_ulong vector)
     if (ppc_interrupts_little_endian(cpu, false)) {
         msr |= (1ULL << MSR_LE);
     }
+
+    /* Anything for nested required here? MSR[HV] bit? */
 
     powerpc_set_excp_state(cpu, vector, msr);
 }

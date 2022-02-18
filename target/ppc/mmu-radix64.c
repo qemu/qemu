@@ -355,12 +355,19 @@ static int ppc_radix64_partition_scoped_xlate(PowerPCCPU *cpu,
 }
 
 /*
- * The spapr vhc has a flat partition scope provided by qemu memory.
+ * The spapr vhc has a flat partition scope provided by qemu memory when
+ * not nested.
+ *
+ * When running a nested guest, the addressing is 2-level radix on top of the
+ * vhc memory, so it works practically identically to the bare metal 2-level
+ * radix. So that code is selected directly. A cleaner and more flexible nested
+ * hypervisor implementation would allow the vhc to provide a ->nested_xlate()
+ * function but that is not required for the moment.
  */
 static bool vhyp_flat_addressing(PowerPCCPU *cpu)
 {
     if (cpu->vhyp) {
-        return true;
+        return !vhyp_cpu_in_nested(cpu);
     }
     return false;
 }
