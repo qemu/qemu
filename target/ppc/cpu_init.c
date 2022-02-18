@@ -3922,18 +3922,8 @@ POWERPC_FAMILY(604)(ObjectClass *oc, void *data)
 
 static void init_proc_604E(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
-    register_sdr1_sprs(env);
-    register_604_sprs(env);
+    init_proc_604(env);
     register_604e_sprs(env);
-
-    /* Memory management */
-    register_low_BATs(env);
-    init_excp_604(env);
-    env->dcache_line_size = 32;
-    env->icache_line_size = 32;
-    /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(604E)(ObjectClass *oc, void *data)
