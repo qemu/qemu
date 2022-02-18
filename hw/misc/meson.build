@@ -111,6 +111,7 @@ softmmu_ss.add(when: 'CONFIG_ASPEED_SOC', if_true: files(
   'aspeed_i3c.c',
   'aspeed_lpc.c',
   'aspeed_scu.c',
+  'aspeed_sbc.c',
   'aspeed_sdmc.c',
   'aspeed_xdma.c'))
 

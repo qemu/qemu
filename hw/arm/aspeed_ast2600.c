@@ -47,6 +47,7 @@ static const hwaddr aspeed_soc_ast2600_memmap[] = {
     [ASPEED_DEV_XDMA]      = 0x1E6E7000,
     [ASPEED_DEV_ADC]       = 0x1E6E9000,
     [ASPEED_DEV_DP]        = 0x1E6EB000,
+    [ASPEED_DEV_SBC]       = 0x1E6F2000,
     [ASPEED_DEV_VIDEO]     = 0x1E700000,
     [ASPEED_DEV_SDHCI]     = 0x1E740000,
     [ASPEED_DEV_EMMC]      = 0x1E750000,
@@ -227,6 +228,8 @@ static void aspeed_soc_ast2600_init(Object *obj)
     object_initialize_child(obj, "hace", &s->hace, typename);
 
     object_initialize_child(obj, "i3c", &s->i3c, TYPE_ASPEED_I3C);
+
+    object_initialize_child(obj, "sbc", &s->sbc, TYPE_ASPEED_SBC);
 }
 
 /*
@@ -539,6 +542,12 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
         /* The AST2600 I3C controller has one IRQ per bus. */
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->i3c.devices[i]), 0, irq);
     }
+
+    /* Secure Boot Controller */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->sbc), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->sbc), 0, sc->memmap[ASPEED_DEV_SBC]);
 }
 
 static void aspeed_soc_ast2600_class_init(ObjectClass *oc, void *data)
