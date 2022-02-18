@@ -241,8 +241,7 @@ static void register_generic_sprs(PowerPCCPU *cpu)
                  0x00000000);
 }
 
-/* SPR common to all non-embedded PowerPC, including 601 */
-static void register_ne_601_sprs(CPUPPCState *env)
+static void register_non_embedded_sprs(CPUPPCState *env)
 {
     /* Exception processing */
     spr_register_kvm(env, SPR_DSISR, "DSISR",
@@ -3018,7 +3017,7 @@ POWERPC_FAMILY(MPC8xx)(ObjectClass *oc, void *data)
 
 static void init_proc_G2(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
+    register_non_embedded_sprs(env);
     register_sdr1_sprs(env);
     register_G2_sprs(env);
 
@@ -3728,7 +3727,7 @@ POWERPC_FAMILY(e6500)(ObjectClass *oc, void *data)
 /* Non-embedded PowerPC                                                      */
 static void init_proc_603(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
+    register_non_embedded_sprs(env);
     register_sdr1_sprs(env);
     register_603_sprs(env);
 
@@ -3868,7 +3867,7 @@ POWERPC_FAMILY(e300)(ObjectClass *oc, void *data)
 
 static void init_proc_604(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
+    register_non_embedded_sprs(env);
     register_sdr1_sprs(env);
     register_604_sprs(env);
 
@@ -3967,7 +3966,7 @@ POWERPC_FAMILY(604E)(ObjectClass *oc, void *data)
 
 static void init_proc_740(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
+    register_non_embedded_sprs(env);
     register_sdr1_sprs(env);
     register_7xx_sprs(env);
     /* Thermal management */
@@ -4023,7 +4022,7 @@ POWERPC_FAMILY(740)(ObjectClass *oc, void *data)
 
 static void init_proc_750(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
+    register_non_embedded_sprs(env);
     register_sdr1_sprs(env);
     register_7xx_sprs(env);
 
@@ -4088,7 +4087,7 @@ POWERPC_FAMILY(750)(ObjectClass *oc, void *data)
 
 static void init_proc_750cl(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
+    register_non_embedded_sprs(env);
     register_sdr1_sprs(env);
     register_7xx_sprs(env);
 
@@ -4273,7 +4272,7 @@ POWERPC_FAMILY(750cl)(ObjectClass *oc, void *data)
 
 static void init_proc_750cx(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
+    register_non_embedded_sprs(env);
     register_sdr1_sprs(env);
     register_7xx_sprs(env);
 
@@ -4341,7 +4340,7 @@ POWERPC_FAMILY(750cx)(ObjectClass *oc, void *data)
 
 static void init_proc_750fx(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
+    register_non_embedded_sprs(env);
     register_sdr1_sprs(env);
     register_7xx_sprs(env);
 
@@ -4413,7 +4412,7 @@ POWERPC_FAMILY(750fx)(ObjectClass *oc, void *data)
 
 static void init_proc_750gx(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
+    register_non_embedded_sprs(env);
     register_sdr1_sprs(env);
     register_7xx_sprs(env);
 
@@ -4485,7 +4484,7 @@ POWERPC_FAMILY(750gx)(ObjectClass *oc, void *data)
 
 static void init_proc_745(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
+    register_non_embedded_sprs(env);
     register_sdr1_sprs(env);
     register_7xx_sprs(env);
     register_745_sprs(env);
@@ -4589,7 +4588,7 @@ POWERPC_FAMILY(755)(ObjectClass *oc, void *data)
 
 static void init_proc_7400(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
+    register_non_embedded_sprs(env);
     register_sdr1_sprs(env);
     register_74xx_sprs(env);
     vscr_init(env, 0x00010000);
@@ -4661,7 +4660,7 @@ POWERPC_FAMILY(7400)(ObjectClass *oc, void *data)
 
 static void init_proc_7410(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
+    register_non_embedded_sprs(env);
     register_sdr1_sprs(env);
     register_74xx_sprs(env);
     vscr_init(env, 0x00010000);
@@ -4740,7 +4739,7 @@ POWERPC_FAMILY(7410)(ObjectClass *oc, void *data)
 
 static void init_proc_7440(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
+    register_non_embedded_sprs(env);
     register_sdr1_sprs(env);
     register_74xx_sprs(env);
     vscr_init(env, 0x00010000);
@@ -4840,7 +4839,7 @@ POWERPC_FAMILY(7440)(ObjectClass *oc, void *data)
 
 static void init_proc_7450(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
+    register_non_embedded_sprs(env);
     register_sdr1_sprs(env);
     register_74xx_sprs(env);
     vscr_init(env, 0x00010000);
@@ -4962,7 +4961,7 @@ POWERPC_FAMILY(7450)(ObjectClass *oc, void *data)
 
 static void init_proc_7445(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
+    register_non_embedded_sprs(env);
     register_sdr1_sprs(env);
     register_74xx_sprs(env);
     vscr_init(env, 0x00010000);
@@ -5091,7 +5090,7 @@ POWERPC_FAMILY(7445)(ObjectClass *oc, void *data)
 
 static void init_proc_7455(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
+    register_non_embedded_sprs(env);
     register_sdr1_sprs(env);
     register_74xx_sprs(env);
     vscr_init(env, 0x00010000);
@@ -5222,7 +5221,7 @@ POWERPC_FAMILY(7455)(ObjectClass *oc, void *data)
 
 static void init_proc_7457(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
+    register_non_embedded_sprs(env);
     register_sdr1_sprs(env);
     register_74xx_sprs(env);
     vscr_init(env, 0x00010000);
@@ -5373,7 +5372,7 @@ POWERPC_FAMILY(7457)(ObjectClass *oc, void *data)
 
 static void init_proc_e600(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
+    register_non_embedded_sprs(env);
     register_sdr1_sprs(env);
     register_74xx_sprs(env);
     vscr_init(env, 0x00010000);
@@ -6196,7 +6195,7 @@ static void init_tcg_pmu_power8(CPUPPCState *env)
 
 static void init_proc_book3s_common(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
+    register_non_embedded_sprs(env);
     register_usprg3_sprs(env);
     register_book3s_altivec_sprs(env);
     register_book3s_pmu_sup_sprs(env);
