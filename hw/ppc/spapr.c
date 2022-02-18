@@ -1309,13 +1309,18 @@ void spapr_set_all_lpcrs(target_ulong value, target_ulong mask)
     }
 }
 
-static void spapr_get_pate(PPCVirtualHypervisor *vhyp, ppc_v3_pate_t *entry)
+static bool spapr_get_pate(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu,
+                           target_ulong lpid, ppc_v3_pate_t *entry)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(vhyp);
+
+    assert(lpid == 0);
 
     /* Copy PATE1:GR into PATE0:HR */
     entry->dw0 = spapr->patb_entry & PATE0_HR;
     entry->dw1 = spapr->patb_entry;
+
+    return true;
 }
 
 #define HPTE(_table, _i)   (void *)(((uint64_t *)(_table)) + ((_i) * 2))

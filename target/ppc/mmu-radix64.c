@@ -563,7 +563,13 @@ static bool ppc_radix64_xlate_impl(PowerPCCPU *cpu, vaddr eaddr,
     if (cpu->vhyp) {
         PPCVirtualHypervisorClass *vhc;
         vhc = PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-        vhc->get_pate(cpu->vhyp, &pate);
+        if (!vhc->get_pate(cpu->vhyp, cpu, lpid, &pate)) {
+            if (guest_visible) {
+                ppc_radix64_raise_hsi(cpu, access_type, eaddr, eaddr,
+                                      DSISR_R_BADCONFIG);
+            }
+            return false;
+        }
     } else {
         if (!ppc64_v3_get_pate(cpu, lpid, &pate)) {
             if (guest_visible) {
