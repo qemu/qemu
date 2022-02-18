@@ -259,6 +259,10 @@ static void aspeed_smc_flash_set_segment_region(AspeedSMCState *s, int cs,
     memory_region_set_enabled(&fl->mmio, !!seg.size);
     memory_region_transaction_commit();
 
+    if (asc->segment_addr_mask) {
+        regval &= asc->segment_addr_mask;
+    }
+
     s->regs[R_SEG_ADDR0 + cs] = regval;
 }
 
@@ -1364,6 +1368,7 @@ static void aspeed_2400_fmc_class_init(ObjectClass *klass, void *data)
     asc->conf_enable_w0    = CONF_ENABLE_W0;
     asc->max_peripherals   = 5;
     asc->segments          = aspeed_2400_fmc_segments;
+    asc->segment_addr_mask = 0xffff0000;
     asc->resets            = aspeed_2400_fmc_resets;
     asc->flash_window_base = 0x20000000;
     asc->flash_window_size = 0x10000000;
@@ -1446,6 +1451,7 @@ static void aspeed_2500_fmc_class_init(ObjectClass *klass, void *data)
     asc->conf_enable_w0    = CONF_ENABLE_W0;
     asc->max_peripherals   = 3;
     asc->segments          = aspeed_2500_fmc_segments;
+    asc->segment_addr_mask = 0xffff0000;
     asc->resets            = aspeed_2500_fmc_resets;
     asc->flash_window_base = 0x20000000;
     asc->flash_window_size = 0x10000000;
@@ -1483,6 +1489,7 @@ static void aspeed_2500_spi1_class_init(ObjectClass *klass, void *data)
     asc->conf_enable_w0    = CONF_ENABLE_W0;
     asc->max_peripherals   = 2;
     asc->segments          = aspeed_2500_spi1_segments;
+    asc->segment_addr_mask = 0xffff0000;
     asc->flash_window_base = 0x30000000;
     asc->flash_window_size = 0x8000000;
     asc->features          = 0x0;
@@ -1517,6 +1524,7 @@ static void aspeed_2500_spi2_class_init(ObjectClass *klass, void *data)
     asc->conf_enable_w0    = CONF_ENABLE_W0;
     asc->max_peripherals   = 2;
     asc->segments          = aspeed_2500_spi2_segments;
+    asc->segment_addr_mask = 0xffff0000;
     asc->flash_window_base = 0x38000000;
     asc->flash_window_size = 0x8000000;
     asc->features          = 0x0;
@@ -1598,6 +1606,7 @@ static void aspeed_2600_fmc_class_init(ObjectClass *klass, void *data)
     asc->conf_enable_w0    = CONF_ENABLE_W0;
     asc->max_peripherals   = 3;
     asc->segments          = aspeed_2600_fmc_segments;
+    asc->segment_addr_mask = 0x0ff00ff0;
     asc->resets            = aspeed_2600_fmc_resets;
     asc->flash_window_base = 0x20000000;
     asc->flash_window_size = 0x10000000;
@@ -1636,6 +1645,7 @@ static void aspeed_2600_spi1_class_init(ObjectClass *klass, void *data)
     asc->conf_enable_w0    = CONF_ENABLE_W0;
     asc->max_peripherals   = 2;
     asc->segments          = aspeed_2600_spi1_segments;
+    asc->segment_addr_mask = 0x0ff00ff0;
     asc->flash_window_base = 0x30000000;
     asc->flash_window_size = 0x10000000;
     asc->features          = ASPEED_SMC_FEATURE_DMA |
@@ -1674,6 +1684,7 @@ static void aspeed_2600_spi2_class_init(ObjectClass *klass, void *data)
     asc->conf_enable_w0    = CONF_ENABLE_W0;
     asc->max_peripherals   = 3;
     asc->segments          = aspeed_2600_spi2_segments;
+    asc->segment_addr_mask = 0x0ff00ff0;
     asc->flash_window_base = 0x50000000;
     asc->flash_window_size = 0x10000000;
     asc->features          = ASPEED_SMC_FEATURE_DMA |

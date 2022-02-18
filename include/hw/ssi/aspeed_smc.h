@@ -99,6 +99,7 @@ struct AspeedSMCClass {
     uint8_t max_peripherals;
     const uint32_t *resets;
     const AspeedSegments *segments;
+    uint32_t segment_addr_mask;
     hwaddr flash_window_base;
     uint32_t flash_window_size;
     uint32_t features;
