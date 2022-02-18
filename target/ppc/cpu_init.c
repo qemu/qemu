@@ -4544,24 +4544,8 @@ POWERPC_FAMILY(745)(ObjectClass *oc, void *data)
 
 static void init_proc_755(CPUPPCState *env)
 {
-    register_ne_601_sprs(env);
-    register_sdr1_sprs(env);
-    register_7xx_sprs(env);
-    register_745_sprs(env);
+    init_proc_745(env);
     register_755_sprs(env);
-
-    /* Thermal management */
-    register_thrm_sprs(env);
-
-    /* Memory management */
-    register_low_BATs(env);
-    register_high_BATs(env);
-    register_6xx_7xx_soft_tlb(env, 64, 2);
-    init_excp_7x5(env);
-    env->dcache_line_size = 32;
-    env->icache_line_size = 32;
-    /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(755)(ObjectClass *oc, void *data)
