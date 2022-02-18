@@ -24,6 +24,8 @@
 #include "sysemu/kvm.h"
 #include "helper_regs.h"
 #include "power8-pmu.h"
+#include "cpu-models.h"
+#include "spr_common.h"
 
 /* Swap temporary saved registers with GPRs */
 void hreg_swap_gpr_tgpr(CPUPPCState *env)
@@ -302,3 +304,403 @@ void check_tlb_flush(CPUPPCState *env, bool global)
     }
 }
 #endif
+
+/**
+ * _spr_register
+ *
+ * Register an SPR with all the callbacks required for tcg,
+ * and the ID number for KVM.
+ *
+ * The reason for the conditional compilation is that the tcg functions
+ * may be compiled out, and the system kvm header may not be available
+ * for supplying the ID numbers.  This is ugly, but the best we can do.
+ */
+void _spr_register(CPUPPCState *env, int num, const char *name,
+                   USR_ARG(spr_callback *uea_read)
+                   USR_ARG(spr_callback *uea_write)
+                   SYS_ARG(spr_callback *oea_read)
+                   SYS_ARG(spr_callback *oea_write)
+                   SYS_ARG(spr_callback *hea_read)
+                   SYS_ARG(spr_callback *hea_write)
+                   KVM_ARG(uint64_t one_reg_id)
+                   target_ulong initial_value)
+{
+    ppc_spr_t *spr = &env->spr_cb[num];
+
+    /* No SPR should be registered twice. */
+    assert(spr->name == NULL);
+    assert(name != NULL);
+
+    spr->name = name;
+    spr->default_value = initial_value;
+    env->spr[num] = initial_value;
+
+#ifdef CONFIG_TCG
+    spr->uea_read = uea_read;
+    spr->uea_write = uea_write;
+# ifndef CONFIG_USER_ONLY
+    spr->oea_read = oea_read;
+    spr->oea_write = oea_write;
+    spr->hea_read = hea_read;
+    spr->hea_write = hea_write;
+# endif
+#endif
+#ifdef CONFIG_KVM
+    spr->one_reg_id = one_reg_id;
+#endif
+}
+
+/* Generic PowerPC SPRs */
+void register_generic_sprs(PowerPCCPU *cpu)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    CPUPPCState *env = &cpu->env;
+
+    /* Integer processing */
+    spr_register(env, SPR_XER, "XER",
+                 &spr_read_xer, &spr_write_xer,
+                 &spr_read_xer, &spr_write_xer,
+                 0x00000000);
+    /* Branch control */
+    spr_register(env, SPR_LR, "LR",
+                 &spr_read_lr, &spr_write_lr,
+                 &spr_read_lr, &spr_write_lr,
+                 0x00000000);
+    spr_register(env, SPR_CTR, "CTR",
+                 &spr_read_ctr, &spr_write_ctr,
+                 &spr_read_ctr, &spr_write_ctr,
+                 0x00000000);
+    /* Interrupt processing */
+    spr_register(env, SPR_SRR0, "SRR0",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_SRR1, "SRR1",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    /* Processor control */
+    spr_register(env, SPR_SPRG0, "SPRG0",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_SPRG1, "SPRG1",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_SPRG2, "SPRG2",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+    spr_register(env, SPR_SPRG3, "SPRG3",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+
+    spr_register(env, SPR_PVR, "PVR",
+                 /* Linux permits userspace to read PVR */
+#if defined(CONFIG_LINUX_USER)
+                 &spr_read_generic,
+#else
+                 SPR_NOACCESS,
+#endif
+                 SPR_NOACCESS,
+                 &spr_read_generic, SPR_NOACCESS,
+                 pcc->pvr);
+
+    /* Register SVR if it's defined to anything else than POWERPC_SVR_NONE */
+    if (pcc->svr != POWERPC_SVR_NONE) {
+        if (pcc->svr & POWERPC_SVR_E500) {
+            spr_register(env, SPR_E500_SVR, "SVR",
+                         SPR_NOACCESS, SPR_NOACCESS,
+                         &spr_read_generic, SPR_NOACCESS,
+                         pcc->svr & ~POWERPC_SVR_E500);
+        } else {
+            spr_register(env, SPR_SVR, "SVR",
+                         SPR_NOACCESS, SPR_NOACCESS,
+                         &spr_read_generic, SPR_NOACCESS,
+                         pcc->svr);
+        }
+    }
+
+    /* Time base */
+    spr_register(env, SPR_VTBL,  "TBL",
+                 &spr_read_tbl, SPR_NOACCESS,
+                 &spr_read_tbl, SPR_NOACCESS,
+                 0x00000000);
+    spr_register(env, SPR_TBL,   "TBL",
+                 &spr_read_tbl, SPR_NOACCESS,
+                 &spr_read_tbl, &spr_write_tbl,
+                 0x00000000);
+    spr_register(env, SPR_VTBU,  "TBU",
+                 &spr_read_tbu, SPR_NOACCESS,
+                 &spr_read_tbu, SPR_NOACCESS,
+                 0x00000000);
+    spr_register(env, SPR_TBU,   "TBU",
+                 &spr_read_tbu, SPR_NOACCESS,
+                 &spr_read_tbu, &spr_write_tbu,
+                 0x00000000);
+}
+
+void register_non_embedded_sprs(CPUPPCState *env)
+{
+    /* Exception processing */
+    spr_register_kvm(env, SPR_DSISR, "DSISR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_DSISR, 0x00000000);
+    spr_register_kvm(env, SPR_DAR, "DAR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     KVM_REG_PPC_DAR, 0x00000000);
+    /* Timer */
+    spr_register(env, SPR_DECR, "DECR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_decr, &spr_write_decr,
+                 0x00000000);
+}
+
+/* Storage Description Register 1 */
+void register_sdr1_sprs(CPUPPCState *env)
+{
+#ifndef CONFIG_USER_ONLY
+    if (env->has_hv_mode) {
+        /*
+         * SDR1 is a hypervisor resource on CPUs which have a
+         * hypervisor mode
+         */
+        spr_register_hv(env, SPR_SDR1, "SDR1",
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        &spr_read_generic, &spr_write_sdr1,
+                        0x00000000);
+    } else {
+        spr_register(env, SPR_SDR1, "SDR1",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_sdr1,
+                     0x00000000);
+    }
+#endif
+}
+
+/* BATs 0-3 */
+void register_low_BATs(CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    spr_register(env, SPR_IBAT0U, "IBAT0U",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_ibat, &spr_write_ibatu,
+                 0x00000000);
+    spr_register(env, SPR_IBAT0L, "IBAT0L",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_ibat, &spr_write_ibatl,
+                 0x00000000);
+    spr_register(env, SPR_IBAT1U, "IBAT1U",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_ibat, &spr_write_ibatu,
+                 0x00000000);
+    spr_register(env, SPR_IBAT1L, "IBAT1L",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_ibat, &spr_write_ibatl,
+                 0x00000000);
+    spr_register(env, SPR_IBAT2U, "IBAT2U",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_ibat, &spr_write_ibatu,
+                 0x00000000);
+    spr_register(env, SPR_IBAT2L, "IBAT2L",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_ibat, &spr_write_ibatl,
+                 0x00000000);
+    spr_register(env, SPR_IBAT3U, "IBAT3U",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_ibat, &spr_write_ibatu,
+                 0x00000000);
+    spr_register(env, SPR_IBAT3L, "IBAT3L",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_ibat, &spr_write_ibatl,
+                 0x00000000);
+    spr_register(env, SPR_DBAT0U, "DBAT0U",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_dbat, &spr_write_dbatu,
+                 0x00000000);
+    spr_register(env, SPR_DBAT0L, "DBAT0L",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_dbat, &spr_write_dbatl,
+                 0x00000000);
+    spr_register(env, SPR_DBAT1U, "DBAT1U",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_dbat, &spr_write_dbatu,
+                 0x00000000);
+    spr_register(env, SPR_DBAT1L, "DBAT1L",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_dbat, &spr_write_dbatl,
+                 0x00000000);
+    spr_register(env, SPR_DBAT2U, "DBAT2U",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_dbat, &spr_write_dbatu,
+                 0x00000000);
+    spr_register(env, SPR_DBAT2L, "DBAT2L",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_dbat, &spr_write_dbatl,
+                 0x00000000);
+    spr_register(env, SPR_DBAT3U, "DBAT3U",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_dbat, &spr_write_dbatu,
+                 0x00000000);
+    spr_register(env, SPR_DBAT3L, "DBAT3L",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_dbat, &spr_write_dbatl,
+                 0x00000000);
+    env->nb_BATs += 4;
+#endif
+}
+
+/* BATs 4-7 */
+void register_high_BATs(CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    spr_register(env, SPR_IBAT4U, "IBAT4U",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_ibat_h, &spr_write_ibatu_h,
+                 0x00000000);
+    spr_register(env, SPR_IBAT4L, "IBAT4L",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_ibat_h, &spr_write_ibatl_h,
+                 0x00000000);
+    spr_register(env, SPR_IBAT5U, "IBAT5U",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_ibat_h, &spr_write_ibatu_h,
+                 0x00000000);
+    spr_register(env, SPR_IBAT5L, "IBAT5L",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_ibat_h, &spr_write_ibatl_h,
+                 0x00000000);
+    spr_register(env, SPR_IBAT6U, "IBAT6U",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_ibat_h, &spr_write_ibatu_h,
+                 0x00000000);
+    spr_register(env, SPR_IBAT6L, "IBAT6L",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_ibat_h, &spr_write_ibatl_h,
+                 0x00000000);
+    spr_register(env, SPR_IBAT7U, "IBAT7U",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_ibat_h, &spr_write_ibatu_h,
+                 0x00000000);
+    spr_register(env, SPR_IBAT7L, "IBAT7L",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_ibat_h, &spr_write_ibatl_h,
+                 0x00000000);
+    spr_register(env, SPR_DBAT4U, "DBAT4U",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_dbat_h, &spr_write_dbatu_h,
+                 0x00000000);
+    spr_register(env, SPR_DBAT4L, "DBAT4L",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_dbat_h, &spr_write_dbatl_h,
+                 0x00000000);
+    spr_register(env, SPR_DBAT5U, "DBAT5U",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_dbat_h, &spr_write_dbatu_h,
+                 0x00000000);
+    spr_register(env, SPR_DBAT5L, "DBAT5L",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_dbat_h, &spr_write_dbatl_h,
+                 0x00000000);
+    spr_register(env, SPR_DBAT6U, "DBAT6U",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_dbat_h, &spr_write_dbatu_h,
+                 0x00000000);
+    spr_register(env, SPR_DBAT6L, "DBAT6L",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_dbat_h, &spr_write_dbatl_h,
+                 0x00000000);
+    spr_register(env, SPR_DBAT7U, "DBAT7U",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_dbat_h, &spr_write_dbatu_h,
+                 0x00000000);
+    spr_register(env, SPR_DBAT7L, "DBAT7L",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_dbat_h, &spr_write_dbatl_h,
+                 0x00000000);
+    env->nb_BATs += 4;
+#endif
+}
+
+/* Softare table search registers */
+void register_6xx_7xx_soft_tlb(CPUPPCState *env, int nb_tlbs, int nb_ways)
+{
+#if !defined(CONFIG_USER_ONLY)
+    env->nb_tlb = nb_tlbs;
+    env->nb_ways = nb_ways;
+    env->id_tlbs = 1;
+    env->tlb_type = TLB_6XX;
+    spr_register(env, SPR_DMISS, "DMISS",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, SPR_NOACCESS,
+                 0x00000000);
+    spr_register(env, SPR_DCMP, "DCMP",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, SPR_NOACCESS,
+                 0x00000000);
+    spr_register(env, SPR_HASH1, "HASH1",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, SPR_NOACCESS,
+                 0x00000000);
+    spr_register(env, SPR_HASH2, "HASH2",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, SPR_NOACCESS,
+                 0x00000000);
+    spr_register(env, SPR_IMISS, "IMISS",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, SPR_NOACCESS,
+                 0x00000000);
+    spr_register(env, SPR_ICMP, "ICMP",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, SPR_NOACCESS,
+                 0x00000000);
+    spr_register(env, SPR_RPA, "RPA",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
+                 0x00000000);
+#endif
+}
+
+void register_thrm_sprs(CPUPPCState *env)
+{
+    /* Thermal management */
+    spr_register(env, SPR_THRM1, "THRM1",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_thrm, &spr_write_generic,
+                 0x00000000);
+
+    spr_register(env, SPR_THRM2, "THRM2",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_thrm, &spr_write_generic,
+                 0x00000000);
+
+    spr_register(env, SPR_THRM3, "THRM3",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_thrm, &spr_write_generic,
+                 0x00000000);
+}
+
+void register_usprgh_sprs(CPUPPCState *env)
+{
+    spr_register(env, SPR_USPRG4, "USPRG4",
+                 &spr_read_ureg, SPR_NOACCESS,
+                 &spr_read_ureg, SPR_NOACCESS,
+                 0x00000000);
+    spr_register(env, SPR_USPRG5, "USPRG5",
+                 &spr_read_ureg, SPR_NOACCESS,
+                 &spr_read_ureg, SPR_NOACCESS,
+                 0x00000000);
+    spr_register(env, SPR_USPRG6, "USPRG6",
+                 &spr_read_ureg, SPR_NOACCESS,
+                 &spr_read_ureg, SPR_NOACCESS,
+                 0x00000000);
+    spr_register(env, SPR_USPRG7, "USPRG7",
+                 &spr_read_ureg, SPR_NOACCESS,
+                 &spr_read_ureg, SPR_NOACCESS,
+                 0x00000000);
+}

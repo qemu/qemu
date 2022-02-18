@@ -204,5 +204,6 @@ void register_thrm_sprs(CPUPPCState *env);
 void register_usprgh_sprs(CPUPPCState *env);
 void register_non_embedded_sprs(CPUPPCState *env);
 void register_6xx_7xx_soft_tlb(CPUPPCState *env, int nb_tlbs, int nb_ways);
+void register_generic_sprs(PowerPCCPU *cpu);
 
 #endif
