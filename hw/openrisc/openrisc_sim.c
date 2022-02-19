@@ -37,6 +37,8 @@
 
 #define KERNEL_LOAD_ADDR 0x100
 
+#define OR1KSIM_CPUS_MAX 4
+
 #define TYPE_OR1KSIM_MACHINE MACHINE_TYPE_NAME("or1k-sim")
 #define OR1KSIM_MACHINE(obj) \
     OBJECT_CHECK(Or1ksimState, (obj), TYPE_OR1KSIM_MACHINE)
@@ -197,12 +199,12 @@ static void openrisc_sim_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
     const char *kernel_filename = machine->kernel_filename;
-    OpenRISCCPU *cpus[2] = {};
+    OpenRISCCPU *cpus[OR1KSIM_CPUS_MAX] = {};
     MemoryRegion *ram;
     int n;
     unsigned int smp_cpus = machine->smp.cpus;
 
-    assert(smp_cpus >= 1 && smp_cpus <= 2);
+    assert(smp_cpus >= 1 && smp_cpus <= OR1KSIM_CPUS_MAX);
     for (n = 0; n < smp_cpus; n++) {
         cpus[n] = OPENRISC_CPU(cpu_create(machine->cpu_type));
         if (cpus[n] == NULL) {
@@ -243,7 +245,7 @@ static void openrisc_sim_machine_init(ObjectClass *oc, void *data)
 
     mc->desc = "or1k simulation";
     mc->init = openrisc_sim_init;
-    mc->max_cpus = 2;
+    mc->max_cpus = OR1KSIM_CPUS_MAX;
     mc->is_default = true;
     mc->default_cpu_type = OPENRISC_CPU_TYPE_NAME("or1200");
 }
