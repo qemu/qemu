@@ -182,7 +182,12 @@ static int synth_opendir(FsContext *ctx,
     V9fsSynthOpenState *synth_open;
     V9fsSynthNode *node = *(V9fsSynthNode **)fs_path->data;
 
-    synth_open = g_malloc(sizeof(*synth_open));
+    /*
+     * V9fsSynthOpenState contains 'struct dirent' which have OS-specific
+     * properties, thus it's zero cleared on allocation here and below
+     * in synth_open.
+     */
+    synth_open = g_new0(V9fsSynthOpenState, 1);
     synth_open->node = node;
     node->open_count++;
     fs->private = synth_open;
@@ -220,7 +225,14 @@ static void synth_rewinddir(FsContext *ctx, V9fsFidOpenState *fs)
 static void synth_direntry(V9fsSynthNode *node,
                                 struct dirent *entry, off_t off)
 {
-    strcpy(entry->d_name, node->name);
+    size_t sz = strlen(node->name) + 1;
+    /*
+     * 'entry' is always inside of V9fsSynthOpenState which have NAME_MAX
+     * back padding. Ensure we do not overflow it.
+     */
+    g_assert(sizeof(struct dirent) + NAME_MAX >=
+             offsetof(struct dirent, d_name) + sz);
+    memcpy(entry->d_name, node->name, sz);
     entry->d_ino = node->attr->inode;
     entry->d_off = off + 1;
 }
@@ -266,7 +278,7 @@ static int synth_open(FsContext *ctx, V9fsPath *fs_path,
     V9fsSynthOpenState *synth_open;
     V9fsSynthNode *node = *(V9fsSynthNode **)fs_path->data;
 
-    synth_open = g_malloc(sizeof(*synth_open));
+    synth_open = g_new0(V9fsSynthOpenState, 1);
     synth_open->node = node;
     node->open_count++;
     fs->private = synth_open;

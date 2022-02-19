@@ -37,31 +37,23 @@ static char *concat_path(const char* a, const char* b)
     return g_build_filename(a, b, NULL);
 }
 
-static void init_local_test_path(void)
+void virtio_9p_create_local_test_dir(void)
 {
-    char *pwd = g_get_current_dir();
+    g_assert(local_test_path == NULL);
+    struct stat st;
+    g_autofree char *pwd = g_get_current_dir();
+    /*
+     * template gets cached into local_test_path and freed in
+     * virtio_9p_remove_local_test_dir().
+     */
     char *template = concat_path(pwd, "qtest-9p-local-XXXXXX");
+
     local_test_path = mkdtemp(template);
     if (!local_test_path) {
         g_test_message("mkdtemp('%s') failed: %s", template, strerror(errno));
     }
-    g_assert(local_test_path);
-    g_free(pwd);
-}
-
-void virtio_9p_create_local_test_dir(void)
-{
-    struct stat st;
-    int res;
-
-    init_local_test_path();
 
     g_assert(local_test_path != NULL);
-    res = mkdir(local_test_path, 0777);
-    if (res < 0) {
-        g_test_message("mkdir('%s') failed: %s", local_test_path,
-                       strerror(errno));
-    }
 
     /* ensure test directory exists now ... */
     g_assert(stat(local_test_path, &st) == 0);
@@ -72,12 +64,13 @@ void virtio_9p_create_local_test_dir(void)
 void virtio_9p_remove_local_test_dir(void)
 {
     g_assert(local_test_path != NULL);
-    char *cmd = g_strdup_printf("rm -fr '%s'\n", local_test_path);
+    g_autofree char *cmd = g_strdup_printf("rm -fr '%s'\n", local_test_path);
     int res = system(cmd);
     if (res < 0) {
         /* ignore error, dummy check to prevent compiler error */
     }
-    g_free(cmd);
+    g_free(local_test_path);
+    local_test_path = NULL;
 }
 
 char *virtio_9p_test_path(const char *path)
@@ -221,8 +214,8 @@ static void *virtio_9p_pci_create(void *pci_bus, QGuestAllocator *t_alloc,
 static void regex_replace(GString *haystack, const char *pattern,
                           const char *replace_fmt, ...)
 {
-    GRegex *regex;
-    char *replace, *s;
+    g_autoptr(GRegex) regex = NULL;
+    g_autofree char *replace = NULL, *s = NULL;
     va_list argp;
 
     va_start(argp, replace_fmt);
@@ -232,9 +225,6 @@ static void regex_replace(GString *haystack, const char *pattern,
     regex = g_regex_new(pattern, 0, 0, NULL);
     s = g_regex_replace(regex, haystack->str, -1, 0, replace, 0, NULL);
     g_string_assign(haystack, s);
-    g_free(s);
-    g_regex_unref(regex);
-    g_free(replace);
 }
 
 void virtio_9p_assign_local_driver(GString *cmd_line, const char *args)

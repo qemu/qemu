@@ -41,6 +41,11 @@ typedef struct V9fsSynthOpenState {
     off_t offset;
     V9fsSynthNode *node;
     struct dirent dent;
+    /*
+     * Ensure there is enough space for 'dent' above, some systems have a
+     * d_name size of just 1, which would cause a buffer overrun.
+     */
+    char dent_trailing_space[NAME_MAX];
 } V9fsSynthOpenState;
 
 int qemu_v9fs_synth_mkdir(V9fsSynthNode *parent, int mode,
