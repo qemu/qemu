@@ -137,6 +137,28 @@ static void openrisc_sim_ompic_init(hwaddr base, int num_cpus,
     sysbus_mmio_map(s, 0, base);
 }
 
+static void openrisc_sim_serial_init(hwaddr base, int num_cpus,
+                                     OpenRISCCPU *cpus[], int irq_pin)
+{
+    qemu_irq serial_irq;
+    int i;
+
+    if (num_cpus > 1) {
+        DeviceState *splitter = qdev_new(TYPE_SPLIT_IRQ);
+        qdev_prop_set_uint32(splitter, "num-lines", num_cpus);
+        qdev_realize_and_unref(splitter, NULL, &error_fatal);
+        for (i = 0; i < num_cpus; i++) {
+            qdev_connect_gpio_out(splitter, i, get_cpu_irq(cpus, i, irq_pin));
+        }
+        serial_irq = qdev_get_gpio_in(splitter, 0);
+    } else {
+        serial_irq = get_cpu_irq(cpus, 0, irq_pin);
+    }
+    serial_mm_init(get_system_memory(), base, 0, serial_irq, 115200,
+                   serial_hd(0), DEVICE_NATIVE_ENDIAN);
+}
+
+
 static void openrisc_load_kernel(ram_addr_t ram_size,
                                  const char *kernel_filename)
 {
@@ -177,7 +199,6 @@ static void openrisc_sim_init(MachineState *machine)
     const char *kernel_filename = machine->kernel_filename;
     OpenRISCCPU *cpus[2] = {};
     MemoryRegion *ram;
-    qemu_irq serial_irq;
     int n;
     unsigned int smp_cpus = machine->smp.cpus;
 
@@ -208,15 +229,10 @@ static void openrisc_sim_init(MachineState *machine)
     if (smp_cpus > 1) {
         openrisc_sim_ompic_init(or1ksim_memmap[OR1KSIM_OMPIC].base, smp_cpus,
                                 cpus, OR1KSIM_OMPIC_IRQ);
-
-        serial_irq = qemu_irq_split(get_cpu_irq(cpus, 0, OR1KSIM_UART_IRQ),
-                                    get_cpu_irq(cpus, 1, OR1KSIM_UART_IRQ));
-    } else {
-        serial_irq = get_cpu_irq(cpus, 0, OR1KSIM_UART_IRQ);
     }
 
-    serial_mm_init(get_system_memory(), or1ksim_memmap[OR1KSIM_UART].base, 0,
-                   serial_irq, 115200, serial_hd(0), DEVICE_NATIVE_ENDIAN);
+    openrisc_sim_serial_init(or1ksim_memmap[OR1KSIM_UART].base, smp_cpus, cpus,
+                             OR1KSIM_UART_IRQ);
 
     openrisc_load_kernel(ram_size, kernel_filename);
 }
