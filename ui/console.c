@@ -1114,6 +1114,10 @@ static void displaychangelistener_display_console(DisplayChangeListener *dcl,
         return;
     }
 
+    dpy_gfx_create_texture(con, con->surface);
+    displaychangelistener_gfx_switch(dcl, con->surface,
+                                     con->scanout.kind == SCANOUT_SURFACE);
+
     if (con->scanout.kind == SCANOUT_DMABUF &&
         displaychangelistener_has_dmabuf(dcl)) {
         dcl->ops->dpy_gl_scanout_dmabuf(dcl, con->scanout.dmabuf);
@@ -1128,9 +1132,6 @@ static void displaychangelistener_display_console(DisplayChangeListener *dcl,
                                          con->scanout.texture.y,
                                          con->scanout.texture.width,
                                          con->scanout.texture.height);
-    } else if (con->scanout.kind == SCANOUT_SURFACE) {
-        dpy_gfx_create_texture(con, con->surface);
-        displaychangelistener_gfx_switch(dcl, con->surface, TRUE);
     }
 }
 
