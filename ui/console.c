@@ -1059,10 +1059,17 @@ static void console_putchar(QemuConsole *s, int ch)
 }
 
 static void displaychangelistener_gfx_switch(DisplayChangeListener *dcl,
-                                             struct DisplaySurface *new_surface)
+                                             struct DisplaySurface *new_surface,
+                                             bool update)
 {
     if (dcl->ops->dpy_gfx_switch) {
         dcl->ops->dpy_gfx_switch(dcl, new_surface);
+    }
+
+    if (update && dcl->ops->dpy_gfx_update) {
+        dcl->ops->dpy_gfx_update(dcl, 0, 0,
+                                 surface_width(new_surface),
+                                 surface_height(new_surface));
     }
 }
 
@@ -1079,7 +1086,7 @@ static void displaychangelistener_display_console(DisplayChangeListener *dcl,
         if (!dummy) {
             dummy = qemu_create_placeholder_surface(640, 480, nodev);
         }
-        displaychangelistener_gfx_switch(dcl, dummy);
+        displaychangelistener_gfx_switch(dcl, dummy, TRUE);
         return;
     }
 
@@ -1098,12 +1105,8 @@ static void displaychangelistener_display_console(DisplayChangeListener *dcl,
                                          con->scanout.texture.width,
                                          con->scanout.texture.height);
     } else if (con->scanout.kind == SCANOUT_SURFACE) {
-        displaychangelistener_gfx_switch(dcl, con->surface);
+        displaychangelistener_gfx_switch(dcl, con->surface, TRUE);
     }
-
-    dcl->ops->dpy_gfx_update(dcl, 0, 0,
-                             qemu_console_get_width(con, 0),
-                             qemu_console_get_height(con, 0));
 }
 
 void console_select(unsigned int index)
@@ -1682,7 +1685,7 @@ void dpy_gfx_replace_surface(QemuConsole *con,
         if (con != (dcl->con ? dcl->con : active_console)) {
             continue;
         }
-        displaychangelistener_gfx_switch(dcl, surface);
+        displaychangelistener_gfx_switch(dcl, surface, FALSE);
     }
     qemu_free_displaysurface(old_surface);
 }
