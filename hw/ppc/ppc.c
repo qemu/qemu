@@ -1072,7 +1072,7 @@ clk_setup_cb cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq)
     }
     /* Create new timer */
     tb_env->decr_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &cpu_ppc_decr_cb, cpu);
-    if (env->has_hv_mode) {
+    if (env->has_hv_mode && !cpu->vhyp) {
         tb_env->hdecr_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &cpu_ppc_hdecr_cb,
                                                 cpu);
     } else {
@@ -1081,6 +1081,27 @@ clk_setup_cb cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq)
     cpu_ppc_set_tb_clk(env, freq);
 
     return &cpu_ppc_set_tb_clk;
+}
+
+/* cpu_ppc_hdecr_init may be used if the timer is not used by HDEC emulation */
+void cpu_ppc_hdecr_init(CPUPPCState *env)
+{
+    PowerPCCPU *cpu = env_archcpu(env);
+
+    assert(env->tb_env->hdecr_timer == NULL);
+
+    env->tb_env->hdecr_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                            &cpu_ppc_hdecr_cb, cpu);
+}
+
+void cpu_ppc_hdecr_exit(CPUPPCState *env)
+{
+    PowerPCCPU *cpu = env_archcpu(env);
+
+    timer_free(env->tb_env->hdecr_timer);
+    env->tb_env->hdecr_timer = NULL;
+
+    cpu_ppc_hdecr_lower(cpu);
 }
 
 /*****************************************************************************/

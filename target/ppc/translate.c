@@ -35,7 +35,7 @@
 #include "exec/translator.h"
 #include "exec/log.h"
 #include "qemu/atomic128.h"
-#include "spr_tcg.h"
+#include "spr_common.h"
 
 #include "qemu/qemu-print.h"
 #include "qapi/error.h"

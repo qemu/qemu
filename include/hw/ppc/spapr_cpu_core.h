@@ -48,6 +48,11 @@ typedef struct SpaprCpuState {
     bool prod; /* not migrated, only used to improve dispatch latencies */
     struct ICPState *icp;
     struct XiveTCTX *tctx;
+
+    /* Fields for nested-HV support */
+    bool in_nested; /* true while the L2 is executing */
+    CPUPPCState *nested_host_state; /* holds the L1 state while L2 executes */
+    int64_t nested_tb_offset; /* L1->L2 TB offset */
 } SpaprCpuState;
 
 static inline SpaprCpuState *spapr_cpu_state(PowerPCCPU *cpu)
