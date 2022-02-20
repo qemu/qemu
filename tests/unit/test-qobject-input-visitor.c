@@ -64,7 +64,7 @@ static Visitor *test_init_internal(TestInputVisitorData *data, bool keyval,
     return data->qiv;
 }
 
-static GCC_FMT_ATTR(3, 4)
+static G_GNUC_PRINTF(3, 4)
 Visitor *visitor_input_test_init_full(TestInputVisitorData *data,
                                       bool keyval,
                                       const char *json_string, ...)
@@ -79,7 +79,7 @@ Visitor *visitor_input_test_init_full(TestInputVisitorData *data,
     return v;
 }
 
-static GCC_FMT_ATTR(2, 3)
+static G_GNUC_PRINTF(2, 3)
 Visitor *visitor_input_test_init(TestInputVisitorData *data,
                                  const char *json_string, ...)
 {

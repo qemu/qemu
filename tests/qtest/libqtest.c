@@ -437,7 +437,7 @@ static void qtest_client_socket_send(QTestState *s, const char *buf)
     socket_send(s->fd, buf, strlen(buf));
 }
 
-static void GCC_FMT_ATTR(2, 3) qtest_sendf(QTestState *s, const char *fmt, ...)
+static void G_GNUC_PRINTF(2, 3) qtest_sendf(QTestState *s, const char *fmt, ...)
 {
     va_list ap;
 

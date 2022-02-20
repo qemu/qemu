@@ -269,7 +269,7 @@ typedef struct symbol_cache_entry
 } asymbol;
 
 typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
-    GCC_FMT_ATTR(2, 3);
+    G_GNUC_PRINTF(2, 3);
 
 enum dis_insn_type {
   dis_noninsn,			/* Not a valid instruction */

@@ -108,7 +108,7 @@ static void ssh_state_free(BDRVSSHState *s)
     }
 }
 
-static void GCC_FMT_ATTR(3, 4)
+static void G_GNUC_PRINTF(3, 4)
 session_error_setg(Error **errp, BDRVSSHState *s, const char *fs, ...)
 {
     va_list args;
@@ -133,7 +133,7 @@ session_error_setg(Error **errp, BDRVSSHState *s, const char *fs, ...)
     g_free(msg);
 }
 
-static void GCC_FMT_ATTR(3, 4)
+static void G_GNUC_PRINTF(3, 4)
 sftp_error_setg(Error **errp, BDRVSSHState *s, const char *fs, ...)
 {
     va_list args;

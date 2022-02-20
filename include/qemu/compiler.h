@@ -79,19 +79,12 @@
 #define QEMU_BUILD_BUG_ON_ZERO(x) (sizeof(QEMU_BUILD_BUG_ON_STRUCT(x)) - \
                                    sizeof(QEMU_BUILD_BUG_ON_STRUCT(x)))
 
-#if defined(__clang__)
-/* clang doesn't support gnu_printf, so use printf. */
-# define GCC_FMT_ATTR(n, m) __attribute__((format(printf, n, m)))
-#else
-/* Use gnu_printf (qemu uses standard format strings). */
-# define GCC_FMT_ATTR(n, m) __attribute__((format(gnu_printf, n, m)))
-# if defined(_WIN32)
+#if !defined(__clang__) && defined(_WIN32)
 /*
  * Map __printf__ to __gnu_printf__ because we want standard format strings even
  * when MinGW or GLib include files use __printf__.
  */
-#  define __printf__ __gnu_printf__
-# endif
+# define __printf__ __gnu_printf__
 #endif
 
 #ifndef __has_warning

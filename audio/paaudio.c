@@ -43,7 +43,7 @@ typedef struct {
 
 static void qpa_conn_fini(PAConnection *c);
 
-static void GCC_FMT_ATTR (2, 3) qpa_logerr (int err, const char *fmt, ...)
+static void G_GNUC_PRINTF (2, 3) qpa_logerr (int err, const char *fmt, ...)
 {
     va_list ap;
 

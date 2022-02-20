@@ -211,7 +211,7 @@ static void coreaudio_logstatus (OSStatus status)
     AUD_log (AUDIO_CAP, "Reason: %s\n", str);
 }
 
-static void GCC_FMT_ATTR (2, 3) coreaudio_logerr (
+static void G_GNUC_PRINTF (2, 3) coreaudio_logerr (
     OSStatus status,
     const char *fmt,
     ...
@@ -226,7 +226,7 @@ static void GCC_FMT_ATTR (2, 3) coreaudio_logerr (
     coreaudio_logstatus (status);
 }
 
-static void GCC_FMT_ATTR (3, 4) coreaudio_logerr2 (
+static void G_GNUC_PRINTF (3, 4) coreaudio_logerr2 (
     OSStatus status,
     const char *typ,
     const char *fmt,

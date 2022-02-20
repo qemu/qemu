@@ -207,7 +207,7 @@ build_append_nameseg(GArray *array, const char *seg)
     g_array_append_vals(array, "____", ACPI_NAMESEG_LEN - len);
 }
 
-static void GCC_FMT_ATTR(2, 0)
+static void G_GNUC_PRINTF(2, 0)
 build_append_namestringv(GArray *array, const char *format, va_list ap)
 {
     char *s;
@@ -270,7 +270,7 @@ build_append_namestringv(GArray *array, const char *format, va_list ap)
     g_strfreev(segs);
 }
 
-GCC_FMT_ATTR(2, 3)
+G_GNUC_PRINTF(2, 3)
 static void build_append_namestring(GArray *array, const char *format, ...)
 {
     va_list ap;

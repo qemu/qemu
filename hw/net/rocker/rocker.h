@@ -30,7 +30,7 @@
         fprintf(stderr, "%s ROCKER: " fmt, nowstr, ## __VA_ARGS__);\
     } while (0)
 #else
-static inline GCC_FMT_ATTR(1, 2) int DPRINTF(const char *fmt, ...)
+static inline G_GNUC_PRINTF(1, 2) int DPRINTF(const char *fmt, ...)
 {
     return 0;
 }

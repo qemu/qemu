@@ -25,7 +25,7 @@ struct Error;
 typedef void (*ErrorSetFunc)(struct Error **errp,
                              const char *src, int line, const char *func,
                              int win32_err, const char *fmt, ...)
-    GCC_FMT_ATTR(6, 7);
+    G_GNUC_PRINTF(6, 7);
 typedef struct ErrorSet {
     ErrorSetFunc error_setg_win32_wrapper;
     struct Error **errp;        /* restriction: must not be null */

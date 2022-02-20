@@ -288,7 +288,7 @@ static void qtest_send_prefix(CharBackend *chr)
             (long) tv.tv_sec, (long) tv.tv_usec);
 }
 
-static void GCC_FMT_ATTR(1, 2) qtest_log_send(const char *fmt, ...)
+static void G_GNUC_PRINTF(1, 2) qtest_log_send(const char *fmt, ...)
 {
     va_list ap;
 
@@ -318,7 +318,7 @@ static void qtest_send(CharBackend *chr, const char *str)
     qtest_server_send(qtest_server_send_opaque, str);
 }
 
-static void GCC_FMT_ATTR(2, 3) qtest_sendf(CharBackend *chr,
+static void G_GNUC_PRINTF(2, 3) qtest_sendf(CharBackend *chr,
                                            const char *fmt, ...)
 {
     va_list ap;

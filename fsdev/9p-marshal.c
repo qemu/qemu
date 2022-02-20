@@ -27,7 +27,7 @@ void v9fs_string_free(V9fsString *str)
     str->size = 0;
 }
 
-void GCC_FMT_ATTR(2, 3)
+void G_GNUC_PRINTF(2, 3)
 v9fs_string_sprintf(V9fsString *str, const char *fmt, ...)
 {
     va_list ap;

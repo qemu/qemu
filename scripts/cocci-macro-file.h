@@ -34,7 +34,7 @@
 #define QEMU_BUILD_BUG_ON(x) \
     typedef char cat2(qemu_build_bug_on__,__LINE__)[(x)?-1:1] __attribute__((unused));
 
-#define GCC_FMT_ATTR(n, m) __attribute__((format(gnu_printf, n, m)))
+#define G_GNUC_PRINTF(n, m) __attribute__((format(gnu_printf, n, m)))
 
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)

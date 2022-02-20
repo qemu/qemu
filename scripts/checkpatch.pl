@@ -227,7 +227,7 @@ our $Attribute	= qr{
 			QEMU_WARN_UNUSED_RESULT|
 			QEMU_SENTINEL|
 			QEMU_PACKED|
-			GCC_FMT_ATTR
+			G_GNUC_PRINTF
 		  }x;
 our $Modifier;
 our $Inline	= qr{inline};

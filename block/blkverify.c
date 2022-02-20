@@ -44,7 +44,7 @@ typedef struct BlkverifyRequest {
     QEMUIOVector *raw_qiov;     /* cloned I/O vector for raw file */
 } BlkverifyRequest;
 
-static void GCC_FMT_ATTR(2, 3) blkverify_err(BlkverifyRequest *r,
+static void G_GNUC_PRINTF(2, 3) blkverify_err(BlkverifyRequest *r,
                                              const char *fmt, ...)
 {
     va_list ap;

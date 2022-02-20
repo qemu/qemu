@@ -9,7 +9,7 @@
 bool xen_igd_gfx_pt_enabled(void);
 void xen_igd_gfx_pt_set(bool value, Error **errp);
 
-void xen_pt_log(const PCIDevice *d, const char *f, ...) GCC_FMT_ATTR(2, 3);
+void xen_pt_log(const PCIDevice *d, const char *f, ...) G_GNUC_PRINTF(2, 3);
 
 #define XEN_PT_ERR(d, _f, _a...) xen_pt_log(d, "%s: Error: "_f, __func__, ##_a)
 

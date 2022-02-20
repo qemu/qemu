@@ -96,7 +96,7 @@ static inline void qemu_log_unlock(FILE *fd)
 
 /* vfprintf-like logging function
  */
-static inline void GCC_FMT_ATTR(1, 0)
+static inline void G_GNUC_PRINTF(1, 0)
 qemu_log_vprintf(const char *fmt, va_list va)
 {
     QemuLogFile *logfile;

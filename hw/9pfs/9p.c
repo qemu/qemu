@@ -203,7 +203,7 @@ void v9fs_path_free(V9fsPath *path)
 }
 
 
-void GCC_FMT_ATTR(2, 3)
+void G_GNUC_PRINTF(2, 3)
 v9fs_path_sprintf(V9fsPath *path, const char *fmt, ...)
 {
     va_list ap;
