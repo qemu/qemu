@@ -255,6 +255,26 @@ static void dbus_gfx_update(DisplayChangeListener *dcl,
 
     trace_dbus_update(x, y, w, h);
 
+    if (x == 0 && y == 0 && w == surface_width(ddl->ds) && h == surface_height(ddl->ds)) {
+        v_data = g_variant_new_from_data(
+            G_VARIANT_TYPE("ay"),
+            surface_data(ddl->ds),
+            surface_stride(ddl->ds) * surface_height(ddl->ds),
+            TRUE,
+            (GDestroyNotify)pixman_image_unref,
+            pixman_image_ref(ddl->ds->image));
+        qemu_dbus_display1_listener_call_scanout(
+            ddl->proxy,
+            surface_width(ddl->ds),
+            surface_height(ddl->ds),
+            surface_stride(ddl->ds),
+            surface_format(ddl->ds),
+            v_data,
+            G_DBUS_CALL_FLAGS_NONE,
+            DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
+        return;
+    }
+
     /* make a copy, since gvariant only handles linear data */
     img = pixman_image_create_bits(surface_format(ddl->ds),
                                    w, h, NULL, stride);
@@ -295,29 +315,12 @@ static void dbus_gfx_switch(DisplayChangeListener *dcl,
                             struct DisplaySurface *new_surface)
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
-    GVariant *v_data = NULL;
 
     ddl->ds = new_surface;
     if (!ddl->ds) {
         /* why not call disable instead? */
         return;
     }
-
-    v_data = g_variant_new_from_data(
-        G_VARIANT_TYPE("ay"),
-        surface_data(ddl->ds),
-        surface_stride(ddl->ds) * surface_height(ddl->ds),
-        TRUE,
-        (GDestroyNotify)pixman_image_unref,
-        pixman_image_ref(ddl->ds->image));
-    qemu_dbus_display1_listener_call_scanout(ddl->proxy,
-        surface_width(ddl->ds),
-        surface_height(ddl->ds),
-        surface_stride(ddl->ds),
-        surface_format(ddl->ds),
-        v_data,
-        G_DBUS_CALL_FLAGS_NONE,
-        DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
 }
 
 static void dbus_mouse_set(DisplayChangeListener *dcl,
