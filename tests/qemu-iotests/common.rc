@@ -20,7 +20,7 @@
 # bail out, setting up .notrun file
 _notrun()
 {
-    echo "$*" >"$OUTPUT_DIR/$seq.notrun"
+    echo "$*" >"$TEST_DIR/$seq.notrun"
     echo "$seq not run: $*"
     status=0
     exit
@@ -739,14 +739,14 @@ _img_info()
 #
 _casenotrun()
 {
-    echo "    [case not run] $*" >>"$OUTPUT_DIR/$seq.casenotrun"
+    echo "    [case not run] $*" >>"$TEST_DIR/$seq.casenotrun"
 }
 
 # just plain bail out
 #
 _fail()
 {
-    echo "$*" | tee -a "$OUTPUT_DIR/$seq.full"
+    echo "$*" | tee -a "$TEST_DIR/$seq.full"
     echo "(see $seq.full for details)"
     status=1
     exit 1
