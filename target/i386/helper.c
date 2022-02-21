@@ -174,7 +174,7 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
     }
 
     /* Clear bits we're going to recompute.  */
-    hflags = env->hflags & ~(HF_OSFXSR_MASK | HF_SMAP_MASK);
+    hflags = env->hflags & ~(HF_OSFXSR_MASK | HF_SMAP_MASK | HF_UMIP_MASK);
 
     /* SSE handling */
     if (!(env->features[FEAT_1_EDX] & CPUID_SSE)) {
@@ -189,6 +189,12 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
     }
     if (new_cr4 & CR4_SMAP_MASK) {
         hflags |= HF_SMAP_MASK;
+    }
+    if (!(env->features[FEAT_7_0_ECX] & CPUID_7_0_ECX_UMIP)) {
+        new_cr4 &= ~CR4_UMIP_MASK;
+    }
+    if (new_cr4 & CR4_UMIP_MASK) {
+        hflags |= HF_UMIP_MASK;
     }
 
     if (!(env->features[FEAT_7_0_ECX] & CPUID_7_0_ECX_PKU)) {

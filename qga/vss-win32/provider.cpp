@@ -12,8 +12,8 @@
 
 #include "qemu/osdep.h"
 #include "vss-common.h"
-#include <inc/win2003/vscoordint.h>
-#include <inc/win2003/vsprov.h>
+#include <vscoordint.h>
+#include <vsprov.h>
 
 #define VSS_TIMEOUT_MSEC (60*1000)
 

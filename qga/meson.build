@@ -1,3 +1,33 @@
+if not have_ga
+  if get_option('guest_agent_msi').enabled()
+    error('Guest agent MSI requested, but the guest agent is not being built')
+  endif
+  have_qga_vss = false
+  subdir_done()
+endif
+
+have_qga_vss = get_option('qga_vss') \
+  .require(targetos == 'windows',
+           error_message: 'VSS support requires Windows') \
+  .require(link_language == 'cpp',
+           error_message: 'VSS support requires a C++ compiler') \
+  .require(have_vss, error_message: '''VSS support requires VSS headers.
+    If your Visual Studio installation doesn't have the VSS headers,
+    Please download and install Microsoft VSS SDK:
+    http://www.microsoft.com/en-us/download/details.aspx?id=23490
+    On POSIX-systems, MinGW doesn't yet provide working headers.
+    you can extract the SDK headers by:
+    $ scripts/extract-vsssdk-headers setup.exe
+    The headers are extracted in the directory 'inc/win2003'.
+    Then run configure with: --extra-cxxflags="-isystem /path/to/vss/inc/win2003"''') \
+  .require(midl.found() or widl.found(),
+           error_message: 'VSS support requires midl or widl') \
+  .require(not enable_static,
+           error_message: 'VSS support requires dynamic linking with GLib') \
+  .allowed()
+
+all_qga = []
+
 qga_qapi_outputs = [
   'qga-qapi-commands.c',
   'qga-qapi-commands.h',
@@ -50,19 +80,26 @@ qga_ss.add(when: 'CONFIG_WIN32', if_true: files(
 
 qga_ss = qga_ss.apply(config_host, strict: false)
 
+gen_tlb = []
+qga_libs = []
+if targetos == 'windows'
+  qga_libs += ['-lws2_32', '-lwinmm', '-lpowrprof', '-lwtsapi32', '-lwininet', '-liphlpapi', '-lnetapi32']
+  if have_qga_vss
+    qga_libs += ['-lole32', '-loleaut32', '-lshlwapi', '-lstdc++', '-Wl,--enable-stdcall-fixup']
+    subdir('vss-win32')
+  endif
+  if have_ntddscsi
+    qga_libs += ['-lsetupapi', '-lcfgmgr32']
+  endif
+endif
+
 qga = executable('qemu-ga', qga_ss.sources(),
-                 link_args: config_host['LIBS_QGA'].split(),
+                 link_args: qga_libs,
                  dependencies: [qemuutil, libudev],
                  install: true)
-all_qga = [qga]
+all_qga += qga
 
 if targetos == 'windows'
-  if 'CONFIG_QGA_VSS' in config_host
-    subdir('vss-win32')
-  else
-    gen_tlb = []
-  endif
-
   qemu_ga_msi_arch = {
     'x86': ['-D', 'Arch=32'],
     'x86_64': ['-a', 'x64', '-D', 'Arch=64']
@@ -77,7 +114,7 @@ if targetos == 'windows'
   if wixl.found()
     deps = [gen_tlb, qga]
     qemu_ga_msi_vss = []
-    if 'CONFIG_QGA_VSS' in config_host
+    if have_qga_vss
       qemu_ga_msi_vss = ['-D', 'InstallVss']
       deps += qga_vss
     endif

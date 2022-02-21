@@ -238,9 +238,7 @@ cross_prefix=""
 audio_drv_list="default"
 block_drv_rw_whitelist=""
 block_drv_ro_whitelist=""
-block_drv_whitelist_tools="no"
 host_cc="cc"
-libs_qga=""
 debug_info="yes"
 lto="false"
 stack_protector=""
@@ -290,7 +288,6 @@ EXTRA_CXXFLAGS=""
 EXTRA_LDFLAGS=""
 
 xen_ctrl_version="$default_feature"
-membarrier="$default_feature"
 vhost_kernel="$default_feature"
 vhost_net="$default_feature"
 vhost_crypto="$default_feature"
@@ -301,7 +298,6 @@ vhost_user_fs="$default_feature"
 vhost_vdpa="$default_feature"
 rdma="$default_feature"
 pvrdma="$default_feature"
-gprof="no"
 debug_tcg="no"
 debug="no"
 sanitizers="no"
@@ -313,49 +309,23 @@ modules="no"
 module_upgrades="no"
 prefix="/usr/local"
 qemu_suffix="qemu"
-profiler="no"
 softmmu="yes"
 linux_user=""
 bsd_user=""
 pkgversion=""
 pie=""
-qom_cast_debug="yes"
 trace_backends="log"
 trace_file="trace"
 opengl="$default_feature"
-cpuid_h="no"
-avx2_opt="$default_feature"
-guest_agent="$default_feature"
-vss_win32_sdk="$default_feature"
-win_sdk="no"
-want_tools="$default_feature"
 coroutine=""
-coroutine_pool="$default_feature"
-debug_stack_usage="no"
-crypto_afalg="no"
 tls_priority="NORMAL"
-tpm="$default_feature"
-live_block_migration=${default_feature:-yes}
-numa="$default_feature"
-replication=${default_feature:-yes}
-bochs=${default_feature:-yes}
-cloop=${default_feature:-yes}
-dmg=${default_feature:-yes}
-qcow1=${default_feature:-yes}
-vdi=${default_feature:-yes}
-vvfat=${default_feature:-yes}
-qed=${default_feature:-yes}
-parallels=${default_feature:-yes}
-debug_mutex="no"
 plugins="$default_feature"
-rng_none="no"
 secret_keyring="$default_feature"
 meson=""
 meson_args=""
 ninja=""
 gio="$default_feature"
 skip_meson=no
-slirp_smbd="$default_feature"
 
 # The following Meson options are handled manually (still they
 # are included in the automatically generated help message)
@@ -441,6 +411,7 @@ objcopy="${OBJCOPY-${cross_prefix}objcopy}"
 ld="${LD-${cross_prefix}ld}"
 ranlib="${RANLIB-${cross_prefix}ranlib}"
 nm="${NM-${cross_prefix}nm}"
+smbd="$SMBD"
 strip="${STRIP-${cross_prefix}strip}"
 windres="${WINDRES-${cross_prefix}windres}"
 pkg_config_exe="${PKG_CONFIG-${cross_prefix}pkg-config}"
@@ -560,7 +531,6 @@ darwin)
 sunos)
   solaris="yes"
   make="${MAKE-gmake}"
-  smbd="${SMBD-/usr/sfw/sbin/smbd}"
 # needed for CMSG_ macros in sys/socket.h
   QEMU_CFLAGS="-D_XOPEN_SOURCE=600 $QEMU_CFLAGS"
 # needed for TIOCWIN* defines in termios.h
@@ -714,7 +684,6 @@ if test "$mingw32" = "yes" ; then
   write_c_skeleton;
   prefix="/qemu"
   qemu_suffix=""
-  libs_qga="-lws2_32 -lwinmm -lpowrprof -lwtsapi32 -lwininet -liphlpapi -lnetapi32 $libs_qga"
 fi
 
 werror=""
@@ -824,8 +793,6 @@ for opt do
   ;;
   --without-default-features) # processed above
   ;;
-  --enable-gprof) gprof="yes"
-  ;;
   --enable-gcov) gcov="yes"
   ;;
   --static)
@@ -866,19 +833,11 @@ for opt do
     # configure to be used by RPM and similar macros that set
     # lots of directory switches by default.
   ;;
-  --disable-qom-cast-debug) qom_cast_debug="no"
-  ;;
-  --enable-qom-cast-debug) qom_cast_debug="yes"
-  ;;
   --audio-drv-list=*) audio_drv_list="$optarg"
   ;;
   --block-drv-rw-whitelist=*|--block-drv-whitelist=*) block_drv_rw_whitelist=$(echo "$optarg" | sed -e 's/,/ /g')
   ;;
   --block-drv-ro-whitelist=*) block_drv_ro_whitelist=$(echo "$optarg" | sed -e 's/,/ /g')
-  ;;
-  --enable-block-drv-whitelist-in-tools) block_drv_whitelist_tools="yes"
-  ;;
-  --disable-block-drv-whitelist-in-tools) block_drv_whitelist_tools="no"
   ;;
   --enable-debug-tcg) debug_tcg="yes"
   ;;
@@ -887,7 +846,7 @@ for opt do
   --enable-debug)
       # Enable debugging options that aren't excessively noisy
       debug_tcg="yes"
-      debug_mutex="yes"
+      meson_option_parse --enable-debug-mutex ""
       debug="yes"
       fortify_source="no"
   ;;
@@ -915,8 +874,6 @@ for opt do
                  plugins="no"
   ;;
   --enable-tcg) tcg="enabled"
-  ;;
-  --enable-profiler) profiler="yes"
   ;;
   --disable-system) softmmu="no"
   ;;
@@ -969,23 +926,9 @@ for opt do
   ;;
   --enable-fdt=*) fdt="$optarg"
   ;;
-  --disable-membarrier) membarrier="no"
-  ;;
-  --enable-membarrier) membarrier="yes"
-  ;;
   --with-pkgversion=*) pkgversion="$optarg"
   ;;
   --with-coroutine=*) coroutine="$optarg"
-  ;;
-  --disable-coroutine-pool) coroutine_pool="no"
-  ;;
-  --enable-coroutine-pool) coroutine_pool="yes"
-  ;;
-  --enable-debug-stack-usage) debug_stack_usage="yes"
-  ;;
-  --enable-crypto-afalg) crypto_afalg="yes"
-  ;;
-  --disable-crypto-afalg) crypto_afalg="no"
   ;;
   --disable-vhost-net) vhost_net="no"
   ;;
@@ -1013,34 +956,6 @@ for opt do
   ;;
   --disable-zlib-test)
   ;;
-  --enable-guest-agent) guest_agent="yes"
-  ;;
-  --disable-guest-agent) guest_agent="no"
-  ;;
-  --with-vss-sdk) vss_win32_sdk=""
-  ;;
-  --with-vss-sdk=*) vss_win32_sdk="$optarg"
-  ;;
-  --without-vss-sdk) vss_win32_sdk="no"
-  ;;
-  --with-win-sdk) win_sdk=""
-  ;;
-  --with-win-sdk=*) win_sdk="$optarg"
-  ;;
-  --without-win-sdk) win_sdk="no"
-  ;;
-  --enable-tools) want_tools="yes"
-  ;;
-  --disable-tools) want_tools="no"
-  ;;
-  --disable-avx2) avx2_opt="no"
-  ;;
-  --enable-avx2) avx2_opt="yes"
-  ;;
-  --disable-avx512f) avx512f_opt="no"
-  ;;
-  --enable-avx512f) avx512f_opt="yes"
-  ;;
   --disable-virtio-blk-data-plane|--enable-virtio-blk-data-plane)
       echo "$0: $opt is obsolete, virtio-blk data-plane is always on" >&2
   ;;
@@ -1059,54 +974,6 @@ for opt do
   --enable-pvrdma) pvrdma="yes"
   ;;
   --disable-pvrdma) pvrdma="no"
-  ;;
-  --disable-tpm) tpm="no"
-  ;;
-  --enable-tpm) tpm="yes"
-  ;;
-  --disable-live-block-migration) live_block_migration="no"
-  ;;
-  --enable-live-block-migration) live_block_migration="yes"
-  ;;
-  --disable-numa) numa="no"
-  ;;
-  --enable-numa) numa="yes"
-  ;;
-  --disable-replication) replication="no"
-  ;;
-  --enable-replication) replication="yes"
-  ;;
-  --disable-bochs) bochs="no"
-  ;;
-  --enable-bochs) bochs="yes"
-  ;;
-  --disable-cloop) cloop="no"
-  ;;
-  --enable-cloop) cloop="yes"
-  ;;
-  --disable-dmg) dmg="no"
-  ;;
-  --enable-dmg) dmg="yes"
-  ;;
-  --disable-qcow1) qcow1="no"
-  ;;
-  --enable-qcow1) qcow1="yes"
-  ;;
-  --disable-vdi) vdi="no"
-  ;;
-  --enable-vdi) vdi="yes"
-  ;;
-  --disable-vvfat) vvfat="no"
-  ;;
-  --enable-vvfat) vvfat="yes"
-  ;;
-  --disable-qed) qed="no"
-  ;;
-  --enable-qed) qed="yes"
-  ;;
-  --disable-parallels) parallels="no"
-  ;;
-  --enable-parallels) parallels="yes"
   ;;
   --disable-vhost-user) vhost_user="no"
   ;;
@@ -1133,10 +1000,6 @@ for opt do
   --with-git-submodules=*)
       git_submodules_action="$optarg"
   ;;
-  --enable-debug-mutex) debug_mutex=yes
-  ;;
-  --disable-debug-mutex) debug_mutex=no
-  ;;
   --enable-plugins) if test "$mingw32" = "yes"; then
                         error_exit "TCG plugins not currently supported on Windows platforms"
                     else
@@ -1151,10 +1014,6 @@ for opt do
   ;;
   --gdb=*) gdb_bin="$optarg"
   ;;
-  --enable-rng-none) rng_none=yes
-  ;;
-  --disable-rng-none) rng_none=no
-  ;;
   --enable-keyring) secret_keyring="yes"
   ;;
   --disable-keyring) secret_keyring="no"
@@ -1162,10 +1021,6 @@ for opt do
   --enable-gio) gio=yes
   ;;
   --disable-gio) gio=no
-  ;;
-  --enable-slirp-smbd) slirp_smbd=yes
-  ;;
-  --disable-slirp-smbd) slirp_smbd=no
   ;;
   # backwards compatibility options
   --enable-trace-backend=*) meson_option_parse "--enable-trace-backends=$optarg" "$optarg"
@@ -1357,21 +1212,13 @@ Advanced options (experts only):
   --block-drv-ro-whitelist=L
                            set block driver read-only whitelist
                            (by default affects only QEMU, not tools like qemu-img)
-  --enable-block-drv-whitelist-in-tools
-                           use block whitelist also in tools instead of only QEMU
   --with-trace-file=NAME   Full PATH,NAME of file to store traces
                            Default:trace-<pid>
   --cpu=CPU                Build for host CPU [$cpu]
   --with-coroutine=BACKEND coroutine backend. Supported options:
                            ucontext, sigaltstack, windows
   --enable-gcov            enable test coverage analysis with gcov
-  --with-vss-sdk=SDK-path  enable Windows VSS support in QEMU Guest Agent
-  --with-win-sdk=SDK-path  path to Windows Platform SDK (to build VSS .tlb)
   --tls-priority           default TLS protocol/cipher priority string
-  --enable-gprof           QEMU profiling with gprof
-  --enable-profiler        profiler support
-  --enable-debug-stack-usage
-                           track the maximum stack usage of stacks created by qemu_alloc_stack
   --enable-plugins
                            enable plugins via shared library loading
   --disable-containers     don't use containers for cross-building
@@ -1383,7 +1230,6 @@ cat << EOF
   user            supported user emulation targets
   linux-user      all linux usermode emulation targets
   bsd-user        all BSD usermode emulation targets
-  guest-agent     build the QEMU Guest Agent
   pie             Position Independent Executables
   modules         modules support (non-Windows)
   module-upgrades try to load modules from alternate paths for upgrades
@@ -1392,7 +1238,6 @@ cat << EOF
   lto             Enable Link-Time Optimization.
   safe-stack      SafeStack Stack Smash Protection. Depends on
                   clang/llvm >= 3.7 and requires coroutine backend ucontext.
-  membarrier      membarrier system call (for Linux 4.14+ or Windows)
   rdma            Enable RDMA-based migration
   pvrdma          Enable PVRDMA support
   vhost-net       vhost-net kernel acceleration support
@@ -1402,29 +1247,8 @@ cat << EOF
   vhost-kernel    vhost kernel backend support
   vhost-user      vhost-user backend support
   vhost-vdpa      vhost-vdpa kernel backend support
-  live-block-migration   Block migration in the main migration stream
-  coroutine-pool  coroutine freelist (better performance)
-  tpm             TPM support
-  numa            libnuma support
-  avx2            AVX2 optimization support
-  avx512f         AVX512F optimization support
-  replication     replication support
   opengl          opengl support
-  qom-cast-debug  cast debugging support
-  tools           build qemu-io, qemu-nbd and qemu-img tools
-  bochs           bochs image format support
-  cloop           cloop image format support
-  dmg             dmg image format support
-  qcow1           qcow v1 image format support
-  vdi             vdi image format support
-  vvfat           vvfat image format support
-  qed             qed image format support
-  parallels       parallels image format support
-  crypto-afalg    Linux AF_ALG crypto backend driver
-  debug-mutex     mutex debugging support
-  rng-none        dummy RNG, avoid using /dev/(u)random and getrandom()
   gio             libgio support
-  slirp-smbd      use smbd (at path --smbd=*) in slirp networking
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -1824,16 +1648,6 @@ if compile_prog ; then
 else
     echo big/little test failed
     exit 1
-fi
-
-##########################################
-# system tools
-if test -z "$want_tools"; then
-    if test "$softmmu" = "no"; then
-        want_tools=no
-    else
-        want_tools=yes
-    fi
 fi
 
 #########################################
@@ -2426,21 +2240,6 @@ if test "$modules" = yes; then
 fi
 
 ##########################################
-# TPM emulation is only on POSIX
-
-if test "$tpm" = ""; then
-  if test "$mingw32" = "yes"; then
-    tpm=no
-  else
-    tpm=yes
-  fi
-elif test "$tpm" = "yes"; then
-  if test "$mingw32" = "yes" ; then
-    error_exit "TPM emulation only available on POSIX systems"
-  fi
-fi
-
-##########################################
 # fdt probe
 
 case "$fdt" in
@@ -2479,26 +2278,6 @@ EOF
   fi
 fi
 
-##########################################
-# libnuma probe
-
-if test "$numa" != "no" ; then
-  cat > $TMPC << EOF
-#include <numa.h>
-int main(void) { return numa_available(); }
-EOF
-
-  if compile_prog "" "-lnuma" ; then
-    numa=yes
-    numa_libs="-lnuma"
-  else
-    if test "$numa" = "yes" ; then
-      feature_not_found "numa" "install numactl devel"
-    fi
-    numa=no
-  fi
-fi
-
 # check for usbfs
 have_usbfs=no
 if test "$linux_user" = "yes"; then
@@ -2520,85 +2299,6 @@ int main(void)
 EOF
   if compile_prog "" ""; then
     have_usbfs=yes
-  fi
-fi
-
-##########################################
-# check if we have VSS SDK headers for win
-
-guest_agent_with_vss="no"
-if test "$mingw32" = "yes" && test "$guest_agent" != "no" && \
-        test "$vss_win32_sdk" != "no" ; then
-  case "$vss_win32_sdk" in
-    "")   vss_win32_include="-isystem $source_path" ;;
-    *\ *) # The SDK is installed in "Program Files" by default, but we cannot
-          # handle path with spaces. So we symlink the headers into ".sdk/vss".
-          vss_win32_include="-isystem $source_path/.sdk/vss"
-	  symlink "$vss_win32_sdk/inc" "$source_path/.sdk/vss/inc"
-	  ;;
-    *)    vss_win32_include="-isystem $vss_win32_sdk"
-  esac
-  cat > $TMPC << EOF
-#define __MIDL_user_allocate_free_DEFINED__
-#include <inc/win2003/vss.h>
-int main(void) { return VSS_CTX_BACKUP; }
-EOF
-  if compile_prog "$vss_win32_include" "" ; then
-    guest_agent_with_vss="yes"
-    QEMU_CFLAGS="$QEMU_CFLAGS $vss_win32_include"
-    libs_qga="-lole32 -loleaut32 -lshlwapi -lstdc++ -Wl,--enable-stdcall-fixup $libs_qga"
-    qga_vss_provider="qga/vss-win32/qga-vss.dll qga/vss-win32/qga-vss.tlb"
-  else
-    if test "$vss_win32_sdk" != "" ; then
-      echo "ERROR: Please download and install Microsoft VSS SDK:"
-      echo "ERROR:   http://www.microsoft.com/en-us/download/details.aspx?id=23490"
-      echo "ERROR: On POSIX-systems, you can extract the SDK headers by:"
-      echo "ERROR:   scripts/extract-vsssdk-headers setup.exe"
-      echo "ERROR: The headers are extracted in the directory \`inc'."
-      feature_not_found "VSS support"
-    fi
-  fi
-fi
-
-##########################################
-# lookup Windows platform SDK (if not specified)
-# The SDK is needed only to build .tlb (type library) file of guest agent
-# VSS provider from the source. It is usually unnecessary because the
-# pre-compiled .tlb file is included.
-
-if test "$mingw32" = "yes" && test "$guest_agent" != "no" && \
-        test "$guest_agent_with_vss" = "yes" ; then
-  if test -z "$win_sdk"; then
-    programfiles="$PROGRAMFILES"
-    test -n "$PROGRAMW6432" && programfiles="$PROGRAMW6432"
-    if test -n "$programfiles"; then
-      win_sdk=$(ls -d "$programfiles/Microsoft SDKs/Windows/v"* | tail -1) 2>/dev/null
-    else
-      feature_not_found "Windows SDK"
-    fi
-  elif test "$win_sdk" = "no"; then
-    win_sdk=""
-  fi
-fi
-
-##########################################
-# check if mingw environment provides a recent ntddscsi.h
-guest_agent_ntddscsi="no"
-if test "$mingw32" = "yes" && test "$guest_agent" != "no"; then
-  cat > $TMPC << EOF
-#include <windows.h>
-#include <ntddscsi.h>
-int main(void) {
-#if !defined(IOCTL_SCSI_GET_ADDRESS)
-#error Missing required ioctl definitions
-#endif
-  SCSI_ADDRESS addr = { .Lun = 0, .TargetId = 0, .PathId = 0 };
-  return addr.Lun;
-}
-EOF
-  if compile_prog "" "" ; then
-    guest_agent_ntddscsi=yes
-    libs_qga="-lsetupapi -lcfgmgr32 $libs_qga"
   fi
 fi
 
@@ -2667,17 +2367,6 @@ else
   esac
 fi
 
-if test "$coroutine_pool" = ""; then
-  coroutine_pool=yes
-fi
-
-if test "$debug_stack_usage" = "yes"; then
-  if test "$coroutine_pool" = "yes"; then
-    echo "WARN: disabling coroutine pool for stack usage debugging"
-    coroutine_pool=no
-  fi
-fi
-
 ##################################################
 # SafeStack
 
@@ -2738,85 +2427,6 @@ else # "$safe_stack" = ""
     fi
   fi
 fi
-fi
-
-########################################
-# check if cpuid.h is usable.
-
-cat > $TMPC << EOF
-#include <cpuid.h>
-int main(void) {
-    unsigned a, b, c, d;
-    unsigned max = __get_cpuid_max(0, 0);
-
-    if (max >= 1) {
-        __cpuid(1, a, b, c, d);
-    }
-
-    if (max >= 7) {
-        __cpuid_count(7, 0, a, b, c, d);
-    }
-
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-    cpuid_h=yes
-fi
-
-##########################################
-# avx2 optimization requirement check
-#
-# There is no point enabling this if cpuid.h is not usable,
-# since we won't be able to select the new routines.
-
-if test "$cpuid_h" = "yes" && test "$avx2_opt" != "no"; then
-  cat > $TMPC << EOF
-#pragma GCC push_options
-#pragma GCC target("avx2")
-#include <cpuid.h>
-#include <immintrin.h>
-static int bar(void *a) {
-    __m256i x = *(__m256i *)a;
-    return _mm256_testz_si256(x, x);
-}
-int main(int argc, char *argv[]) { return bar(argv[0]); }
-EOF
-  if compile_object "-Werror" ; then
-    avx2_opt="yes"
-  else
-    avx2_opt="no"
-  fi
-fi
-
-##########################################
-# avx512f optimization requirement check
-#
-# There is no point enabling this if cpuid.h is not usable,
-# since we won't be able to select the new routines.
-# by default, it is turned off.
-# if user explicitly want to enable it, check environment
-
-if test "$cpuid_h" = "yes" && test "$avx512f_opt" = "yes"; then
-  cat > $TMPC << EOF
-#pragma GCC push_options
-#pragma GCC target("avx512f")
-#include <cpuid.h>
-#include <immintrin.h>
-static int bar(void *a) {
-    __m512i x = *(__m512i *)a;
-    return _mm512_test_epi64_mask(x, x);
-}
-int main(int argc, char *argv[])
-{
-	return bar(argv[0]);
-}
-EOF
-  if ! compile_object "-Werror" ; then
-    avx512f_opt="no"
-  fi
-else
-  avx512f_opt="no"
 fi
 
 ########################################
@@ -2915,63 +2525,6 @@ if test "$fortify_source" != "no"; then
 fi
 
 ##########################################
-# check for usable membarrier system call
-if test "$membarrier" = "yes"; then
-    have_membarrier=no
-    if test "$mingw32" = "yes" ; then
-        have_membarrier=yes
-    elif test "$linux" = "yes" ; then
-        cat > $TMPC << EOF
-    #include <linux/membarrier.h>
-    #include <sys/syscall.h>
-    #include <unistd.h>
-    #include <stdlib.h>
-    int main(void) {
-        syscall(__NR_membarrier, MEMBARRIER_CMD_QUERY, 0);
-        syscall(__NR_membarrier, MEMBARRIER_CMD_SHARED, 0);
-	exit(0);
-    }
-EOF
-        if compile_prog "" "" ; then
-            have_membarrier=yes
-        fi
-    fi
-    if test "$have_membarrier" = "no"; then
-      feature_not_found "membarrier" "membarrier system call not available"
-    fi
-else
-    # Do not enable it by default even for Mingw32, because it doesn't
-    # work on Wine.
-    membarrier=no
-fi
-
-##########################################
-# check for usable AF_ALG environment
-have_afalg=no
-cat > $TMPC << EOF
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <linux/if_alg.h>
-int main(void) {
-    int sock;
-    sock = socket(AF_ALG, SOCK_SEQPACKET, 0);
-    return sock;
-}
-EOF
-if compile_prog "" "" ; then
-    have_afalg=yes
-fi
-if test "$crypto_afalg" = "yes"
-then
-    if test "$have_afalg" != "yes"
-    then
-	error_exit "AF_ALG requested but could not be detected"
-    fi
-fi
-
-
-##########################################
 # checks for sanitizers
 
 have_asan=no
@@ -3052,19 +2605,6 @@ case "$slirp" in
     ;;
 esac
 
-# Check for slirp smbd dupport
-: ${smbd=${SMBD-/usr/sbin/smbd}}
-if test "$slirp_smbd" != "no" ; then
-  if test "$mingw32" = "yes" ; then
-    if test "$slirp_smbd" = "yes" ; then
-      error_exit "Host smbd not supported on this platform."
-    fi
-    slirp_smbd=no
-  else
-    slirp_smbd=yes
-  fi
-fi
-
 ##########################################
 # check for usable __NR_keyctl syscall
 
@@ -3120,11 +2660,6 @@ alpha)
 ;;
 esac
 
-if test "$gprof" = "yes" ; then
-  QEMU_CFLAGS="-p $QEMU_CFLAGS"
-  QEMU_LDFLAGS="-p $QEMU_LDFLAGS"
-fi
-
 if test "$have_asan" = "yes"; then
   QEMU_CFLAGS="-fsanitize=address $QEMU_CFLAGS"
   QEMU_LDFLAGS="-fsanitize=address $QEMU_LDFLAGS"
@@ -3174,20 +2709,6 @@ if test "$mingw32" = "yes" ; then
             QEMU_LDFLAGS="-Wl,$flag $QEMU_LDFLAGS"
         fi
     done
-fi
-
-# Probe for guest agent support/options
-
-if [ "$guest_agent" != "no" ]; then
-  if [ "$softmmu" = no -a "$want_tools" = no ] ; then
-      guest_agent=no
-  elif [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" -o "$mingw32" = "yes" ] ; then
-      guest_agent=yes
-  elif [ "$guest_agent" != yes ]; then
-      guest_agent=no
-  else
-      error_exit "Guest agent is not supported on this platform"
-  fi
 fi
 
 # Guest agent Windows MSI package
@@ -3290,14 +2811,6 @@ if test "$debug_tcg" = "yes" ; then
 fi
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
-  if test "$guest_agent_with_vss" = "yes" ; then
-    echo "CONFIG_QGA_VSS=y" >> $config_host_mak
-    echo "QGA_VSS_PROVIDER=$qga_vss_provider" >> $config_host_mak
-    echo "WIN_SDK=\"$win_sdk\"" >> $config_host_mak
-  fi
-  if test "$guest_agent_ntddscsi" = "yes" ; then
-    echo "CONFIG_QGA_NTDDSCSI=y" >> $config_host_mak
-  fi
   echo "QEMU_GA_MSI_MINGW_DLL_PATH=${QEMU_GA_MSI_MINGW_DLL_PATH}" >> $config_host_mak
   echo "QEMU_GA_MANUFACTURER=${QEMU_GA_MANUFACTURER}" >> $config_host_mak
   echo "QEMU_GA_DISTRO=${QEMU_GA_DISTRO}" >> $config_host_mak
@@ -3320,27 +2833,8 @@ fi
 if test "$static" = "yes" ; then
   echo "CONFIG_STATIC=y" >> $config_host_mak
 fi
-if test "$profiler" = "yes" ; then
-  echo "CONFIG_PROFILER=y" >> $config_host_mak
-fi
-if test "$want_tools" = "yes" ; then
-  echo "CONFIG_TOOLS=y" >> $config_host_mak
-fi
-if test "$guest_agent" = "yes" ; then
-  echo "CONFIG_GUEST_AGENT=y" >> $config_host_mak
-fi
-if test "$slirp_smbd" = "yes" ; then
-  echo "CONFIG_SLIRP_SMBD=y" >> $config_host_mak
-  echo "CONFIG_SMBD_COMMAND=\"$smbd\"" >> $config_host_mak
-fi
-if test "$gprof" = "yes" ; then
-  echo "CONFIG_GPROF=y" >> $config_host_mak
-fi
 echo "CONFIG_BDRV_RW_WHITELIST=$block_drv_rw_whitelist" >> $config_host_mak
 echo "CONFIG_BDRV_RO_WHITELIST=$block_drv_ro_whitelist" >> $config_host_mak
-if test "$block_drv_whitelist_tools" = "yes" ; then
-  echo "CONFIG_BDRV_WHITELIST_TOOLS=y" >> $config_host_mak
-fi
 qemu_version=$(head $source_path/VERSION)
 echo "PKGVERSION=$pkgversion" >>$config_host_mak
 echo "SRC_PATH=$source_path" >> $config_host_mak
@@ -3406,9 +2900,6 @@ fi
 if test "$vhost_user_fs" = "yes" ; then
   echo "CONFIG_VHOST_USER_FS=y" >> $config_host_mak
 fi
-if test "$membarrier" = "yes" ; then
-  echo "CONFIG_MEMBARRIER=y" >> $config_host_mak
-fi
 if test "$tcg" = "enabled" -a "$tcg_interpreter" = "true" ; then
   echo "CONFIG_TCG_INTERPRETER=y" >> $config_host_mak
 fi
@@ -3419,37 +2910,12 @@ if test "$opengl" = "yes" ; then
   echo "OPENGL_LIBS=$opengl_libs" >> $config_host_mak
 fi
 
-if test "$avx2_opt" = "yes" ; then
-  echo "CONFIG_AVX2_OPT=y" >> $config_host_mak
-fi
-
-if test "$avx512f_opt" = "yes" ; then
-  echo "CONFIG_AVX512F_OPT=y" >> $config_host_mak
-fi
-
 # XXX: suppress that
 if [ "$bsd" = "yes" ] ; then
   echo "CONFIG_BSD=y" >> $config_host_mak
 fi
 
-if test "$qom_cast_debug" = "yes" ; then
-  echo "CONFIG_QOM_CAST_DEBUG=y" >> $config_host_mak
-fi
-
 echo "CONFIG_COROUTINE_BACKEND=$coroutine" >> $config_host_mak
-if test "$coroutine_pool" = "yes" ; then
-  echo "CONFIG_COROUTINE_POOL=1" >> $config_host_mak
-else
-  echo "CONFIG_COROUTINE_POOL=0" >> $config_host_mak
-fi
-
-if test "$debug_stack_usage" = "yes" ; then
-  echo "CONFIG_DEBUG_STACK_USAGE=y" >> $config_host_mak
-fi
-
-if test "$crypto_afalg" = "yes" ; then
-  echo "CONFIG_AF_ALG=y" >> $config_host_mak
-fi
 
 if test "$have_asan_iface_fiber" = "yes" ; then
     echo "CONFIG_ASAN_IFACE_FIBER=y" >> $config_host_mak
@@ -3457,10 +2923,6 @@ fi
 
 if test "$have_tsan" = "yes" && test "$have_tsan_iface_fiber" = "yes" ; then
     echo "CONFIG_TSAN=y" >> $config_host_mak
-fi
-
-if test "$cpuid_h" = "yes" ; then
-  echo "CONFIG_CPUID_H=y" >> $config_host_mak
 fi
 
 if test "$int128" = "yes" ; then
@@ -3475,14 +2937,6 @@ if test "$cmpxchg128" = "yes" ; then
   echo "CONFIG_CMPXCHG128=y" >> $config_host_mak
 fi
 
-if test "$live_block_migration" = "yes" ; then
-  echo "CONFIG_LIVE_BLOCK_MIGRATION=y" >> $config_host_mak
-fi
-
-if test "$tpm" = "yes"; then
-  echo 'CONFIG_TPM=y' >> $config_host_mak
-fi
-
 if test "$rdma" = "yes" ; then
   echo "CONFIG_RDMA=y" >> $config_host_mak
   echo "RDMA_LIBS=$rdma_libs" >> $config_host_mak
@@ -3490,39 +2944,6 @@ fi
 
 if test "$pvrdma" = "yes" ; then
   echo "CONFIG_PVRDMA=y" >> $config_host_mak
-fi
-
-if test "$replication" = "yes" ; then
-  echo "CONFIG_REPLICATION=y" >> $config_host_mak
-fi
-
-if test "$debug_mutex" = "yes" ; then
-  echo "CONFIG_DEBUG_MUTEX=y" >> $config_host_mak
-fi
-
-if test "$bochs" = "yes" ; then
-  echo "CONFIG_BOCHS=y" >> $config_host_mak
-fi
-if test "$cloop" = "yes" ; then
-  echo "CONFIG_CLOOP=y" >> $config_host_mak
-fi
-if test "$dmg" = "yes" ; then
-  echo "CONFIG_DMG=y" >> $config_host_mak
-fi
-if test "$qcow1" = "yes" ; then
-  echo "CONFIG_QCOW1=y" >> $config_host_mak
-fi
-if test "$vdi" = "yes" ; then
-  echo "CONFIG_VDI=y" >> $config_host_mak
-fi
-if test "$vvfat" = "yes" ; then
-  echo "CONFIG_VVFAT=y" >> $config_host_mak
-fi
-if test "$qed" = "yes" ; then
-  echo "CONFIG_QED=y" >> $config_host_mak
-fi
-if test "$parallels" = "yes" ; then
-  echo "CONFIG_PARALLELS=y" >> $config_host_mak
 fi
 
 if test "$plugins" = "yes" ; then
@@ -3548,9 +2969,6 @@ echo "MESON=$meson" >> $config_host_mak
 echo "NINJA=$ninja" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
 echo "HOST_CC=$host_cc" >> $config_host_mak
-if $iasl -h > /dev/null 2>&1; then
-  echo "CONFIG_IASL=$iasl" >> $config_host_mak
-fi
 echo "AR=$ar" >> $config_host_mak
 echo "AS=$as" >> $config_host_mak
 echo "CCAS=$ccas" >> $config_host_mak
@@ -3567,11 +2985,6 @@ echo "QEMU_LDFLAGS=$QEMU_LDFLAGS" >> $config_host_mak
 echo "LD_I386_EMULATION=$ld_i386_emulation" >> $config_host_mak
 echo "STRIP=$strip" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
-echo "LIBS_QGA=$libs_qga" >> $config_host_mak
-
-if test "$rng_none" = "yes"; then
-  echo "CONFIG_RNG_NONE=y" >> $config_host_mak
-fi
 
 # use included Linux headers
 if test "$linux" = "yes" ; then
@@ -3619,11 +3032,6 @@ done
 echo "CONFIG_QEMU_INTERP_PREFIX=$interp_prefix" | sed 's/%M/@0@/' >> $config_host_mak
 if test "$default_targets" = "yes"; then
   echo "CONFIG_DEFAULT_TARGETS=y" >> $config_host_mak
-fi
-
-if test "$numa" = "yes"; then
-  echo "CONFIG_NUMA=y" >> $config_host_mak
-  echo "NUMA_LIBS=$numa_libs" >> $config_host_mak
 fi
 
 if test "$ccache_cpp2" = "yes"; then
@@ -3778,8 +3186,10 @@ if test "$skip_meson" = no; then
         -Daudio_drv_list=$audio_drv_list \
         -Ddefault_devices=$default_devices \
         -Ddocdir="$docdir" \
+        -Diasl="$($iasl -h >/dev/null 2>&1 && printf %s "$iasl")" \
         -Dqemu_firmwarepath="$firmwarepath" \
         -Dqemu_suffix="$qemu_suffix" \
+        -Dsmbd="$smbd" \
         -Dsphinx_build="$sphinx_build" \
         -Dtrace_file="$trace_file" \
         -Doptimization=$(if test "$debug" = yes; then echo 0; else echo 2; fi) \

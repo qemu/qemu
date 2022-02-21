@@ -8,8 +8,12 @@ option('docdir', type : 'string', value : 'doc',
        description: 'Base directory for documentation installation (can be empty)')
 option('qemu_firmwarepath', type : 'string', value : '',
        description: 'search PATH for firmware files')
+option('smbd', type : 'string', value : '',
+       description: 'Path to smbd for slirp networking')
 option('sphinx_build', type : 'string', value : '',
        description: 'Use specified sphinx-build [$sphinx_build] for building document (default to be empty)')
+option('iasl', type : 'string', value : '',
+       description: 'Path to ACPI disassembler')
 option('default_devices', type : 'boolean', value : true,
        description: 'Include a default selection of devices in emulators')
 option('audio_drv_list', type: 'array', value: ['default'],
@@ -34,8 +38,14 @@ option('install_blobs', type : 'boolean', value : true,
        description: 'install provided firmware blobs')
 option('sparse', type : 'feature', value : 'auto',
        description: 'sparse checker')
+option('guest_agent', type : 'feature', value : 'auto',
+       description: 'Build QEMU Guest Agent')
 option('guest_agent_msi', type : 'feature', value : 'auto',
        description: 'Build MSI package for the QEMU Guest Agent')
+option('tools', type : 'feature', value : 'auto',
+       description: 'build support utilities that come with QEMU')
+option('qga_vss', type : 'feature', value: 'auto',
+       description: 'build QGA VSS support (broken with MinGW)')
 
 option('malloc_trim', type : 'feature', value : 'auto',
        description: 'enable libc malloc_trim() for memory optimization')
@@ -68,6 +78,18 @@ option('multiprocess', type: 'feature', value: 'auto',
        description: 'Out of process device emulation support')
 option('dbus_display', type: 'feature', value: 'auto',
        description: '-display dbus support')
+option('tpm', type : 'feature', value : 'auto',
+       description: 'TPM support')
+
+# Do not enable it by default even for Mingw32, because it doesn't
+# work on Wine.
+option('membarrier', type: 'feature', value: 'disabled',
+       description: 'membarrier system call (for Linux 4.14+ or Windows')
+
+option('avx2', type: 'feature', value: 'auto',
+       description: 'AVX2 optimizations')
+option('avx512f', type: 'feature', value: 'disabled',
+       description: 'AVX512F optimizations')
 
 option('attr', type : 'feature', value : 'auto',
        description: 'attr/xattr support')
@@ -93,6 +115,8 @@ option('libnfs', type : 'feature', value : 'auto',
        description: 'libnfs block device driver')
 option('mpath', type : 'feature', value : 'auto',
        description: 'Multipath persistent reservation passthrough')
+option('numa', type : 'feature', value : 'auto',
+       description: 'libnuma support')
 option('iconv', type : 'feature', value : 'auto',
        description: 'Font glyph conversion support')
 option('curses', type : 'feature', value : 'auto',
@@ -103,6 +127,8 @@ option('nettle', type : 'feature', value : 'auto',
        description: 'nettle cryptography support')
 option('gcrypt', type : 'feature', value : 'auto',
        description: 'libgcrypt cryptography support')
+option('crypto_afalg', type : 'feature', value : 'disabled',
+       description: 'Linux AF_ALG crypto backend driver')
 option('libdaxctl', type : 'feature', value : 'auto',
        description: 'libdaxctl support')
 option('libpmem', type : 'feature', value : 'auto',
@@ -206,3 +232,41 @@ option('fdt', type: 'combo', value: 'auto',
 
 option('selinux', type: 'feature', value: 'auto',
        description: 'SELinux support in qemu-nbd')
+option('live_block_migration', type: 'feature', value: 'auto',
+       description: 'block migration in the main migration stream')
+option('replication', type: 'feature', value: 'auto',
+       description: 'replication support')
+option('bochs', type: 'feature', value: 'auto',
+       description: 'bochs image format support')
+option('cloop', type: 'feature', value: 'auto',
+       description: 'cloop image format support')
+option('dmg', type: 'feature', value: 'auto',
+       description: 'dmg image format support')
+option('qcow1', type: 'feature', value: 'auto',
+       description: 'qcow1 image format support')
+option('vdi', type: 'feature', value: 'auto',
+       description: 'vdi image format support')
+option('vvfat', type: 'feature', value: 'auto',
+       description: 'vvfat image format support')
+option('qed', type: 'feature', value: 'auto',
+       description: 'qed image format support')
+option('parallels', type: 'feature', value: 'auto',
+       description: 'parallels image format support')
+option('block_drv_whitelist_in_tools', type: 'boolean', value: false,
+       description: 'use block whitelist also in tools instead of only QEMU')
+option('rng_none', type: 'boolean', value: false,
+       description: 'dummy RNG, avoid using /dev/(u)random and getrandom()')
+option('coroutine_pool', type: 'boolean', value: true,
+       description: 'coroutine freelist (better performance)')
+option('debug_mutex', type: 'boolean', value: false,
+       description: 'mutex debugging support')
+option('debug_stack_usage', type: 'boolean', value: false,
+       description: 'measure coroutine stack usage')
+option('qom_cast_debug', type: 'boolean', value: false,
+       description: 'cast debugging support')
+option('gprof', type: 'boolean', value: false,
+       description: 'QEMU profiling with gprof')
+option('profiler', type: 'boolean', value: false,
+       description: 'profiler support')
+option('slirp_smbd', type : 'feature', value : 'auto',
+       description: 'use smbd (at path --smbd=*) in slirp networking')

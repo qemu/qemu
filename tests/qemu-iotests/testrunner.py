@@ -404,7 +404,10 @@ class TestRunner(ContextManager['TestRunner']):
             if res.status == 'fail':
                 failed.append(name)
                 if res.diff:
-                    print('\n'.join(res.diff))
+                    if self.tap:
+                        print('\n'.join(res.diff), file=sys.stderr)
+                    else:
+                        print('\n'.join(res.diff))
             elif res.status == 'not run':
                 notrun.append(name)
             elif res.status == 'pass':

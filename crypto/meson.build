@@ -35,7 +35,9 @@ else
 endif
 
 crypto_ss.add(when: 'CONFIG_SECRET_KEYRING', if_true: files('secret_keyring.c'))
-crypto_ss.add(when: 'CONFIG_AF_ALG', if_true: files('afalg.c', 'cipher-afalg.c', 'hash-afalg.c'))
+if have_afalg
+  crypto_ss.add(if_true: files('afalg.c', 'cipher-afalg.c', 'hash-afalg.c'))
+endif
 crypto_ss.add(when: gnutls, if_true: files('tls-cipher-suites.c'))
 
 util_ss.add(files('aes.c'))
@@ -48,7 +50,7 @@ if gcrypt.found()
   util_ss.add(gcrypt, files('random-gcrypt.c'))
 elif gnutls.found()
   util_ss.add(gnutls, files('random-gnutls.c'))
-elif 'CONFIG_RNG_NONE' in config_host
+elif get_option('rng_none')
   util_ss.add(files('random-none.c'))
 else
   util_ss.add(files('random-platform.c'))

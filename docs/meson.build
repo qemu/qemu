@@ -37,8 +37,6 @@ endif
 if build_docs
   SPHINX_ARGS += ['-Dversion=' + meson.project_version(), '-Drelease=' + config_host['PKGVERSION']]
 
-  have_ga = have_tools and config_host.has_key('CONFIG_GUEST_AGENT')
-
   man_pages = {
         'qemu-ga.8': (have_ga ? 'man8' : ''),
         'qemu-ga-ref.7': (have_ga ? 'man7' : ''),

@@ -18,10 +18,6 @@ skip() {
     exit 0
 }
 
-if grep -q "CONFIG_GPROF=y" config-host.mak 2>/dev/null ; then
-    skip "GPROF is enabled ==> Not running the qemu-iotests."
-fi
-
 # Disable tests with any sanitizer except for specific ones
 SANITIZE_FLAGS=$( grep "CFLAGS.*-fsanitize" config-host.mak 2>/dev/null )
 ALLOWED_SANITIZE_FLAGS="safe-stack cfi-icall"
