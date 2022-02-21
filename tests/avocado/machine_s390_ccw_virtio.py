@@ -248,7 +248,7 @@ class S390CCWVirtioMachine(QemuSystemTest):
             line = ppmfile.readline()
             self.assertEqual(line, b"P6\n")
             line = ppmfile.readline()
-            self.assertEqual(line, b"1024 768\n")
+            self.assertEqual(line, b"1280 800\n")
             line = ppmfile.readline()
             self.assertEqual(line, b"255\n")
             line = ppmfile.readline(256)
