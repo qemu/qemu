@@ -249,6 +249,7 @@ controls = [
         bits = {
             0: 'Execute-only EPT translations',
             6: 'Page-walk length 4',
+            7: 'Page-walk length 5',
             8: 'Paging-structure memory type UC',
             14: 'Paging-structure memory type WB',
             16: '2MB EPT pages',
