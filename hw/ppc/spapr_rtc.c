@@ -32,7 +32,7 @@
 #include "hw/ppc/spapr.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
-#include "qapi/qapi-events-misc-target.h"
+#include "qapi/qapi-events-misc.h"
 #include "qemu/cutils.h"
 #include "qemu/module.h"
 
