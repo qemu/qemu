@@ -24,6 +24,7 @@
 #include "hw/hw.h"
 #include "audio/audio.h"
 #include "qemu/timer.h"
+#include "qemu/log.h"
 #include "sysemu/reset.h"
 #include "ui/console.h"
 #include "hw/arm/omap.h"            /* For I2SCodec */
@@ -910,8 +911,11 @@ uint32_t tsc210x_txrx(void *opaque, uint32_t value, int len)
     TSC210xState *s = opaque;
     uint32_t ret = 0;
 
-    if (len != 16)
-        hw_error("%s: FIXME: bad SPI word width %i\n", __func__, len);
+    if (len != 16) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: bad SPI word width %i\n", __func__, len);
+        return 0;
+    }
 
     /* TODO: sequential reads etc - how do we make sure the host doesn't
      * unintentionally read out a conversion result from a register while
