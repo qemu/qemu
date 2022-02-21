@@ -284,8 +284,12 @@ int qemu_sem_timedwait(QemuSemaphore *sem, int ms)
     compute_abs_deadline(&ts, ms);
     qemu_mutex_lock(&sem->mutex);
     while (sem->count == 0) {
-        rc = qemu_cond_timedwait_ts(&sem->cond, &sem->mutex, &ts,
-                                    __FILE__, __LINE__);
+        if (ms == 0) {
+            rc = false;
+        } else {
+            rc = qemu_cond_timedwait_ts(&sem->cond, &sem->mutex, &ts,
+                                        __FILE__, __LINE__);
+        }
         if (!rc) { /* timeout */
             break;
         }
