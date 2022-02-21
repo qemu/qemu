@@ -18,13 +18,8 @@ def find_command(src, target, compile_commands):
 
 def process_command(src, command):
     skip = False
-    arg = False
     out = []
     for item in shlex.split(command):
-        if arg:
-            out.append(x)
-            arg = False
-            continue
         if skip:
             skip = False
             continue
