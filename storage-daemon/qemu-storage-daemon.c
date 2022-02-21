@@ -141,7 +141,7 @@ static void help(void)
 "  --pidfile <path>       write process ID to a file after startup\n"
 "\n"
 QEMU_HELP_BOTTOM "\n",
-    error_get_progname());
+    g_get_prgname());
 }
 
 enum {
