@@ -782,14 +782,14 @@ static void macfb_nubus_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, macfb_nubus_properties);
 }
 
-static TypeInfo macfb_sysbus_info = {
+static const TypeInfo macfb_sysbus_info = {
     .name          = TYPE_MACFB,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MacfbSysBusState),
     .class_init    = macfb_sysbus_class_init,
 };
 
-static TypeInfo macfb_nubus_info = {
+static const TypeInfo macfb_nubus_info = {
     .name          = TYPE_NUBUS_MACFB,
     .parent        = TYPE_NUBUS_DEVICE,
     .instance_size = sizeof(MacfbNubusState),

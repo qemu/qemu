@@ -198,7 +198,7 @@ static void aspeed_sdhci_class_init(ObjectClass *classp, void *data)
     device_class_set_props(dc, aspeed_sdhci_properties);
 }
 
-static TypeInfo aspeed_sdhci_info = {
+static const TypeInfo aspeed_sdhci_info = {
     .name          = TYPE_ASPEED_SDHCI,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AspeedSDHCIState),

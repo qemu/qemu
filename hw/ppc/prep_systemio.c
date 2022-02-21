@@ -300,7 +300,7 @@ static void prep_systemio_class_initfn(ObjectClass *klass, void *data)
     device_class_set_props(dc, prep_systemio_properties);
 }
 
-static TypeInfo prep_systemio800_info = {
+static const TypeInfo prep_systemio800_info = {
     .name          = TYPE_PREP_SYSTEMIO,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(PrepSystemIoState),

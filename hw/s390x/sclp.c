@@ -460,7 +460,7 @@ static void sclp_class_init(ObjectClass *oc, void *data)
     sc->service_interrupt = service_interrupt;
 }
 
-static TypeInfo sclp_info = {
+static const TypeInfo sclp_info = {
     .name = TYPE_SCLP,
     .parent = TYPE_DEVICE,
     .instance_init = sclp_init,

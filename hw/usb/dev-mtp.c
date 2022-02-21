@@ -2106,7 +2106,7 @@ static void usb_mtp_class_initfn(ObjectClass *klass, void *data)
     device_class_set_props(dc, mtp_properties);
 }
 
-static TypeInfo mtp_info = {
+static const TypeInfo mtp_info = {
     .name          = TYPE_USB_MTP,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(MTPState),

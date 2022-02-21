@@ -166,7 +166,7 @@ static void npcm7xx_sdhci_instance_init(Object *obj)
                             TYPE_SYSBUS_SDHCI);
 }
 
-static TypeInfo npcm7xx_sdhci_info = {
+static const TypeInfo npcm7xx_sdhci_info = {
     .name = TYPE_NPCM7XX_SDHCI,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(NPCM7xxSDHCIState),

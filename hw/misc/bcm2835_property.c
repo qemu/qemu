@@ -421,7 +421,7 @@ static void bcm2835_property_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_bcm2835_property;
 }
 
-static TypeInfo bcm2835_property_info = {
+static const TypeInfo bcm2835_property_info = {
     .name          = TYPE_BCM2835_PROPERTY,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BCM2835PropertyState),

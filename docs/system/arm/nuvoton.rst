@@ -21,6 +21,7 @@ Hyperscale applications. The following machines are based on this chip :
 - ``quanta-gbs-bmc``    Quanta GBS server BMC
 - ``quanta-gsj``        Quanta GSJ server BMC
 - ``kudo-bmc``          Fii USA Kudo server BMC
+- ``mori-bmc``          Fii USA Mori server BMC
 
 There are also two more SoCs, NPCM710 and NPCM705, which are single-core
 variants of NPCM750 and NPCM730, respectively. These are currently not

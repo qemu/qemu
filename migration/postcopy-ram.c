@@ -18,6 +18,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/rcu.h"
+#include "qemu/madvise.h"
 #include "exec/target_page.h"
 #include "migration.h"
 #include "qemu-file.h"

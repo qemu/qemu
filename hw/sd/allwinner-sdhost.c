@@ -835,7 +835,7 @@ static void allwinner_sdhost_sun5i_class_init(ObjectClass *klass, void *data)
     sc->max_desc_size = 64 * KiB;
 }
 
-static TypeInfo allwinner_sdhost_info = {
+static const TypeInfo allwinner_sdhost_info = {
     .name          = TYPE_AW_SDHOST,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_init = allwinner_sdhost_init,

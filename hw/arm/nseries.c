@@ -24,6 +24,7 @@
 #include "chardev/char.h"
 #include "qemu/cutils.h"
 #include "qemu/bswap.h"
+#include "qemu/hw-version.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"

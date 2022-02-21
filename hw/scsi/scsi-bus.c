@@ -3,6 +3,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
+#include "qemu/hw-version.h"
 #include "hw/qdev-properties.h"
 #include "hw/scsi/scsi.h"
 #include "migration/qemu-file-types.h"

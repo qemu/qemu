@@ -1801,7 +1801,7 @@ static void usb_host_class_initfn(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
-static TypeInfo usb_host_dev_info = {
+static const TypeInfo usb_host_dev_info = {
     .name          = TYPE_USB_HOST_DEVICE,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHostDevice),

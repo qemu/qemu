@@ -17,6 +17,7 @@
 #include "qemu/iov.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
+#include "qemu/madvise.h"
 #include "hw/virtio/virtio.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/qdev-properties.h"

@@ -392,7 +392,7 @@ static void bcm2836_control_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_bcm2836_control;
 }
 
-static TypeInfo bcm2836_control_info = {
+static const TypeInfo bcm2836_control_info = {
     .name          = TYPE_BCM2836_CONTROL,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BCM2836ControlState),

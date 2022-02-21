@@ -35,9 +35,34 @@
         ENCODE_AA64_CP_REG(CP_REG_ARM64_SYSREG_CP, crn, crm, op0, op1, op2)
 #define PL1_WRITE_MASK 0x4
 
+#define SYSREG_OP0_SHIFT      20
+#define SYSREG_OP0_MASK       0x3
+#define SYSREG_OP0(sysreg)    ((sysreg >> SYSREG_OP0_SHIFT) & SYSREG_OP0_MASK)
+#define SYSREG_OP1_SHIFT      14
+#define SYSREG_OP1_MASK       0x7
+#define SYSREG_OP1(sysreg)    ((sysreg >> SYSREG_OP1_SHIFT) & SYSREG_OP1_MASK)
+#define SYSREG_CRN_SHIFT      10
+#define SYSREG_CRN_MASK       0xf
+#define SYSREG_CRN(sysreg)    ((sysreg >> SYSREG_CRN_SHIFT) & SYSREG_CRN_MASK)
+#define SYSREG_CRM_SHIFT      1
+#define SYSREG_CRM_MASK       0xf
+#define SYSREG_CRM(sysreg)    ((sysreg >> SYSREG_CRM_SHIFT) & SYSREG_CRM_MASK)
+#define SYSREG_OP2_SHIFT      17
+#define SYSREG_OP2_MASK       0x7
+#define SYSREG_OP2(sysreg)    ((sysreg >> SYSREG_OP2_SHIFT) & SYSREG_OP2_MASK)
+
 #define SYSREG(op0, op1, crn, crm, op2) \
-    ((op0 << 20) | (op2 << 17) | (op1 << 14) | (crn << 10) | (crm << 1))
-#define SYSREG_MASK           SYSREG(0x3, 0x7, 0xf, 0xf, 0x7)
+    ((op0 << SYSREG_OP0_SHIFT) | \
+     (op1 << SYSREG_OP1_SHIFT) | \
+     (crn << SYSREG_CRN_SHIFT) | \
+     (crm << SYSREG_CRM_SHIFT) | \
+     (op2 << SYSREG_OP2_SHIFT))
+#define SYSREG_MASK \
+    SYSREG(SYSREG_OP0_MASK, \
+           SYSREG_OP1_MASK, \
+           SYSREG_CRN_MASK, \
+           SYSREG_CRM_MASK, \
+           SYSREG_OP2_MASK)
 #define SYSREG_OSLAR_EL1      SYSREG(2, 0, 1, 0, 4)
 #define SYSREG_OSLSR_EL1      SYSREG(2, 0, 1, 1, 4)
 #define SYSREG_OSDLR_EL1      SYSREG(2, 0, 1, 3, 4)
@@ -729,6 +754,15 @@ static bool hvf_handle_psci_call(CPUState *cpu)
     return true;
 }
 
+static bool is_id_sysreg(uint32_t reg)
+{
+    return SYSREG_OP0(reg) == 3 &&
+           SYSREG_OP1(reg) == 0 &&
+           SYSREG_CRN(reg) == 0 &&
+           SYSREG_CRM(reg) >= 1 &&
+           SYSREG_CRM(reg) < 8;
+}
+
 static int hvf_sysreg_read(CPUState *cpu, uint32_t reg, uint32_t rt)
 {
     ARMCPU *arm_cpu = ARM_CPU(cpu);
@@ -781,23 +815,28 @@ static int hvf_sysreg_read(CPUState *cpu, uint32_t reg, uint32_t rt)
         /* Dummy register */
         break;
     default:
+        if (is_id_sysreg(reg)) {
+            /* ID system registers read as RES0 */
+            val = 0;
+            break;
+        }
         cpu_synchronize_state(cpu);
         trace_hvf_unhandled_sysreg_read(env->pc, reg,
-                                        (reg >> 20) & 0x3,
-                                        (reg >> 14) & 0x7,
-                                        (reg >> 10) & 0xf,
-                                        (reg >> 1) & 0xf,
-                                        (reg >> 17) & 0x7);
+                                        SYSREG_OP0(reg),
+                                        SYSREG_OP1(reg),
+                                        SYSREG_CRN(reg),
+                                        SYSREG_CRM(reg),
+                                        SYSREG_OP2(reg));
         hvf_raise_exception(cpu, EXCP_UDEF, syn_uncategorized());
         return 1;
     }
 
     trace_hvf_sysreg_read(reg,
-                          (reg >> 20) & 0x3,
-                          (reg >> 14) & 0x7,
-                          (reg >> 10) & 0xf,
-                          (reg >> 1) & 0xf,
-                          (reg >> 17) & 0x7,
+                          SYSREG_OP0(reg),
+                          SYSREG_OP1(reg),
+                          SYSREG_CRN(reg),
+                          SYSREG_CRM(reg),
+                          SYSREG_OP2(reg),
                           val);
     hvf_set_reg(cpu, rt, val);
 
@@ -886,11 +925,11 @@ static int hvf_sysreg_write(CPUState *cpu, uint32_t reg, uint64_t val)
     CPUARMState *env = &arm_cpu->env;
 
     trace_hvf_sysreg_write(reg,
-                           (reg >> 20) & 0x3,
-                           (reg >> 14) & 0x7,
-                           (reg >> 10) & 0xf,
-                           (reg >> 1) & 0xf,
-                           (reg >> 17) & 0x7,
+                           SYSREG_OP0(reg),
+                           SYSREG_OP1(reg),
+                           SYSREG_CRN(reg),
+                           SYSREG_CRM(reg),
+                           SYSREG_OP2(reg),
                            val);
 
     switch (reg) {
@@ -960,11 +999,11 @@ static int hvf_sysreg_write(CPUState *cpu, uint32_t reg, uint64_t val)
     default:
         cpu_synchronize_state(cpu);
         trace_hvf_unhandled_sysreg_write(env->pc, reg,
-                                         (reg >> 20) & 0x3,
-                                         (reg >> 14) & 0x7,
-                                         (reg >> 10) & 0xf,
-                                         (reg >> 1) & 0xf,
-                                         (reg >> 17) & 0x7);
+                                         SYSREG_OP0(reg),
+                                         SYSREG_OP1(reg),
+                                         SYSREG_CRN(reg),
+                                         SYSREG_CRM(reg),
+                                         SYSREG_OP2(reg));
         hvf_raise_exception(cpu, EXCP_UDEF, syn_uncategorized());
         return 1;
     }

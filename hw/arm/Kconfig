@@ -46,6 +46,7 @@ config DIGIC
 
 config EXYNOS4
     bool
+    imply I2C_DEVICES
     select A9MPCORE
     select I2C
     select LAN9118
@@ -184,6 +185,7 @@ config REALVIEW
     bool
     imply PCI_DEVICES
     imply PCI_TESTDEV
+    imply I2C_DEVICES
     select SMC91C111
     select LAN9118
     select A9MPCORE
@@ -229,6 +231,7 @@ config SABRELITE
 
 config STELLARIS
     bool
+    imply I2C_DEVICES
     select ARM_V7M
     select CMSDK_APB_WATCHDOG
     select I2C
@@ -406,6 +409,7 @@ config NPCM7XX
 
 config FSL_IMX25
     bool
+    imply I2C_DEVICES
     select IMX
     select IMX_FEC
     select IMX_I2C
@@ -414,6 +418,7 @@ config FSL_IMX25
 
 config FSL_IMX31
     bool
+    imply I2C_DEVICES
     select SERIAL
     select IMX
     select IMX_I2C
@@ -422,6 +427,7 @@ config FSL_IMX31
 
 config FSL_IMX6
     bool
+    imply I2C_DEVICES
     select A9MPCORE
     select IMX
     select IMX_FEC
@@ -450,6 +456,7 @@ config ASPEED_SOC
 
 config MPS2
     bool
+    imply I2C_DEVICES
     select ARMSSE
     select LAN9118
     select MPS2_FPGAIO
@@ -466,6 +473,7 @@ config FSL_IMX7
     bool
     imply PCI_DEVICES
     imply TEST_DEVICES
+    imply I2C_DEVICES
     select A15MPCORE
     select PCI
     select IMX
@@ -481,6 +489,7 @@ config ARM_SMMUV3
 
 config FSL_IMX6UL
     bool
+    imply I2C_DEVICES
     select A15MPCORE
     select IMX
     select IMX_FEC
@@ -495,6 +504,7 @@ config MICROBIT
 
 config NRF51_SOC
     bool
+    imply I2C_DEVICES
     select I2C
     select ARM_V7M
     select UNIMP

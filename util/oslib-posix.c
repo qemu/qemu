@@ -36,6 +36,7 @@
 #include "trace.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qemu/madvise.h"
 #include "qemu/sockets.h"
 #include "qemu/thread.h"
 #include <libgen.h>

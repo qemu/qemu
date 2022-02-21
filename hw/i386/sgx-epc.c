@@ -167,7 +167,7 @@ static void sgx_epc_class_init(ObjectClass *oc, void *data)
     mdc->fill_device_info = sgx_epc_md_fill_device_info;
 }
 
-static TypeInfo sgx_epc_info = {
+static const TypeInfo sgx_epc_info = {
     .name          = TYPE_SGX_EPC,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(SGXEPCDevice),

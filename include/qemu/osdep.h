@@ -401,112 +401,6 @@ static inline void qemu_cleanup_generic_vfree(void *p)
  */
 #define QEMU_AUTO_VFREE __attribute__((cleanup(qemu_cleanup_generic_vfree)))
 
-/*
- * Abstraction of PROT_ and MAP_ flags as passed to mmap(), for example,
- * consumed by qemu_ram_mmap().
- */
-
-/* Map PROT_READ instead of PROT_READ | PROT_WRITE. */
-#define QEMU_MAP_READONLY   (1 << 0)
-
-/* Use MAP_SHARED instead of MAP_PRIVATE. */
-#define QEMU_MAP_SHARED     (1 << 1)
-
-/*
- * Use MAP_SYNC | MAP_SHARED_VALIDATE if supported. Ignored without
- * QEMU_MAP_SHARED. If mapping fails, warn and fallback to !QEMU_MAP_SYNC.
- */
-#define QEMU_MAP_SYNC       (1 << 2)
-
-/*
- * Use MAP_NORESERVE to skip reservation of swap space (or huge pages if
- * applicable). Bail out if not supported/effective.
- */
-#define QEMU_MAP_NORESERVE  (1 << 3)
-
-
-#define QEMU_MADV_INVALID -1
-
-#if defined(CONFIG_MADVISE)
-
-#define QEMU_MADV_WILLNEED  MADV_WILLNEED
-#define QEMU_MADV_DONTNEED  MADV_DONTNEED
-#ifdef MADV_DONTFORK
-#define QEMU_MADV_DONTFORK  MADV_DONTFORK
-#else
-#define QEMU_MADV_DONTFORK  QEMU_MADV_INVALID
-#endif
-#ifdef MADV_MERGEABLE
-#define QEMU_MADV_MERGEABLE MADV_MERGEABLE
-#else
-#define QEMU_MADV_MERGEABLE QEMU_MADV_INVALID
-#endif
-#ifdef MADV_UNMERGEABLE
-#define QEMU_MADV_UNMERGEABLE MADV_UNMERGEABLE
-#else
-#define QEMU_MADV_UNMERGEABLE QEMU_MADV_INVALID
-#endif
-#ifdef MADV_DODUMP
-#define QEMU_MADV_DODUMP MADV_DODUMP
-#else
-#define QEMU_MADV_DODUMP QEMU_MADV_INVALID
-#endif
-#ifdef MADV_DONTDUMP
-#define QEMU_MADV_DONTDUMP MADV_DONTDUMP
-#else
-#define QEMU_MADV_DONTDUMP QEMU_MADV_INVALID
-#endif
-#ifdef MADV_HUGEPAGE
-#define QEMU_MADV_HUGEPAGE MADV_HUGEPAGE
-#else
-#define QEMU_MADV_HUGEPAGE QEMU_MADV_INVALID
-#endif
-#ifdef MADV_NOHUGEPAGE
-#define QEMU_MADV_NOHUGEPAGE MADV_NOHUGEPAGE
-#else
-#define QEMU_MADV_NOHUGEPAGE QEMU_MADV_INVALID
-#endif
-#ifdef MADV_REMOVE
-#define QEMU_MADV_REMOVE MADV_REMOVE
-#else
-#define QEMU_MADV_REMOVE QEMU_MADV_DONTNEED
-#endif
-#ifdef MADV_POPULATE_WRITE
-#define QEMU_MADV_POPULATE_WRITE MADV_POPULATE_WRITE
-#else
-#define QEMU_MADV_POPULATE_WRITE QEMU_MADV_INVALID
-#endif
-
-#elif defined(CONFIG_POSIX_MADVISE)
-
-#define QEMU_MADV_WILLNEED  POSIX_MADV_WILLNEED
-#define QEMU_MADV_DONTNEED  POSIX_MADV_DONTNEED
-#define QEMU_MADV_DONTFORK  QEMU_MADV_INVALID
-#define QEMU_MADV_MERGEABLE QEMU_MADV_INVALID
-#define QEMU_MADV_UNMERGEABLE QEMU_MADV_INVALID
-#define QEMU_MADV_DODUMP QEMU_MADV_INVALID
-#define QEMU_MADV_DONTDUMP QEMU_MADV_INVALID
-#define QEMU_MADV_HUGEPAGE  QEMU_MADV_INVALID
-#define QEMU_MADV_NOHUGEPAGE  QEMU_MADV_INVALID
-#define QEMU_MADV_REMOVE QEMU_MADV_DONTNEED
-#define QEMU_MADV_POPULATE_WRITE QEMU_MADV_INVALID
-
-#else /* no-op */
-
-#define QEMU_MADV_WILLNEED  QEMU_MADV_INVALID
-#define QEMU_MADV_DONTNEED  QEMU_MADV_INVALID
-#define QEMU_MADV_DONTFORK  QEMU_MADV_INVALID
-#define QEMU_MADV_MERGEABLE QEMU_MADV_INVALID
-#define QEMU_MADV_UNMERGEABLE QEMU_MADV_INVALID
-#define QEMU_MADV_DODUMP QEMU_MADV_INVALID
-#define QEMU_MADV_DONTDUMP QEMU_MADV_INVALID
-#define QEMU_MADV_HUGEPAGE  QEMU_MADV_INVALID
-#define QEMU_MADV_NOHUGEPAGE  QEMU_MADV_INVALID
-#define QEMU_MADV_REMOVE QEMU_MADV_INVALID
-#define QEMU_MADV_POPULATE_WRITE QEMU_MADV_INVALID
-
-#endif
-
 #ifdef _WIN32
 #define HAVE_CHARDEV_SERIAL 1
 #elif defined(__linux__) || defined(__sun__) || defined(__FreeBSD__)    \
@@ -577,11 +471,6 @@ void sigaction_invoke(struct sigaction *action,
                       struct qemu_signalfd_siginfo *info);
 #endif
 
-int qemu_madvise(void *addr, size_t len, int advice);
-int qemu_mprotect_rw(void *addr, size_t size);
-int qemu_mprotect_rwx(void *addr, size_t size);
-int qemu_mprotect_none(void *addr, size_t size);
-
 /*
  * Don't introduce new usage of this function, prefer the following
  * qemu_open/qemu_create that take an "Error **errp"
@@ -644,22 +533,6 @@ static inline void qemu_timersub(const struct timeval *val1,
 #endif
 
 void qemu_set_cloexec(int fd);
-
-/* Starting on QEMU 2.5, qemu_hw_version() returns "2.5+" by default
- * instead of QEMU_VERSION, so setting hw_version on MachineClass
- * is no longer mandatory.
- *
- * Do NOT change this string, or it will break compatibility on all
- * machine classes that don't set hw_version.
- */
-#define QEMU_HW_VERSION "2.5+"
-
-/* QEMU "hardware version" setting. Used to replace code that exposed
- * QEMU_VERSION to guests in the past and need to keep compatibility.
- * Do not use qemu_hw_version() in new code.
- */
-void qemu_set_hw_version(const char *);
-const char *qemu_hw_version(void);
 
 void fips_set_state(bool requested);
 bool fips_get_state(void);
@@ -726,11 +599,6 @@ pid_t qemu_fork(Error **errp);
  */
 extern uintptr_t qemu_real_host_page_size;
 extern intptr_t qemu_real_host_page_mask;
-
-extern int qemu_icache_linesize;
-extern int qemu_icache_linesize_log;
-extern int qemu_dcache_linesize;
-extern int qemu_dcache_linesize_log;
 
 /*
  * After using getopt or getopt_long, if you need to parse another set
