@@ -219,7 +219,6 @@ void qemu_sem_init(QemuSemaphore *sem, int init)
 {
     int rc;
 
-#ifndef CONFIG_SEM_TIMEDWAIT
     rc = pthread_mutex_init(&sem->lock, NULL);
     if (rc != 0) {
         error_exit(rc, __func__);
@@ -232,12 +231,6 @@ void qemu_sem_init(QemuSemaphore *sem, int init)
         error_exit(EINVAL, __func__);
     }
     sem->count = init;
-#else
-    rc = sem_init(&sem->sem, 0, init);
-    if (rc < 0) {
-        error_exit(errno, __func__);
-    }
-#endif
     sem->initialized = true;
 }
 
@@ -247,7 +240,6 @@ void qemu_sem_destroy(QemuSemaphore *sem)
 
     assert(sem->initialized);
     sem->initialized = false;
-#ifndef CONFIG_SEM_TIMEDWAIT
     rc = pthread_cond_destroy(&sem->cond);
     if (rc < 0) {
         error_exit(rc, __func__);
@@ -256,12 +248,6 @@ void qemu_sem_destroy(QemuSemaphore *sem)
     if (rc < 0) {
         error_exit(rc, __func__);
     }
-#else
-    rc = sem_destroy(&sem->sem);
-    if (rc < 0) {
-        error_exit(errno, __func__);
-    }
-#endif
 }
 
 void qemu_sem_post(QemuSemaphore *sem)
@@ -269,7 +255,6 @@ void qemu_sem_post(QemuSemaphore *sem)
     int rc;
 
     assert(sem->initialized);
-#ifndef CONFIG_SEM_TIMEDWAIT
     pthread_mutex_lock(&sem->lock);
     if (sem->count == UINT_MAX) {
         rc = EINVAL;
@@ -281,12 +266,6 @@ void qemu_sem_post(QemuSemaphore *sem)
     if (rc != 0) {
         error_exit(rc, __func__);
     }
-#else
-    rc = sem_post(&sem->sem);
-    if (rc < 0) {
-        error_exit(errno, __func__);
-    }
-#endif
 }
 
 int qemu_sem_timedwait(QemuSemaphore *sem, int ms)
@@ -295,7 +274,6 @@ int qemu_sem_timedwait(QemuSemaphore *sem, int ms)
     struct timespec ts;
 
     assert(sem->initialized);
-#ifndef CONFIG_SEM_TIMEDWAIT
     rc = 0;
     compute_abs_deadline(&ts, ms);
     pthread_mutex_lock(&sem->lock);
@@ -313,29 +291,6 @@ int qemu_sem_timedwait(QemuSemaphore *sem, int ms)
     }
     pthread_mutex_unlock(&sem->lock);
     return (rc == ETIMEDOUT ? -1 : 0);
-#else
-    if (ms <= 0) {
-        /* This is cheaper than sem_timedwait.  */
-        do {
-            rc = sem_trywait(&sem->sem);
-        } while (rc == -1 && errno == EINTR);
-        if (rc == -1 && errno == EAGAIN) {
-            return -1;
-        }
-    } else {
-        compute_abs_deadline(&ts, ms);
-        do {
-            rc = sem_timedwait(&sem->sem, &ts);
-        } while (rc == -1 && errno == EINTR);
-        if (rc == -1 && errno == ETIMEDOUT) {
-            return -1;
-        }
-    }
-    if (rc < 0) {
-        error_exit(errno, __func__);
-    }
-    return 0;
-#endif
 }
 
 void qemu_sem_wait(QemuSemaphore *sem)
@@ -343,7 +298,6 @@ void qemu_sem_wait(QemuSemaphore *sem)
     int rc;
 
     assert(sem->initialized);
-#ifndef CONFIG_SEM_TIMEDWAIT
     pthread_mutex_lock(&sem->lock);
     while (sem->count == 0) {
         rc = pthread_cond_wait(&sem->cond, &sem->lock);
@@ -353,14 +307,6 @@ void qemu_sem_wait(QemuSemaphore *sem)
     }
     --sem->count;
     pthread_mutex_unlock(&sem->lock);
-#else
-    do {
-        rc = sem_wait(&sem->sem);
-    } while (rc == -1 && errno == EINTR);
-    if (rc < 0) {
-        error_exit(errno, __func__);
-    }
-#endif
 }
 
 #ifdef __linux__

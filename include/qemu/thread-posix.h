@@ -27,13 +27,9 @@ struct QemuCond {
 };
 
 struct QemuSemaphore {
-#ifndef CONFIG_SEM_TIMEDWAIT
     pthread_mutex_t lock;
     pthread_cond_t cond;
     unsigned int count;
-#else
-    sem_t sem;
-#endif
     bool initialized;
 };
 
