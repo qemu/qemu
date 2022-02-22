@@ -13,7 +13,11 @@
 #include "qemu/osdep.h"
 
 #include "vss-common.h"
+#ifdef HAVE_VSS_SDK
 #include <vscoordint.h>
+#else
+#include <vsadmin.h>
+#endif
 #include "install.h"
 #include <wbemidl.h>
 #include <comdef.h>

@@ -64,12 +64,13 @@ const CLSID CLSID_QGAVSSProvider = { 0x6e6a3492, 0x8d4d, 0x440c,
 const TCHAR g_szClsid[] = TEXT("{6E6A3492-8D4D-440C-9619-5E5D0CC31CA8}");
 const TCHAR g_szProgid[] = TEXT("QGAVSSProvider");
 
+#ifdef HAVE_VSS_SDK
 /* Enums undefined in VSS SDK 7.2 but defined in newer Windows SDK */
 enum __VSS_VOLUME_SNAPSHOT_ATTRIBUTES {
     VSS_VOLSNAP_ATTR_NO_AUTORECOVERY       = 0x00000002,
     VSS_VOLSNAP_ATTR_TXF_RECOVERY          = 0x02000000
 };
-
+#endif
 
 /* COM pointer utility; call ->Release() when it goes out of scope */
 template <class T>
