@@ -536,6 +536,8 @@
 # @offset: offset in seconds between base RTC clock (as specified
 #          by -rtc base), and new RTC clock value
 #
+# @qom-path: path to the RTC object in the QOM tree
+#
 # Note: This event is rate-limited.
 #       It is not guaranteed that the RTC in the system implements
 #       this event, or even that the system has an RTC at all.
@@ -550,4 +552,4 @@
 #
 ##
 { 'event': 'RTC_CHANGE',
-  'data': { 'offset': 'int' } }
+  'data': { 'offset': 'int', 'qom-path': 'str' } }

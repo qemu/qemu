@@ -611,12 +611,13 @@ static void rtc_get_time(RTCState *s, struct tm *tm)
 static void rtc_set_time(RTCState *s)
 {
     struct tm tm;
+    g_autofree const char *qom_path = object_get_canonical_path(OBJECT(s));
 
     rtc_get_time(s, &tm);
     s->base_rtc = mktimegm(&tm);
     s->last_update = qemu_clock_get_ns(rtc_clock);
 
-    qapi_event_send_rtc_change(qemu_timedate_diff(&tm));
+    qapi_event_send_rtc_change(qemu_timedate_diff(&tm), qom_path);
 }
 
 static void rtc_set_cmos(RTCState *s, const struct tm *tm)
