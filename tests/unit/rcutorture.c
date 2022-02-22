@@ -122,7 +122,7 @@ static void *rcu_read_perf_test(void *arg)
 
     rcu_register_thread();
 
-    *(struct rcu_reader_data **)arg = &rcu_reader;
+    *(struct rcu_reader_data **)arg = get_ptr_rcu_reader();
     qatomic_inc(&nthreadsrunning);
     while (goflag == GOFLAG_INIT) {
         g_usleep(1000);
@@ -148,7 +148,7 @@ static void *rcu_update_perf_test(void *arg)
 
     rcu_register_thread();
 
-    *(struct rcu_reader_data **)arg = &rcu_reader;
+    *(struct rcu_reader_data **)arg = get_ptr_rcu_reader();
     qatomic_inc(&nthreadsrunning);
     while (goflag == GOFLAG_INIT) {
         g_usleep(1000);
@@ -253,7 +253,7 @@ static void *rcu_read_stress_test(void *arg)
 
     rcu_register_thread();
 
-    *(struct rcu_reader_data **)arg = &rcu_reader;
+    *(struct rcu_reader_data **)arg = get_ptr_rcu_reader();
     while (goflag == GOFLAG_INIT) {
         g_usleep(1000);
     }
@@ -304,7 +304,7 @@ static void *rcu_update_stress_test(void *arg)
     struct rcu_stress *cp = qatomic_read(&rcu_stress_current);
 
     rcu_register_thread();
-    *(struct rcu_reader_data **)arg = &rcu_reader;
+    *(struct rcu_reader_data **)arg = get_ptr_rcu_reader();
 
     while (goflag == GOFLAG_INIT) {
         g_usleep(1000);
@@ -347,7 +347,7 @@ static void *rcu_fake_update_stress_test(void *arg)
 {
     rcu_register_thread();
 
-    *(struct rcu_reader_data **)arg = &rcu_reader;
+    *(struct rcu_reader_data **)arg = get_ptr_rcu_reader();
     while (goflag == GOFLAG_INIT) {
         g_usleep(1000);
     }

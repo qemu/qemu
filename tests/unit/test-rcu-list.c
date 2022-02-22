@@ -171,7 +171,7 @@ static void *rcu_q_reader(void *arg)
 
     rcu_register_thread();
 
-    *(struct rcu_reader_data **)arg = &rcu_reader;
+    *(struct rcu_reader_data **)arg = get_ptr_rcu_reader();
     qatomic_inc(&nthreadsrunning);
     while (qatomic_read(&goflag) == GOFLAG_INIT) {
         g_usleep(1000);
@@ -206,7 +206,7 @@ static void *rcu_q_updater(void *arg)
     long long n_removed_local = 0;
     struct list_element *el, *prev_el;
 
-    *(struct rcu_reader_data **)arg = &rcu_reader;
+    *(struct rcu_reader_data **)arg = get_ptr_rcu_reader();
     qatomic_inc(&nthreadsrunning);
     while (qatomic_read(&goflag) == GOFLAG_INIT) {
         g_usleep(1000);
