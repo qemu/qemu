@@ -12,7 +12,7 @@
 #ifndef TPM_TPM_PPI_H
 #define TPM_TPM_PPI_H
 
-#include "exec/address-spaces.h"
+#include "exec/memory.h"
 
 typedef struct TPMPPI {
     MemoryRegion ram;
@@ -29,7 +29,7 @@ typedef struct TPMPPI {
  * Register the TPM PPI memory region at @addr on the given address
  * space for the object @obj.
  **/
-void tpm_ppi_init(TPMPPI *tpmppi, struct MemoryRegion *m,
+void tpm_ppi_init(TPMPPI *tpmppi, MemoryRegion *m,
                   hwaddr addr, Object *obj);
 
 /**

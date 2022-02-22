@@ -75,7 +75,7 @@ static inline uint64_t in_reg64(ERSTState *s, unsigned reg)
     uint64_t res;
 
     res = qpci_io_readq(s->dev, s->reg_bar, reg);
-    g_test_message("*%s -> %016llx", name, (unsigned long long)res);
+    g_test_message("*%s -> %016" PRIx64, name, res);
 
     return res;
 }

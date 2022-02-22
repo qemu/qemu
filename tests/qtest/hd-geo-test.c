@@ -178,9 +178,15 @@ static int append_arg(int argc, char *argv[], int argv_sz, char *arg)
 
 static int setup_common(char *argv[], int argv_sz)
 {
+    int new_argc;
     memset(cur_ide, 0, sizeof(cur_ide));
-    return append_arg(0, argv, argv_sz,
-                      g_strdup("-nodefaults"));
+    new_argc = append_arg(0, argv, argv_sz,
+                          g_strdup("-nodefaults"));
+    new_argc = append_arg(new_argc, argv, argv_sz,
+                          g_strdup("-machine"));
+    new_argc = append_arg(new_argc, argv, argv_sz,
+                          g_strdup("pc"));
+    return new_argc;
 }
 
 static void setup_mbr(int img_idx, MBRcontents mbr)
@@ -697,7 +703,7 @@ static void test_override(TestArgs *args, CHSResult expected[])
 
     joined_args = g_strjoinv(" ", args->argv);
 
-    qts = qtest_init(joined_args);
+    qts = qtest_initf("-machine pc %s", joined_args);
     fw_cfg = pc_fw_cfg_init(qts);
 
     read_bootdevices(fw_cfg, expected);
@@ -833,7 +839,7 @@ static void test_override_scsi_hot_unplug(void)
 
     joined_args = g_strjoinv(" ", args->argv);
 
-    qts = qtest_init(joined_args);
+    qts = qtest_initf("-machine pc %s", joined_args);
     fw_cfg = pc_fw_cfg_init(qts);
 
     read_bootdevices(fw_cfg, expected);
@@ -893,7 +899,7 @@ static void test_override_virtio_hot_unplug(void)
 
     joined_args = g_strjoinv(" ", args->argv);
 
-    qts = qtest_init(joined_args);
+    qts = qtest_initf("-machine pc %s", joined_args);
     fw_cfg = pc_fw_cfg_init(qts);
 
     read_bootdevices(fw_cfg, expected);

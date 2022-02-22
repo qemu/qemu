@@ -128,10 +128,11 @@ static char debug_path[] = "/tmp/qtest-blkdebug.XXXXXX";
 static QTestState *ide_test_start(const char *cmdline_fmt, ...)
 {
     QTestState *qts;
+    g_autofree char *full_fmt = g_strdup_printf("-machine pc %s", cmdline_fmt);
     va_list ap;
 
     va_start(ap, cmdline_fmt);
-    qts = qtest_vinitf(cmdline_fmt, ap);
+    qts = qtest_vinitf(full_fmt, ap);
     va_end(ap);
 
     pc_alloc_init(&guest_malloc, qts, 0);
@@ -701,7 +702,7 @@ static void test_flush(void)
     free_pci_device(dev);
 }
 
-static void test_retry_flush(const char *machine)
+static void test_pci_retry_flush(void)
 {
     QTestState *qts;
     QPCIDevice *dev;
@@ -788,16 +789,6 @@ static void test_flush_empty_drive(void)
 
     free_pci_device(dev);
     ide_test_quit(qts);
-}
-
-static void test_pci_retry_flush(void)
-{
-    test_retry_flush("pc");
-}
-
-static void test_isa_retry_flush(void)
-{
-    test_retry_flush("isapc");
 }
 
 typedef struct Read10CDB {
@@ -1050,7 +1041,6 @@ int main(int argc, char **argv)
     qtest_add_func("/ide/flush/nodev", test_flush_nodev);
     qtest_add_func("/ide/flush/empty_drive", test_flush_empty_drive);
     qtest_add_func("/ide/flush/retry_pci", test_pci_retry_flush);
-    qtest_add_func("/ide/flush/retry_isa", test_isa_retry_flush);
 
     qtest_add_func("/ide/cdrom/pio", test_cdrom_pio);
     qtest_add_func("/ide/cdrom/pio_large", test_cdrom_pio_large);

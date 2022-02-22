@@ -27,6 +27,7 @@
 #include "sysemu/hw_accel.h"
 #include "monitor/monitor.h"
 #endif
+#include "qemu/log.h"
 
 void cpu_sync_bndcs_hflags(CPUX86State *env)
 {
