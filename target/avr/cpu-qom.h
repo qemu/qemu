@@ -33,7 +33,6 @@ OBJECT_DECLARE_TYPE(AVRCPU, AVRCPUClass,
  *  AVRCPUClass:
  *  @parent_realize: The parent class' realize handler.
  *  @parent_reset: The parent class' reset handler.
- *  @vr: Version Register value.
  *
  *  A AVR CPU model.
  */

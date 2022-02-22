@@ -331,9 +331,14 @@ skip_meson=no
 # are included in the automatically generated help message)
 
 # 1. Track which submodules are needed
-capstone="auto"
+if test "$default_feature" = no ; then
+  capstone="disabled"
+  slirp="disabled"
+else
+  capstone="auto"
+  slirp="auto"
+fi
 fdt="auto"
-slirp="auto"
 
 # 2. Support --with/--without option
 default_devices="true"
