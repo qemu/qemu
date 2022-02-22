@@ -1957,7 +1957,7 @@ have_vss = false
 if targetos == 'windows' and link_language == 'cpp'
   have_vss = cxx.compiles('''
     #define __MIDL_user_allocate_free_DEFINED__
-    #include <inc/win2003/vss.h>
+    #include <vss.h>
     int main(void) { return VSS_CTX_BACKUP; }''')
 endif
 
