@@ -38,12 +38,20 @@ static void error_exit(int err, const char *msg)
     abort();
 }
 
+static inline clockid_t qemu_timedwait_clockid(void)
+{
+#ifdef CONFIG_PTHREAD_CONDATTR_SETCLOCK
+    return CLOCK_MONOTONIC;
+#else
+    return CLOCK_REALTIME;
+#endif
+}
+
 static void compute_abs_deadline(struct timespec *ts, int ms)
 {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    ts->tv_nsec = tv.tv_usec * 1000 + (ms % 1000) * 1000000;
-    ts->tv_sec = tv.tv_sec + ms / 1000;
+    clock_gettime(qemu_timedwait_clockid(), ts);
+    ts->tv_nsec += (ms % 1000) * 1000000;
+    ts->tv_sec += ms / 1000;
     if (ts->tv_nsec >= 1000000000) {
         ts->tv_sec++;
         ts->tv_nsec -= 1000000000;
@@ -147,11 +155,27 @@ void qemu_rec_mutex_unlock_impl(QemuRecMutex *mutex, const char *file, int line)
 
 void qemu_cond_init(QemuCond *cond)
 {
+    pthread_condattr_t attr;
     int err;
 
-    err = pthread_cond_init(&cond->cond, NULL);
-    if (err)
+    err = pthread_condattr_init(&attr);
+    if (err) {
         error_exit(err, __func__);
+    }
+#ifdef CONFIG_PTHREAD_CONDATTR_SETCLOCK
+    err = pthread_condattr_setclock(&attr, qemu_timedwait_clockid());
+    if (err) {
+        error_exit(err, __func__);
+    }
+#endif
+    err = pthread_cond_init(&cond->cond, &attr);
+    if (err) {
+        error_exit(err, __func__);
+    }
+    err = pthread_condattr_destroy(&attr);
+    if (err) {
+        error_exit(err, __func__);
+    }
     cond->initialized = true;
 }
 
@@ -217,14 +241,29 @@ bool qemu_cond_timedwait_impl(QemuCond *cond, QemuMutex *mutex, int ms,
 
 void qemu_sem_init(QemuSemaphore *sem, int init)
 {
+    pthread_condattr_t attr;
     int rc;
 
     rc = pthread_mutex_init(&sem->lock, NULL);
     if (rc != 0) {
         error_exit(rc, __func__);
     }
-    rc = pthread_cond_init(&sem->cond, NULL);
+    rc = pthread_condattr_init(&attr);
     if (rc != 0) {
+        error_exit(rc, __func__);
+    }
+#ifdef CONFIG_PTHREAD_CONDATTR_SETCLOCK
+    rc = pthread_condattr_setclock(&attr, qemu_timedwait_clockid());
+    if (rc != 0) {
+        error_exit(rc, __func__);
+    }
+#endif
+    rc = pthread_cond_init(&sem->cond, &attr);
+    if (rc != 0) {
+        error_exit(rc, __func__);
+    }
+    rc = pthread_condattr_destroy(&attr);
+    if (rc < 0) {
         error_exit(rc, __func__);
     }
     if (init < 0) {
