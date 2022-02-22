@@ -759,6 +759,8 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     // Get file size
 
     if (curl_init_state(s, state) < 0) {
+        pstrcpy(state->errmsg, CURL_ERROR_SIZE,
+                "curl library initialization failed.");
         goto out;
     }
 
