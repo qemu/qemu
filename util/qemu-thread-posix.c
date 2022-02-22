@@ -222,16 +222,15 @@ void qemu_cond_wait_impl(QemuCond *cond, QemuMutex *mutex, const char *file, con
         error_exit(err, __func__);
 }
 
-bool qemu_cond_timedwait_impl(QemuCond *cond, QemuMutex *mutex, int ms,
-                              const char *file, const int line)
+static bool
+qemu_cond_timedwait_ts(QemuCond *cond, QemuMutex *mutex, struct timespec *ts,
+                       const char *file, const int line)
 {
     int err;
-    struct timespec ts;
 
     assert(cond->initialized);
     trace_qemu_mutex_unlock(mutex, file, line);
-    compute_abs_deadline(&ts, ms);
-    err = pthread_cond_timedwait(&cond->cond, &mutex->lock, &ts);
+    err = pthread_cond_timedwait(&cond->cond, &mutex->lock, ts);
     trace_qemu_mutex_locked(mutex, file, line);
     if (err && err != ETIMEDOUT) {
         error_exit(err, __func__);
@@ -239,113 +238,73 @@ bool qemu_cond_timedwait_impl(QemuCond *cond, QemuMutex *mutex, int ms,
     return err != ETIMEDOUT;
 }
 
+bool qemu_cond_timedwait_impl(QemuCond *cond, QemuMutex *mutex, int ms,
+                              const char *file, const int line)
+{
+    struct timespec ts;
+
+    compute_abs_deadline(&ts, ms);
+    return qemu_cond_timedwait_ts(cond, mutex, &ts, file, line);
+}
+
 void qemu_sem_init(QemuSemaphore *sem, int init)
 {
-    pthread_condattr_t attr;
-    int rc;
+    qemu_mutex_init(&sem->mutex);
+    qemu_cond_init(&sem->cond);
 
-    rc = pthread_mutex_init(&sem->lock, NULL);
-    if (rc != 0) {
-        error_exit(rc, __func__);
-    }
-    rc = pthread_condattr_init(&attr);
-    if (rc != 0) {
-        error_exit(rc, __func__);
-    }
-#ifdef CONFIG_PTHREAD_CONDATTR_SETCLOCK
-    rc = pthread_condattr_setclock(&attr, qemu_timedwait_clockid());
-    if (rc != 0) {
-        error_exit(rc, __func__);
-    }
-#endif
-    rc = pthread_cond_init(&sem->cond, &attr);
-    if (rc != 0) {
-        error_exit(rc, __func__);
-    }
-    rc = pthread_condattr_destroy(&attr);
-    if (rc < 0) {
-        error_exit(rc, __func__);
-    }
     if (init < 0) {
         error_exit(EINVAL, __func__);
     }
     sem->count = init;
-    sem->initialized = true;
 }
 
 void qemu_sem_destroy(QemuSemaphore *sem)
 {
-    int rc;
-
-    assert(sem->initialized);
-    sem->initialized = false;
-    rc = pthread_cond_destroy(&sem->cond);
-    if (rc < 0) {
-        error_exit(rc, __func__);
-    }
-    rc = pthread_mutex_destroy(&sem->lock);
-    if (rc < 0) {
-        error_exit(rc, __func__);
-    }
+    qemu_cond_destroy(&sem->cond);
+    qemu_mutex_destroy(&sem->mutex);
 }
 
 void qemu_sem_post(QemuSemaphore *sem)
 {
-    int rc;
-
-    assert(sem->initialized);
-    pthread_mutex_lock(&sem->lock);
+    qemu_mutex_lock(&sem->mutex);
     if (sem->count == UINT_MAX) {
-        rc = EINVAL;
+        error_exit(EINVAL, __func__);
     } else {
         sem->count++;
-        rc = pthread_cond_signal(&sem->cond);
+        qemu_cond_signal(&sem->cond);
     }
-    pthread_mutex_unlock(&sem->lock);
-    if (rc != 0) {
-        error_exit(rc, __func__);
-    }
+    qemu_mutex_unlock(&sem->mutex);
 }
 
 int qemu_sem_timedwait(QemuSemaphore *sem, int ms)
 {
-    int rc;
+    bool rc = true;
     struct timespec ts;
 
-    assert(sem->initialized);
-    rc = 0;
     compute_abs_deadline(&ts, ms);
-    pthread_mutex_lock(&sem->lock);
+    qemu_mutex_lock(&sem->mutex);
     while (sem->count == 0) {
-        rc = pthread_cond_timedwait(&sem->cond, &sem->lock, &ts);
-        if (rc == ETIMEDOUT) {
+        rc = qemu_cond_timedwait_ts(&sem->cond, &sem->mutex, &ts,
+                                    __FILE__, __LINE__);
+        if (!rc) { /* timeout */
             break;
         }
-        if (rc != 0) {
-            error_exit(rc, __func__);
-        }
     }
-    if (rc != ETIMEDOUT) {
+    if (rc) {
         --sem->count;
     }
-    pthread_mutex_unlock(&sem->lock);
-    return (rc == ETIMEDOUT ? -1 : 0);
+    qemu_mutex_unlock(&sem->mutex);
+    return (rc ? 0 : -1);
 }
 
 void qemu_sem_wait(QemuSemaphore *sem)
 {
-    int rc;
-
-    assert(sem->initialized);
-    pthread_mutex_lock(&sem->lock);
+    qemu_mutex_lock(&sem->mutex);
     while (sem->count == 0) {
-        rc = pthread_cond_wait(&sem->cond, &sem->lock);
-        if (rc != 0) {
-            error_exit(rc, __func__);
-        }
+        qemu_cond_wait(&sem->cond, &sem->mutex);
     }
     --sem->count;
-    pthread_mutex_unlock(&sem->lock);
+    qemu_mutex_unlock(&sem->mutex);
 }
 
 #ifdef __linux__
