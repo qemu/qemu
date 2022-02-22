@@ -27,7 +27,6 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/error.h"
 #include "channel.h"
-#include "qemu/bswap.h"
 #include "qemu/cutils.h"
 #include "qemu/help_option.h"
 #include "qemu/sockets.h"
