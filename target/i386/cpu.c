@@ -5997,9 +5997,7 @@ static void x86_cpu_reset(DeviceState *dev)
 
     x86_cpu_set_sgxlepubkeyhash(env);
 
-    if (env->features[FEAT_SVM] & CPUID_SVM_TSCSCALE) {
-        env->amd_tsc_scale_msr =  MSR_AMD64_TSC_RATIO_DEFAULT;
-    }
+    env->amd_tsc_scale_msr =  MSR_AMD64_TSC_RATIO_DEFAULT;
 
 #endif
 }
