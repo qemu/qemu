@@ -18,34 +18,8 @@ skip() {
     exit 0
 }
 
-# Disable tests with any sanitizer except for specific ones
-SANITIZE_FLAGS=$( grep "CFLAGS.*-fsanitize" config-host.mak 2>/dev/null )
-ALLOWED_SANITIZE_FLAGS="safe-stack cfi-icall"
-#Remove all occurrencies of allowed Sanitize flags
-for j in ${ALLOWED_SANITIZE_FLAGS}; do
-    TMP_FLAGS=${SANITIZE_FLAGS}
-    SANITIZE_FLAGS=""
-    for i in ${TMP_FLAGS}; do
-        if ! echo ${i} | grep -q "${j}" 2>/dev/null; then
-            SANITIZE_FLAGS="${SANITIZE_FLAGS} ${i}"
-        fi
-    done
-done
-if echo ${SANITIZE_FLAGS} | grep -q "\-fsanitize" 2>/dev/null; then
-    # Have a sanitize flag that is not allowed, stop
-    skip "Sanitizers are enabled ==> Not running the qemu-iotests."
-fi
-
 if [ -z "$(find . -name 'qemu-system-*' -print)" ]; then
     skip "No qemu-system binary available ==> Not running the qemu-iotests."
-fi
-
-if ! command -v bash >/dev/null 2>&1 ; then
-    skip "bash not available ==> Not running the qemu-iotests."
-fi
-
-if LANG=C bash --version | grep -q 'GNU bash, version [123]' ; then
-    skip "bash version too old ==> Not running the qemu-iotests."
 fi
 
 cd tests/qemu-iotests
