@@ -604,6 +604,8 @@ static void whpx_get_registers(CPUState *cpu)
         whpx_apic_get(x86_cpu->apic_state);
     }
 
+    x86_update_hflags(env);
+
     return;
 }
 
