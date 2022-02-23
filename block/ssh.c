@@ -386,20 +386,36 @@ static int compare_fingerprint(const unsigned char *fingerprint, size_t len,
     return *host_key_check - '\0';
 }
 
+static char *format_fingerprint(const unsigned char *fingerprint, size_t len)
+{
+    static const char *hex = "0123456789abcdef";
+    char *ret = g_new0(char, (len * 2) + 1);
+    for (size_t i = 0; i < len; i++) {
+        ret[i * 2] = hex[((fingerprint[i] >> 4) & 0xf)];
+        ret[(i * 2) + 1] = hex[(fingerprint[i] & 0xf)];
+    }
+    ret[len * 2] = '\0';
+    return ret;
+}
+
 static int
 check_host_key_hash(BDRVSSHState *s, const char *hash,
-                    enum ssh_publickey_hash_type type, Error **errp)
+                    enum ssh_publickey_hash_type type, const char *typestr,
+                    Error **errp)
 {
     int r;
     ssh_key pubkey;
     unsigned char *server_hash;
     size_t server_hash_len;
+    const char *keytype;
 
     r = ssh_get_server_publickey(s->session, &pubkey);
     if (r != SSH_OK) {
         session_error_setg(errp, s, "failed to read remote host key");
         return -EINVAL;
     }
+
+    keytype = ssh_key_type_to_char(ssh_key_type(pubkey));
 
     r = ssh_get_publickey_hash(pubkey, type, &server_hash, &server_hash_len);
     ssh_key_free(pubkey);
@@ -410,12 +426,16 @@ check_host_key_hash(BDRVSSHState *s, const char *hash,
     }
 
     r = compare_fingerprint(server_hash, server_hash_len, hash);
-    ssh_clean_pubkey_hash(&server_hash);
     if (r != 0) {
-        error_setg(errp, "remote host key does not match host_key_check '%s'",
-                   hash);
+        g_autofree char *server_fp = format_fingerprint(server_hash,
+                                                        server_hash_len);
+        error_setg(errp, "remote host %s key fingerprint '%s:%s' "
+                   "does not match host_key_check '%s:%s'",
+                   keytype, typestr, server_fp, typestr, hash);
+        ssh_clean_pubkey_hash(&server_hash);
         return -EPERM;
     }
+    ssh_clean_pubkey_hash(&server_hash);
 
     return 0;
 }
@@ -436,13 +456,16 @@ static int check_host_key(BDRVSSHState *s, SshHostKeyCheck *hkc, Error **errp)
     case SSH_HOST_KEY_CHECK_MODE_HASH:
         if (hkc->u.hash.type == SSH_HOST_KEY_CHECK_HASH_TYPE_MD5) {
             return check_host_key_hash(s, hkc->u.hash.hash,
-                                       SSH_PUBLICKEY_HASH_MD5, errp);
+                                       SSH_PUBLICKEY_HASH_MD5, "md5",
+                                       errp);
         } else if (hkc->u.hash.type == SSH_HOST_KEY_CHECK_HASH_TYPE_SHA1) {
             return check_host_key_hash(s, hkc->u.hash.hash,
-                                       SSH_PUBLICKEY_HASH_SHA1, errp);
+                                       SSH_PUBLICKEY_HASH_SHA1, "sha1",
+                                       errp);
         } else if (hkc->u.hash.type == SSH_HOST_KEY_CHECK_HASH_TYPE_SHA256) {
             return check_host_key_hash(s, hkc->u.hash.hash,
-                                       SSH_PUBLICKEY_HASH_SHA256, errp);
+                                       SSH_PUBLICKEY_HASH_SHA256, "sha256",
+                                       errp);
         }
         g_assert_not_reached();
         break;
@@ -556,6 +579,11 @@ static bool ssh_process_legacy_options(QDict *output_opts,
             qdict_put_str(output_opts, "host-key-check.type", "sha1");
             qdict_put_str(output_opts, "host-key-check.hash",
                           &host_key_check[5]);
+        } else if (strncmp(host_key_check, "sha256:", 7) == 0) {
+            qdict_put_str(output_opts, "host-key-check.mode", "hash");
+            qdict_put_str(output_opts, "host-key-check.type", "sha256");
+            qdict_put_str(output_opts, "host-key-check.hash",
+                          &host_key_check[7]);
         } else if (strcmp(host_key_check, "yes") == 0) {
             qdict_put_str(output_opts, "host-key-check.mode", "known_hosts");
         } else {

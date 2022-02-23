@@ -210,24 +210,61 @@
   'data'   : { 'filename' : 'str',
                'format'   : 'BlockdevDriver' } }
 
+
+##
+# @FirmwareFlashType:
+#
+# Describes how the firmware build handles code versus variable
+# persistence.
+#
+# @split: the executable file contains code while the NVRAM
+#         template provides variable storage. The executable
+#         must be configured read-only and can be shared between
+#         multiple guests. The NVRAM template must be cloned
+#         for each new guest and configured read-write.
+#
+# @combined: the executable file contains both code and
+#            variable storage. The executable must be cloned
+#            for each new guest and configured read-write.
+#            No NVRAM template will be specified.
+#
+# @stateless: the executable file contains code and variable
+#             storage is not persisted. The executable must
+#             be configured read-only and can be shared
+#             between multiple guests. No NVRAM template
+#             will be specified.
+#
+# Since: 7.0.0
+##
+{ 'enum': 'FirmwareFlashMode',
+  'data': [ 'split', 'combined', 'stateless' ] }
+
 ##
 # @FirmwareMappingFlash:
 #
 # Describes loading and mapping properties for the firmware executable
 # and its accompanying NVRAM file, when @FirmwareDevice is @flash.
 #
-# @executable: Identifies the firmware executable. The firmware
-#              executable may be shared by multiple virtual machine
-#              definitions. The preferred corresponding QEMU command
-#              line options are
+# @mode: Describes how the firmware build handles code versus variable
+#        storage. If not present, it must be treated as if it was
+#        configured with value ``split``. Since: 7.0.0
+#
+# @executable: Identifies the firmware executable. The @mode
+#              indicates whether there will be an associated
+#              NVRAM template present. The preferred
+#              corresponding QEMU command line options are
 #                  -drive if=none,id=pflash0,readonly=on,file=@executable.@filename,format=@executable.@format
 #                  -machine pflash0=pflash0
-#              or equivalent -blockdev instead of -drive.
+#              or equivalent -blockdev instead of -drive. When
+#              @mode is ``combined`` the executable must be
+#              cloned before use and configured with readonly=off.
 #              With QEMU versions older than 4.0, you have to use
 #                  -drive if=pflash,unit=0,readonly=on,file=@executable.@filename,format=@executable.@format
 #
 # @nvram-template: Identifies the NVRAM template compatible with
-#                  @executable. Management software instantiates an
+#                  @executable, when @mode is set to ``split``,
+#                  otherwise it should not be present.
+#                  Management software instantiates an
 #                  individual copy -- a specific NVRAM file -- from
 #                  @nvram-template.@filename for each new virtual
 #                  machine definition created. @nvram-template.@filename
@@ -246,8 +283,9 @@
 # Since: 3.0
 ##
 { 'struct' : 'FirmwareMappingFlash',
-  'data'   : { 'executable'     : 'FirmwareFlashFile',
-               'nvram-template' : 'FirmwareFlashFile' } }
+  'data'   : { '*mode': 'FirmwareFlashMode',
+               'executable'     : 'FirmwareFlashFile',
+               '*nvram-template' : 'FirmwareFlashFile' } }
 
 ##
 # @FirmwareMappingKernel:

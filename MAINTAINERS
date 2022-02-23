@@ -2990,10 +2990,11 @@ F: docs/sphinx/fakedbusdoc.py
 F: tests/qtest/dbus*
 
 Seccomp
-M: Eduardo Otubo <otubo@redhat.com>
-S: Supported
+M: Daniel P. Berrange <berrange@redhat.com>
+S: Odd Fixes
 F: softmmu/qemu-seccomp.c
 F: include/sysemu/seccomp.h
+F: tests/unit/test-seccomp.c
 
 Cryptography
 M: Daniel P. Berrange <berrange@redhat.com>
