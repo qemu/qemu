@@ -225,7 +225,7 @@ our $Attribute	= qr{
 			volatile|
 			QEMU_NORETURN|
 			G_GNUC_WARN_UNUSED_RESULT|
-			QEMU_SENTINEL|
+			G_GNUC_NULL_TERMINATED|
 			QEMU_PACKED|
 			G_GNUC_PRINTF
 		  }x;
