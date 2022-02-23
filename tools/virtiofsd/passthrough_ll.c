@@ -1039,7 +1039,7 @@ static int do_statx(struct lo_data *lo, int dirfd, const char *pathname,
 {
     int res;
 
-#if defined(CONFIG_STATX) && defined(STATX_MNT_ID)
+#if defined(CONFIG_STATX) && defined(CONFIG_STATX_MNT_ID)
     if (lo->use_statx) {
         struct statx statxbuf;
 
