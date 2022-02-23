@@ -740,6 +740,7 @@ static uint16_t qemu_LATEST[] = {
 
 /* add all new definitions before this point */
 static uint16_t qemu_MAX[] = {
+    S390_FEAT_MISC_INSTRUCTION_EXT3,
     /* generates a dependency warning, leave it out for now */
     S390_FEAT_MSA_EXT_5,
 };
