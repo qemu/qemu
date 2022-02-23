@@ -1099,9 +1099,9 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev,
         return NULL;
     } else if (!pci_bus_devfn_available(bus, devfn)) {
         error_setg(errp, "PCI: slot %d function %d not available for %s,"
-                   " in use by %s",
+                   " in use by %s,id=%s",
                    PCI_SLOT(devfn), PCI_FUNC(devfn), name,
-                   bus->devices[devfn]->name);
+                   bus->devices[devfn]->name, bus->devices[devfn]->qdev.id);
         return NULL;
     } else if (dev->hotplugged &&
                !pci_is_vf(pci_dev) &&
