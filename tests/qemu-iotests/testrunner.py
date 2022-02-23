@@ -365,7 +365,10 @@ class TestRunner(ContextManager['TestRunner']):
                                  description=res.description)
 
         if res.casenotrun:
-            print(res.casenotrun)
+            if self.tap:
+                print('#' + res.casenotrun.replace('\n', '\n#'))
+            else:
+                print(res.casenotrun)
 
         return res
 
