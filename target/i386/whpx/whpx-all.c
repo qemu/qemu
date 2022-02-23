@@ -256,6 +256,21 @@ static int whpx_set_tsc(CPUState *cpu)
     return 0;
 }
 
+/*
+ * The CR8 register in the CPU is mapped to the TPR register of the APIC,
+ * however, they use a slightly different encoding. Specifically:
+ *
+ *     APIC.TPR[bits 7:4] = CR8[bits 3:0]
+ *
+ * This mechanism is described in section 10.8.6.1 of Volume 3 of Intel 64
+ * and IA-32 Architectures Software Developer's Manual.
+ */
+
+static uint64_t whpx_apic_tpr_to_cr8(uint64_t tpr)
+{
+    return tpr >> 4;
+}
+
 static void whpx_set_registers(CPUState *cpu, int level)
 {
     struct whpx_state *whpx = &whpx_global;
@@ -284,7 +299,7 @@ static void whpx_set_registers(CPUState *cpu, int level)
     v86 = (env->eflags & VM_MASK);
     r86 = !(env->cr[0] & CR0_PE_MASK);
 
-    vcpu->tpr = cpu_get_apic_tpr(x86_cpu->apic_state);
+    vcpu->tpr = whpx_apic_tpr_to_cr8(cpu_get_apic_tpr(x86_cpu->apic_state));
     vcpu->apic_base = cpu_get_apic_base(x86_cpu->apic_state);
 
     idx = 0;
@@ -473,6 +488,17 @@ static void whpx_get_registers(CPUState *cpu)
     if (FAILED(hr)) {
         error_report("WHPX: Failed to get virtual processor context, hr=%08lx",
                      hr);
+    }
+
+    if (whpx_apic_in_platform()) {
+        /*
+         * Fetch the TPR value from the emulated APIC. It may get overwritten
+         * below with the value from CR8 returned by
+         * WHvGetVirtualProcessorRegisters().
+         */
+        whpx_apic_get(x86_cpu->apic_state);
+        vcpu->tpr = whpx_apic_tpr_to_cr8(
+            cpu_get_apic_tpr(x86_cpu->apic_state));
     }
 
     idx = 0;
