@@ -63,6 +63,7 @@ typedef enum TCGReg {
 /* Facilities that are checked at runtime. */
 
 #define FACILITY_LOAD_ON_COND2        53
+#define FACILITY_MISC_INSN_EXT2       58
 #define FACILITY_VECTOR               129
 #define FACILITY_VECTOR_ENH1          135
 
