@@ -488,9 +488,8 @@ static void fdt_add_psci_node(void *fdt)
     }
 
     qemu_fdt_add_subnode(fdt, "/psci");
-    if (armcpu->psci_version == QEMU_PSCI_VERSION_0_2 ||
-        armcpu->psci_version == QEMU_PSCI_VERSION_1_1) {
-        if (armcpu->psci_version == QEMU_PSCI_VERSION_0_2) {
+    if (armcpu->psci_version >= QEMU_PSCI_VERSION_0_2) {
+        if (armcpu->psci_version < QEMU_PSCI_VERSION_1_0) {
             const char comp[] = "arm,psci-0.2\0arm,psci";
             qemu_fdt_setprop(fdt, "/psci", "compatible", comp, sizeof(comp));
         } else {
