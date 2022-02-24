@@ -1,4 +1,5 @@
 #!/bin/sh -e
 
 cd ../tests/qemu-iotests/
-python3 -m linters --pylint
+# See commit message for environment variable explainer.
+SETUPTOOLS_USE_DISTUTILS=stdlib python3 -m linters --pylint
