@@ -27,8 +27,6 @@
 #include <math.h>
 
 #include "qemu-common.h"
-#include "qemu/sockets.h"
-#include "qemu/iov.h"
 #include "net/net.h"
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
