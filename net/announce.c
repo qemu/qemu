@@ -120,6 +120,19 @@ static int announce_self_create(uint8_t *buf,
     return 60; /* len (FCS will be added by hardware) */
 }
 
+/*
+ * Helper to print ethernet mac address
+ */
+static const char *qemu_ether_ntoa(const MACAddr *mac)
+{
+    static char ret[18];
+
+    snprintf(ret, sizeof(ret), "%02x:%02x:%02x:%02x:%02x:%02x",
+             mac->a[0], mac->a[1], mac->a[2], mac->a[3], mac->a[4], mac->a[5]);
+
+    return ret;
+}
+
 static void qemu_announce_self_iter(NICState *nic, void *opaque)
 {
     AnnounceTimer *timer = opaque;
