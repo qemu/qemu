@@ -128,16 +128,19 @@ typedef enum S390Opcode {
     RI_OILL     = 0xa50b,
     RI_TMLL     = 0xa701,
 
-    RIE_CGIJ    = 0xec7c,
-    RIE_CGRJ    = 0xec64,
-    RIE_CIJ     = 0xec7e,
-    RIE_CLGRJ   = 0xec65,
-    RIE_CLIJ    = 0xec7f,
-    RIE_CLGIJ   = 0xec7d,
-    RIE_CLRJ    = 0xec77,
-    RIE_CRJ     = 0xec76,
-    RIE_LOCGHI  = 0xec46,
-    RIE_RISBG   = 0xec55,
+    RIEb_CGRJ    = 0xec64,
+    RIEb_CLGRJ   = 0xec65,
+    RIEb_CLRJ    = 0xec77,
+    RIEb_CRJ     = 0xec76,
+
+    RIEc_CGIJ    = 0xec7c,
+    RIEc_CIJ     = 0xec7e,
+    RIEc_CLGIJ   = 0xec7d,
+    RIEc_CLIJ    = 0xec7f,
+
+    RIEf_RISBG   = 0xec55,
+
+    RIEg_LOCGHI  = 0xec46,
 
     RRE_AGR     = 0xb908,
     RRE_ALGR    = 0xb90a,
@@ -556,7 +559,7 @@ static void tcg_out_insn_RI(TCGContext *s, S390Opcode op, TCGReg r1, int i2)
     tcg_out32(s, (op << 16) | (r1 << 20) | (i2 & 0xffff));
 }
 
-static void tcg_out_insn_RIE(TCGContext *s, S390Opcode op, TCGReg r1,
+static void tcg_out_insn_RIEg(TCGContext *s, S390Opcode op, TCGReg r1,
                              int i2, int m3)
 {
     tcg_out16(s, (op & 0xff00) | (r1 << 4) | m3);
@@ -985,9 +988,9 @@ static inline void tcg_out_risbg(TCGContext *s, TCGReg dest, TCGReg src,
                                  int msb, int lsb, int ofs, int z)
 {
     /* Format RIE-f */
-    tcg_out16(s, (RIE_RISBG & 0xff00) | (dest << 4) | src);
+    tcg_out16(s, (RIEf_RISBG & 0xff00) | (dest << 4) | src);
     tcg_out16(s, (msb << 8) | (z << 7) | lsb);
-    tcg_out16(s, (ofs << 8) | (RIE_RISBG & 0xff));
+    tcg_out16(s, (ofs << 8) | (RIEf_RISBG & 0xff));
 }
 
 static void tgen_ext8s(TCGContext *s, TCGType type, TCGReg dest, TCGReg src)
@@ -1266,7 +1269,7 @@ static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
         /* Emit: d = 0, d = (cc ? 1 : d).  */
         cc = tgen_cmp(s, type, cond, c1, c2, c2const, false);
         tcg_out_movi(s, TCG_TYPE_I64, dest, 0);
-        tcg_out_insn(s, RIE, LOCGHI, dest, 1, cc);
+        tcg_out_insn(s, RIEg, LOCGHI, dest, 1, cc);
         return;
     }
 
@@ -1340,7 +1343,7 @@ static void tgen_movcond(TCGContext *s, TCGType type, TCGCond c, TCGReg dest,
 {
     int cc = tgen_cmp(s, type, c, c1, c2, c2const, false);
     if (v3const) {
-        tcg_out_insn(s, RIE, LOCGHI, dest, v3, cc);
+        tcg_out_insn(s, RIEg, LOCGHI, dest, v3, cc);
     } else {
         tcg_out_insn(s, RRFc, LOCGR, dest, v3, cc);
     }
@@ -1409,6 +1412,7 @@ static void tgen_compare_branch(TCGContext *s, S390Opcode opc, int cc,
                                 TCGReg r1, TCGReg r2, TCGLabel *l)
 {
     tcg_out_reloc(s, s->code_ptr + 1, R_390_PC16DBL, l, 2);
+    /* Format RIE-b */
     tcg_out16(s, (opc & 0xff00) | (r1 << 4) | r2);
     tcg_out16(s, 0);
     tcg_out16(s, cc << 12 | (opc & 0xff));
@@ -1418,6 +1422,7 @@ static void tgen_compare_imm_branch(TCGContext *s, S390Opcode opc, int cc,
                                     TCGReg r1, int i2, TCGLabel *l)
 {
     tcg_out_reloc(s, s->code_ptr + 1, R_390_PC16DBL, l, 2);
+    /* Format RIE-c */
     tcg_out16(s, (opc & 0xff00) | (r1 << 4) | cc);
     tcg_out16(s, 0);
     tcg_out16(s, (i2 << 8) | (opc & 0xff));
@@ -1435,8 +1440,8 @@ static void tgen_brcond(TCGContext *s, TCGType type, TCGCond c,
 
     if (!c2const) {
         opc = (type == TCG_TYPE_I32
-               ? (is_unsigned ? RIE_CLRJ : RIE_CRJ)
-               : (is_unsigned ? RIE_CLGRJ : RIE_CGRJ));
+               ? (is_unsigned ? RIEb_CLRJ : RIEb_CRJ)
+               : (is_unsigned ? RIEb_CLGRJ : RIEb_CGRJ));
         tgen_compare_branch(s, opc, cc, r1, c2, l);
         return;
     }
@@ -1449,18 +1454,18 @@ static void tgen_brcond(TCGContext *s, TCGType type, TCGCond c,
      */
     if (type == TCG_TYPE_I32) {
         if (is_unsigned) {
-            opc = RIE_CLIJ;
+            opc = RIEc_CLIJ;
             in_range = (uint32_t)c2 == (uint8_t)c2;
         } else {
-            opc = RIE_CIJ;
+            opc = RIEc_CIJ;
             in_range = (int32_t)c2 == (int8_t)c2;
         }
     } else {
         if (is_unsigned) {
-            opc = RIE_CLGIJ;
+            opc = RIEc_CLGIJ;
             in_range = (uint64_t)c2 == (uint8_t)c2;
         } else {
-            opc = RIE_CGIJ;
+            opc = RIEc_CGIJ;
             in_range = (int64_t)c2 == (int8_t)c2;
         }
     }
