@@ -23,6 +23,9 @@ from avocado.utils import ssh
 @skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
 @skipUnless(ssh.SSH_CLIENT_BINARY, 'No SSH client available')
 class LinuxSSH(QemuSystemTest, LinuxSSHMixIn):
+    """
+    :avocado: tags=accel:tcg
+    """
 
     timeout = 150 # Not for 'configure --enable-debug --enable-debug-tcg'
 
