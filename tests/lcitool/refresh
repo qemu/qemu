@@ -97,6 +97,11 @@ try:
                        trailer=debian_cross_build("aarch64-linux-gnu-",
                                                   "aarch64-softmmu,aarch64-linux-user"))
 
+   generate_dockerfile("debian-s390x-cross", "debian-11",
+                       cross="s390x",
+                       trailer=debian_cross_build("s390x-linux-gnu-",
+                                                  "s390x-softmmu,s390x-linux-user"))
+
    generate_cirrus("freebsd-12")
    generate_cirrus("freebsd-13")
    generate_cirrus("macos-11")
