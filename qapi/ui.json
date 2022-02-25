@@ -10,6 +10,34 @@
 { 'include': 'sockets.json' }
 
 ##
+# @DisplayProtocol:
+#
+# Display protocols which support changing password options.
+#
+# Since: 7.0
+#
+##
+{ 'enum': 'DisplayProtocol',
+  'data': [ 'vnc', 'spice' ] }
+
+##
+# @SetPasswordAction:
+#
+# An action to take on changing a password on a connection with active clients.
+#
+# @keep: maintain existing clients
+#
+# @fail: fail the command if clients are connected
+#
+# @disconnect: disconnect existing clients
+#
+# Since: 7.0
+#
+##
+{ 'enum': 'SetPasswordAction',
+  'data': [ 'keep', 'fail', 'disconnect' ] }
+
+##
 # @set_password:
 #
 # Sets the password of a remote display session.
@@ -38,7 +66,9 @@
 #
 ##
 { 'command': 'set_password',
-  'data': {'protocol': 'str', 'password': 'str', '*connected': 'str'} }
+  'data': { 'protocol': 'DisplayProtocol',
+            'password': 'str',
+            '*connected': 'SetPasswordAction' } }
 
 ##
 # @expire_password:
@@ -71,7 +101,9 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'expire_password', 'data': {'protocol': 'str', 'time': 'str'} }
+{ 'command': 'expire_password',
+  'data': { 'protocol': 'DisplayProtocol',
+            'time': 'str' } }
 
 ##
 # @screendump:
