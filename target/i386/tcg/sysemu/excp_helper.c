@@ -25,32 +25,35 @@
 int get_pg_mode(CPUX86State *env)
 {
     int pg_mode = 0;
+    if (!(env->cr[0] & CR0_PG_MASK)) {
+        return 0;
+    }
     if (env->cr[0] & CR0_WP_MASK) {
         pg_mode |= PG_MODE_WP;
     }
     if (env->cr[4] & CR4_PAE_MASK) {
         pg_mode |= PG_MODE_PAE;
+        if (env->efer & MSR_EFER_NXE) {
+            pg_mode |= PG_MODE_NXE;
+        }
     }
     if (env->cr[4] & CR4_PSE_MASK) {
         pg_mode |= PG_MODE_PSE;
     }
-    if (env->cr[4] & CR4_PKE_MASK) {
-        pg_mode |= PG_MODE_PKE;
-    }
-    if (env->cr[4] & CR4_PKS_MASK) {
-        pg_mode |= PG_MODE_PKS;
-    }
     if (env->cr[4] & CR4_SMEP_MASK) {
         pg_mode |= PG_MODE_SMEP;
     }
-    if (env->cr[4] & CR4_LA57_MASK) {
-        pg_mode |= PG_MODE_LA57;
-    }
     if (env->hflags & HF_LMA_MASK) {
         pg_mode |= PG_MODE_LMA;
-    }
-    if (env->efer & MSR_EFER_NXE) {
-        pg_mode |= PG_MODE_NXE;
+        if (env->cr[4] & CR4_PKE_MASK) {
+            pg_mode |= PG_MODE_PKE;
+        }
+        if (env->cr[4] & CR4_PKS_MASK) {
+            pg_mode |= PG_MODE_PKS;
+        }
+        if (env->cr[4] & CR4_LA57_MASK) {
+            pg_mode |= PG_MODE_LA57;
+        }
     }
     return pg_mode;
 }
@@ -279,9 +282,7 @@ do_check_protect_pse36:
         *prot |= PAGE_EXEC;
     }
 
-    if (!(pg_mode & PG_MODE_LMA)) {
-        pkr = 0;
-    } else if (ptep & PG_USER_MASK) {
+    if (ptep & PG_USER_MASK) {
         pkr = pg_mode & PG_MODE_PKE ? env->pkru : 0;
     } else {
         pkr = pg_mode & PG_MODE_PKS ? env->pkrs : 0;
@@ -344,8 +345,7 @@ do_check_protect_pse36:
     if (is_user)
         error_code |= PG_ERROR_U_MASK;
     if (is_write1 == 2 &&
-        (((pg_mode & PG_MODE_NXE) && (pg_mode & PG_MODE_PAE)) ||
-         (pg_mode & PG_MODE_SMEP)))
+        ((pg_mode & PG_MODE_NXE) || (pg_mode & PG_MODE_SMEP)))
         error_code |= PG_ERROR_I_D_MASK;
     return error_code;
 }
