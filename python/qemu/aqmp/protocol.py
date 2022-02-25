@@ -10,6 +10,9 @@ In this package, it is used as the implementation for the `QMPClient`
 class.
 """
 
+# It's all the docstrings ... ! It's long for a good reason ^_^;
+# pylint: disable=too-many-lines
+
 import asyncio
 from asyncio import StreamReader, StreamWriter
 from enum import Enum
