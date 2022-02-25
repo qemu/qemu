@@ -1,32 +1,166 @@
+# THIS FILE WAS AUTO-GENERATED
 #
-# Docker arm64 cross-compiler target
+#  $ lcitool dockerfile --layers all --cross aarch64 debian-11 qemu
 #
-# This docker target builds on the debian Buster base image.
-#
-FROM qemu/debian10
+# https://gitlab.com/libvirt/libvirt-ci
 
-# Add the foreign architecture we want and install dependencies
-RUN dpkg --add-architecture arm64
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt install -y --no-install-recommends \
-        crossbuild-essential-arm64
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt build-dep -yy -a arm64 --arch-only qemu
+FROM docker.io/library/debian:11-slim
 
-# Specify the cross prefix for this image (see tests/docker/common.rc)
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update && \
+    apt-get install -y eatmydata && \
+    eatmydata apt-get dist-upgrade -y && \
+    eatmydata apt-get install --no-install-recommends -y \
+            bash \
+            bc \
+            bsdextrautils \
+            bzip2 \
+            ca-certificates \
+            ccache \
+            dbus \
+            debianutils \
+            diffutils \
+            exuberant-ctags \
+            findutils \
+            gcovr \
+            genisoimage \
+            gettext \
+            git \
+            hostname \
+            libpcre2-dev \
+            libspice-protocol-dev \
+            libtest-harness-perl \
+            llvm \
+            locales \
+            make \
+            meson \
+            ncat \
+            ninja-build \
+            openssh-client \
+            perl-base \
+            pkgconf \
+            python3 \
+            python3-numpy \
+            python3-opencv \
+            python3-pillow \
+            python3-pip \
+            python3-sphinx \
+            python3-sphinx-rtd-theme \
+            python3-venv \
+            python3-yaml \
+            rpm2cpio \
+            sed \
+            sparse \
+            tar \
+            tesseract-ocr \
+            tesseract-ocr-eng \
+            texinfo && \
+    eatmydata apt-get autoremove -y && \
+    eatmydata apt-get autoclean -y && \
+    sed -Ei 's,^# (en_US\.UTF-8 .*)$,\1,' /etc/locale.gen && \
+    dpkg-reconfigure locales
+
+ENV LANG "en_US.UTF-8"
+ENV MAKE "/usr/bin/make"
+ENV NINJA "/usr/bin/ninja"
+ENV PYTHON "/usr/bin/python3"
+ENV CCACHE_WRAPPERSDIR "/usr/libexec/ccache-wrappers"
+
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    dpkg --add-architecture arm64 && \
+    eatmydata apt-get update && \
+    eatmydata apt-get dist-upgrade -y && \
+    eatmydata apt-get install --no-install-recommends -y dpkg-dev && \
+    eatmydata apt-get install --no-install-recommends -y \
+            g++-aarch64-linux-gnu \
+            gcc-aarch64-linux-gnu \
+            libaio-dev:arm64 \
+            libasan5:arm64 \
+            libasound2-dev:arm64 \
+            libattr1-dev:arm64 \
+            libbpf-dev:arm64 \
+            libbrlapi-dev:arm64 \
+            libbz2-dev:arm64 \
+            libc6-dev:arm64 \
+            libcacard-dev:arm64 \
+            libcap-ng-dev:arm64 \
+            libcapstone-dev:arm64 \
+            libcurl4-gnutls-dev:arm64 \
+            libdaxctl-dev:arm64 \
+            libdrm-dev:arm64 \
+            libepoxy-dev:arm64 \
+            libfdt-dev:arm64 \
+            libffi-dev:arm64 \
+            libfuse3-dev:arm64 \
+            libgbm-dev:arm64 \
+            libgcrypt20-dev:arm64 \
+            libglib2.0-dev:arm64 \
+            libglusterfs-dev:arm64 \
+            libgnutls28-dev:arm64 \
+            libgtk-3-dev:arm64 \
+            libibumad-dev:arm64 \
+            libibverbs-dev:arm64 \
+            libiscsi-dev:arm64 \
+            libjemalloc-dev:arm64 \
+            libjpeg62-turbo-dev:arm64 \
+            liblttng-ust-dev:arm64 \
+            liblzo2-dev:arm64 \
+            libncursesw5-dev:arm64 \
+            libnfs-dev:arm64 \
+            libnuma-dev:arm64 \
+            libpam0g-dev:arm64 \
+            libpixman-1-dev:arm64 \
+            libpng-dev:arm64 \
+            libpulse-dev:arm64 \
+            librbd-dev:arm64 \
+            librdmacm-dev:arm64 \
+            libsasl2-dev:arm64 \
+            libsdl2-dev:arm64 \
+            libsdl2-image-dev:arm64 \
+            libseccomp-dev:arm64 \
+            libselinux1-dev:arm64 \
+            libslirp-dev:arm64 \
+            libsnappy-dev:arm64 \
+            libspice-server-dev:arm64 \
+            libssh-gcrypt-dev:arm64 \
+            libsystemd-dev:arm64 \
+            libtasn1-6-dev:arm64 \
+            libubsan1:arm64 \
+            libudev-dev:arm64 \
+            liburing-dev:arm64 \
+            libusb-1.0-0-dev:arm64 \
+            libusbredirhost-dev:arm64 \
+            libvdeplug-dev:arm64 \
+            libvirglrenderer-dev:arm64 \
+            libvte-2.91-dev:arm64 \
+            libxen-dev:arm64 \
+            libzstd-dev:arm64 \
+            nettle-dev:arm64 \
+            systemtap-sdt-dev:arm64 \
+            xfslibs-dev:arm64 \
+            zlib1g-dev:arm64 && \
+    eatmydata apt-get autoremove -y && \
+    eatmydata apt-get autoclean -y && \
+    mkdir -p /usr/local/share/meson/cross && \
+    echo "[binaries]\n\
+c = '/usr/bin/aarch64-linux-gnu-gcc'\n\
+ar = '/usr/bin/aarch64-linux-gnu-gcc-ar'\n\
+strip = '/usr/bin/aarch64-linux-gnu-strip'\n\
+pkgconfig = '/usr/bin/aarch64-linux-gnu-pkg-config'\n\
+\n\
+[host_machine]\n\
+system = 'linux'\n\
+cpu_family = 'aarch64'\n\
+cpu = 'aarch64'\n\
+endian = 'little'" > /usr/local/share/meson/cross/aarch64-linux-gnu && \
+    dpkg-query --showformat '${Package}_${Version}_${Architecture}\n' --show > /packages.txt && \
+    mkdir -p /usr/libexec/ccache-wrappers && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/aarch64-linux-gnu-c++ && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/aarch64-linux-gnu-cc && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/aarch64-linux-gnu-g++ && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/aarch64-linux-gnu-gcc
+
+ENV ABI "aarch64-linux-gnu"
+ENV MESON_OPTS "--cross-file=aarch64-linux-gnu"
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=aarch64-linux-gnu-
 ENV DEF_TARGET_LIST aarch64-softmmu,aarch64-linux-user
-
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt install -y --no-install-recommends \
-        libbz2-dev:arm64 \
-        liblzo2-dev:arm64 \
-        librdmacm-dev:arm64 \
-        libsnappy-dev:arm64 \
-        libxen-dev:arm64
-
-# nettle
-ENV QEMU_CONFIGURE_OPTS $QEMU_CONFIGURE_OPTS --enable-nettle

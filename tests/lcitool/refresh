@@ -76,6 +76,12 @@ ubuntu2004_tsanhack = [
    "RUN sed -i 's/^const/static const/g' /usr/lib/llvm-10/lib/clang/10.0.0/include/sanitizer/tsan_interface.h\n"
 ]
 
+def debian_cross_build(prefix, targets):
+   conf = "ENV QEMU_CONFIGURE_OPTS --cross-prefix=%s\n" % (prefix)
+   targets = "ENV DEF_TARGET_LIST %s\n" % (targets)
+   return "".join([conf, targets])
+
+
 try:
    generate_dockerfile("centos8", "centos-stream-8")
    generate_dockerfile("fedora", "fedora-35")
@@ -85,6 +91,11 @@ try:
                        trailer="".join(ubuntu2004_tsanhack))
    generate_dockerfile("opensuse-leap", "opensuse-leap-152")
    generate_dockerfile("alpine", "alpine-edge")
+
+   generate_dockerfile("debian-arm64-cross", "debian-11",
+                       cross="aarch64",
+                       trailer=debian_cross_build("aarch64-linux-gnu-",
+                                                  "aarch64-softmmu,aarch64-linux-user"))
 
    generate_cirrus("freebsd-12")
    generate_cirrus("freebsd-13")
