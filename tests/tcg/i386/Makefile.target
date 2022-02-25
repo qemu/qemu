@@ -71,3 +71,12 @@ TESTS=$(MULTIARCH_TESTS) $(I386_TESTS)
 
 # On i386 and x86_64 Linux only supports 4k pages (large pages are a different hack)
 EXTRA_RUNS+=run-test-mmap-4096
+
+sha512-sse: CFLAGS=-msse4.1 -O3
+sha512-sse: sha512.c
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS)
+
+run-sha512-sse: QEMU_OPTS+=-cpu max
+run-plugin-sha512-sse-with-%: QEMU_OPTS+=-cpu max
+
+TESTS+=sha512-sse
