@@ -295,7 +295,7 @@ class AsyncProtocol(Generic[T]):
             session, the wrapped error may also be an `QMPError`.
         """
         await self._session_guard(
-            self._do_accept(address, ssl),
+            self._do_start_server(address, ssl),
             'Failed to establish connection')
         await self._session_guard(
             self._establish_session(),
@@ -509,8 +509,8 @@ class AsyncProtocol(Generic[T]):
         self._sock = sock
 
     @upper_half
-    async def _do_accept(self, address: SocketAddrT,
-                         ssl: Optional[SSLContext] = None) -> None:
+    async def _do_start_server(self, address: SocketAddrT,
+                               ssl: Optional[SSLContext] = None) -> None:
         """
         Acting as the transport server, accept a single connection.
 
@@ -551,9 +551,28 @@ class AsyncProtocol(Generic[T]):
         # otherwise yield.
         await asyncio.sleep(0)
 
-        self._server = await coro    # Starts listening
-        await self._accepted.wait()  # Waits for the callback to finish
+        # This will start the server (bind(2), listen(2)). It will also
+        # call accept(2) if we yield, but we don't block on that here.
+        self._server = await coro
+
+        # Just for this one commit, wait for a peer.
+        # This gets split out in the next patch.
+        await self._do_accept()
+
+    @upper_half
+    async def _do_accept(self) -> None:
+        """
+        Wait for and accept an incoming connection.
+
+        Requires that we have not yet accepted an incoming connection
+        from the upper_half, but it's OK if the server is no longer
+        running because the bottom_half has already accepted the
+        connection.
+        """
+        assert self._accepted is not None
+        await self._accepted.wait()
         assert self._server is None
+        self._accepted = None
         self._sock = None
 
         self.logger.debug("Connection accepted.")
