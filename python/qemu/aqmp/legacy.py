@@ -57,7 +57,7 @@ class QEMUMonitorProtocol(qemu.qmp.QEMUMonitorProtocol):
         self._timeout: Optional[float] = None
 
         if server:
-            self._sync(self._aqmp.start_server(address))
+            self._sync(self._aqmp.start_server(self._address))
 
     _T = TypeVar('_T')
 

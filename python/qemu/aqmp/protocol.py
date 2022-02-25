@@ -18,7 +18,6 @@ from asyncio import StreamReader, StreamWriter
 from enum import Enum
 from functools import wraps
 import logging
-import socket
 from ssl import SSLContext
 from typing import (
     Any,
@@ -241,9 +240,6 @@ class AsyncProtocol(Generic[T]):
 
         self._runstate = Runstate.IDLE
         self._runstate_changed: Optional[asyncio.Event] = None
-
-        # Workaround for bind()
-        self._sock: Optional[socket.socket] = None
 
         # Server state for start_server() and _incoming()
         self._server: Optional[asyncio.AbstractServer] = None
@@ -535,34 +531,6 @@ class AsyncProtocol(Generic[T]):
         self._reader, self._writer = (reader, writer)
         self._accepted.set()
 
-    def _bind_hack(self, address: Union[str, Tuple[str, int]]) -> None:
-        """
-        Used to create a socket in advance of accept().
-
-        This is a workaround to ensure that we can guarantee timing of
-        precisely when a socket exists to avoid a connection attempt
-        bouncing off of nothing.
-
-        Python 3.7+ adds a feature to separate the server creation and
-        listening phases instead, and should be used instead of this
-        hack.
-        """
-        if isinstance(address, tuple):
-            family = socket.AF_INET
-        else:
-            family = socket.AF_UNIX
-
-        sock = socket.socket(family, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-        try:
-            sock.bind(address)
-        except:
-            sock.close()
-            raise
-
-        self._sock = sock
-
     @upper_half
     async def _do_start_server(self, address: SocketAddrT,
                                ssl: Optional[SSLContext] = None) -> None:
@@ -589,21 +557,19 @@ class AsyncProtocol(Generic[T]):
         if isinstance(address, tuple):
             coro = asyncio.start_server(
                 self._incoming,
-                host=None if self._sock else address[0],
-                port=None if self._sock else address[1],
+                host=address[0],
+                port=address[1],
                 ssl=ssl,
                 backlog=1,
                 limit=self._limit,
-                sock=self._sock,
             )
         else:
             coro = asyncio.start_unix_server(
                 self._incoming,
-                path=None if self._sock else address,
+                path=address,
                 ssl=ssl,
                 backlog=1,
                 limit=self._limit,
-                sock=self._sock,
             )
 
         # Allow runstate watchers to witness 'CONNECTING' state; some
@@ -630,7 +596,6 @@ class AsyncProtocol(Generic[T]):
         await self._accepted.wait()
         assert self._server is None
         self._accepted = None
-        self._sock = None
 
         self.logger.debug("Connection accepted.")
 
