@@ -413,14 +413,14 @@ class Accept(Connect):
         assert family in ('INET', 'UNIX')
 
         if family == 'INET':
-            await self.proto.accept(('example.com', 1))
+            await self.proto.start_server_and_accept(('example.com', 1))
         elif family == 'UNIX':
-            await self.proto.accept('/dev/null')
+            await self.proto.start_server_and_accept('/dev/null')
 
     async def _hanging_connection(self):
         with TemporaryDirectory(suffix='.aqmp') as tmpdir:
             sock = os.path.join(tmpdir, type(self.proto).__name__ + ".sock")
-            await self.proto.accept(sock)
+            await self.proto.start_server_and_accept(sock)
 
 
 class FakeSession(TestBase):
@@ -449,13 +449,13 @@ class FakeSession(TestBase):
     @TestBase.async_test
     async def testFakeAccept(self):
         """Test the full state lifecycle (via accept) with a no-op session."""
-        await self.proto.accept('/not/a/real/path')
+        await self.proto.start_server_and_accept('/not/a/real/path')
         self.assertEqual(self.proto.runstate, Runstate.RUNNING)
 
     @TestBase.async_test
     async def testFakeRecv(self):
         """Test receiving a fake/null message."""
-        await self.proto.accept('/not/a/real/path')
+        await self.proto.start_server_and_accept('/not/a/real/path')
 
         logname = self.proto.logger.name
         with self.assertLogs(logname, level='DEBUG') as context:
@@ -471,7 +471,7 @@ class FakeSession(TestBase):
     @TestBase.async_test
     async def testFakeSend(self):
         """Test sending a fake/null message."""
-        await self.proto.accept('/not/a/real/path')
+        await self.proto.start_server_and_accept('/not/a/real/path')
 
         logname = self.proto.logger.name
         with self.assertLogs(logname, level='DEBUG') as context:
@@ -493,7 +493,7 @@ class FakeSession(TestBase):
     ):
         with self.assertRaises(StateError) as context:
             if accept:
-                await self.proto.accept('/not/a/real/path')
+                await self.proto.start_server_and_accept('/not/a/real/path')
             else:
                 await self.proto.connect('/not/a/real/path')
 
@@ -504,7 +504,7 @@ class FakeSession(TestBase):
     @TestBase.async_test
     async def testAcceptRequireRunning(self):
         """Test that accept() cannot be called when Runstate=RUNNING"""
-        await self.proto.accept('/not/a/real/path')
+        await self.proto.start_server_and_accept('/not/a/real/path')
 
         await self._prod_session_api(
             Runstate.RUNNING,
@@ -515,7 +515,7 @@ class FakeSession(TestBase):
     @TestBase.async_test
     async def testConnectRequireRunning(self):
         """Test that connect() cannot be called when Runstate=RUNNING"""
-        await self.proto.accept('/not/a/real/path')
+        await self.proto.start_server_and_accept('/not/a/real/path')
 
         await self._prod_session_api(
             Runstate.RUNNING,
@@ -526,7 +526,7 @@ class FakeSession(TestBase):
     @TestBase.async_test
     async def testAcceptRequireDisconnecting(self):
         """Test that accept() cannot be called when Runstate=DISCONNECTING"""
-        await self.proto.accept('/not/a/real/path')
+        await self.proto.start_server_and_accept('/not/a/real/path')
 
         # Cheat: force a disconnect.
         await self.proto.simulate_disconnect()
@@ -541,7 +541,7 @@ class FakeSession(TestBase):
     @TestBase.async_test
     async def testConnectRequireDisconnecting(self):
         """Test that connect() cannot be called when Runstate=DISCONNECTING"""
-        await self.proto.accept('/not/a/real/path')
+        await self.proto.start_server_and_accept('/not/a/real/path')
 
         # Cheat: force a disconnect.
         await self.proto.simulate_disconnect()
@@ -576,7 +576,7 @@ class SimpleSession(TestBase):
     async def testSmoke(self):
         with TemporaryDirectory(suffix='.aqmp') as tmpdir:
             sock = os.path.join(tmpdir, type(self.proto).__name__ + ".sock")
-            server_task = create_task(self.server.accept(sock))
+            server_task = create_task(self.server.start_server_and_accept(sock))
 
             # give the server a chance to start listening [...]
             await asyncio.sleep(0)

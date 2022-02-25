@@ -91,7 +91,7 @@ class QEMUMonitorProtocol(qemu.qmp.QEMUMonitorProtocol):
         self._aqmp.negotiate = True
 
         self._sync(
-            self._aqmp.accept(self._address),
+            self._aqmp.start_server_and_accept(self._address),
             timeout
         )
 
