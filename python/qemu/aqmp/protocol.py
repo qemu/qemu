@@ -432,7 +432,7 @@ class AsyncProtocol(Generic[T]):
         self._runstate_event.set()
         self._runstate_event.clear()
 
-    @bottom_half  # However, it does not run from the R/W tasks.
+    @bottom_half
     async def _stop_server(self) -> None:
         """
         Stop listening for / accepting new incoming connections.
@@ -709,6 +709,7 @@ class AsyncProtocol(Generic[T]):
 
         self._reader = None
         self._writer = None
+        self._accepted = None
 
         # NB: _runstate_changed cannot be cleared because we still need it to
         # send the final runstate changed event ...!
@@ -731,6 +732,9 @@ class AsyncProtocol(Generic[T]):
 
         def _done(task: Optional['asyncio.Future[Any]']) -> bool:
             return task is not None and task.done()
+
+        # If the server is running, stop it.
+        await self._stop_server()
 
         # Are we already in an error pathway? If either of the tasks are
         # already done, or if we have no tasks but a reader/writer; we
