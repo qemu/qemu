@@ -242,6 +242,10 @@ class AsyncProtocol(Generic[T]):
         # Workaround for bind()
         self._sock: Optional[socket.socket] = None
 
+        # Server state for start_server() and _incoming()
+        self._server: Optional[asyncio.AbstractServer] = None
+        self._accepted: Optional[asyncio.Event] = None
+
     def __repr__(self) -> str:
         cls_name = type(self).__name__
         tokens = []
@@ -425,6 +429,54 @@ class AsyncProtocol(Generic[T]):
         self._runstate_event.set()
         self._runstate_event.clear()
 
+    @bottom_half  # However, it does not run from the R/W tasks.
+    async def _stop_server(self) -> None:
+        """
+        Stop listening for / accepting new incoming connections.
+        """
+        if self._server is None:
+            return
+
+        try:
+            self.logger.debug("Stopping server.")
+            self._server.close()
+            await self._server.wait_closed()
+            self.logger.debug("Server stopped.")
+        finally:
+            self._server = None
+
+    @bottom_half  # However, it does not run from the R/W tasks.
+    async def _incoming(self,
+                        reader: asyncio.StreamReader,
+                        writer: asyncio.StreamWriter) -> None:
+        """
+        Accept an incoming connection and signal the upper_half.
+
+        This method does the minimum necessary to accept a single
+        incoming connection. It signals back to the upper_half ASAP so
+        that any errors during session initialization can occur
+        naturally in the caller's stack.
+
+        :param reader: Incoming `asyncio.StreamReader`
+        :param writer: Incoming `asyncio.StreamWriter`
+        """
+        peer = writer.get_extra_info('peername', 'Unknown peer')
+        self.logger.debug("Incoming connection from %s", peer)
+
+        if self._reader or self._writer:
+            # Sadly, we can have more than one pending connection
+            # because of https://bugs.python.org/issue46715
+            # Close any extra connections we don't actually want.
+            self.logger.warning("Extraneous connection inadvertently accepted")
+            writer.close()
+            return
+
+        # A connection has been accepted; stop listening for new ones.
+        assert self._accepted is not None
+        await self._stop_server()
+        self._reader, self._writer = (reader, writer)
+        self._accepted.set()
+
     def _bind_hack(self, address: Union[str, Tuple[str, int]]) -> None:
         """
         Used to create a socket in advance of accept().
@@ -469,30 +521,11 @@ class AsyncProtocol(Generic[T]):
         self._set_state(Runstate.CONNECTING)
 
         self.logger.debug("Awaiting connection on %s ...", address)
-        connected = asyncio.Event()
-        server: Optional[asyncio.AbstractServer] = None
-
-        async def _client_connected_cb(reader: asyncio.StreamReader,
-                                       writer: asyncio.StreamWriter) -> None:
-            """Used to accept a single incoming connection, see below."""
-            nonlocal server
-            nonlocal connected
-
-            # A connection has been accepted; stop listening for new ones.
-            assert server is not None
-            server.close()
-            await server.wait_closed()
-            server = None
-
-            # Register this client as being connected
-            self._reader, self._writer = (reader, writer)
-
-            # Signal back: We've accepted a client!
-            connected.set()
+        self._accepted = asyncio.Event()
 
         if isinstance(address, tuple):
             coro = asyncio.start_server(
-                _client_connected_cb,
+                self._incoming,
                 host=None if self._sock else address[0],
                 port=None if self._sock else address[1],
                 ssl=ssl,
@@ -502,7 +535,7 @@ class AsyncProtocol(Generic[T]):
             )
         else:
             coro = asyncio.start_unix_server(
-                _client_connected_cb,
+                self._incoming,
                 path=None if self._sock else address,
                 ssl=ssl,
                 backlog=1,
@@ -515,9 +548,9 @@ class AsyncProtocol(Generic[T]):
         # otherwise yield.
         await asyncio.sleep(0)
 
-        server = await coro     # Starts listening
-        await connected.wait()  # Waits for the callback to fire (and finish)
-        assert server is None
+        self._server = await coro    # Starts listening
+        await self._accepted.wait()  # Waits for the callback to finish
+        assert self._server is None
         self._sock = None
 
         self.logger.debug("Connection accepted.")
