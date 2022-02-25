@@ -317,6 +317,62 @@ class AsyncProtocol(Generic[T]):
     # Section: Session machinery
     # --------------------------
 
+    async def _session_guard(self, coro: Awaitable[None], emsg: str) -> None:
+        """
+        Async guard function used to roll back to `IDLE` on any error.
+
+        On any Exception, the state machine will be reset back to
+        `IDLE`. Most Exceptions will be wrapped with `ConnectError`, but
+        `BaseException` events will be left alone (This includes
+        asyncio.CancelledError, even prior to Python 3.8).
+
+        :param error_message:
+            Human-readable string describing what connection phase failed.
+
+        :raise BaseException:
+            When `BaseException` occurs in the guarded block.
+        :raise ConnectError:
+            When any other error is encountered in the guarded block.
+        """
+        # Note: After Python 3.6 support is removed, this should be an
+        # @asynccontextmanager instead of accepting a callback.
+        try:
+            await coro
+        except BaseException as err:
+            self.logger.error("%s: %s", emsg, exception_summary(err))
+            self.logger.debug("%s:\n%s\n", emsg, pretty_traceback())
+            try:
+                # Reset the runstate back to IDLE.
+                await self.disconnect()
+            except:
+                # We don't expect any Exceptions from the disconnect function
+                # here, because we failed to connect in the first place.
+                # The disconnect() function is intended to perform
+                # only cannot-fail cleanup here, but you never know.
+                emsg = (
+                    "Unexpected bottom half exception. "
+                    "This is a bug in the QMP library. "
+                    "Please report it to <qemu-devel@nongnu.org> and "
+                    "CC: John Snow <jsnow@redhat.com>."
+                )
+                self.logger.critical("%s:\n%s\n", emsg, pretty_traceback())
+                raise
+
+            # CancelledError is an Exception with special semantic meaning;
+            # We do NOT want to wrap it up under ConnectError.
+            # NB: CancelledError is not a BaseException before Python 3.8
+            if isinstance(err, asyncio.CancelledError):
+                raise
+
+            # Any other kind of error can be treated as some kind of connection
+            # failure broadly. Inspect the 'exc' field to explore the root
+            # cause in greater detail.
+            if isinstance(err, Exception):
+                raise ConnectError(emsg, err) from err
+
+            # Raise BaseExceptions un-wrapped, they're more important.
+            raise
+
     @property
     def _runstate_event(self) -> asyncio.Event:
         # asyncio.Event() objects should not be created prior to entrance into
@@ -371,34 +427,13 @@ class AsyncProtocol(Generic[T]):
         """
         assert self.runstate == Runstate.IDLE
 
-        try:
-            phase = "connection"
-            await self._establish_connection(address, ssl, accept)
+        await self._session_guard(
+            self._establish_connection(address, ssl, accept),
+            'Failed to establish connection')
 
-            phase = "session"
-            await self._establish_session()
-
-        except BaseException as err:
-            emsg = f"Failed to establish {phase}"
-            self.logger.error("%s: %s", emsg, exception_summary(err))
-            self.logger.debug("%s:\n%s\n", emsg, pretty_traceback())
-            try:
-                # Reset from CONNECTING back to IDLE.
-                await self.disconnect()
-            except:
-                emsg = "Unexpected bottom half exception"
-                self.logger.critical("%s:\n%s\n", emsg, pretty_traceback())
-                raise
-
-            # NB: CancelledError is not a BaseException before Python 3.8
-            if isinstance(err, asyncio.CancelledError):
-                raise
-
-            if isinstance(err, Exception):
-                raise ConnectError(emsg, err) from err
-
-            # Raise BaseExceptions un-wrapped, they're more important.
-            raise
+        await self._session_guard(
+            self._establish_session(),
+            'Failed to establish session')
 
         assert self.runstate == Runstate.RUNNING
 
