@@ -43,10 +43,17 @@ class NullProtocol(AsyncProtocol[None]):
 
     async def _do_start_server(self, address, ssl=None):
         if self.fake_session:
+            self._accepted = asyncio.Event()
             self._set_state(Runstate.CONNECTING)
             await asyncio.sleep(0)
         else:
             await super()._do_start_server(address, ssl)
+
+    async def _do_accept(self):
+        if self.fake_session:
+            self._accepted = None
+        else:
+            await super()._do_accept()
 
     async def _do_connect(self, address, ssl=None):
         if self.fake_session:

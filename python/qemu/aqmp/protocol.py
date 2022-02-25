@@ -280,6 +280,8 @@ class AsyncProtocol(Generic[T]):
         Accept a connection and begin processing message queues.
 
         If this call fails, `runstate` is guaranteed to be set back to `IDLE`.
+        This method is precisely equivalent to calling `start_server()`
+        followed by `accept()`.
 
         :param address:
             Address to listen on; UNIX socket path or TCP address/port.
@@ -294,8 +296,61 @@ class AsyncProtocol(Generic[T]):
             protocol-level failure occurs while establishing a new
             session, the wrapped error may also be an `QMPError`.
         """
+        await self.start_server(address, ssl)
+        await self.accept()
+        assert self.runstate == Runstate.RUNNING
+
+    @upper_half
+    @require(Runstate.IDLE)
+    async def start_server(self, address: SocketAddrT,
+                           ssl: Optional[SSLContext] = None) -> None:
+        """
+        Start listening for an incoming connection, but do not wait for a peer.
+
+        This method starts listening for an incoming connection, but
+        does not block waiting for a peer. This call will return
+        immediately after binding and listening on a socket. A later
+        call to `accept()` must be made in order to finalize the
+        incoming connection.
+
+        :param address:
+            Address to listen on; UNIX socket path or TCP address/port.
+        :param ssl: SSL context to use, if any.
+
+        :raise StateError: When the `Runstate` is not `IDLE`.
+        :raise ConnectError:
+            When the server could not start listening on this address.
+
+            This exception will wrap a more concrete one. In most cases,
+            the wrapped exception will be `OSError`.
+        """
         await self._session_guard(
             self._do_start_server(address, ssl),
+            'Failed to establish connection')
+        assert self.runstate == Runstate.CONNECTING
+
+    @upper_half
+    @require(Runstate.CONNECTING)
+    async def accept(self) -> None:
+        """
+        Accept an incoming connection and begin processing message queues.
+
+        If this call fails, `runstate` is guaranteed to be set back to `IDLE`.
+
+        :raise StateError: When the `Runstate` is not `CONNECTING`.
+        :raise QMPError: When `start_server()` was not called yet.
+        :raise ConnectError:
+            When a connection or session cannot be established.
+
+            This exception will wrap a more concrete one. In most cases,
+            the wrapped exception will be `OSError` or `EOFError`. If a
+            protocol-level failure occurs while establishing a new
+            session, the wrapped error may also be an `QMPError`.
+        """
+        if self._accepted is None:
+            raise QMPError("Cannot call accept() before start_server().")
+        await self._session_guard(
+            self._do_accept(),
             'Failed to establish connection')
         await self._session_guard(
             self._establish_session(),
@@ -512,7 +567,12 @@ class AsyncProtocol(Generic[T]):
     async def _do_start_server(self, address: SocketAddrT,
                                ssl: Optional[SSLContext] = None) -> None:
         """
-        Acting as the transport server, accept a single connection.
+        Start listening for an incoming connection, but do not wait for a peer.
+
+        This method starts listening for an incoming connection, but does not
+        block waiting for a peer. This call will return immediately after
+        binding and listening to a socket. A later call to accept() must be
+        made in order to finalize the incoming connection.
 
         :param address:
             Address to listen on; UNIX socket path or TCP address/port.
@@ -554,10 +614,7 @@ class AsyncProtocol(Generic[T]):
         # This will start the server (bind(2), listen(2)). It will also
         # call accept(2) if we yield, but we don't block on that here.
         self._server = await coro
-
-        # Just for this one commit, wait for a peer.
-        # This gets split out in the next patch.
-        await self._do_accept()
+        self.logger.debug("Server listening on %s", address)
 
     @upper_half
     async def _do_accept(self) -> None:
