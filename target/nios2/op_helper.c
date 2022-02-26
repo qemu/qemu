@@ -26,11 +26,6 @@
 #include "qemu/main-loop.h"
 
 #if !defined(CONFIG_USER_ONLY)
-void helper_mmu_write(CPUNios2State *env, uint32_t rn, uint32_t v)
-{
-    mmu_write(env, rn, v);
-}
-
 static void nios2_check_interrupts(CPUNios2State *env)
 {
     if (env->irq_pending &&
