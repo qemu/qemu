@@ -19,6 +19,7 @@
 #define FUSE_USE_VERSION 31
 
 #include "qemu/osdep.h"
+#include "qemu/memalign.h"
 #include "block/aio.h"
 #include "block/block.h"
 #include "block/export.h"

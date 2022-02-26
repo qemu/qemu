@@ -21,6 +21,7 @@
 #include "qemu/module.h"
 #include "qemu/cutils.h"
 #include "qemu/option.h"
+#include "qemu/memalign.h"
 #include "qemu/vfio-helpers.h"
 #include "block/block_int.h"
 #include "sysemu/replay.h"

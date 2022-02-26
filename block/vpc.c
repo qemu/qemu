@@ -33,6 +33,7 @@
 #include "migration/blocker.h"
 #include "qemu/bswap.h"
 #include "qemu/uuid.h"
+#include "qemu/memalign.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qapi-visit-block-core.h"

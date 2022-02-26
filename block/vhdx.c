@@ -25,6 +25,7 @@
 #include "qemu/crc32c.h"
 #include "qemu/bswap.h"
 #include "qemu/error-report.h"
+#include "qemu/memalign.h"
 #include "vhdx.h"
 #include "migration/blocker.h"
 #include "qemu/uuid.h"

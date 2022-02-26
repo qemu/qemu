@@ -29,6 +29,7 @@
 #include "block/raw-aio.h"
 #include "qemu/event_notifier.h"
 #include "qemu/iov.h"
+#include "qemu/memalign.h"
 #include <windows.h>
 #include <winioctl.h>
 

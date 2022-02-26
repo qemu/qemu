@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/memalign.h"
 #include "qcow2.h"
 #include "trace.h"
 

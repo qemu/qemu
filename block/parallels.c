@@ -41,6 +41,7 @@
 #include "qapi/qapi-visit-block-core.h"
 #include "qemu/bswap.h"
 #include "qemu/bitmap.h"
+#include "qemu/memalign.h"
 #include "migration/blocker.h"
 #include "parallels.h"
 

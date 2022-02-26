@@ -28,6 +28,7 @@
 #include "qapi/error.h"
 #include "qcow2.h"
 #include "qemu/bswap.h"
+#include "qemu/memalign.h"
 #include "trace.h"
 
 int qcow2_shrink_l1_table(BlockDriverState *bs, uint64_t exact_size)

@@ -32,6 +32,7 @@
 #include "qemu/option.h"
 #include "qemu/bswap.h"
 #include "qemu/cutils.h"
+#include "qemu/memalign.h"
 #include <zlib.h>
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"

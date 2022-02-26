@@ -29,6 +29,7 @@
 #include "qemu/bswap.h"
 #include "qemu/error-report.h"
 #include "qemu/cutils.h"
+#include "qemu/memalign.h"
 
 static void qcow2_free_single_snapshot(BlockDriverState *bs, int i)
 {

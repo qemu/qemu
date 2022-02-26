@@ -16,6 +16,7 @@
 #include "qemu/cutils.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
+#include "qemu/memalign.h"
 
 typedef struct {
     BdrvChild *test_file;

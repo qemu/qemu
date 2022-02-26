@@ -27,6 +27,7 @@
 #include "qemu/cacheinfo.h"
 #include "qemu/xxhash.h"
 #include "qemu/plugin.h"
+#include "qemu/memalign.h"
 #include "hw/core/cpu.h"
 #include "exec/exec-all.h"
 #ifndef CONFIG_USER_ONLY

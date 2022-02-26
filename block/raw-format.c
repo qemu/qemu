@@ -31,6 +31,7 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
+#include "qemu/memalign.h"
 
 typedef struct BDRVRawState {
     uint64_t offset;

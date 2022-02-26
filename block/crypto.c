@@ -31,6 +31,7 @@
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/cutils.h"
+#include "qemu/memalign.h"
 #include "crypto.h"
 
 typedef struct BlockCrypto BlockCrypto;

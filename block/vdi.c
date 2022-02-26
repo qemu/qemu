@@ -64,6 +64,7 @@
 #include "qemu/coroutine.h"
 #include "qemu/cutils.h"
 #include "qemu/uuid.h"
+#include "qemu/memalign.h"
 
 /* Code configuration options. */
 

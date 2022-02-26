@@ -21,6 +21,7 @@
 #include "qemu/option.h"
 #include "qemu/timer.h"
 #include "qemu/cutils.h"
+#include "qemu/memalign.h"
 
 #define CMD_NOFILE_OK   0x01
 

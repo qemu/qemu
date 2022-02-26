@@ -26,6 +26,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/host-utils.h"
+#include "qemu/memalign.h"
 #include "trace.h"
 
 void *qemu_try_memalign(size_t alignment, size_t size)
