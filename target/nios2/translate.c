@@ -447,11 +447,13 @@ static void rdctl(DisasContext *dc, uint32_t code, uint32_t flags)
 
     gen_check_supervisor(dc);
 
+    if (unlikely(instr.c == R_ZERO)) {
+        return;
+    }
+
     switch (instr.imm5 + CR_BASE) {
     default:
-        if (likely(instr.c != R_ZERO)) {
-            tcg_gen_mov_tl(cpu_R[instr.c], cpu_R[instr.imm5 + CR_BASE]);
-        }
+        tcg_gen_mov_tl(cpu_R[instr.c], cpu_R[instr.imm5 + CR_BASE]);
         break;
     }
 }
