@@ -25,6 +25,45 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/host-utils.h"
+#include "trace.h"
+
+void *qemu_try_memalign(size_t alignment, size_t size)
+{
+    void *ptr;
+
+    if (alignment < sizeof(void*)) {
+        alignment = sizeof(void*);
+    } else {
+        g_assert(is_power_of_2(alignment));
+    }
+
+    /*
+     * Handling of 0 allocations varies among the different
+     * platform APIs (for instance _aligned_malloc() will
+     * fail) -- ensure that we always return a valid non-NULL
+     * pointer that can be freed by qemu_vfree().
+     */
+    if (size == 0) {
+        size++;
+    }
+#if defined(CONFIG_POSIX_MEMALIGN)
+    int ret;
+    ret = posix_memalign(&ptr, alignment, size);
+    if (ret != 0) {
+        errno = ret;
+        ptr = NULL;
+    }
+#elif defined(CONFIG_ALIGNED_MALLOC)
+    ptr = _aligned_malloc(size, alignment);
+#elif defined(CONFIG_BSD)
+    ptr = valloc(size);
+#else
+    ptr = memalign(alignment, size);
+#endif
+    trace_qemu_memalign(alignment, size, ptr);
+    return ptr;
+}
 
 void *qemu_memalign(size_t alignment, size_t size)
 {
