@@ -790,14 +790,13 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 static void tcg_out_st(TCGContext *s, TCGType type, TCGReg val, TCGReg base,
                        intptr_t offset)
 {
-    stack_bounds_check(base, offset);
     switch (type) {
     case TCG_TYPE_I32:
-        tcg_out_op_rrs(s, INDEX_op_st_i32, val, base, offset);
+        tcg_out_ldst(s, INDEX_op_st_i32, val, base, offset);
         break;
 #if TCG_TARGET_REG_BITS == 64
     case TCG_TYPE_I64:
-        tcg_out_op_rrs(s, INDEX_op_st_i64, val, base, offset);
+        tcg_out_ldst(s, INDEX_op_st_i64, val, base, offset);
         break;
 #endif
     default:
