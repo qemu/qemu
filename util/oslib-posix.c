@@ -199,15 +199,6 @@ fail_close:
     return false;
 }
 
-static void *qemu_oom_check(void *ptr)
-{
-    if (ptr == NULL) {
-        fprintf(stderr, "Failed to allocate memory: %s\n", strerror(errno));
-        abort();
-    }
-    return ptr;
-}
-
 void *qemu_try_memalign(size_t alignment, size_t size)
 {
     void *ptr;
@@ -232,11 +223,6 @@ void *qemu_try_memalign(size_t alignment, size_t size)
 #endif
     trace_qemu_memalign(alignment, size, ptr);
     return ptr;
-}
-
-void *qemu_memalign(size_t alignment, size_t size)
-{
-    return qemu_oom_check(qemu_try_memalign(alignment, size));
 }
 
 /* alloc shared memory pages */

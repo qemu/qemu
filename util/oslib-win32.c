@@ -44,15 +44,6 @@
 /* this must come after including "trace.h" */
 #include <shlobj.h>
 
-static void *qemu_oom_check(void *ptr)
-{
-    if (ptr == NULL) {
-        fprintf(stderr, "Failed to allocate memory: %lu\n", GetLastError());
-        abort();
-    }
-    return ptr;
-}
-
 void *qemu_try_memalign(size_t alignment, size_t size)
 {
     void *ptr;
@@ -66,11 +57,6 @@ void *qemu_try_memalign(size_t alignment, size_t size)
     ptr = _aligned_malloc(size, alignment);
     trace_qemu_memalign(alignment, size, ptr);
     return ptr;
-}
-
-void *qemu_memalign(size_t alignment, size_t size)
-{
-    return qemu_oom_check(qemu_try_memalign(alignment, size));
 }
 
 static int get_allocation_granularity(void)
