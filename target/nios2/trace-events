@@ -1,0 +1,10 @@
+# mmu.c
+nios2_mmu_translate_miss(uint32_t vaddr, uint32_t pid, uint32_t index, uint32_t tag) "mmu_translate: MISS vaddr=0x%08x pid=%u TLB[%u] tag=0x%08x"
+nios2_mmu_translate_hit(uint32_t vaddr, uint32_t pid, uint32_t index, uint32_t paddr, uint32_t prot) "mmu_translate: HIT vaddr=0x%08x pid=%u TLB[%u] paddr=0x%08x prot=0x%x"
+
+nios2_mmu_flush_pid_miss(uint32_t pid, uint32_t index, uint32_t vaddr) "mmu_flush: MISS pid=%u TLB[%u] tag=0x%08x"
+nios2_mmu_flush_pid_hit(uint32_t pid, uint32_t index, uint32_t vaddr) "mmu_flush: HIT pid=%u TLB[%u] vaddr=0x%08x"
+
+nios2_mmu_write_tlbacc(uint32_t ig, char c, char r, char w, char x, char g, uint32_t pfn) "mmu_write_tlbacc: ig=0x%02x flags=%c%c%c%c%c pfn=0x%08x"
+nios2_mmu_write_tlbmisc(uint32_t way, char r, char w, char t, char b, char p, char d, uint32_t pid) "mmu_write_tlbmisc: way=0x%x flags=%c%c%c%c%c%c pid=%u"
+nios2_mmu_write_pteaddr(uint32_t ptb, uint32_t vpn) "mmu_write_pteaddr: ptbase=0x%03x vpn=0x%05x"
