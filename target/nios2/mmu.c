@@ -25,7 +25,6 @@
 #include "mmu.h"
 #include "trace/trace-target_nios2.h"
 
-#if !defined(CONFIG_USER_ONLY)
 
 /* rw - 0 = read, 1 = write, 2 = fetch.  */
 unsigned int mmu_translate(CPUNios2State *env,
@@ -217,5 +216,3 @@ void dump_mmu(CPUNios2State *env)
                     (entry->data & CR_TLBACC_X) ? 'X' : '-');
     }
 }
-
-#endif /* !CONFIG_USER_ONLY */
