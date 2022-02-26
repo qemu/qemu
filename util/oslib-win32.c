@@ -48,11 +48,13 @@ void *qemu_try_memalign(size_t alignment, size_t size)
 {
     void *ptr;
 
-    g_assert(size != 0);
     if (alignment < sizeof(void *)) {
         alignment = sizeof(void *);
     } else {
         g_assert(is_power_of_2(alignment));
+    }
+    if (size == 0) {
+        size++;
     }
     ptr = _aligned_malloc(size, alignment);
     trace_qemu_memalign(alignment, size, ptr);

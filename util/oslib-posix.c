@@ -209,6 +209,9 @@ void *qemu_try_memalign(size_t alignment, size_t size)
         g_assert(is_power_of_2(alignment));
     }
 
+    if (size == 0) {
+        size++;
+    }
 #if defined(CONFIG_POSIX_MEMALIGN)
     int ret;
     ret = posix_memalign(&ptr, alignment, size);
