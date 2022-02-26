@@ -78,3 +78,14 @@ void *qemu_memalign(size_t alignment, size_t size)
             size, alignment, strerror(errno));
     abort();
 }
+
+void qemu_vfree(void *ptr)
+{
+    trace_qemu_vfree(ptr);
+#if !defined(CONFIG_POSIX_MEMALIGN) && defined(CONFIG_ALIGNED_MALLOC)
+    /* Only Windows _aligned_malloc needs a special free function */
+    _aligned_free(ptr);
+#else
+    free(ptr);
+#endif
+}
