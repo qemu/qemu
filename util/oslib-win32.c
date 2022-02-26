@@ -44,7 +44,7 @@
 /* this must come after including "trace.h" */
 #include <shlobj.h>
 
-void *qemu_oom_check(void *ptr)
+static void *qemu_oom_check(void *ptr)
 {
     if (ptr == NULL) {
         fprintf(stderr, "Failed to allocate memory: %lu\n", GetLastError());
