@@ -35,26 +35,6 @@
 #define MMU_LOG(x)
 #endif
 
-void mmu_read_debug(CPUNios2State *env, uint32_t rn)
-{
-    switch (rn) {
-    case CR_TLBACC:
-        MMU_LOG(qemu_log("TLBACC READ %08X\n", env->regs[rn]));
-        break;
-
-    case CR_TLBMISC:
-        MMU_LOG(qemu_log("TLBMISC READ %08X\n", env->regs[rn]));
-        break;
-
-    case CR_PTEADDR:
-        MMU_LOG(qemu_log("PTEADDR READ %08X\n", env->regs[rn]));
-        break;
-
-    default:
-        break;
-    }
-}
-
 /* rw - 0 = read, 1 = write, 2 = fetch.  */
 unsigned int mmu_translate(CPUNios2State *env,
                            Nios2MMULookup *lu,

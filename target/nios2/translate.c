@@ -448,23 +448,6 @@ static void rdctl(DisasContext *dc, uint32_t code, uint32_t flags)
     gen_check_supervisor(dc);
 
     switch (instr.imm5 + CR_BASE) {
-    case CR_PTEADDR:
-    case CR_TLBACC:
-    case CR_TLBMISC:
-    {
-#if !defined(CONFIG_USER_ONLY)
-        if (likely(instr.c != R_ZERO)) {
-            tcg_gen_mov_tl(cpu_R[instr.c], cpu_R[instr.imm5 + CR_BASE]);
-#ifdef DEBUG_MMU
-            TCGv_i32 tmp = tcg_const_i32(instr.imm5 + CR_BASE);
-            gen_helper_mmu_read_debug(cpu_R[instr.c], cpu_env, tmp);
-            tcg_temp_free_i32(tmp);
-#endif
-        }
-#endif
-        break;
-    }
-
     default:
         if (likely(instr.c != R_ZERO)) {
             tcg_gen_mov_tl(cpu_R[instr.c], cpu_R[instr.imm5 + CR_BASE]);
