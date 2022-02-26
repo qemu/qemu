@@ -452,6 +452,17 @@ static void rdctl(DisasContext *dc, uint32_t code, uint32_t flags)
     }
 
     switch (instr.imm5 + CR_BASE) {
+    case CR_IPENDING:
+        /*
+         * The value of the ipending register is synthetic.
+         * In hw, this is the AND of a set of hardware irq lines
+         * with the ienable register.  In qemu, we re-use the space
+         * of CR_IPENDING to store the set of irq lines, and so we
+         * must perform the AND here, and anywhere else we need the
+         * guest value of ipending.
+         */
+        tcg_gen_and_tl(cpu_R[instr.c], cpu_R[CR_IPENDING], cpu_R[CR_IENABLE]);
+        break;
     default:
         tcg_gen_mov_tl(cpu_R[instr.c], cpu_R[instr.imm5 + CR_BASE]);
         break;
@@ -476,6 +487,9 @@ static void wrctl(DisasContext *dc, uint32_t code, uint32_t flags)
         break;
     case CR_TLBMISC:
         gen_helper_mmu_write_tlbmisc(cpu_env, v);
+        break;
+    case CR_IPENDING:
+        /* ipending is read only, writes ignored. */
         break;
     default:
         tcg_gen_mov_tl(cpu_R[instr.imm5 + CR_BASE], v);
