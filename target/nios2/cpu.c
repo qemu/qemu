@@ -73,12 +73,9 @@ static void nios2_cpu_set_irq(void *opaque, int irq, int level)
 
     env->regs[CR_IPENDING] = deposit32(env->regs[CR_IPENDING], irq, 1, !!level);
 
-    env->irq_pending = env->regs[CR_IPENDING] & env->regs[CR_IENABLE];
-
-    if (env->irq_pending && (env->regs[CR_STATUS] & CR_STATUS_PIE)) {
-        env->irq_pending = 0;
+    if (env->regs[CR_IPENDING]) {
         cpu_interrupt(cs, CPU_INTERRUPT_HARD);
-    } else if (!env->irq_pending) {
+    } else {
         cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
     }
 }
@@ -134,7 +131,8 @@ static bool nios2_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     CPUNios2State *env = &cpu->env;
 
     if ((interrupt_request & CPU_INTERRUPT_HARD) &&
-        (env->regs[CR_STATUS] & CR_STATUS_PIE)) {
+        (env->regs[CR_STATUS] & CR_STATUS_PIE) &&
+        (env->regs[CR_IPENDING] & env->regs[CR_IENABLE])) {
         cs->exception_index = EXCP_IRQ;
         nios2_cpu_do_interrupt(cs);
         return true;

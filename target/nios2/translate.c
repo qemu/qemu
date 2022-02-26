@@ -491,18 +491,14 @@ static void wrctl(DisasContext *dc, uint32_t code, uint32_t flags)
     case CR_IPENDING:
         /* ipending is read only, writes ignored. */
         break;
+    case CR_STATUS:
+    case CR_IENABLE:
+        /* If interrupts were enabled using WRCTL, trigger them. */
+        dc->base.is_jmp = DISAS_UPDATE;
+        /* fall through */
     default:
         tcg_gen_mov_tl(cpu_R[instr.imm5 + CR_BASE], v);
         break;
-    }
-
-    /* If interrupts were enabled using WRCTL, trigger them. */
-    if ((instr.imm5 + CR_BASE) == CR_STATUS) {
-        if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-            gen_io_start();
-        }
-        gen_helper_check_interrupts(cpu_env);
-        dc->base.is_jmp = DISAS_UPDATE;
     }
 #endif
 }
