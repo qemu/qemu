@@ -144,6 +144,8 @@
 #
 # @cert-chain:  PDH certificate chain (base64 encoded)
 #
+# @cpu0-id: Unique ID of CPU0 (base64 encoded) (since 7.0)
+#
 # @cbitpos: C-bit location in page table entry
 #
 # @reduced-phys-bits: Number of physical Address bit reduction when SEV is
@@ -154,6 +156,7 @@
 { 'struct': 'SevCapability',
   'data': { 'pdh': 'str',
             'cert-chain': 'str',
+            'cpu0-id': 'str',
             'cbitpos': 'int',
             'reduced-phys-bits': 'int'},
   'if': 'TARGET_I386' }
@@ -172,6 +175,7 @@
 #
 # -> { "execute": "query-sev-capabilities" }
 # <- { "return": { "pdh": "8CCDD8DDD", "cert-chain": "888CCCDDDEE",
+#                  "cpu0-id": "2lvmGwo+...61iEinw==",
 #                  "cbitpos": 47, "reduced-phys-bits": 5}}
 #
 ##
