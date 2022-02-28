@@ -35,8 +35,6 @@ struct X86MachineClass {
 
     /* TSC rate migration: */
     bool save_tsc_khz;
-    /* Enables contiguous-apic-ID mode */
-    bool compat_apic_id_mode;
     /* use DMA capable linuxboot option rom */
     bool fwcfg_dma_enabled;
 };
