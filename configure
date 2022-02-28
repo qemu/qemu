@@ -2481,41 +2481,6 @@ if compile_prog "" "" ; then
     int128=yes
 fi
 
-#########################################
-# See if 128-bit atomic operations are supported.
-
-atomic128=no
-if test "$int128" = "yes"; then
-  cat > $TMPC << EOF
-int main(void)
-{
-  unsigned __int128 x = 0, y = 0;
-  y = __atomic_load(&x, 0);
-  __atomic_store(&x, y, 0);
-  __atomic_compare_exchange(&x, &y, x, 0, 0, 0);
-  return 0;
-}
-EOF
-  if compile_prog "" "" ; then
-    atomic128=yes
-  fi
-fi
-
-cmpxchg128=no
-if test "$int128" = yes && test "$atomic128" = no; then
-  cat > $TMPC << EOF
-int main(void)
-{
-  unsigned __int128 x = 0, y = 0;
-  __sync_val_compare_and_swap_16(&x, y, x);
-  return 0;
-}
-EOF
-  if compile_prog "" "" ; then
-    cmpxchg128=yes
-  fi
-fi
-
 ########################################
 # check if ccache is interfering with
 # semantic analysis of macros
@@ -2957,18 +2922,6 @@ fi
 
 if test "$have_tsan" = "yes" && test "$have_tsan_iface_fiber" = "yes" ; then
     echo "CONFIG_TSAN=y" >> $config_host_mak
-fi
-
-if test "$int128" = "yes" ; then
-  echo "CONFIG_INT128=y" >> $config_host_mak
-fi
-
-if test "$atomic128" = "yes" ; then
-  echo "CONFIG_ATOMIC128=y" >> $config_host_mak
-fi
-
-if test "$cmpxchg128" = "yes" ; then
-  echo "CONFIG_CMPXCHG128=y" >> $config_host_mak
 fi
 
 if test "$rdma" = "yes" ; then

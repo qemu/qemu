@@ -1869,6 +1869,45 @@ config_host_data.set('CONFIG_ATOMIC64', cc.links('''
     return 0;
   }'''))
 
+has_int128 = cc.links('''
+  __int128_t a;
+  __uint128_t b;
+  int main (void) {
+    a = a + b;
+    b = a * b;
+    a = a * a;
+    return 0;
+  }''')
+
+config_host_data.set('CONFIG_INT128', has_int128)
+
+if has_int128
+  has_atomic128 = cc.links('''
+    int main(void)
+    {
+      unsigned __int128 x = 0, y = 0;
+      y = __atomic_load(&x, 0);
+      __atomic_store(&x, y, 0);
+      __atomic_compare_exchange(&x, &y, x, 0, 0, 0);
+      return 0;
+    }''')
+
+  config_host_data.set('CONFIG_ATOMIC128', has_atomic128)
+
+  if not has_atomic128
+    has_cmpxchg128 = cc.links('''
+      int main(void)
+      {
+        unsigned __int128 x = 0, y = 0;
+        __sync_val_compare_and_swap_16(&x, y, x);
+        return 0;
+      }
+    ''')
+
+    config_host_data.set('CONFIG_CMPXCHG128', has_cmpxchg128)
+  endif
+endif
+
 config_host_data.set('CONFIG_GETAUXVAL', cc.links(gnu_source_prefix + '''
   #include <sys/auxv.h>
   int main(void) {
