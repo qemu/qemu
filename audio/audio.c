@@ -1134,6 +1134,15 @@ static void audio_run_out (AudioState *s)
         size_t played, live, prev_rpos, free;
         int nb_live;
 
+        for (sw = hw->sw_head.lh_first; sw; sw = sw->entries.le_next) {
+            if (sw->active) {
+                free = audio_get_free(sw);
+                if (free > 0) {
+                    sw->callback.fn(sw->callback.opaque, free);
+                }
+            }
+        }
+
         live = audio_pcm_hw_get_live_out (hw, &nb_live);
         if (!nb_live) {
             live = 0;
@@ -1162,14 +1171,6 @@ static void audio_run_out (AudioState *s)
         }
 
         if (!live) {
-            for (sw = hw->sw_head.lh_first; sw; sw = sw->entries.le_next) {
-                if (sw->active) {
-                    free = audio_get_free (sw);
-                    if (free > 0) {
-                        sw->callback.fn (sw->callback.opaque, free);
-                    }
-                }
-            }
             if (hw->pcm_ops->run_buffer_out) {
                 hw->pcm_ops->run_buffer_out(hw);
             }
@@ -1209,13 +1210,6 @@ static void audio_run_out (AudioState *s)
 
             if (!sw->total_hw_samples_mixed) {
                 sw->empty = 1;
-            }
-
-            if (sw->active) {
-                free = audio_get_free (sw);
-                if (free > 0) {
-                    sw->callback.fn (sw->callback.opaque, free);
-                }
             }
         }
     }
