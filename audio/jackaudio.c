@@ -483,8 +483,8 @@ static int qjack_client_init(QJackClient *c)
         c->buffersize = 512;
     }
 
-    /* create a 2 period buffer */
-    qjack_buffer_create(&c->fifo, c->nchannels, c->buffersize * 2);
+    /* create a 3 period buffer */
+    qjack_buffer_create(&c->fifo, c->nchannels, c->buffersize * 3);
 
     qjack_client_connect_ports(c);
     c->state = QJACK_STATE_RUNNING;
