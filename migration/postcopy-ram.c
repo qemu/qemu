@@ -1039,7 +1039,7 @@ retry:
                                         msg.arg.pagefault.address);
             if (ret) {
                 /* May be network failure, try to wait for recovery */
-                if (ret == -EIO && postcopy_pause_fault_thread(mis)) {
+                if (postcopy_pause_fault_thread(mis)) {
                     /* We got reconnected somehow, try to continue */
                     goto retry;
                 } else {
