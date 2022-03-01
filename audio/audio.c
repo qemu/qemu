@@ -663,6 +663,12 @@ static size_t audio_pcm_hw_get_live_out (HWVoiceOut *hw, int *nb_live)
     return 0;
 }
 
+static size_t audio_pcm_hw_get_free(HWVoiceOut *hw)
+{
+    return (hw->pcm_ops->buffer_get_free ? hw->pcm_ops->buffer_get_free(hw) :
+            INT_MAX) / hw->info.bytes_per_frame;
+}
+
 static void audio_pcm_hw_clip_out(HWVoiceOut *hw, void *pcm_buf, size_t len)
 {
     size_t clipped = 0;
@@ -687,7 +693,8 @@ static void audio_pcm_hw_clip_out(HWVoiceOut *hw, void *pcm_buf, size_t len)
  */
 static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t size)
 {
-    size_t hwsamples, samples, isamp, osamp, wpos, live, dead, left, swlim, blck;
+    size_t hwsamples, samples, isamp, osamp, wpos, live, dead, left, blck;
+    size_t hw_free;
     size_t ret = 0, pos = 0, total = 0;
 
     if (!sw) {
@@ -710,27 +717,28 @@ static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t size)
     }
 
     wpos = (sw->hw->mix_buf->pos + live) % hwsamples;
-    samples = size / sw->info.bytes_per_frame;
 
     dead = hwsamples - live;
-    swlim = ((int64_t) dead << 32) / sw->ratio;
-    swlim = MIN (swlim, samples);
-    if (swlim) {
-        sw->conv (sw->buf, buf, swlim);
+    hw_free = audio_pcm_hw_get_free(sw->hw);
+    hw_free = hw_free > live ? hw_free - live : 0;
+    samples = ((int64_t)MIN(dead, hw_free) << 32) / sw->ratio;
+    samples = MIN(samples, size / sw->info.bytes_per_frame);
+    if (samples) {
+        sw->conv(sw->buf, buf, samples);
 
         if (!sw->hw->pcm_ops->volume_out) {
-            mixeng_volume (sw->buf, swlim, &sw->vol);
+            mixeng_volume(sw->buf, samples, &sw->vol);
         }
     }
 
-    while (swlim) {
+    while (samples) {
         dead = hwsamples - live;
         left = hwsamples - wpos;
         blck = MIN (dead, left);
         if (!blck) {
             break;
         }
-        isamp = swlim;
+        isamp = samples;
         osamp = blck;
         st_rate_flow_mix (
             sw->rate,
@@ -740,7 +748,7 @@ static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t size)
             &osamp
             );
         ret += isamp;
-        swlim -= isamp;
+        samples -= isamp;
         pos += isamp;
         live += osamp;
         wpos = (wpos + osamp) % hwsamples;
@@ -1002,6 +1010,11 @@ static size_t audio_get_avail (SWVoiceIn *sw)
     return (((int64_t) live << 32) / sw->ratio) * sw->info.bytes_per_frame;
 }
 
+static size_t audio_sw_bytes_free(SWVoiceOut *sw, size_t free)
+{
+    return (((int64_t)free << 32) / sw->ratio) * sw->info.bytes_per_frame;
+}
+
 static size_t audio_get_free(SWVoiceOut *sw)
 {
     size_t live, dead;
@@ -1021,13 +1034,11 @@ static size_t audio_get_free(SWVoiceOut *sw)
     dead = sw->hw->mix_buf->size - live;
 
 #ifdef DEBUG_OUT
-    dolog ("%s: get_free live %zu dead %zu ret %" PRId64 "\n",
-           SW_NAME (sw),
-           live, dead, (((int64_t) dead << 32) / sw->ratio) *
-           sw->info.bytes_per_frame);
+    dolog("%s: get_free live %zu dead %zu sw_bytes %zu\n",
+          SW_NAME(sw), live, dead, audio_sw_bytes_free(sw, dead));
 #endif
 
-    return (((int64_t) dead << 32) / sw->ratio) * sw->info.bytes_per_frame;
+    return dead;
 }
 
 static void audio_capture_mix_and_clear(HWVoiceOut *hw, size_t rpos,
@@ -1131,12 +1142,21 @@ static void audio_run_out (AudioState *s)
     }
 
     while ((hw = audio_pcm_hw_find_any_enabled_out(s, hw))) {
-        size_t played, live, prev_rpos, free;
+        size_t played, live, prev_rpos;
+        size_t hw_free = audio_pcm_hw_get_free(hw);
         int nb_live;
 
         for (sw = hw->sw_head.lh_first; sw; sw = sw->entries.le_next) {
             if (sw->active) {
-                free = audio_get_free(sw);
+                size_t sw_free = audio_get_free(sw);
+                size_t free;
+
+                if (hw_free > sw->total_hw_samples_mixed) {
+                    free = audio_sw_bytes_free(sw,
+                        MIN(sw_free, hw_free - sw->total_hw_samples_mixed));
+                } else {
+                    free = 0;
+                }
                 if (free > 0) {
                     sw->callback.fn(sw->callback.opaque, free);
                 }
@@ -1398,6 +1418,15 @@ void audio_generic_put_buffer_in(HWVoiceIn *hw, void *buf, size_t size)
     hw->pending_emul -= size;
 }
 
+size_t audio_generic_buffer_get_free(HWVoiceOut *hw)
+{
+    if (hw->buf_emul) {
+        return hw->size_emul - hw->pending_emul;
+    } else {
+        return hw->samples * hw->info.bytes_per_frame;
+    }
+}
+
 void audio_generic_run_buffer_out(HWVoiceOut *hw)
 {
     while (hw->pending_emul) {
@@ -1444,6 +1473,12 @@ size_t audio_generic_put_buffer_out(HWVoiceOut *hw, void *buf, size_t size)
 size_t audio_generic_write(HWVoiceOut *hw, void *buf, size_t size)
 {
     size_t total = 0;
+
+    if (hw->pcm_ops->buffer_get_free) {
+        size_t free = hw->pcm_ops->buffer_get_free(hw);
+
+        size = MIN(size, free);
+    }
 
     while (total < size) {
         size_t dst_size = size - total;

@@ -309,6 +309,7 @@ static void sdl_callback_in(void *opaque, Uint8 *buf, int len)
         SDL_UnlockAudioDevice(sdl->devid);                     \
     }
 
+SDL_WRAPPER_FUNC(buffer_get_free, size_t, (HWVoiceOut *hw), (hw), Out)
 SDL_WRAPPER_FUNC(get_buffer_out, void *, (HWVoiceOut *hw, size_t *size),
                  (hw, size), Out)
 SDL_WRAPPER_FUNC(put_buffer_out, size_t,
@@ -471,6 +472,8 @@ static struct audio_pcm_ops sdl_pcm_ops = {
     .fini_out = sdl_fini_out,
   /* wrapper for audio_generic_write */
     .write    = sdl_write,
+  /* wrapper for audio_generic_buffer_get_free */
+    .buffer_get_free = sdl_buffer_get_free,
   /* wrapper for audio_generic_get_buffer_out */
     .get_buffer_out = sdl_get_buffer_out,
   /* wrapper for audio_generic_put_buffer_out */
