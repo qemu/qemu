@@ -166,6 +166,7 @@ struct MigrationIncomingState {
 
 MigrationIncomingState *migration_incoming_get_current(void);
 void migration_incoming_state_destroy(void);
+void migration_incoming_transport_cleanup(MigrationIncomingState *mis);
 /*
  * Functions to work with blocktime context
  */

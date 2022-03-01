@@ -267,6 +267,19 @@ MigrationIncomingState *migration_incoming_get_current(void)
     return current_incoming;
 }
 
+void migration_incoming_transport_cleanup(MigrationIncomingState *mis)
+{
+    if (mis->socket_address_list) {
+        qapi_free_SocketAddressList(mis->socket_address_list);
+        mis->socket_address_list = NULL;
+    }
+
+    if (mis->transport_cleanup) {
+        mis->transport_cleanup(mis->transport_data);
+        mis->transport_data = mis->transport_cleanup = NULL;
+    }
+}
+
 void migration_incoming_state_destroy(void)
 {
     struct MigrationIncomingState *mis = migration_incoming_get_current();
@@ -287,20 +300,13 @@ void migration_incoming_state_destroy(void)
         g_array_free(mis->postcopy_remote_fds, TRUE);
         mis->postcopy_remote_fds = NULL;
     }
-    if (mis->transport_cleanup) {
-        mis->transport_cleanup(mis->transport_data);
-    }
 
+    migration_incoming_transport_cleanup(mis);
     qemu_event_reset(&mis->main_thread_load_event);
 
     if (mis->page_requested) {
         g_tree_destroy(mis->page_requested);
         mis->page_requested = NULL;
-    }
-
-    if (mis->socket_address_list) {
-        qapi_free_SocketAddressList(mis->socket_address_list);
-        mis->socket_address_list = NULL;
     }
 
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
