@@ -744,7 +744,7 @@ static int qpa_validate_per_direction_opts(Audiodev *dev,
 {
     if (!pdo->has_latency) {
         pdo->has_latency = true;
-        pdo->latency = 15000;
+        pdo->latency = 46440;
     }
     return 1;
 }
