@@ -24,7 +24,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "trace.h"
-#include "qapi/qapi-events-misc-target.h"
+#include "qapi/qapi-events-misc.h"
 
 #define RTC_DR      0x00    /* Data read register */
 #define RTC_MR      0x04    /* Match register */
@@ -138,12 +138,13 @@ static void pl031_write(void * opaque, hwaddr offset,
 
     switch (offset) {
     case RTC_LR: {
+        g_autofree const char *qom_path = object_get_canonical_path(opaque);
         struct tm tm;
 
         s->tick_offset += value - pl031_get_count(s);
 
         qemu_get_timedate(&tm, s->tick_offset);
-        qapi_event_send_rtc_change(qemu_timedate_diff(&tm));
+        qapi_event_send_rtc_change(qemu_timedate_diff(&tm), qom_path);
 
         pl031_set_alarm(s);
         break;

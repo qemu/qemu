@@ -25,8 +25,8 @@ from .gen import (
     QAPIGenC,
     QAPISchemaModularCVisitor,
     build_params,
-    ifcontext,
     gen_special_features,
+    ifcontext,
 )
 from .schema import (
     QAPISchema,

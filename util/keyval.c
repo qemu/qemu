@@ -16,7 +16,9 @@
  *   key-vals     = [ key-val { ',' key-val } [ ',' ] ]
  *   key-val      = key '=' val | help
  *   key          = key-fragment { '.' key-fragment }
- *   key-fragment = / [^=,.]+ /
+ *   key-fragment = qapi-name | index
+ *   qapi-name    = '__' / [a-z0-9.-]+ / '_' / [A-Za-z][A-Za-z0-9_-]* /
+ *   index        = / [0-9]+ /
  *   val          = { / [^,]+ / | ',,' }
  *   help         = 'help' | '?'
  *

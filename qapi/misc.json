@@ -527,3 +527,29 @@
  'data': { '*option': 'str' },
  'returns': ['CommandLineOptionInfo'],
  'allow-preconfig': true }
+
+##
+# @RTC_CHANGE:
+#
+# Emitted when the guest changes the RTC time.
+#
+# @offset: offset in seconds between base RTC clock (as specified
+#          by -rtc base), and new RTC clock value
+#
+# @qom-path: path to the RTC object in the QOM tree
+#
+# Note: This event is rate-limited.
+#       It is not guaranteed that the RTC in the system implements
+#       this event, or even that the system has an RTC at all.
+#
+# Since: 0.13
+#
+# Example:
+#
+# <-   { "event": "RTC_CHANGE",
+#        "data": { "offset": 78 },
+#        "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
+#
+##
+{ 'event': 'RTC_CHANGE',
+  'data': { 'offset': 'int', 'qom-path': 'str' } }
