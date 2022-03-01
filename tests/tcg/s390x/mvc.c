@@ -20,8 +20,8 @@ static inline void mvc_256(const char *dst, const char *src)
     asm volatile (
         "    mvc 0(256,%[dst]),0(%[src])\n"
         :
-        : [dst] "d" (dst),
-          [src] "d" (src)
+        : [dst] "a" (dst),
+          [src] "a" (src)
         : "memory");
 }
 
