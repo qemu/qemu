@@ -427,22 +427,18 @@ static void dsound_enable_out(HWVoiceOut *hw, bool enable)
     }
 }
 
-static void *dsound_get_buffer_out(HWVoiceOut *hw, size_t *size)
+static size_t dsound_buffer_get_free(HWVoiceOut *hw)
 {
     DSoundVoiceOut *ds = (DSoundVoiceOut *) hw;
     LPDIRECTSOUNDBUFFER dsb = ds->dsound_buffer;
     HRESULT hr;
-    DWORD ppos, wpos, act_size;
-    size_t req_size;
-    int err;
-    void *ret;
+    DWORD ppos, wpos;
 
     hr = IDirectSoundBuffer_GetCurrentPosition(
         dsb, &ppos, ds->first_time ? &wpos : NULL);
     if (FAILED(hr)) {
         dsound_logerr(hr, "Could not get playback buffer position\n");
-        *size = 0;
-        return NULL;
+        return 0;
     }
 
     if (ds->first_time) {
@@ -450,13 +446,20 @@ static void *dsound_get_buffer_out(HWVoiceOut *hw, size_t *size)
         ds->first_time = false;
     }
 
-    req_size = audio_ring_dist(ppos, hw->pos_emul, hw->size_emul);
-    req_size = MIN(req_size, hw->size_emul - hw->pos_emul);
+    return audio_ring_dist(ppos, hw->pos_emul, hw->size_emul);
+}
 
-    if (req_size == 0) {
-        *size = 0;
-        return NULL;
-    }
+static void *dsound_get_buffer_out(HWVoiceOut *hw, size_t *size)
+{
+    DSoundVoiceOut *ds = (DSoundVoiceOut *)hw;
+    LPDIRECTSOUNDBUFFER dsb = ds->dsound_buffer;
+    DWORD act_size;
+    size_t req_size;
+    int err;
+    void *ret;
+
+    req_size = MIN(*size, hw->size_emul - hw->pos_emul);
+    assert(req_size > 0);
 
     err = dsound_lock_out(dsb, &hw->info, hw->pos_emul, req_size, &ret, NULL,
                           &act_size, NULL, false, ds->s);
@@ -699,6 +702,7 @@ static struct audio_pcm_ops dsound_pcm_ops = {
     .init_out = dsound_init_out,
     .fini_out = dsound_fini_out,
     .write    = audio_generic_write,
+    .buffer_get_free = dsound_buffer_get_free,
     .get_buffer_out = dsound_get_buffer_out,
     .put_buffer_out = dsound_put_buffer_out,
     .enable_out = dsound_enable_out,
