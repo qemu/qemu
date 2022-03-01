@@ -127,9 +127,11 @@ DEF_HELPER_FLAGS_1(ftsqrt, TCG_CALL_NO_RWG_SE, i32, i64)
 
 #define dh_alias_avr ptr
 #define dh_ctype_avr ppc_avr_t *
+#define dh_typecode_avr dh_typecode_ptr
 
 #define dh_alias_vsr ptr
 #define dh_ctype_vsr ppc_vsr_t *
+#define dh_typecode_vsr dh_typecode_ptr
 
 DEF_HELPER_3(vavgub, void, avr, avr, avr)
 DEF_HELPER_3(vavguh, void, avr, avr, avr)
@@ -708,6 +710,7 @@ DEF_HELPER_3(store_dbatu, void, env, i32, tl)
 
 #define dh_alias_fprp ptr
 #define dh_ctype_fprp ppc_fprp_t *
+#define dh_typecode_fprp dh_typecode_ptr
 
 DEF_HELPER_4(DADD, void, env, fprp, fprp, fprp)
 DEF_HELPER_4(DADDQ, void, env, fprp, fprp, fprp)

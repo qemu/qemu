@@ -53,13 +53,16 @@
 # ifdef TARGET_LONG_BITS
 #  if TARGET_LONG_BITS == 32
 #   define dh_alias_tl i32
+#   define dh_typecode_tl dh_typecode_i32
 #  else
 #   define dh_alias_tl i64
+#   define dh_typecode_tl dh_typecode_i64
 #  endif
 # endif
-# define dh_alias_env ptr
 # define dh_ctype_tl target_ulong
+# define dh_alias_env ptr
 # define dh_ctype_env CPUArchState *
+# define dh_typecode_env dh_typecode_ptr
 #endif
 
 /* We can't use glue() here because it falls foul of C preprocessor
@@ -92,18 +95,16 @@
 #define dh_typecode_i64 4
 #define dh_typecode_s64 5
 #define dh_typecode_ptr 6
-#define dh_typecode(t) glue(dh_typecode_, dh_alias(t))
+#define dh_typecode_int dh_typecode_s32
+#define dh_typecode_f16 dh_typecode_i32
+#define dh_typecode_f32 dh_typecode_i32
+#define dh_typecode_f64 dh_typecode_i64
+#define dh_typecode_cptr dh_typecode_ptr
+#define dh_typecode(t) dh_typecode_##t
 
 #define dh_callflag_i32  0
-#define dh_callflag_s32  0
-#define dh_callflag_int  0
 #define dh_callflag_i64  0
-#define dh_callflag_s64  0
-#define dh_callflag_f16  0
-#define dh_callflag_f32  0
-#define dh_callflag_f64  0
 #define dh_callflag_ptr  0
-#define dh_callflag_cptr dh_callflag_ptr
 #define dh_callflag_void 0
 #define dh_callflag_noreturn TCG_CALL_NO_RETURN
 #define dh_callflag(t) glue(dh_callflag_, dh_alias(t))
