@@ -891,15 +891,11 @@ static void mark_postcopy_blocktime_end(uintptr_t addr)
                                       affected_cpu);
 }
 
-static bool postcopy_pause_fault_thread(MigrationIncomingState *mis)
+static void postcopy_pause_fault_thread(MigrationIncomingState *mis)
 {
     trace_postcopy_pause_fault_thread();
-
     qemu_sem_wait(&mis->postcopy_pause_sem_fault);
-
     trace_postcopy_pause_fault_thread_continued();
-
-    return true;
 }
 
 /*
@@ -959,13 +955,7 @@ static void *postcopy_ram_fault_thread(void *opaque)
              * broken already using the event. We should hold until
              * the channel is rebuilt.
              */
-            if (postcopy_pause_fault_thread(mis)) {
-                /* Continue to read the userfaultfd */
-            } else {
-                error_report("%s: paused but don't allow to continue",
-                             __func__);
-                break;
-            }
+            postcopy_pause_fault_thread(mis);
         }
 
         if (pfd[1].revents) {
@@ -1039,15 +1029,8 @@ retry:
                                         msg.arg.pagefault.address);
             if (ret) {
                 /* May be network failure, try to wait for recovery */
-                if (postcopy_pause_fault_thread(mis)) {
-                    /* We got reconnected somehow, try to continue */
-                    goto retry;
-                } else {
-                    /* This is a unavoidable fault */
-                    error_report("%s: postcopy_request_page() get %d",
-                                 __func__, ret);
-                    break;
-                }
+                postcopy_pause_fault_thread(mis);
+                goto retry;
             }
         }
 
