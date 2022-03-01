@@ -132,6 +132,7 @@ struct VirtMachineClass {
     bool no_secure_gpio;
     /* Machines < 6.2 have no support for describing cpu topology to guest */
     bool no_cpu_topology;
+    bool no_tcg_lpa2;
 };
 
 struct VirtMachineState {
