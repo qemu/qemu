@@ -135,6 +135,10 @@ void postcopy_remove_notifier(NotifierWithReturn *n);
 /* Call the notifier list set by postcopy_add_start_notifier */
 int postcopy_notify(enum PostcopyNotifyReason reason, Error **errp);
 
+void postcopy_thread_create(MigrationIncomingState *mis,
+                            QemuThread *thread, const char *name,
+                            void *(*fn)(void *), int joinable);
+
 struct PostCopyFD;
 
 /* ufd is a pointer to the struct uffd_msg *TODO: more Portable! */

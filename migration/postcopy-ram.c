@@ -78,6 +78,20 @@ int postcopy_notify(enum PostcopyNotifyReason reason, Error **errp)
                                             &pnd);
 }
 
+/*
+ * NOTE: this routine is not thread safe, we can't call it concurrently. But it
+ * should be good enough for migration's purposes.
+ */
+void postcopy_thread_create(MigrationIncomingState *mis,
+                            QemuThread *thread, const char *name,
+                            void *(*fn)(void *), int joinable)
+{
+    qemu_sem_init(&mis->thread_sync_sem, 0);
+    qemu_thread_create(thread, name, fn, mis, joinable);
+    qemu_sem_wait(&mis->thread_sync_sem);
+    qemu_sem_destroy(&mis->thread_sync_sem);
+}
+
 /* Postcopy needs to detect accesses to pages that haven't yet been copied
  * across, and efficiently map new pages in, the techniques for doing this
  * are target OS specific.
@@ -902,7 +916,7 @@ static void *postcopy_ram_fault_thread(void *opaque)
     trace_postcopy_ram_fault_thread_entry();
     rcu_register_thread();
     mis->last_rb = NULL; /* last RAMBlock we sent part of */
-    qemu_sem_post(&mis->fault_thread_sem);
+    qemu_sem_post(&mis->thread_sync_sem);
 
     struct pollfd *pfd;
     size_t pfd_len = 2 + mis->postcopy_remote_fds->len;
@@ -1173,11 +1187,8 @@ int postcopy_ram_incoming_setup(MigrationIncomingState *mis)
         return -1;
     }
 
-    qemu_sem_init(&mis->fault_thread_sem, 0);
-    qemu_thread_create(&mis->fault_thread, "postcopy/fault",
-                       postcopy_ram_fault_thread, mis, QEMU_THREAD_JOINABLE);
-    qemu_sem_wait(&mis->fault_thread_sem);
-    qemu_sem_destroy(&mis->fault_thread_sem);
+    postcopy_thread_create(mis, &mis->fault_thread, "postcopy/fault",
+                           postcopy_ram_fault_thread, QEMU_THREAD_JOINABLE);
     mis->have_fault_thread = true;
 
     /* Mark so that we get notified of accesses to unwritten areas */
