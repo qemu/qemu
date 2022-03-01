@@ -394,7 +394,7 @@ static size_t oss_buffer_get_free(HWVoiceOut *hw)
     OSSVoiceOut *oss = (OSSVoiceOut *)hw;
 
     if (oss->mmapped) {
-        return INT_MAX;
+        return oss_get_available_bytes(oss);
     } else {
         return audio_generic_buffer_get_free(hw);
     }
@@ -402,9 +402,10 @@ static size_t oss_buffer_get_free(HWVoiceOut *hw)
 
 static void *oss_get_buffer_out(HWVoiceOut *hw, size_t *size)
 {
-    OSSVoiceOut *oss = (OSSVoiceOut *) hw;
+    OSSVoiceOut *oss = (OSSVoiceOut *)hw;
+
     if (oss->mmapped) {
-        *size = MIN(oss_get_available_bytes(oss), hw->size_emul - hw->pos_emul);
+        *size = hw->size_emul - hw->pos_emul;
         return hw->buf_emul + hw->pos_emul;
     } else {
         return audio_generic_get_buffer_out(hw, size);
