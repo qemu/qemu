@@ -526,9 +526,18 @@ int postcopy_ram_incoming_init(MigrationIncomingState *mis)
 
 static void postcopy_temp_pages_cleanup(MigrationIncomingState *mis)
 {
-    if (mis->postcopy_tmp_page) {
-        munmap(mis->postcopy_tmp_page, mis->largest_page_size);
-        mis->postcopy_tmp_page = NULL;
+    int i;
+
+    if (mis->postcopy_tmp_pages) {
+        for (i = 0; i < mis->postcopy_channels; i++) {
+            if (mis->postcopy_tmp_pages[i].tmp_huge_page) {
+                munmap(mis->postcopy_tmp_pages[i].tmp_huge_page,
+                       mis->largest_page_size);
+                mis->postcopy_tmp_pages[i].tmp_huge_page = NULL;
+            }
+        }
+        g_free(mis->postcopy_tmp_pages);
+        mis->postcopy_tmp_pages = NULL;
     }
 
     if (mis->postcopy_tmp_zero_page) {
@@ -1092,17 +1101,30 @@ retry:
 
 static int postcopy_temp_pages_setup(MigrationIncomingState *mis)
 {
-    int err;
+    PostcopyTmpPage *tmp_page;
+    int err, i, channels;
+    void *temp_page;
 
-    mis->postcopy_tmp_page = mmap(NULL, mis->largest_page_size,
-                                  PROT_READ | PROT_WRITE,
-                                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (mis->postcopy_tmp_page == MAP_FAILED) {
-        err = errno;
-        mis->postcopy_tmp_page = NULL;
-        error_report("%s: Failed to map postcopy_tmp_page %s",
-                     __func__, strerror(err));
-        return -err;
+    /* TODO: will be boosted when enable postcopy preemption */
+    mis->postcopy_channels = 1;
+
+    channels = mis->postcopy_channels;
+    mis->postcopy_tmp_pages = g_malloc0_n(sizeof(PostcopyTmpPage), channels);
+
+    for (i = 0; i < channels; i++) {
+        tmp_page = &mis->postcopy_tmp_pages[i];
+        temp_page = mmap(NULL, mis->largest_page_size, PROT_READ | PROT_WRITE,
+                         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        if (temp_page == MAP_FAILED) {
+            err = errno;
+            error_report("%s: Failed to map postcopy_tmp_pages[%d]: %s",
+                         __func__, i, strerror(err));
+            /* Clean up will be done later */
+            return -err;
+        }
+        tmp_page->tmp_huge_page = temp_page;
+        /* Initialize default states for each tmp page */
+        postcopy_temp_page_reset(tmp_page);
     }
 
     /*
@@ -1352,6 +1374,16 @@ int postcopy_wake_shared(struct PostCopyFD *pcfd,
 #endif
 
 /* ------------------------------------------------------------------------- */
+void postcopy_temp_page_reset(PostcopyTmpPage *tmp_page)
+{
+    tmp_page->target_pages = 0;
+    tmp_page->host_addr = NULL;
+    /*
+     * This is set to true when reset, and cleared as long as we received any
+     * of the non-zero small page within this huge page.
+     */
+    tmp_page->all_zero = true;
+}
 
 void postcopy_fault_thread_notify(MigrationIncomingState *mis)
 {
