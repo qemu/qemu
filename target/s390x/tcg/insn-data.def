@@ -105,6 +105,9 @@
     D(0xa507, NILL,    RI_a,  Z,   r1_o, i2_16u, r1, 0, andi, 0, 0x1000)
     D(0x9400, NI,      SI,    Z,   la1, i2_8u, new, 0, ni, nz64, MO_UB)
     D(0xeb54, NIY,     SIY,   LD,  la1, i2_8u, new, 0, ni, nz64, MO_UB)
+/* AND WITH COMPLEMENT */
+    C(0xb9f5, NCRK,    RRF_a, MIE3, r2, r3, new, r1_32, andc, nz32)
+    C(0xb9e5, NCGRK,   RRF_a, MIE3, r2, r3, r1, 0, andc, nz64)
 
 /* BRANCH AND LINK */
     C(0x0500, BALR,    RR_a,  Z,   0, r2_nz, r1, 0, bal, 0)
@@ -640,6 +643,8 @@
     C(0xeb8e, MVCLU,   RSY_a, E2,  0, a2, 0, 0, mvclu, 0)
 /* MOVE NUMERICS */
     C(0xd100, MVN,     SS_a,  Z,   la1, a2, 0, 0, mvn, 0)
+/* MOVE RIGHT TO LEFT */
+    C(0xe50a, MVCRL,   SSE,  MIE3, la1, a2, 0, 0, mvcrl, 0)
 /* MOVE PAGE */
     C(0xb254, MVPG,    RRE,   Z,   0, 0, 0, 0, mvpg, 0)
 /* MOVE STRING */
@@ -707,6 +712,16 @@
     F(0xed0f, MSEB,    RXF,   Z,   e1, m2_32u, new, e1, mseb, 0, IF_BFP)
     F(0xed1f, MSDB,    RXF,   Z,   f1, m2_64, new, f1, msdb, 0, IF_BFP)
 
+/* NAND */
+    C(0xb974, NNRK,    RRF_a, MIE3, r2, r3, new, r1_32, nand, nz32)
+    C(0xb964, NNGRK,   RRF_a, MIE3, r2, r3, r1, 0, nand, nz64)
+/* NOR */
+    C(0xb976, NORK,    RRF_a, MIE3, r2, r3, new, r1_32, nor, nz32)
+    C(0xb966, NOGRK,   RRF_a, MIE3, r2, r3, r1, 0, nor, nz64)
+/* NOT EXCLUSIVE OR */
+    C(0xb977, NXRK,    RRF_a, MIE3, r2, r3, new, r1_32, nxor, nz32)
+    C(0xb967, NXGRK,   RRF_a, MIE3, r2, r3, r1, 0, nxor, nz64)
+
 /* OR */
     C(0x1600, OR,      RR_a,  Z,   r1, r2, new, r1_32, or, nz32)
     C(0xb9f6, ORK,     RRF_a, DO,  r2, r3, new, r1_32, or, nz32)
@@ -725,6 +740,9 @@
     D(0xa50b, OILL,    RI_a,  Z,   r1_o, i2_16u, r1, 0, ori, 0, 0x1000)
     D(0x9600, OI,      SI,    Z,   la1, i2_8u, new, 0, oi, nz64, MO_UB)
     D(0xeb56, OIY,     SIY,   LD,  la1, i2_8u, new, 0, oi, nz64, MO_UB)
+/* OR WITH COMPLEMENT */
+    C(0xb975, OCRK,    RRF_a, MIE3, r2, r3, new, r1_32, orc, nz32)
+    C(0xb965, OCGRK,   RRF_a, MIE3, r2, r3, r1, 0, orc, nz64)
 
 /* PACK */
     /* Really format SS_b, but we pack both lengths into one argument
@@ -735,6 +753,9 @@
 /* PACK UNICODE */
     C(0xe100, PKU,     SS_f,  E2,  la1, a2, 0, 0, pku, 0)
 
+/* POPULATION COUNT */
+    C(0xb9e1, POPCNT,  RRF_c, PC,  0, r2_o, r1, 0, popcnt, nz64)
+
 /* PREFETCH */
     /* Implemented as nops of course.  */
     C(0xe336, PFD,     RXY_b, GIE, 0, 0, 0, 0, 0, 0)
@@ -742,9 +763,6 @@
 /* PERFORM PROCESSOR ASSIST */
     /* Implemented as nop of course.  */
     C(0xb2e8, PPA,     RRF_c, PPA, 0, 0, 0, 0, 0, 0)
-
-/* POPULATION COUNT */
-    C(0xb9e1, POPCNT,  RRE,   PC,  0, r2_o, r1, 0, popcnt, nz64)
 
 /* ROTATE LEFT SINGLE LOGICAL */
     C(0xeb1d, RLL,     RSY_a, Z,   r3_o, sh, new, r1_32, rll32, 0)
@@ -764,6 +782,12 @@
     C(0xb25e, SRST,    RRE,   Z,   0, 0, 0, 0, srst, 0)
 /* SEARCH STRING UNICODE */
     C(0xb9be, SRSTU,   RRE,   ETF3, 0, 0, 0, 0, srstu, 0)
+
+/* SELECT */
+    C(0xb9f0, SELR,    RRF_a, MIE3, r3, r2, new, r1_32, loc, 0)
+    C(0xb9e3, SELGR,   RRF_a, MIE3, r3, r2, r1, 0, loc, 0)
+/* SELECT HIGH */
+    C(0xb9c0, SELFHR,  RRF_a, MIE3, r3_sr32, r2_sr32, new, r1_32h, loc, 0)
 
 /* SET ACCESS */
     C(0xb24e, SAR,     RRE,   Z,   0, r2_o, 0, 0, sar, 0)
@@ -1317,7 +1341,7 @@
 /* SET ADDRESS SPACE CONTROL FAST */
     F(0xb279, SACF,    S,     Z,   0, a2, 0, 0, sacf, 0, IF_PRIV)
 /* SET CLOCK */
-    F(0xb204, SCK,     S,     Z,   la2, 0, 0, 0, sck, 0, IF_PRIV | IF_IO)
+    F(0xb204, SCK,     S,     Z,   0, m2_64a, 0, 0, sck, 0, IF_PRIV | IF_IO)
 /* SET CLOCK COMPARATOR */
     F(0xb206, SCKC,    S,     Z,   0, m2_64a, 0, 0, sckc, 0, IF_PRIV | IF_IO)
 /* SET CLOCK PROGRAMMABLE FIELD */

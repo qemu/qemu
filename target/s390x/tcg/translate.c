@@ -1498,6 +1498,36 @@ static DisasJumpType op_andi(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
+static DisasJumpType op_andc(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_andc_i64(o->out, o->in1, o->in2);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_orc(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_orc_i64(o->out, o->in1, o->in2);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_nand(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_nand_i64(o->out, o->in1, o->in2);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_nor(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_nor_i64(o->out, o->in1, o->in2);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_nxor(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_eqv_i64(o->out, o->in1, o->in2);
+    return DISAS_NEXT;
+}
+
 static DisasJumpType op_ni(DisasContext *s, DisasOps *o)
 {
     o->in1 = tcg_temp_new_i64();
@@ -2958,7 +2988,13 @@ static DisasJumpType op_loc(DisasContext *s, DisasOps *o)
 {
     DisasCompare c;
 
-    disas_jcc(s, &c, get_field(s, m3));
+    if (have_field(s, m3)) {
+        /* LOAD * ON CONDITION */
+        disas_jcc(s, &c, get_field(s, m3));
+    } else {
+        /* SELECT */
+        disas_jcc(s, &c, get_field(s, m4));
+    }
 
     if (c.is_64) {
         tcg_gen_movcond_i64(c.cond, o->out, c.u.s64.a, c.u.s64.b,
@@ -3358,6 +3394,12 @@ static DisasJumpType op_mvc(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
+static DisasJumpType op_mvcrl(DisasContext *s, DisasOps *o)
+{
+    gen_helper_mvcrl(cpu_env, regs[0], o->addr1, o->in2);
+    return DISAS_NEXT;
+}
+
 static DisasJumpType op_mvcin(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 l = tcg_const_i32(get_field(s, l1));
@@ -3744,7 +3786,13 @@ static DisasJumpType op_pku(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_popcnt(DisasContext *s, DisasOps *o)
 {
-    gen_helper_popcnt(o->out, o->in2);
+    const uint8_t m3 = get_field(s, m3);
+
+    if ((m3 & 8) && s390_has_feat(S390_FEAT_MISC_INSTRUCTION_EXT3)) {
+        tcg_gen_ctpop_i64(o->out, o->in2);
+    } else {
+        gen_helper_popcnt(o->out, o->in2);
+    }
     return DISAS_NEXT;
 }
 
@@ -4290,8 +4338,7 @@ static DisasJumpType op_stcke(DisasContext *s, DisasOps *o)
 #ifndef CONFIG_USER_ONLY
 static DisasJumpType op_sck(DisasContext *s, DisasOps *o)
 {
-    tcg_gen_qemu_ld_i64(o->in1, o->addr1, get_mem_index(s), MO_TEUQ | MO_ALIGN);
-    gen_helper_sck(cc_op, cpu_env, o->in1);
+    gen_helper_sck(cc_op, cpu_env, o->in2);
     set_cc_static(s);
     return DISAS_NEXT;
 }
@@ -5668,6 +5715,13 @@ static void in1_r3_D32(DisasContext *s, DisasOps *o)
 }
 #define SPEC_in1_r3_D32 SPEC_r3_even
 
+static void in1_r3_sr32(DisasContext *s, DisasOps *o)
+{
+    o->in1 = tcg_temp_new_i64();
+    tcg_gen_shri_i64(o->in1, regs[get_field(s, r3)], 32);
+}
+#define SPEC_in1_r3_sr32 0
+
 static void in1_e1(DisasContext *s, DisasOps *o)
 {
     o->in1 = load_freg32_i64(get_field(s, r1));
@@ -6170,6 +6224,7 @@ enum DisasInsnEnum {
 #define FAC_V           S390_FEAT_VECTOR /* vector facility */
 #define FAC_VE          S390_FEAT_VECTOR_ENH /* vector enhancements facility 1 */
 #define FAC_MIE2        S390_FEAT_MISC_INSTRUCTION_EXT2 /* miscellaneous-instruction-extensions facility 2 */
+#define FAC_MIE3        S390_FEAT_MISC_INSTRUCTION_EXT3 /* miscellaneous-instruction-extensions facility 3 */
 
 static const DisasInsn insn_info[] = {
 #include "insn-data.def"
