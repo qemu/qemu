@@ -96,7 +96,6 @@ unsigned long reserved_va;
 
 static const char *interp_prefix = CONFIG_QEMU_INTERP_PREFIX;
 const char *qemu_uname_release;
-enum BSDType bsd_type;
 char qemu_proc_pathname[PATH_MAX];  /* full path to exeutable */
 
 unsigned long target_maxtsiz = TARGET_MAXTSIZ;   /* max text size */
@@ -164,7 +163,6 @@ static void usage(void)
            "-E var=value      sets/modifies targets environment variable(s)\n"
            "-U var            unsets targets environment variable(s)\n"
            "-B address        set guest_base address to address\n"
-           "-bsd type         select emulated BSD type FreeBSD/NetBSD/OpenBSD (default)\n"
            "\n"
            "Debug options:\n"
            "-d item1[,...]    enable logging of specified items\n"
@@ -285,7 +283,6 @@ int main(int argc, char **argv)
     const char *gdbstub = NULL;
     char **target_environ, **wrk;
     envlist_t *envlist = NULL;
-    bsd_type = HOST_DEFAULT_BSD_TYPE;
     char *argv0 = NULL;
 
     adjust_ssize();
@@ -392,17 +389,6 @@ int main(int argc, char **argv)
             have_guest_base = true;
         } else if (!strcmp(r, "drop-ld-preload")) {
             (void) envlist_unsetenv(envlist, "LD_PRELOAD");
-        } else if (!strcmp(r, "bsd")) {
-            if (!strcasecmp(argv[optind], "freebsd")) {
-                bsd_type = target_freebsd;
-            } else if (!strcasecmp(argv[optind], "netbsd")) {
-                bsd_type = target_netbsd;
-            } else if (!strcasecmp(argv[optind], "openbsd")) {
-                bsd_type = target_openbsd;
-            } else {
-                usage();
-            }
-            optind++;
         } else if (!strcmp(r, "seed")) {
             seed_optarg = optarg;
         } else if (!strcmp(r, "singlestep")) {

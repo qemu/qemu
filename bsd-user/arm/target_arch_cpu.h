@@ -40,7 +40,6 @@ static inline void target_cpu_init(CPUARMState *env,
 static inline void target_cpu_loop(CPUARMState *env)
 {
     int trapnr, si_signo, si_code;
-    unsigned int n;
     CPUState *cs = env_cpu(env);
 
     for (;;) {
@@ -66,82 +65,76 @@ static inline void target_cpu_loop(CPUARMState *env)
             break;
         case EXCP_SWI:
             {
-                n = env->regs[7];
-                if (bsd_type == target_freebsd) {
-                    int ret;
-                    abi_ulong params = get_sp_from_cpustate(env);
-                    int32_t syscall_nr = n;
-                    int32_t arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8;
+                int ret;
+                abi_ulong params = get_sp_from_cpustate(env);
+                int32_t syscall_nr = env->regs[7];
+                int32_t arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8;
 
-                    /* See arm/arm/syscall.c cpu_fetch_syscall_args() */
-                    if (syscall_nr == TARGET_FREEBSD_NR_syscall) {
-                        syscall_nr = env->regs[0];
-                        arg1 = env->regs[1];
-                        arg2 = env->regs[2];
-                        arg3 = env->regs[3];
-                        get_user_s32(arg4, params);
-                        params += sizeof(int32_t);
-                        get_user_s32(arg5, params);
-                        params += sizeof(int32_t);
-                        get_user_s32(arg6, params);
-                        params += sizeof(int32_t);
-                        get_user_s32(arg7, params);
-                        arg8 = 0;
-                    } else if (syscall_nr == TARGET_FREEBSD_NR___syscall) {
-                        syscall_nr = env->regs[0];
-                        arg1 = env->regs[2];
-                        arg2 = env->regs[3];
-                        get_user_s32(arg3, params);
-                        params += sizeof(int32_t);
-                        get_user_s32(arg4, params);
-                        params += sizeof(int32_t);
-                        get_user_s32(arg5, params);
-                        params += sizeof(int32_t);
-                        get_user_s32(arg6, params);
-                        arg7 = 0;
-                        arg8 = 0;
-                    } else {
-                        arg1 = env->regs[0];
-                        arg2 = env->regs[1];
-                        arg3 = env->regs[2];
-                        arg4 = env->regs[3];
-                        get_user_s32(arg5, params);
-                        params += sizeof(int32_t);
-                        get_user_s32(arg6, params);
-                        params += sizeof(int32_t);
-                        get_user_s32(arg7, params);
-                        params += sizeof(int32_t);
-                        get_user_s32(arg8, params);
-                    }
-                    ret = do_freebsd_syscall(env, syscall_nr, arg1, arg2, arg3,
-                            arg4, arg5, arg6, arg7, arg8);
-                    /*
-                     * Compare to arm/arm/vm_machdep.c
-                     * cpu_set_syscall_retval()
-                     */
-                    if (-TARGET_EJUSTRETURN == ret) {
-                        /*
-                         * Returning from a successful sigreturn syscall.
-                         * Avoid clobbering register state.
-                         */
-                        break;
-                    }
-                    if (-TARGET_ERESTART == ret) {
-                        env->regs[15] -= env->thumb ? 2 : 4;
-                        break;
-                    }
-                    if ((unsigned int)ret >= (unsigned int)(-515)) {
-                        ret = -ret;
-                        cpsr_write(env, CPSR_C, CPSR_C, CPSRWriteByInstr);
-                        env->regs[0] = ret;
-                    } else {
-                        cpsr_write(env, 0, CPSR_C, CPSRWriteByInstr);
-                        env->regs[0] = ret; /* XXX need to handle lseek()? */
-                        /* env->regs[1] = 0; */
-                    }
+                /* See arm/arm/syscall.c cpu_fetch_syscall_args() */
+                if (syscall_nr == TARGET_FREEBSD_NR_syscall) {
+                    syscall_nr = env->regs[0];
+                    arg1 = env->regs[1];
+                    arg2 = env->regs[2];
+                    arg3 = env->regs[3];
+                    get_user_s32(arg4, params);
+                    params += sizeof(int32_t);
+                    get_user_s32(arg5, params);
+                    params += sizeof(int32_t);
+                    get_user_s32(arg6, params);
+                    params += sizeof(int32_t);
+                    get_user_s32(arg7, params);
+                    arg8 = 0;
+                } else if (syscall_nr == TARGET_FREEBSD_NR___syscall) {
+                    syscall_nr = env->regs[0];
+                    arg1 = env->regs[2];
+                    arg2 = env->regs[3];
+                    get_user_s32(arg3, params);
+                    params += sizeof(int32_t);
+                    get_user_s32(arg4, params);
+                    params += sizeof(int32_t);
+                    get_user_s32(arg5, params);
+                    params += sizeof(int32_t);
+                    get_user_s32(arg6, params);
+                    arg7 = 0;
+                    arg8 = 0;
                 } else {
-                    fprintf(stderr, "qemu: bsd_type (= %d) syscall "
-                            "not supported\n", bsd_type);
+                    arg1 = env->regs[0];
+                    arg2 = env->regs[1];
+                    arg3 = env->regs[2];
+                    arg4 = env->regs[3];
+                    get_user_s32(arg5, params);
+                    params += sizeof(int32_t);
+                    get_user_s32(arg6, params);
+                    params += sizeof(int32_t);
+                    get_user_s32(arg7, params);
+                    params += sizeof(int32_t);
+                    get_user_s32(arg8, params);
+                }
+                ret = do_freebsd_syscall(env, syscall_nr, arg1, arg2, arg3,
+                                         arg4, arg5, arg6, arg7, arg8);
+                /*
+                 * Compare to arm/arm/vm_machdep.c
+                 * cpu_set_syscall_retval()
+                 */
+                if (-TARGET_EJUSTRETURN == ret) {
+                    /*
+                     * Returning from a successful sigreturn syscall.
+                     * Avoid clobbering register state.
+                     */
+                    break;
+                }
+                if (-TARGET_ERESTART == ret) {
+                    env->regs[15] -= env->thumb ? 2 : 4;
+                    break;
+                }
+                if ((unsigned int)ret >= (unsigned int)(-515)) {
+                    ret = -ret;
+                    cpsr_write(env, CPSR_C, CPSR_C, CPSRWriteByInstr);
+                    env->regs[0] = ret;
+                } else {
+                    cpsr_write(env, 0, CPSR_C, CPSRWriteByInstr);
+                    env->regs[0] = ret; /* XXX need to handle lseek()? */
+                    /* env->regs[1] = 0; */
                 }
             }
             break;

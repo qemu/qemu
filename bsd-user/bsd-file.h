@@ -1,5 +1,5 @@
 /*
- *  x86_64 thread support
+ *  file related system call shims and definitions
  *
  *  Copyright (c) 2013 Stacey D. Son
  *
@@ -16,23 +16,15 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _TARGET_ARCH_THREAD_H_
-#define _TARGET_ARCH_THREAD_H_
 
-/* Compare to vm_machdep.c cpu_set_upcall_kse() */
-static inline void target_thread_set_upcall(CPUX86State *regs, abi_ulong entry,
-    abi_ulong arg, abi_ulong stack_base, abi_ulong stack_size)
-{
-    /* XXX */
-}
+#ifndef BSD_FILE_H_
+#define BSD_FILE_H_
 
-static inline void target_thread_init(struct target_pt_regs *regs,
-    struct image_info *infop)
-{
-    regs->rax = 0;
-    regs->rsp = infop->start_stack;
-    regs->rip = infop->entry;
-    regs->rdi = infop->start_stack;
-}
+#include "qemu/path.h"
 
-#endif /* !_TARGET_ARCH_THREAD_H_ */
+extern struct iovec *lock_iovec(int type, abi_ulong target_addr, int count,
+        int copy);
+extern void unlock_iovec(struct iovec *vec, abi_ulong target_addr, int count,
+        int copy);
+
+#endif /* !BSD_FILE_H_ */

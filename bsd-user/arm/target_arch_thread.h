@@ -62,9 +62,7 @@ static inline void target_thread_init(struct target_pt_regs *regs,
     }
     regs->ARM_pc = infop->entry & 0xfffffffe;
     regs->ARM_sp = stack;
-    if (bsd_type == target_freebsd) {
-        regs->ARM_lr = infop->entry & 0xfffffffe;
-    }
+    regs->ARM_lr = infop->entry & 0xfffffffe;
     /*
      * FreeBSD kernel passes the ps_strings pointer in r0. This is used by some
      * programs to set status messages that we see in ps. bsd-user doesn't
