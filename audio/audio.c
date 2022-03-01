@@ -574,19 +574,13 @@ static size_t audio_pcm_sw_get_rpos_in(SWVoiceIn *sw)
 {
     HWVoiceIn *hw = sw->hw;
     ssize_t live = hw->total_samples_captured - sw->total_hw_samples_acquired;
-    ssize_t rpos;
 
     if (audio_bug(__func__, live < 0 || live > hw->conv_buf->size)) {
         dolog("live=%zu hw->conv_buf->size=%zu\n", live, hw->conv_buf->size);
         return 0;
     }
 
-    rpos = hw->conv_buf->pos - live;
-    if (rpos >= 0) {
-        return rpos;
-    } else {
-        return hw->conv_buf->size + rpos;
-    }
+    return audio_ring_posb(hw->conv_buf->pos, live, hw->conv_buf->size);
 }
 
 static size_t audio_pcm_sw_read(SWVoiceIn *sw, void *buf, size_t size)
@@ -1394,12 +1388,10 @@ void audio_generic_run_buffer_in(HWVoiceIn *hw)
 
 void *audio_generic_get_buffer_in(HWVoiceIn *hw, size_t *size)
 {
-    ssize_t start = (ssize_t)hw->pos_emul - hw->pending_emul;
+    size_t start;
 
-    if (start < 0) {
-        start += hw->size_emul;
-    }
-    assert(start >= 0 && start < hw->size_emul);
+    start = audio_ring_posb(hw->pos_emul, hw->pending_emul, hw->size_emul);
+    assert(start < hw->size_emul);
 
     *size = MIN(*size, hw->pending_emul);
     *size = MIN(*size, hw->size_emul - start);
@@ -1415,13 +1407,10 @@ void audio_generic_put_buffer_in(HWVoiceIn *hw, void *buf, size_t size)
 void audio_generic_run_buffer_out(HWVoiceOut *hw)
 {
     while (hw->pending_emul) {
-        size_t write_len, written;
-        ssize_t start = ((ssize_t) hw->pos_emul) - hw->pending_emul;
+        size_t write_len, written, start;
 
-        if (start < 0) {
-            start += hw->size_emul;
-        }
-        assert(start >= 0 && start < hw->size_emul);
+        start = audio_ring_posb(hw->pos_emul, hw->pending_emul, hw->size_emul);
+        assert(start < hw->size_emul);
 
         write_len = MIN(hw->pending_emul, hw->size_emul - start);
 

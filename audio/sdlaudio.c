@@ -224,12 +224,11 @@ static void sdl_callback_out(void *opaque, Uint8 *buf, int len)
         /* dolog("callback_out: len=%d avail=%zu\n", len, hw->pending_emul); */
 
         while (hw->pending_emul && len) {
-            size_t write_len;
-            ssize_t start = (ssize_t)hw->pos_emul - hw->pending_emul;
-            if (start < 0) {
-                start += hw->size_emul;
-            }
-            assert(start >= 0 && start < hw->size_emul);
+            size_t write_len, start;
+
+            start = audio_ring_posb(hw->pos_emul, hw->pending_emul,
+                                    hw->size_emul);
+            assert(start < hw->size_emul);
 
             write_len = MIN(MIN(hw->pending_emul, len),
                             hw->size_emul - start);
