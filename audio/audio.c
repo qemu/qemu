@@ -569,37 +569,24 @@ static size_t audio_pcm_hw_conv_in(HWVoiceIn *hw, void *pcm_buf, size_t samples)
 /*
  * Soft voice (capture)
  */
-static size_t audio_pcm_sw_get_rpos_in(SWVoiceIn *sw)
-{
-    HWVoiceIn *hw = sw->hw;
-    ssize_t live = hw->total_samples_captured - sw->total_hw_samples_acquired;
-
-    if (audio_bug(__func__, live < 0 || live > hw->conv_buf->size)) {
-        dolog("live=%zu hw->conv_buf->size=%zu\n", live, hw->conv_buf->size);
-        return 0;
-    }
-
-    return audio_ring_posb(hw->conv_buf->pos, live, hw->conv_buf->size);
-}
-
 static size_t audio_pcm_sw_read(SWVoiceIn *sw, void *buf, size_t size)
 {
     HWVoiceIn *hw = sw->hw;
     size_t samples, live, ret = 0, swlim, isamp, osamp, rpos, total = 0;
     struct st_sample *src, *dst = sw->buf;
 
-    rpos = audio_pcm_sw_get_rpos_in(sw) % hw->conv_buf->size;
-
     live = hw->total_samples_captured - sw->total_hw_samples_acquired;
+    if (!live) {
+        return 0;
+    }
     if (audio_bug(__func__, live > hw->conv_buf->size)) {
         dolog("live_in=%zu hw->conv_buf->size=%zu\n", live, hw->conv_buf->size);
         return 0;
     }
 
+    rpos = audio_ring_posb(hw->conv_buf->pos, live, hw->conv_buf->size);
+
     samples = size / sw->info.bytes_per_frame;
-    if (!live) {
-        return 0;
-    }
 
     swlim = (live * sw->ratio) >> 32;
     swlim = MIN (swlim, samples);
