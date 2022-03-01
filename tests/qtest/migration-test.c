@@ -495,7 +495,7 @@ static void migrate_start_destroy(MigrateStart *args)
 }
 
 static int test_migrate_start(QTestState **from, QTestState **to,
-                              const char *uri, MigrateStart *args)
+                              const char *uri, MigrateStart **pargs)
 {
     g_autofree gchar *arch_source = NULL;
     g_autofree gchar *arch_target = NULL;
@@ -507,6 +507,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     g_autofree char *shmem_path = NULL;
     const char *arch = qtest_get_arch();
     const char *machine_opts = NULL;
+    MigrateStart *args = *pargs;
     const char *memory_size;
     int ret = 0;
 
@@ -621,6 +622,8 @@ static int test_migrate_start(QTestState **from, QTestState **to,
 
 out:
     migrate_start_destroy(args);
+    /* This tells the caller that this structure is gone */
+    *pargs = NULL;
     return ret;
 }
 
@@ -665,7 +668,7 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
 
-    if (test_migrate_start(&from, &to, uri, args)) {
+    if (test_migrate_start(&from, &to, uri, &args)) {
         return -1;
     }
 
@@ -788,7 +791,7 @@ static void test_baddest(void)
 
     args->hide_stderr = true;
 
-    if (test_migrate_start(&from, &to, "tcp:127.0.0.1:0", args)) {
+    if (test_migrate_start(&from, &to, "tcp:127.0.0.1:0", &args)) {
         return;
     }
     migrate_qmp(from, "tcp:127.0.0.1:0", "{}");
@@ -804,7 +807,7 @@ static void test_precopy_unix_common(bool dirty_ring)
 
     args->use_dirty_ring = dirty_ring;
 
-    if (test_migrate_start(&from, &to, uri, args)) {
+    if (test_migrate_start(&from, &to, uri, &args)) {
         return;
     }
 
@@ -892,7 +895,7 @@ static void test_xbzrle(const char *uri)
     MigrateStart *args = migrate_start_new();
     QTestState *from, *to;
 
-    if (test_migrate_start(&from, &to, uri, args)) {
+    if (test_migrate_start(&from, &to, uri, &args)) {
         return;
     }
 
@@ -946,7 +949,7 @@ static void test_precopy_tcp(void)
     g_autofree char *uri = NULL;
     QTestState *from, *to;
 
-    if (test_migrate_start(&from, &to, "tcp:127.0.0.1:0", args)) {
+    if (test_migrate_start(&from, &to, "tcp:127.0.0.1:0", &args)) {
         return;
     }
 
@@ -991,7 +994,7 @@ static void test_migrate_fd_proto(void)
     QDict *rsp;
     const char *error_desc;
 
-    if (test_migrate_start(&from, &to, "defer", args)) {
+    if (test_migrate_start(&from, &to, "defer", &args)) {
         return;
     }
 
@@ -1071,7 +1074,7 @@ static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
 
-    if (test_migrate_start(&from, &to, uri, args)) {
+    if (test_migrate_start(&from, &to, uri, &args)) {
         return;
     }
 
@@ -1163,7 +1166,7 @@ static void test_migrate_auto_converge(void)
      */
     const int64_t expected_threshold = max_bandwidth * downtime_limit / 1000;
 
-    if (test_migrate_start(&from, &to, uri, args)) {
+    if (test_migrate_start(&from, &to, uri, &args)) {
         return;
     }
 
@@ -1232,7 +1235,7 @@ static void test_multifd_tcp(const char *method)
     QDict *rsp;
     g_autofree char *uri = NULL;
 
-    if (test_migrate_start(&from, &to, "defer", args)) {
+    if (test_migrate_start(&from, &to, "defer", &args)) {
         return;
     }
 
@@ -1318,7 +1321,7 @@ static void test_multifd_tcp_cancel(void)
 
     args->hide_stderr = true;
 
-    if (test_migrate_start(&from, &to, "defer", args)) {
+    if (test_migrate_start(&from, &to, "defer", &args)) {
         return;
     }
 
@@ -1357,7 +1360,7 @@ static void test_multifd_tcp_cancel(void)
     args = migrate_start_new();
     args->only_target = true;
 
-    if (test_migrate_start(&from, &to2, "defer", args)) {
+    if (test_migrate_start(&from, &to2, "defer", &args)) {
         return;
     }
 
