@@ -2533,40 +2533,33 @@ VSX_MAX_MIN(xsmindp, minnum, 1, float64, VsrD(0))
 VSX_MAX_MIN(xvmindp, minnum, 2, float64, VsrD(i))
 VSX_MAX_MIN(xvminsp, minnum, 4, float32, VsrW(i))
 
-#define VSX_MAX_MINC(name, max)                                               \
+#define VSX_MAX_MINC(name, max, tp, fld)                                      \
 void helper_##name(CPUPPCState *env,                                          \
                    ppc_vsr_t *xt, ppc_vsr_t *xa, ppc_vsr_t *xb)               \
 {                                                                             \
     ppc_vsr_t t = { };                                                        \
-    bool vxsnan_flag = false, vex_flag = false;                               \
+    bool first;                                                               \
                                                                               \
-    if (unlikely(float64_is_any_nan(xa->VsrD(0)) ||                           \
-                 float64_is_any_nan(xb->VsrD(0)))) {                          \
-        if (float64_is_signaling_nan(xa->VsrD(0), &env->fp_status) ||         \
-            float64_is_signaling_nan(xb->VsrD(0), &env->fp_status)) {         \
-            vxsnan_flag = true;                                               \
-        }                                                                     \
-        t.VsrD(0) = xb->VsrD(0);                                              \
-    } else if ((max &&                                                        \
-               !float64_lt(xa->VsrD(0), xb->VsrD(0), &env->fp_status)) ||     \
-               (!max &&                                                       \
-               float64_lt(xa->VsrD(0), xb->VsrD(0), &env->fp_status))) {      \
-        t.VsrD(0) = xa->VsrD(0);                                              \
+    if (max) {                                                                \
+        first = tp##_le_quiet(xb->fld, xa->fld, &env->fp_status);             \
     } else {                                                                  \
-        t.VsrD(0) = xb->VsrD(0);                                              \
+        first = tp##_lt_quiet(xa->fld, xb->fld, &env->fp_status);             \
     }                                                                         \
                                                                               \
-    vex_flag = fpscr_ve & vxsnan_flag;                                        \
-    if (vxsnan_flag) {                                                        \
-        float_invalid_op_vxsnan(env, GETPC());                                \
+    if (first) {                                                              \
+        t.fld = xa->fld;                                                      \
+    } else {                                                                  \
+        t.fld = xb->fld;                                                      \
+        if (env->fp_status.float_exception_flags & float_flag_invalid_snan) { \
+            float_invalid_op_vxsnan(env, GETPC());                            \
+        }                                                                     \
     }                                                                         \
-    if (!vex_flag) {                                                          \
-        *xt = t;                                                              \
-    }                                                                         \
-}                                                                             \
+                                                                              \
+    *xt = t;                                                                  \
+}
 
-VSX_MAX_MINC(XSMAXCDP, 1);
-VSX_MAX_MINC(XSMINCDP, 0);
+VSX_MAX_MINC(XSMAXCDP, true, float64, VsrD(0));
+VSX_MAX_MINC(XSMINCDP, false, float64, VsrD(0));
 
 #define VSX_MAX_MINJ(name, max)                                               \
 void helper_##name(CPUPPCState *env,                                          \
