@@ -2502,6 +2502,11 @@ void QEMU_NORETURN raise_exception_err(CPUPPCState *env, uint32_t exception,
 void QEMU_NORETURN raise_exception_err_ra(CPUPPCState *env, uint32_t exception,
                                           uint32_t error_code, uintptr_t raddr);
 
+/* PERFM EBB helper*/
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+void raise_ebb_perfm_exception(CPUPPCState *env);
+#endif
+
 #if !defined(CONFIG_USER_ONLY)
 static inline int booke206_tlbm_id(CPUPPCState *env, ppcmas_tlb_t *tlbm)
 {
