@@ -798,11 +798,9 @@ static const TypeInfo spapr_drc_pmem_info = {
 SpaprDrc *spapr_drc_by_index(uint32_t index)
 {
     Object *obj;
-    gchar *name;
-
-    name = g_strdup_printf("%s/%x", DRC_CONTAINER_PATH, index);
+    g_autofree gchar *name = g_strdup_printf("%s/%x", DRC_CONTAINER_PATH,
+                                             index);
     obj = object_resolve_path(name, NULL);
-    g_free(name);
 
     return !obj ? NULL : SPAPR_DR_CONNECTOR(obj);
 }
