@@ -60,6 +60,9 @@
 &VX             vrt vra vrb
 @VX             ...... vrt:5 vra:5 vrb:5 .......... .   &VX
 
+&VX_bf          bf vra vrb
+@VX_bf          ...... bf:3 .. vra:5 vrb:5 ...........          &VX_bf
+
 &VX_uim4        vrt uim vrb
 @VX_uim4        ...... vrt:5 . uim:4 vrb:5 ...........  &VX_uim4
 
@@ -403,6 +406,9 @@ VCMPNEW         000100 ..... ..... ..... . 0010000111   @VC
 VCMPNEZB        000100 ..... ..... ..... . 0100000111   @VC
 VCMPNEZH        000100 ..... ..... ..... . 0101000111   @VC
 VCMPNEZW        000100 ..... ..... ..... . 0110000111   @VC
+
+VCMPSQ          000100 ... -- ..... ..... 00101000001   @VX_bf
+VCMPUQ          000100 ... -- ..... ..... 00100000001   @VX_bf
 
 ## Vector Bit Manipulation Instruction
 
