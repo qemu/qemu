@@ -445,6 +445,8 @@ static int pnv_xive2_match_nvt(XivePresenter *xptr, uint8_t format,
     PnvChip *chip = xive->chip;
     int count = 0;
     int i, j;
+    bool gen1_tima_os =
+        xive->cq_regs[CQ_XIVE_CFG >> 3] & CQ_XIVE_CFG_GEN1_TIMA_OS;
 
     for (i = 0; i < chip->nr_cores; i++) {
         PnvCore *pc = chip->cores[i];
@@ -461,9 +463,15 @@ static int pnv_xive2_match_nvt(XivePresenter *xptr, uint8_t format,
 
             tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
 
-            ring = xive2_presenter_tctx_match(xptr, tctx, format, nvt_blk,
-                                              nvt_idx, cam_ignore,
-                                              logic_serv);
+            if (gen1_tima_os) {
+                ring = xive_presenter_tctx_match(xptr, tctx, format, nvt_blk,
+                                                 nvt_idx, cam_ignore,
+                                                 logic_serv);
+            } else {
+                ring = xive2_presenter_tctx_match(xptr, tctx, format, nvt_blk,
+                                                   nvt_idx, cam_ignore,
+                                                   logic_serv);
+            }
 
             /*
              * Save the context and follow on to catch duplicates,
@@ -1628,9 +1636,11 @@ static void pnv_xive2_tm_write(void *opaque, hwaddr offset,
     PnvXive2 *xive = pnv_xive2_tm_get_xive(cpu);
     XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
     XivePresenter *xptr = XIVE_PRESENTER(xive);
+    bool gen1_tima_os =
+        xive->cq_regs[CQ_XIVE_CFG >> 3] & CQ_XIVE_CFG_GEN1_TIMA_OS;
 
     /* TODO: should we switch the TM ops table instead ? */
-    if (offset == HV_PUSH_OS_CTX_OFFSET) {
+    if (!gen1_tima_os && offset == HV_PUSH_OS_CTX_OFFSET) {
         xive2_tm_push_os_ctx(xptr, tctx, offset, value, size);
         return;
     }
@@ -1645,9 +1655,11 @@ static uint64_t pnv_xive2_tm_read(void *opaque, hwaddr offset, unsigned size)
     PnvXive2 *xive = pnv_xive2_tm_get_xive(cpu);
     XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
     XivePresenter *xptr = XIVE_PRESENTER(xive);
+    bool gen1_tima_os =
+        xive->cq_regs[CQ_XIVE_CFG >> 3] & CQ_XIVE_CFG_GEN1_TIMA_OS;
 
     /* TODO: should we switch the TM ops table instead ? */
-    if (offset == HV_PULL_OS_CTX_OFFSET) {
+    if (!gen1_tima_os && offset == HV_PULL_OS_CTX_OFFSET) {
         return xive2_tm_pull_os_ctx(xptr, tctx, offset, size);
     }
 
