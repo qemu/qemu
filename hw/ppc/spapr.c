@@ -2707,14 +2707,24 @@ static void spapr_machine_init(MachineState *machine)
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     const char *bios_default = spapr->vof ? FW_FILE_NAME_VOF : FW_FILE_NAME;
     const char *bios_name = machine->firmware ?: bios_default;
+    g_autofree char *filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
     PCIHostState *phb;
     int i;
     MemoryRegion *sysmem = get_system_memory();
     long load_limit, fw_size;
-    char *filename;
     Error *resize_hpt_err = NULL;
+
+    if (!filename) {
+        error_report("Could not find LPAR firmware '%s'", bios_name);
+        exit(1);
+    }
+    fw_size = load_image_targphys(filename, 0, FW_MAX_SIZE);
+    if (fw_size <= 0) {
+        error_report("Could not load LPAR firmware '%s'", filename);
+        exit(1);
+    }
 
     /*
      * if Secure VM (PEF) support is configured, then initialize it
@@ -2995,18 +3005,6 @@ static void spapr_machine_init(MachineState *machine)
             }
         }
     }
-
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-    if (!filename) {
-        error_report("Could not find LPAR firmware '%s'", bios_name);
-        exit(1);
-    }
-    fw_size = load_image_targphys(filename, 0, FW_MAX_SIZE);
-    if (fw_size <= 0) {
-        error_report("Could not load LPAR firmware '%s'", filename);
-        exit(1);
-    }
-    g_free(filename);
 
     /* FIXME: Should register things through the MachineState's qdev
      * interface, this is a legacy from the sPAPREnvironment structure
