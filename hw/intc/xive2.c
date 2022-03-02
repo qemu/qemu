@@ -171,6 +171,24 @@ int xive2_router_get_eas(Xive2Router *xrtr, uint8_t eas_blk, uint32_t eas_idx,
     return xrc->get_eas(xrtr, eas_blk, eas_idx, eas);
 }
 
+static
+int xive2_router_get_pq(Xive2Router *xrtr, uint8_t eas_blk, uint32_t eas_idx,
+                       uint8_t *pq)
+{
+    Xive2RouterClass *xrc = XIVE2_ROUTER_GET_CLASS(xrtr);
+
+    return xrc->get_pq(xrtr, eas_blk, eas_idx, pq);
+}
+
+static
+int xive2_router_set_pq(Xive2Router *xrtr, uint8_t eas_blk, uint32_t eas_idx,
+                       uint8_t *pq)
+{
+    Xive2RouterClass *xrc = XIVE2_ROUTER_GET_CLASS(xrtr);
+
+    return xrc->set_pq(xrtr, eas_blk, eas_idx, pq);
+}
+
 int xive2_router_get_end(Xive2Router *xrtr, uint8_t end_blk, uint32_t end_idx,
                          Xive2End *end)
 {
@@ -480,7 +498,7 @@ do_escalation:
                            xive_get_field32(END2_W5_ESC_END_DATA,  end.w5));
 }
 
-void xive2_router_notify(XiveNotifier *xn, uint32_t lisn)
+void xive2_router_notify(XiveNotifier *xn, uint32_t lisn, bool pq_checked)
 {
     Xive2Router *xrtr = XIVE2_ROUTER(xn);
     uint8_t eas_blk = XIVE_EAS_BLOCK(lisn);
@@ -491,6 +509,28 @@ void xive2_router_notify(XiveNotifier *xn, uint32_t lisn)
     if (xive2_router_get_eas(xrtr, eas_blk, eas_idx, &eas)) {
         qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Unknown LISN %x\n", lisn);
         return;
+    }
+
+    if (!pq_checked) {
+        bool notify;
+        uint8_t pq;
+
+        /* PQ cache lookup */
+        if (xive2_router_get_pq(xrtr, eas_blk, eas_idx, &pq)) {
+            /* Set FIR */
+            g_assert_not_reached();
+        }
+
+        notify = xive_esb_trigger(&pq);
+
+        if (xive2_router_set_pq(xrtr, eas_blk, eas_idx, &pq)) {
+            /* Set FIR */
+            g_assert_not_reached();
+        }
+
+        if (!notify) {
+            return;
+        }
     }
 
     if (!xive2_eas_is_valid(&eas)) {

@@ -653,7 +653,7 @@ static const TypeInfo pnv_psi_power8_info = {
 #define PSIHB10_ESB_CI_BASE              PSIHB9_ESB_CI_BASE
 #define   PSIHB10_ESB_CI_64K             PPC_BIT(1)
 
-static void pnv_psi_notify(XiveNotifier *xf, uint32_t srcno)
+static void pnv_psi_notify(XiveNotifier *xf, uint32_t srcno, bool pq_checked)
 {
     PnvPsi *psi = PNV_PSI(xf);
     uint64_t notif_port = psi->regs[PSIHB_REG(PSIHB9_ESB_NOTIF_ADDR)];
@@ -662,8 +662,12 @@ static void pnv_psi_notify(XiveNotifier *xf, uint32_t srcno)
 
     uint32_t offset =
         (psi->regs[PSIHB_REG(PSIHB9_IVT_OFFSET)] >> PSIHB9_IVT_OFF_SHIFT);
-    uint64_t data = XIVE_TRIGGER_PQ | offset | srcno;
+    uint64_t data = offset | srcno;
     MemTxResult result;
+
+    if (pq_checked) {
+        data |= XIVE_TRIGGER_PQ;
+    }
 
     if (!valid) {
         return;

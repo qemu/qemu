@@ -31,6 +31,10 @@ typedef struct Xive2RouterClass {
     /* XIVE table accessors */
     int (*get_eas)(Xive2Router *xrtr, uint8_t eas_blk, uint32_t eas_idx,
                    Xive2Eas *eas);
+    int (*get_pq)(Xive2Router *xrtr, uint8_t eas_blk, uint32_t eas_idx,
+                  uint8_t *pq);
+    int (*set_pq)(Xive2Router *xrtr, uint8_t eas_blk, uint32_t eas_idx,
+                  uint8_t *pq);
     int (*get_end)(Xive2Router *xrtr, uint8_t end_blk, uint32_t end_idx,
                    Xive2End *end);
     int (*write_end)(Xive2Router *xrtr, uint8_t end_blk, uint32_t end_idx,
@@ -53,7 +57,7 @@ int xive2_router_get_nvp(Xive2Router *xrtr, uint8_t nvp_blk, uint32_t nvp_idx,
 int xive2_router_write_nvp(Xive2Router *xrtr, uint8_t nvp_blk, uint32_t nvp_idx,
                           Xive2Nvp *nvp, uint8_t word_number);
 
-void xive2_router_notify(XiveNotifier *xn, uint32_t lisn);
+void xive2_router_notify(XiveNotifier *xn, uint32_t lisn, bool pq_checked);
 
 /*
  * XIVE2 Presenter (POWER10)

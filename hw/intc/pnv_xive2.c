@@ -285,6 +285,34 @@ static int pnv_xive2_vst_write(PnvXive2 *xive, uint32_t type, uint8_t blk,
     return 0;
 }
 
+static int pnv_xive2_get_pq(Xive2Router *xrtr, uint8_t blk, uint32_t idx,
+                             uint8_t *pq)
+{
+    PnvXive2 *xive = PNV_XIVE2(xrtr);
+
+    if (pnv_xive2_block_id(xive) != blk) {
+        xive2_error(xive, "VST: EAS %x is remote !?", XIVE_EAS(blk, idx));
+        return -1;
+    }
+
+    *pq = xive_source_esb_get(&xive->ipi_source, idx);
+    return 0;
+}
+
+static int pnv_xive2_set_pq(Xive2Router *xrtr, uint8_t blk, uint32_t idx,
+                             uint8_t *pq)
+{
+    PnvXive2 *xive = PNV_XIVE2(xrtr);
+
+    if (pnv_xive2_block_id(xive) != blk) {
+        xive2_error(xive, "VST: EAS %x is remote !?", XIVE_EAS(blk, idx));
+        return -1;
+    }
+
+    *pq = xive_source_esb_set(&xive->ipi_source, idx, *pq);
+    return 0;
+}
+
 static int pnv_xive2_get_end(Xive2Router *xrtr, uint8_t blk, uint32_t idx,
                              Xive2End *end)
 {
@@ -487,12 +515,12 @@ static PnvXive2 *pnv_xive2_tm_get_xive(PowerPCCPU *cpu)
  * source interrupt number before forwarding the source event
  * notification to the Router. This is required on a multichip system.
  */
-static void pnv_xive2_notify(XiveNotifier *xn, uint32_t srcno)
+static void pnv_xive2_notify(XiveNotifier *xn, uint32_t srcno, bool pq_checked)
 {
     PnvXive2 *xive = PNV_XIVE2(xn);
     uint8_t blk = pnv_xive2_block_id(xive);
 
-    xive2_router_notify(xn, XIVE_EAS(blk, srcno));
+    xive2_router_notify(xn, XIVE_EAS(blk, srcno), pq_checked);
 }
 
 /*
@@ -1381,7 +1409,8 @@ static void pnv_xive2_ic_hw_trigger(PnvXive2 *xive, hwaddr addr,
     blk = XIVE_EAS_BLOCK(val);
     idx = XIVE_EAS_INDEX(val);
 
-    xive2_router_notify(XIVE_NOTIFIER(xive), XIVE_EAS(blk, idx));
+    xive2_router_notify(XIVE_NOTIFIER(xive), XIVE_EAS(blk, idx),
+                         !!(val & XIVE_TRIGGER_PQ));
 }
 
 static void pnv_xive2_ic_notify_write(void *opaque, hwaddr offset,
@@ -1880,6 +1909,8 @@ static void pnv_xive2_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, pnv_xive2_properties);
 
     xrc->get_eas   = pnv_xive2_get_eas;
+    xrc->get_pq    = pnv_xive2_get_pq;
+    xrc->set_pq    = pnv_xive2_set_pq;
     xrc->get_end   = pnv_xive2_get_end;
     xrc->write_end = pnv_xive2_write_end;
     xrc->get_nvp   = pnv_xive2_get_nvp;
