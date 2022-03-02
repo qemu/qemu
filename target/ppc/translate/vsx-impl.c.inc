@@ -1704,6 +1704,46 @@ static bool trans_LXVKQ(DisasContext *ctx, arg_X_uim5 *a)
     return true;
 }
 
+static bool trans_XVTLSBB(DisasContext *ctx, arg_XX2_bf_xb *a)
+{
+    TCGv_i64 xb, t0, t1, all_true, all_false, mask, zero;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VSX(ctx);
+
+    xb = tcg_temp_new_i64();
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
+    all_true = tcg_temp_new_i64();
+    all_false = tcg_temp_new_i64();
+    mask = tcg_constant_i64(dup_const(MO_8, 1));
+    zero = tcg_constant_i64(0);
+
+    get_cpu_vsr(xb, a->xb, true);
+    tcg_gen_and_i64(t0, mask, xb);
+    get_cpu_vsr(xb, a->xb, false);
+    tcg_gen_and_i64(t1, mask, xb);
+
+    tcg_gen_or_i64(all_false, t0, t1);
+    tcg_gen_and_i64(all_true, t0, t1);
+
+    tcg_gen_setcond_i64(TCG_COND_EQ, all_false, all_false, zero);
+    tcg_gen_shli_i64(all_false, all_false, 1);
+    tcg_gen_setcond_i64(TCG_COND_EQ, all_true, all_true, mask);
+    tcg_gen_shli_i64(all_true, all_true, 3);
+
+    tcg_gen_or_i64(t0, all_false, all_true);
+    tcg_gen_extrl_i64_i32(cpu_crf[a->bf], t0);
+
+    tcg_temp_free_i64(xb);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(all_true);
+    tcg_temp_free_i64(all_false);
+
+    return true;
+}
+
 static void gen_xxsldwi(DisasContext *ctx)
 {
     TCGv_i64 xth, xtl;
