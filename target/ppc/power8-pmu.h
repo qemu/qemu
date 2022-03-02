@@ -13,11 +13,11 @@
 #ifndef POWER8_PMU
 #define POWER8_PMU
 
-void cpu_ppc_pmu_init(CPUPPCState *env);
-
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+void cpu_ppc_pmu_init(CPUPPCState *env);
 void pmu_update_summaries(CPUPPCState *env);
 #else
+static inline void cpu_ppc_pmu_init(CPUPPCState *env) { }
 static inline void pmu_update_summaries(CPUPPCState *env) { }
 #endif
 
