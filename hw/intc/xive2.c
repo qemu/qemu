@@ -20,6 +20,13 @@
 #include "hw/ppc/xive2.h"
 #include "hw/ppc/xive2_regs.h"
 
+uint32_t xive2_router_get_config(Xive2Router *xrtr)
+{
+    Xive2RouterClass *xrc = XIVE2_ROUTER_GET_CLASS(xrtr);
+
+    return xrc->get_config(xrtr);
+}
+
 void xive2_eas_pic_print_info(Xive2Eas *eas, uint32_t lisn, Monitor *mon)
 {
     if (!xive2_eas_is_valid(eas)) {
