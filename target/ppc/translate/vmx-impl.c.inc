@@ -834,6 +834,46 @@ TRANS_FLAGS(ALTIVEC, VSRAH, do_vector_gvec3_VX, MO_16, tcg_gen_gvec_sarv);
 TRANS_FLAGS(ALTIVEC, VSRAW, do_vector_gvec3_VX, MO_32, tcg_gen_gvec_sarv);
 TRANS_FLAGS2(ALTIVEC_207, VSRAD, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_sarv);
 
+static bool trans_VSLQ(DisasContext *ctx, arg_VX *a)
+{
+    TCGv_i64 hi, lo, t0, n, zero = tcg_constant_i64(0);
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    n = tcg_temp_new_i64();
+    hi = tcg_temp_new_i64();
+    lo = tcg_temp_new_i64();
+    t0 = tcg_temp_new_i64();
+
+    get_avr64(lo, a->vra, false);
+    get_avr64(hi, a->vra, true);
+
+    get_avr64(n, a->vrb, true);
+
+    tcg_gen_andi_i64(t0, n, 64);
+    tcg_gen_movcond_i64(TCG_COND_NE, hi, t0, zero, lo, hi);
+    tcg_gen_movcond_i64(TCG_COND_NE, lo, t0, zero, zero, lo);
+    tcg_gen_andi_i64(n, n, 0x3F);
+
+    tcg_gen_shl_i64(t0, lo, n);
+    set_avr64(a->vrt, t0, false);
+
+    tcg_gen_shl_i64(hi, hi, n);
+    tcg_gen_xori_i64(n, n, 63);
+    tcg_gen_shr_i64(lo, lo, n);
+    tcg_gen_shri_i64(lo, lo, 1);
+    tcg_gen_or_i64(hi, hi, lo);
+    set_avr64(a->vrt, hi, true);
+
+    tcg_temp_free_i64(hi);
+    tcg_temp_free_i64(lo);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(n);
+
+    return true;
+}
+
 #define GEN_VXFORM_SAT(NAME, VECE, NORM, SAT, OPC2, OPC3)               \
 static void glue(glue(gen_, NAME), _vec)(unsigned vece, TCGv_vec t,     \
                                          TCGv_vec sat, TCGv_vec a,      \
