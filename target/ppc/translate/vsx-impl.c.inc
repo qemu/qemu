@@ -309,7 +309,6 @@ static void gen_##name(DisasContext *ctx)                         \
     tcg_temp_free_i64(xth);                                       \
 }
 
-VSX_LOAD_SCALAR_DS(lxsd, ld64_i64)
 VSX_LOAD_SCALAR_DS(lxssp, ld32fs)
 
 #define VSX_STORE_SCALAR(name, operation)                     \
@@ -482,7 +481,6 @@ static void gen_##name(DisasContext *ctx)                         \
     tcg_temp_free_i64(xth);                                       \
 }
 
-VSX_STORE_SCALAR_DS(stxsd, st64_i64)
 VSX_STORE_SCALAR_DS(stxssp, st32fs)
 
 static void gen_mfvsrwz(DisasContext *ctx)
@@ -2298,6 +2296,57 @@ static bool do_lstxv_X(DisasContext *ctx, arg_X *a, bool store, bool paired)
     return do_lstxv(ctx, a->ra, cpu_gpr[a->rb], a->rt, store, paired);
 }
 
+static bool do_lstxsd(DisasContext *ctx, int rt, int ra, TCGv displ, bool store)
+{
+    TCGv ea;
+    TCGv_i64 xt;
+    MemOp mop;
+
+    if (store) {
+        REQUIRE_VECTOR(ctx);
+    } else {
+        REQUIRE_VSX(ctx);
+    }
+
+    xt = tcg_temp_new_i64();
+    mop = DEF_MEMOP(MO_UQ);
+
+    gen_set_access_type(ctx, ACCESS_INT);
+    ea = do_ea_calc(ctx, ra, displ);
+
+    if (store) {
+        get_cpu_vsr(xt, rt + 32, true);
+        tcg_gen_qemu_st_i64(xt, ea, ctx->mem_idx, mop);
+    } else {
+        tcg_gen_qemu_ld_i64(xt, ea, ctx->mem_idx, mop);
+        set_cpu_vsr(rt + 32, xt, true);
+        set_cpu_vsr(rt + 32, tcg_constant_i64(0), false);
+    }
+
+    tcg_temp_free(ea);
+    tcg_temp_free_i64(xt);
+
+    return true;
+}
+
+static bool do_lstxsd_DS(DisasContext *ctx, arg_D *a, bool store)
+{
+    return do_lstxsd(ctx, a->rt, a->ra, tcg_constant_tl(a->si), store);
+}
+
+static bool do_plstxsd_PLS_D(DisasContext *ctx, arg_PLS_D *a, bool store)
+{
+    arg_D d;
+
+    if (!resolve_PLS_D(ctx, &d, a)) {
+        return true;
+    }
+
+    return do_lstxsd(ctx, d.rt, d.ra, tcg_constant_tl(d.si), store);
+}
+
+TRANS_FLAGS2(ISA300, LXSD, do_lstxsd_DS, false)
+TRANS_FLAGS2(ISA300, STXSD, do_lstxsd_DS, true)
 TRANS_FLAGS2(ISA300, STXV, do_lstxv_D, true, false)
 TRANS_FLAGS2(ISA300, LXV, do_lstxv_D, false, false)
 TRANS_FLAGS2(ISA310, STXVP, do_lstxv_D, true, true)
@@ -2306,6 +2355,8 @@ TRANS_FLAGS2(ISA300, STXVX, do_lstxv_X, true, false)
 TRANS_FLAGS2(ISA300, LXVX, do_lstxv_X, false, false)
 TRANS_FLAGS2(ISA310, STXVPX, do_lstxv_X, true, true)
 TRANS_FLAGS2(ISA310, LXVPX, do_lstxv_X, false, true)
+TRANS64_FLAGS2(ISA310, PLXSD, do_plstxsd_PLS_D, false)
+TRANS64_FLAGS2(ISA310, PSTXSD, do_plstxsd_PLS_D, true)
 TRANS64_FLAGS2(ISA310, PSTXV, do_lstxv_PLS_D, true, false)
 TRANS64_FLAGS2(ISA310, PLXV, do_lstxv_PLS_D, false, false)
 TRANS64_FLAGS2(ISA310, PSTXVP, do_lstxv_PLS_D, true, true)
