@@ -471,6 +471,7 @@ VMULLD          000100 ..... ..... ..... 00111001001    @VX
 ## Vector Multiply-Sum Instructions
 
 VMSUMCUD        000100 ..... ..... ..... ..... 010111   @VA
+VMSUMUDM        000100 ..... ..... ..... ..... 100011   @VA
 
 # VSX Load/Store Instructions
 
