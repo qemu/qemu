@@ -1109,7 +1109,8 @@ static void do_vrlq_mask(TCGv_i64 mh, TCGv_i64 ml, TCGv_i64 b, TCGv_i64 e)
     tcg_temp_free_i64(t1);
 }
 
-static bool do_vector_rotl_quad(DisasContext *ctx, arg_VX *a, bool mask)
+static bool do_vector_rotl_quad(DisasContext *ctx, arg_VX *a, bool mask,
+                                bool insert)
 {
     TCGv_i64 ah, al, vrb, n, t0, t1, zero = tcg_constant_i64(0);
 
@@ -1146,7 +1147,7 @@ static bool do_vector_rotl_quad(DisasContext *ctx, arg_VX *a, bool mask)
     tcg_gen_shri_i64(ah, ah, 1);
     tcg_gen_or_i64(t1, ah, t1);
 
-    if (mask) {
+    if (mask || insert) {
         tcg_gen_shri_i64(n, vrb, 8);
         tcg_gen_shri_i64(vrb, vrb, 16);
         tcg_gen_andi_i64(n, n, 0x7f);
@@ -1156,6 +1157,17 @@ static bool do_vector_rotl_quad(DisasContext *ctx, arg_VX *a, bool mask)
 
         tcg_gen_and_i64(t0, t0, ah);
         tcg_gen_and_i64(t1, t1, al);
+
+        if (insert) {
+            get_avr64(n, a->vrt, true);
+            get_avr64(vrb, a->vrt, false);
+            tcg_gen_not_i64(ah, ah);
+            tcg_gen_not_i64(al, al);
+            tcg_gen_and_i64(n, n, ah);
+            tcg_gen_and_i64(vrb, vrb, al);
+            tcg_gen_or_i64(t0, t0, n);
+            tcg_gen_or_i64(t1, t1, vrb);
+        }
     }
 
     set_avr64(a->vrt, t0, true);
@@ -1171,8 +1183,9 @@ static bool do_vector_rotl_quad(DisasContext *ctx, arg_VX *a, bool mask)
     return true;
 }
 
-TRANS(VRLQ, do_vector_rotl_quad, false)
-TRANS(VRLQNM, do_vector_rotl_quad, true)
+TRANS(VRLQ, do_vector_rotl_quad, false, false)
+TRANS(VRLQNM, do_vector_rotl_quad, true, false)
+TRANS(VRLQMI, do_vector_rotl_quad, false, true)
 
 #define GEN_VXFORM_SAT(NAME, VECE, NORM, SAT, OPC2, OPC3)               \
 static void glue(glue(gen_, NAME), _vec)(unsigned vece, TCGv_vec t,     \
