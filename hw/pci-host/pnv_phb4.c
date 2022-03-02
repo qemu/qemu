@@ -485,6 +485,15 @@ static void pnv_phb4_update_xsrc(PnvPHB4 *phb)
         flags = 0;
     }
 
+    /*
+     * When the PQ disable configuration bit is set, the check on the
+     * PQ state bits is disabled on the PHB side (for MSI only) and it
+     * is performed on the IC side instead.
+     */
+    if (phb->regs[PHB_CTRLR >> 3] & PHB_CTRLR_IRQ_PQ_DISABLE) {
+        flags |= XIVE_SRC_PQ_DISABLE;
+    }
+
     phb->xsrc.esb_shift = shift;
     phb->xsrc.esb_flags = flags;
 

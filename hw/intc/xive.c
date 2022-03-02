@@ -887,6 +887,16 @@ static bool xive_source_lsi_trigger(XiveSource *xsrc, uint32_t srcno)
 }
 
 /*
+ * Sources can be configured with PQ offloading in which case the check
+ * on the PQ state bits of MSIs is disabled
+ */
+static bool xive_source_esb_disabled(XiveSource *xsrc, uint32_t srcno)
+{
+    return (xsrc->esb_flags & XIVE_SRC_PQ_DISABLE) &&
+        !xive_source_irq_is_lsi(xsrc, srcno);
+}
+
+/*
  * Returns whether the event notification should be forwarded.
  */
 static bool xive_source_esb_trigger(XiveSource *xsrc, uint32_t srcno)
@@ -894,6 +904,10 @@ static bool xive_source_esb_trigger(XiveSource *xsrc, uint32_t srcno)
     bool ret;
 
     assert(srcno < xsrc->nr_irqs);
+
+    if (xive_source_esb_disabled(xsrc, srcno)) {
+        return true;
+    }
 
     ret = xive_esb_trigger(&xsrc->status[srcno]);
 
@@ -914,6 +928,11 @@ static bool xive_source_esb_eoi(XiveSource *xsrc, uint32_t srcno)
     bool ret;
 
     assert(srcno < xsrc->nr_irqs);
+
+    if (xive_source_esb_disabled(xsrc, srcno)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid EOI for IRQ %d\n", srcno);
+        return false;
+    }
 
     ret = xive_esb_eoi(&xsrc->status[srcno]);
 
@@ -936,9 +955,10 @@ static bool xive_source_esb_eoi(XiveSource *xsrc, uint32_t srcno)
 static void xive_source_notify(XiveSource *xsrc, int srcno)
 {
     XiveNotifierClass *xnc = XIVE_NOTIFIER_GET_CLASS(xsrc->xive);
+    bool pq_checked = !xive_source_esb_disabled(xsrc, srcno);
 
     if (xnc->notify) {
-        xnc->notify(xsrc->xive, srcno, true);
+        xnc->notify(xsrc->xive, srcno, pq_checked);
     }
 }
 
