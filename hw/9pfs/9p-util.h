@@ -118,8 +118,8 @@ static inline off_t qemu_dirent_off(struct dirent *dent)
  * Duplicate directory entry @dent.
  *
  * It is highly recommended to use this function instead of open coding
- * duplication of @c dirent objects, because the actual @c struct @c dirent
- * size may be bigger or shorter than @c sizeof(struct dirent) and correct
+ * duplication of dirent objects, because the actual struct dirent
+ * size may be bigger or shorter than sizeof(struct dirent) and correct
  * handling is platform specific (see gitlab issue #841).
  *
  * @dent - original directory entry to be duplicated
