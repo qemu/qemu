@@ -431,12 +431,14 @@ int spapr_numa_write_assoc_lookup_arrays(SpaprMachineState *spapr, void *fdt,
     int max_distance_ref_points = get_max_dist_ref_points(spapr);
     int nb_numa_nodes = machine->numa_state->num_nodes;
     int nr_nodes = nb_numa_nodes ? nb_numa_nodes : 1;
-    uint32_t *int_buf, *cur_index, buf_len;
-    int ret, i;
+    g_autofree uint32_t *int_buf = NULL;
+    uint32_t *cur_index;
+    int i;
 
     /* ibm,associativity-lookup-arrays */
-    buf_len = (nr_nodes * max_distance_ref_points + 2) * sizeof(uint32_t);
-    cur_index = int_buf = g_malloc0(buf_len);
+    int_buf = g_malloc0((nr_nodes * max_distance_ref_points + 2) *
+                        sizeof(uint32_t));
+    cur_index = int_buf;
     int_buf[0] = cpu_to_be32(nr_nodes);
      /* Number of entries per associativity list */
     int_buf[1] = cpu_to_be32(max_distance_ref_points);
@@ -451,11 +453,9 @@ int spapr_numa_write_assoc_lookup_arrays(SpaprMachineState *spapr, void *fdt,
                sizeof(uint32_t) * max_distance_ref_points);
         cur_index += max_distance_ref_points;
     }
-    ret = fdt_setprop(fdt, offset, "ibm,associativity-lookup-arrays", int_buf,
-                      (cur_index - int_buf) * sizeof(uint32_t));
-    g_free(int_buf);
 
-    return ret;
+    return fdt_setprop(fdt, offset, "ibm,associativity-lookup-arrays",
+                       int_buf, (cur_index - int_buf) * sizeof(uint32_t));
 }
 
 static void spapr_numa_FORM1_write_rtas_dt(SpaprMachineState *spapr,

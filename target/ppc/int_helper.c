@@ -28,6 +28,7 @@
 #include "fpu/softfloat.h"
 #include "qapi/error.h"
 #include "qemu/guest-random.h"
+#include "tcg/tcg-gvec-desc.h"
 
 #include "helper_regs.h"
 /*****************************************************************************/
@@ -662,100 +663,18 @@ VCF(ux, uint32_to_float32, u32)
 VCF(sx, int32_to_float32, s32)
 #undef VCF
 
-#define VCMP_DO(suffix, compare, element, record)                       \
-    void helper_vcmp##suffix(CPUPPCState *env, ppc_avr_t *r,            \
-                             ppc_avr_t *a, ppc_avr_t *b)                \
-    {                                                                   \
-        uint64_t ones = (uint64_t)-1;                                   \
-        uint64_t all = ones;                                            \
-        uint64_t none = 0;                                              \
-        int i;                                                          \
-                                                                        \
-        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-            uint64_t result = (a->element[i] compare b->element[i] ?    \
-                               ones : 0x0);                             \
-            switch (sizeof(a->element[0])) {                            \
-            case 8:                                                     \
-                r->u64[i] = result;                                     \
-                break;                                                  \
-            case 4:                                                     \
-                r->u32[i] = result;                                     \
-                break;                                                  \
-            case 2:                                                     \
-                r->u16[i] = result;                                     \
-                break;                                                  \
-            case 1:                                                     \
-                r->u8[i] = result;                                      \
-                break;                                                  \
-            }                                                           \
-            all &= result;                                              \
-            none |= result;                                             \
-        }                                                               \
-        if (record) {                                                   \
-            env->crf[6] = ((all != 0) << 3) | ((none == 0) << 1);       \
-        }                                                               \
-    }
-#define VCMP(suffix, compare, element)          \
-    VCMP_DO(suffix, compare, element, 0)        \
-    VCMP_DO(suffix##_dot, compare, element, 1)
-VCMP(equb, ==, u8)
-VCMP(equh, ==, u16)
-VCMP(equw, ==, u32)
-VCMP(equd, ==, u64)
-VCMP(gtub, >, u8)
-VCMP(gtuh, >, u16)
-VCMP(gtuw, >, u32)
-VCMP(gtud, >, u64)
-VCMP(gtsb, >, s8)
-VCMP(gtsh, >, s16)
-VCMP(gtsw, >, s32)
-VCMP(gtsd, >, s64)
-#undef VCMP_DO
-#undef VCMP
-
-#define VCMPNE_DO(suffix, element, etype, cmpzero, record)              \
-void helper_vcmpne##suffix(CPUPPCState *env, ppc_avr_t *r,              \
-                            ppc_avr_t *a, ppc_avr_t *b)                 \
-{                                                                       \
-    etype ones = (etype)-1;                                             \
-    etype all = ones;                                                   \
-    etype result, none = 0;                                             \
-    int i;                                                              \
-                                                                        \
-    for (i = 0; i < ARRAY_SIZE(r->element); i++) {                      \
-        if (cmpzero) {                                                  \
-            result = ((a->element[i] == 0)                              \
-                           || (b->element[i] == 0)                      \
-                           || (a->element[i] != b->element[i]) ?        \
-                           ones : 0x0);                                 \
-        } else {                                                        \
-            result = (a->element[i] != b->element[i]) ? ones : 0x0;     \
-        }                                                               \
-        r->element[i] = result;                                         \
-        all &= result;                                                  \
-        none |= result;                                                 \
-    }                                                                   \
-    if (record) {                                                       \
-        env->crf[6] = ((all != 0) << 3) | ((none == 0) << 1);           \
-    }                                                                   \
+#define VCMPNEZ(NAME, ELEM) \
+void helper_##NAME(ppc_vsr_t *t, ppc_vsr_t *a, ppc_vsr_t *b, uint32_t desc) \
+{                                                                           \
+    for (int i = 0; i < ARRAY_SIZE(t->ELEM); i++) {                         \
+        t->ELEM[i] = ((a->ELEM[i] == 0) || (b->ELEM[i] == 0) ||             \
+                      (a->ELEM[i] != b->ELEM[i])) ? -1 : 0;                 \
+    }                                                                       \
 }
-
-/*
- * VCMPNEZ - Vector compare not equal to zero
- *   suffix  - instruction mnemonic suffix (b: byte, h: halfword, w: word)
- *   element - element type to access from vector
- */
-#define VCMPNE(suffix, element, etype, cmpzero)         \
-    VCMPNE_DO(suffix, element, etype, cmpzero, 0)       \
-    VCMPNE_DO(suffix##_dot, element, etype, cmpzero, 1)
-VCMPNE(zb, u8, uint8_t, 1)
-VCMPNE(zh, u16, uint16_t, 1)
-VCMPNE(zw, u32, uint32_t, 1)
-VCMPNE(b, u8, uint8_t, 0)
-VCMPNE(h, u16, uint16_t, 0)
-VCMPNE(w, u32, uint32_t, 0)
-#undef VCMPNE_DO
-#undef VCMPNE
+VCMPNEZ(VCMPNEZB, u8)
+VCMPNEZ(VCMPNEZH, u16)
+VCMPNEZ(VCMPNEZW, u32)
+#undef VCMPNEZ
 
 #define VCMPFP_DO(suffix, compare, order, record)                       \
     void helper_vcmp##suffix(CPUPPCState *env, ppc_avr_t *r,            \
@@ -1063,7 +982,7 @@ void helper_vmsumuhs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
 }
 
 #define VMUL_DO_EVN(name, mul_element, mul_access, prod_access, cast)   \
-    void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
+    void helper_V##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
     {                                                                   \
         int i;                                                          \
                                                                         \
@@ -1074,7 +993,7 @@ void helper_vmsumuhs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
     }
 
 #define VMUL_DO_ODD(name, mul_element, mul_access, prod_access, cast)   \
-    void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
+    void helper_V##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
     {                                                                   \
         int i;                                                          \
                                                                         \
@@ -1085,55 +1004,39 @@ void helper_vmsumuhs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
     }
 
 #define VMUL(suffix, mul_element, mul_access, prod_access, cast)       \
-    VMUL_DO_EVN(mule##suffix, mul_element, mul_access, prod_access, cast)  \
-    VMUL_DO_ODD(mulo##suffix, mul_element, mul_access, prod_access, cast)
-VMUL(sb, s8, VsrSB, VsrSH, int16_t)
-VMUL(sh, s16, VsrSH, VsrSW, int32_t)
-VMUL(sw, s32, VsrSW, VsrSD, int64_t)
-VMUL(ub, u8, VsrB, VsrH, uint16_t)
-VMUL(uh, u16, VsrH, VsrW, uint32_t)
-VMUL(uw, u32, VsrW, VsrD, uint64_t)
+    VMUL_DO_EVN(MULE##suffix, mul_element, mul_access, prod_access, cast)  \
+    VMUL_DO_ODD(MULO##suffix, mul_element, mul_access, prod_access, cast)
+VMUL(SB, s8, VsrSB, VsrSH, int16_t)
+VMUL(SH, s16, VsrSH, VsrSW, int32_t)
+VMUL(SW, s32, VsrSW, VsrSD, int64_t)
+VMUL(UB, u8, VsrB, VsrH, uint16_t)
+VMUL(UH, u16, VsrH, VsrW, uint32_t)
+VMUL(UW, u32, VsrW, VsrD, uint64_t)
 #undef VMUL_DO_EVN
 #undef VMUL_DO_ODD
 #undef VMUL
 
-void helper_vmulhsw(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+void helper_XXPERMX(ppc_vsr_t *t, ppc_vsr_t *s0, ppc_vsr_t *s1, ppc_vsr_t *pcv,
+                    target_ulong uim)
 {
-    int i;
+    int i, idx;
+    ppc_vsr_t tmp = { .u64 = {0, 0} };
 
-    for (i = 0; i < 4; i++) {
-        r->s32[i] = (int32_t)(((int64_t)a->s32[i] * (int64_t)b->s32[i]) >> 32);
+    for (i = 0; i < ARRAY_SIZE(t->u8); i++) {
+        if ((pcv->VsrB(i) >> 5) == uim) {
+            idx = pcv->VsrB(i) & 0x1f;
+            if (idx < ARRAY_SIZE(t->u8)) {
+                tmp.VsrB(i) = s0->VsrB(idx);
+            } else {
+                tmp.VsrB(i) = s1->VsrB(idx - ARRAY_SIZE(t->u8));
+            }
+        }
     }
+
+    *t = tmp;
 }
 
-void helper_vmulhuw(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
-{
-    int i;
-
-    for (i = 0; i < 4; i++) {
-        r->u32[i] = (uint32_t)(((uint64_t)a->u32[i] *
-                               (uint64_t)b->u32[i]) >> 32);
-    }
-}
-
-void helper_vmulhsd(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
-{
-    uint64_t discard;
-
-    muls64(&discard, &r->u64[0], a->s64[0], b->s64[0]);
-    muls64(&discard, &r->u64[1], a->s64[1], b->s64[1]);
-}
-
-void helper_vmulhud(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
-{
-    uint64_t discard;
-
-    mulu64(&discard, &r->u64[0], a->u64[0], b->u64[0]);
-    mulu64(&discard, &r->u64[1], a->u64[1], b->u64[1]);
-}
-
-void helper_vperm(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
-                  ppc_avr_t *c)
+void helper_VPERM(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
     ppc_avr_t result;
     int i;
@@ -1151,8 +1054,7 @@ void helper_vperm(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
     *r = result;
 }
 
-void helper_vpermr(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
-                  ppc_avr_t *c)
+void helper_VPERMR(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
     ppc_avr_t result;
     int i;
@@ -1169,6 +1071,97 @@ void helper_vpermr(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
     }
     *r = result;
 }
+
+#define XXGENPCV(NAME, SZ) \
+void glue(helper_, glue(NAME, _be_exp))(ppc_vsr_t *t, ppc_vsr_t *b) \
+{                                                                   \
+    ppc_vsr_t tmp;                                                  \
+                                                                    \
+    /* Initialize tmp with the result of an all-zeros mask */       \
+    tmp.VsrD(0) = 0x1011121314151617;                               \
+    tmp.VsrD(1) = 0x18191A1B1C1D1E1F;                               \
+                                                                    \
+    /* Iterate over the most significant byte of each element */    \
+    for (int i = 0, j = 0; i < ARRAY_SIZE(b->u8); i += SZ) {        \
+        if (b->VsrB(i) & 0x80) {                                    \
+            /* Update each byte of the element */                   \
+            for (int k = 0; k < SZ; k++) {                          \
+                tmp.VsrB(i + k) = j + k;                            \
+            }                                                       \
+            j += SZ;                                                \
+        }                                                           \
+    }                                                               \
+                                                                    \
+    *t = tmp;                                                       \
+}                                                                   \
+                                                                    \
+void glue(helper_, glue(NAME, _be_comp))(ppc_vsr_t *t, ppc_vsr_t *b)\
+{                                                                   \
+    ppc_vsr_t tmp = { .u64 = { 0, 0 } };                            \
+                                                                    \
+    /* Iterate over the most significant byte of each element */    \
+    for (int i = 0, j = 0; i < ARRAY_SIZE(b->u8); i += SZ) {        \
+        if (b->VsrB(i) & 0x80) {                                    \
+            /* Update each byte of the element */                   \
+            for (int k = 0; k < SZ; k++) {                          \
+                tmp.VsrB(j + k) = i + k;                            \
+            }                                                       \
+            j += SZ;                                                \
+        }                                                           \
+    }                                                               \
+                                                                    \
+    *t = tmp;                                                       \
+}                                                                   \
+                                                                    \
+void glue(helper_, glue(NAME, _le_exp))(ppc_vsr_t *t, ppc_vsr_t *b) \
+{                                                                   \
+    ppc_vsr_t tmp;                                                  \
+                                                                    \
+    /* Initialize tmp with the result of an all-zeros mask */       \
+    tmp.VsrD(0) = 0x1F1E1D1C1B1A1918;                               \
+    tmp.VsrD(1) = 0x1716151413121110;                               \
+                                                                    \
+    /* Iterate over the most significant byte of each element */    \
+    for (int i = 0, j = 0; i < ARRAY_SIZE(b->u8); i += SZ) {        \
+        /* Reverse indexing of "i" */                               \
+        const int idx = ARRAY_SIZE(b->u8) - i - SZ;                 \
+        if (b->VsrB(idx) & 0x80) {                                  \
+            /* Update each byte of the element */                   \
+            for (int k = 0, rk = SZ - 1; k < SZ; k++, rk--) {       \
+                tmp.VsrB(idx + rk) = j + k;                         \
+            }                                                       \
+            j += SZ;                                                \
+        }                                                           \
+    }                                                               \
+                                                                    \
+    *t = tmp;                                                       \
+}                                                                   \
+                                                                    \
+void glue(helper_, glue(NAME, _le_comp))(ppc_vsr_t *t, ppc_vsr_t *b)\
+{                                                                   \
+    ppc_vsr_t tmp = { .u64 = { 0, 0 } };                            \
+                                                                    \
+    /* Iterate over the most significant byte of each element */    \
+    for (int i = 0, j = 0; i < ARRAY_SIZE(b->u8); i += SZ) {        \
+        if (b->VsrB(ARRAY_SIZE(b->u8) - i - SZ) & 0x80) {           \
+            /* Update each byte of the element */                   \
+            for (int k = 0, rk = SZ - 1; k < SZ; k++, rk--) {       \
+                /* Reverse indexing of "j" */                       \
+                const int idx = ARRAY_SIZE(b->u8) - j - SZ;         \
+                tmp.VsrB(idx + rk) = i + k;                         \
+            }                                                       \
+            j += SZ;                                                \
+        }                                                           \
+    }                                                               \
+                                                                    \
+    *t = tmp;                                                       \
+}
+
+XXGENPCV(XXGENPCVBM, 1)
+XXGENPCV(XXGENPCVHM, 2)
+XXGENPCV(XXGENPCVWM, 4)
+XXGENPCV(XXGENPCVDM, 8)
+#undef XXGENPCV
 
 #if defined(HOST_WORDS_BIGENDIAN)
 #define VBPERMQ_INDEX(avr, i) ((avr)->u8[(i)])
@@ -1392,40 +1385,33 @@ void helper_vrsqrtefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
     }
 }
 
-#define VRLMI(name, size, element, insert)                            \
-void helper_##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)          \
-{                                                                     \
-    int i;                                                            \
-    for (i = 0; i < ARRAY_SIZE(r->element); i++) {                    \
-        uint##size##_t src1 = a->element[i];                          \
-        uint##size##_t src2 = b->element[i];                          \
-        uint##size##_t src3 = r->element[i];                          \
-        uint##size##_t begin, end, shift, mask, rot_val;              \
-                                                                      \
-        shift = extract##size(src2, 0, 6);                            \
-        end   = extract##size(src2, 8, 6);                            \
-        begin = extract##size(src2, 16, 6);                           \
-        rot_val = rol##size(src1, shift);                             \
-        mask = mask_u##size(begin, end);                              \
-        if (insert) {                                                 \
-            r->element[i] = (rot_val & mask) | (src3 & ~mask);        \
-        } else {                                                      \
-            r->element[i] = (rot_val & mask);                         \
-        }                                                             \
-    }                                                                 \
+#define VRLMI(name, size, element, insert)                                  \
+void helper_##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t desc) \
+{                                                                           \
+    int i;                                                                  \
+    for (i = 0; i < ARRAY_SIZE(r->element); i++) {                          \
+        uint##size##_t src1 = a->element[i];                                \
+        uint##size##_t src2 = b->element[i];                                \
+        uint##size##_t src3 = r->element[i];                                \
+        uint##size##_t begin, end, shift, mask, rot_val;                    \
+                                                                            \
+        shift = extract##size(src2, 0, 6);                                  \
+        end   = extract##size(src2, 8, 6);                                  \
+        begin = extract##size(src2, 16, 6);                                 \
+        rot_val = rol##size(src1, shift);                                   \
+        mask = mask_u##size(begin, end);                                    \
+        if (insert) {                                                       \
+            r->element[i] = (rot_val & mask) | (src3 & ~mask);              \
+        } else {                                                            \
+            r->element[i] = (rot_val & mask);                               \
+        }                                                                   \
+    }                                                                       \
 }
 
-VRLMI(vrldmi, 64, u64, 1);
-VRLMI(vrlwmi, 32, u32, 1);
-VRLMI(vrldnm, 64, u64, 0);
-VRLMI(vrlwnm, 32, u32, 0);
-
-void helper_vsel(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
-                 ppc_avr_t *c)
-{
-    r->u64[0] = (a->u64[0] & ~c->u64[0]) | (b->u64[0] & c->u64[0]);
-    r->u64[1] = (a->u64[1] & ~c->u64[1]) | (b->u64[1] & c->u64[1]);
-}
+VRLMI(VRLDMI, 64, u64, 1);
+VRLMI(VRLWMI, 32, u32, 1);
+VRLMI(VRLDNM, 64, u64, 0);
+VRLMI(VRLWNM, 32, u32, 0);
 
 void helper_vexptefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
 {
@@ -1619,6 +1605,34 @@ VEXTRACT(uw, u32)
 VEXTRACT(d, u64)
 #undef VEXTRACT
 
+#define VSTRI(NAME, ELEM, NUM_ELEMS, LEFT) \
+uint32_t helper_##NAME(ppc_avr_t *t, ppc_avr_t *b) \
+{                                                   \
+    int i, idx, crf = 0;                            \
+                                                    \
+    for (i = 0; i < NUM_ELEMS; i++) {               \
+        idx = LEFT ? i : NUM_ELEMS - i - 1;         \
+        if (b->Vsr##ELEM(idx)) {                    \
+            t->Vsr##ELEM(idx) = b->Vsr##ELEM(idx);  \
+        } else {                                    \
+            crf = 0b0010;                           \
+            break;                                  \
+        }                                           \
+    }                                               \
+                                                    \
+    for (; i < NUM_ELEMS; i++) {                    \
+        idx = LEFT ? i : NUM_ELEMS - i - 1;         \
+        t->Vsr##ELEM(idx) = 0;                      \
+    }                                               \
+                                                    \
+    return crf;                                     \
+}
+VSTRI(VSTRIBL, B, 16, true)
+VSTRI(VSTRIBR, B, 16, false)
+VSTRI(VSTRIHL, H, 8, true)
+VSTRI(VSTRIHR, H, 8, false)
+#undef VSTRI
+
 void helper_xxextractuw(CPUPPCState *env, ppc_vsr_t *xt,
                         ppc_vsr_t *xb, uint32_t index)
 {
@@ -1650,6 +1664,47 @@ void helper_xxinsertw(CPUPPCState *env, ppc_vsr_t *xt,
     *xt = t;
 }
 
+void helper_XXEVAL(ppc_avr_t *t, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c,
+                   uint32_t desc)
+{
+    /*
+     * Instead of processing imm bit-by-bit, we'll skip the computation of
+     * conjunctions whose corresponding bit is unset.
+     */
+    int bit, imm = simd_data(desc);
+    Int128 conj, disj = int128_zero();
+
+    /* Iterate over set bits from the least to the most significant bit */
+    while (imm) {
+        /*
+         * Get the next bit to be processed with ctz64. Invert the result of
+         * ctz64 to match the indexing used by PowerISA.
+         */
+        bit = 7 - ctzl(imm);
+        if (bit & 0x4) {
+            conj = a->s128;
+        } else {
+            conj = int128_not(a->s128);
+        }
+        if (bit & 0x2) {
+            conj = int128_and(conj, b->s128);
+        } else {
+            conj = int128_and(conj, int128_not(b->s128));
+        }
+        if (bit & 0x1) {
+            conj = int128_and(conj, c->s128);
+        } else {
+            conj = int128_and(conj, int128_not(c->s128));
+        }
+        disj = int128_or(disj, conj);
+
+        /* Unset the least significant bit that is set */
+        imm &= imm - 1;
+    }
+
+    t->s128 = disj;
+}
+
 #define XXBLEND(name, sz) \
 void glue(helper_XXBLENDV, name)(ppc_avr_t *t, ppc_avr_t *a, ppc_avr_t *b,  \
                                  ppc_avr_t *c, uint32_t desc)               \
@@ -1664,21 +1719,6 @@ XXBLEND(H, 16)
 XXBLEND(W, 32)
 XXBLEND(D, 64)
 #undef XXBLEND
-
-#define VEXT_SIGNED(name, element, cast)                            \
-void helper_##name(ppc_avr_t *r, ppc_avr_t *b)                      \
-{                                                                   \
-    int i;                                                          \
-    for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-        r->element[i] = (cast)b->element[i];                        \
-    }                                                               \
-}
-VEXT_SIGNED(vextsb2w, s32, int8_t)
-VEXT_SIGNED(vextsb2d, s64, int8_t)
-VEXT_SIGNED(vextsh2w, s32, int16_t)
-VEXT_SIGNED(vextsh2d, s64, int16_t)
-VEXT_SIGNED(vextsw2d, s64, int32_t)
-#undef VEXT_SIGNED
 
 #define VNEG(name, element)                                         \
 void helper_##name(ppc_avr_t *r, ppc_avr_t *b)                      \

@@ -279,30 +279,29 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
 
     switch (parameter) {
     case RTAS_SYSPARM_SPLPAR_CHARACTERISTICS: {
-        char *param_val = g_strdup_printf("MaxEntCap=%d,"
-                                          "DesMem=%" PRIu64 ","
-                                          "DesProcs=%d,"
-                                          "MaxPlatProcs=%d",
-                                          ms->smp.max_cpus,
-                                          ms->ram_size / MiB,
-                                          ms->smp.cpus,
-                                          ms->smp.max_cpus);
+        g_autofree char *param_val = g_strdup_printf("MaxEntCap=%d,"
+                                                     "DesMem=%" PRIu64 ","
+                                                     "DesProcs=%d,"
+                                                     "MaxPlatProcs=%d",
+                                                     ms->smp.max_cpus,
+                                                     ms->ram_size / MiB,
+                                                     ms->smp.cpus,
+                                                     ms->smp.max_cpus);
         if (pcc->n_host_threads > 0) {
-            char *hostthr_val, *old = param_val;
-
             /*
              * Add HostThrs property. This property is not present in PAPR but
              * is expected by some guests to communicate the number of physical
              * host threads per core on the system so that they can scale
              * information which varies based on the thread configuration.
              */
-            hostthr_val = g_strdup_printf(",HostThrs=%d", pcc->n_host_threads);
+            g_autofree char *hostthr_val = g_strdup_printf(",HostThrs=%d",
+                                                           pcc->n_host_threads);
+            char *old = param_val;
+
             param_val = g_strconcat(param_val, hostthr_val, NULL);
-            g_free(hostthr_val);
             g_free(old);
         }
         ret = sysparm_st(buffer, length, param_val, strlen(param_val) + 1);
-        g_free(param_val);
         break;
     }
     case RTAS_SYSPARM_DIAGNOSTICS_RUN_MODE: {

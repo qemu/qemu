@@ -332,6 +332,69 @@ static const TypeInfo pnv_homer_power9_type_info = {
     .class_init    = pnv_homer_power9_class_init,
 };
 
+static uint64_t pnv_homer_power10_pba_read(void *opaque, hwaddr addr,
+                                          unsigned size)
+{
+    PnvHomer *homer = PNV_HOMER(opaque);
+    PnvChip *chip = homer->chip;
+    uint32_t reg = addr >> 3;
+    uint64_t val = 0;
+
+    switch (reg) {
+    case PBA_BAR0:
+        val = PNV10_HOMER_BASE(chip);
+        break;
+    case PBA_BARMASK0: /* P10 homer region mask */
+        val = (PNV10_HOMER_SIZE - 1) & 0x300000;
+        break;
+    case PBA_BAR2: /* P10 occ common area */
+        val = PNV10_OCC_COMMON_AREA_BASE;
+        break;
+    case PBA_BARMASK2: /* P10 occ common area size */
+        val = (PNV10_OCC_COMMON_AREA_SIZE - 1) & 0x700000;
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "PBA: read to unimplemented register: Ox%"
+                      HWADDR_PRIx "\n", addr >> 3);
+    }
+    return val;
+}
+
+static void pnv_homer_power10_pba_write(void *opaque, hwaddr addr,
+                                         uint64_t val, unsigned size)
+{
+    qemu_log_mask(LOG_UNIMP, "PBA: write to unimplemented register: Ox%"
+                  HWADDR_PRIx "\n", addr >> 3);
+}
+
+static const MemoryRegionOps pnv_homer_power10_pba_ops = {
+    .read = pnv_homer_power10_pba_read,
+    .write = pnv_homer_power10_pba_write,
+    .valid.min_access_size = 8,
+    .valid.max_access_size = 8,
+    .impl.min_access_size = 8,
+    .impl.max_access_size = 8,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
+static void pnv_homer_power10_class_init(ObjectClass *klass, void *data)
+{
+    PnvHomerClass *homer = PNV_HOMER_CLASS(klass);
+
+    homer->pba_size = PNV10_XSCOM_PBA_SIZE;
+    homer->pba_ops = &pnv_homer_power10_pba_ops;
+    homer->homer_size = PNV10_HOMER_SIZE;
+    homer->homer_ops = &pnv_power9_homer_ops; /* TODO */
+    homer->core_max_base = PNV9_CORE_MAX_BASE;
+}
+
+static const TypeInfo pnv_homer_power10_type_info = {
+    .name          = TYPE_PNV10_HOMER,
+    .parent        = TYPE_PNV_HOMER,
+    .instance_size = sizeof(PnvHomer),
+    .class_init    = pnv_homer_power10_class_init,
+};
+
 static void pnv_homer_realize(DeviceState *dev, Error **errp)
 {
     PnvHomer *homer = PNV_HOMER(dev);
@@ -377,6 +440,7 @@ static void pnv_homer_register_types(void)
     type_register_static(&pnv_homer_type_info);
     type_register_static(&pnv_homer_power8_type_info);
     type_register_static(&pnv_homer_power9_type_info);
+    type_register_static(&pnv_homer_power10_type_info);
 }
 
 type_init(pnv_homer_register_types);
