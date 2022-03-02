@@ -1812,9 +1812,29 @@ static const TypeInfo pnv_phb4_root_port_info = {
     .class_init    = pnv_phb4_root_port_class_init,
 };
 
+static void pnv_phb5_root_port_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    dc->desc     = "IBM PHB5 PCIE Root Port";
+    dc->user_creatable = true;
+
+    k->vendor_id = PCI_VENDOR_ID_IBM;
+    k->device_id = PNV_PHB5_DEVICE_ID;
+}
+
+static const TypeInfo pnv_phb5_root_port_info = {
+    .name          = TYPE_PNV_PHB5_ROOT_PORT,
+    .parent        = TYPE_PNV_PHB4_ROOT_PORT,
+    .instance_size = sizeof(PnvPHB4RootPort),
+    .class_init    = pnv_phb5_root_port_class_init,
+};
+
 static void pnv_phb4_register_types(void)
 {
     type_register_static(&pnv_phb4_root_bus_info);
+    type_register_static(&pnv_phb5_root_port_info);
     type_register_static(&pnv_phb4_root_port_info);
     type_register_static(&pnv_phb4_type_info);
     type_register_static(&pnv_phb4_iommu_memory_region_info);
