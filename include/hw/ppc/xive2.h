@@ -56,6 +56,15 @@ int xive2_router_write_nvp(Xive2Router *xrtr, uint8_t nvp_blk, uint32_t nvp_idx,
 void xive2_router_notify(XiveNotifier *xn, uint32_t lisn);
 
 /*
+ * XIVE2 Presenter (POWER10)
+ */
+
+int xive2_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
+                               uint8_t format,
+                               uint8_t nvt_blk, uint32_t nvt_idx,
+                               bool cam_ignore, uint32_t logic_serv);
+
+/*
  * XIVE2 END ESBs  (POWER10)
  */
 
