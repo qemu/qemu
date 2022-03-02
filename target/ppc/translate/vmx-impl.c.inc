@@ -1940,7 +1940,7 @@ TRANS(VSTRIBR, do_vstri, gen_helper_VSTRIBR)
 TRANS(VSTRIHL, do_vstri, gen_helper_VSTRIHL)
 TRANS(VSTRIHR, do_vstri, gen_helper_VSTRIHR)
 
-static bool trans_VCLRLB(DisasContext *ctx, arg_VX *a)
+static bool do_vclrb(DisasContext *ctx, arg_VX *a, bool right)
 {
     TCGv_i64 rb, mh, ml, tmp,
              ones = tcg_constant_i64(-1),
@@ -1954,15 +1954,28 @@ static bool trans_VCLRLB(DisasContext *ctx, arg_VX *a)
     tcg_gen_extu_tl_i64(rb, cpu_gpr[a->vrb]);
     tcg_gen_andi_i64(tmp, rb, 7);
     tcg_gen_shli_i64(tmp, tmp, 3);
-    tcg_gen_shl_i64(tmp, ones, tmp);
+    if (right) {
+        tcg_gen_shr_i64(tmp, ones, tmp);
+    } else {
+        tcg_gen_shl_i64(tmp, ones, tmp);
+    }
     tcg_gen_not_i64(tmp, tmp);
 
-    tcg_gen_movcond_i64(TCG_COND_LTU, ml, rb, tcg_constant_i64(8),
-                        tmp, ones);
-    tcg_gen_movcond_i64(TCG_COND_LTU, mh, rb, tcg_constant_i64(8),
-                        zero, tmp);
-    tcg_gen_movcond_i64(TCG_COND_LTU, mh, rb, tcg_constant_i64(16),
-                        mh, ones);
+    if (right) {
+        tcg_gen_movcond_i64(TCG_COND_LTU, mh, rb, tcg_constant_i64(8),
+                            tmp, ones);
+        tcg_gen_movcond_i64(TCG_COND_LTU, ml, rb, tcg_constant_i64(8),
+                            zero, tmp);
+        tcg_gen_movcond_i64(TCG_COND_LTU, ml, rb, tcg_constant_i64(16),
+                            ml, ones);
+    } else {
+        tcg_gen_movcond_i64(TCG_COND_LTU, ml, rb, tcg_constant_i64(8),
+                            tmp, ones);
+        tcg_gen_movcond_i64(TCG_COND_LTU, mh, rb, tcg_constant_i64(8),
+                            zero, tmp);
+        tcg_gen_movcond_i64(TCG_COND_LTU, mh, rb, tcg_constant_i64(16),
+                            mh, ones);
+    }
 
     get_avr64(tmp, a->vra, true);
     tcg_gen_and_i64(tmp, tmp, mh);
@@ -1979,6 +1992,9 @@ static bool trans_VCLRLB(DisasContext *ctx, arg_VX *a)
 
     return true;
 }
+
+TRANS(VCLRLB, do_vclrb, false)
+TRANS(VCLRRB, do_vclrb, true)
 
 #define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
 static void glue(gen_, name0##_##name1)(DisasContext *ctx)              \
