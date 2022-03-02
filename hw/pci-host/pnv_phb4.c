@@ -1568,40 +1568,36 @@ static PnvPhb4PecState *pnv_phb4_get_pec(PnvChip *chip, PnvPHB4 *phb,
 static void pnv_phb4_realize(DeviceState *dev, Error **errp)
 {
     PnvPHB4 *phb = PNV_PHB4(dev);
+    PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
+    PnvChip *chip = pnv_get_chip(pnv, phb->chip_id);
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
     XiveSource *xsrc = &phb->xsrc;
+    BusState *s;
     Error *local_err = NULL;
     int nr_irqs;
     char name[32];
 
-    /* User created PHB */
+    if (!chip) {
+        error_setg(errp, "invalid chip id: %d", phb->chip_id);
+        return;
+    }
+
+    /* User created PHBs need to be assigned to a PEC */
     if (!phb->pec) {
-        PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
-        PnvChip *chip = pnv_get_chip(pnv, phb->chip_id);
-        BusState *s;
-
-        if (!chip) {
-            error_setg(errp, "invalid chip id: %d", phb->chip_id);
-            return;
-        }
-
         phb->pec = pnv_phb4_get_pec(chip, phb, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
         }
+    }
 
-        /*
-         * Reparent user created devices to the chip to build
-         * correctly the device tree.
-         */
-        pnv_chip_parent_fixup(chip, OBJECT(phb), phb->phb_id);
+    /* Reparent the PHB to the chip to build the device tree */
+    pnv_chip_parent_fixup(chip, OBJECT(phb), phb->phb_id);
 
-        s = qdev_get_parent_bus(DEVICE(chip));
-        if (!qdev_set_parent_bus(DEVICE(phb), s, &local_err)) {
-            error_propagate(errp, local_err);
-            return;
-        }
+    s = qdev_get_parent_bus(DEVICE(chip));
+    if (!qdev_set_parent_bus(DEVICE(phb), s, &local_err)) {
+        error_propagate(errp, local_err);
+        return;
     }
 
     /* Set the "big_phb" flag */
