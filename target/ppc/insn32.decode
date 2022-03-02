@@ -51,6 +51,9 @@
 &VA             vrt vra vrb rc
 @VA             ...... vrt:5 vra:5 vrb:5 rc:5 ......    &VA
 
+&VC             vrt vra vrb rc:bool
+@VC             ...... vrt:5 vra:5 vrb:5 rc:1 ..........        &VC
+
 &VN             vrt vra vrb sh
 @VN             ...... vrt:5 vra:5 vrb:5 .. sh:3 ......         &VN
 
@@ -372,6 +375,27 @@ DSCLIQ          111111 ..... ..... ...... 001000010 .   @Z22_tap_sh_rc
 
 DSCRI           111011 ..... ..... ...... 001100010 .   @Z22_ta_sh_rc
 DSCRIQ          111111 ..... ..... ...... 001100010 .   @Z22_tap_sh_rc
+
+## Vector Integer Instructions
+
+VCMPEQUB        000100 ..... ..... ..... . 0000000110   @VC
+VCMPEQUH        000100 ..... ..... ..... . 0001000110   @VC
+VCMPEQUW        000100 ..... ..... ..... . 0010000110   @VC
+VCMPEQUD        000100 ..... ..... ..... . 0011000111   @VC
+
+VCMPGTSB        000100 ..... ..... ..... . 1100000110   @VC
+VCMPGTSH        000100 ..... ..... ..... . 1101000110   @VC
+VCMPGTSW        000100 ..... ..... ..... . 1110000110   @VC
+VCMPGTSD        000100 ..... ..... ..... . 1111000111   @VC
+
+VCMPGTUB        000100 ..... ..... ..... . 1000000110   @VC
+VCMPGTUH        000100 ..... ..... ..... . 1001000110   @VC
+VCMPGTUW        000100 ..... ..... ..... . 1010000110   @VC
+VCMPGTUD        000100 ..... ..... ..... . 1011000111   @VC
+
+VCMPNEB         000100 ..... ..... ..... . 0000000111   @VC
+VCMPNEH         000100 ..... ..... ..... . 0001000111   @VC
+VCMPNEW         000100 ..... ..... ..... . 0010000111   @VC
 
 ## Vector Bit Manipulation Instruction
 

@@ -985,41 +985,74 @@ static void glue(gen_, name0##_##name1)(DisasContext *ctx)             \
     }                                                                  \
 }
 
-GEN_VXRFORM(vcmpequb, 3, 0)
-GEN_VXRFORM(vcmpequh, 3, 1)
-GEN_VXRFORM(vcmpequw, 3, 2)
-GEN_VXRFORM(vcmpequd, 3, 3)
 GEN_VXRFORM(vcmpnezb, 3, 4)
 GEN_VXRFORM(vcmpnezh, 3, 5)
 GEN_VXRFORM(vcmpnezw, 3, 6)
-GEN_VXRFORM(vcmpgtsb, 3, 12)
-GEN_VXRFORM(vcmpgtsh, 3, 13)
-GEN_VXRFORM(vcmpgtsw, 3, 14)
-GEN_VXRFORM(vcmpgtsd, 3, 15)
-GEN_VXRFORM(vcmpgtub, 3, 8)
-GEN_VXRFORM(vcmpgtuh, 3, 9)
-GEN_VXRFORM(vcmpgtuw, 3, 10)
-GEN_VXRFORM(vcmpgtud, 3, 11)
+
+static void do_vcmp_rc(int vrt)
+{
+    TCGv_i64 tmp, set, clr;
+
+    tmp = tcg_temp_new_i64();
+    set = tcg_temp_new_i64();
+    clr = tcg_temp_new_i64();
+
+    get_avr64(tmp, vrt, true);
+    tcg_gen_mov_i64(set, tmp);
+    get_avr64(tmp, vrt, false);
+    tcg_gen_or_i64(clr, set, tmp);
+    tcg_gen_and_i64(set, set, tmp);
+
+    tcg_gen_setcondi_i64(TCG_COND_EQ, clr, clr, 0);
+    tcg_gen_shli_i64(clr, clr, 1);
+
+    tcg_gen_setcondi_i64(TCG_COND_EQ, set, set, -1);
+    tcg_gen_shli_i64(set, set, 3);
+
+    tcg_gen_or_i64(tmp, set, clr);
+    tcg_gen_extrl_i64_i32(cpu_crf[6], tmp);
+
+    tcg_temp_free_i64(tmp);
+    tcg_temp_free_i64(set);
+    tcg_temp_free_i64(clr);
+}
+
+static bool do_vcmp(DisasContext *ctx, arg_VC *a, TCGCond cond, int vece)
+{
+    REQUIRE_VECTOR(ctx);
+
+    tcg_gen_gvec_cmp(cond, vece, avr_full_offset(a->vrt),
+                     avr_full_offset(a->vra), avr_full_offset(a->vrb), 16, 16);
+
+    if (a->rc) {
+        do_vcmp_rc(a->vrt);
+    }
+
+    return true;
+}
+
+TRANS_FLAGS(ALTIVEC, VCMPEQUB, do_vcmp, TCG_COND_EQ, MO_8)
+TRANS_FLAGS(ALTIVEC, VCMPEQUH, do_vcmp, TCG_COND_EQ, MO_16)
+TRANS_FLAGS(ALTIVEC, VCMPEQUW, do_vcmp, TCG_COND_EQ, MO_32)
+TRANS_FLAGS2(ALTIVEC_207, VCMPEQUD, do_vcmp, TCG_COND_EQ, MO_64)
+
+TRANS_FLAGS(ALTIVEC, VCMPGTSB, do_vcmp, TCG_COND_GT, MO_8)
+TRANS_FLAGS(ALTIVEC, VCMPGTSH, do_vcmp, TCG_COND_GT, MO_16)
+TRANS_FLAGS(ALTIVEC, VCMPGTSW, do_vcmp, TCG_COND_GT, MO_32)
+TRANS_FLAGS2(ALTIVEC_207, VCMPGTSD, do_vcmp, TCG_COND_GT, MO_64)
+TRANS_FLAGS(ALTIVEC, VCMPGTUB, do_vcmp, TCG_COND_GTU, MO_8)
+TRANS_FLAGS(ALTIVEC, VCMPGTUH, do_vcmp, TCG_COND_GTU, MO_16)
+TRANS_FLAGS(ALTIVEC, VCMPGTUW, do_vcmp, TCG_COND_GTU, MO_32)
+TRANS_FLAGS2(ALTIVEC_207, VCMPGTUD, do_vcmp, TCG_COND_GTU, MO_64)
+
+TRANS_FLAGS2(ISA300, VCMPNEB, do_vcmp, TCG_COND_NE, MO_8)
+TRANS_FLAGS2(ISA300, VCMPNEH, do_vcmp, TCG_COND_NE, MO_16)
+TRANS_FLAGS2(ISA300, VCMPNEW, do_vcmp, TCG_COND_NE, MO_32)
+
 GEN_VXRFORM(vcmpeqfp, 3, 3)
 GEN_VXRFORM(vcmpgefp, 3, 7)
 GEN_VXRFORM(vcmpgtfp, 3, 11)
 GEN_VXRFORM(vcmpbfp, 3, 15)
-GEN_VXRFORM(vcmpneb, 3, 0)
-GEN_VXRFORM(vcmpneh, 3, 1)
-GEN_VXRFORM(vcmpnew, 3, 2)
-
-GEN_VXRFORM_DUAL(vcmpequb, PPC_ALTIVEC, PPC_NONE, \
-                 vcmpneb, PPC_NONE, PPC2_ISA300)
-GEN_VXRFORM_DUAL(vcmpequh, PPC_ALTIVEC, PPC_NONE, \
-                 vcmpneh, PPC_NONE, PPC2_ISA300)
-GEN_VXRFORM_DUAL(vcmpequw, PPC_ALTIVEC, PPC_NONE, \
-                 vcmpnew, PPC_NONE, PPC2_ISA300)
-GEN_VXRFORM_DUAL(vcmpeqfp, PPC_ALTIVEC, PPC_NONE, \
-                 vcmpequd, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXRFORM_DUAL(vcmpbfp, PPC_ALTIVEC, PPC_NONE, \
-                 vcmpgtsd, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXRFORM_DUAL(vcmpgtfp, PPC_ALTIVEC, PPC_NONE, \
-                 vcmpgtud, PPC_NONE, PPC2_ALTIVEC_207)
 
 static void gen_vsplti(DisasContext *ctx, int vece)
 {
