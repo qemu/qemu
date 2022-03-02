@@ -419,6 +419,14 @@ VINSWVRX        000100 ..... ..... ..... 00110001111    @VX
 VSLDBI          000100 ..... ..... ..... 00 ... 010110  @VN
 VSRDBI          000100 ..... ..... ..... 01 ... 010110  @VN
 
+## Vector Integer Arithmetic Instructions
+
+VEXTSB2W        000100 ..... 10000 ..... 11000000010    @VX_tb
+VEXTSH2W        000100 ..... 10001 ..... 11000000010    @VX_tb
+VEXTSB2D        000100 ..... 11000 ..... 11000000010    @VX_tb
+VEXTSH2D        000100 ..... 11001 ..... 11000000010    @VX_tb
+VEXTSW2D        000100 ..... 11010 ..... 11000000010    @VX_tb
+
 ## Vector Mask Manipulation Instructions
 
 MTVSRBM         000100 ..... 10000 ..... 11001000010    @VX_tb

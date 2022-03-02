@@ -1772,11 +1772,59 @@ GEN_VXFORM_TRANS(vclzw, 1, 30)
 GEN_VXFORM_TRANS(vclzd, 1, 31)
 GEN_VXFORM_NOA_2(vnegw, 1, 24, 6)
 GEN_VXFORM_NOA_2(vnegd, 1, 24, 7)
-GEN_VXFORM_NOA_2(vextsb2w, 1, 24, 16)
-GEN_VXFORM_NOA_2(vextsh2w, 1, 24, 17)
-GEN_VXFORM_NOA_2(vextsb2d, 1, 24, 24)
-GEN_VXFORM_NOA_2(vextsh2d, 1, 24, 25)
-GEN_VXFORM_NOA_2(vextsw2d, 1, 24, 26)
+
+static void gen_vexts_i64(TCGv_i64 t, TCGv_i64 b, int64_t s)
+{
+    tcg_gen_sextract_i64(t, b, 0, 64 - s);
+}
+
+static void gen_vexts_i32(TCGv_i32 t, TCGv_i32 b, int32_t s)
+{
+    tcg_gen_sextract_i32(t, b, 0, 32 - s);
+}
+
+static void gen_vexts_vec(unsigned vece, TCGv_vec t, TCGv_vec b, int64_t s)
+{
+    tcg_gen_shli_vec(vece, t, b, s);
+    tcg_gen_sari_vec(vece, t, t, s);
+}
+
+static bool do_vexts(DisasContext *ctx, arg_VX_tb *a, unsigned vece, int64_t s)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_shli_vec, INDEX_op_sari_vec, 0
+    };
+
+    static const GVecGen2i op[2] = {
+        {
+            .fni4 = gen_vexts_i32,
+            .fniv = gen_vexts_vec,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fni8 = gen_vexts_i64,
+            .fniv = gen_vexts_vec,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_VECTOR(ctx);
+
+    tcg_gen_gvec_2i(avr_full_offset(a->vrt), avr_full_offset(a->vrb),
+                    16, 16, s, &op[vece - MO_32]);
+
+    return true;
+}
+
+TRANS(VEXTSB2W, do_vexts, MO_32, 24);
+TRANS(VEXTSH2W, do_vexts, MO_32, 16);
+TRANS(VEXTSB2D, do_vexts, MO_64, 56);
+TRANS(VEXTSH2D, do_vexts, MO_64, 48);
+TRANS(VEXTSW2D, do_vexts, MO_64, 32);
+
 GEN_VXFORM_NOA_2(vctzb, 1, 24, 28)
 GEN_VXFORM_NOA_2(vctzh, 1, 24, 29)
 GEN_VXFORM_NOA_2(vctzw, 1, 24, 30)
