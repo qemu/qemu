@@ -1582,6 +1582,7 @@ static void pnv_chip_power10_instance_init(Object *obj)
                               "xive-fabric");
     object_initialize_child(obj, "psi", &chip10->psi, TYPE_PNV10_PSI);
     object_initialize_child(obj, "lpc", &chip10->lpc, TYPE_PNV10_LPC);
+    object_initialize_child(obj, "occ",  &chip10->occ, TYPE_PNV10_OCC);
 }
 
 static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
@@ -1647,6 +1648,15 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
     chip->fw_mr = &chip10->lpc.isa_fw;
     chip->dt_isa_nodename = g_strdup_printf("/lpcm-opb@%" PRIx64 "/lpc@0",
                                             (uint64_t) PNV10_LPCM_BASE(chip));
+
+    /* Create the simplified OCC model */
+    object_property_set_link(OBJECT(&chip10->occ), "psi", OBJECT(&chip10->psi),
+                             &error_abort);
+    if (!qdev_realize(DEVICE(&chip10->occ), NULL, errp)) {
+        return;
+    }
+    pnv_xscom_add_subregion(chip, PNV10_XSCOM_OCC_BASE,
+                            &chip10->occ.xscom_regs);
 }
 
 static uint32_t pnv_chip_power10_xscom_pcba(PnvChip *chip, uint64_t addr)

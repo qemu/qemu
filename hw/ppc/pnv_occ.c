@@ -236,7 +236,9 @@ static const MemoryRegionOps pnv_occ_power9_xscom_ops = {
 static void pnv_occ_power9_class_init(ObjectClass *klass, void *data)
 {
     PnvOCCClass *poc = PNV_OCC_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->desc = "PowerNV OCC Controller (POWER9)";
     poc->xscom_size = PNV9_XSCOM_OCC_SIZE;
     poc->xscom_ops = &pnv_occ_power9_xscom_ops;
     poc->psi_irq = PSIHB9_IRQ_OCC;
@@ -247,6 +249,19 @@ static const TypeInfo pnv_occ_power9_type_info = {
     .parent        = TYPE_PNV_OCC,
     .instance_size = sizeof(PnvOCC),
     .class_init    = pnv_occ_power9_class_init,
+};
+
+static void pnv_occ_power10_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->desc = "PowerNV OCC Controller (POWER10)";
+}
+
+static const TypeInfo pnv_occ_power10_type_info = {
+    .name          = TYPE_PNV10_OCC,
+    .parent        = TYPE_PNV9_OCC,
+    .class_init    = pnv_occ_power10_class_init,
 };
 
 static void pnv_occ_realize(DeviceState *dev, Error **errp)
@@ -297,6 +312,7 @@ static void pnv_occ_register_types(void)
     type_register_static(&pnv_occ_type_info);
     type_register_static(&pnv_occ_power8_type_info);
     type_register_static(&pnv_occ_power9_type_info);
+    type_register_static(&pnv_occ_power10_type_info);
 }
 
 type_init(pnv_occ_register_types);
