@@ -799,7 +799,6 @@ static void trans_vclzd(DisasContext *ctx)
 }
 
 GEN_VXFORM_V(vmuluwm, MO_32, tcg_gen_gvec_mul, 4, 2);
-GEN_VXFORM(vrlwnm, 2, 6);
 GEN_VXFORM(vsrv, 2, 28);
 GEN_VXFORM(vslv, 2, 29);
 GEN_VXFORM(vslo, 6, 16);
@@ -838,6 +837,152 @@ TRANS_FLAGS(ALTIVEC, VRLB, do_vector_gvec3_VX, MO_8, tcg_gen_gvec_rotlv)
 TRANS_FLAGS(ALTIVEC, VRLH, do_vector_gvec3_VX, MO_16, tcg_gen_gvec_rotlv)
 TRANS_FLAGS(ALTIVEC, VRLW, do_vector_gvec3_VX, MO_32, tcg_gen_gvec_rotlv)
 TRANS_FLAGS2(ALTIVEC_207, VRLD, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_rotlv)
+
+static TCGv_vec do_vrl_mask_vec(unsigned vece, TCGv_vec vrb)
+{
+    TCGv_vec t0 = tcg_temp_new_vec_matching(vrb),
+             t1 = tcg_temp_new_vec_matching(vrb),
+             t2 = tcg_temp_new_vec_matching(vrb),
+             ones = tcg_constant_vec_matching(vrb, vece, -1);
+
+    /* Extract b and e */
+    tcg_gen_dupi_vec(vece, t2, (8 << vece) - 1);
+
+    tcg_gen_shri_vec(vece, t0, vrb, 16);
+    tcg_gen_and_vec(vece, t0, t0, t2);
+
+    tcg_gen_shri_vec(vece, t1, vrb, 8);
+    tcg_gen_and_vec(vece, t1, t1, t2);
+
+    /* Compare b and e to negate the mask where begin > end */
+    tcg_gen_cmp_vec(TCG_COND_GT, vece, t2, t0, t1);
+
+    /* Create the mask with (~0 >> b) ^ ((~0 >> e) >> 1) */
+    tcg_gen_shrv_vec(vece, t0, ones, t0);
+    tcg_gen_shrv_vec(vece, t1, ones, t1);
+    tcg_gen_shri_vec(vece, t1, t1, 1);
+    tcg_gen_xor_vec(vece, t0, t0, t1);
+
+    /* negate the mask */
+    tcg_gen_xor_vec(vece, t0, t0, t2);
+
+    tcg_temp_free_vec(t1);
+    tcg_temp_free_vec(t2);
+
+    return t0;
+}
+
+static void gen_vrlnm_vec(unsigned vece, TCGv_vec vrt, TCGv_vec vra,
+                          TCGv_vec vrb)
+{
+    TCGv_vec mask, n = tcg_temp_new_vec_matching(vrt);
+
+    /* Create the mask */
+    mask = do_vrl_mask_vec(vece, vrb);
+
+    /* Extract n */
+    tcg_gen_dupi_vec(vece, n, (8 << vece) - 1);
+    tcg_gen_and_vec(vece, n, vrb, n);
+
+    /* Rotate and mask */
+    tcg_gen_rotlv_vec(vece, vrt, vra, n);
+    tcg_gen_and_vec(vece, vrt, vrt, mask);
+
+    tcg_temp_free_vec(n);
+    tcg_temp_free_vec(mask);
+}
+
+static bool do_vrlnm(DisasContext *ctx, arg_VX *a, int vece)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_cmp_vec, INDEX_op_rotlv_vec, INDEX_op_sari_vec,
+        INDEX_op_shli_vec, INDEX_op_shri_vec, INDEX_op_shrv_vec, 0
+    };
+    static const GVecGen3 ops[2] = {
+        {
+            .fniv = gen_vrlnm_vec,
+            .fno = gen_helper_VRLWNM,
+            .opt_opc = vecop_list,
+            .load_dest = true,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vrlnm_vec,
+            .fno = gen_helper_VRLDNM,
+            .opt_opc = vecop_list,
+            .load_dest = true,
+            .vece = MO_64
+        }
+    };
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_VSX(ctx);
+
+    tcg_gen_gvec_3(avr_full_offset(a->vrt), avr_full_offset(a->vra),
+                   avr_full_offset(a->vrb), 16, 16, &ops[vece - 2]);
+
+    return true;
+}
+
+TRANS(VRLWNM, do_vrlnm, MO_32)
+TRANS(VRLDNM, do_vrlnm, MO_64)
+
+static void gen_vrlmi_vec(unsigned vece, TCGv_vec vrt, TCGv_vec vra,
+                          TCGv_vec vrb)
+{
+    TCGv_vec mask, n = tcg_temp_new_vec_matching(vrt),
+             tmp = tcg_temp_new_vec_matching(vrt);
+
+    /* Create the mask */
+    mask = do_vrl_mask_vec(vece, vrb);
+
+    /* Extract n */
+    tcg_gen_dupi_vec(vece, n, (8 << vece) - 1);
+    tcg_gen_and_vec(vece, n, vrb, n);
+
+    /* Rotate and insert */
+    tcg_gen_rotlv_vec(vece, tmp, vra, n);
+    tcg_gen_bitsel_vec(vece, vrt, mask, tmp, vrt);
+
+    tcg_temp_free_vec(n);
+    tcg_temp_free_vec(tmp);
+    tcg_temp_free_vec(mask);
+}
+
+static bool do_vrlmi(DisasContext *ctx, arg_VX *a, int vece)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_cmp_vec, INDEX_op_rotlv_vec, INDEX_op_sari_vec,
+        INDEX_op_shli_vec, INDEX_op_shri_vec, INDEX_op_shrv_vec, 0
+    };
+    static const GVecGen3 ops[2] = {
+        {
+            .fniv = gen_vrlmi_vec,
+            .fno = gen_helper_VRLWMI,
+            .opt_opc = vecop_list,
+            .load_dest = true,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vrlnm_vec,
+            .fno = gen_helper_VRLDMI,
+            .opt_opc = vecop_list,
+            .load_dest = true,
+            .vece = MO_64
+        }
+    };
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_VSX(ctx);
+
+    tcg_gen_gvec_3(avr_full_offset(a->vrt), avr_full_offset(a->vra),
+                   avr_full_offset(a->vrb), 16, 16, &ops[vece - 2]);
+
+    return true;
+}
+
+TRANS(VRLWMI, do_vrlmi, MO_32)
+TRANS(VRLDMI, do_vrlmi, MO_64)
 
 static bool do_vector_shift_quad(DisasContext *ctx, arg_VX *a, bool right,
                                  bool alg)
@@ -975,12 +1120,7 @@ GEN_VXFORM3(vsubeuqm, 31, 0);
 GEN_VXFORM3(vsubecuq, 31, 0);
 GEN_VXFORM_DUAL(vsubeuqm, PPC_NONE, PPC2_ALTIVEC_207, \
             vsubecuq, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXFORM(vrlwmi, 2, 2);
-GEN_VXFORM(vrldmi, 2, 3);
 GEN_VXFORM_TRANS(vsl, 2, 7);
-GEN_VXFORM(vrldnm, 2, 7);
-GEN_VXFORM_DUAL(vsl, PPC_ALTIVEC, PPC_NONE, \
-                vrldnm, PPC_NONE, PPC2_ISA300)
 GEN_VXFORM_TRANS(vsr, 2, 11);
 GEN_VXFORM_ENV(vpkuhum, 7, 0);
 GEN_VXFORM_ENV(vpkuwum, 7, 1);
