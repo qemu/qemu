@@ -2167,6 +2167,226 @@ TRANS64_FLAGS2(ISA310, PLXV, do_lstxv_PLS_D, false, false)
 TRANS64_FLAGS2(ISA310, PSTXVP, do_lstxv_PLS_D, true, true)
 TRANS64_FLAGS2(ISA310, PLXVP, do_lstxv_PLS_D, false, true)
 
+static void gen_xxeval_i64(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b, TCGv_i64 c,
+                           int64_t imm)
+{
+    /*
+     * Instead of processing imm bit-by-bit, we'll skip the computation of
+     * conjunctions whose corresponding bit is unset.
+     */
+    int bit;
+    TCGv_i64 conj, disj;
+
+    conj = tcg_temp_new_i64();
+    disj = tcg_const_i64(0);
+
+    /* Iterate over set bits from the least to the most significant bit */
+    while (imm) {
+        /*
+         * Get the next bit to be processed with ctz64. Invert the result of
+         * ctz64 to match the indexing used by PowerISA.
+         */
+        bit = 7 - ctz64(imm);
+        if (bit & 0x4) {
+            tcg_gen_mov_i64(conj, a);
+        } else {
+            tcg_gen_not_i64(conj, a);
+        }
+        if (bit & 0x2) {
+            tcg_gen_and_i64(conj, conj, b);
+        } else {
+            tcg_gen_andc_i64(conj, conj, b);
+        }
+        if (bit & 0x1) {
+            tcg_gen_and_i64(conj, conj, c);
+        } else {
+            tcg_gen_andc_i64(conj, conj, c);
+        }
+        tcg_gen_or_i64(disj, disj, conj);
+
+        /* Unset the least significant bit that is set */
+        imm &= imm - 1;
+    }
+
+    tcg_gen_mov_i64(t, disj);
+
+    tcg_temp_free_i64(conj);
+    tcg_temp_free_i64(disj);
+}
+
+static void gen_xxeval_vec(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b,
+                           TCGv_vec c, int64_t imm)
+{
+    /*
+     * Instead of processing imm bit-by-bit, we'll skip the computation of
+     * conjunctions whose corresponding bit is unset.
+     */
+    int bit;
+    TCGv_vec disj, conj;
+
+    disj = tcg_const_zeros_vec_matching(t);
+    conj = tcg_temp_new_vec_matching(t);
+
+    /* Iterate over set bits from the least to the most significant bit */
+    while (imm) {
+        /*
+         * Get the next bit to be processed with ctz64. Invert the result of
+         * ctz64 to match the indexing used by PowerISA.
+         */
+        bit = 7 - ctz64(imm);
+        if (bit & 0x4) {
+            tcg_gen_mov_vec(conj, a);
+        } else {
+            tcg_gen_not_vec(vece, conj, a);
+        }
+        if (bit & 0x2) {
+            tcg_gen_and_vec(vece, conj, conj, b);
+        } else {
+            tcg_gen_andc_vec(vece, conj, conj, b);
+        }
+        if (bit & 0x1) {
+            tcg_gen_and_vec(vece, conj, conj, c);
+        } else {
+            tcg_gen_andc_vec(vece, conj, conj, c);
+        }
+        tcg_gen_or_vec(vece, disj, disj, conj);
+
+        /* Unset the least significant bit that is set */
+        imm &= imm - 1;
+    }
+
+    tcg_gen_mov_vec(t, disj);
+
+    tcg_temp_free_vec(disj);
+    tcg_temp_free_vec(conj);
+}
+
+static bool trans_XXEVAL(DisasContext *ctx, arg_8RR_XX4_imm *a)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_andc_vec, 0
+    };
+    static const GVecGen4i op = {
+        .fniv = gen_xxeval_vec,
+        .fno = gen_helper_XXEVAL,
+        .fni8 = gen_xxeval_i64,
+        .opt_opc = vecop_list,
+        .vece = MO_64
+    };
+    int xt = vsr_full_offset(a->xt), xa = vsr_full_offset(a->xa),
+        xb = vsr_full_offset(a->xb), xc = vsr_full_offset(a->xc);
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VSX(ctx);
+
+    /* Equivalent functions that can be implemented with a single gen_gvec */
+    switch (a->imm) {
+    case 0b00000000: /* true */
+        set_cpu_vsr(a->xt, tcg_constant_i64(0), true);
+        set_cpu_vsr(a->xt, tcg_constant_i64(0), false);
+        break;
+    case 0b00000011: /* and(B,A) */
+        tcg_gen_gvec_and(MO_64, xt, xb, xa, 16, 16);
+        break;
+    case 0b00000101: /* and(C,A) */
+        tcg_gen_gvec_and(MO_64, xt, xc, xa, 16, 16);
+        break;
+    case 0b00001111: /* A */
+        tcg_gen_gvec_mov(MO_64, xt, xa, 16, 16);
+        break;
+    case 0b00010001: /* and(C,B) */
+        tcg_gen_gvec_and(MO_64, xt, xc, xb, 16, 16);
+        break;
+    case 0b00011011: /* C?B:A */
+        tcg_gen_gvec_bitsel(MO_64, xt, xc, xb, xa, 16, 16);
+        break;
+    case 0b00011101: /* B?C:A */
+        tcg_gen_gvec_bitsel(MO_64, xt, xb, xc, xa, 16, 16);
+        break;
+    case 0b00100111: /* C?A:B */
+        tcg_gen_gvec_bitsel(MO_64, xt, xc, xa, xb, 16, 16);
+        break;
+    case 0b00110011: /* B */
+        tcg_gen_gvec_mov(MO_64, xt, xb, 16, 16);
+        break;
+    case 0b00110101: /* A?C:B */
+        tcg_gen_gvec_bitsel(MO_64, xt, xa, xc, xb, 16, 16);
+        break;
+    case 0b00111100: /* xor(B,A) */
+        tcg_gen_gvec_xor(MO_64, xt, xb, xa, 16, 16);
+        break;
+    case 0b00111111: /* or(B,A) */
+        tcg_gen_gvec_or(MO_64, xt, xb, xa, 16, 16);
+        break;
+    case 0b01000111: /* B?A:C */
+        tcg_gen_gvec_bitsel(MO_64, xt, xb, xa, xc, 16, 16);
+        break;
+    case 0b01010011: /* A?B:C */
+        tcg_gen_gvec_bitsel(MO_64, xt, xa, xb, xc, 16, 16);
+        break;
+    case 0b01010101: /* C */
+        tcg_gen_gvec_mov(MO_64, xt, xc, 16, 16);
+        break;
+    case 0b01011010: /* xor(C,A) */
+        tcg_gen_gvec_xor(MO_64, xt, xc, xa, 16, 16);
+        break;
+    case 0b01011111: /* or(C,A) */
+        tcg_gen_gvec_or(MO_64, xt, xc, xa, 16, 16);
+        break;
+    case 0b01100110: /* xor(C,B) */
+        tcg_gen_gvec_xor(MO_64, xt, xc, xb, 16, 16);
+        break;
+    case 0b01110111: /* or(C,B) */
+        tcg_gen_gvec_or(MO_64, xt, xc, xb, 16, 16);
+        break;
+    case 0b10001000: /* nor(C,B) */
+        tcg_gen_gvec_nor(MO_64, xt, xc, xb, 16, 16);
+        break;
+    case 0b10011001: /* eqv(C,B) */
+        tcg_gen_gvec_eqv(MO_64, xt, xc, xb, 16, 16);
+        break;
+    case 0b10100000: /* nor(C,A) */
+        tcg_gen_gvec_nor(MO_64, xt, xc, xa, 16, 16);
+        break;
+    case 0b10100101: /* eqv(C,A) */
+        tcg_gen_gvec_eqv(MO_64, xt, xc, xa, 16, 16);
+        break;
+    case 0b10101010: /* not(C) */
+        tcg_gen_gvec_not(MO_64, xt, xc, 16, 16);
+        break;
+    case 0b11000000: /* nor(B,A) */
+        tcg_gen_gvec_nor(MO_64, xt,  xb, xa, 16, 16);
+        break;
+    case 0b11000011: /* eqv(B,A) */
+        tcg_gen_gvec_eqv(MO_64, xt,  xb, xa, 16, 16);
+        break;
+    case 0b11001100: /* not(B) */
+        tcg_gen_gvec_not(MO_64, xt, xb, 16, 16);
+        break;
+    case 0b11101110: /* nand(C,B) */
+        tcg_gen_gvec_nand(MO_64, xt, xc, xb, 16, 16);
+        break;
+    case 0b11110000: /* not(A) */
+        tcg_gen_gvec_not(MO_64, xt, xa, 16, 16);
+        break;
+    case 0b11111010: /* nand(C,A) */
+        tcg_gen_gvec_nand(MO_64, xt, xc, xa, 16, 16);
+        break;
+    case 0b11111100: /* nand(B,A) */
+        tcg_gen_gvec_nand(MO_64, xt, xb, xa, 16, 16);
+        break;
+    case 0b11111111: /* true */
+        set_cpu_vsr(a->xt, tcg_constant_i64(-1), true);
+        set_cpu_vsr(a->xt, tcg_constant_i64(-1), false);
+        break;
+    default:
+        /* Fallback to compute all conjunctions/disjunctions */
+        tcg_gen_gvec_4i(xt, xa, xb, xc, 16, 16, a->imm, &op);
+    }
+
+    return true;
+}
+
 static void gen_xxblendv_vec(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b,
                              TCGv_vec c)
 {
