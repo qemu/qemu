@@ -1107,6 +1107,42 @@ TRANS(VCMPNEZB, do_vcmpnez, MO_8)
 TRANS(VCMPNEZH, do_vcmpnez, MO_16)
 TRANS(VCMPNEZW, do_vcmpnez, MO_32)
 
+static bool trans_VCMPEQUQ(DisasContext *ctx, arg_VC *a)
+{
+    TCGv_i64 t0, t1, t2;
+
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
+    t2 = tcg_temp_new_i64();
+
+    get_avr64(t0, a->vra, true);
+    get_avr64(t1, a->vrb, true);
+    tcg_gen_xor_i64(t2, t0, t1);
+
+    get_avr64(t0, a->vra, false);
+    get_avr64(t1, a->vrb, false);
+    tcg_gen_xor_i64(t1, t0, t1);
+
+    tcg_gen_or_i64(t1, t1, t2);
+    tcg_gen_setcondi_i64(TCG_COND_EQ, t1, t1, 0);
+    tcg_gen_neg_i64(t1, t1);
+
+    set_avr64(a->vrt, t1, true);
+    set_avr64(a->vrt, t1, false);
+
+    if (a->rc) {
+        tcg_gen_extrl_i64_i32(cpu_crf[6], t1);
+        tcg_gen_andi_i32(cpu_crf[6], cpu_crf[6], 0xa);
+        tcg_gen_xori_i32(cpu_crf[6], cpu_crf[6], 0x2);
+    }
+
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t2);
+
+    return true;
+}
+
 GEN_VXRFORM(vcmpeqfp, 3, 3)
 GEN_VXRFORM(vcmpgefp, 3, 7)
 GEN_VXRFORM(vcmpgtfp, 3, 11)
