@@ -2265,54 +2265,48 @@ VSX_MADDQ(XSNMSUBQP, NMSUB_FLGS, 0)
 VSX_MADDQ(XSNMSUBQPO, NMSUB_FLGS, 0)
 
 /*
- * VSX_SCALAR_CMP_DP - VSX scalar floating point compare double precision
+ * VSX_SCALAR_CMP - VSX scalar floating point compare
  *   op    - instruction mnemonic
+ *   tp    - type
  *   cmp   - comparison operation
- *   exp   - expected result of comparison
+ *   fld   - vsr_t field
  *   svxvc - set VXVC bit
  */
-#define VSX_SCALAR_CMP_DP(op, cmp, exp, svxvc)                                \
-void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                             \
-                 ppc_vsr_t *xa, ppc_vsr_t *xb)                                \
+#define VSX_SCALAR_CMP(op, tp, cmp, fld, svxvc)                               \
+        void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                     \
+                ppc_vsr_t *xa, ppc_vsr_t *xb)                                 \
 {                                                                             \
-    ppc_vsr_t t = *xt;                                                        \
-    bool vxsnan_flag = false, vxvc_flag = false, vex_flag = false;            \
+    int flags;                                                                \
+    bool r, vxvc;                                                             \
                                                                               \
-    if (float64_is_signaling_nan(xa->VsrD(0), &env->fp_status) ||             \
-        float64_is_signaling_nan(xb->VsrD(0), &env->fp_status)) {             \
-        vxsnan_flag = true;                                                   \
-        if (fpscr_ve == 0 && svxvc) {                                         \
-            vxvc_flag = true;                                                 \
+    helper_reset_fpstatus(env);                                               \
+                                                                              \
+    if (svxvc) {                                                              \
+        r = tp##_##cmp(xb->fld, xa->fld, &env->fp_status);                    \
+    } else {                                                                  \
+        r = tp##_##cmp##_quiet(xb->fld, xa->fld, &env->fp_status);            \
+    }                                                                         \
+                                                                              \
+    flags = get_float_exception_flags(&env->fp_status);                       \
+    if (unlikely(flags & float_flag_invalid)) {                               \
+        vxvc = svxvc;                                                         \
+        if (flags & float_flag_invalid_snan) {                                \
+            float_invalid_op_vxsnan(env, GETPC());                            \
+            vxvc &= fpscr_ve == 0;                                            \
         }                                                                     \
-    } else if (svxvc) {                                                       \
-        vxvc_flag = float64_is_quiet_nan(xa->VsrD(0), &env->fp_status) ||     \
-            float64_is_quiet_nan(xb->VsrD(0), &env->fp_status);               \
-    }                                                                         \
-    if (vxsnan_flag) {                                                        \
-        float_invalid_op_vxsnan(env, GETPC());                                \
-    }                                                                         \
-    if (vxvc_flag) {                                                          \
-        float_invalid_op_vxvc(env, 0, GETPC());                               \
-    }                                                                         \
-    vex_flag = fpscr_ve && (vxvc_flag || vxsnan_flag);                        \
-                                                                              \
-    if (!vex_flag) {                                                          \
-        if (float64_##cmp(xb->VsrD(0), xa->VsrD(0),                           \
-                          &env->fp_status) == exp) {                          \
-            t.VsrD(0) = -1;                                                   \
-            t.VsrD(1) = 0;                                                    \
-        } else {                                                              \
-            t.VsrD(0) = 0;                                                    \
-            t.VsrD(1) = 0;                                                    \
+        if (vxvc) {                                                           \
+            float_invalid_op_vxvc(env, 0, GETPC());                           \
         }                                                                     \
     }                                                                         \
-    *xt = t;                                                                  \
+                                                                              \
+    memset(xt, 0, sizeof(*xt));                                               \
+    memset(&xt->fld, -r, sizeof(xt->fld));                                    \
     do_float_check_status(env, GETPC());                                      \
 }
 
-VSX_SCALAR_CMP_DP(xscmpeqdp, eq, 1, 0)
-VSX_SCALAR_CMP_DP(xscmpgedp, le, 1, 1)
-VSX_SCALAR_CMP_DP(xscmpgtdp, lt, 1, 1)
+VSX_SCALAR_CMP(xscmpeqdp, float64, eq, VsrD(0), 0)
+VSX_SCALAR_CMP(xscmpgedp, float64, le, VsrD(0), 1)
+VSX_SCALAR_CMP(xscmpgtdp, float64, lt, VsrD(0), 1)
 
 void helper_xscmpexpdp(CPUPPCState *env, uint32_t opcode,
                        ppc_vsr_t *xa, ppc_vsr_t *xb)
