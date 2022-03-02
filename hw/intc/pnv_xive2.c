@@ -439,6 +439,11 @@ static uint32_t pnv_xive2_get_config(Xive2Router *xrtr)
         cfg |= XIVE2_VP_SAVE_RESTORE;
     }
 
+    if (GETFIELD(CQ_XIVE_CFG_HYP_HARD_RANGE,
+              xive->cq_regs[CQ_XIVE_CFG >> 3]) == CQ_XIVE_CFG_THREADID_8BITS) {
+        cfg |= XIVE2_THREADID_8BITS;
+    }
+
     return cfg;
 }
 

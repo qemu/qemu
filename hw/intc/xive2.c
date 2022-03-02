@@ -459,7 +459,8 @@ static uint32_t xive2_tctx_hw_cam_line(XivePresenter *xptr, XiveTCTX *tctx)
     CPUPPCState *env = &POWERPC_CPU(tctx->cs)->env;
     uint32_t pir = env->spr_cb[SPR_PIR].default_value;
     uint8_t blk = xive2_router_get_block_id(xrtr);
-    uint8_t tid_shift = 7;
+    uint8_t tid_shift =
+        xive2_router_get_config(xrtr) & XIVE2_THREADID_8BITS ? 8 : 7;
     uint8_t tid_mask = (1 << tid_shift) - 1;
 
     return xive2_nvp_cam_line(blk, 1 << tid_shift | (pir & tid_mask));
