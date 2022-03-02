@@ -1055,6 +1055,54 @@ TRANS_FLAGS2(ISA310, VSLQ, do_vector_shift_quad, false, false);
 TRANS_FLAGS2(ISA310, VSRQ, do_vector_shift_quad, true, false);
 TRANS_FLAGS2(ISA310, VSRAQ, do_vector_shift_quad, true, true);
 
+static bool trans_VRLQ(DisasContext *ctx, arg_VX *a)
+{
+    TCGv_i64 ah, al, n, t0, t1, zero = tcg_constant_i64(0);
+
+    REQUIRE_VECTOR(ctx);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+
+    ah = tcg_temp_new_i64();
+    al = tcg_temp_new_i64();
+    n = tcg_temp_new_i64();
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
+
+    get_avr64(ah, a->vra, true);
+    get_avr64(al, a->vra, false);
+    get_avr64(n, a->vrb, true);
+
+    tcg_gen_mov_i64(t0, ah);
+    tcg_gen_andi_i64(t1, n, 64);
+    tcg_gen_movcond_i64(TCG_COND_NE, ah, t1, zero, al, ah);
+    tcg_gen_movcond_i64(TCG_COND_NE, al, t1, zero, t0, al);
+    tcg_gen_andi_i64(n, n, 0x3F);
+
+    tcg_gen_shl_i64(t0, ah, n);
+    tcg_gen_shl_i64(t1, al, n);
+
+    tcg_gen_xori_i64(n, n, 63);
+
+    tcg_gen_shr_i64(al, al, n);
+    tcg_gen_shri_i64(al, al, 1);
+    tcg_gen_or_i64(t0, al, t0);
+
+    tcg_gen_shr_i64(ah, ah, n);
+    tcg_gen_shri_i64(ah, ah, 1);
+    tcg_gen_or_i64(t1, ah, t1);
+
+    set_avr64(a->vrt, t0, true);
+    set_avr64(a->vrt, t1, false);
+
+    tcg_temp_free_i64(ah);
+    tcg_temp_free_i64(al);
+    tcg_temp_free_i64(n);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+
+    return true;
+}
+
 #define GEN_VXFORM_SAT(NAME, VECE, NORM, SAT, OPC2, OPC3)               \
 static void glue(glue(gen_, NAME), _vec)(unsigned vece, TCGv_vec t,     \
                                          TCGv_vec sat, TCGv_vec a,      \
