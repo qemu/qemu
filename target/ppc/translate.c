@@ -6668,39 +6668,24 @@ static bool resolve_PLS_D(DisasContext *ctx, arg_D *d, arg_PLS_D *a)
 
 #include "translate/branch-impl.c.inc"
 
-/* Handles lfdp, lxssp */
+/* Handles lfdp */
 static void gen_dform39(DisasContext *ctx)
 {
-    switch (ctx->opcode & 0x3) {
-    case 0: /* lfdp */
+    if ((ctx->opcode & 0x3) == 0) {
         if (ctx->insns_flags2 & PPC2_ISA205) {
             return gen_lfdp(ctx);
         }
-        break;
-    case 3: /* lxssp */
-        if (ctx->insns_flags2 & PPC2_ISA300) {
-            return gen_lxssp(ctx);
-        }
-        break;
     }
     return gen_invalid(ctx);
 }
 
-/* handles stfdp, lxv, stxssp lxvx */
+/* Handles stfdp */
 static void gen_dform3D(DisasContext *ctx)
 {
-    if ((ctx->opcode & 3) != 1) { /* DS-FORM */
-        switch (ctx->opcode & 0x3) {
-        case 0: /* stfdp */
-            if (ctx->insns_flags2 & PPC2_ISA205) {
-                return gen_stfdp(ctx);
-            }
-            break;
-        case 3: /* stxssp */
-            if (ctx->insns_flags2 & PPC2_ISA300) {
-                return gen_stxssp(ctx);
-            }
-            break;
+    if ((ctx->opcode & 3) == 0) { /* DS-FORM */
+        /* stfdp */
+        if (ctx->insns_flags2 & PPC2_ISA205) {
+            return gen_stfdp(ctx);
         }
     }
     return gen_invalid(ctx);

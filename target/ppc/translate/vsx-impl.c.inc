@@ -288,29 +288,6 @@ VSX_VECTOR_LOAD_STORE_LENGTH(stxvl)
 VSX_VECTOR_LOAD_STORE_LENGTH(stxvll)
 #endif
 
-#define VSX_LOAD_SCALAR_DS(name, operation)                       \
-static void gen_##name(DisasContext *ctx)                         \
-{                                                                 \
-    TCGv EA;                                                      \
-    TCGv_i64 xth;                                                 \
-                                                                  \
-    if (unlikely(!ctx->altivec_enabled)) {                        \
-        gen_exception(ctx, POWERPC_EXCP_VPU);                     \
-        return;                                                   \
-    }                                                             \
-    xth = tcg_temp_new_i64();                                     \
-    gen_set_access_type(ctx, ACCESS_INT);                         \
-    EA = tcg_temp_new();                                          \
-    gen_addr_imm_index(ctx, EA, 0x03);                            \
-    gen_qemu_##operation(ctx, xth, EA);                           \
-    set_cpu_vsr(rD(ctx->opcode) + 32, xth, true);                 \
-    /* NOTE: cpu_vsrl is undefined */                             \
-    tcg_temp_free(EA);                                            \
-    tcg_temp_free_i64(xth);                                       \
-}
-
-VSX_LOAD_SCALAR_DS(lxssp, ld32fs)
-
 #define VSX_STORE_SCALAR(name, operation)                     \
 static void gen_##name(DisasContext *ctx)                     \
 {                                                             \
@@ -459,29 +436,6 @@ static void gen_stxvb16x(DisasContext *ctx)
     tcg_temp_free_i64(xsh);
     tcg_temp_free_i64(xsl);
 }
-
-#define VSX_STORE_SCALAR_DS(name, operation)                      \
-static void gen_##name(DisasContext *ctx)                         \
-{                                                                 \
-    TCGv EA;                                                      \
-    TCGv_i64 xth;                                                 \
-                                                                  \
-    if (unlikely(!ctx->altivec_enabled)) {                        \
-        gen_exception(ctx, POWERPC_EXCP_VPU);                     \
-        return;                                                   \
-    }                                                             \
-    xth = tcg_temp_new_i64();                                     \
-    get_cpu_vsr(xth, rD(ctx->opcode) + 32, true);                 \
-    gen_set_access_type(ctx, ACCESS_INT);                         \
-    EA = tcg_temp_new();                                          \
-    gen_addr_imm_index(ctx, EA, 0x03);                            \
-    gen_qemu_##operation(ctx, xth, EA);                           \
-    /* NOTE: cpu_vsrl is undefined */                             \
-    tcg_temp_free(EA);                                            \
-    tcg_temp_free_i64(xth);                                       \
-}
-
-VSX_STORE_SCALAR_DS(stxssp, st32fs)
 
 static void gen_mfvsrwz(DisasContext *ctx)
 {
@@ -2345,8 +2299,53 @@ static bool do_plstxsd_PLS_D(DisasContext *ctx, arg_PLS_D *a, bool store)
     return do_lstxsd(ctx, d.rt, d.ra, tcg_constant_tl(d.si), store);
 }
 
+static bool do_lstxssp(DisasContext *ctx, int rt, int ra, TCGv displ, bool store)
+{
+    TCGv ea;
+    TCGv_i64 xt;
+
+    REQUIRE_VECTOR(ctx);
+
+    xt = tcg_temp_new_i64();
+
+    gen_set_access_type(ctx, ACCESS_INT);
+    ea = do_ea_calc(ctx, ra, displ);
+
+    if (store) {
+        get_cpu_vsr(xt, rt + 32, true);
+        gen_qemu_st32fs(ctx, xt, ea);
+    } else {
+        gen_qemu_ld32fs(ctx, xt, ea);
+        set_cpu_vsr(rt + 32, xt, true);
+        set_cpu_vsr(rt + 32, tcg_constant_i64(0), false);
+    }
+
+    tcg_temp_free(ea);
+    tcg_temp_free_i64(xt);
+
+    return true;
+}
+
+static bool do_lstxssp_DS(DisasContext *ctx, arg_D *a, bool store)
+{
+    return do_lstxssp(ctx, a->rt, a->ra, tcg_constant_tl(a->si), store);
+}
+
+static bool do_plstxssp_PLS_D(DisasContext *ctx, arg_PLS_D *a, bool store)
+{
+    arg_D d;
+
+    if (!resolve_PLS_D(ctx, &d, a)) {
+        return true;
+    }
+
+    return do_lstxssp(ctx, d.rt, d.ra, tcg_constant_tl(d.si), store);
+}
+
 TRANS_FLAGS2(ISA300, LXSD, do_lstxsd_DS, false)
 TRANS_FLAGS2(ISA300, STXSD, do_lstxsd_DS, true)
+TRANS_FLAGS2(ISA300, LXSSP, do_lstxssp_DS, false)
+TRANS_FLAGS2(ISA300, STXSSP, do_lstxssp_DS, true)
 TRANS_FLAGS2(ISA300, STXV, do_lstxv_D, true, false)
 TRANS_FLAGS2(ISA300, LXV, do_lstxv_D, false, false)
 TRANS_FLAGS2(ISA310, STXVP, do_lstxv_D, true, true)
@@ -2357,6 +2356,8 @@ TRANS_FLAGS2(ISA310, STXVPX, do_lstxv_X, true, true)
 TRANS_FLAGS2(ISA310, LXVPX, do_lstxv_X, false, true)
 TRANS64_FLAGS2(ISA310, PLXSD, do_plstxsd_PLS_D, false)
 TRANS64_FLAGS2(ISA310, PSTXSD, do_plstxsd_PLS_D, true)
+TRANS64_FLAGS2(ISA310, PLXSSP, do_plstxssp_PLS_D, false)
+TRANS64_FLAGS2(ISA310, PSTXSSP, do_plstxssp_PLS_D, true)
 TRANS64_FLAGS2(ISA310, PSTXV, do_lstxv_PLS_D, true, false)
 TRANS64_FLAGS2(ISA310, PLXV, do_lstxv_PLS_D, false, false)
 TRANS64_FLAGS2(ISA310, PSTXVP, do_lstxv_PLS_D, true, true)
