@@ -2363,6 +2363,41 @@ TRANS64_FLAGS2(ISA310, PLXV, do_lstxv_PLS_D, false, false)
 TRANS64_FLAGS2(ISA310, PSTXVP, do_lstxv_PLS_D, true, true)
 TRANS64_FLAGS2(ISA310, PLXVP, do_lstxv_PLS_D, false, true)
 
+static bool do_lstrm(DisasContext *ctx, arg_X *a, MemOp mop, bool store)
+{
+    TCGv ea;
+    TCGv_i64 xt;
+
+    REQUIRE_VSX(ctx);
+
+    xt = tcg_temp_new_i64();
+
+    gen_set_access_type(ctx, ACCESS_INT);
+    ea = do_ea_calc(ctx, a->ra , cpu_gpr[a->rb]);
+
+    if (store) {
+        get_cpu_vsr(xt, a->rt, false);
+        tcg_gen_qemu_st_i64(xt, ea, ctx->mem_idx, mop);
+    } else {
+        tcg_gen_qemu_ld_i64(xt, ea, ctx->mem_idx, mop);
+        set_cpu_vsr(a->rt, xt, false);
+        set_cpu_vsr(a->rt, tcg_constant_i64(0), true);
+    }
+
+    tcg_temp_free(ea);
+    tcg_temp_free_i64(xt);
+    return true;
+}
+
+TRANS_FLAGS2(ISA310, LXVRBX, do_lstrm, DEF_MEMOP(MO_UB), false)
+TRANS_FLAGS2(ISA310, LXVRHX, do_lstrm, DEF_MEMOP(MO_UW), false)
+TRANS_FLAGS2(ISA310, LXVRWX, do_lstrm, DEF_MEMOP(MO_UL), false)
+TRANS_FLAGS2(ISA310, LXVRDX, do_lstrm, DEF_MEMOP(MO_UQ), false)
+TRANS_FLAGS2(ISA310, STXVRBX, do_lstrm, DEF_MEMOP(MO_UB), true)
+TRANS_FLAGS2(ISA310, STXVRHX, do_lstrm, DEF_MEMOP(MO_UW), true)
+TRANS_FLAGS2(ISA310, STXVRWX, do_lstrm, DEF_MEMOP(MO_UL), true)
+TRANS_FLAGS2(ISA310, STXVRDX, do_lstrm, DEF_MEMOP(MO_UQ), true)
+
 static void gen_xxeval_i64(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b, TCGv_i64 c,
                            int64_t imm)
 {
