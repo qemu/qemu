@@ -799,27 +799,40 @@ static void trans_vclzd(DisasContext *ctx)
 }
 
 GEN_VXFORM_V(vmuluwm, MO_32, tcg_gen_gvec_mul, 4, 2);
-GEN_VXFORM_V(vslb, MO_8, tcg_gen_gvec_shlv, 2, 4);
-GEN_VXFORM_V(vslh, MO_16, tcg_gen_gvec_shlv, 2, 5);
-GEN_VXFORM_V(vslw, MO_32, tcg_gen_gvec_shlv, 2, 6);
 GEN_VXFORM(vrlwnm, 2, 6);
-GEN_VXFORM_DUAL(vslw, PPC_ALTIVEC, PPC_NONE, \
-                vrlwnm, PPC_NONE, PPC2_ISA300)
-GEN_VXFORM_V(vsld, MO_64, tcg_gen_gvec_shlv, 2, 23);
-GEN_VXFORM_V(vsrb, MO_8, tcg_gen_gvec_shrv, 2, 8);
-GEN_VXFORM_V(vsrh, MO_16, tcg_gen_gvec_shrv, 2, 9);
-GEN_VXFORM_V(vsrw, MO_32, tcg_gen_gvec_shrv, 2, 10);
-GEN_VXFORM_V(vsrd, MO_64, tcg_gen_gvec_shrv, 2, 27);
-GEN_VXFORM_V(vsrab, MO_8, tcg_gen_gvec_sarv, 2, 12);
-GEN_VXFORM_V(vsrah, MO_16, tcg_gen_gvec_sarv, 2, 13);
-GEN_VXFORM_V(vsraw, MO_32, tcg_gen_gvec_sarv, 2, 14);
-GEN_VXFORM_V(vsrad, MO_64, tcg_gen_gvec_sarv, 2, 15);
 GEN_VXFORM(vsrv, 2, 28);
 GEN_VXFORM(vslv, 2, 29);
 GEN_VXFORM(vslo, 6, 16);
 GEN_VXFORM(vsro, 6, 17);
 GEN_VXFORM(vaddcuw, 0, 6);
 GEN_VXFORM(vsubcuw, 0, 22);
+
+static bool do_vector_gvec3_VX(DisasContext *ctx, arg_VX *a, int vece,
+                               void (*gen_gvec)(unsigned, uint32_t, uint32_t,
+                                                uint32_t, uint32_t, uint32_t))
+{
+    REQUIRE_VECTOR(ctx);
+
+    gen_gvec(vece, avr_full_offset(a->vrt), avr_full_offset(a->vra),
+             avr_full_offset(a->vrb), 16, 16);
+
+    return true;
+}
+
+TRANS_FLAGS(ALTIVEC, VSLB, do_vector_gvec3_VX, MO_8, tcg_gen_gvec_shlv);
+TRANS_FLAGS(ALTIVEC, VSLH, do_vector_gvec3_VX, MO_16, tcg_gen_gvec_shlv);
+TRANS_FLAGS(ALTIVEC, VSLW, do_vector_gvec3_VX, MO_32, tcg_gen_gvec_shlv);
+TRANS_FLAGS2(ALTIVEC_207, VSLD, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_shlv);
+
+TRANS_FLAGS(ALTIVEC, VSRB, do_vector_gvec3_VX, MO_8, tcg_gen_gvec_shrv);
+TRANS_FLAGS(ALTIVEC, VSRH, do_vector_gvec3_VX, MO_16, tcg_gen_gvec_shrv);
+TRANS_FLAGS(ALTIVEC, VSRW, do_vector_gvec3_VX, MO_32, tcg_gen_gvec_shrv);
+TRANS_FLAGS2(ALTIVEC_207, VSRD, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_shrv);
+
+TRANS_FLAGS(ALTIVEC, VSRAB, do_vector_gvec3_VX, MO_8, tcg_gen_gvec_sarv);
+TRANS_FLAGS(ALTIVEC, VSRAH, do_vector_gvec3_VX, MO_16, tcg_gen_gvec_sarv);
+TRANS_FLAGS(ALTIVEC, VSRAW, do_vector_gvec3_VX, MO_32, tcg_gen_gvec_sarv);
+TRANS_FLAGS2(ALTIVEC_207, VSRAD, do_vector_gvec3_VX, MO_64, tcg_gen_gvec_sarv);
 
 #define GEN_VXFORM_SAT(NAME, VECE, NORM, SAT, OPC2, OPC3)               \
 static void glue(glue(gen_, NAME), _vec)(unsigned vece, TCGv_vec t,     \
