@@ -343,4 +343,18 @@ int rom_add_option(const char *file, int32_t bootindex);
  * overflow on real hardware too. */
 #define UBOOT_MAX_GUNZIP_BYTES (64 << 20)
 
+typedef struct RomGap {
+    hwaddr base;
+    size_t size;
+} RomGap;
+
+/**
+ * rom_find_largest_gap_between: return largest gap between ROMs in given range
+ *
+ * Given a range of addresses, this function finds the largest
+ * contiguous subrange which has no ROMs loaded to it. That is,
+ * it finds the biggest gap which is free for use for other things.
+ */
+RomGap rom_find_largest_gap_between(hwaddr base, size_t size);
+
 #endif

@@ -1,33 +1,164 @@
+# THIS FILE WAS AUTO-GENERATED
 #
-# Docker s390 cross-compiler target
+#  $ lcitool dockerfile --layers all --cross s390x debian-11 qemu
 #
-# This docker target builds on the debian Stretch base image.
-#
-FROM qemu/debian10
+# https://gitlab.com/libvirt/libvirt-ci
 
-# Add the s390x architecture
-RUN dpkg --add-architecture s390x
+FROM docker.io/library/debian:11-slim
 
-# Grab the updated list of packages
-RUN apt update && apt dist-upgrade -yy
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt install -y --no-install-recommends \
-        gcc-multilib-s390x-linux-gnu
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update && \
+    apt-get install -y eatmydata && \
+    eatmydata apt-get dist-upgrade -y && \
+    eatmydata apt-get install --no-install-recommends -y \
+            bash \
+            bc \
+            bsdextrautils \
+            bzip2 \
+            ca-certificates \
+            ccache \
+            dbus \
+            debianutils \
+            diffutils \
+            exuberant-ctags \
+            findutils \
+            gcovr \
+            genisoimage \
+            gettext \
+            git \
+            hostname \
+            libpcre2-dev \
+            libspice-protocol-dev \
+            libtest-harness-perl \
+            llvm \
+            locales \
+            make \
+            meson \
+            ncat \
+            ninja-build \
+            openssh-client \
+            perl-base \
+            pkgconf \
+            python3 \
+            python3-numpy \
+            python3-opencv \
+            python3-pillow \
+            python3-pip \
+            python3-sphinx \
+            python3-sphinx-rtd-theme \
+            python3-venv \
+            python3-yaml \
+            rpm2cpio \
+            sed \
+            sparse \
+            tar \
+            tesseract-ocr \
+            tesseract-ocr-eng \
+            texinfo && \
+    eatmydata apt-get autoremove -y && \
+    eatmydata apt-get autoclean -y && \
+    sed -Ei 's,^# (en_US\.UTF-8 .*)$,\1,' /etc/locale.gen && \
+    dpkg-reconfigure locales
 
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt build-dep -yy -a s390x --arch-only qemu
+ENV LANG "en_US.UTF-8"
+ENV MAKE "/usr/bin/make"
+ENV NINJA "/usr/bin/ninja"
+ENV PYTHON "/usr/bin/python3"
+ENV CCACHE_WRAPPERSDIR "/usr/libexec/ccache-wrappers"
 
-# Specify the cross prefix for this image (see tests/docker/common.rc)
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    dpkg --add-architecture s390x && \
+    eatmydata apt-get update && \
+    eatmydata apt-get dist-upgrade -y && \
+    eatmydata apt-get install --no-install-recommends -y dpkg-dev && \
+    eatmydata apt-get install --no-install-recommends -y \
+            g++-s390x-linux-gnu \
+            gcc-s390x-linux-gnu \
+            libaio-dev:s390x \
+            libasan5:s390x \
+            libasound2-dev:s390x \
+            libattr1-dev:s390x \
+            libbpf-dev:s390x \
+            libbrlapi-dev:s390x \
+            libbz2-dev:s390x \
+            libc6-dev:s390x \
+            libcacard-dev:s390x \
+            libcap-ng-dev:s390x \
+            libcapstone-dev:s390x \
+            libcurl4-gnutls-dev:s390x \
+            libdaxctl-dev:s390x \
+            libdrm-dev:s390x \
+            libepoxy-dev:s390x \
+            libfdt-dev:s390x \
+            libffi-dev:s390x \
+            libfuse3-dev:s390x \
+            libgbm-dev:s390x \
+            libgcrypt20-dev:s390x \
+            libglib2.0-dev:s390x \
+            libglusterfs-dev:s390x \
+            libgnutls28-dev:s390x \
+            libgtk-3-dev:s390x \
+            libibumad-dev:s390x \
+            libibverbs-dev:s390x \
+            libiscsi-dev:s390x \
+            libjemalloc-dev:s390x \
+            libjpeg62-turbo-dev:s390x \
+            liblttng-ust-dev:s390x \
+            liblzo2-dev:s390x \
+            libncursesw5-dev:s390x \
+            libnfs-dev:s390x \
+            libnuma-dev:s390x \
+            libpam0g-dev:s390x \
+            libpixman-1-dev:s390x \
+            libpng-dev:s390x \
+            libpulse-dev:s390x \
+            librbd-dev:s390x \
+            librdmacm-dev:s390x \
+            libsasl2-dev:s390x \
+            libsdl2-dev:s390x \
+            libsdl2-image-dev:s390x \
+            libseccomp-dev:s390x \
+            libselinux1-dev:s390x \
+            libslirp-dev:s390x \
+            libsnappy-dev:s390x \
+            libssh-gcrypt-dev:s390x \
+            libsystemd-dev:s390x \
+            libtasn1-6-dev:s390x \
+            libubsan1:s390x \
+            libudev-dev:s390x \
+            liburing-dev:s390x \
+            libusb-1.0-0-dev:s390x \
+            libusbredirhost-dev:s390x \
+            libvdeplug-dev:s390x \
+            libvirglrenderer-dev:s390x \
+            libvte-2.91-dev:s390x \
+            libzstd-dev:s390x \
+            nettle-dev:s390x \
+            systemtap-sdt-dev:s390x \
+            xfslibs-dev:s390x \
+            zlib1g-dev:s390x && \
+    eatmydata apt-get autoremove -y && \
+    eatmydata apt-get autoclean -y && \
+    mkdir -p /usr/local/share/meson/cross && \
+    echo "[binaries]\n\
+c = '/usr/bin/s390x-linux-gnu-gcc'\n\
+ar = '/usr/bin/s390x-linux-gnu-gcc-ar'\n\
+strip = '/usr/bin/s390x-linux-gnu-strip'\n\
+pkgconfig = '/usr/bin/s390x-linux-gnu-pkg-config'\n\
+\n\
+[host_machine]\n\
+system = 'linux'\n\
+cpu_family = 's390x'\n\
+cpu = 's390x'\n\
+endian = 'big'" > /usr/local/share/meson/cross/s390x-linux-gnu && \
+    dpkg-query --showformat '${Package}_${Version}_${Architecture}\n' --show > /packages.txt && \
+    mkdir -p /usr/libexec/ccache-wrappers && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/s390x-linux-gnu-c++ && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/s390x-linux-gnu-cc && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/s390x-linux-gnu-g++ && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/s390x-linux-gnu-gcc
+
+ENV ABI "s390x-linux-gnu"
+ENV MESON_OPTS "--cross-file=s390x-linux-gnu"
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=s390x-linux-gnu-
 ENV DEF_TARGET_LIST s390x-softmmu,s390x-linux-user
-
-# Install extra libraries to increase code coverage
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt install -y --no-install-recommends \
-        libbz2-dev:s390x \
-        liblzo2-dev:s390x \
-        librdmacm-dev:s390x \
-        libsnappy-dev:s390x

@@ -21,17 +21,9 @@ amd64-debian-user-cross-container:
 
 arm64-debian-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
+  stage: containers
   variables:
     NAME: debian-arm64-cross
-
-arm64-test-debian-cross-container:
-  extends: .container_job_template
-  stage: containers-layer2
-  needs: ['amd64-debian11-container']
-  variables:
-    NAME: debian-arm64-test-cross
 
 armel-debian-cross-container:
   extends: .container_job_template
@@ -139,10 +131,16 @@ riscv64-debian-cross-container:
   variables:
     NAME: debian-riscv64-cross
 
-s390x-debian-cross-container:
+# we can however build TCG tests using a non-sid base
+riscv64-debian-test-cross-container:
   extends: .container_job_template
   stage: containers-layer2
-  needs: ['amd64-debian10-container']
+  variables:
+    NAME: debian-riscv64-test-cross
+
+s390x-debian-cross-container:
+  extends: .container_job_template
+  stage: containers
   variables:
     NAME: debian-s390x-cross
 

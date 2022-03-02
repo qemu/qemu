@@ -97,7 +97,7 @@ for target in $target_list; do
     aarch64-*)
       # We don't have any bigendian build tools so we only use this for AArch64
       container_hosts="x86_64 aarch64"
-      container_image=debian-arm64-test-cross
+      container_image=debian-arm64-cross
       container_cross_cc=aarch64-linux-gnu-gcc-10
       ;;
     alpha-*)
@@ -180,7 +180,7 @@ for target in $target_list; do
       ;;
     riscv64-*)
       container_hosts=x86_64
-      container_image=debian-riscv64-cross
+      container_image=debian-riscv64-test-cross
       container_cross_cc=riscv64-linux-gnu-gcc
       ;;
     s390x-*)
