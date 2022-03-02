@@ -1502,6 +1502,34 @@ VEXTRACT(uw, u32)
 VEXTRACT(d, u64)
 #undef VEXTRACT
 
+#define VSTRI(NAME, ELEM, NUM_ELEMS, LEFT) \
+uint32_t helper_##NAME(ppc_avr_t *t, ppc_avr_t *b) \
+{                                                   \
+    int i, idx, crf = 0;                            \
+                                                    \
+    for (i = 0; i < NUM_ELEMS; i++) {               \
+        idx = LEFT ? i : NUM_ELEMS - i - 1;         \
+        if (b->Vsr##ELEM(idx)) {                    \
+            t->Vsr##ELEM(idx) = b->Vsr##ELEM(idx);  \
+        } else {                                    \
+            crf = 0b0010;                           \
+            break;                                  \
+        }                                           \
+    }                                               \
+                                                    \
+    for (; i < NUM_ELEMS; i++) {                    \
+        idx = LEFT ? i : NUM_ELEMS - i - 1;         \
+        t->Vsr##ELEM(idx) = 0;                      \
+    }                                               \
+                                                    \
+    return crf;                                     \
+}
+VSTRI(VSTRIBL, B, 16, true)
+VSTRI(VSTRIBR, B, 16, false)
+VSTRI(VSTRIHL, H, 8, true)
+VSTRI(VSTRIHR, H, 8, false)
+#undef VSTRI
+
 void helper_xxextractuw(CPUPPCState *env, ppc_vsr_t *xt,
                         ppc_vsr_t *xb, uint32_t index)
 {

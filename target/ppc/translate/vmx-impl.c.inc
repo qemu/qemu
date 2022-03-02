@@ -1910,6 +1910,36 @@ static bool trans_MTVSRBMI(DisasContext *ctx, arg_DX_b *a)
     return true;
 }
 
+static bool do_vstri(DisasContext *ctx, arg_VX_tb_rc *a,
+                     void (*gen_helper)(TCGv_i32, TCGv_ptr, TCGv_ptr))
+{
+    TCGv_ptr vrt, vrb;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    vrt = gen_avr_ptr(a->vrt);
+    vrb = gen_avr_ptr(a->vrb);
+
+    if (a->rc) {
+        gen_helper(cpu_crf[6], vrt, vrb);
+    } else {
+        TCGv_i32 discard = tcg_temp_new_i32();
+        gen_helper(discard, vrt, vrb);
+        tcg_temp_free_i32(discard);
+    }
+
+    tcg_temp_free_ptr(vrt);
+    tcg_temp_free_ptr(vrb);
+
+    return true;
+}
+
+TRANS(VSTRIBL, do_vstri, gen_helper_VSTRIBL)
+TRANS(VSTRIBR, do_vstri, gen_helper_VSTRIBR)
+TRANS(VSTRIHL, do_vstri, gen_helper_VSTRIHL)
+TRANS(VSTRIHR, do_vstri, gen_helper_VSTRIHR)
+
 #define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
 static void glue(gen_, name0##_##name1)(DisasContext *ctx)              \
     {                                                                   \
