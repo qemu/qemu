@@ -1416,6 +1416,141 @@ GEN_VXFORM_DUAL(vsplth, PPC_ALTIVEC, PPC_NONE,
 GEN_VXFORM_DUAL(vspltw, PPC_ALTIVEC, PPC_NONE,
                 vextractuw, PPC_NONE, PPC2_ISA300);
 
+static bool trans_VGNB(DisasContext *ctx, arg_VX_n *a)
+{
+    /*
+     * Similar to do_vextractm, we'll use a sequence of mask-shift-or operations
+     * to gather the bits. The masks can be created with
+     *
+     * uint64_t mask(uint64_t n, uint64_t step)
+     * {
+     *     uint64_t p = ((1UL << (1UL << step)) - 1UL) << ((n - 1UL) << step),
+     *                  plen = n << step, m = 0;
+     *     for(int i = 0; i < 64/plen; i++) {
+     *         m |= p;
+     *         m = ror64(m, plen);
+     *     }
+     *     p >>= plen * DIV_ROUND_UP(64, plen) - 64;
+     *     return m | p;
+     * }
+     *
+     * But since there are few values of N, we'll use a lookup table to avoid
+     * these calculations at runtime.
+     */
+    static const uint64_t mask[6][5] = {
+        {
+            0xAAAAAAAAAAAAAAAAULL, 0xccccccccccccccccULL, 0xf0f0f0f0f0f0f0f0ULL,
+            0xff00ff00ff00ff00ULL, 0xffff0000ffff0000ULL
+        },
+        {
+            0x9249249249249249ULL, 0xC30C30C30C30C30CULL, 0xF00F00F00F00F00FULL,
+            0xFF0000FF0000FF00ULL, 0xFFFF00000000FFFFULL
+        },
+        {
+            /* For N >= 4, some mask operations can be elided */
+            0x8888888888888888ULL, 0, 0xf000f000f000f000ULL, 0,
+            0xFFFF000000000000ULL
+        },
+        {
+            0x8421084210842108ULL, 0, 0xF0000F0000F0000FULL, 0, 0
+        },
+        {
+            0x8208208208208208ULL, 0, 0xF00000F00000F000ULL, 0, 0
+        },
+        {
+            0x8102040810204081ULL, 0, 0xF000000F000000F0ULL, 0, 0
+        }
+    };
+    uint64_t m;
+    int i, sh, nbits = DIV_ROUND_UP(64, a->n);
+    TCGv_i64 hi, lo, t0, t1;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    if (a->n < 2) {
+        /*
+         * "N can be any value between 2 and 7, inclusive." Otherwise, the
+         * result is undefined, so we don't need to change RT. Also, N > 7 is
+         * impossible since the immediate field is 3 bits only.
+         */
+        return true;
+    }
+
+    hi = tcg_temp_new_i64();
+    lo = tcg_temp_new_i64();
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
+
+    get_avr64(hi, a->vrb, true);
+    get_avr64(lo, a->vrb, false);
+
+    /* Align the lower doubleword so we can use the same mask */
+    tcg_gen_shli_i64(lo, lo, a->n * nbits - 64);
+
+    /*
+     * Starting from the most significant bit, gather every Nth bit with a
+     * sequence of mask-shift-or operation. E.g.: for N=3
+     * AxxBxxCxxDxxExxFxxGxxHxxIxxJxxKxxLxxMxxNxxOxxPxxQxxRxxSxxTxxUxxV
+     *     & rep(0b100)
+     * A..B..C..D..E..F..G..H..I..J..K..L..M..N..O..P..Q..R..S..T..U..V
+     *     << 2
+     * .B..C..D..E..F..G..H..I..J..K..L..M..N..O..P..Q..R..S..T..U..V..
+     *     |
+     * AB.BC.CD.DE.EF.FG.GH.HI.IJ.JK.KL.LM.MN.NO.OP.PQ.QR.RS.ST.TU.UV.V
+     *  & rep(0b110000)
+     * AB....CD....EF....GH....IJ....KL....MN....OP....QR....ST....UV..
+     *     << 4
+     * ..CD....EF....GH....IJ....KL....MN....OP....QR....ST....UV......
+     *     |
+     * ABCD..CDEF..EFGH..GHIJ..IJKL..KLMN..MNOP..OPQR..QRST..STUV..UV..
+     *     & rep(0b111100000000)
+     * ABCD........EFGH........IJKL........MNOP........QRST........UV..
+     *     << 8
+     * ....EFGH........IJKL........MNOP........QRST........UV..........
+     *     |
+     * ABCDEFGH....EFGHIJKL....IJKLMNOP....MNOPQRST....QRSTUV......UV..
+     *  & rep(0b111111110000000000000000)
+     * ABCDEFGH................IJKLMNOP................QRSTUV..........
+     *     << 16
+     * ........IJKLMNOP................QRSTUV..........................
+     *     |
+     * ABCDEFGHIJKLMNOP........IJKLMNOPQRSTUV..........QRSTUV..........
+     *     & rep(0b111111111111111100000000000000000000000000000000)
+     * ABCDEFGHIJKLMNOP................................QRSTUV..........
+     *     << 32
+     * ................QRSTUV..........................................
+     *     |
+     * ABCDEFGHIJKLMNOPQRSTUV..........................QRSTUV..........
+     */
+    for (i = 0, sh = a->n - 1; i < 5; i++, sh <<= 1) {
+        m = mask[a->n - 2][i];
+        if (m) {
+            tcg_gen_andi_i64(hi, hi, m);
+            tcg_gen_andi_i64(lo, lo, m);
+        }
+        if (sh < 64) {
+            tcg_gen_shli_i64(t0, hi, sh);
+            tcg_gen_shli_i64(t1, lo, sh);
+            tcg_gen_or_i64(hi, t0, hi);
+            tcg_gen_or_i64(lo, t1, lo);
+        }
+    }
+
+    tcg_gen_andi_i64(hi, hi, ~(~0ULL >> nbits));
+    tcg_gen_andi_i64(lo, lo, ~(~0ULL >> nbits));
+    tcg_gen_shri_i64(lo, lo, nbits);
+    tcg_gen_or_i64(hi, hi, lo);
+    tcg_gen_trunc_i64_tl(cpu_gpr[a->rt], hi);
+
+    tcg_temp_free_i64(hi);
+    tcg_temp_free_i64(lo);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+
+    return true;
+}
+
 static bool do_vextdx(DisasContext *ctx, arg_VA *a, int size, bool right,
                void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv))
 {
