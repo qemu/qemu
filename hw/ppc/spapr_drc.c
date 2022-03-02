@@ -544,15 +544,13 @@ static void drc_realize(DeviceState *d, Error **errp)
 static void drc_unrealize(DeviceState *d)
 {
     SpaprDrc *drc = SPAPR_DR_CONNECTOR(d);
+    g_autofree gchar *name = g_strdup_printf("%x", spapr_drc_index(drc));
     Object *root_container;
-    gchar *name;
 
     trace_spapr_drc_unrealize(spapr_drc_index(drc));
     vmstate_unregister(VMSTATE_IF(drc), &vmstate_spapr_drc, drc);
     root_container = container_get(object_get_root(), DRC_CONTAINER_PATH);
-    name = g_strdup_printf("%x", spapr_drc_index(drc));
     object_property_del(root_container, name);
-    g_free(name);
 }
 
 SpaprDrc *spapr_dr_connector_new(Object *owner, const char *type,
