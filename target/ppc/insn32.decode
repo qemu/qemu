@@ -498,6 +498,7 @@ VRLDMI          000100 ..... ..... ..... 00011000101    @VX
 
 VRLWNM          000100 ..... ..... ..... 00110000101    @VX
 VRLDNM          000100 ..... ..... ..... 00111000101    @VX
+VRLQNM          000100 ..... ..... ..... 00101000101    @VX
 
 ## Vector Integer Arithmetic Instructions
 

@@ -1055,28 +1055,83 @@ TRANS_FLAGS2(ISA310, VSLQ, do_vector_shift_quad, false, false);
 TRANS_FLAGS2(ISA310, VSRQ, do_vector_shift_quad, true, false);
 TRANS_FLAGS2(ISA310, VSRAQ, do_vector_shift_quad, true, true);
 
-static bool trans_VRLQ(DisasContext *ctx, arg_VX *a)
+static void do_vrlq_mask(TCGv_i64 mh, TCGv_i64 ml, TCGv_i64 b, TCGv_i64 e)
 {
-    TCGv_i64 ah, al, n, t0, t1, zero = tcg_constant_i64(0);
+    TCGv_i64 th, tl, t0, t1, zero = tcg_constant_i64(0),
+             ones = tcg_constant_i64(-1);
+
+    th = tcg_temp_new_i64();
+    tl = tcg_temp_new_i64();
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
+
+    /* m = ~0 >> b */
+    tcg_gen_andi_i64(t0, b, 64);
+    tcg_gen_movcond_i64(TCG_COND_NE, t1, t0, zero, zero, ones);
+    tcg_gen_andi_i64(t0, b, 0x3F);
+    tcg_gen_shr_i64(mh, t1, t0);
+    tcg_gen_shr_i64(ml, ones, t0);
+    tcg_gen_xori_i64(t0, t0, 63);
+    tcg_gen_shl_i64(t1, t1, t0);
+    tcg_gen_shli_i64(t1, t1, 1);
+    tcg_gen_or_i64(ml, t1, ml);
+
+    /* t = ~0 >> e */
+    tcg_gen_andi_i64(t0, e, 64);
+    tcg_gen_movcond_i64(TCG_COND_NE, t1, t0, zero, zero, ones);
+    tcg_gen_andi_i64(t0, e, 0x3F);
+    tcg_gen_shr_i64(th, t1, t0);
+    tcg_gen_shr_i64(tl, ones, t0);
+    tcg_gen_xori_i64(t0, t0, 63);
+    tcg_gen_shl_i64(t1, t1, t0);
+    tcg_gen_shli_i64(t1, t1, 1);
+    tcg_gen_or_i64(tl, t1, tl);
+
+    /* t = t >> 1 */
+    tcg_gen_shli_i64(t0, th, 63);
+    tcg_gen_shri_i64(tl, tl, 1);
+    tcg_gen_shri_i64(th, th, 1);
+    tcg_gen_or_i64(tl, t0, tl);
+
+    /* m = m ^ t */
+    tcg_gen_xor_i64(mh, mh, th);
+    tcg_gen_xor_i64(ml, ml, tl);
+
+    /* Negate the mask if begin > end */
+    tcg_gen_movcond_i64(TCG_COND_GT, t0, b, e, ones, zero);
+
+    tcg_gen_xor_i64(mh, mh, t0);
+    tcg_gen_xor_i64(ml, ml, t0);
+
+    tcg_temp_free_i64(th);
+    tcg_temp_free_i64(tl);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+}
+
+static bool do_vector_rotl_quad(DisasContext *ctx, arg_VX *a, bool mask)
+{
+    TCGv_i64 ah, al, vrb, n, t0, t1, zero = tcg_constant_i64(0);
 
     REQUIRE_VECTOR(ctx);
     REQUIRE_INSNS_FLAGS2(ctx, ISA310);
 
     ah = tcg_temp_new_i64();
     al = tcg_temp_new_i64();
+    vrb = tcg_temp_new_i64();
     n = tcg_temp_new_i64();
     t0 = tcg_temp_new_i64();
     t1 = tcg_temp_new_i64();
 
     get_avr64(ah, a->vra, true);
     get_avr64(al, a->vra, false);
-    get_avr64(n, a->vrb, true);
+    get_avr64(vrb, a->vrb, true);
 
     tcg_gen_mov_i64(t0, ah);
-    tcg_gen_andi_i64(t1, n, 64);
+    tcg_gen_andi_i64(t1, vrb, 64);
     tcg_gen_movcond_i64(TCG_COND_NE, ah, t1, zero, al, ah);
     tcg_gen_movcond_i64(TCG_COND_NE, al, t1, zero, t0, al);
-    tcg_gen_andi_i64(n, n, 0x3F);
+    tcg_gen_andi_i64(n, vrb, 0x3F);
 
     tcg_gen_shl_i64(t0, ah, n);
     tcg_gen_shl_i64(t1, al, n);
@@ -1091,17 +1146,33 @@ static bool trans_VRLQ(DisasContext *ctx, arg_VX *a)
     tcg_gen_shri_i64(ah, ah, 1);
     tcg_gen_or_i64(t1, ah, t1);
 
+    if (mask) {
+        tcg_gen_shri_i64(n, vrb, 8);
+        tcg_gen_shri_i64(vrb, vrb, 16);
+        tcg_gen_andi_i64(n, n, 0x7f);
+        tcg_gen_andi_i64(vrb, vrb, 0x7f);
+
+        do_vrlq_mask(ah, al, vrb, n);
+
+        tcg_gen_and_i64(t0, t0, ah);
+        tcg_gen_and_i64(t1, t1, al);
+    }
+
     set_avr64(a->vrt, t0, true);
     set_avr64(a->vrt, t1, false);
 
     tcg_temp_free_i64(ah);
     tcg_temp_free_i64(al);
+    tcg_temp_free_i64(vrb);
     tcg_temp_free_i64(n);
     tcg_temp_free_i64(t0);
     tcg_temp_free_i64(t1);
 
     return true;
 }
+
+TRANS(VRLQ, do_vector_rotl_quad, false)
+TRANS(VRLQNM, do_vector_rotl_quad, true)
 
 #define GEN_VXFORM_SAT(NAME, VECE, NORM, SAT, OPC2, OPC3)               \
 static void glue(glue(gen_, NAME), _vec)(unsigned vece, TCGv_vec t,     \
