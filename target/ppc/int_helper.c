@@ -1097,41 +1097,6 @@ VMUL(UW, u32, VsrW, VsrD, uint64_t)
 #undef VMUL_DO_ODD
 #undef VMUL
 
-void helper_VMULHSW(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
-{
-    int i;
-
-    for (i = 0; i < 4; i++) {
-        r->s32[i] = (int32_t)(((int64_t)a->s32[i] * (int64_t)b->s32[i]) >> 32);
-    }
-}
-
-void helper_VMULHUW(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
-{
-    int i;
-
-    for (i = 0; i < 4; i++) {
-        r->u32[i] = (uint32_t)(((uint64_t)a->u32[i] *
-                               (uint64_t)b->u32[i]) >> 32);
-    }
-}
-
-void helper_VMULHSD(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
-{
-    uint64_t discard;
-
-    muls64(&discard, &r->u64[0], a->s64[0], b->s64[0]);
-    muls64(&discard, &r->u64[1], a->s64[1], b->s64[1]);
-}
-
-void helper_VMULHUD(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
-{
-    uint64_t discard;
-
-    mulu64(&discard, &r->u64[0], a->u64[0], b->u64[0]);
-    mulu64(&discard, &r->u64[1], a->u64[1], b->u64[1]);
-}
-
 void helper_vperm(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
                   ppc_avr_t *c)
 {
