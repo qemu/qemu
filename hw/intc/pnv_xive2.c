@@ -1709,9 +1709,9 @@ static const MemoryRegionOps pnv_xive2_nvpg_ops = {
 };
 
 /*
- * POWER10 default capabilities: 0x2000120076f00000
+ * POWER10 default capabilities: 0x2000120076f000FC
  */
-#define PNV_XIVE2_CAPABILITIES  0x2000120076f00000
+#define PNV_XIVE2_CAPABILITIES  0x2000120076f000FC
 
 /*
  * POWER10 default configuration: 0x0030000033000000
