@@ -1306,6 +1306,18 @@ statx_test = gnu_source_prefix + '''
 
 has_statx = cc.links(statx_test)
 
+# Check whether statx() provides mount ID information
+
+statx_mnt_id_test = gnu_source_prefix + '''
+  #include <sys/stat.h>
+  int main(void) {
+    struct statx statxbuf;
+    statx(0, "", 0, STATX_BASIC_STATS | STATX_MNT_ID, &statxbuf);
+    return statxbuf.stx_mnt_id;
+  }'''
+
+has_statx_mnt_id = cc.links(statx_mnt_id_test)
+
 have_vhost_user_blk_server = get_option('vhost_user_blk_server') \
   .require(targetos == 'linux',
            error_message: 'vhost_user_blk_server requires linux') \
@@ -1553,6 +1565,7 @@ config_host_data.set('CONFIG_NETTLE', nettle.found())
 config_host_data.set('CONFIG_QEMU_PRIVATE_XTS', xts == 'private')
 config_host_data.set('CONFIG_MALLOC_TRIM', has_malloc_trim)
 config_host_data.set('CONFIG_STATX', has_statx)
+config_host_data.set('CONFIG_STATX_MNT_ID', has_statx_mnt_id)
 config_host_data.set('CONFIG_ZSTD', zstd.found())
 config_host_data.set('CONFIG_FUSE', fuse.found())
 config_host_data.set('CONFIG_FUSE_LSEEK', fuse_lseek.found())

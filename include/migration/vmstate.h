@@ -181,9 +181,7 @@ struct VMStateDescription {
     int unmigratable;
     int version_id;
     int minimum_version_id;
-    int minimum_version_id_old;
     MigrationPriority priority;
-    LoadStateHandler *load_state_old;
     int (*pre_load)(void *opaque);
     int (*post_load)(void *opaque, int version_id);
     int (*pre_save)(void *opaque);

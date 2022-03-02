@@ -90,12 +90,6 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         return -EINVAL;
     }
     if  (version_id < vmsd->minimum_version_id) {
-        if (vmsd->load_state_old &&
-            version_id >= vmsd->minimum_version_id_old) {
-            ret = vmsd->load_state_old(f, opaque, version_id);
-            trace_vmstate_load_state_end(vmsd->name, "old path", ret);
-            return ret;
-        }
         error_report("%s: incoming version_id %d is too old "
                      "for local minimum version_id  %d",
                      vmsd->name, version_id, vmsd->minimum_version_id);
