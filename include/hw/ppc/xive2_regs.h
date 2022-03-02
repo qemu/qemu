@@ -20,10 +20,13 @@
 #define   TM2_QW0W2_VU           PPC_BIT32(0)
 #define   TM2_QW0W2_LOGIC_SERV   PPC_BITMASK32(4, 31)
 #define   TM2_QW1W2_VO           PPC_BIT32(0)
+#define   TM2_QW1W2_HO           PPC_BIT32(1)
 #define   TM2_QW1W2_OS_CAM       PPC_BITMASK32(4, 31)
 #define   TM2_QW2W2_VP           PPC_BIT32(0)
+#define   TM2_QW2W2_HP           PPC_BIT32(1)
 #define   TM2_QW2W2_POOL_CAM     PPC_BITMASK32(4, 31)
 #define   TM2_QW3W2_VT           PPC_BIT32(0)
+#define   TM2_QW3W2_HT           PPC_BIT32(1)
 #define   TM2_QW3W2_LP           PPC_BIT32(6)
 #define   TM2_QW3W2_LE           PPC_BIT32(7)
 
@@ -137,10 +140,17 @@ void xive2_end_eas_pic_print_info(Xive2End *end, uint32_t end_idx,
 typedef struct Xive2Nvp {
         uint32_t       w0;
 #define NVP2_W0_VALID              PPC_BIT32(0)
+#define NVP2_W0_HW                 PPC_BIT32(7)
 #define NVP2_W0_ESC_END            PPC_BIT32(25) /* 'N' bit 0:ESB  1:END */
         uint32_t       w1;
+#define NVP2_W1_CO                 PPC_BIT32(13)
+#define NVP2_W1_CO_PRIV            PPC_BITMASK32(14, 15)
+#define NVP2_W1_CO_THRID_VALID     PPC_BIT32(16)
+#define NVP2_W1_CO_THRID           PPC_BITMASK32(17, 31)
         uint32_t       w2;
+#define NVP2_W2_CPPR               PPC_BITMASK32(0, 7)
 #define NVP2_W2_IPB                PPC_BITMASK32(8, 15)
+#define NVP2_W2_LSMFB              PPC_BITMASK32(16, 23)
         uint32_t       w3;
         uint32_t       w4;
 #define NVP2_W4_ESC_ESB_BLOCK      PPC_BITMASK32(0, 3)  /* N:0 */
@@ -156,6 +166,8 @@ typedef struct Xive2Nvp {
 } Xive2Nvp;
 
 #define xive2_nvp_is_valid(nvp)    (be32_to_cpu((nvp)->w0) & NVP2_W0_VALID)
+#define xive2_nvp_is_hw(nvp)       (be32_to_cpu((nvp)->w0) & NVP2_W0_HW)
+#define xive2_nvp_is_co(nvp)       (be32_to_cpu((nvp)->w1) & NVP2_W1_CO)
 
 /*
  * The VP number space in a block is defined by the END2_W6_VP_OFFSET

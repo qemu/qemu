@@ -30,6 +30,7 @@
 #define       CQ_XIVE_CAP_VP_INT_PRIO_4_8       2
 #define       CQ_XIVE_CAP_VP_INT_PRIO_8         3
 #define    CQ_XIVE_CAP_BLOCK_ID_WIDTH           PPC_BITMASK(12, 13)
+#define    CQ_XIVE_CAP_VP_SAVE_RESTORE          PPC_BIT(38)
 
 #define    CQ_XIVE_CAP_PHB_PQ_DISABLE           PPC_BIT(56)
 #define    CQ_XIVE_CAP_PHB_ABT                  PPC_BIT(57)
@@ -65,6 +66,8 @@
 #define    CQ_XIVE_CFG_GEN1_TIMA_HYP_BLK0       PPC_BIT(26) /* 0 if bit[25]=0 */
 #define    CQ_XIVE_CFG_GEN1_TIMA_CROWD_DIS      PPC_BIT(27) /* 0 if bit[25]=0 */
 #define    CQ_XIVE_CFG_GEN1_END_ESX             PPC_BIT(28)
+#define    CQ_XIVE_CFG_EN_VP_SAVE_RESTORE       PPC_BIT(38) /* 0 if bit[25]=1 */
+#define    CQ_XIVE_CFG_EN_VP_SAVE_REST_STRICT   PPC_BIT(39) /* 0 if bit[25]=1 */
 
 /* Interrupt Controller Base Address Register - 512 pages (32M) */
 #define X_CQ_IC_BAR                             0x08

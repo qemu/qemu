@@ -169,27 +169,92 @@ static void xive2_end_enqueue(Xive2End *end, uint32_t data)
 
 /*
  * XIVE Thread Interrupt Management Area (TIMA) - Gen2 mode
+ *
+ * TIMA Gen2 VP “save & restore” (S&R) indicated by H bit next to V bit
+ *
+ *   - if a context is enabled with the H bit set, the VP context
+ *     information is retrieved from the NVP structure (“check out”)
+ *     and stored back on a context pull (“check in”), the SW receives
+ *     the same context pull information as on P9
+ *
+ *   - the H bit cannot be changed while the V bit is set, i.e. a
+ *     context cannot be set up in the TIMA and then be “pushed” into
+ *     the NVP by changing the H bit while the context is enabled
  */
 
+static void xive2_tctx_save_os_ctx(Xive2Router *xrtr, XiveTCTX *tctx,
+                                   uint8_t nvp_blk, uint32_t nvp_idx)
+{
+    CPUPPCState *env = &POWERPC_CPU(tctx->cs)->env;
+    uint32_t pir = env->spr_cb[SPR_PIR].default_value;
+    Xive2Nvp nvp;
+    uint8_t *regs = &tctx->regs[TM_QW1_OS];
+
+    if (xive2_router_get_nvp(xrtr, nvp_blk, nvp_idx, &nvp)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No NVP %x/%x\n",
+                          nvp_blk, nvp_idx);
+        return;
+    }
+
+    if (!xive2_nvp_is_valid(&nvp)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid NVP %x/%x\n",
+                      nvp_blk, nvp_idx);
+        return;
+    }
+
+    if (!xive2_nvp_is_hw(&nvp)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: NVP %x/%x is not HW owned\n",
+                      nvp_blk, nvp_idx);
+        return;
+    }
+
+    if (!xive2_nvp_is_co(&nvp)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: NVP %x/%x is not checkout\n",
+                      nvp_blk, nvp_idx);
+        return;
+    }
+
+    if (xive_get_field32(NVP2_W1_CO_THRID_VALID, nvp.w1) &&
+        xive_get_field32(NVP2_W1_CO_THRID, nvp.w1) != pir) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "XIVE: NVP %x/%x invalid checkout Thread %x\n",
+                      nvp_blk, nvp_idx, pir);
+        return;
+    }
+
+    nvp.w2 = xive_set_field32(NVP2_W2_IPB, nvp.w2, regs[TM_IPB]);
+    nvp.w2 = xive_set_field32(NVP2_W2_CPPR, nvp.w2, regs[TM_CPPR]);
+    nvp.w2 = xive_set_field32(NVP2_W2_LSMFB, nvp.w2, regs[TM_LSMFB]);
+    xive2_router_write_nvp(xrtr, nvp_blk, nvp_idx, &nvp, 2);
+
+    nvp.w1 = xive_set_field32(NVP2_W1_CO, nvp.w1, 0);
+    /* NVP2_W1_CO_THRID_VALID only set once */
+    nvp.w1 = xive_set_field32(NVP2_W1_CO_THRID, nvp.w1, 0xFFFF);
+    xive2_router_write_nvp(xrtr, nvp_blk, nvp_idx, &nvp, 1);
+}
+
 static void xive2_os_cam_decode(uint32_t cam, uint8_t *nvp_blk,
-                                uint32_t *nvp_idx, bool *vo)
+                                uint32_t *nvp_idx, bool *vo, bool *ho)
 {
     *nvp_blk = xive2_nvp_blk(cam);
     *nvp_idx = xive2_nvp_idx(cam);
     *vo = !!(cam & TM2_QW1W2_VO);
+    *ho = !!(cam & TM2_QW1W2_HO);
 }
 
 uint64_t xive2_tm_pull_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
                               hwaddr offset, unsigned size)
 {
+    Xive2Router *xrtr = XIVE2_ROUTER(xptr);
     uint32_t qw1w2 = xive_tctx_word2(&tctx->regs[TM_QW1_OS]);
     uint32_t qw1w2_new;
     uint32_t cam = be32_to_cpu(qw1w2);
     uint8_t nvp_blk;
     uint32_t nvp_idx;
     bool vo;
+    bool do_save;
 
-    xive2_os_cam_decode(cam, &nvp_blk, &nvp_idx, &vo);
+    xive2_os_cam_decode(cam, &nvp_blk, &nvp_idx, &vo, &do_save);
 
     if (!vo) {
         qemu_log_mask(LOG_GUEST_ERROR, "XIVE: pulling invalid NVP %x/%x !?\n",
@@ -200,11 +265,54 @@ uint64_t xive2_tm_pull_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
     qw1w2_new = xive_set_field32(TM2_QW1W2_VO, qw1w2, 0);
     memcpy(&tctx->regs[TM_QW1_OS + TM_WORD2], &qw1w2_new, 4);
 
+    if (xive2_router_get_config(xrtr) & XIVE2_VP_SAVE_RESTORE && do_save) {
+        xive2_tctx_save_os_ctx(xrtr, tctx, nvp_blk, nvp_idx);
+    }
+
     return qw1w2;
 }
 
+static uint8_t xive2_tctx_restore_os_ctx(Xive2Router *xrtr, XiveTCTX *tctx,
+                                        uint8_t nvp_blk, uint32_t nvp_idx,
+                                        Xive2Nvp *nvp)
+{
+    CPUPPCState *env = &POWERPC_CPU(tctx->cs)->env;
+    uint32_t pir = env->spr_cb[SPR_PIR].default_value;
+    uint8_t cppr;
+
+    if (!xive2_nvp_is_hw(nvp)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: NVP %x/%x is not HW owned\n",
+                      nvp_blk, nvp_idx);
+        return 0;
+    }
+
+    cppr = xive_get_field32(NVP2_W2_CPPR, nvp->w2);
+    nvp->w2 = xive_set_field32(NVP2_W2_CPPR, nvp->w2, 0);
+    xive2_router_write_nvp(xrtr, nvp_blk, nvp_idx, nvp, 2);
+
+    tctx->regs[TM_QW1_OS + TM_CPPR] = cppr;
+    /* we don't model LSMFB */
+
+    nvp->w1 = xive_set_field32(NVP2_W1_CO, nvp->w1, 1);
+    nvp->w1 = xive_set_field32(NVP2_W1_CO_THRID_VALID, nvp->w1, 1);
+    nvp->w1 = xive_set_field32(NVP2_W1_CO_THRID, nvp->w1, pir);
+
+    /*
+     * Checkout privilege: 0:OS, 1:Pool, 2:Hard
+     *
+     * TODO: we only support OS push/pull
+     */
+    nvp->w1 = xive_set_field32(NVP2_W1_CO_PRIV, nvp->w1, 0);
+
+    xive2_router_write_nvp(xrtr, nvp_blk, nvp_idx, nvp, 1);
+
+    /* return restored CPPR to generate a CPU exception if needed */
+    return cppr;
+}
+
 static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
-                                   uint8_t nvp_blk, uint32_t nvp_idx)
+                                   uint8_t nvp_blk, uint32_t nvp_idx,
+                                   bool do_restore)
 {
     Xive2Nvp nvp;
     uint8_t ipb;
@@ -224,6 +332,12 @@ static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
         qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid NVP %x/%x\n",
                       nvp_blk, nvp_idx);
         return;
+    }
+
+    /* Automatically restore thread context registers */
+    if (xive2_router_get_config(xrtr) & XIVE2_VP_SAVE_RESTORE &&
+        do_restore) {
+        cppr = xive2_tctx_restore_os_ctx(xrtr, tctx, nvp_blk, nvp_idx, &nvp);
     }
 
     ipb = xive_get_field32(NVP2_W2_IPB, nvp.w2);
@@ -249,15 +363,17 @@ void xive2_tm_push_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
     uint8_t nvp_blk;
     uint32_t nvp_idx;
     bool vo;
+    bool do_restore;
 
-    xive2_os_cam_decode(cam, &nvp_blk, &nvp_idx, &vo);
+    xive2_os_cam_decode(cam, &nvp_blk, &nvp_idx, &vo, &do_restore);
 
     /* First update the thead context */
     memcpy(&tctx->regs[TM_QW1_OS + TM_WORD2], &qw1w2, 4);
 
     /* Check the interrupt pending bits */
     if (vo) {
-        xive2_tctx_need_resend(XIVE2_ROUTER(xptr), tctx, nvp_blk, nvp_idx);
+        xive2_tctx_need_resend(XIVE2_ROUTER(xptr), tctx, nvp_blk, nvp_idx,
+                               do_restore);
     }
 }
 

@@ -435,6 +435,10 @@ static uint32_t pnv_xive2_get_config(Xive2Router *xrtr)
         cfg |= XIVE2_GEN1_TIMA_OS;
     }
 
+    if (xive->cq_regs[CQ_XIVE_CFG >> 3] & CQ_XIVE_CFG_EN_VP_SAVE_RESTORE) {
+        cfg |= XIVE2_VP_SAVE_RESTORE;
+    }
+
     return cfg;
 }
 
@@ -2000,9 +2004,21 @@ static void xive2_nvp_pic_print_info(Xive2Nvp *nvp, uint32_t nvp_idx,
         return;
     }
 
-    monitor_printf(mon, "  %08x end:%02x/%04x IPB:%02x\n",
+    monitor_printf(mon, "  %08x end:%02x/%04x IPB:%02x",
                    nvp_idx, eq_blk, eq_idx,
                    xive_get_field32(NVP2_W2_IPB, nvp->w2));
+    /*
+     * When the NVP is HW controlled, more fields are updated
+     */
+    if (xive2_nvp_is_hw(nvp)) {
+        monitor_printf(mon, " CPPR:%02x",
+                       xive_get_field32(NVP2_W2_CPPR, nvp->w2));
+        if (xive2_nvp_is_co(nvp)) {
+            monitor_printf(mon, " CO:%04x",
+                           xive_get_field32(NVP2_W1_CO_THRID, nvp->w1));
+        }
+    }
+    monitor_printf(mon, "\n");
 }
 
 /*
