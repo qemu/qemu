@@ -31,24 +31,6 @@
 #define PCA9546_CHANNEL_COUNT 4
 
 /*
- * struct Pca954xChannel - The i2c mux device will have N of these states
- * that own the i2c channel bus.
- * @bus: The owned channel bus.
- * @enabled: Is this channel active?
- */
-typedef struct Pca954xChannel {
-    SysBusDevice parent;
-
-    I2CBus       *bus;
-
-    bool         enabled;
-} Pca954xChannel;
-
-#define TYPE_PCA954X_CHANNEL "pca954x-channel"
-#define PCA954X_CHANNEL(obj) \
-    OBJECT_CHECK(Pca954xChannel, (obj), TYPE_PCA954X_CHANNEL)
-
-/*
  * struct Pca954xState - The pca954x state object.
  * @control: The value written to the mux control.
  * @channel: The set of i2c channel buses that act as channels which own the
@@ -59,8 +41,8 @@ typedef struct Pca954xState {
 
     uint8_t control;
 
-    /* The channel i2c buses. */
-    Pca954xChannel channel[PCA9548_CHANNEL_COUNT];
+    bool enabled[PCA9548_CHANNEL_COUNT];
+    I2CBus *bus[PCA9548_CHANNEL_COUNT];
 } Pca954xState;
 
 /*
@@ -98,11 +80,11 @@ static bool pca954x_match(I2CSlave *candidate, uint8_t address,
     }
 
     for (i = 0; i < mc->nchans; i++) {
-        if (!mux->channel[i].enabled) {
+        if (!mux->enabled[i]) {
             continue;
         }
 
-        if (i2c_scan_bus(mux->channel[i].bus, address, broadcast,
+        if (i2c_scan_bus(mux->bus[i], address, broadcast,
                          current_devs)) {
             if (!broadcast) {
                 return true;
@@ -125,9 +107,9 @@ static void pca954x_enable_channel(Pca954xState *s, uint8_t enable_mask)
      */
     for (i = 0; i < mc->nchans; i++) {
         if (enable_mask & (1 << i)) {
-            s->channel[i].enabled = true;
+            s->enabled[i] = true;
         } else {
-            s->channel[i].enabled = false;
+            s->enabled[i] = false;
         }
     }
 }
@@ -184,23 +166,7 @@ I2CBus *pca954x_i2c_get_bus(I2CSlave *mux, uint8_t channel)
     Pca954xState *pca954x = PCA954X(mux);
 
     g_assert(channel < pc->nchans);
-    return I2C_BUS(qdev_get_child_bus(DEVICE(&pca954x->channel[channel]),
-                                      "i2c-bus"));
-}
-
-static void pca954x_channel_init(Object *obj)
-{
-    Pca954xChannel *s = PCA954X_CHANNEL(obj);
-    s->bus = i2c_init_bus(DEVICE(s), "i2c-bus");
-
-    /* Start all channels as disabled. */
-    s->enabled = false;
-}
-
-static void pca954x_channel_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    dc->desc = "Pca954x Channel";
+    return pca954x->bus[channel];
 }
 
 static void pca9546_class_init(ObjectClass *klass, void *data)
@@ -215,28 +181,19 @@ static void pca9548_class_init(ObjectClass *klass, void *data)
     s->nchans = PCA9548_CHANNEL_COUNT;
 }
 
-static void pca954x_realize(DeviceState *dev, Error **errp)
-{
-    Pca954xState *s = PCA954X(dev);
-    Pca954xClass *c = PCA954X_GET_CLASS(s);
-    int i;
-
-    /* SMBus modules. Cannot fail. */
-    for (i = 0; i < c->nchans; i++) {
-        sysbus_realize(SYS_BUS_DEVICE(&s->channel[i]), &error_abort);
-    }
-}
-
 static void pca954x_init(Object *obj)
 {
     Pca954xState *s = PCA954X(obj);
     Pca954xClass *c = PCA954X_GET_CLASS(obj);
     int i;
 
-    /* Only initialize the children we expect. */
+    /* SMBus modules. Cannot fail. */
     for (i = 0; i < c->nchans; i++) {
-        object_initialize_child(obj, "channel[*]", &s->channel[i],
-                                TYPE_PCA954X_CHANNEL);
+        g_autofree gchar *bus_name = g_strdup_printf("i2c.%d", i);
+
+        /* start all channels as disabled. */
+        s->enabled[i] = false;
+        s->bus[i] = i2c_init_bus(DEVICE(s), bus_name);
     }
 }
 
@@ -252,7 +209,6 @@ static void pca954x_class_init(ObjectClass *klass, void *data)
     rc->phases.enter = pca954x_enter_reset;
 
     dc->desc = "Pca954x i2c-mux";
-    dc->realize = pca954x_realize;
 
     k->write_data = pca954x_write_data;
     k->receive_byte = pca954x_read_byte;
@@ -278,13 +234,6 @@ static const TypeInfo pca954x_info[] = {
         .parent        = TYPE_PCA954X,
         .class_init    = pca9548_class_init,
     },
-    {
-        .name = TYPE_PCA954X_CHANNEL,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .class_init = pca954x_channel_class_init,
-        .instance_size = sizeof(Pca954xChannel),
-        .instance_init = pca954x_channel_init,
-    }
 };
 
 DEFINE_TYPES(pca954x_info)

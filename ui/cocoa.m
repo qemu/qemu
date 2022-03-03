@@ -522,8 +522,9 @@ QemuCocoaView *cocoaView;
     }
 }
 
-- (void) updateUIInfo
+- (void) updateUIInfoLocked
 {
+    /* Must be called with the iothread lock, i.e. via updateUIInfo */
     NSSize frameSize;
     QemuUIInfo info;
 
@@ -552,6 +553,25 @@ QemuCocoaView *cocoaView;
     info.height = frameSize.height;
 
     dpy_set_ui_info(dcl.con, &info, TRUE);
+}
+
+- (void) updateUIInfo
+{
+    if (!allow_events) {
+        /*
+         * Don't try to tell QEMU about UI information in the application
+         * startup phase -- we haven't yet registered dcl with the QEMU UI
+         * layer, and also trying to take the iothread lock would deadlock.
+         * When cocoa_display_init() does register the dcl, the UI layer
+         * will call cocoa_switch(), which will call updateUIInfo, so
+         * we don't lose any information here.
+         */
+        return;
+    }
+
+    with_iothread_lock(^{
+        [self updateUIInfoLocked];
+    });
 }
 
 - (void)viewDidMoveToWindow
@@ -1956,8 +1976,6 @@ int main (int argc, char **argv) {
 static void cocoa_update(DisplayChangeListener *dcl,
                          int x, int y, int w, int h)
 {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-
     COCOA_DEBUG("qemu_cocoa: cocoa_update\n");
 
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -1973,19 +1991,14 @@ static void cocoa_update(DisplayChangeListener *dcl,
         }
         [cocoaView setNeedsDisplayInRect:rect];
     });
-
-    [pool release];
 }
 
 static void cocoa_switch(DisplayChangeListener *dcl,
                          DisplaySurface *surface)
 {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
     pixman_image_t *image = surface->image;
 
     COCOA_DEBUG("qemu_cocoa: cocoa_switch\n");
-
-    [cocoaView updateUIInfo];
 
     // The DisplaySurface will be freed as soon as this callback returns.
     // We take a reference to the underlying pixman image here so it does
@@ -1994,9 +2007,9 @@ static void cocoa_switch(DisplayChangeListener *dcl,
     pixman_image_ref(image);
 
     dispatch_async(dispatch_get_main_queue(), ^{
+        [cocoaView updateUIInfo];
         [cocoaView switchSurface:image];
     });
-    [pool release];
 }
 
 static void cocoa_refresh(DisplayChangeListener *dcl)
