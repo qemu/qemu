@@ -2868,7 +2868,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_bitsel_vec:
-        tcg_out_insn(s, VRRe, VSEL, a0, a1, a2, args[3]);
+        tcg_out_insn(s, VRRe, VSEL, a0, a2, args[3], a1);
         break;
 
     case INDEX_op_cmp_vec:
