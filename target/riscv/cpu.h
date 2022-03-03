@@ -304,6 +304,11 @@ struct CPUArchState {
     target_ulong spmbase;
     target_ulong upmmask;
     target_ulong upmbase;
+
+    /* CSRs for execution enviornment configuration */
+    uint64_t menvcfg;
+    target_ulong senvcfg;
+    uint64_t henvcfg;
 #endif
     target_ulong cur_pmmask;
     target_ulong cur_pmbase;
