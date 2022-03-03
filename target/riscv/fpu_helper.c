@@ -89,19 +89,21 @@ void helper_set_rod_rounding_mode(CPURISCVState *env)
 static uint64_t do_fmadd_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2,
                            uint64_t rs3, int flags)
 {
-    float16 frs1 = check_nanbox_h(rs1);
-    float16 frs2 = check_nanbox_h(rs2);
-    float16 frs3 = check_nanbox_h(rs3);
-    return nanbox_h(float16_muladd(frs1, frs2, frs3, flags, &env->fp_status));
+    float16 frs1 = check_nanbox_h(env, rs1);
+    float16 frs2 = check_nanbox_h(env, rs2);
+    float16 frs3 = check_nanbox_h(env, rs3);
+    return nanbox_h(env, float16_muladd(frs1, frs2, frs3, flags,
+                                        &env->fp_status));
 }
 
 static uint64_t do_fmadd_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2,
                            uint64_t rs3, int flags)
 {
-    float32 frs1 = check_nanbox_s(rs1);
-    float32 frs2 = check_nanbox_s(rs2);
-    float32 frs3 = check_nanbox_s(rs3);
-    return nanbox_s(float32_muladd(frs1, frs2, frs3, flags, &env->fp_status));
+    float32 frs1 = check_nanbox_s(env, rs1);
+    float32 frs2 = check_nanbox_s(env, rs2);
+    float32 frs3 = check_nanbox_s(env, rs3);
+    return nanbox_s(env, float32_muladd(frs1, frs2, frs3, flags,
+                                        &env->fp_status));
 }
 
 uint64_t helper_fmadd_s(CPURISCVState *env, uint64_t frs1, uint64_t frs2,
@@ -183,124 +185,124 @@ uint64_t helper_fnmadd_h(CPURISCVState *env, uint64_t frs1, uint64_t frs2,
 
 uint64_t helper_fadd_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
-    float32 frs1 = check_nanbox_s(rs1);
-    float32 frs2 = check_nanbox_s(rs2);
-    return nanbox_s(float32_add(frs1, frs2, &env->fp_status));
+    float32 frs1 = check_nanbox_s(env, rs1);
+    float32 frs2 = check_nanbox_s(env, rs2);
+    return nanbox_s(env, float32_add(frs1, frs2, &env->fp_status));
 }
 
 uint64_t helper_fsub_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
-    float32 frs1 = check_nanbox_s(rs1);
-    float32 frs2 = check_nanbox_s(rs2);
-    return nanbox_s(float32_sub(frs1, frs2, &env->fp_status));
+    float32 frs1 = check_nanbox_s(env, rs1);
+    float32 frs2 = check_nanbox_s(env, rs2);
+    return nanbox_s(env, float32_sub(frs1, frs2, &env->fp_status));
 }
 
 uint64_t helper_fmul_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
-    float32 frs1 = check_nanbox_s(rs1);
-    float32 frs2 = check_nanbox_s(rs2);
-    return nanbox_s(float32_mul(frs1, frs2, &env->fp_status));
+    float32 frs1 = check_nanbox_s(env, rs1);
+    float32 frs2 = check_nanbox_s(env, rs2);
+    return nanbox_s(env, float32_mul(frs1, frs2, &env->fp_status));
 }
 
 uint64_t helper_fdiv_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
-    float32 frs1 = check_nanbox_s(rs1);
-    float32 frs2 = check_nanbox_s(rs2);
-    return nanbox_s(float32_div(frs1, frs2, &env->fp_status));
+    float32 frs1 = check_nanbox_s(env, rs1);
+    float32 frs2 = check_nanbox_s(env, rs2);
+    return nanbox_s(env, float32_div(frs1, frs2, &env->fp_status));
 }
 
 uint64_t helper_fmin_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
-    float32 frs1 = check_nanbox_s(rs1);
-    float32 frs2 = check_nanbox_s(rs2);
-    return nanbox_s(env->priv_ver < PRIV_VERSION_1_11_0 ?
+    float32 frs1 = check_nanbox_s(env, rs1);
+    float32 frs2 = check_nanbox_s(env, rs2);
+    return nanbox_s(env, env->priv_ver < PRIV_VERSION_1_11_0 ?
                     float32_minnum(frs1, frs2, &env->fp_status) :
                     float32_minimum_number(frs1, frs2, &env->fp_status));
 }
 
 uint64_t helper_fmax_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
-    float32 frs1 = check_nanbox_s(rs1);
-    float32 frs2 = check_nanbox_s(rs2);
-    return nanbox_s(env->priv_ver < PRIV_VERSION_1_11_0 ?
+    float32 frs1 = check_nanbox_s(env, rs1);
+    float32 frs2 = check_nanbox_s(env, rs2);
+    return nanbox_s(env, env->priv_ver < PRIV_VERSION_1_11_0 ?
                     float32_maxnum(frs1, frs2, &env->fp_status) :
                     float32_maximum_number(frs1, frs2, &env->fp_status));
 }
 
 uint64_t helper_fsqrt_s(CPURISCVState *env, uint64_t rs1)
 {
-    float32 frs1 = check_nanbox_s(rs1);
-    return nanbox_s(float32_sqrt(frs1, &env->fp_status));
+    float32 frs1 = check_nanbox_s(env, rs1);
+    return nanbox_s(env, float32_sqrt(frs1, &env->fp_status));
 }
 
 target_ulong helper_fle_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
-    float32 frs1 = check_nanbox_s(rs1);
-    float32 frs2 = check_nanbox_s(rs2);
+    float32 frs1 = check_nanbox_s(env, rs1);
+    float32 frs2 = check_nanbox_s(env, rs2);
     return float32_le(frs1, frs2, &env->fp_status);
 }
 
 target_ulong helper_flt_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
-    float32 frs1 = check_nanbox_s(rs1);
-    float32 frs2 = check_nanbox_s(rs2);
+    float32 frs1 = check_nanbox_s(env, rs1);
+    float32 frs2 = check_nanbox_s(env, rs2);
     return float32_lt(frs1, frs2, &env->fp_status);
 }
 
 target_ulong helper_feq_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
-    float32 frs1 = check_nanbox_s(rs1);
-    float32 frs2 = check_nanbox_s(rs2);
+    float32 frs1 = check_nanbox_s(env, rs1);
+    float32 frs2 = check_nanbox_s(env, rs2);
     return float32_eq_quiet(frs1, frs2, &env->fp_status);
 }
 
 target_ulong helper_fcvt_w_s(CPURISCVState *env, uint64_t rs1)
 {
-    float32 frs1 = check_nanbox_s(rs1);
+    float32 frs1 = check_nanbox_s(env, rs1);
     return float32_to_int32(frs1, &env->fp_status);
 }
 
 target_ulong helper_fcvt_wu_s(CPURISCVState *env, uint64_t rs1)
 {
-    float32 frs1 = check_nanbox_s(rs1);
+    float32 frs1 = check_nanbox_s(env, rs1);
     return (int32_t)float32_to_uint32(frs1, &env->fp_status);
 }
 
 target_ulong helper_fcvt_l_s(CPURISCVState *env, uint64_t rs1)
 {
-    float32 frs1 = check_nanbox_s(rs1);
+    float32 frs1 = check_nanbox_s(env, rs1);
     return float32_to_int64(frs1, &env->fp_status);
 }
 
 target_ulong helper_fcvt_lu_s(CPURISCVState *env, uint64_t rs1)
 {
-    float32 frs1 = check_nanbox_s(rs1);
+    float32 frs1 = check_nanbox_s(env, rs1);
     return float32_to_uint64(frs1, &env->fp_status);
 }
 
 uint64_t helper_fcvt_s_w(CPURISCVState *env, target_ulong rs1)
 {
-    return nanbox_s(int32_to_float32((int32_t)rs1, &env->fp_status));
+    return nanbox_s(env, int32_to_float32((int32_t)rs1, &env->fp_status));
 }
 
 uint64_t helper_fcvt_s_wu(CPURISCVState *env, target_ulong rs1)
 {
-    return nanbox_s(uint32_to_float32((uint32_t)rs1, &env->fp_status));
+    return nanbox_s(env, uint32_to_float32((uint32_t)rs1, &env->fp_status));
 }
 
 uint64_t helper_fcvt_s_l(CPURISCVState *env, target_ulong rs1)
 {
-    return nanbox_s(int64_to_float32(rs1, &env->fp_status));
+    return nanbox_s(env, int64_to_float32(rs1, &env->fp_status));
 }
 
 uint64_t helper_fcvt_s_lu(CPURISCVState *env, target_ulong rs1)
 {
-    return nanbox_s(uint64_to_float32(rs1, &env->fp_status));
+    return nanbox_s(env, uint64_to_float32(rs1, &env->fp_status));
 }
 
-target_ulong helper_fclass_s(uint64_t rs1)
+target_ulong helper_fclass_s(CPURISCVState *env, uint64_t rs1)
 {
-    float32 frs1 = check_nanbox_s(rs1);
+    float32 frs1 = check_nanbox_s(env, rs1);
     return fclass_s(frs1);
 }
 
@@ -340,12 +342,12 @@ uint64_t helper_fmax_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
 
 uint64_t helper_fcvt_s_d(CPURISCVState *env, uint64_t rs1)
 {
-    return nanbox_s(float64_to_float32(rs1, &env->fp_status));
+    return nanbox_s(env, float64_to_float32(rs1, &env->fp_status));
 }
 
 uint64_t helper_fcvt_d_s(CPURISCVState *env, uint64_t rs1)
 {
-    float32 frs1 = check_nanbox_s(rs1);
+    float32 frs1 = check_nanbox_s(env, rs1);
     return float32_to_float64(frs1, &env->fp_status);
 }
 
@@ -416,146 +418,146 @@ target_ulong helper_fclass_d(uint64_t frs1)
 
 uint64_t helper_fadd_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
-    float16 frs1 = check_nanbox_h(rs1);
-    float16 frs2 = check_nanbox_h(rs2);
-    return nanbox_h(float16_add(frs1, frs2, &env->fp_status));
+    float16 frs1 = check_nanbox_h(env, rs1);
+    float16 frs2 = check_nanbox_h(env, rs2);
+    return nanbox_h(env, float16_add(frs1, frs2, &env->fp_status));
 }
 
 uint64_t helper_fsub_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
-    float16 frs1 = check_nanbox_h(rs1);
-    float16 frs2 = check_nanbox_h(rs2);
-    return nanbox_h(float16_sub(frs1, frs2, &env->fp_status));
+    float16 frs1 = check_nanbox_h(env, rs1);
+    float16 frs2 = check_nanbox_h(env, rs2);
+    return nanbox_h(env, float16_sub(frs1, frs2, &env->fp_status));
 }
 
 uint64_t helper_fmul_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
-    float16 frs1 = check_nanbox_h(rs1);
-    float16 frs2 = check_nanbox_h(rs2);
-    return nanbox_h(float16_mul(frs1, frs2, &env->fp_status));
+    float16 frs1 = check_nanbox_h(env, rs1);
+    float16 frs2 = check_nanbox_h(env, rs2);
+    return nanbox_h(env, float16_mul(frs1, frs2, &env->fp_status));
 }
 
 uint64_t helper_fdiv_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
-    float16 frs1 = check_nanbox_h(rs1);
-    float16 frs2 = check_nanbox_h(rs2);
-    return nanbox_h(float16_div(frs1, frs2, &env->fp_status));
+    float16 frs1 = check_nanbox_h(env, rs1);
+    float16 frs2 = check_nanbox_h(env, rs2);
+    return nanbox_h(env, float16_div(frs1, frs2, &env->fp_status));
 }
 
 uint64_t helper_fmin_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
-    float16 frs1 = check_nanbox_h(rs1);
-    float16 frs2 = check_nanbox_h(rs2);
-    return nanbox_h(env->priv_ver < PRIV_VERSION_1_11_0 ?
+    float16 frs1 = check_nanbox_h(env, rs1);
+    float16 frs2 = check_nanbox_h(env, rs2);
+    return nanbox_h(env, env->priv_ver < PRIV_VERSION_1_11_0 ?
                     float16_minnum(frs1, frs2, &env->fp_status) :
                     float16_minimum_number(frs1, frs2, &env->fp_status));
 }
 
 uint64_t helper_fmax_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
-    float16 frs1 = check_nanbox_h(rs1);
-    float16 frs2 = check_nanbox_h(rs2);
-    return nanbox_h(env->priv_ver < PRIV_VERSION_1_11_0 ?
+    float16 frs1 = check_nanbox_h(env, rs1);
+    float16 frs2 = check_nanbox_h(env, rs2);
+    return nanbox_h(env, env->priv_ver < PRIV_VERSION_1_11_0 ?
                     float16_maxnum(frs1, frs2, &env->fp_status) :
                     float16_maximum_number(frs1, frs2, &env->fp_status));
 }
 
 uint64_t helper_fsqrt_h(CPURISCVState *env, uint64_t rs1)
 {
-    float16 frs1 = check_nanbox_h(rs1);
-    return nanbox_h(float16_sqrt(frs1, &env->fp_status));
+    float16 frs1 = check_nanbox_h(env, rs1);
+    return nanbox_h(env, float16_sqrt(frs1, &env->fp_status));
 }
 
 target_ulong helper_fle_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
-    float16 frs1 = check_nanbox_h(rs1);
-    float16 frs2 = check_nanbox_h(rs2);
+    float16 frs1 = check_nanbox_h(env, rs1);
+    float16 frs2 = check_nanbox_h(env, rs2);
     return float16_le(frs1, frs2, &env->fp_status);
 }
 
 target_ulong helper_flt_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
-    float16 frs1 = check_nanbox_h(rs1);
-    float16 frs2 = check_nanbox_h(rs2);
+    float16 frs1 = check_nanbox_h(env, rs1);
+    float16 frs2 = check_nanbox_h(env, rs2);
     return float16_lt(frs1, frs2, &env->fp_status);
 }
 
 target_ulong helper_feq_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
-    float16 frs1 = check_nanbox_h(rs1);
-    float16 frs2 = check_nanbox_h(rs2);
+    float16 frs1 = check_nanbox_h(env, rs1);
+    float16 frs2 = check_nanbox_h(env, rs2);
     return float16_eq_quiet(frs1, frs2, &env->fp_status);
 }
 
-target_ulong helper_fclass_h(uint64_t rs1)
+target_ulong helper_fclass_h(CPURISCVState *env, uint64_t rs1)
 {
-    float16 frs1 = check_nanbox_h(rs1);
+    float16 frs1 = check_nanbox_h(env, rs1);
     return fclass_h(frs1);
 }
 
 target_ulong helper_fcvt_w_h(CPURISCVState *env, uint64_t rs1)
 {
-    float16 frs1 = check_nanbox_h(rs1);
+    float16 frs1 = check_nanbox_h(env, rs1);
     return float16_to_int32(frs1, &env->fp_status);
 }
 
 target_ulong helper_fcvt_wu_h(CPURISCVState *env, uint64_t rs1)
 {
-    float16 frs1 = check_nanbox_h(rs1);
+    float16 frs1 = check_nanbox_h(env, rs1);
     return (int32_t)float16_to_uint32(frs1, &env->fp_status);
 }
 
 target_ulong helper_fcvt_l_h(CPURISCVState *env, uint64_t rs1)
 {
-    float16 frs1 = check_nanbox_h(rs1);
+    float16 frs1 = check_nanbox_h(env, rs1);
     return float16_to_int64(frs1, &env->fp_status);
 }
 
 target_ulong helper_fcvt_lu_h(CPURISCVState *env, uint64_t rs1)
 {
-    float16 frs1 = check_nanbox_h(rs1);
+    float16 frs1 = check_nanbox_h(env, rs1);
     return float16_to_uint64(frs1, &env->fp_status);
 }
 
 uint64_t helper_fcvt_h_w(CPURISCVState *env, target_ulong rs1)
 {
-    return nanbox_h(int32_to_float16((int32_t)rs1, &env->fp_status));
+    return nanbox_h(env, int32_to_float16((int32_t)rs1, &env->fp_status));
 }
 
 uint64_t helper_fcvt_h_wu(CPURISCVState *env, target_ulong rs1)
 {
-    return nanbox_h(uint32_to_float16((uint32_t)rs1, &env->fp_status));
+    return nanbox_h(env, uint32_to_float16((uint32_t)rs1, &env->fp_status));
 }
 
 uint64_t helper_fcvt_h_l(CPURISCVState *env, target_ulong rs1)
 {
-    return nanbox_h(int64_to_float16(rs1, &env->fp_status));
+    return nanbox_h(env, int64_to_float16(rs1, &env->fp_status));
 }
 
 uint64_t helper_fcvt_h_lu(CPURISCVState *env, target_ulong rs1)
 {
-    return nanbox_h(uint64_to_float16(rs1, &env->fp_status));
+    return nanbox_h(env, uint64_to_float16(rs1, &env->fp_status));
 }
 
 uint64_t helper_fcvt_h_s(CPURISCVState *env, uint64_t rs1)
 {
-    float32 frs1 = check_nanbox_s(rs1);
-    return nanbox_h(float32_to_float16(frs1, true, &env->fp_status));
+    float32 frs1 = check_nanbox_s(env, rs1);
+    return nanbox_h(env, float32_to_float16(frs1, true, &env->fp_status));
 }
 
 uint64_t helper_fcvt_s_h(CPURISCVState *env, uint64_t rs1)
 {
-    float16 frs1 = check_nanbox_h(rs1);
-    return nanbox_s(float16_to_float32(frs1, true, &env->fp_status));
+    float16 frs1 = check_nanbox_h(env, rs1);
+    return nanbox_s(env, float16_to_float32(frs1, true, &env->fp_status));
 }
 
 uint64_t helper_fcvt_h_d(CPURISCVState *env, uint64_t rs1)
 {
-    return nanbox_h(float64_to_float16(rs1, true, &env->fp_status));
+    return nanbox_h(env, float64_to_float16(rs1, true, &env->fp_status));
 }
 
 uint64_t helper_fcvt_d_h(CPURISCVState *env, uint64_t rs1)
 {
-    float16 frs1 = check_nanbox_h(rs1);
+    float16 frs1 = check_nanbox_h(env, rs1);
     return float16_to_float64(frs1, true, &env->fp_status);
 }
