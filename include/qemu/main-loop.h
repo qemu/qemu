@@ -269,6 +269,24 @@ bool qemu_mutex_iothread_locked(void);
  */
 bool qemu_in_main_thread(void);
 
+/* Mark and check that the function is part of the global state API. */
+#define GLOBAL_STATE_CODE()                                         \
+    do {                                                            \
+        assert(qemu_in_main_thread());                              \
+    } while (0)
+
+/* Mark and check that the function is part of the I/O API. */
+#define IO_CODE()                                                   \
+    do {                                                            \
+        /* nop */                                                   \
+    } while (0)
+
+/* Mark and check that the function is part of the "I/O OR GS" API. */
+#define IO_OR_GS_CODE()                                             \
+    do {                                                            \
+        /* nop */                                                   \
+    } while (0)
+
 /**
  * qemu_mutex_lock_iothread: Lock the main loop mutex.
  *
