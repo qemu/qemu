@@ -121,6 +121,7 @@ static inline int coroutine_fn blk_co_pread(BlockBackend *blk, int64_t offset,
                                             BdrvRequestFlags flags)
 {
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
+    IO_OR_GS_CODE();
 
     assert(bytes <= SIZE_MAX);
 
@@ -132,6 +133,7 @@ static inline int coroutine_fn blk_co_pwrite(BlockBackend *blk, int64_t offset,
                                              BdrvRequestFlags flags)
 {
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
+    IO_OR_GS_CODE();
 
     assert(bytes <= SIZE_MAX);
 
