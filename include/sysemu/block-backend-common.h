@@ -27,6 +27,14 @@
 
 /* Callbacks for block device models */
 typedef struct BlockDevOps {
+
+    /*
+     * Global state (GS) API. These functions run under the BQL.
+     *
+     * See include/block/block-global-state.h for more information about
+     * the GS API.
+     */
+
     /*
      * Runs when virtual media changed (monitor commands eject, change)
      * Argument load is true on load and false on eject.
@@ -44,16 +52,26 @@ typedef struct BlockDevOps {
      * true, even if they do not support eject requests.
      */
     void (*eject_request_cb)(void *opaque, bool force);
-    /*
-     * Is the virtual tray open?
-     * Device models implement this only when the device has a tray.
-     */
-    bool (*is_tray_open)(void *opaque);
+
     /*
      * Is the virtual medium locked into the device?
      * Device models implement this only when device has such a lock.
      */
     bool (*is_medium_locked)(void *opaque);
+
+    /*
+     * I/O API functions. These functions are thread-safe.
+     *
+     * See include/block/block-io.h for more information about
+     * the I/O API.
+     */
+
+    /*
+     * Is the virtual tray open?
+     * Device models implement this only when the device has a tray.
+     */
+    bool (*is_tray_open)(void *opaque);
+
     /*
      * Runs when the size changed (e.g. monitor command block_resize)
      */
