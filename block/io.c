@@ -164,6 +164,8 @@ void bdrv_refresh_limits(BlockDriverState *bs, Transaction *tran, Error **errp)
     BdrvChild *c;
     bool have_limits;
 
+    GLOBAL_STATE_CODE();
+
     if (tran) {
         BdrvRefreshLimitsState *s = g_new(BdrvRefreshLimitsState, 1);
         *s = (BdrvRefreshLimitsState) {
@@ -612,6 +614,7 @@ static bool bdrv_drain_all_poll(void)
 {
     BlockDriverState *bs = NULL;
     bool result = false;
+    GLOBAL_STATE_CODE();
 
     /* bdrv_drain_poll() can't make changes to the graph and we are holding the
      * main AioContext lock, so iterating bdrv_next_all_states() is safe. */
@@ -640,6 +643,7 @@ static bool bdrv_drain_all_poll(void)
 void bdrv_drain_all_begin(void)
 {
     BlockDriverState *bs = NULL;
+    GLOBAL_STATE_CODE();
 
     if (qemu_in_coroutine()) {
         bdrv_co_yield_to_drain(NULL, true, false, NULL, true, true, NULL);
@@ -696,6 +700,7 @@ void bdrv_drain_all_end(void)
 {
     BlockDriverState *bs = NULL;
     int drained_end_counter = 0;
+    GLOBAL_STATE_CODE();
 
     /*
      * bdrv queue is managed by record/replay,
@@ -723,6 +728,7 @@ void bdrv_drain_all_end(void)
 
 void bdrv_drain_all(void)
 {
+    GLOBAL_STATE_CODE();
     bdrv_drain_all_begin();
     bdrv_drain_all_end();
 }
@@ -2345,6 +2351,8 @@ int bdrv_flush_all(void)
     BlockDriverState *bs = NULL;
     int result = 0;
 
+    GLOBAL_STATE_CODE();
+
     /*
      * bdrv queue is managed by record/replay,
      * creating new flush request for stopping
@@ -3296,6 +3304,7 @@ void bdrv_register_buf(BlockDriverState *bs, void *host, size_t size)
 {
     BdrvChild *child;
 
+    GLOBAL_STATE_CODE();
     if (bs->drv && bs->drv->bdrv_register_buf) {
         bs->drv->bdrv_register_buf(bs, host, size);
     }
@@ -3308,6 +3317,7 @@ void bdrv_unregister_buf(BlockDriverState *bs, void *host)
 {
     BdrvChild *child;
 
+    GLOBAL_STATE_CODE();
     if (bs->drv && bs->drv->bdrv_unregister_buf) {
         bs->drv->bdrv_unregister_buf(bs, host);
     }
@@ -3579,6 +3589,7 @@ out:
 
 void bdrv_cancel_in_flight(BlockDriverState *bs)
 {
+    GLOBAL_STATE_CODE();
     if (!bs || !bs->drv) {
         return;
     }
