@@ -113,6 +113,8 @@ void override_max_devs(BlockInterfaceType type, int max_devs)
     BlockBackend *blk;
     DriveInfo *dinfo;
 
+    GLOBAL_STATE_CODE();
+
     if (max_devs <= 0) {
         return;
     }
@@ -142,6 +144,8 @@ void blockdev_mark_auto_del(BlockBackend *blk)
     DriveInfo *dinfo = blk_legacy_dinfo(blk);
     BlockJob *job;
 
+    GLOBAL_STATE_CODE();
+
     if (!dinfo) {
         return;
     }
@@ -163,6 +167,7 @@ void blockdev_mark_auto_del(BlockBackend *blk)
 void blockdev_auto_del(BlockBackend *blk)
 {
     DriveInfo *dinfo = blk_legacy_dinfo(blk);
+    GLOBAL_STATE_CODE();
 
     if (dinfo && dinfo->auto_del) {
         monitor_remove_blk(blk);
@@ -187,6 +192,8 @@ QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
 {
     QemuOpts *opts;
 
+    GLOBAL_STATE_CODE();
+
     opts = qemu_opts_parse_noisily(qemu_find_opts("drive"), optstr, false);
     if (!opts) {
         return NULL;
@@ -206,6 +213,8 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
 {
     BlockBackend *blk;
     DriveInfo *dinfo;
+
+    GLOBAL_STATE_CODE();
 
     for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
         dinfo = blk_legacy_dinfo(blk);
@@ -228,6 +237,8 @@ void drive_check_orphaned(void)
     DriveInfo *dinfo;
     Location loc;
     bool orphans = false;
+
+    GLOBAL_STATE_CODE();
 
     for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
         dinfo = blk_legacy_dinfo(blk);
@@ -262,6 +273,7 @@ void drive_check_orphaned(void)
 
 DriveInfo *drive_get_by_index(BlockInterfaceType type, int index)
 {
+    GLOBAL_STATE_CODE();
     return drive_get(type,
                      drive_index_to_bus_id(type, index),
                      drive_index_to_unit_id(type, index));
@@ -272,6 +284,8 @@ int drive_get_max_bus(BlockInterfaceType type)
     int max_bus;
     BlockBackend *blk;
     DriveInfo *dinfo;
+
+    GLOBAL_STATE_CODE();
 
     max_bus = -1;
     for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
@@ -758,6 +772,8 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type,
     bool copy_on_read;
     const char *filename;
     int i;
+
+    GLOBAL_STATE_CODE();
 
     /* Change legacy command line options into QMP ones */
     static const struct {
