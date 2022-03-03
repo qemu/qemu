@@ -496,6 +496,7 @@ static void coroutine_fn bdrv_co_can_store_new_dirty_bitmap_entry(void *opaque)
 bool bdrv_can_store_new_dirty_bitmap(BlockDriverState *bs, const char *name,
                                      uint32_t granularity, Error **errp)
 {
+    IO_CODE();
     if (qemu_in_coroutine()) {
         return bdrv_co_can_store_new_dirty_bitmap(bs, name, granularity, errp);
     } else {

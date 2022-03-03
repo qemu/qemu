@@ -264,6 +264,7 @@ void bdrv_drained_end_no_poll(BlockDriverState *bs, int *drained_end_counter);
 
 #define BDRV_POLL_WHILE(bs, cond) ({                       \
     BlockDriverState *bs_ = (bs);                          \
+    IO_OR_GS_CODE();                                       \
     AIO_WAIT_WHILE(bdrv_get_aio_context(bs_),              \
                    cond); })
 
