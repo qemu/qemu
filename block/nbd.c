@@ -313,6 +313,7 @@ int coroutine_fn nbd_co_do_establish_connection(BlockDriverState *bs,
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
     int ret;
     bool blocking = nbd_client_connecting_wait(s);
+    IO_CODE();
 
     assert(!s->ioc);
 

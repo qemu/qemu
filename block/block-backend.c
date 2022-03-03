@@ -1290,6 +1290,7 @@ blk_co_do_preadv(BlockBackend *blk, int64_t offset, int64_t bytes,
 {
     int ret;
     BlockDriverState *bs;
+    IO_CODE();
 
     blk_wait_while_drained(blk);
 
@@ -1337,6 +1338,7 @@ blk_co_do_pwritev_part(BlockBackend *blk, int64_t offset, int64_t bytes,
 {
     int ret;
     BlockDriverState *bs;
+    IO_CODE();
 
     blk_wait_while_drained(blk);
 
@@ -1656,6 +1658,8 @@ void blk_aio_cancel_async(BlockAIOCB *acb)
 int coroutine_fn
 blk_co_do_ioctl(BlockBackend *blk, unsigned long int req, void *buf)
 {
+    IO_CODE();
+
     blk_wait_while_drained(blk);
 
     if (!blk_is_available(blk)) {
@@ -1699,6 +1703,7 @@ int coroutine_fn
 blk_co_do_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes)
 {
     int ret;
+    IO_CODE();
 
     blk_wait_while_drained(blk);
 
@@ -1757,6 +1762,7 @@ int blk_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes)
 int coroutine_fn blk_co_do_flush(BlockBackend *blk)
 {
     blk_wait_while_drained(blk);
+    IO_CODE();
 
     if (!blk_is_available(blk)) {
         return -ENOMEDIUM;
