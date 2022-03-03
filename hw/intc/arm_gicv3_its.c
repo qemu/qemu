@@ -161,16 +161,22 @@ static MemTxResult get_cte(GICv3ITSState *s, uint16_t icid, CTEntry *cte)
     if (entry_addr == -1) {
         /* No L2 table entry, i.e. no valid CTE, or a memory error */
         cte->valid = false;
-        return res;
+        goto out;
     }
 
     cteval = address_space_ldq_le(as, entry_addr, MEMTXATTRS_UNSPECIFIED, &res);
     if (res != MEMTX_OK) {
-        return res;
+        goto out;
     }
     cte->valid = FIELD_EX64(cteval, CTE, VALID);
     cte->rdbase = FIELD_EX64(cteval, CTE, RDBASE);
-    return MEMTX_OK;
+out:
+    if (res != MEMTX_OK) {
+        trace_gicv3_its_cte_read_fault(icid);
+    } else {
+        trace_gicv3_its_cte_read(icid, cte->valid, cte->rdbase);
+    }
+    return res;
 }
 
 /*
@@ -186,6 +192,10 @@ static bool update_ite(GICv3ITSState *s, uint32_t eventid, const DTEntry *dte,
     hwaddr iteaddr = dte->ittaddr + eventid * ITS_ITT_ENTRY_SIZE;
     uint64_t itel = 0;
     uint32_t iteh = 0;
+
+    trace_gicv3_its_ite_write(dte->ittaddr, eventid, ite->valid,
+                              ite->inttype, ite->intid, ite->icid,
+                              ite->vpeid, ite->doorbell);
 
     if (ite->valid) {
         itel = FIELD_DP64(itel, ITE_L, VALID, 1);
@@ -221,11 +231,13 @@ static MemTxResult get_ite(GICv3ITSState *s, uint32_t eventid,
 
     itel = address_space_ldq_le(as, iteaddr, MEMTXATTRS_UNSPECIFIED, &res);
     if (res != MEMTX_OK) {
+        trace_gicv3_its_ite_read_fault(dte->ittaddr, eventid);
         return res;
     }
 
     iteh = address_space_ldl_le(as, iteaddr + 8, MEMTXATTRS_UNSPECIFIED, &res);
     if (res != MEMTX_OK) {
+        trace_gicv3_its_ite_read_fault(dte->ittaddr, eventid);
         return res;
     }
 
@@ -235,6 +247,9 @@ static MemTxResult get_ite(GICv3ITSState *s, uint32_t eventid,
     ite->icid = FIELD_EX64(itel, ITE_L, ICID);
     ite->vpeid = FIELD_EX64(itel, ITE_L, VPEID);
     ite->doorbell = FIELD_EX64(iteh, ITE_H, DOORBELL);
+    trace_gicv3_its_ite_read(dte->ittaddr, eventid, ite->valid,
+                             ite->inttype, ite->intid, ite->icid,
+                             ite->vpeid, ite->doorbell);
     return MEMTX_OK;
 }
 
@@ -254,17 +269,23 @@ static MemTxResult get_dte(GICv3ITSState *s, uint32_t devid, DTEntry *dte)
     if (entry_addr == -1) {
         /* No L2 table entry, i.e. no valid DTE, or a memory error */
         dte->valid = false;
-        return res;
+        goto out;
     }
     dteval = address_space_ldq_le(as, entry_addr, MEMTXATTRS_UNSPECIFIED, &res);
     if (res != MEMTX_OK) {
-        return res;
+        goto out;
     }
     dte->valid = FIELD_EX64(dteval, DTE, VALID);
     dte->size = FIELD_EX64(dteval, DTE, SIZE);
     /* DTE word field stores bits [51:8] of the ITT address */
     dte->ittaddr = FIELD_EX64(dteval, DTE, ITTADDR) << ITTADDR_SHIFT;
-    return MEMTX_OK;
+out:
+    if (res != MEMTX_OK) {
+        trace_gicv3_its_dte_read_fault(devid);
+    } else {
+        trace_gicv3_its_dte_read(devid, dte->valid, dte->size, dte->ittaddr);
+    }
+    return res;
 }
 
 /*
@@ -465,6 +486,8 @@ static bool update_cte(GICv3ITSState *s, uint16_t icid, const CTEntry *cte)
     uint64_t cteval = 0;
     MemTxResult res = MEMTX_OK;
 
+    trace_gicv3_its_cte_write(icid, cte->valid, cte->rdbase);
+
     if (cte->valid) {
         /* add mapping entry to collection table */
         cteval = FIELD_DP64(cteval, CTE, VALID, 1);
@@ -523,6 +546,8 @@ static bool update_dte(GICv3ITSState *s, uint32_t devid, const DTEntry *dte)
     uint64_t entry_addr;
     uint64_t dteval = 0;
     MemTxResult res = MEMTX_OK;
+
+    trace_gicv3_its_dte_write(devid, dte->valid, dte->size, dte->ittaddr);
 
     if (dte->valid) {
         /* add mapping entry to device table */
