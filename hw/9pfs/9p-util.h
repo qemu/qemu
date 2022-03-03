@@ -99,7 +99,7 @@ ssize_t flistxattrat_nofollow(int dirfd, const char *filename,
 ssize_t fremovexattrat_nofollow(int dirfd, const char *filename,
                                 const char *name);
 
-/**
+/*
  * Darwin has d_seekoff, which appears to function similarly to d_off.
  * However, it does not appear to be supported on all file systems,
  * so ensure it is manually injected earlier and call here when
@@ -115,15 +115,15 @@ static inline off_t qemu_dirent_off(struct dirent *dent)
 }
 
 /**
- * Duplicate directory entry @dent.
+ * qemu_dirent_dup() - Duplicate directory entry @dent.
+ *
+ * @dent: original directory entry to be duplicated
+ * Return: duplicated directory entry which should be freed with g_free()
  *
  * It is highly recommended to use this function instead of open coding
  * duplication of dirent objects, because the actual struct dirent
  * size may be bigger or shorter than sizeof(struct dirent) and correct
  * handling is platform specific (see gitlab issue #841).
- *
- * @dent - original directory entry to be duplicated
- * @returns duplicated directory entry which should be freed with g_free()
  */
 static inline struct dirent *qemu_dirent_dup(struct dirent *dent)
 {
