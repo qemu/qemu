@@ -665,13 +665,13 @@ static bool trans_VLDST_single(DisasContext *s, arg_VLDST_single *a)
             return false;
         }
         break;
-    case 3:
-        if ((a->align & 1) != 0) {
-            return false;
-        }
-        /* fall through */
     case 2:
         if (a->size == 2 && (a->align & 2) != 0) {
+            return false;
+        }
+        break;
+    case 3:
+        if (a->align != 0) {
             return false;
         }
         break;
