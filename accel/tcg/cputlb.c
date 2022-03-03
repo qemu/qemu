@@ -2339,6 +2339,7 @@ static uint8_t do_ld1_mmu(CPUArchState *env, vaddr addr, MemOpIdx oi,
     MMULookupLocals l;
     bool crosspage;
 
+    cpu_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     crosspage = mmu_lookup(env, addr, oi, ra, access_type, &l);
     tcg_debug_assert(!crosspage);
 
@@ -2360,6 +2361,7 @@ static uint16_t do_ld2_mmu(CPUArchState *env, vaddr addr, MemOpIdx oi,
     uint16_t ret;
     uint8_t a, b;
 
+    cpu_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     crosspage = mmu_lookup(env, addr, oi, ra, access_type, &l);
     if (likely(!crosspage)) {
         return do_ld_2(env, &l.page[0], l.mmu_idx, access_type, l.memop, ra);
@@ -2390,6 +2392,7 @@ static uint32_t do_ld4_mmu(CPUArchState *env, vaddr addr, MemOpIdx oi,
     bool crosspage;
     uint32_t ret;
 
+    cpu_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     crosspage = mmu_lookup(env, addr, oi, ra, access_type, &l);
     if (likely(!crosspage)) {
         return do_ld_4(env, &l.page[0], l.mmu_idx, access_type, l.memop, ra);
@@ -2417,6 +2420,7 @@ static uint64_t do_ld8_mmu(CPUArchState *env, vaddr addr, MemOpIdx oi,
     bool crosspage;
     uint64_t ret;
 
+    cpu_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     crosspage = mmu_lookup(env, addr, oi, ra, access_type, &l);
     if (likely(!crosspage)) {
         return do_ld_8(env, &l.page[0], l.mmu_idx, access_type, l.memop, ra);
@@ -2469,6 +2473,7 @@ static Int128 do_ld16_mmu(CPUArchState *env, vaddr addr,
     Int128 ret;
     int first;
 
+    cpu_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     crosspage = mmu_lookup(env, addr, oi, ra, MMU_DATA_LOAD, &l);
     if (likely(!crosspage)) {
         /* Perform the load host endian. */
@@ -2802,6 +2807,7 @@ void helper_stb_mmu(CPUArchState *env, uint64_t addr, uint32_t val,
     bool crosspage;
 
     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_8);
+    cpu_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
     crosspage = mmu_lookup(env, addr, oi, ra, MMU_DATA_STORE, &l);
     tcg_debug_assert(!crosspage);
 
@@ -2815,6 +2821,7 @@ static void do_st2_mmu(CPUArchState *env, vaddr addr, uint16_t val,
     bool crosspage;
     uint8_t a, b;
 
+    cpu_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
     crosspage = mmu_lookup(env, addr, oi, ra, MMU_DATA_STORE, &l);
     if (likely(!crosspage)) {
         do_st_2(env, &l.page[0], val, l.mmu_idx, l.memop, ra);
@@ -2843,6 +2850,7 @@ static void do_st4_mmu(CPUArchState *env, vaddr addr, uint32_t val,
     MMULookupLocals l;
     bool crosspage;
 
+    cpu_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
     crosspage = mmu_lookup(env, addr, oi, ra, MMU_DATA_STORE, &l);
     if (likely(!crosspage)) {
         do_st_4(env, &l.page[0], val, l.mmu_idx, l.memop, ra);
@@ -2870,6 +2878,7 @@ static void do_st8_mmu(CPUArchState *env, vaddr addr, uint64_t val,
     MMULookupLocals l;
     bool crosspage;
 
+    cpu_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
     crosspage = mmu_lookup(env, addr, oi, ra, MMU_DATA_STORE, &l);
     if (likely(!crosspage)) {
         do_st_8(env, &l.page[0], val, l.mmu_idx, l.memop, ra);
@@ -2899,6 +2908,7 @@ static void do_st16_mmu(CPUArchState *env, vaddr addr, Int128 val,
     uint64_t a, b;
     int first;
 
+    cpu_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
     crosspage = mmu_lookup(env, addr, oi, ra, MMU_DATA_STORE, &l);
     if (likely(!crosspage)) {
         /* Swap to host endian if necessary, then store. */
