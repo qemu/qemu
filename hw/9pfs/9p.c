@@ -628,8 +628,8 @@ static inline uint64_t mirror64bit(uint64_t value)
            ((uint64_t)mirror8bit((value >> 56) & 0xff));
 }
 
-/**
- * @brief Parameter k for the Exponential Golomb algorihm to be used.
+/*
+ * Parameter k for the Exponential Golomb algorihm to be used.
  *
  * The smaller this value, the smaller the minimum bit count for the Exp.
  * Golomb generated affixes will be (at lowest index) however for the
@@ -642,28 +642,30 @@ static inline uint64_t mirror64bit(uint64_t value)
  * should be small, for a large amount of devices k might be increased
  * instead. The default of k=0 should be fine for most users though.
  *
- * @b IMPORTANT: In case this ever becomes a runtime parameter; the value of
+ * IMPORTANT: In case this ever becomes a runtime parameter; the value of
  * k should not change as long as guest is still running! Because that would
  * cause completely different inode numbers to be generated on guest.
  */
 #define EXP_GOLOMB_K    0
 
 /**
- * @brief Exponential Golomb algorithm for arbitrary k (including k=0).
+ * expGolombEncode() - Exponential Golomb algorithm for arbitrary k
+ *                     (including k=0).
  *
- * The Exponential Golomb algorithm generates @b prefixes (@b not suffixes!)
+ * @n: natural number (or index) of the prefix to be generated
+ *     (1, 2, 3, ...)
+ * @k: parameter k of Exp. Golomb algorithm to be used
+ *     (see comment on EXP_GOLOMB_K macro for details about k)
+ * Return: prefix for given @n and @k
+ *
+ * The Exponential Golomb algorithm generates prefixes (NOT suffixes!)
  * with growing length and with the mathematical property of being
  * "prefix-free". The latter means the generated prefixes can be prepended
  * in front of arbitrary numbers and the resulting concatenated numbers are
  * guaranteed to be always unique.
  *
  * This is a minor adjustment to the original Exp. Golomb algorithm in the
- * sense that lowest allowed index (@param n) starts with 1, not with zero.
- *
- * @param n - natural number (or index) of the prefix to be generated
- *            (1, 2, 3, ...)
- * @param k - parameter k of Exp. Golomb algorithm to be used
- *            (see comment on EXP_GOLOMB_K macro for details about k)
+ * sense that lowest allowed index (@n) starts with 1, not with zero.
  */
 static VariLenAffix expGolombEncode(uint64_t n, int k)
 {
@@ -677,7 +679,9 @@ static VariLenAffix expGolombEncode(uint64_t n, int k)
 }
 
 /**
- * @brief Converts a suffix into a prefix, or a prefix into a suffix.
+ * invertAffix() - Converts a suffix into a prefix, or a prefix into a suffix.
+ * @affix: either suffix or prefix to be inverted
+ * Return: inversion of passed @affix
  *
  * Simply mirror all bits of the affix value, for the purpose to preserve
  * respectively the mathematical "prefix-free" or "suffix-free" property
@@ -701,16 +705,16 @@ static VariLenAffix invertAffix(const VariLenAffix *affix)
 }
 
 /**
- * @brief Generates suffix numbers with "suffix-free" property.
+ * affixForIndex() - Generates suffix numbers with "suffix-free" property.
+ * @index: natural number (or index) of the suffix to be generated
+ *         (1, 2, 3, ...)
+ * Return: Suffix suitable to assemble unique number.
  *
  * This is just a wrapper function on top of the Exp. Golomb algorithm.
  *
  * Since the Exp. Golomb algorithm generates prefixes, but we need suffixes,
  * this function converts the Exp. Golomb prefixes into appropriate suffixes
  * which are still suitable for generating unique numbers.
- *
- * @param n - natural number (or index) of the suffix to be generated
- *            (1, 2, 3, ...)
  */
 static VariLenAffix affixForIndex(uint64_t index)
 {
@@ -810,8 +814,8 @@ static int qid_inode_prefix_hash_bits(V9fsPDU *pdu, dev_t dev)
     return val->prefix_bits;
 }
 
-/**
- * @brief Slow / full mapping host inode nr -> guest inode nr.
+/*
+ * Slow / full mapping host inode nr -> guest inode nr.
  *
  * This function performs a slower and much more costly remapping of an
  * original file inode number on host to an appropriate different inode
@@ -823,7 +827,7 @@ static int qid_inode_prefix_hash_bits(V9fsPDU *pdu, dev_t dev)
  * qid_path_suffixmap() failed. In practice this slow / full mapping is not
  * expected ever to be used at all though.
  *
- * @see qid_path_suffixmap() for details
+ * See qid_path_suffixmap() for details
  *
  */
 static int qid_path_fullmap(V9fsPDU *pdu, const struct stat *stbuf,
@@ -864,8 +868,8 @@ static int qid_path_fullmap(V9fsPDU *pdu, const struct stat *stbuf,
     return 0;
 }
 
-/**
- * @brief Quick mapping host inode nr -> guest inode nr.
+/*
+ * Quick mapping host inode nr -> guest inode nr.
  *
  * This function performs quick remapping of an original file inode number
  * on host to an appropriate different inode number on guest. This remapping
@@ -1281,12 +1285,15 @@ static int coroutine_fn stat_to_v9stat(V9fsPDU *pdu, V9fsPath *path,
 
 
 /**
- * Convert host filesystem's block size into an appropriate block size for
- * 9p client (guest OS side). The value returned suggests an "optimum" block
- * size for 9p I/O, i.e. to maximize performance.
+ * blksize_to_iounit() - Block size exposed to 9p client.
+ * Return: block size
  *
  * @pdu: 9p client request
  * @blksize: host filesystem's block size
+ *
+ * Convert host filesystem's block size into an appropriate block size for
+ * 9p client (guest OS side). The value returned suggests an "optimum" block
+ * size for 9p I/O, i.e. to maximize performance.
  */
 static int32_t blksize_to_iounit(const V9fsPDU *pdu, int32_t blksize)
 {
@@ -2398,10 +2405,11 @@ out_nofid:
 }
 
 /**
- * Returns size required in Rreaddir response for the passed dirent @p name.
+ * v9fs_readdir_response_size() - Returns size required in Rreaddir response
+ * for the passed dirent @name.
  *
- * @param name - directory entry's name (i.e. file name, directory name)
- * @returns required size in bytes
+ * @name: directory entry's name (i.e. file name, directory name)
+ * Return: required size in bytes
  */
 size_t v9fs_readdir_response_size(V9fsString *name)
 {
