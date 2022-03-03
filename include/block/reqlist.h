@@ -54,6 +54,14 @@ bool coroutine_fn reqlist_wait_one(BlockReqList *reqs, int64_t offset,
                                    int64_t bytes, CoMutex *lock);
 
 /*
+ * Wait for all intersecting requests. It just calls reqlist_wait_one() in a
+ * loop, caller is responsible to stop producing new requests in this region
+ * in parallel, otherwise reqlist_wait_all() may never return.
+ */
+void coroutine_fn reqlist_wait_all(BlockReqList *reqs, int64_t offset,
+                                   int64_t bytes, CoMutex *lock);
+
+/*
  * Shrink request and wake all waiting coroutines (maybe some of them are not
  * intersecting with shrunk request).
  */
