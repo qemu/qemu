@@ -1115,6 +1115,7 @@ bool blk_dev_has_removable_media(BlockBackend *blk)
  */
 bool blk_dev_has_tray(BlockBackend *blk)
 {
+    IO_CODE();
     return blk->dev_ops && blk->dev_ops->is_tray_open;
 }
 
@@ -1135,6 +1136,7 @@ void blk_dev_eject_request(BlockBackend *blk, bool force)
  */
 bool blk_dev_is_tray_open(BlockBackend *blk)
 {
+    IO_CODE();
     if (blk_dev_has_tray(blk)) {
         return blk->dev_ops->is_tray_open(blk->dev_opaque);
     }

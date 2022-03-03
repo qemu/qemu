@@ -657,6 +657,7 @@ void bdrv_reset_dirty_bitmap(BdrvDirtyBitmap *bitmap,
 
 void bdrv_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap **out)
 {
+    IO_CODE();
     assert(!bdrv_dirty_bitmap_readonly(bitmap));
     bdrv_dirty_bitmaps_lock(bitmap->bs);
     if (!out) {
@@ -739,6 +740,7 @@ void bdrv_dirty_bitmap_deserialize_finish(BdrvDirtyBitmap *bitmap)
 void bdrv_set_dirty(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     BdrvDirtyBitmap *bitmap;
+    IO_CODE();
 
     if (QLIST_EMPTY(&bs->dirty_bitmaps)) {
         return;
@@ -930,6 +932,7 @@ bool bdrv_dirty_bitmap_merge_internal(BdrvDirtyBitmap *dest,
                                       bool lock)
 {
     bool ret;
+    IO_CODE();
 
     assert(!bdrv_dirty_bitmap_readonly(dest));
     assert(!bdrv_dirty_bitmap_inconsistent(dest));

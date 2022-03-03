@@ -50,6 +50,7 @@ static inline int coroutine_fn bdrv_co_pread(BdrvChild *child,
     int64_t offset, unsigned int bytes, void *buf, BdrvRequestFlags flags)
 {
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
+    IO_CODE();
 
     return bdrv_co_preadv(child, offset, bytes, &qiov, flags);
 }
@@ -58,6 +59,7 @@ static inline int coroutine_fn bdrv_co_pwrite(BdrvChild *child,
     int64_t offset, unsigned int bytes, void *buf, BdrvRequestFlags flags)
 {
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
+    IO_CODE();
 
     return bdrv_co_pwritev(child, offset, bytes, &qiov, flags);
 }
@@ -120,21 +122,25 @@ BlockDriverState *bdrv_backing_chain_next(BlockDriverState *bs);
 
 static inline BlockDriverState *bdrv_cow_bs(BlockDriverState *bs)
 {
+    IO_CODE();
     return child_bs(bdrv_cow_child(bs));
 }
 
 static inline BlockDriverState *bdrv_filter_bs(BlockDriverState *bs)
 {
+    IO_CODE();
     return child_bs(bdrv_filter_child(bs));
 }
 
 static inline BlockDriverState *bdrv_filter_or_cow_bs(BlockDriverState *bs)
 {
+    IO_CODE();
     return child_bs(bdrv_filter_or_cow_child(bs));
 }
 
 static inline BlockDriverState *bdrv_primary_bs(BlockDriverState *bs)
 {
+    IO_CODE();
     return child_bs(bdrv_primary_child(bs));
 }
 

@@ -570,6 +570,7 @@ void bdrv_subtree_drained_end(BlockDriverState *bs)
 void bdrv_apply_subtree_drain(BdrvChild *child, BlockDriverState *new_parent)
 {
     int i;
+    IO_OR_GS_CODE();
 
     for (i = 0; i < new_parent->recursive_quiesce_counter; i++) {
         bdrv_do_drained_begin(child->bs, true, child, false, true);
@@ -580,6 +581,7 @@ void bdrv_unapply_subtree_drain(BdrvChild *child, BlockDriverState *old_parent)
 {
     int drained_end_counter = 0;
     int i;
+    IO_OR_GS_CODE();
 
     for (i = 0; i < old_parent->recursive_quiesce_counter; i++) {
         bdrv_do_drained_end(child->bs, true, child, false,
@@ -887,6 +889,7 @@ BdrvTrackedRequest *coroutine_fn bdrv_co_get_self_request(BlockDriverState *bs)
 {
     BdrvTrackedRequest *req;
     Coroutine *self = qemu_coroutine_self();
+    IO_CODE();
 
     QLIST_FOREACH(req, &bs->tracked_requests, list) {
         if (req->co == self) {
@@ -932,16 +935,19 @@ static int bdrv_get_cluster_size(BlockDriverState *bs)
 
 void bdrv_inc_in_flight(BlockDriverState *bs)
 {
+    IO_CODE();
     qatomic_inc(&bs->in_flight);
 }
 
 void bdrv_wakeup(BlockDriverState *bs)
 {
+    IO_CODE();
     aio_wait_kick();
 }
 
 void bdrv_dec_in_flight(BlockDriverState *bs)
 {
+    IO_CODE();
     qatomic_dec(&bs->in_flight);
     bdrv_wakeup(bs);
 }
@@ -966,6 +972,7 @@ bool coroutine_fn bdrv_make_request_serialising(BdrvTrackedRequest *req,
                                                 uint64_t align)
 {
     bool waited;
+    IO_CODE();
 
     qemu_co_mutex_lock(&req->bs->reqs_lock);
 
@@ -1822,6 +1829,7 @@ int coroutine_fn bdrv_co_preadv(BdrvChild *child,
     int64_t offset, int64_t bytes, QEMUIOVector *qiov,
     BdrvRequestFlags flags)
 {
+    IO_CODE();
     return bdrv_co_preadv_part(child, offset, bytes, qiov, 0, flags);
 }
 
@@ -1834,6 +1842,7 @@ int coroutine_fn bdrv_co_preadv_part(BdrvChild *child,
     BdrvTrackedRequest req;
     BdrvRequestPadding pad;
     int ret;
+    IO_CODE();
 
     trace_bdrv_co_preadv_part(bs, offset, bytes, flags);
 
@@ -2255,6 +2264,7 @@ int coroutine_fn bdrv_co_pwritev(BdrvChild *child,
     int64_t offset, int64_t bytes, QEMUIOVector *qiov,
     BdrvRequestFlags flags)
 {
+    IO_CODE();
     return bdrv_co_pwritev_part(child, offset, bytes, qiov, 0, flags);
 }
 
@@ -2268,6 +2278,7 @@ int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
     BdrvRequestPadding pad;
     int ret;
     bool padded = false;
+    IO_CODE();
 
     trace_bdrv_co_pwritev_part(child->bs, offset, bytes, flags);
 
@@ -3451,6 +3462,7 @@ int coroutine_fn bdrv_co_copy_range_from(BdrvChild *src, int64_t src_offset,
                                          BdrvRequestFlags read_flags,
                                          BdrvRequestFlags write_flags)
 {
+    IO_CODE();
     trace_bdrv_co_copy_range_from(src, src_offset, dst, dst_offset, bytes,
                                   read_flags, write_flags);
     return bdrv_co_copy_range_internal(src, src_offset, dst, dst_offset,
@@ -3467,6 +3479,7 @@ int coroutine_fn bdrv_co_copy_range_to(BdrvChild *src, int64_t src_offset,
                                        BdrvRequestFlags read_flags,
                                        BdrvRequestFlags write_flags)
 {
+    IO_CODE();
     trace_bdrv_co_copy_range_to(src, src_offset, dst, dst_offset, bytes,
                                 read_flags, write_flags);
     return bdrv_co_copy_range_internal(src, src_offset, dst, dst_offset,
