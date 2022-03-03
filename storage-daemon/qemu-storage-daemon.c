@@ -177,7 +177,23 @@ static int getopt_set_loc(int argc, char **argv, const char *optstring,
     return c;
 }
 
-static void process_options(int argc, char *argv[])
+/**
+ * Process QSD command-line arguments.
+ *
+ * This is done in two passes:
+ *
+ * First (@pre_init_pass is true), we do a pass where all global
+ * arguments pertaining to the QSD process (like --help or --daemonize)
+ * are processed.  This pass is done before most of the QEMU-specific
+ * initialization steps (e.g. initializing the block layer or QMP), and
+ * so must only process arguments that are not really QEMU-specific.
+ *
+ * Second (@pre_init_pass is false), we (sequentially) process all
+ * QEMU/QSD-specific arguments.  Many of these arguments are effectively
+ * translated to QMP commands (like --blockdev for blockdev-add, or
+ * --export for block-export-add).
+ */
+static void process_options(int argc, char *argv[], bool pre_init_pass)
 {
     int c;
 
@@ -196,11 +212,26 @@ static void process_options(int argc, char *argv[])
     };
 
     /*
-     * In contrast to the system emulator, options are processed in the order
-     * they are given on the command lines. This means that things must be
-     * defined first before they can be referenced in another option.
+     * In contrast to the system emulator, QEMU-specific options are processed
+     * in the order they are given on the command lines. This means that things
+     * must be defined first before they can be referenced in another option.
      */
+    optind = 1;
     while ((c = getopt_set_loc(argc, argv, "-hT:V", long_options)) != -1) {
+        bool handle_option_pre_init;
+
+        /* Should this argument be processed in the pre-init pass? */
+        handle_option_pre_init =
+            c == '?' ||
+            c == 'h' ||
+            c == 'V' ||
+            c == OPTION_PIDFILE;
+
+        /* Process every option only in its respective pass */
+        if (pre_init_pass != handle_option_pre_init) {
+            continue;
+        }
+
         switch (c) {
         case '?':
             exit(EXIT_FAILURE);
@@ -334,6 +365,8 @@ int main(int argc, char *argv[])
     qemu_init_exec_dir(argv[0]);
     os_setup_signal_handling();
 
+    process_options(argc, argv, true);
+
     module_call_init(MODULE_INIT_QOM);
     module_call_init(MODULE_INIT_TRACE);
     qemu_add_opts(&qemu_trace_opts);
@@ -348,7 +381,7 @@ int main(int argc, char *argv[])
     qemu_set_log(LOG_TRACE);
 
     qemu_init_main_loop(&error_fatal);
-    process_options(argc, argv);
+    process_options(argc, argv, false);
 
     /*
      * Write the pid file after creating chardevs, exports, and NBD servers but
