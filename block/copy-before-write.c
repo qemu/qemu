@@ -34,6 +34,8 @@
 
 #include "block/copy-before-write.h"
 
+#include "qapi/qapi-visit-block-core.h"
+
 typedef struct BDRVCopyBeforeWriteState {
     BlockCopyState *bcs;
     BdrvChild *target;
@@ -145,10 +147,53 @@ static void cbw_child_perm(BlockDriverState *bs, BdrvChild *c,
     }
 }
 
+static bool cbw_parse_bitmap_option(QDict *options, BdrvDirtyBitmap **bitmap,
+                                    Error **errp)
+{
+    QDict *bitmap_qdict = NULL;
+    BlockDirtyBitmap *bmp_param = NULL;
+    Visitor *v = NULL;
+    bool ret = false;
+
+    *bitmap = NULL;
+
+    qdict_extract_subqdict(options, &bitmap_qdict, "bitmap.");
+    if (!qdict_size(bitmap_qdict)) {
+        ret = true;
+        goto out;
+    }
+
+    v = qobject_input_visitor_new_flat_confused(bitmap_qdict, errp);
+    if (!v) {
+        goto out;
+    }
+
+    visit_type_BlockDirtyBitmap(v, NULL, &bmp_param, errp);
+    if (!bmp_param) {
+        goto out;
+    }
+
+    *bitmap = block_dirty_bitmap_lookup(bmp_param->node, bmp_param->name, NULL,
+                                        errp);
+    if (!*bitmap) {
+        goto out;
+    }
+
+    ret = true;
+
+out:
+    qapi_free_BlockDirtyBitmap(bmp_param);
+    visit_free(v);
+    qobject_unref(bitmap_qdict);
+
+    return ret;
+}
+
 static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
     BDRVCopyBeforeWriteState *s = bs->opaque;
+    BdrvDirtyBitmap *bitmap = NULL;
 
     bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
                                BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
@@ -163,6 +208,10 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
         return -EINVAL;
     }
 
+    if (!cbw_parse_bitmap_option(options, &bitmap, errp)) {
+        return -EINVAL;
+    }
+
     bs->total_sectors = bs->file->bs->total_sectors;
     bs->supported_write_flags = BDRV_REQ_WRITE_UNCHANGED |
             (BDRV_REQ_FUA & bs->file->bs->supported_write_flags);
@@ -170,7 +219,7 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
             ((BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK) &
              bs->file->bs->supported_zero_flags);
 
-    s->bcs = block_copy_state_new(bs->file, s->target, NULL, errp);
+    s->bcs = block_copy_state_new(bs->file, s->target, bitmap, errp);
     if (!s->bcs) {
         error_prepend(errp, "Cannot create block-copy-state: ");
         return -EINVAL;
