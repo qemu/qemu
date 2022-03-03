@@ -63,6 +63,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/throttle-options.h"
 
+/* Protected by BQL */
 QTAILQ_HEAD(, BlockDriverState) monitor_bdrv_states =
     QTAILQ_HEAD_INITIALIZER(monitor_bdrv_states);
 
@@ -1175,6 +1176,8 @@ typedef struct BlkActionState BlkActionState;
  *
  * Only prepare() may fail. In a single transaction, only one of commit() or
  * abort() will be called. clean() will always be called if it is present.
+ *
+ * Always run under BQL.
  */
 typedef struct BlkActionOps {
     size_t instance_size;
@@ -2284,6 +2287,8 @@ static TransactionProperties *get_transaction_properties(
 /*
  * 'Atomic' group operations.  The operations are performed as a set, and if
  * any fail then we roll back all operations in the group.
+ *
+ * Always run under BQL.
  */
 void qmp_transaction(TransactionActionList *dev_list,
                      bool has_props,
