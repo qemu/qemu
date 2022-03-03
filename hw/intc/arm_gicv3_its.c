@@ -366,6 +366,19 @@ static ItsCmdResult process_its_cmd(GICv3ITSState *s, const uint64_t *cmdpkt,
 
     devid = (cmdpkt[0] & DEVID_MASK) >> DEVID_SHIFT;
     eventid = cmdpkt[1] & EVENTID_MASK;
+    switch (cmd) {
+    case INTERRUPT:
+        trace_gicv3_its_cmd_int(devid, eventid);
+        break;
+    case CLEAR:
+        trace_gicv3_its_cmd_clear(devid, eventid);
+        break;
+    case DISCARD:
+        trace_gicv3_its_cmd_discard(devid, eventid);
+        break;
+    default:
+        g_assert_not_reached();
+    }
     return do_process_its_cmd(s, devid, eventid, cmd);
 }
 
@@ -382,14 +395,15 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, const uint64_t *cmdpkt,
 
     devid = (cmdpkt[0] & DEVID_MASK) >> DEVID_SHIFT;
     eventid = cmdpkt[1] & EVENTID_MASK;
+    icid = cmdpkt[2] & ICID_MASK;
 
     if (ignore_pInt) {
         pIntid = eventid;
+        trace_gicv3_its_cmd_mapi(devid, eventid, icid);
     } else {
         pIntid = (cmdpkt[1] & pINTID_MASK) >> pINTID_SHIFT;
+        trace_gicv3_its_cmd_mapti(devid, eventid, icid, pIntid);
     }
-
-    icid = cmdpkt[2] & ICID_MASK;
 
     if (devid >= s->dt.num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -484,6 +498,7 @@ static ItsCmdResult process_mapc(GICv3ITSState *s, const uint64_t *cmdpkt)
     } else {
         cte.rdbase = 0;
     }
+    trace_gicv3_its_cmd_mapc(icid, cte.rdbase, cte.valid);
 
     if (icid >= s->ct.num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR, "ITS MAPC: invalid ICID 0x%d", icid);
@@ -539,6 +554,8 @@ static ItsCmdResult process_mapd(GICv3ITSState *s, const uint64_t *cmdpkt)
     dte.ittaddr = (cmdpkt[2] & ITTADDR_MASK) >> ITTADDR_SHIFT;
     dte.valid = cmdpkt[2] & CMD_FIELD_VALID_MASK;
 
+    trace_gicv3_its_cmd_mapd(devid, dte.size, dte.ittaddr, dte.valid);
+
     if (devid >= s->dt.num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "ITS MAPD: invalid device ID field 0x%x >= 0x%x\n",
@@ -561,6 +578,8 @@ static ItsCmdResult process_movall(GICv3ITSState *s, const uint64_t *cmdpkt)
 
     rd1 = FIELD_EX64(cmdpkt[2], MOVALL_2, RDBASE1);
     rd2 = FIELD_EX64(cmdpkt[3], MOVALL_3, RDBASE2);
+
+    trace_gicv3_its_cmd_movall(rd1, rd2);
 
     if (rd1 >= s->gicv3->num_cpu) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -600,6 +619,8 @@ static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
     devid = FIELD_EX64(cmdpkt[0], MOVI_0, DEVICEID);
     eventid = FIELD_EX64(cmdpkt[1], MOVI_1, EVENTID);
     new_icid = FIELD_EX64(cmdpkt[2], MOVI_2, ICID);
+
+    trace_gicv3_its_cmd_movi(devid, eventid, new_icid);
 
     if (devid >= s->dt.num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -779,6 +800,7 @@ static void process_cmdq(GICv3ITSState *s)
              * is already consistent by the time SYNC command is executed.
              * Hence no further processing is required for SYNC command.
              */
+            trace_gicv3_its_cmd_sync();
             break;
         case GITS_CMD_MAPD:
             result = process_mapd(s, cmdpkt);
@@ -803,6 +825,7 @@ static void process_cmdq(GICv3ITSState *s)
              * need to trigger lpi priority re-calculation to be in
              * sync with LPI config table or pending table changes.
              */
+            trace_gicv3_its_cmd_inv();
             for (i = 0; i < s->gicv3->num_cpu; i++) {
                 gicv3_redist_update_lpi(&s->gicv3->cpu[i]);
             }
@@ -814,6 +837,7 @@ static void process_cmdq(GICv3ITSState *s)
             result = process_movall(s, cmdpkt);
             break;
         default:
+            trace_gicv3_its_cmd_unknown(cmd);
             break;
         }
         if (result == CMD_CONTINUE) {
