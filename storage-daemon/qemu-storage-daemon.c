@@ -93,6 +93,9 @@ static void help(void)
 "  --chardev <options>    configure a character device backend\n"
 "                         (see the qemu(1) man page for possible options)\n"
 "\n"
+"  --daemonize            daemonize the process, and have the parent exit\n"
+"                         once startup is complete\n"
+"\n"
 "  --export [type=]nbd,id=<id>,node-name=<node-name>[,name=<export-name>]\n"
 "           [,writable=on|off][,bitmap=<name>]\n"
 "                         export the specified block node over NBD\n"
@@ -144,6 +147,7 @@ QEMU_HELP_BOTTOM "\n",
 enum {
     OPTION_BLOCKDEV = 256,
     OPTION_CHARDEV,
+    OPTION_DAEMONIZE,
     OPTION_EXPORT,
     OPTION_MONITOR,
     OPTION_NBD_SERVER,
@@ -200,6 +204,7 @@ static void process_options(int argc, char *argv[], bool pre_init_pass)
     static const struct option long_options[] = {
         {"blockdev", required_argument, NULL, OPTION_BLOCKDEV},
         {"chardev", required_argument, NULL, OPTION_CHARDEV},
+        {"daemonize", no_argument, NULL, OPTION_DAEMONIZE},
         {"export", required_argument, NULL, OPTION_EXPORT},
         {"help", no_argument, NULL, 'h'},
         {"monitor", required_argument, NULL, OPTION_MONITOR},
@@ -225,6 +230,7 @@ static void process_options(int argc, char *argv[], bool pre_init_pass)
             c == '?' ||
             c == 'h' ||
             c == 'V' ||
+            c == OPTION_DAEMONIZE ||
             c == OPTION_PIDFILE;
 
         /* Process every option only in its respective pass */
@@ -277,6 +283,12 @@ static void process_options(int argc, char *argv[], bool pre_init_pass)
                 qemu_opts_del(opts);
                 break;
             }
+        case OPTION_DAEMONIZE:
+            if (os_set_daemonize(true) < 0) {
+                error_report("--daemonize not supported in this build");
+                exit(EXIT_FAILURE);
+            }
+            break;
         case OPTION_EXPORT:
             {
                 Visitor *v;
@@ -367,6 +379,8 @@ int main(int argc, char *argv[])
 
     process_options(argc, argv, true);
 
+    os_daemonize();
+
     module_call_init(MODULE_INIT_QOM);
     module_call_init(MODULE_INIT_TRACE);
     qemu_add_opts(&qemu_trace_opts);
@@ -389,6 +403,7 @@ int main(int argc, char *argv[])
      * it.
      */
     pid_file_init();
+    os_setup_post();
 
     while (!exit_requested) {
         main_loop_wait(false);

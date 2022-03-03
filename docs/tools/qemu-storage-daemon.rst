@@ -154,6 +154,13 @@ Standard options:
   created but before accepting connections. The daemon has started successfully
   when the pid file is written and clients may begin connecting.
 
+.. option:: --daemonize
+
+  Daemonize the process. The parent process will exit once startup is complete
+  (i.e., after the pid file has been or would have been written) or failure
+  occurs. Its exit code reflects whether the child has started up successfully
+  or failed to do so.
+
 Examples
 --------
 Launch the daemon with QMP monitor socket ``qmp.sock`` so clients can execute
