@@ -317,6 +317,12 @@ bool is_daemonized(void)
     return daemonize;
 }
 
+int os_set_daemonize(bool d)
+{
+    daemonize = d;
+    return 0;
+}
+
 int os_mlock(void)
 {
 #ifdef HAVE_MLOCKALL
