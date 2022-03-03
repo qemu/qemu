@@ -674,6 +674,7 @@ void bdrv_restore_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap *backup)
 {
     HBitmap *tmp = bitmap->bitmap;
     assert(!bdrv_dirty_bitmap_readonly(bitmap));
+    GLOBAL_STATE_CODE();
     bitmap->bitmap = backup;
     hbitmap_free(tmp);
 }
