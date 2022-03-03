@@ -34,6 +34,7 @@ block_ss.add(files(
   'raw-format.c',
   'reqlist.c',
   'snapshot.c',
+  'snapshot-access.c',
   'throttle-groups.c',
   'throttle.c',
   'vhdx-endian.c',

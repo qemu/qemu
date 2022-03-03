@@ -606,6 +606,12 @@ struct BlockDriver {
      * in generic block-layer: no serializing, no alignment, no tracked
      * requests. So, block-driver that realizes these APIs is fully responsible
      * for synchronization between snapshot-access API and normal IO requests.
+     *
+     * TODO: To be able to support qcow2's internal snapshots, this API will
+     * need to be extended to:
+     * - be able to select a specific snapshot
+     * - receive the snapshot's actual length (which may differ from bs's
+     *   length)
      */
     int coroutine_fn (*bdrv_co_preadv_snapshot)(BlockDriverState *bs,
         int64_t offset, int64_t bytes, QEMUIOVector *qiov, size_t qiov_offset);
