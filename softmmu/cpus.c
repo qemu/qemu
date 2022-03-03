@@ -481,6 +481,11 @@ bool qemu_mutex_iothread_locked(void)
     return get_iothread_locked();
 }
 
+bool qemu_in_main_thread(void)
+{
+    return qemu_mutex_iothread_locked();
+}
+
 /*
  * The BQL is taken from so many places that it is worth profiling the
  * callers directly, instead of funneling them all through a single function.
