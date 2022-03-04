@@ -118,12 +118,13 @@ tls_x509_create_server()
     caname=$1
     name=$2
 
+    # We don't include 'localhost' in the cert, as
+    # we want to keep it unlisted to let tests
+    # validate hostname override
     mkdir -p "${tls_dir}/$name"
     cat > "${tls_dir}/cert.info" <<EOF
 organization = Cthulhu Dark Lord Enterprises $name
-cn = localhost
-dns_name = localhost
-dns_name = localhost.localdomain
+cn = iotests.qemu.org
 ip_address = 127.0.0.1
 ip_address = ::1
 tls_www_server

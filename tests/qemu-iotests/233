@@ -107,6 +107,24 @@ $QEMU_NBD_PROG -L -b $nbd_tcp_addr -p $nbd_tcp_port --object $obj1 \
     --tls-creds=tls0 2>&1 | _filter_qemu_nbd_exports
 
 echo
+echo "== check TLS fail over TCP with mismatched hostname =="
+obj1=tls-creds-x509,dir=${tls_dir}/client1,endpoint=client,id=tls0
+$QEMU_IMG info --image-opts --object $obj1 \
+    driver=nbd,host=localhost,port=$nbd_tcp_port,tls-creds=tls0 \
+    2>&1 | _filter_nbd
+$QEMU_NBD_PROG -L -b localhost -p $nbd_tcp_port --object $obj1 \
+    --tls-creds=tls0 | _filter_qemu_nbd_exports
+
+echo
+echo "== check TLS works over TCP with mismatched hostname and override =="
+obj1=tls-creds-x509,dir=${tls_dir}/client1,endpoint=client,id=tls0
+$QEMU_IMG info --image-opts --object $obj1 \
+    driver=nbd,host=localhost,port=$nbd_tcp_port,tls-creds=tls0,tls-hostname=127.0.0.1 \
+    2>&1 | _filter_nbd
+$QEMU_NBD_PROG -L -b localhost -p $nbd_tcp_port --object $obj1 \
+    --tls-creds=tls0 --tls-hostname=127.0.0.1 | _filter_qemu_nbd_exports
+
+echo
 echo "== check TLS with different CA fails =="
 obj=tls-creds-x509,dir=${tls_dir}/client2,endpoint=client,id=tls0
 $QEMU_IMG info --image-opts --object $obj \
