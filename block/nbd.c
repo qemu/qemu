@@ -1839,13 +1839,9 @@ static int nbd_process_options(BlockDriverState *bs, QDict *options,
             goto error;
         }
 
-        /* TODO SOCKET_ADDRESS_KIND_FD where fd has AF_INET or AF_INET6 */
-        if (s->saddr->type != SOCKET_ADDRESS_TYPE_INET) {
-            error_setg(errp, "TLS only supported over IP sockets");
-            goto error;
-        }
         s->tlshostname = g_strdup(qemu_opt_get(opts, "tls-hostname"));
-        if (!s->tlshostname) {
+        if (!s->tlshostname &&
+            s->saddr->type == SOCKET_ADDRESS_TYPE_INET) {
             s->tlshostname = g_strdup(s->saddr->u.inet.host);
         }
     }

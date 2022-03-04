@@ -808,7 +808,9 @@ int main(int argc, char **argv)
 
     socket_activation = check_socket_activation();
     if (socket_activation == 0) {
-        setup_address_and_port(&bindto, &port);
+        if (!sockpath) {
+            setup_address_and_port(&bindto, &port);
+        }
     } else {
         /* Using socket activation - check user didn't use -p etc. */
         const char *err_msg = socket_activation_validate_opts(device, sockpath,
@@ -829,10 +831,6 @@ int main(int argc, char **argv)
     }
 
     if (tlscredsid) {
-        if (sockpath) {
-            error_report("TLS is only supported with IPv4/IPv6");
-            exit(EXIT_FAILURE);
-        }
         if (device) {
             error_report("TLS is not supported with a host device");
             exit(EXIT_FAILURE);
