@@ -62,7 +62,7 @@ static int blockdev_amend_pre_run(BlockdevAmendJob *s, Error **errp)
     return 0;
 }
 
-static void blockdev_amend_clean(Job *job)
+static void blockdev_amend_free(Job *job)
 {
     BlockdevAmendJob *s = container_of(job, BlockdevAmendJob, common);
 
@@ -75,7 +75,7 @@ static const JobDriver blockdev_amend_job_driver = {
     .instance_size = sizeof(BlockdevAmendJob),
     .job_type      = JOB_TYPE_AMEND,
     .run           = blockdev_amend_run,
-    .clean         = blockdev_amend_clean,
+    .free          = blockdev_amend_free,
 };
 
 void qmp_x_blockdev_amend(const char *job_id,
