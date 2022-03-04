@@ -69,6 +69,8 @@ static void blockdev_amend_free(Job *job)
     if (s->bs->drv->bdrv_amend_clean) {
         s->bs->drv->bdrv_amend_clean(s->bs);
     }
+
+    bdrv_unref(s->bs);
 }
 
 static const JobDriver blockdev_amend_job_driver = {
@@ -129,6 +131,7 @@ void qmp_x_blockdev_amend(const char *job_id,
         return;
     }
 
+    bdrv_ref(bs);
     s->bs = bs,
     s->opts = QAPI_CLONE(BlockdevAmendOptions, options),
     s->force = has_force ? force : false;
