@@ -24,6 +24,7 @@ tls_x509_cleanup()
 {
     rm -f "${tls_dir}"/*.pem
     rm -f "${tls_dir}"/*/*.pem
+    rm -f "${tls_dir}"/*/*.psk
     rmdir "${tls_dir}"/*
     rmdir "${tls_dir}"
 }
@@ -39,6 +40,18 @@ tls_certtool()
     fi
     rm -f "${tls_dir}"/certtool.log
 }
+
+tls_psktool()
+{
+    psktool "$@" 1>"${tls_dir}"/psktool.log 2>&1
+    if test "$?" = 0; then
+      head -1 "${tls_dir}"/psktool.log
+    else
+      cat "${tls_dir}"/psktool.log
+    fi
+    rm -f "${tls_dir}"/psktool.log
+}
+
 
 tls_x509_init()
 {
@@ -175,4 +188,15 @@ EOF
     ln -s "${tls_dir}/key.pem" "${tls_dir}/$name/client-key.pem"
 
     rm -f "${tls_dir}/cert.info"
+}
+
+tls_psk_create_creds()
+{
+    name=$1
+
+    mkdir -p "${tls_dir}/$name"
+
+    tls_psktool \
+	--pskfile "${tls_dir}/$name/keys.psk" \
+	--username "$name"
 }

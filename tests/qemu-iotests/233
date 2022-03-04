@@ -61,6 +61,8 @@ tls_x509_create_server "ca1" "server1"
 tls_x509_create_client "ca1" "client1"
 tls_x509_create_client "ca2" "client2"
 tls_x509_create_client "ca1" "client3"
+tls_psk_create_creds "psk1"
+tls_psk_create_creds "psk2"
 
 echo
 echo "== preparing image =="
@@ -190,6 +192,32 @@ $QEMU_IMG info --image-opts --object $obj1 \
     2>&1 | _filter_nbd
 $QEMU_NBD_PROG -L -k $nbd_unix_socket --object $obj1 \
     --tls-creds=tls0 --tls-hostname=127.0.0.1  2>&1 | _filter_qemu_nbd_exports
+
+
+echo
+echo "== check TLS works over UNIX with PSK =="
+nbd_server_stop
+
+nbd_server_start_unix_socket \
+    --object tls-creds-psk,dir=${tls_dir}/psk1,endpoint=server,id=tls0,verify-peer=on \
+    --tls-creds tls0 \
+    -f $IMGFMT "$TEST_IMG" 2>> "$TEST_DIR/server.log"
+
+obj1=tls-creds-psk,dir=${tls_dir}/psk1,username=psk1,endpoint=client,id=tls0
+$QEMU_IMG info --image-opts --object $obj1 \
+    driver=nbd,path=$nbd_unix_socket,tls-creds=tls0 \
+    2>&1 | _filter_nbd
+$QEMU_NBD_PROG -L -k $nbd_unix_socket --object $obj1 \
+    --tls-creds=tls0 2>&1 | _filter_qemu_nbd_exports
+
+echo
+echo "== check TLS fails over UNIX with mismatch PSK =="
+obj1=tls-creds-psk,dir=${tls_dir}/psk2,username=psk2,endpoint=client,id=tls0
+$QEMU_IMG info --image-opts --object $obj1 \
+    driver=nbd,path=$nbd_unix_socket,tls-creds=tls0 \
+    2>&1 | _filter_nbd
+$QEMU_NBD_PROG -L -k $nbd_unix_socket --object $obj1 \
+    --tls-creds=tls0 2>&1 | _filter_qemu_nbd_exports
 
 echo
 echo "== final server log =="

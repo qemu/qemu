@@ -7,6 +7,8 @@ Generating a signed certificate...
 Generating a signed certificate...
 Generating a signed certificate...
 Generating a signed certificate...
+Generating a random key for user 'psk1'
+Generating a random key for user 'psk2'
 
 == preparing image ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
@@ -82,6 +84,20 @@ exports available: 1
   size:  67108864
   min block: 1
 
+== check TLS works over UNIX with PSK ==
+image: nbd+unix://?socket=SOCK_DIR/qemu-nbd.sock
+file format: nbd
+virtual size: 64 MiB (67108864 bytes)
+disk size: unavailable
+exports available: 1
+ export: ''
+  size:  67108864
+  min block: 1
+
+== check TLS fails over UNIX with mismatch PSK ==
+qemu-img: Could not open 'driver=nbd,path=SOCK_DIR/qemu-nbd.sock,tls-creds=tls0': TLS handshake failed: The TLS connection was non-properly terminated.
+qemu-nbd: TLS handshake failed: The TLS connection was non-properly terminated.
+
 == final server log ==
 qemu-nbd: option negotiation failed: Failed to read opts magic: Cannot read from TLS channel: Software caused connection abort
 qemu-nbd: option negotiation failed: Failed to read opts magic: Cannot read from TLS channel: Software caused connection abort
@@ -91,4 +107,6 @@ qemu-nbd: option negotiation failed: TLS x509 authz check for DISTINGUISHED-NAME
 qemu-nbd: option negotiation failed: TLS x509 authz check for DISTINGUISHED-NAME is denied
 qemu-nbd: option negotiation failed: Failed to read opts magic: Cannot read from TLS channel: Software caused connection abort
 qemu-nbd: option negotiation failed: Failed to read opts magic: Cannot read from TLS channel: Software caused connection abort
+qemu-nbd: option negotiation failed: TLS handshake failed: An illegal parameter has been received.
+qemu-nbd: option negotiation failed: TLS handshake failed: An illegal parameter has been received.
 *** done
