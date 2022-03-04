@@ -415,7 +415,8 @@ NBDClientConnection *nbd_client_connection_new(const SocketAddress *saddr,
                                                bool do_negotiation,
                                                const char *export_name,
                                                const char *x_dirty_bitmap,
-                                               QCryptoTLSCreds *tlscreds);
+                                               QCryptoTLSCreds *tlscreds,
+                                               const char *tlshostname);
 void nbd_client_connection_release(NBDClientConnection *conn);
 
 QIOChannel *coroutine_fn

@@ -92,7 +92,7 @@ typedef struct BDRVNBDState {
     SocketAddress *saddr;
     char *export, *tlscredsid;
     QCryptoTLSCreds *tlscreds;
-    const char *hostname;
+    const char *tlshostname;
     char *x_dirty_bitmap;
     bool alloc_depth;
 
@@ -1836,7 +1836,7 @@ static int nbd_process_options(BlockDriverState *bs, QDict *options,
             error_setg(errp, "TLS only supported over IP sockets");
             goto error;
         }
-        s->hostname = s->saddr->u.inet.host;
+        s->tlshostname = s->saddr->u.inet.host;
     }
 
     s->x_dirty_bitmap = g_strdup(qemu_opt_get(opts, "x-dirty-bitmap"));
@@ -1876,7 +1876,8 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     s->conn = nbd_client_connection_new(s->saddr, true, s->export,
-                                        s->x_dirty_bitmap, s->tlscreds);
+                                        s->x_dirty_bitmap, s->tlscreds,
+                                        s->tlshostname);
 
     if (s->open_timeout) {
         nbd_client_connection_enable_retry(s->conn);
