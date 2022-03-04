@@ -309,6 +309,11 @@ _filter_nbd()
         -e 's#\(foo\|PORT/\?\|.sock\): Failed to .*$#\1#'
 }
 
+_filter_qemu_nbd_exports()
+{
+    grep '\(exports available\|export\|size\|min block\|qemu-nbd\):'
+}
+
 _filter_qmp_empty_return()
 {
     grep -v '{"return": {}}'
