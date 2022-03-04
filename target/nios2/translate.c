@@ -447,28 +447,24 @@ static void rdctl(DisasContext *dc, uint32_t code, uint32_t flags)
 
     gen_check_supervisor(dc);
 
-    switch (instr.imm5 + CR_BASE) {
-    case CR_PTEADDR:
-    case CR_TLBACC:
-    case CR_TLBMISC:
-    {
-#if !defined(CONFIG_USER_ONLY)
-        if (likely(instr.c != R_ZERO)) {
-            tcg_gen_mov_tl(cpu_R[instr.c], cpu_R[instr.imm5 + CR_BASE]);
-#ifdef DEBUG_MMU
-            TCGv_i32 tmp = tcg_const_i32(instr.imm5 + CR_BASE);
-            gen_helper_mmu_read_debug(cpu_R[instr.c], cpu_env, tmp);
-            tcg_temp_free_i32(tmp);
-#endif
-        }
-#endif
-        break;
+    if (unlikely(instr.c == R_ZERO)) {
+        return;
     }
 
+    switch (instr.imm5 + CR_BASE) {
+    case CR_IPENDING:
+        /*
+         * The value of the ipending register is synthetic.
+         * In hw, this is the AND of a set of hardware irq lines
+         * with the ienable register.  In qemu, we re-use the space
+         * of CR_IPENDING to store the set of irq lines, and so we
+         * must perform the AND here, and anywhere else we need the
+         * guest value of ipending.
+         */
+        tcg_gen_and_tl(cpu_R[instr.c], cpu_R[CR_IPENDING], cpu_R[CR_IENABLE]);
+        break;
     default:
-        if (likely(instr.c != R_ZERO)) {
-            tcg_gen_mov_tl(cpu_R[instr.c], cpu_R[instr.imm5 + CR_BASE]);
-        }
+        tcg_gen_mov_tl(cpu_R[instr.c], cpu_R[instr.imm5 + CR_BASE]);
         break;
     }
 }
@@ -476,36 +472,33 @@ static void rdctl(DisasContext *dc, uint32_t code, uint32_t flags)
 /* ctlN <- rA */
 static void wrctl(DisasContext *dc, uint32_t code, uint32_t flags)
 {
-    R_TYPE(instr, code);
-
     gen_check_supervisor(dc);
+
+#ifndef CONFIG_USER_ONLY
+    R_TYPE(instr, code);
+    TCGv v = load_gpr(dc, instr.a);
 
     switch (instr.imm5 + CR_BASE) {
     case CR_PTEADDR:
+        gen_helper_mmu_write_pteaddr(cpu_env, v);
+        break;
     case CR_TLBACC:
+        gen_helper_mmu_write_tlbacc(cpu_env, v);
+        break;
     case CR_TLBMISC:
-    {
-#if !defined(CONFIG_USER_ONLY)
-        TCGv_i32 tmp = tcg_const_i32(instr.imm5 + CR_BASE);
-        gen_helper_mmu_write(cpu_env, tmp, load_gpr(dc, instr.a));
-        tcg_temp_free_i32(tmp);
-#endif
+        gen_helper_mmu_write_tlbmisc(cpu_env, v);
         break;
-    }
-
-    default:
-        tcg_gen_mov_tl(cpu_R[instr.imm5 + CR_BASE], load_gpr(dc, instr.a));
+    case CR_IPENDING:
+        /* ipending is read only, writes ignored. */
         break;
-    }
-
-    /* If interrupts were enabled using WRCTL, trigger them. */
-#if !defined(CONFIG_USER_ONLY)
-    if ((instr.imm5 + CR_BASE) == CR_STATUS) {
-        if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-            gen_io_start();
-        }
-        gen_helper_check_interrupts(cpu_env);
+    case CR_STATUS:
+    case CR_IENABLE:
+        /* If interrupts were enabled using WRCTL, trigger them. */
         dc->base.is_jmp = DISAS_UPDATE;
+        /* fall through */
+    default:
+        tcg_gen_mov_tl(cpu_R[instr.imm5 + CR_BASE], v);
+        break;
     }
 #endif
 }

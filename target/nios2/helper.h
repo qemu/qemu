@@ -21,7 +21,7 @@
 DEF_HELPER_FLAGS_2(raise_exception, TCG_CALL_NO_WG, noreturn, env, i32)
 
 #if !defined(CONFIG_USER_ONLY)
-DEF_HELPER_2(mmu_read_debug, void, env, i32)
-DEF_HELPER_3(mmu_write, void, env, i32, i32)
-DEF_HELPER_1(check_interrupts, void, env)
+DEF_HELPER_2(mmu_write_tlbacc, void, env, i32)
+DEF_HELPER_2(mmu_write_tlbmisc, void, env, i32)
+DEF_HELPER_2(mmu_write_pteaddr, void, env, i32)
 #endif

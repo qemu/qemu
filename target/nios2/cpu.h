@@ -160,7 +160,6 @@ struct CPUNios2State {
 
 #if !defined(CONFIG_USER_ONLY)
     Nios2MMU mmu;
-    uint32_t irq_pending;
 #endif
     int error_code;
 };
