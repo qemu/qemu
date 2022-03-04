@@ -301,6 +301,10 @@ _filter_nbd()
     # Filter out the TCP port number since this changes between runs.
     sed -e '/nbd\/.*\.c:/d' \
         -e 's#127\.0\.0\.1:[0-9]*#127.0.0.1:PORT#g' \
+        -e 's#localhost:[0-9]*#localhost:PORT#g' \
+        -e 's#host=127\.0\.0\.1,port=[0-9]*#host=127.0.0.1,port=PORT#g' \
+        -e 's#host=localhost,port=[0-9]*#host=localhost,port=PORT#g' \
+        -e "s#path=$SOCK_DIR#path=SOCK_DIR#g" \
         -e "s#?socket=$SOCK_DIR#?socket=SOCK_DIR#g" \
         -e 's#\(foo\|PORT/\?\|.sock\): Failed to .*$#\1#'
 }
