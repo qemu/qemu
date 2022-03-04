@@ -162,9 +162,13 @@ struct audio_pcm_ops {
     size_t (*write)   (HWVoiceOut *hw, void *buf, size_t size);
     void   (*run_buffer_out)(HWVoiceOut *hw);
     /*
+     * Get the free output buffer size. This is an upper limit. The size
+     * returned by function get_buffer_out may be smaller.
+     */
+    size_t (*buffer_get_free)(HWVoiceOut *hw);
+    /*
      * get a buffer that after later can be passed to put_buffer_out; optional
      * returns the buffer, and writes it's size to size (in bytes)
-     * this is unrelated to the above buffer_size_out function
      */
     void  *(*get_buffer_out)(HWVoiceOut *hw, size_t *size);
     /*
@@ -190,6 +194,7 @@ void audio_generic_run_buffer_in(HWVoiceIn *hw);
 void *audio_generic_get_buffer_in(HWVoiceIn *hw, size_t *size);
 void audio_generic_put_buffer_in(HWVoiceIn *hw, void *buf, size_t size);
 void audio_generic_run_buffer_out(HWVoiceOut *hw);
+size_t audio_generic_buffer_get_free(HWVoiceOut *hw);
 void *audio_generic_get_buffer_out(HWVoiceOut *hw, size_t *size);
 size_t audio_generic_put_buffer_out(HWVoiceOut *hw, void *buf, size_t size);
 size_t audio_generic_write(HWVoiceOut *hw, void *buf, size_t size);
@@ -264,6 +269,19 @@ size_t audio_rate_get_bytes(struct audio_pcm_info *info, RateCtl *rate,
 static inline size_t audio_ring_dist(size_t dst, size_t src, size_t len)
 {
     return (dst >= src) ? (dst - src) : (len - src + dst);
+}
+
+/**
+ * audio_ring_posb() - returns new position in ringbuffer in backward
+ * direction at given distance
+ *
+ * @pos: current position in ringbuffer
+ * @dist: distance in ringbuffer to walk in reverse direction
+ * @len: size of ringbuffer
+ */
+static inline size_t audio_ring_posb(size_t pos, size_t dist, size_t len)
+{
+    return pos >= dist ? pos - dist : len - dist + pos;
 }
 
 #define dolog(fmt, ...) AUD_log(AUDIO_CAP, fmt, ## __VA_ARGS__)

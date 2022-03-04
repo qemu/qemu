@@ -283,6 +283,7 @@ static int coreaudio_buf_unlock (coreaudioVoiceOut *core, const char *fn_name)
         coreaudio_buf_unlock(core, "coreaudio_" #name);             \
         return ret;                                             \
     }
+COREAUDIO_WRAPPER_FUNC(buffer_get_free, size_t, (HWVoiceOut *hw), (hw))
 COREAUDIO_WRAPPER_FUNC(get_buffer_out, void *, (HWVoiceOut *hw, size_t *size),
                        (hw, size))
 COREAUDIO_WRAPPER_FUNC(put_buffer_out, size_t,
@@ -333,12 +334,10 @@ static OSStatus audioDeviceIOProc(
 
     len = frameCount * hw->info.bytes_per_frame;
     while (len) {
-        size_t write_len;
-        ssize_t start = ((ssize_t) hw->pos_emul) - hw->pending_emul;
-        if (start < 0) {
-            start += hw->size_emul;
-        }
-        assert(start >= 0 && start < hw->size_emul);
+        size_t write_len, start;
+
+        start = audio_ring_posb(hw->pos_emul, hw->pending_emul, hw->size_emul);
+        assert(start < hw->size_emul);
 
         write_len = MIN(MIN(hw->pending_emul, len),
                         hw->size_emul - start);
@@ -604,6 +603,8 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
             coreaudio_playback_logerr(status,
                                       "Could not remove voice property change listener\n");
         }
+
+        return -1;
     }
 
     return 0;
@@ -654,6 +655,8 @@ static struct audio_pcm_ops coreaudio_pcm_ops = {
     .fini_out = coreaudio_fini_out,
   /* wrapper for audio_generic_write */
     .write    = coreaudio_write,
+  /* wrapper for audio_generic_buffer_get_free */
+    .buffer_get_free = coreaudio_buffer_get_free,
   /* wrapper for audio_generic_get_buffer_out */
     .get_buffer_out = coreaudio_get_buffer_out,
   /* wrapper for audio_generic_put_buffer_out */

@@ -49,6 +49,10 @@ void surface_gl_create_texture(QemuGLShader *gls,
     assert(gls);
     assert(QEMU_IS_ALIGNED(surface_stride(surface), surface_bytes_per_pixel(surface)));
 
+    if (surface->texture) {
+        return;
+    }
+
     switch (surface->format) {
     case PIXMAN_BE_b8g8r8x8:
     case PIXMAN_BE_b8g8r8a8:

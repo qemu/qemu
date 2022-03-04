@@ -1607,7 +1607,7 @@ static void usb_mtp_write_data(MTPState *s, uint32_t handle)
         usb_mtp_object_lookup(s, s->dataset.parent_handle);
     char *path = NULL;
     uint64_t rc;
-    mode_t mask = 0644;
+    mode_t mask = 0755;
     int ret = 0;
 
     assert(d != NULL);
@@ -1635,7 +1635,7 @@ static void usb_mtp_write_data(MTPState *s, uint32_t handle)
             }
 
             d->fd = open(path, O_CREAT | O_WRONLY |
-                         O_CLOEXEC | O_NOFOLLOW, mask);
+                         O_CLOEXEC | O_NOFOLLOW, mask & 0666);
             if (d->fd == -1) {
                 ret = 1;
                 goto done;

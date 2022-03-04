@@ -1239,7 +1239,11 @@ static void usbredir_create_parser(USBRedirDevice *dev)
 
     DPRINTF("creating usbredirparser\n");
 
-    dev->parser = qemu_oom_check(usbredirparser_create());
+    dev->parser = usbredirparser_create();
+    if (!dev->parser) {
+        error_report("usbredirparser_create() failed");
+        exit(1);
+    }
     dev->parser->priv = dev;
     dev->parser->log_func = usbredir_log;
     dev->parser->read_func = usbredir_read;
@@ -2239,7 +2243,10 @@ static int usbredir_put_parser(QEMUFile *f, void *priv, size_t unused,
     }
 
     usbredirparser_serialize(dev->parser, &data, &len);
-    qemu_oom_check(data);
+    if (!data) {
+        error_report("usbredirparser_serialize failed");
+        exit(1);
+    }
 
     qemu_put_be32(f, len);
     qemu_put_buffer(f, data, len);
@@ -2330,7 +2337,11 @@ static int usbredir_get_bufpq(QEMUFile *f, void *priv, size_t unused,
         bufp->len = qemu_get_be32(f);
         bufp->status = qemu_get_be32(f);
         bufp->offset = 0;
-        bufp->data = qemu_oom_check(malloc(bufp->len)); /* regular malloc! */
+        bufp->data = malloc(bufp->len); /* regular malloc! */
+        if (!bufp->data) {
+            error_report("usbredir_get_bufpq: out of memory");
+            exit(1);
+        }
         bufp->free_on_destroy = bufp->data;
         qemu_get_buffer(f, bufp->data, bufp->len);
         QTAILQ_INSERT_TAIL(&endp->bufpq, bufp, next);

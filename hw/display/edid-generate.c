@@ -255,33 +255,31 @@ static void edid_desc_dummy(uint8_t *desc)
     edid_desc_type(desc, 0x10);
 }
 
-static void edid_desc_timing(uint8_t *desc, uint32_t refresh_rate,
+static void edid_desc_timing(uint8_t *desc, const Timings *timings,
                              uint32_t xres, uint32_t yres,
                              uint32_t xmm, uint32_t ymm)
 {
-    Timings timings;
-    generate_timings(&timings, refresh_rate, xres, yres);
-    stl_le_p(desc, timings.clock);
+    stw_le_p(desc, timings->clock);
 
     desc[2] = xres   & 0xff;
-    desc[3] = timings.xblank & 0xff;
+    desc[3] = timings->xblank & 0xff;
     desc[4] = (((xres   & 0xf00) >> 4) |
-               ((timings.xblank & 0xf00) >> 8));
+               ((timings->xblank & 0xf00) >> 8));
 
     desc[5] = yres   & 0xff;
-    desc[6] = timings.yblank & 0xff;
+    desc[6] = timings->yblank & 0xff;
     desc[7] = (((yres   & 0xf00) >> 4) |
-               ((timings.yblank & 0xf00) >> 8));
+               ((timings->yblank & 0xf00) >> 8));
 
-    desc[8] = timings.xfront & 0xff;
-    desc[9] = timings.xsync  & 0xff;
+    desc[8] = timings->xfront & 0xff;
+    desc[9] = timings->xsync  & 0xff;
 
-    desc[10] = (((timings.yfront & 0x00f) << 4) |
-                ((timings.ysync  & 0x00f) << 0));
-    desc[11] = (((timings.xfront & 0x300) >> 2) |
-                ((timings.xsync  & 0x300) >> 4) |
-                ((timings.yfront & 0x030) >> 2) |
-                ((timings.ysync  & 0x030) >> 4));
+    desc[10] = (((timings->yfront & 0x00f) << 4) |
+                ((timings->ysync  & 0x00f) << 0));
+    desc[11] = (((timings->xfront & 0x300) >> 2) |
+                ((timings->xsync  & 0x300) >> 4) |
+                ((timings->yfront & 0x030) >> 2) |
+                ((timings->ysync  & 0x030) >> 4));
 
     desc[12] = xmm & 0xff;
     desc[13] = ymm & 0xff;
@@ -348,13 +346,10 @@ static void init_displayid(uint8_t *did)
     edid_checksum(did + 1, did[2] + 4);
 }
 
-static void qemu_displayid_generate(uint8_t *did, uint32_t refresh_rate,
+static void qemu_displayid_generate(uint8_t *did, const Timings *timings,
                                     uint32_t xres, uint32_t yres,
                                     uint32_t xmm, uint32_t ymm)
 {
-    Timings timings;
-    generate_timings(&timings, refresh_rate, xres, yres);
-
     did[0] = 0x70; /* display id extension */
     did[1] = 0x13; /* version 1.3 */
     did[2] = 23;   /* length */
@@ -364,21 +359,21 @@ static void qemu_displayid_generate(uint8_t *did, uint32_t refresh_rate,
     did[6] = 0x00; /* revision */
     did[7] = 0x14; /* block length */
 
-    did[8]  = timings.clock  & 0xff;
-    did[9]  = (timings.clock & 0xff00) >> 8;
-    did[10] = (timings.clock & 0xff0000) >> 16;
+    did[8]  = timings->clock  & 0xff;
+    did[9]  = (timings->clock & 0xff00) >> 8;
+    did[10] = (timings->clock & 0xff0000) >> 16;
 
     did[11] = 0x88; /* leave aspect ratio undefined */
 
     stw_le_p(did + 12, 0xffff & (xres - 1));
-    stw_le_p(did + 14, 0xffff & (timings.xblank - 1));
-    stw_le_p(did + 16, 0xffff & (timings.xfront - 1));
-    stw_le_p(did + 18, 0xffff & (timings.xsync - 1));
+    stw_le_p(did + 14, 0xffff & (timings->xblank - 1));
+    stw_le_p(did + 16, 0xffff & (timings->xfront - 1));
+    stw_le_p(did + 18, 0xffff & (timings->xsync - 1));
 
     stw_le_p(did + 20, 0xffff & (yres - 1));
-    stw_le_p(did + 22, 0xffff & (timings.yblank - 1));
-    stw_le_p(did + 24, 0xffff & (timings.yfront - 1));
-    stw_le_p(did + 26, 0xffff & (timings.ysync - 1));
+    stw_le_p(did + 22, 0xffff & (timings->yblank - 1));
+    stw_le_p(did + 24, 0xffff & (timings->yfront - 1));
+    stw_le_p(did + 26, 0xffff & (timings->ysync - 1));
 
     edid_checksum(did + 1, did[2] + 4);
 }
@@ -386,6 +381,7 @@ static void qemu_displayid_generate(uint8_t *did, uint32_t refresh_rate,
 void qemu_edid_generate(uint8_t *edid, size_t size,
                         qemu_edid_info *info)
 {
+    Timings timings;
     uint8_t *desc = edid + 54;
     uint8_t *xtra3 = NULL;
     uint8_t *dta = NULL;
@@ -409,9 +405,6 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
     if (!info->prefy) {
         info->prefy = 800;
     }
-    if (info->prefx >= 4096 || info->prefy >= 4096) {
-        large_screen = 1;
-    }
     if (info->width_mm && info->height_mm) {
         width_mm = info->width_mm;
         height_mm = info->height_mm;
@@ -419,6 +412,11 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
     } else {
         width_mm = qemu_edid_dpi_to_mm(dpi, info->prefx);
         height_mm = qemu_edid_dpi_to_mm(dpi, info->prefy);
+    }
+
+    generate_timings(&timings, refresh_rate, info->prefx, info->prefy);
+    if (info->prefx >= 4096 || info->prefy >= 4096 || timings.clock >= 65536) {
+        large_screen = 1;
     }
 
     /* =============== extensions  =============== */
@@ -501,7 +499,7 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
 
     if (!large_screen) {
         /* The DTD section has only 12 bits to store the resolution */
-        edid_desc_timing(desc, refresh_rate, info->prefx, info->prefy,
+        edid_desc_timing(desc, &timings, info->prefx, info->prefy,
                          width_mm, height_mm);
         desc = edid_desc_next(edid, dta, desc);
     }
@@ -536,7 +534,7 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
     /* =============== display id extensions =============== */
 
     if (did && large_screen) {
-        qemu_displayid_generate(did, refresh_rate, info->prefx, info->prefy,
+        qemu_displayid_generate(did, &timings, info->prefx, info->prefy,
                                 width_mm, height_mm);
     }
 
