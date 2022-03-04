@@ -169,6 +169,19 @@ driver options if ``--image-opts`` is specified.
   option; or provide the credentials needed for connecting as a client
   in list mode.
 
+.. option:: --tls-hostname=hostname
+
+  When validating an x509 certificate received over a TLS connection,
+  the hostname that the NBD client used to connect will be checked
+  against information in the server provided certificate. Sometimes
+  it might be required to override the hostname used to perform this
+  check. For example, if the NBD client is using a tunnel from localhost
+  to connect to the remote server, the `--tls-hostname` option should
+  be used to set the officially expected hostname of the remote NBD
+  server. This can also be used if accessing NBD over a UNIX socket
+  where there is no inherent hostname available. This is only permitted
+  when acting as a NBD client with the `--list` option.
+
 .. option:: --fork
 
   Fork off the server process and exit the parent once the server is running.
