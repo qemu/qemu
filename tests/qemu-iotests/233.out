@@ -17,15 +17,12 @@ wrote 1048576/1048576 bytes at offset 1048576
 qemu-img: Could not open 'driver=nbd,host=127.0.0.1,port=PORT,tls-creds=tls0': Denied by server for option 5 (starttls)
 server reported: TLS not configured
 qemu-nbd: Denied by server for option 5 (starttls)
-server reported: TLS not configured
 
 == check plain client to TLS server fails ==
 qemu-img: Could not open 'nbd://localhost:PORT': TLS negotiation required before option 7 (go)
 Did you forget a valid tls-creds?
 server reported: Option 0x7 not permitted before TLS
 qemu-nbd: TLS negotiation required before option 3 (list)
-Did you forget a valid tls-creds?
-server reported: Option 0x3 not permitted before TLS
 
 == check TLS works ==
 image: nbd://127.0.0.1:PORT
@@ -39,12 +36,7 @@ disk size: unavailable
 exports available: 1
  export: ''
   size:  67108864
-  flags: 0xced ( flush fua trim zeroes df cache fast-zero )
   min block: 1
-  opt block: 4096
-  max block: 33554432
-  available meta contexts: 1
-   base:allocation
 
 == check TLS with different CA fails ==
 qemu-img: Could not open 'driver=nbd,host=127.0.0.1,port=PORT,tls-creds=tls0': The certificate hasn't got a known issuer
