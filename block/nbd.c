@@ -90,9 +90,10 @@ typedef struct BDRVNBDState {
     uint32_t reconnect_delay;
     uint32_t open_timeout;
     SocketAddress *saddr;
-    char *export, *tlscredsid;
+    char *export;
+    char *tlscredsid;
     QCryptoTLSCreds *tlscreds;
-    const char *tlshostname;
+    char *tlshostname;
     char *x_dirty_bitmap;
     bool alloc_depth;
 
@@ -121,6 +122,8 @@ static void nbd_clear_bdrvstate(BlockDriverState *bs)
     s->export = NULL;
     g_free(s->tlscredsid);
     s->tlscredsid = NULL;
+    g_free(s->tlshostname);
+    s->tlshostname = NULL;
     g_free(s->x_dirty_bitmap);
     s->x_dirty_bitmap = NULL;
 }
@@ -1766,6 +1769,11 @@ static QemuOptsList nbd_runtime_opts = {
             .help = "ID of the TLS credentials to use",
         },
         {
+            .name = "tls-hostname",
+            .type = QEMU_OPT_STRING,
+            .help = "Override hostname for validating TLS x509 certificate",
+        },
+        {
             .name = "x-dirty-bitmap",
             .type = QEMU_OPT_STRING,
             .help = "experimental: expose named dirty bitmap in place of "
@@ -1836,7 +1844,10 @@ static int nbd_process_options(BlockDriverState *bs, QDict *options,
             error_setg(errp, "TLS only supported over IP sockets");
             goto error;
         }
-        s->tlshostname = s->saddr->u.inet.host;
+        s->tlshostname = g_strdup(qemu_opt_get(opts, "tls-hostname"));
+        if (!s->tlshostname) {
+            s->tlshostname = g_strdup(s->saddr->u.inet.host);
+        }
     }
 
     s->x_dirty_bitmap = g_strdup(qemu_opt_get(opts, "x-dirty-bitmap"));
@@ -2038,6 +2049,7 @@ static const char *const nbd_strong_runtime_opts[] = {
     "port",
     "export",
     "tls-creds",
+    "tls-hostname",
     "server.",
 
     NULL
