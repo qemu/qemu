@@ -133,6 +133,7 @@ struct MOS6522State {
     uint64_t frequency;
 
     qemu_irq irq;
+    uint8_t last_irq_levels;
 };
 
 #define TYPE_MOS6522 "mos6522"

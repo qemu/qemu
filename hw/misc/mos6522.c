@@ -72,6 +72,12 @@ static void mos6522_set_irq(void *opaque, int n, int level)
     }
 
     mos6522_update_irq(s);
+
+    if (level) {
+        s->last_irq_levels |= 1 << n;
+    } else {
+        s->last_irq_levels &= ~(1 << n);
+    }
 }
 
 static uint64_t get_counter_value(MOS6522State *s, MOS6522Timer *ti)
@@ -544,8 +550,8 @@ static const VMStateDescription vmstate_mos6522_timer = {
 
 const VMStateDescription vmstate_mos6522 = {
     .name = "mos6522",
-    .version_id = 0,
-    .minimum_version_id = 0,
+    .version_id = 1,
+    .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(a, MOS6522State),
         VMSTATE_UINT8(b, MOS6522State),
@@ -556,6 +562,7 @@ const VMStateDescription vmstate_mos6522 = {
         VMSTATE_UINT8(pcr, MOS6522State),
         VMSTATE_UINT8(ifr, MOS6522State),
         VMSTATE_UINT8(ier, MOS6522State),
+        VMSTATE_UINT8(last_irq_levels, MOS6522State),
         VMSTATE_STRUCT_ARRAY(timers, MOS6522State, 2, 0,
                              vmstate_mos6522_timer, MOS6522Timer),
         VMSTATE_END_OF_LIST()
