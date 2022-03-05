@@ -200,6 +200,11 @@ static void esp_set_pdma_cb(ESPState *s, void (*cb)(ESPState *))
     s->pdma_cb = cb;
 }
 
+static void esp_pdma_cb(ESPState *s)
+{
+    s->pdma_cb(s);
+}
+
 static int esp_select(ESPState *s)
 {
     int target;
@@ -1268,7 +1273,7 @@ static void sysbus_esp_pdma_write(void *opaque, hwaddr addr,
         esp_pdma_write(s, val);
         break;
     }
-    s->pdma_cb(s);
+    esp_pdma_cb(s);
 }
 
 static uint64_t sysbus_esp_pdma_read(void *opaque, hwaddr addr,
@@ -1290,7 +1295,7 @@ static uint64_t sysbus_esp_pdma_read(void *opaque, hwaddr addr,
         break;
     }
     if (fifo8_num_used(&s->fifo) < 2) {
-        s->pdma_cb(s);
+        esp_pdma_cb(s);
     }
     return val;
 }
