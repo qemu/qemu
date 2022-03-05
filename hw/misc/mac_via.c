@@ -325,10 +325,9 @@ static void via1_sixty_hz(void *opaque)
 {
     MOS6522Q800VIA1State *v1s = opaque;
     MOS6522State *s = MOS6522(v1s);
-    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
+    qemu_irq irq = qdev_get_gpio_in(DEVICE(s), VIA1_IRQ_60HZ_BIT);
 
-    s->ifr |= VIA1_IRQ_60HZ;
-    mdc->update_irq(s);
+    qemu_set_irq(irq, 1);
 
     via1_sixty_hz_update(v1s);
 }
@@ -337,42 +336,11 @@ static void via1_one_second(void *opaque)
 {
     MOS6522Q800VIA1State *v1s = opaque;
     MOS6522State *s = MOS6522(v1s);
-    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
+    qemu_irq irq = qdev_get_gpio_in(DEVICE(s), VIA1_IRQ_ONE_SECOND_BIT);
 
-    s->ifr |= VIA1_IRQ_ONE_SECOND;
-    mdc->update_irq(s);
+    qemu_set_irq(irq, 1);
 
     via1_one_second_update(v1s);
-}
-
-static void via1_irq_request(void *opaque, int irq, int level)
-{
-    MOS6522Q800VIA1State *v1s = opaque;
-    MOS6522State *s = MOS6522(v1s);
-    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
-
-    if (level) {
-        s->ifr |= 1 << irq;
-    } else {
-        s->ifr &= ~(1 << irq);
-    }
-
-    mdc->update_irq(s);
-}
-
-static void via2_irq_request(void *opaque, int irq, int level)
-{
-    MOS6522Q800VIA2State *v2s = opaque;
-    MOS6522State *s = MOS6522(v2s);
-    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
-
-    if (level) {
-        s->ifr |= 1 << irq;
-    } else {
-        s->ifr &= ~(1 << irq);
-    }
-
-    mdc->update_irq(s);
 }
 
 
@@ -1061,8 +1029,6 @@ static void mos6522_q800_via1_init(Object *obj)
     qbus_init((BusState *)&v1s->adb_bus, sizeof(v1s->adb_bus),
               TYPE_ADB_BUS, DEVICE(v1s), "adb.0");
 
-    qdev_init_gpio_in(DEVICE(obj), via1_irq_request, VIA1_IRQ_NB);
-
     /* A/UX mode */
     qdev_init_gpio_out(DEVICE(obj), &v1s->auxmode_irq, 1);
 }
@@ -1150,22 +1116,20 @@ static void mos6522_q800_via2_reset(DeviceState *dev)
     ms->a = 0x7f;
 }
 
-static void via2_nubus_irq_request(void *opaque, int irq, int level)
+static void via2_nubus_irq_request(void *opaque, int n, int level)
 {
     MOS6522Q800VIA2State *v2s = opaque;
     MOS6522State *s = MOS6522(v2s);
-    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
+    qemu_irq irq = qdev_get_gpio_in(DEVICE(s), VIA2_IRQ_NUBUS_BIT);
 
     if (level) {
         /* Port A nubus IRQ inputs are active LOW */
-        s->a &= ~(1 << irq);
-        s->ifr |= 1 << VIA2_IRQ_NUBUS_BIT;
+        s->a &= ~(1 << n);
     } else {
-        s->a |= (1 << irq);
-        s->ifr &= ~(1 << VIA2_IRQ_NUBUS_BIT);
+        s->a |= (1 << n);
     }
 
-    mdc->update_irq(s);
+    qemu_set_irq(irq, level);
 }
 
 static void mos6522_q800_via2_init(Object *obj)
@@ -1176,8 +1140,6 @@ static void mos6522_q800_via2_init(Object *obj)
     memory_region_init_io(&v2s->via_mem, obj, &mos6522_q800_via2_ops, v2s,
                           "via2", VIA_SIZE);
     sysbus_init_mmio(sbd, &v2s->via_mem);
-
-    qdev_init_gpio_in(DEVICE(obj), via2_irq_request, VIA2_IRQ_NB);
 
     qdev_init_gpio_in_named(DEVICE(obj), via2_nubus_irq_request, "nubus-irq",
                             VIA2_NUBUS_IRQ_NB);

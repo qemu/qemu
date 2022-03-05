@@ -52,6 +52,19 @@ static void mos6522_update_irq(MOS6522State *s)
     }
 }
 
+static void mos6522_set_irq(void *opaque, int n, int level)
+{
+    MOS6522State *s = MOS6522(opaque);
+
+    if (level) {
+        s->ifr |= 1 << n;
+    } else {
+        s->ifr &= ~(1 << n);
+    }
+
+    mos6522_update_irq(s);
+}
+
 static uint64_t get_counter_value(MOS6522State *s, MOS6522Timer *ti)
 {
     MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
@@ -488,6 +501,8 @@ static void mos6522_init(Object *obj)
 
     s->timers[0].timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, mos6522_timer1, s);
     s->timers[1].timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, mos6522_timer2, s);
+
+    qdev_init_gpio_in(DEVICE(obj), mos6522_set_irq, VIA_NUM_INTS);
 }
 
 static void mos6522_finalize(Object *obj)

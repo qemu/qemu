@@ -24,8 +24,6 @@
 #define VIA1_IRQ_ADB_DATA_BIT   CB2_INT_BIT
 #define VIA1_IRQ_ADB_CLOCK_BIT  CB1_INT_BIT
 
-#define VIA1_IRQ_NB             8
-
 #define VIA1_IRQ_ONE_SECOND     BIT(VIA1_IRQ_ONE_SECOND_BIT)
 #define VIA1_IRQ_60HZ           BIT(VIA1_IRQ_60HZ_BIT)
 #define VIA1_IRQ_ADB_READY      BIT(VIA1_IRQ_ADB_READY_BIT)
@@ -42,7 +40,6 @@ struct MOS6522Q800VIA1State {
 
     MemoryRegion via_mem;
 
-    qemu_irq irqs[VIA1_IRQ_NB];
     qemu_irq auxmode_irq;
     uint8_t last_b;
 
@@ -84,8 +81,6 @@ struct MOS6522Q800VIA1State {
 #define VIA2_IRQ_NUBUS_BIT      CA1_INT_BIT
 #define VIA2_IRQ_SCSI_BIT       CB2_INT_BIT
 #define VIA2_IRQ_ASC_BIT        CB1_INT_BIT
-
-#define VIA2_IRQ_NB             8
 
 #define VIA2_IRQ_SCSI_DATA      BIT(VIA2_IRQ_SCSI_DATA_BIT)
 #define VIA2_IRQ_NUBUS          BIT(VIA2_IRQ_NUBUS_BIT)

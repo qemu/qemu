@@ -57,6 +57,8 @@
 #define T2_INT             BIT(T2_INT_BIT)
 #define T1_INT             BIT(T1_INT_BIT)
 
+#define VIA_NUM_INTS       5
+
 /* Bits in ACR */
 #define T1MODE             0xc0    /* Timer 1 mode */
 #define T1MODE_CONT        0x40    /*  continuous interrupts */

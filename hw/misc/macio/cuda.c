@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/irq.h"
 #include "hw/ppc/mac.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
@@ -96,9 +97,9 @@ static void cuda_set_sr_int(void *opaque)
     CUDAState *s = opaque;
     MOS6522CUDAState *mcs = &s->mos6522_cuda;
     MOS6522State *ms = MOS6522(mcs);
-    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(ms);
+    qemu_irq irq = qdev_get_gpio_in(DEVICE(ms), SR_INT_BIT);
 
-    mdc->set_sr_int(ms);
+    qemu_set_irq(irq, 1);
 }
 
 static void cuda_delay_set_sr_int(CUDAState *s)

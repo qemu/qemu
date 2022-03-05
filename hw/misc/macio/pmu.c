@@ -75,9 +75,9 @@ static void via_set_sr_int(void *opaque)
     PMUState *s = opaque;
     MOS6522PMUState *mps = MOS6522_PMU(&s->mos6522_pmu);
     MOS6522State *ms = MOS6522(mps);
-    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(ms);
+    qemu_irq irq = qdev_get_gpio_in(DEVICE(ms), SR_INT_BIT);
 
-    mdc->set_sr_int(ms);
+    qemu_set_irq(irq, 1);
 }
 
 static void pmu_update_extirq(PMUState *s)
