@@ -9,37 +9,48 @@
 #define CRF_SO  (1 << 0)
 #define UNDEF   0
 
-/*
- * Use GPR pairs to load the VSR values and place the resulting VSR and CR6 in
- * th, tl, and cr. Note that we avoid newer instructions (e.g., mtvsrdd/mfvsrld)
- * so we can run this test on POWER8 machines.
- */
-#define BCDSUB(AH, AL, BH, BL, PS)                          \
-    asm ("mtvsrd 32, %3\n\t"                                \
-         "mtvsrd 33, %4\n\t"                                \
-         "xxmrghd 32, 32, 33\n\t"                           \
-         "mtvsrd 33, %5\n\t"                                \
-         "mtvsrd 34, %6\n\t"                                \
-         "xxmrghd 33, 33, 34\n\t"                           \
-         "bcdsub. 0, 0, 1, %7\n\t"                          \
-         "mfocrf %0, 0b10\n\t"                              \
-         "mfvsrd %1, 32\n\t"                                \
-         "xxswapd 32, 32\n\t"                               \
-         "mfvsrd %2, 32\n\t"                                \
-         : "=r" (cr), "=r" (th), "=r" (tl)                  \
-         : "r" (AH), "r" (AL), "r" (BH), "r" (BL), "i" (PS) \
-         : "v0", "v1", "v2");
+#ifdef __has_builtin
+#if !__has_builtin(__builtin_bcdsub)
+#define NO_BUILTIN_BCDSUB
+#endif
+#endif
 
-#define TEST(AH, AL, BH, BL, PS, TH, TL, CR6)   \
-    do {                                        \
-        int cr = 0;                             \
-        uint64_t th, tl;                        \
-        BCDSUB(AH, AL, BH, BL, PS);             \
-        if (TH != UNDEF || TL != UNDEF) {       \
-            assert(tl == TL);                   \
-            assert(th == TH);                   \
-        }                                       \
-        assert((cr >> 4) == CR6);               \
+#ifdef NO_BUILTIN_BCDSUB
+#define BCDSUB(T, A, B, PS) \
+    ".long 4 << 26 | (" #T ") << 21 | (" #A ") << 16 | (" #B ") << 11"  \
+    " | 1 << 10 | (" #PS ") << 9 | 65\n\t"
+#else
+#define BCDSUB(T, A, B, PS) "bcdsub. " #T ", " #A ", " #B ", " #PS "\n\t"
+#endif
+
+#define TEST(AH, AL, BH, BL, PS, TH, TL, CR6)                                  \
+    do {                                                                       \
+        int cr = 0;                                                            \
+        uint64_t th, tl;                                                       \
+        /*                                                                     \
+         * Use GPR pairs to load the VSR values and place the resulting VSR and\
+         * CR6 in th, tl, and cr. Note that we avoid newer instructions (e.g., \
+         * mtvsrdd/mfvsrld) so we can run this test on POWER8 machines.        \
+         */                                                                    \
+        asm ("mtvsrd 32, %3\n\t"                                               \
+             "mtvsrd 33, %4\n\t"                                               \
+             "xxmrghd 32, 32, 33\n\t"                                          \
+             "mtvsrd 33, %5\n\t"                                               \
+             "mtvsrd 34, %6\n\t"                                               \
+             "xxmrghd 33, 33, 34\n\t"                                          \
+             BCDSUB(0, 0, 1, PS)                                               \
+             "mfocrf %0, 0b10\n\t"                                             \
+             "mfvsrd %1, 32\n\t"                                               \
+             "xxswapd 32, 32\n\t"                                              \
+             "mfvsrd %2, 32\n\t"                                               \
+             : "=r" (cr), "=r" (th), "=r" (tl)                                 \
+             : "r" (AH), "r" (AL), "r" (BH), "r" (BL)                          \
+             : "v0", "v1", "v2");                                              \
+        if (TH != UNDEF || TL != UNDEF) {                                      \
+            assert(tl == TL);                                                  \
+            assert(th == TH);                                                  \
+        }                                                                      \
+        assert((cr >> 4) == CR6);                                              \
     } while (0)
 
 /*
