@@ -850,7 +850,8 @@ static void mos6522_pmu_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
 
-    dc->reset = mos6522_pmu_reset;
+    device_class_set_parent_reset(dc, mos6522_pmu_reset,
+                                  &mdc->parent_reset);
     mdc->portB_write = mos6522_pmu_portB_write;
     mdc->portA_write = mos6522_pmu_portA_write;
 }

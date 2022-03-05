@@ -1076,9 +1076,11 @@ static Property mos6522_q800_via1_properties[] = {
 static void mos6522_q800_via1_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
+    MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
 
     dc->realize = mos6522_q800_via1_realize;
-    dc->reset = mos6522_q800_via1_reset;
+    device_class_set_parent_reset(dc, mos6522_q800_via1_reset,
+                                  &mdc->parent_reset);
     dc->vmsd = &vmstate_q800_via1;
     device_class_set_props(dc, mos6522_q800_via1_properties);
 }
@@ -1161,7 +1163,8 @@ static void mos6522_q800_via2_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
 
-    dc->reset = mos6522_q800_via2_reset;
+    device_class_set_parent_reset(dc, mos6522_q800_via2_reset,
+                                  &mdc->parent_reset);
     dc->vmsd = &vmstate_q800_via2;
     mdc->portB_write = mos6522_q800_via2_portB_write;
 }

@@ -519,7 +519,6 @@ static void mos6522_class_init(ObjectClass *oc, void *data)
     dc->reset = mos6522_reset;
     dc->vmsd = &vmstate_mos6522;
     device_class_set_props(dc, mos6522_properties);
-    mdc->parent_reset = dc->reset;
     mdc->portB_write = mos6522_portB_write;
     mdc->portA_write = mos6522_portA_write;
     mdc->get_timer1_counter_value = mos6522_get_counter_value;
