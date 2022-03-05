@@ -630,10 +630,10 @@ case "$cpu" in
   ppc)
     CPU_CFLAGS="-m32" ;;
   ppc64)
-    CPU_CFLAGS="-m64 -mbig" ;;
+    CPU_CFLAGS="-m64 -mbig-endian" ;;
   ppc64le)
     cpu="ppc64"
-    CPU_CFLAGS="-m64 -mlittle" ;;
+    CPU_CFLAGS="-m64 -mlittle-endian" ;;
 
   s390)
     CPU_CFLAGS="-m31" ;;
