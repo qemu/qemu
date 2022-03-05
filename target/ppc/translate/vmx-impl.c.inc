@@ -1157,10 +1157,8 @@ static bool do_vector_rotl_quad(DisasContext *ctx, arg_VX *a, bool mask,
         if (insert) {
             get_avr64(n, a->vrt, true);
             get_avr64(vrb, a->vrt, false);
-            tcg_gen_not_i64(ah, ah);
-            tcg_gen_not_i64(al, al);
-            tcg_gen_and_i64(n, n, ah);
-            tcg_gen_and_i64(vrb, vrb, al);
+            tcg_gen_andc_i64(n, n, ah);
+            tcg_gen_andc_i64(vrb, vrb, al);
             tcg_gen_or_i64(t0, t0, n);
             tcg_gen_or_i64(t1, t1, vrb);
         }
