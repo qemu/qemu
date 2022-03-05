@@ -64,14 +64,62 @@ static void mos6522_update_irq(MOS6522State *s)
 static void mos6522_set_irq(void *opaque, int n, int level)
 {
     MOS6522State *s = MOS6522(opaque);
+    int last_level = !!(s->last_irq_levels & (1 << n));
+    uint8_t last_ifr = s->ifr;
+    bool positive_edge = true;
+    int ctrl;
 
-    if (level) {
-        s->ifr |= 1 << n;
-    } else {
-        s->ifr &= ~(1 << n);
+    /*
+     * SR_INT is managed by mos6522 instances and cleared upon SR
+     * read. It is only the external CA1/2 and CB1/2 lines that
+     * are edge-triggered and latched in IFR
+     */
+    if (n != SR_INT_BIT && level == last_level) {
+        return;
     }
 
-    mos6522_update_irq(s);
+    /* Detect negative edge trigger */
+    if (last_level == 1 && level == 0) {
+        positive_edge = false;
+    }
+
+    switch (n) {
+    case CA2_INT_BIT:
+        ctrl = (s->pcr & CA2_CTRL_MASK) >> CA2_CTRL_SHIFT;
+        if ((positive_edge && (ctrl & C2_POS)) ||
+             (!positive_edge && !(ctrl & C2_POS))) {
+            s->ifr |= 1 << n;
+        }
+        break;
+    case CA1_INT_BIT:
+        ctrl = (s->pcr & CA1_CTRL_MASK) >> CA1_CTRL_SHIFT;
+        if ((positive_edge && (ctrl & C1_POS)) ||
+             (!positive_edge && !(ctrl & C1_POS))) {
+            s->ifr |= 1 << n;
+        }
+        break;
+    case SR_INT_BIT:
+        s->ifr |= 1 << n;
+        break;
+    case CB2_INT_BIT:
+        ctrl = (s->pcr & CB2_CTRL_MASK) >> CB2_CTRL_SHIFT;
+        if ((positive_edge && (ctrl & C2_POS)) ||
+             (!positive_edge && !(ctrl & C2_POS))) {
+            s->ifr |= 1 << n;
+        }
+        break;
+    case CB1_INT_BIT:
+        ctrl = (s->pcr & CB1_CTRL_MASK) >> CB1_CTRL_SHIFT;
+        if ((positive_edge && (ctrl & C1_POS)) ||
+             (!positive_edge && !(ctrl & C1_POS))) {
+            s->ifr |= 1 << n;
+        }
+        break;
+    }
+
+    if (s->ifr != last_ifr) {
+        mos6522_update_irq(s);
+    }
 
     if (level) {
         s->last_irq_levels |= 1 << n;
@@ -250,6 +298,7 @@ uint64_t mos6522_read(void *opaque, hwaddr addr, unsigned size)
 {
     MOS6522State *s = opaque;
     uint32_t val;
+    int ctrl;
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     if (now >= s->timers[0].next_irq_time) {
@@ -263,12 +312,24 @@ uint64_t mos6522_read(void *opaque, hwaddr addr, unsigned size)
     switch (addr) {
     case VIA_REG_B:
         val = s->b;
+        ctrl = (s->pcr & CB2_CTRL_MASK) >> CB2_CTRL_SHIFT;
+        if (!(ctrl & C2_IND)) {
+            s->ifr &= ~CB2_INT;
+        }
+        s->ifr &= ~CB1_INT;
+        mos6522_update_irq(s);
         break;
     case VIA_REG_A:
        qemu_log_mask(LOG_UNIMP, "Read access to register A with handshake");
        /* fall through */
     case VIA_REG_ANH:
         val = s->a;
+        ctrl = (s->pcr & CA2_CTRL_MASK) >> CA2_CTRL_SHIFT;
+        if (!(ctrl & C2_IND)) {
+            s->ifr &= ~CA2_INT;
+        }
+        s->ifr &= ~CA1_INT;
+        mos6522_update_irq(s);
         break;
     case VIA_REG_DIRB:
         val = s->dirb;
@@ -335,6 +396,7 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     MOS6522State *s = opaque;
     MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
+    int ctrl;
 
     trace_mos6522_write(addr, mos6522_reg_names[addr], val);
 
@@ -342,6 +404,12 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     case VIA_REG_B:
         s->b = (s->b & ~s->dirb) | (val & s->dirb);
         mdc->portB_write(s);
+        ctrl = (s->pcr & CB2_CTRL_MASK) >> CB2_CTRL_SHIFT;
+        if (!(ctrl & C2_IND)) {
+            s->ifr &= ~CB2_INT;
+        }
+        s->ifr &= ~CB1_INT;
+        mos6522_update_irq(s);
         break;
     case VIA_REG_A:
        qemu_log_mask(LOG_UNIMP, "Write access to register A with handshake");
@@ -349,6 +417,12 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     case VIA_REG_ANH:
         s->a = (s->a & ~s->dira) | (val & s->dira);
         mdc->portA_write(s);
+        ctrl = (s->pcr & CA2_CTRL_MASK) >> CA2_CTRL_SHIFT;
+        if (!(ctrl & C2_IND)) {
+            s->ifr &= ~CA2_INT;
+        }
+        s->ifr &= ~CA1_INT;
+        mos6522_update_irq(s);
         break;
     case VIA_REG_DIRB:
         s->dirb = val;

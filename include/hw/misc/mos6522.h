@@ -65,6 +65,21 @@
 #define T1MODE             0xc0    /* Timer 1 mode */
 #define T1MODE_CONT        0x40    /*  continuous interrupts */
 
+/* Bits in PCR */
+#define CB2_CTRL_MASK      0xe0
+#define CB2_CTRL_SHIFT     5
+#define CB1_CTRL_MASK      0x10
+#define CB1_CTRL_SHIFT     4
+#define CA2_CTRL_MASK      0x0e
+#define CA2_CTRL_SHIFT     1
+#define CA1_CTRL_MASK      0x1
+#define CA1_CTRL_SHIFT     0
+
+#define C2_POS             0x2
+#define C2_IND             0x1
+
+#define C1_POS             0x1
+
 /* VIA registers */
 #define VIA_REG_B       0x00
 #define VIA_REG_A       0x01

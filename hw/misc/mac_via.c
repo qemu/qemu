@@ -327,7 +327,9 @@ static void via1_sixty_hz(void *opaque)
     MOS6522State *s = MOS6522(v1s);
     qemu_irq irq = qdev_get_gpio_in(DEVICE(s), VIA1_IRQ_60HZ_BIT);
 
-    qemu_set_irq(irq, 1);
+    /* Negative edge trigger */
+    qemu_irq_lower(irq);
+    qemu_irq_raise(irq);
 
     via1_sixty_hz_update(v1s);
 }
@@ -338,7 +340,9 @@ static void via1_one_second(void *opaque)
     MOS6522State *s = MOS6522(v1s);
     qemu_irq irq = qdev_get_gpio_in(DEVICE(s), VIA1_IRQ_ONE_SECOND_BIT);
 
-    qemu_set_irq(irq, 1);
+    /* Negative edge trigger */
+    qemu_irq_lower(irq);
+    qemu_irq_raise(irq);
 
     via1_one_second_update(v1s);
 }
@@ -917,9 +921,11 @@ static uint64_t mos6522_q800_via2_read(void *opaque, hwaddr addr, unsigned size)
          * On a Q800 an emulated VIA2 is integrated into the onboard logic. The
          * expectation of most OSs is that the DRQ bit is live, rather than
          * latched as it would be on a real VIA so do the same here.
+         *
+         * Note: DRQ is negative edge triggered
          */
         val &= ~VIA2_IRQ_SCSI_DATA;
-        val |= (ms->last_irq_levels & VIA2_IRQ_SCSI_DATA);
+        val |= (~ms->last_irq_levels & VIA2_IRQ_SCSI_DATA);
         break;
     }
 
@@ -1146,7 +1152,8 @@ static void via2_nubus_irq_request(void *opaque, int n, int level)
         s->a |= (1 << n);
     }
 
-    qemu_set_irq(irq, level);
+    /* Negative edge trigger */
+    qemu_set_irq(irq, !level);
 }
 
 static void mos6522_q800_via2_init(Object *obj)
