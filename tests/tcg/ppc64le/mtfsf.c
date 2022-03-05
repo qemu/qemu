@@ -1,7 +1,11 @@
 #include <stdlib.h>
+#include <stdint.h>
 #include <assert.h>
 #include <signal.h>
 #include <sys/prctl.h>
+
+#define MTFSF(FLM, FRB) asm volatile ("mtfsf %0, %1" :: "i" (FLM), "f" (FRB))
+#define MFFS(FRT) asm("mffs %0" : "=f" (FRT))
 
 #define FPSCR_VE     7  /* Floating-point invalid operation exception enable */
 #define FPSCR_VXSOFT 10 /* Floating-point invalid operation exception (soft) */
@@ -21,10 +25,7 @@ void sigfpe_handler(int sig, siginfo_t *si, void *ucontext)
 
 int main(void)
 {
-    union {
-        double d;
-        long long ll;
-    } fpscr;
+    uint64_t fpscr;
 
     struct sigaction sa = {
         .sa_sigaction = sigfpe_handler,
@@ -40,10 +41,9 @@ int main(void)
     prctl(PR_SET_FPEXC, PR_FP_EXC_PRECISE);
 
     /* First test if the FI bit is being set correctly */
-    fpscr.ll = FP_FI;
-    __builtin_mtfsf(0b11111111, fpscr.d);
-    fpscr.d = __builtin_mffs();
-    assert((fpscr.ll & FP_FI) != 0);
+    MTFSF(0b11111111, FP_FI);
+    MFFS(fpscr);
+    assert((fpscr & FP_FI) != 0);
 
     /* Then test if the deferred exception is being called correctly */
     sigaction(SIGFPE, &sa, NULL);
@@ -54,8 +54,7 @@ int main(void)
      * But if a different exception is chosen si_code check should
      * change accordingly.
      */
-    fpscr.ll = FP_VE | FP_VXSOFT;
-    __builtin_mtfsf(0b11111111, fpscr.d);
+    MTFSF(0b11111111, FP_VE | FP_VXSOFT);
 
     return 1;
 }
