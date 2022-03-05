@@ -1088,10 +1088,8 @@ static void do_vrlq_mask(TCGv_i64 mh, TCGv_i64 ml, TCGv_i64 b, TCGv_i64 e)
     tcg_gen_or_i64(tl, t1, tl);
 
     /* t = t >> 1 */
-    tcg_gen_shli_i64(t0, th, 63);
-    tcg_gen_shri_i64(tl, tl, 1);
+    tcg_gen_extract2_i64(tl, tl, th, 1);
     tcg_gen_shri_i64(th, th, 1);
-    tcg_gen_or_i64(tl, t0, tl);
 
     /* m = m ^ t */
     tcg_gen_xor_i64(mh, mh, th);
@@ -1148,10 +1146,8 @@ static bool do_vector_rotl_quad(DisasContext *ctx, arg_VX *a, bool mask,
     tcg_gen_or_i64(t1, ah, t1);
 
     if (mask || insert) {
-        tcg_gen_shri_i64(n, vrb, 8);
-        tcg_gen_shri_i64(vrb, vrb, 16);
-        tcg_gen_andi_i64(n, n, 0x7f);
-        tcg_gen_andi_i64(vrb, vrb, 0x7f);
+        tcg_gen_extract_i64(n, vrb, 8, 7);
+        tcg_gen_extract_i64(vrb, vrb, 16, 7);
 
         do_vrlq_mask(ah, al, vrb, n);
 
