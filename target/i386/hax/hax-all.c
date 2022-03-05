@@ -222,7 +222,7 @@ int hax_init_vcpu(CPUState *cpu)
 
     cpu->hax_vcpu = hax_global.vm->vcpus[cpu->cpu_index];
     cpu->vcpu_dirty = true;
-    qemu_register_reset(hax_reset_vcpu_state, (CPUArchState *) (cpu->env_ptr));
+    qemu_register_reset(hax_reset_vcpu_state, cpu->env_ptr);
 
     return ret;
 }
@@ -669,7 +669,7 @@ void hax_cpu_synchronize_pre_loadvm(CPUState *cpu)
 
 int hax_smp_cpu_exec(CPUState *cpu)
 {
-    CPUArchState *env = (CPUArchState *) (cpu->env_ptr);
+    CPUArchState *env = cpu->env_ptr;
     int fatal;
     int ret;
 
