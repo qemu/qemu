@@ -537,6 +537,10 @@ static uint64_t macfb_ctrl_read(void *opaque,
     case DAFB_MODE_SENSE:
         val = macfb_sense_read(s);
         break;
+    default:
+        if (addr < MACFB_CTRL_TOPADDR) {
+            val = s->regs[addr >> 2];
+        }
     }
 
     trace_macfb_ctrl_read(addr, val, size);
@@ -592,6 +596,10 @@ static void macfb_ctrl_write(void *opaque,
             macfb_invalidate_display(s);
         }
         break;
+    default:
+        if (addr < MACFB_CTRL_TOPADDR) {
+            s->regs[addr >> 2] = val;
+        }
     }
 
     trace_macfb_ctrl_write(addr, val, size);
