@@ -195,6 +195,11 @@ static void esp_pdma_write(ESPState *s, uint8_t val)
     esp_set_tc(s, dmalen);
 }
 
+static void esp_set_pdma_cb(ESPState *s, void (*cb)(ESPState *))
+{
+    s->pdma_cb = cb;
+}
+
 static int esp_select(ESPState *s)
 {
     int target;
@@ -356,7 +361,7 @@ static void handle_satn(ESPState *s)
         s->dma_cb = handle_satn;
         return;
     }
-    s->pdma_cb = satn_pdma_cb;
+    esp_set_pdma_cb(s, satn_pdma_cb);
     cmdlen = get_cmd(s, ESP_CMDFIFO_SZ);
     if (cmdlen > 0) {
         s->cmdfifo_cdb_offset = 1;
@@ -387,7 +392,7 @@ static void handle_s_without_atn(ESPState *s)
         s->dma_cb = handle_s_without_atn;
         return;
     }
-    s->pdma_cb = s_without_satn_pdma_cb;
+    esp_set_pdma_cb(s, s_without_satn_pdma_cb);
     cmdlen = get_cmd(s, ESP_CMDFIFO_SZ);
     if (cmdlen > 0) {
         s->cmdfifo_cdb_offset = 0;
@@ -422,7 +427,7 @@ static void handle_satn_stop(ESPState *s)
         s->dma_cb = handle_satn_stop;
         return;
     }
-    s->pdma_cb = satn_stop_pdma_cb;
+    esp_set_pdma_cb(s, satn_stop_pdma_cb);
     cmdlen = get_cmd(s, 1);
     if (cmdlen > 0) {
         trace_esp_handle_satn_stop(fifo8_num_used(&s->cmdfifo));
@@ -464,7 +469,7 @@ static void write_response(ESPState *s)
             s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
             s->rregs[ESP_RSEQ] = SEQ_CD;
         } else {
-            s->pdma_cb = write_response_pdma_cb;
+            esp_set_pdma_cb(s, write_response_pdma_cb);
             esp_raise_drq(s);
             return;
         }
@@ -604,7 +609,7 @@ static void esp_do_dma(ESPState *s)
             s->dma_memory_read(s->dma_opaque, buf, len);
             fifo8_push_all(&s->cmdfifo, buf, len);
         } else {
-            s->pdma_cb = do_dma_pdma_cb;
+            esp_set_pdma_cb(s, do_dma_pdma_cb);
             esp_raise_drq(s);
             return;
         }
@@ -646,7 +651,7 @@ static void esp_do_dma(ESPState *s)
         if (s->dma_memory_read) {
             s->dma_memory_read(s->dma_opaque, s->async_buf, len);
         } else {
-            s->pdma_cb = do_dma_pdma_cb;
+            esp_set_pdma_cb(s, do_dma_pdma_cb);
             esp_raise_drq(s);
             return;
         }
@@ -678,7 +683,7 @@ static void esp_do_dma(ESPState *s)
             }
 
             esp_set_tc(s, esp_get_tc(s) - len);
-            s->pdma_cb = do_dma_pdma_cb;
+            esp_set_pdma_cb(s, do_dma_pdma_cb);
             esp_raise_drq(s);
 
             /* Indicate transfer to FIFO is complete */
