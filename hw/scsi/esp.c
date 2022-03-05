@@ -195,14 +195,9 @@ static void esp_pdma_write(ESPState *s, uint8_t val)
     esp_set_tc(s, dmalen);
 }
 
-static void esp_set_pdma_cb(ESPState *s, void (*cb)(ESPState *))
+static void esp_set_pdma_cb(ESPState *s, enum pdma_cb cb)
 {
     s->pdma_cb = cb;
-}
-
-static void esp_pdma_cb(ESPState *s)
-{
-    s->pdma_cb(s);
 }
 
 static int esp_select(ESPState *s)
@@ -366,7 +361,7 @@ static void handle_satn(ESPState *s)
         s->dma_cb = handle_satn;
         return;
     }
-    esp_set_pdma_cb(s, satn_pdma_cb);
+    esp_set_pdma_cb(s, SATN_PDMA_CB);
     cmdlen = get_cmd(s, ESP_CMDFIFO_SZ);
     if (cmdlen > 0) {
         s->cmdfifo_cdb_offset = 1;
@@ -397,7 +392,7 @@ static void handle_s_without_atn(ESPState *s)
         s->dma_cb = handle_s_without_atn;
         return;
     }
-    esp_set_pdma_cb(s, s_without_satn_pdma_cb);
+    esp_set_pdma_cb(s, S_WITHOUT_SATN_PDMA_CB);
     cmdlen = get_cmd(s, ESP_CMDFIFO_SZ);
     if (cmdlen > 0) {
         s->cmdfifo_cdb_offset = 0;
@@ -432,7 +427,7 @@ static void handle_satn_stop(ESPState *s)
         s->dma_cb = handle_satn_stop;
         return;
     }
-    esp_set_pdma_cb(s, satn_stop_pdma_cb);
+    esp_set_pdma_cb(s, SATN_STOP_PDMA_CB);
     cmdlen = get_cmd(s, 1);
     if (cmdlen > 0) {
         trace_esp_handle_satn_stop(fifo8_num_used(&s->cmdfifo));
@@ -474,7 +469,7 @@ static void write_response(ESPState *s)
             s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
             s->rregs[ESP_RSEQ] = SEQ_CD;
         } else {
-            esp_set_pdma_cb(s, write_response_pdma_cb);
+            esp_set_pdma_cb(s, WRITE_RESPONSE_PDMA_CB);
             esp_raise_drq(s);
             return;
         }
@@ -614,7 +609,7 @@ static void esp_do_dma(ESPState *s)
             s->dma_memory_read(s->dma_opaque, buf, len);
             fifo8_push_all(&s->cmdfifo, buf, len);
         } else {
-            esp_set_pdma_cb(s, do_dma_pdma_cb);
+            esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
             esp_raise_drq(s);
             return;
         }
@@ -656,7 +651,7 @@ static void esp_do_dma(ESPState *s)
         if (s->dma_memory_read) {
             s->dma_memory_read(s->dma_opaque, s->async_buf, len);
         } else {
-            esp_set_pdma_cb(s, do_dma_pdma_cb);
+            esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
             esp_raise_drq(s);
             return;
         }
@@ -688,7 +683,7 @@ static void esp_do_dma(ESPState *s)
             }
 
             esp_set_tc(s, esp_get_tc(s) - len);
-            esp_set_pdma_cb(s, do_dma_pdma_cb);
+            esp_set_pdma_cb(s, DO_DMA_PDMA_CB);
             esp_raise_drq(s);
 
             /* Indicate transfer to FIFO is complete */
@@ -785,6 +780,29 @@ static void esp_do_nodma(ESPState *s)
 
     s->rregs[ESP_RINTR] |= INTR_BS;
     esp_raise_irq(s);
+}
+
+static void esp_pdma_cb(ESPState *s)
+{
+    switch (s->pdma_cb) {
+    case SATN_PDMA_CB:
+        satn_pdma_cb(s);
+        break;
+    case S_WITHOUT_SATN_PDMA_CB:
+        s_without_satn_pdma_cb(s);
+        break;
+    case SATN_STOP_PDMA_CB:
+        satn_stop_pdma_cb(s);
+        break;
+    case WRITE_RESPONSE_PDMA_CB:
+        write_response_pdma_cb(s);
+        break;
+    case DO_DMA_PDMA_CB:
+        do_dma_pdma_cb(s);
+        break;
+    default:
+        g_assert_not_reached();
+    }
 }
 
 void esp_command_complete(SCSIRequest *req, size_t resid)
