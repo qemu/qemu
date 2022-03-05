@@ -1209,6 +1209,33 @@ static int esp_post_load(void *opaque, int version_id)
     return 0;
 }
 
+/*
+ * PDMA (or pseudo-DMA) is only used on the Macintosh and requires the
+ * guest CPU to perform the transfers between the SCSI bus and memory
+ * itself. This is indicated by the dma_memory_read and dma_memory_write
+ * functions being NULL (in contrast to the ESP PCI device) whilst
+ * dma_enabled is still set.
+ */
+
+static bool esp_pdma_needed(void *opaque)
+{
+    ESPState *s = ESP(opaque);
+
+    return s->dma_memory_read == NULL && s->dma_memory_write == NULL &&
+           s->dma_enabled;
+}
+
+static const VMStateDescription vmstate_esp_pdma = {
+    .name = "esp/pdma",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .needed = esp_pdma_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(pdma_cb, ESPState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_esp = {
     .name = "esp",
     .version_id = 6,
@@ -1243,6 +1270,10 @@ const VMStateDescription vmstate_esp = {
         VMSTATE_UINT8_TEST(lun, ESPState, esp_is_version_6),
         VMSTATE_END_OF_LIST()
     },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_esp_pdma,
+        NULL
+    }
 };
 
 static void sysbus_esp_mem_write(void *opaque, hwaddr addr,
