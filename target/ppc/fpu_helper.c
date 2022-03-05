@@ -2774,6 +2774,8 @@ void helper_XVCVSPBF16(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)
     ppc_vsr_t t = { };
     int i, status;
 
+    helper_reset_fpstatus(env);
+
     for (i = 0; i < 4; i++) {
         t.VsrH(2 * i + 1) = float32_to_bfloat16(xb->VsrW(i), &env->fp_status);
     }
