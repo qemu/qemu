@@ -1204,42 +1204,43 @@ static bool trans_XXPERMX(DisasContext *ctx, arg_8RR_XX4_uim3 *a)
     return true;
 }
 
-#define XXGENPCV(NAME) \
-static bool trans_##NAME(DisasContext *ctx, arg_X_imm5 *a)  \
-{                                                           \
-    TCGv_ptr xt, vrb;                                       \
-                                                            \
-    REQUIRE_INSNS_FLAGS2(ctx, ISA310);                      \
-    REQUIRE_VSX(ctx);                                       \
-                                                            \
-    if (a->imm & ~0x3) {                                    \
-        gen_invalid(ctx);                                   \
-        return true;                                        \
-    }                                                       \
-                                                            \
-    xt = gen_vsr_ptr(a->xt);                                \
-    vrb = gen_avr_ptr(a->vrb);                              \
-                                                            \
-    switch (a->imm) {                                       \
-    case 0b00000: /* Big-Endian expansion */                \
-        glue(gen_helper_, glue(NAME, _be_exp))(xt, vrb);    \
-        break;                                              \
-    case 0b00001: /* Big-Endian compression */              \
-        glue(gen_helper_, glue(NAME, _be_comp))(xt, vrb);   \
-        break;                                              \
-    case 0b00010: /* Little-Endian expansion */             \
-        glue(gen_helper_, glue(NAME, _le_exp))(xt, vrb);    \
-        break;                                              \
-    case 0b00011: /* Little-Endian compression */           \
-        glue(gen_helper_, glue(NAME, _le_comp))(xt, vrb);   \
-        break;                                              \
-    }                                                       \
-                                                            \
-    tcg_temp_free_ptr(xt);                                  \
-    tcg_temp_free_ptr(vrb);                                 \
-                                                            \
-    return true;                                            \
+typedef void (*xxgenpcv_genfn)(TCGv_ptr, TCGv_ptr);
+
+static bool do_xxgenpcv(DisasContext *ctx, arg_X_imm5 *a,
+                        const xxgenpcv_genfn fn[4])
+{
+    TCGv_ptr xt, vrb;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VSX(ctx);
+
+    if (a->imm & ~0x3) {
+        gen_invalid(ctx);
+        return true;
+    }
+
+    xt = gen_vsr_ptr(a->xt);
+    vrb = gen_avr_ptr(a->vrb);
+
+    fn[a->imm](xt, vrb);
+
+    tcg_temp_free_ptr(xt);
+    tcg_temp_free_ptr(vrb);
+
+    return true;
 }
+
+#define XXGENPCV(NAME) \
+    static bool trans_##NAME(DisasContext *ctx, arg_X_imm5 *a)  \
+    {                                                           \
+        static const xxgenpcv_genfn fn[4] = {                   \
+            gen_helper_##NAME##_be_exp,                         \
+            gen_helper_##NAME##_be_comp,                        \
+            gen_helper_##NAME##_le_exp,                         \
+            gen_helper_##NAME##_le_comp,                        \
+        };                                                      \
+        return do_xxgenpcv(ctx, a, fn);                         \
+    }
 
 XXGENPCV(XXGENPCVBM)
 XXGENPCV(XXGENPCVHM)
