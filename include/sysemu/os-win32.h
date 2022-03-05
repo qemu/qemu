@@ -77,6 +77,14 @@ typedef struct {
 } qemu_timeval;
 int qemu_gettimeofday(qemu_timeval *tp);
 
+static inline int os_set_daemonize(bool d)
+{
+    if (d) {
+        return -ENOTSUP;
+    }
+    return 0;
+}
+
 static inline bool is_daemonized(void)
 {
     return false;

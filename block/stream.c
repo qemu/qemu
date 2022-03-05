@@ -220,6 +220,8 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     QDict *opts;
     int ret;
 
+    GLOBAL_STATE_CODE();
+
     assert(!(base && bottom));
     assert(!(backing_file_str && bottom));
 

@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "monitor/monitor.h"
+#include "qemu/coroutine-tls.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-commands-misc.h"
@@ -473,11 +474,16 @@ bool qemu_in_vcpu_thread(void)
     return current_cpu && qemu_cpu_is_self(current_cpu);
 }
 
-static __thread bool iothread_locked = false;
+QEMU_DEFINE_STATIC_CO_TLS(bool, iothread_locked)
 
 bool qemu_mutex_iothread_locked(void)
 {
-    return iothread_locked;
+    return get_iothread_locked();
+}
+
+bool qemu_in_main_thread(void)
+{
+    return qemu_mutex_iothread_locked();
 }
 
 /*
@@ -490,13 +496,13 @@ void qemu_mutex_lock_iothread_impl(const char *file, int line)
 
     g_assert(!qemu_mutex_iothread_locked());
     bql_lock(&qemu_global_mutex, file, line);
-    iothread_locked = true;
+    set_iothread_locked(true);
 }
 
 void qemu_mutex_unlock_iothread(void)
 {
     g_assert(qemu_mutex_iothread_locked());
-    iothread_locked = false;
+    set_iothread_locked(false);
     qemu_mutex_unlock(&qemu_global_mutex);
 }
 

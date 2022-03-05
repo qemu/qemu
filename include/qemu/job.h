@@ -169,6 +169,12 @@ typedef struct Job {
  * Callbacks and other information about a Job driver.
  */
 struct JobDriver {
+
+    /*
+     * These fields are initialized when this object is created,
+     * and are never changed afterwards
+     */
+
     /** Derived Job struct size */
     size_t instance_size;
 
@@ -184,8 +190,17 @@ struct JobDriver {
      * aborted. If it returns zero, the job moves into the WAITING state. If it
      * is the last job to complete in its transaction, all jobs in the
      * transaction move from WAITING to PENDING.
+     *
+     * This callback must be run in the job's context.
      */
     int coroutine_fn (*run)(Job *job, Error **errp);
+
+    /*
+     * Functions run without regard to the BQL that may run in any
+     * arbitrary thread. These functions do not need to be thread-safe
+     * because the caller ensures that they are invoked from one
+     * thread at time.
+     */
 
     /**
      * If the callback is not NULL, it will be invoked when the job transitions
@@ -200,6 +215,13 @@ struct JobDriver {
      * should be restarted from this callback.
      */
     void coroutine_fn (*resume)(Job *job);
+
+    /*
+     * Global state (GS) API. These functions run under the BQL.
+     *
+     * See include/block/block-global-state.h for more information about
+     * the GS API.
+     */
 
     /**
      * Called when the job is resumed by the user (i.e. user_paused becomes

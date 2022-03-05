@@ -65,7 +65,7 @@ static inline int rcu_gp_ongoing(unsigned long *ctr)
 /* Written to only by each individual reader. Read by both the reader and the
  * writers.
  */
-__thread struct rcu_reader_data rcu_reader;
+QEMU_DEFINE_CO_TLS(struct rcu_reader_data, rcu_reader)
 
 /* Protected by rcu_registry_lock.  */
 typedef QLIST_HEAD(, rcu_reader_data) ThreadList;
@@ -355,23 +355,23 @@ void drain_call_rcu(void)
 
 void rcu_register_thread(void)
 {
-    assert(rcu_reader.ctr == 0);
+    assert(get_ptr_rcu_reader()->ctr == 0);
     qemu_mutex_lock(&rcu_registry_lock);
-    QLIST_INSERT_HEAD(&registry, &rcu_reader, node);
+    QLIST_INSERT_HEAD(&registry, get_ptr_rcu_reader(), node);
     qemu_mutex_unlock(&rcu_registry_lock);
 }
 
 void rcu_unregister_thread(void)
 {
     qemu_mutex_lock(&rcu_registry_lock);
-    QLIST_REMOVE(&rcu_reader, node);
+    QLIST_REMOVE(get_ptr_rcu_reader(), node);
     qemu_mutex_unlock(&rcu_registry_lock);
 }
 
 void rcu_add_force_rcu_notifier(Notifier *n)
 {
     qemu_mutex_lock(&rcu_registry_lock);
-    notifier_list_add(&rcu_reader.force_rcu, n);
+    notifier_list_add(&get_ptr_rcu_reader()->force_rcu, n);
     qemu_mutex_unlock(&rcu_registry_lock);
 }
 

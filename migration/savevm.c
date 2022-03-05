@@ -1438,7 +1438,7 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
 
     if (inactivate_disks) {
         /* Inactivate before sending QEMU_VM_EOF so that the
-         * bdrv_invalidate_cache_all() on the other end won't fail. */
+         * bdrv_activate_all() on the other end won't fail. */
         ret = bdrv_inactivate_all();
         if (ret) {
             error_report("%s: bdrv_inactivate_all() failed (%d)",
@@ -2013,9 +2013,9 @@ static void loadvm_postcopy_handle_run_bh(void *opaque)
 
     trace_loadvm_postcopy_handle_run_bh("after announce");
 
-    /* Make sure all file formats flush their mutable metadata.
+    /* Make sure all file formats throw away their mutable metadata.
      * If we get an error here, just don't restart the VM yet. */
-    bdrv_invalidate_cache_all(&local_err);
+    bdrv_activate_all(&local_err);
     if (local_err) {
         error_report_err(local_err);
         local_err = NULL;
@@ -2807,6 +2807,8 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
     uint64_t vm_state_size;
     g_autoptr(GDateTime) now = g_date_time_new_now_local();
     AioContext *aio_context;
+
+    GLOBAL_STATE_CODE();
 
     if (migration_is_blocked(errp)) {
         return false;

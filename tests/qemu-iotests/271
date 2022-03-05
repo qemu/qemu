@@ -896,7 +896,7 @@ _make_test_img -o extended_l2=on 1M
 # Second and third writes in _concurrent_io() are independent and may finish in
 # different order. So, filter offset out to match both possible variants.
 _concurrent_io     | $QEMU_IO | _filter_qemu_io | \
-    $SED -e 's/\(20480\|40960\)/OFFSET/'
+    sed -e 's/\(20480\|40960\)/OFFSET/'
 _concurrent_verify | $QEMU_IO | _filter_qemu_io
 
 # success, all done

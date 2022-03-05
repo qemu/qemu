@@ -1864,6 +1864,8 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
     bool is_none_mode;
     BlockDriverState *base;
 
+    GLOBAL_STATE_CODE();
+
     if ((mode == MIRROR_SYNC_MODE_INCREMENTAL) ||
         (mode == MIRROR_SYNC_MODE_BITMAP)) {
         error_setg(errp, "Sync mode '%s' not supported",
@@ -1888,6 +1890,8 @@ BlockJob *commit_active_start(const char *job_id, BlockDriverState *bs,
 {
     bool base_read_only;
     BlockJob *job;
+
+    GLOBAL_STATE_CODE();
 
     base_read_only = bdrv_is_read_only(base);
 

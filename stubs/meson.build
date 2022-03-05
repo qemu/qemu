@@ -17,6 +17,9 @@ if linux_io_uring.found()
   stub_ss.add(files('io_uring.c'))
 endif
 stub_ss.add(files('iothread-lock.c'))
+if have_block
+  stub_ss.add(files('iothread-lock-block.c'))
+endif
 stub_ss.add(files('isa-bus.c'))
 stub_ss.add(files('is-daemonized.c'))
 if libaio.found()

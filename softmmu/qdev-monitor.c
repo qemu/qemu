@@ -973,6 +973,8 @@ BlockBackend *blk_by_qdev_id(const char *id, Error **errp)
     DeviceState *dev;
     BlockBackend *blk;
 
+    GLOBAL_STATE_CODE();
+
     dev = find_device_state(id, errp);
     if (dev == NULL) {
         return NULL;

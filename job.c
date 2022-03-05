@@ -381,6 +381,8 @@ void job_ref(Job *job)
 
 void job_unref(Job *job)
 {
+    GLOBAL_STATE_CODE();
+
     if (--job->refcnt == 0) {
         assert(job->status == JOB_STATUS_NULL);
         assert(!timer_pending(&job->sleep_timer));
@@ -602,6 +604,7 @@ bool job_user_paused(Job *job)
 void job_user_resume(Job *job, Error **errp)
 {
     assert(job);
+    GLOBAL_STATE_CODE();
     if (!job->user_paused || job->pause_count <= 0) {
         error_setg(errp, "Can't resume a job that was not paused");
         return;
@@ -672,6 +675,7 @@ static void job_update_rc(Job *job)
 static void job_commit(Job *job)
 {
     assert(!job->ret);
+    GLOBAL_STATE_CODE();
     if (job->driver->commit) {
         job->driver->commit(job);
     }
@@ -680,6 +684,7 @@ static void job_commit(Job *job)
 static void job_abort(Job *job)
 {
     assert(job->ret);
+    GLOBAL_STATE_CODE();
     if (job->driver->abort) {
         job->driver->abort(job);
     }
@@ -687,6 +692,7 @@ static void job_abort(Job *job)
 
 static void job_clean(Job *job)
 {
+    GLOBAL_STATE_CODE();
     if (job->driver->clean) {
         job->driver->clean(job);
     }
@@ -726,6 +732,7 @@ static int job_finalize_single(Job *job)
 
 static void job_cancel_async(Job *job, bool force)
 {
+    GLOBAL_STATE_CODE();
     if (job->driver->cancel) {
         force = job->driver->cancel(job, force);
     } else {
@@ -825,6 +832,7 @@ static void job_completed_txn_abort(Job *job)
 
 static int job_prepare(Job *job)
 {
+    GLOBAL_STATE_CODE();
     if (job->ret == 0 && job->driver->prepare) {
         job->ret = job->driver->prepare(job);
         job_update_rc(job);
@@ -952,6 +960,7 @@ static void coroutine_fn job_co_entry(void *opaque)
     Job *job = opaque;
 
     assert(job && job->driver && job->driver->run);
+    assert(job->aio_context == qemu_get_current_aio_context());
     job_pause_point(job);
     job->ret = job->driver->run(job, &job->err);
     job->deferred_to_main_loop = true;
@@ -1054,6 +1063,7 @@ void job_complete(Job *job, Error **errp)
 {
     /* Should not be reachable via external interface for internal jobs */
     assert(job->id);
+    GLOBAL_STATE_CODE();
     if (job_apply_verb(job, JOB_VERB_COMPLETE, errp)) {
         return;
     }

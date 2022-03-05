@@ -174,8 +174,12 @@ class EncryptionSetupTestCase(iotests.QMPTestCase):
         }
 
         result = vm.qmp('x-blockdev-amend', **args)
-        assert result['return'] == {}
-        vm.run_job('job0')
+        iotests.log(result)
+        # Run the job only if it was created
+        event = ('JOB_STATUS_CHANGE',
+                 {'data': {'id': 'job0', 'status': 'created'}})
+        if vm.events_wait([event], timeout=0.0) is not None:
+            vm.run_job('job0')
 
     # test that when the image opened by two qemu processes,
     # neither of them can update the encryption keys

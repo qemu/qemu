@@ -219,7 +219,7 @@ static void postload_update_cb(void *opaque, bool running, RunState state)
 {
     SpaprNvram *nvram = opaque;
 
-    /* This is called after bdrv_invalidate_cache_all.  */
+    /* This is called after bdrv_activate_all.  */
 
     qemu_del_vm_change_state_handler(nvram->vmstate);
     nvram->vmstate = NULL;

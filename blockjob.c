@@ -62,6 +62,7 @@ static bool is_block_job(Job *job)
 BlockJob *block_job_next(BlockJob *bjob)
 {
     Job *job = bjob ? &bjob->job : NULL;
+    GLOBAL_STATE_CODE();
 
     do {
         job = job_next(job);
@@ -73,6 +74,7 @@ BlockJob *block_job_next(BlockJob *bjob)
 BlockJob *block_job_get(const char *id)
 {
     Job *job = job_get(id);
+    GLOBAL_STATE_CODE();
 
     if (job && is_block_job(job)) {
         return container_of(job, BlockJob, job);
@@ -84,6 +86,7 @@ BlockJob *block_job_get(const char *id)
 void block_job_free(Job *job)
 {
     BlockJob *bjob = container_of(job, BlockJob, job);
+    GLOBAL_STATE_CODE();
 
     block_job_remove_all_bdrv(bjob);
     ratelimit_destroy(&bjob->limit);
@@ -183,6 +186,7 @@ static const BdrvChildClass child_job = {
 
 void block_job_remove_all_bdrv(BlockJob *job)
 {
+    GLOBAL_STATE_CODE();
     /*
      * bdrv_root_unref_child() may reach child_job_[can_]set_aio_ctx(),
      * which will also traverse job->nodes, so consume the list one by
@@ -205,6 +209,7 @@ void block_job_remove_all_bdrv(BlockJob *job)
 bool block_job_has_bdrv(BlockJob *job, BlockDriverState *bs)
 {
     GSList *el;
+    GLOBAL_STATE_CODE();
 
     for (el = job->nodes; el; el = el->next) {
         BdrvChild *c = el->data;
@@ -221,6 +226,7 @@ int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
 {
     BdrvChild *c;
     bool need_context_ops;
+    GLOBAL_STATE_CODE();
 
     bdrv_ref(bs);
 
@@ -270,6 +276,8 @@ bool block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     const BlockJobDriver *drv = block_job_driver(job);
     int64_t old_speed = job->speed;
 
+    GLOBAL_STATE_CODE();
+
     if (job_apply_verb(&job->job, JOB_VERB_SET_SPEED, errp) < 0) {
         return false;
     }
@@ -299,6 +307,7 @@ bool block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 
 int64_t block_job_ratelimit_get_delay(BlockJob *job, uint64_t n)
 {
+    IO_CODE();
     return ratelimit_calculate_delay(&job->limit, n);
 }
 
@@ -306,6 +315,8 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
 {
     BlockJobInfo *info;
     uint64_t progress_current, progress_total;
+
+    GLOBAL_STATE_CODE();
 
     if (block_job_is_internal(job)) {
         error_setg(errp, "Cannot query QEMU internal jobs");
@@ -434,6 +445,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
 {
     BlockJob *job;
     int ret;
+    GLOBAL_STATE_CODE();
 
     if (job_id == NULL && !(flags & JOB_INTERNAL)) {
         job_id = bdrv_get_device_name(bs);
@@ -488,6 +500,7 @@ fail:
 
 void block_job_iostatus_reset(BlockJob *job)
 {
+    GLOBAL_STATE_CODE();
     if (job->iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
         return;
     }
@@ -498,6 +511,7 @@ void block_job_iostatus_reset(BlockJob *job)
 void block_job_user_resume(Job *job)
 {
     BlockJob *bjob = container_of(job, BlockJob, job);
+    GLOBAL_STATE_CODE();
     block_job_iostatus_reset(bjob);
 }
 
@@ -505,6 +519,7 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
                                         int is_read, int error)
 {
     BlockErrorAction action;
+    IO_CODE();
 
     switch (on_err) {
     case BLOCKDEV_ON_ERROR_ENOSPC:
@@ -543,5 +558,6 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
 
 AioContext *block_job_get_aio_context(BlockJob *job)
 {
+    GLOBAL_STATE_CODE();
     return job->job.aio_context;
 }

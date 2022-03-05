@@ -55,6 +55,7 @@ int os_mlock(void);
 typedef struct timeval qemu_timeval;
 #define qemu_gettimeofday(tp) gettimeofday(tp, NULL)
 
+int os_set_daemonize(bool d);
 bool is_daemonized(void);
 
 /**

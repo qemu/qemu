@@ -39,6 +39,7 @@ from contextlib import contextmanager
 
 from qemu.machine import qtest
 from qemu.qmp import QMPMessage
+from qemu.aqmp.legacy import QEMUMonitorProtocol
 
 # Use this logger for logging messages directly from the iotests module
 logger = logging.getLogger('qemu.iotests')
@@ -348,14 +349,30 @@ class QemuIoInteractive:
 
 
 class QemuStorageDaemon:
-    def __init__(self, *args: str, instance_id: str = 'a'):
+    _qmp: Optional[QEMUMonitorProtocol] = None
+    _qmpsock: Optional[str] = None
+    # Python < 3.8 would complain if this type were not a string literal
+    # (importing `annotations` from `__future__` would work; but not on <= 3.6)
+    _p: 'Optional[subprocess.Popen[bytes]]' = None
+
+    def __init__(self, *args: str, instance_id: str = 'a', qmp: bool = False):
         assert '--pidfile' not in args
         self.pidfile = os.path.join(test_dir, f'qsd-{instance_id}-pid')
         all_args = [qsd_prog] + list(args) + ['--pidfile', self.pidfile]
 
+        if qmp:
+            self._qmpsock = os.path.join(sock_dir, f'qsd-{instance_id}.sock')
+            all_args += ['--chardev',
+                         f'socket,id=qmp-sock,path={self._qmpsock}',
+                         '--monitor', 'qmp-sock']
+
+            self._qmp = QEMUMonitorProtocol(self._qmpsock, server=True)
+
         # Cannot use with here, we want the subprocess to stay around
         # pylint: disable=consider-using-with
         self._p = subprocess.Popen(all_args)
+        if self._qmp is not None:
+            self._qmp.accept()
         while not os.path.exists(self.pidfile):
             if self._p.poll() is not None:
                 cmd = ' '.join(all_args)
@@ -370,11 +387,24 @@ class QemuStorageDaemon:
 
         assert self._pid == self._p.pid
 
+    def qmp(self, cmd: str, args: Optional[Dict[str, object]] = None) \
+            -> QMPMessage:
+        assert self._qmp is not None
+        return self._qmp.cmd(cmd, args)
+
     def stop(self, kill_signal=15):
         self._p.send_signal(kill_signal)
         self._p.wait()
         self._p = None
 
+        if self._qmp:
+            self._qmp.close()
+
+        if self._qmpsock is not None:
+            try:
+                os.remove(self._qmpsock)
+            except OSError:
+                pass
         try:
             os.remove(self.pidfile)
         except OSError:

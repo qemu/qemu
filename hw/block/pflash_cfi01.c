@@ -1023,7 +1023,7 @@ static void postload_update_cb(void *opaque, bool running, RunState state)
 {
     PFlashCFI01 *pfl = opaque;
 
-    /* This is called after bdrv_invalidate_cache_all.  */
+    /* This is called after bdrv_activate_all.  */
     qemu_del_vm_change_state_handler(pfl->vmstate);
     pfl->vmstate = NULL;
 
