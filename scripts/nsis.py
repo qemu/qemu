@@ -34,9 +34,9 @@ def main():
         with open(
             os.path.join(destdir + args.prefix, "system-emulations.nsh"), "w"
         ) as nsh:
-            for exe in glob.glob(
+            for exe in sorted(glob.glob(
                 os.path.join(destdir + args.prefix, "qemu-system-*.exe")
-            ):
+            )):
                 exe = os.path.basename(exe)
                 arch = exe[12:-4]
                 nsh.write(
