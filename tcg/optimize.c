@@ -359,13 +359,13 @@ static uint64_t do_constant_folding_2(TCGOpcode op, uint64_t x, uint64_t y)
     CASE_OP_32_64_VEC(orc):
         return x | ~y;
 
-    CASE_OP_32_64(eqv):
+    CASE_OP_32_64_VEC(eqv):
         return ~(x ^ y);
 
-    CASE_OP_32_64(nand):
+    CASE_OP_32_64_VEC(nand):
         return ~(x & y);
 
-    CASE_OP_32_64(nor):
+    CASE_OP_32_64_VEC(nor):
         return ~(x | y);
 
     case INDEX_op_clz_i32:
@@ -552,10 +552,10 @@ static bool do_constant_folding_cond_eq(TCGCond c)
 static int do_constant_folding_cond(TCGType type, TCGArg x,
                                     TCGArg y, TCGCond c)
 {
-    uint64_t xv = arg_info(x)->val;
-    uint64_t yv = arg_info(y)->val;
-
     if (arg_is_const(x) && arg_is_const(y)) {
+        uint64_t xv = arg_info(x)->val;
+        uint64_t yv = arg_info(y)->val;
+
         switch (type) {
         case TCG_TYPE_I32:
             return do_constant_folding_cond_32(xv, yv, c);
@@ -567,7 +567,7 @@ static int do_constant_folding_cond(TCGType type, TCGArg x,
         }
     } else if (args_are_copies(x, y)) {
         return do_constant_folding_cond_eq(c);
-    } else if (arg_is_const(y) && yv == 0) {
+    } else if (arg_is_const(y) && arg_info(y)->val == 0) {
         switch (c) {
         case TCG_COND_LTU:
             return 0;
@@ -2119,7 +2119,7 @@ void tcg_optimize(TCGContext *s)
         case INDEX_op_dup2_vec:
             done = fold_dup2(&ctx, op);
             break;
-        CASE_OP_32_64(eqv):
+        CASE_OP_32_64_VEC(eqv):
             done = fold_eqv(&ctx, op);
             break;
         CASE_OP_32_64(extract):
@@ -2170,13 +2170,13 @@ void tcg_optimize(TCGContext *s)
         CASE_OP_32_64(mulu2):
             done = fold_multiply2(&ctx, op);
             break;
-        CASE_OP_32_64(nand):
+        CASE_OP_32_64_VEC(nand):
             done = fold_nand(&ctx, op);
             break;
         CASE_OP_32_64(neg):
             done = fold_neg(&ctx, op);
             break;
-        CASE_OP_32_64(nor):
+        CASE_OP_32_64_VEC(nor):
             done = fold_nor(&ctx, op);
             break;
         CASE_OP_32_64_VEC(not):

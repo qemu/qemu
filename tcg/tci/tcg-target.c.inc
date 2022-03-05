@@ -197,7 +197,7 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R0,
 };
 
-#if MAX_OPC_PARAM_IARGS != 6
+#if MAX_OPC_PARAM_IARGS != 7
 # error Fix needed, number of supported input arguments changed!
 #endif
 

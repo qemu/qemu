@@ -45,11 +45,25 @@
 #ifndef bit_AVX2
 #define bit_AVX2        (1 << 5)
 #endif
-#ifndef bit_AVX512F
-#define bit_AVX512F        (1 << 16)
-#endif
 #ifndef bit_BMI2
 #define bit_BMI2        (1 << 8)
+#endif
+#ifndef bit_AVX512F
+#define bit_AVX512F     (1 << 16)
+#endif
+#ifndef bit_AVX512DQ
+#define bit_AVX512DQ    (1 << 17)
+#endif
+#ifndef bit_AVX512BW
+#define bit_AVX512BW    (1 << 30)
+#endif
+#ifndef bit_AVX512VL
+#define bit_AVX512VL    (1u << 31)
+#endif
+
+/* Leaf 7, %ecx */
+#ifndef bit_AVX512VBMI2
+#define bit_AVX512VBMI2 (1 << 6)
 #endif
 
 /* Leaf 0x80000001, %ecx */

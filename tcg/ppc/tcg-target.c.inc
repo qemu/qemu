@@ -3122,6 +3122,9 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_xor_vec:
     case INDEX_op_andc_vec:
     case INDEX_op_not_vec:
+    case INDEX_op_nor_vec:
+    case INDEX_op_eqv_vec:
+    case INDEX_op_nand_vec:
         return 1;
     case INDEX_op_orc_vec:
         return have_isa_2_07;
@@ -3399,6 +3402,15 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_orc_vec:
         insn = VORC;
+        break;
+    case INDEX_op_nand_vec:
+        insn = VNAND;
+        break;
+    case INDEX_op_nor_vec:
+        insn = VNOR;
+        break;
+    case INDEX_op_eqv_vec:
+        insn = VEQV;
         break;
 
     case INDEX_op_cmp_vec:
@@ -3787,6 +3799,9 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_xor_vec:
     case INDEX_op_andc_vec:
     case INDEX_op_orc_vec:
+    case INDEX_op_nor_vec:
+    case INDEX_op_eqv_vec:
+    case INDEX_op_nand_vec:
     case INDEX_op_cmp_vec:
     case INDEX_op_ssadd_vec:
     case INDEX_op_sssub_vec:
