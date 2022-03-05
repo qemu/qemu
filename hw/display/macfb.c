@@ -476,7 +476,8 @@ static void macfb_update_display(void *opaque)
 
 static void macfb_update_irq(MacfbState *s)
 {
-    uint32_t irq_state = s->irq_state & s->irq_mask;
+    uint32_t irq_state = s->regs[DAFB_INTR_STAT >> 2] &
+                         s->regs[DAFB_INTR_MASK >> 2];
 
     if (irq_state) {
         qemu_irq_raise(s->irq);
@@ -496,7 +497,7 @@ static void macfb_vbl_timer(void *opaque)
     MacfbState *s = opaque;
     int64_t next_vbl;
 
-    s->irq_state |= DAFB_INTR_VBL;
+    s->regs[DAFB_INTR_STAT >> 2] |= DAFB_INTR_VBL;
     macfb_update_irq(s);
 
     /* 60 Hz irq */
@@ -530,10 +531,8 @@ static uint64_t macfb_ctrl_read(void *opaque,
     case DAFB_MODE_VADDR2:
     case DAFB_MODE_CTRL1:
     case DAFB_MODE_CTRL2:
-        val = s->regs[addr >> 2];
-        break;
     case DAFB_INTR_STAT:
-        val = s->irq_state;
+        val = s->regs[addr >> 2];
         break;
     case DAFB_MODE_SENSE:
         val = macfb_sense_read(s);
@@ -568,7 +567,7 @@ static void macfb_ctrl_write(void *opaque,
         macfb_sense_write(s, val);
         break;
     case DAFB_INTR_MASK:
-        s->irq_mask = val;
+        s->regs[addr >> 2] = val;
         if (val & DAFB_INTR_VBL) {
             next_vbl = macfb_next_vbl();
             timer_mod(s->vbl_timer, next_vbl);
@@ -577,12 +576,12 @@ static void macfb_ctrl_write(void *opaque,
         }
         break;
     case DAFB_INTR_CLEAR:
-        s->irq_state &= ~DAFB_INTR_VBL;
+        s->regs[DAFB_INTR_STAT >> 2] &= ~DAFB_INTR_VBL;
         macfb_update_irq(s);
         break;
     case DAFB_RESET:
         s->palette_current = 0;
-        s->irq_state &= ~DAFB_INTR_VBL;
+        s->regs[DAFB_INTR_STAT >> 2] &= ~DAFB_INTR_VBL;
         macfb_update_irq(s);
         break;
     case DAFB_LUT:
