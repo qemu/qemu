@@ -1072,7 +1072,7 @@ void helper_VPERMR(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     *r = result;
 }
 
-#define XXGENPCV(NAME, SZ) \
+#define XXGENPCV_BE_EXP(NAME, SZ) \
 void glue(helper_, glue(NAME, _be_exp))(ppc_vsr_t *t, ppc_vsr_t *b) \
 {                                                                   \
     ppc_vsr_t tmp;                                                  \
@@ -1093,8 +1093,9 @@ void glue(helper_, glue(NAME, _be_exp))(ppc_vsr_t *t, ppc_vsr_t *b) \
     }                                                               \
                                                                     \
     *t = tmp;                                                       \
-}                                                                   \
-                                                                    \
+}
+
+#define XXGENPCV_BE_COMP(NAME, SZ) \
 void glue(helper_, glue(NAME, _be_comp))(ppc_vsr_t *t, ppc_vsr_t *b)\
 {                                                                   \
     ppc_vsr_t tmp = { .u64 = { 0, 0 } };                            \
@@ -1111,8 +1112,9 @@ void glue(helper_, glue(NAME, _be_comp))(ppc_vsr_t *t, ppc_vsr_t *b)\
     }                                                               \
                                                                     \
     *t = tmp;                                                       \
-}                                                                   \
-                                                                    \
+}
+
+#define XXGENPCV_LE_EXP(NAME, SZ) \
 void glue(helper_, glue(NAME, _le_exp))(ppc_vsr_t *t, ppc_vsr_t *b) \
 {                                                                   \
     ppc_vsr_t tmp;                                                  \
@@ -1135,8 +1137,9 @@ void glue(helper_, glue(NAME, _le_exp))(ppc_vsr_t *t, ppc_vsr_t *b) \
     }                                                               \
                                                                     \
     *t = tmp;                                                       \
-}                                                                   \
-                                                                    \
+}
+
+#define XXGENPCV_LE_COMP(NAME, SZ) \
 void glue(helper_, glue(NAME, _le_comp))(ppc_vsr_t *t, ppc_vsr_t *b)\
 {                                                                   \
     ppc_vsr_t tmp = { .u64 = { 0, 0 } };                            \
@@ -1157,10 +1160,21 @@ void glue(helper_, glue(NAME, _le_comp))(ppc_vsr_t *t, ppc_vsr_t *b)\
     *t = tmp;                                                       \
 }
 
+#define XXGENPCV(NAME, SZ) \
+    XXGENPCV_BE_EXP(NAME, SZ)  \
+    XXGENPCV_BE_COMP(NAME, SZ) \
+    XXGENPCV_LE_EXP(NAME, SZ)  \
+    XXGENPCV_LE_COMP(NAME, SZ) \
+
 XXGENPCV(XXGENPCVBM, 1)
 XXGENPCV(XXGENPCVHM, 2)
 XXGENPCV(XXGENPCVWM, 4)
 XXGENPCV(XXGENPCVDM, 8)
+
+#undef XXGENPCV_BE_EXP
+#undef XXGENPCV_BE_COMP
+#undef XXGENPCV_LE_EXP
+#undef XXGENPCV_LE_COMP
 #undef XXGENPCV
 
 #if defined(HOST_WORDS_BIGENDIAN)

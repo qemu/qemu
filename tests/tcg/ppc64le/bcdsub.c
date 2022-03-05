@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <signal.h>
+#include <stdint.h>
 
 #define CRF_LT  (1 << 3)
 #define CRF_GT  (1 << 2)
@@ -8,23 +9,49 @@
 #define CRF_SO  (1 << 0)
 #define UNDEF   0
 
-#define BCDSUB(vra, vrb, ps)                    \
-    asm ("bcdsub. %1,%2,%3,%4;"                 \
-         "mfocrf %0,0b10;"                      \
-         : "=r" (cr), "=v" (vrt)                \
-         : "v" (vra), "v" (vrb), "i" (ps)       \
-         : );
+#ifdef __has_builtin
+#if !__has_builtin(__builtin_bcdsub)
+#define NO_BUILTIN_BCDSUB
+#endif
+#endif
 
-#define TEST(vra, vrb, ps, exp_res, exp_cr6)    \
-    do {                                        \
-        __int128 vrt = 0;                       \
-        int cr = 0;                             \
-        BCDSUB(vra, vrb, ps);                   \
-        if (exp_res)                            \
-            assert(vrt == exp_res);             \
-        assert((cr >> 4) == exp_cr6);           \
+#ifdef NO_BUILTIN_BCDSUB
+#define BCDSUB(T, A, B, PS) \
+    ".long 4 << 26 | (" #T ") << 21 | (" #A ") << 16 | (" #B ") << 11"  \
+    " | 1 << 10 | (" #PS ") << 9 | 65\n\t"
+#else
+#define BCDSUB(T, A, B, PS) "bcdsub. " #T ", " #A ", " #B ", " #PS "\n\t"
+#endif
+
+#define TEST(AH, AL, BH, BL, PS, TH, TL, CR6)                                  \
+    do {                                                                       \
+        int cr = 0;                                                            \
+        uint64_t th, tl;                                                       \
+        /*                                                                     \
+         * Use GPR pairs to load the VSR values and place the resulting VSR and\
+         * CR6 in th, tl, and cr. Note that we avoid newer instructions (e.g., \
+         * mtvsrdd/mfvsrld) so we can run this test on POWER8 machines.        \
+         */                                                                    \
+        asm ("mtvsrd 32, %3\n\t"                                               \
+             "mtvsrd 33, %4\n\t"                                               \
+             "xxmrghd 32, 32, 33\n\t"                                          \
+             "mtvsrd 33, %5\n\t"                                               \
+             "mtvsrd 34, %6\n\t"                                               \
+             "xxmrghd 33, 33, 34\n\t"                                          \
+             BCDSUB(0, 0, 1, PS)                                               \
+             "mfocrf %0, 0b10\n\t"                                             \
+             "mfvsrd %1, 32\n\t"                                               \
+             "xxswapd 32, 32\n\t"                                              \
+             "mfvsrd %2, 32\n\t"                                               \
+             : "=r" (cr), "=r" (th), "=r" (tl)                                 \
+             : "r" (AH), "r" (AL), "r" (BH), "r" (BL)                          \
+             : "v0", "v1", "v2");                                              \
+        if (TH != UNDEF || TL != UNDEF) {                                      \
+            assert(tl == TL);                                                  \
+            assert(th == TH);                                                  \
+        }                                                                      \
+        assert((cr >> 4) == CR6);                                              \
     } while (0)
-
 
 /*
  * Unbounded result is equal to zero:
@@ -33,13 +60,13 @@
  */
 void test_bcdsub_eq(void)
 {
-    __int128 a, b;
-
     /* maximum positive BCD value */
-    a = b = (((__int128) 0x9999999999999999) << 64 | 0x999999999999999c);
-
-    TEST(a, b, 0, 0xc, CRF_EQ);
-    TEST(a, b, 1, 0xf, CRF_EQ);
+    TEST(0x9999999999999999, 0x999999999999999c,
+         0x9999999999999999, 0x999999999999999c,
+         0, 0x0, 0xc, CRF_EQ);
+    TEST(0x9999999999999999, 0x999999999999999c,
+         0x9999999999999999, 0x999999999999999c,
+         1, 0x0, 0xf, CRF_EQ);
 }
 
 /*
@@ -49,21 +76,16 @@ void test_bcdsub_eq(void)
  */
 void test_bcdsub_gt(void)
 {
-    __int128 a, b, c;
+    /* maximum positive and negative one BCD values */
+    TEST(0x9999999999999999, 0x999999999999999c, 0x0, 0x1d, 0,
+         0x0, 0xc, (CRF_GT | CRF_SO));
+    TEST(0x9999999999999999, 0x999999999999999c, 0x0, 0x1d, 1,
+         0x0, 0xf, (CRF_GT | CRF_SO));
 
-    /* maximum positive BCD value */
-    a = (((__int128) 0x9999999999999999) << 64 | 0x999999999999999c);
-
-    /* negative one BCD value */
-    b = (__int128) 0x1d;
-
-    TEST(a, b, 0, 0xc, (CRF_GT | CRF_SO));
-    TEST(a, b, 1, 0xf, (CRF_GT | CRF_SO));
-
-    c = (((__int128) 0x9999999999999999) << 64 | 0x999999999999998c);
-
-    TEST(c, b, 0, a, CRF_GT);
-    TEST(c, b, 1, (a | 0x3), CRF_GT);
+    TEST(0x9999999999999999, 0x999999999999998c, 0x0, 0x1d, 0,
+         0x9999999999999999, 0x999999999999999c, CRF_GT);
+    TEST(0x9999999999999999, 0x999999999999998c, 0x0, 0x1d, 1,
+         0x9999999999999999, 0x999999999999999f, CRF_GT);
 }
 
 /*
@@ -73,45 +95,27 @@ void test_bcdsub_gt(void)
  */
 void test_bcdsub_lt(void)
 {
-    __int128 a, b;
+    /* positive zero and positive one BCD values */
+    TEST(0x0, 0xc, 0x0, 0x1c, 0, 0x0, 0x1d, CRF_LT);
+    TEST(0x0, 0xc, 0x0, 0x1c, 1, 0x0, 0x1d, CRF_LT);
 
-    /* positive zero BCD value */
-    a = (__int128) 0xc;
-
-    /* positive one BCD value */
-    b = (__int128) 0x1c;
-
-    TEST(a, b, 0, 0x1d, CRF_LT);
-    TEST(a, b, 1, 0x1d, CRF_LT);
-
-    /* maximum negative BCD value */
-    a = (((__int128) 0x9999999999999999) << 64 | 0x999999999999999d);
-
-    /* positive one BCD value */
-    b = (__int128) 0x1c;
-
-    TEST(a, b, 0, 0xd, (CRF_LT | CRF_SO));
-    TEST(a, b, 1, 0xd, (CRF_LT | CRF_SO));
+    /* maximum negative and positive one BCD values */
+    TEST(0x9999999999999999, 0x999999999999999d, 0x0, 0x1c, 0,
+         0x0, 0xd, (CRF_LT | CRF_SO));
+    TEST(0x9999999999999999, 0x999999999999999d, 0x0, 0x1c, 1,
+         0x0, 0xd, (CRF_LT | CRF_SO));
 }
 
 void test_bcdsub_invalid(void)
 {
-    __int128 a, b;
+    TEST(0x0, 0x1c, 0x0, 0xf00, 0, UNDEF, UNDEF, CRF_SO);
+    TEST(0x0, 0x1c, 0x0, 0xf00, 1, UNDEF, UNDEF, CRF_SO);
 
-    /* positive one BCD value */
-    a = (__int128) 0x1c;
-    b = 0xf00;
+    TEST(0x0, 0xf00, 0x0, 0x1c, 0, UNDEF, UNDEF, CRF_SO);
+    TEST(0x0, 0xf00, 0x0, 0x1c, 1, UNDEF, UNDEF, CRF_SO);
 
-    TEST(a, b, 0, UNDEF, CRF_SO);
-    TEST(a, b, 1, UNDEF, CRF_SO);
-
-    TEST(b, a, 0, UNDEF, CRF_SO);
-    TEST(b, a, 1, UNDEF, CRF_SO);
-
-    a = 0xbad;
-
-    TEST(a, b, 0, UNDEF, CRF_SO);
-    TEST(a, b, 1, UNDEF, CRF_SO);
+    TEST(0x0, 0xbad, 0x0, 0xf00, 0, UNDEF, UNDEF, CRF_SO);
+    TEST(0x0, 0xbad, 0x0, 0xf00, 1, UNDEF, UNDEF, CRF_SO);
 }
 
 int main(void)

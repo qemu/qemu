@@ -2156,9 +2156,8 @@ VSX_TSQRT(xvtsqrtsp, 4, float32, VsrW(i), -126, 23)
  *   maddflgs - flags for the float*muladd routine that control the
  *           various forms (madd, msub, nmadd, nmsub)
  *   sfprf - set FPRF
- *   r2sp  - round intermediate double precision result to single precision
  */
-#define VSX_MADD(op, nels, tp, fld, maddflgs, sfprf, r2sp)                    \
+#define VSX_MADD(op, nels, tp, fld, maddflgs, sfprf)                          \
 void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                             \
                  ppc_vsr_t *s1, ppc_vsr_t *s2, ppc_vsr_t *s3)                 \
 {                                                                             \
@@ -2170,29 +2169,12 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                             \
     for (i = 0; i < nels; i++) {                                              \
         float_status tstat = env->fp_status;                                  \
         set_float_exception_flags(0, &tstat);                                 \
-        if (r2sp && (tstat.float_rounding_mode == float_round_nearest_even)) {\
-            /*                                                                \
-             * Avoid double rounding errors by rounding the intermediate      \
-             * result to odd.                                                 \
-             */                                                               \
-            set_float_rounding_mode(float_round_to_zero, &tstat);             \
-            t.fld = tp##_muladd(s1->fld, s3->fld, s2->fld,                    \
-                                maddflgs, &tstat);                            \
-            t.fld |= (get_float_exception_flags(&tstat) &                     \
-                      float_flag_inexact) != 0;                               \
-        } else {                                                              \
-            t.fld = tp##_muladd(s1->fld, s3->fld, s2->fld,                    \
-                                maddflgs, &tstat);                            \
-        }                                                                     \
+        t.fld = tp##_muladd(s1->fld, s3->fld, s2->fld, maddflgs, &tstat);     \
         env->fp_status.float_exception_flags |= tstat.float_exception_flags;  \
                                                                               \
         if (unlikely(tstat.float_exception_flags & float_flag_invalid)) {     \
             float_invalid_op_madd(env, tstat.float_exception_flags,           \
                                   sfprf, GETPC());                            \
-        }                                                                     \
-                                                                              \
-        if (r2sp) {                                                           \
-            t.fld = do_frsp(env, t.fld, GETPC());                             \
         }                                                                     \
                                                                               \
         if (sfprf) {                                                          \
@@ -2203,24 +2185,24 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                             \
     do_float_check_status(env, GETPC());                                      \
 }
 
-VSX_MADD(XSMADDDP, 1, float64, VsrD(0), MADD_FLGS, 1, 0)
-VSX_MADD(XSMSUBDP, 1, float64, VsrD(0), MSUB_FLGS, 1, 0)
-VSX_MADD(XSNMADDDP, 1, float64, VsrD(0), NMADD_FLGS, 1, 0)
-VSX_MADD(XSNMSUBDP, 1, float64, VsrD(0), NMSUB_FLGS, 1, 0)
-VSX_MADD(XSMADDSP, 1, float64, VsrD(0), MADD_FLGS, 1, 1)
-VSX_MADD(XSMSUBSP, 1, float64, VsrD(0), MSUB_FLGS, 1, 1)
-VSX_MADD(XSNMADDSP, 1, float64, VsrD(0), NMADD_FLGS, 1, 1)
-VSX_MADD(XSNMSUBSP, 1, float64, VsrD(0), NMSUB_FLGS, 1, 1)
+VSX_MADD(XSMADDDP, 1, float64, VsrD(0), MADD_FLGS, 1)
+VSX_MADD(XSMSUBDP, 1, float64, VsrD(0), MSUB_FLGS, 1)
+VSX_MADD(XSNMADDDP, 1, float64, VsrD(0), NMADD_FLGS, 1)
+VSX_MADD(XSNMSUBDP, 1, float64, VsrD(0), NMSUB_FLGS, 1)
+VSX_MADD(XSMADDSP, 1, float64r32, VsrD(0), MADD_FLGS, 1)
+VSX_MADD(XSMSUBSP, 1, float64r32, VsrD(0), MSUB_FLGS, 1)
+VSX_MADD(XSNMADDSP, 1, float64r32, VsrD(0), NMADD_FLGS, 1)
+VSX_MADD(XSNMSUBSP, 1, float64r32, VsrD(0), NMSUB_FLGS, 1)
 
-VSX_MADD(xvmadddp, 2, float64, VsrD(i), MADD_FLGS, 0, 0)
-VSX_MADD(xvmsubdp, 2, float64, VsrD(i), MSUB_FLGS, 0, 0)
-VSX_MADD(xvnmadddp, 2, float64, VsrD(i), NMADD_FLGS, 0, 0)
-VSX_MADD(xvnmsubdp, 2, float64, VsrD(i), NMSUB_FLGS, 0, 0)
+VSX_MADD(xvmadddp, 2, float64, VsrD(i), MADD_FLGS, 0)
+VSX_MADD(xvmsubdp, 2, float64, VsrD(i), MSUB_FLGS, 0)
+VSX_MADD(xvnmadddp, 2, float64, VsrD(i), NMADD_FLGS, 0)
+VSX_MADD(xvnmsubdp, 2, float64, VsrD(i), NMSUB_FLGS, 0)
 
-VSX_MADD(xvmaddsp, 4, float32, VsrW(i), MADD_FLGS, 0, 0)
-VSX_MADD(xvmsubsp, 4, float32, VsrW(i), MSUB_FLGS, 0, 0)
-VSX_MADD(xvnmaddsp, 4, float32, VsrW(i), NMADD_FLGS, 0, 0)
-VSX_MADD(xvnmsubsp, 4, float32, VsrW(i), NMSUB_FLGS, 0, 0)
+VSX_MADD(xvmaddsp, 4, float32, VsrW(i), MADD_FLGS, 0)
+VSX_MADD(xvmsubsp, 4, float32, VsrW(i), MSUB_FLGS, 0)
+VSX_MADD(xvnmaddsp, 4, float32, VsrW(i), NMADD_FLGS, 0)
+VSX_MADD(xvnmsubsp, 4, float32, VsrW(i), NMSUB_FLGS, 0)
 
 /*
  * VSX_MADDQ - VSX floating point quad-precision muliply/add
@@ -2540,6 +2522,8 @@ void helper_##name(CPUPPCState *env,                                          \
     ppc_vsr_t t = { };                                                        \
     bool first;                                                               \
                                                                               \
+    helper_reset_fpstatus(env);                                               \
+                                                                              \
     if (max) {                                                                \
         first = tp##_le_quiet(xb->fld, xa->fld, &env->fp_status);             \
     } else {                                                                  \
@@ -2789,6 +2773,8 @@ void helper_XVCVSPBF16(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)
 {
     ppc_vsr_t t = { };
     int i, status;
+
+    helper_reset_fpstatus(env);
 
     for (i = 0; i < 4; i++) {
         t.VsrH(2 * i + 1) = float32_to_bfloat16(xb->VsrW(i), &env->fp_status);

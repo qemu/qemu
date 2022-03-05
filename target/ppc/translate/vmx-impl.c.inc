@@ -1088,10 +1088,8 @@ static void do_vrlq_mask(TCGv_i64 mh, TCGv_i64 ml, TCGv_i64 b, TCGv_i64 e)
     tcg_gen_or_i64(tl, t1, tl);
 
     /* t = t >> 1 */
-    tcg_gen_shli_i64(t0, th, 63);
-    tcg_gen_shri_i64(tl, tl, 1);
+    tcg_gen_extract2_i64(tl, tl, th, 1);
     tcg_gen_shri_i64(th, th, 1);
-    tcg_gen_or_i64(tl, t0, tl);
 
     /* m = m ^ t */
     tcg_gen_xor_i64(mh, mh, th);
@@ -1148,10 +1146,8 @@ static bool do_vector_rotl_quad(DisasContext *ctx, arg_VX *a, bool mask,
     tcg_gen_or_i64(t1, ah, t1);
 
     if (mask || insert) {
-        tcg_gen_shri_i64(n, vrb, 8);
-        tcg_gen_shri_i64(vrb, vrb, 16);
-        tcg_gen_andi_i64(n, n, 0x7f);
-        tcg_gen_andi_i64(vrb, vrb, 0x7f);
+        tcg_gen_extract_i64(n, vrb, 8, 7);
+        tcg_gen_extract_i64(vrb, vrb, 16, 7);
 
         do_vrlq_mask(ah, al, vrb, n);
 
@@ -1161,10 +1157,8 @@ static bool do_vector_rotl_quad(DisasContext *ctx, arg_VX *a, bool mask,
         if (insert) {
             get_avr64(n, a->vrt, true);
             get_avr64(vrb, a->vrt, false);
-            tcg_gen_not_i64(ah, ah);
-            tcg_gen_not_i64(al, al);
-            tcg_gen_and_i64(n, n, ah);
-            tcg_gen_and_i64(vrb, vrb, al);
+            tcg_gen_andc_i64(n, n, ah);
+            tcg_gen_andc_i64(vrb, vrb, al);
             tcg_gen_or_i64(t0, t0, n);
             tcg_gen_or_i64(t1, t1, vrb);
         }
@@ -3141,14 +3135,14 @@ static bool trans_VMULLD(DisasContext *ctx, arg_VX *a)
     return true;
 }
 
-TRANS_FLAGS2(ALTIVEC_207, VMULESB, do_vx_helper, gen_helper_VMULESB)
-TRANS_FLAGS2(ALTIVEC_207, VMULOSB, do_vx_helper, gen_helper_VMULOSB)
-TRANS_FLAGS2(ALTIVEC_207, VMULEUB, do_vx_helper, gen_helper_VMULEUB)
-TRANS_FLAGS2(ALTIVEC_207, VMULOUB, do_vx_helper, gen_helper_VMULOUB)
-TRANS_FLAGS2(ALTIVEC_207, VMULESH, do_vx_helper, gen_helper_VMULESH)
-TRANS_FLAGS2(ALTIVEC_207, VMULOSH, do_vx_helper, gen_helper_VMULOSH)
-TRANS_FLAGS2(ALTIVEC_207, VMULEUH, do_vx_helper, gen_helper_VMULEUH)
-TRANS_FLAGS2(ALTIVEC_207, VMULOUH, do_vx_helper, gen_helper_VMULOUH)
+TRANS_FLAGS(ALTIVEC, VMULESB, do_vx_helper, gen_helper_VMULESB)
+TRANS_FLAGS(ALTIVEC, VMULOSB, do_vx_helper, gen_helper_VMULOSB)
+TRANS_FLAGS(ALTIVEC, VMULEUB, do_vx_helper, gen_helper_VMULEUB)
+TRANS_FLAGS(ALTIVEC, VMULOUB, do_vx_helper, gen_helper_VMULOUB)
+TRANS_FLAGS(ALTIVEC, VMULESH, do_vx_helper, gen_helper_VMULESH)
+TRANS_FLAGS(ALTIVEC, VMULOSH, do_vx_helper, gen_helper_VMULOSH)
+TRANS_FLAGS(ALTIVEC, VMULEUH, do_vx_helper, gen_helper_VMULEUH)
+TRANS_FLAGS(ALTIVEC, VMULOUH, do_vx_helper, gen_helper_VMULOUH)
 TRANS_FLAGS2(ALTIVEC_207, VMULESW, do_vx_helper, gen_helper_VMULESW)
 TRANS_FLAGS2(ALTIVEC_207, VMULOSW, do_vx_helper, gen_helper_VMULOSW)
 TRANS_FLAGS2(ALTIVEC_207, VMULEUW, do_vx_helper, gen_helper_VMULEUW)
@@ -3162,19 +3156,16 @@ static void do_vx_vmulhw_i64(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b, bool sign)
 {
     TCGv_i64 hh, lh, temp;
 
-    uint64_t c;
     hh = tcg_temp_new_i64();
     lh = tcg_temp_new_i64();
     temp = tcg_temp_new_i64();
-
-    c = 0xFFFFFFFF;
 
     if (sign) {
         tcg_gen_ext32s_i64(lh, a);
         tcg_gen_ext32s_i64(temp, b);
     } else {
-        tcg_gen_andi_i64(lh, a, c);
-        tcg_gen_andi_i64(temp, b, c);
+        tcg_gen_ext32u_i64(lh, a);
+        tcg_gen_ext32u_i64(temp, b);
     }
     tcg_gen_mul_i64(lh, lh, temp);
 
@@ -3188,8 +3179,7 @@ static void do_vx_vmulhw_i64(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b, bool sign)
     tcg_gen_mul_i64(hh, hh, temp);
 
     tcg_gen_shri_i64(lh, lh, 32);
-    tcg_gen_andi_i64(hh, hh, c << 32);
-    tcg_gen_or_i64(t, hh, lh);
+    tcg_gen_deposit_i64(t, hh, lh, 0, 32);
 
     tcg_temp_free_i64(hh);
     tcg_temp_free_i64(lh);

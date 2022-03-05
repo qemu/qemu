@@ -6,16 +6,16 @@
 #define TEST(INSN, B_HI, B_LO, T_HI, T_LO) \
     do {                                                                \
         uint64_t th, tl, bh = B_HI, bl = B_LO;                          \
-        asm("mtvsrd 0, %2\n\t"                                          \
-            "mtvsrd 1, %3\n\t"                                          \
-            "xxmrghd 0, 0, 1\n\t"                                       \
-            INSN " 0, 0\n\t"                                            \
-            "mfvsrd %0, 0\n\t"                                          \
-            "xxswapd 0, 0\n\t"                                          \
-            "mfvsrd %1, 0\n\t"                                          \
+        asm("mtvsrd 32, %2\n\t"                                         \
+            "mtvsrd 33, %3\n\t"                                         \
+            "xxmrghd 32, 32, 33\n\t"                                    \
+            INSN " 32, 32\n\t"                                          \
+            "mfvsrd %0, 32\n\t"                                         \
+            "xxswapd 32, 32\n\t"                                        \
+            "mfvsrd %1, 32\n\t"                                         \
             : "=r" (th), "=r" (tl)                                      \
             : "r" (bh), "r" (bl)                                        \
-            : "vs0", "vs1");                                            \
+            : "v0", "v1");                                              \
         printf(INSN "(0x%016" PRIx64 "%016" PRIx64 ") = 0x%016" PRIx64  \
                "%016" PRIx64 "\n", bh, bl, th, tl);                     \
         assert(th == T_HI && tl == T_LO);                               \
