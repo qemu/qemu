@@ -2522,6 +2522,8 @@ void helper_##name(CPUPPCState *env,                                          \
     ppc_vsr_t t = { };                                                        \
     bool first;                                                               \
                                                                               \
+    helper_reset_fpstatus(env);                                               \
+                                                                              \
     if (max) {                                                                \
         first = tp##_le_quiet(xb->fld, xa->fld, &env->fp_status);             \
     } else {                                                                  \
