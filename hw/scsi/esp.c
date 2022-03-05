@@ -1349,6 +1349,15 @@ static uint64_t sysbus_esp_pdma_read(void *opaque, hwaddr addr,
     return val;
 }
 
+static void *esp_load_request(QEMUFile *f, SCSIRequest *req)
+{
+    ESPState *s = container_of(req->bus, ESPState, bus);
+
+    scsi_req_ref(req);
+    s->current_req = req;
+    return s;
+}
+
 static const MemoryRegionOps sysbus_esp_pdma_ops = {
     .read = sysbus_esp_pdma_read,
     .write = sysbus_esp_pdma_write,
@@ -1364,6 +1373,7 @@ static const struct SCSIBusInfo esp_scsi_info = {
     .max_target = ESP_MAX_DEVS,
     .max_lun = 7,
 
+    .load_request = esp_load_request,
     .transfer_data = esp_transfer_data,
     .complete = esp_command_complete,
     .cancel = esp_request_cancelled
