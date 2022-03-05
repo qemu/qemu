@@ -41,13 +41,21 @@
 #define IER_SET            0x80    /* set bits in IER */
 #define IER_CLR            0       /* clear bits in IER */
 
-#define CA2_INT            0x01
-#define CA1_INT            0x02
-#define SR_INT             0x04    /* Shift register full/empty */
-#define CB2_INT            0x08
-#define CB1_INT            0x10
-#define T2_INT             0x20    /* Timer 2 interrupt */
-#define T1_INT             0x40    /* Timer 1 interrupt */
+#define CA2_INT_BIT        0
+#define CA1_INT_BIT        1
+#define SR_INT_BIT         2       /* Shift register full/empty */
+#define CB2_INT_BIT        3
+#define CB1_INT_BIT        4
+#define T2_INT_BIT         5       /* Timer 2 interrupt */
+#define T1_INT_BIT         6       /* Timer 1 interrupt */
+
+#define CA2_INT            BIT(CA2_INT_BIT)
+#define CA1_INT            BIT(CA1_INT_BIT)
+#define SR_INT             BIT(SR_INT_BIT)
+#define CB2_INT            BIT(CB2_INT_BIT)
+#define CB1_INT            BIT(CB1_INT_BIT)
+#define T2_INT             BIT(T2_INT_BIT)
+#define T1_INT             BIT(T1_INT_BIT)
 
 /* Bits in ACR */
 #define T1MODE             0xc0    /* Timer 1 mode */
