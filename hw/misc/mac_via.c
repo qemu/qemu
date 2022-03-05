@@ -906,9 +906,24 @@ static uint64_t mos6522_q800_via2_read(void *opaque, hwaddr addr, unsigned size)
 {
     MOS6522Q800VIA2State *s = MOS6522_Q800_VIA2(opaque);
     MOS6522State *ms = MOS6522(s);
+    uint64_t val;
 
     addr = (addr >> 9) & 0xf;
-    return mos6522_read(ms, addr, size);
+    val = mos6522_read(ms, addr, size);
+
+    switch (addr) {
+    case VIA_REG_IFR:
+        /*
+         * On a Q800 an emulated VIA2 is integrated into the onboard logic. The
+         * expectation of most OSs is that the DRQ bit is live, rather than
+         * latched as it would be on a real VIA so do the same here.
+         */
+        val &= ~VIA2_IRQ_SCSI_DATA;
+        val |= (ms->last_irq_levels & VIA2_IRQ_SCSI_DATA);
+        break;
+    }
+
+    return val;
 }
 
 static void mos6522_q800_via2_write(void *opaque, hwaddr addr, uint64_t val,
