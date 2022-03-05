@@ -746,6 +746,16 @@ static Property macfb_sysbus_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const VMStateDescription vmstate_macfb_sysbus = {
+    .name = "macfb-sysbus",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT(macfb, MacfbSysBusState, 1, vmstate_macfb, MacfbState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static Property macfb_nubus_properties[] = {
     DEFINE_PROP_UINT32("width", MacfbNubusState, macfb.width, 640),
     DEFINE_PROP_UINT32("height", MacfbNubusState, macfb.height, 480),
@@ -755,6 +765,16 @@ static Property macfb_nubus_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const VMStateDescription vmstate_macfb_nubus = {
+    .name = "macfb-nubus",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT(macfb, MacfbNubusState, 1, vmstate_macfb, MacfbState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void macfb_sysbus_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -762,7 +782,7 @@ static void macfb_sysbus_class_init(ObjectClass *klass, void *data)
     dc->realize = macfb_sysbus_realize;
     dc->desc = "SysBus Macintosh framebuffer";
     dc->reset = macfb_sysbus_reset;
-    dc->vmsd = &vmstate_macfb;
+    dc->vmsd = &vmstate_macfb_sysbus;
     device_class_set_props(dc, macfb_sysbus_properties);
 }
 
@@ -777,7 +797,7 @@ static void macfb_nubus_class_init(ObjectClass *klass, void *data)
                                       &ndc->parent_unrealize);
     dc->desc = "Nubus Macintosh framebuffer";
     dc->reset = macfb_nubus_reset;
-    dc->vmsd = &vmstate_macfb;
+    dc->vmsd = &vmstate_macfb_nubus;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     device_class_set_props(dc, macfb_nubus_properties);
 }
