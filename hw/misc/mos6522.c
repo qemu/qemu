@@ -36,6 +36,12 @@
 #include "qemu/module.h"
 #include "trace.h"
 
+
+static const char *mos6522_reg_names[MOS6522_NUM_REGS] = {
+    "ORB", "ORA", "DDRB", "DDRA", "T1CL", "T1CH", "T1LL", "T1LH",
+    "T2CL", "T2CH", "SR", "ACR", "PCR", "IFR", "IER", "ANH"
+};
+
 /* XXX: implement all timer modes */
 
 static void mos6522_timer1_update(MOS6522State *s, MOS6522Timer *ti,
@@ -310,7 +316,7 @@ uint64_t mos6522_read(void *opaque, hwaddr addr, unsigned size)
     }
 
     if (addr != VIA_REG_IFR || val != 0) {
-        trace_mos6522_read(addr, val);
+        trace_mos6522_read(addr, mos6522_reg_names[addr], val);
     }
 
     return val;
@@ -321,7 +327,7 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     MOS6522State *s = opaque;
     MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
 
-    trace_mos6522_write(addr, val);
+    trace_mos6522_write(addr, mos6522_reg_names[addr], val);
 
     switch (addr) {
     case VIA_REG_B:
@@ -484,7 +490,8 @@ static void mos6522_init(Object *obj)
     MOS6522State *s = MOS6522(obj);
     int i;
 
-    memory_region_init_io(&s->mem, obj, &mos6522_ops, s, "mos6522", 0x10);
+    memory_region_init_io(&s->mem, obj, &mos6522_ops, s, "mos6522",
+                          MOS6522_NUM_REGS);
     sysbus_init_mmio(sbd, &s->mem);
     sysbus_init_irq(sbd, &s->irq);
 

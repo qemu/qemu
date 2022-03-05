@@ -32,6 +32,8 @@
 #include "hw/input/adb.h"
 #include "qom/object.h"
 
+#define MOS6522_NUM_REGS 16
+
 /* Bits in ACR */
 #define SR_CTRL            0x1c    /* Shift register control bits */
 #define SR_EXT             0x0c    /* Shift on external clock */
