@@ -3162,19 +3162,16 @@ static void do_vx_vmulhw_i64(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b, bool sign)
 {
     TCGv_i64 hh, lh, temp;
 
-    uint64_t c;
     hh = tcg_temp_new_i64();
     lh = tcg_temp_new_i64();
     temp = tcg_temp_new_i64();
-
-    c = 0xFFFFFFFF;
 
     if (sign) {
         tcg_gen_ext32s_i64(lh, a);
         tcg_gen_ext32s_i64(temp, b);
     } else {
-        tcg_gen_andi_i64(lh, a, c);
-        tcg_gen_andi_i64(temp, b, c);
+        tcg_gen_ext32u_i64(lh, a);
+        tcg_gen_ext32u_i64(temp, b);
     }
     tcg_gen_mul_i64(lh, lh, temp);
 
@@ -3188,8 +3185,7 @@ static void do_vx_vmulhw_i64(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b, bool sign)
     tcg_gen_mul_i64(hh, hh, temp);
 
     tcg_gen_shri_i64(lh, lh, 32);
-    tcg_gen_andi_i64(hh, hh, c << 32);
-    tcg_gen_or_i64(t, hh, lh);
+    tcg_gen_deposit_i64(t, hh, lh, 0, 32);
 
     tcg_temp_free_i64(hh);
     tcg_temp_free_i64(lh);
