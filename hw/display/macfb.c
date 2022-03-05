@@ -625,9 +625,11 @@ static const VMStateDescription vmstate_macfb = {
     .minimum_version_id = 1,
     .post_load = macfb_post_load,
     .fields = (VMStateField[]) {
+        VMSTATE_UINT8(type, MacfbState),
         VMSTATE_UINT8_ARRAY(color_palette, MacfbState, 256 * 3),
         VMSTATE_UINT32(palette_current, MacfbState),
         VMSTATE_UINT32_ARRAY(regs, MacfbState, MACFB_NUM_REGS),
+        VMSTATE_TIMER_PTR(vbl_timer, MacfbState),
         VMSTATE_END_OF_LIST()
     }
 };
