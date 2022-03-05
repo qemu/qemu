@@ -33,7 +33,9 @@ def main():
         subprocess.run(["make", "install", "DESTDIR=" + destdir + os.path.sep])
         with open(
             os.path.join(destdir + args.prefix, "system-emulations.nsh"), "w"
-        ) as nsh:
+        ) as nsh, open(
+            os.path.join(destdir + args.prefix, "system-mui-text.nsh"), "w"
+        ) as muinsh:
             for exe in sorted(glob.glob(
                 os.path.join(destdir + args.prefix, "qemu-system-*.exe")
             )):
@@ -49,6 +51,15 @@ def main():
                         arch, exe
                     )
                 )
+                if arch.endswith('w'):
+                    desc = arch[:-1] + " emulation (GUI)."
+                else:
+                    desc = arch + " emulation."
+
+                muinsh.write(
+                    """
+                !insertmacro MUI_DESCRIPTION_TEXT ${{Section_{0}}} "{1}"
+                """.format(arch, desc))
 
         for exe in glob.glob(os.path.join(destdir + args.prefix, "*.exe")):
             signcode(exe)
