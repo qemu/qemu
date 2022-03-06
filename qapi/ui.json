@@ -1270,11 +1270,17 @@
 #                    host without sending this key to the guest when
 #                    "off". Defaults to "on"
 #
+# @full-grab: Capture all key presses, including system combos. This
+#             requires accessibility permissions, since it performs
+#             a global grab on key events. (default: off)
+#             See https://support.apple.com/en-in/guide/mac-help/mh32356/mac
+#
 # Since: 7.0
 ##
 { 'struct': 'DisplayCocoa',
   'data': {
-      '*left-command-key': 'bool'
+      '*left-command-key': 'bool',
+      '*full-grab': 'bool'
   } }
 
 ##
