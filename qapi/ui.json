@@ -1275,12 +1275,17 @@
 #             a global grab on key events. (default: off)
 #             See https://support.apple.com/en-in/guide/mac-help/mh32356/mac
 #
+# @swap-opt-cmd: Swap the Option and Command keys so that their key codes match
+#                their position on non-Mac keyboards and you can use Meta/Super
+#                and Alt where you expect them. (default: off)
+#
 # Since: 7.0
 ##
 { 'struct': 'DisplayCocoa',
   'data': {
       '*left-command-key': 'bool',
-      '*full-grab': 'bool'
+      '*full-grab': 'bool',
+      '*swap-opt-cmd': 'bool'
   } }
 
 ##
