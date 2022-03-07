@@ -228,6 +228,8 @@ enum pmbus_registers {
 #define PB_MAX_PAGES            0x1F
 #define PB_ALL_PAGES            0xFF
 
+#define PMBUS_ERR_BYTE          0xFF
+
 #define TYPE_PMBUS_DEVICE "pmbus-device"
 OBJECT_DECLARE_TYPE(PMBusDevice, PMBusDeviceClass,
                     PMBUS_DEVICE)
