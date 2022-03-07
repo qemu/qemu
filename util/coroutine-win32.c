@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/coroutine_int.h"
+#include "qemu/coroutine-tls.h"
 
 typedef struct
 {
@@ -33,8 +34,8 @@ typedef struct
     CoroutineAction action;
 } CoroutineWin32;
 
-static __thread CoroutineWin32 leader;
-static __thread Coroutine *current;
+QEMU_DEFINE_STATIC_CO_TLS(CoroutineWin32, leader);
+QEMU_DEFINE_STATIC_CO_TLS(Coroutine *, current);
 
 /* This function is marked noinline to prevent GCC from inlining it
  * into coroutine_trampoline(). If we allow it to do that then it
@@ -51,7 +52,7 @@ qemu_coroutine_switch(Coroutine *from_, Coroutine *to_,
     CoroutineWin32 *from = DO_UPCAST(CoroutineWin32, base, from_);
     CoroutineWin32 *to = DO_UPCAST(CoroutineWin32, base, to_);
 
-    current = to_;
+    set_current(to_);
 
     to->action = action;
     SwitchToFiber(to->fiber);
@@ -88,14 +89,21 @@ void qemu_coroutine_delete(Coroutine *co_)
 
 Coroutine *qemu_coroutine_self(void)
 {
+    Coroutine *current = get_current();
+
     if (!current) {
-        current = &leader.base;
-        leader.fiber = ConvertThreadToFiber(NULL);
+        CoroutineWin32 *leader = get_ptr_leader();
+
+        current = &leader->base;
+        set_current(current);
+        leader->fiber = ConvertThreadToFiber(NULL);
     }
     return current;
 }
 
 bool qemu_in_coroutine(void)
 {
+    Coroutine *current = get_current();
+
     return current && current->caller;
 }
