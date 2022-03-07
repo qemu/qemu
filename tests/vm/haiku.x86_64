@@ -2,7 +2,7 @@
 #
 # Haiku VM image
 #
-# Copyright 2020 Haiku, Inc.
+# Copyright 2020-2022 Haiku, Inc.
 #
 # Authors:
 #  Alexander von Gluck IV <kallisti5@unixzen.com>
@@ -48,8 +48,8 @@ class HaikuVM(basevm.BaseVM):
     name = "haiku"
     arch = "x86_64"
 
-    link = "https://app.vagrantup.com/haiku-os/boxes/r1beta2-x86_64/versions/20200702/providers/libvirt.box"
-    csum = "41c38b316e0cbdbc66b5dbaf3612b866700a4f35807cb1eb266a5bf83e9e68d5"
+    link = "https://app.vagrantup.com/haiku-os/boxes/r1beta3-x86_64/versions/20220216/providers/libvirt.box"
+    csum = "e67d4aacbcc687013d5cc91990ddd86cc5d70a5d28432ae2691944f8ce5d5041"
 
     poweroff = "shutdown"
 
@@ -99,7 +99,7 @@ class HaikuVM(basevm.BaseVM):
 
         self.print_step("Extracting disk image")
 
-        subprocess.check_call(["tar", "xzf", tarball, "./box.img", "-O"],
+        subprocess.check_call(["tar", "xzf", tarball, "box.img", "-O"],
                               stdout=open(img, 'wb'))
 
         self.print_step("Preparing disk image")
