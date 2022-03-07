@@ -1751,25 +1751,6 @@ static int64_t filetime_to_ns(const FILETIME *tf)
             - W32_FT_OFFSET) * 100;
 }
 
-int64_t qmp_guest_get_time(Error **errp)
-{
-    SYSTEMTIME ts = {0};
-    FILETIME tf;
-
-    GetSystemTime(&ts);
-    if (ts.wYear < 1601 || ts.wYear > 30827) {
-        error_setg(errp, "Failed to get time");
-        return -1;
-    }
-
-    if (!SystemTimeToFileTime(&ts, &tf)) {
-        error_setg(errp, "Failed to convert system time: %d", (int)GetLastError());
-        return -1;
-    }
-
-    return filetime_to_ns(&tf);
-}
-
 void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
 {
     Error *local_err = NULL;

@@ -585,3 +585,8 @@ GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
 
     return read_data;
 }
+
+int64_t qmp_guest_get_time(Error **errp)
+{
+    return g_get_real_time() * 1000;
+}
