@@ -448,7 +448,7 @@ typedef struct PMBusCoefficients {
  *
  * Y = (m * x - b) * 10^R
  *
- * @return uint32_t
+ * @return uint16_t
  */
 uint16_t pmbus_data2direct_mode(PMBusCoefficients c, uint32_t value);
 
@@ -460,6 +460,24 @@ uint16_t pmbus_data2direct_mode(PMBusCoefficients c, uint32_t value);
  * @return uint32_t
  */
 uint32_t pmbus_direct_mode2data(PMBusCoefficients c, uint16_t value);
+
+/**
+ * Convert sensor values to linear mode format
+ *
+ * L = D * 2^(-e)
+ *
+ * @return uint16
+ */
+uint16_t pmbus_data2linear_mode(uint16_t value, int exp);
+
+/**
+ * Convert linear mode formatted data into sensor reading
+ *
+ * D = L * 2^e
+ *
+ * @return uint16
+ */
+uint16_t pmbus_linear_mode2data(uint16_t value, int exp);
 
 /**
  * @brief Send a block of data over PMBus
