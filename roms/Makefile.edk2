@@ -51,7 +51,7 @@ all: $(foreach flashdev,$(flashdevs),../pc-bios/edk2-$(flashdev).fd.bz2) \
 # we're building from a tarball and that they've already been fetched by
 # make-release/tarball scripts.
 submodules:
-	if test -d edk2/.git; then \
+	if test -e edk2/.git; then \
 		cd edk2 && git submodule update --init --force -- \
 			ArmPkg/Library/ArmSoftFloatLib/berkeley-softfloat-3 \
 			BaseTools/Source/C/BrotliCompress/brotli \
