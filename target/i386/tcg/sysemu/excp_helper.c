@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "exec/exec-all.h"
 #include "tcg/helper-tcg.h"
 
 int get_pg_mode(CPUX86State *env)

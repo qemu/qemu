@@ -25,8 +25,7 @@
 
 #define TYPE_M68K_CPU "m68k-cpu"
 
-OBJECT_DECLARE_TYPE(M68kCPU, M68kCPUClass,
-                    M68K_CPU)
+OBJECT_DECLARE_CPU_TYPE(M68kCPU, M68kCPUClass, M68K_CPU)
 
 /*
  * M68kCPUClass:

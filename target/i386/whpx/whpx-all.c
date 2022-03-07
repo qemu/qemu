@@ -221,7 +221,7 @@ static SegmentCache whpx_seg_h2q(const WHV_X64_SEGMENT_REGISTER *hs)
 
 static int whpx_set_tsc(CPUState *cpu)
 {
-    struct CPUX86State *env = (CPUArchState *)(cpu->env_ptr);
+    CPUX86State *env = cpu->env_ptr;
     WHV_REGISTER_NAME tsc_reg = WHvX64RegisterTsc;
     WHV_REGISTER_VALUE tsc_val;
     HRESULT hr;
@@ -260,7 +260,7 @@ static void whpx_set_registers(CPUState *cpu, int level)
 {
     struct whpx_state *whpx = &whpx_global;
     struct whpx_vcpu *vcpu = get_whpx_vcpu(cpu);
-    struct CPUX86State *env = (CPUArchState *)(cpu->env_ptr);
+    CPUX86State *env = cpu->env_ptr;
     X86CPU *x86_cpu = X86_CPU(cpu);
     struct whpx_register_set vcxt;
     HRESULT hr;
@@ -428,7 +428,7 @@ static void whpx_set_registers(CPUState *cpu, int level)
 
 static int whpx_get_tsc(CPUState *cpu)
 {
-    struct CPUX86State *env = (CPUArchState *)(cpu->env_ptr);
+    CPUX86State *env = cpu->env_ptr;
     WHV_REGISTER_NAME tsc_reg = WHvX64RegisterTsc;
     WHV_REGISTER_VALUE tsc_val;
     HRESULT hr;
@@ -449,7 +449,7 @@ static void whpx_get_registers(CPUState *cpu)
 {
     struct whpx_state *whpx = &whpx_global;
     struct whpx_vcpu *vcpu = get_whpx_vcpu(cpu);
-    struct CPUX86State *env = (CPUArchState *)(cpu->env_ptr);
+    CPUX86State *env = cpu->env_ptr;
     X86CPU *x86_cpu = X86_CPU(cpu);
     struct whpx_register_set vcxt;
     uint64_t tpr, apic_base;
@@ -760,7 +760,7 @@ static int whpx_handle_portio(CPUState *cpu,
 
 static int whpx_handle_halt(CPUState *cpu)
 {
-    struct CPUX86State *env = (CPUArchState *)(cpu->env_ptr);
+    CPUX86State *env = cpu->env_ptr;
     int ret = 0;
 
     qemu_mutex_lock_iothread();
@@ -781,7 +781,7 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
     HRESULT hr;
     struct whpx_state *whpx = &whpx_global;
     struct whpx_vcpu *vcpu = get_whpx_vcpu(cpu);
-    struct CPUX86State *env = (CPUArchState *)(cpu->env_ptr);
+    CPUX86State *env = cpu->env_ptr;
     X86CPU *x86_cpu = X86_CPU(cpu);
     int irq;
     uint8_t tpr;
@@ -903,7 +903,7 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
 static void whpx_vcpu_post_run(CPUState *cpu)
 {
     struct whpx_vcpu *vcpu = get_whpx_vcpu(cpu);
-    struct CPUX86State *env = (CPUArchState *)(cpu->env_ptr);
+    CPUX86State *env = cpu->env_ptr;
     X86CPU *x86_cpu = X86_CPU(cpu);
 
     env->eflags = vcpu->exit_ctx.VpContext.Rflags;
@@ -927,7 +927,7 @@ static void whpx_vcpu_post_run(CPUState *cpu)
 
 static void whpx_vcpu_process_async_events(CPUState *cpu)
 {
-    struct CPUX86State *env = (CPUArchState *)(cpu->env_ptr);
+    CPUX86State *env = cpu->env_ptr;
     X86CPU *x86_cpu = X86_CPU(cpu);
     struct whpx_vcpu *vcpu = get_whpx_vcpu(cpu);
 
@@ -1333,7 +1333,7 @@ int whpx_init_vcpu(CPUState *cpu)
     struct whpx_state *whpx = &whpx_global;
     struct whpx_vcpu *vcpu = NULL;
     Error *local_error = NULL;
-    struct CPUX86State *env = (CPUArchState *)(cpu->env_ptr);
+    CPUX86State *env = cpu->env_ptr;
     X86CPU *x86_cpu = X86_CPU(cpu);
     UINT64 freq = 0;
     int ret;

@@ -24,7 +24,7 @@
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat-types.h"
 
-typedef struct CPUMBState CPUMBState;
+typedef struct CPUArchState CPUMBState;
 #if !defined(CONFIG_USER_ONLY)
 #include "mmu.h"
 #endif
@@ -239,7 +239,7 @@ typedef struct CPUMBState CPUMBState;
 #define USE_NON_SECURE_M_AXI_DC_MASK 0x4
 #define USE_NON_SECURE_M_AXI_IC_MASK 0x8
 
-struct CPUMBState {
+struct CPUArchState {
     uint32_t bvalue;   /* TCG temporary, only valid during a TB */
     uint32_t btarget;  /* Full resolved branch destination */
 
@@ -339,7 +339,7 @@ typedef struct {
  *
  * A MicroBlaze CPU.
  */
-struct MicroBlazeCPU {
+struct ArchCPU {
     /*< private >*/
     CPUState parent_obj;
 
@@ -393,9 +393,6 @@ void mb_tcg_init(void);
 #define MMU_KERNEL_IDX  1
 #define MMU_USER_IDX    2
 /* See NB_MMU_MODES further up the file.  */
-
-typedef CPUMBState CPUArchState;
-typedef MicroBlazeCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

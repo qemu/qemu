@@ -65,7 +65,7 @@ enum {
     NUM_REGS = 16,
 };
 
-typedef struct CPURXState {
+typedef struct CPUArchState {
     /* CPU registers */
     uint32_t regs[NUM_REGS];    /* general registers */
     uint32_t psw_o;             /* O bit of status register */
@@ -105,7 +105,7 @@ typedef struct CPURXState {
  *
  * A RX CPU
  */
-struct RXCPU {
+struct ArchCPU {
     /*< private >*/
     CPUState parent_obj;
     /*< public >*/
@@ -113,8 +113,6 @@ struct RXCPU {
     CPUNegativeOffsetState neg;
     CPURXState env;
 };
-
-typedef RXCPU ArchCPU;
 
 #define RX_CPU_TYPE_SUFFIX "-" TYPE_RX_CPU
 #define RX_CPU_TYPE_NAME(model) model RX_CPU_TYPE_SUFFIX

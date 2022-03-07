@@ -26,8 +26,7 @@
 
 #define TYPE_RX62N_CPU RX_CPU_TYPE_NAME("rx62n")
 
-OBJECT_DECLARE_TYPE(RXCPU, RXCPUClass,
-                    RX_CPU)
+OBJECT_DECLARE_CPU_TYPE(RXCPU, RXCPUClass, RX_CPU)
 
 /*
  * RXCPUClass:
@@ -44,7 +43,5 @@ struct RXCPUClass {
     DeviceRealize parent_realize;
     DeviceReset parent_reset;
 };
-
-#define CPUArchState struct CPURXState
 
 #endif

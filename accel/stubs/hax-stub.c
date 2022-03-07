@@ -16,6 +16,8 @@
 #include "qemu/osdep.h"
 #include "sysemu/hax.h"
 
+bool hax_allowed;
+
 int hax_sync_vcpus(void)
 {
     return 0;

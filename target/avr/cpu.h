@@ -108,9 +108,7 @@ typedef enum AVRFeature {
     AVR_FEATURE_RAMPZ,
 } AVRFeature;
 
-typedef struct CPUAVRState CPUAVRState;
-
-struct CPUAVRState {
+typedef struct CPUArchState {
     uint32_t pc_w; /* 0x003fffff up to 22 bits */
 
     uint32_t sregC; /* 0x00000001 1 bit */
@@ -137,7 +135,7 @@ struct CPUAVRState {
     bool fullacc; /* CPU/MEM if true MEM only otherwise */
 
     uint64_t features;
-};
+} CPUAVRState;
 
 /**
  *  AVRCPU:
@@ -145,14 +143,14 @@ struct CPUAVRState {
  *
  *  A AVR CPU.
  */
-typedef struct AVRCPU {
+struct ArchCPU {
     /*< private >*/
     CPUState parent_obj;
     /*< public >*/
 
     CPUNegativeOffsetState neg;
     CPUAVRState env;
-} AVRCPU;
+};
 
 extern const struct VMStateDescription vms_avr_cpu;
 
@@ -246,9 +244,6 @@ static inline void cpu_set_sreg(CPUAVRState *env, uint8_t sreg)
 bool avr_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                       MMUAccessType access_type, int mmu_idx,
                       bool probe, uintptr_t retaddr);
-
-typedef CPUAVRState CPUArchState;
-typedef AVRCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

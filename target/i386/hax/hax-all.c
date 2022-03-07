@@ -49,17 +49,12 @@ const uint32_t hax_cur_version = 0x4; /* API v4: unmapping and MMIO moves */
 /* Minimum HAX kernel version */
 const uint32_t hax_min_version = 0x4; /* API v4: supports unmapping */
 
-static bool hax_allowed;
+bool hax_allowed;
 
 struct hax_state hax_global;
 
 static void hax_vcpu_sync_state(CPUArchState *env, int modified);
 static int hax_arch_get_registers(CPUArchState *env);
-
-int hax_enabled(void)
-{
-    return hax_allowed;
-}
 
 int valid_hax_tunnel_size(uint16_t size)
 {
@@ -227,7 +222,7 @@ int hax_init_vcpu(CPUState *cpu)
 
     cpu->hax_vcpu = hax_global.vm->vcpus[cpu->cpu_index];
     cpu->vcpu_dirty = true;
-    qemu_register_reset(hax_reset_vcpu_state, (CPUArchState *) (cpu->env_ptr));
+    qemu_register_reset(hax_reset_vcpu_state, cpu->env_ptr);
 
     return ret;
 }
@@ -674,7 +669,7 @@ void hax_cpu_synchronize_pre_loadvm(CPUState *cpu)
 
 int hax_smp_cpu_exec(CPUState *cpu)
 {
-    CPUArchState *env = (CPUArchState *) (cpu->env_ptr);
+    CPUArchState *env = cpu->env_ptr;
     int fatal;
     int ret;
 
