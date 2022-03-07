@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include <ucontext.h>
 #include "qemu/coroutine_int.h"
+#include "qemu/coroutine-tls.h"
 
 #ifdef CONFIG_VALGRIND_H
 #include <valgrind/valgrind.h>
@@ -66,8 +67,8 @@ typedef struct {
 /**
  * Per-thread coroutine bookkeeping
  */
-static __thread CoroutineUContext leader;
-static __thread Coroutine *current;
+QEMU_DEFINE_STATIC_CO_TLS(Coroutine *, current);
+QEMU_DEFINE_STATIC_CO_TLS(CoroutineUContext, leader);
 
 /*
  * va_args to makecontext() must be type 'int', so passing
@@ -97,14 +98,15 @@ static inline __attribute__((always_inline))
 void finish_switch_fiber(void *fake_stack_save)
 {
 #ifdef CONFIG_ASAN
+    CoroutineUContext *leaderp = get_ptr_leader();
     const void *bottom_old;
     size_t size_old;
 
     __sanitizer_finish_switch_fiber(fake_stack_save, &bottom_old, &size_old);
 
-    if (!leader.stack) {
-        leader.stack = (void *)bottom_old;
-        leader.stack_size = size_old;
+    if (!leaderp->stack) {
+        leaderp->stack = (void *)bottom_old;
+        leaderp->stack_size = size_old;
     }
 #endif
 #ifdef CONFIG_TSAN
@@ -161,8 +163,10 @@ static void coroutine_trampoline(int i0, int i1)
 
     /* Initialize longjmp environment and switch back the caller */
     if (!sigsetjmp(self->env, 0)) {
-        start_switch_fiber_asan(COROUTINE_YIELD, &fake_stack_save, leader.stack,
-                                leader.stack_size);
+        CoroutineUContext *leaderp = get_ptr_leader();
+
+        start_switch_fiber_asan(COROUTINE_YIELD, &fake_stack_save,
+                                leaderp->stack, leaderp->stack_size);
         start_switch_fiber_tsan(&fake_stack_save, self, true); /* true=caller */
         siglongjmp(*(sigjmp_buf *)co->entry_arg, 1);
     }
@@ -297,7 +301,7 @@ qemu_coroutine_switch(Coroutine *from_, Coroutine *to_,
     int ret;
     void *fake_stack_save = NULL;
 
-    current = to_;
+    set_current(to_);
 
     ret = sigsetjmp(from->env, 0);
     if (ret == 0) {
@@ -315,18 +319,24 @@ qemu_coroutine_switch(Coroutine *from_, Coroutine *to_,
 
 Coroutine *qemu_coroutine_self(void)
 {
-    if (!current) {
-        current = &leader.base;
+    Coroutine *self = get_current();
+    CoroutineUContext *leaderp = get_ptr_leader();
+
+    if (!self) {
+        self = &leaderp->base;
+        set_current(self);
     }
 #ifdef CONFIG_TSAN
-    if (!leader.tsan_co_fiber) {
-        leader.tsan_co_fiber = __tsan_get_current_fiber();
+    if (!leaderp->tsan_co_fiber) {
+        leaderp->tsan_co_fiber = __tsan_get_current_fiber();
     }
 #endif
-    return current;
+    return self;
 }
 
 bool qemu_in_coroutine(void)
 {
-    return current && current->caller;
+    Coroutine *self = get_current();
+
+    return self && self->caller;
 }
