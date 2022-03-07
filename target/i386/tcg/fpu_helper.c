@@ -237,24 +237,37 @@ void helper_fldl_ST0(CPUX86State *env, uint64_t val)
     merge_exception_flags(env, old_flags);
 }
 
+static FloatX80RoundPrec tmp_maximise_precision(float_status *st)
+{
+    FloatX80RoundPrec old = get_floatx80_rounding_precision(st);
+    set_floatx80_rounding_precision(floatx80_precision_x, st);
+    return old;
+}
+
 void helper_fildl_ST0(CPUX86State *env, int32_t val)
 {
     int new_fpstt;
+    FloatX80RoundPrec old = tmp_maximise_precision(&env->fp_status);
 
     new_fpstt = (env->fpstt - 1) & 7;
     env->fpregs[new_fpstt].d = int32_to_floatx80(val, &env->fp_status);
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
+
+    set_floatx80_rounding_precision(old, &env->fp_status);
 }
 
 void helper_fildll_ST0(CPUX86State *env, int64_t val)
 {
     int new_fpstt;
+    FloatX80RoundPrec old = tmp_maximise_precision(&env->fp_status);
 
     new_fpstt = (env->fpstt - 1) & 7;
     env->fpregs[new_fpstt].d = int64_to_floatx80(val, &env->fp_status);
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
+
+    set_floatx80_rounding_precision(old, &env->fp_status);
 }
 
 uint32_t helper_fsts_ST0(CPUX86State *env)
