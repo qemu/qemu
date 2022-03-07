@@ -106,6 +106,22 @@ write -P0x67 0x3fe0000 0x20000
 {"return": ""}
 {
   "bitmaps": {
+    "backup-top": [
+      {
+        "busy": false,
+        "count": 67108864,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      },
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      }
+    ],
     "drive0": [
       {
         "busy": false,
@@ -566,6 +582,22 @@ write -P0x67 0x3fe0000 0x20000
 {"return": ""}
 {
   "bitmaps": {
+    "backup-top": [
+      {
+        "busy": false,
+        "count": 67108864,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      },
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      }
+    ],
     "drive0": [
       {
         "busy": false,
@@ -819,6 +851,22 @@ write -P0x67 0x3fe0000 0x20000
 {"return": ""}
 {
   "bitmaps": {
+    "backup-top": [
+      {
+        "busy": false,
+        "count": 67108864,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      },
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      }
+    ],
     "drive0": [
       {
         "busy": false,
@@ -1279,6 +1327,22 @@ write -P0x67 0x3fe0000 0x20000
 {"return": ""}
 {
   "bitmaps": {
+    "backup-top": [
+      {
+        "busy": false,
+        "count": 67108864,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      },
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      }
+    ],
     "drive0": [
       {
         "busy": false,
@@ -1532,6 +1596,22 @@ write -P0x67 0x3fe0000 0x20000
 {"return": ""}
 {
   "bitmaps": {
+    "backup-top": [
+      {
+        "busy": false,
+        "count": 67108864,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      },
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      }
+    ],
     "drive0": [
       {
         "busy": false,
@@ -1992,6 +2072,22 @@ write -P0x67 0x3fe0000 0x20000
 {"return": ""}
 {
   "bitmaps": {
+    "backup-top": [
+      {
+        "busy": false,
+        "count": 67108864,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      },
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      }
+    ],
     "drive0": [
       {
         "busy": false,
@@ -2245,6 +2341,22 @@ write -P0x67 0x3fe0000 0x20000
 {"return": ""}
 {
   "bitmaps": {
+    "backup-top": [
+      {
+        "busy": false,
+        "count": 67108864,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      },
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      }
+    ],
     "drive0": [
       {
         "busy": false,
@@ -2705,6 +2817,22 @@ write -P0x67 0x3fe0000 0x20000
 {"return": ""}
 {
   "bitmaps": {
+    "backup-top": [
+      {
+        "busy": false,
+        "count": 67108864,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      },
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      }
+    ],
     "drive0": [
       {
         "busy": false,
@@ -2958,6 +3086,22 @@ write -P0x67 0x3fe0000 0x20000
 {"return": ""}
 {
   "bitmaps": {
+    "backup-top": [
+      {
+        "busy": false,
+        "count": 67108864,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      },
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      }
+    ],
     "drive0": [
       {
         "busy": false,
@@ -3418,6 +3562,22 @@ write -P0x67 0x3fe0000 0x20000
 {"return": ""}
 {
   "bitmaps": {
+    "backup-top": [
+      {
+        "busy": false,
+        "count": 67108864,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      },
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      }
+    ],
     "drive0": [
       {
         "busy": false,
@@ -3671,6 +3831,22 @@ write -P0x67 0x3fe0000 0x20000
 {"return": ""}
 {
   "bitmaps": {
+    "backup-top": [
+      {
+        "busy": false,
+        "count": 67108864,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      },
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      }
+    ],
     "drive0": [
       {
         "busy": false,
@@ -4131,6 +4307,22 @@ write -P0x67 0x3fe0000 0x20000
 {"return": ""}
 {
   "bitmaps": {
+    "backup-top": [
+      {
+        "busy": false,
+        "count": 67108864,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      },
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      }
+    ],
     "drive0": [
       {
         "busy": false,
@@ -4384,6 +4576,22 @@ write -P0x67 0x3fe0000 0x20000
 {"return": ""}
 {
   "bitmaps": {
+    "backup-top": [
+      {
+        "busy": false,
+        "count": 67108864,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      },
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      }
+    ],
     "drive0": [
       {
         "busy": false,
@@ -4844,6 +5052,22 @@ write -P0x67 0x3fe0000 0x20000
 {"return": ""}
 {
   "bitmaps": {
+    "backup-top": [
+      {
+        "busy": false,
+        "count": 67108864,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      },
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "persistent": false,
+        "recording": false
+      }
+    ],
     "drive0": [
       {
         "busy": false,

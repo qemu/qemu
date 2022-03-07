@@ -85,7 +85,6 @@ qemu_print = os.environ.get('PRINT_QEMU', False)
 
 imgfmt = os.environ.get('IMGFMT', 'raw')
 imgproto = os.environ.get('IMGPROTO', 'file')
-output_dir = os.environ.get('OUTPUT_DIR', '.')
 
 try:
     test_dir = os.environ['TEST_DIR']
@@ -278,6 +277,9 @@ def qemu_io_popen(*args):
 def qemu_io(*args):
     '''Run qemu-io and return the stdout data'''
     return qemu_tool_pipe_and_status('qemu-io', qemu_io_wrap_args(args))[0]
+
+def qemu_io_pipe_and_status(*args):
+    return qemu_tool_pipe_and_status('qemu-io', qemu_io_wrap_args(args))
 
 def qemu_io_log(*args):
     result = qemu_io(*args)
@@ -1239,7 +1241,7 @@ def notrun(reason):
     # Each test in qemu-iotests has a number ("seq")
     seq = os.path.basename(sys.argv[0])
 
-    with open('%s/%s.notrun' % (output_dir, seq), 'w', encoding='utf-8') \
+    with open('%s/%s.notrun' % (test_dir, seq), 'w', encoding='utf-8') \
             as outfile:
         outfile.write(reason + '\n')
     logger.warning("%s not run: %s", seq, reason)
@@ -1254,7 +1256,7 @@ def case_notrun(reason):
     # Each test in qemu-iotests has a number ("seq")
     seq = os.path.basename(sys.argv[0])
 
-    with open('%s/%s.casenotrun' % (output_dir, seq), 'a', encoding='utf-8') \
+    with open('%s/%s.casenotrun' % (test_dir, seq), 'a', encoding='utf-8') \
             as outfile:
         outfile.write('    [case not run] ' + reason + '\n')
 

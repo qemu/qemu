@@ -744,6 +744,7 @@ class TestCommitWithFilters(iotests.QMPTestCase):
                              pattern_file)
             self.assertFalse('Pattern verification failed' in result)
 
+    @iotests.skip_if_unsupported(['throttle'])
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, self.img0, '64M')
         qemu_img('create', '-f', iotests.imgfmt, self.img1, '64M')

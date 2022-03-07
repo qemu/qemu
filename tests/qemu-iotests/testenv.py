@@ -66,7 +66,7 @@ class TestEnv(ContextManager['TestEnv']):
     # pylint: disable=too-many-instance-attributes
 
     env_variables = ['PYTHONPATH', 'TEST_DIR', 'SOCK_DIR', 'SAMPLE_IMG_DIR',
-                     'OUTPUT_DIR', 'PYTHON', 'QEMU_PROG', 'QEMU_IMG_PROG',
+                     'PYTHON', 'QEMU_PROG', 'QEMU_IMG_PROG',
                      'QEMU_IO_PROG', 'QEMU_NBD_PROG', 'QSD_PROG',
                      'QEMU_OPTIONS', 'QEMU_IMG_OPTIONS',
                      'QEMU_IO_OPTIONS', 'QEMU_IO_OPTIONS_NO_FMT',
@@ -106,7 +106,6 @@ class TestEnv(ContextManager['TestEnv']):
              TEST_DIR
              SOCK_DIR
              SAMPLE_IMG_DIR
-             OUTPUT_DIR
         """
 
         # Path where qemu goodies live in this source tree.
@@ -133,8 +132,6 @@ class TestEnv(ContextManager['TestEnv']):
         self.sample_img_dir = os.getenv('SAMPLE_IMG_DIR',
                                         os.path.join(self.source_iotests,
                                                      'sample_images'))
-
-        self.output_dir = os.getcwd()  # OUTPUT_DIR
 
     def init_binaries(self) -> None:
         """Init binary path variables:

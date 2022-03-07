@@ -458,38 +458,51 @@ static int curl_init_state(BDRVCURLState *s, CURLState *state)
         if (!state->curl) {
             return -EIO;
         }
-        curl_easy_setopt(state->curl, CURLOPT_URL, s->url);
-        curl_easy_setopt(state->curl, CURLOPT_SSL_VERIFYPEER,
-                         (long) s->sslverify);
-        curl_easy_setopt(state->curl, CURLOPT_SSL_VERIFYHOST,
-                         s->sslverify ? 2L : 0L);
-        if (s->cookie) {
-            curl_easy_setopt(state->curl, CURLOPT_COOKIE, s->cookie);
+        if (curl_easy_setopt(state->curl, CURLOPT_URL, s->url) ||
+            curl_easy_setopt(state->curl, CURLOPT_SSL_VERIFYPEER,
+                             (long) s->sslverify) ||
+            curl_easy_setopt(state->curl, CURLOPT_SSL_VERIFYHOST,
+                             s->sslverify ? 2L : 0L)) {
+            goto err;
         }
-        curl_easy_setopt(state->curl, CURLOPT_TIMEOUT, (long)s->timeout);
-        curl_easy_setopt(state->curl, CURLOPT_WRITEFUNCTION,
-                         (void *)curl_read_cb);
-        curl_easy_setopt(state->curl, CURLOPT_WRITEDATA, (void *)state);
-        curl_easy_setopt(state->curl, CURLOPT_PRIVATE, (void *)state);
-        curl_easy_setopt(state->curl, CURLOPT_AUTOREFERER, 1);
-        curl_easy_setopt(state->curl, CURLOPT_FOLLOWLOCATION, 1);
-        curl_easy_setopt(state->curl, CURLOPT_NOSIGNAL, 1);
-        curl_easy_setopt(state->curl, CURLOPT_ERRORBUFFER, state->errmsg);
-        curl_easy_setopt(state->curl, CURLOPT_FAILONERROR, 1);
-
+        if (s->cookie) {
+            if (curl_easy_setopt(state->curl, CURLOPT_COOKIE, s->cookie)) {
+                goto err;
+            }
+        }
+        if (curl_easy_setopt(state->curl, CURLOPT_TIMEOUT, (long)s->timeout) ||
+            curl_easy_setopt(state->curl, CURLOPT_WRITEFUNCTION,
+                             (void *)curl_read_cb) ||
+            curl_easy_setopt(state->curl, CURLOPT_WRITEDATA, (void *)state) ||
+            curl_easy_setopt(state->curl, CURLOPT_PRIVATE, (void *)state) ||
+            curl_easy_setopt(state->curl, CURLOPT_AUTOREFERER, 1) ||
+            curl_easy_setopt(state->curl, CURLOPT_FOLLOWLOCATION, 1) ||
+            curl_easy_setopt(state->curl, CURLOPT_NOSIGNAL, 1) ||
+            curl_easy_setopt(state->curl, CURLOPT_ERRORBUFFER, state->errmsg) ||
+            curl_easy_setopt(state->curl, CURLOPT_FAILONERROR, 1)) {
+            goto err;
+        }
         if (s->username) {
-            curl_easy_setopt(state->curl, CURLOPT_USERNAME, s->username);
+            if (curl_easy_setopt(state->curl, CURLOPT_USERNAME, s->username)) {
+                goto err;
+            }
         }
         if (s->password) {
-            curl_easy_setopt(state->curl, CURLOPT_PASSWORD, s->password);
+            if (curl_easy_setopt(state->curl, CURLOPT_PASSWORD, s->password)) {
+                goto err;
+            }
         }
         if (s->proxyusername) {
-            curl_easy_setopt(state->curl,
-                             CURLOPT_PROXYUSERNAME, s->proxyusername);
+            if (curl_easy_setopt(state->curl,
+                                 CURLOPT_PROXYUSERNAME, s->proxyusername)) {
+                goto err;
+            }
         }
         if (s->proxypassword) {
-            curl_easy_setopt(state->curl,
-                             CURLOPT_PROXYPASSWORD, s->proxypassword);
+            if (curl_easy_setopt(state->curl,
+                                 CURLOPT_PROXYPASSWORD, s->proxypassword)) {
+                goto err;
+            }
         }
 
         /* Restrict supported protocols to avoid security issues in the more
@@ -499,18 +512,27 @@ static int curl_init_state(BDRVCURLState *s, CURLState *state)
          * Restricting protocols is only supported from 7.19.4 upwards.
          */
 #if LIBCURL_VERSION_NUM >= 0x071304
-        curl_easy_setopt(state->curl, CURLOPT_PROTOCOLS, PROTOCOLS);
-        curl_easy_setopt(state->curl, CURLOPT_REDIR_PROTOCOLS, PROTOCOLS);
+        if (curl_easy_setopt(state->curl, CURLOPT_PROTOCOLS, PROTOCOLS) ||
+            curl_easy_setopt(state->curl, CURLOPT_REDIR_PROTOCOLS, PROTOCOLS)) {
+            goto err;
+        }
 #endif
 
 #ifdef DEBUG_VERBOSE
-        curl_easy_setopt(state->curl, CURLOPT_VERBOSE, 1);
+        if (curl_easy_setopt(state->curl, CURLOPT_VERBOSE, 1)) {
+            goto err;
+        }
 #endif
     }
 
     state->s = s;
 
     return 0;
+
+err:
+    curl_easy_cleanup(state->curl);
+    state->curl = NULL;
+    return -EIO;
 }
 
 /* Called with s->mutex held.  */
@@ -759,14 +781,19 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     // Get file size
 
     if (curl_init_state(s, state) < 0) {
+        pstrcpy(state->errmsg, CURL_ERROR_SIZE,
+                "curl library initialization failed.");
         goto out;
     }
 
     s->accept_range = false;
-    curl_easy_setopt(state->curl, CURLOPT_NOBODY, 1);
-    curl_easy_setopt(state->curl, CURLOPT_HEADERFUNCTION,
-                     curl_header_cb);
-    curl_easy_setopt(state->curl, CURLOPT_HEADERDATA, s);
+    if (curl_easy_setopt(state->curl, CURLOPT_NOBODY, 1) ||
+        curl_easy_setopt(state->curl, CURLOPT_HEADERFUNCTION, curl_header_cb) ||
+        curl_easy_setopt(state->curl, CURLOPT_HEADERDATA, s)) {
+        pstrcpy(state->errmsg, CURL_ERROR_SIZE,
+                "curl library initialization failed.");
+        goto out;
+    }
     if (curl_easy_perform(state->curl))
         goto out;
     if (curl_easy_getinfo(state->curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &d)) {
@@ -879,9 +906,8 @@ static void curl_setup_preadv(BlockDriverState *bs, CURLAIOCB *acb)
 
     snprintf(state->range, 127, "%" PRIu64 "-%" PRIu64, start, end);
     trace_curl_setup_preadv(acb->bytes, start, state->range);
-    curl_easy_setopt(state->curl, CURLOPT_RANGE, state->range);
-
-    if (curl_multi_add_handle(s->multi, state->curl) != CURLM_OK) {
+    if (curl_easy_setopt(state->curl, CURLOPT_RANGE, state->range) ||
+        curl_multi_add_handle(s->multi, state->curl) != CURLM_OK) {
         state->acb[0] = NULL;
         acb->ret = -EIO;
 
