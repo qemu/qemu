@@ -271,13 +271,12 @@ static void write_boot_rom(DriveInfo *dinfo, hwaddr addr, size_t rom_size,
     rom_add_blob_fixed("aspeed.boot_rom", storage, rom_size, addr);
 }
 
-static void aspeed_board_init_flashes(AspeedSMCState *s,
-                                      const char *flashtype,
-                                      int unit0)
+static void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
+                                      unsigned int count, int unit0)
 {
     int i ;
 
-    for (i = 0; i < s->num_cs; ++i) {
+    for (i = 0; i < count; ++i) {
         DriveInfo *dinfo = drive_get(IF_MTD, 0, unit0 + i);
         qemu_irq cs_line;
         DeviceState *dev;
@@ -373,10 +372,10 @@ static void aspeed_machine_init(MachineState *machine)
 
     aspeed_board_init_flashes(&bmc->soc.fmc,
                               bmc->fmc_model ? bmc->fmc_model : amc->fmc_model,
-                              0);
+                              amc->num_cs, 0);
     aspeed_board_init_flashes(&bmc->soc.spi[0],
                               bmc->spi_model ? bmc->spi_model : amc->spi_model,
-                              bmc->soc.fmc.num_cs);
+                              1, amc->num_cs);
 
     /* Install first FMC flash content as a boot rom. */
     if (drive0) {
