@@ -327,7 +327,7 @@ static void aspeed_smc_flash_set_segment(AspeedSMCState *s, int cs,
 static uint64_t aspeed_smc_flash_default_read(void *opaque, hwaddr addr,
                                               unsigned size)
 {
-    aspeed_smc_error("To 0x%" HWADDR_PRIx " of size %u" PRIx64, addr, size);
+    aspeed_smc_error("To 0x%" HWADDR_PRIx " of size %u", addr, size);
     return 0;
 }
 
