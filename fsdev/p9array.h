@@ -81,11 +81,11 @@
  */
 
 /**
- * Declares an array type for the passed @a scalar_type.
+ * P9ARRAY_DECLARE_TYPE() - Declares an array type for the passed @scalar_type.
+ *
+ * @scalar_type: type of the individual array elements
  *
  * This is typically used from a shared header file.
- *
- * @param scalar_type - type of the individual array elements
  */
 #define P9ARRAY_DECLARE_TYPE(scalar_type) \
     typedef struct P9Array##scalar_type { \
@@ -97,14 +97,14 @@
     void p9array_auto_free_##scalar_type(scalar_type **auto_var); \
 
 /**
- * Defines an array type for the passed @a scalar_type and appropriate
- * @a scalar_cleanup_func.
+ * P9ARRAY_DEFINE_TYPE() - Defines an array type for the passed @scalar_type
+ * and appropriate @scalar_cleanup_func.
+ *
+ * @scalar_type: type of the individual array elements
+ * @scalar_cleanup_func: appropriate function to free memory dynamically
+ *                       allocated by individual array elements before
  *
  * This is typically used from a C unit file.
- *
- * @param scalar_type - type of the individual array elements
- * @param scalar_cleanup_func - appropriate function to free memory dynamically
- *                              allocated by individual array elements before
  */
 #define P9ARRAY_DEFINE_TYPE(scalar_type, scalar_cleanup_func) \
     void p9array_new_##scalar_type(scalar_type **auto_var, size_t len) \
@@ -132,23 +132,27 @@
     } \
 
 /**
+ * P9ARRAY_REF() - Declare a reference variable for an array.
+ *
+ * @scalar_type: type of the individual array elements
+ *
  * Used to declare a reference variable (unique pointer) for an array. After
  * leaving the scope of the reference variable, the associated array is
  * automatically freed.
- *
- * @param scalar_type - type of the individual array elements
  */
 #define P9ARRAY_REF(scalar_type) \
     __attribute((__cleanup__(p9array_auto_free_##scalar_type))) scalar_type*
 
 /**
- * Allocates a new array of passed @a scalar_type with @a len number of array
- * elements and assigns the created array to the reference variable
- * @a auto_var.
+ * P9ARRAY_NEW() - Allocate a new array.
  *
- * @param scalar_type - type of the individual array elements
- * @param auto_var - destination reference variable
- * @param len - amount of array elements to be allocated immediately
+ * @scalar_type: type of the individual array elements
+ * @auto_var: destination reference variable
+ * @len: amount of array elements to be allocated immediately
+ *
+ * Allocates a new array of passed @scalar_type with @len number of array
+ * elements and assigns the created array to the reference variable
+ * @auto_var.
  */
 #define P9ARRAY_NEW(scalar_type, auto_var, len) \
     QEMU_BUILD_BUG_MSG( \

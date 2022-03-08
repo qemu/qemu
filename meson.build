@@ -1462,14 +1462,16 @@ dbus_display = get_option('dbus_display') \
   .allowed()
 
 have_virtfs = get_option('virtfs') \
-    .require(targetos == 'linux',
-             error_message: 'virtio-9p (virtfs) requires Linux') \
-    .require(libattr.found() and libcap_ng.found(),
-             error_message: 'virtio-9p (virtfs) requires libcap-ng-devel and libattr-devel') \
+    .require(targetos == 'linux' or targetos == 'darwin',
+             error_message: 'virtio-9p (virtfs) requires Linux or macOS') \
+    .require(targetos == 'linux' or cc.has_function('pthread_fchdir_np'),
+             error_message: 'virtio-9p (virtfs) on macOS requires the presence of pthread_fchdir_np') \
+    .require(targetos == 'darwin' or (libattr.found() and libcap_ng.found()),
+             error_message: 'virtio-9p (virtfs) on Linux requires libcap-ng-devel and libattr-devel') \
     .disable_auto_if(not have_tools and not have_system) \
     .allowed()
 
-have_virtfs_proxy_helper = have_virtfs and have_tools
+have_virtfs_proxy_helper = targetos != 'darwin' and have_virtfs and have_tools
 
 foreach k : get_option('trace_backends')
   config_host_data.set('CONFIG_TRACE_' + k.to_upper(), true)
@@ -1622,6 +1624,7 @@ config_host_data.set('CONFIG_POSIX_FALLOCATE', cc.has_function('posix_fallocate'
 config_host_data.set('CONFIG_POSIX_MEMALIGN', cc.has_function('posix_memalign'))
 config_host_data.set('CONFIG_PPOLL', cc.has_function('ppoll'))
 config_host_data.set('CONFIG_PREADV', cc.has_function('preadv', prefix: '#include <sys/uio.h>'))
+config_host_data.set('CONFIG_PTHREAD_FCHDIR_NP', cc.has_function('pthread_fchdir_np'))
 config_host_data.set('CONFIG_SEM_TIMEDWAIT', cc.has_function('sem_timedwait', dependencies: threads))
 config_host_data.set('CONFIG_SENDFILE', cc.has_function('sendfile'))
 config_host_data.set('CONFIG_SETNS', cc.has_function('setns') and cc.has_function('unshare'))
