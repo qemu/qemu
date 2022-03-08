@@ -193,6 +193,12 @@ static int pxb_map_irq_fn(PCIDevice *pci_dev, int pin)
     PCIDevice *pxb = pci_get_bus(pci_dev)->parent_dev;
 
     /*
+     * First carry out normal swizzle to handle
+     * multple root ports on a pxb instance.
+     */
+    pin = pci_swizzle_map_irq_fn(pci_dev, pin);
+
+    /*
      * The bios does not index the pxb slot number when
      * it computes the IRQ because it resides on bus 0
      * and not on the current bus.
