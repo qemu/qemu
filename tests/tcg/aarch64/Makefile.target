@@ -86,7 +86,11 @@ run-gdbstub-sve-ioctls: sve-ioctls
 
 EXTRA_RUNS += run-gdbstub-sysregs run-gdbstub-sve-ioctls
 endif
+endif
 
+ifneq ($(DOCKER_IMAGE)$(CROSS_CC_HAS_SVE2),)
+AARCH64_TESTS += test-826
+test-826: CFLAGS+=-march=armv8.1-a+sve2
 endif
 
 TESTS += $(AARCH64_TESTS)
