@@ -693,7 +693,7 @@ static void aspeed_smc_reset(DeviceState *d)
     }
 
     /* Unselect all peripherals */
-    for (i = 0; i < s->num_cs; ++i) {
+    for (i = 0; i < asc->max_peripherals; ++i) {
         s->regs[s->r_ctrl0 + i] |= CTRL_CE_STOP_ACTIVE;
         qemu_set_irq(s->cs_lines[i], true);
     }
@@ -1042,7 +1042,7 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
          addr < s->r_timings + asc->nregs_timings) ||
         addr == s->r_ce_ctrl) {
         s->regs[addr] = value;
-    } else if (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + s->num_cs) {
+    } else if (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + asc->max_peripherals) {
         int cs = addr - s->r_ctrl0;
         aspeed_smc_flash_update_ctrl(&s->flashes[cs], value);
     } else if (addr >= R_SEG_ADDR0 &&
@@ -1139,9 +1139,9 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
     s->spi = ssi_create_bus(dev, "spi");
 
     /* Setup cs_lines for peripherals */
-    s->cs_lines = g_new0(qemu_irq, s->num_cs);
+    s->cs_lines = g_new0(qemu_irq, asc->max_peripherals);
 
-    for (i = 0; i < s->num_cs; ++i) {
+    for (i = 0; i < asc->max_peripherals; ++i) {
         sysbus_init_irq(sbd, &s->cs_lines[i]);
     }
 
