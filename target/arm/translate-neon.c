@@ -657,18 +657,21 @@ static bool trans_VLDST_single(DisasContext *s, arg_VLDST_single *a)
     /* Catch the UNDEF cases. This is unavoidably a bit messy. */
     switch (nregs) {
     case 1:
+        if (a->stride != 1) {
+            return false;
+        }
         if (((a->align & (1 << a->size)) != 0) ||
             (a->size == 2 && (a->align == 1 || a->align == 2))) {
             return false;
         }
         break;
-    case 3:
-        if ((a->align & 1) != 0) {
-            return false;
-        }
-        /* fall through */
     case 2:
         if (a->size == 2 && (a->align & 2) != 0) {
+            return false;
+        }
+        break;
+    case 3:
+        if (a->align != 0) {
             return false;
         }
         break;

@@ -17,6 +17,7 @@
 #include "qemu/cutils.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
+#include "qemu/memalign.h"
 #include "block/block_int.h"
 #include "block/coroutines.h"
 #include "block/qdict.h"

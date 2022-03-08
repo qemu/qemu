@@ -161,16 +161,22 @@ static MemTxResult get_cte(GICv3ITSState *s, uint16_t icid, CTEntry *cte)
     if (entry_addr == -1) {
         /* No L2 table entry, i.e. no valid CTE, or a memory error */
         cte->valid = false;
-        return res;
+        goto out;
     }
 
     cteval = address_space_ldq_le(as, entry_addr, MEMTXATTRS_UNSPECIFIED, &res);
     if (res != MEMTX_OK) {
-        return res;
+        goto out;
     }
     cte->valid = FIELD_EX64(cteval, CTE, VALID);
     cte->rdbase = FIELD_EX64(cteval, CTE, RDBASE);
-    return MEMTX_OK;
+out:
+    if (res != MEMTX_OK) {
+        trace_gicv3_its_cte_read_fault(icid);
+    } else {
+        trace_gicv3_its_cte_read(icid, cte->valid, cte->rdbase);
+    }
+    return res;
 }
 
 /*
@@ -186,6 +192,10 @@ static bool update_ite(GICv3ITSState *s, uint32_t eventid, const DTEntry *dte,
     hwaddr iteaddr = dte->ittaddr + eventid * ITS_ITT_ENTRY_SIZE;
     uint64_t itel = 0;
     uint32_t iteh = 0;
+
+    trace_gicv3_its_ite_write(dte->ittaddr, eventid, ite->valid,
+                              ite->inttype, ite->intid, ite->icid,
+                              ite->vpeid, ite->doorbell);
 
     if (ite->valid) {
         itel = FIELD_DP64(itel, ITE_L, VALID, 1);
@@ -221,11 +231,13 @@ static MemTxResult get_ite(GICv3ITSState *s, uint32_t eventid,
 
     itel = address_space_ldq_le(as, iteaddr, MEMTXATTRS_UNSPECIFIED, &res);
     if (res != MEMTX_OK) {
+        trace_gicv3_its_ite_read_fault(dte->ittaddr, eventid);
         return res;
     }
 
     iteh = address_space_ldl_le(as, iteaddr + 8, MEMTXATTRS_UNSPECIFIED, &res);
     if (res != MEMTX_OK) {
+        trace_gicv3_its_ite_read_fault(dte->ittaddr, eventid);
         return res;
     }
 
@@ -235,6 +247,9 @@ static MemTxResult get_ite(GICv3ITSState *s, uint32_t eventid,
     ite->icid = FIELD_EX64(itel, ITE_L, ICID);
     ite->vpeid = FIELD_EX64(itel, ITE_L, VPEID);
     ite->doorbell = FIELD_EX64(iteh, ITE_H, DOORBELL);
+    trace_gicv3_its_ite_read(dte->ittaddr, eventid, ite->valid,
+                             ite->inttype, ite->intid, ite->icid,
+                             ite->vpeid, ite->doorbell);
     return MEMTX_OK;
 }
 
@@ -254,17 +269,23 @@ static MemTxResult get_dte(GICv3ITSState *s, uint32_t devid, DTEntry *dte)
     if (entry_addr == -1) {
         /* No L2 table entry, i.e. no valid DTE, or a memory error */
         dte->valid = false;
-        return res;
+        goto out;
     }
     dteval = address_space_ldq_le(as, entry_addr, MEMTXATTRS_UNSPECIFIED, &res);
     if (res != MEMTX_OK) {
-        return res;
+        goto out;
     }
     dte->valid = FIELD_EX64(dteval, DTE, VALID);
     dte->size = FIELD_EX64(dteval, DTE, SIZE);
     /* DTE word field stores bits [51:8] of the ITT address */
     dte->ittaddr = FIELD_EX64(dteval, DTE, ITTADDR) << ITTADDR_SHIFT;
-    return MEMTX_OK;
+out:
+    if (res != MEMTX_OK) {
+        trace_gicv3_its_dte_read_fault(devid);
+    } else {
+        trace_gicv3_its_dte_read(devid, dte->valid, dte->size, dte->ittaddr);
+    }
+    return res;
 }
 
 /*
@@ -366,6 +387,19 @@ static ItsCmdResult process_its_cmd(GICv3ITSState *s, const uint64_t *cmdpkt,
 
     devid = (cmdpkt[0] & DEVID_MASK) >> DEVID_SHIFT;
     eventid = cmdpkt[1] & EVENTID_MASK;
+    switch (cmd) {
+    case INTERRUPT:
+        trace_gicv3_its_cmd_int(devid, eventid);
+        break;
+    case CLEAR:
+        trace_gicv3_its_cmd_clear(devid, eventid);
+        break;
+    case DISCARD:
+        trace_gicv3_its_cmd_discard(devid, eventid);
+        break;
+    default:
+        g_assert_not_reached();
+    }
     return do_process_its_cmd(s, devid, eventid, cmd);
 }
 
@@ -382,14 +416,15 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, const uint64_t *cmdpkt,
 
     devid = (cmdpkt[0] & DEVID_MASK) >> DEVID_SHIFT;
     eventid = cmdpkt[1] & EVENTID_MASK;
+    icid = cmdpkt[2] & ICID_MASK;
 
     if (ignore_pInt) {
         pIntid = eventid;
+        trace_gicv3_its_cmd_mapi(devid, eventid, icid);
     } else {
         pIntid = (cmdpkt[1] & pINTID_MASK) >> pINTID_SHIFT;
+        trace_gicv3_its_cmd_mapti(devid, eventid, icid, pIntid);
     }
-
-    icid = cmdpkt[2] & ICID_MASK;
 
     if (devid >= s->dt.num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -451,6 +486,8 @@ static bool update_cte(GICv3ITSState *s, uint16_t icid, const CTEntry *cte)
     uint64_t cteval = 0;
     MemTxResult res = MEMTX_OK;
 
+    trace_gicv3_its_cte_write(icid, cte->valid, cte->rdbase);
+
     if (cte->valid) {
         /* add mapping entry to collection table */
         cteval = FIELD_DP64(cteval, CTE, VALID, 1);
@@ -484,6 +521,7 @@ static ItsCmdResult process_mapc(GICv3ITSState *s, const uint64_t *cmdpkt)
     } else {
         cte.rdbase = 0;
     }
+    trace_gicv3_its_cmd_mapc(icid, cte.rdbase, cte.valid);
 
     if (icid >= s->ct.num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR, "ITS MAPC: invalid ICID 0x%d", icid);
@@ -508,6 +546,8 @@ static bool update_dte(GICv3ITSState *s, uint32_t devid, const DTEntry *dte)
     uint64_t entry_addr;
     uint64_t dteval = 0;
     MemTxResult res = MEMTX_OK;
+
+    trace_gicv3_its_dte_write(devid, dte->valid, dte->size, dte->ittaddr);
 
     if (dte->valid) {
         /* add mapping entry to device table */
@@ -539,6 +579,8 @@ static ItsCmdResult process_mapd(GICv3ITSState *s, const uint64_t *cmdpkt)
     dte.ittaddr = (cmdpkt[2] & ITTADDR_MASK) >> ITTADDR_SHIFT;
     dte.valid = cmdpkt[2] & CMD_FIELD_VALID_MASK;
 
+    trace_gicv3_its_cmd_mapd(devid, dte.size, dte.ittaddr, dte.valid);
+
     if (devid >= s->dt.num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "ITS MAPD: invalid device ID field 0x%x >= 0x%x\n",
@@ -561,6 +603,8 @@ static ItsCmdResult process_movall(GICv3ITSState *s, const uint64_t *cmdpkt)
 
     rd1 = FIELD_EX64(cmdpkt[2], MOVALL_2, RDBASE1);
     rd2 = FIELD_EX64(cmdpkt[3], MOVALL_3, RDBASE2);
+
+    trace_gicv3_its_cmd_movall(rd1, rd2);
 
     if (rd1 >= s->gicv3->num_cpu) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -600,6 +644,8 @@ static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
     devid = FIELD_EX64(cmdpkt[0], MOVI_0, DEVICEID);
     eventid = FIELD_EX64(cmdpkt[1], MOVI_1, EVENTID);
     new_icid = FIELD_EX64(cmdpkt[2], MOVI_2, ICID);
+
+    trace_gicv3_its_cmd_movi(devid, eventid, new_icid);
 
     if (devid >= s->dt.num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -779,6 +825,7 @@ static void process_cmdq(GICv3ITSState *s)
              * is already consistent by the time SYNC command is executed.
              * Hence no further processing is required for SYNC command.
              */
+            trace_gicv3_its_cmd_sync();
             break;
         case GITS_CMD_MAPD:
             result = process_mapd(s, cmdpkt);
@@ -803,6 +850,7 @@ static void process_cmdq(GICv3ITSState *s)
              * need to trigger lpi priority re-calculation to be in
              * sync with LPI config table or pending table changes.
              */
+            trace_gicv3_its_cmd_inv();
             for (i = 0; i < s->gicv3->num_cpu; i++) {
                 gicv3_redist_update_lpi(&s->gicv3->cpu[i]);
             }
@@ -814,6 +862,7 @@ static void process_cmdq(GICv3ITSState *s)
             result = process_movall(s, cmdpkt);
             break;
         default:
+            trace_gicv3_its_cmd_unknown(cmd);
             break;
         }
         if (result == CMD_CONTINUE) {
@@ -1264,7 +1313,7 @@ static MemTxResult gicv3_its_read(void *opaque, hwaddr offset, uint64_t *data,
     if (!result) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid guest read at offset " TARGET_FMT_plx
-                      "size %u\n", __func__, offset, size);
+                      " size %u\n", __func__, offset, size);
         trace_gicv3_its_badread(offset, size);
         /*
          * The spec requires that reserved registers are RAZ/WI;
@@ -1300,7 +1349,7 @@ static MemTxResult gicv3_its_write(void *opaque, hwaddr offset, uint64_t data,
     if (!result) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid guest write at offset " TARGET_FMT_plx
-                      "size %u\n", __func__, offset, size);
+                      " size %u\n", __func__, offset, size);
         trace_gicv3_its_badwrite(offset, data, size);
         /*
          * The spec requires that reserved registers are RAZ/WI;

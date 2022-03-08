@@ -31,6 +31,7 @@
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/units.h"
+#include "qemu/memalign.h"
 #include "trace.h"
 #include "block/thread-pool.h"
 #include "qemu/iov.h"

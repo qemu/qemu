@@ -32,6 +32,7 @@
 #include "block/coroutines.h"
 #include "block/write-threshold.h"
 #include "qemu/cutils.h"
+#include "qemu/memalign.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"

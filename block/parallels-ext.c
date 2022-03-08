@@ -29,6 +29,7 @@
 #include "parallels.h"
 #include "crypto/hash.h"
 #include "qemu/uuid.h"
+#include "qemu/memalign.h"
 
 #define PARALLELS_FORMAT_EXTENSION_MAGIC 0xAB234CEF23DCEA87ULL
 

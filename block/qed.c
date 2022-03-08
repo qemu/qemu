@@ -20,6 +20,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
+#include "qemu/memalign.h"
 #include "trace.h"
 #include "qed.h"
 #include "sysemu/block-backend.h"

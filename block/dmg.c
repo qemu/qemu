@@ -27,6 +27,7 @@
 #include "qemu/bswap.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qemu/memalign.h"
 #include "dmg.h"
 
 int (*dmg_uncompress_bz2)(char *next_in, unsigned int avail_in,

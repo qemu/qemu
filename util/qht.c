@@ -69,6 +69,7 @@
 #include "qemu/qht.h"
 #include "qemu/atomic.h"
 #include "qemu/rcu.h"
+#include "qemu/memalign.h"
 
 //#define QHT_DEBUG
 

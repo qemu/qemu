@@ -28,6 +28,7 @@
 #include "qemu/range.h"
 #include "qemu/bswap.h"
 #include "qemu/cutils.h"
+#include "qemu/memalign.h"
 #include "trace.h"
 
 static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size,

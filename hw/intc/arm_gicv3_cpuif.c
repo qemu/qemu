@@ -612,7 +612,8 @@ static uint64_t icv_hppir_read(CPUARMState *env, const ARMCPRegInfo *ri)
         }
     }
 
-    trace_gicv3_icv_hppir_read(grp, gicv3_redist_affid(cs), value);
+    trace_gicv3_icv_hppir_read(ri->crm == 8 ? 0 : 1,
+                               gicv3_redist_affid(cs), value);
     return value;
 }
 

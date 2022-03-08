@@ -10,6 +10,7 @@
 #include "qemu/qht.h"
 #include "qemu/rcu.h"
 #include "qemu/xxhash.h"
+#include "qemu/memalign.h"
 
 struct thread_stats {
     size_t rd;

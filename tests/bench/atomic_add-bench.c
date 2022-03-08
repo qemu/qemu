@@ -2,6 +2,7 @@
 #include "qemu/thread.h"
 #include "qemu/host-utils.h"
 #include "qemu/processor.h"
+#include "qemu/memalign.h"
 
 struct thread_info {
     uint64_t r;

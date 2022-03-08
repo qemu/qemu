@@ -12,7 +12,7 @@
  */
 
 #include "qemu/osdep.h"
-
+#include "qemu/memalign.h"
 #include "qapi/error.h"
 #include "sysemu/memory_mapping.h"
 #include "migration/vmstate.h"

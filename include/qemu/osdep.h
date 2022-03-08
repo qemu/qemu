@@ -379,27 +379,9 @@ extern "C" {
 #endif
 
 int qemu_daemon(int nochdir, int noclose);
-void *qemu_try_memalign(size_t alignment, size_t size);
-void *qemu_memalign(size_t alignment, size_t size);
 void *qemu_anon_ram_alloc(size_t size, uint64_t *align, bool shared,
                           bool noreserve);
-void qemu_vfree(void *ptr);
 void qemu_anon_ram_free(void *ptr, size_t size);
-
-/*
- * It's an analog of GLIB's g_autoptr_cleanup_generic_gfree(), used to define
- * g_autofree macro.
- */
-static inline void qemu_cleanup_generic_vfree(void *p)
-{
-  void **pp = (void **)p;
-  qemu_vfree(*pp);
-}
-
-/*
- * Analog of g_autofree, but qemu_vfree is called on cleanup instead of g_free.
- */
-#define QEMU_AUTO_VFREE __attribute__((cleanup(qemu_cleanup_generic_vfree)))
 
 #ifdef _WIN32
 #define HAVE_CHARDEV_SERIAL 1

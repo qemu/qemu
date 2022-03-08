@@ -33,6 +33,7 @@
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/bswap.h"
+#include "qemu/memalign.h"
 #include "migration/blocker.h"
 #include "qemu/cutils.h"
 #include <zlib.h>

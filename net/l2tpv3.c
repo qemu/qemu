@@ -34,7 +34,7 @@
 #include "qemu/sockets.h"
 #include "qemu/iov.h"
 #include "qemu/main-loop.h"
-
+#include "qemu/memalign.h"
 
 /* The buffer size needs to be investigated for optimum numbers and
  * optimum means of paging in on different systems. This size is
