@@ -57,7 +57,6 @@ struct AspeedSMCState {
 
     qemu_irq irq;
 
-    uint32_t num_cs;
     qemu_irq *cs_lines;
     bool inject_failure;
 

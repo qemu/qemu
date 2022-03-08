@@ -1127,12 +1127,6 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
     s->r_timings = asc->r_timings;
     s->conf_enable_w0 = asc->conf_enable_w0;
 
-    /* Enforce some real HW limits */
-    if (s->num_cs > asc->max_peripherals) {
-        aspeed_smc_error("num_cs cannot exceed: %d", asc->max_peripherals);
-        s->num_cs = asc->max_peripherals;
-    }
-
     /* DMA irq. Keep it first for the initialization in the SoC */
     sysbus_init_irq(sbd, &s->irq);
 
@@ -1211,7 +1205,6 @@ static const VMStateDescription vmstate_aspeed_smc = {
 };
 
 static Property aspeed_smc_properties[] = {
-    DEFINE_PROP_UINT32("num-cs", AspeedSMCState, num_cs, 1),
     DEFINE_PROP_BOOL("inject-failure", AspeedSMCState, inject_failure, false),
     DEFINE_PROP_LINK("dram", AspeedSMCState, dram_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
