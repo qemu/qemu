@@ -1870,6 +1870,7 @@ static ssize_t virtio_net_receive_rcu(NetClientState *nc, const uint8_t *buf,
 
 err:
     for (j = 0; j < i; j++) {
+        virtqueue_detach_element(q->rx_vq, elems[j], lens[j]);
         g_free(elems[j]);
     }
 
