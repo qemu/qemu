@@ -603,6 +603,8 @@ class LinuxTest(LinuxSSHMixIn, QemuSystemTest):
         try:
             cloudinit_iso = os.path.join(self.workdir, 'cloudinit.iso')
             self.phone_home_port = network.find_free_port()
+            if not self.phone_home_port:
+                self.cancel('Failed to get a free port')
             pubkey_content = None
             if ssh_pubkey:
                 with open(ssh_pubkey) as pubkey:

@@ -9,7 +9,7 @@ int main(void)
     asm volatile(
         "    pack 2(4,%[data]),2(4,%[data])\n"
         :
-        : [data] "r" (&data[0])
+        : [data] "a" (&data[0])
         : "memory");
     for (i = 0; i < 8; i++) {
         if (data[i] != exp[i]) {
