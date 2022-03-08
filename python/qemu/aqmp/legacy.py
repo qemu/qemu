@@ -57,7 +57,7 @@ class QEMUMonitorProtocol(qemu.qmp.QEMUMonitorProtocol):
         self._timeout: Optional[float] = None
 
         if server:
-            self._aqmp._bind_hack(address)  # pylint: disable=protected-access
+            self._sync(self._aqmp.start_server(self._address))
 
     _T = TypeVar('_T')
 
@@ -90,10 +90,7 @@ class QEMUMonitorProtocol(qemu.qmp.QEMUMonitorProtocol):
         self._aqmp.await_greeting = True
         self._aqmp.negotiate = True
 
-        self._sync(
-            self._aqmp.accept(self._address),
-            timeout
-        )
+        self._sync(self._aqmp.accept(), timeout)
 
         ret = self._get_greeting()
         assert ret is not None
