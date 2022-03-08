@@ -1,7 +1,7 @@
 #
 # Docker image to cross-compile EDK2 firmware binaries
 #
-FROM ubuntu:16.04
+FROM ubuntu:18.04
 
 MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
 
