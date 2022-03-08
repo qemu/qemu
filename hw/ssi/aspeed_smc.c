@@ -224,7 +224,7 @@ static bool aspeed_smc_flash_overlap(const AspeedSMCState *s,
     AspeedSegments seg;
     int i;
 
-    for (i = 0; i < asc->max_peripherals; i++) {
+    for (i = 0; i < asc->cs_num_max; i++) {
         if (i == cs) {
             continue;
         }
@@ -290,7 +290,7 @@ static void aspeed_smc_flash_set_segment(AspeedSMCState *s, int cs,
      */
     if ((asc->segments == aspeed_2500_spi1_segments ||
          asc->segments == aspeed_2500_spi2_segments) &&
-        cs == asc->max_peripherals &&
+        cs == asc->cs_num_max &&
         seg.addr + seg.size != asc->segments[cs].addr +
         asc->segments[cs].size) {
         aspeed_smc_error("Tried to change CS%d end address to 0x%"
@@ -693,13 +693,13 @@ static void aspeed_smc_reset(DeviceState *d)
     }
 
     /* Unselect all peripherals */
-    for (i = 0; i < asc->max_peripherals; ++i) {
+    for (i = 0; i < asc->cs_num_max; ++i) {
         s->regs[s->r_ctrl0 + i] |= CTRL_CE_STOP_ACTIVE;
         qemu_set_irq(s->cs_lines[i], true);
     }
 
     /* setup the default segment register values and regions for all */
-    for (i = 0; i < asc->max_peripherals; ++i) {
+    for (i = 0; i < asc->cs_num_max; ++i) {
         aspeed_smc_flash_set_segment_region(s, i,
                     asc->segment_to_reg(s, &asc->segments[i]));
     }
@@ -729,8 +729,8 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
         (aspeed_smc_has_dma(asc) && addr == R_DMA_LEN) ||
         (aspeed_smc_has_dma(asc) && addr == R_DMA_CHECKSUM) ||
         (addr >= R_SEG_ADDR0 &&
-         addr < R_SEG_ADDR0 + asc->max_peripherals) ||
-        (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + asc->max_peripherals)) {
+         addr < R_SEG_ADDR0 + asc->cs_num_max) ||
+        (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + asc->cs_num_max)) {
 
         trace_aspeed_smc_read(addr << 2, size, s->regs[addr]);
 
@@ -1042,11 +1042,11 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
          addr < s->r_timings + asc->nregs_timings) ||
         addr == s->r_ce_ctrl) {
         s->regs[addr] = value;
-    } else if (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + asc->max_peripherals) {
+    } else if (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + asc->cs_num_max) {
         int cs = addr - s->r_ctrl0;
         aspeed_smc_flash_update_ctrl(&s->flashes[cs], value);
     } else if (addr >= R_SEG_ADDR0 &&
-               addr < R_SEG_ADDR0 + asc->max_peripherals) {
+               addr < R_SEG_ADDR0 + asc->cs_num_max) {
         int cs = addr - R_SEG_ADDR0;
 
         if (value != s->regs[R_SEG_ADDR0 + cs]) {
@@ -1090,7 +1090,7 @@ static void aspeed_smc_instance_init(Object *obj)
     AspeedSMCClass *asc = ASPEED_SMC_GET_CLASS(s);
     int i;
 
-    for (i = 0; i < asc->max_peripherals; i++) {
+    for (i = 0; i < asc->cs_num_max; i++) {
         object_initialize_child(obj, "flash[*]", &s->flashes[i],
                                 TYPE_ASPEED_SMC_FLASH);
     }
@@ -1133,9 +1133,9 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
     s->spi = ssi_create_bus(dev, "spi");
 
     /* Setup cs_lines for peripherals */
-    s->cs_lines = g_new0(qemu_irq, asc->max_peripherals);
+    s->cs_lines = g_new0(qemu_irq, asc->cs_num_max);
 
-    for (i = 0; i < asc->max_peripherals; ++i) {
+    for (i = 0; i < asc->cs_num_max; ++i) {
         sysbus_init_irq(sbd, &s->cs_lines[i]);
     }
 
@@ -1168,7 +1168,7 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
      * module behind to handle the memory accesses. This depends on
      * the board configuration.
      */
-    for (i = 0; i < asc->max_peripherals; ++i) {
+    for (i = 0; i < asc->cs_num_max; ++i) {
         AspeedSMCFlash *fl = &s->flashes[i];
 
         if (!object_property_set_link(OBJECT(fl), "controller", OBJECT(s),
@@ -1314,7 +1314,7 @@ static void aspeed_2400_smc_class_init(ObjectClass *klass, void *data)
     asc->r_timings         = R_TIMINGS;
     asc->nregs_timings     = 1;
     asc->conf_enable_w0    = CONF_ENABLE_W0;
-    asc->max_peripherals   = 1;
+    asc->cs_num_max        = 1;
     asc->segments          = aspeed_2400_smc_segments;
     asc->flash_window_base = 0x10000000;
     asc->flash_window_size = 0x6000000;
@@ -1359,7 +1359,7 @@ static void aspeed_2400_fmc_class_init(ObjectClass *klass, void *data)
     asc->r_timings         = R_TIMINGS;
     asc->nregs_timings     = 1;
     asc->conf_enable_w0    = CONF_ENABLE_W0;
-    asc->max_peripherals   = 5;
+    asc->cs_num_max        = 5;
     asc->segments          = aspeed_2400_fmc_segments;
     asc->segment_addr_mask = 0xffff0000;
     asc->resets            = aspeed_2400_fmc_resets;
@@ -1401,7 +1401,7 @@ static void aspeed_2400_spi1_class_init(ObjectClass *klass, void *data)
     asc->r_timings         = R_SPI_TIMINGS;
     asc->nregs_timings     = 1;
     asc->conf_enable_w0    = SPI_CONF_ENABLE_W0;
-    asc->max_peripherals   = 1;
+    asc->cs_num_max        = 1;
     asc->segments          = aspeed_2400_spi1_segments;
     asc->flash_window_base = 0x30000000;
     asc->flash_window_size = 0x10000000;
@@ -1442,7 +1442,7 @@ static void aspeed_2500_fmc_class_init(ObjectClass *klass, void *data)
     asc->r_timings         = R_TIMINGS;
     asc->nregs_timings     = 1;
     asc->conf_enable_w0    = CONF_ENABLE_W0;
-    asc->max_peripherals   = 3;
+    asc->cs_num_max        = 3;
     asc->segments          = aspeed_2500_fmc_segments;
     asc->segment_addr_mask = 0xffff0000;
     asc->resets            = aspeed_2500_fmc_resets;
@@ -1480,7 +1480,7 @@ static void aspeed_2500_spi1_class_init(ObjectClass *klass, void *data)
     asc->r_timings         = R_TIMINGS;
     asc->nregs_timings     = 1;
     asc->conf_enable_w0    = CONF_ENABLE_W0;
-    asc->max_peripherals   = 2;
+    asc->cs_num_max        = 2;
     asc->segments          = aspeed_2500_spi1_segments;
     asc->segment_addr_mask = 0xffff0000;
     asc->flash_window_base = 0x30000000;
@@ -1515,7 +1515,7 @@ static void aspeed_2500_spi2_class_init(ObjectClass *klass, void *data)
     asc->r_timings         = R_TIMINGS;
     asc->nregs_timings     = 1;
     asc->conf_enable_w0    = CONF_ENABLE_W0;
-    asc->max_peripherals   = 2;
+    asc->cs_num_max        = 2;
     asc->segments          = aspeed_2500_spi2_segments;
     asc->segment_addr_mask = 0xffff0000;
     asc->flash_window_base = 0x38000000;
@@ -1597,7 +1597,7 @@ static void aspeed_2600_fmc_class_init(ObjectClass *klass, void *data)
     asc->r_timings         = R_TIMINGS;
     asc->nregs_timings     = 1;
     asc->conf_enable_w0    = CONF_ENABLE_W0;
-    asc->max_peripherals   = 3;
+    asc->cs_num_max        = 3;
     asc->segments          = aspeed_2600_fmc_segments;
     asc->segment_addr_mask = 0x0ff00ff0;
     asc->resets            = aspeed_2600_fmc_resets;
@@ -1636,7 +1636,7 @@ static void aspeed_2600_spi1_class_init(ObjectClass *klass, void *data)
     asc->r_timings         = R_TIMINGS;
     asc->nregs_timings     = 2;
     asc->conf_enable_w0    = CONF_ENABLE_W0;
-    asc->max_peripherals   = 2;
+    asc->cs_num_max        = 2;
     asc->segments          = aspeed_2600_spi1_segments;
     asc->segment_addr_mask = 0x0ff00ff0;
     asc->flash_window_base = 0x30000000;
@@ -1675,7 +1675,7 @@ static void aspeed_2600_spi2_class_init(ObjectClass *klass, void *data)
     asc->r_timings         = R_TIMINGS;
     asc->nregs_timings     = 3;
     asc->conf_enable_w0    = CONF_ENABLE_W0;
-    asc->max_peripherals   = 3;
+    asc->cs_num_max        = 3;
     asc->segments          = aspeed_2600_spi2_segments;
     asc->segment_addr_mask = 0x0ff00ff0;
     asc->flash_window_base = 0x50000000;

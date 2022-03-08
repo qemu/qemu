@@ -95,7 +95,7 @@ struct AspeedSMCClass {
     uint8_t r_timings;
     uint8_t nregs_timings;
     uint8_t conf_enable_w0;
-    uint8_t max_peripherals;
+    uint8_t cs_num_max;
     const uint32_t *resets;
     const AspeedSegments *segments;
     uint32_t segment_addr_mask;
