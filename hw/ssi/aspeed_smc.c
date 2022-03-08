@@ -1130,7 +1130,7 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
     /* DMA irq. Keep it first for the initialization in the SoC */
     sysbus_init_irq(sbd, &s->irq);
 
-    s->spi = ssi_create_bus(dev, "spi");
+    s->spi = ssi_create_bus(dev, NULL);
 
     /* Setup cs_lines for peripherals */
     s->cs_lines = g_new0(qemu_irq, asc->cs_num_max);
