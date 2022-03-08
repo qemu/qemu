@@ -274,7 +274,11 @@ static void write_boot_rom(DriveInfo *dinfo, hwaddr addr, size_t rom_size,
 static void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
                                       unsigned int count, int unit0)
 {
-    int i ;
+    int i;
+
+    if (!flashtype) {
+        return;
+    }
 
     for (i = 0; i < count; ++i) {
         DriveInfo *dinfo = drive_get(IF_MTD, 0, unit0 + i);
