@@ -246,7 +246,7 @@ static void write_boot_rom(DriveInfo *dinfo, hwaddr addr, size_t rom_size,
                            Error **errp)
 {
     BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
-    uint8_t *storage;
+    g_autofree void *storage = NULL;
     int64_t size;
 
     /* The block backend size should have already been 'validated' by
@@ -262,14 +262,13 @@ static void write_boot_rom(DriveInfo *dinfo, hwaddr addr, size_t rom_size,
         rom_size = size;
     }
 
-    storage = g_new0(uint8_t, rom_size);
+    storage = g_malloc0(rom_size);
     if (blk_pread(blk, 0, storage, rom_size) < 0) {
         error_setg(errp, "failed to read the initial flash content");
         return;
     }
 
     rom_add_blob_fixed("aspeed.boot_rom", storage, rom_size, addr);
-    g_free(storage);
 }
 
 static void aspeed_board_init_flashes(AspeedSMCState *s,
