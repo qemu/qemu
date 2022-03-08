@@ -25,7 +25,7 @@ config APIC
     select MSI_NONBROKEN
     select I8259
 
-config ARM_GIC_TCG
+config ARM_GICV3_TCG
     bool
     default y
     depends on ARM_GIC && TCG
