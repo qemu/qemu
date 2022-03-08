@@ -20,7 +20,7 @@ RUN apt update \
         iasl \
         make \
         nasm \
-        python \
+        python3 \
         uuid-dev \
     && \
     \
