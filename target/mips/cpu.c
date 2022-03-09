@@ -434,14 +434,13 @@ static void mips_cpu_disas_set_info(CPUState *s, disassemble_info *info)
  * Since commit 6af0bf9c7c3 this model assumes a CPU clocked at 200MHz.
  */
 #define CPU_FREQ_HZ_DEFAULT     200000000
-#define CP0_COUNT_RATE_DEFAULT  2
 
 static void mips_cp0_period_set(MIPSCPU *cpu)
 {
     CPUMIPSState *env = &cpu->env;
 
     env->cp0_count_ns = clock_ticks_to_ns(MIPS_CPU(cpu)->clock,
-                                          cpu->cp0_count_rate);
+                                          env->cpu_model->CCRes);
     assert(env->cp0_count_ns);
 }
 
@@ -514,13 +513,6 @@ static ObjectClass *mips_cpu_class_by_name(const char *cpu_model)
     return oc;
 }
 
-static Property mips_cpu_properties[] = {
-    /* CP0 timer running at half the clock of the CPU */
-    DEFINE_PROP_UINT32("cp0-count-rate", MIPSCPU, cp0_count_rate,
-                       CP0_COUNT_RATE_DEFAULT),
-    DEFINE_PROP_END_OF_LIST()
-};
-
 #ifndef CONFIG_USER_ONLY
 #include "hw/core/sysemu-cpu-ops.h"
 
@@ -560,7 +552,6 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
     device_class_set_parent_realize(dc, mips_cpu_realizefn,
                                     &mcc->parent_realize);
     device_class_set_parent_reset(dc, mips_cpu_reset, &mcc->parent_reset);
-    device_class_set_props(dc, mips_cpu_properties);
 
     cc->class_by_name = mips_cpu_class_by_name;
     cc->has_work = mips_cpu_has_work;

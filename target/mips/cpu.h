@@ -1167,7 +1167,6 @@ typedef struct CPUArchState {
  * @env: #CPUMIPSState
  * @clock: this CPU input clock (may be connected
  *         to an output clock from another device).
- * @cp0_count_rate: rate at which the coprocessor 0 counter increments
  *
  * A MIPS CPU.
  */
@@ -1179,14 +1178,6 @@ struct ArchCPU {
     Clock *clock;
     CPUNegativeOffsetState neg;
     CPUMIPSState env;
-    /*
-     * The Count register acts as a timer, incrementing at a constant rate,
-     * whether or not an instruction is executed, retired, or any forward
-     * progress is made through the pipeline. The rate at which the counter
-     * increments is implementation dependent, and is a function of the
-     * pipeline clock of the processor, not the issue width of the processor.
-     */
-    unsigned cp0_count_rate;
 };
 
 

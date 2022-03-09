@@ -25,6 +25,7 @@ struct RTCState {
     MemoryRegion coalesced_io;
     uint8_t cmos_data[128];
     uint8_t cmos_index;
+    uint8_t isairq;
     int32_t base_year;
     uint64_t base_rtc;
     uint64_t last_update;

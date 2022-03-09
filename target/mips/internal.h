@@ -47,6 +47,15 @@ struct mips_def_t {
     target_ulong CP0_LLAddr_rw_bitmask;
     int CP0_LLAddr_shift;
     int32_t SYNCI_Step;
+    /*
+     * @CCRes: rate at which the coprocessor 0 counter increments
+     *
+     * The Count register acts as a timer, incrementing at a constant rate,
+     * whether or not an instruction is executed, retired, or any forward
+     * progress is made through the pipeline. The rate at which the counter
+     * increments is implementation dependent, and is a function of the
+     * pipeline clock of the processor, not the issue width of the processor.
+     */
     int32_t CCRes;
     int32_t CP0_Status_rw_bitmask;
     int32_t CP0_TCStatus_rw_bitmask;

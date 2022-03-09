@@ -9,9 +9,6 @@
 
 #include "exec/memory.h"
 
-/* gt64xxx.c */
-PCIBus *gt64120_register(qemu_irq *pic);
-
 /* bonito.c */
 PCIBus *bonito_init(qemu_irq *pic);
 
