@@ -11,7 +11,7 @@
 
 uint64_t saved;
 
-void sigill_handler(int sig, siginfo_t *si, void *ucontext)
+void sigtrap_handler(int sig, siginfo_t *si, void *ucontext)
 {
     ucontext_t *uc = ucontext;
     uc->uc_mcontext.regs->nip += 4;
@@ -23,14 +23,14 @@ int main(void)
 {
     uint64_t initial = XER_CA | XER_CA32, restored;
     struct sigaction sa = {
-        .sa_sigaction = sigill_handler,
+        .sa_sigaction = sigtrap_handler,
         .sa_flags = SA_SIGINFO
     };
 
-    sigaction(SIGILL, &sa, NULL);
+    sigaction(SIGTRAP, &sa, NULL);
 
     asm("mtspr 1, %1\n\t"
-        ".long 0x0\n\t"
+        "trap\n\t"
         "mfspr %0, 1\n\t"
         : "=r" (restored)
         : "r" (initial));

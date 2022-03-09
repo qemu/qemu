@@ -181,7 +181,8 @@ void cpu_loop(CPUPPCState *env)
                 }
                 break;
             case POWERPC_EXCP_TRAP:
-                cpu_abort(cs, "Tried to call a TRAP\n");
+                si_signo = TARGET_SIGTRAP;
+                si_code = TARGET_TRAP_BRKPT;
                 break;
             default:
                 /* Should not happen ! */
