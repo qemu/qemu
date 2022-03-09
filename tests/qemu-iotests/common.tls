@@ -24,6 +24,7 @@ tls_x509_cleanup()
 {
     rm -f "${tls_dir}"/*.pem
     rm -f "${tls_dir}"/*/*.pem
+    rm -f "${tls_dir}"/*/*.psk
     rmdir "${tls_dir}"/*
     rmdir "${tls_dir}"
 }
@@ -39,6 +40,18 @@ tls_certtool()
     fi
     rm -f "${tls_dir}"/certtool.log
 }
+
+tls_psktool()
+{
+    psktool "$@" 1>"${tls_dir}"/psktool.log 2>&1
+    if test "$?" = 0; then
+      head -1 "${tls_dir}"/psktool.log
+    else
+      cat "${tls_dir}"/psktool.log
+    fi
+    rm -f "${tls_dir}"/psktool.log
+}
+
 
 tls_x509_init()
 {
@@ -118,12 +131,13 @@ tls_x509_create_server()
     caname=$1
     name=$2
 
+    # We don't include 'localhost' in the cert, as
+    # we want to keep it unlisted to let tests
+    # validate hostname override
     mkdir -p "${tls_dir}/$name"
     cat > "${tls_dir}/cert.info" <<EOF
 organization = Cthulhu Dark Lord Enterprises $name
-cn = localhost
-dns_name = localhost
-dns_name = localhost.localdomain
+cn = iotests.qemu.org
 ip_address = 127.0.0.1
 ip_address = ::1
 tls_www_server
@@ -174,4 +188,15 @@ EOF
     ln -s "${tls_dir}/key.pem" "${tls_dir}/$name/client-key.pem"
 
     rm -f "${tls_dir}/cert.info"
+}
+
+tls_psk_create_creds()
+{
+    name=$1
+
+    mkdir -p "${tls_dir}/$name"
+
+    tls_psktool \
+	--pskfile "${tls_dir}/$name/keys.psk" \
+	--username "$name"
 }

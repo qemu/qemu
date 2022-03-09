@@ -33,6 +33,7 @@ struct NBDClientConnection {
     /* Initialization constants, never change */
     SocketAddress *saddr; /* address to connect to */
     QCryptoTLSCreds *tlscreds;
+    char *tlshostname;
     NBDExportInfo initial_info;
     bool do_negotiation;
     bool do_retry;
@@ -77,7 +78,8 @@ NBDClientConnection *nbd_client_connection_new(const SocketAddress *saddr,
                                                bool do_negotiation,
                                                const char *export_name,
                                                const char *x_dirty_bitmap,
-                                               QCryptoTLSCreds *tlscreds)
+                                               QCryptoTLSCreds *tlscreds,
+                                               const char *tlshostname)
 {
     NBDClientConnection *conn = g_new(NBDClientConnection, 1);
 
@@ -85,6 +87,7 @@ NBDClientConnection *nbd_client_connection_new(const SocketAddress *saddr,
     *conn = (NBDClientConnection) {
         .saddr = QAPI_CLONE(SocketAddress, saddr),
         .tlscreds = tlscreds,
+        .tlshostname = g_strdup(tlshostname),
         .do_negotiation = do_negotiation,
 
         .initial_info.request_sizes = true,
@@ -107,6 +110,7 @@ static void nbd_client_connection_do_free(NBDClientConnection *conn)
     }
     error_free(conn->err);
     qapi_free_SocketAddress(conn->saddr);
+    g_free(conn->tlshostname);
     object_unref(OBJECT(conn->tlscreds));
     g_free(conn->initial_info.x_dirty_bitmap);
     g_free(conn->initial_info.name);
@@ -120,6 +124,7 @@ static void nbd_client_connection_do_free(NBDClientConnection *conn)
  */
 static int nbd_connect(QIOChannelSocket *sioc, SocketAddress *addr,
                        NBDExportInfo *info, QCryptoTLSCreds *tlscreds,
+                       const char *tlshostname,
                        QIOChannel **outioc, Error **errp)
 {
     int ret;
@@ -140,7 +145,7 @@ static int nbd_connect(QIOChannelSocket *sioc, SocketAddress *addr,
     }
 
     ret = nbd_receive_negotiate(NULL, QIO_CHANNEL(sioc), tlscreds,
-                                tlscreds ? addr->u.inet.host : NULL,
+                                tlshostname,
                                 outioc, info, errp);
     if (ret < 0) {
         /*
@@ -183,7 +188,8 @@ static void *connect_thread_func(void *opaque)
 
         ret = nbd_connect(conn->sioc, conn->saddr,
                           conn->do_negotiation ? &conn->updated_info : NULL,
-                          conn->tlscreds, &conn->ioc, &local_err);
+                          conn->tlscreds, conn->tlshostname,
+                          &conn->ioc, &local_err);
 
         /*
          * conn->updated_info will finally be returned to the user. Clear the
