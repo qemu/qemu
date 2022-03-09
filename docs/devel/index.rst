@@ -7,44 +7,12 @@ You only need to read it if you are interested in reading or
 modifying QEMU's source code.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :includehidden:
 
-   code-of-conduct
-   conflict-resolution
-   build-system
-   style
-   kconfig
-   testing
-   fuzzing
-   control-flow-integrity
-   loads-stores
-   memory
-   migration
-   atomics
-   stable-process
-   ci
-   qtest
-   decodetree
-   secure-coding-practices
-   tcg
-   tcg-icount
-   tracing
-   multi-thread-tcg
-   tcg-plugins
-   bitops
-   ui
-   reset
-   s390-dasd-ipl
-   clocks
-   qom
-   modules
-   block-coroutine-wrapper
-   multi-process
-   ebpf_rss
-   vfio-migration
-   qapi-code-gen
-   writing-monitor-commands
-   trivial-patches
-   submitting-a-patch
-   submitting-a-pull-request
+
+   index-process
+   index-build
+   index-api
+   index-internals
+   index-tcg
