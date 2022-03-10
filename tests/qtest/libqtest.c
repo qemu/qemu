@@ -612,9 +612,12 @@ QDict *qmp_fd_receive(int fd)
         }
 
         if (log) {
-            len = write(2, &c, 1);
+            g_assert(write(2, &c, 1) == 1);
         }
         json_message_parser_feed(&qmp.parser, &c, 1);
+    }
+    if (log) {
+        g_assert(write(2, "\n", 1) == 1);
     }
     json_message_parser_destroy(&qmp.parser);
 
