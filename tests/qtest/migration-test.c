@@ -778,6 +778,30 @@ static void test_baddest(void)
     test_migrate_end(from, to, false);
 }
 
+/*
+ * A hook that runs after the src and dst QEMUs have been
+ * created, but before the migration is started. This can
+ * be used to set migration parameters and capabilities.
+ *
+ * Returns: NULL, or a pointer to opaque state to be
+ *          later passed to the TestMigrateFinishHook
+ */
+typedef void * (*TestMigrateStartHook)(QTestState *from,
+                                       QTestState *to);
+
+/*
+ * A hook that runs after the migration has finished,
+ * regardless of whether it succeeded or failed, but
+ * before QEMU has terminated (unless it self-terminated
+ * due to migration error)
+ *
+ * @opaque is a pointer to state previously returned
+ * by the TestMigrateStartHook if any, or NULL.
+ */
+typedef void (*TestMigrateFinishHook)(QTestState *from,
+                                      QTestState *to,
+                                      void *opaque);
+
 typedef struct {
     /* Optional: fine tune start parameters */
     MigrateStart start;
@@ -792,11 +816,17 @@ typedef struct {
      * This allows for dynamically picking a free TCP port.
      */
     const char *connect_uri;
+
+    /* Optional: callback to run at start to set migration parameters */
+    TestMigrateStartHook start_hook;
+    /* Optional: callback to run at finish to cleanup */
+    TestMigrateFinishHook finish_hook;
 } MigrateCommon;
 
 static void test_precopy_common(MigrateCommon *args)
 {
     QTestState *from, *to;
+    void *data_hook = NULL;
 
     if (test_migrate_start(&from, &to, args->listen_uri, &args->start)) {
         return;
@@ -811,6 +841,10 @@ static void test_precopy_common(MigrateCommon *args)
     migrate_set_parameter_int(from, "downtime-limit", 1);
     /* 1GB/s */
     migrate_set_parameter_int(from, "max-bandwidth", 1000000000);
+
+    if (args->start_hook) {
+        data_hook = args->start_hook(from, to);
+    }
 
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
@@ -836,6 +870,10 @@ static void test_precopy_common(MigrateCommon *args)
 
     wait_for_serial("dest_serial");
     wait_for_migration_complete(from);
+
+    if (args->finish_hook) {
+        args->finish_hook(from, to, data_hook);
+    }
 
     test_migrate_end(from, to, true);
 }
