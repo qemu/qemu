@@ -18,19 +18,17 @@
 #define VIA_SIZE   0x2000
 
 /* VIA 1 */
-#define VIA1_IRQ_ONE_SECOND_BIT 0
-#define VIA1_IRQ_60HZ_BIT       1
-#define VIA1_IRQ_ADB_READY_BIT  2
-#define VIA1_IRQ_ADB_DATA_BIT   3
-#define VIA1_IRQ_ADB_CLOCK_BIT  4
+#define VIA1_IRQ_ONE_SECOND_BIT CA2_INT_BIT
+#define VIA1_IRQ_60HZ_BIT       CA1_INT_BIT
+#define VIA1_IRQ_ADB_READY_BIT  SR_INT_BIT
+#define VIA1_IRQ_ADB_DATA_BIT   CB2_INT_BIT
+#define VIA1_IRQ_ADB_CLOCK_BIT  CB1_INT_BIT
 
-#define VIA1_IRQ_NB             8
-
-#define VIA1_IRQ_ONE_SECOND     (1 << VIA1_IRQ_ONE_SECOND_BIT)
-#define VIA1_IRQ_60HZ           (1 << VIA1_IRQ_60HZ_BIT)
-#define VIA1_IRQ_ADB_READY      (1 << VIA1_IRQ_ADB_READY_BIT)
-#define VIA1_IRQ_ADB_DATA       (1 << VIA1_IRQ_ADB_DATA_BIT)
-#define VIA1_IRQ_ADB_CLOCK      (1 << VIA1_IRQ_ADB_CLOCK_BIT)
+#define VIA1_IRQ_ONE_SECOND     BIT(VIA1_IRQ_ONE_SECOND_BIT)
+#define VIA1_IRQ_60HZ           BIT(VIA1_IRQ_60HZ_BIT)
+#define VIA1_IRQ_ADB_READY      BIT(VIA1_IRQ_ADB_READY_BIT)
+#define VIA1_IRQ_ADB_DATA       BIT(VIA1_IRQ_ADB_DATA_BIT)
+#define VIA1_IRQ_ADB_CLOCK      BIT(VIA1_IRQ_ADB_CLOCK_BIT)
 
 
 #define TYPE_MOS6522_Q800_VIA1 "mos6522-q800-via1"
@@ -42,7 +40,6 @@ struct MOS6522Q800VIA1State {
 
     MemoryRegion via_mem;
 
-    qemu_irq irqs[VIA1_IRQ_NB];
     qemu_irq auxmode_irq;
     uint8_t last_b;
 
@@ -80,19 +77,16 @@ struct MOS6522Q800VIA1State {
 
 
 /* VIA 2 */
-#define VIA2_IRQ_SCSI_DATA_BIT  0
-#define VIA2_IRQ_NUBUS_BIT      1
-#define VIA2_IRQ_UNUSED_BIT     2
-#define VIA2_IRQ_SCSI_BIT       3
-#define VIA2_IRQ_ASC_BIT        4
+#define VIA2_IRQ_SCSI_DATA_BIT  CA2_INT_BIT
+#define VIA2_IRQ_NUBUS_BIT      CA1_INT_BIT
+#define VIA2_IRQ_SCSI_BIT       CB2_INT_BIT
+#define VIA2_IRQ_ASC_BIT        CB1_INT_BIT
 
-#define VIA2_IRQ_NB             8
-
-#define VIA2_IRQ_SCSI_DATA      (1 << VIA2_IRQ_SCSI_DATA_BIT)
-#define VIA2_IRQ_NUBUS          (1 << VIA2_IRQ_NUBUS_BIT)
-#define VIA2_IRQ_UNUSED         (1 << VIA2_IRQ_SCSI_BIT)
-#define VIA2_IRQ_SCSI           (1 << VIA2_IRQ_UNUSED_BIT)
-#define VIA2_IRQ_ASC            (1 << VIA2_IRQ_ASC_BIT)
+#define VIA2_IRQ_SCSI_DATA      BIT(VIA2_IRQ_SCSI_DATA_BIT)
+#define VIA2_IRQ_NUBUS          BIT(VIA2_IRQ_NUBUS_BIT)
+#define VIA2_IRQ_UNUSED         BIT(VIA2_IRQ_SCSI_BIT)
+#define VIA2_IRQ_SCSI           BIT(VIA2_IRQ_UNUSED_BIT)
+#define VIA2_IRQ_ASC            BIT(VIA2_IRQ_ASC_BIT)
 
 #define VIA2_NUBUS_IRQ_NB       7
 

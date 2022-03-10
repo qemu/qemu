@@ -193,8 +193,6 @@ struct PMUState {
 
     MemoryRegion mem;
     uint64_t frequency;
-    qemu_irq via_irq;
-    bool via_irq_state;
 
     /* PMU state */
     MOS6522PMUState mos6522_pmu;

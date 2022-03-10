@@ -48,7 +48,8 @@ typedef struct MacFbMode {
     uint32_t offset;
 } MacFbMode;
 
-#define MACFB_NUM_REGS      8
+#define MACFB_CTRL_TOPADDR  0x200
+#define MACFB_NUM_REGS      (MACFB_CTRL_TOPADDR / sizeof(uint32_t))
 
 typedef struct MacfbState {
     MemoryRegion mem_vram;
@@ -66,8 +67,6 @@ typedef struct MacfbState {
     uint32_t regs[MACFB_NUM_REGS];
     MacFbMode *mode;
 
-    uint32_t irq_state;
-    uint32_t irq_mask;
     QEMUTimer *vbl_timer;
     qemu_irq irq;
 } MacfbState;

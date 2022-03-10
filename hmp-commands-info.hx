@@ -879,3 +879,18 @@ SRST
   ``info sgx``
     Show intel SGX information.
 ERST
+
+#if defined(TARGET_M68K) || defined(TARGET_PPC)
+    {
+        .name         = "via",
+        .args_type    = "",
+        .params       = "",
+        .help         = "show guest mos6522 VIA devices",
+        .cmd          = hmp_info_via,
+    },
+#endif
+
+SRST
+  ``info via``
+    Show guest mos6522 VIA devices.
+ERST

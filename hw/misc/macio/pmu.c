@@ -57,27 +57,14 @@
 
 #define VIA_TIMER_FREQ (4700000 / 6)
 
-static void via_update_irq(PMUState *s)
-{
-    MOS6522PMUState *mps = MOS6522_PMU(&s->mos6522_pmu);
-    MOS6522State *ms = MOS6522(mps);
-
-    bool new_state = !!(ms->ifr & ms->ier & (SR_INT | T1_INT | T2_INT));
-
-    if (new_state != s->via_irq_state) {
-        s->via_irq_state = new_state;
-        qemu_set_irq(s->via_irq, new_state);
-    }
-}
-
 static void via_set_sr_int(void *opaque)
 {
     PMUState *s = opaque;
     MOS6522PMUState *mps = MOS6522_PMU(&s->mos6522_pmu);
     MOS6522State *ms = MOS6522(mps);
-    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(ms);
+    qemu_irq irq = qdev_get_gpio_in(DEVICE(ms), SR_INT_BIT);
 
-    mdc->set_sr_int(ms);
+    qemu_set_irq(irq, 1);
 }
 
 static void pmu_update_extirq(PMUState *s)
@@ -808,26 +795,7 @@ static void mos6522_pmu_portB_write(MOS6522State *s)
     MOS6522PMUState *mps = container_of(s, MOS6522PMUState, parent_obj);
     PMUState *ps = container_of(mps, PMUState, mos6522_pmu);
 
-    if ((s->pcr & 0xe0) == 0x20 || (s->pcr & 0xe0) == 0x60) {
-        s->ifr &= ~CB2_INT;
-    }
-    s->ifr &= ~CB1_INT;
-
-    via_update_irq(ps);
     pmu_update(ps);
-}
-
-static void mos6522_pmu_portA_write(MOS6522State *s)
-{
-    MOS6522PMUState *mps = container_of(s, MOS6522PMUState, parent_obj);
-    PMUState *ps = container_of(mps, PMUState, mos6522_pmu);
-
-    if ((s->pcr & 0x0e) == 0x02 || (s->pcr & 0x0e) == 0x06) {
-        s->ifr &= ~CA2_INT;
-    }
-    s->ifr &= ~CA1_INT;
-
-    via_update_irq(ps);
 }
 
 static void mos6522_pmu_reset(DeviceState *dev)
@@ -850,9 +818,9 @@ static void mos6522_pmu_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
 
-    dc->reset = mos6522_pmu_reset;
+    device_class_set_parent_reset(dc, mos6522_pmu_reset,
+                                  &mdc->parent_reset);
     mdc->portB_write = mos6522_pmu_portB_write;
-    mdc->portA_write = mos6522_pmu_portA_write;
 }
 
 static const TypeInfo mos6522_pmu_type_info = {
