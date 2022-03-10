@@ -778,19 +778,32 @@ static void test_baddest(void)
     test_migrate_end(from, to, false);
 }
 
-static void test_precopy_unix_common(bool dirty_ring)
+typedef struct {
+    /* Optional: fine tune start parameters */
+    MigrateStart start;
+
+    /* Required: the URI for the dst QEMU to listen on */
+    const char *listen_uri;
+
+    /*
+     * Optional: the URI for the src QEMU to connect to
+     * If NULL, then it will query the dst QEMU for its actual
+     * listening address and use that as the connect address.
+     * This allows for dynamically picking a free TCP port.
+     */
+    const char *connect_uri;
+} MigrateCommon;
+
+static void test_precopy_common(MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-    MigrateStart args = {
-        .use_dirty_ring = dirty_ring,
-    };
     QTestState *from, *to;
 
-    if (test_migrate_start(&from, &to, uri, &args)) {
+    if (test_migrate_start(&from, &to, args->listen_uri, &args->start)) {
         return;
     }
 
-    /* We want to pick a speed slow enough that the test completes
+    /*
+     * We want to pick a speed slow enough that the test completes
      * quickly, but that it doesn't complete precopy even on a slow
      * machine, so also set the downtime.
      */
@@ -802,7 +815,14 @@ static void test_precopy_unix_common(bool dirty_ring)
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    migrate_qmp(from, uri, "{}");
+    if (!args->connect_uri) {
+        g_autofree char *local_connect_uri =
+            migrate_get_socket_address(to, "socket-address");
+        migrate_qmp(from, local_connect_uri, "{}");
+    } else {
+        migrate_qmp(from, args->connect_uri, "{}");
+    }
+
 
     wait_for_migration_pass(from);
 
@@ -822,14 +842,27 @@ static void test_precopy_unix_common(bool dirty_ring)
 
 static void test_precopy_unix(void)
 {
-    /* Using default dirty logging */
-    test_precopy_unix_common(false);
+    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    MigrateCommon args = {
+        .listen_uri = uri,
+        .connect_uri = uri,
+    };
+
+    test_precopy_common(&args);
 }
 
 static void test_precopy_unix_dirty_ring(void)
 {
-    /* Using dirty ring tracking */
-    test_precopy_unix_common(true);
+    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    MigrateCommon args = {
+        .start = {
+            .use_dirty_ring = true,
+        },
+        .listen_uri = uri,
+        .connect_uri = uri,
+    };
+
+    test_precopy_common(&args);
 }
 
 #if 0
@@ -924,44 +957,11 @@ static void test_xbzrle_unix(void)
 
 static void test_precopy_tcp(void)
 {
-    MigrateStart args = {};
-    g_autofree char *uri = NULL;
-    QTestState *from, *to;
+    MigrateCommon args = {
+        .listen_uri = "tcp:127.0.0.1:0",
+    };
 
-    if (test_migrate_start(&from, &to, "tcp:127.0.0.1:0", &args)) {
-        return;
-    }
-
-    /*
-     * We want to pick a speed slow enough that the test completes
-     * quickly, but that it doesn't complete precopy even on a slow
-     * machine, so also set the downtime.
-     */
-    /* 1 ms should make it not converge*/
-    migrate_set_parameter_int(from, "downtime-limit", 1);
-    /* 1GB/s */
-    migrate_set_parameter_int(from, "max-bandwidth", 1000000000);
-
-    /* Wait for the first serial output from the source */
-    wait_for_serial("src_serial");
-
-    uri = migrate_get_socket_address(to, "socket-address");
-
-    migrate_qmp(from, uri, "{}");
-
-    wait_for_migration_pass(from);
-
-    migrate_set_parameter_int(from, "downtime-limit", CONVERGE_DOWNTIME);
-
-    if (!got_stop) {
-        qtest_qmp_eventwait(from, "STOP");
-    }
-    qtest_qmp_eventwait(to, "RESUME");
-
-    wait_for_serial("dest_serial");
-    wait_for_migration_complete(from);
-
-    test_migrate_end(from, to, true);
+    test_precopy_common(&args);
 }
 
 static void test_migrate_fd_proto(void)
