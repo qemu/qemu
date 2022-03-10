@@ -821,6 +821,30 @@ typedef struct {
     TestMigrateStartHook start_hook;
     /* Optional: callback to run at finish to cleanup */
     TestMigrateFinishHook finish_hook;
+
+    /*
+     * Optional: normally we expect the migration process to complete.
+     *
+     * There can be a variety of reasons and stages in which failure
+     * can happen during tests.
+     *
+     * If a failure is expected to happen at time of establishing
+     * the connection, then MIG_TEST_FAIL will indicate that the dst
+     * QEMU is expected to stay running and accept future migration
+     * connections.
+     *
+     * If a failure is expected to happen while processing the
+     * migration stream, then MIG_TEST_FAIL_DEST_QUIT_ERR will indicate
+     * that the dst QEMU is expected to quit with non-zero exit status
+     */
+    enum {
+        /* This test should succeed, the default */
+        MIG_TEST_SUCCEED = 0,
+        /* This test should fail, dest qemu should keep alive */
+        MIG_TEST_FAIL,
+        /* This test should fail, dest qemu should fail with abnormal status */
+        MIG_TEST_FAIL_DEST_QUIT_ERR,
+    } result;
 } MigrateCommon;
 
 static void test_precopy_common(MigrateCommon *args)
@@ -858,24 +882,33 @@ static void test_precopy_common(MigrateCommon *args)
     }
 
 
-    wait_for_migration_pass(from);
+    if (args->result != MIG_TEST_SUCCEED) {
+        bool allow_active = args->result == MIG_TEST_FAIL;
+        wait_for_migration_fail(from, allow_active);
 
-    migrate_set_parameter_int(from, "downtime-limit", CONVERGE_DOWNTIME);
+        if (args->result == MIG_TEST_FAIL_DEST_QUIT_ERR) {
+            qtest_set_expected_status(to, 1);
+        }
+    } else {
+        wait_for_migration_pass(from);
 
-    if (!got_stop) {
-        qtest_qmp_eventwait(from, "STOP");
+        migrate_set_parameter_int(from, "downtime-limit", CONVERGE_DOWNTIME);
+
+        if (!got_stop) {
+            qtest_qmp_eventwait(from, "STOP");
+        }
+
+        qtest_qmp_eventwait(to, "RESUME");
+
+        wait_for_serial("dest_serial");
+        wait_for_migration_complete(from);
     }
-
-    qtest_qmp_eventwait(to, "RESUME");
-
-    wait_for_serial("dest_serial");
-    wait_for_migration_complete(from);
 
     if (args->finish_hook) {
         args->finish_hook(from, to, data_hook);
     }
 
-    test_migrate_end(from, to, true);
+    test_migrate_end(from, to, args->result == MIG_TEST_SUCCEED);
 }
 
 static void test_precopy_unix(void)
