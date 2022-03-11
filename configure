@@ -2248,7 +2248,7 @@ static void foo_free(Foo *f)
 {
     g_free(f);
 }
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(Foo, foo_free);
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(Foo, foo_free)
 int main(void) { return 0; }
 EOF
 if ! compile_prog "$glib_cflags -Werror" "$glib_libs" ; then

@@ -2064,7 +2064,7 @@ static void nbd_extent_array_free(NBDExtentArray *ea)
     g_free(ea->extents);
     g_free(ea);
 }
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(NBDExtentArray, nbd_extent_array_free);
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(NBDExtentArray, nbd_extent_array_free)
 
 /* Further modifications of the array after conversion are abandoned */
 static void nbd_extent_array_convert_to_be(NBDExtentArray *ea)
