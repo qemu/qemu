@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -164,11 +164,9 @@
         target_ulong va = EA; \
         target_ulong va_high = EA + LEN; \
         uintptr_t ra = GETPC(); \
-        int log_bank = 0; \
         int log_byte = 0; \
         for (i0 = 0; i0 < ELEMENT_SIZE; i0++) { \
             log_byte = ((va + i0) <= va_high) && QVAL; \
-            log_bank |= (log_byte << i0); \
             uint8_t B; \
             B = cpu_ldub_data_ra(env, EA + i0, ra); \
             env->tmp_VRegs[0].ub[ELEMENT_SIZE * IDX + i0] = B; \
@@ -243,11 +241,9 @@
         int i0; \
         target_ulong va = EA; \
         target_ulong va_high = EA + LEN; \
-        int log_bank = 0; \
         int log_byte = 0; \
         for (i0 = 0; i0 < ELEM_SIZE; i0++) { \
             log_byte = ((va + i0) <= va_high) && QVAL; \
-            log_bank |= (log_byte << i0); \
             LOG_VTCM_BYTE(va + i0, log_byte, IN.ub[ELEM_SIZE * IDX + i0], \
                           ELEM_SIZE * IDX + i0); \
         } \

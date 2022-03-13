@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -304,8 +304,8 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
 
 int32_t HELPER(fcircadd)(int32_t RxV, int32_t offset, int32_t M, int32_t CS)
 {
-    int32_t K_const = sextract32(M, 24, 4);
-    int32_t length = sextract32(M, 0, 17);
+    uint32_t K_const = extract32(M, 24, 4);
+    uint32_t length = extract32(M, 0, 17);
     uint32_t new_ptr = RxV + offset;
     uint32_t start_addr;
     uint32_t end_addr;
@@ -829,7 +829,7 @@ uint32_t HELPER(conv_df2uw_chop)(CPUHexagonState *env, float64 RssV)
     uint32_t RdV;
     arch_fpop_start(env);
     /* Hexagon checks the sign before rounding */
-    if (float64_is_neg(RssV) && !float32_is_any_nan(RssV)) {
+    if (float64_is_neg(RssV) && !float64_is_any_nan(RssV)) {
         float_raise(float_flag_invalid, &env->fp_status);
         RdV = 0;
     } else {
@@ -938,8 +938,7 @@ int32_t HELPER(sfcmpuo)(CPUHexagonState *env, float32 RsV, float32 RtV)
 {
     int32_t PdV;
     arch_fpop_start(env);
-    PdV = f8BITSOF(float32_is_any_nan(RsV) ||
-                   float32_is_any_nan(RtV));
+    PdV = f8BITSOF(float32_unordered_quiet(RsV, RtV, &env->fp_status));
     arch_fpop_end(env);
     return PdV;
 }
@@ -948,7 +947,7 @@ float32 HELPER(sfmax)(CPUHexagonState *env, float32 RsV, float32 RtV)
 {
     float32 RdV;
     arch_fpop_start(env);
-    RdV = float32_maxnum(RsV, RtV, &env->fp_status);
+    RdV = float32_maximum_number(RsV, RtV, &env->fp_status);
     arch_fpop_end(env);
     return RdV;
 }
@@ -957,7 +956,7 @@ float32 HELPER(sfmin)(CPUHexagonState *env, float32 RsV, float32 RtV)
 {
     float32 RdV;
     arch_fpop_start(env);
-    RdV = float32_minnum(RsV, RtV, &env->fp_status);
+    RdV = float32_minimum_number(RsV, RtV, &env->fp_status);
     arch_fpop_end(env);
     return RdV;
 }
@@ -1041,10 +1040,7 @@ float64 HELPER(dfmax)(CPUHexagonState *env, float64 RssV, float64 RttV)
 {
     float64 RddV;
     arch_fpop_start(env);
-    RddV = float64_maxnum(RssV, RttV, &env->fp_status);
-    if (float64_is_any_nan(RssV) || float64_is_any_nan(RttV)) {
-        float_raise(float_flag_invalid, &env->fp_status);
-    }
+    RddV = float64_maximum_number(RssV, RttV, &env->fp_status);
     arch_fpop_end(env);
     return RddV;
 }
@@ -1053,10 +1049,7 @@ float64 HELPER(dfmin)(CPUHexagonState *env, float64 RssV, float64 RttV)
 {
     float64 RddV;
     arch_fpop_start(env);
-    RddV = float64_minnum(RssV, RttV, &env->fp_status);
-    if (float64_is_any_nan(RssV) || float64_is_any_nan(RttV)) {
-        float_raise(float_flag_invalid, &env->fp_status);
-    }
+    RddV = float64_minimum_number(RssV, RttV, &env->fp_status);
     arch_fpop_end(env);
     return RddV;
 }
@@ -1097,8 +1090,7 @@ int32_t HELPER(dfcmpuo)(CPUHexagonState *env, float64 RssV, float64 RttV)
 {
     int32_t PdV;
     arch_fpop_start(env);
-    PdV = f8BITSOF(float64_is_any_nan(RssV) ||
-                   float64_is_any_nan(RttV));
+    PdV = f8BITSOF(float64_unordered_quiet(RssV, RttV, &env->fp_status));
     arch_fpop_end(env);
     return PdV;
 }

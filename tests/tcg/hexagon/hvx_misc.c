@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2021-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <limits.h>
 
 int err;
 
@@ -432,6 +433,71 @@ TEST_PRED_OP2(pred_and, and, &, "")
 TEST_PRED_OP2(pred_and_n, and, &, "!")
 TEST_PRED_OP2(pred_xor, xor, ^, "")
 
+static void test_vadduwsat(void)
+{
+    /*
+     * Test for saturation by adding two numbers that add to more than UINT_MAX
+     * and make sure the result saturates to UINT_MAX
+     */
+    const uint32_t x = 0xffff0000;
+    const uint32_t y = 0x000fffff;
+
+    memset(expect, 0x12, sizeof(MMVector));
+    memset(output, 0x34, sizeof(MMVector));
+
+    asm volatile ("v10 = vsplat(%0)\n\t"
+                  "v11 = vsplat(%1)\n\t"
+                  "v21.uw = vadd(v11.uw, v10.uw):sat\n\t"
+                  "vmem(%2+#0) = v21\n\t"
+                  : /* no outputs */
+                  : "r"(x), "r"(y), "r"(output)
+                  : "v10", "v11", "v21", "memory");
+
+    for (int j = 0; j < MAX_VEC_SIZE_BYTES / 4; j++) {
+        expect[0].uw[j] = UINT_MAX;
+    }
+
+    check_output_w(__LINE__, 1);
+}
+
+static void test_vsubuwsat_dv(void)
+{
+    /*
+     * Test for saturation by subtracting two numbers where the result is
+     * negative and make sure the result saturates to zero
+     *
+     * vsubuwsat_dv operates on an HVX register pair, so we'll have a
+     * pair of subtractions
+     *     w - x < 0
+     *     y - z < 0
+     */
+    const uint32_t w = 0x000000b7;
+    const uint32_t x = 0xffffff4e;
+    const uint32_t y = 0x31fe88e7;
+    const uint32_t z = 0x7fffff79;
+
+    memset(expect, 0x12, sizeof(MMVector) * 2);
+    memset(output, 0x34, sizeof(MMVector) * 2);
+
+    asm volatile ("v16 = vsplat(%0)\n\t"
+                  "v17 = vsplat(%1)\n\t"
+                  "v26 = vsplat(%2)\n\t"
+                  "v27 = vsplat(%3)\n\t"
+                  "v25:24.uw = vsub(v17:16.uw, v27:26.uw):sat\n\t"
+                  "vmem(%4+#0) = v24\n\t"
+                  "vmem(%4+#1) = v25\n\t"
+                  : /* no outputs */
+                  : "r"(w), "r"(y), "r"(x), "r"(z), "r"(output)
+                  : "v16", "v17", "v24", "v25", "v26", "v27", "memory");
+
+    for (int j = 0; j < MAX_VEC_SIZE_BYTES / 4; j++) {
+        expect[0].uw[j] = 0x00000000;
+        expect[1].uw[j] = 0x00000000;
+    }
+
+    check_output_w(__LINE__, 2);
+}
+
 int main()
 {
     init_buffers();
@@ -463,6 +529,9 @@ int main()
     test_pred_and(false);
     test_pred_and_n(true);
     test_pred_xor(false);
+
+    test_vadduwsat();
+    test_vsubuwsat_dv();
 
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;

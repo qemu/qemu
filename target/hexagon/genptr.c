@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -210,11 +210,15 @@ static inline void gen_read_ctrl_reg_pair(DisasContext *ctx, const int reg_num,
     }
 }
 
-static inline void gen_write_p3_0(TCGv control_reg)
+static void gen_write_p3_0(DisasContext *ctx, TCGv control_reg)
 {
+    TCGv hex_p8 = tcg_temp_new();
     for (int i = 0; i < NUM_PREGS; i++) {
-        tcg_gen_extract_tl(hex_pred[i], control_reg, i * 8, 8);
+        tcg_gen_extract_tl(hex_p8, control_reg, i * 8, 8);
+        gen_log_pred_write(ctx, i, hex_p8);
+        ctx_log_pred_write(ctx, i);
     }
+    tcg_temp_free(hex_p8);
 }
 
 /*
@@ -228,7 +232,7 @@ static inline void gen_write_ctrl_reg(DisasContext *ctx, int reg_num,
                                       TCGv val)
 {
     if (reg_num == HEX_REG_P3_0) {
-        gen_write_p3_0(val);
+        gen_write_p3_0(ctx, val);
     } else {
         gen_log_reg_write(reg_num, val);
         ctx_log_reg_write(ctx, reg_num);
@@ -250,7 +254,7 @@ static inline void gen_write_ctrl_reg_pair(DisasContext *ctx, int reg_num,
     if (reg_num == HEX_REG_P3_0) {
         TCGv val32 = tcg_temp_new();
         tcg_gen_extrl_i64_i32(val32, val);
-        gen_write_p3_0(val32);
+        gen_write_p3_0(ctx, val32);
         tcg_gen_extrh_i64_i32(val32, val);
         gen_log_reg_write(reg_num + 1, val32);
         tcg_temp_free(val32);

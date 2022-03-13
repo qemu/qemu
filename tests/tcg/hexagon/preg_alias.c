@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -57,17 +57,15 @@ typedef union {
 
 static inline void creg_alias(int cval, PRegs *pregs)
 {
-  unsigned char val;
-  asm volatile("c4 = %0" : : "r"(cval));
-
-  asm volatile("%0 = p0" : "=r"(val));
-  pregs->pregs.p0 = val;
-  asm volatile("%0 = p1" : "=r"(val));
-  pregs->pregs.p1 = val;
-  asm volatile("%0 = p2" : "=r"(val));
-  pregs->pregs.p2 = val;
-  asm volatile("%0 = p3" : "=r"(val));
-  pregs->pregs.p3 = val;
+  asm("c4 = %4\n\t"
+      "%0 = p0\n\t"
+      "%1 = p1\n\t"
+      "%2 = p2\n\t"
+      "%3 = p3\n\t"
+      : "=r"(pregs->pregs.p0), "=r"(pregs->pregs.p1),
+        "=r"(pregs->pregs.p2), "=r"(pregs->pregs.p3)
+      : "r"(cval)
+      : "p0", "p1", "p2", "p3");
 }
 
 int err;
@@ -83,20 +81,56 @@ static void check(int val, int expect)
 static inline void creg_alias_pair(unsigned int cval, PRegs *pregs)
 {
   unsigned long long cval_pair = (0xdeadbeefULL << 32) | cval;
-  unsigned char val;
   int c5;
-  asm volatile("c5:4 = %0" : : "r"(cval_pair));
 
-  asm volatile("%0 = p0" : "=r"(val));
-  pregs->pregs.p0 = val;
-  asm volatile("%0 = p1" : "=r"(val));
-  pregs->pregs.p1 = val;
-  asm volatile("%0 = p2" : "=r"(val));
-  pregs->pregs.p2 = val;
-  asm volatile("%0 = p3" : "=r"(val));
-  pregs->pregs.p3 = val;
-  asm volatile("%0 = c5" : "=r"(c5));
+  asm ("c5:4 = %5\n\t"
+       "%0 = p0\n\t"
+       "%1 = p1\n\t"
+       "%2 = p2\n\t"
+       "%3 = p3\n\t"
+       "%4 = c5\n\t"
+       : "=r"(pregs->pregs.p0), "=r"(pregs->pregs.p1),
+         "=r"(pregs->pregs.p2), "=r"(pregs->pregs.p3), "=r"(c5)
+       : "r"(cval_pair)
+       : "p0", "p1", "p2", "p3");
+
   check(c5, 0xdeadbeef);
+}
+
+static void test_packet(void)
+{
+    /*
+     * Test that setting c4 inside a packet doesn't impact the predicates
+     * that are read during the packet.
+     */
+
+    int result;
+    int old_val = 0x0000001c;
+
+    /* Test a predicated register transfer */
+    result = old_val;
+    asm (
+         "c4 = %1\n\t"
+         "{\n\t"
+         "    c4 = %2\n\t"
+         "    if (!p2) %0 = %3\n\t"
+         "}\n\t"
+         : "+r"(result)
+         : "r"(0xffffffff), "r"(0xff00ffff), "r"(0x837ed653)
+         : "p0", "p1", "p2", "p3");
+    check(result, old_val);
+
+    /* Test a predicated store */
+    result = 0xffffffff;
+    asm ("c4 = %0\n\t"
+         "{\n\t"
+         "    c4 = %1\n\t"
+         "    if (!p2) memw(%2) = #0\n\t"
+         "}\n\t"
+         :
+         : "r"(0), "r"(0xffffffff), "r"(&result)
+         : "p0", "p1", "p2", "p3", "memory");
+    check(result, 0x0);
 }
 
 int main()
@@ -163,6 +197,8 @@ int main()
     check(pregs.creg, 0x000000ff);
     creg_alias_pair(0xffffffff, &pregs);
     check(pregs.creg, 0xffffffff);
+
+    test_packet();
 
     puts(err ? "FAIL" : "PASS");
     return err;

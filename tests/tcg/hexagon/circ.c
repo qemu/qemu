@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -415,7 +415,8 @@ static void circ_test_v3(void)
 {
     int *p = wbuf;
     int size = 15;
-    int K = 4;      /* 64 bytes */
+    /* set high bit in K to test unsigned extract in fcirc */
+    int K = 8;      /* 1024 bytes */
     int element;
     int i;
 
