@@ -1600,9 +1600,7 @@ static void pnv_chip_power10_instance_init(Object *obj)
     object_initialize_child(obj, "occ",  &chip10->occ, TYPE_PNV10_OCC);
     object_initialize_child(obj, "homer", &chip10->homer, TYPE_PNV10_HOMER);
 
-    if (defaults_enabled()) {
-        chip->num_pecs = pcc->num_pecs;
-    }
+    chip->num_pecs = pcc->num_pecs;
 
     for (i = 0; i < chip->num_pecs; i++) {
         object_initialize_child(obj, "pec[*]", &chip10->pecs[i],
