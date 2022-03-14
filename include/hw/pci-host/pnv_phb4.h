@@ -203,6 +203,7 @@ struct PnvPhb4PecClass {
     const char *stk_compat;
     int stk_compat_size;
     uint64_t version;
+    const char *phb_type;
     const uint32_t *num_phbs;
     const char *rp_model;
 };
@@ -210,6 +211,10 @@ struct PnvPhb4PecClass {
 /*
  * POWER10 definitions
  */
+
+#define TYPE_PNV_PHB5 "pnv-phb5"
+#define PNV_PHB5(obj) \
+    OBJECT_CHECK(PnvPhb4, (obj), TYPE_PNV_PHB5)
 
 #define PNV_PHB5_VERSION           0x000000a500000001ull
 #define PNV_PHB5_DEVICE_ID         0x0652
