@@ -557,6 +557,12 @@ Support for this CPU was removed from the upstream Linux kernel, and
 there is no available upstream toolchain to build binaries for it.
 Removed without replacement.
 
+x86 ``Icelake-Client`` CPU (removed in 7.1)
+'''''''''''''''''''''''''''''''''''''''''''
+
+There isn't ever Icelake Client CPU, it is some wrong and imaginary one.
+Use ``Icelake-Server`` instead.
+
 System emulator machines
 ------------------------
 
