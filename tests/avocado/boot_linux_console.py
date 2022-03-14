@@ -1170,6 +1170,7 @@ class BootLinuxConsole(LinuxKernelTest):
         self.do_test_advcal_2018('19', tar_hash, 'uImage')
 
     def do_test_ppc64_powernv(self, proc):
+        self.require_accelerator("tcg")
         images_url = ('https://github.com/open-power/op-build/releases/download/v2.7/')
 
         kernel_url = images_url + 'zImage.epapr'
@@ -1194,6 +1195,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:ppc64
         :avocado: tags=machine:powernv8
+        :avocado: tags=accel:tcg
         """
         self.do_test_ppc64_powernv('P8')
 
@@ -1201,6 +1203,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:ppc64
         :avocado: tags=machine:powernv9
+        :avocado: tags=accel:tcg
         """
         self.do_test_ppc64_powernv('P9')
 
