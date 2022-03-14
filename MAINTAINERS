@@ -548,6 +548,12 @@ F: include/*/*win32*
 X: qga/*win32*
 F: qemu.nsi
 
+Darwin (macOS, iOS)
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+S: Odd Fixes
+F: .gitlab-ci.d/cirrus/macos-*
+F: */*.m
+
 Alpha Machines
 --------------
 M: Richard Henderson <richard.henderson@linaro.org>
@@ -2414,6 +2420,7 @@ F: audio/alsaaudio.c
 
 Core Audio framework backend
 M: Gerd Hoffmann <kraxel@redhat.com>
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
 R: Christian Schoenebeck <qemu_oss@crudebyte.com>
 R: Akihiko Odaki <akihiko.odaki@gmail.com>
 S: Odd Fixes
@@ -2671,6 +2678,7 @@ F: util/drm.c
 
 Cocoa graphics
 M: Peter Maydell <peter.maydell@linaro.org>
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
 R: Akihiko Odaki <akihiko.odaki@gmail.com>
 S: Odd Fixes
 F: ui/cocoa.m
