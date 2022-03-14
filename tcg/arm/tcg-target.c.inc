@@ -1689,8 +1689,21 @@ static void tcg_out_qemu_ld_index(TCGContext *s, MemOp opc,
         /* LDRD requires alignment; double-check that. */
         if (get_alignment_bits(opc) >= MO_64
             && (datalo & 1) == 0 && datahi == datalo + 1) {
-            tcg_out_ldrd_r(s, COND_AL, datalo, addrlo, addend);
-        } else if (scratch_addend) {
+            /*
+             * Rm (the second address op) must not overlap Rt or Rt + 1.
+             * Since datalo is aligned, we can simplify the test via alignment.
+             * Flip the two address arguments if that works.
+             */
+            if ((addend & ~1) != datalo) {
+                tcg_out_ldrd_r(s, COND_AL, datalo, addrlo, addend);
+                break;
+            }
+            if ((addrlo & ~1) != datalo) {
+                tcg_out_ldrd_r(s, COND_AL, datalo, addend, addrlo);
+                break;
+            }
+        }
+        if (scratch_addend) {
             tcg_out_ld32_rwb(s, COND_AL, datalo, addend, addrlo);
             tcg_out_ld32_12(s, COND_AL, datahi, addend, 4);
         } else {

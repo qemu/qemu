@@ -2675,6 +2675,7 @@ static bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
         if (vece == MO_64) {
             return true;
         }
+        src = dst;
     }
 
     /*
@@ -2715,7 +2716,7 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type, unsigned vece,
                 msb = clz32(val);
                 lsb = 31 - ctz32(val);
             }
-            tcg_out_insn(s, VRIb, VGM, dst, lsb, msb, MO_32);
+            tcg_out_insn(s, VRIb, VGM, dst, msb, lsb, MO_32);
             return;
         }
     } else {
@@ -2729,7 +2730,7 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type, unsigned vece,
                 msb = clz64(val);
                 lsb = 63 - ctz64(val);
             }
-            tcg_out_insn(s, VRIb, VGM, dst, lsb, msb, MO_64);
+            tcg_out_insn(s, VRIb, VGM, dst, msb, lsb, MO_64);
             return;
         }
     }
@@ -2868,7 +2869,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_bitsel_vec:
-        tcg_out_insn(s, VRRe, VSEL, a0, a1, a2, args[3]);
+        tcg_out_insn(s, VRRe, VSEL, a0, a2, args[3], a1);
         break;
 
     case INDEX_op_cmp_vec:
