@@ -120,6 +120,7 @@ static void pnv_pec_default_phb_realize(PnvPhb4PecState *pec,
     PnvPHB4 *phb = PNV_PHB4(qdev_new(pecc->phb_type));
     int phb_id = pnv_phb4_pec_get_phb_id(pec, stack_no);
 
+    object_property_add_child(OBJECT(pec), "phb[*]", OBJECT(phb));
     object_property_set_link(OBJECT(phb), "pec", OBJECT(pec),
                              &error_abort);
     object_property_set_int(OBJECT(phb), "chip-id", pec->chip_id,
@@ -150,10 +151,8 @@ static void pnv_pec_realize(DeviceState *dev, Error **errp)
     pec->num_phbs = pecc->num_phbs[pec->index];
 
     /* Create PHBs if running with defaults */
-    if (defaults_enabled()) {
-        for (i = 0; i < pec->num_phbs; i++) {
-            pnv_pec_default_phb_realize(pec, i, errp);
-        }
+    for (i = 0; i < pec->num_phbs; i++) {
+        pnv_pec_default_phb_realize(pec, i, errp);
     }
 
     /* Initialize the XSCOM regions for the PEC registers */
