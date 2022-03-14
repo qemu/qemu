@@ -204,7 +204,8 @@ static bool ppc_radix64_check_prot(PowerPCCPU *cpu, MMUAccessType access_type,
     /* Check if requested access type is allowed */
     need_prot = prot_for_access_type(access_type);
     if (need_prot & ~*prot) { /* Page Protected for that Access */
-        *fault_cause |= DSISR_PROTFAULT;
+        *fault_cause |= access_type == MMU_INST_FETCH ? SRR1_NOEXEC_GUARD :
+                                                        DSISR_PROTFAULT;
         return true;
     }
 
