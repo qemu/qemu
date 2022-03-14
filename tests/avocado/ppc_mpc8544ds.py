@@ -19,7 +19,9 @@ class Mpc8544dsMachine(QemuSystemTest):
         """
         :avocado: tags=arch:ppc
         :avocado: tags=machine:mpc8544ds
+        :avocado: tags=accel:tcg
         """
+        self.require_accelerator("tcg")
         tar_url = ('https://www.qemu-advent-calendar.org'
                    '/2020/download/day17.tar.gz')
         tar_hash = '7a5239542a7c4257aa4d3b7f6ddf08fb6775c494'
