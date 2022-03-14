@@ -1213,7 +1213,13 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:ppc
         :avocado: tags=machine:g3beige
+        :avocado: tags=accel:tcg
         """
+        # TODO: g3beige works with kvm_pr but we don't have a
+        # reliable way ATM (e.g. looking at /proc/modules) to detect
+        # whether we're running kvm_hv or kvm_pr. For now let's
+        # disable this test if we don't have TCG support.
+        self.require_accelerator("tcg")
         tar_hash = 'e0b872a5eb8fdc5bed19bd43ffe863900ebcedfc'
         self.vm.add_args('-M', 'graphics=off')
         self.do_test_advcal_2018('15', tar_hash, 'invaders.elf')
