@@ -1165,7 +1165,9 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:ppc64
         :avocado: tags=machine:ppce500
         :avocado: tags=cpu:e5500
+        :avocado: tags=accel:tcg
         """
+        self.require_accelerator("tcg")
         tar_hash = '6951d86d644b302898da2fd701739c9406527fe1'
         self.do_test_advcal_2018('19', tar_hash, 'uImage')
 
