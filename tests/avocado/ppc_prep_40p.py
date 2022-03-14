@@ -28,7 +28,9 @@ class IbmPrep40pMachine(QemuSystemTest):
         :avocado: tags=machine:40p
         :avocado: tags=os:netbsd
         :avocado: tags=slowness:high
+        :avocado: tags=accel:tcg
         """
+        self.require_accelerator("tcg")
         bios_url = ('http://ftpmirror.your.org/pub/misc/'
                     'ftp.software.ibm.com/rs6000/firmware/'
                     '7020-40p/P12H0456.IMG')
@@ -51,7 +53,9 @@ class IbmPrep40pMachine(QemuSystemTest):
         """
         :avocado: tags=arch:ppc
         :avocado: tags=machine:40p
+        :avocado: tags=accel:tcg
         """
+        self.require_accelerator("tcg")
         self.vm.set_console()
         self.vm.add_args('-m', '192') # test fw_cfg
 
@@ -65,7 +69,9 @@ class IbmPrep40pMachine(QemuSystemTest):
         :avocado: tags=arch:ppc
         :avocado: tags=machine:40p
         :avocado: tags=os:netbsd
+        :avocado: tags=accel:tcg
         """
+        self.require_accelerator("tcg")
         drive_url = ('https://archive.netbsd.org/pub/NetBSD-archive/'
                      'NetBSD-7.1.2/iso/NetBSD-7.1.2-prep.iso')
         drive_hash = 'ac6fa2707d888b36d6fa64de6e7fe48e'
