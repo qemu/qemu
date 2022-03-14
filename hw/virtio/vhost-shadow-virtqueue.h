@@ -36,6 +36,30 @@ typedef struct VhostShadowVirtqueue {
 
     /* Guest's call notifier, where the SVQ calls guest. */
     EventNotifier svq_call;
+
+    /* Virtio queue shadowing */
+    VirtQueue *vq;
+
+    /* Virtio device */
+    VirtIODevice *vdev;
+
+    /* Map for use the guest's descriptors */
+    VirtQueueElement **ring_id_maps;
+
+    /* Next VirtQueue element that guest made available */
+    VirtQueueElement *next_guest_avail_elem;
+
+    /* Next head to expose to the device */
+    uint16_t shadow_avail_idx;
+
+    /* Next free descriptor */
+    uint16_t free_head;
+
+    /* Last seen used idx */
+    uint16_t shadow_used_idx;
+
+    /* Next head to consume from the device */
+    uint16_t last_used_idx;
 } VhostShadowVirtqueue;
 
 bool vhost_svq_valid_features(uint64_t features, Error **errp);
@@ -47,6 +71,8 @@ void vhost_svq_get_vring_addr(const VhostShadowVirtqueue *svq,
 size_t vhost_svq_driver_area_size(const VhostShadowVirtqueue *svq);
 size_t vhost_svq_device_area_size(const VhostShadowVirtqueue *svq);
 
+void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
+                     VirtQueue *vq);
 void vhost_svq_stop(VhostShadowVirtqueue *svq);
 
 VhostShadowVirtqueue *vhost_svq_new(void);

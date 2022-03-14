@@ -777,9 +777,9 @@ static int vhost_vdpa_set_vring_dev_addr(struct vhost_dev *dev,
  * Note that this function does not rewind kick file descriptor if cannot set
  * call one.
  */
-static bool vhost_vdpa_svq_setup(struct vhost_dev *dev,
-                                 VhostShadowVirtqueue *svq, unsigned idx,
-                                 Error **errp)
+static int vhost_vdpa_svq_set_fds(struct vhost_dev *dev,
+                                  VhostShadowVirtqueue *svq, unsigned idx,
+                                  Error **errp)
 {
     struct vhost_vring_file file = {
         .index = dev->vq_index + idx,
@@ -791,7 +791,7 @@ static bool vhost_vdpa_svq_setup(struct vhost_dev *dev,
     r = vhost_vdpa_set_vring_dev_kick(dev, &file);
     if (unlikely(r != 0)) {
         error_setg_errno(errp, -r, "Can't set device kick fd");
-        return false;
+        return r;
     }
 
     event_notifier = &svq->hdev_call;
@@ -801,6 +801,95 @@ static bool vhost_vdpa_svq_setup(struct vhost_dev *dev,
         error_setg_errno(errp, -r, "Can't set device call fd");
     }
 
+    return r;
+}
+
+/**
+ * Unmap a SVQ area in the device
+ */
+static bool vhost_vdpa_svq_unmap_ring(struct vhost_vdpa *v, hwaddr iova,
+                                      hwaddr size)
+{
+    int r;
+
+    size = ROUND_UP(size, qemu_real_host_page_size);
+    r = vhost_vdpa_dma_unmap(v, iova, size);
+    return r == 0;
+}
+
+static bool vhost_vdpa_svq_unmap_rings(struct vhost_dev *dev,
+                                       const VhostShadowVirtqueue *svq)
+{
+    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vring_addr svq_addr;
+    size_t device_size = vhost_svq_device_area_size(svq);
+    size_t driver_size = vhost_svq_driver_area_size(svq);
+    bool ok;
+
+    vhost_svq_get_vring_addr(svq, &svq_addr);
+
+    ok = vhost_vdpa_svq_unmap_ring(v, svq_addr.desc_user_addr, driver_size);
+    if (unlikely(!ok)) {
+        return false;
+    }
+
+    return vhost_vdpa_svq_unmap_ring(v, svq_addr.used_user_addr, device_size);
+}
+
+/**
+ * Map the shadow virtqueue rings in the device
+ *
+ * @dev: The vhost device
+ * @svq: The shadow virtqueue
+ * @addr: Assigned IOVA addresses
+ * @errp: Error pointer
+ */
+static bool vhost_vdpa_svq_map_rings(struct vhost_dev *dev,
+                                     const VhostShadowVirtqueue *svq,
+                                     struct vhost_vring_addr *addr,
+                                     Error **errp)
+{
+    struct vhost_vdpa *v = dev->opaque;
+    size_t device_size = vhost_svq_device_area_size(svq);
+    size_t driver_size = vhost_svq_driver_area_size(svq);
+    int r;
+
+    ERRP_GUARD();
+    vhost_svq_get_vring_addr(svq, addr);
+
+    r = vhost_vdpa_dma_map(v, addr->desc_user_addr, driver_size,
+                           (void *)(uintptr_t)addr->desc_user_addr, true);
+    if (unlikely(r != 0)) {
+        error_setg_errno(errp, -r, "Cannot create vq driver region: ");
+        return false;
+    }
+
+    r = vhost_vdpa_dma_map(v, addr->used_user_addr, device_size,
+                           (void *)(intptr_t)addr->used_user_addr, false);
+    if (unlikely(r != 0)) {
+        error_setg_errno(errp, -r, "Cannot create vq device region: ");
+    }
+
+    return r == 0;
+}
+
+static bool vhost_vdpa_svq_setup(struct vhost_dev *dev,
+                                 VhostShadowVirtqueue *svq, unsigned idx,
+                                 Error **errp)
+{
+    uint16_t vq_index = dev->vq_index + idx;
+    struct vhost_vring_state s = {
+        .index = vq_index,
+    };
+    int r;
+
+    r = vhost_vdpa_set_dev_vring_base(dev, &s);
+    if (unlikely(r)) {
+        error_setg_errno(errp, -r, "Cannot set vring base");
+        return false;
+    }
+
+    r = vhost_vdpa_svq_set_fds(dev, svq, idx, errp);
     return r == 0;
 }
 
@@ -815,10 +904,62 @@ static bool vhost_vdpa_svqs_start(struct vhost_dev *dev)
     }
 
     for (i = 0; i < v->shadow_vqs->len; ++i) {
+        VirtQueue *vq = virtio_get_queue(dev->vdev, dev->vq_index + i);
         VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs, i);
+        struct vhost_vring_addr addr = {
+            .index = i,
+        };
+        int r;
         bool ok = vhost_vdpa_svq_setup(dev, svq, i, &err);
         if (unlikely(!ok)) {
-            error_reportf_err(err, "Cannot setup SVQ %u: ", i);
+            goto err;
+        }
+
+        vhost_svq_start(svq, dev->vdev, vq);
+        ok = vhost_vdpa_svq_map_rings(dev, svq, &addr, &err);
+        if (unlikely(!ok)) {
+            goto err_map;
+        }
+
+        /* Override vring GPA set by vhost subsystem */
+        r = vhost_vdpa_set_vring_dev_addr(dev, &addr);
+        if (unlikely(r != 0)) {
+            error_setg_errno(&err, -r, "Cannot set device address");
+            goto err_set_addr;
+        }
+    }
+
+    return true;
+
+err_set_addr:
+    vhost_vdpa_svq_unmap_rings(dev, g_ptr_array_index(v->shadow_vqs, i));
+
+err_map:
+    vhost_svq_stop(g_ptr_array_index(v->shadow_vqs, i));
+
+err:
+    error_reportf_err(err, "Cannot setup SVQ %u: ", i);
+    for (unsigned j = 0; j < i; ++j) {
+        VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs, j);
+        vhost_vdpa_svq_unmap_rings(dev, svq);
+        vhost_svq_stop(svq);
+    }
+
+    return false;
+}
+
+static bool vhost_vdpa_svqs_stop(struct vhost_dev *dev)
+{
+    struct vhost_vdpa *v = dev->opaque;
+
+    if (!v->shadow_vqs) {
+        return true;
+    }
+
+    for (unsigned i = 0; i < v->shadow_vqs->len; ++i) {
+        VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs, i);
+        bool ok = vhost_vdpa_svq_unmap_rings(dev, svq);
+        if (unlikely(!ok)) {
             return false;
         }
     }
@@ -840,6 +981,10 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
         }
         vhost_vdpa_set_vring_ready(dev);
     } else {
+        ok = vhost_vdpa_svqs_stop(dev);
+        if (unlikely(!ok)) {
+            return -1;
+        }
         vhost_vdpa_host_notifiers_uninit(dev, dev->nvqs);
     }
 
