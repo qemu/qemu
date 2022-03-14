@@ -158,4 +158,6 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
 /* vl.c */
 extern int singlestep;
 
+void list_cpus(const char *optarg);
+
 #endif /* CPU_COMMON_H */
