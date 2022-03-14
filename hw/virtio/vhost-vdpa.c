@@ -1090,7 +1090,8 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
 static int vhost_vdpa_set_log_base(struct vhost_dev *dev, uint64_t base,
                                      struct vhost_log *log)
 {
-    if (vhost_vdpa_one_time_request(dev)) {
+    struct vhost_vdpa *v = dev->opaque;
+    if (v->shadow_vqs_enabled || vhost_vdpa_one_time_request(dev)) {
         return 0;
     }
 
