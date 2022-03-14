@@ -1201,7 +1201,7 @@ static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
                                  bool is_imm, int imm, TCGv_i64 cdest)
 {
     DisasJumpType ret;
-    uint64_t dest = s->base.pc_next + 2 * imm;
+    uint64_t dest = s->base.pc_next + (int64_t)imm * 2;
     TCGLabel *lab;
 
     /* Take care of the special cases first.  */
