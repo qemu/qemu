@@ -322,7 +322,7 @@ static void _of_dpa_flow_match(void *key, void *value, void *user_data)
     }
 
     for (i = 0; i < flow->key.width; i++, k++, m++, v++) {
-        if ((~*k & *m & *v) | (*k & *m & ~*v)) {
+        if ((~*k & *m & *v) || (*k & *m & ~*v)) {
             return;
         }
     }
