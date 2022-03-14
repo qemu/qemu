@@ -30,5 +30,7 @@ class Ppc405Machine(QemuSystemTest):
         :avocado: tags=arch:ppc
         :avocado: tags=machine:ref405ep
         :avocado: tags=cpu:405ep
+        :avocado: tags=accel:tcg
         """
+        self.require_accelerator("tcg")
         self.do_test_ppc405()
