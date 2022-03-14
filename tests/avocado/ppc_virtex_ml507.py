@@ -19,7 +19,9 @@ class VirtexMl507Machine(QemuSystemTest):
         """
         :avocado: tags=arch:ppc
         :avocado: tags=machine:virtex-ml507
+        :avocado: tags=accel:tcg
         """
+        self.require_accelerator("tcg")
         tar_url = ('https://www.qemu-advent-calendar.org'
                    '/2020/download/hippo.tar.gz')
         tar_hash = '306b95bfe7d147f125aa176a877e266db8ef914a'
