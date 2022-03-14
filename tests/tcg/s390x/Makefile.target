@@ -15,6 +15,7 @@ TESTS+=mvc
 TESTS+=shift
 TESTS+=trap
 TESTS+=signals-s390x
+TESTS+=branch-relative-long
 
 ifneq ($(HAVE_GDB_BIN),)
 GDB_SCRIPT=$(SRC_PATH)/tests/guest-debug/run-test.py
