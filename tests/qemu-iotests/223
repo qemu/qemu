@@ -120,6 +120,11 @@ _send_qemu_cmd $QEMU_HANDLE '{"execute":"blockdev-add",
     "file":{"driver":"file", "filename":"'"$TEST_IMG"'"}}}' "return"
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"block-dirty-bitmap-disable",
   "arguments":{"node":"n", "name":"b"}}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"blockdev-add",
+  "arguments":{"driver":"null-co", "node-name":"null",
+    "size": 4194304}}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"block-dirty-bitmap-add",
+  "arguments":{"node":"null", "name":"b3"}}' "return"
 
 for attempt in normal iothread; do
 
@@ -155,6 +160,9 @@ _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
   "arguments":{"device":"n", "name":"n2", "writable":true,
   "description":"some text", "bitmap":"b2"}}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"block-export-add",
+  "arguments":{"type": "nbd", "node-name":"n", "id":"n3", "name": "n3",
+  "bitmaps":[{"node":"null","name":"b3"}]}}' "return"
 $QEMU_NBD_PROG -L -k "$SOCK_DIR/nbd"
 
 echo
@@ -177,6 +185,14 @@ echo
 IMG="driver=nbd,export=n2,server.type=unix,server.path=$SOCK_DIR/nbd"
 $QEMU_IMG map --output=json --image-opts \
   "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b2" | _filter_qemu_img_map
+
+echo
+echo "=== Check bitmap taken from another node ==="
+echo
+
+IMG="driver=nbd,export=n3,server.type=unix,server.path=$SOCK_DIR/nbd"
+$QEMU_IMG map --output=json --image-opts \
+  "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b3" | _filter_qemu_img_map
 
 echo
 echo "=== End qemu NBD server ==="
