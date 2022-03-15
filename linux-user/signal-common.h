@@ -92,4 +92,30 @@ abi_long do_swapcontext(CPUArchState *env, abi_ulong uold_ctx,
  */
 int block_signals(void); /* Returns non zero if signal pending */
 
+/**
+ * process_sigsuspend_mask: read and apply syscall-local signal mask
+ *
+ * Read the guest signal mask from @sigset, length @sigsize.
+ * Convert that to a host signal mask and save it to sigpending_mask.
+ *
+ * Return value: negative target errno, or zero;
+ *               store &sigpending_mask into *pset on success.
+ */
+int process_sigsuspend_mask(sigset_t **pset, target_ulong sigset,
+                            target_ulong sigsize);
+
+/**
+ * finish_sigsuspend_mask: finish a sigsuspend-like syscall
+ *
+ * Set in_sigsuspend if we need to use the modified sigset
+ * during process_pending_signals.
+ */
+static inline void finish_sigsuspend_mask(int ret)
+{
+    if (ret != -QEMU_ERESTARTSYS) {
+        TaskState *ts = (TaskState *)thread_cpu->opaque;
+        ts->in_sigsuspend = 1;
+    }
+}
+
 #endif
