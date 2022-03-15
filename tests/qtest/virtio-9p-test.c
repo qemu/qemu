@@ -721,14 +721,19 @@ static void fs_version(void *obj, void *data, QGuestAllocator *t_alloc)
     do_version(obj);
 }
 
-static void do_attach(QVirtio9P *v9p)
+static void do_attach_rqid(QVirtio9P *v9p, v9fs_qid *qid)
 {
     P9Req *req;
 
     do_version(v9p);
     req = v9fs_tattach(v9p, 0, getuid(), 0);
     v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rattach(req, NULL);
+    v9fs_rattach(req, qid);
+}
+
+static void do_attach(QVirtio9P *v9p)
+{
+    do_attach_rqid(v9p, NULL);
 }
 
 static void fs_attach(void *obj, void *data, QGuestAllocator *t_alloc)
@@ -1101,19 +1106,32 @@ static void fs_walk_2nd_nonexistent(void *obj, void *data,
 {
     QVirtio9P *v9p = obj;
     alloc = t_alloc;
+    v9fs_qid root_qid;
     uint16_t nwqid;
+    uint32_t fid, err;
+    P9Req *req;
     g_autofree v9fs_qid *wqid = NULL;
     g_autofree char *path = g_strdup_printf(
         QTEST_V9FS_SYNTH_WALK_FILE "/non-existent", 0
     );
 
-    do_attach(v9p);
-    do_walk_rqids(v9p, path, &nwqid, &wqid);
+    do_attach_rqid(v9p, &root_qid);
+    fid = do_walk_rqids(v9p, path, &nwqid, &wqid);
     /*
      * The 9p2000 protocol spec says: "nwqid is therefore either nwname or the
      * index of the first elementwise walk that failed."
      */
     assert(nwqid == 1);
+
+    /* returned QID wqid[0] is file ID of 1st subdir */
+    g_assert(wqid && wqid[0] && !is_same_qid(root_qid, wqid[0]));
+
+    /* expect fid being unaffected by walk above */
+    req = v9fs_tgetattr(v9p, fid, P9_GETATTR_BASIC, 0);
+    v9fs_req_wait_for_reply(req, NULL);
+    v9fs_rlerror(req, &err);
+
+    g_assert_cmpint(err, ==, ENOENT);
 }
 
 static void fs_walk_none(void *obj, void *data, QGuestAllocator *t_alloc)
