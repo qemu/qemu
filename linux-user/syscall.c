@@ -9559,7 +9559,8 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         {
             TaskState *ts = cpu->opaque;
 #if defined(TARGET_ALPHA)
-            abi_ulong mask = arg1;
+            /* target_to_host_old_sigset will bswap back */
+            abi_ulong mask = tswapal(arg1);
             target_to_host_old_sigset(&ts->sigsuspend_mask, &mask);
 #else
             if (!(p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1)))
