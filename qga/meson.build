@@ -15,7 +15,7 @@ have_qga_vss = get_option('qga_vss') \
     If your Visual Studio installation doesn't have the VSS headers,
     Please download and install Microsoft VSS SDK:
     http://www.microsoft.com/en-us/download/details.aspx?id=23490
-    On POSIX-systems, MinGW doesn't yet provide working headers.
+    On POSIX-systems, MinGW should provide headers in >=10.0 releases.
     you can extract the SDK headers by:
     $ scripts/extract-vsssdk-headers setup.exe
     The headers are extracted in the directory 'inc/win2003'.

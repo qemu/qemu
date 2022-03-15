@@ -126,6 +126,20 @@ void x86_cpu_xsave_all_areas(X86CPU *cpu, void *buf, uint32_t buflen)
 
         memcpy(pkru, &env->pkru, sizeof(env->pkru));
     }
+
+    e = &x86_ext_save_areas[XSTATE_XTILE_CFG_BIT];
+    if (e->size && e->offset) {
+        XSaveXTILECFG *tilecfg = buf + e->offset;
+
+        memcpy(tilecfg, &env->xtilecfg, sizeof(env->xtilecfg));
+    }
+
+    e = &x86_ext_save_areas[XSTATE_XTILE_DATA_BIT];
+    if (e->size && e->offset && buflen >= e->size + e->offset) {
+        XSaveXTILEDATA *tiledata = buf + e->offset;
+
+        memcpy(tiledata, &env->xtiledata, sizeof(env->xtiledata));
+    }
 #endif
 }
 
@@ -246,6 +260,20 @@ void x86_cpu_xrstor_all_areas(X86CPU *cpu, const void *buf, uint32_t buflen)
 
         pkru = buf + e->offset;
         memcpy(&env->pkru, pkru, sizeof(env->pkru));
+    }
+
+    e = &x86_ext_save_areas[XSTATE_XTILE_CFG_BIT];
+    if (e->size && e->offset) {
+        const XSaveXTILECFG *tilecfg = buf + e->offset;
+
+        memcpy(&env->xtilecfg, tilecfg, sizeof(env->xtilecfg));
+    }
+
+    e = &x86_ext_save_areas[XSTATE_XTILE_DATA_BIT];
+    if (e->size && e->offset && buflen >= e->size + e->offset) {
+        const XSaveXTILEDATA *tiledata = buf + e->offset;
+
+        memcpy(&env->xtiledata, tiledata, sizeof(env->xtiledata));
     }
 #endif
 }
