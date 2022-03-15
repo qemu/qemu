@@ -27,7 +27,6 @@
 #include "hw/s390x/pv.h"
 #include "sysemu/hw_accel.h"
 #include "sysemu/runstate.h"
-#include "sysemu/tcg.h"
 
 void s390x_tod_timer(void *opaque)
 {
