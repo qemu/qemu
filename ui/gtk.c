@@ -614,8 +614,15 @@ static const DisplayChangeListenerOps dcl_gl_area_ops = {
     .dpy_has_dmabuf          = gd_has_dmabuf,
 };
 
+static bool
+gd_gl_area_is_compatible_dcl(DisplayGLCtx *dgc,
+                             DisplayChangeListener *dcl)
+{
+    return dcl->ops == &dcl_gl_area_ops;
+}
+
 static const DisplayGLCtxOps gl_area_ctx_ops = {
-    .compatible_dcl          = &dcl_gl_area_ops,
+    .dpy_gl_ctx_is_compatible_dcl = gd_gl_area_is_compatible_dcl,
     .dpy_gl_ctx_create       = gd_gl_area_create_context,
     .dpy_gl_ctx_destroy      = gd_gl_area_destroy_context,
     .dpy_gl_ctx_make_current = gd_gl_area_make_current,
@@ -641,8 +648,15 @@ static const DisplayChangeListenerOps dcl_egl_ops = {
     .dpy_has_dmabuf          = gd_has_dmabuf,
 };
 
+static bool
+gd_egl_is_compatible_dcl(DisplayGLCtx *dgc,
+                         DisplayChangeListener *dcl)
+{
+    return dcl->ops == &dcl_egl_ops;
+}
+
 static const DisplayGLCtxOps egl_ctx_ops = {
-    .compatible_dcl          = &dcl_egl_ops,
+    .dpy_gl_ctx_is_compatible_dcl = gd_egl_is_compatible_dcl,
     .dpy_gl_ctx_create       = gd_egl_create_context,
     .dpy_gl_ctx_destroy      = qemu_egl_destroy_context,
     .dpy_gl_ctx_make_current = gd_egl_make_current,

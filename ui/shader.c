@@ -130,15 +130,17 @@ static GLuint qemu_gl_create_link_program(GLuint vert, GLuint frag)
 static GLuint qemu_gl_create_compile_link_program(const GLchar *vert_src,
                                                   const GLchar *frag_src)
 {
-    GLuint vert_shader, frag_shader, program;
+    GLuint vert_shader, frag_shader, program = 0;
 
     vert_shader = qemu_gl_create_compile_shader(GL_VERTEX_SHADER, vert_src);
     frag_shader = qemu_gl_create_compile_shader(GL_FRAGMENT_SHADER, frag_src);
     if (!vert_shader || !frag_shader) {
-        return 0;
+        goto end;
     }
 
     program = qemu_gl_create_link_program(vert_shader, frag_shader);
+
+end:
     glDeleteShader(vert_shader);
     glDeleteShader(frag_shader);
 
@@ -170,5 +172,8 @@ void qemu_gl_fini_shader(QemuGLShader *gls)
     if (!gls) {
         return;
     }
+    glDeleteProgram(gls->texture_blit_prog);
+    glDeleteProgram(gls->texture_blit_flip_prog);
+    glDeleteProgram(gls->texture_blit_vao);
     g_free(gls);
 }

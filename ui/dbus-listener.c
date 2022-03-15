@@ -42,7 +42,6 @@ struct _DBusDisplayListener {
 
     DisplayChangeListener dcl;
     DisplaySurface *ds;
-    QemuGLShader *gls;
     int gl_updates;
 };
 
@@ -240,10 +239,6 @@ static void dbus_gl_gfx_update(DisplayChangeListener *dcl,
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
 
-    if (ddl->ds) {
-        surface_gl_update_texture(ddl->gls, ddl->ds, x, y, w, h);
-    }
-
     ddl->gl_updates++;
 }
 
@@ -259,6 +254,26 @@ static void dbus_gfx_update(DisplayChangeListener *dcl,
     stride = w * DIV_ROUND_UP(PIXMAN_FORMAT_BPP(surface_format(ddl->ds)), 8);
 
     trace_dbus_update(x, y, w, h);
+
+    if (x == 0 && y == 0 && w == surface_width(ddl->ds) && h == surface_height(ddl->ds)) {
+        v_data = g_variant_new_from_data(
+            G_VARIANT_TYPE("ay"),
+            surface_data(ddl->ds),
+            surface_stride(ddl->ds) * surface_height(ddl->ds),
+            TRUE,
+            (GDestroyNotify)pixman_image_unref,
+            pixman_image_ref(ddl->ds->image));
+        qemu_dbus_display1_listener_call_scanout(
+            ddl->proxy,
+            surface_width(ddl->ds),
+            surface_height(ddl->ds),
+            surface_stride(ddl->ds),
+            surface_format(ddl->ds),
+            v_data,
+            G_DBUS_CALL_FLAGS_NONE,
+            DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
+        return;
+    }
 
     /* make a copy, since gvariant only handles linear data */
     img = pixman_image_create_bits(surface_format(ddl->ds),
@@ -285,15 +300,11 @@ static void dbus_gl_gfx_switch(DisplayChangeListener *dcl,
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
 
-    if (ddl->ds) {
-        surface_gl_destroy_texture(ddl->gls, ddl->ds);
-    }
     ddl->ds = new_surface;
     if (ddl->ds) {
         int width = surface_width(ddl->ds);
         int height = surface_height(ddl->ds);
 
-        surface_gl_create_texture(ddl->gls, ddl->ds);
         /* TODO: lazy send dmabuf (there are unnecessary sent otherwise) */
         dbus_scanout_texture(&ddl->dcl, ddl->ds->texture, false,
                              width, height, 0, 0, width, height);
@@ -304,29 +315,12 @@ static void dbus_gfx_switch(DisplayChangeListener *dcl,
                             struct DisplaySurface *new_surface)
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
-    GVariant *v_data = NULL;
 
     ddl->ds = new_surface;
     if (!ddl->ds) {
         /* why not call disable instead? */
         return;
     }
-
-    v_data = g_variant_new_from_data(
-        G_VARIANT_TYPE("ay"),
-        surface_data(ddl->ds),
-        surface_stride(ddl->ds) * surface_height(ddl->ds),
-        TRUE,
-        (GDestroyNotify)pixman_image_unref,
-        pixman_image_ref(ddl->ds->image));
-    qemu_dbus_display1_listener_call_scanout(ddl->proxy,
-        surface_width(ddl->ds),
-        surface_height(ddl->ds),
-        surface_stride(ddl->ds),
-        surface_format(ddl->ds),
-        v_data,
-        G_DBUS_CALL_FLAGS_NONE,
-        DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
 }
 
 static void dbus_mouse_set(DisplayChangeListener *dcl,
@@ -403,7 +397,6 @@ dbus_display_listener_dispose(GObject *object)
     g_clear_object(&ddl->conn);
     g_clear_pointer(&ddl->bus_name, g_free);
     g_clear_object(&ddl->proxy);
-    g_clear_pointer(&ddl->gls, qemu_gl_fini_shader);
 
     G_OBJECT_CLASS(dbus_display_listener_parent_class)->dispose(object);
 }
@@ -414,7 +407,6 @@ dbus_display_listener_constructed(GObject *object)
     DBusDisplayListener *ddl = DBUS_DISPLAY_LISTENER(object);
 
     if (display_opengl) {
-        ddl->gls = qemu_gl_init_shader();
         ddl->dcl.ops = &dbus_gl_dcl_ops;
     } else {
         ddl->dcl.ops = &dbus_dcl_ops;

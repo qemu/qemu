@@ -48,11 +48,40 @@ static QEMUGLContext dbus_create_context(DisplayGLCtx *dgc,
     return qemu_egl_create_context(dgc, params);
 }
 
+static bool
+dbus_is_compatible_dcl(DisplayGLCtx *dgc,
+                       DisplayChangeListener *dcl)
+{
+    return dcl->ops == &dbus_gl_dcl_ops || dcl->ops == &dbus_console_dcl_ops;
+}
+
+static void
+dbus_create_texture(DisplayGLCtx *ctx, DisplaySurface *surface)
+{
+    surface_gl_create_texture(ctx->gls, surface);
+}
+
+static void
+dbus_destroy_texture(DisplayGLCtx *ctx, DisplaySurface *surface)
+{
+    surface_gl_destroy_texture(ctx->gls, surface);
+}
+
+static void
+dbus_update_texture(DisplayGLCtx *ctx, DisplaySurface *surface,
+                    int x, int y, int w, int h)
+{
+    surface_gl_update_texture(ctx->gls, surface, x, y, w, h);
+}
+
 static const DisplayGLCtxOps dbus_gl_ops = {
-    .compatible_dcl          = &dbus_gl_dcl_ops,
+    .dpy_gl_ctx_is_compatible_dcl = dbus_is_compatible_dcl,
     .dpy_gl_ctx_create       = dbus_create_context,
     .dpy_gl_ctx_destroy      = qemu_egl_destroy_context,
     .dpy_gl_ctx_make_current = qemu_egl_make_context_current,
+    .dpy_gl_ctx_create_texture = dbus_create_texture,
+    .dpy_gl_ctx_destroy_texture = dbus_destroy_texture,
+    .dpy_gl_ctx_update_texture = dbus_update_texture,
 };
 
 static NotifierList dbus_display_notifiers =
@@ -83,6 +112,9 @@ dbus_display_init(Object *o)
     g_autoptr(GDBusObjectSkeleton) vm = NULL;
 
     dd->glctx.ops = &dbus_gl_ops;
+    if (display_opengl) {
+        dd->glctx.gls = qemu_gl_init_shader();
+    }
     dd->iface = qemu_dbus_display1_vm_skeleton_new();
     dd->consoles = g_ptr_array_new_with_free_func(g_object_unref);
 
@@ -119,6 +151,7 @@ dbus_display_finalize(Object *o)
     g_clear_object(&dd->iface);
     g_free(dd->dbus_addr);
     g_free(dd->audiodev);
+    g_clear_pointer(&dd->glctx.gls, qemu_gl_fini_shader);
     dbus_display = NULL;
 }
 

@@ -1125,8 +1125,15 @@ static const DisplayChangeListenerOps display_listener_gl_ops = {
     .dpy_gl_update           = qemu_spice_gl_update,
 };
 
+static bool
+qemu_spice_is_compatible_dcl(DisplayGLCtx *dgc,
+                             DisplayChangeListener *dcl)
+{
+    return dcl->ops == &display_listener_gl_ops;
+}
+
 static const DisplayGLCtxOps gl_ctx_ops = {
-    .compatible_dcl          = &display_listener_gl_ops,
+    .dpy_gl_ctx_is_compatible_dcl = qemu_spice_is_compatible_dcl,
     .dpy_gl_ctx_create       = qemu_spice_gl_create_context,
     .dpy_gl_ctx_destroy      = qemu_egl_destroy_context,
     .dpy_gl_ctx_make_current = qemu_egl_make_context_current,
