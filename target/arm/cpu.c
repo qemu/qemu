@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "qemu/qemu-print.h"
 #include "qemu/timer.h"
+#include "qemu/log.h"
 #include "qemu-common.h"
 #include "target/arm/idau.h"
 #include "qemu/module.h"
@@ -365,6 +366,10 @@ static void arm_cpu_reset(DeviceState *dev)
             initial_msp = ldl_phys(s->as, vecbase);
             initial_pc = ldl_phys(s->as, vecbase + 4);
         }
+
+        qemu_log_mask(CPU_LOG_INT,
+                      "Loaded reset SP 0x%x PC 0x%x from vector table\n",
+                      initial_msp, initial_pc);
 
         env->regs[13] = initial_msp & 0xFFFFFFFC;
         env->regs[15] = initial_pc & ~1;
