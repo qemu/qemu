@@ -2272,7 +2272,13 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
          * Note that for M profile we don't have a guest facing FSR, but
          * the env->exception.fsr will be populated by the code that
          * raises the fault, in the A profile short-descriptor format.
+         *
+         * Log the exception.vaddress now regardless of subtype, because
+         * logging below only logs it when it goes into a guest visible
+         * register.
          */
+        qemu_log_mask(CPU_LOG_INT, "...at fault address 0x%x\n",
+                      (uint32_t)env->exception.vaddress);
         switch (env->exception.fsr & 0xf) {
         case M_FAKE_FSR_NSC_EXEC:
             /*
