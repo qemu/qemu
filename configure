@@ -1342,12 +1342,10 @@ EOF
 if test "$static" = "yes"; then
   if test "$pie" != "no" && compile_prog "-Werror -fPIE -DPIE" "-static-pie"; then
     CONFIGURE_CFLAGS="-fPIE -DPIE $CONFIGURE_CFLAGS"
-    QEMU_LDFLAGS="-static-pie $QEMU_LDFLAGS"
     pie="yes"
   elif test "$pie" = "yes"; then
     error_exit "-static-pie not available due to missing toolchain support"
   else
-    QEMU_LDFLAGS="-static $QEMU_LDFLAGS"
     pie="no"
   fi
 elif test "$pie" = "no"; then
@@ -1367,12 +1365,6 @@ elif test "$pie" = "yes"; then
 else
   echo "Disabling PIE due to missing toolchain support"
   pie="no"
-fi
-
-# Detect support for PT_GNU_RELRO + DT_BIND_NOW.
-# The combination is known as "full relro", because .got.plt is read-only too.
-if compile_prog "" "-Wl,-z,relro -Wl,-z,now" ; then
-  QEMU_LDFLAGS="-Wl,-z,relro -Wl,-z,now $QEMU_LDFLAGS"
 fi
 
 ##########################################
@@ -2242,14 +2234,6 @@ if test "$have_ubsan" = "yes"; then
 fi
 
 ##########################################
-
-# Exclude --warn-common with TSan to suppress warnings from the TSan libraries.
-if test "$solaris" = "no" && test "$tsan" = "no"; then
-    if $ld --version 2>/dev/null | grep "GNU ld" >/dev/null 2>/dev/null ; then
-        QEMU_LDFLAGS="-Wl,--warn-common $QEMU_LDFLAGS"
-    fi
-fi
-
 # Guest agent Windows MSI package
 
 if test "$QEMU_GA_MANUFACTURER" = ""; then
