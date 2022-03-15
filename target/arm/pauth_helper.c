@@ -390,7 +390,7 @@ static void QEMU_NORETURN pauth_trap(CPUARMState *env, int target_el,
 
 static void pauth_check_trap(CPUARMState *env, int el, uintptr_t ra)
 {
-    if (el < 2 && arm_feature(env, ARM_FEATURE_EL2)) {
+    if (el < 2 && arm_is_el2_enabled(env)) {
         uint64_t hcr = arm_hcr_el2_eff(env);
         bool trap = !(hcr & HCR_API);
         if (el == 0) {
