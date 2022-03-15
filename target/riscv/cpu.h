@@ -106,6 +106,7 @@ typedef struct CPUArchState CPURISCVState;
 
 #if !defined(CONFIG_USER_ONLY)
 #include "pmp.h"
+#include "debug.h"
 #endif
 
 #define RV_VLEN_MAX 1024
@@ -278,6 +279,10 @@ struct CPUArchState {
     /* physical memory protection */
     pmp_table_t pmp_state;
     target_ulong mseccfg;
+
+    /* trigger module */
+    target_ulong trigger_cur;
+    type2_trigger_t type2_trig[TRIGGER_TYPE2_NUM];
 
     /* machine specific rdtime callback */
     uint64_t (*rdtime_fn)(uint32_t);
