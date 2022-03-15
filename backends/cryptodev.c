@@ -39,7 +39,7 @@ cryptodev_backend_new_client(const char *model,
 {
     CryptoDevBackendClient *cc;
 
-    cc = g_malloc0(sizeof(CryptoDevBackendClient));
+    cc = g_new0(CryptoDevBackendClient, 1);
     cc->model = g_strdup(model);
     if (name) {
         cc->name = g_strdup(name);

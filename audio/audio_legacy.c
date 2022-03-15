@@ -328,8 +328,8 @@ static void handle_per_direction(
 
 static AudiodevListEntry *legacy_opt(const char *drvname)
 {
-    AudiodevListEntry *e = g_malloc0(sizeof(AudiodevListEntry));
-    e->dev = g_malloc0(sizeof(Audiodev));
+    AudiodevListEntry *e = g_new0(AudiodevListEntry, 1);
+    e->dev = g_new0(Audiodev, 1);
     e->dev->id = g_strdup(drvname);
     e->dev->driver = qapi_enum_parse(
         &AudiodevDriver_lookup, drvname, -1, &error_abort);
@@ -508,7 +508,7 @@ static void lv_free(Visitor *v)
 
 static Visitor *legacy_visitor_new(void)
 {
-    LegacyPrintVisitor *lv = g_malloc0(sizeof(LegacyPrintVisitor));
+    LegacyPrintVisitor *lv = g_new0(LegacyPrintVisitor, 1);
 
     lv->visitor.start_struct = lv_start_struct;
     lv->visitor.end_struct = lv_end_struct;

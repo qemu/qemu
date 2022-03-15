@@ -1427,7 +1427,7 @@ PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
 {
     PXA2xxLCDState *s;
 
-    s = (PXA2xxLCDState *) g_malloc0(sizeof(PXA2xxLCDState));
+    s = g_new0(PXA2xxLCDState, 1);
     s->invalidated = 1;
     s->irq = irq;
     s->sysmem = sysmem;

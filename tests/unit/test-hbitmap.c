@@ -113,7 +113,7 @@ static void hbitmap_test_truncate_impl(TestHBitmapData *data,
 
     n = hbitmap_test_array_size(size);
     m = hbitmap_test_array_size(data->old_size);
-    data->bits = g_realloc(data->bits, sizeof(unsigned long) * n);
+    data->bits = g_renew(unsigned long, data->bits, n);
     if (n > m) {
         memset(&data->bits[m], 0x00, sizeof(unsigned long) * (n - m));
     }

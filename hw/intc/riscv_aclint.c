@@ -235,7 +235,7 @@ static void riscv_aclint_mtimer_realize(DeviceState *dev, Error **errp)
                           s, TYPE_RISCV_ACLINT_MTIMER, s->aperture_size);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mmio);
 
-    s->timer_irqs = g_malloc(sizeof(qemu_irq) * s->num_harts);
+    s->timer_irqs = g_new(qemu_irq, s->num_harts);
     qdev_init_gpio_out(dev, s->timer_irqs, s->num_harts);
 
     /* Claim timer interrupt bits */
@@ -292,7 +292,7 @@ DeviceState *riscv_aclint_mtimer_create(hwaddr addr, hwaddr size,
         RISCVCPU *rvcpu = RISCV_CPU(cpu);
         CPURISCVState *env = cpu ? cpu->env_ptr : NULL;
         riscv_aclint_mtimer_callback *cb =
-            g_malloc0(sizeof(riscv_aclint_mtimer_callback));
+            g_new0(riscv_aclint_mtimer_callback, 1);
 
         if (!env) {
             g_free(cb);
@@ -393,7 +393,7 @@ static void riscv_aclint_swi_realize(DeviceState *dev, Error **errp)
                           TYPE_RISCV_ACLINT_SWI, RISCV_ACLINT_SWI_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &swi->mmio);
 
-    swi->soft_irqs = g_malloc(sizeof(qemu_irq) * swi->num_harts);
+    swi->soft_irqs = g_new(qemu_irq, swi->num_harts);
     qdev_init_gpio_out(dev, swi->soft_irqs, swi->num_harts);
 
     /* Claim software interrupt bits */

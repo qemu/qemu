@@ -151,7 +151,7 @@ static void imx6_defer_clear_reset_bit(int cpuid,
         return;
     }
 
-    ri = g_malloc(sizeof(struct SRCSCRResetInfo));
+    ri = g_new(struct SRCSCRResetInfo, 1);
     ri->s = s;
     ri->reset_bit = reset_shift;
 

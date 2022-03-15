@@ -49,7 +49,7 @@ ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
 
     object_property_iter_init(&iter, obj);
     while ((prop = object_property_iter_next(&iter))) {
-        ObjectPropertyInfo *value = g_malloc0(sizeof(ObjectPropertyInfo));
+        ObjectPropertyInfo *value = g_new0(ObjectPropertyInfo, 1);
 
         QAPI_LIST_PREPEND(props, value);
 

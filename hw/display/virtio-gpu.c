@@ -831,9 +831,9 @@ int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
             }
 
             if (!(v % 16)) {
-                *iov = g_realloc(*iov, sizeof(struct iovec) * (v + 16));
+                *iov = g_renew(struct iovec, *iov, v + 16);
                 if (addr) {
-                    *addr = g_realloc(*addr, sizeof(uint64_t) * (v + 16));
+                    *addr = g_renew(uint64_t, *addr, v + 16);
                 }
             }
             (*iov)[v].iov_base = map;

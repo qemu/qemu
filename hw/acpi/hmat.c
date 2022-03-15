@@ -128,7 +128,7 @@ static void build_hmat_lb(GArray *table_data, HMAT_LB_Info *hmat_lb,
     }
 
     /* Latency or Bandwidth Entries */
-    entry_list = g_malloc0(num_initiator * num_target * sizeof(uint16_t));
+    entry_list = g_new0(uint16_t, num_initiator * num_target);
     for (i = 0; i < hmat_lb->list->len; i++) {
         lb_data = &g_array_index(hmat_lb->list, HMAT_LB_Data, i);
         index = lb_data->initiator * num_target + lb_data->target;

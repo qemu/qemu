@@ -81,7 +81,7 @@ static CPUTimer *cpu_timer_create(const char *name, SPARCCPU *cpu,
                                   QEMUBHFunc *cb, uint32_t frequency,
                                   uint64_t disabled_mask, uint64_t npt_mask)
 {
-    CPUTimer *timer = g_malloc0(sizeof(CPUTimer));
+    CPUTimer *timer = g_new0(CPUTimer, 1);
 
     timer->name = name;
     timer->frequency = frequency;
@@ -288,7 +288,7 @@ SPARCCPU *sparc64_cpu_devinit(const char *cpu_type, uint64_t prom_addr)
                                     hstick_frequency, TICK_INT_DIS,
                                     TICK_NPT_MASK);
 
-    reset_info = g_malloc0(sizeof(ResetData));
+    reset_info = g_new0(ResetData, 1);
     reset_info->cpu = cpu;
     reset_info->prom_addr = prom_addr;
     qemu_register_reset(main_cpu_reset, reset_info);

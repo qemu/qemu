@@ -455,7 +455,7 @@ vg_create_mapping_iov(VuGpu *g,
         return -1;
     }
 
-    *iov = g_malloc0(sizeof(struct iovec) * ab->nr_entries);
+    *iov = g_new0(struct iovec, ab->nr_entries);
     for (i = 0; i < ab->nr_entries; i++) {
         uint64_t len = ents[i].length;
         (*iov)[i].iov_len = ents[i].length;

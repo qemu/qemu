@@ -177,7 +177,7 @@ static void register_vfs(PCIDevice *dev)
     assert(sriov_cap > 0);
     num_vfs = pci_get_word(dev->config + sriov_cap + PCI_SRIOV_NUM_VF);
 
-    dev->exp.sriov_pf.vf = g_malloc(sizeof(PCIDevice *) * num_vfs);
+    dev->exp.sriov_pf.vf = g_new(PCIDevice *, num_vfs);
     assert(dev->exp.sriov_pf.vf);
 
     trace_sriov_register_vfs(dev->name, PCI_SLOT(dev->devfn),

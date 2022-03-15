@@ -400,7 +400,7 @@ static void slavio_timer_init(Object *obj)
         uint64_t size;
         char timer_name[20];
 
-        tc = g_malloc0(sizeof(TimerContext));
+        tc = g_new0(TimerContext, 1);
         tc->s = s;
         tc->timer_index = i;
 

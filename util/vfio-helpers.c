@@ -279,8 +279,8 @@ static void collect_usable_iova_ranges(QEMUVFIOState *s, void *buf)
     s->nb_iova_ranges = cap_iova_range->nr_iovas;
     if (s->nb_iova_ranges > 1) {
         s->usable_iova_ranges =
-            g_realloc(s->usable_iova_ranges,
-                      s->nb_iova_ranges * sizeof(struct IOVARange));
+            g_renew(struct IOVARange, s->usable_iova_ranges,
+                    s->nb_iova_ranges);
     }
 
     for (i = 0; i < s->nb_iova_ranges; i++) {

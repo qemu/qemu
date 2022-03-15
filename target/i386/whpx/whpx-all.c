@@ -1382,7 +1382,7 @@ int whpx_init_vcpu(CPUState *cpu)
         }
     }
 
-    vcpu = g_malloc0(sizeof(struct whpx_vcpu));
+    vcpu = g_new0(struct whpx_vcpu, 1);
 
     if (!vcpu) {
         error_report("WHPX: Failed to allocte VCPU context.");

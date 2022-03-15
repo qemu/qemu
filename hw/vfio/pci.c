@@ -1532,8 +1532,8 @@ static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
     int ret;
     Error *err = NULL;
 
-    vdev->msix->pending = g_malloc0(BITS_TO_LONGS(vdev->msix->entries) *
-                                    sizeof(unsigned long));
+    vdev->msix->pending = g_new0(unsigned long,
+                                 BITS_TO_LONGS(vdev->msix->entries));
     ret = msix_init(&vdev->pdev, vdev->msix->entries,
                     vdev->bars[vdev->msix->table_bar].mr,
                     vdev->msix->table_bar, vdev->msix->table_offset,

@@ -1226,7 +1226,7 @@ static QemuInputHandler ps2_keyboard_handler = {
 
 void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg)
 {
-    PS2KbdState *s = (PS2KbdState *)g_malloc0(sizeof(PS2KbdState));
+    PS2KbdState *s = g_new0(PS2KbdState, 1);
 
     trace_ps2_kbd_init(s);
     s->common.update_irq = update_irq;
@@ -1248,7 +1248,7 @@ static QemuInputHandler ps2_mouse_handler = {
 
 void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg)
 {
-    PS2MouseState *s = (PS2MouseState *)g_malloc0(sizeof(PS2MouseState));
+    PS2MouseState *s = g_new0(PS2MouseState, 1);
 
     trace_ps2_mouse_init(s);
     s->common.update_irq = update_irq;

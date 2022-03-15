@@ -604,7 +604,7 @@ static void ics_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "Number of interrupts needs to be greater 0");
         return;
     }
-    ics->irqs = g_malloc0(ics->nr_irqs * sizeof(ICSIRQState));
+    ics->irqs = g_new0(ICSIRQState, ics->nr_irqs);
 
     qemu_register_reset(ics_reset_handler, ics);
 }

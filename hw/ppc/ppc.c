@@ -1063,7 +1063,7 @@ clk_setup_cb cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq)
     PowerPCCPU *cpu = env_archcpu(env);
     ppc_tb_t *tb_env;
 
-    tb_env = g_malloc0(sizeof(ppc_tb_t));
+    tb_env = g_new0(ppc_tb_t, 1);
     env->tb_env = tb_env;
     tb_env->flags = PPC_DECR_UNDERFLOW_TRIGGERED;
     if (is_book3s_arch2x(env)) {
@@ -1338,8 +1338,8 @@ clk_setup_cb ppc_40x_timers_init (CPUPPCState *env, uint32_t freq,
 
     trace_ppc40x_timers_init(freq);
 
-    tb_env = g_malloc0(sizeof(ppc_tb_t));
-    ppc40x_timer = g_malloc0(sizeof(ppc40x_timer_t));
+    tb_env = g_new0(ppc_tb_t, 1);
+    ppc40x_timer = g_new0(ppc40x_timer_t, 1);
 
     env->tb_env = tb_env;
     tb_env->flags = PPC_DECR_UNDERFLOW_TRIGGERED;
@@ -1447,7 +1447,7 @@ int ppc_dcr_init (CPUPPCState *env, int (*read_error)(int dcrn),
 {
     ppc_dcr_t *dcr_env;
 
-    dcr_env = g_malloc0(sizeof(ppc_dcr_t));
+    dcr_env = g_new0(ppc_dcr_t, 1);
     dcr_env->read_error = read_error;
     dcr_env->write_error = write_error;
     env->dcr_env = dcr_env;
