@@ -36,6 +36,9 @@ class ReplayKernelBase(LinuxKernelTest):
 
     def run_vm(self, kernel_path, kernel_command_line, console_pattern,
                record, shift, args, replay_path):
+        # icount requires TCG to be available
+        self.require_accelerator('tcg')
+
         logger = logging.getLogger('replay')
         start_time = time.time()
         vm = self.get_vm()
@@ -243,6 +246,7 @@ class ReplayKernelNormal(ReplayKernelBase):
         """
         :avocado: tags=arch:ppc64
         :avocado: tags=machine:pseries
+        :avocado: tags=accel:tcg
         """
         kernel_url = ('https://archives.fedoraproject.org/pub/archive'
                       '/fedora-secondary/releases/29/Everything/ppc64le/os'

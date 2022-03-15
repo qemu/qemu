@@ -25,18 +25,12 @@ class Ppc405Machine(QemuSystemTest):
         wait_for_console_pattern(self, 'AMCC PPC405EP Evaluation Board')
         exec_command_and_wait_for_pattern(self, 'reset', 'AMCC PowerPC 405EP')
 
-    def test_ppc_taihu(self):
-        """
-        :avocado: tags=arch:ppc
-        :avocado: tags=machine:taihu
-        :avocado: tags=cpu:405ep
-        """
-        self.do_test_ppc405()
-
     def test_ppc_ref405ep(self):
         """
         :avocado: tags=arch:ppc
         :avocado: tags=machine:ref405ep
         :avocado: tags=cpu:405ep
+        :avocado: tags=accel:tcg
         """
+        self.require_accelerator("tcg")
         self.do_test_ppc405()

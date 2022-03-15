@@ -1000,6 +1000,7 @@ static void xive2_end_source_class_init(ObjectClass *klass, void *data)
     dc->desc    = "XIVE END Source";
     device_class_set_props(dc, xive2_end_source_properties);
     dc->realize = xive2_end_source_realize;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo xive2_end_source_info = {

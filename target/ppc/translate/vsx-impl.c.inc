@@ -1552,7 +1552,7 @@ static bool trans_XXSPLTW(DisasContext *ctx, arg_XX2_uim2 *a)
     tofs = vsr_full_offset(a->xt);
     bofs = vsr_full_offset(a->xb);
     bofs += a->uim << MO_32;
-#ifndef HOST_WORDS_BIG_ENDIAN
+#ifndef HOST_WORDS_BIGENDIAN
     bofs ^= 8 | 4;
 #endif
 

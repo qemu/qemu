@@ -27,5 +27,6 @@ run-sha512-vector: QEMU_OPTS+=-cpu POWER10
 run-plugin-sha512-vector-with-%: QEMU_OPTS+=-cpu POWER10
 
 PPC64_TESTS += signal_save_restore_xer
+PPC64_TESTS += xxspltw
 
 TESTS += $(PPC64_TESTS)
