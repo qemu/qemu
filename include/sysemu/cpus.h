@@ -55,6 +55,4 @@ extern int smp_cores;
 extern int smp_threads;
 #endif
 
-void list_cpus(const char *optarg);
-
 #endif
