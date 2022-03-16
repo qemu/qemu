@@ -1024,9 +1024,18 @@ void tcg_temp_free_internal(TCGTemp *ts)
     TCGContext *s = tcg_ctx;
     int k, idx;
 
-    /* In order to simplify users of tcg_constant_*, silently ignore free. */
-    if (ts->kind == TEMP_CONST) {
+    switch (ts->kind) {
+    case TEMP_CONST:
+        /*
+         * In order to simplify users of tcg_constant_*,
+         * silently ignore free.
+         */
         return;
+    case TEMP_NORMAL:
+    case TEMP_LOCAL:
+        break;
+    default:
+        g_assert_not_reached();
     }
 
 #if defined(CONFIG_DEBUG_TCG)
@@ -1036,7 +1045,6 @@ void tcg_temp_free_internal(TCGTemp *ts)
     }
 #endif
 
-    tcg_debug_assert(ts->kind < TEMP_GLOBAL);
     tcg_debug_assert(ts->temp_allocated != 0);
     ts->temp_allocated = 0;
 
@@ -1674,6 +1682,7 @@ static void tcg_reg_alloc_start(TCGContext *s)
         case TEMP_GLOBAL:
             break;
         case TEMP_NORMAL:
+        case TEMP_EBB:
             val = TEMP_VAL_DEAD;
             /* fall through */
         case TEMP_LOCAL:
@@ -1700,6 +1709,9 @@ static char *tcg_get_arg_str_ptr(TCGContext *s, char *buf, int buf_size,
         break;
     case TEMP_LOCAL:
         snprintf(buf, buf_size, "loc%d", idx - s->nb_globals);
+        break;
+    case TEMP_EBB:
+        snprintf(buf, buf_size, "ebb%d", idx - s->nb_globals);
         break;
     case TEMP_NORMAL:
         snprintf(buf, buf_size, "tmp%d", idx - s->nb_globals);
@@ -2378,6 +2390,7 @@ static void la_bb_end(TCGContext *s, int ng, int nt)
             state = TS_DEAD | TS_MEM;
             break;
         case TEMP_NORMAL:
+        case TEMP_EBB:
         case TEMP_CONST:
             state = TS_DEAD;
             break;
@@ -2405,8 +2418,9 @@ static void la_global_sync(TCGContext *s, int ng)
 }
 
 /*
- * liveness analysis: conditional branch: all temps are dead,
- * globals and local temps should be synced.
+ * liveness analysis: conditional branch: all temps are dead unless
+ * explicitly live-across-conditional-branch, globals and local temps
+ * should be synced.
  */
 static void la_bb_sync(TCGContext *s, int ng, int nt)
 {
@@ -2427,6 +2441,7 @@ static void la_bb_sync(TCGContext *s, int ng, int nt)
         case TEMP_NORMAL:
             s->temps[i].state = TS_DEAD;
             break;
+        case TEMP_EBB:
         case TEMP_CONST:
             continue;
         default:
@@ -2797,6 +2812,7 @@ static bool liveness_pass_2(TCGContext *s)
             TCGTemp *dts = tcg_temp_alloc(s);
             dts->type = its->type;
             dts->base_type = its->base_type;
+            dts->kind = TEMP_EBB;
             its->state_ptr = dts;
         } else {
             its->state_ptr = NULL;
@@ -3107,6 +3123,7 @@ static void temp_free_or_dead(TCGContext *s, TCGTemp *ts, int free_or_dead)
         new_type = TEMP_VAL_MEM;
         break;
     case TEMP_NORMAL:
+    case TEMP_EBB:
         new_type = free_or_dead < 0 ? TEMP_VAL_MEM : TEMP_VAL_DEAD;
         break;
     case TEMP_CONST:
@@ -3353,6 +3370,7 @@ static void tcg_reg_alloc_bb_end(TCGContext *s, TCGRegSet allocated_regs)
             temp_save(s, ts, allocated_regs);
             break;
         case TEMP_NORMAL:
+        case TEMP_EBB:
             /* The liveness analysis already ensures that temps are dead.
                Keep an tcg_debug_assert for safety. */
             tcg_debug_assert(ts->val_type == TEMP_VAL_DEAD);
@@ -3370,8 +3388,9 @@ static void tcg_reg_alloc_bb_end(TCGContext *s, TCGRegSet allocated_regs)
 }
 
 /*
- * At a conditional branch, we assume all temporaries are dead and
- * all globals and local temps are synced to their location.
+ * At a conditional branch, we assume all temporaries are dead unless
+ * explicitly live-across-conditional-branch; all globals and local
+ * temps are synced to their location.
  */
 static void tcg_reg_alloc_cbranch(TCGContext *s, TCGRegSet allocated_regs)
 {
@@ -3390,6 +3409,7 @@ static void tcg_reg_alloc_cbranch(TCGContext *s, TCGRegSet allocated_regs)
         case TEMP_NORMAL:
             tcg_debug_assert(ts->val_type == TEMP_VAL_DEAD);
             break;
+        case TEMP_EBB:
         case TEMP_CONST:
             break;
         default:
