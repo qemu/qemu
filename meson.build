@@ -1715,11 +1715,30 @@ config_host_data.set('CONFIG_FDATASYNC', cc.links(gnu_source_prefix + '''
   #error Not supported
   #endif
   }'''))
-config_host_data.set('CONFIG_MADVISE', cc.links(gnu_source_prefix + '''
+
+has_madvise = cc.links(gnu_source_prefix + '''
   #include <sys/types.h>
   #include <sys/mman.h>
   #include <stddef.h>
-  int main(void) { return madvise(NULL, 0, MADV_DONTNEED); }'''))
+  int main(void) { return madvise(NULL, 0, MADV_DONTNEED); }''')
+missing_madvise_proto = false
+if has_madvise
+  # Some platforms (illumos and Solaris before Solaris 11) provide madvise()
+  # but forget to prototype it. In this case, has_madvise will be true (the
+  # test program links despite a compile warning). To detect the
+  # missing-prototype case, we try again with a definitely-bogus prototype.
+  # This will only compile if the system headers don't provide the prototype;
+  # otherwise the conflicting prototypes will cause a compiler error.
+  missing_madvise_proto = cc.links(gnu_source_prefix + '''
+    #include <sys/types.h>
+    #include <sys/mman.h>
+    #include <stddef.h>
+    extern int madvise(int);
+    int main(void) { return madvise(0); }''')
+endif
+config_host_data.set('CONFIG_MADVISE', has_madvise)
+config_host_data.set('HAVE_MADVISE_WITHOUT_PROTOTYPE', missing_madvise_proto)
+
 config_host_data.set('CONFIG_MEMFD', cc.links(gnu_source_prefix + '''
   #include <sys/mman.h>
   int main(void) { return memfd_create("foo", MFD_ALLOW_SEALING); }'''))

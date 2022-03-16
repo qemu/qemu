@@ -28,9 +28,6 @@
 
 #ifdef CONFIG_SOLARIS
 #include <sys/statvfs.h>
-/* See MySQL bug #7156 (http://bugs.mysql.com/bug.php?id=7156) for
-   discussion about Solaris header problems */
-extern int madvise(char *, size_t, int);
 #endif
 
 #include "qemu-common.h"
