@@ -23,13 +23,6 @@
  */
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-
-/* Needed early for CONFIG_BSD etc. */
-
-#ifdef CONFIG_SOLARIS
-#include <sys/statvfs.h>
-#endif
-
 #include "qemu-common.h"
 #include "qemu/cutils.h"
 #include "qemu/sockets.h"
