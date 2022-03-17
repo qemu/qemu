@@ -44,4 +44,11 @@ if have_vhost_net_vdpa
   softmmu_ss.add(files('vhost-vdpa.c'))
 endif
 
+vmnet_files = files(
+  'vmnet-common.m',
+  'vmnet-bridged.m',
+  'vmnet-host.c',
+  'vmnet-shared.c'
+)
+softmmu_ss.add(when: vmnet, if_true: vmnet_files)
 subdir('can')
