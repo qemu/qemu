@@ -181,6 +181,18 @@ static void vtd_update_scalable_state(IntelIOMMUState *s)
     }
 }
 
+static void vtd_update_iq_dw(IntelIOMMUState *s)
+{
+    uint64_t val = vtd_get_quad_raw(s, DMAR_IQA_REG);
+
+    if (s->ecap & VTD_ECAP_SMTS &&
+        val & VTD_IQA_DW_MASK) {
+        s->iq_dw = true;
+    } else {
+        s->iq_dw = false;
+    }
+}
+
 /* Whether the address space needs to notify new mappings */
 static inline gboolean vtd_as_has_map_notifier(VTDAddressSpace *as)
 {
@@ -2904,12 +2916,7 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
         } else {
             vtd_set_quad(s, addr, val);
         }
-        if (s->ecap & VTD_ECAP_SMTS &&
-            val & VTD_IQA_DW_MASK) {
-            s->iq_dw = true;
-        } else {
-            s->iq_dw = false;
-        }
+        vtd_update_iq_dw(s);
         break;
 
     case DMAR_IQA_REG_HI:
@@ -3081,6 +3088,8 @@ static int vtd_post_load(void *opaque, int version_id)
      * for compatibility of migration.
      */
     vtd_update_scalable_state(iommu);
+
+    vtd_update_iq_dw(iommu);
 
     /*
      * Memory regions are dynamically turned on/off depending on
