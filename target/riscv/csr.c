@@ -1498,9 +1498,13 @@ static RISCVException rmw_mip64(CPURISCVState *env, int csrno,
                                 uint64_t new_val, uint64_t wr_mask)
 {
     RISCVCPU *cpu = env_archcpu(env);
-    /* Allow software control of delegable interrupts not claimed by hardware */
-    uint64_t old_mip, mask = wr_mask & delegable_ints & ~env->miclaim;
+    uint64_t old_mip, mask = wr_mask & delegable_ints;
     uint32_t gin;
+
+    if (mask & MIP_SEIP) {
+        env->software_seip = new_val & MIP_SEIP;
+        new_val |= env->external_seip * MIP_SEIP;
+    }
 
     if (mask) {
         old_mip = riscv_cpu_update_mip(cpu, mask, (new_val & mask));

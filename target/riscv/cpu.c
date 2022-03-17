@@ -708,7 +708,6 @@ static void riscv_cpu_set_irq(void *opaque, int irq, int level)
         case IRQ_VS_TIMER:
         case IRQ_M_TIMER:
         case IRQ_U_EXT:
-        case IRQ_S_EXT:
         case IRQ_VS_EXT:
         case IRQ_M_EXT:
             if (kvm_enabled()) {
@@ -717,6 +716,15 @@ static void riscv_cpu_set_irq(void *opaque, int irq, int level)
                 riscv_cpu_update_mip(cpu, 1 << irq, BOOL_TO_MASK(level));
             }
              break;
+        case IRQ_S_EXT:
+            if (kvm_enabled()) {
+                kvm_riscv_set_irq(cpu, irq, level);
+            } else {
+                env->external_seip = level;
+                riscv_cpu_update_mip(cpu, 1 << irq,
+                                     BOOL_TO_MASK(level | env->software_seip));
+            }
+            break;
         default:
             g_assert_not_reached();
         }

@@ -177,6 +177,14 @@ struct CPUArchState {
     uint64_t mstatus;
 
     uint64_t mip;
+    /*
+     * MIP contains the software writable version of SEIP ORed with the
+     * external interrupt value. The MIP register is always up-to-date.
+     * To keep track of the current source, we also save booleans of the values
+     * here.
+     */
+    bool external_seip;
+    bool software_seip;
 
     uint64_t miclaim;
 
