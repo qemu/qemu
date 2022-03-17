@@ -2956,7 +2956,9 @@ static void pci_cirrus_vga_realize(PCIDevice *dev, Error **errp)
         return;
     }
     /* setup VGA */
-    vga_common_init(&s->vga, OBJECT(dev));
+    if (!vga_common_init(&s->vga, OBJECT(dev), errp)) {
+        return;
+    }
     cirrus_init_common(s, OBJECT(dev), device_id, 1, pci_address_space(dev),
                        pci_address_space_io(dev));
     s->vga.con = graphic_console_init(DEVICE(dev), 0, s->vga.hw_ops, &s->vga);
