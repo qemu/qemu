@@ -2206,6 +2206,12 @@ bool vga_common_init(VGACommonState *s, Object *obj, Error **errp)
     s->vbe_size_mask = s->vbe_size - 1;
 
     s->is_vbe_vmstate = 1;
+
+    if (s->global_vmstate && qemu_ram_block_by_name("vga.vram")) {
+        error_setg(errp, "Only one global VGA device can be used at a time");
+        return false;
+    }
+
     memory_region_init_ram_nomigrate(&s->vram, obj, "vga.vram", s->vram_size,
                                      &local_err);
     if (local_err) {
