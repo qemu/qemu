@@ -3074,13 +3074,6 @@ static int vtd_post_load(void *opaque, int version_id)
     IntelIOMMUState *iommu = opaque;
 
     /*
-     * Memory regions are dynamically turned on/off depending on
-     * context entry configurations from the guest. After migration,
-     * we need to make sure the memory regions are still correct.
-     */
-    vtd_switch_address_space_all(iommu);
-
-    /*
      * We don't need to migrate the root_scalable because we can
      * simply do the calculation after the loading is complete.  We
      * can actually do similar things with root, dmar_enabled, etc.
@@ -3088,6 +3081,13 @@ static int vtd_post_load(void *opaque, int version_id)
      * for compatibility of migration.
      */
     vtd_update_scalable_state(iommu);
+
+    /*
+     * Memory regions are dynamically turned on/off depending on
+     * context entry configurations from the guest. After migration,
+     * we need to make sure the memory regions are still correct.
+     */
+    vtd_switch_address_space_all(iommu);
 
     return 0;
 }
