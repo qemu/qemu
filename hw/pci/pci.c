@@ -1697,7 +1697,7 @@ static const pci_class_desc pci_class_descriptions[] =
     { 0x0902, "Mouse", "mouse"},
     { 0x0A00, "Dock station", "dock", 0x00ff},
     { 0x0B00, "i386 cpu", "cpu", 0x00ff},
-    { 0x0c00, "Fireware contorller", "fireware"},
+    { 0x0c00, "Firewire controller", "firewire"},
     { 0x0c01, "Access bus controller", "access-bus"},
     { 0x0c02, "SSA controller", "ssa"},
     { 0x0c03, "USB controller", "usb"},
