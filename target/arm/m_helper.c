@@ -679,6 +679,10 @@ static bool arm_v7m_load_vector(ARMCPU *cpu, int exc, bool targets_secure,
     ARMMMUIdx mmu_idx;
     bool exc_secure;
 
+    qemu_log_mask(CPU_LOG_INT,
+                  "...loading from element %d of %s vector table at 0x%x\n",
+                  exc, targets_secure ? "secure" : "non-secure", addr);
+
     mmu_idx = arm_v7m_mmu_idx_for_secstate_and_priv(env, targets_secure, true);
 
     /*
@@ -719,6 +723,7 @@ static bool arm_v7m_load_vector(ARMCPU *cpu, int exc, bool targets_secure,
         goto load_fail;
     }
     *pvec = vector_entry;
+    qemu_log_mask(CPU_LOG_INT, "...loaded new PC 0x%x\n", *pvec);
     return true;
 
 load_fail:
@@ -2267,7 +2272,13 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
          * Note that for M profile we don't have a guest facing FSR, but
          * the env->exception.fsr will be populated by the code that
          * raises the fault, in the A profile short-descriptor format.
+         *
+         * Log the exception.vaddress now regardless of subtype, because
+         * logging below only logs it when it goes into a guest visible
+         * register.
          */
+        qemu_log_mask(CPU_LOG_INT, "...at fault address 0x%x\n",
+                      (uint32_t)env->exception.vaddress);
         switch (env->exception.fsr & 0xf) {
         case M_FAKE_FSR_NSC_EXEC:
             /*

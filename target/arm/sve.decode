@@ -1575,10 +1575,9 @@ USDOT_zzzz      01000100 .. 0 ..... 011 110 ..... .....  @rda_rn_rm
 
 ### SVE2 Memory Gather Load Group
 
-# SVE2 64-bit gather non-temporal load
-#   (scalar plus unpacked 32-bit unscaled offsets)
+# SVE2 64-bit gather non-temporal load (scalar plus 64-bit unscaled offsets)
 LDNT1_zprz      1100010 msz:2 00 rm:5 1 u:1 0 pg:3 rn:5 rd:5 \
-                &rprr_gather_load xs=0 esz=3 scale=0 ff=0
+                &rprr_gather_load xs=2 esz=3 scale=0 ff=0
 
 # SVE2 32-bit gather non-temporal load (scalar plus 32-bit unscaled offsets)
 LDNT1_zprz      1000010 msz:2 00 rm:5 10 u:1 pg:3 rn:5 rd:5 \

@@ -612,8 +612,8 @@ static void npcm7xx_clk_sel_init(Object *obj)
     NPCM7xxClockSELState *sel = NPCM7XX_CLOCK_SEL(obj);
 
     for (i = 0; i < NPCM7XX_CLK_SEL_MAX_INPUT; ++i) {
-        sel->clock_in[i] = qdev_init_clock_in(DEVICE(sel),
-                g_strdup_printf("clock-in[%d]", i),
+        g_autofree char *s = g_strdup_printf("clock-in[%d]", i);
+        sel->clock_in[i] = qdev_init_clock_in(DEVICE(sel), s,
                 npcm7xx_clk_update_sel_cb, sel, ClockUpdate);
     }
     sel->clock_out = qdev_init_clock_out(DEVICE(sel), "clock-out");

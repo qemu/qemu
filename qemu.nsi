@@ -35,6 +35,9 @@
 !define OUTFILE "qemu-setup.exe"
 !endif
 
+; Build a unicode installer
+Unicode true
+
 ; Use maximum compression.
 SetCompressor /SOLID lzma
 
@@ -225,10 +228,7 @@ SectionEnd
 ; Descriptions (mouse-over).
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionSystem}  "System emulation."
-    !insertmacro MUI_DESCRIPTION_TEXT ${Section_alpha}  "Alpha system emulation."
-    !insertmacro MUI_DESCRIPTION_TEXT ${Section_alphaw} "Alpha system emulation (GUI)."
-    !insertmacro MUI_DESCRIPTION_TEXT ${Section_i386}   "PC i386 system emulation."
-    !insertmacro MUI_DESCRIPTION_TEXT ${Section_i386w}  "PC i386 system emulation (GUI)."
+!include "${BINDIR}\system-mui-text.nsh"
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionTools} "Tools."
 !ifdef DLLDIR
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionDll}   "Runtime Libraries (DLL)."
