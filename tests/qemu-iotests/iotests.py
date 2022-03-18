@@ -607,8 +607,10 @@ def filter_qmp(qmsg, filter_fn):
     # Iterate through either lists or dicts;
     if isinstance(qmsg, list):
         items = enumerate(qmsg)
-    else:
+    elif isinstance(qmsg, dict):
         items = qmsg.items()
+    else:
+        return filter_fn(None, qmsg)
 
     for k, v in items:
         if isinstance(v, (dict, list)):
@@ -944,8 +946,12 @@ class VM(qtest.QEMUQtestMachine):
         return result
 
     # Returns None on success, and an error string on failure
-    def run_job(self, job, auto_finalize=True, auto_dismiss=False,
-                pre_finalize=None, cancel=False, wait=60.0):
+    def run_job(self, job: str, auto_finalize: bool = True,
+                auto_dismiss: bool = False,
+                pre_finalize: Optional[Callable[[], None]] = None,
+                cancel: bool = False, wait: float = 60.0,
+                filters: Iterable[Callable[[Any], Any]] = (),
+                ) -> Optional[str]:
         """
         run_job moves a job from creation through to dismissal.
 
@@ -975,7 +981,7 @@ class VM(qtest.QEMUQtestMachine):
         while True:
             ev = filter_qmp_event(self.events_wait(events, timeout=wait))
             if ev['event'] != 'JOB_STATUS_CHANGE':
-                log(ev)
+                log(ev, filters=filters)
                 continue
             status = ev['data']['status']
             if status == 'aborting':
@@ -983,18 +989,18 @@ class VM(qtest.QEMUQtestMachine):
                 for j in result['return']:
                     if j['id'] == job:
                         error = j['error']
-                        log('Job failed: %s' % (j['error']))
+                        log('Job failed: %s' % (j['error']), filters=filters)
             elif status == 'ready':
-                self.qmp_log('job-complete', id=job)
+                self.qmp_log('job-complete', id=job, filters=filters)
             elif status == 'pending' and not auto_finalize:
                 if pre_finalize:
                     pre_finalize()
                 if cancel:
-                    self.qmp_log('job-cancel', id=job)
+                    self.qmp_log('job-cancel', id=job, filters=filters)
                 else:
-                    self.qmp_log('job-finalize', id=job)
+                    self.qmp_log('job-finalize', id=job, filters=filters)
             elif status == 'concluded' and not auto_dismiss:
-                self.qmp_log('job-dismiss', id=job)
+                self.qmp_log('job-dismiss', id=job, filters=filters)
             elif status == 'null':
                 return error
 
@@ -1007,7 +1013,7 @@ class VM(qtest.QEMUQtestMachine):
 
         if 'return' in result:
             assert result['return'] == {}
-            job_result = self.run_job(job_id)
+            job_result = self.run_job(job_id, filters=filters)
         else:
             job_result = result['error']
 
