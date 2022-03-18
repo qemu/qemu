@@ -411,6 +411,12 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         }
     } else if (function == 0xd && index == 0 &&
                (reg == R_EAX || reg == R_EDX)) {
+        /*
+         * The value returned by KVM_GET_SUPPORTED_CPUID does not include
+         * features that still have to be enabled with the arch_prctl
+         * system call.  QEMU needs the full value, which is retrieved
+         * with KVM_GET_DEVICE_ATTR.
+         */
         struct kvm_device_attr attr = {
             .group = 0,
             .attr = KVM_X86_XCOMP_GUEST_SUPP,
@@ -419,13 +425,16 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
 
         bool sys_attr = kvm_check_extension(s, KVM_CAP_SYS_ATTRIBUTES);
         if (!sys_attr) {
-            warn_report("cannot get sys attribute capabilities %d", sys_attr);
+            return ret;
         }
 
         int rc = kvm_ioctl(s, KVM_GET_DEVICE_ATTR, &attr);
-        if (rc == -1 && (errno == ENXIO || errno == EINVAL)) {
-            warn_report("KVM_GET_DEVICE_ATTR(0, KVM_X86_XCOMP_GUEST_SUPP) "
-                        "error: %d", rc);
+        if (rc < 0) {
+            if (rc != -ENXIO) {
+                warn_report("KVM_GET_DEVICE_ATTR(0, KVM_X86_XCOMP_GUEST_SUPP) "
+                            "error: %d", rc);
+            }
+            return ret;
         }
         ret = (reg == R_EAX) ? bitmask : bitmask >> 32;
     } else if (function == 0x80000001 && reg == R_ECX) {
