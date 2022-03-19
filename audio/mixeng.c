@@ -342,13 +342,13 @@ f_sample *mixeng_clip_float[2] = {
 void audio_sample_to_uint64(const void *samples, int pos,
                             uint64_t *left, uint64_t *right)
 {
-    const struct st_sample *sample = samples;
-    sample += pos;
 #ifdef FLOAT_MIXENG
     error_report(
         "Coreaudio and floating point samples are not supported by replay yet");
     abort();
 #else
+    const struct st_sample *sample = samples;
+    sample += pos;
     *left = sample->l;
     *right = sample->r;
 #endif
@@ -357,13 +357,13 @@ void audio_sample_to_uint64(const void *samples, int pos,
 void audio_sample_from_uint64(void *samples, int pos,
                             uint64_t left, uint64_t right)
 {
-    struct st_sample *sample = samples;
-    sample += pos;
 #ifdef FLOAT_MIXENG
     error_report(
         "Coreaudio and floating point samples are not supported by replay yet");
     abort();
 #else
+    struct st_sample *sample = samples;
+    sample += pos;
     sample->l = left;
     sample->r = right;
 #endif

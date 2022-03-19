@@ -56,7 +56,9 @@ static void isa_cirrus_vga_realizefn(DeviceState *dev, Error **errp)
         return;
     }
     s->global_vmstate = true;
-    vga_common_init(s, OBJECT(dev));
+    if (!vga_common_init(s, OBJECT(dev), errp)) {
+        return;
+    }
     cirrus_init_common(&d->cirrus_vga, OBJECT(dev), CIRRUS_ID_CLGD5430, 0,
                        isa_address_space(isadev),
                        isa_address_space_io(isadev));

@@ -972,6 +972,10 @@ static gboolean gd_button_event(GtkWidget *widget, GdkEventButton *button,
         return TRUE;
     }
 
+    if (button->type == GDK_2BUTTON_PRESS || button->type == GDK_3BUTTON_PRESS) {
+        return TRUE;
+    }
+
     qemu_input_queue_btn(vc->gfx.dcl.con, btn,
                          button->type == GDK_BUTTON_PRESS);
     qemu_input_event_sync();

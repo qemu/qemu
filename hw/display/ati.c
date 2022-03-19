@@ -955,7 +955,9 @@ static void ati_vga_realize(PCIDevice *dev, Error **errp)
     }
 
     /* init vga bits */
-    vga_common_init(vga, OBJECT(s));
+    if (!vga_common_init(vga, OBJECT(s), errp)) {
+        return;
+    }
     vga_init(vga, OBJECT(s), pci_address_space(dev),
              pci_address_space_io(dev), true);
     vga->con = graphic_console_init(DEVICE(s), 0, s->vga.hw_ops, &s->vga);

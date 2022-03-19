@@ -102,7 +102,10 @@ static void vga_mmio_realizefn(DeviceState *dev, Error **errp)
 
     s->vga.bank_offset = 0;
     s->vga.global_vmstate = true;
-    vga_common_init(&s->vga, OBJECT(dev));
+    if (!vga_common_init(&s->vga, OBJECT(dev), errp)) {
+        return;
+    }
+
     sysbus_init_mmio(sbd, &s->vga.vram);
     s->vga.con = graphic_console_init(dev, 0, s->vga.hw_ops, &s->vga);
 }
