@@ -2691,10 +2691,34 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)   \
     do_float_check_status(env, GETPC());                           \
 }
 
-VSX_CVT_FP_TO_FP(xscvdpsp, 1, float64, float32, VsrD(0), VsrW(0), 1)
 VSX_CVT_FP_TO_FP(xscvspdp, 1, float32, float64, VsrW(0), VsrD(0), 1)
-VSX_CVT_FP_TO_FP(xvcvdpsp, 2, float64, float32, VsrD(i), VsrW(2 * i), 0)
 VSX_CVT_FP_TO_FP(xvcvspdp, 2, float32, float64, VsrW(2 * i), VsrD(i), 0)
+
+#define VSX_CVT_FP_TO_FP2(op, nels, stp, ttp, sfprf)                  \
+void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)      \
+{                                                                     \
+    ppc_vsr_t t = { };                                                \
+    int i;                                                            \
+                                                                      \
+    for (i = 0; i < nels; i++) {                                      \
+        t.VsrW(2 * i) = stp##_to_##ttp(xb->VsrD(i), &env->fp_status); \
+        if (unlikely(stp##_is_signaling_nan(xb->VsrD(i),              \
+                                            &env->fp_status))) {      \
+            float_invalid_op_vxsnan(env, GETPC());                    \
+            t.VsrW(2 * i) = ttp##_snan_to_qnan(t.VsrW(2 * i));        \
+        }                                                             \
+        if (sfprf) {                                                  \
+            helper_compute_fprf_##ttp(env, t.VsrW(2 * i));            \
+        }                                                             \
+        t.VsrW(2 * i + 1) = t.VsrW(2 * i);                            \
+    }                                                                 \
+                                                                      \
+    *xt = t;                                                          \
+    do_float_check_status(env, GETPC());                              \
+}
+
+VSX_CVT_FP_TO_FP2(xvcvdpsp, 2, float64, float32, 0)
+VSX_CVT_FP_TO_FP2(xscvdpsp, 1, float64, float32, 1)
 
 /*
  * VSX_CVT_FP_TO_FP_VECTOR - VSX floating point/floating point conversion
@@ -3013,10 +3037,26 @@ VSX_CVT_INT_TO_FP(xvcvsxddp, 2, int64, float64, VsrD(i), VsrD(i), 0, 0)
 VSX_CVT_INT_TO_FP(xvcvuxddp, 2, uint64, float64, VsrD(i), VsrD(i), 0, 0)
 VSX_CVT_INT_TO_FP(xvcvsxwdp, 2, int32, float64, VsrW(2 * i), VsrD(i), 0, 0)
 VSX_CVT_INT_TO_FP(xvcvuxwdp, 2, uint64, float64, VsrW(2 * i), VsrD(i), 0, 0)
-VSX_CVT_INT_TO_FP(xvcvsxdsp, 2, int64, float32, VsrD(i), VsrW(2 * i), 0, 0)
-VSX_CVT_INT_TO_FP(xvcvuxdsp, 2, uint64, float32, VsrD(i), VsrW(2 * i), 0, 0)
 VSX_CVT_INT_TO_FP(xvcvsxwsp, 4, int32, float32, VsrW(i), VsrW(i), 0, 0)
 VSX_CVT_INT_TO_FP(xvcvuxwsp, 4, uint32, float32, VsrW(i), VsrW(i), 0, 0)
+
+#define VSX_CVT_INT_TO_FP2(op, stp, ttp)                                \
+void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)        \
+{                                                                       \
+    ppc_vsr_t t = { };                                                  \
+    int i;                                                              \
+                                                                        \
+    for (i = 0; i < 2; i++) {                                           \
+        t.VsrW(2 * i) = stp##_to_##ttp(xb->VsrD(i), &env->fp_status);   \
+        t.VsrW(2 * i + 1) = t.VsrW(2 * i);                              \
+    }                                                                   \
+                                                                        \
+    *xt = t;                                                            \
+    do_float_check_status(env, GETPC());                                \
+}
+
+VSX_CVT_INT_TO_FP2(xvcvsxdsp, int64, float32)
+VSX_CVT_INT_TO_FP2(xvcvuxdsp, uint64, float32)
 
 /*
  * VSX_CVT_INT_TO_FP_VECTOR - VSX integer to floating point conversion
