@@ -2891,21 +2891,54 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)             \
 
 VSX_CVT_FP_TO_INT(xscvdpsxds, 1, float64, int64, VsrD(0), VsrD(0), \
                   0x8000000000000000ULL)
-VSX_CVT_FP_TO_INT(xscvdpsxws, 1, float64, int32, VsrD(0), VsrW(1), \
-                  0x80000000U)
 VSX_CVT_FP_TO_INT(xscvdpuxds, 1, float64, uint64, VsrD(0), VsrD(0), 0ULL)
-VSX_CVT_FP_TO_INT(xscvdpuxws, 1, float64, uint32, VsrD(0), VsrW(1), 0U)
 VSX_CVT_FP_TO_INT(xvcvdpsxds, 2, float64, int64, VsrD(i), VsrD(i), \
                   0x8000000000000000ULL)
-VSX_CVT_FP_TO_INT(xvcvdpsxws, 2, float64, int32, VsrD(i), VsrW(2 * i), \
-                  0x80000000U)
 VSX_CVT_FP_TO_INT(xvcvdpuxds, 2, float64, uint64, VsrD(i), VsrD(i), 0ULL)
-VSX_CVT_FP_TO_INT(xvcvdpuxws, 2, float64, uint32, VsrD(i), VsrW(2 * i), 0U)
 VSX_CVT_FP_TO_INT(xvcvspsxds, 2, float32, int64, VsrW(2 * i), VsrD(i), \
                   0x8000000000000000ULL)
 VSX_CVT_FP_TO_INT(xvcvspsxws, 4, float32, int32, VsrW(i), VsrW(i), 0x80000000U)
 VSX_CVT_FP_TO_INT(xvcvspuxds, 2, float32, uint64, VsrW(2 * i), VsrD(i), 0ULL)
 VSX_CVT_FP_TO_INT(xvcvspuxws, 4, float32, uint32, VsrW(i), VsrW(i), 0U)
+
+/*
+ * Likewise, except that the result is duplicated into both subwords.
+ * Power ISA v3.1 has Programming Notes for these insns:
+ *     Previous versions of the architecture allowed the contents of
+ *     word 0 of the result register to be undefined. However, all
+ *     processors that support this instruction write the result into
+ *     words 0 and 1 (and words 2 and 3) of the result register, as
+ *     is required by this version of the architecture.
+ */
+#define VSX_CVT_FP_TO_INT2(op, nels, stp, ttp, rnan)                         \
+void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)             \
+{                                                                            \
+    int all_flags = env->fp_status.float_exception_flags, flags;             \
+    ppc_vsr_t t = { };                                                       \
+    int i;                                                                   \
+                                                                             \
+    for (i = 0; i < nels; i++) {                                             \
+        env->fp_status.float_exception_flags = 0;                            \
+        t.VsrW(2 * i) = stp##_to_##ttp##_round_to_zero(xb->VsrD(i),          \
+                                                       &env->fp_status);     \
+        flags = env->fp_status.float_exception_flags;                        \
+        if (unlikely(flags & float_flag_invalid)) {                          \
+            t.VsrW(2 * i) = float_invalid_cvt(env, flags, t.VsrW(2 * i),     \
+                                              rnan, 0, GETPC());             \
+        }                                                                    \
+        t.VsrW(2 * i + 1) = t.VsrW(2 * i);                                   \
+        all_flags |= flags;                                                  \
+    }                                                                        \
+                                                                             \
+    *xt = t;                                                                 \
+    env->fp_status.float_exception_flags = all_flags;                        \
+    do_float_check_status(env, GETPC());                                     \
+}
+
+VSX_CVT_FP_TO_INT2(xscvdpsxws, 1, float64, int32, 0x80000000U)
+VSX_CVT_FP_TO_INT2(xscvdpuxws, 1, float64, uint32, 0U)
+VSX_CVT_FP_TO_INT2(xvcvdpsxws, 2, float64, int32, 0x80000000U)
+VSX_CVT_FP_TO_INT2(xvcvdpuxws, 2, float64, uint32, 0U)
 
 /*
  * VSX_CVT_FP_TO_INT_VECTOR - VSX floating point to integer conversion
