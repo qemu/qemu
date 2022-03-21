@@ -1596,7 +1596,7 @@ static target_ulong h_enter_nested(PowerPCCPU *cpu,
         return H_PARAMETER;
     }
 
-    spapr_cpu->nested_host_state = g_try_malloc(sizeof(CPUPPCState));
+    spapr_cpu->nested_host_state = g_try_new(CPUPPCState, 1);
     if (!spapr_cpu->nested_host_state) {
         return H_NO_MEM;
     }

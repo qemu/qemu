@@ -190,7 +190,7 @@ static qemu_irq *r2d_fpga_init(MemoryRegion *sysmem,
 {
     r2d_fpga_t *s;
 
-    s = g_malloc0(sizeof(r2d_fpga_t));
+    s = g_new0(r2d_fpga_t, 1);
 
     s->irl = irl;
 
@@ -248,7 +248,7 @@ static void r2d_init(MachineState *machine)
     cpu = SUPERH_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
 
-    reset_info = g_malloc0(sizeof(ResetData));
+    reset_info = g_new0(ResetData, 1);
     reset_info->cpu = cpu;
     reset_info->vector = env->pc;
     qemu_register_reset(main_cpu_reset, reset_info);

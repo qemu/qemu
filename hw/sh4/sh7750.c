@@ -770,7 +770,7 @@ SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
     SysBusDevice *sb;
     MemoryRegion *mr, *alias;
 
-    s = g_malloc0(sizeof(SH7750State));
+    s = g_new0(SH7750State, 1);
     s->cpu = cpu;
     s->periph_freq = 60000000; /* 60MHz */
     memory_region_init_io(&s->iomem, NULL, &sh7750_mem_ops, s,

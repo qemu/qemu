@@ -154,7 +154,7 @@ void pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
         CompHandlerCtx *comp_ctx;
 
         /* Prepare CQE */
-        comp_ctx = g_malloc(sizeof(CompHandlerCtx));
+        comp_ctx = g_new(CompHandlerCtx, 1);
         comp_ctx->dev = dev;
         comp_ctx->cq_handle = qp->send_cq_handle;
         comp_ctx->cqe.wr_id = wqe->hdr.wr_id;
@@ -217,7 +217,7 @@ void pvrdma_qp_recv(PVRDMADev *dev, uint32_t qp_handle)
         CompHandlerCtx *comp_ctx;
 
         /* Prepare CQE */
-        comp_ctx = g_malloc(sizeof(CompHandlerCtx));
+        comp_ctx = g_new(CompHandlerCtx, 1);
         comp_ctx->dev = dev;
         comp_ctx->cq_handle = qp->recv_cq_handle;
         comp_ctx->cqe.wr_id = wqe->hdr.wr_id;
@@ -259,7 +259,7 @@ void pvrdma_srq_recv(PVRDMADev *dev, uint32_t srq_handle)
         CompHandlerCtx *comp_ctx;
 
         /* Prepare CQE */
-        comp_ctx = g_malloc(sizeof(CompHandlerCtx));
+        comp_ctx = g_new(CompHandlerCtx, 1);
         comp_ctx->dev = dev;
         comp_ctx->cq_handle = srq->recv_cq_handle;
         comp_ctx->cqe.wr_id = wqe->hdr.wr_id;

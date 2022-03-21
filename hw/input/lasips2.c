@@ -266,7 +266,7 @@ void lasips2_init(MemoryRegion *address_space,
 {
     LASIPS2State *s;
 
-    s = g_malloc0(sizeof(LASIPS2State));
+    s = g_new0(LASIPS2State, 1);
 
     s->irq = irq;
     s->mouse.id = 1;

@@ -126,7 +126,7 @@ static const MemoryRegionOps xtfpga_fpga_ops = {
 static XtfpgaFpgaState *xtfpga_fpga_init(MemoryRegion *address_space,
                                          hwaddr base, uint32_t freq)
 {
-    XtfpgaFpgaState *s = g_malloc(sizeof(XtfpgaFpgaState));
+    XtfpgaFpgaState *s = g_new(XtfpgaFpgaState, 1);
 
     memory_region_init_io(&s->iomem, NULL, &xtfpga_fpga_ops, s,
                           "xtfpga.fpga", 0x10000);

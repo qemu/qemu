@@ -268,7 +268,7 @@ static void nvme_ns_init_zoned(NvmeNamespace *ns)
 
     nvme_ns_zoned_init_state(ns);
 
-    id_ns_z = g_malloc0(sizeof(NvmeIdNsZoned));
+    id_ns_z = g_new0(NvmeIdNsZoned, 1);
 
     /* MAR/MOR are zeroes-based, FFFFFFFFFh means no limit */
     id_ns_z->mar = cpu_to_le32(ns->params.max_active_zones - 1);

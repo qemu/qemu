@@ -1477,7 +1477,7 @@ static int send_sub_rect(VncState *vs, int x, int y, int w, int h)
 #endif
 
     if (!color_count_palette) {
-        color_count_palette = g_malloc(sizeof(VncPalette));
+        color_count_palette = g_new(VncPalette, 1);
         vnc_tight_cleanup_notifier.notify = vnc_tight_cleanup;
         qemu_thread_atexit_add(&vnc_tight_cleanup_notifier);
     }

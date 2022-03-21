@@ -132,7 +132,7 @@ static void virt_init(MachineState *machine)
         exit(1);
     }
 
-    reset_info = g_malloc0(sizeof(ResetInfo));
+    reset_info = g_new0(ResetInfo, 1);
 
     /* init CPUs */
     cpu = M68K_CPU(cpu_create(machine->cpu_type));

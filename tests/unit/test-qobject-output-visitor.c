@@ -338,7 +338,7 @@ static void test_visitor_out_union_flat(TestOutputVisitorData *data,
 {
     QDict *qdict;
 
-    UserDefFlatUnion *tmp = g_malloc0(sizeof(UserDefFlatUnion));
+    UserDefFlatUnion *tmp = g_new0(UserDefFlatUnion, 1);
     tmp->enum1 = ENUM_ONE_VALUE1;
     tmp->string = g_strdup("str");
     tmp->integer = 41;

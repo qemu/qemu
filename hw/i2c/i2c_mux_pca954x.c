@@ -71,7 +71,7 @@ static bool pca954x_match(I2CSlave *candidate, uint8_t address,
 
     /* They are talking to the mux itself (or all devices enabled). */
     if ((candidate->address == address) || broadcast) {
-        I2CNode *node = g_malloc(sizeof(struct I2CNode));
+        I2CNode *node = g_new(struct I2CNode, 1);
         node->elt = candidate;
         QLIST_INSERT_HEAD(current_devs, node, next);
         if (!broadcast) {

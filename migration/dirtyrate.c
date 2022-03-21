@@ -91,7 +91,7 @@ static struct DirtyRateInfo *query_dirty_rate_info(void)
 {
     int i;
     int64_t dirty_rate = DirtyStat.dirty_rate;
-    struct DirtyRateInfo *info = g_malloc0(sizeof(DirtyRateInfo));
+    struct DirtyRateInfo *info = g_new0(DirtyRateInfo, 1);
     DirtyRateVcpuList *head = NULL, **tail = &head;
 
     info->status = CalculatingState;
@@ -112,7 +112,7 @@ static struct DirtyRateInfo *query_dirty_rate_info(void)
             info->sample_pages = 0;
             info->has_vcpu_dirty_rate = true;
             for (i = 0; i < DirtyStat.dirty_ring.nvcpu; i++) {
-                DirtyRateVcpu *rate = g_malloc0(sizeof(DirtyRateVcpu));
+                DirtyRateVcpu *rate = g_new0(DirtyRateVcpu, 1);
                 rate->id = DirtyStat.dirty_ring.rates[i].id;
                 rate->dirty_rate = DirtyStat.dirty_ring.rates[i].dirty_rate;
                 QAPI_LIST_APPEND(tail, rate);

@@ -946,7 +946,7 @@ static AddressSpace *pnv_phb3_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     }
 
     if (ds == NULL) {
-        ds = g_malloc0(sizeof(PnvPhb3DMASpace));
+        ds = g_new0(PnvPhb3DMASpace, 1);
         ds->bus = bus;
         ds->devfn = devfn;
         ds->pe_num = PHB_INVALID_PE;

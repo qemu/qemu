@@ -1733,7 +1733,7 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
         audio_validate_opts(dev, &error_abort);
     }
 
-    s = g_malloc0(sizeof(AudioState));
+    s = g_new0(AudioState, 1);
     s->dev = dev;
 
     QLIST_INIT (&s->hw_head_out);
@@ -2108,7 +2108,7 @@ void audio_parse_option(const char *opt)
 
     audio_validate_opts(dev, &error_fatal);
 
-    e = g_malloc0(sizeof(AudiodevListEntry));
+    e = g_new0(AudiodevListEntry, 1);
     e->dev = dev;
     QSIMPLEQ_INSERT_TAIL(&audiodevs, e, next);
 }

@@ -436,8 +436,7 @@ int spapr_numa_write_assoc_lookup_arrays(SpaprMachineState *spapr, void *fdt,
     int i;
 
     /* ibm,associativity-lookup-arrays */
-    int_buf = g_malloc0((nr_nodes * max_distance_ref_points + 2) *
-                        sizeof(uint32_t));
+    int_buf = g_new0(uint32_t, nr_nodes * max_distance_ref_points + 2);
     cur_index = int_buf;
     int_buf[0] = cpu_to_be32(nr_nodes);
      /* Number of entries per associativity list */

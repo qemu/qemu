@@ -949,7 +949,7 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
         } else if (last_err == ERROR_INVALID_FUNCTION) {
             /* Possibly CD-ROM or a shared drive. Try to pass the volume */
             g_debug("volume not on disk");
-            disk = g_malloc0(sizeof(GuestDiskAddress));
+            disk = g_new0(GuestDiskAddress, 1);
             disk->has_dev = true;
             disk->dev = g_strdup(name);
             get_single_disk_info(0xffffffff, disk, &local_err);
@@ -972,7 +972,7 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
 
     /* Go through each extent */
     for (i = 0; i < extents->NumberOfDiskExtents; i++) {
-        disk = g_malloc0(sizeof(GuestDiskAddress));
+        disk = g_new0(GuestDiskAddress, 1);
 
         /* Disk numbers directly correspond to numbers used in UNCs
          *
@@ -1076,7 +1076,7 @@ GuestDiskInfoList *qmp_guest_get_disks(Error **errp)
             sdn.DeviceNumber);
 
         g_debug("  number: %lu", sdn.DeviceNumber);
-        address = g_malloc0(sizeof(GuestDiskAddress));
+        address = g_new0(GuestDiskAddress, 1);
         address->has_dev = true;
         address->dev = g_strdup(disk->name);
         get_single_disk_info(sdn.DeviceNumber, address, &local_err);
@@ -1368,7 +1368,7 @@ qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
             continue;
         }
 
-        uc_path = g_malloc(sizeof(WCHAR) * char_count);
+        uc_path = g_new(WCHAR, char_count);
         if (!GetVolumePathNamesForVolumeNameW(guid, uc_path, char_count,
                                               &char_count) || !*uc_path) {
             /* strange, but this condition could be faced even with size == 2 */

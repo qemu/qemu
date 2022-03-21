@@ -76,7 +76,7 @@ static GuestPanicInformation *s390_cpu_get_crash_info(CPUState *cs)
     S390CPU *cpu = S390_CPU(cs);
 
     cpu_synchronize_state(cs);
-    panic_info = g_malloc0(sizeof(GuestPanicInformation));
+    panic_info = g_new0(GuestPanicInformation, 1);
 
     panic_info->type = GUEST_PANIC_INFORMATION_TYPE_S390;
     panic_info->u.s390.core = cpu->env.core_id;

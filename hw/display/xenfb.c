@@ -496,8 +496,8 @@ static int xenfb_map_fb(struct XenFB *xenfb)
     n_fbdirs = xenfb->fbpages * mode / 8;
     n_fbdirs = DIV_ROUND_UP(n_fbdirs, XC_PAGE_SIZE);
 
-    pgmfns = g_malloc0(sizeof(xen_pfn_t) * n_fbdirs);
-    fbmfns = g_malloc0(sizeof(xen_pfn_t) * xenfb->fbpages);
+    pgmfns = g_new0(xen_pfn_t, n_fbdirs);
+    fbmfns = g_new0(xen_pfn_t, xenfb->fbpages);
 
     xenfb_copy_mfns(mode, n_fbdirs, pgmfns, pd);
     map = xenforeignmemory_map(xen_fmem, xenfb->c.xendev.dom,

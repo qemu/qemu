@@ -649,7 +649,7 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
                    MemoryRegion *region, ram_addr_t size,
                    hwaddr mask)
 {
-    KBDState *s = g_malloc0(sizeof(KBDState));
+    KBDState *s = g_new0(KBDState, 1);
 
     s->irq_kbd = kbd_irq;
     s->irq_mouse = mouse_irq;

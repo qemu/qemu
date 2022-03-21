@@ -71,7 +71,7 @@ static VFIOINTp *vfio_init_intp(VFIODevice *vbasedev,
     sysbus_init_irq(sbdev, &intp->qemuirq);
 
     /* Get an eventfd for trigger */
-    intp->interrupt = g_malloc0(sizeof(EventNotifier));
+    intp->interrupt = g_new0(EventNotifier, 1);
     ret = event_notifier_init(intp->interrupt, 0);
     if (ret) {
         g_free(intp->interrupt);
@@ -82,7 +82,7 @@ static VFIOINTp *vfio_init_intp(VFIODevice *vbasedev,
     }
     if (vfio_irq_is_automasked(intp)) {
         /* Get an eventfd for resample/unmask */
-        intp->unmask = g_malloc0(sizeof(EventNotifier));
+        intp->unmask = g_new0(EventNotifier, 1);
         ret = event_notifier_init(intp->unmask, 0);
         if (ret) {
             g_free(intp->interrupt);

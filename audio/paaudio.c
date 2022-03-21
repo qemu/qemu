@@ -760,7 +760,7 @@ static int qpa_validate_per_direction_opts(Audiodev *dev,
 /* common */
 static void *qpa_conn_init(const char *server)
 {
-    PAConnection *c = g_malloc0(sizeof(PAConnection));
+    PAConnection *c = g_new0(PAConnection, 1);
     QTAILQ_INSERT_TAIL(&pa_conns, c, list);
 
     c->mainloop = pa_threaded_mainloop_new();
@@ -849,7 +849,7 @@ static void *qpa_audio_init(Audiodev *dev)
         return NULL;
     }
 
-    g = g_malloc0(sizeof(paaudio));
+    g = g_new0(paaudio, 1);
     server = popts->has_server ? popts->server : NULL;
 
     g->dev = dev;

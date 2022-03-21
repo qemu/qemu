@@ -253,7 +253,7 @@ static void applesmc_add_key(AppleSMCState *s, const char *key,
 {
     struct AppleSMCData *def;
 
-    def = g_malloc0(sizeof(struct AppleSMCData));
+    def = g_new0(struct AppleSMCData, 1);
     def->key = key;
     def->len = len;
     def->data = data;

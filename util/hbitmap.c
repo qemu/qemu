@@ -862,7 +862,7 @@ void hbitmap_truncate(HBitmap *hb, uint64_t size)
         }
         old = hb->sizes[i];
         hb->sizes[i] = size;
-        hb->levels[i] = g_realloc(hb->levels[i], size * sizeof(unsigned long));
+        hb->levels[i] = g_renew(unsigned long, hb->levels[i], size);
         if (!shrink) {
             memset(&hb->levels[i][old], 0x00,
                    (size - old) * sizeof(*hb->levels[i]));

@@ -2041,7 +2041,7 @@ void qmp_dump_guest_memory(bool paging, const char *file,
 DumpGuestMemoryCapability *qmp_query_dump_guest_memory_capability(Error **errp)
 {
     DumpGuestMemoryCapability *cap =
-                                  g_malloc0(sizeof(DumpGuestMemoryCapability));
+                                  g_new0(DumpGuestMemoryCapability, 1);
     DumpGuestMemoryFormatList **tail = &cap->formats;
 
     /* elf is always available */

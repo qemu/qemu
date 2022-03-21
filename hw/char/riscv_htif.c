@@ -248,7 +248,7 @@ HTIFState *htif_mm_init(MemoryRegion *address_space, MemoryRegion *main_mem,
     tohost_offset = tohost_addr - base;
     fromhost_offset = fromhost_addr - base;
 
-    HTIFState *s = g_malloc0(sizeof(HTIFState));
+    HTIFState *s = g_new0(HTIFState, 1);
     s->address_space = address_space;
     s->main_mem = main_mem;
     s->main_mem_ram_ptr = memory_region_get_ram_ptr(main_mem);

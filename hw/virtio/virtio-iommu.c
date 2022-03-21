@@ -316,7 +316,7 @@ static AddressSpace *virtio_iommu_find_add_as(PCIBus *bus, void *opaque,
         char *name = g_strdup_printf("%s-%d-%d",
                                      TYPE_VIRTIO_IOMMU_MEMORY_REGION,
                                      mr_index++, devfn);
-        sdev = sbus->pbdev[devfn] = g_malloc0(sizeof(IOMMUDevice));
+        sdev = sbus->pbdev[devfn] = g_new0(IOMMUDevice, 1);
 
         sdev->viommu = s;
         sdev->bus = bus;

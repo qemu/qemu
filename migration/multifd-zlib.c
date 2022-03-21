@@ -43,7 +43,7 @@ struct zlib_data {
  */
 static int zlib_send_setup(MultiFDSendParams *p, Error **errp)
 {
-    struct zlib_data *z = g_malloc0(sizeof(struct zlib_data));
+    struct zlib_data *z = g_new0(struct zlib_data, 1);
     z_stream *zs = &z->zs;
 
     zs->zalloc = Z_NULL;
@@ -164,7 +164,7 @@ static int zlib_send_prepare(MultiFDSendParams *p, Error **errp)
  */
 static int zlib_recv_setup(MultiFDRecvParams *p, Error **errp)
 {
-    struct zlib_data *z = g_malloc0(sizeof(struct zlib_data));
+    struct zlib_data *z = g_new0(struct zlib_data, 1);
     z_stream *zs = &z->zs;
 
     p->data = z;

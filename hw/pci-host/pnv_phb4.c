@@ -1466,7 +1466,7 @@ static AddressSpace *pnv_phb4_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     ds = pnv_phb4_dma_find(phb, bus, devfn);
 
     if (ds == NULL) {
-        ds = g_malloc0(sizeof(PnvPhb4DMASpace));
+        ds = g_new0(PnvPhb4DMASpace, 1);
         ds->bus = bus;
         ds->devfn = devfn;
         ds->pe_num = PHB_INVALID_PE;
