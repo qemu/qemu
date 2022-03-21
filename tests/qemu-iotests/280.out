@@ -1,4 +1,3 @@
-
 === Launch VM ===
 Enabling migration QMP events on VM...
 {"return": {}}

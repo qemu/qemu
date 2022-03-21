@@ -42,8 +42,8 @@ with iotests.FilePath('t.qcow2') as disk_path, \
     size_str = str(size)
 
     iotests.create_image(base_path, size)
-    iotests.qemu_img_log('create', '-f', iotests.imgfmt, mid_path, size_str)
-    iotests.qemu_img_log('create', '-f', iotests.imgfmt, disk_path, size_str)
+    iotests.qemu_img_create('-f', iotests.imgfmt, mid_path, size_str)
+    iotests.qemu_img_create('-f', iotests.imgfmt, disk_path, size_str)
 
     # Create a backing chain like this:
     # base <- [throttled: bps-read=4096] <- mid <- overlay
@@ -92,8 +92,8 @@ with iotests.FilePath('src.qcow2') as src_path, \
     size = 128 * 1024 * 1024
     size_str = str(size)
 
-    iotests.qemu_img_log('create', '-f', iotests.imgfmt, src_path, size_str)
-    iotests.qemu_img_log('create', '-f', iotests.imgfmt, dst_path, size_str)
+    iotests.qemu_img_create('-f', iotests.imgfmt, src_path, size_str)
+    iotests.qemu_img_create('-f', iotests.imgfmt, dst_path, size_str)
 
     iotests.log(iotests.qemu_io('-f', iotests.imgfmt, '-c', 'write 0 1M',
                                 src_path),

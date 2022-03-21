@@ -33,7 +33,7 @@ with iotests.FilePath('base') as base_path , \
      iotests.FilePath('top') as top_path, \
      iotests.VM() as vm:
 
-    iotests.qemu_img_log('create', '-f', iotests.imgfmt, base_path, '64M')
+    iotests.qemu_img_create('-f', iotests.imgfmt, base_path, '64M')
 
     iotests.log('=== Launch VM ===')
     vm.add_object('iothread,id=iothread0')
