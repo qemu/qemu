@@ -1174,14 +1174,16 @@ static void vhost_user_host_notifier_free(VhostUserHostNotifier *n)
     n->unmap_addr = NULL;
 }
 
-static void vhost_user_host_notifier_remove(VhostUserState *user,
-                                            VirtIODevice *vdev, int queue_idx)
+/*
+ * clean-up function for notifier, will finally free the structure
+ * under rcu.
+ */
+static void vhost_user_host_notifier_remove(VhostUserHostNotifier *n,
+                                            VirtIODevice *vdev)
 {
-    VhostUserHostNotifier *n = &user->notifier[queue_idx];
-
     if (n->addr) {
         if (vdev) {
-            virtio_queue_set_host_notifier_mr(vdev, queue_idx, &n->mr, false);
+            virtio_queue_set_host_notifier_mr(vdev, n->idx, &n->mr, false);
         }
         assert(!n->unmap_addr);
         n->unmap_addr = n->addr;
@@ -1225,6 +1227,15 @@ static int vhost_user_set_vring_enable(struct vhost_dev *dev, int enable)
     return 0;
 }
 
+static VhostUserHostNotifier *fetch_notifier(VhostUserState *u,
+                                             int idx)
+{
+    if (idx >= u->notifiers->len) {
+        return NULL;
+    }
+    return g_ptr_array_index(u->notifiers, idx);
+}
+
 static int vhost_user_get_vring_base(struct vhost_dev *dev,
                                      struct vhost_vring_state *ring)
 {
@@ -1237,7 +1248,10 @@ static int vhost_user_get_vring_base(struct vhost_dev *dev,
     };
     struct vhost_user *u = dev->opaque;
 
-    vhost_user_host_notifier_remove(u->user, dev->vdev, ring->index);
+    VhostUserHostNotifier *n = fetch_notifier(u->user, ring->index);
+    if (n) {
+        vhost_user_host_notifier_remove(n, dev->vdev);
+    }
 
     ret = vhost_user_write(dev, &msg, NULL, 0);
     if (ret < 0) {
@@ -1502,6 +1516,29 @@ static int vhost_user_slave_handle_config_change(struct vhost_dev *dev)
     return dev->config_ops->vhost_dev_config_notifier(dev);
 }
 
+/*
+ * Fetch or create the notifier for a given idx. Newly created
+ * notifiers are added to the pointer array that tracks them.
+ */
+static VhostUserHostNotifier *fetch_or_create_notifier(VhostUserState *u,
+                                                       int idx)
+{
+    VhostUserHostNotifier *n = NULL;
+    if (idx >= u->notifiers->len) {
+        g_ptr_array_set_size(u->notifiers, idx);
+    }
+
+    n = g_ptr_array_index(u->notifiers, idx);
+    if (!n) {
+        n = g_new0(VhostUserHostNotifier, 1);
+        n->idx = idx;
+        g_ptr_array_insert(u->notifiers, idx, n);
+        trace_vhost_user_create_notifier(idx, n);
+    }
+
+    return n;
+}
+
 static int vhost_user_slave_handle_vring_host_notifier(struct vhost_dev *dev,
                                                        VhostUserVringArea *area,
                                                        int fd)
@@ -1521,9 +1558,12 @@ static int vhost_user_slave_handle_vring_host_notifier(struct vhost_dev *dev,
         return -EINVAL;
     }
 
-    n = &user->notifier[queue_idx];
-
-    vhost_user_host_notifier_remove(user, vdev, queue_idx);
+    /*
+     * Fetch notifier and invalidate any old data before setting up
+     * new mapped address.
+     */
+    n = fetch_or_create_notifier(user, queue_idx);
+    vhost_user_host_notifier_remove(n, vdev);
 
     if (area->u64 & VHOST_USER_VRING_NOFD_MASK) {
         return 0;
@@ -2526,6 +2566,20 @@ static int vhost_user_set_inflight_fd(struct vhost_dev *dev,
     return vhost_user_write(dev, &msg, &inflight->fd, 1);
 }
 
+static void vhost_user_state_destroy(gpointer data)
+{
+    VhostUserHostNotifier *n = (VhostUserHostNotifier *) data;
+    if (n) {
+        vhost_user_host_notifier_remove(n, NULL);
+        object_unparent(OBJECT(&n->mr));
+        /*
+         * We can't free until vhost_user_host_notifier_remove has
+         * done it's thing so schedule the free with RCU.
+         */
+        g_free_rcu(n, rcu);
+    }
+}
+
 bool vhost_user_init(VhostUserState *user, CharBackend *chr, Error **errp)
 {
     if (user->chr) {
@@ -2534,23 +2588,18 @@ bool vhost_user_init(VhostUserState *user, CharBackend *chr, Error **errp)
     }
     user->chr = chr;
     user->memory_slots = 0;
+    user->notifiers = g_ptr_array_new_full(VIRTIO_QUEUE_MAX / 4,
+                                           &vhost_user_state_destroy);
     return true;
 }
 
 void vhost_user_cleanup(VhostUserState *user)
 {
-    int i;
-    VhostUserHostNotifier *n;
-
     if (!user->chr) {
         return;
     }
     memory_region_transaction_begin();
-    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
-        n = &user->notifier[i];
-        vhost_user_host_notifier_remove(user, NULL, i);
-        object_unparent(OBJECT(&n->mr));
-    }
+    user->notifiers = (GPtrArray *) g_ptr_array_free(user->notifiers, true);
     memory_region_transaction_commit();
     user->chr = NULL;
 }
