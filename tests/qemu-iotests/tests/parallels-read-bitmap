@@ -18,9 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import json
 import iotests
-from iotests import qemu_nbd_popen, qemu_img_pipe, log, file_path
+from iotests import qemu_nbd_popen, qemu_img_map, log, file_path
 
 iotests.script_initialize(supported_fmts=['parallels'])
 
@@ -36,8 +35,7 @@ iotests.unarchive_sample_image('parallels-with-bitmap', disk)
 
 with qemu_nbd_popen('--read-only', f'--socket={nbd_sock}',
                     f'--bitmap={bitmap}', '-f', iotests.imgfmt, disk):
-    out = qemu_img_pipe('map', '--output=json', '--image-opts', nbd_opts)
-    chunks = json.loads(out)
+    chunks = qemu_img_map('--image-opts', nbd_opts)
     cluster = 64 * 1024
 
     log('dirty clusters (cluster size is 64K):')

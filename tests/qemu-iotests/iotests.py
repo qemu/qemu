@@ -318,6 +318,9 @@ def qemu_img_check(*args: str) -> Any:
 def qemu_img_info(*args: str) -> Any:
     return qemu_img_json('info', "--output", "json", *args)
 
+def qemu_img_map(*args: str) -> Any:
+    return qemu_img_json('map', "--output", "json", *args)
+
 def qemu_img_pipe(*args: str) -> str:
     '''Run qemu-img and return its output'''
     return qemu_img_pipe_and_status(*args)[0]

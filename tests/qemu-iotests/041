@@ -24,7 +24,7 @@ import os
 import re
 import json
 import iotests
-from iotests import qemu_img, qemu_img_pipe, qemu_io
+from iotests import qemu_img, qemu_img_map, qemu_io
 
 backing_img = os.path.join(iotests.test_dir, 'backing.img')
 target_backing_img = os.path.join(iotests.test_dir, 'target-backing.img')
@@ -1360,8 +1360,7 @@ class TestFilters(iotests.QMPTestCase):
 
         self.vm.qmp('blockdev-del', node_name='target')
 
-        target_map = qemu_img_pipe('map', '--output=json', target_img)
-        target_map = json.loads(target_map)
+        target_map = qemu_img_map(target_img)
 
         assert target_map[0]['start'] == 0
         assert target_map[0]['length'] == 512 * 1024
