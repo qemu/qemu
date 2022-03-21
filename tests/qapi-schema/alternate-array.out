@@ -1,0 +1,18 @@
+module ./builtin
+object q_empty
+enum QType
+    prefix QTYPE
+    member none
+    member qnull
+    member qnum
+    member qstring
+    member qdict
+    member qlist
+    member qbool
+module alternate-array.json
+object One
+    member name: str optional=False
+alternate Alt
+    tag type
+    case one: One
+    case two: intList
