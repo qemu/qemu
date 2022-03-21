@@ -332,6 +332,18 @@ bit was dedicated for this purpose::
 
   #define VHOST_USER_F_PROTOCOL_FEATURES 30
 
+Note that VHOST_USER_F_PROTOCOL_FEATURES is the UNUSED (30) feature
+bit defined in `VIRTIO 1.1 6.3 Legacy Interface: Reserved Feature Bits
+<https://docs.oasis-open.org/virtio/virtio/v1.1/cs01/virtio-v1.1-cs01.html#x1-4130003>`_.
+VIRTIO devices do not advertise this feature bit and therefore VIRTIO
+drivers cannot negotiate it.
+
+This reserved feature bit was reused by the vhost-user protocol to add
+vhost-user protocol feature negotiation in a backwards compatible
+fashion. Old vhost-user master and slave implementations continue to
+work even though they are not aware of vhost-user protocol feature
+negotiation.
+
 Ring states
 -----------
 
@@ -890,7 +902,8 @@ Front-end message types
   Get the protocol feature bitmask from the underlying vhost
   implementation.  Only legal if feature bit
   ``VHOST_USER_F_PROTOCOL_FEATURES`` is present in
-  ``VHOST_USER_GET_FEATURES``.
+  ``VHOST_USER_GET_FEATURES``.  It does not need to be acknowledged by
+  ``VHOST_USER_SET_FEATURES``.
 
 .. Note::
    Back-ends that report ``VHOST_USER_F_PROTOCOL_FEATURES`` must
@@ -906,7 +919,8 @@ Front-end message types
   Enable protocol features in the underlying vhost implementation.
 
   Only legal if feature bit ``VHOST_USER_F_PROTOCOL_FEATURES`` is present in
-  ``VHOST_USER_GET_FEATURES``.
+  ``VHOST_USER_GET_FEATURES``.  It does not need to be acknowledged by
+  ``VHOST_USER_SET_FEATURES``.
 
 .. Note::
    Back-ends that report ``VHOST_USER_F_PROTOCOL_FEATURES`` must support
