@@ -8,6 +8,8 @@ ubuntu-20.04-s390x-all-linux-static:
  tags:
  - ubuntu_20.04
  - s390x
+ variables:
+    DFLTCC: 0
  rules:
  - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
  - if: "$S390X_RUNNER_AVAILABLE"
@@ -27,6 +29,8 @@ ubuntu-20.04-s390x-all:
  tags:
  - ubuntu_20.04
  - s390x
+ variables:
+    DFLTCC: 0
  rules:
  - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
  - if: "$S390X_RUNNER_AVAILABLE"
@@ -43,6 +47,8 @@ ubuntu-20.04-s390x-alldbg:
  tags:
  - ubuntu_20.04
  - s390x
+ variables:
+    DFLTCC: 0
  rules:
  - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
    when: manual
@@ -64,6 +70,8 @@ ubuntu-20.04-s390x-clang:
  tags:
  - ubuntu_20.04
  - s390x
+ variables:
+    DFLTCC: 0
  rules:
  - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
    when: manual
@@ -84,6 +92,8 @@ ubuntu-20.04-s390x-tci:
  tags:
  - ubuntu_20.04
  - s390x
+ variables:
+    DFLTCC: 0
  rules:
  - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
    when: manual
@@ -103,6 +113,8 @@ ubuntu-20.04-s390x-notcg:
  tags:
  - ubuntu_20.04
  - s390x
+ variables:
+    DFLTCC: 0
  rules:
  - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
    when: manual

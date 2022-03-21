@@ -218,6 +218,7 @@ jobs:
         - TEST_CMD="make check check-tcg V=1"
         - CONFIG="--disable-containers --target-list=${MAIN_SOFTMMU_TARGETS},s390x-linux-user"
         - UNRELIABLE=true
+        - DFLTCC=0
       script:
         - BUILD_RC=0 && make -j${JOBS} || BUILD_RC=$?
         - |
@@ -257,7 +258,7 @@ jobs:
       env:
         - CONFIG="--disable-containers --audio-drv-list=sdl --disable-user
                   --target-list-exclude=${MAIN_SOFTMMU_TARGETS}"
-
+        - DFLTCC=0
     - name: "[s390x] GCC (user)"
       arch: s390x
       dist: focal
@@ -269,7 +270,7 @@ jobs:
           - ninja-build
       env:
         - CONFIG="--disable-containers --disable-system"
-
+        - DFLTCC=0
     - name: "[s390x] Clang (disable-tcg)"
       arch: s390x
       dist: focal
@@ -303,3 +304,4 @@ jobs:
         - CONFIG="--disable-containers --disable-tcg --enable-kvm
                   --disable-tools --host-cc=clang --cxx=clang++"
         - UNRELIABLE=true
+        - DFLTCC=0
