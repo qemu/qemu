@@ -9,7 +9,7 @@
 #include "qemu/osdep.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/vhost-user-rng.h"
-#include "virtio-pci.h"
+#include "hw/virtio/virtio-pci.h"
 
 struct VHostUserRNGPCI {
     VirtIOPCIProxy parent_obj;
