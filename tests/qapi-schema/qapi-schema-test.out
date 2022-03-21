@@ -121,6 +121,10 @@ alternate AltEnumInt
     tag type
     case e: EnumOne
     case i: int
+alternate AltListInt
+    tag type
+    case l: intList
+    case i: int
 alternate AltStrObj
     tag type
     case s: str
