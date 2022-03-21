@@ -1949,14 +1949,15 @@ static int vhost_user_postcopy_notifier(NotifierWithReturn *notifier,
 static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
                                    Error **errp)
 {
-    uint64_t features, protocol_features, ram_slots;
+    uint64_t features, ram_slots;
     struct vhost_user *u;
+    VhostUserState *vus = (VhostUserState *) opaque;
     int err;
 
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
 
     u = g_new0(struct vhost_user, 1);
-    u->user = opaque;
+    u->user = vus;
     u->dev = dev;
     dev->opaque = u;
 
@@ -1967,6 +1968,10 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
     }
 
     if (virtio_has_feature(features, VHOST_USER_F_PROTOCOL_FEATURES)) {
+        bool supports_f_config = vus->supports_config ||
+            (dev->config_ops && dev->config_ops->vhost_dev_config_notifier);
+        uint64_t protocol_features;
+
         dev->backend_features |= 1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
 
         err = vhost_user_get_u64(dev, VHOST_USER_GET_PROTOCOL_FEATURES,
@@ -1976,19 +1981,34 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
             return -EPROTO;
         }
 
-        dev->protocol_features =
-            protocol_features & VHOST_USER_PROTOCOL_FEATURE_MASK;
+        /*
+         * We will use all the protocol features we support - although
+         * we suppress F_CONFIG if we know QEMUs internal code can not support
+         * it.
+         */
+        protocol_features &= VHOST_USER_PROTOCOL_FEATURE_MASK;
 
-        if (!dev->config_ops || !dev->config_ops->vhost_dev_config_notifier) {
-            /* Don't acknowledge CONFIG feature if device doesn't support it */
-            dev->protocol_features &= ~(1ULL << VHOST_USER_PROTOCOL_F_CONFIG);
-        } else if (!(protocol_features &
-                    (1ULL << VHOST_USER_PROTOCOL_F_CONFIG))) {
-            error_setg(errp, "Device expects VHOST_USER_PROTOCOL_F_CONFIG "
-                       "but backend does not support it.");
-            return -EINVAL;
+        if (supports_f_config) {
+            if (!virtio_has_feature(protocol_features,
+                                    VHOST_USER_PROTOCOL_F_CONFIG)) {
+                error_setg(errp, "vhost-user device %s expecting "
+                           "VHOST_USER_PROTOCOL_F_CONFIG but the vhost-user backend does "
+                           "not support it.", dev->vdev->name);
+                return -EPROTO;
+            }
+        } else {
+            if (virtio_has_feature(protocol_features,
+                                   VHOST_USER_PROTOCOL_F_CONFIG)) {
+                warn_reportf_err(*errp, "vhost-user backend supports "
+                                 "VHOST_USER_PROTOCOL_F_CONFIG for "
+                                 "device %s but QEMU does not.",
+                                 dev->vdev->name);
+                protocol_features &= ~(1ULL << VHOST_USER_PROTOCOL_F_CONFIG);
+            }
         }
 
+        /* final set of protocol features */
+        dev->protocol_features = protocol_features;
         err = vhost_user_set_protocol_features(dev, dev->protocol_features);
         if (err < 0) {
             error_setg_errno(errp, EPROTO, "vhost_backend_init failed");
