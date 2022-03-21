@@ -27,11 +27,11 @@ iotests.script_initialize(supported_fmts=['qcow2'],
 top, base = iotests.file_path('top', 'base')
 size = '1M'
 
-assert qemu_img_create('-f', iotests.imgfmt, base, size) == 0
-assert qemu_img_create('-f', iotests.imgfmt, '-b', base,
-                       '-F', iotests.imgfmt, top, size) == 0
+qemu_img_create('-f', iotests.imgfmt, base, size)
+qemu_img_create('-f', iotests.imgfmt, '-b', base,
+                '-F', iotests.imgfmt, top, size)
 
-assert qemu_img('bitmap', '--add', base, 'bitmap0') == 0
+qemu_img('bitmap', '--add', base, 'bitmap0')
 # Just assert that our method of checking bitmaps in the image works.
 assert 'bitmaps' in qemu_img_pipe('info', base)
 

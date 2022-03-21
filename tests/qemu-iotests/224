@@ -47,12 +47,11 @@ for filter_node_name in False, True:
          iotests.FilePath('top.img') as top_img_path, \
          iotests.VM() as vm:
 
-        assert qemu_img('create', '-f', iotests.imgfmt,
-                        base_img_path, '64M') == 0
-        assert qemu_img('create', '-f', iotests.imgfmt, '-b', base_img_path,
-                        '-F', iotests.imgfmt, mid_img_path) == 0
-        assert qemu_img('create', '-f', iotests.imgfmt, '-b', mid_img_path,
-                        '-F', iotests.imgfmt, top_img_path) == 0
+        qemu_img('create', '-f', iotests.imgfmt, base_img_path, '64M')
+        qemu_img('create', '-f', iotests.imgfmt, '-b', base_img_path,
+                 '-F', iotests.imgfmt, mid_img_path)
+        qemu_img('create', '-f', iotests.imgfmt, '-b', mid_img_path,
+                 '-F', iotests.imgfmt, top_img_path)
 
         # Something to commit
         assert qemu_io_silent(mid_img_path, '-c', 'write -P 1 0 1M') == 0

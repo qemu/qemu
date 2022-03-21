@@ -34,16 +34,15 @@ def do_qemu_img_bench() -> None:
     """
     Do some I/O requests on `nbd_sock`.
     """
-    assert qemu_img('bench', '-f', 'raw', '-c', '2000000',
-                    f'nbd+unix:///node0?socket={nbd_sock}') == 0
+    qemu_img('bench', '-f', 'raw', '-c', '2000000',
+             f'nbd+unix:///node0?socket={nbd_sock}')
 
 
 class TestGraphChangesWhileIO(QMPTestCase):
     def setUp(self) -> None:
         # Create an overlay that can be added at runtime on top of the
         # null-co block node that will receive I/O
-        assert qemu_img_create('-f', imgfmt, '-F', 'raw', '-b', 'null-co://',
-                               top) == 0
+        qemu_img_create('-f', imgfmt, '-F', 'raw', '-b', 'null-co://', top)
 
         # QSD instance with a null-co block node in an I/O thread,
         # exported over NBD (on `nbd_sock`, export name "node0")

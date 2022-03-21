@@ -75,13 +75,13 @@ def test_concurrent_finish(write_to_stream_node):
 
         # It is important to use raw for the base layer (so that
         # permissions are just handed through to the protocol layer)
-        assert qemu_img('create', '-f', 'raw', node0_path, '64M') == 0
+        qemu_img('create', '-f', 'raw', node0_path, '64M')
 
         stream_throttle=None
         commit_throttle=None
 
         for path in [node1_path, node2_path, node3_path, node4_path]:
-            assert qemu_img('create', '-f', iotests.imgfmt, path, '64M') == 0
+            qemu_img('create', '-f', iotests.imgfmt, path, '64M')
 
         if write_to_stream_node:
             # This is what (most of the time) makes commit finish

@@ -43,15 +43,15 @@ with iotests.FilePath('base.img') as base_img_path, \
     log('--- Setting up images ---')
     log('')
 
-    assert qemu_img('create', '-f', iotests.imgfmt, base_img_path, '64M') == 0
+    qemu_img('create', '-f', iotests.imgfmt, base_img_path, '64M')
     assert qemu_io_silent(base_img_path, '-c', 'write -P 1 0M 1M') == 0
     assert qemu_io_silent(base_img_path, '-c', 'write -P 1 3M 1M') == 0
-    assert qemu_img('create', '-f', iotests.imgfmt, '-b', base_img_path,
-                    '-F', iotests.imgfmt, mid_img_path) == 0
+    qemu_img('create', '-f', iotests.imgfmt, '-b', base_img_path,
+             '-F', iotests.imgfmt, mid_img_path)
     assert qemu_io_silent(mid_img_path, '-c', 'write -P 3 2M 1M') == 0
     assert qemu_io_silent(mid_img_path, '-c', 'write -P 3 4M 1M') == 0
-    assert qemu_img('create', '-f', iotests.imgfmt, '-b', mid_img_path,
-                    '-F', iotests.imgfmt, top_img_path) == 0
+    qemu_img('create', '-f', iotests.imgfmt, '-b', mid_img_path,
+             '-F', iotests.imgfmt, top_img_path)
     assert qemu_io_silent(top_img_path, '-c', 'write -P 2 1M 1M') == 0
 
 #      0 1 2 3 4
@@ -105,8 +105,7 @@ with iotests.FilePath('base.img') as base_img_path, \
     log('')
 
     # Detach backing to check that we can read the data from the top level now
-    assert qemu_img('rebase', '-u', '-b', '', '-f', iotests.imgfmt,
-                    top_img_path) == 0
+    qemu_img('rebase', '-u', '-b', '', '-f', iotests.imgfmt, top_img_path)
 
     assert qemu_io_silent(top_img_path, '-c', 'read -P 0 0 1M') == 0
     assert qemu_io_silent(top_img_path, '-c', 'read -P 2 1M 1M') == 0

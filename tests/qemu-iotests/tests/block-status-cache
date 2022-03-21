@@ -35,8 +35,7 @@ nbd_sock = os.path.join(iotests.sock_dir, 'nbd.sock')
 class TestBscWithNbd(iotests.QMPTestCase):
     def setUp(self) -> None:
         """Just create an empty image with a read-only NBD server on it"""
-        assert qemu_img_create('-f', iotests.imgfmt, test_img,
-                               str(image_size)) == 0
+        qemu_img_create('-f', iotests.imgfmt, test_img, str(image_size))
 
         # Pass --allocation-depth to enable the qemu:allocation-depth context,
         # which we are going to query to provoke a block-status inquiry with

@@ -54,11 +54,11 @@ with iotests.FilePath('base.img') as base_img_path, \
      iotests.FilePath('top.img') as top_img_path, \
      iotests.VM() as vm:
 
-    assert qemu_img('create', '-f', iotests.imgfmt, base_img_path, '64M') == 0
+    qemu_img('create', '-f', iotests.imgfmt, base_img_path, '64M')
     # Choose a funny way to describe the backing filename
-    assert qemu_img('create', '-f', iotests.imgfmt, '-b',
-                    'file:' + base_img_path, '-F', iotests.imgfmt,
-                    top_img_path) == 0
+    qemu_img('create', '-f', iotests.imgfmt, '-b',
+             'file:' + base_img_path, '-F', iotests.imgfmt,
+             top_img_path)
 
     vm.launch()
 
@@ -172,8 +172,8 @@ with iotests.FilePath('base.img') as base_img_path, \
     # (because qemu cannot "canonicalize"/"resolve" the backing
     # filename unless the backing file is opened implicitly with the
     # overlay)
-    assert qemu_img('create', '-f', iotests.imgfmt, '-b', base_img_path,
-                    '-F', iotests.imgfmt, top_img_path) == 0
+    qemu_img('create', '-f', iotests.imgfmt, '-b', base_img_path,
+             '-F', iotests.imgfmt, top_img_path)
 
     # You can only reliably override backing options by using a node
     # reference (or by specifying file.filename, but, well...)

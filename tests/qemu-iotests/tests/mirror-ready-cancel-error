@@ -31,10 +31,8 @@ target = os.path.join(iotests.test_dir, 'target.img')
 
 class TestMirrorReadyCancelError(iotests.QMPTestCase):
     def setUp(self) -> None:
-        assert iotests.qemu_img_create('-f', iotests.imgfmt, source,
-                                       str(image_size)) == 0
-        assert iotests.qemu_img_create('-f', iotests.imgfmt, target,
-                                       str(image_size)) == 0
+        iotests.qemu_img_create('-f', iotests.imgfmt, source, str(image_size))
+        iotests.qemu_img_create('-f', iotests.imgfmt, target, str(image_size))
 
         # Ensure that mirror will copy something before READY so the
         # target format layer will forward the pre-READY flush to its
