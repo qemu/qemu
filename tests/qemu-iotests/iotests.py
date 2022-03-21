@@ -315,6 +315,9 @@ def qemu_img_measure(*args: str) -> Any:
 def qemu_img_check(*args: str) -> Any:
     return qemu_img_json("check", "--output", "json", *args)
 
+def qemu_img_info(*args: str) -> Any:
+    return qemu_img_json('info', "--output", "json", *args)
+
 def qemu_img_pipe(*args: str) -> str:
     '''Run qemu-img and return its output'''
     return qemu_img_pipe_and_status(*args)[0]
@@ -565,10 +568,14 @@ def create_image(name, size):
             file.write(sector)
             i = i + 512
 
-def image_size(img):
-    '''Return image's virtual size'''
-    r = qemu_img_pipe('info', '--output=json', '-f', imgfmt, img)
-    return json.loads(r)['virtual-size']
+def image_size(img: str) -> int:
+    """Return image's virtual size"""
+    value = qemu_img_info('-f', imgfmt, img)['virtual-size']
+    if not isinstance(value, int):
+        type_name = type(value).__name__
+        raise TypeError("Expected 'int' for 'virtual-size', "
+                        f"got '{value}' of type '{type_name}'")
+    return value
 
 def is_str(val):
     return isinstance(val, str)
