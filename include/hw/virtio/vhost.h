@@ -61,6 +61,12 @@ typedef struct VhostDevConfigOps {
 } VhostDevConfigOps;
 
 struct vhost_memory;
+
+/**
+ * struct vhost_dev - common vhost_dev structure
+ * @vhost_ops: backend specific ops
+ * @config_ops: ops for config changes (see @vhost_dev_set_config_notifier)
+ */
 struct vhost_dev {
     VirtIODevice *vdev;
     MemoryListener memory_listener;
@@ -108,14 +114,128 @@ struct vhost_net {
     NetClientState *nc;
 };
 
+/**
+ * vhost_dev_init() - initialise the vhost interface
+ * @hdev: the common vhost_dev structure
+ * @opaque: opaque ptr passed to backend (vhost/vhost-user/vdpa)
+ * @backend_type: type of backend
+ * @busyloop_timeout: timeout for polling virtqueue
+ * @errp: error handle
+ *
+ * The initialisation of the vhost device will trigger the
+ * initialisation of the backend and potentially capability
+ * negotiation of backend interface. Configuration of the VirtIO
+ * itself won't happen until the interface is started.
+ *
+ * Return: 0 on success, non-zero on error while setting errp.
+ */
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    VhostBackendType backend_type,
                    uint32_t busyloop_timeout, Error **errp);
+
+/**
+ * vhost_dev_cleanup() - tear down and cleanup vhost interface
+ * @hdev: the common vhost_dev structure
+ */
 void vhost_dev_cleanup(struct vhost_dev *hdev);
-int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev);
-void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev);
+
+/**
+ * vhost_dev_enable_notifiers() - enable event notifiers
+ * @hdev: common vhost_dev structure
+ * @vdev: the VirtIODevice structure
+ *
+ * Enable notifications directly to the vhost device rather than being
+ * triggered by QEMU itself. Notifications should be enabled before
+ * the vhost device is started via @vhost_dev_start.
+ *
+ * Return: 0 on success, < 0 on error.
+ */
 int vhost_dev_enable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev);
+
+/**
+ * vhost_dev_disable_notifiers - disable event notifications
+ * @hdev: common vhost_dev structure
+ * @vdev: the VirtIODevice structure
+ *
+ * Disable direct notifications to vhost device.
+ */
 void vhost_dev_disable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev);
+
+/**
+ * vhost_dev_start() - start the vhost device
+ * @hdev: common vhost_dev structure
+ * @vdev: the VirtIODevice structure
+ *
+ * Starts the vhost device. From this point VirtIO feature negotiation
+ * can start and the device can start processing VirtIO transactions.
+ *
+ * Return: 0 on success, < 0 on error.
+ */
+int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev);
+
+/**
+ * vhost_dev_stop() - stop the vhost device
+ * @hdev: common vhost_dev structure
+ * @vdev: the VirtIODevice structure
+ *
+ * Stop the vhost device. After the device is stopped the notifiers
+ * can be disabled (@vhost_dev_disable_notifiers) and the device can
+ * be torn down (@vhost_dev_cleanup).
+ */
+void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev);
+
+/**
+ * DOC: vhost device configuration handling
+ *
+ * The VirtIO device configuration space is used for rarely changing
+ * or initialisation time parameters. The configuration can be updated
+ * by either the guest driver or the device itself. If the device can
+ * change the configuration over time the vhost handler should
+ * register a @VhostDevConfigOps structure with
+ * @vhost_dev_set_config_notifier so the guest can be notified. Some
+ * devices register a handler anyway and will signal an error if an
+ * unexpected config change happens.
+ */
+
+/**
+ * vhost_dev_get_config() - fetch device configuration
+ * @hdev: common vhost_dev_structure
+ * @config: pointer to device appropriate config structure
+ * @config_len: size of device appropriate config structure
+ *
+ * Return: 0 on success, < 0 on error while setting errp
+ */
+int vhost_dev_get_config(struct vhost_dev *hdev, uint8_t *config,
+                         uint32_t config_len, Error **errp);
+
+/**
+ * vhost_dev_set_config() - set device configuration
+ * @hdev: common vhost_dev_structure
+ * @data: pointer to data to set
+ * @offset: offset into configuration space
+ * @size: length of set
+ * @flags: @VhostSetConfigType flags
+ *
+ * By use of @offset/@size a subset of the configuration space can be
+ * written to. The @flags are used to indicate if it is a normal
+ * transaction or related to migration.
+ *
+ * Return: 0 on success, non-zero on error
+ */
+int vhost_dev_set_config(struct vhost_dev *dev, const uint8_t *data,
+                         uint32_t offset, uint32_t size, uint32_t flags);
+
+/**
+ * vhost_dev_set_config_notifier() - register VhostDevConfigOps
+ * @hdev: common vhost_dev_structure
+ * @ops: notifier ops
+ *
+ * If the device is expected to change configuration a notifier can be
+ * setup to handle the case.
+ */
+void vhost_dev_set_config_notifier(struct vhost_dev *dev,
+                                   const VhostDevConfigOps *ops);
+
 
 /* Test and clear masked event pending status.
  * Should be called after unmask to avoid losing events.
@@ -136,14 +256,6 @@ int vhost_net_set_backend(struct vhost_dev *hdev,
                           struct vhost_vring_file *file);
 
 int vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write);
-int vhost_dev_get_config(struct vhost_dev *hdev, uint8_t *config,
-                         uint32_t config_len, Error **errp);
-int vhost_dev_set_config(struct vhost_dev *dev, const uint8_t *data,
-                         uint32_t offset, uint32_t size, uint32_t flags);
-/* notifier callback in case vhost device config space changed
- */
-void vhost_dev_set_config_notifier(struct vhost_dev *dev,
-                                   const VhostDevConfigOps *ops);
 
 void vhost_dev_reset_inflight(struct vhost_inflight *inflight);
 void vhost_dev_free_inflight(struct vhost_inflight *inflight);
