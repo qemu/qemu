@@ -1,0 +1,6 @@
+# Two lists conflict even if their inner types would be compatible
+{ 'struct': 'One',
+  'data': { 'name': 'str' } }
+{ 'alternate': 'Alt',
+  'data': { 'one': [ 'int' ],
+            'two': [ 'str' ] } }
