@@ -23,15 +23,6 @@
 #include "trace.h"
 #include "aio-posix.h"
 
-/*
- * G_IO_IN and G_IO_OUT are not appropriate revents values for polling, since
- * the handler may not need to access the file descriptor. For example, the
- * handler doesn't need to read from an EventNotifier if it polled a memory
- * location and a read syscall would be slow. Define our own unique revents
- * value to indicate that polling determined this AioHandler is ready.
- */
-#define REVENTS_POLL_READY 0
-
 /* Stop userspace polling on a handler if it isn't active for some time */
 #define POLL_IDLE_INTERVAL_NS (7 * NANOSECONDS_PER_SECOND)
 
@@ -46,6 +37,14 @@ void aio_add_ready_handler(AioHandlerList *ready_list,
 {
     QLIST_SAFE_REMOVE(node, node_ready); /* remove from nested parent's list */
     node->pfd.revents = revents;
+    QLIST_INSERT_HEAD(ready_list, node, node_ready);
+}
+
+static void aio_add_poll_ready_handler(AioHandlerList *ready_list,
+                                       AioHandler *node)
+{
+    QLIST_SAFE_REMOVE(node, node_ready); /* remove from nested parent's list */
+    node->poll_ready = true;
     QLIST_INSERT_HEAD(ready_list, node, node_ready);
 }
 
@@ -76,6 +75,7 @@ static bool aio_remove_fd_handler(AioContext *ctx, AioHandler *node)
     }
 
     node->pfd.revents = 0;
+    node->poll_ready = false;
 
     /* If the fd monitor has already marked it deleted, leave it alone */
     if (QLIST_IS_INSERTED(node, node_deleted)) {
@@ -247,7 +247,7 @@ static bool poll_set_started(AioContext *ctx, AioHandlerList *ready_list,
 
         /* Poll one last time in case ->io_poll_end() raced with the event */
         if (!started && node->io_poll(node->opaque)) {
-            aio_add_ready_handler(ready_list, node, REVENTS_POLL_READY);
+            aio_add_poll_ready_handler(ready_list, node);
             progress = true;
         }
     }
@@ -282,6 +282,7 @@ bool aio_pending(AioContext *ctx)
     QLIST_FOREACH_RCU(node, &ctx->aio_handlers, node) {
         int revents;
 
+        /* TODO should this check poll ready? */
         revents = node->pfd.revents & node->pfd.events;
         if (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR) && node->io_read &&
             aio_node_check(ctx, node->is_external)) {
@@ -323,10 +324,14 @@ static void aio_free_deleted_handlers(AioContext *ctx)
 static bool aio_dispatch_handler(AioContext *ctx, AioHandler *node)
 {
     bool progress = false;
+    bool poll_ready;
     int revents;
 
     revents = node->pfd.revents & node->pfd.events;
     node->pfd.revents = 0;
+
+    poll_ready = node->poll_ready;
+    node->poll_ready = false;
 
     /*
      * Start polling AioHandlers when they become ready because activity is
@@ -344,7 +349,7 @@ static bool aio_dispatch_handler(AioContext *ctx, AioHandler *node)
         QLIST_INSERT_HEAD(&ctx->poll_aio_handlers, node, node_poll);
     }
     if (!QLIST_IS_INSERTED(node, node_deleted) &&
-        revents == 0 &&
+        poll_ready && revents == 0 &&
         aio_node_check(ctx, node->is_external) &&
         node->io_poll_ready) {
         node->io_poll_ready(node->opaque);
@@ -432,7 +437,7 @@ static bool run_poll_handlers_once(AioContext *ctx,
     QLIST_FOREACH_SAFE(node, &ctx->poll_aio_handlers, node_poll, tmp) {
         if (aio_node_check(ctx, node->is_external) &&
             node->io_poll(node->opaque)) {
-            aio_add_ready_handler(ready_list, node, REVENTS_POLL_READY);
+            aio_add_poll_ready_handler(ready_list, node);
 
             node->poll_idle_timeout = now + POLL_IDLE_INTERVAL_NS;
 
@@ -491,8 +496,7 @@ static bool remove_idle_poll_handlers(AioContext *ctx,
                  * this causes progress.
                  */
                 if (node->io_poll(node->opaque)) {
-                    aio_add_ready_handler(ready_list, node,
-                                          REVENTS_POLL_READY);
+                    aio_add_poll_ready_handler(ready_list, node);
                     progress = true;
                 }
             }
