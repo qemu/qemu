@@ -312,13 +312,15 @@ def qemu_img_info(*args: str) -> Any:
 def qemu_img_map(*args: str) -> Any:
     return qemu_img_json('map', "--output", "json", *args)
 
-def qemu_img_log(*args: str) -> 'subprocess.CompletedProcess[str]':
-    result = qemu_img(*args, check=False)
+def qemu_img_log(*args: str, check: bool = True
+                 ) -> 'subprocess.CompletedProcess[str]':
+    result = qemu_img(*args, check=check)
     log(result.stdout, filters=[filter_testfiles])
     return result
 
 def img_info_log(filename: str, filter_path: Optional[str] = None,
                  use_image_opts: bool = False, extra_args: Sequence[str] = (),
+                 check: bool = True,
                  ) -> None:
     args = ['info']
     if use_image_opts:
@@ -328,7 +330,7 @@ def img_info_log(filename: str, filter_path: Optional[str] = None,
     args += extra_args
     args.append(filename)
 
-    output = qemu_img(*args, check=False).stdout
+    output = qemu_img(*args, check=check).stdout
     if not filter_path:
         filter_path = filename
     log(filter_img_info(output, filter_path))

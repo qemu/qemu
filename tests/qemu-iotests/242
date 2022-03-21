@@ -100,7 +100,7 @@ add_bitmap(1, True, False)
 log('Write an unknown bitmap flag \'{}\' into a new QCOW2 image at offset {}'
     .format(hex(bitmap_flag_unknown), flag_offset))
 toggle_flag(flag_offset)
-img_info_log(disk)
+img_info_log(disk, check=False)
 toggle_flag(flag_offset)
 log('Unset the unknown bitmap flag \'{}\' in the bitmap directory entry:\n'
     .format(hex(bitmap_flag_unknown)))
