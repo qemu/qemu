@@ -265,8 +265,11 @@ def qemu_img_create(config, size_mb):
             "%dM" % size_mb]
 
     iotests.log("qemu-img " + " ".join(args), filters=[iotests.filter_test_dir])
-    iotests.log(check_cipher_support(config, iotests.qemu_img_pipe(*args)),
-                filters=[iotests.filter_test_dir])
+    try:
+        iotests.qemu_img(*args)
+    except subprocess.CalledProcessError as exc:
+        check_cipher_support(config, exc.output)
+        raise
 
 def qemu_io_image_args(config, dev=False):
     """Get the args for access an image or device with qemu-io"""
