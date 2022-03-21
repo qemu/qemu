@@ -37,9 +37,8 @@ import unittest
 
 from contextlib import contextmanager
 
-from qemu.aqmp.legacy import QEMUMonitorProtocol
+from qemu.aqmp.legacy import QMPMessage, QEMUMonitorProtocol
 from qemu.machine import qtest
-from qemu.qmp import QMPMessage
 from qemu.utils import VerboseProcessError
 
 # Use this logger for logging messages directly from the iotests module
