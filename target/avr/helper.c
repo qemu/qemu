@@ -93,12 +93,6 @@ void avr_cpu_do_interrupt(CPUState *cs)
     cs->exception_index = -1;
 }
 
-int avr_cpu_memory_rw_debug(CPUState *cs, vaddr addr, uint8_t *buf,
-                            int len, bool is_write)
-{
-    return cpu_memory_rw_debug(cs, addr, buf, len, is_write);
-}
-
 hwaddr avr_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
     return addr; /* I assume 1:1 address correspondence */
