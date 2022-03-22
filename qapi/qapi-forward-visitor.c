@@ -23,7 +23,6 @@
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu/cutils.h"
-#include "qemu/option.h"
 
 struct ForwardFieldVisitor {
     Visitor visitor;

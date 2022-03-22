@@ -224,10 +224,10 @@ our $Attribute	= qr{
 			const|
 			volatile|
 			QEMU_NORETURN|
-			QEMU_WARN_UNUSED_RESULT|
-			QEMU_SENTINEL|
+			G_GNUC_WARN_UNUSED_RESULT|
+			G_GNUC_NULL_TERMINATED|
 			QEMU_PACKED|
-			GCC_FMT_ATTR
+			G_GNUC_PRINTF
 		  }x;
 our $Modifier;
 our $Inline	= qr{inline};

@@ -57,7 +57,7 @@ static bool is_daemon;
 static bool get_version; /* IOC getversion IOCTL supported */
 static char *prog_name;
 
-static void GCC_FMT_ATTR(2, 3) do_log(int loglevel, const char *format, ...)
+static void G_GNUC_PRINTF(2, 3) do_log(int loglevel, const char *format, ...)
 {
     va_list ap;
 

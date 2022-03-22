@@ -36,7 +36,7 @@ void ga_command_state_free(GACommandState *cs);
 bool ga_logging_enabled(GAState *s);
 void ga_disable_logging(GAState *s);
 void ga_enable_logging(GAState *s);
-void GCC_FMT_ATTR(1, 2) slog(const gchar *fmt, ...);
+void G_GNUC_PRINTF(1, 2) slog(const gchar *fmt, ...);
 void ga_set_response_delimited(GAState *s);
 bool ga_is_frozen(GAState *s);
 void ga_set_frozen(GAState *s);

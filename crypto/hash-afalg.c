@@ -88,8 +88,8 @@ qcrypto_afalg_hash_hmac_ctx_new(QCryptoHashAlgorithm alg,
 
     /* HMAC needs setkey */
     if (is_hmac) {
-        if (qemu_setsockopt(afalg->tfmfd, SOL_ALG, ALG_SET_KEY,
-                            key, nkey) != 0) {
+        if (setsockopt(afalg->tfmfd, SOL_ALG, ALG_SET_KEY,
+                       key, nkey) != 0) {
             error_setg_errno(errp, errno, "Set hmac key failed");
             qcrypto_afalg_comm_free(afalg);
             return NULL;

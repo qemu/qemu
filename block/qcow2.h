@@ -838,7 +838,7 @@ int qcow2_update_header(BlockDriverState *bs);
 
 void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
                              int64_t size, const char *message_format, ...)
-                             GCC_FMT_ATTR(5, 6);
+                             G_GNUC_PRINTF(5, 6);
 
 int qcow2_validate_table(BlockDriverState *bs, uint64_t offset,
                          uint64_t entries, size_t entry_len,

@@ -308,7 +308,7 @@ void help_cmd(Monitor *mon, const char *name)
 static const char *pch;
 static sigjmp_buf expr_env;
 
-static void GCC_FMT_ATTR(2, 3) QEMU_NORETURN
+static void G_GNUC_PRINTF(2, 3) QEMU_NORETURN
 expr_error(Monitor *mon, const char *fmt, ...)
 {
     va_list ap;
@@ -1462,7 +1462,7 @@ static void monitor_event(void *opaque, QEMUChrEvent event)
  * These functions just adapt the readline interface in a typesafe way.  We
  * could cast function pointers but that discards compiler checks.
  */
-static void GCC_FMT_ATTR(2, 3) monitor_readline_printf(void *opaque,
+static void G_GNUC_PRINTF(2, 3) monitor_readline_printf(void *opaque,
                                                        const char *fmt, ...)
 {
     MonitorHMP *mon = opaque;

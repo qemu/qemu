@@ -55,7 +55,7 @@ typedef struct SDLVoiceIn {
     SDL_AudioDeviceID devid;
 } SDLVoiceIn;
 
-static void GCC_FMT_ATTR (1, 2) sdl_logerr (const char *fmt, ...)
+static void G_GNUC_PRINTF (1, 2) sdl_logerr (const char *fmt, ...)
 {
     va_list ap;
 

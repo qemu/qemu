@@ -426,7 +426,7 @@ static int get_char(void)
     int ret;
 
     for(;;) {
-        ret = qemu_recv(gdbserver_state.fd, &ch, 1, 0);
+        ret = recv(gdbserver_state.fd, &ch, 1, 0);
         if (ret < 0) {
             if (errno == ECONNRESET)
                 gdbserver_state.fd = -1;

@@ -27,31 +27,12 @@ int qemu_main(int argc, char **argv, char **envp);
 #endif
 
 ssize_t qemu_write_full(int fd, const void *buf, size_t count)
-    QEMU_WARN_UNUSED_RESULT;
+    G_GNUC_WARN_UNUSED_RESULT;
 
 #ifndef _WIN32
 int qemu_pipe(int pipefd[2]);
 /* like openpty() but also makes it raw; return master fd */
 int qemu_openpty_raw(int *aslave, char *pty_name);
-#endif
-
-#ifdef _WIN32
-/* MinGW needs type casts for the 'buf' and 'optval' arguments. */
-#define qemu_getsockopt(sockfd, level, optname, optval, optlen) \
-    getsockopt(sockfd, level, optname, (void *)optval, optlen)
-#define qemu_setsockopt(sockfd, level, optname, optval, optlen) \
-    setsockopt(sockfd, level, optname, (const void *)optval, optlen)
-#define qemu_recv(sockfd, buf, len, flags) recv(sockfd, (void *)buf, len, flags)
-#define qemu_sendto(sockfd, buf, len, flags, destaddr, addrlen) \
-    sendto(sockfd, (const void *)buf, len, flags, destaddr, addrlen)
-#else
-#define qemu_getsockopt(sockfd, level, optname, optval, optlen) \
-    getsockopt(sockfd, level, optname, optval, optlen)
-#define qemu_setsockopt(sockfd, level, optname, optval, optlen) \
-    setsockopt(sockfd, level, optname, optval, optlen)
-#define qemu_recv(sockfd, buf, len, flags) recv(sockfd, buf, len, flags)
-#define qemu_sendto(sockfd, buf, len, flags, destaddr, addrlen) \
-    sendto(sockfd, buf, len, flags, destaddr, addrlen)
 #endif
 
 void cpu_exec_init_all(void);
@@ -127,7 +108,6 @@ void qemu_hexdump(FILE *fp, const char *prefix,
  */
 int parse_debug_env(const char *name, int max, int initial);
 
-const char *qemu_ether_ntoa(const MACAddr *mac);
 void page_size_init(void);
 
 /* returns non-zero if dump is in progress, otherwise zero is

@@ -358,7 +358,7 @@ static inline int xen_restrict(domid_t domid)
 void destroy_hvm_domain(bool reboot);
 
 /* shutdown/destroy current domain because of an error */
-void xen_shutdown_fatal_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
+void xen_shutdown_fatal_error(const char *fmt, ...) G_GNUC_PRINTF(1, 2);
 
 #ifdef HVM_PARAM_VMPORT_REGS_PFN
 static inline int xen_get_vmport_regs_pfn(xc_interface *xc, domid_t dom,

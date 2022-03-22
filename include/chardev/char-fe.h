@@ -172,7 +172,7 @@ void qemu_chr_fe_set_open(CharBackend *be, int fe_open);
  * Chardev.
  */
 void qemu_chr_fe_printf(CharBackend *be, const char *fmt, ...)
-    GCC_FMT_ATTR(2, 3);
+    G_GNUC_PRINTF(2, 3);
 
 
 typedef gboolean (*FEWatchFunc)(void *do_not_use, GIOCondition condition, void *data);

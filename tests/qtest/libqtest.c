@@ -94,8 +94,8 @@ static int socket_accept(int sock)
     struct timeval timeout = { .tv_sec = SOCKET_TIMEOUT,
                                .tv_usec = 0 };
 
-    if (qemu_setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,
-                        (void *)&timeout, sizeof(timeout))) {
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,
+                   (void *)&timeout, sizeof(timeout))) {
         fprintf(stderr, "%s failed to set SO_RCVTIMEO: %s\n",
                 __func__, strerror(errno));
         close(sock);
@@ -437,7 +437,7 @@ static void qtest_client_socket_send(QTestState *s, const char *buf)
     socket_send(s->fd, buf, strlen(buf));
 }
 
-static void GCC_FMT_ATTR(2, 3) qtest_sendf(QTestState *s, const char *fmt, ...)
+static void G_GNUC_PRINTF(2, 3) qtest_sendf(QTestState *s, const char *fmt, ...)
 {
     va_list ap;
 

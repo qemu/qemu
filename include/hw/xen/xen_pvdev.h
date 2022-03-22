@@ -76,6 +76,6 @@ void xen_pv_unbind_evtchn(struct XenLegacyDevice *xendev);
 int xen_pv_send_notify(struct XenLegacyDevice *xendev);
 
 void xen_pv_printf(struct XenLegacyDevice *xendev, int msg_level,
-                   const char *fmt, ...)  GCC_FMT_ATTR(3, 4);
+                   const char *fmt, ...)  G_GNUC_PRINTF(3, 4);
 
 #endif /* QEMU_HW_XEN_PVDEV_H */

@@ -114,8 +114,8 @@ static inline uint64_t range_upb(Range *range)
  * @size may be 0. If the range would overflow, returns -ERANGE, otherwise
  * 0.
  */
-static inline int QEMU_WARN_UNUSED_RESULT range_init(Range *range, uint64_t lob,
-                                                     uint64_t size)
+G_GNUC_WARN_UNUSED_RESULT
+static inline int range_init(Range *range, uint64_t lob, uint64_t size)
 {
     if (lob + size < lob) {
         return -ERANGE;

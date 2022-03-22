@@ -146,22 +146,6 @@ void loc_set_file(const char *fname, int lno)
     }
 }
 
-static const char *progname;
-
-/*
- * Set the program name for error_print_loc().
- */
-static void error_set_progname(const char *argv0)
-{
-    const char *p = strrchr(argv0, '/');
-    progname = p ? p + 1 : argv0;
-}
-
-const char *error_get_progname(void)
-{
-    return progname;
-}
-
 /*
  * Print current location to current monitor if we have one, else to stderr.
  */
@@ -171,8 +155,8 @@ static void print_loc(void)
     int i;
     const char *const *argp;
 
-    if (!monitor_cur() && progname) {
-        fprintf(stderr, "%s:", progname);
+    if (!monitor_cur() && g_get_prgname()) {
+        fprintf(stderr, "%s:", g_get_prgname());
         sep = " ";
     }
     switch (cur_loc->kind) {
@@ -400,8 +384,10 @@ static void qemu_log_func(const gchar *log_domain,
 
 void error_init(const char *argv0)
 {
+    const char *p = strrchr(argv0, '/');
+
     /* Set the program name for error_print_loc(). */
-    error_set_progname(argv0);
+    g_set_prgname(p ? p + 1 : argv0);
 
     /*
      * This sets up glib logging so libraries using it also print their logs

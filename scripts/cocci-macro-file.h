@@ -20,8 +20,8 @@
 
 /* From qemu/compiler.h */
 #define QEMU_NORETURN __attribute__ ((__noreturn__))
-#define QEMU_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
-#define QEMU_SENTINEL __attribute__((sentinel))
+#define G_GNUC_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+#define G_GNUC_NULL_TERMINATED __attribute__((sentinel))
 
 #if defined(_WIN32) && (defined(__x86_64__) || defined(__i386__))
 # define QEMU_PACKED __attribute__((gcc_struct, packed))
@@ -34,7 +34,7 @@
 #define QEMU_BUILD_BUG_ON(x) \
     typedef char cat2(qemu_build_bug_on__,__LINE__)[(x)?-1:1] __attribute__((unused));
 
-#define GCC_FMT_ATTR(n, m) __attribute__((format(gnu_printf, n, m)))
+#define G_GNUC_PRINTF(n, m) __attribute__((format(gnu_printf, n, m)))
 
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)

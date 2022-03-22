@@ -320,7 +320,7 @@ ErrorClass error_get_class(const Error *err);
 void error_setg_internal(Error **errp,
                          const char *src, int line, const char *func,
                          const char *fmt, ...)
-    GCC_FMT_ATTR(5, 6);
+    G_GNUC_PRINTF(5, 6);
 
 /*
  * Just like error_setg(), with @os_error info added to the message.
@@ -336,7 +336,7 @@ void error_setg_internal(Error **errp,
 void error_setg_errno_internal(Error **errp,
                                const char *fname, int line, const char *func,
                                int os_error, const char *fmt, ...)
-    GCC_FMT_ATTR(6, 7);
+    G_GNUC_PRINTF(6, 7);
 
 #ifdef _WIN32
 /*
@@ -350,7 +350,7 @@ void error_setg_errno_internal(Error **errp,
 void error_setg_win32_internal(Error **errp,
                                const char *src, int line, const char *func,
                                int win32_err, const char *fmt, ...)
-    GCC_FMT_ATTR(6, 7);
+    G_GNUC_PRINTF(6, 7);
 #endif
 
 /*
@@ -383,21 +383,21 @@ void error_propagate(Error **dst_errp, Error *local_err);
  */
 void error_propagate_prepend(Error **dst_errp, Error *local_err,
                              const char *fmt, ...)
-    GCC_FMT_ATTR(3, 4);
+    G_GNUC_PRINTF(3, 4);
 
 /*
  * Prepend some text to @errp's human-readable error message.
  * The text is made by formatting @fmt, @ap like vprintf().
  */
 void error_vprepend(Error *const *errp, const char *fmt, va_list ap)
-    GCC_FMT_ATTR(2, 0);
+    G_GNUC_PRINTF(2, 0);
 
 /*
  * Prepend some text to @errp's human-readable error message.
  * The text is made by formatting @fmt, ... like printf().
  */
 void error_prepend(Error *const *errp, const char *fmt, ...)
-    GCC_FMT_ATTR(2, 3);
+    G_GNUC_PRINTF(2, 3);
 
 /*
  * Append a printf-style human-readable explanation to an existing error.
@@ -414,7 +414,7 @@ void error_prepend(Error *const *errp, const char *fmt, ...)
  * newline.
  */
 void error_append_hint(Error *const *errp, const char *fmt, ...)
-    GCC_FMT_ATTR(2, 3);
+    G_GNUC_PRINTF(2, 3);
 
 /*
  * Convenience function to report open() failure.
@@ -458,13 +458,13 @@ void error_report_err(Error *err);
  * Convenience function to error_prepend(), warn_report() and free @err.
  */
 void warn_reportf_err(Error *err, const char *fmt, ...)
-    GCC_FMT_ATTR(2, 3);
+    G_GNUC_PRINTF(2, 3);
 
 /*
  * Convenience function to error_prepend(), error_report() and free @err.
  */
 void error_reportf_err(Error *err, const char *fmt, ...)
-    GCC_FMT_ATTR(2, 3);
+    G_GNUC_PRINTF(2, 3);
 
 /*
  * Just like error_setg(), except you get to specify the error class.
@@ -477,7 +477,7 @@ void error_reportf_err(Error *err, const char *fmt, ...)
 void error_set_internal(Error **errp,
                         const char *src, int line, const char *func,
                         ErrorClass err_class, const char *fmt, ...)
-    GCC_FMT_ATTR(6, 7);
+    G_GNUC_PRINTF(6, 7);
 
 /*
  * Make @errp parameter easier to use regardless of argument value

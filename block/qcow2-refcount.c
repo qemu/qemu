@@ -33,9 +33,11 @@
 
 static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size,
                                     uint64_t max);
-static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
-                            int64_t offset, int64_t length, uint64_t addend,
-                            bool decrease, enum qcow2_discard_type type);
+
+G_GNUC_WARN_UNUSED_RESULT
+static int update_refcount(BlockDriverState *bs,
+                           int64_t offset, int64_t length, uint64_t addend,
+                           bool decrease, enum qcow2_discard_type type);
 
 static uint64_t get_refcount_ro0(const void *refcount_array, uint64_t index);
 static uint64_t get_refcount_ro1(const void *refcount_array, uint64_t index);
@@ -803,12 +805,12 @@ found:
 /* XXX: cache several refcount block clusters ? */
 /* @addend is the absolute value of the addend; if @decrease is set, @addend
  * will be subtracted from the current refcount, otherwise it will be added */
-static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
-                                                   int64_t offset,
-                                                   int64_t length,
-                                                   uint64_t addend,
-                                                   bool decrease,
-                                                   enum qcow2_discard_type type)
+static int update_refcount(BlockDriverState *bs,
+                           int64_t offset,
+                           int64_t length,
+                           uint64_t addend,
+                           bool decrease,
+                           enum qcow2_discard_type type)
 {
     BDRVQcow2State *s = bs->opaque;
     int64_t start, last, cluster_offset;

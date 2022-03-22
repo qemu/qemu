@@ -8,7 +8,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "block/qdict.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"

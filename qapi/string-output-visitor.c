@@ -14,7 +14,6 @@
 #include "qemu/cutils.h"
 #include "qapi/string-output-visitor.h"
 #include "qapi/visitor-impl.h"
-#include "qemu/host-utils.h"
 #include <math.h>
 #include "qemu/range.h"
 

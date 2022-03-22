@@ -63,7 +63,7 @@ struct oss_params {
     int fragsize;
 };
 
-static void GCC_FMT_ATTR (2, 3) oss_logerr (int err, const char *fmt, ...)
+static void G_GNUC_PRINTF (2, 3) oss_logerr (int err, const char *fmt, ...)
 {
     va_list ap;
 
@@ -74,7 +74,7 @@ static void GCC_FMT_ATTR (2, 3) oss_logerr (int err, const char *fmt, ...)
     AUD_log (AUDIO_CAP, "Reason: %s\n", strerror (err));
 }
 
-static void GCC_FMT_ATTR (3, 4) oss_logerr2 (
+static void G_GNUC_PRINTF (3, 4) oss_logerr2 (
     int err,
     const char *typ,
     const char *fmt,

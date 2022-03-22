@@ -7,6 +7,11 @@
 #ifndef COMPILER_H
 #define COMPILER_H
 
+#define HOST_BIG_ENDIAN (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+
+/* HOST_LONG_BITS is the size of a native pointer in bits. */
+#define HOST_LONG_BITS (__SIZEOF_POINTER__ * 8)
+
 #if defined __clang_analyzer__ || defined __COVERITY__
 #define QEMU_STATIC_ANALYSIS 1
 #endif
@@ -18,10 +23,6 @@
 #endif
 
 #define QEMU_NORETURN __attribute__ ((__noreturn__))
-
-#define QEMU_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
-
-#define QEMU_SENTINEL __attribute__((sentinel))
 
 #if defined(_WIN32) && (defined(__x86_64__) || defined(__i386__))
 # define QEMU_PACKED __attribute__((gcc_struct, packed))
@@ -79,19 +80,12 @@
 #define QEMU_BUILD_BUG_ON_ZERO(x) (sizeof(QEMU_BUILD_BUG_ON_STRUCT(x)) - \
                                    sizeof(QEMU_BUILD_BUG_ON_STRUCT(x)))
 
-#if defined(__clang__)
-/* clang doesn't support gnu_printf, so use printf. */
-# define GCC_FMT_ATTR(n, m) __attribute__((format(printf, n, m)))
-#else
-/* Use gnu_printf (qemu uses standard format strings). */
-# define GCC_FMT_ATTR(n, m) __attribute__((format(gnu_printf, n, m)))
-# if defined(_WIN32)
+#if !defined(__clang__) && defined(_WIN32)
 /*
  * Map __printf__ to __gnu_printf__ because we want standard format strings even
  * when MinGW or GLib include files use __printf__.
  */
-#  define __printf__ __gnu_printf__
-# endif
+# define __printf__ __gnu_printf__
 #endif
 
 #ifndef __has_warning

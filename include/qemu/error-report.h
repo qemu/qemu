@@ -30,23 +30,23 @@ void loc_set_none(void);
 void loc_set_cmdline(char **argv, int idx, int cnt);
 void loc_set_file(const char *fname, int lno);
 
-int error_vprintf(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
-int error_printf(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
-int error_vprintf_unless_qmp(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
-int error_printf_unless_qmp(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
+int error_vprintf(const char *fmt, va_list ap) G_GNUC_PRINTF(1, 0);
+int error_printf(const char *fmt, ...) G_GNUC_PRINTF(1, 2);
+int error_vprintf_unless_qmp(const char *fmt, va_list ap) G_GNUC_PRINTF(1, 0);
+int error_printf_unless_qmp(const char *fmt, ...) G_GNUC_PRINTF(1, 2);
 
-void error_vreport(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
-void warn_vreport(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
-void info_vreport(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
+void error_vreport(const char *fmt, va_list ap) G_GNUC_PRINTF(1, 0);
+void warn_vreport(const char *fmt, va_list ap) G_GNUC_PRINTF(1, 0);
+void info_vreport(const char *fmt, va_list ap) G_GNUC_PRINTF(1, 0);
 
-void error_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
-void warn_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
-void info_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
+void error_report(const char *fmt, ...) G_GNUC_PRINTF(1, 2);
+void warn_report(const char *fmt, ...) G_GNUC_PRINTF(1, 2);
+void info_report(const char *fmt, ...) G_GNUC_PRINTF(1, 2);
 
 bool error_report_once_cond(bool *printed, const char *fmt, ...)
-    GCC_FMT_ATTR(2, 3);
+    G_GNUC_PRINTF(2, 3);
 bool warn_report_once_cond(bool *printed, const char *fmt, ...)
-    GCC_FMT_ATTR(2, 3);
+    G_GNUC_PRINTF(2, 3);
 
 void error_init(const char *argv0);
 
@@ -71,8 +71,6 @@ void error_init(const char *argv0);
         warn_report_once_cond(&print_once_,             \
                               fmt, ##__VA_ARGS__);      \
     })
-
-const char *error_get_progname(void);
 
 extern bool message_with_timestamp;
 extern bool error_with_guestname;

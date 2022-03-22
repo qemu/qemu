@@ -5,6 +5,6 @@
 #error Cannot include hw/hw.h from user emulation
 #endif
 
-void QEMU_NORETURN hw_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
+void QEMU_NORETURN hw_error(const char *fmt, ...) G_GNUC_PRINTF(1, 2);
 
 #endif

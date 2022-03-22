@@ -97,7 +97,7 @@ bool fd_is_socket(int fd)
 {
     int optval;
     socklen_t optlen = sizeof(optval);
-    return !qemu_getsockopt(fd, SOL_SOCKET, SO_TYPE, &optval, &optlen);
+    return !getsockopt(fd, SOL_SOCKET, SO_TYPE, &optval, &optlen);
 }
 
 
@@ -185,8 +185,8 @@ static int try_bind(int socket, InetSocketAddress *saddr, struct addrinfo *e)
 
  rebind:
     if (e->ai_family == PF_INET6) {
-        qemu_setsockopt(socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6only,
-                        sizeof(v6only));
+        setsockopt(socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6only,
+                   sizeof(v6only));
     }
 
     stat = bind(socket, e->ai_addr, e->ai_addrlen);
@@ -483,8 +483,8 @@ int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
 
     if (saddr->keep_alive) {
         int val = 1;
-        int ret = qemu_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
-                                  &val, sizeof(val));
+        int ret = setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
+                             &val, sizeof(val));
 
         if (ret < 0) {
             error_setg_errno(errp, errno, "Unable to set KEEPALIVE");
