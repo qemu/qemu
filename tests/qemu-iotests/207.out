@@ -42,7 +42,7 @@ virtual size: 4 MiB (4194304 bytes)
 
 {"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "ssh", "location": {"host-key-check": {"hash": "wrong", "mode": "hash", "type": "md5"}, "path": "TEST_DIR/PID-t.img", "server": {"host": "127.0.0.1", "port": "22"}}, "size": 2097152}}}
 {"return": {}}
-Job failed: remote host key does not match host_key_check 'wrong'
+Job failed: remote host key fingerprint 'md5:HASH' does not match host_key_check 'md5:wrong'
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
@@ -59,7 +59,7 @@ virtual size: 8 MiB (8388608 bytes)
 
 {"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "ssh", "location": {"host-key-check": {"hash": "wrong", "mode": "hash", "type": "sha1"}, "path": "TEST_DIR/PID-t.img", "server": {"host": "127.0.0.1", "port": "22"}}, "size": 2097152}}}
 {"return": {}}
-Job failed: remote host key does not match host_key_check 'wrong'
+Job failed: remote host key fingerprint 'sha1:HASH' does not match host_key_check 'sha1:wrong'
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
@@ -76,7 +76,7 @@ virtual size: 4 MiB (4194304 bytes)
 
 {"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "ssh", "location": {"host-key-check": {"hash": "wrong", "mode": "hash", "type": "sha256"}, "path": "TEST_DIR/PID-t.img", "server": {"host": "127.0.0.1", "port": "22"}}, "size": 2097152}}}
 {"return": {}}
-Job failed: remote host key does not match host_key_check 'wrong'
+Job failed: remote host key fingerprint 'sha256:HASH' does not match host_key_check 'sha256:wrong'
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 

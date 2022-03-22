@@ -22,7 +22,7 @@
 import iotests
 import json
 import struct
-from iotests import qemu_img_create, qemu_io, qemu_img_pipe, \
+from iotests import qemu_img_create, qemu_io, qemu_img_info, \
     file_path, img_info_log, log, filter_qemu_io
 
 iotests.script_initialize(supported_fmts=['qcow2'],
@@ -39,8 +39,7 @@ flag_offset = 0x5000f
 def print_bitmap(extra_args):
     log('qemu-img info dump:\n')
     img_info_log(disk, extra_args=extra_args)
-    result = json.loads(qemu_img_pipe('info', '--force-share',
-                                      '--output=json', disk))
+    result = qemu_img_info('--force-share', disk)
     if 'bitmaps' in result['format-specific']['data']:
         bitmaps = result['format-specific']['data']['bitmaps']
         log('The same bitmaps in JSON format:')
@@ -101,7 +100,7 @@ add_bitmap(1, True, False)
 log('Write an unknown bitmap flag \'{}\' into a new QCOW2 image at offset {}'
     .format(hex(bitmap_flag_unknown), flag_offset))
 toggle_flag(flag_offset)
-img_info_log(disk)
+img_info_log(disk, check=False)
 toggle_flag(flag_offset)
 log('Unset the unknown bitmap flag \'{}\' in the bitmap directory entry:\n'
     .format(hex(bitmap_flag_unknown)))

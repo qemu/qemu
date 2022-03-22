@@ -63,18 +63,18 @@ def do_test(vm, use_cbw, use_snapshot_access_filter, base_img_path,
     log('--- Setting up images ---')
     log('')
 
-    assert qemu_img('create', '-f', iotests.imgfmt, base_img_path, '64M') == 0
+    qemu_img('create', '-f', iotests.imgfmt, base_img_path, '64M')
     if bitmap:
-        assert qemu_img('bitmap', '--add', base_img_path, 'bitmap0') == 0
+        qemu_img('bitmap', '--add', base_img_path, 'bitmap0')
 
     if use_snapshot_access_filter:
         assert use_cbw
-        assert qemu_img('create', '-f', 'raw', fleece_img_path, '64M') == 0
+        qemu_img('create', '-f', 'raw', fleece_img_path, '64M')
     else:
-        assert qemu_img('create', '-f', 'qcow2', fleece_img_path, '64M') == 0
+        qemu_img('create', '-f', 'qcow2', fleece_img_path, '64M')
 
     if push_backup:
-        assert qemu_img('create', '-f', 'qcow2', target_img_path, '64M') == 0
+        qemu_img('create', '-f', 'qcow2', target_img_path, '64M')
 
     for p in patterns:
         qemu_io('-f', iotests.imgfmt,

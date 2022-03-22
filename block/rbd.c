@@ -1107,6 +1107,20 @@ static int coroutine_fn qemu_rbd_start_co(BlockDriverState *bs,
 
     assert(!qiov || qiov->size == bytes);
 
+    if (cmd == RBD_AIO_WRITE || cmd == RBD_AIO_WRITE_ZEROES) {
+        /*
+         * RBD APIs don't allow us to write more than actual size, so in order
+         * to support growing images, we resize the image before write
+         * operations that exceed the current size.
+         */
+        if (offset + bytes > s->image_size) {
+            int r = qemu_rbd_resize(bs, offset + bytes);
+            if (r < 0) {
+                return r;
+            }
+        }
+    }
+
     r = rbd_aio_create_completion(&task,
                                   (rbd_callback_t) qemu_rbd_completion_cb, &c);
     if (r < 0) {
@@ -1182,18 +1196,6 @@ coroutine_fn qemu_rbd_co_pwritev(BlockDriverState *bs, int64_t offset,
                                  int64_t bytes, QEMUIOVector *qiov,
                                  BdrvRequestFlags flags)
 {
-    BDRVRBDState *s = bs->opaque;
-    /*
-     * RBD APIs don't allow us to write more than actual size, so in order
-     * to support growing images, we resize the image before write
-     * operations that exceed the current size.
-     */
-    if (offset + bytes > s->image_size) {
-        int r = qemu_rbd_resize(bs, offset + bytes);
-        if (r < 0) {
-            return r;
-        }
-    }
     return qemu_rbd_start_co(bs, offset, bytes, qiov, flags, RBD_AIO_WRITE);
 }
 

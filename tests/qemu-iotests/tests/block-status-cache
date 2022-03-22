@@ -22,7 +22,7 @@
 import os
 import signal
 import iotests
-from iotests import qemu_img_create, qemu_img_pipe, qemu_nbd
+from iotests import qemu_img_create, qemu_img_map, qemu_nbd
 
 
 image_size = 1 * 1024 * 1024
@@ -35,8 +35,7 @@ nbd_sock = os.path.join(iotests.sock_dir, 'nbd.sock')
 class TestBscWithNbd(iotests.QMPTestCase):
     def setUp(self) -> None:
         """Just create an empty image with a read-only NBD server on it"""
-        assert qemu_img_create('-f', iotests.imgfmt, test_img,
-                               str(image_size)) == 0
+        qemu_img_create('-f', iotests.imgfmt, test_img, str(image_size))
 
         # Pass --allocation-depth to enable the qemu:allocation-depth context,
         # which we are going to query to provoke a block-status inquiry with
@@ -77,8 +76,7 @@ class TestBscWithNbd(iotests.QMPTestCase):
         # to allocate the first sector to facilitate alignment probing), and
         # then the rest to be zero.  The BSC will thus contain (if anything)
         # one range covering the first sector.
-        map_pre = qemu_img_pipe('map', '--output=json', '--image-opts',
-                                nbd_img_opts)
+        map_pre = qemu_img_map('--image-opts', nbd_img_opts)
 
         # qemu:allocation-depth maps for want_zero=false.
         # want_zero=false should (with the file driver, which the server is
@@ -112,14 +110,12 @@ class TestBscWithNbd(iotests.QMPTestCase):
         # never loop too many times here.
         for _ in range(2):
             # (Ignore the result, this is just to contaminate the cache)
-            qemu_img_pipe('map', '--output=json', '--image-opts',
-                          nbd_img_opts_alloc_depth)
+            qemu_img_map('--image-opts', nbd_img_opts_alloc_depth)
 
         # Now let's see whether the cache reports everything as data, or
         # whether we get correct information (i.e. the same as we got on our
         # first attempt).
-        map_post = qemu_img_pipe('map', '--output=json', '--image-opts',
-                                 nbd_img_opts)
+        map_post = qemu_img_map('--image-opts', nbd_img_opts)
 
         if map_pre != map_post:
             print('ERROR: Map information differs before and after querying ' +

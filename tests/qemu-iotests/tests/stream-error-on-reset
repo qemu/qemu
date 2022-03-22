@@ -54,9 +54,9 @@ class TestStreamErrorOnReset(QMPTestCase):
           to it will result in an error
         - top image is attached to a virtio-scsi device
         """
-        assert qemu_img_create('-f', imgfmt, base, str(image_size)) == 0
+        qemu_img_create('-f', imgfmt, base, str(image_size))
         assert qemu_io_silent('-c', f'write 0 {data_size}', base) == 0
-        assert qemu_img_create('-f', imgfmt, top, str(image_size)) == 0
+        qemu_img_create('-f', imgfmt, top, str(image_size))
 
         self.vm = iotests.VM()
         self.vm.add_args('-accel', 'tcg') # Make throttling work properly

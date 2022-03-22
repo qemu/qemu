@@ -3,8 +3,6 @@ Finishing a commit job with background reads
 
 === Create backing chain and start VM ===
 
-
-
 === Start background read requests ===
 
 === Run a commit job ===
@@ -20,8 +18,6 @@ Closing the VM while a job is being cancelled
 =============================================
 
 === Create images and start VM ===
-
-
 
 wrote 1048576/1048576 bytes at offset 0
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)

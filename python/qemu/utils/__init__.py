@@ -15,7 +15,11 @@ various tasks not directly related to the launching of a VM.
 # the COPYING file in the top-level directory.
 #
 
+import os
 import re
+import shutil
+from subprocess import CalledProcessError
+import textwrap
 from typing import Optional
 
 # pylint: disable=import-error
@@ -23,6 +27,8 @@ from .accel import kvm_available, list_accel, tcg_available
 
 
 __all__ = (
+    'VerboseProcessError',
+    'add_visual_margin',
     'get_info_usernet_hostfwd_port',
     'kvm_available',
     'list_accel',
@@ -43,3 +49,114 @@ def get_info_usernet_hostfwd_port(info_usernet_output: str) -> Optional[int]:
         if match is not None:
             return int(match[1])
     return None
+
+
+# pylint: disable=too-many-arguments
+def add_visual_margin(
+        content: str = '',
+        width: Optional[int] = None,
+        name: Optional[str] = None,
+        padding: int = 1,
+        upper_left: str = '┏',
+        lower_left: str = '┗',
+        horizontal: str = '━',
+        vertical: str = '┃',
+) -> str:
+    """
+    Decorate and wrap some text with a visual decoration around it.
+
+    This function assumes that the text decoration characters are single
+    characters that display using a single monospace column.
+
+    ┏━ Example ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    ┃ This is what this function looks like with text content that's
+    ┃ wrapped to 66 characters. The right-hand margin is left open to
+    ┃ accommodate the occasional unicode character that might make
+    ┃ predicting the total "visual" width of a line difficult. This
+    ┃ provides a visual distinction that's good-enough, though.
+    ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    :param content: The text to wrap and decorate.
+    :param width:
+        The number of columns to use, including for the decoration
+        itself. The default (None) uses the the available width of the
+        current terminal, or a fallback of 72 lines. A negative number
+        subtracts a fixed-width from the default size. The default obeys
+        the COLUMNS environment variable, if set.
+    :param name: A label to apply to the upper-left of the box.
+    :param padding: How many columns of padding to apply inside.
+    :param upper_left: Upper-left single-width text decoration character.
+    :param lower_left: Lower-left single-width text decoration character.
+    :param horizontal: Horizontal single-width text decoration character.
+    :param vertical: Vertical single-width text decoration character.
+    """
+    if width is None or width < 0:
+        avail = shutil.get_terminal_size(fallback=(72, 24))[0]
+        if width is None:
+            _width = avail
+        else:
+            _width = avail + width
+    else:
+        _width = width
+
+    prefix = vertical + (' ' * padding)
+
+    def _bar(name: Optional[str], top: bool = True) -> str:
+        ret = upper_left if top else lower_left
+        if name is not None:
+            ret += f"{horizontal} {name} "
+
+        filler_len = _width - len(ret)
+        ret += f"{horizontal * filler_len}"
+        return ret
+
+    def _wrap(line: str) -> str:
+        return os.linesep.join(
+            textwrap.wrap(
+                line, width=_width - padding, initial_indent=prefix,
+                subsequent_indent=prefix, replace_whitespace=False,
+                drop_whitespace=True, break_on_hyphens=False)
+        )
+
+    return os.linesep.join((
+        _bar(name, top=True),
+        os.linesep.join(_wrap(line) for line in content.splitlines()),
+        _bar(None, top=False),
+    ))
+
+
+class VerboseProcessError(CalledProcessError):
+    """
+    The same as CalledProcessError, but more verbose.
+
+    This is useful for debugging failed calls during test executions.
+    The return code, signal (if any), and terminal output will be displayed
+    on unhandled exceptions.
+    """
+    def summary(self) -> str:
+        """Return the normal CalledProcessError str() output."""
+        return super().__str__()
+
+    def __str__(self) -> str:
+        lmargin = '  '
+        width = -len(lmargin)
+        sections = []
+
+        # Does self.stdout contain both stdout and stderr?
+        has_combined_output = self.stderr is None
+
+        name = 'output' if has_combined_output else 'stdout'
+        if self.stdout:
+            sections.append(add_visual_margin(self.stdout, width, name))
+        else:
+            sections.append(f"{name}: N/A")
+
+        if self.stderr:
+            sections.append(add_visual_margin(self.stderr, width, 'stderr'))
+        elif not has_combined_output:
+            sections.append("stderr: N/A")
+
+        return os.linesep.join((
+            self.summary(),
+            textwrap.indent(os.linesep.join(sections), prefix=lmargin),
+        ))

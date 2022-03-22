@@ -145,7 +145,7 @@ log('')
 with iotests.VM() as vm, \
      iotests.FilePath('src.img') as src_img_path:
 
-    assert qemu_img('create', '-f', iotests.imgfmt, src_img_path, '64M') == 0
+    qemu_img('create', '-f', iotests.imgfmt, src_img_path, '64M')
     assert qemu_io_silent('-f', iotests.imgfmt, src_img_path,
                           '-c', 'write -P 42 0M 64M') == 0
 

@@ -19,7 +19,7 @@
 #
 
 import iotests
-from iotests import log, qemu_img_create, qemu_img, qemu_img_pipe
+from iotests import log, qemu_img_create, qemu_img, qemu_img_info
 
 iotests.script_initialize(supported_fmts=['qcow2'],
                           unsupported_imgopts=['compat'])
@@ -27,13 +27,13 @@ iotests.script_initialize(supported_fmts=['qcow2'],
 top, base = iotests.file_path('top', 'base')
 size = '1M'
 
-assert qemu_img_create('-f', iotests.imgfmt, base, size) == 0
-assert qemu_img_create('-f', iotests.imgfmt, '-b', base,
-                       '-F', iotests.imgfmt, top, size) == 0
+qemu_img_create('-f', iotests.imgfmt, base, size)
+qemu_img_create('-f', iotests.imgfmt, '-b', base,
+                '-F', iotests.imgfmt, top, size)
 
-assert qemu_img('bitmap', '--add', base, 'bitmap0') == 0
+qemu_img('bitmap', '--add', base, 'bitmap0')
 # Just assert that our method of checking bitmaps in the image works.
-assert 'bitmaps' in qemu_img_pipe('info', base)
+assert 'bitmaps' in qemu_img_info(base)['format-specific']['data']
 
 vm = iotests.VM().add_drive(top, 'backing.node-name=base')
 vm.launch()
@@ -68,5 +68,5 @@ if result != {'return': {}}:
 
 vm.shutdown()
 
-if 'bitmaps' in qemu_img_pipe('info', base):
+if 'bitmaps' in qemu_img_info(base)['format-specific']['data']:
     log('ERROR: Bitmap is still in the base image')

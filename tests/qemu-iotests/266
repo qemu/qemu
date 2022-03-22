@@ -137,7 +137,7 @@ def main():
             iotests.log('')
 
             vm.shutdown()
-            iotests.img_info_log(file_path)
+            iotests.img_info_log(file_path, check=False)
 
 
 iotests.script_main(main,

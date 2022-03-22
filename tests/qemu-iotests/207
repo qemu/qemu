@@ -35,7 +35,12 @@ def filter_hash(qmsg):
         if key == 'hash' and re.match('[0-9a-f]+', value):
             return 'HASH'
         return value
-    return iotests.filter_qmp(qmsg, _filter)
+    if isinstance(qmsg, str):
+        # Strip key type and fingerprint
+        p = r"\S+ (key fingerprint) '(md5|sha1|sha256):[0-9a-f]+'"
+        return re.sub(p, r"\1 '\2:HASH'", qmsg)
+    else:
+        return iotests.filter_qmp(qmsg, _filter)
 
 def blockdev_create(vm, options):
     vm.blockdev_create(options, filters=[iotests.filter_qmp_testfiles, filter_hash])

@@ -107,8 +107,7 @@ class ShrinkBaseClass(iotests.QMPTestCase):
 
         if iotests.imgfmt == 'raw':
             return
-        self.assertEqual(qemu_img('check', test_img), 0,
-                         "Verifying image corruption")
+        qemu_img('check', test_img)
 
     def test_empty_image(self):
         qemu_img('resize',  '-f', iotests.imgfmt, '--shrink', test_img,
@@ -130,8 +129,7 @@ class ShrinkBaseClass(iotests.QMPTestCase):
         qemu_img('resize',  '-f', iotests.imgfmt, '--shrink', test_img,
                  self.shrink_size)
 
-        self.assertEqual(qemu_img("compare", test_img, check_img), 0,
-                         "Verifying image content")
+        qemu_img("compare", test_img, check_img)
 
         self.image_verify()
 
@@ -146,8 +144,7 @@ class ShrinkBaseClass(iotests.QMPTestCase):
         qemu_img('resize',  '-f', iotests.imgfmt, '--shrink', test_img,
                  self.shrink_size)
 
-        self.assertEqual(qemu_img("compare", test_img, check_img), 0,
-                         "Verifying image content")
+        qemu_img("compare", test_img, check_img)
 
         self.image_verify()
 
