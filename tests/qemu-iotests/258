@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-# Creator/Owner: Max Reitz <mreitz@redhat.com>
+# Creator/Owner: Hanna Reitz <hreitz@redhat.com>
 
 import iotests
 from iotests import log, qemu_img, qemu_io_silent, \

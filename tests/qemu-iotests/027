@@ -20,7 +20,7 @@
 #
 
 # creator
-owner=stefanha@linux.vnet.ibm.com
+owner=stefanha@redhat.com
 
 seq=`basename $0`
 echo "QA output created by $seq"
