@@ -315,7 +315,7 @@ void pc_machine_init_sgx_epc(PCMachineState *pcms)
     }
 
     if ((sgx_epc->base + sgx_epc->size) < sgx_epc->base) {
-        error_report("Size of all 'sgx-epc' =0x%"PRIu64" causes EPC to wrap",
+        error_report("Size of all 'sgx-epc' =0x%"PRIx64" causes EPC to wrap",
                      sgx_epc->size);
         exit(EXIT_FAILURE);
     }
