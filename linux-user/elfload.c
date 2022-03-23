@@ -2784,22 +2784,6 @@ static void load_elf_image(const char *image_name, int image_fd,
     info->brk = 0;
     info->elf_flags = ehdr->e_flags;
 
-    if (!afl_entry_point) {
-      char *ptr;
-      if ((ptr = getenv("AFL_ENTRYPOINT")) != NULL) {
-        afl_entry_point = strtoul(ptr, NULL, 16);
-      } else {
-        afl_entry_point = info->entry;
-      }
-#ifdef TARGET_ARM
-      /* The least significant bit indicates Thumb mode. */
-      afl_entry_point = afl_entry_point & ~(target_ulong)1;
-#endif
-    }
-    if (getenv("AFL_DEBUG") != NULL)
-      fprintf(stderr, "AFL forkserver entrypoint: 0x%lx\n",
-              (unsigned long)afl_entry_point);
-
     prot_exec = PROT_EXEC;
 #ifdef TARGET_AARCH64
     /*
@@ -2927,6 +2911,38 @@ static void load_elf_image(const char *image_name, int image_fd,
     if (qemu_log_enabled()) {
         load_symbols(ehdr, image_fd, load_bias);
     }
+
+    if (!afl_entry_point) {
+      char *ptr;
+      if ((ptr = getenv("AFL_ENTRYPOINT")) != NULL) {
+        afl_entry_point = strtoul(ptr, NULL, 16);
+      } else {
+        // On PowerPC64 the entry point is the _function descriptor_
+        // of the entry function. For AFL to properly initialize,
+        // afl_entry_point needs to be set to the actual first instruction
+        // as opposed executed by the target program. This as opposed to
+        // where the function's descriptor sits in memory.
+        // copied from PPC init_thread
+#if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
+        if (get_ppc64_abi(info) < 2) {
+            uint64_t val;
+            get_user_u64(val, info->entry);
+            afl_entry_point = val + info->load_bias;
+        } else {
+            afl_entry_point = info->entry;
+        }
+#else
+        afl_entry_point = info->entry;
+#endif
+      }
+#ifdef TARGET_ARM
+      /* The least significant bit indicates Thumb mode. */
+      afl_entry_point = afl_entry_point & ~(target_ulong)1;
+#endif
+    }
+    if (getenv("AFL_DEBUG") != NULL)
+      fprintf(stderr, "AFL forkserver entrypoint: 0x%lx\n",
+              (unsigned long)afl_entry_point);
 
     mmap_unlock();
 
@@ -3187,22 +3203,6 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
     /* Do this so that we can load the interpreter, if need be.  We will
        change some of these later */
     bprm->p = setup_arg_pages(bprm, info);
-
-    // On PowerPC64 the entry point is the _function descriptor_
-    // of the entry function. For AFL to properly initialize,
-    // afl_entry_point needs to be set to the actual first instruction
-    // as opposed executed by the target program. This as opposed to 
-    // where the function's descriptor sits in memory.
-    // copied from PPC init_thread
-#if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
-    if (get_ppc64_abi(infop) < 2) {
-        uint64_t val;
-        get_user_u64(val, infop->entry + 8);
-        _regs->gpr[2] = val + infop->load_bias;
-        get_user_u64(val, infop->entry);
-        infop->entry = val + infop->load_bias;
-    }
-#endif
 
     scratch = g_new0(char, TARGET_PAGE_SIZE);
     if (STACK_GROWS_DOWN) {
