@@ -20,10 +20,10 @@
 #include "hw/virtio/vhost-shadow-virtqueue.h"
 #include "hw/virtio/vhost-vdpa.h"
 #include "exec/address-spaces.h"
+#include "qemu/cutils.h"
 #include "qemu/main-loop.h"
 #include "cpu.h"
 #include "trace.h"
-#include "qemu-common.h"
 #include "qapi/error.h"
 
 /*

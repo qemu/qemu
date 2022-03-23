@@ -7,7 +7,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
+#include "qemu/cutils.h"
 #include "net/announce.h"
 #include "net/net.h"
 #include "qapi/clone-visitor.h"
