@@ -84,7 +84,7 @@ static inline void bswap64s(uint64_t *s)
     *s = bswap64(*s);
 }
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
 #define be_bswap(v, size) (v)
 #define le_bswap(v, size) glue(bswap, size)(v)
 #define be_bswaps(v, size)
@@ -188,7 +188,7 @@ CPU_CONVERT(le, 64, uint64_t)
  * a compile-time constant if you pass in a constant.  So this can be
  * used to initialize static variables.
  */
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
 # define const_le32(_x)                          \
     ((((_x) & 0x000000ffU) << 24) |              \
      (((_x) & 0x0000ff00U) <<  8) |              \
@@ -211,7 +211,7 @@ typedef union {
 
 typedef union {
     float64 d;
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     struct {
         uint32_t upper;
         uint32_t lower;
@@ -235,7 +235,7 @@ typedef union {
 
 typedef union {
     float128 q;
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     struct {
         uint32_t upmost;
         uint32_t upper;

@@ -263,7 +263,7 @@ static inline int vec_reg_offset(uint8_t reg, uint8_t enr, MemOp es)
      * 16 byte operations to handle it in a special way.
      */
     g_assert(es <= MO_64);
-#ifndef HOST_WORDS_BIGENDIAN
+#if !HOST_BIG_ENDIAN
     offs ^= (8 - bytes);
 #endif
     return offs + vec_full_reg_offset(reg);

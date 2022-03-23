@@ -175,7 +175,7 @@ static void get_vec_element_ptr_i64(TCGv_ptr ptr, uint8_t reg, TCGv_i64 enr,
 
     /* convert it to an element offset relative to cpu_env (vec_reg_offset() */
     tcg_gen_shli_i64(tmp, tmp, es);
-#ifndef HOST_WORDS_BIGENDIAN
+#if !HOST_BIG_ENDIAN
     tcg_gen_xori_i64(tmp, tmp, 8 - NUM_VEC_ELEMENT_BYTES(es));
 #endif
     tcg_gen_addi_i64(tmp, tmp, vec_full_reg_offset(reg));

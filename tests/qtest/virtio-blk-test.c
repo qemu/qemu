@@ -33,7 +33,7 @@ typedef struct QVirtioBlkReq {
 } QVirtioBlkReq;
 
 
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
 const bool host_is_big_endian = true;
 #else
 const bool host_is_big_endian; /* false */

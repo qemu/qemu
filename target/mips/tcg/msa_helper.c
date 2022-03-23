@@ -4146,7 +4146,7 @@ void helper_msa_ilvev_b(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     pwd->b[8]  = pws->b[9];
     pwd->b[9]  = pwt->b[9];
     pwd->b[10] = pws->b[11];
@@ -4190,7 +4190,7 @@ void helper_msa_ilvev_h(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     pwd->h[4] = pws->h[5];
     pwd->h[5] = pwt->h[5];
     pwd->h[6] = pws->h[7];
@@ -4218,7 +4218,7 @@ void helper_msa_ilvev_w(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     pwd->w[2] = pws->w[3];
     pwd->w[3] = pwt->w[3];
     pwd->w[0] = pws->w[1];
@@ -4250,7 +4250,7 @@ void helper_msa_ilvod_b(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     pwd->b[7]  = pwt->b[6];
     pwd->b[6]  = pws->b[6];
     pwd->b[5]  = pwt->b[4];
@@ -4294,7 +4294,7 @@ void helper_msa_ilvod_h(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     pwd->h[3] = pwt->h[2];
     pwd->h[2] = pws->h[2];
     pwd->h[1] = pwt->h[0];
@@ -4322,7 +4322,7 @@ void helper_msa_ilvod_w(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     pwd->w[1] = pwt->w[0];
     pwd->w[0] = pws->w[0];
     pwd->w[3] = pwt->w[2];
@@ -4354,7 +4354,7 @@ void helper_msa_ilvl_b(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     pwd->b[7]  = pwt->b[15];
     pwd->b[6]  = pws->b[15];
     pwd->b[5]  = pwt->b[14];
@@ -4398,7 +4398,7 @@ void helper_msa_ilvl_h(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     pwd->h[3] = pwt->h[7];
     pwd->h[2] = pws->h[7];
     pwd->h[1] = pwt->h[6];
@@ -4426,7 +4426,7 @@ void helper_msa_ilvl_w(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     pwd->w[1] = pwt->w[3];
     pwd->w[0] = pws->w[3];
     pwd->w[3] = pwt->w[2];
@@ -4458,7 +4458,7 @@ void helper_msa_ilvr_b(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     pwd->b[8]  = pws->b[0];
     pwd->b[9]  = pwt->b[0];
     pwd->b[10] = pws->b[1];
@@ -4502,7 +4502,7 @@ void helper_msa_ilvr_h(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     pwd->h[4] = pws->h[0];
     pwd->h[5] = pwt->h[0];
     pwd->h[6] = pws->h[1];
@@ -4530,7 +4530,7 @@ void helper_msa_ilvr_w(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     pwd->w[2] = pws->w[0];
     pwd->w[3] = pwt->w[0];
     pwd->w[0] = pws->w[1];
@@ -4661,7 +4661,7 @@ void helper_msa_pckev_b(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     pwd->b[8]  = pws->b[9];
     pwd->b[10] = pws->b[13];
     pwd->b[12] = pws->b[1];
@@ -4705,7 +4705,7 @@ void helper_msa_pckev_h(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     pwd->h[4] = pws->h[5];
     pwd->h[6] = pws->h[1];
     pwd->h[0] = pwt->h[5];
@@ -4733,7 +4733,7 @@ void helper_msa_pckev_w(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     pwd->w[2] = pws->w[3];
     pwd->w[0] = pwt->w[3];
     pwd->w[3] = pws->w[1];
@@ -4765,7 +4765,7 @@ void helper_msa_pckod_b(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     pwd->b[7]  = pwt->b[6];
     pwd->b[5]  = pwt->b[2];
     pwd->b[3]  = pwt->b[14];
@@ -4810,7 +4810,7 @@ void helper_msa_pckod_h(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     pwd->h[3] = pwt->h[2];
     pwd->h[1] = pwt->h[6];
     pwd->h[7] = pws->h[2];
@@ -4838,7 +4838,7 @@ void helper_msa_pckod_w(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     pwd->w[1] = pwt->w[0];
     pwd->w[3] = pws->w[0];
     pwd->w[0] = pwt->w[2];
@@ -5926,7 +5926,7 @@ void helper_msa_copy_s_b(CPUMIPSState *env, uint32_t rd,
                          uint32_t ws, uint32_t n)
 {
     n %= 16;
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     if (n < 8) {
         n = 8 - n - 1;
     } else {
@@ -5940,7 +5940,7 @@ void helper_msa_copy_s_h(CPUMIPSState *env, uint32_t rd,
                          uint32_t ws, uint32_t n)
 {
     n %= 8;
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     if (n < 4) {
         n = 4 - n - 1;
     } else {
@@ -5954,7 +5954,7 @@ void helper_msa_copy_s_w(CPUMIPSState *env, uint32_t rd,
                          uint32_t ws, uint32_t n)
 {
     n %= 4;
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     if (n < 2) {
         n = 2 - n - 1;
     } else {
@@ -5975,7 +5975,7 @@ void helper_msa_copy_u_b(CPUMIPSState *env, uint32_t rd,
                          uint32_t ws, uint32_t n)
 {
     n %= 16;
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     if (n < 8) {
         n = 8 - n - 1;
     } else {
@@ -5989,7 +5989,7 @@ void helper_msa_copy_u_h(CPUMIPSState *env, uint32_t rd,
                          uint32_t ws, uint32_t n)
 {
     n %= 8;
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     if (n < 4) {
         n = 4 - n - 1;
     } else {
@@ -6003,7 +6003,7 @@ void helper_msa_copy_u_w(CPUMIPSState *env, uint32_t rd,
                          uint32_t ws, uint32_t n)
 {
     n %= 4;
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     if (n < 2) {
         n = 2 - n - 1;
     } else {
@@ -6019,7 +6019,7 @@ void helper_msa_insert_b(CPUMIPSState *env, uint32_t wd,
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
     target_ulong rs = env->active_tc.gpr[rs_num];
     n %= 16;
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     if (n < 8) {
         n = 8 - n - 1;
     } else {
@@ -6035,7 +6035,7 @@ void helper_msa_insert_h(CPUMIPSState *env, uint32_t wd,
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
     target_ulong rs = env->active_tc.gpr[rs_num];
     n %= 8;
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     if (n < 4) {
         n = 4 - n - 1;
     } else {
@@ -6051,7 +6051,7 @@ void helper_msa_insert_w(CPUMIPSState *env, uint32_t wd,
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
     target_ulong rs = env->active_tc.gpr[rs_num];
     n %= 4;
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
     if (n < 2) {
         n = 2 - n - 1;
     } else {

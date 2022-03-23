@@ -31,7 +31,7 @@
 #include "exec/hwaddr.h"
 #include "net/can_emu.h"
 
-#ifndef HOST_WORDS_BIGENDIAN
+#if !HOST_BIG_ENDIAN
 #define __LITTLE_ENDIAN_BITFIELD 1
 #endif
 

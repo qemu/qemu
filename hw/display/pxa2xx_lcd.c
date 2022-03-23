@@ -199,7 +199,7 @@ typedef struct QEMU_PACKED {
         SKIP_PIXEL(to);          \
     } while (0)
 
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
 # define SWAP_WORDS 1
 #endif
 

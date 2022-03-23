@@ -461,7 +461,7 @@ uint32_t helper_stqcx_be_parallel(CPUPPCState *env, target_ulong addr,
 
 /*****************************************************************************/
 /* Altivec extension helpers */
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
 #define HI_IDX 0
 #define LO_IDX 1
 #else

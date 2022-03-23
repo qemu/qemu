@@ -38,7 +38,7 @@ typedef union S390Vector {
  * W:  [             1][             0] - [             3][             2]
  * DW: [                             0] - [                             1]
  */
-#ifndef HOST_WORDS_BIGENDIAN
+#if !HOST_BIG_ENDIAN
 #define H1(x)  ((x) ^ 7)
 #define H2(x)  ((x) ^ 3)
 #define H4(x)  ((x) ^ 1)

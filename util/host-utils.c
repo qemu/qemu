@@ -34,7 +34,7 @@ static inline void mul64(uint64_t *plow, uint64_t *phigh,
     typedef union {
         uint64_t ll;
         struct {
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
             uint32_t high, low;
 #else
             uint32_t low, high;

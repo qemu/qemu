@@ -19,7 +19,7 @@
  * feeding libjpeg / libpng and writing screenshots.
  */
 
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
 # define PIXMAN_BE_r8g8b8     PIXMAN_r8g8b8
 # define PIXMAN_BE_x8r8g8b8   PIXMAN_x8r8g8b8
 # define PIXMAN_BE_a8r8g8b8   PIXMAN_a8r8g8b8

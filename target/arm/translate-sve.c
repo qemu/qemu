@@ -2872,7 +2872,7 @@ static TCGv_i64 load_last_active(DisasContext *s, TCGv_i32 last,
      * The final adjustment for the vector register base
      * is added via constant offset to the load.
      */
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
     /* Adjust for element ordering.  See vec_reg_offset.  */
     if (esz < 3) {
         tcg_gen_xori_i32(last, last, 8 - (1 << esz));
@@ -5711,7 +5711,7 @@ static void do_ldrq(DisasContext *s, int zt, int pg, TCGv_i64 addr, int dtype)
          * for this load operation.
          */
         TCGv_i64 tmp = tcg_temp_new_i64();
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
         poff += 6;
 #endif
         tcg_gen_ld16u_i64(tmp, cpu_env, poff);
@@ -5790,7 +5790,7 @@ static void do_ldro(DisasContext *s, int zt, int pg, TCGv_i64 addr, int dtype)
          * for this load operation.
          */
         TCGv_i64 tmp = tcg_temp_new_i64();
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
         poff += 4;
 #endif
         tcg_gen_ld32u_i64(tmp, cpu_env, poff);

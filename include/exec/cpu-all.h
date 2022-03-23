@@ -34,13 +34,14 @@
 
 /* some important defines:
  *
- * HOST_WORDS_BIGENDIAN : if defined, the host cpu is big endian and
+ * HOST_BIG_ENDIAN : whether the host cpu is big endian and
  * otherwise little endian.
  *
- * TARGET_WORDS_BIGENDIAN : same for target cpu
+ * TARGET_WORDS_BIGENDIAN : if defined, the host cpu is big endian and otherwise
+ * little endian.
  */
 
-#if defined(HOST_WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN != defined(TARGET_WORDS_BIGENDIAN)
 #define BSWAP_NEEDED
 #endif
 

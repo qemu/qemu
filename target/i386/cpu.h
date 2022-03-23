@@ -1248,7 +1248,7 @@ typedef struct BNDCSReg {
 #define BNDCFG_BNDPRESERVE  2ULL
 #define BNDCFG_BDIR_MASK    TARGET_PAGE_MASK
 
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
 #define ZMM_B(n) _b_ZMMReg[63 - (n)]
 #define ZMM_W(n) _w_ZMMReg[31 - (n)]
 #define ZMM_L(n) _l_ZMMReg[15 - (n)]
