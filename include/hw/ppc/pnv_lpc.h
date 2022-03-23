@@ -1,7 +1,7 @@
 /*
  * QEMU PowerPC PowerNV LPC controller
  *
- * Copyright (c) 2016, IBM Corporation.
+ * Copyright (c) 2016-2022, IBM Corporation.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -20,7 +20,6 @@
 #ifndef PPC_PNV_LPC_H
 #define PPC_PNV_LPC_H
 
-#include "hw/ppc/pnv_psi.h"
 #include "qom/object.h"
 
 #define TYPE_PNV_LPC "pnv-lpc"
@@ -84,14 +83,11 @@ struct PnvLpcController {
     MemoryRegion xscom_regs;
 
     /* PSI to generate interrupts */
-    PnvPsi *psi;
+    qemu_irq psi_irq;
 };
-
 
 struct PnvLpcClass {
     DeviceClass parent_class;
-
-    int psi_irq;
 
     DeviceRealize parent_realize;
 };

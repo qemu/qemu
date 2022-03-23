@@ -614,24 +614,36 @@ static void pnv_reset(MachineState *machine)
 static ISABus *pnv_chip_power8_isa_create(PnvChip *chip, Error **errp)
 {
     Pnv8Chip *chip8 = PNV8_CHIP(chip);
+    qemu_irq irq = qdev_get_gpio_in(DEVICE(&chip8->psi), PSIHB_IRQ_EXTERNAL);
+
+    qdev_connect_gpio_out(DEVICE(&chip8->lpc), 0, irq);
     return pnv_lpc_isa_create(&chip8->lpc, true, errp);
 }
 
 static ISABus *pnv_chip_power8nvl_isa_create(PnvChip *chip, Error **errp)
 {
     Pnv8Chip *chip8 = PNV8_CHIP(chip);
+    qemu_irq irq = qdev_get_gpio_in(DEVICE(&chip8->psi), PSIHB_IRQ_LPC_I2C);
+
+    qdev_connect_gpio_out(DEVICE(&chip8->lpc), 0, irq);
     return pnv_lpc_isa_create(&chip8->lpc, false, errp);
 }
 
 static ISABus *pnv_chip_power9_isa_create(PnvChip *chip, Error **errp)
 {
     Pnv9Chip *chip9 = PNV9_CHIP(chip);
+    qemu_irq irq = qdev_get_gpio_in(DEVICE(&chip9->psi), PSIHB9_IRQ_LPCHC);
+
+    qdev_connect_gpio_out(DEVICE(&chip9->lpc), 0, irq);
     return pnv_lpc_isa_create(&chip9->lpc, false, errp);
 }
 
 static ISABus *pnv_chip_power10_isa_create(PnvChip *chip, Error **errp)
 {
     Pnv10Chip *chip10 = PNV10_CHIP(chip);
+    qemu_irq irq = qdev_get_gpio_in(DEVICE(&chip10->psi), PSIHB9_IRQ_LPCHC);
+
+    qdev_connect_gpio_out(DEVICE(&chip10->lpc), 0, irq);
     return pnv_lpc_isa_create(&chip10->lpc, false, errp);
 }
 
@@ -1222,8 +1234,6 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
                             &PNV_PSI(psi8)->xscom_regs);
 
     /* Create LPC controller */
-    object_property_set_link(OBJECT(&chip8->lpc), "psi", OBJECT(&chip8->psi),
-                             &error_abort);
     qdev_realize(DEVICE(&chip8->lpc), NULL, &error_fatal);
     pnv_xscom_add_subregion(chip, PNV_XSCOM_LPC_BASE, &chip8->lpc.xscom_regs);
 
@@ -1507,8 +1517,6 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
                             &PNV_PSI(psi9)->xscom_regs);
 
     /* LPC */
-    object_property_set_link(OBJECT(&chip9->lpc), "psi", OBJECT(&chip9->psi),
-                             &error_abort);
     if (!qdev_realize(DEVICE(&chip9->lpc), NULL, errp)) {
         return;
     }
@@ -1712,8 +1720,6 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
                             &PNV_PSI(&chip10->psi)->xscom_regs);
 
     /* LPC */
-    object_property_set_link(OBJECT(&chip10->lpc), "psi",
-                             OBJECT(&chip10->psi), &error_abort);
     if (!qdev_realize(DEVICE(&chip10->lpc), NULL, errp)) {
         return;
     }
