@@ -184,8 +184,7 @@ static void pnv_psi_set_irsn(PnvPsi *psi, uint64_t val)
 /*
  * FSP and PSI interrupts are muxed under the same number.
  */
-static const uint32_t xivr_regs[] = {
-    [PSIHB_IRQ_PSI]       = PSIHB_XSCOM_XIVR_FSP,
+static const uint32_t xivr_regs[PSI_NUM_INTERRUPTS] = {
     [PSIHB_IRQ_FSP]       = PSIHB_XSCOM_XIVR_FSP,
     [PSIHB_IRQ_OCC]       = PSIHB_XSCOM_XIVR_OCC,
     [PSIHB_IRQ_FSI]       = PSIHB_XSCOM_XIVR_FSI,
@@ -194,8 +193,7 @@ static const uint32_t xivr_regs[] = {
     [PSIHB_IRQ_EXTERNAL]  = PSIHB_XSCOM_XIVR_EXT,
 };
 
-static const uint32_t stat_regs[] = {
-    [PSIHB_IRQ_PSI]       = PSIHB_XSCOM_CR,
+static const uint32_t stat_regs[PSI_NUM_INTERRUPTS] = {
     [PSIHB_IRQ_FSP]       = PSIHB_XSCOM_CR,
     [PSIHB_IRQ_OCC]       = PSIHB_XSCOM_IRQ_STAT,
     [PSIHB_IRQ_FSI]       = PSIHB_XSCOM_IRQ_STAT,
@@ -204,8 +202,7 @@ static const uint32_t stat_regs[] = {
     [PSIHB_IRQ_EXTERNAL]  = PSIHB_XSCOM_IRQ_STAT,
 };
 
-static const uint64_t stat_bits[] = {
-    [PSIHB_IRQ_PSI]       = PSIHB_CR_PSI_IRQ,
+static const uint64_t stat_bits[PSI_NUM_INTERRUPTS] = {
     [PSIHB_IRQ_FSP]       = PSIHB_CR_FSP_IRQ,
     [PSIHB_IRQ_OCC]       = PSIHB_IRQ_STAT_OCC,
     [PSIHB_IRQ_FSI]       = PSIHB_IRQ_STAT_FSI,

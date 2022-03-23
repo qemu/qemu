@@ -1,7 +1,7 @@
 /*
  * QEMU PowerPC PowerNV Processor Service Interface (PSI) model
  *
- * Copyright (c) 2015-2017, IBM Corporation.
+ * Copyright (c) 2015-2022, IBM Corporation.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -85,7 +85,6 @@ struct PnvPsiClass {
 
 /* The PSI and FSP interrupts are muxed on the same IRQ number */
 typedef enum PnvPsiIrq {
-    PSIHB_IRQ_PSI, /* internal use only */
     PSIHB_IRQ_FSP, /* internal use only */
     PSIHB_IRQ_OCC,
     PSIHB_IRQ_FSI,
