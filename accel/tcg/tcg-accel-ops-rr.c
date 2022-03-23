@@ -152,7 +152,9 @@ static void *rr_cpu_thread_fn(void *arg)
     Notifier force_rcu;
     CPUState *cpu = arg;
 
-    assert(tcg_enabled());
+    g_assert(tcg_enabled());
+    tcg_cpu_init_cflags(cpu, false);
+
     rcu_register_thread();
     force_rcu.notify = rr_force_rcu;
     rcu_add_force_rcu_notifier(&force_rcu);
@@ -274,9 +276,6 @@ void rr_start_vcpu_thread(CPUState *cpu)
     char thread_name[VCPU_THREAD_NAME_SIZE];
     static QemuCond *single_tcg_halt_cond;
     static QemuThread *single_tcg_cpu_thread;
-
-    g_assert(tcg_enabled());
-    tcg_cpu_init_cflags(cpu, false);
 
     if (!single_tcg_cpu_thread) {
         cpu->thread = g_new0(QemuThread, 1);
