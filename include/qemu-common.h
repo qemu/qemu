@@ -24,9 +24,6 @@
 int qemu_main(int argc, char **argv, char **envp);
 #endif
 
-ssize_t qemu_write_full(int fd, const void *buf, size_t count)
-    G_GNUC_WARN_UNUSED_RESULT;
-
 #ifndef _WIN32
 int qemu_pipe(int pipefd[2]);
 #endif
