@@ -131,7 +131,6 @@ const char *qemu_strchrnul(const char *s, int c);
 time_t mktimegm(struct tm *tm);
 int qemu_fdatasync(int fd);
 int qemu_msync(void *addr, size_t length, int fd);
-int fcntl_setfl(int fd, int flag);
 int qemu_parse_fd(const char *param);
 int qemu_strtoi(const char *nptr, const char **endptr, int base,
                 int *result);

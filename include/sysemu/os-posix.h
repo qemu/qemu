@@ -96,6 +96,8 @@ static inline void qemu_funlockfile(FILE *f)
     funlockfile(f);
 }
 
+int fcntl_setfl(int fd, int flag);
+
 #ifdef __cplusplus
 }
 #endif
