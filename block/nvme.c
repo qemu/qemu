@@ -169,9 +169,9 @@ static bool nvme_init_queue(BDRVNVMeState *s, NVMeQueue *q,
     size_t bytes;
     int r;
 
-    bytes = ROUND_UP(nentries * entry_bytes, qemu_real_host_page_size);
+    bytes = ROUND_UP(nentries * entry_bytes, qemu_real_host_page_size());
     q->head = q->tail = 0;
-    q->queue = qemu_try_memalign(qemu_real_host_page_size, bytes);
+    q->queue = qemu_try_memalign(qemu_real_host_page_size(), bytes);
     if (!q->queue) {
         error_setg(errp, "Cannot allocate queue");
         return false;
@@ -232,8 +232,8 @@ static NVMeQueuePair *nvme_create_queue_pair(BDRVNVMeState *s,
     trace_nvme_create_queue_pair(idx, q, size, aio_context,
                                  event_notifier_get_fd(s->irq_notifier));
     bytes = QEMU_ALIGN_UP(s->page_size * NVME_NUM_REQS,
-                          qemu_real_host_page_size);
-    q->prp_list_pages = qemu_try_memalign(qemu_real_host_page_size, bytes);
+                          qemu_real_host_page_size());
+    q->prp_list_pages = qemu_try_memalign(qemu_real_host_page_size(), bytes);
     if (!q->prp_list_pages) {
         error_setg(errp, "Cannot allocate PRP page list");
         goto fail;
@@ -533,9 +533,9 @@ static bool nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
         .opcode = NVME_ADM_CMD_IDENTIFY,
         .cdw10 = cpu_to_le32(0x1),
     };
-    size_t id_size = QEMU_ALIGN_UP(sizeof(*id), qemu_real_host_page_size);
+    size_t id_size = QEMU_ALIGN_UP(sizeof(*id), qemu_real_host_page_size());
 
-    id = qemu_try_memalign(qemu_real_host_page_size, id_size);
+    id = qemu_try_memalign(qemu_real_host_page_size(), id_size);
     if (!id) {
         error_setg(errp, "Cannot allocate buffer for identify response");
         goto out;
@@ -1048,7 +1048,7 @@ static coroutine_fn int nvme_cmd_map_qiov(BlockDriverState *bs, NvmeCmd *cmd,
         bool retry = true;
         uint64_t iova;
         size_t len = QEMU_ALIGN_UP(qiov->iov[i].iov_len,
-                                   qemu_real_host_page_size);
+                                   qemu_real_host_page_size());
 try_map:
         r = qemu_vfio_dma_map(s->vfio,
                               qiov->iov[i].iov_base,
@@ -1224,8 +1224,8 @@ static inline bool nvme_qiov_aligned(BlockDriverState *bs,
 
     for (i = 0; i < qiov->niov; ++i) {
         if (!QEMU_PTR_IS_ALIGNED(qiov->iov[i].iov_base,
-                                 qemu_real_host_page_size) ||
-            !QEMU_IS_ALIGNED(qiov->iov[i].iov_len, qemu_real_host_page_size)) {
+                                 qemu_real_host_page_size()) ||
+            !QEMU_IS_ALIGNED(qiov->iov[i].iov_len, qemu_real_host_page_size())) {
             trace_nvme_qiov_unaligned(qiov, i, qiov->iov[i].iov_base,
                                       qiov->iov[i].iov_len, s->page_size);
             return false;
@@ -1241,7 +1241,7 @@ static int nvme_co_prw(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     int r;
     QEMU_AUTO_VFREE uint8_t *buf = NULL;
     QEMUIOVector local_qiov;
-    size_t len = QEMU_ALIGN_UP(bytes, qemu_real_host_page_size);
+    size_t len = QEMU_ALIGN_UP(bytes, qemu_real_host_page_size());
     assert(QEMU_IS_ALIGNED(offset, s->page_size));
     assert(QEMU_IS_ALIGNED(bytes, s->page_size));
     assert(bytes <= s->max_transfer);
@@ -1251,7 +1251,7 @@ static int nvme_co_prw(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     }
     s->stats.unaligned_accesses++;
     trace_nvme_prw_buffered(s, offset, bytes, qiov->niov, is_write);
-    buf = qemu_try_memalign(qemu_real_host_page_size, len);
+    buf = qemu_try_memalign(qemu_real_host_page_size(), len);
 
     if (!buf) {
         return -ENOMEM;

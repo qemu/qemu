@@ -471,14 +471,14 @@ size_t vhost_svq_driver_area_size(const VhostShadowVirtqueue *svq)
     size_t avail_size = offsetof(vring_avail_t, ring) +
                                              sizeof(uint16_t) * svq->vring.num;
 
-    return ROUND_UP(desc_size + avail_size, qemu_real_host_page_size);
+    return ROUND_UP(desc_size + avail_size, qemu_real_host_page_size());
 }
 
 size_t vhost_svq_device_area_size(const VhostShadowVirtqueue *svq)
 {
     size_t used_size = offsetof(vring_used_t, ring) +
                                     sizeof(vring_used_elem_t) * svq->vring.num;
-    return ROUND_UP(used_size, qemu_real_host_page_size);
+    return ROUND_UP(used_size, qemu_real_host_page_size());
 }
 
 /**
@@ -533,11 +533,11 @@ void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
     svq->vring.num = virtio_queue_get_num(vdev, virtio_get_queue_index(vq));
     driver_size = vhost_svq_driver_area_size(svq);
     device_size = vhost_svq_device_area_size(svq);
-    svq->vring.desc = qemu_memalign(qemu_real_host_page_size, driver_size);
+    svq->vring.desc = qemu_memalign(qemu_real_host_page_size(), driver_size);
     desc_size = sizeof(vring_desc_t) * svq->vring.num;
     svq->vring.avail = (void *)((char *)svq->vring.desc + desc_size);
     memset(svq->vring.desc, 0, driver_size);
-    svq->vring.used = qemu_memalign(qemu_real_host_page_size, device_size);
+    svq->vring.used = qemu_memalign(qemu_real_host_page_size(), device_size);
     memset(svq->vring.used, 0, device_size);
     svq->ring_id_maps = g_new0(VirtQueueElement *, svq->vring.num);
     for (unsigned i = 0; i < svq->vring.num - 1; i++) {

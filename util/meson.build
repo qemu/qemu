@@ -42,7 +42,6 @@ if have_membarrier
   util_ss.add(files('sys_membarrier.c'))
 endif
 util_ss.add(files('log.c'))
-util_ss.add(files('pagesize.c'))
 util_ss.add(files('qdist.c'))
 util_ss.add(files('qht.c'))
 util_ss.add(files('qsp.c'))

@@ -53,7 +53,7 @@ struct udmabuf_create {
 static size_t
 udmabuf_get_size(struct vugbm_buffer *buf)
 {
-    return ROUND_UP(buf->width * buf->height * 4, qemu_real_host_page_size);
+    return ROUND_UP(buf->width * buf->height * 4, qemu_real_host_page_size());
 }
 
 static bool

@@ -175,7 +175,7 @@ int qemu_fdatasync(int fd)
 int qemu_msync(void *addr, size_t length, int fd)
 {
 #ifdef CONFIG_POSIX
-    size_t align_mask = ~(qemu_real_host_page_size - 1);
+    size_t align_mask = ~(qemu_real_host_page_size() - 1);
 
     /**
      * There are no strict reqs as per the length of mapping
@@ -183,7 +183,7 @@ int qemu_msync(void *addr, size_t length, int fd)
      * alignment changes. Additionally - round the size to the multiple
      * of PAGE_SIZE
      */
-    length += ((uintptr_t)addr & (qemu_real_host_page_size - 1));
+    length += ((uintptr_t)addr & (qemu_real_host_page_size() - 1));
     length = (length + ~align_mask) & align_mask;
 
     addr = (void *)((uintptr_t)addr & align_mask);

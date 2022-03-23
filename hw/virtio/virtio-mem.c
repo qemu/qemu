@@ -53,11 +53,11 @@ static uint32_t virtio_mem_default_thp_size(void)
 #if defined(__x86_64__) || defined(__arm__) || defined(__powerpc64__)
     default_thp_size = 2 * MiB;
 #elif defined(__aarch64__)
-    if (qemu_real_host_page_size == 4 * KiB) {
+    if (qemu_real_host_page_size() == 4 * KiB) {
         default_thp_size = 2 * MiB;
-    } else if (qemu_real_host_page_size == 16 * KiB) {
+    } else if (qemu_real_host_page_size() == 16 * KiB) {
         default_thp_size = 32 * MiB;
-    } else if (qemu_real_host_page_size == 64 * KiB) {
+    } else if (qemu_real_host_page_size() == 64 * KiB) {
         default_thp_size = 512 * MiB;
     }
 #endif
@@ -120,7 +120,7 @@ static uint64_t virtio_mem_default_block_size(RAMBlock *rb)
     const uint64_t page_size = qemu_ram_pagesize(rb);
 
     /* We can have hugetlbfs with a page size smaller than the THP size. */
-    if (page_size == qemu_real_host_page_size) {
+    if (page_size == qemu_real_host_page_size()) {
         return MAX(page_size, virtio_mem_thp_size());
     }
     return MAX(page_size, VIRTIO_MEM_MIN_BLOCK_SIZE);
@@ -135,7 +135,7 @@ static bool virtio_mem_has_shared_zeropage(RAMBlock *rb)
      * fresh page, consuming actual memory.
      */
     return !qemu_ram_is_shared(rb) && rb->fd < 0 &&
-           qemu_ram_pagesize(rb) == qemu_real_host_page_size;
+           qemu_ram_pagesize(rb) == qemu_real_host_page_size();
 }
 #endif /* VIRTIO_MEM_HAS_LEGACY_GUESTS */
 

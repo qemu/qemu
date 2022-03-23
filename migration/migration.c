@@ -2652,7 +2652,7 @@ static struct rp_cmd_args {
 static void migrate_handle_rp_req_pages(MigrationState *ms, const char* rbname,
                                        ram_addr_t start, size_t len)
 {
-    long our_host_ps = qemu_real_host_page_size;
+    long our_host_ps = qemu_real_host_page_size();
 
     trace_migrate_handle_rp_req_pages(rbname, start, len);
 

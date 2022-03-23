@@ -1166,7 +1166,7 @@ static int vhost_user_set_vring_num(struct vhost_dev *dev,
 static void vhost_user_host_notifier_free(VhostUserHostNotifier *n)
 {
     assert(n && n->unmap_addr);
-    munmap(n->unmap_addr, qemu_real_host_page_size);
+    munmap(n->unmap_addr, qemu_real_host_page_size());
     n->unmap_addr = NULL;
 }
 
@@ -1503,7 +1503,7 @@ static int vhost_user_slave_handle_vring_host_notifier(struct vhost_dev *dev,
                                                        int fd)
 {
     int queue_idx = area->u64 & VHOST_USER_VRING_IDX_MASK;
-    size_t page_size = qemu_real_host_page_size;
+    size_t page_size = qemu_real_host_page_size();
     struct vhost_user *u = dev->opaque;
     VhostUserState *user = u->user;
     VirtIODevice *vdev = dev->vdev;

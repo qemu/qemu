@@ -59,7 +59,7 @@
 #ifdef PAGE_SIZE
 #undef PAGE_SIZE
 #endif
-#define PAGE_SIZE qemu_real_host_page_size
+#define PAGE_SIZE qemu_real_host_page_size()
 
 #ifndef KVM_GUESTDBG_BLOCKIRQ
 #define KVM_GUESTDBG_BLOCKIRQ 0
@@ -324,14 +324,14 @@ static hwaddr kvm_align_section(MemoryRegionSection *section,
        with sub-page size and unaligned start address. Pad the start
        address to next and truncate size to previous page boundary. */
     aligned = ROUND_UP(section->offset_within_address_space,
-                       qemu_real_host_page_size);
+                       qemu_real_host_page_size());
     delta = aligned - section->offset_within_address_space;
     *start = aligned;
     if (delta > size) {
         return 0;
     }
 
-    return (size - delta) & qemu_real_host_page_mask;
+    return (size - delta) & qemu_real_host_page_mask();
 }
 
 int kvm_physical_memory_addr_from_host(KVMState *s, void *ram,
@@ -626,7 +626,7 @@ static void kvm_log_stop(MemoryListener *listener,
 static void kvm_slot_sync_dirty_pages(KVMSlot *slot)
 {
     ram_addr_t start = slot->ram_start_offset;
-    ram_addr_t pages = slot->memory_size / qemu_real_host_page_size;
+    ram_addr_t pages = slot->memory_size / qemu_real_host_page_size();
 
     cpu_physical_memory_set_dirty_lebitmap(slot->dirty_bmap, start, pages);
 }
@@ -662,7 +662,7 @@ static void kvm_slot_init_dirty_bitmap(KVMSlot *mem)
      * And mem->memory_size is aligned to it (otherwise this mem can't
      * be registered to KVM).
      */
-    hwaddr bitmap_size = ALIGN(mem->memory_size / qemu_real_host_page_size,
+    hwaddr bitmap_size = ALIGN(mem->memory_size / qemu_real_host_page_size(),
                                         /*HOST_LONG_BITS*/ 64) / 8;
     mem->dirty_bmap = g_malloc0(bitmap_size);
     mem->dirty_bmap_size = bitmap_size;
@@ -707,7 +707,7 @@ static void kvm_dirty_ring_mark_page(KVMState *s, uint32_t as_id,
     mem = &kml->slots[slot_id];
 
     if (!mem->memory_size || offset >=
-        (mem->memory_size / qemu_real_host_page_size)) {
+        (mem->memory_size / qemu_real_host_page_size())) {
         return;
     }
 
@@ -895,7 +895,7 @@ static void kvm_physical_sync_dirty_bitmap(KVMMemoryListener *kml,
 
 /* Alignment requirement for KVM_CLEAR_DIRTY_LOG - 64 pages */
 #define KVM_CLEAR_LOG_SHIFT  6
-#define KVM_CLEAR_LOG_ALIGN  (qemu_real_host_page_size << KVM_CLEAR_LOG_SHIFT)
+#define KVM_CLEAR_LOG_ALIGN  (qemu_real_host_page_size() << KVM_CLEAR_LOG_SHIFT)
 #define KVM_CLEAR_LOG_MASK   (-KVM_CLEAR_LOG_ALIGN)
 
 static int kvm_log_clear_one_slot(KVMSlot *mem, int as_id, uint64_t start,
@@ -904,7 +904,7 @@ static int kvm_log_clear_one_slot(KVMSlot *mem, int as_id, uint64_t start,
     KVMState *s = kvm_state;
     uint64_t end, bmap_start, start_delta, bmap_npages;
     struct kvm_clear_dirty_log d;
-    unsigned long *bmap_clear = NULL, psize = qemu_real_host_page_size;
+    unsigned long *bmap_clear = NULL, psize = qemu_real_host_page_size();
     int ret;
 
     /*
@@ -1335,7 +1335,7 @@ kvm_check_extension_list(KVMState *s, const KVMCapabilityInfo *list)
 void kvm_set_max_memslot_size(hwaddr max_slot_size)
 {
     g_assert(
-        ROUND_UP(max_slot_size, qemu_real_host_page_size) == max_slot_size
+        ROUND_UP(max_slot_size, qemu_real_host_page_size()) == max_slot_size
     );
     kvm_max_slot_size = max_slot_size;
 }
@@ -2341,7 +2341,7 @@ static int kvm_init(MachineState *ms)
      * even with KVM.  TARGET_PAGE_SIZE is assumed to be the minimum
      * page size for the system though.
      */
-    assert(TARGET_PAGE_SIZE <= qemu_real_host_page_size);
+    assert(TARGET_PAGE_SIZE <= qemu_real_host_page_size());
 
     s->sigmask_len = 8;
 
