@@ -182,3 +182,8 @@ void qlist_destroy_obj(QObject *obj)
 
     g_free(qlist);
 }
+
+void qlist_unref(QList *q)
+{
+    qobject_unref(q);
+}

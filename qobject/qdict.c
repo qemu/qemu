@@ -442,3 +442,8 @@ void qdict_destroy_obj(QObject *obj)
 
     g_free(qdict);
 }
+
+void qdict_unref(QDict *q)
+{
+    qobject_unref(q);
+}

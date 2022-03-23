@@ -100,3 +100,8 @@ void qstring_destroy_obj(QObject *obj)
     g_free((char *)qs->string);
     g_free(qs);
 }
+
+void qstring_unref(QString *q)
+{
+    qobject_unref(q);
+}
