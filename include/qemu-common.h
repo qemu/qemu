@@ -24,8 +24,6 @@
 int qemu_main(int argc, char **argv, char **envp);
 #endif
 
-const char *qemu_get_vm_name(void);
-
 /* OS specific functions */
 void os_setup_early_signal_handling(void);
 int os_parse_cmd_args(int index, const char *optarg);
