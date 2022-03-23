@@ -41,7 +41,7 @@ const char *cpu_to_uname_machine(void *cpu_env)
 
     /* in theory, endianness is configurable on some ARM CPUs, but this isn't
      * used in user mode emulation */
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
 #define utsname_suffix "b"
 #else
 #define utsname_suffix "l"

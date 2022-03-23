@@ -18,7 +18,7 @@ struct target_pt_regs {
 #define ARM_NR_set_tls	  (ARM_NR_BASE + 5)
 #define ARM_NR_get_tls    (ARM_NR_BASE + 6)
 
-#if defined(TARGET_WORDS_BIGENDIAN)
+#if TARGET_BIG_ENDIAN
 #define UNAME_MACHINE "armv5teb"
 #else
 #define UNAME_MACHINE "armv5tel"

@@ -65,7 +65,7 @@ static uint64_t load_kernel(void)
     ram_addr_t initrd_offset;
     int big_endian;
 
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
     big_endian = 1;
 #else
     big_endian = 0;

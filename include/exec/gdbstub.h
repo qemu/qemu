@@ -110,7 +110,7 @@ static inline int gdb_get_reg128(GByteArray *buf, uint64_t val_hi,
                                  uint64_t val_lo)
 {
     uint64_t to_quad;
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
     to_quad = tswap64(val_hi);
     g_byte_array_append(buf, (uint8_t *) &to_quad, 8);
     to_quad = tswap64(val_lo);

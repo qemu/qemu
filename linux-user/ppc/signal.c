@@ -215,7 +215,7 @@ static target_ulong get_sigframe(struct target_sigaction *ka,
     return (oldsp - frame_size) & ~0xFUL;
 }
 
-#if defined(TARGET_WORDS_BIGENDIAN) == HOST_BIG_ENDIAN
+#if TARGET_BIG_ENDIAN == HOST_BIG_ENDIAN
 #define PPC_VEC_HI      0
 #define PPC_VEC_LO      1
 #else
@@ -542,7 +542,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     env->nip = (target_ulong) ka->_sa_handler;
 #endif
 
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
     /* Signal handlers are entered in big-endian mode.  */
     ppc_store_msr(env, env->msr & ~(1ull << MSR_LE));
 #else

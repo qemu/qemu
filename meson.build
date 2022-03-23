@@ -2186,6 +2186,9 @@ foreach target : target_dirs
   if 'TARGET_ABI_DIR' not in config_target
     config_target += {'TARGET_ABI_DIR': config_target['TARGET_ARCH']}
   endif
+  if 'TARGET_BIG_ENDIAN' not in config_target
+    config_target += {'TARGET_BIG_ENDIAN': 'n'}
+  endif
 
   foreach k, v: disassemblers
     if host_arch.startswith(k) or config_target['TARGET_BASE_ARCH'].startswith(k)
@@ -2210,6 +2213,8 @@ foreach target : target_dirs
       config_target_data.set_quoted(k, v)
     elif v == 'y'
       config_target_data.set(k, 1)
+    elif v == 'n'
+      config_target_data.set(k, 0)
     else
       config_target_data.set(k, v)
     endif

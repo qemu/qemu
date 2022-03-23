@@ -138,7 +138,7 @@ void microblaze_load_kernel(MicroBlazeCPU *cpu, hwaddr ddr_base,
         uint32_t base32;
         int big_endian = 0;
 
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
         big_endian = 1;
 #endif
 

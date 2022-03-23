@@ -2,7 +2,7 @@
 # Xtensa softmmu tests
 #
 
-ifneq ($(TARGET_WORDS_BIGENDIAN),y)
+ifneq ($(TARGET_BIG_ENDIAN),y)
 
 XTENSA_SRC = $(SRC_PATH)/tests/tcg/xtensa
 XTENSA_ALL = $(filter-out $(XTENSA_SRC)/linker.ld.S,$(wildcard $(XTENSA_SRC)/*.S))

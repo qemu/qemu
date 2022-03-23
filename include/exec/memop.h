@@ -36,7 +36,7 @@ typedef enum MemOp {
     MO_BE    = MO_BSWAP,
 #endif
 #ifdef NEED_CPU_H
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
     MO_TE    = MO_BE,
 #else
     MO_TE    = MO_LE,

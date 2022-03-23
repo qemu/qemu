@@ -519,7 +519,7 @@ void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
     for(i = 0; i < 16; i++) {
         env->regs[i] = regs->uregs[i];
     }
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
     /* Enable BE8.  */
     if (EF_ARM_EABI_VERSION(info->elf_flags) >= EF_ARM_EABI_VER4
         && (info->elf_flags & EF_ARM_BE8)) {

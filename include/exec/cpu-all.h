@@ -37,11 +37,10 @@
  * HOST_BIG_ENDIAN : whether the host cpu is big endian and
  * otherwise little endian.
  *
- * TARGET_WORDS_BIGENDIAN : if defined, the host cpu is big endian and otherwise
- * little endian.
+ * TARGET_BIG_ENDIAN : same for the target cpu
  */
 
-#if HOST_BIG_ENDIAN != defined(TARGET_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN
 #define BSWAP_NEEDED
 #endif
 
@@ -121,7 +120,7 @@ static inline void tswap64s(uint64_t *s)
 /* Target-endianness CPU memory access functions. These fit into the
  * {ld,st}{type}{sign}{size}{endian}_p naming scheme described in bswap.h.
  */
-#if defined(TARGET_WORDS_BIGENDIAN)
+#if TARGET_BIG_ENDIAN
 #define lduw_p(p) lduw_be_p(p)
 #define ldsw_p(p) ldsw_be_p(p)
 #define ldl_p(p) ldl_be_p(p)
