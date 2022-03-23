@@ -10,8 +10,6 @@
 #ifndef QEMU_COMMON_H
 #define QEMU_COMMON_H
 
-#define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
-
 /* Copyright string for -version arguments, About dialogs, etc */
 #define QEMU_COPYRIGHT "Copyright (c) 2003-2022 " \
     "Fabrice Bellard and the QEMU Project developers"

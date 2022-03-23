@@ -226,6 +226,8 @@ extern "C" {
 #define ESHUTDOWN 4099
 #endif
 
+#define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
+
 /* time_t may be either 32 or 64 bits depending on the host OS, and
  * can be either signed or unsigned, so we can't just hardcode a
  * specific maximum value. This is not a C preprocessor constant,
