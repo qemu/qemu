@@ -244,7 +244,7 @@ static void create_initial_mapping(CPUPPCState *env)
     tlb->prot = PAGE_VALID | ((PAGE_READ | PAGE_WRITE | PAGE_EXEC) << 4);
     tlb->size = 4*KiB;
     tlb->EPN = 0xfffff000 & TARGET_PAGE_MASK;
-    tlb->RPN = 0x3fffffff000 & TARGET_PAGE_MASK;
+    tlb->RPN = 0x3fffffff000;
     tlb->PID = 0;
 }
 
