@@ -197,6 +197,117 @@ static void char_pty_finalize(Object *obj)
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
 
+#if defined HAVE_PTY_H
+# include <pty.h>
+#elif defined CONFIG_BSD
+# include <termios.h>
+# if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
+#  include <libutil.h>
+# else
+#  include <util.h>
+# endif
+#elif defined CONFIG_SOLARIS
+# include <termios.h>
+# include <stropts.h>
+#else
+# include <termios.h>
+#endif
+
+#ifdef __sun__
+
+#if !defined(HAVE_OPENPTY)
+/* Once illumos has openpty(), this is going to be removed. */
+static int openpty(int *amaster, int *aslave, char *name,
+                   struct termios *termp, struct winsize *winp)
+{
+    const char *slave;
+    int mfd = -1, sfd = -1;
+
+    *amaster = *aslave = -1;
+
+    mfd = open("/dev/ptmx", O_RDWR | O_NOCTTY);
+    if (mfd < 0) {
+        goto err;
+    }
+
+    if (grantpt(mfd) == -1 || unlockpt(mfd) == -1) {
+        goto err;
+    }
+
+    if ((slave = ptsname(mfd)) == NULL) {
+        goto err;
+    }
+
+    if ((sfd = open(slave, O_RDONLY | O_NOCTTY)) == -1) {
+        goto err;
+    }
+
+    if (ioctl(sfd, I_PUSH, "ptem") == -1 ||
+        (termp != NULL && tcgetattr(sfd, termp) < 0)) {
+        goto err;
+    }
+
+    *amaster = mfd;
+    *aslave = sfd;
+
+    if (winp) {
+        ioctl(sfd, TIOCSWINSZ, winp);
+    }
+
+    return 0;
+
+err:
+    if (sfd != -1) {
+        close(sfd);
+    }
+    close(mfd);
+    return -1;
+}
+#endif
+
+static void cfmakeraw (struct termios *termios_p)
+{
+    termios_p->c_iflag &=
+        ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
+    termios_p->c_oflag &= ~OPOST;
+    termios_p->c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+    termios_p->c_cflag &= ~(CSIZE | PARENB);
+    termios_p->c_cflag |= CS8;
+
+    termios_p->c_cc[VMIN] = 0;
+    termios_p->c_cc[VTIME] = 0;
+}
+#endif
+
+/* like openpty() but also makes it raw; return master fd */
+static int qemu_openpty_raw(int *aslave, char *pty_name)
+{
+    int amaster;
+    struct termios tty;
+#if defined(__OpenBSD__) || defined(__DragonFly__)
+    char pty_buf[PATH_MAX];
+#define q_ptsname(x) pty_buf
+#else
+    char *pty_buf = NULL;
+#define q_ptsname(x) ptsname(x)
+#endif
+
+    if (openpty(&amaster, aslave, pty_buf, NULL, NULL) < 0) {
+        return -1;
+    }
+
+    /* Set raw attributes on the pty. */
+    tcgetattr(*aslave, &tty);
+    cfmakeraw(&tty);
+    tcsetattr(*aslave, TCSAFLUSH, &tty);
+
+    if (pty_name) {
+        strcpy(pty_name, q_ptsname(amaster));
+    }
+
+    return amaster;
+}
+
 static void char_pty_open(Chardev *chr,
                           ChardevBackend *backend,
                           bool *be_opened,
