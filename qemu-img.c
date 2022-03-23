@@ -26,6 +26,7 @@
 #include <getopt.h>
 
 #include "qemu-common.h"
+#include "qemu/qemu-progress.h"
 #include "qemu-version.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-block-core.h"
