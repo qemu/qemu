@@ -24,6 +24,4 @@
 int qemu_main(int argc, char **argv, char **envp);
 #endif
 
-void page_size_init(void);
-
 #endif

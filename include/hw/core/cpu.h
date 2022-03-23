@@ -1035,6 +1035,8 @@ void cpu_exec_unrealizefn(CPUState *cpu);
  */
 bool target_words_bigendian(void);
 
+void page_size_init(void);
+
 #ifdef NEED_CPU_H
 
 #ifdef CONFIG_SOFTMMU
