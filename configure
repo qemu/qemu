@@ -2464,24 +2464,6 @@ fi
 fi
 
 ########################################
-# check if __[u]int128_t is usable.
-
-int128=no
-cat > $TMPC << EOF
-__int128_t a;
-__uint128_t b;
-int main (void) {
-  a = a + b;
-  b = a * b;
-  a = a * a;
-  return 0;
-}
-EOF
-if compile_prog "" "" ; then
-    int128=yes
-fi
-
-########################################
 # check if ccache is interfering with
 # semantic analysis of macros
 
