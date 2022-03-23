@@ -1207,8 +1207,9 @@ void helper_476_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
             (env->spr[SPR_440_MMUCR] & PPC476_MMUCR_LWAY_MASK) >> PPC476_MMUCR_LWAY_SHIFT;
         tlb = &env->tlb.tlbe[calc_476_tlb_entry(index, way, env->tlb_per_way)];
 
-        tlb->RPN = value & PPC476_TLB_RPN_MASK;
-        tlb->RPN |= (value & PPC476_TLB_ERPN_MASK) << PPC476_TLB_ERPN_SHIFT;
+        tlb->RPN = value & PPC476_TLB_ERPN_MASK;
+        tlb->RPN <<= PPC476_TLB_ERPN_SHIFT;
+        tlb->RPN |= value & PPC476_TLB_RPN_MASK;
         break;
 
     case 2:
