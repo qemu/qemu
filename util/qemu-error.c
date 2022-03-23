@@ -180,6 +180,19 @@ static void print_loc(void)
     }
 }
 
+static char *
+real_time_iso8601(void)
+{
+#if GLIB_CHECK_VERSION(2, 62, 0)
+    g_autoptr(GDateTime) dt = g_date_time_new_from_unix_utc(g_get_real_time());
+    return g_date_time_format_iso8601(dt);
+#else
+    GTimeVal tv;
+    g_get_current_time(&tv);
+    return g_time_val_to_iso8601(&tv);
+#endif
+}
+
 /*
  * Print a message to current monitor if we have one, else to stderr.
  * @report_type is the type of message: error, warning or informational.
@@ -189,12 +202,10 @@ static void print_loc(void)
  */
 static void vreport(report_type type, const char *fmt, va_list ap)
 {
-    GTimeVal tv;
     gchar *timestr;
 
     if (message_with_timestamp && !monitor_cur()) {
-        g_get_current_time(&tv);
-        timestr = g_time_val_to_iso8601(&tv);
+        timestr = real_time_iso8601();
         error_printf("%s ", timestr);
         g_free(timestr);
     }
