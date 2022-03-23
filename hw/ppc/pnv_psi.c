@@ -219,11 +219,6 @@ static void pnv_psi_power8_set_irq(void *opaque, int irq, int state)
     uint32_t src;
     bool masked;
 
-    if (irq > PSIHB_IRQ_EXTERNAL) {
-        qemu_log_mask(LOG_GUEST_ERROR, "PSI: Unsupported irq %d\n", irq);
-        return;
-    }
-
     xivr_reg = xivr_regs[irq];
     stat_reg = stat_regs[irq];
 
@@ -812,11 +807,6 @@ static void pnv_psi_power9_set_irq(void *opaque, int irq, int state)
 {
     PnvPsi *psi = opaque;
     uint64_t irq_method = psi->regs[PSIHB_REG(PSIHB9_INTERRUPT_CONTROL)];
-
-    if (irq > PSIHB9_NUM_IRQS) {
-        qemu_log_mask(LOG_GUEST_ERROR, "PSI: Unsupported irq %d\n", irq);
-        return;
-    }
 
     if (irq_method & PSIHB9_IRQ_METHOD) {
         qemu_log_mask(LOG_GUEST_ERROR, "PSI: LSI IRQ method no supported\n");
