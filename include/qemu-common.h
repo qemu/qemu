@@ -76,8 +76,4 @@ int parse_debug_env(const char *name, int max, int initial);
 
 void page_size_init(void);
 
-/* returns non-zero if dump is in progress, otherwise zero is
- * returned. */
-bool dump_in_progress(void);
-
 #endif

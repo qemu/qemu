@@ -1564,7 +1564,7 @@ static void dump_state_prepare(DumpState *s)
     *s = (DumpState) { .status = DUMP_STATUS_ACTIVE };
 }
 
-bool dump_in_progress(void)
+bool qemu_system_dump_in_progress(void)
 {
     DumpState *state = &dump_state_global;
     return (qatomic_read(&state->status) == DUMP_STATUS_ACTIVE);
@@ -1930,7 +1930,7 @@ void qmp_dump_guest_memory(bool paging, const char *file,
 
     /* if there is a dump in background, we should wait until the dump
      * finished */
-    if (dump_in_progress()) {
+    if (qemu_system_dump_in_progress()) {
         error_setg(errp, "There is a dump in process, please wait.");
         return;
     }

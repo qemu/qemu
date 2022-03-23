@@ -85,7 +85,7 @@ void qmp_stop(Error **errp)
 {
     /* if there is a dump in background, we should wait until the dump
      * finished */
-    if (dump_in_progress()) {
+    if (qemu_system_dump_in_progress()) {
         error_setg(errp, "There is a dump in process, please wait.");
         return;
     }
@@ -115,7 +115,7 @@ void qmp_cont(Error **errp)
 
     /* if there is a dump in background, we should wait until the dump
      * finished */
-    if (dump_in_progress()) {
+    if (qemu_system_dump_in_progress()) {
         error_setg(errp, "There is a dump in process, please wait.");
         return;
     }
