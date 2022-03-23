@@ -7,7 +7,7 @@ The simple steps to build QEMU for PowePC are:
 ```bash
     mkdir build
     cd build
-    ../configure --target-list=ppc64-softmmu \
+    ../configure --target-list=ppc-softmmu \
         --disable-vnc --disable-sdl --disable-gnutls --disable-nettle --disable-gtk
     make
 ```
@@ -17,7 +17,7 @@ The simple steps to build QEMU for PowePC are:
 MM7705 board is available with PowerPC 476FP core. To start it you can use following command:
 
 ```bash
-    sudo ./qemu-system-ppc64 \
+    sudo ./qemu-system-ppc \
         -M mm7705 \
         -bios pc-bios/module_mm7705_rumboot.bin \
         -drive file=pc-bios/module_mm7705_u-boot.bin,if=mtd,format=raw \

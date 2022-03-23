@@ -3694,8 +3694,7 @@ POWERPC_FAMILY(476FP)(ObjectClass *oc, void *data)
                     (1ull << MSR_DS) |
                     (1ull << MSR_PMM);
 
-    // FIXME: соответствует ли нашему?
-    pcc->mmu_model = POWERPC_MMU_BOOKE;
+    pcc->mmu_model = POWERPC_MMU_476FP;
     pcc->excp_model = POWERPC_EXCP_BOOKE;
     pcc->bus_model = PPC_FLAGS_INPUT_BookE;
 

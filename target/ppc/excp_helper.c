@@ -1471,6 +1471,7 @@ void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
         break;
     case POWERPC_MMU_BOOKE:
     case POWERPC_MMU_BOOKE206:
+    case POWERPC_MMU_476FP:
         env->spr[SPR_BOOKE_DEAR] = vaddr;
         break;
     default:

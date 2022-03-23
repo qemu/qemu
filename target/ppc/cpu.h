@@ -1364,6 +1364,9 @@ int ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
                             int i);
 hwaddr booke206_tlb_to_page_size(CPUPPCState *env,
                                         ppcmas_tlb_t *tlb);
+int ppc476fp_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
+                            hwaddr *raddrp,
+                            target_ulong address, uint32_t pid, int i);
 #endif
 #endif
 

@@ -683,6 +683,117 @@ static int mmubooke_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
 
     ret = -1;
     raddr = (hwaddr)-1ULL;
+    for (i = 0; i < env->nb_tlb; i++) {
+        tlb = &env->tlb.tlbe[i];
+        ret = mmubooke_check_tlb(env, tlb, &raddr, &ctx->prot, address,
+                                 access_type, i);
+        if (ret != -1) {
+            break;
+        }
+    }
+
+    if (ret >= 0) {
+        ctx->raddr = raddr;
+        qemu_log_mask(CPU_LOG_MMU, "%s: access granted " TARGET_FMT_lx
+                      " => " TARGET_FMT_plx " %d %d\n", __func__,
+                      address, ctx->raddr, ctx->prot, ret);
+    } else {
+         qemu_log_mask(CPU_LOG_MMU, "%s: access refused " TARGET_FMT_lx
+                       " => " TARGET_FMT_plx " %d %d\n", __func__,
+                       address, raddr, ctx->prot, ret);
+    }
+
+    return ret;
+}
+
+int ppc476fp_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
+                            hwaddr *raddrp,
+                            target_ulong address, uint32_t pid, int i)
+{
+    uint64_t mask;
+
+    /* Check valid flag */
+    if (!(tlb->prot & PAGE_VALID)) {
+        return -1;
+    }
+    mask = ~((uint64_t)tlb->size - 1);
+    LOG_SWTLB("%s: TLB %d address " TARGET_FMT_lx " PID %u <=> " TARGET_FMT_lx
+              " " TARGET_FMT_lx " %u %x\n", __func__, i, address, pid, tlb->EPN,
+              mask, (uint32_t)tlb->PID, tlb->prot);
+    /* Check PID */
+    if (tlb->PID != 0 && tlb->PID != pid) {
+        return -1;
+    }
+    /* Check effective address */
+    if ((address & mask) != tlb->EPN) {
+        return -1;
+    }
+    *raddrp = address & ~mask;
+    *raddrp |= tlb->RPN & mask;
+
+    return 0;
+}
+
+static int mmu476fp_check_tlb(CPUPPCState *env, ppcemb_tlb_t *tlb,
+                              hwaddr *raddr, int *prot, target_ulong address,
+                              MMUAccessType access_type, int i)
+{
+    int prot2;
+
+    if (ppc476fp_tlb_check(env, tlb, raddr, address,
+                         env->spr[SPR_BOOKE_PID], i) >= 0) {
+        goto found_tlb;
+    }
+
+    if (env->spr[SPR_BOOKE_PID1] &&
+        ppc476fp_tlb_check(env, tlb, raddr, address,
+                         env->spr[SPR_BOOKE_PID1], i) >= 0) {
+        goto found_tlb;
+    }
+
+    if (env->spr[SPR_BOOKE_PID2] &&
+        ppc476fp_tlb_check(env, tlb, raddr, address,
+                         env->spr[SPR_BOOKE_PID2], i) >= 0) {
+        goto found_tlb;
+    }
+
+    LOG_SWTLB("%s: TLB entry not found\n", __func__);
+    return -1;
+
+found_tlb:
+
+    if (msr_pr != 0) {
+        prot2 = tlb->prot & 0xF;
+    } else {
+        prot2 = (tlb->prot >> 4) & 0xF;
+    }
+
+    /* Check the address space */
+    if ((access_type == MMU_INST_FETCH ? msr_ir : msr_dr) != (tlb->attr & 1)) {
+        LOG_SWTLB("%s: AS doesn't match\n", __func__);
+        return -1;
+    }
+
+    *prot = prot2;
+    if (prot2 & prot_for_access_type(access_type)) {
+        LOG_SWTLB("%s: good TLB!\n", __func__);
+        return 0;
+    }
+
+    LOG_SWTLB("%s: no prot match: %x\n", __func__, prot2);
+    return access_type == MMU_INST_FETCH ? -3 : -2;
+}
+
+static int mmu476fp_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
+                                         target_ulong address,
+                                         MMUAccessType access_type)
+{
+    ppcemb_tlb_t *tlb;
+    hwaddr raddr;
+    int i, ret;
+
+    ret = -1;
+    raddr = (hwaddr)-1ULL;
 
     /* Firstly search in corresponded shadow TLB */
     bool found_in_shadow_tlb = 0;
@@ -692,7 +803,7 @@ static int mmubooke_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
         access_type == MMU_INST_FETCH ? &env->curr_i_shadow_tlb : &env->curr_d_shadow_tlb;
 
     for (i = 0; i < *shadow_tlb_size; i++) {
-        ret = mmubooke_check_tlb(env, shadow_tlb + i, &raddr, &ctx->prot, address,
+        ret = mmu476fp_check_tlb(env, shadow_tlb + i, &raddr, &ctx->prot, address,
                                  access_type, i);
         if (ret != -1) {
             found_in_shadow_tlb = 1;
@@ -704,7 +815,7 @@ static int mmubooke_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     if (!found_in_shadow_tlb) {
         for (i = 0; i < env->nb_tlb; i++) {
             tlb = &env->tlb.tlbe[i];
-            ret = mmubooke_check_tlb(env, tlb, &raddr, &ctx->prot, address,
+            ret = mmu476fp_check_tlb(env, tlb, &raddr, &ctx->prot, address,
                                      access_type, i);
             if (ret != -1) {
                 break;
@@ -972,11 +1083,22 @@ static const char *book3e_tsize_to_str[32] = {
     "1T", "2T"
 };
 
-static void mmubooke_print_mmu_entries(ppcemb_tlb_t *entry, int size)
+static void mmubooke_dump_mmu(CPUPPCState *env)
 {
+    ppcemb_tlb_t *entry;
     int i;
 
-    for (i = 0; i < size; i++, entry++) {
+    if (kvm_enabled() && !env->kvm_sw_tlb) {
+        qemu_printf("Cannot access KVM TLB\n");
+        return;
+    }
+
+    qemu_printf("\nTLB:\n");
+    qemu_printf("Effective          Physical           Size PID   Prot     "
+                "Attr\n");
+
+    entry = &env->tlb.tlbe[0];
+    for (i = 0; i < env->nb_tlb; i++, entry++) {
         hwaddr ea, pa;
         target_ulong mask;
         uint64_t size = (uint64_t)entry->size;
@@ -1001,9 +1123,41 @@ static void mmubooke_print_mmu_entries(ppcemb_tlb_t *entry, int size)
                     (uint64_t)ea, (uint64_t)pa, size_buf, (uint32_t)entry->PID,
                     entry->prot, entry->attr);
     }
+
 }
 
-static void mmubooke_dump_mmu(CPUPPCState *env)
+static void mmu476fp_print_mmu_entries(ppcemb_tlb_t *entry, int size)
+{
+    int i;
+
+    for (i = 0; i < size; i++, entry++) {
+        hwaddr ea, pa;
+        uint64_t mask;
+        uint64_t size = (uint64_t)entry->size;
+        char size_buf[20];
+
+        /* Check valid flag */
+        if (!(entry->prot & PAGE_VALID)) {
+            continue;
+        }
+
+        mask = ~(size - 1);
+        ea = entry->EPN & mask;
+        pa = entry->RPN & mask;
+        /* Extend the physical address to 36 bits */
+        pa |= (hwaddr)(entry->RPN & 0xF) << 32;
+        if (size >= 1 * MiB) {
+            snprintf(size_buf, sizeof(size_buf), "%3" PRId64 "M", size / MiB);
+        } else {
+            snprintf(size_buf, sizeof(size_buf), "%3" PRId64 "k", size / KiB);
+        }
+        qemu_printf("0x%016" PRIx64 " 0x%016" PRIx64 " %s %-5u %08x %08x\n",
+                    (uint64_t)ea, (uint64_t)pa, size_buf, (uint32_t)entry->PID,
+                    entry->prot, entry->attr);
+    }
+}
+
+static void mmu476fp_dump_mmu(CPUPPCState *env)
 {
     if (kvm_enabled() && !env->kvm_sw_tlb) {
         qemu_printf("Cannot access KVM TLB\n");
@@ -1014,19 +1168,19 @@ static void mmubooke_dump_mmu(CPUPPCState *env)
     qemu_printf("Effective          Physical           Size PID   Prot     "
                 "Attr\n");
 
-    mmubooke_print_mmu_entries(env->i_shadow_tlb, env->curr_i_shadow_tlb);
+    mmu476fp_print_mmu_entries(env->i_shadow_tlb, env->curr_i_shadow_tlb);
 
     qemu_printf("\nShadow DTLB:\n");
     qemu_printf("Effective          Physical           Size PID   Prot     "
                 "Attr\n");
 
-    mmubooke_print_mmu_entries(env->d_shadow_tlb, env->curr_d_shadow_tlb);
+    mmu476fp_print_mmu_entries(env->d_shadow_tlb, env->curr_d_shadow_tlb);
 
     qemu_printf("\nTLB:\n");
     qemu_printf("Effective          Physical           Size PID   Prot     "
                 "Attr\n");
 
-    mmubooke_print_mmu_entries(&env->tlb.tlbe[0], env->nb_tlb);
+    mmu476fp_print_mmu_entries(&env->tlb.tlbe[0], env->nb_tlb);
 }
 
 static void mmubooke206_dump_one_tlb(CPUPPCState *env, int tlbn, int offset,
@@ -1199,6 +1353,9 @@ void dump_mmu(CPUPPCState *env)
     case POWERPC_MMU_SOFT_74xx:
         mmu6xx_dump_mmu(env);
         break;
+    case POWERPC_MMU_476FP:
+        mmu476fp_dump_mmu(env);
+        break;
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_03:
@@ -1234,6 +1391,7 @@ static int check_physical(CPUPPCState *env, mmu_ctx_t *ctx, target_ulong eaddr,
     case POWERPC_MMU_SOFT_4xx:
     case POWERPC_MMU_REAL:
     case POWERPC_MMU_BOOKE:
+    case POWERPC_MMU_476FP:
         ctx->prot |= PAGE_WRITE;
         break;
 
@@ -1308,6 +1466,9 @@ int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
         break;
     case POWERPC_MMU_BOOKE:
         ret = mmubooke_get_physical_address(env, ctx, eaddr, access_type);
+        break;
+    case POWERPC_MMU_476FP:
+        ret = mmu476fp_get_physical_address(env, ctx, eaddr, access_type);
         break;
     case POWERPC_MMU_BOOKE206:
         ret = mmubooke206_get_physical_address(env, ctx, eaddr, access_type,
@@ -1446,6 +1607,7 @@ static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
                     booke206_update_mas_tlb_miss(env, eaddr, 2, mmu_idx);
                     /* fall through */
                 case POWERPC_MMU_BOOKE:
+                case POWERPC_MMU_476FP:
                     cs->exception_index = POWERPC_EXCP_ITLB;
                     env->error_code = 0;
                     env->spr[SPR_BOOKE_DEAR] = eaddr;
@@ -1468,7 +1630,8 @@ static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
             case -3:
                 /* No execute protection violation */
                 if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
-                    (env->mmu_model == POWERPC_MMU_BOOKE206)) {
+                    (env->mmu_model == POWERPC_MMU_BOOKE206) ||
+                    (env->mmu_model == POWERPC_MMU_476FP)) {
                     env->spr[SPR_BOOKE_ESR] = 0x00000000;
                 }
                 cs->exception_index = POWERPC_EXCP_ISI;
@@ -1534,6 +1697,7 @@ static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
                     booke206_update_mas_tlb_miss(env, eaddr, access_type, mmu_idx);
                     /* fall through */
                 case POWERPC_MMU_BOOKE:
+                case POWERPC_MMU_476FP:
                     cs->exception_index = POWERPC_EXCP_DTLB;
                     env->error_code = 0;
                     env->spr[SPR_BOOKE_DEAR] = eaddr;
@@ -1557,7 +1721,8 @@ static bool ppc_jumbo_xlate(PowerPCCPU *cpu, vaddr eaddr,
                         env->spr[SPR_40x_ESR] |= 0x00800000;
                     }
                 } else if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
-                           (env->mmu_model == POWERPC_MMU_BOOKE206)) {
+                           (env->mmu_model == POWERPC_MMU_BOOKE206) ||
+                           (env->mmu_model == POWERPC_MMU_476FP)) {
                     env->spr[SPR_BOOKE_DEAR] = eaddr;
                     env->spr[SPR_BOOKE_ESR] = mmubooke206_esr(mmu_idx, access_type);
                 } else {
