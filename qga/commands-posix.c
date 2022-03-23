@@ -32,15 +32,6 @@
 #include <utmpx.h>
 #endif
 
-#ifndef CONFIG_HAS_ENVIRON
-#ifdef __APPLE__
-#include <crt_externs.h>
-#define environ (*_NSGetEnviron())
-#else
-extern char **environ;
-#endif
-#endif
-
 #if defined(__linux__)
 #include <mntent.h>
 #include <linux/fs.h>
@@ -109,8 +100,8 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **errp)
         reopen_fd_to_null(1);
         reopen_fd_to_null(2);
 
-        execle("/sbin/shutdown", "shutdown", "-h", shutdown_flag, "+0",
-               "hypervisor initiated shutdown", (char *)NULL, environ);
+        execl("/sbin/shutdown", "shutdown", "-h", shutdown_flag, "+0",
+               "hypervisor initiated shutdown", (char *)NULL);
         _exit(EXIT_FAILURE);
     } else if (pid < 0) {
         error_setg_errno(errp, errno, "failed to create child process");
@@ -193,8 +184,7 @@ void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
 
         /* Use '/sbin/hwclock -w' to set RTC from the system time,
          * or '/sbin/hwclock -s' to set the system time from RTC. */
-        execle(hwclock_path, "hwclock", has_time ? "-w" : "-s",
-               NULL, environ);
+        execl(hwclock_path, "hwclock", has_time ? "-w" : "-s", NULL);
         _exit(EXIT_FAILURE);
     } else if (pid < 0) {
         error_setg_errno(errp, errno, "failed to create child process");
@@ -1560,7 +1550,7 @@ static void execute_fsfreeze_hook(FsfreezeHookArg arg, Error **errp)
         reopen_fd_to_null(1);
         reopen_fd_to_null(2);
 
-        execle(hook, hook, arg_str, NULL, environ);
+        execl(hook, hook, arg_str, NULL);
         _exit(EXIT_FAILURE);
     } else if (pid < 0) {
         error_setg_errno(errp, errno, "failed to create child process");
@@ -1874,7 +1864,7 @@ static int run_process_child(const char *command[], Error **errp)
     spawn_flag = G_SPAWN_SEARCH_PATH | G_SPAWN_STDOUT_TO_DEV_NULL |
                  G_SPAWN_STDERR_TO_DEV_NULL;
 
-    success =  g_spawn_sync(NULL, (char **)command, environ, spawn_flag,
+    success =  g_spawn_sync(NULL, (char **)command, NULL, spawn_flag,
                             NULL, NULL, NULL, NULL,
                             &exit_status, &g_err);
 
@@ -2555,9 +2545,9 @@ void qmp_guest_set_user_password(const char *username,
         reopen_fd_to_null(2);
 
         if (crypted) {
-            execle(passwd_path, "chpasswd", "-e", NULL, environ);
+            execl(passwd_path, "chpasswd", "-e", NULL);
         } else {
-            execle(passwd_path, "chpasswd", NULL, environ);
+            execl(passwd_path, "chpasswd", NULL);
         }
         _exit(EXIT_FAILURE);
     } else if (pid < 0) {
