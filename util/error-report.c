@@ -156,7 +156,7 @@ static void print_loc(void)
     const char *const *argp;
 
     if (!monitor_cur() && g_get_prgname()) {
-        fprintf(stderr, "%s:", g_get_prgname());
+        error_printf("%s:", g_get_prgname());
         sep = " ";
     }
     switch (cur_loc->kind) {
