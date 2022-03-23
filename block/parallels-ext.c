@@ -261,7 +261,7 @@ static int parallels_parse_format_extension(BlockDriverState *bs,
             break;
 
         default:
-            error_setg(errp, "Unknown feature: 0x%" PRIu64, fh.magic);
+            error_setg(errp, "Unknown feature: 0x%" PRIx64, fh.magic);
             goto fail;
         }
 
