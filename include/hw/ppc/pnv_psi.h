@@ -79,8 +79,6 @@ struct PnvPsiClass {
     uint64_t bar_mask;
     const char *compat;
     int compat_size;
-
-    void (*irq_set)(PnvPsi *psi, int, bool state);
 };
 
 /* The PSI and FSP interrupts are muxed on the same IRQ number */
@@ -94,8 +92,6 @@ typedef enum PnvPsiIrq {
 } PnvPsiIrq;
 
 #define PSI_NUM_INTERRUPTS 6
-
-void pnv_psi_irq_set(PnvPsi *psi, int irq, bool state);
 
 /* P9 PSI Interrupts */
 #define PSIHB9_IRQ_PSI          0

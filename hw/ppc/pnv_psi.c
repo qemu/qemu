@@ -211,19 +211,9 @@ static const uint64_t stat_bits[PSI_NUM_INTERRUPTS] = {
     [PSIHB_IRQ_EXTERNAL]  = PSIHB_IRQ_STAT_EXT,
 };
 
-void pnv_psi_irq_set(PnvPsi *psi, int irq, bool state)
+static void pnv_psi_power8_set_irq(void *opaque, int irq, int state)
 {
-    PNV_PSI_GET_CLASS(psi)->irq_set(psi, irq, state);
-}
-
-static void __pnv_psi_irq_set(void *opaque, int irq, int state)
-{
-    PnvPsi *psi = (PnvPsi *) opaque;
-    PNV_PSI_GET_CLASS(psi)->irq_set(psi, irq, state);
-}
-
-static void pnv_psi_power8_irq_set(PnvPsi *psi, int irq, bool state)
-{
+    PnvPsi *psi = opaque;
     uint32_t xivr_reg;
     uint32_t stat_reg;
     uint32_t src;
@@ -518,7 +508,7 @@ static void pnv_psi_power8_realize(DeviceState *dev, Error **errp)
         ics_set_irq_type(ics, i, true);
     }
 
-    qdev_init_gpio_in(dev, __pnv_psi_irq_set, ics->nr_irqs);
+    qdev_init_gpio_in(dev, pnv_psi_power8_set_irq, ics->nr_irqs);
 
     psi->qirqs = qemu_allocate_irqs(ics_set_irq, ics, ics->nr_irqs);
 
@@ -581,7 +571,6 @@ static void pnv_psi_power8_class_init(ObjectClass *klass, void *data)
     ppc->xscom_pcba = PNV_XSCOM_PSIHB_BASE;
     ppc->xscom_size = PNV_XSCOM_PSIHB_SIZE;
     ppc->bar_mask   = PSIHB_BAR_MASK;
-    ppc->irq_set    = pnv_psi_power8_irq_set;
     ppc->compat     = compat;
     ppc->compat_size = sizeof(compat);
 }
@@ -819,8 +808,9 @@ static const MemoryRegionOps pnv_psi_p9_xscom_ops = {
     }
 };
 
-static void pnv_psi_power9_irq_set(PnvPsi *psi, int irq, bool state)
+static void pnv_psi_power9_set_irq(void *opaque, int irq, int state)
 {
+    PnvPsi *psi = opaque;
     uint64_t irq_method = psi->regs[PSIHB_REG(PSIHB9_INTERRUPT_CONTROL)];
 
     if (irq > PSIHB9_NUM_IRQS) {
@@ -881,7 +871,7 @@ static void pnv_psi_power9_realize(DeviceState *dev, Error **errp)
 
     psi->qirqs = qemu_allocate_irqs(xive_source_set_irq, xsrc, xsrc->nr_irqs);
 
-    qdev_init_gpio_in(dev, __pnv_psi_irq_set, xsrc->nr_irqs);
+    qdev_init_gpio_in(dev, pnv_psi_power9_set_irq, xsrc->nr_irqs);
 
     /* XSCOM region for PSI registers */
     pnv_xscom_region_init(&psi->xscom_regs, OBJECT(dev), &pnv_psi_p9_xscom_ops,
@@ -908,7 +898,6 @@ static void pnv_psi_power9_class_init(ObjectClass *klass, void *data)
     ppc->xscom_pcba = PNV9_XSCOM_PSIHB_BASE;
     ppc->xscom_size = PNV9_XSCOM_PSIHB_SIZE;
     ppc->bar_mask   = PSIHB9_BAR_MASK;
-    ppc->irq_set    = pnv_psi_power9_irq_set;
     ppc->compat     = compat;
     ppc->compat_size = sizeof(compat);
 
