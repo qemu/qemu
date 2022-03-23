@@ -400,6 +400,7 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
         cpu_abort(env_cpu(env), "MPC8xx MMU model is not implemented\n");
         break;
     case POWERPC_MMU_BOOKE:
+    case POWERPC_MMU_476FP:
         tlb_flush(env_cpu(env));
         break;
     case POWERPC_MMU_BOOKE206:
@@ -532,6 +533,7 @@ void helper_tlbiva(CPUPPCState *env, target_ulong addr)
 {
     /* tlbiva instruction only exists on BookE */
     assert(env->mmu_model == POWERPC_MMU_BOOKE);
+    assert(env->mmu_model == POWERPC_MMU_476FP);
     /* XXX: TODO */
     cpu_abort(env_cpu(env), "BookE MMU model is not implemented\n");
 }
@@ -1014,6 +1016,26 @@ target_ulong helper_440_tlbsx(CPUPPCState *env, target_ulong address)
 /* Total number of bolted entries */
 #define PPC476_BOLTED_ENTRY_COUNT       6
 
+static int ppc476_tlb_search(CPUPPCState *env, target_ulong address,
+                             uint32_t pid)
+{
+    ppcemb_tlb_t *tlb;
+    hwaddr raddr;
+    int i, ret;
+
+    /* Default return value is no match */
+    ret = -1;
+    for (i = 0; i < env->nb_tlb; i++) {
+        tlb = &env->tlb.tlbe[i];
+        if (ppc476fp_tlb_check(env, tlb, &raddr, address, pid, i) == 0) {
+            ret = i;
+            break;
+        }
+    }
+
+    return ret;
+}
+
 static void update_476_bolted_entry(CPUPPCState *env, int entry_num, uint32_t index)
 {
     target_ulong *ptr;
@@ -1321,7 +1343,7 @@ target_ulong helper_476_tlbre(CPUPPCState *env, uint32_t word,
 
 target_ulong helper_476_tlbsx(CPUPPCState *env, target_ulong address)
 {
-    target_ulong entry = ppcemb_tlb_search(env, address,
+    target_ulong entry = ppc476_tlb_search(env, address,
         env->spr[SPR_440_MMUCR] & PPC476_MMUCR_STID_MASK);
 
     uint32_t way;
