@@ -19,7 +19,6 @@
 
 #include "qemu/osdep.h"
 
-#include "qemu-common.h"
 #include "x86hvf.h"
 #include "vmx.h"
 #include "vmcs.h"

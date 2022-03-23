@@ -21,7 +21,6 @@
 
 #include "qemu.h"
 #include "user-internals.h"
-//#include "qemu-common.h"
 #include "uname.h"
 
 /* return highest utsname machine name for emulated instruction set

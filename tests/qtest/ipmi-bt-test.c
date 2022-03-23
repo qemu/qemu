@@ -31,7 +31,6 @@
 
 
 #include "libqtest-single.h"
-#include "qemu-common.h"
 
 #define IPMI_IRQ        5
 

@@ -11,7 +11,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "hw/ppc/spapr_numa.h"
 #include "hw/pci-host/spapr.h"
 #include "hw/ppc/fdt.h"

@@ -1,6 +1,5 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "include/qemu-common.h"
 #include "chardev/char.h"
 #include "qemu/buffer.h"
 #include "qemu/option.h"

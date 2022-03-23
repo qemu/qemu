@@ -7,7 +7,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 
 #include "qemu/compiler.h"
 #include "qemu/int128.h"

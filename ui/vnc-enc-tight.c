@@ -34,7 +34,7 @@
 
 #ifdef CONFIG_VNC_PNG
 /* The following define is needed by pngconf.h. Otherwise it won't compile,
-   because setjmp.h was already included by qemu-common.h. */
+   because setjmp.h was already included by osdep.h. */
 #define PNG_SKIP_SETJMP_CHECK
 #include <png.h>
 #endif

@@ -32,7 +32,6 @@
 /* For crc32 */
 #include <zlib.h>
 
-#include "qemu-common.h"
 #include "hw/irq.h"
 #include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"

@@ -12,7 +12,6 @@
 
 #include "qemu/osdep.h"
 #include "malloc.h"
-#include "qemu-common.h"
 #include "qemu/host-utils.h"
 
 typedef struct MemBlock {

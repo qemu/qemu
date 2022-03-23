@@ -37,7 +37,6 @@
 #include <utime.h>
 
 #include "qemu.h"
-#include "qemu-common.h"
 #include "signal-common.h"
 #include "user/syscall-trace.h"
 

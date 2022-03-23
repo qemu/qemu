@@ -8,7 +8,6 @@
 // GNU General Public License for more details.
 #include "qemu/osdep.h"
 #include "panic.h"
-#include "qemu-common.h"
 #include "qemu/error-report.h"
 
 #include "sysemu/hvf.h"

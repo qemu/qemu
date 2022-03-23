@@ -8,8 +8,6 @@
 #include "qemu/osdep.h"
 #include "malloc-spapr.h"
 
-#include "qemu-common.h"
-
 #define SPAPR_PAGE_SIZE 4096
 
 /* Memory must be a multiple of 256 MB,

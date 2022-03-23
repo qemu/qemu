@@ -9,7 +9,6 @@
 
 #include "qemu/osdep.h"
 
-#include "qemu-common.h"
 #include "libqtest-single.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qlist.h"

@@ -19,7 +19,6 @@
 #include "qemu/osdep.h"
 
 #include "cpu.h"
-#include "qemu-common.h"
 #include "x86_decode.h"
 #include "x86_emu.h"
 #include "vmcs.h"

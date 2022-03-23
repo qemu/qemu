@@ -14,7 +14,6 @@
 
 #include <linux/kvm.h>
 
-#include "qemu-common.h"
 #include "cpu.h"
 #include "internal.h"
 #include "qemu/error-report.h"

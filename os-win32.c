@@ -26,7 +26,6 @@
 #include "qemu/osdep.h"
 #include <windows.h>
 #include <mmsystem.h>
-#include "qemu-common.h"
 #include "sysemu/runstate.h"
 
 static BOOL WINAPI qemu_ctrl_handler(DWORD type)

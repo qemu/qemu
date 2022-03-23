@@ -11,7 +11,6 @@
 #include "libqtest-single.h"
 #include "libqos/pci-pc.h"
 #include "qemu/timer.h"
-#include "qemu-common.h"
 
 /* Tests only initialization so far. TODO: Replace with functional tests */
 static void nop(void)

@@ -24,7 +24,6 @@
 #include <linux/kvm.h>
 #include <asm/ptrace.h>
 
-#include "qemu-common.h"
 #include "cpu.h"
 #include "s390x-internal.h"
 #include "kvm_s390x.h"

@@ -15,7 +15,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "libqos/libqos.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qnum.h"

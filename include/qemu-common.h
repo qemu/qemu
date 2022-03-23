@@ -1,12 +1,3 @@
-/*
- * This file is supposed to be included only by .c files. No header file should
- * depend on qemu-common.h, as this would easily lead to circular header
- * dependencies.
- *
- * If a header file uses a definition from qemu-common.h, that definition
- * must be moved to a separate header file, and the header that uses it
- * must include that header.
- */
 #ifndef QEMU_COMMON_H
 #define QEMU_COMMON_H
 

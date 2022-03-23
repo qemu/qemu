@@ -2,7 +2,6 @@
 #include <glib/gstdio.h>
 #include <gio/gio.h>
 #include "libqos/libqtest.h"
-#include "qemu-common.h"
 #include "dbus-vmstate1.h"
 #include "migration-helpers.h"
 

@@ -18,7 +18,6 @@
 
 #include "qemu/osdep.h"
 #include "panic.h"
-#include "qemu-common.h"
 #include "cpu.h"
 #include "x86.h"
 #include "x86_mmu.h"

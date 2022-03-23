@@ -21,7 +21,6 @@
 #include <linux/magic.h>
 #endif
 #include <cap-ng.h>
-#include "qemu-common.h"
 #include "qemu/sockets.h"
 #include "qemu/xattr.h"
 #include "9p-iov-marshal.h"

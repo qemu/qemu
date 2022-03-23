@@ -11,7 +11,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qemu/event_notifier.h"
 #include "qemu/main-loop.h"
 

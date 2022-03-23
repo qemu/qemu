@@ -19,7 +19,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qemu/main-loop.h"
 
 #include "ui/gtk.h"

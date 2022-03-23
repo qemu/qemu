@@ -27,7 +27,6 @@
 #endif
 #include "qemu/osdep.h"
 #include <pthread.h>
-#include "qemu-common.h"
 #include "qemu/coroutine_int.h"
 
 #ifdef CONFIG_SAFESTACK

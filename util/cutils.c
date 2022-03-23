@@ -26,7 +26,6 @@
 #include "qemu/host-utils.h"
 #include <math.h>
 
-#include "qemu-common.h"
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"

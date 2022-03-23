@@ -13,7 +13,6 @@
 #include "qemu/osdep.h"
 #include "qemu/iov.h"
 #include "qemu/sockets.h"
-#include "qemu-common.h"
 #include "qapi/error.h"
 #include "crypto/hash.h"
 #include "crypto/hmac.h"

@@ -16,8 +16,6 @@
 
 #include "standard-headers/linux/qemu_fw_cfg.h"
 
-#include "qemu-common.h"
-
 #define ALLOC_PAGE_SIZE (4096)
 
 void pc_alloc_init(QGuestAllocator *s, QTestState *qts, QAllocOpts flags)

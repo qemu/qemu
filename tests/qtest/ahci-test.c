@@ -30,7 +30,6 @@
 #include "libqos/ahci.h"
 #include "libqos/pci-pc.h"
 
-#include "qemu-common.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/host-utils.h"
 
