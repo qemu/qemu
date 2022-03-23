@@ -99,13 +99,18 @@ static void kvm_cpu_xsave_init(void)
     for (i = XSTATE_SSE_BIT + 1; i < XSAVE_STATE_AREA_COUNT; i++) {
         ExtSaveArea *esa = &x86_ext_save_areas[i];
 
-        if (esa->size) {
-            host_cpuid(0xd, i, &eax, &ebx, &ecx, &edx);
-            if (eax != 0) {
-                assert(esa->size == eax);
-                esa->offset = ebx;
-                esa->ecx = ecx;
-            }
+        if (!esa->size) {
+            continue;
+        }
+        if ((x86_cpu_get_supported_feature_word(esa->feature, false) & esa->bits)
+            != esa->bits) {
+            continue;
+        }
+        host_cpuid(0xd, i, &eax, &ebx, &ecx, &edx);
+        if (eax != 0) {
+            assert(esa->size == eax);
+            esa->offset = ebx;
+            esa->ecx = ecx;
         }
     }
 }
