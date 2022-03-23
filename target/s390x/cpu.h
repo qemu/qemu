@@ -28,6 +28,7 @@
 #include "cpu-qom.h"
 #include "cpu_models.h"
 #include "exec/cpu-defs.h"
+#include "qemu/cpu-float.h"
 
 #define ELF_MACHINE_UNAME "S390X"
 

@@ -29,6 +29,7 @@
 #define XTENSA_CPU_H
 
 #include "cpu-qom.h"
+#include "qemu/cpu-float.h"
 #include "exec/cpu-defs.h"
 #include "xtensa-isa.h"
 

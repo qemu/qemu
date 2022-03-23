@@ -21,6 +21,7 @@
 #define OPENRISC_CPU_H
 
 #include "exec/cpu-defs.h"
+#include "fpu/softfloat-types.h"
 #include "hw/core/cpu.h"
 #include "qom/object.h"
 
