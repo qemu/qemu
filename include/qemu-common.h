@@ -24,9 +24,6 @@
 int qemu_main(int argc, char **argv, char **envp);
 #endif
 
-void cpu_exec_init_all(void);
-void cpu_exec_step_atomic(CPUState *cpu);
-
 /**
  * set_preferred_target_page_bits:
  * @bits: number of bits needed to represent an address within the page
