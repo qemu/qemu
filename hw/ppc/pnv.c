@@ -1253,12 +1253,12 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     }
 
     /* Create the simplified OCC model */
-    object_property_set_link(OBJECT(&chip8->occ), "psi", OBJECT(&chip8->psi),
-                             &error_abort);
     if (!qdev_realize(DEVICE(&chip8->occ), NULL, errp)) {
         return;
     }
     pnv_xscom_add_subregion(chip, PNV_XSCOM_OCC_BASE, &chip8->occ.xscom_regs);
+    qdev_connect_gpio_out(DEVICE(&chip8->occ), 0,
+                          qdev_get_gpio_in(DEVICE(&chip8->psi), PSIHB_IRQ_OCC));
 
     /* OCC SRAM model */
     memory_region_add_subregion(get_system_memory(), PNV_OCC_SENSOR_BASE(chip),
@@ -1528,12 +1528,12 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
                                             (uint64_t) PNV9_LPCM_BASE(chip));
 
     /* Create the simplified OCC model */
-    object_property_set_link(OBJECT(&chip9->occ), "psi", OBJECT(&chip9->psi),
-                             &error_abort);
     if (!qdev_realize(DEVICE(&chip9->occ), NULL, errp)) {
         return;
     }
     pnv_xscom_add_subregion(chip, PNV9_XSCOM_OCC_BASE, &chip9->occ.xscom_regs);
+    qdev_connect_gpio_out(DEVICE(&chip9->occ), 0, qdev_get_gpio_in(
+                              DEVICE(&chip9->psi), PSIHB9_IRQ_OCC));
 
     /* OCC SRAM model */
     memory_region_add_subregion(get_system_memory(), PNV9_OCC_SENSOR_BASE(chip),
@@ -1731,13 +1731,13 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
                                             (uint64_t) PNV10_LPCM_BASE(chip));
 
     /* Create the simplified OCC model */
-    object_property_set_link(OBJECT(&chip10->occ), "psi", OBJECT(&chip10->psi),
-                             &error_abort);
     if (!qdev_realize(DEVICE(&chip10->occ), NULL, errp)) {
         return;
     }
     pnv_xscom_add_subregion(chip, PNV10_XSCOM_OCC_BASE,
                             &chip10->occ.xscom_regs);
+    qdev_connect_gpio_out(DEVICE(&chip10->occ), 0, qdev_get_gpio_in(
+                              DEVICE(&chip10->psi), PSIHB9_IRQ_OCC));
 
     /* OCC SRAM model */
     memory_region_add_subregion(get_system_memory(),
