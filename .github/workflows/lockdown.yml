@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: dessant/repo-lockdown@v2
         with:
-          pull-comment: |
+          pr-comment: |
             Thank you for your interest in the QEMU project.
 
             This repository is a read-only mirror of the project's repostories hosted
@@ -26,5 +26,5 @@ jobs:
             functionality). However, we get a lot of patches, and so we have some
             guidelines about contributing on the project website:
             https://www.qemu.org/contribute/
-          lock-pull: true
-          close-pull: true
+          lock-pr: true
+          close-pr: true
