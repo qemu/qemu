@@ -24,10 +24,6 @@
 int qemu_main(int argc, char **argv, char **envp);
 #endif
 
-/* OS specific functions */
-void os_setup_early_signal_handling(void);
-int os_parse_cmd_args(int index, const char *optarg);
-
 void page_size_init(void);
 
 #endif

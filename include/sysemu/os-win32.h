@@ -62,8 +62,10 @@ struct tm *localtime_r(const time_t *timep, struct tm *result);
 static inline void os_setup_signal_handling(void) {}
 static inline void os_daemonize(void) {}
 static inline void os_setup_post(void) {}
-void os_set_line_buffering(void);
 static inline void os_set_proc_name(const char *dummy) {}
+static inline int os_parse_cmd_args(int index, const char *optarg) { return -1; }
+void os_set_line_buffering(void);
+void os_setup_early_signal_handling(void);
 
 int getpagesize(void);
 

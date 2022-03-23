@@ -42,7 +42,9 @@
 extern "C" {
 #endif
 
+int os_parse_cmd_args(int index, const char *optarg);
 void os_set_line_buffering(void);
+void os_setup_early_signal_handling(void);
 void os_set_proc_name(const char *s);
 void os_setup_signal_handling(void);
 void os_daemonize(void);
