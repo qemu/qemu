@@ -158,7 +158,7 @@ do_kernel_trap(CPUARMState *env)
 
     switch (env->regs[15]) {
     case 0xffff0fa0: /* __kernel_memory_barrier */
-        /* ??? No-op. Will need to do better for SMP.  */
+        smp_mb();
         break;
     case 0xffff0fc0: /* __kernel_cmpxchg */
          /* XXX: This only works between threads, not between processes.
