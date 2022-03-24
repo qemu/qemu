@@ -436,6 +436,11 @@ class TestParallelOps(iotests.QMPTestCase):
         self.vm.run_job(job='node4', auto_dismiss=True)
         self.assert_no_active_block_jobs()
 
+        # Assert that node0 is now the backing node of node4
+        result = self.vm.qmp('query-named-block-nodes')
+        node4 = next(node for node in result['return'] if node['node-name'] == 'node4')
+        self.assertEqual(node4['image']['backing-image']['filename'], self.imgs[0])
+
     # Test a block-stream and a block-commit job in parallel
     # Here the stream job is supposed to finish quickly in order to reproduce
     # the scenario that triggers the bug fixed in 3d5d319e1221 and 1a63a907507

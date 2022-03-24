@@ -64,7 +64,13 @@ static int stream_prepare(Job *job)
     bdrv_cor_filter_drop(s->cor_filter_bs);
     s->cor_filter_bs = NULL;
 
+    bdrv_subtree_drained_begin(s->above_base);
+
     base = bdrv_filter_or_cow_bs(s->above_base);
+    if (base) {
+        bdrv_ref(base);
+    }
+
     unfiltered_base = bdrv_skip_filters(base);
 
     if (bdrv_cow_child(unfiltered_bs)) {
@@ -75,14 +81,21 @@ static int stream_prepare(Job *job)
                 base_fmt = unfiltered_base->drv->format_name;
             }
         }
+
         bdrv_set_backing_hd(unfiltered_bs, base, &local_err);
         ret = bdrv_change_backing_file(unfiltered_bs, base_id, base_fmt, false);
         if (local_err) {
             error_report_err(local_err);
-            return -EPERM;
+            ret = -EPERM;
+            goto out;
         }
     }
 
+out:
+    if (base) {
+        bdrv_unref(base);
+    }
+    bdrv_subtree_drained_end(s->above_base);
     return ret;
 }
 
