@@ -249,7 +249,7 @@ lsi_bad_phase_interrupt(void) "Phase mismatch interrupt"
 lsi_bad_selection(uint32_t id) "Selected absent target %"PRIu32
 lsi_do_dma_unavailable(void) "DMA no data available"
 lsi_do_dma(uint64_t addr, int len) "DMA addr=0x%"PRIx64" len=%d"
-lsi_queue_command(uint32_t tag) "Queueing tag=0x%"PRId32
+lsi_queue_command(uint32_t tag) "Queueing tag=0x%"PRIx32
 lsi_add_msg_byte_error(void) "MSG IN data too long"
 lsi_add_msg_byte(uint8_t data) "MSG IN 0x%02x"
 lsi_reselect(int id) "Reselected target %d"
@@ -267,7 +267,7 @@ lsi_do_msgout_noop(void) "MSG: No Operation"
 lsi_do_msgout_extended(uint8_t msg, uint8_t len) "Extended message 0x%x (len %d)"
 lsi_do_msgout_ignored(const char *msg) "%s (ignored)"
 lsi_do_msgout_simplequeue(uint8_t select_tag) "SIMPLE queue tag=0x%x"
-lsi_do_msgout_abort(uint32_t tag) "MSG: ABORT TAG tag=0x%"PRId32
+lsi_do_msgout_abort(uint32_t tag) "MSG: ABORT TAG tag=0x%"PRIx32
 lsi_do_msgout_clearqueue(uint32_t tag) "MSG: CLEAR QUEUE tag=0x%"PRIx32
 lsi_do_msgout_busdevicereset(uint32_t tag) "MSG: BUS DEVICE RESET tag=0x%"PRIx32
 lsi_do_msgout_select(int id) "Select LUN %d"
