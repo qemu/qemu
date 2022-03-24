@@ -529,7 +529,7 @@ new_state = "1"
         self.assert_qmp(event, 'data/device', 'drive0')
         self.assert_qmp(event, 'data/operation', 'read')
         result = self.vm.qmp('query-block-jobs')
-        self.assert_qmp(result, 'return[0]/paused', False)
+        self.assertIn(result['return'][0]['status'], ['running', 'ready'])
         self.complete_and_wait()
 
     def test_large_cluster(self):
@@ -555,7 +555,7 @@ new_state = "1"
         self.assert_qmp(event, 'data/device', 'drive0')
         self.assert_qmp(event, 'data/operation', 'read')
         result = self.vm.qmp('query-block-jobs')
-        self.assert_qmp(result, 'return[0]/paused', False)
+        self.assertIn(result['return'][0]['status'], ['running', 'ready'])
         self.complete_and_wait()
         self.vm.shutdown()
 
@@ -580,8 +580,14 @@ new_state = "1"
                     self.assert_qmp(event, 'data/device', 'drive0')
                     self.assert_qmp(event, 'data/operation', 'read')
 
+                    if self.vm.qmp('query-block-jobs')['return'][0]['status'] != 'paused':
+                        self.vm.events_wait([(
+                            'JOB_STATUS_CHANGE',
+                            {'data': {'id': 'drive0', 'status': 'paused'}}
+                        )])
+
                     result = self.vm.qmp('query-block-jobs')
-                    self.assert_qmp(result, 'return[0]/paused', True)
+                    self.assert_qmp(result, 'return[0]/status', 'paused')
                     self.assert_qmp(result, 'return[0]/io-status', 'failed')
 
                     result = self.vm.qmp('block-job-resume', device='drive0')
@@ -593,7 +599,7 @@ new_state = "1"
                     ready = True
 
         result = self.vm.qmp('query-block-jobs')
-        self.assert_qmp(result, 'return[0]/paused', False)
+        self.assert_qmp(result, 'return[0]/status', 'ready')
         self.assert_qmp(result, 'return[0]/io-status', 'ok')
 
         self.complete_and_wait(wait_ready=False)
@@ -686,7 +692,7 @@ new_state = "1"
         self.assert_qmp(event, 'data/device', 'drive0')
         self.assert_qmp(event, 'data/operation', 'write')
         result = self.vm.qmp('query-block-jobs')
-        self.assert_qmp(result, 'return[0]/paused', False)
+        self.assertIn(result['return'][0]['status'], ['running', 'ready'])
         self.complete_and_wait()
 
     def test_stop_write(self):
@@ -705,15 +711,21 @@ new_state = "1"
                     self.assert_qmp(event, 'data/device', 'drive0')
                     self.assert_qmp(event, 'data/operation', 'write')
 
+                    if self.vm.qmp('query-block-jobs')['return'][0]['status'] != 'paused':
+                        self.vm.events_wait([(
+                            'JOB_STATUS_CHANGE',
+                            {'data': {'id': 'drive0', 'status': 'paused'}}
+                        )])
+
                     result = self.vm.qmp('query-block-jobs')
-                    self.assert_qmp(result, 'return[0]/paused', True)
+                    self.assert_qmp(result, 'return[0]/status', 'paused')
                     self.assert_qmp(result, 'return[0]/io-status', 'failed')
 
                     result = self.vm.qmp('block-job-resume', device='drive0')
                     self.assert_qmp(result, 'return', {})
 
                     result = self.vm.qmp('query-block-jobs')
-                    self.assert_qmp(result, 'return[0]/paused', False)
+                    self.assertIn(result['return'][0]['status'], ['running', 'ready'])
                     self.assert_qmp(result, 'return[0]/io-status', 'ok')
                     error = True
                 elif event['event'] == 'BLOCK_JOB_READY':
