@@ -112,7 +112,7 @@ static inline int is_error(abi_long ret)
     return (abi_ulong)ret >= (abi_ulong)(-4096);
 }
 
-#if TARGET_ABI_BITS == 32
+#if (TARGET_ABI_BITS == 32) && !defined(TARGET_ABI_MIPSN32)
 static inline uint64_t target_offset64(uint32_t word0, uint32_t word1)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -121,7 +121,7 @@ static inline uint64_t target_offset64(uint32_t word0, uint32_t word1)
     return ((uint64_t)word1 << 32) | word0;
 #endif
 }
-#else /* TARGET_ABI_BITS == 32 */
+#else /* TARGET_ABI_BITS == 32 && !defined(TARGET_ABI_MIPSN32) */
 static inline uint64_t target_offset64(uint64_t word0, uint64_t word1)
 {
     return word0;
@@ -136,7 +136,7 @@ static inline int regpairs_aligned(void *cpu_env, int num)
 {
     return ((((CPUARMState *)cpu_env)->eabi) == 1) ;
 }
-#elif defined(TARGET_MIPS) && (TARGET_ABI_BITS == 32)
+#elif defined(TARGET_MIPS) && defined(TARGET_ABI_MIPSO32)
 static inline int regpairs_aligned(void *cpu_env, int num) { return 1; }
 #elif defined(TARGET_PPC) && !defined(TARGET_PPC64)
 /*

@@ -2504,7 +2504,7 @@ static void pgb_reserved_va(const char *image_name, abi_ulong guest_loaddr,
     addr = mmap(test, reserved_va, PROT_NONE, flags, -1, 0);
     if (addr == MAP_FAILED || addr != test) {
         error_report("Unable to reserve 0x%lx bytes of virtual address "
-                     "space at %p (%s) for use as guest address space (check your"
+                     "space at %p (%s) for use as guest address space (check your "
                      "virtual memory ulimit setting, min_mmap_addr or reserve less "
                      "using -R option)", reserved_va, test, strerror(errno));
         exit(EXIT_FAILURE);
