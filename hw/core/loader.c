@@ -696,6 +696,21 @@ static int load_uboot_image(const char *filename, hwaddr *ep, hwaddr *loadaddr,
         if (is_linux) {
             if (hdr->ih_os == IH_OS_LINUX) {
                 *is_linux = 1;
+            } else if (hdr->ih_os == IH_OS_VXWORKS) {
+                /*
+                 * VxWorks 7 uses the same boot interface as the Linux kernel
+                 * on Arm (64-bit only), PowerPC and RISC-V architectures.
+                 */
+                switch (hdr->ih_arch) {
+                case IH_ARCH_ARM64:
+                case IH_ARCH_PPC:
+                case IH_ARCH_RISCV:
+                    *is_linux = 1;
+                    break;
+                default:
+                    *is_linux = 0;
+                    break;
+                }
             } else {
                 *is_linux = 0;
             }
