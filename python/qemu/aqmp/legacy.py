@@ -4,6 +4,17 @@ Sync QMP Wrapper
 This class pretends to be qemu.qmp.QEMUMonitorProtocol.
 """
 
+#
+# Copyright (C) 2009-2022 Red Hat Inc.
+#
+# Authors:
+#  Luiz Capitulino <lcapitulino@redhat.com>
+#  John Snow <jsnow@redhat.com>
+#
+# This work is licensed under the terms of the GNU GPL, version 2.  See
+# the COPYING file in the top-level directory.
+#
+
 import asyncio
 from typing import (
     Any,
