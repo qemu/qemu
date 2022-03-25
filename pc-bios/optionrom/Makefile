@@ -14,6 +14,10 @@ cc-option = $(if $(shell $(CC) $1 -c -o /dev/null -xc /dev/null >/dev/null 2>&1 
 
 override CFLAGS += -march=i486 -Wall
 
+# If -fcf-protection is enabled in flags or compiler defaults that will
+# conflict with -march=i486
+override CFLAGS += $(call cc-option, -fcf-protection=none)
+
 # Flags for dependency generation
 override CPPFLAGS += -MMD -MP -MT $@ -MF $(@D)/$(*F).d
 
