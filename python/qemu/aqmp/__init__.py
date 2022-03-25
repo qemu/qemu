@@ -11,15 +11,15 @@ additional detail. See `aqmp.events` for an in-depth tutorial on
 managing QMP events.
 """
 
-# Copyright (C) 2020, 2021 John Snow for Red Hat, Inc.
+# Copyright (C) 2020-2022 John Snow for Red Hat, Inc.
 #
 # Authors:
 #  John Snow <jsnow@redhat.com>
 #
 # Based on earlier work by Luiz Capitulino <lcapitulino@redhat.com>.
 #
-# This work is licensed under the terms of the GNU GPL, version 2.  See
-# the COPYING file in the top-level directory.
+# This work is licensed under the terms of the GNU LGPL, version 2 or
+# later. See the COPYING file in the top-level directory.
 
 import logging
 
