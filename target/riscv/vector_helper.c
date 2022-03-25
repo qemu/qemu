@@ -4888,25 +4888,18 @@ GEN_VEXT_VCOMPRESS_VM(vcompress_vm_w, uint32_t, H4)
 GEN_VEXT_VCOMPRESS_VM(vcompress_vm_d, uint64_t, H8)
 
 /* Vector Whole Register Move */
-#define GEN_VEXT_VMV_WHOLE(NAME, LEN)                      \
-void HELPER(NAME)(void *vd, void *vs2, CPURISCVState *env, \
-                  uint32_t desc)                           \
-{                                                          \
-    /* EEW = 8 */                                          \
-    uint32_t maxsz = simd_maxsz(desc);                     \
-    uint32_t i = env->vstart;                              \
-                                                           \
-    memcpy((uint8_t *)vd + H1(i),                          \
-           (uint8_t *)vs2 + H1(i),                         \
-           maxsz - env->vstart);                           \
-                                                           \
-    env->vstart = 0;                                       \
-}
+void HELPER(vmvr_v)(void *vd, void *vs2, CPURISCVState *env, uint32_t desc)
+{
+    /* EEW = 8 */
+    uint32_t maxsz = simd_maxsz(desc);
+    uint32_t i = env->vstart;
 
-GEN_VEXT_VMV_WHOLE(vmv1r_v, 1)
-GEN_VEXT_VMV_WHOLE(vmv2r_v, 2)
-GEN_VEXT_VMV_WHOLE(vmv4r_v, 4)
-GEN_VEXT_VMV_WHOLE(vmv8r_v, 8)
+    memcpy((uint8_t *)vd + H1(i),
+           (uint8_t *)vs2 + H1(i),
+           maxsz - env->vstart);
+
+    env->vstart = 0;
+}
 
 /* Vector Integer Extension */
 #define GEN_VEXT_INT_EXT(NAME, ETYPE, DTYPE, HD, HS1)            \

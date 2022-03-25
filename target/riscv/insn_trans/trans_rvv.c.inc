@@ -3695,7 +3695,7 @@ static bool trans_vcompress_vm(DisasContext *s, arg_r *a)
  * Whole Vector Register Move Instructions ignore vtype and vl setting.
  * Thus, we don't need to check vill bit. (Section 16.6)
  */
-#define GEN_VMV_WHOLE_TRANS(NAME, LEN, SEQ)                             \
+#define GEN_VMV_WHOLE_TRANS(NAME, LEN)                             \
 static bool trans_##NAME(DisasContext *s, arg_##NAME * a)               \
 {                                                                       \
     if (require_rvv(s) &&                                               \
@@ -3710,13 +3710,8 @@ static bool trans_##NAME(DisasContext *s, arg_##NAME * a)               \
         } else {                                                        \
             TCGLabel *over = gen_new_label();                           \
             tcg_gen_brcondi_tl(TCG_COND_GEU, cpu_vstart, maxsz, over);  \
-                                                                        \
-            static gen_helper_gvec_2_ptr * const fns[4] = {             \
-                gen_helper_vmv1r_v, gen_helper_vmv2r_v,                 \
-                gen_helper_vmv4r_v, gen_helper_vmv8r_v,                 \
-            };                                                          \
             tcg_gen_gvec_2_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, a->rs2), \
-                               cpu_env, maxsz, maxsz, 0, fns[SEQ]);     \
+                               cpu_env, maxsz, maxsz, 0, gen_helper_vmvr_v); \
             mark_vs_dirty(s);                                           \
             gen_set_label(over);                                        \
         }                                                               \
@@ -3725,10 +3720,10 @@ static bool trans_##NAME(DisasContext *s, arg_##NAME * a)               \
     return false;                                                       \
 }
 
-GEN_VMV_WHOLE_TRANS(vmv1r_v, 1, 0)
-GEN_VMV_WHOLE_TRANS(vmv2r_v, 2, 1)
-GEN_VMV_WHOLE_TRANS(vmv4r_v, 4, 2)
-GEN_VMV_WHOLE_TRANS(vmv8r_v, 8, 3)
+GEN_VMV_WHOLE_TRANS(vmv1r_v, 1)
+GEN_VMV_WHOLE_TRANS(vmv2r_v, 2)
+GEN_VMV_WHOLE_TRANS(vmv4r_v, 4)
+GEN_VMV_WHOLE_TRANS(vmv8r_v, 8)
 
 static bool int_ext_check(DisasContext *s, arg_rmr *a, uint8_t div)
 {
