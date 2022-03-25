@@ -1,11 +1,12 @@
 #
-# Copyright (C) 2009, 2010 Red Hat Inc.
+# Copyright (C) 2009-2022 Red Hat Inc.
 #
 # Authors:
 #  Luiz Capitulino <lcapitulino@redhat.com>
+#  John Snow <jsnow@redhat.com>
 #
-# This work is licensed under the terms of the GNU GPL, version 2.  See
-# the COPYING file in the top-level directory.
+# This work is licensed under the terms of the GNU LGPL, version 2 or
+# later. See the COPYING file in the top-level directory.
 #
 
 """
