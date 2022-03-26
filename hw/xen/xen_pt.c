@@ -60,7 +60,6 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/xen/xen.h"
-#include "hw/i386/pc.h"
 #include "hw/xen/xen-legacy-backend.h"
 #include "xen_pt.h"
 #include "qemu/range.h"

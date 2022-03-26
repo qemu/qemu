@@ -315,5 +315,4 @@ extern const size_t pc_compat_1_4_len;
     } \
     type_init(pc_machine_init_##suffix)
 
-extern void igd_passthrough_isa_bridge_create(PCIBus *bus, uint16_t gpu_dev_id);
 #endif
