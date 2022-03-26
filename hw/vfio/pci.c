@@ -653,7 +653,7 @@ retry:
     if (ret) {
         if (ret < 0) {
             error_report("vfio: Error: Failed to setup MSI fds: %m");
-        } else if (ret != vdev->nr_vectors) {
+        } else {
             error_report("vfio: Error: Failed to enable %d "
                          "MSI vectors, retry with %d", vdev->nr_vectors, ret);
         }
@@ -671,7 +671,7 @@ retry:
         g_free(vdev->msi_vectors);
         vdev->msi_vectors = NULL;
 
-        if (ret > 0 && ret != vdev->nr_vectors) {
+        if (ret > 0) {
             vdev->nr_vectors = ret;
             goto retry;
         }
