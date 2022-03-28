@@ -150,7 +150,8 @@
 #
 # Example:
 #
-# <- { "event": "SHUTDOWN", "data": { "guest": true },
+# <- { "event": "SHUTDOWN",
+#      "data": { "guest": true, "reason": "guest-shutdown" },
 #      "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
 #
 ##
@@ -188,7 +189,8 @@
 #
 # Example:
 #
-# <- { "event": "RESET", "data": { "guest": false },
+# <- { "event": "RESET",
+#      "data": { "guest": false, "reason": "guest-reset" },
 #      "timestamp": { "seconds": 1267041653, "microseconds": 9518 } }
 #
 ##
