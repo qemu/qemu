@@ -571,7 +571,9 @@
 # <- { "event": "MEMORY_FAILURE",
 #      "data": { "recipient": "hypervisor",
 #                "action": "fatal",
-#                "flags": { 'action-required': false } }
+#                "flags": { "action-required": false,
+#                           "recursive": false } },
+#      "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
 #
 ##
 { 'event': 'MEMORY_FAILURE',
