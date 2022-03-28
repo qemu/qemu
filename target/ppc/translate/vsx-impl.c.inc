@@ -1324,31 +1324,31 @@ TRANS(XSNMSUBQP, do_xsmadd_X, gen_helper_XSNMSUBQP, gen_helper_XSNMSUBQPO)
 #define GEN_VSX_HELPER_VSX_MADD(name, op1, aop, mop, inval, type)             \
 static void gen_##name(DisasContext *ctx)                                     \
 {                                                                             \
-    TCGv_ptr xt, xa, b, c;                                                    \
+    TCGv_ptr xt, s1, s2, s3;                                                  \
     if (unlikely(!ctx->vsx_enabled)) {                                        \
         gen_exception(ctx, POWERPC_EXCP_VSXU);                                \
         return;                                                               \
     }                                                                         \
     xt = gen_vsr_ptr(xT(ctx->opcode));                                        \
-    xa = gen_vsr_ptr(xA(ctx->opcode));                                        \
+    s1 = gen_vsr_ptr(xA(ctx->opcode));                                        \
     if (ctx->opcode & PPC_BIT32(25)) {                                        \
         /*                                                                    \
          * AxT + B                                                            \
          */                                                                   \
-        b = gen_vsr_ptr(xT(ctx->opcode));                                     \
-        c = gen_vsr_ptr(xB(ctx->opcode));                                     \
+        s2 = gen_vsr_ptr(xB(ctx->opcode));                                    \
+        s3 = gen_vsr_ptr(xT(ctx->opcode));                                    \
     } else {                                                                  \
         /*                                                                    \
          * AxB + T                                                            \
          */                                                                   \
-        b = gen_vsr_ptr(xB(ctx->opcode));                                     \
-        c = gen_vsr_ptr(xT(ctx->opcode));                                     \
+        s2 = gen_vsr_ptr(xT(ctx->opcode));                                    \
+        s3 = gen_vsr_ptr(xB(ctx->opcode));                                    \
     }                                                                         \
-    gen_helper_##name(cpu_env, xt, xa, b, c);                                 \
+    gen_helper_##name(cpu_env, xt, s1, s2, s3);                               \
     tcg_temp_free_ptr(xt);                                                    \
-    tcg_temp_free_ptr(xa);                                                    \
-    tcg_temp_free_ptr(b);                                                     \
-    tcg_temp_free_ptr(c);                                                     \
+    tcg_temp_free_ptr(s1);                                                    \
+    tcg_temp_free_ptr(s2);                                                    \
+    tcg_temp_free_ptr(s3);                                                    \
 }
 
 GEN_VSX_HELPER_VSX_MADD(xvmadddp, 0x04, 0x0C, 0x0D, 0, PPC2_VSX)
