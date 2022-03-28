@@ -83,7 +83,7 @@
 # Example:
 #
 # -> { "execute": "dump-guest-memory",
-#      "arguments": { "protocol": "fd:dump" } }
+#      "arguments": { "paging": false, "protocol": "fd:dump" } }
 # <- { "return": {} }
 #
 ##
