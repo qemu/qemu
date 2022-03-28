@@ -455,8 +455,8 @@ if 'CONFIG_GIO' in config_host
 endif
 lttng = not_found
 if 'ust' in get_option('trace_backends')
-  lttng = dependency('lttng-ust', required: true, method: 'pkg-config',
-                     kwargs: static_kwargs)
+  lttng = dependency('lttng-ust', required: true, version: '>= 2.1',
+                     method: 'pkg-config', kwargs: static_kwargs)
 endif
 pixman = not_found
 if have_system or have_tools
