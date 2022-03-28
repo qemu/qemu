@@ -15,6 +15,15 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "virtio-ccw.h"
+#include "hw/virtio/vhost-scsi.h"
+
+#define TYPE_VHOST_SCSI_CCW "vhost-scsi-ccw"
+OBJECT_DECLARE_SIMPLE_TYPE(VHostSCSICcw, VHOST_SCSI_CCW)
+
+struct VHostSCSICcw {
+    VirtioCcwDevice parent_obj;
+    VHostSCSI vdev;
+};
 
 static void vhost_ccw_scsi_realize(VirtioCcwDevice *ccw_dev, Error **errp)
 {

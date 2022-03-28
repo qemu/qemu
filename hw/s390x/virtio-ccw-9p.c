@@ -15,6 +15,15 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "virtio-ccw.h"
+#include "hw/9pfs/virtio-9p.h"
+
+#define TYPE_VIRTIO_9P_CCW "virtio-9p-ccw"
+OBJECT_DECLARE_SIMPLE_TYPE(V9fsCCWState, VIRTIO_9P_CCW)
+
+struct V9fsCCWState {
+    VirtioCcwDevice parent_obj;
+    V9fsVirtioState vdev;
+};
 
 static void virtio_ccw_9p_realize(VirtioCcwDevice *ccw_dev, Error **errp)
 {
