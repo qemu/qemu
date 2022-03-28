@@ -161,9 +161,10 @@
 #
 # Example:
 #
-# { "event": "DUMP_COMPLETED",
-#   "data": {"result": {"total": 1090650112, "status": "completed",
-#                       "completed": 1090650112} } }
+# <- { "event": "DUMP_COMPLETED",
+#      "data": { "result": { "total": 1090650112, "status": "completed",
+#                            "completed": 1090650112 } },
+#      "timestamp": { "seconds": 1648244171, "microseconds": 950316 } }
 #
 ##
 { 'event': 'DUMP_COMPLETED' ,
