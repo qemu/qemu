@@ -5225,8 +5225,8 @@
 #
 # Example:
 #
-# <- { "event": "BLOCK_JOB_WAITING",
-#      "data": { "device": "drive0", "type": "mirror" },
+# <- { "event": "BLOCK_JOB_PENDING",
+#      "data": { "type": "mirror", "id": "backup_1" },
 #      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 #
 ##
