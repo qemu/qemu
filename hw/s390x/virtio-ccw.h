@@ -13,24 +13,8 @@
 #ifndef HW_S390X_VIRTIO_CCW_H
 #define HW_S390X_VIRTIO_CCW_H
 
-#include "hw/virtio/virtio-blk.h"
-#include "hw/virtio/virtio-net.h"
-#include "hw/virtio/virtio-serial.h"
-#include "hw/virtio/virtio-scsi.h"
 #include "qom/object.h"
-#ifdef CONFIG_VHOST_SCSI
-#include "hw/virtio/vhost-scsi.h"
-#endif
-#include "hw/virtio/virtio-balloon.h"
-#include "hw/virtio/virtio-rng.h"
-#include "hw/virtio/virtio-crypto.h"
 #include "hw/virtio/virtio-bus.h"
-#ifdef CONFIG_VHOST_VSOCK
-#include "hw/virtio/vhost-vsock.h"
-#endif /* CONFIG_VHOST_VSOCK */
-#include "hw/virtio/virtio-gpu.h"
-#include "hw/virtio/virtio-input.h"
-
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/css.h"
 #include "ccw-device.h"
