@@ -299,7 +299,7 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
     memory_region_unref(section->mr);
 }
 /*
- * IOTLB API is used by vhost-vpda which requires incremental updating
+ * IOTLB API is used by vhost-vdpa which requires incremental updating
  * of the mapping. So we can not use generic vhost memory listener which
  * depends on the addnop().
  */
