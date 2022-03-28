@@ -1356,7 +1356,8 @@
 # Example:
 #
 # <- { "event": "MEMORY_DEVICE_SIZE_CHANGE",
-#      "data": { "id": "vm0", "size": 1073741824},
+#      "data": { "id": "vm0", "size": 1073741824,
+#                "qom-path": "/machine/unattached/device[2]" },
 #      "timestamp": { "seconds": 1588168529, "microseconds": 201316 } }
 #
 ##
