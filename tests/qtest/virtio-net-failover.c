@@ -1141,6 +1141,11 @@ static void test_migrate_guest_off_abort(gconstpointer opaque)
         ret = migrate_status(qts);
 
         status = qdict_get_str(ret, "status");
+        if (strcmp(status, "completed") == 0) {
+            g_test_skip("Failed to cancel the migration");
+            qobject_unref(ret);
+            goto out;
+        }
         if (strcmp(status, "active") == 0) {
             qobject_unref(ret);
             break;
@@ -1155,8 +1160,12 @@ static void test_migrate_guest_off_abort(gconstpointer opaque)
 
     while (true) {
         ret = migrate_status(qts);
-
         status = qdict_get_str(ret, "status");
+        if (strcmp(status, "completed") == 0) {
+            g_test_skip("Failed to cancel the migration");
+            qobject_unref(ret);
+            goto out;
+        }
         if (strcmp(status, "cancelled") == 0) {
             qobject_unref(ret);
             break;
@@ -1169,6 +1178,7 @@ static void test_migrate_guest_off_abort(gconstpointer opaque)
     check_one_card(qts, true, "standby0", MAC_STANDBY0);
     check_one_card(qts, false, "primary0", MAC_PRIMARY0);
 
+out:
     qos_object_destroy((QOSGraphObject *)vdev);
     machine_stop(qts);
 }
@@ -1251,8 +1261,7 @@ static void test_migrate_abort_wait_unplug(gconstpointer opaque)
             qobject_unref(ret);
             break;
         }
-        g_assert_cmpstr(status, !=, "failed");
-        g_assert_cmpstr(status, !=, "active");
+        g_assert_cmpstr(status, ==, "cancelling");
         qobject_unref(ret);
     }
 
@@ -1324,11 +1333,11 @@ static void test_migrate_abort_active(gconstpointer opaque)
         ret = migrate_status(qts);
 
         status = qdict_get_str(ret, "status");
+        g_assert_cmpstr(status, !=, "failed");
         if (strcmp(status, "wait-unplug") != 0) {
             qobject_unref(ret);
             break;
         }
-        g_assert_cmpstr(status, !=, "failed");
         qobject_unref(ret);
     }
 
@@ -1340,6 +1349,11 @@ static void test_migrate_abort_active(gconstpointer opaque)
         ret = migrate_status(qts);
 
         status = qdict_get_str(ret, "status");
+        if (strcmp(status, "completed") == 0) {
+            g_test_skip("Failed to cancel the migration");
+            qobject_unref(ret);
+            goto out;
+        }
         if (strcmp(status, "cancelled") == 0) {
             qobject_unref(ret);
             break;
@@ -1352,6 +1366,7 @@ static void test_migrate_abort_active(gconstpointer opaque)
     check_one_card(qts, true, "standby0", MAC_STANDBY0);
     check_one_card(qts, true, "primary0", MAC_PRIMARY0);
 
+out:
     qos_object_destroy((QOSGraphObject *)vdev);
     machine_stop(qts);
 }
@@ -1425,6 +1440,11 @@ static void test_migrate_off_abort(gconstpointer opaque)
         ret = migrate_status(qts);
 
         status = qdict_get_str(ret, "status");
+        if (strcmp(status, "completed") == 0) {
+            g_test_skip("Failed to cancel the migration");
+            qobject_unref(ret);
+            goto out;
+        }
         if (strcmp(status, "cancelled") == 0) {
             qobject_unref(ret);
             break;
@@ -1437,6 +1457,7 @@ static void test_migrate_off_abort(gconstpointer opaque)
     check_one_card(qts, true, "standby0", MAC_STANDBY0);
     check_one_card(qts, true, "primary0", MAC_PRIMARY0);
 
+out:
     qos_object_destroy((QOSGraphObject *)vdev);
     machine_stop(qts);
 }
