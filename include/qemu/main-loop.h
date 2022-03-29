@@ -284,7 +284,8 @@ bool qemu_in_main_thread(void);
 #else
 #define GLOBAL_STATE_CODE()                                         \
     do {                                                            \
-        assert(qemu_in_main_thread());                              \
+        /* FIXME: Re-enable after 7.0 release */                    \
+        /* assert(qemu_in_main_thread()); */                        \
     } while (0)
 #endif /* CONFIG_COCOA */
 

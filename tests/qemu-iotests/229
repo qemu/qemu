@@ -21,7 +21,7 @@
 #
 
 # creator
-owner=jcody@redhat.com
+owner=codyprime@gmail.com
 
 seq="$(basename $0)"
 echo "QA output created by $seq"

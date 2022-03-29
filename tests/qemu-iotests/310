@@ -31,7 +31,7 @@ log('')
 log('=== Copy-on-read across nodes ===')
 log('')
 
-# This test is similar to the 216 one by Max Reitz <mreitz@redhat.com>
+# This test is similar to the 216 one by Hanna Reitz <hreitz@redhat.com>
 # The difference is that this test case involves a bottom node to the
 # COR filter driver.
 
