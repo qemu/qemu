@@ -1,3 +1,4 @@
 *.c.inc         diff=c
 *.h.inc         diff=c
+*.m             diff=objc
 *.py            diff=python
