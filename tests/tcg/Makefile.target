@@ -32,8 +32,10 @@
 all:
 -include ../../../config-host.mak
 -include ../config-$(TARGET).mak
+
+# Get semihosting definitions for user-mode emulation
 ifeq ($(CONFIG_USER_ONLY),y)
--include $(SRC_PATH)/configs/targets/$(TARGET)/default.mak
+-include $(SRC_PATH)/configs/targets/$(TARGET).mak
 endif
 
 # for including , in command strings
