@@ -35,7 +35,7 @@ class FedoraVM(basevm.BaseVM):
         'gcc', 'binutils', 'make', 'ninja-build',
 
         # perl
-        'perl-Test-Harness',
+        'perl',
 
         # libs: usb
         '"pkgconfig(libusb-1.0)"',

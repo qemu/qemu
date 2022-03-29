@@ -29,7 +29,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             hostname \
             libpcre2-dev \
             libspice-protocol-dev \
-            libtest-harness-perl \
             llvm \
             locales \
             make \

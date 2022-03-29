@@ -87,7 +87,6 @@ RUN dnf update -y && \
         pam-devel \
         pcre-static \
         perl \
-        perl-Test-Harness \
         pixman-devel \
         pkgconfig \
         pulseaudio-libs-devel \

@@ -94,7 +94,6 @@ exec "$@"' > /usr/bin/nosync && \
         openssh-clients \
         pam-devel \
         pcre-static \
-        perl-Test-Harness \
         perl-base \
         pixman-devel \
         pkgconfig \

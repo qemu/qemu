@@ -73,7 +73,6 @@ RUN apk update && \
         openssh-client \
         pcre-dev \
         perl \
-        perl-test-harness \
         pixman-dev \
         pkgconf \
         pulseaudio-dev \

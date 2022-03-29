@@ -83,7 +83,6 @@ RUN zypper update -y && \
            openssh \
            pam-devel \
            pcre-devel-static \
-           perl-Test-Harness \
            perl-base \
            pkgconfig \
            python3-Pillow \
