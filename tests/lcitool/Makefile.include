@@ -14,4 +14,4 @@ lcitool-help: lcitool
 
 lcitool-refresh:
 	$(call quiet-command, cd $(SRC_PATH) && git submodule update --init tests/lcitool/libvirt-ci)
-	$(call quiet-command, $(LCITOOL_REFRESH))
+	$(call quiet-command, $(PYTHON) $(LCITOOL_REFRESH))
