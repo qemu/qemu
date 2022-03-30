@@ -431,5 +431,7 @@ static inline void bswap128s(Int128 *s)
 }
 
 #define UINT128_MAX int128_make128(~0LL, ~0LL)
+#define INT128_MAX int128_make128(UINT64_MAX, INT64_MAX)
+#define INT128_MIN int128_make128(0, INT64_MIN)
 
 #endif /* INT128_H */
