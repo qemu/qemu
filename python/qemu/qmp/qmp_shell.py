@@ -98,8 +98,8 @@ from typing import (
     Sequence,
 )
 
-from qemu.aqmp import ConnectError, QMPError, SocketAddrT
-from qemu.aqmp.legacy import (
+from qemu.qmp import ConnectError, QMPError, SocketAddrT
+from qemu.qmp.legacy import (
     QEMUMonitorProtocol,
     QMPBadPortError,
     QMPMessage,

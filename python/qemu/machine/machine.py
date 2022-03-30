@@ -40,8 +40,8 @@ from typing import (
     TypeVar,
 )
 
-from qemu.aqmp import SocketAddrT
-from qemu.aqmp.legacy import (
+from qemu.qmp import SocketAddrT
+from qemu.qmp.legacy import (
     QEMUMonitorProtocol,
     QMPMessage,
     QMPReturnValue,

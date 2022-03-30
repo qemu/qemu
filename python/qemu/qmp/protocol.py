@@ -196,9 +196,9 @@ class AsyncProtocol(Generic[T]):
 
     :param name:
         Name used for logging messages, if any. By default, messages
-        will log to 'qemu.aqmp.protocol', but each individual connection
+        will log to 'qemu.qmp.protocol', but each individual connection
         can be given its own logger by giving it a name; messages will
-        then log to 'qemu.aqmp.protocol.${name}'.
+        then log to 'qemu.qmp.protocol.${name}'.
     """
     # pylint: disable=too-many-instance-attributes
 

@@ -97,8 +97,8 @@ class TestMirrorTopPerms(iotests.QMPTestCase):
         self.vm_b.add_blockdev(f'file,node-name=drive0,filename={source}')
         self.vm_b.add_device('virtio-blk,drive=drive0,share-rw=on')
         try:
-            # Silence AQMP logging errors temporarily.
-            with change_log_level('qemu.aqmp'):
+            # Silence QMP logging errors temporarily.
+            with change_log_level('qemu.qmp'):
                 self.vm_b.launch()
                 print('ERROR: VM B launched successfully, '
                       'this should not have happened')

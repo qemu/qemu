@@ -48,7 +48,7 @@ from typing import (
 import fuse
 from fuse import FUSE, FuseOSError, Operations
 
-from qemu.aqmp import ExecuteError
+from qemu.qmp import ExecuteError
 
 from .qom_common import QOMCommand
 

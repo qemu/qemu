@@ -36,7 +36,7 @@ from itertools import chain
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'python'))
 from qemu.machine import QEMUMachine
-from qemu.aqmp import ConnectError
+from qemu.qmp import ConnectError
 
 logger = logging.getLogger('device-crash-test')
 dbg = logger.debug
@@ -517,7 +517,7 @@ def main():
         # Async QMP, when in use, is chatty about connection failures.
         # This script knowingly generates a ton of connection errors.
         # Silence this logger.
-        logging.getLogger('qemu.aqmp.qmp_client').setLevel(logging.CRITICAL)
+        logging.getLogger('qemu.qmp.qmp_client').setLevel(logging.CRITICAL)
 
     fatal_failures = []
     wl_stats = {}

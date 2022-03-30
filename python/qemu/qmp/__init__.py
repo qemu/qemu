@@ -6,8 +6,8 @@ asynchronously with QMP protocol servers, as implemented by QEMU, the
 QEMU Guest Agent, and the QEMU Storage Daemon.
 
 `QMPClient` provides the main functionality of this package. All errors
-raised by this library derive from `QMPError`, see `aqmp.error` for
-additional detail. See `aqmp.events` for an in-depth tutorial on
+raised by this library derive from `QMPError`, see `qmp.error` for
+additional detail. See `qmp.events` for an in-depth tutorial on
 managing QMP events.
 """
 
@@ -36,7 +36,7 @@ from .qmp_client import ExecInterruptedError, ExecuteError, QMPClient
 
 
 # Suppress logging unless an application engages it.
-logging.getLogger('qemu.aqmp').addHandler(logging.NullHandler())
+logging.getLogger('qemu.qmp').addHandler(logging.NullHandler())
 
 
 # The order of these fields impact the Sphinx documentation order.

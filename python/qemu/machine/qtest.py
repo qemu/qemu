@@ -26,7 +26,7 @@ from typing import (
     TextIO,
 )
 
-from qemu.aqmp import SocketAddrT
+from qemu.qmp import SocketAddrT
 
 from .machine import QEMUMachine
 

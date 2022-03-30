@@ -78,13 +78,13 @@ class QEMUMonitorProtocol:
                  server: bool = False,
                  nickname: Optional[str] = None):
 
-        self._aqmp = QMPClient(nickname)
+        self._qmp = QMPClient(nickname)
         self._aloop = asyncio.get_event_loop()
         self._address = address
         self._timeout: Optional[float] = None
 
         if server:
-            self._sync(self._aqmp.start_server(self._address))
+            self._sync(self._qmp.start_server(self._address))
 
     _T = TypeVar('_T')
 
@@ -96,9 +96,9 @@ class QEMUMonitorProtocol:
         )
 
     def _get_greeting(self) -> Optional[QMPMessage]:
-        if self._aqmp.greeting is not None:
+        if self._qmp.greeting is not None:
             # pylint: disable=protected-access
-            return self._aqmp.greeting._asdict()
+            return self._qmp.greeting._asdict()
         return None
 
     def __enter__(self: _T) -> _T:
@@ -141,11 +141,11 @@ class QEMUMonitorProtocol:
         :return: QMP greeting dict, or None if negotiate is false
         :raise ConnectError: on connection errors
         """
-        self._aqmp.await_greeting = negotiate
-        self._aqmp.negotiate = negotiate
+        self._qmp.await_greeting = negotiate
+        self._qmp.negotiate = negotiate
 
         self._sync(
-            self._aqmp.connect(self._address)
+            self._qmp.connect(self._address)
         )
         return self._get_greeting()
 
@@ -160,10 +160,10 @@ class QEMUMonitorProtocol:
         :return: QMP greeting dict
         :raise ConnectError: on connection errors
         """
-        self._aqmp.await_greeting = True
-        self._aqmp.negotiate = True
+        self._qmp.await_greeting = True
+        self._qmp.negotiate = True
 
-        self._sync(self._aqmp.accept(), timeout)
+        self._sync(self._qmp.accept(), timeout)
 
         ret = self._get_greeting()
         assert ret is not None
@@ -183,7 +183,7 @@ class QEMUMonitorProtocol:
                 # _raw() isn't a public API, because turning off
                 # automatic ID assignment is discouraged. For
                 # compatibility with iotests *only*, do it anyway.
-                self._aqmp._raw(qmp_cmd, assign_id=False),
+                self._qmp._raw(qmp_cmd, assign_id=False),
                 self._timeout
             )
         )
@@ -210,7 +210,7 @@ class QEMUMonitorProtocol:
         Build and send a QMP command to the monitor, report errors if any
         """
         return self._sync(
-            self._aqmp.execute(cmd, kwds),
+            self._qmp.execute(cmd, kwds),
             self._timeout
         )
 
@@ -231,7 +231,7 @@ class QEMUMonitorProtocol:
         """
         if not wait:
             # wait is False/0: "do not wait, do not except."
-            if self._aqmp.events.empty():
+            if self._qmp.events.empty():
                 return None
 
         # If wait is 'True', wait forever. If wait is False/0, the events
@@ -243,7 +243,7 @@ class QEMUMonitorProtocol:
 
         return dict(
             self._sync(
-                self._aqmp.events.get(),
+                self._qmp.events.get(),
                 timeout
             )
         )
@@ -263,7 +263,7 @@ class QEMUMonitorProtocol:
 
         :return: A list of QMP events.
         """
-        events = [dict(x) for x in self._aqmp.events.clear()]
+        events = [dict(x) for x in self._qmp.events.clear()]
         if events:
             return events
 
@@ -272,12 +272,12 @@ class QEMUMonitorProtocol:
 
     def clear_events(self) -> None:
         """Clear current list of pending events."""
-        self._aqmp.events.clear()
+        self._qmp.events.clear()
 
     def close(self) -> None:
         """Close the connection."""
         self._sync(
-            self._aqmp.disconnect()
+            self._qmp.disconnect()
         )
 
     def settimeout(self, timeout: Optional[float]) -> None:
@@ -298,10 +298,10 @@ class QEMUMonitorProtocol:
         """
         Send a file descriptor to the remote via SCM_RIGHTS.
         """
-        self._aqmp.send_fd_scm(fd)
+        self._qmp.send_fd_scm(fd)
 
     def __del__(self) -> None:
-        if self._aqmp.runstate == Runstate.IDLE:
+        if self._qmp.runstate == Runstate.IDLE:
             return
 
         if not self._aloop.is_running():
