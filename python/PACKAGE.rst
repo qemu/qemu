@@ -8,11 +8,11 @@ to change at any time.
 Usage
 -----
 
-The ``qemu.qmp`` subpackage provides a library for communicating with
+The ``qemu.aqmp`` subpackage provides a library for communicating with
 QMP servers. The ``qemu.machine`` subpackage offers rudimentary
 facilities for launching and managing QEMU processes. Refer to each
 package's documentation
-(``>>> help(qemu.qmp)``, ``>>> help(qemu.machine)``)
+(``>>> help(qemu.aqmp)``, ``>>> help(qemu.machine)``)
 for more information.
 
 Contributing
