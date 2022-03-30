@@ -2925,6 +2925,27 @@ VSX_CVT_FP_TO_INT(xvcvspsxws, 4, float32, int32, VsrW(i), VsrW(i), 0x80000000U)
 VSX_CVT_FP_TO_INT(xvcvspuxds, 2, float32, uint64, VsrW(2 * i), VsrD(i), 0ULL)
 VSX_CVT_FP_TO_INT(xvcvspuxws, 4, float32, uint32, VsrW(i), VsrW(i), 0U)
 
+#define VSX_CVT_FP_TO_INT128(op, tp, rnan)                                     \
+void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)               \
+{                                                                              \
+    ppc_vsr_t t;                                                               \
+    int flags;                                                                 \
+                                                                               \
+    helper_reset_fpstatus(env);                                                \
+    t.s128 = float128_to_##tp##_round_to_zero(xb->f128, &env->fp_status);      \
+    flags = get_float_exception_flags(&env->fp_status);                        \
+    if (unlikely(flags & float_flag_invalid)) {                                \
+        t.VsrD(0) = float_invalid_cvt(env, flags, t.VsrD(0), rnan, 0, GETPC());\
+        t.VsrD(1) = -(t.VsrD(0) & 1);                                          \
+    }                                                                          \
+                                                                               \
+    *xt = t;                                                                   \
+    do_float_check_status(env, GETPC());                                       \
+}
+
+VSX_CVT_FP_TO_INT128(XSCVQPUQZ, uint128, 0)
+VSX_CVT_FP_TO_INT128(XSCVQPSQZ, int128, 0x8000000000000000ULL);
+
 /*
  * Likewise, except that the result is duplicated into both subwords.
  * Power ISA v3.1 has Programming Notes for these insns:

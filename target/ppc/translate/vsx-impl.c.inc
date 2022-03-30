@@ -857,6 +857,8 @@ static bool do_helper_env_X_tb(DisasContext *ctx, arg_X_tb *a,
 
 TRANS(XSCVUQQP, do_helper_env_X_tb, gen_helper_XSCVUQQP)
 TRANS(XSCVSQQP, do_helper_env_X_tb, gen_helper_XSCVSQQP)
+TRANS(XSCVQPUQZ, do_helper_env_X_tb, gen_helper_XSCVQPUQZ)
+TRANS(XSCVQPSQZ, do_helper_env_X_tb, gen_helper_XSCVQPSQZ)
 
 #define GEN_VSX_HELPER_2(name, op1, op2, inval, type)                         \
 static void gen_##name(DisasContext *ctx)                                     \
