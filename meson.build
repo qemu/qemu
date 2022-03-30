@@ -2881,7 +2881,7 @@ if get_option('b_lto')
   if get_option('cfi')
     pagevary_flags += '-fno-sanitize=cfi-icall'
   endif
-  pagevary = static_library('page-vary-common', sources: pagevary,
+  pagevary = static_library('page-vary-common', sources: pagevary + genh,
                             c_args: pagevary_flags)
   pagevary = declare_dependency(link_with: pagevary)
 endif
