@@ -206,6 +206,55 @@ static void test_rshift(void)
     test_rshift_one(0xFFFE8000U,  0, 0xFFFFFFFFFFFFFFFEULL, 0x8000000000000000ULL);
 }
 
+static void __attribute__((__noinline__)) ATTRIBUTE_NOCLONE
+test_urshift_one(uint32_t x, int n, uint64_t h, uint64_t l)
+{
+    Int128 a = expand(x);
+    Int128 r = int128_urshift(a, n);
+    g_assert_cmpuint(int128_getlo(r), ==, l);
+    g_assert_cmpuint(int128_gethi(r), ==, h);
+}
+
+static void test_urshift(void)
+{
+    test_urshift_one(0x00010000U, 64, 0x0000000000000000ULL,
+                     0x0000000000000001ULL);
+    test_urshift_one(0x80010000U, 64, 0x0000000000000000ULL,
+                     0x8000000000000001ULL);
+    test_urshift_one(0x7FFE0000U, 64, 0x0000000000000000ULL,
+                     0x7FFFFFFFFFFFFFFEULL);
+    test_urshift_one(0xFFFE0000U, 64, 0x0000000000000000ULL,
+                     0xFFFFFFFFFFFFFFFEULL);
+    test_urshift_one(0x00010000U, 60, 0x0000000000000000ULL,
+                     0x0000000000000010ULL);
+    test_urshift_one(0x80010000U, 60, 0x0000000000000008ULL,
+                     0x0000000000000010ULL);
+    test_urshift_one(0x00018000U, 60, 0x0000000000000000ULL,
+                     0x0000000000000018ULL);
+    test_urshift_one(0x80018000U, 60, 0x0000000000000008ULL,
+                     0x0000000000000018ULL);
+    test_urshift_one(0x7FFE0000U, 60, 0x0000000000000007ULL,
+                     0xFFFFFFFFFFFFFFE0ULL);
+    test_urshift_one(0xFFFE0000U, 60, 0x000000000000000FULL,
+                     0xFFFFFFFFFFFFFFE0ULL);
+    test_urshift_one(0x7FFE8000U, 60, 0x0000000000000007ULL,
+                     0xFFFFFFFFFFFFFFE8ULL);
+    test_urshift_one(0xFFFE8000U, 60, 0x000000000000000FULL,
+                     0xFFFFFFFFFFFFFFE8ULL);
+    test_urshift_one(0x00018000U,  0, 0x0000000000000001ULL,
+                     0x8000000000000000ULL);
+    test_urshift_one(0x80018000U,  0, 0x8000000000000001ULL,
+                     0x8000000000000000ULL);
+    test_urshift_one(0x7FFE0000U,  0, 0x7FFFFFFFFFFFFFFEULL,
+                     0x0000000000000000ULL);
+    test_urshift_one(0xFFFE0000U,  0, 0xFFFFFFFFFFFFFFFEULL,
+                     0x0000000000000000ULL);
+    test_urshift_one(0x7FFE8000U,  0, 0x7FFFFFFFFFFFFFFEULL,
+                     0x8000000000000000ULL);
+    test_urshift_one(0xFFFE8000U,  0, 0xFFFFFFFFFFFFFFFEULL,
+                     0x8000000000000000ULL);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -219,5 +268,6 @@ int main(int argc, char **argv)
     g_test_add_func("/int128/int128_ge", test_ge);
     g_test_add_func("/int128/int128_gt", test_gt);
     g_test_add_func("/int128/int128_rshift", test_rshift);
+    g_test_add_func("/int128/int128_urshift", test_urshift);
     return g_test_run();
 }
