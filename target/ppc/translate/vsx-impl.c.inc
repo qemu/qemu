@@ -838,6 +838,26 @@ static bool trans_XSCVQPDP(DisasContext *ctx, arg_X_tb_rc *a)
     return true;
 }
 
+static bool do_helper_env_X_tb(DisasContext *ctx, arg_X_tb *a,
+                               void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_ptr))
+{
+    TCGv_ptr xt, xb;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VSX(ctx);
+
+    xt = gen_avr_ptr(a->rt);
+    xb = gen_avr_ptr(a->rb);
+    gen_helper(cpu_env, xt, xb);
+    tcg_temp_free_ptr(xt);
+    tcg_temp_free_ptr(xb);
+
+    return true;
+}
+
+TRANS(XSCVUQQP, do_helper_env_X_tb, gen_helper_XSCVUQQP)
+TRANS(XSCVSQQP, do_helper_env_X_tb, gen_helper_XSCVSQQP)
+
 #define GEN_VSX_HELPER_2(name, op1, op2, inval, type)                         \
 static void gen_##name(DisasContext *ctx)                                     \
 {                                                                             \

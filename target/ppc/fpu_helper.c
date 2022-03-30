@@ -3058,6 +3058,18 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)        \
 VSX_CVT_INT_TO_FP2(xvcvsxdsp, int64, float32)
 VSX_CVT_INT_TO_FP2(xvcvuxdsp, uint64, float32)
 
+#define VSX_CVT_INT128_TO_FP(op, tp)                            \
+void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)\
+{                                                               \
+    helper_reset_fpstatus(env);                                 \
+    xt->f128 = tp##_to_float128(xb->s128, &env->fp_status);     \
+    helper_compute_fprf_float128(env, xt->f128);                \
+    do_float_check_status(env, GETPC());                        \
+}
+
+VSX_CVT_INT128_TO_FP(XSCVUQQP, uint128);
+VSX_CVT_INT128_TO_FP(XSCVSQQP, int128);
+
 /*
  * VSX_CVT_INT_TO_FP_VECTOR - VSX integer to floating point conversion
  *   op    - instruction mnemonic
