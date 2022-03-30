@@ -141,13 +141,11 @@ static void write_elf64_header(DumpState *s, Error **errp)
     elf_header.e_machine = cpu_to_dump16(s, s->dump_info.d_machine);
     elf_header.e_version = cpu_to_dump32(s, EV_CURRENT);
     elf_header.e_ehsize = cpu_to_dump16(s, sizeof(elf_header));
-    elf_header.e_phoff = cpu_to_dump64(s, sizeof(Elf64_Ehdr));
+    elf_header.e_phoff = cpu_to_dump64(s, s->phdr_offset);
     elf_header.e_phentsize = cpu_to_dump16(s, sizeof(Elf64_Phdr));
     elf_header.e_phnum = cpu_to_dump16(s, phnum);
     if (s->shdr_num) {
-        uint64_t shoff = sizeof(Elf64_Ehdr) + sizeof(Elf64_Phdr) * s->phdr_num;
-
-        elf_header.e_shoff = cpu_to_dump64(s, shoff);
+        elf_header.e_shoff = cpu_to_dump64(s, s->shdr_offset);
         elf_header.e_shentsize = cpu_to_dump16(s, sizeof(Elf64_Shdr));
         elf_header.e_shnum = cpu_to_dump16(s, s->shdr_num);
     }
@@ -178,13 +176,11 @@ static void write_elf32_header(DumpState *s, Error **errp)
     elf_header.e_machine = cpu_to_dump16(s, s->dump_info.d_machine);
     elf_header.e_version = cpu_to_dump32(s, EV_CURRENT);
     elf_header.e_ehsize = cpu_to_dump16(s, sizeof(elf_header));
-    elf_header.e_phoff = cpu_to_dump32(s, sizeof(Elf32_Ehdr));
+    elf_header.e_phoff = cpu_to_dump32(s, s->phdr_offset);
     elf_header.e_phentsize = cpu_to_dump16(s, sizeof(Elf32_Phdr));
     elf_header.e_phnum = cpu_to_dump16(s, phnum);
     if (s->shdr_num) {
-        uint32_t shoff = sizeof(Elf32_Ehdr) + sizeof(Elf32_Phdr) * s->phdr_num;
-
-        elf_header.e_shoff = cpu_to_dump32(s, shoff);
+        elf_header.e_shoff = cpu_to_dump32(s, s->shdr_offset);
         elf_header.e_shentsize = cpu_to_dump16(s, sizeof(Elf32_Shdr));
         elf_header.e_shnum = cpu_to_dump16(s, s->shdr_num);
     }
@@ -247,12 +243,11 @@ static void write_elf32_load(DumpState *s, MemoryMapping *memory_mapping,
 static void write_elf64_note(DumpState *s, Error **errp)
 {
     Elf64_Phdr phdr;
-    hwaddr begin = s->memory_offset - s->note_size;
     int ret;
 
     memset(&phdr, 0, sizeof(Elf64_Phdr));
     phdr.p_type = cpu_to_dump32(s, PT_NOTE);
-    phdr.p_offset = cpu_to_dump64(s, begin);
+    phdr.p_offset = cpu_to_dump64(s, s->note_offset);
     phdr.p_paddr = 0;
     phdr.p_filesz = cpu_to_dump64(s, s->note_size);
     phdr.p_memsz = cpu_to_dump64(s, s->note_size);
@@ -312,13 +307,12 @@ static void write_elf64_notes(WriteCoreDumpFunction f, DumpState *s,
 
 static void write_elf32_note(DumpState *s, Error **errp)
 {
-    hwaddr begin = s->memory_offset - s->note_size;
     Elf32_Phdr phdr;
     int ret;
 
     memset(&phdr, 0, sizeof(Elf32_Phdr));
     phdr.p_type = cpu_to_dump32(s, PT_NOTE);
-    phdr.p_offset = cpu_to_dump32(s, begin);
+    phdr.p_offset = cpu_to_dump32(s, s->note_offset);
     phdr.p_paddr = 0;
     phdr.p_filesz = cpu_to_dump32(s, s->note_size);
     phdr.p_memsz = cpu_to_dump32(s, s->note_size);
@@ -1817,15 +1811,16 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     }
 
     if (s->dump_info.d_class == ELFCLASS64) {
-        s->memory_offset = sizeof(Elf64_Ehdr) +
-                           sizeof(Elf64_Phdr) * s->phdr_num +
-                           sizeof(Elf64_Shdr) * s->shdr_num +
-                           s->note_size;
+        s->phdr_offset = sizeof(Elf64_Ehdr);
+        s->shdr_offset = s->phdr_offset + sizeof(Elf64_Phdr) * s->phdr_num;
+        s->note_offset = s->shdr_offset + sizeof(Elf64_Shdr) * s->shdr_num;
+        s->memory_offset = s->note_offset + s->note_size;
     } else {
-        s->memory_offset = sizeof(Elf32_Ehdr) +
-                           sizeof(Elf32_Phdr) * s->phdr_num +
-                           sizeof(Elf32_Shdr) * s->shdr_num +
-                           s->note_size;
+
+        s->phdr_offset = sizeof(Elf32_Ehdr);
+        s->shdr_offset = s->phdr_offset + sizeof(Elf32_Phdr) * s->phdr_num;
+        s->note_offset = s->shdr_offset + sizeof(Elf32_Shdr) * s->shdr_num;
+        s->memory_offset = s->note_offset + s->note_size;
     }
 
     return;
