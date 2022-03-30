@@ -144,12 +144,12 @@ static void write_elf64_header(DumpState *s, Error **errp)
     elf_header.e_phoff = cpu_to_dump64(s, sizeof(Elf64_Ehdr));
     elf_header.e_phentsize = cpu_to_dump16(s, sizeof(Elf64_Phdr));
     elf_header.e_phnum = cpu_to_dump16(s, phnum);
-    if (s->have_section) {
+    if (s->shdr_num) {
         uint64_t shoff = sizeof(Elf64_Ehdr) + sizeof(Elf64_Phdr) * s->phdr_num;
 
         elf_header.e_shoff = cpu_to_dump64(s, shoff);
         elf_header.e_shentsize = cpu_to_dump16(s, sizeof(Elf64_Shdr));
-        elf_header.e_shnum = cpu_to_dump16(s, 1);
+        elf_header.e_shnum = cpu_to_dump16(s, s->shdr_num);
     }
 
     ret = fd_write_vmcore(&elf_header, sizeof(elf_header), s);
@@ -181,12 +181,12 @@ static void write_elf32_header(DumpState *s, Error **errp)
     elf_header.e_phoff = cpu_to_dump32(s, sizeof(Elf32_Ehdr));
     elf_header.e_phentsize = cpu_to_dump16(s, sizeof(Elf32_Phdr));
     elf_header.e_phnum = cpu_to_dump16(s, phnum);
-    if (s->have_section) {
+    if (s->shdr_num) {
         uint32_t shoff = sizeof(Elf32_Ehdr) + sizeof(Elf32_Phdr) * s->phdr_num;
 
         elf_header.e_shoff = cpu_to_dump32(s, shoff);
         elf_header.e_shentsize = cpu_to_dump16(s, sizeof(Elf32_Shdr));
-        elf_header.e_shnum = cpu_to_dump16(s, 1);
+        elf_header.e_shnum = cpu_to_dump16(s, s->shdr_num);
     }
 
     ret = fd_write_vmcore(&elf_header, sizeof(elf_header), s);
@@ -565,7 +565,7 @@ static void dump_begin(DumpState *s, Error **errp)
         }
 
         /* write section to vmcore */
-        if (s->have_section) {
+        if (s->shdr_num) {
             write_elf_section(s, 1, errp);
             if (*errp) {
                 return;
@@ -591,7 +591,7 @@ static void dump_begin(DumpState *s, Error **errp)
         }
 
         /* write section to vmcore */
-        if (s->have_section) {
+        if (s->shdr_num) {
             write_elf_section(s, 0, errp);
             if (*errp) {
                 return;
@@ -1802,11 +1802,11 @@ static void dump_init(DumpState *s, int fd, bool has_format,
      */
     s->phdr_num = 1; /* PT_NOTE */
     if (s->list.num < UINT16_MAX - 2) {
+        s->shdr_num = 0;
         s->phdr_num += s->list.num;
-        s->have_section = false;
     } else {
         /* sh_info of section 0 holds the real number of phdrs */
-        s->have_section = true;
+        s->shdr_num = 1;
 
         /* the type of shdr->sh_info is uint32_t, so we should avoid overflow */
         if (s->list.num <= UINT32_MAX - 1) {
@@ -1817,19 +1817,19 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     }
 
     if (s->dump_info.d_class == ELFCLASS64) {
-        if (s->have_section) {
+        if (s->shdr_num) {
             s->memory_offset = sizeof(Elf64_Ehdr) +
                                sizeof(Elf64_Phdr) * s->phdr_num +
-                               sizeof(Elf64_Shdr) + s->note_size;
+                               sizeof(Elf64_Shdr) * s->shdr_num + s->note_size;
         } else {
             s->memory_offset = sizeof(Elf64_Ehdr) +
                                sizeof(Elf64_Phdr) * s->phdr_num + s->note_size;
         }
     } else {
-        if (s->have_section) {
+        if (s->shdr_num) {
             s->memory_offset = sizeof(Elf32_Ehdr) +
                                sizeof(Elf32_Phdr) * s->phdr_num +
-                               sizeof(Elf32_Shdr) + s->note_size;
+                               sizeof(Elf32_Shdr) * s->shdr_num + s->note_size;
         } else {
             s->memory_offset = sizeof(Elf32_Ehdr) +
                                sizeof(Elf32_Phdr) * s->phdr_num + s->note_size;
