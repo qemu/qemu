@@ -3480,6 +3480,61 @@ static uint64_t float128_to_uint64_scalbn(float128 a, FloatRoundMode rmode,
     return parts_float_to_uint(&p, rmode, scale, UINT64_MAX, s);
 }
 
+static Int128 float128_to_uint128_scalbn(float128 a, FloatRoundMode rmode,
+                                         int scale, float_status *s)
+{
+    int flags = 0;
+    Int128 r;
+    FloatParts128 p;
+
+    float128_unpack_canonical(&p, a, s);
+
+    switch (p.cls) {
+    case float_class_snan:
+        flags |= float_flag_invalid_snan;
+        /* fall through */
+    case float_class_qnan:
+        flags |= float_flag_invalid;
+        r = UINT128_MAX;
+        break;
+
+    case float_class_inf:
+        flags = float_flag_invalid | float_flag_invalid_cvti;
+        r = p.sign ? int128_zero() : UINT128_MAX;
+        break;
+
+    case float_class_zero:
+        return int128_zero();
+
+    case float_class_normal:
+        if (parts_round_to_int_normal(&p, rmode, scale, 128 - 2)) {
+            flags = float_flag_inexact;
+            if (p.cls == float_class_zero) {
+                r = int128_zero();
+                break;
+            }
+        }
+
+        if (p.sign) {
+            flags = float_flag_invalid | float_flag_invalid_cvti;
+            r = int128_zero();
+        } else if (p.exp <= 127) {
+            int shift = 127 - p.exp;
+            r = int128_urshift(int128_make128(p.frac_lo, p.frac_hi), shift);
+        } else {
+            flags = float_flag_invalid | float_flag_invalid_cvti;
+            r = UINT128_MAX;
+        }
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+
+    float_raise(flags, s);
+    return r;
+}
+
 uint8_t float16_to_uint8(float16 a, float_status *s)
 {
     return float16_to_uint8_scalbn(a, s->float_rounding_mode, 0, s);
@@ -3540,6 +3595,11 @@ uint64_t float128_to_uint64(float128 a, float_status *s)
     return float128_to_uint64_scalbn(a, s->float_rounding_mode, 0, s);
 }
 
+Int128 float128_to_uint128(float128 a, float_status *s)
+{
+    return float128_to_uint128_scalbn(a, s->float_rounding_mode, 0, s);
+}
+
 uint16_t float16_to_uint16_round_to_zero(float16 a, float_status *s)
 {
     return float16_to_uint16_scalbn(a, float_round_to_zero, 0, s);
@@ -3593,6 +3653,11 @@ uint32_t float128_to_uint32_round_to_zero(float128 a, float_status *s)
 uint64_t float128_to_uint64_round_to_zero(float128 a, float_status *s)
 {
     return float128_to_uint64_scalbn(a, float_round_to_zero, 0, s);
+}
+
+Int128 float128_to_uint128_round_to_zero(float128 a, float_status *s)
+{
+    return float128_to_uint128_scalbn(a, float_round_to_zero, 0, s);
 }
 
 uint16_t bfloat16_to_uint16(bfloat16 a, float_status *s)
