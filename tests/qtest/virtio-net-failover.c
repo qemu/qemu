@@ -8,7 +8,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 #include "qemu/osdep.h"
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 #include "libqos/pci.h"
 #include "libqos/pci-pc.h"
 #include "qapi/qmp/qdict.h"

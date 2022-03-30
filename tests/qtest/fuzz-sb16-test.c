@@ -7,7 +7,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 
 /*
  * This used to trigger the assert in audio_calloc

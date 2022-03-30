@@ -17,7 +17,7 @@
 #include "qemu/osdep.h"
 #include "hw/sd/npcm7xx_sdhci.h"
 
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 #include "libqtest-single.h"
 #include "libqos/sdhci-cmd.h"
 

@@ -9,7 +9,7 @@
 
 #include "qemu/osdep.h"
 
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 
 
 static void test_cmdfifo_underflow_ok(void)

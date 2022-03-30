@@ -13,7 +13,7 @@
 #include "contrib/ivshmem-server/ivshmem-server.h"
 #include "libqos/libqos-pc.h"
 #include "libqos/libqos-spapr.h"
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 
 #define TMPSHMSIZE (1 << 20)
 static char *tmpshm;

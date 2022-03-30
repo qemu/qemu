@@ -4,7 +4,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
+#include "../libqtest.h"
 #include "rtas.h"
 
 static void qrtas_copy_args(QTestState *qts, uint64_t target_args,

@@ -8,7 +8,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 #include "qemu/bswap.h"
 #include "qemu/module.h"
 #include "libqos/qgraph.h"

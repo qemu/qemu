@@ -6,7 +6,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 
 /*
  * This used to trigger the assert in lsi_do_dma()

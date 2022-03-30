@@ -11,7 +11,7 @@
 
 #include "qemu/osdep.h"
 
-#include "tests/qtest/libqos/libqtest.h"
+#include "tests/qtest/libqtest.h"
 #include "tests/qtest/libqos/virtio-blk.h"
 #include "tests/qtest/libqos/virtio.h"
 #include "tests/qtest/libqos/virtio-pci.h"

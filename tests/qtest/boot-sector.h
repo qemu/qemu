@@ -14,7 +14,7 @@
 #ifndef TEST_BOOT_SECTOR_H
 #define TEST_BOOT_SECTOR_H
 
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 
 /* Create boot disk file. fname must be a suitable string for mkstemp() */
 int boot_sector_init(char *fname);

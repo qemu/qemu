@@ -15,7 +15,7 @@
 #include <wordexp.h>
 
 #include "hw/core/cpu.h"
-#include "tests/qtest/libqos/libqtest.h"
+#include "tests/qtest/libqtest.h"
 #include "tests/qtest/libqos/pci-pc.h"
 #include "fuzz.h"
 #include "fork_fuzz.h"

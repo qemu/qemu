@@ -25,7 +25,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 
 /* Base address. */
 #define CAN0_BASE_ADDR          0xFF060000

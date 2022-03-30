@@ -1,7 +1,7 @@
 #include "qemu/osdep.h"
 #include <sys/wait.h>
 
-#include "libqtest.h"
+#include "../libqtest.h"
 #include "libqos.h"
 #include "pci.h"
 #include "qapi/qmp/qdict.h"

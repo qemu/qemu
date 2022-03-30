@@ -17,7 +17,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
+#include "../libqtest.h"
 #include "qemu/queue.h"
 #include "qgraph_internal.h"
 #include "qgraph.h"

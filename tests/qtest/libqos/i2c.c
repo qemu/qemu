@@ -8,7 +8,7 @@
  */
 #include "qemu/osdep.h"
 #include "i2c.h"
-#include "libqtest.h"
+#include "../libqtest.h"
 
 void qi2c_send(QI2CDevice *i2cdev, const uint8_t *buf, uint16_t len)
 {

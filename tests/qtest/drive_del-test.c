@@ -11,7 +11,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 #include "libqos/virtio.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qlist.h"

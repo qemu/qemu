@@ -13,7 +13,7 @@
 #ifndef LIBQOS_PCI_H
 #define LIBQOS_PCI_H
 
-#include "libqtest.h"
+#include "../libqtest.h"
 #include "qgraph.h"
 
 #define QPCI_PIO_LIMIT    0x10000

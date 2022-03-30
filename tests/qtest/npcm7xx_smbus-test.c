@@ -17,7 +17,7 @@
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
 #include "libqos/i2c.h"
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 #include "hw/sensor/tmp105_regs.h"
 
 #define NR_SMBUS_DEVICES    16

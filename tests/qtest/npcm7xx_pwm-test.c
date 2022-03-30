@@ -16,7 +16,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qnum.h"
 

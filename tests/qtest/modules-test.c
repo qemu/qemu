@@ -1,5 +1,5 @@
 #include "qemu/osdep.h"
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 
 const char common_args[] = "-nodefaults -machine none";
 

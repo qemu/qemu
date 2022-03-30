@@ -7,7 +7,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 
 /*
  * https://gitlab.com/qemu-project/qemu/-/issues/450

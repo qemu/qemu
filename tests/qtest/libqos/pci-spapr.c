@@ -6,7 +6,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
+#include "../libqtest.h"
 #include "pci-spapr.h"
 #include "rtas.h"
 #include "qgraph.h"

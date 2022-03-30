@@ -9,7 +9,7 @@
 
 #include "qemu/osdep.h"
 
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 
 static void test_lp1878642_pci_bus_get_irq_level_assert(void)
 {

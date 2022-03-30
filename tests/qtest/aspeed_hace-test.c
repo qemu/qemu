@@ -7,7 +7,7 @@
 
 #include "qemu/osdep.h"
 
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 #include "qemu/bitops.h"
 
 #define HACE_CMD                 0x10

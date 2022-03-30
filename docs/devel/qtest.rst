@@ -88,4 +88,4 @@ QTest Protocol
 libqtest API reference
 ----------------------
 
-.. kernel-doc:: tests/qtest/libqos/libqtest.h
+.. kernel-doc:: tests/qtest/libqtest.h

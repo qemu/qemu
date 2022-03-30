@@ -17,7 +17,7 @@
 #include "qemu/osdep.h"
 #include "qemu/timer.h"
 
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 #include "qapi/qmp/qdict.h"
 
 #define WTCR_OFFSET     0x1c
