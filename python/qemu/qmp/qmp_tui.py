@@ -6,13 +6,13 @@
 # This work is licensed under the terms of the GNU LGPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 """
-AQMP TUI
+QMP TUI
 
-AQMP TUI is an asynchronous interface built on top the of the AQMP library.
+QMP TUI is an asynchronous interface built on top the of the QMP library.
 It is the successor of QMP-shell and is bought-in as a replacement for it.
 
-Example Usage: aqmp-tui <SOCKET | TCP IP:PORT>
-Full Usage: aqmp-tui --help
+Example Usage: qmp-tui <SOCKET | TCP IP:PORT>
+Full Usage: qmp-tui --help
 """
 
 import argparse
@@ -129,7 +129,7 @@ def has_handler_type(logger: logging.Logger,
 
 class App(QMPClient):
     """
-    Implements the AQMP TUI.
+    Implements the QMP TUI.
 
     Initializes the widgets and starts the urwid event loop.
 
@@ -612,7 +612,7 @@ def main() -> None:
     Driver of the whole script, parses arguments, initialize the TUI and
     the logger.
     """
-    parser = argparse.ArgumentParser(description='AQMP TUI')
+    parser = argparse.ArgumentParser(description='QMP TUI')
     parser.add_argument('qmp_server', help='Address of the QMP server. '
                         'Format <UNIX socket path | TCP addr:port>')
     parser.add_argument('--num-retries', type=int, default=10,
