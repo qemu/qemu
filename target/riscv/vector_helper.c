@@ -4890,13 +4890,15 @@ GEN_VEXT_VCOMPRESS_VM(vcompress_vm_d, uint64_t, H8)
 /* Vector Whole Register Move */
 void HELPER(vmvr_v)(void *vd, void *vs2, CPURISCVState *env, uint32_t desc)
 {
-    /* EEW = 8 */
+    /* EEW = SEW */
     uint32_t maxsz = simd_maxsz(desc);
-    uint32_t i = env->vstart;
+    uint32_t sewb = 1 << FIELD_EX64(env->vtype, VTYPE, VSEW);
+    uint32_t startb = env->vstart * sewb;
+    uint32_t i = startb;
 
     memcpy((uint8_t *)vd + H1(i),
            (uint8_t *)vs2 + H1(i),
-           maxsz - env->vstart);
+           maxsz - startb);
 
     env->vstart = 0;
 }
