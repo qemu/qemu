@@ -1,4 +1,7 @@
-libqos_srcs = files('../libqtest.c',
+libqos_srcs = files(
+        '../libqtest.c',
+        '../libqmp.c',
+
         'qgraph.c',
         'qos_external.c',
         'pci.c',

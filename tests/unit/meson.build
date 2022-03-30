@@ -154,7 +154,7 @@ if have_system
 endif
 
 if have_ga and targetos == 'linux'
-  tests += {'test-qga': ['../qtest/libqtest.c']}
+  tests += {'test-qga': ['../qtest/libqmp.c']}
   test_deps += {'test-qga': qga}
 endif
 
