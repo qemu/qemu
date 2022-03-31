@@ -658,6 +658,7 @@
 #                "host":"127.0.0.1",
 #                "service":"50401",
 #                "family":"ipv4"
+#                "websocket":false,
 #             }
 #          ]
 #       }
