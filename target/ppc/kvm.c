@@ -850,7 +850,7 @@ static int kvm_put_vpa(CPUState *cs)
 int kvmppc_put_books_sregs(PowerPCCPU *cpu)
 {
     CPUPPCState *env = &cpu->env;
-    struct kvm_sregs sregs;
+    struct kvm_sregs sregs = { };
     int i;
 
     sregs.pvr = env->spr[SPR_PVR];
