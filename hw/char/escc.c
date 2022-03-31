@@ -828,7 +828,7 @@ static void sunkbd_handle_event(DeviceState *dev, QemuConsole *src,
         }
     }
 
-    if (qcode > qemu_input_map_qcode_to_sun_len) {
+    if (qcode >= qemu_input_map_qcode_to_sun_len) {
         return;
     }
 
