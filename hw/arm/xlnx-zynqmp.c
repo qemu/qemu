@@ -68,6 +68,9 @@
 #define APU_ADDR            0xfd5c0000
 #define APU_IRQ             153
 
+#define TTC0_ADDR           0xFF110000
+#define TTC0_IRQ            36
+
 #define IPI_ADDR            0xFF300000
 #define IPI_IRQ             64
 
@@ -314,6 +317,24 @@ static void xlnx_zynqmp_create_crf(XlnxZynqMPState *s, qemu_irq *gic)
     sysbus_realize(sbd, &error_fatal);
     sysbus_mmio_map(sbd, 0, CRF_ADDR);
     sysbus_connect_irq(sbd, 0, gic[CRF_IRQ]);
+}
+
+static void xlnx_zynqmp_create_ttc(XlnxZynqMPState *s, qemu_irq *gic)
+{
+    SysBusDevice *sbd;
+    int i, irq;
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_TTC; i++) {
+        object_initialize_child(OBJECT(s), "ttc[*]", &s->ttc[i],
+                                TYPE_CADENCE_TTC);
+        sbd = SYS_BUS_DEVICE(&s->ttc[i]);
+
+        sysbus_realize(sbd, &error_fatal);
+        sysbus_mmio_map(sbd, 0, TTC0_ADDR + i * 0x10000);
+        for (irq = 0; irq < 3; irq++) {
+            sysbus_connect_irq(sbd, irq, gic[TTC0_IRQ + i * 3 + irq]);
+        }
+    }
 }
 
 static void xlnx_zynqmp_create_unimp_mmio(XlnxZynqMPState *s)
@@ -721,6 +742,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     xlnx_zynqmp_create_efuse(s, gic_spi);
     xlnx_zynqmp_create_apu_ctrl(s, gic_spi);
     xlnx_zynqmp_create_crf(s, gic_spi);
+    xlnx_zynqmp_create_ttc(s, gic_spi);
     xlnx_zynqmp_create_unimp_mmio(s);
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_GDMA_CH; i++) {
