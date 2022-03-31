@@ -324,8 +324,10 @@
 #          "enabled": true,
 #          "auth": "spice",
 #          "port": 5920,
+#          "migrated":false,
 #          "tls-port": 5921,
 #          "host": "0.0.0.0",
+#          "mouse-mode":"client",
 #          "channels": [
 #             {
 #                "port": "54924",
