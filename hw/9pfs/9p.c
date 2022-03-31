@@ -17,6 +17,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX
+#include <linux/limits.h>
+#else
+#include <limits.h>
+#endif
 #include <glib/gprintf.h>
 #include "hw/virtio/virtio.h"
 #include "qapi/error.h"
@@ -33,11 +38,6 @@
 #include "migration/blocker.h"
 #include "qemu/xxhash.h"
 #include <math.h>
-#ifdef CONFIG_LINUX
-#include <linux/limits.h>
-#else
-#include <limits.h>
-#endif
 
 int open_fd_hw;
 int total_open_fd;
@@ -3924,6 +3924,24 @@ out_nofid:
     pdu_complete(pdu, err);
     v9fs_string_free(&name);
 }
+
+#if defined(CONFIG_LINUX)
+/* Currently, only Linux has XATTR_SIZE_MAX */
+#define P9_XATTR_SIZE_MAX XATTR_SIZE_MAX
+#elif defined(CONFIG_DARWIN)
+/*
+ * Darwin doesn't seem to define a maximum xattr size in its user
+ * space header, so manually configure it across platforms as 64k.
+ *
+ * Having no limit at all can lead to QEMU crashing during large g_malloc()
+ * calls. Because QEMU does not currently support macOS guests, the below
+ * preliminary solution only works due to its being a reflection of the limit of
+ * Linux guests.
+ */
+#define P9_XATTR_SIZE_MAX 65536
+#else
+#error Missing definition for P9_XATTR_SIZE_MAX for this host system
+#endif
 
 static void coroutine_fn v9fs_xattrcreate(void *opaque)
 {
