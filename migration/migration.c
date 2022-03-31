@@ -1809,6 +1809,9 @@ static void migrate_fd_cleanup(MigrationState *s)
     qemu_bh_delete(s->cleanup_bh);
     s->cleanup_bh = NULL;
 
+    g_free(s->hostname);
+    s->hostname = NULL;
+
     qemu_savevm_state_cleanup();
 
     if (s->to_dst_file) {
