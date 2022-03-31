@@ -1086,9 +1086,9 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
         opc = I3405_MOVZ;
     }
     s0 = ctz64(t0) & (63 & -16);
-    t1 = t0 & ~(0xffffUL << s0);
+    t1 = t0 & ~(0xffffull << s0);
     s1 = ctz64(t1) & (63 & -16);
-    t2 = t1 & ~(0xffffUL << s1);
+    t2 = t1 & ~(0xffffull << s1);
     if (t2 == 0) {
         tcg_out_insn_3405(s, opc, type, rd, t0 >> s0, s0);
         if (t1 != 0) {
