@@ -1776,6 +1776,7 @@
 #                    "file":"disks/test.qcow2",
 #                    "node-name": "my-node",
 #                    "backing_file_depth":1,
+#                    "detect_zeroes":"off",
 #                    "bps":1000000,
 #                    "bps_rd":0,
 #                    "bps_wr":0,
