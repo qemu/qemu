@@ -1,3 +1,6 @@
+# -*- Mode: Python -*-
+# vim: filetype=python
+
 { 'pragma': { 'doc-required': true } }
 
 # Whitelists to permit QAPI rule violations; think twice before you

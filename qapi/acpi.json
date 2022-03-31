@@ -133,8 +133,9 @@
 # Example:
 #
 # <- { "event": "ACPI_DEVICE_OST",
-#      "data": { "device": "d1", "slot": "0",
-#                "slot-type": "DIMM", "source": 1, "status": 0 } }
+#      "data": { "info": { "device": "d1", "slot": "0",
+#                          "slot-type": "DIMM", "source": 1, "status": 0 } },
+#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 #
 ##
 { 'event': 'ACPI_DEVICE_OST',

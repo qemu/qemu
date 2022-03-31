@@ -5006,10 +5006,9 @@
 # Example:
 #
 # <- { "event": "BLOCK_IMAGE_CORRUPTED",
-#      "data": { "device": "ide0-hd0", "node-name": "node0",
-#                "msg": "Prevented active L1 table overwrite", "offset": 196608,
-#                "size": 65536 },
-#      "timestamp": { "seconds": 1378126126, "microseconds": 966463 } }
+#      "data": { "device": "", "node-name": "drive", "fatal": false,
+#                "msg": "L2 table offset 0x2a2a2a00 unaligned (L1 index: 0)" },
+#      "timestamp": { "seconds": 1648243240, "microseconds": 906060 } }
 #
 # Since: 1.7
 ##
@@ -5059,7 +5058,8 @@
 #      "data": { "device": "ide0-hd1",
 #                "node-name": "#block212",
 #                "operation": "write",
-#                "action": "stop" },
+#                "action": "stop",
+#                "reason": "No space left on device" },
 #      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 #
 ##
@@ -5225,8 +5225,8 @@
 #
 # Example:
 #
-# <- { "event": "BLOCK_JOB_WAITING",
-#      "data": { "device": "drive0", "type": "mirror" },
+# <- { "event": "BLOCK_JOB_PENDING",
+#      "data": { "type": "mirror", "id": "backup_1" },
 #      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 #
 ##

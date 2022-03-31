@@ -150,7 +150,8 @@
 #
 # Example:
 #
-# <- { "event": "SHUTDOWN", "data": { "guest": true },
+# <- { "event": "SHUTDOWN",
+#      "data": { "guest": true, "reason": "guest-shutdown" },
 #      "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
 #
 ##
@@ -188,7 +189,8 @@
 #
 # Example:
 #
-# <- { "event": "RESET", "data": { "guest": false },
+# <- { "event": "RESET",
+#      "data": { "guest": false, "reason": "guest-reset" },
 #      "timestamp": { "seconds": 1267041653, "microseconds": 9518 } }
 #
 ##
@@ -424,7 +426,8 @@
 # Example:
 #
 # <- { "event": "GUEST_PANICKED",
-#      "data": { "action": "pause" } }
+#      "data": { "action": "pause" },
+#      "timestamp": { "seconds": 1648245231, "microseconds": 900001 } }
 #
 ##
 { 'event': 'GUEST_PANICKED',
@@ -444,7 +447,8 @@
 # Example:
 #
 # <- { "event": "GUEST_CRASHLOADED",
-#      "data": { "action": "run" } }
+#      "data": { "action": "run" },
+#      "timestamp": { "seconds": 1648245259, "microseconds": 893771 } }
 #
 ##
 { 'event': 'GUEST_CRASHLOADED',
@@ -567,7 +571,9 @@
 # <- { "event": "MEMORY_FAILURE",
 #      "data": { "recipient": "hypervisor",
 #                "action": "fatal",
-#                "flags": { 'action-required': false } }
+#                "flags": { "action-required": false,
+#                           "recursive": false } },
+#      "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
 #
 ##
 { 'event': 'MEMORY_FAILURE',
