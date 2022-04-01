@@ -1533,7 +1533,7 @@ F: include/hw/rtc/sun4v-rtc.h
 
 Leon3
 M: Fabien Chouteau <chouteau@adacore.com>
-M: KONRAD Frederic <frederic.konrad@adacore.com>
+M: Frederic Konrad <konrad.frederic@yahoo.fr>
 S: Maintained
 F: hw/sparc/leon3.c
 F: hw/*/grlib*

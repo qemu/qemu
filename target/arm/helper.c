@@ -7176,7 +7176,7 @@ static CPAccessResult access_mte(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     int el = arm_current_el(env);
 
-    if (el < 2 && arm_feature(env, ARM_FEATURE_EL2)) {
+    if (el < 2 && arm_is_el2_enabled(env)) {
         uint64_t hcr = arm_hcr_el2_eff(env);
         if (!(hcr & HCR_ATA) && (!(hcr & HCR_E2H) || !(hcr & HCR_TGE))) {
             return CP_ACCESS_TRAP_EL2;
@@ -12644,6 +12644,7 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
             hwaddr ipa;
             int s2_prot;
             int ret;
+            bool ipa_secure;
             ARMCacheAttrs cacheattrs2 = {};
             ARMMMUIdx s2_mmu_idx;
             bool is_el0;
@@ -12655,6 +12656,17 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
             if (ret || regime_translation_disabled(env, ARMMMUIdx_Stage2)) {
                 *phys_ptr = ipa;
                 return ret;
+            }
+
+            ipa_secure = attrs->secure;
+            if (arm_is_secure_below_el3(env)) {
+                if (ipa_secure) {
+                    attrs->secure = !(env->cp15.vstcr_el2.raw_tcr & VSTCR_SW);
+                } else {
+                    attrs->secure = !(env->cp15.vtcr_el2.raw_tcr & VTCR_NSW);
+                }
+            } else {
+                assert(!ipa_secure);
             }
 
             s2_mmu_idx = attrs->secure ? ARMMMUIdx_Stage2_S : ARMMMUIdx_Stage2;
@@ -12691,13 +12703,13 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
 
             /* Check if IPA translates to secure or non-secure PA space. */
             if (arm_is_secure_below_el3(env)) {
-                if (attrs->secure) {
+                if (ipa_secure) {
                     attrs->secure =
                         !(env->cp15.vstcr_el2.raw_tcr & (VSTCR_SA | VSTCR_SW));
                 } else {
                     attrs->secure =
                         !((env->cp15.vtcr_el2.raw_tcr & (VTCR_NSA | VTCR_NSW))
-                        || (env->cp15.vstcr_el2.raw_tcr & VSTCR_SA));
+                        || (env->cp15.vstcr_el2.raw_tcr & (VSTCR_SA | VSTCR_SW)));
                 }
             }
             return 0;
