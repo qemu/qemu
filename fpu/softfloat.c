@@ -874,10 +874,10 @@ static FloatParts128 *parts128_minmax(FloatParts128 *a, FloatParts128 *b,
 #define parts_minmax(A, B, S, F) \
     PARTS_GENERIC_64_128(minmax, A)(A, B, S, F)
 
-static int parts64_compare(FloatParts64 *a, FloatParts64 *b,
-                           float_status *s, bool q);
-static int parts128_compare(FloatParts128 *a, FloatParts128 *b,
-                            float_status *s, bool q);
+static FloatRelation parts64_compare(FloatParts64 *a, FloatParts64 *b,
+                                     float_status *s, bool q);
+static FloatRelation parts128_compare(FloatParts128 *a, FloatParts128 *b,
+                                      float_status *s, bool q);
 
 #define parts_compare(A, B, S, Q) \
     PARTS_GENERIC_64_128(compare, A)(A, B, S, Q)
