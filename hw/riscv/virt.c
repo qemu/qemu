@@ -1308,12 +1308,18 @@ static void virt_machine_init(MachineState *machine)
 
     /*
      * Only direct boot kernel is currently supported for KVM VM,
-     * so the "-bios" parameter is ignored and treated like "-bios none"
-     * when KVM is enabled.
+     * so the "-bios" parameter is not supported when KVM is enabled.
      */
     if (kvm_enabled()) {
-        g_free(machine->firmware);
-        machine->firmware = g_strdup("none");
+        if (machine->firmware) {
+            if (strcmp(machine->firmware, "none")) {
+                error_report("Machine mode firmware is not supported in "
+                             "combination with KVM.");
+                exit(1);
+            }
+        } else {
+            machine->firmware = g_strdup("none");
+        }
     }
 
     if (riscv_is_32bit(&s->soc[0])) {
