@@ -1121,6 +1121,10 @@ static bool ldst_whole_trans(uint32_t vd, uint32_t rs1, uint32_t nf,
                              gen_helper_ldst_whole *fn, DisasContext *s,
                              bool is_store)
 {
+    uint32_t evl = (s->cfg_ptr->vlen / 8) * nf / (1 << s->sew);
+    TCGLabel *over = gen_new_label();
+    tcg_gen_brcondi_tl(TCG_COND_GEU, cpu_vstart, evl, over);
+
     TCGv_ptr dest;
     TCGv base;
     TCGv_i32 desc;
@@ -1140,6 +1144,7 @@ static bool ldst_whole_trans(uint32_t vd, uint32_t rs1, uint32_t nf,
     if (!is_store) {
         mark_vs_dirty(s);
     }
+    gen_set_label(over);
 
     return true;
 }
