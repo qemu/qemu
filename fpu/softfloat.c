@@ -957,21 +957,23 @@ static void frac128_allones(FloatParts128 *a)
 
 #define frac_allones(A)  FRAC_GENERIC_64_128(allones, A)(A)
 
-static int frac64_cmp(FloatParts64 *a, FloatParts64 *b)
+static FloatRelation frac64_cmp(FloatParts64 *a, FloatParts64 *b)
 {
-    return a->frac == b->frac ? 0 : a->frac < b->frac ? -1 : 1;
+    return (a->frac == b->frac ? float_relation_equal
+            : a->frac < b->frac ? float_relation_less
+            : float_relation_greater);
 }
 
-static int frac128_cmp(FloatParts128 *a, FloatParts128 *b)
+static FloatRelation frac128_cmp(FloatParts128 *a, FloatParts128 *b)
 {
     uint64_t ta = a->frac_hi, tb = b->frac_hi;
     if (ta == tb) {
         ta = a->frac_lo, tb = b->frac_lo;
         if (ta == tb) {
-            return 0;
+            return float_relation_equal;
         }
     }
-    return ta < tb ? -1 : 1;
+    return ta < tb ? float_relation_less : float_relation_greater;
 }
 
 #define frac_cmp(A, B)  FRAC_GENERIC_64_128(cmp, A)(A, B)
