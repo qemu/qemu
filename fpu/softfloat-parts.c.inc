@@ -1327,16 +1327,19 @@ static FloatRelation partsN(compare)(FloatPartsN *a, FloatPartsN *b,
                                      float_status *s, bool is_quiet)
 {
     int ab_mask = float_cmask(a->cls) | float_cmask(b->cls);
-    int cmp;
 
     if (likely(ab_mask == float_cmask_normal)) {
+        FloatRelation cmp;
+
         if (a->sign != b->sign) {
             goto a_sign;
         }
-        if (a->exp != b->exp) {
-            cmp = a->exp < b->exp ? -1 : 1;
-        } else {
+        if (a->exp == b->exp) {
             cmp = frac_cmp(a, b);
+        } else if (a->exp < b->exp) {
+            cmp = float_relation_less;
+        } else {
+            cmp = float_relation_greater;
         }
         if (a->sign) {
             cmp = -cmp;
