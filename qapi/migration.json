@@ -1845,7 +1845,7 @@
 # Since: 5.2
 #
 # Example:
-#   {"command": "calc-dirty-rate", "arguments": {"calc-time": 1,
+#   {"execute": "calc-dirty-rate", "arguments": {"calc-time": 1,
 #                                                'sample-pages': 512} }
 #
 ##
