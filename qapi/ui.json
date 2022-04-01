@@ -1468,3 +1468,68 @@
 { 'command': 'display-reload',
   'data': 'DisplayReloadOptions',
   'boxed' : true }
+
+##
+# @DisplayUpdateType:
+#
+# Available DisplayUpdate types.
+#
+# @vnc: VNC display
+#
+# Since: 7.1
+#
+##
+{ 'enum': 'DisplayUpdateType',
+  'data': ['vnc'] }
+
+##
+# @DisplayUpdateOptionsVNC:
+#
+# Specify the VNC reload options.
+#
+# @addresses: If specified, change set of addresses
+#             to listen for connections. Addresses configured
+#             for websockets are not touched.
+#
+# Since: 7.1
+#
+##
+{ 'struct': 'DisplayUpdateOptionsVNC',
+  'data': { '*addresses': ['SocketAddress'] } }
+
+##
+# @DisplayUpdateOptions:
+#
+# Options of the display configuration reload.
+#
+# @type: Specify the display type.
+#
+# Since: 7.1
+#
+##
+{ 'union': 'DisplayUpdateOptions',
+  'base': {'type': 'DisplayUpdateType'},
+  'discriminator': 'type',
+  'data': { 'vnc': 'DisplayUpdateOptionsVNC' } }
+
+##
+# @display-update:
+#
+# Update display configuration.
+#
+# Returns: Nothing on success.
+#
+# Since: 7.1
+#
+# Example:
+#
+# -> { "execute": "display-update",
+#      "arguments": { "type": "vnc", "addresses":
+#                     [ { "type": "inet", "host": "0.0.0.0",
+#                         "port": "5901" } ] } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'display-update',
+  'data': 'DisplayUpdateOptions',
+  'boxed' : true }
