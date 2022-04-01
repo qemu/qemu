@@ -18,10 +18,8 @@
 #include <ws2tcpip.h>
 #include <iptypes.h>
 #include <iphlpapi.h>
-#ifdef HAVE_NTDDSCSI
 #include <winioctl.h>
 #include <ntddscsi.h>
-#endif
 #include <setupapi.h>
 #include <cfgmgr32.h>
 #include <initguid.h>
@@ -473,8 +471,6 @@ void qmp_guest_file_flush(int64_t handle, Error **errp)
         error_setg_win32(errp, GetLastError(), "failed to flush file");
     }
 }
-
-#ifdef HAVE_NTDDSCSI
 
 static GuestDiskBusType win2qemu[] = {
     [BusTypeUnknown] = GUEST_DISK_BUS_TYPE_UNKNOWN,
@@ -1097,21 +1093,6 @@ GuestDiskInfoList *qmp_guest_get_disks(Error **errp)
     SetupDiDestroyDeviceInfoList(dev_info);
     return ret;
 }
-
-#else
-
-static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
-{
-    return NULL;
-}
-
-GuestDiskInfoList *qmp_guest_get_disks(Error **errp)
-{
-    error_setg(errp, QERR_UNSUPPORTED);
-    return NULL;
-}
-
-#endif /* HAVE_NTDDSCSI */
 
 static GuestFilesystemInfo *build_guest_fsinfo(char *guid, Error **errp)
 {

@@ -2019,22 +2019,6 @@ if targetos == 'windows' and link_language == 'cpp'
 endif
 config_host_data.set('HAVE_VSS_SDK', have_vss_sdk)
 
-have_ntddscsi = false
-if targetos == 'windows'
-  have_ntddscsi = cc.compiles('''
-    #include <windows.h>
-    #include <ntddscsi.h>
-    int main(void) {
-    #if !defined(IOCTL_SCSI_GET_ADDRESS)
-    #error Missing required ioctl definitions
-    #endif
-      SCSI_ADDRESS addr = { .Lun = 0, .TargetId = 0, .PathId = 0 };
-      return addr.Lun;
-    }
-''')
-endif
-config_host_data.set('HAVE_NTDDSCSI', have_ntddscsi)
-
 ignored = ['CONFIG_QEMU_INTERP_PREFIX', # actually per-target
     'HAVE_GDB_BIN']
 arrays = ['CONFIG_BDRV_RW_WHITELIST', 'CONFIG_BDRV_RO_WHITELIST']
@@ -3722,7 +3706,6 @@ summary_info += {'libnfs support':    libnfs}
 if targetos == 'windows'
   if have_ga
     summary_info += {'QGA VSS support':   have_qga_vss}
-    summary_info += {'QGA w32 disk info': have_ntddscsi}
   endif
 endif
 summary_info += {'seccomp support':   seccomp}
