@@ -2622,7 +2622,7 @@ static DisasJumpType op_icm(DisasContext *s, DisasOps *o)
                 tcg_gen_qemu_ld8u(tmp, o->in2, get_mem_index(s));
                 tcg_gen_addi_i64(o->in2, o->in2, 1);
                 tcg_gen_deposit_i64(o->out, o->out, tmp, pos, 8);
-                ccm |= 0xff << pos;
+                ccm |= 0xffull << pos;
             }
             m3 = (m3 << 1) & 0xf;
             pos -= 8;
