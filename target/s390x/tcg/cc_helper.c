@@ -136,7 +136,7 @@ static uint32_t cc_calc_subu(uint64_t borrow_out, uint64_t result)
 
 static uint32_t cc_calc_add_64(int64_t a1, int64_t a2, int64_t ar)
 {
-    if ((a1 > 0 && a2 > 0 && ar < 0) || (a1 < 0 && a2 < 0 && ar > 0)) {
+    if ((a1 > 0 && a2 > 0 && ar < 0) || (a1 < 0 && a2 < 0 && ar >= 0)) {
         return 3; /* overflow */
     } else {
         if (ar < 0) {
@@ -151,7 +151,7 @@ static uint32_t cc_calc_add_64(int64_t a1, int64_t a2, int64_t ar)
 
 static uint32_t cc_calc_sub_64(int64_t a1, int64_t a2, int64_t ar)
 {
-    if ((a1 > 0 && a2 < 0 && ar < 0) || (a1 < 0 && a2 > 0 && ar > 0)) {
+    if ((a1 >= 0 && a2 < 0 && ar < 0) || (a1 < 0 && a2 > 0 && ar > 0)) {
         return 3; /* overflow */
     } else {
         if (ar < 0) {
@@ -196,7 +196,7 @@ static uint32_t cc_calc_comp_64(int64_t dst)
 
 static uint32_t cc_calc_add_32(int32_t a1, int32_t a2, int32_t ar)
 {
-    if ((a1 > 0 && a2 > 0 && ar < 0) || (a1 < 0 && a2 < 0 && ar > 0)) {
+    if ((a1 > 0 && a2 > 0 && ar < 0) || (a1 < 0 && a2 < 0 && ar >= 0)) {
         return 3; /* overflow */
     } else {
         if (ar < 0) {
@@ -211,7 +211,7 @@ static uint32_t cc_calc_add_32(int32_t a1, int32_t a2, int32_t ar)
 
 static uint32_t cc_calc_sub_32(int32_t a1, int32_t a2, int32_t ar)
 {
-    if ((a1 > 0 && a2 < 0 && ar < 0) || (a1 < 0 && a2 > 0 && ar > 0)) {
+    if ((a1 >= 0 && a2 < 0 && ar < 0) || (a1 < 0 && a2 > 0 && ar > 0)) {
         return 3; /* overflow */
     } else {
         if (ar < 0) {

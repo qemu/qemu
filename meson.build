@@ -455,8 +455,8 @@ if 'CONFIG_GIO' in config_host
 endif
 lttng = not_found
 if 'ust' in get_option('trace_backends')
-  lttng = dependency('lttng-ust', required: true, method: 'pkg-config',
-                     kwargs: static_kwargs)
+  lttng = dependency('lttng-ust', required: true, version: '>= 2.1',
+                     method: 'pkg-config', kwargs: static_kwargs)
 endif
 pixman = not_found
 if have_system or have_tools
@@ -2881,7 +2881,7 @@ if get_option('b_lto')
   if get_option('cfi')
     pagevary_flags += '-fno-sanitize=cfi-icall'
   endif
-  pagevary = static_library('page-vary-common', sources: pagevary,
+  pagevary = static_library('page-vary-common', sources: pagevary + genh,
                             c_args: pagevary_flags)
   pagevary = declare_dependency(link_with: pagevary)
 endif

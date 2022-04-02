@@ -479,22 +479,4 @@ struct V9fsTransport {
     void        (*push_and_notify)(V9fsPDU *pdu);
 };
 
-#if defined(XATTR_SIZE_MAX)
-/* Linux */
-#define P9_XATTR_SIZE_MAX XATTR_SIZE_MAX
-#elif defined(CONFIG_DARWIN)
-/*
- * Darwin doesn't seem to define a maximum xattr size in its user
- * space header, so manually configure it across platforms as 64k.
- *
- * Having no limit at all can lead to QEMU crashing during large g_malloc()
- * calls. Because QEMU does not currently support macOS guests, the below
- * preliminary solution only works due to its being a reflection of the limit of
- * Linux guests.
- */
-#define P9_XATTR_SIZE_MAX 65536
-#else
-#error Missing definition for P9_XATTR_SIZE_MAX for this host system
-#endif
-
 #endif
