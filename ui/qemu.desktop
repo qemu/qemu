@@ -4,5 +4,6 @@ Name=QEMU
 Icon=qemu
 Type=Application
 Terminal=false
-Keywords=Emulators;Virtualization;KVM;
+Keywords=Emulator;Virtualization;KVM;
+Categories=System;Emulator;
 NoDisplay=true
