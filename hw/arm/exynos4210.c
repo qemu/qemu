@@ -231,7 +231,7 @@ combiner_grp_to_gic_id[64 - EXYNOS4210_MAX_EXT_COMBINER_OUT_IRQ][8] = {
     /* int combiner group 34 */
     { EXT_GIC_ID_ONENAND_AUDI, EXT_GIC_ID_NFC },
     /* int combiner group 35 */
-    { 0, 0, 0, EXT_GIC_ID_MCT_L1, EXT_GIC_ID_MCT_G0, EXT_GIC_ID_MCT_G1 },
+    { 0, 0, 0, EXT_GIC_ID_MCT_L1 },
     /* int combiner group 36 */
     { EXT_GIC_ID_MIXER },
     /* int combiner group 37 */
@@ -240,11 +240,11 @@ combiner_grp_to_gic_id[64 - EXYNOS4210_MAX_EXT_COMBINER_OUT_IRQ][8] = {
     /* groups 38-50 */
     { }, { }, { }, { }, { }, { }, { }, { }, { }, { }, { }, { }, { },
     /* int combiner group 51 */
-    { EXT_GIC_ID_MCT_L0, 0, 0, 0, EXT_GIC_ID_MCT_G0, EXT_GIC_ID_MCT_G1 },
+    { EXT_GIC_ID_MCT_L0 },
     /* group 52 */
     { },
     /* int combiner group 53 */
-    { EXT_GIC_ID_WDT, 0, 0, 0, EXT_GIC_ID_MCT_G0, EXT_GIC_ID_MCT_G1 },
+    { EXT_GIC_ID_WDT },
     /* groups 54-63 */
     { }, { }, { }, { }, { }, { }, { }, { }, { }, { }
 };
@@ -268,13 +268,11 @@ static void exynos4210_init_board_irqs(Exynos4210State *s)
 
     for (n = 0; n < EXYNOS4210_MAX_EXT_COMBINER_IN_IRQ; n++) {
         irq_id = 0;
-        if (n == EXYNOS4210_COMBINER_GET_IRQ_NUM(1, 4) ||
-                n == EXYNOS4210_COMBINER_GET_IRQ_NUM(12, 4)) {
+        if (n == EXYNOS4210_COMBINER_GET_IRQ_NUM(1, 4)) {
             /* MCT_G0 is passed to External GIC */
             irq_id = EXT_GIC_ID_MCT_G0;
         }
-        if (n == EXYNOS4210_COMBINER_GET_IRQ_NUM(1, 5) ||
-                n == EXYNOS4210_COMBINER_GET_IRQ_NUM(12, 5)) {
+        if (n == EXYNOS4210_COMBINER_GET_IRQ_NUM(1, 5)) {
             /* MCT_G1 is passed to External and GIC */
             irq_id = EXT_GIC_ID_MCT_G1;
         }
