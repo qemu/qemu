@@ -83,7 +83,6 @@
 typedef struct Exynos4210Irq {
     qemu_irq int_combiner_irq[EXYNOS4210_MAX_INT_COMBINER_IN_IRQ];
     qemu_irq ext_combiner_irq[EXYNOS4210_MAX_EXT_COMBINER_IN_IRQ];
-    qemu_irq ext_gic_irq[EXYNOS4210_EXT_GIC_NIRQ];
 } Exynos4210Irq;
 
 struct Exynos4210State {

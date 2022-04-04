@@ -257,6 +257,7 @@ static void exynos4210_init_board_irqs(Exynos4210State *s)
 {
     uint32_t grp, bit, irq_id, n;
     Exynos4210Irq *is = &s->irqs;
+    DeviceState *extgicdev = DEVICE(&s->ext_gic);
 
     for (n = 0; n < EXYNOS4210_MAX_EXT_COMBINER_IN_IRQ; n++) {
         irq_id = 0;
@@ -272,7 +273,8 @@ static void exynos4210_init_board_irqs(Exynos4210State *s)
         }
         if (irq_id) {
             s->irq_table[n] = qemu_irq_split(is->int_combiner_irq[n],
-                    is->ext_gic_irq[irq_id - 32]);
+                                             qdev_get_gpio_in(extgicdev,
+                                                              irq_id - 32));
         } else {
             s->irq_table[n] = qemu_irq_split(is->int_combiner_irq[n],
                     is->ext_combiner_irq[n]);
@@ -287,7 +289,8 @@ static void exynos4210_init_board_irqs(Exynos4210State *s)
 
         if (irq_id) {
             s->irq_table[n] = qemu_irq_split(is->int_combiner_irq[n],
-                    is->ext_gic_irq[irq_id - 32]);
+                                             qdev_get_gpio_in(extgicdev,
+                                                              irq_id - 32));
         }
     }
 }
@@ -466,9 +469,6 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
         sysbus_connect_irq(busdev, n,
                            qdev_get_gpio_in(DEVICE(&s->cpu_irq_orgate[n]), 1));
     }
-    for (n = 0; n < EXYNOS4210_EXT_GIC_NIRQ; n++) {
-        s->irqs.ext_gic_irq[n] = qdev_get_gpio_in(DEVICE(&s->ext_gic), n);
-    }
 
     /* Internal Interrupt Combiner */
     dev = qdev_new("exynos4210.combiner");
@@ -487,7 +487,7 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(busdev, &error_fatal);
     for (n = 0; n < EXYNOS4210_MAX_INT_COMBINER_OUT_IRQ; n++) {
-        sysbus_connect_irq(busdev, n, s->irqs.ext_gic_irq[n]);
+        sysbus_connect_irq(busdev, n, qdev_get_gpio_in(DEVICE(&s->ext_gic), n));
     }
     exynos4210_combiner_get_gpioin(&s->irqs, dev, 1);
     sysbus_mmio_map(busdev, 0, EXYNOS4210_EXT_COMBINER_BASE_ADDR);
