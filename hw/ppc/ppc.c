@@ -1083,6 +1083,13 @@ clk_setup_cb cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq)
     return &cpu_ppc_set_tb_clk;
 }
 
+void cpu_ppc_tb_free(CPUPPCState *env)
+{
+    timer_free(env->tb_env->decr_timer);
+    timer_free(env->tb_env->hdecr_timer);
+    g_free(env->tb_env);
+}
+
 /* cpu_ppc_hdecr_init may be used if the timer is not used by HDEC emulation */
 void cpu_ppc_hdecr_init(CPUPPCState *env)
 {
