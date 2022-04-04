@@ -331,8 +331,9 @@ static int mapline_size(const int *mapline)
 static void exynos4210_init_board_irqs(Exynos4210State *s)
 {
     uint32_t grp, bit, irq_id, n;
-    Exynos4210Irq *is = &s->irqs;
     DeviceState *extgicdev = DEVICE(&s->ext_gic);
+    DeviceState *intcdev = DEVICE(&s->int_combiner);
+    DeviceState *extcdev = DEVICE(&s->ext_combiner);
     int splitcount = 0;
     DeviceState *splitter;
     const int *mapline;
@@ -375,8 +376,10 @@ static void exynos4210_init_board_irqs(Exynos4210State *s)
         splitin = 0;
         for (;;) {
             s->irq_table[in] = qdev_get_gpio_in(splitter, 0);
-            qdev_connect_gpio_out(splitter, splitin, is->int_combiner_irq[in]);
-            qdev_connect_gpio_out(splitter, splitin + 1, is->ext_combiner_irq[in]);
+            qdev_connect_gpio_out(splitter, splitin,
+                                  qdev_get_gpio_in(intcdev, in));
+            qdev_connect_gpio_out(splitter, splitin + 1,
+                                  qdev_get_gpio_in(extcdev, in));
             splitin += 2;
             if (!mapline) {
                 break;
@@ -414,11 +417,11 @@ static void exynos4210_init_board_irqs(Exynos4210State *s)
             qdev_realize(splitter, NULL, &error_abort);
             splitcount++;
             s->irq_table[n] = qdev_get_gpio_in(splitter, 0);
-            qdev_connect_gpio_out(splitter, 0, is->int_combiner_irq[n]);
+            qdev_connect_gpio_out(splitter, 0, qdev_get_gpio_in(intcdev, n));
             qdev_connect_gpio_out(splitter, 1,
                                   qdev_get_gpio_in(extgicdev, irq_id - 32));
         } else {
-            s->irq_table[n] = is->int_combiner_irq[n];
+            s->irq_table[n] = qdev_get_gpio_in(intcdev, n);
         }
     }
     /*
@@ -438,25 +441,6 @@ static void exynos4210_init_board_irqs(Exynos4210State *s)
 uint32_t exynos4210_get_irq(uint32_t grp, uint32_t bit)
 {
     return EXYNOS4210_COMBINER_GET_IRQ_NUM(grp, bit);
-}
-
-/*
- * Get Combiner input GPIO into irqs structure
- */
-static void exynos4210_combiner_get_gpioin(Exynos4210Irq *irqs,
-                                           DeviceState *dev, int ext)
-{
-    int n;
-    int max;
-    qemu_irq *irq;
-
-    max = ext ? EXYNOS4210_MAX_EXT_COMBINER_IN_IRQ :
-        EXYNOS4210_MAX_INT_COMBINER_IN_IRQ;
-    irq = ext ? irqs->ext_combiner_irq : irqs->int_combiner_irq;
-
-    for (n = 0; n < max; n++) {
-        irq[n] = qdev_get_gpio_in(dev, n);
-    }
 }
 
 static uint8_t chipid_and_omr[] = { 0x11, 0x02, 0x21, 0x43,
@@ -630,7 +614,6 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
         sysbus_connect_irq(busdev, n,
                            qdev_get_gpio_in(DEVICE(&s->a9mpcore), n));
     }
-    exynos4210_combiner_get_gpioin(&s->irqs, DEVICE(&s->int_combiner), 0);
     sysbus_mmio_map(busdev, 0, EXYNOS4210_INT_COMBINER_BASE_ADDR);
 
     /* External Interrupt Combiner */
@@ -640,7 +623,6 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     for (n = 0; n < EXYNOS4210_MAX_INT_COMBINER_OUT_IRQ; n++) {
         sysbus_connect_irq(busdev, n, qdev_get_gpio_in(DEVICE(&s->ext_gic), n));
     }
-    exynos4210_combiner_get_gpioin(&s->irqs, DEVICE(&s->ext_combiner), 1);
     sysbus_mmio_map(busdev, 0, EXYNOS4210_EXT_COMBINER_BASE_ADDR);
 
     /* Initialize board IRQs. */
