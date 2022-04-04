@@ -281,16 +281,15 @@ static void exynos4210_init_board_irqs(Exynos4210State *s)
 
         assert(splitcount < EXYNOS4210_NUM_SPLITTERS);
         splitter = DEVICE(&s->splitter[splitcount]);
-        qdev_prop_set_uint16(splitter, "num-lines", 2);
+        qdev_prop_set_uint16(splitter, "num-lines", irq_id ? 3 : 2);
         qdev_realize(splitter, NULL, &error_abort);
         splitcount++;
         s->irq_table[n] = qdev_get_gpio_in(splitter, 0);
         qdev_connect_gpio_out(splitter, 0, is->int_combiner_irq[n]);
+        qdev_connect_gpio_out(splitter, 1, is->ext_combiner_irq[n]);
         if (irq_id) {
-            qdev_connect_gpio_out(splitter, 1,
+            qdev_connect_gpio_out(splitter, 2,
                                   qdev_get_gpio_in(extgicdev, irq_id - 32));
-        } else {
-            qdev_connect_gpio_out(splitter, 1, is->ext_combiner_irq[n]);
         }
     }
     for (; n < EXYNOS4210_MAX_INT_COMBINER_IN_IRQ; n++) {
