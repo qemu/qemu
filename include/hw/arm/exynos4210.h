@@ -102,6 +102,7 @@ struct Exynos4210State {
     MemoryRegion bootreg_mem;
     I2CBus *i2c_if[EXYNOS4210_I2C_NUMBER];
     qemu_or_irq pl330_irq_orgate[EXYNOS4210_NUM_DMA];
+    qemu_or_irq cpu_irq_orgate[EXYNOS4210_NCPUS];
 };
 
 #define TYPE_EXYNOS4210_SOC "exynos4210"

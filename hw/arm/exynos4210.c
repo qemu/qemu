@@ -205,7 +205,6 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
 {
     Exynos4210State *s = EXYNOS4210_SOC(socdev);
     MemoryRegion *system_mem = get_system_memory();
-    qemu_irq gate_irq[EXYNOS4210_NCPUS][EXYNOS4210_IRQ_GATE_NINPUTS];
     SysBusDevice *busdev;
     DeviceState *dev, *uart[4], *pl330[3];
     int i, n;
@@ -235,18 +234,13 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
 
     /* IRQ Gate */
     for (i = 0; i < EXYNOS4210_NCPUS; i++) {
-        dev = qdev_new("exynos4210.irq_gate");
-        qdev_prop_set_uint32(dev, "n_in", EXYNOS4210_IRQ_GATE_NINPUTS);
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-        /* Get IRQ Gate input in gate_irq */
-        for (n = 0; n < EXYNOS4210_IRQ_GATE_NINPUTS; n++) {
-            gate_irq[i][n] = qdev_get_gpio_in(dev, n);
-        }
-        busdev = SYS_BUS_DEVICE(dev);
-
-        /* Connect IRQ Gate output to CPU's IRQ line */
-        sysbus_connect_irq(busdev, 0,
-                           qdev_get_gpio_in(DEVICE(s->cpu[i]), ARM_CPU_IRQ));
+        DeviceState *orgate = DEVICE(&s->cpu_irq_orgate[i]);
+        object_property_set_int(OBJECT(orgate), "num-lines",
+                                EXYNOS4210_IRQ_GATE_NINPUTS,
+                                &error_abort);
+        qdev_realize(orgate, NULL, &error_abort);
+        qdev_connect_gpio_out(orgate, 0,
+                              qdev_get_gpio_in(DEVICE(s->cpu[i]), ARM_CPU_IRQ));
     }
 
     /* Private memory region and Internal GIC */
@@ -256,7 +250,8 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, EXYNOS4210_SMP_PRIVATE_BASE_ADDR);
     for (n = 0; n < EXYNOS4210_NCPUS; n++) {
-        sysbus_connect_irq(busdev, n, gate_irq[n][0]);
+        sysbus_connect_irq(busdev, n,
+                           qdev_get_gpio_in(DEVICE(&s->cpu_irq_orgate[n]), 0));
     }
     for (n = 0; n < EXYNOS4210_INT_GIC_NIRQ; n++) {
         s->irqs.int_gic_irq[n] = qdev_get_gpio_in(dev, n);
@@ -275,7 +270,8 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     /* Map Distributer interface */
     sysbus_mmio_map(busdev, 1, EXYNOS4210_EXT_GIC_DIST_BASE_ADDR);
     for (n = 0; n < EXYNOS4210_NCPUS; n++) {
-        sysbus_connect_irq(busdev, n, gate_irq[n][1]);
+        sysbus_connect_irq(busdev, n,
+                           qdev_get_gpio_in(DEVICE(&s->cpu_irq_orgate[n]), 1));
     }
     for (n = 0; n < EXYNOS4210_EXT_GIC_NIRQ; n++) {
         s->irqs.ext_gic_irq[n] = qdev_get_gpio_in(dev, n);
@@ -487,6 +483,11 @@ static void exynos4210_init(Object *obj)
 
         object_initialize_child(obj, name, orgate, TYPE_OR_IRQ);
         g_free(name);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(s->cpu_irq_orgate); i++) {
+        g_autofree char *name = g_strdup_printf("cpu-irq-orgate%d", i);
+        object_initialize_child(obj, name, &s->cpu_irq_orgate[i], TYPE_OR_IRQ);
     }
 }
 
