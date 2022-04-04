@@ -255,6 +255,76 @@ combiner_grp_to_gic_id[64 - EXYNOS4210_MAX_EXT_COMBINER_OUT_IRQ][8] = {
     ((irq) - 8 * EXYNOS4210_COMBINER_GET_GRP_NUM(irq))
 
 /*
+ * Some interrupt lines go to multiple combiner inputs.
+ * This data structure defines those: each array element is
+ * a list of combiner inputs which are connected together;
+ * the one with the smallest interrupt ID value must be first.
+ * As with combiner_grp_to_gic_id[], we rely on (0, 0) not being
+ * wired to anything so we can use 0 as a terminator.
+ */
+#define IRQNO(G, B) EXYNOS4210_COMBINER_GET_IRQ_NUM(G, B)
+#define IRQNONE 0
+
+#define COMBINERMAP_SIZE 16
+
+static const int combinermap[COMBINERMAP_SIZE][6] = {
+    /* MDNIE_LCD1 */
+    { IRQNO(0, 4), IRQNO(1, 0), IRQNONE },
+    { IRQNO(0, 5), IRQNO(1, 1), IRQNONE },
+    { IRQNO(0, 6), IRQNO(1, 2), IRQNONE },
+    { IRQNO(0, 7), IRQNO(1, 3), IRQNONE },
+    /* TMU */
+    { IRQNO(2, 4), IRQNO(3, 4), IRQNONE },
+    { IRQNO(2, 5), IRQNO(3, 5), IRQNONE },
+    { IRQNO(2, 6), IRQNO(3, 6), IRQNONE },
+    { IRQNO(2, 7), IRQNO(3, 7), IRQNONE },
+    /* LCD1 */
+    { IRQNO(11, 4), IRQNO(12, 0), IRQNONE },
+    { IRQNO(11, 5), IRQNO(12, 1), IRQNONE },
+    { IRQNO(11, 6), IRQNO(12, 2), IRQNONE },
+    { IRQNO(11, 7), IRQNO(12, 3), IRQNONE },
+    /* Multi-core timer */
+    { IRQNO(1, 4), IRQNO(12, 4), IRQNO(35, 4), IRQNO(51, 4), IRQNO(53, 4), IRQNONE },
+    { IRQNO(1, 5), IRQNO(12, 5), IRQNO(35, 5), IRQNO(51, 5), IRQNO(53, 5), IRQNONE },
+    { IRQNO(1, 6), IRQNO(12, 6), IRQNO(35, 6), IRQNO(51, 6), IRQNO(53, 6), IRQNONE },
+    { IRQNO(1, 7), IRQNO(12, 7), IRQNO(35, 7), IRQNO(51, 7), IRQNO(53, 7), IRQNONE },
+};
+
+#undef IRQNO
+
+static const int *combinermap_entry(int irq)
+{
+    /*
+     * If the interrupt number passed in is the first entry in some
+     * line of the combinermap, return a pointer to that line;
+     * otherwise return NULL.
+     */
+    int i;
+    for (i = 0; i < COMBINERMAP_SIZE; i++) {
+        if (combinermap[i][0] == irq) {
+            return combinermap[i];
+        }
+    }
+    return NULL;
+}
+
+static int mapline_size(const int *mapline)
+{
+    /* Return number of entries in this mapline in total */
+    int i = 0;
+
+    if (!mapline) {
+        /* Not in the map? IRQ goes to exactly one combiner input */
+        return 1;
+    }
+    while (*mapline != IRQNONE) {
+        mapline++;
+        i++;
+    }
+    return i;
+}
+
+/*
  * Initialize board IRQs.
  * These IRQs contain splitted Int/External Combiner and External Gic IRQs.
  */
@@ -265,6 +335,8 @@ static void exynos4210_init_board_irqs(Exynos4210State *s)
     DeviceState *extgicdev = DEVICE(&s->ext_gic);
     int splitcount = 0;
     DeviceState *splitter;
+    const int *mapline;
+    int numlines, splitin, in;
 
     for (n = 0; n < EXYNOS4210_MAX_EXT_COMBINER_IN_IRQ; n++) {
         irq_id = 0;
@@ -277,16 +349,46 @@ static void exynos4210_init_board_irqs(Exynos4210State *s)
             irq_id = EXT_GIC_ID_MCT_G1;
         }
 
+        if (s->irq_table[n]) {
+            /*
+             * This must be some non-first entry in a combinermap line,
+             * and we've already filled it in.
+             */
+            continue;
+        }
+        mapline = combinermap_entry(n);
+        /*
+         * We need to connect the IRQ to multiple inputs on both combiners
+         * and possibly also to the external GIC.
+         */
+        numlines = 2 * mapline_size(mapline);
+        if (irq_id) {
+            numlines++;
+        }
         assert(splitcount < EXYNOS4210_NUM_SPLITTERS);
         splitter = DEVICE(&s->splitter[splitcount]);
-        qdev_prop_set_uint16(splitter, "num-lines", irq_id ? 3 : 2);
+        qdev_prop_set_uint16(splitter, "num-lines", numlines);
         qdev_realize(splitter, NULL, &error_abort);
         splitcount++;
-        s->irq_table[n] = qdev_get_gpio_in(splitter, 0);
-        qdev_connect_gpio_out(splitter, 0, is->int_combiner_irq[n]);
-        qdev_connect_gpio_out(splitter, 1, is->ext_combiner_irq[n]);
+
+        in = n;
+        splitin = 0;
+        for (;;) {
+            s->irq_table[in] = qdev_get_gpio_in(splitter, 0);
+            qdev_connect_gpio_out(splitter, splitin, is->int_combiner_irq[in]);
+            qdev_connect_gpio_out(splitter, splitin + 1, is->ext_combiner_irq[in]);
+            splitin += 2;
+            if (!mapline) {
+                break;
+            }
+            mapline++;
+            in = *mapline;
+            if (in == IRQNONE) {
+                break;
+            }
+        }
         if (irq_id) {
-            qdev_connect_gpio_out(splitter, 2,
+            qdev_connect_gpio_out(splitter, splitin,
                                   qdev_get_gpio_in(extgicdev, irq_id - 32));
         }
     }
@@ -296,6 +398,14 @@ static void exynos4210_init_board_irqs(Exynos4210State *s)
         bit = EXYNOS4210_COMBINER_GET_BIT_NUM(n);
         irq_id = combiner_grp_to_gic_id[grp -
                      EXYNOS4210_MAX_EXT_COMBINER_OUT_IRQ][bit];
+
+        if (s->irq_table[n]) {
+            /*
+             * This must be some non-first entry in a combinermap line,
+             * and we've already filled it in.
+             */
+            continue;
+        }
 
         if (irq_id) {
             assert(splitcount < EXYNOS4210_NUM_SPLITTERS);
@@ -337,7 +447,6 @@ static void exynos4210_combiner_get_gpioin(Exynos4210Irq *irqs,
                                            DeviceState *dev, int ext)
 {
     int n;
-    int bit;
     int max;
     qemu_irq *irq;
 
@@ -345,64 +454,7 @@ static void exynos4210_combiner_get_gpioin(Exynos4210Irq *irqs,
         EXYNOS4210_MAX_INT_COMBINER_IN_IRQ;
     irq = ext ? irqs->ext_combiner_irq : irqs->int_combiner_irq;
 
-    /*
-     * Some IRQs of Int/External Combiner are going to two Combiners groups,
-     * so let split them.
-     */
     for (n = 0; n < max; n++) {
-
-        bit = EXYNOS4210_COMBINER_GET_BIT_NUM(n);
-
-        switch (n) {
-        /* MDNIE_LCD1 INTG1 */
-        case EXYNOS4210_COMBINER_GET_IRQ_NUM(1, 0) ...
-             EXYNOS4210_COMBINER_GET_IRQ_NUM(1, 3):
-            irq[n] = qemu_irq_split(qdev_get_gpio_in(dev, n),
-                    irq[EXYNOS4210_COMBINER_GET_IRQ_NUM(0, bit + 4)]);
-            continue;
-
-        /* TMU INTG3 */
-        case EXYNOS4210_COMBINER_GET_IRQ_NUM(3, 4):
-            irq[n] = qemu_irq_split(qdev_get_gpio_in(dev, n),
-                    irq[EXYNOS4210_COMBINER_GET_IRQ_NUM(2, bit)]);
-            continue;
-
-        /* LCD1 INTG12 */
-        case EXYNOS4210_COMBINER_GET_IRQ_NUM(12, 0) ...
-             EXYNOS4210_COMBINER_GET_IRQ_NUM(12, 3):
-            irq[n] = qemu_irq_split(qdev_get_gpio_in(dev, n),
-                    irq[EXYNOS4210_COMBINER_GET_IRQ_NUM(11, bit + 4)]);
-            continue;
-
-        /* Multi-Core Timer INTG12 */
-        case EXYNOS4210_COMBINER_GET_IRQ_NUM(12, 4) ...
-             EXYNOS4210_COMBINER_GET_IRQ_NUM(12, 8):
-               irq[n] = qemu_irq_split(qdev_get_gpio_in(dev, n),
-                       irq[EXYNOS4210_COMBINER_GET_IRQ_NUM(1, bit + 4)]);
-            continue;
-
-        /* Multi-Core Timer INTG35 */
-        case EXYNOS4210_COMBINER_GET_IRQ_NUM(35, 4) ...
-             EXYNOS4210_COMBINER_GET_IRQ_NUM(35, 8):
-            irq[n] = qemu_irq_split(qdev_get_gpio_in(dev, n),
-                    irq[EXYNOS4210_COMBINER_GET_IRQ_NUM(1, bit + 4)]);
-            continue;
-
-        /* Multi-Core Timer INTG51 */
-        case EXYNOS4210_COMBINER_GET_IRQ_NUM(51, 4) ...
-             EXYNOS4210_COMBINER_GET_IRQ_NUM(51, 8):
-            irq[n] = qemu_irq_split(qdev_get_gpio_in(dev, n),
-                    irq[EXYNOS4210_COMBINER_GET_IRQ_NUM(1, bit + 4)]);
-            continue;
-
-        /* Multi-Core Timer INTG53 */
-        case EXYNOS4210_COMBINER_GET_IRQ_NUM(53, 4) ...
-             EXYNOS4210_COMBINER_GET_IRQ_NUM(53, 8):
-            irq[n] = qemu_irq_split(qdev_get_gpio_in(dev, n),
-                    irq[EXYNOS4210_COMBINER_GET_IRQ_NUM(1, bit + 4)]);
-            continue;
-        }
-
         irq[n] = qdev_get_gpio_in(dev, n);
     }
 }
