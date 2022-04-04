@@ -263,6 +263,8 @@ static void exynos4210_init_board_irqs(Exynos4210State *s)
     uint32_t grp, bit, irq_id, n;
     Exynos4210Irq *is = &s->irqs;
     DeviceState *extgicdev = DEVICE(&s->ext_gic);
+    int splitcount = 0;
+    DeviceState *splitter;
 
     for (n = 0; n < EXYNOS4210_MAX_EXT_COMBINER_IN_IRQ; n++) {
         irq_id = 0;
@@ -276,13 +278,19 @@ static void exynos4210_init_board_irqs(Exynos4210State *s)
             /* MCT_G1 is passed to External and GIC */
             irq_id = EXT_GIC_ID_MCT_G1;
         }
+
+        assert(splitcount < EXYNOS4210_NUM_SPLITTERS);
+        splitter = DEVICE(&s->splitter[splitcount]);
+        qdev_prop_set_uint16(splitter, "num-lines", 2);
+        qdev_realize(splitter, NULL, &error_abort);
+        splitcount++;
+        s->irq_table[n] = qdev_get_gpio_in(splitter, 0);
+        qdev_connect_gpio_out(splitter, 0, is->int_combiner_irq[n]);
         if (irq_id) {
-            s->irq_table[n] = qemu_irq_split(is->int_combiner_irq[n],
-                                             qdev_get_gpio_in(extgicdev,
-                                                              irq_id - 32));
+            qdev_connect_gpio_out(splitter, 1,
+                                  qdev_get_gpio_in(extgicdev, irq_id - 32));
         } else {
-            s->irq_table[n] = qemu_irq_split(is->int_combiner_irq[n],
-                    is->ext_combiner_irq[n]);
+            qdev_connect_gpio_out(splitter, 1, is->ext_combiner_irq[n]);
         }
     }
     for (; n < EXYNOS4210_MAX_INT_COMBINER_IN_IRQ; n++) {
@@ -293,11 +301,23 @@ static void exynos4210_init_board_irqs(Exynos4210State *s)
                      EXYNOS4210_MAX_EXT_COMBINER_OUT_IRQ][bit];
 
         if (irq_id) {
-            s->irq_table[n] = qemu_irq_split(is->int_combiner_irq[n],
-                                             qdev_get_gpio_in(extgicdev,
-                                                              irq_id - 32));
+            assert(splitcount < EXYNOS4210_NUM_SPLITTERS);
+            splitter = DEVICE(&s->splitter[splitcount]);
+            qdev_prop_set_uint16(splitter, "num-lines", 2);
+            qdev_realize(splitter, NULL, &error_abort);
+            splitcount++;
+            s->irq_table[n] = qdev_get_gpio_in(splitter, 0);
+            qdev_connect_gpio_out(splitter, 0, is->int_combiner_irq[n]);
+            qdev_connect_gpio_out(splitter, 1,
+                                  qdev_get_gpio_in(extgicdev, irq_id - 32));
         }
     }
+    /*
+     * We check this here to avoid a more obscure assert later when
+     * qdev_assert_realized_properly() checks that we realized every
+     * child object we initialized.
+     */
+    assert(splitcount == EXYNOS4210_NUM_SPLITTERS);
 }
 
 /*
@@ -764,6 +784,11 @@ static void exynos4210_init(Object *obj)
     for (i = 0; i < ARRAY_SIZE(s->cpu_irq_orgate); i++) {
         g_autofree char *name = g_strdup_printf("cpu-irq-orgate%d", i);
         object_initialize_child(obj, name, &s->cpu_irq_orgate[i], TYPE_OR_IRQ);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(s->splitter); i++) {
+        g_autofree char *name = g_strdup_printf("irq-splitter%d", i);
+        object_initialize_child(obj, name, &s->splitter[i], TYPE_SPLIT_IRQ);
     }
 
     object_initialize_child(obj, "a9mpcore", &s->a9mpcore, TYPE_A9MPCORE_PRIV);

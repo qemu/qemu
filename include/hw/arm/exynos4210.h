@@ -28,6 +28,7 @@
 #include "hw/sysbus.h"
 #include "hw/cpu/a9mpcore.h"
 #include "hw/intc/exynos4210_gic.h"
+#include "hw/core/split-irq.h"
 #include "target/arm/cpu-qom.h"
 #include "qom/object.h"
 
@@ -71,6 +72,13 @@
 
 #define EXYNOS4210_NUM_DMA      3
 
+/*
+ * We need one splitter for every external combiner input, plus
+ * one for every non-zero entry in combiner_grp_to_gic_id[].
+ * We'll assert in exynos4210_init_board_irqs() if this is wrong.
+ */
+#define EXYNOS4210_NUM_SPLITTERS (EXYNOS4210_MAX_EXT_COMBINER_IN_IRQ + 60)
+
 typedef struct Exynos4210Irq {
     qemu_irq int_combiner_irq[EXYNOS4210_MAX_INT_COMBINER_IN_IRQ];
     qemu_irq ext_combiner_irq[EXYNOS4210_MAX_EXT_COMBINER_IN_IRQ];
@@ -95,6 +103,7 @@ struct Exynos4210State {
     qemu_or_irq cpu_irq_orgate[EXYNOS4210_NCPUS];
     A9MPPrivState a9mpcore;
     Exynos4210GicState ext_gic;
+    SplitIRQ splitter[EXYNOS4210_NUM_SPLITTERS];
 };
 
 #define TYPE_EXYNOS4210_SOC "exynos4210"
