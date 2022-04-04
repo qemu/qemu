@@ -228,10 +228,6 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
         qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
     }
 
-    /*** IRQs ***/
-
-    s->irq_table = exynos4210_init_irq(&s->irqs);
-
     /* IRQ Gate */
     for (i = 0; i < EXYNOS4210_NCPUS; i++) {
         DeviceState *orgate = DEVICE(&s->cpu_irq_orgate[i]);
@@ -296,7 +292,7 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     sysbus_mmio_map(busdev, 0, EXYNOS4210_EXT_COMBINER_BASE_ADDR);
 
     /* Initialize board IRQs. */
-    exynos4210_init_board_irqs(&s->irqs);
+    exynos4210_init_board_irqs(s);
 
     /*** Memory ***/
 

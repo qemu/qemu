@@ -192,30 +192,14 @@ combiner_grp_to_gic_id[64-EXYNOS4210_MAX_EXT_COMBINER_OUT_IRQ][8] = {
 #define EXYNOS4210_GIC_CPU_REGION_SIZE  0x100
 #define EXYNOS4210_GIC_DIST_REGION_SIZE 0x1000
 
-static void exynos4210_irq_handler(void *opaque, int irq, int level)
-{
-    Exynos4210Irq *s = (Exynos4210Irq *)opaque;
-
-    /* Bypass */
-    qemu_set_irq(s->board_irqs[irq], level);
-}
-
-/*
- * Initialize exynos4210 IRQ subsystem stub.
- */
-qemu_irq *exynos4210_init_irq(Exynos4210Irq *s)
-{
-    return qemu_allocate_irqs(exynos4210_irq_handler, s,
-            EXYNOS4210_MAX_INT_COMBINER_IN_IRQ);
-}
-
 /*
  * Initialize board IRQs.
  * These IRQs contain splitted Int/External Combiner and External Gic IRQs.
  */
-void exynos4210_init_board_irqs(Exynos4210Irq *s)
+void exynos4210_init_board_irqs(Exynos4210State *s)
 {
     uint32_t grp, bit, irq_id, n;
+    Exynos4210Irq *is = &s->irqs;
 
     for (n = 0; n < EXYNOS4210_MAX_EXT_COMBINER_IN_IRQ; n++) {
         irq_id = 0;
@@ -230,11 +214,11 @@ void exynos4210_init_board_irqs(Exynos4210Irq *s)
             irq_id = EXT_GIC_ID_MCT_G1;
         }
         if (irq_id) {
-            s->board_irqs[n] = qemu_irq_split(s->int_combiner_irq[n],
-                    s->ext_gic_irq[irq_id-32]);
+            s->irq_table[n] = qemu_irq_split(is->int_combiner_irq[n],
+                    is->ext_gic_irq[irq_id - 32]);
         } else {
-            s->board_irqs[n] = qemu_irq_split(s->int_combiner_irq[n],
-                    s->ext_combiner_irq[n]);
+            s->irq_table[n] = qemu_irq_split(is->int_combiner_irq[n],
+                    is->ext_combiner_irq[n]);
         }
     }
     for (; n < EXYNOS4210_MAX_INT_COMBINER_IN_IRQ; n++) {
@@ -245,8 +229,8 @@ void exynos4210_init_board_irqs(Exynos4210Irq *s)
                      EXYNOS4210_MAX_EXT_COMBINER_OUT_IRQ][bit];
 
         if (irq_id) {
-            s->board_irqs[n] = qemu_irq_split(s->int_combiner_irq[n],
-                    s->ext_gic_irq[irq_id-32]);
+            s->irq_table[n] = qemu_irq_split(is->int_combiner_irq[n],
+                    is->ext_gic_irq[irq_id - 32]);
         }
     }
 }
