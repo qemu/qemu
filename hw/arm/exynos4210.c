@@ -310,6 +310,8 @@ static void exynos4210_init_board_irqs(Exynos4210State *s)
             qdev_connect_gpio_out(splitter, 0, is->int_combiner_irq[n]);
             qdev_connect_gpio_out(splitter, 1,
                                   qdev_get_gpio_in(extgicdev, irq_id - 32));
+        } else {
+            s->irq_table[n] = is->int_combiner_irq[n];
         }
     }
     /*
