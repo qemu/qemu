@@ -67,10 +67,6 @@
 #define EXYNOS4210_MAX_EXT_COMBINER_IN_IRQ   \
     (EXYNOS4210_MAX_EXT_COMBINER_OUT_IRQ * 8)
 
-/* IRQs number for external and internal GIC */
-#define EXYNOS4210_EXT_GIC_NIRQ     (160-32)
-#define EXYNOS4210_INT_GIC_NIRQ     64
-
 #define EXYNOS4210_I2C_NUMBER               9
 
 #define EXYNOS4210_NUM_DMA      3
