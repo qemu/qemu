@@ -189,10 +189,13 @@ static const VMStateDescription vmstate_spapr_cpu_state = {
 
 static void spapr_unrealize_vcpu(PowerPCCPU *cpu, SpaprCpuCore *sc)
 {
+    CPUPPCState *env = &cpu->env;
+
     if (!sc->pre_3_0_migration) {
         vmstate_unregister(NULL, &vmstate_spapr_cpu_state, cpu->machine_data);
     }
     spapr_irq_cpu_intc_destroy(SPAPR_MACHINE(qdev_get_machine()), cpu);
+    cpu_ppc_tb_free(env);
     qdev_unrealize(DEVICE(cpu));
 }
 

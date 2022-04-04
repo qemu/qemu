@@ -180,7 +180,7 @@ struct PnvPhb4PecState {
     MemoryRegion nest_regs_mr;
 
     /* PCI registers, excluding per-stack */
-#define PHB4_PEC_PCI_REGS_COUNT     0x2
+#define PHB4_PEC_PCI_REGS_COUNT     0x3
     uint64_t pci_regs[PHB4_PEC_PCI_REGS_COUNT];
     MemoryRegion pci_regs_mr;
 
