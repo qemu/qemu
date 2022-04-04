@@ -67,11 +67,6 @@
 #define EXYNOS4210_MAX_EXT_COMBINER_IN_IRQ   \
     (EXYNOS4210_MAX_EXT_COMBINER_OUT_IRQ * 8)
 
-#define EXYNOS4210_COMBINER_GET_IRQ_NUM(grp, bit)  ((grp)*8 + (bit))
-#define EXYNOS4210_COMBINER_GET_GRP_NUM(irq)       ((irq) / 8)
-#define EXYNOS4210_COMBINER_GET_BIT_NUM(irq) \
-    ((irq) - 8 * EXYNOS4210_COMBINER_GET_GRP_NUM(irq))
-
 /* IRQs number for external and internal GIC */
 #define EXYNOS4210_EXT_GIC_NIRQ     (160-32)
 #define EXYNOS4210_INT_GIC_NIRQ     64
@@ -117,12 +112,6 @@ void exynos4210_write_secondary(ARMCPU *cpu,
  *  grp - group number
  *  bit - bit number inside group */
 uint32_t exynos4210_get_irq(uint32_t grp, uint32_t bit);
-
-/*
- * Get Combiner input GPIO into irqs structure
- */
-void exynos4210_combiner_get_gpioin(Exynos4210Irq *irqs, DeviceState *dev,
-        int ext);
 
 /*
  * exynos4210 UART

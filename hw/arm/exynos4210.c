@@ -249,6 +249,11 @@ combiner_grp_to_gic_id[64 - EXYNOS4210_MAX_EXT_COMBINER_OUT_IRQ][8] = {
     { }, { }, { }, { }, { }, { }, { }, { }, { }, { }
 };
 
+#define EXYNOS4210_COMBINER_GET_IRQ_NUM(grp, bit)  ((grp) * 8 + (bit))
+#define EXYNOS4210_COMBINER_GET_GRP_NUM(irq)       ((irq) / 8)
+#define EXYNOS4210_COMBINER_GET_BIT_NUM(irq) \
+    ((irq) - 8 * EXYNOS4210_COMBINER_GET_GRP_NUM(irq))
+
 /*
  * Initialize board IRQs.
  * These IRQs contain splitted Int/External Combiner and External Gic IRQs.
@@ -304,6 +309,83 @@ static void exynos4210_init_board_irqs(Exynos4210State *s)
 uint32_t exynos4210_get_irq(uint32_t grp, uint32_t bit)
 {
     return EXYNOS4210_COMBINER_GET_IRQ_NUM(grp, bit);
+}
+
+/*
+ * Get Combiner input GPIO into irqs structure
+ */
+static void exynos4210_combiner_get_gpioin(Exynos4210Irq *irqs,
+                                           DeviceState *dev, int ext)
+{
+    int n;
+    int bit;
+    int max;
+    qemu_irq *irq;
+
+    max = ext ? EXYNOS4210_MAX_EXT_COMBINER_IN_IRQ :
+        EXYNOS4210_MAX_INT_COMBINER_IN_IRQ;
+    irq = ext ? irqs->ext_combiner_irq : irqs->int_combiner_irq;
+
+    /*
+     * Some IRQs of Int/External Combiner are going to two Combiners groups,
+     * so let split them.
+     */
+    for (n = 0; n < max; n++) {
+
+        bit = EXYNOS4210_COMBINER_GET_BIT_NUM(n);
+
+        switch (n) {
+        /* MDNIE_LCD1 INTG1 */
+        case EXYNOS4210_COMBINER_GET_IRQ_NUM(1, 0) ...
+             EXYNOS4210_COMBINER_GET_IRQ_NUM(1, 3):
+            irq[n] = qemu_irq_split(qdev_get_gpio_in(dev, n),
+                    irq[EXYNOS4210_COMBINER_GET_IRQ_NUM(0, bit + 4)]);
+            continue;
+
+        /* TMU INTG3 */
+        case EXYNOS4210_COMBINER_GET_IRQ_NUM(3, 4):
+            irq[n] = qemu_irq_split(qdev_get_gpio_in(dev, n),
+                    irq[EXYNOS4210_COMBINER_GET_IRQ_NUM(2, bit)]);
+            continue;
+
+        /* LCD1 INTG12 */
+        case EXYNOS4210_COMBINER_GET_IRQ_NUM(12, 0) ...
+             EXYNOS4210_COMBINER_GET_IRQ_NUM(12, 3):
+            irq[n] = qemu_irq_split(qdev_get_gpio_in(dev, n),
+                    irq[EXYNOS4210_COMBINER_GET_IRQ_NUM(11, bit + 4)]);
+            continue;
+
+        /* Multi-Core Timer INTG12 */
+        case EXYNOS4210_COMBINER_GET_IRQ_NUM(12, 4) ...
+             EXYNOS4210_COMBINER_GET_IRQ_NUM(12, 8):
+               irq[n] = qemu_irq_split(qdev_get_gpio_in(dev, n),
+                       irq[EXYNOS4210_COMBINER_GET_IRQ_NUM(1, bit + 4)]);
+            continue;
+
+        /* Multi-Core Timer INTG35 */
+        case EXYNOS4210_COMBINER_GET_IRQ_NUM(35, 4) ...
+             EXYNOS4210_COMBINER_GET_IRQ_NUM(35, 8):
+            irq[n] = qemu_irq_split(qdev_get_gpio_in(dev, n),
+                    irq[EXYNOS4210_COMBINER_GET_IRQ_NUM(1, bit + 4)]);
+            continue;
+
+        /* Multi-Core Timer INTG51 */
+        case EXYNOS4210_COMBINER_GET_IRQ_NUM(51, 4) ...
+             EXYNOS4210_COMBINER_GET_IRQ_NUM(51, 8):
+            irq[n] = qemu_irq_split(qdev_get_gpio_in(dev, n),
+                    irq[EXYNOS4210_COMBINER_GET_IRQ_NUM(1, bit + 4)]);
+            continue;
+
+        /* Multi-Core Timer INTG53 */
+        case EXYNOS4210_COMBINER_GET_IRQ_NUM(53, 4) ...
+             EXYNOS4210_COMBINER_GET_IRQ_NUM(53, 8):
+            irq[n] = qemu_irq_split(qdev_get_gpio_in(dev, n),
+                    irq[EXYNOS4210_COMBINER_GET_IRQ_NUM(1, bit + 4)]);
+            continue;
+        }
+
+        irq[n] = qdev_get_gpio_in(dev, n);
+    }
 }
 
 static uint8_t chipid_and_omr[] = { 0x11, 0x02, 0x21, 0x43,
