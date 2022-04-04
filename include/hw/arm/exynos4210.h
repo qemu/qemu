@@ -26,6 +26,7 @@
 
 #include "hw/or-irq.h"
 #include "hw/sysbus.h"
+#include "hw/cpu/a9mpcore.h"
 #include "target/arm/cpu-qom.h"
 #include "qom/object.h"
 
@@ -103,6 +104,7 @@ struct Exynos4210State {
     I2CBus *i2c_if[EXYNOS4210_I2C_NUMBER];
     qemu_or_irq pl330_irq_orgate[EXYNOS4210_NUM_DMA];
     qemu_or_irq cpu_irq_orgate[EXYNOS4210_NCPUS];
+    A9MPPrivState a9mpcore;
 };
 
 #define TYPE_EXYNOS4210_SOC "exynos4210"
