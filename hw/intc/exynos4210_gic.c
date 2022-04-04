@@ -27,6 +27,7 @@
 #include "qemu/module.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
+#include "hw/intc/exynos4210_gic.h"
 #include "hw/arm/exynos4210.h"
 #include "qom/object.h"
 
@@ -43,20 +44,6 @@
 
 #define EXYNOS4210_GIC_CPU_REGION_SIZE  0x100
 #define EXYNOS4210_GIC_DIST_REGION_SIZE 0x1000
-
-#define TYPE_EXYNOS4210_GIC "exynos4210.gic"
-OBJECT_DECLARE_SIMPLE_TYPE(Exynos4210GicState, EXYNOS4210_GIC)
-
-struct Exynos4210GicState {
-    SysBusDevice parent_obj;
-
-    MemoryRegion cpu_container;
-    MemoryRegion dist_container;
-    MemoryRegion cpu_alias[EXYNOS4210_NCPUS];
-    MemoryRegion dist_alias[EXYNOS4210_NCPUS];
-    uint32_t num_cpu;
-    DeviceState *gic;
-};
 
 static void exynos4210_gic_set_irq(void *opaque, int irq, int level)
 {
@@ -100,7 +87,7 @@ static void exynos4210_gic_realize(DeviceState *dev, Error **errp)
      * enough room for the cpu numbers.  gcc 9.2.1 on 32-bit x86
      * doesn't figure this out, otherwise and gives spurious warnings.
      */
-    assert(n <= EXYNOS4210_NCPUS);
+    assert(n <= EXYNOS4210_GIC_NCPUS);
     for (i = 0; i < n; i++) {
         /* Map CPU interface per SMP Core */
         sprintf(cpu_alias_name, "%s%x", cpu_prefix, i);
