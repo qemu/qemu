@@ -89,7 +89,7 @@ static bool bbram_pgm_enabled(XlnxBBRam *s)
 
 static void bbram_bdrv_error(XlnxBBRam *s, int rc, gchar *detail)
 {
-    Error *errp;
+    Error *errp = NULL;
 
     error_setg_errno(&errp, -rc, "%s: BBRAM backstore %s failed.",
                      blk_name(s->blk), detail);
