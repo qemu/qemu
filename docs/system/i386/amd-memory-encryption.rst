@@ -47,7 +47,7 @@ The guest policy is passed as plaintext. A hypervisor may choose to read it,
 but should not modify it (any modification of the policy bits will result
 in bad measurement). The guest policy is a 4-byte data structure containing
 several flags that restricts what can be done on a running SEV guest.
-See KM Spec section 3 and 6.2 for more details.
+See SEV API Spec ([SEVAPI]_) section 3 and 6.2 for more details.
 
 The guest policy can be provided via the ``policy`` property::
 
@@ -92,7 +92,7 @@ expects.
 ``LAUNCH_FINISH`` finalizes the guest launch and destroys the cryptographic
 context.
 
-See SEV KM API Spec ([SEVKM]_) 'Launching a guest' usage flow (Appendix A) for the
+See SEV API Spec ([SEVAPI]_) 'Launching a guest' usage flow (Appendix A) for the
 complete flow chart.
 
 To launch a SEV guest::
@@ -118,6 +118,49 @@ a SEV-ES guest:
  - Requires in-kernel irqchip - the burden is placed on the hypervisor to
    manage booting APs.
 
+Calculating expected guest launch measurement
+---------------------------------------------
+
+In order to verify the guest launch measurement, The Guest Owner must compute
+it in the exact same way as it is calculated by the AMD-SP.  SEV API Spec
+([SEVAPI]_) section 6.5.1 describes the AMD-SP operations:
+
+    GCTX.LD is finalized, producing the hash digest of all plaintext data
+    imported into the guest.
+
+    The launch measurement is calculated as:
+
+    HMAC(0x04 || API_MAJOR || API_MINOR || BUILD || GCTX.POLICY || GCTX.LD || MNONCE; GCTX.TIK)
+
+    where "||" represents concatenation.
+
+The values of API_MAJOR, API_MINOR, BUILD, and GCTX.POLICY can be obtained
+from the ``query-sev`` qmp command.
+
+The value of MNONCE is part of the response of ``query-sev-launch-measure``: it
+is the last 16 bytes of the base64-decoded data field (see SEV API Spec
+([SEVAPI]_) section 6.5.2 Table 52: LAUNCH_MEASURE Measurement Buffer).
+
+The value of GCTX.LD is
+``SHA256(firmware_blob || kernel_hashes_blob || vmsas_blob)``, where:
+
+* ``firmware_blob`` is the content of the entire firmware flash file (for
+  example, ``OVMF.fd``).  Note that you must build a stateless firmware file
+  which doesn't use an NVRAM store, because the NVRAM area is not measured, and
+  therefore it is not secure to use a firmware which uses state from an NVRAM
+  store.
+* if kernel is used, and ``kernel-hashes=on``, then ``kernel_hashes_blob`` is
+  the content of PaddedSevHashTable (including the zero padding), which itself
+  includes the hashes of kernel, initrd, and cmdline that are passed to the
+  guest.  The PaddedSevHashTable struct is defined in ``target/i386/sev.c``.
+* if SEV-ES is enabled (``policy & 0x4 != 0``), ``vmsas_blob`` is the
+  concatenation of all VMSAs of the guest vcpus.  Each VMSA is 4096 bytes long;
+  its content is defined inside Linux kernel code as ``struct vmcb_save_area``,
+  or in AMD APM Volume 2 ([APMVOL2]_) Table B-2: VMCB Layout, State Save Area.
+
+If kernel hashes are not used, or SEV-ES is disabled, use empty blobs for
+``kernel_hashes_blob`` and ``vmsas_blob`` as needed.
+
 Debugging
 ---------
 
@@ -142,8 +185,11 @@ References
 `AMD Memory Encryption whitepaper
 <https://developer.amd.com/wordpress/media/2013/12/AMD_Memory_Encryption_Whitepaper_v7-Public.pdf>`_
 
-.. [SEVKM] `Secure Encrypted Virtualization Key Management
-   <http://developer.amd.com/wordpress/media/2017/11/55766_SEV-KM-API_Specification.pdf>`_
+.. [SEVAPI] `Secure Encrypted Virtualization API
+   <https://www.amd.com/system/files/TechDocs/55766_SEV-KM_API_Specification.pdf>`_
+
+.. [APMVOL2] `AMD64 Architecture Programmer's Manual Volume 2: System Programming
+   <https://www.amd.com/system/files/TechDocs/24593.pdf>`_
 
 KVM Forum slides:
 
