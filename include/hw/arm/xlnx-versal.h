@@ -35,6 +35,7 @@
 OBJECT_DECLARE_SIMPLE_TYPE(Versal, XLNX_VERSAL)
 
 #define XLNX_VERSAL_NR_ACPUS   2
+#define XLNX_VERSAL_NR_RCPUS   2
 #define XLNX_VERSAL_NR_UARTS   2
 #define XLNX_VERSAL_NR_GEMS    2
 #define XLNX_VERSAL_NR_ADMAS   8
@@ -72,6 +73,15 @@ struct Versal {
             XlnxZDMA adma[XLNX_VERSAL_NR_ADMAS];
             VersalUsb2 usb;
         } iou;
+
+        /* Real-time Processing Unit.  */
+        struct {
+            MemoryRegion mr;
+            MemoryRegion mr_ps_alias;
+
+            CPUClusterState cluster;
+            ARMCPU cpu[XLNX_VERSAL_NR_RCPUS];
+        } rpu;
 
         struct {
             qemu_or_irq irq_orgate;
