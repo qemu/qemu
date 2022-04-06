@@ -539,6 +539,57 @@ static void versal_create_ospi(Versal *s, qemu_irq *pic)
     qdev_connect_gpio_out(orgate, 0, pic[VERSAL_OSPI_IRQ]);
 }
 
+static void versal_create_crl(Versal *s, qemu_irq *pic)
+{
+    SysBusDevice *sbd;
+    int i;
+
+    object_initialize_child(OBJECT(s), "crl", &s->lpd.crl,
+                            TYPE_XLNX_VERSAL_CRL);
+    sbd = SYS_BUS_DEVICE(&s->lpd.crl);
+
+    for (i = 0; i < ARRAY_SIZE(s->lpd.rpu.cpu); i++) {
+        g_autofree gchar *name = g_strdup_printf("cpu_r5[%d]", i);
+
+        object_property_set_link(OBJECT(&s->lpd.crl),
+                                 name, OBJECT(&s->lpd.rpu.cpu[i]),
+                                 &error_abort);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(s->lpd.iou.gem); i++) {
+        g_autofree gchar *name = g_strdup_printf("gem[%d]", i);
+
+        object_property_set_link(OBJECT(&s->lpd.crl),
+                                 name, OBJECT(&s->lpd.iou.gem[i]),
+                                 &error_abort);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(s->lpd.iou.adma); i++) {
+        g_autofree gchar *name = g_strdup_printf("adma[%d]", i);
+
+        object_property_set_link(OBJECT(&s->lpd.crl),
+                                 name, OBJECT(&s->lpd.iou.adma[i]),
+                                 &error_abort);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(s->lpd.iou.uart); i++) {
+        g_autofree gchar *name = g_strdup_printf("uart[%d]", i);
+
+        object_property_set_link(OBJECT(&s->lpd.crl),
+                                 name, OBJECT(&s->lpd.iou.uart[i]),
+                                 &error_abort);
+    }
+
+    object_property_set_link(OBJECT(&s->lpd.crl),
+                             "usb", OBJECT(&s->lpd.iou.usb),
+                             &error_abort);
+
+    sysbus_realize(sbd, &error_fatal);
+    memory_region_add_subregion(&s->mr_ps, MM_CRL,
+                                sysbus_mmio_get_region(sbd, 0));
+    sysbus_connect_irq(sbd, 0, pic[VERSAL_CRL_IRQ]);
+}
+
 /* This takes the board allocated linear DDR memory and creates aliases
  * for each split DDR range/aperture on the Versal address map.
  */
@@ -622,8 +673,6 @@ static void versal_unimp(Versal *s)
 
     versal_unimp_area(s, "psm", &s->mr_ps,
                         MM_PSM_START, MM_PSM_END - MM_PSM_START);
-    versal_unimp_area(s, "crl", &s->mr_ps,
-                        MM_CRL, MM_CRL_SIZE);
     versal_unimp_area(s, "crf", &s->mr_ps,
                         MM_FPD_CRF, MM_FPD_CRF_SIZE);
     versal_unimp_area(s, "apu", &s->mr_ps,
@@ -681,6 +730,7 @@ static void versal_realize(DeviceState *dev, Error **errp)
     versal_create_efuse(s, pic);
     versal_create_pmc_iou_slcr(s, pic);
     versal_create_ospi(s, pic);
+    versal_create_crl(s, pic);
     versal_map_ddr(s);
     versal_unimp(s);
 

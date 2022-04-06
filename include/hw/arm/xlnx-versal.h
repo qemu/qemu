@@ -29,6 +29,7 @@
 #include "hw/nvram/xlnx-versal-efuse.h"
 #include "hw/ssi/xlnx-versal-ospi.h"
 #include "hw/dma/xlnx_csu_dma.h"
+#include "hw/misc/xlnx-versal-crl.h"
 #include "hw/misc/xlnx-versal-pmc-iou-slcr.h"
 
 #define TYPE_XLNX_VERSAL "xlnx-versal"
@@ -87,6 +88,8 @@ struct Versal {
             qemu_or_irq irq_orgate;
             XlnxXramCtrl ctrl[XLNX_VERSAL_NR_XRAM];
         } xram;
+
+        XlnxVersalCRL crl;
     } lpd;
 
     /* The Platform Management Controller subsystem.  */
@@ -127,6 +130,7 @@ struct Versal {
 #define VERSAL_TIMER_NS_EL1_IRQ     14
 #define VERSAL_TIMER_NS_EL2_IRQ     10
 
+#define VERSAL_CRL_IRQ             10
 #define VERSAL_UART0_IRQ_0         18
 #define VERSAL_UART1_IRQ_0         19
 #define VERSAL_USB0_IRQ_0          22
