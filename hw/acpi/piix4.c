@@ -82,6 +82,7 @@ struct PIIX4PMState {
     AcpiPciHpState acpi_pci_hotplug;
     bool use_acpi_hotplug_bridge;
     bool use_acpi_root_pci_hotplug;
+    bool not_migrate_acpi_index;
 
     uint8_t disable_s3;
     uint8_t disable_s4;
@@ -267,6 +268,16 @@ static bool piix4_vmstate_need_smbus(void *opaque, int version_id)
     return pm_smbus_vmstate_needed();
 }
 
+/*
+ * This is a fudge to turn off the acpi_index field,
+ * whose test was always broken on piix4 with 6.2 and older machine types.
+ */
+static bool vmstate_test_migrate_acpi_index(void *opaque, int version_id)
+{
+    PIIX4PMState *s = PIIX4_PM(opaque);
+    return s->use_acpi_hotplug_bridge && !s->not_migrate_acpi_index;
+}
+
 /* qemu-kvm 1.2 uses version 3 but advertised as 2
  * To support incoming qemu-kvm 1.2 migration, change version_id
  * and minimum_version_id to 2 below (which breaks migration from
@@ -297,7 +308,7 @@ static const VMStateDescription vmstate_acpi = {
             struct AcpiPciHpPciStatus),
         VMSTATE_PCI_HOTPLUG(acpi_pci_hotplug, PIIX4PMState,
                             vmstate_test_use_acpi_hotplug_bridge,
-                            vmstate_acpi_pcihp_use_acpi_index),
+                            vmstate_test_migrate_acpi_index),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription*[]) {
@@ -652,6 +663,8 @@ static Property piix4_pm_properties[] = {
     DEFINE_PROP_BOOL("memory-hotplug-support", PIIX4PMState,
                      acpi_memory_hotplug.is_enabled, true),
     DEFINE_PROP_BOOL("smm-compat", PIIX4PMState, smm_compat, false),
+    DEFINE_PROP_BOOL("x-not-migrate-acpi-index", PIIX4PMState,
+                      not_migrate_acpi_index, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -41,7 +41,3 @@ void acpi_pcihp_reset(AcpiPciHpState *s, bool acpihp_root_off)
     return;
 }
 
-bool vmstate_acpi_pcihp_use_acpi_index(void *opaque, int version_id)
-{
-    return false;
-}
