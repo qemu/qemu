@@ -1376,6 +1376,14 @@ Front-end message types
   For further details on postcopy, see ``VHOST_USER_SET_MEM_TABLE``.
   They apply to ``VHOST_USER_ADD_MEM_REG`` accordingly.
 
+  Exactly one file descriptor from which the memory is mapped is
+  passed in the ancillary data.
+
+  In postcopy mode (see ``VHOST_USER_POSTCOPY_LISTEN``), the back-end
+  replies with the bases of the memory mapped region to the front-end.
+  For further details on postcopy, see ``VHOST_USER_SET_MEM_TABLE``.
+  They apply to ``VHOST_USER_ADD_MEM_REG`` accordingly.
+
 ``VHOST_USER_REM_MEM_REG``
   :id: 38
   :equivalent ioctl: N/A
@@ -1391,6 +1399,14 @@ Front-end message types
   been successfully negotiated, along with the
   ``VHOST_USER_ADD_MEM_REG`` message, this message is used to set and
   update the memory tables of the back-end device.
+
+  The memory region to be removed is identified by its guest address,
+  user address and size. The mmap offset is ignored.
+
+  No file descriptors SHOULD be passed in the ancillary data. For
+  compatibility with existing incorrect implementations, the back-end MAY
+  accept messages with one file descriptor. If a file descriptor is
+  passed, the back-end MUST close it without using it otherwise.
 
   The memory region to be removed is identified by its guest address,
   user address and size. The mmap offset is ignored.
