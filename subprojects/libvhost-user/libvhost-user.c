@@ -800,8 +800,7 @@ vu_add_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
 
         DPRINT("Successfully added new region\n");
         dev->nregions++;
-        vmsg_set_reply_u64(vmsg, 0);
-        return true;
+        return false;
     }
 }
 
@@ -874,15 +873,13 @@ vu_rem_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
         }
     }
 
-    if (found) {
-        vmsg_set_reply_u64(vmsg, 0);
-    } else {
+    if (!found) {
         vu_panic(dev, "Specified region not found\n");
     }
 
     close(vmsg->fds[0]);
 
-    return true;
+    return false;
 }
 
 static bool
