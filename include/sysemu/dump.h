@@ -154,8 +154,7 @@ typedef struct DumpState {
     GuestPhysBlockList guest_phys_blocks;
     ArchDumpInfo dump_info;
     MemoryMappingList list;
-    uint16_t phdr_num;
-    uint32_t sh_info;
+    uint32_t phdr_num;
     bool have_section;
     bool resume;
     bool detached;

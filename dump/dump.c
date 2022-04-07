@@ -123,6 +123,12 @@ static int fd_write_vmcore(const void *buf, size_t size, void *opaque)
 
 static void write_elf64_header(DumpState *s, Error **errp)
 {
+    /*
+     * phnum in the elf header is 16 bit, if we have more segments we
+     * set phnum to PN_XNUM and write the real number of segments to a
+     * special section.
+     */
+    uint16_t phnum = MIN(s->phdr_num, PN_XNUM);
     Elf64_Ehdr elf_header;
     int ret;
 
@@ -137,9 +143,9 @@ static void write_elf64_header(DumpState *s, Error **errp)
     elf_header.e_ehsize = cpu_to_dump16(s, sizeof(elf_header));
     elf_header.e_phoff = cpu_to_dump64(s, sizeof(Elf64_Ehdr));
     elf_header.e_phentsize = cpu_to_dump16(s, sizeof(Elf64_Phdr));
-    elf_header.e_phnum = cpu_to_dump16(s, s->phdr_num);
+    elf_header.e_phnum = cpu_to_dump16(s, phnum);
     if (s->have_section) {
-        uint64_t shoff = sizeof(Elf64_Ehdr) + sizeof(Elf64_Phdr) * s->sh_info;
+        uint64_t shoff = sizeof(Elf64_Ehdr) + sizeof(Elf64_Phdr) * s->phdr_num;
 
         elf_header.e_shoff = cpu_to_dump64(s, shoff);
         elf_header.e_shentsize = cpu_to_dump16(s, sizeof(Elf64_Shdr));
@@ -154,6 +160,12 @@ static void write_elf64_header(DumpState *s, Error **errp)
 
 static void write_elf32_header(DumpState *s, Error **errp)
 {
+    /*
+     * phnum in the elf header is 16 bit, if we have more segments we
+     * set phnum to PN_XNUM and write the real number of segments to a
+     * special section.
+     */
+    uint16_t phnum = MIN(s->phdr_num, PN_XNUM);
     Elf32_Ehdr elf_header;
     int ret;
 
@@ -168,9 +180,9 @@ static void write_elf32_header(DumpState *s, Error **errp)
     elf_header.e_ehsize = cpu_to_dump16(s, sizeof(elf_header));
     elf_header.e_phoff = cpu_to_dump32(s, sizeof(Elf32_Ehdr));
     elf_header.e_phentsize = cpu_to_dump16(s, sizeof(Elf32_Phdr));
-    elf_header.e_phnum = cpu_to_dump16(s, s->phdr_num);
+    elf_header.e_phnum = cpu_to_dump16(s, phnum);
     if (s->have_section) {
-        uint32_t shoff = sizeof(Elf32_Ehdr) + sizeof(Elf32_Phdr) * s->sh_info;
+        uint32_t shoff = sizeof(Elf32_Ehdr) + sizeof(Elf32_Phdr) * s->phdr_num;
 
         elf_header.e_shoff = cpu_to_dump32(s, shoff);
         elf_header.e_shentsize = cpu_to_dump16(s, sizeof(Elf32_Shdr));
@@ -357,12 +369,12 @@ static void write_elf_section(DumpState *s, int type, Error **errp)
     if (type == 0) {
         shdr_size = sizeof(Elf32_Shdr);
         memset(&shdr32, 0, shdr_size);
-        shdr32.sh_info = cpu_to_dump32(s, s->sh_info);
+        shdr32.sh_info = cpu_to_dump32(s, s->phdr_num);
         shdr = &shdr32;
     } else {
         shdr_size = sizeof(Elf64_Shdr);
         memset(&shdr64, 0, shdr_size);
-        shdr64.sh_info = cpu_to_dump32(s, s->sh_info);
+        shdr64.sh_info = cpu_to_dump32(s, s->phdr_num);
         shdr = &shdr64;
     }
 
@@ -477,13 +489,6 @@ static void write_elf_loads(DumpState *s, Error **errp)
     hwaddr offset, filesz;
     MemoryMapping *memory_mapping;
     uint32_t phdr_index = 1;
-    uint32_t max_index;
-
-    if (s->have_section) {
-        max_index = s->sh_info;
-    } else {
-        max_index = s->phdr_num;
-    }
 
     QTAILQ_FOREACH(memory_mapping, &s->list.head, next) {
         get_offset_range(memory_mapping->phys_addr,
@@ -501,7 +506,7 @@ static void write_elf_loads(DumpState *s, Error **errp)
             return;
         }
 
-        if (phdr_index >= max_index) {
+        if (phdr_index >= s->phdr_num) {
             break;
         }
     }
@@ -1800,22 +1805,21 @@ static void dump_init(DumpState *s, int fd, bool has_format,
         s->phdr_num += s->list.num;
         s->have_section = false;
     } else {
+        /* sh_info of section 0 holds the real number of phdrs */
         s->have_section = true;
-        s->phdr_num = PN_XNUM;
-        s->sh_info = 1; /* PT_NOTE */
 
         /* the type of shdr->sh_info is uint32_t, so we should avoid overflow */
         if (s->list.num <= UINT32_MAX - 1) {
-            s->sh_info += s->list.num;
+            s->phdr_num += s->list.num;
         } else {
-            s->sh_info = UINT32_MAX;
+            s->phdr_num = UINT32_MAX;
         }
     }
 
     if (s->dump_info.d_class == ELFCLASS64) {
         if (s->have_section) {
             s->memory_offset = sizeof(Elf64_Ehdr) +
-                               sizeof(Elf64_Phdr) * s->sh_info +
+                               sizeof(Elf64_Phdr) * s->phdr_num +
                                sizeof(Elf64_Shdr) + s->note_size;
         } else {
             s->memory_offset = sizeof(Elf64_Ehdr) +
@@ -1824,7 +1828,7 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     } else {
         if (s->have_section) {
             s->memory_offset = sizeof(Elf32_Ehdr) +
-                               sizeof(Elf32_Phdr) * s->sh_info +
+                               sizeof(Elf32_Phdr) * s->phdr_num +
                                sizeof(Elf32_Shdr) + s->note_size;
         } else {
             s->memory_offset = sizeof(Elf32_Ehdr) +
