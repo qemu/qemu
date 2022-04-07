@@ -51,3 +51,8 @@ notes=FIXME,
 
 # Maximum number of characters on a single line.
 max-line-length=79
+
+
+[SIMILARITIES]
+
+min-similarity-lines=6
