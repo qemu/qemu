@@ -308,6 +308,7 @@ replies. Here is a list of the ones that do:
 There are several messages that the master sends with file descriptors passed
 in the ancillary data:
 
+* ``VHOST_USER_ADD_MEM_REG``
 * ``VHOST_USER_SET_MEM_TABLE``
 * ``VHOST_USER_SET_LOG_BASE`` (if ``VHOST_USER_PROTOCOL_F_LOG_SHMFD``)
 * ``VHOST_USER_SET_LOG_FD``
@@ -1334,6 +1335,14 @@ Master message types
   ``VHOST_USER_REM_MEM_REG`` message, this message is used to set and
   update the memory tables of the slave device.
 
+  Exactly one file descriptor from which the memory is mapped is
+  passed in the ancillary data.
+
+  In postcopy mode (see ``VHOST_USER_POSTCOPY_LISTEN``), the slave
+  replies with the bases of the memory mapped region to the master.
+  For further details on postcopy, see ``VHOST_USER_SET_MEM_TABLE``.
+  They apply to ``VHOST_USER_ADD_MEM_REG`` accordingly.
+
 ``VHOST_USER_REM_MEM_REG``
   :id: 38
   :equivalent ioctl: N/A
@@ -1348,6 +1357,14 @@ Master message types
   been successfully negotiated, along with the
   ``VHOST_USER_ADD_MEM_REG`` message, this message is used to set and
   update the memory tables of the slave device.
+
+  The memory region to be removed is identified by its guest address,
+  user address and size. The mmap offset is ignored.
+
+  No file descriptors SHOULD be passed in the ancillary data. For
+  compatibility with existing incorrect implementations, the slave MAY
+  accept messages with one file descriptor. If a file descriptor is
+  passed, the slave MUST close it without using it otherwise.
 
 ``VHOST_USER_SET_STATUS``
   :id: 39
