@@ -4185,6 +4185,25 @@
   'data': { '*bottom': 'str' } }
 
 ##
+# @OnCbwError:
+#
+# An enumeration of possible behaviors for copy-before-write operation
+# failures.
+#
+# @break-guest-write: report the error to the guest. This way, the guest
+#                     will not be able to overwrite areas that cannot be
+#                     backed up, so the backup process remains valid.
+#
+# @break-snapshot: continue guest write. Doing so will make the provided
+#                  snapshot state invalid and any backup or export
+#                  process based on it will finally fail.
+#
+# Since: 7.1
+##
+{ 'enum': 'OnCbwError',
+  'data': [ 'break-guest-write', 'break-snapshot' ] }
+
+##
 # @BlockdevOptionsCbw:
 #
 # Driver specific block device options for the copy-before-write driver,
@@ -4205,11 +4224,15 @@
 #          modifications (or removing) of specified bitmap doesn't
 #          influence the filter. (Since 7.0)
 #
+# @on-cbw-error: Behavior on failure of copy-before-write operation.
+#                Default is @break-guest-write. (Since 7.1)
+#
 # Since: 6.2
 ##
 { 'struct': 'BlockdevOptionsCbw',
   'base': 'BlockdevOptionsGenericFormat',
-  'data': { 'target': 'BlockdevRef', '*bitmap': 'BlockDirtyBitmap' } }
+  'data': { 'target': 'BlockdevRef', '*bitmap': 'BlockDirtyBitmap',
+            '*on-cbw-error': 'OnCbwError' } }
 
 ##
 # @BlockdevOptions:
