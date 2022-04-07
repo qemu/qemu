@@ -515,6 +515,8 @@ static inline void vmsvga_cursor_define(struct vmsvga_state_s *s,
     int i, pixels;
 
     qc = cursor_alloc(c->width, c->height);
+    assert(qc != NULL);
+
     qc->hot_x = c->hot_x;
     qc->hot_y = c->hot_y;
     switch (c->bpp) {
