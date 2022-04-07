@@ -328,11 +328,9 @@ static void ga_log(const gchar *domain, GLogLevelFlags level,
 #else
     if (level & s->log_level) {
 #endif
-        gint64 t = g_get_real_time();
-        fprintf(s->log_file,
-                "%" G_GINT64_FORMAT ".%" G_GINT64_FORMAT
-                ": %s: %s\n", t / G_USEC_PER_SEC, t % G_USEC_PER_SEC,
-                level_str, msg);
+        g_autoptr(GDateTime) now = g_date_time_new_now_utc();
+        g_autofree char *nowstr = g_date_time_format(now, "%s.%f");
+        fprintf(s->log_file, "%s: %s: %s\n", nowstr, level_str, msg);
         fflush(s->log_file);
     }
 }
