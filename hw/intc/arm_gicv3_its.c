@@ -61,6 +61,12 @@ typedef struct ITEntry {
     uint32_t vpeid;
 } ITEntry;
 
+typedef struct VTEntry {
+    bool valid;
+    unsigned vptsize;
+    uint32_t rdbase;
+    uint64_t vptaddr;
+} VTEntry;
 
 /*
  * The ITS spec permits a range of CONSTRAINED UNPREDICTABLE options
@@ -843,6 +849,85 @@ static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
 }
 
 /*
+ * Update the vPE Table entry at index @vpeid with the entry @vte.
+ * Returns true on success, false if there was a memory access error.
+ */
+static bool update_vte(GICv3ITSState *s, uint32_t vpeid, const VTEntry *vte)
+{
+    AddressSpace *as = &s->gicv3->dma_as;
+    uint64_t entry_addr;
+    uint64_t vteval = 0;
+    MemTxResult res = MEMTX_OK;
+
+    trace_gicv3_its_vte_write(vpeid, vte->valid, vte->vptsize, vte->vptaddr,
+                              vte->rdbase);
+
+    if (vte->valid) {
+        vteval = FIELD_DP64(vteval, VTE, VALID, 1);
+        vteval = FIELD_DP64(vteval, VTE, VPTSIZE, vte->vptsize);
+        vteval = FIELD_DP64(vteval, VTE, VPTADDR, vte->vptaddr);
+        vteval = FIELD_DP64(vteval, VTE, RDBASE, vte->rdbase);
+    }
+
+    entry_addr = table_entry_addr(s, &s->vpet, vpeid, &res);
+    if (res != MEMTX_OK) {
+        return false;
+    }
+    if (entry_addr == -1) {
+        /* No L2 table for this index: discard write and continue */
+        return true;
+    }
+    address_space_stq_le(as, entry_addr, vteval, MEMTXATTRS_UNSPECIFIED, &res);
+    return res == MEMTX_OK;
+}
+
+static ItsCmdResult process_vmapp(GICv3ITSState *s, const uint64_t *cmdpkt)
+{
+    VTEntry vte;
+    uint32_t vpeid;
+
+    if (!its_feature_virtual(s)) {
+        return CMD_CONTINUE;
+    }
+
+    vpeid = FIELD_EX64(cmdpkt[1], VMAPP_1, VPEID);
+    vte.rdbase = FIELD_EX64(cmdpkt[2], VMAPP_2, RDBASE);
+    vte.valid = FIELD_EX64(cmdpkt[2], VMAPP_2, V);
+    vte.vptsize = FIELD_EX64(cmdpkt[3], VMAPP_3, VPTSIZE);
+    vte.vptaddr = FIELD_EX64(cmdpkt[3], VMAPP_3, VPTADDR);
+
+    trace_gicv3_its_cmd_vmapp(vpeid, vte.rdbase, vte.valid,
+                              vte.vptaddr, vte.vptsize);
+
+    /*
+     * For GICv4.0 the VPT_size field is only 5 bits, whereas we
+     * define our field macros to include the full GICv4.1 8 bits.
+     * The range check on VPT_size will catch the cases where
+     * the guest set the RES0-in-GICv4.0 bits [7:6].
+     */
+    if (vte.vptsize > FIELD_EX64(s->typer, GITS_TYPER, IDBITS)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid VPT_size 0x%x\n", __func__, vte.vptsize);
+        return CMD_CONTINUE;
+    }
+
+    if (vte.valid && vte.rdbase >= s->gicv3->num_cpu) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid rdbase 0x%x\n", __func__, vte.rdbase);
+        return CMD_CONTINUE;
+    }
+
+    if (vpeid >= s->vpet.num_entries) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: VPEID 0x%x out of range (must be less than 0x%x)\n",
+                      __func__, vpeid, s->vpet.num_entries);
+        return CMD_CONTINUE;
+    }
+
+    return update_vte(s, vpeid, &vte) ? CMD_CONTINUE : CMD_STALL;
+}
+
+/*
  * Current implementation blocks until all
  * commands are processed
  */
@@ -962,6 +1047,9 @@ static void process_cmdq(GICv3ITSState *s)
             break;
         case GITS_CMD_VMAPI:
             result = process_vmapti(s, cmdpkt, true);
+            break;
+        case GITS_CMD_VMAPP:
+            result = process_vmapp(s, cmdpkt);
             break;
         default:
             trace_gicv3_its_cmd_unknown(cmd);

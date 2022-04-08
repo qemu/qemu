@@ -329,6 +329,7 @@ FIELD(GITS_TYPER, CIL, 36, 1)
 #define GITS_CMD_INVALL           0x0D
 #define GITS_CMD_MOVALL           0x0E
 #define GITS_CMD_DISCARD          0x0F
+#define GITS_CMD_VMAPP            0x29
 #define GITS_CMD_VMAPTI           0x2A
 #define GITS_CMD_VMAPI            0x2B
 
@@ -376,6 +377,17 @@ FIELD(VMAPTI_1, EVENTID, 0, 32)
 FIELD(VMAPTI_1, VPEID, 32, 16)
 FIELD(VMAPTI_2, VINTID, 0, 32) /* VMAPTI only */
 FIELD(VMAPTI_2, DOORBELL, 32, 32)
+
+/* VMAPP command fields */
+FIELD(VMAPP_0, ALLOC, 8, 1) /* GICv4.1 only */
+FIELD(VMAPP_0, PTZ, 9, 1) /* GICv4.1 only */
+FIELD(VMAPP_0, VCONFADDR, 16, 36) /* GICv4.1 only */
+FIELD(VMAPP_1, DEFAULT_DOORBELL, 0, 32) /* GICv4.1 only */
+FIELD(VMAPP_1, VPEID, 32, 16)
+FIELD(VMAPP_2, RDBASE, 16, 36)
+FIELD(VMAPP_2, V, 63, 1)
+FIELD(VMAPP_3, VPTSIZE, 0, 8) /* For GICv4.0, bits [7:6] are RES0 */
+FIELD(VMAPP_3, VPTADDR, 16, 36)
 
 /*
  * 12 bytes Interrupt translation Table Entry size
