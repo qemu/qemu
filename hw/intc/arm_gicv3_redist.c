@@ -1009,9 +1009,28 @@ void gicv3_redist_movall_lpis(GICv3CPUState *src, GICv3CPUState *dest)
 void gicv3_redist_vlpi_pending(GICv3CPUState *cs, int irq, int level)
 {
     /*
-     * The redistributor handling for changing the pending state
-     * of a vLPI will be added in a subsequent commit.
+     * Change the pending state of the specified vLPI.
+     * Unlike gicv3_redist_process_vlpi(), we know here that the
+     * vCPU is definitely resident on this redistributor, and that
+     * the irq is in range.
      */
+    uint64_t vptbase, ctbase;
+
+    vptbase = FIELD_EX64(cs->gicr_vpendbaser, GICR_VPENDBASER, PHYADDR) << 16;
+
+    if (set_pending_table_bit(cs, vptbase, irq, level)) {
+        if (level) {
+            /* Check whether this vLPI is now the best */
+            ctbase = cs->gicr_vpropbaser & R_GICR_VPROPBASER_PHYADDR_MASK;
+            update_for_one_lpi(cs, irq, ctbase, true, &cs->hppvlpi);
+            gicv3_cpuif_virt_irq_fiq_update(cs);
+        } else {
+            /* Only need to recalculate if this was previously the best vLPI */
+            if (irq == cs->hppvlpi.irq) {
+                gicv3_redist_update_vlpi(cs);
+            }
+        }
+    }
 }
 
 void gicv3_redist_process_vlpi(GICv3CPUState *cs, int irq, uint64_t vptaddr,
