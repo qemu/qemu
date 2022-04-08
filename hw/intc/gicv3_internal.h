@@ -329,6 +329,7 @@ FIELD(GITS_TYPER, CIL, 36, 1)
 #define GITS_CMD_INVALL           0x0D
 #define GITS_CMD_MOVALL           0x0E
 #define GITS_CMD_DISCARD          0x0F
+#define GITS_CMD_VMOVI            0x21
 #define GITS_CMD_VMOVP            0x22
 #define GITS_CMD_VSYNC            0x25
 #define GITS_CMD_VMAPP            0x29
@@ -402,6 +403,13 @@ FIELD(VMOVP_1, VPEID, 32, 16)
 FIELD(VMOVP_2, RDBASE, 16, 36)
 FIELD(VMOVP_2, DB, 63, 1) /* GICv4.1 only */
 FIELD(VMOVP_3, DEFAULT_DOORBELL, 0, 32) /* GICv4.1 only */
+
+/* VMOVI command fields */
+FIELD(VMOVI_0, DEVICEID, 32, 32)
+FIELD(VMOVI_1, EVENTID, 0, 32)
+FIELD(VMOVI_1, VPEID, 32, 16)
+FIELD(VMOVI_2, D, 0, 1)
+FIELD(VMOVI_2, DOORBELL, 32, 32)
 
 /*
  * 12 bytes Interrupt translation Table Entry size
@@ -614,6 +622,21 @@ void gicv3_redist_mov_lpi(GICv3CPUState *src, GICv3CPUState *dest, int irq);
  * by the ITS MOVALL command.
  */
 void gicv3_redist_movall_lpis(GICv3CPUState *src, GICv3CPUState *dest);
+/**
+ * gicv3_redist_mov_vlpi:
+ * @src: source redistributor
+ * @src_vptaddr: (guest) address of source VLPI table
+ * @dest: destination redistributor
+ * @dest_vptaddr: (guest) address of destination VLPI table
+ * @irq: VLPI to update
+ * @doorbell: doorbell for destination (1023 for "no doorbell")
+ *
+ * Move the pending state of the specified VLPI from @src to @dest,
+ * as required by the ITS VMOVI command.
+ */
+void gicv3_redist_mov_vlpi(GICv3CPUState *src, uint64_t src_vptaddr,
+                           GICv3CPUState *dest, uint64_t dest_vptaddr,
+                           int irq, int doorbell);
 
 void gicv3_redist_send_sgi(GICv3CPUState *cs, int grp, int irq, bool ns);
 void gicv3_init_cpuif(GICv3State *s);

@@ -1084,6 +1084,85 @@ static ItsCmdResult process_vmovp(GICv3ITSState *s, const uint64_t *cmdpkt)
     return cbdata.result;
 }
 
+static ItsCmdResult process_vmovi(GICv3ITSState *s, const uint64_t *cmdpkt)
+{
+    uint32_t devid, eventid, vpeid, doorbell;
+    bool doorbell_valid;
+    DTEntry dte;
+    ITEntry ite;
+    VTEntry old_vte, new_vte;
+    ItsCmdResult cmdres;
+
+    if (!its_feature_virtual(s)) {
+        return CMD_CONTINUE;
+    }
+
+    devid = FIELD_EX64(cmdpkt[0], VMOVI_0, DEVICEID);
+    eventid = FIELD_EX64(cmdpkt[1], VMOVI_1, EVENTID);
+    vpeid = FIELD_EX64(cmdpkt[1], VMOVI_1, VPEID);
+    doorbell_valid = FIELD_EX64(cmdpkt[2], VMOVI_2, D);
+    doorbell = FIELD_EX64(cmdpkt[2], VMOVI_2, DOORBELL);
+
+    trace_gicv3_its_cmd_vmovi(devid, eventid, vpeid, doorbell_valid, doorbell);
+
+    if (doorbell_valid && !valid_doorbell(doorbell)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid doorbell 0x%x\n", __func__, doorbell);
+        return CMD_CONTINUE;
+    }
+
+    cmdres = lookup_ite(s, __func__, devid, eventid, &ite, &dte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
+    }
+
+    if (ite.inttype != ITE_INTTYPE_VIRTUAL) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: ITE is not for virtual interrupt\n",
+                      __func__);
+        return CMD_CONTINUE;
+    }
+
+    cmdres = lookup_vte(s, __func__, ite.vpeid, &old_vte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
+    }
+    cmdres = lookup_vte(s, __func__, vpeid, &new_vte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
+    }
+
+    if (!intid_in_lpi_range(ite.intid) ||
+        ite.intid >= (1ULL << (old_vte.vptsize + 1)) ||
+        ite.intid >= (1ULL << (new_vte.vptsize + 1))) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: ITE intid 0x%x out of range\n",
+                      __func__, ite.intid);
+        return CMD_CONTINUE;
+    }
+
+    ite.vpeid = vpeid;
+    if (doorbell_valid) {
+        ite.doorbell = doorbell;
+    }
+
+    /*
+     * Move the LPI from the old redistributor to the new one. We don't
+     * need to do anything if the guest somehow specified the
+     * same pending table for source and destination.
+     */
+    if (old_vte.vptaddr != new_vte.vptaddr) {
+        gicv3_redist_mov_vlpi(&s->gicv3->cpu[old_vte.rdbase],
+                              old_vte.vptaddr << 16,
+                              &s->gicv3->cpu[new_vte.rdbase],
+                              new_vte.vptaddr << 16,
+                              ite.intid,
+                              ite.doorbell);
+    }
+
+    /* Update the ITE to the new VPEID and possibly doorbell values */
+    return update_ite(s, eventid, &dte, &ite) ? CMD_CONTINUE_OK : CMD_STALL;
+}
+
 static ItsCmdResult process_inv(GICv3ITSState *s, const uint64_t *cmdpkt)
 {
     uint32_t devid, eventid;
@@ -1281,6 +1360,9 @@ static void process_cmdq(GICv3ITSState *s)
             break;
         case GITS_CMD_VMOVP:
             result = process_vmovp(s, cmdpkt);
+            break;
+        case GITS_CMD_VMOVI:
+            result = process_vmovi(s, cmdpkt);
             break;
         default:
             trace_gicv3_its_cmd_unknown(cmd);
