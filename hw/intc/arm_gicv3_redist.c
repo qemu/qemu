@@ -185,6 +185,87 @@ static void gicr_write_ipriorityr(GICv3CPUState *cs, MemTxAttrs attrs, int irq,
     cs->gicr_ipriorityr[irq] = value;
 }
 
+static void gicv3_redist_update_vlpi_only(GICv3CPUState *cs)
+{
+    uint64_t ptbase, ctbase, idbits;
+
+    if (!FIELD_EX64(cs->gicr_vpendbaser, GICR_VPENDBASER, VALID)) {
+        cs->hppvlpi.prio = 0xff;
+        return;
+    }
+
+    ptbase = cs->gicr_vpendbaser & R_GICR_VPENDBASER_PHYADDR_MASK;
+    ctbase = cs->gicr_vpropbaser & R_GICR_VPROPBASER_PHYADDR_MASK;
+    idbits = FIELD_EX64(cs->gicr_vpropbaser, GICR_VPROPBASER, IDBITS);
+
+    update_for_all_lpis(cs, ptbase, ctbase, idbits, true, &cs->hppvlpi);
+}
+
+static void gicv3_redist_update_vlpi(GICv3CPUState *cs)
+{
+    gicv3_redist_update_vlpi_only(cs);
+    gicv3_cpuif_virt_irq_fiq_update(cs);
+}
+
+static void gicr_write_vpendbaser(GICv3CPUState *cs, uint64_t newval)
+{
+    /* Write @newval to GICR_VPENDBASER, handling its effects */
+    bool oldvalid = FIELD_EX64(cs->gicr_vpendbaser, GICR_VPENDBASER, VALID);
+    bool newvalid = FIELD_EX64(newval, GICR_VPENDBASER, VALID);
+    bool pendinglast;
+
+    /*
+     * The DIRTY bit is read-only and for us is always zero;
+     * other fields are writeable.
+     */
+    newval &= R_GICR_VPENDBASER_INNERCACHE_MASK |
+        R_GICR_VPENDBASER_SHAREABILITY_MASK |
+        R_GICR_VPENDBASER_PHYADDR_MASK |
+        R_GICR_VPENDBASER_OUTERCACHE_MASK |
+        R_GICR_VPENDBASER_PENDINGLAST_MASK |
+        R_GICR_VPENDBASER_IDAI_MASK |
+        R_GICR_VPENDBASER_VALID_MASK;
+
+    if (oldvalid && newvalid) {
+        /*
+         * Changing other fields while VALID is 1 is UNPREDICTABLE;
+         * we choose to log and ignore the write.
+         */
+        if (cs->gicr_vpendbaser ^ newval) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Changing GICR_VPENDBASER when VALID=1 "
+                          "is UNPREDICTABLE\n", __func__);
+        }
+        return;
+    }
+    if (!oldvalid && !newvalid) {
+        cs->gicr_vpendbaser = newval;
+        return;
+    }
+
+    if (newvalid) {
+        /*
+         * Valid going from 0 to 1: update hppvlpi from tables.
+         * If IDAI is 0 we are allowed to use the info we cached in
+         * the IMPDEF area of the table.
+         * PendingLast is RES1 when we make this transition.
+         */
+        pendinglast = true;
+    } else {
+        /*
+         * Valid going from 1 to 0:
+         * Set PendingLast if there was a pending enabled interrupt
+         * for the vPE that was just descheduled.
+         * If we cache info in the IMPDEF area, write it out here.
+         */
+        pendinglast = cs->hppvlpi.prio != 0xff;
+    }
+
+    newval = FIELD_DP64(newval, GICR_VPENDBASER, PENDINGLAST, pendinglast);
+    cs->gicr_vpendbaser = newval;
+    gicv3_redist_update_vlpi(cs);
+}
+
 static MemTxResult gicr_readb(GICv3CPUState *cs, hwaddr offset,
                               uint64_t *data, MemTxAttrs attrs)
 {
@@ -493,10 +574,10 @@ static MemTxResult gicr_writel(GICv3CPUState *cs, hwaddr offset,
         cs->gicr_vpropbaser = deposit64(cs->gicr_vpropbaser, 32, 32, value);
         return MEMTX_OK;
     case GICR_VPENDBASER:
-        cs->gicr_vpendbaser = deposit64(cs->gicr_vpendbaser, 0, 32, value);
+        gicr_write_vpendbaser(cs, deposit64(cs->gicr_vpendbaser, 0, 32, value));
         return MEMTX_OK;
     case GICR_VPENDBASER + 4:
-        cs->gicr_vpendbaser = deposit64(cs->gicr_vpendbaser, 32, 32, value);
+        gicr_write_vpendbaser(cs, deposit64(cs->gicr_vpendbaser, 32, 32, value));
         return MEMTX_OK;
     default:
         return MEMTX_ERROR;
@@ -557,7 +638,7 @@ static MemTxResult gicr_writell(GICv3CPUState *cs, hwaddr offset,
         cs->gicr_vpropbaser = value;
         return MEMTX_OK;
     case GICR_VPENDBASER:
-        cs->gicr_vpendbaser = value;
+        gicr_write_vpendbaser(cs, value);
         return MEMTX_OK;
     default:
         return MEMTX_ERROR;
