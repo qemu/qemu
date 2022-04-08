@@ -909,11 +909,9 @@ void gicv3_redist_mov_lpi(GICv3CPUState *src, GICv3CPUState *dest, int irq)
      * we choose to NOP. If LPIs are disabled on source there's nothing
      * to be transferred anyway.
      */
-    AddressSpace *as = &src->gic->dma_as;
     uint64_t idbits;
     uint32_t pendt_size;
     uint64_t src_baddr;
-    uint8_t src_pend;
 
     if (!(src->gicr_ctlr & GICR_CTLR_ENABLE_LPIS) ||
         !(dest->gicr_ctlr & GICR_CTLR_ENABLE_LPIS)) {
@@ -932,15 +930,10 @@ void gicv3_redist_mov_lpi(GICv3CPUState *src, GICv3CPUState *dest, int irq)
 
     src_baddr = src->gicr_pendbaser & R_GICR_PENDBASER_PHYADDR_MASK;
 
-    address_space_read(as, src_baddr + (irq / 8),
-                       MEMTXATTRS_UNSPECIFIED, &src_pend, sizeof(src_pend));
-    if (!extract32(src_pend, irq % 8, 1)) {
+    if (!set_pending_table_bit(src, src_baddr, irq, 0)) {
         /* Not pending on source, nothing to do */
         return;
     }
-    src_pend &= ~(1 << (irq % 8));
-    address_space_write(as, src_baddr + (irq / 8),
-                        MEMTXATTRS_UNSPECIFIED, &src_pend, sizeof(src_pend));
     if (irq == src->hpplpi.irq) {
         /*
          * We just made this LPI not-pending so only need to update
