@@ -612,6 +612,19 @@ void gicv3_redist_process_lpi(GICv3CPUState *cs, int irq, int level);
  */
 void gicv3_redist_process_vlpi(GICv3CPUState *cs, int irq, uint64_t vptaddr,
                                int doorbell, int level);
+/**
+ * gicv3_redist_vlpi_pending:
+ * @cs: GICv3CPUState
+ * @irq: (virtual) interrupt number
+ * @level: level to set @irq to
+ *
+ * Set/clear the pending status of a virtual LPI in the vLPI table
+ * that this redistributor is currently using. (The difference between
+ * this and gicv3_redist_process_vlpi() is that this is called from
+ * the cpuif and does not need to do the not-running-on-this-vcpu checks.)
+ */
+void gicv3_redist_vlpi_pending(GICv3CPUState *cs, int irq, int level);
+
 void gicv3_redist_lpi_pending(GICv3CPUState *cs, int irq, int level);
 /**
  * gicv3_redist_update_lpi:

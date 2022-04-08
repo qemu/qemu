@@ -219,6 +219,9 @@ struct GICv3CPUState {
      */
     PendingIrq hpplpi;
 
+    /* Cached information recalculated from vLPI tables in guest memory */
+    PendingIrq hppvlpi;
+
     /* This is temporary working state, to avoid a malloc in gicv3_update() */
     bool seenbetter;
 };

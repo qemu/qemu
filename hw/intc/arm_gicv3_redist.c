@@ -855,6 +855,14 @@ void gicv3_redist_movall_lpis(GICv3CPUState *src, GICv3CPUState *dest)
     gicv3_redist_update_lpi(dest);
 }
 
+void gicv3_redist_vlpi_pending(GICv3CPUState *cs, int irq, int level)
+{
+    /*
+     * The redistributor handling for changing the pending state
+     * of a vLPI will be added in a subsequent commit.
+     */
+}
+
 void gicv3_redist_process_vlpi(GICv3CPUState *cs, int irq, uint64_t vptaddr,
                                int doorbell, int level)
 {

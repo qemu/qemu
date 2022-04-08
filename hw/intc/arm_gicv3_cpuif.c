@@ -21,6 +21,12 @@
 #include "hw/irq.h"
 #include "cpu.h"
 
+/*
+ * Special case return value from hppvi_index(); must be larger than
+ * the architecturally maximum possible list register index (which is 15)
+ */
+#define HPPVI_INDEX_VLPI 16
+
 static GICv3CPUState *icc_cs_from_env(CPUARMState *env)
 {
     return env->gicv3state;
@@ -157,10 +163,18 @@ static int ich_highest_active_virt_prio(GICv3CPUState *cs)
 
 static int hppvi_index(GICv3CPUState *cs)
 {
-    /* Return the list register index of the highest priority pending
+    /*
+     * Return the list register index of the highest priority pending
      * virtual interrupt, as per the HighestPriorityVirtualInterrupt
      * pseudocode. If no pending virtual interrupts, return -1.
+     * If the highest priority pending virtual interrupt is a vLPI,
+     * return HPPVI_INDEX_VLPI.
+     * (The pseudocode handles checking whether the vLPI is higher
+     * priority than the highest priority list register at every
+     * callsite of HighestPriorityVirtualInterrupt; we check it here.)
      */
+    ARMCPU *cpu = ARM_CPU(cs->cpu);
+    CPUARMState *env = &cpu->env;
     int idx = -1;
     int i;
     /* Note that a list register entry with a priority of 0xff will
@@ -199,6 +213,23 @@ static int hppvi_index(GICv3CPUState *cs)
         if (thisprio < prio) {
             prio = thisprio;
             idx = i;
+        }
+    }
+
+    /*
+     * "no pending vLPI" is indicated with prio = 0xff, which always
+     * fails the priority check here. vLPIs are only considered
+     * when we are in Non-Secure state.
+     */
+    if (cs->hppvlpi.prio < prio && !arm_is_secure(env)) {
+        if (cs->hppvlpi.grp == GICV3_G0) {
+            if (cs->ich_vmcr_el2 & ICH_VMCR_EL2_VENG0) {
+                return HPPVI_INDEX_VLPI;
+            }
+        } else {
+            if (cs->ich_vmcr_el2 & ICH_VMCR_EL2_VENG1) {
+                return HPPVI_INDEX_VLPI;
+            }
         }
     }
 
@@ -283,6 +314,47 @@ static bool icv_hppi_can_preempt(GICv3CPUState *cs, uint64_t lr)
      * group priority is sufficient (the subpriorities are not considered).
      */
     if ((prio & mask) < (rprio & mask)) {
+        return true;
+    }
+
+    return false;
+}
+
+static bool icv_hppvlpi_can_preempt(GICv3CPUState *cs)
+{
+    /*
+     * Return true if we can signal the highest priority pending vLPI.
+     * We can assume we're Non-secure because hppvi_index() already
+     * tested for that.
+     */
+    uint32_t mask, rprio, vpmr;
+
+    if (!(cs->ich_hcr_el2 & ICH_HCR_EL2_EN)) {
+        /* Virtual interface disabled */
+        return false;
+    }
+
+    vpmr = extract64(cs->ich_vmcr_el2, ICH_VMCR_EL2_VPMR_SHIFT,
+                     ICH_VMCR_EL2_VPMR_LENGTH);
+
+    if (cs->hppvlpi.prio >= vpmr) {
+        /* Priority mask masks this interrupt */
+        return false;
+    }
+
+    rprio = ich_highest_active_virt_prio(cs);
+    if (rprio == 0xff) {
+        /* No running interrupt so we can preempt */
+        return true;
+    }
+
+    mask = icv_gprio_mask(cs, cs->hppvlpi.grp);
+
+    /*
+     * We only preempt a running interrupt if the pending interrupt's
+     * group priority is sufficient (the subpriorities are not considered).
+     */
+    if ((cs->hppvlpi.prio & mask) < (rprio & mask)) {
         return true;
     }
 
@@ -386,8 +458,18 @@ void gicv3_cpuif_virt_irq_fiq_update(GICv3CPUState *cs)
     int fiqlevel = 0;
 
     idx = hppvi_index(cs);
-    trace_gicv3_cpuif_virt_update(gicv3_redist_affid(cs), idx);
-    if (idx >= 0) {
+    trace_gicv3_cpuif_virt_update(gicv3_redist_affid(cs), idx,
+                                  cs->hppvlpi.irq, cs->hppvlpi.grp,
+                                  cs->hppvlpi.prio);
+    if (idx == HPPVI_INDEX_VLPI) {
+        if (icv_hppvlpi_can_preempt(cs)) {
+            if (cs->hppvlpi.grp == GICV3_G0) {
+                fiqlevel = 1;
+            } else {
+                irqlevel = 1;
+            }
+        }
+    } else if (idx >= 0) {
         uint64_t lr = cs->ich_lr_el2[idx];
 
         if (icv_hppi_can_preempt(cs, lr)) {
@@ -619,7 +701,11 @@ static uint64_t icv_hppir_read(CPUARMState *env, const ARMCPRegInfo *ri)
     int idx = hppvi_index(cs);
     uint64_t value = INTID_SPURIOUS;
 
-    if (idx >= 0) {
+    if (idx == HPPVI_INDEX_VLPI) {
+        if (cs->hppvlpi.grp == grp) {
+            value = cs->hppvlpi.irq;
+        }
+    } else if (idx >= 0) {
         uint64_t lr = cs->ich_lr_el2[idx];
         int thisgrp = (lr & ICH_LR_EL2_GROUP) ? GICV3_G1NS : GICV3_G0;
 
@@ -650,6 +736,18 @@ static void icv_activate_irq(GICv3CPUState *cs, int idx, int grp)
     cs->ich_apr[grp][regno] |= (1 << regbit);
 }
 
+static void icv_activate_vlpi(GICv3CPUState *cs)
+{
+    uint32_t mask = icv_gprio_mask(cs, cs->hppvlpi.grp);
+    int prio = cs->hppvlpi.prio & mask;
+    int aprbit = prio >> (8 - cs->vprebits);
+    int regno = aprbit / 32;
+    int regbit = aprbit % 32;
+
+    cs->ich_apr[cs->hppvlpi.grp][regno] |= (1 << regbit);
+    gicv3_redist_vlpi_pending(cs, cs->hppvlpi.irq, 0);
+}
+
 static uint64_t icv_iar_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     GICv3CPUState *cs = icc_cs_from_env(env);
@@ -657,7 +755,12 @@ static uint64_t icv_iar_read(CPUARMState *env, const ARMCPRegInfo *ri)
     int idx = hppvi_index(cs);
     uint64_t intid = INTID_SPURIOUS;
 
-    if (idx >= 0) {
+    if (idx == HPPVI_INDEX_VLPI) {
+        if (cs->hppvlpi.grp == grp && icv_hppvlpi_can_preempt(cs)) {
+            intid = cs->hppvlpi.irq;
+            icv_activate_vlpi(cs);
+        }
+    } else if (idx >= 0) {
         uint64_t lr = cs->ich_lr_el2[idx];
         int thisgrp = (lr & ICH_LR_EL2_GROUP) ? GICV3_G1NS : GICV3_G0;
 
@@ -2632,6 +2735,12 @@ static void gicv3_cpuif_el_change_hook(ARMCPU *cpu, void *opaque)
     GICv3CPUState *cs = opaque;
 
     gicv3_cpuif_update(cs);
+    /*
+     * Because vLPIs are only pending in NonSecure state,
+     * an EL change can change the VIRQ/VFIQ status (but
+     * cannot affect the maintenance interrupt state)
+     */
+    gicv3_cpuif_virt_irq_fiq_update(cs);
 }
 
 void gicv3_init_cpuif(GICv3State *s)
