@@ -145,6 +145,34 @@ static void update_for_all_lpis(GICv3CPUState *cs, uint64_t ptbase,
     }
 }
 
+/**
+ * set_lpi_pending_bit: Set or clear pending bit for an LPI
+ *
+ * @cs: GICv3CPUState
+ * @ptbase: physical address of LPI Pending table
+ * @irq: LPI to change pending state for
+ * @level: false to clear pending state, true to set
+ *
+ * Returns true if we needed to do something, false if the pending bit
+ * was already at @level.
+ */
+static bool set_pending_table_bit(GICv3CPUState *cs, uint64_t ptbase,
+                                  int irq, bool level)
+{
+    AddressSpace *as = &cs->gic->dma_as;
+    uint64_t addr = ptbase + irq / 8;
+    uint8_t pend;
+
+    address_space_read(as, addr, MEMTXATTRS_UNSPECIFIED, &pend, 1);
+    if (extract32(pend, irq % 8, 1) == level) {
+        /* Bit already at requested state, no action required */
+        return false;
+    }
+    pend = deposit32(pend, irq % 8, 1, level ? 1 : 0);
+    address_space_write(as, addr, MEMTXATTRS_UNSPECIFIED, &pend, 1);
+    return true;
+}
+
 static uint8_t gicr_read_ipriorityr(GICv3CPUState *cs, MemTxAttrs attrs,
                                     int irq)
 {
@@ -809,30 +837,13 @@ void gicv3_redist_lpi_pending(GICv3CPUState *cs, int irq, int level)
      * This function updates the pending bit in lpi pending table for
      * the irq being activated or deactivated.
      */
-    AddressSpace *as = &cs->gic->dma_as;
     uint64_t lpipt_baddr;
-    bool ispend = false;
-    uint8_t pend;
 
-    /*
-     * get the bit value corresponding to this irq in the
-     * lpi pending table
-     */
     lpipt_baddr = cs->gicr_pendbaser & R_GICR_PENDBASER_PHYADDR_MASK;
-
-    address_space_read(as, lpipt_baddr + ((irq / 8) * sizeof(pend)),
-                       MEMTXATTRS_UNSPECIFIED, &pend, sizeof(pend));
-
-    ispend = extract32(pend, irq % 8, 1);
-
-    /* no change in the value of pending bit, return */
-    if (ispend == level) {
+    if (!set_pending_table_bit(cs, lpipt_baddr, irq, level)) {
+        /* no change in the value of pending bit, return */
         return;
     }
-    pend = deposit32(pend, irq % 8, 1, level ? 1 : 0);
-
-    address_space_write(as, lpipt_baddr + ((irq / 8) * sizeof(pend)),
-                        MEMTXATTRS_UNSPECIFIED, &pend, sizeof(pend));
 
     /*
      * check if this LPI is better than the current hpplpi, if yes
