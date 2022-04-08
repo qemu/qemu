@@ -103,6 +103,48 @@ static void update_for_one_lpi(GICv3CPUState *cs, int irq,
     }
 }
 
+/**
+ * update_for_all_lpis: Fully scan LPI tables and find best pending LPI
+ *
+ * @cs: GICv3CPUState
+ * @ptbase: physical address of LPI Pending table
+ * @ctbase: physical address of LPI Configuration table
+ * @ptsizebits: size of tables, specified as number of interrupt ID bits minus 1
+ * @ds: true if priority value should not be shifted
+ * @hpp: points to pending information to set
+ *
+ * Recalculate the highest priority pending enabled LPI from scratch,
+ * and set @hpp accordingly.
+ *
+ * We scan the LPI pending table @ptbase; for each pending LPI, we read the
+ * corresponding entry in the LPI configuration table @ctbase to extract
+ * the priority and enabled information.
+ *
+ * We take @ptsizebits in the form idbits-1 because this is the way that
+ * LPI table sizes are architecturally specified in GICR_PROPBASER.IDBits
+ * and in the VMAPP command's VPT_size field.
+ */
+static void update_for_all_lpis(GICv3CPUState *cs, uint64_t ptbase,
+                                uint64_t ctbase, unsigned ptsizebits,
+                                bool ds, PendingIrq *hpp)
+{
+    AddressSpace *as = &cs->gic->dma_as;
+    uint8_t pend;
+    uint32_t pendt_size = (1ULL << (ptsizebits + 1));
+    int i, bit;
+
+    hpp->prio = 0xff;
+
+    for (i = GICV3_LPI_INTID_START / 8; i < pendt_size / 8; i++) {
+        address_space_read(as, ptbase + i, MEMTXATTRS_UNSPECIFIED, &pend, 1);
+        while (pend) {
+            bit = ctz32(pend);
+            update_for_one_lpi(cs, i * 8 + bit, ctbase, ds, hpp);
+            pend &= ~(1 << bit);
+        }
+    }
+}
+
 static uint8_t gicr_read_ipriorityr(GICv3CPUState *cs, MemTxAttrs attrs,
                                     int irq)
 {
@@ -657,11 +699,7 @@ void gicv3_redist_update_lpi_only(GICv3CPUState *cs)
      * priority is lower than the last computed high priority lpi interrupt.
      * If yes, replace current LPI as the new high priority lpi interrupt.
      */
-    AddressSpace *as = &cs->gic->dma_as;
-    uint64_t lpipt_baddr;
-    uint32_t pendt_size = 0;
-    uint8_t pend;
-    int i, bit;
+    uint64_t lpipt_baddr, lpict_baddr;
     uint64_t idbits;
 
     idbits = MIN(FIELD_EX64(cs->gicr_propbaser, GICR_PROPBASER, IDBITS),
@@ -671,23 +709,11 @@ void gicv3_redist_update_lpi_only(GICv3CPUState *cs)
         return;
     }
 
-    cs->hpplpi.prio = 0xff;
-
     lpipt_baddr = cs->gicr_pendbaser & R_GICR_PENDBASER_PHYADDR_MASK;
+    lpict_baddr = cs->gicr_propbaser & R_GICR_PROPBASER_PHYADDR_MASK;
 
-    /* Determine the highest priority pending interrupt among LPIs */
-    pendt_size = (1ULL << (idbits + 1));
-
-    for (i = GICV3_LPI_INTID_START / 8; i < pendt_size / 8; i++) {
-        address_space_read(as, lpipt_baddr + i, MEMTXATTRS_UNSPECIFIED, &pend,
-                           sizeof(pend));
-
-        while (pend) {
-            bit = ctz32(pend);
-            gicv3_redist_check_lpi_priority(cs, i * 8 + bit);
-            pend &= ~(1 << bit);
-        }
-    }
+    update_for_all_lpis(cs, lpipt_baddr, lpict_baddr, idbits,
+                        cs->gic->gicd_ctlr & GICD_CTLR_DS, &cs->hpplpi);
 }
 
 void gicv3_redist_update_lpi(GICv3CPUState *cs)
