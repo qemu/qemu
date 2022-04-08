@@ -79,6 +79,12 @@ typedef enum ItsCmdResult {
     CMD_CONTINUE = 1,
 } ItsCmdResult;
 
+static inline bool intid_in_lpi_range(uint32_t id)
+{
+    return id >= GICV3_LPI_INTID_START &&
+        id < (1 << (GICD_TYPER_IDBITS + 1));
+}
+
 static uint64_t baser_base_addr(uint64_t value, uint32_t page_sz)
 {
     uint64_t result = 0;
@@ -410,7 +416,6 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, const uint64_t *cmdpkt,
     uint32_t devid, eventid;
     uint32_t pIntid = 0;
     uint64_t num_eventids;
-    uint32_t num_intids;
     uint16_t icid = 0;
     DTEntry dte;
     ITEntry ite;
@@ -438,7 +443,6 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, const uint64_t *cmdpkt,
         return CMD_STALL;
     }
     num_eventids = 1ULL << (dte.size + 1);
-    num_intids = 1ULL << (GICD_TYPER_IDBITS + 1);
 
     if (icid >= s->ct.num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -460,7 +464,7 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, const uint64_t *cmdpkt,
         return CMD_CONTINUE;
     }
 
-    if (pIntid < GICV3_LPI_INTID_START || pIntid >= num_intids) {
+    if (!intid_in_lpi_range(pIntid)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid interrupt ID 0x%x\n", __func__, pIntid);
         return CMD_CONTINUE;
