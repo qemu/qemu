@@ -315,6 +315,60 @@ out:
 }
 
 /*
+ * Given a (DeviceID, EventID), look up the corresponding ITE, including
+ * checking for the various invalid-value cases. If we find a valid ITE,
+ * fill in @ite and @dte and return CMD_CONTINUE_OK. Otherwise return
+ * CMD_STALL or CMD_CONTINUE as appropriate (and the contents of @ite
+ * should not be relied on).
+ *
+ * The string @who is purely for the LOG_GUEST_ERROR messages,
+ * and should indicate the name of the calling function or similar.
+ */
+static ItsCmdResult lookup_ite(GICv3ITSState *s, const char *who,
+                               uint32_t devid, uint32_t eventid, ITEntry *ite,
+                               DTEntry *dte)
+{
+    uint64_t num_eventids;
+
+    if (devid >= s->dt.num_entries) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid command attributes: devid %d>=%d",
+                      who, devid, s->dt.num_entries);
+        return CMD_CONTINUE;
+    }
+
+    if (get_dte(s, devid, dte) != MEMTX_OK) {
+        return CMD_STALL;
+    }
+    if (!dte->valid) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid command attributes: "
+                      "invalid dte for %d\n", who, devid);
+        return CMD_CONTINUE;
+    }
+
+    num_eventids = 1ULL << (dte->size + 1);
+    if (eventid >= num_eventids) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid command attributes: eventid %d >= %"
+                      PRId64 "\n", who, eventid, num_eventids);
+        return CMD_CONTINUE;
+    }
+
+    if (get_ite(s, eventid, dte, ite) != MEMTX_OK) {
+        return CMD_STALL;
+    }
+
+    if (!ite->valid) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid command attributes: invalid ITE\n", who);
+        return CMD_CONTINUE;
+    }
+
+    return CMD_CONTINUE_OK;
+}
+
+/*
  * This function handles the processing of following commands based on
  * the ItsCmdType parameter passed:-
  * 1. triggering of lpi interrupt translation via ITS INT command
@@ -325,42 +379,17 @@ out:
 static ItsCmdResult do_process_its_cmd(GICv3ITSState *s, uint32_t devid,
                                        uint32_t eventid, ItsCmdType cmd)
 {
-    uint64_t num_eventids;
     DTEntry dte;
     CTEntry cte;
     ITEntry ite;
+    ItsCmdResult cmdres;
 
-    if (devid >= s->dt.num_entries) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: devid %d>=%d",
-                      __func__, devid, s->dt.num_entries);
-        return CMD_CONTINUE;
+    cmdres = lookup_ite(s, __func__, devid, eventid, &ite, &dte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
     }
 
-    if (get_dte(s, devid, &dte) != MEMTX_OK) {
-        return CMD_STALL;
-    }
-    if (!dte.valid) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: "
-                      "invalid dte for %d\n", __func__, devid);
-        return CMD_CONTINUE;
-    }
-
-    num_eventids = 1ULL << (dte.size + 1);
-    if (eventid >= num_eventids) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: eventid %d >= %"
-                      PRId64 "\n",
-                      __func__, eventid, num_eventids);
-        return CMD_CONTINUE;
-    }
-
-    if (get_ite(s, eventid, &dte, &ite) != MEMTX_OK) {
-        return CMD_STALL;
-    }
-
-    if (!ite.valid || ite.inttype != ITE_INTTYPE_PHYSICAL) {
+    if (ite.inttype != ITE_INTTYPE_PHYSICAL) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid command attributes: invalid ITE\n",
                       __func__);
@@ -740,10 +769,10 @@ static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
 {
     uint32_t devid, eventid;
     uint16_t new_icid;
-    uint64_t num_eventids;
     DTEntry dte;
     CTEntry old_cte, new_cte;
     ITEntry old_ite;
+    ItsCmdResult cmdres;
 
     devid = FIELD_EX64(cmdpkt[0], MOVI_0, DEVICEID);
     eventid = FIELD_EX64(cmdpkt[1], MOVI_1, EVENTID);
@@ -751,37 +780,12 @@ static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
 
     trace_gicv3_its_cmd_movi(devid, eventid, new_icid);
 
-    if (devid >= s->dt.num_entries) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: devid %d>=%d",
-                      __func__, devid, s->dt.num_entries);
-        return CMD_CONTINUE;
-    }
-    if (get_dte(s, devid, &dte) != MEMTX_OK) {
-        return CMD_STALL;
+    cmdres = lookup_ite(s, __func__, devid, eventid, &old_ite, &dte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
     }
 
-    if (!dte.valid) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: "
-                      "invalid dte for %d\n", __func__, devid);
-        return CMD_CONTINUE;
-    }
-
-    num_eventids = 1ULL << (dte.size + 1);
-    if (eventid >= num_eventids) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: eventid %d >= %"
-                      PRId64 "\n",
-                      __func__, eventid, num_eventids);
-        return CMD_CONTINUE;
-    }
-
-    if (get_ite(s, eventid, &dte, &old_ite) != MEMTX_OK) {
-        return CMD_STALL;
-    }
-
-    if (!old_ite.valid || old_ite.inttype != ITE_INTTYPE_PHYSICAL) {
+    if (old_ite.inttype != ITE_INTTYPE_PHYSICAL) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid command attributes: invalid ITE\n",
                       __func__);
