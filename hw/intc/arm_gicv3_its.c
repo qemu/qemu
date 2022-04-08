@@ -1699,7 +1699,7 @@ static bool its_readl(GICv3ITSState *s, hwaddr offset,
         break;
     case GITS_IDREGS ... GITS_IDREGS + 0x2f:
         /* ID registers */
-        *data = gicv3_idreg(offset - GITS_IDREGS, GICV3_PIDR0_ITS);
+        *data = gicv3_idreg(s->gicv3, offset - GITS_IDREGS, GICV3_PIDR0_ITS);
         break;
     case GITS_TYPER:
         *data = extract64(s->typer, 0, 32);
@@ -1946,6 +1946,11 @@ static void gicv3_arm_its_realize(DeviceState *dev, Error **errp)
     s->typer = FIELD_DP64(s->typer, GITS_TYPER, DEVBITS, ITS_DEVBITS);
     s->typer = FIELD_DP64(s->typer, GITS_TYPER, CIL, 1);
     s->typer = FIELD_DP64(s->typer, GITS_TYPER, CIDBITS, ITS_CIDBITS);
+    if (s->gicv3->revision >= 4) {
+        /* Our VMOVP handles cross-ITS synchronization itself */
+        s->typer = FIELD_DP64(s->typer, GITS_TYPER, VMOVP, 1);
+        s->typer = FIELD_DP64(s->typer, GITS_TYPER, VIRTUAL, 1);
+    }
 }
 
 static void gicv3_its_reset(DeviceState *dev)

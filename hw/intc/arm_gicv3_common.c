@@ -406,8 +406,8 @@ static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
          *  Last == 1 if this is the last redistributor in a series of
          *            contiguous redistributor pages
          *  DirectLPI == 0 (direct injection of LPIs not supported)
-         *  VLPIS == 0 (virtual LPIs not supported)
-         *  PLPIS == 0 (physical LPIs not supported)
+         *  VLPIS == 1 if vLPIs supported (GICv4 and up)
+         *  PLPIS == 1 if LPIs supported
          */
         cpu_affid = object_property_get_uint(OBJECT(cpu), "mp-affinity", NULL);
 
@@ -422,6 +422,9 @@ static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
 
         if (s->lpi_enable) {
             s->cpu[i].gicr_typer |= GICR_TYPER_PLPIS;
+            if (s->revision > 3) {
+                s->cpu[i].gicr_typer |= GICR_TYPER_VLPIS;
+            }
         }
     }
 

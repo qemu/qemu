@@ -309,6 +309,7 @@ FIELD(GITS_TYPER, SEIS, 18, 1)
 FIELD(GITS_TYPER, PTA, 19, 1)
 FIELD(GITS_TYPER, CIDBITS, 32, 4)
 FIELD(GITS_TYPER, CIL, 36, 1)
+FIELD(GITS_TYPER, VMOVP, 37, 1)
 
 #define GITS_IDREGS           0xFFD0
 
@@ -747,23 +748,29 @@ static inline uint32_t gicv3_iidr(void)
 #define GICV3_PIDR0_REDIST 0x93
 #define GICV3_PIDR0_ITS 0x94
 
-static inline uint32_t gicv3_idreg(int regoffset, uint8_t pidr0)
+static inline uint32_t gicv3_idreg(GICv3State *s, int regoffset, uint8_t pidr0)
 {
     /* Return the value of the CoreSight ID register at the specified
      * offset from the first ID register (as found in the distributor
      * and redistributor register banks).
-     * These values indicate an ARM implementation of a GICv3.
+     * These values indicate an ARM implementation of a GICv3 or v4.
      */
     static const uint8_t gicd_ids[] = {
-        0x44, 0x00, 0x00, 0x00, 0x92, 0xB4, 0x3B, 0x00, 0x0D, 0xF0, 0x05, 0xB1
+        0x44, 0x00, 0x00, 0x00, 0x92, 0xB4, 0x0B, 0x00, 0x0D, 0xF0, 0x05, 0xB1
     };
+    uint32_t id;
 
     regoffset /= 4;
 
     if (regoffset == 4) {
         return pidr0;
     }
-    return gicd_ids[regoffset];
+    id = gicd_ids[regoffset];
+    if (regoffset == 6) {
+        /* PIDR2 bits [7:4] are the GIC architecture revision */
+        id |= s->revision << 4;
+    }
+    return id;
 }
 
 /**

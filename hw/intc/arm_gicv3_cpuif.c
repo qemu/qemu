@@ -2578,10 +2578,14 @@ static uint64_t ich_vtr_read(CPUARMState *env, const ARMCPRegInfo *ri)
     uint64_t value;
 
     value = ((cs->num_list_regs - 1) << ICH_VTR_EL2_LISTREGS_SHIFT)
-        | ICH_VTR_EL2_TDS | ICH_VTR_EL2_NV4 | ICH_VTR_EL2_A3V
+        | ICH_VTR_EL2_TDS | ICH_VTR_EL2_A3V
         | (1 << ICH_VTR_EL2_IDBITS_SHIFT)
         | ((cs->vprebits - 1) << ICH_VTR_EL2_PREBITS_SHIFT)
         | ((cs->vpribits - 1) << ICH_VTR_EL2_PRIBITS_SHIFT);
+
+    if (cs->gic->revision < 4) {
+        value |= ICH_VTR_EL2_NV4;
+    }
 
     trace_gicv3_ich_vtr_read(gicv3_redist_affid(cs), value);
     return value;

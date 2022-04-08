@@ -383,7 +383,7 @@ static bool gicd_readl(GICv3State *s, hwaddr offset,
          * No1N == 1 (1-of-N SPI interrupts not supported)
          * A3V == 1 (non-zero values of Affinity level 3 supported)
          * IDbits == 0xf (we support 16-bit interrupt identifiers)
-         * DVIS == 0 (Direct virtual LPI injection not supported)
+         * DVIS == 1 (Direct virtual LPI injection supported) if GICv4
          * LPIS == 1 (LPIs are supported if affinity routing is enabled)
          * num_LPIs == 0b00000 (bits [15:11],Number of LPIs as indicated
          *                      by GICD_TYPER.IDbits)
@@ -399,8 +399,9 @@ static bool gicd_readl(GICv3State *s, hwaddr offset,
          * so we only need to check the DS bit.
          */
         bool sec_extn = !(s->gicd_ctlr & GICD_CTLR_DS);
+        bool dvis = s->revision >= 4;
 
-        *data = (1 << 25) | (1 << 24) | (sec_extn << 10) |
+        *data = (1 << 25) | (1 << 24) | (dvis << 18) | (sec_extn << 10) |
             (s->lpi_enable << GICD_TYPER_LPIS_SHIFT) |
             (0xf << 19) | itlinesnumber;
         return true;
@@ -557,7 +558,7 @@ static bool gicd_readl(GICv3State *s, hwaddr offset,
     }
     case GICD_IDREGS ... GICD_IDREGS + 0x2f:
         /* ID registers */
-        *data = gicv3_idreg(offset - GICD_IDREGS, GICV3_PIDR0_DIST);
+        *data = gicv3_idreg(s, offset - GICD_IDREGS, GICV3_PIDR0_DIST);
         return true;
     case GICD_SGIR:
         /* WO registers, return unknown value */
