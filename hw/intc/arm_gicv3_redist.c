@@ -1067,9 +1067,25 @@ void gicv3_redist_mov_vlpi(GICv3CPUState *src, uint64_t src_vptaddr,
                            int irq, int doorbell)
 {
     /*
-     * The redistributor handling for moving a VLPI will be added
-     * in a subsequent commit.
+     * Move the specified vLPI's pending state from the source redistributor
+     * to the destination.
      */
+    if (!set_pending_table_bit(src, src_vptaddr, irq, 0)) {
+        /* Not pending on source, nothing to do */
+        return;
+    }
+    if (vcpu_resident(src, src_vptaddr) && irq == src->hppvlpi.irq) {
+        /*
+         * Update src's cached highest-priority pending vLPI if we just made
+         * it not-pending
+         */
+        gicv3_redist_update_vlpi(src);
+    }
+    /*
+     * Mark the vLPI pending on the destination (ringing the doorbell
+     * if the vCPU isn't resident)
+     */
+    gicv3_redist_process_vlpi(dest, irq, dest_vptaddr, doorbell, irq);
 }
 
 void gicv3_redist_vinvall(GICv3CPUState *cs, uint64_t vptaddr)
