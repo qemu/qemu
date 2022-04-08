@@ -555,7 +555,12 @@ static inline uint32_t gicv3_iidr(void)
     return 0x43b;
 }
 
-static inline uint32_t gicv3_idreg(int regoffset)
+/* CoreSight PIDR0 values for ARM GICv3 implementations */
+#define GICV3_PIDR0_DIST 0x92
+#define GICV3_PIDR0_REDIST 0x93
+#define GICV3_PIDR0_ITS 0x94
+
+static inline uint32_t gicv3_idreg(int regoffset, uint8_t pidr0)
 {
     /* Return the value of the CoreSight ID register at the specified
      * offset from the first ID register (as found in the distributor
@@ -565,7 +570,13 @@ static inline uint32_t gicv3_idreg(int regoffset)
     static const uint8_t gicd_ids[] = {
         0x44, 0x00, 0x00, 0x00, 0x92, 0xB4, 0x3B, 0x00, 0x0D, 0xF0, 0x05, 0xB1
     };
-    return gicd_ids[regoffset / 4];
+
+    regoffset /= 4;
+
+    if (regoffset == 4) {
+        return pidr0;
+    }
+    return gicd_ids[regoffset];
 }
 
 /**
