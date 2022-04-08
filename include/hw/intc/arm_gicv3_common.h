@@ -179,6 +179,9 @@ struct GICv3CPUState {
     uint32_t gicr_igrpmodr0;
     uint32_t gicr_nsacr;
     uint8_t gicr_ipriorityr[GIC_INTERNAL];
+    /* VLPI_base page registers */
+    uint64_t gicr_vpropbaser;
+    uint64_t gicr_vpendbaser;
 
     /* CPU interface */
     uint64_t icc_sre_el1;

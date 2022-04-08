@@ -144,6 +144,25 @@ const VMStateDescription vmstate_gicv3_cpu_sre_el1 = {
     }
 };
 
+static bool gicv4_needed(void *opaque)
+{
+    GICv3CPUState *cs = opaque;
+
+    return cs->gic->revision > 3;
+}
+
+const VMStateDescription vmstate_gicv3_gicv4 = {
+    .name = "arm_gicv3_cpu/gicv4",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = gicv4_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(gicr_vpropbaser, GICv3CPUState),
+        VMSTATE_UINT64(gicr_vpendbaser, GICv3CPUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_gicv3_cpu = {
     .name = "arm_gicv3_cpu",
     .version_id = 1,
@@ -175,6 +194,7 @@ static const VMStateDescription vmstate_gicv3_cpu = {
     .subsections = (const VMStateDescription * []) {
         &vmstate_gicv3_cpu_virt,
         &vmstate_gicv3_cpu_sre_el1,
+        &vmstate_gicv3_gicv4,
         NULL
     }
 };
@@ -444,6 +464,8 @@ static void arm_gicv3_common_reset(DeviceState *dev)
         cs->gicr_waker = GICR_WAKER_ProcessorSleep | GICR_WAKER_ChildrenAsleep;
         cs->gicr_propbaser = 0;
         cs->gicr_pendbaser = 0;
+        cs->gicr_vpropbaser = 0;
+        cs->gicr_vpendbaser = 0;
         /* If we're resetting a TZ-aware GIC as if secure firmware
          * had set it up ready to start a kernel in non-secure, we
          * need to set interrupts to group 1 so the kernel can use them.

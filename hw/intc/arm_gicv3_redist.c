@@ -236,6 +236,23 @@ static MemTxResult gicr_readl(GICv3CPUState *cs, hwaddr offset,
     case GICR_IDREGS ... GICR_IDREGS + 0x2f:
         *data = gicv3_idreg(offset - GICR_IDREGS, GICV3_PIDR0_REDIST);
         return MEMTX_OK;
+        /*
+         * VLPI frame registers. We don't need a version check for
+         * VPROPBASER and VPENDBASER because gicv3_redist_size() will
+         * prevent pre-v4 GIC from passing us offsets this high.
+         */
+    case GICR_VPROPBASER:
+        *data = extract64(cs->gicr_vpropbaser, 0, 32);
+        return MEMTX_OK;
+    case GICR_VPROPBASER + 4:
+        *data = extract64(cs->gicr_vpropbaser, 32, 32);
+        return MEMTX_OK;
+    case GICR_VPENDBASER:
+        *data = extract64(cs->gicr_vpendbaser, 0, 32);
+        return MEMTX_OK;
+    case GICR_VPENDBASER + 4:
+        *data = extract64(cs->gicr_vpendbaser, 32, 32);
+        return MEMTX_OK;
     default:
         return MEMTX_ERROR;
     }
@@ -379,6 +396,23 @@ static MemTxResult gicr_writel(GICv3CPUState *cs, hwaddr offset,
                       "%s: invalid guest write to RO register at offset "
                       TARGET_FMT_plx "\n", __func__, offset);
         return MEMTX_OK;
+        /*
+         * VLPI frame registers. We don't need a version check for
+         * VPROPBASER and VPENDBASER because gicv3_redist_size() will
+         * prevent pre-v4 GIC from passing us offsets this high.
+         */
+    case GICR_VPROPBASER:
+        cs->gicr_vpropbaser = deposit64(cs->gicr_vpropbaser, 0, 32, value);
+        return MEMTX_OK;
+    case GICR_VPROPBASER + 4:
+        cs->gicr_vpropbaser = deposit64(cs->gicr_vpropbaser, 32, 32, value);
+        return MEMTX_OK;
+    case GICR_VPENDBASER:
+        cs->gicr_vpendbaser = deposit64(cs->gicr_vpendbaser, 0, 32, value);
+        return MEMTX_OK;
+    case GICR_VPENDBASER + 4:
+        cs->gicr_vpendbaser = deposit64(cs->gicr_vpendbaser, 32, 32, value);
+        return MEMTX_OK;
     default:
         return MEMTX_ERROR;
     }
@@ -396,6 +430,17 @@ static MemTxResult gicr_readll(GICv3CPUState *cs, hwaddr offset,
         return MEMTX_OK;
     case GICR_PENDBASER:
         *data = cs->gicr_pendbaser;
+        return MEMTX_OK;
+        /*
+         * VLPI frame registers. We don't need a version check for
+         * VPROPBASER and VPENDBASER because gicv3_redist_size() will
+         * prevent pre-v4 GIC from passing us offsets this high.
+         */
+    case GICR_VPROPBASER:
+        *data = cs->gicr_vpropbaser;
+        return MEMTX_OK;
+    case GICR_VPENDBASER:
+        *data = cs->gicr_vpendbaser;
         return MEMTX_OK;
     default:
         return MEMTX_ERROR;
@@ -417,6 +462,17 @@ static MemTxResult gicr_writell(GICv3CPUState *cs, hwaddr offset,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid guest write to RO register at offset "
                       TARGET_FMT_plx "\n", __func__, offset);
+        return MEMTX_OK;
+        /*
+         * VLPI frame registers. We don't need a version check for
+         * VPROPBASER and VPENDBASER because gicv3_redist_size() will
+         * prevent pre-v4 GIC from passing us offsets this high.
+         */
+    case GICR_VPROPBASER:
+        cs->gicr_vpropbaser = value;
+        return MEMTX_OK;
+    case GICR_VPENDBASER:
+        cs->gicr_vpendbaser = value;
         return MEMTX_OK;
     default:
         return MEMTX_ERROR;
