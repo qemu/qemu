@@ -98,6 +98,15 @@ static inline void gicv3_add_its(GICv3State *s, DeviceState *its)
     g_ptr_array_add(s->itslist, its);
 }
 
+/*
+ * The ITS can use this for operations that must be performed on
+ * every ITS connected to the same GIC that it is
+ */
+static inline void gicv3_foreach_its(GICv3State *s, GFunc func, void *opaque)
+{
+    g_ptr_array_foreach(s->itslist, func, opaque);
+}
+
 #define TYPE_ARM_GICV3_ITS_COMMON "arm-gicv3-its-common"
 typedef struct GICv3ITSCommonClass GICv3ITSCommonClass;
 DECLARE_OBJ_CHECKERS(GICv3ITSState, GICv3ITSCommonClass,

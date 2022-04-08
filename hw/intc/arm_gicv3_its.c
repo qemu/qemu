@@ -1012,6 +1012,78 @@ static ItsCmdResult process_vmapp(GICv3ITSState *s, const uint64_t *cmdpkt)
     return update_vte(s, vpeid, &vte) ? CMD_CONTINUE_OK : CMD_STALL;
 }
 
+typedef struct VmovpCallbackData {
+    uint64_t rdbase;
+    uint32_t vpeid;
+    /*
+     * Overall command result. If more than one callback finds an
+     * error, STALL beats CONTINUE.
+     */
+    ItsCmdResult result;
+} VmovpCallbackData;
+
+static void vmovp_callback(gpointer data, gpointer opaque)
+{
+    /*
+     * This function is called to update the VPEID field in a VPE
+     * table entry for this ITS. This might be because of a VMOVP
+     * command executed on any ITS that is connected to the same GIC
+     * as this ITS.  We need to read the VPE table entry for the VPEID
+     * and update its RDBASE field.
+     */
+    GICv3ITSState *s = data;
+    VmovpCallbackData *cbdata = opaque;
+    VTEntry vte;
+    ItsCmdResult cmdres;
+
+    cmdres = lookup_vte(s, __func__, cbdata->vpeid, &vte);
+    switch (cmdres) {
+    case CMD_STALL:
+        cbdata->result = CMD_STALL;
+        return;
+    case CMD_CONTINUE:
+        if (cbdata->result != CMD_STALL) {
+            cbdata->result = CMD_CONTINUE;
+        }
+        return;
+    case CMD_CONTINUE_OK:
+        break;
+    }
+
+    vte.rdbase = cbdata->rdbase;
+    if (!update_vte(s, cbdata->vpeid, &vte)) {
+        cbdata->result = CMD_STALL;
+    }
+}
+
+static ItsCmdResult process_vmovp(GICv3ITSState *s, const uint64_t *cmdpkt)
+{
+    VmovpCallbackData cbdata;
+
+    if (!its_feature_virtual(s)) {
+        return CMD_CONTINUE;
+    }
+
+    cbdata.vpeid = FIELD_EX64(cmdpkt[1], VMOVP_1, VPEID);
+    cbdata.rdbase = FIELD_EX64(cmdpkt[2], VMOVP_2, RDBASE);
+
+    trace_gicv3_its_cmd_vmovp(cbdata.vpeid, cbdata.rdbase);
+
+    if (cbdata.rdbase >= s->gicv3->num_cpu) {
+        return CMD_CONTINUE;
+    }
+
+    /*
+     * Our ITS implementation reports GITS_TYPER.VMOVP == 1, which means
+     * that when the VMOVP command is executed on an ITS to change the
+     * VPEID field in a VPE table entry the change must be propagated
+     * to all the ITSes connected to the same GIC.
+     */
+    cbdata.result = CMD_CONTINUE_OK;
+    gicv3_foreach_its(s->gicv3, vmovp_callback, &cbdata);
+    return cbdata.result;
+}
+
 /*
  * Current implementation blocks until all
  * commands are processed
@@ -1135,6 +1207,9 @@ static void process_cmdq(GICv3ITSState *s)
             break;
         case GITS_CMD_VMAPP:
             result = process_vmapp(s, cmdpkt);
+            break;
+        case GITS_CMD_VMOVP:
+            result = process_vmovp(s, cmdpkt);
             break;
         default:
             trace_gicv3_its_cmd_unknown(cmd);
