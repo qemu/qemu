@@ -335,6 +335,7 @@ FIELD(GITS_TYPER, CIL, 36, 1)
 #define GITS_CMD_VMAPP            0x29
 #define GITS_CMD_VMAPTI           0x2A
 #define GITS_CMD_VMAPI            0x2B
+#define GITS_CMD_VINVALL          0x2D
 
 /* MAPC command fields */
 #define ICID_LENGTH                  16
@@ -410,6 +411,9 @@ FIELD(VMOVI_1, EVENTID, 0, 32)
 FIELD(VMOVI_1, VPEID, 32, 16)
 FIELD(VMOVI_2, D, 0, 1)
 FIELD(VMOVI_2, DOORBELL, 32, 32)
+
+/* VINVALL command fields */
+FIELD(VINVALL_1, VPEID, 32, 16)
 
 /*
  * 12 bytes Interrupt translation Table Entry size
@@ -637,6 +641,15 @@ void gicv3_redist_movall_lpis(GICv3CPUState *src, GICv3CPUState *dest);
 void gicv3_redist_mov_vlpi(GICv3CPUState *src, uint64_t src_vptaddr,
                            GICv3CPUState *dest, uint64_t dest_vptaddr,
                            int irq, int doorbell);
+/**
+ * gicv3_redist_vinvall:
+ * @cs: GICv3CPUState
+ * @vptaddr: address of VLPI pending table
+ *
+ * On redistributor @cs, invalidate all cached information associated
+ * with the vCPU defined by @vptaddr.
+ */
+void gicv3_redist_vinvall(GICv3CPUState *cs, uint64_t vptaddr);
 
 void gicv3_redist_send_sgi(GICv3CPUState *cs, int grp, int irq, bool ns);
 void gicv3_init_cpuif(GICv3State *s);

@@ -1163,6 +1163,29 @@ static ItsCmdResult process_vmovi(GICv3ITSState *s, const uint64_t *cmdpkt)
     return update_ite(s, eventid, &dte, &ite) ? CMD_CONTINUE_OK : CMD_STALL;
 }
 
+static ItsCmdResult process_vinvall(GICv3ITSState *s, const uint64_t *cmdpkt)
+{
+    VTEntry vte;
+    uint32_t vpeid;
+    ItsCmdResult cmdres;
+
+    if (!its_feature_virtual(s)) {
+        return CMD_CONTINUE;
+    }
+
+    vpeid = FIELD_EX64(cmdpkt[1], VINVALL_1, VPEID);
+
+    trace_gicv3_its_cmd_vinvall(vpeid);
+
+    cmdres = lookup_vte(s, __func__, vpeid, &vte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
+    }
+
+    gicv3_redist_vinvall(&s->gicv3->cpu[vte.rdbase], vte.vptaddr << 16);
+    return CMD_CONTINUE_OK;
+}
+
 static ItsCmdResult process_inv(GICv3ITSState *s, const uint64_t *cmdpkt)
 {
     uint32_t devid, eventid;
@@ -1363,6 +1386,9 @@ static void process_cmdq(GICv3ITSState *s)
             break;
         case GITS_CMD_VMOVI:
             result = process_vmovi(s, cmdpkt);
+            break;
+        case GITS_CMD_VINVALL:
+            result = process_vinvall(s, cmdpkt);
             break;
         default:
             trace_gicv3_its_cmd_unknown(cmd);
