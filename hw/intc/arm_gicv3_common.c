@@ -328,6 +328,10 @@ static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
                    s->num_irq, GIC_INTERNAL);
         return;
     }
+    if (s->num_cpu == 0) {
+        error_setg(errp, "num-cpu must be at least 1");
+        return;
+    }
 
     /* ITLinesNumber is represented as (N / 32) - 1, so this is an
      * implementation imposed restriction, not an architectural one,
