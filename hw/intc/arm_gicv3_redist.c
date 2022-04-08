@@ -60,6 +60,49 @@ static uint32_t gicr_read_bitmap_reg(GICv3CPUState *cs, MemTxAttrs attrs,
     return reg;
 }
 
+/**
+ * update_for_one_lpi: Update pending information if this LPI is better
+ *
+ * @cs: GICv3CPUState
+ * @irq: interrupt to look up in the LPI Configuration table
+ * @ctbase: physical address of the LPI Configuration table to use
+ * @ds: true if priority value should not be shifted
+ * @hpp: points to pending information to update
+ *
+ * Look up @irq in the Configuration table specified by @ctbase
+ * to see if it is enabled and what its priority is. If it is an
+ * enabled interrupt with a higher priority than that currently
+ * recorded in @hpp, update @hpp.
+ */
+static void update_for_one_lpi(GICv3CPUState *cs, int irq,
+                               uint64_t ctbase, bool ds, PendingIrq *hpp)
+{
+    uint8_t lpite;
+    uint8_t prio;
+
+    address_space_read(&cs->gic->dma_as,
+                       ctbase + ((irq - GICV3_LPI_INTID_START) * sizeof(lpite)),
+                       MEMTXATTRS_UNSPECIFIED, &lpite, sizeof(lpite));
+
+    if (!(lpite & LPI_CTE_ENABLED)) {
+        return;
+    }
+
+    if (ds) {
+        prio = lpite & LPI_PRIORITY_MASK;
+    } else {
+        prio = ((lpite & LPI_PRIORITY_MASK) >> 1) | 0x80;
+    }
+
+    if ((prio < hpp->prio) ||
+        ((prio == hpp->prio) && (irq <= hpp->irq))) {
+        hpp->irq = irq;
+        hpp->prio = prio;
+        /* LPIs and vLPIs are always non-secure Grp1 interrupts */
+        hpp->grp = GICV3_G1NS;
+    }
+}
+
 static uint8_t gicr_read_ipriorityr(GICv3CPUState *cs, MemTxAttrs attrs,
                                     int irq)
 {
@@ -598,34 +641,11 @@ MemTxResult gicv3_redist_write(void *opaque, hwaddr offset, uint64_t data,
 
 static void gicv3_redist_check_lpi_priority(GICv3CPUState *cs, int irq)
 {
-    AddressSpace *as = &cs->gic->dma_as;
-    uint64_t lpict_baddr;
-    uint8_t lpite;
-    uint8_t prio;
+    uint64_t lpict_baddr = cs->gicr_propbaser & R_GICR_PROPBASER_PHYADDR_MASK;
 
-    lpict_baddr = cs->gicr_propbaser & R_GICR_PROPBASER_PHYADDR_MASK;
-
-    address_space_read(as, lpict_baddr + ((irq - GICV3_LPI_INTID_START) *
-                       sizeof(lpite)), MEMTXATTRS_UNSPECIFIED, &lpite,
-                       sizeof(lpite));
-
-    if (!(lpite & LPI_CTE_ENABLED)) {
-        return;
-    }
-
-    if (cs->gic->gicd_ctlr & GICD_CTLR_DS) {
-        prio = lpite & LPI_PRIORITY_MASK;
-    } else {
-        prio = ((lpite & LPI_PRIORITY_MASK) >> 1) | 0x80;
-    }
-
-    if ((prio < cs->hpplpi.prio) ||
-        ((prio == cs->hpplpi.prio) && (irq <= cs->hpplpi.irq))) {
-        cs->hpplpi.irq = irq;
-        cs->hpplpi.prio = prio;
-        /* LPIs are always non-secure Grp1 interrupts */
-        cs->hpplpi.grp = GICV3_G1NS;
-    }
+    update_for_one_lpi(cs, irq, lpict_baddr,
+                       cs->gic->gicd_ctlr & GICD_CTLR_DS,
+                       &cs->hpplpi);
 }
 
 void gicv3_redist_update_lpi_only(GICv3CPUState *cs)
