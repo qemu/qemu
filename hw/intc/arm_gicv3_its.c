@@ -1680,6 +1680,8 @@ static void gicv3_arm_its_realize(DeviceState *dev, Error **errp)
         }
     }
 
+    gicv3_add_its(s->gicv3, dev);
+
     gicv3_its_init_mmio(s, &gicv3_its_control_ops, &gicv3_its_translation_ops);
 
     /* set the ITS default features supported */

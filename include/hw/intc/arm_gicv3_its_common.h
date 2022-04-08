@@ -89,6 +89,15 @@ typedef struct GICv3ITSState GICv3ITSState;
 void gicv3_its_init_mmio(GICv3ITSState *s, const MemoryRegionOps *ops,
                    const MemoryRegionOps *tops);
 
+/*
+ * The ITS should call this when it is realized to add itself
+ * to its GIC's list of connected ITSes.
+ */
+static inline void gicv3_add_its(GICv3State *s, DeviceState *its)
+{
+    g_ptr_array_add(s->itslist, its);
+}
+
 #define TYPE_ARM_GICV3_ITS_COMMON "arm-gicv3-its-common"
 typedef struct GICv3ITSCommonClass GICv3ITSCommonClass;
 DECLARE_OBJ_CHECKERS(GICv3ITSState, GICv3ITSCommonClass,
