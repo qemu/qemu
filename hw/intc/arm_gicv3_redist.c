@@ -1102,9 +1102,12 @@ void gicv3_redist_vinvall(GICv3CPUState *cs, uint64_t vptaddr)
 void gicv3_redist_inv_vlpi(GICv3CPUState *cs, int irq, uint64_t vptaddr)
 {
     /*
-     * The redistributor handling for invalidating cached information
-     * about a VLPI will be added in a subsequent commit.
+     * The only cached information for LPIs we have is the HPPLPI.
+     * We could be cleverer about identifying when we don't need
+     * to do a full rescan of the pending table, but until we find
+     * this is a performance issue, just always recalculate.
      */
+    gicv3_redist_vinvall(cs, vptaddr);
 }
 
 void gicv3_redist_set_irq(GICv3CPUState *cs, int irq, int level)
