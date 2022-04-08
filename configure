@@ -321,11 +321,6 @@ vfio_user_server="disabled"
 # are included in the automatically generated help message)
 
 # 1. Track which submodules are needed
-if test "$default_feature" = no ; then
-  slirp="disabled"
-else
-  slirp="auto"
-fi
 fdt="auto"
 
 # 2. Automatically enable/disable other options
@@ -828,14 +823,6 @@ for opt do
   --enable-tsan) tsan="yes"
   ;;
   --disable-tsan) tsan="no"
-  ;;
-  --disable-slirp) slirp="disabled"
-  ;;
-  --enable-slirp) slirp="enabled"
-  ;;
-  --enable-slirp=git) slirp="internal"
-  ;;
-  --enable-slirp=*) slirp="$optarg"
   ;;
   --disable-tcg) tcg="disabled"
                  plugins="no"
@@ -1824,16 +1811,6 @@ EOF
 fi
 
 ##########################################
-# check for slirp
-
-case "$slirp" in
-  auto | enabled | internal)
-    # Simpler to always update submodule, even if not needed.
-    git_submodules="${git_submodules} slirp"
-    ;;
-esac
-
-##########################################
 # functions to probe cross compilers
 
 container="no"
@@ -2741,7 +2718,6 @@ if test "$skip_meson" = no; then
   test "$fdt" != auto && meson_option_add "-Dfdt=$fdt"
   test -n "${LIB_FUZZING_ENGINE+xxx}" && meson_option_add "-Dfuzzing_engine=$LIB_FUZZING_ENGINE"
   test "$qemu_suffix" != qemu && meson_option_add "-Dqemu_suffix=$qemu_suffix"
-  test "$slirp" != auto && meson_option_add "-Dslirp=$slirp"
   test "$smbd" != '' && meson_option_add "-Dsmbd=$smbd"
   test "$tcg" != enabled && meson_option_add "-Dtcg=$tcg"
   test "$vfio_user_server" != auto && meson_option_add "-Dvfio_user_server=$vfio_user_server"
