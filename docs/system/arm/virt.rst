@@ -99,11 +99,14 @@ gic-version
     GICv2. Note that this limits the number of CPUs to 8.
   ``3``
     GICv3. This allows up to 512 CPUs.
+  ``4``
+    GICv4. Requires ``virtualization`` to be ``on``; allows up to 317 CPUs.
   ``host``
     Use the same GIC version the host provides, when using KVM
   ``max``
     Use the best GIC version possible (same as host when using KVM;
-    currently same as ``3``` for TCG, but this may change in future)
+    with TCG this is currently ``3`` if ``virtualization`` is ``off`` and
+    ``4`` if ``virtualization`` is ``on``, but this may change in future)
 
 its
   Set ``on``/``off`` to enable/disable ITS instantiation. The default is ``on``

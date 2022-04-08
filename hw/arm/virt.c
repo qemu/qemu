@@ -522,7 +522,7 @@ static void fdt_add_gic_node(VirtMachineState *vms)
     qemu_fdt_setprop_cell(ms->fdt, nodename, "#address-cells", 0x2);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "#size-cells", 0x2);
     qemu_fdt_setprop(ms->fdt, nodename, "ranges", NULL, 0);
-    if (vms->gic_version == VIRT_GIC_VERSION_3) {
+    if (vms->gic_version != VIRT_GIC_VERSION_2) {
         int nb_redist_regions = virt_gicv3_redist_region_count(vms);
 
         qemu_fdt_setprop_string(ms->fdt, nodename, "compatible",
@@ -708,6 +708,9 @@ static void create_gic(VirtMachineState *vms, MemoryRegion *mem)
     case VIRT_GIC_VERSION_3:
         revision = 3;
         break;
+    case VIRT_GIC_VERSION_4:
+        revision = 4;
+        break;
     default:
         g_assert_not_reached();
     }
@@ -722,7 +725,7 @@ static void create_gic(VirtMachineState *vms, MemoryRegion *mem)
         qdev_prop_set_bit(vms->gic, "has-security-extensions", vms->secure);
     }
 
-    if (vms->gic_version == VIRT_GIC_VERSION_3) {
+    if (vms->gic_version != VIRT_GIC_VERSION_2) {
         uint32_t redist0_capacity = virt_redist_capacity(vms, VIRT_GIC_REDIST);
         uint32_t redist0_count = MIN(smp_cpus, redist0_capacity);
 
@@ -756,7 +759,7 @@ static void create_gic(VirtMachineState *vms, MemoryRegion *mem)
     gicbusdev = SYS_BUS_DEVICE(vms->gic);
     sysbus_realize_and_unref(gicbusdev, &error_fatal);
     sysbus_mmio_map(gicbusdev, 0, vms->memmap[VIRT_GIC_DIST].base);
-    if (vms->gic_version == VIRT_GIC_VERSION_3) {
+    if (vms->gic_version != VIRT_GIC_VERSION_2) {
         sysbus_mmio_map(gicbusdev, 1, vms->memmap[VIRT_GIC_REDIST].base);
         if (nb_redist_regions == 2) {
             sysbus_mmio_map(gicbusdev, 2,
@@ -794,7 +797,7 @@ static void create_gic(VirtMachineState *vms, MemoryRegion *mem)
                                                    ppibase + timer_irq[irq]));
         }
 
-        if (vms->gic_version == VIRT_GIC_VERSION_3) {
+        if (vms->gic_version != VIRT_GIC_VERSION_2) {
             qemu_irq irq = qdev_get_gpio_in(vms->gic,
                                             ppibase + ARCH_GIC_MAINT_IRQ);
             qdev_connect_gpio_out_named(cpudev, "gicv3-maintenance-interrupt",
@@ -820,7 +823,7 @@ static void create_gic(VirtMachineState *vms, MemoryRegion *mem)
 
     fdt_add_gic_node(vms);
 
-    if (vms->gic_version == VIRT_GIC_VERSION_3 && vms->its) {
+    if (vms->gic_version != VIRT_GIC_VERSION_2 && vms->its) {
         create_its(vms);
     } else if (vms->gic_version == VIRT_GIC_VERSION_2) {
         create_v2m(vms);
@@ -1672,10 +1675,10 @@ static uint64_t virt_cpu_mp_affinity(VirtMachineState *vms, int idx)
          * purposes are to make TCG consistent (with 64-bit KVM hosts)
          * and to improve SGI efficiency.
          */
-        if (vms->gic_version == VIRT_GIC_VERSION_3) {
-            clustersz = GICV3_TARGETLIST_BITS;
-        } else {
+        if (vms->gic_version == VIRT_GIC_VERSION_2) {
             clustersz = GIC_TARGETLIST_BITS;
+        } else {
+            clustersz = GICV3_TARGETLIST_BITS;
         }
     }
     return arm_cpu_mp_affinity(idx, clustersz);
@@ -1808,6 +1811,10 @@ static void finalize_gic_version(VirtMachineState *vms)
                 error_report(
                     "gic-version=3 is not supported with kernel-irqchip=off");
                 exit(1);
+            case VIRT_GIC_VERSION_4:
+                error_report(
+                    "gic-version=4 is not supported with kernel-irqchip=off");
+                exit(1);
             }
         }
 
@@ -1845,6 +1852,9 @@ static void finalize_gic_version(VirtMachineState *vms)
         case VIRT_GIC_VERSION_2:
         case VIRT_GIC_VERSION_3:
             break;
+        case VIRT_GIC_VERSION_4:
+            error_report("gic-version=4 is not supported with KVM");
+            exit(1);
         }
 
         /* Check chosen version is effectively supported by the host */
@@ -1868,7 +1878,12 @@ static void finalize_gic_version(VirtMachineState *vms)
     case VIRT_GIC_VERSION_MAX:
         if (module_object_class_by_name("arm-gicv3")) {
             /* CONFIG_ARM_GICV3_TCG was set */
-            vms->gic_version = VIRT_GIC_VERSION_3;
+            if (vms->virt) {
+                /* GICv4 only makes sense if CPU has EL2 */
+                vms->gic_version = VIRT_GIC_VERSION_4;
+            } else {
+                vms->gic_version = VIRT_GIC_VERSION_3;
+            }
         } else {
             vms->gic_version = VIRT_GIC_VERSION_2;
         }
@@ -1876,6 +1891,12 @@ static void finalize_gic_version(VirtMachineState *vms)
     case VIRT_GIC_VERSION_HOST:
         error_report("gic-version=host requires KVM");
         exit(1);
+    case VIRT_GIC_VERSION_4:
+        if (!vms->virt) {
+            error_report("gic-version=4 requires virtualization enabled");
+            exit(1);
+        }
+        break;
     case VIRT_GIC_VERSION_2:
     case VIRT_GIC_VERSION_3:
         break;
@@ -2043,14 +2064,16 @@ static void machvirt_init(MachineState *machine)
         vms->psci_conduit = QEMU_PSCI_CONDUIT_HVC;
     }
 
-    /* The maximum number of CPUs depends on the GIC version, or on how
-     * many redistributors we can fit into the memory map.
+    /*
+     * The maximum number of CPUs depends on the GIC version, or on how
+     * many redistributors we can fit into the memory map (which in turn
+     * depends on whether this is a GICv3 or v4).
      */
-    if (vms->gic_version == VIRT_GIC_VERSION_3) {
+    if (vms->gic_version == VIRT_GIC_VERSION_2) {
+        virt_max_cpus = GIC_NCPU;
+    } else {
         virt_max_cpus = virt_redist_capacity(vms, VIRT_GIC_REDIST) +
             virt_redist_capacity(vms, VIRT_HIGH_GIC_REDIST2);
-    } else {
-        virt_max_cpus = GIC_NCPU;
     }
 
     if (max_cpus > virt_max_cpus) {
@@ -2438,8 +2461,19 @@ static void virt_set_mte(Object *obj, bool value, Error **errp)
 static char *virt_get_gic_version(Object *obj, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
-    const char *val = vms->gic_version == VIRT_GIC_VERSION_3 ? "3" : "2";
+    const char *val;
 
+    switch (vms->gic_version) {
+    case VIRT_GIC_VERSION_4:
+        val = "4";
+        break;
+    case VIRT_GIC_VERSION_3:
+        val = "3";
+        break;
+    default:
+        val = "2";
+        break;
+    }
     return g_strdup(val);
 }
 
@@ -2447,7 +2481,9 @@ static void virt_set_gic_version(Object *obj, const char *value, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
 
-    if (!strcmp(value, "3")) {
+    if (!strcmp(value, "4")) {
+        vms->gic_version = VIRT_GIC_VERSION_4;
+    } else if (!strcmp(value, "3")) {
         vms->gic_version = VIRT_GIC_VERSION_3;
     } else if (!strcmp(value, "2")) {
         vms->gic_version = VIRT_GIC_VERSION_2;
@@ -2905,7 +2941,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
                                   virt_set_gic_version);
     object_class_property_set_description(oc, "gic-version",
                                           "Set GIC version. "
-                                          "Valid values are 2, 3, host and max");
+                                          "Valid values are 2, 3, 4, host and max");
 
     object_class_property_add_str(oc, "iommu", virt_get_iommu, virt_set_iommu);
     object_class_property_set_description(oc, "iommu",
