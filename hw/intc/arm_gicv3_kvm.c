@@ -781,6 +781,11 @@ static void kvm_arm_gicv3_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (s->revision != 3) {
+        error_setg(errp, "unsupported GIC revision %d for in-kernel GIC",
+                   s->revision);
+    }
+
     if (s->security_extn) {
         error_setg(errp, "the in-kernel VGICv3 does not implement the "
                    "security extensions");
