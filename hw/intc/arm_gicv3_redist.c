@@ -442,8 +442,8 @@ MemTxResult gicv3_redist_read(void *opaque, hwaddr offset, uint64_t *data,
      * in the memory map); if so then the GIC has multiple MemoryRegions
      * for the redistributors.
      */
-    cpuidx = region->cpuidx + offset / GICV3_REDIST_SIZE;
-    offset %= GICV3_REDIST_SIZE;
+    cpuidx = region->cpuidx + offset / gicv3_redist_size(s);
+    offset %= gicv3_redist_size(s);
 
     cs = &s->cpu[cpuidx];
 
@@ -501,8 +501,8 @@ MemTxResult gicv3_redist_write(void *opaque, hwaddr offset, uint64_t data,
      * in the memory map); if so then the GIC has multiple MemoryRegions
      * for the redistributors.
      */
-    cpuidx = region->cpuidx + offset / GICV3_REDIST_SIZE;
-    offset %= GICV3_REDIST_SIZE;
+    cpuidx = region->cpuidx + offset / gicv3_redist_size(s);
+    offset %= gicv3_redist_size(s);
 
     cs = &s->cpu[cpuidx];
 

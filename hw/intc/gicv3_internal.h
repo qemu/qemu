@@ -490,6 +490,27 @@ FIELD(VTE, RDBASE, 42, RDBASE_PROCNUM_LENGTH)
 /* Functions internal to the emulated GICv3 */
 
 /**
+ * gicv3_redist_size:
+ * @s: GICv3State
+ *
+ * Return the size of the redistributor register frame in bytes
+ * (which depends on what GIC version this is)
+ */
+static inline int gicv3_redist_size(GICv3State *s)
+{
+    /*
+     * Redistributor size is controlled by the redistributor GICR_TYPER.VLPIS.
+     * It's the same for every redistributor in the GIC, so arbitrarily
+     * use the register field in the first one.
+     */
+    if (s->cpu[0].gicr_typer & GICR_TYPER_VLPIS) {
+        return GICV4_REDIST_SIZE;
+    } else {
+        return GICV3_REDIST_SIZE;
+    }
+}
+
+/**
  * gicv3_intid_is_special:
  * @intid: interrupt ID
  *
