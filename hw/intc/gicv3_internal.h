@@ -586,6 +586,15 @@ void gicv3_redist_update_lpi_only(GICv3CPUState *cs);
  */
 void gicv3_redist_inv_lpi(GICv3CPUState *cs, int irq);
 /**
+ * gicv3_redist_inv_vlpi:
+ * @cs: GICv3CPUState
+ * @irq: vLPI to invalidate cached information for
+ * @vptaddr: (guest) address of vLPI table
+ *
+ * Forget or update any cached information associated with this vLPI.
+ */
+void gicv3_redist_inv_vlpi(GICv3CPUState *cs, int irq, uint64_t vptaddr);
+/**
  * gicv3_redist_mov_lpi:
  * @src: source redistributor
  * @dest: destination redistributor

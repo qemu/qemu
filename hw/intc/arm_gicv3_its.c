@@ -1090,6 +1090,7 @@ static ItsCmdResult process_inv(GICv3ITSState *s, const uint64_t *cmdpkt)
     ITEntry ite;
     DTEntry dte;
     CTEntry cte;
+    VTEntry vte;
     ItsCmdResult cmdres;
 
     devid = FIELD_EX64(cmdpkt[0], INV_0, DEVICEID);
@@ -1118,8 +1119,19 @@ static ItsCmdResult process_inv(GICv3ITSState *s, const uint64_t *cmdpkt)
                           __func__, ite.inttype);
             return CMD_CONTINUE;
         }
-        /* We will implement the vLPI invalidation in a later commit */
-        g_assert_not_reached();
+
+        cmdres = lookup_vte(s, __func__, ite.vpeid, &vte);
+        if (cmdres != CMD_CONTINUE_OK) {
+            return cmdres;
+        }
+        if (!intid_in_lpi_range(ite.intid) ||
+            ite.intid >= (1ULL << (vte.vptsize + 1))) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: intid 0x%x out of range\n",
+                          __func__, ite.intid);
+            return CMD_CONTINUE;
+        }
+        gicv3_redist_inv_vlpi(&s->gicv3->cpu[vte.rdbase], ite.intid,
+                              vte.vptaddr << 16);
         break;
     default:
         g_assert_not_reached();
