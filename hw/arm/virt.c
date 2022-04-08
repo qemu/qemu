@@ -690,14 +690,29 @@ static void create_gic(VirtMachineState *vms, MemoryRegion *mem)
     /* We create a standalone GIC */
     SysBusDevice *gicbusdev;
     const char *gictype;
-    int type = vms->gic_version, i;
+    int i;
     unsigned int smp_cpus = ms->smp.cpus;
     uint32_t nb_redist_regions = 0;
+    int revision;
 
-    gictype = (type == 3) ? gicv3_class_name() : gic_class_name();
+    if (vms->gic_version == VIRT_GIC_VERSION_2) {
+        gictype = gic_class_name();
+    } else {
+        gictype = gicv3_class_name();
+    }
 
+    switch (vms->gic_version) {
+    case VIRT_GIC_VERSION_2:
+        revision = 2;
+        break;
+    case VIRT_GIC_VERSION_3:
+        revision = 3;
+        break;
+    default:
+        g_assert_not_reached();
+    }
     vms->gic = qdev_new(gictype);
-    qdev_prop_set_uint32(vms->gic, "revision", type);
+    qdev_prop_set_uint32(vms->gic, "revision", revision);
     qdev_prop_set_uint32(vms->gic, "num-cpu", smp_cpus);
     /* Note that the num-irq property counts both internal and external
      * interrupts; there are always 32 of the former (mandated by GIC spec).
@@ -707,7 +722,7 @@ static void create_gic(VirtMachineState *vms, MemoryRegion *mem)
         qdev_prop_set_bit(vms->gic, "has-security-extensions", vms->secure);
     }
 
-    if (type == 3) {
+    if (vms->gic_version == VIRT_GIC_VERSION_3) {
         uint32_t redist0_capacity =
                     vms->memmap[VIRT_GIC_REDIST].size / GICV3_REDIST_SIZE;
         uint32_t redist0_count = MIN(smp_cpus, redist0_capacity);
@@ -742,7 +757,7 @@ static void create_gic(VirtMachineState *vms, MemoryRegion *mem)
     gicbusdev = SYS_BUS_DEVICE(vms->gic);
     sysbus_realize_and_unref(gicbusdev, &error_fatal);
     sysbus_mmio_map(gicbusdev, 0, vms->memmap[VIRT_GIC_DIST].base);
-    if (type == 3) {
+    if (vms->gic_version == VIRT_GIC_VERSION_3) {
         sysbus_mmio_map(gicbusdev, 1, vms->memmap[VIRT_GIC_REDIST].base);
         if (nb_redist_regions == 2) {
             sysbus_mmio_map(gicbusdev, 2,
@@ -780,7 +795,7 @@ static void create_gic(VirtMachineState *vms, MemoryRegion *mem)
                                                    ppibase + timer_irq[irq]));
         }
 
-        if (type == 3) {
+        if (vms->gic_version == VIRT_GIC_VERSION_3) {
             qemu_irq irq = qdev_get_gpio_in(vms->gic,
                                             ppibase + ARCH_GIC_MAINT_IRQ);
             qdev_connect_gpio_out_named(cpudev, "gicv3-maintenance-interrupt",
@@ -806,9 +821,9 @@ static void create_gic(VirtMachineState *vms, MemoryRegion *mem)
 
     fdt_add_gic_node(vms);
 
-    if (type == 3 && vms->its) {
+    if (vms->gic_version == VIRT_GIC_VERSION_3 && vms->its) {
         create_its(vms);
-    } else if (type == 2) {
+    } else if (vms->gic_version == VIRT_GIC_VERSION_2) {
         create_v2m(vms);
     }
 }
