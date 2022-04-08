@@ -330,6 +330,7 @@ FIELD(GITS_TYPER, CIL, 36, 1)
 #define GITS_CMD_MOVALL           0x0E
 #define GITS_CMD_DISCARD          0x0F
 #define GITS_CMD_VMOVP            0x22
+#define GITS_CMD_VSYNC            0x25
 #define GITS_CMD_VMAPP            0x29
 #define GITS_CMD_VMAPTI           0x2A
 #define GITS_CMD_VMAPI            0x2B

@@ -1165,6 +1165,17 @@ static void process_cmdq(GICv3ITSState *s)
              */
             trace_gicv3_its_cmd_sync();
             break;
+        case GITS_CMD_VSYNC:
+            /*
+             * VSYNC also is a nop, because our implementation is always
+             * in sync.
+             */
+            if (!its_feature_virtual(s)) {
+                result = CMD_CONTINUE;
+                break;
+            }
+            trace_gicv3_its_cmd_vsync();
+            break;
         case GITS_CMD_MAPD:
             result = process_mapd(s, cmdpkt);
             break;
