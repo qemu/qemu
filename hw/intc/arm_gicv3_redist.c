@@ -1090,7 +1090,13 @@ void gicv3_redist_mov_vlpi(GICv3CPUState *src, uint64_t src_vptaddr,
 
 void gicv3_redist_vinvall(GICv3CPUState *cs, uint64_t vptaddr)
 {
-    /* The redistributor handling will be added in a subsequent commit */
+    if (!vcpu_resident(cs, vptaddr)) {
+        /* We don't have anything cached if the vCPU isn't resident */
+        return;
+    }
+
+    /* Otherwise, our only cached information is the HPPVLPI info */
+    gicv3_redist_update_vlpi(cs);
 }
 
 void gicv3_redist_inv_vlpi(GICv3CPUState *cs, int irq, uint64_t vptaddr)
