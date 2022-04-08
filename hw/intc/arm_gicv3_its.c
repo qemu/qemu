@@ -315,6 +315,42 @@ out:
 }
 
 /*
+ * Read the vPE Table entry at index @vpeid. On success (including
+ * successfully determining that there is no valid entry for this index),
+ * we return MEMTX_OK and populate the VTEntry struct accordingly.
+ * If there is an error reading memory then we return the error code.
+ */
+static MemTxResult get_vte(GICv3ITSState *s, uint32_t vpeid, VTEntry *vte)
+{
+    MemTxResult res = MEMTX_OK;
+    AddressSpace *as = &s->gicv3->dma_as;
+    uint64_t entry_addr = table_entry_addr(s, &s->vpet, vpeid, &res);
+    uint64_t vteval;
+
+    if (entry_addr == -1) {
+        /* No L2 table entry, i.e. no valid VTE, or a memory error */
+        vte->valid = false;
+        goto out;
+    }
+    vteval = address_space_ldq_le(as, entry_addr, MEMTXATTRS_UNSPECIFIED, &res);
+    if (res != MEMTX_OK) {
+        goto out;
+    }
+    vte->valid = FIELD_EX64(vteval, VTE, VALID);
+    vte->vptsize = FIELD_EX64(vteval, VTE, VPTSIZE);
+    vte->vptaddr = FIELD_EX64(vteval, VTE, VPTADDR);
+    vte->rdbase = FIELD_EX64(vteval, VTE, RDBASE);
+out:
+    if (res != MEMTX_OK) {
+        trace_gicv3_its_vte_read_fault(vpeid);
+    } else {
+        trace_gicv3_its_vte_read(vpeid, vte->valid, vte->vptsize,
+                                 vte->vptaddr, vte->rdbase);
+    }
+    return res;
+}
+
+/*
  * Given a (DeviceID, EventID), look up the corresponding ITE, including
  * checking for the various invalid-value cases. If we find a valid ITE,
  * fill in @ite and @dte and return CMD_CONTINUE_OK. Otherwise return
@@ -397,6 +433,38 @@ static ItsCmdResult lookup_cte(GICv3ITSState *s, const char *who,
     return CMD_CONTINUE_OK;
 }
 
+/*
+ * Given a VPEID, look up the corresponding VTE, including checking
+ * for various invalid-value cases. if we find a valid VTE, fill in @vte
+ * and return CMD_CONTINUE_OK; otherwise return CMD_STALL or CMD_CONTINUE
+ * (and the contents of @vte should not be relied on).
+ *
+ * The string @who is purely for the LOG_GUEST_ERROR messages,
+ * and should indicate the name of the calling function or similar.
+ */
+static ItsCmdResult lookup_vte(GICv3ITSState *s, const char *who,
+                               uint32_t vpeid, VTEntry *vte)
+{
+    if (vpeid >= s->vpet.num_entries) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid VPEID 0x%x\n", who, vpeid);
+        return CMD_CONTINUE;
+    }
+
+    if (get_vte(s, vpeid, vte) != MEMTX_OK) {
+        return CMD_STALL;
+    }
+    if (!vte->valid) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid VTE for VPEID 0x%x\n", who, vpeid);
+        return CMD_CONTINUE;
+    }
+
+    if (vte->rdbase >= s->gicv3->num_cpu) {
+        return CMD_CONTINUE;
+    }
+    return CMD_CONTINUE_OK;
+}
+
 static ItsCmdResult process_its_cmd_phys(GICv3ITSState *s, const ITEntry *ite,
                                          int irqlevel)
 {
@@ -408,6 +476,33 @@ static ItsCmdResult process_its_cmd_phys(GICv3ITSState *s, const ITEntry *ite,
         return cmdres;
     }
     gicv3_redist_process_lpi(&s->gicv3->cpu[cte.rdbase], ite->intid, irqlevel);
+    return CMD_CONTINUE_OK;
+}
+
+static ItsCmdResult process_its_cmd_virt(GICv3ITSState *s, const ITEntry *ite,
+                                         int irqlevel)
+{
+    VTEntry vte;
+    ItsCmdResult cmdres;
+
+    cmdres = lookup_vte(s, __func__, ite->vpeid, &vte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
+    }
+
+    if (!intid_in_lpi_range(ite->intid) ||
+        ite->intid >= (1ULL << (vte.vptsize + 1))) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: intid 0x%x out of range\n",
+                      __func__, ite->intid);
+        return CMD_CONTINUE;
+    }
+
+    /*
+     * For QEMU the actual pending of the vLPI is handled in the
+     * redistributor code
+     */
+    gicv3_redist_process_vlpi(&s->gicv3->cpu[vte.rdbase], ite->intid,
+                              vte.vptaddr << 16, ite->doorbell, irqlevel);
     return CMD_CONTINUE_OK;
 }
 
@@ -446,8 +541,8 @@ static ItsCmdResult do_process_its_cmd(GICv3ITSState *s, uint32_t devid,
                           __func__, ite.inttype);
             return CMD_CONTINUE;
         }
-        /* The GICv4 virtual interrupt handling will go here */
-        g_assert_not_reached();
+        cmdres = process_its_cmd_virt(s, &ite, irqlevel);
+        break;
     default:
         g_assert_not_reached();
     }

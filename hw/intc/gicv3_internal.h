@@ -527,6 +527,23 @@ MemTxResult gicv3_redist_write(void *opaque, hwaddr offset, uint64_t data,
 void gicv3_dist_set_irq(GICv3State *s, int irq, int level);
 void gicv3_redist_set_irq(GICv3CPUState *cs, int irq, int level);
 void gicv3_redist_process_lpi(GICv3CPUState *cs, int irq, int level);
+/**
+ * gicv3_redist_process_vlpi:
+ * @cs: GICv3CPUState
+ * @irq: (virtual) interrupt number
+ * @vptaddr: (guest) address of VLPI table
+ * @doorbell: doorbell (physical) interrupt number (1023 for "no doorbell")
+ * @level: level to set @irq to
+ *
+ * Process a virtual LPI being directly injected by the ITS. This function
+ * will update the VLPI table specified by @vptaddr and @vptsize. If the
+ * vCPU corresponding to that VLPI table is currently running on
+ * the CPU associated with this redistributor, directly inject the VLPI
+ * @irq. If the vCPU is not running on this CPU, raise the doorbell
+ * interrupt instead.
+ */
+void gicv3_redist_process_vlpi(GICv3CPUState *cs, int irq, uint64_t vptaddr,
+                               int doorbell, int level);
 void gicv3_redist_lpi_pending(GICv3CPUState *cs, int irq, int level);
 /**
  * gicv3_redist_update_lpi:
