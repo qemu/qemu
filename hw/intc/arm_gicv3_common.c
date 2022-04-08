@@ -354,9 +354,9 @@ static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < s->nb_redist_regions; i++) {
         rdist_capacity += s->redist_region_count[i];
     }
-    if (rdist_capacity < s->num_cpu) {
+    if (rdist_capacity != s->num_cpu) {
         error_setg(errp, "Capacity of the redist regions(%d) "
-                   "is less than number of vcpus(%d)",
+                   "does not match the number of vcpus(%d)",
                    rdist_capacity, s->num_cpu);
         return;
     }
