@@ -280,6 +280,7 @@ FIELD(GITS_CTLR, ENABLED, 0, 1)
 FIELD(GITS_CTLR, QUIESCENT, 31, 1)
 
 FIELD(GITS_TYPER, PHYSICAL, 0, 1)
+FIELD(GITS_TYPER, VIRTUAL, 1, 1)
 FIELD(GITS_TYPER, ITT_ENTRY_SIZE, 4, 4)
 FIELD(GITS_TYPER, IDBITS, 8, 5)
 FIELD(GITS_TYPER, DEVBITS, 13, 5)
@@ -298,6 +299,7 @@ FIELD(GITS_TYPER, CIL, 36, 1)
 #define GITS_BASER_PAGESIZE_64K               2
 
 #define GITS_BASER_TYPE_DEVICE               1ULL
+#define GITS_BASER_TYPE_VPE                  2ULL
 #define GITS_BASER_TYPE_COLLECTION           4ULL
 
 #define GITS_PAGE_SIZE_4K       0x1000
@@ -418,6 +420,20 @@ FIELD(DTE, ITTADDR, 6, 44)
 #define GITS_CTE_SIZE                 (0x8ULL)
 FIELD(CTE, VALID, 0, 1)
 FIELD(CTE, RDBASE, 1, RDBASE_PROCNUM_LENGTH)
+
+/*
+ * 8 bytes VPE table entry size:
+ * Valid = 1 bit, VPTsize = 5 bits, VPTaddr = 36 bits, RDbase = 16 bits
+ *
+ * Field sizes for Valid and size are mandated; field sizes for RDbase
+ * and VPT_addr are IMPDEF.
+ */
+#define GITS_VPE_SIZE 0x8ULL
+
+FIELD(VTE, VALID, 0, 1)
+FIELD(VTE, VPTSIZE, 1, 5)
+FIELD(VTE, VPTADDR, 6, 36)
+FIELD(VTE, RDBASE, 42, RDBASE_PROCNUM_LENGTH)
 
 /* Special interrupt IDs */
 #define INTID_SECURE 1020

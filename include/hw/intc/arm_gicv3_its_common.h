@@ -78,6 +78,7 @@ struct GICv3ITSState {
 
     TableDesc  dt;
     TableDesc  ct;
+    TableDesc  vpet;
     CmdQDesc   cq;
 
     Error *migration_blocker;

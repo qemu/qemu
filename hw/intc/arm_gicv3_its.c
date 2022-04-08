@@ -79,6 +79,12 @@ typedef enum ItsCmdResult {
     CMD_CONTINUE = 1,
 } ItsCmdResult;
 
+/* True if the ITS supports the GICv4 virtual LPI feature */
+static bool its_feature_virtual(GICv3ITSState *s)
+{
+    return s->typer & R_GITS_TYPER_VIRTUAL_MASK;
+}
+
 static inline bool intid_in_lpi_range(uint32_t id)
 {
     return id >= GICV3_LPI_INTID_START &&
@@ -946,6 +952,15 @@ static void extract_table_params(GICv3ITSState *s)
                 idbits = 16;
             }
             break;
+        case GITS_BASER_TYPE_VPE:
+            td = &s->vpet;
+            /*
+             * For QEMU vPEIDs are always 16 bits. (GICv4.1 allows an
+             * implementation to implement fewer bits and report this
+             * via GICD_TYPER2.)
+             */
+            idbits = 16;
+            break;
         default:
             /*
              * GITS_BASER<n>.TYPE is read-only, so GITS_BASER_RO_MASK
@@ -1425,6 +1440,7 @@ static void gicv3_its_reset(DeviceState *dev)
     /*
      * setting GITS_BASER0.Type = 0b001 (Device)
      *         GITS_BASER1.Type = 0b100 (Collection Table)
+     *         GITS_BASER2.Type = 0b010 (vPE) for GICv4 and later
      *         GITS_BASER<n>.Type,where n = 3 to 7 are 0b00 (Unimplemented)
      *         GITS_BASER<0,1>.Page_Size = 64KB
      * and default translation table entry size to 16 bytes
@@ -1442,6 +1458,15 @@ static void gicv3_its_reset(DeviceState *dev)
                              GITS_BASER_PAGESIZE_64K);
     s->baser[1] = FIELD_DP64(s->baser[1], GITS_BASER, ENTRYSIZE,
                              GITS_CTE_SIZE - 1);
+
+    if (its_feature_virtual(s)) {
+        s->baser[2] = FIELD_DP64(s->baser[2], GITS_BASER, TYPE,
+                                 GITS_BASER_TYPE_VPE);
+        s->baser[2] = FIELD_DP64(s->baser[2], GITS_BASER, PAGESIZE,
+                                 GITS_BASER_PAGESIZE_64K);
+        s->baser[2] = FIELD_DP64(s->baser[2], GITS_BASER, ENTRYSIZE,
+                                 GITS_VPE_SIZE - 1);
+    }
 }
 
 static void gicv3_its_post_load(GICv3ITSState *s)
