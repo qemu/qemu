@@ -78,11 +78,13 @@ typedef struct VTEntry {
  * and continue processing.
  * The process_* functions which handle individual ITS commands all
  * return an ItsCmdResult which tells process_cmdq() whether it should
- * stall or keep going.
+ * stall, keep going because of an error, or keep going because the
+ * command was a success.
  */
 typedef enum ItsCmdResult {
     CMD_STALL = 0,
     CMD_CONTINUE = 1,
+    CMD_CONTINUE_OK = 2,
 } ItsCmdResult;
 
 /* True if the ITS supports the GICv4 virtual LPI feature */
@@ -400,9 +402,9 @@ static ItsCmdResult do_process_its_cmd(GICv3ITSState *s, uint32_t devid,
         ITEntry ite = {};
         /* remove mapping from interrupt translation table */
         ite.valid = false;
-        return update_ite(s, eventid, &dte, &ite) ? CMD_CONTINUE : CMD_STALL;
+        return update_ite(s, eventid, &dte, &ite) ? CMD_CONTINUE_OK : CMD_STALL;
     }
-    return CMD_CONTINUE;
+    return CMD_CONTINUE_OK;
 }
 
 static ItsCmdResult process_its_cmd(GICv3ITSState *s, const uint64_t *cmdpkt,
@@ -495,7 +497,7 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, const uint64_t *cmdpkt,
     ite.icid = icid;
     ite.doorbell = INTID_SPURIOUS;
     ite.vpeid = 0;
-    return update_ite(s, eventid, &dte, &ite) ? CMD_CONTINUE : CMD_STALL;
+    return update_ite(s, eventid, &dte, &ite) ? CMD_CONTINUE_OK : CMD_STALL;
 }
 
 static ItsCmdResult process_vmapti(GICv3ITSState *s, const uint64_t *cmdpkt,
@@ -574,7 +576,7 @@ static ItsCmdResult process_vmapti(GICv3ITSState *s, const uint64_t *cmdpkt,
     ite.icid = 0;
     ite.doorbell = doorbell;
     ite.vpeid = vpeid;
-    return update_ite(s, eventid, &dte, &ite) ? CMD_CONTINUE : CMD_STALL;
+    return update_ite(s, eventid, &dte, &ite) ? CMD_CONTINUE_OK : CMD_STALL;
 }
 
 /*
@@ -635,7 +637,7 @@ static ItsCmdResult process_mapc(GICv3ITSState *s, const uint64_t *cmdpkt)
         return CMD_CONTINUE;
     }
 
-    return update_cte(s, icid, &cte) ? CMD_CONTINUE : CMD_STALL;
+    return update_cte(s, icid, &cte) ? CMD_CONTINUE_OK : CMD_STALL;
 }
 
 /*
@@ -696,7 +698,7 @@ static ItsCmdResult process_mapd(GICv3ITSState *s, const uint64_t *cmdpkt)
         return CMD_CONTINUE;
     }
 
-    return update_dte(s, devid, &dte) ? CMD_CONTINUE : CMD_STALL;
+    return update_dte(s, devid, &dte) ? CMD_CONTINUE_OK : CMD_STALL;
 }
 
 static ItsCmdResult process_movall(GICv3ITSState *s, const uint64_t *cmdpkt)
@@ -725,13 +727,13 @@ static ItsCmdResult process_movall(GICv3ITSState *s, const uint64_t *cmdpkt)
 
     if (rd1 == rd2) {
         /* Move to same target must succeed as a no-op */
-        return CMD_CONTINUE;
+        return CMD_CONTINUE_OK;
     }
 
     /* Move all pending LPIs from redistributor 1 to redistributor 2 */
     gicv3_redist_movall_lpis(&s->gicv3->cpu[rd1], &s->gicv3->cpu[rd2]);
 
-    return CMD_CONTINUE;
+    return CMD_CONTINUE_OK;
 }
 
 static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
@@ -845,7 +847,7 @@ static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
 
     /* Update the ICID field in the interrupt translation table entry */
     old_ite.icid = new_icid;
-    return update_ite(s, eventid, &dte, &old_ite) ? CMD_CONTINUE : CMD_STALL;
+    return update_ite(s, eventid, &dte, &old_ite) ? CMD_CONTINUE_OK : CMD_STALL;
 }
 
 /*
@@ -924,7 +926,7 @@ static ItsCmdResult process_vmapp(GICv3ITSState *s, const uint64_t *cmdpkt)
         return CMD_CONTINUE;
     }
 
-    return update_vte(s, vpeid, &vte) ? CMD_CONTINUE : CMD_STALL;
+    return update_vte(s, vpeid, &vte) ? CMD_CONTINUE_OK : CMD_STALL;
 }
 
 /*
@@ -963,7 +965,7 @@ static void process_cmdq(GICv3ITSState *s)
     }
 
     while (wr_offset != rd_offset) {
-        ItsCmdResult result = CMD_CONTINUE;
+        ItsCmdResult result = CMD_CONTINUE_OK;
         void *hostmem;
         hwaddr buflen;
         uint64_t cmdpkt[GITS_CMDQ_ENTRY_WORDS];
@@ -1055,7 +1057,8 @@ static void process_cmdq(GICv3ITSState *s)
             trace_gicv3_its_cmd_unknown(cmd);
             break;
         }
-        if (result == CMD_CONTINUE) {
+        if (result != CMD_STALL) {
+            /* CMD_CONTINUE or CMD_CONTINUE_OK */
             rd_offset++;
             rd_offset %= s->cq.num_entries;
             s->creadr = FIELD_DP64(s->creadr, GITS_CREADR, OFFSET, rd_offset);
