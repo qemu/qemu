@@ -1084,6 +1084,50 @@ static ItsCmdResult process_vmovp(GICv3ITSState *s, const uint64_t *cmdpkt)
     return cbdata.result;
 }
 
+static ItsCmdResult process_inv(GICv3ITSState *s, const uint64_t *cmdpkt)
+{
+    uint32_t devid, eventid;
+    ITEntry ite;
+    DTEntry dte;
+    CTEntry cte;
+    ItsCmdResult cmdres;
+
+    devid = FIELD_EX64(cmdpkt[0], INV_0, DEVICEID);
+    eventid = FIELD_EX64(cmdpkt[1], INV_1, EVENTID);
+
+    trace_gicv3_its_cmd_inv(devid, eventid);
+
+    cmdres = lookup_ite(s, __func__, devid, eventid, &ite, &dte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
+    }
+
+    switch (ite.inttype) {
+    case ITE_INTTYPE_PHYSICAL:
+        cmdres = lookup_cte(s, __func__, ite.icid, &cte);
+        if (cmdres != CMD_CONTINUE_OK) {
+            return cmdres;
+        }
+        gicv3_redist_inv_lpi(&s->gicv3->cpu[cte.rdbase], ite.intid);
+        break;
+    case ITE_INTTYPE_VIRTUAL:
+        if (!its_feature_virtual(s)) {
+            /* Can't happen unless guest is illegally writing to table memory */
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: invalid type %d in ITE (table corrupted?)\n",
+                          __func__, ite.inttype);
+            return CMD_CONTINUE;
+        }
+        /* We will implement the vLPI invalidation in a later commit */
+        g_assert_not_reached();
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    return CMD_CONTINUE_OK;
+}
+
 /*
  * Current implementation blocks until all
  * commands are processed
@@ -1192,14 +1236,18 @@ static void process_cmdq(GICv3ITSState *s)
             result = process_its_cmd(s, cmdpkt, DISCARD);
             break;
         case GITS_CMD_INV:
+            result = process_inv(s, cmdpkt);
+            break;
         case GITS_CMD_INVALL:
             /*
              * Current implementation doesn't cache any ITS tables,
              * but the calculated lpi priority information. We only
              * need to trigger lpi priority re-calculation to be in
              * sync with LPI config table or pending table changes.
+             * INVALL operates on a collection specified by ICID so
+             * it only affects physical LPIs.
              */
-            trace_gicv3_its_cmd_inv();
+            trace_gicv3_its_cmd_invall();
             for (i = 0; i < s->gicv3->num_cpu; i++) {
                 gicv3_redist_update_lpi(&s->gicv3->cpu[i]);
             }

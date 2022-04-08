@@ -373,6 +373,10 @@ FIELD(MOVI_0, DEVICEID, 32, 32)
 FIELD(MOVI_1, EVENTID, 0, 32)
 FIELD(MOVI_2, ICID, 0, 16)
 
+/* INV command fields */
+FIELD(INV_0, DEVICEID, 32, 32)
+FIELD(INV_1, EVENTID, 0, 32)
+
 /* VMAPI, VMAPTI command fields */
 FIELD(VMAPTI_0, DEVICEID, 32, 32)
 FIELD(VMAPTI_1, EVENTID, 0, 32)
@@ -573,6 +577,14 @@ void gicv3_redist_update_lpi(GICv3CPUState *cs);
  * an incoming migration has loaded new state.
  */
 void gicv3_redist_update_lpi_only(GICv3CPUState *cs);
+/**
+ * gicv3_redist_inv_lpi:
+ * @cs: GICv3CPUState
+ * @irq: LPI to invalidate cached information for
+ *
+ * Forget or update any cached information associated with this LPI.
+ */
+void gicv3_redist_inv_lpi(GICv3CPUState *cs, int irq);
 /**
  * gicv3_redist_mov_lpi:
  * @src: source redistributor
