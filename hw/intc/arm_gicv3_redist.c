@@ -60,6 +60,19 @@ static uint32_t gicr_read_bitmap_reg(GICv3CPUState *cs, MemTxAttrs attrs,
     return reg;
 }
 
+static bool vcpu_resident(GICv3CPUState *cs, uint64_t vptaddr)
+{
+    /*
+     * Return true if a vCPU is resident, which is defined by
+     * whether the GICR_VPENDBASER register is marked VALID and
+     * has the right virtual pending table address.
+     */
+    if (!FIELD_EX64(cs->gicr_vpendbaser, GICR_VPENDBASER, VALID)) {
+        return false;
+    }
+    return vptaddr == (cs->gicr_vpendbaser & R_GICR_VPENDBASER_PHYADDR_MASK);
+}
+
 /**
  * update_for_one_lpi: Update pending information if this LPI is better
  *
@@ -1004,10 +1017,37 @@ void gicv3_redist_vlpi_pending(GICv3CPUState *cs, int irq, int level)
 void gicv3_redist_process_vlpi(GICv3CPUState *cs, int irq, uint64_t vptaddr,
                                int doorbell, int level)
 {
-    /*
-     * The redistributor handling for being handed a VLPI by the ITS
-     * will be added in a subsequent commit.
-     */
+    bool bit_changed;
+    bool resident = vcpu_resident(cs, vptaddr);
+    uint64_t ctbase;
+
+    if (resident) {
+        uint32_t idbits = FIELD_EX64(cs->gicr_vpropbaser, GICR_VPROPBASER, IDBITS);
+        if (irq >= (1ULL << (idbits + 1))) {
+            return;
+        }
+    }
+
+    bit_changed = set_pending_table_bit(cs, vptaddr, irq, level);
+    if (resident && bit_changed) {
+        if (level) {
+            /* Check whether this vLPI is now the best */
+            ctbase = cs->gicr_vpropbaser & R_GICR_VPROPBASER_PHYADDR_MASK;
+            update_for_one_lpi(cs, irq, ctbase, true, &cs->hppvlpi);
+            gicv3_cpuif_virt_irq_fiq_update(cs);
+        } else {
+            /* Only need to recalculate if this was previously the best vLPI */
+            if (irq == cs->hppvlpi.irq) {
+                gicv3_redist_update_vlpi(cs);
+            }
+        }
+    }
+
+    if (!resident && level && doorbell != INTID_SPURIOUS &&
+        (cs->gicr_ctlr & GICR_CTLR_ENABLE_LPIS)) {
+        /* vCPU is not currently resident: ring the doorbell */
+        gicv3_redist_process_lpi(cs, doorbell, 1);
+    }
 }
 
 void gicv3_redist_mov_vlpi(GICv3CPUState *src, uint64_t src_vptaddr,
