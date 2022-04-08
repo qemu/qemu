@@ -369,6 +369,36 @@ static ItsCmdResult lookup_ite(GICv3ITSState *s, const char *who,
 }
 
 /*
+ * Given an ICID, look up the corresponding CTE, including checking for various
+ * invalid-value cases. If we find a valid CTE, fill in @cte and return
+ * CMD_CONTINUE_OK; otherwise return CMD_STALL or CMD_CONTINUE (and the
+ * contents of @cte should not be relied on).
+ *
+ * The string @who is purely for the LOG_GUEST_ERROR messages,
+ * and should indicate the name of the calling function or similar.
+ */
+static ItsCmdResult lookup_cte(GICv3ITSState *s, const char *who,
+                               uint32_t icid, CTEntry *cte)
+{
+    if (icid >= s->ct.num_entries) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid ICID 0x%x\n", who, icid);
+        return CMD_CONTINUE;
+    }
+    if (get_cte(s, icid, cte) != MEMTX_OK) {
+        return CMD_STALL;
+    }
+    if (!cte->valid) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid CTE\n", who);
+        return CMD_CONTINUE;
+    }
+    if (cte->rdbase >= s->gicv3->num_cpu) {
+        return CMD_CONTINUE;
+    }
+    return CMD_CONTINUE_OK;
+}
+
+
+/*
  * This function handles the processing of following commands based on
  * the ItsCmdType parameter passed:-
  * 1. triggering of lpi interrupt translation via ITS INT command
@@ -396,29 +426,9 @@ static ItsCmdResult do_process_its_cmd(GICv3ITSState *s, uint32_t devid,
         return CMD_CONTINUE;
     }
 
-    if (ite.icid >= s->ct.num_entries) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid ICID 0x%x in ITE (table corrupted?)\n",
-                      __func__, ite.icid);
-        return CMD_CONTINUE;
-    }
-
-    if (get_cte(s, ite.icid, &cte) != MEMTX_OK) {
-        return CMD_STALL;
-    }
-    if (!cte.valid) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: invalid CTE\n",
-                      __func__);
-        return CMD_CONTINUE;
-    }
-
-    /*
-     * Current implementation only supports rdbase == procnum
-     * Hence rdbase physical address is ignored
-     */
-    if (cte.rdbase >= s->gicv3->num_cpu) {
-        return CMD_CONTINUE;
+    cmdres = lookup_cte(s, __func__, ite.icid, &cte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
     }
 
     if ((cmd == CLEAR) || (cmd == DISCARD)) {
@@ -792,54 +802,13 @@ static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
         return CMD_CONTINUE;
     }
 
-    if (old_ite.icid >= s->ct.num_entries) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid ICID 0x%x in ITE (table corrupted?)\n",
-                      __func__, old_ite.icid);
-        return CMD_CONTINUE;
+    cmdres = lookup_cte(s, __func__, old_ite.icid, &old_cte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
     }
-
-    if (new_icid >= s->ct.num_entries) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: ICID 0x%x\n",
-                      __func__, new_icid);
-        return CMD_CONTINUE;
-    }
-
-    if (get_cte(s, old_ite.icid, &old_cte) != MEMTX_OK) {
-        return CMD_STALL;
-    }
-    if (!old_cte.valid) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: "
-                      "invalid CTE for old ICID 0x%x\n",
-                      __func__, old_ite.icid);
-        return CMD_CONTINUE;
-    }
-
-    if (get_cte(s, new_icid, &new_cte) != MEMTX_OK) {
-        return CMD_STALL;
-    }
-    if (!new_cte.valid) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: "
-                      "invalid CTE for new ICID 0x%x\n",
-                      __func__, new_icid);
-        return CMD_CONTINUE;
-    }
-
-    if (old_cte.rdbase >= s->gicv3->num_cpu) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: CTE has invalid rdbase 0x%x\n",
-                      __func__, old_cte.rdbase);
-        return CMD_CONTINUE;
-    }
-
-    if (new_cte.rdbase >= s->gicv3->num_cpu) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: CTE has invalid rdbase 0x%x\n",
-                      __func__, new_cte.rdbase);
-        return CMD_CONTINUE;
+    cmdres = lookup_cte(s, __func__, new_icid, &new_cte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
     }
 
     if (old_cte.rdbase != new_cte.rdbase) {
