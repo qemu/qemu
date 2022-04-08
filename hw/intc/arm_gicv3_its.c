@@ -397,6 +397,19 @@ static ItsCmdResult lookup_cte(GICv3ITSState *s, const char *who,
     return CMD_CONTINUE_OK;
 }
 
+static ItsCmdResult process_its_cmd_phys(GICv3ITSState *s, const ITEntry *ite,
+                                         int irqlevel)
+{
+    CTEntry cte;
+    ItsCmdResult cmdres;
+
+    cmdres = lookup_cte(s, __func__, ite->icid, &cte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
+    }
+    gicv3_redist_process_lpi(&s->gicv3->cpu[cte.rdbase], ite->intid, irqlevel);
+    return CMD_CONTINUE_OK;
+}
 
 /*
  * This function handles the processing of following commands based on
@@ -410,34 +423,36 @@ static ItsCmdResult do_process_its_cmd(GICv3ITSState *s, uint32_t devid,
                                        uint32_t eventid, ItsCmdType cmd)
 {
     DTEntry dte;
-    CTEntry cte;
     ITEntry ite;
     ItsCmdResult cmdres;
+    int irqlevel;
 
     cmdres = lookup_ite(s, __func__, devid, eventid, &ite, &dte);
     if (cmdres != CMD_CONTINUE_OK) {
         return cmdres;
     }
 
-    if (ite.inttype != ITE_INTTYPE_PHYSICAL) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: invalid ITE\n",
-                      __func__);
-        return CMD_CONTINUE;
+    irqlevel = (cmd == CLEAR || cmd == DISCARD) ? 0 : 1;
+
+    switch (ite.inttype) {
+    case ITE_INTTYPE_PHYSICAL:
+        cmdres = process_its_cmd_phys(s, &ite, irqlevel);
+        break;
+    case ITE_INTTYPE_VIRTUAL:
+        if (!its_feature_virtual(s)) {
+            /* Can't happen unless guest is illegally writing to table memory */
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: invalid type %d in ITE (table corrupted?)\n",
+                          __func__, ite.inttype);
+            return CMD_CONTINUE;
+        }
+        /* The GICv4 virtual interrupt handling will go here */
+        g_assert_not_reached();
+    default:
+        g_assert_not_reached();
     }
 
-    cmdres = lookup_cte(s, __func__, ite.icid, &cte);
-    if (cmdres != CMD_CONTINUE_OK) {
-        return cmdres;
-    }
-
-    if ((cmd == CLEAR) || (cmd == DISCARD)) {
-        gicv3_redist_process_lpi(&s->gicv3->cpu[cte.rdbase], ite.intid, 0);
-    } else {
-        gicv3_redist_process_lpi(&s->gicv3->cpu[cte.rdbase], ite.intid, 1);
-    }
-
-    if (cmd == DISCARD) {
+    if (cmdres == CMD_CONTINUE_OK && cmd == DISCARD) {
         ITEntry ite = {};
         /* remove mapping from interrupt translation table */
         ite.valid = false;
