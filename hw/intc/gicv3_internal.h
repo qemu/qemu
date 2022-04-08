@@ -329,6 +329,8 @@ FIELD(GITS_TYPER, CIL, 36, 1)
 #define GITS_CMD_INVALL           0x0D
 #define GITS_CMD_MOVALL           0x0E
 #define GITS_CMD_DISCARD          0x0F
+#define GITS_CMD_VMAPTI           0x2A
+#define GITS_CMD_VMAPI            0x2B
 
 /* MAPC command fields */
 #define ICID_LENGTH                  16
@@ -367,6 +369,13 @@ FIELD(MOVALL_3, RDBASE2, 16, 36)
 FIELD(MOVI_0, DEVICEID, 32, 32)
 FIELD(MOVI_1, EVENTID, 0, 32)
 FIELD(MOVI_2, ICID, 0, 16)
+
+/* VMAPI, VMAPTI command fields */
+FIELD(VMAPTI_0, DEVICEID, 32, 32)
+FIELD(VMAPTI_1, EVENTID, 0, 32)
+FIELD(VMAPTI_1, VPEID, 32, 16)
+FIELD(VMAPTI_2, VINTID, 0, 32) /* VMAPTI only */
+FIELD(VMAPTI_2, DOORBELL, 32, 32)
 
 /*
  * 12 bytes Interrupt translation Table Entry size

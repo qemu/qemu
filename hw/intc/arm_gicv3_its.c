@@ -91,6 +91,12 @@ static inline bool intid_in_lpi_range(uint32_t id)
         id < (1 << (GICD_TYPER_IDBITS + 1));
 }
 
+static inline bool valid_doorbell(uint32_t id)
+{
+    /* Doorbell fields may be an LPI, or 1023 to mean "no doorbell" */
+    return id == INTID_SPURIOUS || intid_in_lpi_range(id);
+}
+
 static uint64_t baser_base_addr(uint64_t value, uint32_t page_sz)
 {
     uint64_t result = 0;
@@ -486,6 +492,85 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, const uint64_t *cmdpkt,
     return update_ite(s, eventid, &dte, &ite) ? CMD_CONTINUE : CMD_STALL;
 }
 
+static ItsCmdResult process_vmapti(GICv3ITSState *s, const uint64_t *cmdpkt,
+                                   bool ignore_vintid)
+{
+    uint32_t devid, eventid, vintid, doorbell, vpeid;
+    uint32_t num_eventids;
+    DTEntry dte;
+    ITEntry ite;
+
+    if (!its_feature_virtual(s)) {
+        return CMD_CONTINUE;
+    }
+
+    devid = FIELD_EX64(cmdpkt[0], VMAPTI_0, DEVICEID);
+    eventid = FIELD_EX64(cmdpkt[1], VMAPTI_1, EVENTID);
+    vpeid = FIELD_EX64(cmdpkt[1], VMAPTI_1, VPEID);
+    doorbell = FIELD_EX64(cmdpkt[2], VMAPTI_2, DOORBELL);
+    if (ignore_vintid) {
+        vintid = eventid;
+        trace_gicv3_its_cmd_vmapi(devid, eventid, vpeid, doorbell);
+    } else {
+        vintid = FIELD_EX64(cmdpkt[2], VMAPTI_2, VINTID);
+        trace_gicv3_its_cmd_vmapti(devid, eventid, vpeid, vintid, doorbell);
+    }
+
+    if (devid >= s->dt.num_entries) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid DeviceID 0x%x (must be less than 0x%x)\n",
+                      __func__, devid, s->dt.num_entries);
+        return CMD_CONTINUE;
+    }
+
+    if (get_dte(s, devid, &dte) != MEMTX_OK) {
+        return CMD_STALL;
+    }
+
+    if (!dte.valid) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: no entry in device table for DeviceID 0x%x\n",
+                      __func__, devid);
+        return CMD_CONTINUE;
+    }
+
+    num_eventids = 1ULL << (dte.size + 1);
+
+    if (eventid >= num_eventids) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: EventID 0x%x too large for DeviceID 0x%x "
+                      "(must be less than 0x%x)\n",
+                      __func__, eventid, devid, num_eventids);
+        return CMD_CONTINUE;
+    }
+    if (!intid_in_lpi_range(vintid)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: VIntID 0x%x not a valid LPI\n",
+                      __func__, vintid);
+        return CMD_CONTINUE;
+    }
+    if (!valid_doorbell(doorbell)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Doorbell %d not 1023 and not a valid LPI\n",
+                      __func__, doorbell);
+        return CMD_CONTINUE;
+    }
+    if (vpeid >= s->vpet.num_entries) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: VPEID 0x%x out of range (must be less than 0x%x)\n",
+                      __func__, vpeid, s->vpet.num_entries);
+        return CMD_CONTINUE;
+    }
+    /* add ite entry to interrupt translation table */
+    ite.valid = true;
+    ite.inttype = ITE_INTTYPE_VIRTUAL;
+    ite.intid = vintid;
+    ite.icid = 0;
+    ite.doorbell = doorbell;
+    ite.vpeid = vpeid;
+    return update_ite(s, eventid, &dte, &ite) ? CMD_CONTINUE : CMD_STALL;
+}
+
 /*
  * Update the Collection Table entry for @icid to @cte. Returns true
  * on success, false if there was a memory access error.
@@ -871,6 +956,12 @@ static void process_cmdq(GICv3ITSState *s)
             break;
         case GITS_CMD_MOVALL:
             result = process_movall(s, cmdpkt);
+            break;
+        case GITS_CMD_VMAPTI:
+            result = process_vmapti(s, cmdpkt, false);
+            break;
+        case GITS_CMD_VMAPI:
+            result = process_vmapti(s, cmdpkt, true);
             break;
         default:
             trace_gicv3_its_cmd_unknown(cmd);
