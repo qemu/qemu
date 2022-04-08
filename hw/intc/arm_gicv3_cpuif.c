@@ -370,30 +370,20 @@ static uint32_t maintenance_interrupt_state(GICv3CPUState *cs)
     return value;
 }
 
-static void gicv3_cpuif_virt_update(GICv3CPUState *cs)
+void gicv3_cpuif_virt_irq_fiq_update(GICv3CPUState *cs)
 {
-    /* Tell the CPU about any pending virtual interrupts or
-     * maintenance interrupts, following a change to the state
-     * of the CPU interface relevant to virtual interrupts.
-     *
-     * CAUTION: this function will call qemu_set_irq() on the
-     * CPU maintenance IRQ line, which is typically wired up
-     * to the GIC as a per-CPU interrupt. This means that it
-     * will recursively call back into the GIC code via
-     * gicv3_redist_set_irq() and thus into the CPU interface code's
-     * gicv3_cpuif_update(). It is therefore important that this
-     * function is only called as the final action of a CPU interface
-     * register write implementation, after all the GIC state
-     * fields have been updated. gicv3_cpuif_update() also must
-     * not cause this function to be called, but that happens
-     * naturally as a result of there being no architectural
-     * linkage between the physical and virtual GIC logic.
+    /*
+     * Tell the CPU about any pending virtual interrupts.
+     * This should only be called for changes that affect the
+     * vIRQ and vFIQ status and do not change the maintenance
+     * interrupt status. This means that unlike gicv3_cpuif_virt_update()
+     * this function won't recursively call back into the GIC code.
+     * The main use of this is when the redistributor has changed the
+     * highest priority pending virtual LPI.
      */
     int idx;
     int irqlevel = 0;
     int fiqlevel = 0;
-    int maintlevel = 0;
-    ARMCPU *cpu = ARM_CPU(cs->cpu);
 
     idx = hppvi_index(cs);
     trace_gicv3_cpuif_virt_update(gicv3_redist_affid(cs), idx);
@@ -410,16 +400,42 @@ static void gicv3_cpuif_virt_update(GICv3CPUState *cs)
         }
     }
 
+    trace_gicv3_cpuif_virt_set_irqs(gicv3_redist_affid(cs), fiqlevel, irqlevel);
+    qemu_set_irq(cs->parent_vfiq, fiqlevel);
+    qemu_set_irq(cs->parent_virq, irqlevel);
+}
+
+static void gicv3_cpuif_virt_update(GICv3CPUState *cs)
+{
+    /*
+     * Tell the CPU about any pending virtual interrupts or
+     * maintenance interrupts, following a change to the state
+     * of the CPU interface relevant to virtual interrupts.
+     *
+     * CAUTION: this function will call qemu_set_irq() on the
+     * CPU maintenance IRQ line, which is typically wired up
+     * to the GIC as a per-CPU interrupt. This means that it
+     * will recursively call back into the GIC code via
+     * gicv3_redist_set_irq() and thus into the CPU interface code's
+     * gicv3_cpuif_update(). It is therefore important that this
+     * function is only called as the final action of a CPU interface
+     * register write implementation, after all the GIC state
+     * fields have been updated. gicv3_cpuif_update() also must
+     * not cause this function to be called, but that happens
+     * naturally as a result of there being no architectural
+     * linkage between the physical and virtual GIC logic.
+     */
+    ARMCPU *cpu = ARM_CPU(cs->cpu);
+    int maintlevel = 0;
+
+    gicv3_cpuif_virt_irq_fiq_update(cs);
+
     if ((cs->ich_hcr_el2 & ICH_HCR_EL2_EN) &&
         maintenance_interrupt_state(cs) != 0) {
         maintlevel = 1;
     }
 
-    trace_gicv3_cpuif_virt_set_irqs(gicv3_redist_affid(cs), fiqlevel,
-                                    irqlevel, maintlevel);
-
-    qemu_set_irq(cs->parent_vfiq, fiqlevel);
-    qemu_set_irq(cs->parent_virq, irqlevel);
+    trace_gicv3_cpuif_virt_set_maint_irq(gicv3_redist_affid(cs), maintlevel);
     qemu_set_irq(cpu->gicv3_maintenance_interrupt, maintlevel);
 }
 

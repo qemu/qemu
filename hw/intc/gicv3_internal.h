@@ -707,6 +707,17 @@ void gicv3_init_cpuif(GICv3State *s);
  */
 void gicv3_cpuif_update(GICv3CPUState *cs);
 
+/*
+ * gicv3_cpuif_virt_irq_fiq_update:
+ * @cs: GICv3CPUState for the CPU to update
+ *
+ * Recalculate whether to assert the virtual IRQ or FIQ lines after
+ * a change to the current highest priority pending virtual interrupt.
+ * Note that this does not recalculate and change the maintenance
+ * interrupt status (for that, see gicv3_cpuif_virt_update()).
+ */
+void gicv3_cpuif_virt_irq_fiq_update(GICv3CPUState *cs);
+
 static inline uint32_t gicv3_iidr(void)
 {
     /* Return the Implementer Identification Register value
