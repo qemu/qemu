@@ -380,6 +380,7 @@ static ItsCmdResult do_process_its_cmd(GICv3ITSState *s, uint32_t devid,
     }
     return CMD_CONTINUE;
 }
+
 static ItsCmdResult process_its_cmd(GICv3ITSState *s, const uint64_t *cmdpkt,
                                     ItsCmdType cmd)
 {
