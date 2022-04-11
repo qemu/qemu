@@ -2637,10 +2637,25 @@ if have_system
   slirp_opt = get_option('slirp')
   if slirp_opt in ['enabled', 'auto', 'system']
     have_internal = fs.exists(meson.current_source_dir() / 'slirp/meson.build')
+    slirp_dep_required = (slirp_opt == 'system' or
+                          slirp_opt == 'enabled' and not have_internal)
     slirp = dependency('slirp', kwargs: static_kwargs,
                        method: 'pkg-config', version: '>=4.1.0',
-                       required: slirp_opt == 'system' or
-                                 slirp_opt == 'enabled' and not have_internal)
+                       required: slirp_dep_required)
+    # slirp <4.7 is incompatible with CFI support in QEMU.  This is because
+    # it passes function pointers within libslirp as callbacks for timers.
+    # When using a system-wide shared libslirp, the type information for the
+    # callback is missing and the timer call produces a false positive with CFI.
+    # Do not use the "version" keyword argument to produce a better error.
+    # with control-flow integrity.
+    if get_option('cfi') and slirp.found() and slirp.version().version_compare('<4.7')
+      if slirp_dep_required
+        error('Control-Flow Integrity requires libslirp 4.7.')
+      else
+        warning('Control-Flow Integrity requires libslirp 4.7, not using system-wide libslirp.')
+        slirp = not_found
+      endif
+    endif
     if slirp.found()
       slirp_opt = 'system'
     elif have_internal
@@ -2711,18 +2726,6 @@ if have_system
                                dependencies: slirp_deps,
                                include_directories: slirp_inc)
   endif
-endif
-
-# For CFI, we need to compile slirp as a static library together with qemu.
-# This is because we register slirp functions as callbacks for QEMU Timers.
-# When using a system-wide shared libslirp, the type information for the
-# callback is missing and the timer call produces a false positive with CFI.
-#
-# Now that slirp_opt has been defined, check if the selected slirp is compatible
-# with control-flow integrity.
-if get_option('cfi') and slirp_opt == 'system'
-  error('Control-Flow Integrity is not compatible with system-wide slirp.' \
-         + ' Please configure with --enable-slirp=git')
 endif
 
 fdt = not_found
