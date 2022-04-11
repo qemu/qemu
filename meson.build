@@ -2638,7 +2638,7 @@ if have_system
   if slirp_opt in ['enabled', 'auto', 'system']
     have_internal = fs.exists(meson.current_source_dir() / 'slirp/meson.build')
     slirp = dependency('slirp', kwargs: static_kwargs,
-                       method: 'pkg-config',
+                       method: 'pkg-config', version: '>=4.1.0',
                        required: slirp_opt == 'system' or
                                  slirp_opt == 'enabled' and not have_internal)
     if slirp.found()
