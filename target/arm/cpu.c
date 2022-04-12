@@ -775,12 +775,6 @@ static bool arm_cpu_virtio_is_big_endian(CPUState *cs)
 
 #endif
 
-static int
-print_insn_thumb1(bfd_vma pc, disassemble_info *info)
-{
-  return print_insn_arm(pc | 1, info);
-}
-
 static void arm_disas_set_info(CPUState *cpu, disassemble_info *info)
 {
     ARMCPU *ac = ARM_CPU(cpu);
@@ -801,12 +795,10 @@ static void arm_disas_set_info(CPUState *cpu, disassemble_info *info)
     } else {
         int cap_mode;
         if (env->thumb) {
-            info->print_insn = print_insn_thumb1;
             info->cap_insn_unit = 2;
             info->cap_insn_split = 4;
             cap_mode = CS_MODE_THUMB;
         } else {
-            info->print_insn = print_insn_arm;
             info->cap_insn_unit = 4;
             info->cap_insn_split = 4;
             cap_mode = CS_MODE_ARM;

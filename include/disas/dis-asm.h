@@ -429,7 +429,6 @@ int print_insn_h8500            (bfd_vma, disassemble_info*);
 int print_insn_arm_a64          (bfd_vma, disassemble_info*);
 int print_insn_alpha            (bfd_vma, disassemble_info*);
 disassembler_ftype arc_get_disassembler (int, int);
-int print_insn_arm              (bfd_vma, disassemble_info*);
 int print_insn_sparc            (bfd_vma, disassemble_info*);
 int print_insn_big_a29k         (bfd_vma, disassemble_info*);
 int print_insn_little_a29k      (bfd_vma, disassemble_info*);
