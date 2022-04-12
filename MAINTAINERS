@@ -334,7 +334,6 @@ F: target/i386/tcg/
 F: tests/tcg/i386/
 F: tests/tcg/x86_64/
 F: hw/i386/
-F: disas/i386.c
 F: docs/system/cpu-models-x86*
 T: git https://gitlab.com/ehabkost/qemu.git x86-next
 
@@ -3275,7 +3274,6 @@ i386 TCG target
 M: Richard Henderson <richard.henderson@linaro.org>
 S: Maintained
 F: tcg/i386/
-F: disas/i386.c
 
 LoongArch64 TCG target
 M: WANG Xuerui <git@xen0n.name>

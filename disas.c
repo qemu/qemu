@@ -153,14 +153,12 @@ static void initialize_debug_host(CPUDebug *s)
     s->info.print_insn = print_insn_tci;
 #elif defined(__i386__)
     s->info.mach = bfd_mach_i386_i386;
-    s->info.print_insn = print_insn_i386;
     s->info.cap_arch = CS_ARCH_X86;
     s->info.cap_mode = CS_MODE_32;
     s->info.cap_insn_unit = 1;
     s->info.cap_insn_split = 8;
 #elif defined(__x86_64__)
     s->info.mach = bfd_mach_x86_64;
-    s->info.print_insn = print_insn_i386;
     s->info.cap_arch = CS_ARCH_X86;
     s->info.cap_mode = CS_MODE_64;
     s->info.cap_insn_unit = 1;
