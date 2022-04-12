@@ -318,6 +318,7 @@ void qmp_blockdev_change_medium(bool has_device, const char *device,
                                 bool has_id, const char *id,
                                 const char *filename,
                                 bool has_format, const char *format,
+                                bool has_force, bool force,
                                 bool has_read_only,
                                 BlockdevChangeReadOnlyMode read_only,
                                 Error **errp)
@@ -380,7 +381,7 @@ void qmp_blockdev_change_medium(bool has_device, const char *device,
 
     rc = do_open_tray(has_device ? device : NULL,
                       has_id ? id : NULL,
-                      false, &err);
+                      force, &err);
     if (rc && rc != -ENOSYS) {
         error_propagate(errp, err);
         goto fail;
