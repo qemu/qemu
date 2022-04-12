@@ -1219,20 +1219,6 @@ typedef struct SegmentCache {
         float64  _d_##n[(bits)/64]; \
     }
 
-typedef union {
-    uint8_t _b[16];
-    uint16_t _w[8];
-    uint32_t _l[4];
-    uint64_t _q[2];
-} XMMReg;
-
-typedef union {
-    uint8_t _b[32];
-    uint16_t _w[16];
-    uint32_t _l[8];
-    uint64_t _q[4];
-} YMMReg;
-
 typedef MMREG_UNION(ZMMReg, 512) ZMMReg;
 typedef MMREG_UNION(MMXReg, 64)  MMXReg;
 
@@ -1531,11 +1517,7 @@ typedef struct CPUArchState {
     ZMMReg xmm_t0;
     MMXReg mmx_t0;
 
-    XMMReg ymmh_regs[CPU_NB_REGS];
-
     uint64_t opmask_regs[NB_OPMASK_REGS];
-    YMMReg zmmh_regs[CPU_NB_REGS];
-    ZMMReg hi16_zmm_regs[CPU_NB_REGS];
 #ifdef TARGET_X86_64
     uint8_t xtilecfg[64];
     uint8_t xtiledata[8192];
