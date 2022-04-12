@@ -29,7 +29,8 @@ void nvme_ns_init_format(NvmeNamespace *ns)
 {
     NvmeIdNs *id_ns = &ns->id_ns;
     BlockDriverInfo bdi;
-    int npdg, nlbas, ret;
+    int npdg, ret;
+    int64_t nlbas;
 
     ns->lbaf = id_ns->lbaf[NVME_ID_NS_FLBAS_INDEX(id_ns->flbas)];
     ns->lbasz = 1 << ns->lbaf.ds;
@@ -42,7 +43,7 @@ void nvme_ns_init_format(NvmeNamespace *ns)
     id_ns->ncap = id_ns->nsze;
     id_ns->nuse = id_ns->ncap;
 
-    ns->moff = (int64_t)nlbas << ns->lbaf.ds;
+    ns->moff = nlbas << ns->lbaf.ds;
 
     npdg = ns->blkconf.discard_granularity / ns->lbasz;
 
