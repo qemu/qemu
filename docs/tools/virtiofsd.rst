@@ -132,7 +132,7 @@ Options
 .. option:: --thread-pool-size=NUM
 
   Restrict the number of worker threads per request queue to NUM.  The default
-  is 64.
+  is 0.
 
 .. option:: --cache=none|auto|always
 
