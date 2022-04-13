@@ -96,9 +96,9 @@ gic-version
   Valid values are:
 
   ``2``
-    GICv2
+    GICv2. Note that this limits the number of CPUs to 8.
   ``3``
-    GICv3
+    GICv3. This allows up to 512 CPUs.
   ``host``
     Use the same GIC version the host provides, when using KVM
   ``max``
