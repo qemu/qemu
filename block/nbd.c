@@ -58,7 +58,6 @@ typedef struct {
     Coroutine *coroutine;
     uint64_t offset;        /* original offset of the request */
     bool receiving;         /* sleeping in the yield in nbd_receive_replies */
-    bool reply_possible;    /* reply header not yet received */
 } NBDClientRequest;
 
 typedef enum NBDClientState {
@@ -454,14 +453,14 @@ static coroutine_fn int nbd_receive_replies(BDRVNBDState *s, uint64_t handle)
             nbd_channel_error(s, -EINVAL);
             return -EINVAL;
         }
+        ind2 = HANDLE_TO_INDEX(s, s->reply.handle);
+        if (ind2 >= MAX_NBD_REQUESTS || !s->requests[ind2].coroutine) {
+            nbd_channel_error(s, -EINVAL);
+            return -EINVAL;
+        }
         if (s->reply.handle == handle) {
             /* We are done */
             return 0;
-        }
-        ind2 = HANDLE_TO_INDEX(s, s->reply.handle);
-        if (ind2 >= MAX_NBD_REQUESTS || !s->requests[ind2].reply_possible) {
-            nbd_channel_error(s, -EINVAL);
-            return -EINVAL;
         }
         nbd_recv_coroutine_wake_one(&s->requests[ind2]);
     }
@@ -505,7 +504,6 @@ static int nbd_co_send_request(BlockDriverState *bs,
     s->requests[i].coroutine = qemu_coroutine_self();
     s->requests[i].offset = request->from;
     s->requests[i].receiving = false;
-    s->requests[i].reply_possible = true;
 
     request->handle = INDEX_TO_HANDLE(s, i);
 
