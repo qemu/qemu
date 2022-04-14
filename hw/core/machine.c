@@ -36,6 +36,7 @@
 #include "exec/confidential-guest-support.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-pci.h"
+#include "qom/object_interfaces.h"
 
 GlobalProperty hw_compat_7_0[] = {};
 const size_t hw_compat_7_0_len = G_N_ELEMENTS(hw_compat_7_0);
@@ -653,21 +654,6 @@ bool device_type_is_dynamic_sysbus(MachineClass *mc, const char *type)
     return allowed;
 }
 
-static char *machine_get_memdev(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return g_strdup(ms->ram_memdev_id);
-}
-
-static void machine_set_memdev(Object *obj, const char *value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    g_free(ms->ram_memdev_id);
-    ms->ram_memdev_id = g_strdup(value);
-}
-
 HotpluggableCPUList *machine_query_hotpluggable_cpus(MachineState *machine)
 {
     int i;
@@ -1020,8 +1006,9 @@ static void machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "memory-encryption",
         "Set memory encryption object to use");
 
-    object_class_property_add_str(oc, "memory-backend",
-                                  machine_get_memdev, machine_set_memdev);
+    object_class_property_add_link(oc, "memory-backend", TYPE_MEMORY_BACKEND,
+                                   offsetof(MachineState, memdev), object_property_allow_set_link,
+                                   OBJ_PROP_LINK_STRONG);
     object_class_property_set_description(oc, "memory-backend",
                                           "Set RAM backend"
                                           "Valid value is ID of hostmem based backend");
@@ -1270,7 +1257,40 @@ MemoryRegion *machine_consume_memdev(MachineState *machine,
     return ret;
 }
 
-void machine_run_board_init(MachineState *machine)
+static bool create_default_memdev(MachineState *ms, const char *path, Error **errp)
+{
+    Object *obj;
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+    bool r = false;
+
+    obj = object_new(path ? TYPE_MEMORY_BACKEND_FILE : TYPE_MEMORY_BACKEND_RAM);
+    if (path) {
+        if (!object_property_set_str(obj, "mem-path", path, errp)) {
+            goto out;
+        }
+    }
+    if (!object_property_set_int(obj, "size", ms->ram_size, errp)) {
+        goto out;
+    }
+    object_property_add_child(object_get_objects_root(), mc->default_ram_id,
+                              obj);
+    /* Ensure backend's memory region name is equal to mc->default_ram_id */
+    if (!object_property_set_bool(obj, "x-use-canonical-path-for-ramblock-id",
+                             false, errp)) {
+        goto out;
+    }
+    if (!user_creatable_complete(USER_CREATABLE(obj), errp)) {
+        goto out;
+    }
+    r = object_property_set_link(OBJECT(ms), "memory-backend", obj, errp);
+
+out:
+    object_unref(obj);
+    return r;
+}
+
+
+void machine_run_board_init(MachineState *machine, const char *mem_path, Error **errp)
 {
     MachineClass *machine_class = MACHINE_GET_CLASS(machine);
     ObjectClass *oc = object_class_by_name(machine->cpu_type);
@@ -1281,11 +1301,11 @@ void machine_run_board_init(MachineState *machine)
        clock values from the log. */
     replay_checkpoint(CHECKPOINT_INIT);
 
-    if (machine->ram_memdev_id) {
-        Object *o;
-        o = object_resolve_path_type(machine->ram_memdev_id,
-                                     TYPE_MEMORY_BACKEND, NULL);
-        machine->ram = machine_consume_memdev(machine, MEMORY_BACKEND(o));
+    if (machine_class->default_ram_id && machine->ram_size &&
+        numa_uses_legacy_mem() && !machine->memdev) {
+        if (!create_default_memdev(current_machine, mem_path, errp)) {
+            return;
+        }
     }
 
     if (machine->numa_state) {
@@ -1293,6 +1313,10 @@ void machine_run_board_init(MachineState *machine)
         if (machine->numa_state->num_nodes) {
             machine_numa_finish_cpu_init(machine);
         }
+    }
+
+    if (!machine->ram && machine->memdev) {
+        machine->ram = machine_consume_memdev(machine, machine->memdev);
     }
 
     /* If the machine supports the valid_cpu_types check and the user

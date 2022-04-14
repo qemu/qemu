@@ -160,6 +160,7 @@ static const char *incoming;
 static const char *loadvm;
 static const char *accelerators;
 static bool have_custom_ram_size;
+static const char *ram_memdev_id;
 static QDict *machine_opts_dict;
 static QTAILQ_HEAD(, ObjectOption) object_opts = QTAILQ_HEAD_INITIALIZER(object_opts);
 static QTAILQ_HEAD(, DeviceOption) device_opts = QTAILQ_HEAD_INITIALIZER(device_opts);
@@ -1768,6 +1769,19 @@ static void qemu_apply_legacy_machine_options(QDict *qdict)
         qdict_del(qdict, "kernel-irqchip");
     }
 
+    value = qdict_get_try_str(qdict, "memory-backend");
+    if (value) {
+        if (mem_path) {
+            error_report("'-mem-path' can't be used together with"
+                         "'-machine memory-backend'");
+            exit(EXIT_FAILURE);
+        }
+
+        /* Resolved later.  */
+        ram_memdev_id = g_strdup(value);
+        qdict_del(qdict, "memory-backend");
+    }
+
     prop = qdict_get(qdict, "memory");
     if (prop) {
         have_custom_ram_size =
@@ -2003,29 +2017,25 @@ static void qemu_create_late_backends(void)
 
 static void qemu_resolve_machine_memdev(void)
 {
-    if (current_machine->ram_memdev_id) {
+    if (ram_memdev_id) {
         Object *backend;
         ram_addr_t backend_size;
 
-        backend = object_resolve_path_type(current_machine->ram_memdev_id,
+        backend = object_resolve_path_type(ram_memdev_id,
                                            TYPE_MEMORY_BACKEND, NULL);
         if (!backend) {
-            error_report("Memory backend '%s' not found",
-                         current_machine->ram_memdev_id);
+            error_report("Memory backend '%s' not found", ram_memdev_id);
             exit(EXIT_FAILURE);
         }
         backend_size = object_property_get_uint(backend, "size",  &error_abort);
         if (have_custom_ram_size && backend_size != current_machine->ram_size) {
-                error_report("Size specified by -m option must match size of "
-                             "explicitly specified 'memory-backend' property");
-                exit(EXIT_FAILURE);
-        }
-        if (mem_path) {
-            error_report("'-mem-path' can't be used together with"
-                         "'-machine memory-backend'");
+            error_report("Size specified by -m option must match size of "
+                         "explicitly specified 'memory-backend' property");
             exit(EXIT_FAILURE);
         }
         current_machine->ram_size = backend_size;
+        object_property_set_link(OBJECT(current_machine),
+                                 "memory-backend", backend, &error_fatal);
     }
 
     if (!xen_enabled()) {
@@ -2376,27 +2386,6 @@ static void configure_accelerators(const char *progname)
     }
 }
 
-static void create_default_memdev(MachineState *ms, const char *path)
-{
-    Object *obj;
-    MachineClass *mc = MACHINE_GET_CLASS(ms);
-
-    obj = object_new(path ? TYPE_MEMORY_BACKEND_FILE : TYPE_MEMORY_BACKEND_RAM);
-    if (path) {
-        object_property_set_str(obj, "mem-path", path, &error_fatal);
-    }
-    object_property_set_int(obj, "size", ms->ram_size, &error_fatal);
-    object_property_add_child(object_get_objects_root(), mc->default_ram_id,
-                              obj);
-    /* Ensure backend's memory region name is equal to mc->default_ram_id */
-    object_property_set_bool(obj, "x-use-canonical-path-for-ramblock-id",
-                             false, &error_fatal);
-    user_creatable_complete(USER_CREATABLE(obj), &error_fatal);
-    object_unref(obj);
-    object_property_set_str(OBJECT(ms), "memory-backend", mc->default_ram_id,
-                            &error_fatal);
-}
-
 static void qemu_validate_options(const QDict *machine_opts)
 {
     const char *kernel_filename = qdict_get_try_str(machine_opts, "kernel");
@@ -2581,18 +2570,11 @@ static void qemu_init_displays(void)
 
 static void qemu_init_board(void)
 {
-    MachineClass *machine_class = MACHINE_GET_CLASS(current_machine);
-
-    if (machine_class->default_ram_id && current_machine->ram_size &&
-        numa_uses_legacy_mem() && !current_machine->ram_memdev_id) {
-        create_default_memdev(current_machine, mem_path);
-    }
-
     /* process plugin before CPUs are created, but once -smp has been parsed */
     qemu_plugin_load_list(&plugin_list, &error_fatal);
 
     /* From here on we enter MACHINE_PHASE_INITIALIZED.  */
-    machine_run_board_init(current_machine);
+    machine_run_board_init(current_machine, mem_path, &error_fatal);
 
     drive_check_orphaned();
 

@@ -831,8 +831,7 @@ static void sun4m_hw_init(MachineState *machine)
     SysBusDevice *s;
     unsigned int smp_cpus = machine->smp.cpus;
     unsigned int max_cpus = machine->smp.max_cpus;
-    Object *ram_memdev = object_resolve_path_type(machine->ram_memdev_id,
-                                                  TYPE_MEMORY_BACKEND, NULL);
+    HostMemoryBackend *ram_memdev = machine->memdev;
     NICInfo *nd = &nd_table[0];
 
     if (machine->ram_size > hwdef->max_mem) {
@@ -852,7 +851,7 @@ static void sun4m_hw_init(MachineState *machine)
 
     /* Create and map RAM frontend */
     dev = qdev_new("memory");
-    object_property_set_link(OBJECT(dev), "memdev", ram_memdev, &error_fatal);
+    object_property_set_link(OBJECT(dev), "memdev", OBJECT(ram_memdev), &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0);
 

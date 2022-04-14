@@ -695,7 +695,7 @@ void numa_complete_configuration(MachineState *ms)
         }
 
         if (!numa_uses_legacy_mem() && mc->default_ram_id) {
-            if (ms->ram_memdev_id) {
+            if (ms->memdev) {
                 error_report("'-machine memory-backend' and '-numa memdev'"
                              " properties are mutually exclusive");
                 exit(1);
