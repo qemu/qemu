@@ -1396,6 +1396,36 @@
   'features': ['deprecated'] }
 
 ##
+# @BootConfiguration:
+#
+# Schema for virtual machine boot configuration.
+#
+# @order: Boot order (a=floppy, c=hard disk, d=CD-ROM, n=network)
+#
+# @once: Boot order to apply on first boot
+#
+# @menu: Whether to show a boot menu
+#
+# @splash: The name of the file to be passed to the firmware as logo picture, if @menu is true.
+#
+# @splash-time: How long to show the logo picture, in milliseconds
+#
+# @reboot-timeout: Timeout before guest reboots after boot fails
+#
+# @strict: Whether to attempt booting from devices not included in the boot order
+#
+# Since: 7.1
+##
+{ 'struct': 'BootConfiguration', 'data': {
+     '*order': 'str',
+     '*once': 'str',
+     '*menu': 'bool',
+     '*splash': 'str',
+     '*splash-time': 'int',
+     '*reboot-timeout': 'int',
+     '*strict': 'bool' } }
+
+##
 # @SMPConfiguration:
 #
 # Schema for CPU topology configuration.  A missing value lets

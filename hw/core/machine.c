@@ -784,6 +784,68 @@ static void machine_set_smp(Object *obj, Visitor *v, const char *name,
     machine_parse_smp_config(ms, config, errp);
 }
 
+void machine_boot_parse(MachineState *ms, QemuOpts *opts, Error **errp)
+{
+    MachineClass *machine_class = MACHINE_GET_CLASS(ms);
+    const char *s;
+    ERRP_GUARD();
+
+    ms->boot_config = (BootConfiguration) {
+        .has_order = true,
+        .order = (char *)machine_class->default_boot_order,
+        .has_strict = true,
+        .strict = false,
+    };
+    if (!opts) {
+        return;
+    }
+
+    s = qemu_opt_get(opts, "order");
+    if (s) {
+        validate_bootdevices(s, errp);
+        if (*errp) {
+            return;
+        }
+        ms->boot_config.order = (char *)s;
+    }
+
+    s = qemu_opt_get(opts, "once");
+    if (s) {
+        validate_bootdevices(s, errp);
+        if (*errp) {
+            return;
+        }
+        ms->boot_config.has_once = true;
+        ms->boot_config.once = (char *)s;
+    }
+
+    s = qemu_opt_get(opts, "splash");
+    if (s) {
+        ms->boot_config.has_splash = true;
+        ms->boot_config.splash = (char *)s;
+    }
+
+    s = qemu_opt_get(opts, "splash-time");
+    if (s) {
+        ms->boot_config.has_splash_time = true;
+        ms->boot_config.splash_time = qemu_opt_get_number(opts, "splash-time", -1);
+    }
+
+    s = qemu_opt_get(opts, "reboot-timeout");
+    if (s) {
+        ms->boot_config.has_reboot_timeout = true;
+        ms->boot_config.reboot_timeout = qemu_opt_get_number(opts, "reboot-timeout", -1);
+    }
+
+    s = qemu_opt_get(opts, "menu");
+    if (s) {
+        ms->boot_config.has_menu = true;
+        ms->boot_config.menu = qemu_opt_get_bool(opts, "menu", false);
+    }
+
+    ms->boot_config.strict = qemu_opt_get_bool(opts, "strict", false);
+}
+
 static void machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1229,9 +1291,9 @@ void qdev_machine_creation_done(void)
 {
     cpu_synchronize_all_post_init();
 
-    if (current_machine->boot_once) {
-        qemu_boot_set(current_machine->boot_once, &error_fatal);
-        qemu_register_reset(restore_boot_order, g_strdup(current_machine->boot_order));
+    if (current_machine->boot_config.has_once) {
+        qemu_boot_set(current_machine->boot_config.once, &error_fatal);
+        qemu_register_reset(restore_boot_order, g_strdup(current_machine->boot_config.order));
     }
 
     /*

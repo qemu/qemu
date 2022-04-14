@@ -1050,7 +1050,7 @@ static void sun4m_hw_init(MachineState *machine)
                                     machine->ram_size, &initrd_size);
 
     nvram_init(nvram, (uint8_t *)&nd->macaddr, machine->kernel_cmdline,
-               machine->boot_order, machine->ram_size, kernel_size,
+               machine->boot_config.order, machine->ram_size, kernel_size,
                graphic_width, graphic_height, graphic_depth,
                hwdef->nvram_machine_id, "Sun4m");
 
@@ -1091,7 +1091,7 @@ static void sun4m_hw_init(MachineState *machine)
     }
     fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, INITRD_LOAD_ADDR);
     fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, initrd_size);
-    fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, machine->boot_order[0]);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, machine->boot_config.order[0]);
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 }
 

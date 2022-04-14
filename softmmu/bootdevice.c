@@ -268,7 +268,8 @@ char *get_boot_devices_list(size_t *size)
 
     *size = total;
 
-    if (boot_strict && *size > 0) {
+    if (current_machine->boot_config.has_strict &&
+        current_machine->boot_config.strict && *size > 0) {
         list[total-1] = '\n';
         list = g_realloc(list, total + 5);
         memcpy(&list[total], "HALT", 5);

@@ -1884,9 +1884,6 @@ static bool object_create_early(const char *type)
 
 static void qemu_apply_machine_options(QDict *qdict)
 {
-    MachineClass *machine_class = MACHINE_GET_CLASS(current_machine);
-    const char *boot_order = NULL;
-    const char *boot_once = NULL;
     QemuOpts *opts;
 
     object_set_properties_from_keyval(OBJECT(current_machine), qdict, false, &error_fatal);
@@ -1895,27 +1892,7 @@ static void qemu_apply_machine_options(QDict *qdict)
     current_machine->ram_slots = ram_slots;
 
     opts = qemu_opts_find(qemu_find_opts("boot-opts"), NULL);
-    if (opts) {
-        boot_order = qemu_opt_get(opts, "order");
-        if (boot_order) {
-            validate_bootdevices(boot_order, &error_fatal);
-        }
-
-        boot_once = qemu_opt_get(opts, "once");
-        if (boot_once) {
-            validate_bootdevices(boot_once, &error_fatal);
-        }
-
-        boot_menu = qemu_opt_get_bool(opts, "menu", boot_menu);
-        boot_strict = qemu_opt_get_bool(opts, "strict", false);
-    }
-
-    if (!boot_order) {
-        boot_order = machine_class->default_boot_order;
-    }
-
-    current_machine->boot_order = boot_order;
-    current_machine->boot_once = boot_once;
+    machine_boot_parse(current_machine, opts, &error_fatal);
 
     if (semihosting_enabled() && !semihosting_get_argc()) {
         /* fall back to the -kernel/-append */
