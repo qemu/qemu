@@ -1614,3 +1614,21 @@
 ##
 { 'enum': 'SmbiosEntryPointType',
   'data': [ '32', '64' ] }
+
+##
+# @MemorySizeConfiguration:
+#
+# Schema for memory size configuration.
+#
+# @size: memory size in bytes
+#
+# @max-size: maximum hotpluggable memory size in bytes
+#
+# @slots: number of available memory slots for hotplug
+#
+# Since: 7.1
+##
+{ 'struct': 'MemorySizeConfiguration', 'data': {
+     '*size': 'size',
+     '*max-size': 'size',
+     '*slots': 'uint64' } }
