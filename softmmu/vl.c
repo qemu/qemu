@@ -1884,15 +1884,10 @@ static bool object_create_early(const char *type)
 
 static void qemu_apply_machine_options(QDict *qdict)
 {
-    QemuOpts *opts;
-
     object_set_properties_from_keyval(OBJECT(current_machine), qdict, false, &error_fatal);
     current_machine->ram_size = ram_size;
     current_machine->maxram_size = maxram_size;
     current_machine->ram_slots = ram_slots;
-
-    opts = qemu_opts_find(qemu_find_opts("boot-opts"), NULL);
-    machine_boot_parse(current_machine, opts, &error_fatal);
 
     if (semihosting_enabled() && !semihosting_get_argc()) {
         /* fall back to the -kernel/-append */
@@ -2189,7 +2184,8 @@ static bool is_qemuopts_group(const char *group)
 {
     if (g_str_equal(group, "object") ||
         g_str_equal(group, "machine") ||
-        g_str_equal(group, "smp-opts")) {
+        g_str_equal(group, "smp-opts") ||
+        g_str_equal(group, "boot-opts")) {
         return false;
     }
     return true;
@@ -2211,6 +2207,8 @@ static void qemu_record_config_group(const char *group, QDict *dict,
         keyval_merge(machine_opts_dict, dict, errp);
     } else if (g_str_equal(group, "smp-opts")) {
         machine_merge_property("smp", dict, &error_fatal);
+    } else if (g_str_equal(group, "boot-opts")) {
+        machine_merge_property("boot", dict, &error_fatal);
     } else {
         abort();
     }
@@ -2956,11 +2954,7 @@ void qemu_init(int argc, char **argv, char **envp)
                 drive_add(IF_DEFAULT, 2, optarg, CDROM_OPTS);
                 break;
             case QEMU_OPTION_boot:
-                opts = qemu_opts_parse_noisily(qemu_find_opts("boot-opts"),
-                                               optarg, true);
-                if (!opts) {
-                    exit(1);
-                }
+                machine_parse_property_opt(qemu_find_opts("boot-opts"), "boot", optarg);
                 break;
             case QEMU_OPTION_fda:
             case QEMU_OPTION_fdb:

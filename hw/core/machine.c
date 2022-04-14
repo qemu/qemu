@@ -784,66 +784,63 @@ static void machine_set_smp(Object *obj, Visitor *v, const char *name,
     machine_parse_smp_config(ms, config, errp);
 }
 
-void machine_boot_parse(MachineState *ms, QemuOpts *opts, Error **errp)
+static void machine_get_boot(Object *obj, Visitor *v, const char *name,
+                            void *opaque, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+    BootConfiguration *config = &ms->boot_config;
+    visit_type_BootConfiguration(v, name, &config, &error_abort);
+}
+
+static void machine_free_boot_config(MachineState *ms)
+{
+    g_free(ms->boot_config.order);
+    g_free(ms->boot_config.once);
+    g_free(ms->boot_config.splash);
+}
+
+static void machine_copy_boot_config(MachineState *ms, BootConfiguration *config)
 {
     MachineClass *machine_class = MACHINE_GET_CLASS(ms);
-    const char *s;
-    ERRP_GUARD();
 
-    ms->boot_config = (BootConfiguration) {
-        .has_order = true,
-        .order = (char *)machine_class->default_boot_order,
-        .has_strict = true,
-        .strict = false,
-    };
-    if (!opts) {
+    machine_free_boot_config(ms);
+    ms->boot_config = *config;
+    if (!config->has_order) {
+        ms->boot_config.has_order = true;
+        ms->boot_config.order = g_strdup(machine_class->default_boot_order);
+    }
+}
+
+static void machine_set_boot(Object *obj, Visitor *v, const char *name,
+                            void *opaque, Error **errp)
+{
+    ERRP_GUARD();
+    MachineState *ms = MACHINE(obj);
+    BootConfiguration *config = NULL;
+
+    if (!visit_type_BootConfiguration(v, name, &config, errp)) {
         return;
     }
-
-    s = qemu_opt_get(opts, "order");
-    if (s) {
-        validate_bootdevices(s, errp);
+    if (config->has_order) {
+        validate_bootdevices(config->order, errp);
         if (*errp) {
-            return;
+            goto out_free;
         }
-        ms->boot_config.order = (char *)s;
     }
-
-    s = qemu_opt_get(opts, "once");
-    if (s) {
-        validate_bootdevices(s, errp);
+    if (config->has_once) {
+        validate_bootdevices(config->once, errp);
         if (*errp) {
-            return;
+            goto out_free;
         }
-        ms->boot_config.has_once = true;
-        ms->boot_config.once = (char *)s;
     }
 
-    s = qemu_opt_get(opts, "splash");
-    if (s) {
-        ms->boot_config.has_splash = true;
-        ms->boot_config.splash = (char *)s;
-    }
+    machine_copy_boot_config(ms, config);
+    /* Strings live in ms->boot_config.  */
+    free(config);
+    return;
 
-    s = qemu_opt_get(opts, "splash-time");
-    if (s) {
-        ms->boot_config.has_splash_time = true;
-        ms->boot_config.splash_time = qemu_opt_get_number(opts, "splash-time", -1);
-    }
-
-    s = qemu_opt_get(opts, "reboot-timeout");
-    if (s) {
-        ms->boot_config.has_reboot_timeout = true;
-        ms->boot_config.reboot_timeout = qemu_opt_get_number(opts, "reboot-timeout", -1);
-    }
-
-    s = qemu_opt_get(opts, "menu");
-    if (s) {
-        ms->boot_config.has_menu = true;
-        ms->boot_config.menu = qemu_opt_get_bool(opts, "menu", false);
-    }
-
-    ms->boot_config.strict = qemu_opt_get_bool(opts, "strict", false);
+out_free:
+    qapi_free_BootConfiguration(config);
 }
 
 static void machine_class_init(ObjectClass *oc, void *data)
@@ -883,6 +880,12 @@ static void machine_class_init(ObjectClass *oc, void *data)
         machine_get_dumpdtb, machine_set_dumpdtb);
     object_class_property_set_description(oc, "dumpdtb",
         "Dump current dtb to a file and quit");
+
+    object_class_property_add(oc, "boot", "BootConfiguration",
+        machine_get_boot, machine_set_boot,
+        NULL, NULL);
+    object_class_property_set_description(oc, "boot",
+        "Boot configuration");
 
     object_class_property_add(oc, "smp", "SMPConfiguration",
         machine_get_smp, machine_set_smp,
@@ -1017,12 +1020,15 @@ static void machine_initfn(Object *obj)
     ms->smp.clusters = 1;
     ms->smp.cores = 1;
     ms->smp.threads = 1;
+
+    machine_copy_boot_config(ms, &(BootConfiguration){ 0 });
 }
 
 static void machine_finalize(Object *obj)
 {
     MachineState *ms = MACHINE(obj);
 
+    machine_free_boot_config(ms);
     g_free(ms->kernel_filename);
     g_free(ms->initrd_filename);
     g_free(ms->kernel_cmdline);
