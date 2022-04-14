@@ -230,8 +230,14 @@ static void create_fdt_socket_cpus(RISCVVirtState *s, int socket,
         cpu_name = g_strdup_printf("/cpus/cpu@%d",
             s->soc[socket].hartid_base + cpu);
         qemu_fdt_add_subnode(mc->fdt, cpu_name);
-        qemu_fdt_setprop_string(mc->fdt, cpu_name, "mmu-type",
-            (is_32_bit) ? "riscv,sv32" : "riscv,sv48");
+        if (riscv_feature(&s->soc[socket].harts[cpu].env,
+                          RISCV_FEATURE_MMU)) {
+            qemu_fdt_setprop_string(mc->fdt, cpu_name, "mmu-type",
+                                    (is_32_bit) ? "riscv,sv32" : "riscv,sv48");
+        } else {
+            qemu_fdt_setprop_string(mc->fdt, cpu_name, "mmu-type",
+                                    "riscv,none");
+        }
         name = riscv_isa_string(&s->soc[socket].harts[cpu]);
         qemu_fdt_setprop_string(mc->fdt, cpu_name, "riscv,isa", name);
         g_free(name);
