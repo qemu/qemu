@@ -81,12 +81,18 @@ typedef struct BDRVNBDState {
     NBDClientRequest requests[MAX_NBD_REQUESTS];
     QEMUTimer *reconnect_delay_timer;
 
+    /* Protects sending data on the socket.  */
     CoMutex send_mutex;
+
+    /*
+     * Protects receiving reply headers from the socket, as well as the
+     * fields reply and requests[].receiving
+     */
     CoMutex receive_mutex;
+    NBDReply reply;
 
     QEMUTimer *open_timer;
 
-    NBDReply reply;
     BlockDriverState *bs;
 
     /* Connection parameters */
