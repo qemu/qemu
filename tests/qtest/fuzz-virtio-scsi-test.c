@@ -62,14 +62,10 @@ static void test_mmio_oob_from_memory_region_cache(void)
 
 int main(int argc, char **argv)
 {
-    const char *arch = qtest_get_arch();
-
     g_test_init(&argc, &argv, NULL);
 
-    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        qtest_add_func("fuzz/test_mmio_oob_from_memory_region_cache",
-                       test_mmio_oob_from_memory_region_cache);
-    }
+    qtest_add_func("fuzz/test_mmio_oob_from_memory_region_cache",
+                   test_mmio_oob_from_memory_region_cache);
 
     return g_test_run();
 }

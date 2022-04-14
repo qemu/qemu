@@ -55,15 +55,11 @@ static void test_fuzz_sb16_0xd4(void)
 
 int main(int argc, char **argv)
 {
-    const char *arch = qtest_get_arch();
-
     g_test_init(&argc, &argv, NULL);
 
-   if (strcmp(arch, "i386") == 0) {
-        qtest_add_func("fuzz/test_fuzz_sb16/1c", test_fuzz_sb16_0x1c);
-        qtest_add_func("fuzz/test_fuzz_sb16/91", test_fuzz_sb16_0x91);
-        qtest_add_func("fuzz/test_fuzz_sb16/d4", test_fuzz_sb16_0xd4);
-   }
+    qtest_add_func("fuzz/test_fuzz_sb16/1c", test_fuzz_sb16_0x1c);
+    qtest_add_func("fuzz/test_fuzz_sb16/91", test_fuzz_sb16_0x91);
+    qtest_add_func("fuzz/test_fuzz_sb16/d4", test_fuzz_sb16_0xd4);
 
-   return g_test_run();
+    return g_test_run();
 }
