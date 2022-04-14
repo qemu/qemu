@@ -21,12 +21,14 @@
 #include "qapi/qapi-visit-common.h"
 #include "qapi/qapi-visit-machine.h"
 #include "qapi/visitor.h"
+#include "qom/object_interfaces.h"
 #include "hw/sysbus.h"
 #include "sysemu/cpus.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 #include "sysemu/numa.h"
+#include "sysemu/xen.h"
 #include "qemu/error-report.h"
 #include "sysemu/qtest.h"
 #include "hw/pci/pci.h"
@@ -1301,8 +1303,23 @@ void machine_run_board_init(MachineState *machine, const char *mem_path, Error *
        clock values from the log. */
     replay_checkpoint(CHECKPOINT_INIT);
 
-    if (machine_class->default_ram_id && machine->ram_size &&
-        numa_uses_legacy_mem() && !machine->memdev) {
+    if (!xen_enabled()) {
+        /* On 32-bit hosts, QEMU is limited by virtual address space */
+        if (machine->ram_size > (2047 << 20) && HOST_LONG_BITS == 32) {
+            error_setg(errp, "at most 2047 MB RAM can be simulated");
+            return;
+        }
+    }
+
+    if (machine->memdev) {
+        ram_addr_t backend_size = object_property_get_uint(OBJECT(machine->memdev),
+                                                           "size",  &error_abort);
+        if (backend_size != machine->ram_size) {
+            error_setg(errp, "Machine memory size does not match the size of the memory backend");
+            return;
+        }
+    } else if (machine_class->default_ram_id && machine->ram_size &&
+               numa_uses_legacy_mem()) {
         if (!create_default_memdev(current_machine, mem_path, errp)) {
             return;
         }

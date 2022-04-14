@@ -2027,23 +2027,12 @@ static void qemu_resolve_machine_memdev(void)
             error_report("Memory backend '%s' not found", ram_memdev_id);
             exit(EXIT_FAILURE);
         }
-        backend_size = object_property_get_uint(backend, "size",  &error_abort);
-        if (have_custom_ram_size && backend_size != current_machine->ram_size) {
-            error_report("Size specified by -m option must match size of "
-                         "explicitly specified 'memory-backend' property");
-            exit(EXIT_FAILURE);
+        if (!have_custom_ram_size) {
+            backend_size = object_property_get_uint(backend, "size",  &error_abort);
+            current_machine->ram_size = backend_size;
         }
-        current_machine->ram_size = backend_size;
         object_property_set_link(OBJECT(current_machine),
                                  "memory-backend", backend, &error_fatal);
-    }
-
-    if (!xen_enabled()) {
-        /* On 32-bit hosts, QEMU is limited by virtual address space */
-        if (current_machine->ram_size > (2047 << 20) && HOST_LONG_BITS == 32) {
-            error_report("at most 2047 MB RAM can be simulated");
-            exit(1);
-        }
     }
 }
 
