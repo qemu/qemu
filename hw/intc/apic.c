@@ -29,7 +29,8 @@
 #include "hw/i386/apic-msidef.h"
 #include "qapi/error.h"
 #include "qom/object.h"
-
+#include <stdio.h>
+// static bool Debug = true;
 #define MAX_APICS 255
 #define MAX_APIC_WORDS 8
 
@@ -635,7 +636,8 @@ static void apic_timer(void *opaque)
 }
 
 static uint64_t apic_mem_read(void *opaque, hwaddr addr, unsigned size)
-{
+{   
+    // if(Debug)printf("apic mem read called\n"); // 改
     DeviceState *dev;
     APICCommonState *s;
     uint32_t val;
@@ -738,6 +740,7 @@ static void apic_send_msi(MSIMessage *msi)
 static void apic_mem_write(void *opaque, hwaddr addr, uint64_t val,
                            unsigned size)
 {
+    //if(Debug)printf("apic mem write called\n"); // 改
     DeviceState *dev;
     APICCommonState *s;
     int index = (addr >> 4) & 0xff;
@@ -854,7 +857,7 @@ static void apic_post_load(APICCommonState *s)
         timer_del(s->timer);
     }
 }
-// ？？???? 拦截
+// ？？????? 拦截
 static const MemoryRegionOps apic_io_ops = {
     .read = apic_mem_read,
     .write = apic_mem_write,

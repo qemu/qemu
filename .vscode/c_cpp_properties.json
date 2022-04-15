@@ -6,7 +6,9 @@
                 "${workspaceFolder}/target/i386",
                 "${workspaceFolder}/**"
             ],
-            "defines": [],
+            "defines": [
+                "TARGET_X86_64"
+            ],
             "compilerPath": "/usr/bin/gcc-11",
             "cStandard": "gnu17",
             "cppStandard": "gnu++14",

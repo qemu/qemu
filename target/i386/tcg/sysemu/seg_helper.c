@@ -25,6 +25,8 @@
 #include "exec/cpu_ldst.h"
 #include "tcg/helper-tcg.h"
 #include "../seg_helper.h"
+#include <stdio.h>
+static bool Debug = true;
 
 #ifdef TARGET_X86_64
 void helper_syscall(CPUX86State *env, int next_eip_addend)
@@ -146,6 +148,7 @@ bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)  //???？？？
         apic_poll_irq(cpu->apic_state);
         break;
     case CPU_INTERRUPT_SIPI:
+        if(Debug) printf("x86 cpu exec interrupt called sipi \n");
         do_cpu_sipi(cpu);
         break;
     case CPU_INTERRUPT_SMI:

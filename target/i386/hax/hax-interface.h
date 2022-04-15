@@ -62,7 +62,7 @@ struct hax_msr_data {
     uint16_t nr_msr;
     uint16_t done;
     uint16_t pad[2];
-    struct vmx_msr entries[HAX_MAX_MSR_ARRAY];
+    struct vmx_msr entries[HAX_MAX_MSR_ARRAY]; //   ？？？ msr array
 } __attribute__ ((__packed__));
 
 union interruptibility_state_t {

@@ -45,6 +45,9 @@
 #include "x86_flags.h"
 #include "vmcs.h"
 #include "vmx.h"
+#include <stdio.h>
+static bool Debug = true;
+
 
 void hvf_handle_io(struct CPUState *cpu, uint16_t port, void *data,
                    int direction, int size, uint32_t count);
@@ -664,8 +667,9 @@ static void exec_lods(CPUX86State *env, struct x86_decode *decode)
     env->eip += decode->len;
 }
 
-void simulate_rdmsr(struct CPUState *cpu)
-{
+void simulate_rdmsr(struct CPUState *cpu) // ？？？ 
+{   
+    if(Debug){printf("simulate rdmsr called\n");} // 改、
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
     CPUState *cs = env_cpu(env);

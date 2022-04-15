@@ -61,7 +61,7 @@ void helper_cpuid(CPUX86State *env)
     env->regs[R_EDX] = edx;
 }
 
-void helper_rdtsc(CPUX86State *env)
+void helper_rdtsc(CPUX86State *env) // ？？？ 读取时间相关的函数
 {
     uint64_t val;
 
