@@ -126,7 +126,7 @@ void x86_cpu_do_interrupt(CPUState *cs)
     }
 }
 
-bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
+bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)  //???？？？中断相关，接收方了已经是
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;

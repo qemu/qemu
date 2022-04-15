@@ -20,7 +20,7 @@
 
 #ifndef QEMU_APIC_INTERNAL_H
 #define QEMU_APIC_INTERNAL_H
-
+//???？？？ 中断定义定位  下面很多是寄存器比特格式
 #include "cpu.h"
 #include "exec/memory.h"
 #include "qemu/timer.h"
@@ -150,7 +150,7 @@ struct APICCommonClass {
     void (*send_msi)(MSIMessage *msi);
 };
 
-struct APICCommonState {
+struct APICCommonState { // ？？？??? 内核通过访存来改这些寄存器
     /*< private >*/
     DeviceState parent_obj;
     /*< public >*/

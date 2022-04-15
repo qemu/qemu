@@ -31,6 +31,7 @@
 #include "helper-tcg.h"
 
 #include "exec/log.h"
+#include <stdio.h>
 
 #define PREFIX_REPZ   0x01
 #define PREFIX_REPNZ  0x02
@@ -4545,6 +4546,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
 
 /* convert one instruction. s->base.is_jmp is set if the translation must
    be stopped. Return the next pc value */
+static bool f3flag = false; //改
 static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
 {
     CPUX86State *env = cpu->env_ptr;
@@ -4578,6 +4580,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
     /* Collect prefixes.  */
     switch (b) {
     case 0xf3:
+        f3flag = true;  // 改
         prefixes |= PREFIX_REPZ;
         goto next_byte;
     case 0xf2:
@@ -7695,6 +7698,10 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 1);
             break;
         case 0xee: /* rdpkru */
+            if(f3flag){
+                printf("caught xf30fee\n"); // 改
+                f3flag = false;
+            }
             if (prefixes & PREFIX_LOCK) {
                 goto illegal_op;
             }
@@ -7702,7 +7709,24 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             gen_helper_rdpkru(s->tmp1_i64, cpu_env, s->tmp2_i32);
             tcg_gen_extr_i64_tl(cpu_regs[R_EAX], cpu_regs[R_EDX], s->tmp1_i64);
             break;
+        case 0xec:
+            if (f3flag){
+                printf("caught 0xf30fec UIRET\n"); // 改
+                f3flag = false;
+            }
+            break;
+        case 0xed:
+            if (f3flag){
+                printf("caught 0xf30fed TESTUI\n"); // 改
+                f3flag = false;
+            }
+            break;
         case 0xef: /* wrpkru */
+            if(f3flag){
+                printf("caught 0xf30fef STUI\n"); // 改
+                f3flag = false;
+                break;
+            }
             if (prefixes & PREFIX_LOCK) {
                 goto illegal_op;
             }

@@ -1559,7 +1559,7 @@ typedef struct CPUArchState {
     uint64_t tsc_aux;
 
     uint64_t xcr0;
-
+    // 寄存器
     uint64_t mcg_status;
     uint64_t msr_ia32_misc_enable;
     uint64_t msr_ia32_feature_control;

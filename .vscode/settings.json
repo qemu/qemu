@@ -1,0 +1,7 @@
+{
+    "makefile.extensionOutputFolder": "./.vscode",
+    "files.associations": {
+        "log.h": "c",
+        "glib.h": "c"
+    }
+}

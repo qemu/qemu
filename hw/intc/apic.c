@@ -854,7 +854,7 @@ static void apic_post_load(APICCommonState *s)
         timer_del(s->timer);
     }
 }
-
+// ？？???? 拦截
 static const MemoryRegionOps apic_io_ops = {
     .read = apic_mem_read,
     .write = apic_mem_write,
