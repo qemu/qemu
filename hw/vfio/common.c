@@ -1544,11 +1544,10 @@ static int vfio_setup_region_sparse_mmaps(VFIORegion *region,
     region->mmaps = g_new0(VFIOMmap, sparse->nr_areas);
 
     for (i = 0, j = 0; i < sparse->nr_areas; i++) {
-        trace_vfio_region_sparse_mmap_entry(i, sparse->areas[i].offset,
-                                            sparse->areas[i].offset +
-                                            sparse->areas[i].size);
-
         if (sparse->areas[i].size) {
+            trace_vfio_region_sparse_mmap_entry(i, sparse->areas[i].offset,
+                                            sparse->areas[i].offset +
+                                            sparse->areas[i].size - 1);
             region->mmaps[j].offset = sparse->areas[i].offset;
             region->mmaps[j].size = sparse->areas[i].size;
             j++;
