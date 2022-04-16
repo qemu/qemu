@@ -760,7 +760,7 @@ epilogue:
     qemu_mutex_unlock(&s->mutex);
     switch (status) {
     case SMMU_TRANS_SUCCESS:
-        entry.perm = flag;
+        entry.perm = cached_entry->entry.perm;
         entry.translated_addr = cached_entry->entry.translated_addr +
                                     (addr & cached_entry->entry.addr_mask);
         entry.addr_mask = cached_entry->entry.addr_mask;
