@@ -157,12 +157,6 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
         g_free(global_filename);
         global_filename = newname;
         filename = newname;
-
-        if (logfile) {
-            qatomic_rcu_set(&global_file, NULL);
-            call_rcu(logfile, qemu_logfile_free, rcu);
-            logfile = NULL;
-        }
     } else {
         filename = global_filename;
     }
@@ -182,11 +176,12 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
     daemonized = is_daemonized();
     need_to_open_file = log_flags && (!daemonized || filename);
 
-    if (logfile && !need_to_open_file) {
+    if (logfile && (!need_to_open_file || changed_name)) {
         qatomic_rcu_set(&global_file, NULL);
         call_rcu(logfile, qemu_logfile_free, rcu);
-        return true;
+        logfile = NULL;
     }
+
     if (!logfile && need_to_open_file) {
         FILE *fd;
 
