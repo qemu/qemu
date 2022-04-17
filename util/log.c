@@ -136,12 +136,6 @@ bool qemu_set_log(int log_flags, Error **errp)
             logfile->fd = stderr;
         }
 
-#if defined(_WIN32)
-        /* Win32 doesn't support line-buffering, so use unbuffered output. */
-        setvbuf(logfile->fd, NULL, _IONBF, 0);
-#else
-        setvbuf(logfile->fd, NULL, _IOLBF, 0);
-#endif
         log_append = 1;
         qatomic_rcu_set(&qemu_logfile, logfile);
     }
