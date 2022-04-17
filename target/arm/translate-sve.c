@@ -1916,8 +1916,6 @@ static bool trans_PNEXT(DisasContext *s, arg_rr_esz *a)
 static void do_sat_addsub_32(TCGv_i64 reg, TCGv_i64 val, bool u, bool d)
 {
     int64_t ibound;
-    TCGv_i64 bound;
-    TCGCond cond;
 
     /* Use normal 64-bit arithmetic to detect 32-bit overflow.  */
     if (u) {
@@ -1928,15 +1926,12 @@ static void do_sat_addsub_32(TCGv_i64 reg, TCGv_i64 val, bool u, bool d)
     if (d) {
         tcg_gen_sub_i64(reg, reg, val);
         ibound = (u ? 0 : INT32_MIN);
-        cond = TCG_COND_LT;
+        tcg_gen_smax_i64(reg, reg, tcg_constant_i64(ibound));
     } else {
         tcg_gen_add_i64(reg, reg, val);
         ibound = (u ? UINT32_MAX : INT32_MAX);
-        cond = TCG_COND_GT;
+        tcg_gen_smin_i64(reg, reg, tcg_constant_i64(ibound));
     }
-    bound = tcg_const_i64(ibound);
-    tcg_gen_movcond_i64(cond, reg, reg, bound, bound, reg);
-    tcg_temp_free_i64(bound);
 }
 
 /* Similarly with 64-bit values.  */
