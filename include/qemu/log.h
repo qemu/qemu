@@ -67,7 +67,7 @@ static inline bool qemu_log_separate(void)
 
 /* Lock/unlock output. */
 
-FILE *qemu_log_trylock(void);
+FILE *qemu_log_trylock(void) G_GNUC_WARN_UNUSED_RESULT;
 void qemu_log_unlock(FILE *fd);
 
 /* Logging functions: */
