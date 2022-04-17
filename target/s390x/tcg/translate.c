@@ -6660,16 +6660,17 @@ static void s390x_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     }
 }
 
-static void s390x_tr_disas_log(const DisasContextBase *dcbase, CPUState *cs)
+static void s390x_tr_disas_log(const DisasContextBase *dcbase,
+                               CPUState *cs, FILE *logfile)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
     if (unlikely(dc->ex_value)) {
-        /* ??? Unfortunately log_target_disas can't use host memory.  */
-        qemu_log("IN: EXECUTE %016" PRIx64, dc->ex_value);
+        /* ??? Unfortunately target_disas can't use host memory.  */
+        fprintf(logfile, "IN: EXECUTE %016" PRIx64, dc->ex_value);
     } else {
-        qemu_log("IN: %s\n", lookup_symbol(dc->base.pc_first));
-        log_target_disas(cs, dc->base.pc_first, dc->base.tb->size);
+        fprintf(logfile, "IN: %s\n", lookup_symbol(dc->base.pc_first));
+        target_disas(logfile, cs, dc->base.pc_first, dc->base.tb->size);
     }
 }
 
