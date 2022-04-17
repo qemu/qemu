@@ -2285,7 +2285,7 @@ static bool trans_INT(DisasContext *ctx, arg_INT *a)
 static bool trans_WAIT(DisasContext *ctx, arg_WAIT *a)
 {
     if (is_privileged(ctx, 1)) {
-        tcg_gen_addi_i32(cpu_pc, cpu_pc, 2);
+        tcg_gen_movi_i32(cpu_pc, ctx->base.pc_next);
         gen_helper_wait(cpu_env);
     }
     return true;
