@@ -29,15 +29,15 @@
 #include "qemu/rcu.h"
 
 
-typedef struct QemuLogFile {
+typedef struct RCUCloseFILE {
     struct rcu_head rcu;
     FILE *fd;
-} QemuLogFile;
+} RCUCloseFILE;
 
 /* Mutex covering the other global_* variables. */
 static QemuMutex global_mutex;
 static char *global_filename;
-static QemuLogFile *global_file;
+static RCUCloseFILE *global_file;
 
 int qemu_loglevel;
 static int log_append = 0;
@@ -52,7 +52,7 @@ bool qemu_log_enabled(void)
 /* Returns true if qemu_log() will write somewhere other than stderr. */
 bool qemu_log_separate(void)
 {
-    QemuLogFile *logfile;
+    RCUCloseFILE *logfile;
     bool res = false;
 
     rcu_read_lock();
@@ -68,7 +68,7 @@ bool qemu_log_separate(void)
 
 FILE *qemu_log_trylock(void)
 {
-    QemuLogFile *logfile;
+    RCUCloseFILE *logfile;
 
     rcu_read_lock();
     logfile = qatomic_rcu_read(&global_file);
@@ -108,14 +108,12 @@ static void __attribute__((__constructor__)) startup(void)
     qemu_mutex_init(&global_mutex);
 }
 
-static void qemu_logfile_free(QemuLogFile *logfile)
+static void rcu_close_file(RCUCloseFILE *r)
 {
-    g_assert(logfile);
-
-    if (logfile->fd != stderr) {
-        fclose(logfile->fd);
+    if (r->fd != stderr) {
+        fclose(r->fd);
     }
-    g_free(logfile);
+    g_free(r);
 }
 
 /* enable or disable low levels log */
@@ -124,7 +122,7 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
 {
     bool need_to_open_file;
     bool daemonized;
-    QemuLogFile *logfile;
+    RCUCloseFILE *logfile;
 
     QEMU_LOCK_GUARD(&global_mutex);
     logfile = global_file;
@@ -178,7 +176,7 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
 
     if (logfile && (!need_to_open_file || changed_name)) {
         qatomic_rcu_set(&global_file, NULL);
-        call_rcu(logfile, qemu_logfile_free, rcu);
+        call_rcu(logfile, rcu_close_file, rcu);
         logfile = NULL;
     }
 
@@ -196,7 +194,7 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
             if (daemonized) {
                 dup2(fileno(fd), STDERR_FILENO);
                 fclose(fd);
-                /* This will skip closing logfile in qemu_logfile_free. */
+                /* This will skip closing logfile in rcu_close_file. */
                 fd = stderr;
             }
         } else {
@@ -207,7 +205,7 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
 
         log_append = 1;
 
-        logfile = g_new0(QemuLogFile, 1);
+        logfile = g_new0(RCUCloseFILE, 1);
         logfile->fd = fd;
         qatomic_rcu_set(&global_file, logfile);
     }
