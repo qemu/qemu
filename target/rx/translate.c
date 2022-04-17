@@ -32,6 +32,7 @@ typedef struct DisasContext {
     DisasContextBase base;
     CPURXState *env;
     uint32_t pc;
+    uint32_t tb_flags;
 } DisasContext;
 
 typedef struct DisasCompare {
@@ -231,7 +232,7 @@ static inline TCGv rx_load_source(DisasContext *ctx, TCGv mem,
 /* Processor mode check */
 static int is_privileged(DisasContext *ctx, int is_exception)
 {
-    if (FIELD_EX32(ctx->base.tb->flags, PSW, PM)) {
+    if (FIELD_EX32(ctx->tb_flags, PSW, PM)) {
         if (is_exception) {
             gen_helper_raise_privilege_violation(cpu_env);
         }
@@ -2292,6 +2293,7 @@ static void rx_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     CPURXState *env = cs->env_ptr;
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     ctx->env = env;
+    ctx->tb_flags = ctx->base.tb->flags;
 }
 
 static void rx_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)
