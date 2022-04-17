@@ -43,30 +43,6 @@ static inline void log_cpu_state_mask(int mask, CPUState *cpu, int flags)
 }
 
 #ifdef NEED_CPU_H
-/* disas() and target_disas() to qemu_logfile: */
-static inline void log_target_disas(CPUState *cpu, target_ulong start,
-                                    target_ulong len)
-{
-    QemuLogFile *logfile;
-    rcu_read_lock();
-    logfile = qatomic_rcu_read(&qemu_logfile);
-    if (logfile) {
-        target_disas(logfile->fd, cpu, start, len);
-    }
-    rcu_read_unlock();
-}
-
-static inline void log_disas(const void *code, unsigned long size)
-{
-    QemuLogFile *logfile;
-    rcu_read_lock();
-    logfile = qatomic_rcu_read(&qemu_logfile);
-    if (logfile) {
-        disas(logfile->fd, code, size);
-    }
-    rcu_read_unlock();
-}
-
 #if defined(CONFIG_USER_ONLY)
 /* page_dump() output to the log file: */
 static inline void log_page_dump(const char *operation)
