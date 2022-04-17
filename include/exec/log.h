@@ -15,15 +15,10 @@
  */
 static inline void log_cpu_state(CPUState *cpu, int flags)
 {
-    QemuLogFile *logfile;
-
-    if (qemu_log_enabled()) {
-        rcu_read_lock();
-        logfile = qatomic_rcu_read(&qemu_logfile);
-        if (logfile) {
-            cpu_dump_state(cpu, logfile->fd, flags);
-        }
-        rcu_read_unlock();
+    FILE *f = qemu_log_trylock();
+    if (f) {
+        cpu_dump_state(cpu, f, flags);
+        qemu_log_unlock(f);
     }
 }
 
