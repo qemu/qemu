@@ -117,15 +117,58 @@ static void qemu_logfile_free(QemuLogFile *logfile)
 }
 
 /* enable or disable low levels log */
-bool qemu_set_log(int log_flags, Error **errp)
+static bool qemu_set_log_internal(const char *filename, bool changed_name,
+                                  int log_flags, Error **errp)
 {
-    bool need_to_open_file = false;
+    bool need_to_open_file;
     QemuLogFile *logfile;
 
-    qemu_loglevel = log_flags;
+    QEMU_LOCK_GUARD(&qemu_logfile_mutex);
+    logfile = qemu_logfile;
+
+    if (changed_name) {
+        char *newname = NULL;
+
+        /*
+         * Allow the user to include %d in their logfile which will be
+         * substituted with the current PID. This is useful for debugging many
+         * nested linux-user tasks but will result in lots of logs.
+         *
+         * filename may be NULL. In that case, log output is sent to stderr
+         */
+        if (filename) {
+            char *pidstr = strstr(filename, "%");
+
+            if (pidstr) {
+                /* We only accept one %d, no other format strings */
+                if (pidstr[1] != 'd' || strchr(pidstr + 2, '%')) {
+                    error_setg(errp, "Bad logfile format: %s", filename);
+                    return false;
+                }
+                newname = g_strdup_printf(filename, getpid());
+            } else {
+                newname = g_strdup(filename);
+            }
+        }
+
+        g_free(logfilename);
+        logfilename = newname;
+        filename = newname;
+
+        if (logfile) {
+            qatomic_rcu_set(&qemu_logfile, NULL);
+            call_rcu(logfile, qemu_logfile_free, rcu);
+            logfile = NULL;
+        }
+    } else {
+        filename = logfilename;
+    }
+
 #ifdef CONFIG_TRACE_LOG
-    qemu_loglevel |= LOG_TRACE;
+    log_flags |= LOG_TRACE;
 #endif
+    qemu_loglevel = log_flags;
+
     /*
      * In all cases we only log if qemu_loglevel is set.
      * Also:
@@ -134,71 +177,58 @@ bool qemu_set_log(int log_flags, Error **errp)
      *   If we are daemonized,
      *     we will only log if there is a logfilename.
      */
-    if (qemu_loglevel && (!is_daemonized() || logfilename)) {
-        need_to_open_file = true;
-    }
-    QEMU_LOCK_GUARD(&qemu_logfile_mutex);
-    if (qemu_logfile && !need_to_open_file) {
-        logfile = qemu_logfile;
+    need_to_open_file = log_flags && (!is_daemonized() || filename);
+
+    if (logfile && !need_to_open_file) {
         qatomic_rcu_set(&qemu_logfile, NULL);
         call_rcu(logfile, qemu_logfile_free, rcu);
-    } else if (!qemu_logfile && need_to_open_file) {
-        logfile = g_new0(QemuLogFile, 1);
-        if (logfilename) {
-            logfile->fd = fopen(logfilename, log_append ? "a" : "w");
-            if (!logfile->fd) {
+        return true;
+    }
+    if (!logfile && need_to_open_file) {
+        FILE *fd;
+
+        if (filename) {
+            fd = fopen(filename, log_append ? "a" : "w");
+            if (!fd) {
                 error_setg_errno(errp, errno, "Error opening logfile %s",
-                                 logfilename);
+                                 filename);
                 return false;
             }
             /* In case we are a daemon redirect stderr to logfile */
             if (is_daemonized()) {
-                dup2(fileno(logfile->fd), STDERR_FILENO);
-                fclose(logfile->fd);
+                dup2(fileno(fd), STDERR_FILENO);
+                fclose(fd);
                 /* This will skip closing logfile in qemu_log_close() */
-                logfile->fd = stderr;
+                fd = stderr;
             }
         } else {
             /* Default to stderr if no log file specified */
             assert(!is_daemonized());
-            logfile->fd = stderr;
+            fd = stderr;
         }
 
         log_append = 1;
+
+        logfile = g_new0(QemuLogFile, 1);
+        logfile->fd = fd;
         qatomic_rcu_set(&qemu_logfile, logfile);
     }
     return true;
 }
 
-/*
- * Allow the user to include %d in their logfile which will be
- * substituted with the current PID. This is useful for debugging many
- * nested linux-user tasks but will result in lots of logs.
- *
- * filename may be NULL. In that case, log output is sent to stderr
- */
+bool qemu_set_log(int log_flags, Error **errp)
+{
+    return qemu_set_log_internal(NULL, false, log_flags, errp);
+}
+
 bool qemu_set_log_filename(const char *filename, Error **errp)
 {
-    g_free(logfilename);
-    logfilename = NULL;
+    return qemu_set_log_internal(filename, true, qemu_loglevel, errp);
+}
 
-    if (filename) {
-            char *pidstr = strstr(filename, "%");
-            if (pidstr) {
-                /* We only accept one %d, no other format strings */
-                if (pidstr[1] != 'd' || strchr(pidstr + 2, '%')) {
-                    error_setg(errp, "Bad logfile format: %s", filename);
-                    return false;
-                } else {
-                    logfilename = g_strdup_printf(filename, getpid());
-                }
-            } else {
-                logfilename = g_strdup(filename);
-            }
-    }
-
-    qemu_log_close();
-    return qemu_set_log(qemu_loglevel, errp);
+bool qemu_set_log_filename_flags(const char *name, int flags, Error **errp)
+{
+    return qemu_set_log_internal(name, true, flags, errp);
 }
 
 /* Returns true if addr is in our debug filter or no filter defined
