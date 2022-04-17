@@ -36,7 +36,7 @@ typedef struct QemuLogFile {
 
 static char *global_filename;
 static QemuMutex qemu_logfile_mutex;
-static QemuLogFile *qemu_logfile;
+static QemuLogFile *global_file;
 int qemu_loglevel;
 static int log_append = 0;
 static GArray *debug_regions;
@@ -44,7 +44,7 @@ static GArray *debug_regions;
 /* Returns true if qemu_log() will really write somewhere. */
 bool qemu_log_enabled(void)
 {
-    return qemu_logfile != NULL;
+    return global_file != NULL;
 }
 
 /* Returns true if qemu_log() will write somewhere other than stderr. */
@@ -54,7 +54,7 @@ bool qemu_log_separate(void)
     bool res = false;
 
     rcu_read_lock();
-    logfile = qatomic_rcu_read(&qemu_logfile);
+    logfile = qatomic_rcu_read(&global_file);
     if (logfile && logfile->fd != stderr) {
         res = true;
     }
@@ -69,7 +69,7 @@ FILE *qemu_log_trylock(void)
     QemuLogFile *logfile;
 
     rcu_read_lock();
-    logfile = qatomic_rcu_read(&qemu_logfile);
+    logfile = qatomic_rcu_read(&global_file);
     if (logfile) {
         qemu_flockfile(logfile->fd);
         return logfile->fd;
@@ -124,7 +124,7 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
     QemuLogFile *logfile;
 
     QEMU_LOCK_GUARD(&qemu_logfile_mutex);
-    logfile = qemu_logfile;
+    logfile = global_file;
 
     if (changed_name) {
         char *newname = NULL;
@@ -156,7 +156,7 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
         filename = newname;
 
         if (logfile) {
-            qatomic_rcu_set(&qemu_logfile, NULL);
+            qatomic_rcu_set(&global_file, NULL);
             call_rcu(logfile, qemu_logfile_free, rcu);
             logfile = NULL;
         }
@@ -179,7 +179,7 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
     need_to_open_file = log_flags && (!is_daemonized() || filename);
 
     if (logfile && !need_to_open_file) {
-        qatomic_rcu_set(&qemu_logfile, NULL);
+        qatomic_rcu_set(&global_file, NULL);
         call_rcu(logfile, qemu_logfile_free, rcu);
         return true;
     }
@@ -210,7 +210,7 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
 
         logfile = g_new0(QemuLogFile, 1);
         logfile->fd = fd;
-        qatomic_rcu_set(&qemu_logfile, logfile);
+        qatomic_rcu_set(&global_file, logfile);
     }
     return true;
 }
