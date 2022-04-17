@@ -72,8 +72,6 @@ static void qemu_logfile_free(QemuLogFile *logfile)
     g_free(logfile);
 }
 
-static bool log_uses_own_buffers;
-
 /* enable or disable low levels log */
 void qemu_set_log(int log_flags)
 {
@@ -121,27 +119,16 @@ void qemu_set_log(int log_flags)
             assert(!is_daemonized());
             logfile->fd = stderr;
         }
-        /* must avoid mmap() usage of glibc by setting a buffer "by hand" */
-        if (log_uses_own_buffers) {
-            static char logfile_buf[4096];
 
-            setvbuf(logfile->fd, logfile_buf, _IOLBF, sizeof(logfile_buf));
-        } else {
 #if defined(_WIN32)
-            /* Win32 doesn't support line-buffering, so use unbuffered output. */
-            setvbuf(logfile->fd, NULL, _IONBF, 0);
+        /* Win32 doesn't support line-buffering, so use unbuffered output. */
+        setvbuf(logfile->fd, NULL, _IONBF, 0);
 #else
-            setvbuf(logfile->fd, NULL, _IOLBF, 0);
+        setvbuf(logfile->fd, NULL, _IOLBF, 0);
 #endif
-            log_append = 1;
-        }
+        log_append = 1;
         qatomic_rcu_set(&qemu_logfile, logfile);
     }
-}
-
-void qemu_log_needs_buffers(void)
-{
-    log_uses_own_buffers = true;
 }
 
 /*

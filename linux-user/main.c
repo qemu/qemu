@@ -679,7 +679,6 @@ int main(int argc, char **argv, char **envp)
 
     log_mask = last_log_mask | (enable_strace ? LOG_STRACE : 0);
     if (log_mask) {
-        qemu_log_needs_buffers();
         qemu_set_log(log_mask);
     }
 
