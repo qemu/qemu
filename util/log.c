@@ -62,23 +62,22 @@ void qemu_log_unlock(FILE *fd)
 /* Return the number of characters emitted.  */
 int qemu_log(const char *fmt, ...)
 {
+    FILE *f = qemu_log_trylock();
     int ret = 0;
-    QemuLogFile *logfile;
 
-    rcu_read_lock();
-    logfile = qatomic_rcu_read(&qemu_logfile);
-    if (logfile) {
+    if (f) {
         va_list ap;
+
         va_start(ap, fmt);
-        ret = vfprintf(logfile->fd, fmt, ap);
+        ret = vfprintf(f, fmt, ap);
         va_end(ap);
+        qemu_log_unlock(f);
 
         /* Don't pass back error results.  */
         if (ret < 0) {
             ret = 0;
         }
     }
-    rcu_read_unlock();
     return ret;
 }
 
