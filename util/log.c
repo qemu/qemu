@@ -54,6 +54,7 @@ FILE *qemu_log_trylock(void)
 void qemu_log_unlock(FILE *fd)
 {
     if (fd) {
+        fflush(fd);
         qemu_funlockfile(fd);
         rcu_read_unlock();
     }
@@ -267,19 +268,6 @@ void qemu_set_dfilter_ranges(const char *filter_spec, Error **errp)
     }
 out:
     g_strfreev(ranges);
-}
-
-/* fflush() the log file */
-void qemu_log_flush(void)
-{
-    QemuLogFile *logfile;
-
-    rcu_read_lock();
-    logfile = qatomic_rcu_read(&qemu_logfile);
-    if (logfile) {
-        fflush(logfile->fd);
-    }
-    rcu_read_unlock();
 }
 
 /* Close the log file */

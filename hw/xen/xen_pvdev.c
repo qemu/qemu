@@ -230,7 +230,6 @@ void xen_pv_printf(struct XenLegacyDevice *xendev, int msg_level,
         xen_pv_output_msg(xendev, stderr, fmt, args);
         va_end(args);
     }
-    qemu_log_flush();
 }
 
 void xen_pv_evtchn_event(void *opaque)

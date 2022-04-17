@@ -405,7 +405,6 @@ void cpu_abort(CPUState *cpu, const char *fmt, ...)
             vfprintf(logfile, fmt, ap2);
             fprintf(logfile, "\n");
             cpu_dump_state(cpu, logfile, CPU_DUMP_FPU | CPU_DUMP_CCOP);
-            qemu_log_flush();
             qemu_log_unlock(logfile);
         }
         qemu_log_close();

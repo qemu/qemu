@@ -261,7 +261,6 @@ static void can_display_msg(const char *prefix, const qemu_can_frame *msg)
             fprintf(logfile, " %02X", msg->data[i]);
         }
         fprintf(logfile, "\n");
-        qemu_log_flush();
         qemu_log_unlock(logfile);
     }
 }

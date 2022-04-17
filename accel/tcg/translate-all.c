@@ -1594,7 +1594,6 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
                 }
             }
             fprintf(logfile, "\n");
-            qemu_log_flush();
             qemu_log_unlock(logfile);
         }
     }

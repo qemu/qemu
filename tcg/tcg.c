@@ -783,7 +783,6 @@ void tcg_prologue_init(TCGContext *s)
                 disas(logfile, s->code_gen_ptr, prologue_size);
             }
             fprintf(logfile, "\n");
-            qemu_log_flush();
             qemu_log_unlock(logfile);
         }
     }
