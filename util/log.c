@@ -138,7 +138,7 @@ void qemu_set_log(int log_flags)
  *
  * filename may be NULL. In that case, log output is sent to stderr
  */
-void qemu_set_log_filename(const char *filename, Error **errp)
+bool qemu_set_log_filename(const char *filename, Error **errp)
 {
     g_free(logfilename);
     logfilename = NULL;
@@ -149,7 +149,7 @@ void qemu_set_log_filename(const char *filename, Error **errp)
                 /* We only accept one %d, no other format strings */
                 if (pidstr[1] != 'd' || strchr(pidstr + 2, '%')) {
                     error_setg(errp, "Bad logfile format: %s", filename);
-                    return;
+                    return false;
                 } else {
                     logfilename = g_strdup_printf(filename, getpid());
                 }
@@ -160,6 +160,7 @@ void qemu_set_log_filename(const char *filename, Error **errp)
 
     qemu_log_close();
     qemu_set_log(qemu_loglevel);
+    return true;
 }
 
 /* Returns true if addr is in our debug filter or no filter defined
