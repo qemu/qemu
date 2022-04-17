@@ -368,6 +368,10 @@ static void move_to_cr(DisasContext *ctx, TCGv val, int cr)
     switch (cr) {
     case 0:     /* PSW */
         gen_helper_set_psw(cpu_env, val);
+        if (is_privileged(ctx, 0)) {
+            /* PSW.{I,U} may be updated here. exit TB. */
+            ctx->base.is_jmp = DISAS_UPDATE;
+        }
         break;
     /* case 1: to PC not supported */
     case 2:     /* USP */
@@ -631,10 +635,6 @@ static bool trans_POPC(DisasContext *ctx, arg_POPC *a)
     val = tcg_temp_new();
     pop(val);
     move_to_cr(ctx, val, a->cr);
-    if (a->cr == 0 && is_privileged(ctx, 0)) {
-        /* PSW.I may be updated here. exit TB. */
-        ctx->base.is_jmp = DISAS_UPDATE;
-    }
     tcg_temp_free(val);
     return true;
 }
@@ -2205,9 +2205,6 @@ static bool trans_MVTC_i(DisasContext *ctx, arg_MVTC_i *a)
 
     imm = tcg_const_i32(a->imm);
     move_to_cr(ctx, imm, a->cr);
-    if (a->cr == 0 && is_privileged(ctx, 0)) {
-        ctx->base.is_jmp = DISAS_UPDATE;
-    }
     tcg_temp_free(imm);
     return true;
 }
@@ -2216,9 +2213,6 @@ static bool trans_MVTC_i(DisasContext *ctx, arg_MVTC_i *a)
 static bool trans_MVTC_r(DisasContext *ctx, arg_MVTC_r *a)
 {
     move_to_cr(ctx, cpu_regs[a->rs], a->cr);
-    if (a->cr == 0 && is_privileged(ctx, 0)) {
-        ctx->base.is_jmp = DISAS_UPDATE;
-    }
     return true;
 }
 
