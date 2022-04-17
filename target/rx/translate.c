@@ -311,9 +311,8 @@ static void psw_cond(DisasCompare *dc, uint32_t cond)
     }
 }
 
-static void move_from_cr(TCGv ret, int cr, uint32_t pc)
+static void move_from_cr(DisasContext *ctx, TCGv ret, int cr, uint32_t pc)
 {
-    TCGv z = tcg_const_i32(0);
     switch (cr) {
     case 0:     /* PSW */
         gen_helper_pack_psw(ret, cpu_env);
@@ -322,8 +321,11 @@ static void move_from_cr(TCGv ret, int cr, uint32_t pc)
         tcg_gen_movi_i32(ret, pc);
         break;
     case 2:     /* USP */
-        tcg_gen_movcond_i32(TCG_COND_NE, ret,
-                            cpu_psw_u, z, cpu_sp, cpu_usp);
+        if (FIELD_EX32(ctx->tb_flags, PSW, U)) {
+            tcg_gen_mov_i32(ret, cpu_sp);
+        } else {
+            tcg_gen_mov_i32(ret, cpu_usp);
+        }
         break;
     case 3:     /* FPSW */
         tcg_gen_mov_i32(ret, cpu_fpsw);
@@ -335,8 +337,11 @@ static void move_from_cr(TCGv ret, int cr, uint32_t pc)
         tcg_gen_mov_i32(ret, cpu_bpc);
         break;
     case 10:    /* ISP */
-        tcg_gen_movcond_i32(TCG_COND_EQ, ret,
-                            cpu_psw_u, z, cpu_sp, cpu_isp);
+        if (FIELD_EX32(ctx->tb_flags, PSW, U)) {
+            tcg_gen_mov_i32(ret, cpu_isp);
+        } else {
+            tcg_gen_mov_i32(ret, cpu_sp);
+        }
         break;
     case 11:    /* FINTV */
         tcg_gen_mov_i32(ret, cpu_fintv);
@@ -350,28 +355,27 @@ static void move_from_cr(TCGv ret, int cr, uint32_t pc)
         tcg_gen_movi_i32(ret, 0);
         break;
     }
-    tcg_temp_free(z);
 }
 
 static void move_to_cr(DisasContext *ctx, TCGv val, int cr)
 {
-    TCGv z;
     if (cr >= 8 && !is_privileged(ctx, 0)) {
         /* Some control registers can only be written in privileged mode. */
         qemu_log_mask(LOG_GUEST_ERROR,
                       "disallow control register write %s", rx_crname(cr));
         return;
     }
-    z = tcg_const_i32(0);
     switch (cr) {
     case 0:     /* PSW */
         gen_helper_set_psw(cpu_env, val);
         break;
     /* case 1: to PC not supported */
     case 2:     /* USP */
-        tcg_gen_mov_i32(cpu_usp, val);
-        tcg_gen_movcond_i32(TCG_COND_NE, cpu_sp,
-                            cpu_psw_u, z,  cpu_usp, cpu_sp);
+        if (FIELD_EX32(ctx->tb_flags, PSW, U)) {
+            tcg_gen_mov_i32(cpu_sp, val);
+        } else {
+            tcg_gen_mov_i32(cpu_usp, val);
+        }
         break;
     case 3:     /* FPSW */
         gen_helper_set_fpsw(cpu_env, val);
@@ -383,10 +387,11 @@ static void move_to_cr(DisasContext *ctx, TCGv val, int cr)
         tcg_gen_mov_i32(cpu_bpc, val);
         break;
     case 10:    /* ISP */
-        tcg_gen_mov_i32(cpu_isp, val);
-        /* if PSW.U is 0, copy isp to r0 */
-        tcg_gen_movcond_i32(TCG_COND_EQ, cpu_sp,
-                            cpu_psw_u, z,  cpu_isp, cpu_sp);
+        if (FIELD_EX32(ctx->tb_flags, PSW, U)) {
+            tcg_gen_mov_i32(cpu_isp, val);
+        } else {
+            tcg_gen_mov_i32(cpu_sp, val);
+        }
         break;
     case 11:    /* FINTV */
         tcg_gen_mov_i32(cpu_fintv, val);
@@ -399,7 +404,6 @@ static void move_to_cr(DisasContext *ctx, TCGv val, int cr)
                       "Unimplement control register %d", cr);
         break;
     }
-    tcg_temp_free(z);
 }
 
 static void push(TCGv val)
@@ -683,7 +687,7 @@ static bool trans_PUSHC(DisasContext *ctx, arg_PUSHC *a)
 {
     TCGv val;
     val = tcg_temp_new();
-    move_from_cr(val, a->cr, ctx->pc);
+    move_from_cr(ctx, val, a->cr, ctx->pc);
     push(val);
     tcg_temp_free(val);
     return true;
@@ -2221,7 +2225,7 @@ static bool trans_MVTC_r(DisasContext *ctx, arg_MVTC_r *a)
 /* mvfc rs, rd */
 static bool trans_MVFC(DisasContext *ctx, arg_MVFC *a)
 {
-    move_from_cr(cpu_regs[a->rd], a->cr, ctx->pc);
+    move_from_cr(ctx, cpu_regs[a->rd], a->cr, ctx->pc);
     return true;
 }
 
