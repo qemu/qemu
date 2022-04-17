@@ -42,19 +42,4 @@ static inline void log_cpu_state_mask(int mask, CPUState *cpu, int flags)
     }
 }
 
-#ifdef NEED_CPU_H
-#if defined(CONFIG_USER_ONLY)
-/* page_dump() output to the log file: */
-static inline void log_page_dump(const char *operation)
-{
-    FILE *logfile = qemu_log_trylock();
-    if (logfile) {
-        fprintf(logfile, "page layout changed following %s\n", operation);
-        page_dump(logfile);
-    }
-    qemu_log_unlock(logfile);
-}
-#endif
-#endif
-
 #endif
