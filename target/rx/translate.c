@@ -2165,7 +2165,12 @@ static inline void clrsetpsw(DisasContext *ctx, int cb, int val)
             ctx->base.is_jmp = DISAS_UPDATE;
             break;
         case PSW_U:
-            tcg_gen_movi_i32(cpu_psw_u, val);
+            if (FIELD_EX32(ctx->tb_flags, PSW, U) != val) {
+                ctx->tb_flags = FIELD_DP32(ctx->tb_flags, PSW, U, val);
+                tcg_gen_movi_i32(cpu_psw_u, val);
+                tcg_gen_mov_i32(val ? cpu_isp : cpu_usp, cpu_sp);
+                tcg_gen_mov_i32(cpu_sp, val ? cpu_usp : cpu_isp);
+            }
             break;
         default:
             qemu_log_mask(LOG_GUEST_ERROR, "Invalid distination %d", cb);
