@@ -341,6 +341,11 @@ static void a64_free_cc(DisasCompare64 *c64)
     tcg_temp_free_i64(c64->value);
 }
 
+static void gen_rebuild_hflags(DisasContext *s)
+{
+    gen_helper_rebuild_hflags_a64(cpu_env, tcg_constant_i32(s->current_el));
+}
+
 static void gen_exception_internal(int excp)
 {
     TCGv_i32 tcg_excp = tcg_const_i32(excp);
@@ -1667,9 +1672,7 @@ static void handle_msr_i(DisasContext *s, uint32_t insn,
         } else {
             clear_pstate_bits(PSTATE_UAO);
         }
-        t1 = tcg_const_i32(s->current_el);
-        gen_helper_rebuild_hflags_a64(cpu_env, t1);
-        tcg_temp_free_i32(t1);
+        gen_rebuild_hflags(s);
         break;
 
     case 0x04: /* PAN */
@@ -1681,9 +1684,7 @@ static void handle_msr_i(DisasContext *s, uint32_t insn,
         } else {
             clear_pstate_bits(PSTATE_PAN);
         }
-        t1 = tcg_const_i32(s->current_el);
-        gen_helper_rebuild_hflags_a64(cpu_env, t1);
-        tcg_temp_free_i32(t1);
+        gen_rebuild_hflags(s);
         break;
 
     case 0x05: /* SPSel */
@@ -1741,9 +1742,7 @@ static void handle_msr_i(DisasContext *s, uint32_t insn,
             } else {
                 clear_pstate_bits(PSTATE_TCO);
             }
-            t1 = tcg_const_i32(s->current_el);
-            gen_helper_rebuild_hflags_a64(cpu_env, t1);
-            tcg_temp_free_i32(t1);
+            gen_rebuild_hflags(s);
             /* Many factors, including TCO, go into MTE_ACTIVE. */
             s->base.is_jmp = DISAS_UPDATE_NOCHAIN;
         } else if (dc_isar_feature(aa64_mte_insn_reg, s)) {
@@ -1990,9 +1989,7 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
          * A write to any coprocessor regiser that ends a TB
          * must rebuild the hflags for the next TB.
          */
-        TCGv_i32 tcg_el = tcg_const_i32(s->current_el);
-        gen_helper_rebuild_hflags_a64(cpu_env, tcg_el);
-        tcg_temp_free_i32(tcg_el);
+        gen_rebuild_hflags(s);
         /*
          * We default to ending the TB on a coprocessor register write,
          * but allow this to be suppressed by the register definition
