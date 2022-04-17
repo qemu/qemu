@@ -30,7 +30,6 @@ typedef struct DisasContext {
     bool eci_handled;
     /* TCG op to rewind to if this turns out to be an invalid ECI state */
     TCGOp *insn_eci_rewind;
-    int thumb;
     int sctlr_b;
     MemOp be_data;
 #if !defined(CONFIG_USER_ONLY)
@@ -65,6 +64,7 @@ typedef struct DisasContext {
     GHashTable *cp_regs;
     uint64_t features; /* CPU features bits */
     bool aarch64;
+    bool thumb;
     /* Because unallocated encodings generate different exception syndrome
      * information from traps due to FP being disabled, we can't do a single
      * "is fp access disabled" check at a high level in the decode tree.
