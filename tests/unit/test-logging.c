@@ -109,12 +109,10 @@ static void test_parse_path(gconstpointer data)
 
 static void test_logfile_write(gconstpointer data)
 {
-    QemuLogFile *logfile;
-    QemuLogFile *logfile2;
+    FILE *logfile0, *logfile1;
     gchar const *dir = data;
-    g_autofree gchar *file_path = NULL;
+    g_autofree gchar *file_path0 = NULL;
     g_autofree gchar *file_path1 = NULL;
-    FILE *orig_fd;
 
     /*
      * Before starting test, set log flags, to ensure the file gets
@@ -123,29 +121,28 @@ static void test_logfile_write(gconstpointer data)
      * this is needed.
      */
     qemu_set_log(CPU_LOG_TB_OUT_ASM, &error_abort);
-    file_path = g_build_filename(dir, "qemu_test_log_write0.log", NULL);
+    file_path0 = g_build_filename(dir, "qemu_test_log_write0.log", NULL);
     file_path1 = g_build_filename(dir, "qemu_test_log_write1.log", NULL);
 
     /*
      * Test that even if an open file handle is changed,
      * our handle remains valid due to RCU.
      */
-    qemu_set_log_filename(file_path, &error_abort);
-    rcu_read_lock();
-    logfile = qatomic_rcu_read(&qemu_logfile);
-    orig_fd = logfile->fd;
-    g_assert(logfile && logfile->fd);
-    fprintf(logfile->fd, "%s 1st write to file\n", __func__);
-    fflush(logfile->fd);
+    qemu_set_log_filename(file_path0, &error_abort);
+    logfile0 = qemu_log_trylock();
+    g_assert(logfile0);
+    fprintf(logfile0, "%s 1st write to file\n", __func__);
+    fflush(logfile0);
 
     /* Change the logfile and ensure that the handle is still valid. */
     qemu_set_log_filename(file_path1, &error_abort);
-    logfile2 = qatomic_rcu_read(&qemu_logfile);
-    g_assert(logfile->fd == orig_fd);
-    g_assert(logfile2->fd != logfile->fd);
-    fprintf(logfile->fd, "%s 2nd write to file\n", __func__);
-    fflush(logfile->fd);
-    rcu_read_unlock();
+    logfile1 = qemu_log_trylock();
+    g_assert(logfile1);
+    g_assert(logfile0 != logfile1);
+    fprintf(logfile0, "%s 2nd write to file\n", __func__);
+    fflush(logfile0);
+    qemu_log_unlock(logfile0);
+    qemu_log_unlock(logfile1);
 }
 
 static void test_logfile_lock(gconstpointer data)
