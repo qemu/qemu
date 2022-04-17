@@ -139,7 +139,7 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
         && qemu_log_in_addr_range(db->pc_first)) {
-        FILE *logfile = qemu_log_lock();
+        FILE *logfile = qemu_log_trylock();
         qemu_log("----------------\n");
         ops->disas_log(db, cpu);
         qemu_log("\n");

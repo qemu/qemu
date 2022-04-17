@@ -67,7 +67,7 @@ static inline bool qemu_log_separate(void)
 
 /* Lock/unlock output. */
 
-FILE *qemu_log_lock(void);
+FILE *qemu_log_trylock(void);
 void qemu_log_unlock(FILE *fd);
 
 /* Logging functions: */

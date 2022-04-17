@@ -247,7 +247,7 @@ int can_sja_accept_filter(CanSJA1000State *s,
 static void can_display_msg(const char *prefix, const qemu_can_frame *msg)
 {
     int i;
-    FILE *logfile = qemu_log_lock();
+    FILE *logfile = qemu_log_trylock();
 
     qemu_log("%s%03X [%01d] %s %s",
              prefix,

@@ -71,7 +71,7 @@ static inline void log_disas(const void *code, unsigned long size)
 /* page_dump() output to the log file: */
 static inline void log_page_dump(const char *operation)
 {
-    FILE *logfile = qemu_log_lock();
+    FILE *logfile = qemu_log_trylock();
     if (logfile) {
         qemu_log("page layout changed following %s\n", operation);
         page_dump(logfile);

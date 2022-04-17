@@ -162,7 +162,7 @@ static void test_logfile_lock(gconstpointer data)
      * our handle remains valid for use due to RCU.
      */
     qemu_set_log_filename(file_path, &error_abort);
-    logfile = qemu_log_lock();
+    logfile = qemu_log_trylock();
     g_assert(logfile);
     fprintf(logfile, "%s 1st write to file\n", __func__);
     fflush(logfile);
