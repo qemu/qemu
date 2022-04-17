@@ -77,18 +77,21 @@ static void can_host_socketcan_display_msg(struct qemu_can_frame *msg)
 {
     int i;
     FILE *logfile = qemu_log_trylock();
-    qemu_log("[cansocketcan]: %03X [%01d] %s %s",
-             msg->can_id & QEMU_CAN_EFF_MASK,
-             msg->can_dlc,
-             msg->can_id & QEMU_CAN_EFF_FLAG ? "EFF" : "SFF",
-             msg->can_id & QEMU_CAN_RTR_FLAG ? "RTR" : "DAT");
 
-    for (i = 0; i < msg->can_dlc; i++) {
-        qemu_log(" %02X", msg->data[i]);
+    if (logfile) {
+        fprintf(logfile, "[cansocketcan]: %03X [%01d] %s %s",
+                msg->can_id & QEMU_CAN_EFF_MASK,
+                msg->can_dlc,
+                msg->can_id & QEMU_CAN_EFF_FLAG ? "EFF" : "SFF",
+                msg->can_id & QEMU_CAN_RTR_FLAG ? "RTR" : "DAT");
+
+        for (i = 0; i < msg->can_dlc; i++) {
+            fprintf(logfile, " %02X", msg->data[i]);
+        }
+        fprintf(logfile, "\n");
+        qemu_log_flush();
+        qemu_log_unlock(logfile);
     }
-    qemu_log("\n");
-    qemu_log_flush();
-    qemu_log_unlock(logfile);
 }
 
 static void can_host_socketcan_read(void *opaque)

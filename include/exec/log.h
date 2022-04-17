@@ -73,7 +73,7 @@ static inline void log_page_dump(const char *operation)
 {
     FILE *logfile = qemu_log_trylock();
     if (logfile) {
-        qemu_log("page layout changed following %s\n", operation);
+        fprintf(logfile, "page layout changed following %s\n", operation);
         page_dump(logfile);
     }
     qemu_log_unlock(logfile);
