@@ -414,7 +414,7 @@ int main(int argc, char **argv)
             qemu_print_log_usage(stdout);
             exit(1);
         }
-        qemu_set_log(mask);
+        qemu_set_log(mask, &error_fatal);
     }
 
     if (optind >= argc) {

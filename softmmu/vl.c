@@ -2570,9 +2570,9 @@ static void qemu_process_early_options(void)
             qemu_print_log_usage(stdout);
             exit(1);
         }
-        qemu_set_log(mask);
+        qemu_set_log(mask, &error_fatal);
     } else {
-        qemu_set_log(0);
+        qemu_set_log(0, &error_fatal);
     }
 
     qemu_add_default_firmwarepath();

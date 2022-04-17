@@ -122,7 +122,7 @@ static void test_logfile_write(gconstpointer data)
      * In cases where a logging backend other than log is used,
      * this is needed.
      */
-    qemu_set_log(CPU_LOG_TB_OUT_ASM);
+    qemu_set_log(CPU_LOG_TB_OUT_ASM, &error_abort);
     file_path = g_build_filename(dir, "qemu_test_log_write0.log", NULL);
     file_path1 = g_build_filename(dir, "qemu_test_log_write1.log", NULL);
 
