@@ -85,6 +85,7 @@ static bool enable_strace;
  * Used to support command line arguments overriding environment variables.
  */
 static int last_log_mask;
+static const char *last_log_filename;
 
 /*
  * When running 32-on-64 we should make sure we can fit all of the possible
@@ -257,7 +258,7 @@ static void handle_arg_dfilter(const char *arg)
 
 static void handle_arg_log_filename(const char *arg)
 {
-    qemu_set_log_filename(arg, &error_fatal);
+    last_log_filename = arg;
 }
 
 static void handle_arg_set_env(const char *arg)
@@ -643,7 +644,6 @@ int main(int argc, char **argv, char **envp)
     int i;
     int ret;
     int execfd;
-    int log_mask;
     unsigned long max_reserved_va;
     bool preserve_argv0;
 
@@ -677,10 +677,9 @@ int main(int argc, char **argv, char **envp)
 
     optind = parse_args(argc, argv);
 
-    log_mask = last_log_mask | (enable_strace ? LOG_STRACE : 0);
-    if (log_mask) {
-        qemu_set_log(log_mask, &error_fatal);
-    }
+    qemu_set_log_filename_flags(last_log_filename,
+                                last_log_mask | (enable_strace * LOG_STRACE),
+                                &error_fatal);
 
     if (!trace_init_backends()) {
         exit(1);
