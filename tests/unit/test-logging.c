@@ -169,7 +169,7 @@ static void test_logfile_lock(gconstpointer data)
      * Initiate a close file and make sure our handle remains
      * valid since we still have the logfile lock.
      */
-    qemu_log_close();
+    qemu_set_log_filename_flags(NULL, 0, &error_abort);
     fprintf(logfile, "%s 2nd write to file\n", __func__);
     fflush(logfile);
     qemu_log_unlock(logfile);
@@ -207,7 +207,7 @@ int main(int argc, char **argv)
                          tmp_path, test_logfile_lock);
 
     rc = g_test_run();
-    qemu_log_close();
+    qemu_set_log_filename_flags(NULL, 0, &error_abort);
     drain_call_rcu();
 
     rmdir_full(tmp_path);

@@ -407,7 +407,6 @@ void cpu_abort(CPUState *cpu, const char *fmt, ...)
             cpu_dump_state(cpu, logfile, CPU_DUMP_FPU | CPU_DUMP_CCOP);
             qemu_log_unlock(logfile);
         }
-        qemu_log_close();
     }
     va_end(ap2);
     va_end(ap);

@@ -92,7 +92,4 @@ int qemu_str_to_log_mask(const char *str);
  */
 void qemu_print_log_usage(FILE *f);
 
-/* Close the log file */
-void qemu_log_close(void);
-
 #endif

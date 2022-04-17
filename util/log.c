@@ -198,7 +198,7 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
             if (is_daemonized()) {
                 dup2(fileno(fd), STDERR_FILENO);
                 fclose(fd);
-                /* This will skip closing logfile in qemu_log_close() */
+                /* This will skip closing logfile in qemu_logfile_free. */
                 fd = stderr;
             }
         } else {
@@ -320,21 +320,6 @@ void qemu_set_dfilter_ranges(const char *filter_spec, Error **errp)
     }
 out:
     g_strfreev(ranges);
-}
-
-/* Close the log file */
-void qemu_log_close(void)
-{
-    QemuLogFile *logfile;
-
-    qemu_mutex_lock(&qemu_logfile_mutex);
-    logfile = qemu_logfile;
-
-    if (logfile) {
-        qatomic_rcu_set(&qemu_logfile, NULL);
-        call_rcu(logfile, qemu_logfile_free, rcu);
-    }
-    qemu_mutex_unlock(&qemu_logfile_mutex);
 }
 
 const QEMULogItem qemu_log_items[] = {
