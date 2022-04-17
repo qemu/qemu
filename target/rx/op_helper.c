@@ -448,6 +448,7 @@ void QEMU_NORETURN helper_wait(CPURXState *env)
 
     cs->halted = 1;
     env->in_sleep = 1;
+    env->psw_i = 1;
     raise_exception(env, EXCP_HLT, 0);
 }
 
