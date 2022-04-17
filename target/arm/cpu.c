@@ -189,7 +189,7 @@ static void arm_cpu_reset(DeviceState *dev)
 
     if (arm_feature(env, ARM_FEATURE_AARCH64)) {
         /* 64 bit CPUs always start in 64 bit mode */
-        env->aarch64 = 1;
+        env->aarch64 = true;
 #if defined(CONFIG_USER_ONLY)
         env->pstate = PSTATE_MODE_EL0t;
         /* Userspace expects access to DC ZVA, CTL_EL0 and the cache ops */
