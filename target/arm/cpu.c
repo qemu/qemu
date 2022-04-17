@@ -51,7 +51,7 @@ static void arm_cpu_set_pc(CPUState *cs, vaddr value)
 
     if (is_a64(env)) {
         env->pc = value;
-        env->thumb = 0;
+        env->thumb = false;
     } else {
         env->regs[15] = value & ~1;
         env->thumb = value & 1;
