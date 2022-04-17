@@ -26,13 +26,41 @@
 #include "trace/control.h"
 #include "qemu/thread.h"
 #include "qemu/lockable.h"
+#include "qemu/rcu.h"
+
+
+typedef struct QemuLogFile {
+    struct rcu_head rcu;
+    FILE *fd;
+} QemuLogFile;
 
 static char *logfilename;
 static QemuMutex qemu_logfile_mutex;
-QemuLogFile *qemu_logfile;
+static QemuLogFile *qemu_logfile;
 int qemu_loglevel;
 static int log_append = 0;
 static GArray *debug_regions;
+
+/* Returns true if qemu_log() will really write somewhere. */
+bool qemu_log_enabled(void)
+{
+    return qemu_logfile != NULL;
+}
+
+/* Returns true if qemu_log() will write somewhere other than stderr. */
+bool qemu_log_separate(void)
+{
+    QemuLogFile *logfile;
+    bool res = false;
+
+    rcu_read_lock();
+    logfile = qatomic_rcu_read(&qemu_logfile);
+    if (logfile && logfile->fd != stderr) {
+        res = true;
+    }
+    rcu_read_unlock();
+    return res;
+}
 
 /* Lock/unlock output. */
 

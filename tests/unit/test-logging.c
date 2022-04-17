@@ -29,6 +29,7 @@
 
 #include "qapi/error.h"
 #include "qemu/log.h"
+#include "qemu/rcu.h"
 
 static void test_parse_range(void)
 {
