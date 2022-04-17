@@ -72,21 +72,6 @@ void qemu_log_unlock(FILE *fd);
 
 /* Logging functions: */
 
-/* vfprintf-like logging function
- */
-static inline void G_GNUC_PRINTF(1, 0)
-qemu_log_vprintf(const char *fmt, va_list va)
-{
-    QemuLogFile *logfile;
-
-    rcu_read_lock();
-    logfile = qatomic_rcu_read(&qemu_logfile);
-    if (logfile) {
-        vfprintf(logfile->fd, fmt, va);
-    }
-    rcu_read_unlock();
-}
-
 /* log only if a bit is set on the current loglevel mask:
  * @mask: bit to check in the mask
  * @fmt: printf-style format string
