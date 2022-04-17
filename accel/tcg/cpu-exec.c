@@ -224,7 +224,7 @@ static inline void log_cpu_exec(target_ulong pc, CPUState *cpu,
 #if defined(TARGET_I386)
                 flags |= CPU_DUMP_CCOP;
 #endif
-                log_cpu_state(cpu, flags);
+                cpu_dump_state(cpu, logfile, flags);
                 qemu_log_unlock(logfile);
             }
         }
