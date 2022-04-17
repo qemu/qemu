@@ -59,26 +59,17 @@ void qemu_log_unlock(FILE *fd)
     }
 }
 
-/* Return the number of characters emitted.  */
-int qemu_log(const char *fmt, ...)
+void qemu_log(const char *fmt, ...)
 {
     FILE *f = qemu_log_trylock();
-    int ret = 0;
-
     if (f) {
         va_list ap;
 
         va_start(ap, fmt);
-        ret = vfprintf(f, fmt, ap);
+        vfprintf(f, fmt, ap);
         va_end(ap);
         qemu_log_unlock(f);
-
-        /* Don't pass back error results.  */
-        if (ret < 0) {
-            ret = 0;
-        }
     }
-    return ret;
 }
 
 static void __attribute__((__constructor__)) qemu_logfile_init(void)
