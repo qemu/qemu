@@ -206,15 +206,13 @@ def qemu_img_create_prepare_args(args: List[str]) -> List[str]:
 
     return result
 
-def qemu_img(*args: str, check: bool = True, combine_stdio: bool = True
-             ) -> 'subprocess.CompletedProcess[str]':
+
+def qemu_tool(*args: str, check: bool = True, combine_stdio: bool = True
+              ) -> 'subprocess.CompletedProcess[str]':
     """
-    Run qemu_img and return the status code and console output.
+    Run a qemu tool and return its status code and console output.
 
-    This function always prepends QEMU_IMG_OPTIONS and may further alter
-    the args for 'create' commands.
-
-    :param args: command-line arguments to qemu-img.
+    :param args: full command line to run.
     :param check: Enforce a return code of zero.
     :param combine_stdio: set to False to keep stdout/stderr separated.
 
@@ -231,10 +229,8 @@ def qemu_img(*args: str, check: bool = True, combine_stdio: bool = True
         properties. If streams are not combined, it will also have a
         stderr property.
     """
-    full_args = qemu_img_args + qemu_img_create_prepare_args(list(args))
-
     subp = subprocess.run(
-        full_args,
+        args,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT if combine_stdio else subprocess.PIPE,
         universal_newlines=True,
@@ -243,12 +239,26 @@ def qemu_img(*args: str, check: bool = True, combine_stdio: bool = True
 
     if check and subp.returncode or (subp.returncode < 0):
         raise VerboseProcessError(
-            subp.returncode, full_args,
+            subp.returncode, args,
             output=subp.stdout,
             stderr=subp.stderr,
         )
 
     return subp
+
+
+def qemu_img(*args: str, check: bool = True, combine_stdio: bool = True
+             ) -> 'subprocess.CompletedProcess[str]':
+    """
+    Run QEMU_IMG_PROG and return its status code and console output.
+
+    This function always prepends QEMU_IMG_OPTIONS and may further alter
+    the args for 'create' commands.
+
+    See `qemu_tool()` for greater detail.
+    """
+    full_args = qemu_img_args + qemu_img_create_prepare_args(list(args))
+    return qemu_tool(*full_args, check=check, combine_stdio=combine_stdio)
 
 
 def ordered_qmp(qmsg, conv_keys=True):
