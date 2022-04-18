@@ -364,9 +364,6 @@ def qemu_io(*args: str, check: bool = True, combine_stdio: bool = True
     return qemu_tool(*qemu_io_wrap_args(args),
                      check=check, combine_stdio=combine_stdio)
 
-def qemu_io_pipe_and_status(*args):
-    return qemu_tool_pipe_and_status('qemu-io', qemu_io_wrap_args(args))
-
 def qemu_io_log(*args: str) -> 'subprocess.CompletedProcess[str]':
     result = qemu_io(*args, check=False)
     log(result.stdout, filters=[filter_testfiles, filter_qemu_io])
