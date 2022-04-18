@@ -353,16 +353,23 @@ def qemu_io_wrap_args(args: Sequence[str]) -> List[str]:
 def qemu_io_popen(*args):
     return qemu_tool_popen(qemu_io_wrap_args(args))
 
-def qemu_io(*args):
-    '''Run qemu-io and return the stdout data'''
-    return qemu_tool_pipe_and_status('qemu-io', qemu_io_wrap_args(args))[0]
+def qemu_io(*args: str, check: bool = True, combine_stdio: bool = True
+            ) -> 'subprocess.CompletedProcess[str]':
+    """
+    Run QEMU_IO_PROG and return the status code and console output.
+
+    This function always prepends either QEMU_IO_OPTIONS or
+    QEMU_IO_OPTIONS_NO_FMT.
+    """
+    return qemu_tool(*qemu_io_wrap_args(args),
+                     check=check, combine_stdio=combine_stdio)
 
 def qemu_io_pipe_and_status(*args):
     return qemu_tool_pipe_and_status('qemu-io', qemu_io_wrap_args(args))
 
-def qemu_io_log(*args):
-    result = qemu_io(*args)
-    log(result, filters=[filter_testfiles, filter_qemu_io])
+def qemu_io_log(*args: str) -> 'subprocess.CompletedProcess[str]':
+    result = qemu_io(*args, check=False)
+    log(result.stdout, filters=[filter_testfiles, filter_qemu_io])
     return result
 
 def qemu_io_silent(*args):

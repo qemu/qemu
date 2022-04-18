@@ -69,7 +69,7 @@ class TestMigrationPermissions(iotests.QMPTestCase):
     def test_post_migration_permissions(self):
         # Try to access the image R/W, which should fail because virtio-blk
         # has not been configured with share-rw=on
-        log = qemu_io('-f', imgfmt, '-c', 'quit', test_img)
+        log = qemu_io('-f', imgfmt, '-c', 'quit', test_img, check=False).stdout
         if not log.strip():
             print('ERROR (pre-migration): qemu-io should not be able to '
                   'access this image, but it reported no error')
@@ -84,7 +84,7 @@ class TestMigrationPermissions(iotests.QMPTestCase):
 
         # Try the same qemu-io access again, verifying that the WRITE
         # permission remains unshared
-        log = qemu_io('-f', imgfmt, '-c', 'quit', test_img)
+        log = qemu_io('-f', imgfmt, '-c', 'quit', test_img, check=False).stdout
         if not log.strip():
             print('ERROR (post-migration): qemu-io should not be able to '
                   'access this image, but it reported no error')

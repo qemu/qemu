@@ -295,7 +295,8 @@ def qemu_io_write_pattern(config, pattern, offset_mb, size_mb, dev=False):
     args = ["-c", "write -P 0x%x %dM %dM" % (pattern, offset_mb, size_mb)]
     args.extend(qemu_io_image_args(config, dev))
     iotests.log("qemu-io " + " ".join(args), filters=[iotests.filter_test_dir])
-    iotests.log(check_cipher_support(config, iotests.qemu_io(*args)),
+    output = iotests.qemu_io(*args, check=False).stdout
+    iotests.log(check_cipher_support(config, output),
                 filters=[iotests.filter_test_dir, iotests.filter_qemu_io])
 
 
@@ -307,7 +308,8 @@ def qemu_io_read_pattern(config, pattern, offset_mb, size_mb, dev=False):
     args = ["-c", "read -P 0x%x %dM %dM" % (pattern, offset_mb, size_mb)]
     args.extend(qemu_io_image_args(config, dev))
     iotests.log("qemu-io " + " ".join(args), filters=[iotests.filter_test_dir])
-    iotests.log(check_cipher_support(config, iotests.qemu_io(*args)),
+    output = iotests.qemu_io(*args, check=False).stdout
+    iotests.log(check_cipher_support(config, output),
                 filters=[iotests.filter_test_dir, iotests.filter_qemu_io])
 
 
