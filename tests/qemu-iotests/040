@@ -86,8 +86,10 @@ class TestSingleDrive(ImageCommitTestCase):
         qemu_img('create', '-f', iotests.imgfmt,
                  '-o', 'backing_file=%s' % mid_img,
                  '-F', iotests.imgfmt, test_img)
-        qemu_io('-f', 'raw', '-c', 'write -P 0xab 0 524288', backing_img)
-        qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0xef 524288 524288', mid_img)
+        if self.image_len:
+            qemu_io('-f', 'raw', '-c', 'write -P 0xab 0 524288', backing_img)
+            qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0xef 524288 524288',
+                    mid_img)
         self.vm = iotests.VM().add_drive(test_img, "node-name=top,backing.node-name=mid,backing.backing.node-name=base", interface="none")
         self.vm.add_device('virtio-scsi')
         self.vm.add_device("scsi-hd,id=scsi0,drive=drive0")
@@ -101,11 +103,15 @@ class TestSingleDrive(ImageCommitTestCase):
 
     def test_commit(self):
         self.run_commit_test(mid_img, backing_img)
+        if not self.image_len:
+            return
         qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', backing_img)
         qemu_io('-f', 'raw', '-c', 'read -P 0xef 524288 524288', backing_img)
 
     def test_commit_node(self):
         self.run_commit_test("mid", "base", node_names=True)
+        if not self.image_len:
+            return
         qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', backing_img)
         qemu_io('-f', 'raw', '-c', 'read -P 0xef 524288 524288', backing_img)
 
@@ -192,11 +198,15 @@ class TestSingleDrive(ImageCommitTestCase):
 
     def test_top_is_active(self):
         self.run_commit_test(test_img, backing_img, need_ready=True)
+        if not self.image_len:
+            return
         qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', backing_img)
         qemu_io('-f', 'raw', '-c', 'read -P 0xef 524288 524288', backing_img)
 
     def test_top_is_default_active(self):
         self.run_default_commit_test()
+        if not self.image_len:
+            return
         qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', backing_img)
         qemu_io('-f', 'raw', '-c', 'read -P 0xef 524288 524288', backing_img)
 
