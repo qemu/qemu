@@ -401,6 +401,13 @@ typedef enum X86Seg {
 #define MSR_IA32_SGXLEPUBKEYHASH1       0x8d
 #define MSR_IA32_SGXLEPUBKEYHASH2       0x8e
 #define MSR_IA32_SGXLEPUBKEYHASH3       0x8f
+// 改？？？ mydefines msr 定义
+#define MSR_IA32_UINTR_RR               0x985
+#define MSR_IA32_UINTR_HANDLER          0x986
+#define MSR_IA32_UINTR_STACKADJUST      0x987
+#define MSR_IA32_UINTR_MISC             0x988
+#define MSR_IA32_UINTR_PD               0x989
+#define MSR_IA32_UINTR_TT               0x98a
 
 #define MSR_P6_PERFCTR0                 0xc1
 
@@ -852,6 +859,8 @@ uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
 #define CPUID_7_0_EDX_AVX512_4FMAPS     (1U << 3)
 /* Fast Short Rep Mov */
 #define CPUID_7_0_EDX_FSRM              (1U << 4)
+/* ？？？改cpuid uintr */
+#define CPUID_7_0_EDX_UINTR              (1U << 5)
 /* AVX512 Vector Pair Intersection to a Pair of Mask Registers */
 #define CPUID_7_0_EDX_AVX512_VP2INTERSECT (1U << 8)
 /* SERIALIZE instruction */
@@ -1466,7 +1475,7 @@ typedef struct HVFX86LazyFlags {
     target_ulong auxbits;
 } HVFX86LazyFlags;
 
-typedef struct CPUArchState {
+typedef struct CPUArchState {  // 寄存器？？？
     /* standard registers */
     target_ulong regs[CPU_NB_REGS];
     target_ulong eip;
@@ -1553,6 +1562,13 @@ typedef struct CPUArchState {
     target_ulong fmask;
     target_ulong kernelgsbase;
 #endif
+        // 改 ？？？
+    uint64_t uintr_rr;
+    uint64_t uintr_handler;
+    uint64_t uintr_stackadjust;
+    uint64_t uintr_misc;
+    uint64_t uintr_pd;
+    uint64_t uintr_tt;
 
     uint64_t tsc_adjust;
     uint64_t tsc_deadline;

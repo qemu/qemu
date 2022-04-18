@@ -43,6 +43,8 @@
 
 #include "disas/capstone.h"
 #include "cpu-internal.h"
+#include <stdio.h>
+static bool Debug = true;
 
 /* Helpers for building CPUID[2] descriptors: */
 
@@ -661,7 +663,8 @@ void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
 #define TCG_7_0_ECX_FEATURES (CPUID_7_0_ECX_UMIP | CPUID_7_0_ECX_PKU | \
           /* CPUID_7_0_ECX_OSPKE is dynamic */ \
           CPUID_7_0_ECX_LA57 | CPUID_7_0_ECX_PKS)
-#define TCG_7_0_EDX_FEATURES 0
+#define TCG_7_0_EDX_FEATURES (CPUID_7_0_EDX_UINTR)
+// 改，让tcg认为这些特性被支持
 #define TCG_7_1_EAX_FEATURES 0
 #define TCG_APM_FEATURES 0
 #define TCG_6_EAX_FEATURES CPUID_6_EAX_ARAT
@@ -852,7 +855,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {
             NULL, NULL, "avx512-4vnniw", "avx512-4fmaps",
-            "fsrm", NULL, NULL, NULL,
+            "fsrm", "uintr", NULL, NULL,  // 改，加入feature info 信息
             "avx512-vp2intersect", NULL, "md-clear", NULL,
             NULL, NULL, "serialize", NULL,
             "tsx-ldtrk", NULL, NULL /* pconfig */, NULL,
@@ -1798,6 +1801,8 @@ static const X86CPUDefinition builtin_x86_defs[] = {
             CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX,
         .features[FEAT_8000_0001_ECX] =
             CPUID_EXT3_LAHF_LM | CPUID_EXT3_SVM,
+        .features[FEAT_7_0_EDX] =
+            CPUID_7_0_EDX_UINTR,  // 改
         .xlevel = 0x8000000A,
         .model_id = "QEMU Virtual CPU version " QEMU_HW_VERSION,
     },
@@ -4193,8 +4198,6 @@ static const X86CPUDefinition builtin_x86_defs[] = {
             CPUID_7_0_EBX_INVPCID,
         .features[FEAT_7_0_ECX] =
             CPUID_7_0_ECX_UMIP | CPUID_7_0_ECX_RDPID | CPUID_7_0_ECX_PKU,
-        .features[FEAT_7_0_EDX] =
-            CPUID_7_0_EDX_FSRM,
         .features[FEAT_XSAVE] =
             CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XSAVEC |
             CPUID_XSAVE_XGETBV1 | CPUID_XSAVE_XSAVES,
@@ -4666,7 +4669,8 @@ static gint compare_string(gconstpointer a, gconstpointer b)
  */
 static void x86_cpu_parse_featurestr(const char *typename, char *features,
                                      Error **errp)
-{
+{   
+    if(Debug)warn_report("prase feature name called\n");
     char *featurestr; /* Single 'key=value" string being parsed */
     static bool cpu_globals_initialized;
     bool ambiguous = false;
@@ -4683,6 +4687,7 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
     for (featurestr = strtok(features, ",");
          featurestr;
          featurestr = strtok(NULL, ",")) {
+         if(Debug)warn_report("featurestr: %s\n",featurestr);
         const char *name;
         const char *val = NULL;
         char *eq = NULL;
@@ -4982,12 +4987,13 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
 }
 
 uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
-                                            bool migratable_only)
+                                            bool migratable_only) // ？？？得到支持的featureword信息
 {
     FeatureWordInfo *wi = &feature_word_info[w];
     uint64_t r = 0;
 
     if (kvm_enabled()) {
+        if(Debug)warn_report("kvm enabled");
         switch (wi->type) {
         case CPUID_FEATURE_WORD:
             r = kvm_arch_get_supported_cpuid(kvm_state, wi->cpuid.eax,
@@ -5000,6 +5006,7 @@ uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
             break;
         }
     } else if (hvf_enabled()) {
+        if(Debug)warn_report("hvf enabled");
         if (wi->type != CPUID_FEATURE_WORD) {
             return 0;
         }
@@ -5127,7 +5134,7 @@ static void x86_cpu_load_model(X86CPU *cpu, X86CPUModel *model)
      * We can simply clear env->user_features here since it will be filled later
      * in x86_cpu_expand_features() based on plus_features and minus_features.
      */
-    memset(&env->user_features, 0, sizeof(env->user_features));
+    memset(&env->user_features, 0, sizeof(env->user_features)); // 初始化为0？？？
 }
 
 static gchar *x86_gdb_arch_name(CPUState *cs)
@@ -6142,8 +6149,8 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
 /* Expand CPU configuration data, based on configured features
  * and host/accelerator capabilities when appropriate.
  */
-void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
-{
+void x86_cpu_expand_features(X86CPU *cpu, Error **errp) // ？？？貌似从这里开始设置feature
+{   if(Debug)warn_report("expand featrue called\n");
     CPUX86State *env = &cpu->env;
     FeatureWord w;
     int i;
@@ -6281,7 +6288,8 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
  * Returns: 0 if all flags are supported by the host, non-zero otherwise.
  */
 static void x86_cpu_filter_features(X86CPU *cpu, bool verbose)
-{
+{   
+    if(Debug)warn_report("x86 cpu filter feature called");
     CPUX86State *env = &cpu->env;
     FeatureWord w;
     const char *prefix = NULL;
@@ -6289,13 +6297,23 @@ static void x86_cpu_filter_features(X86CPU *cpu, bool verbose)
     if (verbose) {
         prefix = accel_uses_host_cpuid()
                  ? "host doesn't support requested feature"
-                 : "TCG doesn't support requested feature";
+                 : "TCG doesn't support requested feature？"; // 改
     }
 
     for (w = 0; w < FEATURE_WORDS; w++) {
         uint64_t host_feat =
             x86_cpu_get_supported_feature_word(w, false);
         uint64_t requested_features = env->features[w];
+        // if(w == 4 && Debug){ // 改
+        //     for (int i = 0; i < 64; ++i) {
+        //         int req,host;
+        //         if ((1ULL << i) & requested_features) req = 1;
+        //         else req = 0;
+        //         if ((1ULL << i) & host_feat) host = 1;
+        //         else host = 0;
+        //         // warn_report("%d %d %d",i,req,host);
+        //     }
+        // }
         uint64_t unavailable_features = requested_features & ~host_feat;
         mark_unavailable_features(cpu, w, unavailable_features, prefix);
     }

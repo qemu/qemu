@@ -4580,7 +4580,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
     /* Collect prefixes.  */
     switch (b) {
     case 0xf3:
-        f3flag = true;  // 改
+        f3flag = true;  // 改  识别前缀到 4717
         prefixes |= PREFIX_REPZ;
         goto next_byte;
     case 0xf2:
@@ -5395,6 +5395,11 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         }
         break;
     case 0x1c7: /* cmpxchg8b */
+        if(prefixes & PREFIX_REPZ){
+            printf("qemu: caught 0xf30fc7 SENDUIPI\n"); // 改 Debug
+            modrm = x86_ldub_code(env, s);
+            break;
+        }
         modrm = x86_ldub_code(env, s);
         mod = (modrm >> 6) & 3;
         switch ((modrm >> 3) & 7) {
@@ -7698,8 +7703,8 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 1);
             break;
         case 0xee: /* rdpkru */
-            if(f3flag){
-                printf("caught xf30fee\n"); // 改
+            if(prefixes & PREFIX_REPZ){
+                printf("qemu:caught 0xf30fee ?\n"); // 改
                 f3flag = false;
             }
             if (prefixes & PREFIX_LOCK) {
@@ -7710,20 +7715,20 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             tcg_gen_extr_i64_tl(cpu_regs[R_EAX], cpu_regs[R_EDX], s->tmp1_i64);
             break;
         case 0xec:
-            if (f3flag){
-                printf("caught 0xf30fec UIRET\n"); // 改
+            if (prefixes & PREFIX_REPZ){
+                printf("qemu:caught 0xf30f01ec UIRET\n"); // 改
                 f3flag = false;
             }
             break;
         case 0xed:
-            if (f3flag){
-                printf("caught 0xf30fed TESTUI\n"); // 改
+            if (prefixes & PREFIX_REPZ){
+                printf("qemu:caught 0xf30f01ed TESTUI\n"); // 改
                 f3flag = false;
             }
             break;
         case 0xef: /* wrpkru */
-            if(f3flag){
-                printf("caught 0xf30fef STUI\n"); // 改
+            if(prefixes & PREFIX_REPZ){
+                printf("qemu:caught 0xf30f01ef STUI\n"); // 改
                 f3flag = false;
                 break;
             }
