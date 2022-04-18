@@ -25,7 +25,7 @@
 from subprocess import CalledProcessError
 
 import iotests
-from iotests import log, qemu_img, qemu_io, qemu_io_silent
+from iotests import log, qemu_img, qemu_io
 
 iotests.script_initialize(
     supported_fmts=['qcow2'],
@@ -270,7 +270,7 @@ def do_test(vm, use_cbw, use_snapshot_access_filter, base_img_path,
     for p in overwrite + remainder:
         cmd = 'read -P%s %s %s' % p
         log(cmd)
-        assert qemu_io_silent(base_img_path, '-c', cmd) == 0
+        qemu_io(base_img_path, '-c', cmd)
 
     log('')
     log('Done')

@@ -22,7 +22,7 @@
 # Creator/Owner: Hanna Reitz <hreitz@redhat.com>
 
 import iotests
-from iotests import log, qemu_img, qemu_io_silent, filter_qmp_testfiles, \
+from iotests import log, qemu_img, qemu_io, filter_qmp_testfiles, \
                     filter_qmp_imgfmt
 import json
 
@@ -54,7 +54,7 @@ for filter_node_name in False, True:
                  '-F', iotests.imgfmt, top_img_path)
 
         # Something to commit
-        assert qemu_io_silent(mid_img_path, '-c', 'write -P 1 0 1M') == 0
+        qemu_io(mid_img_path, '-c', 'write -P 1 0 1M')
 
         vm.launch()
 

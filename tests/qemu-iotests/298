@@ -129,16 +129,13 @@ class TestTruncate(iotests.QMPTestCase):
         os.remove(refdisk)
 
     def do_test(self, prealloc_mode, new_size):
-        ret = iotests.qemu_io_silent('--image-opts', '-c', 'write 0 10M', '-c',
-                                     f'truncate -m {prealloc_mode} {new_size}',
-                                     drive_opts)
-        self.assertEqual(ret, 0)
+        iotests.qemu_io('--image-opts', '-c', 'write 0 10M', '-c',
+                        f'truncate -m {prealloc_mode} {new_size}',
+                        drive_opts)
 
-        ret = iotests.qemu_io_silent('-f', iotests.imgfmt, '-c', 'write 0 10M',
-                                     '-c',
-                                     f'truncate -m {prealloc_mode} {new_size}',
-                                     refdisk)
-        self.assertEqual(ret, 0)
+        iotests.qemu_io('-f', iotests.imgfmt, '-c', 'write 0 10M',
+                        '-c', f'truncate -m {prealloc_mode} {new_size}',
+                        refdisk)
 
         stat = os.stat(disk)
         refstat = os.stat(refdisk)

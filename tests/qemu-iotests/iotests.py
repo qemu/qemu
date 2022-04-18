@@ -369,22 +369,6 @@ def qemu_io_log(*args: str) -> 'subprocess.CompletedProcess[str]':
     log(result.stdout, filters=[filter_testfiles, filter_qemu_io])
     return result
 
-def qemu_io_silent(*args):
-    '''Run qemu-io and return the exit code, suppressing stdout'''
-    args = qemu_io_wrap_args(args)
-    result = subprocess.run(args, stdout=subprocess.DEVNULL, check=False)
-    if result.returncode < 0:
-        sys.stderr.write('qemu-io received signal %i: %s\n' %
-                         (-result.returncode, ' '.join(args)))
-    return result.returncode
-
-def qemu_io_silent_check(*args):
-    '''Run qemu-io and return the true if subprocess returned 0'''
-    args = qemu_io_wrap_args(args)
-    result = subprocess.run(args, stdout=subprocess.DEVNULL,
-                            stderr=subprocess.STDOUT, check=False)
-    return result.returncode == 0
-
 class QemuIoInteractive:
     def __init__(self, *args):
         self.args = qemu_io_wrap_args(args)
