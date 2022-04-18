@@ -22,8 +22,8 @@
 import iotests
 import json
 import struct
-from iotests import qemu_img_create, qemu_io, qemu_img_info, \
-    file_path, img_info_log, log, filter_qemu_io
+from iotests import qemu_img_create, qemu_io_log, qemu_img_info, \
+    file_path, img_info_log, log
 
 iotests.script_initialize(supported_fmts=['qcow2'],
                           supported_protocols=['file'],
@@ -61,7 +61,7 @@ def add_bitmap(bitmap_number, persistent, disabled):
 
 def write_to_disk(offset, size):
     write = 'write {} {}'.format(offset, size)
-    log(qemu_io('-c', write, disk), filters=[filter_qemu_io])
+    qemu_io_log('-c', write, disk)
 
 
 def toggle_flag(offset):

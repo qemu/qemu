@@ -95,9 +95,7 @@ with iotests.FilePath('src.qcow2') as src_path, \
     iotests.qemu_img_create('-f', iotests.imgfmt, src_path, size_str)
     iotests.qemu_img_create('-f', iotests.imgfmt, dst_path, size_str)
 
-    iotests.log(iotests.qemu_io('-f', iotests.imgfmt, '-c', 'write 0 1M',
-                                src_path),
-                filters=[iotests.filter_test_dir, iotests.filter_qemu_io])
+    iotests.qemu_io_log('-f', iotests.imgfmt, '-c', 'write 0 1M', src_path),
 
     vm.add_object('throttle-group,x-bps-read=4096,id=throttle0')
 
