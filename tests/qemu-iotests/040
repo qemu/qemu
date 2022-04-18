@@ -836,7 +836,8 @@ class TestCommitWithFilters(iotests.QMPTestCase):
                              job_id='commit',
                              device='top-filter',
                              top_node='cow-2',
-                             base_node='cow-1')
+                             base_node='cow-1',
+                             backing_file=self.img1)
         self.assert_qmp(result, 'return', {})
         self.wait_until_completed(drive='commit')
 
@@ -852,7 +853,8 @@ class TestCommitWithFilters(iotests.QMPTestCase):
                              job_id='commit',
                              device='top-filter',
                              top_node='cow-1',
-                             base_node='cow-0')
+                             base_node='cow-0',
+                             backing_file=self.img0)
         self.assert_qmp(result, 'return', {})
         self.wait_until_completed(drive='commit')
 
