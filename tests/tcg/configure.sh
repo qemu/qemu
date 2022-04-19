@@ -261,7 +261,6 @@ for target in $target_list; do
                   if do_compiler "$target_compiler" $target_compiler_cflags \
                                  -o $TMPE $TMPC ; then
                       got_cross_cc=yes
-                      echo "BUILD_STATIC=y" >> $config_target_mak
                       echo "CC=$target_compiler" >> $config_target_mak
                   fi
               else
