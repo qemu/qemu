@@ -303,6 +303,14 @@ In QEMU versions 6.1, 6.2 and 7.0, the ``nvme-ns`` generates an EUI-64
 identifer that is not globally unique. If an EUI-64 identifer is required, the
 user must set it explicitly using the ``nvme-ns`` device parameter ``eui64``.
 
+``-device nvme,use-intel-id=on|off`` (since 7.1)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``nvme`` device originally used a PCI Vendor/Device Identifier combination
+from Intel that was not properly allocated. Since version 5.2, the controller
+has used a properly allocated identifier. Deprecate the ``use-intel-id``
+machine compatibility parameter.
+
 
 Block device options
 ''''''''''''''''''''
