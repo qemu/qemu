@@ -204,7 +204,7 @@ DOCKER_TESTS := $(if $(TESTS), $(filter $(TESTS), $(__TESTS)), $(__TESTS))
 $(foreach i,$(filter-out $(DOCKER_PARTIAL_IMAGES),$(DOCKER_IMAGES)), \
 	$(foreach t,$(DOCKER_TESTS), \
 		$(eval .PHONY: docker-$t@$i) \
-		$(eval docker-$t@$i: docker-image-$i docker-run-$t@$i) \
+		$(eval docker-$t@$i: docker-image-$i; @$(MAKE) docker-run TEST=$t IMAGE=$i) \
 	) \
 	$(foreach t,$(DOCKER_TESTS), \
 		$(eval docker-all-tests: docker-$t@$i) \
@@ -263,7 +263,7 @@ DOCKER_CCACHE_DIR := $$HOME/.cache/qemu-docker-ccache
 
 # This rule if for directly running against an arbitrary docker target.
 # It is called by the expanded docker targets (e.g. make
-# docker-test-foo@bar) which will do additional verification.
+# docker-test-foo@bar) which will also ensure the image is up to date.
 #
 # For example: make docker-run TEST="test-quick" IMAGE="debian:arm64" EXECUTABLE=./aarch64-linux-user/qemu-aarch64
 #
@@ -297,14 +297,6 @@ docker-run: docker-qemu-src
 			$(TEST), "  RUN $(TEST) in ${IMAGE}")
 	$(call quiet-command, rm -r $(DOCKER_SRC_COPY), \
 		"  CLEANUP $(DOCKER_SRC_COPY)")
-
-# Run targets:
-#
-# Of the form docker-TEST-FOO@IMAGE-BAR which will then be expanded into a call to "make docker-run"
-docker-run-%: CMD = $(shell echo '$@' | sed -e 's/docker-run-\([^@]*\)@\(.*\)/\1/')
-docker-run-%: IMAGE = $(shell echo '$@' | sed -e 's/docker-run-\([^@]*\)@\(.*\)/\2/')
-docker-run-%:
-	@$(MAKE) docker-run TEST=$(CMD) IMAGE=qemu/$(IMAGE)
 
 docker-image: ${DOCKER_IMAGES:%=docker-image-%}
 
