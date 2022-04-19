@@ -95,7 +95,6 @@ all:
 
 .PHONY: guest-tests
 
-ifneq ($(GUEST_BUILD),)
 guest-tests: $(GUEST_BUILD)
 
 run-guest-tests: guest-tests
@@ -104,16 +103,6 @@ run-guest-tests: guest-tests
 	 $(MAKE) -f $(TCG_MAKE) TARGET="$(TARGET)" \
 	 		SRC_PATH="$(SRC_PATH)" SPEED=$(SPEED) run), \
 	"RUN", "tests for $(TARGET_NAME)")
-
-else
-guest-tests:
-	$(call quiet-command, true, "BUILD", \
-		"$(TARGET) guest-tests SKIPPED")
-
-run-guest-tests:
-	$(call quiet-command, true, "RUN", \
-		"tests for $(TARGET) SKIPPED")
-endif
 
 # It doesn't matter if these don't exits
 .PHONY: clean-guest-tests
