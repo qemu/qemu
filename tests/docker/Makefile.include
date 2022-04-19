@@ -13,7 +13,6 @@ HOST_ARCH = $(if $(ARCH),$(ARCH),$(shell uname -m))
 TESTS ?= %
 IMAGES ?= %
 
-DOCKER_SUFFIX := .docker
 DOCKER_FILES_DIR := $(SRC_PATH)/tests/docker/dockerfiles
 # we don't run tests on intermediate images (used as base by another image)
 DOCKER_PARTIAL_IMAGES := debian10 debian11
