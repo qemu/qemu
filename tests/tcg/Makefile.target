@@ -30,7 +30,7 @@
 #
 
 all:
--include ../../../config-host.mak
+-include ../config-host.mak
 -include ../config-$(TARGET).mak
 
 # Get semihosting definitions for user-mode emulation
@@ -77,7 +77,6 @@ EXTRA_TESTS=
 
 # Start with a blank slate, the build targets get to add stuff first
 CFLAGS=
-QEMU_CFLAGS=
 LDFLAGS=
 
 QEMU_OPTS=
