@@ -80,6 +80,8 @@ fi
 : ${cross_as_tricore="tricore-as"}
 : ${cross_ld_tricore="tricore-ld"}
 
+makefile=tests/tcg/Makefile.prereqs
+: > $makefile
 for target in $target_list; do
   arch=${target%%-*}
 
@@ -226,14 +228,17 @@ for target in $target_list; do
   echo "target=$target" >> $config_target_mak
   case $target in
     *-softmmu)
-      echo "QEMU=$PWD/qemu-system-$arch" >> $config_target_mak
+      qemu="qemu-system-$arch"
       ;;
     *-linux-user|*-bsd-user)
-      echo "QEMU=$PWD/qemu-$arch" >> $config_target_mak
+      qemu="qemu-$arch"
       ;;
   esac
 
+  echo "run-tcg-tests-$target: $qemu\$(EXESUF)" >> $makefile
+
   eval "target_compiler_cflags=\${cross_cc_cflags_$arch}"
+  echo "QEMU=$PWD/$qemu" >> $config_target_mak
   echo "CROSS_CC_GUEST_CFLAGS=$target_compiler_cflags" >> $config_target_mak
 
   got_cross_cc=no
@@ -329,6 +334,7 @@ for target in $target_list; do
           test -n "$container_image"; then
       for host in $container_hosts; do
           if test "$host" = "$cpu"; then
+              echo "build-tcg-tests-$target: docker-image-$container_image" >> $makefile
               echo "DOCKER_IMAGE=$container_image" >> $config_target_mak
               echo "DOCKER_CROSS_CC_GUEST=$container_cross_cc" >> \
                    $config_target_mak
