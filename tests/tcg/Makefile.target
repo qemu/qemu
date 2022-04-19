@@ -34,7 +34,7 @@ all:
 -include ../config-$(TARGET).mak
 
 # Get semihosting definitions for user-mode emulation
-ifeq ($(CONFIG_USER_ONLY),y)
+ifeq ($(filter %-softmmu, $(TARGET)),)
 -include $(SRC_PATH)/configs/targets/$(TARGET).mak
 endif
 
@@ -44,7 +44,7 @@ COMMA := ,
 quiet-command = $(if $(V),$1,$(if $(2),@printf "  %-7s %s\n" $2 $3 && $1, @$1))
 
 # $1 = test name, $2 = cmd, $3 = desc
-ifdef CONFIG_USER_ONLY
+ifeq ($(filter %-softmmu, $(TARGET)),)
 run-test = $(call quiet-command, timeout --foreground $(TIMEOUT) $2 > $1.out, \
 	"TEST",$3)
 else
@@ -91,7 +91,7 @@ QEMU_OPTS=
 #   90s    with --enable-tcg-interpreter
 TIMEOUT=90
 
-ifdef CONFIG_USER_ONLY
+ifeq ($(filter %-softmmu, $(TARGET)),)
 # The order we include is important. We include multiarch first and
 # then the target. If there are common tests shared between
 # sub-targets (e.g. ARM & AArch64) then it is up to
@@ -153,7 +153,7 @@ extract-plugin = $(wordlist 2, 2, $(subst -with-, ,$1))
 
 RUN_TESTS+=$(EXTRA_RUNS)
 
-ifdef CONFIG_USER_ONLY
+ifeq ($(filter %-softmmu, $(TARGET)),)
 run-%: %
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<, "$< on $(TARGET_NAME)")
 

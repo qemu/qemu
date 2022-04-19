@@ -225,17 +225,11 @@ for target in $target_list; do
   echo "TARGET_NAME=$arch" >> $config_target_mak
   echo "target=$target" >> $config_target_mak
   case $target in
-    *-linux-user)
-      echo "CONFIG_USER_ONLY=y" >> $config_target_mak
-      echo "QEMU=$PWD/qemu-$arch" >> $config_target_mak
-      ;;
-    *-bsd-user)
-      echo "CONFIG_USER_ONLY=y" >> $config_target_mak
-      echo "QEMU=$PWD/qemu-$arch" >> $config_target_mak
-      ;;
     *-softmmu)
-      echo "CONFIG_SOFTMMU=y" >> $config_target_mak
       echo "QEMU=$PWD/qemu-system-$arch" >> $config_target_mak
+      ;;
+    *-linux-user|*-bsd-user)
+      echo "QEMU=$PWD/qemu-$arch" >> $config_target_mak
       ;;
   esac
 
