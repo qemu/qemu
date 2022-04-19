@@ -187,4 +187,5 @@ gdb-%: %
 .PHONY: run
 run: $(RUN_TESTS)
 
-# There is no clean target, the calling make just rm's the tests build dir
+clean:
+	rm -f $(TESTS) *.o
