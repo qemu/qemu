@@ -212,9 +212,9 @@ hwaddr riscv_load_initrd(const char *filename, uint64_t mem_size,
     return *start + size;
 }
 
-uint32_t riscv_load_fdt(hwaddr dram_base, uint64_t mem_size, void *fdt)
+uint64_t riscv_load_fdt(hwaddr dram_base, uint64_t mem_size, void *fdt)
 {
-    uint32_t temp, fdt_addr;
+    uint64_t temp, fdt_addr;
     hwaddr dram_end = dram_base + mem_size;
     int ret, fdtsize = fdt_totalsize(fdt);
 
@@ -229,7 +229,7 @@ uint32_t riscv_load_fdt(hwaddr dram_base, uint64_t mem_size, void *fdt)
      * Thus, put it at an 16MB aligned address that less than fdt size from the
      * end of dram or 3GB whichever is lesser.
      */
-    temp = MIN(dram_end, 3072 * MiB);
+    temp = (dram_base < 3072 * MiB) ? MIN(dram_end, 3072 * MiB) : dram_end;
     fdt_addr = QEMU_ALIGN_DOWN(temp - fdtsize, 16 * MiB);
 
     ret = fdt_pack(fdt);
@@ -285,13 +285,15 @@ void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState *harts
                                hwaddr start_addr,
                                hwaddr rom_base, hwaddr rom_size,
                                uint64_t kernel_entry,
-                               uint32_t fdt_load_addr, void *fdt)
+                               uint64_t fdt_load_addr, void *fdt)
 {
     int i;
     uint32_t start_addr_hi32 = 0x00000000;
+    uint32_t fdt_load_addr_hi32 = 0x00000000;
 
     if (!riscv_is_32bit(harts)) {
         start_addr_hi32 = start_addr >> 32;
+        fdt_load_addr_hi32 = fdt_load_addr >> 32;
     }
     /* reset vector */
     uint32_t reset_vec[10] = {
@@ -304,7 +306,7 @@ void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState *harts
         start_addr,                  /* start: .dword */
         start_addr_hi32,
         fdt_load_addr,               /* fdt_laddr: .dword */
-        0x00000000,
+        fdt_load_addr_hi32,
                                      /* fw_dyn: */
     };
     if (riscv_is_32bit(harts)) {
