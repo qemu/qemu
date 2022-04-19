@@ -227,12 +227,10 @@ for target in $target_list; do
   case $target in
     *-linux-user)
       echo "CONFIG_USER_ONLY=y" >> $config_target_mak
-      echo "CONFIG_LINUX_USER=y" >> $config_target_mak
       echo "QEMU=$PWD/qemu-$arch" >> $config_target_mak
       ;;
     *-bsd-user)
       echo "CONFIG_USER_ONLY=y" >> $config_target_mak
-      echo "CONFIG_BSD_USER=y" >> $config_target_mak
       echo "QEMU=$PWD/qemu-$arch" >> $config_target_mak
       ;;
     *-softmmu)
