@@ -6,8 +6,7 @@ into our testing infrastructure. You will need to understand some of
 the basics if you are adding new files and targets to the build.
 
 .. toctree::
-   :maxdepth: 2
-   :includehidden:
+   :maxdepth: 3
 
    build-system
    kconfig

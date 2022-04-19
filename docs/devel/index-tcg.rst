@@ -7,7 +7,6 @@ are only implementing things for HW accelerated hypervisors.
 
 .. toctree::
    :maxdepth: 2
-   :includehidden:
 
    tcg
    decodetree
