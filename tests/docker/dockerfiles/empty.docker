@@ -1,8 +1,0 @@
-#
-# Empty Dockerfile
-#
-
-FROM scratch
-
-# Add everything from the context into the container
-ADD . /
