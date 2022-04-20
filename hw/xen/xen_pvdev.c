@@ -196,37 +196,40 @@ const char *xenbus_strstate(enum xenbus_state state)
  *  2 == noisy debug messages (logfile only).
  *  3 == will flood your log (logfile only).
  */
+static void xen_pv_output_msg(struct XenLegacyDevice *xendev,
+                              FILE *f, const char *fmt, va_list args)
+{
+    if (xendev) {
+        fprintf(f, "xen be: %s: ", xendev->name);
+    } else {
+        fprintf(f, "xen be core: ");
+    }
+    vfprintf(f, fmt, args);
+}
+
 void xen_pv_printf(struct XenLegacyDevice *xendev, int msg_level,
                    const char *fmt, ...)
 {
+    FILE *logfile;
     va_list args;
 
-    if (xendev) {
-        if (msg_level > xendev->debug) {
-            return;
-        }
-        qemu_log("xen be: %s: ", xendev->name);
-        if (msg_level == 0) {
-            fprintf(stderr, "xen be: %s: ", xendev->name);
-        }
-    } else {
-        if (msg_level > debug) {
-            return;
-        }
-        qemu_log("xen be core: ");
-        if (msg_level == 0) {
-            fprintf(stderr, "xen be core: ");
-        }
+    if (msg_level > (xendev ? xendev->debug : debug)) {
+        return;
     }
-    va_start(args, fmt);
-    qemu_log_vprintf(fmt, args);
-    va_end(args);
+
+    logfile = qemu_log_trylock();
+    if (logfile) {
+        va_start(args, fmt);
+        xen_pv_output_msg(xendev, logfile, fmt, args);
+        va_end(args);
+        qemu_log_unlock(logfile);
+    }
+
     if (msg_level == 0) {
         va_start(args, fmt);
-        vfprintf(stderr, fmt, args);
+        xen_pv_output_msg(xendev, stderr, fmt, args);
         va_end(args);
     }
-    qemu_log_flush();
 }
 
 void xen_pv_evtchn_event(void *opaque)

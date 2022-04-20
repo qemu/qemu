@@ -26,153 +26,290 @@
 #include "trace/control.h"
 #include "qemu/thread.h"
 #include "qemu/lockable.h"
+#include "qemu/rcu.h"
+#ifdef CONFIG_LINUX
+#include <sys/syscall.h>
+#endif
 
-static char *logfilename;
-static QemuMutex qemu_logfile_mutex;
-QemuLogFile *qemu_logfile;
+
+typedef struct RCUCloseFILE {
+    struct rcu_head rcu;
+    FILE *fd;
+} RCUCloseFILE;
+
+/* Mutex covering the other global_* variables. */
+static QemuMutex global_mutex;
+static char *global_filename;
+static FILE *global_file;
+static __thread FILE *thread_file;
+
 int qemu_loglevel;
-static int log_append = 0;
+static bool log_append;
+static bool log_per_thread;
 static GArray *debug_regions;
 
-/* Return the number of characters emitted.  */
-int qemu_log(const char *fmt, ...)
+/* Returns true if qemu_log() will really write somewhere. */
+bool qemu_log_enabled(void)
 {
-    int ret = 0;
-    QemuLogFile *logfile;
+    return log_per_thread || qatomic_read(&global_file) != NULL;
+}
 
-    rcu_read_lock();
-    logfile = qatomic_rcu_read(&qemu_logfile);
-    if (logfile) {
-        va_list ap;
-        va_start(ap, fmt);
-        ret = vfprintf(logfile->fd, fmt, ap);
-        va_end(ap);
+/* Returns true if qemu_log() will write somewhere other than stderr. */
+bool qemu_log_separate(void)
+{
+    if (log_per_thread) {
+        return true;
+    } else {
+        FILE *logfile = qatomic_read(&global_file);
+        return logfile && logfile != stderr;
+    }
+}
 
-        /* Don't pass back error results.  */
-        if (ret < 0) {
-            ret = 0;
+static int log_thread_id(void)
+{
+#ifdef CONFIG_GETTID
+    return gettid();
+#elif defined(SYS_gettid)
+    return syscall(SYS_gettid);
+#else
+    static int counter;
+    return qatomic_fetch_inc(&counter);
+#endif
+}
+
+/* Lock/unlock output. */
+
+FILE *qemu_log_trylock(void)
+{
+    FILE *logfile;
+
+    logfile = thread_file;
+    if (!logfile) {
+        if (log_per_thread) {
+            g_autofree char *filename
+                = g_strdup_printf(global_filename, log_thread_id());
+            logfile = fopen(filename, "w");
+            if (!logfile) {
+                return NULL;
+            }
+            thread_file = logfile;
+        } else {
+            rcu_read_lock();
+            /*
+             * FIXME: typeof_strip_qual, as used by qatomic_rcu_read,
+             * does not work with pointers to undefined structures,
+             * such as we have with struct _IO_FILE and musl libc.
+             * Since all we want is a read of a pointer, cast to void**,
+             * which does work with typeof_strip_qual.
+             */
+            logfile = qatomic_rcu_read((void **)&global_file);
+            if (!logfile) {
+                rcu_read_unlock();
+                return NULL;
+            }
         }
     }
-    rcu_read_unlock();
-    return ret;
+
+    qemu_flockfile(logfile);
+    return logfile;
 }
 
-static void __attribute__((__constructor__)) qemu_logfile_init(void)
+void qemu_log_unlock(FILE *logfile)
 {
-    qemu_mutex_init(&qemu_logfile_mutex);
-}
-
-static void qemu_logfile_free(QemuLogFile *logfile)
-{
-    g_assert(logfile);
-
-    if (logfile->fd != stderr) {
-        fclose(logfile->fd);
+    if (logfile) {
+        fflush(logfile);
+        qemu_funlockfile(logfile);
+        if (!log_per_thread) {
+            rcu_read_unlock();
+        }
     }
-    g_free(logfile);
 }
 
-static bool log_uses_own_buffers;
+void qemu_log(const char *fmt, ...)
+{
+    FILE *f = qemu_log_trylock();
+    if (f) {
+        va_list ap;
+
+        va_start(ap, fmt);
+        vfprintf(f, fmt, ap);
+        va_end(ap);
+        qemu_log_unlock(f);
+    }
+}
+
+static void __attribute__((__constructor__)) startup(void)
+{
+    qemu_mutex_init(&global_mutex);
+}
+
+static void rcu_close_file(RCUCloseFILE *r)
+{
+    fclose(r->fd);
+    g_free(r);
+}
+
+/**
+ * valid_filename_template:
+ *
+ * Validate the filename template.  Require %d if per_thread, allow it
+ * otherwise; require no other % within the template.
+ */
+
+typedef enum {
+    vft_error,
+    vft_stderr,
+    vft_strdup,
+    vft_pid_printf,
+} ValidFilenameTemplateResult;
+
+static ValidFilenameTemplateResult
+valid_filename_template(const char *filename, bool per_thread, Error **errp)
+{
+    if (filename) {
+        char *pidstr = strstr(filename, "%");
+
+        if (pidstr) {
+            /* We only accept one %d, no other format strings */
+            if (pidstr[1] != 'd' || strchr(pidstr + 2, '%')) {
+                error_setg(errp, "Bad logfile template: %s", filename);
+                return 0;
+            }
+            return per_thread ? vft_strdup : vft_pid_printf;
+        }
+    }
+    if (per_thread) {
+        error_setg(errp, "Filename template with '%%d' required for 'tid'");
+        return vft_error;
+    }
+    return filename ? vft_strdup : vft_stderr;
+}
 
 /* enable or disable low levels log */
-void qemu_set_log(int log_flags)
+static bool qemu_set_log_internal(const char *filename, bool changed_name,
+                                  int log_flags, Error **errp)
 {
-    bool need_to_open_file = false;
-    QemuLogFile *logfile;
+    bool need_to_open_file;
+    bool daemonized;
+    bool per_thread;
+    FILE *logfile;
 
-    qemu_loglevel = log_flags;
+    QEMU_LOCK_GUARD(&global_mutex);
+    logfile = global_file;
+
+    per_thread = log_flags & LOG_PER_THREAD;
+
+    if (changed_name) {
+        char *newname = NULL;
+
+        /*
+         * Once threads start opening their own log files, we have no
+         * easy mechanism to tell them all to close and re-open.
+         * There seems little cause to do so either -- this option
+         * will most often be used at user-only startup.
+         */
+        if (log_per_thread) {
+            error_setg(errp, "Cannot change log filename after setting 'tid'");
+            return false;
+        }
+
+        switch (valid_filename_template(filename, per_thread, errp)) {
+        case vft_error:
+            return false;
+        case vft_stderr:
+            break;
+        case vft_strdup:
+            newname = g_strdup(filename);
+            break;
+        case vft_pid_printf:
+            newname = g_strdup_printf(filename, getpid());
+            break;
+        }
+
+        g_free(global_filename);
+        global_filename = newname;
+        filename = newname;
+    } else {
+        filename = global_filename;
+        if (per_thread &&
+            valid_filename_template(filename, true, errp) == vft_error) {
+            return false;
+        }
+    }
+
+    /* Once the per-thread flag is set, it cannot be unset. */
+    if (per_thread) {
+        log_per_thread = true;
+    }
+    /* The flag itself is not relevant for need_to_open_file. */
+    log_flags &= ~LOG_PER_THREAD;
 #ifdef CONFIG_TRACE_LOG
-    qemu_loglevel |= LOG_TRACE;
+    log_flags |= LOG_TRACE;
 #endif
+    qemu_loglevel = log_flags;
+
     /*
      * In all cases we only log if qemu_loglevel is set.
      * Also:
+     *   If per-thread, open the file for each thread in qemu_log_lock.
      *   If not daemonized we will always log either to stderr
-     *     or to a file (if there is a logfilename).
-     *   If we are daemonized,
-     *     we will only log if there is a logfilename.
+     *     or to a file (if there is a filename).
+     *   If we are daemonized, we will only log if there is a filename.
      */
-    if (qemu_loglevel && (!is_daemonized() || logfilename)) {
-        need_to_open_file = true;
+    daemonized = is_daemonized();
+    need_to_open_file = log_flags && !per_thread && (!daemonized || filename);
+
+    if (logfile && (!need_to_open_file || changed_name)) {
+        qatomic_rcu_set(&global_file, NULL);
+        if (logfile != stderr) {
+            RCUCloseFILE *r = g_new0(RCUCloseFILE, 1);
+            r->fd = logfile;
+            call_rcu(r, rcu_close_file, rcu);
+        }
+        logfile = NULL;
     }
-    QEMU_LOCK_GUARD(&qemu_logfile_mutex);
-    if (qemu_logfile && !need_to_open_file) {
-        logfile = qemu_logfile;
-        qatomic_rcu_set(&qemu_logfile, NULL);
-        call_rcu(logfile, qemu_logfile_free, rcu);
-    } else if (!qemu_logfile && need_to_open_file) {
-        logfile = g_new0(QemuLogFile, 1);
-        if (logfilename) {
-            logfile->fd = fopen(logfilename, log_append ? "a" : "w");
-            if (!logfile->fd) {
-                g_free(logfile);
-                perror(logfilename);
-                _exit(1);
+
+    if (!logfile && need_to_open_file) {
+        if (filename) {
+            logfile = fopen(filename, log_append ? "a" : "w");
+            if (!logfile) {
+                error_setg_errno(errp, errno, "Error opening logfile %s",
+                                 filename);
+                return false;
             }
             /* In case we are a daemon redirect stderr to logfile */
-            if (is_daemonized()) {
-                dup2(fileno(logfile->fd), STDERR_FILENO);
-                fclose(logfile->fd);
-                /* This will skip closing logfile in qemu_log_close() */
-                logfile->fd = stderr;
+            if (daemonized) {
+                dup2(fileno(logfile), STDERR_FILENO);
+                fclose(logfile);
+                /* This will skip closing logfile in rcu_close_file. */
+                logfile = stderr;
             }
         } else {
             /* Default to stderr if no log file specified */
-            assert(!is_daemonized());
-            logfile->fd = stderr;
+            assert(!daemonized);
+            logfile = stderr;
         }
-        /* must avoid mmap() usage of glibc by setting a buffer "by hand" */
-        if (log_uses_own_buffers) {
-            static char logfile_buf[4096];
 
-            setvbuf(logfile->fd, logfile_buf, _IOLBF, sizeof(logfile_buf));
-        } else {
-#if defined(_WIN32)
-            /* Win32 doesn't support line-buffering, so use unbuffered output. */
-            setvbuf(logfile->fd, NULL, _IONBF, 0);
-#else
-            setvbuf(logfile->fd, NULL, _IOLBF, 0);
-#endif
-            log_append = 1;
-        }
-        qatomic_rcu_set(&qemu_logfile, logfile);
+        log_append = 1;
+
+        qatomic_rcu_set(&global_file, logfile);
     }
+    return true;
 }
 
-void qemu_log_needs_buffers(void)
+bool qemu_set_log(int log_flags, Error **errp)
 {
-    log_uses_own_buffers = true;
+    return qemu_set_log_internal(NULL, false, log_flags, errp);
 }
 
-/*
- * Allow the user to include %d in their logfile which will be
- * substituted with the current PID. This is useful for debugging many
- * nested linux-user tasks but will result in lots of logs.
- *
- * filename may be NULL. In that case, log output is sent to stderr
- */
-void qemu_set_log_filename(const char *filename, Error **errp)
+bool qemu_set_log_filename(const char *filename, Error **errp)
 {
-    g_free(logfilename);
-    logfilename = NULL;
+    return qemu_set_log_internal(filename, true, qemu_loglevel, errp);
+}
 
-    if (filename) {
-            char *pidstr = strstr(filename, "%");
-            if (pidstr) {
-                /* We only accept one %d, no other format strings */
-                if (pidstr[1] != 'd' || strchr(pidstr + 2, '%')) {
-                    error_setg(errp, "Bad logfile format: %s", filename);
-                    return;
-                } else {
-                    logfilename = g_strdup_printf(filename, getpid());
-                }
-            } else {
-                logfilename = g_strdup(filename);
-            }
-    }
-
-    qemu_log_close();
-    qemu_set_log(qemu_loglevel);
+bool qemu_set_log_filename_flags(const char *name, int flags, Error **errp)
+{
+    return qemu_set_log_internal(name, true, flags, errp);
 }
 
 /* Returns true if addr is in our debug filter or no filter defined
@@ -266,34 +403,6 @@ out:
     g_strfreev(ranges);
 }
 
-/* fflush() the log file */
-void qemu_log_flush(void)
-{
-    QemuLogFile *logfile;
-
-    rcu_read_lock();
-    logfile = qatomic_rcu_read(&qemu_logfile);
-    if (logfile) {
-        fflush(logfile->fd);
-    }
-    rcu_read_unlock();
-}
-
-/* Close the log file */
-void qemu_log_close(void)
-{
-    QemuLogFile *logfile;
-
-    qemu_mutex_lock(&qemu_logfile_mutex);
-    logfile = qemu_logfile;
-
-    if (logfile) {
-        qatomic_rcu_set(&qemu_logfile, NULL);
-        call_rcu(logfile, qemu_logfile_free, rcu);
-    }
-    qemu_mutex_unlock(&qemu_logfile_mutex);
-}
-
 const QEMULogItem qemu_log_items[] = {
     { CPU_LOG_TB_OUT_ASM, "out_asm",
       "show generated host assembly code for each compiled TB" },
@@ -334,6 +443,8 @@ const QEMULogItem qemu_log_items[] = {
 #endif
     { LOG_STRACE, "strace",
       "log every user-mode syscall, its input, and its result" },
+    { LOG_PER_THREAD, "tid",
+      "open a separate log file per thread; filename must contain '%d'" },
     { 0, NULL, NULL },
 };
 
