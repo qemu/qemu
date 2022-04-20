@@ -183,9 +183,13 @@ static void print_loc(void)
 static char *
 real_time_iso8601(void)
 {
-#if GLIB_CHECK_VERSION(2, 62, 0)
+#if GLIB_CHECK_VERSION(2,62,0)
     g_autoptr(GDateTime) dt = g_date_time_new_from_unix_utc(g_get_real_time());
+    /* ignore deprecation warning, since GLIB_VERSION_MAX_ALLOWED is 2.56 */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     return g_date_time_format_iso8601(dt);
+#pragma GCC diagnostic pop
 #else
     GTimeVal tv;
     g_get_current_time(&tv);

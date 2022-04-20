@@ -145,16 +145,6 @@ qemu_g_test_slow(void)
 #define g_test_thorough() qemu_g_test_slow()
 #define g_test_quick() (!qemu_g_test_slow())
 
-#if GLIB_CHECK_VERSION(2,62,0)
-static inline gchar *
-g_date_time_format_iso8601_compat(GDateTime *datetime)
-{
-    return g_date_time_format_iso8601(datetime);
-}
-
-#define g_date_time_format_iso8601 g_date_time_format_iso8601_compat
-#endif
-
 #pragma GCC diagnostic pop
 
 #endif
