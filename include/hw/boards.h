@@ -380,6 +380,9 @@ struct MachineState {
     } \
     type_init(machine_initfn##_register_types)
 
+extern GlobalProperty hw_compat_7_0[];
+extern const size_t hw_compat_7_0_len;
+
 extern GlobalProperty hw_compat_6_2[];
 extern const size_t hw_compat_6_2_len;
 

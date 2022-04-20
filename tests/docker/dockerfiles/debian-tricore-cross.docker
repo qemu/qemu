@@ -25,7 +25,6 @@ RUN apt update && \
        git \
        libglib2.0-dev \
        libpixman-1-dev \
-       libtest-harness-perl \
        locales \
        make \
        ninja-build \

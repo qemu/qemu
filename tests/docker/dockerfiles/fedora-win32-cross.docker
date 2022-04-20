@@ -31,7 +31,6 @@ ENV PACKAGES \
     mingw32-SDL2 \
     msitools \
     perl \
-    perl-Test-Harness \
     python3 \
     python3-PyYAML \
     tar \

@@ -81,7 +81,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             libssh-dev \
             libsystemd-dev \
             libtasn1-6-dev \
-            libtest-harness-perl \
             libubsan1 \
             libudev-dev \
             libusb-1.0-0-dev \

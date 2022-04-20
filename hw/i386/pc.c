@@ -95,6 +95,9 @@
 #include "trace.h"
 #include CONFIG_DEVICES
 
+GlobalProperty pc_compat_7_0[] = {};
+const size_t pc_compat_7_0_len = G_N_ELEMENTS(pc_compat_7_0);
+
 GlobalProperty pc_compat_6_2[] = {
     { "virtio-mem", "unplugged-inaccessible", "off" },
 };

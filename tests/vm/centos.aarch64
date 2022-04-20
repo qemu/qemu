@@ -24,8 +24,7 @@ DEFAULT_CONFIG = {
     'cpu'          : "max",
     'machine'      : "virt,gic-version=max",
     'install_cmds' : "yum install -y make ninja-build git python3 gcc gcc-c++ flex bison, "\
-        "yum install -y glib2-devel pixman-devel zlib-devel, "\
-        "yum install -y perl-Test-Harness, "\
+        "yum install -y glib2-devel perl pixman-devel zlib-devel, "\
         "alternatives --set python /usr/bin/python3, "\
         "sudo dnf config-manager "\
         "--add-repo=https://download.docker.com/linux/centos/docker-ce.repo,"\

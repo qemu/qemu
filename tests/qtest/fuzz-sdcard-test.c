@@ -164,15 +164,11 @@ static void oss_fuzz_36391(void)
 
 int main(int argc, char **argv)
 {
-    const char *arch = qtest_get_arch();
-
     g_test_init(&argc, &argv, NULL);
 
-   if (strcmp(arch, "i386") == 0) {
-        qtest_add_func("fuzz/sdcard/oss_fuzz_29225", oss_fuzz_29225);
-        qtest_add_func("fuzz/sdcard/oss_fuzz_36217", oss_fuzz_36217);
-        qtest_add_func("fuzz/sdcard/oss_fuzz_36391", oss_fuzz_36391);
-   }
+    qtest_add_func("fuzz/sdcard/oss_fuzz_29225", oss_fuzz_29225);
+    qtest_add_func("fuzz/sdcard/oss_fuzz_36217", oss_fuzz_36217);
+    qtest_add_func("fuzz/sdcard/oss_fuzz_36391", oss_fuzz_36391);
 
-   return g_test_run();
+    return g_test_run();
 }
