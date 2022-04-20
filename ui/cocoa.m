@@ -27,7 +27,7 @@
 #import <Cocoa/Cocoa.h>
 #include <crt_externs.h>
 
-#include "qemu-common.h"
+#include "qemu/help-texts.h"
 #include "qemu-main.h"
 #include "ui/clipboard.h"
 #include "ui/console.h"
