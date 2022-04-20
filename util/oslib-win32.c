@@ -235,7 +235,7 @@ int qemu_get_thread_id(void)
 }
 
 char *
-qemu_get_local_state_pathname(const char *relative_pathname)
+qemu_get_local_state_dir(void)
 {
     HRESULT result;
     char base_path[MAX_PATH+1] = "";
@@ -247,8 +247,7 @@ qemu_get_local_state_pathname(const char *relative_pathname)
         g_critical("CSIDL_COMMON_APPDATA unavailable: %ld", (long)result);
         abort();
     }
-    return g_strdup_printf("%s" G_DIR_SEPARATOR_S "%s", base_path,
-                           relative_pathname);
+    return g_strdup(base_path);
 }
 
 void qemu_set_tty_echo(int fd, bool echo)

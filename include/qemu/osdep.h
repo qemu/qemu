@@ -556,16 +556,13 @@ void qemu_set_cloexec(int fd);
 void fips_set_state(bool requested);
 bool fips_get_state(void);
 
-/* Return a dynamically allocated pathname denoting a file or directory that is
- * appropriate for storing local state.
- *
- * @relative_pathname need not start with a directory separator; one will be
- * added automatically.
+/* Return a dynamically allocated directory path that is appropriate for storing
+ * local state.
  *
  * The caller is responsible for releasing the value returned with g_free()
  * after use.
  */
-char *qemu_get_local_state_pathname(const char *relative_pathname);
+char *qemu_get_local_state_dir(void);
 
 /* Find program directory, and save it for later usage with
  * qemu_get_exec_dir().
