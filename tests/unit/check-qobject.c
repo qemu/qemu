@@ -15,6 +15,7 @@
 #include "qapi/qmp/qnull.h"
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
+#include "block/qdict.h"
 
 #include <math.h>
 
