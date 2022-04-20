@@ -33,6 +33,8 @@ SKIP_OPTIONS = {
 }
 
 OPTION_NAMES = {
+    "b_coverage": "gcov",
+    "b_lto": "lto",
     "malloc": "enable-malloc",
     "pkgversion": "with-pkgversion",
     "qemu_firmwarepath": "firmwarepath",
@@ -41,6 +43,8 @@ OPTION_NAMES = {
 }
 
 BUILTIN_OPTIONS = {
+    "b_coverage",
+    "b_lto",
     "datadir",
     "includedir",
     "libdir",

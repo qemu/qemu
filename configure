@@ -235,7 +235,6 @@ static="no"
 cross_compile="no"
 cross_prefix=""
 host_cc="cc"
-lto="false"
 stack_protector=""
 safe_stack=""
 use_containers="yes"
@@ -291,13 +290,10 @@ vhost_vsock="$default_feature"
 vhost_user="no"
 vhost_user_fs="$default_feature"
 vhost_vdpa="$default_feature"
-debug_info="yes"
 debug_tcg="no"
-debug="no"
 sanitizers="no"
 tsan="no"
 fortify_source="yes"
-gcov="no"
 EXESUF=""
 modules="no"
 prefix="/usr/local"
@@ -327,10 +323,7 @@ else
 fi
 fdt="auto"
 
-# 2. Support --with/--without option
-default_devices="true"
-
-# 3. Automatically enable/disable other options
+# 2. Automatically enable/disable other options
 tcg="enabled"
 cfi="false"
 
@@ -680,6 +673,9 @@ werror=""
 . $source_path/scripts/meson-buildoptions.sh
 
 meson_options=
+meson_option_add() {
+  meson_options="$meson_options $(quote_sh "$1")"
+}
 meson_option_parse() {
   meson_options="$meson_options $(_meson_option_parse "$@")"
   if test $? -eq 1; then
@@ -732,9 +728,9 @@ for opt do
   ;;
   --cross-cc-*)
   ;;
-  --enable-debug-info) debug_info="yes"
+  --enable-debug-info) meson_option_add -Ddebug=true
   ;;
-  --disable-debug-info) debug_info="no"
+  --disable-debug-info) meson_option_add -Ddebug=false
   ;;
   --enable-modules)
       modules="yes"
@@ -754,9 +750,9 @@ for opt do
                        error_exit "Can't mix --target-list-exclude with --target-list"
                    fi
   ;;
-  --with-default-devices) default_devices="true"
+  --with-default-devices) meson_option_add -Ddefault_devices=true
   ;;
-  --without-default-devices) default_devices="false"
+  --without-default-devices) meson_option_add -Ddefault_devices=false
   ;;
   --with-devices-*[!a-zA-Z0-9_-]*=*) error_exit "Passed bad --with-devices-FOO option"
   ;;
@@ -771,8 +767,6 @@ for opt do
                     fi
   ;;
   --without-default-features) # processed above
-  ;;
-  --enable-gcov) gcov="yes"
   ;;
   --static)
     static="yes"
@@ -800,7 +794,7 @@ for opt do
       # Enable debugging options that aren't excessively noisy
       debug_tcg="yes"
       meson_option_parse --enable-debug-mutex ""
-      debug="yes"
+      meson_option_add -Doptimization=0
       fortify_source="no"
   ;;
   --enable-sanitizers) sanitizers="yes"
@@ -849,10 +843,6 @@ for opt do
   ;;
   --disable-werror) werror="no"
   ;;
-  --enable-lto) lto="true"
-  ;;
-  --disable-lto) lto="false"
-  ;;
   --enable-stack-protector) stack_protector="yes"
   ;;
   --disable-stack-protector) stack_protector="no"
@@ -863,7 +853,7 @@ for opt do
   ;;
   --enable-cfi)
       cfi="true";
-      lto="true";
+      meson_option_add -Db_lto=true
   ;;
   --disable-cfi) cfi="false"
   ;;
@@ -1101,7 +1091,6 @@ Advanced options (experts only):
   --cpu=CPU                Build for host CPU [$cpu]
   --with-coroutine=BACKEND coroutine backend. Supported options:
                            ucontext, sigaltstack, windows
-  --enable-gcov            enable test coverage analysis with gcov
   --enable-plugins
                            enable plugins via shared library loading
   --disable-containers     don't use containers for cross-building
@@ -1117,7 +1106,6 @@ cat << EOF
   modules         modules support (non-Windows)
   debug-tcg       TCG debugging (default is disabled)
   debug-info      debugging information
-  lto             Enable Link-Time Optimization.
   safe-stack      SafeStack Stack Smash Protection. Depends on
                   clang/llvm >= 3.7 and requires coroutine backend ucontext.
   vhost-net       vhost-net kernel acceleration support
@@ -1938,7 +1926,6 @@ write_c_skeleton
 
 if test "$fortify_source" = "yes" ; then
   QEMU_CFLAGS="-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 $QEMU_CFLAGS"
-  debug=no
 fi
 
 case "$ARCH" in
@@ -2367,15 +2354,11 @@ if test "$skip_meson" = no; then
     NINJA=$ninja $meson setup \
         --prefix "$prefix" \
         --bindir "$bindir" \
-        -Ddefault_devices=$default_devices \
         -Dqemu_suffix="$qemu_suffix" \
         -Dsmbd="$smbd" \
-        -Doptimization=$(if test "$debug" = yes; then echo 0; else echo 2; fi) \
-        -Ddebug=$(if test "$debug_info" = yes; then echo true; else echo false; fi) \
         -Dwerror=$(if test "$werror" = yes; then echo true; else echo false; fi) \
         -Db_pie=$(if test "$pie" = yes; then echo true; else echo false; fi) \
-        -Db_coverage=$(if test "$gcov" = yes; then echo true; else echo false; fi) \
-        -Db_lto=$lto -Dcfi=$cfi -Dtcg=$tcg \
+        -Dcfi=$cfi -Dtcg=$tcg \
         -Dcapstone=$capstone -Dfdt=$fdt -Dslirp=$slirp \
         $(test -n "${LIB_FUZZING_ENGINE+xxx}" && echo "-Dfuzzing_engine=$LIB_FUZZING_ENGINE") \
         $(if test "$default_feature" = no; then echo "-Dauto_features=disabled"; fi) \
