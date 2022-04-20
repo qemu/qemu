@@ -74,14 +74,13 @@ if dbus_display
   dbus_display1 = custom_target('dbus-display gdbus-codegen',
                                 output: ['dbus-display1.h', 'dbus-display1.c'],
                                 input: files('dbus-display1.xml'),
-                                command: [config_host['GDBUS_CODEGEN'],
-                                          '@INPUT@',
+                                command: [gdbus_codegen, '@INPUT@',
                                           '--glib-min-required', '2.64',
                                           '--output-directory', meson.current_build_dir(),
                                           '--interface-prefix', 'org.qemu.',
                                           '--c-namespace', 'QemuDBus',
                                           '--generate-c-code', '@BASENAME@'])
-  dbus_ss.add(when: [gio, pixman, opengl, 'CONFIG_GIO'],
+  dbus_ss.add(when: [gio, pixman, opengl],
               if_true: [files(
                 'dbus-chardev.c',
                 'dbus-clipboard.c',
@@ -128,7 +127,7 @@ if spice.found()
   ui_modules += {'spice-core' : spice_core_ss}
 endif
 
-if spice.found() and config_host.has_key('CONFIG_GIO')
+if spice.found() and gio.found()
   spice_ss = ss.source_set()
   spice_ss.add(spice, gio, pixman, files('spice-app.c'))
   ui_modules += {'spice-app': spice_ss}
