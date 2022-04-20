@@ -1628,6 +1628,14 @@ config_host_data.set_quoted('CONFIG_QEMU_LOCALSTATEDIR', get_option('prefix') / 
 config_host_data.set_quoted('CONFIG_QEMU_MODDIR', get_option('prefix') / qemu_moddir)
 config_host_data.set_quoted('CONFIG_SYSCONFDIR', get_option('prefix') / get_option('sysconfdir'))
 
+if config_host.has_key('CONFIG_MODULES')
+  config_host_data.set('CONFIG_STAMP', run_command(
+      meson.current_source_dir() / 'scripts/qemu-stamp.py',
+      meson.project_version(), get_option('pkgversion'), '--',
+      meson.current_source_dir() / 'configure',
+      capture: true, check: true).stdout().strip())
+endif
+
 have_slirp_smbd = get_option('slirp_smbd') \
   .require(targetos != 'windows', error_message: 'Host smbd not supported on this platform.') \
   .allowed()
@@ -2799,7 +2807,7 @@ tracetool_depends = files(
 
 qemu_version_cmd = [find_program('scripts/qemu-version.sh'),
                     meson.current_source_dir(),
-                    config_host['PKGVERSION'], meson.project_version()]
+                    get_option('pkgversion'), meson.project_version()]
 qemu_version = custom_target('qemu-version.h',
                              output: 'qemu-version.h',
                              command: qemu_version_cmd,

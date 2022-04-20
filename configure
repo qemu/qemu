@@ -306,7 +306,6 @@ qemu_suffix="qemu"
 softmmu="yes"
 linux_user=""
 bsd_user=""
-pkgversion=""
 pie=""
 coroutine=""
 plugins="$default_feature"
@@ -897,8 +896,6 @@ for opt do
   ;;
   --enable-fdt=*) fdt="$optarg"
   ;;
-  --with-pkgversion=*) pkgversion="$optarg"
-  ;;
   --with-coroutine=*) coroutine="$optarg"
   ;;
   --disable-vhost-net) vhost_net="no"
@@ -1136,7 +1133,6 @@ Advanced options (experts only):
   --firmwarepath=PATH      search PATH for firmware files
   --efi-aarch64=PATH       PATH of efi file to use for aarch64 VMs.
   --with-suffix=SUFFIX     suffix for QEMU data inside datadir/libdir/sysconfdir/docdir [$qemu_suffix]
-  --with-pkgversion=VERS   use specified string as sub-version of the package
   --without-default-features default all --enable-* options to "disabled"
   --without-default-devices  do not include any device that is not needed to
                            start the emulator (only use if you are including
@@ -1724,21 +1720,6 @@ if ! compile_prog "$glib_cflags -Werror" "$glib_libs" ; then
 fi
 
 ##########################################
-# SHA command probe for modules
-if test "$modules" = yes; then
-    shacmd_probe="sha1sum sha1 shasum"
-    for c in $shacmd_probe; do
-        if has $c; then
-            shacmd="$c"
-            break
-        fi
-    done
-    if test "$shacmd" = ""; then
-        error_exit "one of the checksum commands is required to enable modules: $shacmd_probe"
-    fi
-fi
-
-##########################################
 # fdt probe
 
 case "$fdt" in
@@ -2174,13 +2155,9 @@ if test "$static" = "yes" ; then
   echo "CONFIG_STATIC=y" >> $config_host_mak
 fi
 qemu_version=$(head $source_path/VERSION)
-echo "PKGVERSION=$pkgversion" >>$config_host_mak
 echo "SRC_PATH=$source_path" >> $config_host_mak
 echo "TARGET_DIRS=$target_list" >> $config_host_mak
 if test "$modules" = "yes"; then
-  # $shacmd can generate a hash started with digit, which the compiler doesn't
-  # like as an symbol. So prefix it with an underscore
-  echo "CONFIG_STAMP=_$( (echo $qemu_version; echo $pkgversion; cat $0) | $shacmd - | cut -f1 -d\ )" >> $config_host_mak
   echo "CONFIG_MODULES=y" >> $config_host_mak
 fi
 

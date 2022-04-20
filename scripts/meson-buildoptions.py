@@ -36,6 +36,7 @@ SKIP_OPTIONS = {
 
 OPTION_NAMES = {
     "malloc": "enable-malloc",
+    "pkgversion": "with-pkgversion",
     "trace_backends": "enable-trace-backends",
     "trace_file": "with-trace-file",
 }
