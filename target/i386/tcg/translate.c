@@ -3252,7 +3252,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 gen_helper_movl_mm_T0_xmm(s->ptr0, s->tmp2_i32);
             }
             break;
-        case 0x6f: /* movq mm, ea */
+        case 0x6f: /* movq mm, ea */ // 访存？？？
             if (mod != 3) {
                 gen_lea_modrm(env, s, modrm);
                 gen_ldq_env_A0(s, offsetof(CPUX86State, fpregs[reg].mmx));
@@ -5396,8 +5396,10 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         break;
     case 0x1c7: /* cmpxchg8b */
         if(prefixes & PREFIX_REPZ){
-            printf("qemu: caught 0xf30fc7 SENDUIPI\n"); // 改 Debug
             modrm = x86_ldub_code(env, s);
+            int uipi_index = env->regs[R_EAX];
+            printf("qemu: caught 0xf30fc7 SENDUIPI reg:%hx raxindex: %d %d\n ",modrm,uipi_index,uipi_index2); // 改 Debug
+            gen_helper_senduipi(cpu_env);
             break;
         }
         modrm = x86_ldub_code(env, s);
@@ -7704,8 +7706,9 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             break;
         case 0xee: /* rdpkru */
             if(prefixes & PREFIX_REPZ){
-                printf("qemu:caught 0xf30fee ?\n"); // 改
+                printf("qemu:caught 0xf30fee CLUI\n"); // 改
                 f3flag = false;
+                break;
             }
             if (prefixes & PREFIX_LOCK) {
                 goto illegal_op;

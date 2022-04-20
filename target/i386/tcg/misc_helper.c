@@ -23,6 +23,8 @@
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
 #include "helper-tcg.h"
+#include <stdio.h>
+static bool Debug = true;
 
 /*
  * NOTE: the translator must set DisasContext.cc_op to CC_OP_EFLAGS
@@ -73,6 +75,10 @@ void helper_rdtsc(CPUX86State *env) // ？？？ 读取时间相关的函数
     val = cpu_get_tsc(env) + env->tsc_offset;
     env->regs[R_EAX] = (uint32_t)(val);
     env->regs[R_EDX] = (uint32_t)(val >> 32);
+}
+
+void helper_senduipi(CPUX86State *env){ // 改
+    if(Debug)printf("qemu:helper senduipi called\n");
 }
 
 void helper_rdtscp(CPUX86State *env)

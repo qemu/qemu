@@ -30,7 +30,7 @@
 #include "qapi/error.h"
 #include "qom/object.h"
 #include <stdio.h>
-// static bool Debug = true;
+static bool Debug = true;
 #define MAX_APICS 255
 #define MAX_APIC_WORDS 8
 
@@ -497,7 +497,9 @@ static void apic_startup(APICCommonState *s, int vector_num)
 }
 
 void apic_sipi(DeviceState *dev)
-{
+{   
+    // 改
+    if(Debug)printf("qemu: apic sipi called\n");
     APICCommonState *s = APIC(dev);
 
     cpu_reset_interrupt(CPU(s->cpu), CPU_INTERRUPT_SIPI);
