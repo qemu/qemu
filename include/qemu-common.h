@@ -10,9 +10,4 @@
     "See <https://qemu.org/contribute/report-a-bug> for how to report bugs.\n" \
     "More information on the QEMU project at <https://qemu.org>."
 
-/* main function, renamed */
-#if defined(CONFIG_COCOA)
-int qemu_main(int argc, char **argv, char **envp);
-#endif
-
 #endif
