@@ -19,6 +19,8 @@ meson_options_help() {
   printf "%s\n" '  --disable-install-blobs  install provided firmware blobs'
   printf "%s\n" '  --enable-malloc=CHOICE   choose memory allocator to use [system] (choices:'
   printf "%s\n" '                           jemalloc/system/tcmalloc)'
+  printf "%s\n" '  --enable-module-upgrades try to load modules from alternate paths for'
+  printf "%s\n" '                           upgrades'
   printf "%s\n" '  --enable-profiler        profiler support'
   printf "%s\n" '  --enable-qom-cast-debug  cast debugging support'
   printf "%s\n" '  --enable-rng-none        dummy RNG, avoid using /dev/(u)random and'
@@ -268,6 +270,8 @@ _meson_option_parse() {
     --disable-malloc-trim) printf "%s" -Dmalloc_trim=disabled ;;
     --enable-membarrier) printf "%s" -Dmembarrier=enabled ;;
     --disable-membarrier) printf "%s" -Dmembarrier=disabled ;;
+    --enable-module-upgrades) printf "%s" -Dmodule_upgrades=true ;;
+    --disable-module-upgrades) printf "%s" -Dmodule_upgrades=false ;;
     --enable-mpath) printf "%s" -Dmpath=enabled ;;
     --disable-mpath) printf "%s" -Dmpath=disabled ;;
     --enable-multiprocess) printf "%s" -Dmultiprocess=enabled ;;

@@ -1550,6 +1550,11 @@ endif
 
 config_host_data.set('HOST_' + host_arch.to_upper(), 1)
 
+if get_option('module_upgrades') and not enable_modules
+  error('Cannot enable module-upgrades as modules are not enabled')
+endif
+config_host_data.set('CONFIG_MODULE_UPGRADES', get_option('module_upgrades'))
+
 config_host_data.set('CONFIG_ATTR', libattr.found())
 config_host_data.set('CONFIG_BDRV_WHITELIST_TOOLS', get_option('block_drv_whitelist_in_tools'))
 config_host_data.set('CONFIG_BRLAPI', brlapi.found())
@@ -3576,7 +3581,7 @@ summary_info += {'block layer':       have_block}
 summary_info += {'Install blobs':     get_option('install_blobs')}
 summary_info += {'module support':    config_host.has_key('CONFIG_MODULES')}
 if config_host.has_key('CONFIG_MODULES')
-  summary_info += {'alternative module path': config_host.has_key('CONFIG_MODULE_UPGRADES')}
+  summary_info += {'alternative module path': get_option('module_upgrades')}
 endif
 summary_info += {'fuzzing support':   get_option('fuzzing')}
 if have_system

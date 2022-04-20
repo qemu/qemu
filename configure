@@ -310,7 +310,6 @@ fortify_source="yes"
 gcov="no"
 EXESUF=""
 modules="no"
-module_upgrades="no"
 prefix="/usr/local"
 qemu_suffix="qemu"
 softmmu="yes"
@@ -761,10 +760,6 @@ for opt do
   ;;
   --disable-modules)
       modules="no"
-  ;;
-  --disable-module-upgrades) module_upgrades="no"
-  ;;
-  --enable-module-upgrades) module_upgrades="yes"
   ;;
   --cpu=*)
   ;;
@@ -1218,7 +1213,6 @@ cat << EOF
   bsd-user        all BSD usermode emulation targets
   pie             Position Independent Executables
   modules         modules support (non-Windows)
-  module-upgrades try to load modules from alternate paths for upgrades
   debug-tcg       TCG debugging (default is disabled)
   debug-info      debugging information
   lto             Enable Link-Time Optimization.
@@ -1485,11 +1479,6 @@ fi
 # Our module code doesn't support Windows
 if test "$modules" = "yes" && test "$mingw32" = "yes" ; then
   error_exit "Modules are not available for Windows"
-fi
-
-# module_upgrades is only reasonable if modules are enabled
-if test "$modules" = "no" && test "$module_upgrades" = "yes" ; then
-  error_exit "Can't enable module-upgrades as Modules are not enabled"
 fi
 
 # Static linking is not possible with plugins, modules or PIE
@@ -2562,9 +2551,6 @@ if test "$modules" = "yes"; then
   # like as an symbol. So prefix it with an underscore
   echo "CONFIG_STAMP=_$( (echo $qemu_version; echo $pkgversion; cat $0) | $shacmd - | cut -f1 -d\ )" >> $config_host_mak
   echo "CONFIG_MODULES=y" >> $config_host_mak
-fi
-if test "$module_upgrades" = "yes"; then
-  echo "CONFIG_MODULE_UPGRADES=y" >> $config_host_mak
 fi
 echo "CONFIG_TLS_PRIORITY=\"$tls_priority\"" >> $config_host_mak
 
