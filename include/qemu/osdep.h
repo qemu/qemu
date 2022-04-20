@@ -641,6 +641,8 @@ static inline void qemu_reset_optind(void)
 #endif
 }
 
+int qemu_fdatasync(int fd);
+
 /**
  * Sync changes made to the memory mapped file back to the backing
  * storage. For POSIX compliant systems this will fallback

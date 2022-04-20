@@ -129,7 +129,6 @@ static inline const char *qemu_strchrnul(const char *s, int c)
 const char *qemu_strchrnul(const char *s, int c);
 #endif
 time_t mktimegm(struct tm *tm);
-int qemu_fdatasync(int fd);
 int qemu_parse_fd(const char *param);
 int qemu_strtoi(const char *nptr, const char **endptr, int base,
                 int *result);
