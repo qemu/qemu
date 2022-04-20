@@ -511,7 +511,7 @@ int ga_parse_whence(GuestFileWhence *whence, Error **errp)
 GuestHostName *qmp_guest_get_host_name(Error **errp)
 {
     GuestHostName *result = NULL;
-    g_autofree char *hostname = qemu_get_host_name(errp);
+    g_autofree char *hostname = qga_get_host_name(errp);
 
     /*
      * We want to avoid using g_get_host_name() because that
