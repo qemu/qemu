@@ -231,7 +231,6 @@ fi
 
 # default parameters
 cpu=""
-interp_prefix="/usr/gnemul/qemu-%M"
 static="no"
 cross_compile="no"
 cross_prefix=""
@@ -697,8 +696,6 @@ for opt do
   ;;
   --prefix=*) prefix="$optarg"
   ;;
-  --interp-prefix=*) interp_prefix="$optarg"
-  ;;
   --cross-prefix=*)
   ;;
   --cc=*)
@@ -1091,8 +1088,6 @@ Options: [defaults in brackets after descriptions]
 Standard options:
   --help                   print this message
   --prefix=PREFIX          install in PREFIX [$prefix]
-  --interp-prefix=PREFIX   where to find shared libraries, etc.
-                           use %M for cpu name [$interp_prefix]
   --target-list=LIST       set target list (default: build all)
 $(echo Available targets: $default_target_list | \
   fold -s -w 53 | sed -e 's/^/                           /')
@@ -2289,7 +2284,6 @@ for target in $target_list; do
     esac
 done
 
-echo "CONFIG_QEMU_INTERP_PREFIX=$interp_prefix" | sed 's/%M/@0@/' >> $config_host_mak
 if test "$default_targets" = "yes"; then
   echo "CONFIG_DEFAULT_TARGETS=y" >> $config_host_mak
 fi

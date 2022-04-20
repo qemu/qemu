@@ -2228,10 +2228,8 @@ if targetos == 'windows' and link_language == 'cpp'
 endif
 config_host_data.set('HAVE_VSS_SDK', have_vss_sdk)
 
-ignored = ['CONFIG_QEMU_INTERP_PREFIX', # actually per-target
-    'HAVE_GDB_BIN']
 foreach k, v: config_host
-  if k.startswith('CONFIG_') and not ignored.contains(k)
+  if k.startswith('CONFIG_')
     config_host_data.set(k, v == 'y' ? 1 : v)
   endif
 endforeach
@@ -2337,7 +2335,7 @@ foreach target : target_dirs
     config_target += {
       'CONFIG_USER_ONLY': 'y',
       'CONFIG_QEMU_INTERP_PREFIX':
-        config_host['CONFIG_QEMU_INTERP_PREFIX'].format(config_target['TARGET_NAME'])
+        get_option('interp_prefix').replace('%M', config_target['TARGET_NAME'])
     }
   endif
 
