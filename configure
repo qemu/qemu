@@ -2350,19 +2350,24 @@ if test "$skip_meson" = no; then
   mv $cross config-meson.cross
 
   rm -rf meson-private meson-info meson-logs
+
+  # Built-in options
+  test "$bindir" != "bin" && meson_option_add "-Dbindir=$bindir"
+  test "$default_feature" = no && meson_option_add -Dauto_features=disabled
+  test "$pie" = no && meson_option_add -Db_pie=false
+  test "$werror" = yes && meson_option_add -Dwerror=true
+
+  # QEMU options
+  test "$capstone" != auto && meson_option_add "-Dcapstone=$capstone"
+  test "$cfi" != false && meson_option_add "-Dcfi=$cfi"
+  test "$fdt" != auto && meson_option_add "-Dfdt=$fdt"
+  test -n "${LIB_FUZZING_ENGINE+xxx}" && meson_option_add "-Dfuzzing_engine=$LIB_FUZZING_ENGINE"
+  test "$qemu_suffix" != qemu && meson_option_add "-Dqemu_suffix=$qemu_suffix"
+  test "$slirp" != auto && meson_option_add "-Dslirp=$slirp"
+  test "$smbd" != '' && meson_option_add "-Dsmbd=$smbd"
+  test "$tcg" != enabled && meson_option_add "-Dtcg=$tcg"
   run_meson() {
-    NINJA=$ninja $meson setup \
-        --prefix "$prefix" \
-        --bindir "$bindir" \
-        -Dqemu_suffix="$qemu_suffix" \
-        -Dsmbd="$smbd" \
-        -Dwerror=$(if test "$werror" = yes; then echo true; else echo false; fi) \
-        -Db_pie=$(if test "$pie" = yes; then echo true; else echo false; fi) \
-        -Dcfi=$cfi -Dtcg=$tcg \
-        -Dcapstone=$capstone -Dfdt=$fdt -Dslirp=$slirp \
-        $(test -n "${LIB_FUZZING_ENGINE+xxx}" && echo "-Dfuzzing_engine=$LIB_FUZZING_ENGINE") \
-        $(if test "$default_feature" = no; then echo "-Dauto_features=disabled"; fi) \
-        "$@" $cross_arg "$PWD" "$source_path"
+    NINJA=$ninja $meson setup --prefix "$prefix" "$@" $cross_arg "$PWD" "$source_path"
   }
   eval run_meson $meson_options
   if test "$?" -ne 0 ; then
