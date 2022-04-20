@@ -154,8 +154,13 @@ meson_options_help() {
   printf "%s\n" '  usb-redir       libusbredir support'
   printf "%s\n" '  vde             vde network backend support'
   printf "%s\n" '  vdi             vdi image format support'
+  printf "%s\n" '  vhost-crypto    vhost-user crypto backend support'
+  printf "%s\n" '  vhost-kernel    vhost kernel backend support'
+  printf "%s\n" '  vhost-net       vhost-net kernel acceleration support'
+  printf "%s\n" '  vhost-user      vhost-user backend support'
   printf "%s\n" '  vhost-user-blk-server'
   printf "%s\n" '                  build vhost-user-blk server'
+  printf "%s\n" '  vhost-vdpa      vhost-vdpa kernel backend support'
   printf "%s\n" '  virglrenderer   virgl rendering support'
   printf "%s\n" '  virtfs          virtio-9p support'
   printf "%s\n" '  virtiofsd       build virtiofs daemon (virtiofsd)'
@@ -409,8 +414,18 @@ _meson_option_parse() {
     --disable-vde) printf "%s" -Dvde=disabled ;;
     --enable-vdi) printf "%s" -Dvdi=enabled ;;
     --disable-vdi) printf "%s" -Dvdi=disabled ;;
+    --enable-vhost-crypto) printf "%s" -Dvhost_crypto=enabled ;;
+    --disable-vhost-crypto) printf "%s" -Dvhost_crypto=disabled ;;
+    --enable-vhost-kernel) printf "%s" -Dvhost_kernel=enabled ;;
+    --disable-vhost-kernel) printf "%s" -Dvhost_kernel=disabled ;;
+    --enable-vhost-net) printf "%s" -Dvhost_net=enabled ;;
+    --disable-vhost-net) printf "%s" -Dvhost_net=disabled ;;
+    --enable-vhost-user) printf "%s" -Dvhost_user=enabled ;;
+    --disable-vhost-user) printf "%s" -Dvhost_user=disabled ;;
     --enable-vhost-user-blk-server) printf "%s" -Dvhost_user_blk_server=enabled ;;
     --disable-vhost-user-blk-server) printf "%s" -Dvhost_user_blk_server=disabled ;;
+    --enable-vhost-vdpa) printf "%s" -Dvhost_vdpa=enabled ;;
+    --disable-vhost-vdpa) printf "%s" -Dvhost_vdpa=disabled ;;
     --enable-virglrenderer) printf "%s" -Dvirglrenderer=enabled ;;
     --disable-virglrenderer) printf "%s" -Dvirglrenderer=disabled ;;
     --enable-virtfs) printf "%s" -Dvirtfs=enabled ;;

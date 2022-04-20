@@ -282,11 +282,6 @@ EXTRA_CXXFLAGS=""
 EXTRA_OBJCFLAGS=""
 EXTRA_LDFLAGS=""
 
-vhost_kernel="$default_feature"
-vhost_net="$default_feature"
-vhost_crypto="$default_feature"
-vhost_user="no"
-vhost_vdpa="$default_feature"
 debug_tcg="no"
 sanitizers="no"
 tsan="no"
@@ -527,7 +522,6 @@ haiku)
 ;;
 linux)
   linux="yes"
-  vhost_user=${default_feature:-yes}
 ;;
 esac
 
@@ -864,14 +858,6 @@ for opt do
   ;;
   --with-coroutine=*) coroutine="$optarg"
   ;;
-  --disable-vhost-net) vhost_net="no"
-  ;;
-  --enable-vhost-net) vhost_net="yes"
-  ;;
-  --disable-vhost-crypto) vhost_crypto="no"
-  ;;
-  --enable-vhost-crypto) vhost_crypto="yes"
-  ;;
   --disable-zlib-test)
   ;;
   --disable-virtio-blk-data-plane|--enable-virtio-blk-data-plane)
@@ -882,18 +868,6 @@ for opt do
   ;;
   --enable-uuid|--disable-uuid)
       echo "$0: $opt is obsolete, UUID support is always built" >&2
-  ;;
-  --disable-vhost-user) vhost_user="no"
-  ;;
-  --enable-vhost-user) vhost_user="yes"
-  ;;
-  --disable-vhost-vdpa) vhost_vdpa="no"
-  ;;
-  --enable-vhost-vdpa) vhost_vdpa="yes"
-  ;;
-  --disable-vhost-kernel) vhost_kernel="no"
-  ;;
-  --enable-vhost-kernel) vhost_kernel="yes"
   ;;
   --disable-capstone) capstone="disabled"
   ;;
@@ -1093,11 +1067,6 @@ cat << EOF
   debug-info      debugging information
   safe-stack      SafeStack Stack Smash Protection. Depends on
                   clang/llvm >= 3.7 and requires coroutine backend ucontext.
-  vhost-net       vhost-net kernel acceleration support
-  vhost-crypto    vhost-user-crypto backend support
-  vhost-kernel    vhost kernel backend support
-  vhost-user      vhost-user backend support
-  vhost-vdpa      vhost-vdpa kernel backend support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -1509,35 +1478,6 @@ if compile_prog ; then
 else
     echo big/little test failed
     exit 1
-fi
-
-#########################################
-# vhost interdependencies and host support
-
-# vhost backends
-if test "$vhost_user" = "yes" && test "$mingw32" = "yes"; then
-  error_exit "vhost-user is not available on Windows"
-fi
-test "$vhost_vdpa" = "" && vhost_vdpa=$linux
-if test "$vhost_vdpa" = "yes" && test "$linux" != "yes"; then
-  error_exit "vhost-vdpa is only available on Linux"
-fi
-test "$vhost_kernel" = "" && vhost_kernel=$linux
-if test "$vhost_kernel" = "yes" && test "$linux" != "yes"; then
-  error_exit "vhost-kernel is only available on Linux"
-fi
-
-# vhost-user backends
-test "$vhost_crypto" = "" && vhost_crypto=$vhost_user
-if test "$vhost_crypto" = "yes" && test "$vhost_user" = "no"; then
-  error_exit "--enable-vhost-crypto requires --enable-vhost-user"
-fi
-
-# OR the vhost-kernel, vhost-vdpa and vhost-user values for simplicity
-if test "$vhost_net" = ""; then
-  test "$vhost_user" = "yes" && vhost_net=yes
-  test "$vhost_vdpa" = "yes" && vhost_net=yes
-  test "$vhost_kernel" = "yes" && vhost_net=yes
 fi
 
 ##########################################
@@ -2057,28 +1997,6 @@ echo "SRC_PATH=$source_path" >> $config_host_mak
 echo "TARGET_DIRS=$target_list" >> $config_host_mak
 if test "$modules" = "yes"; then
   echo "CONFIG_MODULES=y" >> $config_host_mak
-fi
-
-if test "$vhost_net" = "yes" ; then
-  echo "CONFIG_VHOST_NET=y" >> $config_host_mak
-fi
-if test "$vhost_user" = "yes" ; then
-  echo "CONFIG_VHOST_NET_USER=y" >> $config_host_mak
-fi
-if test "$vhost_vdpa" = "yes" ; then
-  echo "CONFIG_VHOST_NET_VDPA=y" >> $config_host_mak
-fi
-if test "$vhost_crypto" = "yes" ; then
-  echo "CONFIG_VHOST_CRYPTO=y" >> $config_host_mak
-fi
-if test "$vhost_kernel" = "yes" ; then
-  echo "CONFIG_VHOST_KERNEL=y" >> $config_host_mak
-fi
-if test "$vhost_user" = "yes" ; then
-  echo "CONFIG_VHOST_USER=y" >> $config_host_mak
-fi
-if test "$vhost_vdpa" = "yes" ; then
-  echo "CONFIG_VHOST_VDPA=y" >> $config_host_mak
 fi
 
 # XXX: suppress that
