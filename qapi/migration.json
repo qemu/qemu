@@ -1619,7 +1619,7 @@
 #
 # Query replication status while the vm is running.
 #
-# Returns: A @ReplicationResult object showing the status.
+# Returns: A @ReplicationStatus object showing the status.
 #
 # Example:
 #
