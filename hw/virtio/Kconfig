@@ -1,6 +1,3 @@
-config VHOST
-    bool
-
 config VIRTIO
     bool
 

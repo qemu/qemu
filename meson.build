@@ -319,6 +319,7 @@ have_vhost_kernel = 'CONFIG_VHOST_KERNEL' in config_host
 have_vhost_net_user = 'CONFIG_VHOST_NET_USER' in config_host
 have_vhost_net_vdpa = 'CONFIG_VHOST_NET_VDPA' in config_host
 have_vhost_net = 'CONFIG_VHOST_NET' in config_host
+have_vhost = have_vhost_user or have_vhost_vdpa or have_vhost_kernel
 have_vhost_user_crypto = 'CONFIG_VHOST_CRYPTO' in config_host
 
 # Target-specific libraries and flags
