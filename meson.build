@@ -348,12 +348,6 @@ accelerators = []
 if get_option('kvm').allowed() and targetos == 'linux'
   accelerators += 'CONFIG_KVM'
 endif
-if get_option('xen').allowed() and 'CONFIG_XEN_BACKEND' in config_host
-  accelerators += 'CONFIG_XEN'
-  have_xen_pci_passthrough = get_option('xen_pci_passthrough').allowed() and targetos == 'linux'
-else
-  have_xen_pci_passthrough = false
-endif
 if get_option('whpx').allowed() and targetos == 'windows'
   if get_option('whpx').enabled() and host_machine.cpu() != 'x86_64'
     error('WHPX requires 64-bit host')
@@ -424,13 +418,6 @@ if 'CONFIG_NVMM' not in accelerators and get_option('nvmm').enabled()
 endif
 if 'CONFIG_WHPX' not in accelerators and get_option('whpx').enabled()
   error('WHPX not available on this platform')
-endif
-if not have_xen_pci_passthrough and get_option('xen_pci_passthrough').enabled()
-  if 'CONFIG_XEN' in accelerators
-    error('Xen PCI passthrough not available on this platform')
-  else
-    error('Xen PCI passthrough requested but Xen not enabled')
-  endif
 endif
 
 ################
@@ -1257,10 +1244,86 @@ if not get_option('rdma').auto() or have_system
 endif
 
 xen = not_found
-if 'CONFIG_XEN_BACKEND' in config_host
-  xen = declare_dependency(compile_args: config_host['XEN_CFLAGS'].split(),
-                           link_args: config_host['XEN_LIBS'].split())
+if get_option('xen').enabled() or (get_option('xen').auto() and have_system)
+  xencontrol = dependency('xencontrol', required: false,
+                          method: 'pkg-config', kwargs: static_kwargs)
+  if xencontrol.found()
+    xen_pc = declare_dependency(version: xencontrol.version(),
+      dependencies: [
+        xencontrol,
+        # disabler: true makes xen_pc.found() return false if any is not found
+        dependency('xenstore', required: false,
+                   method: 'pkg-config', kwargs: static_kwargs,
+                   disabler: true),
+        dependency('xenforeignmemory', required: false,
+                   method: 'pkg-config', kwargs: static_kwargs,
+                   disabler: true),
+        dependency('xengnttab', required: false,
+                   method: 'pkg-config', kwargs: static_kwargs,
+                   disabler: true),
+        dependency('xenevtchn', required: false,
+                   method: 'pkg-config', kwargs: static_kwargs,
+                   disabler: true),
+        dependency('xendevicemodel', required: false,
+                   method: 'pkg-config', kwargs: static_kwargs,
+                   disabler: true),
+        # optional, no "disabler: true"
+        dependency('xentoolcore', required: false,
+                   method: 'pkg-config', kwargs: static_kwargs)])
+    if xen_pc.found()
+      xen = xen_pc
+    endif
+  endif
+  if not xen.found()
+    xen_tests = [ '4.11.0', '4.10.0', '4.9.0', '4.8.0', '4.7.1', '4.6.0', '4.5.0', '4.2.0' ]
+    xen_libs = {
+      '4.11.0': [ 'xenstore', 'xenctrl', 'xendevicemodel', 'xenforeignmemory', 'xengnttab', 'xenevtchn', 'xentoolcore' ],
+      '4.10.0': [ 'xenstore', 'xenctrl', 'xendevicemodel', 'xenforeignmemory', 'xengnttab', 'xenevtchn', 'xentoolcore' ],
+      '4.9.0': [ 'xenstore', 'xenctrl', 'xendevicemodel', 'xenforeignmemory', 'xengnttab', 'xenevtchn' ],
+      '4.8.0': [ 'xenstore', 'xenctrl', 'xenforeignmemory', 'xengnttab', 'xenevtchn' ],
+      '4.7.1': [ 'xenstore', 'xenctrl', 'xenforeignmemory', 'xengnttab', 'xenevtchn' ],
+      '4.6.0': [ 'xenstore', 'xenctrl' ],
+      '4.5.0': [ 'xenstore', 'xenctrl' ],
+      '4.2.0': [ 'xenstore', 'xenctrl' ],
+    }
+    xen_deps = {}
+    foreach ver: xen_tests
+      # cache the various library tests to avoid polluting the logs
+      xen_test_deps = []
+      foreach l: xen_libs[ver]
+        if l not in xen_deps
+          xen_deps += { l: cc.find_library(l, required: false) }
+        endif
+        xen_test_deps += xen_deps[l]
+      endforeach
+
+      # Use -D to pick just one of the test programs in scripts/xen-detect.c
+      xen_version = ver.split('.')
+      xen_ctrl_version = xen_version[0] + \
+        ('0' + xen_version[1]).substring(-2) + \
+        ('0' + xen_version[2]).substring(-2)
+      if cc.links(files('scripts/xen-detect.c'),
+                  args: '-DCONFIG_XEN_CTRL_INTERFACE_VERSION=' + xen_ctrl_version,
+                  dependencies: xen_test_deps)
+        xen = declare_dependency(version: ver, dependencies: xen_test_deps)
+        break
+      endif
+    endforeach
+  endif
+  if xen.found()
+    accelerators += 'CONFIG_XEN'
+  elif get_option('xen').enabled()
+    error('could not compile and link Xen test program')
+  endif
 endif
+have_xen_pci_passthrough = get_option('xen_pci_passthrough') \
+  .require(xen.found(),
+           error_message: 'Xen PCI passthrough requested but Xen not enabled') \
+  .require(targetos == 'linux',
+           error_message: 'Xen PCI passthrough not available on this platform') \
+  .allowed()
+
+
 cacard = not_found
 if not get_option('smartcard').auto() or have_system
   cacard = dependency('libcacard', required: get_option('smartcard'),
@@ -1634,6 +1697,15 @@ config_host_data.set('CONFIG_X11', x11.found())
 config_host_data.set('CONFIG_DBUS_DISPLAY', dbus_display)
 config_host_data.set('CONFIG_CFI', get_option('cfi'))
 config_host_data.set('CONFIG_SELINUX', selinux.found())
+config_host_data.set('CONFIG_XEN_BACKEND', xen.found())
+if xen.found()
+  # protect from xen.version() having less than three components
+  xen_version = xen.version().split('.') + ['0', '0']
+  xen_ctrl_version = xen_version[0] + \
+    ('0' + xen_version[1]).substring(-2) + \
+    ('0' + xen_version[2]).substring(-2)
+  config_host_data.set('CONFIG_XEN_CTRL_INTERFACE_VERSION', xen_ctrl_version)
+endif
 config_host_data.set('QEMU_VERSION', '"@0@"'.format(meson.project_version()))
 config_host_data.set('QEMU_VERSION_MAJOR', meson.project_version().split('.')[0])
 config_host_data.set('QEMU_VERSION_MINOR', meson.project_version().split('.')[1])
@@ -2359,7 +2431,7 @@ config_all += config_all_devices
 config_all += config_host
 config_all += config_all_disas
 config_all += {
-  'CONFIG_XEN': config_host.has_key('CONFIG_XEN_BACKEND'),
+  'CONFIG_XEN': xen.found(),
   'CONFIG_SOFTMMU': have_system,
   'CONFIG_USER_ONLY': have_user,
   'CONFIG_ALL': true,
@@ -3690,9 +3762,9 @@ if have_system
   summary_info += {'HVF support':       config_all.has_key('CONFIG_HVF')}
   summary_info += {'WHPX support':      config_all.has_key('CONFIG_WHPX')}
   summary_info += {'NVMM support':      config_all.has_key('CONFIG_NVMM')}
-  summary_info += {'Xen support':       config_host.has_key('CONFIG_XEN_BACKEND')}
-  if config_host.has_key('CONFIG_XEN_BACKEND')
-    summary_info += {'xen ctrl version':  config_host['CONFIG_XEN_CTRL_INTERFACE_VERSION']}
+  summary_info += {'Xen support':       xen.found()}
+  if xen.found()
+    summary_info += {'xen ctrl version':  xen.version()}
   endif
 endif
 summary_info += {'TCG support':       config_all.has_key('CONFIG_TCG')}
