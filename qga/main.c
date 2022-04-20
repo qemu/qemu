@@ -610,7 +610,7 @@ static gboolean channel_event_cb(GIOCondition condition, gpointer data)
          * host-side chardev. sleep a bit to mitigate this
          */
         if (s->virtio) {
-            usleep(100 * 1000);
+            g_usleep(G_USEC_PER_SEC / 10);
         }
         return true;
     default:
