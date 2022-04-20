@@ -157,22 +157,6 @@
 #endif
 
 /**
- * qemu_build_not_reached()
- *
- * The compiler, during optimization, is expected to prove that a call
- * to this function cannot be reached and remove it.  If the compiler
- * supports QEMU_ERROR, this will be reported at compile time; otherwise
- * this will be reported at link time due to the missing symbol.
- */
-extern void QEMU_NORETURN QEMU_ERROR("code path is reachable")
-    qemu_build_not_reached_always(void);
-#if defined(__OPTIMIZE__) && !defined(__NO_INLINE__)
-#define qemu_build_not_reached()  qemu_build_not_reached_always()
-#else
-#define qemu_build_not_reached()  g_assert_not_reached()
-#endif
-
-/**
  * In most cases, normal "fallthrough" comments are good enough for
  * switch-case statements, but sometimes the compiler has problems
  * with those. In that case you can use QEMU_FALLTHROUGH instead.
