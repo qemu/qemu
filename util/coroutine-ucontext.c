@@ -30,7 +30,7 @@
 #include <valgrind/valgrind.h>
 #endif
 
-#if defined(__SANITIZE_ADDRESS__) || __has_feature(address_sanitizer)
+#ifdef QEMU_SANITIZE_ADDRESS
 #ifdef CONFIG_ASAN_IFACE_FIBER
 #define CONFIG_ASAN 1
 #include <sanitizer/asan_interface.h>

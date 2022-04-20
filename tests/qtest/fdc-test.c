@@ -550,7 +550,7 @@ static void fuzz_registers(void)
 
 static bool qtest_check_clang_sanitizer(void)
 {
-#if defined(__SANITIZE_ADDRESS__) || __has_feature(address_sanitizer)
+#ifdef QEMU_SANITIZE_ADDRESS
     return true;
 #else
     g_test_skip("QEMU not configured using --enable-sanitizers");
