@@ -19,7 +19,7 @@
 #include "qapi/qobject-input-visitor.h"
 #include "test-qapi-visit.h"
 #include "qemu/cutils.h"
-#include "qemu/option.h"
+#include "qemu/keyval.h"
 
 static void test_keyval_parse(void)
 {

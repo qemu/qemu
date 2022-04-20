@@ -128,6 +128,7 @@
 #include "qapi/qmp/qerror.h"
 #include "sysemu/iothread.h"
 #include "qemu/guest-random.h"
+#include "qemu/keyval.h"
 
 #include "config-host.h"
 

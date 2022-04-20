@@ -17,6 +17,7 @@
 #include "qemu/qemu-print.h"
 #include "qapi/opts-visitor.h"
 #include "qemu/config-file.h"
+#include "qemu/keyval.h"
 
 bool user_creatable_complete(UserCreatable *uc, Error **errp)
 {

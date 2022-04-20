@@ -15,7 +15,7 @@
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qdict.h"
 #include "test-qapi-visit.h"
-#include "qemu/option.h"
+#include "qemu/keyval.h"
 
 typedef bool GenericVisitor (Visitor *, const char *, void **, Error **);
 #define CAST_VISIT_TYPE(fn) ((GenericVisitor *)(fn))
