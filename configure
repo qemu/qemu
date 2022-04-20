@@ -2161,31 +2161,6 @@ case "$fdt" in
 esac
 
 ##########################################
-# check for usbfs
-have_usbfs=no
-if test "$linux_user" = "yes"; then
-  cat > $TMPC << EOF
-#include <linux/usbdevice_fs.h>
-
-#ifndef USBDEVFS_GET_CAPABILITIES
-#error "USBDEVFS_GET_CAPABILITIES undefined"
-#endif
-
-#ifndef USBDEVFS_DISCONNECT_CLAIM
-#error "USBDEVFS_DISCONNECT_CLAIM undefined"
-#endif
-
-int main(void)
-{
-    return 0;
-}
-EOF
-  if compile_prog "" ""; then
-    have_usbfs=yes
-  fi
-fi
-
-##########################################
 # capstone
 
 case "$capstone" in
@@ -2640,9 +2615,6 @@ if test "$modules" = "yes"; then
 fi
 if test "$module_upgrades" = "yes"; then
   echo "CONFIG_MODULE_UPGRADES=y" >> $config_host_mak
-fi
-if test "$have_usbfs" = "yes" ; then
-  echo "CONFIG_USBFS=y" >> $config_host_mak
 fi
 if test "$gio" = "yes" ; then
     echo "CONFIG_GIO=y" >> $config_host_mak
