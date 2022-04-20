@@ -1471,6 +1471,26 @@ def verify_working_luks():
     if not working:
         notrun(reason)
 
+def supports_qcow2_zstd_compression() -> bool:
+    img_file = f'{test_dir}/qcow2-zstd-test.qcow2'
+    res = qemu_img('create', '-f', 'qcow2', '-o', 'compression_type=zstd',
+                   img_file, '0',
+                   check=False)
+    try:
+        os.remove(img_file)
+    except OSError:
+        pass
+
+    if res.returncode == 1 and \
+            "'compression-type' does not accept value 'zstd'" in res.stdout:
+        return False
+    else:
+        return True
+
+def verify_qcow2_zstd_compression():
+    if not supports_qcow2_zstd_compression():
+        notrun('zstd compression not supported')
+
 def qemu_pipe(*args: str) -> str:
     """
     Run qemu with an option to print something and exit (e.g. a help option).
