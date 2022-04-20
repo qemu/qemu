@@ -132,7 +132,6 @@
 --disable-vhost-crypto \
 --disable-vhost-kernel \
 --disable-vhost-net \
---disable-vhost-scsi \
 --disable-vhost-user \
 --disable-vhost-user-blk-server \
 --disable-vhost-vdpa \
