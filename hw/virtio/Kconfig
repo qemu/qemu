@@ -78,3 +78,8 @@ config VHOST_USER_RNG
     bool
     default y
     depends on VIRTIO && VHOST_USER
+
+config VHOST_USER_FS
+    bool
+    default y
+    depends on VIRTIO && VHOST_USER

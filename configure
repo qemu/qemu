@@ -286,7 +286,6 @@ vhost_kernel="$default_feature"
 vhost_net="$default_feature"
 vhost_crypto="$default_feature"
 vhost_user="no"
-vhost_user_fs="$default_feature"
 vhost_vdpa="$default_feature"
 debug_tcg="no"
 sanitizers="no"
@@ -872,10 +871,6 @@ for opt do
   --disable-vhost-crypto) vhost_crypto="no"
   ;;
   --enable-vhost-crypto) vhost_crypto="yes"
-  ;;
-  --disable-vhost-user-fs) vhost_user_fs="no"
-  ;;
-  --enable-vhost-user-fs) vhost_user_fs="yes"
   ;;
   --disable-zlib-test)
   ;;
@@ -1537,10 +1532,6 @@ test "$vhost_crypto" = "" && vhost_crypto=$vhost_user
 if test "$vhost_crypto" = "yes" && test "$vhost_user" = "no"; then
   error_exit "--enable-vhost-crypto requires --enable-vhost-user"
 fi
-test "$vhost_user_fs" = "" && vhost_user_fs=$vhost_user
-if test "$vhost_user_fs" = "yes" && test "$vhost_user" = "no"; then
-  error_exit "--enable-vhost-user-fs requires --enable-vhost-user"
-fi
 
 # OR the vhost-kernel, vhost-vdpa and vhost-user values for simplicity
 if test "$vhost_net" = ""; then
@@ -2088,9 +2079,6 @@ if test "$vhost_user" = "yes" ; then
 fi
 if test "$vhost_vdpa" = "yes" ; then
   echo "CONFIG_VHOST_VDPA=y" >> $config_host_mak
-fi
-if test "$vhost_user_fs" = "yes" ; then
-  echo "CONFIG_VHOST_USER_FS=y" >> $config_host_mak
 fi
 
 # XXX: suppress that
