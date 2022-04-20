@@ -7150,7 +7150,7 @@ static void ppc_cpu_reset(DeviceState *dev)
 #if defined(TARGET_PPC64)
     msr |= (target_ulong)1 << MSR_TM; /* Transactional memory */
 #endif
-#if !defined(TARGET_WORDS_BIGENDIAN)
+#if !TARGET_BIG_ENDIAN
     msr |= (target_ulong)1 << MSR_LE; /* Little-endian user mode */
     if (!((env->msr_mask >> MSR_LE) & 1)) {
         fprintf(stderr, "Selected CPU does not support little-endian.\n");

@@ -189,7 +189,7 @@ static void mips_cpu_reset(DeviceState *dev)
     /* Reset registers to their default values */
     env->CP0_PRid = env->cpu_model->CP0_PRid;
     env->CP0_Config0 = env->cpu_model->CP0_Config0;
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
     env->CP0_Config0 |= (1 << CP0C0_BE);
 #endif
     env->CP0_Config1 = env->cpu_model->CP0_Config1;
@@ -418,7 +418,7 @@ static void mips_cpu_disas_set_info(CPUState *s, disassemble_info *info)
     CPUMIPSState *env = &cpu->env;
 
     if (!(env->insn_flags & ISA_NANOMIPS32)) {
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
         info->print_insn = print_insn_big_mips;
 #else
         info->print_insn = print_insn_little_mips;

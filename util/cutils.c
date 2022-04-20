@@ -26,7 +26,6 @@
 #include "qemu/host-utils.h"
 #include <math.h>
 
-#include "qemu-common.h"
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
@@ -175,7 +174,7 @@ int qemu_fdatasync(int fd)
 int qemu_msync(void *addr, size_t length, int fd)
 {
 #ifdef CONFIG_POSIX
-    size_t align_mask = ~(qemu_real_host_page_size - 1);
+    size_t align_mask = ~(qemu_real_host_page_size() - 1);
 
     /**
      * There are no strict reqs as per the length of mapping
@@ -183,7 +182,7 @@ int qemu_msync(void *addr, size_t length, int fd)
      * alignment changes. Additionally - round the size to the multiple
      * of PAGE_SIZE
      */
-    length += ((uintptr_t)addr & (qemu_real_host_page_size - 1));
+    length += ((uintptr_t)addr & (qemu_real_host_page_size() - 1));
     length = (length + ~align_mask) & align_mask;
 
     addr = (void *)((uintptr_t)addr & align_mask);
@@ -198,23 +197,6 @@ int qemu_msync(void *addr, size_t length, int fd)
     return qemu_fdatasync(fd);
 #endif /* CONFIG_POSIX */
 }
-
-#ifndef _WIN32
-/* Sets a specific flag */
-int fcntl_setfl(int fd, int flag)
-{
-    int flags;
-
-    flags = fcntl(fd, F_GETFL);
-    if (flags == -1)
-        return -errno;
-
-    if (fcntl(fd, F_SETFL, flags | flag) == -1)
-        return -errno;
-
-    return 0;
-}
-#endif
 
 static int64_t suffix_mul(char suffix, int64_t unit)
 {

@@ -19,8 +19,6 @@
 extern "C" {
 #endif
 
-#include "fpu/softfloat-types.h"
-
 #ifdef BSWAP_FROM_BYTESWAP
 static inline uint16_t bswap16(uint16_t x)
 {
@@ -84,7 +82,7 @@ static inline void bswap64s(uint64_t *s)
     *s = bswap64(*s);
 }
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
 #define be_bswap(v, size) (v)
 #define le_bswap(v, size) glue(bswap, size)(v)
 #define be_bswaps(v, size)
@@ -188,7 +186,7 @@ CPU_CONVERT(le, 64, uint64_t)
  * a compile-time constant if you pass in a constant.  So this can be
  * used to initialize static variables.
  */
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
 # define const_le32(_x)                          \
     ((((_x) & 0x000000ffU) << 24) |              \
      (((_x) & 0x0000ff00U) <<  8) |              \
@@ -201,64 +199,6 @@ CPU_CONVERT(le, 64, uint64_t)
 # define const_le32(_x) (_x)
 # define const_le16(_x) (_x)
 #endif
-
-/* Unions for reinterpreting between floats and integers.  */
-
-typedef union {
-    float32 f;
-    uint32_t l;
-} CPU_FloatU;
-
-typedef union {
-    float64 d;
-#if defined(HOST_WORDS_BIGENDIAN)
-    struct {
-        uint32_t upper;
-        uint32_t lower;
-    } l;
-#else
-    struct {
-        uint32_t lower;
-        uint32_t upper;
-    } l;
-#endif
-    uint64_t ll;
-} CPU_DoubleU;
-
-typedef union {
-     floatx80 d;
-     struct {
-         uint64_t lower;
-         uint16_t upper;
-     } l;
-} CPU_LDoubleU;
-
-typedef union {
-    float128 q;
-#if defined(HOST_WORDS_BIGENDIAN)
-    struct {
-        uint32_t upmost;
-        uint32_t upper;
-        uint32_t lower;
-        uint32_t lowest;
-    } l;
-    struct {
-        uint64_t upper;
-        uint64_t lower;
-    } ll;
-#else
-    struct {
-        uint32_t lowest;
-        uint32_t lower;
-        uint32_t upper;
-        uint32_t upmost;
-    } l;
-    struct {
-        uint64_t lower;
-        uint64_t upper;
-    } ll;
-#endif
-} CPU_QuadU;
 
 /* unaligned/endian-independent pointer access */
 

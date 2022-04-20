@@ -42,7 +42,6 @@ cat <<EOF > "${TARGET}.c"
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/gdbstub.h"
-#include "qemu-common.h"
 #include "qemu/host-utils.h"
 
 #include "core-$NAME/core-isa.h"

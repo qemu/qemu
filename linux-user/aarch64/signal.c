@@ -147,7 +147,7 @@ static void target_setup_fpsimd_record(struct target_fpsimd_context *fpsimd,
 
     for (i = 0; i < 32; i++) {
         uint64_t *q = aa64_vfp_qreg(env, i);
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
         __put_user(q[0], &fpsimd->vregs[i * 2 + 1]);
         __put_user(q[1], &fpsimd->vregs[i * 2]);
 #else
@@ -233,7 +233,7 @@ static void target_restore_fpsimd_record(CPUARMState *env,
 
     for (i = 0; i < 32; i++) {
         uint64_t *q = aa64_vfp_qreg(env, i);
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
         __get_user(q[0], &fpsimd->vregs[i * 2 + 1]);
         __get_user(q[1], &fpsimd->vregs[i * 2]);
 #else

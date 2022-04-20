@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
+#include "qemu/qemu-progress.h"
 
 struct progress_state {
     float current;

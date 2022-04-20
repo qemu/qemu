@@ -24,6 +24,7 @@
 #include "cpu-qom.h"
 
 #include "exec/cpu-defs.h"
+#include "qemu/cpu-float.h"
 
 /* PSW define */
 REG32(PSW, 0)

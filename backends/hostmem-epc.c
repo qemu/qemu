@@ -12,7 +12,6 @@
 #include <sys/ioctl.h>
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qom/object_interfaces.h"
 #include "qapi/error.h"
 #include "sysemu/hostmem.h"

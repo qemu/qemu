@@ -13,7 +13,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qemu/datadir.h"
 #include "qapi/error.h"
 #include "sysemu/reset.h"
@@ -28,11 +27,14 @@
 #include "hw/s390x/css.h"
 #include "hw/s390x/ebcdic.h"
 #include "hw/s390x/pv.h"
+#include "hw/scsi/scsi.h"
+#include "hw/virtio/virtio-net.h"
 #include "ipl.h"
 #include "qemu/error-report.h"
 #include "qemu/config-file.h"
 #include "qemu/cutils.h"
 #include "qemu/option.h"
+#include "standard-headers/linux/virtio_ids.h"
 #include "exec/exec-all.h"
 
 #define KERN_IMAGE_START                0x010000UL
@@ -376,14 +378,18 @@ static CcwDevice *s390_get_ccw_device(DeviceState *dev_st, int *devtype)
                 object_dynamic_cast(OBJECT(dev_st),
                                     TYPE_SCSI_DEVICE);
             if (sd) {
-                SCSIBus *bus = scsi_bus_from_device(sd);
-                VirtIOSCSI *vdev = container_of(bus, VirtIOSCSI, bus);
-                VirtIOSCSICcw *scsi_ccw = container_of(vdev, VirtIOSCSICcw,
-                                                       vdev);
-
-                ccw_dev = (CcwDevice *)object_dynamic_cast(OBJECT(scsi_ccw),
-                                                           TYPE_CCW_DEVICE);
-                tmp_dt = CCW_DEVTYPE_SCSI;
+                SCSIBus *sbus = scsi_bus_from_device(sd);
+                VirtIODevice *vdev = (VirtIODevice *)
+                    object_dynamic_cast(OBJECT(sbus->qbus.parent),
+                                        TYPE_VIRTIO_DEVICE);
+                if (vdev) {
+                    ccw_dev = (CcwDevice *)
+                        object_dynamic_cast(OBJECT(qdev_get_parent_bus(DEVICE(vdev))->parent),
+                                            TYPE_CCW_DEVICE);
+                    if (ccw_dev) {
+                        tmp_dt = CCW_DEVTYPE_SCSI;
+                    }
+                }
             }
         }
     }

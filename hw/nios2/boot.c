@@ -30,7 +30,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "qemu-common.h"
 #include "qemu/datadir.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
@@ -140,7 +139,7 @@ void nios2_load_kernel(Nios2CPU *cpu, hwaddr ddr_base,
         uint64_t entry, high;
         int big_endian = 0;
 
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
         big_endian = 1;
 #endif
 

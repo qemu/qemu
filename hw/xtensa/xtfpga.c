@@ -219,7 +219,7 @@ static const MemoryRegionOps xtfpga_io_ops = {
 
 static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
 {
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
     int be = 1;
 #else
     int be = 0;
@@ -430,7 +430,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
         }
         if (entry_point != env->pc) {
             uint8_t boot[] = {
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
                 0x60, 0x00, 0x08,       /* j    1f */
                 0x00,                   /* .literal_position */
                 0x00, 0x00, 0x00, 0x00, /* .literal entry_pc */

@@ -9,7 +9,6 @@
 
 #include "qemu/osdep.h"
 
-#include "qemu-common.h"
 #include "qapi/forward-visitor.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/error.h"

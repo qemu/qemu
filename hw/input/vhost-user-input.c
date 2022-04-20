@@ -7,7 +7,6 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 
 #include "hw/virtio/virtio-input.h"
 

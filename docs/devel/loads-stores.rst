@@ -275,7 +275,7 @@ called during the translator callback ``translate_insn``.
 
 There is a set of functions ending in ``_swap`` which, if the parameter
 is true, returns the value in the endianness that is the reverse of
-the guest native endianness, as determined by ``TARGET_WORDS_BIGENDIAN``.
+the guest native endianness, as determined by ``TARGET_BIG_ENDIAN``.
 
 Function names follow the pattern:
 

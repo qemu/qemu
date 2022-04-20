@@ -239,3 +239,8 @@ void qnum_destroy_obj(QObject *obj)
     assert(obj != NULL);
     g_free(qobject_to(QNum, obj));
 }
+
+void qnum_unref(QNum *q)
+{
+    qobject_unref(q);
+}

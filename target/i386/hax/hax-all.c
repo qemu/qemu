@@ -27,7 +27,6 @@
 #include "cpu.h"
 #include "exec/address-spaces.h"
 
-#include "qemu-common.h"
 #include "qemu/accel.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"

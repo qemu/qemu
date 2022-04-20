@@ -22,6 +22,7 @@
 #define M68K_CPU_H
 
 #include "exec/cpu-defs.h"
+#include "qemu/cpu-float.h"
 #include "cpu-qom.h"
 
 #define OS_BYTE     0

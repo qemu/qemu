@@ -28,7 +28,7 @@ typedef enum MemOp {
     MO_SIGN  = 0x08,   /* Sign-extended, otherwise zero-extended.  */
 
     MO_BSWAP = 0x10,   /* Host reverse endian.  */
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
     MO_LE    = MO_BSWAP,
     MO_BE    = 0,
 #else
@@ -36,7 +36,7 @@ typedef enum MemOp {
     MO_BE    = MO_BSWAP,
 #endif
 #ifdef NEED_CPU_H
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
     MO_TE    = MO_BE,
 #else
     MO_TE    = MO_LE,

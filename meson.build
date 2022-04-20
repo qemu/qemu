@@ -1592,7 +1592,6 @@ config_host_data.set('QEMU_VERSION_MICRO', meson.project_version().split('.')[2]
 
 config_host_data.set_quoted('CONFIG_HOST_DSOSUF', host_dsosuf)
 config_host_data.set('HAVE_HOST_BLOCK_DEVICE', have_host_block_device)
-config_host_data.set('HOST_WORDS_BIGENDIAN', host_machine.endian() == 'big')
 
 have_coroutine_pool = get_option('coroutine_pool')
 if get_option('debug_stack_usage') and have_coroutine_pool
@@ -1633,7 +1632,6 @@ config_host_data.set('CONFIG_MEMALIGN', cc.has_function('memalign'))
 config_host_data.set('CONFIG_PPOLL', cc.has_function('ppoll'))
 config_host_data.set('CONFIG_PREADV', cc.has_function('preadv', prefix: '#include <sys/uio.h>'))
 config_host_data.set('CONFIG_PTHREAD_FCHDIR_NP', cc.has_function('pthread_fchdir_np'))
-config_host_data.set('CONFIG_SEM_TIMEDWAIT', cc.has_function('sem_timedwait', dependencies: threads))
 config_host_data.set('CONFIG_SENDFILE', cc.has_function('sendfile'))
 config_host_data.set('CONFIG_SETNS', cc.has_function('setns') and cc.has_function('unshare'))
 config_host_data.set('CONFIG_SYNCFS', cc.has_function('syncfs'))
@@ -1655,8 +1653,6 @@ config_host_data.set('CONFIG_BYTESWAP_H',
                      cc.has_header_symbol('byteswap.h', 'bswap_32'))
 config_host_data.set('CONFIG_EPOLL_CREATE1',
                      cc.has_header_symbol('sys/epoll.h', 'epoll_create1'))
-config_host_data.set('CONFIG_HAS_ENVIRON',
-                     cc.has_header_symbol('unistd.h', 'environ', prefix: gnu_source_prefix))
 config_host_data.set('CONFIG_FALLOCATE_PUNCH_HOLE',
                      cc.has_header_symbol('linux/falloc.h', 'FALLOC_FL_PUNCH_HOLE') and
                      cc.has_header_symbol('linux/falloc.h', 'FALLOC_FL_KEEP_SIZE'))
@@ -1782,6 +1778,17 @@ config_host_data.set('CONFIG_PTHREAD_SETNAME_NP_WO_TID', cc.links(gnu_source_pre
   {
     pthread_t thread;
     pthread_create(&thread, 0, f, 0);
+    return 0;
+  }''', dependencies: threads))
+config_host_data.set('CONFIG_PTHREAD_CONDATTR_SETCLOCK', cc.links(gnu_source_prefix + '''
+  #include <pthread.h>
+  #include <time.h>
+
+  int main(void)
+  {
+    pthread_condattr_t attr
+    pthread_condattr_init(&attr);
+    pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
     return 0;
   }''', dependencies: threads))
 
@@ -1991,25 +1998,10 @@ have_afalg = get_option('crypto_afalg') \
   '''), error_message: 'AF_ALG requested but could not be detected').allowed()
 config_host_data.set('CONFIG_AF_ALG', have_afalg)
 
-config_host_data.set('CONFIG_AF_VSOCK', cc.compiles(gnu_source_prefix + '''
-  #include <errno.h>
-  #include <sys/types.h>
-  #include <sys/socket.h>
-  #if !defined(AF_VSOCK)
-  # error missing AF_VSOCK flag
-  #endif
-  #include <linux/vm_sockets.h>
-  int main(void) {
-    int sock, ret;
-    struct sockaddr_vm svm;
-    socklen_t len = sizeof(svm);
-    sock = socket(AF_VSOCK, SOCK_STREAM, 0);
-    ret = getpeername(sock, (struct sockaddr *)&svm, &len);
-    if ((ret == -1) && (errno == ENOTCONN)) {
-        return 0;
-    }
-    return -1;
-  }'''))
+config_host_data.set('CONFIG_AF_VSOCK', cc.has_header_symbol(
+  'linux/vm_sockets.h', 'AF_VSOCK',
+  prefix: '#include <sys/socket.h>',
+))
 
 have_vss = false
 have_vss_sdk = false # old xp/2003 SDK
@@ -2021,22 +2013,6 @@ if targetos == 'windows' and link_language == 'cpp'
   have_vss_sdk = cxx.has_header('vscoordint.h')
 endif
 config_host_data.set('HAVE_VSS_SDK', have_vss_sdk)
-
-have_ntddscsi = false
-if targetos == 'windows'
-  have_ntddscsi = cc.compiles('''
-    #include <windows.h>
-    #include <ntddscsi.h>
-    int main(void) {
-    #if !defined(IOCTL_SCSI_GET_ADDRESS)
-    #error Missing required ioctl definitions
-    #endif
-      SCSI_ADDRESS addr = { .Lun = 0, .TargetId = 0, .PathId = 0 };
-      return addr.Lun;
-    }
-''')
-endif
-config_host_data.set('HAVE_NTDDSCSI', have_ntddscsi)
 
 ignored = ['CONFIG_QEMU_INTERP_PREFIX', # actually per-target
     'HAVE_GDB_BIN']
@@ -2187,6 +2163,9 @@ foreach target : target_dirs
   if 'TARGET_ABI_DIR' not in config_target
     config_target += {'TARGET_ABI_DIR': config_target['TARGET_ARCH']}
   endif
+  if 'TARGET_BIG_ENDIAN' not in config_target
+    config_target += {'TARGET_BIG_ENDIAN': 'n'}
+  endif
 
   foreach k, v: disassemblers
     if host_arch.startswith(k) or config_target['TARGET_BASE_ARCH'].startswith(k)
@@ -2211,6 +2190,8 @@ foreach target : target_dirs
       config_target_data.set_quoted(k, v)
     elif v == 'y'
       config_target_data.set(k, 1)
+    elif v == 'n'
+      config_target_data.set(k, 0)
     else
       config_target_data.set(k, v)
     endif
@@ -3091,7 +3072,7 @@ qmp = declare_dependency(link_whole: [libqmp])
 
 libchardev = static_library('chardev', chardev_ss.sources() + genh,
                             name_suffix: 'fa',
-                            dependencies: [gnutls],
+                            dependencies: chardev_ss.dependencies(),
                             build_by_default: false)
 
 chardev = declare_dependency(link_whole: libchardev)
@@ -3720,7 +3701,6 @@ summary_info += {'libnfs support':    libnfs}
 if targetos == 'windows'
   if have_ga
     summary_info += {'QGA VSS support':   have_qga_vss}
-    summary_info += {'QGA w32 disk info': have_ntddscsi}
   endif
 endif
 summary_info += {'seccomp support':   seccomp}

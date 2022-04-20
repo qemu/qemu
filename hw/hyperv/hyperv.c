@@ -27,13 +27,16 @@ struct SynICState {
 
     CPUState *cs;
 
-    bool enabled;
+    bool sctl_enabled;
     hwaddr msg_page_addr;
     hwaddr event_page_addr;
     MemoryRegion msg_page_mr;
     MemoryRegion event_page_mr;
     struct hyperv_message_page *msg_page;
     struct hyperv_event_flags_page *event_page;
+
+    QemuMutex sint_routes_mutex;
+    QLIST_HEAD(, HvSintRoute) sint_routes;
 };
 
 #define TYPE_SYNIC "hyperv-synic"
@@ -51,11 +54,11 @@ static SynICState *get_synic(CPUState *cs)
     return SYNIC(object_resolve_path_component(OBJECT(cs), "synic"));
 }
 
-static void synic_update(SynICState *synic, bool enable,
+static void synic_update(SynICState *synic, bool sctl_enable,
                          hwaddr msg_page_addr, hwaddr event_page_addr)
 {
 
-    synic->enabled = enable;
+    synic->sctl_enabled = sctl_enable;
     if (synic->msg_page_addr != msg_page_addr) {
         if (synic->msg_page_addr) {
             memory_region_del_subregion(get_system_memory(),
@@ -80,7 +83,7 @@ static void synic_update(SynICState *synic, bool enable,
     }
 }
 
-void hyperv_synic_update(CPUState *cs, bool enable,
+void hyperv_synic_update(CPUState *cs, bool sctl_enable,
                          hwaddr msg_page_addr, hwaddr event_page_addr)
 {
     SynICState *synic = get_synic(cs);
@@ -89,7 +92,7 @@ void hyperv_synic_update(CPUState *cs, bool enable,
         return;
     }
 
-    synic_update(synic, enable, msg_page_addr, event_page_addr);
+    synic_update(synic, sctl_enable, msg_page_addr, event_page_addr);
 }
 
 static void synic_realize(DeviceState *dev, Error **errp)
@@ -110,16 +113,20 @@ static void synic_realize(DeviceState *dev, Error **errp)
                            sizeof(*synic->event_page), &error_abort);
     synic->msg_page = memory_region_get_ram_ptr(&synic->msg_page_mr);
     synic->event_page = memory_region_get_ram_ptr(&synic->event_page_mr);
+    qemu_mutex_init(&synic->sint_routes_mutex);
+    QLIST_INIT(&synic->sint_routes);
 
     g_free(msgp_name);
     g_free(eventp_name);
 }
+
 static void synic_reset(DeviceState *dev)
 {
     SynICState *synic = SYNIC(dev);
     memset(synic->msg_page, 0, sizeof(*synic->msg_page));
     memset(synic->event_page, 0, sizeof(*synic->event_page));
     synic_update(synic, false, 0, 0);
+    assert(QLIST_EMPTY(&synic->sint_routes));
 }
 
 static void synic_class_init(ObjectClass *klass, void *data)
@@ -214,6 +221,7 @@ struct HvSintRoute {
     HvSintStagedMessage *staged_msg;
 
     unsigned refcount;
+    QLIST_ENTRY(HvSintRoute) link;
 };
 
 static CPUState *hyperv_find_vcpu(uint32_t vp_index)
@@ -259,7 +267,7 @@ static void cpu_post_msg(CPUState *cs, run_on_cpu_data data)
 
     assert(staged_msg->state == HV_STAGED_MSG_BUSY);
 
-    if (!synic->enabled || !synic->msg_page_addr) {
+    if (!synic->msg_page_addr) {
         staged_msg->status = -ENXIO;
         goto posted;
     }
@@ -343,7 +351,7 @@ int hyperv_set_event_flag(HvSintRoute *sint_route, unsigned eventno)
     if (eventno > HV_EVENT_FLAGS_COUNT) {
         return -EINVAL;
     }
-    if (!synic->enabled || !synic->event_page_addr) {
+    if (!synic->sctl_enabled || !synic->event_page_addr) {
         return -ENXIO;
     }
 
@@ -364,11 +372,12 @@ int hyperv_set_event_flag(HvSintRoute *sint_route, unsigned eventno)
 HvSintRoute *hyperv_sint_route_new(uint32_t vp_index, uint32_t sint,
                                    HvSintMsgCb cb, void *cb_data)
 {
-    HvSintRoute *sint_route;
-    EventNotifier *ack_notifier;
+    HvSintRoute *sint_route = NULL;
+    EventNotifier *ack_notifier = NULL;
     int r, gsi;
     CPUState *cs;
     SynICState *synic;
+    bool ack_event_initialized = false;
 
     cs = hyperv_find_vcpu(vp_index);
     if (!cs) {
@@ -381,57 +390,77 @@ HvSintRoute *hyperv_sint_route_new(uint32_t vp_index, uint32_t sint,
     }
 
     sint_route = g_new0(HvSintRoute, 1);
-    r = event_notifier_init(&sint_route->sint_set_notifier, false);
-    if (r) {
-        goto err;
+    if (!sint_route) {
+        return NULL;
     }
 
+    sint_route->synic = synic;
+    sint_route->sint = sint;
+    sint_route->refcount = 1;
 
     ack_notifier = cb ? &sint_route->sint_ack_notifier : NULL;
     if (ack_notifier) {
         sint_route->staged_msg = g_new0(HvSintStagedMessage, 1);
+        if (!sint_route->staged_msg) {
+            goto cleanup_err_sint;
+        }
         sint_route->staged_msg->cb = cb;
         sint_route->staged_msg->cb_data = cb_data;
 
         r = event_notifier_init(ack_notifier, false);
         if (r) {
-            goto err_sint_set_notifier;
+            goto cleanup_err_sint;
         }
-
         event_notifier_set_handler(ack_notifier, sint_ack_handler);
+        ack_event_initialized = true;
+    }
+
+    /* See if we are done or we need to setup a GSI for this SintRoute */
+    if (!synic->sctl_enabled) {
+        goto cleanup;
+    }
+
+    /* We need to setup a GSI for this SintRoute */
+    r = event_notifier_init(&sint_route->sint_set_notifier, false);
+    if (r) {
+        goto cleanup_err_sint;
     }
 
     gsi = kvm_irqchip_add_hv_sint_route(kvm_state, vp_index, sint);
     if (gsi < 0) {
-        goto err_gsi;
+        goto cleanup_err_sint_notifier;
     }
 
     r = kvm_irqchip_add_irqfd_notifier_gsi(kvm_state,
                                            &sint_route->sint_set_notifier,
                                            ack_notifier, gsi);
     if (r) {
-        goto err_irqfd;
+        goto cleanup_err_irqfd;
     }
     sint_route->gsi = gsi;
-    sint_route->synic = synic;
-    sint_route->sint = sint;
-    sint_route->refcount = 1;
-
+cleanup:
+    qemu_mutex_lock(&synic->sint_routes_mutex);
+    QLIST_INSERT_HEAD(&synic->sint_routes, sint_route, link);
+    qemu_mutex_unlock(&synic->sint_routes_mutex);
     return sint_route;
 
-err_irqfd:
+cleanup_err_irqfd:
     kvm_irqchip_release_virq(kvm_state, gsi);
-err_gsi:
+
+cleanup_err_sint_notifier:
+    event_notifier_cleanup(&sint_route->sint_set_notifier);
+
+cleanup_err_sint:
     if (ack_notifier) {
-        event_notifier_set_handler(ack_notifier, NULL);
-        event_notifier_cleanup(ack_notifier);
+        if (ack_event_initialized) {
+            event_notifier_set_handler(ack_notifier, NULL);
+            event_notifier_cleanup(ack_notifier);
+        }
+
         g_free(sint_route->staged_msg);
     }
-err_sint_set_notifier:
-    event_notifier_cleanup(&sint_route->sint_set_notifier);
-err:
-    g_free(sint_route);
 
+    g_free(sint_route);
     return NULL;
 }
 
@@ -442,6 +471,8 @@ void hyperv_sint_route_ref(HvSintRoute *sint_route)
 
 void hyperv_sint_route_unref(HvSintRoute *sint_route)
 {
+    SynICState *synic;
+
     if (!sint_route) {
         return;
     }
@@ -452,21 +483,33 @@ void hyperv_sint_route_unref(HvSintRoute *sint_route)
         return;
     }
 
-    kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state,
-                                          &sint_route->sint_set_notifier,
-                                          sint_route->gsi);
-    kvm_irqchip_release_virq(kvm_state, sint_route->gsi);
+    synic = sint_route->synic;
+    qemu_mutex_lock(&synic->sint_routes_mutex);
+    QLIST_REMOVE(sint_route, link);
+    qemu_mutex_unlock(&synic->sint_routes_mutex);
+
+    if (sint_route->gsi) {
+        kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state,
+                                              &sint_route->sint_set_notifier,
+                                              sint_route->gsi);
+        kvm_irqchip_release_virq(kvm_state, sint_route->gsi);
+        event_notifier_cleanup(&sint_route->sint_set_notifier);
+    }
+
     if (sint_route->staged_msg) {
         event_notifier_set_handler(&sint_route->sint_ack_notifier, NULL);
         event_notifier_cleanup(&sint_route->sint_ack_notifier);
         g_free(sint_route->staged_msg);
     }
-    event_notifier_cleanup(&sint_route->sint_set_notifier);
     g_free(sint_route);
 }
 
 int hyperv_sint_route_set_sint(HvSintRoute *sint_route)
 {
+    if (!sint_route->gsi) {
+        return 0;
+    }
+
     return event_notifier_set(&sint_route->sint_set_notifier);
 }
 
@@ -660,4 +703,247 @@ uint16_t hyperv_hcall_signal_event(uint64_t param, bool fast)
         }
     }
     return HV_STATUS_INVALID_CONNECTION_ID;
+}
+
+static HvSynDbgHandler hv_syndbg_handler;
+static void *hv_syndbg_context;
+
+void hyperv_set_syndbg_handler(HvSynDbgHandler handler, void *context)
+{
+    assert(!hv_syndbg_handler);
+    hv_syndbg_handler = handler;
+    hv_syndbg_context = context;
+}
+
+uint16_t hyperv_hcall_reset_dbg_session(uint64_t outgpa)
+{
+    uint16_t ret;
+    HvSynDbgMsg msg;
+    struct hyperv_reset_debug_session_output *reset_dbg_session = NULL;
+    hwaddr len;
+
+    if (!hv_syndbg_handler) {
+        ret = HV_STATUS_INVALID_HYPERCALL_CODE;
+        goto cleanup;
+    }
+
+    len = sizeof(*reset_dbg_session);
+    reset_dbg_session = cpu_physical_memory_map(outgpa, &len, 1);
+    if (!reset_dbg_session || len < sizeof(*reset_dbg_session)) {
+        ret = HV_STATUS_INSUFFICIENT_MEMORY;
+        goto cleanup;
+    }
+
+    msg.type = HV_SYNDBG_MSG_CONNECTION_INFO;
+    ret = hv_syndbg_handler(hv_syndbg_context, &msg);
+    if (ret) {
+        goto cleanup;
+    }
+
+    reset_dbg_session->host_ip = msg.u.connection_info.host_ip;
+    reset_dbg_session->host_port = msg.u.connection_info.host_port;
+    /* The following fields are only used as validation for KDVM */
+    memset(&reset_dbg_session->host_mac, 0,
+           sizeof(reset_dbg_session->host_mac));
+    reset_dbg_session->target_ip = msg.u.connection_info.host_ip;
+    reset_dbg_session->target_port = msg.u.connection_info.host_port;
+    memset(&reset_dbg_session->target_mac, 0,
+           sizeof(reset_dbg_session->target_mac));
+cleanup:
+    if (reset_dbg_session) {
+        cpu_physical_memory_unmap(reset_dbg_session,
+                                  sizeof(*reset_dbg_session), 1, len);
+    }
+
+    return ret;
+}
+
+uint16_t hyperv_hcall_retreive_dbg_data(uint64_t ingpa, uint64_t outgpa,
+                                        bool fast)
+{
+    uint16_t ret;
+    struct hyperv_retrieve_debug_data_input *debug_data_in = NULL;
+    struct hyperv_retrieve_debug_data_output *debug_data_out = NULL;
+    hwaddr in_len, out_len;
+    HvSynDbgMsg msg;
+
+    if (fast || !hv_syndbg_handler) {
+        ret = HV_STATUS_INVALID_HYPERCALL_CODE;
+        goto cleanup;
+    }
+
+    in_len = sizeof(*debug_data_in);
+    debug_data_in = cpu_physical_memory_map(ingpa, &in_len, 0);
+    if (!debug_data_in || in_len < sizeof(*debug_data_in)) {
+        ret = HV_STATUS_INSUFFICIENT_MEMORY;
+        goto cleanup;
+    }
+
+    out_len = sizeof(*debug_data_out);
+    debug_data_out = cpu_physical_memory_map(outgpa, &out_len, 1);
+    if (!debug_data_out || out_len < sizeof(*debug_data_out)) {
+        ret = HV_STATUS_INSUFFICIENT_MEMORY;
+        goto cleanup;
+    }
+
+    msg.type = HV_SYNDBG_MSG_RECV;
+    msg.u.recv.buf_gpa = outgpa + sizeof(*debug_data_out);
+    msg.u.recv.count = TARGET_PAGE_SIZE - sizeof(*debug_data_out);
+    msg.u.recv.options = debug_data_in->options;
+    msg.u.recv.timeout = debug_data_in->timeout;
+    msg.u.recv.is_raw = true;
+    ret = hv_syndbg_handler(hv_syndbg_context, &msg);
+    if (ret == HV_STATUS_NO_DATA) {
+        debug_data_out->retrieved_count = 0;
+        debug_data_out->remaining_count = debug_data_in->count;
+        goto cleanup;
+    } else if (ret != HV_STATUS_SUCCESS) {
+        goto cleanup;
+    }
+
+    debug_data_out->retrieved_count = msg.u.recv.retrieved_count;
+    debug_data_out->remaining_count =
+        debug_data_in->count - msg.u.recv.retrieved_count;
+cleanup:
+    if (debug_data_out) {
+        cpu_physical_memory_unmap(debug_data_out, sizeof(*debug_data_out), 1,
+                                  out_len);
+    }
+
+    if (debug_data_in) {
+        cpu_physical_memory_unmap(debug_data_in, sizeof(*debug_data_in), 0,
+                                  in_len);
+    }
+
+    return ret;
+}
+
+uint16_t hyperv_hcall_post_dbg_data(uint64_t ingpa, uint64_t outgpa, bool fast)
+{
+    uint16_t ret;
+    struct hyperv_post_debug_data_input *post_data_in = NULL;
+    struct hyperv_post_debug_data_output *post_data_out = NULL;
+    hwaddr in_len, out_len;
+    HvSynDbgMsg msg;
+
+    if (fast || !hv_syndbg_handler) {
+        ret = HV_STATUS_INVALID_HYPERCALL_CODE;
+        goto cleanup;
+    }
+
+    in_len = sizeof(*post_data_in);
+    post_data_in = cpu_physical_memory_map(ingpa, &in_len, 0);
+    if (!post_data_in || in_len < sizeof(*post_data_in)) {
+        ret = HV_STATUS_INSUFFICIENT_MEMORY;
+        goto cleanup;
+    }
+
+    if (post_data_in->count > TARGET_PAGE_SIZE - sizeof(*post_data_in)) {
+        ret = HV_STATUS_INVALID_PARAMETER;
+        goto cleanup;
+    }
+
+    out_len = sizeof(*post_data_out);
+    post_data_out = cpu_physical_memory_map(outgpa, &out_len, 1);
+    if (!post_data_out || out_len < sizeof(*post_data_out)) {
+        ret = HV_STATUS_INSUFFICIENT_MEMORY;
+        goto cleanup;
+    }
+
+    msg.type = HV_SYNDBG_MSG_SEND;
+    msg.u.send.buf_gpa = ingpa + sizeof(*post_data_in);
+    msg.u.send.count = post_data_in->count;
+    msg.u.send.is_raw = true;
+    ret = hv_syndbg_handler(hv_syndbg_context, &msg);
+    if (ret != HV_STATUS_SUCCESS) {
+        goto cleanup;
+    }
+
+    post_data_out->pending_count = msg.u.send.pending_count;
+    ret = post_data_out->pending_count ? HV_STATUS_INSUFFICIENT_BUFFERS :
+                                         HV_STATUS_SUCCESS;
+cleanup:
+    if (post_data_out) {
+        cpu_physical_memory_unmap(post_data_out,
+                                  sizeof(*post_data_out), 1, out_len);
+    }
+
+    if (post_data_in) {
+        cpu_physical_memory_unmap(post_data_in,
+                                  sizeof(*post_data_in), 0, in_len);
+    }
+
+    return ret;
+}
+
+uint32_t hyperv_syndbg_send(uint64_t ingpa, uint32_t count)
+{
+    HvSynDbgMsg msg;
+
+    if (!hv_syndbg_handler) {
+        return HV_SYNDBG_STATUS_INVALID;
+    }
+
+    msg.type = HV_SYNDBG_MSG_SEND;
+    msg.u.send.buf_gpa = ingpa;
+    msg.u.send.count = count;
+    msg.u.send.is_raw = false;
+    if (hv_syndbg_handler(hv_syndbg_context, &msg)) {
+        return HV_SYNDBG_STATUS_INVALID;
+    }
+
+    return HV_SYNDBG_STATUS_SEND_SUCCESS;
+}
+
+uint32_t hyperv_syndbg_recv(uint64_t ingpa, uint32_t count)
+{
+    uint16_t ret;
+    HvSynDbgMsg msg;
+
+    if (!hv_syndbg_handler) {
+        return HV_SYNDBG_STATUS_INVALID;
+    }
+
+    msg.type = HV_SYNDBG_MSG_RECV;
+    msg.u.recv.buf_gpa = ingpa;
+    msg.u.recv.count = count;
+    msg.u.recv.options = 0;
+    msg.u.recv.timeout = 0;
+    msg.u.recv.is_raw = false;
+    ret = hv_syndbg_handler(hv_syndbg_context, &msg);
+    if (ret != HV_STATUS_SUCCESS) {
+        return 0;
+    }
+
+    return HV_SYNDBG_STATUS_SET_SIZE(HV_SYNDBG_STATUS_RECV_SUCCESS,
+                                     msg.u.recv.retrieved_count);
+}
+
+void hyperv_syndbg_set_pending_page(uint64_t ingpa)
+{
+    HvSynDbgMsg msg;
+
+    if (!hv_syndbg_handler) {
+        return;
+    }
+
+    msg.type = HV_SYNDBG_MSG_SET_PENDING_PAGE;
+    msg.u.pending_page.buf_gpa = ingpa;
+    hv_syndbg_handler(hv_syndbg_context, &msg);
+}
+
+uint64_t hyperv_syndbg_query_options(void)
+{
+    HvSynDbgMsg msg;
+
+    if (!hv_syndbg_handler) {
+        return 0;
+    }
+
+    msg.type = HV_SYNDBG_MSG_QUERY_OPTIONS;
+    if (hv_syndbg_handler(hv_syndbg_context, &msg) != HV_STATUS_SUCCESS) {
+        return 0;
+    }
+
+    return msg.u.query_options.options;
 }

@@ -19,6 +19,9 @@ typedef uint64_t vaddr;
 #define VADDR_PRIX PRIX64
 #define VADDR_MAX UINT64_MAX
 
+void cpu_exec_init_all(void);
+void cpu_exec_step_atomic(CPUState *cpu);
+
 /* Using intptr_t ensures that qemu_*_page_mask is sign-extended even
  * when intptr_t is 32-bit and we are aligning a long long.
  */
@@ -26,7 +29,7 @@ extern uintptr_t qemu_host_page_size;
 extern intptr_t qemu_host_page_mask;
 
 #define HOST_PAGE_ALIGN(addr) ROUND_UP((addr), qemu_host_page_size)
-#define REAL_HOST_PAGE_ALIGN(addr) ROUND_UP((addr), qemu_real_host_page_size)
+#define REAL_HOST_PAGE_ALIGN(addr) ROUND_UP((addr), qemu_real_host_page_size())
 
 /* The CPU list lock nests outside page_(un)lock or mmap_(un)lock */
 void qemu_init_cpu_list(void);
@@ -46,7 +49,7 @@ enum device_endian {
     DEVICE_LITTLE_ENDIAN,
 };
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
 #define DEVICE_HOST_ENDIAN DEVICE_BIG_ENDIAN
 #else
 #define DEVICE_HOST_ENDIAN DEVICE_LITTLE_ENDIAN

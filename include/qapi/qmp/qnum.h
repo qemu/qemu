@@ -54,6 +54,10 @@ struct QNum {
     } u;
 };
 
+void qnum_unref(QNum *q);
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(QNum, qnum_unref)
+
 QNum *qnum_from_int(int64_t value);
 QNum *qnum_from_uint(uint64_t value);
 QNum *qnum_from_double(double value);

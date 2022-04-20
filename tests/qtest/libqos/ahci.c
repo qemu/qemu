@@ -28,7 +28,6 @@
 #include "ahci.h"
 #include "pci-pc.h"
 
-#include "qemu-common.h"
 #include "qemu/host-utils.h"
 
 #include "hw/pci/pci_ids.h"

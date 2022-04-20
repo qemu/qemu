@@ -34,6 +34,18 @@
 #include "exec/poison.h"
 #endif
 
+/*
+ * HOST_WORDS_BIGENDIAN was replaced with HOST_BIG_ENDIAN. Prevent it from
+ * creeping back in.
+ */
+#pragma GCC poison HOST_WORDS_BIGENDIAN
+
+/*
+ * TARGET_WORDS_BIGENDIAN was replaced with TARGET_BIG_ENDIAN. Prevent it from
+ * creeping back in.
+ */
+#pragma GCC poison TARGET_WORDS_BIGENDIAN
+
 #include "qemu/compiler.h"
 
 /* Older versions of C++ don't get definitions of various macros from
@@ -213,6 +225,8 @@ extern "C" {
 #if !defined(ESHUTDOWN)
 #define ESHUTDOWN 4099
 #endif
+
+#define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
 /* time_t may be either 32 or 64 bits depending on the host OS, and
  * can be either signed or unsigned, so we can't just hardcode a
@@ -419,9 +433,9 @@ extern int madvise(char *, size_t, int);
    /* Use 1 MiB (segment size) alignment so gmap can be used by KVM. */
 #  define QEMU_VMALLOC_ALIGN (256 * 4096)
 #elif defined(__linux__) && defined(__sparc__)
-#  define QEMU_VMALLOC_ALIGN MAX(qemu_real_host_page_size, SHMLBA)
+#  define QEMU_VMALLOC_ALIGN MAX(qemu_real_host_page_size(), SHMLBA)
 #else
-#  define QEMU_VMALLOC_ALIGN qemu_real_host_page_size
+#  define QEMU_VMALLOC_ALIGN qemu_real_host_page_size()
 #endif
 
 #ifdef CONFIG_POSIX
@@ -513,6 +527,13 @@ static inline void qemu_timersub(const struct timeval *val1,
 #define qemu_timersub timersub
 #endif
 
+ssize_t qemu_write_full(int fd, const void *buf, size_t count)
+    G_GNUC_WARN_UNUSED_RESULT;
+
+#ifndef _WIN32
+int qemu_pipe(int pipefd[2]);
+#endif
+
 void qemu_set_cloexec(int fd);
 
 void fips_set_state(bool requested);
@@ -578,8 +599,15 @@ pid_t qemu_fork(Error **errp);
 /* Using intptr_t ensures that qemu_*_page_mask is sign-extended even
  * when intptr_t is 32-bit and we are aligning a long long.
  */
-extern uintptr_t qemu_real_host_page_size;
-extern intptr_t qemu_real_host_page_mask;
+static inline uintptr_t qemu_real_host_page_size(void)
+{
+    return getpagesize();
+}
+
+static inline intptr_t qemu_real_host_page_mask(void)
+{
+    return -(intptr_t)qemu_real_host_page_size();
+}
 
 /*
  * After using getopt or getopt_long, if you need to parse another set

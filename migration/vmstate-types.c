@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cpu-float.h"
 #include "qemu-file.h"
 #include "migration.h"
 #include "migration/vmstate.h"

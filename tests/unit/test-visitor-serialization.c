@@ -14,7 +14,6 @@
 #include "qemu/osdep.h"
 #include <float.h>
 
-#include "qemu-common.h"
 #include "test-qapi-visit.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qjson.h"

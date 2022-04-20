@@ -205,7 +205,7 @@ typedef struct Int128 Int128;
  * a union with other integer types).
  */
 struct Int128 {
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
     int64_t hi;
     uint64_t lo;
 #else

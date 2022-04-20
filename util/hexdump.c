@@ -14,7 +14,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
+#include "qemu/cutils.h"
 
 void qemu_hexdump_line(char *line, unsigned int b, const void *bufptr,
                        unsigned int len, bool ascii)

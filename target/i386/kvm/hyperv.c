@@ -81,20 +81,66 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
     case KVM_EXIT_HYPERV_HCALL: {
         uint16_t code = exit->u.hcall.input & 0xffff;
         bool fast = exit->u.hcall.input & HV_HYPERCALL_FAST;
-        uint64_t param = exit->u.hcall.params[0];
+        uint64_t in_param = exit->u.hcall.params[0];
+        uint64_t out_param = exit->u.hcall.params[1];
 
         switch (code) {
         case HV_POST_MESSAGE:
-            exit->u.hcall.result = hyperv_hcall_post_message(param, fast);
+            exit->u.hcall.result = hyperv_hcall_post_message(in_param, fast);
             break;
         case HV_SIGNAL_EVENT:
-            exit->u.hcall.result = hyperv_hcall_signal_event(param, fast);
+            exit->u.hcall.result = hyperv_hcall_signal_event(in_param, fast);
+            break;
+        case HV_POST_DEBUG_DATA:
+            exit->u.hcall.result =
+                hyperv_hcall_post_dbg_data(in_param, out_param, fast);
+            break;
+        case HV_RETRIEVE_DEBUG_DATA:
+            exit->u.hcall.result =
+                hyperv_hcall_retreive_dbg_data(in_param, out_param, fast);
+            break;
+        case HV_RESET_DEBUG_SESSION:
+            exit->u.hcall.result =
+                hyperv_hcall_reset_dbg_session(out_param);
             break;
         default:
             exit->u.hcall.result = HV_STATUS_INVALID_HYPERCALL_CODE;
         }
         return 0;
     }
+
+    case KVM_EXIT_HYPERV_SYNDBG:
+        if (!hyperv_feat_enabled(cpu, HYPERV_FEAT_SYNDBG)) {
+            return -1;
+        }
+
+        switch (exit->u.syndbg.msr) {
+        case HV_X64_MSR_SYNDBG_CONTROL: {
+            uint64_t control = exit->u.syndbg.control;
+            env->msr_hv_syndbg_control = control;
+            env->msr_hv_syndbg_send_page = exit->u.syndbg.send_page;
+            env->msr_hv_syndbg_recv_page = exit->u.syndbg.recv_page;
+            exit->u.syndbg.status = HV_STATUS_SUCCESS;
+            if (control & HV_SYNDBG_CONTROL_SEND) {
+                exit->u.syndbg.status =
+                    hyperv_syndbg_send(env->msr_hv_syndbg_send_page,
+                            HV_SYNDBG_CONTROL_SEND_SIZE(control));
+            } else if (control & HV_SYNDBG_CONTROL_RECV) {
+                exit->u.syndbg.status =
+                    hyperv_syndbg_recv(env->msr_hv_syndbg_recv_page,
+                            TARGET_PAGE_SIZE);
+            }
+            break;
+        }
+        case HV_X64_MSR_SYNDBG_PENDING_BUFFER:
+            env->msr_hv_syndbg_pending_page = exit->u.syndbg.pending_page;
+            hyperv_syndbg_set_pending_page(env->msr_hv_syndbg_pending_page);
+            break;
+        default:
+            return -1;
+        }
+
+        return 0;
     default:
         return -1;
     }

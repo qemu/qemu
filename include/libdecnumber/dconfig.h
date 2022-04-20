@@ -28,7 +28,7 @@
    02110-1301, USA.  */
 
 
-#if defined(HOST_WORDS_BIGENDIAN)
+#if HOST_BIG_ENDIAN
 #define WORDS_BIGENDIAN 1
 #else
 #define WORDS_BIGENDIAN 0

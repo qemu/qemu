@@ -188,15 +188,15 @@ static void hax_process_section(MemoryRegionSection *section, uint8_t flags)
     /* Adjust start_pa and size so that they are page-aligned. (Cf
      * kvm_set_phys_mem() in kvm-all.c).
      */
-    delta = qemu_real_host_page_size - (start_pa & ~qemu_real_host_page_mask);
-    delta &= ~qemu_real_host_page_mask;
+    delta = qemu_real_host_page_size() - (start_pa & ~qemu_real_host_page_mask());
+    delta &= ~qemu_real_host_page_mask();
     if (delta > size) {
         return;
     }
     start_pa += delta;
     size -= delta;
-    size &= qemu_real_host_page_mask;
-    if (!size || (start_pa & ~qemu_real_host_page_mask)) {
+    size &= qemu_real_host_page_mask();
+    if (!size || (start_pa & ~qemu_real_host_page_mask())) {
         return;
     }
 
@@ -214,7 +214,7 @@ static void hax_process_section(MemoryRegionSection *section, uint8_t flags)
      * call into the kernel. Instead, we split the mapping into smaller ones,
      * and call hax_update_mapping() on each.
      */
-    max_mapping_size = UINT32_MAX & qemu_real_host_page_mask;
+    max_mapping_size = UINT32_MAX & qemu_real_host_page_mask();
     while (size > max_mapping_size) {
         hax_update_mapping(start_pa, max_mapping_size, host_va, flags);
         start_pa += max_mapping_size;

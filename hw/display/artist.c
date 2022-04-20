@@ -7,7 +7,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -26,7 +25,7 @@
 #define TYPE_ARTIST "artist"
 OBJECT_DECLARE_SIMPLE_TYPE(ARTISTState, ARTIST)
 
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
 #define ROP8OFF(_i) (3 - (_i))
 #else
 #define ROP8OFF
@@ -712,7 +711,7 @@ static void combine_write_reg(hwaddr addr, uint64_t val, int size, void *out)
      * FIXME: is there a qemu helper for this?
      */
 
-#ifndef HOST_WORDS_BIGENDIAN
+#if !HOST_BIG_ENDIAN
     addr ^= 3;
 #endif
 
@@ -1087,7 +1086,7 @@ static uint64_t combine_read_reg(hwaddr addr, int size, void *in)
      * FIXME: is there a qemu helper for this?
      */
 
-#ifndef HOST_WORDS_BIGENDIAN
+#if !HOST_BIG_ENDIAN
     addr ^= 3;
 #endif
 

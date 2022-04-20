@@ -27,7 +27,6 @@
 
 #include "libqtest-single.h"
 #include "qapi/qmp/qdict.h"
-#include "qemu-common.h"
 
 /* TODO actually test the results and get rid of this */
 #define qmp_discard_response(...) qobject_unref(qmp(__VA_ARGS__))

@@ -148,7 +148,7 @@ if have_system
     endif
 
     tests += {
-      'test-qdev-global-props': [qom, hwcore, testqapi]
+      'test-qdev-global-props': [qom, hwcore]
     }
   endif
 endif

@@ -1,5 +1,5 @@
 #include "qemu/osdep.h"
-#include "qemu-common.h"
+#include "sysemu/sysemu.h"
 
 const char *qemu_get_vm_name(void)
 {

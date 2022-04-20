@@ -14,6 +14,15 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "virtio-ccw.h"
+#include "hw/virtio/virtio-gpu.h"
+
+#define TYPE_VIRTIO_GPU_CCW "virtio-gpu-ccw"
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOGPUCcw, VIRTIO_GPU_CCW)
+
+struct VirtIOGPUCcw {
+    VirtioCcwDevice parent_obj;
+    VirtIOGPU vdev;
+};
 
 static void virtio_ccw_gpu_realize(VirtioCcwDevice *ccw_dev, Error **errp)
 {

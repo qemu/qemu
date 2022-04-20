@@ -23,7 +23,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "monitor/monitor.h"
 #include "qemu/coroutine-tls.h"
 #include "qapi/error.h"
@@ -673,7 +672,7 @@ int vm_stop(RunState state)
  * Returns -1 if the vCPUs are not to be restarted (e.g. if they are already
  * running or in case of an error condition), 0 otherwise.
  */
-int vm_prepare_start(void)
+int vm_prepare_start(bool step_pending)
 {
     RunState requested;
 
@@ -693,6 +692,14 @@ int vm_prepare_start(void)
         return -1;
     }
 
+    /*
+     * WHPX accelerator needs to know whether we are going to step
+     * any CPUs, before starting the first one.
+     */
+    if (cpus_accel->synchronize_pre_resume) {
+        cpus_accel->synchronize_pre_resume(step_pending);
+    }
+
     /* We are sending this now, but the CPUs will be resumed shortly later */
     qapi_event_send_resume();
 
@@ -704,7 +711,7 @@ int vm_prepare_start(void)
 
 void vm_start(void)
 {
-    if (!vm_prepare_start()) {
+    if (!vm_prepare_start(false)) {
         resume_all_vcpus();
     }
 }

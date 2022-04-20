@@ -21,7 +21,6 @@
 #include <sys/un.h>
 
 #include "libqos/libqtest.h"
-#include "qemu-common.h"
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"

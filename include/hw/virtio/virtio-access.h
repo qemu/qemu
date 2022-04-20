@@ -28,7 +28,7 @@ static inline bool virtio_access_is_big_endian(VirtIODevice *vdev)
 {
 #if defined(LEGACY_VIRTIO_IS_BIENDIAN)
     return virtio_is_big_endian(vdev);
-#elif defined(TARGET_WORDS_BIGENDIAN)
+#elif TARGET_BIG_ENDIAN
     if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
         /* Devices conforming to VIRTIO 1.0 or later are always LE. */
         return false;
@@ -149,7 +149,7 @@ static inline uint64_t virtio_ldq_p(VirtIODevice *vdev, const void *ptr)
 
 static inline uint16_t virtio_tswap16(VirtIODevice *vdev, uint16_t s)
 {
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
     return virtio_access_is_big_endian(vdev) ? s : bswap16(s);
 #else
     return virtio_access_is_big_endian(vdev) ? bswap16(s) : s;
@@ -215,7 +215,7 @@ static inline void virtio_tswap16s(VirtIODevice *vdev, uint16_t *s)
 
 static inline uint32_t virtio_tswap32(VirtIODevice *vdev, uint32_t s)
 {
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
     return virtio_access_is_big_endian(vdev) ? s : bswap32(s);
 #else
     return virtio_access_is_big_endian(vdev) ? bswap32(s) : s;
@@ -229,7 +229,7 @@ static inline void virtio_tswap32s(VirtIODevice *vdev, uint32_t *s)
 
 static inline uint64_t virtio_tswap64(VirtIODevice *vdev, uint64_t s)
 {
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
     return virtio_access_is_big_endian(vdev) ? s : bswap64(s);
 #else
     return virtio_access_is_big_endian(vdev) ? bswap64(s) : s;

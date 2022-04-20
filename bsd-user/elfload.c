@@ -246,7 +246,7 @@ static void padzero(abi_ulong elf_bss, abi_ulong last_bss)
      * patch target_mmap(), but it is more complicated as the file
      * size must be known.
      */
-    if (qemu_real_host_page_size < qemu_host_page_size) {
+    if (qemu_real_host_page_size() < qemu_host_page_size) {
         abi_ulong end_addr, end_addr1;
         end_addr1 = REAL_HOST_PAGE_ALIGN(elf_bss);
         end_addr = HOST_PAGE_ALIGN(elf_bss);

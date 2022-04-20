@@ -131,7 +131,6 @@ const char *qemu_strchrnul(const char *s, int c);
 time_t mktimegm(struct tm *tm);
 int qemu_fdatasync(int fd);
 int qemu_msync(void *addr, size_t length, int fd);
-int fcntl_setfl(int fd, int flag);
 int qemu_parse_fd(const char *param);
 int qemu_strtoi(const char *nptr, const char **endptr, int base,
                 int *result);
@@ -213,5 +212,25 @@ static inline const char *yes_no(bool b)
 {
      return b ? "yes" : "no";
 }
+
+/*
+ * helper to parse debug environment variables
+ */
+int parse_debug_env(const char *name, int max, int initial);
+
+/*
+ * Hexdump a line of a byte buffer into a hexadecimal/ASCII buffer
+ */
+#define QEMU_HEXDUMP_LINE_BYTES 16 /* Number of bytes to dump */
+#define QEMU_HEXDUMP_LINE_LEN 75   /* Number of characters in line */
+void qemu_hexdump_line(char *line, unsigned int b, const void *bufptr,
+                       unsigned int len, bool ascii);
+
+/*
+ * Hexdump a buffer to a file. An optional string prefix is added to every line
+ */
+
+void qemu_hexdump(FILE *fp, const char *prefix,
+                  const void *bufptr, size_t size);
 
 #endif

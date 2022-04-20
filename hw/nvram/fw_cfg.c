@@ -23,7 +23,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qemu/datadir.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
@@ -622,9 +621,9 @@ static bool fw_cfg_acpi_mr_restore(void *opaque)
     FWCfgState *s = opaque;
     bool mr_aligned;
 
-    mr_aligned = QEMU_IS_ALIGNED(s->table_mr_size, qemu_real_host_page_size) &&
-                 QEMU_IS_ALIGNED(s->linker_mr_size, qemu_real_host_page_size) &&
-                 QEMU_IS_ALIGNED(s->rsdp_mr_size, qemu_real_host_page_size);
+    mr_aligned = QEMU_IS_ALIGNED(s->table_mr_size, qemu_real_host_page_size()) &&
+                 QEMU_IS_ALIGNED(s->linker_mr_size, qemu_real_host_page_size()) &&
+                 QEMU_IS_ALIGNED(s->rsdp_mr_size, qemu_real_host_page_size());
     return s->acpi_mr_restore && !mr_aligned;
 }
 

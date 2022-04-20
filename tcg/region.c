@@ -488,14 +488,14 @@ static int alloc_code_gen_buffer(size_t tb_size, int splitwx, Error **errp)
     /* page-align the beginning and end of the buffer */
     buf = static_code_gen_buffer;
     end = static_code_gen_buffer + sizeof(static_code_gen_buffer);
-    buf = QEMU_ALIGN_PTR_UP(buf, qemu_real_host_page_size);
-    end = QEMU_ALIGN_PTR_DOWN(end, qemu_real_host_page_size);
+    buf = QEMU_ALIGN_PTR_UP(buf, qemu_real_host_page_size());
+    end = QEMU_ALIGN_PTR_DOWN(end, qemu_real_host_page_size());
 
     size = end - buf;
 
     /* Honor a command-line option limiting the size of the buffer.  */
     if (size > tb_size) {
-        size = QEMU_ALIGN_DOWN(tb_size, qemu_real_host_page_size);
+        size = QEMU_ALIGN_DOWN(tb_size, qemu_real_host_page_size());
     }
 
     region.start_aligned = buf;
@@ -729,7 +729,7 @@ static int alloc_code_gen_buffer(size_t size, int splitwx, Error **errp)
  */
 void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
 {
-    const size_t page_size = qemu_real_host_page_size;
+    const size_t page_size = qemu_real_host_page_size();
     size_t region_size;
     int have_prot, need_prot;
 

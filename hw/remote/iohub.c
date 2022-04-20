@@ -9,7 +9,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_ids.h"

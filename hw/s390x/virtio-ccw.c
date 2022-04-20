@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "exec/address-spaces.h"
 #include "sysemu/kvm.h"
 #include "net/net.h"
 #include "hw/virtio/virtio.h"
@@ -19,6 +20,7 @@
 #include "hw/virtio/virtio-net.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
+#include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/virtio/virtio-access.h"
 #include "hw/virtio/virtio-bus.h"

@@ -1087,8 +1087,8 @@ static void vfio_sub_page_bar_update_mapping(PCIDevice *pdev, int bar)
 
     /* If BAR is mapped and page aligned, update to fill PAGE_SIZE */
     if (bar_addr != PCI_BAR_UNMAPPED &&
-        !(bar_addr & ~qemu_real_host_page_mask)) {
-        size = qemu_real_host_page_size;
+        !(bar_addr & ~qemu_real_host_page_mask())) {
+        size = qemu_real_host_page_size();
     }
 
     memory_region_transaction_begin();
@@ -1204,7 +1204,7 @@ void vfio_pci_write_config(PCIDevice *pdev,
         for (bar = 0; bar < PCI_ROM_SLOT; bar++) {
             if (old_addr[bar] != pdev->io_regions[bar].addr &&
                 vdev->bars[bar].region.size > 0 &&
-                vdev->bars[bar].region.size < qemu_real_host_page_size) {
+                vdev->bars[bar].region.size < qemu_real_host_page_size()) {
                 vfio_sub_page_bar_update_mapping(pdev, bar);
             }
         }
@@ -1292,7 +1292,7 @@ static void vfio_pci_fixup_msix_region(VFIOPCIDevice *vdev)
     }
 
     /* MSI-X table start and end aligned to host page size */
-    start = vdev->msix->table_offset & qemu_real_host_page_mask;
+    start = vdev->msix->table_offset & qemu_real_host_page_mask();
     end = REAL_HOST_PAGE_ALIGN((uint64_t)vdev->msix->table_offset +
                                (vdev->msix->entries * PCI_MSIX_ENTRY_SIZE));
 
@@ -2478,7 +2478,7 @@ static int vfio_pci_load_config(VFIODevice *vbasedev, QEMUFile *f)
          */
         if (old_addr[bar] != pdev->io_regions[bar].addr &&
             vdev->bars[bar].region.size > 0 &&
-            vdev->bars[bar].region.size < qemu_real_host_page_size) {
+            vdev->bars[bar].region.size < qemu_real_host_page_size()) {
             vfio_sub_page_bar_update_mapping(pdev, bar);
         }
     }

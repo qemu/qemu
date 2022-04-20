@@ -11,7 +11,6 @@
 #include "cpu.h"
 #include "exec/address-spaces.h"
 #include "exec/ioport.h"
-#include "qemu-common.h"
 #include "qemu/accel.h"
 #include "sysemu/nvmm.h"
 #include "sysemu/cpus.h"
@@ -1075,15 +1074,15 @@ nvmm_process_section(MemoryRegionSection *section, int add)
     }
 
     /* Adjust start_pa and size so that they are page-aligned. */
-    delta = qemu_real_host_page_size - (start_pa & ~qemu_real_host_page_mask);
-    delta &= ~qemu_real_host_page_mask;
+    delta = qemu_real_host_page_size() - (start_pa & ~qemu_real_host_page_mask());
+    delta &= ~qemu_real_host_page_mask();
     if (delta > size) {
         return;
     }
     start_pa += delta;
     size -= delta;
-    size &= qemu_real_host_page_mask;
-    if (!size || (start_pa & ~qemu_real_host_page_mask)) {
+    size &= qemu_real_host_page_mask();
+    if (!size || (start_pa & ~qemu_real_host_page_mask())) {
         return;
     }
 

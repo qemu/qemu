@@ -22,6 +22,7 @@
 
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
+#include "qemu/cpu-float.h"
 
 /* CPU Subtypes */
 #define SH_CPU_SH7750  (1 << 0)

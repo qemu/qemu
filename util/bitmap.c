@@ -376,7 +376,7 @@ static void bitmap_to_from_le(unsigned long *dst,
 {
     long len = BITS_TO_LONGS(nbits);
 
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
     long index;
 
     for (index = 0; index < len; index++) {

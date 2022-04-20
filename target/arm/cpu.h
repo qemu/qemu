@@ -21,6 +21,7 @@
 #define ARM_CPU_H
 
 #include "kvm-consts.h"
+#include "qemu/cpu-float.h"
 #include "hw/registerfields.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
@@ -95,7 +96,7 @@ enum {
  * therefore useful to be able to pass TCG the offset of the least
  * significant half of a uint64_t struct member.
  */
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
 #define offsetoflow32(S, M) (offsetof(S, M) + sizeof(uint32_t))
 #define offsetofhigh32(S, M) offsetof(S, M)
 #else
@@ -382,7 +383,7 @@ typedef struct CPUArchState {
         union { /* Fault address registers. */
             struct {
                 uint64_t _unused_far0;
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
                 uint32_t ifar_ns;
                 uint32_t dfar_ns;
                 uint32_t ifar_s;
@@ -419,7 +420,7 @@ typedef struct CPUArchState {
         uint64_t c9_pminten; /* perf monitor interrupt enables */
         union { /* Memory attribute redirection */
             struct {
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
                 uint64_t _unused_mair_0;
                 uint32_t mair1_ns;
                 uint32_t mair0_ns;
@@ -1093,7 +1094,7 @@ void aarch64_add_pauth_properties(Object *obj);
  */
 static inline uint64_t *sve_bswap64(uint64_t *dst, uint64_t *src, int nr)
 {
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
     int i;
 
     for (i = 0; i < nr; ++i) {
@@ -3549,12 +3550,12 @@ static inline int cpu_mmu_index(CPUARMState *env, bool ifetch)
 static inline bool bswap_code(bool sctlr_b)
 {
 #ifdef CONFIG_USER_ONLY
-    /* BE8 (SCTLR.B = 0, TARGET_WORDS_BIGENDIAN = 1) is mixed endian.
-     * The invalid combination SCTLR.B=1/CPSR.E=1/TARGET_WORDS_BIGENDIAN=0
+    /* BE8 (SCTLR.B = 0, TARGET_BIG_ENDIAN = 1) is mixed endian.
+     * The invalid combination SCTLR.B=1/CPSR.E=1/TARGET_BIG_ENDIAN=0
      * would also end up as a mixed-endian mode with BE code, LE data.
      */
     return
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
         1 ^
 #endif
         sctlr_b;
@@ -3570,7 +3571,7 @@ static inline bool bswap_code(bool sctlr_b)
 static inline bool arm_cpu_bswap_data(CPUARMState *env)
 {
     return
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
        1 ^
 #endif
        arm_cpu_data_is_big_endian(env);

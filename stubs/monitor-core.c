@@ -1,6 +1,5 @@
 #include "qemu/osdep.h"
 #include "monitor/monitor.h"
-#include "qemu-common.h"
 #include "qapi/qapi-emit-events.h"
 
 Monitor *monitor_cur(void)

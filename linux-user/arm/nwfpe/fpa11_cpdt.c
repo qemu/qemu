@@ -44,7 +44,7 @@ void loadDouble(const unsigned int Fn, target_ulong addr)
    unsigned int *p;
    p = (unsigned int*)&fpa11->fpreg[Fn].fDouble;
    fpa11->fType[Fn] = typeDouble;
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
    /* FIXME - handle failure of get_user() */
    get_user_u32(p[0], addr); /* sign & exponent */
    get_user_u32(p[1], addr + 4);
@@ -147,7 +147,7 @@ void storeDouble(const unsigned int Fn, target_ulong addr)
       default: val = fpa11->fpreg[Fn].fDouble;
    }
    /* FIXME - handle put_user() failures */
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
    put_user_u32(p[0], addr);	/* msw */
    put_user_u32(p[1], addr + 4);	/* lsw */
 #else

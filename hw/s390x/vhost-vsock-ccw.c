@@ -12,6 +12,15 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "virtio-ccw.h"
+#include "hw/virtio/vhost-vsock.h"
+
+#define TYPE_VHOST_VSOCK_CCW "vhost-vsock-ccw"
+OBJECT_DECLARE_SIMPLE_TYPE(VHostVSockCCWState, VHOST_VSOCK_CCW)
+
+struct VHostVSockCCWState {
+    VirtioCcwDevice parent_obj;
+    VHostVSock vdev;
+};
 
 static Property vhost_vsock_ccw_properties[] = {
     DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,

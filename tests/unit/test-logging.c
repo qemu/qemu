@@ -27,7 +27,6 @@
 #include "qemu/osdep.h"
 #include <glib/gstdio.h>
 
-#include "qemu-common.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
 

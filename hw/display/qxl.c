@@ -320,7 +320,7 @@ static ram_addr_t qxl_rom_size(void)
 #define QXL_ROM_SZ 8192
 
     QEMU_BUILD_BUG_ON(QXL_REQUIRED_SZ > QXL_ROM_SZ);
-    return QEMU_ALIGN_UP(QXL_REQUIRED_SZ, qemu_real_host_page_size);
+    return QEMU_ALIGN_UP(QXL_REQUIRED_SZ, qemu_real_host_page_size());
 }
 
 static void init_qxl_rom(PCIQXLDevice *d)

@@ -20,6 +20,10 @@ struct QString {
     const char *string;
 };
 
+void qstring_unref(QString *q);
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(QString, qstring_unref)
+
 QString *qstring_new(void);
 QString *qstring_from_str(const char *str);
 QString *qstring_from_substr(const char *str, size_t start, size_t end);

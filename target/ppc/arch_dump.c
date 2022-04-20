@@ -161,7 +161,7 @@ static void ppc_write_elf_vmxregset(NoteFuncArg *arg, PowerPCCPU *cpu)
         bool needs_byteswap;
         ppc_avr_t *avr = cpu_avr_ptr(&cpu->env, i);
 
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
         needs_byteswap = s->dump_info.d_endian == ELFDATA2LSB;
 #else
         needs_byteswap = s->dump_info.d_endian == ELFDATA2MSB;

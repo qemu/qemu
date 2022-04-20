@@ -29,7 +29,6 @@
 #include "qemu/osdep.h"
 #include "tap_int.h"
 
-#include "qemu-common.h"
 #include "clients.h"            /* net_init_tap */
 #include "net/eth.h"
 #include "net/net.h"

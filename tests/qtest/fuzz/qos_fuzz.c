@@ -19,7 +19,6 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "exec/memory.h"
 #include "qemu/main-loop.h"
 

@@ -3,7 +3,6 @@
 #include <gio/gio.h>
 #include <gio/gunixfdlist.h>
 #include "libqos/libqtest.h"
-#include "qemu-common.h"
 #include "dbus-display1.h"
 
 static GDBusConnection*

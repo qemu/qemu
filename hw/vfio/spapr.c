@@ -44,7 +44,7 @@ static void vfio_prereg_listener_region_add(MemoryListener *listener,
     const hwaddr gpa = section->offset_within_address_space;
     hwaddr end;
     int ret;
-    hwaddr page_mask = qemu_real_host_page_mask;
+    hwaddr page_mask = qemu_real_host_page_mask();
     struct vfio_iommu_spapr_register_memory reg = {
         .argsz = sizeof(reg),
         .flags = 0,
@@ -102,7 +102,7 @@ static void vfio_prereg_listener_region_del(MemoryListener *listener,
     const hwaddr gpa = section->offset_within_address_space;
     hwaddr end;
     int ret;
-    hwaddr page_mask = qemu_real_host_page_mask;
+    hwaddr page_mask = qemu_real_host_page_mask();
     struct vfio_iommu_spapr_register_memory reg = {
         .argsz = sizeof(reg),
         .flags = 0,
@@ -199,12 +199,12 @@ int vfio_spapr_create_window(VFIOContainer *container,
      * Below we look at qemu_real_host_page_size as TCEs are allocated from
      * system pages.
      */
-    bits_per_level = ctz64(qemu_real_host_page_size) + 8;
+    bits_per_level = ctz64(qemu_real_host_page_size()) + 8;
     create.levels = bits_total / bits_per_level;
     if (bits_total % bits_per_level) {
         ++create.levels;
     }
-    max_levels = (64 - create.page_shift) / ctz64(qemu_real_host_page_size);
+    max_levels = (64 - create.page_shift) / ctz64(qemu_real_host_page_size());
     for ( ; create.levels <= max_levels; ++create.levels) {
         ret = ioctl(container->fd, VFIO_IOMMU_SPAPR_TCE_CREATE, &create);
         if (!ret) {

@@ -26,6 +26,10 @@ struct QList {
     QTAILQ_HEAD(,QListEntry) head;
 };
 
+void qlist_unref(QList *q);
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(QList, qlist_unref)
+
 #define qlist_append(qlist, obj) \
         qlist_append_obj(qlist, QOBJECT(obj))
 

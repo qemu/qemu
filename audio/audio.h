@@ -32,7 +32,7 @@
 
 typedef void (*audio_callback_fn) (void *opaque, int avail);
 
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
 #define AUDIO_HOST_ENDIANNESS 1
 #else
 #define AUDIO_HOST_ENDIANNESS 0

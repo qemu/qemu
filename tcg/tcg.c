@@ -51,7 +51,7 @@
 #else
 # define ELF_CLASS  ELFCLASS64
 #endif
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
 # define ELF_DATA   ELFDATA2MSB
 #else
 # define ELF_DATA   ELFDATA2LSB
@@ -883,7 +883,7 @@ TCGTemp *tcg_global_mem_new_internal(TCGType type, TCGv_ptr base,
     TCGTemp *base_ts = tcgv_ptr_temp(base);
     TCGTemp *ts = tcg_global_alloc(s);
     int indirect_reg = 0, bigendian = 0;
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
     bigendian = 1;
 #endif
 
@@ -1547,7 +1547,7 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
         }
 #else
         if (TCG_TARGET_REG_BITS < 64 && (typemask & 6) == dh_typecode_i64) {
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
             op->args[pi++] = temp_arg(ret + 1);
             op->args[pi++] = temp_arg(ret);
 #else
@@ -1600,7 +1600,7 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
              * have to get more complicated to differentiate between
              * stack arguments and register arguments.
              */
-#if defined(HOST_WORDS_BIGENDIAN) != defined(TCG_TARGET_STACK_GROWSUP)
+#if HOST_BIG_ENDIAN != defined(TCG_TARGET_STACK_GROWSUP)
             op->args[pi++] = temp_arg(args[i] + 1);
             op->args[pi++] = temp_arg(args[i]);
 #else
@@ -3598,7 +3598,7 @@ static void tcg_reg_alloc_dup(TCGContext *s, const TCGOp *op)
         /* fall through */
 
     case TEMP_VAL_MEM:
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
         endian_fixup = itype == TCG_TYPE_I32 ? 4 : 8;
         endian_fixup -= 1 << vece;
 #else
@@ -3879,7 +3879,7 @@ static bool tcg_reg_alloc_dup2(TCGContext *s, const TCGOp *op)
         if (!itsh->mem_coherent) {
             temp_sync(s, itsh, s->reserved_regs, 0, 0);
         }
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
         TCGTemp *its = itsh;
 #else
         TCGTemp *its = itsl;

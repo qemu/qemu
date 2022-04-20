@@ -15,6 +15,15 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "virtio-ccw.h"
+#include "hw/virtio/virtio-rng.h"
+
+#define TYPE_VIRTIO_RNG_CCW "virtio-rng-ccw"
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIORNGCcw, VIRTIO_RNG_CCW)
+
+struct VirtIORNGCcw {
+    VirtioCcwDevice parent_obj;
+    VirtIORNG vdev;
+};
 
 static void virtio_ccw_rng_realize(VirtioCcwDevice *ccw_dev, Error **errp)
 {

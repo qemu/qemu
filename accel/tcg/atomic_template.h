@@ -63,7 +63,7 @@
    the ATOMIC_NAME macro, and redefined below.  */
 #if DATA_SIZE == 1
 # define END
-#elif defined(HOST_WORDS_BIGENDIAN)
+#elif HOST_BIG_ENDIAN
 # define END  _be
 #else
 # define END  _le
@@ -196,7 +196,7 @@ GEN_ATOMIC_HELPER_FN(umax_fetch, MAX,  DATA_TYPE, new)
 
 /* Define reverse-host-endian atomic operations.  Note that END is used
    within the ATOMIC_NAME macro.  */
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
 # define END  _le
 #else
 # define END  _be

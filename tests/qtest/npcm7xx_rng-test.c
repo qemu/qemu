@@ -20,7 +20,7 @@
 
 #include "libqtest-single.h"
 #include "qemu/bitops.h"
-#include "qemu-common.h"
+#include "qemu/cutils.h"
 
 #define RNG_BASE_ADDR   0xf000b000
 

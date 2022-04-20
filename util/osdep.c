@@ -23,7 +23,6 @@
  */
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "qemu/cutils.h"
 #include "qemu/sockets.h"
 #include "qemu/error-report.h"
@@ -69,8 +68,8 @@ int qemu_madvise(void *addr, size_t len, int advice)
 
 static int qemu_mprotect__osdep(void *addr, size_t size, int prot)
 {
-    g_assert(!((uintptr_t)addr & ~qemu_real_host_page_mask));
-    g_assert(!(size & ~qemu_real_host_page_mask));
+    g_assert(!((uintptr_t)addr & ~qemu_real_host_page_mask()));
+    g_assert(!(size & ~qemu_real_host_page_mask()));
 
 #ifdef _WIN32
     DWORD old_protect;

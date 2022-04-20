@@ -56,3 +56,8 @@ void qbool_destroy_obj(QObject *obj)
     assert(obj != NULL);
     g_free(qobject_to(QBool, obj));
 }
+
+void qbool_unref(QBool *q)
+{
+    qobject_unref(q);
+}

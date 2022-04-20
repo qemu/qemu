@@ -24,7 +24,7 @@
 #include "trace.h"
 #include "qom/object.h"
 
-#define FLIC_SAVE_INITIAL_SIZE qemu_real_host_page_size
+#define FLIC_SAVE_INITIAL_SIZE qemu_real_host_page_size()
 #define FLIC_FAILED (-1UL)
 #define FLIC_SAVEVM_VERSION 1
 

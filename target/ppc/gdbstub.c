@@ -87,9 +87,9 @@ static int ppc_gdb_register_len(int n)
 /*
  * We need to present the registers to gdb in the "current" memory
  * ordering.  For user-only mode we get this for free;
- * TARGET_WORDS_BIGENDIAN is set to the proper ordering for the
+ * TARGET_BIG_ENDIAN is set to the proper ordering for the
  * binary, and cannot be changed.  For system mode,
- * TARGET_WORDS_BIGENDIAN is always set, and we must check the current
+ * TARGET_BIG_ENDIAN is always set, and we must check the current
  * mode of the chip to see if we're running in little-endian.
  */
 void ppc_maybe_bswap_register(CPUPPCState *env, uint8_t *mem_buf, int len)

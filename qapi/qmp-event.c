@@ -20,15 +20,12 @@
 
 static void timestamp_put(QDict *qdict)
 {
-    int err;
     QDict *ts;
-    qemu_timeval tv;
+    int64_t rt = g_get_real_time();
 
-    err = qemu_gettimeofday(&tv);
-    /* Put -1 to indicate failure of getting host time */
     ts = qdict_from_jsonf_nofail("{ 'seconds': %lld, 'microseconds': %lld }",
-                                 err < 0 ? -1LL : (long long)tv.tv_sec,
-                                 err < 0 ? -1LL : (long long)tv.tv_usec);
+                                 (long long)rt / G_USEC_PER_SEC,
+                                 (long long)rt % G_USEC_PER_SEC);
     qdict_put(qdict, "timestamp", ts);
 }
 

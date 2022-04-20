@@ -145,7 +145,7 @@ enum {
 /* Interrupt Remapping Table Entry Definition */
 union VTD_IR_TableEntry {
     struct {
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
         uint32_t __reserved_1:8;     /* Reserved 1 */
         uint32_t vector:8;           /* Interrupt Vector */
         uint32_t irte_mode:1;        /* IRTE Mode */
@@ -172,7 +172,7 @@ union VTD_IR_TableEntry {
 #endif
         uint32_t dest_id;            /* Destination ID */
         uint16_t source_id;          /* Source-ID */
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
         uint64_t __reserved_2:44;    /* Reserved 2 */
         uint64_t sid_vtype:2;        /* Source-ID Validation Type */
         uint64_t sid_q:2;            /* Source-ID Qualifier */
@@ -191,7 +191,7 @@ union VTD_IR_TableEntry {
 /* Programming format for MSI/MSI-X addresses */
 union VTD_IR_MSIAddress {
     struct {
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
         uint32_t __head:12;          /* Should always be: 0x0fee */
         uint32_t index_l:15;         /* Interrupt index bit 14-0 */
         uint32_t int_mode:1;         /* Interrupt format */

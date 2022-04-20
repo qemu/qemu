@@ -103,7 +103,7 @@ typedef struct {
 #define make_floatx80(exp, mant) ((floatx80) { mant, exp })
 #define make_floatx80_init(exp, mant) { .low = mant, .high = exp }
 typedef struct {
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
     uint64_t high, low;
 #else
     uint64_t low, high;

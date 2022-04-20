@@ -9,7 +9,6 @@
 
 #include "qemu/osdep.h"
 
-#include "qemu-common.h"
 #include "qapi/clone-visitor.h"
 #include "test-qapi-visit.h"
 

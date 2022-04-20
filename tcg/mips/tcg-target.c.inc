@@ -26,7 +26,7 @@
 
 #include "../tcg-ldst.c.inc"
 
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
 # define MIPS_BE  1
 #else
 # define MIPS_BE  0

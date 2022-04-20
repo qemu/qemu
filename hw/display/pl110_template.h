@@ -15,18 +15,18 @@
 
 #if ORDER == 0
 #define NAME glue(lblp_, BORDER)
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
 #define SWAP_WORDS 1
 #endif
 #elif ORDER == 1
 #define NAME glue(bbbp_, BORDER)
-#ifndef HOST_WORDS_BIGENDIAN
+#if !HOST_BIG_ENDIAN
 #define SWAP_WORDS 1
 #endif
 #else
 #define SWAP_PIXELS 1
 #define NAME glue(lbbp_, BORDER)
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
 #define SWAP_WORDS 1
 #endif
 #endif

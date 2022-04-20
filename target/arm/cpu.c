@@ -22,7 +22,7 @@
 #include "qemu/qemu-print.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"
-#include "qemu-common.h"
+#include "exec/page-vary.h"
 #include "target/arm/idau.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
@@ -812,7 +812,7 @@ static void arm_disas_set_info(CPUState *cpu, disassemble_info *info)
 
     sctlr_b = arm_sctlr_b(env);
     if (bswap_code(sctlr_b)) {
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
         info->endian = BFD_ENDIAN_LITTLE;
 #else
         info->endian = BFD_ENDIAN_BIG;

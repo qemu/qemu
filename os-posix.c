@@ -29,7 +29,6 @@
 #include <grp.h>
 #include <libgen.h>
 
-#include "qemu-common.h"
 /* Needed early for CONFIG_BSD etc. */
 #include "net/slirp.h"
 #include "qemu/qemu-options.h"

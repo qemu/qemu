@@ -30,7 +30,6 @@
 #include "libqos/pci-pc.h"
 #include "libqos/malloc-pc.h"
 #include "qapi/qmp/qdict.h"
-#include "qemu-common.h"
 #include "qemu/bswap.h"
 #include "hw/pci/pci_ids.h"
 #include "hw/pci/pci_regs.h"

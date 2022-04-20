@@ -29,6 +29,7 @@
 #define XTENSA_CPU_H
 
 #include "cpu-qom.h"
+#include "qemu/cpu-float.h"
 #include "exec/cpu-defs.h"
 #include "xtensa-isa.h"
 
@@ -494,7 +495,7 @@ typedef struct XtensaConfigList {
     struct XtensaConfigList *next;
 } XtensaConfigList;
 
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
 enum {
     FP_F32_HIGH,
     FP_F32_LOW,
@@ -590,7 +591,7 @@ void xtensa_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
 #define XTENSA_CPU_TYPE_NAME(model) model XTENSA_CPU_TYPE_SUFFIX
 #define CPU_RESOLVING_TYPE TYPE_XTENSA_CPU
 
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
 #define XTENSA_DEFAULT_CPU_MODEL "fsf"
 #define XTENSA_DEFAULT_CPU_NOMMU_MODEL "fsf"
 #else

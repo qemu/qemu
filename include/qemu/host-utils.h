@@ -88,7 +88,7 @@ static inline uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
     union {
         uint64_t ll;
         struct {
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
             uint32_t high, low;
 #else
             uint32_t low, high;

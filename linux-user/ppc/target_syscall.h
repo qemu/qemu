@@ -59,7 +59,7 @@ struct target_revectored_struct {
  */
 
 #if defined(TARGET_PPC64)
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
 #define UNAME_MACHINE "ppc64"
 #else
 #define UNAME_MACHINE "ppc64le"

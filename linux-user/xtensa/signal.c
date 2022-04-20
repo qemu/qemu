@@ -130,7 +130,7 @@ static int setup_sigcontext(struct target_rt_sigframe *frame,
 
 static void install_sigtramp(uint8_t *tramp)
 {
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
     /* Generate instruction:  MOVI a2, __NR_rt_sigreturn */
     __put_user(0x22, &tramp[0]);
     __put_user(0x0a, &tramp[1]);

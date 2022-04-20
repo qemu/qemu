@@ -34,7 +34,13 @@ static inline bool shutdown_caused_by_guest(ShutdownCause cause)
 }
 
 void vm_start(void);
-int vm_prepare_start(void);
+
+/**
+ * vm_prepare_start: Prepare for starting/resuming the VM
+ *
+ * @step_pending: whether any of the CPUs is about to be single-stepped by gdb
+ */
+int vm_prepare_start(bool step_pending);
 int vm_stop(RunState state);
 int vm_stop_force_state(RunState state);
 int vm_shutdown(void);
@@ -69,6 +75,7 @@ void qemu_system_killed(int signal, pid_t pid);
 void qemu_system_reset(ShutdownCause reason);
 void qemu_system_guest_panicked(GuestPanicInformation *info);
 void qemu_system_guest_crashloaded(GuestPanicInformation *info);
+bool qemu_system_dump_in_progress(void);
 
 #endif
 

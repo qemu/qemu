@@ -159,7 +159,7 @@ struct tcp_hdr {
     u_short     th_dport;   /* destination port */
     uint32_t    th_seq;     /* sequence number */
     uint32_t    th_ack;     /* acknowledgment number */
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
     u_char  th_off : 4,     /* data offset */
         th_x2:4;            /* (unused) */
 #else

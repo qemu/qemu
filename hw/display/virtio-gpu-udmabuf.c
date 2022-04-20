@@ -13,7 +13,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "qemu-common.h"
 #include "qemu/iov.h"
 #include "ui/console.h"
 #include "hw/virtio/virtio-gpu.h"

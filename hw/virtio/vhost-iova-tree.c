@@ -11,7 +11,7 @@
 #include "qemu/iova-tree.h"
 #include "vhost-iova-tree.h"
 
-#define iova_min_addr qemu_real_host_page_size
+#define iova_min_addr qemu_real_host_page_size()
 
 /**
  * VhostIOVATree, able to:
@@ -86,7 +86,7 @@ const DMAMap *vhost_iova_tree_find_iova(const VhostIOVATree *tree,
 int vhost_iova_tree_map_alloc(VhostIOVATree *tree, DMAMap *map)
 {
     /* Some vhost devices do not like addr 0. Skip first page */
-    hwaddr iova_first = tree->iova_first ?: qemu_real_host_page_size;
+    hwaddr iova_first = tree->iova_first ?: qemu_real_host_page_size();
 
     if (map->translated_addr + map->size < map->translated_addr ||
         map->perm == IOMMU_NONE) {

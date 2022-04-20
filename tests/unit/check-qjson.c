@@ -21,7 +21,6 @@
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu/unicode.h"
-#include "qemu-common.h"
 
 static QString *from_json_str(const char *jstr, bool single, Error **errp)
 {

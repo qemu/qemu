@@ -28,7 +28,7 @@ typedef struct SCLPEventsBus {
 } SCLPEventsBus;
 
 /* we need to save 32 bit chunks for compatibility */
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
 #define RECV_MASK_LOWER 1
 #define RECV_MASK_UPPER 0
 #else /* little endian host */

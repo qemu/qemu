@@ -18,7 +18,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qemu/qemu-print.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine.h"
