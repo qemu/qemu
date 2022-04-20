@@ -106,6 +106,14 @@
 #define __has_attribute(x) 0 /* compatibility with older GCC */
 #endif
 
+#if defined(__SANITIZE_ADDRESS__) || __has_feature(address_sanitizer)
+# define QEMU_SANITIZE_ADDRESS 1
+#endif
+
+#if defined(__SANITIZE_THREAD__) || __has_feature(thread_sanitizer)
+# define QEMU_SANITIZE_THREAD 1
+#endif
+
 /*
  * GCC doesn't provide __has_attribute() until GCC 5, but we know all the GCC
  * versions we support have the "flatten" attribute. Clang may not have the
