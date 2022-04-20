@@ -46,7 +46,6 @@ grep_include() {
 }
 
 echo Found $(find . -name "*.d" | wc -l) object files
-echo $(grep_include -F 'include/qemu-common.h') files include qemu-common.h
 echo $(grep_include -F 'hw/hw.h') files include hw/hw.h
 echo $(grep_include 'target/[a-z0-9]*/cpu\.h') files include cpu.h
 echo $(grep_include -F 'qapi-types.h') files include qapi-types.h
@@ -85,9 +84,6 @@ analyze() {
 
 echo osdep.h:
 analyze ../include/qemu/osdep.h
-
-echo qemu-common.h:
-analyze  -include ../include/qemu/osdep.h ../include/qemu-common.h
 
 echo hw/hw.h:
 analyze -include ../include/qemu/osdep.h ../include/hw/hw.h
