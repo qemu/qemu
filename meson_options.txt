@@ -14,6 +14,8 @@ option('sphinx_build', type : 'string', value : '',
        description: 'Use specified sphinx-build for building document')
 option('iasl', type : 'string', value : '',
        description: 'Path to ACPI disassembler')
+option('tls_priority', type : 'string', value : 'NORMAL',
+       description: 'Default TLS protocol/cipher priority string')
 option('default_devices', type : 'boolean', value : true,
        description: 'Include a default selection of devices in emulators')
 option('audio_drv_list', type: 'array', value: ['default'],
