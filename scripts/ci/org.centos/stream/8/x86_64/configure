@@ -136,7 +136,6 @@
 --disable-vhost-user \
 --disable-vhost-user-blk-server \
 --disable-vhost-vdpa \
---disable-vhost-vsock \
 --disable-virglrenderer \
 --disable-virtfs \
 --disable-virtiofsd \
@@ -198,7 +197,6 @@
 --enable-vhost-user \
 --enable-vhost-user-blk-server \
 --enable-vhost-vdpa \
---enable-vhost-vsock \
 --enable-vnc \
 --enable-png \
 --enable-vnc-sasl \
