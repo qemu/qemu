@@ -27,9 +27,7 @@ import sys
 
 SKIP_OPTIONS = {
     "default_devices",
-    "docdir",
     "fuzzing_engine",
-    "qemu_firmwarepath",
     "qemu_suffix",
     "smbd",
 }
@@ -37,12 +35,21 @@ SKIP_OPTIONS = {
 OPTION_NAMES = {
     "malloc": "enable-malloc",
     "pkgversion": "with-pkgversion",
+    "qemu_firmwarepath": "firmwarepath",
     "trace_backends": "enable-trace-backends",
     "trace_file": "with-trace-file",
 }
 
 BUILTIN_OPTIONS = {
+    "datadir",
+    "includedir",
+    "libdir",
+    "libexecdir",
+    "localedir",
+    "localstatedir",
+    "mandir",
     "strip",
+    "sysconfdir",
 }
 
 LINE_WIDTH = 76

@@ -311,6 +311,7 @@ plugins="$default_feature"
 meson=""
 meson_args=""
 ninja=""
+bindir="bin"
 skip_meson=no
 
 # The following Meson options are handled manually (still they
@@ -670,6 +671,7 @@ if test "$mingw32" = "yes" ; then
   CONFIGURE_CFLAGS="-mthreads $CONFIGURE_CFLAGS"
   write_c_skeleton;
   prefix="/qemu"
+  bindir=""
   qemu_suffix=""
 fi
 
@@ -776,29 +778,9 @@ for opt do
     static="yes"
     QEMU_PKG_CONFIG_FLAGS="--static $QEMU_PKG_CONFIG_FLAGS"
   ;;
-  --mandir=*) mandir="$optarg"
-  ;;
   --bindir=*) bindir="$optarg"
   ;;
-  --libdir=*) libdir="$optarg"
-  ;;
-  --libexecdir=*) libexecdir="$optarg"
-  ;;
-  --includedir=*) includedir="$optarg"
-  ;;
-  --datadir=*) datadir="$optarg"
-  ;;
   --with-suffix=*) qemu_suffix="$optarg"
-  ;;
-  --docdir=*) docdir="$optarg"
-  ;;
-  --localedir=*) localedir="$optarg"
-  ;;
-  --sysconfdir=*) sysconfdir="$optarg"
-  ;;
-  --localstatedir=*) local_statedir="$optarg"
-  ;;
-  --firmwarepath=*) firmwarepath="$optarg"
   ;;
   --host=*|--build=*|\
   --disable-dependency-tracking|\
@@ -1022,23 +1004,6 @@ case $git_submodules_action in
     ;;
 esac
 
-libdir="${libdir:-$prefix/lib}"
-libexecdir="${libexecdir:-$prefix/libexec}"
-includedir="${includedir:-$prefix/include}"
-
-if test "$mingw32" = "yes" ; then
-    bindir="${bindir:-$prefix}"
-else
-    bindir="${bindir:-$prefix/bin}"
-fi
-mandir="${mandir:-$prefix/share/man}"
-datadir="${datadir:-$prefix/share}"
-docdir="${docdir:-$prefix/share/doc}"
-sysconfdir="${sysconfdir:-$prefix/etc}"
-local_statedir="${local_statedir:-$prefix/var}"
-firmwarepath="${firmwarepath:-$datadir/qemu-firmware}"
-localedir="${localedir:-$datadir/locale}"
-
 if eval test -z "\${cross_cc_$cpu}"; then
     eval "cross_cc_${cpu}=\$cc"
     cross_cc_vars="$cross_cc_vars cross_cc_${cpu}"
@@ -1116,16 +1081,7 @@ Advanced options (experts only):
   --with-git-submodules=validate fail if git submodules are not up to date
   --with-git-submodules=ignore   do not update or check git submodules (default if no .git dir)
   --static                 enable static build [$static]
-  --mandir=PATH            install man pages in PATH
-  --datadir=PATH           install firmware in PATH/$qemu_suffix
-  --localedir=PATH         install translation in PATH/$qemu_suffix
-  --docdir=PATH            install documentation in PATH/$qemu_suffix
   --bindir=PATH            install binaries in PATH
-  --libdir=PATH            install libraries in PATH
-  --libexecdir=PATH        install helper binaries in PATH
-  --sysconfdir=PATH        install config in PATH/$qemu_suffix
-  --localstatedir=PATH     install local state in PATH (set at runtime on win32)
-  --firmwarepath=PATH      search PATH for firmware files
   --efi-aarch64=PATH       PATH of efi file to use for aarch64 VMs.
   --with-suffix=SUFFIX     suffix for QEMU data inside datadir/libdir/sysconfdir/docdir [$qemu_suffix]
   --without-default-features default all --enable-* options to "disabled"
@@ -2410,18 +2366,8 @@ if test "$skip_meson" = no; then
   run_meson() {
     NINJA=$ninja $meson setup \
         --prefix "$prefix" \
-        --libdir "$libdir" \
-        --libexecdir "$libexecdir" \
         --bindir "$bindir" \
-        --includedir "$includedir" \
-        --datadir "$datadir" \
-        --mandir "$mandir" \
-        --sysconfdir "$sysconfdir" \
-        --localedir "$localedir" \
-        --localstatedir "$local_statedir" \
         -Ddefault_devices=$default_devices \
-        -Ddocdir="$docdir" \
-        -Dqemu_firmwarepath="$firmwarepath" \
         -Dqemu_suffix="$qemu_suffix" \
         -Dsmbd="$smbd" \
         -Doptimization=$(if test "$debug" = yes; then echo 0; else echo 2; fi) \
