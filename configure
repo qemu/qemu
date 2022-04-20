@@ -2625,9 +2625,7 @@ fi
 
 write_c_skeleton
 
-if test "$gcov" = "yes" ; then
-  :
-elif test "$fortify_source" = "yes" ; then
+if test "$fortify_source" = "yes" ; then
   QEMU_CFLAGS="-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 $QEMU_CFLAGS"
   debug=no
 fi
