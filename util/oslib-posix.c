@@ -950,3 +950,21 @@ int fcntl_setfl(int fd, int flag)
     }
     return 0;
 }
+
+int qemu_msync(void *addr, size_t length, int fd)
+{
+    size_t align_mask = ~(qemu_real_host_page_size() - 1);
+
+    /**
+     * There are no strict reqs as per the length of mapping
+     * to be synced. Still the length needs to follow the address
+     * alignment changes. Additionally - round the size to the multiple
+     * of PAGE_SIZE
+     */
+    length += ((uintptr_t)addr & (qemu_real_host_page_size() - 1));
+    length = (length + ~align_mask) & align_mask;
+
+    addr = (void *)((uintptr_t)addr & align_mask);
+
+    return msync(addr, length, MS_SYNC);
+}

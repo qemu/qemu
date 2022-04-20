@@ -596,3 +596,13 @@ size_t qemu_get_host_physmem(void)
     }
     return 0;
 }
+
+int qemu_msync(void *addr, size_t length, int fd)
+{
+    /**
+     * Perform the sync based on the file descriptor
+     * The sync range will most probably be wider than the one
+     * requested - but it will still get the job done
+     */
+    return qemu_fdatasync(fd);
+}
