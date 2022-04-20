@@ -322,7 +322,6 @@ trace_file="trace"
 coroutine=""
 tls_priority="NORMAL"
 plugins="$default_feature"
-secret_keyring="$default_feature"
 meson=""
 meson_args=""
 ninja=""
@@ -1008,10 +1007,6 @@ for opt do
   --disable-containers) use_containers="no"
   ;;
   --gdb=*) gdb_bin="$optarg"
-  ;;
-  --enable-keyring) secret_keyring="yes"
-  ;;
-  --disable-keyring) secret_keyring="no"
   ;;
   --enable-gio) gio=yes
   ;;
@@ -2441,41 +2436,6 @@ case "$slirp" in
 esac
 
 ##########################################
-# check for usable __NR_keyctl syscall
-
-if test "$linux" = "yes" ; then
-
-    have_keyring=no
-    cat > $TMPC << EOF
-#include <errno.h>
-#include <asm/unistd.h>
-#include <linux/keyctl.h>
-#include <unistd.h>
-int main(void) {
-    return syscall(__NR_keyctl, KEYCTL_READ, 0, NULL, NULL, 0);
-}
-EOF
-    if compile_prog "" "" ; then
-        have_keyring=yes
-    fi
-fi
-if test "$secret_keyring" != "no"
-then
-    if test "$have_keyring" = "yes"
-    then
-	secret_keyring=yes
-    else
-	if test "$secret_keyring" = "yes"
-	then
-	    error_exit "syscall __NR_keyctl requested, \
-but not implemented on your system"
-	else
-	    secret_keyring=no
-	fi
-    fi
-fi
-
-##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -2758,10 +2718,6 @@ if test -n "$gdb_bin"; then
     if version_ge ${gdb_version##* } 9.1; then
         echo "HAVE_GDB_BIN=$gdb_bin" >> $config_host_mak
     fi
-fi
-
-if test "$secret_keyring" = "yes" ; then
-  echo "CONFIG_SECRET_KEYRING=y" >> $config_host_mak
 fi
 
 echo "ROMS=$roms" >> $config_host_mak
