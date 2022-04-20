@@ -676,63 +676,6 @@ class CcCommand(SubCommand):
                             as_user=True)
 
 
-class CheckCommand(SubCommand):
-    """Check if we need to re-build a docker image out of a dockerfile.
-    Arguments: <tag> <dockerfile>"""
-    name = "check"
-
-    def args(self, parser):
-        parser.add_argument("tag",
-                            help="Image Tag")
-        parser.add_argument("dockerfile", default=None,
-                            help="Dockerfile name", nargs='?')
-        parser.add_argument("--checktype", choices=["checksum", "age"],
-                            default="checksum", help="check type")
-        parser.add_argument("--olderthan", default=60, type=int,
-                            help="number of minutes")
-
-    def run(self, args, argv):
-        tag = args.tag
-
-        try:
-            dkr = Docker()
-        except subprocess.CalledProcessError:
-            print("Docker not set up")
-            return 1
-
-        info = dkr.inspect_tag(tag)
-        if info is None:
-            print("Image does not exist")
-            return 1
-
-        if args.checktype == "checksum":
-            if not args.dockerfile:
-                print("Need a dockerfile for tag:%s" % (tag))
-                return 1
-
-            dockerfile = _read_dockerfile(args.dockerfile)
-
-            if dkr.image_matches_dockerfile(tag, dockerfile):
-                if not args.quiet:
-                    print("Image is up to date")
-                return 0
-            else:
-                print("Image needs updating")
-                return 1
-        elif args.checktype == "age":
-            timestr = dkr.get_image_creation_time(info).split(".")[0]
-            created = datetime.strptime(timestr, "%Y-%m-%dT%H:%M:%S")
-            past = datetime.now() - timedelta(minutes=args.olderthan)
-            if created < past:
-                print ("Image created @ %s more than %d minutes old" %
-                       (timestr, args.olderthan))
-                return 1
-            else:
-                if not args.quiet:
-                    print ("Image less than %d minutes old" % (args.olderthan))
-                return 0
-
-
 def main():
     global USE_ENGINE
 

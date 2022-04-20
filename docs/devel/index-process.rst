@@ -5,7 +5,6 @@ Notes about how to interact with the community and how and where to submit patch
 
 .. toctree::
    :maxdepth: 2
-   :includehidden:
 
    code-of-conduct
    conflict-resolution

@@ -92,17 +92,18 @@ if __name__ == '__main__':
 
     result = subprocess.call(gdb_cmd, shell=True, stdout=output)
 
-    # A negative result is the result of an internal gdb failure like
-    # a crash. We force a return of 0 so we don't fail the test on
+    # A result of greater than 128 indicates a fatal signal (likely a
+    # crash due to gdb internal failure). That's a problem for GDB and
+    # not the test so we force a return of 0 so we don't fail the test on
     # account of broken external tools.
-    if result < 0:
-        print("GDB crashed? SKIPPING")
+    if result > 128:
+        log(output, "GDB crashed? (%d, %d) SKIPPING" % (result, result - 128))
         exit(0)
 
     try:
         inferior.wait(2)
     except subprocess.TimeoutExpired:
-        print("GDB never connected? Killed guest")
+        log(output, "GDB never connected? Killed guest")
         inferior.kill()
 
     exit(result)

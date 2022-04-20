@@ -3,7 +3,6 @@ QTest Device Emulation Testing Framework
 ========================================
 
 .. toctree::
-   :hidden:
 
    qgraph
 

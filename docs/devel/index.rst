@@ -8,8 +8,6 @@ modifying QEMU's source code.
 
 .. toctree::
    :maxdepth: 1
-   :includehidden:
-
 
    index-process
    index-build
