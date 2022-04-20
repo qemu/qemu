@@ -26,21 +26,18 @@ import shlex
 import sys
 
 SKIP_OPTIONS = {
-    "audio_drv_list",
     "default_devices",
     "docdir",
     "fuzzing_engine",
-    "iasl",
     "qemu_firmwarepath",
     "qemu_suffix",
     "smbd",
-    "sphinx_build",
-    "trace_file",
 }
 
 OPTION_NAMES = {
     "malloc": "enable-malloc",
     "trace_backends": "enable-trace-backends",
+    "trace_file": "with-trace-file",
 }
 
 BUILTIN_OPTIONS = {

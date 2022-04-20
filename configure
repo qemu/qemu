@@ -231,12 +231,10 @@ fi
 
 # default parameters
 cpu=""
-iasl="iasl"
 interp_prefix="/usr/gnemul/qemu-%M"
 static="no"
 cross_compile="no"
 cross_prefix=""
-audio_drv_list="default"
 block_drv_rw_whitelist=""
 block_drv_ro_whitelist=""
 host_cc="cc"
@@ -312,7 +310,6 @@ linux_user=""
 bsd_user=""
 pkgversion=""
 pie=""
-trace_file="trace"
 coroutine=""
 tls_priority="NORMAL"
 plugins="$default_feature"
@@ -714,8 +711,6 @@ for opt do
   ;;
   --cxx=*)
   ;;
-  --iasl=*) iasl="$optarg"
-  ;;
   --objcc=*) objcc="$optarg"
   ;;
   --make=*) make="$optarg"
@@ -723,8 +718,6 @@ for opt do
   --install=*)
   ;;
   --python=*) python="$optarg" ; explicit_python=yes
-  ;;
-  --sphinx-build=*) sphinx_build="$optarg"
   ;;
   --skip-meson) skip_meson=yes
   ;;
@@ -765,8 +758,6 @@ for opt do
                    if test "$target_list"; then
                        error_exit "Can't mix --target-list-exclude with --target-list"
                    fi
-  ;;
-  --with-trace-file=*) trace_file="$optarg"
   ;;
   --with-default-devices) default_devices="true"
   ;;
@@ -825,8 +816,6 @@ for opt do
     # autoconf-generated configure scripts. This allows QEMU's
     # configure to be used by RPM and similar macros that set
     # lots of directory switches by default.
-  ;;
-  --audio-drv-list=*) audio_drv_list="$optarg"
   ;;
   --block-drv-rw-whitelist=*|--block-drv-whitelist=*) block_drv_rw_whitelist=$(echo "$optarg" | sed -e 's/,/ /g')
   ;;
@@ -1001,12 +990,7 @@ for opt do
   --enable-jemalloc) meson_option_parse --enable-malloc=jemalloc jemalloc
   ;;
   # everything else has the same name in configure and meson
-  --enable-* | --disable-*) meson_option_parse "$opt" "$optarg"
-  ;;
-  *)
-      echo "ERROR: unknown option $opt"
-      echo "Try '$0 --help' for more information"
-      exit 1
+  --*) meson_option_parse "$opt" "$optarg"
   ;;
   esac
 done
@@ -1129,7 +1113,6 @@ $(echo Available targets: $default_target_list | \
 Advanced options (experts only):
   --cross-prefix=PREFIX    use PREFIX for compile tools, PREFIX can be blank [$cross_prefix]
   --cc=CC                  use C compiler CC [$cc]
-  --iasl=IASL              use ACPI compiler IASL [$iasl]
   --host-cc=CC             use C compiler CC [$host_cc] for code run at
                            build time
   --cxx=CXX                use C++ compiler CXX [$cxx]
@@ -1142,7 +1125,6 @@ Advanced options (experts only):
   --cross-cc-cflags-ARCH=  use compiler flags when building ARCH guest tests
   --make=MAKE              use specified make [$make]
   --python=PYTHON          use specified python [$python]
-  --sphinx-build=SPHINX    use specified sphinx-build [$sphinx_build]
   --meson=MESON            use specified meson [$meson]
   --ninja=NINJA            use specified ninja [$ninja]
   --smbd=SMBD              use specified smbd [$smbd]
@@ -2485,15 +2467,11 @@ if test "$skip_meson" = no; then
         --sysconfdir "$sysconfdir" \
         --localedir "$localedir" \
         --localstatedir "$local_statedir" \
-        -Daudio_drv_list=$audio_drv_list \
         -Ddefault_devices=$default_devices \
         -Ddocdir="$docdir" \
-        -Diasl="$iasl" \
         -Dqemu_firmwarepath="$firmwarepath" \
         -Dqemu_suffix="$qemu_suffix" \
         -Dsmbd="$smbd" \
-        -Dsphinx_build="$sphinx_build" \
-        -Dtrace_file="$trace_file" \
         -Doptimization=$(if test "$debug" = yes; then echo 0; else echo 2; fi) \
         -Ddebug=$(if test "$debug_info" = yes; then echo true; else echo false; fi) \
         -Dwerror=$(if test "$werror" = yes; then echo true; else echo false; fi) \
