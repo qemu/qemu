@@ -1555,10 +1555,6 @@ if test "$vhost_vsock" = "yes" && test "$vhost_kernel" != "yes"; then
 fi
 
 # vhost-user backends
-test "$vhost_net_user" = "" && vhost_net_user=$vhost_user
-if test "$vhost_net_user" = "yes" && test "$vhost_user" = "no"; then
-  error_exit "--enable-vhost-net-user requires --enable-vhost-user"
-fi
 test "$vhost_crypto" = "" && vhost_crypto=$vhost_user
 if test "$vhost_crypto" = "yes" && test "$vhost_user" = "no"; then
   error_exit "--enable-vhost-crypto requires --enable-vhost-user"
@@ -1567,16 +1563,11 @@ test "$vhost_user_fs" = "" && vhost_user_fs=$vhost_user
 if test "$vhost_user_fs" = "yes" && test "$vhost_user" = "no"; then
   error_exit "--enable-vhost-user-fs requires --enable-vhost-user"
 fi
-#vhost-vdpa backends
-test "$vhost_net_vdpa" = "" && vhost_net_vdpa=$vhost_vdpa
-if test "$vhost_net_vdpa" = "yes" && test "$vhost_vdpa" = "no"; then
-  error_exit "--enable-vhost-net-vdpa requires --enable-vhost-vdpa"
-fi
 
 # OR the vhost-kernel, vhost-vdpa and vhost-user values for simplicity
 if test "$vhost_net" = ""; then
-  test "$vhost_net_user" = "yes" && vhost_net=yes
-  test "$vhost_net_vdpa" = "yes" && vhost_net=yes
+  test "$vhost_user" = "yes" && vhost_net=yes
+  test "$vhost_vdpa" = "yes" && vhost_net=yes
   test "$vhost_kernel" = "yes" && vhost_net=yes
 fi
 
@@ -2105,10 +2096,10 @@ fi
 if test "$vhost_net" = "yes" ; then
   echo "CONFIG_VHOST_NET=y" >> $config_host_mak
 fi
-if test "$vhost_net_user" = "yes" ; then
+if test "$vhost_user" = "yes" ; then
   echo "CONFIG_VHOST_NET_USER=y" >> $config_host_mak
 fi
-if test "$vhost_net_vdpa" = "yes" ; then
+if test "$vhost_vdpa" = "yes" ; then
   echo "CONFIG_VHOST_NET_VDPA=y" >> $config_host_mak
 fi
 if test "$vhost_crypto" = "yes" ; then
