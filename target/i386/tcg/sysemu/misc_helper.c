@@ -471,7 +471,8 @@ void helper_flush_page(CPUX86State *env, target_ulong addr)
     tlb_flush_page(env_cpu(env), addr);
 }
 
-static void QEMU_NORETURN do_hlt(CPUX86State *env)
+static G_NORETURN
+void do_hlt(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
 
@@ -481,7 +482,7 @@ static void QEMU_NORETURN do_hlt(CPUX86State *env)
     cpu_loop_exit(cs);
 }
 
-void QEMU_NORETURN helper_hlt(CPUX86State *env, int next_eip_addend)
+G_NORETURN void helper_hlt(CPUX86State *env, int next_eip_addend)
 {
     cpu_svm_check_intercept_param(env, SVM_EXIT_HLT, 0, GETPC());
     env->eip += next_eip_addend;
@@ -498,7 +499,7 @@ void helper_monitor(CPUX86State *env, target_ulong ptr)
     cpu_svm_check_intercept_param(env, SVM_EXIT_MONITOR, 0, GETPC());
 }
 
-void QEMU_NORETURN helper_mwait(CPUX86State *env, int next_eip_addend)
+G_NORETURN void helper_mwait(CPUX86State *env, int next_eip_addend)
 {
     CPUState *cs = env_cpu(env);
 

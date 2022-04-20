@@ -81,7 +81,7 @@ void helper_rdtscp(CPUX86State *env)
     env->regs[R_ECX] = (uint32_t)(env->tsc_aux);
 }
 
-void QEMU_NORETURN helper_rdpmc(CPUX86State *env)
+G_NORETURN void helper_rdpmc(CPUX86State *env)
 {
     if (((env->cr[4] & CR4_PCE_MASK) == 0 ) &&
         ((env->hflags & HF_CPL_MASK) != 0)) {
@@ -94,7 +94,7 @@ void QEMU_NORETURN helper_rdpmc(CPUX86State *env)
     raise_exception_err(env, EXCP06_ILLOP, 0);
 }
 
-void QEMU_NORETURN do_pause(CPUX86State *env)
+G_NORETURN void do_pause(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
 
@@ -103,7 +103,7 @@ void QEMU_NORETURN do_pause(CPUX86State *env)
     cpu_loop_exit(cs);
 }
 
-void QEMU_NORETURN helper_pause(CPUX86State *env, int next_eip_addend)
+G_NORETURN void helper_pause(CPUX86State *env, int next_eip_addend)
 {
     cpu_svm_check_intercept_param(env, SVM_EXIT_PAUSE, 0, GETPC());
     env->eip += next_eip_addend;

@@ -188,7 +188,7 @@ void qemu_thread_create(QemuThread *thread, const char *name,
 void *qemu_thread_join(QemuThread *thread);
 void qemu_thread_get_self(QemuThread *thread);
 bool qemu_thread_is_self(QemuThread *thread);
-void qemu_thread_exit(void *retval) QEMU_NORETURN;
+G_NORETURN void qemu_thread_exit(void *retval);
 void qemu_thread_naming(bool enable);
 
 struct Notifier;

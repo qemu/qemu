@@ -46,7 +46,7 @@
 #define dh_ctype_ptr void *
 #define dh_ctype_cptr const void *
 #define dh_ctype_void void
-#define dh_ctype_noreturn void QEMU_NORETURN
+#define dh_ctype_noreturn G_NORETURN void
 #define dh_ctype(t) dh_ctype_##t
 
 #ifdef NEED_CPU_H

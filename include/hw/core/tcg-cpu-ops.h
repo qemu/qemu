@@ -78,9 +78,9 @@ struct TCGCPUOps {
      * @do_unaligned_access: Callback for unaligned access handling
      * The callback must exit via raising an exception.
      */
-    void (*do_unaligned_access)(CPUState *cpu, vaddr addr,
-                                MMUAccessType access_type,
-                                int mmu_idx, uintptr_t retaddr) QEMU_NORETURN;
+    G_NORETURN void (*do_unaligned_access)(CPUState *cpu, vaddr addr,
+                                           MMUAccessType access_type,
+                                           int mmu_idx, uintptr_t retaddr);
 
     /**
      * @adjust_watchpoint_address: hack for cpu_check_watchpoint used by ARM

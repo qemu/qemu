@@ -320,7 +320,8 @@ static void set_jmp_reset_offset(TCGContext *s, int which)
 }
 
 /* Signal overflow, starting over with fewer guest insns. */
-static void QEMU_NORETURN tcg_raise_tb_overflow(TCGContext *s)
+static G_NORETURN
+void tcg_raise_tb_overflow(TCGContext *s)
 {
     siglongjmp(s->jmp_trans, -2);
 }

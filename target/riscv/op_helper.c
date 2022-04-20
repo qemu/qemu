@@ -24,8 +24,8 @@
 #include "exec/helper-proto.h"
 
 /* Exceptions processing helpers */
-void QEMU_NORETURN riscv_raise_exception(CPURISCVState *env,
-                                          uint32_t exception, uintptr_t pc)
+G_NORETURN void riscv_raise_exception(CPURISCVState *env,
+                                      uint32_t exception, uintptr_t pc)
 {
     CPUState *cs = env_cpu(env);
     cs->exception_index = exception;

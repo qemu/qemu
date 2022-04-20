@@ -22,8 +22,6 @@
 #define QEMU_EXTERN_C extern
 #endif
 
-#define QEMU_NORETURN __attribute__ ((__noreturn__))
-
 #if defined(_WIN32) && (defined(__x86_64__) || defined(__i386__))
 # define QEMU_PACKED __attribute__((gcc_struct, packed))
 #else

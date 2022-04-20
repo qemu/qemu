@@ -223,7 +223,7 @@ our $Sparse	= qr{
 our $Attribute	= qr{
 			const|
 			volatile|
-			QEMU_NORETURN|
+			G_NORETURN|
 			G_GNUC_WARN_UNUSED_RESULT|
 			G_GNUC_NULL_TERMINATED|
 			QEMU_PACKED|

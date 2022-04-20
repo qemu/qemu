@@ -147,4 +147,8 @@ qemu_g_test_slow(void)
 
 #pragma GCC diagnostic pop
 
+#ifndef G_NORETURN
+#define G_NORETURN G_GNUC_NORETURN
+#endif
+
 #endif
