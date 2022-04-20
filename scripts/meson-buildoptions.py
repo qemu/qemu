@@ -38,6 +38,11 @@ SKIP_OPTIONS = {
     "trace_file",
 }
 
+OPTION_NAMES = {
+    "malloc": "enable-malloc",
+    "trace_backends": "enable-trace-backends",
+}
+
 BUILTIN_OPTIONS = {
     "strip",
 }
@@ -75,7 +80,7 @@ def help_line(left, opt, indent, long):
     right = f'{opt["description"]}'
     if long:
         value = value_to_help(opt["value"])
-        if value != "auto":
+        if value != "auto" and value != "":
             right += f" [{value}]"
     if "choices" in opt and long:
         choices = "/".join(sorted(opt["choices"]))
@@ -96,6 +101,18 @@ def allow_arg(opt):
     return not (set(opt["choices"]) <= {"auto", "disabled", "enabled"})
 
 
+# Return whether the option (a dictionary) can be used without
+# arguments.  Booleans can only be used without arguments;
+# combos require an argument if they accept neither "enabled"
+# nor "disabled"
+def require_arg(opt):
+    if opt["type"] == "boolean":
+        return False
+    if opt["type"] != "combo":
+        return True
+    return not ({"enabled", "disabled"}.intersection(opt["choices"]))
+
+
 def filter_options(json):
     if ":" in json["name"]:
         return False
@@ -110,20 +127,48 @@ def load_options(json):
     return sorted(json, key=lambda x: x["name"])
 
 
+def cli_option(opt):
+    name = opt["name"]
+    if name in OPTION_NAMES:
+        return OPTION_NAMES[name]
+    return name.replace("_", "-")
+
+
+def cli_help_key(opt):
+    key = cli_option(opt)
+    if require_arg(opt):
+        return key
+    if opt["type"] == "boolean" and opt["value"]:
+        return f"disable-{key}"
+    return f"enable-{key}"
+
+
+def cli_metavar(opt):
+    if opt["type"] == "string":
+        return "VALUE"
+    if opt["type"] == "array":
+        return "CHOICES"
+    return "CHOICE"
+
+
 def print_help(options):
     print("meson_options_help() {")
-    for opt in options:
-        key = opt["name"].replace("_", "-")
+    for opt in sorted(options, key=cli_help_key):
+        key = cli_help_key(opt)
         # The first section includes options that have an arguments,
         # and booleans (i.e., only one of enable/disable makes sense)
-        if opt["type"] == "boolean":
-            left = f"--disable-{key}" if opt["value"] else f"--enable-{key}"
+        if require_arg(opt):
+            metavar = cli_metavar(opt)
+            left = f"--{key}={metavar}"
+            help_line(left, opt, 27, True)
+        elif opt["type"] == "boolean":
+            left = f"--{key}"
             help_line(left, opt, 27, False)
         elif allow_arg(opt):
             if opt["type"] == "combo" and "enabled" in opt["choices"]:
-                left = f"--enable-{key}[=CHOICE]"
+                left = f"--{key}[=CHOICE]"
             else:
-                left = f"--enable-{key}=CHOICE"
+                left = f"--{key}=CHOICE"
             help_line(left, opt, 27, True)
 
     sh_print()
@@ -142,9 +187,11 @@ def print_parse(options):
     print("_meson_option_parse() {")
     print("  case $1 in")
     for opt in options:
-        key = opt["name"].replace("_", "-")
+        key = cli_option(opt)
         name = opt["name"]
-        if opt["type"] == "boolean":
+        if require_arg(opt):
+            print(f'    --{key}=*) quote_sh "-D{name}=$2" ;;')
+        elif opt["type"] == "boolean":
             print(f'    --enable-{key}) printf "%s" -D{name}=true ;;')
             print(f'    --disable-{key}) printf "%s" -D{name}=false ;;')
         else:
