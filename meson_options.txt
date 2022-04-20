@@ -151,6 +151,10 @@ option('rbd', type : 'feature', value : 'auto',
        description: 'Ceph block device driver')
 option('opengl', type : 'feature', value : 'auto',
        description: 'OpenGL support')
+option('rdma', type : 'feature', value : 'auto',
+       description: 'Enable RDMA-based migration')
+option('pvrdma', type : 'feature', value : 'auto',
+       description: 'Enable PVRDMA support')
 option('gtk', type : 'feature', value : 'auto',
        description: 'GTK+ user interface')
 option('sdl', type : 'feature', value : 'auto',

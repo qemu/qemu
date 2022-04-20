@@ -301,8 +301,6 @@ vhost_vsock="$default_feature"
 vhost_user="no"
 vhost_user_fs="$default_feature"
 vhost_vdpa="$default_feature"
-rdma="$default_feature"
-pvrdma="$default_feature"
 debug_info="yes"
 debug_tcg="no"
 debug="no"
@@ -972,14 +970,6 @@ for opt do
   ;;
   --tls-priority=*) tls_priority="$optarg"
   ;;
-  --enable-rdma) rdma="yes"
-  ;;
-  --disable-rdma) rdma="no"
-  ;;
-  --enable-pvrdma) pvrdma="yes"
-  ;;
-  --disable-pvrdma) pvrdma="no"
-  ;;
   --disable-vhost-user) vhost_user="no"
   ;;
   --enable-vhost-user) vhost_user="yes"
@@ -1244,8 +1234,6 @@ cat << EOF
   lto             Enable Link-Time Optimization.
   safe-stack      SafeStack Stack Smash Protection. Depends on
                   clang/llvm >= 3.7 and requires coroutine backend ucontext.
-  rdma            Enable RDMA-based migration
-  pvrdma          Enable PVRDMA support
   vhost-net       vhost-net kernel acceleration support
   vhost-vsock     virtio sockets device support
   vhost-scsi      vhost-scsi kernel target support
@@ -2038,100 +2026,6 @@ EOF
 fi
 
 ##########################################
-# RDMA needs OpenFabrics libraries
-if test "$rdma" != "no" ; then
-  cat > $TMPC <<EOF
-#include <rdma/rdma_cma.h>
-int main(void) { return 0; }
-EOF
-  rdma_libs="-lrdmacm -libverbs -libumad"
-  if compile_prog "" "$rdma_libs" ; then
-    rdma="yes"
-  else
-    if test "$rdma" = "yes" ; then
-        error_exit \
-            " OpenFabrics librdmacm/libibverbs/libibumad not present." \
-            " Your options:" \
-            "  (1) Fast: Install infiniband packages (devel) from your distro." \
-            "  (2) Cleanest: Install libraries from www.openfabrics.org" \
-            "  (3) Also: Install softiwarp if you don't have RDMA hardware"
-    fi
-    rdma="no"
-  fi
-fi
-
-##########################################
-# PVRDMA detection
-
-cat > $TMPC <<EOF &&
-#include <sys/mman.h>
-
-int
-main(void)
-{
-    char buf = 0;
-    void *addr = &buf;
-    addr = mremap(addr, 0, 1, MREMAP_MAYMOVE | MREMAP_FIXED);
-
-    return 0;
-}
-EOF
-
-if test "$rdma" = "yes" ; then
-    case "$pvrdma" in
-    "")
-        if compile_prog "" ""; then
-            pvrdma="yes"
-        else
-            pvrdma="no"
-        fi
-        ;;
-    "yes")
-        if ! compile_prog "" ""; then
-            error_exit "PVRDMA is not supported since mremap is not implemented"
-        fi
-        pvrdma="yes"
-        ;;
-    "no")
-        pvrdma="no"
-        ;;
-    esac
-else
-    if test "$pvrdma" = "yes" ; then
-        error_exit "PVRDMA requires rdma suppport"
-    fi
-    pvrdma="no"
-fi
-
-# Let's see if enhanced reg_mr is supported
-if test "$pvrdma" = "yes" ; then
-
-cat > $TMPC <<EOF &&
-#include <infiniband/verbs.h>
-
-int
-main(void)
-{
-    struct ibv_mr *mr;
-    struct ibv_pd *pd = NULL;
-    size_t length = 10;
-    uint64_t iova = 0;
-    int access = 0;
-    void *addr = NULL;
-
-    mr = ibv_reg_mr_iova(pd, addr, length, iova, access);
-
-    ibv_dereg_mr(mr);
-
-    return 0;
-}
-EOF
-    if ! compile_prog "" "-libverbs"; then
-        QEMU_CFLAGS="$QEMU_CFLAGS -DLEGACY_RDMA_REG_MR"
-    fi
-fi
-
-##########################################
 # glib support probe
 
 glib_req_ver=2.56
@@ -2853,15 +2747,6 @@ fi
 
 if test "$have_tsan" = "yes" && test "$have_tsan_iface_fiber" = "yes" ; then
     echo "CONFIG_TSAN=y" >> $config_host_mak
-fi
-
-if test "$rdma" = "yes" ; then
-  echo "CONFIG_RDMA=y" >> $config_host_mak
-  echo "RDMA_LIBS=$rdma_libs" >> $config_host_mak
-fi
-
-if test "$pvrdma" = "yes" ; then
-  echo "CONFIG_PVRDMA=y" >> $config_host_mak
 fi
 
 if test "$plugins" = "yes" ; then
