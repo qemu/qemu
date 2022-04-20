@@ -26,6 +26,11 @@ uint16_t nvme_check_prinfo(NvmeNamespace *ns, uint8_t prinfo, uint64_t slba,
         return NVME_INVALID_PROT_INFO | NVME_DNR;
     }
 
+    if ((NVME_ID_NS_DPS_TYPE(ns->id_ns.dps) == NVME_ID_NS_DPS_TYPE_3) &&
+        (prinfo & NVME_PRINFO_PRCHK_REF)) {
+        return NVME_INVALID_PROT_INFO;
+    }
+
     return NVME_SUCCESS;
 }
 
