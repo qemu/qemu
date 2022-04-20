@@ -40,17 +40,6 @@ int error_printf(const char *fmt, ...)
     return ret;
 }
 
-int error_printf_unless_qmp(const char *fmt, ...)
-{
-    va_list ap;
-    int ret;
-
-    va_start(ap, fmt);
-    ret = error_vprintf_unless_qmp(fmt, ap);
-    va_end(ap);
-    return ret;
-}
-
 static Location std_loc = {
     .kind = LOC_NONE
 };

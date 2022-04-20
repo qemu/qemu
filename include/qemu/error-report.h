@@ -32,8 +32,6 @@ void loc_set_file(const char *fname, int lno);
 
 int error_vprintf(const char *fmt, va_list ap) G_GNUC_PRINTF(1, 0);
 int error_printf(const char *fmt, ...) G_GNUC_PRINTF(1, 2);
-int error_vprintf_unless_qmp(const char *fmt, va_list ap) G_GNUC_PRINTF(1, 0);
-int error_printf_unless_qmp(const char *fmt, ...) G_GNUC_PRINTF(1, 2);
 
 void error_vreport(const char *fmt, va_list ap) G_GNUC_PRINTF(1, 0);
 void warn_vreport(const char *fmt, va_list ap) G_GNUC_PRINTF(1, 0);
