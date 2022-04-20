@@ -414,21 +414,9 @@ void qtest_quit(QTestState *s)
 
 static void socket_send(int fd, const char *buf, size_t size)
 {
-    size_t offset;
+    size_t res = qemu_write_full(fd, buf, size);
 
-    offset = 0;
-    while (offset < size) {
-        ssize_t len;
-
-        len = write(fd, buf + offset, size - offset);
-        if (len == -1 && errno == EINTR) {
-            continue;
-        }
-
-        g_assert_cmpint(len, >, 0);
-
-        offset += len;
-    }
+    assert(res == size);
 }
 
 static void qtest_client_socket_send(QTestState *s, const char *buf)
