@@ -244,7 +244,6 @@ audio_drv_list="default"
 block_drv_rw_whitelist=""
 block_drv_ro_whitelist=""
 host_cc="cc"
-debug_info="yes"
 lto="false"
 stack_protector=""
 safe_stack=""
@@ -304,6 +303,7 @@ vhost_user_fs="$default_feature"
 vhost_vdpa="$default_feature"
 rdma="$default_feature"
 pvrdma="$default_feature"
+debug_info="yes"
 debug_tcg="no"
 debug="no"
 sanitizers="no"
@@ -378,10 +378,6 @@ for opt do
   --extra-objcflags=*) EXTRA_OBJCFLAGS="$EXTRA_OBJCFLAGS $optarg"
   ;;
   --extra-ldflags=*) EXTRA_LDFLAGS="$EXTRA_LDFLAGS $optarg"
-  ;;
-  --enable-debug-info) debug_info="yes"
-  ;;
-  --disable-debug-info) debug_info="no"
   ;;
   --cross-cc-*[!a-zA-Z0-9_-]*=*) error_exit "Passed bad --cross-cc-FOO option"
   ;;
@@ -759,11 +755,11 @@ for opt do
   ;;
   --extra-ldflags=*)
   ;;
-  --enable-debug-info)
-  ;;
-  --disable-debug-info)
-  ;;
   --cross-cc-*)
+  ;;
+  --enable-debug-info) debug_info="yes"
+  ;;
+  --disable-debug-info) debug_info="no"
   ;;
   --enable-modules)
       modules="yes"
