@@ -15,7 +15,6 @@
 #include "qapi/qmp/qnull.h"
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
-#include "block/qdict.h"
 
 #include <math.h>
 
@@ -179,7 +178,6 @@ static void qobject_is_equal_list_test(void)
 static void qobject_is_equal_dict_test(void)
 {
     g_autoptr(QDict) dict_cloned = NULL;
-    g_autoptr(QDict) dict_crumpled = NULL;
     g_autoptr(QDict) dict_0 = qdict_new();
     g_autoptr(QDict) dict_1 = qdict_new();
     g_autoptr(QDict) dict_different_key = qdict_new();
@@ -236,12 +234,6 @@ static void qobject_is_equal_dict_test(void)
     check_unequal(dict_0, dict_different_key, dict_different_value,
                   dict_different_null_key, dict_longer, dict_shorter,
                   dict_nested);
-
-    dict_crumpled = qobject_to(QDict, qdict_crumple(dict_1, &error_abort));
-    check_equal(dict_crumpled, dict_nested);
-
-    qdict_flatten(dict_nested);
-    check_equal(dict_0, dict_nested);
 
     /* Containing an NaN value will make this dict compare unequal to
      * itself */
