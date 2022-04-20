@@ -224,10 +224,6 @@ glob() {
     eval test -z '"${1#'"$2"'}"'
 }
 
-ld_has() {
-    $ld --help 2>/dev/null | grep ".$1" >/dev/null 2>&1
-}
-
 if printf %s\\n "$source_path" "$PWD" | grep -q "[[:space:]:]";
 then
   error_exit "main directory cannot contain spaces nor colons"
@@ -2087,22 +2083,6 @@ if test "$solaris" = "no" && test "$tsan" = "no"; then
     if $ld --version 2>/dev/null | grep "GNU ld" >/dev/null 2>/dev/null ; then
         QEMU_LDFLAGS="-Wl,--warn-common $QEMU_LDFLAGS"
     fi
-fi
-
-# Use ASLR, no-SEH and DEP if available
-if test "$mingw32" = "yes" ; then
-    flags="--no-seh --nxcompat"
-
-    # Disable ASLR for debug builds to allow debugging with gdb
-    if test "$debug" = "no" ; then
-        flags="--dynamicbase $flags"
-    fi
-
-    for flag in $flags; do
-        if ld_has $flag ; then
-            QEMU_LDFLAGS="-Wl,$flag $QEMU_LDFLAGS"
-        fi
-    done
 fi
 
 # Guest agent Windows MSI package

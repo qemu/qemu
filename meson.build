@@ -182,6 +182,14 @@ qemu_cxxflags = config_host['QEMU_CXXFLAGS'].split()
 qemu_objcflags = config_host['QEMU_OBJCFLAGS'].split()
 qemu_ldflags = config_host['QEMU_LDFLAGS'].split()
 
+if targetos == 'windows'
+  qemu_ldflags += cc.get_supported_link_arguments('-Wl,--no-seh', '-Wl,--nxcompat')
+  # Disable ASLR for debug builds to allow debugging with gdb
+  if get_option('optimization') == '0'
+    qemu_ldflags += cc.get_supported_link_arguments('-Wl,--dynamicbase')
+  endif
+endif
+
 if get_option('gprof')
   qemu_cflags += ['-p']
   qemu_cxxflags += ['-p']
