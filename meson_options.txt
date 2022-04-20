@@ -21,6 +21,10 @@ option('default_devices', type : 'boolean', value : true,
 option('audio_drv_list', type: 'array', value: ['default'],
        choices: ['alsa', 'coreaudio', 'default', 'dsound', 'jack', 'oss', 'pa', 'sdl'],
        description: 'Set audio driver list')
+option('block_drv_rw_whitelist', type : 'string', value : '',
+       description: 'set block driver read-write whitelist (by default affects only QEMU, not tools like qemu-img)')
+option('block_drv_ro_whitelist', type : 'string', value : '',
+       description: 'set block driver read-only whitelist (by default affects only QEMU, not tools like qemu-img)')
 option('fuzzing_engine', type : 'string', value : '',
        description: 'fuzzing engine library for OSS-Fuzz')
 option('trace_file', type: 'string', value: 'trace',
