@@ -174,10 +174,11 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
 
     riscv_socket_fdt_write_distance_matrix(mc, fdt);
 
+    qemu_fdt_add_subnode(fdt, "/chosen");
+    qemu_fdt_setprop_string(fdt, "/chosen", "stdout-path", "/htif");
+
     if (cmdline) {
-        qemu_fdt_add_subnode(fdt, "/chosen");
         qemu_fdt_setprop_string(fdt, "/chosen", "bootargs", cmdline);
-        qemu_fdt_setprop_string(fdt, "/chosen", "stdout-path", "/htif");
     }
 }
 
