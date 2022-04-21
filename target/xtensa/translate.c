@@ -6513,20 +6513,19 @@ static void translate_const_s(DisasContext *dc, const OpcodeArg arg[],
 static void translate_float_d(DisasContext *dc, const OpcodeArg arg[],
                               const uint32_t par[])
 {
-    TCGv_i32 scale = tcg_const_i32(-arg[2].imm);
+    TCGv_i32 scale = tcg_constant_i32(-arg[2].imm);
 
     if (par[0]) {
         gen_helper_uitof_d(arg[0].out, cpu_env, arg[1].in, scale);
     } else {
         gen_helper_itof_d(arg[0].out, cpu_env, arg[1].in, scale);
     }
-    tcg_temp_free(scale);
 }
 
 static void translate_float_s(DisasContext *dc, const OpcodeArg arg[],
                               const uint32_t par[])
 {
-    TCGv_i32 scale = tcg_const_i32(-arg[2].imm);
+    TCGv_i32 scale = tcg_constant_i32(-arg[2].imm);
     OpcodeArg arg32[1];
 
     get_f32_o1(arg, arg32, 0);
@@ -6536,14 +6535,13 @@ static void translate_float_s(DisasContext *dc, const OpcodeArg arg[],
         gen_helper_itof_s(arg32[0].out, cpu_env, arg[1].in, scale);
     }
     put_f32_o1(arg, arg32, 0);
-    tcg_temp_free(scale);
 }
 
 static void translate_ftoi_d(DisasContext *dc, const OpcodeArg arg[],
                              const uint32_t par[])
 {
-    TCGv_i32 rounding_mode = tcg_const_i32(par[0]);
-    TCGv_i32 scale = tcg_const_i32(arg[2].imm);
+    TCGv_i32 rounding_mode = tcg_constant_i32(par[0]);
+    TCGv_i32 scale = tcg_constant_i32(arg[2].imm);
 
     if (par[1]) {
         gen_helper_ftoui_d(arg[0].out, cpu_env, arg[1].in,
@@ -6552,15 +6550,13 @@ static void translate_ftoi_d(DisasContext *dc, const OpcodeArg arg[],
         gen_helper_ftoi_d(arg[0].out, cpu_env, arg[1].in,
                           rounding_mode, scale);
     }
-    tcg_temp_free(rounding_mode);
-    tcg_temp_free(scale);
 }
 
 static void translate_ftoi_s(DisasContext *dc, const OpcodeArg arg[],
                              const uint32_t par[])
 {
-    TCGv_i32 rounding_mode = tcg_const_i32(par[0]);
-    TCGv_i32 scale = tcg_const_i32(arg[2].imm);
+    TCGv_i32 rounding_mode = tcg_constant_i32(par[0]);
+    TCGv_i32 scale = tcg_constant_i32(arg[2].imm);
     OpcodeArg arg32[2];
 
     get_f32_i1(arg, arg32, 1);
@@ -6572,8 +6568,6 @@ static void translate_ftoi_s(DisasContext *dc, const OpcodeArg arg[],
                           rounding_mode, scale);
     }
     put_f32_i1(arg, arg32, 1);
-    tcg_temp_free(rounding_mode);
-    tcg_temp_free(scale);
 }
 
 static void translate_ldsti(DisasContext *dc, const OpcodeArg arg[],
