@@ -2613,15 +2613,13 @@ static void translate_wsr_ccompare(DisasContext *dc, const OpcodeArg arg[],
 {
 #ifndef CONFIG_USER_ONLY
     uint32_t id = par[0] - CCOMPARE;
-    TCGv_i32 tmp = tcg_const_i32(id);
 
     assert(id < dc->config->nccompare);
     if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
         gen_io_start();
     }
     tcg_gen_mov_i32(cpu_SR[par[0]], arg[0].in);
-    gen_helper_update_ccompare(cpu_env, tmp);
-    tcg_temp_free(tmp);
+    gen_helper_update_ccompare(cpu_env, tcg_constant_i32(id));
 #endif
 }
 
@@ -2641,11 +2639,9 @@ static void translate_wsr_dbreaka(DisasContext *dc, const OpcodeArg arg[],
 {
 #ifndef CONFIG_USER_ONLY
     unsigned id = par[0] - DBREAKA;
-    TCGv_i32 tmp = tcg_const_i32(id);
 
     assert(id < dc->config->ndbreak);
-    gen_helper_wsr_dbreaka(cpu_env, tmp, arg[0].in);
-    tcg_temp_free(tmp);
+    gen_helper_wsr_dbreaka(cpu_env, tcg_constant_i32(id), arg[0].in);
 #endif
 }
 
@@ -2654,11 +2650,9 @@ static void translate_wsr_dbreakc(DisasContext *dc, const OpcodeArg arg[],
 {
 #ifndef CONFIG_USER_ONLY
     unsigned id = par[0] - DBREAKC;
-    TCGv_i32 tmp = tcg_const_i32(id);
 
     assert(id < dc->config->ndbreak);
-    gen_helper_wsr_dbreakc(cpu_env, tmp, arg[0].in);
-    tcg_temp_free(tmp);
+    gen_helper_wsr_dbreakc(cpu_env, tcg_constant_i32(id), arg[0].in);
 #endif
 }
 
@@ -2667,11 +2661,9 @@ static void translate_wsr_ibreaka(DisasContext *dc, const OpcodeArg arg[],
 {
 #ifndef CONFIG_USER_ONLY
     unsigned id = par[0] - IBREAKA;
-    TCGv_i32 tmp = tcg_const_i32(id);
 
     assert(id < dc->config->nibreak);
-    gen_helper_wsr_ibreaka(cpu_env, tmp, arg[0].in);
-    tcg_temp_free(tmp);
+    gen_helper_wsr_ibreaka(cpu_env, tcg_constant_i32(id), arg[0].in);
 #endif
 }
 
