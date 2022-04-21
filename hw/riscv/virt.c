@@ -1004,7 +1004,7 @@ static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap,
     create_fdt_flash(s, memmap);
 
 update_bootargs:
-    if (cmdline) {
+    if (cmdline && *cmdline) {
         qemu_fdt_setprop_string(mc->fdt, "/chosen", "bootargs", cmdline);
     }
 }

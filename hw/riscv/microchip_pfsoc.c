@@ -571,7 +571,7 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
                                   "linux,initrd-end", end);
         }
 
-        if (machine->kernel_cmdline) {
+        if (machine->kernel_cmdline && *machine->kernel_cmdline) {
             qemu_fdt_setprop_string(machine->fdt, "/chosen",
                                     "bootargs", machine->kernel_cmdline);
         }
