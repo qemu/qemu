@@ -30,14 +30,6 @@
 
 #if defined(CONFIG_USER_ONLY)
 
-void nios2_cpu_do_interrupt(CPUState *cs)
-{
-    Nios2CPU *cpu = NIOS2_CPU(cs);
-    CPUNios2State *env = &cpu->env;
-    cs->exception_index = -1;
-    env->regs[R_EA] = env->regs[R_PC] + 4;
-}
-
 void nios2_cpu_record_sigsegv(CPUState *cs, vaddr addr,
                               MMUAccessType access_type,
                               bool maperr, uintptr_t retaddr)
