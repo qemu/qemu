@@ -53,16 +53,18 @@
 #define INSN_R_TYPE 0x3A
 
 /* I-Type instruction parsing */
+typedef struct {
+    uint8_t op;
+    union {
+        uint16_t u;
+        int16_t s;
+    } imm16;
+    uint8_t b;
+    uint8_t a;
+} InstrIType;
+
 #define I_TYPE(instr, code)                \
-    struct {                               \
-        uint8_t op;                        \
-        union {                            \
-            uint16_t u;                    \
-            int16_t s;                     \
-        } imm16;                           \
-        uint8_t b;                         \
-        uint8_t a;                         \
-    } (instr) = {                          \
+    InstrIType (instr) = {                 \
         .op    = extract32((code), 0, 6),  \
         .imm16.u = extract32((code), 6, 16), \
         .b     = extract32((code), 22, 5), \
@@ -70,15 +72,17 @@
     }
 
 /* R-Type instruction parsing */
+typedef struct {
+    uint8_t op;
+    uint8_t imm5;
+    uint8_t opx;
+    uint8_t c;
+    uint8_t b;
+    uint8_t a;
+} InstrRType;
+
 #define R_TYPE(instr, code)                \
-    struct {                               \
-        uint8_t op;                        \
-        uint8_t imm5;                      \
-        uint8_t opx;                       \
-        uint8_t c;                         \
-        uint8_t b;                         \
-        uint8_t a;                         \
-    } (instr) = {                          \
+    InstrRType (instr) = {                 \
         .op    = extract32((code), 0, 6),  \
         .imm5  = extract32((code), 6, 5),  \
         .opx   = extract32((code), 11, 6), \
@@ -88,11 +92,13 @@
     }
 
 /* J-Type instruction parsing */
+typedef struct {
+    uint8_t op;
+    uint32_t imm26;
+} InstrJType;
+
 #define J_TYPE(instr, code)                \
-    struct {                               \
-        uint8_t op;                        \
-        uint32_t imm26;                    \
-    } (instr) = {                          \
+    InstrJType (instr) = {                 \
         .op    = extract32((code), 0, 6),  \
         .imm26 = extract32((code), 6, 26), \
     }
