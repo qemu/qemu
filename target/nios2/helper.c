@@ -49,7 +49,7 @@ static void do_exception(Nios2CPU *cpu, uint32_t exception_addr,
             cr_es = CR_BSTATUS;
         }
         env->ctrl[cr_es] = old_status;
-        env->regs[r_ea] = env->pc + 4;
+        env->regs[r_ea] = env->pc;
 
         if (cpu->mmu_present) {
             new_status |= CR_STATUS_EH;
@@ -113,7 +113,7 @@ static void do_eic_irq(Nios2CPU *cpu)
             }
             env->shadow_regs[new_rs][R_SSTATUS] = old_status;
         }
-        env->shadow_regs[new_rs][R_EA] = env->pc + 4;
+        env->shadow_regs[new_rs][R_EA] = env->pc;
     }
 
     env->ctrl[CR_STATUS] = new_status;
@@ -187,6 +187,8 @@ void nios2_cpu_do_interrupt(CPUState *cs)
 
     switch (cs->exception_index) {
     case EXCP_IRQ:
+        /* Note that PC is advanced for interrupts as well. */
+        env->pc += 4;
         if (cpu->eic_present) {
             do_eic_irq(cpu);
         } else {
@@ -249,7 +251,6 @@ void nios2_cpu_do_interrupt(CPUState *cs)
         break;
 
     case EXCP_SEMIHOST:
-        env->pc += 4;
         do_nios2_semihosting(env);
         break;
 
@@ -291,7 +292,7 @@ void nios2_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
 
     env->ctrl[CR_BADADDR] = addr;
     cs->exception_index = EXCP_UNALIGN;
-    cpu_loop_exit_restore(cs, retaddr);
+    nios2_cpu_loop_exit_advance(env, retaddr);
 }
 
 bool nios2_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
@@ -330,7 +331,7 @@ bool nios2_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
             cs->exception_index = (access_type == MMU_INST_FETCH
                                    ? EXCP_SUPERA_X : EXCP_SUPERA_D);
             env->ctrl[CR_BADADDR] = address;
-            cpu_loop_exit_restore(cs, retaddr);
+            nios2_cpu_loop_exit_advance(env, retaddr);
         }
     }
 
@@ -367,5 +368,5 @@ bool nios2_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 
     cs->exception_index = excp;
     env->ctrl[CR_BADADDR] = address;
-    cpu_loop_exit_restore(cs, retaddr);
+    nios2_cpu_loop_exit_advance(env, retaddr);
 }

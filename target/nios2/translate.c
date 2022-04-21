@@ -202,10 +202,10 @@ static TCGv dest_gpr(DisasContext *dc, unsigned reg)
 #endif
 }
 
-static void t_gen_helper_raise_exception(DisasContext *dc,
-                                         uint32_t index)
+static void t_gen_helper_raise_exception(DisasContext *dc, uint32_t index)
 {
-    tcg_gen_movi_tl(cpu_pc, dc->pc);
+    /* Note that PC is advanced for all hardware exceptions. */
+    tcg_gen_movi_tl(cpu_pc, dc->base.pc_next);
     gen_helper_raise_exception(cpu_env, tcg_constant_i32(index));
     dc->base.is_jmp = DISAS_NORETURN;
 }

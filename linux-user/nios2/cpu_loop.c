@@ -39,6 +39,8 @@ void cpu_loop(CPUNios2State *env)
             break;
 
         case EXCP_DIV:
+            /* Match kernel's handle_diverror_c(). */
+            env->pc -= 4;
             force_sig_fault(TARGET_SIGFPE, TARGET_FPE_INTDIV, env->pc);
             break;
 
@@ -49,12 +51,6 @@ void cpu_loop(CPUNios2State *env)
             break;
 
         case EXCP_TRAP:
-            /*
-             * TODO: This advance should be done in the translator, as
-             * hardware produces an advanced pc as part of all exceptions.
-             */
-            env->pc += 4;
-
             switch (env->error_code) {
             case 0:
                 qemu_log_mask(CPU_LOG_INT, "\nSyscall\n");

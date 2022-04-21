@@ -31,6 +31,20 @@ void helper_raise_exception(CPUNios2State *env, uint32_t index)
     cpu_loop_exit(cs);
 }
 
+void nios2_cpu_loop_exit_advance(CPUNios2State *env, uintptr_t retaddr)
+{
+    CPUState *cs = env_cpu(env);
+
+    /*
+     * Note that PC is advanced for all hardware exceptions.
+     * Do this here, rather than in restore_state_to_opc(),
+     * lest we affect QEMU internal exceptions, like EXCP_DEBUG.
+     */
+    cpu_restore_state(cs, retaddr, true);
+    env->pc += 4;
+    cpu_loop_exit(cs);
+}
+
 static void maybe_raise_div(CPUNios2State *env, uintptr_t ra)
 {
     Nios2CPU *cpu = env_archcpu(env);
@@ -38,7 +52,7 @@ static void maybe_raise_div(CPUNios2State *env, uintptr_t ra)
 
     if (cpu->diverr_present) {
         cs->exception_index = EXCP_DIV;
-        cpu_loop_exit_restore(cs, ra);
+        nios2_cpu_loop_exit_advance(env, ra);
     }
 }
 
@@ -69,7 +83,7 @@ void helper_eret(CPUNios2State *env, uint32_t new_status, uint32_t new_pc)
     if (unlikely(new_pc & 3)) {
         env->ctrl[CR_BADADDR] = new_pc;
         cs->exception_index = EXCP_UNALIGND;
-        cpu_loop_exit_restore(cs, GETPC());
+        nios2_cpu_loop_exit_advance(env, GETPC());
     }
 
     /*
