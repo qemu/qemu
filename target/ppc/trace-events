@@ -23,7 +23,7 @@ kvm_failed_get_vpa(void) "Warning: Unable to get VPA information from KVM"
 kvm_handle_dcr_write(void) "handle dcr write"
 kvm_handle_dcr_read(void) "handle dcr read"
 kvm_handle_halt(void) "handle halt"
-kvm_handle_papr_hcall(void) "handle PAPR hypercall"
+kvm_handle_papr_hcall(uint64_t hcall) "0x%" PRIx64
 kvm_handle_epr(void) "handle epr"
 kvm_handle_watchdog_expiry(void) "handle watchdog expiry"
 kvm_handle_debug_exception(void) "handle debug exception"

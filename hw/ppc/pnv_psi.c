@@ -184,8 +184,7 @@ static void pnv_psi_set_irsn(PnvPsi *psi, uint64_t val)
 /*
  * FSP and PSI interrupts are muxed under the same number.
  */
-static const uint32_t xivr_regs[] = {
-    [PSIHB_IRQ_PSI]       = PSIHB_XSCOM_XIVR_FSP,
+static const uint32_t xivr_regs[PSI_NUM_INTERRUPTS] = {
     [PSIHB_IRQ_FSP]       = PSIHB_XSCOM_XIVR_FSP,
     [PSIHB_IRQ_OCC]       = PSIHB_XSCOM_XIVR_OCC,
     [PSIHB_IRQ_FSI]       = PSIHB_XSCOM_XIVR_FSI,
@@ -194,8 +193,7 @@ static const uint32_t xivr_regs[] = {
     [PSIHB_IRQ_EXTERNAL]  = PSIHB_XSCOM_XIVR_EXT,
 };
 
-static const uint32_t stat_regs[] = {
-    [PSIHB_IRQ_PSI]       = PSIHB_XSCOM_CR,
+static const uint32_t stat_regs[PSI_NUM_INTERRUPTS] = {
     [PSIHB_IRQ_FSP]       = PSIHB_XSCOM_CR,
     [PSIHB_IRQ_OCC]       = PSIHB_XSCOM_IRQ_STAT,
     [PSIHB_IRQ_FSI]       = PSIHB_XSCOM_IRQ_STAT,
@@ -204,8 +202,7 @@ static const uint32_t stat_regs[] = {
     [PSIHB_IRQ_EXTERNAL]  = PSIHB_XSCOM_IRQ_STAT,
 };
 
-static const uint64_t stat_bits[] = {
-    [PSIHB_IRQ_PSI]       = PSIHB_CR_PSI_IRQ,
+static const uint64_t stat_bits[PSI_NUM_INTERRUPTS] = {
     [PSIHB_IRQ_FSP]       = PSIHB_CR_FSP_IRQ,
     [PSIHB_IRQ_OCC]       = PSIHB_IRQ_STAT_OCC,
     [PSIHB_IRQ_FSI]       = PSIHB_IRQ_STAT_FSI,
@@ -214,22 +211,13 @@ static const uint64_t stat_bits[] = {
     [PSIHB_IRQ_EXTERNAL]  = PSIHB_IRQ_STAT_EXT,
 };
 
-void pnv_psi_irq_set(PnvPsi *psi, int irq, bool state)
+static void pnv_psi_power8_set_irq(void *opaque, int irq, int state)
 {
-    PNV_PSI_GET_CLASS(psi)->irq_set(psi, irq, state);
-}
-
-static void pnv_psi_power8_irq_set(PnvPsi *psi, int irq, bool state)
-{
+    PnvPsi *psi = opaque;
     uint32_t xivr_reg;
     uint32_t stat_reg;
     uint32_t src;
     bool masked;
-
-    if (irq > PSIHB_IRQ_EXTERNAL) {
-        qemu_log_mask(LOG_GUEST_ERROR, "PSI: Unsupported irq %d\n", irq);
-        return;
-    }
 
     xivr_reg = xivr_regs[irq];
     stat_reg = stat_regs[irq];
@@ -515,6 +503,8 @@ static void pnv_psi_power8_realize(DeviceState *dev, Error **errp)
         ics_set_irq_type(ics, i, true);
     }
 
+    qdev_init_gpio_in(dev, pnv_psi_power8_set_irq, ics->nr_irqs);
+
     psi->qirqs = qemu_allocate_irqs(ics_set_irq, ics, ics->nr_irqs);
 
     /* XSCOM region for PSI registers */
@@ -576,7 +566,6 @@ static void pnv_psi_power8_class_init(ObjectClass *klass, void *data)
     ppc->xscom_pcba = PNV_XSCOM_PSIHB_BASE;
     ppc->xscom_size = PNV_XSCOM_PSIHB_SIZE;
     ppc->bar_mask   = PSIHB_BAR_MASK;
-    ppc->irq_set    = pnv_psi_power8_irq_set;
     ppc->compat     = compat;
     ppc->compat_size = sizeof(compat);
 }
@@ -814,14 +803,10 @@ static const MemoryRegionOps pnv_psi_p9_xscom_ops = {
     }
 };
 
-static void pnv_psi_power9_irq_set(PnvPsi *psi, int irq, bool state)
+static void pnv_psi_power9_set_irq(void *opaque, int irq, int state)
 {
+    PnvPsi *psi = opaque;
     uint64_t irq_method = psi->regs[PSIHB_REG(PSIHB9_INTERRUPT_CONTROL)];
-
-    if (irq > PSIHB9_NUM_IRQS) {
-        qemu_log_mask(LOG_GUEST_ERROR, "PSI: Unsupported irq %d\n", irq);
-        return;
-    }
 
     if (irq_method & PSIHB9_IRQ_METHOD) {
         qemu_log_mask(LOG_GUEST_ERROR, "PSI: LSI IRQ method no supported\n");
@@ -876,6 +861,8 @@ static void pnv_psi_power9_realize(DeviceState *dev, Error **errp)
 
     psi->qirqs = qemu_allocate_irqs(xive_source_set_irq, xsrc, xsrc->nr_irqs);
 
+    qdev_init_gpio_in(dev, pnv_psi_power9_set_irq, xsrc->nr_irqs);
+
     /* XSCOM region for PSI registers */
     pnv_xscom_region_init(&psi->xscom_regs, OBJECT(dev), &pnv_psi_p9_xscom_ops,
                 psi, "xscom-psi", PNV9_XSCOM_PSIHB_SIZE);
@@ -901,7 +888,6 @@ static void pnv_psi_power9_class_init(ObjectClass *klass, void *data)
     ppc->xscom_pcba = PNV9_XSCOM_PSIHB_BASE;
     ppc->xscom_size = PNV9_XSCOM_PSIHB_SIZE;
     ppc->bar_mask   = PSIHB9_BAR_MASK;
-    ppc->irq_set    = pnv_psi_power9_irq_set;
     ppc->compat     = compat;
     ppc->compat_size = sizeof(compat);
 

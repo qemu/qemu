@@ -72,6 +72,7 @@ static uint32_t spapr_page_mask_to_query_mask(uint64_t page_mask)
     const struct { int shift; uint32_t mask; } masks[] = {
         { 12, RTAS_DDW_PGSIZE_4K },
         { 16, RTAS_DDW_PGSIZE_64K },
+        { 21, RTAS_DDW_PGSIZE_2M },
         { 24, RTAS_DDW_PGSIZE_16M },
         { 25, RTAS_DDW_PGSIZE_32M },
         { 26, RTAS_DDW_PGSIZE_64M },

@@ -261,13 +261,13 @@ static void ref405ep_init(MachineState *machine)
     /* allocate and load BIOS */
     if (machine->firmware) {
         MemoryRegion *bios = g_new(MemoryRegion, 1);
-        g_autofree char *filename;
+        g_autofree char *filename = qemu_find_file(QEMU_FILE_TYPE_BIOS,
+                                                   machine->firmware);
         long bios_size;
 
         memory_region_init_rom(bios, NULL, "ef405ep.bios", BIOS_SIZE,
                                &error_fatal);
 
-        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, machine->firmware);
         if (!filename) {
             error_report("Could not find firmware '%s'", machine->firmware);
             exit(1);

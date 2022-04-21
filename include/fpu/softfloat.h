@@ -95,6 +95,7 @@ typedef enum {
 
 #include "fpu/softfloat-types.h"
 #include "fpu/softfloat-helpers.h"
+#include "qemu/int128.h"
 
 /*----------------------------------------------------------------------------
 | Routine to raise any or all of the software IEC/IEEE floating-point
@@ -182,7 +183,9 @@ floatx80 int64_to_floatx80(int64_t, float_status *status);
 
 float128 int32_to_float128(int32_t, float_status *status);
 float128 int64_to_float128(int64_t, float_status *status);
+float128 int128_to_float128(Int128, float_status *status);
 float128 uint64_to_float128(uint64_t, float_status *status);
+float128 uint128_to_float128(Int128, float_status *status);
 
 /*----------------------------------------------------------------------------
 | Software half-precision conversion routines.
@@ -1201,9 +1204,13 @@ floatx80 floatx80_default_nan(float_status *status);
 int32_t float128_to_int32(float128, float_status *status);
 int32_t float128_to_int32_round_to_zero(float128, float_status *status);
 int64_t float128_to_int64(float128, float_status *status);
+Int128 float128_to_int128(float128, float_status *status);
 int64_t float128_to_int64_round_to_zero(float128, float_status *status);
+Int128 float128_to_int128_round_to_zero(float128, float_status *status);
 uint64_t float128_to_uint64(float128, float_status *status);
+Int128 float128_to_uint128(float128, float_status *status);
 uint64_t float128_to_uint64_round_to_zero(float128, float_status *status);
+Int128 float128_to_uint128_round_to_zero(float128, float_status *status);
 uint32_t float128_to_uint32(float128, float_status *status);
 uint32_t float128_to_uint32_round_to_zero(float128, float_status *status);
 float32 float128_to_float32(float128, float_status *status);

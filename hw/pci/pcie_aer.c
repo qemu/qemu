@@ -290,7 +290,7 @@ static void pcie_aer_root_notify(PCIDevice *dev)
         msix_notify(dev, pcie_aer_root_get_vector(dev));
     } else if (msi_enabled(dev)) {
         msi_notify(dev, pcie_aer_root_get_vector(dev));
-    } else {
+    } else if (pci_intx(dev) != -1) {
         pci_irq_assert(dev);
     }
 }

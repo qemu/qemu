@@ -422,7 +422,6 @@ static const MemoryRegionOps pnv_lpc_mmio_ops = {
 static void pnv_lpc_eval_irqs(PnvLpcController *lpc)
 {
     bool lpc_to_opb_irq = false;
-    PnvLpcClass *plc = PNV_LPC_GET_CLASS(lpc);
 
     /* Update LPC controller to OPB line */
     if (lpc->lpc_hc_irqser_ctrl & LPC_HC_IRQSER_EN) {
@@ -445,7 +444,7 @@ static void pnv_lpc_eval_irqs(PnvLpcController *lpc)
     lpc->opb_irq_stat |= lpc->opb_irq_input & lpc->opb_irq_mask;
 
     /* Reflect the interrupt */
-    pnv_psi_irq_set(lpc->psi, plc->psi_irq, lpc->opb_irq_stat != 0);
+    qemu_set_irq(lpc->psi_irq, lpc->opb_irq_stat != 0);
 }
 
 static uint64_t lpc_hc_read(void *opaque, hwaddr addr, unsigned size)
@@ -637,8 +636,6 @@ static void pnv_lpc_power8_class_init(ObjectClass *klass, void *data)
 
     xdc->dt_xscom = pnv_lpc_dt_xscom;
 
-    plc->psi_irq = PSIHB_IRQ_LPC_I2C;
-
     device_class_set_parent_realize(dc, pnv_lpc_power8_realize,
                                     &plc->parent_realize);
 }
@@ -677,8 +674,6 @@ static void pnv_lpc_power9_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "PowerNV LPC Controller POWER9";
 
-    plc->psi_irq = PSIHB9_IRQ_LPCHC;
-
     device_class_set_parent_realize(dc, pnv_lpc_power9_realize,
                                     &plc->parent_realize);
 }
@@ -705,8 +700,6 @@ static const TypeInfo pnv_lpc_power10_info = {
 static void pnv_lpc_realize(DeviceState *dev, Error **errp)
 {
     PnvLpcController *lpc = PNV_LPC(dev);
-
-    assert(lpc->psi);
 
     /* Reg inits */
     lpc->lpc_hc_fw_rd_acc_size = LPC_HC_FW_RD_4B;
@@ -746,12 +739,9 @@ static void pnv_lpc_realize(DeviceState *dev, Error **errp)
                           "lpc-hc", LPC_HC_REGS_OPB_SIZE);
     memory_region_add_subregion(&lpc->opb_mr, LPC_HC_REGS_OPB_ADDR,
                                 &lpc->lpc_hc_regs);
-}
 
-static Property pnv_lpc_properties[] = {
-    DEFINE_PROP_LINK("psi", PnvLpcController, psi, TYPE_PNV_PSI, PnvPsi *),
-    DEFINE_PROP_END_OF_LIST(),
-};
+    qdev_init_gpio_out(DEVICE(dev), &lpc->psi_irq, 1);
+}
 
 static void pnv_lpc_class_init(ObjectClass *klass, void *data)
 {
@@ -759,7 +749,6 @@ static void pnv_lpc_class_init(ObjectClass *klass, void *data)
 
     dc->realize = pnv_lpc_realize;
     dc->desc = "PowerNV LPC Controller";
-    device_class_set_props(dc, pnv_lpc_properties);
     dc->user_creatable = false;
 }
 
@@ -803,7 +792,7 @@ static void pnv_lpc_isa_irq_handler_cpld(void *opaque, int n, int level)
     }
 
     if (pnv->cpld_irqstate != old_state) {
-        pnv_psi_irq_set(lpc->psi, PSIHB_IRQ_EXTERNAL, pnv->cpld_irqstate != 0);
+        qemu_set_irq(lpc->psi_irq, pnv->cpld_irqstate != 0);
     }
 }
 

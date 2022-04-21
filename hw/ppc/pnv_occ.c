@@ -21,6 +21,7 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_xscom.h"
@@ -51,13 +52,12 @@
 static void pnv_occ_set_misc(PnvOCC *occ, uint64_t val)
 {
     bool irq_state;
-    PnvOCCClass *poc = PNV_OCC_GET_CLASS(occ);
 
     val &= 0xffff000000000000ull;
 
     occ->occmisc = val;
     irq_state = !!(val >> 63);
-    pnv_psi_irq_set(occ->psi, poc->psi_irq, irq_state);
+    qemu_set_irq(occ->psi_irq, irq_state);
 }
 
 static uint64_t pnv_occ_power8_xscom_read(void *opaque, hwaddr addr,
@@ -168,7 +168,6 @@ static void pnv_occ_power8_class_init(ObjectClass *klass, void *data)
 
     poc->xscom_size = PNV_XSCOM_OCC_SIZE;
     poc->xscom_ops = &pnv_occ_power8_xscom_ops;
-    poc->psi_irq = PSIHB_IRQ_OCC;
 }
 
 static const TypeInfo pnv_occ_power8_type_info = {
@@ -241,7 +240,6 @@ static void pnv_occ_power9_class_init(ObjectClass *klass, void *data)
     dc->desc = "PowerNV OCC Controller (POWER9)";
     poc->xscom_size = PNV9_XSCOM_OCC_SIZE;
     poc->xscom_ops = &pnv_occ_power9_xscom_ops;
-    poc->psi_irq = PSIHB9_IRQ_OCC;
 }
 
 static const TypeInfo pnv_occ_power9_type_info = {
@@ -269,8 +267,6 @@ static void pnv_occ_realize(DeviceState *dev, Error **errp)
     PnvOCC *occ = PNV_OCC(dev);
     PnvOCCClass *poc = PNV_OCC_GET_CLASS(occ);
 
-    assert(occ->psi);
-
     occ->occmisc = 0;
 
     /* XScom region for OCC registers */
@@ -281,12 +277,9 @@ static void pnv_occ_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&occ->sram_regs, OBJECT(dev), &pnv_occ_sram_ops,
                           occ, "occ-common-area",
                           PNV_OCC_SENSOR_DATA_BLOCK_SIZE);
-}
 
-static Property pnv_occ_properties[] = {
-    DEFINE_PROP_LINK("psi", PnvOCC, psi, TYPE_PNV_PSI, PnvPsi *),
-    DEFINE_PROP_END_OF_LIST(),
-};
+    qdev_init_gpio_out(DEVICE(dev), &occ->psi_irq, 1);
+}
 
 static void pnv_occ_class_init(ObjectClass *klass, void *data)
 {
@@ -294,7 +287,6 @@ static void pnv_occ_class_init(ObjectClass *klass, void *data)
 
     dc->realize = pnv_occ_realize;
     dc->desc = "PowerNV OCC Controller";
-    device_class_set_props(dc, pnv_occ_properties);
     dc->user_creatable = false;
 }
 
