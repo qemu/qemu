@@ -396,19 +396,15 @@ static int adjust_jump_slot(DisasContext *dc, uint32_t dest, int slot)
 
 static void gen_jumpi(DisasContext *dc, uint32_t dest, int slot)
 {
-    TCGv_i32 tmp = tcg_const_i32(dest);
-    gen_jump_slot(dc, tmp, adjust_jump_slot(dc, dest, slot));
-    tcg_temp_free(tmp);
+    gen_jump_slot(dc, tcg_constant_i32(dest),
+                  adjust_jump_slot(dc, dest, slot));
 }
 
 static void gen_callw_slot(DisasContext *dc, int callinc, TCGv_i32 dest,
         int slot)
 {
-    TCGv_i32 tcallinc = tcg_const_i32(callinc);
-
     tcg_gen_deposit_i32(cpu_SR[PS], cpu_SR[PS],
-            tcallinc, PS_CALLINC_SHIFT, PS_CALLINC_LEN);
-    tcg_temp_free(tcallinc);
+            tcg_constant_i32(callinc), PS_CALLINC_SHIFT, PS_CALLINC_LEN);
     tcg_gen_movi_i32(cpu_R[callinc << 2],
             (callinc << 30) | (dc->base.pc_next & 0x3fffffff));
     gen_jump_slot(dc, dest, slot);
@@ -454,9 +450,7 @@ static void gen_brcond(DisasContext *dc, TCGCond cond,
 static void gen_brcondi(DisasContext *dc, TCGCond cond,
                         TCGv_i32 t0, uint32_t t1, uint32_t addr)
 {
-    TCGv_i32 tmp = tcg_const_i32(t1);
-    gen_brcond(dc, cond, t0, tmp, addr);
-    tcg_temp_free(tmp);
+    gen_brcond(dc, cond, t0, tcg_constant_i32(t1), addr);
 }
 
 static uint32_t test_exceptions_sr(DisasContext *dc, const OpcodeArg arg[],
@@ -540,21 +534,6 @@ static MemOp gen_load_store_alignment(DisasContext *dc, MemOp mop,
     }
     return mop;
 }
-
-#ifndef CONFIG_USER_ONLY
-static void gen_waiti(DisasContext *dc, uint32_t imm4)
-{
-    TCGv_i32 pc = tcg_const_i32(dc->base.pc_next);
-    TCGv_i32 intlevel = tcg_const_i32(imm4);
-
-    if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-        gen_io_start();
-    }
-    gen_helper_waiti(cpu_env, pc, intlevel);
-    tcg_temp_free(pc);
-    tcg_temp_free(intlevel);
-}
-#endif
 
 static bool gen_window_check(DisasContext *dc, uint32_t mask)
 {
@@ -1070,17 +1049,15 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
     }
 
     if (op_flags & XTENSA_OP_UNDERFLOW) {
-        TCGv_i32 tmp = tcg_const_i32(dc->pc);
+        TCGv_i32 pc = tcg_constant_i32(dc->pc);
 
-        gen_helper_test_underflow_retw(cpu_env, tmp);
-        tcg_temp_free(tmp);
+        gen_helper_test_underflow_retw(cpu_env, pc);
     }
 
     if (op_flags & XTENSA_OP_ALLOCA) {
-        TCGv_i32 tmp = tcg_const_i32(dc->pc);
+        TCGv_i32 pc = tcg_constant_i32(dc->pc);
 
-        gen_helper_movsp(cpu_env, tmp);
-        tcg_temp_free(tmp);
+        gen_helper_movsp(cpu_env, pc);
     }
 
     if (coprocessor && !gen_check_cpenable(dc, coprocessor)) {
@@ -1660,13 +1637,10 @@ static uint32_t test_overflow_entry(DisasContext *dc, const OpcodeArg arg[],
 static void translate_entry(DisasContext *dc, const OpcodeArg arg[],
                             const uint32_t par[])
 {
-    TCGv_i32 pc = tcg_const_i32(dc->pc);
-    TCGv_i32 s = tcg_const_i32(arg[0].imm);
-    TCGv_i32 imm = tcg_const_i32(arg[1].imm);
+    TCGv_i32 pc = tcg_constant_i32(dc->pc);
+    TCGv_i32 s = tcg_constant_i32(arg[0].imm);
+    TCGv_i32 imm = tcg_constant_i32(arg[1].imm);
     gen_helper_entry(cpu_env, pc, s, imm);
-    tcg_temp_free(imm);
-    tcg_temp_free(s);
-    tcg_temp_free(pc);
 }
 
 static void translate_extui(DisasContext *dc, const OpcodeArg arg[],
@@ -1746,12 +1720,10 @@ static void gen_check_exclusive(DisasContext *dc, TCGv_i32 addr, bool is_write)
 static void gen_check_exclusive(DisasContext *dc, TCGv_i32 addr, bool is_write)
 {
     if (!option_enabled(dc, XTENSA_OPTION_MPU)) {
-        TCGv_i32 tpc = tcg_const_i32(dc->pc);
-        TCGv_i32 write = tcg_const_i32(is_write);
+        TCGv_i32 pc = tcg_constant_i32(dc->pc);
 
-        gen_helper_check_exclusive(cpu_env, tpc, addr, write);
-        tcg_temp_free(tpc);
-        tcg_temp_free(write);
+        gen_helper_check_exclusive(cpu_env, pc, addr,
+                                   tcg_constant_i32(is_write));
     }
 }
 #endif
@@ -2128,10 +2100,9 @@ static uint32_t test_exceptions_retw(DisasContext *dc, const OpcodeArg arg[],
                       "Illegal retw instruction(pc = %08x)\n", dc->pc);
         return XTENSA_OP_ILL;
     } else {
-        TCGv_i32 tmp = tcg_const_i32(dc->pc);
+        TCGv_i32 pc = tcg_constant_i32(dc->pc);
 
-        gen_helper_test_ill_retw(cpu_env, tmp);
-        tcg_temp_free(tmp);
+        gen_helper_test_ill_retw(cpu_env, pc);
         return 0;
     }
 }
@@ -2291,10 +2262,9 @@ static void gen_check_atomctl(DisasContext *dc, TCGv_i32 addr)
 #else
 static void gen_check_atomctl(DisasContext *dc, TCGv_i32 addr)
 {
-    TCGv_i32 tpc = tcg_const_i32(dc->pc);
+    TCGv_i32 pc = tcg_constant_i32(dc->pc);
 
-    gen_helper_check_atomctl(cpu_env, tpc, addr);
-    tcg_temp_free(tpc);
+    gen_helper_check_atomctl(cpu_env, pc, addr);
 }
 #endif
 
@@ -2515,9 +2485,7 @@ static void translate_ssa8l(DisasContext *dc, const OpcodeArg arg[],
 static void translate_ssai(DisasContext *dc, const OpcodeArg arg[],
                            const uint32_t par[])
 {
-    TCGv_i32 tmp = tcg_const_i32(arg[0].imm);
-    gen_right_shift_sar(dc, tmp);
-    tcg_temp_free(tmp);
+    gen_right_shift_sar(dc, tcg_constant_i32(arg[0].imm));
 }
 
 static void translate_ssl(DisasContext *dc, const OpcodeArg arg[],
@@ -2551,7 +2519,12 @@ static void translate_waiti(DisasContext *dc, const OpcodeArg arg[],
                             const uint32_t par[])
 {
 #ifndef CONFIG_USER_ONLY
-    gen_waiti(dc, arg[0].imm);
+    TCGv_i32 pc = tcg_constant_i32(dc->base.pc_next);
+
+    if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
+    gen_helper_waiti(cpu_env, pc, tcg_constant_i32(arg[0].imm));
 #endif
 }
 
