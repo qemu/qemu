@@ -318,18 +318,13 @@ static void gen_left_shift_sar(DisasContext *dc, TCGv_i32 sa)
 
 static void gen_exception(DisasContext *dc, int excp)
 {
-    TCGv_i32 tmp = tcg_const_i32(excp);
-    gen_helper_exception(cpu_env, tmp);
-    tcg_temp_free(tmp);
+    gen_helper_exception(cpu_env, tcg_constant_i32(excp));
 }
 
 static void gen_exception_cause(DisasContext *dc, uint32_t cause)
 {
-    TCGv_i32 tpc = tcg_const_i32(dc->pc);
-    TCGv_i32 tcause = tcg_const_i32(cause);
-    gen_helper_exception_cause(cpu_env, tpc, tcause);
-    tcg_temp_free(tpc);
-    tcg_temp_free(tcause);
+    TCGv_i32 pc = tcg_constant_i32(dc->pc);
+    gen_helper_exception_cause(cpu_env, pc, tcg_constant_i32(cause));
     if (cause == ILLEGAL_INSTRUCTION_CAUSE ||
             cause == SYSCALL_CAUSE) {
         dc->base.is_jmp = DISAS_NORETURN;
@@ -338,11 +333,8 @@ static void gen_exception_cause(DisasContext *dc, uint32_t cause)
 
 static void gen_debug_exception(DisasContext *dc, uint32_t cause)
 {
-    TCGv_i32 tpc = tcg_const_i32(dc->pc);
-    TCGv_i32 tcause = tcg_const_i32(cause);
-    gen_helper_debug_exception(cpu_env, tpc, tcause);
-    tcg_temp_free(tpc);
-    tcg_temp_free(tcause);
+    TCGv_i32 pc = tcg_constant_i32(dc->pc);
+    gen_helper_debug_exception(cpu_env, pc, tcg_constant_i32(cause));
     if (cause & (DEBUGCAUSE_IB | DEBUGCAUSE_BI | DEBUGCAUSE_BN)) {
         dc->base.is_jmp = DISAS_NORETURN;
     }
