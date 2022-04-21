@@ -32,6 +32,7 @@ typedef struct DisasContext {
     DisasContextBase base;
     CPURXState *env;
     uint32_t pc;
+    uint32_t tb_flags;
 } DisasContext;
 
 typedef struct DisasCompare {
@@ -231,7 +232,7 @@ static inline TCGv rx_load_source(DisasContext *ctx, TCGv mem,
 /* Processor mode check */
 static int is_privileged(DisasContext *ctx, int is_exception)
 {
-    if (FIELD_EX32(ctx->base.tb->flags, PSW, PM)) {
+    if (FIELD_EX32(ctx->tb_flags, PSW, PM)) {
         if (is_exception) {
             gen_helper_raise_privilege_violation(cpu_env);
         }
@@ -310,9 +311,8 @@ static void psw_cond(DisasCompare *dc, uint32_t cond)
     }
 }
 
-static void move_from_cr(TCGv ret, int cr, uint32_t pc)
+static void move_from_cr(DisasContext *ctx, TCGv ret, int cr, uint32_t pc)
 {
-    TCGv z = tcg_const_i32(0);
     switch (cr) {
     case 0:     /* PSW */
         gen_helper_pack_psw(ret, cpu_env);
@@ -321,8 +321,11 @@ static void move_from_cr(TCGv ret, int cr, uint32_t pc)
         tcg_gen_movi_i32(ret, pc);
         break;
     case 2:     /* USP */
-        tcg_gen_movcond_i32(TCG_COND_NE, ret,
-                            cpu_psw_u, z, cpu_sp, cpu_usp);
+        if (FIELD_EX32(ctx->tb_flags, PSW, U)) {
+            tcg_gen_mov_i32(ret, cpu_sp);
+        } else {
+            tcg_gen_mov_i32(ret, cpu_usp);
+        }
         break;
     case 3:     /* FPSW */
         tcg_gen_mov_i32(ret, cpu_fpsw);
@@ -334,8 +337,11 @@ static void move_from_cr(TCGv ret, int cr, uint32_t pc)
         tcg_gen_mov_i32(ret, cpu_bpc);
         break;
     case 10:    /* ISP */
-        tcg_gen_movcond_i32(TCG_COND_EQ, ret,
-                            cpu_psw_u, z, cpu_sp, cpu_isp);
+        if (FIELD_EX32(ctx->tb_flags, PSW, U)) {
+            tcg_gen_mov_i32(ret, cpu_isp);
+        } else {
+            tcg_gen_mov_i32(ret, cpu_sp);
+        }
         break;
     case 11:    /* FINTV */
         tcg_gen_mov_i32(ret, cpu_fintv);
@@ -349,28 +355,31 @@ static void move_from_cr(TCGv ret, int cr, uint32_t pc)
         tcg_gen_movi_i32(ret, 0);
         break;
     }
-    tcg_temp_free(z);
 }
 
 static void move_to_cr(DisasContext *ctx, TCGv val, int cr)
 {
-    TCGv z;
     if (cr >= 8 && !is_privileged(ctx, 0)) {
         /* Some control registers can only be written in privileged mode. */
         qemu_log_mask(LOG_GUEST_ERROR,
                       "disallow control register write %s", rx_crname(cr));
         return;
     }
-    z = tcg_const_i32(0);
     switch (cr) {
     case 0:     /* PSW */
         gen_helper_set_psw(cpu_env, val);
+        if (is_privileged(ctx, 0)) {
+            /* PSW.{I,U} may be updated here. exit TB. */
+            ctx->base.is_jmp = DISAS_UPDATE;
+        }
         break;
     /* case 1: to PC not supported */
     case 2:     /* USP */
-        tcg_gen_mov_i32(cpu_usp, val);
-        tcg_gen_movcond_i32(TCG_COND_NE, cpu_sp,
-                            cpu_psw_u, z,  cpu_usp, cpu_sp);
+        if (FIELD_EX32(ctx->tb_flags, PSW, U)) {
+            tcg_gen_mov_i32(cpu_sp, val);
+        } else {
+            tcg_gen_mov_i32(cpu_usp, val);
+        }
         break;
     case 3:     /* FPSW */
         gen_helper_set_fpsw(cpu_env, val);
@@ -382,10 +391,11 @@ static void move_to_cr(DisasContext *ctx, TCGv val, int cr)
         tcg_gen_mov_i32(cpu_bpc, val);
         break;
     case 10:    /* ISP */
-        tcg_gen_mov_i32(cpu_isp, val);
-        /* if PSW.U is 0, copy isp to r0 */
-        tcg_gen_movcond_i32(TCG_COND_EQ, cpu_sp,
-                            cpu_psw_u, z,  cpu_isp, cpu_sp);
+        if (FIELD_EX32(ctx->tb_flags, PSW, U)) {
+            tcg_gen_mov_i32(cpu_isp, val);
+        } else {
+            tcg_gen_mov_i32(cpu_sp, val);
+        }
         break;
     case 11:    /* FINTV */
         tcg_gen_mov_i32(cpu_fintv, val);
@@ -398,7 +408,6 @@ static void move_to_cr(DisasContext *ctx, TCGv val, int cr)
                       "Unimplement control register %d", cr);
         break;
     }
-    tcg_temp_free(z);
 }
 
 static void push(TCGv val)
@@ -626,10 +635,6 @@ static bool trans_POPC(DisasContext *ctx, arg_POPC *a)
     val = tcg_temp_new();
     pop(val);
     move_to_cr(ctx, val, a->cr);
-    if (a->cr == 0 && is_privileged(ctx, 0)) {
-        /* PSW.I may be updated here. exit TB. */
-        ctx->base.is_jmp = DISAS_UPDATE;
-    }
     tcg_temp_free(val);
     return true;
 }
@@ -682,7 +687,7 @@ static bool trans_PUSHC(DisasContext *ctx, arg_PUSHC *a)
 {
     TCGv val;
     val = tcg_temp_new();
-    move_from_cr(val, a->cr, ctx->pc);
+    move_from_cr(ctx, val, a->cr, ctx->pc);
     push(val);
     tcg_temp_free(val);
     return true;
@@ -2160,7 +2165,12 @@ static inline void clrsetpsw(DisasContext *ctx, int cb, int val)
             ctx->base.is_jmp = DISAS_UPDATE;
             break;
         case PSW_U:
-            tcg_gen_movi_i32(cpu_psw_u, val);
+            if (FIELD_EX32(ctx->tb_flags, PSW, U) != val) {
+                ctx->tb_flags = FIELD_DP32(ctx->tb_flags, PSW, U, val);
+                tcg_gen_movi_i32(cpu_psw_u, val);
+                tcg_gen_mov_i32(val ? cpu_isp : cpu_usp, cpu_sp);
+                tcg_gen_mov_i32(cpu_sp, val ? cpu_usp : cpu_isp);
+            }
             break;
         default:
             qemu_log_mask(LOG_GUEST_ERROR, "Invalid distination %d", cb);
@@ -2200,9 +2210,6 @@ static bool trans_MVTC_i(DisasContext *ctx, arg_MVTC_i *a)
 
     imm = tcg_const_i32(a->imm);
     move_to_cr(ctx, imm, a->cr);
-    if (a->cr == 0 && is_privileged(ctx, 0)) {
-        ctx->base.is_jmp = DISAS_UPDATE;
-    }
     tcg_temp_free(imm);
     return true;
 }
@@ -2211,16 +2218,13 @@ static bool trans_MVTC_i(DisasContext *ctx, arg_MVTC_i *a)
 static bool trans_MVTC_r(DisasContext *ctx, arg_MVTC_r *a)
 {
     move_to_cr(ctx, cpu_regs[a->rs], a->cr);
-    if (a->cr == 0 && is_privileged(ctx, 0)) {
-        ctx->base.is_jmp = DISAS_UPDATE;
-    }
     return true;
 }
 
 /* mvfc rs, rd */
 static bool trans_MVFC(DisasContext *ctx, arg_MVFC *a)
 {
-    move_from_cr(cpu_regs[a->rd], a->cr, ctx->pc);
+    move_from_cr(ctx, cpu_regs[a->rd], a->cr, ctx->pc);
     return true;
 }
 
@@ -2281,7 +2285,7 @@ static bool trans_INT(DisasContext *ctx, arg_INT *a)
 static bool trans_WAIT(DisasContext *ctx, arg_WAIT *a)
 {
     if (is_privileged(ctx, 1)) {
-        tcg_gen_addi_i32(cpu_pc, cpu_pc, 2);
+        tcg_gen_movi_i32(cpu_pc, ctx->base.pc_next);
         gen_helper_wait(cpu_env);
     }
     return true;
@@ -2292,6 +2296,7 @@ static void rx_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     CPURXState *env = cs->env_ptr;
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     ctx->env = env;
+    ctx->tb_flags = ctx->base.tb->flags;
 }
 
 static void rx_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)
