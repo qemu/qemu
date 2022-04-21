@@ -36,7 +36,6 @@
 #include "semihosting/semihost.h"
 
 /* is_jmp field values */
-#define DISAS_JUMP    DISAS_TARGET_0 /* only pc was modified dynamically */
 #define DISAS_UPDATE  DISAS_TARGET_1 /* cpu state was modified dynamically */
 
 #define INSTRUCTION_FLG(func, flags) { (func), (flags) }
@@ -193,6 +192,16 @@ static void gen_goto_tb(DisasContext *dc, int n, uint32_t dest)
         tcg_gen_movi_tl(cpu_pc, dest);
         tcg_gen_exit_tb(NULL, 0);
     }
+}
+
+static void gen_jumpr(DisasContext *dc, int regno, bool is_call)
+{
+    tcg_gen_mov_tl(cpu_pc, load_gpr(dc, regno));
+    if (is_call) {
+        tcg_gen_movi_tl(dest_gpr(dc, R_RA), dc->base.pc_next);
+    }
+    tcg_gen_exit_tb(NULL, 0);
+    dc->base.is_jmp = DISAS_NORETURN;
 }
 
 static void gen_excp(DisasContext *dc, uint32_t code, uint32_t flags)
@@ -437,8 +446,7 @@ static void eret(DisasContext *dc, uint32_t code, uint32_t flags)
 /* PC <- ra */
 static void ret(DisasContext *dc, uint32_t code, uint32_t flags)
 {
-    tcg_gen_mov_tl(cpu_pc, load_gpr(dc, R_RA));
-    dc->base.is_jmp = DISAS_JUMP;
+    gen_jumpr(dc, R_RA, false);
 }
 
 /*
@@ -468,8 +476,7 @@ static void jmp(DisasContext *dc, uint32_t code, uint32_t flags)
 {
     R_TYPE(instr, code);
 
-    tcg_gen_mov_tl(cpu_pc, load_gpr(dc, instr.a));
-    dc->base.is_jmp = DISAS_JUMP;
+    gen_jumpr(dc, instr.a, false);
 }
 
 /* rC <- PC + 4 */
@@ -488,10 +495,7 @@ static void callr(DisasContext *dc, uint32_t code, uint32_t flags)
 {
     R_TYPE(instr, code);
 
-    tcg_gen_mov_tl(cpu_pc, load_gpr(dc, instr.a));
-    tcg_gen_movi_tl(dest_gpr(dc, R_RA), dc->base.pc_next);
-
-    dc->base.is_jmp = DISAS_JUMP;
+    gen_jumpr(dc, instr.a, true);
 }
 
 /* rC <- ctlN */
@@ -906,11 +910,6 @@ static void nios2_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     case DISAS_UPDATE:
         /* Save the current PC back into the CPU register */
         tcg_gen_movi_tl(cpu_pc, dc->base.pc_next);
-        tcg_gen_exit_tb(NULL, 0);
-        break;
-
-    case DISAS_JUMP:
-        /* The jump will already have updated the PC register */
         tcg_gen_exit_tb(NULL, 0);
         break;
 
