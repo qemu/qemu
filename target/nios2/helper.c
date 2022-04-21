@@ -37,6 +37,10 @@ static void do_exception(Nios2CPU *cpu, uint32_t exception_addr,
     uint32_t old_status = env->ctrl[CR_STATUS];
     uint32_t new_status = old_status;
 
+    /* With shadow regs, exceptions are always taken into CRS 0. */
+    new_status &= ~R_CR_STATUS_CRS_MASK;
+    env->regs = env->shadow_regs[0];
+
     if ((old_status & CR_STATUS_EH) == 0) {
         int r_ea = R_EA, cr_es = CR_ESTATUS;
 
@@ -60,6 +64,14 @@ static void do_exception(Nios2CPU *cpu, uint32_t exception_addr,
                                        CR_TLBMISC_DBL);
             env->ctrl[CR_TLBMISC] |= tlbmisc_set;
         }
+
+        /*
+         * With shadow regs, and EH == 0, PRS is set from CRS.
+         * At least, so says Table 3-9, and some other text,
+         * though Table 3-38 says otherwise.
+         */
+        new_status = FIELD_DP32(new_status, CR_STATUS, PRS,
+                                FIELD_EX32(old_status, CR_STATUS, CRS));
     }
 
     new_status &= ~(CR_STATUS_PIE | CR_STATUS_U);
@@ -75,6 +87,39 @@ static void do_exception(Nios2CPU *cpu, uint32_t exception_addr,
 static void do_iic_irq(Nios2CPU *cpu)
 {
     do_exception(cpu, cpu->exception_addr, 0, false);
+}
+
+static void do_eic_irq(Nios2CPU *cpu)
+{
+    CPUNios2State *env = &cpu->env;
+    uint32_t old_status = env->ctrl[CR_STATUS];
+    uint32_t new_status = old_status;
+    uint32_t old_rs = FIELD_EX32(old_status, CR_STATUS, CRS);
+    uint32_t new_rs = cpu->rrs;
+
+    new_status = FIELD_DP32(new_status, CR_STATUS, CRS, new_rs);
+    new_status = FIELD_DP32(new_status, CR_STATUS, IL, cpu->ril);
+    new_status = FIELD_DP32(new_status, CR_STATUS, NMI, cpu->rnmi);
+    new_status &= ~(CR_STATUS_RSIE | CR_STATUS_U);
+    new_status |= CR_STATUS_IH;
+
+    if (!(new_status & CR_STATUS_EH)) {
+        new_status = FIELD_DP32(new_status, CR_STATUS, PRS, old_rs);
+        if (new_rs == 0) {
+            env->ctrl[CR_ESTATUS] = old_status;
+        } else {
+            if (new_rs != old_rs) {
+                old_status |= CR_STATUS_SRS;
+            }
+            env->shadow_regs[new_rs][R_SSTATUS] = old_status;
+        }
+        env->shadow_regs[new_rs][R_EA] = env->pc + 4;
+    }
+
+    env->ctrl[CR_STATUS] = new_status;
+    nios2_update_crs(env);
+
+    env->pc = cpu->rha;
 }
 
 void nios2_cpu_do_interrupt(CPUState *cs)
@@ -142,7 +187,11 @@ void nios2_cpu_do_interrupt(CPUState *cs)
 
     switch (cs->exception_index) {
     case EXCP_IRQ:
-        do_iic_irq(cpu);
+        if (cpu->eic_present) {
+            do_eic_irq(cpu);
+        } else {
+            do_iic_irq(cpu);
+        }
         break;
 
     case EXCP_TLB_D:
