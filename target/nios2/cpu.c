@@ -48,14 +48,15 @@ static void nios2_cpu_reset(DeviceState *dev)
 
     ncc->parent_reset(dev);
 
-    memset(env->regs, 0, sizeof(uint32_t) * NUM_CORE_REGS);
+    memset(env->regs, 0, sizeof(env->regs));
+    memset(env->ctrl, 0, sizeof(env->ctrl));
     env->pc = cpu->reset_addr;
 
 #if defined(CONFIG_USER_ONLY)
     /* Start in user mode with interrupts enabled. */
-    env->regs[CR_STATUS] = CR_STATUS_U | CR_STATUS_PIE;
+    env->ctrl[CR_STATUS] = CR_STATUS_U | CR_STATUS_PIE;
 #else
-    env->regs[CR_STATUS] = 0;
+    env->ctrl[CR_STATUS] = 0;
 #endif
 }
 
@@ -66,9 +67,9 @@ static void nios2_cpu_set_irq(void *opaque, int irq, int level)
     CPUNios2State *env = &cpu->env;
     CPUState *cs = CPU(cpu);
 
-    env->regs[CR_IPENDING] = deposit32(env->regs[CR_IPENDING], irq, 1, !!level);
+    env->ctrl[CR_IPENDING] = deposit32(env->ctrl[CR_IPENDING], irq, 1, !!level);
 
-    if (env->regs[CR_IPENDING]) {
+    if (env->ctrl[CR_IPENDING]) {
         cpu_interrupt(cs, CPU_INTERRUPT_HARD);
     } else {
         cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
@@ -126,8 +127,8 @@ static bool nios2_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     CPUNios2State *env = &cpu->env;
 
     if ((interrupt_request & CPU_INTERRUPT_HARD) &&
-        (env->regs[CR_STATUS] & CR_STATUS_PIE) &&
-        (env->regs[CR_IPENDING] & env->regs[CR_IENABLE])) {
+        (env->ctrl[CR_STATUS] & CR_STATUS_PIE) &&
+        (env->ctrl[CR_IPENDING] & env->ctrl[CR_IENABLE])) {
         cs->exception_index = EXCP_IRQ;
         nios2_cpu_do_interrupt(cs);
         return true;
@@ -158,7 +159,7 @@ static int nios2_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     } else if (n == 32) {    /* PC */
         return gdb_get_reg32(mem_buf, env->pc);
     } else if (n < 49) {     /* Status regs */
-        return gdb_get_reg32(mem_buf, env->regs[n - 1]);
+        return gdb_get_reg32(mem_buf, env->ctrl[n - 33]);
     }
 
     /* Invalid regs */
@@ -180,7 +181,7 @@ static int nios2_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     } else if (n == 32) {    /* PC */
         env->pc = ldl_p(mem_buf);
     } else if (n < 49) {     /* Status regs */
-        env->regs[n - 1] = ldl_p(mem_buf);
+        env->ctrl[n - 33] = ldl_p(mem_buf);
     }
 
     return 4;

@@ -95,8 +95,8 @@ void helper_mmu_write_tlbacc(CPUNios2State *env, uint32_t v)
                                  v & CR_TLBACC_PFN_MASK);
 
     /* if tlbmisc.WE == 1 then trigger a TLB write on writes to TLBACC */
-    if (env->regs[CR_TLBMISC] & CR_TLBMISC_WR) {
-        int way = (env->regs[CR_TLBMISC] >> CR_TLBMISC_WAY_SHIFT);
+    if (env->ctrl[CR_TLBMISC] & CR_TLBMISC_WR) {
+        int way = (env->ctrl[CR_TLBMISC] >> CR_TLBMISC_WAY_SHIFT);
         int vpn = (env->mmu.pteaddr_wr & CR_PTEADDR_VPN_MASK) >> 2;
         int pid = (env->mmu.tlbmisc_wr & CR_TLBMISC_PID_MASK) >> 4;
         int g = (v & CR_TLBACC_G) ? 1 : 0;
@@ -117,8 +117,8 @@ void helper_mmu_write_tlbacc(CPUNios2State *env, uint32_t v)
             entry->data = newData;
         }
         /* Auto-increment tlbmisc.WAY */
-        env->regs[CR_TLBMISC] =
-            (env->regs[CR_TLBMISC] & ~CR_TLBMISC_WAY_MASK) |
+        env->ctrl[CR_TLBMISC] =
+            (env->ctrl[CR_TLBMISC] & ~CR_TLBMISC_WAY_MASK) |
             (((way + 1) & (cpu->tlb_num_ways - 1)) <<
              CR_TLBMISC_WAY_SHIFT);
     }
@@ -153,17 +153,17 @@ void helper_mmu_write_tlbmisc(CPUNios2State *env, uint32_t v)
             &env->mmu.tlb[(way * cpu->tlb_num_ways) +
                           (vpn & env->mmu.tlb_entry_mask)];
 
-        env->regs[CR_TLBACC] &= CR_TLBACC_IGN_MASK;
-        env->regs[CR_TLBACC] |= entry->data;
-        env->regs[CR_TLBACC] |= (entry->tag & (1 << 11)) ? CR_TLBACC_G : 0;
-        env->regs[CR_TLBMISC] =
+        env->ctrl[CR_TLBACC] &= CR_TLBACC_IGN_MASK;
+        env->ctrl[CR_TLBACC] |= entry->data;
+        env->ctrl[CR_TLBACC] |= (entry->tag & (1 << 11)) ? CR_TLBACC_G : 0;
+        env->ctrl[CR_TLBMISC] =
             (v & ~CR_TLBMISC_PID_MASK) |
             ((entry->tag & ((1 << cpu->pid_num_bits) - 1)) <<
              CR_TLBMISC_PID_SHIFT);
-        env->regs[CR_PTEADDR] &= ~CR_PTEADDR_VPN_MASK;
-        env->regs[CR_PTEADDR] |= (entry->tag >> 12) << CR_PTEADDR_VPN_SHIFT;
+        env->ctrl[CR_PTEADDR] &= ~CR_PTEADDR_VPN_MASK;
+        env->ctrl[CR_PTEADDR] |= (entry->tag >> 12) << CR_PTEADDR_VPN_SHIFT;
     } else {
-        env->regs[CR_TLBMISC] = v;
+        env->ctrl[CR_TLBMISC] = v;
     }
 
     env->mmu.tlbmisc_wr = v;
@@ -175,8 +175,8 @@ void helper_mmu_write_pteaddr(CPUNios2State *env, uint32_t v)
                                   (v & CR_PTEADDR_VPN_MASK) >> CR_PTEADDR_VPN_SHIFT);
 
     /* Writes to PTEADDR don't change the read-back VPN value */
-    env->regs[CR_PTEADDR] = (v & ~CR_PTEADDR_VPN_MASK) |
-                            (env->regs[CR_PTEADDR] & CR_PTEADDR_VPN_MASK);
+    env->ctrl[CR_PTEADDR] = ((v & ~CR_PTEADDR_VPN_MASK) |
+                             (env->ctrl[CR_PTEADDR] & CR_PTEADDR_VPN_MASK));
     env->mmu.pteaddr_wr = v;
 }
 
