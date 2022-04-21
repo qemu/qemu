@@ -306,16 +306,14 @@ static void gen_right_shift_sar(DisasContext *dc, TCGv_i32 sa)
 
 static void gen_left_shift_sar(DisasContext *dc, TCGv_i32 sa)
 {
-    TCGv_i32 tmp = tcg_const_i32(32);
     if (!dc->sar_m32_allocated) {
         dc->sar_m32 = tcg_temp_local_new_i32();
         dc->sar_m32_allocated = true;
     }
     tcg_gen_andi_i32(dc->sar_m32, sa, 0x1f);
-    tcg_gen_sub_i32(cpu_SR[SAR], tmp, dc->sar_m32);
+    tcg_gen_sub_i32(cpu_SR[SAR], tcg_constant_i32(32), dc->sar_m32);
     dc->sar_5bit = false;
     dc->sar_m32_5bit = true;
-    tcg_temp_free(tmp);
 }
 
 static void gen_exception(DisasContext *dc, int excp)
@@ -1957,11 +1955,10 @@ static void translate_mov(DisasContext *dc, const OpcodeArg arg[],
 static void translate_movcond(DisasContext *dc, const OpcodeArg arg[],
                               const uint32_t par[])
 {
-    TCGv_i32 zero = tcg_const_i32(0);
+    TCGv_i32 zero = tcg_constant_i32(0);
 
     tcg_gen_movcond_i32(par[0], arg[0].out,
                         arg[2].in, zero, arg[1].in, arg[0].in);
-    tcg_temp_free(zero);
 }
 
 static void translate_movi(DisasContext *dc, const OpcodeArg arg[],
@@ -1973,7 +1970,7 @@ static void translate_movi(DisasContext *dc, const OpcodeArg arg[],
 static void translate_movp(DisasContext *dc, const OpcodeArg arg[],
                            const uint32_t par[])
 {
-    TCGv_i32 zero = tcg_const_i32(0);
+    TCGv_i32 zero = tcg_constant_i32(0);
     TCGv_i32 tmp = tcg_temp_new_i32();
 
     tcg_gen_andi_i32(tmp, arg[2].in, 1 << arg[2].imm);
@@ -1981,7 +1978,6 @@ static void translate_movp(DisasContext *dc, const OpcodeArg arg[],
                         arg[0].out, tmp, zero,
                         arg[1].in, arg[0].in);
     tcg_temp_free(tmp);
-    tcg_temp_free(zero);
 }
 
 static void translate_movsp(DisasContext *dc, const OpcodeArg arg[],
@@ -6444,7 +6440,7 @@ static void translate_compare_d(DisasContext *dc, const OpcodeArg arg[],
         [COMPARE_OLE] = gen_helper_ole_d,
         [COMPARE_ULE] = gen_helper_ule_d,
     };
-    TCGv_i32 zero = tcg_const_i32(0);
+    TCGv_i32 zero = tcg_constant_i32(0);
     TCGv_i32 res = tcg_temp_new_i32();
     TCGv_i32 set_br = tcg_temp_new_i32();
     TCGv_i32 clr_br = tcg_temp_new_i32();
@@ -6456,7 +6452,6 @@ static void translate_compare_d(DisasContext *dc, const OpcodeArg arg[],
     tcg_gen_movcond_i32(TCG_COND_NE,
                         arg[0].out, res, zero,
                         set_br, clr_br);
-    tcg_temp_free(zero);
     tcg_temp_free(res);
     tcg_temp_free(set_br);
     tcg_temp_free(clr_br);
@@ -6476,7 +6471,7 @@ static void translate_compare_s(DisasContext *dc, const OpcodeArg arg[],
         [COMPARE_ULE] = gen_helper_ule_s,
     };
     OpcodeArg arg32[3];
-    TCGv_i32 zero = tcg_const_i32(0);
+    TCGv_i32 zero = tcg_constant_i32(0);
     TCGv_i32 res = tcg_temp_new_i32();
     TCGv_i32 set_br = tcg_temp_new_i32();
     TCGv_i32 clr_br = tcg_temp_new_i32();
@@ -6490,7 +6485,6 @@ static void translate_compare_s(DisasContext *dc, const OpcodeArg arg[],
                         arg[0].out, res, zero,
                         set_br, clr_br);
     put_f32_i2(arg, arg32, 1, 2);
-    tcg_temp_free(zero);
     tcg_temp_free(res);
     tcg_temp_free(set_br);
     tcg_temp_free(clr_br);
@@ -6666,14 +6660,13 @@ static void translate_mov_s(DisasContext *dc, const OpcodeArg arg[],
 static void translate_movcond_d(DisasContext *dc, const OpcodeArg arg[],
                                 const uint32_t par[])
 {
-    TCGv_i64 zero = tcg_const_i64(0);
+    TCGv_i64 zero = tcg_constant_i64(0);
     TCGv_i64 arg2 = tcg_temp_new_i64();
 
     tcg_gen_ext_i32_i64(arg2, arg[2].in);
     tcg_gen_movcond_i64(par[0], arg[0].out,
                         arg2, zero,
                         arg[1].in, arg[0].in);
-    tcg_temp_free_i64(zero);
     tcg_temp_free_i64(arg2);
 }
 
@@ -6681,12 +6674,11 @@ static void translate_movcond_s(DisasContext *dc, const OpcodeArg arg[],
                                 const uint32_t par[])
 {
     if (arg[0].num_bits == 32) {
-        TCGv_i32 zero = tcg_const_i32(0);
+        TCGv_i32 zero = tcg_constant_i32(0);
 
         tcg_gen_movcond_i32(par[0], arg[0].out,
                             arg[2].in, zero,
                             arg[1].in, arg[0].in);
-        tcg_temp_free(zero);
     } else {
         translate_movcond_d(dc, arg, par);
     }
@@ -6695,7 +6687,7 @@ static void translate_movcond_s(DisasContext *dc, const OpcodeArg arg[],
 static void translate_movp_d(DisasContext *dc, const OpcodeArg arg[],
                              const uint32_t par[])
 {
-    TCGv_i64 zero = tcg_const_i64(0);
+    TCGv_i64 zero = tcg_constant_i64(0);
     TCGv_i32 tmp1 = tcg_temp_new_i32();
     TCGv_i64 tmp2 = tcg_temp_new_i64();
 
@@ -6704,7 +6696,6 @@ static void translate_movp_d(DisasContext *dc, const OpcodeArg arg[],
     tcg_gen_movcond_i64(par[0],
                         arg[0].out, tmp2, zero,
                         arg[1].in, arg[0].in);
-    tcg_temp_free_i64(zero);
     tcg_temp_free_i32(tmp1);
     tcg_temp_free_i64(tmp2);
 }
@@ -6713,7 +6704,7 @@ static void translate_movp_s(DisasContext *dc, const OpcodeArg arg[],
                              const uint32_t par[])
 {
     if (arg[0].num_bits == 32) {
-        TCGv_i32 zero = tcg_const_i32(0);
+        TCGv_i32 zero = tcg_constant_i32(0);
         TCGv_i32 tmp = tcg_temp_new_i32();
 
         tcg_gen_andi_i32(tmp, arg[2].in, 1 << arg[2].imm);
@@ -6721,7 +6712,6 @@ static void translate_movp_s(DisasContext *dc, const OpcodeArg arg[],
                             arg[0].out, tmp, zero,
                             arg[1].in, arg[0].in);
         tcg_temp_free(tmp);
-        tcg_temp_free(zero);
     } else {
         translate_movp_d(dc, arg, par);
     }
