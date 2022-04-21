@@ -28,19 +28,7 @@
 #include "exec/helper-proto.h"
 #include "semihosting/semihost.h"
 
-#if defined(CONFIG_USER_ONLY)
-
-void nios2_cpu_record_sigsegv(CPUState *cs, vaddr addr,
-                              MMUAccessType access_type,
-                              bool maperr, uintptr_t retaddr)
-{
-    /* FIXME: Disentangle kuser page from linux-user sigsegv handling. */
-    cs->exception_index = 0xaa;
-    cpu_loop_exit_restore(cs, retaddr);
-}
-
-#else /* !CONFIG_USER_ONLY */
-
+#if !defined(CONFIG_USER_ONLY)
 void nios2_cpu_do_interrupt(CPUState *cs)
 {
     Nios2CPU *cpu = NIOS2_CPU(cs);
