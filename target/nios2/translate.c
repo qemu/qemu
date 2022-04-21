@@ -104,6 +104,7 @@ typedef struct DisasContext {
 } DisasContext;
 
 static TCGv cpu_R[NUM_CORE_REGS];
+static TCGv cpu_pc;
 
 typedef struct Nios2Instruction {
     void     (*handler)(DisasContext *dc, uint32_t code, uint32_t flags);
@@ -144,7 +145,7 @@ static void t_gen_helper_raise_exception(DisasContext *dc,
 {
     TCGv_i32 tmp = tcg_const_i32(index);
 
-    tcg_gen_movi_tl(cpu_R[R_PC], dc->pc);
+    tcg_gen_movi_tl(cpu_pc, dc->pc);
     gen_helper_raise_exception(cpu_env, tmp);
     tcg_temp_free_i32(tmp);
     dc->base.is_jmp = DISAS_NORETURN;
@@ -156,10 +157,10 @@ static void gen_goto_tb(DisasContext *dc, int n, uint32_t dest)
 
     if (translator_use_goto_tb(&dc->base, dest)) {
         tcg_gen_goto_tb(n);
-        tcg_gen_movi_tl(cpu_R[R_PC], dest);
+        tcg_gen_movi_tl(cpu_pc, dest);
         tcg_gen_exit_tb(tb, n);
     } else {
-        tcg_gen_movi_tl(cpu_R[R_PC], dest);
+        tcg_gen_movi_tl(cpu_pc, dest);
         tcg_gen_exit_tb(NULL, 0);
     }
 }
@@ -391,7 +392,7 @@ static void eret(DisasContext *dc, uint32_t code, uint32_t flags)
     }
 
     tcg_gen_mov_tl(cpu_R[CR_STATUS], cpu_R[CR_ESTATUS]);
-    tcg_gen_mov_tl(cpu_R[R_PC], cpu_R[R_EA]);
+    tcg_gen_mov_tl(cpu_pc, cpu_R[R_EA]);
 
     dc->base.is_jmp = DISAS_JUMP;
 }
@@ -399,7 +400,7 @@ static void eret(DisasContext *dc, uint32_t code, uint32_t flags)
 /* PC <- ra */
 static void ret(DisasContext *dc, uint32_t code, uint32_t flags)
 {
-    tcg_gen_mov_tl(cpu_R[R_PC], cpu_R[R_RA]);
+    tcg_gen_mov_tl(cpu_pc, cpu_R[R_RA]);
 
     dc->base.is_jmp = DISAS_JUMP;
 }
@@ -407,7 +408,7 @@ static void ret(DisasContext *dc, uint32_t code, uint32_t flags)
 /* PC <- ba */
 static void bret(DisasContext *dc, uint32_t code, uint32_t flags)
 {
-    tcg_gen_mov_tl(cpu_R[R_PC], cpu_R[R_BA]);
+    tcg_gen_mov_tl(cpu_pc, cpu_R[R_BA]);
 
     dc->base.is_jmp = DISAS_JUMP;
 }
@@ -417,7 +418,7 @@ static void jmp(DisasContext *dc, uint32_t code, uint32_t flags)
 {
     R_TYPE(instr, code);
 
-    tcg_gen_mov_tl(cpu_R[R_PC], load_gpr(dc, instr.a));
+    tcg_gen_mov_tl(cpu_pc, load_gpr(dc, instr.a));
 
     dc->base.is_jmp = DISAS_JUMP;
 }
@@ -440,7 +441,7 @@ static void callr(DisasContext *dc, uint32_t code, uint32_t flags)
 {
     R_TYPE(instr, code);
 
-    tcg_gen_mov_tl(cpu_R[R_PC], load_gpr(dc, instr.a));
+    tcg_gen_mov_tl(cpu_pc, load_gpr(dc, instr.a));
     tcg_gen_movi_tl(cpu_R[R_RA], dc->base.pc_next);
 
     dc->base.is_jmp = DISAS_JUMP;
@@ -742,7 +743,7 @@ illegal_op:
     t_gen_helper_raise_exception(dc, EXCP_ILLEGAL);
 }
 
-static const char * const regnames[] = {
+static const char * const regnames[NUM_CORE_REGS] = {
     "zero",       "at",         "r2",         "r3",
     "r4",         "r5",         "r6",         "r7",
     "r8",         "r9",         "r10",        "r11",
@@ -759,7 +760,6 @@ static const char * const regnames[] = {
     "reserved6",  "reserved7",  "reserved8",  "reserved9",
     "reserved10", "reserved11", "reserved12", "reserved13",
     "reserved14", "reserved15", "reserved16", "reserved17",
-    "rpc"
 };
 
 #include "exec/gen-icount.h"
@@ -827,7 +827,7 @@ static void nios2_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     case DISAS_TOO_MANY:
     case DISAS_UPDATE:
         /* Save the current PC back into the CPU register */
-        tcg_gen_movi_tl(cpu_R[R_PC], dc->base.pc_next);
+        tcg_gen_movi_tl(cpu_pc, dc->base.pc_next);
         tcg_gen_exit_tb(NULL, 0);
         break;
 
@@ -877,8 +877,7 @@ void nios2_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         return;
     }
 
-    qemu_fprintf(f, "IN: PC=%x %s\n",
-                 env->regs[R_PC], lookup_symbol(env->regs[R_PC]));
+    qemu_fprintf(f, "IN: PC=%x %s\n", env->pc, lookup_symbol(env->pc));
 
     for (i = 0; i < NUM_CORE_REGS; i++) {
         qemu_fprintf(f, "%9s=%8.8x ", regnames[i], env->regs[i]);
@@ -904,10 +903,12 @@ void nios2_tcg_init(void)
                                       offsetof(CPUNios2State, regs[i]),
                                       regnames[i]);
     }
+    cpu_pc = tcg_global_mem_new(cpu_env,
+                                offsetof(CPUNios2State, pc), "pc");
 }
 
 void restore_state_to_opc(CPUNios2State *env, TranslationBlock *tb,
                           target_ulong *data)
 {
-    env->regs[R_PC] = data[0];
+    env->pc = data[0];
 }

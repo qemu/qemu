@@ -31,7 +31,7 @@ static void nios2_cpu_set_pc(CPUState *cs, vaddr value)
     Nios2CPU *cpu = NIOS2_CPU(cs);
     CPUNios2State *env = &cpu->env;
 
-    env->regs[R_PC] = value;
+    env->pc = value;
 }
 
 static bool nios2_cpu_has_work(CPUState *cs)
@@ -49,7 +49,7 @@ static void nios2_cpu_reset(DeviceState *dev)
     ncc->parent_reset(dev);
 
     memset(env->regs, 0, sizeof(uint32_t) * NUM_CORE_REGS);
-    env->regs[R_PC] = cpu->reset_addr;
+    env->pc = cpu->reset_addr;
 
 #if defined(CONFIG_USER_ONLY)
     /* Start in user mode with interrupts enabled. */
@@ -156,7 +156,7 @@ static int nios2_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     if (n < 32) {          /* GP regs */
         return gdb_get_reg32(mem_buf, env->regs[n]);
     } else if (n == 32) {    /* PC */
-        return gdb_get_reg32(mem_buf, env->regs[R_PC]);
+        return gdb_get_reg32(mem_buf, env->pc);
     } else if (n < 49) {     /* Status regs */
         return gdb_get_reg32(mem_buf, env->regs[n - 1]);
     }
@@ -178,7 +178,7 @@ static int nios2_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     if (n < 32) {            /* GP regs */
         env->regs[n] = ldl_p(mem_buf);
     } else if (n == 32) {    /* PC */
-        env->regs[R_PC] = ldl_p(mem_buf);
+        env->pc = ldl_p(mem_buf);
     } else if (n < 49) {     /* Status regs */
         env->regs[n - 1] = ldl_p(mem_buf);
     }

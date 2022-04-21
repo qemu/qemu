@@ -59,8 +59,8 @@ struct Nios2CPUClass {
 #define NUM_GP_REGS 32
 #define NUM_CR_REGS 32
 
-/* GP regs + CR regs + PC */
-#define NUM_CORE_REGS (NUM_GP_REGS + NUM_CR_REGS + 1)
+/* GP regs + CR regs */
+#define NUM_CORE_REGS (NUM_GP_REGS + NUM_CR_REGS)
 
 /* General purpose register aliases */
 #define R_ZERO   0
@@ -130,9 +130,6 @@ struct Nios2CPUClass {
 #define CR_MPUBASE   (CR_BASE + 14)
 #define CR_MPUACC    (CR_BASE + 15)
 
-/* Other registers */
-#define R_PC         64
-
 /* Exceptions */
 #define EXCP_BREAK    0x1000
 #define EXCP_RESET    0
@@ -158,6 +155,7 @@ struct Nios2CPUClass {
 
 struct CPUArchState {
     uint32_t regs[NUM_CORE_REGS];
+    uint32_t pc;
 
 #if !defined(CONFIG_USER_ONLY)
     Nios2MMU mmu;
@@ -237,7 +235,7 @@ typedef Nios2CPU ArchCPU;
 static inline void cpu_get_tb_cpu_state(CPUNios2State *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
 {
-    *pc = env->regs[R_PC];
+    *pc = env->pc;
     *cs_base = 0;
     *flags = (env->regs[CR_STATUS] & (CR_STATUS_EH | CR_STATUS_U));
 }

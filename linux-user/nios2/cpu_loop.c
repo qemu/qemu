@@ -43,7 +43,7 @@ void cpu_loop(CPUNios2State *env)
              * TODO: This advance should be done in the translator, as
              * hardware produces an advanced pc as part of all exceptions.
              */
-            env->regs[R_PC] += 4;
+            env->pc += 4;
 
             switch (env->error_code) {
             case 0:
@@ -59,7 +59,7 @@ void cpu_loop(CPUNios2State *env)
                     break;
                 }
                 if (ret == -QEMU_ERESTARTSYS) {
-                    env->regs[R_PC] -= 4;
+                    env->pc -= 4;
                     break;
                 }
                 /*
@@ -74,22 +74,21 @@ void cpu_loop(CPUNios2State *env)
 
             case 1:
                 qemu_log_mask(CPU_LOG_INT, "\nTrap 1\n");
-                force_sig_fault(TARGET_SIGUSR1, 0, env->regs[R_PC]);
+                force_sig_fault(TARGET_SIGUSR1, 0, env->pc);
                 break;
             case 2:
                 qemu_log_mask(CPU_LOG_INT, "\nTrap 2\n");
-                force_sig_fault(TARGET_SIGUSR2, 0, env->regs[R_PC]);
+                force_sig_fault(TARGET_SIGUSR2, 0, env->pc);
                 break;
             case 31:
                 qemu_log_mask(CPU_LOG_INT, "\nTrap 31\n");
                 /* Match kernel's breakpoint_c(). */
-                env->regs[R_PC] -= 4;
-                force_sig_fault(TARGET_SIGTRAP, TARGET_TRAP_BRKPT, env->regs[R_PC]);
+                env->pc -= 4;
+                force_sig_fault(TARGET_SIGTRAP, TARGET_TRAP_BRKPT, env->pc);
                 break;
             default:
                 qemu_log_mask(CPU_LOG_INT, "\nTrap %d\n", env->error_code);
-                force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLTRP,
-                                env->regs[R_PC]);
+                force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLTRP, env->pc);
                 break;
 
             case 16: /* QEMU specific, for __kuser_cmpxchg */
@@ -120,7 +119,7 @@ void cpu_loop(CPUNios2State *env)
             break;
 
         case EXCP_DEBUG:
-            force_sig_fault(TARGET_SIGTRAP, TARGET_TRAP_BRKPT, env->regs[R_PC]);
+            force_sig_fault(TARGET_SIGTRAP, TARGET_TRAP_BRKPT, env->pc);
             break;
         default:
             EXCP_DUMP(env, "\nqemu: unhandled CPU exception %#x - aborting\n",
@@ -156,6 +155,6 @@ void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
     env->regs[R_SP] = regs->sp;
     env->regs[R_GP] = regs->gp;
     env->regs[CR_ESTATUS] = regs->estatus;
-    env->regs[R_PC] = regs->ea;
+    env->pc = regs->ea;
     /* TODO: unsigned long  orig_r7; */
 }
