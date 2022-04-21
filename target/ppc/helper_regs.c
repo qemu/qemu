@@ -63,10 +63,10 @@ static uint32_t hreg_compute_hflags_value(CPUPPCState *env)
 
     if (ppc_flags & POWERPC_FLAG_DE) {
         target_ulong dbcr0 = env->spr[SPR_BOOKE_DBCR0];
-        if (dbcr0 & DBCR0_ICMP) {
+        if ((dbcr0 & DBCR0_ICMP) && msr_de) {
             hflags |= 1 << HFLAGS_SE;
         }
-        if (dbcr0 & DBCR0_BRT) {
+        if ((dbcr0 & DBCR0_BRT) && msr_de) {
             hflags |= 1 << HFLAGS_BE;
         }
     } else {
