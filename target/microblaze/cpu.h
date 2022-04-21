@@ -359,9 +359,9 @@ struct ArchCPU {
 void mb_cpu_do_interrupt(CPUState *cs);
 bool mb_cpu_exec_interrupt(CPUState *cs, int int_req);
 #endif /* !CONFIG_USER_ONLY */
-void mb_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
-                                MMUAccessType access_type,
-                                int mmu_idx, uintptr_t retaddr) QEMU_NORETURN;
+G_NORETURN void mb_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
+                                           MMUAccessType access_type,
+                                           int mmu_idx, uintptr_t retaddr);
 void mb_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 hwaddr mb_cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
                                         MemTxAttrs *attrs);

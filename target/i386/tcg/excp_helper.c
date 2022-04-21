@@ -25,13 +25,13 @@
 #include "exec/helper-proto.h"
 #include "helper-tcg.h"
 
-void QEMU_NORETURN helper_raise_interrupt(CPUX86State *env, int intno,
+G_NORETURN void helper_raise_interrupt(CPUX86State *env, int intno,
                                           int next_eip_addend)
 {
     raise_interrupt(env, intno, 1, 0, next_eip_addend);
 }
 
-void QEMU_NORETURN helper_raise_exception(CPUX86State *env, int exception_index)
+G_NORETURN void helper_raise_exception(CPUX86State *env, int exception_index)
 {
     raise_exception(env, exception_index);
 }
@@ -87,10 +87,11 @@ static int check_exception(CPUX86State *env, int intno, int *error_code,
  * env->eip value AFTER the interrupt instruction. It is only relevant if
  * is_int is TRUE.
  */
-static void QEMU_NORETURN raise_interrupt2(CPUX86State *env, int intno,
-                                           int is_int, int error_code,
-                                           int next_eip_addend,
-                                           uintptr_t retaddr)
+static G_NORETURN
+void raise_interrupt2(CPUX86State *env, int intno,
+                      int is_int, int error_code,
+                      int next_eip_addend,
+                      uintptr_t retaddr)
 {
     CPUState *cs = env_cpu(env);
 
@@ -111,31 +112,31 @@ static void QEMU_NORETURN raise_interrupt2(CPUX86State *env, int intno,
 
 /* shortcuts to generate exceptions */
 
-void QEMU_NORETURN raise_interrupt(CPUX86State *env, int intno, int is_int,
-                                   int error_code, int next_eip_addend)
+G_NORETURN void raise_interrupt(CPUX86State *env, int intno, int is_int,
+                                int error_code, int next_eip_addend)
 {
     raise_interrupt2(env, intno, is_int, error_code, next_eip_addend, 0);
 }
 
-void QEMU_NORETURN raise_exception_err(CPUX86State *env, int exception_index,
-                                       int error_code)
+G_NORETURN void raise_exception_err(CPUX86State *env, int exception_index,
+                                    int error_code)
 {
     raise_interrupt2(env, exception_index, 0, error_code, 0, 0);
 }
 
-void QEMU_NORETURN raise_exception_err_ra(CPUX86State *env, int exception_index,
-                                          int error_code, uintptr_t retaddr)
+G_NORETURN void raise_exception_err_ra(CPUX86State *env, int exception_index,
+                                       int error_code, uintptr_t retaddr)
 {
     raise_interrupt2(env, exception_index, 0, error_code, 0, retaddr);
 }
 
-void QEMU_NORETURN raise_exception(CPUX86State *env, int exception_index)
+G_NORETURN void raise_exception(CPUX86State *env, int exception_index)
 {
     raise_interrupt2(env, exception_index, 0, 0, 0, 0);
 }
 
-void QEMU_NORETURN raise_exception_ra(CPUX86State *env, int exception_index,
-                                      uintptr_t retaddr)
+G_NORETURN void raise_exception_ra(CPUX86State *env, int exception_index,
+                                   uintptr_t retaddr)
 {
     raise_interrupt2(env, exception_index, 0, 0, 0, retaddr);
 }

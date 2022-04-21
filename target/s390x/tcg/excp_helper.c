@@ -34,8 +34,8 @@
 #include "hw/boards.h"
 #endif
 
-void QEMU_NORETURN tcg_s390_program_interrupt(CPUS390XState *env,
-                                              uint32_t code, uintptr_t ra)
+G_NORETURN void tcg_s390_program_interrupt(CPUS390XState *env,
+                                           uint32_t code, uintptr_t ra)
 {
     CPUState *cs = env_cpu(env);
 
@@ -46,8 +46,8 @@ void QEMU_NORETURN tcg_s390_program_interrupt(CPUS390XState *env,
     cpu_loop_exit(cs);
 }
 
-void QEMU_NORETURN tcg_s390_data_exception(CPUS390XState *env, uint32_t dxc,
-                                           uintptr_t ra)
+G_NORETURN void tcg_s390_data_exception(CPUS390XState *env, uint32_t dxc,
+                                        uintptr_t ra)
 {
     g_assert(dxc <= 0xff);
 #if !defined(CONFIG_USER_ONLY)
@@ -63,8 +63,8 @@ void QEMU_NORETURN tcg_s390_data_exception(CPUS390XState *env, uint32_t dxc,
     tcg_s390_program_interrupt(env, PGM_DATA, ra);
 }
 
-void QEMU_NORETURN tcg_s390_vector_exception(CPUS390XState *env, uint32_t vxc,
-                                             uintptr_t ra)
+G_NORETURN void tcg_s390_vector_exception(CPUS390XState *env, uint32_t vxc,
+                                          uintptr_t ra)
 {
     g_assert(vxc <= 0xff);
 #if !defined(CONFIG_USER_ONLY)
@@ -88,7 +88,8 @@ void HELPER(data_exception)(CPUS390XState *env, uint32_t dxc)
  * this is only for the atomic operations, for which we want to raise a
  * specification exception.
  */
-static void QEMU_NORETURN do_unaligned_access(CPUState *cs, uintptr_t retaddr)
+static G_NORETURN
+void do_unaligned_access(CPUState *cs, uintptr_t retaddr)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
@@ -620,9 +621,10 @@ void s390x_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     do_unaligned_access(cs, retaddr);
 }
 
-static void QEMU_NORETURN monitor_event(CPUS390XState *env,
-                                        uint64_t monitor_code,
-                                        uint8_t monitor_class, uintptr_t ra)
+static G_NORETURN
+void monitor_event(CPUS390XState *env,
+                   uint64_t monitor_code,
+                   uint8_t monitor_class, uintptr_t ra)
 {
     /* Store the Monitor Code and the Monitor Class Number into the lowcore */
     stq_phys(env_cpu(env)->as,

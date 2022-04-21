@@ -28,7 +28,7 @@
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu/cutils.h"
-#include "qemu/option.h"
+#include "qemu/keyval.h"
 
 typedef struct StackObject {
     const char *name;            /* Name of @obj in its parent, if any */

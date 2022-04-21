@@ -34,9 +34,10 @@
 #define SF_MANTBITS    23
 
 /* Exceptions processing helpers */
-static void QEMU_NORETURN do_raise_exception_err(CPUHexagonState *env,
-                                                 uint32_t exception,
-                                                 uintptr_t pc)
+static G_NORETURN
+void do_raise_exception_err(CPUHexagonState *env,
+                            uint32_t exception,
+                            uintptr_t pc)
 {
     CPUState *cs = env_cpu(env);
     qemu_log_mask(CPU_LOG_INT, "%s: %d\n", __func__, exception);
@@ -44,7 +45,7 @@ static void QEMU_NORETURN do_raise_exception_err(CPUHexagonState *env,
     cpu_loop_exit_restore(cs, pc);
 }
 
-void QEMU_NORETURN HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp)
+G_NORETURN void HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp)
 {
     do_raise_exception_err(env, excp, 0);
 }

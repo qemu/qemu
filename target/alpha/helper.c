@@ -514,7 +514,7 @@ void alpha_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 
 /* This should only be called from translate, via gen_excp.
    We expect that ENV->PC has already been updated.  */
-void QEMU_NORETURN helper_excp(CPUAlphaState *env, int excp, int error)
+G_NORETURN void helper_excp(CPUAlphaState *env, int excp, int error)
 {
     CPUState *cs = env_cpu(env);
 
@@ -524,8 +524,8 @@ void QEMU_NORETURN helper_excp(CPUAlphaState *env, int excp, int error)
 }
 
 /* This may be called from any of the helpers to set up EXCEPTION_INDEX.  */
-void QEMU_NORETURN dynamic_excp(CPUAlphaState *env, uintptr_t retaddr,
-                                int excp, int error)
+G_NORETURN void dynamic_excp(CPUAlphaState *env, uintptr_t retaddr,
+                             int excp, int error)
 {
     CPUState *cs = env_cpu(env);
 
@@ -539,8 +539,8 @@ void QEMU_NORETURN dynamic_excp(CPUAlphaState *env, uintptr_t retaddr,
     cpu_loop_exit(cs);
 }
 
-void QEMU_NORETURN arith_excp(CPUAlphaState *env, uintptr_t retaddr,
-                              int exc, uint64_t mask)
+G_NORETURN void arith_excp(CPUAlphaState *env, uintptr_t retaddr,
+                           int exc, uint64_t mask)
 {
     env->trap_arg0 = exc;
     env->trap_arg1 = mask;

@@ -48,7 +48,7 @@ file. During build, the "trace-events" file in each listed subdirectory will be
 processed by the "tracetool" script to generate code for the trace events.
 
 The individual "trace-events" files are merged into a "trace-events-all" file,
-which is also installed into "/usr/share/qemu" with the name "trace-events".
+which is also installed into "/usr/share/qemu".
 This merged file is to be used by the "simpletrace.py" script to later analyse
 traces in the simpletrace data format.
 

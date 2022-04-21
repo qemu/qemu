@@ -42,25 +42,11 @@ static void *sigwait_compat(void *opaque)
             }
         } else {
             struct qemu_signalfd_siginfo buffer;
-            size_t offset = 0;
-
             memset(&buffer, 0, sizeof(buffer));
             buffer.ssi_signo = sig;
 
-            while (offset < sizeof(buffer)) {
-                ssize_t len;
-
-                len = write(info->fd, (char *)&buffer + offset,
-                            sizeof(buffer) - offset);
-                if (len == -1 && errno == EINTR) {
-                    continue;
-                }
-
-                if (len <= 0) {
-                    return NULL;
-                }
-
-                offset += len;
+            if (qemu_write_full(info->fd, &buffer, sizeof(buffer)) != sizeof(buffer)) {
+                return NULL;
             }
         }
     }

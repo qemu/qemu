@@ -382,8 +382,8 @@ static uint64_t pauth_strip(CPUARMState *env, uint64_t ptr, bool data)
     return pauth_original_ptr(ptr, param);
 }
 
-static void QEMU_NORETURN pauth_trap(CPUARMState *env, int target_el,
-                                     uintptr_t ra)
+static G_NORETURN
+void pauth_trap(CPUARMState *env, int target_el, uintptr_t ra)
 {
     raise_exception_ra(env, EXCP_UDEF, syn_pactrap(), target_el, ra);
 }

@@ -19,7 +19,7 @@
  */
 
 /* From qemu/compiler.h */
-#define QEMU_NORETURN __attribute__ ((__noreturn__))
+#define G_NORETURN __attribute__ ((__noreturn__))
 #define G_GNUC_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
 #define G_GNUC_NULL_TERMINATED __attribute__((sentinel))
 

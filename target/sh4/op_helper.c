@@ -57,8 +57,9 @@ void helper_ldtlb(CPUSH4State *env)
 #endif
 }
 
-static inline void QEMU_NORETURN raise_exception(CPUSH4State *env, int index,
-                                                 uintptr_t retaddr)
+static inline G_NORETURN
+void raise_exception(CPUSH4State *env, int index,
+                     uintptr_t retaddr)
 {
     CPUState *cs = env_cpu(env);
 

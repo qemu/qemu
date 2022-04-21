@@ -27,6 +27,7 @@
 #include "qom/object.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
+#include "qemu/keyval.h"
 #include "qemu/config-file.h"
 #include "qom/object_interfaces.h"
 

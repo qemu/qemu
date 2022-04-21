@@ -921,7 +921,8 @@ static void parse_args(int argc, char *argv[])
     }
 }
 
-static void QEMU_NORETURN run_test(void)
+static G_NORETURN
+void run_test(void)
 {
     unsigned int i;
 

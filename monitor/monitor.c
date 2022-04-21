@@ -286,6 +286,16 @@ int error_vprintf_unless_qmp(const char *fmt, va_list ap)
     return -1;
 }
 
+int error_printf_unless_qmp(const char *fmt, ...)
+{
+    va_list ap;
+    int ret;
+
+    va_start(ap, fmt);
+    ret = error_vprintf_unless_qmp(fmt, ap);
+    va_end(ap);
+    return ret;
+}
 
 static MonitorQAPIEventConf monitor_qapi_event_conf[QAPI_EVENT__MAX] = {
     /* Limit guest-triggerable events to 1 per second */
