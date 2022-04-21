@@ -73,14 +73,18 @@ void helper_eret(CPUNios2State *env, uint32_t new_status, uint32_t new_pc)
     }
 
     /*
-     * Both estatus and bstatus have no constraints on write;
+     * None of estatus, bstatus, or sstatus have constraints on write;
      * do not allow reserved fields in status to be set.
-     * TODO: more than this is required for shadow registers.
+     * When shadow registers are enabled, eret *does* restore CRS.
+     * Rather than testing eic_present to decide, mask CRS out of
+     * the set of readonly fields.
      */
-    new_status &= cpu->cr_state[CR_STATUS].writable;
+    new_status &= cpu->cr_state[CR_STATUS].writable |
+                  (cpu->cr_state[CR_STATUS].readonly & R_CR_STATUS_CRS_MASK);
 
     env->ctrl[CR_STATUS] = new_status;
     env->pc = new_pc;
+    nios2_update_crs(env);
     cpu_loop_exit(cs);
 }
 
