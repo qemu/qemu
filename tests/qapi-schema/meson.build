@@ -11,6 +11,7 @@ schemas = [
   'alternate-conflict-dict.json',
   'alternate-conflict-enum-bool.json',
   'alternate-conflict-enum-int.json',
+  'alternate-conflict-lists.json',
   'alternate-conflict-string.json',
   'alternate-conflict-bool-string.json',
   'alternate-conflict-num-string.json',

@@ -41,8 +41,8 @@ used internally.
 
 There are several kinds of types: simple types (a number of built-in
 types, such as ``int`` and ``str``; as well as enumerations), arrays,
-complex types (structs and two flavors of unions), and alternate types
-(a choice between other types).
+complex types (structs and unions), and alternate types (a choice
+between other types).
 
 
 Schema syntax

@@ -144,7 +144,7 @@
 #
 # @cert-chain:  PDH certificate chain (base64 encoded)
 #
-# @cpu0-id: Unique ID of CPU0 (base64 encoded) (since 7.0)
+# @cpu0-id: Unique ID of CPU0 (base64 encoded) (since 7.1)
 #
 # @cbitpos: C-bit location in page table entry
 #
