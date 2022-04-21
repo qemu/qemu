@@ -1708,10 +1708,9 @@ static void translate_itlb(DisasContext *dc, const OpcodeArg arg[],
                            const uint32_t par[])
 {
 #ifndef CONFIG_USER_ONLY
-    TCGv_i32 dtlb = tcg_const_i32(par[0]);
+    TCGv_i32 dtlb = tcg_constant_i32(par[0]);
 
     gen_helper_itlb(cpu_env, arg[0].in, dtlb);
-    tcg_temp_free(dtlb);
 #endif
 }
 
@@ -2048,11 +2047,10 @@ static void translate_ptlb(DisasContext *dc, const OpcodeArg arg[],
                            const uint32_t par[])
 {
 #ifndef CONFIG_USER_ONLY
-    TCGv_i32 dtlb = tcg_const_i32(par[0]);
+    TCGv_i32 dtlb = tcg_constant_i32(par[0]);
 
     tcg_gen_movi_i32(cpu_pc, dc->pc);
     gen_helper_ptlb(arg[0].out, cpu_env, arg[1].in, dtlb);
-    tcg_temp_free(dtlb);
 #endif
 }
 
@@ -2251,10 +2249,9 @@ static void translate_rtlb(DisasContext *dc, const OpcodeArg arg[],
         gen_helper_rtlb0,
         gen_helper_rtlb1,
     };
-    TCGv_i32 dtlb = tcg_const_i32(par[0]);
+    TCGv_i32 dtlb = tcg_constant_i32(par[0]);
 
     helper[par[1]](arg[0].out, cpu_env, arg[1].in, dtlb);
-    tcg_temp_free(dtlb);
 #endif
 }
 
@@ -2562,10 +2559,9 @@ static void translate_wtlb(DisasContext *dc, const OpcodeArg arg[],
                            const uint32_t par[])
 {
 #ifndef CONFIG_USER_ONLY
-    TCGv_i32 dtlb = tcg_const_i32(par[0]);
+    TCGv_i32 dtlb = tcg_constant_i32(par[0]);
 
     gen_helper_wtlb(cpu_env, arg[0].in, arg[1].in, dtlb);
-    tcg_temp_free(dtlb);
 #endif
 }
 
