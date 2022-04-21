@@ -40,6 +40,12 @@ void cpu_loop(CPUNios2State *env)
             break;
 
         case EXCP_TRAP:
+            /*
+             * TODO: This advance should be done in the translator, as
+             * hardware produces an advanced pc as part of all exceptions.
+             */
+            env->regs[R_PC] += 4;
+
             switch (env->error_code) {
             case 0:
                 qemu_log_mask(CPU_LOG_INT, "\nSyscall\n");
@@ -56,7 +62,6 @@ void cpu_loop(CPUNios2State *env)
                 env->regs[2] = abs(ret);
                 /* Return value is 0..4096 */
                 env->regs[7] = ret > 0xfffff000u;
-                env->regs[R_PC] += 4;
                 break;
 
             case 1:
@@ -69,6 +74,8 @@ void cpu_loop(CPUNios2State *env)
                 break;
             case 31:
                 qemu_log_mask(CPU_LOG_INT, "\nTrap 31\n");
+                /* Match kernel's breakpoint_c(). */
+                env->regs[R_PC] -= 4;
                 force_sig_fault(TARGET_SIGTRAP, TARGET_TRAP_BRKPT, env->regs[R_PC]);
                 break;
             default:
@@ -99,7 +106,6 @@ void cpu_loop(CPUNios2State *env)
                     o = env->regs[5];
                     n = env->regs[6];
                     env->regs[2] = qatomic_cmpxchg(h, o, n) - o;
-                    env->regs[R_PC] += 4;
                 }
                 break;
             }
