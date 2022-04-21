@@ -50,8 +50,8 @@ from typing import (
     Sequence,
 )
 
-from qemu.aqmp import ConnectError, SocketAddrT
-from qemu.aqmp.legacy import QEMUMonitorProtocol
+from qemu.qmp import ConnectError, SocketAddrT
+from qemu.qmp.legacy import QEMUMonitorProtocol
 
 
 # This script has not seen many patches or careful attention in quite

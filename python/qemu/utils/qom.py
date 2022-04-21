@@ -32,7 +32,7 @@ QOM commands:
 
 import argparse
 
-from qemu.aqmp import ExecuteError
+from qemu.qmp import ExecuteError
 
 from .qom_common import QOMCommand
 

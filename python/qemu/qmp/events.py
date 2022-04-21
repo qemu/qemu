@@ -1,5 +1,5 @@
 """
-AQMP Events and EventListeners
+QMP Events and EventListeners
 
 Asynchronous QMP uses `EventListener` objects to listen for events. An
 `EventListener` is a FIFO event queue that can be pre-filtered to listen

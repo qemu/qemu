@@ -6,7 +6,7 @@
 # compatibility levels for each CPU model.
 #
 
-from qemu.aqmp.legacy import QEMUMonitorProtocol
+from qemu.qmp.legacy import QEMUMonitorProtocol
 import sys
 
 if len(sys.argv) != 2:

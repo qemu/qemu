@@ -192,7 +192,7 @@ class QMPClient(AsyncProtocol[Message], Events):
               await self.qmp.runstate_changed.wait()
               await self.disconnect()
 
-    See `aqmp.events` for more detail on event handling patterns.
+    See `qmp.events` for more detail on event handling patterns.
     """
     #: Logger object used for debugging messages.
     logger = logging.getLogger(__name__)
@@ -416,7 +416,7 @@ class QMPClient(AsyncProtocol[Message], Events):
 
     @upper_half
     def _get_exec_id(self) -> str:
-        exec_id = f"__aqmp#{self._execute_id:05d}"
+        exec_id = f"__qmp#{self._execute_id:05d}"
         self._execute_id += 1
         return exec_id
 
@@ -476,7 +476,7 @@ class QMPClient(AsyncProtocol[Message], Events):
         An execution ID will be assigned if assign_id is `True`. It can be
         disabled, but this requires that an ID is manually assigned
         instead. For manually assigned IDs, you must not use the string
-        '__aqmp#' anywhere in the ID.
+        '__qmp#' anywhere in the ID.
 
         :param msg: The QMP `Message` to execute.
         :param assign_id: If True, assign a new execution ID.
@@ -490,7 +490,7 @@ class QMPClient(AsyncProtocol[Message], Events):
             msg['id'] = self._get_exec_id()
         elif 'id' in msg:
             assert isinstance(msg['id'], str)
-            assert '__aqmp#' not in msg['id']
+            assert '__qmp#' not in msg['id']
 
         exec_id = await self._issue(msg)
         return await self._reply(exec_id)
@@ -512,7 +512,7 @@ class QMPClient(AsyncProtocol[Message], Events):
             Assign an arbitrary execution ID to this message. If
             `False`, the existing id must either be absent (and no other
             such pending execution may omit an ID) or a string. If it is
-            a string, it must not start with '__aqmp#' and no other such
+            a string, it must not start with '__qmp#' and no other such
             pending execution may currently be using that ID.
 
         :return: Execution reply from the server.
@@ -524,7 +524,7 @@ class QMPClient(AsyncProtocol[Message], Events):
             When assign_id is `False`, an ID is given, and it is not a string.
         :raise ValueError:
             When assign_id is `False`, but the ID is not usable;
-            Either because it starts with '__aqmp#' or it is already in-use.
+            Either because it starts with '__qmp#' or it is already in-use.
         """
         # 1. convert generic Mapping or bytes to a QMP Message
         # 2. copy Message objects so that we assign an ID only to the copy.
@@ -534,9 +534,9 @@ class QMPClient(AsyncProtocol[Message], Events):
         if not assign_id and 'id' in msg:
             if not isinstance(exec_id, str):
                 raise TypeError(f"ID ('{exec_id}') must be a string.")
-            if exec_id.startswith('__aqmp#'):
+            if exec_id.startswith('__qmp#'):
                 raise ValueError(
-                    f"ID ('{exec_id}') must not start with '__aqmp#'."
+                    f"ID ('{exec_id}') must not start with '__qmp#'."
                 )
 
         if not assign_id and exec_id in self._pending:

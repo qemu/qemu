@@ -25,8 +25,8 @@ import json
 from graphviz import Digraph
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'python'))
-from qemu.aqmp import QMPError
-from qemu.aqmp.legacy import QEMUMonitorProtocol
+from qemu.qmp import QMPError
+from qemu.qmp.legacy import QEMUMonitorProtocol
 
 
 def perm(arr):
