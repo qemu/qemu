@@ -101,6 +101,348 @@
 #define EXYNOS4210_PL330_BASE1_ADDR         0x12690000
 #define EXYNOS4210_PL330_BASE2_ADDR         0x12850000
 
+enum ExtGicId {
+    EXT_GIC_ID_MDMA_LCD0 = 66,
+    EXT_GIC_ID_PDMA0,
+    EXT_GIC_ID_PDMA1,
+    EXT_GIC_ID_TIMER0,
+    EXT_GIC_ID_TIMER1,
+    EXT_GIC_ID_TIMER2,
+    EXT_GIC_ID_TIMER3,
+    EXT_GIC_ID_TIMER4,
+    EXT_GIC_ID_MCT_L0,
+    EXT_GIC_ID_WDT,
+    EXT_GIC_ID_RTC_ALARM,
+    EXT_GIC_ID_RTC_TIC,
+    EXT_GIC_ID_GPIO_XB,
+    EXT_GIC_ID_GPIO_XA,
+    EXT_GIC_ID_MCT_L1,
+    EXT_GIC_ID_IEM_APC,
+    EXT_GIC_ID_IEM_IEC,
+    EXT_GIC_ID_NFC,
+    EXT_GIC_ID_UART0,
+    EXT_GIC_ID_UART1,
+    EXT_GIC_ID_UART2,
+    EXT_GIC_ID_UART3,
+    EXT_GIC_ID_UART4,
+    EXT_GIC_ID_MCT_G0,
+    EXT_GIC_ID_I2C0,
+    EXT_GIC_ID_I2C1,
+    EXT_GIC_ID_I2C2,
+    EXT_GIC_ID_I2C3,
+    EXT_GIC_ID_I2C4,
+    EXT_GIC_ID_I2C5,
+    EXT_GIC_ID_I2C6,
+    EXT_GIC_ID_I2C7,
+    EXT_GIC_ID_SPI0,
+    EXT_GIC_ID_SPI1,
+    EXT_GIC_ID_SPI2,
+    EXT_GIC_ID_MCT_G1,
+    EXT_GIC_ID_USB_HOST,
+    EXT_GIC_ID_USB_DEVICE,
+    EXT_GIC_ID_MODEMIF,
+    EXT_GIC_ID_HSMMC0,
+    EXT_GIC_ID_HSMMC1,
+    EXT_GIC_ID_HSMMC2,
+    EXT_GIC_ID_HSMMC3,
+    EXT_GIC_ID_SDMMC,
+    EXT_GIC_ID_MIPI_CSI_4LANE,
+    EXT_GIC_ID_MIPI_DSI_4LANE,
+    EXT_GIC_ID_MIPI_CSI_2LANE,
+    EXT_GIC_ID_MIPI_DSI_2LANE,
+    EXT_GIC_ID_ONENAND_AUDI,
+    EXT_GIC_ID_ROTATOR,
+    EXT_GIC_ID_FIMC0,
+    EXT_GIC_ID_FIMC1,
+    EXT_GIC_ID_FIMC2,
+    EXT_GIC_ID_FIMC3,
+    EXT_GIC_ID_JPEG,
+    EXT_GIC_ID_2D,
+    EXT_GIC_ID_PCIe,
+    EXT_GIC_ID_MIXER,
+    EXT_GIC_ID_HDMI,
+    EXT_GIC_ID_HDMI_I2C,
+    EXT_GIC_ID_MFC,
+    EXT_GIC_ID_TVENC,
+};
+
+enum ExtInt {
+    EXT_GIC_ID_EXTINT0 = 48,
+    EXT_GIC_ID_EXTINT1,
+    EXT_GIC_ID_EXTINT2,
+    EXT_GIC_ID_EXTINT3,
+    EXT_GIC_ID_EXTINT4,
+    EXT_GIC_ID_EXTINT5,
+    EXT_GIC_ID_EXTINT6,
+    EXT_GIC_ID_EXTINT7,
+    EXT_GIC_ID_EXTINT8,
+    EXT_GIC_ID_EXTINT9,
+    EXT_GIC_ID_EXTINT10,
+    EXT_GIC_ID_EXTINT11,
+    EXT_GIC_ID_EXTINT12,
+    EXT_GIC_ID_EXTINT13,
+    EXT_GIC_ID_EXTINT14,
+    EXT_GIC_ID_EXTINT15
+};
+
+/*
+ * External GIC sources which are not from External Interrupt Combiner or
+ * External Interrupts are starting from EXYNOS4210_MAX_EXT_COMBINER_OUT_IRQ,
+ * which is INTG16 in Internal Interrupt Combiner.
+ */
+
+static const uint32_t
+combiner_grp_to_gic_id[64 - EXYNOS4210_MAX_EXT_COMBINER_OUT_IRQ][8] = {
+    /* int combiner groups 16-19 */
+    { }, { }, { }, { },
+    /* int combiner group 20 */
+    { 0, EXT_GIC_ID_MDMA_LCD0 },
+    /* int combiner group 21 */
+    { EXT_GIC_ID_PDMA0, EXT_GIC_ID_PDMA1 },
+    /* int combiner group 22 */
+    { EXT_GIC_ID_TIMER0, EXT_GIC_ID_TIMER1, EXT_GIC_ID_TIMER2,
+            EXT_GIC_ID_TIMER3, EXT_GIC_ID_TIMER4 },
+    /* int combiner group 23 */
+    { EXT_GIC_ID_RTC_ALARM, EXT_GIC_ID_RTC_TIC },
+    /* int combiner group 24 */
+    { EXT_GIC_ID_GPIO_XB, EXT_GIC_ID_GPIO_XA },
+    /* int combiner group 25 */
+    { EXT_GIC_ID_IEM_APC, EXT_GIC_ID_IEM_IEC },
+    /* int combiner group 26 */
+    { EXT_GIC_ID_UART0, EXT_GIC_ID_UART1, EXT_GIC_ID_UART2, EXT_GIC_ID_UART3,
+            EXT_GIC_ID_UART4 },
+    /* int combiner group 27 */
+    { EXT_GIC_ID_I2C0, EXT_GIC_ID_I2C1, EXT_GIC_ID_I2C2, EXT_GIC_ID_I2C3,
+            EXT_GIC_ID_I2C4, EXT_GIC_ID_I2C5, EXT_GIC_ID_I2C6,
+            EXT_GIC_ID_I2C7 },
+    /* int combiner group 28 */
+    { EXT_GIC_ID_SPI0, EXT_GIC_ID_SPI1, EXT_GIC_ID_SPI2 , EXT_GIC_ID_USB_HOST},
+    /* int combiner group 29 */
+    { EXT_GIC_ID_HSMMC0, EXT_GIC_ID_HSMMC1, EXT_GIC_ID_HSMMC2,
+     EXT_GIC_ID_HSMMC3, EXT_GIC_ID_SDMMC },
+    /* int combiner group 30 */
+    { EXT_GIC_ID_MIPI_CSI_4LANE, EXT_GIC_ID_MIPI_CSI_2LANE },
+    /* int combiner group 31 */
+    { EXT_GIC_ID_MIPI_DSI_4LANE, EXT_GIC_ID_MIPI_DSI_2LANE },
+    /* int combiner group 32 */
+    { EXT_GIC_ID_FIMC0, EXT_GIC_ID_FIMC1 },
+    /* int combiner group 33 */
+    { EXT_GIC_ID_FIMC2, EXT_GIC_ID_FIMC3 },
+    /* int combiner group 34 */
+    { EXT_GIC_ID_ONENAND_AUDI, EXT_GIC_ID_NFC },
+    /* int combiner group 35 */
+    { 0, 0, 0, EXT_GIC_ID_MCT_L1 },
+    /* int combiner group 36 */
+    { EXT_GIC_ID_MIXER },
+    /* int combiner group 37 */
+    { EXT_GIC_ID_EXTINT4, EXT_GIC_ID_EXTINT5, EXT_GIC_ID_EXTINT6,
+     EXT_GIC_ID_EXTINT7 },
+    /* groups 38-50 */
+    { }, { }, { }, { }, { }, { }, { }, { }, { }, { }, { }, { }, { },
+    /* int combiner group 51 */
+    { EXT_GIC_ID_MCT_L0 },
+    /* group 52 */
+    { },
+    /* int combiner group 53 */
+    { EXT_GIC_ID_WDT },
+    /* groups 54-63 */
+    { }, { }, { }, { }, { }, { }, { }, { }, { }, { }
+};
+
+#define EXYNOS4210_COMBINER_GET_IRQ_NUM(grp, bit)  ((grp) * 8 + (bit))
+#define EXYNOS4210_COMBINER_GET_GRP_NUM(irq)       ((irq) / 8)
+#define EXYNOS4210_COMBINER_GET_BIT_NUM(irq) \
+    ((irq) - 8 * EXYNOS4210_COMBINER_GET_GRP_NUM(irq))
+
+/*
+ * Some interrupt lines go to multiple combiner inputs.
+ * This data structure defines those: each array element is
+ * a list of combiner inputs which are connected together;
+ * the one with the smallest interrupt ID value must be first.
+ * As with combiner_grp_to_gic_id[], we rely on (0, 0) not being
+ * wired to anything so we can use 0 as a terminator.
+ */
+#define IRQNO(G, B) EXYNOS4210_COMBINER_GET_IRQ_NUM(G, B)
+#define IRQNONE 0
+
+#define COMBINERMAP_SIZE 16
+
+static const int combinermap[COMBINERMAP_SIZE][6] = {
+    /* MDNIE_LCD1 */
+    { IRQNO(0, 4), IRQNO(1, 0), IRQNONE },
+    { IRQNO(0, 5), IRQNO(1, 1), IRQNONE },
+    { IRQNO(0, 6), IRQNO(1, 2), IRQNONE },
+    { IRQNO(0, 7), IRQNO(1, 3), IRQNONE },
+    /* TMU */
+    { IRQNO(2, 4), IRQNO(3, 4), IRQNONE },
+    { IRQNO(2, 5), IRQNO(3, 5), IRQNONE },
+    { IRQNO(2, 6), IRQNO(3, 6), IRQNONE },
+    { IRQNO(2, 7), IRQNO(3, 7), IRQNONE },
+    /* LCD1 */
+    { IRQNO(11, 4), IRQNO(12, 0), IRQNONE },
+    { IRQNO(11, 5), IRQNO(12, 1), IRQNONE },
+    { IRQNO(11, 6), IRQNO(12, 2), IRQNONE },
+    { IRQNO(11, 7), IRQNO(12, 3), IRQNONE },
+    /* Multi-core timer */
+    { IRQNO(1, 4), IRQNO(12, 4), IRQNO(35, 4), IRQNO(51, 4), IRQNO(53, 4), IRQNONE },
+    { IRQNO(1, 5), IRQNO(12, 5), IRQNO(35, 5), IRQNO(51, 5), IRQNO(53, 5), IRQNONE },
+    { IRQNO(1, 6), IRQNO(12, 6), IRQNO(35, 6), IRQNO(51, 6), IRQNO(53, 6), IRQNONE },
+    { IRQNO(1, 7), IRQNO(12, 7), IRQNO(35, 7), IRQNO(51, 7), IRQNO(53, 7), IRQNONE },
+};
+
+#undef IRQNO
+
+static const int *combinermap_entry(int irq)
+{
+    /*
+     * If the interrupt number passed in is the first entry in some
+     * line of the combinermap, return a pointer to that line;
+     * otherwise return NULL.
+     */
+    int i;
+    for (i = 0; i < COMBINERMAP_SIZE; i++) {
+        if (combinermap[i][0] == irq) {
+            return combinermap[i];
+        }
+    }
+    return NULL;
+}
+
+static int mapline_size(const int *mapline)
+{
+    /* Return number of entries in this mapline in total */
+    int i = 0;
+
+    if (!mapline) {
+        /* Not in the map? IRQ goes to exactly one combiner input */
+        return 1;
+    }
+    while (*mapline != IRQNONE) {
+        mapline++;
+        i++;
+    }
+    return i;
+}
+
+/*
+ * Initialize board IRQs.
+ * These IRQs contain splitted Int/External Combiner and External Gic IRQs.
+ */
+static void exynos4210_init_board_irqs(Exynos4210State *s)
+{
+    uint32_t grp, bit, irq_id, n;
+    DeviceState *extgicdev = DEVICE(&s->ext_gic);
+    DeviceState *intcdev = DEVICE(&s->int_combiner);
+    DeviceState *extcdev = DEVICE(&s->ext_combiner);
+    int splitcount = 0;
+    DeviceState *splitter;
+    const int *mapline;
+    int numlines, splitin, in;
+
+    for (n = 0; n < EXYNOS4210_MAX_EXT_COMBINER_IN_IRQ; n++) {
+        irq_id = 0;
+        if (n == EXYNOS4210_COMBINER_GET_IRQ_NUM(1, 4)) {
+            /* MCT_G0 is passed to External GIC */
+            irq_id = EXT_GIC_ID_MCT_G0;
+        }
+        if (n == EXYNOS4210_COMBINER_GET_IRQ_NUM(1, 5)) {
+            /* MCT_G1 is passed to External and GIC */
+            irq_id = EXT_GIC_ID_MCT_G1;
+        }
+
+        if (s->irq_table[n]) {
+            /*
+             * This must be some non-first entry in a combinermap line,
+             * and we've already filled it in.
+             */
+            continue;
+        }
+        mapline = combinermap_entry(n);
+        /*
+         * We need to connect the IRQ to multiple inputs on both combiners
+         * and possibly also to the external GIC.
+         */
+        numlines = 2 * mapline_size(mapline);
+        if (irq_id) {
+            numlines++;
+        }
+        assert(splitcount < EXYNOS4210_NUM_SPLITTERS);
+        splitter = DEVICE(&s->splitter[splitcount]);
+        qdev_prop_set_uint16(splitter, "num-lines", numlines);
+        qdev_realize(splitter, NULL, &error_abort);
+        splitcount++;
+
+        in = n;
+        splitin = 0;
+        for (;;) {
+            s->irq_table[in] = qdev_get_gpio_in(splitter, 0);
+            qdev_connect_gpio_out(splitter, splitin,
+                                  qdev_get_gpio_in(intcdev, in));
+            qdev_connect_gpio_out(splitter, splitin + 1,
+                                  qdev_get_gpio_in(extcdev, in));
+            splitin += 2;
+            if (!mapline) {
+                break;
+            }
+            mapline++;
+            in = *mapline;
+            if (in == IRQNONE) {
+                break;
+            }
+        }
+        if (irq_id) {
+            qdev_connect_gpio_out(splitter, splitin,
+                                  qdev_get_gpio_in(extgicdev, irq_id - 32));
+        }
+    }
+    for (; n < EXYNOS4210_MAX_INT_COMBINER_IN_IRQ; n++) {
+        /* these IDs are passed to Internal Combiner and External GIC */
+        grp = EXYNOS4210_COMBINER_GET_GRP_NUM(n);
+        bit = EXYNOS4210_COMBINER_GET_BIT_NUM(n);
+        irq_id = combiner_grp_to_gic_id[grp -
+                     EXYNOS4210_MAX_EXT_COMBINER_OUT_IRQ][bit];
+
+        if (s->irq_table[n]) {
+            /*
+             * This must be some non-first entry in a combinermap line,
+             * and we've already filled it in.
+             */
+            continue;
+        }
+
+        if (irq_id) {
+            assert(splitcount < EXYNOS4210_NUM_SPLITTERS);
+            splitter = DEVICE(&s->splitter[splitcount]);
+            qdev_prop_set_uint16(splitter, "num-lines", 2);
+            qdev_realize(splitter, NULL, &error_abort);
+            splitcount++;
+            s->irq_table[n] = qdev_get_gpio_in(splitter, 0);
+            qdev_connect_gpio_out(splitter, 0, qdev_get_gpio_in(intcdev, n));
+            qdev_connect_gpio_out(splitter, 1,
+                                  qdev_get_gpio_in(extgicdev, irq_id - 32));
+        } else {
+            s->irq_table[n] = qdev_get_gpio_in(intcdev, n);
+        }
+    }
+    /*
+     * We check this here to avoid a more obscure assert later when
+     * qdev_assert_realized_properly() checks that we realized every
+     * child object we initialized.
+     */
+    assert(splitcount == EXYNOS4210_NUM_SPLITTERS);
+}
+
+/*
+ * Get IRQ number from exynos4210 IRQ subsystem stub.
+ * To identify IRQ source use internal combiner group and bit number
+ *  grp - group number
+ *  bit - bit number inside group
+ */
+uint32_t exynos4210_get_irq(uint32_t grp, uint32_t bit)
+{
+    return EXYNOS4210_COMBINER_GET_IRQ_NUM(grp, bit);
+}
+
 static uint8_t chipid_and_omr[] = { 0x11, 0x02, 0x21, 0x43,
                                     0x09, 0x00, 0x00, 0x00 };
 
@@ -205,7 +547,6 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
 {
     Exynos4210State *s = EXYNOS4210_SOC(socdev);
     MemoryRegion *system_mem = get_system_memory();
-    qemu_irq gate_irq[EXYNOS4210_NCPUS][EXYNOS4210_IRQ_GATE_NINPUTS];
     SysBusDevice *busdev;
     DeviceState *dev, *uart[4], *pl330[3];
     int i, n;
@@ -229,81 +570,63 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
         qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
     }
 
-    /*** IRQs ***/
-
-    s->irq_table = exynos4210_init_irq(&s->irqs);
-
     /* IRQ Gate */
     for (i = 0; i < EXYNOS4210_NCPUS; i++) {
-        dev = qdev_new("exynos4210.irq_gate");
-        qdev_prop_set_uint32(dev, "n_in", EXYNOS4210_IRQ_GATE_NINPUTS);
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-        /* Get IRQ Gate input in gate_irq */
-        for (n = 0; n < EXYNOS4210_IRQ_GATE_NINPUTS; n++) {
-            gate_irq[i][n] = qdev_get_gpio_in(dev, n);
-        }
-        busdev = SYS_BUS_DEVICE(dev);
-
-        /* Connect IRQ Gate output to CPU's IRQ line */
-        sysbus_connect_irq(busdev, 0,
-                           qdev_get_gpio_in(DEVICE(s->cpu[i]), ARM_CPU_IRQ));
+        DeviceState *orgate = DEVICE(&s->cpu_irq_orgate[i]);
+        object_property_set_int(OBJECT(orgate), "num-lines",
+                                EXYNOS4210_IRQ_GATE_NINPUTS,
+                                &error_abort);
+        qdev_realize(orgate, NULL, &error_abort);
+        qdev_connect_gpio_out(orgate, 0,
+                              qdev_get_gpio_in(DEVICE(s->cpu[i]), ARM_CPU_IRQ));
     }
 
     /* Private memory region and Internal GIC */
-    dev = qdev_new(TYPE_A9MPCORE_PRIV);
-    qdev_prop_set_uint32(dev, "num-cpu", EXYNOS4210_NCPUS);
-    busdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    qdev_prop_set_uint32(DEVICE(&s->a9mpcore), "num-cpu", EXYNOS4210_NCPUS);
+    busdev = SYS_BUS_DEVICE(&s->a9mpcore);
+    sysbus_realize(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, EXYNOS4210_SMP_PRIVATE_BASE_ADDR);
     for (n = 0; n < EXYNOS4210_NCPUS; n++) {
-        sysbus_connect_irq(busdev, n, gate_irq[n][0]);
-    }
-    for (n = 0; n < EXYNOS4210_INT_GIC_NIRQ; n++) {
-        s->irqs.int_gic_irq[n] = qdev_get_gpio_in(dev, n);
+        sysbus_connect_irq(busdev, n,
+                           qdev_get_gpio_in(DEVICE(&s->cpu_irq_orgate[n]), 0));
     }
 
     /* Cache controller */
     sysbus_create_simple("l2x0", EXYNOS4210_L2X0_BASE_ADDR, NULL);
 
     /* External GIC */
-    dev = qdev_new("exynos4210.gic");
-    qdev_prop_set_uint32(dev, "num-cpu", EXYNOS4210_NCPUS);
-    busdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    qdev_prop_set_uint32(DEVICE(&s->ext_gic), "num-cpu", EXYNOS4210_NCPUS);
+    busdev = SYS_BUS_DEVICE(&s->ext_gic);
+    sysbus_realize(busdev, &error_fatal);
     /* Map CPU interface */
     sysbus_mmio_map(busdev, 0, EXYNOS4210_EXT_GIC_CPU_BASE_ADDR);
     /* Map Distributer interface */
     sysbus_mmio_map(busdev, 1, EXYNOS4210_EXT_GIC_DIST_BASE_ADDR);
     for (n = 0; n < EXYNOS4210_NCPUS; n++) {
-        sysbus_connect_irq(busdev, n, gate_irq[n][1]);
-    }
-    for (n = 0; n < EXYNOS4210_EXT_GIC_NIRQ; n++) {
-        s->irqs.ext_gic_irq[n] = qdev_get_gpio_in(dev, n);
+        sysbus_connect_irq(busdev, n,
+                           qdev_get_gpio_in(DEVICE(&s->cpu_irq_orgate[n]), 1));
     }
 
     /* Internal Interrupt Combiner */
-    dev = qdev_new("exynos4210.combiner");
-    busdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    busdev = SYS_BUS_DEVICE(&s->int_combiner);
+    sysbus_realize(busdev, &error_fatal);
     for (n = 0; n < EXYNOS4210_MAX_INT_COMBINER_OUT_IRQ; n++) {
-        sysbus_connect_irq(busdev, n, s->irqs.int_gic_irq[n]);
+        sysbus_connect_irq(busdev, n,
+                           qdev_get_gpio_in(DEVICE(&s->a9mpcore), n));
     }
-    exynos4210_combiner_get_gpioin(&s->irqs, dev, 0);
     sysbus_mmio_map(busdev, 0, EXYNOS4210_INT_COMBINER_BASE_ADDR);
 
     /* External Interrupt Combiner */
-    dev = qdev_new("exynos4210.combiner");
-    qdev_prop_set_uint32(dev, "external", 1);
-    busdev = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(busdev, &error_fatal);
+    qdev_prop_set_uint32(DEVICE(&s->ext_combiner), "external", 1);
+    busdev = SYS_BUS_DEVICE(&s->ext_combiner);
+    sysbus_realize(busdev, &error_fatal);
     for (n = 0; n < EXYNOS4210_MAX_INT_COMBINER_OUT_IRQ; n++) {
-        sysbus_connect_irq(busdev, n, s->irqs.ext_gic_irq[n]);
+        sysbus_connect_irq(busdev, n, qdev_get_gpio_in(DEVICE(&s->ext_gic), n));
     }
-    exynos4210_combiner_get_gpioin(&s->irqs, dev, 1);
     sysbus_mmio_map(busdev, 0, EXYNOS4210_EXT_COMBINER_BASE_ADDR);
 
     /* Initialize board IRQs. */
-    exynos4210_init_board_irqs(&s->irqs);
+    exynos4210_init_board_irqs(s);
 
     /*** Memory ***/
 
@@ -488,6 +811,23 @@ static void exynos4210_init(Object *obj)
         object_initialize_child(obj, name, orgate, TYPE_OR_IRQ);
         g_free(name);
     }
+
+    for (i = 0; i < ARRAY_SIZE(s->cpu_irq_orgate); i++) {
+        g_autofree char *name = g_strdup_printf("cpu-irq-orgate%d", i);
+        object_initialize_child(obj, name, &s->cpu_irq_orgate[i], TYPE_OR_IRQ);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(s->splitter); i++) {
+        g_autofree char *name = g_strdup_printf("irq-splitter%d", i);
+        object_initialize_child(obj, name, &s->splitter[i], TYPE_SPLIT_IRQ);
+    }
+
+    object_initialize_child(obj, "a9mpcore", &s->a9mpcore, TYPE_A9MPCORE_PRIV);
+    object_initialize_child(obj, "ext-gic", &s->ext_gic, TYPE_EXYNOS4210_GIC);
+    object_initialize_child(obj, "int-combiner", &s->int_combiner,
+                            TYPE_EXYNOS4210_COMBINER);
+    object_initialize_child(obj, "ext-combiner", &s->ext_combiner,
+                            TYPE_EXYNOS4210_COMBINER);
 }
 
 static void exynos4210_class_init(ObjectClass *klass, void *data)

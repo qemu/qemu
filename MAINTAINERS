@@ -648,7 +648,7 @@ M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Odd Fixes
 F: hw/*/exynos*
-F: include/hw/arm/exynos4210.h
+F: include/hw/*/exynos*
 
 Calxeda Highbank
 M: Rob Herring <robh@kernel.org>

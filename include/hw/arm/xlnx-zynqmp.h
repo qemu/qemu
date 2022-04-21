@@ -41,6 +41,7 @@
 #include "hw/or-irq.h"
 #include "hw/misc/xlnx-zynqmp-apu-ctrl.h"
 #include "hw/misc/xlnx-zynqmp-crf.h"
+#include "hw/timer/cadence_ttc.h"
 
 #define TYPE_XLNX_ZYNQMP "xlnx-zynqmp"
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxZynqMPState, XLNX_ZYNQMP)
@@ -83,6 +84,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(XlnxZynqMPState, XLNX_ZYNQMP)
 
 #define XLNX_ZYNQMP_MAX_RAM_SIZE (XLNX_ZYNQMP_MAX_LOW_RAM_SIZE + \
                                   XLNX_ZYNQMP_MAX_HIGH_RAM_SIZE)
+
+#define XLNX_ZYNQMP_NUM_TTC 4
 
 /*
  * Unimplemented mmio regions needed to boot some images.
@@ -128,6 +131,7 @@ struct XlnxZynqMPState {
     qemu_or_irq qspi_irq_orgate;
     XlnxZynqMPAPUCtrl apu_ctrl;
     XlnxZynqMPCRF crf;
+    CadenceTTCState ttc[XLNX_ZYNQMP_NUM_TTC];
 
     char *boot_cpu;
     ARMCPU *boot_cpu_ptr;

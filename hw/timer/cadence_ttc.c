@@ -24,6 +24,8 @@
 #include "qemu/timer.h"
 #include "qom/object.h"
 
+#include "hw/timer/cadence_ttc.h"
+
 #ifdef CADENCE_TTC_ERR_DEBUG
 #define DB_PRINT(...) do { \
     fprintf(stderr,  ": %s: ", __func__); \
@@ -48,36 +50,6 @@
 
 #define CLOCK_CTRL_PS_EN    0x00000001
 #define CLOCK_CTRL_PS_V     0x0000001e
-
-typedef struct {
-    QEMUTimer *timer;
-    int freq;
-
-    uint32_t reg_clock;
-    uint32_t reg_count;
-    uint32_t reg_value;
-    uint16_t reg_interval;
-    uint16_t reg_match[3];
-    uint32_t reg_intr;
-    uint32_t reg_intr_en;
-    uint32_t reg_event_ctrl;
-    uint32_t reg_event;
-
-    uint64_t cpu_time;
-    unsigned int cpu_time_valid;
-
-    qemu_irq irq;
-} CadenceTimerState;
-
-#define TYPE_CADENCE_TTC "cadence_ttc"
-OBJECT_DECLARE_SIMPLE_TYPE(CadenceTTCState, CADENCE_TTC)
-
-struct CadenceTTCState {
-    SysBusDevice parent_obj;
-
-    MemoryRegion iomem;
-    CadenceTimerState timer[3];
-};
 
 static void cadence_timer_update(CadenceTimerState *s)
 {

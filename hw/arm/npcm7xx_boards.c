@@ -30,11 +30,25 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/block-backend.h"
 
-#define NPCM750_EVB_POWER_ON_STRAPS 0x00001ff7
-#define QUANTA_GSJ_POWER_ON_STRAPS 0x00001fff
-#define QUANTA_GBS_POWER_ON_STRAPS 0x000017ff
-#define KUDO_BMC_POWER_ON_STRAPS 0x00001fff
-#define MORI_BMC_POWER_ON_STRAPS 0x00001fff
+#define NPCM7XX_POWER_ON_STRAPS_DEFAULT (           \
+        NPCM7XX_PWRON_STRAP_SPI0F18 |               \
+        NPCM7XX_PWRON_STRAP_SFAB |                  \
+        NPCM7XX_PWRON_STRAP_BSPA |                  \
+        NPCM7XX_PWRON_STRAP_FUP(FUP_NORM_UART2) |   \
+        NPCM7XX_PWRON_STRAP_SECEN |                 \
+        NPCM7XX_PWRON_STRAP_HIZ |                   \
+        NPCM7XX_PWRON_STRAP_ECC |                   \
+        NPCM7XX_PWRON_STRAP_RESERVE1 |              \
+        NPCM7XX_PWRON_STRAP_J2EN |                  \
+        NPCM7XX_PWRON_STRAP_CKFRQ(CKFRQ_DEFAULT))
+
+#define NPCM750_EVB_POWER_ON_STRAPS ( \
+        NPCM7XX_POWER_ON_STRAPS_DEFAULT & ~NPCM7XX_PWRON_STRAP_J2EN)
+#define QUANTA_GSJ_POWER_ON_STRAPS NPCM7XX_POWER_ON_STRAPS_DEFAULT
+#define QUANTA_GBS_POWER_ON_STRAPS ( \
+        NPCM7XX_POWER_ON_STRAPS_DEFAULT & ~NPCM7XX_PWRON_STRAP_SFAB)
+#define KUDO_BMC_POWER_ON_STRAPS NPCM7XX_POWER_ON_STRAPS_DEFAULT
+#define MORI_BMC_POWER_ON_STRAPS NPCM7XX_POWER_ON_STRAPS_DEFAULT
 
 static const char npcm7xx_default_bootrom[] = "npcm7xx_bootrom.bin";
 

@@ -14,6 +14,7 @@
 
 #include "hw/sysbus.h"
 #include "hw/arm/boot.h"
+#include "hw/cpu/cluster.h"
 #include "hw/or-irq.h"
 #include "hw/sd/sdhci.h"
 #include "hw/intc/arm_gicv3.h"
@@ -28,12 +29,14 @@
 #include "hw/nvram/xlnx-versal-efuse.h"
 #include "hw/ssi/xlnx-versal-ospi.h"
 #include "hw/dma/xlnx_csu_dma.h"
+#include "hw/misc/xlnx-versal-crl.h"
 #include "hw/misc/xlnx-versal-pmc-iou-slcr.h"
 
 #define TYPE_XLNX_VERSAL "xlnx-versal"
 OBJECT_DECLARE_SIMPLE_TYPE(Versal, XLNX_VERSAL)
 
 #define XLNX_VERSAL_NR_ACPUS   2
+#define XLNX_VERSAL_NR_RCPUS   2
 #define XLNX_VERSAL_NR_UARTS   2
 #define XLNX_VERSAL_NR_GEMS    2
 #define XLNX_VERSAL_NR_ADMAS   8
@@ -49,6 +52,7 @@ struct Versal {
     struct {
         struct {
             MemoryRegion mr;
+            CPUClusterState cluster;
             ARMCPU cpu[XLNX_VERSAL_NR_ACPUS];
             GICv3State gic;
         } apu;
@@ -71,10 +75,21 @@ struct Versal {
             VersalUsb2 usb;
         } iou;
 
+        /* Real-time Processing Unit.  */
+        struct {
+            MemoryRegion mr;
+            MemoryRegion mr_ps_alias;
+
+            CPUClusterState cluster;
+            ARMCPU cpu[XLNX_VERSAL_NR_RCPUS];
+        } rpu;
+
         struct {
             qemu_or_irq irq_orgate;
             XlnxXramCtrl ctrl[XLNX_VERSAL_NR_XRAM];
         } xram;
+
+        XlnxVersalCRL crl;
     } lpd;
 
     /* The Platform Management Controller subsystem.  */
@@ -115,6 +130,7 @@ struct Versal {
 #define VERSAL_TIMER_NS_EL1_IRQ     14
 #define VERSAL_TIMER_NS_EL2_IRQ     10
 
+#define VERSAL_CRL_IRQ             10
 #define VERSAL_UART0_IRQ_0         18
 #define VERSAL_UART1_IRQ_0         19
 #define VERSAL_USB0_IRQ_0          22

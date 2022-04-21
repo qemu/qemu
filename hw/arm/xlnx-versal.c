@@ -25,6 +25,7 @@
 #include "hw/sysbus.h"
 
 #define XLNX_VERSAL_ACPU_TYPE ARM_CPU_TYPE_NAME("cortex-a72")
+#define XLNX_VERSAL_RCPU_TYPE ARM_CPU_TYPE_NAME("cortex-r5f")
 #define GEM_REVISION        0x40070106
 
 #define VERSAL_NUM_PMC_APB_IRQS 3
@@ -34,10 +35,15 @@ static void versal_create_apu_cpus(Versal *s)
 {
     int i;
 
+    object_initialize_child(OBJECT(s), "apu-cluster", &s->fpd.apu.cluster,
+                            TYPE_CPU_CLUSTER);
+    qdev_prop_set_uint32(DEVICE(&s->fpd.apu.cluster), "cluster-id", 0);
+
     for (i = 0; i < ARRAY_SIZE(s->fpd.apu.cpu); i++) {
         Object *obj;
 
-        object_initialize_child(OBJECT(s), "apu-cpu[*]", &s->fpd.apu.cpu[i],
+        object_initialize_child(OBJECT(&s->fpd.apu.cluster),
+                                "apu-cpu[*]", &s->fpd.apu.cpu[i],
                                 XLNX_VERSAL_ACPU_TYPE);
         obj = OBJECT(&s->fpd.apu.cpu[i]);
         if (i) {
@@ -52,6 +58,8 @@ static void versal_create_apu_cpus(Versal *s)
                                  &error_abort);
         qdev_realize(DEVICE(obj), NULL, &error_fatal);
     }
+
+    qdev_realize(DEVICE(&s->fpd.apu.cluster), NULL, &error_fatal);
 }
 
 static void versal_create_apu_gic(Versal *s, qemu_irq *pic)
@@ -121,6 +129,35 @@ static void versal_create_apu_gic(Versal *s, qemu_irq *pic)
     for (i = 0; i < XLNX_VERSAL_NR_IRQS; i++) {
         pic[i] = qdev_get_gpio_in(gicdev, i);
     }
+}
+
+static void versal_create_rpu_cpus(Versal *s)
+{
+    int i;
+
+    object_initialize_child(OBJECT(s), "rpu-cluster", &s->lpd.rpu.cluster,
+                            TYPE_CPU_CLUSTER);
+    qdev_prop_set_uint32(DEVICE(&s->lpd.rpu.cluster), "cluster-id", 1);
+
+    for (i = 0; i < ARRAY_SIZE(s->lpd.rpu.cpu); i++) {
+        Object *obj;
+
+        object_initialize_child(OBJECT(&s->lpd.rpu.cluster),
+                                "rpu-cpu[*]", &s->lpd.rpu.cpu[i],
+                                XLNX_VERSAL_RCPU_TYPE);
+        obj = OBJECT(&s->lpd.rpu.cpu[i]);
+        object_property_set_bool(obj, "start-powered-off", true,
+                                 &error_abort);
+
+        object_property_set_int(obj, "mp-affinity", 0x100 | i, &error_abort);
+        object_property_set_int(obj, "core-count", ARRAY_SIZE(s->lpd.rpu.cpu),
+                                &error_abort);
+        object_property_set_link(obj, "memory", OBJECT(&s->lpd.rpu.mr),
+                                 &error_abort);
+        qdev_realize(DEVICE(obj), NULL, &error_fatal);
+    }
+
+    qdev_realize(DEVICE(&s->lpd.rpu.cluster), NULL, &error_fatal);
 }
 
 static void versal_create_uarts(Versal *s, qemu_irq *pic)
@@ -502,6 +539,57 @@ static void versal_create_ospi(Versal *s, qemu_irq *pic)
     qdev_connect_gpio_out(orgate, 0, pic[VERSAL_OSPI_IRQ]);
 }
 
+static void versal_create_crl(Versal *s, qemu_irq *pic)
+{
+    SysBusDevice *sbd;
+    int i;
+
+    object_initialize_child(OBJECT(s), "crl", &s->lpd.crl,
+                            TYPE_XLNX_VERSAL_CRL);
+    sbd = SYS_BUS_DEVICE(&s->lpd.crl);
+
+    for (i = 0; i < ARRAY_SIZE(s->lpd.rpu.cpu); i++) {
+        g_autofree gchar *name = g_strdup_printf("cpu_r5[%d]", i);
+
+        object_property_set_link(OBJECT(&s->lpd.crl),
+                                 name, OBJECT(&s->lpd.rpu.cpu[i]),
+                                 &error_abort);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(s->lpd.iou.gem); i++) {
+        g_autofree gchar *name = g_strdup_printf("gem[%d]", i);
+
+        object_property_set_link(OBJECT(&s->lpd.crl),
+                                 name, OBJECT(&s->lpd.iou.gem[i]),
+                                 &error_abort);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(s->lpd.iou.adma); i++) {
+        g_autofree gchar *name = g_strdup_printf("adma[%d]", i);
+
+        object_property_set_link(OBJECT(&s->lpd.crl),
+                                 name, OBJECT(&s->lpd.iou.adma[i]),
+                                 &error_abort);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(s->lpd.iou.uart); i++) {
+        g_autofree gchar *name = g_strdup_printf("uart[%d]", i);
+
+        object_property_set_link(OBJECT(&s->lpd.crl),
+                                 name, OBJECT(&s->lpd.iou.uart[i]),
+                                 &error_abort);
+    }
+
+    object_property_set_link(OBJECT(&s->lpd.crl),
+                             "usb", OBJECT(&s->lpd.iou.usb),
+                             &error_abort);
+
+    sysbus_realize(sbd, &error_fatal);
+    memory_region_add_subregion(&s->mr_ps, MM_CRL,
+                                sysbus_mmio_get_region(sbd, 0));
+    sysbus_connect_irq(sbd, 0, pic[VERSAL_CRL_IRQ]);
+}
+
 /* This takes the board allocated linear DDR memory and creates aliases
  * for each split DDR range/aperture on the Versal address map.
  */
@@ -585,8 +673,6 @@ static void versal_unimp(Versal *s)
 
     versal_unimp_area(s, "psm", &s->mr_ps,
                         MM_PSM_START, MM_PSM_END - MM_PSM_START);
-    versal_unimp_area(s, "crl", &s->mr_ps,
-                        MM_CRL, MM_CRL_SIZE);
     versal_unimp_area(s, "crf", &s->mr_ps,
                         MM_FPD_CRF, MM_FPD_CRF_SIZE);
     versal_unimp_area(s, "apu", &s->mr_ps,
@@ -631,6 +717,7 @@ static void versal_realize(DeviceState *dev, Error **errp)
 
     versal_create_apu_cpus(s);
     versal_create_apu_gic(s, pic);
+    versal_create_rpu_cpus(s);
     versal_create_uarts(s, pic);
     versal_create_usbs(s, pic);
     versal_create_gems(s, pic);
@@ -643,6 +730,7 @@ static void versal_realize(DeviceState *dev, Error **errp)
     versal_create_efuse(s, pic);
     versal_create_pmc_iou_slcr(s, pic);
     versal_create_ospi(s, pic);
+    versal_create_crl(s, pic);
     versal_map_ddr(s);
     versal_unimp(s);
 
@@ -652,6 +740,8 @@ static void versal_realize(DeviceState *dev, Error **errp)
 
     memory_region_add_subregion_overlap(&s->mr_ps, MM_OCM, &s->lpd.mr_ocm, 0);
     memory_region_add_subregion_overlap(&s->fpd.apu.mr, 0, &s->mr_ps, 0);
+    memory_region_add_subregion_overlap(&s->lpd.rpu.mr, 0,
+                                        &s->lpd.rpu.mr_ps_alias, 0);
 }
 
 static void versal_init(Object *obj)
@@ -659,7 +749,10 @@ static void versal_init(Object *obj)
     Versal *s = XLNX_VERSAL(obj);
 
     memory_region_init(&s->fpd.apu.mr, obj, "mr-apu", UINT64_MAX);
+    memory_region_init(&s->lpd.rpu.mr, obj, "mr-rpu", UINT64_MAX);
     memory_region_init(&s->mr_ps, obj, "mr-ps-switch", UINT64_MAX);
+    memory_region_init_alias(&s->lpd.rpu.mr_ps_alias, OBJECT(s),
+                             "mr-rpu-ps-alias", &s->mr_ps, 0, UINT64_MAX);
 }
 
 static Property versal_properties[] = {
