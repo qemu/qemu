@@ -32,6 +32,7 @@
 
 #include "exec/log.h"
 #include <stdio.h>
+static bool Debug = true;
 
 #define PREFIX_REPZ   0x01
 #define PREFIX_REPNZ  0x02
@@ -1504,6 +1505,7 @@ static void gen_inc(DisasContext *s1, MemOp ot, int d, int c)
             gen_illegal_opcode(s1);
             return;
         }
+        if(Debug) printf("mem mov\n"); //？？？
         tcg_gen_movi_tl(s1->T0, c > 0 ? 1 : -1);
         tcg_gen_atomic_add_fetch_tl(s1->T0, s1->A0, s1->T0,
                                     s1->mem_index, ot | MO_LE);
@@ -2759,13 +2761,13 @@ static inline void gen_op_movo(DisasContext *s, int d_offset, int s_offset)
 }
 
 static inline void gen_op_movq(DisasContext *s, int d_offset, int s_offset)
-{
+{   if(Debug) printf("qemu: movq %d %d\n",d_offset,s_offset);
     tcg_gen_ld_i64(s->tmp1_i64, cpu_env, s_offset);
     tcg_gen_st_i64(s->tmp1_i64, cpu_env, d_offset);
 }
 
 static inline void gen_op_movl(DisasContext *s, int d_offset, int s_offset)
-{
+{   if(Debug) printf("qemu: movl %d %d\n",d_offset,s_offset);
     tcg_gen_ld_i32(s->tmp2_i32, cpu_env, s_offset);
     tcg_gen_st_i32(s->tmp2_i32, cpu_env, d_offset);
 }
@@ -3434,7 +3436,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 gen_ldst_modrm(env, s, modrm, MO_32, OR_TMP0, 1);
             }
             break;
-        case 0x27e: /* movq xmm, ea */
+        case 0x27e: /* movq xmm, ea ？？？movq的访存？ */
             if (mod != 3) {
                 gen_lea_modrm(env, s, modrm);
                 gen_ldq_env_A0(s, offsetof(CPUX86State,
@@ -5397,9 +5399,8 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
     case 0x1c7: /* cmpxchg8b */
         if(prefixes & PREFIX_REPZ){
             modrm = x86_ldub_code(env, s);
-            int uipi_index = env->regs[R_EAX];
-            printf("qemu: caught 0xf30fc7 SENDUIPI reg:%hx raxindex: %d %d\n ",modrm,uipi_index,uipi_index2); // 改 Debug
-            gen_helper_senduipi(cpu_env);
+            printf("qemu: caught 0xf30fc7 SENDUIPI\n "); // 改 Debug
+            gen_helper_senduipi(cpu_env, tcg_const_i32(modrm));
             break;
         }
         modrm = x86_ldub_code(env, s);
@@ -5579,7 +5580,8 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         gen_ldst_modrm(env, s, modrm, ot, reg, 1);
         break;
     case 0xc6:
-    case 0xc7: /* mov Ev, Iv */
+    case 0xc7: /* mov Ev, Iv */ 
+        if(Debug)printf("0xc7 \n"); //改
         ot = mo_b_d(b, dflag);
         modrm = x86_ldub_code(env, s);
         mod = (modrm >> 6) & 3;

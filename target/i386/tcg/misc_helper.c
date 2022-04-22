@@ -77,8 +77,10 @@ void helper_rdtsc(CPUX86State *env) // ？？？ 读取时间相关的函数
     env->regs[R_EDX] = (uint32_t)(val >> 32);
 }
 
-void helper_senduipi(CPUX86State *env){ // 改
-    if(Debug)printf("qemu:helper senduipi called\n");
+void helper_senduipi(CPUX86State *env ,int reg_index){ // 改
+    int uipi_index = env->regs[R_EAX];
+    if(Debug)printf("qemu:helper senduipi called receive  regidx:%d, uipiindex: %d\n",reg_index,uipi_index);
+    
 }
 
 void helper_rdtscp(CPUX86State *env)
