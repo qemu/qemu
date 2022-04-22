@@ -122,6 +122,7 @@ typedef struct {
 
 typedef void GenFn2i(TCGv, TCGv, target_long);
 typedef void GenFn3(TCGv, TCGv, TCGv);
+typedef void GenFn4(TCGv, TCGv, TCGv, TCGv);
 
 typedef struct DisasContext {
     DisasContextBase  base;
@@ -669,21 +670,25 @@ gen_ri_math_logic(srli, shri)
 gen_ri_math_logic(slli, shli)
 gen_ri_math_logic(roli, rotli)
 
-#define gen_r_mul(fname, insn)                                         \
-static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)   \
-{                                                                      \
-    R_TYPE(instr, (code));                                             \
-    if (likely(instr.c != R_ZERO)) {                                   \
-        TCGv t0 = tcg_temp_new();                                      \
-        tcg_gen_##insn(t0, cpu_R[instr.c],                             \
-                       load_gpr(dc, instr.a), load_gpr(dc, instr.b));  \
-        tcg_temp_free(t0);                                             \
-    }                                                                  \
+static void do_rr_mul_high(DisasContext *dc, uint32_t insn, GenFn4 *fn)
+{
+    R_TYPE(instr, insn);
+
+    if (likely(instr.c != R_ZERO)) {
+        TCGv discard = tcg_temp_new();
+        fn(discard, cpu_R[instr.c], load_gpr(dc, instr.a),
+           load_gpr(dc, instr.b));
+        tcg_temp_free(discard);
+    }
 }
 
-gen_r_mul(mulxss, muls2_tl)
-gen_r_mul(mulxuu, mulu2_tl)
-gen_r_mul(mulxsu, mulsu2_tl)
+#define gen_rr_mul_high(fname, insn)                                        \
+    static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)    \
+    { do_rr_mul_high(dc, code, tcg_gen_##insn##_tl); }
+
+gen_rr_mul_high(mulxss, muls2)
+gen_rr_mul_high(mulxuu, mulu2)
+gen_rr_mul_high(mulxsu, mulsu2)
 
 #define gen_r_shift_s(fname, insn)                                         \
 static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)       \
