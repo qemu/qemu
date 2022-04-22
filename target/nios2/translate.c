@@ -121,6 +121,7 @@ typedef struct {
     }
 
 typedef void GenFn2i(TCGv, TCGv, target_long);
+typedef void GenFn3(TCGv, TCGv, TCGv);
 
 typedef struct DisasContext {
     DisasContextBase  base;
@@ -628,28 +629,45 @@ static void gen_cmpxx(DisasContext *dc, uint32_t code, uint32_t flags)
 }
 
 /* Math/logic instructions */
-#define gen_r_math_logic(fname, insn, op3)                                 \
-static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)       \
-{                                                                          \
-    R_TYPE(instr, (code));                                                 \
-    if (likely(instr.c != R_ZERO)) {                                       \
-        tcg_gen_##insn(cpu_R[instr.c], load_gpr((dc), instr.a), (op3));    \
-    }                                                                      \
+static void do_ri_math_logic(DisasContext *dc, uint32_t insn, GenFn2i *fn)
+{
+    R_TYPE(instr, insn);
+
+    if (likely(instr.c != R_ZERO)) {
+        fn(cpu_R[instr.c], load_gpr(dc, instr.a), instr.imm5);
+    }
 }
 
-gen_r_math_logic(add,  add_tl,   load_gpr(dc, instr.b))
-gen_r_math_logic(sub,  sub_tl,   load_gpr(dc, instr.b))
-gen_r_math_logic(mul,  mul_tl,   load_gpr(dc, instr.b))
+static void do_rr_math_logic(DisasContext *dc, uint32_t insn, GenFn3 *fn)
+{
+    R_TYPE(instr, insn);
 
-gen_r_math_logic(and,  and_tl,   load_gpr(dc, instr.b))
-gen_r_math_logic(or,   or_tl,    load_gpr(dc, instr.b))
-gen_r_math_logic(xor,  xor_tl,   load_gpr(dc, instr.b))
-gen_r_math_logic(nor,  nor_tl,   load_gpr(dc, instr.b))
+    if (likely(instr.c != R_ZERO)) {
+        fn(cpu_R[instr.c], load_gpr(dc, instr.a), load_gpr(dc, instr.b));
+    }
+}
 
-gen_r_math_logic(srai, sari_tl,  instr.imm5)
-gen_r_math_logic(srli, shri_tl,  instr.imm5)
-gen_r_math_logic(slli, shli_tl,  instr.imm5)
-gen_r_math_logic(roli, rotli_tl, instr.imm5)
+#define gen_ri_math_logic(fname, insn)                                      \
+    static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)    \
+    { do_ri_math_logic(dc, code, tcg_gen_##insn##_tl); }
+
+#define gen_rr_math_logic(fname, insn)                                      \
+    static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)    \
+    { do_rr_math_logic(dc, code, tcg_gen_##insn##_tl); }
+
+gen_rr_math_logic(add,  add)
+gen_rr_math_logic(sub,  sub)
+gen_rr_math_logic(mul,  mul)
+
+gen_rr_math_logic(and,  and)
+gen_rr_math_logic(or,   or)
+gen_rr_math_logic(xor,  xor)
+gen_rr_math_logic(nor,  nor)
+
+gen_ri_math_logic(srai, sari)
+gen_ri_math_logic(srli, shri)
+gen_ri_math_logic(slli, shli)
+gen_ri_math_logic(roli, rotli)
 
 #define gen_r_mul(fname, insn)                                         \
 static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)   \
