@@ -76,8 +76,8 @@ qio_channel_command_new_spawn(const char *const argv[],
         }
     }
 
-    if ((!stdinnull && pipe(stdinfd) < 0) ||
-        (!stdoutnull && pipe(stdoutfd) < 0)) {
+    if ((!stdinnull && !g_unix_open_pipe(stdinfd, FD_CLOEXEC, NULL)) ||
+        (!stdoutnull && !g_unix_open_pipe(stdoutfd, FD_CLOEXEC, NULL))) {
         error_setg_errno(errp, errno,
                          "Unable to open pipe");
         goto error;
