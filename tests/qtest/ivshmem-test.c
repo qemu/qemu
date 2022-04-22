@@ -304,6 +304,7 @@ static void setup_vm_with_server(IVState *s, int nvectors)
 
 static void test_ivshmem_server(void)
 {
+    g_autoptr(GError) err = NULL;
     IVState state1, state2, *s1, *s2;
     ServerThread thread;
     IvshmemServer server;
@@ -320,8 +321,8 @@ static void test_ivshmem_server(void)
     g_assert_cmpint(ret, ==, 0);
 
     thread.server = &server;
-    ret = pipe(thread.pipe);
-    g_assert_cmpint(ret, ==, 0);
+    g_unix_open_pipe(thread.pipe, FD_CLOEXEC, &err);
+    g_assert_no_error(err);
     thread.thread = g_thread_new("ivshmem-server", server_thread, &thread);
     g_assert(thread.thread != NULL);
 
