@@ -1064,7 +1064,7 @@ ERST
                       "-l: dump in kdump-compressed format, with lzo compression.\n\t\t\t"
                       "-s: dump in kdump-compressed format, with snappy compression.\n\t\t\t"
                       "-w: dump in Windows crashdump format (can be used instead of ELF-dump converting),\n\t\t\t"
-                      "    for Windows x64 guests with vmcoreinfo driver only.\n\t\t\t"
+                      "    for Windows x86 and x64 guests with vmcoreinfo driver only.\n\t\t\t"
                       "begin: the starting physical address.\n\t\t\t"
                       "length: the memory size, in bytes.",
         .cmd        = hmp_dump_guest_memory,

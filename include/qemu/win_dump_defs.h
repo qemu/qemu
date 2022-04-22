@@ -11,10 +11,21 @@
 #ifndef QEMU_WIN_DUMP_DEFS_H
 #define QEMU_WIN_DUMP_DEFS_H
 
+typedef struct WinDumpPhyMemRun32 {
+    uint32_t BasePage;
+    uint32_t PageCount;
+} QEMU_PACKED WinDumpPhyMemRun32;
+
 typedef struct WinDumpPhyMemRun64 {
     uint64_t BasePage;
     uint64_t PageCount;
 } QEMU_PACKED WinDumpPhyMemRun64;
+
+typedef struct WinDumpPhyMemDesc32 {
+    uint32_t NumberOfRuns;
+    uint32_t NumberOfPages;
+    WinDumpPhyMemRun32 Run[86];
+} QEMU_PACKED WinDumpPhyMemDesc32;
 
 typedef struct WinDumpPhyMemDesc64 {
     uint32_t NumberOfRuns;
@@ -32,6 +43,39 @@ typedef struct WinDumpExceptionRecord {
     uint32_t unused;
     uint64_t ExceptionInformation[15];
 } QEMU_PACKED WinDumpExceptionRecord;
+
+typedef struct WinDumpHeader32 {
+    char Signature[4];
+    char ValidDump[4];
+    uint32_t MajorVersion;
+    uint32_t MinorVersion;
+    uint32_t DirectoryTableBase;
+    uint32_t PfnDatabase;
+    uint32_t PsLoadedModuleList;
+    uint32_t PsActiveProcessHead;
+    uint32_t MachineImageType;
+    uint32_t NumberProcessors;
+    union {
+        struct {
+            uint32_t BugcheckCode;
+            uint32_t BugcheckParameter1;
+            uint32_t BugcheckParameter2;
+            uint32_t BugcheckParameter3;
+            uint32_t BugcheckParameter4;
+        };
+        uint8_t BugcheckData[20];
+    };
+    uint8_t VersionUser[32];
+    uint32_t reserved0;
+    uint32_t KdDebuggerDataBlock;
+    union {
+        WinDumpPhyMemDesc32 PhysicalMemoryBlock;
+        uint8_t PhysicalMemoryBlockBuffer[700];
+    };
+    uint8_t reserved1[3200];
+    uint32_t RequiredDumpSpace;
+    uint8_t reserved2[92];
+} QEMU_PACKED WinDumpHeader32;
 
 typedef struct WinDumpHeader64 {
     char Signature[4];
@@ -81,24 +125,48 @@ typedef struct WinDumpHeader64 {
     uint8_t reserved[4018];
 } QEMU_PACKED WinDumpHeader64;
 
+typedef union WinDumpHeader {
+    struct {
+        char Signature[4];
+        char ValidDump[4];
+    };
+    WinDumpHeader32 x32;
+    WinDumpHeader64 x64;
+} WinDumpHeader;
+
 #define KDBG_OWNER_TAG_OFFSET64             0x10
 #define KDBG_MM_PFN_DATABASE_OFFSET64       0xC0
 #define KDBG_KI_BUGCHECK_DATA_OFFSET64      0x88
 #define KDBG_KI_PROCESSOR_BLOCK_OFFSET64    0x218
 #define KDBG_OFFSET_PRCB_CONTEXT_OFFSET64   0x338
 
+#define KDBG_OWNER_TAG_OFFSET           KDBG_OWNER_TAG_OFFSET64
+#define KDBG_MM_PFN_DATABASE_OFFSET     KDBG_MM_PFN_DATABASE_OFFSET64
+#define KDBG_KI_BUGCHECK_DATA_OFFSET    KDBG_KI_BUGCHECK_DATA_OFFSET64
+#define KDBG_KI_PROCESSOR_BLOCK_OFFSET  KDBG_KI_PROCESSOR_BLOCK_OFFSET64
+#define KDBG_OFFSET_PRCB_CONTEXT_OFFSET KDBG_OFFSET_PRCB_CONTEXT_OFFSET64
+
 #define VMCOREINFO_ELF_NOTE_HDR_SIZE    24
+#define VMCOREINFO_WIN_DUMP_NOTE_SIZE64 (sizeof(WinDumpHeader64) + \
+                                         VMCOREINFO_ELF_NOTE_HDR_SIZE)
+#define VMCOREINFO_WIN_DUMP_NOTE_SIZE32 (sizeof(WinDumpHeader32) + \
+                                         VMCOREINFO_ELF_NOTE_HDR_SIZE)
 
 #define WIN_CTX_X64 0x00100000L
+#define WIN_CTX_X86 0x00010000L
 
 #define WIN_CTX_CTL 0x00000001L
 #define WIN_CTX_INT 0x00000002L
 #define WIN_CTX_SEG 0x00000004L
 #define WIN_CTX_FP  0x00000008L
 #define WIN_CTX_DBG 0x00000010L
+#define WIN_CTX_EXT 0x00000020L
 
-#define WIN_CTX_FULL    (WIN_CTX_X64 | WIN_CTX_CTL | WIN_CTX_INT | WIN_CTX_FP)
-#define WIN_CTX_ALL     (WIN_CTX_FULL | WIN_CTX_SEG | WIN_CTX_DBG)
+#define WIN_CTX64_FULL  (WIN_CTX_X64 | WIN_CTX_CTL | WIN_CTX_INT | WIN_CTX_FP)
+#define WIN_CTX64_ALL   (WIN_CTX64_FULL | WIN_CTX_SEG | WIN_CTX_DBG)
+
+#define WIN_CTX32_FULL (WIN_CTX_X86 | WIN_CTX_CTL | WIN_CTX_INT | WIN_CTX_SEG)
+#define WIN_CTX32_ALL (WIN_CTX32_FULL | WIN_CTX_FP | WIN_CTX_DBG | WIN_CTX_EXT)
 
 #define LIVE_SYSTEM_DUMP    0x00000161
 
@@ -107,7 +175,41 @@ typedef struct WinM128A {
     int64_t high;
 } QEMU_ALIGNED(16) WinM128A;
 
-typedef struct WinContext {
+typedef struct WinContext32 {
+    uint32_t ContextFlags;
+
+    uint32_t Dr0;
+    uint32_t Dr1;
+    uint32_t Dr2;
+    uint32_t Dr3;
+    uint32_t Dr6;
+    uint32_t Dr7;
+
+    uint8_t  FloatSave[112];
+
+    uint32_t SegGs;
+    uint32_t SegFs;
+    uint32_t SegEs;
+    uint32_t SegDs;
+
+    uint32_t Edi;
+    uint32_t Esi;
+    uint32_t Ebx;
+    uint32_t Edx;
+    uint32_t Ecx;
+    uint32_t Eax;
+
+    uint32_t Ebp;
+    uint32_t Eip;
+    uint32_t SegCs;
+    uint32_t EFlags;
+    uint32_t Esp;
+    uint32_t SegSs;
+
+    uint8_t ExtendedRegisters[512];
+} QEMU_ALIGNED(16) WinContext32;
+
+typedef struct WinContext64 {
     uint64_t PHome[6];
 
     uint32_t ContextFlags;
@@ -174,6 +276,11 @@ typedef struct WinContext {
     uint64_t LastBranchFromRip;
     uint64_t LastExceptionToRip;
     uint64_t LastExceptionFromRip;
-} QEMU_ALIGNED(16) WinContext;
+} QEMU_ALIGNED(16) WinContext64;
+
+typedef union WinContext {
+    WinContext32 x32;
+    WinContext64 x64;
+} WinContext;
 
 #endif /* QEMU_WIN_DUMP_DEFS_H */

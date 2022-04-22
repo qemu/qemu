@@ -54,6 +54,11 @@ static Error *dump_migration_blocker;
       DIV_ROUND_UP((name_size), 4) +                    \
       DIV_ROUND_UP((desc_size), 4)) * 4)
 
+static inline bool dump_is_64bit(DumpState *s)
+{
+    return s->dump_info.d_class == ELFCLASS64;
+}
+
 uint16_t cpu_to_dump16(DumpState *s, uint16_t val)
 {
     if (s->dump_info.d_endian == ELFDATA2LSB) {
@@ -123,6 +128,12 @@ static int fd_write_vmcore(const void *buf, size_t size, void *opaque)
 
 static void write_elf64_header(DumpState *s, Error **errp)
 {
+    /*
+     * phnum in the elf header is 16 bit, if we have more segments we
+     * set phnum to PN_XNUM and write the real number of segments to a
+     * special section.
+     */
+    uint16_t phnum = MIN(s->phdr_num, PN_XNUM);
     Elf64_Ehdr elf_header;
     int ret;
 
@@ -135,15 +146,13 @@ static void write_elf64_header(DumpState *s, Error **errp)
     elf_header.e_machine = cpu_to_dump16(s, s->dump_info.d_machine);
     elf_header.e_version = cpu_to_dump32(s, EV_CURRENT);
     elf_header.e_ehsize = cpu_to_dump16(s, sizeof(elf_header));
-    elf_header.e_phoff = cpu_to_dump64(s, sizeof(Elf64_Ehdr));
+    elf_header.e_phoff = cpu_to_dump64(s, s->phdr_offset);
     elf_header.e_phentsize = cpu_to_dump16(s, sizeof(Elf64_Phdr));
-    elf_header.e_phnum = cpu_to_dump16(s, s->phdr_num);
-    if (s->have_section) {
-        uint64_t shoff = sizeof(Elf64_Ehdr) + sizeof(Elf64_Phdr) * s->sh_info;
-
-        elf_header.e_shoff = cpu_to_dump64(s, shoff);
+    elf_header.e_phnum = cpu_to_dump16(s, phnum);
+    if (s->shdr_num) {
+        elf_header.e_shoff = cpu_to_dump64(s, s->shdr_offset);
         elf_header.e_shentsize = cpu_to_dump16(s, sizeof(Elf64_Shdr));
-        elf_header.e_shnum = cpu_to_dump16(s, 1);
+        elf_header.e_shnum = cpu_to_dump16(s, s->shdr_num);
     }
 
     ret = fd_write_vmcore(&elf_header, sizeof(elf_header), s);
@@ -154,6 +163,12 @@ static void write_elf64_header(DumpState *s, Error **errp)
 
 static void write_elf32_header(DumpState *s, Error **errp)
 {
+    /*
+     * phnum in the elf header is 16 bit, if we have more segments we
+     * set phnum to PN_XNUM and write the real number of segments to a
+     * special section.
+     */
+    uint16_t phnum = MIN(s->phdr_num, PN_XNUM);
     Elf32_Ehdr elf_header;
     int ret;
 
@@ -166,15 +181,13 @@ static void write_elf32_header(DumpState *s, Error **errp)
     elf_header.e_machine = cpu_to_dump16(s, s->dump_info.d_machine);
     elf_header.e_version = cpu_to_dump32(s, EV_CURRENT);
     elf_header.e_ehsize = cpu_to_dump16(s, sizeof(elf_header));
-    elf_header.e_phoff = cpu_to_dump32(s, sizeof(Elf32_Ehdr));
+    elf_header.e_phoff = cpu_to_dump32(s, s->phdr_offset);
     elf_header.e_phentsize = cpu_to_dump16(s, sizeof(Elf32_Phdr));
-    elf_header.e_phnum = cpu_to_dump16(s, s->phdr_num);
-    if (s->have_section) {
-        uint32_t shoff = sizeof(Elf32_Ehdr) + sizeof(Elf32_Phdr) * s->sh_info;
-
-        elf_header.e_shoff = cpu_to_dump32(s, shoff);
+    elf_header.e_phnum = cpu_to_dump16(s, phnum);
+    if (s->shdr_num) {
+        elf_header.e_shoff = cpu_to_dump32(s, s->shdr_offset);
         elf_header.e_shentsize = cpu_to_dump16(s, sizeof(Elf32_Shdr));
-        elf_header.e_shnum = cpu_to_dump16(s, 1);
+        elf_header.e_shnum = cpu_to_dump16(s, s->shdr_num);
     }
 
     ret = fd_write_vmcore(&elf_header, sizeof(elf_header), s);
@@ -232,25 +245,15 @@ static void write_elf32_load(DumpState *s, MemoryMapping *memory_mapping,
     }
 }
 
-static void write_elf64_note(DumpState *s, Error **errp)
+static void write_elf64_phdr_note(DumpState *s, Elf64_Phdr *phdr)
 {
-    Elf64_Phdr phdr;
-    hwaddr begin = s->memory_offset - s->note_size;
-    int ret;
-
-    memset(&phdr, 0, sizeof(Elf64_Phdr));
-    phdr.p_type = cpu_to_dump32(s, PT_NOTE);
-    phdr.p_offset = cpu_to_dump64(s, begin);
-    phdr.p_paddr = 0;
-    phdr.p_filesz = cpu_to_dump64(s, s->note_size);
-    phdr.p_memsz = cpu_to_dump64(s, s->note_size);
-    phdr.p_vaddr = 0;
-
-    ret = fd_write_vmcore(&phdr, sizeof(Elf64_Phdr), s);
-    if (ret < 0) {
-        error_setg_errno(errp, -ret,
-                         "dump: failed to write program header table");
-    }
+    memset(phdr, 0, sizeof(*phdr));
+    phdr->p_type = cpu_to_dump32(s, PT_NOTE);
+    phdr->p_offset = cpu_to_dump64(s, s->note_offset);
+    phdr->p_paddr = 0;
+    phdr->p_filesz = cpu_to_dump64(s, s->note_size);
+    phdr->p_memsz = cpu_to_dump64(s, s->note_size);
+    phdr->p_vaddr = 0;
 }
 
 static inline int cpu_index(CPUState *cpu)
@@ -298,25 +301,15 @@ static void write_elf64_notes(WriteCoreDumpFunction f, DumpState *s,
     write_guest_note(f, s, errp);
 }
 
-static void write_elf32_note(DumpState *s, Error **errp)
+static void write_elf32_phdr_note(DumpState *s, Elf32_Phdr *phdr)
 {
-    hwaddr begin = s->memory_offset - s->note_size;
-    Elf32_Phdr phdr;
-    int ret;
-
-    memset(&phdr, 0, sizeof(Elf32_Phdr));
-    phdr.p_type = cpu_to_dump32(s, PT_NOTE);
-    phdr.p_offset = cpu_to_dump32(s, begin);
-    phdr.p_paddr = 0;
-    phdr.p_filesz = cpu_to_dump32(s, s->note_size);
-    phdr.p_memsz = cpu_to_dump32(s, s->note_size);
-    phdr.p_vaddr = 0;
-
-    ret = fd_write_vmcore(&phdr, sizeof(Elf32_Phdr), s);
-    if (ret < 0) {
-        error_setg_errno(errp, -ret,
-                         "dump: failed to write program header table");
-    }
+    memset(phdr, 0, sizeof(*phdr));
+    phdr->p_type = cpu_to_dump32(s, PT_NOTE);
+    phdr->p_offset = cpu_to_dump32(s, s->note_offset);
+    phdr->p_paddr = 0;
+    phdr->p_filesz = cpu_to_dump32(s, s->note_size);
+    phdr->p_memsz = cpu_to_dump32(s, s->note_size);
+    phdr->p_vaddr = 0;
 }
 
 static void write_elf32_notes(WriteCoreDumpFunction f, DumpState *s,
@@ -346,6 +339,32 @@ static void write_elf32_notes(WriteCoreDumpFunction f, DumpState *s,
     write_guest_note(f, s, errp);
 }
 
+static void write_elf_phdr_note(DumpState *s, Error **errp)
+{
+    ERRP_GUARD();
+    Elf32_Phdr phdr32;
+    Elf64_Phdr phdr64;
+    void *phdr;
+    size_t size;
+    int ret;
+
+    if (dump_is_64bit(s)) {
+        write_elf64_phdr_note(s, &phdr64);
+        size = sizeof(phdr64);
+        phdr = &phdr64;
+    } else {
+        write_elf32_phdr_note(s, &phdr32);
+        size = sizeof(phdr32);
+        phdr = &phdr32;
+    }
+
+    ret = fd_write_vmcore(phdr, size, s);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret,
+                         "dump: failed to write program header table");
+    }
+}
+
 static void write_elf_section(DumpState *s, int type, Error **errp)
 {
     Elf32_Shdr shdr32;
@@ -357,12 +376,12 @@ static void write_elf_section(DumpState *s, int type, Error **errp)
     if (type == 0) {
         shdr_size = sizeof(Elf32_Shdr);
         memset(&shdr32, 0, shdr_size);
-        shdr32.sh_info = cpu_to_dump32(s, s->sh_info);
+        shdr32.sh_info = cpu_to_dump32(s, s->phdr_num);
         shdr = &shdr32;
     } else {
         shdr_size = sizeof(Elf64_Shdr);
         memset(&shdr64, 0, shdr_size);
-        shdr64.sh_info = cpu_to_dump32(s, s->sh_info);
+        shdr64.sh_info = cpu_to_dump32(s, s->phdr_num);
         shdr = &shdr64;
     }
 
@@ -389,23 +408,21 @@ static void write_data(DumpState *s, void *buf, int length, Error **errp)
 static void write_memory(DumpState *s, GuestPhysBlock *block, ram_addr_t start,
                          int64_t size, Error **errp)
 {
+    ERRP_GUARD();
     int64_t i;
-    Error *local_err = NULL;
 
     for (i = 0; i < size / s->dump_info.page_size; i++) {
         write_data(s, block->host_addr + start + i * s->dump_info.page_size,
-                   s->dump_info.page_size, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+                   s->dump_info.page_size, errp);
+        if (*errp) {
             return;
         }
     }
 
     if ((size % s->dump_info.page_size) != 0) {
         write_data(s, block->host_addr + start + i * s->dump_info.page_size,
-                   size % s->dump_info.page_size, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+                   size % s->dump_info.page_size, errp);
+        if (*errp) {
             return;
         }
     }
@@ -475,45 +492,46 @@ static void get_offset_range(hwaddr phys_addr,
 
 static void write_elf_loads(DumpState *s, Error **errp)
 {
+    ERRP_GUARD();
     hwaddr offset, filesz;
     MemoryMapping *memory_mapping;
     uint32_t phdr_index = 1;
-    uint32_t max_index;
-    Error *local_err = NULL;
-
-    if (s->have_section) {
-        max_index = s->sh_info;
-    } else {
-        max_index = s->phdr_num;
-    }
 
     QTAILQ_FOREACH(memory_mapping, &s->list.head, next) {
         get_offset_range(memory_mapping->phys_addr,
                          memory_mapping->length,
                          s, &offset, &filesz);
-        if (s->dump_info.d_class == ELFCLASS64) {
+        if (dump_is_64bit(s)) {
             write_elf64_load(s, memory_mapping, phdr_index++, offset,
-                             filesz, &local_err);
+                             filesz, errp);
         } else {
             write_elf32_load(s, memory_mapping, phdr_index++, offset,
-                             filesz, &local_err);
+                             filesz, errp);
         }
 
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (*errp) {
             return;
         }
 
-        if (phdr_index >= max_index) {
+        if (phdr_index >= s->phdr_num) {
             break;
         }
+    }
+}
+
+static void write_elf_notes(DumpState *s, Error **errp)
+{
+    if (dump_is_64bit(s)) {
+        write_elf64_notes(fd_write_vmcore, s, errp);
+    } else {
+        write_elf32_notes(fd_write_vmcore, s, errp);
     }
 }
 
 /* write elf header, PT_NOTE and elf note to vmcore. */
 static void dump_begin(DumpState *s, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_GUARD();
 
     /*
      * the vmcore's format is:
@@ -540,77 +558,37 @@ static void dump_begin(DumpState *s, Error **errp)
      */
 
     /* write elf header to vmcore */
-    if (s->dump_info.d_class == ELFCLASS64) {
-        write_elf64_header(s, &local_err);
+    if (dump_is_64bit(s)) {
+        write_elf64_header(s, errp);
     } else {
-        write_elf32_header(s, &local_err);
+        write_elf32_header(s, errp);
     }
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         return;
     }
 
-    if (s->dump_info.d_class == ELFCLASS64) {
-        /* write PT_NOTE to vmcore */
-        write_elf64_note(s, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
+    /* write PT_NOTE to vmcore */
+    write_elf_phdr_note(s, errp);
+    if (*errp) {
+        return;
+    }
 
-        /* write all PT_LOAD to vmcore */
-        write_elf_loads(s, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
+    /* write all PT_LOAD to vmcore */
+    write_elf_loads(s, errp);
+    if (*errp) {
+        return;
+    }
 
-        /* write section to vmcore */
-        if (s->have_section) {
-            write_elf_section(s, 1, &local_err);
-            if (local_err) {
-                error_propagate(errp, local_err);
-                return;
-            }
-        }
-
-        /* write notes to vmcore */
-        write_elf64_notes(fd_write_vmcore, s, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
-    } else {
-        /* write PT_NOTE to vmcore */
-        write_elf32_note(s, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
-
-        /* write all PT_LOAD to vmcore */
-        write_elf_loads(s, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
-
-        /* write section to vmcore */
-        if (s->have_section) {
-            write_elf_section(s, 0, &local_err);
-            if (local_err) {
-                error_propagate(errp, local_err);
-                return;
-            }
-        }
-
-        /* write notes to vmcore */
-        write_elf32_notes(fd_write_vmcore, s, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+    /* write section to vmcore */
+    if (s->shdr_num) {
+        write_elf_section(s, 1, errp);
+        if (*errp) {
             return;
         }
     }
+
+    /* write notes to vmcore */
+    write_elf_notes(s, errp);
 }
 
 static int get_next_block(DumpState *s, GuestPhysBlock *block)
@@ -643,9 +621,9 @@ static int get_next_block(DumpState *s, GuestPhysBlock *block)
 /* write all memory to vmcore */
 static void dump_iterate(DumpState *s, Error **errp)
 {
+    ERRP_GUARD();
     GuestPhysBlock *block;
     int64_t size;
-    Error *local_err = NULL;
 
     do {
         block = s->next_block;
@@ -657,9 +635,8 @@ static void dump_iterate(DumpState *s, Error **errp)
                 size -= block->target_end - (s->begin + s->length);
             }
         }
-        write_memory(s, block, s->start, size, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        write_memory(s, block, s->start, size, errp);
+        if (*errp) {
             return;
         }
 
@@ -668,11 +645,10 @@ static void dump_iterate(DumpState *s, Error **errp)
 
 static void create_vmcore(DumpState *s, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_GUARD();
 
-    dump_begin(s, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    dump_begin(s, errp);
+    if (*errp) {
         return;
     }
 
@@ -771,7 +747,7 @@ static void get_note_sizes(DumpState *s, const void *note,
     uint64_t name_sz;
     uint64_t desc_sz;
 
-    if (s->dump_info.d_class == ELFCLASS64) {
+    if (dump_is_64bit(s)) {
         const Elf64_Nhdr *hdr = note;
         note_head_sz = sizeof(Elf64_Nhdr);
         name_sz = tswap64(hdr->n_namesz);
@@ -809,6 +785,7 @@ static bool note_name_equal(DumpState *s,
 /* write common header, sub header and elf note to vmcore */
 static void create_header32(DumpState *s, Error **errp)
 {
+    ERRP_GUARD();
     DiskDumpHeader32 *dh = NULL;
     KdumpSubHeader32 *kh = NULL;
     size_t size;
@@ -817,7 +794,6 @@ static void create_header32(DumpState *s, Error **errp)
     uint32_t bitmap_blocks;
     uint32_t status = 0;
     uint64_t offset_note;
-    Error *local_err = NULL;
 
     /* write common header, the version of kdump-compressed format is 6th */
     size = sizeof(DiskDumpHeader32);
@@ -893,9 +869,8 @@ static void create_header32(DumpState *s, Error **errp)
     s->note_buf_offset = 0;
 
     /* use s->note_buf to store notes temporarily */
-    write_elf32_notes(buf_write_note, s, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    write_elf32_notes(buf_write_note, s, errp);
+    if (*errp) {
         goto out;
     }
     if (write_buffer(s->fd, offset_note, s->note_buf,
@@ -921,6 +896,7 @@ out:
 /* write common header, sub header and elf note to vmcore */
 static void create_header64(DumpState *s, Error **errp)
 {
+    ERRP_GUARD();
     DiskDumpHeader64 *dh = NULL;
     KdumpSubHeader64 *kh = NULL;
     size_t size;
@@ -929,7 +905,6 @@ static void create_header64(DumpState *s, Error **errp)
     uint32_t bitmap_blocks;
     uint32_t status = 0;
     uint64_t offset_note;
-    Error *local_err = NULL;
 
     /* write common header, the version of kdump-compressed format is 6th */
     size = sizeof(DiskDumpHeader64);
@@ -1005,9 +980,8 @@ static void create_header64(DumpState *s, Error **errp)
     s->note_buf_offset = 0;
 
     /* use s->note_buf to store notes temporarily */
-    write_elf64_notes(buf_write_note, s, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    write_elf64_notes(buf_write_note, s, errp);
+    if (*errp) {
         goto out;
     }
 
@@ -1033,10 +1007,10 @@ out:
 
 static void write_dump_header(DumpState *s, Error **errp)
 {
-    if (s->dump_info.d_class == ELFCLASS32) {
-        create_header32(s, errp);
-    } else {
+    if (dump_is_64bit(s)) {
         create_header64(s, errp);
+    } else {
+        create_header32(s, errp);
     }
 }
 
@@ -1463,8 +1437,8 @@ out:
 
 static void create_kdump_vmcore(DumpState *s, Error **errp)
 {
+    ERRP_GUARD();
     int ret;
-    Error *local_err = NULL;
 
     /*
      * the kdump-compressed format is:
@@ -1494,21 +1468,18 @@ static void create_kdump_vmcore(DumpState *s, Error **errp)
         return;
     }
 
-    write_dump_header(s, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    write_dump_header(s, errp);
+    if (*errp) {
         return;
     }
 
-    write_dump_bitmap(s, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    write_dump_bitmap(s, errp);
+    if (*errp) {
         return;
     }
 
-    write_dump_pages(s, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    write_dump_pages(s, errp);
+    if (*errp) {
         return;
     }
 
@@ -1638,10 +1609,10 @@ static void dump_init(DumpState *s, int fd, bool has_format,
                       DumpGuestMemoryFormat format, bool paging, bool has_filter,
                       int64_t begin, int64_t length, Error **errp)
 {
+    ERRP_GUARD();
     VMCoreInfoState *vmci = vmcoreinfo_find();
     CPUState *cpu;
     int nr_cpus;
-    Error *err = NULL;
     int ret;
 
     s->has_format = has_format;
@@ -1726,8 +1697,8 @@ static void dump_init(DumpState *s, int fd, bool has_format,
         uint32_t size;
         uint16_t format;
 
-        note_head_size = s->dump_info.d_class == ELFCLASS32 ?
-            sizeof(Elf32_Nhdr) : sizeof(Elf64_Nhdr);
+        note_head_size = dump_is_64bit(s) ?
+            sizeof(Elf64_Nhdr) : sizeof(Elf32_Nhdr);
 
         format = le16_to_cpu(vmci->vmcoreinfo.guest_format);
         size = le32_to_cpu(vmci->vmcoreinfo.size);
@@ -1760,9 +1731,8 @@ static void dump_init(DumpState *s, int fd, bool has_format,
 
     /* get memory mapping */
     if (paging) {
-        qemu_get_guest_memory_mapping(&s->list, &s->guest_phys_blocks, &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
+        qemu_get_guest_memory_mapping(&s->list, &s->guest_phys_blocks, errp);
+        if (*errp) {
             goto cleanup;
         }
     } else {
@@ -1817,39 +1787,31 @@ static void dump_init(DumpState *s, int fd, bool has_format,
      */
     s->phdr_num = 1; /* PT_NOTE */
     if (s->list.num < UINT16_MAX - 2) {
+        s->shdr_num = 0;
         s->phdr_num += s->list.num;
-        s->have_section = false;
     } else {
-        s->have_section = true;
-        s->phdr_num = PN_XNUM;
-        s->sh_info = 1; /* PT_NOTE */
+        /* sh_info of section 0 holds the real number of phdrs */
+        s->shdr_num = 1;
 
         /* the type of shdr->sh_info is uint32_t, so we should avoid overflow */
         if (s->list.num <= UINT32_MAX - 1) {
-            s->sh_info += s->list.num;
+            s->phdr_num += s->list.num;
         } else {
-            s->sh_info = UINT32_MAX;
+            s->phdr_num = UINT32_MAX;
         }
     }
 
-    if (s->dump_info.d_class == ELFCLASS64) {
-        if (s->have_section) {
-            s->memory_offset = sizeof(Elf64_Ehdr) +
-                               sizeof(Elf64_Phdr) * s->sh_info +
-                               sizeof(Elf64_Shdr) + s->note_size;
-        } else {
-            s->memory_offset = sizeof(Elf64_Ehdr) +
-                               sizeof(Elf64_Phdr) * s->phdr_num + s->note_size;
-        }
+    if (dump_is_64bit(s)) {
+        s->phdr_offset = sizeof(Elf64_Ehdr);
+        s->shdr_offset = s->phdr_offset + sizeof(Elf64_Phdr) * s->phdr_num;
+        s->note_offset = s->shdr_offset + sizeof(Elf64_Shdr) * s->shdr_num;
+        s->memory_offset = s->note_offset + s->note_size;
     } else {
-        if (s->have_section) {
-            s->memory_offset = sizeof(Elf32_Ehdr) +
-                               sizeof(Elf32_Phdr) * s->sh_info +
-                               sizeof(Elf32_Shdr) + s->note_size;
-        } else {
-            s->memory_offset = sizeof(Elf32_Ehdr) +
-                               sizeof(Elf32_Phdr) * s->phdr_num + s->note_size;
-        }
+
+        s->phdr_offset = sizeof(Elf32_Ehdr);
+        s->shdr_offset = s->phdr_offset + sizeof(Elf32_Phdr) * s->phdr_num;
+        s->note_offset = s->shdr_offset + sizeof(Elf32_Shdr) * s->shdr_num;
+        s->memory_offset = s->note_offset + s->note_size;
     }
 
     return;
@@ -1861,33 +1823,32 @@ cleanup:
 /* this operation might be time consuming. */
 static void dump_process(DumpState *s, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_GUARD();
     DumpQueryResult *result = NULL;
 
     if (s->has_format && s->format == DUMP_GUEST_MEMORY_FORMAT_WIN_DMP) {
 #ifdef TARGET_X86_64
-        create_win_dump(s, &local_err);
+        create_win_dump(s, errp);
 #endif
     } else if (s->has_format && s->format != DUMP_GUEST_MEMORY_FORMAT_ELF) {
-        create_kdump_vmcore(s, &local_err);
+        create_kdump_vmcore(s, errp);
     } else {
-        create_vmcore(s, &local_err);
+        create_vmcore(s, errp);
     }
 
     /* make sure status is written after written_size updates */
     smp_wmb();
     qatomic_set(&s->status,
-               (local_err ? DUMP_STATUS_FAILED : DUMP_STATUS_COMPLETED));
+               (*errp ? DUMP_STATUS_FAILED : DUMP_STATUS_COMPLETED));
 
     /* send DUMP_COMPLETED message (unconditionally) */
     result = qmp_query_dump(NULL);
     /* should never fail */
     assert(result);
-    qapi_event_send_dump_completed(result, !!local_err, (local_err ?
-                                   error_get_pretty(local_err) : NULL));
+    qapi_event_send_dump_completed(result, !!*errp, (*errp ?
+                                                     error_get_pretty(*errp) : NULL));
     qapi_free_DumpQueryResult(result);
 
-    error_propagate(errp, local_err);
     dump_cleanup(s);
 }
 
@@ -1916,10 +1877,10 @@ void qmp_dump_guest_memory(bool paging, const char *file,
                            int64_t length, bool has_format,
                            DumpGuestMemoryFormat format, Error **errp)
 {
+    ERRP_GUARD();
     const char *p;
     int fd = -1;
     DumpState *s;
-    Error *local_err = NULL;
     bool detach_p = false;
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
@@ -2019,9 +1980,8 @@ void qmp_dump_guest_memory(bool paging, const char *file,
     dump_state_prepare(s);
 
     dump_init(s, fd, has_format, format, paging, has_begin,
-              begin, length, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+              begin, length, errp);
+    if (*errp) {
         qatomic_set(&s->status, DUMP_STATUS_FAILED);
         return;
     }

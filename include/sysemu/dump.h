@@ -154,12 +154,15 @@ typedef struct DumpState {
     GuestPhysBlockList guest_phys_blocks;
     ArchDumpInfo dump_info;
     MemoryMappingList list;
-    uint16_t phdr_num;
-    uint32_t sh_info;
-    bool have_section;
+    uint32_t phdr_num;
+    uint32_t shdr_num;
     bool resume;
     bool detached;
     ssize_t note_size;
+    hwaddr shdr_offset;
+    hwaddr phdr_offset;
+    hwaddr section_offset;
+    hwaddr note_offset;
     hwaddr memory_offset;
     int fd;
 
