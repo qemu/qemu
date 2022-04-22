@@ -215,7 +215,7 @@ void os_daemonize(void)
         pid_t pid;
         int fds[2];
 
-        if (pipe(fds) == -1) {
+        if (!g_unix_open_pipe(fds, FD_CLOEXEC, NULL)) {
             exit(1);
         }
 
@@ -240,7 +240,6 @@ void os_daemonize(void)
 
         close(fds[0]);
         daemon_pipe = fds[1];
-        qemu_set_cloexec(daemon_pipe);
 
         setsid();
 
