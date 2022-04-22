@@ -2529,7 +2529,7 @@ void qmp_guest_set_user_password(const char *username,
         goto out;
     }
 
-    if (pipe(datafd) < 0) {
+    if (!g_unix_open_pipe(datafd, FD_CLOEXEC, NULL)) {
         error_setg(errp, "cannot create pipe FDs");
         goto out;
     }
