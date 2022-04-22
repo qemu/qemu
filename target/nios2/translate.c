@@ -71,6 +71,18 @@ typedef struct {
         .a     = extract32((code), 27, 5), \
     }
 
+typedef target_ulong ImmFromIType(const InstrIType *);
+
+static target_ulong imm_unsigned(const InstrIType *i)
+{
+    return i->imm16.u;
+}
+
+static target_ulong imm_signed(const InstrIType *i)
+{
+    return i->imm16.s;
+}
+
 /* R-Type instruction parsing */
 typedef struct {
     uint8_t op;
@@ -268,15 +280,23 @@ static void gen_bxx(DisasContext *dc, uint32_t code, uint32_t flags)
 }
 
 /* Comparison instructions */
-#define gen_i_cmpxx(fname, op3)                                              \
-static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)         \
-{                                                                            \
-    I_TYPE(instr, (code));                                                   \
-    tcg_gen_setcondi_tl(flags, cpu_R[instr.b], cpu_R[instr.a], (op3));       \
+static void do_i_cmpxx(DisasContext *dc, uint32_t insn,
+                       TCGCond cond, ImmFromIType *imm)
+{
+    I_TYPE(instr, insn);
+
+    if (likely(instr.b != R_ZERO)) {
+        tcg_gen_setcondi_tl(cond, cpu_R[instr.b],
+                            load_gpr(dc, instr.a), imm(&instr));
+    }
 }
 
-gen_i_cmpxx(gen_cmpxxsi, instr.imm16.s)
-gen_i_cmpxx(gen_cmpxxui, instr.imm16.u)
+#define gen_i_cmpxx(fname, imm)                                             \
+    static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)    \
+    { do_i_cmpxx(dc, code, flags, imm); }
+
+gen_i_cmpxx(gen_cmpxxsi, imm_signed)
+gen_i_cmpxx(gen_cmpxxui, imm_unsigned)
 
 /* Math/logic instructions */
 #define gen_i_math_logic(fname, insn, resimm, op3)                          \
