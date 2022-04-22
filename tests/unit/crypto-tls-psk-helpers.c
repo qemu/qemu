@@ -30,7 +30,7 @@ void test_tls_psk_init(const char *pskfile)
 
     fp = fopen(pskfile, "w");
     if (fp == NULL) {
-        g_critical("Failed to create pskfile %s", pskfile);
+        g_critical("Failed to create pskfile %s: %s", pskfile, strerror(errno));
         abort();
     }
     /* Don't do this in real applications!  Use psktool. */

@@ -474,28 +474,12 @@ typedef struct {
     bool only_target;
     /* Use dirty ring if true; dirty logging otherwise */
     bool use_dirty_ring;
-    char *opts_source;
-    char *opts_target;
+    const char *opts_source;
+    const char *opts_target;
 } MigrateStart;
 
-static MigrateStart *migrate_start_new(void)
-{
-    MigrateStart *args = g_new0(MigrateStart, 1);
-
-    args->opts_source = g_strdup("");
-    args->opts_target = g_strdup("");
-    return args;
-}
-
-static void migrate_start_destroy(MigrateStart *args)
-{
-    g_free(args->opts_source);
-    g_free(args->opts_target);
-    g_free(args);
-}
-
 static int test_migrate_start(QTestState **from, QTestState **to,
-                              const char *uri, MigrateStart **pargs)
+                              const char *uri, MigrateStart *args)
 {
     g_autofree gchar *arch_source = NULL;
     g_autofree gchar *arch_target = NULL;
@@ -507,15 +491,12 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     g_autofree char *shmem_path = NULL;
     const char *arch = qtest_get_arch();
     const char *machine_opts = NULL;
-    MigrateStart *args = *pargs;
     const char *memory_size;
-    int ret = 0;
 
     if (args->use_shmem) {
         if (!g_file_test("/dev/shm", G_FILE_TEST_IS_DIR)) {
             g_test_skip("/dev/shm is not supported");
-            ret = -1;
-            goto out;
+            return -1;
         }
     }
 
@@ -591,7 +572,8 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                  machine_opts ? " -machine " : "",
                                  machine_opts ? machine_opts : "",
                                  memory_size, tmpfs,
-                                 arch_source, shmem_opts, args->opts_source,
+                                 arch_source, shmem_opts,
+                                 args->opts_source ? args->opts_source : "",
                                  ignore_stderr);
     if (!args->only_target) {
         *from = qtest_init(cmd_source);
@@ -609,7 +591,8 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                  machine_opts ? machine_opts : "",
                                  memory_size, tmpfs, uri,
                                  arch_target, shmem_opts,
-                                 args->opts_target, ignore_stderr);
+                                 args->opts_target ? args->opts_target : "",
+                                 ignore_stderr);
     *to = qtest_init(cmd_target);
 
     /*
@@ -620,11 +603,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         unlink(shmem_path);
     }
 
-out:
-    migrate_start_destroy(args);
-    /* This tells the caller that this structure is gone */
-    *pargs = NULL;
-    return ret;
+    return 0;
 }
 
 static void test_migrate_end(QTestState *from, QTestState *to, bool test_dest)
@@ -668,7 +647,7 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
 
-    if (test_migrate_start(&from, &to, uri, &args)) {
+    if (test_migrate_start(&from, &to, uri, args)) {
         return -1;
     }
 
@@ -712,10 +691,10 @@ static void migrate_postcopy_complete(QTestState *from, QTestState *to)
 
 static void test_postcopy(void)
 {
-    MigrateStart *args = migrate_start_new();
+    MigrateStart args = {};
     QTestState *from, *to;
 
-    if (migrate_postcopy_prepare(&from, &to, args)) {
+    if (migrate_postcopy_prepare(&from, &to, &args)) {
         return;
     }
     migrate_postcopy_start(from, to);
@@ -724,13 +703,13 @@ static void test_postcopy(void)
 
 static void test_postcopy_recovery(void)
 {
-    MigrateStart *args = migrate_start_new();
+    MigrateStart args = {
+        .hide_stderr = true,
+    };
     QTestState *from, *to;
     g_autofree char *uri = NULL;
 
-    args->hide_stderr = true;
-
-    if (migrate_postcopy_prepare(&from, &to, args)) {
+    if (migrate_postcopy_prepare(&from, &to, &args)) {
         return;
     }
 
@@ -786,10 +765,10 @@ static void test_postcopy_recovery(void)
 
 static void test_baddest(void)
 {
-    MigrateStart *args = migrate_start_new();
+    MigrateStart args = {
+        .hide_stderr = true
+    };
     QTestState *from, *to;
-
-    args->hide_stderr = true;
 
     if (test_migrate_start(&from, &to, "tcp:127.0.0.1:0", &args)) {
         return;
@@ -799,19 +778,86 @@ static void test_baddest(void)
     test_migrate_end(from, to, false);
 }
 
-static void test_precopy_unix_common(bool dirty_ring)
+/*
+ * A hook that runs after the src and dst QEMUs have been
+ * created, but before the migration is started. This can
+ * be used to set migration parameters and capabilities.
+ *
+ * Returns: NULL, or a pointer to opaque state to be
+ *          later passed to the TestMigrateFinishHook
+ */
+typedef void * (*TestMigrateStartHook)(QTestState *from,
+                                       QTestState *to);
+
+/*
+ * A hook that runs after the migration has finished,
+ * regardless of whether it succeeded or failed, but
+ * before QEMU has terminated (unless it self-terminated
+ * due to migration error)
+ *
+ * @opaque is a pointer to state previously returned
+ * by the TestMigrateStartHook if any, or NULL.
+ */
+typedef void (*TestMigrateFinishHook)(QTestState *from,
+                                      QTestState *to,
+                                      void *opaque);
+
+typedef struct {
+    /* Optional: fine tune start parameters */
+    MigrateStart start;
+
+    /* Required: the URI for the dst QEMU to listen on */
+    const char *listen_uri;
+
+    /*
+     * Optional: the URI for the src QEMU to connect to
+     * If NULL, then it will query the dst QEMU for its actual
+     * listening address and use that as the connect address.
+     * This allows for dynamically picking a free TCP port.
+     */
+    const char *connect_uri;
+
+    /* Optional: callback to run at start to set migration parameters */
+    TestMigrateStartHook start_hook;
+    /* Optional: callback to run at finish to cleanup */
+    TestMigrateFinishHook finish_hook;
+
+    /*
+     * Optional: normally we expect the migration process to complete.
+     *
+     * There can be a variety of reasons and stages in which failure
+     * can happen during tests.
+     *
+     * If a failure is expected to happen at time of establishing
+     * the connection, then MIG_TEST_FAIL will indicate that the dst
+     * QEMU is expected to stay running and accept future migration
+     * connections.
+     *
+     * If a failure is expected to happen while processing the
+     * migration stream, then MIG_TEST_FAIL_DEST_QUIT_ERR will indicate
+     * that the dst QEMU is expected to quit with non-zero exit status
+     */
+    enum {
+        /* This test should succeed, the default */
+        MIG_TEST_SUCCEED = 0,
+        /* This test should fail, dest qemu should keep alive */
+        MIG_TEST_FAIL,
+        /* This test should fail, dest qemu should fail with abnormal status */
+        MIG_TEST_FAIL_DEST_QUIT_ERR,
+    } result;
+} MigrateCommon;
+
+static void test_precopy_common(MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-    MigrateStart *args = migrate_start_new();
     QTestState *from, *to;
+    void *data_hook = NULL;
 
-    args->use_dirty_ring = dirty_ring;
-
-    if (test_migrate_start(&from, &to, uri, &args)) {
+    if (test_migrate_start(&from, &to, args->listen_uri, &args->start)) {
         return;
     }
 
-    /* We want to pick a speed slow enough that the test completes
+    /*
+     * We want to pick a speed slow enough that the test completes
      * quickly, but that it doesn't complete precopy even on a slow
      * machine, so also set the downtime.
      */
@@ -820,37 +866,74 @@ static void test_precopy_unix_common(bool dirty_ring)
     /* 1GB/s */
     migrate_set_parameter_int(from, "max-bandwidth", 1000000000);
 
+    if (args->start_hook) {
+        data_hook = args->start_hook(from, to);
+    }
+
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    migrate_qmp(from, uri, "{}");
-
-    wait_for_migration_pass(from);
-
-    migrate_set_parameter_int(from, "downtime-limit", CONVERGE_DOWNTIME);
-
-    if (!got_stop) {
-        qtest_qmp_eventwait(from, "STOP");
+    if (!args->connect_uri) {
+        g_autofree char *local_connect_uri =
+            migrate_get_socket_address(to, "socket-address");
+        migrate_qmp(from, local_connect_uri, "{}");
+    } else {
+        migrate_qmp(from, args->connect_uri, "{}");
     }
 
-    qtest_qmp_eventwait(to, "RESUME");
 
-    wait_for_serial("dest_serial");
-    wait_for_migration_complete(from);
+    if (args->result != MIG_TEST_SUCCEED) {
+        bool allow_active = args->result == MIG_TEST_FAIL;
+        wait_for_migration_fail(from, allow_active);
 
-    test_migrate_end(from, to, true);
+        if (args->result == MIG_TEST_FAIL_DEST_QUIT_ERR) {
+            qtest_set_expected_status(to, 1);
+        }
+    } else {
+        wait_for_migration_pass(from);
+
+        migrate_set_parameter_int(from, "downtime-limit", CONVERGE_DOWNTIME);
+
+        if (!got_stop) {
+            qtest_qmp_eventwait(from, "STOP");
+        }
+
+        qtest_qmp_eventwait(to, "RESUME");
+
+        wait_for_serial("dest_serial");
+        wait_for_migration_complete(from);
+    }
+
+    if (args->finish_hook) {
+        args->finish_hook(from, to, data_hook);
+    }
+
+    test_migrate_end(from, to, args->result == MIG_TEST_SUCCEED);
 }
 
 static void test_precopy_unix(void)
 {
-    /* Using default dirty logging */
-    test_precopy_unix_common(false);
+    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    MigrateCommon args = {
+        .listen_uri = uri,
+        .connect_uri = uri,
+    };
+
+    test_precopy_common(&args);
 }
 
 static void test_precopy_unix_dirty_ring(void)
 {
-    /* Using dirty ring tracking */
-    test_precopy_unix_common(true);
+    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    MigrateCommon args = {
+        .start = {
+            .use_dirty_ring = true,
+        },
+        .listen_uri = uri,
+        .connect_uri = uri,
+    };
+
+    test_precopy_common(&args);
 }
 
 #if 0
@@ -892,7 +975,7 @@ static void test_ignore_shared(void)
 
 static void test_xbzrle(const char *uri)
 {
-    MigrateStart *args = migrate_start_new();
+    MigrateStart args = {};
     QTestState *from, *to;
 
     if (test_migrate_start(&from, &to, uri, &args)) {
@@ -945,71 +1028,19 @@ static void test_xbzrle_unix(void)
 
 static void test_precopy_tcp(void)
 {
-    MigrateStart *args = migrate_start_new();
-    g_autofree char *uri = NULL;
-    QTestState *from, *to;
+    MigrateCommon args = {
+        .listen_uri = "tcp:127.0.0.1:0",
+    };
 
-    if (test_migrate_start(&from, &to, "tcp:127.0.0.1:0", &args)) {
-        return;
-    }
-
-    /*
-     * We want to pick a speed slow enough that the test completes
-     * quickly, but that it doesn't complete precopy even on a slow
-     * machine, so also set the downtime.
-     */
-    /* 1 ms should make it not converge*/
-    migrate_set_parameter_int(from, "downtime-limit", 1);
-    /* 1GB/s */
-    migrate_set_parameter_int(from, "max-bandwidth", 1000000000);
-
-    /* Wait for the first serial output from the source */
-    wait_for_serial("src_serial");
-
-    uri = migrate_get_socket_address(to, "socket-address");
-
-    migrate_qmp(from, uri, "{}");
-
-    wait_for_migration_pass(from);
-
-    migrate_set_parameter_int(from, "downtime-limit", CONVERGE_DOWNTIME);
-
-    if (!got_stop) {
-        qtest_qmp_eventwait(from, "STOP");
-    }
-    qtest_qmp_eventwait(to, "RESUME");
-
-    wait_for_serial("dest_serial");
-    wait_for_migration_complete(from);
-
-    test_migrate_end(from, to, true);
+    test_precopy_common(&args);
 }
 
-static void test_migrate_fd_proto(void)
+static void *test_migrate_fd_start_hook(QTestState *from,
+                                        QTestState *to)
 {
-    MigrateStart *args = migrate_start_new();
-    QTestState *from, *to;
+    QDict *rsp;
     int ret;
     int pair[2];
-    QDict *rsp;
-    const char *error_desc;
-
-    if (test_migrate_start(&from, &to, "defer", &args)) {
-        return;
-    }
-
-    /*
-     * We want to pick a speed slow enough that the test completes
-     * quickly, but that it doesn't complete precopy even on a slow
-     * machine, so also set the downtime.
-     */
-    /* 1 ms should make it not converge */
-    migrate_set_parameter_int(from, "downtime-limit", 1);
-    /* 1GB/s */
-    migrate_set_parameter_int(from, "max-bandwidth", 1000000000);
-
-    /* Wait for the first serial output from the source */
-    wait_for_serial("src_serial");
 
     /* Create two connected sockets for migration */
     ret = socketpair(PF_LOCAL, SOCK_STREAM, 0, pair);
@@ -1034,17 +1065,15 @@ static void test_migrate_fd_proto(void)
     qobject_unref(rsp);
     close(pair[1]);
 
-    /* Start migration to the 2nd socket*/
-    migrate_qmp(from, "fd:fd-mig", "{}");
+    return NULL;
+}
 
-    wait_for_migration_pass(from);
-
-    migrate_set_parameter_int(from, "downtime-limit", CONVERGE_DOWNTIME);
-
-    if (!got_stop) {
-        qtest_qmp_eventwait(from, "STOP");
-    }
-    qtest_qmp_eventwait(to, "RESUME");
+static void test_migrate_fd_finish_hook(QTestState *from,
+                                        QTestState *to,
+                                        void *opaque)
+{
+    QDict *rsp;
+    const char *error_desc;
 
     /* Test closing fds */
     /* We assume, that QEMU removes named fd from its list,
@@ -1062,11 +1091,17 @@ static void test_migrate_fd_proto(void)
     error_desc = qdict_get_str(qdict_get_qdict(rsp, "error"), "desc");
     g_assert_cmpstr(error_desc, ==, "File descriptor named 'fd-mig' not found");
     qobject_unref(rsp);
+}
 
-    /* Complete migration */
-    wait_for_serial("dest_serial");
-    wait_for_migration_complete(from);
-    test_migrate_end(from, to, true);
+static void test_migrate_fd_proto(void)
+{
+    MigrateCommon args = {
+        .listen_uri = "defer",
+        .connect_uri = "fd:fd-mig",
+        .start_hook = test_migrate_fd_start_hook,
+        .finish_hook = test_migrate_fd_finish_hook
+    };
+    test_precopy_common(&args);
 }
 
 static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
@@ -1074,7 +1109,7 @@ static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
 
-    if (test_migrate_start(&from, &to, uri, &args)) {
+    if (test_migrate_start(&from, &to, uri, args)) {
         return;
     }
 
@@ -1103,51 +1138,49 @@ static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
 
 static void test_validate_uuid(void)
 {
-    MigrateStart *args = migrate_start_new();
+    MigrateStart args = {
+        .opts_source = "-uuid 11111111-1111-1111-1111-111111111111",
+        .opts_target = "-uuid 11111111-1111-1111-1111-111111111111",
+    };
 
-    g_free(args->opts_source);
-    g_free(args->opts_target);
-    args->opts_source = g_strdup("-uuid 11111111-1111-1111-1111-111111111111");
-    args->opts_target = g_strdup("-uuid 11111111-1111-1111-1111-111111111111");
-    do_test_validate_uuid(args, false);
+    do_test_validate_uuid(&args, false);
 }
 
 static void test_validate_uuid_error(void)
 {
-    MigrateStart *args = migrate_start_new();
+    MigrateStart args = {
+        .opts_source = "-uuid 11111111-1111-1111-1111-111111111111",
+        .opts_target = "-uuid 22222222-2222-2222-2222-222222222222",
+        .hide_stderr = true,
+    };
 
-    g_free(args->opts_source);
-    g_free(args->opts_target);
-    args->opts_source = g_strdup("-uuid 11111111-1111-1111-1111-111111111111");
-    args->opts_target = g_strdup("-uuid 22222222-2222-2222-2222-222222222222");
-    args->hide_stderr = true;
-    do_test_validate_uuid(args, true);
+    do_test_validate_uuid(&args, true);
 }
 
 static void test_validate_uuid_src_not_set(void)
 {
-    MigrateStart *args = migrate_start_new();
+    MigrateStart args = {
+        .opts_target = "-uuid 22222222-2222-2222-2222-222222222222",
+        .hide_stderr = true,
+    };
 
-    g_free(args->opts_target);
-    args->opts_target = g_strdup("-uuid 22222222-2222-2222-2222-222222222222");
-    args->hide_stderr = true;
-    do_test_validate_uuid(args, false);
+    do_test_validate_uuid(&args, false);
 }
 
 static void test_validate_uuid_dst_not_set(void)
 {
-    MigrateStart *args = migrate_start_new();
+    MigrateStart args = {
+        .opts_source = "-uuid 11111111-1111-1111-1111-111111111111",
+        .hide_stderr = true,
+    };
 
-    g_free(args->opts_source);
-    args->opts_source = g_strdup("-uuid 11111111-1111-1111-1111-111111111111");
-    args->hide_stderr = true;
-    do_test_validate_uuid(args, false);
+    do_test_validate_uuid(&args, false);
 }
 
 static void test_migrate_auto_converge(void)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-    MigrateStart *args = migrate_start_new();
+    MigrateStart args = {};
     QTestState *from, *to;
     int64_t remaining, percentage;
 
@@ -1230,7 +1263,7 @@ static void test_migrate_auto_converge(void)
 
 static void test_multifd_tcp(const char *method)
 {
-    MigrateStart *args = migrate_start_new();
+    MigrateStart args = {};
     QTestState *from, *to;
     QDict *rsp;
     g_autofree char *uri = NULL;
@@ -1314,12 +1347,12 @@ static void test_multifd_tcp_zstd(void)
  */
 static void test_multifd_tcp_cancel(void)
 {
-    MigrateStart *args = migrate_start_new();
+    MigrateStart args = {
+        .hide_stderr = true,
+    };
     QTestState *from, *to, *to2;
     QDict *rsp;
     g_autofree char *uri = NULL;
-
-    args->hide_stderr = true;
 
     if (test_migrate_start(&from, &to, "defer", &args)) {
         return;
@@ -1357,8 +1390,9 @@ static void test_multifd_tcp_cancel(void)
 
     migrate_cancel(from);
 
-    args = migrate_start_new();
-    args->only_target = true;
+    args = (MigrateStart){
+        .only_target = true,
+    };
 
     if (test_migrate_start(&from, &to2, "defer", &args)) {
         return;
