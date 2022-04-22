@@ -1198,7 +1198,7 @@ GEN_LDST_WHOLE_TRANS(vs8r_v, 8, true)
 static inline uint32_t MAXSZ(DisasContext *s)
 {
     int scale = s->lmul - 3;
-    return scale < 0 ? s->cfg_ptr->vlen >> -scale : s->cfg_ptr->vlen << scale;
+    return s->cfg_ptr->vlen >> -scale;
 }
 
 static bool opivv_check(DisasContext *s, arg_rmrr *a)
@@ -3597,8 +3597,7 @@ static bool trans_vrgather_vx(DisasContext *s, arg_rmrr *a)
 
     if (a->vm && s->vl_eq_vlmax) {
         int scale = s->lmul - (s->sew + 3);
-        int vlmax = scale < 0 ?
-                       s->cfg_ptr->vlen >> -scale : s->cfg_ptr->vlen << scale;
+        int vlmax = s->cfg_ptr->vlen >> -scale;
         TCGv_i64 dest = tcg_temp_new_i64();
 
         if (a->rs1 == 0) {
@@ -3630,8 +3629,7 @@ static bool trans_vrgather_vi(DisasContext *s, arg_rmrr *a)
 
     if (a->vm && s->vl_eq_vlmax) {
         int scale = s->lmul - (s->sew + 3);
-        int vlmax = scale < 0 ?
-                       s->cfg_ptr->vlen >> -scale : s->cfg_ptr->vlen << scale;
+        int vlmax = s->cfg_ptr->vlen >> -scale;
         if (a->rs1 >= vlmax) {
             tcg_gen_gvec_dup_imm(MO_64, vreg_ofs(s, a->rd),
                                  MAXSZ(s), MAXSZ(s), 0);
@@ -3697,7 +3695,7 @@ static bool trans_vcompress_vm(DisasContext *s, arg_r *a)
  * Whole Vector Register Move Instructions ignore vtype and vl setting.
  * Thus, we don't need to check vill bit. (Section 16.6)
  */
-#define GEN_VMV_WHOLE_TRANS(NAME, LEN, SEQ)                             \
+#define GEN_VMV_WHOLE_TRANS(NAME, LEN)                             \
 static bool trans_##NAME(DisasContext *s, arg_##NAME * a)               \
 {                                                                       \
     if (require_rvv(s) &&                                               \
@@ -3712,13 +3710,8 @@ static bool trans_##NAME(DisasContext *s, arg_##NAME * a)               \
         } else {                                                        \
             TCGLabel *over = gen_new_label();                           \
             tcg_gen_brcondi_tl(TCG_COND_GEU, cpu_vstart, maxsz, over);  \
-                                                                        \
-            static gen_helper_gvec_2_ptr * const fns[4] = {             \
-                gen_helper_vmv1r_v, gen_helper_vmv2r_v,                 \
-                gen_helper_vmv4r_v, gen_helper_vmv8r_v,                 \
-            };                                                          \
             tcg_gen_gvec_2_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, a->rs2), \
-                               cpu_env, maxsz, maxsz, 0, fns[SEQ]);     \
+                               cpu_env, maxsz, maxsz, 0, gen_helper_vmvr_v); \
             mark_vs_dirty(s);                                           \
             gen_set_label(over);                                        \
         }                                                               \
@@ -3727,10 +3720,10 @@ static bool trans_##NAME(DisasContext *s, arg_##NAME * a)               \
     return false;                                                       \
 }
 
-GEN_VMV_WHOLE_TRANS(vmv1r_v, 1, 0)
-GEN_VMV_WHOLE_TRANS(vmv2r_v, 2, 1)
-GEN_VMV_WHOLE_TRANS(vmv4r_v, 4, 2)
-GEN_VMV_WHOLE_TRANS(vmv8r_v, 8, 3)
+GEN_VMV_WHOLE_TRANS(vmv1r_v, 1)
+GEN_VMV_WHOLE_TRANS(vmv2r_v, 2)
+GEN_VMV_WHOLE_TRANS(vmv4r_v, 4)
+GEN_VMV_WHOLE_TRANS(vmv8r_v, 8)
 
 static bool int_ext_check(DisasContext *s, arg_rmr *a, uint8_t div)
 {
