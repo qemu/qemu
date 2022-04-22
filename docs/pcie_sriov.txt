@@ -8,8 +8,8 @@ of a PCI Express device. It allows a single physical function (PF) to appear as 
 virtual functions (VFs) for the main purpose of eliminating software
 overhead in I/O from virtual machines.
 
-Qemu now implements the basic common functionality to enable an emulated device
-to support SR/IOV. Yet no fully implemented devices exists in Qemu, but a
+QEMU now implements the basic common functionality to enable an emulated device
+to support SR/IOV. Yet no fully implemented devices exists in QEMU, but a
 proof-of-concept hack of the Intel igb can be found here:
 
 git://github.com/knuto/qemu.git sriov_patches_v5
@@ -18,7 +18,7 @@ Implementation
 ==============
 Implementing emulation of an SR/IOV capable device typically consists of
 implementing support for two types of device classes; the "normal" physical device
-(PF) and the virtual device (VF). From Qemu's perspective, the VFs are just
+(PF) and the virtual device (VF). From QEMU's perspective, the VFs are just
 like other devices, except that some of their properties are derived from
 the PF.
 
