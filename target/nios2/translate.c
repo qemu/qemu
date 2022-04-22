@@ -690,23 +690,28 @@ gen_rr_mul_high(mulxss, muls2)
 gen_rr_mul_high(mulxuu, mulu2)
 gen_rr_mul_high(mulxsu, mulsu2)
 
-#define gen_r_shift_s(fname, insn)                                         \
-static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)       \
-{                                                                          \
-    R_TYPE(instr, (code));                                                 \
-    if (likely(instr.c != R_ZERO)) {                                       \
-        TCGv t0 = tcg_temp_new();                                          \
-        tcg_gen_andi_tl(t0, load_gpr((dc), instr.b), 31);                  \
-        tcg_gen_##insn(cpu_R[instr.c], load_gpr((dc), instr.a), t0);       \
-        tcg_temp_free(t0);                                                 \
-    }                                                                      \
+static void do_rr_shift(DisasContext *dc, uint32_t insn, GenFn3 *fn)
+{
+    R_TYPE(instr, insn);
+
+    if (likely(instr.c != R_ZERO)) {
+        TCGv sh = tcg_temp_new();
+
+        tcg_gen_andi_tl(sh, load_gpr(dc, instr.b), 31);
+        fn(cpu_R[instr.c], load_gpr(dc, instr.a), sh);
+        tcg_temp_free(sh);
+    }
 }
 
-gen_r_shift_s(sra, sar_tl)
-gen_r_shift_s(srl, shr_tl)
-gen_r_shift_s(sll, shl_tl)
-gen_r_shift_s(rol, rotl_tl)
-gen_r_shift_s(ror, rotr_tl)
+#define gen_rr_shift(fname, insn)                                           \
+    static void (fname)(DisasContext *dc, uint32_t code, uint32_t flags)    \
+    { do_rr_shift(dc, code, tcg_gen_##insn##_tl); }
+
+gen_rr_shift(sra, sar)
+gen_rr_shift(srl, shr)
+gen_rr_shift(sll, shl)
+gen_rr_shift(rol, rotl)
+gen_rr_shift(ror, rotr)
 
 static void divs(DisasContext *dc, uint32_t code, uint32_t flags)
 {
