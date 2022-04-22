@@ -691,19 +691,6 @@ void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome,
         target_el = 3;
         syndrome = syn_uncategorized();
         break;
-    case CP_ACCESS_TRAP_FP_EL2:
-        target_el = 2;
-        /* Since we are an implementation that takes exceptions on a trapped
-         * conditional insn only if the insn has passed its condition code
-         * check, we take the IMPDEF choice to always report CV=1 COND=0xe
-         * (which is also the required value for AArch64 traps).
-         */
-        syndrome = syn_fp_access_trap(1, 0xe, false);
-        break;
-    case CP_ACCESS_TRAP_FP_EL3:
-        target_el = 3;
-        syndrome = syn_fp_access_trap(1, 0xe, false);
-        break;
     default:
         g_assert_not_reached();
     }

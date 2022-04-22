@@ -51,7 +51,7 @@ static void arm_cpu_set_pc(CPUState *cs, vaddr value)
 
     if (is_a64(env)) {
         env->pc = value;
-        env->thumb = 0;
+        env->thumb = false;
     } else {
         env->regs[15] = value & ~1;
         env->thumb = value & 1;
@@ -189,7 +189,7 @@ static void arm_cpu_reset(DeviceState *dev)
 
     if (arm_feature(env, ARM_FEATURE_AARCH64)) {
         /* 64 bit CPUs always start in 64 bit mode */
-        env->aarch64 = 1;
+        env->aarch64 = true;
 #if defined(CONFIG_USER_ONLY)
         env->pstate = PSTATE_MODE_EL0t;
         /* Userspace expects access to DC ZVA, CTL_EL0 and the cache ops */
@@ -694,6 +694,16 @@ static void arm_cpu_set_irq(void *opaque, int irq, int level)
         [ARM_CPU_VFIQ] = CPU_INTERRUPT_VFIQ
     };
 
+    if (!arm_feature(env, ARM_FEATURE_EL2) &&
+        (irq == ARM_CPU_VIRQ || irq == ARM_CPU_VFIQ)) {
+        /*
+         * The GIC might tell us about VIRQ and VFIQ state, but if we don't
+         * have EL2 support we don't care. (Unless the guest is doing something
+         * silly this will only be calls saying "level is still 0".)
+         */
+        return;
+    }
+
     if (level) {
         env->irq_line_state |= mask[irq];
     } else {
@@ -702,11 +712,9 @@ static void arm_cpu_set_irq(void *opaque, int irq, int level)
 
     switch (irq) {
     case ARM_CPU_VIRQ:
-        assert(arm_feature(env, ARM_FEATURE_EL2));
         arm_cpu_update_virq(cpu);
         break;
     case ARM_CPU_VFIQ:
-        assert(arm_feature(env, ARM_FEATURE_EL2));
         arm_cpu_update_vfiq(cpu);
         break;
     case ARM_CPU_IRQ:

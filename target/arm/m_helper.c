@@ -564,7 +564,7 @@ void HELPER(v7m_bxns)(CPUARMState *env, uint32_t dest)
         env->v7m.control[M_REG_S] &= ~R_V7M_CONTROL_SFPA_MASK;
     }
     switch_v7m_security_state(env, dest & 1);
-    env->thumb = 1;
+    env->thumb = true;
     env->regs[15] = dest & ~1;
     arm_rebuild_hflags(env);
 }
@@ -590,7 +590,7 @@ void HELPER(v7m_blxns)(CPUARMState *env, uint32_t dest)
          * except that the low bit doesn't indicate Thumb/not.
          */
         env->regs[14] = nextinst;
-        env->thumb = 1;
+        env->thumb = true;
         env->regs[15] = dest & ~1;
         return;
     }
@@ -626,7 +626,7 @@ void HELPER(v7m_blxns)(CPUARMState *env, uint32_t dest)
     }
     env->v7m.control[M_REG_S] &= ~R_V7M_CONTROL_SFPA_MASK;
     switch_v7m_security_state(env, 0);
-    env->thumb = 1;
+    env->thumb = true;
     env->regs[15] = dest;
     arm_rebuild_hflags(env);
 }

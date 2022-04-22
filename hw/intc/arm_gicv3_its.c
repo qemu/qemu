@@ -61,6 +61,12 @@ typedef struct ITEntry {
     uint32_t vpeid;
 } ITEntry;
 
+typedef struct VTEntry {
+    bool valid;
+    unsigned vptsize;
+    uint32_t rdbase;
+    uint64_t vptaddr;
+} VTEntry;
 
 /*
  * The ITS spec permits a range of CONSTRAINED UNPREDICTABLE options
@@ -72,12 +78,32 @@ typedef struct ITEntry {
  * and continue processing.
  * The process_* functions which handle individual ITS commands all
  * return an ItsCmdResult which tells process_cmdq() whether it should
- * stall or keep going.
+ * stall, keep going because of an error, or keep going because the
+ * command was a success.
  */
 typedef enum ItsCmdResult {
     CMD_STALL = 0,
     CMD_CONTINUE = 1,
+    CMD_CONTINUE_OK = 2,
 } ItsCmdResult;
+
+/* True if the ITS supports the GICv4 virtual LPI feature */
+static bool its_feature_virtual(GICv3ITSState *s)
+{
+    return s->typer & R_GITS_TYPER_VIRTUAL_MASK;
+}
+
+static inline bool intid_in_lpi_range(uint32_t id)
+{
+    return id >= GICV3_LPI_INTID_START &&
+        id < (1 << (GICD_TYPER_IDBITS + 1));
+}
+
+static inline bool valid_doorbell(uint32_t id)
+{
+    /* Doorbell fields may be an LPI, or 1023 to mean "no doorbell" */
+    return id == INTID_SPURIOUS || intid_in_lpi_range(id);
+}
 
 static uint64_t baser_base_addr(uint64_t value, uint32_t page_sz)
 {
@@ -289,6 +315,198 @@ out:
 }
 
 /*
+ * Read the vPE Table entry at index @vpeid. On success (including
+ * successfully determining that there is no valid entry for this index),
+ * we return MEMTX_OK and populate the VTEntry struct accordingly.
+ * If there is an error reading memory then we return the error code.
+ */
+static MemTxResult get_vte(GICv3ITSState *s, uint32_t vpeid, VTEntry *vte)
+{
+    MemTxResult res = MEMTX_OK;
+    AddressSpace *as = &s->gicv3->dma_as;
+    uint64_t entry_addr = table_entry_addr(s, &s->vpet, vpeid, &res);
+    uint64_t vteval;
+
+    if (entry_addr == -1) {
+        /* No L2 table entry, i.e. no valid VTE, or a memory error */
+        vte->valid = false;
+        goto out;
+    }
+    vteval = address_space_ldq_le(as, entry_addr, MEMTXATTRS_UNSPECIFIED, &res);
+    if (res != MEMTX_OK) {
+        goto out;
+    }
+    vte->valid = FIELD_EX64(vteval, VTE, VALID);
+    vte->vptsize = FIELD_EX64(vteval, VTE, VPTSIZE);
+    vte->vptaddr = FIELD_EX64(vteval, VTE, VPTADDR);
+    vte->rdbase = FIELD_EX64(vteval, VTE, RDBASE);
+out:
+    if (res != MEMTX_OK) {
+        trace_gicv3_its_vte_read_fault(vpeid);
+    } else {
+        trace_gicv3_its_vte_read(vpeid, vte->valid, vte->vptsize,
+                                 vte->vptaddr, vte->rdbase);
+    }
+    return res;
+}
+
+/*
+ * Given a (DeviceID, EventID), look up the corresponding ITE, including
+ * checking for the various invalid-value cases. If we find a valid ITE,
+ * fill in @ite and @dte and return CMD_CONTINUE_OK. Otherwise return
+ * CMD_STALL or CMD_CONTINUE as appropriate (and the contents of @ite
+ * should not be relied on).
+ *
+ * The string @who is purely for the LOG_GUEST_ERROR messages,
+ * and should indicate the name of the calling function or similar.
+ */
+static ItsCmdResult lookup_ite(GICv3ITSState *s, const char *who,
+                               uint32_t devid, uint32_t eventid, ITEntry *ite,
+                               DTEntry *dte)
+{
+    uint64_t num_eventids;
+
+    if (devid >= s->dt.num_entries) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid command attributes: devid %d>=%d",
+                      who, devid, s->dt.num_entries);
+        return CMD_CONTINUE;
+    }
+
+    if (get_dte(s, devid, dte) != MEMTX_OK) {
+        return CMD_STALL;
+    }
+    if (!dte->valid) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid command attributes: "
+                      "invalid dte for %d\n", who, devid);
+        return CMD_CONTINUE;
+    }
+
+    num_eventids = 1ULL << (dte->size + 1);
+    if (eventid >= num_eventids) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid command attributes: eventid %d >= %"
+                      PRId64 "\n", who, eventid, num_eventids);
+        return CMD_CONTINUE;
+    }
+
+    if (get_ite(s, eventid, dte, ite) != MEMTX_OK) {
+        return CMD_STALL;
+    }
+
+    if (!ite->valid) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid command attributes: invalid ITE\n", who);
+        return CMD_CONTINUE;
+    }
+
+    return CMD_CONTINUE_OK;
+}
+
+/*
+ * Given an ICID, look up the corresponding CTE, including checking for various
+ * invalid-value cases. If we find a valid CTE, fill in @cte and return
+ * CMD_CONTINUE_OK; otherwise return CMD_STALL or CMD_CONTINUE (and the
+ * contents of @cte should not be relied on).
+ *
+ * The string @who is purely for the LOG_GUEST_ERROR messages,
+ * and should indicate the name of the calling function or similar.
+ */
+static ItsCmdResult lookup_cte(GICv3ITSState *s, const char *who,
+                               uint32_t icid, CTEntry *cte)
+{
+    if (icid >= s->ct.num_entries) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid ICID 0x%x\n", who, icid);
+        return CMD_CONTINUE;
+    }
+    if (get_cte(s, icid, cte) != MEMTX_OK) {
+        return CMD_STALL;
+    }
+    if (!cte->valid) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid CTE\n", who);
+        return CMD_CONTINUE;
+    }
+    if (cte->rdbase >= s->gicv3->num_cpu) {
+        return CMD_CONTINUE;
+    }
+    return CMD_CONTINUE_OK;
+}
+
+/*
+ * Given a VPEID, look up the corresponding VTE, including checking
+ * for various invalid-value cases. if we find a valid VTE, fill in @vte
+ * and return CMD_CONTINUE_OK; otherwise return CMD_STALL or CMD_CONTINUE
+ * (and the contents of @vte should not be relied on).
+ *
+ * The string @who is purely for the LOG_GUEST_ERROR messages,
+ * and should indicate the name of the calling function or similar.
+ */
+static ItsCmdResult lookup_vte(GICv3ITSState *s, const char *who,
+                               uint32_t vpeid, VTEntry *vte)
+{
+    if (vpeid >= s->vpet.num_entries) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid VPEID 0x%x\n", who, vpeid);
+        return CMD_CONTINUE;
+    }
+
+    if (get_vte(s, vpeid, vte) != MEMTX_OK) {
+        return CMD_STALL;
+    }
+    if (!vte->valid) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid VTE for VPEID 0x%x\n", who, vpeid);
+        return CMD_CONTINUE;
+    }
+
+    if (vte->rdbase >= s->gicv3->num_cpu) {
+        return CMD_CONTINUE;
+    }
+    return CMD_CONTINUE_OK;
+}
+
+static ItsCmdResult process_its_cmd_phys(GICv3ITSState *s, const ITEntry *ite,
+                                         int irqlevel)
+{
+    CTEntry cte;
+    ItsCmdResult cmdres;
+
+    cmdres = lookup_cte(s, __func__, ite->icid, &cte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
+    }
+    gicv3_redist_process_lpi(&s->gicv3->cpu[cte.rdbase], ite->intid, irqlevel);
+    return CMD_CONTINUE_OK;
+}
+
+static ItsCmdResult process_its_cmd_virt(GICv3ITSState *s, const ITEntry *ite,
+                                         int irqlevel)
+{
+    VTEntry vte;
+    ItsCmdResult cmdres;
+
+    cmdres = lookup_vte(s, __func__, ite->vpeid, &vte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
+    }
+
+    if (!intid_in_lpi_range(ite->intid) ||
+        ite->intid >= (1ULL << (vte.vptsize + 1))) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: intid 0x%x out of range\n",
+                      __func__, ite->intid);
+        return CMD_CONTINUE;
+    }
+
+    /*
+     * For QEMU the actual pending of the vLPI is handled in the
+     * redistributor code
+     */
+    gicv3_redist_process_vlpi(&s->gicv3->cpu[vte.rdbase], ite->intid,
+                              vte.vptaddr << 16, ite->doorbell, irqlevel);
+    return CMD_CONTINUE_OK;
+}
+
+/*
  * This function handles the processing of following commands based on
  * the ItsCmdType parameter passed:-
  * 1. triggering of lpi interrupt translation via ITS INT command
@@ -299,87 +517,45 @@ out:
 static ItsCmdResult do_process_its_cmd(GICv3ITSState *s, uint32_t devid,
                                        uint32_t eventid, ItsCmdType cmd)
 {
-    uint64_t num_eventids;
     DTEntry dte;
-    CTEntry cte;
     ITEntry ite;
+    ItsCmdResult cmdres;
+    int irqlevel;
 
-    if (devid >= s->dt.num_entries) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: devid %d>=%d",
-                      __func__, devid, s->dt.num_entries);
-        return CMD_CONTINUE;
-    }
-
-    if (get_dte(s, devid, &dte) != MEMTX_OK) {
-        return CMD_STALL;
-    }
-    if (!dte.valid) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: "
-                      "invalid dte for %d\n", __func__, devid);
-        return CMD_CONTINUE;
+    cmdres = lookup_ite(s, __func__, devid, eventid, &ite, &dte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
     }
 
-    num_eventids = 1ULL << (dte.size + 1);
-    if (eventid >= num_eventids) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: eventid %d >= %"
-                      PRId64 "\n",
-                      __func__, eventid, num_eventids);
-        return CMD_CONTINUE;
+    irqlevel = (cmd == CLEAR || cmd == DISCARD) ? 0 : 1;
+
+    switch (ite.inttype) {
+    case ITE_INTTYPE_PHYSICAL:
+        cmdres = process_its_cmd_phys(s, &ite, irqlevel);
+        break;
+    case ITE_INTTYPE_VIRTUAL:
+        if (!its_feature_virtual(s)) {
+            /* Can't happen unless guest is illegally writing to table memory */
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: invalid type %d in ITE (table corrupted?)\n",
+                          __func__, ite.inttype);
+            return CMD_CONTINUE;
+        }
+        cmdres = process_its_cmd_virt(s, &ite, irqlevel);
+        break;
+    default:
+        g_assert_not_reached();
     }
 
-    if (get_ite(s, eventid, &dte, &ite) != MEMTX_OK) {
-        return CMD_STALL;
-    }
-
-    if (!ite.valid || ite.inttype != ITE_INTTYPE_PHYSICAL) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: invalid ITE\n",
-                      __func__);
-        return CMD_CONTINUE;
-    }
-
-    if (ite.icid >= s->ct.num_entries) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid ICID 0x%x in ITE (table corrupted?)\n",
-                      __func__, ite.icid);
-        return CMD_CONTINUE;
-    }
-
-    if (get_cte(s, ite.icid, &cte) != MEMTX_OK) {
-        return CMD_STALL;
-    }
-    if (!cte.valid) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: invalid CTE\n",
-                      __func__);
-        return CMD_CONTINUE;
-    }
-
-    /*
-     * Current implementation only supports rdbase == procnum
-     * Hence rdbase physical address is ignored
-     */
-    if (cte.rdbase >= s->gicv3->num_cpu) {
-        return CMD_CONTINUE;
-    }
-
-    if ((cmd == CLEAR) || (cmd == DISCARD)) {
-        gicv3_redist_process_lpi(&s->gicv3->cpu[cte.rdbase], ite.intid, 0);
-    } else {
-        gicv3_redist_process_lpi(&s->gicv3->cpu[cte.rdbase], ite.intid, 1);
-    }
-
-    if (cmd == DISCARD) {
+    if (cmdres == CMD_CONTINUE_OK && cmd == DISCARD) {
         ITEntry ite = {};
         /* remove mapping from interrupt translation table */
         ite.valid = false;
-        return update_ite(s, eventid, &dte, &ite) ? CMD_CONTINUE : CMD_STALL;
+        return update_ite(s, eventid, &dte, &ite) ? CMD_CONTINUE_OK : CMD_STALL;
     }
-    return CMD_CONTINUE;
+    return CMD_CONTINUE_OK;
 }
+
 static ItsCmdResult process_its_cmd(GICv3ITSState *s, const uint64_t *cmdpkt,
                                     ItsCmdType cmd)
 {
@@ -409,7 +585,6 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, const uint64_t *cmdpkt,
     uint32_t devid, eventid;
     uint32_t pIntid = 0;
     uint64_t num_eventids;
-    uint32_t num_intids;
     uint16_t icid = 0;
     DTEntry dte;
     ITEntry ite;
@@ -437,7 +612,6 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, const uint64_t *cmdpkt,
         return CMD_STALL;
     }
     num_eventids = 1ULL << (dte.size + 1);
-    num_intids = 1ULL << (GICD_TYPER_IDBITS + 1);
 
     if (icid >= s->ct.num_entries) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -459,7 +633,7 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, const uint64_t *cmdpkt,
         return CMD_CONTINUE;
     }
 
-    if (pIntid < GICV3_LPI_INTID_START || pIntid >= num_intids) {
+    if (!intid_in_lpi_range(pIntid)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid interrupt ID 0x%x\n", __func__, pIntid);
         return CMD_CONTINUE;
@@ -472,7 +646,86 @@ static ItsCmdResult process_mapti(GICv3ITSState *s, const uint64_t *cmdpkt,
     ite.icid = icid;
     ite.doorbell = INTID_SPURIOUS;
     ite.vpeid = 0;
-    return update_ite(s, eventid, &dte, &ite) ? CMD_CONTINUE : CMD_STALL;
+    return update_ite(s, eventid, &dte, &ite) ? CMD_CONTINUE_OK : CMD_STALL;
+}
+
+static ItsCmdResult process_vmapti(GICv3ITSState *s, const uint64_t *cmdpkt,
+                                   bool ignore_vintid)
+{
+    uint32_t devid, eventid, vintid, doorbell, vpeid;
+    uint32_t num_eventids;
+    DTEntry dte;
+    ITEntry ite;
+
+    if (!its_feature_virtual(s)) {
+        return CMD_CONTINUE;
+    }
+
+    devid = FIELD_EX64(cmdpkt[0], VMAPTI_0, DEVICEID);
+    eventid = FIELD_EX64(cmdpkt[1], VMAPTI_1, EVENTID);
+    vpeid = FIELD_EX64(cmdpkt[1], VMAPTI_1, VPEID);
+    doorbell = FIELD_EX64(cmdpkt[2], VMAPTI_2, DOORBELL);
+    if (ignore_vintid) {
+        vintid = eventid;
+        trace_gicv3_its_cmd_vmapi(devid, eventid, vpeid, doorbell);
+    } else {
+        vintid = FIELD_EX64(cmdpkt[2], VMAPTI_2, VINTID);
+        trace_gicv3_its_cmd_vmapti(devid, eventid, vpeid, vintid, doorbell);
+    }
+
+    if (devid >= s->dt.num_entries) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid DeviceID 0x%x (must be less than 0x%x)\n",
+                      __func__, devid, s->dt.num_entries);
+        return CMD_CONTINUE;
+    }
+
+    if (get_dte(s, devid, &dte) != MEMTX_OK) {
+        return CMD_STALL;
+    }
+
+    if (!dte.valid) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: no entry in device table for DeviceID 0x%x\n",
+                      __func__, devid);
+        return CMD_CONTINUE;
+    }
+
+    num_eventids = 1ULL << (dte.size + 1);
+
+    if (eventid >= num_eventids) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: EventID 0x%x too large for DeviceID 0x%x "
+                      "(must be less than 0x%x)\n",
+                      __func__, eventid, devid, num_eventids);
+        return CMD_CONTINUE;
+    }
+    if (!intid_in_lpi_range(vintid)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: VIntID 0x%x not a valid LPI\n",
+                      __func__, vintid);
+        return CMD_CONTINUE;
+    }
+    if (!valid_doorbell(doorbell)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Doorbell %d not 1023 and not a valid LPI\n",
+                      __func__, doorbell);
+        return CMD_CONTINUE;
+    }
+    if (vpeid >= s->vpet.num_entries) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: VPEID 0x%x out of range (must be less than 0x%x)\n",
+                      __func__, vpeid, s->vpet.num_entries);
+        return CMD_CONTINUE;
+    }
+    /* add ite entry to interrupt translation table */
+    ite.valid = true;
+    ite.inttype = ITE_INTTYPE_VIRTUAL;
+    ite.intid = vintid;
+    ite.icid = 0;
+    ite.doorbell = doorbell;
+    ite.vpeid = vpeid;
+    return update_ite(s, eventid, &dte, &ite) ? CMD_CONTINUE_OK : CMD_STALL;
 }
 
 /*
@@ -533,7 +786,7 @@ static ItsCmdResult process_mapc(GICv3ITSState *s, const uint64_t *cmdpkt)
         return CMD_CONTINUE;
     }
 
-    return update_cte(s, icid, &cte) ? CMD_CONTINUE : CMD_STALL;
+    return update_cte(s, icid, &cte) ? CMD_CONTINUE_OK : CMD_STALL;
 }
 
 /*
@@ -594,7 +847,7 @@ static ItsCmdResult process_mapd(GICv3ITSState *s, const uint64_t *cmdpkt)
         return CMD_CONTINUE;
     }
 
-    return update_dte(s, devid, &dte) ? CMD_CONTINUE : CMD_STALL;
+    return update_dte(s, devid, &dte) ? CMD_CONTINUE_OK : CMD_STALL;
 }
 
 static ItsCmdResult process_movall(GICv3ITSState *s, const uint64_t *cmdpkt)
@@ -623,23 +876,23 @@ static ItsCmdResult process_movall(GICv3ITSState *s, const uint64_t *cmdpkt)
 
     if (rd1 == rd2) {
         /* Move to same target must succeed as a no-op */
-        return CMD_CONTINUE;
+        return CMD_CONTINUE_OK;
     }
 
     /* Move all pending LPIs from redistributor 1 to redistributor 2 */
     gicv3_redist_movall_lpis(&s->gicv3->cpu[rd1], &s->gicv3->cpu[rd2]);
 
-    return CMD_CONTINUE;
+    return CMD_CONTINUE_OK;
 }
 
 static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
 {
     uint32_t devid, eventid;
     uint16_t new_icid;
-    uint64_t num_eventids;
     DTEntry dte;
     CTEntry old_cte, new_cte;
     ITEntry old_ite;
+    ItsCmdResult cmdres;
 
     devid = FIELD_EX64(cmdpkt[0], MOVI_0, DEVICEID);
     eventid = FIELD_EX64(cmdpkt[1], MOVI_1, EVENTID);
@@ -647,91 +900,25 @@ static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
 
     trace_gicv3_its_cmd_movi(devid, eventid, new_icid);
 
-    if (devid >= s->dt.num_entries) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: devid %d>=%d",
-                      __func__, devid, s->dt.num_entries);
-        return CMD_CONTINUE;
-    }
-    if (get_dte(s, devid, &dte) != MEMTX_OK) {
-        return CMD_STALL;
+    cmdres = lookup_ite(s, __func__, devid, eventid, &old_ite, &dte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
     }
 
-    if (!dte.valid) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: "
-                      "invalid dte for %d\n", __func__, devid);
-        return CMD_CONTINUE;
-    }
-
-    num_eventids = 1ULL << (dte.size + 1);
-    if (eventid >= num_eventids) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: eventid %d >= %"
-                      PRId64 "\n",
-                      __func__, eventid, num_eventids);
-        return CMD_CONTINUE;
-    }
-
-    if (get_ite(s, eventid, &dte, &old_ite) != MEMTX_OK) {
-        return CMD_STALL;
-    }
-
-    if (!old_ite.valid || old_ite.inttype != ITE_INTTYPE_PHYSICAL) {
+    if (old_ite.inttype != ITE_INTTYPE_PHYSICAL) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid command attributes: invalid ITE\n",
                       __func__);
         return CMD_CONTINUE;
     }
 
-    if (old_ite.icid >= s->ct.num_entries) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid ICID 0x%x in ITE (table corrupted?)\n",
-                      __func__, old_ite.icid);
-        return CMD_CONTINUE;
+    cmdres = lookup_cte(s, __func__, old_ite.icid, &old_cte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
     }
-
-    if (new_icid >= s->ct.num_entries) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: ICID 0x%x\n",
-                      __func__, new_icid);
-        return CMD_CONTINUE;
-    }
-
-    if (get_cte(s, old_ite.icid, &old_cte) != MEMTX_OK) {
-        return CMD_STALL;
-    }
-    if (!old_cte.valid) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: "
-                      "invalid CTE for old ICID 0x%x\n",
-                      __func__, old_ite.icid);
-        return CMD_CONTINUE;
-    }
-
-    if (get_cte(s, new_icid, &new_cte) != MEMTX_OK) {
-        return CMD_STALL;
-    }
-    if (!new_cte.valid) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid command attributes: "
-                      "invalid CTE for new ICID 0x%x\n",
-                      __func__, new_icid);
-        return CMD_CONTINUE;
-    }
-
-    if (old_cte.rdbase >= s->gicv3->num_cpu) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: CTE has invalid rdbase 0x%x\n",
-                      __func__, old_cte.rdbase);
-        return CMD_CONTINUE;
-    }
-
-    if (new_cte.rdbase >= s->gicv3->num_cpu) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: CTE has invalid rdbase 0x%x\n",
-                      __func__, new_cte.rdbase);
-        return CMD_CONTINUE;
+    cmdres = lookup_cte(s, __func__, new_icid, &new_cte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
     }
 
     if (old_cte.rdbase != new_cte.rdbase) {
@@ -743,7 +930,316 @@ static ItsCmdResult process_movi(GICv3ITSState *s, const uint64_t *cmdpkt)
 
     /* Update the ICID field in the interrupt translation table entry */
     old_ite.icid = new_icid;
-    return update_ite(s, eventid, &dte, &old_ite) ? CMD_CONTINUE : CMD_STALL;
+    return update_ite(s, eventid, &dte, &old_ite) ? CMD_CONTINUE_OK : CMD_STALL;
+}
+
+/*
+ * Update the vPE Table entry at index @vpeid with the entry @vte.
+ * Returns true on success, false if there was a memory access error.
+ */
+static bool update_vte(GICv3ITSState *s, uint32_t vpeid, const VTEntry *vte)
+{
+    AddressSpace *as = &s->gicv3->dma_as;
+    uint64_t entry_addr;
+    uint64_t vteval = 0;
+    MemTxResult res = MEMTX_OK;
+
+    trace_gicv3_its_vte_write(vpeid, vte->valid, vte->vptsize, vte->vptaddr,
+                              vte->rdbase);
+
+    if (vte->valid) {
+        vteval = FIELD_DP64(vteval, VTE, VALID, 1);
+        vteval = FIELD_DP64(vteval, VTE, VPTSIZE, vte->vptsize);
+        vteval = FIELD_DP64(vteval, VTE, VPTADDR, vte->vptaddr);
+        vteval = FIELD_DP64(vteval, VTE, RDBASE, vte->rdbase);
+    }
+
+    entry_addr = table_entry_addr(s, &s->vpet, vpeid, &res);
+    if (res != MEMTX_OK) {
+        return false;
+    }
+    if (entry_addr == -1) {
+        /* No L2 table for this index: discard write and continue */
+        return true;
+    }
+    address_space_stq_le(as, entry_addr, vteval, MEMTXATTRS_UNSPECIFIED, &res);
+    return res == MEMTX_OK;
+}
+
+static ItsCmdResult process_vmapp(GICv3ITSState *s, const uint64_t *cmdpkt)
+{
+    VTEntry vte;
+    uint32_t vpeid;
+
+    if (!its_feature_virtual(s)) {
+        return CMD_CONTINUE;
+    }
+
+    vpeid = FIELD_EX64(cmdpkt[1], VMAPP_1, VPEID);
+    vte.rdbase = FIELD_EX64(cmdpkt[2], VMAPP_2, RDBASE);
+    vte.valid = FIELD_EX64(cmdpkt[2], VMAPP_2, V);
+    vte.vptsize = FIELD_EX64(cmdpkt[3], VMAPP_3, VPTSIZE);
+    vte.vptaddr = FIELD_EX64(cmdpkt[3], VMAPP_3, VPTADDR);
+
+    trace_gicv3_its_cmd_vmapp(vpeid, vte.rdbase, vte.valid,
+                              vte.vptaddr, vte.vptsize);
+
+    /*
+     * For GICv4.0 the VPT_size field is only 5 bits, whereas we
+     * define our field macros to include the full GICv4.1 8 bits.
+     * The range check on VPT_size will catch the cases where
+     * the guest set the RES0-in-GICv4.0 bits [7:6].
+     */
+    if (vte.vptsize > FIELD_EX64(s->typer, GITS_TYPER, IDBITS)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid VPT_size 0x%x\n", __func__, vte.vptsize);
+        return CMD_CONTINUE;
+    }
+
+    if (vte.valid && vte.rdbase >= s->gicv3->num_cpu) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid rdbase 0x%x\n", __func__, vte.rdbase);
+        return CMD_CONTINUE;
+    }
+
+    if (vpeid >= s->vpet.num_entries) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: VPEID 0x%x out of range (must be less than 0x%x)\n",
+                      __func__, vpeid, s->vpet.num_entries);
+        return CMD_CONTINUE;
+    }
+
+    return update_vte(s, vpeid, &vte) ? CMD_CONTINUE_OK : CMD_STALL;
+}
+
+typedef struct VmovpCallbackData {
+    uint64_t rdbase;
+    uint32_t vpeid;
+    /*
+     * Overall command result. If more than one callback finds an
+     * error, STALL beats CONTINUE.
+     */
+    ItsCmdResult result;
+} VmovpCallbackData;
+
+static void vmovp_callback(gpointer data, gpointer opaque)
+{
+    /*
+     * This function is called to update the VPEID field in a VPE
+     * table entry for this ITS. This might be because of a VMOVP
+     * command executed on any ITS that is connected to the same GIC
+     * as this ITS.  We need to read the VPE table entry for the VPEID
+     * and update its RDBASE field.
+     */
+    GICv3ITSState *s = data;
+    VmovpCallbackData *cbdata = opaque;
+    VTEntry vte;
+    ItsCmdResult cmdres;
+
+    cmdres = lookup_vte(s, __func__, cbdata->vpeid, &vte);
+    switch (cmdres) {
+    case CMD_STALL:
+        cbdata->result = CMD_STALL;
+        return;
+    case CMD_CONTINUE:
+        if (cbdata->result != CMD_STALL) {
+            cbdata->result = CMD_CONTINUE;
+        }
+        return;
+    case CMD_CONTINUE_OK:
+        break;
+    }
+
+    vte.rdbase = cbdata->rdbase;
+    if (!update_vte(s, cbdata->vpeid, &vte)) {
+        cbdata->result = CMD_STALL;
+    }
+}
+
+static ItsCmdResult process_vmovp(GICv3ITSState *s, const uint64_t *cmdpkt)
+{
+    VmovpCallbackData cbdata;
+
+    if (!its_feature_virtual(s)) {
+        return CMD_CONTINUE;
+    }
+
+    cbdata.vpeid = FIELD_EX64(cmdpkt[1], VMOVP_1, VPEID);
+    cbdata.rdbase = FIELD_EX64(cmdpkt[2], VMOVP_2, RDBASE);
+
+    trace_gicv3_its_cmd_vmovp(cbdata.vpeid, cbdata.rdbase);
+
+    if (cbdata.rdbase >= s->gicv3->num_cpu) {
+        return CMD_CONTINUE;
+    }
+
+    /*
+     * Our ITS implementation reports GITS_TYPER.VMOVP == 1, which means
+     * that when the VMOVP command is executed on an ITS to change the
+     * VPEID field in a VPE table entry the change must be propagated
+     * to all the ITSes connected to the same GIC.
+     */
+    cbdata.result = CMD_CONTINUE_OK;
+    gicv3_foreach_its(s->gicv3, vmovp_callback, &cbdata);
+    return cbdata.result;
+}
+
+static ItsCmdResult process_vmovi(GICv3ITSState *s, const uint64_t *cmdpkt)
+{
+    uint32_t devid, eventid, vpeid, doorbell;
+    bool doorbell_valid;
+    DTEntry dte;
+    ITEntry ite;
+    VTEntry old_vte, new_vte;
+    ItsCmdResult cmdres;
+
+    if (!its_feature_virtual(s)) {
+        return CMD_CONTINUE;
+    }
+
+    devid = FIELD_EX64(cmdpkt[0], VMOVI_0, DEVICEID);
+    eventid = FIELD_EX64(cmdpkt[1], VMOVI_1, EVENTID);
+    vpeid = FIELD_EX64(cmdpkt[1], VMOVI_1, VPEID);
+    doorbell_valid = FIELD_EX64(cmdpkt[2], VMOVI_2, D);
+    doorbell = FIELD_EX64(cmdpkt[2], VMOVI_2, DOORBELL);
+
+    trace_gicv3_its_cmd_vmovi(devid, eventid, vpeid, doorbell_valid, doorbell);
+
+    if (doorbell_valid && !valid_doorbell(doorbell)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid doorbell 0x%x\n", __func__, doorbell);
+        return CMD_CONTINUE;
+    }
+
+    cmdres = lookup_ite(s, __func__, devid, eventid, &ite, &dte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
+    }
+
+    if (ite.inttype != ITE_INTTYPE_VIRTUAL) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: ITE is not for virtual interrupt\n",
+                      __func__);
+        return CMD_CONTINUE;
+    }
+
+    cmdres = lookup_vte(s, __func__, ite.vpeid, &old_vte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
+    }
+    cmdres = lookup_vte(s, __func__, vpeid, &new_vte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
+    }
+
+    if (!intid_in_lpi_range(ite.intid) ||
+        ite.intid >= (1ULL << (old_vte.vptsize + 1)) ||
+        ite.intid >= (1ULL << (new_vte.vptsize + 1))) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: ITE intid 0x%x out of range\n",
+                      __func__, ite.intid);
+        return CMD_CONTINUE;
+    }
+
+    ite.vpeid = vpeid;
+    if (doorbell_valid) {
+        ite.doorbell = doorbell;
+    }
+
+    /*
+     * Move the LPI from the old redistributor to the new one. We don't
+     * need to do anything if the guest somehow specified the
+     * same pending table for source and destination.
+     */
+    if (old_vte.vptaddr != new_vte.vptaddr) {
+        gicv3_redist_mov_vlpi(&s->gicv3->cpu[old_vte.rdbase],
+                              old_vte.vptaddr << 16,
+                              &s->gicv3->cpu[new_vte.rdbase],
+                              new_vte.vptaddr << 16,
+                              ite.intid,
+                              ite.doorbell);
+    }
+
+    /* Update the ITE to the new VPEID and possibly doorbell values */
+    return update_ite(s, eventid, &dte, &ite) ? CMD_CONTINUE_OK : CMD_STALL;
+}
+
+static ItsCmdResult process_vinvall(GICv3ITSState *s, const uint64_t *cmdpkt)
+{
+    VTEntry vte;
+    uint32_t vpeid;
+    ItsCmdResult cmdres;
+
+    if (!its_feature_virtual(s)) {
+        return CMD_CONTINUE;
+    }
+
+    vpeid = FIELD_EX64(cmdpkt[1], VINVALL_1, VPEID);
+
+    trace_gicv3_its_cmd_vinvall(vpeid);
+
+    cmdres = lookup_vte(s, __func__, vpeid, &vte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
+    }
+
+    gicv3_redist_vinvall(&s->gicv3->cpu[vte.rdbase], vte.vptaddr << 16);
+    return CMD_CONTINUE_OK;
+}
+
+static ItsCmdResult process_inv(GICv3ITSState *s, const uint64_t *cmdpkt)
+{
+    uint32_t devid, eventid;
+    ITEntry ite;
+    DTEntry dte;
+    CTEntry cte;
+    VTEntry vte;
+    ItsCmdResult cmdres;
+
+    devid = FIELD_EX64(cmdpkt[0], INV_0, DEVICEID);
+    eventid = FIELD_EX64(cmdpkt[1], INV_1, EVENTID);
+
+    trace_gicv3_its_cmd_inv(devid, eventid);
+
+    cmdres = lookup_ite(s, __func__, devid, eventid, &ite, &dte);
+    if (cmdres != CMD_CONTINUE_OK) {
+        return cmdres;
+    }
+
+    switch (ite.inttype) {
+    case ITE_INTTYPE_PHYSICAL:
+        cmdres = lookup_cte(s, __func__, ite.icid, &cte);
+        if (cmdres != CMD_CONTINUE_OK) {
+            return cmdres;
+        }
+        gicv3_redist_inv_lpi(&s->gicv3->cpu[cte.rdbase], ite.intid);
+        break;
+    case ITE_INTTYPE_VIRTUAL:
+        if (!its_feature_virtual(s)) {
+            /* Can't happen unless guest is illegally writing to table memory */
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: invalid type %d in ITE (table corrupted?)\n",
+                          __func__, ite.inttype);
+            return CMD_CONTINUE;
+        }
+
+        cmdres = lookup_vte(s, __func__, ite.vpeid, &vte);
+        if (cmdres != CMD_CONTINUE_OK) {
+            return cmdres;
+        }
+        if (!intid_in_lpi_range(ite.intid) ||
+            ite.intid >= (1ULL << (vte.vptsize + 1))) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: intid 0x%x out of range\n",
+                          __func__, ite.intid);
+            return CMD_CONTINUE;
+        }
+        gicv3_redist_inv_vlpi(&s->gicv3->cpu[vte.rdbase], ite.intid,
+                              vte.vptaddr << 16);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    return CMD_CONTINUE_OK;
 }
 
 /*
@@ -782,7 +1278,7 @@ static void process_cmdq(GICv3ITSState *s)
     }
 
     while (wr_offset != rd_offset) {
-        ItsCmdResult result = CMD_CONTINUE;
+        ItsCmdResult result = CMD_CONTINUE_OK;
         void *hostmem;
         hwaddr buflen;
         uint64_t cmdpkt[GITS_CMDQ_ENTRY_WORDS];
@@ -827,6 +1323,17 @@ static void process_cmdq(GICv3ITSState *s)
              */
             trace_gicv3_its_cmd_sync();
             break;
+        case GITS_CMD_VSYNC:
+            /*
+             * VSYNC also is a nop, because our implementation is always
+             * in sync.
+             */
+            if (!its_feature_virtual(s)) {
+                result = CMD_CONTINUE;
+                break;
+            }
+            trace_gicv3_its_cmd_vsync();
+            break;
         case GITS_CMD_MAPD:
             result = process_mapd(s, cmdpkt);
             break;
@@ -843,14 +1350,18 @@ static void process_cmdq(GICv3ITSState *s)
             result = process_its_cmd(s, cmdpkt, DISCARD);
             break;
         case GITS_CMD_INV:
+            result = process_inv(s, cmdpkt);
+            break;
         case GITS_CMD_INVALL:
             /*
              * Current implementation doesn't cache any ITS tables,
              * but the calculated lpi priority information. We only
              * need to trigger lpi priority re-calculation to be in
              * sync with LPI config table or pending table changes.
+             * INVALL operates on a collection specified by ICID so
+             * it only affects physical LPIs.
              */
-            trace_gicv3_its_cmd_inv();
+            trace_gicv3_its_cmd_invall();
             for (i = 0; i < s->gicv3->num_cpu; i++) {
                 gicv3_redist_update_lpi(&s->gicv3->cpu[i]);
             }
@@ -861,11 +1372,30 @@ static void process_cmdq(GICv3ITSState *s)
         case GITS_CMD_MOVALL:
             result = process_movall(s, cmdpkt);
             break;
+        case GITS_CMD_VMAPTI:
+            result = process_vmapti(s, cmdpkt, false);
+            break;
+        case GITS_CMD_VMAPI:
+            result = process_vmapti(s, cmdpkt, true);
+            break;
+        case GITS_CMD_VMAPP:
+            result = process_vmapp(s, cmdpkt);
+            break;
+        case GITS_CMD_VMOVP:
+            result = process_vmovp(s, cmdpkt);
+            break;
+        case GITS_CMD_VMOVI:
+            result = process_vmovi(s, cmdpkt);
+            break;
+        case GITS_CMD_VINVALL:
+            result = process_vinvall(s, cmdpkt);
+            break;
         default:
             trace_gicv3_its_cmd_unknown(cmd);
             break;
         }
-        if (result == CMD_CONTINUE) {
+        if (result != CMD_STALL) {
+            /* CMD_CONTINUE or CMD_CONTINUE_OK */
             rd_offset++;
             rd_offset %= s->cq.num_entries;
             s->creadr = FIELD_DP64(s->creadr, GITS_CREADR, OFFSET, rd_offset);
@@ -940,6 +1470,15 @@ static void extract_table_params(GICv3ITSState *s)
                 /* 16-bit CollectionId supported when CIL == 0 */
                 idbits = 16;
             }
+            break;
+        case GITS_BASER_TYPE_VPE:
+            td = &s->vpet;
+            /*
+             * For QEMU vPEIDs are always 16 bits. (GICv4.1 allows an
+             * implementation to implement fewer bits and report this
+             * via GICD_TYPER2.)
+             */
+            idbits = 16;
             break;
         default:
             /*
@@ -1160,7 +1699,7 @@ static bool its_readl(GICv3ITSState *s, hwaddr offset,
         break;
     case GITS_IDREGS ... GITS_IDREGS + 0x2f:
         /* ID registers */
-        *data = gicv3_idreg(offset - GITS_IDREGS);
+        *data = gicv3_idreg(s->gicv3, offset - GITS_IDREGS, GICV3_PIDR0_ITS);
         break;
     case GITS_TYPER:
         *data = extract64(s->typer, 0, 32);
@@ -1395,6 +1934,8 @@ static void gicv3_arm_its_realize(DeviceState *dev, Error **errp)
         }
     }
 
+    gicv3_add_its(s->gicv3, dev);
+
     gicv3_its_init_mmio(s, &gicv3_its_control_ops, &gicv3_its_translation_ops);
 
     /* set the ITS default features supported */
@@ -1405,6 +1946,11 @@ static void gicv3_arm_its_realize(DeviceState *dev, Error **errp)
     s->typer = FIELD_DP64(s->typer, GITS_TYPER, DEVBITS, ITS_DEVBITS);
     s->typer = FIELD_DP64(s->typer, GITS_TYPER, CIL, 1);
     s->typer = FIELD_DP64(s->typer, GITS_TYPER, CIDBITS, ITS_CIDBITS);
+    if (s->gicv3->revision >= 4) {
+        /* Our VMOVP handles cross-ITS synchronization itself */
+        s->typer = FIELD_DP64(s->typer, GITS_TYPER, VMOVP, 1);
+        s->typer = FIELD_DP64(s->typer, GITS_TYPER, VIRTUAL, 1);
+    }
 }
 
 static void gicv3_its_reset(DeviceState *dev)
@@ -1420,6 +1966,7 @@ static void gicv3_its_reset(DeviceState *dev)
     /*
      * setting GITS_BASER0.Type = 0b001 (Device)
      *         GITS_BASER1.Type = 0b100 (Collection Table)
+     *         GITS_BASER2.Type = 0b010 (vPE) for GICv4 and later
      *         GITS_BASER<n>.Type,where n = 3 to 7 are 0b00 (Unimplemented)
      *         GITS_BASER<0,1>.Page_Size = 64KB
      * and default translation table entry size to 16 bytes
@@ -1437,6 +1984,15 @@ static void gicv3_its_reset(DeviceState *dev)
                              GITS_BASER_PAGESIZE_64K);
     s->baser[1] = FIELD_DP64(s->baser[1], GITS_BASER, ENTRYSIZE,
                              GITS_CTE_SIZE - 1);
+
+    if (its_feature_virtual(s)) {
+        s->baser[2] = FIELD_DP64(s->baser[2], GITS_BASER, TYPE,
+                                 GITS_BASER_TYPE_VPE);
+        s->baser[2] = FIELD_DP64(s->baser[2], GITS_BASER, PAGESIZE,
+                                 GITS_BASER_PAGESIZE_64K);
+        s->baser[2] = FIELD_DP64(s->baser[2], GITS_BASER, ENTRYSIZE,
+                                 GITS_VPE_SIZE - 1);
+    }
 }
 
 static void gicv3_its_post_load(GICv3ITSState *s)

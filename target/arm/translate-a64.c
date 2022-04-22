@@ -128,27 +128,26 @@ static int get_a64_user_mem_index(DisasContext *s)
     return arm_to_core_mmu_idx(useridx);
 }
 
-static void reset_btype(DisasContext *s)
+static void set_btype_raw(int val)
 {
-    if (s->btype != 0) {
-        TCGv_i32 zero = tcg_const_i32(0);
-        tcg_gen_st_i32(zero, cpu_env, offsetof(CPUARMState, btype));
-        tcg_temp_free_i32(zero);
-        s->btype = 0;
-    }
+    tcg_gen_st_i32(tcg_constant_i32(val), cpu_env,
+                   offsetof(CPUARMState, btype));
 }
 
 static void set_btype(DisasContext *s, int val)
 {
-    TCGv_i32 tcg_val;
-
     /* BTYPE is a 2-bit field, and 0 should be done with reset_btype.  */
     tcg_debug_assert(val >= 1 && val <= 3);
-
-    tcg_val = tcg_const_i32(val);
-    tcg_gen_st_i32(tcg_val, cpu_env, offsetof(CPUARMState, btype));
-    tcg_temp_free_i32(tcg_val);
+    set_btype_raw(val);
     s->btype = -1;
+}
+
+static void reset_btype(DisasContext *s)
+{
+    if (s->btype != 0) {
+        set_btype_raw(0);
+        s->btype = 0;
+    }
 }
 
 void gen_a64_set_pc_im(uint64_t val)
@@ -340,6 +339,11 @@ static void a64_test_cc(DisasCompare64 *c64, int cc)
 static void a64_free_cc(DisasCompare64 *c64)
 {
     tcg_temp_free_i64(c64->value);
+}
+
+static void gen_rebuild_hflags(DisasContext *s)
+{
+    gen_helper_rebuild_hflags_a64(cpu_env, tcg_constant_i32(s->current_el));
 }
 
 static void gen_exception_internal(int excp)
@@ -1668,9 +1672,7 @@ static void handle_msr_i(DisasContext *s, uint32_t insn,
         } else {
             clear_pstate_bits(PSTATE_UAO);
         }
-        t1 = tcg_const_i32(s->current_el);
-        gen_helper_rebuild_hflags_a64(cpu_env, t1);
-        tcg_temp_free_i32(t1);
+        gen_rebuild_hflags(s);
         break;
 
     case 0x04: /* PAN */
@@ -1682,9 +1684,7 @@ static void handle_msr_i(DisasContext *s, uint32_t insn,
         } else {
             clear_pstate_bits(PSTATE_PAN);
         }
-        t1 = tcg_const_i32(s->current_el);
-        gen_helper_rebuild_hflags_a64(cpu_env, t1);
-        tcg_temp_free_i32(t1);
+        gen_rebuild_hflags(s);
         break;
 
     case 0x05: /* SPSel */
@@ -1742,9 +1742,7 @@ static void handle_msr_i(DisasContext *s, uint32_t insn,
             } else {
                 clear_pstate_bits(PSTATE_TCO);
             }
-            t1 = tcg_const_i32(s->current_el);
-            gen_helper_rebuild_hflags_a64(cpu_env, t1);
-            tcg_temp_free_i32(t1);
+            gen_rebuild_hflags(s);
             /* Many factors, including TCO, go into MTE_ACTIVE. */
             s->base.is_jmp = DISAS_UPDATE_NOCHAIN;
         } else if (dc_isar_feature(aa64_mte_insn_reg, s)) {
@@ -1991,9 +1989,7 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
          * A write to any coprocessor regiser that ends a TB
          * must rebuild the hflags for the next TB.
          */
-        TCGv_i32 tcg_el = tcg_const_i32(s->current_el);
-        gen_helper_rebuild_hflags_a64(cpu_env, tcg_el);
-        tcg_temp_free_i32(tcg_el);
+        gen_rebuild_hflags(s);
         /*
          * We default to ending the TB on a coprocessor register write,
          * but allow this to be suppressed by the register definition
@@ -14664,13 +14660,13 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     dc->isar = &arm_cpu->isar;
     dc->condjmp = 0;
 
-    dc->aarch64 = 1;
+    dc->aarch64 = true;
     /* If we are coming from secure EL0 in a system with a 32-bit EL3, then
      * there is no secure EL1, so we route exceptions to EL3.
      */
     dc->secure_routed_to_el3 = arm_feature(env, ARM_FEATURE_EL3) &&
                                !arm_el_is_aa64(env, 3);
-    dc->thumb = 0;
+    dc->thumb = false;
     dc->sctlr_b = 0;
     dc->be_data = EX_TBFLAG_ANY(tb_flags, BE_DATA) ? MO_BE : MO_LE;
     dc->condexec_mask = 0;

@@ -144,6 +144,25 @@ const VMStateDescription vmstate_gicv3_cpu_sre_el1 = {
     }
 };
 
+static bool gicv4_needed(void *opaque)
+{
+    GICv3CPUState *cs = opaque;
+
+    return cs->gic->revision > 3;
+}
+
+const VMStateDescription vmstate_gicv3_gicv4 = {
+    .name = "arm_gicv3_cpu/gicv4",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = gicv4_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(gicr_vpropbaser, GICv3CPUState),
+        VMSTATE_UINT64(gicr_vpendbaser, GICv3CPUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_gicv3_cpu = {
     .name = "arm_gicv3_cpu",
     .version_id = 1,
@@ -175,6 +194,7 @@ static const VMStateDescription vmstate_gicv3_cpu = {
     .subsections = (const VMStateDescription * []) {
         &vmstate_gicv3_cpu_virt,
         &vmstate_gicv3_cpu_sre_el1,
+        &vmstate_gicv3_gicv4,
         NULL
     }
 };
@@ -295,7 +315,7 @@ void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
 
         memory_region_init_io(&region->iomem, OBJECT(s),
                               ops ? &ops[1] : NULL, region, name,
-                              s->redist_region_count[i] * GICV3_REDIST_SIZE);
+                              s->redist_region_count[i] * gicv3_redist_size(s));
         sysbus_init_mmio(sbd, &region->iomem);
         g_free(name);
     }
@@ -306,12 +326,14 @@ static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
     GICv3State *s = ARM_GICV3_COMMON(dev);
     int i, rdist_capacity, cpuidx;
 
-    /* revision property is actually reserved and currently used only in order
-     * to keep the interface compatible with GICv2 code, avoiding extra
-     * conditions. However, in future it could be used, for example, if we
-     * implement GICv4.
+    /*
+     * This GIC device supports only revisions 3 and 4. The GICv1/v2
+     * is a separate device.
+     * Note that subclasses of this device may impose further restrictions
+     * on the GIC revision: notably, the in-kernel KVM GIC doesn't
+     * support GICv4.
      */
-    if (s->revision != 3) {
+    if (s->revision != 3 && s->revision != 4) {
         error_setg(errp, "unsupported GIC revision %d", s->revision);
         return;
     }
@@ -326,6 +348,10 @@ static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
         error_setg(errp,
                    "requested %u interrupt lines is below GIC minimum %d",
                    s->num_irq, GIC_INTERNAL);
+        return;
+    }
+    if (s->num_cpu == 0) {
+        error_setg(errp, "num-cpu must be at least 1");
         return;
     }
 
@@ -350,9 +376,9 @@ static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < s->nb_redist_regions; i++) {
         rdist_capacity += s->redist_region_count[i];
     }
-    if (rdist_capacity < s->num_cpu) {
+    if (rdist_capacity != s->num_cpu) {
         error_setg(errp, "Capacity of the redist regions(%d) "
-                   "is less than number of vcpus(%d)",
+                   "does not match the number of vcpus(%d)",
                    rdist_capacity, s->num_cpu);
         return;
     }
@@ -382,8 +408,8 @@ static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
          *  Last == 1 if this is the last redistributor in a series of
          *            contiguous redistributor pages
          *  DirectLPI == 0 (direct injection of LPIs not supported)
-         *  VLPIS == 0 (virtual LPIs not supported)
-         *  PLPIS == 0 (physical LPIs not supported)
+         *  VLPIS == 1 if vLPIs supported (GICv4 and up)
+         *  PLPIS == 1 if LPIs supported
          */
         cpu_affid = object_property_get_uint(OBJECT(cpu), "mp-affinity", NULL);
 
@@ -398,6 +424,9 @@ static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
 
         if (s->lpi_enable) {
             s->cpu[i].gicr_typer |= GICR_TYPER_PLPIS;
+            if (s->revision > 3) {
+                s->cpu[i].gicr_typer |= GICR_TYPER_VLPIS;
+            }
         }
     }
 
@@ -410,6 +439,8 @@ static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
         cpuidx += s->redist_region_count[i];
         s->cpu[cpuidx - 1].gicr_typer |= GICR_TYPER_LAST;
     }
+
+    s->itslist = g_ptr_array_new();
 }
 
 static void arm_gicv3_finalize(Object *obj)
@@ -438,6 +469,8 @@ static void arm_gicv3_common_reset(DeviceState *dev)
         cs->gicr_waker = GICR_WAKER_ProcessorSleep | GICR_WAKER_ChildrenAsleep;
         cs->gicr_propbaser = 0;
         cs->gicr_pendbaser = 0;
+        cs->gicr_vpropbaser = 0;
+        cs->gicr_vpendbaser = 0;
         /* If we're resetting a TZ-aware GIC as if secure firmware
          * had set it up ready to start a kernel in non-secure, we
          * need to set interrupts to group 1 so the kernel can use them.
@@ -459,6 +492,7 @@ static void arm_gicv3_common_reset(DeviceState *dev)
 
         cs->hppi.prio = 0xff;
         cs->hpplpi.prio = 0xff;
+        cs->hppvlpi.prio = 0xff;
 
         /* State in the CPU interface must *not* be reset here, because it
          * is part of the CPU's reset domain, not the GIC device's.

@@ -38,7 +38,12 @@
 
 #define GICV3_LPI_INTID_START 8192
 
+/*
+ * The redistributor in GICv3 has two 64KB frames per CPU; in
+ * GICv4 it has four 64KB frames per CPU.
+ */
 #define GICV3_REDIST_SIZE 0x20000
+#define GICV4_REDIST_SIZE 0x40000
 
 /* Number of SGI target-list bits */
 #define GICV3_TARGETLIST_BITS 16
@@ -174,6 +179,9 @@ struct GICv3CPUState {
     uint32_t gicr_igrpmodr0;
     uint32_t gicr_nsacr;
     uint8_t gicr_ipriorityr[GIC_INTERNAL];
+    /* VLPI_base page registers */
+    uint64_t gicr_vpropbaser;
+    uint64_t gicr_vpendbaser;
 
     /* CPU interface */
     uint64_t icc_sre_el1;
@@ -210,6 +218,9 @@ struct GICv3CPUState {
      * in guest memory
      */
     PendingIrq hpplpi;
+
+    /* Cached information recalculated from vLPI tables in guest memory */
+    PendingIrq hppvlpi;
 
     /* This is temporary working state, to avoid a malloc in gicv3_update() */
     bool seenbetter;
@@ -272,6 +283,8 @@ struct GICv3State {
     uint32_t gicd_nsacr[DIV_ROUND_UP(GICV3_MAXIRQ, 16)];
 
     GICv3CPUState *cpu;
+    /* List of all ITSes connected to this GIC */
+    GPtrArray *itslist;
 };
 
 #define GICV3_BITMAP_ACCESSORS(BMP)                                     \

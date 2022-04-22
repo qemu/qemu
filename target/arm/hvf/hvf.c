@@ -564,7 +564,7 @@ int hvf_arch_init_vcpu(CPUState *cpu)
     hv_return_t ret;
     int i;
 
-    env->aarch64 = 1;
+    env->aarch64 = true;
     asm volatile("mrs %0, cntfrq_el0" : "=r"(arm_cpu->gt_cntfrq_hz));
 
     /* Allocate enough space for our sysreg sync */

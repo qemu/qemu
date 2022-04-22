@@ -30,7 +30,6 @@ typedef struct DisasContext {
     bool eci_handled;
     /* TCG op to rewind to if this turns out to be an invalid ECI state */
     TCGOp *insn_eci_rewind;
-    int thumb;
     int sctlr_b;
     MemOp be_data;
 #if !defined(CONFIG_USER_ONLY)
@@ -59,12 +58,13 @@ typedef struct DisasContext {
      * so that top level loop can generate correct syndrome information.
      */
     uint32_t svc_imm;
-    int aarch64;
     int current_el;
     /* Debug target exception level for single-step exceptions */
     int debug_target_el;
     GHashTable *cp_regs;
     uint64_t features; /* CPU features bits */
+    bool aarch64;
+    bool thumb;
     /* Because unallocated encodings generate different exception syndrome
      * information from traps due to FP being disabled, we can't do a single
      * "is fp access disabled" check at a high level in the decode tree.
@@ -332,16 +332,9 @@ static inline void gen_ss_advance(DisasContext *s)
 static inline void gen_exception(int excp, uint32_t syndrome,
                                  uint32_t target_el)
 {
-    TCGv_i32 tcg_excp = tcg_const_i32(excp);
-    TCGv_i32 tcg_syn = tcg_const_i32(syndrome);
-    TCGv_i32 tcg_el = tcg_const_i32(target_el);
-
-    gen_helper_exception_with_syndrome(cpu_env, tcg_excp,
-                                       tcg_syn, tcg_el);
-
-    tcg_temp_free_i32(tcg_el);
-    tcg_temp_free_i32(tcg_syn);
-    tcg_temp_free_i32(tcg_excp);
+    gen_helper_exception_with_syndrome(cpu_env, tcg_constant_i32(excp),
+                                       tcg_constant_i32(syndrome),
+                                       tcg_constant_i32(target_el));
 }
 
 /* Generate an architectural singlestep exception */

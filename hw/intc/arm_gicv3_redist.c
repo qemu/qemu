@@ -60,6 +60,132 @@ static uint32_t gicr_read_bitmap_reg(GICv3CPUState *cs, MemTxAttrs attrs,
     return reg;
 }
 
+static bool vcpu_resident(GICv3CPUState *cs, uint64_t vptaddr)
+{
+    /*
+     * Return true if a vCPU is resident, which is defined by
+     * whether the GICR_VPENDBASER register is marked VALID and
+     * has the right virtual pending table address.
+     */
+    if (!FIELD_EX64(cs->gicr_vpendbaser, GICR_VPENDBASER, VALID)) {
+        return false;
+    }
+    return vptaddr == (cs->gicr_vpendbaser & R_GICR_VPENDBASER_PHYADDR_MASK);
+}
+
+/**
+ * update_for_one_lpi: Update pending information if this LPI is better
+ *
+ * @cs: GICv3CPUState
+ * @irq: interrupt to look up in the LPI Configuration table
+ * @ctbase: physical address of the LPI Configuration table to use
+ * @ds: true if priority value should not be shifted
+ * @hpp: points to pending information to update
+ *
+ * Look up @irq in the Configuration table specified by @ctbase
+ * to see if it is enabled and what its priority is. If it is an
+ * enabled interrupt with a higher priority than that currently
+ * recorded in @hpp, update @hpp.
+ */
+static void update_for_one_lpi(GICv3CPUState *cs, int irq,
+                               uint64_t ctbase, bool ds, PendingIrq *hpp)
+{
+    uint8_t lpite;
+    uint8_t prio;
+
+    address_space_read(&cs->gic->dma_as,
+                       ctbase + ((irq - GICV3_LPI_INTID_START) * sizeof(lpite)),
+                       MEMTXATTRS_UNSPECIFIED, &lpite, sizeof(lpite));
+
+    if (!(lpite & LPI_CTE_ENABLED)) {
+        return;
+    }
+
+    if (ds) {
+        prio = lpite & LPI_PRIORITY_MASK;
+    } else {
+        prio = ((lpite & LPI_PRIORITY_MASK) >> 1) | 0x80;
+    }
+
+    if ((prio < hpp->prio) ||
+        ((prio == hpp->prio) && (irq <= hpp->irq))) {
+        hpp->irq = irq;
+        hpp->prio = prio;
+        /* LPIs and vLPIs are always non-secure Grp1 interrupts */
+        hpp->grp = GICV3_G1NS;
+    }
+}
+
+/**
+ * update_for_all_lpis: Fully scan LPI tables and find best pending LPI
+ *
+ * @cs: GICv3CPUState
+ * @ptbase: physical address of LPI Pending table
+ * @ctbase: physical address of LPI Configuration table
+ * @ptsizebits: size of tables, specified as number of interrupt ID bits minus 1
+ * @ds: true if priority value should not be shifted
+ * @hpp: points to pending information to set
+ *
+ * Recalculate the highest priority pending enabled LPI from scratch,
+ * and set @hpp accordingly.
+ *
+ * We scan the LPI pending table @ptbase; for each pending LPI, we read the
+ * corresponding entry in the LPI configuration table @ctbase to extract
+ * the priority and enabled information.
+ *
+ * We take @ptsizebits in the form idbits-1 because this is the way that
+ * LPI table sizes are architecturally specified in GICR_PROPBASER.IDBits
+ * and in the VMAPP command's VPT_size field.
+ */
+static void update_for_all_lpis(GICv3CPUState *cs, uint64_t ptbase,
+                                uint64_t ctbase, unsigned ptsizebits,
+                                bool ds, PendingIrq *hpp)
+{
+    AddressSpace *as = &cs->gic->dma_as;
+    uint8_t pend;
+    uint32_t pendt_size = (1ULL << (ptsizebits + 1));
+    int i, bit;
+
+    hpp->prio = 0xff;
+
+    for (i = GICV3_LPI_INTID_START / 8; i < pendt_size / 8; i++) {
+        address_space_read(as, ptbase + i, MEMTXATTRS_UNSPECIFIED, &pend, 1);
+        while (pend) {
+            bit = ctz32(pend);
+            update_for_one_lpi(cs, i * 8 + bit, ctbase, ds, hpp);
+            pend &= ~(1 << bit);
+        }
+    }
+}
+
+/**
+ * set_lpi_pending_bit: Set or clear pending bit for an LPI
+ *
+ * @cs: GICv3CPUState
+ * @ptbase: physical address of LPI Pending table
+ * @irq: LPI to change pending state for
+ * @level: false to clear pending state, true to set
+ *
+ * Returns true if we needed to do something, false if the pending bit
+ * was already at @level.
+ */
+static bool set_pending_table_bit(GICv3CPUState *cs, uint64_t ptbase,
+                                  int irq, bool level)
+{
+    AddressSpace *as = &cs->gic->dma_as;
+    uint64_t addr = ptbase + irq / 8;
+    uint8_t pend;
+
+    address_space_read(as, addr, MEMTXATTRS_UNSPECIFIED, &pend, 1);
+    if (extract32(pend, irq % 8, 1) == level) {
+        /* Bit already at requested state, no action required */
+        return false;
+    }
+    pend = deposit32(pend, irq % 8, 1, level ? 1 : 0);
+    address_space_write(as, addr, MEMTXATTRS_UNSPECIFIED, &pend, 1);
+    return true;
+}
+
 static uint8_t gicr_read_ipriorityr(GICv3CPUState *cs, MemTxAttrs attrs,
                                     int irq)
 {
@@ -98,6 +224,87 @@ static void gicr_write_ipriorityr(GICv3CPUState *cs, MemTxAttrs attrs, int irq,
         value = 0x80 | (value >> 1);
     }
     cs->gicr_ipriorityr[irq] = value;
+}
+
+static void gicv3_redist_update_vlpi_only(GICv3CPUState *cs)
+{
+    uint64_t ptbase, ctbase, idbits;
+
+    if (!FIELD_EX64(cs->gicr_vpendbaser, GICR_VPENDBASER, VALID)) {
+        cs->hppvlpi.prio = 0xff;
+        return;
+    }
+
+    ptbase = cs->gicr_vpendbaser & R_GICR_VPENDBASER_PHYADDR_MASK;
+    ctbase = cs->gicr_vpropbaser & R_GICR_VPROPBASER_PHYADDR_MASK;
+    idbits = FIELD_EX64(cs->gicr_vpropbaser, GICR_VPROPBASER, IDBITS);
+
+    update_for_all_lpis(cs, ptbase, ctbase, idbits, true, &cs->hppvlpi);
+}
+
+static void gicv3_redist_update_vlpi(GICv3CPUState *cs)
+{
+    gicv3_redist_update_vlpi_only(cs);
+    gicv3_cpuif_virt_irq_fiq_update(cs);
+}
+
+static void gicr_write_vpendbaser(GICv3CPUState *cs, uint64_t newval)
+{
+    /* Write @newval to GICR_VPENDBASER, handling its effects */
+    bool oldvalid = FIELD_EX64(cs->gicr_vpendbaser, GICR_VPENDBASER, VALID);
+    bool newvalid = FIELD_EX64(newval, GICR_VPENDBASER, VALID);
+    bool pendinglast;
+
+    /*
+     * The DIRTY bit is read-only and for us is always zero;
+     * other fields are writeable.
+     */
+    newval &= R_GICR_VPENDBASER_INNERCACHE_MASK |
+        R_GICR_VPENDBASER_SHAREABILITY_MASK |
+        R_GICR_VPENDBASER_PHYADDR_MASK |
+        R_GICR_VPENDBASER_OUTERCACHE_MASK |
+        R_GICR_VPENDBASER_PENDINGLAST_MASK |
+        R_GICR_VPENDBASER_IDAI_MASK |
+        R_GICR_VPENDBASER_VALID_MASK;
+
+    if (oldvalid && newvalid) {
+        /*
+         * Changing other fields while VALID is 1 is UNPREDICTABLE;
+         * we choose to log and ignore the write.
+         */
+        if (cs->gicr_vpendbaser ^ newval) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Changing GICR_VPENDBASER when VALID=1 "
+                          "is UNPREDICTABLE\n", __func__);
+        }
+        return;
+    }
+    if (!oldvalid && !newvalid) {
+        cs->gicr_vpendbaser = newval;
+        return;
+    }
+
+    if (newvalid) {
+        /*
+         * Valid going from 0 to 1: update hppvlpi from tables.
+         * If IDAI is 0 we are allowed to use the info we cached in
+         * the IMPDEF area of the table.
+         * PendingLast is RES1 when we make this transition.
+         */
+        pendinglast = true;
+    } else {
+        /*
+         * Valid going from 1 to 0:
+         * Set PendingLast if there was a pending enabled interrupt
+         * for the vPE that was just descheduled.
+         * If we cache info in the IMPDEF area, write it out here.
+         */
+        pendinglast = cs->hppvlpi.prio != 0xff;
+    }
+
+    newval = FIELD_DP64(newval, GICR_VPENDBASER, PENDINGLAST, pendinglast);
+    cs->gicr_vpendbaser = newval;
+    gicv3_redist_update_vlpi(cs);
 }
 
 static MemTxResult gicr_readb(GICv3CPUState *cs, hwaddr offset,
@@ -234,7 +441,24 @@ static MemTxResult gicr_readl(GICv3CPUState *cs, hwaddr offset,
         *data = cs->gicr_nsacr;
         return MEMTX_OK;
     case GICR_IDREGS ... GICR_IDREGS + 0x2f:
-        *data = gicv3_idreg(offset - GICR_IDREGS);
+        *data = gicv3_idreg(cs->gic, offset - GICR_IDREGS, GICV3_PIDR0_REDIST);
+        return MEMTX_OK;
+        /*
+         * VLPI frame registers. We don't need a version check for
+         * VPROPBASER and VPENDBASER because gicv3_redist_size() will
+         * prevent pre-v4 GIC from passing us offsets this high.
+         */
+    case GICR_VPROPBASER:
+        *data = extract64(cs->gicr_vpropbaser, 0, 32);
+        return MEMTX_OK;
+    case GICR_VPROPBASER + 4:
+        *data = extract64(cs->gicr_vpropbaser, 32, 32);
+        return MEMTX_OK;
+    case GICR_VPENDBASER:
+        *data = extract64(cs->gicr_vpendbaser, 0, 32);
+        return MEMTX_OK;
+    case GICR_VPENDBASER + 4:
+        *data = extract64(cs->gicr_vpendbaser, 32, 32);
         return MEMTX_OK;
     default:
         return MEMTX_ERROR;
@@ -379,6 +603,23 @@ static MemTxResult gicr_writel(GICv3CPUState *cs, hwaddr offset,
                       "%s: invalid guest write to RO register at offset "
                       TARGET_FMT_plx "\n", __func__, offset);
         return MEMTX_OK;
+        /*
+         * VLPI frame registers. We don't need a version check for
+         * VPROPBASER and VPENDBASER because gicv3_redist_size() will
+         * prevent pre-v4 GIC from passing us offsets this high.
+         */
+    case GICR_VPROPBASER:
+        cs->gicr_vpropbaser = deposit64(cs->gicr_vpropbaser, 0, 32, value);
+        return MEMTX_OK;
+    case GICR_VPROPBASER + 4:
+        cs->gicr_vpropbaser = deposit64(cs->gicr_vpropbaser, 32, 32, value);
+        return MEMTX_OK;
+    case GICR_VPENDBASER:
+        gicr_write_vpendbaser(cs, deposit64(cs->gicr_vpendbaser, 0, 32, value));
+        return MEMTX_OK;
+    case GICR_VPENDBASER + 4:
+        gicr_write_vpendbaser(cs, deposit64(cs->gicr_vpendbaser, 32, 32, value));
+        return MEMTX_OK;
     default:
         return MEMTX_ERROR;
     }
@@ -396,6 +637,17 @@ static MemTxResult gicr_readll(GICv3CPUState *cs, hwaddr offset,
         return MEMTX_OK;
     case GICR_PENDBASER:
         *data = cs->gicr_pendbaser;
+        return MEMTX_OK;
+        /*
+         * VLPI frame registers. We don't need a version check for
+         * VPROPBASER and VPENDBASER because gicv3_redist_size() will
+         * prevent pre-v4 GIC from passing us offsets this high.
+         */
+    case GICR_VPROPBASER:
+        *data = cs->gicr_vpropbaser;
+        return MEMTX_OK;
+    case GICR_VPENDBASER:
+        *data = cs->gicr_vpendbaser;
         return MEMTX_OK;
     default:
         return MEMTX_ERROR;
@@ -417,6 +669,17 @@ static MemTxResult gicr_writell(GICv3CPUState *cs, hwaddr offset,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid guest write to RO register at offset "
                       TARGET_FMT_plx "\n", __func__, offset);
+        return MEMTX_OK;
+        /*
+         * VLPI frame registers. We don't need a version check for
+         * VPROPBASER and VPENDBASER because gicv3_redist_size() will
+         * prevent pre-v4 GIC from passing us offsets this high.
+         */
+    case GICR_VPROPBASER:
+        cs->gicr_vpropbaser = value;
+        return MEMTX_OK;
+    case GICR_VPENDBASER:
+        gicr_write_vpendbaser(cs, value);
         return MEMTX_OK;
     default:
         return MEMTX_ERROR;
@@ -442,8 +705,8 @@ MemTxResult gicv3_redist_read(void *opaque, hwaddr offset, uint64_t *data,
      * in the memory map); if so then the GIC has multiple MemoryRegions
      * for the redistributors.
      */
-    cpuidx = region->cpuidx + offset / GICV3_REDIST_SIZE;
-    offset %= GICV3_REDIST_SIZE;
+    cpuidx = region->cpuidx + offset / gicv3_redist_size(s);
+    offset %= gicv3_redist_size(s);
 
     cs = &s->cpu[cpuidx];
 
@@ -501,8 +764,8 @@ MemTxResult gicv3_redist_write(void *opaque, hwaddr offset, uint64_t data,
      * in the memory map); if so then the GIC has multiple MemoryRegions
      * for the redistributors.
      */
-    cpuidx = region->cpuidx + offset / GICV3_REDIST_SIZE;
-    offset %= GICV3_REDIST_SIZE;
+    cpuidx = region->cpuidx + offset / gicv3_redist_size(s);
+    offset %= gicv3_redist_size(s);
 
     cs = &s->cpu[cpuidx];
 
@@ -542,34 +805,11 @@ MemTxResult gicv3_redist_write(void *opaque, hwaddr offset, uint64_t data,
 
 static void gicv3_redist_check_lpi_priority(GICv3CPUState *cs, int irq)
 {
-    AddressSpace *as = &cs->gic->dma_as;
-    uint64_t lpict_baddr;
-    uint8_t lpite;
-    uint8_t prio;
+    uint64_t lpict_baddr = cs->gicr_propbaser & R_GICR_PROPBASER_PHYADDR_MASK;
 
-    lpict_baddr = cs->gicr_propbaser & R_GICR_PROPBASER_PHYADDR_MASK;
-
-    address_space_read(as, lpict_baddr + ((irq - GICV3_LPI_INTID_START) *
-                       sizeof(lpite)), MEMTXATTRS_UNSPECIFIED, &lpite,
-                       sizeof(lpite));
-
-    if (!(lpite & LPI_CTE_ENABLED)) {
-        return;
-    }
-
-    if (cs->gic->gicd_ctlr & GICD_CTLR_DS) {
-        prio = lpite & LPI_PRIORITY_MASK;
-    } else {
-        prio = ((lpite & LPI_PRIORITY_MASK) >> 1) | 0x80;
-    }
-
-    if ((prio < cs->hpplpi.prio) ||
-        ((prio == cs->hpplpi.prio) && (irq <= cs->hpplpi.irq))) {
-        cs->hpplpi.irq = irq;
-        cs->hpplpi.prio = prio;
-        /* LPIs are always non-secure Grp1 interrupts */
-        cs->hpplpi.grp = GICV3_G1NS;
-    }
+    update_for_one_lpi(cs, irq, lpict_baddr,
+                       cs->gic->gicd_ctlr & GICD_CTLR_DS,
+                       &cs->hpplpi);
 }
 
 void gicv3_redist_update_lpi_only(GICv3CPUState *cs)
@@ -581,11 +821,7 @@ void gicv3_redist_update_lpi_only(GICv3CPUState *cs)
      * priority is lower than the last computed high priority lpi interrupt.
      * If yes, replace current LPI as the new high priority lpi interrupt.
      */
-    AddressSpace *as = &cs->gic->dma_as;
-    uint64_t lpipt_baddr;
-    uint32_t pendt_size = 0;
-    uint8_t pend;
-    int i, bit;
+    uint64_t lpipt_baddr, lpict_baddr;
     uint64_t idbits;
 
     idbits = MIN(FIELD_EX64(cs->gicr_propbaser, GICR_PROPBASER, IDBITS),
@@ -595,23 +831,11 @@ void gicv3_redist_update_lpi_only(GICv3CPUState *cs)
         return;
     }
 
-    cs->hpplpi.prio = 0xff;
-
     lpipt_baddr = cs->gicr_pendbaser & R_GICR_PENDBASER_PHYADDR_MASK;
+    lpict_baddr = cs->gicr_propbaser & R_GICR_PROPBASER_PHYADDR_MASK;
 
-    /* Determine the highest priority pending interrupt among LPIs */
-    pendt_size = (1ULL << (idbits + 1));
-
-    for (i = GICV3_LPI_INTID_START / 8; i < pendt_size / 8; i++) {
-        address_space_read(as, lpipt_baddr + i, MEMTXATTRS_UNSPECIFIED, &pend,
-                           sizeof(pend));
-
-        while (pend) {
-            bit = ctz32(pend);
-            gicv3_redist_check_lpi_priority(cs, i * 8 + bit);
-            pend &= ~(1 << bit);
-        }
-    }
+    update_for_all_lpis(cs, lpipt_baddr, lpict_baddr, idbits,
+                        cs->gic->gicd_ctlr & GICD_CTLR_DS, &cs->hpplpi);
 }
 
 void gicv3_redist_update_lpi(GICv3CPUState *cs)
@@ -626,30 +850,13 @@ void gicv3_redist_lpi_pending(GICv3CPUState *cs, int irq, int level)
      * This function updates the pending bit in lpi pending table for
      * the irq being activated or deactivated.
      */
-    AddressSpace *as = &cs->gic->dma_as;
     uint64_t lpipt_baddr;
-    bool ispend = false;
-    uint8_t pend;
 
-    /*
-     * get the bit value corresponding to this irq in the
-     * lpi pending table
-     */
     lpipt_baddr = cs->gicr_pendbaser & R_GICR_PENDBASER_PHYADDR_MASK;
-
-    address_space_read(as, lpipt_baddr + ((irq / 8) * sizeof(pend)),
-                       MEMTXATTRS_UNSPECIFIED, &pend, sizeof(pend));
-
-    ispend = extract32(pend, irq % 8, 1);
-
-    /* no change in the value of pending bit, return */
-    if (ispend == level) {
+    if (!set_pending_table_bit(cs, lpipt_baddr, irq, level)) {
+        /* no change in the value of pending bit, return */
         return;
     }
-    pend = deposit32(pend, irq % 8, 1, level ? 1 : 0);
-
-    address_space_write(as, lpipt_baddr + ((irq / 8) * sizeof(pend)),
-                        MEMTXATTRS_UNSPECIFIED, &pend, sizeof(pend));
 
     /*
      * check if this LPI is better than the current hpplpi, if yes
@@ -681,6 +888,17 @@ void gicv3_redist_process_lpi(GICv3CPUState *cs, int irq, int level)
     gicv3_redist_lpi_pending(cs, irq, level);
 }
 
+void gicv3_redist_inv_lpi(GICv3CPUState *cs, int irq)
+{
+    /*
+     * The only cached information for LPIs we have is the HPPLPI.
+     * We could be cleverer about identifying when we don't need
+     * to do a full rescan of the pending table, but until we find
+     * this is a performance issue, just always recalculate.
+     */
+    gicv3_redist_update_lpi(cs);
+}
+
 void gicv3_redist_mov_lpi(GICv3CPUState *src, GICv3CPUState *dest, int irq)
 {
     /*
@@ -691,11 +909,9 @@ void gicv3_redist_mov_lpi(GICv3CPUState *src, GICv3CPUState *dest, int irq)
      * we choose to NOP. If LPIs are disabled on source there's nothing
      * to be transferred anyway.
      */
-    AddressSpace *as = &src->gic->dma_as;
     uint64_t idbits;
     uint32_t pendt_size;
     uint64_t src_baddr;
-    uint8_t src_pend;
 
     if (!(src->gicr_ctlr & GICR_CTLR_ENABLE_LPIS) ||
         !(dest->gicr_ctlr & GICR_CTLR_ENABLE_LPIS)) {
@@ -714,15 +930,10 @@ void gicv3_redist_mov_lpi(GICv3CPUState *src, GICv3CPUState *dest, int irq)
 
     src_baddr = src->gicr_pendbaser & R_GICR_PENDBASER_PHYADDR_MASK;
 
-    address_space_read(as, src_baddr + (irq / 8),
-                       MEMTXATTRS_UNSPECIFIED, &src_pend, sizeof(src_pend));
-    if (!extract32(src_pend, irq % 8, 1)) {
+    if (!set_pending_table_bit(src, src_baddr, irq, 0)) {
         /* Not pending on source, nothing to do */
         return;
     }
-    src_pend &= ~(1 << (irq % 8));
-    address_space_write(as, src_baddr + (irq / 8),
-                        MEMTXATTRS_UNSPECIFIED, &src_pend, sizeof(src_pend));
     if (irq == src->hpplpi.irq) {
         /*
          * We just made this LPI not-pending so only need to update
@@ -786,6 +997,117 @@ void gicv3_redist_movall_lpis(GICv3CPUState *src, GICv3CPUState *dest)
 
     gicv3_redist_update_lpi(src);
     gicv3_redist_update_lpi(dest);
+}
+
+void gicv3_redist_vlpi_pending(GICv3CPUState *cs, int irq, int level)
+{
+    /*
+     * Change the pending state of the specified vLPI.
+     * Unlike gicv3_redist_process_vlpi(), we know here that the
+     * vCPU is definitely resident on this redistributor, and that
+     * the irq is in range.
+     */
+    uint64_t vptbase, ctbase;
+
+    vptbase = FIELD_EX64(cs->gicr_vpendbaser, GICR_VPENDBASER, PHYADDR) << 16;
+
+    if (set_pending_table_bit(cs, vptbase, irq, level)) {
+        if (level) {
+            /* Check whether this vLPI is now the best */
+            ctbase = cs->gicr_vpropbaser & R_GICR_VPROPBASER_PHYADDR_MASK;
+            update_for_one_lpi(cs, irq, ctbase, true, &cs->hppvlpi);
+            gicv3_cpuif_virt_irq_fiq_update(cs);
+        } else {
+            /* Only need to recalculate if this was previously the best vLPI */
+            if (irq == cs->hppvlpi.irq) {
+                gicv3_redist_update_vlpi(cs);
+            }
+        }
+    }
+}
+
+void gicv3_redist_process_vlpi(GICv3CPUState *cs, int irq, uint64_t vptaddr,
+                               int doorbell, int level)
+{
+    bool bit_changed;
+    bool resident = vcpu_resident(cs, vptaddr);
+    uint64_t ctbase;
+
+    if (resident) {
+        uint32_t idbits = FIELD_EX64(cs->gicr_vpropbaser, GICR_VPROPBASER, IDBITS);
+        if (irq >= (1ULL << (idbits + 1))) {
+            return;
+        }
+    }
+
+    bit_changed = set_pending_table_bit(cs, vptaddr, irq, level);
+    if (resident && bit_changed) {
+        if (level) {
+            /* Check whether this vLPI is now the best */
+            ctbase = cs->gicr_vpropbaser & R_GICR_VPROPBASER_PHYADDR_MASK;
+            update_for_one_lpi(cs, irq, ctbase, true, &cs->hppvlpi);
+            gicv3_cpuif_virt_irq_fiq_update(cs);
+        } else {
+            /* Only need to recalculate if this was previously the best vLPI */
+            if (irq == cs->hppvlpi.irq) {
+                gicv3_redist_update_vlpi(cs);
+            }
+        }
+    }
+
+    if (!resident && level && doorbell != INTID_SPURIOUS &&
+        (cs->gicr_ctlr & GICR_CTLR_ENABLE_LPIS)) {
+        /* vCPU is not currently resident: ring the doorbell */
+        gicv3_redist_process_lpi(cs, doorbell, 1);
+    }
+}
+
+void gicv3_redist_mov_vlpi(GICv3CPUState *src, uint64_t src_vptaddr,
+                           GICv3CPUState *dest, uint64_t dest_vptaddr,
+                           int irq, int doorbell)
+{
+    /*
+     * Move the specified vLPI's pending state from the source redistributor
+     * to the destination.
+     */
+    if (!set_pending_table_bit(src, src_vptaddr, irq, 0)) {
+        /* Not pending on source, nothing to do */
+        return;
+    }
+    if (vcpu_resident(src, src_vptaddr) && irq == src->hppvlpi.irq) {
+        /*
+         * Update src's cached highest-priority pending vLPI if we just made
+         * it not-pending
+         */
+        gicv3_redist_update_vlpi(src);
+    }
+    /*
+     * Mark the vLPI pending on the destination (ringing the doorbell
+     * if the vCPU isn't resident)
+     */
+    gicv3_redist_process_vlpi(dest, irq, dest_vptaddr, doorbell, irq);
+}
+
+void gicv3_redist_vinvall(GICv3CPUState *cs, uint64_t vptaddr)
+{
+    if (!vcpu_resident(cs, vptaddr)) {
+        /* We don't have anything cached if the vCPU isn't resident */
+        return;
+    }
+
+    /* Otherwise, our only cached information is the HPPVLPI info */
+    gicv3_redist_update_vlpi(cs);
+}
+
+void gicv3_redist_inv_vlpi(GICv3CPUState *cs, int irq, uint64_t vptaddr)
+{
+    /*
+     * The only cached information for LPIs we have is the HPPLPI.
+     * We could be cleverer about identifying when we don't need
+     * to do a full rescan of the pending table, but until we find
+     * this is a performance issue, just always recalculate.
+     */
+    gicv3_redist_vinvall(cs, vptaddr);
 }
 
 void gicv3_redist_set_irq(GICv3CPUState *cs, int irq, int level)

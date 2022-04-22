@@ -113,6 +113,7 @@ typedef enum VirtGICType {
     VIRT_GIC_VERSION_HOST,
     VIRT_GIC_VERSION_2,
     VIRT_GIC_VERSION_3,
+    VIRT_GIC_VERSION_4,
     VIRT_GIC_VERSION_NOSEL,
 } VirtGICType;
 
@@ -185,13 +186,25 @@ OBJECT_DECLARE_TYPE(VirtMachineState, VirtMachineClass, VIRT_MACHINE)
 void virt_acpi_setup(VirtMachineState *vms);
 bool virt_is_acpi_enabled(VirtMachineState *vms);
 
+/* Return number of redistributors that fit in the specified region */
+static uint32_t virt_redist_capacity(VirtMachineState *vms, int region)
+{
+    uint32_t redist_size;
+
+    if (vms->gic_version == VIRT_GIC_VERSION_3) {
+        redist_size = GICV3_REDIST_SIZE;
+    } else {
+        redist_size = GICV4_REDIST_SIZE;
+    }
+    return vms->memmap[region].size / redist_size;
+}
+
 /* Return the number of used redistributor regions  */
 static inline int virt_gicv3_redist_region_count(VirtMachineState *vms)
 {
-    uint32_t redist0_capacity =
-                vms->memmap[VIRT_GIC_REDIST].size / GICV3_REDIST_SIZE;
+    uint32_t redist0_capacity = virt_redist_capacity(vms, VIRT_GIC_REDIST);
 
-    assert(vms->gic_version == VIRT_GIC_VERSION_3);
+    assert(vms->gic_version != VIRT_GIC_VERSION_2);
 
     return (MACHINE(vms)->smp.cpus > redist0_capacity &&
             vms->highmem_redists) ? 2 : 1;

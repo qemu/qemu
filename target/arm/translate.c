@@ -180,6 +180,25 @@ typedef enum ISSInfo {
     ISSIs16Bit = (1 << 8),
 } ISSInfo;
 
+/*
+ * Store var into env + offset to a member with size bytes.
+ * Free var after use.
+ */
+void store_cpu_offset(TCGv_i32 var, int offset, int size)
+{
+    switch (size) {
+    case 1:
+        tcg_gen_st8_i32(var, cpu_env, offset);
+        break;
+    case 4:
+        tcg_gen_st_i32(var, cpu_env, offset);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    tcg_temp_free_i32(var);
+}
+
 /* Save the syndrome information for a Data Abort */
 static void disas_set_da_iss(DisasContext *s, MemOp memop, ISSInfo issinfo)
 {
@@ -330,6 +349,26 @@ void gen_set_cpsr(TCGv_i32 var, uint32_t mask)
     TCGv_i32 tmp_mask = tcg_const_i32(mask);
     gen_helper_cpsr_write(cpu_env, var, tmp_mask);
     tcg_temp_free_i32(tmp_mask);
+}
+
+static void gen_rebuild_hflags(DisasContext *s, bool new_el)
+{
+    bool m_profile = arm_dc_feature(s, ARM_FEATURE_M);
+
+    if (new_el) {
+        if (m_profile) {
+            gen_helper_rebuild_hflags_m32_newel(cpu_env);
+        } else {
+            gen_helper_rebuild_hflags_a32_newel(cpu_env);
+        }
+    } else {
+        TCGv_i32 tcg_el = tcg_constant_i32(s->current_el);
+        if (m_profile) {
+            gen_helper_rebuild_hflags_m32(cpu_env, tcg_el);
+        } else {
+            gen_helper_rebuild_hflags_a32(cpu_env, tcg_el);
+        }
+    }
 }
 
 static void gen_exception_internal(int excp)
@@ -513,16 +552,14 @@ static void gen_sbc_CC(TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 #define GEN_SHIFT(name)                                               \
 static void gen_##name(TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)       \
 {                                                                     \
-    TCGv_i32 tmp1, tmp2, tmp3;                                        \
-    tmp1 = tcg_temp_new_i32();                                        \
-    tcg_gen_andi_i32(tmp1, t1, 0xff);                                 \
-    tmp2 = tcg_const_i32(0);                                          \
-    tmp3 = tcg_const_i32(0x1f);                                       \
-    tcg_gen_movcond_i32(TCG_COND_GTU, tmp2, tmp1, tmp3, tmp2, t0);    \
-    tcg_temp_free_i32(tmp3);                                          \
-    tcg_gen_andi_i32(tmp1, tmp1, 0x1f);                               \
-    tcg_gen_##name##_i32(dest, tmp2, tmp1);                           \
-    tcg_temp_free_i32(tmp2);                                          \
+    TCGv_i32 tmpd = tcg_temp_new_i32();                               \
+    TCGv_i32 tmp1 = tcg_temp_new_i32();                               \
+    TCGv_i32 zero = tcg_constant_i32(0);                              \
+    tcg_gen_andi_i32(tmp1, t1, 0x1f);                                 \
+    tcg_gen_##name##_i32(tmpd, t0, tmp1);                             \
+    tcg_gen_andi_i32(tmp1, t1, 0xe0);                                 \
+    tcg_gen_movcond_i32(TCG_COND_NE, dest, tmp1, zero, zero, tmpd);   \
+    tcg_temp_free_i32(tmpd);                                          \
     tcg_temp_free_i32(tmp1);                                          \
 }
 GEN_SHIFT(shl)
@@ -531,12 +568,10 @@ GEN_SHIFT(shr)
 
 static void gen_sar(TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 {
-    TCGv_i32 tmp1, tmp2;
-    tmp1 = tcg_temp_new_i32();
+    TCGv_i32 tmp1 = tcg_temp_new_i32();
+
     tcg_gen_andi_i32(tmp1, t1, 0xff);
-    tmp2 = tcg_const_i32(0x1f);
-    tcg_gen_movcond_i32(TCG_COND_GTU, tmp1, tmp1, tmp2, tmp2, tmp1);
-    tcg_temp_free_i32(tmp2);
+    tcg_gen_umin_i32(tmp1, tmp1, tcg_constant_i32(31));
     tcg_gen_sar_i32(dest, t0, tmp1);
     tcg_temp_free_i32(tmp1);
 }
@@ -4852,7 +4887,7 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
                     tcg_temp_free_i32(tmp);
                 } else {
                     TCGv_i32 tmp = load_reg(s, rt);
-                    store_cpu_offset(tmp, ri->fieldoffset);
+                    store_cpu_offset(tmp, ri->fieldoffset, 4);
                 }
             }
         }
@@ -4866,17 +4901,7 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
              * A write to any coprocessor register that ends a TB
              * must rebuild the hflags for the next TB.
              */
-            TCGv_i32 tcg_el = tcg_const_i32(s->current_el);
-            if (arm_dc_feature(s, ARM_FEATURE_M)) {
-                gen_helper_rebuild_hflags_m32(cpu_env, tcg_el);
-            } else {
-                if (ri->type & ARM_CP_NEWEL) {
-                    gen_helper_rebuild_hflags_a32_newel(cpu_env);
-                } else {
-                    gen_helper_rebuild_hflags_a32(cpu_env, tcg_el);
-                }
-            }
-            tcg_temp_free_i32(tcg_el);
+            gen_rebuild_hflags(s, ri->type & ARM_CP_NEWEL);
             /*
              * We default to ending the TB on a coprocessor register write,
              * but allow this to be suppressed by the register definition
@@ -6426,7 +6451,7 @@ static bool trans_MSR_v7m(DisasContext *s, arg_MSR_v7m *a)
     tcg_temp_free_i32(addr);
     tcg_temp_free_i32(reg);
     /* If we wrote to CONTROL, the EL might have changed */
-    gen_helper_rebuild_hflags_m32_newel(cpu_env);
+    gen_rebuild_hflags(s, true);
     gen_lookup_tb(s);
     return true;
 }
@@ -8878,7 +8903,7 @@ static bool trans_CPS(DisasContext *s, arg_CPS *a)
 
 static bool trans_CPS_v7m(DisasContext *s, arg_CPS_v7m *a)
 {
-    TCGv_i32 tmp, addr, el;
+    TCGv_i32 tmp, addr;
 
     if (!arm_dc_feature(s, ARM_FEATURE_M)) {
         return false;
@@ -8901,9 +8926,7 @@ static bool trans_CPS_v7m(DisasContext *s, arg_CPS_v7m *a)
         gen_helper_v7m_msr(cpu_env, addr, tmp);
         tcg_temp_free_i32(addr);
     }
-    el = tcg_const_i32(s->current_el);
-    gen_helper_rebuild_hflags_m32(cpu_env, el);
-    tcg_temp_free_i32(el);
+    gen_rebuild_hflags(s, false);
     tcg_temp_free_i32(tmp);
     gen_lookup_tb(s);
     return true;
@@ -9334,7 +9357,7 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     dc->isar = &cpu->isar;
     dc->condjmp = 0;
 
-    dc->aarch64 = 0;
+    dc->aarch64 = false;
     /* If we are coming from secure EL0 in a system with a 32-bit EL3, then
      * there is no secure EL1, so we route exceptions to EL3.
      */
@@ -9847,18 +9870,14 @@ static void arm_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
             /* nothing more to generate */
             break;
         case DISAS_WFI:
-        {
-            TCGv_i32 tmp = tcg_const_i32((dc->thumb &&
-                                          !(dc->insn & (1U << 31))) ? 2 : 4);
-
-            gen_helper_wfi(cpu_env, tmp);
-            tcg_temp_free_i32(tmp);
-            /* The helper doesn't necessarily throw an exception, but we
+            gen_helper_wfi(cpu_env,
+                           tcg_constant_i32(dc->base.pc_next - dc->pc_curr));
+            /*
+             * The helper doesn't necessarily throw an exception, but we
              * must go back to the main loop to check for interrupts anyway.
              */
             tcg_gen_exit_tb(NULL, 0);
             break;
-        }
         case DISAS_WFE:
             gen_helper_wfe(cpu_env);
             break;

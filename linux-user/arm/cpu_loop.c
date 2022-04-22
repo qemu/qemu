@@ -230,7 +230,7 @@ do_kernel_trap(CPUARMState *env)
     /* Jump back to the caller.  */
     addr = env->regs[14];
     if (addr & 1) {
-        env->thumb = 1;
+        env->thumb = true;
         addr &= ~1;
     }
     env->regs[15] = addr;

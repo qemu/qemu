@@ -952,7 +952,7 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
     qemu_mutex_unlock_iothread();
 
     if (!return_to_aa64) {
-        env->aarch64 = 0;
+        env->aarch64 = false;
         /* We do a raw CPSR write because aarch64_sync_64_to_32()
          * will sort the register banks out for us, and we've already
          * caught all the bad-mode cases in el_from_spsr().
@@ -975,7 +975,7 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
     } else {
         int tbii;
 
-        env->aarch64 = 1;
+        env->aarch64 = true;
         spsr &= aarch64_pstate_valid_mask(&env_archcpu(env)->isar);
         pstate_write(env, spsr);
         if (!arm_singlestep_active(env)) {

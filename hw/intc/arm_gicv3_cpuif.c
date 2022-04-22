@@ -21,6 +21,12 @@
 #include "hw/irq.h"
 #include "cpu.h"
 
+/*
+ * Special case return value from hppvi_index(); must be larger than
+ * the architecturally maximum possible list register index (which is 15)
+ */
+#define HPPVI_INDEX_VLPI 16
+
 static GICv3CPUState *icc_cs_from_env(CPUARMState *env)
 {
     return env->gicv3state;
@@ -157,10 +163,18 @@ static int ich_highest_active_virt_prio(GICv3CPUState *cs)
 
 static int hppvi_index(GICv3CPUState *cs)
 {
-    /* Return the list register index of the highest priority pending
+    /*
+     * Return the list register index of the highest priority pending
      * virtual interrupt, as per the HighestPriorityVirtualInterrupt
      * pseudocode. If no pending virtual interrupts, return -1.
+     * If the highest priority pending virtual interrupt is a vLPI,
+     * return HPPVI_INDEX_VLPI.
+     * (The pseudocode handles checking whether the vLPI is higher
+     * priority than the highest priority list register at every
+     * callsite of HighestPriorityVirtualInterrupt; we check it here.)
      */
+    ARMCPU *cpu = ARM_CPU(cs->cpu);
+    CPUARMState *env = &cpu->env;
     int idx = -1;
     int i;
     /* Note that a list register entry with a priority of 0xff will
@@ -199,6 +213,23 @@ static int hppvi_index(GICv3CPUState *cs)
         if (thisprio < prio) {
             prio = thisprio;
             idx = i;
+        }
+    }
+
+    /*
+     * "no pending vLPI" is indicated with prio = 0xff, which always
+     * fails the priority check here. vLPIs are only considered
+     * when we are in Non-Secure state.
+     */
+    if (cs->hppvlpi.prio < prio && !arm_is_secure(env)) {
+        if (cs->hppvlpi.grp == GICV3_G0) {
+            if (cs->ich_vmcr_el2 & ICH_VMCR_EL2_VENG0) {
+                return HPPVI_INDEX_VLPI;
+            }
+        } else {
+            if (cs->ich_vmcr_el2 & ICH_VMCR_EL2_VENG1) {
+                return HPPVI_INDEX_VLPI;
+            }
         }
     }
 
@@ -289,6 +320,47 @@ static bool icv_hppi_can_preempt(GICv3CPUState *cs, uint64_t lr)
     return false;
 }
 
+static bool icv_hppvlpi_can_preempt(GICv3CPUState *cs)
+{
+    /*
+     * Return true if we can signal the highest priority pending vLPI.
+     * We can assume we're Non-secure because hppvi_index() already
+     * tested for that.
+     */
+    uint32_t mask, rprio, vpmr;
+
+    if (!(cs->ich_hcr_el2 & ICH_HCR_EL2_EN)) {
+        /* Virtual interface disabled */
+        return false;
+    }
+
+    vpmr = extract64(cs->ich_vmcr_el2, ICH_VMCR_EL2_VPMR_SHIFT,
+                     ICH_VMCR_EL2_VPMR_LENGTH);
+
+    if (cs->hppvlpi.prio >= vpmr) {
+        /* Priority mask masks this interrupt */
+        return false;
+    }
+
+    rprio = ich_highest_active_virt_prio(cs);
+    if (rprio == 0xff) {
+        /* No running interrupt so we can preempt */
+        return true;
+    }
+
+    mask = icv_gprio_mask(cs, cs->hppvlpi.grp);
+
+    /*
+     * We only preempt a running interrupt if the pending interrupt's
+     * group priority is sufficient (the subpriorities are not considered).
+     */
+    if ((cs->hppvlpi.prio & mask) < (rprio & mask)) {
+        return true;
+    }
+
+    return false;
+}
+
 static uint32_t eoi_maintenance_interrupt_state(GICv3CPUState *cs,
                                                 uint32_t *misr)
 {
@@ -370,9 +442,55 @@ static uint32_t maintenance_interrupt_state(GICv3CPUState *cs)
     return value;
 }
 
+void gicv3_cpuif_virt_irq_fiq_update(GICv3CPUState *cs)
+{
+    /*
+     * Tell the CPU about any pending virtual interrupts.
+     * This should only be called for changes that affect the
+     * vIRQ and vFIQ status and do not change the maintenance
+     * interrupt status. This means that unlike gicv3_cpuif_virt_update()
+     * this function won't recursively call back into the GIC code.
+     * The main use of this is when the redistributor has changed the
+     * highest priority pending virtual LPI.
+     */
+    int idx;
+    int irqlevel = 0;
+    int fiqlevel = 0;
+
+    idx = hppvi_index(cs);
+    trace_gicv3_cpuif_virt_update(gicv3_redist_affid(cs), idx,
+                                  cs->hppvlpi.irq, cs->hppvlpi.grp,
+                                  cs->hppvlpi.prio);
+    if (idx == HPPVI_INDEX_VLPI) {
+        if (icv_hppvlpi_can_preempt(cs)) {
+            if (cs->hppvlpi.grp == GICV3_G0) {
+                fiqlevel = 1;
+            } else {
+                irqlevel = 1;
+            }
+        }
+    } else if (idx >= 0) {
+        uint64_t lr = cs->ich_lr_el2[idx];
+
+        if (icv_hppi_can_preempt(cs, lr)) {
+            /* Virtual interrupts are simple: G0 are always FIQ, and G1 IRQ */
+            if (lr & ICH_LR_EL2_GROUP) {
+                irqlevel = 1;
+            } else {
+                fiqlevel = 1;
+            }
+        }
+    }
+
+    trace_gicv3_cpuif_virt_set_irqs(gicv3_redist_affid(cs), fiqlevel, irqlevel);
+    qemu_set_irq(cs->parent_vfiq, fiqlevel);
+    qemu_set_irq(cs->parent_virq, irqlevel);
+}
+
 static void gicv3_cpuif_virt_update(GICv3CPUState *cs)
 {
-    /* Tell the CPU about any pending virtual interrupts or
+    /*
+     * Tell the CPU about any pending virtual interrupts or
      * maintenance interrupts, following a change to the state
      * of the CPU interface relevant to virtual interrupts.
      *
@@ -389,37 +507,17 @@ static void gicv3_cpuif_virt_update(GICv3CPUState *cs)
      * naturally as a result of there being no architectural
      * linkage between the physical and virtual GIC logic.
      */
-    int idx;
-    int irqlevel = 0;
-    int fiqlevel = 0;
-    int maintlevel = 0;
     ARMCPU *cpu = ARM_CPU(cs->cpu);
+    int maintlevel = 0;
 
-    idx = hppvi_index(cs);
-    trace_gicv3_cpuif_virt_update(gicv3_redist_affid(cs), idx);
-    if (idx >= 0) {
-        uint64_t lr = cs->ich_lr_el2[idx];
-
-        if (icv_hppi_can_preempt(cs, lr)) {
-            /* Virtual interrupts are simple: G0 are always FIQ, and G1 IRQ */
-            if (lr & ICH_LR_EL2_GROUP) {
-                irqlevel = 1;
-            } else {
-                fiqlevel = 1;
-            }
-        }
-    }
+    gicv3_cpuif_virt_irq_fiq_update(cs);
 
     if ((cs->ich_hcr_el2 & ICH_HCR_EL2_EN) &&
         maintenance_interrupt_state(cs) != 0) {
         maintlevel = 1;
     }
 
-    trace_gicv3_cpuif_virt_set_irqs(gicv3_redist_affid(cs), fiqlevel,
-                                    irqlevel, maintlevel);
-
-    qemu_set_irq(cs->parent_vfiq, fiqlevel);
-    qemu_set_irq(cs->parent_virq, irqlevel);
+    trace_gicv3_cpuif_virt_set_maint_irq(gicv3_redist_affid(cs), maintlevel);
     qemu_set_irq(cpu->gicv3_maintenance_interrupt, maintlevel);
 }
 
@@ -445,7 +543,7 @@ static void icv_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     cs->ich_apr[grp][regno] = value & 0xFFFFFFFFU;
 
-    gicv3_cpuif_virt_update(cs);
+    gicv3_cpuif_virt_irq_fiq_update(cs);
     return;
 }
 
@@ -490,7 +588,7 @@ static void icv_bpr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     write_vbpr(cs, grp, value);
 
-    gicv3_cpuif_virt_update(cs);
+    gicv3_cpuif_virt_irq_fiq_update(cs);
 }
 
 static uint64_t icv_pmr_read(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -517,7 +615,7 @@ static void icv_pmr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     cs->ich_vmcr_el2 = deposit64(cs->ich_vmcr_el2, ICH_VMCR_EL2_VPMR_SHIFT,
                                  ICH_VMCR_EL2_VPMR_LENGTH, value);
 
-    gicv3_cpuif_virt_update(cs);
+    gicv3_cpuif_virt_irq_fiq_update(cs);
 }
 
 static uint64_t icv_igrpen_read(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -584,7 +682,7 @@ static void icv_ctlr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     cs->ich_vmcr_el2 = deposit64(cs->ich_vmcr_el2, ICH_VMCR_EL2_VEOIM_SHIFT,
                                  1, value & ICC_CTLR_EL1_EOIMODE ? 1 : 0);
 
-    gicv3_cpuif_virt_update(cs);
+    gicv3_cpuif_virt_irq_fiq_update(cs);
 }
 
 static uint64_t icv_rpr_read(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -603,7 +701,11 @@ static uint64_t icv_hppir_read(CPUARMState *env, const ARMCPRegInfo *ri)
     int idx = hppvi_index(cs);
     uint64_t value = INTID_SPURIOUS;
 
-    if (idx >= 0) {
+    if (idx == HPPVI_INDEX_VLPI) {
+        if (cs->hppvlpi.grp == grp) {
+            value = cs->hppvlpi.irq;
+        }
+    } else if (idx >= 0) {
         uint64_t lr = cs->ich_lr_el2[idx];
         int thisgrp = (lr & ICH_LR_EL2_GROUP) ? GICV3_G1NS : GICV3_G0;
 
@@ -634,6 +736,18 @@ static void icv_activate_irq(GICv3CPUState *cs, int idx, int grp)
     cs->ich_apr[grp][regno] |= (1 << regbit);
 }
 
+static void icv_activate_vlpi(GICv3CPUState *cs)
+{
+    uint32_t mask = icv_gprio_mask(cs, cs->hppvlpi.grp);
+    int prio = cs->hppvlpi.prio & mask;
+    int aprbit = prio >> (8 - cs->vprebits);
+    int regno = aprbit / 32;
+    int regbit = aprbit % 32;
+
+    cs->ich_apr[cs->hppvlpi.grp][regno] |= (1 << regbit);
+    gicv3_redist_vlpi_pending(cs, cs->hppvlpi.irq, 0);
+}
+
 static uint64_t icv_iar_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     GICv3CPUState *cs = icc_cs_from_env(env);
@@ -641,7 +755,12 @@ static uint64_t icv_iar_read(CPUARMState *env, const ARMCPRegInfo *ri)
     int idx = hppvi_index(cs);
     uint64_t intid = INTID_SPURIOUS;
 
-    if (idx >= 0) {
+    if (idx == HPPVI_INDEX_VLPI) {
+        if (cs->hppvlpi.grp == grp && icv_hppvlpi_can_preempt(cs)) {
+            intid = cs->hppvlpi.irq;
+            icv_activate_vlpi(cs);
+        }
+    } else if (idx >= 0) {
         uint64_t lr = cs->ich_lr_el2[idx];
         int thisgrp = (lr & ICH_LR_EL2_GROUP) ? GICV3_G1NS : GICV3_G0;
 
@@ -2333,7 +2452,7 @@ static void ich_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
     trace_gicv3_ich_ap_write(ri->crm & 1, regno, gicv3_redist_affid(cs), value);
 
     cs->ich_apr[grp][regno] = value & 0xFFFFFFFFU;
-    gicv3_cpuif_virt_update(cs);
+    gicv3_cpuif_virt_irq_fiq_update(cs);
 }
 
 static uint64_t ich_hcr_read(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -2459,10 +2578,14 @@ static uint64_t ich_vtr_read(CPUARMState *env, const ARMCPRegInfo *ri)
     uint64_t value;
 
     value = ((cs->num_list_regs - 1) << ICH_VTR_EL2_LISTREGS_SHIFT)
-        | ICH_VTR_EL2_TDS | ICH_VTR_EL2_NV4 | ICH_VTR_EL2_A3V
+        | ICH_VTR_EL2_TDS | ICH_VTR_EL2_A3V
         | (1 << ICH_VTR_EL2_IDBITS_SHIFT)
         | ((cs->vprebits - 1) << ICH_VTR_EL2_PREBITS_SHIFT)
         | ((cs->vpribits - 1) << ICH_VTR_EL2_PRIBITS_SHIFT);
+
+    if (cs->gic->revision < 4) {
+        value |= ICH_VTR_EL2_NV4;
+    }
 
     trace_gicv3_ich_vtr_read(gicv3_redist_affid(cs), value);
     return value;
@@ -2616,6 +2739,12 @@ static void gicv3_cpuif_el_change_hook(ARMCPU *cpu, void *opaque)
     GICv3CPUState *cs = opaque;
 
     gicv3_cpuif_update(cs);
+    /*
+     * Because vLPIs are only pending in NonSecure state,
+     * an EL change can change the VIRQ/VFIQ status (but
+     * cannot affect the maintenance interrupt state)
+     */
+    gicv3_cpuif_virt_irq_fiq_update(cs);
 }
 
 void gicv3_init_cpuif(GICv3State *s)
