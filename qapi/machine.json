@@ -972,7 +972,7 @@
 # preconfigure stage to configure numa mapping before initializing
 # machine.
 #
-# Since 3.0
+# Since: 3.0
 ##
 { 'command': 'set-numa-node', 'boxed': true,
   'data': 'NumaOptions',

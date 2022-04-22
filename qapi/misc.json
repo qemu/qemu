@@ -188,7 +188,7 @@
 # Features:
 # @unstable: This command is experimental.
 #
-# Since 3.0
+# Since: 3.0
 #
 # Returns: nothing
 #
