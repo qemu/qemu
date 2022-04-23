@@ -222,16 +222,6 @@ static void po_callback(void *opaque, int free);
 static void pi_callback(void *opaque, int avail);
 static void mc_callback(void *opaque, int avail);
 
-static void warm_reset(AC97LinkState *s)
-{
-    (void)s;
-}
-
-static void cold_reset(AC97LinkState *s)
-{
-    (void)s;
-}
-
 static void fetch_bd(AC97LinkState *s, AC97BusMasterRegs *r)
 {
     uint8_t b[8];
@@ -921,12 +911,7 @@ static void nabm_writel(void *opaque, uint32_t addr, uint32_t val)
         dolog("BDBAR[%d] <- 0x%x (bdbar 0x%x)\n", GET_BM(index), val, r->bdbar);
         break;
     case GLOB_CNT:
-        if (val & GC_WR) {
-            warm_reset(s);
-        }
-        if (val & GC_CR) {
-            cold_reset(s);
-        }
+        /* TODO: Handle WR or CR being set (warm/cold reset requests) */
         if (!(val & (GC_WR | GC_CR))) {
             s->glob_cnt = val & GC_VALID_MASK;
         }
