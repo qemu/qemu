@@ -178,3 +178,103 @@ static bool trans_sha256sum1(DisasContext *ctx, arg_sha256sum1 *a)
     REQUIRE_ZKNH(ctx);
     return gen_sha256(ctx, a, EXT_NONE, tcg_gen_rotri_i32, 6, 11, 25);
 }
+
+static bool gen_sha512_rv32(DisasContext *ctx, arg_r *a, DisasExtend ext,
+                            void (*func1)(TCGv_i64, TCGv_i64, int64_t),
+                            void (*func2)(TCGv_i64, TCGv_i64, int64_t),
+                            int64_t num1, int64_t num2, int64_t num3)
+{
+    TCGv dest = dest_gpr(ctx, a->rd);
+    TCGv src1 = get_gpr(ctx, a->rs1, ext);
+    TCGv src2 = get_gpr(ctx, a->rs2, ext);
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i64 t2 = tcg_temp_new_i64();
+
+    tcg_gen_concat_tl_i64(t0, src1, src2);
+    func1(t1, t0, num1);
+    func2(t2, t0, num2);
+    tcg_gen_xor_i64(t1, t1, t2);
+    tcg_gen_rotri_i64(t2, t0, num3);
+    tcg_gen_xor_i64(t1, t1, t2);
+    tcg_gen_trunc_i64_tl(dest, t1);
+
+    gen_set_gpr(ctx, a->rd, dest);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t2);
+    return true;
+}
+
+static bool trans_sha512sum0r(DisasContext *ctx, arg_sha512sum0r *a)
+{
+    REQUIRE_32BIT(ctx);
+    REQUIRE_ZKNH(ctx);
+    return gen_sha512_rv32(ctx, a, EXT_NONE, tcg_gen_rotli_i64,
+                           tcg_gen_rotli_i64, 25, 30, 28);
+}
+
+static bool trans_sha512sum1r(DisasContext *ctx, arg_sha512sum1r *a)
+{
+    REQUIRE_32BIT(ctx);
+    REQUIRE_ZKNH(ctx);
+    return gen_sha512_rv32(ctx, a, EXT_NONE, tcg_gen_rotli_i64,
+                           tcg_gen_rotri_i64, 23, 14, 18);
+}
+
+static bool trans_sha512sig0l(DisasContext *ctx, arg_sha512sig0l *a)
+{
+    REQUIRE_32BIT(ctx);
+    REQUIRE_ZKNH(ctx);
+    return gen_sha512_rv32(ctx, a, EXT_NONE, tcg_gen_rotri_i64,
+                           tcg_gen_rotri_i64, 1, 7, 8);
+}
+
+static bool trans_sha512sig1l(DisasContext *ctx, arg_sha512sig1l *a)
+{
+    REQUIRE_32BIT(ctx);
+    REQUIRE_ZKNH(ctx);
+    return gen_sha512_rv32(ctx, a, EXT_NONE, tcg_gen_rotli_i64,
+                           tcg_gen_rotri_i64, 3, 6, 19);
+}
+
+static bool gen_sha512h_rv32(DisasContext *ctx, arg_r *a, DisasExtend ext,
+                             void (*func)(TCGv_i64, TCGv_i64, int64_t),
+                             int64_t num1, int64_t num2, int64_t num3)
+{
+    TCGv dest = dest_gpr(ctx, a->rd);
+    TCGv src1 = get_gpr(ctx, a->rs1, ext);
+    TCGv src2 = get_gpr(ctx, a->rs2, ext);
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i64 t2 = tcg_temp_new_i64();
+
+    tcg_gen_concat_tl_i64(t0, src1, src2);
+    func(t1, t0, num1);
+    tcg_gen_ext32u_i64(t2, t0);
+    tcg_gen_shri_i64(t2, t2, num2);
+    tcg_gen_xor_i64(t1, t1, t2);
+    tcg_gen_rotri_i64(t2, t0, num3);
+    tcg_gen_xor_i64(t1, t1, t2);
+    tcg_gen_trunc_i64_tl(dest, t1);
+
+    gen_set_gpr(ctx, a->rd, dest);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t2);
+    return true;
+}
+
+static bool trans_sha512sig0h(DisasContext *ctx, arg_sha512sig0h *a)
+{
+    REQUIRE_32BIT(ctx);
+    REQUIRE_ZKNH(ctx);
+    return gen_sha512h_rv32(ctx, a, EXT_NONE, tcg_gen_rotri_i64, 1, 7, 8);
+}
+
+static bool trans_sha512sig1h(DisasContext *ctx, arg_sha512sig1h *a)
+{
+    REQUIRE_32BIT(ctx);
+    REQUIRE_ZKNH(ctx);
+    return gen_sha512h_rv32(ctx, a, EXT_NONE, tcg_gen_rotli_i64, 3, 6, 19);
+}
