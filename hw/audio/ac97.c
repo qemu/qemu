@@ -557,9 +557,8 @@ static uint32_t nam_readb(void *opaque, uint32_t addr)
 static uint32_t nam_readw(void *opaque, uint32_t addr)
 {
     AC97LinkState *s = opaque;
-    uint32_t index = addr;
     s->cas = 0;
-    return mixer_load(s, index);
+    return mixer_load(s, addr);
 }
 
 static uint32_t nam_readl(void *opaque, uint32_t addr)
@@ -584,21 +583,21 @@ static void nam_writeb(void *opaque, uint32_t addr, uint32_t val)
 static void nam_writew(void *opaque, uint32_t addr, uint32_t val)
 {
     AC97LinkState *s = opaque;
-    uint32_t index = addr;
+
     s->cas = 0;
-    switch (index) {
+    switch (addr) {
     case AC97_Reset:
         mixer_reset(s);
         break;
     case AC97_Powerdown_Ctrl_Stat:
         val &= ~0x800f;
-        val |= mixer_load(s, index) & 0xf;
-        mixer_store(s, index, val);
+        val |= mixer_load(s, addr) & 0xf;
+        mixer_store(s, addr, val);
         break;
     case AC97_PCM_Out_Volume_Mute:
     case AC97_Master_Volume_Mute:
     case AC97_Record_Gain_Mute:
-        set_volume(s, index, val);
+        set_volume(s, addr, val);
         break;
     case AC97_Record_Select:
         record_select(s, val);
@@ -626,7 +625,7 @@ static void nam_writew(void *opaque, uint32_t addr, uint32_t val)
         break;
     case AC97_PCM_Front_DAC_Rate:
         if (mixer_load(s, AC97_Extended_Audio_Ctrl_Stat) & EACS_VRA) {
-            mixer_store(s, index, val);
+            mixer_store(s, addr, val);
             dolog("Set front DAC rate to %d\n", val);
             open_voice(s, PO_INDEX, val);
         } else {
@@ -636,7 +635,7 @@ static void nam_writew(void *opaque, uint32_t addr, uint32_t val)
         break;
     case AC97_MIC_ADC_Rate:
         if (mixer_load(s, AC97_Extended_Audio_Ctrl_Stat) & EACS_VRM) {
-            mixer_store(s, index, val);
+            mixer_store(s, addr, val);
             dolog("Set MIC ADC rate to %d\n", val);
             open_voice(s, MC_INDEX, val);
         } else {
@@ -646,7 +645,7 @@ static void nam_writew(void *opaque, uint32_t addr, uint32_t val)
         break;
     case AC97_PCM_LR_ADC_Rate:
         if (mixer_load(s, AC97_Extended_Audio_Ctrl_Stat) & EACS_VRA) {
-            mixer_store(s, index, val);
+            mixer_store(s, addr, val);
             dolog("Set front LR ADC rate to %d\n", val);
             open_voice(s, PI_INDEX, val);
         } else {
@@ -673,7 +672,7 @@ static void nam_writew(void *opaque, uint32_t addr, uint32_t val)
         break;
     default:
         dolog("U nam writew 0x%x <- 0x%x\n", addr, val);
-        mixer_store(s, index, val);
+        mixer_store(s, addr, val);
         break;
     }
 }
@@ -693,10 +692,9 @@ static uint32_t nabm_readb(void *opaque, uint32_t addr)
 {
     AC97LinkState *s = opaque;
     AC97BusMasterRegs *r = NULL;
-    uint32_t index = addr;
     uint32_t val = ~0U;
 
-    switch (index) {
+    switch (addr) {
     case CAS:
         dolog("CAS %d\n", s->cas);
         val = s->cas;
@@ -705,37 +703,37 @@ static uint32_t nabm_readb(void *opaque, uint32_t addr)
     case PI_CIV:
     case PO_CIV:
     case MC_CIV:
-        r = &s->bm_regs[GET_BM(index)];
+        r = &s->bm_regs[GET_BM(addr)];
         val = r->civ;
-        dolog("CIV[%d] -> 0x%x\n", GET_BM(index), val);
+        dolog("CIV[%d] -> 0x%x\n", GET_BM(addr), val);
         break;
     case PI_LVI:
     case PO_LVI:
     case MC_LVI:
-        r = &s->bm_regs[GET_BM(index)];
+        r = &s->bm_regs[GET_BM(addr)];
         val = r->lvi;
-        dolog("LVI[%d] -> 0x%x\n", GET_BM(index), val);
+        dolog("LVI[%d] -> 0x%x\n", GET_BM(addr), val);
         break;
     case PI_PIV:
     case PO_PIV:
     case MC_PIV:
-        r = &s->bm_regs[GET_BM(index)];
+        r = &s->bm_regs[GET_BM(addr)];
         val = r->piv;
-        dolog("PIV[%d] -> 0x%x\n", GET_BM(index), val);
+        dolog("PIV[%d] -> 0x%x\n", GET_BM(addr), val);
         break;
     case PI_CR:
     case PO_CR:
     case MC_CR:
-        r = &s->bm_regs[GET_BM(index)];
+        r = &s->bm_regs[GET_BM(addr)];
         val = r->cr;
-        dolog("CR[%d] -> 0x%x\n", GET_BM(index), val);
+        dolog("CR[%d] -> 0x%x\n", GET_BM(addr), val);
         break;
     case PI_SR:
     case PO_SR:
     case MC_SR:
-        r = &s->bm_regs[GET_BM(index)];
+        r = &s->bm_regs[GET_BM(addr)];
         val = r->sr & 0xff;
-        dolog("SRb[%d] -> 0x%x\n", GET_BM(index), val);
+        dolog("SRb[%d] -> 0x%x\n", GET_BM(addr), val);
         break;
     default:
         dolog("U nabm readb 0x%x -> 0x%x\n", addr, val);
@@ -748,23 +746,22 @@ static uint32_t nabm_readw(void *opaque, uint32_t addr)
 {
     AC97LinkState *s = opaque;
     AC97BusMasterRegs *r = NULL;
-    uint32_t index = addr;
     uint32_t val = ~0U;
 
-    switch (index) {
+    switch (addr) {
     case PI_SR:
     case PO_SR:
     case MC_SR:
-        r = &s->bm_regs[GET_BM(index)];
+        r = &s->bm_regs[GET_BM(addr)];
         val = r->sr;
-        dolog("SR[%d] -> 0x%x\n", GET_BM(index), val);
+        dolog("SR[%d] -> 0x%x\n", GET_BM(addr), val);
         break;
     case PI_PICB:
     case PO_PICB:
     case MC_PICB:
-        r = &s->bm_regs[GET_BM(index)];
+        r = &s->bm_regs[GET_BM(addr)];
         val = r->picb;
-        dolog("PICB[%d] -> 0x%x\n", GET_BM(index), val);
+        dolog("PICB[%d] -> 0x%x\n", GET_BM(addr), val);
         break;
     default:
         dolog("U nabm readw 0x%x -> 0x%x\n", addr, val);
@@ -777,31 +774,30 @@ static uint32_t nabm_readl(void *opaque, uint32_t addr)
 {
     AC97LinkState *s = opaque;
     AC97BusMasterRegs *r = NULL;
-    uint32_t index = addr;
     uint32_t val = ~0U;
 
-    switch (index) {
+    switch (addr) {
     case PI_BDBAR:
     case PO_BDBAR:
     case MC_BDBAR:
-        r = &s->bm_regs[GET_BM(index)];
+        r = &s->bm_regs[GET_BM(addr)];
         val = r->bdbar;
-        dolog("BMADDR[%d] -> 0x%x\n", GET_BM(index), val);
+        dolog("BMADDR[%d] -> 0x%x\n", GET_BM(addr), val);
         break;
     case PI_CIV:
     case PO_CIV:
     case MC_CIV:
-        r = &s->bm_regs[GET_BM(index)];
+        r = &s->bm_regs[GET_BM(addr)];
         val = r->civ | (r->lvi << 8) | (r->sr << 16);
-        dolog("CIV LVI SR[%d] -> 0x%x, 0x%x, 0x%x\n", GET_BM(index),
+        dolog("CIV LVI SR[%d] -> 0x%x, 0x%x, 0x%x\n", GET_BM(addr),
                r->civ, r->lvi, r->sr);
         break;
     case PI_PICB:
     case PO_PICB:
     case MC_PICB:
-        r = &s->bm_regs[GET_BM(index)];
+        r = &s->bm_regs[GET_BM(addr)];
         val = r->picb | (r->piv << 16) | (r->cr << 24);
-        dolog("PICB PIV CR[%d] -> 0x%x 0x%x 0x%x 0x%x\n", GET_BM(index),
+        dolog("PICB PIV CR[%d] -> 0x%x 0x%x 0x%x 0x%x\n", GET_BM(addr),
                val, r->picb, r->piv, r->cr);
         break;
     case GLOB_CNT:
@@ -827,12 +823,12 @@ static void nabm_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
     AC97LinkState *s = opaque;
     AC97BusMasterRegs *r = NULL;
-    uint32_t index = addr;
-    switch (index) {
+
+    switch (addr) {
     case PI_LVI:
     case PO_LVI:
     case MC_LVI:
-        r = &s->bm_regs[GET_BM(index)];
+        r = &s->bm_regs[GET_BM(addr)];
         if ((r->cr & CR_RPBM) && (r->sr & SR_DCH)) {
             r->sr &= ~(SR_DCH | SR_CELV);
             r->civ = r->piv;
@@ -840,12 +836,12 @@ static void nabm_writeb(void *opaque, uint32_t addr, uint32_t val)
             fetch_bd(s, r);
         }
         r->lvi = val % 32;
-        dolog("LVI[%d] <- 0x%x\n", GET_BM(index), val);
+        dolog("LVI[%d] <- 0x%x\n", GET_BM(addr), val);
         break;
     case PI_CR:
     case PO_CR:
     case MC_CR:
-        r = &s->bm_regs[GET_BM(index)];
+        r = &s->bm_regs[GET_BM(addr)];
         if (val & CR_RR) {
             reset_bm_regs(s, r);
         } else {
@@ -861,15 +857,15 @@ static void nabm_writeb(void *opaque, uint32_t addr, uint32_t val)
                 voice_set_active(s, r - s->bm_regs, 1);
             }
         }
-        dolog("CR[%d] <- 0x%x (cr 0x%x)\n", GET_BM(index), val, r->cr);
+        dolog("CR[%d] <- 0x%x (cr 0x%x)\n", GET_BM(addr), val, r->cr);
         break;
     case PI_SR:
     case PO_SR:
     case MC_SR:
-        r = &s->bm_regs[GET_BM(index)];
+        r = &s->bm_regs[GET_BM(addr)];
         r->sr |= val & ~(SR_RO_MASK | SR_WCLEAR_MASK);
         update_sr(s, r, r->sr & ~(val & SR_WCLEAR_MASK));
-        dolog("SR[%d] <- 0x%x (sr 0x%x)\n", GET_BM(index), val, r->sr);
+        dolog("SR[%d] <- 0x%x (sr 0x%x)\n", GET_BM(addr), val, r->sr);
         break;
     default:
         dolog("U nabm writeb 0x%x <- 0x%x\n", addr, val);
@@ -881,15 +877,15 @@ static void nabm_writew(void *opaque, uint32_t addr, uint32_t val)
 {
     AC97LinkState *s = opaque;
     AC97BusMasterRegs *r = NULL;
-    uint32_t index = addr;
-    switch (index) {
+
+    switch (addr) {
     case PI_SR:
     case PO_SR:
     case MC_SR:
-        r = &s->bm_regs[GET_BM(index)];
+        r = &s->bm_regs[GET_BM(addr)];
         r->sr |= val & ~(SR_RO_MASK | SR_WCLEAR_MASK);
         update_sr(s, r, r->sr & ~(val & SR_WCLEAR_MASK));
-        dolog("SR[%d] <- 0x%x (sr 0x%x)\n", GET_BM(index), val, r->sr);
+        dolog("SR[%d] <- 0x%x (sr 0x%x)\n", GET_BM(addr), val, r->sr);
         break;
     default:
         dolog("U nabm writew 0x%x <- 0x%x\n", addr, val);
@@ -901,14 +897,14 @@ static void nabm_writel(void *opaque, uint32_t addr, uint32_t val)
 {
     AC97LinkState *s = opaque;
     AC97BusMasterRegs *r = NULL;
-    uint32_t index = addr;
-    switch (index) {
+
+    switch (addr) {
     case PI_BDBAR:
     case PO_BDBAR:
     case MC_BDBAR:
-        r = &s->bm_regs[GET_BM(index)];
+        r = &s->bm_regs[GET_BM(addr)];
         r->bdbar = val & ~3;
-        dolog("BDBAR[%d] <- 0x%x (bdbar 0x%x)\n", GET_BM(index), val, r->bdbar);
+        dolog("BDBAR[%d] <- 0x%x (bdbar 0x%x)\n", GET_BM(addr), val, r->bdbar);
         break;
     case GLOB_CNT:
         /* TODO: Handle WR or CR being set (warm/cold reset requests) */
