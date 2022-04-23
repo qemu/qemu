@@ -69,3 +69,57 @@ static bool trans_aes32dsi(DisasContext *ctx, arg_aes32dsi *a)
     REQUIRE_ZKND(ctx);
     return gen_aes32_sm4(ctx, a, gen_helper_aes32dsi);
 }
+
+static bool trans_aes64es(DisasContext *ctx, arg_aes64es *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_ZKNE(ctx);
+    return gen_arith(ctx, a, EXT_NONE, gen_helper_aes64es, NULL);
+}
+
+static bool trans_aes64esm(DisasContext *ctx, arg_aes64esm *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_ZKNE(ctx);
+    return gen_arith(ctx, a, EXT_NONE, gen_helper_aes64esm, NULL);
+}
+
+static bool trans_aes64ds(DisasContext *ctx, arg_aes64ds *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_ZKND(ctx);
+    return gen_arith(ctx, a, EXT_NONE, gen_helper_aes64ds, NULL);
+}
+
+static bool trans_aes64dsm(DisasContext *ctx, arg_aes64dsm *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_ZKND(ctx);
+    return gen_arith(ctx, a, EXT_NONE, gen_helper_aes64dsm, NULL);
+}
+
+static bool trans_aes64ks2(DisasContext *ctx, arg_aes64ks2 *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_EITHER_EXT(ctx, zknd, zkne);
+    return gen_arith(ctx, a, EXT_NONE, gen_helper_aes64ks2, NULL);
+}
+
+static bool trans_aes64ks1i(DisasContext *ctx, arg_aes64ks1i *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_EITHER_EXT(ctx, zknd, zkne);
+
+    if (a->imm > 0xA) {
+        return false;
+    }
+
+    return gen_arith_imm_tl(ctx, a, EXT_NONE, gen_helper_aes64ks1i, NULL);
+}
+
+static bool trans_aes64im(DisasContext *ctx, arg_aes64im *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_ZKND(ctx);
+    return gen_unary(ctx, a, EXT_NONE, gen_helper_aes64im);
+}
