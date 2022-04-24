@@ -22,7 +22,6 @@
 
 #if SHIFT == 0
 #define Reg MMXReg
-#define SIZE 8
 #define XMM_ONLY(...)
 #define B(n) MMX_B(n)
 #define W(n) MMX_W(n)
@@ -31,7 +30,6 @@
 #define SUFFIX _mmx
 #else
 #define Reg ZMMReg
-#define SIZE 16
 #define XMM_ONLY(...) __VA_ARGS__
 #define B(n) ZMM_B(n)
 #define W(n) ZMM_W(n)
@@ -42,22 +40,6 @@
 
 #define LANE_WIDTH (SHIFT ? 16 : 8)
 #define PACK_WIDTH (LANE_WIDTH / 2)
-
-/*
- * Copy the relevant parts of a Reg value around. In the case where
- * sizeof(Reg) > SIZE, these helpers operate only on the lower bytes of
- * a 64 byte ZMMReg, so we must copy only those and keep the top bytes
- * untouched in the guest-visible destination destination register.
- * Note that the "lower bytes" are placed last in memory on big-endian
- * hosts, which store the vector backwards in memory.  In that case the
- * copy *starts* at B(SIZE - 1) and ends at B(0), the opposite of
- * the little-endian case.
- */
-#if HOST_BIG_ENDIAN
-#define MOVE(d, r) memcpy(&((d).B(SIZE - 1)), &(r).B(SIZE - 1), SIZE)
-#else
-#define MOVE(d, r) memcpy(&(d).B(0), &(r).B(0), SIZE)
-#endif
 
 #if SHIFT == 0
 #define FPSRL(x, c) ((x) >> shift)
@@ -945,45 +927,49 @@ void helper_insertq_i(CPUX86State *env, ZMMReg *d, int index, int length)
     d->ZMM_Q(0) = helper_insertq(d->ZMM_Q(0), index, length);
 }
 
-void glue(helper_haddps, SUFFIX)(CPUX86State *env, ZMMReg *d, ZMMReg *s)
-{
-    ZMMReg r;
-
-    r.ZMM_S(0) = float32_add(d->ZMM_S(0), d->ZMM_S(1), &env->sse_status);
-    r.ZMM_S(1) = float32_add(d->ZMM_S(2), d->ZMM_S(3), &env->sse_status);
-    r.ZMM_S(2) = float32_add(s->ZMM_S(0), s->ZMM_S(1), &env->sse_status);
-    r.ZMM_S(3) = float32_add(s->ZMM_S(2), s->ZMM_S(3), &env->sse_status);
-    MOVE(*d, r);
+#define SSE_HELPER_HPS(name, F)  \
+void glue(helper_ ## name, SUFFIX)(CPUX86State *env, Reg *d, Reg *s) \
+{                                                                 \
+    Reg *v = d;                                                   \
+    float32 r[2 << SHIFT];                                        \
+    int i, j, k;                                                  \
+    for (k = 0; k < 2 << SHIFT; k += LANE_WIDTH / 4) {            \
+        for (i = j = 0; j < 4; i++, j += 2) {                     \
+            r[i + k] = F(v->ZMM_S(j + k), v->ZMM_S(j + k + 1), &env->sse_status); \
+        }                                                         \
+        for (j = 0; j < 4; i++, j += 2) {                         \
+            r[i + k] = F(s->ZMM_S(j + k), s->ZMM_S(j + k + 1), &env->sse_status); \
+        }                                                         \
+    }                                                             \
+    for (i = 0; i < 2 << SHIFT; i++) {                            \
+        d->ZMM_S(i) = r[i];                                       \
+    }                                                             \
 }
 
-void glue(helper_haddpd, SUFFIX)(CPUX86State *env, ZMMReg *d, ZMMReg *s)
-{
-    ZMMReg r;
+SSE_HELPER_HPS(haddps, float32_add)
+SSE_HELPER_HPS(hsubps, float32_sub)
 
-    r.ZMM_D(0) = float64_add(d->ZMM_D(0), d->ZMM_D(1), &env->sse_status);
-    r.ZMM_D(1) = float64_add(s->ZMM_D(0), s->ZMM_D(1), &env->sse_status);
-    MOVE(*d, r);
+#define SSE_HELPER_HPD(name, F)  \
+void glue(helper_ ## name, SUFFIX)(CPUX86State *env, Reg *d, Reg *s) \
+{                                                                 \
+    Reg *v = d;                                                   \
+    float64 r[1 << SHIFT];                                        \
+    int i, j, k;                                                  \
+    for (k = 0; k < 1 << SHIFT; k += LANE_WIDTH / 8) {            \
+        for (i = j = 0; j < 2; i++, j += 2) {                     \
+            r[i + k] = F(v->ZMM_D(j + k), v->ZMM_D(j + k + 1), &env->sse_status); \
+        }                                                         \
+        for (j = 0; j < 2; i++, j += 2) {                         \
+            r[i + k] = F(s->ZMM_D(j + k), s->ZMM_D(j + k + 1), &env->sse_status); \
+        }                                                         \
+    }                                                             \
+    for (i = 0; i < 1 << SHIFT; i++) {                            \
+        d->ZMM_D(i) = r[i];                                       \
+    }                                                             \
 }
 
-void glue(helper_hsubps, SUFFIX)(CPUX86State *env, ZMMReg *d, ZMMReg *s)
-{
-    ZMMReg r;
-
-    r.ZMM_S(0) = float32_sub(d->ZMM_S(0), d->ZMM_S(1), &env->sse_status);
-    r.ZMM_S(1) = float32_sub(d->ZMM_S(2), d->ZMM_S(3), &env->sse_status);
-    r.ZMM_S(2) = float32_sub(s->ZMM_S(0), s->ZMM_S(1), &env->sse_status);
-    r.ZMM_S(3) = float32_sub(s->ZMM_S(2), s->ZMM_S(3), &env->sse_status);
-    MOVE(*d, r);
-}
-
-void glue(helper_hsubpd, SUFFIX)(CPUX86State *env, ZMMReg *d, ZMMReg *s)
-{
-    ZMMReg r;
-
-    r.ZMM_D(0) = float64_sub(d->ZMM_D(0), d->ZMM_D(1), &env->sse_status);
-    r.ZMM_D(1) = float64_sub(s->ZMM_D(0), s->ZMM_D(1), &env->sse_status);
-    MOVE(*d, r);
-}
+SSE_HELPER_HPD(haddpd, float64_add)
+SSE_HELPER_HPD(hsubpd, float64_sub)
 
 void glue(helper_addsubps, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
 {
@@ -2331,4 +2317,3 @@ void glue(helper_aeskeygenassist, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
 #undef L
 #undef Q
 #undef SUFFIX
-#undef SIZE
