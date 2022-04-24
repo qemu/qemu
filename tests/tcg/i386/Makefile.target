@@ -7,8 +7,8 @@ VPATH 		+= $(I386_SRC)
 
 I386_SRCS=$(notdir $(wildcard $(I386_SRC)/*.c))
 ALL_X86_TESTS=$(I386_SRCS:.c=)
-SKIP_I386_TESTS=test-i386-ssse3
-X86_64_TESTS:=$(filter test-i386-bmi2 test-i386-ssse3, $(ALL_X86_TESTS))
+SKIP_I386_TESTS=test-i386-ssse3 test-avx
+X86_64_TESTS:=$(filter test-i386-bmi2 test-i386-ssse3 test-avx, $(ALL_X86_TESTS))
 
 test-i386-sse-exceptions: CFLAGS += -msse4.1 -mfpmath=sse
 run-test-i386-sse-exceptions: QEMU_OPTS += -cpu max
@@ -81,3 +81,10 @@ run-sha512-sse: QEMU_OPTS+=-cpu max
 run-plugin-sha512-sse-with-%: QEMU_OPTS+=-cpu max
 
 TESTS+=sha512-sse
+
+CLEANFILES += test-avx.h
+test-avx.h: test-avx.py x86.csv
+	$(PYTHON) $(I386_SRC)/test-avx.py $(I386_SRC)/x86.csv $@
+
+test-avx: CFLAGS += -masm=intel -O -I.
+test-avx: test-avx.h

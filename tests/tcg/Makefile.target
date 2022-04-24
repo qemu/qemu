@@ -188,4 +188,4 @@ gdb-%: %
 run: $(RUN_TESTS)
 
 clean:
-	rm -f $(TESTS) *.o
+	rm -f $(TESTS) *.o $(CLEANFILES)

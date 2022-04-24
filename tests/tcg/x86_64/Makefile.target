@@ -16,6 +16,7 @@ TESTS=$(MULTIARCH_TESTS)
 endif
 
 run-test-i386-ssse3: QEMU_OPTS += -cpu max
+run-test-avx: QEMU_OPTS += -cpu max
 run-plugin-test-i386-ssse3-%: QEMU_OPTS += -cpu max
 
 test-x86_64: LDFLAGS+=-lm -lc
