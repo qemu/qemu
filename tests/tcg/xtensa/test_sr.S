@@ -221,6 +221,8 @@ test_sr_mask /*scompare1*/12, 0, 0
 
 #if XCHAL_HAVE_VECBASE
 test_sr vecbase, 1
+movi	a2, XCHAL_VECBASE_RESET_VADDR
+wsr	a2, vecbase
 #else
 test_sr_mask /*vecbase*/231, 0, 0
 #endif
