@@ -111,6 +111,11 @@ Options
     label. Server will try to set that label on newly created file
     atomically wherever possible.
 
+  * killpriv_v2|no_killpriv_v2 -
+    Enable/disable ``FUSE_HANDLE_KILLPRIV_V2`` support. KILLPRIV_V2 is enabled
+    by default as long as the client supports it. Enabling this option helps
+    with performance in write path.
+
 .. option:: --socket-path=PATH
 
   Listen on vhost-user UNIX domain socket at PATH.
