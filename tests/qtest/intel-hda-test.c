@@ -11,20 +11,24 @@
 #include "libqtest-single.h"
 
 #define HDA_ID "hda0"
-#define CODEC_DEVICES " -device hda-output,bus=" HDA_ID ".0" \
-                      " -device hda-micro,bus=" HDA_ID ".0" \
-                      " -device hda-duplex,bus=" HDA_ID ".0"
+#define AUDIODEV " -audiodev driver=none,id=audio0 "
+#define AUDIODEV_REF "audiodev=audio0"
+#define CODEC_DEVICES " -device hda-output,bus=" HDA_ID ".0," AUDIODEV_REF \
+                      " -device hda-micro,bus=" HDA_ID ".0," AUDIODEV_REF \
+                      " -device hda-duplex,bus=" HDA_ID ".0," AUDIODEV_REF
 
 /* Tests only initialization so far. TODO: Replace with functional tests */
 static void ich6_test(void)
 {
-    qtest_start("-machine pc -device intel-hda,id=" HDA_ID CODEC_DEVICES);
+    qtest_start(AUDIODEV "-machine pc -device intel-hda,id=" HDA_ID CODEC_DEVICES);
     qtest_end();
 }
 
 static void ich9_test(void)
 {
-    qtest_start("-machine q35 -device ich9-intel-hda,bus=pcie.0,addr=1b.0,id="
+    qtest_start("-machine q35"
+                AUDIODEV
+                "-device ich9-intel-hda,bus=pcie.0,addr=1b.0,id="
                 HDA_ID CODEC_DEVICES);
     qtest_end();
 }
@@ -39,6 +43,7 @@ static void test_issue542_ich6(void)
     QTestState *s;
 
     s = qtest_init("-nographic -nodefaults -M pc-q35-6.2 "
+                   AUDIODEV
                    "-device intel-hda,id=" HDA_ID CODEC_DEVICES);
 
     qtest_outl(s, 0xcf8, 0x80000804);
