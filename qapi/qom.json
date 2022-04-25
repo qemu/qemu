@@ -500,6 +500,20 @@
             '*grab-toggle': 'GrabToggleKeys' } }
 
 ##
+# @EventLoopBaseProperties:
+#
+# Common properties for event loops
+#
+# @aio-max-batch: maximum number of requests in a batch for the AIO engine,
+#                 0 means that the engine will use its default.
+#                 (default: 0)
+#
+# Since: 7.1
+##
+{ 'struct': 'EventLoopBaseProperties',
+  'data': { '*aio-max-batch': 'int' } }
+
+##
 # @IothreadProperties:
 #
 # Properties for iothread objects.
@@ -516,17 +530,15 @@
 #               algorithm detects it is spending too long polling without
 #               encountering events. 0 selects a default behaviour (default: 0)
 #
-# @aio-max-batch: maximum number of requests in a batch for the AIO engine,
-#                 0 means that the engine will use its default
-#                 (default:0, since 6.1)
+# The @aio-max-batch option is available since 6.1.
 #
 # Since: 2.0
 ##
 { 'struct': 'IothreadProperties',
+  'base': 'EventLoopBaseProperties',
   'data': { '*poll-max-ns': 'int',
             '*poll-grow': 'int',
-            '*poll-shrink': 'int',
-            '*aio-max-batch': 'int' } }
+            '*poll-shrink': 'int' } }
 
 ##
 # @MemoryBackendProperties:
