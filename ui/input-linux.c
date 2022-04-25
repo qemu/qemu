@@ -316,7 +316,10 @@ static void input_linux_complete(UserCreatable *uc, Error **errp)
         error_setg_file_open(errp, errno, il->evdev);
         return;
     }
-    qemu_set_nonblock(il->fd);
+    if (!g_unix_set_fd_nonblocking(il->fd, true, NULL)) {
+        error_setg_errno(errp, errno, "Failed to set FD nonblocking");
+        return;
+    }
 
     rc = ioctl(il->fd, EVIOCGVERSION, &ver);
     if (rc < 0) {
