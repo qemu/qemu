@@ -508,10 +508,18 @@
 #                 0 means that the engine will use its default.
 #                 (default: 0)
 #
+# @thread-pool-min: minimum number of threads reserved in the thread pool
+#                   (default:0)
+#
+# @thread-pool-max: maximum number of threads the thread pool can contain
+#                   (default:64)
+#
 # Since: 7.1
 ##
 { 'struct': 'EventLoopBaseProperties',
-  'data': { '*aio-max-batch': 'int' } }
+  'data': { '*aio-max-batch': 'int',
+            '*thread-pool-min': 'int',
+            '*thread-pool-max': 'int' } }
 
 ##
 # @IothreadProperties:

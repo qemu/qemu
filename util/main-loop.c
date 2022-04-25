@@ -30,6 +30,7 @@
 #include "sysemu/replay.h"
 #include "qemu/main-loop.h"
 #include "block/aio.h"
+#include "block/thread-pool.h"
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "qemu/compiler.h"
@@ -187,12 +188,20 @@ int qemu_init_main_loop(Error **errp)
 
 static void main_loop_update_params(EventLoopBase *base, Error **errp)
 {
+    ERRP_GUARD();
+
     if (!qemu_aio_context) {
         error_setg(errp, "qemu aio context not ready");
         return;
     }
 
     aio_context_set_aio_params(qemu_aio_context, base->aio_max_batch, errp);
+    if (*errp) {
+        return;
+    }
+
+    aio_context_set_thread_pool_params(qemu_aio_context, base->thread_pool_min,
+                                       base->thread_pool_max, errp);
 }
 
 MainLoop *mloop;

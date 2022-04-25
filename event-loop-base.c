@@ -14,6 +14,7 @@
 #include "qemu/osdep.h"
 #include "qom/object_interfaces.h"
 #include "qapi/error.h"
+#include "block/thread-pool.h"
 #include "sysemu/event-loop-base.h"
 
 typedef struct {
@@ -21,8 +22,21 @@ typedef struct {
     ptrdiff_t offset; /* field's byte offset in EventLoopBase struct */
 } EventLoopBaseParamInfo;
 
+static void event_loop_base_instance_init(Object *obj)
+{
+    EventLoopBase *base = EVENT_LOOP_BASE(obj);
+
+    base->thread_pool_max = THREAD_POOL_MAX_THREADS_DEFAULT;
+}
+
 static EventLoopBaseParamInfo aio_max_batch_info = {
     "aio-max-batch", offsetof(EventLoopBase, aio_max_batch),
+};
+static EventLoopBaseParamInfo thread_pool_min_info = {
+    "thread-pool-min", offsetof(EventLoopBase, thread_pool_min),
+};
+static EventLoopBaseParamInfo thread_pool_max_info = {
+    "thread-pool-max", offsetof(EventLoopBase, thread_pool_max),
 };
 
 static void event_loop_base_get_param(Object *obj, Visitor *v,
@@ -95,12 +109,21 @@ static void event_loop_base_class_init(ObjectClass *klass, void *class_data)
                               event_loop_base_get_param,
                               event_loop_base_set_param,
                               NULL, &aio_max_batch_info);
+    object_class_property_add(klass, "thread-pool-min", "int",
+                              event_loop_base_get_param,
+                              event_loop_base_set_param,
+                              NULL, &thread_pool_min_info);
+    object_class_property_add(klass, "thread-pool-max", "int",
+                              event_loop_base_get_param,
+                              event_loop_base_set_param,
+                              NULL, &thread_pool_max_info);
 }
 
 static const TypeInfo event_loop_base_info = {
     .name = TYPE_EVENT_LOOP_BASE,
     .parent = TYPE_OBJECT,
     .instance_size = sizeof(EventLoopBase),
+    .instance_init = event_loop_base_instance_init,
     .class_size = sizeof(EventLoopBaseClass),
     .class_init = event_loop_base_class_init,
     .abstract = true,
