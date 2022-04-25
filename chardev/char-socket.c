@@ -311,7 +311,7 @@ static ssize_t tcp_chr_recv(Chardev *chr, char *buf, size_t len)
         }
 
         /* O_NONBLOCK is preserved across SCM_RIGHTS so reset it */
-        qemu_set_block(fd);
+        qemu_socket_set_block(fd);
 
 #ifndef MSG_CMSG_CLOEXEC
         qemu_set_cloexec(fd);
