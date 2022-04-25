@@ -301,16 +301,18 @@ static int qio_channel_command_set_blocking(QIOChannel *ioc,
                                             bool enabled,
                                             Error **errp)
 {
+#ifdef WIN32
+    /* command spawn is not supported on win32 */
+    g_assert_not_reached();
+#else
     QIOChannelCommand *cioc = QIO_CHANNEL_COMMAND(ioc);
 
-    if (enabled) {
-        qemu_set_block(cioc->writefd);
-        qemu_set_block(cioc->readfd);
-    } else {
-        qemu_set_nonblock(cioc->writefd);
-        qemu_set_nonblock(cioc->readfd);
+    if (!g_unix_set_fd_nonblocking(cioc->writefd, !enabled, NULL) ||
+        !g_unix_set_fd_nonblocking(cioc->readfd, !enabled, NULL)) {
+        error_setg_errno(errp, errno, "Failed to set FD nonblocking");
+        return -1;
     }
-
+#endif
     return 0;
 }
 
