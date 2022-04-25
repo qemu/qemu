@@ -1505,7 +1505,7 @@ static void gen_inc(DisasContext *s1, MemOp ot, int d, int c)
             gen_illegal_opcode(s1);
             return;
         }
-        if(Debug) printf("mem mov\n"); //？？？
+        // if(Debug) printf("mem mov\n"); //？？？
         tcg_gen_movi_tl(s1->T0, c > 0 ? 1 : -1);
         tcg_gen_atomic_add_fetch_tl(s1->T0, s1->A0, s1->T0,
                                     s1->mem_index, ot | MO_LE);
@@ -5581,7 +5581,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         break;
     case 0xc6:
     case 0xc7: /* mov Ev, Iv */ 
-        if(Debug)printf("0xc7 \n"); //改
+        // if(Debug)printf("0xc7 \n"); //改
         ot = mo_b_d(b, dflag);
         modrm = x86_ldub_code(env, s);
         mod = (modrm >> 6) & 3;
