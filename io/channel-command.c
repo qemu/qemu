@@ -26,8 +26,28 @@
 #include "qemu/sockets.h"
 #include "trace.h"
 
-
-QIOChannelCommand *
+#ifndef WIN32
+/**
+ * qio_channel_command_new_pid:
+ * @writefd: the FD connected to the command's stdin
+ * @readfd: the FD connected to the command's stdout
+ * @pid: the PID of the running child command
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Create a channel for performing I/O with the
+ * previously spawned command identified by @pid.
+ * The two file descriptors provide the connection
+ * to command's stdio streams, either one or which
+ * may be -1 to indicate that stream is not open.
+ *
+ * The channel will take ownership of the process
+ * @pid and will kill it when closing the channel.
+ * Similarly it will take responsibility for
+ * closing the file descriptors @writefd and @readfd.
+ *
+ * Returns: the command channel object, or NULL on error
+ */
+static QIOChannelCommand *
 qio_channel_command_new_pid(int writefd,
                             int readfd,
                             pid_t pid)
@@ -44,8 +64,6 @@ qio_channel_command_new_pid(int writefd,
     return ioc;
 }
 
-
-#ifndef WIN32
 QIOChannelCommand *
 qio_channel_command_new_spawn(const char *const argv[],
                               int flags,
