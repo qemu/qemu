@@ -21,7 +21,7 @@
 #
 
 import iotests
-from iotests import log, qemu_img, qemu_io_silent
+from iotests import log, qemu_img, qemu_io
 
 # Need backing file support
 iotests.script_initialize(supported_fmts=['qcow2'],
@@ -44,15 +44,15 @@ with iotests.FilePath('base.img') as base_img_path, \
     log('')
 
     qemu_img('create', '-f', iotests.imgfmt, base_img_path, '64M')
-    assert qemu_io_silent(base_img_path, '-c', 'write -P 1 0M 1M') == 0
-    assert qemu_io_silent(base_img_path, '-c', 'write -P 1 3M 1M') == 0
+    qemu_io(base_img_path, '-c', 'write -P 1 0M 1M')
+    qemu_io(base_img_path, '-c', 'write -P 1 3M 1M')
     qemu_img('create', '-f', iotests.imgfmt, '-b', base_img_path,
              '-F', iotests.imgfmt, mid_img_path)
-    assert qemu_io_silent(mid_img_path, '-c', 'write -P 3 2M 1M') == 0
-    assert qemu_io_silent(mid_img_path, '-c', 'write -P 3 4M 1M') == 0
+    qemu_io(mid_img_path, '-c', 'write -P 3 2M 1M')
+    qemu_io(mid_img_path, '-c', 'write -P 3 4M 1M')
     qemu_img('create', '-f', iotests.imgfmt, '-b', mid_img_path,
              '-F', iotests.imgfmt, top_img_path)
-    assert qemu_io_silent(top_img_path, '-c', 'write -P 2 1M 1M') == 0
+    qemu_io(top_img_path, '-c', 'write -P 2 1M 1M')
 
 #      0 1 2 3 4
 # top    2
@@ -107,10 +107,10 @@ with iotests.FilePath('base.img') as base_img_path, \
     # Detach backing to check that we can read the data from the top level now
     qemu_img('rebase', '-u', '-b', '', '-f', iotests.imgfmt, top_img_path)
 
-    assert qemu_io_silent(top_img_path, '-c', 'read -P 0 0 1M') == 0
-    assert qemu_io_silent(top_img_path, '-c', 'read -P 2 1M 1M') == 0
-    assert qemu_io_silent(top_img_path, '-c', 'read -P 3 2M 1M') == 0
-    assert qemu_io_silent(top_img_path, '-c', 'read -P 0 3M 1M') == 0
-    assert qemu_io_silent(top_img_path, '-c', 'read -P 3 4M 1M') == 0
+    qemu_io(top_img_path, '-c', 'read -P 0 0 1M')
+    qemu_io(top_img_path, '-c', 'read -P 2 1M 1M')
+    qemu_io(top_img_path, '-c', 'read -P 3 2M 1M')
+    qemu_io(top_img_path, '-c', 'read -P 0 3M 1M')
+    qemu_io(top_img_path, '-c', 'read -P 3 4M 1M')
 
     log('Done')

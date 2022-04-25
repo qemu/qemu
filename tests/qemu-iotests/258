@@ -21,7 +21,7 @@
 # Creator/Owner: Hanna Reitz <hreitz@redhat.com>
 
 import iotests
-from iotests import log, qemu_img, qemu_io_silent, \
+from iotests import log, qemu_img, qemu_io, \
         filter_qmp_testfiles, filter_qmp_imgfmt
 
 # Returns a node for blockdev-add
@@ -86,15 +86,14 @@ def test_concurrent_finish(write_to_stream_node):
         if write_to_stream_node:
             # This is what (most of the time) makes commit finish
             # earlier and then pull in stream
-            assert qemu_io_silent(node2_path,
-                                  '-c', 'write %iK 64K' % (65536 - 192),
-                                  '-c', 'write %iK 64K' % (65536 -  64)) == 0
+            qemu_io(node2_path,
+                    '-c', 'write %iK 64K' % (65536 - 192),
+                    '-c', 'write %iK 64K' % (65536 -  64))
 
             stream_throttle='tg'
         else:
             # And this makes stream finish earlier
-            assert qemu_io_silent(node1_path,
-                                  '-c', 'write %iK 64K' % (65536 - 64)) == 0
+            qemu_io(node1_path, '-c', 'write %iK 64K' % (65536 - 64))
 
             commit_throttle='tg'
 

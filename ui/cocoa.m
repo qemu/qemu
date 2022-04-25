@@ -1531,6 +1531,7 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
                                        [file cStringUsingEncoding:
                                                  NSASCIIStringEncoding],
                                        true, "raw",
+                                       true, false,
                                        false, 0,
                                        &err);
         });

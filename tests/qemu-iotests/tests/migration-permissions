@@ -18,6 +18,8 @@
 #
 
 import os
+from subprocess import CalledProcessError
+
 import iotests
 from iotests import imgfmt, qemu_img_create, qemu_io
 
@@ -69,13 +71,12 @@ class TestMigrationPermissions(iotests.QMPTestCase):
     def test_post_migration_permissions(self):
         # Try to access the image R/W, which should fail because virtio-blk
         # has not been configured with share-rw=on
-        log = qemu_io('-f', imgfmt, '-c', 'quit', test_img)
-        if not log.strip():
-            print('ERROR (pre-migration): qemu-io should not be able to '
-                  'access this image, but it reported no error')
-        else:
-            # This is the expected output
-            assert 'Is another process using the image' in log
+        emsg = ('ERROR (pre-migration): qemu-io should not be able to '
+                'access this image, but it reported no error')
+        with self.assertRaises(CalledProcessError, msg=emsg) as ctx:
+            qemu_io('-f', imgfmt, '-c', 'quit', test_img)
+        if 'Is another process using the image' not in ctx.exception.stdout:
+            raise ctx.exception
 
         # Now migrate the VM
         self.vm_s.qmp('migrate', uri=f'unix:{mig_sock}')
@@ -84,13 +85,12 @@ class TestMigrationPermissions(iotests.QMPTestCase):
 
         # Try the same qemu-io access again, verifying that the WRITE
         # permission remains unshared
-        log = qemu_io('-f', imgfmt, '-c', 'quit', test_img)
-        if not log.strip():
-            print('ERROR (post-migration): qemu-io should not be able to '
-                  'access this image, but it reported no error')
-        else:
-            # This is the expected output
-            assert 'Is another process using the image' in log
+        emsg = ('ERROR (post-migration): qemu-io should not be able to '
+                'access this image, but it reported no error')
+        with self.assertRaises(CalledProcessError, msg=emsg) as ctx:
+            qemu_io('-f', imgfmt, '-c', 'quit', test_img)
+        if 'Is another process using the image' not in ctx.exception.stdout:
+            raise ctx.exception
 
 
 if __name__ == '__main__':

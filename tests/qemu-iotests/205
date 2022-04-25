@@ -85,13 +85,13 @@ class TestNbdServerRemove(iotests.QMPTestCase):
 
     def do_test_connect_after_remove(self, mode=None):
         args = ('-r', '-f', 'raw', '-c', 'read 0 512', nbd_uri)
-        self.assertReadOk(qemu_io(*args))
+        self.assertReadOk(qemu_io(*args).stdout)
 
         result = self.remove_export('exp', mode)
         self.assert_qmp(result, 'return', {})
 
         self.assertExportNotFound('exp')
-        self.assertConnectFailed(qemu_io(*args))
+        self.assertConnectFailed(qemu_io(*args, check=False).stdout)
 
     def test_connect_after_remove_default(self):
         self.do_test_connect_after_remove()

@@ -21,7 +21,7 @@
 
 import os
 import iotests
-from iotests import imgfmt, qemu_img_create, qemu_io_silent, QMPTestCase
+from iotests import imgfmt, qemu_img_create, qemu_io, QMPTestCase
 
 
 image_size = 1 * 1024 * 1024
@@ -55,7 +55,7 @@ class TestStreamErrorOnReset(QMPTestCase):
         - top image is attached to a virtio-scsi device
         """
         qemu_img_create('-f', imgfmt, base, str(image_size))
-        assert qemu_io_silent('-c', f'write 0 {data_size}', base) == 0
+        qemu_io('-c', f'write 0 {data_size}', base)
         qemu_img_create('-f', imgfmt, top, str(image_size))
 
         self.vm = iotests.VM()

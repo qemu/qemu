@@ -86,8 +86,10 @@ class TestSingleDrive(ImageCommitTestCase):
         qemu_img('create', '-f', iotests.imgfmt,
                  '-o', 'backing_file=%s' % mid_img,
                  '-F', iotests.imgfmt, test_img)
-        qemu_io('-f', 'raw', '-c', 'write -P 0xab 0 524288', backing_img)
-        qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0xef 524288 524288', mid_img)
+        if self.image_len:
+            qemu_io('-f', 'raw', '-c', 'write -P 0xab 0 524288', backing_img)
+            qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0xef 524288 524288',
+                    mid_img)
         self.vm = iotests.VM().add_drive(test_img, "node-name=top,backing.node-name=mid,backing.backing.node-name=base", interface="none")
         self.vm.add_device('virtio-scsi')
         self.vm.add_device("scsi-hd,id=scsi0,drive=drive0")
@@ -101,13 +103,17 @@ class TestSingleDrive(ImageCommitTestCase):
 
     def test_commit(self):
         self.run_commit_test(mid_img, backing_img)
-        self.assertEqual(-1, qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', backing_img).find("verification failed"))
-        self.assertEqual(-1, qemu_io('-f', 'raw', '-c', 'read -P 0xef 524288 524288', backing_img).find("verification failed"))
+        if not self.image_len:
+            return
+        qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', backing_img)
+        qemu_io('-f', 'raw', '-c', 'read -P 0xef 524288 524288', backing_img)
 
     def test_commit_node(self):
         self.run_commit_test("mid", "base", node_names=True)
-        self.assertEqual(-1, qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', backing_img).find("verification failed"))
-        self.assertEqual(-1, qemu_io('-f', 'raw', '-c', 'read -P 0xef 524288 524288', backing_img).find("verification failed"))
+        if not self.image_len:
+            return
+        qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', backing_img)
+        qemu_io('-f', 'raw', '-c', 'read -P 0xef 524288 524288', backing_img)
 
     @iotests.skip_if_unsupported(['throttle'])
     def test_commit_with_filter_and_quit(self):
@@ -192,13 +198,17 @@ class TestSingleDrive(ImageCommitTestCase):
 
     def test_top_is_active(self):
         self.run_commit_test(test_img, backing_img, need_ready=True)
-        self.assertEqual(-1, qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', backing_img).find("verification failed"))
-        self.assertEqual(-1, qemu_io('-f', 'raw', '-c', 'read -P 0xef 524288 524288', backing_img).find("verification failed"))
+        if not self.image_len:
+            return
+        qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', backing_img)
+        qemu_io('-f', 'raw', '-c', 'read -P 0xef 524288 524288', backing_img)
 
     def test_top_is_default_active(self):
         self.run_default_commit_test()
-        self.assertEqual(-1, qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', backing_img).find("verification failed"))
-        self.assertEqual(-1, qemu_io('-f', 'raw', '-c', 'read -P 0xef 524288 524288', backing_img).find("verification failed"))
+        if not self.image_len:
+            return
+        qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', backing_img)
+        qemu_io('-f', 'raw', '-c', 'read -P 0xef 524288 524288', backing_img)
 
     def test_top_and_base_reversed(self):
         self.assert_no_active_block_jobs()
@@ -334,8 +344,8 @@ class TestRelativePaths(ImageCommitTestCase):
 
     def test_commit(self):
         self.run_commit_test(self.mid_img, self.backing_img)
-        self.assertEqual(-1, qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', self.backing_img_abs).find("verification failed"))
-        self.assertEqual(-1, qemu_io('-f', 'raw', '-c', 'read -P 0xef 524288 524288', self.backing_img_abs).find("verification failed"))
+        qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', self.backing_img_abs)
+        qemu_io('-f', 'raw', '-c', 'read -P 0xef 524288 524288', self.backing_img_abs)
 
     def test_device_not_found(self):
         result = self.vm.qmp('block-commit', device='nonexistent', top='%s' % self.mid_img)
@@ -361,8 +371,8 @@ class TestRelativePaths(ImageCommitTestCase):
 
     def test_top_is_active(self):
         self.run_commit_test(self.test_img, self.backing_img)
-        self.assertEqual(-1, qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', self.backing_img_abs).find("verification failed"))
-        self.assertEqual(-1, qemu_io('-f', 'raw', '-c', 'read -P 0xef 524288 524288', self.backing_img_abs).find("verification failed"))
+        qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', self.backing_img_abs)
+        qemu_io('-f', 'raw', '-c', 'read -P 0xef 524288 524288', self.backing_img_abs)
 
     def test_top_and_base_reversed(self):
         self.assert_no_active_block_jobs()
@@ -738,11 +748,10 @@ class TestCommitWithFilters(iotests.QMPTestCase):
 
     def do_test_io(self, read_or_write):
         for index, pattern_file in enumerate(self.pattern_files):
-            result = qemu_io('-f', iotests.imgfmt,
-                             '-c',
-                             f'{read_or_write} -P {index + 1} {index}M 1M',
-                             pattern_file)
-            self.assertFalse('Pattern verification failed' in result)
+            qemu_io('-f', iotests.imgfmt,
+                    '-c',
+                    f'{read_or_write} -P {index + 1} {index}M 1M',
+                    pattern_file)
 
     @iotests.skip_if_unsupported(['throttle'])
     def setUp(self):
@@ -827,7 +836,8 @@ class TestCommitWithFilters(iotests.QMPTestCase):
                              job_id='commit',
                              device='top-filter',
                              top_node='cow-2',
-                             base_node='cow-1')
+                             base_node='cow-1',
+                             backing_file=self.img1)
         self.assert_qmp(result, 'return', {})
         self.wait_until_completed(drive='commit')
 
@@ -843,7 +853,8 @@ class TestCommitWithFilters(iotests.QMPTestCase):
                              job_id='commit',
                              device='top-filter',
                              top_node='cow-1',
-                             base_node='cow-0')
+                             base_node='cow-0',
+                             backing_file=self.img0)
         self.assert_qmp(result, 'return', {})
         self.wait_until_completed(drive='commit')
 

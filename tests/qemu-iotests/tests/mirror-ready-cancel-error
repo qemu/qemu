@@ -37,7 +37,7 @@ class TestMirrorReadyCancelError(iotests.QMPTestCase):
         # Ensure that mirror will copy something before READY so the
         # target format layer will forward the pre-READY flush to its
         # file child
-        assert iotests.qemu_io_silent('-c', 'write -P 1 0 64k', source) == 0
+        iotests.qemu_io('-c', 'write -P 1 0 64k', source)
 
         self.vm = iotests.VM()
         self.vm.launch()

@@ -326,6 +326,11 @@
 # @read-only-mode: change the read-only mode of the device; defaults
 #                  to 'retain'
 #
+# @force: if false (the default), an eject request through blockdev-open-tray
+#         will be sent to the guest if it has locked the tray (and the tray
+#         will not be opened immediately); if true, the tray will be opened
+#         regardless of whether it is locked. (since 7.1)
+#
 # Features:
 # @deprecated: Member @device is deprecated.  Use @id instead.
 #
@@ -367,6 +372,7 @@
             '*id': 'str',
             'filename': 'str',
             '*format': 'str',
+            '*force': 'bool',
             '*read-only-mode': 'BlockdevChangeReadOnlyMode' } }
 
 

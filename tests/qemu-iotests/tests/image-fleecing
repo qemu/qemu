@@ -22,9 +22,10 @@
 #
 # Creator/Owner: John Snow <jsnow@redhat.com>
 
+from subprocess import CalledProcessError
+
 import iotests
-from iotests import log, qemu_img, qemu_io, qemu_io_silent, \
-    qemu_io_pipe_and_status
+from iotests import log, qemu_img, qemu_io
 
 iotests.script_initialize(
     supported_fmts=['qcow2'],
@@ -185,10 +186,14 @@ def do_test(vm, use_cbw, use_snapshot_access_filter, base_img_path,
         for p in patterns + zeroes:
             cmd = 'read -P%s %s %s' % p
             log(cmd)
-            out, ret = qemu_io_pipe_and_status('-r', '-f', 'raw', '-c', cmd,
-                                               nbd_uri)
-            if ret != 0:
-                print(out)
+
+            try:
+                qemu_io('-r', '-f', 'raw', '-c', cmd, nbd_uri)
+            except CalledProcessError as exc:
+                if bitmap and p in zeroes:
+                    log(exc.stdout)
+                else:
+                    raise
 
     log('')
     log('--- Testing COW ---')
@@ -228,9 +233,14 @@ def do_test(vm, use_cbw, use_snapshot_access_filter, base_img_path,
             args += [target_img_path]
         else:
             args += ['-f', 'raw', nbd_uri]
-        out, ret = qemu_io_pipe_and_status(*args)
-        if ret != 0:
-            print(out)
+
+        try:
+            qemu_io(*args)
+        except CalledProcessError as exc:
+            if bitmap and p in zeroes:
+                log(exc.stdout)
+            else:
+                raise
 
     log('')
     log('--- Cleanup ---')
@@ -260,7 +270,7 @@ def do_test(vm, use_cbw, use_snapshot_access_filter, base_img_path,
     for p in overwrite + remainder:
         cmd = 'read -P%s %s %s' % p
         log(cmd)
-        assert qemu_io_silent(base_img_path, '-c', cmd) == 0
+        qemu_io(base_img_path, '-c', cmd)
 
     log('')
     log('Done')

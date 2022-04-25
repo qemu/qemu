@@ -39,7 +39,7 @@ def check_fail_to_connect(open_timeout):
     log(f'Check fail to connect with {open_timeout} seconds of timeout')
 
     start_t = time.time()
-    qemu_io_log(*create_args(open_timeout))
+    qemu_io_log(*create_args(open_timeout), check=False)
     delta_t = time.time() - start_t
 
     max_delta = open_timeout + 0.2

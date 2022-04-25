@@ -113,10 +113,7 @@ class ShrinkBaseClass(iotests.QMPTestCase):
         qemu_img('resize',  '-f', iotests.imgfmt, '--shrink', test_img,
                  self.shrink_size)
 
-        self.assertEqual(
-            qemu_io('-c', 'read -P 0x00 %s'%self.shrink_size, test_img),
-            qemu_io('-c', 'read -P 0x00 %s'%self.shrink_size, check_img),
-            "Verifying image content")
+        qemu_io('-c', f"read -P 0x00 0 {self.shrink_size}", test_img)
 
         self.image_verify()
 

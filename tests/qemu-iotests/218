@@ -28,7 +28,7 @@
 # Creator/Owner: Hanna Reitz <hreitz@redhat.com>
 
 import iotests
-from iotests import log, qemu_img, qemu_io_silent
+from iotests import log, qemu_img, qemu_io
 
 iotests.script_initialize(supported_fmts=['qcow2', 'raw'])
 
@@ -146,8 +146,7 @@ with iotests.VM() as vm, \
      iotests.FilePath('src.img') as src_img_path:
 
     qemu_img('create', '-f', iotests.imgfmt, src_img_path, '64M')
-    assert qemu_io_silent('-f', iotests.imgfmt, src_img_path,
-                          '-c', 'write -P 42 0M 64M') == 0
+    qemu_io('-f', iotests.imgfmt, src_img_path, '-c', 'write -P 42 0M 64M')
 
     vm.launch()
 
