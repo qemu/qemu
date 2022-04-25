@@ -149,9 +149,8 @@ static void vhost_vsock_device_realize(DeviceState *dev, Error **errp)
             return;
         }
 
-        ret = qemu_try_set_nonblock(vhostfd);
-        if (ret < 0) {
-            error_setg_errno(errp, -ret,
+        if (!g_unix_set_fd_nonblocking(vhostfd, true, NULL)) {
+            error_setg_errno(errp, errno,
                              "vhost-vsock: unable to set non-blocking mode");
             return;
         }
@@ -163,7 +162,11 @@ static void vhost_vsock_device_realize(DeviceState *dev, Error **errp)
             return;
         }
 
-        qemu_set_nonblock(vhostfd);
+        if (!g_unix_set_fd_nonblocking(vhostfd, true, NULL)) {
+            error_setg_errno(errp, errno,
+                             "Failed to set FD nonblocking");
+            return;
+        }
     }
 
     vhost_vsock_common_realize(vdev, "vhost-vsock");
