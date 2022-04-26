@@ -567,7 +567,7 @@ int main(int argc, char **argv)
     QDict *options = NULL;
     const char *export_name = NULL; /* defaults to "" later for server mode */
     const char *export_description = NULL;
-    strList *bitmaps = NULL;
+    BlockDirtyBitmapOrStrList *bitmaps = NULL;
     bool alloc_depth = false;
     const char *tlscredsid = NULL;
     const char *tlshostname = NULL;
@@ -687,7 +687,14 @@ int main(int argc, char **argv)
             alloc_depth = true;
             break;
         case 'B':
-            QAPI_LIST_PREPEND(bitmaps, g_strdup(optarg));
+            {
+                BlockDirtyBitmapOrStr *el = g_new(BlockDirtyBitmapOrStr, 1);
+                *el = (BlockDirtyBitmapOrStr) {
+                    .type = QTYPE_QSTRING,
+                    .u.local = g_strdup(optarg),
+                };
+                QAPI_LIST_PREPEND(bitmaps, el);
+            }
             break;
         case 'k':
             sockpath = optarg;

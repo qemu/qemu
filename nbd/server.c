@@ -1643,7 +1643,7 @@ static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
     uint64_t perm, shared_perm;
     bool readonly = !exp_args->writable;
     bool shared = !exp_args->writable;
-    strList *bitmaps;
+    BlockDirtyBitmapOrStrList *bitmaps;
     size_t i;
     int ret;
 
@@ -1709,37 +1709,56 @@ static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
     }
     exp->export_bitmaps = g_new0(BdrvDirtyBitmap *, exp->nr_export_bitmaps);
     for (i = 0, bitmaps = arg->bitmaps; bitmaps;
-         i++, bitmaps = bitmaps->next) {
-        const char *bitmap = bitmaps->value;
+         i++, bitmaps = bitmaps->next)
+    {
+        const char *bitmap;
         BlockDriverState *bs = blk_bs(blk);
         BdrvDirtyBitmap *bm = NULL;
 
-        while (bs) {
-            bm = bdrv_find_dirty_bitmap(bs, bitmap);
-            if (bm != NULL) {
-                break;
+        switch (bitmaps->value->type) {
+        case QTYPE_QSTRING:
+            bitmap = bitmaps->value->u.local;
+            while (bs) {
+                bm = bdrv_find_dirty_bitmap(bs, bitmap);
+                if (bm != NULL) {
+                    break;
+                }
+
+                bs = bdrv_filter_or_cow_bs(bs);
             }
 
-            bs = bdrv_filter_or_cow_bs(bs);
+            if (bm == NULL) {
+                ret = -ENOENT;
+                error_setg(errp, "Bitmap '%s' is not found",
+                           bitmaps->value->u.local);
+                goto fail;
+            }
+
+            if (readonly && bdrv_is_writable(bs) &&
+                bdrv_dirty_bitmap_enabled(bm)) {
+                ret = -EINVAL;
+                error_setg(errp, "Enabled bitmap '%s' incompatible with "
+                           "readonly export", bitmap);
+                goto fail;
+            }
+            break;
+        case QTYPE_QDICT:
+            bitmap = bitmaps->value->u.external.name;
+            bm = block_dirty_bitmap_lookup(bitmaps->value->u.external.node,
+                                           bitmap, NULL, errp);
+            if (!bm) {
+                ret = -ENOENT;
+                goto fail;
+            }
+            break;
+        default:
+            abort();
         }
 
-        if (bm == NULL) {
-            ret = -ENOENT;
-            error_setg(errp, "Bitmap '%s' is not found", bitmap);
-            goto fail;
-        }
+        assert(bm);
 
         if (bdrv_dirty_bitmap_check(bm, BDRV_BITMAP_ALLOW_RO, errp)) {
             ret = -EINVAL;
-            goto fail;
-        }
-
-        if (readonly && bdrv_is_writable(bs) &&
-            bdrv_dirty_bitmap_enabled(bm)) {
-            ret = -EINVAL;
-            error_setg(errp,
-                       "Enabled bitmap '%s' incompatible with readonly export",
-                       bitmap);
             goto fail;
         }
 

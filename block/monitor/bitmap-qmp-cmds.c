@@ -257,12 +257,12 @@ void qmp_block_dirty_bitmap_disable(const char *node, const char *name,
 }
 
 BdrvDirtyBitmap *block_dirty_bitmap_merge(const char *node, const char *target,
-                                          BlockDirtyBitmapMergeSourceList *bms,
+                                          BlockDirtyBitmapOrStrList *bms,
                                           HBitmap **backup, Error **errp)
 {
     BlockDriverState *bs;
     BdrvDirtyBitmap *dst, *src, *anon;
-    BlockDirtyBitmapMergeSourceList *lst;
+    BlockDirtyBitmapOrStrList *lst;
 
     GLOBAL_STATE_CODE();
 
@@ -317,7 +317,7 @@ BdrvDirtyBitmap *block_dirty_bitmap_merge(const char *node, const char *target,
 }
 
 void qmp_block_dirty_bitmap_merge(const char *node, const char *target,
-                                  BlockDirtyBitmapMergeSourceList *bitmaps,
+                                  BlockDirtyBitmapOrStrList *bitmaps,
                                   Error **errp)
 {
     block_dirty_bitmap_merge(node, target, bitmaps, NULL, errp);

@@ -211,8 +211,14 @@ void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)
     QAPI_CLONE_MEMBERS(BlockExportOptionsNbdBase, &export_opts->u.nbd,
                        qapi_NbdServerAddOptions_base(arg));
     if (arg->has_bitmap) {
+        BlockDirtyBitmapOrStr *el = g_new(BlockDirtyBitmapOrStr, 1);
+
+        *el = (BlockDirtyBitmapOrStr) {
+            .type = QTYPE_QSTRING,
+            .u.local = g_strdup(arg->bitmap),
+        };
         export_opts->u.nbd.has_bitmaps = true;
-        QAPI_LIST_PREPEND(export_opts->u.nbd.bitmaps, g_strdup(arg->bitmap));
+        QAPI_LIST_PREPEND(export_opts->u.nbd.bitmaps, el);
     }
 
     /*

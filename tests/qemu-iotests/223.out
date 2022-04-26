@@ -33,6 +33,13 @@ wrote 2097152/2097152 bytes at offset 2097152
 {"execute":"block-dirty-bitmap-disable",
   "arguments":{"node":"n", "name":"b"}}
 {"return": {}}
+{"execute":"blockdev-add",
+  "arguments":{"driver":"null-co", "node-name":"null",
+    "size": 4194304}}
+{"return": {}}
+{"execute":"block-dirty-bitmap-add",
+  "arguments":{"node":"null", "name":"b3"}}
+{"return": {}}
 
 === Set up NBD with normal access ===
 
@@ -69,7 +76,11 @@ exports available: 0
   "arguments":{"device":"n", "name":"n2", "writable":true,
   "description":"some text", "bitmap":"b2"}}
 {"return": {}}
-exports available: 2
+{"execute":"block-export-add",
+  "arguments":{"type": "nbd", "node-name":"n", "id":"n3", "name": "n3",
+  "bitmaps":[{"node":"null","name":"b3"}]}}
+{"return": {}}
+exports available: 3
  export: 'n'
   size:  4194304
   flags: 0x58f ( readonly flush fua df multi cache )
@@ -89,6 +100,15 @@ exports available: 2
   available meta contexts: 2
    base:allocation
    qemu:dirty-bitmap:b2
+ export: 'n3'
+  size:  4194304
+  flags: 0x58f ( readonly flush fua df multi cache )
+  min block: 1
+  opt block: 4096
+  max block: 33554432
+  available meta contexts: 2
+   base:allocation
+   qemu:dirty-bitmap:b3
 
 === Contrast normal status to large granularity dirty-bitmap ===
 
@@ -114,6 +134,10 @@ read 2097152/2097152 bytes at offset 2097152
 { "start": 1024, "length": 2096128, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
 { "start": 2097152, "length": 2097152, "depth": 0, "present": false, "zero": false, "data": false}]
 
+=== Check bitmap taken from another node ===
+
+[{ "start": 0, "length": 4194304, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET}]
+
 === End qemu NBD server ===
 
 {"execute":"nbd-server-remove",
@@ -128,6 +152,7 @@ read 2097152/2097152 bytes at offset 2097152
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "n2"}}
 {"error": {"class": "GenericError", "desc": "Export 'n2' is not found"}}
 {"execute":"nbd-server-stop"}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "n3"}}
 {"return": {}}
 {"execute":"nbd-server-stop"}
 {"error": {"class": "GenericError", "desc": "NBD server not running"}}
@@ -170,7 +195,11 @@ exports available: 0
   "arguments":{"device":"n", "name":"n2", "writable":true,
   "description":"some text", "bitmap":"b2"}}
 {"return": {}}
-exports available: 2
+{"execute":"block-export-add",
+  "arguments":{"type": "nbd", "node-name":"n", "id":"n3", "name": "n3",
+  "bitmaps":[{"node":"null","name":"b3"}]}}
+{"return": {}}
+exports available: 3
  export: 'n'
   size:  4194304
   flags: 0x58f ( readonly flush fua df multi cache )
@@ -190,6 +219,15 @@ exports available: 2
   available meta contexts: 2
    base:allocation
    qemu:dirty-bitmap:b2
+ export: 'n3'
+  size:  4194304
+  flags: 0x58f ( readonly flush fua df multi cache )
+  min block: 1
+  opt block: 4096
+  max block: 33554432
+  available meta contexts: 2
+   base:allocation
+   qemu:dirty-bitmap:b3
 
 === Contrast normal status to large granularity dirty-bitmap ===
 
@@ -215,6 +253,10 @@ read 2097152/2097152 bytes at offset 2097152
 { "start": 1024, "length": 2096128, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET},
 { "start": 2097152, "length": 2097152, "depth": 0, "present": false, "zero": false, "data": false}]
 
+=== Check bitmap taken from another node ===
+
+[{ "start": 0, "length": 4194304, "depth": 0, "present": true, "zero": false, "data": true, "offset": OFFSET}]
+
 === End qemu NBD server ===
 
 {"execute":"nbd-server-remove",
@@ -229,6 +271,7 @@ read 2097152/2097152 bytes at offset 2097152
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "n2"}}
 {"error": {"class": "GenericError", "desc": "Export 'n2' is not found"}}
 {"execute":"nbd-server-stop"}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "n3"}}
 {"return": {}}
 {"execute":"nbd-server-stop"}
 {"error": {"class": "GenericError", "desc": "NBD server not running"}}

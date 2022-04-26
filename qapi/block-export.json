@@ -6,6 +6,7 @@
 ##
 
 { 'include': 'sockets.json' }
+{ 'include': 'block-core.json' }
 
 ##
 # @NbdServerOptions:
@@ -89,6 +90,7 @@
 #           @device, so the NBD client can use NBD_OPT_SET_META_CONTEXT with
 #           the metadata context name "qemu:dirty-bitmap:BITMAP" to inspect
 #           each bitmap.
+#           Since 7.1 bitmap may be specified by node/name pair.
 #
 # @allocation-depth: Also export the allocation depth map for @device, so
 #                    the NBD client can use NBD_OPT_SET_META_CONTEXT with
@@ -99,7 +101,8 @@
 ##
 { 'struct': 'BlockExportOptionsNbd',
   'base': 'BlockExportOptionsNbdBase',
-  'data': { '*bitmaps': ['str'], '*allocation-depth': 'bool' } }
+  'data': { '*bitmaps': ['BlockDirtyBitmapOrStr'],
+            '*allocation-depth': 'bool' } }
 
 ##
 # @BlockExportOptionsVhostUserBlk:
