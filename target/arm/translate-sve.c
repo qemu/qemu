@@ -3830,11 +3830,9 @@ static bool trans_SUBR_zzi(DisasContext *s, arg_rri_esz *a)
     }
     if (sve_access_check(s)) {
         unsigned vsz = vec_full_reg_size(s);
-        TCGv_i64 c = tcg_const_i64(a->imm);
         tcg_gen_gvec_2s(vec_full_reg_offset(s, a->rd),
                         vec_full_reg_offset(s, a->rn),
-                        vsz, vsz, c, &op[a->esz]);
-        tcg_temp_free_i64(c);
+                        vsz, vsz, tcg_constant_i64(a->imm), &op[a->esz]);
     }
     return true;
 }
