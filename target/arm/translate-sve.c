@@ -2259,9 +2259,7 @@ static bool trans_FCPY(DisasContext *s, arg_FCPY *a)
     if (sve_access_check(s)) {
         /* Decode the VFP immediate.  */
         uint64_t imm = vfp_expand_imm(a->esz, a->imm);
-        TCGv_i64 t_imm = tcg_const_i64(imm);
-        do_cpy_m(s, a->esz, a->rd, a->rn, a->pg, t_imm);
-        tcg_temp_free_i64(t_imm);
+        do_cpy_m(s, a->esz, a->rd, a->rn, a->pg, tcg_constant_i64(imm));
     }
     return true;
 }
@@ -2272,9 +2270,7 @@ static bool trans_CPY_m_i(DisasContext *s, arg_rpri_esz *a)
         return false;
     }
     if (sve_access_check(s)) {
-        TCGv_i64 t_imm = tcg_const_i64(a->imm);
-        do_cpy_m(s, a->esz, a->rd, a->rn, a->pg, t_imm);
-        tcg_temp_free_i64(t_imm);
+        do_cpy_m(s, a->esz, a->rd, a->rn, a->pg, tcg_constant_i64(a->imm));
     }
     return true;
 }
@@ -2291,11 +2287,10 @@ static bool trans_CPY_z_i(DisasContext *s, arg_CPY_z_i *a)
     }
     if (sve_access_check(s)) {
         unsigned vsz = vec_full_reg_size(s);
-        TCGv_i64 t_imm = tcg_const_i64(a->imm);
         tcg_gen_gvec_2i_ool(vec_full_reg_offset(s, a->rd),
                             pred_full_reg_offset(s, a->pg),
-                            t_imm, vsz, vsz, 0, fns[a->esz]);
-        tcg_temp_free_i64(t_imm);
+                            tcg_constant_i64(a->imm),
+                            vsz, vsz, 0, fns[a->esz]);
     }
     return true;
 }
