@@ -445,6 +445,7 @@ HumanReadableText *qmp_x_query_irq(Error **errp)
 }
 
 typedef struct StatsCallbacks {
+    StatsProvider provider;
     StatRetrieveFunc *stats_cb;
     SchemaRetrieveFunc *schemas_cb;
     QTAILQ_ENTRY(StatsCallbacks) next;
@@ -453,10 +454,12 @@ typedef struct StatsCallbacks {
 static QTAILQ_HEAD(, StatsCallbacks) stats_callbacks =
     QTAILQ_HEAD_INITIALIZER(stats_callbacks);
 
-void add_stats_callbacks(StatRetrieveFunc *stats_fn,
+void add_stats_callbacks(StatsProvider provider,
+                         StatRetrieveFunc *stats_fn,
                          SchemaRetrieveFunc *schemas_fn)
 {
     StatsCallbacks *entry = g_new(StatsCallbacks, 1);
+    entry->provider = provider;
     entry->stats_cb = stats_fn;
     entry->schemas_cb = schemas_fn;
 
@@ -465,11 +468,17 @@ void add_stats_callbacks(StatRetrieveFunc *stats_fn,
 
 static bool invoke_stats_cb(StatsCallbacks *entry,
                             StatsResultList **stats_results,
-                            StatsFilter *filter,
+                            StatsFilter *filter, StatsRequest *request,
                             Error **errp)
 {
     strList *targets = NULL;
     ERRP_GUARD();
+
+    if (request) {
+        if (request->provider != entry->provider) {
+            return true;
+        }
+    }
 
     switch (filter->target) {
     case STATS_TARGET_VM:
@@ -500,27 +509,41 @@ StatsResultList *qmp_query_stats(StatsFilter *filter, Error **errp)
 {
     StatsResultList *stats_results = NULL;
     StatsCallbacks *entry;
+    StatsRequestList *request;
 
     QTAILQ_FOREACH(entry, &stats_callbacks, next) {
-        if (!invoke_stats_cb(entry, &stats_results, filter, errp)) {
-            break;
+        if (filter->has_providers) {
+            for (request = filter->providers; request; request = request->next) {
+                if (!invoke_stats_cb(entry, &stats_results, filter,
+                                     request->value, errp)) {
+                    break;
+                }
+            }
+        } else {
+            if (!invoke_stats_cb(entry, &stats_results, filter, NULL, errp)) {
+                break;
+            }
         }
     }
 
     return stats_results;
 }
 
-StatsSchemaList *qmp_query_stats_schemas(Error **errp)
+StatsSchemaList *qmp_query_stats_schemas(bool has_provider,
+                                         StatsProvider provider,
+                                         Error **errp)
 {
     StatsSchemaList *stats_results = NULL;
     StatsCallbacks *entry;
     ERRP_GUARD();
 
     QTAILQ_FOREACH(entry, &stats_callbacks, next) {
-        entry->schemas_cb(&stats_results, errp);
-        if (*errp) {
-            qapi_free_StatsSchemaList(stats_results);
-            return NULL;
+        if (!has_provider || provider == entry->provider) {
+            entry->schemas_cb(&stats_results, errp);
+            if (*errp) {
+                qapi_free_StatsSchemaList(stats_results);
+                return NULL;
+            }
         }
     }
 
