@@ -115,9 +115,9 @@ test ccompare0_interrupt
     movi    a2, 1 << XCHAL_TIMER0_INTERRUPT
     wsr     a2, intenable
     rsil    a2, 0
-    loop    a3, 1f
-    nop
 1:
+    addi    a3, a3, -1
+    bnez    a3, 1b
     test_fail
 2:
     rsr     a2, exccause
@@ -148,9 +148,9 @@ test ccompare1_interrupt
     movi    a2, 1 << XCHAL_TIMER1_INTERRUPT
     wsr     a2, intenable
     rsil    a2, INTERRUPT_LEVEL(XCHAL_TIMER1_INTERRUPT) - 1
-    loop    a3, 1f
-    nop
 1:
+    addi    a3, a3, -1
+    bnez    a3, 1b
     test_fail
 2:
 test_end
@@ -177,9 +177,9 @@ test ccompare2_interrupt
     movi    a2, 1 << XCHAL_TIMER2_INTERRUPT
     wsr     a2, intenable
     rsil    a2, INTERRUPT_LEVEL(XCHAL_TIMER2_INTERRUPT) - 1
-    loop    a3, 1f
-    nop
 1:
+    addi    a3, a3, -1
+    bnez    a3, 1b
     test_fail
 2:
 test_end
@@ -197,7 +197,7 @@ test ccompare_interrupt_masked
     wsr     a2, ccompare2
 #endif
 
-    movi    a3, 2 * WAIT_LOOPS
+    movi    a3, WAIT_LOOPS
     make_ccount_delta a2, a15
 #if XCHAL_NUM_TIMERS > 1
     wsr     a2, ccompare1
@@ -211,9 +211,10 @@ test ccompare_interrupt_masked
     movi    a2, 1 << XCHAL_TIMER0_INTERRUPT
     wsr     a2, intenable
     rsil    a2, 0
-    loop    a3, 1f
-    nop
 1:
+    addi    a3, a3, -1
+    bnez    a3, 1b
+
     test_fail
 2:
     rsr     a2, exccause
@@ -231,7 +232,6 @@ test ccompare_interrupt_masked_waiti
     wsr     a2, ccompare2
 #endif
 
-    movi    a3, 2 * WAIT_LOOPS
     make_ccount_delta a2, a15
 #if XCHAL_NUM_TIMERS > 1
     wsr     a2, ccompare1
