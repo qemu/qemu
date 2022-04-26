@@ -51,6 +51,12 @@ validate_error() {
     exit 1
 }
 
+if test -n "$maybe_modules" && ! test -e ".git"
+then
+    echo "$0: unexpectedly called with submodules but no git checkout exists"
+    exit 1
+fi
+
 modules=""
 for m in $maybe_modules
 do
@@ -62,12 +68,6 @@ do
         echo "warn: ignoring non-existent submodule $m"
     fi
 done
-
-if test -n "$maybe_modules" && ! test -e ".git"
-then
-    echo "$0: unexpectedly called with submodules but no git checkout exists"
-    exit 1
-fi
 
 case "$command" in
 status|validate)
