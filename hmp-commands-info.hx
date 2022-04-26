@@ -897,9 +897,10 @@ ERST
 
     {
         .name       = "stats",
-        .args_type  = "target:s",
-        .params     = "target",
-        .help       = "show statistics; target is either vm or vcpu",
+        .args_type  = "target:s,provider:s?",
+        .params     = "target [provider]",
+        .help       = "show statistics for the given target (vm or vcpu); optionally filter by "
+                      "provider",
         .cmd        = hmp_info_stats,
     },
 

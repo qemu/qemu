@@ -2300,6 +2300,7 @@ static StatsSchemaValueList *find_schema_value_list(
 }
 
 static void print_stats_results(Monitor *mon, StatsTarget target,
+                                bool show_provider,
                                 StatsResult *result,
                                 StatsSchemaList *schema)
 {
@@ -2314,8 +2315,10 @@ static void print_stats_results(Monitor *mon, StatsTarget target,
         return;
     }
 
-    monitor_printf(mon, "provider: %s\n",
-                   StatsProvider_str(result->provider));
+    if (show_provider) {
+        monitor_printf(mon, "provider: %s\n",
+                       StatsProvider_str(result->provider));
+    }
 
     for (stats_list = result->stats; stats_list;
              stats_list = stats_list->next,
@@ -2356,7 +2359,8 @@ static void print_stats_results(Monitor *mon, StatsTarget target,
 }
 
 /* Create the StatsFilter that is needed for an "info stats" invocation.  */
-static StatsFilter *stats_filter(StatsTarget target, int cpu_index)
+static StatsFilter *stats_filter(StatsTarget target, int cpu_index,
+                                 StatsProvider provider)
 {
     StatsFilter *filter = g_malloc0(sizeof(*filter));
 
@@ -2378,12 +2382,25 @@ static StatsFilter *stats_filter(StatsTarget target, int cpu_index)
     default:
         break;
     }
+
+    if (provider == STATS_PROVIDER__MAX) {
+        return filter;
+    }
+
+    /* "info stats" can only query either one or all the providers.  */
+    filter->has_providers = true;
+    filter->providers = g_new0(StatsRequestList, 1);
+    filter->providers->value = g_new0(StatsRequest, 1);
+    filter->providers->value->provider = provider;
     return filter;
 }
 
 void hmp_info_stats(Monitor *mon, const QDict *qdict)
 {
     const char *target_str = qdict_get_str(qdict, "target");
+    const char *provider_str = qdict_get_try_str(qdict, "provider");
+
+    StatsProvider provider = STATS_PROVIDER__MAX;
     StatsTarget target;
     Error *err = NULL;
     g_autoptr(StatsSchemaList) schema = NULL;
@@ -2396,19 +2413,27 @@ void hmp_info_stats(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "invalid stats target %s\n", target_str);
         goto exit_no_print;
     }
+    if (provider_str) {
+        provider = qapi_enum_parse(&StatsProvider_lookup, provider_str, -1, &err);
+        if (err) {
+            monitor_printf(mon, "invalid stats provider %s\n", provider_str);
+            goto exit_no_print;
+        }
+    }
 
-    schema = qmp_query_stats_schemas(false, STATS_PROVIDER__MAX, &err);
+    schema = qmp_query_stats_schemas(provider_str ? true : false,
+                                     provider, &err);
     if (err) {
         goto exit;
     }
 
     switch (target) {
     case STATS_TARGET_VM:
-        filter = stats_filter(target, -1);
+        filter = stats_filter(target, -1, provider);
         break;
     case STATS_TARGET_VCPU: {}
         int cpu_index = monitor_get_cpu_index(mon);
-        filter = stats_filter(target, cpu_index);
+        filter = stats_filter(target, cpu_index, provider);
         break;
     default:
         abort();
@@ -2419,7 +2444,7 @@ void hmp_info_stats(Monitor *mon, const QDict *qdict)
         goto exit;
     }
     for (entry = stats; entry; entry = entry->next) {
-        print_stats_results(mon, target, entry->value, schema);
+        print_stats_results(mon, target, provider_str == NULL, entry->value, schema);
     }
 
 exit:
