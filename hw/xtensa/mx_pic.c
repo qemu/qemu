@@ -334,7 +334,7 @@ void xtensa_mx_pic_reset(void *opaque)
     mx->miasg = 0;
     mx->mipipart = 0;
     for (i = 0; i < mx->n_irq; ++i) {
-        mx->mirout[i] = 1;
+        mx->mirout[i] = 0;
     }
     for (i = 0; i < mx->n_cpu; ++i) {
         mx->cpu[i].mipicause = 0;
