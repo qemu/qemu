@@ -6369,8 +6369,8 @@ static bool trans_MRS_v7m(DisasContext *s, arg_MRS_v7m *a)
     if (!arm_dc_feature(s, ARM_FEATURE_M)) {
         return false;
     }
-    tmp = tcg_const_i32(a->sysm);
-    gen_helper_v7m_mrs(tmp, cpu_env, tmp);
+    tmp = tcg_temp_new_i32();
+    gen_helper_v7m_mrs(tmp, cpu_env, tcg_constant_i32(a->sysm));
     store_reg(s, a->rd, tmp);
     return true;
 }
@@ -6382,10 +6382,9 @@ static bool trans_MSR_v7m(DisasContext *s, arg_MSR_v7m *a)
     if (!arm_dc_feature(s, ARM_FEATURE_M)) {
         return false;
     }
-    addr = tcg_const_i32((a->mask << 10) | a->sysm);
+    addr = tcg_constant_i32((a->mask << 10) | a->sysm);
     reg = load_reg(s, a->rn);
     gen_helper_v7m_msr(cpu_env, addr, reg);
-    tcg_temp_free_i32(addr);
     tcg_temp_free_i32(reg);
     /* If we wrote to CONTROL, the EL might have changed */
     gen_rebuild_hflags(s, true);
