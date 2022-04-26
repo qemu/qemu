@@ -282,13 +282,12 @@ static void do_predtest(DisasContext *s, int dofs, int gofs, int words)
 {
     TCGv_ptr dptr = tcg_temp_new_ptr();
     TCGv_ptr gptr = tcg_temp_new_ptr();
-    TCGv_i32 t;
+    TCGv_i32 t = tcg_temp_new_i32();
 
     tcg_gen_addi_ptr(dptr, cpu_env, dofs);
     tcg_gen_addi_ptr(gptr, cpu_env, gofs);
-    t = tcg_const_i32(words);
 
-    gen_helper_sve_predtest(t, dptr, gptr, t);
+    gen_helper_sve_predtest(t, dptr, gptr, tcg_constant_i32(words));
     tcg_temp_free_ptr(dptr);
     tcg_temp_free_ptr(gptr);
 
@@ -1880,9 +1879,9 @@ static bool do_pfirst_pnext(DisasContext *s, arg_rr_esz *a,
 
     tcg_gen_addi_ptr(t_pd, cpu_env, pred_full_reg_offset(s, a->rd));
     tcg_gen_addi_ptr(t_pg, cpu_env, pred_full_reg_offset(s, a->rn));
-    t = tcg_const_i32(desc);
+    t = tcg_temp_new_i32();
 
-    gen_fn(t, t_pd, t_pg, t);
+    gen_fn(t, t_pd, t_pg, tcg_constant_i32(desc));
     tcg_temp_free_ptr(t_pd);
     tcg_temp_free_ptr(t_pg);
 
@@ -3176,7 +3175,7 @@ static bool do_ppzz_flags(DisasContext *s, arg_rprr_esz *a,
     }
 
     vsz = vec_full_reg_size(s);
-    t = tcg_const_i32(simd_desc(vsz, vsz, 0));
+    t = tcg_temp_new_i32();
     pd = tcg_temp_new_ptr();
     zn = tcg_temp_new_ptr();
     zm = tcg_temp_new_ptr();
@@ -3187,7 +3186,7 @@ static bool do_ppzz_flags(DisasContext *s, arg_rprr_esz *a,
     tcg_gen_addi_ptr(zm, cpu_env, vec_full_reg_offset(s, a->rm));
     tcg_gen_addi_ptr(pg, cpu_env, pred_full_reg_offset(s, a->pg));
 
-    gen_fn(t, pd, zn, zm, pg, t);
+    gen_fn(t, pd, zn, zm, pg, tcg_constant_i32(simd_desc(vsz, vsz, 0)));
 
     tcg_temp_free_ptr(pd);
     tcg_temp_free_ptr(zn);
@@ -3261,7 +3260,7 @@ static bool do_ppzi_flags(DisasContext *s, arg_rpri_esz *a,
     }
 
     vsz = vec_full_reg_size(s);
-    t = tcg_const_i32(simd_desc(vsz, vsz, a->imm));
+    t = tcg_temp_new_i32();
     pd = tcg_temp_new_ptr();
     zn = tcg_temp_new_ptr();
     pg = tcg_temp_new_ptr();
@@ -3270,7 +3269,7 @@ static bool do_ppzi_flags(DisasContext *s, arg_rpri_esz *a,
     tcg_gen_addi_ptr(zn, cpu_env, vec_full_reg_offset(s, a->rn));
     tcg_gen_addi_ptr(pg, cpu_env, pred_full_reg_offset(s, a->pg));
 
-    gen_fn(t, pd, zn, pg, t);
+    gen_fn(t, pd, zn, pg, tcg_constant_i32(simd_desc(vsz, vsz, a->imm)));
 
     tcg_temp_free_ptr(pd);
     tcg_temp_free_ptr(zn);
