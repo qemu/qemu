@@ -258,7 +258,6 @@ static TCGv_i64 gen_mte_check1_mmuidx(DisasContext *s, TCGv_i64 addr,
                                       int core_idx)
 {
     if (tag_checked && s->mte_active[is_unpriv]) {
-        TCGv_i32 tcg_desc;
         TCGv_i64 ret;
         int desc = 0;
 
@@ -267,11 +266,9 @@ static TCGv_i64 gen_mte_check1_mmuidx(DisasContext *s, TCGv_i64 addr,
         desc = FIELD_DP32(desc, MTEDESC, TCMA, s->tcma);
         desc = FIELD_DP32(desc, MTEDESC, WRITE, is_write);
         desc = FIELD_DP32(desc, MTEDESC, SIZEM1, (1 << log2_size) - 1);
-        tcg_desc = tcg_const_i32(desc);
 
         ret = new_tmp_a64(s);
-        gen_helper_mte_check(ret, cpu_env, tcg_desc, addr);
-        tcg_temp_free_i32(tcg_desc);
+        gen_helper_mte_check(ret, cpu_env, tcg_constant_i32(desc), addr);
 
         return ret;
     }
@@ -292,7 +289,6 @@ TCGv_i64 gen_mte_checkN(DisasContext *s, TCGv_i64 addr, bool is_write,
                         bool tag_checked, int size)
 {
     if (tag_checked && s->mte_active[0]) {
-        TCGv_i32 tcg_desc;
         TCGv_i64 ret;
         int desc = 0;
 
@@ -301,11 +297,9 @@ TCGv_i64 gen_mte_checkN(DisasContext *s, TCGv_i64 addr, bool is_write,
         desc = FIELD_DP32(desc, MTEDESC, TCMA, s->tcma);
         desc = FIELD_DP32(desc, MTEDESC, WRITE, is_write);
         desc = FIELD_DP32(desc, MTEDESC, SIZEM1, size - 1);
-        tcg_desc = tcg_const_i32(desc);
 
         ret = new_tmp_a64(s);
-        gen_helper_mte_check(ret, cpu_env, tcg_desc, addr);
-        tcg_temp_free_i32(tcg_desc);
+        gen_helper_mte_check(ret, cpu_env, tcg_constant_i32(desc), addr);
 
         return ret;
     }
