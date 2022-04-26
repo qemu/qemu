@@ -2996,9 +2996,8 @@ void gen_gvec_sqrdmlsh_qc(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
     }                                                                   \
     static void gen_##NAME##0_vec(unsigned vece, TCGv_vec d, TCGv_vec a) \
     {                                                                   \
-        TCGv_vec zero = tcg_const_zeros_vec_matching(d);                \
+        TCGv_vec zero = tcg_constant_vec_matching(d, vece, 0);          \
         tcg_gen_cmp_vec(COND, vece, d, a, zero);                        \
-        tcg_temp_free_vec(zero);                                        \
     }                                                                   \
     void gen_gvec_##NAME##0(unsigned vece, uint32_t d, uint32_t m,      \
                             uint32_t opr_sz, uint32_t max_sz)           \
@@ -3988,8 +3987,8 @@ void gen_ushl_i32(TCGv_i32 dst, TCGv_i32 src, TCGv_i32 shift)
     TCGv_i32 rval = tcg_temp_new_i32();
     TCGv_i32 lsh = tcg_temp_new_i32();
     TCGv_i32 rsh = tcg_temp_new_i32();
-    TCGv_i32 zero = tcg_const_i32(0);
-    TCGv_i32 max = tcg_const_i32(32);
+    TCGv_i32 zero = tcg_constant_i32(0);
+    TCGv_i32 max = tcg_constant_i32(32);
 
     /*
      * Rely on the TCG guarantee that out of range shifts produce
@@ -4007,8 +4006,6 @@ void gen_ushl_i32(TCGv_i32 dst, TCGv_i32 src, TCGv_i32 shift)
     tcg_temp_free_i32(rval);
     tcg_temp_free_i32(lsh);
     tcg_temp_free_i32(rsh);
-    tcg_temp_free_i32(zero);
-    tcg_temp_free_i32(max);
 }
 
 void gen_ushl_i64(TCGv_i64 dst, TCGv_i64 src, TCGv_i64 shift)
@@ -4017,8 +4014,8 @@ void gen_ushl_i64(TCGv_i64 dst, TCGv_i64 src, TCGv_i64 shift)
     TCGv_i64 rval = tcg_temp_new_i64();
     TCGv_i64 lsh = tcg_temp_new_i64();
     TCGv_i64 rsh = tcg_temp_new_i64();
-    TCGv_i64 zero = tcg_const_i64(0);
-    TCGv_i64 max = tcg_const_i64(64);
+    TCGv_i64 zero = tcg_constant_i64(0);
+    TCGv_i64 max = tcg_constant_i64(64);
 
     /*
      * Rely on the TCG guarantee that out of range shifts produce
@@ -4036,8 +4033,6 @@ void gen_ushl_i64(TCGv_i64 dst, TCGv_i64 src, TCGv_i64 shift)
     tcg_temp_free_i64(rval);
     tcg_temp_free_i64(lsh);
     tcg_temp_free_i64(rsh);
-    tcg_temp_free_i64(zero);
-    tcg_temp_free_i64(max);
 }
 
 static void gen_ushl_vec(unsigned vece, TCGv_vec dst,
@@ -4132,8 +4127,8 @@ void gen_sshl_i32(TCGv_i32 dst, TCGv_i32 src, TCGv_i32 shift)
     TCGv_i32 rval = tcg_temp_new_i32();
     TCGv_i32 lsh = tcg_temp_new_i32();
     TCGv_i32 rsh = tcg_temp_new_i32();
-    TCGv_i32 zero = tcg_const_i32(0);
-    TCGv_i32 max = tcg_const_i32(31);
+    TCGv_i32 zero = tcg_constant_i32(0);
+    TCGv_i32 max = tcg_constant_i32(31);
 
     /*
      * Rely on the TCG guarantee that out of range shifts produce
@@ -4152,8 +4147,6 @@ void gen_sshl_i32(TCGv_i32 dst, TCGv_i32 src, TCGv_i32 shift)
     tcg_temp_free_i32(rval);
     tcg_temp_free_i32(lsh);
     tcg_temp_free_i32(rsh);
-    tcg_temp_free_i32(zero);
-    tcg_temp_free_i32(max);
 }
 
 void gen_sshl_i64(TCGv_i64 dst, TCGv_i64 src, TCGv_i64 shift)
@@ -4162,8 +4155,8 @@ void gen_sshl_i64(TCGv_i64 dst, TCGv_i64 src, TCGv_i64 shift)
     TCGv_i64 rval = tcg_temp_new_i64();
     TCGv_i64 lsh = tcg_temp_new_i64();
     TCGv_i64 rsh = tcg_temp_new_i64();
-    TCGv_i64 zero = tcg_const_i64(0);
-    TCGv_i64 max = tcg_const_i64(63);
+    TCGv_i64 zero = tcg_constant_i64(0);
+    TCGv_i64 max = tcg_constant_i64(63);
 
     /*
      * Rely on the TCG guarantee that out of range shifts produce
@@ -4182,8 +4175,6 @@ void gen_sshl_i64(TCGv_i64 dst, TCGv_i64 src, TCGv_i64 shift)
     tcg_temp_free_i64(rval);
     tcg_temp_free_i64(lsh);
     tcg_temp_free_i64(rsh);
-    tcg_temp_free_i64(zero);
-    tcg_temp_free_i64(max);
 }
 
 static void gen_sshl_vec(unsigned vece, TCGv_vec dst,
