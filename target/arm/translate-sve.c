@@ -6426,7 +6426,6 @@ static bool trans_LD1_zpiz(DisasContext *s, arg_LD1_zpiz *a)
     gen_helper_gvec_mem_scatter *fn = NULL;
     bool be = s->be_data == MO_BE;
     bool mte = s->mte_active[0];
-    TCGv_i64 imm;
 
     if (a->esz < a->msz || (a->esz == a->msz && !a->u)) {
         return false;
@@ -6448,9 +6447,8 @@ static bool trans_LD1_zpiz(DisasContext *s, arg_LD1_zpiz *a)
     /* Treat LD1_zpiz (zn[x] + imm) the same way as LD1_zprz (rn + zm[x])
      * by loading the immediate into the scalar parameter.
      */
-    imm = tcg_const_i64(a->imm << a->msz);
-    do_mem_zpz(s, a->rd, a->pg, a->rn, 0, imm, a->msz, false, fn);
-    tcg_temp_free_i64(imm);
+    do_mem_zpz(s, a->rd, a->pg, a->rn, 0,
+               tcg_constant_i64(a->imm << a->msz), a->msz, false, fn);
     return true;
 }
 
@@ -6609,7 +6607,6 @@ static bool trans_ST1_zpiz(DisasContext *s, arg_ST1_zpiz *a)
     gen_helper_gvec_mem_scatter *fn = NULL;
     bool be = s->be_data == MO_BE;
     bool mte = s->mte_active[0];
-    TCGv_i64 imm;
 
     if (a->esz < a->msz) {
         return false;
@@ -6631,9 +6628,8 @@ static bool trans_ST1_zpiz(DisasContext *s, arg_ST1_zpiz *a)
     /* Treat ST1_zpiz (zn[x] + imm) the same way as ST1_zprz (rn + zm[x])
      * by loading the immediate into the scalar parameter.
      */
-    imm = tcg_const_i64(a->imm << a->msz);
-    do_mem_zpz(s, a->rd, a->pg, a->rn, 0, imm, a->msz, true, fn);
-    tcg_temp_free_i64(imm);
+    do_mem_zpz(s, a->rd, a->pg, a->rn, 0,
+               tcg_constant_i64(a->imm << a->msz), a->msz, true, fn);
     return true;
 }
 
