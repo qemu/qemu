@@ -1266,11 +1266,9 @@ static void do_index(DisasContext *s, int esz, int rd,
 static bool trans_INDEX_ii(DisasContext *s, arg_INDEX_ii *a)
 {
     if (sve_access_check(s)) {
-        TCGv_i64 start = tcg_const_i64(a->imm1);
-        TCGv_i64 incr = tcg_const_i64(a->imm2);
+        TCGv_i64 start = tcg_constant_i64(a->imm1);
+        TCGv_i64 incr = tcg_constant_i64(a->imm2);
         do_index(s, a->esz, a->rd, start, incr);
-        tcg_temp_free_i64(start);
-        tcg_temp_free_i64(incr);
     }
     return true;
 }
@@ -1278,10 +1276,9 @@ static bool trans_INDEX_ii(DisasContext *s, arg_INDEX_ii *a)
 static bool trans_INDEX_ir(DisasContext *s, arg_INDEX_ir *a)
 {
     if (sve_access_check(s)) {
-        TCGv_i64 start = tcg_const_i64(a->imm);
+        TCGv_i64 start = tcg_constant_i64(a->imm);
         TCGv_i64 incr = cpu_reg(s, a->rm);
         do_index(s, a->esz, a->rd, start, incr);
-        tcg_temp_free_i64(start);
     }
     return true;
 }
@@ -1290,9 +1287,8 @@ static bool trans_INDEX_ri(DisasContext *s, arg_INDEX_ri *a)
 {
     if (sve_access_check(s)) {
         TCGv_i64 start = cpu_reg(s, a->rn);
-        TCGv_i64 incr = tcg_const_i64(a->imm);
+        TCGv_i64 incr = tcg_constant_i64(a->imm);
         do_index(s, a->esz, a->rd, start, incr);
-        tcg_temp_free_i64(incr);
     }
     return true;
 }
