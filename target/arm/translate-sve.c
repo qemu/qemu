@@ -3853,9 +3853,8 @@ static bool do_zzi_sat(DisasContext *s, arg_rri_esz *a, bool u, bool d)
         return false;
     }
     if (sve_access_check(s)) {
-        TCGv_i64 val = tcg_const_i64(a->imm);
-        do_sat_addsub_vec(s, a->esz, a->rd, a->rn, val, u, d);
-        tcg_temp_free_i64(val);
+        do_sat_addsub_vec(s, a->esz, a->rd, a->rn,
+                          tcg_constant_i64(a->imm), u, d);
     }
     return true;
 }
@@ -3884,12 +3883,9 @@ static bool do_zzi_ool(DisasContext *s, arg_rri_esz *a, gen_helper_gvec_2i *fn)
 {
     if (sve_access_check(s)) {
         unsigned vsz = vec_full_reg_size(s);
-        TCGv_i64 c = tcg_const_i64(a->imm);
-
         tcg_gen_gvec_2i_ool(vec_full_reg_offset(s, a->rd),
                             vec_full_reg_offset(s, a->rn),
-                            c, vsz, vsz, 0, fn);
-        tcg_temp_free_i64(c);
+                            tcg_constant_i64(a->imm), vsz, vsz, 0, fn);
     }
     return true;
 }
@@ -4520,9 +4516,8 @@ static void do_fp_scalar(DisasContext *s, int zd, int zn, int pg, bool is_fp16,
 static void do_fp_imm(DisasContext *s, arg_rpri_esz *a, uint64_t imm,
                       gen_helper_sve_fp2scalar *fn)
 {
-    TCGv_i64 temp = tcg_const_i64(imm);
-    do_fp_scalar(s, a->rd, a->rn, a->pg, a->esz == MO_16, temp, fn);
-    tcg_temp_free_i64(temp);
+    do_fp_scalar(s, a->rd, a->rn, a->pg, a->esz == MO_16,
+                 tcg_constant_i64(imm), fn);
 }
 
 #define DO_FP_IMM(NAME, name, const0, const1) \
