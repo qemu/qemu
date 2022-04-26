@@ -8050,7 +8050,7 @@ static bool op_stm(DisasContext *s, arg_ldst_block *a, int min_n)
 {
     int i, j, n, list, mem_idx;
     bool user = a->u;
-    TCGv_i32 addr, tmp, tmp2;
+    TCGv_i32 addr, tmp;
 
     if (user) {
         /* STM (user) */
@@ -8080,9 +8080,7 @@ static bool op_stm(DisasContext *s, arg_ldst_block *a, int min_n)
 
         if (user && i != 15) {
             tmp = tcg_temp_new_i32();
-            tmp2 = tcg_const_i32(i);
-            gen_helper_get_user_reg(tmp, cpu_env, tmp2);
-            tcg_temp_free_i32(tmp2);
+            gen_helper_get_user_reg(tmp, cpu_env, tcg_constant_i32(i));
         } else {
             tmp = load_reg(s, i);
         }
@@ -8123,7 +8121,7 @@ static bool do_ldm(DisasContext *s, arg_ldst_block *a, int min_n)
     bool loaded_base;
     bool user = a->u;
     bool exc_return = false;
-    TCGv_i32 addr, tmp, tmp2, loaded_var;
+    TCGv_i32 addr, tmp, loaded_var;
 
     if (user) {
         /* LDM (user), LDM (exception return) */
@@ -8166,9 +8164,7 @@ static bool do_ldm(DisasContext *s, arg_ldst_block *a, int min_n)
         tmp = tcg_temp_new_i32();
         gen_aa32_ld_i32(s, tmp, addr, mem_idx, MO_UL | MO_ALIGN);
         if (user) {
-            tmp2 = tcg_const_i32(i);
-            gen_helper_set_user_reg(cpu_env, tmp2, tmp);
-            tcg_temp_free_i32(tmp2);
+            gen_helper_set_user_reg(cpu_env, tcg_constant_i32(i), tmp);
             tcg_temp_free_i32(tmp);
         } else if (i == a->rn) {
             loaded_var = tmp;
