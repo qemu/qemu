@@ -1818,19 +1818,14 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         /* Emit code to perform further access permissions checks at
          * runtime; this may result in an exception.
          */
-        TCGv_ptr tmpptr;
-        TCGv_i32 tcg_syn, tcg_isread;
         uint32_t syndrome;
 
-        gen_a64_set_pc_im(s->pc_curr);
-        tmpptr = tcg_const_ptr(ri);
         syndrome = syn_aa64_sysregtrap(op0, op1, op2, crn, crm, rt, isread);
-        tcg_syn = tcg_const_i32(syndrome);
-        tcg_isread = tcg_const_i32(isread);
-        gen_helper_access_check_cp_reg(cpu_env, tmpptr, tcg_syn, tcg_isread);
-        tcg_temp_free_ptr(tmpptr);
-        tcg_temp_free_i32(tcg_syn);
-        tcg_temp_free_i32(tcg_isread);
+        gen_a64_set_pc_im(s->pc_curr);
+        gen_helper_access_check_cp_reg(cpu_env,
+                                       tcg_constant_ptr(ri),
+                                       tcg_constant_i32(syndrome),
+                                       tcg_constant_i32(isread));
     } else if (ri->type & ARM_CP_RAISES_EXC) {
         /*
          * The readfn or writefn might raise an exception;
@@ -1861,17 +1856,15 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
     case ARM_CP_DC_ZVA:
         /* Writes clear the aligned block of memory which rt points into. */
         if (s->mte_active[0]) {
-            TCGv_i32 t_desc;
             int desc = 0;
 
             desc = FIELD_DP32(desc, MTEDESC, MIDX, get_mem_index(s));
             desc = FIELD_DP32(desc, MTEDESC, TBI, s->tbid);
             desc = FIELD_DP32(desc, MTEDESC, TCMA, s->tcma);
-            t_desc = tcg_const_i32(desc);
 
             tcg_rt = new_tmp_a64(s);
-            gen_helper_mte_check_zva(tcg_rt, cpu_env, t_desc, cpu_reg(s, rt));
-            tcg_temp_free_i32(t_desc);
+            gen_helper_mte_check_zva(tcg_rt, cpu_env,
+                                     tcg_constant_i32(desc), cpu_reg(s, rt));
         } else {
             tcg_rt = clean_data_tbi(s, cpu_reg(s, rt));
         }
@@ -1935,10 +1928,7 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         if (ri->type & ARM_CP_CONST) {
             tcg_gen_movi_i64(tcg_rt, ri->resetvalue);
         } else if (ri->readfn) {
-            TCGv_ptr tmpptr;
-            tmpptr = tcg_const_ptr(ri);
-            gen_helper_get_cp_reg64(tcg_rt, cpu_env, tmpptr);
-            tcg_temp_free_ptr(tmpptr);
+            gen_helper_get_cp_reg64(tcg_rt, cpu_env, tcg_constant_ptr(ri));
         } else {
             tcg_gen_ld_i64(tcg_rt, cpu_env, ri->fieldoffset);
         }
@@ -1947,10 +1937,7 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
             /* If not forbidden by access permissions, treat as WI */
             return;
         } else if (ri->writefn) {
-            TCGv_ptr tmpptr;
-            tmpptr = tcg_const_ptr(ri);
-            gen_helper_set_cp_reg64(cpu_env, tmpptr, tcg_rt);
-            tcg_temp_free_ptr(tmpptr);
+            gen_helper_set_cp_reg64(cpu_env, tcg_constant_ptr(ri), tcg_rt);
         } else {
             tcg_gen_st_i64(tcg_rt, cpu_env, ri->fieldoffset);
         }
