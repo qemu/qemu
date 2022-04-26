@@ -2926,7 +2926,7 @@ static void do_clast_scalar(DisasContext *s, int esz, int pg, int rm,
                             bool before, TCGv_i64 reg_val)
 {
     TCGv_i32 last = tcg_temp_new_i32();
-    TCGv_i64 ele, cmp, zero;
+    TCGv_i64 ele, cmp;
 
     find_last_active(s, last, esz, pg);
 
@@ -2946,10 +2946,9 @@ static void do_clast_scalar(DisasContext *s, int esz, int pg, int rm,
     ele = load_last_active(s, last, rm, esz);
     tcg_temp_free_i32(last);
 
-    zero = tcg_const_i64(0);
-    tcg_gen_movcond_i64(TCG_COND_GE, reg_val, cmp, zero, ele, reg_val);
+    tcg_gen_movcond_i64(TCG_COND_GE, reg_val, cmp, tcg_constant_i64(0),
+                        ele, reg_val);
 
-    tcg_temp_free_i64(zero);
     tcg_temp_free_i64(cmp);
     tcg_temp_free_i64(ele);
 }
