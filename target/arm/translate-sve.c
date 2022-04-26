@@ -2793,11 +2793,9 @@ static void incr_last_active(DisasContext *s, TCGv_i32 last, int esz)
     if (is_power_of_2(vsz)) {
         tcg_gen_andi_i32(last, last, vsz - 1);
     } else {
-        TCGv_i32 max = tcg_const_i32(vsz);
-        TCGv_i32 zero = tcg_const_i32(0);
+        TCGv_i32 max = tcg_constant_i32(vsz);
+        TCGv_i32 zero = tcg_constant_i32(0);
         tcg_gen_movcond_i32(TCG_COND_GEU, last, last, max, zero, last);
-        tcg_temp_free_i32(max);
-        tcg_temp_free_i32(zero);
     }
 }
 
@@ -2809,11 +2807,9 @@ static void wrap_last_active(DisasContext *s, TCGv_i32 last, int esz)
     if (is_power_of_2(vsz)) {
         tcg_gen_andi_i32(last, last, vsz - 1);
     } else {
-        TCGv_i32 max = tcg_const_i32(vsz - (1 << esz));
-        TCGv_i32 zero = tcg_const_i32(0);
+        TCGv_i32 max = tcg_constant_i32(vsz - (1 << esz));
+        TCGv_i32 zero = tcg_constant_i32(0);
         tcg_gen_movcond_i32(TCG_COND_LT, last, last, zero, max, last);
-        tcg_temp_free_i32(max);
-        tcg_temp_free_i32(zero);
     }
 }
 
