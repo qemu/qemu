@@ -3322,7 +3322,7 @@ static bool do_brk3(DisasContext *s, arg_rprr_s *a,
     TCGv_ptr n = tcg_temp_new_ptr();
     TCGv_ptr m = tcg_temp_new_ptr();
     TCGv_ptr g = tcg_temp_new_ptr();
-    TCGv_i32 t = tcg_const_i32(FIELD_DP32(0, PREDDESC, OPRSZ, vsz));
+    TCGv_i32 desc = tcg_constant_i32(FIELD_DP32(0, PREDDESC, OPRSZ, vsz));
 
     tcg_gen_addi_ptr(d, cpu_env, pred_full_reg_offset(s, a->rd));
     tcg_gen_addi_ptr(n, cpu_env, pred_full_reg_offset(s, a->rn));
@@ -3330,16 +3330,17 @@ static bool do_brk3(DisasContext *s, arg_rprr_s *a,
     tcg_gen_addi_ptr(g, cpu_env, pred_full_reg_offset(s, a->pg));
 
     if (a->s) {
-        fn_s(t, d, n, m, g, t);
+        TCGv_i32 t = tcg_temp_new_i32();
+        fn_s(t, d, n, m, g, desc);
         do_pred_flags(t);
+        tcg_temp_free_i32(t);
     } else {
-        fn(d, n, m, g, t);
+        fn(d, n, m, g, desc);
     }
     tcg_temp_free_ptr(d);
     tcg_temp_free_ptr(n);
     tcg_temp_free_ptr(m);
     tcg_temp_free_ptr(g);
-    tcg_temp_free_i32(t);
     return true;
 }
 
@@ -3356,22 +3357,23 @@ static bool do_brk2(DisasContext *s, arg_rpr_s *a,
     TCGv_ptr d = tcg_temp_new_ptr();
     TCGv_ptr n = tcg_temp_new_ptr();
     TCGv_ptr g = tcg_temp_new_ptr();
-    TCGv_i32 t = tcg_const_i32(FIELD_DP32(0, PREDDESC, OPRSZ, vsz));
+    TCGv_i32 desc = tcg_constant_i32(FIELD_DP32(0, PREDDESC, OPRSZ, vsz));
 
     tcg_gen_addi_ptr(d, cpu_env, pred_full_reg_offset(s, a->rd));
     tcg_gen_addi_ptr(n, cpu_env, pred_full_reg_offset(s, a->rn));
     tcg_gen_addi_ptr(g, cpu_env, pred_full_reg_offset(s, a->pg));
 
     if (a->s) {
-        fn_s(t, d, n, g, t);
+        TCGv_i32 t = tcg_temp_new_i32();
+        fn_s(t, d, n, g, desc);
         do_pred_flags(t);
+        tcg_temp_free_i32(t);
     } else {
-        fn(d, n, g, t);
+        fn(d, n, g, desc);
     }
     tcg_temp_free_ptr(d);
     tcg_temp_free_ptr(n);
     tcg_temp_free_ptr(g);
-    tcg_temp_free_i32(t);
     return true;
 }
 
