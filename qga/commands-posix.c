@@ -2861,7 +2861,7 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
             QAPI_LIST_APPEND(tail, info);
         }
 
-        if (!info->has_hardware_address && ifa->ifa_flags & SIOCGIFHWADDR) {
+        if (!info->has_hardware_address) {
             /* we haven't obtained HW address yet */
             sock = socket(PF_INET, SOCK_STREAM, 0);
             if (sock == -1) {
@@ -2872,23 +2872,32 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
             memset(&ifr, 0, sizeof(ifr));
             pstrcpy(ifr.ifr_name, IF_NAMESIZE, info->name);
             if (ioctl(sock, SIOCGIFHWADDR, &ifr) == -1) {
-                error_setg_errno(errp, errno,
-                                 "failed to get MAC address of %s",
-                                 ifa->ifa_name);
-                close(sock);
-                goto error;
+                /*
+                 * We can't get the hw addr of this interface, but that's not a
+                 * fatal error. Don't set info->hardware_address, but keep
+                 * going.
+                 */
+                if (errno == EADDRNOTAVAIL) {
+                    /* The interface doesn't have a hw addr (e.g. loopback). */
+                    g_debug("failed to get MAC address of %s: %s",
+                            ifa->ifa_name, strerror(errno));
+                } else{
+                    g_warning("failed to get MAC address of %s: %s",
+                              ifa->ifa_name, strerror(errno));
+                }
+
+            } else {
+                mac_addr = (unsigned char *) &ifr.ifr_hwaddr.sa_data;
+
+                info->hardware_address =
+                    g_strdup_printf("%02x:%02x:%02x:%02x:%02x:%02x",
+                                    (int) mac_addr[0], (int) mac_addr[1],
+                                    (int) mac_addr[2], (int) mac_addr[3],
+                                    (int) mac_addr[4], (int) mac_addr[5]);
+
+                info->has_hardware_address = true;
             }
-
             close(sock);
-            mac_addr = (unsigned char *) &ifr.ifr_hwaddr.sa_data;
-
-            info->hardware_address =
-                g_strdup_printf("%02x:%02x:%02x:%02x:%02x:%02x",
-                                (int) mac_addr[0], (int) mac_addr[1],
-                                (int) mac_addr[2], (int) mac_addr[3],
-                                (int) mac_addr[4], (int) mac_addr[5]);
-
-            info->has_hardware_address = true;
         }
 
         if (ifa->ifa_addr &&
