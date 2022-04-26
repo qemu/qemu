@@ -8728,7 +8728,7 @@ static void handle_simd_intfp_conv(DisasContext *s, int rd, int rn,
     int pass;
 
     if (fracbits || size == MO_64) {
-        tcg_shift = tcg_const_i32(fracbits);
+        tcg_shift = tcg_constant_i32(fracbits);
     }
 
     if (size == MO_64) {
@@ -8813,9 +8813,6 @@ static void handle_simd_intfp_conv(DisasContext *s, int rd, int rn,
     }
 
     tcg_temp_free_ptr(tcg_fpst);
-    if (tcg_shift) {
-        tcg_temp_free_i32(tcg_shift);
-    }
 
     clear_vec_high(s, elements << size == 16, rd);
 }
@@ -8905,7 +8902,7 @@ static void handle_simd_shift_fpint_conv(DisasContext *s, bool is_scalar,
     tcg_fpstatus = fpstatus_ptr(size == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
     gen_helper_set_rmode(tcg_rmode, tcg_rmode, tcg_fpstatus);
     fracbits = (16 << size) - immhb;
-    tcg_shift = tcg_const_i32(fracbits);
+    tcg_shift = tcg_constant_i32(fracbits);
 
     if (size == MO_64) {
         int maxpass = is_scalar ? 1 : 2;
@@ -8963,7 +8960,6 @@ static void handle_simd_shift_fpint_conv(DisasContext *s, bool is_scalar,
         }
     }
 
-    tcg_temp_free_i32(tcg_shift);
     gen_helper_set_rmode(tcg_rmode, tcg_rmode, tcg_fpstatus);
     tcg_temp_free_ptr(tcg_fpstatus);
     tcg_temp_free_i32(tcg_rmode);
@@ -9835,23 +9831,15 @@ static void handle_2misc_64(DisasContext *s, int opcode, bool u,
     case 0x1c: /* FCVTAS */
     case 0x3a: /* FCVTPS */
     case 0x3b: /* FCVTZS */
-    {
-        TCGv_i32 tcg_shift = tcg_const_i32(0);
-        gen_helper_vfp_tosqd(tcg_rd, tcg_rn, tcg_shift, tcg_fpstatus);
-        tcg_temp_free_i32(tcg_shift);
+        gen_helper_vfp_tosqd(tcg_rd, tcg_rn, tcg_constant_i32(0), tcg_fpstatus);
         break;
-    }
     case 0x5a: /* FCVTNU */
     case 0x5b: /* FCVTMU */
     case 0x5c: /* FCVTAU */
     case 0x7a: /* FCVTPU */
     case 0x7b: /* FCVTZU */
-    {
-        TCGv_i32 tcg_shift = tcg_const_i32(0);
-        gen_helper_vfp_touqd(tcg_rd, tcg_rn, tcg_shift, tcg_fpstatus);
-        tcg_temp_free_i32(tcg_shift);
+        gen_helper_vfp_touqd(tcg_rd, tcg_rn, tcg_constant_i32(0), tcg_fpstatus);
         break;
-    }
     case 0x18: /* FRINTN */
     case 0x19: /* FRINTM */
     case 0x38: /* FRINTP */
@@ -9891,7 +9879,7 @@ static void handle_2misc_fcmp_zero(DisasContext *s, int opcode,
 
     if (is_double) {
         TCGv_i64 tcg_op = tcg_temp_new_i64();
-        TCGv_i64 tcg_zero = tcg_const_i64(0);
+        TCGv_i64 tcg_zero = tcg_constant_i64(0);
         TCGv_i64 tcg_res = tcg_temp_new_i64();
         NeonGenTwoDoubleOpFn *genfn;
         bool swap = false;
@@ -9927,13 +9915,12 @@ static void handle_2misc_fcmp_zero(DisasContext *s, int opcode,
             write_vec_element(s, tcg_res, rd, pass, MO_64);
         }
         tcg_temp_free_i64(tcg_res);
-        tcg_temp_free_i64(tcg_zero);
         tcg_temp_free_i64(tcg_op);
 
         clear_vec_high(s, !is_scalar, rd);
     } else {
         TCGv_i32 tcg_op = tcg_temp_new_i32();
-        TCGv_i32 tcg_zero = tcg_const_i32(0);
+        TCGv_i32 tcg_zero = tcg_constant_i32(0);
         TCGv_i32 tcg_res = tcg_temp_new_i32();
         NeonGenTwoSingleOpFn *genfn;
         bool swap = false;
@@ -10002,7 +9989,6 @@ static void handle_2misc_fcmp_zero(DisasContext *s, int opcode,
             }
         }
         tcg_temp_free_i32(tcg_res);
-        tcg_temp_free_i32(tcg_zero);
         tcg_temp_free_i32(tcg_op);
         if (!is_scalar) {
             clear_vec_high(s, is_q, rd);
