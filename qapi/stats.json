@@ -70,15 +70,29 @@
   'data': [ 'vm', 'vcpu' ] }
 
 ##
-# @StatsFilter:
+# @StatsVCPUFilter:
 #
-# The arguments to the query-stats command; specifies a target for which to
-# request statistics.
+# @vcpus: list of QOM paths for the desired vCPU objects.
 #
 # Since: 7.1
 ##
-{ 'struct': 'StatsFilter',
-  'data': { 'target': 'StatsTarget' } }
+{ 'struct': 'StatsVCPUFilter',
+  'data': { '*vcpus': [ 'str' ] } }
+
+##
+# @StatsFilter:
+#
+# The arguments to the query-stats command; specifies a target for which to
+# request statistics and optionally the required subset of information for
+# that target:
+# - which vCPUs to request statistics for
+#
+# Since: 7.1
+##
+{ 'union': 'StatsFilter',
+        'base': { 'target': 'StatsTarget' },
+  'discriminator': 'target',
+  'data': { 'vcpu': 'StatsVCPUFilter' } }
 
 ##
 # @StatsValue:

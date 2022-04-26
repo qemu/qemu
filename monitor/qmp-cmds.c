@@ -468,9 +468,26 @@ static bool invoke_stats_cb(StatsCallbacks *entry,
                             StatsFilter *filter,
                             Error **errp)
 {
+    strList *targets = NULL;
     ERRP_GUARD();
 
-    entry->stats_cb(stats_results, filter->target, errp);
+    switch (filter->target) {
+    case STATS_TARGET_VM:
+        break;
+    case STATS_TARGET_VCPU:
+        if (filter->u.vcpu.has_vcpus) {
+            if (!filter->u.vcpu.vcpus) {
+                /* No targets allowed?  Return no statistics.  */
+                return true;
+            }
+            targets = filter->u.vcpu.vcpus;
+        }
+        break;
+    default:
+        abort();
+    }
+
+    entry->stats_cb(stats_results, filter->target, targets, errp);
     if (*errp) {
         qapi_free_StatsResultList(*stats_results);
         *stats_results = NULL;
@@ -535,4 +552,19 @@ void add_stats_schema(StatsSchemaList **schema_results,
     entry->target = target;
     entry->stats = stats_list;
     QAPI_LIST_PREPEND(*schema_results, entry);
+}
+
+bool apply_str_list_filter(const char *string, strList *list)
+{
+    strList *str_list = NULL;
+
+    if (!list) {
+        return true;
+    }
+    for (str_list = list; str_list; str_list = str_list->next) {
+        if (g_str_equal(string, str_list->value)) {
+            return true;
+        }
+    }
+    return false;
 }
