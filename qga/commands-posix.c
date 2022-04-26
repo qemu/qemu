@@ -2767,6 +2767,7 @@ guest_find_interface(GuestNetworkInterfaceList *head,
 static int guest_get_network_stats(const char *name,
                        GuestNetworkInterfaceStat *stats)
 {
+#ifdef CONFIG_LINUX
     int name_len;
     char const *devinfo = "/proc/net/dev";
     FILE *fp;
@@ -2822,6 +2823,7 @@ static int guest_get_network_stats(const char *name,
     fclose(fp);
     g_free(line);
     g_debug("/proc/net/dev: Interface '%s' not found", name);
+#endif /* CONFIG_LINUX */
     return -1;
 }
 
@@ -2887,8 +2889,11 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
                 }
 
             } else {
+#ifdef CONFIG_SOLARIS
+                mac_addr = (unsigned char *) &ifr.ifr_addr.sa_data;
+#else
                 mac_addr = (unsigned char *) &ifr.ifr_hwaddr.sa_data;
-
+#endif
                 info->hardware_address =
                     g_strdup_printf("%02x:%02x:%02x:%02x:%02x:%02x",
                                     (int) mac_addr[0], (int) mac_addr[1],
