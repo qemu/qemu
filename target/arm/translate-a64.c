@@ -5255,7 +5255,7 @@ static void disas_cond_select(DisasContext *s, uint32_t insn)
     tcg_rd = cpu_reg(s, rd);
 
     a64_test_cc(&c, cond);
-    zero = tcg_const_i64(0);
+    zero = tcg_constant_i64(0);
 
     if (rn == 31 && rm == 31 && (else_inc ^ else_inv)) {
         /* CSET & CSETM.  */
@@ -5276,7 +5276,6 @@ static void disas_cond_select(DisasContext *s, uint32_t insn)
         tcg_gen_movcond_i64(c.cond, tcg_rd, c.value, zero, t_true, t_false);
     }
 
-    tcg_temp_free_i64(zero);
     a64_free_cc(&c);
 
     if (!sf) {
