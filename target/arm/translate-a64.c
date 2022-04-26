@@ -3693,7 +3693,7 @@ static void disas_ldst_multiple_struct(DisasContext *s, uint32_t insn)
     mop = endian | size | align;
 
     elements = (is_q ? 16 : 8) >> size;
-    tcg_ebytes = tcg_const_i64(1 << size);
+    tcg_ebytes = tcg_constant_i64(1 << size);
     for (r = 0; r < rpt; r++) {
         int e;
         for (e = 0; e < elements; e++) {
@@ -3709,7 +3709,6 @@ static void disas_ldst_multiple_struct(DisasContext *s, uint32_t insn)
             }
         }
     }
-    tcg_temp_free_i64(tcg_ebytes);
 
     if (!is_store) {
         /* For non-quad operations, setting a slice of the low
@@ -3839,7 +3838,7 @@ static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
                                 total);
     mop = finalize_memop(s, scale);
 
-    tcg_ebytes = tcg_const_i64(1 << scale);
+    tcg_ebytes = tcg_constant_i64(1 << scale);
     for (xs = 0; xs < selem; xs++) {
         if (replicate) {
             /* Load and replicate to all elements */
@@ -3861,7 +3860,6 @@ static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
         tcg_gen_add_i64(clean_addr, clean_addr, tcg_ebytes);
         rt = (rt + 1) % 32;
     }
-    tcg_temp_free_i64(tcg_ebytes);
 
     if (is_postidx) {
         if (rm == 31) {
@@ -4052,7 +4050,7 @@ static void disas_ldst_tag(DisasContext *s, uint32_t insn)
 
     if (is_zero) {
         TCGv_i64 clean_addr = clean_data_tbi(s, addr);
-        TCGv_i64 tcg_zero = tcg_const_i64(0);
+        TCGv_i64 tcg_zero = tcg_constant_i64(0);
         int mem_index = get_mem_index(s);
         int i, n = (1 + is_pair) << LOG2_TAG_GRANULE;
 
@@ -4062,7 +4060,6 @@ static void disas_ldst_tag(DisasContext *s, uint32_t insn)
             tcg_gen_addi_i64(clean_addr, clean_addr, 8);
             tcg_gen_qemu_st_i64(tcg_zero, clean_addr, mem_index, MO_UQ);
         }
-        tcg_temp_free_i64(tcg_zero);
     }
 
     if (index != 0) {
