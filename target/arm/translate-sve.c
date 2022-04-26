@@ -2103,9 +2103,7 @@ static bool trans_SINCDEC_r_32(DisasContext *s, arg_incdec_cnt *a)
             tcg_gen_ext32s_i64(reg, reg);
         }
     } else {
-        TCGv_i64 t = tcg_const_i64(inc);
-        do_sat_addsub_32(reg, t, a->u, a->d);
-        tcg_temp_free_i64(t);
+        do_sat_addsub_32(reg, tcg_constant_i64(inc), a->u, a->d);
     }
     return true;
 }
@@ -2122,9 +2120,7 @@ static bool trans_SINCDEC_r_64(DisasContext *s, arg_incdec_cnt *a)
     TCGv_i64 reg = cpu_reg(s, a->rd);
 
     if (inc != 0) {
-        TCGv_i64 t = tcg_const_i64(inc);
-        do_sat_addsub_64(reg, t, a->u, a->d);
-        tcg_temp_free_i64(t);
+        do_sat_addsub_64(reg, tcg_constant_i64(inc), a->u, a->d);
     }
     return true;
 }
@@ -2141,11 +2137,10 @@ static bool trans_INCDEC_v(DisasContext *s, arg_incdec2_cnt *a)
 
     if (inc != 0) {
         if (sve_access_check(s)) {
-            TCGv_i64 t = tcg_const_i64(a->d ? -inc : inc);
             tcg_gen_gvec_adds(a->esz, vec_full_reg_offset(s, a->rd),
                               vec_full_reg_offset(s, a->rn),
-                              t, fullsz, fullsz);
-            tcg_temp_free_i64(t);
+                              tcg_constant_i64(a->d ? -inc : inc),
+                              fullsz, fullsz);
         }
     } else {
         do_mov_z(s, a->rd, a->rn);
@@ -2165,9 +2160,8 @@ static bool trans_SINCDEC_v(DisasContext *s, arg_incdec2_cnt *a)
 
     if (inc != 0) {
         if (sve_access_check(s)) {
-            TCGv_i64 t = tcg_const_i64(inc);
-            do_sat_addsub_vec(s, a->esz, a->rd, a->rn, t, a->u, a->d);
-            tcg_temp_free_i64(t);
+            do_sat_addsub_vec(s, a->esz, a->rd, a->rn,
+                              tcg_constant_i64(inc), a->u, a->d);
         }
     } else {
         do_mov_z(s, a->rd, a->rn);
