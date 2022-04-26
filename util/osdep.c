@@ -31,8 +31,6 @@
 #include "qemu/hw-version.h"
 #include "monitor/monitor.h"
 
-static bool fips_enabled = false;
-
 static const char *hw_version = QEMU_HW_VERSION;
 
 int socket_set_cork(int fd, int v)
@@ -512,32 +510,6 @@ void qemu_set_hw_version(const char *version)
 const char *qemu_hw_version(void)
 {
     return hw_version;
-}
-
-void fips_set_state(bool requested)
-{
-#ifdef __linux__
-    if (requested) {
-        FILE *fds = fopen("/proc/sys/crypto/fips_enabled", "r");
-        if (fds != NULL) {
-            fips_enabled = (fgetc(fds) == '1');
-            fclose(fds);
-        }
-    }
-#else
-    fips_enabled = false;
-#endif /* __linux__ */
-
-#ifdef _FIPS_DEBUG
-    fprintf(stderr, "FIPS mode %s (requested %s)\n",
-            (fips_enabled ? "enabled" : "disabled"),
-            (requested ? "enabled" : "disabled"));
-#endif
-}
-
-bool fips_get_state(void)
-{
-    return fips_enabled;
 }
 
 #ifdef _WIN32

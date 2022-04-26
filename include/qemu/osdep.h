@@ -553,9 +553,6 @@ int qemu_pipe(int pipefd[2]);
 
 void qemu_set_cloexec(int fd);
 
-void fips_set_state(bool requested);
-bool fips_get_state(void);
-
 /* Return a dynamically allocated directory path that is appropriate for storing
  * local state.
  *
