@@ -5137,12 +5137,10 @@ static void gen_srs(DisasContext *s,
     }
 
     addr = tcg_temp_new_i32();
-    tmp = tcg_const_i32(mode);
     /* get_r13_banked() will raise an exception if called from System mode */
     gen_set_condexec(s);
     gen_set_pc_im(s, s->pc_curr);
-    gen_helper_get_r13_banked(addr, cpu_env, tmp);
-    tcg_temp_free_i32(tmp);
+    gen_helper_get_r13_banked(addr, cpu_env, tcg_constant_i32(mode));
     switch (amode) {
     case 0: /* DA */
         offset = -4;
@@ -5185,9 +5183,7 @@ static void gen_srs(DisasContext *s,
             abort();
         }
         tcg_gen_addi_i32(addr, addr, offset);
-        tmp = tcg_const_i32(mode);
-        gen_helper_set_r13_banked(cpu_env, tmp, addr);
-        tcg_temp_free_i32(tmp);
+        gen_helper_set_r13_banked(cpu_env, tcg_constant_i32(mode), addr);
     }
     tcg_temp_free_i32(addr);
     s->base.is_jmp = DISAS_UPDATE_EXIT;
