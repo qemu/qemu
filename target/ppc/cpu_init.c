@@ -3697,9 +3697,9 @@ POWERPC_FAMILY(476FP)(ObjectClass *oc, void *data)
 
     // FIXME: разобраться надо бы в целом в наборе инструкций (каждый флаг изучить)
     pcc->insns_flags =
-        PPC_INSNS_BASE | // base instr set (?)
-        PPC_ISEL | // integer select (?)
-        PPC_POPCNTB | // popcntb instruction (?)
+        PPC_INSNS_BASE |
+        PPC_ISEL |
+        PPC_POPCNTB |
         PPC_STRING |
         PPC_FLOAT |
         PPC_FLOAT_FSQRT |
@@ -3714,30 +3714,24 @@ POWERPC_FAMILY(476FP)(ObjectClass *oc, void *data)
         PPC_MEM_TLBIA |
         PPC_MEM_TLBIE |
         PPC_MEM_TLBSYNC |
-        // FIXME: эти инструкции конфликтуют с инструкциями из BOOKE
-        // PPC_MEM_SYNC |
-        // PPC_MEM_EIEIO |
+        PPC_MEM_EIEIO |
         PPC_CACHE |
         PPC_CACHE_ICBI |
         PPC_CACHE_DCBZ |
         PPC_CACHE_DCBA |
         PPC_WRTEE |
-        PPC_440_SPEC | // 440 specific instr (?)
-//        PPC_BOOKE | // booke embeded instr (?)
+        PPC_440_SPEC |
         PPC_MFAPIDI |
         PPC_TLBIVAX |
-        PPC_4xx_COMMON | // 4xx common instr (?)
+        PPC_4xx_COMMON |
         PPC_RFMCI |
         PPC_RFDI |
         PPC_DCR |
         PPC_DCRX |
         PPC_DCRUX |
-        PPC2_DFP |
-        PPC2_PRCNTL | // Embedded Processor Control (?)
-        PPC2_ISA205 | // ISE 2.05 (is it the same ?)
         PPC_MFTB;
 
-    pcc->insns_flags2 = PPC2_476_TLB;
+    pcc->insns_flags2 = PPC2_476_TLB | PPC2_ISA205 | PPC2_FP_CVT_S64;
 
     // Machine State Register bits
     pcc->msr_mask = (1ull << MSR_POW) |
