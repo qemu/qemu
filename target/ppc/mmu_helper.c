@@ -984,7 +984,6 @@ target_ulong helper_440_tlbsx(CPUPPCState *env, target_ulong address)
 // translation space bit
 #define PPC476_TLB_TS_BIT               0x400
 #define PPC476_TLB_VALID_BIT            0x800
-#define PPC476_TLB_EPN_MASK             0xfffff000
 #define PPC476_TLB_EPN_SHIFT            12
 #define PPC476_TLB_BOLTED_INDEX_MASK    0x7000000
 #define PPC476_TLB_BOLTED_INDEX_SHIFT   24
@@ -1146,7 +1145,7 @@ void helper_476_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
                       target_ulong value)
 {
     uint32_t way, index, tid;
-    uint32_t addr, valid;
+    uint32_t addr, size, valid;
     ppcemb_tlb_t *tlb;
     // FIXME: нормально ли так сохранять инфу об этом?
     static int increment_hardware_way;
@@ -1158,7 +1157,9 @@ void helper_476_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
     switch (word) {
     default:
     case 0:
-        addr = value & PPC476_TLB_EPN_MASK;
+        size = calc_476_tlb_to_page_size(
+                (value & PPC476_TLB_PAGE_SIZE_MASK) >> PPC476_TLB_PAGE_SIZE_SHIFT);
+        addr = value & ~(size - 1);
         valid = value & PPC476_TLB_VALID_BIT ? 1 : 0;
 
         tid = env->spr[SPR_440_MMUCR] & PPC476_MMUCR_STID_MASK;
@@ -1200,8 +1201,7 @@ void helper_476_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
 
         if (valid) {
             tlb->EPN = addr;
-            tlb->size = calc_476_tlb_to_page_size(
-                (value & PPC476_TLB_PAGE_SIZE_MASK) >> PPC476_TLB_PAGE_SIZE_SHIFT);
+            tlb->size = size;
             tlb->PID = tid;
             // make it BOLTED if it should be
             tlb->attr = entry & PPC476_TLB_BOLTED_ENTRY;
