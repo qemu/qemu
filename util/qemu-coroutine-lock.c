@@ -108,6 +108,13 @@ bool coroutine_fn qemu_co_queue_next(CoQueue *queue)
     return qemu_co_enter_next_impl(queue, NULL);
 }
 
+void qemu_co_enter_all_impl(CoQueue *queue, QemuLockable *lock)
+{
+    while (qemu_co_enter_next_impl(queue, lock)) {
+        /* just loop */
+    }
+}
+
 bool qemu_co_queue_empty(CoQueue *queue)
 {
     return QSIMPLEQ_FIRST(&queue->entries) == NULL;
