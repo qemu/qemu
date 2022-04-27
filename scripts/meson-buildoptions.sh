@@ -94,6 +94,7 @@ meson_options_help() {
   printf "%s\n" '  oss             OSS sound support'
   printf "%s\n" '  pa              PulseAudio sound support'
   printf "%s\n" '  parallels       parallels image format support'
+  printf "%s\n" '  png             PNG support with libpng'
   printf "%s\n" '  qcow1           qcow1 image format support'
   printf "%s\n" '  qed             qed image format support'
   printf "%s\n" '  qga-vss         build QGA VSS support (broken with MinGW)'
@@ -123,7 +124,6 @@ meson_options_help() {
   printf "%s\n" '  virtiofsd       build virtiofs daemon (virtiofsd)'
   printf "%s\n" '  vnc             VNC server'
   printf "%s\n" '  vnc-jpeg        JPEG lossy compression for VNC server'
-  printf "%s\n" '  vnc-png         PNG compression for VNC server'
   printf "%s\n" '  vnc-sasl        SASL authentication for VNC server'
   printf "%s\n" '  vte             vte support for the gtk UI'
   printf "%s\n" '  vvfat           vvfat image format support'
@@ -277,6 +277,8 @@ _meson_option_parse() {
     --disable-pa) printf "%s" -Dpa=disabled ;;
     --enable-parallels) printf "%s" -Dparallels=enabled ;;
     --disable-parallels) printf "%s" -Dparallels=disabled ;;
+    --enable-png) printf "%s" -Dpng=enabled ;;
+    --disable-png) printf "%s" -Dpng=disabled ;;
     --enable-profiler) printf "%s" -Dprofiler=true ;;
     --disable-profiler) printf "%s" -Dprofiler=false ;;
     --enable-qcow1) printf "%s" -Dqcow1=enabled ;;
@@ -347,8 +349,6 @@ _meson_option_parse() {
     --disable-vnc) printf "%s" -Dvnc=disabled ;;
     --enable-vnc-jpeg) printf "%s" -Dvnc_jpeg=enabled ;;
     --disable-vnc-jpeg) printf "%s" -Dvnc_jpeg=disabled ;;
-    --enable-vnc-png) printf "%s" -Dvnc_png=enabled ;;
-    --disable-vnc-png) printf "%s" -Dvnc_png=disabled ;;
     --enable-vnc-sasl) printf "%s" -Dvnc_sasl=enabled ;;
     --disable-vnc-sasl) printf "%s" -Dvnc_sasl=disabled ;;
     --enable-vte) printf "%s" -Dvte=enabled ;;

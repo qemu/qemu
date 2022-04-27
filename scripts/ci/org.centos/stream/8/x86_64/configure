@@ -142,7 +142,7 @@
 --disable-virtiofsd \
 --disable-vnc \
 --disable-vnc-jpeg \
---disable-vnc-png \
+--disable-png \
 --disable-vnc-sasl \
 --disable-vte \
 --disable-vvfat \
@@ -200,7 +200,7 @@
 --enable-vhost-vdpa \
 --enable-vhost-vsock \
 --enable-vnc \
---enable-vnc-png \
+--enable-png \
 --enable-vnc-sasl \
 --enable-werror \
 --enable-xkbcommon
