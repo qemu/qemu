@@ -143,9 +143,9 @@ static bool bp_wp_matches(ARMCPU *cpu, int n, bool is_wp)
      * Non-Secure to simplify the code slightly compared to the full
      * table in the ARM ARM.
      */
-    pac = extract64(cr, 1, 2);
-    hmc = extract64(cr, 13, 1);
-    ssc = extract64(cr, 14, 2);
+    pac = FIELD_EX64(cr, DBGWCR, PAC);
+    hmc = FIELD_EX64(cr, DBGWCR, HMC);
+    ssc = FIELD_EX64(cr, DBGWCR, SSC);
 
     switch (ssc) {
     case 0:
@@ -184,8 +184,8 @@ static bool bp_wp_matches(ARMCPU *cpu, int n, bool is_wp)
         g_assert_not_reached();
     }
 
-    wt = extract64(cr, 20, 1);
-    lbn = extract64(cr, 16, 4);
+    wt = FIELD_EX64(cr, DBGWCR, WT);
+    lbn = FIELD_EX64(cr, DBGWCR, LBN);
 
     if (wt && !linked_bp_matches(cpu, lbn)) {
         return false;

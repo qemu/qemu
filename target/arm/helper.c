@@ -6320,12 +6320,12 @@ void hw_watchpoint_update(ARMCPU *cpu, int n)
         env->cpu_watchpoint[n] = NULL;
     }
 
-    if (!extract64(wcr, 0, 1)) {
+    if (!FIELD_EX64(wcr, DBGWCR, E)) {
         /* E bit clear : watchpoint disabled */
         return;
     }
 
-    switch (extract64(wcr, 3, 2)) {
+    switch (FIELD_EX64(wcr, DBGWCR, LSC)) {
     case 0:
         /* LSC 00 is reserved and must behave as if the wp is disabled */
         return;
@@ -6344,7 +6344,7 @@ void hw_watchpoint_update(ARMCPU *cpu, int n)
      * CONSTRAINED UNPREDICTABLE; we opt to ignore BAS in this case,
      * thus generating a watchpoint for every byte in the masked region.
      */
-    mask = extract64(wcr, 24, 4);
+    mask = FIELD_EX64(wcr, DBGWCR, MASK);
     if (mask == 1 || mask == 2) {
         /* Reserved values of MASK; we must act as if the mask value was
          * some non-reserved value, or as if the watchpoint were disabled.
@@ -6361,7 +6361,7 @@ void hw_watchpoint_update(ARMCPU *cpu, int n)
         wvr &= ~(len - 1);
     } else {
         /* Watchpoint covers bytes defined by the byte address select bits */
-        int bas = extract64(wcr, 5, 8);
+        int bas = FIELD_EX64(wcr, DBGWCR, BAS);
         int basstart;
 
         if (extract64(wvr, 2, 1)) {
