@@ -768,6 +768,11 @@ found_tlb:
         prot2 = (tlb->prot >> 4) & 0xF;
     }
 
+    // check little-endian bit
+    if (tlb->attr & PPC476_TLB_LE) {
+        prot2 |= PAGE_LE;
+    }
+
     /* Check the address space */
     if ((access_type == MMU_INST_FETCH ? msr_ir : msr_dr) != (tlb->attr & 1)) {
         LOG_SWTLB("%s: AS doesn't match\n", __func__);

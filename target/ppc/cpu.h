@@ -1023,6 +1023,15 @@ struct ppc_radix_page_info {
 };
 
 /*****************************************************************************/
+/*
+ * PowerPC usage of the PAGE_TARGET_* bits for TLB little-endian bit
+ */
+#define PAGE_LE  PAGE_TARGET_1
+
+/* PowerPC 476 little-endian bit position */
+#define PPC476_TLB_LE               0x80
+
+/*****************************************************************************/
 /* The whole PowerPC CPU context */
 
 /*

@@ -1758,8 +1758,15 @@ bool ppc_cpu_tlb_fill(CPUState *cs, vaddr eaddr, int size,
 
     if (ppc_xlate(cpu, eaddr, access_type, &raddr,
                   &page_size, &prot, mmu_idx, !probe)) {
-        tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
-                     prot, mmu_idx, 1UL << page_size);
+        // FIXME: depending on CPU endian mode shouldn't we reverse this bit ???
+        if (prot & PAGE_LE) {
+            tlb_set_page_with_attrs(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
+                                    (MemTxAttrs) { .byte_swap = 1 },
+                                    prot, mmu_idx, 1UL << page_size);
+        } else {
+            tlb_set_page(cs, eaddr & TARGET_PAGE_MASK, raddr & TARGET_PAGE_MASK,
+                         prot, mmu_idx, 1UL << page_size);
+        }
         return true;
     }
     if (probe) {
