@@ -28,9 +28,9 @@ endif
 # BTI Tests
 # bti-1 tests the elf notes, so we require special compiler support.
 ifneq ($(CROSS_CC_HAS_ARMV8_BTI),)
-AARCH64_TESTS += bti-1
-bti-1: CFLAGS += -mbranch-protection=standard
-bti-1: LDFLAGS += -nostdlib
+AARCH64_TESTS += bti-1 bti-3
+bti-1 bti-3: CFLAGS += -mbranch-protection=standard
+bti-1 bti-3: LDFLAGS += -nostdlib
 endif
 # bti-2 tests PROT_BTI, so no special compiler support required.
 AARCH64_TESTS += bti-2
