@@ -116,6 +116,8 @@
 #include "crypto/init.h"
 #include "sysemu/replay.h"
 #include "qapi/qapi-events-run-state.h"
+#include "qapi/qapi-types-audio.h"
+#include "qapi/qapi-visit-audio.h"
 #include "qapi/qapi-visit-block-core.h"
 #include "qapi/qapi-visit-compat.h"
 #include "qapi/qapi-visit-ui.h"
@@ -2930,13 +2932,33 @@ void qemu_init(int argc, char **argv, char **envp)
             case QEMU_OPTION_audiodev:
                 audio_parse_option(optarg);
                 break;
-            case QEMU_OPTION_soundhw:
-                if (is_help_option(optarg)) {
+            case QEMU_OPTION_audio: {
+                QDict *dict = keyval_parse(optarg, "driver", NULL, &error_fatal);
+                char *model;
+                Audiodev *dev = NULL;
+                Visitor *v;
+
+                if (!qdict_haskey(dict, "id")) {
+                    qdict_put_str(dict, "id", "audiodev0");
+                }
+                if (!qdict_haskey(dict, "model")) {
+                    error_setg(&error_fatal, "Parameter 'model' is missing");
+                }
+                model = g_strdup(qdict_get_str(dict, "model"));
+                qdict_del(dict, "model");
+                if (is_help_option(model)) {
                     show_valid_soundhw();
                     exit(0);
                 }
-                select_soundhw (optarg);
+                v = qobject_input_visitor_new_keyval(QOBJECT(dict));
+                qobject_unref(dict);
+                visit_type_Audiodev(v, NULL, &dev, &error_fatal);
+                visit_free(v);
+                audio_define(dev);
+                select_soundhw(model, dev->id);
+                g_free(model);
                 break;
+            }
             case QEMU_OPTION_h:
                 help(0);
                 break;

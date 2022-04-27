@@ -27,6 +27,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qom/object.h"
+#include "hw/qdev-properties.h"
 #include "hw/isa/isa.h"
 #include "hw/pci/pci.h"
 #include "hw/audio/soundhw.h"
@@ -36,14 +37,14 @@ struct soundhw {
     const char *descr;
     const char *typename;
     int isa;
-    int (*init_pci) (PCIBus *bus);
+    int (*init_pci) (PCIBus *bus, const char *audiodev);
 };
 
 static struct soundhw soundhw[9];
 static int soundhw_count;
 
 void pci_register_soundhw(const char *name, const char *descr,
-                          int (*init_pci)(PCIBus *bus))
+                          int (*init_pci)(PCIBus *bus, const char *audiodev))
 {
     assert(soundhw_count < ARRAY_SIZE(soundhw) - 1);
     soundhw[soundhw_count].name = name;
@@ -80,8 +81,9 @@ void show_valid_soundhw(void)
 }
 
 static struct soundhw *selected = NULL;
+static const char *audiodev_id;
 
-void select_soundhw(const char *optarg)
+void select_soundhw(const char *optarg, const char *audiodev)
 {
     struct soundhw *c;
 
@@ -92,6 +94,7 @@ void select_soundhw(const char *optarg)
     for (c = soundhw; c->name; ++c) {
         if (g_str_equal(c->name, optarg)) {
             selected = c;
+            audiodev_id = audiodev;
             break;
         }
     }
@@ -129,10 +132,11 @@ void soundhw_init(void)
 
     if (c->typename) {
         DeviceState *dev = qdev_new(c->typename);
+        qdev_prop_set_string(dev, "audiodev", audiodev_id);
         qdev_realize_and_unref(dev, bus, &error_fatal);
     } else {
         assert(!c->isa);
-        c->init_pci(pci_bus);
+        c->init_pci(pci_bus, audiodev_id);
     }
 }
 

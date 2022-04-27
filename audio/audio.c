@@ -2099,12 +2099,18 @@ static void audio_validate_opts(Audiodev *dev, Error **errp)
 
 void audio_parse_option(const char *opt)
 {
-    AudiodevListEntry *e;
     Audiodev *dev = NULL;
 
     Visitor *v = qobject_input_visitor_new_str(opt, "driver", &error_fatal);
     visit_type_Audiodev(v, NULL, &dev, &error_fatal);
     visit_free(v);
+
+    audio_define(dev);
+}
+
+void audio_define(Audiodev *dev)
+{
+    AudiodevListEntry *e;
 
     audio_validate_opts(dev, &error_fatal);
 
