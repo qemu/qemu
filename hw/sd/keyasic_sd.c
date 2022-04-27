@@ -161,7 +161,7 @@ static void keyasic_sd_write(void *opaque, hwaddr offset, uint64_t val,
 static const MemoryRegionOps keyasic_sd_ops = {
     .read = keyasic_sd_read,
     .write = keyasic_sd_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void keyasic_sd_realize(DeviceState *dev, Error **errp)

@@ -567,13 +567,13 @@ static void mm7705_reset(MachineState *machine)
 
     // STCL
     uint8_t boot_cfg = 0x16;
-    if (address_space_write(&address_space_memory, 0x1038000000 + 0x3,
+    if (address_space_write(&address_space_memory, 0x1038000000,
             MEMTXATTRS_UNSPECIFIED, &boot_cfg, 1) != 0) {
         printf("shit!!1\n");
     }
 
     uint8_t pll_state = 0x3f;
-    if (address_space_write(&address_space_memory, 0x1038000004  + 0x3,
+    if (address_space_write(&address_space_memory, 0x1038000004,
             MEMTXATTRS_UNSPECIFIED, &pll_state, 1) != 0) {
         printf("shit!!2\n");
     }

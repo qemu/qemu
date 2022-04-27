@@ -410,7 +410,7 @@ static void greth_reset(DeviceState *dev)
 static const MemoryRegionOps greth_ops = {
     .read = greth_read,
     .write = greth_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static NetClientInfo net_greth_info = {

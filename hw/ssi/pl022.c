@@ -228,7 +228,7 @@ static void pl022_reset(DeviceState *dev)
 static const MemoryRegionOps pl022_ops = {
     .read = pl022_read,
     .write = pl022_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static int pl022_post_load(void *opaque, int version_id)
