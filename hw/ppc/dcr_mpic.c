@@ -108,7 +108,6 @@ static void mpic_update_irq(MpicState *s)
         qemu_irq_lower(s->output_irq[OUTPUT_NON_CRIT]);
         qemu_irq_lower(s->output_irq[OUTPUT_CRIT]);
         qemu_irq_lower(s->output_irq[OUTPUT_MCHECK]);
-        printf("disable all irqs\n");
         return;
     }
 
@@ -135,16 +134,13 @@ static void mpic_update_irq(MpicState *s)
             (s->current_irqs[0][i] == NULL ||
             pending_irqs[0][i]->priority > s->current_irqs[0][i]->priority)) {
             s->current_irqs[0][i] = pending_irqs[0][i];
+        }
 
-            pending_irqs[0][i]->activity = true;
-
-            // clear pending bit (edge-triggered, inter-process or timer)
-            if (!pending_irqs[0][i]->sense) {
-                pending_irqs[0][i]->pending = false;
-            }
-
+        if (s->current_irqs[0][i] && s->current_irqs[0][i]->pending) {
+            s->current_irqs[0][i]->activity = true;
             qemu_irq_raise(s->output_irq[i]);
-            printf("there is a pending irq\n");
+        } else {
+            qemu_irq_lower(s->output_irq[i]);
         }
     }
 
@@ -365,16 +361,28 @@ static void mpic_dcr_write (void *opaque, int dcrn, uint32_t val)
 
     case REG_NON_CRIT_EOI:
         s->current_irqs[0][OUTPUT_NON_CRIT]->activity = false;
+        // clear pending bit (edge-triggered, inter-process or timer)
+        if (!s->current_irqs[0][OUTPUT_NON_CRIT]->sense) {
+            s->current_irqs[0][OUTPUT_NON_CRIT]->pending = false;
+        }
         s->current_irqs[0][OUTPUT_NON_CRIT] = NULL;
         break;
 
     case REG_CRIT_EOI:
         s->current_irqs[0][OUTPUT_CRIT]->activity = false;
+        // clear pending bit (edge-triggered, inter-process or timer)
+        if (!s->current_irqs[0][OUTPUT_CRIT]->sense) {
+            s->current_irqs[0][OUTPUT_CRIT]->pending = false;
+        }
         s->current_irqs[0][OUTPUT_CRIT] = NULL;
         break;
 
     case REG_MCHECK_EOI:
         s->current_irqs[0][OUTPUT_MCHECK]->activity = false;
+        // clear pending bit (edge-triggered, inter-process or timer)
+        if (!s->current_irqs[0][OUTPUT_MCHECK]->sense) {
+            s->current_irqs[0][OUTPUT_MCHECK]->pending = false;
+        }
         s->current_irqs[0][OUTPUT_MCHECK] = NULL;
         break;
     }
