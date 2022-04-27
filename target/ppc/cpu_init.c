@@ -3675,8 +3675,8 @@ static void init_proc_476FP(CPUPPCState *env)
 
     init_excp_BookE(env);
 
-    env->dcache_line_size = 32;
-    env->icache_line_size = 32;
+    env->dcache_line_size = 128;
+    env->icache_line_size = 128;
 
     // FIXME: не нашел где проверить, те ли прерывания или нет
     ppc40x_irq_init(env_archcpu(env));
