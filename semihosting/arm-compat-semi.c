@@ -1106,7 +1106,7 @@ target_ulong do_common_semihosting(CPUState *cs)
 #else
             unsigned int i;
 
-            output_size = ts->info->arg_end - ts->info->arg_start;
+            output_size = ts->info->env_strings - ts->info->arg_strings;
             if (!output_size) {
                 /*
                  * We special-case the "empty command line" case (argc==0).
@@ -1146,7 +1146,7 @@ target_ulong do_common_semihosting(CPUState *cs)
                 goto out;
             }
 
-            if (copy_from_user(output_buffer, ts->info->arg_start,
+            if (copy_from_user(output_buffer, ts->info->arg_strings,
                                output_size)) {
                 errno = EFAULT;
                 status = set_swi_errno(cs, -1);

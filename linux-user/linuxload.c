@@ -92,6 +92,11 @@ abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
     envp = sp;
     sp -= (argc + 1) * n;
     argv = sp;
+    ts->info->envp = envp;
+    ts->info->envc = envc;
+    ts->info->argv = argv;
+    ts->info->argc = argc;
+
     if (push_ptr) {
         /* FIXME - handle put_user() failures */
         sp -= n;
@@ -99,19 +104,22 @@ abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
         sp -= n;
         put_user_ual(argv, sp);
     }
+
     sp -= n;
     /* FIXME - handle put_user() failures */
     put_user_ual(argc, sp);
-    ts->info->arg_start = stringp;
+
+    ts->info->arg_strings = stringp;
     while (argc-- > 0) {
         /* FIXME - handle put_user() failures */
         put_user_ual(stringp, argv);
         argv += n;
         stringp += target_strlen(stringp) + 1;
     }
-    ts->info->arg_end = stringp;
     /* FIXME - handle put_user() failures */
     put_user_ual(0, argv);
+
+    ts->info->env_strings = stringp;
     while (envc-- > 0) {
         /* FIXME - handle put_user() failures */
         put_user_ual(stringp, envp);
