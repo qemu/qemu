@@ -729,7 +729,7 @@ int ppc476fp_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
         return -1;
     }
     *raddrp = address & ~mask;
-    *raddrp |= tlb->RPN & mask;
+    *raddrp |= tlb->RPN;
 
     return 0;
 }
@@ -1132,9 +1132,7 @@ static void mmu476fp_print_mmu_entries(ppcemb_tlb_t *entry, int size)
 
         mask = ~(size - 1);
         ea = entry->EPN & mask;
-        pa = entry->RPN & mask;
-        /* Extend the physical address to 36 bits */
-        pa |= (hwaddr)(entry->RPN & 0xF) << 32;
+        pa = entry->RPN;
         if (size >= 1 * MiB) {
             snprintf(size_buf, sizeof(size_buf), "%3" PRId64 "M", size / MiB);
         } else {
