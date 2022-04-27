@@ -6298,7 +6298,7 @@ const char *bdrv_get_device_or_node_name(const BlockDriverState *bs)
 
 int bdrv_get_flags(BlockDriverState *bs)
 {
-    GLOBAL_STATE_CODE();
+    IO_CODE();
     return bs->open_flags;
 }
 

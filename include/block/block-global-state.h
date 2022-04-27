@@ -172,7 +172,6 @@ void bdrv_next_cleanup(BdrvNextIterator *it);
 BlockDriverState *bdrv_next_monitor_owned(BlockDriverState *bs);
 void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
                          void *opaque, bool read_only);
-int bdrv_get_flags(BlockDriverState *bs);
 char *bdrv_get_full_backing_filename(BlockDriverState *bs, Error **errp);
 char *bdrv_dirname(BlockDriverState *bs, Error **errp);
 
