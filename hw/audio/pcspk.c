@@ -245,18 +245,8 @@ static const TypeInfo pcspk_info = {
     .class_init     = pcspk_class_initfn,
 };
 
-static int pcspk_audio_init_soundhw(ISABus *bus)
-{
-    PCSpkState *s = pcspk_state;
-
-    warn_report("'-soundhw pcspk' is deprecated, "
-                "please set a backend using '-machine pcspk-audiodev=<name>' instead");
-    return pcspk_audio_init(s);
-}
-
 static void pcspk_register(void)
 {
     type_register_static(&pcspk_info);
-    isa_register_soundhw("pcspk", "PC speaker", pcspk_audio_init_soundhw);
 }
 type_init(pcspk_register)
