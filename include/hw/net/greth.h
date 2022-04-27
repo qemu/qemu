@@ -23,6 +23,9 @@ struct GRETHState {
     uint32_t mac_lsb;
     uint32_t send_desc;
     uint32_t recv_desc;
+    uint32_t mdio;
+
+    uint16_t phy_ctrl;
 
     qemu_irq irq;
 };

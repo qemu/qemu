@@ -9,6 +9,7 @@
 #include "hw/irq.h"
 #include "sysemu/dma.h"
 #include "net/eth.h"
+#include "hw/net/mii.h"
 
 #include "hw/net/greth.h"
 
@@ -16,6 +17,7 @@
 #define REG_STATUS          0x4
 #define REG_MAC_MSB         0x8
 #define REG_MAC_LSB         0xc
+#define REG_MDIO            0x10
 #define REG_SEND_DESCR_PTR  0x14
 #define REG_RECV_DESCR_PTR  0x18
 
@@ -45,6 +47,19 @@
 #define STATUS_MASK \
     (STATUS_SEND_DMA_ERROR | STATUS_RECV_DMA_ERROR | STATUS_SEND_IRQ | STATUS_RECV_IRQ | \
     STATUS_SEND_ERROR | STATUS_RECV_ERROR)
+
+#define MDIO_DATA_OFFSET        16
+#define MDIO_DATA_MASK          (0xffff<<MDIO_DATA_OFFSET)
+#define MDIO_PHYADDR_OFFSET     11
+#define MDIO_PHYADDR_MASK       (0x1f<<MDIO_PHYADDR_OFFSET)
+#define MDIO_REGADDR_OFFSET     6
+#define MDIO_REGADDR_MASK       (0x1f<<MDIO_REGADDR_OFFSET)
+#define MDIO_LINKFAIL           (1<<2)
+#define MDIO_READ               (1<<1)
+#define MDIO_WRITE              (1<<0)
+
+#define MDIO_MASK \
+    (MDIO_DATA_MASK | MDIO_PHYADDR_MASK | MDIO_REGADDR_MASK | MDIO_READ | MDIO_WRITE)
 
 #define DESCR_PTR_BASE_MASK     0xfffffc00
 #define DESCR_PTR_OFFSET_MASK   0x3fc
@@ -132,6 +147,65 @@ static int write_recv_desc(GRETHState *s, dma_addr_t addr, recv_desc_t *desc)
         return -1;
     }
     return 0;
+}
+
+/* PHY */
+static void greth_phy_reset(GRETHState *s)
+{
+    s->phy_ctrl = 0;
+}
+
+static void greth_phy_write(GRETHState *s, uint32_t regaddr, uint16_t val)
+{
+    switch (regaddr) {
+    case MII_BMCR:
+        if (val & MII_BMCR_RESET) {
+            greth_phy_reset(s);
+            break;
+        }
+
+        if (val & MII_BMCR_LOOPBACK) {
+            printf("PHY loopback mode is not supported\n");
+            abort();
+        }
+
+        // убираем признак рестарта, типа мы его сразу выполнили
+        val &= ~MII_BMCR_ANRESTART;
+
+        s->phy_ctrl = val;
+        break;
+
+    default: break;
+    }
+}
+
+static uint16_t greth_phy_read(GRETHState *s, uint32_t regaddr)
+{
+    uint16_t val = 0;
+
+    switch (regaddr) {
+    case MII_BMCR:
+        val = s->phy_ctrl;
+        break;
+
+    case MII_BMSR:
+        val = MII_BMSR_100TX_FD | MII_BMSR_100TX_HD | MII_BMSR_10T_FD | MII_BMSR_10T_HD |
+              MII_BMSR_AN_COMP | MII_BMSR_AUTONEG | MII_BMSR_LINK_ST;
+        break;
+
+    case MII_ANAR:
+        val = MII_ANAR_TXFD | MII_ANAR_TX | MII_ANAR_10FD | MII_ANAR_10 | MII_ANAR_CSMACD;
+        break;
+
+    case MII_ANLPAR:
+        val = MII_ANLPAR_ACK | MII_ANLPAR_TXFD | MII_ANLPAR_TX | MII_ANLPAR_10FD |
+              MII_ANLPAR_10 | MII_ANLPAR_CSMACD;
+        break;
+
+    default: break;
+    }
+
+    return val;
 }
 
 /* Network logic */
@@ -305,12 +379,20 @@ static uint64_t greth_read(void *opaque, hwaddr offset, unsigned size)
         val = s->ctrl;
         break;
 
+    case REG_STATUS:
+        val = s->status;
+        break;
+
     case REG_MAC_MSB:
         val = s->mac_msb;
         break;
 
     case REG_MAC_LSB:
         val = s->mac_lsb;
+        break;
+
+    case REG_MDIO:
+        val = s->mdio;
         break;
 
     case REG_SEND_DESCR_PTR:
@@ -324,8 +406,6 @@ static uint64_t greth_read(void *opaque, hwaddr offset, unsigned size)
     default: break;
     }
 
-    // DeviceState *dev = DEVICE(opaque);
-    // printf("%s_READ (%4lx): %8lx\n", dev->canonical_path, offset, val);
     return val;
 }
 
@@ -355,11 +435,11 @@ static void greth_write(void *opaque, hwaddr offset, uint64_t val, unsigned size
 
     case REG_STATUS:
         if (val & STATUS_SEND_IRQ) {
-            val &= ~STATUS_SEND_IRQ;
+            s->status &= ~STATUS_SEND_IRQ;
         }
 
         if (val & STATUS_RECV_IRQ) {
-            val &= ~STATUS_RECV_IRQ;
+            s->status &= ~STATUS_RECV_IRQ;
         }
 
         greth_update_irq(s);
@@ -379,6 +459,23 @@ static void greth_write(void *opaque, hwaddr offset, uint64_t val, unsigned size
         s->conf.macaddr.a[5] = val >> 0;
         break;
 
+    case REG_MDIO:
+        s->mdio = val & MDIO_MASK;
+
+        if (s->mdio & MDIO_READ) {
+            uint32_t regaddr = (s->mdio & MDIO_REGADDR_MASK) >> MDIO_REGADDR_OFFSET;
+            uint16_t data = greth_phy_read(s, regaddr);
+
+            s->mdio &= ~(MDIO_DATA_MASK);
+            s->mdio |= data << MDIO_DATA_OFFSET;
+        } else if (s->mdio & MDIO_WRITE) {
+            uint32_t regaddr = (s->mdio & MDIO_REGADDR_MASK) >> MDIO_REGADDR_OFFSET;
+            uint16_t data = (s->mdio & MDIO_DATA_MASK) >> MDIO_DATA_OFFSET;
+
+            greth_phy_write(s, regaddr, data);
+        }
+        break;
+
     case REG_SEND_DESCR_PTR:
         s->send_desc = val & (DESCR_PTR_BASE_MASK | DESCR_PTR_OFFSET_MASK);
         break;
@@ -389,9 +486,6 @@ static void greth_write(void *opaque, hwaddr offset, uint64_t val, unsigned size
 
     default: break;
     }
-
-    // DeviceState *dev = DEVICE(opaque);
-    // printf("%s_WRITE(%4lx): %8lx\n", dev->canonical_path, offset, val);
 }
 
 static void greth_reset(DeviceState *dev)
@@ -399,12 +493,14 @@ static void greth_reset(DeviceState *dev)
     GRETHState *s = GRETH(dev);
 
     greth_soft_reset(s);
+    greth_phy_reset(s);
 
     s->status = 0;
     s->mac_msb = 0;
     s->mac_lsb = 0;
     s->send_desc = 0;
     s->recv_desc = 0;
+    s->mdio = MDIO_LINKFAIL;
 }
 
 static const MemoryRegionOps greth_ops = {
