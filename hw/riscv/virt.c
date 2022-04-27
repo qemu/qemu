@@ -37,6 +37,7 @@
 #include "hw/intc/riscv_imsic.h"
 #include "hw/intc/sifive_plic.h"
 #include "hw/misc/sifive_test.h"
+#include "hw/platform-bus.h"
 #include "chardev/char.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/sysemu.h"
@@ -68,25 +69,26 @@
 #endif
 
 static const MemMapEntry virt_memmap[] = {
-    [VIRT_DEBUG] =       {        0x0,         0x100 },
-    [VIRT_MROM] =        {     0x1000,        0xf000 },
-    [VIRT_TEST] =        {   0x100000,        0x1000 },
-    [VIRT_RTC] =         {   0x101000,        0x1000 },
-    [VIRT_CLINT] =       {  0x2000000,       0x10000 },
-    [VIRT_ACLINT_SSWI] = {  0x2F00000,        0x4000 },
-    [VIRT_PCIE_PIO] =    {  0x3000000,       0x10000 },
-    [VIRT_PLIC] =        {  0xc000000, VIRT_PLIC_SIZE(VIRT_CPUS_MAX * 2) },
-    [VIRT_APLIC_M] =     {  0xc000000, APLIC_SIZE(VIRT_CPUS_MAX) },
-    [VIRT_APLIC_S] =     {  0xd000000, APLIC_SIZE(VIRT_CPUS_MAX) },
-    [VIRT_UART0] =       { 0x10000000,         0x100 },
-    [VIRT_VIRTIO] =      { 0x10001000,        0x1000 },
-    [VIRT_FW_CFG] =      { 0x10100000,          0x18 },
-    [VIRT_FLASH] =       { 0x20000000,     0x4000000 },
-    [VIRT_IMSIC_M] =     { 0x24000000, VIRT_IMSIC_MAX_SIZE },
-    [VIRT_IMSIC_S] =     { 0x28000000, VIRT_IMSIC_MAX_SIZE },
-    [VIRT_PCIE_ECAM] =   { 0x30000000,    0x10000000 },
-    [VIRT_PCIE_MMIO] =   { 0x40000000,    0x40000000 },
-    [VIRT_DRAM] =        { 0x80000000,           0x0 },
+    [VIRT_DEBUG] =        {        0x0,         0x100 },
+    [VIRT_MROM] =         {     0x1000,        0xf000 },
+    [VIRT_TEST] =         {   0x100000,        0x1000 },
+    [VIRT_RTC] =          {   0x101000,        0x1000 },
+    [VIRT_CLINT] =        {  0x2000000,       0x10000 },
+    [VIRT_ACLINT_SSWI] =  {  0x2F00000,        0x4000 },
+    [VIRT_PCIE_PIO] =     {  0x3000000,       0x10000 },
+    [VIRT_PLATFORM_BUS] = {  0x4000000,     0x2000000 },
+    [VIRT_PLIC] =         {  0xc000000, VIRT_PLIC_SIZE(VIRT_CPUS_MAX * 2) },
+    [VIRT_APLIC_M] =      {  0xc000000, APLIC_SIZE(VIRT_CPUS_MAX) },
+    [VIRT_APLIC_S] =      {  0xd000000, APLIC_SIZE(VIRT_CPUS_MAX) },
+    [VIRT_UART0] =        { 0x10000000,         0x100 },
+    [VIRT_VIRTIO] =       { 0x10001000,        0x1000 },
+    [VIRT_FW_CFG] =       { 0x10100000,          0x18 },
+    [VIRT_FLASH] =        { 0x20000000,     0x4000000 },
+    [VIRT_IMSIC_M] =      { 0x24000000, VIRT_IMSIC_MAX_SIZE },
+    [VIRT_IMSIC_S] =      { 0x28000000, VIRT_IMSIC_MAX_SIZE },
+    [VIRT_PCIE_ECAM] =    { 0x30000000,    0x10000000 },
+    [VIRT_PCIE_MMIO] =    { 0x40000000,    0x40000000 },
+    [VIRT_DRAM] =         { 0x80000000,           0x0 },
 };
 
 /* PCIe high mmio is fixed for RV32 */
@@ -1162,6 +1164,32 @@ static DeviceState *virt_create_aia(RISCVVirtAIAType aia_type, int aia_guests,
     return aplic_m;
 }
 
+static void create_platform_bus(RISCVVirtState *s, DeviceState *irqchip)
+{
+    DeviceState *dev;
+    SysBusDevice *sysbus;
+    const MemMapEntry *memmap = virt_memmap;
+    int i;
+    MemoryRegion *sysmem = get_system_memory();
+
+    dev = qdev_new(TYPE_PLATFORM_BUS_DEVICE);
+    dev->id = g_strdup(TYPE_PLATFORM_BUS_DEVICE);
+    qdev_prop_set_uint32(dev, "num_irqs", VIRT_PLATFORM_BUS_NUM_IRQS);
+    qdev_prop_set_uint32(dev, "mmio_size", memmap[VIRT_PLATFORM_BUS].size);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    s->platform_bus_dev = dev;
+
+    sysbus = SYS_BUS_DEVICE(dev);
+    for (i = 0; i < VIRT_PLATFORM_BUS_NUM_IRQS; i++) {
+        int irq = VIRT_PLATFORM_BUS_IRQ + i;
+        sysbus_connect_irq(sysbus, i, qdev_get_gpio_in(irqchip, irq));
+    }
+
+    memory_region_add_subregion(sysmem,
+                                memmap[VIRT_PLATFORM_BUS].base,
+                                sysbus_mmio_get_region(sysbus, 0));
+}
+
 static void virt_machine_done(Notifier *notifier, void *data)
 {
     RISCVVirtState *s = container_of(notifier, RISCVVirtState,
@@ -1417,6 +1445,8 @@ static void virt_machine_init(MachineState *machine)
                    virt_high_pcie_memmap.size,
                    memmap[VIRT_PCIE_PIO].base,
                    DEVICE(pcie_irqchip));
+
+    create_platform_bus(s, DEVICE(mmio_irqchip));
 
     serial_mm_init(system_memory, memmap[VIRT_UART0].base,
         0, qdev_get_gpio_in(DEVICE(mmio_irqchip), UART0_IRQ), 399193,
