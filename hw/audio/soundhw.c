@@ -64,6 +64,21 @@ void deprecated_register_soundhw(const char *name, const char *descr,
     soundhw_count++;
 }
 
+void show_valid_soundhw(void)
+{
+    struct soundhw *c;
+
+    if (soundhw_count) {
+         printf("Valid sound card names (comma separated):\n");
+         for (c = soundhw; c->name; ++c) {
+             printf ("%-11s %s\n", c->name, c->descr);
+         }
+    } else {
+         printf("Machine has no user-selectable audio hardware "
+                "(it may or may not have always-present audio hardware).\n");
+    }
+}
+
 static struct soundhw *selected = NULL;
 
 void select_soundhw(const char *optarg)
@@ -75,19 +90,8 @@ void select_soundhw(const char *optarg)
     }
 
     if (is_help_option(optarg)) {
-    show_valid_cards:
-
-        if (soundhw_count) {
-             printf("Valid sound card names (comma separated):\n");
-             for (c = soundhw; c->name; ++c) {
-                 printf ("%-11s %s\n", c->name, c->descr);
-             }
-             printf("\n-soundhw all will enable all of the above\n");
-        } else {
-             printf("Machine has no user-selectable audio hardware "
-                    "(it may or may not have always-present audio hardware).\n");
-        }
-        exit(!is_help_option(optarg));
+        show_valid_soundhw();
+        exit(0);
     }
     else {
         for (c = soundhw; c->name; ++c) {
@@ -99,7 +103,8 @@ void select_soundhw(const char *optarg)
 
         if (!c->name) {
             error_report("Unknown sound card name `%s'", optarg);
-            goto show_valid_cards;
+            show_valid_soundhw();
+            exit(1);
         }
     }
 }
