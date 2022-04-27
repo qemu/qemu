@@ -1250,6 +1250,8 @@ void helper_476_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
             env->tlb_way_selection[index] %= env->nb_ways;
         }
 
+        tlb->prot = 0;
+
         if (value & 0x1) {
             tlb->prot |= PAGE_READ << 4;
         }
