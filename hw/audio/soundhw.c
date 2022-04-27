@@ -114,25 +114,30 @@ void soundhw_init(void)
     struct soundhw *c = selected;
     ISABus *isa_bus = (ISABus *) object_resolve_path_type("", TYPE_ISA_BUS, NULL);
     PCIBus *pci_bus = (PCIBus *) object_resolve_path_type("", TYPE_PCI_BUS, NULL);
+    BusState *bus;
 
     if (!c) {
         return;
     }
-    if (c->typename) {
-        warn_report("'-soundhw %s' is deprecated, "
-                    "please use '-device %s' instead",
-                    c->name, c->typename);
-        if (c->isa) {
-            isa_create_simple(isa_bus, c->typename);
-        } else {
-            pci_create_simple(pci_bus, -1, c->typename);
+    if (c->isa) {
+        if (!isa_bus) {
+            error_report("ISA bus not available for %s", c->name);
+            exit(1);
         }
+        bus = BUS(isa_bus);
     } else {
-        assert(!c->isa);
         if (!pci_bus) {
             error_report("PCI bus not available for %s", c->name);
             exit(1);
         }
+        bus = BUS(pci_bus);
+    }
+
+    if (c->typename) {
+        DeviceState *dev = qdev_new(c->typename);
+        qdev_realize_and_unref(dev, bus, &error_fatal);
+    } else {
+        assert(!c->isa);
         c->init_pci(pci_bus);
     }
 }
