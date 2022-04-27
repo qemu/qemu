@@ -1501,7 +1501,7 @@ typedef struct CPUArchState {  // 寄存器？？？
     SegmentCache gdt; /* only base and limit are used */
     SegmentCache idt; /* only base and limit are used */
 
-    target_ulong cr[5]; /* NOTE: cr1 is unused */
+    target_ulong cr[5]; /* NOTE: cr1 is unused !!! */
 
     bool pdptrs_valid;
     uint64_t pdptrs[4];
@@ -2350,6 +2350,8 @@ static inline bool ctl_has_irq(CPUX86State *env)
 }
 
 hwaddr get_hphys(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
+                        int *prot);
+hwaddr get_hphys2(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
                         int *prot);
 #if defined(TARGET_X86_64) && \
     defined(CONFIG_USER_ONLY) && \

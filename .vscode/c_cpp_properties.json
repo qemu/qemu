@@ -7,7 +7,8 @@
                 "${workspaceFolder}/**"
             ],
             "defines": [
-                "TARGET_X86_64"
+                "TARGET_X86_64",
+                "CONFIG_SOFTMMU"
             ],
             "compilerPath": "/usr/bin/gcc-11",
             "cStandard": "gnu17",

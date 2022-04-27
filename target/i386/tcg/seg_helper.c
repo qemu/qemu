@@ -1077,7 +1077,7 @@ static void do_interrupt_real(CPUX86State *env, int intno, int is_int,
  * instruction. It is only relevant if is_int is TRUE.
  */
 void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
-                      int error_code, target_ulong next_eip, int is_hw)
+                      int error_code, target_ulong next_eip, int is_hw) // 接收方执行中断？
 {
     CPUX86State *env = &cpu->env;
 

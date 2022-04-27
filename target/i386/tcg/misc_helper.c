@@ -78,8 +78,18 @@ void helper_rdtsc(CPUX86State *env) // ？？？ 读取时间相关的函数
 }
 
 void helper_senduipi(CPUX86State *env ,int reg_index){ // 改
+    // CPUState *cs = env_cpu(env);
     int uipi_index = env->regs[R_EAX];
+
+
     if(Debug)printf("qemu:helper senduipi called receive  regidx:%d, uipiindex: %d\n",reg_index,uipi_index);
+    // uint64_t content = x86_ldq_phys(cs,(env->uintr_tt>>3)<<3);
+    // if(Debug)printf("data of uitt0is 0x%016lx\n",content);
+
+
+    // if(Debug)printf("qemu:helper senduipi called receive  regidx:%d, uipiindex: %d\n",reg_index,uipi_index);
+    // uint64_t content = cpu_ldq_data_ra(env, (env->uintr_tt>>3)<<3,0);
+    // if(Debug)printf("data of uitt0is 0x%016lx\n",content);
     
 }
 

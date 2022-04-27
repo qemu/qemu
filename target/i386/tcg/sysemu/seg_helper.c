@@ -38,7 +38,7 @@ void helper_syscall(CPUX86State *env, int next_eip_addend)
     }
     selector = (env->star >> 32) & 0xffff;
     if (env->hflags & HF_LMA_MASK) {
-        int code64;
+        int code64; // eflags 其中一个可以控制中断的开关
 
         env->regs[R_ECX] = env->eip + next_eip_addend;
         env->regs[11] = cpu_compute_eflags(env) & ~RF_MASK;
@@ -46,7 +46,7 @@ void helper_syscall(CPUX86State *env, int next_eip_addend)
         code64 = env->hflags & HF_CS64_MASK;
 
         env->eflags &= ~(env->fmask | RF_MASK);
-        cpu_load_eflags(env, env->eflags, 0);
+        cpu_load_eflags(env, env->eflags, 0);//CS = 0 是内核态
         cpu_x86_load_seg_cache(env, R_CS, selector & 0xfffc,
                            0, 0xffffffff,
                                DESC_G_MASK | DESC_P_MASK |

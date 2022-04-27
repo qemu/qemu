@@ -2,6 +2,9 @@
     "makefile.extensionOutputFolder": "./.vscode",
     "files.associations": {
         "log.h": "c",
-        "glib.h": "c"
+        "glib.h": "c",
+        "*.inc": "c",
+        "exec-all.h": "c",
+        "osdep.h": "c"
     }
 }

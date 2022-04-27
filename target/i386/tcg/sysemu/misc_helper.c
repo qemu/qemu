@@ -415,7 +415,7 @@ void helper_rdmsr(CPUX86State *env)
         break;
     case MSR_IA32_UINTR_MISC:
         val = env->uintr_misc;
-        printf("qemu:rdmsr misc 0x%016lx\n",val);
+        // printf("qemu:rdmsr misc 0x%016lx\n",val);
         break;
     case MSR_IA32_UINTR_PD:
         val = env->uintr_pd;

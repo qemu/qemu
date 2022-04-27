@@ -347,6 +347,22 @@ hwaddr get_hphys(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
     cpu_vmexit(env, SVM_EXIT_NPF, exit_info_1, env->retaddr);
 }
 
+
+hwaddr get_hphys2(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
+                        int *prot)
+{
+    CPUX86State *env = &X86_CPU(cs)->env;
+    int page_size;
+    int next_prot;
+    hwaddr hphys;
+
+    int ret = mmu_translate(cs, gphys, get_hphys, env->cr[3], access_type,
+                                   MMU_KNOSMAP_IDX , get_pg_mode(env) ,
+                                   &hphys, &page_size, &next_prot);
+    if(ret)printf("ret error !!!\n\n");
+    return hphys;
+}
+
 /* return value:
  * -1 = cannot handle fault
  * 0  = nothing more to do

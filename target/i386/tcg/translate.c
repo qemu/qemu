@@ -5396,10 +5396,51 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             tcg_temp_free(cmpv);
         }
         break;
+
+    /*
+static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
+{
+    tcg_gen_qemu_ld_tl(t0, a0, s->mem_index, idx | MO_LE);
+}
+*/
     case 0x1c7: /* cmpxchg8b */
         if(prefixes & PREFIX_REPZ){
             modrm = x86_ldub_code(env, s);
             printf("qemu: caught 0xf30fc7 SENDUIPI\n "); // 改 Debug
+            // s->tmp1_i64 = env->uintr_tt; //地址
+            // tcg_gen_qemu_ld_i64(s->tmp1_i64, s->A0 , 0, MO_LEUQ);
+            // printf("qemu: loaded 0x%lx A0: 0x%lx\n",(uint64_t)((void*)s->tmp1_i64),(uint64_t)s->A0);
+            int prot;
+            CPUState *cs = env_cpu(env);
+            uint64_t addr = get_hphys2(cs, (env->uintr_tt>>3)<<3 , MMU_DATA_LOAD, &prot);
+            if(Debug) printf("addr %lx \n\n\n",addr);
+            uint64_t content = x86_ldq_phys(cs,addr);
+            uint64_t content2 = x86_ldq_phys(cs,addr+8);
+            if(Debug)printf("data of uitt0is 0x%016lx\n",content);
+            if(Debug)printf("data of uitt address 0x%016lx\n",content2);
+
+
+
+            // uint64_t content[10]; // read all zero
+            // cpu_physical_memory_rw((env->uintr_tt>>3)<<3,&content,16,false);
+            // if(Debug) printf("0x%lx    xxx               %lx \n %lx \n\n",(env->uintr_tt>>3)<<3, content[0],content[1]);
+
+            // int mem_idx = cpu_mmu_index(env, false);  // system segfault
+            // MemOpIdx oi0 = make_memop_idx(MO_LEUQ | MO_ALIGN_16, mem_idx);
+            // uint64_t content = cpu_ldq_le_mmu(env, (env->uintr_tt>>3)<<3, oi0, 0);
+            // if(Debug) printf(" %lx \n\n\n",content);
+
+
+
+
+            // TCGv t0;
+            // t0 = tcg_temp_local_new();
+            // s->A0 = (TCGv)(env->uintr_tt>>3)<<3;
+            // if(Debug)printf("debug: memindex: %x \n",s->mem_index);
+            // if(Debug){printf("debug: before t0: %llx   A0: %llx\n",(long long unsigned)t0,(long long unsigned)s->A0);}
+            // gen_op_ld_v(s, ot, t0, s->A0);
+            // if(Debug){printf("debug: after  t0: %llx   A0: %llx\n",(long long unsigned)t0,(long long unsigned)s->A0);}
+            // tcg_temp_free(t0);
             gen_helper_senduipi(cpu_env, tcg_const_i32(modrm));
             break;
         }
@@ -7675,7 +7716,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             tcg_gen_st32_tl(s->T1, cpu_env, offsetof(CPUX86State, gdt.limit));
             break;
 
-        CASE_MODRM_MEM_OP(3): /* lidt */
+        CASE_MODRM_MEM_OP(3): /* lidt */ //？？？内核态的跟地址
             if (!check_cpl0(s)) {
                 break;
             }
