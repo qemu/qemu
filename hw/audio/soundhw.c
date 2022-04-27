@@ -89,23 +89,17 @@ void select_soundhw(const char *optarg)
         error_setg(&error_fatal, "only one -soundhw option is allowed");
     }
 
-    if (is_help_option(optarg)) {
-        show_valid_soundhw();
-        exit(0);
+    for (c = soundhw; c->name; ++c) {
+        if (g_str_equal(c->name, optarg)) {
+            selected = c;
+            break;
+        }
     }
-    else {
-        for (c = soundhw; c->name; ++c) {
-            if (g_str_equal(c->name, optarg)) {
-                selected = c;
-                break;
-            }
-        }
 
-        if (!c->name) {
-            error_report("Unknown sound card name `%s'", optarg);
-            show_valid_soundhw();
-            exit(1);
-        }
+    if (!c->name) {
+        error_report("Unknown sound card name `%s'", optarg);
+        show_valid_soundhw();
+        exit(1);
     }
 }
 

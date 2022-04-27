@@ -2931,6 +2931,10 @@ void qemu_init(int argc, char **argv, char **envp)
                 audio_parse_option(optarg);
                 break;
             case QEMU_OPTION_soundhw:
+                if (is_help_option(optarg)) {
+                    show_valid_soundhw();
+                    exit(0);
+                }
                 select_soundhw (optarg);
                 break;
             case QEMU_OPTION_h:
