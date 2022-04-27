@@ -740,27 +740,11 @@ static int mmu476fp_check_tlb(CPUPPCState *env, ppcemb_tlb_t *tlb,
 {
     int prot2;
 
-    if (ppc476fp_tlb_check(env, tlb, raddr, address,
-                         env->spr[SPR_BOOKE_PID], i) >= 0) {
-        goto found_tlb;
+    if (!(ppc476fp_tlb_check(env, tlb, raddr, address,
+                         env->spr[SPR_BOOKE_PID], i) >= 0)) {
+        LOG_SWTLB("%s: TLB entry not found\n", __func__);
+        return -1;
     }
-
-    if (env->spr[SPR_BOOKE_PID1] &&
-        ppc476fp_tlb_check(env, tlb, raddr, address,
-                         env->spr[SPR_BOOKE_PID1], i) >= 0) {
-        goto found_tlb;
-    }
-
-    if (env->spr[SPR_BOOKE_PID2] &&
-        ppc476fp_tlb_check(env, tlb, raddr, address,
-                         env->spr[SPR_BOOKE_PID2], i) >= 0) {
-        goto found_tlb;
-    }
-
-    LOG_SWTLB("%s: TLB entry not found\n", __func__);
-    return -1;
-
-found_tlb:
 
     if (msr_pr != 0) {
         prot2 = tlb->prot & 0xF;
