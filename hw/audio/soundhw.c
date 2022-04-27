@@ -25,6 +25,7 @@
 #include "qemu/option.h"
 #include "qemu/help_option.h"
 #include "qemu/error-report.h"
+#include "qapi/error.h"
 #include "qom/object.h"
 #include "hw/isa/isa.h"
 #include "hw/pci/pci.h"
@@ -34,7 +35,6 @@ struct soundhw {
     const char *name;
     const char *descr;
     const char *typename;
-    int enabled;
     int isa;
     int (*init_pci) (PCIBus *bus);
 };
@@ -64,9 +64,15 @@ void deprecated_register_soundhw(const char *name, const char *descr,
     soundhw_count++;
 }
 
+static struct soundhw *selected = NULL;
+
 void select_soundhw(const char *optarg)
 {
     struct soundhw *c;
+
+    if (selected) {
+        error_setg(&error_fatal, "only one -soundhw option is allowed");
+    }
 
     if (is_help_option(optarg)) {
     show_valid_cards:
@@ -84,44 +90,15 @@ void select_soundhw(const char *optarg)
         exit(!is_help_option(optarg));
     }
     else {
-        size_t l;
-        const char *p;
-        char *e;
-        int bad_card = 0;
-
-        if (!strcmp(optarg, "all")) {
-            for (c = soundhw; c->name; ++c) {
-                c->enabled = 1;
+        for (c = soundhw; c->name; ++c) {
+            if (g_str_equal(c->name, optarg)) {
+                selected = c;
+                break;
             }
-            return;
         }
 
-        p = optarg;
-        while (*p) {
-            e = strchr(p, ',');
-            l = !e ? strlen(p) : (size_t) (e - p);
-
-            for (c = soundhw; c->name; ++c) {
-                if (!strncmp(c->name, p, l) && !c->name[l]) {
-                    c->enabled = 1;
-                    break;
-                }
-            }
-
-            if (!c->name) {
-                if (l > 80) {
-                    error_report("Unknown sound card name (too big to show)");
-                }
-                else {
-                    error_report("Unknown sound card name `%.*s'",
-                                 (int) l, p);
-                }
-                bad_card = 1;
-            }
-            p += l + (e != NULL);
-        }
-
-        if (bad_card) {
+        if (!c->name) {
+            error_report("Unknown sound card name `%s'", optarg);
             goto show_valid_cards;
         }
     }
@@ -129,30 +106,29 @@ void select_soundhw(const char *optarg)
 
 void soundhw_init(void)
 {
-    struct soundhw *c;
+    struct soundhw *c = selected;
     ISABus *isa_bus = (ISABus *) object_resolve_path_type("", TYPE_ISA_BUS, NULL);
     PCIBus *pci_bus = (PCIBus *) object_resolve_path_type("", TYPE_PCI_BUS, NULL);
 
-    for (c = soundhw; c->name; ++c) {
-        if (c->enabled) {
-            if (c->typename) {
-                warn_report("'-soundhw %s' is deprecated, "
-                            "please use '-device %s' instead",
-                            c->name, c->typename);
-                if (c->isa) {
-                    isa_create_simple(isa_bus, c->typename);
-                } else {
-                    pci_create_simple(pci_bus, -1, c->typename);
-                }
-            } else {
-                assert(!c->isa);
-                if (!pci_bus) {
-                    error_report("PCI bus not available for %s", c->name);
-                    exit(1);
-                }
-                c->init_pci(pci_bus);
-            }
+    if (!c) {
+        return;
+    }
+    if (c->typename) {
+        warn_report("'-soundhw %s' is deprecated, "
+                    "please use '-device %s' instead",
+                    c->name, c->typename);
+        if (c->isa) {
+            isa_create_simple(isa_bus, c->typename);
+        } else {
+            pci_create_simple(pci_bus, -1, c->typename);
         }
+    } else {
+        assert(!c->isa);
+        if (!pci_bus) {
+            error_report("PCI bus not available for %s", c->name);
+            exit(1);
+        }
+        c->init_pci(pci_bus);
     }
 }
 
