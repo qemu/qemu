@@ -27,6 +27,11 @@ MM7705 board is available with PowerPC 476FP core. To start it you can use follo
         -nic tap,model=greth,script=scripts/qemu-ifup,downscript=no
 ```
 
+If you want to launch qemu with SD card use additional argument:
+
+```bash
+    -drive file=*path_to_sd_image_file*,if=sd,format=raw
+```
 
 
 Original QEMU readme is renamed to [README_original.rst](README_original.rst)
