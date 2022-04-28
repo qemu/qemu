@@ -2373,7 +2373,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
                       "...handling as semihosting call 0x%x\n",
                       env->regs[0]);
 #ifdef CONFIG_TCG
-        env->regs[0] = do_common_semihosting(cs);
+        do_common_semihosting(cs);
 #else
         g_assert_not_reached();
 #endif
