@@ -22,4 +22,7 @@ void semihost_sys_open(CPUState *cs, gdb_syscall_complete_cb complete,
                        target_ulong fname, target_ulong fname_len,
                        int gdb_flags, int mode);
 
+void semihost_sys_close(CPUState *cs, gdb_syscall_complete_cb complete,
+                        int fd);
+
 #endif /* SEMIHOSTING_SYSCALLS_H */

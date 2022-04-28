@@ -276,7 +276,6 @@ common_semi_flen_cb(CPUState *cs, target_ulong ret, target_ulong err)
  * do the work and return the required return value to the guest
  * via common_semi_cb.
  */
-typedef void sys_closefn(CPUState *cs, GuestFD *gf);
 typedef void sys_writefn(CPUState *cs, GuestFD *gf,
                          target_ulong buf, uint32_t len);
 typedef void sys_readfn(CPUState *cs, GuestFD *gf,
@@ -284,23 +283,6 @@ typedef void sys_readfn(CPUState *cs, GuestFD *gf,
 typedef void sys_isattyfn(CPUState *cs, GuestFD *gf);
 typedef void sys_seekfn(CPUState *cs, GuestFD *gf, target_ulong offset);
 typedef void sys_flenfn(CPUState *cs, GuestFD *gf);
-
-static void host_closefn(CPUState *cs, GuestFD *gf)
-{
-    int ret;
-    /*
-     * Only close the underlying host fd if it's one we opened on behalf
-     * of the guest in SYS_OPEN.
-     */
-    if (gf->hostfd == STDIN_FILENO ||
-        gf->hostfd == STDOUT_FILENO ||
-        gf->hostfd == STDERR_FILENO) {
-        ret = 0;
-    } else {
-        ret = close(gf->hostfd);
-    }
-    common_semi_cb(cs, ret, ret ? errno : 0);
-}
 
 static void host_writefn(CPUState *cs, GuestFD *gf,
                          target_ulong buf, uint32_t len)
@@ -362,11 +344,6 @@ static void host_flenfn(CPUState *cs, GuestFD *gf)
     }
 }
 
-static void gdb_closefn(CPUState *cs, GuestFD *gf)
-{
-    gdb_do_syscall(common_semi_cb, "close,%x", gf->hostfd);
-}
-
 static void gdb_writefn(CPUState *cs, GuestFD *gf,
                         target_ulong buf, uint32_t len)
 {
@@ -413,12 +390,6 @@ static const uint8_t featurefile_data[] = {
     SHFB_MAGIC_3,
     SH_EXT_EXIT_EXTENDED | SH_EXT_STDOUT_STDERR, /* Feature byte 0 */
 };
-
-static void staticfile_closefn(CPUState *cs, GuestFD *gf)
-{
-    /* Nothing to do */
-    common_semi_cb(cs, 0, 0);
-}
 
 static void staticfile_writefn(CPUState *cs, GuestFD *gf,
                                target_ulong buf, uint32_t len)
@@ -468,7 +439,6 @@ static void staticfile_flenfn(CPUState *cs, GuestFD *gf)
 }
 
 typedef struct GuestFDFunctions {
-    sys_closefn *closefn;
     sys_writefn *writefn;
     sys_readfn *readfn;
     sys_isattyfn *isattyfn;
@@ -478,7 +448,6 @@ typedef struct GuestFDFunctions {
 
 static const GuestFDFunctions guestfd_fns[] = {
     [GuestFDHost] = {
-        .closefn = host_closefn,
         .writefn = host_writefn,
         .readfn = host_readfn,
         .isattyfn = host_isattyfn,
@@ -486,7 +455,6 @@ static const GuestFDFunctions guestfd_fns[] = {
         .flenfn = host_flenfn,
     },
     [GuestFDGDB] = {
-        .closefn = gdb_closefn,
         .writefn = gdb_writefn,
         .readfn = gdb_readfn,
         .isattyfn = gdb_isattyfn,
@@ -494,7 +462,6 @@ static const GuestFDFunctions guestfd_fns[] = {
         .flenfn = gdb_flenfn,
     },
     [GuestFDStatic] = {
-        .closefn = staticfile_closefn,
         .writefn = staticfile_writefn,
         .readfn = staticfile_readfn,
         .isattyfn = staticfile_isattyfn,
@@ -586,13 +553,7 @@ void do_common_semihosting(CPUState *cs)
 
     case TARGET_SYS_CLOSE:
         GET_ARG(0);
-
-        gf = get_guestfd(arg0);
-        if (!gf) {
-            goto do_badf;
-        }
-        guestfd_fns[gf->type].closefn(cs, gf);
-        dealloc_guestfd(arg0);
+        semihost_sys_close(cs, common_semi_cb, arg0);
         break;
 
     case TARGET_SYS_WRITEC:

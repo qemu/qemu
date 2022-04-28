@@ -49,6 +49,11 @@ int alloc_guestfd(void)
     return i;
 }
 
+static void do_dealloc_guestfd(GuestFD *gf)
+{
+    gf->type = GuestFDUnused;
+}
+
 /*
  * Look up the guestfd in the data structure; return NULL
  * for out of bounds, but don't check whether the slot is unused.
@@ -119,5 +124,5 @@ void dealloc_guestfd(int guestfd)
     GuestFD *gf = do_get_guestfd(guestfd);
 
     assert(gf);
-    gf->type = GuestFDUnused;
+    do_dealloc_guestfd(gf);
 }
