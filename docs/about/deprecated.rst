@@ -67,13 +67,6 @@ and will cause a warning.
 The replacement for the ``nodelay`` short-form boolean option is ``nodelay=on``
 rather than ``delay=off``.
 
-``-writeconfig`` (since 6.0)
-'''''''''''''''''''''''''''''
-
-The ``-writeconfig`` option is not able to serialize the entire contents
-of the QEMU command line.  It is thus considered a failed experiment
-and deprecated, with no current replacement.
-
 Userspace local APIC with KVM (x86, since 6.0)
 ''''''''''''''''''''''''''''''''''''''''''''''
 

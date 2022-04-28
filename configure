@@ -244,7 +244,6 @@ audio_drv_list="default"
 block_drv_rw_whitelist=""
 block_drv_ro_whitelist=""
 host_cc="cc"
-debug_info="yes"
 lto="false"
 stack_protector=""
 safe_stack=""
@@ -302,17 +301,15 @@ vhost_vsock="$default_feature"
 vhost_user="no"
 vhost_user_fs="$default_feature"
 vhost_vdpa="$default_feature"
-rdma="$default_feature"
-pvrdma="$default_feature"
+debug_info="yes"
 debug_tcg="no"
 debug="no"
 sanitizers="no"
 tsan="no"
-fortify_source="$default_feature"
+fortify_source="yes"
 gcov="no"
 EXESUF=""
 modules="no"
-module_upgrades="no"
 prefix="/usr/local"
 qemu_suffix="qemu"
 softmmu="yes"
@@ -320,17 +317,13 @@ linux_user=""
 bsd_user=""
 pkgversion=""
 pie=""
-trace_backends="log"
 trace_file="trace"
-opengl="$default_feature"
 coroutine=""
 tls_priority="NORMAL"
 plugins="$default_feature"
-secret_keyring="$default_feature"
 meson=""
 meson_args=""
 ninja=""
-gio="$default_feature"
 skip_meson=no
 
 # The following Meson options are handled manually (still they
@@ -380,10 +373,6 @@ for opt do
   ;;
   --extra-ldflags=*) EXTRA_LDFLAGS="$EXTRA_LDFLAGS $optarg"
   ;;
-  --enable-debug-info) debug_info="yes"
-  ;;
-  --disable-debug-info) debug_info="no"
-  ;;
   --cross-cc-*[!a-zA-Z0-9_-]*=*) error_exit "Passed bad --cross-cc-FOO option"
   ;;
   --cross-cc-cflags-*) cc_arch=${opt#--cross-cc-cflags-}; cc_arch=${cc_arch%%=*}
@@ -391,7 +380,6 @@ for opt do
                       cross_cc_vars="$cross_cc_vars cross_cc_cflags_${cc_arch}"
   ;;
   --cross-cc-*) cc_arch=${opt#--cross-cc-}; cc_arch=${cc_arch%%=*}
-                cc_archs="$cc_archs $cc_arch"
                 eval "cross_cc_${cc_arch}=\$optarg"
                 cross_cc_vars="$cross_cc_vars cross_cc_${cc_arch}"
   ;;
@@ -761,21 +749,17 @@ for opt do
   ;;
   --extra-ldflags=*)
   ;;
-  --enable-debug-info)
-  ;;
-  --disable-debug-info)
-  ;;
   --cross-cc-*)
+  ;;
+  --enable-debug-info) debug_info="yes"
+  ;;
+  --disable-debug-info) debug_info="no"
   ;;
   --enable-modules)
       modules="yes"
   ;;
   --disable-modules)
       modules="no"
-  ;;
-  --disable-module-upgrades) module_upgrades="no"
-  ;;
-  --enable-module-upgrades) module_upgrades="yes"
   ;;
   --cpu=*)
   ;;
@@ -966,10 +950,6 @@ for opt do
   ;;
   --enable-vhost-user-fs) vhost_user_fs="yes"
   ;;
-  --disable-opengl) opengl="no"
-  ;;
-  --enable-opengl) opengl="yes"
-  ;;
   --disable-zlib-test)
   ;;
   --disable-virtio-blk-data-plane|--enable-virtio-blk-data-plane)
@@ -982,14 +962,6 @@ for opt do
       echo "$0: $opt is obsolete, UUID support is always built" >&2
   ;;
   --tls-priority=*) tls_priority="$optarg"
-  ;;
-  --enable-rdma) rdma="yes"
-  ;;
-  --disable-rdma) rdma="no"
-  ;;
-  --enable-pvrdma) pvrdma="yes"
-  ;;
-  --disable-pvrdma) pvrdma="no"
   ;;
   --disable-vhost-user) vhost_user="no"
   ;;
@@ -1029,14 +1001,6 @@ for opt do
   --disable-containers) use_containers="no"
   ;;
   --gdb=*) gdb_bin="$optarg"
-  ;;
-  --enable-keyring) secret_keyring="yes"
-  ;;
-  --disable-keyring) secret_keyring="no"
-  ;;
-  --enable-gio) gio=yes
-  ;;
-  --disable-gio) gio=no
   ;;
   # backwards compatibility options
   --enable-trace-backend=*) meson_option_parse "--enable-trace-backends=$optarg" "$optarg"
@@ -1249,14 +1213,11 @@ cat << EOF
   bsd-user        all BSD usermode emulation targets
   pie             Position Independent Executables
   modules         modules support (non-Windows)
-  module-upgrades try to load modules from alternate paths for upgrades
   debug-tcg       TCG debugging (default is disabled)
   debug-info      debugging information
   lto             Enable Link-Time Optimization.
   safe-stack      SafeStack Stack Smash Protection. Depends on
                   clang/llvm >= 3.7 and requires coroutine backend ucontext.
-  rdma            Enable RDMA-based migration
-  pvrdma          Enable PVRDMA support
   vhost-net       vhost-net kernel acceleration support
   vhost-vsock     virtio sockets device support
   vhost-scsi      vhost-scsi kernel target support
@@ -1264,8 +1225,6 @@ cat << EOF
   vhost-kernel    vhost kernel backend support
   vhost-user      vhost-user backend support
   vhost-vdpa      vhost-vdpa kernel backend support
-  opengl          opengl support
-  gio             libgio support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -1520,11 +1479,6 @@ fi
 # Our module code doesn't support Windows
 if test "$modules" = "yes" && test "$mingw32" = "yes" ; then
   error_exit "Modules are not available for Windows"
-fi
-
-# module_upgrades is only reasonable if modules are enabled
-if test "$modules" = "no" && test "$module_upgrades" = "yes" ; then
-  error_exit "Can't enable module-upgrades as Modules are not enabled"
 fi
 
 # Static linking is not possible with plugins, modules or PIE
@@ -2050,100 +2004,6 @@ EOF
 fi
 
 ##########################################
-# RDMA needs OpenFabrics libraries
-if test "$rdma" != "no" ; then
-  cat > $TMPC <<EOF
-#include <rdma/rdma_cma.h>
-int main(void) { return 0; }
-EOF
-  rdma_libs="-lrdmacm -libverbs -libumad"
-  if compile_prog "" "$rdma_libs" ; then
-    rdma="yes"
-  else
-    if test "$rdma" = "yes" ; then
-        error_exit \
-            " OpenFabrics librdmacm/libibverbs/libibumad not present." \
-            " Your options:" \
-            "  (1) Fast: Install infiniband packages (devel) from your distro." \
-            "  (2) Cleanest: Install libraries from www.openfabrics.org" \
-            "  (3) Also: Install softiwarp if you don't have RDMA hardware"
-    fi
-    rdma="no"
-  fi
-fi
-
-##########################################
-# PVRDMA detection
-
-cat > $TMPC <<EOF &&
-#include <sys/mman.h>
-
-int
-main(void)
-{
-    char buf = 0;
-    void *addr = &buf;
-    addr = mremap(addr, 0, 1, MREMAP_MAYMOVE | MREMAP_FIXED);
-
-    return 0;
-}
-EOF
-
-if test "$rdma" = "yes" ; then
-    case "$pvrdma" in
-    "")
-        if compile_prog "" ""; then
-            pvrdma="yes"
-        else
-            pvrdma="no"
-        fi
-        ;;
-    "yes")
-        if ! compile_prog "" ""; then
-            error_exit "PVRDMA is not supported since mremap is not implemented"
-        fi
-        pvrdma="yes"
-        ;;
-    "no")
-        pvrdma="no"
-        ;;
-    esac
-else
-    if test "$pvrdma" = "yes" ; then
-        error_exit "PVRDMA requires rdma suppport"
-    fi
-    pvrdma="no"
-fi
-
-# Let's see if enhanced reg_mr is supported
-if test "$pvrdma" = "yes" ; then
-
-cat > $TMPC <<EOF &&
-#include <infiniband/verbs.h>
-
-int
-main(void)
-{
-    struct ibv_mr *mr;
-    struct ibv_pd *pd = NULL;
-    size_t length = 10;
-    uint64_t iova = 0;
-    int access = 0;
-    void *addr = NULL;
-
-    mr = ibv_reg_mr_iova(pd, addr, length, iova, access);
-
-    ibv_dereg_mr(mr);
-
-    return 0;
-}
-EOF
-    if ! compile_prog "" "-libverbs"; then
-        QEMU_CFLAGS="$QEMU_CFLAGS -DLEGACY_RDMA_REG_MR"
-    fi
-fi
-
-##########################################
 # glib support probe
 
 glib_req_ver=2.56
@@ -2168,50 +2028,6 @@ done
 
 if test "$static" = yes && test "$mingw32" = yes; then
     glib_cflags="-DGLIB_STATIC_COMPILATION $glib_cflags"
-fi
-
-if ! test "$gio" = "no"; then
-    pass=no
-    if $pkg_config --atleast-version=$glib_req_ver gio-2.0; then
-        gio_cflags=$($pkg_config --cflags gio-2.0)
-        gio_libs=$($pkg_config --libs gio-2.0)
-        gdbus_codegen=$($pkg_config --variable=gdbus_codegen gio-2.0)
-        if ! has "$gdbus_codegen"; then
-            gdbus_codegen=
-        fi
-        # Check that the libraries actually work -- Ubuntu 18.04 ships
-        # with pkg-config --static --libs data for gio-2.0 that is missing
-        # -lblkid and will give a link error.
-        cat > $TMPC <<EOF
-#include <gio/gio.h>
-int main(void)
-{
-    g_dbus_proxy_new_sync(0, 0, 0, 0, 0, 0, 0, 0);
-    return 0;
-}
-EOF
-        if compile_prog "$gio_cflags" "$gio_libs" ; then
-            pass=yes
-        else
-            pass=no
-        fi
-
-        if test "$pass" = "yes" &&
-            $pkg_config --atleast-version=$glib_req_ver gio-unix-2.0; then
-            gio_cflags="$gio_cflags $($pkg_config --cflags gio-unix-2.0)"
-            gio_libs="$gio_libs $($pkg_config --libs gio-unix-2.0)"
-        fi
-    fi
-
-    if test "$pass" = "no"; then
-        if test "$gio" = "yes"; then
-            feature_not_found "gio" "Install libgio >= 2.0"
-        else
-            gio=no
-        fi
-    else
-        gio=yes
-    fi
 fi
 
 # Sanity check that the current size_t matches the
@@ -2282,59 +2098,6 @@ case "$fdt" in
     git_submodules="${git_submodules} dtc"
     ;;
 esac
-
-##########################################
-# opengl probe (for sdl2, gtk)
-
-if test "$opengl" != "no" ; then
-  epoxy=no
-  if $pkg_config epoxy; then
-    cat > $TMPC << EOF
-#include <epoxy/egl.h>
-int main(void) { return 0; }
-EOF
-    if compile_prog "" "" ; then
-      epoxy=yes
-    fi
-  fi
-
-  if test "$epoxy" = "yes" ; then
-    opengl_cflags="$($pkg_config --cflags epoxy)"
-    opengl_libs="$($pkg_config --libs epoxy)"
-    opengl=yes
-  else
-    if test "$opengl" = "yes" ; then
-      feature_not_found "opengl" "Please install epoxy with EGL"
-    fi
-    opengl_cflags=""
-    opengl_libs=""
-    opengl=no
-  fi
-fi
-
-# check for usbfs
-have_usbfs=no
-if test "$linux_user" = "yes"; then
-  cat > $TMPC << EOF
-#include <linux/usbdevice_fs.h>
-
-#ifndef USBDEVFS_GET_CAPABILITIES
-#error "USBDEVFS_GET_CAPABILITIES undefined"
-#endif
-
-#ifndef USBDEVFS_DISCONNECT_CLAIM
-#error "USBDEVFS_DISCONNECT_CLAIM undefined"
-#endif
-
-int main(void)
-{
-    return 0;
-}
-EOF
-  if compile_prog "" ""; then
-    have_usbfs=yes
-  fi
-fi
 
 ##########################################
 # capstone
@@ -2587,49 +2350,12 @@ case "$slirp" in
 esac
 
 ##########################################
-# check for usable __NR_keyctl syscall
-
-if test "$linux" = "yes" ; then
-
-    have_keyring=no
-    cat > $TMPC << EOF
-#include <errno.h>
-#include <asm/unistd.h>
-#include <linux/keyctl.h>
-#include <unistd.h>
-int main(void) {
-    return syscall(__NR_keyctl, KEYCTL_READ, 0, NULL, NULL, 0);
-}
-EOF
-    if compile_prog "" "" ; then
-        have_keyring=yes
-    fi
-fi
-if test "$secret_keyring" != "no"
-then
-    if test "$have_keyring" = "yes"
-    then
-	secret_keyring=yes
-    else
-	if test "$secret_keyring" = "yes"
-	then
-	    error_exit "syscall __NR_keyctl requested, \
-but not implemented on your system"
-	else
-	    secret_keyring=no
-	fi
-    fi
-fi
-
-##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
 write_c_skeleton
 
-if test "$gcov" = "yes" ; then
-  :
-elif test "$fortify_source" = "yes" ; then
+if test "$fortify_source" = "yes" ; then
   QEMU_CFLAGS="-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 $QEMU_CFLAGS"
   debug=no
 fi
@@ -2704,7 +2430,7 @@ if test "$QEMU_GA_VERSION" = ""; then
     QEMU_GA_VERSION=$(cat $source_path/VERSION)
 fi
 
-QEMU_GA_MSI_MINGW_DLL_PATH="$($pkg_config --variable=prefix glib-2.0)/bin"
+QEMU_GA_MSI_MINGW_BIN_PATH="$($pkg_config --variable=prefix glib-2.0)/bin"
 
 # Mac OS X ships with a broken assembler
 roms=
@@ -2792,7 +2518,7 @@ if test "$debug_tcg" = "yes" ; then
 fi
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
-  echo "QEMU_GA_MSI_MINGW_DLL_PATH=${QEMU_GA_MSI_MINGW_DLL_PATH}" >> $config_host_mak
+  echo "QEMU_GA_MSI_MINGW_BIN_PATH=${QEMU_GA_MSI_MINGW_BIN_PATH}" >> $config_host_mak
   echo "QEMU_GA_MANUFACTURER=${QEMU_GA_MANUFACTURER}" >> $config_host_mak
   echo "QEMU_GA_DISTRO=${QEMU_GA_DISTRO}" >> $config_host_mak
   echo "QEMU_GA_VERSION=${QEMU_GA_VERSION}" >> $config_host_mak
@@ -2825,20 +2551,6 @@ if test "$modules" = "yes"; then
   # like as an symbol. So prefix it with an underscore
   echo "CONFIG_STAMP=_$( (echo $qemu_version; echo $pkgversion; cat $0) | $shacmd - | cut -f1 -d\ )" >> $config_host_mak
   echo "CONFIG_MODULES=y" >> $config_host_mak
-fi
-if test "$module_upgrades" = "yes"; then
-  echo "CONFIG_MODULE_UPGRADES=y" >> $config_host_mak
-fi
-if test "$have_usbfs" = "yes" ; then
-  echo "CONFIG_USBFS=y" >> $config_host_mak
-fi
-if test "$gio" = "yes" ; then
-    echo "CONFIG_GIO=y" >> $config_host_mak
-    echo "GIO_CFLAGS=$gio_cflags" >> $config_host_mak
-    echo "GIO_LIBS=$gio_libs" >> $config_host_mak
-fi
-if test "$gdbus_codegen" != "" ; then
-    echo "GDBUS_CODEGEN=$gdbus_codegen" >> $config_host_mak
 fi
 echo "CONFIG_TLS_PRIORITY=\"$tls_priority\"" >> $config_host_mak
 
@@ -2881,15 +2593,6 @@ fi
 if test "$vhost_user_fs" = "yes" ; then
   echo "CONFIG_VHOST_USER_FS=y" >> $config_host_mak
 fi
-if test "$tcg" = "enabled" -a "$tcg_interpreter" = "true" ; then
-  echo "CONFIG_TCG_INTERPRETER=y" >> $config_host_mak
-fi
-
-if test "$opengl" = "yes" ; then
-  echo "CONFIG_OPENGL=y" >> $config_host_mak
-  echo "OPENGL_CFLAGS=$opengl_cflags" >> $config_host_mak
-  echo "OPENGL_LIBS=$opengl_libs" >> $config_host_mak
-fi
 
 # XXX: suppress that
 if [ "$bsd" = "yes" ] ; then
@@ -2906,15 +2609,6 @@ if test "$have_tsan" = "yes" && test "$have_tsan_iface_fiber" = "yes" ; then
     echo "CONFIG_TSAN=y" >> $config_host_mak
 fi
 
-if test "$rdma" = "yes" ; then
-  echo "CONFIG_RDMA=y" >> $config_host_mak
-  echo "RDMA_LIBS=$rdma_libs" >> $config_host_mak
-fi
-
-if test "$pvrdma" = "yes" ; then
-  echo "CONFIG_PVRDMA=y" >> $config_host_mak
-fi
-
 if test "$plugins" = "yes" ; then
     echo "CONFIG_PLUGIN=y" >> $config_host_mak
 fi
@@ -2924,10 +2618,6 @@ if test -n "$gdb_bin"; then
     if version_ge ${gdb_version##* } 9.1; then
         echo "HAVE_GDB_BIN=$gdb_bin" >> $config_host_mak
     fi
-fi
-
-if test "$secret_keyring" = "yes" ; then
-  echo "CONFIG_SECRET_KEYRING=y" >> $config_host_mak
 fi
 
 echo "ROMS=$roms" >> $config_host_mak
@@ -3024,8 +2714,6 @@ LINKS="Makefile"
 LINKS="$LINKS tests/tcg/Makefile.target"
 LINKS="$LINKS pc-bios/optionrom/Makefile"
 LINKS="$LINKS pc-bios/s390-ccw/Makefile"
-LINKS="$LINKS roms/seabios/Makefile"
-LINKS="$LINKS pc-bios/qemu-icon.bmp"
 LINKS="$LINKS .gdbinit scripts" # scripts needed by relative path in .gdbinit
 LINKS="$LINKS tests/avocado tests/data"
 LINKS="$LINKS tests/qemu-iotests/check"
@@ -3058,24 +2746,6 @@ done
 done
 export target_list source_path use_containers cpu host_cc
 $source_path/tests/tcg/configure.sh)
-
-# temporary config to build submodules
-if test -f $source_path/roms/seabios/Makefile; then
-  for rom in seabios; do
-    config_mak=roms/$rom/config.mak
-    echo "# Automatically generated by configure - do not modify" > $config_mak
-    echo "SRC_PATH=$source_path/roms/$rom" >> $config_mak
-    echo "AS=$as" >> $config_mak
-    echo "CCAS=$ccas" >> $config_mak
-    echo "CC=$cc" >> $config_mak
-    echo "BCC=bcc" >> $config_mak
-    echo "CPP=$cpp" >> $config_mak
-    echo "OBJCOPY=objcopy" >> $config_mak
-    echo "IASL=$iasl" >> $config_mak
-    echo "LD=$ld" >> $config_mak
-    echo "RANLIB=$ranlib" >> $config_mak
-  done
-fi
 
 config_mak=pc-bios/optionrom/config.mak
 echo "# Automatically generated by configure - do not modify" > $config_mak

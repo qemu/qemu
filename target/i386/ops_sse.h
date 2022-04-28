@@ -2011,25 +2011,23 @@ SSE_HELPER_Q(helper_pcmpgtq, FCMPGTQ)
 
 static inline int pcmp_elen(CPUX86State *env, int reg, uint32_t ctrl)
 {
-    int val;
+    target_long val, limit;
 
     /* Presence of REX.W is indicated by a bit higher than 7 set */
     if (ctrl >> 8) {
-        val = abs1((int64_t)env->regs[reg]);
+        val = (target_long)env->regs[reg];
     } else {
-        val = abs1((int32_t)env->regs[reg]);
+        val = (int32_t)env->regs[reg];
     }
-
     if (ctrl & 1) {
-        if (val > 8) {
-            return 8;
-        }
+        limit = 8;
     } else {
-        if (val > 16) {
-            return 16;
-        }
+        limit = 16;
     }
-    return val;
+    if ((val > limit) || (val < -limit)) {
+        return limit;
+    }
+    return abs1(val);
 }
 
 static inline int pcmp_ilen(Reg *r, uint8_t ctrl)

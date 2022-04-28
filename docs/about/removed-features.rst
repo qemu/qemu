@@ -348,6 +348,13 @@ or ``gnutls`` library enabled as a cryptography provider.
 Neither the ``nettle`` library, or the built-in cryptography provider are
 supported on FIPS enabled hosts.
 
+``-writeconfig`` (removed in 7.1)
+'''''''''''''''''''''''''''''''''
+
+The ``-writeconfig`` option was not able to serialize the entire contents
+of the QEMU command line.  It is thus considered a failed experiment
+and removed without a replacement.
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 
