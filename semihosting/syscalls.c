@@ -121,6 +121,12 @@ static void gdb_lseek(CPUState *cs, gdb_syscall_complete_cb complete,
                    (target_ulong)gf->hostfd, off, (target_ulong)gdb_whence);
 }
 
+static void gdb_isatty(CPUState *cs, gdb_syscall_complete_cb complete,
+                       GuestFD *gf)
+{
+    gdb_do_syscall(complete, "isatty,%x", (target_ulong)gf->hostfd);
+}
+
 /*
  * Host semihosting syscall implementations.
  */
@@ -244,6 +250,13 @@ static void host_lseek(CPUState *cs, gdb_syscall_complete_cb complete,
         err = EINVAL;
     }
     complete(cs, ret, err);
+}
+
+static void host_isatty(CPUState *cs, gdb_syscall_complete_cb complete,
+                        GuestFD *gf)
+{
+    int ret = isatty(gf->hostfd);
+    complete(cs, ret, ret ? 0 : errno);
 }
 
 /*
@@ -432,6 +445,29 @@ void semihost_sys_lseek(CPUState *cs, gdb_syscall_complete_cb complete,
         break;
     case GuestFDStatic:
         staticfile_lseek(cs, complete, gf, off, gdb_whence);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+void semihost_sys_isatty(CPUState *cs, gdb_syscall_complete_cb complete, int fd)
+{
+    GuestFD *gf = get_guestfd(fd);
+
+    if (!gf) {
+        complete(cs, 0, EBADF);
+        return;
+    }
+    switch (gf->type) {
+    case GuestFDGDB:
+        gdb_isatty(cs, complete, gf);
+        break;
+    case GuestFDHost:
+        host_isatty(cs, complete, gf);
+        break;
+    case GuestFDStatic:
+        complete(cs, 0, ENOTTY);
         break;
     default:
         g_assert_not_reached();

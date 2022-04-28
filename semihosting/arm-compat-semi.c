@@ -248,6 +248,19 @@ static void common_semi_rw_cb(CPUState *cs, target_ulong ret, target_ulong err)
 }
 
 /*
+ * Convert from Posix ret+errno to Arm SYS_ISTTY return values.
+ * With gdbstub, err is only ever set for protocol errors to EIO.
+ */
+static void common_semi_istty_cb(CPUState *cs, target_ulong ret,
+                                 target_ulong err)
+{
+    if (err) {
+        ret = (err == ENOTTY ? 0 : -1);
+    }
+    common_semi_cb(cs, ret, err);
+}
+
+/*
  * SYS_SEEK returns 0 on success, not the resulting offset.
  */
 static void common_semi_seek_cb(CPUState *cs, target_ulong ret,
@@ -291,13 +304,7 @@ common_semi_flen_cb(CPUState *cs, target_ulong ret, target_ulong err)
  * do the work and return the required return value to the guest
  * via common_semi_cb.
  */
-typedef void sys_isattyfn(CPUState *cs, GuestFD *gf);
 typedef void sys_flenfn(CPUState *cs, GuestFD *gf);
-
-static void host_isattyfn(CPUState *cs, GuestFD *gf)
-{
-    common_semi_cb(cs, isatty(gf->hostfd), 0);
-}
 
 static void host_flenfn(CPUState *cs, GuestFD *gf)
 {
@@ -308,11 +315,6 @@ static void host_flenfn(CPUState *cs, GuestFD *gf)
     } else {
         common_semi_cb(cs, buf.st_size, 0);
     }
-}
-
-static void gdb_isattyfn(CPUState *cs, GuestFD *gf)
-{
-    gdb_do_syscall(common_semi_cb, "isatty,%x", gf->hostfd);
 }
 
 static void gdb_flenfn(CPUState *cs, GuestFD *gf)
@@ -338,32 +340,23 @@ static const uint8_t featurefile_data[] = {
     SH_EXT_EXIT_EXTENDED | SH_EXT_STDOUT_STDERR, /* Feature byte 0 */
 };
 
-static void staticfile_isattyfn(CPUState *cs, GuestFD *gf)
-{
-    common_semi_cb(cs, 0, 0);
-}
-
 static void staticfile_flenfn(CPUState *cs, GuestFD *gf)
 {
     common_semi_cb(cs, gf->staticfile.len, 0);
 }
 
 typedef struct GuestFDFunctions {
-    sys_isattyfn *isattyfn;
     sys_flenfn *flenfn;
 } GuestFDFunctions;
 
 static const GuestFDFunctions guestfd_fns[] = {
     [GuestFDHost] = {
-        .isattyfn = host_isattyfn,
         .flenfn = host_flenfn,
     },
     [GuestFDGDB] = {
-        .isattyfn = gdb_isattyfn,
         .flenfn = gdb_flenfn,
     },
     [GuestFDStatic] = {
-        .isattyfn = staticfile_isattyfn,
         .flenfn = staticfile_flenfn,
     },
 };
@@ -489,12 +482,7 @@ void do_common_semihosting(CPUState *cs)
 
     case TARGET_SYS_ISTTY:
         GET_ARG(0);
-
-        gf = get_guestfd(arg0);
-        if (!gf) {
-            goto do_badf;
-        }
-        guestfd_fns[gf->type].isattyfn(cs, gf);
+        semihost_sys_isatty(cs, common_semi_istty_cb, arg0);
         break;
 
     case TARGET_SYS_SEEK:
