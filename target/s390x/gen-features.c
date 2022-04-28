@@ -738,11 +738,13 @@ static uint16_t qemu_V6_2[] = {
     S390_FEAT_VECTOR_ENH,
 };
 
-static uint16_t qemu_LATEST[] = {
-    S390_FEAT_MISC_INSTRUCTION_EXT3,
-};
-/* add all new definitions before this point */
+/*
+ * Features for the "qemu" CPU model of the latest QEMU machine and the "max"
+ * CPU model under TCG. Don't include features that are not part of the full
+ * feature set of the current "max" CPU model generation.
+ */
 static uint16_t qemu_MAX[] = {
+    S390_FEAT_MISC_INSTRUCTION_EXT3,
 };
 
 /****** END FEATURE DEFS ******/
@@ -864,7 +866,6 @@ static FeatGroupDefSpec QemuFeatDef[] = {
     QEMU_FEAT_INITIALIZER(V4_1),
     QEMU_FEAT_INITIALIZER(V6_0),
     QEMU_FEAT_INITIALIZER(V6_2),
-    QEMU_FEAT_INITIALIZER(LATEST),
     QEMU_FEAT_INITIALIZER(MAX),
 };
 
