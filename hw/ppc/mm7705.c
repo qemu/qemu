@@ -11,6 +11,7 @@
 #include "hw/ssi/pl022.h"
 #include "hw/ssi/ssi.h"
 #include "hw/net/greth.h"
+#include "hw/sd/sd.h"
 #include "hw/sd/keyasic_sd.h"
 #include "hw/irq.h"
 #include "exec/memory.h"
@@ -516,14 +517,6 @@ static void mm7705_init(MachineState *machine)
     }
 
     {
-        object_initialize_child(OBJECT(s), "sdio", &s->sdio, TYPE_KEYASIC_SD);
-        sysbus_realize(SYS_BUS_DEVICE(&s->sdio), &error_fatal);
-        SysBusDevice *busdev = SYS_BUS_DEVICE(&s->sdio);
-        memory_region_add_subregion(get_system_memory(), 0x103c064000,
-                                    sysbus_mmio_get_region(busdev, 0));
-    }
-
-    {
         // FIXME: connect gpio IRQs to corresponding MPIC IRQ lines
         for (int i = 0; i < ARRAY_SIZE(s->lsif0_mgpio); i++) {
             s->lsif0_mgpio[i] = sysbus_create_simple("pl061", 0x103c040000 + 0x1000*i, NULL);
@@ -535,6 +528,32 @@ static void mm7705_init(MachineState *machine)
 
         for (int i = 0; i < ARRAY_SIZE(s->lsif1_mgpio); i++) {
             s->lsif1_mgpio[i] = sysbus_create_simple("pl061", 0x103c067000 + 0x1000*i, NULL);
+        }
+    }
+
+    {
+        object_initialize_child(OBJECT(s), "sdio", &s->sdio, TYPE_KEYASIC_SD);
+        keyasic_sd_change_address_space(&s->sdio, axi_addr_space, &error_fatal);
+        sysbus_realize(SYS_BUS_DEVICE(&s->sdio), &error_fatal);
+        SysBusDevice *busdev = SYS_BUS_DEVICE(&s->sdio);
+        memory_region_add_subregion(get_system_memory(), 0x103c064000,
+                                    sysbus_mmio_get_region(busdev, 0));
+        sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(DEVICE(&s->mpic), 67));
+
+        // Connect SD card presence (1st pin of gpio1) with SDIO controller
+        qdev_connect_gpio_out_named(DEVICE(&s->sdio), "card-inserted", 0,
+                              qdev_get_gpio_in(s->lsif1_gpio[1], 1));
+
+        DriveInfo *dinfo = drive_get_next(IF_SD);
+        if (dinfo) {
+            DeviceState *card;
+
+            card = qdev_new(TYPE_SD_CARD);
+            qdev_prop_set_drive_err(card, "drive", blk_by_legacy_dinfo(dinfo),
+                                    &error_fatal);
+            qdev_prop_set_uint8(card, "spec_version", SD_PHY_SPECv3_01_VERS);
+            qdev_realize_and_unref(card, qdev_get_child_bus(DEVICE(&s->sdio), "sd-bus"),
+                                   &error_fatal);
         }
     }
 
@@ -653,9 +672,6 @@ static void mm7705_reset(MachineState *machine)
             qemu_irq_raise(qdev_get_gpio_in(s->lsif1_gpio[0], i));
         }
     }
-
-    // Disables SD card presence (1st pin of gpio1)
-    qemu_irq_raise(qdev_get_gpio_in(s->lsif1_gpio[1], 1));
 }
 
 static void mm7705_class_init(ObjectClass *oc, void *data)
