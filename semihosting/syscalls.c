@@ -100,6 +100,13 @@ static void gdb_close(CPUState *cs, gdb_syscall_complete_cb complete,
     gdb_do_syscall(complete, "close,%x", (target_ulong)gf->hostfd);
 }
 
+static void gdb_read(CPUState *cs, gdb_syscall_complete_cb complete,
+                     GuestFD *gf, target_ulong buf, target_ulong len)
+{
+    gdb_do_syscall(complete, "read,%x,%x,%x",
+                   (target_ulong)gf->hostfd, buf, len);
+}
+
 /*
  * Host semihosting syscall implementations.
  */
@@ -163,6 +170,54 @@ static void host_close(CPUState *cs, gdb_syscall_complete_cb complete,
     }
 }
 
+static void host_read(CPUState *cs, gdb_syscall_complete_cb complete,
+                      GuestFD *gf, target_ulong buf, target_ulong len)
+{
+    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    void *ptr = lock_user(VERIFY_WRITE, buf, len, 0);
+    ssize_t ret;
+
+    if (!ptr) {
+        complete(cs, -1, EFAULT);
+        return;
+    }
+    do {
+        ret = read(gf->hostfd, ptr, len);
+    } while (ret == -1 && errno == EINTR);
+    if (ret == -1) {
+        complete(cs, -1, errno);
+        unlock_user(ptr, buf, 0);
+    } else {
+        complete(cs, ret, 0);
+        unlock_user(ptr, buf, ret);
+    }
+}
+
+/*
+ * Static file semihosting syscall implementations.
+ */
+
+static void staticfile_read(CPUState *cs, gdb_syscall_complete_cb complete,
+                            GuestFD *gf, target_ulong buf, target_ulong len)
+{
+    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    target_ulong rest = gf->staticfile.len - gf->staticfile.off;
+    void *ptr;
+
+    if (len > rest) {
+        len = rest;
+    }
+    ptr = lock_user(VERIFY_WRITE, buf, len, 0);
+    if (!ptr) {
+        complete(cs, -1, EFAULT);
+        return;
+    }
+    memcpy(ptr, gf->staticfile.data + gf->staticfile.off, len);
+    gf->staticfile.off += len;
+    complete(cs, len, 0);
+    unlock_user(ptr, buf, len);
+}
+
 /*
  * Syscall entry points.
  */
@@ -200,4 +255,34 @@ void semihost_sys_close(CPUState *cs, gdb_syscall_complete_cb complete, int fd)
         g_assert_not_reached();
     }
     dealloc_guestfd(fd);
+}
+
+void semihost_sys_read_gf(CPUState *cs, gdb_syscall_complete_cb complete,
+                          GuestFD *gf, target_ulong buf, target_ulong len)
+{
+    switch (gf->type) {
+    case GuestFDGDB:
+        gdb_read(cs, complete, gf, buf, len);
+        break;
+    case GuestFDHost:
+        host_read(cs, complete, gf, buf, len);
+        break;
+    case GuestFDStatic:
+        staticfile_read(cs, complete, gf, buf, len);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+void semihost_sys_read(CPUState *cs, gdb_syscall_complete_cb complete,
+                       int fd, target_ulong buf, target_ulong len)
+{
+    GuestFD *gf = get_guestfd(fd);
+
+    if (gf) {
+        semihost_sys_read_gf(cs, complete, gf, buf, len);
+    } else {
+        complete(cs, -1, EBADF);
+    }
 }

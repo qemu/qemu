@@ -231,7 +231,6 @@ static void common_semi_cb(CPUState *cs, target_ulong ret, target_ulong err)
         target_ulong reg0 = common_semi_arg(cs, 0);
         switch (reg0) {
         case TARGET_SYS_WRITE:
-        case TARGET_SYS_READ:
             ret = common_semi_syscall_len - ret;
             break;
         case TARGET_SYS_SEEK:
@@ -242,6 +241,25 @@ static void common_semi_cb(CPUState *cs, target_ulong ret, target_ulong err)
         }
     }
     common_semi_set_ret(cs, ret);
+}
+
+/*
+ * SYS_READ and SYS_WRITE always return the number of bytes not read/written.
+ * There is no error condition, other than returning the original length.
+ */
+static void common_semi_rw_cb(CPUState *cs, target_ulong ret, target_ulong err)
+{
+    /* Recover the original length from the third argument. */
+    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    target_ulong args = common_semi_arg(cs, 1);
+    target_ulong arg2;
+    GET_ARG(2);
+
+    if (err) {
+ do_fault:
+        ret = 0; /* error: no bytes transmitted */
+    }
+    common_semi_set_ret(cs, arg2 - ret);
 }
 
 /*
@@ -278,8 +296,6 @@ common_semi_flen_cb(CPUState *cs, target_ulong ret, target_ulong err)
  */
 typedef void sys_writefn(CPUState *cs, GuestFD *gf,
                          target_ulong buf, uint32_t len);
-typedef void sys_readfn(CPUState *cs, GuestFD *gf,
-                        target_ulong buf, uint32_t len);
 typedef void sys_isattyfn(CPUState *cs, GuestFD *gf);
 typedef void sys_seekfn(CPUState *cs, GuestFD *gf, target_ulong offset);
 typedef void sys_flenfn(CPUState *cs, GuestFD *gf);
@@ -299,26 +315,6 @@ static void host_writefn(CPUState *cs, GuestFD *gf,
         }
     }
     /* Return bytes not written, on error as well. */
-    common_semi_cb(cs, len - ret, 0);
-}
-
-static void host_readfn(CPUState *cs, GuestFD *gf,
-                        target_ulong buf, uint32_t len)
-{
-    CPUArchState *env = cs->env_ptr;
-    uint32_t ret = 0;
-    char *s = lock_user(VERIFY_WRITE, buf, len, 0);
-    (void) env; /* Used in arm softmmu lock_user implicitly */
-    if (s) {
-        do {
-            ret = read(gf->hostfd, s, len);
-        } while (ret == -1 && errno == EINTR);
-        unlock_user(s, buf, len);
-        if (ret == (uint32_t)-1) {
-            ret = 0;
-        }
-    }
-    /* Return bytes not read, on error as well. */
     common_semi_cb(cs, len - ret, 0);
 }
 
@@ -349,13 +345,6 @@ static void gdb_writefn(CPUState *cs, GuestFD *gf,
 {
     common_semi_syscall_len = len;
     gdb_do_syscall(common_semi_cb, "write,%x,%x,%x", gf->hostfd, buf, len);
-}
-
-static void gdb_readfn(CPUState *cs, GuestFD *gf,
-                       target_ulong buf, uint32_t len)
-{
-    common_semi_syscall_len = len;
-    gdb_do_syscall(common_semi_cb, "read,%x,%x,%x", gf->hostfd, buf, len);
 }
 
 static void gdb_isattyfn(CPUState *cs, GuestFD *gf)
@@ -398,30 +387,6 @@ static void staticfile_writefn(CPUState *cs, GuestFD *gf,
     common_semi_cb(cs, -1, EBADF);
 }
 
-static void staticfile_readfn(CPUState *cs, GuestFD *gf,
-                              target_ulong buf, uint32_t len)
-{
-    CPUArchState *env = cs->env_ptr;
-    uint32_t i = 0;
-    char *s;
-
-    (void) env; /* Used in arm softmmu lock_user implicitly */
-    s = lock_user(VERIFY_WRITE, buf, len, 0);
-    if (s) {
-        for (i = 0; i < len; i++) {
-            if (gf->staticfile.off >= gf->staticfile.len) {
-                break;
-            }
-            s[i] = gf->staticfile.data[gf->staticfile.off];
-            gf->staticfile.off++;
-        }
-        unlock_user(s, buf, len);
-    }
-
-    /* Return number of bytes not read */
-    common_semi_cb(cs, len - i, 0);
-}
-
 static void staticfile_isattyfn(CPUState *cs, GuestFD *gf)
 {
     common_semi_cb(cs, 0, 0);
@@ -440,7 +405,6 @@ static void staticfile_flenfn(CPUState *cs, GuestFD *gf)
 
 typedef struct GuestFDFunctions {
     sys_writefn *writefn;
-    sys_readfn *readfn;
     sys_isattyfn *isattyfn;
     sys_seekfn *seekfn;
     sys_flenfn *flenfn;
@@ -449,21 +413,18 @@ typedef struct GuestFDFunctions {
 static const GuestFDFunctions guestfd_fns[] = {
     [GuestFDHost] = {
         .writefn = host_writefn,
-        .readfn = host_readfn,
         .isattyfn = host_isattyfn,
         .seekfn = host_seekfn,
         .flenfn = host_flenfn,
     },
     [GuestFDGDB] = {
         .writefn = gdb_writefn,
-        .readfn = gdb_readfn,
         .isattyfn = gdb_isattyfn,
         .seekfn = gdb_seekfn,
         .flenfn = gdb_flenfn,
     },
     [GuestFDStatic] = {
         .writefn = staticfile_writefn,
-        .readfn = staticfile_readfn,
         .isattyfn = staticfile_isattyfn,
         .seekfn = staticfile_seekfn,
         .flenfn = staticfile_flenfn,
@@ -583,13 +544,7 @@ void do_common_semihosting(CPUState *cs)
         GET_ARG(0);
         GET_ARG(1);
         GET_ARG(2);
-        len = arg2;
-
-        gf = get_guestfd(arg0);
-        if (!gf) {
-            goto do_badf;
-        }
-        guestfd_fns[gf->type].readfn(cs, gf, arg1, len);
+        semihost_sys_read(cs, common_semi_rw_cb, arg0, arg1, arg2);
         break;
 
     case TARGET_SYS_READC:
