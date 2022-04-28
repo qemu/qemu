@@ -356,7 +356,7 @@ static uint32_t openrisc_load_fdt(Or1ksimState *state, hwaddr load_start,
     }
 
     /* We put fdt right after the kernel and/or initrd. */
-    fdt_addr = ROUND_UP(load_start, 4);
+    fdt_addr = TARGET_PAGE_ALIGN(load_start);
 
     ret = fdt_pack(fdt);
     /* Should only fail if we've built a corrupted tree */
