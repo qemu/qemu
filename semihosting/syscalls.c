@@ -107,6 +107,13 @@ static void gdb_read(CPUState *cs, gdb_syscall_complete_cb complete,
                    (target_ulong)gf->hostfd, buf, len);
 }
 
+static void gdb_write(CPUState *cs, gdb_syscall_complete_cb complete,
+                      GuestFD *gf, target_ulong buf, target_ulong len)
+{
+    gdb_do_syscall(complete, "write,%x,%x,%x",
+                   (target_ulong)gf->hostfd, buf, len);
+}
+
 /*
  * Host semihosting syscall implementations.
  */
@@ -191,6 +198,22 @@ static void host_read(CPUState *cs, gdb_syscall_complete_cb complete,
         complete(cs, ret, 0);
         unlock_user(ptr, buf, ret);
     }
+}
+
+static void host_write(CPUState *cs, gdb_syscall_complete_cb complete,
+                       GuestFD *gf, target_ulong buf, target_ulong len)
+{
+    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    void *ptr = lock_user(VERIFY_READ, buf, len, 1);
+    ssize_t ret;
+
+    if (!ptr) {
+        complete(cs, -1, EFAULT);
+        return;
+    }
+    ret = write(gf->hostfd, ptr, len);
+    complete(cs, ret, ret == -1 ? errno : 0);
+    unlock_user(ptr, buf, 0);
 }
 
 /*
@@ -282,6 +305,37 @@ void semihost_sys_read(CPUState *cs, gdb_syscall_complete_cb complete,
 
     if (gf) {
         semihost_sys_read_gf(cs, complete, gf, buf, len);
+    } else {
+        complete(cs, -1, EBADF);
+    }
+}
+
+void semihost_sys_write_gf(CPUState *cs, gdb_syscall_complete_cb complete,
+                           GuestFD *gf, target_ulong buf, target_ulong len)
+{
+    switch (gf->type) {
+    case GuestFDGDB:
+        gdb_write(cs, complete, gf, buf, len);
+        break;
+    case GuestFDHost:
+        host_write(cs, complete, gf, buf, len);
+        break;
+    case GuestFDStatic:
+        /* Static files are never open for writing: EBADF. */
+        complete(cs, -1, EBADF);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+void semihost_sys_write(CPUState *cs, gdb_syscall_complete_cb complete,
+                        int fd, target_ulong buf, target_ulong len)
+{
+    GuestFD *gf = get_guestfd(fd);
+
+    if (gf) {
+        semihost_sys_write_gf(cs, complete, gf, buf, len);
     } else {
         complete(cs, -1, EBADF);
     }
