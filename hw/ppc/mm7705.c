@@ -23,9 +23,9 @@ typedef struct {
 
     MpicState mpic;
 
-    PL011State uart0;
+    PL011State uart[3];
 
-    struct PL022State spi0;
+    struct PL022State spi[3];
 
     DeviceState *lsif0_mgpio[11];
 
@@ -235,6 +235,34 @@ static void dcr_ddr_plb6mcif2_register(CPUPPCState *env, uint32_t base)
     }
 }
 
+static uint32_t dcr_unknown_read (void *opaque, int dcrn)
+{
+    return 0;
+}
+
+static void dcr_unknown_write (void *opaque, int dcrn, uint32_t val)
+{
+}
+
+static void dcr_unknown16(CPUPPCState *env, uint32_t base)
+{
+    uint32_t i;
+
+    for (i = 0x0; i <= 0x10; i++) {
+        ppc_dcr_register(env, base + i, NULL, dcr_unknown_read, dcr_unknown_write);
+    }
+}
+
+static uint64_t cpu_pll_read(void *opaque, hwaddr offset, unsigned size)
+{
+    return 1;
+}
+
+static const MemoryRegionOps cpu_pll_ops = {
+    .read = cpu_pll_read,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
 /* Machine init */
 static void create_initial_mapping(CPUPPCState *env)
 {
@@ -272,11 +300,16 @@ static void mm7705_init(MachineState *machine)
 
     dcr_plb4arb8m_register(env, 0x00000010);
     dcr_plb4arb8m_register(env, 0x00000020);
+    dcr_unknown16(env, 0x30);
+    dcr_unknown16(env, 0x40);
+    dcr_unknown16(env, 0x50);
     dcr_plb4arb8m_register(env, 0x00000060);
     dcr_plb4arb8m_register(env, 0x00000070);
     dcr_plb4arb8m_register(env, 0x00000080);
     dcr_plb4arb8m_register(env, 0x00000090);
     dcr_plb4arb8m_register(env, 0x000000a0);
+    dcr_unknown16(env, 0xb0);
+    dcr_unknown16(env, 0xc0);
     dcr_itrace_register(env, 0x80000900);
     dcr_itrace_register(env, 0x80000a00);
     dcr_ltrace_register(env, 0x80000b00);
@@ -349,7 +382,7 @@ static void mm7705_init(MachineState *machine)
 
     MemoryRegion *IM0_alias = g_new(MemoryRegion, 1);
     memory_region_init_alias(IM0_alias, NULL, "IM0_alias", IM0, 0, 0x40000);
-    memory_region_add_subregion(axi_mem, 0x0, IM0_alias);
+    memory_region_add_subregion(axi_mem, 0x40000, IM0_alias);
 
 
     MemoryRegion *IFSYS0 = g_new(MemoryRegion, 1);
@@ -358,7 +391,8 @@ static void mm7705_init(MachineState *machine)
 
     MemoryRegion *APB0 = g_new(MemoryRegion, 1);
     memory_region_init_ram(APB0, NULL, "APB0", 0x10000, &error_fatal);
-    memory_region_add_subregion(get_system_memory(), 0x1038000000, APB0);
+    memory_region_add_subregion_overlap(get_system_memory(), 0x1038000000,
+                                APB0, -10);
 
     MemoryRegion *APB1 = g_new(MemoryRegion, 1);
     memory_region_init_ram(APB1, NULL, "APB1", 0x14000, &error_fatal);
@@ -410,11 +444,28 @@ static void mm7705_init(MachineState *machine)
                                 IFSYS1, -10);
 
     if (serial_hd(0)) {
-        object_initialize_child(OBJECT(s), "uart0", &s->uart0, TYPE_PL011);
-        qdev_prop_set_chr(DEVICE(&s->uart0), "chardev", serial_hd(0));
-        sysbus_realize(SYS_BUS_DEVICE(&s->uart0), &error_fatal);
-        SysBusDevice *busdev = SYS_BUS_DEVICE(&s->uart0);
+        object_initialize_child(OBJECT(s), "uart0", &s->uart[0], TYPE_PL011);
+        qdev_prop_set_chr(DEVICE(&s->uart[0]), "chardev", serial_hd(0));
+        sysbus_realize(SYS_BUS_DEVICE(&s->uart[0]), &error_fatal);
+        busdev = SYS_BUS_DEVICE(&s->uart[0]);
         memory_region_add_subregion(get_system_memory(), 0x103c05d000,
+                                    sysbus_mmio_get_region(busdev, 0));
+        sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(DEVICE(&s->mpic), 101));
+    }
+
+    {
+        object_initialize_child(OBJECT(s), "uart1", &s->uart[1], TYPE_PL011);
+        // qdev_prop_set_chr(DEVICE(&s->uart[1]), "chardev", serial_hd(1));
+        sysbus_realize(SYS_BUS_DEVICE(&s->uart[1]), &error_fatal);
+        busdev = SYS_BUS_DEVICE(&s->uart[1]);
+        memory_region_add_subregion(get_system_memory(), 0x103c05e000,
+                                    sysbus_mmio_get_region(busdev, 0));
+
+        object_initialize_child(OBJECT(s), "uart2", &s->uart[2], TYPE_PL011);
+        // qdev_prop_set_chr(DEVICE(&s->uart[2]), "chardev", serial_hd(2));
+        sysbus_realize(SYS_BUS_DEVICE(&s->uart[2]), &error_fatal);
+        busdev = SYS_BUS_DEVICE(&s->uart[2]);
+        memory_region_add_subregion(get_system_memory(), 0x103c05f000,
                                     sysbus_mmio_get_region(busdev, 0));
     }
 
@@ -488,9 +539,9 @@ static void mm7705_init(MachineState *machine)
     }
 
     {
-        object_initialize_child(OBJECT(s), "spi0", &s->spi0, TYPE_PL022);
-        sysbus_realize(SYS_BUS_DEVICE(&s->spi0), &error_fatal);
-        busdev = SYS_BUS_DEVICE(&s->spi0);
+        object_initialize_child(OBJECT(s), "spi0", &s->spi[0], TYPE_PL022);
+        sysbus_realize(SYS_BUS_DEVICE(&s->spi[0]), &error_fatal);
+        busdev = SYS_BUS_DEVICE(&s->spi[0]);
         memory_region_add_subregion(get_system_memory(), 0x103c061000,
                                     sysbus_mmio_get_region(busdev, 0));
 
@@ -505,11 +556,25 @@ static void mm7705_init(MachineState *machine)
         // Our flash has 1 dummy cycle (or at least with this value it works)
         // So we take default value and set dummy cycles to 1
         object_property_set_int(OBJECT(flash_dev), "nonvolatile-cfg", 0x1fff, &error_fatal);
-        qdev_realize(flash_dev, BUS(s->spi0.ssi), &error_fatal);
+        qdev_realize(flash_dev, BUS(s->spi[0].ssi), &error_fatal);
 
         // Connect spi_flash chip select (cs pin) to 2nd pin of gpio1
         qdev_connect_gpio_out(s->lsif1_gpio[1], 2,
                               qdev_get_gpio_in_named(flash_dev, SSI_GPIO_CS, 0));
+    }
+
+    {
+        object_initialize_child(OBJECT(s), "spi1", &s->spi[1], TYPE_PL022);
+        sysbus_realize(SYS_BUS_DEVICE(&s->spi[1]), &error_fatal);
+        busdev = SYS_BUS_DEVICE(&s->spi[1]);
+        memory_region_add_subregion(get_system_memory(), 0x103c062000,
+                                    sysbus_mmio_get_region(busdev, 0));
+
+        object_initialize_child(OBJECT(s), "spi2", &s->spi[2], TYPE_PL022);
+        sysbus_realize(SYS_BUS_DEVICE(&s->spi[2]), &error_fatal);
+        busdev = SYS_BUS_DEVICE(&s->spi[2]);
+        memory_region_add_subregion(get_system_memory(), 0x103c063000,
+                                    sysbus_mmio_get_region(busdev, 0));
     }
 
     MemoryRegion *BOOT_ROM_1 = g_new(MemoryRegion, 1);
@@ -518,7 +583,7 @@ static void mm7705_init(MachineState *machine)
 
     MemoryRegion *BOOT_ROM_1_alias = g_new(MemoryRegion, 1);
     memory_region_init_alias(BOOT_ROM_1_alias, NULL, "BOOT_ROM_1_alias", BOOT_ROM_1, 0, 0x40000);
-    memory_region_add_subregion(axi_mem, 0x40000, BOOT_ROM_1_alias);
+    memory_region_add_subregion(axi_mem, 0x0, BOOT_ROM_1_alias);
 
 
     MemoryRegion *XHSIF0 = g_new(MemoryRegion, 1);
@@ -577,6 +642,10 @@ static void mm7705_reset(MachineState *machine)
             MEMTXATTRS_UNSPECIFIED, &pll_state, 1) != 0) {
         printf("shit!!2\n");
     }
+
+    MemoryRegion *cpu_pll = g_new(MemoryRegion, 1);
+    memory_region_init_io(cpu_pll, NULL, &cpu_pll_ops, NULL, "cpu_pll", 0x4);
+    memory_region_add_subregion(get_system_memory(), 0x1038006000, cpu_pll);
 
     // Set GPIO0 pins
     for (int i = 0; boot_cfg; i++, boot_cfg >>= 1) {
