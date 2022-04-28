@@ -415,6 +415,7 @@ ranlib="${RANLIB-${cross_prefix}ranlib}"
 nm="${NM-${cross_prefix}nm}"
 smbd="$SMBD"
 strip="${STRIP-${cross_prefix}strip}"
+widl="${WIDL-${cross_prefix}widl}"
 windres="${WINDRES-${cross_prefix}windres}"
 pkg_config_exe="${PKG_CONFIG-${cross_prefix}pkg-config}"
 query_pkg_config() {
@@ -2786,6 +2787,7 @@ if test "$skip_meson" = no; then
     echo "sdl2-config = [$(meson_quote $sdl2_config)]" >> $cross
   fi
   echo "strip = [$(meson_quote $strip)]" >> $cross
+  echo "widl = [$(meson_quote $widl)]" >> $cross
   echo "windres = [$(meson_quote $windres)]" >> $cross
   if test "$cross_compile" = "yes"; then
     cross_arg="--cross-file config-meson.cross"
@@ -2907,6 +2909,7 @@ preserve_env PYTHON
 preserve_env SDL2_CONFIG
 preserve_env SMBD
 preserve_env STRIP
+preserve_env WIDL
 preserve_env WINDRES
 
 printf "exec" >>config.status
