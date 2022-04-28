@@ -32,12 +32,13 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/timer.h"
+#include "exec/gdbstub.h"
 #include "semihosting/semihost.h"
 #include "semihosting/console.h"
 #include "semihosting/common-semi.h"
 #include "semihosting/guestfd.h"
-#include "qemu/timer.h"
-#include "exec/gdbstub.h"
+#include "semihosting/syscalls.h"
 
 #ifdef CONFIG_USER_ONLY
 #include "qemu.h"
@@ -96,21 +97,6 @@ static int gdb_open_modeflags[12] = {
     GDB_O_WRONLY | GDB_O_CREAT | GDB_O_APPEND,
     GDB_O_RDWR | GDB_O_CREAT | GDB_O_APPEND,
     GDB_O_RDWR | GDB_O_CREAT | GDB_O_APPEND,
-};
-
-static int open_modeflags[12] = {
-    O_RDONLY,
-    O_RDONLY | O_BINARY,
-    O_RDWR,
-    O_RDWR | O_BINARY,
-    O_WRONLY | O_CREAT | O_TRUNC,
-    O_WRONLY | O_CREAT | O_TRUNC | O_BINARY,
-    O_RDWR | O_CREAT | O_TRUNC,
-    O_RDWR | O_CREAT | O_TRUNC | O_BINARY,
-    O_WRONLY | O_CREAT | O_APPEND,
-    O_WRONLY | O_CREAT | O_APPEND | O_BINARY,
-    O_RDWR | O_CREAT | O_APPEND,
-    O_RDWR | O_CREAT | O_APPEND | O_BINARY
 };
 
 #ifndef CONFIG_USER_ONLY
@@ -280,20 +266,6 @@ common_semi_flen_cb(CPUState *cs, target_ulong ret, target_ulong err)
                             offsetof(struct gdb_stat, gdb_st_size),
                             &size, 8, 0);
         ret = be64_to_cpu(size);
-    }
-    common_semi_cb(cs, ret, err);
-}
-
-static int common_semi_open_guestfd;
-
-static void
-common_semi_open_cb(CPUState *cs, target_ulong ret, target_ulong err)
-{
-    if (err) {
-        dealloc_guestfd(common_semi_open_guestfd);
-    } else {
-        associate_guestfd(common_semi_open_guestfd, ret);
-        ret = common_semi_open_guestfd;
     }
     common_semi_cb(cs, ret, err);
 }
@@ -601,22 +573,11 @@ void do_common_semihosting(CPUState *cs)
                 staticfile_guestfd(ret, featurefile_data,
                                    sizeof(featurefile_data));
             }
-        } else if (use_gdb_syscalls()) {
-            unlock_user(s, arg0, 0);
-            common_semi_open_guestfd = alloc_guestfd();
-            gdb_do_syscall(common_semi_open_cb,
-                           "open,%s,%x,1a4", arg0, (int)arg2 + 1,
-                           gdb_open_modeflags[arg1]);
-            break;
         } else {
-            hostfd = open(s, open_modeflags[arg1], 0644);
-            if (hostfd < 0) {
-                ret = -1;
-                err = errno;
-            } else {
-                ret = alloc_guestfd();
-                associate_guestfd(ret, hostfd);
-            }
+            unlock_user(s, arg0, 0);
+            semihost_sys_open(cs, common_semi_cb, arg0, arg2 + 1,
+                              gdb_open_modeflags[arg1], 0644);
+            break;
         }
         unlock_user(s, arg0, 0);
         common_semi_cb(cs, ret, err);
