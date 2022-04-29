@@ -296,6 +296,13 @@ contains native support for this feature and thus use of the option
 ROM approach is obsolete. The native SeaBIOS support can be activated
 by using ``-machine graphics=off``.
 
+``-device nvme-ns,eui64-default=on|off`` (since 7.1)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In QEMU versions 6.1, 6.2 and 7.0, the ``nvme-ns`` generates an EUI-64
+identifer that is not globally unique. If an EUI-64 identifer is required, the
+user must set it explicitly using the ``nvme-ns`` device parameter ``eui64``.
+
 
 Block device options
 ''''''''''''''''''''
