@@ -4955,16 +4955,13 @@ static uint16_t nvme_identify_ns_descr_list(NvmeCtrl *n, NvmeRequest *req)
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
-    /*
-     * If the EUI-64 field is 0 and the NGUID field is 0, the namespace must
-     * provide a valid Namespace UUID in the Namespace Identification Descriptor
-     * data structure. QEMU does not yet support setting NGUID.
-     */
-    uuid.hdr.nidt = NVME_NIDT_UUID;
-    uuid.hdr.nidl = NVME_NIDL_UUID;
-    memcpy(uuid.v, ns->params.uuid.data, NVME_NIDL_UUID);
-    memcpy(pos, &uuid, sizeof(uuid));
-    pos += sizeof(uuid);
+    if (!qemu_uuid_is_null(&ns->params.uuid)) {
+        uuid.hdr.nidt = NVME_NIDT_UUID;
+        uuid.hdr.nidl = NVME_NIDL_UUID;
+        memcpy(uuid.v, ns->params.uuid.data, NVME_NIDL_UUID);
+        memcpy(pos, &uuid, sizeof(uuid));
+        pos += sizeof(uuid);
+    }
 
     if (ns->params.eui64) {
         eui64.hdr.nidt = NVME_NIDT_EUI64;
