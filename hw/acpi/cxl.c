@@ -18,13 +18,81 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/sysbus.h"
+#include "hw/pci/pci_bridge.h"
+#include "hw/pci/pci_host.h"
 #include "hw/cxl/cxl.h"
+#include "hw/mem/memory-device.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/aml-build.h"
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/acpi/cxl.h"
 #include "qapi/error.h"
 #include "qemu/uuid.h"
+
+static void cedt_build_chbs(GArray *table_data, PXBDev *cxl)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(cxl->cxl.cxl_host_bridge);
+    struct MemoryRegion *mr = sbd->mmio[0].memory;
+
+    /* Type */
+    build_append_int_noprefix(table_data, 0, 1);
+
+    /* Reserved */
+    build_append_int_noprefix(table_data, 0, 1);
+
+    /* Record Length */
+    build_append_int_noprefix(table_data, 32, 2);
+
+    /* UID - currently equal to bus number */
+    build_append_int_noprefix(table_data, cxl->bus_nr, 4);
+
+    /* Version */
+    build_append_int_noprefix(table_data, 1, 4);
+
+    /* Reserved */
+    build_append_int_noprefix(table_data, 0, 4);
+
+    /* Base - subregion within a container that is in PA space */
+    build_append_int_noprefix(table_data, mr->container->addr + mr->addr, 8);
+
+    /* Length */
+    build_append_int_noprefix(table_data, memory_region_size(mr), 8);
+}
+
+static int cxl_foreach_pxb_hb(Object *obj, void *opaque)
+{
+    Aml *cedt = opaque;
+
+    if (object_dynamic_cast(obj, TYPE_PXB_CXL_DEVICE)) {
+        cedt_build_chbs(cedt->buf, PXB_CXL_DEV(obj));
+    }
+
+    return 0;
+}
+
+void cxl_build_cedt(MachineState *ms, GArray *table_offsets, GArray *table_data,
+                    BIOSLinker *linker, const char *oem_id,
+                    const char *oem_table_id)
+{
+    Aml *cedt;
+    AcpiTable table = { .sig = "CEDT", .rev = 1, .oem_id = oem_id,
+                        .oem_table_id = oem_table_id };
+
+    acpi_add_table(table_offsets, table_data);
+    acpi_table_begin(&table, table_data);
+    cedt = init_aml_allocator();
+
+    /* reserve space for CEDT header */
+
+    object_child_foreach_recursive(object_get_root(), cxl_foreach_pxb_hb, cedt);
+
+    /* copy AML table into ACPI tables blob and patch header there */
+    g_array_append_vals(table_data, cedt->buf->data, cedt->buf->len);
+    free_aml_allocator();
+
+    acpi_table_end(linker, &table);
+}
 
 static Aml *__build_cxl_osc_method(void)
 {
