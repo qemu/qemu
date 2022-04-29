@@ -4944,6 +4944,28 @@ uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
     return r;
 }
 
+static void x86_cpu_get_supported_cpuid(uint32_t func, uint32_t index,
+                                        uint32_t *eax, uint32_t *ebx,
+                                        uint32_t *ecx, uint32_t *edx)
+{
+    if (kvm_enabled()) {
+        *eax = kvm_arch_get_supported_cpuid(kvm_state, func, index, R_EAX);
+        *ebx = kvm_arch_get_supported_cpuid(kvm_state, func, index, R_EBX);
+        *ecx = kvm_arch_get_supported_cpuid(kvm_state, func, index, R_ECX);
+        *edx = kvm_arch_get_supported_cpuid(kvm_state, func, index, R_EDX);
+    } else if (hvf_enabled()) {
+        *eax = hvf_get_supported_cpuid(func, index, R_EAX);
+        *ebx = hvf_get_supported_cpuid(func, index, R_EBX);
+        *ecx = hvf_get_supported_cpuid(func, index, R_ECX);
+        *edx = hvf_get_supported_cpuid(func, index, R_EDX);
+    } else {
+        *eax = 0;
+        *ebx = 0;
+        *ecx = 0;
+        *edx = 0;
+    }
+}
+
 static void x86_cpu_get_cache_cpuid(uint32_t func, uint32_t index,
                                     uint32_t *eax, uint32_t *ebx,
                                     uint32_t *ecx, uint32_t *edx)
@@ -5359,18 +5381,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 0xA:
         /* Architectural Performance Monitoring Leaf */
-        if (kvm_enabled() && cpu->enable_pmu) {
-            KVMState *s = cs->kvm_state;
-
-            *eax = kvm_arch_get_supported_cpuid(s, 0xA, count, R_EAX);
-            *ebx = kvm_arch_get_supported_cpuid(s, 0xA, count, R_EBX);
-            *ecx = kvm_arch_get_supported_cpuid(s, 0xA, count, R_ECX);
-            *edx = kvm_arch_get_supported_cpuid(s, 0xA, count, R_EDX);
-        } else if (hvf_enabled() && cpu->enable_pmu) {
-            *eax = hvf_get_supported_cpuid(0xA, count, R_EAX);
-            *ebx = hvf_get_supported_cpuid(0xA, count, R_EBX);
-            *ecx = hvf_get_supported_cpuid(0xA, count, R_ECX);
-            *edx = hvf_get_supported_cpuid(0xA, count, R_EDX);
+        if (accel_uses_host_cpuid() && cpu->enable_pmu) {
+            x86_cpu_get_supported_cpuid(0xA, count, eax, ebx, ecx, edx);
         } else {
             *eax = 0;
             *ebx = 0;
@@ -5521,10 +5533,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
          * supports.  Features can be further restricted by userspace, but not
          * made more permissive.
          */
-        *eax = kvm_arch_get_supported_cpuid(cs->kvm_state, 0x12, count, R_EAX);
-        *ebx = kvm_arch_get_supported_cpuid(cs->kvm_state, 0x12, count, R_EBX);
-        *ecx = kvm_arch_get_supported_cpuid(cs->kvm_state, 0x12, count, R_ECX);
-        *edx = kvm_arch_get_supported_cpuid(cs->kvm_state, 0x12, count, R_EDX);
+        x86_cpu_get_supported_cpuid(0x12, index, eax, ebx, ecx, edx);
 
         if (count == 0) {
             *eax &= env->features[FEAT_SGX_12_0_EAX];
