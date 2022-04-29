@@ -215,7 +215,7 @@ static inline uint32_t get_swi_errno(CPUState *cs)
 #endif
 }
 
-static void common_semi_cb(CPUState *cs, target_ulong ret, target_ulong err)
+static void common_semi_cb(CPUState *cs, uint64_t ret, int err)
 {
     if (err) {
 #ifdef CONFIG_USER_ONLY
@@ -232,7 +232,7 @@ static void common_semi_cb(CPUState *cs, target_ulong ret, target_ulong err)
  * SYS_READ and SYS_WRITE always return the number of bytes not read/written.
  * There is no error condition, other than returning the original length.
  */
-static void common_semi_rw_cb(CPUState *cs, target_ulong ret, target_ulong err)
+static void common_semi_rw_cb(CPUState *cs, uint64_t ret, int err)
 {
     /* Recover the original length from the third argument. */
     CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
@@ -251,8 +251,7 @@ static void common_semi_rw_cb(CPUState *cs, target_ulong ret, target_ulong err)
  * Convert from Posix ret+errno to Arm SYS_ISTTY return values.
  * With gdbstub, err is only ever set for protocol errors to EIO.
  */
-static void common_semi_istty_cb(CPUState *cs, target_ulong ret,
-                                 target_ulong err)
+static void common_semi_istty_cb(CPUState *cs, uint64_t ret, int err)
 {
     if (err) {
         ret = (err == ENOTTY ? 0 : -1);
@@ -263,8 +262,7 @@ static void common_semi_istty_cb(CPUState *cs, target_ulong ret,
 /*
  * SYS_SEEK returns 0 on success, not the resulting offset.
  */
-static void common_semi_seek_cb(CPUState *cs, target_ulong ret,
-                                target_ulong err)
+static void common_semi_seek_cb(CPUState *cs, uint64_t ret, int err)
 {
     if (!err) {
         ret = 0;
@@ -285,7 +283,7 @@ static target_ulong common_semi_flen_buf(CPUState *cs)
 }
 
 static void
-common_semi_flen_fstat_cb(CPUState *cs, target_ulong ret, target_ulong err)
+common_semi_flen_fstat_cb(CPUState *cs, uint64_t ret, int err)
 {
     if (!err) {
         /* The size is always stored in big-endian order, extract the value. */
