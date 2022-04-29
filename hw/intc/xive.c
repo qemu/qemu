@@ -114,6 +114,17 @@ static void xive_tctx_notify(XiveTCTX *tctx, uint8_t ring)
     }
 }
 
+void xive_tctx_reset_os_signal(XiveTCTX *tctx)
+{
+    /*
+     * Lower the External interrupt. Used when pulling an OS
+     * context. It is necessary to avoid catching it in the hypervisor
+     * context. It should be raised again when re-pushing the OS
+     * context.
+     */
+    qemu_irq_lower(xive_tctx_output(tctx, TM_QW1_OS));
+}
+
 static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
 {
     uint8_t *regs = &tctx->regs[ring];
@@ -388,6 +399,8 @@ static uint64_t xive_tm_pull_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
     /* Invalidate CAM line */
     qw1w2_new = xive_set_field32(TM_QW1W2_VO, qw1w2, 0);
     xive_tctx_set_os_cam(tctx, qw1w2_new);
+
+    xive_tctx_reset_os_signal(tctx);
     return qw1w2;
 }
 
@@ -420,6 +433,7 @@ static void xive_tctx_need_resend(XiveRouter *xrtr, XiveTCTX *tctx,
      * was saved when the context was pulled and that we need to take
      * into account by recalculating the PIPR (which is not
      * saved/restored).
+     * It will also raise the External interrupt signal if needed.
      */
     xive_tctx_ipb_update(tctx, TM_QW1_OS, ipb);
 }

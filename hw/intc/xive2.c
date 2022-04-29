@@ -269,6 +269,7 @@ uint64_t xive2_tm_pull_os_ctx(XivePresenter *xptr, XiveTCTX *tctx,
         xive2_tctx_save_os_ctx(xrtr, tctx, nvp_blk, nvp_idx);
     }
 
+    xive_tctx_reset_os_signal(tctx);
     return qw1w2;
 }
 
@@ -350,6 +351,7 @@ static void xive2_tctx_need_resend(Xive2Router *xrtr, XiveTCTX *tctx,
      * was saved when the context was pulled and that we need to take
      * into account by recalculating the PIPR (which is not
      * saved/restored).
+     * It will also raise the External interrupt signal if needed.
      */
     xive_tctx_ipb_update(tctx, TM_QW1_OS, ipb);
 }
