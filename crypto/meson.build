@@ -42,6 +42,7 @@ if have_afalg
 endif
 crypto_ss.add(when: gnutls, if_true: files('tls-cipher-suites.c'))
 
+util_ss.add(files('sm4.c'))
 util_ss.add(files('aes.c'))
 util_ss.add(files('init.c'))
 if gnutls.found()
