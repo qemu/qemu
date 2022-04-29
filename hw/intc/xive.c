@@ -413,10 +413,15 @@ static void xive_tctx_need_resend(XiveRouter *xrtr, XiveTCTX *tctx,
         /* Reset the NVT value */
         nvt.w4 = xive_set_field32(NVT_W4_IPB, nvt.w4, 0);
         xive_router_write_nvt(xrtr, nvt_blk, nvt_idx, &nvt, 4);
-
-        /* Merge in current context */
-        xive_tctx_ipb_update(tctx, TM_QW1_OS, ipb);
     }
+    /*
+     * Always call xive_tctx_ipb_update(). Even if there were no
+     * escalation triggered, there could be a pending interrupt which
+     * was saved when the context was pulled and that we need to take
+     * into account by recalculating the PIPR (which is not
+     * saved/restored).
+     */
+    xive_tctx_ipb_update(tctx, TM_QW1_OS, ipb);
 }
 
 /*
