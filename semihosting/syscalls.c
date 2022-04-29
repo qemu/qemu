@@ -165,6 +165,18 @@ static void gdb_rename(CPUState *cs, gdb_syscall_complete_cb complete,
     gdb_do_syscall(complete, "rename,%s,%s", oname, olen, nname, nlen);
 }
 
+static void gdb_system(CPUState *cs, gdb_syscall_complete_cb complete,
+                       target_ulong cmd, target_ulong cmd_len)
+{
+    int len = validate_strlen(cs, cmd, cmd_len);
+    if (len < 0) {
+        complete(cs, -1, -len);
+        return;
+    }
+
+    gdb_do_syscall(complete, "system,%s", cmd, len);
+}
+
 /*
  * Host semihosting syscall implementations.
  */
@@ -351,6 +363,24 @@ static void host_rename(CPUState *cs, gdb_syscall_complete_cb complete,
     complete(cs, ret, ret ? errno : 0);
     unlock_user(ostr, oname, 0);
     unlock_user(nstr, nname, 0);
+}
+
+static void host_system(CPUState *cs, gdb_syscall_complete_cb complete,
+                        target_ulong cmd, target_ulong cmd_len)
+{
+    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    char *p;
+    int ret;
+
+    ret = validate_lock_user_string(&p, cs, cmd, cmd_len);
+    if (ret < 0) {
+        complete(cs, -1, -ret);
+        return;
+    }
+
+    ret = system(p);
+    complete(cs, ret, ret == -1 ? errno : 0);
+    unlock_user(p, cmd, 0);
 }
 
 /*
@@ -617,5 +647,15 @@ void semihost_sys_rename(CPUState *cs, gdb_syscall_complete_cb complete,
         gdb_rename(cs, complete, oname, oname_len, nname, nname_len);
     } else {
         host_rename(cs, complete, oname, oname_len, nname, nname_len);
+    }
+}
+
+void semihost_sys_system(CPUState *cs, gdb_syscall_complete_cb complete,
+                         target_ulong cmd, target_ulong cmd_len)
+{
+    if (use_gdb_syscalls()) {
+        gdb_system(cs, complete, cmd, cmd_len);
+    } else {
+        host_system(cs, complete, cmd, cmd_len);
     }
 }
