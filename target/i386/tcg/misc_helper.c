@@ -79,13 +79,30 @@ void helper_rdtsc(CPUX86State *env) // ？？？ 读取时间相关的函数
 
 void helper_senduipi(CPUX86State *env ,int reg_index){ // 改
     // CPUState *cs = env_cpu(env);
-    int uipi_index = env->regs[R_EAX];
+    int uitte_index = env->regs[R_EAX];
+    if(Debug)printf("qemu:helper senduipi called receive  regidx:%d, uipiindex: %d\n",reg_index,uitte_index);
+    int prot;
+    CPUState *cs = env_cpu(env);
+
+    // read tempUITTE from 16 bytes at UITTADDR+ (reg « 4);
+    uint64_t uitt_phyaddress = get_hphys2(cs, (env->uintr_tt>>3)<<3 , MMU_DATA_LOAD, &prot);
+    if(Debug) printf("uitt_phyaddress %lx \n", uitt_phyaddress);
+    uint64_t content = x86_ldq_phys(cs,uitt_phyaddress + (uitte_index<<4));
+    uint64_t upidaddress = x86_ldq_phys(cs, uitt_phyaddress + (uitte_index<<4) + 8);
+    if(Debug)printf("data of uitt %d is 0x%016lx\n",uitte_index, content);
+    if(Debug)printf("UPID address 0x%016lx\n", upidaddress);
+
+    // tempUPID.PIR[tempUITTE.UV] := 1;
+    uint64_t upid_phyaddress = get_hphys2(cs, upidaddress , MMU_DATA_LOAD, &prot);
+    uint64_t upid_content = x86_ldq_phys(cs, upid_phyaddress);
+    if(Debug)printf("content of uipid: 0x%016lx\n", upid_content);
+    uint64_t SET_UV1 = 1<<8;
+    upid_content |= SET_UV1;
+    x86_stq_phys(cs, upid_phyaddress, upid_content);
 
 
-    if(Debug)printf("qemu:helper senduipi called receive  regidx:%d, uipiindex: %d\n",reg_index,uipi_index);
     // uint64_t content = x86_ldq_phys(cs,(env->uintr_tt>>3)<<3);
     // if(Debug)printf("data of uitt0is 0x%016lx\n",content);
-
 
     // if(Debug)printf("qemu:helper senduipi called receive  regidx:%d, uipiindex: %d\n",reg_index,uipi_index);
     // uint64_t content = cpu_ldq_data_ra(env, (env->uintr_tt>>3)<<3,0);

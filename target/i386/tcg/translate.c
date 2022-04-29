@@ -5410,15 +5410,6 @@ static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
             // s->tmp1_i64 = env->uintr_tt; //地址
             // tcg_gen_qemu_ld_i64(s->tmp1_i64, s->A0 , 0, MO_LEUQ);
             // printf("qemu: loaded 0x%lx A0: 0x%lx\n",(uint64_t)((void*)s->tmp1_i64),(uint64_t)s->A0);
-            int prot;
-            CPUState *cs = env_cpu(env);
-            uint64_t addr = get_hphys2(cs, (env->uintr_tt>>3)<<3 , MMU_DATA_LOAD, &prot);
-            if(Debug) printf("addr %lx \n\n\n",addr);
-            uint64_t content = x86_ldq_phys(cs,addr);
-            uint64_t content2 = x86_ldq_phys(cs,addr+8);
-            if(Debug)printf("data of uitt0is 0x%016lx\n",content);
-            if(Debug)printf("data of uitt address 0x%016lx\n",content2);
-
 
 
             // uint64_t content[10]; // read all zero
@@ -5429,8 +5420,6 @@ static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
             // MemOpIdx oi0 = make_memop_idx(MO_LEUQ | MO_ALIGN_16, mem_idx);
             // uint64_t content = cpu_ldq_le_mmu(env, (env->uintr_tt>>3)<<3, oi0, 0);
             // if(Debug) printf(" %lx \n\n\n",content);
-
-
 
 
             // TCGv t0;
