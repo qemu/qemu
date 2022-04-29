@@ -252,6 +252,24 @@ void cxl_component_create_dvsec(CXLComponentState *cxl,
     /* Configure write masks */
     switch (type) {
     case PCIE_CXL_DEVICE_DVSEC:
+        /* Cntrl RW Lock - so needs explicit blocking when lock is set */
+        wmask[offset + offsetof(CXLDVSECDevice, ctrl)] = 0xFD;
+        wmask[offset + offsetof(CXLDVSECDevice, ctrl) + 1] = 0x4F;
+        /* Status is RW1CS */
+        wmask[offset + offsetof(CXLDVSECDevice, ctrl2)] = 0x0F;
+       /* Lock is RW Once */
+        wmask[offset + offsetof(CXLDVSECDevice, lock)] = 0x01;
+        /* range1/2_base_high/low is RW Lock */
+        wmask[offset + offsetof(CXLDVSECDevice, range1_base_hi)] = 0xFF;
+        wmask[offset + offsetof(CXLDVSECDevice, range1_base_hi) + 1] = 0xFF;
+        wmask[offset + offsetof(CXLDVSECDevice, range1_base_hi) + 2] = 0xFF;
+        wmask[offset + offsetof(CXLDVSECDevice, range1_base_hi) + 3] = 0xFF;
+        wmask[offset + offsetof(CXLDVSECDevice, range1_base_lo) + 3] = 0xF0;
+        wmask[offset + offsetof(CXLDVSECDevice, range2_base_hi)] = 0xFF;
+        wmask[offset + offsetof(CXLDVSECDevice, range2_base_hi) + 1] = 0xFF;
+        wmask[offset + offsetof(CXLDVSECDevice, range2_base_hi) + 2] = 0xFF;
+        wmask[offset + offsetof(CXLDVSECDevice, range2_base_hi) + 3] = 0xFF;
+        wmask[offset + offsetof(CXLDVSECDevice, range2_base_lo) + 3] = 0xF0;
         break;
     case NON_CXL_FUNCTION_MAP_DVSEC:
         break; /* Not yet implemented */
