@@ -14,4 +14,7 @@
 #include "cxl_component.h"
 #include "cxl_device.h"
 
+#define CXL_COMPONENT_REG_BAR_IDX 0
+#define CXL_DEVICE_REG_BAR_IDX 2
+
 #endif
