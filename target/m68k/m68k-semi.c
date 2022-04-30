@@ -21,13 +21,8 @@
 
 #include "cpu.h"
 #include "exec/gdbstub.h"
-#if defined(CONFIG_USER_ONLY)
-#include "qemu.h"
-#define SEMIHOSTING_HEAP_SIZE (128 * 1024 * 1024)
-#else
 #include "semihosting/softmmu-uaccess.h"
 #include "hw/boards.h"
-#endif
 #include "qemu/log.h"
 
 #define HOSTED_EXIT  0
@@ -377,43 +372,12 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
         }
         break;
     case HOSTED_INIT_SIM:
-#if defined(CONFIG_USER_ONLY)
-        {
-        CPUState *cs = env_cpu(env);
-        TaskState *ts = cs->opaque;
-        /* Allocate the heap using sbrk.  */
-        if (!ts->heap_limit) {
-            abi_ulong ret;
-            uint32_t size;
-            uint32_t base;
-
-            base = do_brk(0);
-            size = SEMIHOSTING_HEAP_SIZE;
-            /* Try a big heap, and reduce the size if that fails.  */
-            for (;;) {
-                ret = do_brk(base + size);
-                if (ret >= (base + size)) {
-                    break;
-                }
-                size >>= 1;
-            }
-            ts->heap_limit = base + size;
-        }
-        /*
-         * This call may happen before we have writable memory, so return
-         * values directly in registers.
-         */
-        env->dregs[1] = ts->heap_limit;
-        env->aregs[7] = ts->stack_base;
-        }
-#else
         /*
          * FIXME: This is wrong for boards where RAM does not start at
          * address zero.
          */
         env->dregs[1] = current_machine->ram_size;
         env->aregs[7] = current_machine->ram_size;
-#endif
         return;
     default:
         cpu_abort(env_cpu(env), "Unsupported semihosting syscall %d\n", nr);
