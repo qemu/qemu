@@ -22,14 +22,9 @@
  */
 
 #include "qemu/osdep.h"
-
 #include "cpu.h"
 #include "exec/gdbstub.h"
-#if defined(CONFIG_USER_ONLY)
-#include "qemu.h"
-#else
 #include "semihosting/softmmu-uaccess.h"
-#endif
 #include "qemu/log.h"
 
 #define HOSTED_EXIT  0
