@@ -232,4 +232,5 @@ DEF_HELPER_3(rcrq, tl, env, tl, tl)
 
 DEF_HELPER_1(rdrand, tl, env)
 
-DEF_HELPER_2(senduipi, void ,env ,int) // 改
+DEF_HELPER_2(senduipi, void, env ,int) // 改
+DEF_HELPER_1(rrnzero, void, env)

@@ -77,6 +77,25 @@ void helper_rdtsc(CPUX86State *env) // ？？？ 读取时间相关的函数
     env->regs[R_EDX] = (uint32_t)(val >> 32);
 }
 
+struct uintr_uitt_entry {
+	uint8_t	valid;			/* bit 0: valid, bit 1-7: reserved */
+	uint8_t	user_vec;
+	uint8_t	reserved[6];
+	uint64_t target_upid_addr;
+};
+
+struct uintr_upid {
+	struct {
+		uint8_t status;	/* bit 0: ON, bit 1: SN, bit 2-7: reserved */
+		uint8_t reserved1;	/* Reserved */
+		uint8_t nv;		/* Notification vector */
+		uint8_t reserved2;	/* Reserved */
+		uint32_t ndst;	/* Notification destination */
+	} nc;		/* Notification control */
+	uint64_t puir;		/* Posted user interrupt requests */
+};
+#define UPID_ON 1
+
 void helper_senduipi(CPUX86State *env ,int reg_index){ // 改
     // CPUState *cs = env_cpu(env);
     int uitte_index = env->regs[R_EAX];
@@ -86,28 +105,40 @@ void helper_senduipi(CPUX86State *env ,int reg_index){ // 改
 
     // read tempUITTE from 16 bytes at UITTADDR+ (reg « 4);
     uint64_t uitt_phyaddress = get_hphys2(cs, (env->uintr_tt>>3)<<3 , MMU_DATA_LOAD, &prot);
-    if(Debug) printf("uitt_phyaddress %lx \n", uitt_phyaddress);
-    uint64_t content = x86_ldq_phys(cs,uitt_phyaddress + (uitte_index<<4));
-    uint64_t upidaddress = x86_ldq_phys(cs, uitt_phyaddress + (uitte_index<<4) + 8);
-    if(Debug)printf("data of uitt %d is 0x%016lx\n",uitte_index, content);
-    if(Debug)printf("UPID address 0x%016lx\n", upidaddress);
+    if(Debug) printf("qemu: uitt_phyaddress %lx \n", uitt_phyaddress);
+    struct uintr_uitt_entry uitte;
+    cpu_physical_memory_rw(uitt_phyaddress + (uitte_index<<4), &uitte, 16,false);
+    if(Debug)printf("qemu: data of uitt valid:%d user_vec:%d \n",uitte.valid, uitte.user_vec);
+    if(Debug)printf("qemu: UPID address 0x%016lx\n", uitte.target_upid_addr);
 
+    // read tempUPID from 16 bytes at tempUITTE.UPIDADDR;// under lock
+    uint64_t upid_phyaddress = get_hphys2(cs, uitte.target_upid_addr, MMU_DATA_LOAD, &prot);
+    struct uintr_upid upid;
+    cpu_physical_memory_rw(upid_phyaddress, &upid, 16, false);
+    if(Debug)printf("qemu: content of upid:  status:0x%x    nv:0x%x    ndst:0x%x    0x%016lx\n", upid.nc.status, upid.nc.nv, upid.nc.ndst, upid.puir);
     // tempUPID.PIR[tempUITTE.UV] := 1;
-    uint64_t upid_phyaddress = get_hphys2(cs, upidaddress , MMU_DATA_LOAD, &prot);
-    uint64_t upid_content = x86_ldq_phys(cs, upid_phyaddress);
-    if(Debug)printf("content of uipid: 0x%016lx\n", upid_content);
-    uint64_t SET_UV1 = 1<<8;
-    upid_content |= SET_UV1;
-    x86_stq_phys(cs, upid_phyaddress, upid_content);
-
-
-    // uint64_t content = x86_ldq_phys(cs,(env->uintr_tt>>3)<<3);
-    // if(Debug)printf("data of uitt0is 0x%016lx\n",content);
-
-    // if(Debug)printf("qemu:helper senduipi called receive  regidx:%d, uipiindex: %d\n",reg_index,uipi_index);
-    // uint64_t content = cpu_ldq_data_ra(env, (env->uintr_tt>>3)<<3,0);
-    // if(Debug)printf("data of uitt0is 0x%016lx\n",content);
+    upid.puir |= 1<<uitte.user_vec;
     
+    //IF tempUPID.SN = tempUPID.ON = 0
+    if(upid.nc.status == 0){
+    //THEN  tempUPID.ON := 1;   sendNotify := 1;
+        upid.nc.status |= UPID_ON;
+        
+    }else{ // ELSE sendNotify := 0;
+
+    }
+    //write tempUPID to 16 bytes at tempUITTE.UPIDADDR;// release lock
+    cpu_physical_memory_rw(upid_phyaddress, &upid, 16, true);
+
+    cpu_physical_memory_rw(upid_phyaddress, &upid, 16, false);
+    if(Debug)printf("qemu: data write back in upid:  status:0x%x    nv:0x%x    ndst:0x%x    0x%016lx\n", upid.nc.status, upid.nc.nv, upid.nc.ndst, upid.puir);
+
+
+    
+}
+
+void helper_rrnzero(CPUX86State *env){
+    if(Debug)printf("rrnzero called\n");
 }
 
 void helper_rdtscp(CPUX86State *env)

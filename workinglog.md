@@ -13,7 +13,7 @@
 ## 硬件软件使能：
 
 1. 软件通过设置 setting bit 25 (UINTR) in control register CR4, 来使能uinr, 不影响操作unitr操作相关寄存器
-2. CPUID.(EAX=7,ECX=0):EDX[5]. 这个位被设置后, 硬件才支持uintr, 才允许软件访问相关msr
+2.  CPUID.(EAX=7,ECX=0):EDX[5]. 这个位被设置后, 硬件才支持uintr, 才允许软件访问相关msr
 
 ## 寄存器定义和作用：
 
@@ -31,7 +31,7 @@
 
 1. CR4 对应的各个位的控制在硬件层面的作用？
 2. Xsave feature?
-3. MMX/SSE operation ？
+3.  MMX/SSE operation ？
 
 # 整理代码部分
 
@@ -137,6 +137,8 @@ void helper_rdtsc(CPUX86State *env)  //target/i386/tcg/misc_helper.c  64
 
 ```c
 //target/i386/tcg/excp_handler.c
+
+//raise_exception_ra
 ```
 
 
@@ -169,7 +171,6 @@ void helper_senduipi(CPUX86State *env ,int uipi_index){ // 改
 #### stui
 
 ```
-
 ```
 
 
@@ -293,6 +294,193 @@ s->icr[0] 发送方,写了就可以发ipi
 
 
 ### 内存模拟定位
+
+#### cpu_stl_be_data_ra 是有感访问，操作系统会报错
+
+cpu_stl_be_data也是有感访问，操作系统报错
+
+```
+//include/exec/cpu_ldst.h
+```
+
+```c
+uint64_t x86_ldq_phys(CPUState *cs, hwaddr addr)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+    MemTxAttrs attrs = cpu_get_mem_attrs(env);
+    AddressSpace *as = cpu_addressspace(cs, attrs);
+
+    return address_space_ldq(as, addr, attrs, NULL);
+}
+
+CPUState *cs = env_cpu(env);
+
+//target/i386/helper.c281
+pdpe_addr = ((env->cr[3] & ~0x1f) + ((addr >> 27) & 0x18)) &a20_mask;
+pdpe = x86_ldq_phys(cs, pdpe_addr);
+if (!(pdpe & PG_PRESENT_MASK)) return -1;
+```
+
+## addr = get_hphys(cs, addr, MMU_DATA_STORE, &prot);   mmu_translate.       target_ulong cr[5]; /* NOTE: cr1 is unused !!! */
+
+
+
+## tcg-cpu.h X86XSaveArea
+
+```c
+
+//失败的方法
+
+void helper_senduipi(CPUX86State *env ,int reg_index){ // 改
+    int uipi_index = env->regs[R_EAX];
+    if(Debug)printf("qemu:helper senduipi called receive  regidx:%d, uipiindex: %d\n",reg_index,uipi_index);
+    uint64_t content = cpu_ldq_data_ra(env, (env->uintr_tt>>3)<<3,0);
+    if(Debug)printf("data of uitt0is 0x%016lx\n",content);
+}
+/* 操作系统报错
+qemu:helper senduipi called receive  regidx:240, uipiindex: 0
+ IPI from sender thread index:0 
+[   29.290347] uipi_sample[79]: segfault at ffff9315c3951000 ip 0000000000401eb4 sp 00007f9cba791d90 error 5 in uipi_sample[401000+af000]
+[   29.293130] Code: 89 c7 e8 ff 18 02 00 bf 01 00 00 00 e8 75 91 01 00 8b 45 f4 89 c6 48 8d 05 81 e1 0a 00 48 89 c7 b8 00 00 00 00 e8 1c 9c 01 00 <8b> 45 f4 48 98 48 89 45 f8 48 8b 45 f8 f3 0f c7 f0 90 8b 05 08 e5
+qemu:wrmsr misc 0x0000000000000000
+*/
+
+
+
+
+TCGv t0;
+t0 = tcg_temp_local_new();
+t0 = (TCGv)env->uintr_tt; // 将t0修改为地址
+if(Debug){printf("debug: before t0: %llx   A0: %llx\n",(long long unsigned)t0,(long long unsigned)s->A0);}
+gen_op_ld_v(s, ot, t0, s->A0);
+if(Debug){printf("debug: after  t0: %llx   A0: %llx\n",(long long unsigned)t0,(long long unsigned)s->A0);}
+tcg_temp_free(t0);
+/*
+debug: before t0: ffff901883890001   A0: bf8
+qemu-system-x86_64: /home/xxy/qemu/include/tcg/tcg.h:657: temp_idx: Assertion `n >= 0 && n < tcg_ctx->nb_temps' failed.
+/home/xxy/runlinux.sh: line 5: 82338 Aborted                 (core dumped) /home/xxy/qemu/build/x86_64-softmmu/qemu-system-x86_64 
+
+debug: before t0: ed0   A0: ffff8cf9838c0001
+qemu-system-x86_64: /home/xxy/qemu/include/tcg/tcg.h:657: temp_idx: Assertion `n >= 0 && n < tcg_ctx->nb_temps' failed.
+/home/xxy/runlinux.sh: line 5: 83796 Aborted  
+
+*/
+
+
+void helper_senduipi(CPUX86State *env ,int reg_index){ // 改
+    CPUState *cs = env_cpu(env);
+    int uipi_index = env->regs[R_EAX];
+    if(Debug)printf("qemu:helper senduipi called receive  regidx:%d, uipiindex: %d\n",reg_index,uipi_index);
+    uint64_t content = x86_ldq_phys(cs,(env->uintr_tt>>3)<<3);
+    // uint64_t content = cpu_ldq_data_ra(env, (env->uintr_tt>>3)<<3,0);
+    if(Debug)printf("data of uitt0is 0x%016lx\n",content);
+    
+}
+/*
+qemu:helper senduipi called receive  regidx:240, uipiindex: 0
+data of uitt0is 0x0000000000000000
+*/
+                 
+
+printf("qemu: caught 0xf30fc7 SENDUIPI\n "); // 改 Debug
+uint64_t content;
+cpu_physical_memory_rw(env->uintr_tt,&content,8,false);
+if(Debug) printf("    xxx               %lx \n", content);
+
+/*qemu: caught 0xf30fc7 SENDUIPI
+                    0 
+qemu:helper senduipi called receive  regidx:240, uipiindex: 0 */
+
+cpu_ldq_mmuidx_ra(env, addr, mem_idx, GETPC()); ??
+```
+
+```
+// uint64_t content = x86_ldq_phys(cs,uitt_phyaddress + (uitte_index<<4));
+// uint64_t upidaddress = x86_ldq_phys(cs, uitt_phyaddress + (uitte_index<<4) + 8);
+```
+
+```c
+//正确的方法：
+    // read tempUITTE from 16 bytes at UITTADDR+ (reg « 4);
+    uint64_t uitt_phyaddress = get_hphys2(cs, (env->uintr_tt>>3)<<3 , MMU_DATA_LOAD, &prot);
+    if(Debug) printf("qemu: uitt_phyaddress %lx \n", uitt_phyaddress);
+    struct uintr_uitt_entry uitte;
+    cpu_physical_memory_rw(uitt_phyaddress + (uitte_index<<4), &uitte, 16,false);
+    if(Debug)printf("qemu: data of uitt valid:%d user_vec:%d \n",uitte.valid, uitte.user_vec);
+    if(Debug)printf("qemu: UPID address 0x%016lx\n", uitte.target_upid_addr);
+    // read tempUPID from 16 bytes at tempUITTE.UPIDADDR;// under lock
+    uint64_t upid_phyaddress = get_hphys2(cs, uitte.target_upid_addr, MMU_DATA_LOAD, &prot);
+    struct uintr_upid upid;
+    cpu_physical_memory_rw(upid_phyaddress, &upid, 16, false);
+    if(Debug)printf("qemu: content of upid:  status:0x%x    nv:0x%x    ndst:0x%x    0x%016lx\n", upid.nc.status, upid.nc.nv, upid.nc.ndst, upid.puir);
+    // tempUPID.PIR[tempUITTE.UV] := 1;
+    upid.puir |= 1<<uitte.user_vec;
+    
+    //IF tempUPID.SN = tempUPID.ON = 0
+    if(upid.nc.status == 0){
+    //THEN  tempUPID.ON := 1;   sendNotify := 1;
+        upid.nc.status |= UPID_ON;
+        
+    }else{ // ELSE sendNotify := 0;
+
+    }
+    //write tempUPID to 16 bytes at tempUITTE.UPIDADDR;// release lock
+
+```
+
+
+
+如果不修改upid.puir, 得到如下输出
+
+```shell
+emu: caught 0xf30fc7 SENDUIPI
+ qemu:helper senduipi called receive  regidx:240, uipiindex: 0
+mmu_translate ret: -1
+qemu: uitt_phyaddress 290d000 
+qemu: data of uitt valid:1 user_vec:0 
+qemu: UPID address 0xffff9e3682a11840
+mmu_translate ret: -1
+qemu: content of upid:  status:0x0    nv:0xec    ndst:0x100    0x0000000000000000
+qemu: data write back in upid:  status:0x1    nv:0xec    ndst:0x100    0x0000000000000000
+[    5.551340] uintr_unregister_sender called
+[    5.552576] send: unregister sender uintrfd 3 for task=78 ret 0
+qemu:wrmsr misc 0x0000000000000000
+qemu:wrmsr tt 0x0000000000000000
+Sending IPI from sender thread index:0 
+[    5.563810] recv: Release uintrfd for r_task 77 uvec 0
+[    5.567603] uintr_unregister_handler called
+qemu:wrmsr misc 0x0000000000000000
+qemu:wrmsr pd 0x0000000000000000
+qemu:wrmsr RR 0x0
+qemu:wrmsr stackadjust 0x0
+qemu:wrmsr handler 0x0000000000000000
+[    5.571613] recv: unregister handler task=77 flags 0 ret 0
+Success
+```
+
+如果修改upid.puir, 则用户程序不会执行结束:
+
+```
+ending IPI from sender thread index:0 
+qemu: caught 0xf30fc7 SENDUIPI
+ qemu:helper senduipi called receive  regidx:240, uipiindex: 0
+mmu_translate ret: -1
+qemu: uitt_phyaddress 2a3b000 
+qemu: data of uitt valid:1 user_vec:0 
+qemu: UPID address 0xffff9bfac293fd00
+mmu_translate ret: -1
+qemu: content of upid: status:0x0    nv:0xec    ndst:0x0    0x0000000000000000
+qemu: data write back in upid:  status:0x1    nv:0xec    ndst:0x0    0x0000000000000001
+[    9.319021] uintr_unregister_sender called
+[    9.322055] send: unregister sender uintrfd 3 for task=79 ret 0
+qemu:wrmsr misc 0x0000000000000000
+qemu:wrmsr tt 0x0000000000000000
+```
+
+
+
+
 
 
 
@@ -499,9 +687,7 @@ static void mark_unavailable_features();
 // 6153
 void x86_cpu_expand_features(X86CPU *cpu, Error **errp);
 ```
-
 通过插入输出,编译后再次执行得到如下结果:
-
 ```shell
 qemu-system-x86_64: warning: expand featrue called
 qemu-system-x86_64: warning: x86 cpu filter feature called
@@ -771,62 +957,64 @@ Illegal instruction
 注意到，在捕捉SENDUIPI时，没有将指令的最后一位，即最后一位寄存器表示的字节入读，导致后续出现非法指令报错，修改捕捉SENDUIPI的的代码如下。
 
 ```
-
 ```
 
-随后的运行代码如下：
+修改`uipi_sample.c`,使得最后不再死循环等待，随后的运行代码如下：
 
 ```shell
-[   11.166678] uintr_register_handler called
+/ # uipi_sample 
+[    9.059653] uintr_register_handler called
 qemu:wrmsr handler 0x0000000000401de5
-qemu:wrmsr pd 0xffff986f8440d480
+qemu:wrmsr pd 0xffff9fa5039233c0
 qemu:wrmsr stackadjust 0x0000000000000080
 qemu:rdmsr misc 0x0000000000000000
 qemu:wrmsr misc 0x000000ec00000000
-[   11.168547] recv: register handler task=78 flags 0 handler 401de5 ret 0
-qemu:rdmsr misc 0x000000ec00000000....
-regeister returned 0
-[   11.180419] uintr_create_fd called
-[   11.182471] recv: Alloc vector success uintrfd 3 uvec 0 for task=78
+[    9.062016] recv: register handler task=78 flags 0 handler 401de5 ret 0
 qemu:rdmsr misc 0x000000ec00000000
+#......
+regeister returned 0qemu:rdmsr misc 0x000000ec00000000
 qemu:rdmsr misc 0x000000ec00000000
+#......
+[    9.075342] uintr_create_fd called
+[    9.077466] recv: Alloc vector success uintrfd 3 uvec 0 for task=78
+qemu:rdmsr misc 0x000000ec00000000
+create fd returned 3qemu:rdmsr misc 0x000000ec00000000
+qemu:rdmsr misc 0x000000ec00000000
+#...
 qemu:caught 0xf30f01ef STUI
-create fd returned 3
 qemu:rdmsr misc 0x000000ec00000000
+Receiver enabled interruptsqemu:rdmsr misc 0x000000ec00000000
 qemu:rdmsr misc 0x000000ec00000000
-Receiver enabled interrupts
-qemu:rdmsr misc 0x000000ec00000000
-[   11.199848] uintr_register_sender called
-qemu:rdmsr misc 0x000000ec00000000.....
-qemu:wrmsr tt 0xffff986f82d65001
-qemu:rdmsr misc 0x0000000000000000
-qemu:wrmsr misc 0x0000000000000100
-qemu:rdmsr misc 0x000000ec00000000
-qemu:rdmsr misc 0x000000ec00000000
-qemu:rdmsr misc 0x000000ec00000000
-[   11.206624] send: register sender task=79 flags 0qemu:rdmsr misc 0x000000ec00000000
- ret(uipi_id)=0
-qemu:rdmsr misc 0x000000ec00000000
-qemu:rdmsr misc 0x000000ec00000000
-qemu:rdmsr misc 0x000000ec00000000
-Sending IPI fromqemu:rdmsr misc 0x000000ec00000000
- sender threadqemu:rdmsr misc 0x000000ec00000000
 
 qemu:rdmsr misc 0x000000ec00000000
-qemu:rdmsr misc 0x000000ec00000000
+#....
+[    9.097662]qemu:rdmsr misc 0x000000ec00000000
+ uintr_register_sender called
+qemu:wrmsr tt 0xffff9fa5018cf001
+qemu:rdmsr misc 0x0000000000000000
+qemu:wrmsr misc 0x0000000000000100
+[    9.104338] send: register sender task=79 flags 0 ret(uipi_id)=0
+Sending IPI from sender thread index:0 
 qemu: caught 0xf30fc7 SENDUIPI
-[   11.211440] uintr_unregister_senqemu:rdmsr misc 0x000000ec00000000
-der called
-qemu:rdmsr misc 0x000000ec00000000
-qemu:rdmsr misc 0x000000ec00000000
-[   11.213057] send: unreqemu:rdmsr misc 0x000000ec00000000
-gister sender uintrfd 3 for task=79 ret 0
-qemu:rdmsr misc 0x000000ec00000000
-qemu:rdmsr misc 0x000000ec00000000
+ qemu:helper senduipi called receive  regidx:240, uipiindex: 0
+[    9.106657] uintr_unregister_sender called
+[    9.108545] send: unregister sender uintrfd 3 for task=79 ret 0
 qemu:rdmsr misc 0x0000000000000100
 qemu:wrmsr misc 0x0000000000000000
 qemu:wrmsr tt 0x0000000000000000
-qemu:rdmsr misc 0x000000ec00000000....等待
+qemu:rdmsr misc 0x000000ec00000000
+#......
+[    9.127159] recv: Release uintrfd for r_task 78 uvec 0
+qemu:rdmsr misc 0x000000ec00000000
+[    9.129770] uintr_unregister_handler called
+qemu:rdmsr misc 0x000000ec00000000
+qemu:wrmsr misc 0x0000000000000000
+qemu:wrmsr pd 0x0000000000000000
+qemu:wrmsr RR 0x0000000000000000
+qemu:wrmsr stackadjust 0x0000000000000000
+qemu:wrmsr handler 0x0000000000000000
+[    9.132581] recv: unregister handler task=78 flags 0 ret 0
+Success
 ```
 
 
@@ -993,8 +1181,7 @@ gcc-11 -Wall -static -muintr -mgeneral-regs-only -minline-all-stringops uipi_sam
 首先下载对应版本的安装包`binutils-2.38.tar.bz2 `
 
 ```shell
-tar -jxvf 
-binutils-2.38.tar.bz2
+tar -jxvf binutils-2.38.tar.bz2
 cd binutils-2.38
 ./configure
 make -j
@@ -1039,7 +1226,7 @@ gcc -S 得到汇编代码，主要的新增代码如下
 遇到缺少的包, 安装即可：
 
 ```shell
-ERROR: Cannot find Ninja
+ERROR: Cannot find Ninjaw
 ```
 
 ## ref
@@ -1047,6 +1234,14 @@ ERROR: Cannot find Ninja
 1. https://hackmd.io/@octobersky/qemu-run-ubuntu
 2. http://blog.vmsplice.net/2011/03/qemu-internals-big-picture-overview.html
 3. https://vmsplice.net/~stefan/qemu-code-overview.pdf
-4. https://blog.csdn.net/fantasy_wxe/article/details/108418822
+4. https://blog.csdn.net/fantasy_wxe/article/details/108418822 编译linux
 5. https://airbus-seclab.github.io/qemu_blog/tcg_p1.html qemu tcg
 6. https://blog.csdn.net/iteye_4515/article/details/82159880?spm=1001.2101.3001.6661.1&utm_medium=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7ECTRLIST%7ERate-1.pc_relevant_default&depth_1-utm_source=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7ECTRLIST%7ERate-1.pc_relevant_default&utm_relevant_index=1 qemu 源码分析
+7. https://www.qemu.org/docs/master/devel/loads-stores.html#helper-ld-st-mmu mmu
+8. https://github.com/airbus-seclab/qemu_blog qemu blog
+9. https://github.com/qemu/qemu/blob/v4.2.0/include/exec/memory.h memory.h
+10. https://github.com/qemu/qemu/blob/v4.2.0/docs/devel/memory.rst memory api
+11. https://github.com/qemu/qemu/blob/v4.2.0/docs/devel/loads-stores.rst ldst api
+12. 
+
+

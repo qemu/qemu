@@ -228,15 +228,19 @@ void helper_wrmsr(CPUX86State *env)
 #endif
     // ？？？ 改wrmsr
     case MSR_IA32_UINTR_RR:
-        printf("qemu:wrmsr RR 0x%016lx\n",val);
+        printf("qemu:wrmsr RR 0x%lx\n",val);
         env->uintr_rr = val;
+        if(val!= 0){
+            if(Debug)printf("getting rr not zero get into helper rr:%ld\n",val);
+            helper_rrnzero(env);
+        }
         break;
     case MSR_IA32_UINTR_HANDLER:
         printf("qemu:wrmsr handler 0x%016lx\n",val);
         env->uintr_handler = val;
         break;
     case MSR_IA32_UINTR_STACKADJUST:
-        printf("qemu:wrmsr stackadjust 0x%016lx\n",val);
+        printf("qemu:wrmsr stackadjust 0x%lx\n",val);
         env->uintr_stackadjust = val;
         break;
     case MSR_IA32_UINTR_MISC:
