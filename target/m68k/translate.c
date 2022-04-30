@@ -6003,6 +6003,7 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(tas,       4ac0, ffc0, M68000);
 #if defined(CONFIG_SOFTMMU)
     INSN(halt,      4ac8, ffff, CF_ISA_A);
+    INSN(halt,      4ac8, ffff, M68060);
 #endif
     INSN(pulse,     4acc, ffff, CF_ISA_A);
     BASE(illegal,   4afc, ffff);
