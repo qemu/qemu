@@ -8602,12 +8602,9 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
             r2->type |= ARM_CP_ALIAS;
         }
 
-        if (r->state == ARM_CP_STATE_BOTH) {
-#if HOST_BIG_ENDIAN
-            if (r2->fieldoffset) {
-                r2->fieldoffset += sizeof(uint32_t);
-            }
-#endif
+        if (HOST_BIG_ENDIAN &&
+            r->state == ARM_CP_STATE_BOTH && r2->fieldoffset) {
+            r2->fieldoffset += sizeof(uint32_t);
         }
     }
 
