@@ -10,6 +10,7 @@
 #include "exec/gdbstub.h"
 #include "semihosting/guestfd.h"
 #include "semihosting/syscalls.h"
+#include "semihosting/console.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu.h"
 #else
@@ -578,6 +579,56 @@ static void staticfile_flen(CPUState *cs, gdb_syscall_complete_cb complete,
 }
 
 /*
+ * Console semihosting syscall implementations.
+ */
+
+static void console_read(CPUState *cs, gdb_syscall_complete_cb complete,
+                         GuestFD *gf, target_ulong buf, target_ulong len)
+{
+    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    char *ptr;
+    int ret;
+
+    ptr = lock_user(VERIFY_WRITE, buf, len, 0);
+    if (!ptr) {
+        complete(cs, -1, EFAULT);
+        return;
+    }
+    ret = qemu_semihosting_console_read(cs, ptr, len);
+    complete(cs, ret, 0);
+    unlock_user(ptr, buf, ret);
+}
+
+static void console_write(CPUState *cs, gdb_syscall_complete_cb complete,
+                          GuestFD *gf, target_ulong buf, target_ulong len)
+{
+    CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+    char *ptr = lock_user(VERIFY_READ, buf, len, 1);
+    int ret;
+
+    if (!ptr) {
+        complete(cs, -1, EFAULT);
+        return;
+    }
+    ret = qemu_semihosting_console_write(ptr, len);
+    complete(cs, ret ? ret : -1, ret ? 0 : EIO);
+    unlock_user(ptr, buf, ret);
+}
+
+static void console_fstat(CPUState *cs, gdb_syscall_complete_cb complete,
+                          GuestFD *gf, target_ulong addr)
+{
+    static const struct stat tty_buf = {
+        .st_mode = 020666,  /* S_IFCHR, ugo+rw */
+        .st_rdev = 5,       /* makedev(5, 0) -- linux /dev/tty */
+    };
+    int ret;
+
+    ret = copy_stat_to_user(cs, addr, &tty_buf);
+    complete(cs, ret ? -1 : 0, ret ? -ret : 0);
+}
+
+/*
  * Syscall entry points.
  */
 
@@ -608,6 +659,7 @@ void semihost_sys_close(CPUState *cs, gdb_syscall_complete_cb complete, int fd)
         host_close(cs, complete, gf);
         break;
     case GuestFDStatic:
+    case GuestFDConsole:
         complete(cs, 0, 0);
         break;
     default:
@@ -636,6 +688,9 @@ void semihost_sys_read_gf(CPUState *cs, gdb_syscall_complete_cb complete,
         break;
     case GuestFDStatic:
         staticfile_read(cs, complete, gf, buf, len);
+        break;
+    case GuestFDConsole:
+        console_read(cs, complete, gf, buf, len);
         break;
     default:
         g_assert_not_reached();
@@ -671,6 +726,9 @@ void semihost_sys_write_gf(CPUState *cs, gdb_syscall_complete_cb complete,
         break;
     case GuestFDHost:
         host_write(cs, complete, gf, buf, len);
+        break;
+    case GuestFDConsole:
+        console_write(cs, complete, gf, buf, len);
         break;
     case GuestFDStatic:
         /* Static files are never open for writing: EBADF. */
@@ -712,6 +770,9 @@ void semihost_sys_lseek(CPUState *cs, gdb_syscall_complete_cb complete,
     case GuestFDStatic:
         staticfile_lseek(cs, complete, gf, off, gdb_whence);
         break;
+    case GuestFDConsole:
+        complete(cs, -1, ESPIPE);
+        break;
     default:
         g_assert_not_reached();
     }
@@ -734,6 +795,9 @@ void semihost_sys_isatty(CPUState *cs, gdb_syscall_complete_cb complete, int fd)
         break;
     case GuestFDStatic:
         complete(cs, 0, ENOTTY);
+        break;
+    case GuestFDConsole:
+        complete(cs, 1, 0);
         break;
     default:
         g_assert_not_reached();
@@ -760,6 +824,7 @@ void semihost_sys_flen(CPUState *cs, gdb_syscall_complete_cb fstat_cb,
     case GuestFDStatic:
         staticfile_flen(cs, flen_cb, gf);
         break;
+    case GuestFDConsole:
     default:
         g_assert_not_reached();
     }
@@ -780,6 +845,9 @@ void semihost_sys_fstat(CPUState *cs, gdb_syscall_complete_cb complete,
         break;
     case GuestFDHost:
         host_fstat(cs, complete, gf, addr);
+        break;
+    case GuestFDConsole:
+        console_fstat(cs, complete, gf, addr);
         break;
     case GuestFDStatic:
     default:

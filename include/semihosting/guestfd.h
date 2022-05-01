@@ -13,9 +13,10 @@
 
 typedef enum GuestFDType {
     GuestFDUnused = 0,
-    GuestFDHost = 1,
-    GuestFDGDB = 2,
-    GuestFDStatic = 3,
+    GuestFDHost,
+    GuestFDGDB,
+    GuestFDStatic,
+    GuestFDConsole,
 } GuestFDType;
 
 /*
