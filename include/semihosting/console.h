@@ -39,7 +39,7 @@ void qemu_semihosting_console_outc(CPUArchState *env, target_ulong c);
 
 /**
  * qemu_semihosting_console_inc:
- * @env: CPUArchState
+ * @cs: CPUState
  *
  * Receive single character from debug console.  As this call may block
  * if no data is available we suspend the CPU and will re-execute the
@@ -50,7 +50,7 @@ void qemu_semihosting_console_outc(CPUArchState *env, target_ulong c);
  *
  * Returns: character read OR cpu_loop_exit!
  */
-target_ulong qemu_semihosting_console_inc(CPUArchState *env);
+target_ulong qemu_semihosting_console_inc(CPUState *cs);
 
 /**
  * qemu_semihosting_log_out:

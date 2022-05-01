@@ -144,17 +144,17 @@ static void console_read(void *opaque, const uint8_t *buf, int size)
     c->sleeping_cpus = NULL;
 }
 
-target_ulong qemu_semihosting_console_inc(CPUArchState *env)
+target_ulong qemu_semihosting_console_inc(CPUState *cs)
 {
     uint8_t ch;
     SemihostingConsole *c = &console;
+
     g_assert(qemu_mutex_iothread_locked());
-    g_assert(current_cpu);
     if (fifo8_is_empty(&c->fifo)) {
-        c->sleeping_cpus = g_slist_prepend(c->sleeping_cpus, current_cpu);
-        current_cpu->halted = 1;
-        current_cpu->exception_index = EXCP_HALTED;
-        cpu_loop_exit(current_cpu);
+        c->sleeping_cpus = g_slist_prepend(c->sleeping_cpus, cs);
+        cs->halted = 1;
+        cs->exception_index = EXCP_HALTED;
+        cpu_loop_exit(cs);
         /* never returns */
     }
     ch = fifo8_pop(&c->fifo);

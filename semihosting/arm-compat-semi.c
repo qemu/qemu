@@ -428,7 +428,7 @@ void do_common_semihosting(CPUState *cs)
         break;
 
     case TARGET_SYS_READC:
-        ret = qemu_semihosting_console_inc(env);
+        ret = qemu_semihosting_console_inc(cs);
         common_semi_set_ret(cs, ret);
         break;
 
