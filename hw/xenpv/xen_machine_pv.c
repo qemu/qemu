@@ -63,6 +63,7 @@ static void xen_init_pv(MachineState *machine)
     if (vga_interface_type == VGA_XENFB) {
         xen_config_dev_vfb(0, "vnc");
         xen_config_dev_vkbd(0);
+        vga_interface_created = true;
     }
 
     /* configure disks */
