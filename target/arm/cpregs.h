@@ -114,11 +114,11 @@ enum {
  * Note that we rely on the values of these enums as we iterate through
  * the various states in some places.
  */
-enum {
+typedef enum {
     ARM_CP_STATE_AA32 = 0,
     ARM_CP_STATE_AA64 = 1,
     ARM_CP_STATE_BOTH = 2,
-};
+} CPState;
 
 /*
  * ARM CP register secure state flags.  These flags identify security state
@@ -260,7 +260,7 @@ struct ARMCPRegInfo {
     uint8_t opc1;
     uint8_t opc2;
     /* Execution state in which this register is visible: ARM_CP_STATE_* */
-    int state;
+    CPState state;
     /* Register type: ARM_CP_* bits/values */
     int type;
     /* Access rights: PL*_[RW] */
