@@ -273,7 +273,7 @@ static void arm_gen_one_xml_sysreg_tag(GString *s, DynamicGDBXMLInfo *dyn_xml,
 static void arm_register_sysreg_for_xml(gpointer key, gpointer value,
                                         gpointer p)
 {
-    uint32_t ri_key = *(uint32_t *)key;
+    uint32_t ri_key = (uintptr_t)key;
     ARMCPRegInfo *ri = value;
     RegisterSysregXmlParam *param = (RegisterSysregXmlParam *)p;
     GString *s = param->s;
