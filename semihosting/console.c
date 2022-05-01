@@ -27,11 +27,21 @@
 #include "qapi/error.h"
 #include "qemu/fifo8.h"
 
+/* Access to this structure is protected by the BQL */
+typedef struct SemihostingConsole {
+    CharBackend         backend;
+    Chardev             *chr;
+    GSList              *sleeping_cpus;
+    bool                got;
+    Fifo8               fifo;
+} SemihostingConsole;
+
+static SemihostingConsole console;
+
 int qemu_semihosting_log_out(const char *s, int len)
 {
-    Chardev *chardev = semihosting_get_chardev();
-    if (chardev) {
-        return qemu_chr_write_all(chardev, (uint8_t *) s, len);
+    if (console.chr) {
+        return qemu_chr_write_all(console.chr, (uint8_t *) s, len);
     } else {
         return write(STDERR_FILENO, s, len);
     }
@@ -106,16 +116,6 @@ void qemu_semihosting_console_outc(CPUArchState *env, target_ulong addr)
 
 #define FIFO_SIZE   1024
 
-/* Access to this structure is protected by the BQL */
-typedef struct SemihostingConsole {
-    CharBackend         backend;
-    GSList              *sleeping_cpus;
-    bool                got;
-    Fifo8               fifo;
-} SemihostingConsole;
-
-static SemihostingConsole console;
-
 static int console_can_read(void *opaque)
 {
     SemihostingConsole *c = opaque;
@@ -169,10 +169,9 @@ int qemu_semihosting_console_read(CPUState *cs, void *buf, int len)
     return ret;
 }
 
-void qemu_semihosting_console_init(void)
+void qemu_semihosting_console_init(Chardev *chr)
 {
-    Chardev *chr = semihosting_get_chardev();
-
+    console.chr = chr;
     if  (chr) {
         fifo8_create(&console.fifo, FIFO_SIZE);
         qemu_chr_fe_init(&console.backend, chr, &error_abort);
