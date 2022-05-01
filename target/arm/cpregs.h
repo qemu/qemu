@@ -71,8 +71,6 @@
 #define ARM_CP_NO_GDB            0x4000
 #define ARM_CP_RAISES_EXC        0x8000
 #define ARM_CP_NEWEL             0x10000
-/* Used only as a terminator for ARMCPRegInfo lists */
-#define ARM_CP_SENTINEL          0xfffff
 /* Mask of only the flag bits in a type field */
 #define ARM_CP_FLAG_MASK         0x1f0ff
 
@@ -107,18 +105,6 @@ enum {
     ARM_CP_SECSTATE_S =   (1 << 0), /* bit[0]: Secure state register */
     ARM_CP_SECSTATE_NS =  (1 << 1), /* bit[1]: Non-secure state register */
 };
-
-/*
- * Return true if cptype is a valid type field. This is used to try to
- * catch errors where the sentinel has been accidentally left off the end
- * of a list of registers.
- */
-static inline bool cptype_valid(int cptype)
-{
-    return ((cptype & ~ARM_CP_FLAG_MASK) == 0)
-        || ((cptype & ARM_CP_SPECIAL) &&
-            ((cptype & ~ARM_CP_FLAG_MASK) <= ARM_LAST_SPECIAL));
-}
 
 /*
  * Access rights:
@@ -346,20 +332,27 @@ struct ARMCPRegInfo {
 #define CPREG_FIELD64(env, ri) \
     (*(uint64_t *)((char *)(env) + (ri)->fieldoffset))
 
-#define REGINFO_SENTINEL { .type = ARM_CP_SENTINEL }
+void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu, const ARMCPRegInfo *reg,
+                                       void *opaque);
 
-void define_arm_cp_regs_with_opaque(ARMCPU *cpu,
-                                    const ARMCPRegInfo *regs, void *opaque);
-void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
-                                       const ARMCPRegInfo *regs, void *opaque);
-static inline void define_arm_cp_regs(ARMCPU *cpu, const ARMCPRegInfo *regs)
-{
-    define_arm_cp_regs_with_opaque(cpu, regs, 0);
-}
 static inline void define_one_arm_cp_reg(ARMCPU *cpu, const ARMCPRegInfo *regs)
 {
-    define_one_arm_cp_reg_with_opaque(cpu, regs, 0);
+    define_one_arm_cp_reg_with_opaque(cpu, regs, NULL);
 }
+
+void define_arm_cp_regs_with_opaque_len(ARMCPU *cpu, const ARMCPRegInfo *regs,
+                                        void *opaque, size_t len);
+
+#define define_arm_cp_regs_with_opaque(CPU, REGS, OPAQUE)               \
+    do {                                                                \
+        QEMU_BUILD_BUG_ON(ARRAY_SIZE(REGS) == 0);                       \
+        define_arm_cp_regs_with_opaque_len(CPU, REGS, OPAQUE,           \
+                                           ARRAY_SIZE(REGS));           \
+    } while (0)
+
+#define define_arm_cp_regs(CPU, REGS) \
+    define_arm_cp_regs_with_opaque(CPU, REGS, NULL)
+
 const ARMCPRegInfo *get_arm_cp_reginfo(GHashTable *cpregs, uint32_t encoded_cp);
 
 /*
@@ -382,9 +375,17 @@ typedef struct ARMCPRegUserSpaceInfo {
     uint64_t fixed_bits;
 } ARMCPRegUserSpaceInfo;
 
-#define REGUSERINFO_SENTINEL { .name = NULL }
+void modify_arm_cp_regs_with_len(ARMCPRegInfo *regs, size_t regs_len,
+                                 const ARMCPRegUserSpaceInfo *mods,
+                                 size_t mods_len);
 
-void modify_arm_cp_regs(ARMCPRegInfo *regs, const ARMCPRegUserSpaceInfo *mods);
+#define modify_arm_cp_regs(REGS, MODS)                                  \
+    do {                                                                \
+        QEMU_BUILD_BUG_ON(ARRAY_SIZE(REGS) == 0);                       \
+        QEMU_BUILD_BUG_ON(ARRAY_SIZE(MODS) == 0);                       \
+        modify_arm_cp_regs_with_len(REGS, ARRAY_SIZE(REGS),             \
+                                    MODS, ARRAY_SIZE(MODS));            \
+    } while (0)
 
 /* CPWriteFn that can be used to implement writes-ignored behaviour */
 void arm_cp_write_ignore(CPUARMState *env, const ARMCPRegInfo *ri,
