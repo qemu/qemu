@@ -55,6 +55,18 @@ void qemu_semihosting_console_outc(CPUArchState *env, target_ulong c);
 int qemu_semihosting_console_read(CPUState *cs, void *buf, int len);
 
 /**
+ * qemu_semihosting_console_write:
+ * @buf: host buffer
+ * @len: buffer size
+ *
+ * Write len bytes from buf to the debug console.
+ *
+ * Returns: number of bytes written -- this should only ever be short
+ * on some sort of i/o error.
+ */
+int qemu_semihosting_console_write(void *buf, int len);
+
+/**
  * qemu_semihosting_log_out:
  * @s: pointer to string
  * @len: length of string

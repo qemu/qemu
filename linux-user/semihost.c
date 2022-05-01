@@ -76,3 +76,8 @@ int qemu_semihosting_console_read(CPUState *cs, void *buf, int len)
 
     return ret;
 }
+
+int qemu_semihosting_console_write(void *buf, int len)
+{
+    return fwrite(buf, 1, len, stderr);
+}

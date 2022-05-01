@@ -169,6 +169,15 @@ int qemu_semihosting_console_read(CPUState *cs, void *buf, int len)
     return ret;
 }
 
+int qemu_semihosting_console_write(void *buf, int len)
+{
+    if (console.chr) {
+        return qemu_chr_write_all(console.chr, (uint8_t *)buf, len);
+    } else {
+        return fwrite(buf, 1, len, stderr);
+    }
+}
+
 void qemu_semihosting_console_init(Chardev *chr)
 {
     console.chr = chr;
