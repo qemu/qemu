@@ -22,57 +22,87 @@
 #define TARGET_ARM_CPREGS_H
 
 /*
- * ARMCPRegInfo type field bits. If the SPECIAL bit is set this is a
- * special-behaviour cp reg and bits [11..8] indicate what behaviour
- * it has. Otherwise it is a simple cp reg, where CONST indicates that
- * TCG can assume the value to be constant (ie load at translate time)
- * and 64BIT indicates a 64 bit wide coprocessor register. SUPPRESS_TB_END
- * indicates that the TB should not be ended after a write to this register
- * (the default is that the TB ends after cp writes). OVERRIDE permits
- * a register definition to override a previous definition for the
- * same (cp, is64, crn, crm, opc1, opc2) tuple: either the new or the
- * old must have the OVERRIDE bit set.
- * ALIAS indicates that this register is an alias view of some underlying
- * state which is also visible via another register, and that the other
- * register is handling migration and reset; registers marked ALIAS will not be
- * migrated but may have their state set by syncing of register state from KVM.
- * NO_RAW indicates that this register has no underlying state and does not
- * support raw access for state saving/loading; it will not be used for either
- * migration or KVM state synchronization. (Typically this is for "registers"
- * which are actually used as instructions for cache maintenance and so on.)
- * IO indicates that this register does I/O and therefore its accesses
- * need to be marked with gen_io_start() and also end the TB. In particular,
- * registers which implement clocks or timers require this.
- * RAISES_EXC is for when the read or write hook might raise an exception;
- * the generated code will synchronize the CPU state before calling the hook
- * so that it is safe for the hook to call raise_exception().
- * NEWEL is for writes to registers that might change the exception
- * level - typically on older ARM chips. For those cases we need to
- * re-read the new el when recomputing the translation flags.
+ * ARMCPRegInfo type field bits:
  */
-#define ARM_CP_SPECIAL           0x0001
-#define ARM_CP_CONST             0x0002
-#define ARM_CP_64BIT             0x0004
-#define ARM_CP_SUPPRESS_TB_END   0x0008
-#define ARM_CP_OVERRIDE          0x0010
-#define ARM_CP_ALIAS             0x0020
-#define ARM_CP_IO                0x0040
-#define ARM_CP_NO_RAW            0x0080
-#define ARM_CP_NOP               (ARM_CP_SPECIAL | 0x0100)
-#define ARM_CP_WFI               (ARM_CP_SPECIAL | 0x0200)
-#define ARM_CP_NZCV              (ARM_CP_SPECIAL | 0x0300)
-#define ARM_CP_CURRENTEL         (ARM_CP_SPECIAL | 0x0400)
-#define ARM_CP_DC_ZVA            (ARM_CP_SPECIAL | 0x0500)
-#define ARM_CP_DC_GVA            (ARM_CP_SPECIAL | 0x0600)
-#define ARM_CP_DC_GZVA           (ARM_CP_SPECIAL | 0x0700)
-#define ARM_LAST_SPECIAL         ARM_CP_DC_GZVA
-#define ARM_CP_FPU               0x1000
-#define ARM_CP_SVE               0x2000
-#define ARM_CP_NO_GDB            0x4000
-#define ARM_CP_RAISES_EXC        0x8000
-#define ARM_CP_NEWEL             0x10000
-/* Mask of only the flag bits in a type field */
-#define ARM_CP_FLAG_MASK         0x1f0ff
+enum {
+    /*
+     * Register must be handled specially during translation.
+     * The method is one of the values below:
+     */
+    ARM_CP_SPECIAL_MASK          = 0x000f,
+    /* Special: no change to PE state: writes ignored, reads ignored. */
+    ARM_CP_NOP                   = 0x0001,
+    /* Special: sysreg is WFI, for v5 and v6. */
+    ARM_CP_WFI                   = 0x0002,
+    /* Special: sysreg is NZCV. */
+    ARM_CP_NZCV                  = 0x0003,
+    /* Special: sysreg is CURRENTEL. */
+    ARM_CP_CURRENTEL             = 0x0004,
+    /* Special: sysreg is DC ZVA or similar. */
+    ARM_CP_DC_ZVA                = 0x0005,
+    ARM_CP_DC_GVA                = 0x0006,
+    ARM_CP_DC_GZVA               = 0x0007,
+
+    /* Flag: reads produce resetvalue; writes ignored. */
+    ARM_CP_CONST                 = 1 << 4,
+    /* Flag: For ARM_CP_STATE_AA32, sysreg is 64-bit. */
+    ARM_CP_64BIT                 = 1 << 5,
+    /*
+     * Flag: TB should not be ended after a write to this register
+     * (the default is that the TB ends after cp writes).
+     */
+    ARM_CP_SUPPRESS_TB_END       = 1 << 6,
+    /*
+     * Flag: Permit a register definition to override a previous definition
+     * for the same (cp, is64, crn, crm, opc1, opc2) tuple: either the new
+     * or the old must have the ARM_CP_OVERRIDE bit set.
+     */
+    ARM_CP_OVERRIDE              = 1 << 7,
+    /*
+     * Flag: Register is an alias view of some underlying state which is also
+     * visible via another register, and that the other register is handling
+     * migration and reset; registers marked ARM_CP_ALIAS will not be migrated
+     * but may have their state set by syncing of register state from KVM.
+     */
+    ARM_CP_ALIAS                 = 1 << 8,
+    /*
+     * Flag: Register does I/O and therefore its accesses need to be marked
+     * with gen_io_start() and also end the TB. In particular, registers which
+     * implement clocks or timers require this.
+     */
+    ARM_CP_IO                    = 1 << 9,
+    /*
+     * Flag: Register has no underlying state and does not support raw access
+     * for state saving/loading; it will not be used for either migration or
+     * KVM state synchronization. Typically this is for "registers" which are
+     * actually used as instructions for cache maintenance and so on.
+     */
+    ARM_CP_NO_RAW                = 1 << 10,
+    /*
+     * Flag: The read or write hook might raise an exception; the generated
+     * code will synchronize the CPU state before calling the hook so that it
+     * is safe for the hook to call raise_exception().
+     */
+    ARM_CP_RAISES_EXC            = 1 << 11,
+    /*
+     * Flag: Writes to the sysreg might change the exception level - typically
+     * on older ARM chips. For those cases we need to re-read the new el when
+     * recomputing the translation flags.
+     */
+    ARM_CP_NEWEL                 = 1 << 12,
+    /*
+     * Flag: Access check for this sysreg is identical to accessing FPU state
+     * from an instruction: use translation fp_access_check().
+     */
+    ARM_CP_FPU                   = 1 << 13,
+    /*
+     * Flag: Access check for this sysreg is identical to accessing SVE state
+     * from an instruction: use translation sve_access_check().
+     */
+    ARM_CP_SVE                   = 1 << 14,
+    /* Flag: Do not expose in gdb sysreg xml. */
+    ARM_CP_NO_GDB                = 1 << 15,
+};
 
 /*
  * Valid values for ARMCPRegInfo state field, indicating which of
