@@ -41,11 +41,10 @@ void qemu_semihosting_console_outc(CPUArchState *env, target_ulong c);
  * qemu_semihosting_console_inc:
  * @env: CPUArchState
  *
- * Receive single character from debug console. This may be the remote
- * gdb session if a softmmu guest is currently being debugged. As this
- * call may block if no data is available we suspend the CPU and will
- * re-execute the instruction when data is there. Therefore two
- * conditions must be met:
+ * Receive single character from debug console.  As this call may block
+ * if no data is available we suspend the CPU and will re-execute the
+ * instruction when data is there. Therefore two conditions must be met:
+ *
  *   - CPUState is synchronized before calling this function
  *   - pc is only updated once the character is successfully returned
  *
