@@ -20,6 +20,7 @@
 #include "gicv3_internal.h"
 #include "hw/irq.h"
 #include "cpu.h"
+#include "target/arm/cpregs.h"
 
 /*
  * Special case return value from hppvi_index(); must be larger than

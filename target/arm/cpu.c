@@ -43,6 +43,7 @@
 #include "kvm_arm.h"
 #include "disas/capstone.h"
 #include "fpu/softfloat.h"
+#include "cpregs.h"
 
 static void arm_cpu_set_pc(CPUState *cs, vaddr value)
 {

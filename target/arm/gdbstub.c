@@ -19,8 +19,9 @@
  */
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "internals.h"
 #include "exec/gdbstub.h"
+#include "internals.h"
+#include "cpregs.h"
 
 typedef struct RegisterSysregXmlParam {
     CPUState *cs;

@@ -34,6 +34,7 @@
 #include "hvf_arm.h"
 #include "qapi/visitor.h"
 #include "hw/qdev-properties.h"
+#include "cpregs.h"
 
 
 #ifndef CONFIG_USER_ONLY
