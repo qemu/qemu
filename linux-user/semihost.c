@@ -56,21 +56,23 @@ void qemu_semihosting_console_outc(CPUArchState *env, target_ulong addr)
  * program is expecting more normal behaviour. This is slow but
  * nothing using semihosting console reading is expecting to be fast.
  */
-target_ulong qemu_semihosting_console_inc(CPUState *cs)
+int qemu_semihosting_console_read(CPUState *cs, void *buf, int len)
 {
-    uint8_t c;
+    int ret;
     struct termios old_tio, new_tio;
 
     /* Disable line-buffering and echo */
     tcgetattr(STDIN_FILENO, &old_tio);
     new_tio = old_tio;
     new_tio.c_lflag &= (~ICANON & ~ECHO);
+    new_tio.c_cc[VMIN] = 1;
+    new_tio.c_cc[VTIME] = 0;
     tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
 
-    c = getchar();
+    ret = fread(buf, 1, len, stdin);
 
     /* restore config */
     tcsetattr(STDIN_FILENO, TCSANOW, &old_tio);
 
-    return (target_ulong) c;
+    return ret;
 }

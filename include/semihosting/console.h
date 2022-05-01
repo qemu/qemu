@@ -38,19 +38,21 @@ int qemu_semihosting_console_outs(CPUArchState *env, target_ulong s);
 void qemu_semihosting_console_outc(CPUArchState *env, target_ulong c);
 
 /**
- * qemu_semihosting_console_inc:
+ * qemu_semihosting_console_read:
  * @cs: CPUState
+ * @buf: host buffer
+ * @len: buffer size
  *
- * Receive single character from debug console.  As this call may block
- * if no data is available we suspend the CPU and will re-execute the
+ * Receive at least one character from debug console.  As this call may
+ * block if no data is available we suspend the CPU and will re-execute the
  * instruction when data is there. Therefore two conditions must be met:
  *
  *   - CPUState is synchronized before calling this function
  *   - pc is only updated once the character is successfully returned
  *
- * Returns: character read OR cpu_loop_exit!
+ * Returns: number of characters read, OR cpu_loop_exit!
  */
-target_ulong qemu_semihosting_console_inc(CPUState *cs);
+int qemu_semihosting_console_read(CPUState *cs, void *buf, int len);
 
 /**
  * qemu_semihosting_log_out:

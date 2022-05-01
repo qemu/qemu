@@ -428,8 +428,15 @@ void do_common_semihosting(CPUState *cs)
         break;
 
     case TARGET_SYS_READC:
-        ret = qemu_semihosting_console_inc(cs);
-        common_semi_set_ret(cs, ret);
+        {
+            uint8_t ch;
+            int ret = qemu_semihosting_console_read(cs, &ch, 1);
+            if (ret == 1) {
+                common_semi_cb(cs, ch, 0);
+            } else {
+                common_semi_cb(cs, -1, EIO);
+            }
+        }
         break;
 
     case TARGET_SYS_ISERROR:
