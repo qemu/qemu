@@ -80,6 +80,8 @@ typedef struct {
     bool registered_yank;
     /* packet allocated len */
     uint32_t packet_len;
+    /* guest page size */
+    uint32_t page_size;
     /* multifd flags for sending ram */
     int write_flags;
 
@@ -143,6 +145,8 @@ typedef struct {
     QIOChannel *c;
     /* packet allocated len */
     uint32_t packet_len;
+    /* guest page size */
+    uint32_t page_size;
 
     /* syncs main thread and channels */
     QemuSemaphore sem_sync;
