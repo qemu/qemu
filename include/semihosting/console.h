@@ -53,4 +53,20 @@ int qemu_semihosting_console_write(void *buf, int len);
  */
 int qemu_semihosting_log_out(const char *s, int len);
 
+/*
+ * qemu_semihosting_console_block_until_ready:
+ * @cs: CPUState
+ *
+ * If no data is available we suspend the CPU and will re-execute the
+ * instruction when data is available.
+ */
+void qemu_semihosting_console_block_until_ready(CPUState *cs);
+
+/**
+ * qemu_semihosting_console_ready:
+ *
+ * Return true if characters are available for read; does not block.
+ */
+bool qemu_semihosting_console_ready(void);
+
 #endif /* SEMIHOST_CONSOLE_H */

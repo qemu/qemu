@@ -77,10 +77,17 @@ static void console_read(void *opaque, const uint8_t *buf, int size)
     c->sleeping_cpus = NULL;
 }
 
-int qemu_semihosting_console_read(CPUState *cs, void *buf, int len)
+bool qemu_semihosting_console_ready(void)
 {
     SemihostingConsole *c = &console;
-    int ret = 0;
+
+    g_assert(qemu_mutex_iothread_locked());
+    return !fifo8_is_empty(&c->fifo);
+}
+
+void qemu_semihosting_console_block_until_ready(CPUState *cs)
+{
+    SemihostingConsole *c = &console;
 
     g_assert(qemu_mutex_iothread_locked());
 
@@ -92,6 +99,14 @@ int qemu_semihosting_console_read(CPUState *cs, void *buf, int len)
         cpu_loop_exit(cs);
         /* never returns */
     }
+}
+
+int qemu_semihosting_console_read(CPUState *cs, void *buf, int len)
+{
+    SemihostingConsole *c = &console;
+    int ret = 0;
+
+    qemu_semihosting_console_block_until_ready(cs);
 
     /* Read until buffer full or fifo exhausted. */
     do {

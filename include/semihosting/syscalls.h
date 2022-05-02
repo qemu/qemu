@@ -69,4 +69,7 @@ void semihost_sys_system(CPUState *cs, gdb_syscall_complete_cb complete,
 void semihost_sys_gettimeofday(CPUState *cs, gdb_syscall_complete_cb complete,
                                target_ulong tv_addr, target_ulong tz_addr);
 
+void semihost_sys_poll_one(CPUState *cs, gdb_syscall_complete_cb complete,
+                           int fd, GIOCondition cond, int timeout);
+
 #endif /* SEMIHOSTING_SYSCALLS_H */
