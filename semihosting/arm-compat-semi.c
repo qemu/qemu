@@ -437,8 +437,15 @@ void do_common_semihosting(CPUState *cs)
         break;
 
     case TARGET_SYS_WRITE0:
-        ret = qemu_semihosting_console_outs(env, args);
-        common_semi_set_ret(cs, ret);
+        {
+            ssize_t len = target_strlen(args);
+            if (len < 0) {
+                common_semi_dead_cb(cs, -1, EFAULT);
+            } else {
+                semihost_sys_write_gf(cs, common_semi_dead_cb,
+                                      &console_out_gf, args, len);
+            }
+        }
         break;
 
     case TARGET_SYS_WRITE:
