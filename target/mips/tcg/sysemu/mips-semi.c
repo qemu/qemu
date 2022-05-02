@@ -74,6 +74,46 @@ enum UHIOpenFlags {
     UHIOpen_EXCL   = 0x800
 };
 
+enum UHIErrno {
+    UHI_EACCESS         = 13,
+    UHI_EAGAIN          = 11,
+    UHI_EBADF           = 9,
+    UHI_EBADMSG         = 77,
+    UHI_EBUSY           = 16,
+    UHI_ECONNRESET      = 104,
+    UHI_EEXIST          = 17,
+    UHI_EFBIG           = 27,
+    UHI_EINTR           = 4,
+    UHI_EINVAL          = 22,
+    UHI_EIO             = 5,
+    UHI_EISDIR          = 21,
+    UHI_ELOOP           = 92,
+    UHI_EMFILE          = 24,
+    UHI_EMLINK          = 31,
+    UHI_ENAMETOOLONG    = 91,
+    UHI_ENETDOWN        = 115,
+    UHI_ENETUNREACH     = 114,
+    UHI_ENFILE          = 23,
+    UHI_ENOBUFS         = 105,
+    UHI_ENOENT          = 2,
+    UHI_ENOMEM          = 12,
+    UHI_ENOSPC          = 28,
+    UHI_ENOSR           = 63,
+    UHI_ENOTCONN        = 128,
+    UHI_ENOTDIR         = 20,
+    UHI_ENXIO           = 6,
+    UHI_EOVERFLOW       = 139,
+    UHI_EPERM           = 1,
+    UHI_EPIPE           = 32,
+    UHI_ERANGE          = 34,
+    UHI_EROFS           = 30,
+    UHI_ESPIPE          = 29,
+    UHI_ETIMEDOUT       = 116,
+    UHI_ETXTBSY         = 26,
+    UHI_EWOULDBLOCK     = 11,
+    UHI_EXDEV           = 18,
+};
+
 static int errno_mips(int host_errno)
 {
     /* Errno values taken from asm-mips/errno.h */
