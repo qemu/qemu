@@ -10,14 +10,55 @@
 
 #include "qemu/osdep.h"
 #include "exec/gdbstub.h"
+#include "semihosting/semihost.h"
 #include "semihosting/guestfd.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu.h"
 #else
 #include "semihosting/softmmu-uaccess.h"
+#include CONFIG_DEVICES
 #endif
 
 static GArray *guestfd_array;
+
+#ifdef CONFIG_ARM_COMPATIBLE_SEMIHOSTING
+GuestFD console_in_gf;
+GuestFD console_out_gf;
+#endif
+
+void qemu_semihosting_guestfd_init(void)
+{
+    /* New entries zero-initialized, i.e. type GuestFDUnused */
+    guestfd_array = g_array_new(FALSE, TRUE, sizeof(GuestFD));
+
+#ifdef CONFIG_ARM_COMPATIBLE_SEMIHOSTING
+    /* For ARM-compat, the console is in a separate namespace. */
+    if (use_gdb_syscalls()) {
+        console_in_gf.type = GuestFDGDB;
+        console_in_gf.hostfd = 0;
+        console_out_gf.type = GuestFDGDB;
+        console_out_gf.hostfd = 2;
+    } else {
+        console_in_gf.type = GuestFDConsole;
+        console_out_gf.type = GuestFDConsole;
+    }
+#else
+    /* Otherwise, the stdio file descriptors apply. */
+    guestfd_array = g_array_set_size(guestfd_array, 3);
+#ifndef CONFIG_USER_ONLY
+    if (!use_gdb_syscalls()) {
+        GuestFD *gf = &g_array_index(guestfd_array, GuestFD, 0);
+        gf[0].type = GuestFDConsole;
+        gf[1].type = GuestFDConsole;
+        gf[2].type = GuestFDConsole;
+        return;
+    }
+#endif
+    associate_guestfd(0, 0);
+    associate_guestfd(1, 1);
+    associate_guestfd(2, 2);
+#endif
+}
 
 /*
  * Allocate a new guest file descriptor and return it; if we
@@ -29,11 +70,6 @@ static GArray *guestfd_array;
 int alloc_guestfd(void)
 {
     guint i;
-
-    if (!guestfd_array) {
-        /* New entries zero-initialized, i.e. type GuestFDUnused */
-        guestfd_array = g_array_new(FALSE, TRUE, sizeof(GuestFD));
-    }
 
     /* SYS_OPEN should return nonzero handle on success. Start guestfd from 1 */
     for (i = 1; i < guestfd_array->len; i++) {
@@ -61,11 +97,7 @@ static void do_dealloc_guestfd(GuestFD *gf)
  */
 static GuestFD *do_get_guestfd(int guestfd)
 {
-    if (!guestfd_array) {
-        return NULL;
-    }
-
-    if (guestfd <= 0 || guestfd >= guestfd_array->len) {
+    if (guestfd < 0 || guestfd >= guestfd_array->len) {
         return NULL;
     }
 

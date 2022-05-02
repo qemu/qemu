@@ -190,4 +190,6 @@ void qemu_semihosting_console_init(Chardev *chr)
                                  NULL, NULL, &console,
                                  NULL, true);
     }
+
+    qemu_semihosting_guestfd_init();
 }

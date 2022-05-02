@@ -64,5 +64,6 @@ int qemu_semihosting_config_options(const char *opt);
 void qemu_semihosting_chardev_init(void);
 void qemu_semihosting_console_init(Chardev *);
 #endif /* CONFIG_USER_ONLY */
+void qemu_semihosting_guestfd_init(void);
 
 #endif /* SEMIHOST_H */

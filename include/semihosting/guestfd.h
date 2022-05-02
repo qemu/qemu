@@ -35,6 +35,13 @@ typedef struct GuestFD {
     };
 } GuestFD;
 
+/*
+ * For ARM semihosting, we have a separate structure for routing
+ * data for the console which is outside the guest fd address space.
+ */
+extern GuestFD console_in_gf;
+extern GuestFD console_out_gf;
+
 /**
  * alloc_guestfd:
  *
