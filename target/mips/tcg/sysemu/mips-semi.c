@@ -20,10 +20,10 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "qemu/log.h"
-#include "exec/helper-proto.h"
 #include "semihosting/softmmu-uaccess.h"
 #include "semihosting/semihost.h"
 #include "semihosting/console.h"
+#include "internal.h"
 
 typedef enum UHIOp {
     UHI_exit = 1,
@@ -238,7 +238,7 @@ static int copy_argn_to_target(CPUMIPSState *env, int arg_num,
         unlock_user(p, gpr, 0);                 \
     } while (0)
 
-void helper_do_semihosting(CPUMIPSState *env)
+void mips_semihosting(CPUMIPSState *env)
 {
     target_ulong *gpr = env->active_tc.gpr;
     const UHIOp op = gpr[25];

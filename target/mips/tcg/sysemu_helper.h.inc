@@ -9,8 +9,6 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later
  */
 
-DEF_HELPER_1(do_semihosting, void, env)
-
 /* CP0 helpers */
 DEF_HELPER_1(mfc0_mvpcontrol, tl, env)
 DEF_HELPER_1(mfc0_mvpconf0, tl, env)
