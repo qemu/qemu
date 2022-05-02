@@ -229,6 +229,15 @@ static void common_semi_cb(CPUState *cs, uint64_t ret, int err)
 }
 
 /*
+ * Use 0xdeadbeef as the return value when there isn't a defined
+ * return value for the call.
+ */
+static void common_semi_dead_cb(CPUState *cs, uint64_t ret, int err)
+{
+    common_semi_set_ret(cs, 0xdeadbeef);
+}
+
+/*
  * SYS_READ and SYS_WRITE always return the number of bytes not read/written.
  * There is no error condition, other than returning the original length.
  */
@@ -341,8 +350,7 @@ static const uint8_t featurefile_data[] = {
  * The specification always says that the "return register" either
  * returns a specific value or is corrupted, so we don't need to
  * report to our caller whether we are returning a value or trying to
- * leave the register unchanged. We use 0xdeadbeef as the return value
- * when there isn't a defined return value for the call.
+ * leave the register unchanged.
  */
 void do_common_semihosting(CPUState *cs)
 {
@@ -420,8 +428,12 @@ void do_common_semihosting(CPUState *cs)
         break;
 
     case TARGET_SYS_WRITEC:
-        qemu_semihosting_console_outc(env, args);
-        common_semi_set_ret(cs, 0xdeadbeef);
+        /*
+         * FIXME: the byte to be written is in a target_ulong slot,
+         * which means this is wrong for a big-endian guest.
+         */
+        semihost_sys_write_gf(cs, common_semi_dead_cb,
+                              &console_out_gf, args, 1);
         break;
 
     case TARGET_SYS_WRITE0:
