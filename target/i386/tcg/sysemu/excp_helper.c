@@ -355,11 +355,9 @@ hwaddr get_hphys2(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
     int page_size;
     int next_prot;
     hwaddr hphys;
-
-    int ret = mmu_translate(cs, gphys, get_hphys, env->cr[3], access_type,
+    mmu_translate(cs, gphys, get_hphys, env->cr[3], access_type,
                                    MMU_KNOSMAP_IDX , get_pg_mode(env) ,
                                    &hphys, &page_size, &next_prot);
-    printf("mmu_translate ret: %d\n",ret);
     return hphys;
 }
 

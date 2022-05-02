@@ -77,23 +77,7 @@ void helper_rdtsc(CPUX86State *env) // ？？？ 读取时间相关的函数
     env->regs[R_EDX] = (uint32_t)(val >> 32);
 }
 
-struct uintr_uitt_entry {
-	uint8_t	valid;			/* bit 0: valid, bit 1-7: reserved */
-	uint8_t	user_vec;
-	uint8_t	reserved[6];
-	uint64_t target_upid_addr;
-};
 
-struct uintr_upid {
-	struct {
-		uint8_t status;	/* bit 0: ON, bit 1: SN, bit 2-7: reserved */
-		uint8_t reserved1;	/* Reserved */
-		uint8_t nv;		/* Notification vector */
-		uint8_t reserved2;	/* Reserved */
-		uint32_t ndst;	/* Notification destination */
-	} nc;		/* Notification control */
-	uint64_t puir;		/* Posted user interrupt requests */
-};
 #define UPID_ON 1
 
 void helper_senduipi(CPUX86State *env ,int reg_index){ // 改
@@ -139,6 +123,11 @@ void helper_senduipi(CPUX86State *env ,int reg_index){ // 改
 
 void helper_rrnzero(CPUX86State *env){
     if(Debug)printf("rrnzero called\n");
+    // PUSHQ(esp, env->segs[R_SS].selector);
+    // PUSHQ(esp, env->regs[R_ESP]);
+    // PUSHQ(esp, cpu_compute_eflags(env));
+    // PUSHQ(esp, env->segs[R_CS].selector);
+    // PUSHQ(esp, old_eip);
 }
 
 void helper_rdtscp(CPUX86State *env)

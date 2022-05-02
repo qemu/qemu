@@ -2595,7 +2595,8 @@ static void do_xsave_pkru(CPUX86State *env, target_ulong ptr, uintptr_t ra)
     cpu_stq_data_ra(env, ptr, env->pkru, ra);
 }
 
-static void do_xsave_uintr(CPUX86State *env, target_ulong ptr, uintptr_t ra){
+static void do_xsave_uintr(CPUX86State *env, target_ulong ptr, uintptr_t ra){ //改
+    printf("do xsave uintr called\n");
     cpu_stq_data_ra(env, ptr, env->uintr_handler, ra);
     cpu_stq_data_ra(env, ptr+8, env->uintr_stackadjust, ra);
     cpu_stq_data_ra(env, ptr+16, env->uintr_misc, ra);
@@ -2606,6 +2607,7 @@ static void do_xsave_uintr(CPUX86State *env, target_ulong ptr, uintptr_t ra){
 
 static void do_fxsave(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 {
+    // printf("qemu: fxsave test\n");
     /* The operand must be 16 byte aligned */
     if (ptr & 0xf) {
         raise_exception_ra(env, EXCP0D_GPF, ra);
@@ -2622,6 +2624,7 @@ static void do_fxsave(CPUX86State *env, target_ulong ptr, uintptr_t ra)
             do_xsave_sse(env, ptr, ra);
         }
     }
+    // do_xsave_uintr(env, ptr + XO(uintr_state), ra);
 }
 
 void helper_fxsave(CPUX86State *env, target_ulong ptr)
@@ -2777,16 +2780,19 @@ static void do_xrstor_pkru(CPUX86State *env, target_ulong ptr, uintptr_t ra)
     env->pkru = cpu_ldq_data_ra(env, ptr, ra);
 }
 
-static void do_xrstor_uintr(CPUX86State *env, target_ulong ptr, uintptr_t ra){
+static void do_xrstor_uintr(CPUX86State *env, target_ulong ptr, uintptr_t ra){ //改
+    printf("do xrstror uintr called\n");
     env->uintr_handler = cpu_ldq_data_ra(env, ptr, ra);
     env->uintr_stackadjust = cpu_ldq_data_ra(env, ptr+8, ra);
-    env->uintr_misc = cpu_ldq_data_ra(env, ptr+16, ra);
+    // env->uintr_misc = cpu_ldq_data_ra(env, ptr+16, ra);
+    uint64_t tmp = cpu_ldq_data_ra(env, ptr+16, ra);
+    env->uintr_misc = (tmp <<1) >>1; // 最高位清零
     env->uintr_pd = cpu_ldq_data_ra(env, ptr+24, ra);
     env->uintr_rr = cpu_ldq_data_ra(env, ptr+32, ra);
     env->uintr_tt = cpu_ldq_data_ra(env, ptr+40, ra);
 }
 
-static void clear_uintr_reg(CPUX86State *env){
+static void clear_uintr_reg(CPUX86State *env){ // 改
     env->uintr_handler=0;
     env->uintr_stackadjust=0;
     env->uintr_misc=0;
@@ -2813,6 +2819,7 @@ static void do_fxrstor(CPUX86State *env, target_ulong ptr, uintptr_t ra)
             do_xrstor_sse(env, ptr, ra);
         }
     }
+    // do_xrstor_uintr(env, ptr + XO(uintr_state), ra);
 }
 
 void helper_fxrstor(CPUX86State *env, target_ulong ptr)
@@ -2923,7 +2930,7 @@ void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
             tlb_flush(cs);
         }
     }
-    if (rfbm & XSTATE_UINTR_MASK){
+    if (rfbm & XSTATE_UINTR_MASK){ // 改
         if (xstate_bv & XSTATE_UINTR_MASK) {
             do_xrstor_uintr(env, ptr + XO(uintr_state), ra);
         } else {

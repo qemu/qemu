@@ -1,6 +1,5 @@
 make --dry-run --always-make --keep-going --print-directory
 make: Entering directory '/home/xcd/qemu_uintr/qemu'
- 
 make: Nothing to be done for 'all'.
 make: Leaving directory '/home/xcd/qemu_uintr/qemu'
  

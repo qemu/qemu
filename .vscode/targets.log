@@ -6,7 +6,8 @@ make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 # This is free software: you are free to change and redistribute it.
 # There is NO WARRANTY, to the extent permitted by law.
 
-# Make data base, printed on Mon May  2 02:33:46 2022
+ 
+# Make data base, printed on Mon May  2 13:12:42 2022
 
 # Variables
 
@@ -71,7 +72,7 @@ VSCODE_CWD = /home/xcd
 # makefile (from 'tests/docker/Makefile.include', line 103)
 USER_TCG_TARGETS = $(patsubst %-linux-user,qemu-%,$(filter %-linux-user,$(TARGET_DIRS)))
 # environment
-SSH_CONNECTION = 183.172.196.135 63314 10.0.0.4 22
+SSH_CONNECTION = 183.172.196.135 51557 10.0.0.4 22
 # environment
 PATH = /home/xcd/.vscode-server/bin/dfd34e8260c270da74b5c2d86d61aee4b6d56977/bin/remote-cli:/home/xcd/miniconda3/bin:/home/xcd/miniconda3/condabin:/home/xcd/.cargo/bin:/home/xcd/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
 # makefile (from 'Makefile', line 27)
@@ -93,7 +94,7 @@ CONDA_PREFIX = /home/xcd/miniconda3
 # environment
 VSCODE_LOG_STACK = false
 # environment
-VSCODE_IPC_HOOK_CLI = /run/user/1000/vscode-ipc-8838e7df-fdde-41c7-a012-6250d629ed52.sock
+VSCODE_IPC_HOOK_CLI = /run/user/1000/vscode-ipc-c9a9a275-e1e7-495c-b602-2f8e1f9daec7.sock
 # default
 .FEATURES := target-specific order-only second-expansion else-if shortest-stem undefine oneshell archives jobserver output-sync check-symlink load
 # environment
@@ -101,7 +102,7 @@ LS_COLORS =
 # automatic
 %F = $(notdir $%)
 # makefile (from 'tests/docker/Makefile.include', line 40)
-CUR_TIME := 2022-05-02-02.33.46.2705
+CUR_TIME := 2022-05-02-13.12.42.189499
 # environment
 CONDA_EXE = /home/xcd/miniconda3/bin/conda
 # environment
@@ -159,7 +160,7 @@ DOCKER_SUFFIX := .docker
 # makefile (from 'Makefile', line 8)
 BUILD_DIR = $(CURDIR)
 # environment
-XDG_SESSION_ID = 2
+XDG_SESSION_ID = 24
 # environment
 USER = xcd
 # makefile (from 'tests/docker/Makefile.include', line 22)
@@ -169,6 +170,7 @@ __IMAGES := alpine centos8 debian-all-test-cross debian-alpha-cross debian-amd64
 # makefile (from 'Makefile', line 287)
 DESTDIR := 
 # environment
+ 
 SAMPLE = /home/xcd/qemu_uintr/uintr-linux-kernel/tools/uintr/sample
 # environment
 LESS = -R
@@ -195,7 +197,7 @@ MAKEFLAGS = pqrR
 # environment
 MFLAGS = -pqrR
 # environment
-SSH_CLIENT = 183.172.196.135 63314 22
+SSH_CLIENT = 183.172.196.135 51557 22
 # automatic
 +D = $(patsubst %/,%,$(dir $+))
 # makefile (from 'tests/docker/Makefile.include', line 36)
@@ -217,9 +219,10 @@ HOST_ARCH = $(if $(ARCH),$(ARCH),$(shell uname -m))
 # makefile (from 'tests/docker/Makefile.include', line 201)
 debian-toolchain = $(call debian-toolchain-run,$(patsubst docker-image-%,%,$1))
 # makefile (from 'tests/docker/Makefile.include', line 41)
-DOCKER_SRC_COPY := /home/xcd/qemu_uintr/qemu/docker-src.2022-05-02-02.33.46.2705
+DOCKER_SRC_COPY := /home/xcd/qemu_uintr/qemu/docker-src.2022-05-02-13.12.42.189499
 # makefile (from 'tests/docker/Makefile.include', line 23)
 DOCKER_IMAGES :=  alpine centos8 debian-all-test-cross debian-alpha-cross debian-amd64 debian-amd64-cross debian-arm64-cross debian-armel-cross debian-armhf-cross debian-hexagon-cross debian-hppa-cross debian-m68k-cross debian-mips-cross debian-mips64-cross debian-mips64el-cross debian-mipsel-cross debian-native debian-powerpc-test-cross debian-ppc64el-cross debian-riscv64-cross debian-riscv64-test-cross debian-s390x-cross debian-sh4-cross debian-sparc64-cross debian-tricore-cross debian-xtensa-cross debian10 debian11 fedora fedora-cris-cross fedora-i386-cross fedora-win32-cross fedora-win64-cross opensuse-leap python ubuntu1804 ubuntu2004
+ 
 # makefile (from 'tests/docker/Makefile.include', line 28)
 DOCKER_DEFAULT_REGISTRY := registry.gitlab.com/qemu-project/qemu
 # environment
@@ -259,6 +262,7 @@ LANG = C
 # environment
 VSCODE_EXTHOST_WILL_SEND_SOCKET = true
 # makefile (from 'tests/docker/Makefile.include', line 26)
+ 
 DOCKER_CCACHE_DIR := $$HOME/.cache/qemu-docker-ccache
 # environment
 MOTD_SHOWN = pam
@@ -297,6 +301,7 @@ qemu-%.tar.bz2:
 	$(SRC_PATH)/scripts/make-release "$(SRC_PATH)" "$(patsubst qemu-%.tar.bz2,%,$@)"
 
 docker-image-%: tests/docker/dockerfiles/%.docker
+ 
 #  recipe to execute (from 'tests/docker/Makefile.include', line 68):
 	$(call quiet-command,\
 		$(DOCKER_SCRIPT) build -t qemu/$* -f $< \
@@ -369,6 +374,7 @@ vm-build-%: /home/xcd/.cache/qemu-vm/images/%.img
 		--build-qemu $(SRC_PATH) -- \
 		$(if $(TARGET_LIST),--target-list=$(TARGET_LIST)) \
 		$(if $(EXTRA_CONFIGURE_OPTS),$(EXTRA_CONFIGURE_OPTS)), \
+ 
 		"  VM-BUILD $*")
 
 vm-boot-serial-%: /home/xcd/.cache/qemu-vm/images/%.img
@@ -398,6 +404,7 @@ print-%:
 #  recipe to execute (from 'Makefile', line 339):
 	@echo '$*=$($*)'
 
+ 
 # 9 implicit rules, 0 (0.0%) terminal.
 
 # Files
@@ -457,6 +464,7 @@ docker-test-block@debian-all-test-cross: docker-image-debian-all-test-cross dock
 #  File does not exist.
 #  File has not been updated.
 
+ 
 # Not a target:
 docker-run-test-block@debian-mips-cross:
 #  Implicit rule search has not been done.
@@ -548,7 +556,6 @@ docker-run-test-static@fedora-win64-cross:
 
 # Not a target:
 docker-run-test-debug@alpine:
- 
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
@@ -611,6 +618,7 @@ docker-run-test-clang@opensuse-leap:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
+ 
 
 docker-test-tcg@debian-hexagon-cross: docker-image-debian-hexagon-cross docker-run-test-tcg@debian-hexagon-cross
 #  Phony target (prerequisite of .PHONY).
@@ -690,6 +698,7 @@ docker-image-fedora-cris-cross:
 #  Modification time never checked.
 #  File has not been updated.
 
+ 
 # Not a target:
 docker-run-test-debug@debian-native:
 #  Implicit rule search has not been done.
@@ -739,6 +748,7 @@ vm-help:
 	@echo "    QEMU=/path/to/qemu		 - Change path to QEMU binary"
 	@echo "    (install python3-yaml to enable support for yaml file to configure a VM.)"
 	@echo "                                   See conf_example_*.yml for file format details."
+ 
 	@echo "    QEMU_IMG=/path/to/qemu-img	 - Change path to qemu-img tool"
 	@echo "    QEMU_LOCAL=1                 - Use QEMU binary local to this build."
 	@echo "    TARGET_LIST=a,b,c    	 - Override target list in builds"
@@ -782,6 +792,7 @@ docker-test-unit@debian-hexagon-cross: docker-image-debian-hexagon-cross docker-
 
 # Not a target:
 docker-image-fedora-i386-cross:
+ 
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
@@ -816,6 +827,7 @@ lcitool:
 #  File has not been updated.
 #  recipe to execute (from 'tests/lcitool/Makefile.include', line 5):
 	@echo 'Manage build environment manifests'
+ 
 	@echo
 	@echo 'Available targets:'
 	@echo
@@ -849,6 +861,7 @@ docker-run-test-mingw@ubuntu1804:
 
 docker-test-block@fedora-win64-cross: docker-image-fedora-win64-cross docker-run-test-block@fedora-win64-cross
 #  Phony target (prerequisite of .PHONY).
+ 
 #  Implicit rule search has not been done.
 #  File does not exist.
 #  File has not been updated.
@@ -877,6 +890,7 @@ docker-test-mingw@debian-all-test-cross: docker-image-debian-all-test-cross dock
 
 all: recurse-all
 #  Phony target (prerequisite of .PHONY).
+ 
 #  Command line target.
 #  Implicit rule search has not been done.
 #  File does not exist.
@@ -906,6 +920,7 @@ FORCE:
 #  Implicit rule search has not been done.
 #  File does not exist.
 #  File has not been updated.
+ 
 
 # Not a target:
 docker-run-test-full@debian-armhf-cross:
@@ -937,9 +952,13 @@ docker-run-test-build@debian-all-test-cross:
 #  Modification time never checked.
 #  File has not been updated.
 
+ 
 # Not a target:
+ 
 docker-run-test-clang@debian-mips64el-cross:
+ 
 #  Implicit rule search has not been done.
+ 
 #  Modification time never checked.
 #  File has not been updated.
 
@@ -1022,6 +1041,7 @@ docker-run-test-mingw@debian-riscv64-cross:
 
 docker-test-block@debian-mips64el-cross: docker-image-debian-mips64el-cross docker-run-test-block@debian-mips64el-cross
 #  Phony target (prerequisite of .PHONY).
+ 
 #  Implicit rule search has not been done.
 #  File does not exist.
 #  File has not been updated.
@@ -1032,7 +1052,7 @@ docker-test-unit@debian-arm64-cross: docker-image-debian-arm64-cross docker-run-
 #  File does not exist.
 #  File has not been updated.
 
-docker-test-static@debian-mips-cross: docker-image-debian-mips-cross docker-run-test-static@debian-mips-cross
+docker-test-full@debian-all-test-cross: docker-image-debian-all-test-cross docker-run-test-full@debian-all-test-cross
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
 #  File does not exist.
@@ -1062,7 +1082,6 @@ docker-run-test-debug@fedora-win64-cross:
 #  Modification time never checked.
 #  File has not been updated.
 
- 
 docker-test-unit@debian-mips64el-cross: docker-image-debian-mips64el-cross docker-run-test-unit@debian-mips64el-cross
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
@@ -1119,6 +1138,7 @@ docker-image-debian-native:
 docker-test-mingw@ubuntu1804: docker-image-ubuntu1804 docker-run-test-mingw@ubuntu1804
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
+ 
 #  File does not exist.
 #  File has not been updated.
 
@@ -1196,6 +1216,7 @@ docker-run-test-unit@alpine:
 # Not a target:
 docker-run-test-clang@fedora:
 #  Implicit rule search has not been done.
+ 
 #  Modification time never checked.
 #  File has not been updated.
 
@@ -1261,6 +1282,7 @@ distclean: clean
 	rm -f qemu-plugins-ld.symbols qemu-plugins-ld64.symbols
 	rm -f *-config-target.h *-config-devices.mak *-config-devices.h
 	rm -rf meson-private meson-logs meson-info compile_commands.json
+ 
 	rm -f Makefile.ninja Makefile.mtest build.ninja.stamp meson.stamp
 	rm -f config.log
 	rm -f linux-headers/asm
@@ -1341,10 +1363,10 @@ docker-test-mingw@debian-arm64-cross: docker-image-debian-arm64-cross docker-run
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
 #  File does not exist.
- 
 #  File has not been updated.
 
 docker-test-tsan@alpine: docker-image-alpine docker-run-test-tsan@alpine
+ 
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
 #  File does not exist.
@@ -1620,7 +1642,6 @@ docker-run-test-quick@centos8:
 
 # Not a target:
 docker-run-test-static@fedora-win32-cross:
- 
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
@@ -1639,6 +1660,7 @@ docker-run-test-block@fedora-win64-cross:
 # Not a target:
 docker-run-test-debug@debian-ppc64el-cross:
 #  Implicit rule search has not been done.
+ 
 #  Modification time never checked.
 #  File has not been updated.
 
@@ -2017,6 +2039,7 @@ docker-run-test-block@centos8:
 
 docker-image-debian-ppc64el-cross: docker-image-debian10
 #  Implicit rule search has not been done.
+ 
 #  Modification time never checked.
 #  File has not been updated.
 
@@ -2148,7 +2171,7 @@ recurse-clean:
 #  File does not exist.
 #  File has not been updated.
 
-docker-qemu-src: /home/xcd/qemu_uintr/qemu/docker-src.2022-05-02-02.33.46.2705
+docker-qemu-src: /home/xcd/qemu_uintr/qemu/docker-src.2022-05-02-13.12.42.189499
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
 #  File does not exist.
@@ -2199,6 +2222,7 @@ docker-run-test-block@debian-ppc64el-cross:
 docker-image-debian-sh4-cross: docker-image-debian10
 #  Implicit rule search has not been done.
 #  Modification time never checked.
+ 
 #  File has not been updated.
 
 docker-test-block@alpine: docker-image-alpine docker-run-test-block@alpine
@@ -2363,6 +2387,7 @@ help:
 	@echo  ''
 	@echo  'Documentation targets:'
 	$(call print-help,html man,Build documentation in specified format)
+ 
 	@echo  ''
 	$(call print-help,$(MAKE) [targets],(quiet build, default))
 	$(call print-help,$(MAKE) V=1 [targets],(verbose build))
@@ -2510,20 +2535,13 @@ docker-run-test-quick@ubuntu1804:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
+ 
 
-/home/xcd/qemu_uintr/qemu/docker-src.2022-05-02-02.33.46.2705:
+docker-test-full@ubuntu2004: docker-image-ubuntu2004 docker-run-test-full@ubuntu2004
+#  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
-#  Modification time never checked.
+#  File does not exist.
 #  File has not been updated.
-#  recipe to execute (from 'tests/docker/Makefile.include', line 45):
-	@mkdir $@
-	$(if $(SRC_ARCHIVE), \
-		$(call quiet-command, cp "$(SRC_ARCHIVE)" $@/qemu.tar, \
-			"CP", "$@/qemu.tar"), \
-		$(call quiet-command, cd $(SRC_PATH) && scripts/archive-source.sh $@/qemu.tar, \
-			"GEN", "$@/qemu.tar"))
-	$(call quiet-command, cp $(SRC_PATH)/tests/docker/run $@/run, \
-		"COPY","RUNNER")
 
 docker-test-tsan@debian-arm64-cross: docker-image-debian-arm64-cross docker-run-test-tsan@debian-arm64-cross
 #  Phony target (prerequisite of .PHONY).
@@ -2639,6 +2657,7 @@ docker-test-tsan@python: docker-image-python docker-run-test-tsan@python
 # Not a target:
 tests/vm/Makefile.include:
 #  Implicit rule search has been done.
+ 
 #  Last modified 2022-04-28 17:07:54.668634076
 #  File has been updated.
 #  Successfully updated.
@@ -2755,6 +2774,13 @@ docker-run-test-static@fedora-i386-cross:
 docker-run-test-mingw@debian-mipsel-cross:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
+#  File has not been updated.
+
+docker-test-tsan@debian-s390x-cross: docker-image-debian-s390x-cross docker-run-test-tsan@debian-s390x-cross
+#  Phony target (prerequisite of .PHONY).
+#  Implicit rule search has not been done.
+ 
+#  File does not exist.
 #  File has not been updated.
 
 # Not a target:
@@ -2886,6 +2912,7 @@ tests/docker/dockerfiles/debian-microblaze-cross.d/build-toolchain.sh:
 # Not a target:
 docker-run-test-full@debian-armel-cross:
 #  Implicit rule search has not been done.
+ 
 #  Modification time never checked.
 #  File has not been updated.
 
@@ -3003,13 +3030,14 @@ docker-test-tcg@fedora-win32-cross: docker-image-fedora-win32-cross docker-run-t
 #  File does not exist.
 #  File has not been updated.
 
-docker-test-tsan@debian-s390x-cross: docker-image-debian-s390x-cross docker-run-test-tsan@debian-s390x-cross
+docker-test-static@debian-mips-cross: docker-image-debian-mips-cross docker-run-test-static@debian-mips-cross
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
 #  File does not exist.
 #  File has not been updated.
 
 docker-test-full@centos8: docker-image-centos8 docker-run-test-full@centos8
+ 
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
 #  File does not exist.
@@ -3099,6 +3127,7 @@ docker-test-tcg@debian-ppc64el-cross: docker-image-debian-ppc64el-cross docker-r
 
 # Not a target:
 docker-run-test-unit@debian-armel-cross:
+ 
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
@@ -3147,8 +3176,7 @@ docker-test-block@debian-amd64: docker-image-debian-amd64 docker-run-test-block@
 #  File has not been updated.
 
 # Not a target:
-docker-run-test-qu 
-ick@debian-all-test-cross:
+docker-run-test-quick@debian-all-test-cross:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
@@ -3246,6 +3274,7 @@ docker-test-static@debian-all-test-cross: docker-image-debian-all-test-cross doc
 #  Implicit rule search has not been done.
 #  File does not exist.
 #  File has not been updated.
+ 
 
 docker-test-static@opensuse-leap: docker-image-opensuse-leap docker-run-test-static@opensuse-leap
 #  Phony target (prerequisite of .PHONY).
@@ -3387,6 +3416,7 @@ docker-run-test-full@debian-all-test-cross:
 #  File has not been updated.
 
 # Not a target:
+ 
 docker-run-test-static@debian-riscv64-cross:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
@@ -3489,7 +3519,6 @@ docker-run-test-debug@debian-hexagon-cross:
 #  File has not been updated.
 
 docker-clean:
- 
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
 #  File does not exist.
@@ -3516,6 +3545,7 @@ docker-run-test-static@debian-amd64:
 #  File has not been updated.
 
 docker-test-tcg@debian-arm64-cross: docker-image-debian-arm64-cross docker-run-test-tcg@debian-arm64-cross
+ 
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
 #  File does not exist.
@@ -3660,6 +3690,7 @@ docker-run-test-tsan@debian-armhf-cross:
 #  File has not been updated.
 
 docker-test-full@fedora: docker-image-fedora docker-run-test-full@fedora
+ 
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
 #  File does not exist.
@@ -3681,12 +3712,6 @@ docker-test-tsan@debian-riscv64-cross: docker-image-debian-riscv64-cross docker-
 docker-run-test-unit@opensuse-leap:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
-#  File has not been updated.
-
-docker-test-full@ubuntu2004: docker-image-ubuntu2004 docker-run-test-full@ubuntu2004
-#  Phony target (prerequisite of .PHONY).
-#  Implicit rule search has not been done.
-#  File does not exist.
 #  File has not been updated.
 
 # Not a target:
@@ -3798,6 +3823,7 @@ docker-run-test-misc@debian-armel-cross:
 
 # Not a target:
 docker-run-test-misc@ubuntu2004:
+ 
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
@@ -3946,6 +3972,7 @@ docker-test-full@ubuntu1804: docker-image-ubuntu1804 docker-run-test-full@ubuntu
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
 #  File does not exist.
+ 
 #  File has not been updated.
 
 docker-test-unit@fedora-i386-cross: docker-image-fedora-i386-cross docker-run-test-unit@fedora-i386-cross
@@ -4107,6 +4134,7 @@ docker-test-unit@ubuntu1804: docker-image-ubuntu1804 docker-run-test-unit@ubuntu
 
 # Not a target:
 docker-run-test-block@debian-hexagon-cross:
+ 
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
@@ -4147,7 +4175,7 @@ docker-run-test-unit@debian-hexagon-cross:
 #  Modification time never checked.
 #  File has not been updated.
 
-.DELETE_ON_ERROR: /home/xcd/qemu_uintr/qemu/docker-src.2022-05-02-02.33.46.2705
+.DELETE_ON_ERROR: /home/xcd/qemu_uintr/qemu/docker-src.2022-05-02-13.12.42.189499
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
@@ -4247,7 +4275,6 @@ docker-run-test-quick@fedora-i386-cross:
 #  File has not been updated.
 
 # Not a target:
- 
 docker-run-test-unit@debian-mips64el-cross:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
@@ -4261,6 +4288,7 @@ docker-test-unit@debian-armel-cross: docker-image-debian-armel-cross docker-run-
 
 docker-test-misc@python: docker-image-python docker-run-test-misc@python
 #  Phony target (prerequisite of .PHONY).
+ 
 #  Implicit rule search has not been done.
 #  File does not exist.
 #  File has not been updated.
@@ -4403,6 +4431,7 @@ docker-test-quick@debian-mipsel-cross: docker-image-debian-mipsel-cross docker-r
 #  File does not exist.
 #  File has not been updated.
 
+ 
 # Not a target:
 docker-run-test-debug@debian-amd64:
 #  Implicit rule search has not been done.
@@ -4510,11 +4539,19 @@ docker-run-test-tsan@alpine:
 #  Modification time never checked.
 #  File has not been updated.
 
-docker-test-full@debian-all-test-cross: docker-image-debian-all-test-cross docker-run-test-full@debian-all-test-cross
-#  Phony target (prerequisite of .PHONY).
+/home/xcd/qemu_uintr/qemu/docker-src.2022-05-02-13.12.42.189499:
 #  Implicit rule search has not been done.
-#  File does not exist.
+#  Modification time never checked.
 #  File has not been updated.
+#  recipe to execute (from 'tests/docker/Makefile.include', line 45):
+	@mkdir $@
+	$(if $(SRC_ARCHIVE), \
+		$(call quiet-command, cp "$(SRC_ARCHIVE)" $@/qemu.tar, \
+			"CP", "$@/qemu.tar"), \
+		$(call quiet-command, cd $(SRC_PATH) && scripts/archive-source.sh $@/qemu.tar, \
+			"GEN", "$@/qemu.tar"))
+	$(call quiet-command, cp $(SRC_PATH)/tests/docker/run $@/run, \
+		"COPY","RUNNER")
 
 docker-test-static@debian-riscv64-cross: docker-image-debian-riscv64-cross docker-run-test-static@debian-riscv64-cross
 #  Phony target (prerequisite of .PHONY).
@@ -4527,11 +4564,11 @@ docker-test-full@opensuse-leap: docker-image-opensuse-leap docker-run-test-full@
 #  Implicit rule search has not been done.
 #  File does not exist.
 #  File has not been updated.
- 
 
 # Not a target:
 docker-run-test-full@fedora-i386-cross:
 #  Implicit rule search has not been done.
+ 
 #  Modification time never checked.
 #  File has not been updated.
 
@@ -4663,21 +4700,22 @@ docker-test-build@fedora-win32-cross: docker-image-fedora-win32-cross docker-run
 #  File has not been updated.
 
 # files hash-table stats:
-# Load=663/1024=65%, Rehash=0, Collisions=1325/3310=40%
+ 
+# Load=663/1024=65%, Rehash=0, Collisions=1350/3310=41%
 # VPATH Search Paths
 
 # No 'vpath' search paths.
 
 # No general ('VPATH' variable) search path.
 
-# strcache buffers: 4 (2) / strings = 852 / storage = 24902 B / avg = 29 B
+# strcache buffers: 4 (2) / strings = 852 / storage = 24904 B / avg = 29 B
 # current buf: size = 8162 B / used = 488 B / count = 23 / avg = 21 B
-# other used: total = 24414 B / count = 829 / avg = 29 B
-# other free: total = 72 B / max = 33 B / min = 10 B / avg = 24 B
+# other used: total = 24416 B / count = 829 / avg = 29 B
+# other free: total = 70 B / max = 33 B / min = 8 B / avg = 23 B
 
 # strcache performance: lookups = 4045 / hit rate = 78%
 # hash-table stats:
 # Load=852/8192=10%, Rehash=0, Collisions=131/4045=3%
-# Finished Make data base on Mon May  2 02:33:46 2022
+# Finished Make data base on Mon May  2 13:12:42 2022
 
  

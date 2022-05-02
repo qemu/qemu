@@ -861,6 +861,7 @@ static inline target_ulong get_rsp_from_tss(CPUX86State *env, int level)
 
 /* 64 bit interrupt */
 // static bool Debug = true;
+#define UINTR_UINV 0xec
 static void do_interrupt64(CPUX86State *env, int intno, int is_int,
                            int error_code, target_ulong next_eip, int is_hw) // 在用户态中断中 is_hw = 1 !!! ???？？？
 {
@@ -879,6 +880,32 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
         old_eip = next_eip;
     } else {
         old_eip = env->eip;
+    }
+    if(intno == UINTR_UINV){
+        printf("recognize uintr\n");
+        // 清除apic的
+        int prot; bool send = false;
+        CPUState *cs = env_cpu(env);
+        uint64_t upid_phyaddress = get_hphys2(cs, env->uintr_pd, MMU_DATA_LOAD, &prot);
+        uintr_upid upid;
+        cpu_physical_memory_rw(upid_phyaddress, &upid, 16, false);
+        upid.nc.status &= (~1); // clear on
+        if(upid.puir != 0){
+            env->uintr_tt = upid.puir;
+            upid.puir = 0; // clear puir
+            send = true;
+        }
+        cpu_physical_memory_rw(upid_phyaddress, &upid, 16, true);
+
+        
+        uint64_t APICaddress = get_hphys2(cs, APIC_DEFAULT_ADDRESS, MMU_DATA_LOAD, &prot);
+        uint64_t EOI;
+        uint64_t zero = 0;
+        cpu_physical_memory_rw(APICaddress + 0xb0, &EOI, 8, false);
+        printf("the physical address of APIC 0x%lx   the EOI content: 0x%lx\n", APICaddress,EOI);
+        cpu_physical_memory_rw(APICaddress + 0xb0, &zero, 4, true);
+        if(send)helper_rrnzero(env);
+        // return;
     }
 
     dt = &env->idt;

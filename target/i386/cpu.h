@@ -255,7 +255,7 @@ typedef enum X86Seg {
 #define CR4_SMAP_MASK   (1U << 21)
 #define CR4_PKE_MASK   (1U << 22)
 #define CR4_PKS_MASK   (1U << 24)
-#define CR4_UINTR_MASK (1U<<25)  // 改
+#define CR4_UINTR_MASK (1U << 25)  // 改
 
 #define CR4_RESERVED_MASK \
 (~(target_ulong)(CR4_VME_MASK | CR4_PVI_MASK | CR4_TSD_MASK \
@@ -1406,6 +1406,23 @@ typedef struct XSaveXTILEDATA {
     uint8_t xtiledata[8][1024];
 } XSaveXTILEDATA;
 
+typedef struct uintr_uitt_entry { //改
+	uint8_t	valid;			/* bit 0: valid, bit 1-7: reserved */
+	uint8_t	user_vec;
+	uint8_t	reserved[6];
+	uint64_t target_upid_addr;
+}uintr_uitt_entry;
+
+typedef struct uintr_upid {
+	struct {
+		uint8_t status;	/* bit 0: ON, bit 1: SN, bit 2-7: reserved */
+		uint8_t reserved1;	/* Reserved */
+		uint8_t nv;		/* Notification vector */
+		uint8_t reserved2;	/* Reserved */
+		uint32_t ndst;	/* Notification destination */
+	} nc;		/* Notification control */
+	uint64_t puir;		/* Posted user interrupt requests */
+}uintr_upid;
 
 
 
@@ -2307,7 +2324,7 @@ typedef int X86CPUVersion;
  * version == CPU_VERSION_AUTO.
  */
 void x86_cpu_set_default_version(X86CPUVersion version);
-
+// apic基址
 #define APIC_DEFAULT_ADDRESS 0xfee00000
 #define APIC_SPACE_SIZE      0x100000
 

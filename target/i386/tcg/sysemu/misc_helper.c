@@ -422,7 +422,7 @@ void helper_rdmsr(CPUX86State *env)
         val = env->uintr_misc;
         rdcount ++;
         printf("qemu:rdmsr misc 0x%016lx\n",val);
-        if(rdcount > 150) exit(2);
+        if(rdcount > 200) exit(2);
         break;
     case MSR_IA32_UINTR_PD:
         val = env->uintr_pd;
