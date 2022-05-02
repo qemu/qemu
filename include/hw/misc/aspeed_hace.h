@@ -18,6 +18,7 @@
 OBJECT_DECLARE_TYPE(AspeedHACEState, AspeedHACEClass, ASPEED_HACE)
 
 #define ASPEED_HACE_NR_REGS (0x64 >> 2)
+#define ASPEED_HACE_MAX_SG  256 /* max number of entries */
 
 struct AspeedHACEState {
     SysBusDevice parent;
@@ -25,7 +26,10 @@ struct AspeedHACEState {
     MemoryRegion iomem;
     qemu_irq irq;
 
+    struct iovec iov_cache[ASPEED_HACE_MAX_SG];
     uint32_t regs[ASPEED_HACE_NR_REGS];
+    uint32_t total_req_len;
+    uint32_t iov_count;
 
     MemoryRegion *dram_mr;
     AddressSpace dram_as;
