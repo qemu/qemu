@@ -2595,6 +2595,15 @@ static void do_xsave_pkru(CPUX86State *env, target_ulong ptr, uintptr_t ra)
     cpu_stq_data_ra(env, ptr, env->pkru, ra);
 }
 
+static void do_xsave_uintr(CPUX86State *env, target_ulong ptr, uintptr_t ra){
+    cpu_stq_data_ra(env, ptr, env->uintr_handler, ra);
+    cpu_stq_data_ra(env, ptr+8, env->uintr_stackadjust, ra);
+    cpu_stq_data_ra(env, ptr+16, env->uintr_misc, ra);
+    cpu_stq_data_ra(env, ptr+24, env->uintr_pd, ra);
+    cpu_stq_data_ra(env, ptr+32, env->uintr_rr, ra);
+    cpu_stq_data_ra(env, ptr+40, env->uintr_tt, ra);
+}
+
 static void do_fxsave(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 {
     /* The operand must be 16 byte aligned */
@@ -2634,11 +2643,12 @@ static uint64_t get_xinuse(CPUX86State *env)
     return inuse;
 }
 
+static bool Debug = true;
 static void do_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm,
                      uint64_t inuse, uint64_t opt, uintptr_t ra)
 {
     uint64_t old_bv, new_bv;
-
+    if(Debug)printf("do xsave called\n"); // 改 xsave
     /* The OS must have enabled XSAVE.  */
     if (!(env->cr[4] & CR4_OSXSAVE_MASK)) {
         raise_exception_ra(env, EXCP06_ILLOP, ra);
@@ -2671,6 +2681,11 @@ static void do_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm,
     }
     if (opt & XSTATE_PKRU_MASK) {
         do_xsave_pkru(env, ptr + XO(pkru_state), ra);
+    }
+    // 改
+    if (opt & XSTATE_UINTR_MASK) {
+        if(Debug)printf("do xsave saving uintr componments !!!!\n"); // 改 xsave
+        do_xsave_uintr(env, ptr + XO(uintr_state), ra);
     }
 
     /* Update the XSTATE_BV field.  */
@@ -2760,6 +2775,24 @@ static void do_xrstor_bndcsr(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 static void do_xrstor_pkru(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 {
     env->pkru = cpu_ldq_data_ra(env, ptr, ra);
+}
+
+static void do_xrstor_uintr(CPUX86State *env, target_ulong ptr, uintptr_t ra){
+    env->uintr_handler = cpu_ldq_data_ra(env, ptr, ra);
+    env->uintr_stackadjust = cpu_ldq_data_ra(env, ptr+8, ra);
+    env->uintr_misc = cpu_ldq_data_ra(env, ptr+16, ra);
+    env->uintr_pd = cpu_ldq_data_ra(env, ptr+24, ra);
+    env->uintr_rr = cpu_ldq_data_ra(env, ptr+32, ra);
+    env->uintr_tt = cpu_ldq_data_ra(env, ptr+40, ra);
+}
+
+static void clear_uintr_reg(CPUX86State *env){
+    env->uintr_handler=0;
+    env->uintr_stackadjust=0;
+    env->uintr_misc=0;
+    env->uintr_pd=0;
+    env->uintr_rr=0;
+    env->uintr_tt=0;
 }
 
 static void do_fxrstor(CPUX86State *env, target_ulong ptr, uintptr_t ra)
@@ -2888,6 +2921,13 @@ void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
         if (env->pkru != old_pkru) {
             CPUState *cs = env_cpu(env);
             tlb_flush(cs);
+        }
+    }
+    if (rfbm & XSTATE_UINTR_MASK){
+        if (xstate_bv & XSTATE_UINTR_MASK) {
+            do_xrstor_uintr(env, ptr + XO(uintr_state), ra);
+        } else {
+            clear_uintr_reg(env);
         }
     }
 }

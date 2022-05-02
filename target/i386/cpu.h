@@ -550,9 +550,12 @@ typedef enum X86Seg {
 #define XSTATE_ZMM_Hi256_BIT            6
 #define XSTATE_Hi16_ZMM_BIT             7
 #define XSTATE_PKRU_BIT                 9
+#define XSTATE_UINTR_BIT                14
+//改 XSTAVE
 #define XSTATE_XTILE_CFG_BIT            17
 #define XSTATE_XTILE_DATA_BIT           18
 
+#define XSTATE_UINTR_MASK               (1ULL << XSTATE_UINTR_BIT)
 #define XSTATE_FP_MASK                  (1ULL << XSTATE_FP_BIT)
 #define XSTATE_SSE_MASK                 (1ULL << XSTATE_SSE_BIT)
 #define XSTATE_YMM_MASK                 (1ULL << XSTATE_YMM_BIT)
@@ -1377,6 +1380,22 @@ typedef struct XSavePKRU {
     uint32_t padding;
 } XSavePKRU;
 
+/* Ext. save area 14: UINTR state*/
+typedef struct XSaveUINTR {
+    uint64_t handler;
+    uint64_t stack_adjust;
+    struct{
+        uint32_t uittsz;
+        uint8_t uinv;
+        uint16_t reserved;
+        uint8_t uif; // bit7 is the uif
+    };
+    uint64_t upidaddr;
+    uint64_t uirr;
+    uint64_t uittaddr;
+    
+}XSaveUINTR;
+
 /* Ext. save area 17: AMX XTILECFG state */
 typedef struct XSaveXTILECFG {
     uint8_t xtilecfg[64];
@@ -1386,6 +1405,9 @@ typedef struct XSaveXTILECFG {
 typedef struct XSaveXTILEDATA {
     uint8_t xtiledata[8][1024];
 } XSaveXTILEDATA;
+
+
+
 
 QEMU_BUILD_BUG_ON(sizeof(XSaveAVX) != 0x100);
 QEMU_BUILD_BUG_ON(sizeof(XSaveBNDREG) != 0x40);

@@ -340,6 +340,7 @@ error:
     raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
 }
 
+static int rdcount = 0;
 void helper_rdmsr(CPUX86State *env)
 {
     X86CPU *x86_cpu = env_archcpu(env);
@@ -419,7 +420,9 @@ void helper_rdmsr(CPUX86State *env)
         break;
     case MSR_IA32_UINTR_MISC:
         val = env->uintr_misc;
-        // printf("qemu:rdmsr misc 0x%016lx\n",val);
+        rdcount ++;
+        printf("qemu:rdmsr misc 0x%016lx\n",val);
+        if(rdcount > 150) exit(2);
         break;
     case MSR_IA32_UINTR_PD:
         val = env->uintr_pd;

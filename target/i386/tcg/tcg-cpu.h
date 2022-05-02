@@ -39,7 +39,7 @@ typedef struct X86XSaveArea {
     X86LegacyXSaveArea legacy;
     X86XSaveHeader header;
 
-    /* Extended save areas: */
+    /* Extended save areas: startoffset:0x240 */
 
     /* AVX State: */
     XSaveAVX avx_state;
@@ -59,6 +59,7 @@ typedef struct X86XSaveArea {
     XSaveHi16_ZMM hi16_zmm_state;
     /* PKRU State: */
     XSavePKRU pkru_state;
+    XSaveUINTR uintr_state; // 改
 } X86XSaveArea;
 
 QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, legacy.fcw) != XSAVE_FCW_FSW_OFFSET);

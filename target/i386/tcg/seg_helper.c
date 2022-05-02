@@ -860,8 +860,9 @@ static inline target_ulong get_rsp_from_tss(CPUX86State *env, int level)
 }
 
 /* 64 bit interrupt */
+// static bool Debug = true;
 static void do_interrupt64(CPUX86State *env, int intno, int is_int,
-                           int error_code, target_ulong next_eip, int is_hw)
+                           int error_code, target_ulong next_eip, int is_hw) // 在用户态中断中 is_hw = 1 !!! ???？？？
 {
     SegmentCache *dt;
     target_ulong ptr;
@@ -1115,9 +1116,10 @@ void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
             count++;
         }
     }
-    if (env->cr[0] & CR0_PE_MASK) {
+    if (env->cr[0] & CR0_PE_MASK) { // 改， 中断具体分发，应该不涉及user only
 #if !defined(CONFIG_USER_ONLY)
         if (env->hflags & HF_GUEST_MASK) {
+            printf("HF_GUEST_MASK even \n");
             handle_even_inj(env, intno, is_int, error_code, is_hw, 0);
         }
 #endif
@@ -1126,21 +1128,24 @@ void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
             do_interrupt64(env, intno, is_int, error_code, next_eip, is_hw);
         } else
 #endif
-        {
+        {   
+            printf("interrupt protected \n");
             do_interrupt_protected(env, intno, is_int, error_code, next_eip,
                                    is_hw);
         }
     } else {
 #if !defined(CONFIG_USER_ONLY)
         if (env->hflags & HF_GUEST_MASK) {
+            printf("HF_GUEST_MASK even inj \n");
             handle_even_inj(env, intno, is_int, error_code, is_hw, 1);
         }
-#endif
+#endif  
         do_interrupt_real(env, intno, is_int, error_code, next_eip);
     }
 
 #if !defined(CONFIG_USER_ONLY)
     if (env->hflags & HF_GUEST_MASK) {
+        printf("HF_GUEST_MASK do real \n");
         CPUState *cs = CPU(cpu);
         uint32_t event_inj = x86_ldl_phys(cs, env->vm_vmcb +
                                       offsetof(struct vmcb,
@@ -1155,7 +1160,7 @@ void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
 
 void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw)
 {
-    do_interrupt_all(env_archcpu(env), intno, 0, 0, 0, is_hw);
+    do_interrupt_all(env_archcpu(env), intno, 0, 0, 0, is_hw); //X86CPU *cpu, int intno, int is_int,int error_code, target_ulong next_eip, int is_hw
 }
 
 void helper_lldt(CPUX86State *env, int selector)
