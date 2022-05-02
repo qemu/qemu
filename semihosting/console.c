@@ -96,24 +96,6 @@ int qemu_semihosting_console_outs(CPUArchState *env, target_ulong addr)
     return out;
 }
 
-void qemu_semihosting_console_outc(CPUArchState *env, target_ulong addr)
-{
-    CPUState *cpu = env_cpu(env);
-    uint8_t c;
-
-    if (cpu_memory_rw_debug(cpu, addr, &c, 1, 0) == 0) {
-        if (use_gdb_syscalls()) {
-            gdb_do_syscall(semihosting_cb, "write,2,%x,%x", addr, 1);
-        } else {
-            qemu_semihosting_log_out((const char *) &c, 1);
-        }
-    } else {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: passed inaccessible address " TARGET_FMT_lx,
-                      __func__, addr);
-    }
-}
-
 #define FIFO_SIZE   1024
 
 static int console_can_read(void *opaque)

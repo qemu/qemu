@@ -25,19 +25,6 @@
 int qemu_semihosting_console_outs(CPUArchState *env, target_ulong s);
 
 /**
- * qemu_semihosting_console_outc:
- * @env: CPUArchState
- * @s: host address of null terminated guest string
- *
- * Send single character from guest memory to the debug console. This
- * may be the remote gdb session if a softmmu guest is currently being
- * debugged.
- *
- * Returns: nothing
- */
-void qemu_semihosting_console_outc(CPUArchState *env, target_ulong c);
-
-/**
  * qemu_semihosting_console_read:
  * @cs: CPUState
  * @buf: host buffer

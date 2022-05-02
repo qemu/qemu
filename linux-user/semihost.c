@@ -33,22 +33,6 @@ int qemu_semihosting_console_outs(CPUArchState *env, target_ulong addr)
     return len;
 }
 
-void qemu_semihosting_console_outc(CPUArchState *env, target_ulong addr)
-{
-    char c;
-
-    if (get_user_u8(c, addr)) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: passed inaccessible address " TARGET_FMT_lx,
-                      __func__, addr);
-    } else {
-        if (write(STDERR_FILENO, &c, 1) != 1) {
-            qemu_log_mask(LOG_UNIMP, "%s: unexpected write to stdout failure",
-                          __func__);
-        }
-    }
-}
-
 /*
  * For linux-user we can safely block. However as we want to return as
  * soon as a character is read we need to tweak the termio to disable
