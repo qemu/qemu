@@ -302,6 +302,22 @@ common_semi_flen_fstat_cb(CPUState *cs, uint64_t ret, int err)
     common_semi_cb(cs, ret, err);
 }
 
+static void
+common_semi_readc_cb(CPUState *cs, uint64_t ret, int err)
+{
+    if (!err) {
+        CPUArchState *env G_GNUC_UNUSED = cs->env_ptr;
+        uint8_t ch;
+
+        if (get_user_u8(ch, common_semi_stack_bottom(cs) - 1)) {
+            ret = -1, err = EFAULT;
+        } else {
+            ret = ch;
+        }
+    }
+    common_semi_cb(cs, ret, err);
+}
+
 #define SHFB_MAGIC_0 0x53
 #define SHFB_MAGIC_1 0x48
 #define SHFB_MAGIC_2 0x46
@@ -428,15 +444,8 @@ void do_common_semihosting(CPUState *cs)
         break;
 
     case TARGET_SYS_READC:
-        {
-            uint8_t ch;
-            int ret = qemu_semihosting_console_read(cs, &ch, 1);
-            if (ret == 1) {
-                common_semi_cb(cs, ch, 0);
-            } else {
-                common_semi_cb(cs, -1, EIO);
-            }
-        }
+        semihost_sys_read_gf(cs, common_semi_readc_cb, &console_in_gf,
+                             common_semi_stack_bottom(cs) - 1, 1);
         break;
 
     case TARGET_SYS_ISERROR:
