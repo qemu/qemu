@@ -2179,7 +2179,8 @@ config_host_data.set('CONFIG_AVX512F_OPT', get_option('avx512f') \
 
 have_pvrdma = get_option('pvrdma') \
   .require(rdma.found(), error_message: 'PVRDMA requires OpenFabrics libraries') \
-  .require(cc.compiles('''
+  .require(cc.compiles(gnu_source_prefix + '''
+    #include <sys/mman.h>
     int main(void)
     {
       char buf = 0;
@@ -2190,7 +2191,7 @@ have_pvrdma = get_option('pvrdma') \
     }'''), error_message: 'PVRDMA requires mremap').allowed()
 
 if have_pvrdma
-  config_host_data.set('LEGACY_RDMA_REG_MR', not cc.compiles('''
+  config_host_data.set('LEGACY_RDMA_REG_MR', not cc.links('''
     #include <infiniband/verbs.h>
     int main(void)
     {
