@@ -2380,7 +2380,7 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
     g_free(reset);
 
     trace_vfio_pci_hot_reset_result(vdev->vbasedev.name,
-                                    ret ? "%m" : "Success");
+                                    ret ? strerror(errno) : "Success");
 
 out:
     /* Re-enable INTx on affected devices */
