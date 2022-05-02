@@ -12,19 +12,6 @@
 #include "cpu.h"
 
 /**
- * qemu_semihosting_console_outs:
- * @env: CPUArchState
- * @s: host address of null terminated guest string
- *
- * Send a null terminated guest string to the debug console. This may
- * be the remote gdb session if a softmmu guest is currently being
- * debugged.
- *
- * Returns: number of bytes written.
- */
-int qemu_semihosting_console_outs(CPUArchState *env, target_ulong s);
-
-/**
  * qemu_semihosting_console_read:
  * @cs: CPUState
  * @buf: host buffer
