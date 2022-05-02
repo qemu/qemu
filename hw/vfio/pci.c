@@ -2846,6 +2846,7 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
 static void vfio_realize(PCIDevice *pdev, Error **errp)
 {
     VFIOPCIDevice *vdev = VFIO_PCI(pdev);
+    VFIODevice *vbasedev = &vdev->vbasedev;
     VFIODevice *vbasedev_iter;
     VFIOGroup *group;
     char *tmp, *subsys, group_path[PATH_MAX], *group_name;
@@ -2856,7 +2857,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     int i, ret;
     bool is_mdev;
 
-    if (!vdev->vbasedev.sysfsdev) {
+    if (!vbasedev->sysfsdev) {
         if (!(~vdev->host.domain || ~vdev->host.bus ||
               ~vdev->host.slot || ~vdev->host.function)) {
             error_setg(errp, "No provided host device");
@@ -2864,24 +2865,24 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
                               "or -device vfio-pci,sysfsdev=PATH_TO_DEVICE\n");
             return;
         }
-        vdev->vbasedev.sysfsdev =
+        vbasedev->sysfsdev =
             g_strdup_printf("/sys/bus/pci/devices/%04x:%02x:%02x.%01x",
                             vdev->host.domain, vdev->host.bus,
                             vdev->host.slot, vdev->host.function);
     }
 
-    if (stat(vdev->vbasedev.sysfsdev, &st) < 0) {
+    if (stat(vbasedev->sysfsdev, &st) < 0) {
         error_setg_errno(errp, errno, "no such host device");
-        error_prepend(errp, VFIO_MSG_PREFIX, vdev->vbasedev.sysfsdev);
+        error_prepend(errp, VFIO_MSG_PREFIX, vbasedev->sysfsdev);
         return;
     }
 
-    vdev->vbasedev.name = g_path_get_basename(vdev->vbasedev.sysfsdev);
-    vdev->vbasedev.ops = &vfio_pci_ops;
-    vdev->vbasedev.type = VFIO_DEVICE_TYPE_PCI;
-    vdev->vbasedev.dev = DEVICE(vdev);
+    vbasedev->name = g_path_get_basename(vbasedev->sysfsdev);
+    vbasedev->ops = &vfio_pci_ops;
+    vbasedev->type = VFIO_DEVICE_TYPE_PCI;
+    vbasedev->dev = DEVICE(vdev);
 
-    tmp = g_strdup_printf("%s/iommu_group", vdev->vbasedev.sysfsdev);
+    tmp = g_strdup_printf("%s/iommu_group", vbasedev->sysfsdev);
     len = readlink(tmp, group_path, sizeof(group_path));
     g_free(tmp);
 
@@ -2899,7 +2900,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         goto error;
     }
 
-    trace_vfio_realize(vdev->vbasedev.name, groupid);
+    trace_vfio_realize(vbasedev->name, groupid);
 
     group = vfio_get_group(groupid, pci_device_iommu_address_space(pdev), errp);
     if (!group) {
@@ -2907,7 +2908,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     }
 
     QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
-        if (strcmp(vbasedev_iter->name, vdev->vbasedev.name) == 0) {
+        if (strcmp(vbasedev_iter->name, vbasedev->name) == 0) {
             error_setg(errp, "device is already attached");
             vfio_put_group(group);
             goto error;
@@ -2920,22 +2921,22 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
      * stays in sync with the active working set of the guest driver.  Prevent
      * the x-balloon-allowed option unless this is minimally an mdev device.
      */
-    tmp = g_strdup_printf("%s/subsystem", vdev->vbasedev.sysfsdev);
+    tmp = g_strdup_printf("%s/subsystem", vbasedev->sysfsdev);
     subsys = realpath(tmp, NULL);
     g_free(tmp);
     is_mdev = subsys && (strcmp(subsys, "/sys/bus/mdev") == 0);
     free(subsys);
 
-    trace_vfio_mdev(vdev->vbasedev.name, is_mdev);
+    trace_vfio_mdev(vbasedev->name, is_mdev);
 
-    if (vdev->vbasedev.ram_block_discard_allowed && !is_mdev) {
+    if (vbasedev->ram_block_discard_allowed && !is_mdev) {
         error_setg(errp, "x-balloon-allowed only potentially compatible "
                    "with mdev devices");
         vfio_put_group(group);
         goto error;
     }
 
-    ret = vfio_get_device(group, vdev->vbasedev.name, &vdev->vbasedev, errp);
+    ret = vfio_get_device(group, vbasedev->name, vbasedev, errp);
     if (ret) {
         vfio_put_group(group);
         goto error;
@@ -2948,7 +2949,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     }
 
     /* Get a copy of config space */
-    ret = pread(vdev->vbasedev.fd, vdev->pdev.config,
+    ret = pread(vbasedev->fd, vdev->pdev.config,
                 MIN(pci_config_size(&vdev->pdev), vdev->config_size),
                 vdev->config_offset);
     if (ret < (int)MIN(pci_config_size(&vdev->pdev), vdev->config_size)) {
@@ -2976,7 +2977,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
             goto error;
         }
         vfio_add_emulated_word(vdev, PCI_VENDOR_ID, vdev->vendor_id, ~0);
-        trace_vfio_pci_emulated_vendor_id(vdev->vbasedev.name, vdev->vendor_id);
+        trace_vfio_pci_emulated_vendor_id(vbasedev->name, vdev->vendor_id);
     } else {
         vdev->vendor_id = pci_get_word(pdev->config + PCI_VENDOR_ID);
     }
@@ -2987,7 +2988,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
             goto error;
         }
         vfio_add_emulated_word(vdev, PCI_DEVICE_ID, vdev->device_id, ~0);
-        trace_vfio_pci_emulated_device_id(vdev->vbasedev.name, vdev->device_id);
+        trace_vfio_pci_emulated_device_id(vbasedev->name, vdev->device_id);
     } else {
         vdev->device_id = pci_get_word(pdev->config + PCI_DEVICE_ID);
     }
@@ -2999,7 +3000,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         }
         vfio_add_emulated_word(vdev, PCI_SUBSYSTEM_VENDOR_ID,
                                vdev->sub_vendor_id, ~0);
-        trace_vfio_pci_emulated_sub_vendor_id(vdev->vbasedev.name,
+        trace_vfio_pci_emulated_sub_vendor_id(vbasedev->name,
                                               vdev->sub_vendor_id);
     }
 
@@ -3009,7 +3010,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
             goto error;
         }
         vfio_add_emulated_word(vdev, PCI_SUBSYSTEM_ID, vdev->sub_device_id, ~0);
-        trace_vfio_pci_emulated_sub_device_id(vdev->vbasedev.name,
+        trace_vfio_pci_emulated_sub_device_id(vbasedev->name,
                                               vdev->sub_device_id);
     }
 
@@ -3068,7 +3069,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
             goto out_teardown;
         }
 
-        ret = vfio_get_dev_region_info(&vdev->vbasedev,
+        ret = vfio_get_dev_region_info(vbasedev,
                         VFIO_REGION_TYPE_PCI_VENDOR_TYPE | PCI_VENDOR_ID_INTEL,
                         VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION, &opregion);
         if (ret) {
@@ -3144,9 +3145,9 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     }
 
     if (!pdev->failover_pair_id) {
-        ret = vfio_migration_probe(&vdev->vbasedev, errp);
+        ret = vfio_migration_probe(vbasedev, errp);
         if (ret) {
-            error_report("%s: Migration disabled", vdev->vbasedev.name);
+            error_report("%s: Migration disabled", vbasedev->name);
         }
     }
 
@@ -3163,7 +3164,7 @@ out_teardown:
     vfio_teardown_msi(vdev);
     vfio_bars_exit(vdev);
 error:
-    error_prepend(errp, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+    error_prepend(errp, VFIO_MSG_PREFIX, vbasedev->name);
 }
 
 static void vfio_instance_finalize(Object *obj)
