@@ -13,6 +13,7 @@
 #define ASPEED_SOC_H
 
 #include "hw/cpu/a15mpcore.h"
+#include "hw/arm/armv7m.h"
 #include "hw/intc/aspeed_vic.h"
 #include "hw/misc/aspeed_scu.h"
 #include "hw/adc/aspeed_adc.h"
@@ -47,6 +48,7 @@ struct AspeedSoCState {
     /*< public >*/
     ARMCPU cpu[ASPEED_CPUS_NUM];
     A15MPPrivState     a7mpcore;
+    ARMv7MState        armv7m;
     MemoryRegion *dram_mr;
     MemoryRegion sram;
     AspeedVICState vic;
@@ -72,6 +74,7 @@ struct AspeedSoCState {
     AspeedSDHCIState emmc;
     AspeedLPCState lpc;
     uint32_t uart_default;
+    Clock *sysclk;
 };
 
 #define TYPE_ASPEED_SOC "aspeed-soc"
