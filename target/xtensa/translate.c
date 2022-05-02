@@ -1766,6 +1766,12 @@ static void translate_ldst(DisasContext *dc, const OpcodeArg arg[],
     tcg_temp_free(addr);
 }
 
+static void translate_lct(DisasContext *dc, const OpcodeArg arg[],
+                          const uint32_t par[])
+{
+    tcg_gen_movi_i32(arg[0].out, 0);
+}
+
 static void translate_l32r(DisasContext *dc, const OpcodeArg arg[],
                            const uint32_t par[])
 {
@@ -3320,6 +3326,14 @@ static const XtensaOpcodeOps core_ops[] = {
         .par = (const uint32_t[]){MO_UB, false, false},
         .op_flags = XTENSA_OP_LOAD,
     }, {
+        .name = "ldct",
+        .translate = translate_lct,
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "ldcw",
+        .translate = translate_nop,
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
         .name = "lddec",
         .translate = translate_mac16,
         .par = (const uint32_t[]){MAC16_NONE, 0, -4},
@@ -3332,6 +3346,14 @@ static const XtensaOpcodeOps core_ops[] = {
     }, {
         .name = "ldpte",
         .op_flags = XTENSA_OP_ILL,
+    }, {
+        .name = "lict",
+        .translate = translate_lct,
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "licw",
+        .translate = translate_nop,
+        .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
         .name = (const char * const[]) {
             "loop", "loop.w15", NULL,
@@ -4636,11 +4658,27 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_salt,
         .par = (const uint32_t[]){TCG_COND_LTU},
     }, {
+        .name = "sdct",
+        .translate = translate_nop,
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "sdcw",
+        .translate = translate_nop,
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
         .name = "setb_expstate",
         .translate = translate_setb_expstate,
     }, {
         .name = "sext",
         .translate = translate_sext,
+    }, {
+        .name = "sict",
+        .translate = translate_nop,
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "sicw",
+        .translate = translate_nop,
+        .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
         .name = "simcall",
         .translate = translate_simcall,
