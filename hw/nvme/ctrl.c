@@ -850,10 +850,6 @@ static uint16_t nvme_map_sgl_data(NvmeCtrl *n, NvmeSg *sg,
         uint8_t type = NVME_SGL_TYPE(segment[i].type);
 
         switch (type) {
-        case NVME_SGL_DESCR_TYPE_BIT_BUCKET:
-            if (cmd->opcode == NVME_CMD_WRITE) {
-                continue;
-            }
         case NVME_SGL_DESCR_TYPE_DATA_BLOCK:
             break;
         case NVME_SGL_DESCR_TYPE_SEGMENT:
@@ -886,10 +882,6 @@ static uint16_t nvme_map_sgl_data(NvmeCtrl *n, NvmeSg *sg,
 
         trans_len = MIN(*len, dlen);
 
-        if (type == NVME_SGL_DESCR_TYPE_BIT_BUCKET) {
-            goto next;
-        }
-
         addr = le64_to_cpu(segment[i].addr);
 
         if (UINT64_MAX - addr < dlen) {
@@ -901,7 +893,6 @@ static uint16_t nvme_map_sgl_data(NvmeCtrl *n, NvmeSg *sg,
             return status;
         }
 
-next:
         *len -= trans_len;
     }
 
@@ -959,8 +950,7 @@ static uint16_t nvme_map_sgl(NvmeCtrl *n, NvmeSg *sg, NvmeSglDescriptor sgl,
         seg_len = le32_to_cpu(sgld->len);
 
         /* check the length of the (Last) Segment descriptor */
-        if ((!seg_len || seg_len & 0xf) &&
-            (NVME_SGL_TYPE(sgld->type) != NVME_SGL_DESCR_TYPE_BIT_BUCKET)) {
+        if (!seg_len || seg_len & 0xf) {
             return NVME_INVALID_SGL_SEG_DESCR | NVME_DNR;
         }
 
@@ -998,26 +988,20 @@ static uint16_t nvme_map_sgl(NvmeCtrl *n, NvmeSg *sg, NvmeSglDescriptor sgl,
         last_sgld = &segment[nsgld - 1];
 
         /*
-         * If the segment ends with a Data Block or Bit Bucket Descriptor Type,
-         * then we are done.
+         * If the segment ends with a Data Block, then we are done.
          */
-        switch (NVME_SGL_TYPE(last_sgld->type)) {
-        case NVME_SGL_DESCR_TYPE_DATA_BLOCK:
-        case NVME_SGL_DESCR_TYPE_BIT_BUCKET:
+        if (NVME_SGL_TYPE(last_sgld->type) == NVME_SGL_DESCR_TYPE_DATA_BLOCK) {
             status = nvme_map_sgl_data(n, sg, segment, nsgld, &len, cmd);
             if (status) {
                 goto unmap;
             }
 
             goto out;
-
-        default:
-            break;
         }
 
         /*
-         * If the last descriptor was not a Data Block or Bit Bucket, then the
-         * current segment must not be a Last Segment.
+         * If the last descriptor was not a Data Block, then the current
+         * segment must not be a Last Segment.
          */
         if (NVME_SGL_TYPE(sgld->type) == NVME_SGL_DESCR_TYPE_LAST_SEGMENT) {
             status = NVME_INVALID_SGL_SEG_DESCR | NVME_DNR;
@@ -7286,8 +7270,7 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     id->vwc = NVME_VWC_NSID_BROADCAST_SUPPORT | NVME_VWC_PRESENT;
 
     id->ocfs = cpu_to_le16(NVME_OCFS_COPY_FORMAT_0 | NVME_OCFS_COPY_FORMAT_1);
-    id->sgls = cpu_to_le32(NVME_CTRL_SGLS_SUPPORT_NO_ALIGN |
-                           NVME_CTRL_SGLS_BITBUCKET);
+    id->sgls = cpu_to_le32(NVME_CTRL_SGLS_SUPPORT_NO_ALIGN);
 
     nvme_init_subnqn(n);
 
