@@ -71,6 +71,10 @@ enum {
     OR1KSIM_ETHOC_IRQ = 4,
 };
 
+enum {
+    OR1KSIM_UART_COUNT = 4
+};
+
 static const struct MemmapEntry {
     hwaddr base;
     hwaddr size;
@@ -239,11 +243,13 @@ static void openrisc_sim_ompic_init(Or1ksimState *state, hwaddr base,
 
 static void openrisc_sim_serial_init(Or1ksimState *state, hwaddr base,
                                      hwaddr size, int num_cpus,
-                                     OpenRISCCPU *cpus[], int irq_pin)
+                                     OpenRISCCPU *cpus[], int irq_pin,
+                                     int uart_idx)
 {
     void *fdt = state->fdt;
     char *nodename;
     qemu_irq serial_irq;
+    char alias[sizeof("uart0")];
     int i;
 
     if (num_cpus > 1) {
@@ -258,7 +264,8 @@ static void openrisc_sim_serial_init(Or1ksimState *state, hwaddr base,
         serial_irq = get_cpu_irq(cpus, 0, irq_pin);
     }
     serial_mm_init(get_system_memory(), base, 0, serial_irq, 115200,
-                   serial_hd(0), DEVICE_NATIVE_ENDIAN);
+                   serial_hd(OR1KSIM_UART_COUNT - uart_idx - 1),
+                   DEVICE_NATIVE_ENDIAN);
 
     /* Add device tree node for serial. */
     nodename = g_strdup_printf("/serial@%" HWADDR_PRIx, base);
@@ -271,7 +278,8 @@ static void openrisc_sim_serial_init(Or1ksimState *state, hwaddr base,
 
     /* The /chosen node is created during fdt creation. */
     qemu_fdt_setprop_string(fdt, "/chosen", "stdout-path", nodename);
-    qemu_fdt_setprop_string(fdt, "/aliases", "uart0", nodename);
+    snprintf(alias, sizeof(alias), "uart%d", uart_idx);
+    qemu_fdt_setprop_string(fdt, "/aliases", alias, nodename);
     g_free(nodename);
 }
 
@@ -414,9 +422,11 @@ static void openrisc_sim_init(MachineState *machine)
                                 smp_cpus, cpus, OR1KSIM_OMPIC_IRQ);
     }
 
-    openrisc_sim_serial_init(state, or1ksim_memmap[OR1KSIM_UART].base,
-                             or1ksim_memmap[OR1KSIM_UART].size, smp_cpus, cpus,
-                             OR1KSIM_UART_IRQ);
+    for (n = 0; n < OR1KSIM_UART_COUNT; ++n)
+        openrisc_sim_serial_init(state, or1ksim_memmap[OR1KSIM_UART].base +
+                                        or1ksim_memmap[OR1KSIM_UART].size * n,
+                                 or1ksim_memmap[OR1KSIM_UART].size,
+                                 smp_cpus, cpus, OR1KSIM_UART_IRQ, n);
 
     load_addr = openrisc_load_kernel(ram_size, kernel_filename);
     if (load_addr > 0) {
