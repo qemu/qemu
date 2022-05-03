@@ -603,11 +603,6 @@ static bool trans_msa_elm_fn(DisasContext *ctx, arg_msa_elm_df *a,
         return true;
     }
 
-    if (a->wd == 0) {
-        /* Treat as NOP. */
-        return true;
-    }
-
     gen_msa_elm[a->df](cpu_env,
                        tcg_constant_i32(a->wd),
                        tcg_constant_i32(a->ws),
@@ -624,6 +619,11 @@ static bool trans_msa_elm_fn(DisasContext *ctx, arg_msa_elm_df *a,
 
 static bool trans_COPY_U(DisasContext *ctx, arg_msa_elm_df *a)
 {
+    if (a->wd == 0) {
+        /* Treat as NOP. */
+        return true;
+    }
+
     static gen_helper_piii * const gen_msa_copy_u[4] = {
         gen_helper_msa_copy_u_b, gen_helper_msa_copy_u_h,
         NULL_IF_MIPS32(gen_helper_msa_copy_u_w), NULL
@@ -634,6 +634,11 @@ static bool trans_COPY_U(DisasContext *ctx, arg_msa_elm_df *a)
 
 static bool trans_COPY_S(DisasContext *ctx, arg_msa_elm_df *a)
 {
+    if (a->wd == 0) {
+        /* Treat as NOP. */
+        return true;
+    }
+
     static gen_helper_piii * const gen_msa_copy_s[4] = {
         gen_helper_msa_copy_s_b, gen_helper_msa_copy_s_h,
         gen_helper_msa_copy_s_w, NULL_IF_MIPS32(gen_helper_msa_copy_s_d)
