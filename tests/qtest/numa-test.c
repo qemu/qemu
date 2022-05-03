@@ -224,17 +224,17 @@ static void aarch64_numa_cpu(const void *data)
     g_autofree char *cli = NULL;
 
     cli = make_cli(data, "-machine "
-        "smp.cpus=2,smp.sockets=1,smp.clusters=1,smp.cores=1,smp.threads=2 "
+        "smp.cpus=2,smp.sockets=2,smp.clusters=1,smp.cores=1,smp.threads=1 "
         "-numa node,nodeid=0,memdev=ram -numa node,nodeid=1 "
-        "-numa cpu,node-id=1,thread-id=0 "
-        "-numa cpu,node-id=0,thread-id=1");
+        "-numa cpu,node-id=0,socket-id=1,cluster-id=0,core-id=0,thread-id=0 "
+        "-numa cpu,node-id=1,socket-id=0,cluster-id=0,core-id=0,thread-id=0");
     qts = qtest_init(cli);
     cpus = get_cpus(qts, &resp);
     g_assert(cpus);
 
     while ((e = qlist_pop(cpus))) {
         QDict *cpu, *props;
-        int64_t thread, node;
+        int64_t socket, cluster, core, thread, node;
 
         cpu = qobject_to(QDict, e);
         g_assert(qdict_haskey(cpu, "props"));
@@ -242,12 +242,18 @@ static void aarch64_numa_cpu(const void *data)
 
         g_assert(qdict_haskey(props, "node-id"));
         node = qdict_get_int(props, "node-id");
+        g_assert(qdict_haskey(props, "socket-id"));
+        socket = qdict_get_int(props, "socket-id");
+        g_assert(qdict_haskey(props, "cluster-id"));
+        cluster = qdict_get_int(props, "cluster-id");
+        g_assert(qdict_haskey(props, "core-id"));
+        core = qdict_get_int(props, "core-id");
         g_assert(qdict_haskey(props, "thread-id"));
         thread = qdict_get_int(props, "thread-id");
 
-        if (thread == 0) {
+        if (socket == 0 && cluster == 0 && core == 0 && thread == 0) {
             g_assert_cmpint(node, ==, 1);
-        } else if (thread == 1) {
+        } else if (socket == 1 && cluster == 0 && core == 0 && thread == 0) {
             g_assert_cmpint(node, ==, 0);
         } else {
             g_assert(false);
