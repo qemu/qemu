@@ -182,8 +182,8 @@ static int get_open_flags(target_ulong target_flags)
     return open_flags;
 }
 
-static int write_to_file(CPUMIPSState *env, target_ulong fd, target_ulong vaddr,
-                         target_ulong len, target_ulong offset)
+static int write_to_file(CPUMIPSState *env, target_ulong fd,
+                         target_ulong vaddr, target_ulong len)
 {
     int num_of_bytes;
     void *dst = lock_user(VERIFY_READ, vaddr, len, 1);
@@ -192,23 +192,14 @@ static int write_to_file(CPUMIPSState *env, target_ulong fd, target_ulong vaddr,
         return -1;
     }
 
-    if (offset) {
-#ifdef _WIN32
-        num_of_bytes = 0;
-#else
-        num_of_bytes = pwrite(fd, dst, len, offset);
-#endif
-    } else {
-        num_of_bytes = write(fd, dst, len);
-    }
+    num_of_bytes = write(fd, dst, len);
 
     unlock_user(dst, vaddr, 0);
     return num_of_bytes;
 }
 
 static int read_from_file(CPUMIPSState *env, target_ulong fd,
-                          target_ulong vaddr, target_ulong len,
-                          target_ulong offset)
+                          target_ulong vaddr, target_ulong len)
 {
     int num_of_bytes;
     void *dst = lock_user(VERIFY_WRITE, vaddr, len, 0);
@@ -217,15 +208,7 @@ static int read_from_file(CPUMIPSState *env, target_ulong fd,
         return -1;
     }
 
-    if (offset) {
-#ifdef _WIN32
-        num_of_bytes = 0;
-#else
-        num_of_bytes = pread(fd, dst, len, offset);
-#endif
-    } else {
-        num_of_bytes = read(fd, dst, len);
-    }
+    num_of_bytes = read(fd, dst, len);
 
     unlock_user(dst, vaddr, len);
     return num_of_bytes;
@@ -312,11 +295,11 @@ void mips_semihosting(CPUMIPSState *env)
         gpr[3] = errno_mips(errno);
         break;
     case UHI_read:
-        gpr[2] = read_from_file(env, gpr[4], gpr[5], gpr[6], 0);
+        gpr[2] = read_from_file(env, gpr[4], gpr[5], gpr[6]);
         gpr[3] = errno_mips(errno);
         break;
     case UHI_write:
-        gpr[2] = write_to_file(env, gpr[4], gpr[5], gpr[6], 0);
+        gpr[2] = write_to_file(env, gpr[4], gpr[5], gpr[6]);
         gpr[3] = errno_mips(errno);
         break;
     case UHI_lseek:
@@ -381,14 +364,6 @@ void mips_semihosting(CPUMIPSState *env)
         FREE_TARGET_STRING(p2, gpr[5]);
         FREE_TARGET_STRING(p, gpr[4]);
         abort();
-        break;
-    case UHI_pread:
-        gpr[2] = read_from_file(env, gpr[4], gpr[5], gpr[6], gpr[7]);
-        gpr[3] = errno_mips(errno);
-        break;
-    case UHI_pwrite:
-        gpr[2] = write_to_file(env, gpr[4], gpr[5], gpr[6], gpr[7]);
-        gpr[3] = errno_mips(errno);
         break;
 #ifndef _WIN32
     case UHI_link:
