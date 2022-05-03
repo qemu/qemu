@@ -82,7 +82,7 @@ static const struct MemmapEntry {
     [OR1KSIM_DRAM] =      { 0x00000000,          0 },
     [OR1KSIM_UART] =      { 0x90000000,      0x100 },
     [OR1KSIM_ETHOC] =     { 0x92000000,      0x800 },
-    [OR1KSIM_OMPIC] =     { 0x98000000,         16 },
+    [OR1KSIM_OMPIC] =     { 0x98000000, OR1KSIM_CPUS_MAX * 8 },
 };
 
 static struct openrisc_boot_info {
@@ -418,7 +418,7 @@ static void openrisc_sim_init(MachineState *machine)
 
     if (smp_cpus > 1) {
         openrisc_sim_ompic_init(state, or1ksim_memmap[OR1KSIM_OMPIC].base,
-                                or1ksim_memmap[OR1KSIM_UART].size,
+                                or1ksim_memmap[OR1KSIM_OMPIC].size,
                                 smp_cpus, cpus, OR1KSIM_OMPIC_IRQ);
     }
 
