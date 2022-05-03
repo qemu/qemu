@@ -312,7 +312,7 @@ static void aspeed_gpio_set_pin_level(AspeedGPIOState *s, uint32_t set_idx,
     if (level) {
         value |= pin_mask;
     } else {
-        value &= !pin_mask;
+        value &= ~pin_mask;
     }
 
     aspeed_gpio_update(s, &s->sets[set_idx], value);

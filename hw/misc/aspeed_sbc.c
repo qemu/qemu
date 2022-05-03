@@ -17,6 +17,7 @@
 
 #define R_PROT          (0x000 / 4)
 #define R_STATUS        (0x014 / 4)
+#define R_QSR           (0x040 / 4)
 
 static uint64_t aspeed_sbc_read(void *opaque, hwaddr addr, unsigned int size)
 {
@@ -50,6 +51,7 @@ static void aspeed_sbc_write(void *opaque, hwaddr addr, uint64_t data,
 
     switch (addr) {
     case R_STATUS:
+    case R_QSR:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: write to read only register 0x%" HWADDR_PRIx "\n",
                       __func__, addr << 2);
@@ -77,8 +79,9 @@ static void aspeed_sbc_reset(DeviceState *dev)
 
     memset(s->regs, 0, sizeof(s->regs));
 
-    /* Set secure boot enabled, and boot from emmc/spi */
-    s->regs[R_STATUS] = 1 << 6 | 1 << 5;
+    /* Set secure boot enabled with RSA4096_SHA256 and enable eMMC ABR */
+    s->regs[R_STATUS] = 0x000044C6;
+    s->regs[R_QSR] = 0x07C07C89;
 }
 
 static void aspeed_sbc_realize(DeviceState *dev, Error **errp)

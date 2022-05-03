@@ -48,6 +48,7 @@ static const hwaddr aspeed_soc_ast2600_memmap[] = {
     [ASPEED_DEV_ADC]       = 0x1E6E9000,
     [ASPEED_DEV_DP]        = 0x1E6EB000,
     [ASPEED_DEV_SBC]       = 0x1E6F2000,
+    [ASPEED_DEV_EMMC_BC]   = 0x1E6f5000,
     [ASPEED_DEV_VIDEO]     = 0x1E700000,
     [ASPEED_DEV_SDHCI]     = 0x1E740000,
     [ASPEED_DEV_EMMC]      = 0x1E750000,
@@ -255,6 +256,11 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
 
     /* Video engine stub */
     create_unimplemented_device("aspeed.video", sc->memmap[ASPEED_DEV_VIDEO],
+                                0x1000);
+
+    /* eMMC Boot Controller stub */
+    create_unimplemented_device("aspeed.emmc-boot-controller",
+                                sc->memmap[ASPEED_DEV_EMMC_BC],
                                 0x1000);
 
     /* CPU */
