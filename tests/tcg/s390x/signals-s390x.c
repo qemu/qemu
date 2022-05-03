@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <execinfo.h>
 #include <signal.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -11,22 +12,28 @@
  * inline asm is used instead.
  */
 
+#define DEFINE_ASM_FUNCTION(name, body) \
+    asm(".globl " #name "\n" \
+        #name ":\n" \
+        ".cfi_startproc\n" \
+        body "\n" \
+        "br %r14\n" \
+        ".cfi_endproc");
+
 void illegal_op(void);
-void after_illegal_op(void);
-asm(".globl\tillegal_op\n"
-    "illegal_op:\t.byte\t0x00,0x00\n"
-    "\t.globl\tafter_illegal_op\n"
-    "after_illegal_op:\tbr\t%r14");
+extern const char after_illegal_op;
+DEFINE_ASM_FUNCTION(illegal_op,
+    ".byte 0x00,0x00\n"
+    ".globl after_illegal_op\n"
+    "after_illegal_op:")
 
 void stg(void *dst, unsigned long src);
-asm(".globl\tstg\n"
-    "stg:\tstg\t%r3,0(%r2)\n"
-    "\tbr\t%r14");
+DEFINE_ASM_FUNCTION(stg, "stg %r3,0(%r2)")
 
 void mvc_8(void *dst, void *src);
-asm(".globl\tmvc_8\n"
-    "mvc_8:\tmvc\t0(8,%r2),0(%r3)\n"
-    "\tbr\t%r14");
+DEFINE_ASM_FUNCTION(mvc_8, "mvc 0(8,%r2),0(%r3)")
+
+extern const char return_from_main_1;
 
 static void safe_puts(const char *s)
 {
@@ -49,8 +56,9 @@ static struct {
 
 static void handle_signal(int sig, siginfo_t *info, void *ucontext)
 {
+    int err, i, n_frames;
+    void *frames[16];
     void *page;
-    int err;
 
     if (sig != expected.sig) {
         safe_puts("[  FAILED  ] wrong signal");
@@ -85,6 +93,17 @@ static void handle_signal(int sig, siginfo_t *info, void *ucontext)
         break;
     default:
         break;
+    }
+
+    n_frames = backtrace(frames, sizeof(frames) / sizeof(frames[0]));
+    for (i = 0; i < n_frames; i++) {
+        if (frames[i] == &return_from_main_1) {
+            break;
+        }
+    }
+    if (i == n_frames) {
+        safe_puts("[  FAILED  ] backtrace() is broken");
+        _exit(1);
     }
 }
 
@@ -122,7 +141,7 @@ static void check_sigsegv(void *func, enum exception exception,
     assert(err == 0);
 }
 
-int main(void)
+int main_1(void)
 {
     struct sigaction act;
     int err;
@@ -138,7 +157,7 @@ int main(void)
     safe_puts("[ RUN      ] Operation exception");
     expected.sig = SIGILL;
     expected.addr = illegal_op;
-    expected.psw_addr = (unsigned long)after_illegal_op;
+    expected.psw_addr = (unsigned long)&after_illegal_op;
     expected.exception = exception_operation;
     illegal_op();
     safe_puts("[       OK ]");
@@ -163,3 +182,25 @@ int main(void)
 
     _exit(0);
 }
+
+/*
+ * Define main() in assembly in order to test that unwinding from signal
+ * handlers until main() works. This way we can define a specific point that
+ * the unwinder should reach. This is also better than defining main() in C
+ * and using inline assembly to call main_1(), since it's not easy to get all
+ * the clobbers right.
+ */
+
+DEFINE_ASM_FUNCTION(main,
+    "stmg %r14,%r15,112(%r15)\n"
+    ".cfi_offset 14,-48\n"
+    ".cfi_offset 15,-40\n"
+    "lay %r15,-160(%r15)\n"
+    ".cfi_def_cfa_offset 320\n"
+    "brasl %r14,main_1\n"
+    ".globl return_from_main_1\n"
+    "return_from_main_1:\n"
+    "lmg %r14,%r15,272(%r15)\n"
+    ".cfi_restore 15\n"
+    ".cfi_restore 14\n"
+    ".cfi_def_cfa_offset 160");
