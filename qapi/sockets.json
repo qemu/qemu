@@ -189,7 +189,7 @@
 # Captures the address of a socket, which could also be a named file
 # descriptor
 #
-# @type:       Transport type
+# @type: Transport type
 #
 # Since: 2.9
 ##

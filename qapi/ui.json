@@ -1260,7 +1260,7 @@
 #
 # Curses display options.
 #
-# @charset:       Font charset used by guest (default: CP437).
+# @charset: Font charset used by guest (default: CP437).
 #
 # Since: 4.0
 ##

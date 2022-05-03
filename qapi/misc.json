@@ -136,7 +136,7 @@
 #
 # Stop all guest VCPU execution.
 #
-# Since:  0.14
+# Since: 0.14
 #
 # Notes: This function will succeed even if the guest is already in the stopped
 #        state.  In "inmigrate" state, it will ensure that the guest
@@ -156,9 +156,9 @@
 #
 # Resume guest VCPU execution.
 #
-# Since:  0.14
+# Since: 0.14
 #
-# Returns:  If successful, nothing
+# Returns: If successful, nothing
 #
 # Notes: This command will succeed if the guest is currently running.  It
 #        will also succeed if the guest is in the "inmigrate" state; in

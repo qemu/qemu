@@ -104,7 +104,7 @@
 #
 # @status: the virtual machine @RunState
 #
-# Since:  0.14
+# Since: 0.14
 #
 # Notes: @singlestep is enabled through the GDB stub
 ##
@@ -118,7 +118,7 @@
 #
 # Returns: @StatusInfo reflecting all VCPUs
 #
-# Since:  0.14
+# Since: 0.14
 #
 # Example:
 #

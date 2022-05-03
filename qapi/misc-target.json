@@ -136,9 +136,9 @@
 # The struct describes capability for a Secure Encrypted Virtualization
 # feature.
 #
-# @pdh:  Platform Diffie-Hellman key (base64 encoded)
+# @pdh: Platform Diffie-Hellman key (base64 encoded)
 #
-# @cert-chain:  PDH certificate chain (base64 encoded)
+# @cert-chain: PDH certificate chain (base64 encoded)
 #
 # @cpu0-id: Unique ID of CPU0 (base64 encoded) (since 7.1)
 #
@@ -201,7 +201,7 @@
 # The struct describes attestation report for a Secure Encrypted
 # Virtualization feature.
 #
-# @data:  guest attestation report (base64 encoded)
+# @data: guest attestation report (base64 encoded)
 #
 # Since: 6.1
 ##

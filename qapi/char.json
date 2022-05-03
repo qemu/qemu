@@ -216,7 +216,7 @@
 #
 # Configuration info for file chardevs.
 #
-# @in:  The name of the input file
+# @in: The name of the input file
 # @out: The name of the output file
 # @append: Open the file in append mode (default false to
 #          truncate) (Since 2.6)
