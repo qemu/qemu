@@ -716,7 +716,7 @@ int net_init_l2tpv3(const Netdev *netdev,
     s->vec = g_new(struct iovec, MAX_L2TPV3_IOVCNT);
     s->header_buf = g_malloc(s->header_size);
 
-    qemu_set_nonblock(fd);
+    qemu_socket_set_nonblock(fd);
 
     s->fd = fd;
     s->counter = 0;

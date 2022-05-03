@@ -19,6 +19,7 @@
 
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qdict.h"
+#include "libqmp.h"
 
 typedef struct QTestState QTestState;
 
@@ -690,16 +691,6 @@ void qtest_remove_abrt_handler(void *data);
 void qtest_qmp_assert_success(QTestState *qts, const char *fmt, ...)
     G_GNUC_PRINTF(2, 3);
 
-QDict *qmp_fd_receive(int fd);
-void qmp_fd_vsend_fds(int fd, int *fds, size_t fds_num,
-                      const char *fmt, va_list ap) G_GNUC_PRINTF(4, 0);
-void qmp_fd_vsend(int fd, const char *fmt, va_list ap) G_GNUC_PRINTF(2, 0);
-void qmp_fd_send(int fd, const char *fmt, ...) G_GNUC_PRINTF(2, 3);
-void qmp_fd_send_raw(int fd, const char *fmt, ...) G_GNUC_PRINTF(2, 3);
-void qmp_fd_vsend_raw(int fd, const char *fmt, va_list ap) G_GNUC_PRINTF(2, 0);
-QDict *qmp_fdv(int fd, const char *fmt, va_list ap) G_GNUC_PRINTF(2, 0);
-QDict *qmp_fd(int fd, const char *fmt, ...) G_GNUC_PRINTF(2, 3);
-
 /**
  * qtest_cb_for_every_machine:
  * @cb: Pointer to the callback function
@@ -770,24 +761,6 @@ void qtest_qmp_add_client(QTestState *qts, const char *protocol, int fd);
  * Generic hot-unplugging test via the device_del QMP command.
  */
 void qtest_qmp_device_del(QTestState *qts, const char *id);
-
-/**
- * qmp_rsp_is_err:
- * @rsp: QMP response to check for error
- *
- * Test @rsp for error and discard @rsp.
- * Returns 'true' if there is error in @rsp and 'false' otherwise.
- */
-bool qmp_rsp_is_err(QDict *rsp);
-
-/**
- * qmp_expect_error_and_unref:
- * @rsp: QMP response to check for error
- * @class: an error class
- *
- * Assert the response has the given error class and discard @rsp.
- */
-void qmp_expect_error_and_unref(QDict *rsp, const char *class);
 
 /**
  * qtest_probe_child:

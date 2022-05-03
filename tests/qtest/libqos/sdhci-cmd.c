@@ -16,7 +16,7 @@
 
 #include "qemu/osdep.h"
 #include "sdhci-cmd.h"
-#include "libqtest.h"
+#include "../libqtest.h"
 
 static ssize_t read_fifo(QTestState *qts, uint64_t reg, char *msg, size_t count)
 {

@@ -65,7 +65,7 @@ static void vmsg_unblock_fds(VhostUserMsg *vmsg)
 {
     int i;
     for (i = 0; i < vmsg->fd_num; i++) {
-        qemu_set_nonblock(vmsg->fds[i]);
+        qemu_socket_set_nonblock(vmsg->fds[i]);
     }
 }
 
@@ -270,7 +270,7 @@ set_watch(VuDev *vu_dev, int fd, int vu_evt,
 
         vu_fd_watch->fd = fd;
         vu_fd_watch->cb = cb;
-        qemu_set_nonblock(fd);
+        qemu_socket_set_nonblock(fd);
         aio_set_fd_handler(server->ioc->ctx, fd, true, kick_handler,
                            NULL, NULL, NULL, vu_fd_watch);
         vu_fd_watch->vu_dev = vu_dev;

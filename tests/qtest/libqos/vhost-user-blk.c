@@ -21,7 +21,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
+#include "../libqtest.h"
 #include "qemu/module.h"
 #include "standard-headers/linux/virtio_blk.h"
 #include "vhost-user-blk.h"

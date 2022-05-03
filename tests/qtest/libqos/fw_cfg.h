@@ -13,7 +13,7 @@
 #ifndef LIBQOS_FW_CFG_H
 #define LIBQOS_FW_CFG_H
 
-#include "libqtest.h"
+#include "../libqtest.h"
 
 typedef struct QFWCFG QFWCFG;
 

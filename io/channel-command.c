@@ -26,8 +26,28 @@
 #include "qemu/sockets.h"
 #include "trace.h"
 
-
-QIOChannelCommand *
+#ifndef WIN32
+/**
+ * qio_channel_command_new_pid:
+ * @writefd: the FD connected to the command's stdin
+ * @readfd: the FD connected to the command's stdout
+ * @pid: the PID of the running child command
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Create a channel for performing I/O with the
+ * previously spawned command identified by @pid.
+ * The two file descriptors provide the connection
+ * to command's stdio streams, either one or which
+ * may be -1 to indicate that stream is not open.
+ *
+ * The channel will take ownership of the process
+ * @pid and will kill it when closing the channel.
+ * Similarly it will take responsibility for
+ * closing the file descriptors @writefd and @readfd.
+ *
+ * Returns: the command channel object, or NULL on error
+ */
+static QIOChannelCommand *
 qio_channel_command_new_pid(int writefd,
                             int readfd,
                             pid_t pid)
@@ -44,8 +64,6 @@ qio_channel_command_new_pid(int writefd,
     return ioc;
 }
 
-
-#ifndef WIN32
 QIOChannelCommand *
 qio_channel_command_new_spawn(const char *const argv[],
                               int flags,
@@ -76,8 +94,8 @@ qio_channel_command_new_spawn(const char *const argv[],
         }
     }
 
-    if ((!stdinnull && pipe(stdinfd) < 0) ||
-        (!stdoutnull && pipe(stdoutfd) < 0)) {
+    if ((!stdinnull && !g_unix_open_pipe(stdinfd, FD_CLOEXEC, NULL)) ||
+        (!stdoutnull && !g_unix_open_pipe(stdoutfd, FD_CLOEXEC, NULL))) {
         error_setg_errno(errp, errno,
                          "Unable to open pipe");
         goto error;
@@ -283,16 +301,18 @@ static int qio_channel_command_set_blocking(QIOChannel *ioc,
                                             bool enabled,
                                             Error **errp)
 {
+#ifdef WIN32
+    /* command spawn is not supported on win32 */
+    g_assert_not_reached();
+#else
     QIOChannelCommand *cioc = QIO_CHANNEL_COMMAND(ioc);
 
-    if (enabled) {
-        qemu_set_block(cioc->writefd);
-        qemu_set_block(cioc->readfd);
-    } else {
-        qemu_set_nonblock(cioc->writefd);
-        qemu_set_nonblock(cioc->readfd);
+    if (!g_unix_set_fd_nonblocking(cioc->writefd, !enabled, NULL) ||
+        !g_unix_set_fd_nonblocking(cioc->readfd, !enabled, NULL)) {
+        error_setg_errno(errp, errno, "Failed to set FD nonblocking");
+        return -1;
     }
-
+#endif
     return 0;
 }
 

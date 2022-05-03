@@ -271,7 +271,10 @@ static void qmp_chardev_open_serial(Chardev *chr,
     if (fd < 0) {
         return;
     }
-    qemu_set_nonblock(fd);
+    if (!g_unix_set_fd_nonblocking(fd, true, NULL)) {
+        error_setg_errno(errp, errno, "Failed to set FD nonblocking");
+        return;
+    }
     tty_serial_init(fd, 115200, 'N', 8, 1);
 
     qemu_chr_open_fd(chr, fd, fd);

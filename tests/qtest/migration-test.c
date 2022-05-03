@@ -12,7 +12,7 @@
 
 #include "qemu/osdep.h"
 
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/module.h"

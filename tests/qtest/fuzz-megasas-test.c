@@ -9,7 +9,7 @@
 
 #include "qemu/osdep.h"
 
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 
 /*
  * This used to trigger the assert in scsi_dma_complete

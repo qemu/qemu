@@ -12,7 +12,7 @@
 #ifndef MIGRATION_HELPERS_H_
 #define MIGRATION_HELPERS_H_
 
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 
 extern bool got_stop;
 

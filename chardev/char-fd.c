@@ -212,8 +212,8 @@ void qemu_chr_open_fd(Chardev *chr,
     FDChardev *s = FD_CHARDEV(chr);
     g_autofree char *name = NULL;
 
-    if (fd_out >= 0) {
-        qemu_set_nonblock(fd_out);
+    if (fd_out >= 0 && !g_unix_set_fd_nonblocking(fd_out, true, NULL)) {
+        assert(!"Failed to set FD nonblocking");
     }
 
     if (fd_out == fd_in && fd_in >= 0) {

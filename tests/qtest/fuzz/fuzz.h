@@ -17,7 +17,7 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 
-#include "tests/qtest/libqos/libqtest.h"
+#include "tests/qtest/libqtest.h"
 
 /**
  * A libfuzzer fuzzing target

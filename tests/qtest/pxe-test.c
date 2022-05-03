@@ -14,7 +14,7 @@
 
 #include "qemu/osdep.h"
 #include <glib/gstdio.h>
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 #include "boot-sector.h"
 #include "libqos/libqos-spapr.h"
 

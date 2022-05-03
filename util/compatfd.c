@@ -60,13 +60,10 @@ static int qemu_signalfd_compat(const sigset_t *mask)
 
     info = g_malloc(sizeof(*info));
 
-    if (pipe(fds) == -1) {
+    if (!g_unix_open_pipe(fds, FD_CLOEXEC, NULL)) {
         g_free(info);
         return -1;
     }
-
-    qemu_set_cloexec(fds[0]);
-    qemu_set_cloexec(fds[1]);
 
     memcpy(&info->mask, mask, sizeof(*mask));
     info->fd = fds[1];

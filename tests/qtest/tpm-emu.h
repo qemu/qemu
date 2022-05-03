@@ -22,7 +22,7 @@
 #include "qemu/sockets.h"
 #include "io/channel.h"
 #include "sysemu/tpm.h"
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 
 struct tpm_hdr {
     uint16_t tag;

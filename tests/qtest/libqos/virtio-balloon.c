@@ -17,7 +17,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
+#include "../libqtest.h"
 #include "qemu/module.h"
 #include "qgraph.h"
 #include "virtio-balloon.h"

@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 
-#include "libqtest.h"
+#include "../libqtest.h"
 #include "ahci.h"
 #include "pci-pc.h"
 

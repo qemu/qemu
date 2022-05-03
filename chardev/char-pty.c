@@ -324,7 +324,10 @@ static void char_pty_open(Chardev *chr,
     }
 
     close(slave_fd);
-    qemu_set_nonblock(master_fd);
+    if (!g_unix_set_fd_nonblocking(master_fd, true, NULL)) {
+        error_setg_errno(errp, errno, "Failed to set FD nonblocking");
+        return;
+    }
 
     chr->filename = g_strdup_printf("pty:%s", pty_name);
     qemu_printf("char device redirected to %s (label %s)\n",

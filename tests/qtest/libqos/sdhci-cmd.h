@@ -14,7 +14,7 @@
  * for more details.
  */
 
-#include "libqtest.h"
+#include "../libqtest.h"
 
 /* more details at hw/sd/sdhci-internal.h */
 #define SDHC_BLKSIZE 0x04

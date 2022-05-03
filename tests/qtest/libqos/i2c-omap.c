@@ -11,7 +11,7 @@
 
 
 #include "qemu/bswap.h"
-#include "libqtest.h"
+#include "../libqtest.h"
 
 enum OMAPI2CRegisters {
     OMAP_I2C_REV  = 0x00,

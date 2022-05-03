@@ -36,7 +36,7 @@ def c_header(owner):
 
 #include "qemu/osdep.h"
 
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 
     """.format(date=date.today().year, owner=owner)
 

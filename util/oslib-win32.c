@@ -184,14 +184,14 @@ static int socket_error(void)
     }
 }
 
-void qemu_set_block(int fd)
+void qemu_socket_set_block(int fd)
 {
     unsigned long opt = 0;
     WSAEventSelect(fd, NULL, 0);
     ioctlsocket(fd, FIONBIO, &opt);
 }
 
-int qemu_try_set_nonblock(int fd)
+int qemu_socket_try_set_nonblock(int fd)
 {
     unsigned long opt = 1;
     if (ioctlsocket(fd, FIONBIO, &opt) != NO_ERROR) {
@@ -200,9 +200,9 @@ int qemu_try_set_nonblock(int fd)
     return 0;
 }
 
-void qemu_set_nonblock(int fd)
+void qemu_socket_set_nonblock(int fd)
 {
-    (void)qemu_try_set_nonblock(fd);
+    (void)qemu_socket_try_set_nonblock(fd);
 }
 
 int socket_set_fast_reuse(int fd)

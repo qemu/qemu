@@ -109,7 +109,7 @@ static void test_io_channel_pipe(bool async)
     QIOChannelTest *test;
     int fd[2];
 
-    if (pipe(fd) < 0) {
+    if (!g_unix_open_pipe(fd, FD_CLOEXEC, NULL)) {
         perror("pipe");
         abort();
     }

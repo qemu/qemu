@@ -275,7 +275,7 @@ int fuse_daemonize(int foreground)
         int waiter[2];
         char completed;
 
-        if (pipe(waiter)) {
+        if (!g_unix_open_pipe(waiter, FD_CLOEXEC, NULL)) {
             fuse_log(FUSE_LOG_ERR, "fuse_daemonize: pipe: %s\n",
                      strerror(errno));
             return -1;

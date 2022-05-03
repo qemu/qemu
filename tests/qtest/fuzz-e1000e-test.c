@@ -8,7 +8,7 @@
 
 #include "qemu/osdep.h"
 
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 
 /*
  * https://bugs.launchpad.net/qemu/+bug/1879531

@@ -17,7 +17,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
+#include "../libqtest.h"
 #include "qgraph.h"
 #include "pci-pc.h"
 #include "qemu/module.h"

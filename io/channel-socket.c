@@ -460,7 +460,7 @@ static void qio_channel_socket_copy_fds(struct msghdr *msg,
             }
 
             /* O_NONBLOCK is preserved across SCM_RIGHTS so reset it */
-            qemu_set_block(fd);
+            qemu_socket_set_block(fd);
 
 #ifndef MSG_CMSG_CLOEXEC
             qemu_set_cloexec(fd);
@@ -665,9 +665,9 @@ qio_channel_socket_set_blocking(QIOChannel *ioc,
     QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(ioc);
 
     if (enabled) {
-        qemu_set_block(sioc->fd);
+        qemu_socket_set_block(sioc->fd);
     } else {
-        qemu_set_nonblock(sioc->fd);
+        qemu_socket_set_nonblock(sioc->fd);
     }
     return 0;
 }

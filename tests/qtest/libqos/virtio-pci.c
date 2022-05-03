@@ -8,7 +8,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
+#include "../libqtest.h"
 #include "virtio.h"
 #include "virtio-pci.h"
 #include "pci.h"

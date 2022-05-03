@@ -103,7 +103,10 @@ static void qemu_chr_open_stdio(Chardev *chr,
     stdio_in_use = true;
     old_fd0_flags = fcntl(0, F_GETFL);
     tcgetattr(0, &oldtty);
-    qemu_set_nonblock(0);
+    if (!g_unix_set_fd_nonblocking(0, true, NULL)) {
+        error_setg_errno(errp, errno, "Failed to set FD nonblocking");
+        return;
+    }
     atexit(term_exit);
 
     memset(&act, 0, sizeof(act));

@@ -18,7 +18,7 @@
 
 #include "qemu/osdep.h"
 #include <getopt.h>
-#include "libqtest.h"
+#include "../libqtest.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qstring.h"

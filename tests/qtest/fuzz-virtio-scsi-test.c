@@ -9,7 +9,7 @@
 
 #include "qemu/osdep.h"
 
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 
 /*
  * Here a MemoryRegionCache pointed to an MMIO region but had a

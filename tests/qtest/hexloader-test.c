@@ -10,7 +10,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqos/libqtest.h"
+#include "libqtest.h"
 
 /* Load 'test.hex' and verify that the in-memory contents are as expected.
  * 'test.hex' is a memory test pattern stored in Hexadecimal Object
