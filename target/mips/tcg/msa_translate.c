@@ -599,7 +599,7 @@ static bool trans_msa_elm_fn(DisasContext *ctx, arg_msa_elm_df *a,
         return false;
     }
 
-    if (check_msa_enabled(ctx)) {
+    if (!check_msa_enabled(ctx)) {
         return true;
     }
 
