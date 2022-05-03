@@ -752,8 +752,8 @@ static bool trans_msa_2rf(DisasContext *ctx, arg_msa_r *a,
 }
 
 TRANS(FCLASS,   trans_msa_2rf, gen_helper_msa_fclass_df);
-TRANS(FTRUNC_S, trans_msa_2rf, gen_helper_msa_fclass_df);
-TRANS(FTRUNC_U, trans_msa_2rf, gen_helper_msa_ftrunc_s_df);
+TRANS(FTRUNC_S, trans_msa_2rf, gen_helper_msa_ftrunc_s_df);
+TRANS(FTRUNC_U, trans_msa_2rf, gen_helper_msa_ftrunc_u_df);
 TRANS(FSQRT,    trans_msa_2rf, gen_helper_msa_fsqrt_df);
 TRANS(FRSQRT,   trans_msa_2rf, gen_helper_msa_frsqrt_df);
 TRANS(FRCP,     trans_msa_2rf, gen_helper_msa_frcp_df);
