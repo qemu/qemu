@@ -1250,21 +1250,21 @@
                 '*p2p': 'bool',
                 '*audiodev': 'str' } }
 
- ##
- # @DisplayGLMode:
- #
- # Display OpenGL mode.
- #
- # @off: Disable OpenGL (default).
- # @on: Use OpenGL, pick context type automatically.
- #      Would better be named 'auto' but is called 'on' for backward
- #      compatibility with bool type.
- # @core: Use OpenGL with Core (desktop) Context.
- # @es: Use OpenGL with ES (embedded systems) Context.
- #
- # Since: 3.0
- #
- ##
+##
+# @DisplayGLMode:
+#
+# Display OpenGL mode.
+#
+# @off: Disable OpenGL (default).
+# @on: Use OpenGL, pick context type automatically.
+#      Would better be named 'auto' but is called 'on' for backward
+#      compatibility with bool type.
+# @core: Use OpenGL with Core (desktop) Context.
+# @es: Use OpenGL with ES (embedded systems) Context.
+#
+# Since: 3.0
+#
+##
 { 'enum'    : 'DisplayGLMode',
   'data'    : [ 'off', 'on', 'core', 'es' ] }
 
