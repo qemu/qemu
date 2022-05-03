@@ -237,7 +237,6 @@
 #                   information (since 1.7)
 #
 # Since: 1.3
-#
 ##
 { 'struct': 'ImageInfo',
   'data': {'filename': 'str', 'format': 'str', '*dirty-flag': 'bool',
@@ -288,7 +287,6 @@
 #                       supports it
 #
 # Since: 1.4
-#
 ##
 { 'struct': 'ImageCheck',
   'data': {'filename': 'str', 'format': 'str', 'check-errors': 'int',
@@ -328,7 +326,6 @@
 # @filename: filename that is referred to by @offset
 #
 # Since: 2.6
-#
 ##
 { 'struct': 'MapEntry',
   'data': {'start': 'int', 'length': 'int', 'data': 'bool',
@@ -445,7 +442,6 @@
 #                 has one or more dirty bitmaps) (Since 4.2)
 #
 # Since: 0.14
-#
 ##
 { 'struct': 'BlockDeviceInfo',
   'data': { 'file': 'str', '*node-name': 'str', 'ro': 'bool', 'drv': 'str',

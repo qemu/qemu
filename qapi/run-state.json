@@ -592,7 +592,6 @@
 # @guest: memory failure at guest memory,
 #
 # Since: 5.2
-#
 ##
 { 'enum': 'MemoryFailureRecipient',
   'data': [ 'hypervisor',
@@ -619,7 +618,6 @@
 #         to handle memory failures.
 #
 # Since: 5.2
-#
 ##
 { 'enum': 'MemoryFailureAction',
   'data': [ 'ignore',
@@ -639,7 +637,6 @@
 #             failure was still in progress.
 #
 # Since: 5.2
-#
 ##
 { 'struct': 'MemoryFailureFlags',
   'data': { 'action-required': 'bool',

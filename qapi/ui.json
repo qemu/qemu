@@ -15,7 +15,6 @@
 # Display protocols which support changing password options.
 #
 # Since: 7.0
-#
 ##
 { 'enum': 'DisplayProtocol',
   'data': [ 'vnc', 'spice' ] }
@@ -32,7 +31,6 @@
 # @disconnect: disconnect existing clients
 #
 # Since: 7.0
-#
 ##
 { 'enum': 'SetPasswordAction',
   'data': [ 'keep', 'fail', 'disconnect' ] }
@@ -52,7 +50,6 @@
 #             For VNC, only 'keep' is currently implemented.
 #
 # Since: 7.0
-#
 ##
 { 'union': 'SetPasswordOptions',
   'base': { 'protocol': 'DisplayProtocol',
@@ -70,7 +67,6 @@
 #           Defaults to the first.
 #
 # Since: 7.0
-#
 ##
 { 'struct': 'SetPasswordOptionsVnc',
   'data': { '*display': 'str' } }
@@ -115,7 +111,6 @@
 #        sure you are on the same machine as the QEMU instance.
 #
 # Since: 7.0
-#
 ##
 { 'union': 'ExpirePasswordOptions',
   'base': { 'protocol': 'DisplayProtocol',
@@ -132,7 +127,6 @@
 #           Defaults to the first.
 #
 # Since: 7.0
-#
 ##
 
 { 'struct': 'ExpirePasswordOptionsVnc',
@@ -167,7 +161,6 @@
 # @ppm: PPM format
 #
 # Since: 7.1
-#
 ##
 { 'enum': 'ImageFormat',
   'data': ['ppm', 'png'] }
@@ -902,7 +895,6 @@
 # are effectively synonyms.
 #
 # Since: 1.3
-#
 ##
 { 'enum': 'QKeyCode',
   'data': [ 'unmapped',
@@ -1206,7 +1198,6 @@
 #               Since 3.1
 #
 # Since: 2.12
-#
 ##
 { 'struct'  : 'DisplayGTK',
   'data'    : { '*grab-on-hover' : 'bool',
@@ -1221,7 +1212,6 @@
 #              available node on the host.
 #
 # Since: 3.1
-#
 ##
 { 'struct'  : 'DisplayEGLHeadless',
   'data'    : { '*rendernode' : 'str' } }
@@ -1242,7 +1232,6 @@
 # @audiodev: Use the specified DBus audiodev to export audio.
 #
 # Since: 7.0
-#
 ##
 { 'struct'  : 'DisplayDBus',
   'data'    : { '*rendernode' : 'str',
@@ -1263,7 +1252,6 @@
 # @es: Use OpenGL with ES (embedded systems) Context.
 #
 # Since: 3.0
-#
 ##
 { 'enum'    : 'DisplayGLMode',
   'data'    : [ 'off', 'on', 'core', 'es' ] }
@@ -1276,7 +1264,6 @@
 # @charset:       Font charset used by guest (default: CP437).
 #
 # Since: 4.0
-#
 ##
 { 'struct'  : 'DisplayCurses',
   'data'    : { '*charset'       : 'str' } }
@@ -1346,7 +1333,6 @@
 # @dbus: Start a D-Bus service for the display. (Since 7.0)
 #
 # Since: 2.12
-#
 ##
 { 'enum'    : 'DisplayType',
   'data'    : [
@@ -1376,7 +1362,6 @@
 # @gl:            Enable OpenGL support (default: off).
 #
 # Since: 2.12
-#
 ##
 { 'union'   : 'DisplayOptions',
   'base'    : { 'type'           : 'DisplayType',
@@ -1403,7 +1388,6 @@
 # Returns: @DisplayOptions
 #
 # Since: 3.1
-#
 ##
 { 'command': 'query-display-options',
   'returns': 'DisplayOptions' }
@@ -1416,7 +1400,6 @@
 # @vnc: VNC display
 #
 # Since: 6.0
-#
 ##
 { 'enum': 'DisplayReloadType',
   'data': ['vnc'] }
@@ -1429,7 +1412,6 @@
 # @tls-certs: reload tls certs or not.
 #
 # Since: 6.0
-#
 ##
 { 'struct': 'DisplayReloadOptionsVNC',
   'data': { '*tls-certs': 'bool' } }
@@ -1442,7 +1424,6 @@
 # @type: Specify the display type.
 #
 # Since: 6.0
-#
 ##
 { 'union': 'DisplayReloadOptions',
   'base': {'type': 'DisplayReloadType'},
@@ -1477,7 +1458,6 @@
 # @vnc: VNC display
 #
 # Since: 7.1
-#
 ##
 { 'enum': 'DisplayUpdateType',
   'data': ['vnc'] }
@@ -1492,7 +1472,6 @@
 #             for websockets are not touched.
 #
 # Since: 7.1
-#
 ##
 { 'struct': 'DisplayUpdateOptionsVNC',
   'data': { '*addresses': ['SocketAddress'] } }
@@ -1505,7 +1484,6 @@
 # @type: Specify the display type.
 #
 # Since: 7.1
-#
 ##
 { 'union': 'DisplayUpdateOptions',
   'base': {'type': 'DisplayUpdateType'},

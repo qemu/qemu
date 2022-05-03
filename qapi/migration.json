@@ -151,7 +151,6 @@
 #               (since 4.2)
 #
 # Since: 2.3
-#
 ##
 { 'enum': 'MigrationStatus',
   'data': [ 'none', 'setup', 'cancelling', 'cancelled',
@@ -166,7 +165,6 @@
 # @transferred: amount of bytes transferred to the target VM by VFIO devices
 #
 # Since: 5.2
-#
 ##
 { 'struct': 'VfioStats',
   'data': {'transferred': 'int' } }
@@ -546,7 +544,6 @@
 # @zstd: use zstd compression method.
 #
 # Since: 5.0
-#
 ##
 { 'enum': 'MultiFDCompression',
   'data': [ 'none', 'zlib',
@@ -1757,7 +1754,6 @@
 # @dirty-rate: dirty rate.
 #
 # Since: 6.2
-#
 ##
 { 'struct': 'DirtyRateVcpu',
   'data': { 'id': 'int', 'dirty-rate': 'int64' } }
@@ -1774,7 +1770,6 @@
 # @measured: the dirtyrate thread has measured and results are available.
 #
 # Since: 5.2
-#
 ##
 { 'enum': 'DirtyRateStatus',
   'data': [ 'unstarted', 'measuring', 'measured'] }
@@ -1791,7 +1786,6 @@
 # @dirty-bitmap: calculate dirtyrate by dirty bitmap.
 #
 # Since: 6.2
-#
 ##
 { 'enum': 'DirtyRateMeasureMode',
   'data': ['page-sampling', 'dirty-ring', 'dirty-bitmap'] }
@@ -1821,7 +1815,6 @@
 #                   mode specified (Since 6.2)
 #
 # Since: 5.2
-#
 ##
 { 'struct': 'DirtyRateInfo',
   'data': {'*dirty-rate': 'int64',

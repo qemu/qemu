@@ -110,7 +110,6 @@
 # @data: the measurement value encoded in base64
 #
 # Since: 2.12
-#
 ##
 { 'struct': 'SevLaunchMeasureInfo', 'data': {'data': 'str'},
   'if': 'TARGET_I386' }
@@ -194,7 +193,6 @@
 # @gpa: the guest physical address where secret will be injected.
 #
 # Since: 6.0
-#
 ##
 { 'command': 'sev-inject-launch-secret',
   'data': { 'packet-header': 'str', 'secret': 'str', '*gpa': 'uint64' },
@@ -207,7 +205,6 @@
 # Virtualization feature.
 #
 # @data:  guest attestation report (base64 encoded)
-#
 #
 # Since: 6.1
 ##

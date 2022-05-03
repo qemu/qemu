@@ -192,7 +192,6 @@
 # Keys to toggle input-linux between host and guest.
 #
 # Since: 4.0
-#
 ##
 { 'enum': 'GrabToggleKeys',
   'data': [ 'ctrl-ctrl', 'alt-alt', 'shift-shift','meta-meta', 'scrolllock',
@@ -204,7 +203,6 @@
 # @human-readable-text: Formatted output intended for humans.
 #
 # Since: 6.2
-#
 ##
 { 'struct': 'HumanReadableText',
   'data': { 'human-readable-text': 'str' } }

@@ -77,7 +77,6 @@
 #          additional fields will be listed (since 3.0)
 #
 # Since: 2.12
-#
 ##
 { 'union'         : 'CpuInfoFast',
   'base'          : { 'cpu-index'    : 'int',
@@ -1022,7 +1021,6 @@
 #          Formula used: logical_vm_size = vm_ram_size - balloon_size
 #
 # Since: 0.14
-#
 ##
 { 'struct': 'BalloonInfo', 'data': {'actual': 'int' } }
 

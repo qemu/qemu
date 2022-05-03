@@ -300,7 +300,6 @@
 # @read-write: Makes the device writable
 #
 # Since: 2.3
-#
 ##
 { 'enum': 'BlockdevChangeReadOnlyMode',
   'data': ['retain', 'read-only', 'read-write'] }

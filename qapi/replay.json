@@ -40,7 +40,6 @@
 # @icount: current number of executed instructions.
 #
 # Since: 5.2
-#
 ##
 { 'struct': 'ReplayInfo',
   'data': { 'mode': 'ReplayMode', '*filename': 'str', 'icount': 'int' } }

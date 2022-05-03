@@ -413,7 +413,6 @@
 # @clipboard: enable/disable clipboard, default is disabled.
 #
 # Since: 6.1
-#
 ##
 { 'struct': 'ChardevQemuVDAgent',
   'data': { '*mouse': 'bool',
