@@ -68,8 +68,8 @@ struct dfe {
 static int df_extract_val(DisasContext *ctx, int x, const struct dfe *s)
 {
     for (unsigned i = 0; i < 4; i++) {
-        if (extract32(x, s->start, s->length) == s->mask) {
-            return extract32(x, 0, s->start);
+        if (extract32(x, s[i].start, s[i].length) == s[i].mask) {
+            return extract32(x, 0, s[i].start);
         }
     }
     return -1;
@@ -82,7 +82,7 @@ static int df_extract_val(DisasContext *ctx, int x, const struct dfe *s)
 static int df_extract_df(DisasContext *ctx, int x, const struct dfe *s)
 {
     for (unsigned i = 0; i < 4; i++) {
-        if (extract32(x, s->start, s->length) == s->mask) {
+        if (extract32(x, s[i].start, s[i].length) == s[i].mask) {
             return i;
         }
     }
