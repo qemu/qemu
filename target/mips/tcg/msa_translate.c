@@ -399,7 +399,7 @@ TRANS(BSETI,    trans_msa_bit, gen_helper_msa_bseti_df);
 TRANS(BNEGI,    trans_msa_bit, gen_helper_msa_bnegi_df);
 TRANS(BINSLI,   trans_msa_bit, gen_helper_msa_binsli_df);
 TRANS(BINSRI,   trans_msa_bit, gen_helper_msa_binsri_df);
-TRANS(SAT_S,    trans_msa_bit, gen_helper_msa_sat_u_df);
+TRANS(SAT_S,    trans_msa_bit, gen_helper_msa_sat_s_df);
 TRANS(SAT_U,    trans_msa_bit, gen_helper_msa_sat_u_df);
 TRANS(SRARI,    trans_msa_bit, gen_helper_msa_srari_df);
 TRANS(SRLRI,    trans_msa_bit, gen_helper_msa_srlri_df);
