@@ -348,7 +348,7 @@
 #
 # @poweroff: Shutdown the VM and exit
 #
-# @pause: pause the VM#
+# @pause: pause the VM
 #
 # Since: 6.0
 ##
