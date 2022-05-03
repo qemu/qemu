@@ -337,9 +337,9 @@
 #
 # Cache mode information for a block device
 #
-# @writeback:   true if writeback mode is enabled
-# @direct:      true if the host page cache is bypassed (O_DIRECT)
-# @no-flush:    true if flush requests are ignored for the device
+# @writeback: true if writeback mode is enabled
+# @direct: true if the host page cache is bypassed (O_DIRECT)
+# @no-flush: true if flush requests are ignored for the device
 #
 # Since: 2.3
 ##
@@ -3333,15 +3333,14 @@
 ##
 # @BlockdevOptionsSsh:
 #
-# @server:              host address
+# @server: host address
 #
-# @path:                path to the image on the host
+# @path: path to the image on the host
 #
-# @user:                user as which to connect, defaults to current
-#                       local user name
+# @user: user as which to connect, defaults to current local user name
 #
-# @host-key-check:      Defines how and what to check the host key against
-#                       (default: known_hosts)
+# @host-key-check: Defines how and what to check the host key against
+#                  (default: known_hosts)
 #
 # Since: 2.9
 ##
@@ -4662,18 +4661,18 @@
 #
 # Subformat options for VMDK images
 #
-# @monolithicSparse:     Single file image with sparse cluster allocation
+# @monolithicSparse: Single file image with sparse cluster allocation
 #
-# @monolithicFlat:       Single flat data image and a descriptor file
+# @monolithicFlat: Single flat data image and a descriptor file
 #
 # @twoGbMaxExtentSparse: Data is split into 2GB (per virtual LBA) sparse extent
 #                        files, in addition to a descriptor file
 #
-# @twoGbMaxExtentFlat:   Data is split into 2GB (per virtual LBA) flat extent
-#                        files, in addition to a descriptor file
+# @twoGbMaxExtentFlat: Data is split into 2GB (per virtual LBA) flat extent
+#                      files, in addition to a descriptor file
 #
-# @streamOptimized:      Single file image sparse cluster allocation, optimized
-#                        for streaming over network.
+# @streamOptimized: Single file image sparse cluster allocation, optimized
+#                   for streaming over network.
 #
 # Since: 4.0
 ##
@@ -4764,7 +4763,7 @@
 # @BlockdevVhdxSubformat:
 #
 # @dynamic: Growing image file
-# @fixed:   Preallocated fixed-size image file
+# @fixed: Preallocated fixed-size image file
 #
 # Since: 2.12
 ##
@@ -4802,7 +4801,7 @@
 # @BlockdevVpcSubformat:
 #
 # @dynamic: Growing image file
-# @fixed:   Preallocated fixed-size image file
+# @fixed: Preallocated fixed-size image file
 #
 # Since: 2.12
 ##
@@ -4865,9 +4864,9 @@
 # Starts a job to create an image format on a given node. The job is
 # automatically finalized, but a manual job-dismiss is required.
 #
-# @job-id:          Identifier for the newly created job.
+# @job-id: Identifier for the newly created job.
 #
-# @options:         Options for the image creation.
+# @options: Options for the image creation.
 #
 # Since: 3.0
 ##
@@ -4923,17 +4922,17 @@
 # Starts a job to amend format specific options of an existing open block device
 # The job is automatically finalized, but a manual job-dismiss is required.
 #
-# @job-id:          Identifier for the newly created job.
+# @job-id: Identifier for the newly created job.
 #
-# @node-name:       Name of the block node to work on
+# @node-name: Name of the block node to work on
 #
-# @options:         Options (driver specific)
+# @options: Options (driver specific)
 #
-# @force:           Allow unsafe operations, format specific
-#                   For luks that allows erase of the last active keyslot
-#                   (permanent loss of data),
-#                   and replacement of an active keyslot
-#                   (possible loss of data if IO error happens)
+# @force: Allow unsafe operations, format specific
+#         For luks that allows erase of the last active keyslot
+#         (permanent loss of data),
+#         and replacement of an active keyslot
+#         (possible loss of data if IO error happens)
 #
 # Features:
 # @unstable: This command is experimental.

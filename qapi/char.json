@@ -376,10 +376,10 @@
 #
 # Configuration info for virtual console chardevs.
 #
-# @width:  console width,  in pixels
+# @width: console width, in pixels
 # @height: console height, in pixels
-# @cols:   console width,  in chars
-# @rows:   console height, in chars
+# @cols: console width, in chars
+# @rows: console height, in chars
 #
 # Since: 1.5
 ##

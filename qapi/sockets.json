@@ -167,9 +167,9 @@
 #
 # Available SocketAddress types
 #
-# @inet:  Internet address
+# @inet: Internet address
 #
-# @unix:  Unix domain socket
+# @unix: Unix domain socket
 #
 # @vsock: VMCI address
 #

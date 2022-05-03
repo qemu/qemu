@@ -1018,8 +1018,8 @@
 #
 # Keyboard input event.
 #
-# @key:    Which key this event is for.
-# @down:   True for key-down and false for key-up events.
+# @key: Which key this event is for.
+# @down: True for key-down and false for key-up events.
 #
 # Since: 2.0
 ##
@@ -1033,7 +1033,7 @@
 # Pointer button input event.
 #
 # @button: Which button this event is for.
-# @down:   True for key-down and false for key-up events.
+# @down: True for key-down and false for key-up events.
 #
 # Since: 2.0
 ##
@@ -1353,12 +1353,11 @@
 #
 # Display (user interface) options.
 #
-# @type:          Which DisplayType qemu should use.
-# @full-screen:   Start user interface in fullscreen mode (default: off).
-# @window-close:  Allow to quit qemu with window close button (default: on).
-# @show-cursor:   Force showing the mouse cursor (default: off).
-#                 (since: 5.0)
-# @gl:            Enable OpenGL support (default: off).
+# @type: Which DisplayType qemu should use.
+# @full-screen: Start user interface in fullscreen mode (default: off).
+# @window-close: Allow to quit qemu with window close button (default: on).
+# @show-cursor: Force showing the mouse cursor (default: off). (since: 5.0)
+# @gl: Enable OpenGL support (default: off).
 #
 # Since: 2.12
 ##
