@@ -4548,7 +4548,6 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
 
 /* convert one instruction. s->base.is_jmp is set if the translation must
    be stopped. Return the next pc value */
-static bool f3flag = false; //改
 static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
 {
     CPUX86State *env = cpu->env_ptr;
@@ -4582,7 +4581,6 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
     /* Collect prefixes.  */
     switch (b) {
     case 0xf3:
-        f3flag = true;  // 改  识别前缀到 4717
         prefixes |= PREFIX_REPZ;
         goto next_byte;
     case 0xf2:
@@ -5406,6 +5404,7 @@ static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
     case 0x1c7: /* cmpxchg8b */
         if(prefixes & PREFIX_REPZ){
             modrm = x86_ldub_code(env, s);
+            printf("\n\n--------------\n");
             printf("qemu: caught 0xf30fc7 SENDUIPI\n "); // 改 Debug
             // CPUState *cs = env_cpu(env);
             // int prot;
@@ -5413,11 +5412,6 @@ static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
             // uint64_t EOI;
             // cpu_physical_memory_rw(APICaddress + 0xb0, &EOI, 8, false);
             // printf("the physical address of APIC 0x%lx   the EOI content: 0x%lx\n", APICaddress,EOI);
-
-            uint64_t EOI;       
-            cpu_physical_memory_rw(APIC_DEFAULT_ADDRESS + 0xb0, &EOI, 8, false);\
-            printf("\n\n the EOI content: 0x%lx\n\n",EOI);
-
 
 
             // s->tmp1_i64 = env->uintr_tt; //地址
@@ -5444,6 +5438,7 @@ static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
             // if(Debug){printf("debug: after  t0: %llx   A0: %llx\n",(long long unsigned)t0,(long long unsigned)s->A0);}
             // tcg_temp_free(t0);
             gen_helper_senduipi(cpu_env, tcg_const_i32(modrm));
+            printf("--------------\n\n\n");
             break;
         }
         modrm = x86_ldub_code(env, s);
@@ -7752,7 +7747,7 @@ static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
         case 0xee: /* rdpkru */
             if(prefixes & PREFIX_REPZ){
                 printf("qemu:caught 0xf30fee CLUI\n"); // 改
-                f3flag = false;
+                env->uintr_uif = 0;
                 break;
             }
             if (prefixes & PREFIX_LOCK) {
@@ -7764,21 +7759,24 @@ static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
             break;
         case 0xec:
             if (prefixes & PREFIX_REPZ){
+                printf("--------------\n\n\n");
                 printf("qemu:caught 0xf30f01ec UIRET\n"); // 改
-                f3flag = false;
-                exit(12);
+                helper_uiret(env);
+                printf("--------------\n\n\n");
+                // exit(12);
             }
             break;
         case 0xed:
             if (prefixes & PREFIX_REPZ){
                 printf("qemu:caught 0xf30f01ed TESTUI\n"); // 改
-                f3flag = false;
             }
             break;
         case 0xef: /* wrpkru */
             if(prefixes & PREFIX_REPZ){
+                printf("--------------\n\n\n");
                 printf("qemu:caught 0xf30f01ef STUI\n"); // 改
-                f3flag = false;
+                env->uintr_uif = 1;
+                printf("--------------\n\n\n");
                 break;
             }
             if (prefixes & PREFIX_LOCK) {

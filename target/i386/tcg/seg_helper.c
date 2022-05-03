@@ -864,38 +864,51 @@ static inline target_ulong get_rsp_from_tss(CPUX86State *env, int level)
 
 static bool Debug = true;
 void helper_rrnzero(CPUX86State *env){ // 改
-    if(Debug)printf("rrnzero called handler: 0x%lx\n", env->uintr_handler);
+    if(Debug)printf("rrnzero called handler: 0x%lx  rr: 0x%lx\n", env->uintr_handler,env->uintr_rr);
     target_ulong temprsp = env->regs[R_ESP];
-    printf("qemu:origin exp 0x%lx   eip 0x%lx\n",env->regs[R_ESP], env->eip);
-    // if(env->uintr_stackadjust &1){ // adjust[0] = 1
-    //     env->regs[R_ESP] = env->uintr_stackadjust;
-    //     printf("qemu:set  statck 0x%lx\n",env->regs[R_ESP]);
-    // }else{
-    //     env->regs[R_ESP] -= env->uintr_stackadjust;
-    //     printf("qemu:move statck 0x%lx\n",env->regs[R_ESP]);
-    // }
-    // env->regs[R_ESP] &= ~0xfLL; /* align stack */
+    printf("qemu:origin exp 0x%lx   eip 0x%lx  eflags: 0x%lx\n",env->regs[R_ESP], env->eip, env->eflags);
+    if(env->uintr_stackadjust &1){ // adjust[0] = 1
+        env->regs[R_ESP] = env->uintr_stackadjust;
+        printf("qemu:set  statck 0x%lx\n",env->regs[R_ESP]);
+    }else{
+        env->regs[R_ESP] -= env->uintr_stackadjust;
+        printf("qemu:move statck 0x%lx\n",env->regs[R_ESP]);
+    }
+    env->regs[R_ESP] &= ~0xfLL; /* align stack */
     target_ulong esp = env->regs[R_ESP];
+    printf("qemu:after align statck 0x%lx\n",env->regs[R_ESP]);
     PUSHQ(esp, temprsp);
-    printf("qemu: pushed rsp\n");
+    // printf("qemu: pushed rsp\n");
     PUSHQ(esp, env->eflags); // PUSHQ(esp, cpu_compute_eflags(env));
-    printf("qemu: pushed eflags\n");
+    // printf("qemu: pushed eflags\n");
     PUSHQ(esp, env->eip);
-    printf("the uirr is 0x%016lx \n", env->uintr_rr);
+    // printf("the uirr is 0x%016lx \n", env->uintr_rr);
     PUSHQ(esp, env->uintr_rr & 0x3f); // // 64-bit push; upper 58 bits pushed as 0
-    env->uintr_rr = 0;
+    printf("qemu:push finish now esp is: 0x%lx",esp);
+    env->uintr_rr = 0; // clear rr
     env->regs[R_ESP] = esp;
     env->eflags &= ~(TF_MASK | RF_MASK);
     env->eip = env->uintr_handler;
+    env->uintr_uif = 0;
     printf("qemu: eip: 0x%lx\n",env->eip);
-    
-    // PUSHQ(esp, env->segs[R_SS].selector);
-    // PUSHQ(esp, env->regs[R_ESP]);
-    // PUSHQ(esp, cpu_compute_eflags(env));
-    // PUSHQ(esp, env->segs[R_CS].selector);
-    // PUSHQ(esp, old_eip);
 }
 
+void helper_uiret(CPUX86State *env){
+    if(Debug)printf("helper uiret called, now eip: 0x%lx\n", env->eip);
+    printf("qemu: now esp is: 0x%lx\n",env->regs[R_ESP]);
+    target_ulong temprip, temprfalgs, temprsp, uirrv;
+    target_ulong esp = env->regs[R_ESP];
+    esp += 0x60;
+    POPQ(esp, uirrv);
+    POPQ(esp, temprip);
+    POPQ(esp, temprfalgs);
+    POPQ(esp, temprsp);
+    printf("qemu:poped values:uirrv:0x%lx rip:0x%lx   eflags:0x%lx  rsp:0x%lx \n",uirrv,temprip, temprfalgs, temprsp);
+    env->eip = temprip;
+    env->regs[R_ESP] = temprsp;
+    env->eflags = (env->eflags & ~0x254dd5) |(temprfalgs & 0x254dd5);
+    env->uintr_uif = 1;
+}
 
 
 
@@ -921,8 +934,13 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
     } else {
         old_eip = env->eip;
     }
-    if(intno == UINTR_UINV){
+    if(intno == UINTR_UINV ){
         printf("recognize uintr\n");
+
+        if(env->uintr_uif == 0){
+            printf("--uif not zero, return\n");
+            return;
+        }
         // 清除apic的
         int prot;
         CPUState *cs = env_cpu(env);
@@ -932,13 +950,12 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
         cpu_physical_memory_rw(upid_phyaddress, &upid, 16, false);
         upid.nc.status &= (~1); // clear on
         if(upid.puir != 0){
-            env->uintr_tt = upid.puir;
+            env->uintr_rr = upid.puir;
             upid.puir = 0; // clear puir
+            cpu_physical_memory_rw(upid_phyaddress, &upid, 16, true); // write back
             send = true;
         }
         cpu_physical_memory_rw(upid_phyaddress, &upid, 16, true);
-
-        
         uint64_t APICaddress = get_hphys2(cs, APIC_DEFAULT_ADDRESS, MMU_DATA_LOAD, &prot);
         uint64_t EOI;
         uint64_t zero = 0;

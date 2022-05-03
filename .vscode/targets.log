@@ -1,29 +1,18 @@
 make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 # GNU Make 4.2.1
- 
 # Built for x86_64-pc-linux-gnu
- 
 # Copyright (C) 1988-2016 Free Software Foundation, Inc.
- 
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
- 
 # This is free software: you are free to change and redistribute it.
- 
 # There is NO WARRANTY, to the extent permitted by law.
- 
 
- 
-# Make data base, printed on Tue May  3 01:28:55 2022
- 
+# Make data base, printed on Tue May  3 04:14:13 2022
 
 # Variables
- 
 
- 
 # automatic
 <D = $(patsubst %/,%,$(dir $<))
 # automatic
- 
 ?F = $(notdir $?)
 # default
 .SHELLFLAGS := -c
@@ -73,13 +62,10 @@ DBUS_SESSION_BUS_ADDRESS = unix:path=/run/user/1000/bus
 VERSION = $(shell cat $(SRC_PATH)/VERSION)
 # environment
 VSCODE_VERBOSE_LOGGING = true
- 
 # makefile (from 'tests/docker/Makefile.include', line 13)
- 
 TESTS = %
 # makefile (from 'tests/docker/Makefile.include', line 7)
 COMMA := ,
- 
 # environment
 VSCODE_CWD = /home/xcd
 # makefile (from 'tests/docker/Makefile.include', line 103)
@@ -107,7 +93,7 @@ CONDA_PREFIX = /home/xcd/miniconda3
 # environment
 VSCODE_LOG_STACK = false
 # environment
-VSCODE_IPC_HOOK_CLI = /run/user/1000/vscode-ipc-c0447ad0-c39f-49e6-a946-246a596a6b6f.sock
+VSCODE_IPC_HOOK_CLI = /run/user/1000/vscode-ipc-99b8081b-fcaa-4176-a822-8e7fc79d1fec.sock
 # default
 .FEATURES := target-specific order-only second-expansion else-if shortest-stem undefine oneshell archives jobserver output-sync check-symlink load
 # environment
@@ -115,13 +101,12 @@ LS_COLORS =
 # automatic
 %F = $(notdir $%)
 # makefile (from 'tests/docker/Makefile.include', line 40)
-CUR_TIME := 2022-05-03-01.28.55.2238
+CUR_TIME := 2022-05-03-04.14.13.74731
 # environment
 CONDA_EXE = /home/xcd/miniconda3/bin/conda
 # environment
 VSCODE_PIPE_LOGGING = true
 # makefile (from 'tests/docker/Makefile.include', line 24)
- 
 DOCKER_TARGETS := docker-image-alpine docker-image-centos8 docker-image-debian-all-test-cross docker-image-debian-alpha-cross docker-image-debian-amd64 docker-image-debian-amd64-cross docker-image-debian-arm64-cross docker-image-debian-armel-cross docker-image-debian-armhf-cross docker-image-debian-hexagon-cross docker-image-debian-hppa-cross docker-image-debian-m68k-cross docker-image-debian-mips-cross docker-image-debian-mips64-cross docker-image-debian-mips64el-cross docker-image-debian-mipsel-cross docker-image-debian-native docker-image-debian-powerpc-test-cross docker-image-debian-ppc64el-cross docker-image-debian-riscv64-cross docker-image-debian-riscv64-test-cross docker-image-debian-s390x-cross docker-image-debian-sh4-cross docker-image-debian-sparc64-cross docker-image-debian-tricore-cross docker-image-debian-xtensa-cross docker-image-debian10 docker-image-debian11 docker-image-fedora docker-image-fedora-cris-cross docker-image-fedora-i386-cross docker-image-fedora-win32-cross docker-image-fedora-win64-cross docker-image-opensuse-leap docker-image-python docker-image-ubuntu1804 docker-image-ubuntu2004
 # environment
 PWD = /home/xcd/qemu_uintr/qemu
@@ -174,7 +159,6 @@ DOCKER_SUFFIX := .docker
 # makefile (from 'Makefile', line 8)
 BUILD_DIR = $(CURDIR)
 # environment
- 
 XDG_SESSION_ID = 4
 # environment
 USER = xcd
@@ -186,7 +170,6 @@ __IMAGES := alpine centos8 debian-all-test-cross debian-alpha-cross debian-amd64
 DESTDIR := 
 # environment
 SAMPLE = /home/xcd/qemu_uintr/uintr-linux-kernel/tools/uintr/sample
- 
 # environment
 LESS = -R
 # automatic
@@ -203,7 +186,6 @@ LCITOOL_REFRESH = $(SRC_PATH)/tests/lcitool/refresh
 OLDPWD = /home/xcd
 # makefile (from 'tests/docker/Makefile.include', line 32)
 __TESTS := test-full test-quick test-build test-debug test-unit test-tcg test-mingw test-clang test-block test-tsan test-static test-misc
- 
 # default
 .VARIABLES := 
 # automatic
@@ -235,7 +217,7 @@ HOST_ARCH = $(if $(ARCH),$(ARCH),$(shell uname -m))
 # makefile (from 'tests/docker/Makefile.include', line 201)
 debian-toolchain = $(call debian-toolchain-run,$(patsubst docker-image-%,%,$1))
 # makefile (from 'tests/docker/Makefile.include', line 41)
-DOCKER_SRC_COPY := /home/xcd/qemu_uintr/qemu/docker-src.2022-05-03-01.28.55.2238
+DOCKER_SRC_COPY := /home/xcd/qemu_uintr/qemu/docker-src.2022-05-03-04.14.13.74731
 # makefile (from 'tests/docker/Makefile.include', line 23)
 DOCKER_IMAGES :=  alpine centos8 debian-all-test-cross debian-alpha-cross debian-amd64 debian-amd64-cross debian-arm64-cross debian-armel-cross debian-armhf-cross debian-hexagon-cross debian-hppa-cross debian-m68k-cross debian-mips-cross debian-mips64-cross debian-mips64el-cross debian-mipsel-cross debian-native debian-powerpc-test-cross debian-ppc64el-cross debian-riscv64-cross debian-riscv64-test-cross debian-s390x-cross debian-sh4-cross debian-sparc64-cross debian-tricore-cross debian-xtensa-cross debian10 debian11 fedora fedora-cris-cross fedora-i386-cross fedora-win32-cross fedora-win64-cross opensuse-leap python ubuntu1804 ubuntu2004
 # makefile (from 'tests/docker/Makefile.include', line 28)
@@ -553,7 +535,6 @@ docker-run-test-tsan@debian-native:
 #  File has not been updated.
 
 docker-test-misc@ubuntu1804: docker-image-ubuntu1804 docker-run-test-misc@ubuntu1804
- 
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
 #  File does not exist.
@@ -565,6 +546,7 @@ docker-run-test-static@fedora-win64-cross:
 #  Modification time never checked.
 #  File has not been updated.
 
+ 
 # Not a target:
 docker-run-test-debug@alpine:
 #  Implicit rule search has not been done.
@@ -733,7 +715,6 @@ vm-help:
 #  recipe to execute (from 'tests/vm/Makefile.include', line 34):
 	@echo "vm-help: Test QEMU in preconfigured virtual machines"
 	@echo
- 
 	@echo "  vm-build-freebsd                - Build QEMU in FreeBSD VM"
 	@echo "  vm-build-netbsd                 - Build QEMU in NetBSD VM"
 	@echo "  vm-build-openbsd                - Build QEMU in OpenBSD VM"
@@ -842,6 +823,7 @@ lcitool:
 	@echo '    lcitool-refresh:     Re-generate all build environment manifests.'
 	@echo
 
+ 
 # Not a target:
 docker-run-test-static@debian-ppc64el-cross:
 #  Implicit rule search has not been done.
@@ -858,7 +840,6 @@ docker-test-static@alpine: docker-image-alpine docker-run-test-static@alpine
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
 #  File does not exist.
- 
 #  File has not been updated.
 
 # Not a target:
@@ -957,7 +938,6 @@ docker-run-test-build@debian-all-test-cross:
 #  Modification time never checked.
 #  File has not been updated.
 
- 
 # Not a target:
 docker-run-test-clang@debian-mips64el-cross:
 #  Implicit rule search has not been done.
@@ -966,7 +946,6 @@ docker-run-test-clang@debian-mips64el-cross:
 
 # Not a target:
 docker-run-test-static@python:
- 
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
@@ -1038,7 +1017,6 @@ docker-run-test-misc@debian-armhf-cross:
 
 # Not a target:
 docker-run-test-mingw@debian-riscv64-cross:
- 
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
@@ -1085,6 +1063,12 @@ docker-run-test-debug@fedora-win64-cross:
 #  Modification time never checked.
 #  File has not been updated.
 
+docker-test-tsan@python: docker-image-python docker-run-test-tsan@python
+#  Phony target (prerequisite of .PHONY).
+#  Implicit rule search has not been done.
+#  File does not exist.
+#  File has not been updated.
+
 docker-test-unit@debian-mips64el-cross: docker-image-debian-mips64el-cross docker-run-test-unit@debian-mips64el-cross
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
@@ -1102,6 +1086,7 @@ docker-run-test-tcg@debian-mips-cross:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
+ 
 
 docker-test-tcg@debian-armhf-cross: docker-image-debian-armhf-cross docker-run-test-tcg@debian-armhf-cross
 #  Phony target (prerequisite of .PHONY).
@@ -1168,20 +1153,11 @@ docker-test-tcg@ubuntu1804: docker-image-ubuntu1804 docker-run-test-tcg@ubuntu18
 #  File does not exist.
 #  File has not been updated.
 
-/home/xcd/qemu_uintr/qemu/docker-src.2022-05-03-01.28.55.2238:
+# Not a target:
+docker-run-test-tsan@ubuntu1804:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
-#  recipe to execute (from 'tests/docker/Makefile.include', line 45):
-	@mkdir $@
-	$(if $(SRC_ARCHIVE), \
-		$(call quiet-command, cp "$(SRC_ARCHIVE)" $@/qemu.tar, \
-			"CP", "$@/qemu.tar"), \
-		$(call quiet-command, cd $(SRC_PATH) && scripts/archive-source.sh $@/qemu.tar, \
- 
-			"GEN", "$@/qemu.tar"))
-	$(call quiet-command, cp $(SRC_PATH)/tests/docker/run $@/run, \
-		"COPY","RUNNER")
 
 docker-test-unit@debian-all-test-cross: docker-image-debian-all-test-cross docker-run-test-unit@debian-all-test-cross
 #  Phony target (prerequisite of .PHONY).
@@ -1301,7 +1277,6 @@ docker-test-tcg@fedora: docker-image-fedora docker-run-test-tcg@fedora
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
 #  File does not exist.
- 
 #  File has not been updated.
 
 # Not a target:
@@ -1390,6 +1365,7 @@ docker-run-test-clang@debian-armhf-cross:
 docker-test-static@debian-native: docker-image-debian-native docker-run-test-static@debian-native
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
+ 
 #  File does not exist.
 #  File has not been updated.
 
@@ -1423,7 +1399,6 @@ docker-test-mingw@debian-mips64el-cross: docker-image-debian-mips64el-cross dock
 docker-run-test-unit@debian-mips-cross:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
- 
 #  File has not been updated.
 
 docker-test-unit@debian-armhf-cross: docker-image-debian-armhf-cross docker-run-test-unit@debian-armhf-cross
@@ -1602,7 +1577,6 @@ docker-test-mingw@fedora: docker-image-fedora docker-run-test-mingw@fedora
 
 docker-test-clang@opensuse-leap: docker-image-opensuse-leap docker-run-test-clang@opensuse-leap
 #  Phony target (prerequisite of .PHONY).
- 
 #  Implicit rule search has not been done.
 #  File does not exist.
 #  File has not been updated.
@@ -1722,7 +1696,6 @@ docker-run-test-static@debian-hexagon-cross:
 #  Modification time never checked.
 #  File has not been updated.
 
- 
 docker-test-build@python: docker-image-python docker-run-test-build@python
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
@@ -1883,6 +1856,7 @@ docker-run-test-misc@alpine:
 
 docker-test-tsan@fedora-win64-cross: docker-image-fedora-win64-cross docker-run-test-tsan@fedora-win64-cross
 #  Phony target (prerequisite of .PHONY).
+ 
 #  Implicit rule search has not been done.
 #  File does not exist.
 #  File has not been updated.
@@ -1908,7 +1882,6 @@ docker-run-test-full@centos8:
 docker-test-unit: docker-test-unit@alpine docker-test-unit@centos8 docker-test-unit@debian-all-test-cross docker-test-unit@debian-amd64 docker-test-unit@debian-arm64-cross docker-test-unit@debian-armel-cross docker-test-unit@debian-armhf-cross docker-test-unit@debian-hexagon-cross docker-test-unit@debian-mips-cross docker-test-unit@debian-mips64el-cross docker-test-unit@debian-mipsel-cross docker-test-unit@debian-native docker-test-unit@debian-ppc64el-cross docker-test-unit@debian-riscv64-cross docker-test-unit@debian-s390x-cross docker-test-unit@fedora docker-test-unit@fedora-i386-cross docker-test-unit@fedora-win32-cross docker-test-unit@fedora-win64-cross docker-test-unit@opensuse-leap docker-test-unit@python docker-test-unit@ubuntu1804 docker-test-unit@ubuntu2004
 #  Implicit rule search has not been done.
 #  Modification time never checked.
- 
 #  File has not been updated.
 
 # Not a target:
@@ -2022,7 +1995,6 @@ docker-test-quick@debian-mips-cross: docker-image-debian-mips-cross docker-run-t
 
 docker-test-clang@debian-hexagon-cross: docker-image-debian-hexagon-cross docker-run-test-clang@debian-hexagon-cross
 #  Phony target (prerequisite of .PHONY).
- 
 #  Implicit rule search has not been done.
 #  File does not exist.
 #  File has not been updated.
@@ -2145,7 +2117,6 @@ vm-build-freebsd:
 docker-run-test-tsan@debian-mipsel-cross:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
- 
 #  File has not been updated.
 
 # Not a target:
@@ -2167,6 +2138,7 @@ docker-run-test-tsan@debian-armel-cross:
 #  File has not been updated.
 
 # Not a target:
+ 
 docker-run-test-debug@debian-s390x-cross:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
@@ -2184,7 +2156,7 @@ recurse-clean:
 #  File does not exist.
 #  File has not been updated.
 
-docker-qemu-src: /home/xcd/qemu_uintr/qemu/docker-src.2022-05-03-01.28.55.2238
+docker-qemu-src: /home/xcd/qemu_uintr/qemu/docker-src.2022-05-03-04.14.13.74731
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
 #  File does not exist.
@@ -2271,7 +2243,6 @@ docker-test-tsan@centos8: docker-image-centos8 docker-run-test-tsan@centos8
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
 #  File does not exist.
- 
 #  File has not been updated.
 
 docker-test-unit@alpine: docker-image-alpine docker-run-test-unit@alpine
@@ -2407,7 +2378,6 @@ help:
 # Not a target:
 docker-run-test-block@python:
 #  Implicit rule search has not been done.
- 
 #  Modification time never checked.
 #  File has not been updated.
 
@@ -2464,6 +2434,7 @@ docker-test-quick@debian-ppc64el-cross: docker-image-debian-ppc64el-cross docker
 #  Implicit rule search has not been done.
 #  File does not exist.
 #  File has not been updated.
+ 
 
 # Not a target:
 docker-run-test-debug@debian-armel-cross:
@@ -2539,7 +2510,6 @@ docker-run-test-build@fedora-win64-cross:
 
 # Not a target:
 docker-image-centos8:
- 
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
@@ -2661,14 +2631,13 @@ docker-run-test-unit@debian-ppc64el-cross:
 #  Modification time never checked.
 #  File has not been updated.
 
-docker-test-tsan@python: docker-image-python docker-run-test-tsan@python
+docker-test-mingw@python: docker-image-python docker-run-test-mingw@python
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
 #  File does not exist.
 #  File has not been updated.
 
 # Not a target:
- 
 tests/vm/Makefile.include:
 #  Implicit rule search has been done.
 #  Last modified 2022-04-28 17:07:54.668634076
@@ -2742,6 +2711,7 @@ docker-run-test-full@fedora-win32-cross:
 #  File has not been updated.
 
 # Not a target:
+ 
 docker-run-test-tsan@opensuse-leap:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
@@ -2784,7 +2754,6 @@ docker-run-test-static@fedora-i386-cross:
 #  File has not been updated.
 
 # Not a target:
- 
 docker-run-test-mingw@debian-mipsel-cross:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
@@ -2904,7 +2873,6 @@ tests/lcitool/Makefile.include:
 #  File has been updated.
 #  Successfully updated.
 
- 
 docker-test-clang@debian-riscv64-cross: docker-image-debian-riscv64-cross docker-run-test-clang@debian-riscv64-cross
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
@@ -3020,10 +2988,10 @@ docker-test-misc@alpine: docker-image-alpine docker-run-test-misc@alpine
 #  File does not exist.
 #  File has not been updated.
 
+ 
 # Not a target:
 docker-run-test-block@ubuntu1804:
 #  Implicit rule search has not been done.
- 
 #  Modification time never checked.
 #  File has not been updated.
 
@@ -3109,7 +3077,6 @@ docker-test-full: docker-test-full@alpine docker-test-full@centos8 docker-test-f
 #  Modification time never checked.
 #  File has not been updated.
 
- 
 docker-all-tests: docker-test-full@alpine docker-test-quick@alpine docker-test-build@alpine docker-test-debug@alpine docker-test-unit@alpine docker-test-tcg@alpine docker-test-mingw@alpine docker-test-clang@alpine docker-test-block@alpine docker-test-tsan@alpine docker-test-static@alpine docker-test-misc@alpine docker-test-full@centos8 docker-test-quick@centos8 docker-test-build@centos8 docker-test-debug@centos8 docker-test-unit@centos8 docker-test-tcg@centos8 docker-test-mingw@centos8 docker-test-clang@centos8 docker-test-block@centos8 docker-test-tsan@centos8 docker-test-static@centos8 docker-test-misc@centos8 docker-test-full@debian-all-test-cross docker-test-quick@debian-all-test-cross docker-test-build@debian-all-test-cross docker-test-debug@debian-all-test-cross docker-test-unit@debian-all-test-cross docker-test-tcg@debian-all-test-cross docker-test-mingw@debian-all-test-cross docker-test-clang@debian-all-test-cross docker-test-block@debian-all-test-cross docker-test-tsan@debian-all-test-cross docker-test-static@debian-all-test-cross docker-test-misc@debian-all-test-cross docker-test-full@debian-amd64 docker-test-quick@debian-amd64 docker-test-build@debian-amd64 docker-test-debug@debian-amd64 docker-test-unit@debian-amd64 docker-test-tcg@debian-amd64 docker-test-mingw@debian-amd64 docker-test-clang@debian-amd64 docker-test-block@debian-amd64 docker-test-tsan@debian-amd64 docker-test-static@debian-amd64 docker-test-misc@debian-amd64 docker-test-full@debian-arm64-cross docker-test-quick@debian-arm64-cross docker-test-build@debian-arm64-cross docker-test-debug@debian-arm64-cross docker-test-unit@debian-arm64-cross docker-test-tcg@debian-arm64-cross docker-test-mingw@debian-arm64-cross docker-test-clang@debian-arm64-cross docker-test-block@debian-arm64-cross docker-test-tsan@debian-arm64-cross docker-test-static@debian-arm64-cross docker-test-misc@debian-arm64-cross docker-test-full@debian-armel-cross docker-test-quick@debian-armel-cross docker-test-build@debian-armel-cross docker-test-debug@debian-armel-cross docker-test-unit@debian-armel-cross docker-test-tcg@debian-armel-cross docker-test-mingw@debian-armel-cross docker-test-clang@debian-armel-cross docker-test-block@debian-armel-cross docker-test-tsan@debian-armel-cross docker-test-static@debian-armel-cross docker-test-misc@debian-armel-cross docker-test-full@debian-armhf-cross docker-test-quick@debian-armhf-cross docker-test-build@debian-armhf-cross docker-test-debug@debian-armhf-cross docker-test-unit@debian-armhf-cross docker-test-tcg@debian-armhf-cross docker-test-mingw@debian-armhf-cross docker-test-clang@debian-armhf-cross docker-test-block@debian-armhf-cross docker-test-tsan@debian-armhf-cross docker-test-static@debian-armhf-cross docker-test-misc@debian-armhf-cross docker-test-full@debian-hexagon-cross docker-test-quick@debian-hexagon-cross docker-test-build@debian-hexagon-cross docker-test-debug@debian-hexagon-cross docker-test-unit@debian-hexagon-cross docker-test-tcg@debian-hexagon-cross docker-test-mingw@debian-hexagon-cross docker-test-clang@debian-hexagon-cross docker-test-block@debian-hexagon-cross docker-test-tsan@debian-hexagon-cross docker-test-static@debian-hexagon-cross docker-test-misc@debian-hexagon-cross docker-test-full@debian-mips-cross docker-test-quick@debian-mips-cross docker-test-build@debian-mips-cross docker-test-debug@debian-mips-cross docker-test-unit@debian-mips-cross docker-test-tcg@debian-mips-cross docker-test-mingw@debian-mips-cross docker-test-clang@debian-mips-cross docker-test-block@debian-mips-cross docker-test-tsan@debian-mips-cross docker-test-static@debian-mips-cross docker-test-misc@debian-mips-cross docker-test-full@debian-mips64el-cross docker-test-quick@debian-mips64el-cross docker-test-build@debian-mips64el-cross docker-test-debug@debian-mips64el-cross docker-test-unit@debian-mips64el-cross docker-test-tcg@debian-mips64el-cross docker-test-mingw@debian-mips64el-cross docker-test-clang@debian-mips64el-cross docker-test-block@debian-mips64el-cross docker-test-tsan@debian-mips64el-cross docker-test-static@debian-mips64el-cross docker-test-misc@debian-mips64el-cross docker-test-full@debian-mipsel-cross docker-test-quick@debian-mipsel-cross docker-test-build@debian-mipsel-cross docker-test-debug@debian-mipsel-cross docker-test-unit@debian-mipsel-cross docker-test-tcg@debian-mipsel-cross docker-test-mingw@debian-mipsel-cross docker-test-clang@debian-mipsel-cross docker-test-block@debian-mipsel-cross docker-test-tsan@debian-mipsel-cross docker-test-static@debian-mipsel-cross docker-test-misc@debian-mipsel-cross docker-test-full@debian-native docker-test-quick@debian-native docker-test-build@debian-native docker-test-debug@debian-native docker-test-unit@debian-native docker-test-tcg@debian-native docker-test-mingw@debian-native docker-test-clang@debian-native docker-test-block@debian-native docker-test-tsan@debian-native docker-test-static@debian-native docker-test-misc@debian-native docker-test-full@debian-ppc64el-cross docker-test-quick@debian-ppc64el-cross docker-test-build@debian-ppc64el-cross docker-test-debug@debian-ppc64el-cross docker-test-unit@debian-ppc64el-cross docker-test-tcg@debian-ppc64el-cross docker-test-mingw@debian-ppc64el-cross docker-test-clang@debian-ppc64el-cross docker-test-block@debian-ppc64el-cross docker-test-tsan@debian-ppc64el-cross docker-test-static@debian-ppc64el-cross docker-test-misc@debian-ppc64el-cross docker-test-full@debian-riscv64-cross docker-test-quick@debian-riscv64-cross docker-test-build@debian-riscv64-cross docker-test-debug@debian-riscv64-cross docker-test-unit@debian-riscv64-cross docker-test-tcg@debian-riscv64-cross docker-test-mingw@debian-riscv64-cross docker-test-clang@debian-riscv64-cross docker-test-block@debian-riscv64-cross docker-test-tsan@debian-riscv64-cross docker-test-static@debian-riscv64-cross docker-test-misc@debian-riscv64-cross docker-test-full@debian-s390x-cross docker-test-quick@debian-s390x-cross docker-test-build@debian-s390x-cross docker-test-debug@debian-s390x-cross docker-test-unit@debian-s390x-cross docker-test-tcg@debian-s390x-cross docker-test-mingw@debian-s390x-cross docker-test-clang@debian-s390x-cross docker-test-block@debian-s390x-cross docker-test-tsan@debian-s390x-cross docker-test-static@debian-s390x-cross docker-test-misc@debian-s390x-cross docker-test-full@fedora docker-test-quick@fedora docker-test-build@fedora docker-test-debug@fedora docker-test-unit@fedora docker-test-tcg@fedora docker-test-mingw@fedora docker-test-clang@fedora docker-test-block@fedora docker-test-tsan@fedora docker-test-static@fedora docker-test-misc@fedora docker-test-full@fedora-i386-cross docker-test-quick@fedora-i386-cross docker-test-build@fedora-i386-cross docker-test-debug@fedora-i386-cross docker-test-unit@fedora-i386-cross docker-test-tcg@fedora-i386-cross docker-test-mingw@fedora-i386-cross docker-test-clang@fedora-i386-cross docker-test-block@fedora-i386-cross docker-test-tsan@fedora-i386-cross docker-test-static@fedora-i386-cross docker-test-misc@fedora-i386-cross docker-test-full@fedora-win32-cross docker-test-quick@fedora-win32-cross docker-test-build@fedora-win32-cross docker-test-debug@fedora-win32-cross docker-test-unit@fedora-win32-cross docker-test-tcg@fedora-win32-cross docker-test-mingw@fedora-win32-cross docker-test-clang@fedora-win32-cross docker-test-block@fedora-win32-cross docker-test-tsan@fedora-win32-cross docker-test-static@fedora-win32-cross docker-test-misc@fedora-win32-cross docker-test-full@fedora-win64-cross docker-test-quick@fedora-win64-cross docker-test-build@fedora-win64-cross docker-test-debug@fedora-win64-cross docker-test-unit@fedora-win64-cross docker-test-tcg@fedora-win64-cross docker-test-mingw@fedora-win64-cross docker-test-clang@fedora-win64-cross docker-test-block@fedora-win64-cross docker-test-tsan@fedora-win64-cross docker-test-static@fedora-win64-cross docker-test-misc@fedora-win64-cross docker-test-full@opensuse-leap docker-test-quick@opensuse-leap docker-test-build@opensuse-leap docker-test-debug@opensuse-leap docker-test-unit@opensuse-leap docker-test-tcg@opensuse-leap docker-test-mingw@opensuse-leap docker-test-clang@opensuse-leap docker-test-block@opensuse-leap docker-test-tsan@opensuse-leap docker-test-static@opensuse-leap docker-test-misc@opensuse-leap docker-test-full@python docker-test-quick@python docker-test-build@python docker-test-debug@python docker-test-unit@python docker-test-tcg@python docker-test-mingw@python docker-test-clang@python docker-test-block@python docker-test-tsan@python docker-test-static@python docker-test-misc@python docker-test-full@ubuntu1804 docker-test-quick@ubuntu1804 docker-test-build@ubuntu1804 docker-test-debug@ubuntu1804 docker-test-unit@ubuntu1804 docker-test-tcg@ubuntu1804 docker-test-mingw@ubuntu1804 docker-test-clang@ubuntu1804 docker-test-block@ubuntu1804 docker-test-tsan@ubuntu1804 docker-test-static@ubuntu1804 docker-test-misc@ubuntu1804 docker-test-full@ubuntu2004 docker-test-quick@ubuntu2004 docker-test-build@ubuntu2004 docker-test-debug@ubuntu2004 docker-test-unit@ubuntu2004 docker-test-tcg@ubuntu2004 docker-test-mingw@ubuntu2004 docker-test-clang@ubuntu2004 docker-test-block@ubuntu2004 docker-test-tsan@ubuntu2004 docker-test-static@ubuntu2004 docker-test-misc@ubuntu2004
 #  Implicit rule search has not been done.
 #  Modification time never checked.
@@ -3254,7 +3221,6 @@ docker-test-mingw: docker-test-mingw@alpine docker-test-mingw@centos8 docker-tes
 #  File has not been updated.
 
 docker-test-tcg@python: docker-image-python docker-run-test-tcg@python
- 
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
 #  File does not exist.
@@ -3483,7 +3449,6 @@ docker:
 	@echo '    docker-all-tests:    Run all image/test combinations.'
 	@echo '    docker-TEST:         Run "TEST" on all image combinations.'
 	@echo '    docker-clean:        Kill and remove residual docker testing containers.'
- 
 	@echo '    docker-TEST@IMAGE:   Run "TEST" in container "IMAGE".'
 	@echo '                         Note: "TEST" is one of the listed test name,'
 	@echo '                         or a script name under $$QEMU_SRC/tests/docker/;'
@@ -3497,6 +3462,7 @@ docker:
 	@echo
 	@echo 'Available tests:'
 	@echo '    $(DOCKER_TESTS)'
+ 
 	@echo
 	@echo 'Special variables:'
 	@echo '    TARGET_LIST=a,b,c    Override target list in builds.'
@@ -3770,10 +3736,10 @@ docker-run-test-build@debian-s390x-cross:
 # Not a target:
 docker-run-test-full@debian-mipsel-cross:
 #  Implicit rule search has not been done.
- 
 #  Modification time never checked.
 #  File has not been updated.
 
+ 
 # Not a target:
 docker-run-test-quick@debian-mips64el-cross:
 #  Implicit rule search has not been done.
@@ -3967,11 +3933,19 @@ docker-run-test-full@ubuntu2004:
 #  Modification time never checked.
 #  File has not been updated.
 
-docker-test-mingw@python: docker-image-python docker-run-test-mingw@python
-#  Phony target (prerequisite of .PHONY).
+/home/xcd/qemu_uintr/qemu/docker-src.2022-05-03-04.14.13.74731:
 #  Implicit rule search has not been done.
-#  File does not exist.
+#  Modification time never checked.
 #  File has not been updated.
+#  recipe to execute (from 'tests/docker/Makefile.include', line 45):
+	@mkdir $@
+	$(if $(SRC_ARCHIVE), \
+		$(call quiet-command, cp "$(SRC_ARCHIVE)" $@/qemu.tar, \
+			"CP", "$@/qemu.tar"), \
+		$(call quiet-command, cd $(SRC_PATH) && scripts/archive-source.sh $@/qemu.tar, \
+			"GEN", "$@/qemu.tar"))
+	$(call quiet-command, cp $(SRC_PATH)/tests/docker/run $@/run, \
+		"COPY","RUNNER")
 
 docker-test-full@ubuntu1804: docker-image-ubuntu1804 docker-run-test-full@ubuntu1804
 #  Phony target (prerequisite of .PHONY).
@@ -3998,7 +3972,6 @@ docker-run-test-debug@debian-armhf-cross:
 #  File has not been updated.
 
 # Not a target:
- 
 docker-run-test-full@debian-arm64-cross:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
@@ -4179,7 +4152,7 @@ docker-run-test-unit@debian-hexagon-cross:
 #  Modification time never checked.
 #  File has not been updated.
 
-.DELETE_ON_ERROR: /home/xcd/qemu_uintr/qemu/docker-src.2022-05-03-01.28.55.2238
+.DELETE_ON_ERROR: /home/xcd/qemu_uintr/qemu/docker-src.2022-05-03-04.14.13.74731
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
@@ -4227,7 +4200,6 @@ gtags:
 # Not a target:
 docker-run-test-block@debian-mips64el-cross:
 #  Implicit rule search has not been done.
- 
 #  Modification time never checked.
 #  File has not been updated.
 
@@ -4429,7 +4401,6 @@ docker-test-debug@ubuntu1804: docker-image-ubuntu1804 docker-run-test-debug@ubun
 #  File does not exist.
 #  File has not been updated.
 
- 
 docker-test-quick@debian-mipsel-cross: docker-image-debian-mipsel-cross docker-run-test-quick@debian-mipsel-cross
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
@@ -4517,12 +4488,6 @@ docker-test-mingw@debian-mips-cross: docker-image-debian-mips-cross docker-run-t
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
 #  File does not exist.
-#  File has not been updated.
-
-# Not a target:
-docker-run-test-tsan@ubuntu1804:
-#  Implicit rule search has not been done.
-#  Modification time never checked.
 #  File has not been updated.
 
 docker-test-clang@debian-ppc64el-cross: docker-image-debian-ppc64el-cross docker-run-test-clang@debian-ppc64el-cross
@@ -4616,7 +4581,6 @@ tests/docker/dockerfiles/debian-toolchain.docker:
 #  Modification time never checked.
 #  File has not been updated.
 
- 
 docker-test-misc@debian-s390x-cross: docker-image-debian-s390x-cross docker-run-test-misc@debian-s390x-cross
 #  Phony target (prerequisite of .PHONY).
 #  Implicit rule search has not been done.
@@ -4702,21 +4666,21 @@ docker-test-build@fedora-win32-cross: docker-image-fedora-win32-cross docker-run
 #  File has not been updated.
 
 # files hash-table stats:
-# Load=663/1024=65%, Rehash=0, Collisions=1317/3310=40%
+# Load=663/1024=65%, Rehash=0, Collisions=1344/3310=41%
 # VPATH Search Paths
 
 # No 'vpath' search paths.
 
 # No general ('VPATH' variable) search path.
 
-# strcache buffers: 4 (2) / strings = 852 / storage = 24902 B / avg = 29 B
+# strcache buffers: 4 (2) / strings = 852 / storage = 24903 B / avg = 29 B
 # current buf: size = 8162 B / used = 488 B / count = 23 / avg = 21 B
-# other used: total = 24414 B / count = 829 / avg = 29 B
-# other free: total = 72 B / max = 33 B / min = 10 B / avg = 24 B
+# other used: total = 24415 B / count = 829 / avg = 29 B
+# other free: total = 71 B / max = 33 B / min = 9 B / avg = 23 B
 
 # strcache performance: lookups = 4045 / hit rate = 78%
 # hash-table stats:
 # Load=852/8192=10%, Rehash=0, Collisions=131/4045=3%
-# Finished Make data base on Tue May  3 01:28:55 2022
+# Finished Make data base on Tue May  3 04:14:13 2022
 
  

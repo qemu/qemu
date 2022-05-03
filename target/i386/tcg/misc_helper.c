@@ -89,11 +89,9 @@ void helper_senduipi(CPUX86State *env ,int reg_index){ // 改
 
     // read tempUITTE from 16 bytes at UITTADDR+ (reg « 4);
     uint64_t uitt_phyaddress = get_hphys2(cs, (env->uintr_tt>>3)<<3 , MMU_DATA_LOAD, &prot);
-    if(Debug) printf("qemu: uitt_phyaddress %lx \n", uitt_phyaddress);
     struct uintr_uitt_entry uitte;
     cpu_physical_memory_rw(uitt_phyaddress + (uitte_index<<4), &uitte, 16,false);
-    if(Debug)printf("qemu: data of uitt valid:%d user_vec:%d \n",uitte.valid, uitte.user_vec);
-    if(Debug)printf("qemu: UPID address 0x%016lx\n", uitte.target_upid_addr);
+    if(Debug)printf("qemu: data of uitt valid:%d user_vec:%d  UPID address 0x%016lx \n",uitte.valid, uitte.user_vec,uitte.target_upid_addr);
 
     // read tempUPID from 16 bytes at tempUITTE.UPIDADDR;// under lock
     uint64_t upid_phyaddress = get_hphys2(cs, uitte.target_upid_addr, MMU_DATA_LOAD, &prot);

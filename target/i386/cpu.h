@@ -1609,6 +1609,7 @@ typedef struct CPUArchState {  // 寄存器？？？
     uint64_t uintr_misc;
     uint64_t uintr_pd;
     uint64_t uintr_tt;
+    uint64_t uintr_uif;
 
     uint64_t tsc_adjust;
     uint64_t tsc_deadline;
