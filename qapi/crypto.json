@@ -32,6 +32,7 @@
 #
 # @raw: raw bytes. When encoded in JSON only valid UTF-8 sequences can be used
 # @base64: arbitrary base64 encoded binary data
+#
 # Since: 2.6
 ##
 { 'enum': 'QCryptoSecretFormat',
@@ -51,6 +52,7 @@
 # @sha384: SHA-384. (since 2.7)
 # @sha512: SHA-512. (since 2.7)
 # @ripemd160: RIPEMD-160. (since 2.7)
+#
 # Since: 2.6
 ##
 { 'enum': 'QCryptoHashAlgorithm',
@@ -75,6 +77,7 @@
 # @twofish-128: Twofish with 128 bit / 16 byte keys
 # @twofish-192: Twofish with 192 bit / 24 byte keys
 # @twofish-256: Twofish with 256 bit / 32 byte keys
+#
 # Since: 2.6
 ##
 { 'enum': 'QCryptoCipherAlgorithm',
@@ -95,6 +98,7 @@
 # @cbc: Cipher Block Chaining
 # @xts: XEX with tweaked code book and ciphertext stealing
 # @ctr: Counter (Since 2.8)
+#
 # Since: 2.6
 ##
 { 'enum': 'QCryptoCipherMode',
@@ -114,6 +118,7 @@
 # @plain: 64-bit sector number truncated to 32-bits
 # @plain64: 64-bit sector number
 # @essiv: 64-bit sector number encrypted with a hash of the encryption key
+#
 # Since: 2.6
 ##
 { 'enum': 'QCryptoIVGenAlgorithm',
@@ -170,6 +175,7 @@
 # @key-secret: the ID of a QCryptoSecret object providing the
 #              decryption key. Mandatory except when probing image for
 #              metadata only.
+#
 # Since: 2.6
 ##
 { 'struct': 'QCryptoBlockOptionsLUKS',
@@ -194,6 +200,7 @@
 # @iter-time: number of milliseconds to spend in
 #             PBKDF passphrase processing. Currently defaults
 #             to 2000. (since 2.8)
+#
 # Since: 2.6
 ##
 { 'struct': 'QCryptoBlockCreateOptionsLUKS',

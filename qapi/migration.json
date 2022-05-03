@@ -1422,7 +1422,9 @@
 # @state: The state the migration is currently expected to be in
 #
 # Returns: nothing on success
+#
 # Since: 2.11
+#
 # Example:
 #
 # -> { "execute": "migrate-continue" , "arguments":
@@ -1736,6 +1738,7 @@
 # Since: 4.2
 #
 # Example:
+#
 # <- { "event": "UNPLUG_PRIMARY",
 #      "data": { "device-id": "hostdev0" },
 #      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
@@ -1845,6 +1848,7 @@
 # Since: 5.2
 #
 # Example:
+#
 #   {"execute": "calc-dirty-rate", "arguments": {"calc-time": 1,
 #                                                'sample-pages': 512} }
 #
