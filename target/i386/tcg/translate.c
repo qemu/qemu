@@ -5407,12 +5407,19 @@ static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
         if(prefixes & PREFIX_REPZ){
             modrm = x86_ldub_code(env, s);
             printf("qemu: caught 0xf30fc7 SENDUIPI\n "); // 改 Debug
-            CPUState *cs = env_cpu(env);
-            int prot;
-            uint64_t APICaddress = get_hphys2(cs, APIC_DEFAULT_ADDRESS, MMU_DATA_LOAD, &prot);
-            uint64_t EOI;
-            cpu_physical_memory_rw(APICaddress + 0xb0, &EOI, 8, false);
-            printf("the physical address of APIC 0x%lx   the EOI content: 0x%lx\n", APICaddress,EOI);
+            // CPUState *cs = env_cpu(env);
+            // int prot;
+            // uint64_t APICaddress = get_hphys2(cs, APIC_DEFAULT_ADDRESS, MMU_DATA_LOAD, &prot);
+            // uint64_t EOI;
+            // cpu_physical_memory_rw(APICaddress + 0xb0, &EOI, 8, false);
+            // printf("the physical address of APIC 0x%lx   the EOI content: 0x%lx\n", APICaddress,EOI);
+
+            uint64_t EOI;       
+            cpu_physical_memory_rw(APIC_DEFAULT_ADDRESS + 0xb0, &EOI, 8, false);\
+            printf("\n\n the EOI content: 0x%lx\n\n",EOI);
+
+
+
             // s->tmp1_i64 = env->uintr_tt; //地址
             // tcg_gen_qemu_ld_i64(s->tmp1_i64, s->A0 , 0, MO_LEUQ);
             // printf("qemu: loaded 0x%lx A0: 0x%lx\n",(uint64_t)((void*)s->tmp1_i64),(uint64_t)s->A0);
@@ -7759,6 +7766,7 @@ static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
             if (prefixes & PREFIX_REPZ){
                 printf("qemu:caught 0xf30f01ec UIRET\n"); // 改
                 f3flag = false;
+                exit(12);
             }
             break;
         case 0xed:

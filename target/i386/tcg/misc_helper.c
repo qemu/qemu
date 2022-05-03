@@ -121,14 +121,7 @@ void helper_senduipi(CPUX86State *env ,int reg_index){ // 改
     
 }
 
-void helper_rrnzero(CPUX86State *env){
-    if(Debug)printf("rrnzero called\n");
-    // PUSHQ(esp, env->segs[R_SS].selector);
-    // PUSHQ(esp, env->regs[R_ESP]);
-    // PUSHQ(esp, cpu_compute_eflags(env));
-    // PUSHQ(esp, env->segs[R_CS].selector);
-    // PUSHQ(esp, old_eip);
-}
+
 
 void helper_rdtscp(CPUX86State *env)
 {

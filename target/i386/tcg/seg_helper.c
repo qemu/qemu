@@ -859,8 +859,48 @@ static inline target_ulong get_rsp_from_tss(CPUX86State *env, int level)
     return rsp;
 }
 
+
+
+
+static bool Debug = true;
+void helper_rrnzero(CPUX86State *env){ // 改
+    if(Debug)printf("rrnzero called handler: 0x%lx\n", env->uintr_handler);
+    target_ulong temprsp = env->regs[R_ESP];
+    printf("qemu:origin exp 0x%lx   eip 0x%lx\n",env->regs[R_ESP], env->eip);
+    // if(env->uintr_stackadjust &1){ // adjust[0] = 1
+    //     env->regs[R_ESP] = env->uintr_stackadjust;
+    //     printf("qemu:set  statck 0x%lx\n",env->regs[R_ESP]);
+    // }else{
+    //     env->regs[R_ESP] -= env->uintr_stackadjust;
+    //     printf("qemu:move statck 0x%lx\n",env->regs[R_ESP]);
+    // }
+    // env->regs[R_ESP] &= ~0xfLL; /* align stack */
+    target_ulong esp = env->regs[R_ESP];
+    PUSHQ(esp, temprsp);
+    printf("qemu: pushed rsp\n");
+    PUSHQ(esp, env->eflags); // PUSHQ(esp, cpu_compute_eflags(env));
+    printf("qemu: pushed eflags\n");
+    PUSHQ(esp, env->eip);
+    printf("the uirr is 0x%016lx \n", env->uintr_rr);
+    PUSHQ(esp, env->uintr_rr & 0x3f); // // 64-bit push; upper 58 bits pushed as 0
+    env->uintr_rr = 0;
+    env->regs[R_ESP] = esp;
+    env->eflags &= ~(TF_MASK | RF_MASK);
+    env->eip = env->uintr_handler;
+    printf("qemu: eip: 0x%lx\n",env->eip);
+    
+    // PUSHQ(esp, env->segs[R_SS].selector);
+    // PUSHQ(esp, env->regs[R_ESP]);
+    // PUSHQ(esp, cpu_compute_eflags(env));
+    // PUSHQ(esp, env->segs[R_CS].selector);
+    // PUSHQ(esp, old_eip);
+}
+
+
+
+
+
 /* 64 bit interrupt */
-// static bool Debug = true;
 #define UINTR_UINV 0xec
 static void do_interrupt64(CPUX86State *env, int intno, int is_int,
                            int error_code, target_ulong next_eip, int is_hw) // 在用户态中断中 is_hw = 1 !!! ???？？？
@@ -884,8 +924,9 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
     if(intno == UINTR_UINV){
         printf("recognize uintr\n");
         // 清除apic的
-        int prot; bool send = false;
+        int prot;
         CPUState *cs = env_cpu(env);
+        bool send = false;
         uint64_t upid_phyaddress = get_hphys2(cs, env->uintr_pd, MMU_DATA_LOAD, &prot);
         uintr_upid upid;
         cpu_physical_memory_rw(upid_phyaddress, &upid, 16, false);
@@ -904,8 +945,12 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
         cpu_physical_memory_rw(APICaddress + 0xb0, &EOI, 8, false);
         printf("the physical address of APIC 0x%lx   the EOI content: 0x%lx\n", APICaddress,EOI);
         cpu_physical_memory_rw(APICaddress + 0xb0, &zero, 4, true);
+        // uint64_t EOI;       
+        // cpu_physical_memory_rw(APIC_DEFAULT_ADDRESS + 0xb0, &EOI, 8, false);
+        // printf("\n\n the EOI content: 0x%lx\n\n",EOI);
+        // cpu_physical_memory_rw(APIC_DEFAULT_ADDRESS + 0xb0, 0, 4, true);
         if(send)helper_rrnzero(env);
-        // return;
+        return;
     }
 
     dt = &env->idt;
@@ -1108,7 +1153,6 @@ void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
                       int error_code, target_ulong next_eip, int is_hw) // 接收方执行中断？
 {
     CPUX86State *env = &cpu->env;
-
     if (qemu_loglevel_mask(CPU_LOG_INT)) {
         if ((env->cr[0] & CR0_PE_MASK)) {
             static int count;
