@@ -286,7 +286,6 @@
   'data': { 'id': 'str',
             'node-name': 'str'} }
 
-
 ##
 # @BlockdevChangeReadOnlyMode:
 #
@@ -303,7 +302,6 @@
 ##
 { 'enum': 'BlockdevChangeReadOnlyMode',
   'data': ['retain', 'read-only', 'read-write'] }
-
 
 ##
 # @blockdev-change-medium:
@@ -374,7 +372,6 @@
             '*format': 'str',
             '*force': 'bool',
             '*read-only-mode': 'BlockdevChangeReadOnlyMode' } }
-
 
 ##
 # @DEVICE_TRAY_MOVED:

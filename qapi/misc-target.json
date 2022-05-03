@@ -21,7 +21,6 @@
 { 'command': 'rtc-reset-reinjection',
   'if': 'TARGET_I386' }
 
-
 ##
 # @SevState:
 #
@@ -101,7 +100,6 @@
 { 'command': 'query-sev', 'returns': 'SevInfo',
   'if': 'TARGET_I386' }
 
-
 ##
 # @SevLaunchMeasureInfo:
 #
@@ -131,7 +129,6 @@
 ##
 { 'command': 'query-sev-launch-measure', 'returns': 'SevLaunchMeasureInfo',
   'if': 'TARGET_I386' }
-
 
 ##
 # @SevCapability:
@@ -303,7 +300,6 @@
 ##
 { 'command': 'query-gic-capabilities', 'returns': ['GICCapability'],
   'if': 'TARGET_ARM' }
-
 
 ##
 # @SGXEPCSection:

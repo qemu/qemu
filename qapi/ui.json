@@ -128,7 +128,6 @@
 #
 # Since: 7.0
 ##
-
 { 'struct': 'ExpirePasswordOptionsVnc',
   'data': { '*display': 'str' } }
 

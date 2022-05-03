@@ -597,7 +597,6 @@
   'data': [ 'hypervisor',
             'guest' ] }
 
-
 ##
 # @MemoryFailureAction:
 #

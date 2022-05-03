@@ -173,7 +173,6 @@
 ##
 { 'command': 'job-cancel', 'data': { 'id': 'str' } }
 
-
 ##
 # @job-complete:
 #

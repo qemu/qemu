@@ -352,7 +352,6 @@
     '*out':  'AudiodevPerDirectionOptions',
     '*path': 'str' } }
 
-
 ##
 # @AudioFormat:
 #

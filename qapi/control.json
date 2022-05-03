@@ -68,7 +68,6 @@
 { 'struct': 'VersionTriple',
   'data': {'major': 'int', 'minor': 'int', 'micro': 'int'} }
 
-
 ##
 # @VersionInfo:
 #

@@ -739,7 +739,6 @@
 ##
 { 'command': 'query-block', 'returns': ['BlockInfo'] }
 
-
 ##
 # @BlockDeviceTimedStats:
 #
@@ -1512,7 +1511,6 @@
 { 'command': 'blockdev-snapshot-sync',
   'data': 'BlockdevSnapshotSync' }
 
-
 ##
 # @blockdev-snapshot:
 #
@@ -1750,7 +1748,6 @@
 ##
 { 'command': 'blockdev-backup', 'boxed': true,
   'data': 'BlockdevBackup' }
-
 
 ##
 # @query-named-block-nodes:
@@ -3067,7 +3064,6 @@
   'base': 'BlockdevOptionsGenericFormat',
   'data': { '*key-secret': 'str' } }
 
-
 ##
 # @BlockdevOptionsGenericCOWFormat:
 #
@@ -3181,8 +3177,6 @@
 { 'struct': 'BlockdevOptionsQcow',
   'base': 'BlockdevOptionsGenericCOWFormat',
   'data': { '*encrypt': 'BlockdevQcowEncryption' } }
-
-
 
 ##
 # @BlockdevQcow2EncryptionFormat:
@@ -3356,7 +3350,6 @@
             'path': 'str',
             '*user': 'str',
             '*host-key-check': 'SshHostKeyCheck' } }
-
 
 ##
 # @BlkdebugEvent:
@@ -3720,7 +3713,6 @@
             '*initiator-name': 'str',
             '*header-digest': 'IscsiHeaderDigest',
             '*timeout': 'int' } }
-
 
 ##
 # @RbdAuthMode:
@@ -4564,7 +4556,6 @@
 { 'enum': 'BlockdevQcow2Version',
   'data': [ 'v2', 'v3' ] }
 
-
 ##
 # @Qcow2CompressionType:
 #
@@ -4737,7 +4728,6 @@
             '*hwversion':       'str',
             '*toolsversion':    'str',
             '*zeroed-grain':    'bool' } }
-
 
 ##
 # @BlockdevCreateOptionsSsh:
@@ -4972,7 +4962,6 @@
 ##
 { 'enum': 'BlockErrorAction',
   'data': [ 'ignore', 'report', 'stop' ] }
-
 
 ##
 # @BLOCK_IMAGE_CORRUPTED:

@@ -24,7 +24,6 @@
   'prefix': 'QCRYPTO_TLS_CREDS_ENDPOINT',
   'data': ['client', 'server']}
 
-
 ##
 # @QCryptoSecretFormat:
 #
@@ -38,7 +37,6 @@
 { 'enum': 'QCryptoSecretFormat',
   'prefix': 'QCRYPTO_SECRET_FORMAT',
   'data': ['raw', 'base64']}
-
 
 ##
 # @QCryptoHashAlgorithm:
@@ -58,7 +56,6 @@
 { 'enum': 'QCryptoHashAlgorithm',
   'prefix': 'QCRYPTO_HASH_ALG',
   'data': ['md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512', 'ripemd160']}
-
 
 ##
 # @QCryptoCipherAlgorithm:
@@ -88,7 +85,6 @@
            'serpent-128', 'serpent-192', 'serpent-256',
            'twofish-128', 'twofish-192', 'twofish-256']}
 
-
 ##
 # @QCryptoCipherMode:
 #
@@ -104,7 +100,6 @@
 { 'enum': 'QCryptoCipherMode',
   'prefix': 'QCRYPTO_CIPHER_MODE',
   'data': ['ecb', 'cbc', 'xts', 'ctr']}
-
 
 ##
 # @QCryptoIVGenAlgorithm:
@@ -181,7 +176,6 @@
 { 'struct': 'QCryptoBlockOptionsLUKS',
   'data': { '*key-secret': 'str' }}
 
-
 ##
 # @QCryptoBlockCreateOptionsLUKS:
 #
@@ -212,7 +206,6 @@
             '*hash-alg': 'QCryptoHashAlgorithm',
             '*iter-time': 'int'}}
 
-
 ##
 # @QCryptoBlockOpenOptions:
 #
@@ -226,7 +219,6 @@
   'discriminator': 'format',
   'data': { 'qcow': 'QCryptoBlockOptionsQCow',
             'luks': 'QCryptoBlockOptionsLUKS' } }
-
 
 ##
 # @QCryptoBlockCreateOptions:
@@ -242,7 +234,6 @@
   'data': { 'qcow': 'QCryptoBlockOptionsQCow',
             'luks': 'QCryptoBlockCreateOptionsLUKS' } }
 
-
 ##
 # @QCryptoBlockInfoBase:
 #
@@ -255,7 +246,6 @@
 ##
 { 'struct': 'QCryptoBlockInfoBase',
   'data': { 'format': 'QCryptoBlockFormat' }}
-
 
 ##
 # @QCryptoBlockInfoLUKSSlot:
@@ -275,7 +265,6 @@
            '*iters': 'int',
            '*stripes': 'int',
            'key-offset': 'int' } }
-
 
 ##
 # @QCryptoBlockInfoLUKS:
@@ -329,7 +318,6 @@
 ##
 { 'enum': 'QCryptoBlockLUKSKeyslotState',
   'data': [ 'active', 'inactive' ] }
-
 
 ##
 # @QCryptoBlockAmendOptionsLUKS:

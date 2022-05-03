@@ -1365,7 +1365,6 @@
 { 'event': 'MEMORY_DEVICE_SIZE_CHANGE',
   'data': { '*id': 'str', 'size': 'size', 'qom-path' : 'str'} }
 
-
 ##
 # @MEM_UNPLUG_ERROR:
 #
