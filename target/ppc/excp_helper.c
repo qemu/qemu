@@ -1738,7 +1738,8 @@ static void ppc_hw_interrupt(CPUPPCState *env)
         bool lpes0 = !!(env->spr[SPR_LPCR] & LPCR_LPES0);
         bool heic = !!(env->spr[SPR_LPCR] & LPCR_HEIC);
         /* HEIC blocks delivery to the hypervisor */
-        if ((async_deliver && !(heic && msr_hv && !msr_pr)) ||
+        if ((async_deliver && !(heic && msr_hv &&
+            !FIELD_EX64(env->msr, MSR, PR))) ||
             (env->has_hv_mode && msr_hv == 0 && !lpes0)) {
             if (books_vhyp_promotes_external_to_hvirt(cpu)) {
                 powerpc_excp(cpu, POWERPC_EXCP_HVIRT);
@@ -1818,7 +1819,8 @@ static void ppc_hw_interrupt(CPUPPCState *env)
              * EBB exception must be taken in problem state and
              * with BESCR_GE set.
              */
-            if (msr_pr == 1 && env->spr[SPR_BESCR] & BESCR_GE) {
+            if (FIELD_EX64(env->msr, MSR, PR) &&
+                (env->spr[SPR_BESCR] & BESCR_GE)) {
                 env->pending_interrupts &= ~(1 << PPC_INTERRUPT_EBB);
 
                 if (env->spr[SPR_BESCR] & BESCR_PMEO) {
@@ -2094,7 +2096,7 @@ static void do_ebb(CPUPPCState *env, int ebb_excp)
         env->spr[SPR_BESCR] |= BESCR_EEO;
     }
 
-    if (msr_pr == 1) {
+    if (FIELD_EX64(env->msr, MSR, PR)) {
         powerpc_excp(cpu, ebb_excp);
     } else {
         env->pending_interrupts |= 1 << PPC_INTERRUPT_EBB;
