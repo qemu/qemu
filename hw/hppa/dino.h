@@ -134,6 +134,8 @@ struct DinoState {
     MemoryRegion bm_ram_alias;
     MemoryRegion bm_pci_alias;
     MemoryRegion bm_cpu_alias;
+
+    qemu_irq irqs[DINO_IRQS];
 };
 
 #endif

@@ -513,6 +513,8 @@ static void dino_pcihost_init(Object *obj)
     pci_setup_iommu(phb->bus, dino_pcihost_set_iommu, s);
 
     sysbus_init_mmio(sbd, &s->this_mem);
+
+    qdev_init_gpio_in(DEVICE(obj), dino_set_irq, DINO_IRQS);
 }
 
 static Property dino_pcihost_properties[] = {
