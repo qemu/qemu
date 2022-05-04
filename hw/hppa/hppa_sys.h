@@ -9,8 +9,9 @@
 #include "hw/intc/i8259.h"
 
 #include "hppa_hardware.h"
+#include "dino.h"
 
-PCIBus *dino_init(MemoryRegion *, qemu_irq *, qemu_irq *);
+DinoState *dino_init(MemoryRegion *, qemu_irq *, qemu_irq *);
 DeviceState *lasi_init(MemoryRegion *);
 #define enable_lasi_lan()       0
 

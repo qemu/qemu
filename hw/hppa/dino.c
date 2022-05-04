@@ -409,12 +409,11 @@ static void dino_set_serial_irq(void *opaque, int irq, int level)
     dino_set_irq(opaque, 10, level);
 }
 
-PCIBus *dino_init(MemoryRegion *addr_space,
-                  qemu_irq *p_rtc_irq, qemu_irq *p_ser_irq)
+DinoState *dino_init(MemoryRegion *addr_space,
+                     qemu_irq *p_rtc_irq, qemu_irq *p_ser_irq)
 {
     DeviceState *dev;
     DinoState *s;
-    PCIBus *pci_bus;
 
     dev = qdev_new(TYPE_DINO_PCI_HOST_BRIDGE);
     object_property_set_link(OBJECT(dev), "memory-as", OBJECT(addr_space),
@@ -428,8 +427,7 @@ PCIBus *dino_init(MemoryRegion *addr_space,
     *p_rtc_irq = qemu_allocate_irq(dino_set_timer_irq, s, 0);
     *p_ser_irq = qemu_allocate_irq(dino_set_serial_irq, s, 0);
 
-    pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci"));
-    return pci_bus;
+    return s;
 }
 
 static void dino_pcihost_reset(DeviceState *dev)

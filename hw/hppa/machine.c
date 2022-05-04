@@ -17,6 +17,7 @@
 #include "hw/char/serial.h"
 #include "hw/net/lasi_82596.h"
 #include "hw/nmi.h"
+#include "dino.h"
 #include "hppa_sys.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
@@ -126,7 +127,7 @@ static void machine_hppa_init(MachineState *machine)
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
-    DeviceState *dev;
+    DeviceState *dev, *dino_dev;
     PCIBus *pci_bus;
     ISABus *isa_bus;
     qemu_irq rtc_irq, serial_irq;
@@ -166,7 +167,8 @@ static void machine_hppa_init(MachineState *machine)
     lasi_init(addr_space);
 
     /* Init Dino (PCI host bus chip).  */
-    pci_bus = dino_init(addr_space, &rtc_irq, &serial_irq);
+    dino_dev = DEVICE(dino_init(addr_space, &rtc_irq, &serial_irq));
+    pci_bus = PCI_BUS(qdev_get_child_bus(dino_dev, "pci"));
     assert(pci_bus);
 
     /* Create ISA bus. */
