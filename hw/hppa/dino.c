@@ -421,9 +421,6 @@ DinoState *dino_init(MemoryRegion *addr_space,
     s = DINO_PCI_HOST_BRIDGE(dev);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
-    memory_region_add_subregion(addr_space, DINO_HPA,
-                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
-
     *p_rtc_irq = qemu_allocate_irq(dino_set_timer_irq, s, 0);
     *p_ser_irq = qemu_allocate_irq(dino_set_serial_irq, s, 0);
 
