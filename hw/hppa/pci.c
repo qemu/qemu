@@ -6,6 +6,9 @@
 #include "qemu/osdep.h"
 #include "hppa_sys.h"
 #include "qemu/log.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
+#include "hw/intc/i8259.h"
 #include "trace.h"
 
 

@@ -3,10 +3,7 @@
 #ifndef HW_HPPA_SYS_H
 #define HW_HPPA_SYS_H
 
-#include "hw/pci/pci.h"
-#include "hw/pci/pci_host.h"
 #include "hw/boards.h"
-#include "hw/intc/i8259.h"
 
 #include "hppa_hardware.h"
 

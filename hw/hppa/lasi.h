@@ -12,6 +12,10 @@
 #ifndef LASI_H
 #define LASI_H
 
+#include "exec/address-spaces.h"
+#include "hw/pci/pci_host.h"
+#include "hw/boards.h"
+
 #define TYPE_LASI_CHIP "lasi-chip"
 OBJECT_DECLARE_SIMPLE_TYPE(LasiState, LASI_CHIP)
 
