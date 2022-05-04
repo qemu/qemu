@@ -205,6 +205,13 @@ static void machine_hppa_init(MachineState *machine)
                        115200, serial_hd(0), DEVICE_BIG_ENDIAN);
     }
 
+    if (serial_hd(1)) {
+        /* Serial port */
+        serial_mm_init(addr_space, LASI_UART_HPA + 0x800, 0,
+                qdev_get_gpio_in(lasi_dev, LASI_IRQ_UART_HPA), 8000000 / 16,
+                serial_hd(1), DEVICE_BIG_ENDIAN);
+    }
+
     /* Parallel port */
     parallel_mm_init(addr_space, LASI_LPT_HPA + 0x800, 0,
                      qdev_get_gpio_in(lasi_dev, LASI_IRQ_LAN_HPA),

@@ -18,7 +18,6 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/runstate.h"
 #include "hppa_sys.h"
-#include "hw/char/serial.h"
 #include "hw/input/lasips2.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
@@ -235,13 +234,6 @@ LasiState *lasi_initfn(MemoryRegion *address_space)
 
     dev = qdev_new(TYPE_LASI_CHIP);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    if (serial_hd(1)) {
-        /* Serial port */
-        serial_mm_init(address_space, LASI_UART_HPA + 0x800, 0,
-                qdev_get_gpio_in(dev, LASI_IRQ_UART_HPA), 8000000 / 16,
-                serial_hd(1), DEVICE_BIG_ENDIAN);
-    }
 
     /* PS/2 Keyboard/Mouse */
     lasips2_init(address_space, LASI_PS2KBD_HPA,
