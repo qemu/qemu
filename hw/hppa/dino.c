@@ -526,13 +526,7 @@ PCIBus *dino_init(MemoryRegion *addr_space,
     s->iar0 = s->iar1 = CPU_HPA + 3;
     s->toc_addr = 0xFFFA0030; /* IO_COMMAND of CPU */
 
-    /* Dino PCI bus memory.  */
-    memory_region_init(&s->pci_mem, OBJECT(s), "pci-memory", 4 * GiB);
-
-    b = pci_register_root_bus(dev, "pci", dino_set_irq, dino_pci_map_irq, s,
-                              &s->pci_mem, get_system_io(),
-                              PCI_DEVFN(0, 0), 32, TYPE_PCI_BUS);
-    s->parent_obj.bus = b;
+    b = s->parent_obj.bus;
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     memory_region_add_subregion(addr_space, DINO_HPA,
@@ -597,6 +591,14 @@ static void dino_pcihost_init(Object *obj)
                                 &phb->conf_mem);
     memory_region_add_subregion(&s->this_mem, DINO_CONFIG_DATA,
                                 &phb->data_mem);
+
+    /* Dino PCI bus memory.  */
+    memory_region_init(&s->pci_mem, OBJECT(s), "pci-memory", 4 * GiB);
+
+    phb->bus = pci_register_root_bus(DEVICE(s), "pci",
+                                     dino_set_irq, dino_pci_map_irq, s,
+                                     &s->pci_mem, get_system_io(),
+                                     PCI_DEVFN(0, 0), 32, TYPE_PCI_BUS);
 
     sysbus_init_mmio(sbd, &s->this_mem);
 }
