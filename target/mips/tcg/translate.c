@@ -16023,8 +16023,9 @@ static void mips_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 #else
         ctx->mem_idx = hflags_mmu_index(ctx->hflags);
 #endif
-    ctx->default_tcg_memop_mask = (ctx->insn_flags & (ISA_MIPS_R6 |
-                                  INSN_LOONGSON3A)) ? MO_UNALN : MO_ALIGN;
+    ctx->default_tcg_memop_mask = (!(ctx->insn_flags & ISA_NANOMIPS32) &&
+                                  (ctx->insn_flags & (ISA_MIPS_R6 |
+                                  INSN_LOONGSON3A))) ? MO_UNALN : MO_ALIGN;
 
     /*
      * Execute a branch and its delay slot as a single instruction.
