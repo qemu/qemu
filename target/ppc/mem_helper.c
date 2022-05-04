@@ -33,9 +33,9 @@
 static inline bool needs_byteswap(const CPUPPCState *env)
 {
 #if TARGET_BIG_ENDIAN
-  return msr_le;
+  return FIELD_EX64(env->msr, MSR, LE);
 #else
-  return !msr_le;
+  return !FIELD_EX64(env->msr, MSR, LE);
 #endif
 }
 
@@ -470,8 +470,8 @@ uint32_t helper_stqcx_be_parallel(CPUPPCState *env, target_ulong addr,
 #endif
 
 /*
- * We use msr_le to determine index ordering in a vector.  However,
- * byteswapping is not simply controlled by msr_le.  We also need to
+ * We use MSR_LE to determine index ordering in a vector.  However,
+ * byteswapping is not simply controlled by MSR_LE.  We also need to
  * take into account endianness of the target.  This is done for the
  * little-endian PPC64 user-mode target.
  */
@@ -484,7 +484,7 @@ uint32_t helper_stqcx_be_parallel(CPUPPCState *env, target_ulong addr,
         int adjust = HI_IDX * (n_elems - 1);                    \
         int sh = sizeof(r->element[0]) >> 1;                    \
         int index = (addr & 0xf) >> sh;                         \
-        if (msr_le) {                                           \
+        if (FIELD_EX64(env->msr, MSR, LE)) {                    \
             index = n_elems - index - 1;                        \
         }                                                       \
                                                                 \
@@ -511,7 +511,7 @@ LVE(lvewx, cpu_ldl_data_ra, bswap32, u32)
         int adjust = HI_IDX * (n_elems - 1);                            \
         int sh = sizeof(r->element[0]) >> 1;                            \
         int index = (addr & 0xf) >> sh;                                 \
-        if (msr_le) {                                                   \
+        if (FIELD_EX64(env->msr, MSR, LE)) {                            \
             index = n_elems - index - 1;                                \
         }                                                               \
                                                                         \
@@ -545,7 +545,7 @@ void helper_##name(CPUPPCState *env, target_ulong addr,                 \
     t.s128 = int128_zero();                                             \
     if (nb) {                                                           \
         nb = (nb >= 16) ? 16 : nb;                                      \
-        if (msr_le && !lj) {                                            \
+        if (FIELD_EX64(env->msr, MSR, LE) && !lj) {                     \
             for (i = 16; i > 16 - nb; i--) {                            \
                 t.VsrB(i - 1) = cpu_ldub_data_ra(env, addr, GETPC());   \
                 addr = addr_add(env, addr, 1);                          \
@@ -576,7 +576,7 @@ void helper_##name(CPUPPCState *env, target_ulong addr,           \
     }                                                             \
                                                                   \
     nb = (nb >= 16) ? 16 : nb;                                    \
-    if (msr_le && !lj) {                                          \
+    if (FIELD_EX64(env->msr, MSR, LE) && !lj) {                   \
         for (i = 16; i > 16 - nb; i--) {                          \
             cpu_stb_data_ra(env, addr, xt->VsrB(i - 1), GETPC()); \
             addr = addr_add(env, addr, 1);                        \
