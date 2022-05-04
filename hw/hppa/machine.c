@@ -366,7 +366,7 @@ static void hppa_nmi(NMIState *n, int cpu_index, Error **errp)
 
 static void machine_hppa_machine_init(MachineClass *mc)
 {
-    mc->desc = "HPPA generic machine";
+    mc->desc = "HPPA B160L machine";
     mc->default_cpu_type = TYPE_HPPA_CPU;
     mc->init = machine_hppa_init;
     mc->reset = hppa_machine_reset;
