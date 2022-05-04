@@ -304,10 +304,6 @@ DeviceState *lasi_initfn(MemoryRegion *address_space)
     dev = qdev_new(TYPE_LASI_CHIP);
     s = LASI_CHIP(dev);
     s->iar = CPU_HPA + 3;
-
-    /* Lasi access from main memory.  */
-    memory_region_add_subregion(address_space, LASI_HPA, &s->this_mem);
-
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* LAN */
@@ -348,9 +344,12 @@ DeviceState *lasi_initfn(MemoryRegion *address_space)
 static void lasi_init(Object *obj)
 {
     LasiState *s = LASI_CHIP(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     memory_region_init_io(&s->this_mem, OBJECT(s), &lasi_chip_ops,
                           s, "lasi", 0x100000);
+
+    sysbus_init_mmio(sbd, &s->this_mem);
 }
 
 static void lasi_class_init(ObjectClass *klass, void *data)
