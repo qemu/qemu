@@ -303,7 +303,6 @@ DeviceState *lasi_initfn(MemoryRegion *address_space)
 
     dev = qdev_new(TYPE_LASI_CHIP);
     s = LASI_CHIP(dev);
-    s->iar = CPU_HPA + 3;
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* LAN */
@@ -318,11 +317,6 @@ DeviceState *lasi_initfn(MemoryRegion *address_space)
             lasi_get_irq(LASI_LPT_HPA));
     parallel_mm_init(address_space, LASI_LPT_HPA + 0x800, 0,
                      lpt_irq, parallel_hds[0]);
-
-    /* Real time clock (RTC), it's only one 32-bit counter @9000 */
-
-    s->rtc = time(NULL);
-    s->rtc_ref = 0;
 
     if (serial_hd(1)) {
         /* Serial port */
@@ -341,6 +335,17 @@ DeviceState *lasi_initfn(MemoryRegion *address_space)
     return dev;
 }
 
+static void lasi_reset(DeviceState *dev)
+{
+    LasiState *s = LASI_CHIP(dev);
+
+    s->iar = CPU_HPA + 3;
+
+    /* Real time clock (RTC), it's only one 32-bit counter @9000 */
+    s->rtc = time(NULL);
+    s->rtc_ref = 0;
+}
+
 static void lasi_init(Object *obj)
 {
     LasiState *s = LASI_CHIP(obj);
@@ -356,6 +361,7 @@ static void lasi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->reset = lasi_reset;
     dc->vmsd = &vmstate_lasi;
 }
 
