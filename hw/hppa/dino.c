@@ -399,13 +399,7 @@ static int dino_pci_map_irq(PCIDevice *d, int irq_num)
     return slot & 0x03;
 }
 
-static void dino_set_timer_irq(void *opaque, int irq, int level)
-{
-    /* ??? Not connected.  */
-}
-
-DinoState *dino_init(MemoryRegion *addr_space,
-                     qemu_irq *p_rtc_irq)
+DinoState *dino_init(MemoryRegion *addr_space)
 {
     DeviceState *dev;
     DinoState *s;
@@ -415,8 +409,6 @@ DinoState *dino_init(MemoryRegion *addr_space,
                              &error_fatal);
     s = DINO_PCI_HOST_BRIDGE(dev);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    *p_rtc_irq = qemu_allocate_irq(dino_set_timer_irq, s, 0);
 
     return s;
 }

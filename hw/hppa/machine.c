@@ -130,7 +130,6 @@ static void machine_hppa_init(MachineState *machine)
     DeviceState *dev, *dino_dev;
     PCIBus *pci_bus;
     ISABus *isa_bus;
-    qemu_irq rtc_irq;
     char *firmware_filename;
     uint64_t firmware_low, firmware_high;
     long size;
@@ -167,7 +166,7 @@ static void machine_hppa_init(MachineState *machine)
     lasi_init(addr_space);
 
     /* Init Dino (PCI host bus chip).  */
-    dino_dev = DEVICE(dino_init(addr_space, &rtc_irq));
+    dino_dev = DEVICE(dino_init(addr_space));
     memory_region_add_subregion(addr_space, DINO_HPA,
                                 sysbus_mmio_get_region(
                                     SYS_BUS_DEVICE(dino_dev), 0));
@@ -179,7 +178,7 @@ static void machine_hppa_init(MachineState *machine)
     assert(isa_bus);
 
     /* Realtime clock, used by firmware for PDC_TOD call. */
-    mc146818_rtc_init(isa_bus, 2000, rtc_irq);
+    mc146818_rtc_init(isa_bus, 2000, NULL);
 
     /* Serial code setup.  */
     if (serial_hd(0)) {
