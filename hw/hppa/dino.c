@@ -519,7 +519,6 @@ PCIBus *dino_init(MemoryRegion *addr_space,
     DeviceState *dev;
     DinoState *s;
     PCIBus *b;
-    int i;
 
     dev = qdev_new(TYPE_DINO_PCI_HOST_BRIDGE);
     s = DINO_PCI_HOST_BRIDGE(dev);
@@ -531,16 +530,6 @@ PCIBus *dino_init(MemoryRegion *addr_space,
 
     memory_region_add_subregion(addr_space, DINO_HPA,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
-
-    /* Set up windows into PCI bus memory.  */
-    for (i = 1; i < 31; i++) {
-        uint32_t addr = 0xf0000000 + i * DINO_MEM_CHUNK_SIZE;
-        char *name = g_strdup_printf("PCI Outbound Window %d", i);
-        memory_region_init_alias(&s->pci_mem_alias[i], OBJECT(s),
-                                 name, &s->pci_mem, addr,
-                                 DINO_MEM_CHUNK_SIZE);
-        g_free(name);
-    }
 
     /* Set up PCI view of memory: Bus master address space.  */
     memory_region_init(&s->bm, OBJECT(s), "bm-dino", 4 * GiB);
@@ -575,6 +564,7 @@ static void dino_pcihost_init(Object *obj)
     DinoState *s = DINO_PCI_HOST_BRIDGE(obj);
     PCIHostState *phb = PCI_HOST_BRIDGE(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    int i;
 
     /* Dino PCI access from main memory.  */
     memory_region_init_io(&s->this_mem, OBJECT(s), &dino_chip_ops,
@@ -599,6 +589,16 @@ static void dino_pcihost_init(Object *obj)
                                      dino_set_irq, dino_pci_map_irq, s,
                                      &s->pci_mem, get_system_io(),
                                      PCI_DEVFN(0, 0), 32, TYPE_PCI_BUS);
+
+    /* Set up windows into PCI bus memory.  */
+    for (i = 1; i < 31; i++) {
+        uint32_t addr = 0xf0000000 + i * DINO_MEM_CHUNK_SIZE;
+        char *name = g_strdup_printf("PCI Outbound Window %d", i);
+        memory_region_init_alias(&s->pci_mem_alias[i], OBJECT(s),
+                                 name, &s->pci_mem, addr,
+                                 DINO_MEM_CHUNK_SIZE);
+        g_free(name);
+    }
 
     sysbus_init_mmio(sbd, &s->this_mem);
 }
