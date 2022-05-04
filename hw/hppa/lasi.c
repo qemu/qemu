@@ -18,7 +18,6 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/runstate.h"
 #include "hppa_sys.h"
-#include "hw/net/lasi_82596.h"
 #include "hw/char/parallel.h"
 #include "hw/char/serial.h"
 #include "hw/input/lasips2.h"
@@ -237,12 +236,6 @@ LasiState *lasi_initfn(MemoryRegion *address_space)
 
     dev = qdev_new(TYPE_LASI_CHIP);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    /* LAN */
-    if (enable_lasi_lan()) {
-        lasi_82596_init(address_space, LASI_LAN_HPA,
-                        qdev_get_gpio_in(dev, LASI_IRQ_LAN_HPA));
-    }
 
     /* Parallel port */
     parallel_mm_init(address_space, LASI_LPT_HPA + 0x800, 0,

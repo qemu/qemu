@@ -221,6 +221,11 @@ static void machine_hppa_init(MachineState *machine)
     }
 
     /* Network setup. */
+    if (enable_lasi_lan()) {
+        lasi_82596_init(addr_space, LASI_LAN_HPA,
+                        qdev_get_gpio_in(lasi_dev, LASI_IRQ_LAN_HPA));
+    }
+
     for (i = 0; i < nb_nics; i++) {
         if (!enable_lasi_lan()) {
             pci_nic_init_nofail(&nd_table[i], pci_bus, "tulip", NULL);
