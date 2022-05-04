@@ -1243,7 +1243,9 @@ static void artist_update_display(void *opaque)
 
     artist_draw_cursor(s);
 
-    dpy_gfx_update(s->con, 0, 0, s->width, s->height);
+    if (first >= 0) {
+        dpy_gfx_update(s->con, 0, first, s->width, last - first + 1);
+    }
 }
 
 static void artist_invalidate(void *opaque)
