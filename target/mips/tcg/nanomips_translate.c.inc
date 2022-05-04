@@ -4478,12 +4478,13 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
             case NM_P_BR3A:
                 s = sextract32(ctx->opcode, 0, 1) << 14 |
                     extract32(ctx->opcode, 1, 13) << 1;
-                check_cp1_enabled(ctx);
                 switch (extract32(ctx->opcode, 16, 5)) {
                 case NM_BC1EQZC:
+                    check_cp1_enabled(ctx);
                     gen_compute_branch_cp1_nm(ctx, OPC_BC1EQZ, rt, s);
                     break;
                 case NM_BC1NEZC:
+                    check_cp1_enabled(ctx);
                     gen_compute_branch_cp1_nm(ctx, OPC_BC1NEZ, rt, s);
                     break;
                 case NM_BPOSGE32C:
