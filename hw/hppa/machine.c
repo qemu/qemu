@@ -17,7 +17,7 @@
 #include "hw/char/serial.h"
 #include "hw/net/lasi_82596.h"
 #include "hw/nmi.h"
-#include "dino.h"
+#include "hw/pci-host/dino.h"
 #include "hppa_sys.h"
 #include "qemu/units.h"
 #include "qapi/error.h"

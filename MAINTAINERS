@@ -1113,7 +1113,9 @@ S: Odd Fixes
 F: configs/devices/hppa-softmmu/default.mak
 F: hw/hppa/
 F: hw/net/*i82596*
+F: hw/pci-host/dino.c
 F: include/hw/net/lasi_82596.h
+F: include/hw/pci-host/dino.h
 F: pc-bios/hppa-firmware.img
 
 M68K Machines

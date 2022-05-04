@@ -18,9 +18,8 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/qdev-properties.h"
-#include "dino.h"
+#include "hw/pci-host/dino.h"
 #include "migration/vmstate.h"
-#include "hppa_sys.h"
 #include "trace.h"
 #include "qom/object.h"
 

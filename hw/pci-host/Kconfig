@@ -77,3 +77,7 @@ config MV64361
     bool
     select PCI
     select I8259
+
+config DINO
+    bool
+    select PCI
