@@ -13,8 +13,8 @@
         #_name "_end:\n");
 
 DEFINE_ASM(br_r14, "br %r14");
-DEFINE_ASM(brasl_r0, "brasl %r0,.-0x100000000");
-DEFINE_ASM(brcl_0xf, "brcl 0xf,.-0x100000000");
+DEFINE_ASM(brasl_r0, "brasl %r0,-0x100000000");
+DEFINE_ASM(brcl_0xf, "brcl 0xf,-0x100000000");
 
 struct test {
     const char *code;

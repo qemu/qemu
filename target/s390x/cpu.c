@@ -178,7 +178,6 @@ static void s390_cpu_reset(CPUState *s, cpu_reset_type type)
 static void s390_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
 {
     info->mach = bfd_mach_s390_64;
-    info->print_insn = print_insn_s390;
     info->cap_arch = CS_ARCH_SYSZ;
     info->cap_insn_unit = 2;
     info->cap_insn_split = 6;

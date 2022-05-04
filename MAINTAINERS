@@ -305,7 +305,6 @@ S: Maintained
 F: target/s390x/
 F: target/s390x/tcg
 F: hw/s390x/
-F: disas/s390.c
 F: tests/tcg/s390x/
 L: qemu-s390x@nongnu.org
 
@@ -3308,7 +3307,6 @@ S390 TCG target
 M: Richard Henderson <richard.henderson@linaro.org>
 S: Maintained
 F: tcg/s390/
-F: disas/s390.c
 L: qemu-s390x@nongnu.org
 
 SPARC TCG target

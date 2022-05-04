@@ -17,6 +17,14 @@ TESTS+=trap
 TESTS+=signals-s390x
 TESTS+=branch-relative-long
 
+VECTOR_TESTS=vxeh2_vs
+VECTOR_TESTS+=vxeh2_vcvt
+VECTOR_TESTS+=vxeh2_vlstr
+$(VECTOR_TESTS): CFLAGS+=-march=z15 -O2
+
+TESTS+=$(if $(shell $(CC) -march=z15 -S -o /dev/null -xc /dev/null \
+			 >/dev/null 2>&1 && echo OK),$(VECTOR_TESTS))
+
 ifneq ($(HAVE_GDB_BIN),)
 GDB_SCRIPT=$(SRC_PATH)/tests/guest-debug/run-test.py
 
