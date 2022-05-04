@@ -25,12 +25,6 @@
 #define TYPE_ARTIST "artist"
 OBJECT_DECLARE_SIMPLE_TYPE(ARTISTState, ARTIST)
 
-#if HOST_BIG_ENDIAN
-#define ROP8OFF(_i) (3 - (_i))
-#else
-#define ROP8OFF
-#endif
-
 struct vram_buffer {
     MemoryRegion mr;
     uint8_t *data;
