@@ -1749,7 +1749,7 @@ static void ppc_hw_interrupt(CPUPPCState *env)
             return;
         }
     }
-    if (msr_ce != 0) {
+    if (FIELD_EX64(env->msr, MSR, CE)) {
         /* External critical interrupt */
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_CEXT)) {
             powerpc_excp(cpu, POWERPC_EXCP_CRITICAL);
