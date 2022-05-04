@@ -1,4 +1,1 @@
 # See docs/devel/tracing.rst for syntax documentation.
-
-# pci.c
-hppa_pci_iack_write(void) ""
