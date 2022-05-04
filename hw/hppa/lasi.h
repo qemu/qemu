@@ -38,6 +38,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(LasiState, LASI_CHIP)
 #define ICR_BUS_ERROR_BIT  LASI_BIT(8)  /* bit 8 in ICR */
 #define ICR_TOC_BIT        LASI_BIT(1)  /* bit 1 in ICR */
 
+#define LASI_IRQS           27
+
 #define LASI_IRQ_HPA        14
 #define LASI_IRQ_UART_HPA   5
 #define LASI_IRQ_LPT_HPA    7

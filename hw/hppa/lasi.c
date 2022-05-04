@@ -290,6 +290,8 @@ static void lasi_init(Object *obj)
                           s, "lasi", 0x100000);
 
     sysbus_init_mmio(sbd, &s->this_mem);
+
+    qdev_init_gpio_in(DEVICE(obj), lasi_set_irq, LASI_IRQS);
 }
 
 static void lasi_class_init(ObjectClass *klass, void *data)
