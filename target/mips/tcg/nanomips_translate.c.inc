@@ -4528,7 +4528,12 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
             switch (extract32(ctx->opcode, 14, 2)) {
             case NM_BNEC:
                 check_nms(ctx);
-                gen_compute_branch_nm(ctx, OPC_BNE, 4, rs, rt, s);
+                if (rs == rt) {
+                    /* NOP */
+                    ctx->hflags |= MIPS_HFLAG_FBNSLOT;
+                } else {
+                    gen_compute_branch_nm(ctx, OPC_BNE, 4, rs, rt, s);
+                }
                 break;
             case NM_BLTC:
                 if (rs != 0 && rt != 0 && rs == rt) {
