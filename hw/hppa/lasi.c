@@ -24,50 +24,8 @@
 #include "hw/input/lasips2.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
+#include "lasi.h"
 
-#define TYPE_LASI_CHIP "lasi-chip"
-
-#define LASI_IRR        0x00    /* RO */
-#define LASI_IMR        0x04
-#define LASI_IPR        0x08
-#define LASI_ICR        0x0c
-#define LASI_IAR        0x10
-
-#define LASI_PCR        0x0C000 /* LASI Power Control register */
-#define LASI_ERRLOG     0x0C004 /* LASI Error Logging register */
-#define LASI_VER        0x0C008 /* LASI Version Control register */
-#define LASI_IORESET    0x0C00C /* LASI I/O Reset register */
-#define LASI_AMR        0x0C010 /* LASI Arbitration Mask register */
-#define LASI_IO_CONF    0x7FFFE /* LASI primary configuration register */
-#define LASI_IO_CONF2   0x7FFFF /* LASI secondary configuration register */
-
-#define LASI_BIT(x)     (1ul << (x))
-#define LASI_IRQ_BITS   (LASI_BIT(5) | LASI_BIT(7) | LASI_BIT(8) | LASI_BIT(9) \
-            | LASI_BIT(13) | LASI_BIT(14) | LASI_BIT(16) | LASI_BIT(17) \
-            | LASI_BIT(18) | LASI_BIT(19) | LASI_BIT(20) | LASI_BIT(21) \
-            | LASI_BIT(26))
-
-#define ICR_BUS_ERROR_BIT  LASI_BIT(8)  /* bit 8 in ICR */
-#define ICR_TOC_BIT        LASI_BIT(1)  /* bit 1 in ICR */
-
-OBJECT_DECLARE_SIMPLE_TYPE(LasiState, LASI_CHIP)
-
-struct LasiState {
-    PCIHostState parent_obj;
-
-    uint32_t irr;
-    uint32_t imr;
-    uint32_t ipr;
-    uint32_t icr;
-    uint32_t iar;
-
-    uint32_t errlog;
-    uint32_t amr;
-    uint32_t rtc;
-    time_t rtc_ref;
-
-    MemoryRegion this_mem;
-};
 
 static bool lasi_chip_mem_valid(void *opaque, hwaddr addr,
                                 unsigned size, bool is_write,
