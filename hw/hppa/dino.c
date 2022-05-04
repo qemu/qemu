@@ -404,13 +404,8 @@ static void dino_set_timer_irq(void *opaque, int irq, int level)
     /* ??? Not connected.  */
 }
 
-static void dino_set_serial_irq(void *opaque, int irq, int level)
-{
-    dino_set_irq(opaque, 10, level);
-}
-
 DinoState *dino_init(MemoryRegion *addr_space,
-                     qemu_irq *p_rtc_irq, qemu_irq *p_ser_irq)
+                     qemu_irq *p_rtc_irq)
 {
     DeviceState *dev;
     DinoState *s;
@@ -422,7 +417,6 @@ DinoState *dino_init(MemoryRegion *addr_space,
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     *p_rtc_irq = qemu_allocate_irq(dino_set_timer_irq, s, 0);
-    *p_ser_irq = qemu_allocate_irq(dino_set_serial_irq, s, 0);
 
     return s;
 }

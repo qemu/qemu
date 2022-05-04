@@ -130,7 +130,7 @@ static void machine_hppa_init(MachineState *machine)
     DeviceState *dev, *dino_dev;
     PCIBus *pci_bus;
     ISABus *isa_bus;
-    qemu_irq rtc_irq, serial_irq;
+    qemu_irq rtc_irq;
     char *firmware_filename;
     uint64_t firmware_low, firmware_high;
     long size;
@@ -167,7 +167,7 @@ static void machine_hppa_init(MachineState *machine)
     lasi_init(addr_space);
 
     /* Init Dino (PCI host bus chip).  */
-    dino_dev = DEVICE(dino_init(addr_space, &rtc_irq, &serial_irq));
+    dino_dev = DEVICE(dino_init(addr_space, &rtc_irq));
     memory_region_add_subregion(addr_space, DINO_HPA,
                                 sysbus_mmio_get_region(
                                     SYS_BUS_DEVICE(dino_dev), 0));
@@ -184,7 +184,8 @@ static void machine_hppa_init(MachineState *machine)
     /* Serial code setup.  */
     if (serial_hd(0)) {
         uint32_t addr = DINO_UART_HPA + 0x800;
-        serial_mm_init(addr_space, addr, 0, serial_irq,
+        serial_mm_init(addr_space, addr, 0,
+                       qdev_get_gpio_in(dino_dev, DINO_IRQ_RS232INT),
                        115200, serial_hd(0), DEVICE_BIG_ENDIAN);
     }
 
