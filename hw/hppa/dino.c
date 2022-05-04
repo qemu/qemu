@@ -536,17 +536,27 @@ PCIBus *dino_init(MemoryRegion *addr_space,
     memory_region_add_subregion(addr_space, DINO_HPA,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
 
+    *p_rtc_irq = qemu_allocate_irq(dino_set_timer_irq, s, 0);
+    *p_ser_irq = qemu_allocate_irq(dino_set_serial_irq, s, 0);
+
+    return b;
+}
+
+static void dino_pcihost_realize(DeviceState *dev, Error **errp)
+{
+    DinoState *s = DINO_PCI_HOST_BRIDGE(dev);
+
     /* Set up PCI view of memory: Bus master address space.  */
     memory_region_init(&s->bm, OBJECT(s), "bm-dino", 4 * GiB);
     memory_region_init_alias(&s->bm_ram_alias, OBJECT(s),
-                             "bm-system", addr_space, 0,
+                             "bm-system", s->memory_as, 0,
                              0xf0000000 + DINO_MEM_CHUNK_SIZE);
     memory_region_init_alias(&s->bm_pci_alias, OBJECT(s),
                              "bm-pci", &s->pci_mem,
                              0xf0000000 + DINO_MEM_CHUNK_SIZE,
                              30 * DINO_MEM_CHUNK_SIZE);
     memory_region_init_alias(&s->bm_cpu_alias, OBJECT(s),
-                             "bm-cpu", addr_space, 0xfff00000,
+                             "bm-cpu", s->memory_as, 0xfff00000,
                              0xfffff);
     memory_region_add_subregion(&s->bm, 0,
                                 &s->bm_ram_alias);
@@ -555,12 +565,15 @@ PCIBus *dino_init(MemoryRegion *addr_space,
                                 &s->bm_pci_alias);
     memory_region_add_subregion(&s->bm, 0xfff00000,
                                 &s->bm_cpu_alias);
+
     address_space_init(&s->bm_as, &s->bm, "pci-bm");
+}
 
-    *p_rtc_irq = qemu_allocate_irq(dino_set_timer_irq, s, 0);
-    *p_ser_irq = qemu_allocate_irq(dino_set_serial_irq, s, 0);
+static void dino_pcihost_unrealize(DeviceState *dev)
+{
+    DinoState *s = DINO_PCI_HOST_BRIDGE(dev);
 
-    return b;
+    address_space_destroy(&s->bm_as);
 }
 
 static void dino_pcihost_init(Object *obj)
@@ -619,6 +632,8 @@ static void dino_pcihost_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->realize = dino_pcihost_realize;
+    dc->unrealize = dino_pcihost_unrealize;
     device_class_set_props(dc, dino_pcihost_properties);
     dc->vmsd = &vmstate_dino;
 }
