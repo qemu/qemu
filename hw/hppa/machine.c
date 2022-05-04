@@ -16,6 +16,7 @@
 #include "hw/timer/i8254.h"
 #include "hw/char/serial.h"
 #include "hw/char/parallel.h"
+#include "hw/input/lasips2.h"
 #include "hw/net/lasi_82596.h"
 #include "hw/nmi.h"
 #include "hw/pci-host/dino.h"
@@ -244,6 +245,10 @@ static void machine_hppa_init(MachineState *machine)
             pci_nic_init_nofail(&nd_table[i], pci_bus, "tulip", NULL);
         }
     }
+
+    /* PS/2 Keyboard/Mouse */
+    lasips2_init(addr_space, LASI_PS2KBD_HPA,
+                 qdev_get_gpio_in(lasi_dev, LASI_IRQ_PS2KBD_HPA));
 
     /* register power switch emulation */
     qemu_register_powerdown_notifier(&hppa_system_powerdown_notifier);
