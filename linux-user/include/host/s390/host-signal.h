@@ -50,6 +50,7 @@ static inline bool host_signal_write(siginfo_t *info, host_sigcontext *uc)
     case 0x50: /* ST */
     case 0x42: /* STC */
     case 0x40: /* STH */
+    case 0x44: /* EX */
     case 0xba: /* CS */
     case 0xbb: /* CDS */
         return true;
@@ -58,6 +59,12 @@ static inline bool host_signal_write(siginfo_t *info, host_sigcontext *uc)
         case 0xf: /* STRL */
         case 0xb: /* STGRL */
         case 0x7: /* STHRL */
+            return true;
+        }
+        break;
+    case 0xc6: /* RIL-b format insns */
+        switch (pinsn[0] & 0xf) {
+        case 0x0: /* EXRL */
             return true;
         }
         break;
