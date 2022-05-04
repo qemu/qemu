@@ -2707,6 +2707,9 @@ static void gen_p_lsx(DisasContext *ctx, int rd, int rs, int rt)
         case NM_SDC1XS:
             tcg_gen_shli_tl(t0, t0, 3);
             break;
+        default:
+            gen_reserved_instruction(ctx);
+            goto out;
         }
     }
     gen_op_addr_add(ctx, t0, t0, t1);
@@ -2797,6 +2800,7 @@ static void gen_p_lsx(DisasContext *ctx, int rd, int rs, int rt)
         break;
     }
 
+out:
     tcg_temp_free(t0);
     tcg_temp_free(t1);
 }
@@ -3944,6 +3948,9 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                     gen_shift_imm(ctx, OPC_ROTR, rt, rs,
                                   extract32(ctx->opcode, 0, 5));
                     break;
+                default:
+                    gen_reserved_instruction(ctx);
+                    break;
                 }
             }
             break;
@@ -4245,6 +4252,9 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                         check_xnp(ctx);
                         gen_llwp(ctx, rs, 0, rt, extract32(ctx->opcode, 3, 5));
                         break;
+                    default:
+                        gen_reserved_instruction(ctx);
+                        break;
                     }
                     break;
                 case NM_P_SC:
@@ -4257,6 +4267,9 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                         gen_scwp(ctx, rs, 0, rt, extract32(ctx->opcode, 3, 5),
                                  false);
                         break;
+                    default:
+                        gen_reserved_instruction(ctx);
+                        break;
                     }
                     break;
                 case NM_CACHE:
@@ -4264,6 +4277,9 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                     if (ctx->hflags & MIPS_HFLAG_ITC_CACHE) {
                         gen_cache_operation(ctx, rt, rs, s);
                     }
+                    break;
+                default:
+                    gen_reserved_instruction(ctx);
                     break;
                 }
                 break;
@@ -4370,6 +4386,9 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                         gen_reserved_instruction(ctx);
                         break;
                     }
+                    break;
+                default:
+                    gen_reserved_instruction(ctx);
                     break;
                 }
                 break;
