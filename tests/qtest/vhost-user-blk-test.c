@@ -676,6 +676,11 @@ static void pci_hotplug(void *obj, void *data, QGuestAllocator *t_alloc)
     QVirtioPCIDevice *dev;
     QTestState *qts = dev1->pdev->bus->qts;
 
+    if (dev1->pdev->bus->not_hotpluggable) {
+        g_test_skip("pci bus does not support hotplug");
+        return;
+    }
+
     /* plug secondary disk */
     qtest_qmp_device_add(qts, "vhost-user-blk-pci", "drv1",
                          "{'addr': %s, 'chardev': 'char2'}",
@@ -702,6 +707,11 @@ static void multiqueue(void *obj, void *data, QGuestAllocator *t_alloc)
     QTestState *qts = pdev1->pdev->bus->qts;
     uint64_t features;
     uint16_t num_queues;
+
+    if (pdev1->pdev->bus->not_hotpluggable) {
+        g_test_skip("bus pci.0 does not support hotplug");
+        return;
+    }
 
     /*
      * The primary device has 1 queue and VIRTIO_BLK_F_MQ is not enabled. The
