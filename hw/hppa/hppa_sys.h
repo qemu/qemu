@@ -5,6 +5,4 @@
 
 #include "hppa_hardware.h"
 
-#define enable_lasi_lan()       0
-
 #endif

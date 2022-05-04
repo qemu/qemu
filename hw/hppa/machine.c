@@ -36,6 +36,9 @@
 
 #define HPA_POWER_BUTTON (FIRMWARE_END - 0x10)
 
+#define enable_lasi_lan()       0
+
+
 static void hppa_powerdown_req(Notifier *n, void *opaque)
 {
     hwaddr soft_power_reg = HPA_POWER_BUTTON;
