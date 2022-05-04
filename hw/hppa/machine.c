@@ -446,8 +446,11 @@ static void hppa_nmi(NMIState *n, int cpu_index, Error **errp)
     }
 }
 
-static void machine_hppa_machine_init(MachineClass *mc)
+static void machine_hppa_machine_init_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+    NMIClass *nc = NMI_CLASS(oc);
+
     mc->desc = "HPPA B160L machine";
     mc->default_cpu_type = TYPE_HPPA_CPU;
     mc->init = machine_hppa_init;
@@ -459,14 +462,7 @@ static void machine_hppa_machine_init(MachineClass *mc)
     mc->default_ram_size = 512 * MiB;
     mc->default_boot_order = "cd";
     mc->default_ram_id = "ram";
-}
 
-static void machine_hppa_machine_init_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    machine_hppa_machine_init(mc);
-
-    NMIClass *nc = NMI_CLASS(oc);
     nc->nmi_monitor_handler = hppa_nmi;
 }
 
