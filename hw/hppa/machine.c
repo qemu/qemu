@@ -57,6 +57,29 @@ static Notifier hppa_system_powerdown_notifier = {
     .notify = hppa_powerdown_req
 };
 
+/* Fallback for unassigned PCI I/O operations.  Avoids MCHK.  */
+static uint64_t ignore_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return 0;
+}
+
+static void ignore_write(void *opaque, hwaddr addr, uint64_t v, unsigned size)
+{
+}
+
+static const MemoryRegionOps hppa_pci_ignore_ops = {
+    .read = ignore_read,
+    .write = ignore_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
 
 static ISABus *hppa_isa_bus(void)
 {

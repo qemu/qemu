@@ -10,7 +10,6 @@
 #define enable_lasi_lan()       0
 
 /* hppa_pci.c.  */
-extern const MemoryRegionOps hppa_pci_ignore_ops;
 extern const MemoryRegionOps hppa_pci_conf1_ops;
 extern const MemoryRegionOps hppa_pci_iack_ops;
 
