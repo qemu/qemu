@@ -234,38 +234,31 @@ static void lasi_set_irq(void *opaque, int irq, int level)
 DeviceState *lasi_initfn(MemoryRegion *address_space)
 {
     DeviceState *dev;
-    LasiState *s;
 
     dev = qdev_new(TYPE_LASI_CHIP);
-    s = LASI_CHIP(dev);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     /* LAN */
     if (enable_lasi_lan()) {
-        qemu_irq lan_irq = qemu_allocate_irq(lasi_set_irq, s,
-                                             LASI_IRQ_LAN_HPA);
-        lasi_82596_init(address_space, LASI_LAN_HPA, lan_irq);
+        lasi_82596_init(address_space, LASI_LAN_HPA,
+                        qdev_get_gpio_in(dev, LASI_IRQ_LAN_HPA));
     }
 
     /* Parallel port */
-    qemu_irq lpt_irq = qemu_allocate_irq(lasi_set_irq, s,
-                                         LASI_IRQ_LPT_HPA);
     parallel_mm_init(address_space, LASI_LPT_HPA + 0x800, 0,
-                     lpt_irq, parallel_hds[0]);
+                     qdev_get_gpio_in(dev, LASI_IRQ_LAN_HPA),
+                     parallel_hds[0]);
 
     if (serial_hd(1)) {
         /* Serial port */
-        qemu_irq serial_irq = qemu_allocate_irq(lasi_set_irq, s,
-                                                LASI_IRQ_UART_HPA);
         serial_mm_init(address_space, LASI_UART_HPA + 0x800, 0,
-                serial_irq, 8000000 / 16,
+                qdev_get_gpio_in(dev, LASI_IRQ_UART_HPA), 8000000 / 16,
                 serial_hd(0), DEVICE_NATIVE_ENDIAN);
     }
 
     /* PS/2 Keyboard/Mouse */
-    qemu_irq ps2kbd_irq = qemu_allocate_irq(lasi_set_irq, s,
-                                            LASI_IRQ_PS2KBD_HPA);
-    lasips2_init(address_space, LASI_PS2KBD_HPA,  ps2kbd_irq);
+    lasips2_init(address_space, LASI_PS2KBD_HPA,
+                 qdev_get_gpio_in(dev, LASI_IRQ_PS2KBD_HPA));
 
     return dev;
 }
