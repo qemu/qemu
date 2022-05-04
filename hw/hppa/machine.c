@@ -125,6 +125,16 @@ static FWCfgState *create_fw_cfg(MachineState *ms)
     return fw_cfg;
 }
 
+static LasiState *lasi_init(void)
+{
+    DeviceState *dev;
+
+    dev = qdev_new(TYPE_LASI_CHIP);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    return LASI_CHIP(dev);
+}
+
 static DinoState *dino_init(MemoryRegion *addr_space)
 {
     DeviceState *dev;
@@ -178,7 +188,7 @@ static void machine_hppa_init(MachineState *machine)
 
 
     /* Init Lasi chip */
-    lasi_dev = DEVICE(lasi_initfn());
+    lasi_dev = DEVICE(lasi_init());
     memory_region_add_subregion(addr_space, LASI_HPA,
                                 sysbus_mmio_get_region(
                                     SYS_BUS_DEVICE(lasi_dev), 0));

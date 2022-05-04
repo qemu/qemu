@@ -227,16 +227,6 @@ static void lasi_set_irq(void *opaque, int irq, int level)
     }
 }
 
-LasiState *lasi_initfn(void)
-{
-    DeviceState *dev;
-
-    dev = qdev_new(TYPE_LASI_CHIP);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    return LASI_CHIP(dev);
-}
-
 static void lasi_reset(DeviceState *dev)
 {
     LasiState *s = LASI_CHIP(dev);
