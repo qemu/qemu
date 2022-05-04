@@ -2036,7 +2036,7 @@ static void gen_pool32axf_2_nanomips_insn(DisasContext *ctx, uint32_t opc,
         case NM_EXTRV_S_H:
             check_dsp(ctx);
             tcg_gen_movi_tl(t0, rd >> 3);
-            gen_helper_extr_s_h(t0, t0, v0_t, cpu_env);
+            gen_helper_extr_s_h(t0, t0, v1_t, cpu_env);
             gen_store_gpr(t0, ret);
             break;
         }
