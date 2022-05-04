@@ -556,7 +556,6 @@ PCIBus *dino_init(MemoryRegion *addr_space,
     memory_region_add_subregion(&s->bm, 0xfff00000,
                                 &s->bm_cpu_alias);
     address_space_init(&s->bm_as, &s->bm, "pci-bm");
-    pci_setup_iommu(b, dino_pcihost_set_iommu, s);
 
     *p_rtc_irq = qemu_allocate_irq(dino_set_timer_irq, s, 0);
     *p_ser_irq = qemu_allocate_irq(dino_set_serial_irq, s, 0);
@@ -604,6 +603,8 @@ static void dino_pcihost_init(Object *obj)
                                  DINO_MEM_CHUNK_SIZE);
         g_free(name);
     }
+
+    pci_setup_iommu(phb->bus, dino_pcihost_set_iommu, s);
 
     sysbus_init_mmio(sbd, &s->this_mem);
 }
