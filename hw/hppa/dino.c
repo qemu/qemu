@@ -205,6 +205,7 @@ static MemTxResult dino_chip_read_with_attrs(void *opaque, hwaddr addr,
                                              MemTxAttrs attrs)
 {
     DinoState *s = opaque;
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
     MemTxResult ret = MEMTX_OK;
     AddressSpace *io;
     uint16_t ioaddr;
@@ -214,7 +215,7 @@ static MemTxResult dino_chip_read_with_attrs(void *opaque, hwaddr addr,
     case DINO_PCI_IO_DATA ... DINO_PCI_IO_DATA + 3:
         /* Read from PCI IO space. */
         io = &address_space_io;
-        ioaddr = s->parent_obj.config_reg + (addr & 3);
+        ioaddr = phb->config_reg + (addr & 3);
         switch (size) {
         case 1:
             val = address_space_ldub(io, ioaddr, attrs, &ret);
@@ -297,6 +298,7 @@ static MemTxResult dino_chip_write_with_attrs(void *opaque, hwaddr addr,
                                               MemTxAttrs attrs)
 {
     DinoState *s = opaque;
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
     AddressSpace *io;
     MemTxResult ret;
     uint16_t ioaddr;
@@ -308,7 +310,7 @@ static MemTxResult dino_chip_write_with_attrs(void *opaque, hwaddr addr,
     case DINO_IO_DATA ... DINO_PCI_IO_DATA + 3:
         /* Write into PCI IO space.  */
         io = &address_space_io;
-        ioaddr = s->parent_obj.config_reg + (addr & 3);
+        ioaddr = phb->config_reg + (addr & 3);
         switch (size) {
         case 1:
             address_space_stb(io, ioaddr, val, attrs, &ret);
