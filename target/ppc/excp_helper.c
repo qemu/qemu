@@ -444,7 +444,7 @@ static void powerpc_excp_40x(PowerPCCPU *cpu, int excp)
         srr1 = SPR_40x_SRR3;
         break;
     case POWERPC_EXCP_MCHECK:    /* Machine check exception                  */
-        if (msr_me == 0) {
+        if (!FIELD_EX64(env->msr, MSR, ME)) {
             /*
              * Machine check exception is not enabled.  Enter
              * checkstop state.
@@ -575,7 +575,7 @@ static void powerpc_excp_6xx(PowerPCCPU *cpu, int excp)
     case POWERPC_EXCP_CRITICAL:    /* Critical input                         */
         break;
     case POWERPC_EXCP_MCHECK:    /* Machine check exception                  */
-        if (msr_me == 0) {
+        if (!FIELD_EX64(env->msr, MSR, ME)) {
             /*
              * Machine check exception is not enabled.  Enter
              * checkstop state.
@@ -748,7 +748,7 @@ static void powerpc_excp_7xx(PowerPCCPU *cpu, int excp)
 
     switch (excp) {
     case POWERPC_EXCP_MCHECK:    /* Machine check exception                  */
-        if (msr_me == 0) {
+        if (!FIELD_EX64(env->msr, MSR, ME)) {
             /*
              * Machine check exception is not enabled.  Enter
              * checkstop state.
@@ -933,7 +933,7 @@ static void powerpc_excp_74xx(PowerPCCPU *cpu, int excp)
 
     switch (excp) {
     case POWERPC_EXCP_MCHECK:    /* Machine check exception                  */
-        if (msr_me == 0) {
+        if (!FIELD_EX64(env->msr, MSR, ME)) {
             /*
              * Machine check exception is not enabled.  Enter
              * checkstop state.
@@ -1128,7 +1128,7 @@ static void powerpc_excp_booke(PowerPCCPU *cpu, int excp)
         srr1 = SPR_BOOKE_CSRR1;
         break;
     case POWERPC_EXCP_MCHECK:    /* Machine check exception                  */
-        if (msr_me == 0) {
+        if (!FIELD_EX64(env->msr, MSR, ME)) {
             /*
              * Machine check exception is not enabled.  Enter
              * checkstop state.
@@ -1366,7 +1366,7 @@ static void powerpc_excp_books(PowerPCCPU *cpu, int excp)
 
     switch (excp) {
     case POWERPC_EXCP_MCHECK:    /* Machine check exception                  */
-        if (msr_me == 0) {
+        if (!FIELD_EX64(env->msr, MSR, ME)) {
             /*
              * Machine check exception is not enabled.  Enter
              * checkstop state.
