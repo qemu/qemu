@@ -58,6 +58,18 @@ OBJECT_DECLARE_SIMPLE_TYPE(DinoState, DINO_PCI_HOST_BRIDGE)
 #define DINO_LOCAL_IRQS   (DINO_IRQS + 1)
 #define DINO_MASK_IRQ(x)  (1 << (x))
 
+#define DINO_IRQ_PCIINTA   0
+#define DINO_IRQ_PCIINTB   1
+#define DINO_IRQ_PCIINTC   2
+#define DINO_IRQ_PCIINTD   3
+#define DINO_IRQ_PCIINTE   4
+#define DINO_IRQ_PCIINTF   5
+#define DINO_IRQ_GSCEXTINT 6
+#define DINO_IRQ_BUSERRINT 7
+#define DINO_IRQ_PS2INT    8
+#define DINO_IRQ_UNUSED    9
+#define DINO_IRQ_RS232INT  10
+
 #define PCIINTA   0x001
 #define PCIINTB   0x002
 #define PCIINTC   0x004
