@@ -471,8 +471,8 @@ static void machine_hppa_machine_init_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo machine_hppa_machine_init_typeinfo = {
-    .name = ("hppa" "-machine"),
-    .parent = "machine",
+    .name = MACHINE_TYPE_NAME("hppa"),
+    .parent = TYPE_MACHINE,
     .class_init = machine_hppa_machine_init_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_NMI },
