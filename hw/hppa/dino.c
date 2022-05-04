@@ -523,14 +523,12 @@ PCIBus *dino_init(MemoryRegion *addr_space,
 {
     DeviceState *dev;
     DinoState *s;
-    PCIBus *b;
+    PCIBus *pci_bus;
 
     dev = qdev_new(TYPE_DINO_PCI_HOST_BRIDGE);
     object_property_set_link(OBJECT(dev), "memory-as", OBJECT(addr_space),
                              &error_fatal);
     s = DINO_PCI_HOST_BRIDGE(dev);
-
-    b = s->parent_obj.bus;
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     memory_region_add_subregion(addr_space, DINO_HPA,
@@ -539,7 +537,8 @@ PCIBus *dino_init(MemoryRegion *addr_space,
     *p_rtc_irq = qemu_allocate_irq(dino_set_timer_irq, s, 0);
     *p_ser_irq = qemu_allocate_irq(dino_set_serial_irq, s, 0);
 
-    return b;
+    pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci"));
+    return pci_bus;
 }
 
 static void dino_pcihost_reset(DeviceState *dev)
