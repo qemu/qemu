@@ -1003,7 +1003,7 @@ void helper_booke206_tlbwe(CPUPPCState *env)
     /* Add a mask for page attributes */
     mask |= MAS2_ACM | MAS2_VLE | MAS2_W | MAS2_I | MAS2_M | MAS2_G | MAS2_E;
 
-    if (!msr_cm) {
+    if (!FIELD_EX64(env->msr, MSR, CM)) {
         /*
          * Executing a tlbwe instruction in 32-bit mode will set bits
          * 0:31 of the TLB EPN field to zero.
