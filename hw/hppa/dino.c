@@ -527,8 +527,6 @@ PCIBus *dino_init(MemoryRegion *addr_space,
     object_property_set_link(OBJECT(dev), "memory-as", OBJECT(addr_space),
                              &error_fatal);
     s = DINO_PCI_HOST_BRIDGE(dev);
-    s->iar0 = s->iar1 = CPU_HPA + 3;
-    s->toc_addr = 0xFFFA0030; /* IO_COMMAND of CPU */
 
     b = s->parent_obj.bus;
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
@@ -540,6 +538,14 @@ PCIBus *dino_init(MemoryRegion *addr_space,
     *p_ser_irq = qemu_allocate_irq(dino_set_serial_irq, s, 0);
 
     return b;
+}
+
+static void dino_pcihost_reset(DeviceState *dev)
+{
+    DinoState *s = DINO_PCI_HOST_BRIDGE(dev);
+
+    s->iar0 = s->iar1 = CPU_HPA + 3;
+    s->toc_addr = 0xFFFA0030; /* IO_COMMAND of CPU */
 }
 
 static void dino_pcihost_realize(DeviceState *dev, Error **errp)
@@ -632,6 +638,7 @@ static void dino_pcihost_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->reset = dino_pcihost_reset;
     dc->realize = dino_pcihost_realize;
     dc->unrealize = dino_pcihost_unrealize;
     device_class_set_props(dc, dino_pcihost_properties);
