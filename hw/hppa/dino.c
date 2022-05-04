@@ -526,21 +526,6 @@ PCIBus *dino_init(MemoryRegion *addr_space,
     s->iar0 = s->iar1 = CPU_HPA + 3;
     s->toc_addr = 0xFFFA0030; /* IO_COMMAND of CPU */
 
-    /* Dino PCI access from main memory.  */
-    memory_region_init_io(&s->this_mem, OBJECT(s), &dino_chip_ops,
-                          s, "dino", 4096);
-    memory_region_add_subregion(addr_space, DINO_HPA, &s->this_mem);
-
-    /* Dino PCI config. */
-    memory_region_init_io(&s->parent_obj.conf_mem, OBJECT(&s->parent_obj),
-                          &dino_config_addr_ops, dev, "pci-conf-idx", 4);
-    memory_region_init_io(&s->parent_obj.data_mem, OBJECT(&s->parent_obj),
-                          &dino_config_data_ops, dev, "pci-conf-data", 4);
-    memory_region_add_subregion(&s->this_mem, DINO_PCI_CONFIG_ADDR,
-                                &s->parent_obj.conf_mem);
-    memory_region_add_subregion(&s->this_mem, DINO_CONFIG_DATA,
-                                &s->parent_obj.data_mem);
-
     /* Dino PCI bus memory.  */
     memory_region_init(&s->pci_mem, OBJECT(s), "pci-memory", 4 * GiB);
 
@@ -549,6 +534,9 @@ PCIBus *dino_init(MemoryRegion *addr_space,
                               PCI_DEVFN(0, 0), 32, TYPE_PCI_BUS);
     s->parent_obj.bus = b;
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    memory_region_add_subregion(addr_space, DINO_HPA,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
 
     /* Set up windows into PCI bus memory.  */
     for (i = 1; i < 31; i++) {
@@ -588,6 +576,31 @@ PCIBus *dino_init(MemoryRegion *addr_space,
     return b;
 }
 
+static void dino_pcihost_init(Object *obj)
+{
+    DinoState *s = DINO_PCI_HOST_BRIDGE(obj);
+    PCIHostState *phb = PCI_HOST_BRIDGE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+
+    /* Dino PCI access from main memory.  */
+    memory_region_init_io(&s->this_mem, OBJECT(s), &dino_chip_ops,
+                          s, "dino", 4096);
+
+    /* Dino PCI config. */
+    memory_region_init_io(&phb->conf_mem, OBJECT(phb),
+                          &dino_config_addr_ops, DEVICE(s),
+                          "pci-conf-idx", 4);
+    memory_region_init_io(&phb->data_mem, OBJECT(phb),
+                          &dino_config_data_ops, DEVICE(s),
+                          "pci-conf-data", 4);
+    memory_region_add_subregion(&s->this_mem, DINO_PCI_CONFIG_ADDR,
+                                &phb->conf_mem);
+    memory_region_add_subregion(&s->this_mem, DINO_CONFIG_DATA,
+                                &phb->data_mem);
+
+    sysbus_init_mmio(sbd, &s->this_mem);
+}
+
 static void dino_pcihost_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -598,6 +611,7 @@ static void dino_pcihost_class_init(ObjectClass *klass, void *data)
 static const TypeInfo dino_pcihost_info = {
     .name          = TYPE_DINO_PCI_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
+    .instance_init = dino_pcihost_init,
     .instance_size = sizeof(DinoState),
     .class_init    = dino_pcihost_class_init,
 };
