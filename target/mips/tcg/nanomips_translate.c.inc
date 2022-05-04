@@ -1597,7 +1597,7 @@ static void gen_pool32axf_1_nanomips_insn(DisasContext *ctx, uint32_t opc,
         check_dsp(ctx);
         switch (extract32(ctx->opcode, 12, 2)) {
         case NM_MTHLIP:
-            tcg_gen_movi_tl(t0, v2);
+            tcg_gen_movi_tl(t0, v2 >> 3);
             gen_helper_mthlip(t0, v0_t, cpu_env);
             break;
         case NM_SHILOV:
