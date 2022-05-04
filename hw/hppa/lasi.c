@@ -231,7 +231,7 @@ static void lasi_reset(DeviceState *dev)
 {
     LasiState *s = LASI_CHIP(dev);
 
-    s->iar = CPU_HPA + 3;
+    s->iar = 0xFFFB0000 + 3; /* CPU_HPA + 3 */
 
     /* Real time clock (RTC), it's only one 32-bit counter @9000 */
     s->rtc = time(NULL);
