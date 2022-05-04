@@ -4,6 +4,7 @@ config HPPA_B160L
     imply E1000_PCI
     imply VIRTIO_VGA
     select DINO
+    select LASI
     select SERIAL
     select ISA_BUS
     select I8259

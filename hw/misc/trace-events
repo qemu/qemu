@@ -263,3 +263,8 @@ virt_ctrl_write(void *dev, unsigned int addr, unsigned int size, uint64_t value)
 virt_ctrl_reset(void *dev) "ctrl: %p"
 virt_ctrl_realize(void *dev) "ctrl: %p"
 virt_ctrl_instance_init(void *dev) "ctrl: %p"
+
+# lasi.c
+lasi_chip_mem_valid(uint64_t addr, uint32_t val) "access to addr 0x%"PRIx64" is %d"
+lasi_chip_read(uint64_t addr, uint32_t val) "addr 0x%"PRIx64" val 0x%08x"
+lasi_chip_write(uint64_t addr, uint32_t val) "addr 0x%"PRIx64" val 0x%08x"

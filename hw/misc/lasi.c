@@ -17,10 +17,9 @@
 #include "hw/irq.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/runstate.h"
-#include "hppa_sys.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
-#include "lasi.h"
+#include "hw/misc/lasi.h"
 
 
 static bool lasi_chip_mem_valid(void *opaque, hwaddr addr,

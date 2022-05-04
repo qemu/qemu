@@ -22,7 +22,7 @@
 #include "hw/nmi.h"
 #include "hw/pci/pci.h"
 #include "hw/pci-host/dino.h"
-#include "lasi.h"
+#include "hw/misc/lasi.h"
 #include "hppa_sys.h"
 #include "qemu/units.h"
 #include "qapi/error.h"

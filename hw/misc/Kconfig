@@ -171,4 +171,7 @@ config SIFIVE_U_PRCI
 config VIRT_CTRL
     bool
 
+config LASI
+    bool
+
 source macio/Kconfig
