@@ -403,7 +403,7 @@ static void dino_pcihost_reset(DeviceState *dev)
 {
     DinoState *s = DINO_PCI_HOST_BRIDGE(dev);
 
-    s->iar0 = s->iar1 = CPU_HPA + 3;
+    s->iar0 = s->iar1 = 0xFFFB0000 + 3; /* CPU_HPA + 3 */
     s->toc_addr = 0xFFFA0030; /* IO_COMMAND of CPU */
 }
 
