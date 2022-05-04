@@ -178,7 +178,7 @@ static void machine_hppa_init(MachineState *machine)
 
 
     /* Init Lasi chip */
-    lasi_dev = DEVICE(lasi_initfn(addr_space));
+    lasi_dev = DEVICE(lasi_initfn());
     memory_region_add_subregion(addr_space, LASI_HPA,
                                 sysbus_mmio_get_region(
                                     SYS_BUS_DEVICE(lasi_dev), 0));

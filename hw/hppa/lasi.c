@@ -227,7 +227,7 @@ static void lasi_set_irq(void *opaque, int irq, int level)
     }
 }
 
-LasiState *lasi_initfn(MemoryRegion *address_space)
+LasiState *lasi_initfn(void)
 {
     DeviceState *dev;
 
