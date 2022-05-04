@@ -17,6 +17,7 @@
 #include "hw/irq.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "hppa_sys.h"
 #include "trace.h"
@@ -123,6 +124,8 @@ struct DinoState {
     MemoryRegion this_mem;
     MemoryRegion pci_mem;
     MemoryRegion pci_mem_alias[32];
+
+    MemoryRegion *memory_as;
 
     AddressSpace bm_as;
     MemoryRegion bm;
@@ -521,6 +524,8 @@ PCIBus *dino_init(MemoryRegion *addr_space,
     PCIBus *b;
 
     dev = qdev_new(TYPE_DINO_PCI_HOST_BRIDGE);
+    object_property_set_link(OBJECT(dev), "memory-as", OBJECT(addr_space),
+                             &error_fatal);
     s = DINO_PCI_HOST_BRIDGE(dev);
     s->iar0 = s->iar1 = CPU_HPA + 3;
     s->toc_addr = 0xFFFA0030; /* IO_COMMAND of CPU */
@@ -603,10 +608,17 @@ static void dino_pcihost_init(Object *obj)
     sysbus_init_mmio(sbd, &s->this_mem);
 }
 
+static Property dino_pcihost_properties[] = {
+    DEFINE_PROP_LINK("memory-as", DinoState, memory_as, TYPE_MEMORY_REGION,
+                     MemoryRegion *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void dino_pcihost_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    device_class_set_props(dc, dino_pcihost_properties);
     dc->vmsd = &vmstate_dino;
 }
 
