@@ -23,7 +23,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci-host/dino.h"
 #include "hw/misc/lasi.h"
-#include "hppa_sys.h"
+#include "hppa_hardware.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "net/net.h"
