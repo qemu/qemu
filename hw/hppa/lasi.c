@@ -169,10 +169,11 @@ static MemTxResult lasi_chip_write_with_attrs(void *opaque, hwaddr addr,
         break;
     case LASI_IMR:
         s->imr = val;
-        if (((val & LASI_IRQ_BITS) != val) && (val != 0xffffffff))
+        if (((val & LASI_IRQ_BITS) != val) && (val != 0xffffffff)) {
             qemu_log_mask(LOG_GUEST_ERROR,
                 "LASI: tried to set invalid %lx IMR value.\n",
                 (unsigned long) val);
+        }
         break;
     case LASI_IPR:
         /* Any write to IPR clears the register. */
@@ -200,8 +201,9 @@ static MemTxResult lasi_chip_write_with_attrs(void *opaque, hwaddr addr,
         break;
 
     case LASI_PCR:
-        if (val == 0x02) /* immediately power off */
+        if (val == 0x02) { /* immediately power off */
             qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+        }
         break;
     case LASI_ERRLOG:
         s->errlog = val;
