@@ -10,7 +10,7 @@
 
 #include "hppa_hardware.h"
 
-DeviceState *lasi_init(MemoryRegion *);
+DeviceState *lasi_initfn(MemoryRegion *);
 #define enable_lasi_lan()       0
 
 /* hppa_pci.c.  */

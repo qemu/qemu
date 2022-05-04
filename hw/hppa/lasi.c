@@ -296,7 +296,7 @@ static int lasi_get_irq(unsigned long hpa)
     }
 }
 
-DeviceState *lasi_init(MemoryRegion *address_space)
+DeviceState *lasi_initfn(MemoryRegion *address_space)
 {
     DeviceState *dev;
     LasiState *s;
@@ -306,8 +306,6 @@ DeviceState *lasi_init(MemoryRegion *address_space)
     s->iar = CPU_HPA + 3;
 
     /* Lasi access from main memory.  */
-    memory_region_init_io(&s->this_mem, OBJECT(s), &lasi_chip_ops,
-                          s, "lasi", 0x100000);
     memory_region_add_subregion(address_space, LASI_HPA, &s->this_mem);
 
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
@@ -347,6 +345,14 @@ DeviceState *lasi_init(MemoryRegion *address_space)
     return dev;
 }
 
+static void lasi_init(Object *obj)
+{
+    LasiState *s = LASI_CHIP(obj);
+
+    memory_region_init_io(&s->this_mem, OBJECT(s), &lasi_chip_ops,
+                          s, "lasi", 0x100000);
+}
+
 static void lasi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -357,6 +363,7 @@ static void lasi_class_init(ObjectClass *klass, void *data)
 static const TypeInfo lasi_pcihost_info = {
     .name          = TYPE_LASI_CHIP,
     .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_init = lasi_init,
     .instance_size = sizeof(LasiState),
     .class_init    = lasi_class_init,
 };
