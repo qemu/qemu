@@ -5949,7 +5949,8 @@ static bool cpu_has_work_POWER7(CPUState *cs)
         }
         return false;
     } else {
-        return msr_ee && (cs->interrupt_request & CPU_INTERRUPT_HARD);
+        return FIELD_EX64(env->msr, MSR, EE) &&
+               (cs->interrupt_request & CPU_INTERRUPT_HARD);
     }
 }
 
@@ -6120,7 +6121,8 @@ static bool cpu_has_work_POWER8(CPUState *cs)
         }
         return false;
     } else {
-        return msr_ee && (cs->interrupt_request & CPU_INTERRUPT_HARD);
+        return FIELD_EX64(env->msr, MSR, EE) &&
+               (cs->interrupt_request & CPU_INTERRUPT_HARD);
     }
 }
 
@@ -6337,7 +6339,8 @@ static bool cpu_has_work_POWER9(CPUState *cs)
         }
         return false;
     } else {
-        return msr_ee && (cs->interrupt_request & CPU_INTERRUPT_HARD);
+        return FIELD_EX64(env->msr, MSR, EE) &&
+               (cs->interrupt_request & CPU_INTERRUPT_HARD);
     }
 }
 
@@ -6551,7 +6554,8 @@ static bool cpu_has_work_POWER10(CPUState *cs)
         }
         return false;
     } else {
-        return msr_ee && (cs->interrupt_request & CPU_INTERRUPT_HARD);
+        return FIELD_EX64(env->msr, MSR, EE) &&
+               (cs->interrupt_request & CPU_INTERRUPT_HARD);
     }
 }
 
@@ -7119,7 +7123,8 @@ static bool ppc_cpu_has_work(CPUState *cs)
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
 
-    return msr_ee && (cs->interrupt_request & CPU_INTERRUPT_HARD);
+    return FIELD_EX64(env->msr, MSR, EE) &&
+           (cs->interrupt_request & CPU_INTERRUPT_HARD);
 }
 
 static void ppc_cpu_reset(DeviceState *dev)
