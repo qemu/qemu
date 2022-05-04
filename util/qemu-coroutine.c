@@ -18,6 +18,7 @@
 #include "qemu/atomic.h"
 #include "qemu/coroutine.h"
 #include "qemu/coroutine_int.h"
+#include "qemu/coroutine-tls.h"
 #include "block/aio.h"
 
 /** Initial batch size is 64, and is increased on demand */
@@ -29,17 +30,20 @@ enum {
 static QSLIST_HEAD(, Coroutine) release_pool = QSLIST_HEAD_INITIALIZER(pool);
 static unsigned int pool_batch_size = POOL_INITIAL_BATCH_SIZE;
 static unsigned int release_pool_size;
-static __thread QSLIST_HEAD(, Coroutine) alloc_pool = QSLIST_HEAD_INITIALIZER(pool);
-static __thread unsigned int alloc_pool_size;
-static __thread Notifier coroutine_pool_cleanup_notifier;
+
+typedef QSLIST_HEAD(, Coroutine) CoroutineQSList;
+QEMU_DEFINE_STATIC_CO_TLS(CoroutineQSList, alloc_pool);
+QEMU_DEFINE_STATIC_CO_TLS(unsigned int, alloc_pool_size);
+QEMU_DEFINE_STATIC_CO_TLS(Notifier, coroutine_pool_cleanup_notifier);
 
 static void coroutine_pool_cleanup(Notifier *n, void *value)
 {
     Coroutine *co;
     Coroutine *tmp;
+    CoroutineQSList *alloc_pool = get_ptr_alloc_pool();
 
-    QSLIST_FOREACH_SAFE(co, &alloc_pool, pool_next, tmp) {
-        QSLIST_REMOVE_HEAD(&alloc_pool, pool_next);
+    QSLIST_FOREACH_SAFE(co, alloc_pool, pool_next, tmp) {
+        QSLIST_REMOVE_HEAD(alloc_pool, pool_next);
         qemu_coroutine_delete(co);
     }
 }
@@ -49,27 +53,30 @@ Coroutine *qemu_coroutine_create(CoroutineEntry *entry, void *opaque)
     Coroutine *co = NULL;
 
     if (CONFIG_COROUTINE_POOL) {
-        co = QSLIST_FIRST(&alloc_pool);
+        CoroutineQSList *alloc_pool = get_ptr_alloc_pool();
+
+        co = QSLIST_FIRST(alloc_pool);
         if (!co) {
             if (release_pool_size > qatomic_read(&pool_batch_size)) {
                 /* Slow path; a good place to register the destructor, too.  */
-                if (!coroutine_pool_cleanup_notifier.notify) {
-                    coroutine_pool_cleanup_notifier.notify = coroutine_pool_cleanup;
-                    qemu_thread_atexit_add(&coroutine_pool_cleanup_notifier);
+                Notifier *notifier = get_ptr_coroutine_pool_cleanup_notifier();
+                if (!notifier->notify) {
+                    notifier->notify = coroutine_pool_cleanup;
+                    qemu_thread_atexit_add(notifier);
                 }
 
                 /* This is not exact; there could be a little skew between
                  * release_pool_size and the actual size of release_pool.  But
                  * it is just a heuristic, it does not need to be perfect.
                  */
-                alloc_pool_size = qatomic_xchg(&release_pool_size, 0);
-                QSLIST_MOVE_ATOMIC(&alloc_pool, &release_pool);
-                co = QSLIST_FIRST(&alloc_pool);
+                set_alloc_pool_size(qatomic_xchg(&release_pool_size, 0));
+                QSLIST_MOVE_ATOMIC(alloc_pool, &release_pool);
+                co = QSLIST_FIRST(alloc_pool);
             }
         }
         if (co) {
-            QSLIST_REMOVE_HEAD(&alloc_pool, pool_next);
-            alloc_pool_size--;
+            QSLIST_REMOVE_HEAD(alloc_pool, pool_next);
+            set_alloc_pool_size(get_alloc_pool_size() - 1);
         }
     }
 
@@ -93,9 +100,9 @@ static void coroutine_delete(Coroutine *co)
             qatomic_inc(&release_pool_size);
             return;
         }
-        if (alloc_pool_size < qatomic_read(&pool_batch_size)) {
-            QSLIST_INSERT_HEAD(&alloc_pool, co, pool_next);
-            alloc_pool_size++;
+        if (get_alloc_pool_size() < qatomic_read(&pool_batch_size)) {
+            QSLIST_INSERT_HEAD(get_ptr_alloc_pool(), co, pool_next);
+            set_alloc_pool_size(get_alloc_pool_size() + 1);
             return;
         }
     }

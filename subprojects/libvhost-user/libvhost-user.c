@@ -800,8 +800,7 @@ vu_add_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
 
         DPRINT("Successfully added new region\n");
         dev->nregions++;
-        vmsg_set_reply_u64(vmsg, 0);
-        return true;
+        return false;
     }
 }
 
@@ -823,15 +822,15 @@ vu_rem_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
     int i;
     bool found = false;
 
-    if (vmsg->fd_num != 1) {
+    if (vmsg->fd_num > 1) {
         vmsg_close_fds(vmsg);
-        vu_panic(dev, "VHOST_USER_REM_MEM_REG received %d fds - only 1 fd "
+        vu_panic(dev, "VHOST_USER_REM_MEM_REG received %d fds - at most 1 fd "
                       "should be sent for this message type", vmsg->fd_num);
         return false;
     }
 
     if (vmsg->size < VHOST_USER_MEM_REG_SIZE) {
-        close(vmsg->fds[0]);
+        vmsg_close_fds(vmsg);
         vu_panic(dev, "VHOST_USER_REM_MEM_REG requires a message size of at "
                       "least %d bytes and only %d bytes were received",
                       VHOST_USER_MEM_REG_SIZE, vmsg->size);
@@ -874,15 +873,13 @@ vu_rem_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
         }
     }
 
-    if (found) {
-        vmsg_set_reply_u64(vmsg, 0);
-    } else {
+    if (!found) {
         vu_panic(dev, "Specified region not found\n");
     }
 
-    close(vmsg->fds[0]);
+    vmsg_close_fds(vmsg);
 
-    return true;
+    return false;
 }
 
 static bool

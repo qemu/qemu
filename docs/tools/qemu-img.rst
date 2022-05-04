@@ -332,8 +332,8 @@ Command description:
   ``-r all`` fixes all kinds of errors, with a higher risk of choosing the
   wrong fix or hiding corruption that has already occurred.
 
-  Only the formats ``qcow2``, ``qed`` and ``vdi`` support
-  consistency checks.
+  Only the formats ``qcow2``, ``qed``, ``parallels``, ``vhdx``, ``vmdk`` and
+  ``vdi`` support consistency checks.
 
   In case the image does not have any inconsistencies, check exits with ``0``.
   Other exit codes indicate the kind of inconsistency found or if another error

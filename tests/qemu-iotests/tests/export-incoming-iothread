@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+# group: rw quick migration
+#
+# Regression test for issue 945:
+# https://gitlab.com/qemu-project/qemu/-/issues/945
+# Test adding an export on top of an iothread-ed block device while in
+# -incoming defer.
+#
+# Copyright (C) 2022 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import iotests
+from iotests import qemu_img_create
+
+
+image_size = 1 * 1024 * 1024
+test_img = os.path.join(iotests.test_dir, 'test.img')
+node_name = 'node0'
+iothread_id = 'iothr0'
+
+nbd_sock = os.path.join(iotests.sock_dir, 'nbd.sock')
+
+
+class TestExportIncomingIothread(iotests.QMPTestCase):
+    def setUp(self) -> None:
+        qemu_img_create('-f', iotests.imgfmt, test_img, str(image_size))
+
+        self.vm = iotests.VM()
+        self.vm.add_object(f'iothread,id={iothread_id}')
+        self.vm.add_blockdev((
+            f'driver={iotests.imgfmt}',
+            f'node-name={node_name}',
+            'file.driver=file',
+            f'file.filename={test_img}'
+        ))
+        self.vm.add_incoming('defer')
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(test_img)
+
+    def test_export_add(self):
+        result = self.vm.qmp('nbd-server-start', {
+            'addr': {
+                'type': 'unix',
+                'data': {
+                    'path': nbd_sock
+                }
+            }
+        })
+        self.assert_qmp(result, 'return', {})
+
+        # Regression test for issue 945: This should not fail an assertion
+        result = self.vm.qmp('block-export-add', {
+            'type': 'nbd',
+            'id': 'exp0',
+            'node-name': node_name,
+            'iothread': iothread_id
+        })
+        self.assert_qmp(result, 'return', {})
+
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['generic'],
+                 unsupported_fmts=['luks'], # Would need a secret
+                 supported_protocols=['file'])

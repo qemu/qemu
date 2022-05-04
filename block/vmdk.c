@@ -178,6 +178,10 @@ typedef struct BDRVVmdkState {
     char *create_type;
 } BDRVVmdkState;
 
+typedef struct BDRVVmdkReopenState {
+    bool *extents_using_bs_file;
+} BDRVVmdkReopenState;
+
 typedef struct VmdkMetaData {
     unsigned int l1_index;
     unsigned int l2_index;
@@ -400,13 +404,61 @@ static int vmdk_is_cid_valid(BlockDriverState *bs)
     return 1;
 }
 
-/* We have nothing to do for VMDK reopen, stubs just return success */
 static int vmdk_reopen_prepare(BDRVReopenState *state,
                                BlockReopenQueue *queue, Error **errp)
 {
+    BDRVVmdkState *s;
+    BDRVVmdkReopenState *rs;
+    int i;
+
     assert(state != NULL);
     assert(state->bs != NULL);
+    assert(state->opaque == NULL);
+
+    s = state->bs->opaque;
+
+    rs = g_new0(BDRVVmdkReopenState, 1);
+    state->opaque = rs;
+
+    /*
+     * Check whether there are any extents stored in bs->file; if bs->file
+     * changes, we will need to update their .file pointers to follow suit
+     */
+    rs->extents_using_bs_file = g_new(bool, s->num_extents);
+    for (i = 0; i < s->num_extents; i++) {
+        rs->extents_using_bs_file[i] = s->extents[i].file == state->bs->file;
+    }
+
     return 0;
+}
+
+static void vmdk_reopen_clean(BDRVReopenState *state)
+{
+    BDRVVmdkReopenState *rs = state->opaque;
+
+    g_free(rs->extents_using_bs_file);
+    g_free(rs);
+    state->opaque = NULL;
+}
+
+static void vmdk_reopen_commit(BDRVReopenState *state)
+{
+    BDRVVmdkState *s = state->bs->opaque;
+    BDRVVmdkReopenState *rs = state->opaque;
+    int i;
+
+    for (i = 0; i < s->num_extents; i++) {
+        if (rs->extents_using_bs_file[i]) {
+            s->extents[i].file = state->bs->file;
+        }
+    }
+
+    vmdk_reopen_clean(state);
+}
+
+static void vmdk_reopen_abort(BDRVReopenState *state)
+{
+    vmdk_reopen_clean(state);
 }
 
 static int vmdk_parent_open(BlockDriverState *bs)
@@ -3072,6 +3124,8 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_open                    = vmdk_open,
     .bdrv_co_check                = vmdk_co_check,
     .bdrv_reopen_prepare          = vmdk_reopen_prepare,
+    .bdrv_reopen_commit           = vmdk_reopen_commit,
+    .bdrv_reopen_abort            = vmdk_reopen_abort,
     .bdrv_child_perm              = bdrv_default_perms,
     .bdrv_co_preadv               = vmdk_co_preadv,
     .bdrv_co_pwritev              = vmdk_co_pwritev,

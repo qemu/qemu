@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+# group: rw quick
+#
+# Test reopening a format driver's file child
+#
+# Copyright (C) 2022 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import iotests
+from iotests import imgfmt, qemu_img_create, QMPTestCase
+
+
+image_size = 1 * 1024 * 1024
+test_img = os.path.join(iotests.test_dir, 'test.img')
+
+
+class TestReopenFile(QMPTestCase):
+    def setUp(self) -> None:
+        res = qemu_img_create('-f', imgfmt, test_img, str(image_size))
+        assert res.returncode == 0
+
+        # Add format driver node ('format') on top of the file ('file'), then
+        # add another raw node ('raw') on top of 'file' so for the reopen we
+        # can just switch from 'file' to 'raw'
+        self.vm = iotests.VM()
+        self.vm.add_blockdev(self.vm.qmp_to_opts({
+            'driver': imgfmt,
+            'node-name': 'format',
+            'file': {
+                'driver': 'file',
+                'node-name': 'file',
+                'filename': test_img
+            }
+        }))
+        self.vm.add_blockdev(self.vm.qmp_to_opts({
+            'driver': 'raw',
+            'node-name': 'raw',
+            'file': 'file'
+        }))
+        self.vm.launch()
+
+    def tearDown(self) -> None:
+        self.vm.shutdown()
+        os.remove(test_img)
+
+        # Check if there was any qemu-io run that failed
+        if 'Pattern verification failed' in self.vm.get_log():
+            print('ERROR: Pattern verification failed:')
+            print(self.vm.get_log())
+            self.fail('qemu-io pattern verification failed')
+
+    def test_reopen_file(self) -> None:
+        result = self.vm.qmp('blockdev-reopen', options=[{
+            'driver': imgfmt,
+            'node-name': 'format',
+            'file': 'raw'
+        }])
+        self.assert_qmp(result, 'return', {})
+
+        # Do some I/O to the image to see whether it still works
+        # (Pattern verification will be checked by tearDown())
+        result = self.vm.qmp('human-monitor-command',
+                             command_line='qemu-io format "write -P 42 0 64k"')
+        self.assert_qmp(result, 'return', '')
+
+        result = self.vm.qmp('human-monitor-command',
+                             command_line='qemu-io format "read -P 42 0 64k"')
+        self.assert_qmp(result, 'return', '')
+
+
+if __name__ == '__main__':
+    # Must support creating images and reopen
+    iotests.main(supported_fmts=['qcow', 'qcow2', 'qed', 'raw', 'vdi', 'vhdx',
+                                 'vmdk', 'vpc'],
+                 supported_protocols=['file'])

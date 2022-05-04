@@ -751,7 +751,7 @@ static int send_remove_regions(struct vhost_dev *dev,
             vhost_user_fill_msg_region(&region_buffer, shadow_reg, 0);
             msg->payload.mem_reg.region = region_buffer;
 
-            ret = vhost_user_write(dev, msg, &fd, 1);
+            ret = vhost_user_write(dev, msg, NULL, 0);
             if (ret < 0) {
                 return ret;
             }
