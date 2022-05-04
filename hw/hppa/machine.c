@@ -446,7 +446,7 @@ static void hppa_nmi(NMIState *n, int cpu_index, Error **errp)
     }
 }
 
-static void machine_hppa_machine_init_class_init(ObjectClass *oc, void *data)
+static void hppa_machine_init_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
@@ -466,19 +466,19 @@ static void machine_hppa_machine_init_class_init(ObjectClass *oc, void *data)
     nc->nmi_monitor_handler = hppa_nmi;
 }
 
-static const TypeInfo machine_hppa_machine_init_typeinfo = {
+static const TypeInfo hppa_machine_init_typeinfo = {
     .name = MACHINE_TYPE_NAME("hppa"),
     .parent = TYPE_MACHINE,
-    .class_init = machine_hppa_machine_init_class_init,
+    .class_init = hppa_machine_init_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_NMI },
         { }
     },
 };
 
-static void machine_hppa_machine_init_register_types(void)
+static void hppa_machine_init_register_types(void)
 {
-    type_register_static(&machine_hppa_machine_init_typeinfo);
+    type_register_static(&hppa_machine_init_typeinfo);
 }
 
-type_init(machine_hppa_machine_init_register_types)
+type_init(hppa_machine_init_register_types)
