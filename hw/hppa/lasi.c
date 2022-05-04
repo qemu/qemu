@@ -253,7 +253,7 @@ DeviceState *lasi_initfn(MemoryRegion *address_space)
         /* Serial port */
         serial_mm_init(address_space, LASI_UART_HPA + 0x800, 0,
                 qdev_get_gpio_in(dev, LASI_IRQ_UART_HPA), 8000000 / 16,
-                serial_hd(0), DEVICE_NATIVE_ENDIAN);
+                serial_hd(1), DEVICE_BIG_ENDIAN);
     }
 
     /* PS/2 Keyboard/Mouse */
