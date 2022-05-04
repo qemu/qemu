@@ -231,29 +231,6 @@ static void lasi_set_irq(void *opaque, int irq, int level)
     }
 }
 
-static int lasi_get_irq(unsigned long hpa)
-{
-    switch (hpa) {
-    case LASI_HPA:
-        return 14;
-    case LASI_UART_HPA:
-        return 5;
-    case LASI_LPT_HPA:
-        return 7;
-    case LASI_LAN_HPA:
-        return 8;
-    case LASI_SCSI_HPA:
-        return 9;
-    case LASI_AUDIO_HPA:
-        return 13;
-    case LASI_PS2KBD_HPA:
-    case LASI_PS2MOU_HPA:
-        return 26;
-    default:
-        g_assert_not_reached();
-    }
-}
-
 DeviceState *lasi_initfn(MemoryRegion *address_space)
 {
     DeviceState *dev;
@@ -266,20 +243,20 @@ DeviceState *lasi_initfn(MemoryRegion *address_space)
     /* LAN */
     if (enable_lasi_lan()) {
         qemu_irq lan_irq = qemu_allocate_irq(lasi_set_irq, s,
-                lasi_get_irq(LASI_LAN_HPA));
+                                             LASI_IRQ_LAN_HPA);
         lasi_82596_init(address_space, LASI_LAN_HPA, lan_irq);
     }
 
     /* Parallel port */
     qemu_irq lpt_irq = qemu_allocate_irq(lasi_set_irq, s,
-            lasi_get_irq(LASI_LPT_HPA));
+                                         LASI_IRQ_LPT_HPA);
     parallel_mm_init(address_space, LASI_LPT_HPA + 0x800, 0,
                      lpt_irq, parallel_hds[0]);
 
     if (serial_hd(1)) {
         /* Serial port */
         qemu_irq serial_irq = qemu_allocate_irq(lasi_set_irq, s,
-                lasi_get_irq(LASI_UART_HPA));
+                                                LASI_IRQ_UART_HPA);
         serial_mm_init(address_space, LASI_UART_HPA + 0x800, 0,
                 serial_irq, 8000000 / 16,
                 serial_hd(0), DEVICE_NATIVE_ENDIAN);
@@ -287,7 +264,7 @@ DeviceState *lasi_initfn(MemoryRegion *address_space)
 
     /* PS/2 Keyboard/Mouse */
     qemu_irq ps2kbd_irq = qemu_allocate_irq(lasi_set_irq, s,
-            lasi_get_irq(LASI_PS2KBD_HPA));
+                                            LASI_IRQ_PS2KBD_HPA);
     lasips2_init(address_space, LASI_PS2KBD_HPA,  ps2kbd_irq);
 
     return dev;
