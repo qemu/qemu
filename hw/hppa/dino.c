@@ -399,20 +399,6 @@ static int dino_pci_map_irq(PCIDevice *d, int irq_num)
     return slot & 0x03;
 }
 
-DinoState *dino_init(MemoryRegion *addr_space)
-{
-    DeviceState *dev;
-    DinoState *s;
-
-    dev = qdev_new(TYPE_DINO_PCI_HOST_BRIDGE);
-    object_property_set_link(OBJECT(dev), "memory-as", OBJECT(addr_space),
-                             &error_fatal);
-    s = DINO_PCI_HOST_BRIDGE(dev);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    return s;
-}
-
 static void dino_pcihost_reset(DeviceState *dev)
 {
     DinoState *s = DINO_PCI_HOST_BRIDGE(dev);

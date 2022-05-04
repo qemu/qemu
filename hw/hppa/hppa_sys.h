@@ -9,9 +9,7 @@
 #include "hw/intc/i8259.h"
 
 #include "hppa_hardware.h"
-#include "dino.h"
 
-DinoState *dino_init(MemoryRegion *);
 DeviceState *lasi_init(MemoryRegion *);
 #define enable_lasi_lan()       0
 
