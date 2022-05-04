@@ -15,6 +15,7 @@
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/timer/i8254.h"
 #include "hw/char/serial.h"
+#include "hw/char/parallel.h"
 #include "hw/net/lasi_82596.h"
 #include "hw/nmi.h"
 #include "hw/pci-host/dino.h"
@@ -203,6 +204,11 @@ static void machine_hppa_init(MachineState *machine)
                        qdev_get_gpio_in(dino_dev, DINO_IRQ_RS232INT),
                        115200, serial_hd(0), DEVICE_BIG_ENDIAN);
     }
+
+    /* Parallel port */
+    parallel_mm_init(addr_space, LASI_LPT_HPA + 0x800, 0,
+                     qdev_get_gpio_in(lasi_dev, LASI_IRQ_LAN_HPA),
+                     parallel_hds[0]);
 
     /* fw_cfg configuration interface */
     create_fw_cfg(machine);
