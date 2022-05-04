@@ -36,10 +36,10 @@ static bool lasi_chip_mem_valid(void *opaque, hwaddr addr,
     case LASI_ICR:
     case LASI_IAR:
 
-    case (LASI_LAN_HPA - LASI_HPA):
-    case (LASI_LPT_HPA - LASI_HPA):
-    case (LASI_UART_HPA - LASI_HPA):
-    case (LASI_RTC_HPA - LASI_HPA):
+    case LASI_LPT:
+    case LASI_UART:
+    case LASI_LAN:
+    case LASI_RTC:
 
     case LASI_PCR ... LASI_AMR:
         ret = true;
@@ -76,12 +76,12 @@ static MemTxResult lasi_chip_read_with_attrs(void *opaque, hwaddr addr,
         val = s->iar;
         break;
 
-    case (LASI_LAN_HPA - LASI_HPA):
-    case (LASI_LPT_HPA - LASI_HPA):
-    case (LASI_UART_HPA - LASI_HPA):
+    case LASI_LPT:
+    case LASI_UART:
+    case LASI_LAN:
         val = 0;
         break;
-    case (LASI_RTC_HPA - LASI_HPA):
+    case LASI_RTC:
         val = time(NULL);
         val += s->rtc_ref;
         break;
@@ -141,16 +141,16 @@ static MemTxResult lasi_chip_write_with_attrs(void *opaque, hwaddr addr,
         s->iar = val;
         break;
 
-    case (LASI_LAN_HPA - LASI_HPA):
-        /* XXX: reset LAN card */
-        break;
-    case (LASI_LPT_HPA - LASI_HPA):
+    case LASI_LPT:
         /* XXX: reset parallel port */
         break;
-    case (LASI_UART_HPA - LASI_HPA):
+    case LASI_UART:
         /* XXX: reset serial port */
         break;
-    case (LASI_RTC_HPA - LASI_HPA):
+    case LASI_LAN:
+        /* XXX: reset LAN card */
+        break;
+    case LASI_RTC:
         s->rtc_ref = val - time(NULL);
         break;
 
