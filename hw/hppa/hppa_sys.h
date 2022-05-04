@@ -7,10 +7,11 @@
 #include "hw/pci/pci_host.h"
 #include "hw/boards.h"
 #include "hw/intc/i8259.h"
+#include "lasi.h"
 
 #include "hppa_hardware.h"
 
-DeviceState *lasi_initfn(MemoryRegion *);
+LasiState *lasi_initfn(MemoryRegion *);
 #define enable_lasi_lan()       0
 
 /* hppa_pci.c.  */

@@ -231,7 +231,7 @@ static void lasi_set_irq(void *opaque, int irq, int level)
     }
 }
 
-DeviceState *lasi_initfn(MemoryRegion *address_space)
+LasiState *lasi_initfn(MemoryRegion *address_space)
 {
     DeviceState *dev;
 
@@ -260,7 +260,7 @@ DeviceState *lasi_initfn(MemoryRegion *address_space)
     lasips2_init(address_space, LASI_PS2KBD_HPA,
                  qdev_get_gpio_in(dev, LASI_IRQ_PS2KBD_HPA));
 
-    return dev;
+    return LASI_CHIP(dev);
 }
 
 static void lasi_reset(DeviceState *dev)
