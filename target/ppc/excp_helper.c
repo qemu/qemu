@@ -1715,7 +1715,7 @@ static void ppc_hw_interrupt(CPUPPCState *env)
     if (env->pending_interrupts & (1 << PPC_INTERRUPT_HDECR)) {
         /* LPCR will be clear when not supported so this will work */
         bool hdice = !!(env->spr[SPR_LPCR] & LPCR_HDICE);
-        if ((async_deliver || msr_hv == 0) && hdice) {
+        if ((async_deliver || !FIELD_EX64_HV(env->msr)) && hdice) {
             /* HDEC clears on delivery */
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_HDECR);
             powerpc_excp(cpu, POWERPC_EXCP_HDECR);
@@ -1727,7 +1727,7 @@ static void ppc_hw_interrupt(CPUPPCState *env)
     if (env->pending_interrupts & (1 << PPC_INTERRUPT_HVIRT)) {
         /* LPCR will be clear when not supported so this will work */
         bool hvice = !!(env->spr[SPR_LPCR] & LPCR_HVICE);
-        if ((async_deliver || msr_hv == 0) && hvice) {
+        if ((async_deliver || !FIELD_EX64_HV(env->msr)) && hvice) {
             powerpc_excp(cpu, POWERPC_EXCP_HVIRT);
             return;
         }
@@ -1738,9 +1738,9 @@ static void ppc_hw_interrupt(CPUPPCState *env)
         bool lpes0 = !!(env->spr[SPR_LPCR] & LPCR_LPES0);
         bool heic = !!(env->spr[SPR_LPCR] & LPCR_HEIC);
         /* HEIC blocks delivery to the hypervisor */
-        if ((async_deliver && !(heic && msr_hv &&
+        if ((async_deliver && !(heic && FIELD_EX64_HV(env->msr) &&
             !FIELD_EX64(env->msr, MSR, PR))) ||
-            (env->has_hv_mode && msr_hv == 0 && !lpes0)) {
+            (env->has_hv_mode && !FIELD_EX64_HV(env->msr) && !lpes0)) {
             if (books_vhyp_promotes_external_to_hvirt(cpu)) {
                 powerpc_excp(cpu, POWERPC_EXCP_HVIRT);
             } else {

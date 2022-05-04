@@ -6305,7 +6305,8 @@ static bool cpu_has_work_POWER9(CPUState *cs)
         if ((env->pending_interrupts & (1u << PPC_INTERRUPT_EXT)) &&
             (env->spr[SPR_LPCR] & LPCR_EEE)) {
             bool heic = !!(env->spr[SPR_LPCR] & LPCR_HEIC);
-            if (!heic || !msr_hv || FIELD_EX64(env->msr, MSR, PR)) {
+            if (!heic || !FIELD_EX64_HV(env->msr) ||
+                FIELD_EX64(env->msr, MSR, PR)) {
                 return true;
             }
         }
@@ -6520,7 +6521,8 @@ static bool cpu_has_work_POWER10(CPUState *cs)
         if ((env->pending_interrupts & (1u << PPC_INTERRUPT_EXT)) &&
             (env->spr[SPR_LPCR] & LPCR_EEE)) {
             bool heic = !!(env->spr[SPR_LPCR] & LPCR_HEIC);
-            if (!heic || !msr_hv || FIELD_EX64(env->msr, MSR, PR)) {
+            if (!heic || !FIELD_EX64_HV(env->msr) ||
+                FIELD_EX64(env->msr, MSR, PR)) {
                 return true;
             }
         }
