@@ -447,7 +447,6 @@ int print_insn_w65              (bfd_vma, disassemble_info*);
 int print_insn_d10v             (bfd_vma, disassemble_info*);
 int print_insn_v850             (bfd_vma, disassemble_info*);
 int print_insn_tic30            (bfd_vma, disassemble_info*);
-int print_insn_ppc              (bfd_vma, disassemble_info*);
 int print_insn_crisv32          (bfd_vma, disassemble_info*);
 int print_insn_crisv10          (bfd_vma, disassemble_info*);
 int print_insn_microblaze       (bfd_vma, disassemble_info*);

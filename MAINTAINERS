@@ -271,7 +271,6 @@ F: target/ppc/
 F: hw/ppc/ppc.c
 F: hw/ppc/ppc_booke.c
 F: include/hw/ppc/ppc.h
-F: disas/ppc.c
 
 RISC-V TCG CPUs
 M: Palmer Dabbelt <palmer@dabbelt.com>
@@ -3293,7 +3292,6 @@ PPC TCG target
 M: Richard Henderson <richard.henderson@linaro.org>
 S: Odd Fixes
 F: tcg/ppc/
-F: disas/ppc.c
 
 RISC-V TCG target
 M: Palmer Dabbelt <palmer@dabbelt.com>
