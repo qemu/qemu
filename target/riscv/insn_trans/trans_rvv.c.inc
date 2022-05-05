@@ -1118,10 +1118,10 @@ GEN_VEXT_TRANS(vle64ff_v, MO_64, r2nfvm, ldff_op, ld_us_check)
 typedef void gen_helper_ldst_whole(TCGv_ptr, TCGv, TCGv_env, TCGv_i32);
 
 static bool ldst_whole_trans(uint32_t vd, uint32_t rs1, uint32_t nf,
-                             gen_helper_ldst_whole *fn, DisasContext *s,
-                             bool is_store)
+                             uint32_t width, gen_helper_ldst_whole *fn,
+                             DisasContext *s, bool is_store)
 {
-    uint32_t evl = (s->cfg_ptr->vlen / 8) * nf / (1 << s->sew);
+    uint32_t evl = (s->cfg_ptr->vlen / 8) * nf / width;
     TCGLabel *over = gen_new_label();
     tcg_gen_brcondi_tl(TCG_COND_GEU, cpu_vstart, evl, over);
 
@@ -1153,38 +1153,42 @@ static bool ldst_whole_trans(uint32_t vd, uint32_t rs1, uint32_t nf,
  * load and store whole register instructions ignore vtype and vl setting.
  * Thus, we don't need to check vill bit. (Section 7.9)
  */
-#define GEN_LDST_WHOLE_TRANS(NAME, ARG_NF, IS_STORE)                      \
+#define GEN_LDST_WHOLE_TRANS(NAME, ARG_NF, WIDTH, IS_STORE)               \
 static bool trans_##NAME(DisasContext *s, arg_##NAME * a)                 \
 {                                                                         \
     if (require_rvv(s) &&                                                 \
         QEMU_IS_ALIGNED(a->rd, ARG_NF)) {                                 \
-        return ldst_whole_trans(a->rd, a->rs1, ARG_NF, gen_helper_##NAME, \
-                                s, IS_STORE);                             \
+        return ldst_whole_trans(a->rd, a->rs1, ARG_NF, WIDTH,             \
+                                gen_helper_##NAME, s, IS_STORE);          \
     }                                                                     \
     return false;                                                         \
 }
 
-GEN_LDST_WHOLE_TRANS(vl1re8_v,  1, false)
-GEN_LDST_WHOLE_TRANS(vl1re16_v, 1, false)
-GEN_LDST_WHOLE_TRANS(vl1re32_v, 1, false)
-GEN_LDST_WHOLE_TRANS(vl1re64_v, 1, false)
-GEN_LDST_WHOLE_TRANS(vl2re8_v,  2, false)
-GEN_LDST_WHOLE_TRANS(vl2re16_v, 2, false)
-GEN_LDST_WHOLE_TRANS(vl2re32_v, 2, false)
-GEN_LDST_WHOLE_TRANS(vl2re64_v, 2, false)
-GEN_LDST_WHOLE_TRANS(vl4re8_v,  4, false)
-GEN_LDST_WHOLE_TRANS(vl4re16_v, 4, false)
-GEN_LDST_WHOLE_TRANS(vl4re32_v, 4, false)
-GEN_LDST_WHOLE_TRANS(vl4re64_v, 4, false)
-GEN_LDST_WHOLE_TRANS(vl8re8_v,  8, false)
-GEN_LDST_WHOLE_TRANS(vl8re16_v, 8, false)
-GEN_LDST_WHOLE_TRANS(vl8re32_v, 8, false)
-GEN_LDST_WHOLE_TRANS(vl8re64_v, 8, false)
+GEN_LDST_WHOLE_TRANS(vl1re8_v,  1, 1, false)
+GEN_LDST_WHOLE_TRANS(vl1re16_v, 1, 2, false)
+GEN_LDST_WHOLE_TRANS(vl1re32_v, 1, 4, false)
+GEN_LDST_WHOLE_TRANS(vl1re64_v, 1, 8, false)
+GEN_LDST_WHOLE_TRANS(vl2re8_v,  2, 1, false)
+GEN_LDST_WHOLE_TRANS(vl2re16_v, 2, 2, false)
+GEN_LDST_WHOLE_TRANS(vl2re32_v, 2, 4, false)
+GEN_LDST_WHOLE_TRANS(vl2re64_v, 2, 8, false)
+GEN_LDST_WHOLE_TRANS(vl4re8_v,  4, 1, false)
+GEN_LDST_WHOLE_TRANS(vl4re16_v, 4, 2, false)
+GEN_LDST_WHOLE_TRANS(vl4re32_v, 4, 4, false)
+GEN_LDST_WHOLE_TRANS(vl4re64_v, 4, 8, false)
+GEN_LDST_WHOLE_TRANS(vl8re8_v,  8, 1, false)
+GEN_LDST_WHOLE_TRANS(vl8re16_v, 8, 2, false)
+GEN_LDST_WHOLE_TRANS(vl8re32_v, 8, 4, false)
+GEN_LDST_WHOLE_TRANS(vl8re64_v, 8, 8, false)
 
-GEN_LDST_WHOLE_TRANS(vs1r_v, 1, true)
-GEN_LDST_WHOLE_TRANS(vs2r_v, 2, true)
-GEN_LDST_WHOLE_TRANS(vs4r_v, 4, true)
-GEN_LDST_WHOLE_TRANS(vs8r_v, 8, true)
+/*
+ * The vector whole register store instructions are encoded similar to
+ * unmasked unit-stride store of elements with EEW=8.
+ */
+GEN_LDST_WHOLE_TRANS(vs1r_v, 1, 1, true)
+GEN_LDST_WHOLE_TRANS(vs2r_v, 2, 1, true)
+GEN_LDST_WHOLE_TRANS(vs4r_v, 4, 1, true)
+GEN_LDST_WHOLE_TRANS(vs8r_v, 8, 1, true)
 
 /*
  *** Vector Integer Arithmetic Instructions
