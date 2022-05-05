@@ -266,7 +266,7 @@ struct ppc_radix_page_info *kvm_get_radix_page_info(void)
 {
     KVMState *s = KVM_STATE(current_accel());
     struct ppc_radix_page_info *radix_page_info;
-    struct kvm_ppc_rmmu_info rmmu_info;
+    struct kvm_ppc_rmmu_info rmmu_info = { };
     int i;
 
     if (!kvm_check_extension(s, KVM_CAP_PPC_MMU_RADIX)) {
@@ -542,10 +542,11 @@ static void kvm_get_one_spr(CPUState *cs, uint64_t id, int spr)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
+    /* Init 'val' to avoid "uninitialised value" Valgrind warnings */
     union {
         uint32_t u32;
         uint64_t u64;
-    } val;
+    } val = { };
     struct kvm_one_reg reg = {
         .id = id,
         .addr = (uintptr_t) &val,
@@ -849,7 +850,7 @@ static int kvm_put_vpa(CPUState *cs)
 int kvmppc_put_books_sregs(PowerPCCPU *cpu)
 {
     CPUPPCState *env = &cpu->env;
-    struct kvm_sregs sregs;
+    struct kvm_sregs sregs = { };
     int i;
 
     sregs.pvr = env->spr[SPR_PVR];
@@ -973,7 +974,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         }
 
 #ifdef TARGET_PPC64
-        if (msr_ts) {
+        if (FIELD_EX64(env->msr, MSR, TS)) {
             for (i = 0; i < ARRAY_SIZE(env->tm_gpr); i++) {
                 kvm_set_one_reg(cs, KVM_REG_PPC_TM_GPR(i), &env->tm_gpr[i]);
             }
@@ -1281,7 +1282,7 @@ int kvm_arch_get_registers(CPUState *cs)
         }
 
 #ifdef TARGET_PPC64
-        if (msr_ts) {
+        if (FIELD_EX64(env->msr, MSR, TS)) {
             for (i = 0; i < ARRAY_SIZE(env->tm_gpr); i++) {
                 kvm_get_one_reg(cs, KVM_REG_PPC_TM_GPR(i), &env->tm_gpr[i]);
             }
@@ -1351,7 +1352,8 @@ static int kvmppc_handle_halt(PowerPCCPU *cpu)
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
 
-    if (!(cs->interrupt_request & CPU_INTERRUPT_HARD) && (msr_ee)) {
+    if (!(cs->interrupt_request & CPU_INTERRUPT_HARD) &&
+        FIELD_EX64(env->msr, MSR, EE)) {
         cs->halted = 1;
         cs->exception_index = EXCP_HLT;
     }
@@ -2536,7 +2538,7 @@ int kvmppc_get_cap_large_decr(void)
 int kvmppc_enable_cap_large_decr(PowerPCCPU *cpu, int enable)
 {
     CPUState *cs = CPU(cpu);
-    uint64_t lpcr;
+    uint64_t lpcr = 0;
 
     kvm_get_one_reg(cs, KVM_REG_PPC_LPCR_64, &lpcr);
     /* Do we need to modify the LPCR? */

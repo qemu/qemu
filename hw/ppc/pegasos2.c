@@ -461,7 +461,7 @@ static void pegasos2_hypercall(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu)
     /* The TCG path should also be holding the BQL at this point */
     g_assert(qemu_mutex_iothread_locked());
 
-    if (msr_pr) {
+    if (FIELD_EX64(env->msr, MSR, PR)) {
         qemu_log_mask(LOG_GUEST_ERROR, "Hypercall made with MSR[PR]=1\n");
         env->gpr[3] = H_PRIVILEGE;
     } else if (env->gpr[3] == KVMPPC_H_RTAS) {

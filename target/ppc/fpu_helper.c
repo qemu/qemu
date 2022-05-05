@@ -202,7 +202,7 @@ static void finish_invalid_op_excp(CPUPPCState *env, int op, uintptr_t retaddr)
     env->fpscr |= FP_VX;
     /* Update the floating-point exception summary */
     env->fpscr |= FP_FX;
-    if (fpscr_ve != 0) {
+    if (env->fpscr & FP_VE) {
         /* Update the floating-point enabled exception summary */
         env->fpscr |= FP_FEX;
         if (fp_exceptions_enabled(env)) {
@@ -216,7 +216,7 @@ static void finish_invalid_op_arith(CPUPPCState *env, int op,
                                     bool set_fpcc, uintptr_t retaddr)
 {
     env->fpscr &= ~(FP_FR | FP_FI);
-    if (fpscr_ve == 0) {
+    if (!(env->fpscr & FP_VE)) {
         if (set_fpcc) {
             env->fpscr &= ~FP_FPCC;
             env->fpscr |= (FP_C | FP_FU);
@@ -286,7 +286,7 @@ static void float_invalid_op_vxvc(CPUPPCState *env, bool set_fpcc,
     /* Update the floating-point exception summary */
     env->fpscr |= FP_FX;
     /* We must update the target FPR before raising the exception */
-    if (fpscr_ve != 0) {
+    if (env->fpscr & FP_VE) {
         CPUState *cs = env_cpu(env);
 
         cs->exception_index = POWERPC_EXCP_PROGRAM;
@@ -303,7 +303,7 @@ static void float_invalid_op_vxcvi(CPUPPCState *env, bool set_fpcc,
 {
     env->fpscr |= FP_VXCVI;
     env->fpscr &= ~(FP_FR | FP_FI);
-    if (fpscr_ve == 0) {
+    if (!(env->fpscr & FP_VE)) {
         if (set_fpcc) {
             env->fpscr &= ~FP_FPCC;
             env->fpscr |= (FP_C | FP_FU);
@@ -318,7 +318,7 @@ static inline void float_zero_divide_excp(CPUPPCState *env, uintptr_t raddr)
     env->fpscr &= ~(FP_FR | FP_FI);
     /* Update the floating-point exception summary */
     env->fpscr |= FP_FX;
-    if (fpscr_ze != 0) {
+    if (env->fpscr & FP_ZE) {
         /* Update the floating-point enabled exception summary */
         env->fpscr |= FP_FEX;
         if (fp_exceptions_enabled(env)) {
@@ -336,7 +336,7 @@ static inline void float_overflow_excp(CPUPPCState *env)
     env->fpscr |= FP_OX;
     /* Update the floating-point exception summary */
     env->fpscr |= FP_FX;
-    if (fpscr_oe != 0) {
+    if (env->fpscr & FP_OE) {
         /* XXX: should adjust the result */
         /* Update the floating-point enabled exception summary */
         env->fpscr |= FP_FEX;
@@ -356,7 +356,7 @@ static inline void float_underflow_excp(CPUPPCState *env)
     env->fpscr |= FP_UX;
     /* Update the floating-point exception summary */
     env->fpscr |= FP_FX;
-    if (fpscr_ue != 0) {
+    if (env->fpscr & FP_UE) {
         /* XXX: should adjust the result */
         /* Update the floating-point enabled exception summary */
         env->fpscr |= FP_FEX;
@@ -374,7 +374,7 @@ static inline void float_inexact_excp(CPUPPCState *env)
     env->fpscr |= FP_XX;
     /* Update the floating-point exception summary */
     env->fpscr |= FP_FX;
-    if (fpscr_xe != 0) {
+    if (env->fpscr & FP_XE) {
         /* Update the floating-point enabled exception summary */
         env->fpscr |= FP_FEX;
         /* We must update the target FPR before raising the exception */
@@ -2274,7 +2274,7 @@ VSX_MADDQ(XSNMSUBQPO, NMSUB_FLGS, 0)
         vxvc = svxvc;                                                         \
         if (flags & float_flag_invalid_snan) {                                \
             float_invalid_op_vxsnan(env, GETPC());                            \
-            vxvc &= fpscr_ve == 0;                                            \
+            vxvc &= !(env->fpscr & FP_VE);                                    \
         }                                                                     \
         if (vxvc) {                                                           \
             float_invalid_op_vxvc(env, 0, GETPC());                           \
@@ -2375,7 +2375,7 @@ static inline void do_scalar_cmp(CPUPPCState *env, ppc_vsr_t *xa, ppc_vsr_t *xb,
         if (float64_is_signaling_nan(xa->VsrD(0), &env->fp_status) ||
             float64_is_signaling_nan(xb->VsrD(0), &env->fp_status)) {
             vxsnan_flag = true;
-            if (fpscr_ve == 0 && ordered) {
+            if (!(env->fpscr & FP_VE) && ordered) {
                 vxvc_flag = true;
             }
         } else if (float64_is_quiet_nan(xa->VsrD(0), &env->fp_status) ||
@@ -2440,7 +2440,7 @@ static inline void do_scalar_cmpq(CPUPPCState *env, ppc_vsr_t *xa,
         if (float128_is_signaling_nan(xa->f128, &env->fp_status) ||
             float128_is_signaling_nan(xb->f128, &env->fp_status)) {
             vxsnan_flag = true;
-            if (fpscr_ve == 0 && ordered) {
+            if (!(env->fpscr & FP_VE) && ordered) {
                 vxvc_flag = true;
             }
         } else if (float128_is_quiet_nan(xa->f128, &env->fp_status) ||
@@ -2590,7 +2590,7 @@ void helper_##name(CPUPPCState *env,                                          \
         t.VsrD(0) = xb->VsrD(0);                                              \
     }                                                                         \
                                                                               \
-    vex_flag = fpscr_ve & vxsnan_flag;                                        \
+    vex_flag = (env->fpscr & FP_VE) && vxsnan_flag;                           \
     if (vxsnan_flag) {                                                        \
         float_invalid_op_vxsnan(env, GETPC());                                \
     }                                                                         \
@@ -3320,7 +3320,7 @@ void helper_xsrqpi(CPUPPCState *env, uint32_t opcode,
     if (r == 0 && rmc == 0) {
         rmode = float_round_ties_away;
     } else if (r == 0 && rmc == 0x3) {
-        rmode = fpscr_rn;
+        rmode = env->fpscr & FP_RN;
     } else if (r == 1) {
         switch (rmc) {
         case 0:
@@ -3374,7 +3374,7 @@ void helper_xsrqpxp(CPUPPCState *env, uint32_t opcode,
     if (r == 0 && rmc == 0) {
         rmode = float_round_ties_away;
     } else if (r == 0 && rmc == 0x3) {
-        rmode = fpscr_rn;
+        rmode = env->fpscr & FP_RN;
     } else if (r == 1) {
         switch (rmc) {
         case 0:

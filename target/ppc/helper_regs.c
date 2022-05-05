@@ -63,10 +63,10 @@ static uint32_t hreg_compute_hflags_value(CPUPPCState *env)
 
     if (ppc_flags & POWERPC_FLAG_DE) {
         target_ulong dbcr0 = env->spr[SPR_BOOKE_DBCR0];
-        if (dbcr0 & DBCR0_ICMP) {
+        if ((dbcr0 & DBCR0_ICMP) && FIELD_EX64(env->msr, MSR, DE)) {
             hflags |= 1 << HFLAGS_SE;
         }
-        if (dbcr0 & DBCR0_BRT) {
+        if ((dbcr0 & DBCR0_BRT) && FIELD_EX64(env->msr, MSR, DE)) {
             hflags |= 1 << HFLAGS_BE;
         }
     } else {
@@ -227,13 +227,12 @@ int hreg_store_msr(CPUPPCState *env, target_ulong value, int alter_hv)
         value &= ~MSR_HVB;
         value |= env->msr & MSR_HVB;
     }
-    if (((value >> MSR_IR) & 1) != msr_ir ||
-        ((value >> MSR_DR) & 1) != msr_dr) {
+    if ((value ^ env->msr) & (R_MSR_IR_MASK | R_MSR_DR_MASK)) {
         cpu_interrupt_exittb(cs);
     }
     if ((env->mmu_model == POWERPC_MMU_BOOKE ||
          env->mmu_model == POWERPC_MMU_BOOKE206) &&
-        ((value >> MSR_GS) & 1) != msr_gs) {
+        ((value ^ env->msr) & R_MSR_GS_MASK)) {
         cpu_interrupt_exittb(cs);
     }
     if (unlikely((env->flags & POWERPC_FLAG_TGPR) &&
@@ -241,8 +240,8 @@ int hreg_store_msr(CPUPPCState *env, target_ulong value, int alter_hv)
         /* Swap temporary saved registers with GPRs */
         hreg_swap_gpr_tgpr(env);
     }
-    if (unlikely((value >> MSR_EP) & 1) != msr_ep) {
-        env->excp_prefix = ((value >> MSR_EP) & 1) * 0xFFF00000;
+    if (unlikely((value ^ env->msr) & R_MSR_EP_MASK)) {
+        env->excp_prefix = FIELD_EX64(value, MSR, EP) * 0xFFF00000;
     }
     /*
      * If PR=1 then EE, IR and DR must be 1
@@ -261,7 +260,7 @@ int hreg_store_msr(CPUPPCState *env, target_ulong value, int alter_hv)
     env->msr = value;
     hreg_compute_hflags(env);
 #if !defined(CONFIG_USER_ONLY)
-    if (unlikely(msr_pow == 1)) {
+    if (unlikely(FIELD_EX64(env->msr, MSR, POW))) {
         if (!env->pending_interrupts && (*env->check_pow)(env)) {
             cs->halted = 1;
             excp = EXCP_HALTED;

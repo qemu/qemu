@@ -273,8 +273,8 @@ static inline void bat_size_prot(CPUPPCState *env, target_ulong *blp,
     bl = (*BATu & 0x00001FFC) << 15;
     valid = 0;
     prot = 0;
-    if (((msr_pr == 0) && (*BATu & 0x00000002)) ||
-        ((msr_pr != 0) && (*BATu & 0x00000001))) {
+    if ((!FIELD_EX64(env->msr, MSR, PR) && (*BATu & 0x00000002)) ||
+        (FIELD_EX64(env->msr, MSR, PR) && (*BATu & 0x00000001))) {
         valid = 1;
         pp = *BATl & 0x00000003;
         if (pp != 0) {
@@ -368,16 +368,17 @@ static int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
     PowerPCCPU *cpu = env_archcpu(env);
     hwaddr hash;
     target_ulong vsid;
-    int ds, pr, target_page_bits;
+    int ds, target_page_bits;
+    bool pr;
     int ret;
     target_ulong sr, pgidx;
 
-    pr = msr_pr;
+    pr = FIELD_EX64(env->msr, MSR, PR);
     ctx->eaddr = eaddr;
 
     sr = env->sr[eaddr >> 28];
-    ctx->key = (((sr & 0x20000000) && (pr != 0)) ||
-                ((sr & 0x40000000) && (pr == 0))) ? 1 : 0;
+    ctx->key = (((sr & 0x20000000) && pr) ||
+                ((sr & 0x40000000) && !pr)) ? 1 : 0;
     ds = sr & 0x80000000 ? 1 : 0;
     ctx->nx = sr & 0x10000000 ? 1 : 0;
     vsid = sr & 0x00FFFFFF;
@@ -386,8 +387,9 @@ static int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
                   "Check segment v=" TARGET_FMT_lx " %d " TARGET_FMT_lx
                   " nip=" TARGET_FMT_lx " lr=" TARGET_FMT_lx
                   " ir=%d dr=%d pr=%d %d t=%d\n",
-                  eaddr, (int)(eaddr >> 28), sr, env->nip, env->lr, (int)msr_ir,
-                  (int)msr_dr, pr != 0 ? 1 : 0,
+                  eaddr, (int)(eaddr >> 28), sr, env->nip, env->lr,
+                  (int)FIELD_EX64(env->msr, MSR, IR),
+                  (int)FIELD_EX64(env->msr, MSR, DR), pr ? 1 : 0,
                   access_type == MMU_DATA_STORE, type);
     pgidx = (eaddr & ~SEGMENT_MASK_256M) >> target_page_bits;
     hash = vsid ^ pgidx;
@@ -530,7 +532,7 @@ static int mmu40x_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
 
     ret = -1;
     raddr = (hwaddr)-1ULL;
-    pr = msr_pr;
+    pr = FIELD_EX64(env->msr, MSR, PR);
     for (i = 0; i < env->nb_tlb; i++) {
         tlb = &env->tlb.tlbe[i];
         if (ppcemb_tlb_check(env, tlb, &raddr, address,
@@ -618,14 +620,16 @@ static int mmubooke_check_tlb(CPUPPCState *env, ppcemb_tlb_t *tlb,
 
 found_tlb:
 
-    if (msr_pr != 0) {
+    if (FIELD_EX64(env->msr, MSR, PR)) {
         prot2 = tlb->prot & 0xF;
     } else {
         prot2 = (tlb->prot >> 4) & 0xF;
     }
 
     /* Check the address space */
-    if ((access_type == MMU_INST_FETCH ? msr_ir : msr_dr) != (tlb->attr & 1)) {
+    if ((access_type == MMU_INST_FETCH ?
+        FIELD_EX64(env->msr, MSR, IR) :
+        FIELD_EX64(env->msr, MSR, DR)) != (tlb->attr & 1)) {
         qemu_log_mask(CPU_LOG_MMU, "%s: AS doesn't match\n", __func__);
         return -1;
     }
@@ -691,7 +695,7 @@ int ppcmas_tlb_check(CPUPPCState *env, ppcmas_tlb_t *tlb,
     hwaddr mask;
     uint32_t tlb_pid;
 
-    if (!msr_cm) {
+    if (!FIELD_EX64(env->msr, MSR, CM)) {
         /* In 32bit mode we can only address 32bit EAs */
         address = (uint32_t)address;
     }
@@ -767,8 +771,8 @@ static bool mmubooke206_get_as(CPUPPCState *env,
         *pr_out = !!(epidr & EPID_EPR);
         return true;
     } else {
-        *as_out = msr_ds;
-        *pr_out = msr_pr;
+        *as_out = FIELD_EX64(env->msr, MSR, DS);
+        *pr_out = FIELD_EX64(env->msr, MSR, PR);
         return false;
     }
 }
@@ -838,7 +842,7 @@ found_tlb:
     if (access_type == MMU_INST_FETCH) {
         /* There is no way to fetch code using epid load */
         assert(!use_epid);
-        as = msr_ir;
+        as = FIELD_EX64(env->msr, MSR, IR);
     }
 
     if (as != ((tlb->mas1 & MAS1_TS) >> MAS1_TS_SHIFT)) {
@@ -1168,8 +1172,8 @@ int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
                                      int mmu_idx)
 {
     int ret = -1;
-    bool real_mode = (type == ACCESS_CODE && msr_ir == 0)
-        || (type != ACCESS_CODE && msr_dr == 0);
+    bool real_mode = (type == ACCESS_CODE && !FIELD_EX64(env->msr, MSR, IR)) ||
+                     (type != ACCESS_CODE && !FIELD_EX64(env->msr, MSR, DR));
 
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
@@ -1230,7 +1234,7 @@ static void booke206_update_mas_tlb_miss(CPUPPCState *env, target_ulong address,
     bool use_epid = mmubooke206_get_as(env, mmu_idx, &epid, &as, &pr);
 
     if (access_type == MMU_INST_FETCH) {
-        as = msr_ir;
+        as = FIELD_EX64(env->msr, MSR, IR);
     }
     env->spr[SPR_BOOKE_MAS0] = env->spr[SPR_BOOKE_MAS4] & MAS4_TLBSELD_MASK;
     env->spr[SPR_BOOKE_MAS1] = env->spr[SPR_BOOKE_MAS4] & MAS4_TSIZED_MASK;

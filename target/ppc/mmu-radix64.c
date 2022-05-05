@@ -37,7 +37,7 @@ static bool ppc_radix64_get_fully_qualified_addr(const CPUPPCState *env,
         return false;
     }
 
-    if (msr_hv) { /* MSR[HV] -> Hypervisor/bare metal */
+    if (FIELD_EX64(env->msr, MSR, HV)) { /* MSR[HV] -> Hypervisor/bare metal */
         switch (eaddr & R_EADDR_QUADRANT) {
         case R_EADDR_QUADRANT0:
             *lpid = 0;
@@ -191,12 +191,13 @@ static bool ppc_radix64_check_prot(PowerPCCPU *cpu, MMUAccessType access_type,
     }
 
     /* Determine permissions allowed by Encoded Access Authority */
-    if (!partition_scoped && (pte & R_PTE_EAA_PRIV) && msr_pr) {
+    if (!partition_scoped && (pte & R_PTE_EAA_PRIV) &&
+        FIELD_EX64(env->msr, MSR, PR)) {
         *prot = 0;
     } else if (mmuidx_pr(mmu_idx) || (pte & R_PTE_EAA_PRIV) ||
                partition_scoped) {
         *prot = ppc_radix64_get_prot_eaa(pte);
-    } else { /* !msr_pr && !(pte & R_PTE_EAA_PRIV) && !partition_scoped */
+    } else { /* !MSR_PR && !(pte & R_PTE_EAA_PRIV) && !partition_scoped */
         *prot = ppc_radix64_get_prot_eaa(pte);
         *prot &= ppc_radix64_get_prot_amr(cpu); /* Least combined permissions */
     }
@@ -305,7 +306,7 @@ static bool validate_pate(PowerPCCPU *cpu, uint64_t lpid, ppc_v3_pate_t *pate)
     if (!(pate->dw0 & PATE0_HR)) {
         return false;
     }
-    if (lpid == 0 && !msr_hv) {
+    if (lpid == 0 && !FIELD_EX64(env->msr, MSR, HV)) {
         return false;
     }
     if ((pate->dw0 & PATE1_R_PRTS) < 5) {
@@ -430,7 +431,7 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
     *g_page_size = PRTBE_R_GET_RTS(prtbe0);
     base_addr = prtbe0 & PRTBE_R_RPDB;
     nls = prtbe0 & PRTBE_R_RPDS;
-    if (msr_hv || vhyp_flat_addressing(cpu)) {
+    if (FIELD_EX64(env->msr, MSR, HV) || vhyp_flat_addressing(cpu)) {
         /*
          * Can treat process table addresses as real addresses
          */

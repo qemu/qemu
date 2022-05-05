@@ -88,7 +88,7 @@ static inline void fpscr_set_rounding_mode(CPUPPCState *env)
     int rnd_type;
 
     /* Set rounding mode */
-    switch (fpscr_rn) {
+    switch (env->fpscr & FP_RN) {
     case 0:
         /* Best approximation (round to nearest) */
         rnd_type = float_round_nearest_even;
