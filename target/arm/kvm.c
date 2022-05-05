@@ -540,7 +540,7 @@ bool write_kvmstate_to_list(ARMCPU *cpu)
             ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &r);
             break;
         default:
-            abort();
+            g_assert_not_reached();
         }
         if (ret) {
             ok = false;
@@ -575,7 +575,7 @@ bool write_list_to_kvmstate(ARMCPU *cpu, int level)
             r.addr = (uintptr_t)(cpu->cpreg_values + i);
             break;
         default:
-            abort();
+            g_assert_not_reached();
         }
         ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &r);
         if (ret) {

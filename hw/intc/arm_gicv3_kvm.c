@@ -31,6 +31,8 @@
 #include "vgic_common.h"
 #include "migration/blocker.h"
 #include "qom/object.h"
+#include "target/arm/cpregs.h"
+
 
 #ifdef DEBUG_GICV3_KVM
 #define DPRINTF(fmt, ...) \
@@ -733,7 +735,6 @@ static const ARMCPRegInfo gicv3_cpuif_reginfo[] = {
        */
       .resetfn = arm_gicv3_icc_reset,
     },
-    REGINFO_SENTINEL
 };
 
 /**

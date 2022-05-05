@@ -679,7 +679,7 @@ static bool trans_VLDST_single(DisasContext *s, arg_VLDST_single *a)
         }
         break;
     default:
-        abort();
+        g_assert_not_reached();
     }
     if ((vd + a->stride * (nregs - 1)) > 31) {
         /*

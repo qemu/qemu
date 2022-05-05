@@ -43,6 +43,7 @@
 #include "kvm_arm.h"
 #include "disas/capstone.h"
 #include "fpu/softfloat.h"
+#include "cpregs.h"
 
 static void arm_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -116,7 +117,7 @@ static void cp_reg_reset(gpointer key, gpointer value, gpointer opaque)
     ARMCPRegInfo *ri = value;
     ARMCPU *cpu = opaque;
 
-    if (ri->type & (ARM_CP_SPECIAL | ARM_CP_ALIAS)) {
+    if (ri->type & (ARM_CP_SPECIAL_MASK | ARM_CP_ALIAS)) {
         return;
     }
 
@@ -152,7 +153,7 @@ static void cp_reg_check_reset(gpointer key, gpointer value,  gpointer opaque)
     ARMCPU *cpu = opaque;
     uint64_t oldvalue, newvalue;
 
-    if (ri->type & (ARM_CP_SPECIAL | ARM_CP_ALIAS | ARM_CP_NO_RAW)) {
+    if (ri->type & (ARM_CP_SPECIAL_MASK | ARM_CP_ALIAS | ARM_CP_NO_RAW)) {
         return;
     }
 
@@ -197,6 +198,8 @@ static void arm_cpu_reset(DeviceState *dev)
         /* Enable all PAC keys.  */
         env->cp15.sctlr_el[1] |= (SCTLR_EnIA | SCTLR_EnIB |
                                   SCTLR_EnDA | SCTLR_EnDB);
+        /* Trap on btype=3 for PACIxSP. */
+        env->cp15.sctlr_el[1] |= SCTLR_BT0;
         /* and to the FP/Neon instructions */
         env->cp15.cpacr_el1 = deposit64(env->cp15.cpacr_el1, 20, 2, 3);
         /* and to the SVE instructions */
@@ -1068,27 +1071,13 @@ uint64_t arm_cpu_mp_affinity(int idx, uint8_t clustersz)
     return (Aff1 << ARM_AFF1_SHIFT) | Aff0;
 }
 
-static void cpreg_hashtable_data_destroy(gpointer data)
-{
-    /*
-     * Destroy function for cpu->cp_regs hashtable data entries.
-     * We must free the name string because it was g_strdup()ed in
-     * add_cpreg_to_hashtable(). It's OK to cast away the 'const'
-     * from r->name because we know we definitely allocated it.
-     */
-    ARMCPRegInfo *r = data;
-
-    g_free((void *)r->name);
-    g_free(r);
-}
-
 static void arm_cpu_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
 
     cpu_set_cpustate_pointers(cpu);
-    cpu->cp_regs = g_hash_table_new_full(g_int_hash, g_int_equal,
-                                         g_free, cpreg_hashtable_data_destroy);
+    cpu->cp_regs = g_hash_table_new_full(g_direct_hash, g_direct_equal,
+                                         NULL, g_free);
 
     QLIST_INIT(&cpu->pre_el_change_hooks);
     QLIST_INIT(&cpu->el_change_hooks);

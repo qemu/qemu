@@ -20,6 +20,7 @@
 #include "gicv3_internal.h"
 #include "hw/irq.h"
 #include "cpu.h"
+#include "target/arm/cpregs.h"
 
 /*
  * Special case return value from hppvi_index(); must be larger than
@@ -2427,7 +2428,6 @@ static const ARMCPRegInfo gicv3_cpuif_reginfo[] = {
       .readfn = icc_igrpen1_el3_read,
       .writefn = icc_igrpen1_el3_write,
     },
-    REGINFO_SENTINEL
 };
 
 static uint64_t ich_ap_read(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -2681,7 +2681,6 @@ static const ARMCPRegInfo gicv3_cpuif_hcr_reginfo[] = {
       .readfn = ich_vmcr_read,
       .writefn = ich_vmcr_write,
     },
-    REGINFO_SENTINEL
 };
 
 static const ARMCPRegInfo gicv3_cpuif_ich_apxr1_reginfo[] = {
@@ -2699,7 +2698,6 @@ static const ARMCPRegInfo gicv3_cpuif_ich_apxr1_reginfo[] = {
       .readfn = ich_ap_read,
       .writefn = ich_ap_write,
     },
-    REGINFO_SENTINEL
 };
 
 static const ARMCPRegInfo gicv3_cpuif_ich_apxr23_reginfo[] = {
@@ -2731,7 +2729,6 @@ static const ARMCPRegInfo gicv3_cpuif_ich_apxr23_reginfo[] = {
       .readfn = ich_ap_read,
       .writefn = ich_ap_write,
     },
-    REGINFO_SENTINEL
 };
 
 static void gicv3_cpuif_el_change_hook(ARMCPU *cpu, void *opaque)
@@ -2806,7 +2803,6 @@ void gicv3_init_cpuif(GICv3State *s)
                       .readfn = ich_lr_read,
                       .writefn = ich_lr_write,
                     },
-                    REGINFO_SENTINEL
                 };
                 define_arm_cp_regs(cpu, lr_regset);
             }
