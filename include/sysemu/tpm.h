@@ -80,6 +80,12 @@ static inline TPMVersion tpm_get_version(TPMIf *ti)
 #define tpm_init()  (0)
 #define tpm_cleanup()
 
+/* needed for an alignment check in non-tpm code */
+static inline Object *TPM_IS_CRB(Object *obj)
+{
+     return NULL;
+}
+
 #endif /* CONFIG_TPM */
 
 #endif /* QEMU_TPM_H */
