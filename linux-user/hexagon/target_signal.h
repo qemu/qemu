@@ -22,4 +22,4 @@
 
 #define TARGET_ARCH_HAS_SIGTRAMP_PAGE 1
 
-#endif /* TARGET_SIGNAL_H */
+#endif /* HEXAGON_TARGET_SIGNAL_H */

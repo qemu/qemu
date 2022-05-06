@@ -47,4 +47,4 @@ struct AspeedHACEClass {
     uint32_t hash_mask;
 };
 
-#endif /* _ASPEED_HACE_H_ */
+#endif /* ASPEED_HACE_H */

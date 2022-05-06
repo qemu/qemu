@@ -56,4 +56,4 @@ ISADevice *mc146818_rtc_init(ISABus *bus, int base_year,
 void rtc_set_memory(ISADevice *dev, int addr, int val);
 int rtc_get_memory(ISADevice *dev, int addr);
 
-#endif /* MC146818RTC_H */
+#endif /* HW_RTC_MC146818RTC_H */

@@ -39,4 +39,4 @@ static inline void record_syscall_return(void *cpu, int num, abi_long ret)
 }
 
 
-#endif /* _SYSCALL_TRACE_H_ */
+#endif /* SYSCALL_TRACE_H */

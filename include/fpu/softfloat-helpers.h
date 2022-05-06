@@ -141,4 +141,4 @@ static inline bool get_default_nan_mode(float_status *status)
     return status->default_nan_mode;
 }
 
-#endif /* _SOFTFLOAT_HELPERS_H_ */
+#endif /* SOFTFLOAT_HELPERS_H */

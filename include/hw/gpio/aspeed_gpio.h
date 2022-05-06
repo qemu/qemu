@@ -93,4 +93,4 @@ struct AspeedGPIOState {
     } sets[ASPEED_GPIO_MAX_NR_SETS];
 };
 
-#endif /* _ASPEED_GPIO_H_ */
+#endif /* ASPEED_GPIO_H */

@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #ifndef BLOCK_INT_GLOBAL_STATE_H
 #define BLOCK_INT_GLOBAL_STATE_H
 
@@ -326,4 +327,4 @@ static inline void assert_bdrv_graph_writable(BlockDriverState *bs)
     assert(qemu_in_main_thread());
 }
 
-#endif /* BLOCK_INT_GLOBAL_STATE */
+#endif /* BLOCK_INT_GLOBAL_STATE_H */

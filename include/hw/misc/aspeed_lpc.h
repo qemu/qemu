@@ -44,4 +44,4 @@ typedef struct AspeedLPCState {
     uint32_t hicr7;
 } AspeedLPCState;
 
-#endif /* _ASPEED_LPC_H_ */
+#endif /* ASPEED_LPC_H */
