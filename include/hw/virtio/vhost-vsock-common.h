@@ -8,8 +8,8 @@
  * top-level directory.
  */
 
-#ifndef _QEMU_VHOST_VSOCK_COMMON_H
-#define _QEMU_VHOST_VSOCK_COMMON_H
+#ifndef QEMU_VHOST_VSOCK_COMMON_H
+#define QEMU_VHOST_VSOCK_COMMON_H
 
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/vhost.h"
@@ -49,4 +49,4 @@ void vhost_vsock_common_unrealize(VirtIODevice *vdev);
 uint64_t vhost_vsock_common_get_features(VirtIODevice *vdev, uint64_t features,
                                          Error **errp);
 
-#endif /* _QEMU_VHOST_VSOCK_COMMON_H */
+#endif /* QEMU_VHOST_VSOCK_COMMON_H */

@@ -7,8 +7,8 @@
  *   Anup Patel <anup.patel@wdc.com>
  */
 
-#ifndef __SBI_ECALL_INTERFACE_H__
-#define __SBI_ECALL_INTERFACE_H__
+#ifndef SBI_ECALL_INTERFACE_H
+#define SBI_ECALL_INTERFACE_H
 
 /* clang-format off */
 

@@ -17,8 +17,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _TARGET_OS_USER_H_
-#define _TARGET_OS_USER_H_
+#ifndef TARGET_OS_USER_H
+#define TARGET_OS_USER_H
 
 /*
  * from sys/priority.h
@@ -326,4 +326,4 @@ struct target_kinfo_vmentry {
     char  kve_path[PATH_MAX];  /* Path to VM obj, if any. */
 };
 
-#endif /* ! _TARGET_OS_USER_H_ */
+#endif /* TARGET_OS_USER_H */

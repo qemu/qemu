@@ -8,8 +8,8 @@
  * top-level directory.
  */
 
-#ifndef _QEMU_VHOST_USER_VSOCK_H
-#define _QEMU_VHOST_USER_VSOCK_H
+#ifndef QEMU_VHOST_USER_VSOCK_H
+#define QEMU_VHOST_USER_VSOCK_H
 
 #include "hw/virtio/vhost-vsock-common.h"
 #include "hw/virtio/vhost-user.h"
@@ -33,4 +33,4 @@ struct VHostUserVSock {
     /*< public >*/
 };
 
-#endif /* _QEMU_VHOST_USER_VSOCK_H */
+#endif /* QEMU_VHOST_USER_VSOCK_H */

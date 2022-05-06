@@ -11,8 +11,8 @@
  * top-level directory.
  */
 
-#ifndef _QEMU_VHOST_USER_FS_H
-#define _QEMU_VHOST_USER_FS_H
+#ifndef QEMU_VHOST_USER_FS_H
+#define QEMU_VHOST_USER_FS_H
 
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/vhost.h"
@@ -44,4 +44,4 @@ struct VHostUserFS {
     /*< public >*/
 };
 
-#endif /* _QEMU_VHOST_USER_FS_H */
+#endif /* QEMU_VHOST_USER_FS_H */

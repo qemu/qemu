@@ -9,8 +9,8 @@
  * directory.
  */
 
-#ifndef HW_S390_PCI_CLP
-#define HW_S390_PCI_CLP
+#ifndef HW_S390_PCI_CLP_H
+#define HW_S390_PCI_CLP_H
 
 /* CLP common request & response block size */
 #define CLP_BLK_SIZE 4096

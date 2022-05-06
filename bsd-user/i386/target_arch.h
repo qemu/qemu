@@ -17,8 +17,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _TARGET_ARCH_H_
-#define _TARGET_ARCH_H_
+#ifndef TARGET_ARCH_H
+#define TARGET_ARCH_H
 
 /* target_arch_cpu.c */
 void bsd_i386_write_dt(void *ptr, unsigned long addr, unsigned long limit,
@@ -28,4 +28,4 @@ void bsd_i386_set_idt_base(uint64_t base);
 
 #define target_cpu_set_tls(env, newtls)
 
-#endif /* ! _TARGET_ARCH_H_ */
+#endif /* TARGET_ARCH_H */

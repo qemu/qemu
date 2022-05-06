@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef _QEMU_VHOST_USER_RNG_H
-#define _QEMU_VHOST_USER_RNG_H
+#ifndef QEMU_VHOST_USER_RNG_H
+#define QEMU_VHOST_USER_RNG_H
 
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/vhost.h"
@@ -30,4 +30,4 @@ struct VHostUserRNG {
     /*< public >*/
 };
 
-#endif /* _QEMU_VHOST_USER_RNG_H */
+#endif /* QEMU_VHOST_USER_RNG_H */

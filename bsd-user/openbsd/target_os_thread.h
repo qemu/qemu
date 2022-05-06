@@ -17,9 +17,9 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _TARGET_OS_THREAD_H_
-#define _TARGET_OS_THREAD_H_
+#ifndef TARGET_OS_THREAD_H
+#define TARGET_OS_THREAD_H
 
 #include "target_arch_thread.h"
 
-#endif /* !_TARGET_OS_THREAD_H_ */
+#endif /* TARGET_OS_THREAD_H */
