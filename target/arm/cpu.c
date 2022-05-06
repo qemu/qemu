@@ -230,6 +230,11 @@ static void arm_cpu_reset(DeviceState *dev)
              */
             env->cp15.gcr_el1 = 0x1ffff;
         }
+        /*
+         * Disable access to SCXTNUM_EL0 from CSV2_1p2.
+         * This is not yet exposed from the Linux kernel in any way.
+         */
+        env->cp15.sctlr_el[1] |= SCTLR_TSCXT;
 #else
         /* Reset into the highest available EL */
         if (arm_feature(env, ARM_FEATURE_EL3)) {
