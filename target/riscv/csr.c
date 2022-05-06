@@ -3141,13 +3141,13 @@ static inline RISCVException riscv_csrrw_check(CPURISCVState *env,
 #if !defined(CONFIG_USER_ONLY)
     int effective_priv = env->priv;
 
-    if (riscv_has_ext(env, RVH) &&
-        env->priv == PRV_S &&
-        !riscv_cpu_virt_enabled(env)) {
+    if (riscv_has_ext(env, RVH) && env->priv == PRV_S) {
         /*
-         * We are in S mode without virtualisation, therefore we are in HS Mode.
+         * We are in either HS or VS mode.
          * Add 1 to the effective privledge level to allow us to access the
-         * Hypervisor CSRs.
+         * Hypervisor CSRs. The `hmode` predicate will determine if access
+         * should be allowed(HS) or if a virtual instruction exception should be
+         * raised(VS).
          */
         effective_priv++;
     }
