@@ -1313,4 +1313,6 @@ static inline void define_cortex_a72_a57_a53_cp_reginfo(ARMCPU *cpu) { }
 void define_cortex_a72_a57_a53_cp_reginfo(ARMCPU *cpu);
 #endif
 
+void aa32_max_features(ARMCPU *cpu);
+
 #endif
