@@ -6,7 +6,7 @@
  */
 
 #ifndef SH4_CPU_PARAM_H
-#define SH4_CPU_PARAM_H 1
+#define SH4_CPU_PARAM_H
 
 #define TARGET_LONG_BITS 32
 #define TARGET_PAGE_BITS 12  /* 4k */

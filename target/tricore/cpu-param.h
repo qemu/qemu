@@ -6,7 +6,7 @@
  */
 
 #ifndef TRICORE_CPU_PARAM_H
-#define TRICORE_CPU_PARAM_H 1
+#define TRICORE_CPU_PARAM_H
 
 #define TARGET_LONG_BITS 32
 #define TARGET_PAGE_BITS 14

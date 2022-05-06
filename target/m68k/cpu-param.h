@@ -6,7 +6,7 @@
  */
 
 #ifndef M68K_CPU_PARAM_H
-#define M68K_CPU_PARAM_H 1
+#define M68K_CPU_PARAM_H
 
 #define TARGET_LONG_BITS 32
 /*

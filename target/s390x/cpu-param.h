@@ -6,7 +6,7 @@
  */
 
 #ifndef S390_CPU_PARAM_H
-#define S390_CPU_PARAM_H 1
+#define S390_CPU_PARAM_H
 
 #define TARGET_LONG_BITS 64
 #define TARGET_PAGE_BITS 12

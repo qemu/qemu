@@ -6,7 +6,7 @@
  */
 
 #ifndef CRIS_CPU_PARAM_H
-#define CRIS_CPU_PARAM_H 1
+#define CRIS_CPU_PARAM_H
 
 #define TARGET_LONG_BITS 32
 #define TARGET_PAGE_BITS 13

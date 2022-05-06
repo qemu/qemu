@@ -23,7 +23,7 @@
  */
 
 #ifndef TCG_LDST_H
-#define TCG_LDST_H 1
+#define TCG_LDST_H
 
 #ifdef CONFIG_SOFTMMU
 

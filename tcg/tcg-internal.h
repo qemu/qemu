@@ -23,7 +23,7 @@
  */
 
 #ifndef TCG_INTERNAL_H
-#define TCG_INTERNAL_H 1
+#define TCG_INTERNAL_H
 
 #define TCG_HIGHWATER 1024
 

@@ -6,7 +6,7 @@
  */
 
 #ifndef XTENSA_CPU_PARAM_H
-#define XTENSA_CPU_PARAM_H 1
+#define XTENSA_CPU_PARAM_H
 
 #define TARGET_LONG_BITS 32
 #define TARGET_PAGE_BITS 12
