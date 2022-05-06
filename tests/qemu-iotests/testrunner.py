@@ -378,6 +378,7 @@ class TestRunner(ContextManager['TestRunner']):
             else:
                 print(res.casenotrun)
 
+        sys.stdout.flush()
         return res
 
     def run_tests(self, tests: List[str], jobs: int = 1) -> bool:
