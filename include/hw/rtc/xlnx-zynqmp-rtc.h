@@ -24,8 +24,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef HW_RTC_XLNX_ZYNQMP_H
-#define HW_RTC_XLNX_ZYNQMP_H
+#ifndef HW_RTC_XLNX_ZYNQMP_RTC_H
+#define HW_RTC_XLNX_ZYNQMP_RTC_H
 
 #include "hw/register.h"
 #include "hw/sysbus.h"

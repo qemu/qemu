@@ -9,8 +9,8 @@
  * version.
  */
 
-#ifndef HW_RTC_SUN4V
-#define HW_RTC_SUN4V
+#ifndef HW_RTC_SUN4V_RTC_H
+#define HW_RTC_SUN4V_RTC_H
 
 #include "exec/hwaddr.h"
 

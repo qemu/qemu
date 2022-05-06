@@ -15,8 +15,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HEXAGON_REGS_H
-#define HEXAGON_REGS_H
+#ifndef HEXAGON_HEX_REGS_H
+#define HEXAGON_HEX_REGS_H
 
 enum {
     HEX_REG_R00              = 0,

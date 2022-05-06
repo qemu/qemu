@@ -16,8 +16,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HW_SHAKTI_H
-#define HW_SHAKTI_H
+#ifndef HW_SHAKTI_C_H
+#define HW_SHAKTI_C_H
 
 #include "hw/riscv/riscv_hart.h"
 #include "hw/boards.h"

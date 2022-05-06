@@ -6,8 +6,8 @@
  *
  */
 
-#ifndef HW_NUBUS_MAC_H
-#define HW_NUBUS_MAC_H
+#ifndef HW_NUBUS_MAC_NUBUS_BRIDGE_H
+#define HW_NUBUS_MAC_NUBUS_BRIDGE_H
 
 #include "hw/nubus/nubus.h"
 #include "qom/object.h"

@@ -16,8 +16,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef HW_USB_DWC2_H
-#define HW_USB_DWC2_H
+#ifndef HW_USB_HCD_DWC2_H
+#define HW_USB_HCD_DWC2_H
 
 #include "qemu/timer.h"
 #include "hw/irq.h"

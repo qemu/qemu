@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef HW_STM_EXTI_H
-#define HW_STM_EXTI_H
+#ifndef HW_STM32F4XX_EXTI_H
+#define HW_STM32F4XX_EXTI_H
 
 #include "hw/sysbus.h"
 #include "qom/object.h"

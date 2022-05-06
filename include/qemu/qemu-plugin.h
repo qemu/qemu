@@ -7,8 +7,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-#ifndef QEMU_PLUGIN_API_H
-#define QEMU_PLUGIN_API_H
+
+#ifndef QEMU_QEMU_PLUGIN_H
+#define QEMU_QEMU_PLUGIN_H
 
 #include <inttypes.h>
 #include <stdbool.h>
@@ -624,4 +625,4 @@ uint64_t qemu_plugin_end_code(void);
  */
 uint64_t qemu_plugin_entry_code(void);
 
-#endif /* QEMU_PLUGIN_API_H */
+#endif /* QEMU_QEMU_PLUGIN_H */

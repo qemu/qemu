@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef TARGET_ARCH_H
-#define TARGET_ARCH_H
+#ifndef TARGET_H
+#define TARGET_H
 
 /*
  * i386 doesn't 'lump' the registers for 64-bit args.
@@ -17,5 +17,4 @@ static inline bool regpairs_aligned(void *cpu_env)
     return false;
 }
 
-#endif /* ! TARGET_ARCH_H */
-
+#endif /* TARGET_H */

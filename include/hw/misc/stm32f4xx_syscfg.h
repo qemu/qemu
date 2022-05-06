@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef HW_STM_SYSCFG_H
-#define HW_STM_SYSCFG_H
+#ifndef HW_STM32F4XX_SYSCFG_H
+#define HW_STM32F4XX_SYSCFG_H
 
 #include "hw/sysbus.h"
 #include "qom/object.h"

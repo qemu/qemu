@@ -15,8 +15,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HEXAGON_ARCH_TYPES_H
-#define HEXAGON_ARCH_TYPES_H
+#ifndef HEXAGON_HEX_ARCH_TYPES_H
+#define HEXAGON_HEX_ARCH_TYPES_H
 
 #include "qemu/osdep.h"
 #include "mmvec/mmvec.h"

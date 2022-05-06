@@ -7,8 +7,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef TCG_CPUS_ICOUNT_H
-#define TCG_CPUS_ICOUNT_H
+#ifndef TCG_ACCEL_OPS_ICOUNT_H
+#define TCG_ACCEL_OPS_ICOUNT_H
 
 void icount_handle_deadline(void);
 void icount_prepare_for_run(CPUState *cpu);
@@ -16,4 +16,4 @@ void icount_process_data(CPUState *cpu);
 
 void icount_handle_interrupt(CPUState *cpu, int mask);
 
-#endif /* TCG_CPUS_ICOUNT_H */
+#endif /* TCG_ACCEL_OPS_ICOUNT_H */

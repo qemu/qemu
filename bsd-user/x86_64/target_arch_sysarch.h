@@ -16,8 +16,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BSD_USER_ARCH_SYSARCH_H_
-#define BSD_USER_ARCH_SYSARCH_H_
+#ifndef TARGET_ARCH_SYSARCH_H
+#define TARGET_ARCH_SYSARCH_H
 
 #include "target_syscall.h"
 
@@ -73,4 +73,4 @@ static inline void do_freebsd_arch_print_sysarch(
         TARGET_ABI_FMT_lx ")", name->name, (int)arg1, arg2, arg3, arg4);
 }
 
-#endif /*! BSD_USER_ARCH_SYSARCH_H_ */
+#endif /* TARGET_ARCH_SYSARCH_H */

@@ -49,8 +49,8 @@
  * + Property "indac-write-disabled": Disable indirect access writes.
  */
 
-#ifndef XILINX_VERSAL_OSPI_H
-#define XILINX_VERSAL_OSPI_H
+#ifndef XLNX_VERSAL_OSPI_H
+#define XLNX_VERSAL_OSPI_H
 
 #include "hw/register.h"
 #include "hw/ssi/ssi.h"
@@ -108,4 +108,4 @@ struct XlnxVersalOspi {
     uint8_t stig_membank[512];
 };
 
-#endif /* XILINX_VERSAL_OSPI_H */
+#endif /* XLNX_VERSAL_OSPI_H */

@@ -15,8 +15,8 @@
  * This code is licensed under the GNU GPL v2 or later.
  */
 
-#ifndef HW_NVME_INTERNAL_H
-#define HW_NVME_INTERNAL_H
+#ifndef HW_NVME_NVME_H
+#define HW_NVME_NVME_H
 
 #include "qemu/uuid.h"
 #include "hw/pci/pci.h"
@@ -519,4 +519,4 @@ void nvme_rw_complete_cb(void *opaque, int ret);
 uint16_t nvme_map_dptr(NvmeCtrl *n, NvmeSg *sg, size_t len,
                        NvmeCmd *cmd);
 
-#endif /* HW_NVME_INTERNAL_H */
+#endif /* HW_NVME_NVME_H */

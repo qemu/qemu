@@ -7,8 +7,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef HAX_CPUS_H
-#define HAX_CPUS_H
+#ifndef TARGET_I386_HAX_ACCEL_OPS_H
+#define TARGET_I386_HAX_ACCEL_OPS_H
 
 #include "sysemu/cpus.h"
 
@@ -28,4 +28,4 @@ int hax_vcpu_destroy(CPUState *cpu);
 void hax_raise_event(CPUState *cpu);
 void hax_reset_vcpu_state(void *opaque);
 
-#endif /* HAX_CPUS_H */
+#endif /* TARGET_I386_HAX_ACCEL_OPS_H */
