@@ -23,8 +23,6 @@ qga_vss = shared_module(
   ]
 )
 
-all_qga += qga_vss
-
 if midl.found()
   gen_tlb = custom_target('gen-tlb',
                           input: 'qga-vss.idl',
@@ -36,3 +34,5 @@ else
                           output: 'qga-vss.tlb',
                           command: [widl, '-t', '@INPUT@', '-o', '@OUTPUT@'])
 endif
+
+all_qga += [ qga_vss, gen_tlb ]

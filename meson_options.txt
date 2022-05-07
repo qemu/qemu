@@ -4,21 +4,31 @@
 
 option('qemu_suffix', type : 'string', value: 'qemu',
        description: 'Suffix for QEMU data/modules/config directories (can be empty)')
-option('docdir', type : 'string', value : 'doc',
+option('docdir', type : 'string', value : 'share/doc',
        description: 'Base directory for documentation installation (can be empty)')
-option('qemu_firmwarepath', type : 'string', value : '',
+option('qemu_firmwarepath', type : 'string', value : 'qemu-firmware',
        description: 'search PATH for firmware files')
+option('pkgversion', type : 'string', value : '',
+       description: 'use specified string as sub-version of the package')
 option('smbd', type : 'string', value : '',
        description: 'Path to smbd for slirp networking')
 option('sphinx_build', type : 'string', value : '',
-       description: 'Use specified sphinx-build [$sphinx_build] for building document (default to be empty)')
+       description: 'Use specified sphinx-build for building document')
 option('iasl', type : 'string', value : '',
        description: 'Path to ACPI disassembler')
+option('tls_priority', type : 'string', value : 'NORMAL',
+       description: 'Default TLS protocol/cipher priority string')
 option('default_devices', type : 'boolean', value : true,
        description: 'Include a default selection of devices in emulators')
 option('audio_drv_list', type: 'array', value: ['default'],
        choices: ['alsa', 'coreaudio', 'default', 'dsound', 'jack', 'oss', 'pa', 'sdl'],
        description: 'Set audio driver list')
+option('block_drv_rw_whitelist', type : 'string', value : '',
+       description: 'set block driver read-write whitelist (by default affects only QEMU, not tools like qemu-img)')
+option('block_drv_ro_whitelist', type : 'string', value : '',
+       description: 'set block driver read-only whitelist (by default affects only QEMU, not tools like qemu-img)')
+option('interp_prefix', type : 'string', value : '/usr/gnemul/qemu-%M',
+       description: 'where to find shared libraries etc., use %M for cpu name')
 option('fuzzing_engine', type : 'string', value : '',
        description: 'fuzzing engine library for OSS-Fuzz')
 option('trace_file', type: 'string', value: 'trace',
@@ -68,7 +78,7 @@ option('xen', type: 'feature', value: 'auto',
        description: 'Xen backend support')
 option('xen_pci_passthrough', type: 'feature', value: 'auto',
        description: 'Xen PCI passthrough support')
-option('tcg', type: 'feature', value: 'auto',
+option('tcg', type: 'feature', value: 'enabled',
        description: 'TCG support')
 option('tcg_interpreter', type: 'boolean', value: false,
        description: 'TCG with bytecode interpreter (slow)')
@@ -225,6 +235,16 @@ option('oss', type: 'feature', value: 'auto',
 option('pa', type: 'feature', value: 'auto',
        description: 'PulseAudio sound support')
 
+option('vhost_kernel', type: 'feature', value: 'auto',
+       description: 'vhost kernel backend support')
+option('vhost_net', type: 'feature', value: 'auto',
+       description: 'vhost-net kernel acceleration support')
+option('vhost_user', type: 'feature', value: 'auto',
+       description: 'vhost-user backend support')
+option('vhost_crypto', type: 'feature', value: 'auto',
+       description: 'vhost-user crypto backend support')
+option('vhost_vdpa', type: 'feature', value: 'auto',
+       description: 'vhost-vdpa kernel backend support')
 option('vhost_user_blk_server', type: 'feature', value: 'auto',
        description: 'build vhost-user-blk server')
 option('virtfs', type: 'feature', value: 'auto',

@@ -224,10 +224,6 @@ glob() {
     eval test -z '"${1#'"$2"'}"'
 }
 
-ld_has() {
-    $ld --help 2>/dev/null | grep ".$1" >/dev/null 2>&1
-}
-
 if printf %s\\n "$source_path" "$PWD" | grep -q "[[:space:]:]";
 then
   error_exit "main directory cannot contain spaces nor colons"
@@ -235,16 +231,10 @@ fi
 
 # default parameters
 cpu=""
-iasl="iasl"
-interp_prefix="/usr/gnemul/qemu-%M"
 static="no"
 cross_compile="no"
 cross_prefix=""
-audio_drv_list="default"
-block_drv_rw_whitelist=""
-block_drv_ro_whitelist=""
 host_cc="cc"
-lto="false"
 stack_protector=""
 safe_stack=""
 use_containers="yes"
@@ -292,22 +282,10 @@ EXTRA_CXXFLAGS=""
 EXTRA_OBJCFLAGS=""
 EXTRA_LDFLAGS=""
 
-xen_ctrl_version="$default_feature"
-vhost_kernel="$default_feature"
-vhost_net="$default_feature"
-vhost_crypto="$default_feature"
-vhost_scsi="$default_feature"
-vhost_vsock="$default_feature"
-vhost_user="no"
-vhost_user_fs="$default_feature"
-vhost_vdpa="$default_feature"
-debug_info="yes"
 debug_tcg="no"
-debug="no"
 sanitizers="no"
 tsan="no"
 fortify_source="yes"
-gcov="no"
 EXESUF=""
 modules="no"
 prefix="/usr/local"
@@ -315,15 +293,13 @@ qemu_suffix="qemu"
 softmmu="yes"
 linux_user=""
 bsd_user=""
-pkgversion=""
 pie=""
-trace_file="trace"
 coroutine=""
-tls_priority="NORMAL"
 plugins="$default_feature"
 meson=""
 meson_args=""
 ninja=""
+bindir="bin"
 skip_meson=no
 
 # The following Meson options are handled manually (still they
@@ -339,15 +315,9 @@ else
 fi
 fdt="auto"
 
-# 2. Support --with/--without option
-default_devices="true"
-
-# 3. Automatically enable/disable other options
+# 2. Automatically enable/disable other options
 tcg="enabled"
 cfi="false"
-
-# 4. Detection partly done in configure
-xen=${default_feature:+disabled}
 
 # parse CC options second
 for opt do
@@ -415,6 +385,7 @@ ranlib="${RANLIB-${cross_prefix}ranlib}"
 nm="${NM-${cross_prefix}nm}"
 smbd="$SMBD"
 strip="${STRIP-${cross_prefix}strip}"
+widl="${WIDL-${cross_prefix}widl}"
 windres="${WINDRES-${cross_prefix}windres}"
 pkg_config_exe="${PKG_CONFIG-${cross_prefix}pkg-config}"
 query_pkg_config() {
@@ -551,7 +522,6 @@ haiku)
 ;;
 linux)
   linux="yes"
-  vhost_user=${default_feature:-yes}
 ;;
 esac
 
@@ -685,6 +655,7 @@ if test "$mingw32" = "yes" ; then
   CONFIGURE_CFLAGS="-mthreads $CONFIGURE_CFLAGS"
   write_c_skeleton;
   prefix="/qemu"
+  bindir=""
   qemu_suffix=""
 fi
 
@@ -693,6 +664,9 @@ werror=""
 . $source_path/scripts/meson-buildoptions.sh
 
 meson_options=
+meson_option_add() {
+  meson_options="$meson_options $(quote_sh "$1")"
+}
 meson_option_parse() {
   meson_options="$meson_options $(_meson_option_parse "$@")"
   if test $? -eq 1; then
@@ -711,8 +685,6 @@ for opt do
   ;;
   --prefix=*) prefix="$optarg"
   ;;
-  --interp-prefix=*) interp_prefix="$optarg"
-  ;;
   --cross-prefix=*)
   ;;
   --cc=*)
@@ -721,8 +693,6 @@ for opt do
   ;;
   --cxx=*)
   ;;
-  --iasl=*) iasl="$optarg"
-  ;;
   --objcc=*) objcc="$optarg"
   ;;
   --make=*) make="$optarg"
@@ -730,8 +700,6 @@ for opt do
   --install=*)
   ;;
   --python=*) python="$optarg" ; explicit_python=yes
-  ;;
-  --sphinx-build=*) sphinx_build="$optarg"
   ;;
   --skip-meson) skip_meson=yes
   ;;
@@ -751,9 +719,9 @@ for opt do
   ;;
   --cross-cc-*)
   ;;
-  --enable-debug-info) debug_info="yes"
+  --enable-debug-info) meson_option_add -Ddebug=true
   ;;
-  --disable-debug-info) debug_info="no"
+  --disable-debug-info) meson_option_add -Ddebug=false
   ;;
   --enable-modules)
       modules="yes"
@@ -773,11 +741,9 @@ for opt do
                        error_exit "Can't mix --target-list-exclude with --target-list"
                    fi
   ;;
-  --with-trace-file=*) trace_file="$optarg"
+  --with-default-devices) meson_option_add -Ddefault_devices=true
   ;;
-  --with-default-devices) default_devices="true"
-  ;;
-  --without-default-devices) default_devices="false"
+  --without-default-devices) meson_option_add -Ddefault_devices=false
   ;;
   --with-devices-*[!a-zA-Z0-9_-]*=*) error_exit "Passed bad --with-devices-FOO option"
   ;;
@@ -793,35 +759,13 @@ for opt do
   ;;
   --without-default-features) # processed above
   ;;
-  --enable-gcov) gcov="yes"
-  ;;
   --static)
     static="yes"
     QEMU_PKG_CONFIG_FLAGS="--static $QEMU_PKG_CONFIG_FLAGS"
   ;;
-  --mandir=*) mandir="$optarg"
-  ;;
   --bindir=*) bindir="$optarg"
   ;;
-  --libdir=*) libdir="$optarg"
-  ;;
-  --libexecdir=*) libexecdir="$optarg"
-  ;;
-  --includedir=*) includedir="$optarg"
-  ;;
-  --datadir=*) datadir="$optarg"
-  ;;
   --with-suffix=*) qemu_suffix="$optarg"
-  ;;
-  --docdir=*) docdir="$optarg"
-  ;;
-  --localedir=*) localedir="$optarg"
-  ;;
-  --sysconfdir=*) sysconfdir="$optarg"
-  ;;
-  --localstatedir=*) local_statedir="$optarg"
-  ;;
-  --firmwarepath=*) firmwarepath="$optarg"
   ;;
   --host=*|--build=*|\
   --disable-dependency-tracking|\
@@ -833,12 +777,6 @@ for opt do
     # configure to be used by RPM and similar macros that set
     # lots of directory switches by default.
   ;;
-  --audio-drv-list=*) audio_drv_list="$optarg"
-  ;;
-  --block-drv-rw-whitelist=*|--block-drv-whitelist=*) block_drv_rw_whitelist=$(echo "$optarg" | sed -e 's/,/ /g')
-  ;;
-  --block-drv-ro-whitelist=*) block_drv_ro_whitelist=$(echo "$optarg" | sed -e 's/,/ /g')
-  ;;
   --enable-debug-tcg) debug_tcg="yes"
   ;;
   --disable-debug-tcg) debug_tcg="no"
@@ -847,7 +785,7 @@ for opt do
       # Enable debugging options that aren't excessively noisy
       debug_tcg="yes"
       meson_option_parse --enable-debug-mutex ""
-      debug="yes"
+      meson_option_add -Doptimization=0
       fortify_source="no"
   ;;
   --enable-sanitizers) sanitizers="yes"
@@ -865,10 +803,6 @@ for opt do
   --enable-slirp=git) slirp="internal"
   ;;
   --enable-slirp=*) slirp="$optarg"
-  ;;
-  --disable-xen) xen="disabled"
-  ;;
-  --enable-xen) xen="enabled"
   ;;
   --disable-tcg) tcg="disabled"
                  plugins="no"
@@ -900,10 +834,6 @@ for opt do
   ;;
   --disable-werror) werror="no"
   ;;
-  --enable-lto) lto="true"
-  ;;
-  --disable-lto) lto="false"
-  ;;
   --enable-stack-protector) stack_protector="yes"
   ;;
   --disable-stack-protector) stack_protector="no"
@@ -914,7 +844,7 @@ for opt do
   ;;
   --enable-cfi)
       cfi="true";
-      lto="true";
+      meson_option_add -Db_lto=true
   ;;
   --disable-cfi) cfi="false"
   ;;
@@ -926,29 +856,7 @@ for opt do
   ;;
   --enable-fdt=*) fdt="$optarg"
   ;;
-  --with-pkgversion=*) pkgversion="$optarg"
-  ;;
   --with-coroutine=*) coroutine="$optarg"
-  ;;
-  --disable-vhost-net) vhost_net="no"
-  ;;
-  --enable-vhost-net) vhost_net="yes"
-  ;;
-  --disable-vhost-crypto) vhost_crypto="no"
-  ;;
-  --enable-vhost-crypto) vhost_crypto="yes"
-  ;;
-  --disable-vhost-scsi) vhost_scsi="no"
-  ;;
-  --enable-vhost-scsi) vhost_scsi="yes"
-  ;;
-  --disable-vhost-vsock) vhost_vsock="no"
-  ;;
-  --enable-vhost-vsock) vhost_vsock="yes"
-  ;;
-  --disable-vhost-user-fs) vhost_user_fs="no"
-  ;;
-  --enable-vhost-user-fs) vhost_user_fs="yes"
   ;;
   --disable-zlib-test)
   ;;
@@ -960,20 +868,6 @@ for opt do
   ;;
   --enable-uuid|--disable-uuid)
       echo "$0: $opt is obsolete, UUID support is always built" >&2
-  ;;
-  --tls-priority=*) tls_priority="$optarg"
-  ;;
-  --disable-vhost-user) vhost_user="no"
-  ;;
-  --enable-vhost-user) vhost_user="yes"
-  ;;
-  --disable-vhost-vdpa) vhost_vdpa="no"
-  ;;
-  --enable-vhost-vdpa) vhost_vdpa="yes"
-  ;;
-  --disable-vhost-kernel) vhost_kernel="no"
-  ;;
-  --enable-vhost-kernel) vhost_kernel="yes"
   ;;
   --disable-capstone) capstone="disabled"
   ;;
@@ -1012,12 +906,7 @@ for opt do
   --enable-jemalloc) meson_option_parse --enable-malloc=jemalloc jemalloc
   ;;
   # everything else has the same name in configure and meson
-  --enable-* | --disable-*) meson_option_parse "$opt" "$optarg"
-  ;;
-  *)
-      echo "ERROR: unknown option $opt"
-      echo "Try '$0 --help' for more information"
-      exit 1
+  --*) meson_option_parse "$opt" "$optarg"
   ;;
   esac
 done
@@ -1063,23 +952,6 @@ case $git_submodules_action in
         exit 1
     ;;
 esac
-
-libdir="${libdir:-$prefix/lib}"
-libexecdir="${libexecdir:-$prefix/libexec}"
-includedir="${includedir:-$prefix/include}"
-
-if test "$mingw32" = "yes" ; then
-    bindir="${bindir:-$prefix}"
-else
-    bindir="${bindir:-$prefix/bin}"
-fi
-mandir="${mandir:-$prefix/share/man}"
-datadir="${datadir:-$prefix/share}"
-docdir="${docdir:-$prefix/share/doc}"
-sysconfdir="${sysconfdir:-$prefix/etc}"
-local_statedir="${local_statedir:-$prefix/var}"
-firmwarepath="${firmwarepath:-$datadir/qemu-firmware}"
-localedir="${localedir:-$datadir/locale}"
 
 if eval test -z "\${cross_cc_$cpu}"; then
     eval "cross_cc_${cpu}=\$cc"
@@ -1130,8 +1002,6 @@ Options: [defaults in brackets after descriptions]
 Standard options:
   --help                   print this message
   --prefix=PREFIX          install in PREFIX [$prefix]
-  --interp-prefix=PREFIX   where to find shared libraries, etc.
-                           use %M for cpu name [$interp_prefix]
   --target-list=LIST       set target list (default: build all)
 $(echo Available targets: $default_target_list | \
   fold -s -w 53 | sed -e 's/^/                           /')
@@ -1140,7 +1010,6 @@ $(echo Available targets: $default_target_list | \
 Advanced options (experts only):
   --cross-prefix=PREFIX    use PREFIX for compile tools, PREFIX can be blank [$cross_prefix]
   --cc=CC                  use C compiler CC [$cc]
-  --iasl=IASL              use ACPI compiler IASL [$iasl]
   --host-cc=CC             use C compiler CC [$host_cc] for code run at
                            build time
   --cxx=CXX                use C++ compiler CXX [$cxx]
@@ -1153,7 +1022,6 @@ Advanced options (experts only):
   --cross-cc-cflags-ARCH=  use compiler flags when building ARCH guest tests
   --make=MAKE              use specified make [$make]
   --python=PYTHON          use specified python [$python]
-  --sphinx-build=SPHINX    use specified sphinx-build [$sphinx_build]
   --meson=MESON            use specified meson [$meson]
   --ninja=NINJA            use specified ninja [$ninja]
   --smbd=SMBD              use specified smbd [$smbd]
@@ -1162,19 +1030,9 @@ Advanced options (experts only):
   --with-git-submodules=validate fail if git submodules are not up to date
   --with-git-submodules=ignore   do not update or check git submodules (default if no .git dir)
   --static                 enable static build [$static]
-  --mandir=PATH            install man pages in PATH
-  --datadir=PATH           install firmware in PATH/$qemu_suffix
-  --localedir=PATH         install translation in PATH/$qemu_suffix
-  --docdir=PATH            install documentation in PATH/$qemu_suffix
   --bindir=PATH            install binaries in PATH
-  --libdir=PATH            install libraries in PATH
-  --libexecdir=PATH        install helper binaries in PATH
-  --sysconfdir=PATH        install config in PATH/$qemu_suffix
-  --localstatedir=PATH     install local state in PATH (set at runtime on win32)
-  --firmwarepath=PATH      search PATH for firmware files
   --efi-aarch64=PATH       PATH of efi file to use for aarch64 VMs.
   --with-suffix=SUFFIX     suffix for QEMU data inside datadir/libdir/sysconfdir/docdir [$qemu_suffix]
-  --with-pkgversion=VERS   use specified string as sub-version of the package
   --without-default-features default all --enable-* options to "disabled"
   --without-default-devices  do not include any device that is not needed to
                            start the emulator (only use if you are including
@@ -1187,19 +1045,11 @@ Advanced options (experts only):
   --disable-stack-protector disable compiler-provided stack protection
   --audio-drv-list=LIST    set audio drivers to try if -audiodev is not used
   --block-drv-whitelist=L  Same as --block-drv-rw-whitelist=L
-  --block-drv-rw-whitelist=L
-                           set block driver read-write whitelist
-                           (by default affects only QEMU, not tools like qemu-img)
-  --block-drv-ro-whitelist=L
-                           set block driver read-only whitelist
-                           (by default affects only QEMU, not tools like qemu-img)
   --with-trace-file=NAME   Full PATH,NAME of file to store traces
                            Default:trace-<pid>
   --cpu=CPU                Build for host CPU [$cpu]
   --with-coroutine=BACKEND coroutine backend. Supported options:
                            ucontext, sigaltstack, windows
-  --enable-gcov            enable test coverage analysis with gcov
-  --tls-priority           default TLS protocol/cipher priority string
   --enable-plugins
                            enable plugins via shared library loading
   --disable-containers     don't use containers for cross-building
@@ -1215,16 +1065,8 @@ cat << EOF
   modules         modules support (non-Windows)
   debug-tcg       TCG debugging (default is disabled)
   debug-info      debugging information
-  lto             Enable Link-Time Optimization.
   safe-stack      SafeStack Stack Smash Protection. Depends on
                   clang/llvm >= 3.7 and requires coroutine backend ucontext.
-  vhost-net       vhost-net kernel acceleration support
-  vhost-vsock     virtio sockets device support
-  vhost-scsi      vhost-scsi kernel target support
-  vhost-crypto    vhost-user-crypto backend support
-  vhost-kernel    vhost kernel backend support
-  vhost-user      vhost-user backend support
-  vhost-vdpa      vhost-vdpa kernel backend support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -1638,369 +1480,11 @@ else
     exit 1
 fi
 
-#########################################
-# vhost interdependencies and host support
-
-# vhost backends
-if test "$vhost_user" = "yes" && test "$mingw32" = "yes"; then
-  error_exit "vhost-user is not available on Windows"
-fi
-test "$vhost_vdpa" = "" && vhost_vdpa=$linux
-if test "$vhost_vdpa" = "yes" && test "$linux" != "yes"; then
-  error_exit "vhost-vdpa is only available on Linux"
-fi
-test "$vhost_kernel" = "" && vhost_kernel=$linux
-if test "$vhost_kernel" = "yes" && test "$linux" != "yes"; then
-  error_exit "vhost-kernel is only available on Linux"
-fi
-
-# vhost-kernel devices
-test "$vhost_scsi" = "" && vhost_scsi=$vhost_kernel
-if test "$vhost_scsi" = "yes" && test "$vhost_kernel" != "yes"; then
-  error_exit "--enable-vhost-scsi requires --enable-vhost-kernel"
-fi
-test "$vhost_vsock" = "" && vhost_vsock=$vhost_kernel
-if test "$vhost_vsock" = "yes" && test "$vhost_kernel" != "yes"; then
-  error_exit "--enable-vhost-vsock requires --enable-vhost-kernel"
-fi
-
-# vhost-user backends
-test "$vhost_net_user" = "" && vhost_net_user=$vhost_user
-if test "$vhost_net_user" = "yes" && test "$vhost_user" = "no"; then
-  error_exit "--enable-vhost-net-user requires --enable-vhost-user"
-fi
-test "$vhost_crypto" = "" && vhost_crypto=$vhost_user
-if test "$vhost_crypto" = "yes" && test "$vhost_user" = "no"; then
-  error_exit "--enable-vhost-crypto requires --enable-vhost-user"
-fi
-test "$vhost_user_fs" = "" && vhost_user_fs=$vhost_user
-if test "$vhost_user_fs" = "yes" && test "$vhost_user" = "no"; then
-  error_exit "--enable-vhost-user-fs requires --enable-vhost-user"
-fi
-#vhost-vdpa backends
-test "$vhost_net_vdpa" = "" && vhost_net_vdpa=$vhost_vdpa
-if test "$vhost_net_vdpa" = "yes" && test "$vhost_vdpa" = "no"; then
-  error_exit "--enable-vhost-net-vdpa requires --enable-vhost-vdpa"
-fi
-
-# OR the vhost-kernel, vhost-vdpa and vhost-user values for simplicity
-if test "$vhost_net" = ""; then
-  test "$vhost_net_user" = "yes" && vhost_net=yes
-  test "$vhost_net_vdpa" = "yes" && vhost_net=yes
-  test "$vhost_kernel" = "yes" && vhost_net=yes
-fi
-
 ##########################################
 # pkg-config probe
 
 if ! has "$pkg_config_exe"; then
   error_exit "pkg-config binary '$pkg_config_exe' not found"
-fi
-
-##########################################
-# xen probe
-
-if test "$xen" != "disabled" ; then
-  # Check whether Xen library path is specified via --extra-ldflags to avoid
-  # overriding this setting with pkg-config output. If not, try pkg-config
-  # to obtain all needed flags.
-
-  if ! echo $EXTRA_LDFLAGS | grep tools/libxc > /dev/null && \
-     $pkg_config --exists xencontrol ; then
-    xen_ctrl_version="$(printf '%d%02d%02d' \
-      $($pkg_config --modversion xencontrol | sed 's/\./ /g') )"
-    xen=enabled
-    xen_pc="xencontrol xenstore xenforeignmemory xengnttab"
-    xen_pc="$xen_pc xenevtchn xendevicemodel"
-    if $pkg_config --exists xentoolcore; then
-      xen_pc="$xen_pc xentoolcore"
-    fi
-    xen_cflags="$($pkg_config --cflags $xen_pc)"
-    xen_libs="$($pkg_config --libs $xen_pc)"
-  else
-
-    xen_libs="-lxenstore -lxenctrl"
-    xen_stable_libs="-lxenforeignmemory -lxengnttab -lxenevtchn"
-
-    # First we test whether Xen headers and libraries are available.
-    # If no, we are done and there is no Xen support.
-    # If yes, more tests are run to detect the Xen version.
-
-    # Xen (any)
-    cat > $TMPC <<EOF
-#include <xenctrl.h>
-int main(void) {
-  return 0;
-}
-EOF
-    if ! compile_prog "" "$xen_libs" ; then
-      # Xen not found
-      if test "$xen" = "enabled" ; then
-        feature_not_found "xen" "Install xen devel"
-      fi
-      xen=disabled
-
-    # Xen unstable
-    elif
-        cat > $TMPC <<EOF &&
-#undef XC_WANT_COMPAT_DEVICEMODEL_API
-#define __XEN_TOOLS__
-#include <xendevicemodel.h>
-#include <xenforeignmemory.h>
-int main(void) {
-  xendevicemodel_handle *xd;
-  xenforeignmemory_handle *xfmem;
-
-  xd = xendevicemodel_open(0, 0);
-  xendevicemodel_pin_memory_cacheattr(xd, 0, 0, 0, 0);
-
-  xfmem = xenforeignmemory_open(0, 0);
-  xenforeignmemory_map_resource(xfmem, 0, 0, 0, 0, 0, NULL, 0, 0);
-
-  return 0;
-}
-EOF
-        compile_prog "" "$xen_libs -lxendevicemodel $xen_stable_libs -lxentoolcore"
-      then
-      xen_stable_libs="-lxendevicemodel $xen_stable_libs -lxentoolcore"
-      xen_ctrl_version=41100
-      xen=enabled
-    elif
-        cat > $TMPC <<EOF &&
-#undef XC_WANT_COMPAT_MAP_FOREIGN_API
-#include <xenforeignmemory.h>
-#include <xentoolcore.h>
-int main(void) {
-  xenforeignmemory_handle *xfmem;
-
-  xfmem = xenforeignmemory_open(0, 0);
-  xenforeignmemory_map2(xfmem, 0, 0, 0, 0, 0, 0, 0);
-  xentoolcore_restrict_all(0);
-
-  return 0;
-}
-EOF
-        compile_prog "" "$xen_libs -lxendevicemodel $xen_stable_libs -lxentoolcore"
-      then
-      xen_stable_libs="-lxendevicemodel $xen_stable_libs -lxentoolcore"
-      xen_ctrl_version=41000
-      xen=enabled
-    elif
-        cat > $TMPC <<EOF &&
-#undef XC_WANT_COMPAT_DEVICEMODEL_API
-#define __XEN_TOOLS__
-#include <xendevicemodel.h>
-int main(void) {
-  xendevicemodel_handle *xd;
-
-  xd = xendevicemodel_open(0, 0);
-  xendevicemodel_close(xd);
-
-  return 0;
-}
-EOF
-        compile_prog "" "$xen_libs -lxendevicemodel $xen_stable_libs"
-      then
-      xen_stable_libs="-lxendevicemodel $xen_stable_libs"
-      xen_ctrl_version=40900
-      xen=enabled
-    elif
-        cat > $TMPC <<EOF &&
-/*
- * If we have stable libs the we don't want the libxc compat
- * layers, regardless of what CFLAGS we may have been given.
- *
- * Also, check if xengnttab_grant_copy_segment_t is defined and
- * grant copy operation is implemented.
- */
-#undef XC_WANT_COMPAT_EVTCHN_API
-#undef XC_WANT_COMPAT_GNTTAB_API
-#undef XC_WANT_COMPAT_MAP_FOREIGN_API
-#include <xenctrl.h>
-#include <xenstore.h>
-#include <xenevtchn.h>
-#include <xengnttab.h>
-#include <xenforeignmemory.h>
-#include <stdint.h>
-#include <xen/hvm/hvm_info_table.h>
-#if !defined(HVM_MAX_VCPUS)
-# error HVM_MAX_VCPUS not defined
-#endif
-int main(void) {
-  xc_interface *xc = NULL;
-  xenforeignmemory_handle *xfmem;
-  xenevtchn_handle *xe;
-  xengnttab_handle *xg;
-  xengnttab_grant_copy_segment_t* seg = NULL;
-
-  xs_daemon_open();
-
-  xc = xc_interface_open(0, 0, 0);
-  xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
-  xc_domain_add_to_physmap(0, 0, XENMAPSPACE_gmfn, 0, 0);
-  xc_hvm_inject_msi(xc, 0, 0xf0000000, 0x00000000);
-  xc_hvm_create_ioreq_server(xc, 0, HVM_IOREQSRV_BUFIOREQ_ATOMIC, NULL);
-
-  xfmem = xenforeignmemory_open(0, 0);
-  xenforeignmemory_map(xfmem, 0, 0, 0, 0, 0);
-
-  xe = xenevtchn_open(0, 0);
-  xenevtchn_fd(xe);
-
-  xg = xengnttab_open(0, 0);
-  xengnttab_grant_copy(xg, 0, seg);
-
-  return 0;
-}
-EOF
-        compile_prog "" "$xen_libs $xen_stable_libs"
-      then
-      xen_ctrl_version=40800
-      xen=enabled
-    elif
-        cat > $TMPC <<EOF &&
-/*
- * If we have stable libs the we don't want the libxc compat
- * layers, regardless of what CFLAGS we may have been given.
- */
-#undef XC_WANT_COMPAT_EVTCHN_API
-#undef XC_WANT_COMPAT_GNTTAB_API
-#undef XC_WANT_COMPAT_MAP_FOREIGN_API
-#include <xenctrl.h>
-#include <xenstore.h>
-#include <xenevtchn.h>
-#include <xengnttab.h>
-#include <xenforeignmemory.h>
-#include <stdint.h>
-#include <xen/hvm/hvm_info_table.h>
-#if !defined(HVM_MAX_VCPUS)
-# error HVM_MAX_VCPUS not defined
-#endif
-int main(void) {
-  xc_interface *xc = NULL;
-  xenforeignmemory_handle *xfmem;
-  xenevtchn_handle *xe;
-  xengnttab_handle *xg;
-
-  xs_daemon_open();
-
-  xc = xc_interface_open(0, 0, 0);
-  xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
-  xc_domain_add_to_physmap(0, 0, XENMAPSPACE_gmfn, 0, 0);
-  xc_hvm_inject_msi(xc, 0, 0xf0000000, 0x00000000);
-  xc_hvm_create_ioreq_server(xc, 0, HVM_IOREQSRV_BUFIOREQ_ATOMIC, NULL);
-
-  xfmem = xenforeignmemory_open(0, 0);
-  xenforeignmemory_map(xfmem, 0, 0, 0, 0, 0);
-
-  xe = xenevtchn_open(0, 0);
-  xenevtchn_fd(xe);
-
-  xg = xengnttab_open(0, 0);
-  xengnttab_map_grant_ref(xg, 0, 0, 0);
-
-  return 0;
-}
-EOF
-        compile_prog "" "$xen_libs $xen_stable_libs"
-      then
-      xen_ctrl_version=40701
-      xen=enabled
-
-    # Xen 4.6
-    elif
-        cat > $TMPC <<EOF &&
-#include <xenctrl.h>
-#include <xenstore.h>
-#include <stdint.h>
-#include <xen/hvm/hvm_info_table.h>
-#if !defined(HVM_MAX_VCPUS)
-# error HVM_MAX_VCPUS not defined
-#endif
-int main(void) {
-  xc_interface *xc;
-  xs_daemon_open();
-  xc = xc_interface_open(0, 0, 0);
-  xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
-  xc_gnttab_open(NULL, 0);
-  xc_domain_add_to_physmap(0, 0, XENMAPSPACE_gmfn, 0, 0);
-  xc_hvm_inject_msi(xc, 0, 0xf0000000, 0x00000000);
-  xc_hvm_create_ioreq_server(xc, 0, HVM_IOREQSRV_BUFIOREQ_ATOMIC, NULL);
-  xc_reserved_device_memory_map(xc, 0, 0, 0, 0, NULL, 0);
-  return 0;
-}
-EOF
-        compile_prog "" "$xen_libs"
-      then
-      xen_ctrl_version=40600
-      xen=enabled
-
-    # Xen 4.5
-    elif
-        cat > $TMPC <<EOF &&
-#include <xenctrl.h>
-#include <xenstore.h>
-#include <stdint.h>
-#include <xen/hvm/hvm_info_table.h>
-#if !defined(HVM_MAX_VCPUS)
-# error HVM_MAX_VCPUS not defined
-#endif
-int main(void) {
-  xc_interface *xc;
-  xs_daemon_open();
-  xc = xc_interface_open(0, 0, 0);
-  xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
-  xc_gnttab_open(NULL, 0);
-  xc_domain_add_to_physmap(0, 0, XENMAPSPACE_gmfn, 0, 0);
-  xc_hvm_inject_msi(xc, 0, 0xf0000000, 0x00000000);
-  xc_hvm_create_ioreq_server(xc, 0, 0, NULL);
-  return 0;
-}
-EOF
-        compile_prog "" "$xen_libs"
-      then
-      xen_ctrl_version=40500
-      xen=enabled
-
-    elif
-        cat > $TMPC <<EOF &&
-#include <xenctrl.h>
-#include <xenstore.h>
-#include <stdint.h>
-#include <xen/hvm/hvm_info_table.h>
-#if !defined(HVM_MAX_VCPUS)
-# error HVM_MAX_VCPUS not defined
-#endif
-int main(void) {
-  xc_interface *xc;
-  xs_daemon_open();
-  xc = xc_interface_open(0, 0, 0);
-  xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
-  xc_gnttab_open(NULL, 0);
-  xc_domain_add_to_physmap(0, 0, XENMAPSPACE_gmfn, 0, 0);
-  xc_hvm_inject_msi(xc, 0, 0xf0000000, 0x00000000);
-  return 0;
-}
-EOF
-        compile_prog "" "$xen_libs"
-      then
-      xen_ctrl_version=40200
-      xen=enabled
-
-    else
-      if test "$xen" = "enabled" ; then
-        feature_not_found "xen (unsupported version)" \
-                          "Install a supported xen (xen 4.2 or newer)"
-      fi
-      xen=disabled
-    fi
-
-    if test "$xen" = enabled; then
-      if test $xen_ctrl_version -ge 40701  ; then
-        xen_libs="$xen_libs $xen_stable_libs "
-      fi
-    fi
-  fi
 fi
 
 ##########################################
@@ -2071,21 +1555,6 @@ if ! compile_prog "$glib_cflags -Werror" "$glib_libs" ; then
     if cc_has_warning_flag "-Wno-unused-function"; then
         glib_cflags="$glib_cflags -Wno-unused-function"
         CONFIGURE_CFLAGS="$CONFIGURE_CFLAGS -Wno-unused-function"
-    fi
-fi
-
-##########################################
-# SHA command probe for modules
-if test "$modules" = yes; then
-    shacmd_probe="sha1sum sha1 shasum"
-    for c in $shacmd_probe; do
-        if has $c; then
-            shacmd="$c"
-            break
-        fi
-    done
-    if test "$shacmd" = ""; then
-        error_exit "one of the checksum commands is required to enable modules: $shacmd_probe"
     fi
 fi
 
@@ -2357,7 +1826,6 @@ write_c_skeleton
 
 if test "$fortify_source" = "yes" ; then
   QEMU_CFLAGS="-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 $QEMU_CFLAGS"
-  debug=no
 fi
 
 case "$ARCH" in
@@ -2400,22 +1868,6 @@ if test "$solaris" = "no" && test "$tsan" = "no"; then
     if $ld --version 2>/dev/null | grep "GNU ld" >/dev/null 2>/dev/null ; then
         QEMU_LDFLAGS="-Wl,--warn-common $QEMU_LDFLAGS"
     fi
-fi
-
-# Use ASLR, no-SEH and DEP if available
-if test "$mingw32" = "yes" ; then
-    flags="--no-seh --nxcompat"
-
-    # Disable ASLR for debug builds to allow debugging with gdb
-    if test "$debug" = "no" ; then
-        flags="--dynamicbase $flags"
-    fi
-
-    for flag in $flags; do
-        if ld_has $flag ; then
-            QEMU_LDFLAGS="-Wl,$flag $QEMU_LDFLAGS"
-        fi
-    done
 fi
 
 # Guest agent Windows MSI package
@@ -2540,58 +1992,11 @@ fi
 if test "$static" = "yes" ; then
   echo "CONFIG_STATIC=y" >> $config_host_mak
 fi
-echo "CONFIG_BDRV_RW_WHITELIST=$block_drv_rw_whitelist" >> $config_host_mak
-echo "CONFIG_BDRV_RO_WHITELIST=$block_drv_ro_whitelist" >> $config_host_mak
 qemu_version=$(head $source_path/VERSION)
-echo "PKGVERSION=$pkgversion" >>$config_host_mak
 echo "SRC_PATH=$source_path" >> $config_host_mak
 echo "TARGET_DIRS=$target_list" >> $config_host_mak
 if test "$modules" = "yes"; then
-  # $shacmd can generate a hash started with digit, which the compiler doesn't
-  # like as an symbol. So prefix it with an underscore
-  echo "CONFIG_STAMP=_$( (echo $qemu_version; echo $pkgversion; cat $0) | $shacmd - | cut -f1 -d\ )" >> $config_host_mak
   echo "CONFIG_MODULES=y" >> $config_host_mak
-fi
-echo "CONFIG_TLS_PRIORITY=\"$tls_priority\"" >> $config_host_mak
-
-if test "$xen" = "enabled" ; then
-  echo "CONFIG_XEN_BACKEND=y" >> $config_host_mak
-  echo "CONFIG_XEN_CTRL_INTERFACE_VERSION=$xen_ctrl_version" >> $config_host_mak
-  echo "XEN_CFLAGS=$xen_cflags" >> $config_host_mak
-  echo "XEN_LIBS=$xen_libs" >> $config_host_mak
-fi
-if test "$vhost_scsi" = "yes" ; then
-  echo "CONFIG_VHOST_SCSI=y" >> $config_host_mak
-fi
-if test "$vhost_net" = "yes" ; then
-  echo "CONFIG_VHOST_NET=y" >> $config_host_mak
-fi
-if test "$vhost_net_user" = "yes" ; then
-  echo "CONFIG_VHOST_NET_USER=y" >> $config_host_mak
-fi
-if test "$vhost_net_vdpa" = "yes" ; then
-  echo "CONFIG_VHOST_NET_VDPA=y" >> $config_host_mak
-fi
-if test "$vhost_crypto" = "yes" ; then
-  echo "CONFIG_VHOST_CRYPTO=y" >> $config_host_mak
-fi
-if test "$vhost_vsock" = "yes" ; then
-  echo "CONFIG_VHOST_VSOCK=y" >> $config_host_mak
-  if test "$vhost_user" = "yes" ; then
-    echo "CONFIG_VHOST_USER_VSOCK=y" >> $config_host_mak
-  fi
-fi
-if test "$vhost_kernel" = "yes" ; then
-  echo "CONFIG_VHOST_KERNEL=y" >> $config_host_mak
-fi
-if test "$vhost_user" = "yes" ; then
-  echo "CONFIG_VHOST_USER=y" >> $config_host_mak
-fi
-if test "$vhost_vdpa" = "yes" ; then
-  echo "CONFIG_VHOST_VDPA=y" >> $config_host_mak
-fi
-if test "$vhost_user_fs" = "yes" ; then
-  echo "CONFIG_VHOST_USER_FS=y" >> $config_host_mak
 fi
 
 # XXX: suppress that
@@ -2688,7 +2093,6 @@ for target in $target_list; do
     esac
 done
 
-echo "CONFIG_QEMU_INTERP_PREFIX=$interp_prefix" | sed 's/%M/@0@/' >> $config_host_mak
 if test "$default_targets" = "yes"; then
   echo "CONFIG_DEFAULT_TARGETS=y" >> $config_host_mak
 fi
@@ -2786,6 +2190,7 @@ if test "$skip_meson" = no; then
     echo "sdl2-config = [$(meson_quote $sdl2_config)]" >> $cross
   fi
   echo "strip = [$(meson_quote $strip)]" >> $cross
+  echo "widl = [$(meson_quote $widl)]" >> $cross
   echo "windres = [$(meson_quote $windres)]" >> $cross
   if test "$cross_compile" = "yes"; then
     cross_arg="--cross-file config-meson.cross"
@@ -2811,37 +2216,24 @@ if test "$skip_meson" = no; then
   mv $cross config-meson.cross
 
   rm -rf meson-private meson-info meson-logs
+
+  # Built-in options
+  test "$bindir" != "bin" && meson_option_add "-Dbindir=$bindir"
+  test "$default_feature" = no && meson_option_add -Dauto_features=disabled
+  test "$pie" = no && meson_option_add -Db_pie=false
+  test "$werror" = yes && meson_option_add -Dwerror=true
+
+  # QEMU options
+  test "$capstone" != auto && meson_option_add "-Dcapstone=$capstone"
+  test "$cfi" != false && meson_option_add "-Dcfi=$cfi"
+  test "$fdt" != auto && meson_option_add "-Dfdt=$fdt"
+  test -n "${LIB_FUZZING_ENGINE+xxx}" && meson_option_add "-Dfuzzing_engine=$LIB_FUZZING_ENGINE"
+  test "$qemu_suffix" != qemu && meson_option_add "-Dqemu_suffix=$qemu_suffix"
+  test "$slirp" != auto && meson_option_add "-Dslirp=$slirp"
+  test "$smbd" != '' && meson_option_add "-Dsmbd=$smbd"
+  test "$tcg" != enabled && meson_option_add "-Dtcg=$tcg"
   run_meson() {
-    NINJA=$ninja $meson setup \
-        --prefix "$prefix" \
-        --libdir "$libdir" \
-        --libexecdir "$libexecdir" \
-        --bindir "$bindir" \
-        --includedir "$includedir" \
-        --datadir "$datadir" \
-        --mandir "$mandir" \
-        --sysconfdir "$sysconfdir" \
-        --localedir "$localedir" \
-        --localstatedir "$local_statedir" \
-        -Daudio_drv_list=$audio_drv_list \
-        -Ddefault_devices=$default_devices \
-        -Ddocdir="$docdir" \
-        -Diasl="$($iasl -h >/dev/null 2>&1 && printf %s "$iasl")" \
-        -Dqemu_firmwarepath="$firmwarepath" \
-        -Dqemu_suffix="$qemu_suffix" \
-        -Dsmbd="$smbd" \
-        -Dsphinx_build="$sphinx_build" \
-        -Dtrace_file="$trace_file" \
-        -Doptimization=$(if test "$debug" = yes; then echo 0; else echo 2; fi) \
-        -Ddebug=$(if test "$debug_info" = yes; then echo true; else echo false; fi) \
-        -Dwerror=$(if test "$werror" = yes; then echo true; else echo false; fi) \
-        -Db_pie=$(if test "$pie" = yes; then echo true; else echo false; fi) \
-        -Db_coverage=$(if test "$gcov" = yes; then echo true; else echo false; fi) \
-        -Db_lto=$lto -Dcfi=$cfi -Dtcg=$tcg -Dxen=$xen \
-        -Dcapstone=$capstone -Dfdt=$fdt -Dslirp=$slirp \
-        $(test -n "${LIB_FUZZING_ENGINE+xxx}" && echo "-Dfuzzing_engine=$LIB_FUZZING_ENGINE") \
-        $(if test "$default_feature" = no; then echo "-Dauto_features=disabled"; fi) \
-        "$@" $cross_arg "$PWD" "$source_path"
+    NINJA=$ninja $meson setup --prefix "$prefix" "$@" $cross_arg "$PWD" "$source_path"
   }
   eval run_meson $meson_options
   if test "$?" -ne 0 ; then
@@ -2907,6 +2299,7 @@ preserve_env PYTHON
 preserve_env SDL2_CONFIG
 preserve_env SMBD
 preserve_env STRIP
+preserve_env WIDL
 preserve_env WINDRES
 
 printf "exec" >>config.status

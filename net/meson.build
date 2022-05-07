@@ -26,10 +26,10 @@ softmmu_ss.add(when: vde, if_true: files('vde.c'))
 if have_netmap
   softmmu_ss.add(files('netmap.c'))
 endif
-vhost_user_ss = ss.source_set()
-vhost_user_ss.add(when: 'CONFIG_VIRTIO_NET', if_true: files('vhost-user.c'), if_false: files('vhost-user-stub.c'))
-softmmu_ss.add_all(when: 'CONFIG_VHOST_NET_USER', if_true: vhost_user_ss)
-softmmu_ss.add(when: 'CONFIG_ALL', if_true: files('vhost-user-stub.c'))
+if have_vhost_net_user
+  softmmu_ss.add(when: 'CONFIG_VIRTIO_NET', if_true: files('vhost-user.c'), if_false: files('vhost-user-stub.c'))
+  softmmu_ss.add(when: 'CONFIG_ALL', if_true: files('vhost-user-stub.c'))
+endif
 
 softmmu_ss.add(when: 'CONFIG_LINUX', if_true: files('tap-linux.c'))
 softmmu_ss.add(when: 'CONFIG_BSD', if_true: files('tap-bsd.c'))
@@ -40,6 +40,8 @@ if not config_host.has_key('CONFIG_LINUX') and not config_host.has_key('CONFIG_B
 endif
 softmmu_ss.add(when: 'CONFIG_POSIX', if_true: files(tap_posix))
 softmmu_ss.add(when: 'CONFIG_WIN32', if_true: files('tap-win32.c'))
-softmmu_ss.add(when: 'CONFIG_VHOST_NET_VDPA', if_true: files('vhost-vdpa.c'))
+if have_vhost_net_vdpa
+  softmmu_ss.add(files('vhost-vdpa.c'))
+endif
 
 subdir('can')

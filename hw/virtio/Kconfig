@@ -1,6 +1,3 @@
-config VHOST
-    bool
-
 config VIRTIO
     bool
 
@@ -59,12 +56,27 @@ config VIRTIO_MEM
     depends on VIRTIO_MEM_SUPPORTED
     select MEM_DEVICE
 
+config VHOST_VSOCK
+    bool
+    default y
+    depends on VIRTIO && VHOST_KERNEL
+
+config VHOST_USER_VSOCK
+    bool
+    default y
+    depends on VIRTIO && VHOST_USER
+
 config VHOST_USER_I2C
     bool
     default y
     depends on VIRTIO && VHOST_USER
 
 config VHOST_USER_RNG
+    bool
+    default y
+    depends on VIRTIO && VHOST_USER
+
+config VHOST_USER_FS
     bool
     default y
     depends on VIRTIO && VHOST_USER

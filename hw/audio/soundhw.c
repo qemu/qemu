@@ -36,25 +36,11 @@ struct soundhw {
     const char *typename;
     int enabled;
     int isa;
-    union {
-        int (*init_isa) (ISABus *bus);
-        int (*init_pci) (PCIBus *bus);
-    } init;
+    int (*init_pci) (PCIBus *bus);
 };
 
 static struct soundhw soundhw[9];
 static int soundhw_count;
-
-void isa_register_soundhw(const char *name, const char *descr,
-                          int (*init_isa)(ISABus *bus))
-{
-    assert(soundhw_count < ARRAY_SIZE(soundhw) - 1);
-    soundhw[soundhw_count].name = name;
-    soundhw[soundhw_count].descr = descr;
-    soundhw[soundhw_count].isa = 1;
-    soundhw[soundhw_count].init.init_isa = init_isa;
-    soundhw_count++;
-}
 
 void pci_register_soundhw(const char *name, const char *descr,
                           int (*init_pci)(PCIBus *bus))
@@ -63,7 +49,7 @@ void pci_register_soundhw(const char *name, const char *descr,
     soundhw[soundhw_count].name = name;
     soundhw[soundhw_count].descr = descr;
     soundhw[soundhw_count].isa = 0;
-    soundhw[soundhw_count].init.init_pci = init_pci;
+    soundhw[soundhw_count].init_pci = init_pci;
     soundhw_count++;
 }
 
@@ -158,18 +144,13 @@ void soundhw_init(void)
                 } else {
                     pci_create_simple(pci_bus, -1, c->typename);
                 }
-            } else if (c->isa) {
-                if (!isa_bus) {
-                    error_report("ISA bus not available for %s", c->name);
-                    exit(1);
-                }
-                c->init.init_isa(isa_bus);
             } else {
+                assert(!c->isa);
                 if (!pci_bus) {
                     error_report("PCI bus not available for %s", c->name);
                     exit(1);
                 }
-                c->init.init_pci(pci_bus);
+                c->init_pci(pci_bus);
             }
         }
     }
