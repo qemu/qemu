@@ -34,6 +34,7 @@
 #include "fpu/softfloat.h"
 #include "qemu/module.h"
 #include "migration/vmstate.h"
+#include "hw/qdev-clock.h"
 
 
 static void xtensa_cpu_set_pc(CPUState *cs, vaddr value)
@@ -172,7 +173,21 @@ static void xtensa_cpu_initfn(Object *obj)
     memory_region_init_io(env->system_er, obj, NULL, env, "er",
                           UINT64_C(0x100000000));
     address_space_init(env->address_space_er, env->system_er, "ER");
+
+    cpu->clock = qdev_init_clock_in(DEVICE(obj), "clk-in", NULL, cpu, 0);
+    clock_set_hz(cpu->clock, env->config->clock_freq_khz * 1000);
 #endif
+}
+
+XtensaCPU *xtensa_cpu_create_with_clock(const char *cpu_type, Clock *cpu_refclk)
+{
+    DeviceState *cpu;
+
+    cpu = DEVICE(object_new(cpu_type));
+    qdev_connect_clock_in(cpu, "clk-in", cpu_refclk);
+    qdev_realize(cpu, NULL, &error_abort);
+
+    return XTENSA_CPU(cpu);
 }
 
 #ifndef CONFIG_USER_ONLY
