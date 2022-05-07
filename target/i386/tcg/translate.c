@@ -1505,7 +1505,7 @@ static void gen_inc(DisasContext *s1, MemOp ot, int d, int c)
             gen_illegal_opcode(s1);
             return;
         }
-        // if(Debug) printf("mem mov\n"); //？？？
+        // if(Debug) qemu_log("mem mov\n"); //？？？
         tcg_gen_movi_tl(s1->T0, c > 0 ? 1 : -1);
         tcg_gen_atomic_add_fetch_tl(s1->T0, s1->A0, s1->T0,
                                     s1->mem_index, ot | MO_LE);
@@ -2761,13 +2761,13 @@ static inline void gen_op_movo(DisasContext *s, int d_offset, int s_offset)
 }
 
 static inline void gen_op_movq(DisasContext *s, int d_offset, int s_offset)
-{   if(Debug) printf("qemu: movq %d %d\n",d_offset,s_offset);
+{   if(Debug) qemu_log("qemu: movq %d %d\n",d_offset,s_offset);
     tcg_gen_ld_i64(s->tmp1_i64, cpu_env, s_offset);
     tcg_gen_st_i64(s->tmp1_i64, cpu_env, d_offset);
 }
 
 static inline void gen_op_movl(DisasContext *s, int d_offset, int s_offset)
-{   if(Debug) printf("qemu: movl %d %d\n",d_offset,s_offset);
+{   if(Debug) qemu_log("qemu: movl %d %d\n",d_offset,s_offset);
     tcg_gen_ld_i32(s->tmp2_i32, cpu_env, s_offset);
     tcg_gen_st_i32(s->tmp2_i32, cpu_env, d_offset);
 }
@@ -5404,41 +5404,41 @@ static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
     case 0x1c7: /* cmpxchg8b */
         if(prefixes & PREFIX_REPZ){
             modrm = x86_ldub_code(env, s);
-            printf("\n\n--------------\n");
-            printf("qemu: caught 0xf30fc7 SENDUIPI\n "); // 改 Debug
+            qemu_log("\n\n--------------\n");
+            qemu_log("qemu: caught 0xf30fc7 SENDUIPI\n "); // 改 Debug
             // CPUState *cs = env_cpu(env);
             // int prot;
             // uint64_t APICaddress = get_hphys2(cs, APIC_DEFAULT_ADDRESS, MMU_DATA_LOAD, &prot);
             // uint64_t EOI;
             // cpu_physical_memory_rw(APICaddress + 0xb0, &EOI, 8, false);
-            // printf("the physical address of APIC 0x%lx   the EOI content: 0x%lx\n", APICaddress,EOI);
+            // qemu_log("the physical address of APIC 0x%lx   the EOI content: 0x%lx\n", APICaddress,EOI);
 
 
             // s->tmp1_i64 = env->uintr_tt; //地址
             // tcg_gen_qemu_ld_i64(s->tmp1_i64, s->A0 , 0, MO_LEUQ);
-            // printf("qemu: loaded 0x%lx A0: 0x%lx\n",(uint64_t)((void*)s->tmp1_i64),(uint64_t)s->A0);
+            // qemu_log("qemu: loaded 0x%lx A0: 0x%lx\n",(uint64_t)((void*)s->tmp1_i64),(uint64_t)s->A0);
 
 
             // uint64_t content[10]; // read all zero
             // cpu_physical_memory_rw((env->uintr_tt>>3)<<3,&content,16,false);
-            // if(Debug) printf("0x%lx    xxx               %lx \n %lx \n\n",(env->uintr_tt>>3)<<3, content[0],content[1]);
+            // if(Debug) qemu_log("0x%lx    xxx               %lx \n %lx \n\n",(env->uintr_tt>>3)<<3, content[0],content[1]);
 
             // int mem_idx = cpu_mmu_index(env, false);  // system segfault
             // MemOpIdx oi0 = make_memop_idx(MO_LEUQ | MO_ALIGN_16, mem_idx);
             // uint64_t content = cpu_ldq_le_mmu(env, (env->uintr_tt>>3)<<3, oi0, 0);
-            // if(Debug) printf(" %lx \n\n\n",content);
+            // if(Debug) qemu_log(" %lx \n\n\n",content);
 
 
             // TCGv t0;
             // t0 = tcg_temp_local_new();
             // s->A0 = (TCGv)(env->uintr_tt>>3)<<3;
-            // if(Debug)printf("debug: memindex: %x \n",s->mem_index);
-            // if(Debug){printf("debug: before t0: %llx   A0: %llx\n",(long long unsigned)t0,(long long unsigned)s->A0);}
+            // if(Debug)qemu_log("debug: memindex: %x \n",s->mem_index);
+            // if(Debug){qemu_log("debug: before t0: %llx   A0: %llx\n",(long long unsigned)t0,(long long unsigned)s->A0);}
             // gen_op_ld_v(s, ot, t0, s->A0);
-            // if(Debug){printf("debug: after  t0: %llx   A0: %llx\n",(long long unsigned)t0,(long long unsigned)s->A0);}
+            // if(Debug){qemu_log("debug: after  t0: %llx   A0: %llx\n",(long long unsigned)t0,(long long unsigned)s->A0);}
             // tcg_temp_free(t0);
             gen_helper_senduipi(cpu_env, tcg_const_i32(modrm));
-            printf("--------------\n\n\n");
+            qemu_log("--------------\n\n\n");
             break;
         }
         modrm = x86_ldub_code(env, s);
@@ -5619,7 +5619,7 @@ static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
         break;
     case 0xc6:
     case 0xc7: /* mov Ev, Iv */ 
-        // if(Debug)printf("0xc7 \n"); //改
+        // if(Debug)qemu_log("0xc7 \n"); //改
         ot = mo_b_d(b, dflag);
         modrm = x86_ldub_code(env, s);
         mod = (modrm >> 6) & 3;
@@ -7746,7 +7746,7 @@ static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
             break;
         case 0xee: /* rdpkru */
             if(prefixes & PREFIX_REPZ){
-                printf("qemu:caught 0xf30fee CLUI\n"); // 改
+                qemu_log("qemu:caught 0xf30fee CLUI\n"); // 改
                 env->uintr_uif = 0;
                 break;
             }
@@ -7759,24 +7759,33 @@ static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
             break;
         case 0xec:
             if (prefixes & PREFIX_REPZ){
-                printf("--------------\n\n\n");
-                printf("qemu:caught 0xf30f01ec UIRET\n"); // 改
+                qemu_log("--------------\n\n\n");
+                qemu_log("qemu:caught 0xf30f01ec UIRET\n"); // 改
+                qemu_log("before:  pc_start: 0x%lx  sc_base:%lx   pc: 0x%lx  pc.next:0x%lx  rip:0x%lx\n",s->pc_start,s->cs_base, s->pc,s->base.pc_next, env->eip);
+                
+
                 helper_uiret(env);
-                printf("--------------\n\n\n");
+                // gen_jmp_im(s, env->eip);
+                qemu_log("pc_start: 0x%lx  sc_base:%lx   pc: 0x%lx  rip:0x%lx\n",s->pc_start,s->cs_base, s->pc, env->eip);
+                s->pc = env->eip;
+                tcg_gen_exit_tb(NULL, 0);
+                s->base.is_jmp = DISAS_NORETURN;
+                // s->pc = env->eip;
+                qemu_log("-------------\n\n\n");
                 // exit(12);
             }
             break;
         case 0xed:
             if (prefixes & PREFIX_REPZ){
-                printf("qemu:caught 0xf30f01ed TESTUI\n"); // 改
+                qemu_log("qemu:caught 0xf30f01ed TESTUI\n"); // 改
             }
             break;
         case 0xef: /* wrpkru */
             if(prefixes & PREFIX_REPZ){
-                printf("--------------\n\n\n");
-                printf("qemu:caught 0xf30f01ef STUI\n"); // 改
+                qemu_log("--------------\n\n\n");
+                qemu_log("qemu:caught 0xf30f01ef STUI\n"); // 改
                 env->uintr_uif = 1;
-                printf("--------------\n\n\n");
+                qemu_log("--------------\n\n\n");
                 break;
             }
             if (prefixes & PREFIX_LOCK) {

@@ -851,7 +851,7 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
     }
 
     *last_tb = NULL;
-    insns_left = qatomic_read(&cpu_neg(cpu)->icount_decr.u32);
+    insns_left = qatomic_read(&cpu_neg(cpu)->icount_decr.u32); // 出错位点
     if (insns_left < 0) {
         /* Something asked us to stop executing chained TBs; just
          * continue round the main loop. Whatever requested the exit
@@ -888,6 +888,7 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
 
 /* main execution loop */
 
+// static int block_id = 0;
 int cpu_exec(CPUState *cpu)
 {
     int ret;
@@ -1002,7 +1003,8 @@ int cpu_exec(CPUState *cpu)
             if (last_tb) {
                 tb_add_jump(last_tb, tb_exit, tb);
             }
-
+            // if (block_id > 10000)qemu_log("BLOCK: %d  size:%d  icont:%d  \n", block_id,tb->size,tb->icount);
+            // block_id ++;
             cpu_loop_exec_tb(cpu, tb, &last_tb, &tb_exit);
 
             /* Try to align the host and virtual clocks

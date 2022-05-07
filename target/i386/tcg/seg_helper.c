@@ -864,38 +864,38 @@ static inline target_ulong get_rsp_from_tss(CPUX86State *env, int level)
 
 static bool Debug = true;
 void helper_rrnzero(CPUX86State *env){ // 改
-    if(Debug)printf("rrnzero called handler: 0x%lx  rr: 0x%lx\n", env->uintr_handler,env->uintr_rr);
+    if(Debug)qemu_log("rrnzero called handler: 0x%lx  rr: 0x%lx\n", env->uintr_handler,env->uintr_rr);
     target_ulong temprsp = env->regs[R_ESP];
-    printf("qemu:origin exp 0x%lx   eip 0x%lx  eflags: 0x%lx\n",env->regs[R_ESP], env->eip, env->eflags);
+    qemu_log("qemu:origin exp 0x%lx   eip 0x%lx  eflags: 0x%lx\n",env->regs[R_ESP], env->eip, env->eflags);
     if(env->uintr_stackadjust &1){ // adjust[0] = 1
         env->regs[R_ESP] = env->uintr_stackadjust;
-        printf("qemu:set  statck 0x%lx\n",env->regs[R_ESP]);
+        qemu_log("qemu:set  statck 0x%lx\n",env->regs[R_ESP]);
     }else{
         env->regs[R_ESP] -= env->uintr_stackadjust;
-        printf("qemu:move statck 0x%lx\n",env->regs[R_ESP]);
+        qemu_log("qemu:move statck 0x%lx\n",env->regs[R_ESP]);
     }
     env->regs[R_ESP] &= ~0xfLL; /* align stack */
     target_ulong esp = env->regs[R_ESP];
-    printf("qemu:after align statck 0x%lx\n",env->regs[R_ESP]);
+    qemu_log("qemu:after align statck 0x%lx\n",env->regs[R_ESP]);
     PUSHQ(esp, temprsp);
-    // printf("qemu: pushed rsp\n");
+    // qemu_log("qemu: pushed rsp\n");
     PUSHQ(esp, env->eflags); // PUSHQ(esp, cpu_compute_eflags(env));
-    // printf("qemu: pushed eflags\n");
+    // qemu_log("qemu: pushed eflags\n");
     PUSHQ(esp, env->eip);
-    // printf("the uirr is 0x%016lx \n", env->uintr_rr);
+    // qemu_log("the uirr is 0x%016lx \n", env->uintr_rr);
     PUSHQ(esp, env->uintr_rr & 0x3f); // // 64-bit push; upper 58 bits pushed as 0
-    printf("qemu:push finish now esp is: 0x%lx",esp);
+    qemu_log("qemu:push finish now esp is: 0x%lx",esp);
     env->uintr_rr = 0; // clear rr
     env->regs[R_ESP] = esp;
     env->eflags &= ~(TF_MASK | RF_MASK);
     env->eip = env->uintr_handler;
     env->uintr_uif = 0;
-    printf("qemu: eip: 0x%lx\n",env->eip);
+    qemu_log("qemu: eip: 0x%lx\n",env->eip);
 }
 
 void helper_uiret(CPUX86State *env){
-    if(Debug)printf("helper uiret called, now eip: 0x%lx\n", env->eip);
-    printf("qemu: now esp is: 0x%lx\n",env->regs[R_ESP]);
+    if(Debug)qemu_log("helper uiret called, now eip: 0x%lx\n", env->eip);
+    qemu_log("qemu: now esp is: 0x%lx\n",env->regs[R_ESP]);
     target_ulong temprip, temprfalgs, temprsp, uirrv;
     target_ulong esp = env->regs[R_ESP];
     esp += 0x60;
@@ -903,7 +903,7 @@ void helper_uiret(CPUX86State *env){
     POPQ(esp, temprip);
     POPQ(esp, temprfalgs);
     POPQ(esp, temprsp);
-    printf("qemu:poped values:uirrv:0x%lx rip:0x%lx   eflags:0x%lx  rsp:0x%lx \n",uirrv,temprip, temprfalgs, temprsp);
+    qemu_log("qemu:poped values:uirrv:0x%lx rip:0x%lx   eflags:0x%lx  rsp:0x%lx \n",uirrv,temprip, temprfalgs, temprsp);
     env->eip = temprip;
     env->regs[R_ESP] = temprsp;
     env->eflags = (env->eflags & ~0x254dd5) |(temprfalgs & 0x254dd5);
@@ -935,10 +935,10 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
         old_eip = env->eip;
     }
     if(intno == UINTR_UINV ){
-        printf("recognize uintr\n");
+        qemu_log("recognize uintr\n");
 
         if(env->uintr_uif == 0){
-            printf("--uif not zero, return\n");
+            qemu_log("--uif not zero, return\n");
             return;
         }
         // 清除apic的
@@ -956,16 +956,21 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
             send = true;
         }
         cpu_physical_memory_rw(upid_phyaddress, &upid, 16, true);
+
+
         uint64_t APICaddress = get_hphys2(cs, APIC_DEFAULT_ADDRESS, MMU_DATA_LOAD, &prot);
         uint64_t EOI;
         uint64_t zero = 0;
         cpu_physical_memory_rw(APICaddress + 0xb0, &EOI, 8, false);
-        printf("the physical address of APIC 0x%lx   the EOI content: 0x%lx\n", APICaddress,EOI);
+        qemu_log("the physical address of APIC 0x%lx   the EOI content: 0x%lx\n", APICaddress,EOI);
         cpu_physical_memory_rw(APICaddress + 0xb0, &zero, 4, true);
+        // apic_mem_write(cs, )
         // uint64_t EOI;       
         // cpu_physical_memory_rw(APIC_DEFAULT_ADDRESS + 0xb0, &EOI, 8, false);
-        // printf("\n\n the EOI content: 0x%lx\n\n",EOI);
+        // qemu_log("\n\n the EOI content: 0x%lx\n\n",EOI);
         // cpu_physical_memory_rw(APIC_DEFAULT_ADDRESS + 0xb0, 0, 4, true);
+
+
         if(send)helper_rrnzero(env);
         return;
     }
@@ -1207,7 +1212,7 @@ void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
     if (env->cr[0] & CR0_PE_MASK) { // 改， 中断具体分发，应该不涉及user only
 #if !defined(CONFIG_USER_ONLY)
         if (env->hflags & HF_GUEST_MASK) {
-            printf("HF_GUEST_MASK even \n");
+            qemu_log("HF_GUEST_MASK even \n");
             handle_even_inj(env, intno, is_int, error_code, is_hw, 0);
         }
 #endif
@@ -1217,14 +1222,14 @@ void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
         } else
 #endif
         {   
-            printf("interrupt protected \n");
+            qemu_log("interrupt protected \n");
             do_interrupt_protected(env, intno, is_int, error_code, next_eip,
                                    is_hw);
         }
     } else {
 #if !defined(CONFIG_USER_ONLY)
         if (env->hflags & HF_GUEST_MASK) {
-            printf("HF_GUEST_MASK even inj \n");
+            qemu_log("HF_GUEST_MASK even inj \n");
             handle_even_inj(env, intno, is_int, error_code, is_hw, 1);
         }
 #endif  
@@ -1233,7 +1238,7 @@ void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
 
 #if !defined(CONFIG_USER_ONLY)
     if (env->hflags & HF_GUEST_MASK) {
-        printf("HF_GUEST_MASK do real \n");
+        qemu_log("HF_GUEST_MASK do real \n");
         CPUState *cs = CPU(cpu);
         uint32_t event_inj = x86_ldl_phys(cs, env->vm_vmcb +
                                       offsetof(struct vmcb,
