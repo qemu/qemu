@@ -15,9 +15,15 @@
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/timer/i8254.h"
 #include "hw/char/serial.h"
+#include "hw/char/parallel.h"
+#include "hw/intc/i8259.h"
+#include "hw/input/lasips2.h"
 #include "hw/net/lasi_82596.h"
 #include "hw/nmi.h"
-#include "hppa_sys.h"
+#include "hw/pci/pci.h"
+#include "hw/pci-host/dino.h"
+#include "hw/misc/lasi.h"
+#include "hppa_hardware.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "net/net.h"
@@ -29,6 +35,9 @@
 #define MIN_SEABIOS_HPPA_VERSION 1 /* require at least this fw version */
 
 #define HPA_POWER_BUTTON (FIRMWARE_END - 0x10)
+
+#define enable_lasi_lan()       0
+
 
 static void hppa_powerdown_req(Notifier *n, void *opaque)
 {
@@ -51,6 +60,29 @@ static Notifier hppa_system_powerdown_notifier = {
     .notify = hppa_powerdown_req
 };
 
+/* Fallback for unassigned PCI I/O operations.  Avoids MCHK.  */
+static uint64_t ignore_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return 0;
+}
+
+static void ignore_write(void *opaque, hwaddr addr, uint64_t v, unsigned size)
+{
+}
+
+static const MemoryRegionOps hppa_pci_ignore_ops = {
+    .read = ignore_read,
+    .write = ignore_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
 
 static ISABus *hppa_isa_bus(void)
 {
@@ -121,15 +153,36 @@ static FWCfgState *create_fw_cfg(MachineState *ms)
     return fw_cfg;
 }
 
+static LasiState *lasi_init(void)
+{
+    DeviceState *dev;
+
+    dev = qdev_new(TYPE_LASI_CHIP);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    return LASI_CHIP(dev);
+}
+
+static DinoState *dino_init(MemoryRegion *addr_space)
+{
+    DeviceState *dev;
+
+    dev = qdev_new(TYPE_DINO_PCI_HOST_BRIDGE);
+    object_property_set_link(OBJECT(dev), "memory-as", OBJECT(addr_space),
+                             &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    return DINO_PCI_HOST_BRIDGE(dev);
+}
+
 static void machine_hppa_init(MachineState *machine)
 {
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
-    DeviceState *dev;
+    DeviceState *dev, *dino_dev, *lasi_dev;
     PCIBus *pci_bus;
     ISABus *isa_bus;
-    qemu_irq rtc_irq, serial_irq;
     char *firmware_filename;
     uint64_t firmware_low, firmware_high;
     long size;
@@ -163,10 +216,17 @@ static void machine_hppa_init(MachineState *machine)
 
 
     /* Init Lasi chip */
-    lasi_init(addr_space);
+    lasi_dev = DEVICE(lasi_init());
+    memory_region_add_subregion(addr_space, LASI_HPA,
+                                sysbus_mmio_get_region(
+                                    SYS_BUS_DEVICE(lasi_dev), 0));
 
     /* Init Dino (PCI host bus chip).  */
-    pci_bus = dino_init(addr_space, &rtc_irq, &serial_irq);
+    dino_dev = DEVICE(dino_init(addr_space));
+    memory_region_add_subregion(addr_space, DINO_HPA,
+                                sysbus_mmio_get_region(
+                                    SYS_BUS_DEVICE(dino_dev), 0));
+    pci_bus = PCI_BUS(qdev_get_child_bus(dino_dev, "pci"));
     assert(pci_bus);
 
     /* Create ISA bus. */
@@ -174,14 +234,27 @@ static void machine_hppa_init(MachineState *machine)
     assert(isa_bus);
 
     /* Realtime clock, used by firmware for PDC_TOD call. */
-    mc146818_rtc_init(isa_bus, 2000, rtc_irq);
+    mc146818_rtc_init(isa_bus, 2000, NULL);
 
     /* Serial code setup.  */
     if (serial_hd(0)) {
         uint32_t addr = DINO_UART_HPA + 0x800;
-        serial_mm_init(addr_space, addr, 0, serial_irq,
+        serial_mm_init(addr_space, addr, 0,
+                       qdev_get_gpio_in(dino_dev, DINO_IRQ_RS232INT),
                        115200, serial_hd(0), DEVICE_BIG_ENDIAN);
     }
+
+    if (serial_hd(1)) {
+        /* Serial port */
+        serial_mm_init(addr_space, LASI_UART_HPA + 0x800, 0,
+                qdev_get_gpio_in(lasi_dev, LASI_IRQ_UART_HPA), 8000000 / 16,
+                serial_hd(1), DEVICE_BIG_ENDIAN);
+    }
+
+    /* Parallel port */
+    parallel_mm_init(addr_space, LASI_LPT_HPA + 0x800, 0,
+                     qdev_get_gpio_in(lasi_dev, LASI_IRQ_LAN_HPA),
+                     parallel_hds[0]);
 
     /* fw_cfg configuration interface */
     create_fw_cfg(machine);
@@ -200,11 +273,20 @@ static void machine_hppa_init(MachineState *machine)
     }
 
     /* Network setup. */
+    if (enable_lasi_lan()) {
+        lasi_82596_init(addr_space, LASI_LAN_HPA,
+                        qdev_get_gpio_in(lasi_dev, LASI_IRQ_LAN_HPA));
+    }
+
     for (i = 0; i < nb_nics; i++) {
         if (!enable_lasi_lan()) {
             pci_nic_init_nofail(&nd_table[i], pci_bus, "tulip", NULL);
         }
     }
+
+    /* PS/2 Keyboard/Mouse */
+    lasips2_init(addr_space, LASI_PS2KBD_HPA,
+                 qdev_get_gpio_in(lasi_dev, LASI_IRQ_PS2KBD_HPA));
 
     /* register power switch emulation */
     qemu_register_powerdown_notifier(&hppa_system_powerdown_notifier);
@@ -364,9 +446,12 @@ static void hppa_nmi(NMIState *n, int cpu_index, Error **errp)
     }
 }
 
-static void machine_hppa_machine_init(MachineClass *mc)
+static void hppa_machine_init_class_init(ObjectClass *oc, void *data)
 {
-    mc->desc = "HPPA generic machine";
+    MachineClass *mc = MACHINE_CLASS(oc);
+    NMIClass *nc = NMI_CLASS(oc);
+
+    mc->desc = "HPPA B160L machine";
     mc->default_cpu_type = TYPE_HPPA_CPU;
     mc->init = machine_hppa_init;
     mc->reset = hppa_machine_reset;
@@ -377,30 +462,23 @@ static void machine_hppa_machine_init(MachineClass *mc)
     mc->default_ram_size = 512 * MiB;
     mc->default_boot_order = "cd";
     mc->default_ram_id = "ram";
-}
 
-static void machine_hppa_machine_init_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    machine_hppa_machine_init(mc);
-
-    NMIClass *nc = NMI_CLASS(oc);
     nc->nmi_monitor_handler = hppa_nmi;
 }
 
-static const TypeInfo machine_hppa_machine_init_typeinfo = {
-    .name = ("hppa" "-machine"),
-    .parent = "machine",
-    .class_init = machine_hppa_machine_init_class_init,
+static const TypeInfo hppa_machine_init_typeinfo = {
+    .name = MACHINE_TYPE_NAME("hppa"),
+    .parent = TYPE_MACHINE,
+    .class_init = hppa_machine_init_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_NMI },
         { }
     },
 };
 
-static void machine_hppa_machine_init_register_types(void)
+static void hppa_machine_init_register_types(void)
 {
-    type_register_static(&machine_hppa_machine_init_typeinfo);
+    type_register_static(&hppa_machine_init_typeinfo);
 }
 
-type_init(machine_hppa_machine_init_register_types)
+type_init(hppa_machine_init_register_types)

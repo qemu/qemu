@@ -25,12 +25,6 @@
 #define TYPE_ARTIST "artist"
 OBJECT_DECLARE_SIMPLE_TYPE(ARTISTState, ARTIST)
 
-#if HOST_BIG_ENDIAN
-#define ROP8OFF(_i) (3 - (_i))
-#else
-#define ROP8OFF
-#endif
-
 struct vram_buffer {
     MemoryRegion mr;
     uint8_t *data;
@@ -211,8 +205,9 @@ static void artist_invalidate_lines(struct vram_buffer *buf,
     int start = starty * buf->width;
     int size;
 
-    if (starty + height > buf->height)
+    if (starty + height > buf->height) {
         height = buf->height - starty;
+    }
 
     size = height * buf->width;
 
@@ -321,8 +316,9 @@ static void artist_get_cursor_pos(ARTISTState *s, int *x, int *y)
     }
 
     lx = artist_get_x(s->cursor_pos);
-    if (lx < offset)
+    if (lx < offset) {
         offset = lx;
+    }
     *x = (lx - offset) / 2;
 
     *y = 1146 - artist_get_y(s->cursor_pos);
@@ -343,6 +339,7 @@ static void artist_get_cursor_pos(ARTISTState *s, int *x, int *y)
 static void artist_invalidate_cursor(ARTISTState *s)
 {
     int x, y;
+
     artist_get_cursor_pos(s, &x, &y);
     artist_invalidate_lines(&s->vram_buffer[ARTIST_BUFFER_AP],
                             y, s->cursor_height);
@@ -470,9 +467,8 @@ static void draw_line(ARTISTState *s,
 
     if ((x1 >= buf->width && x2 >= buf->width) ||
         (y1 >= buf->height && y2 >= buf->height)) {
-	return;
+        return;
     }
-
 
     if (update_start) {
         s->vram_start = (x2 << 16) | y2;
@@ -553,15 +549,15 @@ static void draw_line(ARTISTState *s,
         x++;
     } while (x <= x2 && (max_pix == -1 || --max_pix > 0));
 
-    if (c1)
+    if (c1) {
         artist_invalidate_lines(buf, x1, x2 - x1);
-    else
+    } else {
         artist_invalidate_lines(buf, y1 > y2 ? y2 : y1, x2 - x1);
+    }
 }
 
 static void draw_line_pattern_start(ARTISTState *s)
 {
-
     int startx = artist_get_x(s->vram_start);
     int starty = artist_get_y(s->vram_start);
     int endx = artist_get_x(s->blockmove_size);
@@ -574,7 +570,6 @@ static void draw_line_pattern_start(ARTISTState *s)
 
 static void draw_line_pattern_next(ARTISTState *s)
 {
-
     int startx = artist_get_x(s->vram_start);
     int starty = artist_get_y(s->vram_start);
     int endx = artist_get_x(s->blockmove_size);
@@ -589,7 +584,6 @@ static void draw_line_pattern_next(ARTISTState *s)
 
 static void draw_line_size(ARTISTState *s, bool update_start)
 {
-
     int startx = artist_get_x(s->vram_start);
     int starty = artist_get_y(s->vram_start);
     int endx = artist_get_x(s->line_size);
@@ -600,7 +594,6 @@ static void draw_line_size(ARTISTState *s, bool update_start)
 
 static void draw_line_xy(ARTISTState *s, bool update_start)
 {
-
     int startx = artist_get_x(s->vram_start);
     int starty = artist_get_y(s->vram_start);
     int sizex = artist_get_x(s->blockmove_size);
@@ -650,7 +643,6 @@ static void draw_line_xy(ARTISTState *s, bool update_start)
 
 static void draw_line_end(ARTISTState *s, bool update_start)
 {
-
     int startx = artist_get_x(s->vram_start);
     int starty = artist_get_y(s->vram_start);
     int endx = artist_get_x(s->line_end);
@@ -835,6 +827,7 @@ static void artist_vram_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned size)
 {
     ARTISTState *s = opaque;
+
     s->vram_char_y = 0;
     trace_artist_vram_write(size, addr, val);
     vram_bit_write(opaque, addr, 0, val, size);
@@ -1244,20 +1237,22 @@ static void artist_update_display(void *opaque)
     DisplaySurface *surface = qemu_console_surface(s->con);
     int first = 0, last;
 
-
     framebuffer_update_display(surface, &s->fbsection, s->width, s->height,
                                s->width, s->width * 4, 0, 0, artist_draw_line,
                                s, &first, &last);
 
     artist_draw_cursor(s);
 
-    dpy_gfx_update(s->con, 0, 0, s->width, s->height);
+    if (first >= 0) {
+        dpy_gfx_update(s->con, 0, first, s->width, last - first + 1);
+    }
 }
 
 static void artist_invalidate(void *opaque)
 {
     ARTISTState *s = ARTIST(opaque);
     struct vram_buffer *buf = &s->vram_buffer[ARTIST_BUFFER_AP];
+
     memory_region_set_dirty(&buf->mr, 0, buf->size);
 }
 

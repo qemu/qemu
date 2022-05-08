@@ -17,117 +17,12 @@
 #include "hw/irq.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
+#include "hw/qdev-properties.h"
+#include "hw/pci-host/dino.h"
 #include "migration/vmstate.h"
-#include "hppa_sys.h"
 #include "trace.h"
 #include "qom/object.h"
 
-
-#define TYPE_DINO_PCI_HOST_BRIDGE "dino-pcihost"
-
-#define DINO_IAR0               0x004
-#define DINO_IODC               0x008
-#define DINO_IRR0               0x00C  /* RO */
-#define DINO_IAR1               0x010
-#define DINO_IRR1               0x014  /* RO */
-#define DINO_IMR                0x018
-#define DINO_IPR                0x01C
-#define DINO_TOC_ADDR           0x020
-#define DINO_ICR                0x024
-#define DINO_ILR                0x028  /* RO */
-#define DINO_IO_COMMAND         0x030  /* WO */
-#define DINO_IO_STATUS          0x034  /* RO */
-#define DINO_IO_CONTROL         0x038
-#define DINO_IO_GSC_ERR_RESP    0x040  /* RO */
-#define DINO_IO_ERR_INFO        0x044  /* RO */
-#define DINO_IO_PCI_ERR_RESP    0x048  /* RO */
-#define DINO_IO_FBB_EN          0x05c
-#define DINO_IO_ADDR_EN         0x060
-#define DINO_PCI_CONFIG_ADDR    0x064
-#define DINO_PCI_CONFIG_DATA    0x068
-#define DINO_PCI_IO_DATA        0x06c
-#define DINO_PCI_MEM_DATA       0x070  /* Dino 3.x only */
-#define DINO_GSC2X_CONFIG       0x7b4  /* RO */
-#define DINO_GMASK              0x800
-#define DINO_PAMR               0x804
-#define DINO_PAPR               0x808
-#define DINO_DAMODE             0x80c
-#define DINO_PCICMD             0x810
-#define DINO_PCISTS             0x814  /* R/WC */
-#define DINO_MLTIM              0x81c
-#define DINO_BRDG_FEAT          0x820
-#define DINO_PCIROR             0x824
-#define DINO_PCIWOR             0x828
-#define DINO_TLTIM              0x830
-
-#define DINO_IRQS         11      /* bits 0-10 are architected */
-#define DINO_IRR_MASK     0x5ff   /* only 10 bits are implemented */
-#define DINO_LOCAL_IRQS   (DINO_IRQS + 1)
-#define DINO_MASK_IRQ(x)  (1 << (x))
-
-#define PCIINTA   0x001
-#define PCIINTB   0x002
-#define PCIINTC   0x004
-#define PCIINTD   0x008
-#define PCIINTE   0x010
-#define PCIINTF   0x020
-#define GSCEXTINT 0x040
-/* #define xxx       0x080 - bit 7 is "default" */
-/* #define xxx    0x100 - bit 8 not used */
-/* #define xxx    0x200 - bit 9 not used */
-#define RS232INT  0x400
-
-#define DINO_MEM_CHUNK_SIZE (8 * MiB)
-
-OBJECT_DECLARE_SIMPLE_TYPE(DinoState, DINO_PCI_HOST_BRIDGE)
-
-#define DINO800_REGS (1 + (DINO_TLTIM - DINO_GMASK) / 4)
-static const uint32_t reg800_keep_bits[DINO800_REGS] = {
-    MAKE_64BIT_MASK(0, 1),  /* GMASK */
-    MAKE_64BIT_MASK(0, 7),  /* PAMR */
-    MAKE_64BIT_MASK(0, 7),  /* PAPR */
-    MAKE_64BIT_MASK(0, 8),  /* DAMODE */
-    MAKE_64BIT_MASK(0, 7),  /* PCICMD */
-    MAKE_64BIT_MASK(0, 9),  /* PCISTS */
-    MAKE_64BIT_MASK(0, 32), /* Undefined */
-    MAKE_64BIT_MASK(0, 8),  /* MLTIM */
-    MAKE_64BIT_MASK(0, 30), /* BRDG_FEAT */
-    MAKE_64BIT_MASK(0, 24), /* PCIROR */
-    MAKE_64BIT_MASK(0, 22), /* PCIWOR */
-    MAKE_64BIT_MASK(0, 32), /* Undocumented */
-    MAKE_64BIT_MASK(0, 9),  /* TLTIM */
-};
-
-struct DinoState {
-    PCIHostState parent_obj;
-
-    /* PCI_CONFIG_ADDR is parent_obj.config_reg, via pci_host_conf_be_ops,
-       so that we can map PCI_CONFIG_DATA to pci_host_data_be_ops.  */
-    uint32_t config_reg_dino; /* keep original copy, including 2 lowest bits */
-
-    uint32_t iar0;
-    uint32_t iar1;
-    uint32_t imr;
-    uint32_t ipr;
-    uint32_t icr;
-    uint32_t ilr;
-    uint32_t io_fbb_en;
-    uint32_t io_addr_en;
-    uint32_t io_control;
-    uint32_t toc_addr;
-
-    uint32_t reg800[DINO800_REGS];
-
-    MemoryRegion this_mem;
-    MemoryRegion pci_mem;
-    MemoryRegion pci_mem_alias[32];
-
-    AddressSpace bm_as;
-    MemoryRegion bm;
-    MemoryRegion bm_ram_alias;
-    MemoryRegion bm_pci_alias;
-    MemoryRegion bm_cpu_alias;
-};
 
 /*
  * Dino can forward memory accesses from the CPU in the range between
@@ -200,6 +95,7 @@ static MemTxResult dino_chip_read_with_attrs(void *opaque, hwaddr addr,
                                              MemTxAttrs attrs)
 {
     DinoState *s = opaque;
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
     MemTxResult ret = MEMTX_OK;
     AddressSpace *io;
     uint16_t ioaddr;
@@ -209,7 +105,7 @@ static MemTxResult dino_chip_read_with_attrs(void *opaque, hwaddr addr,
     case DINO_PCI_IO_DATA ... DINO_PCI_IO_DATA + 3:
         /* Read from PCI IO space. */
         io = &address_space_io;
-        ioaddr = s->parent_obj.config_reg + (addr & 3);
+        ioaddr = phb->config_reg + (addr & 3);
         switch (size) {
         case 1:
             val = address_space_ldub(io, ioaddr, attrs, &ret);
@@ -292,6 +188,7 @@ static MemTxResult dino_chip_write_with_attrs(void *opaque, hwaddr addr,
                                               MemTxAttrs attrs)
 {
     DinoState *s = opaque;
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
     AddressSpace *io;
     MemTxResult ret;
     uint16_t ioaddr;
@@ -303,7 +200,7 @@ static MemTxResult dino_chip_write_with_attrs(void *opaque, hwaddr addr,
     case DINO_IO_DATA ... DINO_PCI_IO_DATA + 3:
         /* Write into PCI IO space.  */
         io = &address_space_io;
-        ioaddr = s->parent_obj.config_reg + (addr & 3);
+        ioaddr = phb->config_reg + (addr & 3);
         switch (size) {
         case 1:
             address_space_stb(io, ioaddr, val, attrs, &ret);
@@ -501,52 +398,78 @@ static int dino_pci_map_irq(PCIDevice *d, int irq_num)
     return slot & 0x03;
 }
 
-static void dino_set_timer_irq(void *opaque, int irq, int level)
+static void dino_pcihost_reset(DeviceState *dev)
 {
-    /* ??? Not connected.  */
-}
+    DinoState *s = DINO_PCI_HOST_BRIDGE(dev);
 
-static void dino_set_serial_irq(void *opaque, int irq, int level)
-{
-    dino_set_irq(opaque, 10, level);
-}
-
-PCIBus *dino_init(MemoryRegion *addr_space,
-                  qemu_irq *p_rtc_irq, qemu_irq *p_ser_irq)
-{
-    DeviceState *dev;
-    DinoState *s;
-    PCIBus *b;
-    int i;
-
-    dev = qdev_new(TYPE_DINO_PCI_HOST_BRIDGE);
-    s = DINO_PCI_HOST_BRIDGE(dev);
-    s->iar0 = s->iar1 = CPU_HPA + 3;
+    s->iar0 = s->iar1 = 0xFFFB0000 + 3; /* CPU_HPA + 3 */
     s->toc_addr = 0xFFFA0030; /* IO_COMMAND of CPU */
+}
+
+static void dino_pcihost_realize(DeviceState *dev, Error **errp)
+{
+    DinoState *s = DINO_PCI_HOST_BRIDGE(dev);
+
+    /* Set up PCI view of memory: Bus master address space.  */
+    memory_region_init(&s->bm, OBJECT(s), "bm-dino", 4 * GiB);
+    memory_region_init_alias(&s->bm_ram_alias, OBJECT(s),
+                             "bm-system", s->memory_as, 0,
+                             0xf0000000 + DINO_MEM_CHUNK_SIZE);
+    memory_region_init_alias(&s->bm_pci_alias, OBJECT(s),
+                             "bm-pci", &s->pci_mem,
+                             0xf0000000 + DINO_MEM_CHUNK_SIZE,
+                             30 * DINO_MEM_CHUNK_SIZE);
+    memory_region_init_alias(&s->bm_cpu_alias, OBJECT(s),
+                             "bm-cpu", s->memory_as, 0xfff00000,
+                             0xfffff);
+    memory_region_add_subregion(&s->bm, 0,
+                                &s->bm_ram_alias);
+    memory_region_add_subregion(&s->bm,
+                                0xf0000000 + DINO_MEM_CHUNK_SIZE,
+                                &s->bm_pci_alias);
+    memory_region_add_subregion(&s->bm, 0xfff00000,
+                                &s->bm_cpu_alias);
+
+    address_space_init(&s->bm_as, &s->bm, "pci-bm");
+}
+
+static void dino_pcihost_unrealize(DeviceState *dev)
+{
+    DinoState *s = DINO_PCI_HOST_BRIDGE(dev);
+
+    address_space_destroy(&s->bm_as);
+}
+
+static void dino_pcihost_init(Object *obj)
+{
+    DinoState *s = DINO_PCI_HOST_BRIDGE(obj);
+    PCIHostState *phb = PCI_HOST_BRIDGE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    int i;
 
     /* Dino PCI access from main memory.  */
     memory_region_init_io(&s->this_mem, OBJECT(s), &dino_chip_ops,
                           s, "dino", 4096);
-    memory_region_add_subregion(addr_space, DINO_HPA, &s->this_mem);
 
     /* Dino PCI config. */
-    memory_region_init_io(&s->parent_obj.conf_mem, OBJECT(&s->parent_obj),
-                          &dino_config_addr_ops, dev, "pci-conf-idx", 4);
-    memory_region_init_io(&s->parent_obj.data_mem, OBJECT(&s->parent_obj),
-                          &dino_config_data_ops, dev, "pci-conf-data", 4);
+    memory_region_init_io(&phb->conf_mem, OBJECT(phb),
+                          &dino_config_addr_ops, DEVICE(s),
+                          "pci-conf-idx", 4);
+    memory_region_init_io(&phb->data_mem, OBJECT(phb),
+                          &dino_config_data_ops, DEVICE(s),
+                          "pci-conf-data", 4);
     memory_region_add_subregion(&s->this_mem, DINO_PCI_CONFIG_ADDR,
-                                &s->parent_obj.conf_mem);
+                                &phb->conf_mem);
     memory_region_add_subregion(&s->this_mem, DINO_CONFIG_DATA,
-                                &s->parent_obj.data_mem);
+                                &phb->data_mem);
 
     /* Dino PCI bus memory.  */
     memory_region_init(&s->pci_mem, OBJECT(s), "pci-memory", 4 * GiB);
 
-    b = pci_register_root_bus(dev, "pci", dino_set_irq, dino_pci_map_irq, s,
-                              &s->pci_mem, get_system_io(),
-                              PCI_DEVFN(0, 0), 32, TYPE_PCI_BUS);
-    s->parent_obj.bus = b;
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    phb->bus = pci_register_root_bus(DEVICE(s), "pci",
+                                     dino_set_irq, dino_pci_map_irq, s,
+                                     &s->pci_mem, get_system_io(),
+                                     PCI_DEVFN(0, 0), 32, TYPE_PCI_BUS);
 
     /* Set up windows into PCI bus memory.  */
     for (i = 1; i < 31; i++) {
@@ -558,44 +481,34 @@ PCIBus *dino_init(MemoryRegion *addr_space,
         g_free(name);
     }
 
-    /* Set up PCI view of memory: Bus master address space.  */
-    memory_region_init(&s->bm, OBJECT(s), "bm-dino", 4 * GiB);
-    memory_region_init_alias(&s->bm_ram_alias, OBJECT(s),
-                             "bm-system", addr_space, 0,
-                             0xf0000000 + DINO_MEM_CHUNK_SIZE);
-    memory_region_init_alias(&s->bm_pci_alias, OBJECT(s),
-                             "bm-pci", &s->pci_mem,
-                             0xf0000000 + DINO_MEM_CHUNK_SIZE,
-                             30 * DINO_MEM_CHUNK_SIZE);
-    memory_region_init_alias(&s->bm_cpu_alias, OBJECT(s),
-                             "bm-cpu", addr_space, 0xfff00000,
-                             0xfffff);
-    memory_region_add_subregion(&s->bm, 0,
-                                &s->bm_ram_alias);
-    memory_region_add_subregion(&s->bm,
-                                0xf0000000 + DINO_MEM_CHUNK_SIZE,
-                                &s->bm_pci_alias);
-    memory_region_add_subregion(&s->bm, 0xfff00000,
-                                &s->bm_cpu_alias);
-    address_space_init(&s->bm_as, &s->bm, "pci-bm");
-    pci_setup_iommu(b, dino_pcihost_set_iommu, s);
+    pci_setup_iommu(phb->bus, dino_pcihost_set_iommu, s);
 
-    *p_rtc_irq = qemu_allocate_irq(dino_set_timer_irq, s, 0);
-    *p_ser_irq = qemu_allocate_irq(dino_set_serial_irq, s, 0);
+    sysbus_init_mmio(sbd, &s->this_mem);
 
-    return b;
+    qdev_init_gpio_in(DEVICE(obj), dino_set_irq, DINO_IRQS);
 }
+
+static Property dino_pcihost_properties[] = {
+    DEFINE_PROP_LINK("memory-as", DinoState, memory_as, TYPE_MEMORY_REGION,
+                     MemoryRegion *),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void dino_pcihost_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->reset = dino_pcihost_reset;
+    dc->realize = dino_pcihost_realize;
+    dc->unrealize = dino_pcihost_unrealize;
+    device_class_set_props(dc, dino_pcihost_properties);
     dc->vmsd = &vmstate_dino;
 }
 
 static const TypeInfo dino_pcihost_info = {
     .name          = TYPE_DINO_PCI_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
+    .instance_init = dino_pcihost_init,
     .instance_size = sizeof(DinoState),
     .class_init    = dino_pcihost_class_init,
 };

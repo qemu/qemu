@@ -17,57 +17,10 @@
 #include "hw/irq.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/runstate.h"
-#include "hppa_sys.h"
-#include "hw/net/lasi_82596.h"
-#include "hw/char/parallel.h"
-#include "hw/char/serial.h"
-#include "hw/input/lasips2.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
+#include "hw/misc/lasi.h"
 
-#define TYPE_LASI_CHIP "lasi-chip"
-
-#define LASI_IRR        0x00    /* RO */
-#define LASI_IMR        0x04
-#define LASI_IPR        0x08
-#define LASI_ICR        0x0c
-#define LASI_IAR        0x10
-
-#define LASI_PCR        0x0C000 /* LASI Power Control register */
-#define LASI_ERRLOG     0x0C004 /* LASI Error Logging register */
-#define LASI_VER        0x0C008 /* LASI Version Control register */
-#define LASI_IORESET    0x0C00C /* LASI I/O Reset register */
-#define LASI_AMR        0x0C010 /* LASI Arbitration Mask register */
-#define LASI_IO_CONF    0x7FFFE /* LASI primary configuration register */
-#define LASI_IO_CONF2   0x7FFFF /* LASI secondary configuration register */
-
-#define LASI_BIT(x)     (1ul << (x))
-#define LASI_IRQ_BITS   (LASI_BIT(5) | LASI_BIT(7) | LASI_BIT(8) | LASI_BIT(9) \
-            | LASI_BIT(13) | LASI_BIT(14) | LASI_BIT(16) | LASI_BIT(17) \
-            | LASI_BIT(18) | LASI_BIT(19) | LASI_BIT(20) | LASI_BIT(21) \
-            | LASI_BIT(26))
-
-#define ICR_BUS_ERROR_BIT  LASI_BIT(8)  /* bit 8 in ICR */
-#define ICR_TOC_BIT        LASI_BIT(1)  /* bit 1 in ICR */
-
-OBJECT_DECLARE_SIMPLE_TYPE(LasiState, LASI_CHIP)
-
-struct LasiState {
-    PCIHostState parent_obj;
-
-    uint32_t irr;
-    uint32_t imr;
-    uint32_t ipr;
-    uint32_t icr;
-    uint32_t iar;
-
-    uint32_t errlog;
-    uint32_t amr;
-    uint32_t rtc;
-    time_t rtc_ref;
-
-    MemoryRegion this_mem;
-};
 
 static bool lasi_chip_mem_valid(void *opaque, hwaddr addr,
                                 unsigned size, bool is_write,
@@ -82,10 +35,10 @@ static bool lasi_chip_mem_valid(void *opaque, hwaddr addr,
     case LASI_ICR:
     case LASI_IAR:
 
-    case (LASI_LAN_HPA - LASI_HPA):
-    case (LASI_LPT_HPA - LASI_HPA):
-    case (LASI_UART_HPA - LASI_HPA):
-    case (LASI_RTC_HPA - LASI_HPA):
+    case LASI_LPT:
+    case LASI_UART:
+    case LASI_LAN:
+    case LASI_RTC:
 
     case LASI_PCR ... LASI_AMR:
         ret = true;
@@ -122,12 +75,12 @@ static MemTxResult lasi_chip_read_with_attrs(void *opaque, hwaddr addr,
         val = s->iar;
         break;
 
-    case (LASI_LAN_HPA - LASI_HPA):
-    case (LASI_LPT_HPA - LASI_HPA):
-    case (LASI_UART_HPA - LASI_HPA):
+    case LASI_LPT:
+    case LASI_UART:
+    case LASI_LAN:
         val = 0;
         break;
-    case (LASI_RTC_HPA - LASI_HPA):
+    case LASI_RTC:
         val = time(NULL);
         val += s->rtc_ref;
         break;
@@ -169,10 +122,11 @@ static MemTxResult lasi_chip_write_with_attrs(void *opaque, hwaddr addr,
         break;
     case LASI_IMR:
         s->imr = val;
-        if (((val & LASI_IRQ_BITS) != val) && (val != 0xffffffff))
+        if (((val & LASI_IRQ_BITS) != val) && (val != 0xffffffff)) {
             qemu_log_mask(LOG_GUEST_ERROR,
                 "LASI: tried to set invalid %lx IMR value.\n",
                 (unsigned long) val);
+        }
         break;
     case LASI_IPR:
         /* Any write to IPR clears the register. */
@@ -186,22 +140,23 @@ static MemTxResult lasi_chip_write_with_attrs(void *opaque, hwaddr addr,
         s->iar = val;
         break;
 
-    case (LASI_LAN_HPA - LASI_HPA):
-        /* XXX: reset LAN card */
-        break;
-    case (LASI_LPT_HPA - LASI_HPA):
+    case LASI_LPT:
         /* XXX: reset parallel port */
         break;
-    case (LASI_UART_HPA - LASI_HPA):
+    case LASI_UART:
         /* XXX: reset serial port */
         break;
-    case (LASI_RTC_HPA - LASI_HPA):
+    case LASI_LAN:
+        /* XXX: reset LAN card */
+        break;
+    case LASI_RTC:
         s->rtc_ref = val - time(NULL);
         break;
 
     case LASI_PCR:
-        if (val == 0x02) /* immediately power off */
+        if (val == 0x02) { /* immediately power off */
             qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+        }
         break;
     case LASI_ERRLOG:
         s->errlog = val;
@@ -271,90 +226,42 @@ static void lasi_set_irq(void *opaque, int irq, int level)
     }
 }
 
-static int lasi_get_irq(unsigned long hpa)
+static void lasi_reset(DeviceState *dev)
 {
-    switch (hpa) {
-    case LASI_HPA:
-        return 14;
-    case LASI_UART_HPA:
-        return 5;
-    case LASI_LPT_HPA:
-        return 7;
-    case LASI_LAN_HPA:
-        return 8;
-    case LASI_SCSI_HPA:
-        return 9;
-    case LASI_AUDIO_HPA:
-        return 13;
-    case LASI_PS2KBD_HPA:
-    case LASI_PS2MOU_HPA:
-        return 26;
-    default:
-        g_assert_not_reached();
-    }
-}
+    LasiState *s = LASI_CHIP(dev);
 
-DeviceState *lasi_init(MemoryRegion *address_space)
-{
-    DeviceState *dev;
-    LasiState *s;
-
-    dev = qdev_new(TYPE_LASI_CHIP);
-    s = LASI_CHIP(dev);
-    s->iar = CPU_HPA + 3;
-
-    /* Lasi access from main memory.  */
-    memory_region_init_io(&s->this_mem, OBJECT(s), &lasi_chip_ops,
-                          s, "lasi", 0x100000);
-    memory_region_add_subregion(address_space, LASI_HPA, &s->this_mem);
-
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    /* LAN */
-    if (enable_lasi_lan()) {
-        qemu_irq lan_irq = qemu_allocate_irq(lasi_set_irq, s,
-                lasi_get_irq(LASI_LAN_HPA));
-        lasi_82596_init(address_space, LASI_LAN_HPA, lan_irq);
-    }
-
-    /* Parallel port */
-    qemu_irq lpt_irq = qemu_allocate_irq(lasi_set_irq, s,
-            lasi_get_irq(LASI_LPT_HPA));
-    parallel_mm_init(address_space, LASI_LPT_HPA + 0x800, 0,
-                     lpt_irq, parallel_hds[0]);
+    s->iar = 0xFFFB0000 + 3; /* CPU_HPA + 3 */
 
     /* Real time clock (RTC), it's only one 32-bit counter @9000 */
-
     s->rtc = time(NULL);
     s->rtc_ref = 0;
+}
 
-    if (serial_hd(1)) {
-        /* Serial port */
-        qemu_irq serial_irq = qemu_allocate_irq(lasi_set_irq, s,
-                lasi_get_irq(LASI_UART_HPA));
-        serial_mm_init(address_space, LASI_UART_HPA + 0x800, 0,
-                serial_irq, 8000000 / 16,
-                serial_hd(0), DEVICE_NATIVE_ENDIAN);
-    }
+static void lasi_init(Object *obj)
+{
+    LasiState *s = LASI_CHIP(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    /* PS/2 Keyboard/Mouse */
-    qemu_irq ps2kbd_irq = qemu_allocate_irq(lasi_set_irq, s,
-            lasi_get_irq(LASI_PS2KBD_HPA));
-    lasips2_init(address_space, LASI_PS2KBD_HPA,  ps2kbd_irq);
+    memory_region_init_io(&s->this_mem, OBJECT(s), &lasi_chip_ops,
+                          s, "lasi", 0x100000);
 
-    return dev;
+    sysbus_init_mmio(sbd, &s->this_mem);
+
+    qdev_init_gpio_in(DEVICE(obj), lasi_set_irq, LASI_IRQS);
 }
 
 static void lasi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->reset = lasi_reset;
     dc->vmsd = &vmstate_lasi;
 }
 
 static const TypeInfo lasi_pcihost_info = {
     .name          = TYPE_LASI_CHIP,
     .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_init = lasi_init,
     .instance_size = sizeof(LasiState),
     .class_init    = lasi_class_init,
 };

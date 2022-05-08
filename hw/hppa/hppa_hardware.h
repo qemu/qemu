@@ -30,11 +30,6 @@
 #define PCI_HPA         DINO_HPA        /* PCI bus */
 #define IDE_HPA         0xf9000000      /* Boot disc controller */
 
-/* offsets to DINO HPA: */
-#define DINO_PCI_ADDR           0x064
-#define DINO_CONFIG_DATA        0x068
-#define DINO_IO_DATA            0x06c
-
 #define PORT_PCI_CMD    (PCI_HPA + DINO_PCI_ADDR)
 #define PORT_PCI_DATA   (PCI_HPA + DINO_CONFIG_DATA)
 
