@@ -361,6 +361,9 @@ class TestRunner(ContextManager['TestRunner']):
                                      starttime=start,
                                      lasttime=last_el,
                                      end = '\n' if mp else '\r')
+        else:
+            testname = os.path.basename(test)
+            print(f'# running {self.env.imgfmt} {testname}')
 
         res = self.do_run_test(test, mp)
 
