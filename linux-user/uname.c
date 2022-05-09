@@ -28,7 +28,7 @@
  * NB: the default emulated CPU ("any") might not match any existing CPU, e.g.
  * on ARM it has all features turned on, so there is no perfect arch string to
  * return here */
-const char *cpu_to_uname_machine(void *cpu_env)
+const char *cpu_to_uname_machine(CPUArchState *cpu_env)
 {
 #if defined(TARGET_ARM) && !defined(TARGET_AARCH64)
 

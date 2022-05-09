@@ -18,10 +18,10 @@
 #ifndef LINUX_USER_STRACE_H
 #define LINUX_USER_STRACE_H
 
-void print_syscall(void *cpu_env, int num,
+void print_syscall(CPUArchState *cpu_env, int num,
                    abi_long arg1, abi_long arg2, abi_long arg3,
                    abi_long arg4, abi_long arg5, abi_long arg6);
-void print_syscall_ret(void *cpu_env, int num, abi_long ret,
+void print_syscall_ret(CPUArchState *cpu_env, int num, abi_long ret,
                        abi_long arg1, abi_long arg2, abi_long arg3,
                        abi_long arg4, abi_long arg5, abi_long arg6);
 /**
