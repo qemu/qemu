@@ -54,7 +54,7 @@ const char *cpu_to_uname_machine(CPUArchState *cpu_env)
     return "armv5te" utsname_suffix;
 #elif defined(TARGET_I386) && !defined(TARGET_X86_64)
     /* see arch/x86/kernel/cpu/bugs.c: check_bugs(), 386, 486, 586, 686 */
-    CPUState *cpu = env_cpu((CPUX86State *)cpu_env);
+    CPUState *cpu = env_cpu(cpu_env);
     int family = object_property_get_int(OBJECT(cpu), "family", NULL);
     if (family == 4) {
         return "i486";

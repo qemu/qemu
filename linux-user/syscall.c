@@ -1612,16 +1612,16 @@ static abi_long do_pipe(CPUArchState *cpu_env, abi_ulong pipedes,
        pipe syscall, but didn't replicate this into the pipe2 syscall.  */
     if (!is_pipe2) {
 #if defined(TARGET_ALPHA)
-        ((CPUAlphaState *)cpu_env)->ir[IR_A4] = host_pipe[1];
+        cpu_env->ir[IR_A4] = host_pipe[1];
         return host_pipe[0];
 #elif defined(TARGET_MIPS)
-        ((CPUMIPSState*)cpu_env)->active_tc.gpr[3] = host_pipe[1];
+        cpu_env->active_tc.gpr[3] = host_pipe[1];
         return host_pipe[0];
 #elif defined(TARGET_SH4)
-        ((CPUSH4State*)cpu_env)->gregs[1] = host_pipe[1];
+        cpu_env->gregs[1] = host_pipe[1];
         return host_pipe[0];
 #elif defined(TARGET_SPARC)
-        ((CPUSPARCState*)cpu_env)->regwptr[1] = host_pipe[1];
+        cpu_env->regwptr[1] = host_pipe[1];
         return host_pipe[0];
 #endif
     }
@@ -7566,7 +7566,7 @@ static inline abi_long host_to_target_stat64(CPUArchState *cpu_env,
                                              struct stat *host_st)
 {
 #if defined(TARGET_ARM) && defined(TARGET_ABI32)
-    if (((CPUARMState *)cpu_env)->eabi) {
+    if (cpu_env->eabi) {
         struct target_eabi_stat64 *target_st;
 
         if (!lock_user_struct(VERIFY_WRITE, target_st, target_addr, 0))
@@ -7965,7 +7965,7 @@ int host_to_target_waitstatus(int status)
 
 static int open_self_cmdline(CPUArchState *cpu_env, int fd)
 {
-    CPUState *cpu = env_cpu((CPUArchState *)cpu_env);
+    CPUState *cpu = env_cpu(cpu_env);
     struct linux_binprm *bprm = ((TaskState *)cpu->opaque)->bprm;
     int i;
 
@@ -7982,7 +7982,7 @@ static int open_self_cmdline(CPUArchState *cpu_env, int fd)
 
 static int open_self_maps(CPUArchState *cpu_env, int fd)
 {
-    CPUState *cpu = env_cpu((CPUArchState *)cpu_env);
+    CPUState *cpu = env_cpu(cpu_env);
     TaskState *ts = cpu->opaque;
     GSList *map_info = read_self_maps();
     GSList *s;
@@ -8044,7 +8044,7 @@ static int open_self_maps(CPUArchState *cpu_env, int fd)
 
 static int open_self_stat(CPUArchState *cpu_env, int fd)
 {
-    CPUState *cpu = env_cpu((CPUArchState *)cpu_env);
+    CPUState *cpu = env_cpu(cpu_env);
     TaskState *ts = cpu->opaque;
     g_autoptr(GString) buf = g_string_new(NULL);
     int i;
@@ -8082,7 +8082,7 @@ static int open_self_stat(CPUArchState *cpu_env, int fd)
 
 static int open_self_auxv(CPUArchState *cpu_env, int fd)
 {
-    CPUState *cpu = env_cpu((CPUArchState *)cpu_env);
+    CPUState *cpu = env_cpu(cpu_env);
     TaskState *ts = cpu->opaque;
     abi_ulong auxv = ts->info->saved_auxv;
     abi_ulong len = ts->info->auxv_len;
@@ -8892,7 +8892,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_getxpid) && defined(TARGET_ALPHA)
     /* Alpha specific */
     case TARGET_NR_getxpid:
-        ((CPUAlphaState *)cpu_env)->ir[IR_A4] = getppid();
+        cpu_env->ir[IR_A4] = getppid();
         return get_errno(getpid());
 #endif
 #ifdef TARGET_NR_getpid
@@ -9415,7 +9415,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             if (!is_error(ret)) {
                 host_to_target_old_sigset(&mask, &oldset);
                 ret = mask;
-                ((CPUAlphaState *)cpu_env)->ir[IR_V0] = 0; /* force no error */
+                cpu_env->ir[IR_V0] = 0; /* force no error */
             }
 #else
             sigset_t set, oldset, *set_ptr;
@@ -10035,7 +10035,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
         }
 #ifdef TARGET_ALPHA
         /* Return value is the unbiased priority.  Signal no error.  */
-        ((CPUAlphaState *)cpu_env)->ir[IR_V0] = 0;
+        cpu_env->ir[IR_V0] = 0;
 #else
         /* Return value is a biased priority to avoid negative numbers.  */
         ret = 20 - ret;
@@ -11415,7 +11415,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
          {
             uid_t euid;
             euid=geteuid();
-            ((CPUAlphaState *)cpu_env)->ir[IR_A4]=euid;
+            cpu_env->ir[IR_A4]=euid;
          }
         return get_errno(getuid());
 #endif
@@ -11425,7 +11425,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
          {
             uid_t egid;
             egid=getegid();
-            ((CPUAlphaState *)cpu_env)->ir[IR_A4]=egid;
+            cpu_env->ir[IR_A4]=egid;
          }
         return get_errno(getgid());
 #endif
@@ -11437,7 +11437,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
           case TARGET_GSI_IEEE_FP_CONTROL:
             {
                 uint64_t fpcr = cpu_alpha_load_fpcr(cpu_env);
-                uint64_t swcr = ((CPUAlphaState *)cpu_env)->swcr;
+                uint64_t swcr = cpu_env->swcr;
 
                 swcr &= ~SWCR_STATUS_MASK;
                 swcr |= (fpcr >> 35) & SWCR_STATUS_MASK;
@@ -11479,8 +11479,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
                  * could be queried.  Therefore, we store the status
                  * bits only in FPCR.
                  */
-                ((CPUAlphaState *)cpu_env)->swcr
-                    = swcr & (SWCR_TRAP_ENABLE_MASK | SWCR_MAP_MASK);
+                cpu_env->swcr = swcr & (SWCR_TRAP_ENABLE_MASK | SWCR_MAP_MASK);
 
                 fpcr = cpu_alpha_load_fpcr(cpu_env);
                 fpcr &= ((uint64_t)FPCR_DYN_MASK << 32);
@@ -11504,7 +11503,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
                 fex = alpha_ieee_fpcr_to_swcr(fpcr);
                 fex = exc & ~fex;
                 fex >>= SWCR_STATUS_TO_EXCSUM_SHIFT;
-                fex &= ((CPUArchState *)cpu_env)->swcr;
+                fex &= (cpu_env)->swcr;
 
                 /* Update the hardware fpcr.  */
                 fpcr |= alpha_ieee_swcr_to_fpcr(exc);
@@ -11536,9 +11535,8 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
                     info.si_signo = SIGFPE;
                     info.si_errno = 0;
                     info.si_code = si_code;
-                    info._sifields._sigfault._addr
-                        = ((CPUArchState *)cpu_env)->pc;
-                    queue_signal((CPUArchState *)cpu_env, info.si_signo,
+                    info._sifields._sigfault._addr = (cpu_env)->pc;
+                    queue_signal(cpu_env, info.si_signo,
                                  QEMU_SI_FAULT, &info);
                 }
                 ret = 0;
@@ -11824,7 +11822,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
         to_flock64_fn *copyto = copy_to_user_flock64;
 
 #ifdef TARGET_ARM
-        if (!((CPUARMState *)cpu_env)->eabi) {
+        if (!cpu_env->eabi) {
             copyfrom = copy_from_user_oabi_flock64;
             copyto = copy_to_user_oabi_flock64;
         }
@@ -12052,13 +12050,13 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 #ifdef TARGET_NR_set_thread_area
     case TARGET_NR_set_thread_area:
 #if defined(TARGET_MIPS)
-      ((CPUMIPSState *) cpu_env)->active_tc.CP0_UserLocal = arg1;
+      cpu_env->active_tc.CP0_UserLocal = arg1;
       return 0;
 #elif defined(TARGET_CRIS)
       if (arg1 & 0xff)
           ret = -TARGET_EINVAL;
       else {
-          ((CPUCRISState *) cpu_env)->pregs[PR_PID] = arg1;
+          cpu_env->pregs[PR_PID] = arg1;
           ret = 0;
       }
       return ret;
@@ -12785,8 +12783,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             info.si_errno = 0;
             info.si_code = TARGET_SEGV_MAPERR;
             info._sifields._sigfault._addr = arg6;
-            queue_signal((CPUArchState *)cpu_env, info.si_signo,
-                         QEMU_SI_FAULT, &info);
+            queue_signal(cpu_env, info.si_signo, QEMU_SI_FAULT, &info);
             ret = 0xdeadbeef;
 
         }
