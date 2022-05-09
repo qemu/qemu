@@ -48,23 +48,9 @@ static bool rng_backend_prop_get_opened(Object *obj, Error **errp)
 
 static void rng_backend_complete(UserCreatable *uc, Error **errp)
 {
-    object_property_set_bool(OBJECT(uc), "opened", true, errp);
-}
-
-static void rng_backend_prop_set_opened(Object *obj, bool value, Error **errp)
-{
-    RngBackend *s = RNG_BACKEND(obj);
+    RngBackend *s = RNG_BACKEND(uc);
     RngBackendClass *k = RNG_BACKEND_GET_CLASS(s);
     Error *local_err = NULL;
-
-    if (value == s->opened) {
-        return;
-    }
-
-    if (!value && s->opened) {
-        error_setg(errp, QERR_PERMISSION_DENIED);
-        return;
-    }
 
     if (k->opened) {
         k->opened(s, &local_err);
@@ -122,7 +108,7 @@ static void rng_backend_class_init(ObjectClass *oc, void *data)
 
     object_class_property_add_bool(oc, "opened",
                                    rng_backend_prop_get_opened,
-                                   rng_backend_prop_set_opened);
+                                   NULL);
 }
 
 static const TypeInfo rng_backend_info = {
