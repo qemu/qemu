@@ -331,13 +331,10 @@ we should add it to the hmp-commands.hx file::
         .cmd        = hmp_hello_world,
     },
 
-::
-
- STEXI
- @item hello_world @var{message}
- @findex hello_world
- Print message to the standard output
- ETEXI
+ SRST
+ ``hello_world`` *message*
+   Print message to the standard output
+ ERST
 
 To test this you have to open a user monitor and issue the "hello-world"
 command. It might be instructive to check the command's documentation with
