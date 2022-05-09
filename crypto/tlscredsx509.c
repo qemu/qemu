@@ -687,16 +687,11 @@ qcrypto_tls_creds_x509_unload(QCryptoTLSCredsX509 *creds G_GNUC_UNUSED)
 
 
 static void
-qcrypto_tls_creds_x509_prop_set_loaded(Object *obj,
-                                       bool value,
-                                       Error **errp)
+qcrypto_tls_creds_x509_complete(UserCreatable *uc, Error **errp)
 {
-    QCryptoTLSCredsX509 *creds = QCRYPTO_TLS_CREDS_X509(obj);
+    QCryptoTLSCredsX509 *creds = QCRYPTO_TLS_CREDS_X509(uc);
 
-    qcrypto_tls_creds_x509_unload(creds);
-    if (value) {
-        qcrypto_tls_creds_x509_load(creds, errp);
-    }
+    qcrypto_tls_creds_x509_load(creds, errp);
 }
 
 
@@ -815,13 +810,6 @@ qcrypto_tls_creds_x509_reload(QCryptoTLSCreds *creds, Error **errp)
 
 
 static void
-qcrypto_tls_creds_x509_complete(UserCreatable *uc, Error **errp)
-{
-    object_property_set_bool(OBJECT(uc), "loaded", true, errp);
-}
-
-
-static void
 qcrypto_tls_creds_x509_init(Object *obj)
 {
     QCryptoTLSCredsX509 *creds = QCRYPTO_TLS_CREDS_X509(obj);
@@ -852,7 +840,7 @@ qcrypto_tls_creds_x509_class_init(ObjectClass *oc, void *data)
 
     object_class_property_add_bool(oc, "loaded",
                                    qcrypto_tls_creds_x509_prop_get_loaded,
-                                   qcrypto_tls_creds_x509_prop_set_loaded);
+                                   NULL);
     object_class_property_add_bool(oc, "sanity-check",
                                    qcrypto_tls_creds_x509_prop_get_sanity,
                                    qcrypto_tls_creds_x509_prop_set_sanity);
