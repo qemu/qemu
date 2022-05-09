@@ -3534,6 +3534,19 @@ void virtio_queue_aio_attach_host_notifier(VirtQueue *vq, AioContext *ctx)
                                 virtio_queue_host_notifier_aio_poll_end);
 }
 
+/*
+ * Same as virtio_queue_aio_attach_host_notifier() but without polling. Use
+ * this for rx virtqueues and similar cases where the virtqueue handler
+ * function does not pop all elements. When the virtqueue is left non-empty
+ * polling consumes CPU cycles and should not be used.
+ */
+void virtio_queue_aio_attach_host_notifier_no_poll(VirtQueue *vq, AioContext *ctx)
+{
+    aio_set_event_notifier(ctx, &vq->host_notifier, true,
+                           virtio_queue_host_notifier_read,
+                           NULL, NULL);
+}
+
 void virtio_queue_aio_detach_host_notifier(VirtQueue *vq, AioContext *ctx)
 {
     aio_set_event_notifier(ctx, &vq->host_notifier, true, NULL, NULL, NULL);

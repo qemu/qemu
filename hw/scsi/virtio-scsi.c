@@ -29,6 +29,43 @@
 #include "hw/virtio/virtio-access.h"
 #include "trace.h"
 
+typedef struct VirtIOSCSIReq {
+    /*
+     * Note:
+     * - fields up to resp_iov are initialized by virtio_scsi_init_req;
+     * - fields starting at vring are zeroed by virtio_scsi_init_req.
+     */
+    VirtQueueElement elem;
+
+    VirtIOSCSI *dev;
+    VirtQueue *vq;
+    QEMUSGList qsgl;
+    QEMUIOVector resp_iov;
+
+    union {
+        /* Used for two-stage request submission */
+        QTAILQ_ENTRY(VirtIOSCSIReq) next;
+
+        /* Used for cancellation of request during TMFs */
+        int remaining;
+    };
+
+    SCSIRequest *sreq;
+    size_t resp_size;
+    enum SCSIXferMode mode;
+    union {
+        VirtIOSCSICmdResp     cmd;
+        VirtIOSCSICtrlTMFResp tmf;
+        VirtIOSCSICtrlANResp  an;
+        VirtIOSCSIEvent       event;
+    } resp;
+    union {
+        VirtIOSCSICmdReq      cmd;
+        VirtIOSCSICtrlTMFReq  tmf;
+        VirtIOSCSICtrlANReq   an;
+    } req;
+} VirtIOSCSIReq;
+
 static inline int virtio_scsi_get_lun(uint8_t *lun)
 {
     return ((lun[2] << 8) | lun[3]) & 0x3FFF;
@@ -45,7 +82,7 @@ static inline SCSIDevice *virtio_scsi_device_get(VirtIOSCSI *s, uint8_t *lun)
     return scsi_device_get(&s->bus, 0, lun[1], virtio_scsi_get_lun(lun));
 }
 
-void virtio_scsi_init_req(VirtIOSCSI *s, VirtQueue *vq, VirtIOSCSIReq *req)
+static void virtio_scsi_init_req(VirtIOSCSI *s, VirtQueue *vq, VirtIOSCSIReq *req)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
     const size_t zero_skip =
@@ -58,7 +95,7 @@ void virtio_scsi_init_req(VirtIOSCSI *s, VirtQueue *vq, VirtIOSCSIReq *req)
     memset((uint8_t *)req + zero_skip, 0, sizeof(*req) - zero_skip);
 }
 
-void virtio_scsi_free_req(VirtIOSCSIReq *req)
+static void virtio_scsi_free_req(VirtIOSCSIReq *req)
 {
     qemu_iovec_destroy(&req->resp_iov);
     qemu_sglist_destroy(&req->qsgl);
@@ -460,28 +497,41 @@ static void virtio_scsi_handle_ctrl_req(VirtIOSCSI *s, VirtIOSCSIReq *req)
     }
 }
 
-bool virtio_scsi_handle_ctrl_vq(VirtIOSCSI *s, VirtQueue *vq)
+static void virtio_scsi_handle_ctrl_vq(VirtIOSCSI *s, VirtQueue *vq)
 {
     VirtIOSCSIReq *req;
-    bool progress = false;
 
     while ((req = virtio_scsi_pop_req(s, vq))) {
-        progress = true;
         virtio_scsi_handle_ctrl_req(s, req);
     }
-    return progress;
+}
+
+/*
+ * If dataplane is configured but not yet started, do so now and return true on
+ * success.
+ *
+ * Dataplane is started by the core virtio code but virtqueue handler functions
+ * can also be invoked when a guest kicks before DRIVER_OK, so this helper
+ * function helps us deal with manually starting ioeventfd in that case.
+ */
+static bool virtio_scsi_defer_to_dataplane(VirtIOSCSI *s)
+{
+    if (!s->ctx || s->dataplane_started) {
+        return false;
+    }
+
+    virtio_device_start_ioeventfd(&s->parent_obj.parent_obj);
+    return !s->dataplane_fenced;
 }
 
 static void virtio_scsi_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOSCSI *s = (VirtIOSCSI *)vdev;
 
-    if (s->ctx) {
-        virtio_device_start_ioeventfd(vdev);
-        if (!s->dataplane_fenced) {
-            return;
-        }
+    if (virtio_scsi_defer_to_dataplane(s)) {
+        return;
     }
+
     virtio_scsi_acquire(s);
     virtio_scsi_handle_ctrl_vq(s, vq);
     virtio_scsi_release(s);
@@ -672,12 +722,11 @@ static void virtio_scsi_handle_cmd_req_submit(VirtIOSCSI *s, VirtIOSCSIReq *req)
     scsi_req_unref(sreq);
 }
 
-bool virtio_scsi_handle_cmd_vq(VirtIOSCSI *s, VirtQueue *vq)
+static void virtio_scsi_handle_cmd_vq(VirtIOSCSI *s, VirtQueue *vq)
 {
     VirtIOSCSIReq *req, *next;
     int ret = 0;
     bool suppress_notifications = virtio_queue_get_notification(vq);
-    bool progress = false;
 
     QTAILQ_HEAD(, VirtIOSCSIReq) reqs = QTAILQ_HEAD_INITIALIZER(reqs);
 
@@ -687,7 +736,6 @@ bool virtio_scsi_handle_cmd_vq(VirtIOSCSI *s, VirtQueue *vq)
         }
 
         while ((req = virtio_scsi_pop_req(s, vq))) {
-            progress = true;
             ret = virtio_scsi_handle_cmd_req_prepare(s, req);
             if (!ret) {
                 QTAILQ_INSERT_TAIL(&reqs, req, next);
@@ -712,7 +760,6 @@ bool virtio_scsi_handle_cmd_vq(VirtIOSCSI *s, VirtQueue *vq)
     QTAILQ_FOREACH_SAFE(req, &reqs, next, next) {
         virtio_scsi_handle_cmd_req_submit(s, req);
     }
-    return progress;
 }
 
 static void virtio_scsi_handle_cmd(VirtIODevice *vdev, VirtQueue *vq)
@@ -720,12 +767,10 @@ static void virtio_scsi_handle_cmd(VirtIODevice *vdev, VirtQueue *vq)
     /* use non-QOM casts in the data path */
     VirtIOSCSI *s = (VirtIOSCSI *)vdev;
 
-    if (s->ctx && !s->dataplane_started) {
-        virtio_device_start_ioeventfd(vdev);
-        if (!s->dataplane_fenced) {
-            return;
-        }
+    if (virtio_scsi_defer_to_dataplane(s)) {
+        return;
     }
+
     virtio_scsi_acquire(s);
     virtio_scsi_handle_cmd_vq(s, vq);
     virtio_scsi_release(s);
@@ -793,8 +838,8 @@ static void virtio_scsi_reset(VirtIODevice *vdev)
     s->events_dropped = false;
 }
 
-void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
-                            uint32_t event, uint32_t reason)
+static void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
+                                   uint32_t event, uint32_t reason)
 {
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
     VirtIOSCSIReq *req;
@@ -842,25 +887,21 @@ void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
     virtio_scsi_complete_req(req);
 }
 
-bool virtio_scsi_handle_event_vq(VirtIOSCSI *s, VirtQueue *vq)
+static void virtio_scsi_handle_event_vq(VirtIOSCSI *s, VirtQueue *vq)
 {
     if (s->events_dropped) {
         virtio_scsi_push_event(s, NULL, VIRTIO_SCSI_T_NO_EVENT, 0);
-        return true;
     }
-    return false;
 }
 
 static void virtio_scsi_handle_event(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
 
-    if (s->ctx) {
-        virtio_device_start_ioeventfd(vdev);
-        if (!s->dataplane_fenced) {
-            return;
-        }
+    if (virtio_scsi_defer_to_dataplane(s)) {
+        return;
     }
+
     virtio_scsi_acquire(s);
     virtio_scsi_handle_event_vq(s, vq);
     virtio_scsi_release(s);

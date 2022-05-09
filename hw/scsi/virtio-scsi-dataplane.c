@@ -138,7 +138,7 @@ int virtio_scsi_dataplane_start(VirtIODevice *vdev)
 
     aio_context_acquire(s->ctx);
     virtio_queue_aio_attach_host_notifier(vs->ctrl_vq, s->ctx);
-    virtio_queue_aio_attach_host_notifier(vs->event_vq, s->ctx);
+    virtio_queue_aio_attach_host_notifier_no_poll(vs->event_vq, s->ctx);
 
     for (i = 0; i < vs->conf.num_queues; i++) {
         virtio_queue_aio_attach_host_notifier(vs->cmd_vqs[i], s->ctx);
