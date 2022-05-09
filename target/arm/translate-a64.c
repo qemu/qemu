@@ -1795,6 +1795,30 @@ static void gen_set_nzcv(TCGv_i64 tcg_rt)
     tcg_temp_free_i32(nzcv);
 }
 
+static void gen_sysreg_undef(DisasContext *s, bool isread,
+                             uint8_t op0, uint8_t op1, uint8_t op2,
+                             uint8_t crn, uint8_t crm, uint8_t rt)
+{
+    /*
+     * Generate code to emit an UNDEF with correct syndrome
+     * information for a failed system register access.
+     * This is EC_UNCATEGORIZED (ie a standard UNDEF) in most cases,
+     * but if FEAT_IDST is implemented then read accesses to registers
+     * in the feature ID space are reported with the EC_SYSTEMREGISTERTRAP
+     * syndrome.
+     */
+    uint32_t syndrome;
+
+    if (isread && dc_isar_feature(aa64_ids, s) &&
+        arm_cpreg_encoding_in_idspace(op0, op1, op2, crn, crm)) {
+        syndrome = syn_aa64_sysregtrap(op0, op1, op2, crn, crm, rt, isread);
+    } else {
+        syndrome = syn_uncategorized();
+    }
+    gen_exception_insn(s, s->pc_curr, EXCP_UDEF, syndrome,
+                       default_exception_el(s));
+}
+
 /* MRS - move from system register
  * MSR (register) - move to system register
  * SYS
@@ -1820,13 +1844,13 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         qemu_log_mask(LOG_UNIMP, "%s access to unsupported AArch64 "
                       "system register op0:%d op1:%d crn:%d crm:%d op2:%d\n",
                       isread ? "read" : "write", op0, op1, crn, crm, op2);
-        unallocated_encoding(s);
+        gen_sysreg_undef(s, isread, op0, op1, op2, crn, crm, rt);
         return;
     }
 
     /* Check access permissions */
     if (!cp_access_ok(s->current_el, ri, isread)) {
-        unallocated_encoding(s);
+        gen_sysreg_undef(s, isread, op0, op1, op2, crn, crm, rt);
         return;
     }
 

@@ -461,4 +461,28 @@ static inline bool cp_access_ok(int current_el,
 /* Raw read of a coprocessor register (as needed for migration, etc) */
 uint64_t read_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri);
 
+/*
+ * Return true if the cp register encoding is in the "feature ID space" as
+ * defined by FEAT_IDST (and thus should be reported with ER_ELx.EC
+ * as EC_SYSTEMREGISTERTRAP rather than EC_UNCATEGORIZED).
+ */
+static inline bool arm_cpreg_encoding_in_idspace(uint8_t opc0, uint8_t opc1,
+                                                 uint8_t opc2,
+                                                 uint8_t crn, uint8_t crm)
+{
+    return opc0 == 3 && (opc1 == 0 || opc1 == 1 || opc1 == 3) &&
+        crn == 0 && crm < 8;
+}
+
+/*
+ * As arm_cpreg_encoding_in_idspace(), but take the encoding from an
+ * ARMCPRegInfo.
+ */
+static inline bool arm_cpreg_in_idspace(const ARMCPRegInfo *ri)
+{
+    return ri->state == ARM_CP_STATE_AA64 &&
+        arm_cpreg_encoding_in_idspace(ri->opc0, ri->opc1, ri->opc2,
+                                      ri->crn, ri->crm);
+}
+
 #endif /* TARGET_ARM_CPREGS_H */
