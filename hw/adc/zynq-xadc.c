@@ -86,7 +86,7 @@ static void zynq_xadc_update_ints(ZynqXADCState *s)
         s->regs[INT_STS] |= INT_DFIFO_GTH;
     }
 
-    qemu_set_irq(s->qemu_irq, !!(s->regs[INT_STS] & ~s->regs[INT_MASK]));
+    qemu_set_irq(s->irq, !!(s->regs[INT_STS] & ~s->regs[INT_MASK]));
 }
 
 static void zynq_xadc_reset(DeviceState *d)
@@ -262,7 +262,7 @@ static void zynq_xadc_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &xadc_ops, s, "zynq-xadc",
                           ZYNQ_XADC_MMIO_SIZE);
     sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->qemu_irq);
+    sysbus_init_irq(sbd, &s->irq);
 }
 
 static const VMStateDescription vmstate_zynq_xadc = {
