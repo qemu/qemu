@@ -343,6 +343,8 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
  * TCG is not considered a security-sensitive part of QEMU so this does not
  * affect the impact of CFI in environment with high security requirements
  */
+// extern bool uiret_called;
+// extern bool senduipi_called;
 static inline TranslationBlock * QEMU_DISABLE_CFI
 cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
 {
@@ -355,6 +357,7 @@ cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
 
     qemu_thread_jit_execute();
     ret = tcg_qemu_tb_exec(env, tb_ptr);
+    // if(senduipi_called && env->eip < 0x10000000)qemu_log("0x%lx  block size:%2d  icont:%2d\n",env->eip,itb->size, itb->icount);
     cpu->can_do_io = 1;
     /*
      * TODO: Delay swapping back to the read-write region of the TB

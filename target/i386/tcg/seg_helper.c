@@ -934,6 +934,7 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
     } else {
         old_eip = env->eip;
     }
+    bool send = false;
     if(intno == UINTR_UINV ){
         qemu_log("recognize uintr\n");
 
@@ -944,7 +945,6 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
         // 清除apic的
         int prot;
         CPUState *cs = env_cpu(env);
-        bool send = false;
         uint64_t upid_phyaddress = get_hphys2(cs, env->uintr_pd, MMU_DATA_LOAD, &prot);
         uintr_upid upid;
         cpu_physical_memory_rw(upid_phyaddress, &upid, 16, false);
@@ -964,6 +964,7 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
         cpu_physical_memory_rw(APICaddress + 0xb0, &EOI, 8, false);
         qemu_log("the physical address of APIC 0x%lx   the EOI content: 0x%lx\n", APICaddress,EOI);
         cpu_physical_memory_rw(APICaddress + 0xb0, &zero, 4, true);
+
         // apic_mem_write(cs, )
         // uint64_t EOI;       
         // cpu_physical_memory_rw(APIC_DEFAULT_ADDRESS + 0xb0, &EOI, 8, false);
@@ -972,6 +973,16 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
 
 
         if(send)helper_rrnzero(env);
+
+        // 下面的方法会在uihandler 里面报seg fault
+        // dpl = (e2 >> DESC_DPL_SHIFT) & 3;
+        // selector = e1 >> 16;
+        // selector = (selector & ~3) | dpl;
+        // cpu_x86_load_seg_cache(env, R_CS, selector,
+        //            get_seg_base(e1, e2),
+        //            get_seg_limit(e1, e2),
+        //            e2);
+
         return;
     }
 
@@ -997,10 +1008,12 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
     cpl = env->hflags & HF_CPL_MASK;
     /* check privilege if software int */
     if (is_int && dpl < cpl) {
+        if(send)qemu_log("pin 2\n");
         raise_exception_err(env, EXCP0D_GPF, intno * 16 + 2);
     }
     /* check valid bit */
     if (!(e2 & DESC_P_MASK)) {
+        if(send)qemu_log("pin 3\n");
         raise_exception_err(env, EXCP0B_NOSEG, intno * 16 + 2);
     }
     selector = e1 >> 16;
@@ -1009,24 +1022,29 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
     if ((selector & 0xfffc) == 0) {
         raise_exception_err(env, EXCP0D_GPF, 0);
     }
-
     if (load_segment(env, &e1, &e2, selector) != 0) {
+        if(send)qemu_log("pin 4\n");
         raise_exception_err(env, EXCP0D_GPF, selector & 0xfffc);
     }
     if (!(e2 & DESC_S_MASK) || !(e2 & (DESC_CS_MASK))) {
+        if(send)qemu_log("pin 5\n");
         raise_exception_err(env, EXCP0D_GPF, selector & 0xfffc);
     }
     dpl = (e2 >> DESC_DPL_SHIFT) & 3;
     if (dpl > cpl) {
+        if(send)qemu_log("pin 6\n");
         raise_exception_err(env, EXCP0D_GPF, selector & 0xfffc);
     }
     if (!(e2 & DESC_P_MASK)) {
+        if(send)qemu_log("pin 7\n");
         raise_exception_err(env, EXCP0B_NOSEG, selector & 0xfffc);
     }
     if (!(e2 & DESC_L_MASK) || (e2 & DESC_B_MASK)) {
+        if(send)qemu_log("pin 8\n");
         raise_exception_err(env, EXCP0D_GPF, selector & 0xfffc);
     }
     if (e2 & DESC_C_MASK) {
+        if(send)qemu_log("pin 9\n");
         dpl = cpl;
     }
     if (dpl < cpl || ist != 0) {
@@ -1036,6 +1054,7 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
         ss = 0;
     } else {
         /* to same privilege */
+        if(send)qemu_log("pin 10\n");
         if (env->eflags & VM_MASK) {
             raise_exception_err(env, EXCP0D_GPF, selector & 0xfffc);
         }
@@ -1043,7 +1062,6 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
         esp = env->regs[R_ESP];
     }
     esp &= ~0xfLL; /* align stack */
-
     PUSHQ(esp, env->segs[R_SS].selector);
     PUSHQ(esp, env->regs[R_ESP]);
     PUSHQ(esp, cpu_compute_eflags(env));
@@ -1064,7 +1082,7 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
         cpu_x86_load_seg_cache(env, R_SS, ss, 0, 0, dpl << DESC_DPL_SHIFT);
     }
     env->regs[R_ESP] = esp;
-
+    if(send)qemu_log("pin 11\n");
     selector = (selector & ~3) | dpl;
     cpu_x86_load_seg_cache(env, R_CS, selector,
                    get_seg_base(e1, e2),

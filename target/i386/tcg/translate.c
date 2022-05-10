@@ -4545,7 +4545,8 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
         }
     }
 }
-
+bool uiret_called = false;
+bool senduipi_called = false;
 /* convert one instruction. s->base.is_jmp is set if the translation must
    be stopped. Return the next pc value */
 static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
@@ -5405,7 +5406,7 @@ static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
         if(prefixes & PREFIX_REPZ){
             modrm = x86_ldub_code(env, s);
             qemu_log("\n\n--------------\n");
-            qemu_log("qemu: caught 0xf30fc7 SENDUIPI\n "); // 改 Debug
+            qemu_log("qemu: caught 0xf30fc7 SENDUIPI eip:0x%lx\n ",env->eip); // 改 Debug
             // CPUState *cs = env_cpu(env);
             // int prot;
             // uint64_t APICaddress = get_hphys2(cs, APIC_DEFAULT_ADDRESS, MMU_DATA_LOAD, &prot);
@@ -5438,6 +5439,7 @@ static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
             // if(Debug){qemu_log("debug: after  t0: %llx   A0: %llx\n",(long long unsigned)t0,(long long unsigned)s->A0);}
             // tcg_temp_free(t0);
             gen_helper_senduipi(cpu_env, tcg_const_i32(modrm));
+            senduipi_called = true;
             qemu_log("--------------\n\n\n");
             break;
         }
@@ -7759,18 +7761,22 @@ static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
             break;
         case 0xec:
             if (prefixes & PREFIX_REPZ){
-                qemu_log("--------------\n\n\n");
+                qemu_log("\n\n\n--------------\n");
                 qemu_log("qemu:caught 0xf30f01ec UIRET\n"); // 改
-                qemu_log("before:  pc_start: 0x%lx  sc_base:%lx   pc: 0x%lx  pc.next:0x%lx  rip:0x%lx\n",s->pc_start,s->cs_base, s->pc,s->base.pc_next, env->eip);
+                qemu_log("before:  pc_start: 0x%lx  sc_base:%lx   pc: 0x%lx  pc.next:0x%lx  rip:0x%lx\n",s->pc_start,s->cs_base, s->pc, s->base.pc_next, env->eip);
                 
 
                 helper_uiret(env);
+                uiret_called = true;
                 // gen_jmp_im(s, env->eip);
+                // gen_jmp(s, env->eip);
                 qemu_log("pc_start: 0x%lx  sc_base:%lx   pc: 0x%lx  rip:0x%lx\n",s->pc_start,s->cs_base, s->pc, env->eip);
-                s->pc = env->eip;
-                tcg_gen_exit_tb(NULL, 0);
-                s->base.is_jmp = DISAS_NORETURN;
                 // s->pc = env->eip;
+                // gen_jmp(s, s->pc - s->cs_base);
+                // tcg_gen_exit_tb(NULL, 0);
+                set_cc_op(s, CC_OP_EFLAGS);
+                gen_eob(s);
+                // s->base.is_jmp = DISAS_NORETURN;
                 qemu_log("-------------\n\n\n");
                 // exit(12);
             }

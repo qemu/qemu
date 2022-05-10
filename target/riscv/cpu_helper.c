@@ -464,7 +464,7 @@ bool riscv_cpu_vector_enabled(CPURISCVState *env)
     return false;
 }
 
-void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env)
+void helper_sret(CPURISCVState *env)
 {
     uint64_t mstatus_mask = MSTATUS_MXR | MSTATUS_SUM |
                             MSTATUS_SPP | MSTATUS_SPIE | MSTATUS_SIE |
