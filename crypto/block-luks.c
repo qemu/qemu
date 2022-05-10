@@ -582,8 +582,9 @@ qcrypto_block_luks_check_header(const QCryptoBlockLUKS *luks, Error **errp)
                                                    header_sectors,
                                                    slot1->stripes);
 
-        if (slot1->stripes == 0) {
-            error_setg(errp, "Keyslot %zu is corrupted (stripes == 0)", i);
+        if (slot1->stripes != QCRYPTO_BLOCK_LUKS_STRIPES) {
+            error_setg(errp, "Keyslot %zu is corrupted (stripes %d != %d)",
+                       i, slot1->stripes, QCRYPTO_BLOCK_LUKS_STRIPES);
             return -1;
         }
 
