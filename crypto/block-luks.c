@@ -554,6 +554,24 @@ qcrypto_block_luks_check_header(const QCryptoBlockLUKS *luks, Error **errp)
         return -1;
     }
 
+    if (!memchr(luks->header.cipher_name, '\0',
+                sizeof(luks->header.cipher_name))) {
+        error_setg(errp, "LUKS header cipher name is not NUL terminated");
+        return -1;
+    }
+
+    if (!memchr(luks->header.cipher_mode, '\0',
+                sizeof(luks->header.cipher_mode))) {
+        error_setg(errp, "LUKS header cipher mode is not NUL terminated");
+        return -1;
+    }
+
+    if (!memchr(luks->header.hash_spec, '\0',
+                sizeof(luks->header.hash_spec))) {
+        error_setg(errp, "LUKS header hash spec is not NUL terminated");
+        return -1;
+    }
+
     /* Check all keyslots for corruption  */
     for (i = 0 ; i < QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS ; i++) {
 
