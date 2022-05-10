@@ -6,7 +6,7 @@
 # Whitelists to permit QAPI rule violations; think twice before you
 # add to them!
 { 'pragma': {
-    # Commands allowed to return a non-dictionary:
+    # Command names containing '_'
     'command-name-exceptions': [
         'add_client',
         'block_resize',
@@ -24,6 +24,7 @@
         'system_powerdown',
         'system_reset',
         'system_wakeup' ],
+    # Commands allowed to return a non-dictionary
     'command-returns-exceptions': [
         'human-monitor-command',
         'qom-get',
