@@ -21,14 +21,20 @@
 #include "qemu/coroutine-tls.h"
 #include "block/aio.h"
 
-/** Initial batch size is 64, and is increased on demand */
+/**
+ * The minimal batch size is always 64, coroutines from the release_pool are
+ * reused as soon as there are 64 coroutines in it. The maximum pool size starts
+ * with 64 and is increased on demand so that coroutines are not deleted even if
+ * they are not immediately reused.
+ */
 enum {
-    POOL_INITIAL_BATCH_SIZE = 64,
+    POOL_MIN_BATCH_SIZE = 64,
+    POOL_INITIAL_MAX_SIZE = 64,
 };
 
 /** Free list to speed up creation */
 static QSLIST_HEAD(, Coroutine) release_pool = QSLIST_HEAD_INITIALIZER(pool);
-static unsigned int pool_batch_size = POOL_INITIAL_BATCH_SIZE;
+static unsigned int pool_max_size = POOL_INITIAL_MAX_SIZE;
 static unsigned int release_pool_size;
 
 typedef QSLIST_HEAD(, Coroutine) CoroutineQSList;
@@ -57,7 +63,7 @@ Coroutine *qemu_coroutine_create(CoroutineEntry *entry, void *opaque)
 
         co = QSLIST_FIRST(alloc_pool);
         if (!co) {
-            if (release_pool_size > qatomic_read(&pool_batch_size)) {
+            if (release_pool_size > POOL_MIN_BATCH_SIZE) {
                 /* Slow path; a good place to register the destructor, too.  */
                 Notifier *notifier = get_ptr_coroutine_pool_cleanup_notifier();
                 if (!notifier->notify) {
@@ -95,12 +101,12 @@ static void coroutine_delete(Coroutine *co)
     co->caller = NULL;
 
     if (CONFIG_COROUTINE_POOL) {
-        if (release_pool_size < qatomic_read(&pool_batch_size) * 2) {
+        if (release_pool_size < qatomic_read(&pool_max_size) * 2) {
             QSLIST_INSERT_HEAD_ATOMIC(&release_pool, co, pool_next);
             qatomic_inc(&release_pool_size);
             return;
         }
-        if (get_alloc_pool_size() < qatomic_read(&pool_batch_size)) {
+        if (get_alloc_pool_size() < qatomic_read(&pool_max_size)) {
             QSLIST_INSERT_HEAD(get_ptr_alloc_pool(), co, pool_next);
             set_alloc_pool_size(get_alloc_pool_size() + 1);
             return;
@@ -214,10 +220,10 @@ AioContext *coroutine_fn qemu_coroutine_get_aio_context(Coroutine *co)
 
 void qemu_coroutine_inc_pool_size(unsigned int additional_pool_size)
 {
-    qatomic_add(&pool_batch_size, additional_pool_size);
+    qatomic_add(&pool_max_size, additional_pool_size);
 }
 
 void qemu_coroutine_dec_pool_size(unsigned int removing_pool_size)
 {
-    qatomic_sub(&pool_batch_size, removing_pool_size);
+    qatomic_sub(&pool_max_size, removing_pool_size);
 }
