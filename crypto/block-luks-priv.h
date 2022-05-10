@@ -135,3 +135,9 @@ struct QCryptoBlockLUKSHeader {
     /* key slots */
     QCryptoBlockLUKSKeySlot key_slots[QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS];
 };
+
+
+void
+qcrypto_block_luks_to_disk_endian(QCryptoBlockLUKSHeader *hdr);
+void
+qcrypto_block_luks_from_disk_endian(QCryptoBlockLUKSHeader *hdr);

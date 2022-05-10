@@ -348,6 +348,51 @@ qcrypto_block_luks_splitkeylen_sectors(const QCryptoBlockLUKS *luks,
     return ROUND_UP(splitkeylen_sectors, header_sectors);
 }
 
+
+void
+qcrypto_block_luks_to_disk_endian(QCryptoBlockLUKSHeader *hdr)
+{
+    size_t i;
+
+    /*
+     * Everything on disk uses Big Endian (tm), so flip header fields
+     * before writing them
+     */
+    cpu_to_be16s(&hdr->version);
+    cpu_to_be32s(&hdr->payload_offset_sector);
+    cpu_to_be32s(&hdr->master_key_len);
+    cpu_to_be32s(&hdr->master_key_iterations);
+
+    for (i = 0; i < QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS; i++) {
+        cpu_to_be32s(&hdr->key_slots[i].active);
+        cpu_to_be32s(&hdr->key_slots[i].iterations);
+        cpu_to_be32s(&hdr->key_slots[i].key_offset_sector);
+        cpu_to_be32s(&hdr->key_slots[i].stripes);
+    }
+}
+
+void
+qcrypto_block_luks_from_disk_endian(QCryptoBlockLUKSHeader *hdr)
+{
+    size_t i;
+
+    /*
+     * The header is always stored in big-endian format, so
+     * convert everything to native
+     */
+    be16_to_cpus(&hdr->version);
+    be32_to_cpus(&hdr->payload_offset_sector);
+    be32_to_cpus(&hdr->master_key_len);
+    be32_to_cpus(&hdr->master_key_iterations);
+
+    for (i = 0; i < QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS; i++) {
+        be32_to_cpus(&hdr->key_slots[i].active);
+        be32_to_cpus(&hdr->key_slots[i].iterations);
+        be32_to_cpus(&hdr->key_slots[i].key_offset_sector);
+        be32_to_cpus(&hdr->key_slots[i].stripes);
+    }
+}
+
 /*
  * Stores the main LUKS header, taking care of endianess
  */
@@ -359,28 +404,13 @@ qcrypto_block_luks_store_header(QCryptoBlock *block,
 {
     const QCryptoBlockLUKS *luks = block->opaque;
     Error *local_err = NULL;
-    size_t i;
     g_autofree QCryptoBlockLUKSHeader *hdr_copy = NULL;
 
     /* Create a copy of the header */
     hdr_copy = g_new0(QCryptoBlockLUKSHeader, 1);
     memcpy(hdr_copy, &luks->header, sizeof(QCryptoBlockLUKSHeader));
 
-    /*
-     * Everything on disk uses Big Endian (tm), so flip header fields
-     * before writing them
-     */
-    cpu_to_be16s(&hdr_copy->version);
-    cpu_to_be32s(&hdr_copy->payload_offset_sector);
-    cpu_to_be32s(&hdr_copy->master_key_len);
-    cpu_to_be32s(&hdr_copy->master_key_iterations);
-
-    for (i = 0; i < QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS; i++) {
-        cpu_to_be32s(&hdr_copy->key_slots[i].active);
-        cpu_to_be32s(&hdr_copy->key_slots[i].iterations);
-        cpu_to_be32s(&hdr_copy->key_slots[i].key_offset_sector);
-        cpu_to_be32s(&hdr_copy->key_slots[i].stripes);
-    }
+    qcrypto_block_luks_to_disk_endian(hdr_copy);
 
     /* Write out the partition header and key slot headers */
     writefunc(block, 0, (const uint8_t *)hdr_copy, sizeof(*hdr_copy),
@@ -404,7 +434,6 @@ qcrypto_block_luks_load_header(QCryptoBlock *block,
                                 Error **errp)
 {
     int rv;
-    size_t i;
     QCryptoBlockLUKS *luks = block->opaque;
 
     /*
@@ -420,21 +449,7 @@ qcrypto_block_luks_load_header(QCryptoBlock *block,
         return rv;
     }
 
-    /*
-     * The header is always stored in big-endian format, so
-     * convert everything to native
-     */
-    be16_to_cpus(&luks->header.version);
-    be32_to_cpus(&luks->header.payload_offset_sector);
-    be32_to_cpus(&luks->header.master_key_len);
-    be32_to_cpus(&luks->header.master_key_iterations);
-
-    for (i = 0; i < QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS; i++) {
-        be32_to_cpus(&luks->header.key_slots[i].active);
-        be32_to_cpus(&luks->header.key_slots[i].iterations);
-        be32_to_cpus(&luks->header.key_slots[i].key_offset_sector);
-        be32_to_cpus(&luks->header.key_slots[i].stripes);
-    }
+    qcrypto_block_luks_from_disk_endian(&luks->header);
 
     return 0;
 }
