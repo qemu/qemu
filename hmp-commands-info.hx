@@ -880,7 +880,7 @@ SRST
     Show intel SGX information.
 ERST
 
-#if defined(TARGET_M68K) || defined(TARGET_PPC)
+#if defined(CONFIG_MOS6522)
     {
         .name         = "via",
         .args_type    = "",
