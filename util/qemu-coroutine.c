@@ -212,12 +212,12 @@ AioContext *coroutine_fn qemu_coroutine_get_aio_context(Coroutine *co)
     return co->ctx;
 }
 
-void qemu_coroutine_increase_pool_batch_size(unsigned int additional_pool_size)
+void qemu_coroutine_inc_pool_size(unsigned int additional_pool_size)
 {
     qatomic_add(&pool_batch_size, additional_pool_size);
 }
 
-void qemu_coroutine_decrease_pool_batch_size(unsigned int removing_pool_size)
+void qemu_coroutine_dec_pool_size(unsigned int removing_pool_size)
 {
     qatomic_sub(&pool_batch_size, removing_pool_size);
 }
