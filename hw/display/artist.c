@@ -353,9 +353,19 @@ static void artist_get_cursor_pos(ARTISTState *s, int *x, int *y)
     }
 }
 
+static inline bool cursor_visible(ARTISTState *s)
+{
+    /* cursor is visible if bit 0x80 is set in cursor_cntrl */
+    return s->cursor_cntrl & 0x80;
+}
+
 static void artist_invalidate_cursor(ARTISTState *s)
 {
     int x, y;
+
+    if (!cursor_visible(s)) {
+        return;
+    }
 
     artist_get_cursor_pos(s, &x, &y);
     artist_invalidate_lines(&s->vram_buffer[ARTIST_BUFFER_AP],
@@ -1217,6 +1227,10 @@ static void artist_draw_cursor(ARTISTState *s)
     uint32_t *data = (uint32_t *)surface_data(surface);
     struct vram_buffer *cursor0, *cursor1 , *buf;
     int cx, cy, cursor_pos_x, cursor_pos_y;
+
+    if (!cursor_visible(s)) {
+        return;
+    }
 
     cursor0 = &s->vram_buffer[ARTIST_BUFFER_CURSOR1];
     cursor1 = &s->vram_buffer[ARTIST_BUFFER_CURSOR2];
