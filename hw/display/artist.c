@@ -81,9 +81,10 @@ struct ARTISTState {
     uint32_t plane_mask;
 
     uint32_t reg_100080;
-    uint32_t reg_300200;
-    uint32_t reg_300208;
-    uint32_t reg_300218;
+    uint32_t horiz_backporch;
+    uint32_t active_lines_low;
+    uint32_t misc_video;
+    uint32_t misc_ctrl;
 
     uint32_t dst_bm_access;
     uint32_t src_bm_access;
@@ -138,8 +139,14 @@ typedef enum {
     BG_COLOR = 0x118014,
     PLANE_MASK = 0x118018,
     IMAGE_BITMAP_OP = 0x11801c,
-    CURSOR_POS = 0x300100,
-    CURSOR_CTRL = 0x300104,
+    CURSOR_POS = 0x300100,      /* reg17 */
+    CURSOR_CTRL = 0x300104,     /* reg18 */
+    MISC_VIDEO = 0x300218,      /* reg21 */
+    MISC_CTRL = 0x300308,       /* reg27 */
+    HORIZ_BACKPORCH = 0x300200, /* reg19 */
+    ACTIVE_LINES_LOW = 0x300208,/* reg20 */
+    FIFO1 = 0x300008,           /* reg34 */
+    FIFO2 = 0x380008,
 } artist_reg_t;
 
 typedef enum {
@@ -177,12 +184,18 @@ static const char *artist_reg_name(uint64_t addr)
     REG_NAME(SRC_BM_ACCESS);
     REG_NAME(CURSOR_POS);
     REG_NAME(CURSOR_CTRL);
+    REG_NAME(HORIZ_BACKPORCH);
+    REG_NAME(ACTIVE_LINES_LOW);
+    REG_NAME(MISC_VIDEO);
+    REG_NAME(MISC_CTRL);
     REG_NAME(LINE_XY);
     REG_NAME(PATTERN_LINE_START);
     REG_NAME(LINE_SIZE);
     REG_NAME(LINE_END);
     REG_NAME(FONT_WRITE_INCR_Y);
     REG_NAME(FONT_WRITE_START);
+    REG_NAME(FIFO1);
+    REG_NAME(FIFO2);
     }
     return "";
 }
@@ -1028,16 +1041,20 @@ static void artist_reg_write(void *opaque, hwaddr addr, uint64_t val,
         combine_write_reg(addr, val, size, &s->transfer_data);
         break;
 
-    case 0x300200:
-        combine_write_reg(addr, val, size, &s->reg_300200);
+    case HORIZ_BACKPORCH:
+        combine_write_reg(addr, val, size, &s->horiz_backporch);
         break;
 
-    case 0x300208:
-        combine_write_reg(addr, val, size, &s->reg_300208);
+    case ACTIVE_LINES_LOW:
+        combine_write_reg(addr, val, size, &s->active_lines_low);
         break;
 
-    case 0x300218:
-        combine_write_reg(addr, val, size, &s->reg_300218);
+    case MISC_VIDEO:
+        combine_write_reg(addr, val, size, &s->misc_video);
+        break;
+
+    case MISC_CTRL:
+        combine_write_reg(addr, val, size, &s->misc_ctrl);
         break;
 
     case CURSOR_POS:
@@ -1122,12 +1139,11 @@ static uint64_t artist_reg_read(void *opaque, hwaddr addr, unsigned size)
     case 0x100000:
     case 0x300000:
     case 0x300004:
-    case 0x300308:
     case 0x380000:
         break;
 
-    case 0x300008:
-    case 0x380008:
+    case FIFO1:
+    case FIFO2:
         /*
          * FIFO ready flag. we're not emulating the FIFOs
          * so we're always ready
@@ -1135,16 +1151,25 @@ static uint64_t artist_reg_read(void *opaque, hwaddr addr, unsigned size)
         val = 0x10;
         break;
 
-    case 0x300200:
-        val = s->reg_300200;
+    case HORIZ_BACKPORCH:
+        val = s->horiz_backporch;
         break;
 
-    case 0x300208:
-        val = s->reg_300208;
+    case ACTIVE_LINES_LOW:
+        val = s->active_lines_low;
+        /* activeLinesLo for cursor is in reg20.b.b0 */
+        val |= ((s->height - 1) & 0xff);
         break;
 
-    case 0x300218:
-        val = s->reg_300218;
+    case MISC_VIDEO:
+        /* emulate V-blank */
+        val = s->misc_video ^ 0x00040000;
+        /* activeLinesHi for cursor is in reg21.b.b2 */
+        val |= ((s->height - 1) & 0xff00);
+        break;
+
+    case MISC_CTRL:
+        val = s->misc_ctrl;
         break;
 
     case 0x30023c:
@@ -1379,9 +1404,10 @@ static const VMStateDescription vmstate_artist = {
         VMSTATE_UINT32(cursor_width, ARTISTState),
         VMSTATE_UINT32(plane_mask, ARTISTState),
         VMSTATE_UINT32(reg_100080, ARTISTState),
-        VMSTATE_UINT32(reg_300200, ARTISTState),
-        VMSTATE_UINT32(reg_300208, ARTISTState),
-        VMSTATE_UINT32(reg_300218, ARTISTState),
+        VMSTATE_UINT32(horiz_backporch, ARTISTState),
+        VMSTATE_UINT32(active_lines_low, ARTISTState),
+        VMSTATE_UINT32(misc_video, ARTISTState),
+        VMSTATE_UINT32(misc_ctrl, ARTISTState),
         VMSTATE_UINT32(dst_bm_access, ARTISTState),
         VMSTATE_UINT32(src_bm_access, ARTISTState),
         VMSTATE_UINT32(control_plane, ARTISTState),
