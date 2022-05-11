@@ -201,6 +201,8 @@ static const char *artist_reg_name(uint64_t addr)
 }
 #undef REG_NAME
 
+static void artist_invalidate(void *opaque);
+
 /* artist has a fixed line length of 2048 bytes. */
 #define ADDR_TO_Y(addr) extract32(addr, 11, 11)
 #define ADDR_TO_X(addr) extract32(addr, 0, 11)
@@ -903,6 +905,7 @@ static void artist_reg_write(void *opaque, hwaddr addr, uint64_t val,
 {
     ARTISTState *s = opaque;
     int width, height;
+    uint64_t oldval;
 
     trace_artist_reg_write(size, addr, artist_reg_name(addr & ~3ULL), val);
 
@@ -1061,7 +1064,18 @@ static void artist_reg_write(void *opaque, hwaddr addr, uint64_t val,
         break;
 
     case MISC_VIDEO:
+        oldval = s->misc_video;
         combine_write_reg(addr, val, size, &s->misc_video);
+        /* Invalidate and hide screen if graphics signal is turned off. */
+        if (((oldval & 0x0A000000) == 0x0A000000) &&
+            ((val & 0x0A000000) != 0x0A000000)) {
+            artist_invalidate(s);
+        }
+        /* Invalidate and redraw screen if graphics signal is turned back on. */
+        if (((oldval & 0x0A000000) != 0x0A000000) &&
+            ((val & 0x0A000000) == 0x0A000000)) {
+            artist_invalidate(s);
+        }
         break;
 
     case MISC_CTRL:
@@ -1263,12 +1277,24 @@ static void artist_draw_cursor(ARTISTState *s)
     }
 }
 
+static bool artist_screen_enabled(ARTISTState *s)
+{
+    /*  We could check for (s->misc_ctrl & 0x00800000) too... */
+    return ((s->misc_video & 0x0A000000) == 0x0A000000);
+}
+
 static void artist_draw_line(void *opaque, uint8_t *d, const uint8_t *src,
                              int width, int pitch)
 {
     ARTISTState *s = ARTIST(opaque);
     uint32_t *cmap, *data = (uint32_t *)d;
     int x;
+
+    if (!artist_screen_enabled(s)) {
+        /* clear screen */
+        memset(data, 0, s->width * sizeof(uint32_t));
+        return;
+    }
 
     cmap = (uint32_t *)(s->vram_buffer[ARTIST_BUFFER_CMAP].data + 0x400);
 
@@ -1383,6 +1409,10 @@ static void artist_realizefn(DeviceState *dev, Error **errp)
      */
     s->image_bitmap_op = 0x23000300;
     s->plane_mask = 0xff;
+
+    /* enable screen */
+    s->misc_video |= 0x0A000000;
+    s->misc_ctrl  |= 0x00800000;
 
     s->con = graphic_console_init(dev, 0, &artist_ops, s);
     qemu_console_resize(s->con, s->width, s->height);
