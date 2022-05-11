@@ -47,4 +47,4 @@ struct NvramClass {
     void (*toggle_lock)(Nvram *obj, int lock);
 };
 
-#endif /* HW_M48T59_H */
+#endif /* HW_RTC_M48T59_H */

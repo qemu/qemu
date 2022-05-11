@@ -8,8 +8,8 @@
  *
  */
 
-#ifndef REMOTE_PCIHOST_H
-#define REMOTE_PCIHOST_H
+#ifndef PCI_HOST_REMOTE_H
+#define PCI_HOST_REMOTE_H
 
 #include "exec/memory.h"
 #include "hw/pci/pcie_host.h"

@@ -1,5 +1,5 @@
-#ifndef _TARGET_OS_SIGINFO_H_
-#define _TARGET_OS_SIGINFO_H_
+#ifndef TARGET_OS_SIGINFO_H
+#define TARGET_OS_SIGINFO_H
 
 #define TARGET_NSIG     32   /* counting 0; could be 33 (mask is 1-32) */
 #define TARGET_NSIG_BPW     (sizeof(uint32_t) * 8)
@@ -79,4 +79,4 @@ typedef union target_siginfo {
 #define TARGET_TRAP_TRACE   2
 
 
-#endif /* ! _TARGET_OS_SIGINFO_H_ */
+#endif /* TARGET_OS_SIGINFO_H */

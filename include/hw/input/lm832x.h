@@ -18,8 +18,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HW_INPUT_LM832X
-#define HW_INPUT_LM832X
+#ifndef HW_INPUT_LM832X_H
+#define HW_INPUT_LM832X_H
 
 #define TYPE_LM8323 "lm8323"
 

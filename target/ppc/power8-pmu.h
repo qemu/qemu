@@ -10,8 +10,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef POWER8_PMU
-#define POWER8_PMU
+#ifndef POWER8_PMU_H
+#define POWER8_PMU_H
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
 void cpu_ppc_pmu_init(CPUPPCState *env);

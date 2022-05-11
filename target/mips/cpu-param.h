@@ -5,7 +5,7 @@
  */
 
 #ifndef MIPS_CPU_PARAM_H
-#define MIPS_CPU_PARAM_H 1
+#define MIPS_CPU_PARAM_H
 
 #ifdef TARGET_MIPS64
 # define TARGET_LONG_BITS 64

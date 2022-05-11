@@ -16,8 +16,9 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _TARGET_ARCH_THREAD_H_
-#define _TARGET_ARCH_THREAD_H_
+
+#ifndef TARGET_ARCH_THREAD_H
+#define TARGET_ARCH_THREAD_H
 
 /* Compare to arm/arm/vm_machdep.c cpu_set_upcall_kse() */
 static inline void target_thread_set_upcall(CPUARMState *env, abi_ulong entry,
@@ -77,4 +78,4 @@ static inline void target_thread_init(struct target_pt_regs *regs,
      */
 }
 
-#endif /* !_TARGET_ARCH_THREAD_H_ */
+#endif /* TARGET_ARCH_THREAD_H */

@@ -21,8 +21,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HW_RX_RX62N_MCU_H
-#define HW_RX_RX62N_MCU_H
+#ifndef HW_RX_RX62N_H
+#define HW_RX_RX62N_H
 
 #include "target/rx/cpu.h"
 #include "hw/intc/rx_icu.h"

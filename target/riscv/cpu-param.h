@@ -6,7 +6,7 @@
  */
 
 #ifndef RISCV_CPU_PARAM_H
-#define RISCV_CPU_PARAM_H 1
+#define RISCV_CPU_PARAM_H
 
 #if defined(TARGET_RISCV64)
 # define TARGET_LONG_BITS 64

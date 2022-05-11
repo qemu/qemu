@@ -12,8 +12,8 @@
  * the COPYING file in the top-level directory.
  */
 
-#ifndef BLOCK_HMP_COMMANDS_H
-#define BLOCK_HMP_COMMANDS_H
+#ifndef BLOCK_BLOCK_HMP_CMDS_H
+#define BLOCK_BLOCK_HMP_CMDS_H
 
 void hmp_drive_add(Monitor *mon, const QDict *qdict);
 

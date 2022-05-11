@@ -101,4 +101,4 @@ struct AwSun8iEmacState {
 
 };
 
-#endif /* HW_NET_ALLWINNER_SUN8I_H */
+#endif /* HW_NET_ALLWINNER_SUN8I_EMAC_H */

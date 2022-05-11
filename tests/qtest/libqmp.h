@@ -14,8 +14,9 @@
  * See the COPYING file in the top-level directory.
  *
  */
-#ifndef LIBQMP_H_
-#define LIBQMP_H_
+
+#ifndef LIBQMP_H
+#define LIBQMP_H
 
 #include "qapi/qmp/qdict.h"
 
@@ -47,4 +48,4 @@ bool qmp_rsp_is_err(QDict *rsp);
  */
 void qmp_expect_error_and_unref(QDict *rsp, const char *class);
 
-#endif /* LIBQMP_H_ */
+#endif /* LIBQMP_H */

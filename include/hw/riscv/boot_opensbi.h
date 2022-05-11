@@ -4,8 +4,9 @@
  *
  * Based on include/sbi/{fw_dynamic.h,sbi_scratch.h} from the OpenSBI project.
  */
-#ifndef OPENSBI_H
-#define OPENSBI_H
+
+#ifndef RISCV_BOOT_OPENSBI_H
+#define RISCV_BOOT_OPENSBI_H
 
 /** Expected value of info magic ('OSBI' ascii string in hex) */
 #define FW_DYNAMIC_INFO_MAGIC_VALUE     0x4942534f

@@ -11,8 +11,8 @@
  *
  */
 
-#ifndef QEMU_SEV_I386_H
-#define QEMU_SEV_I386_H
+#ifndef I386_SEV_H
+#define I386_SEV_H
 
 #ifndef CONFIG_USER_ONLY
 #include CONFIG_DEVICES /* CONFIG_SEV */

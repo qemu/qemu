@@ -56,8 +56,8 @@
  *
  */
 
-#ifndef HW_ACPI_GED_H
-#define HW_ACPI_GED_H
+#ifndef HW_ACPI_GENERIC_EVENT_DEVICE_H
+#define HW_ACPI_GENERIC_EVENT_DEVICE_H
 
 #include "hw/sysbus.h"
 #include "hw/acpi/memory_hotplug.h"

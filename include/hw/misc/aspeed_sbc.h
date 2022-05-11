@@ -29,4 +29,4 @@ struct AspeedSBCClass {
     SysBusDeviceClass parent_class;
 };
 
-#endif /* _ASPEED_SBC_H_ */
+#endif /* ASPEED_SBC_H */

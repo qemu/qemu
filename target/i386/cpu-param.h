@@ -6,7 +6,7 @@
  */
 
 #ifndef I386_CPU_PARAM_H
-#define I386_CPU_PARAM_H 1
+#define I386_CPU_PARAM_H
 
 #ifdef TARGET_X86_64
 # define TARGET_LONG_BITS             64

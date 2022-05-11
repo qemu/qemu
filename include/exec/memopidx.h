@@ -9,7 +9,7 @@
  */
 
 #ifndef EXEC_MEMOPIDX_H
-#define EXEC_MEMOPIDX_H 1
+#define EXEC_MEMOPIDX_H
 
 #include "exec/memop.h"
 

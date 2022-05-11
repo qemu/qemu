@@ -16,8 +16,9 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _TARGET_OS_ELF_H_
-#define _TARGET_OS_ELF_H_
+
+#ifndef TARGET_OS_ELF_H
+#define TARGET_OS_ELF_H
 
 #include "target_arch_elf.h"
 #include "elf.h"
@@ -134,4 +135,4 @@ static abi_ulong target_create_elf_tables(abi_ulong p, int argc, int envc,
         return sp;
 }
 
-#endif /* _TARGET_OS_ELF_H_ */
+#endif /* TARGET_OS_ELF_H */

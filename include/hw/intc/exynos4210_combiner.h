@@ -20,8 +20,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HW_INTC_EXYNOS4210_COMBINER
-#define HW_INTC_EXYNOS4210_COMBINER
+#ifndef HW_INTC_EXYNOS4210_COMBINER_H
+#define HW_INTC_EXYNOS4210_COMBINER_H
 
 #include "hw/sysbus.h"
 

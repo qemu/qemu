@@ -6,8 +6,10 @@
  * This code is licensed under the GPL version 2 or later. See the
  * COPYING file in the top-level directory.
  */
-#ifndef _PPC_PNV_PNOR_H
-#define _PPC_PNV_PNOR_H
+
+#ifndef PPC_PNV_PNOR_H
+#define PPC_PNV_PNOR_H
+
 #include "qom/object.h"
 
 /*
@@ -28,4 +30,4 @@ struct PnvPnor {
     MemoryRegion   mmio;
 };
 
-#endif /* _PPC_PNV_PNOR_H */
+#endif /* PPC_PNV_PNOR_H */

@@ -21,8 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef UI_DBUS_H_
-#define UI_DBUS_H_
+
+#ifndef UI_DBUS_H
+#define UI_DBUS_H
 
 #include "chardev/char-socket.h"
 #include "qemu/dbus.h"
@@ -144,4 +145,4 @@ void dbus_chardev_init(DBusDisplay *dpy);
 
 void dbus_clipboard_init(DBusDisplay *dpy);
 
-#endif /* UI_DBUS_H_ */
+#endif /* UI_DBUS_H */

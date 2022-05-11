@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef HW_MISC_CPRMAN_INTERNALS_H
-#define HW_MISC_CPRMAN_INTERNALS_H
+#ifndef HW_MISC_BCM2835_CPRMAN_INTERNALS_H
+#define HW_MISC_BCM2835_CPRMAN_INTERNALS_H
 
 #include "hw/registerfields.h"
 #include "hw/misc/bcm2835_cprman.h"

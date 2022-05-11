@@ -16,8 +16,9 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _TARGET_ARCH_SIGNAL_H_
-#define _TARGET_ARCH_SIGNAL_H_
+
+#ifndef TARGET_ARCH_SIGNAL_H
+#define TARGET_ARCH_SIGNAL_H
 
 #include "cpu.h"
 
@@ -85,4 +86,4 @@ struct target_sigframe {
     target_mcontext_vfp_t sf_vfp; /* actual saved VFP context */
 };
 
-#endif /* !_TARGET_ARCH_SIGNAL_H_ */
+#endif /* TARGET_ARCH_SIGNAL_H */

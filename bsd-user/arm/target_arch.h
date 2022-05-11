@@ -17,12 +17,12 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _TARGET_ARCH_H_
-#define _TARGET_ARCH_H_
+#ifndef TARGET_ARCH_H
+#define TARGET_ARCH_H
 
 #include "qemu.h"
 
 void target_cpu_set_tls(CPUARMState *env, target_ulong newtls);
 target_ulong target_cpu_get_tls(CPUARMState *env);
 
-#endif /* !_TARGET_ARCH_H_ */
+#endif /* TARGET_ARCH_H */

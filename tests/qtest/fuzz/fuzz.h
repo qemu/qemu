@@ -11,8 +11,8 @@
  *
  */
 
-#ifndef FUZZER_H_
-#define FUZZER_H_
+#ifndef QTEST_FUZZ_H
+#define QTEST_FUZZ_H
 
 #include "qemu/units.h"
 #include "qapi/error.h"
@@ -122,4 +122,3 @@ int LLVMFuzzerTestOneInput(const unsigned char *Data, size_t Size);
 int LLVMFuzzerInitialize(int *argc, char ***argv, char ***envp);
 
 #endif
-

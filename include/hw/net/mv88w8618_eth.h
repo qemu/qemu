@@ -4,8 +4,9 @@
  *
  * Copyright (c) 2008-2021 QEMU contributors
  */
-#ifndef HW_NET_MV88W8618_H
-#define HW_NET_MV88W8618_H
+
+#ifndef HW_NET_MV88W8618_ETH_H
+#define HW_NET_MV88W8618_ETH_H
 
 #define TYPE_MV88W8618_ETH "mv88w8618_eth"
 

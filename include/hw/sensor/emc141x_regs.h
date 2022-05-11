@@ -9,8 +9,8 @@
  * later. See the COPYING file in the top-level directory.
  */
 
-#ifndef TMP105_REGS_H
-#define TMP105_REGS_H
+#ifndef EMC141X_REGS_H
+#define EMC141X_REGS_H
 
 #define EMC1413_DEVICE_ID                0x21
 #define EMC1414_DEVICE_ID                0x25

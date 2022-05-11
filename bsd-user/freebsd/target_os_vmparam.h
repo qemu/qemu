@@ -16,8 +16,9 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _TARGET_OS_VMPARAM_H_
-#define _TARGET_OS_VMPARAM_H_
+
+#ifndef TARGET_OS_VMPARAM_H
+#define TARGET_OS_VMPARAM_H
 
 #include "target_arch_vmparam.h"
 
@@ -35,4 +36,4 @@ extern abi_ulong target_stksiz;
 #define TARGET_PS_STRINGS  ((target_stkbas + target_stksiz) - \
                             sizeof(struct target_ps_strings))
 
-#endif /* !TARGET_OS_VMPARAM_H_ */
+#endif /* TARGET_OS_VMPARAM_H */

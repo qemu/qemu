@@ -6,7 +6,7 @@
  */
 
 #ifndef MICROBLAZE_CPU_PARAM_H
-#define MICROBLAZE_CPU_PARAM_H 1
+#define MICROBLAZE_CPU_PARAM_H
 
 /*
  * While system mode can address up to 64 bits of address space,

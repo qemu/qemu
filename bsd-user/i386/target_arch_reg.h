@@ -18,8 +18,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _TARGET_ARCH_REG_H_
-#define _TARGET_ARCH_REG_H_
+#ifndef TARGET_ARCH_REG_H
+#define TARGET_ARCH_REG_H
 
 /* See sys/i386/include/reg.h */
 typedef struct target_reg {
@@ -79,4 +79,4 @@ static inline void target_copy_regs(target_reg_t *regs, const CPUX86State *env)
     regs->r_gs = env->segs[R_GS].selector & 0xffff;
 }
 
-#endif /* !_TARGET_ARCH_REG_H_ */
+#endif /* TARGET_ARCH_REG_H */

@@ -6,7 +6,7 @@
  */
 
 #ifndef ALPHA_CPU_PARAM_H
-#define ALPHA_CPU_PARAM_H 1
+#define ALPHA_CPU_PARAM_H
 
 #define TARGET_LONG_BITS 64
 #define TARGET_PAGE_BITS 13

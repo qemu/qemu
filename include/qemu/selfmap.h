@@ -41,4 +41,4 @@ GSList *read_self_maps(void);
  */
 void free_self_maps(GSList *info);
 
-#endif /* _SELFMAP_H_ */
+#endif /* SELFMAP_H */

@@ -247,4 +247,4 @@ bool avr_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 
 #include "exec/cpu-all.h"
 
-#endif /* !defined (QEMU_AVR_CPU_H) */
+#endif /* QEMU_AVR_CPU_H */

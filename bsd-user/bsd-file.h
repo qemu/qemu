@@ -17,8 +17,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BSD_FILE_H_
-#define BSD_FILE_H_
+#ifndef BSD_FILE_H
+#define BSD_FILE_H
 
 #include "qemu/path.h"
 
@@ -27,4 +27,4 @@ extern struct iovec *lock_iovec(int type, abi_ulong target_addr, int count,
 extern void unlock_iovec(struct iovec *vec, abi_ulong target_addr, int count,
         int copy);
 
-#endif /* !BSD_FILE_H_ */
+#endif /* BSD_FILE_H */

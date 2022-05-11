@@ -7,8 +7,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef NVMM_CPUS_H
-#define NVMM_CPUS_H
+#ifndef TARGET_I386_NVMM_ACCEL_OPS_H
+#define TARGET_I386_NVMM_ACCEL_OPS_H
 
 #include "sysemu/cpus.h"
 
@@ -21,4 +21,4 @@ void nvmm_cpu_synchronize_post_reset(CPUState *cpu);
 void nvmm_cpu_synchronize_post_init(CPUState *cpu);
 void nvmm_cpu_synchronize_pre_loadvm(CPUState *cpu);
 
-#endif /* NVMM_CPUS_H */
+#endif /* TARGET_I386_NVMM_ACCEL_OPS_H */

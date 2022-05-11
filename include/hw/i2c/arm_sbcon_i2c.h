@@ -9,8 +9,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-#ifndef HW_I2C_ARM_SBCON_H
-#define HW_I2C_ARM_SBCON_H
+
+#ifndef HW_I2C_ARM_SBCON_I2C_H
+#define HW_I2C_ARM_SBCON_I2C_H
 
 #include "hw/sysbus.h"
 #include "hw/i2c/bitbang_i2c.h"
@@ -34,4 +35,4 @@ struct ArmSbconI2CState {
     int in;
 };
 
-#endif /* HW_I2C_ARM_SBCON_H */
+#endif /* HW_I2C_ARM_SBCON_I2C_H */

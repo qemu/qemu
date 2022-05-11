@@ -32,8 +32,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef HW_INTC_NIOS2_VIC
-#define HW_INTC_NIOS2_VIC
+#ifndef HW_INTC_NIOS2_VIC_H
+#define HW_INTC_NIOS2_VIC_H
 
 #define TYPE_NIOS2_VIC "nios2-vic"
 OBJECT_DECLARE_SIMPLE_TYPE(Nios2VIC, NIOS2_VIC)
@@ -61,4 +61,4 @@ struct Nios2VIC {
     uint32_t vec_tbl_addr;
 };
 
-#endif /* HW_INTC_NIOS2_VIC */
+#endif /* HW_INTC_NIOS2_VIC_H */

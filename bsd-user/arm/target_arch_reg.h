@@ -17,8 +17,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _TARGET_ARCH_REG_H_
-#define _TARGET_ARCH_REG_H_
+#ifndef TARGET_ARCH_REG_H
+#define TARGET_ARCH_REG_H
 
 /* See sys/arm/include/reg.h */
 typedef struct target_reg {
@@ -57,4 +57,4 @@ static inline void target_copy_regs(target_reg_t *regs, const CPUARMState *env)
 
 #undef tswapreg
 
-#endif /* !_TARGET_ARCH_REG_H_ */
+#endif /* TARGET_ARCH_REG_H */

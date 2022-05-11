@@ -32,4 +32,4 @@ extern DECLARE_BITMAP(opcode_attribs[XX_LAST_OPCODE], A_ZZ_LASTATTRIB);
 #define GET_ATTRIB(opcode, attrib) \
     test_bit(attrib, opcode_attribs[opcode])
 
-#endif /* ATTRIBS_H */
+#endif /* HEXAGON_ATTRIBS_H */

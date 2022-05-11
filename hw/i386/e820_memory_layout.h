@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-#ifndef HW_I386_E820_H
-#define HW_I386_E820_H
+#ifndef HW_I386_E820_MEMORY_LAYOUT_H
+#define HW_I386_E820_MEMORY_LAYOUT_H
 
 /* e820 types */
 #define E820_RAM        1

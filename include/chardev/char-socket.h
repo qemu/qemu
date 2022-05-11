@@ -21,8 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef CHAR_SOCKET_H_
-#define CHAR_SOCKET_H_
+
+#ifndef CHAR_SOCKET_H
+#define CHAR_SOCKET_H
 
 #include "io/channel-socket.h"
 #include "io/channel-tls.h"
@@ -83,4 +84,4 @@ typedef struct SocketChardev SocketChardev;
 DECLARE_INSTANCE_CHECKER(SocketChardev, SOCKET_CHARDEV,
                          TYPE_CHARDEV_SOCKET)
 
-#endif /* CHAR_SOCKET_H_ */
+#endif /* CHAR_SOCKET_H */

@@ -10,8 +10,8 @@
  * or later.  See the COPYING.LIB file in the top-level directory.
  */
 
-#ifndef BLOCK_BACKEND_GS_H
-#define BLOCK_BACKEND_GS_H
+#ifndef BLOCK_BACKEND_GLOBAL_STATE_H
+#define BLOCK_BACKEND_GLOBAL_STATE_H
 
 #include "block-backend-common.h"
 
@@ -113,4 +113,4 @@ const BdrvChild *blk_root(BlockBackend *blk);
 
 int blk_make_empty(BlockBackend *blk, Error **errp);
 
-#endif /* BLOCK_BACKEND_GS_H */
+#endif /* BLOCK_BACKEND_GLOBAL_STATE_H */

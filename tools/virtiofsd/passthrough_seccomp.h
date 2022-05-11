@@ -6,10 +6,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef VIRTIOFSD_SECCOMP_H
-#define VIRTIOFSD_SECCOMP_H
-
+#ifndef VIRTIOFSD_PASSTHROUGH_SECCOMP_H
+#define VIRTIOFSD_PASSTHROUGH_SECCOMP_H
 
 void setup_seccomp(bool enable_syslog);
 
-#endif /* VIRTIOFSD_SECCOMP_H */
+#endif /* VIRTIOFSD_PASSTHROUGH_SECCOMP_H */

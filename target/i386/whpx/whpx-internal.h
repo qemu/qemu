@@ -1,5 +1,5 @@
-#ifndef WHP_INTERNAL_H
-#define WHP_INTERNAL_H
+#ifndef TARGET_I386_WHPX_INTERNAL_H
+#define TARGET_I386_WHPX_INTERNAL_H
 
 #include <windows.h>
 #include <WinHvPlatform.h>
@@ -116,4 +116,4 @@ typedef enum WHPFunctionList {
     WINHV_PLATFORM_FNS_SUPPLEMENTAL
 } WHPFunctionList;
 
-#endif /* WHP_INTERNAL_H */
+#endif /* TARGET_I386_WHPX_INTERNAL_H */

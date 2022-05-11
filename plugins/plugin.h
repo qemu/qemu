@@ -9,8 +9,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef PLUGIN_INTERNAL_H
-#define PLUGIN_INTERNAL_H
+#ifndef PLUGIN_H
+#define PLUGIN_H
 
 #include <gmodule.h>
 #include "qemu/qht.h"
@@ -97,4 +97,4 @@ void plugin_register_vcpu_mem_cb(GArray **arr,
 
 void exec_inline_op(struct qemu_plugin_dyn_cb *cb);
 
-#endif /* _PLUGIN_INTERNAL_H_ */
+#endif /* PLUGIN_H */

@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef BLOCK_COROUTINES_INT_H
-#define BLOCK_COROUTINES_INT_H
+#ifndef BLOCK_COROUTINES_H
+#define BLOCK_COROUTINES_H
 
 #include "block/block_int.h"
 
@@ -129,4 +129,4 @@ blk_do_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes);
 
 int generated_co_wrapper blk_do_flush(BlockBackend *blk);
 
-#endif /* BLOCK_COROUTINES_INT_H */
+#endif /* BLOCK_COROUTINES_H */

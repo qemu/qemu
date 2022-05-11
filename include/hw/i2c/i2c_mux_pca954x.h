@@ -1,5 +1,5 @@
-#ifndef QEMU_I2C_MUX_PCA954X
-#define QEMU_I2C_MUX_PCA954X
+#ifndef QEMU_I2C_MUX_PCA954X_H
+#define QEMU_I2C_MUX_PCA954X_H
 
 #include "hw/i2c/i2c.h"
 

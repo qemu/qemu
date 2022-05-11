@@ -1,5 +1,5 @@
-#ifndef DBUS_DISPLAY_H_
-#define DBUS_DISPLAY_H_
+#ifndef DBUS_DISPLAY_H
+#define DBUS_DISPLAY_H
 
 #include "qapi/error.h"
 #include "ui/dbus-module.h"
@@ -14,4 +14,4 @@ static inline bool qemu_using_dbus_display(Error **errp)
     return true;
 }
 
-#endif /* DBUS_DISPLAY_H_ */
+#endif /* DBUS_DISPLAY_H */
