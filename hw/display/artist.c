@@ -337,10 +337,11 @@ static void artist_get_cursor_pos(ARTISTState *s, int *x, int *y)
     }
     *x = (lx - offset) / 2;
 
-    *y = 1146 - artist_get_y(s->cursor_pos);
-
     /* subtract cursor offset from cursor control register */
     *x -= (s->cursor_cntrl & 0xf0) >> 4;
+
+    /* height minus nOffscreenScanlines is stored in cursor control register */
+    *y = s->height - artist_get_y(s->cursor_pos);
     *y -= (s->cursor_cntrl & 0x0f);
 
     if (*x > s->width) {
@@ -1158,14 +1159,17 @@ static uint64_t artist_reg_read(void *opaque, hwaddr addr, unsigned size)
     case ACTIVE_LINES_LOW:
         val = s->active_lines_low;
         /* activeLinesLo for cursor is in reg20.b.b0 */
-        val |= ((s->height - 1) & 0xff);
+        val &= ~(0xff << 24);
+        val |= (s->height & 0xff) << 24;
         break;
 
     case MISC_VIDEO:
         /* emulate V-blank */
-        val = s->misc_video ^ 0x00040000;
+        s->misc_video ^= 0x00040000;
         /* activeLinesHi for cursor is in reg21.b.b2 */
-        val |= ((s->height - 1) & 0xff00);
+        val = s->misc_video;
+        val &= ~0xff00UL;
+        val |= (s->height & 0xff00);
         break;
 
     case MISC_CTRL:
