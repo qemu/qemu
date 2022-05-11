@@ -30,6 +30,12 @@
 
 #define TCG_GUEST_DEFAULT_MO 0
 
+/*
+ * RISC-V-specific extra insn start words:
+ * 1: Original instruction opcode
+ */
+#define TARGET_INSN_START_EXTRA_WORDS 1
+
 #define TYPE_RISCV_CPU "riscv-cpu"
 
 #define RISCV_CPU_TYPE_SUFFIX "-" TYPE_RISCV_CPU
@@ -140,7 +146,7 @@ struct CPUArchState {
     target_ulong frm;
 
     target_ulong badaddr;
-    uint32_t bins;
+    target_ulong bins;
 
     target_ulong guest_phys_fault_addr;
 

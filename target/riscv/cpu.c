@@ -406,6 +406,7 @@ void restore_state_to_opc(CPURISCVState *env, TranslationBlock *tb,
     } else {
         env->pc = data[0];
     }
+    env->bins = data[1];
 }
 
 static void riscv_cpu_reset(DeviceState *dev)
@@ -445,6 +446,7 @@ static void riscv_cpu_reset(DeviceState *dev)
     env->mcause = 0;
     env->miclaim = MIP_SGEIP;
     env->pc = env->resetvec;
+    env->bins = 0;
     env->two_stage_lookup = false;
 
     /* Initialized default priorities of local interrupts. */
