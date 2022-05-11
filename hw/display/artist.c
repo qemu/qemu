@@ -98,6 +98,9 @@ struct ARTISTState {
     int draw_line_pattern;
 };
 
+/* hardware allows up to 64x64, but we emulate 32x32 only. */
+#define NGLE_MAX_SPRITE_SIZE    32
+
 typedef enum {
     ARTIST_BUFFER_AP = 1,
     ARTIST_BUFFER_OVERLAY = 2,
@@ -1325,11 +1328,10 @@ static void artist_realizefn(DeviceState *dev, Error **errp)
     framebuffer_update_memory_section(&s->fbsection, &buf->mr, 0,
                                       buf->width, buf->height);
     /*
-     * no idea whether the cursor is fixed size or not, so assume 32x32 which
-     * seems sufficient for HP-UX X11.
+     * Artist cursor max size
      */
-    s->cursor_height = 32;
-    s->cursor_width = 32;
+    s->cursor_height = NGLE_MAX_SPRITE_SIZE;
+    s->cursor_width = NGLE_MAX_SPRITE_SIZE;
 
     /*
      * These two registers are not initialized by seabios's STI implementation.
