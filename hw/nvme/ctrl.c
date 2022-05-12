@@ -6167,6 +6167,7 @@ static void nvme_ctrl_reset(NvmeCtrl *n, NvmeResetType rst)
     }
 
     n->aer_queued = 0;
+    n->aer_mask = 0;
     n->outstanding_aers = 0;
     n->qs_created = false;
 
