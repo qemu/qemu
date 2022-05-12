@@ -787,6 +787,36 @@ static uint64_t icv_iar_read(CPUARMState *env, const ARMCPRegInfo *ri)
     return intid;
 }
 
+static uint32_t icc_fullprio_mask(GICv3CPUState *cs)
+{
+    /*
+     * Return a mask word which clears the unimplemented priority bits
+     * from a priority value for a physical interrupt. (Not to be confused
+     * with the group priority, whose mask depends on the value of BPR
+     * for the interrupt group.)
+     */
+    return ~0U << (8 - cs->pribits);
+}
+
+static inline int icc_min_bpr(GICv3CPUState *cs)
+{
+    /* The minimum BPR for the physical interface. */
+    return 7 - cs->prebits;
+}
+
+static inline int icc_min_bpr_ns(GICv3CPUState *cs)
+{
+    return icc_min_bpr(cs) + 1;
+}
+
+static inline int icc_num_aprs(GICv3CPUState *cs)
+{
+    /* Return the number of APR registers (1, 2, or 4) */
+    int aprmax = 1 << MAX(cs->prebits - 5, 0);
+    assert(aprmax <= ARRAY_SIZE(cs->icc_apr[0]));
+    return aprmax;
+}
+
 static int icc_highest_active_prio(GICv3CPUState *cs)
 {
     /* Calculate the current running priority based on the set bits
@@ -794,14 +824,14 @@ static int icc_highest_active_prio(GICv3CPUState *cs)
      */
     int i;
 
-    for (i = 0; i < ARRAY_SIZE(cs->icc_apr[0]); i++) {
+    for (i = 0; i < icc_num_aprs(cs); i++) {
         uint32_t apr = cs->icc_apr[GICV3_G0][i] |
             cs->icc_apr[GICV3_G1][i] | cs->icc_apr[GICV3_G1NS][i];
 
         if (!apr) {
             continue;
         }
-        return (i * 32 + ctz32(apr)) << (GIC_MIN_BPR + 1);
+        return (i * 32 + ctz32(apr)) << (icc_min_bpr(cs) + 1);
     }
     /* No current active interrupts: return idle priority */
     return 0xff;
@@ -980,7 +1010,7 @@ static void icc_pmr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     trace_gicv3_icc_pmr_write(gicv3_redist_affid(cs), value);
 
-    value &= 0xff;
+    value &= icc_fullprio_mask(cs);
 
     if (arm_feature(env, ARM_FEATURE_EL3) && !arm_is_secure(env) &&
         (env->cp15.scr_el3 & SCR_FIQ)) {
@@ -1004,7 +1034,7 @@ static void icc_activate_irq(GICv3CPUState *cs, int irq)
      */
     uint32_t mask = icc_gprio_mask(cs, cs->hppi.grp);
     int prio = cs->hppi.prio & mask;
-    int aprbit = prio >> 1;
+    int aprbit = prio >> (8 - cs->prebits);
     int regno = aprbit / 32;
     int regbit = aprbit % 32;
 
@@ -1162,7 +1192,7 @@ static void icc_drop_prio(GICv3CPUState *cs, int grp)
      */
     int i;
 
-    for (i = 0; i < ARRAY_SIZE(cs->icc_apr[grp]); i++) {
+    for (i = 0; i < icc_num_aprs(cs); i++) {
         uint64_t *papr = &cs->icc_apr[grp][i];
 
         if (!*papr) {
@@ -1590,7 +1620,7 @@ static void icc_bpr_write(CPUARMState *env, const ARMCPRegInfo *ri,
         return;
     }
 
-    minval = (grp == GICV3_G1NS) ? GIC_MIN_BPR_NS : GIC_MIN_BPR;
+    minval = (grp == GICV3_G1NS) ? icc_min_bpr_ns(cs) : icc_min_bpr(cs);
     if (value < minval) {
         value = minval;
     }
@@ -2171,19 +2201,19 @@ static void icc_reset(CPUARMState *env, const ARMCPRegInfo *ri)
 
     cs->icc_ctlr_el1[GICV3_S] = ICC_CTLR_EL1_A3V |
         (1 << ICC_CTLR_EL1_IDBITS_SHIFT) |
-        (7 << ICC_CTLR_EL1_PRIBITS_SHIFT);
+        ((cs->pribits - 1) << ICC_CTLR_EL1_PRIBITS_SHIFT);
     cs->icc_ctlr_el1[GICV3_NS] = ICC_CTLR_EL1_A3V |
         (1 << ICC_CTLR_EL1_IDBITS_SHIFT) |
-        (7 << ICC_CTLR_EL1_PRIBITS_SHIFT);
+        ((cs->pribits - 1) << ICC_CTLR_EL1_PRIBITS_SHIFT);
     cs->icc_pmr_el1 = 0;
-    cs->icc_bpr[GICV3_G0] = GIC_MIN_BPR;
-    cs->icc_bpr[GICV3_G1] = GIC_MIN_BPR;
-    cs->icc_bpr[GICV3_G1NS] = GIC_MIN_BPR_NS;
+    cs->icc_bpr[GICV3_G0] = icc_min_bpr(cs);
+    cs->icc_bpr[GICV3_G1] = icc_min_bpr(cs);
+    cs->icc_bpr[GICV3_G1NS] = icc_min_bpr_ns(cs);
     memset(cs->icc_apr, 0, sizeof(cs->icc_apr));
     memset(cs->icc_igrpen, 0, sizeof(cs->icc_igrpen));
     cs->icc_ctlr_el3 = ICC_CTLR_EL3_NDS | ICC_CTLR_EL3_A3V |
         (1 << ICC_CTLR_EL3_IDBITS_SHIFT) |
-        (7 << ICC_CTLR_EL3_PRIBITS_SHIFT);
+        ((cs->pribits - 1) << ICC_CTLR_EL3_PRIBITS_SHIFT);
 
     memset(cs->ich_apr, 0, sizeof(cs->ich_apr));
     cs->ich_hcr_el2 = 0;
@@ -2238,51 +2268,9 @@ static const ARMCPRegInfo gicv3_cpuif_reginfo[] = {
       .readfn = icc_ap_read,
       .writefn = icc_ap_write,
     },
-    { .name = "ICC_AP0R1_EL1", .state = ARM_CP_STATE_BOTH,
-      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 8, .opc2 = 5,
-      .type = ARM_CP_IO | ARM_CP_NO_RAW,
-      .access = PL1_RW, .accessfn = gicv3_fiq_access,
-      .readfn = icc_ap_read,
-      .writefn = icc_ap_write,
-    },
-    { .name = "ICC_AP0R2_EL1", .state = ARM_CP_STATE_BOTH,
-      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 8, .opc2 = 6,
-      .type = ARM_CP_IO | ARM_CP_NO_RAW,
-      .access = PL1_RW, .accessfn = gicv3_fiq_access,
-      .readfn = icc_ap_read,
-      .writefn = icc_ap_write,
-    },
-    { .name = "ICC_AP0R3_EL1", .state = ARM_CP_STATE_BOTH,
-      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 8, .opc2 = 7,
-      .type = ARM_CP_IO | ARM_CP_NO_RAW,
-      .access = PL1_RW, .accessfn = gicv3_fiq_access,
-      .readfn = icc_ap_read,
-      .writefn = icc_ap_write,
-    },
     /* All the ICC_AP1R*_EL1 registers are banked */
     { .name = "ICC_AP1R0_EL1", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 9, .opc2 = 0,
-      .type = ARM_CP_IO | ARM_CP_NO_RAW,
-      .access = PL1_RW, .accessfn = gicv3_irq_access,
-      .readfn = icc_ap_read,
-      .writefn = icc_ap_write,
-    },
-    { .name = "ICC_AP1R1_EL1", .state = ARM_CP_STATE_BOTH,
-      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 9, .opc2 = 1,
-      .type = ARM_CP_IO | ARM_CP_NO_RAW,
-      .access = PL1_RW, .accessfn = gicv3_irq_access,
-      .readfn = icc_ap_read,
-      .writefn = icc_ap_write,
-    },
-    { .name = "ICC_AP1R2_EL1", .state = ARM_CP_STATE_BOTH,
-      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 9, .opc2 = 2,
-      .type = ARM_CP_IO | ARM_CP_NO_RAW,
-      .access = PL1_RW, .accessfn = gicv3_irq_access,
-      .readfn = icc_ap_read,
-      .writefn = icc_ap_write,
-    },
-    { .name = "ICC_AP1R3_EL1", .state = ARM_CP_STATE_BOTH,
-      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 9, .opc2 = 3,
       .type = ARM_CP_IO | ARM_CP_NO_RAW,
       .access = PL1_RW, .accessfn = gicv3_irq_access,
       .readfn = icc_ap_read,
@@ -2427,6 +2415,54 @@ static const ARMCPRegInfo gicv3_cpuif_reginfo[] = {
       .access = PL3_RW,
       .readfn = icc_igrpen1_el3_read,
       .writefn = icc_igrpen1_el3_write,
+    },
+};
+
+static const ARMCPRegInfo gicv3_cpuif_icc_apxr1_reginfo[] = {
+    { .name = "ICC_AP0R1_EL1", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 8, .opc2 = 5,
+      .type = ARM_CP_IO | ARM_CP_NO_RAW,
+      .access = PL1_RW, .accessfn = gicv3_fiq_access,
+      .readfn = icc_ap_read,
+      .writefn = icc_ap_write,
+    },
+    { .name = "ICC_AP1R1_EL1", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 9, .opc2 = 1,
+      .type = ARM_CP_IO | ARM_CP_NO_RAW,
+      .access = PL1_RW, .accessfn = gicv3_irq_access,
+      .readfn = icc_ap_read,
+      .writefn = icc_ap_write,
+    },
+};
+
+static const ARMCPRegInfo gicv3_cpuif_icc_apxr23_reginfo[] = {
+    { .name = "ICC_AP0R2_EL1", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 8, .opc2 = 6,
+      .type = ARM_CP_IO | ARM_CP_NO_RAW,
+      .access = PL1_RW, .accessfn = gicv3_fiq_access,
+      .readfn = icc_ap_read,
+      .writefn = icc_ap_write,
+    },
+    { .name = "ICC_AP0R3_EL1", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 8, .opc2 = 7,
+      .type = ARM_CP_IO | ARM_CP_NO_RAW,
+      .access = PL1_RW, .accessfn = gicv3_fiq_access,
+      .readfn = icc_ap_read,
+      .writefn = icc_ap_write,
+    },
+    { .name = "ICC_AP1R2_EL1", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 9, .opc2 = 2,
+      .type = ARM_CP_IO | ARM_CP_NO_RAW,
+      .access = PL1_RW, .accessfn = gicv3_irq_access,
+      .readfn = icc_ap_read,
+      .writefn = icc_ap_write,
+    },
+    { .name = "ICC_AP1R3_EL1", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 9, .opc2 = 3,
+      .type = ARM_CP_IO | ARM_CP_NO_RAW,
+      .access = PL1_RW, .accessfn = gicv3_irq_access,
+      .readfn = icc_ap_read,
+      .writefn = icc_ap_write,
     },
 };
 
@@ -2772,6 +2808,44 @@ void gicv3_init_cpuif(GICv3State *s)
          * get back to the GICv3CPUState from the CPUARMState.
          */
         define_arm_cp_regs(cpu, gicv3_cpuif_reginfo);
+
+        /*
+         * For the moment, retain the existing behaviour of 8 priority bits;
+         * in a following commit we will take this from the CPU state,
+         * as we do for the virtual priority bits.
+         */
+        cs->pribits = 8;
+        /*
+         * The GICv3 has separate ID register fields for virtual priority
+         * and preemption bit values, but only a single ID register field
+         * for the physical priority bits. The preemption bit count is
+         * always the same as the priority bit count, except that 8 bits
+         * of priority means 7 preemption bits. We precalculate the
+         * preemption bits because it simplifies the code and makes the
+         * parallels between the virtual and physical bits of the GIC
+         * a bit clearer.
+         */
+        cs->prebits = cs->pribits;
+        if (cs->prebits == 8) {
+            cs->prebits--;
+        }
+        /*
+         * Check that CPU code defining pribits didn't violate
+         * architectural constraints our implementation relies on.
+         */
+        g_assert(cs->pribits >= 4 && cs->pribits <= 8);
+
+        /*
+         * gicv3_cpuif_reginfo[] defines ICC_AP*R0_EL1; add definitions
+         * for ICC_AP*R{1,2,3}_EL1 if the prebits value requires them.
+         */
+        if (cs->prebits >= 6) {
+            define_arm_cp_regs(cpu, gicv3_cpuif_icc_apxr1_reginfo);
+        }
+        if (cs->prebits == 7) {
+            define_arm_cp_regs(cpu, gicv3_cpuif_icc_apxr23_reginfo);
+        }
+
         if (arm_feature(&cpu->env, ARM_FEATURE_EL2)) {
             int j;
 
