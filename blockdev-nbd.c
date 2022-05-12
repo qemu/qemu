@@ -44,6 +44,11 @@ bool nbd_server_is_running(void)
     return nbd_server || qemu_nbd_connections >= 0;
 }
 
+int nbd_server_max_connections(void)
+{
+    return nbd_server ? nbd_server->max_connections : qemu_nbd_connections;
+}
+
 static void nbd_blockdev_client_closed(NBDClient *client, bool ignored)
 {
     nbd_client_put(client);
