@@ -5022,6 +5022,37 @@ uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
     return r;
 }
 
+static void x86_cpu_get_cache_cpuid(uint32_t func, uint32_t index,
+                                    uint32_t *eax, uint32_t *ebx,
+                                    uint32_t *ecx, uint32_t *edx)
+{
+    uint32_t level, unused;
+
+    /* Only return valid host leaves.  */
+    switch (func) {
+    case 2:
+    case 4:
+        host_cpuid(0, 0, &level, &unused, &unused, &unused);
+        break;
+    case 0x80000005:
+    case 0x80000006:
+    case 0x8000001d:
+        host_cpuid(0x80000000, 0, &level, &unused, &unused, &unused);
+        break;
+    default:
+        return;
+    }
+
+    if (func > level) {
+        *eax = 0;
+        *ebx = 0;
+        *ecx = 0;
+        *edx = 0;
+    } else {
+        host_cpuid(func, index, eax, ebx, ecx, edx);
+    }
+}
+
 /*
  * Only for builtin_x86_defs models initialized with x86_register_cpudef_types.
  */
@@ -5280,7 +5311,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     case 2:
         /* cache info: needed for Pentium Pro compatibility */
         if (cpu->cache_info_passthrough) {
-            host_cpuid(index, 0, eax, ebx, ecx, edx);
+            x86_cpu_get_cache_cpuid(index, 0, eax, ebx, ecx, edx);
             break;
         } else if (cpu->vendor_cpuid_only && IS_AMD_CPU(env)) {
             *eax = *ebx = *ecx = *edx = 0;
@@ -5300,7 +5331,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     case 4:
         /* cache info: needed for Core compatibility */
         if (cpu->cache_info_passthrough) {
-            host_cpuid(index, count, eax, ebx, ecx, edx);
+            x86_cpu_get_cache_cpuid(index, count, eax, ebx, ecx, edx);
             /* QEMU gives out its own APIC IDs, never pass down bits 31..26.  */
             *eax &= ~0xFC000000;
             if ((*eax & 31) && cs->nr_cores > 1) {
@@ -5702,7 +5733,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     case 0x80000005:
         /* cache info (L1 cache) */
         if (cpu->cache_info_passthrough) {
-            host_cpuid(index, 0, eax, ebx, ecx, edx);
+            x86_cpu_get_cache_cpuid(index, 0, eax, ebx, ecx, edx);
             break;
         }
         *eax = (L1_DTLB_2M_ASSOC << 24) | (L1_DTLB_2M_ENTRIES << 16) |
@@ -5715,7 +5746,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     case 0x80000006:
         /* cache info (L2 cache) */
         if (cpu->cache_info_passthrough) {
-            host_cpuid(index, 0, eax, ebx, ecx, edx);
+            x86_cpu_get_cache_cpuid(index, 0, eax, ebx, ecx, edx);
             break;
         }
         *eax = (AMD_ENC_ASSOC(L2_DTLB_2M_ASSOC) << 28) |
@@ -5775,7 +5806,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     case 0x8000001D:
         *eax = 0;
         if (cpu->cache_info_passthrough) {
-            host_cpuid(index, count, eax, ebx, ecx, edx);
+            x86_cpu_get_cache_cpuid(index, count, eax, ebx, ecx, edx);
             break;
         }
         switch (count) {

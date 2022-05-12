@@ -23,6 +23,7 @@ MSR_IA32_VMX_TRUE_PROCBASED_CTLS = 0x48E
 MSR_IA32_VMX_TRUE_EXIT_CTLS = 0x48F
 MSR_IA32_VMX_TRUE_ENTRY_CTLS = 0x490
 MSR_IA32_VMX_VMFUNC = 0x491
+MSR_IA32_VMX_PROCBASED_CTLS3 = 0x492
 
 class msr(object):
     def __init__(self):
@@ -70,6 +71,13 @@ class Control(object):
             elif one and zero:
                 s = 'yes'
             print('  %-40s %s' % (self.bits[bit], s))
+
+# All 64 bits in the tertiary controls MSR are allowed-1
+class Allowed1Control(Control):
+    def read2(self, nr):
+        m = msr()
+        val = m.read(nr, 0)
+        return (0, val)
 
 class Misc(object):
     def __init__(self, name, bits, msr):
@@ -135,6 +143,7 @@ controls = [
             12: 'RDTSC exiting',
             15: 'CR3-load exiting',
             16: 'CR3-store exiting',
+            17: 'Activate tertiary controls',
             19: 'CR8-load exiting',
             20: 'CR8-store exiting',
             21: 'Use TPR shadow',
@@ -184,6 +193,14 @@ controls = [
             28: 'ENCLV exiting',
             },
         cap_msr = MSR_IA32_VMX_PROCBASED_CTLS2,
+        ),
+
+    Allowed1Control(
+        name = 'tertiary processor-based controls',
+        bits = {
+            4: 'Enable IPI virtualization'
+            },
+        cap_msr = MSR_IA32_VMX_PROCBASED_CTLS3,
         ),
 
     Control(

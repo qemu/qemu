@@ -159,11 +159,11 @@ static const char *mem_path;
 static const char *incoming;
 static const char *loadvm;
 static const char *accelerators;
+static bool have_custom_ram_size;
+static const char *ram_memdev_id;
 static QDict *machine_opts_dict;
 static QTAILQ_HEAD(, ObjectOption) object_opts = QTAILQ_HEAD_INITIALIZER(object_opts);
 static QTAILQ_HEAD(, DeviceOption) device_opts = QTAILQ_HEAD_INITIALIZER(device_opts);
-static ram_addr_t maxram_size;
-static uint64_t ram_slots;
 static int display_remote;
 static int snapshot;
 static bool preconfig_requested;
@@ -171,7 +171,6 @@ static QemuPluginList plugin_list = QTAILQ_HEAD_INITIALIZER(plugin_list);
 static BlockdevOptionsQueue bdo_queue = QSIMPLEQ_HEAD_INITIALIZER(bdo_queue);
 static bool nographic = false;
 static int mem_prealloc; /* force preallocation of physical target memory */
-static ram_addr_t ram_size;
 static const char *vga_model = NULL;
 static DisplayOptions dpy;
 static int num_serial_hds;
@@ -1736,6 +1735,7 @@ static void keyval_dashify(QDict *qdict, Error **errp)
 static void qemu_apply_legacy_machine_options(QDict *qdict)
 {
     const char *value;
+    QObject *prop;
 
     keyval_dashify(qdict, &error_fatal);
 
@@ -1767,6 +1767,26 @@ static void qemu_apply_legacy_machine_options(QDict *qdict)
         object_register_sugar_prop(ACCEL_CLASS_NAME("whpx"), "kernel-irqchip", value,
                                    false);
         qdict_del(qdict, "kernel-irqchip");
+    }
+
+    value = qdict_get_try_str(qdict, "memory-backend");
+    if (value) {
+        if (mem_path) {
+            error_report("'-mem-path' can't be used together with"
+                         "'-machine memory-backend'");
+            exit(EXIT_FAILURE);
+        }
+
+        /* Resolved later.  */
+        ram_memdev_id = g_strdup(value);
+        qdict_del(qdict, "memory-backend");
+    }
+
+    prop = qdict_get(qdict, "memory");
+    if (prop) {
+        have_custom_ram_size =
+            qobject_type(prop) == QTYPE_QDICT &&
+            qdict_haskey(qobject_to(QDict, prop), "size");
     }
 }
 
@@ -1884,38 +1904,7 @@ static bool object_create_early(const char *type)
 
 static void qemu_apply_machine_options(QDict *qdict)
 {
-    MachineClass *machine_class = MACHINE_GET_CLASS(current_machine);
-    const char *boot_order = NULL;
-    const char *boot_once = NULL;
-    QemuOpts *opts;
-
     object_set_properties_from_keyval(OBJECT(current_machine), qdict, false, &error_fatal);
-    current_machine->ram_size = ram_size;
-    current_machine->maxram_size = maxram_size;
-    current_machine->ram_slots = ram_slots;
-
-    opts = qemu_opts_find(qemu_find_opts("boot-opts"), NULL);
-    if (opts) {
-        boot_order = qemu_opt_get(opts, "order");
-        if (boot_order) {
-            validate_bootdevices(boot_order, &error_fatal);
-        }
-
-        boot_once = qemu_opt_get(opts, "once");
-        if (boot_once) {
-            validate_bootdevices(boot_once, &error_fatal);
-        }
-
-        boot_menu = qemu_opt_get_bool(opts, "menu", boot_menu);
-        boot_strict = qemu_opt_get_bool(opts, "strict", false);
-    }
-
-    if (!boot_order) {
-        boot_order = machine_class->default_boot_order;
-    }
-
-    current_machine->boot_order = boot_order;
-    current_machine->boot_once = boot_once;
 
     if (semihosting_enabled() && !semihosting_get_argc()) {
         /* fall back to the -kernel/-append */
@@ -2026,133 +2015,73 @@ static void qemu_create_late_backends(void)
     qemu_semihosting_console_init();
 }
 
-static bool have_custom_ram_size(void)
-{
-    QemuOpts *opts = qemu_find_opts_singleton("memory");
-    return !!qemu_opt_get_size(opts, "size", 0);
-}
-
 static void qemu_resolve_machine_memdev(void)
 {
-    if (current_machine->ram_memdev_id) {
+    if (ram_memdev_id) {
         Object *backend;
         ram_addr_t backend_size;
 
-        backend = object_resolve_path_type(current_machine->ram_memdev_id,
+        backend = object_resolve_path_type(ram_memdev_id,
                                            TYPE_MEMORY_BACKEND, NULL);
         if (!backend) {
-            error_report("Memory backend '%s' not found",
-                         current_machine->ram_memdev_id);
+            error_report("Memory backend '%s' not found", ram_memdev_id);
             exit(EXIT_FAILURE);
         }
-        backend_size = object_property_get_uint(backend, "size",  &error_abort);
-        if (have_custom_ram_size() && backend_size != ram_size) {
-                error_report("Size specified by -m option must match size of "
-                             "explicitly specified 'memory-backend' property");
-                exit(EXIT_FAILURE);
+        if (!have_custom_ram_size) {
+            backend_size = object_property_get_uint(backend, "size",  &error_abort);
+            current_machine->ram_size = backend_size;
         }
-        if (mem_path) {
-            error_report("'-mem-path' can't be used together with"
-                         "'-machine memory-backend'");
-            exit(EXIT_FAILURE);
-        }
-        ram_size = backend_size;
-    }
-
-    if (!xen_enabled()) {
-        /* On 32-bit hosts, QEMU is limited by virtual address space */
-        if (ram_size > (2047 << 20) && HOST_LONG_BITS == 32) {
-            error_report("at most 2047 MB RAM can be simulated");
-            exit(1);
-        }
+        object_property_set_link(OBJECT(current_machine),
+                                 "memory-backend", backend, &error_fatal);
     }
 }
 
-static void set_memory_options(MachineClass *mc)
+static void parse_memory_options(const char *arg)
 {
-    uint64_t sz;
+    QemuOpts *opts;
+    QDict *dict, *prop;
     const char *mem_str;
-    const ram_addr_t default_ram_size = mc->default_ram_size;
-    QemuOpts *opts = qemu_find_opts_singleton("memory");
-    Location loc;
 
-    loc_push_none(&loc);
-    qemu_opts_loc_restore(opts);
+    opts = qemu_opts_parse_noisily(qemu_find_opts("memory"), arg, true);
+    if (!opts) {
+        exit(EXIT_FAILURE);
+    }
 
-    sz = 0;
-    mem_str = qemu_opt_get(opts, "size");
-    if (mem_str) {
+    prop = qdict_new();
+
+    if (qemu_opt_get_size(opts, "size", 0) != 0) {
+        mem_str = qemu_opt_get(opts, "size");
         if (!*mem_str) {
             error_report("missing 'size' option value");
             exit(EXIT_FAILURE);
         }
 
-        sz = qemu_opt_get_size(opts, "size", ram_size);
-
         /* Fix up legacy suffix-less format */
         if (g_ascii_isdigit(mem_str[strlen(mem_str) - 1])) {
-            uint64_t overflow_check = sz;
-
-            sz *= MiB;
-            if (sz / MiB != overflow_check) {
-                error_report("too large 'size' option value");
-                exit(EXIT_FAILURE);
-            }
+            g_autofree char *mib_str = g_strdup_printf("%sM", mem_str);
+            qdict_put_str(prop, "size", mib_str);
+        } else {
+            qdict_put_str(prop, "size", mem_str);
         }
     }
-
-    /* backward compatibility behaviour for case "-m 0" */
-    if (sz == 0) {
-        sz = default_ram_size;
-    }
-
-    sz = QEMU_ALIGN_UP(sz, 8192);
-    if (mc->fixup_ram_size) {
-        sz = mc->fixup_ram_size(sz);
-    }
-    ram_size = sz;
-    if (ram_size != sz) {
-        error_report("ram size too large");
-        exit(EXIT_FAILURE);
-    }
-
-    maxram_size = ram_size;
 
     if (qemu_opt_get(opts, "maxmem")) {
-        uint64_t slots;
-
-        sz = qemu_opt_get_size(opts, "maxmem", 0);
-        slots = qemu_opt_get_number(opts, "slots", 0);
-        if (sz < ram_size) {
-            error_report("invalid value of -m option maxmem: "
-                         "maximum memory size (0x%" PRIx64 ") must be at least "
-                         "the initial memory size (0x" RAM_ADDR_FMT ")",
-                         sz, ram_size);
-            exit(EXIT_FAILURE);
-        } else if (slots && sz == ram_size) {
-            error_report("invalid value of -m option maxmem: "
-                         "memory slots were specified but maximum memory size "
-                         "(0x%" PRIx64 ") is equal to the initial memory size "
-                         "(0x" RAM_ADDR_FMT ")", sz, ram_size);
-            exit(EXIT_FAILURE);
-        }
-
-        maxram_size = sz;
-        ram_slots = slots;
-    } else if (qemu_opt_get(opts, "slots")) {
-        error_report("invalid -m option value: missing 'maxmem' option");
-        exit(EXIT_FAILURE);
+        qdict_put_str(prop, "max-size", qemu_opt_get(opts, "maxmem"));
+    }
+    if (qemu_opt_get(opts, "slots")) {
+        qdict_put_str(prop, "slots", qemu_opt_get(opts, "slots"));
     }
 
-    loc_pop(&loc);
+    dict = qdict_new();
+    qdict_put(dict, "memory", prop);
+    keyval_merge(machine_opts_dict, dict, &error_fatal);
+    qobject_unref(dict);
 }
 
 static void qemu_create_machine(QDict *qdict)
 {
     MachineClass *machine_class = select_machine(qdict, &error_fatal);
     object_set_machine_compat_props(machine_class->compat_props);
-
-    set_memory_options(machine_class);
 
     current_machine = MACHINE(object_new_with_class(OBJECT_CLASS(machine_class)));
     object_property_add_child(object_get_root(), "machine",
@@ -2212,7 +2141,9 @@ static bool is_qemuopts_group(const char *group)
 {
     if (g_str_equal(group, "object") ||
         g_str_equal(group, "machine") ||
-        g_str_equal(group, "smp-opts")) {
+        g_str_equal(group, "smp-opts") ||
+        g_str_equal(group, "boot-opts") ||
+        g_str_equal(group, "memory")) {
         return false;
     }
     return true;
@@ -2234,6 +2165,10 @@ static void qemu_record_config_group(const char *group, QDict *dict,
         keyval_merge(machine_opts_dict, dict, errp);
     } else if (g_str_equal(group, "smp-opts")) {
         machine_merge_property("smp", dict, &error_fatal);
+    } else if (g_str_equal(group, "boot-opts")) {
+        machine_merge_property("boot", dict, &error_fatal);
+    } else if (g_str_equal(group, "memory")) {
+        machine_merge_property("memory", dict, &error_fatal);
     } else {
         abort();
     }
@@ -2440,27 +2375,6 @@ static void configure_accelerators(const char *progname)
     }
 }
 
-static void create_default_memdev(MachineState *ms, const char *path)
-{
-    Object *obj;
-    MachineClass *mc = MACHINE_GET_CLASS(ms);
-
-    obj = object_new(path ? TYPE_MEMORY_BACKEND_FILE : TYPE_MEMORY_BACKEND_RAM);
-    if (path) {
-        object_property_set_str(obj, "mem-path", path, &error_fatal);
-    }
-    object_property_set_int(obj, "size", ms->ram_size, &error_fatal);
-    object_property_add_child(object_get_objects_root(), mc->default_ram_id,
-                              obj);
-    /* Ensure backend's memory region name is equal to mc->default_ram_id */
-    object_property_set_bool(obj, "x-use-canonical-path-for-ramblock-id",
-                             false, &error_fatal);
-    user_creatable_complete(USER_CREATABLE(obj), &error_fatal);
-    object_unref(obj);
-    object_property_set_str(OBJECT(ms), "memory-backend", mc->default_ram_id,
-                            &error_fatal);
-}
-
 static void qemu_validate_options(const QDict *machine_opts)
 {
     const char *kernel_filename = qdict_get_try_str(machine_opts, "kernel");
@@ -2645,18 +2559,11 @@ static void qemu_init_displays(void)
 
 static void qemu_init_board(void)
 {
-    MachineClass *machine_class = MACHINE_GET_CLASS(current_machine);
-
-    if (machine_class->default_ram_id && current_machine->ram_size &&
-        numa_uses_legacy_mem() && !current_machine->ram_memdev_id) {
-        create_default_memdev(current_machine, mem_path);
-    }
-
     /* process plugin before CPUs are created, but once -smp has been parsed */
     qemu_plugin_load_list(&plugin_list, &error_fatal);
 
     /* From here on we enter MACHINE_PHASE_INITIALIZED.  */
-    machine_run_board_init(current_machine);
+    machine_run_board_init(current_machine, mem_path, &error_fatal);
 
     drive_check_orphaned();
 
@@ -2979,11 +2886,7 @@ void qemu_init(int argc, char **argv, char **envp)
                 drive_add(IF_DEFAULT, 2, optarg, CDROM_OPTS);
                 break;
             case QEMU_OPTION_boot:
-                opts = qemu_opts_parse_noisily(qemu_find_opts("boot-opts"),
-                                               optarg, true);
-                if (!opts) {
-                    exit(1);
-                }
+                machine_parse_property_opt(qemu_find_opts("boot-opts"), "boot", optarg);
                 break;
             case QEMU_OPTION_fda:
             case QEMU_OPTION_fdb:
@@ -3038,11 +2941,7 @@ void qemu_init(int argc, char **argv, char **envp)
                 exit(0);
                 break;
             case QEMU_OPTION_m:
-                opts = qemu_opts_parse_noisily(qemu_find_opts("memory"),
-                                               optarg, true);
-                if (!opts) {
-                    exit(EXIT_FAILURE);
-                }
+                parse_memory_options(optarg);
                 break;
 #ifdef CONFIG_TPM
             case QEMU_OPTION_tpmdev:
@@ -3732,7 +3631,7 @@ void qemu_init(int argc, char **argv, char **envp)
 
     machine_class = MACHINE_GET_CLASS(current_machine);
     if (!qtest_enabled() && machine_class->deprecation_reason) {
-        error_report("Machine type '%s' is deprecated: %s",
+        warn_report("Machine type '%s' is deprecated: %s",
                      machine_class->name, machine_class->deprecation_reason);
     }
 

@@ -147,7 +147,7 @@ static FWCfgState *create_fw_cfg(MachineState *ms)
     fw_cfg_add_file(fw_cfg, "/etc/power-button-addr",
                     g_memdup(&val, sizeof(val)), sizeof(val));
 
-    fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, ms->boot_order[0]);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_BOOT_DEVICE, ms->boot_config.order[0]);
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
 
     return fw_cfg;
@@ -391,8 +391,8 @@ static void machine_hppa_init(MachineState *machine)
          * mode (kernel_entry=1), and to boot from CD (gr[24]='d')
          * or hard disc * (gr[24]='c').
          */
-        kernel_entry = boot_menu ? 1 : 0;
-        cpu[0]->env.gr[24] = machine->boot_order[0];
+        kernel_entry = machine->boot_config.has_menu ? machine->boot_config.menu : 0;
+        cpu[0]->env.gr[24] = machine->boot_config.order[0];
     }
 
     /* We jump to the firmware entry routine and pass the

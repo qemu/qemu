@@ -290,13 +290,10 @@ static Property s390_ipl_properties[] = {
 
 static void s390_ipl_set_boot_menu(S390IPLState *ipl)
 {
-    QemuOptsList *plist = qemu_find_opts("boot-opts");
-    QemuOpts *opts = QTAILQ_FIRST(&plist->head);
-    const char *tmp;
     unsigned long splash_time = 0;
 
     if (!get_boot_device(0)) {
-        if (boot_menu) {
+        if (current_machine->boot_config.has_menu && current_machine->boot_config.menu) {
             error_report("boot menu requires a bootindex to be specified for "
                          "the IPL device");
         }
@@ -306,7 +303,7 @@ static void s390_ipl_set_boot_menu(S390IPLState *ipl)
     switch (ipl->iplb.pbt) {
     case S390_IPL_TYPE_CCW:
         /* In the absence of -boot menu, use zipl parameters */
-        if (!qemu_opt_get(opts, "menu")) {
+        if (!current_machine->boot_config.has_menu) {
             ipl->qipl.qipl_flags |= QIPL_FLAG_BM_OPTS_ZIPL;
             return;
         }
@@ -314,26 +311,21 @@ static void s390_ipl_set_boot_menu(S390IPLState *ipl)
     case S390_IPL_TYPE_QEMU_SCSI:
         break;
     default:
-        if (boot_menu) {
+        if (current_machine->boot_config.has_menu && current_machine->boot_config.menu) {
             error_report("boot menu is not supported for this device type");
         }
         return;
     }
 
-    if (!boot_menu) {
+    if (!current_machine->boot_config.has_menu || !current_machine->boot_config.menu) {
         return;
     }
 
     ipl->qipl.qipl_flags |= QIPL_FLAG_BM_OPTS_CMD;
 
-    tmp = qemu_opt_get(opts, "splash-time");
-
-    if (tmp && qemu_strtoul(tmp, NULL, 10, &splash_time)) {
-        error_report("splash-time is invalid, forcing it to 0");
-        ipl->qipl.boot_menu_timeout = 0;
-        return;
+    if (current_machine->boot_config.has_splash_time) {
+        splash_time = current_machine->boot_config.splash_time;
     }
-
     if (splash_time > 0xffffffff) {
         error_report("splash-time is too large, forcing it to max value");
         ipl->qipl.boot_menu_timeout = 0xffffffff;

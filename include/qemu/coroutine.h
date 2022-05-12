@@ -208,17 +208,19 @@ void qemu_co_queue_init(CoQueue *queue);
 void coroutine_fn qemu_co_queue_wait_impl(CoQueue *queue, QemuLockable *lock);
 
 /**
- * Removes the next coroutine from the CoQueue, and wake it up.
+ * Removes the next coroutine from the CoQueue, and queue it to run after
+ * the currently-running coroutine yields.
  * Returns true if a coroutine was removed, false if the queue is empty.
- * OK to run from coroutine and non-coroutine context.
+ * Used from coroutine context, use qemu_co_enter_next outside.
  */
-bool qemu_co_queue_next(CoQueue *queue);
+bool coroutine_fn qemu_co_queue_next(CoQueue *queue);
 
 /**
- * Empties the CoQueue; all coroutines are woken up.
- * OK to run from coroutine and non-coroutine context.
+ * Empties the CoQueue and queues the coroutine to run after
+ * the currently-running coroutine yields.
+ * Used from coroutine context, use qemu_co_enter_all outside.
  */
-void qemu_co_queue_restart_all(CoQueue *queue);
+void coroutine_fn qemu_co_queue_restart_all(CoQueue *queue);
 
 /**
  * Removes the next coroutine from the CoQueue, and wake it up.  Unlike
@@ -232,6 +234,19 @@ void qemu_co_queue_restart_all(CoQueue *queue);
 #define qemu_co_enter_next(queue, lock) \
     qemu_co_enter_next_impl(queue, QEMU_MAKE_LOCKABLE(lock))
 bool qemu_co_enter_next_impl(CoQueue *queue, QemuLockable *lock);
+
+/**
+ * Empties the CoQueue, waking the waiting coroutine one at a time.  Unlike
+ * qemu_co_queue_all, this function releases the lock during aio_co_wake
+ * because it is meant to be used outside coroutine context; in that case, the
+ * coroutine is entered immediately, before qemu_co_enter_all returns.
+ *
+ * If used in coroutine context, qemu_co_enter_all is equivalent to
+ * qemu_co_queue_all.
+ */
+#define qemu_co_enter_all(queue, lock) \
+    qemu_co_enter_all_impl(queue, QEMU_MAKE_LOCKABLE(lock))
+void qemu_co_enter_all_impl(CoQueue *queue, QemuLockable *lock);
 
 /**
  * Checks if the CoQueue is empty.
