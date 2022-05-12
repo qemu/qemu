@@ -2755,6 +2755,15 @@ void gicv3_init_cpuif(GICv3State *s)
         ARMCPU *cpu = ARM_CPU(qemu_get_cpu(i));
         GICv3CPUState *cs = &s->cpu[i];
 
+        /*
+         * If the CPU doesn't define a GICv3 configuration, probably because
+         * in real hardware it doesn't have one, then we use default values
+         * matching the one used by most Arm CPUs. This applies to:
+         *  cpu->gic_num_lrs
+         *  cpu->gic_vpribits
+         *  cpu->gic_vprebits
+         */
+
         /* Note that we can't just use the GICv3CPUState as an opaque pointer
          * in define_arm_cp_regs_with_opaque(), because when we're called back
          * it might be with code translated by CPU 0 but run by CPU 1, in
@@ -2763,13 +2772,12 @@ void gicv3_init_cpuif(GICv3State *s)
          * get back to the GICv3CPUState from the CPUARMState.
          */
         define_arm_cp_regs(cpu, gicv3_cpuif_reginfo);
-        if (arm_feature(&cpu->env, ARM_FEATURE_EL2)
-            && cpu->gic_num_lrs) {
+        if (arm_feature(&cpu->env, ARM_FEATURE_EL2)) {
             int j;
 
-            cs->num_list_regs = cpu->gic_num_lrs;
-            cs->vpribits = cpu->gic_vpribits;
-            cs->vprebits = cpu->gic_vprebits;
+            cs->num_list_regs = cpu->gic_num_lrs ?: 4;
+            cs->vpribits = cpu->gic_vpribits ?: 5;
+            cs->vprebits = cpu->gic_vprebits ?: 5;
 
             /* Check against architectural constraints: getting these
              * wrong would be a bug in the CPU code defining these,
