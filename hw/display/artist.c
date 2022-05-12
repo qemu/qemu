@@ -1,7 +1,8 @@
 /*
  * QEMU HP Artist Emulation
  *
- * Copyright (c) 2019 Sven Schnelle <svens@stackframe.org>
+ * Copyright (c) 2019-2022 Sven Schnelle <svens@stackframe.org>
+ * Copyright (c) 2022 Helge Deller <deller@gmx.de>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  */
@@ -313,19 +314,15 @@ static void artist_rop8(ARTISTState *s, struct vram_buffer *buf,
 static void artist_get_cursor_pos(ARTISTState *s, int *x, int *y)
 {
     /*
-     * Don't know whether these magic offset values are configurable via
-     * some register. They seem to be the same for all resolutions.
-     * The cursor values provided in the registers are:
-     * X-value: -295 (for HP-UX 11) and 338 (for HP-UX 10.20) up to 2265
-     * Y-value: 1146 down to 0
      * The emulated Artist graphic is like a CRX graphic, and as such
      * it's usually fixed at 1280x1024 pixels.
-     * Because of the maximum Y-value of 1146 you can not choose a higher
-     * vertical resolution on HP-UX (unless you disable the mouse).
+     * Other resolutions may work, but no guarantee.
      */
 
-    static int offset = 338;
-    int lx;
+    unsigned int hbp_times_vi, horizBackPorch;
+    int16_t xHi, xLo;
+    const int videoInterleave = 4;
+    const int pipelineDelay = 4;
 
     /* ignore if uninitialized */
     if (s->cursor_pos == 0) {
@@ -333,16 +330,23 @@ static void artist_get_cursor_pos(ARTISTState *s, int *x, int *y)
         return;
     }
 
-    lx = artist_get_x(s->cursor_pos);
-    if (lx < offset) {
-        offset = lx;
-    }
-    *x = (lx - offset) / 2;
+    /*
+     * Calculate X position based on backporch and interleave values.
+     * Based on code from Xorg X11R6.6
+     */
+    horizBackPorch = ((s->horiz_backporch & 0xff0000) >> 16) +
+                     ((s->horiz_backporch & 0xff00) >> 8) + 2;
+    hbp_times_vi = horizBackPorch * videoInterleave;
+    xHi = s->cursor_pos >> 19;
+    *x = ((xHi + pipelineDelay) * videoInterleave) - hbp_times_vi;
+
+    xLo = (s->cursor_pos >> 16) & 0x07;
+    *x += ((xLo - hbp_times_vi) & (videoInterleave - 1)) + 8 - 1;
 
     /* subtract cursor offset from cursor control register */
     *x -= (s->cursor_cntrl & 0xf0) >> 4;
 
-    /* height minus nOffscreenScanlines is stored in cursor control register */
+    /* Calculate Y position */
     *y = s->height - artist_get_y(s->cursor_pos);
     *y -= (s->cursor_cntrl & 0x0f);
 
@@ -1056,6 +1060,8 @@ static void artist_reg_write(void *opaque, hwaddr addr, uint64_t val,
         break;
 
     case HORIZ_BACKPORCH:
+        /* overwrite HP-UX settings to fix X cursor position. */
+        val = (NGLE_MAX_SPRITE_SIZE << 16) + (NGLE_MAX_SPRITE_SIZE << 8);
         combine_write_reg(addr, val, size, &s->horiz_backporch);
         break;
 
