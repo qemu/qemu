@@ -361,6 +361,9 @@ class TestRunner(ContextManager['TestRunner']):
                                      starttime=start,
                                      lasttime=last_el,
                                      end = '\n' if mp else '\r')
+        else:
+            testname = os.path.basename(test)
+            print(f'# running {self.env.imgfmt} {testname}')
 
         res = self.do_run_test(test, mp)
 
@@ -378,6 +381,7 @@ class TestRunner(ContextManager['TestRunner']):
             else:
                 print(res.casenotrun)
 
+        sys.stdout.flush()
         return res
 
     def run_tests(self, tests: List[str], jobs: int = 1) -> bool:

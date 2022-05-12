@@ -1095,7 +1095,7 @@ int main(int argc, char **argv)
 
     bs->detect_zeroes = detect_zeroes;
 
-    nbd_server_is_qemu_nbd(true);
+    nbd_server_is_qemu_nbd(shared);
 
     export_opts = g_new(BlockExportOptions, 1);
     *export_opts = (BlockExportOptions) {

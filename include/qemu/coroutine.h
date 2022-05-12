@@ -334,12 +334,12 @@ void coroutine_fn yield_until_fd_readable(int fd);
 /**
  * Increase coroutine pool size
  */
-void qemu_coroutine_increase_pool_batch_size(unsigned int additional_pool_size);
+void qemu_coroutine_inc_pool_size(unsigned int additional_pool_size);
 
 /**
- * Devcrease coroutine pool size
+ * Decrease coroutine pool size
  */
-void qemu_coroutine_decrease_pool_batch_size(unsigned int additional_pool_size);
+void qemu_coroutine_dec_pool_size(unsigned int additional_pool_size);
 
 #include "qemu/lockable.h"
 

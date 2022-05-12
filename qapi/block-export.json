@@ -22,7 +22,9 @@
 #             recreated on the fly while the NBD server is active.
 #             If missing, it will default to denying access (since 4.0).
 # @max-connections: The maximum number of connections to allow at the same
-#                   time, 0 for unlimited. (since 5.2; default: 0)
+#                   time, 0 for unlimited. Setting this to 1 also stops
+#                   the server from advertising multiple client support
+#                   (since 5.2; default: 0)
 #
 # Since: 4.2
 ##
@@ -51,7 +53,9 @@
 #             recreated on the fly while the NBD server is active.
 #             If missing, it will default to denying access (since 4.0).
 # @max-connections: The maximum number of connections to allow at the same
-#                   time, 0 for unlimited. (since 5.2; default: 0)
+#                   time, 0 for unlimited. Setting this to 1 also stops
+#                   the server from advertising multiple client support
+#                   (since 5.2; default: 0).
 #
 # Returns: error if the server is already running.
 #

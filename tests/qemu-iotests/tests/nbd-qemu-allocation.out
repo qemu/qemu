@@ -17,7 +17,7 @@ wrote 2097152/2097152 bytes at offset 1048576
 exports available: 1
  export: ''
   size:  4194304
-  flags: 0x58f ( readonly flush fua df multi cache )
+  flags: 0x48f ( readonly flush fua df cache )
   min block: 1
   opt block: 4096
   max block: 33554432

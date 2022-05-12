@@ -26,7 +26,7 @@
         make -j"$JOBS" $MAKE_CHECK_ARGS ;
       fi
 
-.native_test_job_template:
+.common_test_job_template:
   stage: test
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
   script:
@@ -37,8 +37,16 @@
     # Avoid recompiling by hiding ninja with NINJA=":"
     - make NINJA=":" $MAKE_CHECK_ARGS
 
+.native_test_job_template:
+  extends: .common_test_job_template
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    expire_in: 7 days
+    paths:
+      - build/meson-logs/testlog.txt
+
 .avocado_test_job_template:
-  extends: .native_test_job_template
+  extends: .common_test_job_template
   cache:
     key: "${CI_JOB_NAME}-cache"
     paths:
