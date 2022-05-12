@@ -6554,14 +6554,16 @@ static void define_debug_regs(ARMCPU *cpu)
     }
 
     for (i = 0; i < brps; i++) {
+        char *dbgbvr_el1_name = g_strdup_printf("DBGBVR%d_EL1", i);
+        char *dbgbcr_el1_name = g_strdup_printf("DBGBCR%d_EL1", i);
         ARMCPRegInfo dbgregs[] = {
-            { .name = "DBGBVR", .state = ARM_CP_STATE_BOTH,
+            { .name = dbgbvr_el1_name, .state = ARM_CP_STATE_BOTH,
               .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 4,
               .access = PL1_RW, .accessfn = access_tda,
               .fieldoffset = offsetof(CPUARMState, cp15.dbgbvr[i]),
               .writefn = dbgbvr_write, .raw_writefn = raw_write
             },
-            { .name = "DBGBCR", .state = ARM_CP_STATE_BOTH,
+            { .name = dbgbcr_el1_name, .state = ARM_CP_STATE_BOTH,
               .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 5,
               .access = PL1_RW, .accessfn = access_tda,
               .fieldoffset = offsetof(CPUARMState, cp15.dbgbcr[i]),
@@ -6569,17 +6571,21 @@ static void define_debug_regs(ARMCPU *cpu)
             },
         };
         define_arm_cp_regs(cpu, dbgregs);
+        g_free(dbgbvr_el1_name);
+        g_free(dbgbcr_el1_name);
     }
 
     for (i = 0; i < wrps; i++) {
+        char *dbgwvr_el1_name = g_strdup_printf("DBGWVR%d_EL1", i);
+        char *dbgwcr_el1_name = g_strdup_printf("DBGWCR%d_EL1", i);
         ARMCPRegInfo dbgregs[] = {
-            { .name = "DBGWVR", .state = ARM_CP_STATE_BOTH,
+            { .name = dbgwvr_el1_name, .state = ARM_CP_STATE_BOTH,
               .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 6,
               .access = PL1_RW, .accessfn = access_tda,
               .fieldoffset = offsetof(CPUARMState, cp15.dbgwvr[i]),
               .writefn = dbgwvr_write, .raw_writefn = raw_write
             },
-            { .name = "DBGWCR", .state = ARM_CP_STATE_BOTH,
+            { .name = dbgwcr_el1_name, .state = ARM_CP_STATE_BOTH,
               .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 7,
               .access = PL1_RW, .accessfn = access_tda,
               .fieldoffset = offsetof(CPUARMState, cp15.dbgwcr[i]),
@@ -6587,6 +6593,8 @@ static void define_debug_regs(ARMCPU *cpu)
             },
         };
         define_arm_cp_regs(cpu, dbgregs);
+        g_free(dbgwvr_el1_name);
+        g_free(dbgwcr_el1_name);
     }
 }
 
