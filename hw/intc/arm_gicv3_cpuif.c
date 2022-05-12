@@ -2798,6 +2798,7 @@ void gicv3_init_cpuif(GICv3State *s)
          *  cpu->gic_num_lrs
          *  cpu->gic_vpribits
          *  cpu->gic_vprebits
+         *  cpu->gic_pribits
          */
 
         /* Note that we can't just use the GICv3CPUState as an opaque pointer
@@ -2810,11 +2811,17 @@ void gicv3_init_cpuif(GICv3State *s)
         define_arm_cp_regs(cpu, gicv3_cpuif_reginfo);
 
         /*
-         * For the moment, retain the existing behaviour of 8 priority bits;
-         * in a following commit we will take this from the CPU state,
-         * as we do for the virtual priority bits.
+         * The CPU implementation specifies the number of supported
+         * bits of physical priority. For backwards compatibility
+         * of migration, we have a compat property that forces use
+         * of 8 priority bits regardless of what the CPU really has.
          */
-        cs->pribits = 8;
+        if (s->force_8bit_prio) {
+            cs->pribits = 8;
+        } else {
+            cs->pribits = cpu->gic_pribits ?: 5;
+        }
+
         /*
          * The GICv3 has separate ID register fields for virtual priority
          * and preemption bit values, but only a single ID register field
