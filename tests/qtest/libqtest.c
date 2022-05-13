@@ -197,11 +197,11 @@ static bool hook_list_is_empty(GHookList *hook_list)
     GHook *hook = g_hook_first_valid(hook_list, TRUE);
 
     if (!hook) {
-        return false;
+        return true;
     }
 
     g_hook_unref(hook_list, hook);
-    return true;
+    return false;
 }
 
 void qtest_add_abrt_handler(GHookFunc fn, const void *data)
