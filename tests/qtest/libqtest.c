@@ -19,6 +19,9 @@
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/un.h>
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif /* __linux__ */
 
 #include "libqtest.h"
 #include "libqmp.h"
@@ -301,6 +304,20 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     s->expected_status = 0;
     s->qemu_pid = fork();
     if (s->qemu_pid == 0) {
+#ifdef __linux__
+        /*
+         * Although we register a ABRT handler to kill off QEMU
+         * when g_assert() triggers, we want an extra safety
+         * net. The QEMU process might be non-functional and
+         * thus not have responded to SIGTERM. The test script
+         * might also have crashed with SEGV, in which case the
+         * cleanup handlers won't ever run.
+         *
+         * This PR_SET_PDEATHSIG setup will ensure any remaining
+         * QEMU will get terminated with SIGKILL in these cases.
+         */
+        prctl(PR_SET_PDEATHSIG, SIGKILL, 0, 0, 0);
+#endif /* __linux__ */
         if (!g_setenv("QEMU_AUDIO_DRV", "none", true)) {
             exit(1);
         }
