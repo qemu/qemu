@@ -515,12 +515,23 @@ if not get_option('linux_aio').auto() or have_block
                            required: get_option('linux_aio'),
                            kwargs: static_kwargs)
 endif
+
+linux_io_uring_test = '''
+  #include <liburing.h>
+  #include <linux/errqueue.h>
+
+  int main(void) { return 0; }'''
+
 linux_io_uring = not_found
 if not get_option('linux_io_uring').auto() or have_block
   linux_io_uring = dependency('liburing', version: '>=0.3',
                               required: get_option('linux_io_uring'),
                               method: 'pkg-config', kwargs: static_kwargs)
+  if not cc.links(linux_io_uring_test)
+    linux_io_uring = not_found
+  endif
 endif
+
 libnfs = not_found
 if not get_option('libnfs').auto() or have_block
   libnfs = dependency('libnfs', version: '>=1.9.3',
