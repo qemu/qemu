@@ -1486,6 +1486,8 @@ fi
 ##########################################
 # glib support probe
 
+# When bumping glib_req_ver, please check also whether we should increase
+# the _WIN32_WINNT setting in osdep.h according to the value from glib
 glib_req_ver=2.56
 glib_modules=gthread-2.0
 if test "$modules" = yes; then

@@ -86,11 +86,15 @@ similar versions.
 Windows
 -------
 
-The project supports building with current versions of the MinGW toolchain,
-hosted on Linux (Debian/Fedora).
+The project aims to support the two most recent versions of Windows that are
+still supported by the vendor. The minimum Windows API that is currently
+targeted is "Windows 7", so theoretically the QEMU binaries can still be run
+on older versions of Windows, too. However, such old versions of Windows are
+not tested anymore, so it is recommended to use one of the latest versions of
+Windows instead.
 
-The version of the Windows API that's currently targeted is Vista / Server
-2008.
+The project supports building QEMU with current versions of the MinGW
+toolchain, either hosted on Linux (Debian/Fedora) or via MSYS2 on Windows.
 
 .. _Homebrew: https://brew.sh/
 .. _MacPorts: https://www.macports.org/
