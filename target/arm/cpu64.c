@@ -79,6 +79,7 @@ static void aarch64_a57_initfn(Object *obj)
     cpu->isar.id_aa64isar0 = 0x00011120;
     cpu->isar.id_aa64mmfr0 = 0x00001124;
     cpu->isar.dbgdidr = 0x3516d000;
+    cpu->isar.reset_pmcr_el0 = 0x41013000;
     cpu->clidr = 0x0a200023;
     cpu->ccsidr[0] = 0x701fe00a; /* 32KB L1 dcache */
     cpu->ccsidr[1] = 0x201fe012; /* 48KB L1 icache */
@@ -133,6 +134,7 @@ static void aarch64_a53_initfn(Object *obj)
     cpu->isar.id_aa64isar0 = 0x00011120;
     cpu->isar.id_aa64mmfr0 = 0x00001122; /* 40 bit physical addr */
     cpu->isar.dbgdidr = 0x3516d000;
+    cpu->isar.reset_pmcr_el0 = 0x41033000;
     cpu->clidr = 0x0a200023;
     cpu->ccsidr[0] = 0x700fe01a; /* 32KB L1 dcache */
     cpu->ccsidr[1] = 0x201fe00a; /* 32KB L1 icache */
@@ -185,6 +187,7 @@ static void aarch64_a72_initfn(Object *obj)
     cpu->isar.id_aa64isar0 = 0x00011120;
     cpu->isar.id_aa64mmfr0 = 0x00001124;
     cpu->isar.dbgdidr = 0x3516d000;
+    cpu->isar.reset_pmcr_el0 = 0x41023000;
     cpu->clidr = 0x0a200023;
     cpu->ccsidr[0] = 0x701fe00a; /* 32KB L1 dcache */
     cpu->ccsidr[1] = 0x201fe012; /* 48KB L1 icache */
@@ -261,6 +264,9 @@ static void aarch64_a76_initfn(Object *obj)
     cpu->isar.mvfr0 = 0x10110222;
     cpu->isar.mvfr1 = 0x13211111;
     cpu->isar.mvfr2 = 0x00000043;
+
+    /* From D5.1 AArch64 PMU register summary */
+    cpu->isar.reset_pmcr_el0 = 0x410b3000;
 }
 
 static void aarch64_neoverse_n1_initfn(Object *obj)
@@ -327,6 +333,9 @@ static void aarch64_neoverse_n1_initfn(Object *obj)
     cpu->isar.mvfr0 = 0x10110222;
     cpu->isar.mvfr1 = 0x13211111;
     cpu->isar.mvfr2 = 0x00000043;
+
+    /* From D5.1 AArch64 PMU register summary */
+    cpu->isar.reset_pmcr_el0 = 0x410c3000;
 }
 
 void arm_cpu_sve_finalize(ARMCPU *cpu, Error **errp)
@@ -1021,6 +1030,8 @@ static void aarch64_a64fx_initfn(Object *obj)
     set_bit(0, cpu->sve_vq_supported); /* 128bit */
     set_bit(1, cpu->sve_vq_supported); /* 256bit */
     set_bit(3, cpu->sve_vq_supported); /* 512bit */
+
+    cpu->isar.reset_pmcr_el0 = 0x46014040;
 
     /* TODO:  Add A64FX specific HPC extension registers */
 }
