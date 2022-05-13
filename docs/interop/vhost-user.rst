@@ -340,7 +340,7 @@ drivers cannot negotiate it.
 
 This reserved feature bit was reused by the vhost-user protocol to add
 vhost-user protocol feature negotiation in a backwards compatible
-fashion. Old vhost-user master and slave implementations continue to
+fashion. Old vhost-user front-end and back-end implementations continue to
 work even though they are not aware of vhost-user protocol feature
 negotiation.
 
