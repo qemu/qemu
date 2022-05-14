@@ -373,11 +373,18 @@ static int whpx_set_tsc(CPUState *cpu)
  *
  * This mechanism is described in section 10.8.6.1 of Volume 3 of Intel 64
  * and IA-32 Architectures Software Developer's Manual.
+ *
+ * The functions below translate the value of CR8 to TPR and vice versa.
  */
 
 static uint64_t whpx_apic_tpr_to_cr8(uint64_t tpr)
 {
     return tpr >> 4;
+}
+
+static uint64_t whpx_cr8_to_apic_tpr(uint64_t cr8)
+{
+    return cr8 << 4;
 }
 
 static void whpx_set_registers(CPUState *cpu, int level)
@@ -687,7 +694,7 @@ static void whpx_get_registers(CPUState *cpu)
     tpr = vcxt.values[idx++].Reg64;
     if (tpr != vcpu->tpr) {
         vcpu->tpr = tpr;
-        cpu_set_apic_tpr(x86_cpu->apic_state, tpr);
+        cpu_set_apic_tpr(x86_cpu->apic_state, whpx_cr8_to_apic_tpr(tpr));
     }
 
     /* 8 Debug Registers - Skipped */
@@ -1547,7 +1554,7 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
      }
 
     /* Sync the TPR to the CR8 if was modified during the intercept */
-    tpr = cpu_get_apic_tpr(x86_cpu->apic_state);
+    tpr = whpx_apic_tpr_to_cr8(cpu_get_apic_tpr(x86_cpu->apic_state));
     if (tpr != vcpu->tpr) {
         vcpu->tpr = tpr;
         reg_values[reg_count].Reg64 = tpr;
@@ -1596,7 +1603,7 @@ static void whpx_vcpu_post_run(CPUState *cpu)
     if (vcpu->tpr != tpr) {
         vcpu->tpr = tpr;
         qemu_mutex_lock_iothread();
-        cpu_set_apic_tpr(x86_cpu->apic_state, vcpu->tpr);
+        cpu_set_apic_tpr(x86_cpu->apic_state, whpx_cr8_to_apic_tpr(vcpu->tpr));
         qemu_mutex_unlock_iothread();
     }
 
