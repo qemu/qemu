@@ -610,9 +610,34 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             cpu->cfg.ext_ifencei = true;
         }
 
+        if (cpu->cfg.ext_f && !cpu->cfg.ext_icsr) {
+            error_setg(errp, "F extension requires Zicsr");
+            return;
+        }
+
+        if ((cpu->cfg.ext_zfh || cpu->cfg.ext_zfhmin) && !cpu->cfg.ext_f) {
+            error_setg(errp, "Zfh/Zfhmin extensions require F extension");
+            return;
+        }
+
+        if (cpu->cfg.ext_d && !cpu->cfg.ext_f) {
+            error_setg(errp, "D extension requires F extension");
+            return;
+        }
+
+        if (cpu->cfg.ext_v && !cpu->cfg.ext_d) {
+            error_setg(errp, "V extension requires D extension");
+            return;
+        }
+
         if (cpu->cfg.ext_zdinx || cpu->cfg.ext_zhinx ||
             cpu->cfg.ext_zhinxmin) {
             cpu->cfg.ext_zfinx = true;
+        }
+
+        if (cpu->cfg.ext_zfinx && !cpu->cfg.ext_icsr) {
+            error_setg(errp, "Zfinx extension requires Zicsr");
+            return;
         }
 
         if (cpu->cfg.ext_zk) {
