@@ -598,13 +598,16 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
 
         if (cpu->cfg.ext_g && !(cpu->cfg.ext_i && cpu->cfg.ext_m &&
                                 cpu->cfg.ext_a && cpu->cfg.ext_f &&
-                                cpu->cfg.ext_d)) {
-            warn_report("Setting G will also set IMAFD");
+                                cpu->cfg.ext_d &&
+                                cpu->cfg.ext_icsr && cpu->cfg.ext_ifencei)) {
+            warn_report("Setting G will also set IMAFD_Zicsr_Zifencei");
             cpu->cfg.ext_i = true;
             cpu->cfg.ext_m = true;
             cpu->cfg.ext_a = true;
             cpu->cfg.ext_f = true;
             cpu->cfg.ext_d = true;
+            cpu->cfg.ext_icsr = true;
+            cpu->cfg.ext_ifencei = true;
         }
 
         if (cpu->cfg.ext_zdinx || cpu->cfg.ext_zhinx ||
