@@ -46,7 +46,8 @@ class NetBSDVM(basevm.BaseVM):
         "jpeg",
         "png",
 
-	# libs: ui
+        # libs: ui
+        "capstone",
         "SDL2",
         "gtk3+",
         "libxkbcommon",
