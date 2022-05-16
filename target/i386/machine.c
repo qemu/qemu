@@ -136,6 +136,22 @@ static const VMStateDescription vmstate_mtrr_var = {
 #define VMSTATE_MTRR_VARS(_field, _state, _n, _v)                    \
     VMSTATE_STRUCT_ARRAY(_field, _state, _n, _v, vmstate_mtrr_var, MTRRVar)
 
+static const VMStateDescription vmstate_lbr_records_var = {
+    .name = "lbr_records_var",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(from, LBREntry),
+        VMSTATE_UINT64(to, LBREntry),
+        VMSTATE_UINT64(info, LBREntry),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+#define VMSTATE_LBR_VARS(_field, _state, _n, _v)                    \
+    VMSTATE_STRUCT_ARRAY(_field, _state, _n, _v, vmstate_lbr_records_var, \
+                         LBREntry)
+
 typedef struct x86_FPReg_tmp {
     FPReg *parent;
     uint64_t tmp_mant;
@@ -1525,6 +1541,27 @@ static const VMStateDescription vmstate_amx_xtile = {
 };
 #endif
 
+static bool arch_lbr_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return !!(env->features[FEAT_7_0_EDX] & CPUID_7_0_EDX_ARCH_LBR);
+}
+
+static const VMStateDescription vmstate_arch_lbr = {
+    .name = "cpu/arch_lbr",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = arch_lbr_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(env.msr_lbr_ctl, X86CPU),
+        VMSTATE_UINT64(env.msr_lbr_depth, X86CPU),
+        VMSTATE_LBR_VARS(env.lbr_records, X86CPU, ARCH_LBR_NR_ENTRIES, 1),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_x86_cpu = {
     .name = "cpu",
     .version_id = 12,
@@ -1668,6 +1705,7 @@ const VMStateDescription vmstate_x86_cpu = {
 #ifdef TARGET_X86_64
         &vmstate_amx_xtile,
 #endif
+        &vmstate_arch_lbr,
         NULL
     }
 };

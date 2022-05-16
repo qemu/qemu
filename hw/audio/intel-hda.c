@@ -1311,17 +1311,16 @@ static const TypeInfo hda_codec_device_type_info = {
  * create intel hda controller with codec attached to it,
  * so '-soundhw hda' works.
  */
-static int intel_hda_and_codec_init(PCIBus *bus)
+static int intel_hda_and_codec_init(PCIBus *bus, const char *audiodev)
 {
     DeviceState *controller;
     BusState *hdabus;
     DeviceState *codec;
 
-    warn_report("'-soundhw hda' is deprecated, "
-                "please use '-device intel-hda -device hda-duplex' instead");
     controller = DEVICE(pci_create_simple(bus, -1, "intel-hda"));
     hdabus = QLIST_FIRST(&controller->child_bus);
     codec = qdev_new("hda-duplex");
+    qdev_prop_set_string(codec, "audiodev", audiodev);
     qdev_realize_and_unref(codec, hdabus, &error_fatal);
     return 0;
 }

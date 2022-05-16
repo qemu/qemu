@@ -354,12 +354,12 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
             if (FAILED(hr)) {
                 err_set(errset, hr, "failed to add %S to snapshot set",
                         volume_name_wchar);
-                delete volume_name_wchar;
+                delete[] volume_name_wchar;
                 goto out;
             }
             num_mount_points++;
 
-            delete volume_name_wchar;
+            delete[] volume_name_wchar;
         }
 
         if (num_mount_points == 0) {

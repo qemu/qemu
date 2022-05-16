@@ -1043,10 +1043,6 @@ Advanced options (experts only):
   --enable-tsan            enable thread sanitizer
   --disable-werror         disable compilation abort on warning
   --disable-stack-protector disable compiler-provided stack protection
-  --audio-drv-list=LIST    set audio drivers to try if -audiodev is not used
-  --block-drv-whitelist=L  Same as --block-drv-rw-whitelist=L
-  --with-trace-file=NAME   Full PATH,NAME of file to store traces
-                           Default:trace-<pid>
   --cpu=CPU                Build for host CPU [$cpu]
   --with-coroutine=BACKEND coroutine backend. Supported options:
                            ucontext, sigaltstack, windows
@@ -1992,7 +1988,6 @@ fi
 if test "$static" = "yes" ; then
   echo "CONFIG_STATIC=y" >> $config_host_mak
 fi
-qemu_version=$(head $source_path/VERSION)
 echo "SRC_PATH=$source_path" >> $config_host_mak
 echo "TARGET_DIRS=$target_list" >> $config_host_mak
 if test "$modules" = "yes"; then

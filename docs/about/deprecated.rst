@@ -39,15 +39,6 @@ should specify an ``audiodev=`` property.  Additionally, when using
 vnc, you should specify an ``audiodev=`` property if you plan to
 transmit audio through the VNC protocol.
 
-Creating sound card devices using ``-soundhw`` (since 5.1)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Sound card devices should be created using ``-device`` instead.  The
-names are the same for most devices.  The exceptions are ``hda`` which
-needs two devices (``-device intel-hda -device hda-duplex``) and
-``pcspk`` which can be activated using ``-machine
-pcspk-audiodev=<name>``.
-
 ``-chardev`` backend aliases ``tty`` and ``parport`` (since 6.0)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
@@ -89,25 +80,6 @@ This option is insecure because the SPICE password remains visible in
 the process listing. This is replaced by the new ``password-secret``
 option which lets the password be securely provided on the command
 line using a ``secret`` object instance.
-
-``opened`` property of ``rng-*`` objects (since 6.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The only effect of specifying ``opened=on`` in the command line or QMP
-``object-add`` is that the device is opened immediately, possibly before all
-other options have been processed.  This will either have no effect (if
-``opened`` was the last option) or cause errors.  The property is therefore
-useless and should not be specified.
-
-``loaded`` property of ``secret`` and ``secret_keyring`` objects (since 6.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The only effect of specifying ``loaded=on`` in the command line or QMP
-``object-add`` is that the secret is loaded immediately, possibly before all
-other options have been processed.  This will either have no effect (if
-``loaded`` was the last option) or cause options to be effectively ignored as
-if they were not given.  The property is therefore useless and should not be
-specified.
 
 ``-display sdl,window_close=...`` (since 6.1)
 '''''''''''''''''''''''''''''''''''''''''''''
@@ -269,12 +241,6 @@ from Linux upstream kernel, declare it deprecated.
 
 System emulator CPUS
 --------------------
-
-``Icelake-Client`` CPU Model (since 5.2)
-''''''''''''''''''''''''''''''''''''''''
-
-``Icelake-Client`` CPU Models are deprecated. Use ``Icelake-Server`` CPU
-Models instead.
 
 MIPS ``I7200`` CPU Model (since 5.2)
 ''''''''''''''''''''''''''''''''''''

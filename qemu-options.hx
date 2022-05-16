@@ -661,6 +661,30 @@ SRST
     (deprecated) environment variables.
 ERST
 
+DEF("audio", HAS_ARG, QEMU_OPTION_audio,
+    "-audio [driver=]driver,model=value[,prop[=value][,...]]\n"
+    "                specifies the audio backend and device to use;\n"
+    "                apart from 'model', options are the same as for -audiodev.\n"
+    "                use '-audio model=help' to show possible devices.\n",
+    QEMU_ARCH_ALL)
+SRST
+``-audio [driver=]driver,model=value[,prop[=value][,...]]``
+    This option is a shortcut for configuring both the guest audio
+    hardware and the host audio backend in one go.
+    The host backend options are the same as with the corresponding
+    ``-audiodev`` options below. The guest hardware model can be set with
+    ``model=modelname``. Use ``model=help`` to list the available device
+    types.
+
+    The following two example do exactly the same, to show how ``-audio``
+    can be used to shorten the command line length:
+
+    .. parsed-literal::
+
+        |qemu_system| -audiodev pa,id=pa -device sb16,audiodev=pa
+        |qemu_system| -audio pa,model=sb16
+ERST
+
 DEF("audiodev", HAS_ARG, QEMU_OPTION_audiodev,
     "-audiodev [driver=]driver,id=id[,prop[=value][,...]]\n"
     "                specifies the audio backend to use\n"
@@ -890,33 +914,6 @@ SRST
     ``path=path``
         Write recorded audio into the specified file. Default is
         ``qemu.wav``.
-ERST
-
-DEF("soundhw", HAS_ARG, QEMU_OPTION_soundhw,
-    "-soundhw c1,... enable audio support\n"
-    "                and only specified sound cards (comma separated list)\n"
-    "                use '-soundhw help' to get the list of supported cards\n"
-    "                use '-soundhw all' to enable all of them\n", QEMU_ARCH_ALL)
-SRST
-``-soundhw card1[,card2,...] or -soundhw all``
-    Enable audio and selected sound hardware. Use 'help' to print all
-    available sound hardware. For example:
-
-    .. parsed-literal::
-
-        |qemu_system_x86| -soundhw sb16,adlib disk.img
-        |qemu_system_x86| -soundhw es1370 disk.img
-        |qemu_system_x86| -soundhw ac97 disk.img
-        |qemu_system_x86| -soundhw hda disk.img
-        |qemu_system_x86| -soundhw all disk.img
-        |qemu_system_x86| -soundhw help
-
-    Note that Linux's i810\_audio OSS kernel (for AC97) module might
-    require manually specifying clocking.
-
-    ::
-
-        modprobe i810_audio clocking=48000
 ERST
 
 DEF("device", HAS_ARG, QEMU_OPTION_device,
