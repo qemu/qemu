@@ -33,10 +33,9 @@
       when:
         - ansible_facts['distribution'] == 'Ubuntu'
 
-    - name: Install basic packages to build QEMU on Ubuntu 18.04/20.04
+    - name: Install basic packages to build QEMU on Ubuntu 20.04
       package:
         name:
-        # Originally from tests/docker/dockerfiles/ubuntu1804.docker
           - ccache
           - gcc
           - gettext
@@ -90,7 +89,7 @@
       when:
         - ansible_facts['distribution'] == 'Ubuntu'
 
-    - name: Install packages to build QEMU on Ubuntu 18.04/20.04 on non-s390x
+    - name: Install packages to build QEMU on Ubuntu 20.04 on non-s390x
       package:
         name:
           - libspice-server-dev
@@ -99,15 +98,6 @@
       when:
         - ansible_facts['distribution'] == 'Ubuntu'
         - ansible_facts['architecture'] != 's390x'
-
-    - name: Install basic packages to build QEMU on Ubuntu 18.04
-      package:
-        name:
-        # Originally from tests/docker/dockerfiles/ubuntu1804.docker
-          - clang
-      when:
-        - ansible_facts['distribution'] == 'Ubuntu'
-        - ansible_facts['distribution_version'] == '18.04'
 
     - name: Install basic packages to build QEMU on Ubuntu 20.04
       package:

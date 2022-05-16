@@ -65,11 +65,6 @@ def generate_cirrus(target, trailer=None):
    cmd = lcitool_cmd + ["variables", target, "qemu"]
    generate(filename, cmd, trailer)
 
-ubuntu1804_skipssh = [
-   "# https://bugs.launchpad.net/qemu/+bug/1838763\n",
-   "ENV QEMU_CONFIGURE_OPTS --disable-libssh\n"
-]
-
 ubuntu2004_tsanhack = [
    "# Apply patch https://reviews.llvm.org/D75820\n",
    "# This is required for TSan in clang-10 to compile with QEMU.\n",
@@ -85,8 +80,6 @@ def debian_cross_build(prefix, targets):
 try:
    generate_dockerfile("centos8", "centos-stream-8")
    generate_dockerfile("fedora", "fedora-35")
-   generate_dockerfile("ubuntu1804", "ubuntu-1804",
-                       trailer="".join(ubuntu1804_skipssh))
    generate_dockerfile("ubuntu2004", "ubuntu-2004",
                        trailer="".join(ubuntu2004_tsanhack))
    generate_dockerfile("opensuse-leap", "opensuse-leap-152")
