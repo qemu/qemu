@@ -33,9 +33,17 @@
  * to stderr when the guest attempts to enable the timer.
  */
 
-/* The default ptimer policy retains backward compatibility with the legacy
- * timers. Custom policies are adjusting the default one. Consider providing
- * a correct policy for your timer.
+/*
+ * The 'legacy' ptimer policy retains backward compatibility with the
+ * traditional ptimer behaviour from before policy flags were introduced.
+ * It has several weird behaviours which don't match typical hardware
+ * timer behaviour. For a new device using ptimers, you should not
+ * use PTIMER_POLICY_LEGACY, but instead check the actual behaviour
+ * that you need and specify the right set of policy flags to get that.
+ *
+ * If you are overhauling an existing device that uses PTIMER_POLICY_LEGACY
+ * and are in a position to check or test the real hardware behaviour,
+ * consider updating it to specify the right policy flags.
  *
  * The rough edges of the default policy:
  *  - Starting to run with a period = 0 emits error message and stops the
@@ -54,7 +62,7 @@
  *    since the last period, effectively restarting the timer with a
  *    counter = counter value at the moment of change (.i.e. one less).
  */
-#define PTIMER_POLICY_DEFAULT               0
+#define PTIMER_POLICY_LEGACY                0
 
 /* Periodic timer counter stays with "0" for a one period before wrapping
  * around.  */

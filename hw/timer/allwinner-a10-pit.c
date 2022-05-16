@@ -275,7 +275,7 @@ static void a10_pit_init(Object *obj)
 
         tc->container = s;
         tc->index = i;
-        s->timer[i] = ptimer_init(a10_pit_timer_cb, tc, PTIMER_POLICY_DEFAULT);
+        s->timer[i] = ptimer_init(a10_pit_timer_cb, tc, PTIMER_POLICY_LEGACY);
     }
 }
 

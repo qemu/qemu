@@ -464,7 +464,7 @@ static void mv88w8618_timer_init(SysBusDevice *dev, mv88w8618_timer_state *s,
     sysbus_init_irq(dev, &s->irq);
     s->freq = freq;
 
-    s->ptimer = ptimer_init(mv88w8618_timer_tick, s, PTIMER_POLICY_DEFAULT);
+    s->ptimer = ptimer_init(mv88w8618_timer_tick, s, PTIMER_POLICY_LEGACY);
 }
 
 static uint64_t mv88w8618_pit_read(void *opaque, hwaddr offset,

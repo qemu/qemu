@@ -1503,17 +1503,17 @@ static void exynos4210_mct_init(Object *obj)
 
     /* Global timer */
     s->g_timer.ptimer_frc = ptimer_init(exynos4210_gfrc_event, s,
-                                        PTIMER_POLICY_DEFAULT);
+                                        PTIMER_POLICY_LEGACY);
     memset(&s->g_timer.reg, 0, sizeof(struct gregs));
 
     /* Local timers */
     for (i = 0; i < 2; i++) {
         s->l_timer[i].tick_timer.ptimer_tick =
             ptimer_init(exynos4210_ltick_event, &s->l_timer[i],
-                        PTIMER_POLICY_DEFAULT);
+                        PTIMER_POLICY_LEGACY);
         s->l_timer[i].ptimer_frc =
             ptimer_init(exynos4210_lfrc_event, &s->l_timer[i],
-                        PTIMER_POLICY_DEFAULT);
+                        PTIMER_POLICY_LEGACY);
         s->l_timer[i].id = i;
     }
 

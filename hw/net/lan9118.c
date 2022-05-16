@@ -1363,7 +1363,7 @@ static void lan9118_realize(DeviceState *dev, Error **errp)
     s->pmt_ctrl = 1;
     s->txp = &s->tx_packet;
 
-    s->timer = ptimer_init(lan9118_tick, s, PTIMER_POLICY_DEFAULT);
+    s->timer = ptimer_init(lan9118_tick, s, PTIMER_POLICY_LEGACY);
     ptimer_transaction_begin(s->timer);
     ptimer_set_freq(s->timer, 10000);
     ptimer_set_limit(s->timer, 0xffff, 1);

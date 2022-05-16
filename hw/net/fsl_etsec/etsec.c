@@ -393,7 +393,7 @@ static void etsec_realize(DeviceState *dev, Error **errp)
                               object_get_typename(OBJECT(dev)), dev->id, etsec);
     qemu_format_nic_info_str(qemu_get_queue(etsec->nic), etsec->conf.macaddr.a);
 
-    etsec->ptimer = ptimer_init(etsec_timer_hit, etsec, PTIMER_POLICY_DEFAULT);
+    etsec->ptimer = ptimer_init(etsec_timer_hit, etsec, PTIMER_POLICY_LEGACY);
     ptimer_transaction_begin(etsec->ptimer);
     ptimer_set_freq(etsec->ptimer, 100);
     ptimer_transaction_commit(etsec->ptimer);

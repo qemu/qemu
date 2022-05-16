@@ -400,7 +400,7 @@ static void exynos4210_pwm_init(Object *obj)
         sysbus_init_irq(dev, &s->timer[i].irq);
         s->timer[i].ptimer = ptimer_init(exynos4210_pwm_tick,
                                          &s->timer[i],
-                                         PTIMER_POLICY_DEFAULT);
+                                         PTIMER_POLICY_LEGACY);
         s->timer[i].id = i;
         s->timer[i].parent = s;
     }
