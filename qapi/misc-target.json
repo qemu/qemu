@@ -21,7 +21,6 @@
 { 'command': 'rtc-reset-reinjection',
   'if': 'TARGET_I386' }
 
-
 ##
 # @SevState:
 #
@@ -101,7 +100,6 @@
 { 'command': 'query-sev', 'returns': 'SevInfo',
   'if': 'TARGET_I386' }
 
-
 ##
 # @SevLaunchMeasureInfo:
 #
@@ -110,7 +108,6 @@
 # @data: the measurement value encoded in base64
 #
 # Since: 2.12
-#
 ##
 { 'struct': 'SevLaunchMeasureInfo', 'data': {'data': 'str'},
   'if': 'TARGET_I386' }
@@ -133,16 +130,15 @@
 { 'command': 'query-sev-launch-measure', 'returns': 'SevLaunchMeasureInfo',
   'if': 'TARGET_I386' }
 
-
 ##
 # @SevCapability:
 #
 # The struct describes capability for a Secure Encrypted Virtualization
 # feature.
 #
-# @pdh:  Platform Diffie-Hellman key (base64 encoded)
+# @pdh: Platform Diffie-Hellman key (base64 encoded)
 #
-# @cert-chain:  PDH certificate chain (base64 encoded)
+# @cert-chain: PDH certificate chain (base64 encoded)
 #
 # @cpu0-id: Unique ID of CPU0 (base64 encoded) (since 7.1)
 #
@@ -194,7 +190,6 @@
 # @gpa: the guest physical address where secret will be injected.
 #
 # Since: 6.0
-#
 ##
 { 'command': 'sev-inject-launch-secret',
   'data': { 'packet-header': 'str', 'secret': 'str', '*gpa': 'uint64' },
@@ -206,8 +201,7 @@
 # The struct describes attestation report for a Secure Encrypted
 # Virtualization feature.
 #
-# @data:  guest attestation report (base64 encoded)
-#
+# @data: guest attestation report (base64 encoded)
 #
 # Since: 6.1
 ##
@@ -306,7 +300,6 @@
 ##
 { 'command': 'query-gic-capabilities', 'returns': ['GICCapability'],
   'if': 'TARGET_ARM' }
-
 
 ##
 # @SGXEPCSection:

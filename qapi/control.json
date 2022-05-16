@@ -33,7 +33,6 @@
 #        all the QMP capabilities will be turned off by default.
 #
 # Since: 0.13
-#
 ##
 { 'command': 'qmp_capabilities',
   'data': { '*enable': [ 'QMPCapability' ] },
@@ -49,7 +48,6 @@
 #       (Please refer to qmp-spec.txt for more information on OOB)
 #
 # Since: 2.12
-#
 ##
 { 'enum': 'QMPCapability',
   'data': [ 'oob' ] }
@@ -69,7 +67,6 @@
 ##
 { 'struct': 'VersionTriple',
   'data': {'major': 'int', 'minor': 'int', 'micro': 'int'} }
-
 
 ##
 # @VersionInfo:
@@ -195,14 +192,14 @@
 #
 # Options to be used for adding a new monitor.
 #
-# @id:          Name of the monitor
+# @id: Name of the monitor
 #
-# @mode:        Selects the monitor mode (default: readline in the system
-#               emulator, control in qemu-storage-daemon)
+# @mode: Selects the monitor mode (default: readline in the system
+#           emulator, control in qemu-storage-daemon)
 #
-# @pretty:      Enables pretty printing (QMP only)
+# @pretty: Enables pretty printing (QMP only)
 #
-# @chardev:     Name of a character device to expose the monitor on
+# @chardev: Name of a character device to expose the monitor on
 #
 # Since: 5.0
 ##

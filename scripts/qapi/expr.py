@@ -443,7 +443,7 @@ def check_features(features: Optional[object],
         check_keys(feat, info, source, ['name'], ['if'])
         check_name_is_str(feat['name'], info, source)
         source = "%s '%s'" % (source, feat['name'])
-        check_name_str(feat['name'], info, source)
+        check_name_lower(feat['name'], info, source)
         check_if(feat, info, source)
 
 

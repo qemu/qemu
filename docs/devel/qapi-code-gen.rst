@@ -739,10 +739,11 @@ Type names ending with ``Kind`` or ``List`` are reserved for the
 generator, which uses them for implicit union enums and array types,
 respectively.
 
-Command names, and member names within a type, should be all lower
-case with words separated by a hyphen.  However, some existing older
-commands and complex types use underscore; when extending them,
-consistency is preferred over blindly avoiding underscore.
+Command names, member names within a type, and feature names should be
+all lower case with words separated by a hyphen.  However, some
+existing older commands and complex types use underscore; when
+extending them, consistency is preferred over blindly avoiding
+underscore.
 
 Event names should be ALL_CAPS with words separated by underscore.
 

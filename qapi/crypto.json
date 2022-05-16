@@ -24,7 +24,6 @@
   'prefix': 'QCRYPTO_TLS_CREDS_ENDPOINT',
   'data': ['client', 'server']}
 
-
 ##
 # @QCryptoSecretFormat:
 #
@@ -32,12 +31,12 @@
 #
 # @raw: raw bytes. When encoded in JSON only valid UTF-8 sequences can be used
 # @base64: arbitrary base64 encoded binary data
+#
 # Since: 2.6
 ##
 { 'enum': 'QCryptoSecretFormat',
   'prefix': 'QCRYPTO_SECRET_FORMAT',
   'data': ['raw', 'base64']}
-
 
 ##
 # @QCryptoHashAlgorithm:
@@ -51,12 +50,12 @@
 # @sha384: SHA-384. (since 2.7)
 # @sha512: SHA-512. (since 2.7)
 # @ripemd160: RIPEMD-160. (since 2.7)
+#
 # Since: 2.6
 ##
 { 'enum': 'QCryptoHashAlgorithm',
   'prefix': 'QCRYPTO_HASH_ALG',
   'data': ['md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512', 'ripemd160']}
-
 
 ##
 # @QCryptoCipherAlgorithm:
@@ -75,6 +74,7 @@
 # @twofish-128: Twofish with 128 bit / 16 byte keys
 # @twofish-192: Twofish with 192 bit / 24 byte keys
 # @twofish-256: Twofish with 256 bit / 32 byte keys
+#
 # Since: 2.6
 ##
 { 'enum': 'QCryptoCipherAlgorithm',
@@ -85,7 +85,6 @@
            'serpent-128', 'serpent-192', 'serpent-256',
            'twofish-128', 'twofish-192', 'twofish-256']}
 
-
 ##
 # @QCryptoCipherMode:
 #
@@ -95,12 +94,12 @@
 # @cbc: Cipher Block Chaining
 # @xts: XEX with tweaked code book and ciphertext stealing
 # @ctr: Counter (Since 2.8)
+#
 # Since: 2.6
 ##
 { 'enum': 'QCryptoCipherMode',
   'prefix': 'QCRYPTO_CIPHER_MODE',
   'data': ['ecb', 'cbc', 'xts', 'ctr']}
-
 
 ##
 # @QCryptoIVGenAlgorithm:
@@ -114,6 +113,7 @@
 # @plain: 64-bit sector number truncated to 32-bits
 # @plain64: 64-bit sector number
 # @essiv: 64-bit sector number encrypted with a hash of the encryption key
+#
 # Since: 2.6
 ##
 { 'enum': 'QCryptoIVGenAlgorithm',
@@ -170,11 +170,11 @@
 # @key-secret: the ID of a QCryptoSecret object providing the
 #              decryption key. Mandatory except when probing image for
 #              metadata only.
+#
 # Since: 2.6
 ##
 { 'struct': 'QCryptoBlockOptionsLUKS',
   'data': { '*key-secret': 'str' }}
-
 
 ##
 # @QCryptoBlockCreateOptionsLUKS:
@@ -194,6 +194,7 @@
 # @iter-time: number of milliseconds to spend in
 #             PBKDF passphrase processing. Currently defaults
 #             to 2000. (since 2.8)
+#
 # Since: 2.6
 ##
 { 'struct': 'QCryptoBlockCreateOptionsLUKS',
@@ -204,7 +205,6 @@
             '*ivgen-hash-alg': 'QCryptoHashAlgorithm',
             '*hash-alg': 'QCryptoHashAlgorithm',
             '*iter-time': 'int'}}
-
 
 ##
 # @QCryptoBlockOpenOptions:
@@ -220,7 +220,6 @@
   'data': { 'qcow': 'QCryptoBlockOptionsQCow',
             'luks': 'QCryptoBlockOptionsLUKS' } }
 
-
 ##
 # @QCryptoBlockCreateOptions:
 #
@@ -235,7 +234,6 @@
   'data': { 'qcow': 'QCryptoBlockOptionsQCow',
             'luks': 'QCryptoBlockCreateOptionsLUKS' } }
 
-
 ##
 # @QCryptoBlockInfoBase:
 #
@@ -248,7 +246,6 @@
 ##
 { 'struct': 'QCryptoBlockInfoBase',
   'data': { 'format': 'QCryptoBlockFormat' }}
-
 
 ##
 # @QCryptoBlockInfoLUKSSlot:
@@ -268,7 +265,6 @@
            '*iters': 'int',
            '*stripes': 'int',
            'key-offset': 'int' } }
-
 
 ##
 # @QCryptoBlockInfoLUKS:
@@ -315,14 +311,13 @@
 #
 # Defines state of keyslots that are affected by the update
 #
-# @active:    The slots contain the given password and marked as active
-# @inactive:  The slots are erased (contain garbage) and marked as inactive
+# @active: The slots contain the given password and marked as active
+# @inactive: The slots are erased (contain garbage) and marked as inactive
 #
 # Since: 5.1
 ##
 { 'enum': 'QCryptoBlockLUKSKeyslotState',
   'data': [ 'active', 'inactive' ] }
-
 
 ##
 # @QCryptoBlockAmendOptionsLUKS:
@@ -332,33 +327,32 @@
 #
 # @state: the desired state of the keyslots
 #
-# @new-secret:    The ID of a QCryptoSecret object providing the password to be
-#                 written into added active keyslots
+# @new-secret: The ID of a QCryptoSecret object providing the password to be
+#              written into added active keyslots
 #
-# @old-secret:    Optional (for deactivation only)
-#                 If given will deactivate all keyslots that
-#                 match password located in QCryptoSecret with this ID
+# @old-secret: Optional (for deactivation only)
+#              If given will deactivate all keyslots that
+#              match password located in QCryptoSecret with this ID
 #
-# @iter-time:     Optional (for activation only)
-#                 Number of milliseconds to spend in
-#                 PBKDF passphrase processing for the newly activated keyslot.
-#                 Currently defaults to 2000.
+# @iter-time: Optional (for activation only)
+#             Number of milliseconds to spend in
+#             PBKDF passphrase processing for the newly activated keyslot.
+#             Currently defaults to 2000.
 #
-# @keyslot:       Optional. ID of the keyslot to activate/deactivate.
-#                 For keyslot activation, keyslot should not be active already
-#                 (this is unsafe to update an active keyslot),
-#                 but possible if 'force' parameter is given.
-#                 If keyslot is not given, first free keyslot will be written.
+# @keyslot: Optional. ID of the keyslot to activate/deactivate.
+#           For keyslot activation, keyslot should not be active already
+#           (this is unsafe to update an active keyslot),
+#           but possible if 'force' parameter is given.
+#           If keyslot is not given, first free keyslot will be written.
 #
-#                 For keyslot deactivation, this parameter specifies the exact
-#                 keyslot to deactivate
+#           For keyslot deactivation, this parameter specifies the exact
+#           keyslot to deactivate
 #
-# @secret:        Optional. The ID of a QCryptoSecret object providing the
-#                 password to use to retrieve current master key.
-#                 Defaults to the same secret that was used to open the image
+# @secret: Optional. The ID of a QCryptoSecret object providing the
+#          password to use to retrieve current master key.
+#          Defaults to the same secret that was used to open the image
 #
-#
-# Since 5.1
+# Since: 5.1
 ##
 { 'struct': 'QCryptoBlockAmendOptionsLUKS',
   'data': { 'state': 'QCryptoBlockLUKSKeyslotState',

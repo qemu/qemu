@@ -54,7 +54,6 @@
 { 'enum': 'CpuModelExpansionType',
   'data': [ 'static', 'full' ] }
 
-
 ##
 # @CpuModelCompareResult:
 #

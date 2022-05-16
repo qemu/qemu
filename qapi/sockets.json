@@ -167,9 +167,9 @@
 #
 # Available SocketAddress types
 #
-# @inet:  Internet address
+# @inet: Internet address
 #
-# @unix:  Unix domain socket
+# @unix: Unix domain socket
 #
 # @vsock: VMCI address
 #
@@ -189,7 +189,7 @@
 # Captures the address of a socket, which could also be a named file
 # descriptor
 #
-# @type:       Transport type
+# @type: Transport type
 #
 # Since: 2.9
 ##

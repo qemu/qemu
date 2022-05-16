@@ -950,7 +950,7 @@
 #         by device mapper
 # @smart: disk smart information (Since 7.1)
 #
-# Since 5.2
+# Since: 5.2
 ##
 { 'struct': 'GuestDiskInfo',
   'data': {'name': 'str', 'partition': 'bool', '*dependencies': ['str'],

@@ -391,7 +391,7 @@
 #                 block-export-del command, but before the shutdown has
 #                 completed)
 #
-# Since:  5.2
+# Since: 5.2
 ##
 { 'struct': 'BlockExportInfo',
   'data': { 'id': 'str',

@@ -77,7 +77,6 @@
 #          additional fields will be listed (since 3.0)
 #
 # Since: 2.12
-#
 ##
 { 'union'         : 'CpuInfoFast',
   'base'          : { 'cpu-index'    : 'int',
@@ -299,6 +298,7 @@
 #        returning does not indicate that a guest has accepted the request or
 #        that it has shut down.  Many guests will respond to this command by
 #        prompting the user in some way.
+#
 # Example:
 #
 # -> { "execute": "system_powerdown" }
@@ -315,9 +315,9 @@
 # query-current-machine), wake-up guest from suspend if the guest is
 # in SUSPENDED state. Return an error otherwise.
 #
-# Since:  1.1
+# Since: 1.1
 #
-# Returns:  nothing.
+# Returns: nothing.
 #
 # Note: prior to 4.0, this command does nothing in case the guest
 #       isn't suspended.
@@ -368,9 +368,9 @@
 # Injects a Non-Maskable Interrupt into the default CPU (x86/s390) or all CPUs (ppc64).
 # The command fails when the guest doesn't support injecting.
 #
-# Returns:  If successful, nothing
+# Returns: If successful, nothing
 #
-# Since:  0.14
+# Since: 0.14
 #
 # Note: prior to 2.1, this command was only supported for x86 and s390 VMs
 #
@@ -972,7 +972,7 @@
 # preconfigure stage to configure numa mapping before initializing
 # machine.
 #
-# Since 3.0
+# Since: 3.0
 ##
 { 'command': 'set-numa-node', 'boxed': true,
   'data': 'NumaOptions',
@@ -1021,7 +1021,6 @@
 #          Formula used: logical_vm_size = vm_ram_size - balloon_size
 #
 # Since: 0.14
-#
 ##
 { 'struct': 'BalloonInfo', 'data': {'actual': 'int' } }
 
@@ -1365,7 +1364,6 @@
 ##
 { 'event': 'MEMORY_DEVICE_SIZE_CHANGE',
   'data': { '*id': 'str', 'size': 'size', 'qom-path' : 'str'} }
-
 
 ##
 # @MEM_UNPLUG_ERROR:

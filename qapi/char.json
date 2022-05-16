@@ -216,7 +216,7 @@
 #
 # Configuration info for file chardevs.
 #
-# @in:  The name of the input file
+# @in: The name of the input file
 # @out: The name of the output file
 # @append: Open the file in append mode (default false to
 #          truncate) (Since 2.6)
@@ -329,7 +329,6 @@
   'data': { '*signal': 'bool' },
   'base': 'ChardevCommon' }
 
-
 ##
 # @ChardevSpiceChannel:
 #
@@ -377,10 +376,10 @@
 #
 # Configuration info for virtual console chardevs.
 #
-# @width:  console width,  in pixels
+# @width: console width, in pixels
 # @height: console height, in pixels
-# @cols:   console width,  in chars
-# @rows:   console height, in chars
+# @cols: console width, in chars
+# @rows: console height, in chars
 #
 # Since: 1.5
 ##
@@ -413,7 +412,6 @@
 # @clipboard: enable/disable clipboard, default is disabled.
 #
 # Since: 6.1
-#
 ##
 { 'struct': 'ChardevQemuVDAgent',
   'data': { '*mouse': 'bool',
