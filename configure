@@ -307,10 +307,8 @@ skip_meson=no
 
 # 1. Track which submodules are needed
 if test "$default_feature" = no ; then
-  capstone="disabled"
   slirp="disabled"
 else
-  capstone="auto"
   slirp="auto"
 fi
 fdt="auto"
@@ -868,14 +866,6 @@ for opt do
   ;;
   --enable-uuid|--disable-uuid)
       echo "$0: $opt is obsolete, UUID support is always built" >&2
-  ;;
-  --disable-capstone) capstone="disabled"
-  ;;
-  --enable-capstone) capstone="enabled"
-  ;;
-  --enable-capstone=git) capstone="internal"
-  ;;
-  --enable-capstone=*) capstone="$optarg"
   ;;
   --with-git=*) git="$optarg"
   ;;
@@ -1567,16 +1557,6 @@ case "$fdt" in
 esac
 
 ##########################################
-# capstone
-
-case "$capstone" in
-  auto | enabled | internal)
-    # Simpler to always update submodule, even if not needed.
-    git_submodules="${git_submodules} capstone"
-    ;;
-esac
-
-##########################################
 # check and set a backend for coroutine
 
 # We prefer ucontext, but it's not always possible. The fallback
@@ -2220,7 +2200,6 @@ if test "$skip_meson" = no; then
   test "$werror" = yes && meson_option_add -Dwerror=true
 
   # QEMU options
-  test "$capstone" != auto && meson_option_add "-Dcapstone=$capstone"
   test "$cfi" != false && meson_option_add "-Dcfi=$cfi"
   test "$fdt" != auto && meson_option_add "-Dfdt=$fdt"
   test -n "${LIB_FUZZING_ENGINE+xxx}" && meson_option_add "-Dfuzzing_engine=$LIB_FUZZING_ENGINE"
