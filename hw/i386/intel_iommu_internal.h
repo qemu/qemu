@@ -289,6 +289,8 @@ typedef enum VTDFaultReason {
      * context-entry.
      */
     VTD_FR_CONTEXT_ENTRY_TT,
+    /* Output address in the interrupt address range */
+    VTD_FR_INTERRUPT_ADDR = 0xE,
 
     /* Interrupt remapping transition faults */
     VTD_FR_IR_REQ_RSVD = 0x20, /* One or more IR request reserved
@@ -304,11 +306,8 @@ typedef enum VTDFaultReason {
 
     VTD_FR_PASID_TABLE_INV = 0x58,  /*Invalid PASID table entry */
 
-    /* This is not a normal fault reason. We use this to indicate some faults
-     * that are not referenced by the VT-d specification.
-     * Fault event with such reason should not be recorded.
-     */
-    VTD_FR_RESERVED_ERR,
+    /* Output address in the interrupt address range for scalable mode */
+    VTD_FR_SM_INTERRUPT_ADDR = 0x87,
     VTD_FR_MAX,                 /* Guard */
 } VTDFaultReason;
 

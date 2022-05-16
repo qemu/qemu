@@ -60,15 +60,15 @@ void pcie_host_mmcfg_update(PCIExpressHost *e,
 /*
  * PCI express ECAM (Enhanced Configuration Address Mapping) format.
  * AKA mmcfg address
- * bit 20 - 28: bus number
+ * bit 20 - 27: bus number
  * bit 15 - 19: device number
  * bit 12 - 14: function number
  * bit  0 - 11: offset in configuration space of a given device
  */
-#define PCIE_MMCFG_SIZE_MAX             (1ULL << 29)
+#define PCIE_MMCFG_SIZE_MAX             (1ULL << 28)
 #define PCIE_MMCFG_SIZE_MIN             (1ULL << 20)
 #define PCIE_MMCFG_BUS_BIT              20
-#define PCIE_MMCFG_BUS_MASK             0x1ff
+#define PCIE_MMCFG_BUS_MASK             0xff
 #define PCIE_MMCFG_DEVFN_BIT            12
 #define PCIE_MMCFG_DEVFN_MASK           0xff
 #define PCIE_MMCFG_CONFOFFSET_MASK      0xfff

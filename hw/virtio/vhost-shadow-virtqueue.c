@@ -138,6 +138,7 @@ static void vhost_vring_write_descs(VhostShadowVirtqueue *svq, hwaddr *sg,
     for (n = 0; n < num; n++) {
         if (more_descs || (n + 1 < num)) {
             descs[i].flags = flags | cpu_to_le16(VRING_DESC_F_NEXT);
+            descs[i].next = cpu_to_le16(svq->desc_next[i]);
         } else {
             descs[i].flags = flags;
         }
@@ -145,10 +146,10 @@ static void vhost_vring_write_descs(VhostShadowVirtqueue *svq, hwaddr *sg,
         descs[i].len = cpu_to_le32(iovec[n].iov_len);
 
         last = i;
-        i = cpu_to_le16(descs[i].next);
+        i = cpu_to_le16(svq->desc_next[i]);
     }
 
-    svq->free_head = le16_to_cpu(descs[last].next);
+    svq->free_head = le16_to_cpu(svq->desc_next[last]);
 }
 
 static bool vhost_svq_add_split(VhostShadowVirtqueue *svq,
@@ -198,11 +199,19 @@ static bool vhost_svq_add_split(VhostShadowVirtqueue *svq,
     return true;
 }
 
+/**
+ * Add an element to a SVQ.
+ *
+ * The caller must check that there is enough slots for the new element. It
+ * takes ownership of the element: In case of failure, it is free and the SVQ
+ * is considered broken.
+ */
 static bool vhost_svq_add(VhostShadowVirtqueue *svq, VirtQueueElement *elem)
 {
     unsigned qemu_head;
     bool ok = vhost_svq_add_split(svq, elem, &qemu_head);
     if (unlikely(!ok)) {
+        g_free(elem);
         return false;
     }
 
@@ -333,13 +342,22 @@ static void vhost_svq_disable_notification(VhostShadowVirtqueue *svq)
     svq->vring.avail->flags |= cpu_to_le16(VRING_AVAIL_F_NO_INTERRUPT);
 }
 
+static uint16_t vhost_svq_last_desc_of_chain(const VhostShadowVirtqueue *svq,
+                                             uint16_t num, uint16_t i)
+{
+    for (uint16_t j = 0; j < (num - 1); ++j) {
+        i = le16_to_cpu(svq->desc_next[i]);
+    }
+
+    return i;
+}
+
 static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
                                            uint32_t *len)
 {
-    vring_desc_t *descs = svq->vring.desc;
     const vring_used_t *used = svq->vring.used;
     vring_used_elem_t used_elem;
-    uint16_t last_used;
+    uint16_t last_used, last_used_chain, num;
 
     if (!vhost_svq_more_used(svq)) {
         return NULL;
@@ -365,7 +383,10 @@ static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
         return NULL;
     }
 
-    descs[used_elem.id].next = svq->free_head;
+    num = svq->ring_id_maps[used_elem.id]->in_num +
+          svq->ring_id_maps[used_elem.id]->out_num;
+    last_used_chain = vhost_svq_last_desc_of_chain(svq, num, used_elem.id);
+    svq->desc_next[last_used_chain] = svq->free_head;
     svq->free_head = used_elem.id;
 
     *len = used_elem.len;
@@ -540,8 +561,9 @@ void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
     svq->vring.used = qemu_memalign(qemu_real_host_page_size(), device_size);
     memset(svq->vring.used, 0, device_size);
     svq->ring_id_maps = g_new0(VirtQueueElement *, svq->vring.num);
+    svq->desc_next = g_new0(uint16_t, svq->vring.num);
     for (unsigned i = 0; i < svq->vring.num - 1; i++) {
-        svq->vring.desc[i].next = cpu_to_le16(i + 1);
+        svq->desc_next[i] = cpu_to_le16(i + 1);
     }
 }
 
@@ -574,6 +596,7 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
         virtqueue_detach_element(svq->vq, next_avail_elem, 0);
     }
     svq->vq = NULL;
+    g_free(svq->desc_next);
     g_free(svq->ring_id_maps);
     qemu_vfree(svq->vring.desc);
     qemu_vfree(svq->vring.used);

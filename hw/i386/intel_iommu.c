@@ -181,6 +181,18 @@ static void vtd_update_scalable_state(IntelIOMMUState *s)
     }
 }
 
+static void vtd_update_iq_dw(IntelIOMMUState *s)
+{
+    uint64_t val = vtd_get_quad_raw(s, DMAR_IQA_REG);
+
+    if (s->ecap & VTD_ECAP_SMTS &&
+        val & VTD_IQA_DW_MASK) {
+        s->iq_dw = true;
+    } else {
+        s->iq_dw = false;
+    }
+}
+
 /* Whether the address space needs to notify new mappings */
 static inline gboolean vtd_as_has_map_notifier(VTDAddressSpace *as)
 {
@@ -468,11 +480,6 @@ static void vtd_report_dmar_fault(IntelIOMMUState *s, uint16_t source_id,
     uint32_t fsts_reg = vtd_get_long_raw(s, DMAR_FSTS_REG);
 
     assert(fault < VTD_FR_MAX);
-
-    if (fault == VTD_FR_RESERVED_ERR) {
-        /* This is not a normal fault reason case. Drop it. */
-        return;
-    }
 
     trace_vtd_dmar_fault(source_id, fault, addr, is_write);
 
@@ -1025,6 +1032,7 @@ static int vtd_iova_to_slpte(IntelIOMMUState *s, VTDContextEntry *ce,
     uint32_t offset;
     uint64_t slpte;
     uint64_t access_right_check;
+    uint64_t xlat, size;
 
     if (!vtd_iova_range_check(s, iova, ce, aw_bits)) {
         error_report_once("%s: detected IOVA overflow (iova=0x%" PRIx64 ")",
@@ -1069,10 +1077,32 @@ static int vtd_iova_to_slpte(IntelIOMMUState *s, VTDContextEntry *ce,
         if (vtd_is_last_slpte(slpte, level)) {
             *slptep = slpte;
             *slpte_level = level;
-            return 0;
+            break;
         }
         addr = vtd_get_slpte_addr(slpte, aw_bits);
         level--;
+    }
+
+    xlat = vtd_get_slpte_addr(*slptep, aw_bits);
+    size = ~vtd_slpt_level_page_mask(level) + 1;
+
+    /*
+     * From VT-d spec 3.14: Untranslated requests and translation
+     * requests that result in an address in the interrupt range will be
+     * blocked with condition code LGN.4 or SGN.8.
+     */
+    if ((xlat > VTD_INTERRUPT_ADDR_LAST ||
+         xlat + size - 1 < VTD_INTERRUPT_ADDR_FIRST)) {
+        return 0;
+    } else {
+        error_report_once("%s: xlat address is in interrupt range "
+                          "(iova=0x%" PRIx64 ", level=0x%" PRIx32 ", "
+                          "slpte=0x%" PRIx64 ", write=%d, "
+                          "xlat=0x%" PRIx64 ", size=0x%" PRIx64 ")",
+                          __func__, iova, level, slpte, is_write,
+                          xlat, size);
+        return s->scalable_mode ? -VTD_FR_SM_INTERRUPT_ADDR :
+                                  -VTD_FR_INTERRUPT_ADDR;
     }
 }
 
@@ -1633,11 +1663,12 @@ static const bool vtd_qualified_faults[] = {
     [VTD_FR_PAGING_ENTRY_INV] = true,
     [VTD_FR_ROOT_TABLE_INV] = false,
     [VTD_FR_CONTEXT_TABLE_INV] = false,
+    [VTD_FR_INTERRUPT_ADDR] = true,
     [VTD_FR_ROOT_ENTRY_RSVD] = false,
     [VTD_FR_PAGING_ENTRY_RSVD] = true,
     [VTD_FR_CONTEXT_ENTRY_TT] = true,
     [VTD_FR_PASID_TABLE_INV] = false,
-    [VTD_FR_RESERVED_ERR] = false,
+    [VTD_FR_SM_INTERRUPT_ADDR] = true,
     [VTD_FR_MAX] = false,
 };
 
@@ -2209,12 +2240,13 @@ static void vtd_handle_gcmd_ire(IntelIOMMUState *s, bool en)
 /* Handle write to Global Command Register */
 static void vtd_handle_gcmd_write(IntelIOMMUState *s)
 {
+    X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
     uint32_t status = vtd_get_long_raw(s, DMAR_GSTS_REG);
     uint32_t val = vtd_get_long_raw(s, DMAR_GCMD_REG);
     uint32_t changed = status ^ val;
 
     trace_vtd_reg_write_gcmd(status, val);
-    if (changed & VTD_GCMD_TE) {
+    if ((changed & VTD_GCMD_TE) && s->dma_translation) {
         /* Translation enable/disable */
         vtd_handle_gcmd_te(s, val & VTD_GCMD_TE);
     }
@@ -2230,7 +2262,8 @@ static void vtd_handle_gcmd_write(IntelIOMMUState *s)
         /* Set/update the interrupt remapping root-table pointer */
         vtd_handle_gcmd_sirtp(s);
     }
-    if (changed & VTD_GCMD_IRE) {
+    if ((changed & VTD_GCMD_IRE) &&
+        x86_iommu_ir_supported(x86_iommu)) {
         /* Interrupt remap enable/disable */
         vtd_handle_gcmd_ire(s, val & VTD_GCMD_IRE);
     }
@@ -2883,12 +2916,7 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
         } else {
             vtd_set_quad(s, addr, val);
         }
-        if (s->ecap & VTD_ECAP_SMTS &&
-            val & VTD_IQA_DW_MASK) {
-            s->iq_dw = true;
-        } else {
-            s->iq_dw = false;
-        }
+        vtd_update_iq_dw(s);
         break;
 
     case DMAR_IQA_REG_HI:
@@ -3032,7 +3060,7 @@ static int vtd_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
 
     /* TODO: add support for VFIO and vhost users */
     if (s->snoop_control) {
-        error_setg_errno(errp, -ENOTSUP,
+        error_setg_errno(errp, ENOTSUP,
                          "Snoop Control with vhost or VFIO is not supported");
         return -ENOTSUP;
     }
@@ -3053,13 +3081,6 @@ static int vtd_post_load(void *opaque, int version_id)
     IntelIOMMUState *iommu = opaque;
 
     /*
-     * Memory regions are dynamically turned on/off depending on
-     * context entry configurations from the guest. After migration,
-     * we need to make sure the memory regions are still correct.
-     */
-    vtd_switch_address_space_all(iommu);
-
-    /*
      * We don't need to migrate the root_scalable because we can
      * simply do the calculation after the loading is complete.  We
      * can actually do similar things with root, dmar_enabled, etc.
@@ -3067,6 +3088,15 @@ static int vtd_post_load(void *opaque, int version_id)
      * for compatibility of migration.
      */
     vtd_update_scalable_state(iommu);
+
+    vtd_update_iq_dw(iommu);
+
+    /*
+     * Memory regions are dynamically turned on/off depending on
+     * context entry configurations from the guest. After migration,
+     * we need to make sure the memory regions are still correct.
+     */
+    vtd_switch_address_space_all(iommu);
 
     return 0;
 }
@@ -3122,6 +3152,7 @@ static Property vtd_properties[] = {
     DEFINE_PROP_BOOL("x-scalable-mode", IntelIOMMUState, scalable_mode, FALSE),
     DEFINE_PROP_BOOL("snoop-control", IntelIOMMUState, snoop_control, false),
     DEFINE_PROP_BOOL("dma-drain", IntelIOMMUState, dma_drain, true),
+    DEFINE_PROP_BOOL("dma-translation", IntelIOMMUState, dma_translation, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -3627,12 +3658,17 @@ static void vtd_init(IntelIOMMUState *s)
     s->next_frcd_reg = 0;
     s->cap = VTD_CAP_FRO | VTD_CAP_NFR | VTD_CAP_ND |
              VTD_CAP_MAMV | VTD_CAP_PSI | VTD_CAP_SLLPS |
-             VTD_CAP_SAGAW_39bit | VTD_CAP_MGAW(s->aw_bits);
+             VTD_CAP_MGAW(s->aw_bits);
     if (s->dma_drain) {
         s->cap |= VTD_CAP_DRAIN;
     }
-    if (s->aw_bits == VTD_HOST_AW_48BIT) {
-        s->cap |= VTD_CAP_SAGAW_48bit;
+    if (s->dma_translation) {
+            if (s->aw_bits >= VTD_HOST_AW_39BIT) {
+                    s->cap |= VTD_CAP_SAGAW_39bit;
+            }
+            if (s->aw_bits >= VTD_HOST_AW_48BIT) {
+                    s->cap |= VTD_CAP_SAGAW_48bit;
+            }
     }
     s->ecap = VTD_ECAP_QI | VTD_ECAP_IRO;
 
@@ -3778,13 +3814,8 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
                                               ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
     }
     if (s->intr_eim == ON_OFF_AUTO_ON && !s->buggy_eim) {
-        if (!kvm_irqchip_in_kernel()) {
+        if (!kvm_irqchip_is_split()) {
             error_setg(errp, "eim=on requires accel=kvm,kernel-irqchip=split");
-            return false;
-        }
-        if (!kvm_enable_x2apic()) {
-            error_setg(errp, "eim=on requires support on the KVM side"
-                             "(X2APIC_API, first shipped in v4.7)");
             return false;
         }
     }

@@ -473,6 +473,15 @@ bool vu_init(VuDev *dev,
  */
 void vu_deinit(VuDev *dev);
 
+
+/**
+ * vu_request_to_string: return string for vhost message request
+ * @req: VhostUserMsg request
+ *
+ * Returns a const string, do not free.
+ */
+const char *vu_request_to_string(unsigned int req);
+
 /**
  * vu_dispatch:
  * @dev: a VuDev context

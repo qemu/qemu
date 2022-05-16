@@ -201,15 +201,18 @@ static void amdvi_setevent_bits(uint64_t *buffer, uint64_t value, int start,
 /*
  * AMDVi event structure
  *    0:15   -> DeviceID
- *    55:63  -> event type + miscellaneous info
- *    63:127 -> related address
+ *    48:63  -> event type + miscellaneous info
+ *    64:127 -> related address
  */
 static void amdvi_encode_event(uint64_t *evt, uint16_t devid, uint64_t addr,
                                uint16_t info)
 {
+    evt[0] = 0;
+    evt[1] = 0;
+
     amdvi_setevent_bits(evt, devid, 0, 16);
-    amdvi_setevent_bits(evt, info, 55, 8);
-    amdvi_setevent_bits(evt, addr, 63, 64);
+    amdvi_setevent_bits(evt, info, 48, 16);
+    amdvi_setevent_bits(evt, addr, 64, 64);
 }
 /* log an error encountered during a page walk
  *
@@ -218,7 +221,7 @@ static void amdvi_encode_event(uint64_t *evt, uint16_t devid, uint64_t addr,
 static void amdvi_page_fault(AMDVIState *s, uint16_t devid,
                              hwaddr addr, uint16_t info)
 {
-    uint64_t evt[4];
+    uint64_t evt[2];
 
     info |= AMDVI_EVENT_IOPF_I | AMDVI_EVENT_IOPF;
     amdvi_encode_event(evt, devid, addr, info);
@@ -234,7 +237,7 @@ static void amdvi_page_fault(AMDVIState *s, uint16_t devid,
 static void amdvi_log_devtab_error(AMDVIState *s, uint16_t devid,
                                    hwaddr devtab, uint16_t info)
 {
-    uint64_t evt[4];
+    uint64_t evt[2];
 
     info |= AMDVI_EVENT_DEV_TAB_HW_ERROR;
 
@@ -248,7 +251,8 @@ static void amdvi_log_devtab_error(AMDVIState *s, uint16_t devid,
  */
 static void amdvi_log_command_error(AMDVIState *s, hwaddr addr)
 {
-    uint64_t evt[4], info = AMDVI_EVENT_COMMAND_HW_ERROR;
+    uint64_t evt[2];
+    uint16_t info = AMDVI_EVENT_COMMAND_HW_ERROR;
 
     amdvi_encode_event(evt, 0, addr, info);
     amdvi_log_event(s, evt);
@@ -261,7 +265,7 @@ static void amdvi_log_command_error(AMDVIState *s, hwaddr addr)
 static void amdvi_log_illegalcom_error(AMDVIState *s, uint16_t info,
                                        hwaddr addr)
 {
-    uint64_t evt[4];
+    uint64_t evt[2];
 
     info |= AMDVI_EVENT_ILLEGAL_COMMAND_ERROR;
     amdvi_encode_event(evt, 0, addr, info);
@@ -276,7 +280,7 @@ static void amdvi_log_illegalcom_error(AMDVIState *s, uint16_t info,
 static void amdvi_log_illegaldevtab_error(AMDVIState *s, uint16_t devid,
                                           hwaddr addr, uint16_t info)
 {
-    uint64_t evt[4];
+    uint64_t evt[2];
 
     info |= AMDVI_EVENT_ILLEGAL_DEVTAB_ENTRY;
     amdvi_encode_event(evt, devid, addr, info);
@@ -288,7 +292,7 @@ static void amdvi_log_illegaldevtab_error(AMDVIState *s, uint16_t devid,
 static void amdvi_log_pagetab_error(AMDVIState *s, uint16_t devid,
                                     hwaddr addr, uint16_t info)
 {
-    uint64_t evt[4];
+    uint64_t evt[2];
 
     info |= AMDVI_EVENT_PAGE_TAB_HW_ERROR;
     amdvi_encode_event(evt, devid, addr, info);

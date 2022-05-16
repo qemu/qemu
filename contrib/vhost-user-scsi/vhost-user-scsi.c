@@ -433,13 +433,16 @@ out:
     if (vdev_scsi) {
         g_main_loop_unref(vdev_scsi->loop);
         g_free(vdev_scsi);
-        unlink(opt_socket_path);
     }
     if (csock >= 0) {
         close(csock);
     }
     if (lsock >= 0) {
         close(lsock);
+
+        if (opt_socket_path) {
+            unlink(opt_socket_path);
+        }
     }
     g_free(opt_socket_path);
     g_free(iscsi_uri);

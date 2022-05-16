@@ -11,3 +11,8 @@ config NVDIMM
 
 config SPARSE_MEM
     bool
+
+config CXL_MEM_DEVICE
+    bool
+    default y if CXL
+    select MEM_DEVICE

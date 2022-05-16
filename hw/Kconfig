@@ -6,6 +6,7 @@ source audio/Kconfig
 source block/Kconfig
 source char/Kconfig
 source core/Kconfig
+source cxl/Kconfig
 source display/Kconfig
 source dma/Kconfig
 source gpio/Kconfig

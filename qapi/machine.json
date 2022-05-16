@@ -503,6 +503,27 @@
    'val': 'uint8' }}
 
 ##
+# @CXLFixedMemoryWindowOptions:
+#
+# Create a CXL Fixed Memory Window
+#
+# @size: Size of the Fixed Memory Window in bytes. Must be a multiple
+#        of 256MiB.
+# @interleave-granularity: Number of contiguous bytes for which
+#                          accesses will go to a given interleave target.
+#                          Accepted values [256, 512, 1k, 2k, 4k, 8k, 16k]
+# @targets: Target root bridge IDs from -device ...,id=<ID> for each root
+#           bridge.
+#
+# Since 7.1
+##
+{ 'struct': 'CXLFixedMemoryWindowOptions',
+  'data': {
+      'size': 'size',
+      '*interleave-granularity': 'size',
+      'targets': ['str'] }}
+
+##
 # @X86CPURegister32:
 #
 # A X86 32-bit register

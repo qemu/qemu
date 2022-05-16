@@ -99,7 +99,7 @@ static inline bool vu_has_protocol_feature(VuDev *dev, unsigned int fbit)
     return has_feature(dev->protocol_features, fbit);
 }
 
-static const char *
+const char *
 vu_request_to_string(unsigned int req)
 {
 #define REQ(req) [req] = #req
