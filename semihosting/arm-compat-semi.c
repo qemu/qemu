@@ -290,28 +290,29 @@ static target_ulong common_semi_syscall_len;
 
 static void common_semi_cb(CPUState *cs, target_ulong ret, target_ulong err)
 {
-    target_ulong reg0 = common_semi_arg(cs, 0);
-
     if (ret == (target_ulong)-1) {
-        errno = err;
-        set_swi_errno(cs, -1);
-        reg0 = ret;
+#ifdef CONFIG_USER_ONLY
+        TaskState *ts = cs->opaque;
+        ts->swi_errno = err;
+#else
+        syscall_err = err;
+#endif
     } else {
         /* Fixup syscalls that use nonstardard return conventions.  */
+        target_ulong reg0 = common_semi_arg(cs, 0);
         switch (reg0) {
         case TARGET_SYS_WRITE:
         case TARGET_SYS_READ:
-            reg0 = common_semi_syscall_len - ret;
+            ret = common_semi_syscall_len - ret;
             break;
         case TARGET_SYS_SEEK:
-            reg0 = 0;
+            ret = 0;
             break;
         default:
-            reg0 = ret;
             break;
         }
     }
-    common_semi_set_ret(cs, reg0);
+    common_semi_set_ret(cs, ret);
 }
 
 static target_ulong common_semi_flen_buf(CPUState *cs)
