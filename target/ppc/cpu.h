@@ -735,6 +735,8 @@ enum {
                       (1 << FPSCR_VXSOFT) | (1 << FPSCR_VXSQRT) | \
                       (1 << FPSCR_VXCVI))
 
+FIELD(FPSCR, FI, FPSCR_FI, 1)
+
 #define FP_DRN2         (1ull << FPSCR_DRN2)
 #define FP_DRN1         (1ull << FPSCR_DRN1)
 #define FP_DRN0         (1ull << FPSCR_DRN0)
