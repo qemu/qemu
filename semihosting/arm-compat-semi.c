@@ -364,15 +364,13 @@ static int common_semi_open_guestfd;
 static void
 common_semi_open_cb(CPUState *cs, target_ulong ret, target_ulong err)
 {
-    if (ret == (target_ulong)-1) {
-        errno = err;
-        set_swi_errno(cs, -1);
+    if (err) {
         dealloc_guestfd(common_semi_open_guestfd);
     } else {
         associate_guestfd(common_semi_open_guestfd, ret);
         ret = common_semi_open_guestfd;
     }
-    common_semi_set_ret(cs, ret);
+    common_semi_cb(cs, ret, err);
 }
 
 static target_ulong
