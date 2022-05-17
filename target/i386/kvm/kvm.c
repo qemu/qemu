@@ -3373,15 +3373,14 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             int i, ret;
 
             /*
-             * Only migrate Arch LBR states when: 1) Arch LBR is enabled
-             * for migrated vcpu. 2) the host Arch LBR depth equals that
-             * of source guest's, this is to avoid mismatch of guest/host
-             * config for the msr hence avoid unexpected misbehavior.
+             * Only migrate Arch LBR states when the host Arch LBR depth
+             * equals that of source guest's, this is to avoid mismatch
+             * of guest/host config for the msr hence avoid unexpected
+             * misbehavior.
              */
             ret = kvm_get_one_msr(cpu, MSR_ARCH_LBR_DEPTH, &depth);
 
-            if (ret == 1 && (env->msr_lbr_ctl & 0x1) && !!depth &&
-                depth == env->msr_lbr_depth) {
+            if (ret == 1 && !!depth && depth == env->msr_lbr_depth) {
                 kvm_msr_entry_add(cpu, MSR_ARCH_LBR_CTL, env->msr_lbr_ctl);
                 kvm_msr_entry_add(cpu, MSR_ARCH_LBR_DEPTH, env->msr_lbr_depth);
 
@@ -3801,13 +3800,11 @@ static int kvm_get_msrs(X86CPU *cpu)
 
     if (kvm_enabled() && cpu->enable_pmu &&
         (env->features[FEAT_7_0_EDX] & CPUID_7_0_EDX_ARCH_LBR)) {
-        uint64_t ctl, depth;
-        int i, ret2;
+        uint64_t depth;
+        int i, ret;
 
-        ret = kvm_get_one_msr(cpu, MSR_ARCH_LBR_CTL, &ctl);
-        ret2 = kvm_get_one_msr(cpu, MSR_ARCH_LBR_DEPTH, &depth);
-        if (ret == 1 && ret2 == 1 && (ctl & 0x1) &&
-            depth == ARCH_LBR_NR_ENTRIES) {
+        ret = kvm_get_one_msr(cpu, MSR_ARCH_LBR_DEPTH, &depth);
+        if (ret == 1 && depth == ARCH_LBR_NR_ENTRIES) {
             kvm_msr_entry_add(cpu, MSR_ARCH_LBR_CTL, 0);
             kvm_msr_entry_add(cpu, MSR_ARCH_LBR_DEPTH, 0);
 
