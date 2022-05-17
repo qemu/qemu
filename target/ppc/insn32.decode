@@ -710,6 +710,10 @@ XVCVBF16SPN     111100 ..... 10000 ..... 111011011 ..   @XX2
 XVCVSPBF16      111100 ..... 10001 ..... 111011011 ..   @XX2
 XSCVSPDPN       111100 ..... ----- ..... 101001011 ..   @XX2
 
+## VSX Binary Floating-Point Math Support Instructions
+
+XVXSIGSP        111100 ..... 01001 ..... 111011011 ..   @XX2
+
 ## VSX Vector Test Least-Significant Bit by Byte Instruction
 
 XVTLSBB         111100 ... -- 00010 ..... 111011011 . - @XX2_bf_xb

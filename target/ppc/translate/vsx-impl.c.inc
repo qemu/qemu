@@ -2151,7 +2151,23 @@ static void gen_xvxexpdp(DisasContext *ctx)
     tcg_temp_free_i64(xbl);
 }
 
-GEN_VSX_HELPER_X2(xvxsigsp, 0x00, 0x04, 0, PPC2_ISA300)
+static bool trans_XVXSIGSP(DisasContext *ctx, arg_XX2 *a)
+{
+    TCGv_ptr t, b;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_VSX(ctx);
+
+    t = gen_vsr_ptr(a->xt);
+    b = gen_vsr_ptr(a->xb);
+
+    gen_helper_XVXSIGSP(t, b);
+
+    tcg_temp_free_ptr(t);
+    tcg_temp_free_ptr(b);
+
+    return true;
+}
 
 static void gen_xvxsigdp(DisasContext *ctx)
 {
