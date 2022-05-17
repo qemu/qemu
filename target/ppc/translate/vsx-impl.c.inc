@@ -1585,7 +1585,7 @@ static bool trans_XXSEL(DisasContext *ctx, arg_XX4 *a)
     return true;
 }
 
-static bool trans_XXSPLTW(DisasContext *ctx, arg_XX2_uim2 *a)
+static bool trans_XXSPLTW(DisasContext *ctx, arg_XX2_uim *a)
 {
     int tofs, bofs;
 
@@ -1795,42 +1795,35 @@ static void gen_xxsldwi(DisasContext *ctx)
     tcg_temp_free_i64(xtl);
 }
 
-#define VSX_EXTRACT_INSERT(name)                                \
-static void gen_##name(DisasContext *ctx)                       \
-{                                                               \
-    TCGv_ptr xt, xb;                                            \
-    TCGv_i32 t0;                                                \
-    TCGv_i64 t1;                                                \
-    uint8_t uimm = UIMM4(ctx->opcode);                          \
-                                                                \
-    if (unlikely(!ctx->vsx_enabled)) {                          \
-        gen_exception(ctx, POWERPC_EXCP_VSXU);                  \
-        return;                                                 \
-    }                                                           \
-    xt = gen_vsr_ptr(xT(ctx->opcode));                          \
-    xb = gen_vsr_ptr(xB(ctx->opcode));                          \
-    t0 = tcg_temp_new_i32();                                    \
-    t1 = tcg_temp_new_i64();                                    \
-    /*                                                          \
-     * uimm > 15 out of bound and for                           \
-     * uimm > 12 handle as per hardware in helper               \
-     */                                                         \
-    if (uimm > 15) {                                            \
-        tcg_gen_movi_i64(t1, 0);                                \
-        set_cpu_vsr(xT(ctx->opcode), t1, true);                 \
-        set_cpu_vsr(xT(ctx->opcode), t1, false);                \
-        return;                                                 \
-    }                                                           \
-    tcg_gen_movi_i32(t0, uimm);                                 \
-    gen_helper_##name(cpu_env, xt, xb, t0);                     \
-    tcg_temp_free_ptr(xb);                                      \
-    tcg_temp_free_ptr(xt);                                      \
-    tcg_temp_free_i32(t0);                                      \
-    tcg_temp_free_i64(t1);                                      \
+static bool do_vsx_extract_insert(DisasContext *ctx, arg_XX2_uim *a,
+    void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_i32))
+{
+    TCGv_i64 zero = tcg_constant_i64(0);
+    TCGv_ptr xt, xb;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_VSX(ctx);
+
+    /*
+     * uim > 15 out of bound and for
+     * uim > 12 handle as per hardware in helper
+     */
+    if (a->uim > 15) {
+        set_cpu_vsr(a->xt, zero, true);
+        set_cpu_vsr(a->xt, zero, false);
+    } else {
+        xt = gen_vsr_ptr(a->xt);
+        xb = gen_vsr_ptr(a->xb);
+        gen_helper(xt, xb, tcg_constant_i32(a->uim));
+        tcg_temp_free_ptr(xb);
+        tcg_temp_free_ptr(xt);
+    }
+
+    return true;
 }
 
-VSX_EXTRACT_INSERT(xxextractuw)
-VSX_EXTRACT_INSERT(xxinsertw)
+TRANS(XXEXTRACTUW, do_vsx_extract_insert, gen_helper_XXEXTRACTUW)
+TRANS(XXINSERTW, do_vsx_extract_insert, gen_helper_XXINSERTW)
 
 #ifdef TARGET_PPC64
 static void gen_xsxexpdp(DisasContext *ctx)

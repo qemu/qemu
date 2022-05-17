@@ -1647,8 +1647,7 @@ VSTRI(VSTRIHL, H, 8, true)
 VSTRI(VSTRIHR, H, 8, false)
 #undef VSTRI
 
-void helper_xxextractuw(CPUPPCState *env, ppc_vsr_t *xt,
-                        ppc_vsr_t *xb, uint32_t index)
+void helper_XXEXTRACTUW(ppc_vsr_t *xt, ppc_vsr_t *xb, uint32_t index)
 {
     ppc_vsr_t t = { };
     size_t es = sizeof(uint32_t);
@@ -1663,8 +1662,7 @@ void helper_xxextractuw(CPUPPCState *env, ppc_vsr_t *xt,
     *xt = t;
 }
 
-void helper_xxinsertw(CPUPPCState *env, ppc_vsr_t *xt,
-                      ppc_vsr_t *xb, uint32_t index)
+void helper_XXINSERTW(ppc_vsr_t *xt, ppc_vsr_t *xb, uint32_t index)
 {
     ppc_vsr_t t = *xt;
     size_t es = sizeof(uint32_t);

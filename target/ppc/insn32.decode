@@ -161,8 +161,10 @@
 &XX2            xt xb
 @XX2            ...... ..... ..... ..... ......... ..           &XX2 xt=%xx_xt xb=%xx_xb
 
-&XX2_uim2       xt xb uim:uint8_t
-@XX2_uim2       ...... ..... ... uim:2 ..... ......... ..       &XX2_uim2 xt=%xx_xt xb=%xx_xb
+&XX2_uim        xt xb uim:uint8_t
+@XX2_uim2       ...... ..... ... uim:2 ..... ......... ..       &XX2_uim xt=%xx_xt xb=%xx_xb
+
+@XX2_uim4       ...... ..... . uim:4 ..... ......... ..         &XX2_uim xt=%xx_xt xb=%xx_xb
 
 &XX2_bf_xb      bf xb
 @XX2_bf_xb      ...... bf:3 .. ..... ..... ......... . .        &XX2_bf_xb xb=%xx_xb
@@ -665,6 +667,9 @@ XXSPLTIB        111100 ..... 00 ........ 0101101000 .   @X_imm8
 XXSPLTW         111100 ..... ---.. ..... 010100100 . .  @XX2_uim2
 
 ## VSX Permute Instructions
+
+XXEXTRACTUW     111100 ..... - .... ..... 010100101 ..  @XX2_uim4
+XXINSERTW       111100 ..... - .... ..... 010110101 ..  @XX2_uim4
 
 XXPERM          111100 ..... ..... ..... 00011010 ...   @XX3
 XXPERMR         111100 ..... ..... ..... 00111010 ...   @XX3
