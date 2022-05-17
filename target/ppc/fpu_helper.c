@@ -329,24 +329,25 @@ static inline void float_zero_divide_excp(CPUPPCState *env, uintptr_t raddr)
     }
 }
 
-static inline void float_overflow_excp(CPUPPCState *env)
+static inline int float_overflow_excp(CPUPPCState *env)
 {
     CPUState *cs = env_cpu(env);
 
     env->fpscr |= FP_OX;
     /* Update the floating-point exception summary */
     env->fpscr |= FP_FX;
-    if (env->fpscr & FP_OE) {
+
+    bool overflow_enabled = !!(env->fpscr & FP_OE);
+    if (overflow_enabled) {
         /* XXX: should adjust the result */
         /* Update the floating-point enabled exception summary */
         env->fpscr |= FP_FEX;
         /* We must update the target FPR before raising the exception */
         cs->exception_index = POWERPC_EXCP_PROGRAM;
         env->error_code = POWERPC_EXCP_FP | POWERPC_EXCP_FP_OX;
-    } else {
-        env->fpscr |= FP_XX;
-        env->fpscr |= FP_FI;
     }
+
+    return overflow_enabled ? 0 : float_flag_inexact;
 }
 
 static inline void float_underflow_excp(CPUPPCState *env)
@@ -468,7 +469,7 @@ static void do_float_check_status(CPUPPCState *env, bool change_fi,
     int status = get_float_exception_flags(&env->fp_status);
 
     if (status & float_flag_overflow) {
-        float_overflow_excp(env);
+        status |= float_overflow_excp(env);
     } else if (status & float_flag_underflow) {
         float_underflow_excp(env);
     }
