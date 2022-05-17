@@ -4008,3 +4008,4 @@ void tcg_register_jit(const void *buf, size_t buf_size)
 #undef VMULOUB
 #undef VMULOUH
 #undef VMULOUW
+#undef VMSUMUHM
