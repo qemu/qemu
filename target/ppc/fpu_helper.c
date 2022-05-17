@@ -2878,7 +2878,7 @@ uint64_t helper_xscvdpspn(CPUPPCState *env, uint64_t xb)
     return (result << 32) | result;
 }
 
-uint64_t helper_xscvspdpn(CPUPPCState *env, uint64_t xb)
+uint64_t helper_XSCVSPDPN(uint64_t xb)
 {
     return helper_todouble(xb >> 32);
 }
