@@ -222,8 +222,34 @@ static void gen_frsqrtes(DisasContext *ctx)
     tcg_temp_free_i64(t1);
 }
 
-/* fsel */
-_GEN_FLOAT_ACB(sel, 0x3F, 0x17, 0, PPC_FLOAT_FSEL);
+static bool trans_FSEL(DisasContext *ctx, arg_A *a)
+{
+    TCGv_i64 t0, t1, t2;
+
+    REQUIRE_INSNS_FLAGS(ctx, FLOAT_FSEL);
+    REQUIRE_FPU(ctx);
+
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
+    t2 = tcg_temp_new_i64();
+
+    get_fpr(t0, a->fra);
+    get_fpr(t1, a->frb);
+    get_fpr(t2, a->frc);
+
+    gen_helper_FSEL(t0, t0, t1, t2);
+    set_fpr(a->frt, t0);
+    if (a->rc) {
+        gen_set_cr1_from_fpscr(ctx);
+    }
+
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t2);
+
+    return true;
+}
+
 /* fsub - fsubs */
 GEN_FLOAT_AB(sub, 0x14, 0x000007C0, 1, PPC_FLOAT);
 /* Optional: */

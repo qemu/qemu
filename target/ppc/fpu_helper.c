@@ -919,18 +919,17 @@ float64 helper_frsqrtes(CPUPPCState *env, float64 arg)
 }
 
 /* fsel - fsel. */
-uint64_t helper_fsel(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
-                     uint64_t arg3)
+uint64_t helper_FSEL(uint64_t a, uint64_t b, uint64_t c)
 {
-    CPU_DoubleU farg1;
+    CPU_DoubleU fa;
 
-    farg1.ll = arg1;
+    fa.ll = a;
 
-    if ((!float64_is_neg(farg1.d) || float64_is_zero(farg1.d)) &&
-        !float64_is_any_nan(farg1.d)) {
-        return arg2;
+    if ((!float64_is_neg(fa.d) || float64_is_zero(fa.d)) &&
+        !float64_is_any_nan(fa.d)) {
+        return c;
     } else {
-        return arg3;
+        return b;
     }
 }
 

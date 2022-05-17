@@ -17,6 +17,9 @@
 # License along with this library; if not, see <http://www.gnu.org/licenses/>.
 #
 
+&A              frt fra frb frc rc:bool
+@A              ...... frt:5 fra:5 frb:5 frc:5 ..... rc:1       &A
+
 &D              rt ra si:int64_t
 @D              ...... rt:5 ra:5 si:s16                 &D
 
@@ -307,6 +310,10 @@ STFD            110110 ..... ...... ...............     @D
 STFDU           110111 ..... ...... ...............     @D
 STFDX           011111 ..... ...... .... 1011010111 -   @X
 STFDUX          011111 ..... ...... .... 1011110111 -   @X
+
+### Floating-Point Select Instruction
+
+FSEL            111111 ..... ..... ..... ..... 10111 .  @A
 
 ### Move To/From System Register Instructions
 
