@@ -6768,7 +6768,7 @@ static CPAccessResult access_pauth(CPUARMState *env, const ARMCPRegInfo *ri,
     int el = arm_current_el(env);
 
     if (el < 2 &&
-        arm_feature(env, ARM_FEATURE_EL2) &&
+        arm_is_el2_enabled(env) &&
         !(arm_hcr_el2_eff(env) & HCR_APK)) {
         return CP_ACCESS_TRAP_EL2;
     }
