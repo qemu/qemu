@@ -346,15 +346,17 @@ static target_ulong common_semi_flen_buf(CPUState *cs)
 static void
 common_semi_flen_cb(CPUState *cs, target_ulong ret, target_ulong err)
 {
-    /* The size is always stored in big-endian order, extract
-       the value. We assume the size always fit in 32 bits.  */
-    uint32_t size;
-    cpu_memory_rw_debug(cs, common_semi_flen_buf(cs) + 32,
-                        (uint8_t *)&size, 4, 0);
-    size = be32_to_cpu(size);
-    common_semi_set_ret(cs, size);
-    errno = err;
-    set_swi_errno(cs, -1);
+    if (!err) {
+        /*
+         * The size is always stored in big-endian order, extract
+         * the value. We assume the size always fit in 32 bits.
+         */
+        uint32_t size;
+        cpu_memory_rw_debug(cs, common_semi_flen_buf(cs) + 32,
+                            (uint8_t *)&size, 4, 0);
+        ret = be32_to_cpu(size);
+    }
+    common_semi_cb(cs, ret, err);
 }
 
 static int common_semi_open_guestfd;
