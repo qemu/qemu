@@ -243,7 +243,6 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
     }
 
     blk_set_dev_ops(blk, &xen_block_dev_ops, blockdev);
-    blk_set_guest_block_size(blk, conf->logical_block_size);
 
     if (conf->discard_granularity == -1) {
         conf->discard_granularity = conf->physical_block_size;

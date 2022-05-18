@@ -321,7 +321,6 @@ static void scsi_read_complete(void * opaque, int ret)
         s->blocksize = ldl_be_p(&r->buf[8]);
         s->max_lba = ldq_be_p(&r->buf[0]);
     }
-    blk_set_guest_block_size(s->conf.blk, s->blocksize);
 
     /*
      * Patch MODE SENSE device specific parameters if the BDS is opened

@@ -56,9 +56,6 @@ struct BlockBackend {
     const BlockDevOps *dev_ops;
     void *dev_opaque;
 
-    /* the block size for which the guest device expects atomicity */
-    int guest_block_size;
-
     /* If the BDS tree is removed, some of its options are stored here (which
      * can be used to restore those options in the new BDS on insert) */
     BlockBackendRootState root_state;
@@ -998,7 +995,6 @@ void blk_detach_dev(BlockBackend *blk, DeviceState *dev)
     blk->dev = NULL;
     blk->dev_ops = NULL;
     blk->dev_opaque = NULL;
-    blk->guest_block_size = 512;
     blk_set_perm(blk, 0, BLK_PERM_ALL, &error_abort);
     blk_unref(blk);
 }
@@ -2098,12 +2094,6 @@ int blk_get_max_iov(BlockBackend *blk)
 {
     IO_CODE();
     return blk->root->bs->bl.max_iov;
-}
-
-void blk_set_guest_block_size(BlockBackend *blk, int align)
-{
-    IO_CODE();
-    blk->guest_block_size = align;
 }
 
 void *blk_try_blockalign(BlockBackend *blk, size_t size)

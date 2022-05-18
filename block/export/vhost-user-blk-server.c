@@ -495,7 +495,6 @@ static int vu_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
         return -EINVAL;
     }
     vexp->blk_size = logical_block_size;
-    blk_set_guest_block_size(exp->blk, logical_block_size);
 
     if (vu_opts->has_num_queues) {
         num_queues = vu_opts->num_queues;
