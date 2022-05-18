@@ -584,18 +584,6 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         uint32_t ext = 0;
 
         /* Do some ISA extension error checking */
-        if (cpu->cfg.ext_i && cpu->cfg.ext_e) {
-            error_setg(errp,
-                       "I and E extensions are incompatible");
-            return;
-        }
-
-        if (!cpu->cfg.ext_i && !cpu->cfg.ext_e) {
-            error_setg(errp,
-                       "Either I or E extension must be set");
-            return;
-        }
-
         if (cpu->cfg.ext_g && !(cpu->cfg.ext_i && cpu->cfg.ext_m &&
                                 cpu->cfg.ext_a && cpu->cfg.ext_f &&
                                 cpu->cfg.ext_d &&
@@ -608,6 +596,18 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             cpu->cfg.ext_d = true;
             cpu->cfg.ext_icsr = true;
             cpu->cfg.ext_ifencei = true;
+        }
+
+        if (cpu->cfg.ext_i && cpu->cfg.ext_e) {
+            error_setg(errp,
+                       "I and E extensions are incompatible");
+            return;
+        }
+
+        if (!cpu->cfg.ext_i && !cpu->cfg.ext_e) {
+            error_setg(errp,
+                       "Either I or E extension must be set");
+            return;
         }
 
         if (cpu->cfg.ext_f && !cpu->cfg.ext_icsr) {
