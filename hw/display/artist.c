@@ -1,7 +1,8 @@
 /*
  * QEMU HP Artist Emulation
  *
- * Copyright (c) 2019 Sven Schnelle <svens@stackframe.org>
+ * Copyright (c) 2019-2022 Sven Schnelle <svens@stackframe.org>
+ * Copyright (c) 2022 Helge Deller <deller@gmx.de>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  */
@@ -81,9 +82,10 @@ struct ARTISTState {
     uint32_t plane_mask;
 
     uint32_t reg_100080;
-    uint32_t reg_300200;
-    uint32_t reg_300208;
-    uint32_t reg_300218;
+    uint32_t horiz_backporch;
+    uint32_t active_lines_low;
+    uint32_t misc_video;
+    uint32_t misc_ctrl;
 
     uint32_t dst_bm_access;
     uint32_t src_bm_access;
@@ -97,6 +99,9 @@ struct ARTISTState {
 
     int draw_line_pattern;
 };
+
+/* hardware allows up to 64x64, but we emulate 32x32 only. */
+#define NGLE_MAX_SPRITE_SIZE    32
 
 typedef enum {
     ARTIST_BUFFER_AP = 1,
@@ -135,8 +140,14 @@ typedef enum {
     BG_COLOR = 0x118014,
     PLANE_MASK = 0x118018,
     IMAGE_BITMAP_OP = 0x11801c,
-    CURSOR_POS = 0x300100,
-    CURSOR_CTRL = 0x300104,
+    CURSOR_POS = 0x300100,      /* reg17 */
+    CURSOR_CTRL = 0x300104,     /* reg18 */
+    MISC_VIDEO = 0x300218,      /* reg21 */
+    MISC_CTRL = 0x300308,       /* reg27 */
+    HORIZ_BACKPORCH = 0x300200, /* reg19 */
+    ACTIVE_LINES_LOW = 0x300208,/* reg20 */
+    FIFO1 = 0x300008,           /* reg34 */
+    FIFO2 = 0x380008,
 } artist_reg_t;
 
 typedef enum {
@@ -174,16 +185,24 @@ static const char *artist_reg_name(uint64_t addr)
     REG_NAME(SRC_BM_ACCESS);
     REG_NAME(CURSOR_POS);
     REG_NAME(CURSOR_CTRL);
+    REG_NAME(HORIZ_BACKPORCH);
+    REG_NAME(ACTIVE_LINES_LOW);
+    REG_NAME(MISC_VIDEO);
+    REG_NAME(MISC_CTRL);
     REG_NAME(LINE_XY);
     REG_NAME(PATTERN_LINE_START);
     REG_NAME(LINE_SIZE);
     REG_NAME(LINE_END);
     REG_NAME(FONT_WRITE_INCR_Y);
     REG_NAME(FONT_WRITE_START);
+    REG_NAME(FIFO1);
+    REG_NAME(FIFO2);
     }
     return "";
 }
 #undef REG_NAME
+
+static void artist_invalidate(void *opaque);
 
 /* artist has a fixed line length of 2048 bytes. */
 #define ADDR_TO_Y(addr) extract32(addr, 11, 11)
@@ -295,19 +314,15 @@ static void artist_rop8(ARTISTState *s, struct vram_buffer *buf,
 static void artist_get_cursor_pos(ARTISTState *s, int *x, int *y)
 {
     /*
-     * Don't know whether these magic offset values are configurable via
-     * some register. They seem to be the same for all resolutions.
-     * The cursor values provided in the registers are:
-     * X-value: -295 (for HP-UX 11) and 338 (for HP-UX 10.20) up to 2265
-     * Y-value: 1146 down to 0
      * The emulated Artist graphic is like a CRX graphic, and as such
      * it's usually fixed at 1280x1024 pixels.
-     * Because of the maximum Y-value of 1146 you can not choose a higher
-     * vertical resolution on HP-UX (unless you disable the mouse).
+     * Other resolutions may work, but no guarantee.
      */
 
-    static int offset = 338;
-    int lx;
+    unsigned int hbp_times_vi, horizBackPorch;
+    int16_t xHi, xLo;
+    const int videoInterleave = 4;
+    const int pipelineDelay = 4;
 
     /* ignore if uninitialized */
     if (s->cursor_pos == 0) {
@@ -315,16 +330,24 @@ static void artist_get_cursor_pos(ARTISTState *s, int *x, int *y)
         return;
     }
 
-    lx = artist_get_x(s->cursor_pos);
-    if (lx < offset) {
-        offset = lx;
-    }
-    *x = (lx - offset) / 2;
+    /*
+     * Calculate X position based on backporch and interleave values.
+     * Based on code from Xorg X11R6.6
+     */
+    horizBackPorch = ((s->horiz_backporch & 0xff0000) >> 16) +
+                     ((s->horiz_backporch & 0xff00) >> 8) + 2;
+    hbp_times_vi = horizBackPorch * videoInterleave;
+    xHi = s->cursor_pos >> 19;
+    *x = ((xHi + pipelineDelay) * videoInterleave) - hbp_times_vi;
 
-    *y = 1146 - artist_get_y(s->cursor_pos);
+    xLo = (s->cursor_pos >> 16) & 0x07;
+    *x += ((xLo - hbp_times_vi) & (videoInterleave - 1)) + 8 - 1;
 
     /* subtract cursor offset from cursor control register */
     *x -= (s->cursor_cntrl & 0xf0) >> 4;
+
+    /* Calculate Y position */
+    *y = s->height - artist_get_y(s->cursor_pos);
     *y -= (s->cursor_cntrl & 0x0f);
 
     if (*x > s->width) {
@@ -336,9 +359,19 @@ static void artist_get_cursor_pos(ARTISTState *s, int *x, int *y)
     }
 }
 
+static inline bool cursor_visible(ARTISTState *s)
+{
+    /* cursor is visible if bit 0x80 is set in cursor_cntrl */
+    return s->cursor_cntrl & 0x80;
+}
+
 static void artist_invalidate_cursor(ARTISTState *s)
 {
     int x, y;
+
+    if (!cursor_visible(s)) {
+        return;
+    }
 
     artist_get_cursor_pos(s, &x, &y);
     artist_invalidate_lines(&s->vram_buffer[ARTIST_BUFFER_AP],
@@ -876,6 +909,7 @@ static void artist_reg_write(void *opaque, hwaddr addr, uint64_t val,
 {
     ARTISTState *s = opaque;
     int width, height;
+    uint64_t oldval;
 
     trace_artist_reg_write(size, addr, artist_reg_name(addr & ~3ULL), val);
 
@@ -1025,16 +1059,33 @@ static void artist_reg_write(void *opaque, hwaddr addr, uint64_t val,
         combine_write_reg(addr, val, size, &s->transfer_data);
         break;
 
-    case 0x300200:
-        combine_write_reg(addr, val, size, &s->reg_300200);
+    case HORIZ_BACKPORCH:
+        /* overwrite HP-UX settings to fix X cursor position. */
+        val = (NGLE_MAX_SPRITE_SIZE << 16) + (NGLE_MAX_SPRITE_SIZE << 8);
+        combine_write_reg(addr, val, size, &s->horiz_backporch);
         break;
 
-    case 0x300208:
-        combine_write_reg(addr, val, size, &s->reg_300208);
+    case ACTIVE_LINES_LOW:
+        combine_write_reg(addr, val, size, &s->active_lines_low);
         break;
 
-    case 0x300218:
-        combine_write_reg(addr, val, size, &s->reg_300218);
+    case MISC_VIDEO:
+        oldval = s->misc_video;
+        combine_write_reg(addr, val, size, &s->misc_video);
+        /* Invalidate and hide screen if graphics signal is turned off. */
+        if (((oldval & 0x0A000000) == 0x0A000000) &&
+            ((val & 0x0A000000) != 0x0A000000)) {
+            artist_invalidate(s);
+        }
+        /* Invalidate and redraw screen if graphics signal is turned back on. */
+        if (((oldval & 0x0A000000) != 0x0A000000) &&
+            ((val & 0x0A000000) == 0x0A000000)) {
+            artist_invalidate(s);
+        }
+        break;
+
+    case MISC_CTRL:
+        combine_write_reg(addr, val, size, &s->misc_ctrl);
         break;
 
     case CURSOR_POS:
@@ -1119,12 +1170,11 @@ static uint64_t artist_reg_read(void *opaque, hwaddr addr, unsigned size)
     case 0x100000:
     case 0x300000:
     case 0x300004:
-    case 0x300308:
     case 0x380000:
         break;
 
-    case 0x300008:
-    case 0x380008:
+    case FIFO1:
+    case FIFO2:
         /*
          * FIFO ready flag. we're not emulating the FIFOs
          * so we're always ready
@@ -1132,16 +1182,28 @@ static uint64_t artist_reg_read(void *opaque, hwaddr addr, unsigned size)
         val = 0x10;
         break;
 
-    case 0x300200:
-        val = s->reg_300200;
+    case HORIZ_BACKPORCH:
+        val = s->horiz_backporch;
         break;
 
-    case 0x300208:
-        val = s->reg_300208;
+    case ACTIVE_LINES_LOW:
+        val = s->active_lines_low;
+        /* activeLinesLo for cursor is in reg20.b.b0 */
+        val &= ~(0xff << 24);
+        val |= (s->height & 0xff) << 24;
         break;
 
-    case 0x300218:
-        val = s->reg_300218;
+    case MISC_VIDEO:
+        /* emulate V-blank */
+        s->misc_video ^= 0x00040000;
+        /* activeLinesHi for cursor is in reg21.b.b2 */
+        val = s->misc_video;
+        val &= ~0xff00UL;
+        val |= (s->height & 0xff00);
+        break;
+
+    case MISC_CTRL:
+        val = s->misc_ctrl;
         break;
 
     case 0x30023c:
@@ -1186,6 +1248,10 @@ static void artist_draw_cursor(ARTISTState *s)
     struct vram_buffer *cursor0, *cursor1 , *buf;
     int cx, cy, cursor_pos_x, cursor_pos_y;
 
+    if (!cursor_visible(s)) {
+        return;
+    }
+
     cursor0 = &s->vram_buffer[ARTIST_BUFFER_CURSOR1];
     cursor1 = &s->vram_buffer[ARTIST_BUFFER_CURSOR2];
     buf = &s->vram_buffer[ARTIST_BUFFER_AP];
@@ -1217,12 +1283,24 @@ static void artist_draw_cursor(ARTISTState *s)
     }
 }
 
+static bool artist_screen_enabled(ARTISTState *s)
+{
+    /*  We could check for (s->misc_ctrl & 0x00800000) too... */
+    return ((s->misc_video & 0x0A000000) == 0x0A000000);
+}
+
 static void artist_draw_line(void *opaque, uint8_t *d, const uint8_t *src,
                              int width, int pitch)
 {
     ARTISTState *s = ARTIST(opaque);
     uint32_t *cmap, *data = (uint32_t *)d;
     int x;
+
+    if (!artist_screen_enabled(s)) {
+        /* clear screen */
+        memset(data, 0, s->width * sizeof(uint32_t));
+        return;
+    }
 
     cmap = (uint32_t *)(s->vram_buffer[ARTIST_BUFFER_CMAP].data + 0x400);
 
@@ -1325,11 +1403,10 @@ static void artist_realizefn(DeviceState *dev, Error **errp)
     framebuffer_update_memory_section(&s->fbsection, &buf->mr, 0,
                                       buf->width, buf->height);
     /*
-     * no idea whether the cursor is fixed size or not, so assume 32x32 which
-     * seems sufficient for HP-UX X11.
+     * Artist cursor max size
      */
-    s->cursor_height = 32;
-    s->cursor_width = 32;
+    s->cursor_height = NGLE_MAX_SPRITE_SIZE;
+    s->cursor_width = NGLE_MAX_SPRITE_SIZE;
 
     /*
      * These two registers are not initialized by seabios's STI implementation.
@@ -1338,6 +1415,10 @@ static void artist_realizefn(DeviceState *dev, Error **errp)
      */
     s->image_bitmap_op = 0x23000300;
     s->plane_mask = 0xff;
+
+    /* enable screen */
+    s->misc_video |= 0x0A000000;
+    s->misc_ctrl  |= 0x00800000;
 
     s->con = graphic_console_init(dev, 0, &artist_ops, s);
     qemu_console_resize(s->con, s->width, s->height);
@@ -1377,9 +1458,10 @@ static const VMStateDescription vmstate_artist = {
         VMSTATE_UINT32(cursor_width, ARTISTState),
         VMSTATE_UINT32(plane_mask, ARTISTState),
         VMSTATE_UINT32(reg_100080, ARTISTState),
-        VMSTATE_UINT32(reg_300200, ARTISTState),
-        VMSTATE_UINT32(reg_300208, ARTISTState),
-        VMSTATE_UINT32(reg_300218, ARTISTState),
+        VMSTATE_UINT32(horiz_backporch, ARTISTState),
+        VMSTATE_UINT32(active_lines_low, ARTISTState),
+        VMSTATE_UINT32(misc_video, ARTISTState),
+        VMSTATE_UINT32(misc_ctrl, ARTISTState),
         VMSTATE_UINT32(dst_bm_access, ARTISTState),
         VMSTATE_UINT32(src_bm_access, ARTISTState),
         VMSTATE_UINT32(control_plane, ARTISTState),
