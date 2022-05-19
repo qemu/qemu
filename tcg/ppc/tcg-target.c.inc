@@ -1836,8 +1836,6 @@ static void tcg_out_mb(TCGContext *s, TCGArg a0)
     a0 &= TCG_MO_ALL;
     if (a0 == TCG_MO_LD_LD) {
         insn = LWSYNC;
-    } else if (a0 == TCG_MO_ST_ST) {
-        insn = EIEIO;
     }
     tcg_out32(s, insn);
 }
