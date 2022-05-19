@@ -79,6 +79,7 @@ static void aarch64_a57_initfn(Object *obj)
     cpu->isar.id_aa64isar0 = 0x00011120;
     cpu->isar.id_aa64mmfr0 = 0x00001124;
     cpu->isar.dbgdidr = 0x3516d000;
+    cpu->isar.reset_pmcr_el0 = 0x41013000;
     cpu->clidr = 0x0a200023;
     cpu->ccsidr[0] = 0x701fe00a; /* 32KB L1 dcache */
     cpu->ccsidr[1] = 0x201fe012; /* 48KB L1 icache */
@@ -87,6 +88,7 @@ static void aarch64_a57_initfn(Object *obj)
     cpu->gic_num_lrs = 4;
     cpu->gic_vpribits = 5;
     cpu->gic_vprebits = 5;
+    cpu->gic_pribits = 5;
     define_cortex_a72_a57_a53_cp_reginfo(cpu);
 }
 
@@ -132,6 +134,7 @@ static void aarch64_a53_initfn(Object *obj)
     cpu->isar.id_aa64isar0 = 0x00011120;
     cpu->isar.id_aa64mmfr0 = 0x00001122; /* 40 bit physical addr */
     cpu->isar.dbgdidr = 0x3516d000;
+    cpu->isar.reset_pmcr_el0 = 0x41033000;
     cpu->clidr = 0x0a200023;
     cpu->ccsidr[0] = 0x700fe01a; /* 32KB L1 dcache */
     cpu->ccsidr[1] = 0x201fe00a; /* 32KB L1 icache */
@@ -140,6 +143,7 @@ static void aarch64_a53_initfn(Object *obj)
     cpu->gic_num_lrs = 4;
     cpu->gic_vpribits = 5;
     cpu->gic_vprebits = 5;
+    cpu->gic_pribits = 5;
     define_cortex_a72_a57_a53_cp_reginfo(cpu);
 }
 
@@ -183,6 +187,7 @@ static void aarch64_a72_initfn(Object *obj)
     cpu->isar.id_aa64isar0 = 0x00011120;
     cpu->isar.id_aa64mmfr0 = 0x00001124;
     cpu->isar.dbgdidr = 0x3516d000;
+    cpu->isar.reset_pmcr_el0 = 0x41023000;
     cpu->clidr = 0x0a200023;
     cpu->ccsidr[0] = 0x701fe00a; /* 32KB L1 dcache */
     cpu->ccsidr[1] = 0x201fe012; /* 48KB L1 icache */
@@ -191,6 +196,7 @@ static void aarch64_a72_initfn(Object *obj)
     cpu->gic_num_lrs = 4;
     cpu->gic_vpribits = 5;
     cpu->gic_vprebits = 5;
+    cpu->gic_pribits = 5;
     define_cortex_a72_a57_a53_cp_reginfo(cpu);
 }
 
@@ -252,11 +258,15 @@ static void aarch64_a76_initfn(Object *obj)
     cpu->gic_num_lrs = 4;
     cpu->gic_vpribits = 5;
     cpu->gic_vprebits = 5;
+    cpu->gic_pribits = 5;
 
     /* From B5.1 AdvSIMD AArch64 register summary */
     cpu->isar.mvfr0 = 0x10110222;
     cpu->isar.mvfr1 = 0x13211111;
     cpu->isar.mvfr2 = 0x00000043;
+
+    /* From D5.1 AArch64 PMU register summary */
+    cpu->isar.reset_pmcr_el0 = 0x410b3000;
 }
 
 static void aarch64_neoverse_n1_initfn(Object *obj)
@@ -317,11 +327,15 @@ static void aarch64_neoverse_n1_initfn(Object *obj)
     cpu->gic_num_lrs = 4;
     cpu->gic_vpribits = 5;
     cpu->gic_vprebits = 5;
+    cpu->gic_pribits = 5;
 
     /* From B5.1 AdvSIMD AArch64 register summary */
     cpu->isar.mvfr0 = 0x10110222;
     cpu->isar.mvfr1 = 0x13211111;
     cpu->isar.mvfr2 = 0x00000043;
+
+    /* From D5.1 AArch64 PMU register summary */
+    cpu->isar.reset_pmcr_el0 = 0x410c3000;
 }
 
 void arm_cpu_sve_finalize(ARMCPU *cpu, Error **errp)
@@ -812,6 +826,7 @@ static void aarch64_max_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
     uint64_t t;
+    uint32_t u;
 
     if (kvm_enabled() || hvf_enabled()) {
         /* With KVM or HVF, '-cpu max' is identical to '-cpu host' */
@@ -841,6 +856,15 @@ static void aarch64_max_initfn(Object *obj)
     t = FIELD_DP64(t, MIDR_EL1, VARIANT, 0);
     t = FIELD_DP64(t, MIDR_EL1, REVISION, 0);
     cpu->midr = t;
+
+    /*
+     * We're going to set FEAT_S2FWB, which mandates that CLIDR_EL1.{LoUU,LoUIS}
+     * are zero.
+     */
+    u = cpu->clidr;
+    u = FIELD_DP32(u, CLIDR_EL1, LOUIS, 0);
+    u = FIELD_DP32(u, CLIDR_EL1, LOUU, 0);
+    cpu->clidr = u;
 
     t = cpu->isar.id_aa64isar0;
     t = FIELD_DP64(t, ID_AA64ISAR0, AES, 2);      /* FEAT_PMULL */
@@ -910,6 +934,7 @@ static void aarch64_max_initfn(Object *obj)
     t = FIELD_DP64(t, ID_AA64MMFR1, LO, 1);       /* FEAT_LOR */
     t = FIELD_DP64(t, ID_AA64MMFR1, PAN, 2);      /* FEAT_PAN2 */
     t = FIELD_DP64(t, ID_AA64MMFR1, XNX, 1);      /* FEAT_XNX */
+    t = FIELD_DP64(t, ID_AA64MMFR1, HCX, 1);      /* FEAT_HCX */
     cpu->isar.id_aa64mmfr1 = t;
 
     t = cpu->isar.id_aa64mmfr2;
@@ -918,6 +943,8 @@ static void aarch64_max_initfn(Object *obj)
     t = FIELD_DP64(t, ID_AA64MMFR2, IESB, 1);     /* FEAT_IESB */
     t = FIELD_DP64(t, ID_AA64MMFR2, VARANGE, 1);  /* FEAT_LVA */
     t = FIELD_DP64(t, ID_AA64MMFR2, ST, 1);       /* FEAT_TTST */
+    t = FIELD_DP64(t, ID_AA64MMFR2, IDS, 1);      /* FEAT_IDST */
+    t = FIELD_DP64(t, ID_AA64MMFR2, FWB, 1);      /* FEAT_S2FWB */
     t = FIELD_DP64(t, ID_AA64MMFR2, TTL, 1);      /* FEAT_TTL */
     t = FIELD_DP64(t, ID_AA64MMFR2, BBM, 2);      /* FEAT_BBM at level 2 */
     cpu->isar.id_aa64mmfr2 = t;
@@ -996,6 +1023,7 @@ static void aarch64_a64fx_initfn(Object *obj)
     cpu->gic_num_lrs = 4;
     cpu->gic_vpribits = 5;
     cpu->gic_vprebits = 5;
+    cpu->gic_pribits = 5;
 
     /* Suppport of A64FX's vector length are 128,256 and 512bit only */
     aarch64_add_sve_properties(obj);
@@ -1003,6 +1031,8 @@ static void aarch64_a64fx_initfn(Object *obj)
     set_bit(0, cpu->sve_vq_supported); /* 128bit */
     set_bit(1, cpu->sve_vq_supported); /* 256bit */
     set_bit(3, cpu->sve_vq_supported); /* 512bit */
+
+    cpu->isar.reset_pmcr_el0 = 0x46014040;
 
     /* TODO:  Add A64FX specific HPC extension registers */
 }

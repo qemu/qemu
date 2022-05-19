@@ -39,8 +39,7 @@ struct ZynqXADCState {
     uint16_t xadc_dfifo[ZYNQ_XADC_FIFO_DEPTH];
     uint16_t xadc_dfifo_entries;
 
-    struct IRQState *qemu_irq;
-
+    qemu_irq irq;
 };
 
 #endif /* ZYNQ_XADC_H */

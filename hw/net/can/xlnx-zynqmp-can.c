@@ -1079,7 +1079,7 @@ static void xlnx_zynqmp_can_realize(DeviceState *dev, Error **errp)
 
     /* Allocate a new timer. */
     s->can_timer = ptimer_init(xlnx_zynqmp_can_ptimer_cb, s,
-                               PTIMER_POLICY_DEFAULT);
+                               PTIMER_POLICY_LEGACY);
 
     ptimer_transaction_begin(s->can_timer);
 

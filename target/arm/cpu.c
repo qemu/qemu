@@ -201,9 +201,11 @@ static void arm_cpu_reset(DeviceState *dev)
         /* Trap on btype=3 for PACIxSP. */
         env->cp15.sctlr_el[1] |= SCTLR_BT0;
         /* and to the FP/Neon instructions */
-        env->cp15.cpacr_el1 = deposit64(env->cp15.cpacr_el1, 20, 2, 3);
+        env->cp15.cpacr_el1 = FIELD_DP64(env->cp15.cpacr_el1,
+                                         CPACR_EL1, FPEN, 3);
         /* and to the SVE instructions */
-        env->cp15.cpacr_el1 = deposit64(env->cp15.cpacr_el1, 16, 2, 3);
+        env->cp15.cpacr_el1 = FIELD_DP64(env->cp15.cpacr_el1,
+                                         CPACR_EL1, ZEN, 3);
         /* with reasonable vector length */
         if (cpu_isar_feature(aa64_sve, cpu)) {
             env->vfp.zcr_el[1] =
@@ -252,7 +254,10 @@ static void arm_cpu_reset(DeviceState *dev)
     } else {
 #if defined(CONFIG_USER_ONLY)
         /* Userspace expects access to cp10 and cp11 for FP/Neon */
-        env->cp15.cpacr_el1 = deposit64(env->cp15.cpacr_el1, 20, 4, 0xf);
+        env->cp15.cpacr_el1 = FIELD_DP64(env->cp15.cpacr_el1,
+                                         CPACR, CP10, 3);
+        env->cp15.cpacr_el1 = FIELD_DP64(env->cp15.cpacr_el1,
+                                         CPACR, CP11, 3);
 #endif
     }
 

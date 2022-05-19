@@ -383,7 +383,7 @@ static void grlib_gptimer_realize(DeviceState *dev, Error **errp)
 
         timer->unit   = unit;
         timer->ptimer = ptimer_init(grlib_gptimer_hit, timer,
-                                    PTIMER_POLICY_DEFAULT);
+                                    PTIMER_POLICY_LEGACY);
         timer->id     = i;
 
         /* One IRQ line for each timer */

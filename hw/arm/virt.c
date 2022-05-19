@@ -925,8 +925,6 @@ static void create_gpio_keys(char *fdt, DeviceState *pl061_dev,
 
     qemu_fdt_add_subnode(fdt, "/gpio-keys");
     qemu_fdt_setprop_string(fdt, "/gpio-keys", "compatible", "gpio-keys");
-    qemu_fdt_setprop_cell(fdt, "/gpio-keys", "#size-cells", 0);
-    qemu_fdt_setprop_cell(fdt, "/gpio-keys", "#address-cells", 1);
 
     qemu_fdt_add_subnode(fdt, "/gpio-keys/poweroff");
     qemu_fdt_setprop_string(fdt, "/gpio-keys/poweroff",
@@ -1195,7 +1193,7 @@ static void virt_flash_fdt(VirtMachineState *vms,
         qemu_fdt_setprop_string(ms->fdt, nodename, "secure-status", "okay");
         g_free(nodename);
 
-        nodename = g_strdup_printf("/flash@%" PRIx64, flashbase);
+        nodename = g_strdup_printf("/flash@%" PRIx64, flashbase + flashsize);
         qemu_fdt_add_subnode(ms->fdt, nodename);
         qemu_fdt_setprop_string(ms->fdt, nodename, "compatible", "cfi-flash");
         qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",

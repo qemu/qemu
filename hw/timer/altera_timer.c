@@ -185,7 +185,7 @@ static void altera_timer_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    t->ptimer = ptimer_init(timer_hit, t, PTIMER_POLICY_DEFAULT);
+    t->ptimer = ptimer_init(timer_hit, t, PTIMER_POLICY_LEGACY);
     ptimer_transaction_begin(t->ptimer);
     ptimer_set_freq(t->ptimer, t->freq_hz);
     ptimer_transaction_commit(t->ptimer);

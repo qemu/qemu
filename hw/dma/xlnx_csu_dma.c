@@ -666,7 +666,7 @@ static void xlnx_csu_dma_realize(DeviceState *dev, Error **errp)
     sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
 
     s->src_timer = ptimer_init(xlnx_csu_dma_src_timeout_hit,
-                               s, PTIMER_POLICY_DEFAULT);
+                               s, PTIMER_POLICY_LEGACY);
 
     s->attr = MEMTXATTRS_UNSPECIFIED;
 

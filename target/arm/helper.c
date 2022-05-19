@@ -39,7 +39,6 @@
 #include "cpregs.h"
 
 #define ARM_CPU_FREQ 1000000000 /* FIXME: 1 GHz, should be configurable */
-#define PMCR_NUM_COUNTERS 4 /* QEMU IMPDEF choice */
 
 #ifndef CONFIG_USER_ONLY
 
@@ -767,11 +766,14 @@ static void cpacr_write(CPUARMState *env, const ARMCPRegInfo *ri,
          */
         if (cpu_isar_feature(aa32_vfp_simd, env_archcpu(env))) {
             /* VFP coprocessor: cp10 & cp11 [23:20] */
-            mask |= (1 << 31) | (1 << 30) | (0xf << 20);
+            mask |= R_CPACR_ASEDIS_MASK |
+                    R_CPACR_D32DIS_MASK |
+                    R_CPACR_CP11_MASK |
+                    R_CPACR_CP10_MASK;
 
             if (!arm_feature(env, ARM_FEATURE_NEON)) {
                 /* ASEDIS [31] bit is RAO/WI */
-                value |= (1 << 31);
+                value |= R_CPACR_ASEDIS_MASK;
             }
 
             /* VFPv3 and upwards with NEON implement 32 double precision
@@ -779,7 +781,7 @@ static void cpacr_write(CPUARMState *env, const ARMCPRegInfo *ri,
              */
             if (!cpu_isar_feature(aa32_simd_r32, env_archcpu(env))) {
                 /* D32DIS [30] is RAO/WI if D16-31 are not implemented. */
-                value |= (1 << 30);
+                value |= R_CPACR_D32DIS_MASK;
             }
         }
         value &= mask;
@@ -791,8 +793,8 @@ static void cpacr_write(CPUARMState *env, const ARMCPRegInfo *ri,
      */
     if (arm_feature(env, ARM_FEATURE_EL3) && !arm_el_is_aa64(env, 3) &&
         !arm_is_secure(env) && !extract32(env->cp15.nsacr, 10, 1)) {
-        value &= ~(0xf << 20);
-        value |= env->cp15.cpacr_el1 & (0xf << 20);
+        mask = R_CPACR_CP11_MASK | R_CPACR_CP10_MASK;
+        value = (value & ~mask) | (env->cp15.cpacr_el1 & mask);
     }
 
     env->cp15.cpacr_el1 = value;
@@ -808,7 +810,7 @@ static uint64_t cpacr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 
     if (arm_feature(env, ARM_FEATURE_EL3) && !arm_el_is_aa64(env, 3) &&
         !arm_is_secure(env) && !extract32(env->cp15.nsacr, 10, 1)) {
-        value &= ~(0xf << 20);
+        value = ~(R_CPACR_CP11_MASK | R_CPACR_CP10_MASK);
     }
     return value;
 }
@@ -828,11 +830,11 @@ static CPAccessResult cpacr_access(CPUARMState *env, const ARMCPRegInfo *ri,
     if (arm_feature(env, ARM_FEATURE_V8)) {
         /* Check if CPACR accesses are to be trapped to EL2 */
         if (arm_current_el(env) == 1 && arm_is_el2_enabled(env) &&
-            (env->cp15.cptr_el[2] & CPTR_TCPAC)) {
+            FIELD_EX64(env->cp15.cptr_el[2], CPTR_EL2, TCPAC)) {
             return CP_ACCESS_TRAP_EL2;
         /* Check if CPACR accesses are to be trapped to EL3 */
         } else if (arm_current_el(env) < 3 &&
-                   (env->cp15.cptr_el[3] & CPTR_TCPAC)) {
+                   FIELD_EX64(env->cp15.cptr_el[3], CPTR_EL3, TCPAC)) {
             return CP_ACCESS_TRAP_EL3;
         }
     }
@@ -844,7 +846,8 @@ static CPAccessResult cptr_access(CPUARMState *env, const ARMCPRegInfo *ri,
                                   bool isread)
 {
     /* Check if CPTR accesses are set to trap to EL3 */
-    if (arm_current_el(env) == 2 && (env->cp15.cptr_el[3] & CPTR_TCPAC)) {
+    if (arm_current_el(env) == 2 &&
+        FIELD_EX64(env->cp15.cptr_el[3], CPTR_EL3, TCPAC)) {
         return CP_ACCESS_TRAP_EL3;
     }
 
@@ -3187,6 +3190,12 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
     ret = get_phys_addr(env, value, access_type, mmu_idx, &phys_addr, &attrs,
                         &prot, &page_size, &fi, &cacheattrs);
 
+    /*
+     * ATS operations only do S1 or S1+S2 translations, so we never
+     * have to deal with the ARMCacheAttrs format for S2 only.
+     */
+    assert(!cacheattrs.is_s2_format);
+
     if (ret) {
         /*
          * Some kinds of translation fault must cause exceptions rather
@@ -5155,6 +5164,9 @@ static void do_hcr_write(CPUARMState *env, uint64_t value, uint64_t valid_mask)
         if (cpu_isar_feature(aa64_scxtnum, cpu)) {
             valid_mask |= HCR_ENSCXT;
         }
+        if (cpu_isar_feature(aa64_fwb, cpu)) {
+            valid_mask |= HCR_FWB;
+        }
     }
 
     /* Clear RES0 bits.  */
@@ -5166,8 +5178,10 @@ static void do_hcr_write(CPUARMState *env, uint64_t value, uint64_t valid_mask)
      * HCR_PTW forbids certain page-table setups
      * HCR_DC disables stage1 and enables stage2 translation
      * HCR_DCT enables tagging on (disabled) stage1 translation
+     * HCR_FWB changes the interpretation of stage2 descriptor bits
      */
-    if ((env->cp15.hcr_el2 ^ value) & (HCR_VM | HCR_PTW | HCR_DC | HCR_DCT)) {
+    if ((env->cp15.hcr_el2 ^ value) &
+        (HCR_VM | HCR_PTW | HCR_DC | HCR_DCT | HCR_FWB)) {
         tlb_flush(CPU(cpu));
     }
     env->cp15.hcr_el2 = value;
@@ -5278,6 +5292,52 @@ uint64_t arm_hcr_el2_eff(CPUARMState *env)
     return ret;
 }
 
+static void hcrx_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                       uint64_t value)
+{
+    uint64_t valid_mask = 0;
+
+    /* No features adding bits to HCRX are implemented. */
+
+    /* Clear RES0 bits.  */
+    env->cp15.hcrx_el2 = value & valid_mask;
+}
+
+static CPAccessResult access_hxen(CPUARMState *env, const ARMCPRegInfo *ri,
+                                  bool isread)
+{
+    if (arm_current_el(env) < 3
+        && arm_feature(env, ARM_FEATURE_EL3)
+        && !(env->cp15.scr_el3 & SCR_HXEN)) {
+        return CP_ACCESS_TRAP_EL3;
+    }
+    return CP_ACCESS_OK;
+}
+
+static const ARMCPRegInfo hcrx_el2_reginfo = {
+    .name = "HCRX_EL2", .state = ARM_CP_STATE_AA64,
+    .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 2, .opc2 = 2,
+    .access = PL2_RW, .writefn = hcrx_write, .accessfn = access_hxen,
+    .fieldoffset = offsetof(CPUARMState, cp15.hcrx_el2),
+};
+
+/* Return the effective value of HCRX_EL2.  */
+uint64_t arm_hcrx_el2_eff(CPUARMState *env)
+{
+    /*
+     * The bits in this register behave as 0 for all purposes other than
+     * direct reads of the register if:
+     *   - EL2 is not enabled in the current security state,
+     *   - SCR_EL3.HXEn is 0.
+     */
+    if (!arm_is_el2_enabled(env)
+        || (arm_feature(env, ARM_FEATURE_EL3)
+            && !(env->cp15.scr_el3 & SCR_HXEN))) {
+        return 0;
+    }
+    return env->cp15.hcrx_el2;
+}
+
 static void cptr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
                            uint64_t value)
 {
@@ -5287,8 +5347,8 @@ static void cptr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
      */
     if (arm_feature(env, ARM_FEATURE_EL3) && !arm_el_is_aa64(env, 3) &&
         !arm_is_secure(env) && !extract32(env->cp15.nsacr, 10, 1)) {
-        value &= ~(0x3 << 10);
-        value |= env->cp15.cptr_el[2] & (0x3 << 10);
+        uint64_t mask = R_HCPTR_TCP11_MASK | R_HCPTR_TCP10_MASK;
+        value = (value & ~mask) | (env->cp15.cptr_el[2] & mask);
     }
     env->cp15.cptr_el[2] = value;
 }
@@ -5303,7 +5363,7 @@ static uint64_t cptr_el2_read(CPUARMState *env, const ARMCPRegInfo *ri)
 
     if (arm_feature(env, ARM_FEATURE_EL3) && !arm_el_is_aa64(env, 3) &&
         !arm_is_secure(env) && !extract32(env->cp15.nsacr, 10, 1)) {
-        value |= 0x3 << 10;
+        value |= R_HCPTR_TCP11_MASK | R_HCPTR_TCP10_MASK;
     }
     return value;
 }
@@ -5533,13 +5593,6 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .resetvalue = 0,
       .writefn = gt_hyp_ctl_write, .raw_writefn = raw_write },
 #endif
-    /* The only field of MDCR_EL2 that has a defined architectural reset value
-     * is MDCR_EL2.HPMN which should reset to the value of PMCR_EL0.N.
-     */
-    { .name = "MDCR_EL2", .state = ARM_CP_STATE_BOTH,
-      .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 1,
-      .access = PL2_RW, .resetvalue = PMCR_NUM_COUNTERS,
-      .fieldoffset = offsetof(CPUARMState, cp15.mdcr_el2), },
     { .name = "HPFAR", .state = ARM_CP_STATE_AA32,
       .cp = 15, .opc1 = 4, .crn = 6, .crm = 0, .opc2 = 4,
       .access = PL2_RW, .accessfn = access_el3_aa32ns,
@@ -6098,8 +6151,7 @@ int sve_exception_el(CPUARMState *env, int el)
     uint64_t hcr_el2 = arm_hcr_el2_eff(env);
 
     if (el <= 1 && (hcr_el2 & (HCR_E2H | HCR_TGE)) != (HCR_E2H | HCR_TGE)) {
-        /* Check CPACR.ZEN.  */
-        switch (extract32(env->cp15.cpacr_el1, 16, 2)) {
+        switch (FIELD_EX64(env->cp15.cpacr_el1, CPACR_EL1, ZEN)) {
         case 1:
             if (el != 0) {
                 break;
@@ -6112,7 +6164,7 @@ int sve_exception_el(CPUARMState *env, int el)
         }
 
         /* Check CPACR.FPEN.  */
-        switch (extract32(env->cp15.cpacr_el1, 20, 2)) {
+        switch (FIELD_EX64(env->cp15.cpacr_el1, CPACR_EL1, FPEN)) {
         case 1:
             if (el != 0) {
                 break;
@@ -6129,8 +6181,7 @@ int sve_exception_el(CPUARMState *env, int el)
      */
     if (el <= 2) {
         if (hcr_el2 & HCR_E2H) {
-            /* Check CPTR_EL2.ZEN.  */
-            switch (extract32(env->cp15.cptr_el[2], 16, 2)) {
+            switch (FIELD_EX64(env->cp15.cptr_el[2], CPTR_EL2, ZEN)) {
             case 1:
                 if (el != 0 || !(hcr_el2 & HCR_TGE)) {
                     break;
@@ -6141,8 +6192,7 @@ int sve_exception_el(CPUARMState *env, int el)
                 return 2;
             }
 
-            /* Check CPTR_EL2.FPEN.  */
-            switch (extract32(env->cp15.cptr_el[2], 20, 2)) {
+            switch (FIELD_EX32(env->cp15.cptr_el[2], CPTR_EL2, FPEN)) {
             case 1:
                 if (el == 2 || !(hcr_el2 & HCR_TGE)) {
                     break;
@@ -6153,10 +6203,10 @@ int sve_exception_el(CPUARMState *env, int el)
                 return 0;
             }
         } else if (arm_is_el2_enabled(env)) {
-            if (env->cp15.cptr_el[2] & CPTR_TZ) {
+            if (FIELD_EX64(env->cp15.cptr_el[2], CPTR_EL2, TZ)) {
                 return 2;
             }
-            if (env->cp15.cptr_el[2] & CPTR_TFP) {
+            if (FIELD_EX64(env->cp15.cptr_el[2], CPTR_EL2, TFP)) {
                 return 0;
             }
         }
@@ -6164,7 +6214,7 @@ int sve_exception_el(CPUARMState *env, int el)
 
     /* CPTR_EL3.  Since EZ is negative we must check for EL3.  */
     if (arm_feature(env, ARM_FEATURE_EL3)
-        && !(env->cp15.cptr_el[3] & CPTR_EZ)) {
+        && !FIELD_EX64(env->cp15.cptr_el[3], CPTR_EL3, EZ)) {
         return 3;
     }
 #endif
@@ -6529,7 +6579,6 @@ static void define_debug_regs(ARMCPU *cpu)
         define_one_arm_cp_reg(cpu, &dbgdidr);
     }
 
-    /* Note that all these register fields hold "number of Xs minus 1". */
     brps = arm_num_brps(cpu);
     wrps = arm_num_wrps(cpu);
     ctx_cmps = arm_num_ctx_cmps(cpu);
@@ -6543,14 +6592,16 @@ static void define_debug_regs(ARMCPU *cpu)
     }
 
     for (i = 0; i < brps; i++) {
+        char *dbgbvr_el1_name = g_strdup_printf("DBGBVR%d_EL1", i);
+        char *dbgbcr_el1_name = g_strdup_printf("DBGBCR%d_EL1", i);
         ARMCPRegInfo dbgregs[] = {
-            { .name = "DBGBVR", .state = ARM_CP_STATE_BOTH,
+            { .name = dbgbvr_el1_name, .state = ARM_CP_STATE_BOTH,
               .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 4,
               .access = PL1_RW, .accessfn = access_tda,
               .fieldoffset = offsetof(CPUARMState, cp15.dbgbvr[i]),
               .writefn = dbgbvr_write, .raw_writefn = raw_write
             },
-            { .name = "DBGBCR", .state = ARM_CP_STATE_BOTH,
+            { .name = dbgbcr_el1_name, .state = ARM_CP_STATE_BOTH,
               .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 5,
               .access = PL1_RW, .accessfn = access_tda,
               .fieldoffset = offsetof(CPUARMState, cp15.dbgbcr[i]),
@@ -6558,17 +6609,21 @@ static void define_debug_regs(ARMCPU *cpu)
             },
         };
         define_arm_cp_regs(cpu, dbgregs);
+        g_free(dbgbvr_el1_name);
+        g_free(dbgbcr_el1_name);
     }
 
     for (i = 0; i < wrps; i++) {
+        char *dbgwvr_el1_name = g_strdup_printf("DBGWVR%d_EL1", i);
+        char *dbgwcr_el1_name = g_strdup_printf("DBGWCR%d_EL1", i);
         ARMCPRegInfo dbgregs[] = {
-            { .name = "DBGWVR", .state = ARM_CP_STATE_BOTH,
+            { .name = dbgwvr_el1_name, .state = ARM_CP_STATE_BOTH,
               .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 6,
               .access = PL1_RW, .accessfn = access_tda,
               .fieldoffset = offsetof(CPUARMState, cp15.dbgwvr[i]),
               .writefn = dbgwvr_write, .raw_writefn = raw_write
             },
-            { .name = "DBGWCR", .state = ARM_CP_STATE_BOTH,
+            { .name = dbgwcr_el1_name, .state = ARM_CP_STATE_BOTH,
               .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 0, .crm = i, .opc2 = 7,
               .access = PL1_RW, .accessfn = access_tda,
               .fieldoffset = offsetof(CPUARMState, cp15.dbgwcr[i]),
@@ -6576,6 +6631,8 @@ static void define_debug_regs(ARMCPU *cpu)
             },
         };
         define_arm_cp_regs(cpu, dbgregs);
+        g_free(dbgwvr_el1_name);
+        g_free(dbgwcr_el1_name);
     }
 }
 
@@ -6586,7 +6643,7 @@ static void define_pmu_regs(ARMCPU *cpu)
      * field as main ID register, and we implement four counters in
      * addition to the cycle count register.
      */
-    unsigned int i, pmcrn = PMCR_NUM_COUNTERS;
+    unsigned int i, pmcrn = pmu_num_counters(&cpu->env);
     ARMCPRegInfo pmcr = {
         .name = "PMCR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 0,
         .access = PL0_RW,
@@ -6601,10 +6658,10 @@ static void define_pmu_regs(ARMCPU *cpu)
         .access = PL0_RW, .accessfn = pmreg_access,
         .type = ARM_CP_IO,
         .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcr),
-        .resetvalue = (cpu->midr & 0xff000000) | (pmcrn << PMCRN_SHIFT) |
-                      PMCRLC,
+        .resetvalue = cpu->isar.reset_pmcr_el0,
         .writefn = pmcr_write, .raw_writefn = raw_write,
     };
+
     define_one_arm_cp_reg(cpu, &pmcr);
     define_one_arm_cp_reg(cpu, &pmcr64);
     for (i = 0; i < pmcrn; i++) {
@@ -6758,7 +6815,7 @@ static CPAccessResult access_pauth(CPUARMState *env, const ARMCPRegInfo *ri,
     int el = arm_current_el(env);
 
     if (el < 2 &&
-        arm_feature(env, ARM_FEATURE_EL2) &&
+        arm_is_el2_enabled(env) &&
         !(arm_hcr_el2_eff(env) & HCR_APK)) {
         return CP_ACCESS_TRAP_EL2;
     }
@@ -7961,6 +8018,17 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .type = ARM_CP_EL3_NO_EL2_C_NZ,
               .fieldoffset = offsetof(CPUARMState, cp15.vmpidr_el2) },
         };
+        /*
+         * The only field of MDCR_EL2 that has a defined architectural reset
+         * value is MDCR_EL2.HPMN which should reset to the value of PMCR_EL0.N.
+         */
+        ARMCPRegInfo mdcr_el2 = {
+            .name = "MDCR_EL2", .state = ARM_CP_STATE_BOTH,
+            .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 1,
+            .access = PL2_RW, .resetvalue = pmu_num_counters(env),
+            .fieldoffset = offsetof(CPUARMState, cp15.mdcr_el2),
+        };
+        define_one_arm_cp_reg(cpu, &mdcr_el2);
         define_arm_cp_regs(cpu, vpidr_regs);
         define_arm_cp_regs(cpu, el2_cp_reginfo);
         if (arm_feature(env, ARM_FEATURE_V8)) {
@@ -8382,6 +8450,10 @@ void register_cp_regs_for_features(ARMCPU *cpu)
 
     if (cpu_isar_feature(aa64_sve, cpu)) {
         define_arm_cp_regs(cpu, zcr_reginfo);
+    }
+
+    if (cpu_isar_feature(aa64_hcx, cpu)) {
+        define_one_arm_cp_reg(cpu, &hcrx_el2_reginfo);
     }
 
 #ifdef TARGET_AARCH64
@@ -10717,6 +10789,25 @@ static bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
     return true;
 }
 
+static bool ptw_attrs_are_device(CPUARMState *env, ARMCacheAttrs cacheattrs)
+{
+    /*
+     * For an S1 page table walk, the stage 1 attributes are always
+     * some form of "this is Normal memory". The combined S1+S2
+     * attributes are therefore only Device if stage 2 specifies Device.
+     * With HCR_EL2.FWB == 0 this is when descriptor bits [5:4] are 0b00,
+     * ie when cacheattrs.attrs bits [3:2] are 0b00.
+     * With HCR_EL2.FWB == 1 this is when descriptor bit [4] is 0, ie
+     * when cacheattrs.attrs bit [2] is 0.
+     */
+    assert(cacheattrs.is_s2_format);
+    if (arm_hcr_el2_eff(env) & HCR_FWB) {
+        return (cacheattrs.attrs & 0x4) == 0;
+    } else {
+        return (cacheattrs.attrs & 0xc) == 0;
+    }
+}
+
 /* Translate a S1 pagetable walk through S2 if needed.  */
 static hwaddr S1_ptw_translate(CPUARMState *env, ARMMMUIdx mmu_idx,
                                hwaddr addr, bool *is_secure,
@@ -10745,7 +10836,7 @@ static hwaddr S1_ptw_translate(CPUARMState *env, ARMMMUIdx mmu_idx,
             return ~0;
         }
         if ((arm_hcr_el2_eff(env) & HCR_PTW) &&
-            (cacheattrs.attrs & 0xf0) == 0) {
+            ptw_attrs_are_device(env, cacheattrs)) {
             /*
              * PTW set and S1 walk touched S2 Device memory:
              * generate Permission fault.
@@ -11817,12 +11908,14 @@ static bool get_phys_addr_lpae(CPUARMState *env, uint64_t address,
     }
 
     if (mmu_idx == ARMMMUIdx_Stage2 || mmu_idx == ARMMMUIdx_Stage2_S) {
-        cacheattrs->attrs = convert_stage2_attrs(env, extract32(attrs, 0, 4));
+        cacheattrs->is_s2_format = true;
+        cacheattrs->attrs = extract32(attrs, 0, 4);
     } else {
         /* Index into MAIR registers for cache attributes */
         uint8_t attrindx = extract32(attrs, 0, 3);
         uint64_t mair = env->cp15.mair_el[regime_el(env, mmu_idx)];
         assert(attrindx <= 7);
+        cacheattrs->is_s2_format = false;
         cacheattrs->attrs = extract64(mair, attrindx * 8, 8);
     }
 
@@ -12557,27 +12650,129 @@ static uint8_t combine_cacheattr_nibble(uint8_t s1, uint8_t s2)
     }
 }
 
+/*
+ * Combine the memory type and cacheability attributes of
+ * s1 and s2 for the HCR_EL2.FWB == 0 case, returning the
+ * combined attributes in MAIR_EL1 format.
+ */
+static uint8_t combined_attrs_nofwb(CPUARMState *env,
+                                    ARMCacheAttrs s1, ARMCacheAttrs s2)
+{
+    uint8_t s1lo, s2lo, s1hi, s2hi, s2_mair_attrs, ret_attrs;
+
+    s2_mair_attrs = convert_stage2_attrs(env, s2.attrs);
+
+    s1lo = extract32(s1.attrs, 0, 4);
+    s2lo = extract32(s2_mair_attrs, 0, 4);
+    s1hi = extract32(s1.attrs, 4, 4);
+    s2hi = extract32(s2_mair_attrs, 4, 4);
+
+    /* Combine memory type and cacheability attributes */
+    if (s1hi == 0 || s2hi == 0) {
+        /* Device has precedence over normal */
+        if (s1lo == 0 || s2lo == 0) {
+            /* nGnRnE has precedence over anything */
+            ret_attrs = 0;
+        } else if (s1lo == 4 || s2lo == 4) {
+            /* non-Reordering has precedence over Reordering */
+            ret_attrs = 4;  /* nGnRE */
+        } else if (s1lo == 8 || s2lo == 8) {
+            /* non-Gathering has precedence over Gathering */
+            ret_attrs = 8;  /* nGRE */
+        } else {
+            ret_attrs = 0xc; /* GRE */
+        }
+    } else { /* Normal memory */
+        /* Outer/inner cacheability combine independently */
+        ret_attrs = combine_cacheattr_nibble(s1hi, s2hi) << 4
+                  | combine_cacheattr_nibble(s1lo, s2lo);
+    }
+    return ret_attrs;
+}
+
+static uint8_t force_cacheattr_nibble_wb(uint8_t attr)
+{
+    /*
+     * Given the 4 bits specifying the outer or inner cacheability
+     * in MAIR format, return a value specifying Normal Write-Back,
+     * with the allocation and transient hints taken from the input
+     * if the input specified some kind of cacheable attribute.
+     */
+    if (attr == 0 || attr == 4) {
+        /*
+         * 0 == an UNPREDICTABLE encoding
+         * 4 == Non-cacheable
+         * Either way, force Write-Back RW allocate non-transient
+         */
+        return 0xf;
+    }
+    /* Change WriteThrough to WriteBack, keep allocation and transient hints */
+    return attr | 4;
+}
+
+/*
+ * Combine the memory type and cacheability attributes of
+ * s1 and s2 for the HCR_EL2.FWB == 1 case, returning the
+ * combined attributes in MAIR_EL1 format.
+ */
+static uint8_t combined_attrs_fwb(CPUARMState *env,
+                                  ARMCacheAttrs s1, ARMCacheAttrs s2)
+{
+    switch (s2.attrs) {
+    case 7:
+        /* Use stage 1 attributes */
+        return s1.attrs;
+    case 6:
+        /*
+         * Force Normal Write-Back. Note that if S1 is Normal cacheable
+         * then we take the allocation hints from it; otherwise it is
+         * RW allocate, non-transient.
+         */
+        if ((s1.attrs & 0xf0) == 0) {
+            /* S1 is Device */
+            return 0xff;
+        }
+        /* Need to check the Inner and Outer nibbles separately */
+        return force_cacheattr_nibble_wb(s1.attrs & 0xf) |
+            force_cacheattr_nibble_wb(s1.attrs >> 4) << 4;
+    case 5:
+        /* If S1 attrs are Device, use them; otherwise Normal Non-cacheable */
+        if ((s1.attrs & 0xf0) == 0) {
+            return s1.attrs;
+        }
+        return 0x44;
+    case 0 ... 3:
+        /* Force Device, of subtype specified by S2 */
+        return s2.attrs << 2;
+    default:
+        /*
+         * RESERVED values (including RES0 descriptor bit [5] being nonzero);
+         * arbitrarily force Device.
+         */
+        return 0;
+    }
+}
+
 /* Combine S1 and S2 cacheability/shareability attributes, per D4.5.4
  * and CombineS1S2Desc()
  *
+ * @env:     CPUARMState
  * @s1:      Attributes from stage 1 walk
  * @s2:      Attributes from stage 2 walk
  */
-static ARMCacheAttrs combine_cacheattrs(ARMCacheAttrs s1, ARMCacheAttrs s2)
+static ARMCacheAttrs combine_cacheattrs(CPUARMState *env,
+                                        ARMCacheAttrs s1, ARMCacheAttrs s2)
 {
-    uint8_t s1lo, s2lo, s1hi, s2hi;
     ARMCacheAttrs ret;
     bool tagged = false;
+
+    assert(s2.is_s2_format && !s1.is_s2_format);
+    ret.is_s2_format = false;
 
     if (s1.attrs == 0xf0) {
         tagged = true;
         s1.attrs = 0xff;
     }
-
-    s1lo = extract32(s1.attrs, 0, 4);
-    s2lo = extract32(s2.attrs, 0, 4);
-    s1hi = extract32(s1.attrs, 4, 4);
-    s2hi = extract32(s2.attrs, 4, 4);
 
     /* Combine shareability attributes (table D4-43) */
     if (s1.shareability == 2 || s2.shareability == 2) {
@@ -12592,37 +12787,22 @@ static ARMCacheAttrs combine_cacheattrs(ARMCacheAttrs s1, ARMCacheAttrs s2)
     }
 
     /* Combine memory type and cacheability attributes */
-    if (s1hi == 0 || s2hi == 0) {
-        /* Device has precedence over normal */
-        if (s1lo == 0 || s2lo == 0) {
-            /* nGnRnE has precedence over anything */
-            ret.attrs = 0;
-        } else if (s1lo == 4 || s2lo == 4) {
-            /* non-Reordering has precedence over Reordering */
-            ret.attrs = 4;  /* nGnRE */
-        } else if (s1lo == 8 || s2lo == 8) {
-            /* non-Gathering has precedence over Gathering */
-            ret.attrs = 8;  /* nGRE */
-        } else {
-            ret.attrs = 0xc; /* GRE */
-        }
+    if (arm_hcr_el2_eff(env) & HCR_FWB) {
+        ret.attrs = combined_attrs_fwb(env, s1, s2);
+    } else {
+        ret.attrs = combined_attrs_nofwb(env, s1, s2);
+    }
 
-        /* Any location for which the resultant memory type is any
-         * type of Device memory is always treated as Outer Shareable.
-         */
+    /*
+     * Any location for which the resultant memory type is any
+     * type of Device memory is always treated as Outer Shareable.
+     * Any location for which the resultant memory type is Normal
+     * Inner Non-cacheable, Outer Non-cacheable is always treated
+     * as Outer Shareable.
+     * TODO: FEAT_XS adds another value (0x40) also meaning iNCoNC
+     */
+    if ((ret.attrs & 0xf0) == 0 || ret.attrs == 0x44) {
         ret.shareability = 2;
-    } else { /* Normal memory */
-        /* Outer/inner cacheability combine independently */
-        ret.attrs = combine_cacheattr_nibble(s1hi, s2hi) << 4
-                  | combine_cacheattr_nibble(s1lo, s2lo);
-
-        if (ret.attrs == 0x44) {
-            /* Any location for which the resultant memory type is Normal
-             * Inner Non-cacheable, Outer Non-cacheable is always treated
-             * as Outer Shareable.
-             */
-            ret.shareability = 2;
-        }
     }
 
     /* TODO: CombineS1S2Desc does not consider transient, only WB, RWA. */
@@ -12731,7 +12911,7 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
                 }
                 cacheattrs->shareability = 0;
             }
-            *cacheattrs = combine_cacheattrs(*cacheattrs, cacheattrs2);
+            *cacheattrs = combine_cacheattrs(env, *cacheattrs, cacheattrs2);
 
             /* Check if IPA translates to secure or non-secure PA space. */
             if (arm_is_secure_below_el3(env)) {
@@ -12849,6 +13029,7 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
         /* Fill in cacheattr a-la AArch64.TranslateAddressS1Off. */
         hcr = arm_hcr_el2_eff(env);
         cacheattrs->shareability = 0;
+        cacheattrs->is_s2_format = false;
         if (hcr & HCR_DC) {
             if (hcr & HCR_DCT) {
                 memattr = 0xf0;  /* Tagged, Normal, WB, RWA */
@@ -13216,7 +13397,7 @@ int fp_exception_el(CPUARMState *env, int cur_el)
      * This register is ignored if E2H+TGE are both set.
      */
     if ((hcr_el2 & (HCR_E2H | HCR_TGE)) != (HCR_E2H | HCR_TGE)) {
-        int fpen = extract32(env->cp15.cpacr_el1, 20, 2);
+        int fpen = FIELD_EX64(env->cp15.cpacr_el1, CPACR_EL1, FPEN);
 
         switch (fpen) {
         case 0:
@@ -13262,8 +13443,7 @@ int fp_exception_el(CPUARMState *env, int cur_el)
      */
     if (cur_el <= 2) {
         if (hcr_el2 & HCR_E2H) {
-            /* Check CPTR_EL2.FPEN.  */
-            switch (extract32(env->cp15.cptr_el[2], 20, 2)) {
+            switch (FIELD_EX64(env->cp15.cptr_el[2], CPTR_EL2, FPEN)) {
             case 1:
                 if (cur_el != 0 || !(hcr_el2 & HCR_TGE)) {
                     break;
@@ -13274,14 +13454,14 @@ int fp_exception_el(CPUARMState *env, int cur_el)
                 return 2;
             }
         } else if (arm_is_el2_enabled(env)) {
-            if (env->cp15.cptr_el[2] & CPTR_TFP) {
+            if (FIELD_EX64(env->cp15.cptr_el[2], CPTR_EL2, TFP)) {
                 return 2;
             }
         }
     }
 
     /* CPTR_EL3 : present in v8 */
-    if (env->cp15.cptr_el[3] & CPTR_TFP) {
+    if (FIELD_EX64(env->cp15.cptr_el[3], CPTR_EL3, TFP)) {
         /* Trap all FP ops to EL3 */
         return 3;
     }

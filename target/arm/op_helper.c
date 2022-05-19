@@ -631,6 +631,7 @@ uint32_t HELPER(mrs_banked)(CPUARMState *env, uint32_t tgtmode, uint32_t regno)
 void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome,
                                  uint32_t isread)
 {
+    ARMCPU *cpu = env_archcpu(env);
     const ARMCPRegInfo *ri = rip;
     CPAccessResult res = CP_ACCESS_OK;
     int target_el;
@@ -674,6 +675,14 @@ void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome,
     case CP_ACCESS_TRAP:
         break;
     case CP_ACCESS_TRAP_UNCATEGORIZED:
+        if (cpu_isar_feature(aa64_ids, cpu) && isread &&
+            arm_cpreg_in_idspace(ri)) {
+            /*
+             * FEAT_IDST says this should be reported as EC_SYSTEMREGISTERTRAP,
+             * not EC_UNCATEGORIZED
+             */
+            break;
+        }
         syndrome = syn_uncategorized();
         break;
     default:

@@ -1149,8 +1149,13 @@ bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
 
 /* Cacheability and shareability attributes for a memory access */
 typedef struct ARMCacheAttrs {
-    unsigned int attrs:8; /* as in the MAIR register encoding */
+    /*
+     * If is_s2_format is true, attrs is the S2 descriptor bits [5:2]
+     * Otherwise, attrs is the same as the MAIR_EL1 8-bit format
+     */
+    unsigned int attrs:8;
     unsigned int shareability:2; /* as in the SH field of the VMSAv8-64 PTEs */
+    bool is_s2_format:1;
 } ARMCacheAttrs;
 
 bool get_phys_addr(CPUARMState *env, target_ulong address,
@@ -1299,7 +1304,9 @@ enum MVEECIState {
 
 static inline uint32_t pmu_num_counters(CPUARMState *env)
 {
-  return (env->cp15.c9_pmcr & PMCRN_MASK) >> PMCRN_SHIFT;
+    ARMCPU *cpu = env_archcpu(env);
+
+    return (cpu->isar.reset_pmcr_el0 & PMCRN_MASK) >> PMCRN_SHIFT;
 }
 
 /* Bits allowed to be set/cleared for PMCNTEN* and PMINTEN* */

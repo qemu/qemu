@@ -405,7 +405,7 @@ static void slavio_timer_init(Object *obj)
         tc->timer_index = i;
 
         s->cputimer[i].timer = ptimer_init(slavio_timer_irq, tc,
-                                           PTIMER_POLICY_DEFAULT);
+                                           PTIMER_POLICY_LEGACY);
         ptimer_transaction_begin(s->cputimer[i].timer);
         ptimer_set_period(s->cputimer[i].timer, TIMER_PERIOD);
         ptimer_transaction_commit(s->cputimer[i].timer);
