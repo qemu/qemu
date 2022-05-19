@@ -4041,7 +4041,12 @@ static void gen_stqcx_(DisasContext *ctx)
 /* sync */
 static void gen_sync(DisasContext *ctx)
 {
+    TCGBar bar = TCG_MO_ALL;
     uint32_t l = (ctx->opcode >> 21) & 3;
+
+    if ((l == 1) && (ctx->insns_flags2 & PPC2_MEM_LWSYNC)) {
+        bar = TCG_MO_LD_LD | TCG_MO_LD_ST | TCG_MO_ST_ST;
+    }
 
     /*
      * We may need to check for a pending TLB flush.
@@ -4054,7 +4059,8 @@ static void gen_sync(DisasContext *ctx)
     if (((l == 2) || !(ctx->insns_flags & PPC_64B)) && !ctx->pr) {
         gen_check_tlb_flush(ctx, true);
     }
-    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
+
+    tcg_gen_mb(bar | TCG_BAR_SC);
 }
 
 /* wait */
