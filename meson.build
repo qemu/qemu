@@ -2535,13 +2535,10 @@ genh += custom_target('config-poison.h',
 ##############
 
 capstone = not_found
-capstone_opt = get_option('capstone')
-if capstone_opt in ['enabled', 'auto', 'system']
-  have_internal = fs.exists(meson.current_source_dir() / 'capstone/Makefile')
-  capstone = dependency('capstone', version: '>=4.0',
+if not get_option('capstone').auto() or have_system or have_user
+  capstone = dependency('capstone', version: '>=3.0.5',
                         kwargs: static_kwargs, method: 'pkg-config',
-                        required: capstone_opt == 'system' or
-                                  capstone_opt == 'enabled' and not have_internal)
+                        required: get_option('capstone'))
 
   # Some versions of capstone have broken pkg-config file
   # that reports a wrong -I path, causing the #include to
@@ -2550,110 +2547,10 @@ if capstone_opt in ['enabled', 'auto', 'system']
   if capstone.found() and not cc.compiles('#include <capstone.h>',
                                           dependencies: [capstone])
     capstone = not_found
-    if capstone_opt == 'system'
-      error('system capstone requested, it does not appear to work')
+    if get_option('capstone').enabled()
+      error('capstone requested, but it does not appear to work')
     endif
   endif
-
-  if capstone.found()
-    capstone_opt = 'system'
-  elif have_internal
-    capstone_opt = 'internal'
-  else
-    capstone_opt = 'disabled'
-  endif
-endif
-if capstone_opt == 'internal'
-  capstone_data = configuration_data()
-  capstone_data.set('CAPSTONE_USE_SYS_DYN_MEM', '1')
-
-  capstone_files = files(
-    'capstone/cs.c',
-    'capstone/MCInst.c',
-    'capstone/MCInstrDesc.c',
-    'capstone/MCRegisterInfo.c',
-    'capstone/SStream.c',
-    'capstone/utils.c'
-  )
-
-  if 'CONFIG_ARM_DIS' in config_all_disas
-    capstone_data.set('CAPSTONE_HAS_ARM', '1')
-    capstone_files += files(
-      'capstone/arch/ARM/ARMDisassembler.c',
-      'capstone/arch/ARM/ARMInstPrinter.c',
-      'capstone/arch/ARM/ARMMapping.c',
-      'capstone/arch/ARM/ARMModule.c'
-    )
-  endif
-
-  # FIXME: This config entry currently depends on a c++ compiler.
-  # Which is needed for building libvixl, but not for capstone.
-  if 'CONFIG_ARM_A64_DIS' in config_all_disas
-    capstone_data.set('CAPSTONE_HAS_ARM64', '1')
-    capstone_files += files(
-      'capstone/arch/AArch64/AArch64BaseInfo.c',
-      'capstone/arch/AArch64/AArch64Disassembler.c',
-      'capstone/arch/AArch64/AArch64InstPrinter.c',
-      'capstone/arch/AArch64/AArch64Mapping.c',
-      'capstone/arch/AArch64/AArch64Module.c'
-    )
-  endif
-
-  if 'CONFIG_PPC_DIS' in config_all_disas
-    capstone_data.set('CAPSTONE_HAS_POWERPC', '1')
-    capstone_files += files(
-      'capstone/arch/PowerPC/PPCDisassembler.c',
-      'capstone/arch/PowerPC/PPCInstPrinter.c',
-      'capstone/arch/PowerPC/PPCMapping.c',
-      'capstone/arch/PowerPC/PPCModule.c'
-    )
-  endif
-
-  if 'CONFIG_S390_DIS' in config_all_disas
-    capstone_data.set('CAPSTONE_HAS_SYSZ', '1')
-    capstone_files += files(
-      'capstone/arch/SystemZ/SystemZDisassembler.c',
-      'capstone/arch/SystemZ/SystemZInstPrinter.c',
-      'capstone/arch/SystemZ/SystemZMapping.c',
-      'capstone/arch/SystemZ/SystemZModule.c',
-      'capstone/arch/SystemZ/SystemZMCTargetDesc.c'
-    )
-  endif
-
-  if 'CONFIG_I386_DIS' in config_all_disas
-    capstone_data.set('CAPSTONE_HAS_X86', 1)
-    capstone_files += files(
-      'capstone/arch/X86/X86Disassembler.c',
-      'capstone/arch/X86/X86DisassemblerDecoder.c',
-      'capstone/arch/X86/X86ATTInstPrinter.c',
-      'capstone/arch/X86/X86IntelInstPrinter.c',
-      'capstone/arch/X86/X86InstPrinterCommon.c',
-      'capstone/arch/X86/X86Mapping.c',
-      'capstone/arch/X86/X86Module.c'
-    )
-  endif
-
-  configure_file(output: 'capstone-defs.h', configuration: capstone_data)
-
-  capstone_cargs = [
-    # FIXME: There does not seem to be a way to completely replace the c_args
-    # that come from add_project_arguments() -- we can only add to them.
-    # So: disable all warnings with a big hammer.
-    '-Wno-error', '-w',
-
-    # Include all configuration defines via a header file, which will wind up
-    # as a dependency on the object file, and thus changes here will result
-    # in a rebuild.
-    '-include', 'capstone-defs.h'
-  ]
-
-  libcapstone = static_library('capstone',
-                               build_by_default: false,
-                               sources: capstone_files,
-                               c_args: capstone_cargs,
-                               include_directories: 'capstone/include')
-  capstone = declare_dependency(link_with: libcapstone,
-                                include_directories: 'capstone/include/capstone')
 endif
 
 slirp = not_found
@@ -3984,7 +3881,7 @@ summary_info += {'bzip2 support':     libbzip2}
 summary_info += {'lzfse support':     liblzfse}
 summary_info += {'zstd support':      zstd}
 summary_info += {'NUMA host support': numa}
-summary_info += {'capstone':          capstone_opt == 'internal' ? capstone_opt : capstone}
+summary_info += {'capstone':          capstone}
 summary_info += {'libpmem support':   libpmem}
 summary_info += {'libdaxctl support': libdaxctl}
 summary_info += {'libudev':           libudev}

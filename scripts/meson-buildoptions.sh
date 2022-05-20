@@ -16,9 +16,6 @@ meson_options_help() {
   printf "%s\n" '  --enable-block-drv-whitelist-in-tools'
   printf "%s\n" '                           use block whitelist also in tools instead of only'
   printf "%s\n" '                           QEMU'
-  printf "%s\n" '  --enable-capstone[=CHOICE]'
-  printf "%s\n" '                           Whether and how to find the capstone library'
-  printf "%s\n" '                           (choices: auto/disabled/enabled/internal/system)'
   printf "%s\n" '  --enable-cfi             Control-Flow Integrity (CFI)'
   printf "%s\n" '  --enable-cfi-debug       Verbose errors in case of CFI violation'
   printf "%s\n" '  --enable-debug-mutex     mutex debugging support'
@@ -77,6 +74,7 @@ meson_options_help() {
   printf "%s\n" '  brlapi          brlapi character device driver'
   printf "%s\n" '  bzip2           bzip2 support for DMG images'
   printf "%s\n" '  cap-ng          cap_ng support'
+  printf "%s\n" '  capstone        Whether and how to find the capstone library'
   printf "%s\n" '  cloop           cloop image format support'
   printf "%s\n" '  cocoa           Cocoa user interface (macOS only)'
   printf "%s\n" '  coreaudio       CoreAudio sound support'
@@ -210,7 +208,6 @@ _meson_option_parse() {
     --disable-cap-ng) printf "%s" -Dcap_ng=disabled ;;
     --enable-capstone) printf "%s" -Dcapstone=enabled ;;
     --disable-capstone) printf "%s" -Dcapstone=disabled ;;
-    --enable-capstone=*) quote_sh "-Dcapstone=$2" ;;
     --enable-cfi) printf "%s" -Dcfi=true ;;
     --disable-cfi) printf "%s" -Dcfi=false ;;
     --enable-cfi-debug) printf "%s" -Dcfi_debug=true ;;

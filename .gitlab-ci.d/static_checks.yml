@@ -1,12 +1,13 @@
 check-patch:
   stage: build
-  image: $CI_REGISTRY_IMAGE/qemu/centos8:latest
-  needs:
-    job: amd64-centos8-container
+  image: python:3.10-alpine
+  needs: []
   script:
     - .gitlab-ci.d/check-patch.py
   variables:
     GIT_DEPTH: 1000
+  before_script:
+    - apk -U add git perl
   rules:
     - if: '$CI_PROJECT_NAMESPACE == "qemu-project"'
       when: never
@@ -15,12 +16,13 @@ check-patch:
 
 check-dco:
   stage: build
-  image: $CI_REGISTRY_IMAGE/qemu/centos8:latest
-  needs:
-    job: amd64-centos8-container
+  image: python:3.10-alpine
+  needs: []
   script: .gitlab-ci.d/check-dco.py
   variables:
     GIT_DEPTH: 1000
+  before_script:
+    - apk -U add git
   rules:
     - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       when: never

@@ -19,11 +19,6 @@ amd64-debian-container:
   variables:
     NAME: debian-amd64
 
-amd64-ubuntu1804-container:
-  extends: .container_job_template
-  variables:
-    NAME: ubuntu1804
-
 amd64-ubuntu2004-container:
   extends: .container_job_template
   variables:

@@ -307,10 +307,8 @@ skip_meson=no
 
 # 1. Track which submodules are needed
 if test "$default_feature" = no ; then
-  capstone="disabled"
   slirp="disabled"
 else
-  capstone="auto"
   slirp="auto"
 fi
 fdt="auto"
@@ -868,14 +866,6 @@ for opt do
   ;;
   --enable-uuid|--disable-uuid)
       echo "$0: $opt is obsolete, UUID support is always built" >&2
-  ;;
-  --disable-capstone) capstone="disabled"
-  ;;
-  --enable-capstone) capstone="enabled"
-  ;;
-  --enable-capstone=git) capstone="internal"
-  ;;
-  --enable-capstone=*) capstone="$optarg"
   ;;
   --with-git=*) git="$optarg"
   ;;
@@ -1486,6 +1476,8 @@ fi
 ##########################################
 # glib support probe
 
+# When bumping glib_req_ver, please check also whether we should increase
+# the _WIN32_WINNT setting in osdep.h according to the value from glib
 glib_req_ver=2.56
 glib_modules=gthread-2.0
 if test "$modules" = yes; then
@@ -1561,16 +1553,6 @@ case "$fdt" in
   auto | enabled | internal)
     # Simpler to always update submodule, even if not needed.
     git_submodules="${git_submodules} dtc"
-    ;;
-esac
-
-##########################################
-# capstone
-
-case "$capstone" in
-  auto | enabled | internal)
-    # Simpler to always update submodule, even if not needed.
-    git_submodules="${git_submodules} capstone"
     ;;
 esac
 
@@ -2218,7 +2200,6 @@ if test "$skip_meson" = no; then
   test "$werror" = yes && meson_option_add -Dwerror=true
 
   # QEMU options
-  test "$capstone" != auto && meson_option_add "-Dcapstone=$capstone"
   test "$cfi" != false && meson_option_add "-Dcfi=$cfi"
   test "$fdt" != auto && meson_option_add "-Dfdt=$fdt"
   test -n "${LIB_FUZZING_ENGINE+xxx}" && meson_option_add "-Dfuzzing_engine=$LIB_FUZZING_ENGINE"

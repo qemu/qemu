@@ -254,8 +254,7 @@ option('virtfs', type: 'feature', value: 'auto',
 option('virtiofsd', type: 'feature', value: 'auto',
        description: 'build virtiofs daemon (virtiofsd)')
 
-option('capstone', type: 'combo', value: 'auto',
-       choices: ['disabled', 'enabled', 'auto', 'system', 'internal'],
+option('capstone', type: 'feature', value: 'auto',
        description: 'Whether and how to find the capstone library')
 option('slirp', type: 'combo', value: 'auto',
        choices: ['disabled', 'enabled', 'auto', 'system', 'internal'],
