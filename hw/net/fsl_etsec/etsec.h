@@ -155,13 +155,6 @@ OBJECT_DECLARE_SIMPLE_TYPE(eTSEC, ETSEC_COMMON)
 #define eTSEC_TRANSMIT 1
 #define eTSEC_RECEIVE  2
 
-DeviceState *etsec_create(hwaddr        base,
-                          MemoryRegion *mr,
-                          NICInfo      *nd,
-                          qemu_irq      tx_irq,
-                          qemu_irq      rx_irq,
-                          qemu_irq      err_irq);
-
 void etsec_update_irq(eTSEC *etsec);
 
 void etsec_walk_tx_ring(eTSEC *etsec, int ring_nbr);
