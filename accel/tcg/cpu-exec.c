@@ -1091,7 +1091,7 @@ HumanReadableText *qmp_x_query_opcount(Error **errp)
         return NULL;
     }
 
-    dump_opcount_info(buf);
+    tcg_dump_op_count(buf);
 
     return human_readable_text_from_str(buf);
 }
