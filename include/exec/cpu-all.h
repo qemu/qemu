@@ -421,7 +421,6 @@ static inline bool tlb_hit(target_ulong tlb_addr, target_ulong addr)
 #ifdef CONFIG_TCG
 /* accel/tcg/translate-all.c */
 void dump_exec_info(GString *buf);
-void dump_opcount_info(GString *buf);
 #endif /* CONFIG_TCG */
 
 #endif /* !CONFIG_USER_ONLY */
