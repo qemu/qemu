@@ -1048,7 +1048,7 @@ void tcg_exec_unrealizefn(CPUState *cpu)
 
 #ifndef CONFIG_USER_ONLY
 
-void dump_drift_info(GString *buf)
+static void dump_drift_info(GString *buf)
 {
     if (!icount_enabled()) {
         return;
