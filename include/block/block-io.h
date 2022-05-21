@@ -270,7 +270,6 @@ void bdrv_drained_end_no_poll(BlockDriverState *bs, int *drained_end_counter);
                    cond); })
 
 void bdrv_drain(BlockDriverState *bs);
-void coroutine_fn bdrv_co_drain(BlockDriverState *bs);
 
 int generated_co_wrapper
 bdrv_truncate(BdrvChild *child, int64_t offset, bool exact,
