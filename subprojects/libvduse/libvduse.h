@@ -174,6 +174,18 @@ int vduse_dev_update_config(VduseDev *dev, uint32_t size,
 int vduse_dev_setup_queue(VduseDev *dev, int index, int max_size);
 
 /**
+ * vduse_set_reconnect_log_file:
+ * @dev: VDUSE device
+ * @file: filename of reconnect log
+ *
+ * Specify the file to store log for reconnecting. It should
+ * be called before vduse_dev_setup_queue().
+ *
+ * Returns: 0 on success, -errno on failure.
+ */
+int vduse_set_reconnect_log_file(VduseDev *dev, const char *filename);
+
+/**
  * vduse_dev_create_by_fd:
  * @fd: passed file descriptor
  * @num_queues: the number of virtqueues
