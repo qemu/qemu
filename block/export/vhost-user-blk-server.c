@@ -60,8 +60,7 @@ static void vu_blk_req_complete(VuBlkReq *req)
 {
     VuDev *vu_dev = &req->server->vu_dev;
 
-    /* IO size with 1 extra status byte */
-    vu_queue_push(vu_dev, req->vq, &req->elem, req->size + 1);
+    vu_queue_push(vu_dev, req->vq, &req->elem, req->size);
     vu_queue_notify(vu_dev, req->vq);
 
     free(req);
@@ -207,6 +206,7 @@ static void coroutine_fn vu_blk_virtio_process_req(void *opaque)
         goto err;
     }
 
+    req->size = iov_size(in_iov, in_num);
     /* We always touch the last byte, so just see how big in_iov is.  */
     req->in = (void *)in_iov[in_num - 1].iov_base
               + in_iov[in_num - 1].iov_len
@@ -267,7 +267,6 @@ static void coroutine_fn vu_blk_virtio_process_req(void *opaque)
                           VIRTIO_BLK_ID_BYTES);
         snprintf(elem->in_sg[0].iov_base, size, "%s", "vhost_user_blk");
         req->in->status = VIRTIO_BLK_S_OK;
-        req->size = elem->in_sg[0].iov_len;
         break;
     }
     case VIRTIO_BLK_T_DISCARD:
