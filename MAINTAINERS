@@ -3594,6 +3594,11 @@ L: qemu-block@nongnu.org
 S: Supported
 F: block/export/fuse.c
 
+VDUSE library
+M: Xie Yongji <xieyongji@bytedance.com>
+S: Maintained
+F: subprojects/libvduse/
+
 Replication
 M: Wen Congyang <wencongyang2@huawei.com>
 M: Xie Changlong <xiechanglong.d@gmail.com>

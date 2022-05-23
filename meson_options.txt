@@ -257,6 +257,8 @@ option('virtfs', type: 'feature', value: 'auto',
        description: 'virtio-9p support')
 option('virtiofsd', type: 'feature', value: 'auto',
        description: 'build virtiofs daemon (virtiofsd)')
+option('libvduse', type: 'feature', value: 'auto',
+       description: 'build VDUSE Library')
 
 option('capstone', type: 'feature', value: 'auto',
        description: 'Whether and how to find the capstone library')
