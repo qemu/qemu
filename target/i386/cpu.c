@@ -1356,6 +1356,14 @@ static FeatureDep feature_dependencies[] = {
         .to = { FEAT_VMX_SECONDARY_CTLS,    VMX_SECONDARY_EXEC_ENABLE_INVPCID },
     },
     {
+        .from = { FEAT_7_0_EBX,             CPUID_7_0_EBX_MPX },
+        .to = { FEAT_VMX_EXIT_CTLS,         VMX_VM_EXIT_CLEAR_BNDCFGS },
+    },
+    {
+        .from = { FEAT_7_0_EBX,             CPUID_7_0_EBX_MPX },
+        .to = { FEAT_VMX_ENTRY_CTLS,        VMX_VM_ENTRY_LOAD_BNDCFGS },
+    },
+    {
         .from = { FEAT_7_0_EBX,             CPUID_7_0_EBX_RDSEED },
         .to = { FEAT_VMX_SECONDARY_CTLS,    VMX_SECONDARY_EXEC_RDSEED_EXITING },
     },
