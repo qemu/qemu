@@ -782,6 +782,136 @@ VCT(uxs, cvtsduw, u32)
 VCT(sxs, cvtsdsw, s32)
 #undef VCT
 
+typedef int64_t do_ger(uint32_t, uint32_t, uint32_t);
+
+static int64_t ger_rank8(uint32_t a, uint32_t b, uint32_t mask)
+{
+    int64_t psum = 0;
+    for (int i = 0; i < 8; i++, mask >>= 1) {
+        if (mask & 1) {
+            psum += sextract32(a, 4 * i, 4) * sextract32(b, 4 * i, 4);
+        }
+    }
+    return psum;
+}
+
+static int64_t ger_rank4(uint32_t a, uint32_t b, uint32_t mask)
+{
+    int64_t psum = 0;
+    for (int i = 0; i < 4; i++, mask >>= 1) {
+        if (mask & 1) {
+            psum += sextract32(a, 8 * i, 8) * (int64_t)extract32(b, 8 * i, 8);
+        }
+    }
+    return psum;
+}
+
+static int64_t ger_rank2(uint32_t a, uint32_t b, uint32_t mask)
+{
+    int64_t psum = 0;
+    for (int i = 0; i < 2; i++, mask >>= 1) {
+        if (mask & 1) {
+            psum += sextract32(a, 16 * i, 16) * sextract32(b, 16 * i, 16);
+        }
+    }
+    return psum;
+}
+
+static void xviger(CPUPPCState *env, ppc_vsr_t *a, ppc_vsr_t *b, ppc_acc_t  *at,
+                   uint32_t mask, bool sat, bool acc, do_ger ger)
+{
+    uint8_t pmsk = FIELD_EX32(mask, GER_MSK, PMSK),
+            xmsk = FIELD_EX32(mask, GER_MSK, XMSK),
+            ymsk = FIELD_EX32(mask, GER_MSK, YMSK);
+    uint8_t xmsk_bit, ymsk_bit;
+    int64_t psum;
+    int i, j;
+    for (i = 0, xmsk_bit = 1 << 3; i < 4; i++, xmsk_bit >>= 1) {
+        for (j = 0, ymsk_bit = 1 << 3; j < 4; j++, ymsk_bit >>= 1) {
+            if ((xmsk_bit & xmsk) && (ymsk_bit & ymsk)) {
+                psum = ger(a->VsrW(i), b->VsrW(j), pmsk);
+                if (acc) {
+                    psum += at[i].VsrSW(j);
+                }
+                if (sat && psum > INT32_MAX) {
+                    set_vscr_sat(env);
+                    at[i].VsrSW(j) = INT32_MAX;
+                } else if (sat && psum < INT32_MIN) {
+                    set_vscr_sat(env);
+                    at[i].VsrSW(j) = INT32_MIN;
+                } else {
+                    at[i].VsrSW(j) = (int32_t) psum;
+                }
+            } else {
+                at[i].VsrSW(j) = 0;
+            }
+        }
+    }
+}
+
+QEMU_FLATTEN
+void helper_XVI4GER8(CPUPPCState *env, ppc_vsr_t *a, ppc_vsr_t *b,
+                     ppc_acc_t *at, uint32_t mask)
+{
+    xviger(env, a, b, at, mask, false, false, ger_rank8);
+}
+
+QEMU_FLATTEN
+void helper_XVI4GER8PP(CPUPPCState *env, ppc_vsr_t *a, ppc_vsr_t *b,
+                       ppc_acc_t *at, uint32_t mask)
+{
+    xviger(env, a, b, at, mask, false, true, ger_rank8);
+}
+
+QEMU_FLATTEN
+void helper_XVI8GER4(CPUPPCState *env, ppc_vsr_t *a, ppc_vsr_t *b,
+                     ppc_acc_t *at, uint32_t mask)
+{
+    xviger(env, a, b, at, mask, false, false, ger_rank4);
+}
+
+QEMU_FLATTEN
+void helper_XVI8GER4PP(CPUPPCState *env, ppc_vsr_t *a, ppc_vsr_t *b,
+                       ppc_acc_t *at, uint32_t mask)
+{
+    xviger(env, a, b, at, mask, false, true, ger_rank4);
+}
+
+QEMU_FLATTEN
+void helper_XVI8GER4SPP(CPUPPCState *env, ppc_vsr_t *a, ppc_vsr_t *b,
+                        ppc_acc_t *at, uint32_t mask)
+{
+    xviger(env, a, b, at, mask, true, true, ger_rank4);
+}
+
+QEMU_FLATTEN
+void helper_XVI16GER2(CPUPPCState *env, ppc_vsr_t *a, ppc_vsr_t *b,
+                      ppc_acc_t *at, uint32_t mask)
+{
+    xviger(env, a, b, at, mask, false, false, ger_rank2);
+}
+
+QEMU_FLATTEN
+void helper_XVI16GER2S(CPUPPCState *env, ppc_vsr_t *a, ppc_vsr_t *b,
+                       ppc_acc_t *at, uint32_t mask)
+{
+    xviger(env, a, b, at, mask, true, false, ger_rank2);
+}
+
+QEMU_FLATTEN
+void helper_XVI16GER2PP(CPUPPCState *env, ppc_vsr_t *a, ppc_vsr_t *b,
+                        ppc_acc_t *at, uint32_t mask)
+{
+    xviger(env, a, b, at, mask, false, true, ger_rank2);
+}
+
+QEMU_FLATTEN
+void helper_XVI16GER2SPP(CPUPPCState *env, ppc_vsr_t *a, ppc_vsr_t *b,
+                         ppc_acc_t *at, uint32_t mask)
+{
+    xviger(env, a, b, at, mask, true, true, ger_rank2);
+}
+
 target_ulong helper_vclzlsbb(ppc_avr_t *r)
 {
     target_ulong count = 0;

@@ -17,6 +17,13 @@ static inline TCGv_ptr gen_vsr_ptr(int reg)
     return r;
 }
 
+static inline TCGv_ptr gen_acc_ptr(int reg)
+{
+    TCGv_ptr r = tcg_temp_new_ptr();
+    tcg_gen_addi_ptr(r, cpu_env, acc_full_offset(reg));
+    return r;
+}
+
 #define VSX_LOAD_SCALAR(name, operation)                      \
 static void gen_##name(DisasContext *ctx)                     \
 {                                                             \
@@ -2846,6 +2853,40 @@ static bool trans_XXSETACCZ(DisasContext *ctx, arg_X_a *a)
     tcg_gen_gvec_dup_imm(MO_64, acc_full_offset(a->ra), 64, 64, 0);
     return true;
 }
+
+static bool do_ger(DisasContext *ctx, arg_MMIRR_XX3 *a,
+    void (*helper)(TCGv_env, TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i32))
+{
+    uint32_t mask;
+    TCGv_ptr xt, xa, xb;
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VSX(ctx);
+    if (unlikely((a->xa / 4 == a->xt) || (a->xb / 4 == a->xt))) {
+        gen_invalid(ctx);
+        return true;
+    }
+
+    xt = gen_acc_ptr(a->xt);
+    xa = gen_vsr_ptr(a->xa);
+    xb = gen_vsr_ptr(a->xb);
+
+    mask = ger_pack_masks(a->pmsk, a->ymsk, a->xmsk);
+    helper(cpu_env, xa, xb, xt, tcg_constant_i32(mask));
+    tcg_temp_free_ptr(xt);
+    tcg_temp_free_ptr(xa);
+    tcg_temp_free_ptr(xb);
+    return true;
+}
+
+TRANS(XVI4GER8, do_ger, gen_helper_XVI4GER8)
+TRANS(XVI4GER8PP, do_ger,  gen_helper_XVI4GER8PP)
+TRANS(XVI8GER4, do_ger, gen_helper_XVI8GER4)
+TRANS(XVI8GER4PP, do_ger,  gen_helper_XVI8GER4PP)
+TRANS(XVI8GER4SPP, do_ger, gen_helper_XVI8GER4SPP)
+TRANS(XVI16GER2, do_ger, gen_helper_XVI16GER2)
+TRANS(XVI16GER2PP, do_ger, gen_helper_XVI16GER2PP)
+TRANS(XVI16GER2S, do_ger, gen_helper_XVI16GER2S)
+TRANS(XVI16GER2SPP, do_ger, gen_helper_XVI16GER2SPP)
 
 #undef GEN_XX2FORM
 #undef GEN_XX3FORM

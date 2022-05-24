@@ -133,6 +133,10 @@ DEF_HELPER_FLAGS_1(ftsqrt, TCG_CALL_NO_RWG_SE, i32, i64)
 #define dh_ctype_vsr ppc_vsr_t *
 #define dh_typecode_vsr dh_typecode_ptr
 
+#define dh_alias_acc ptr
+#define dh_ctype_acc ppc_acc_t *
+#define dh_typecode_acc dh_typecode_ptr
+
 DEF_HELPER_FLAGS_3(vavgub, TCG_CALL_NO_RWG, void, avr, avr, avr)
 DEF_HELPER_FLAGS_3(vavguh, TCG_CALL_NO_RWG, void, avr, avr, avr)
 DEF_HELPER_FLAGS_3(vavguw, TCG_CALL_NO_RWG, void, avr, avr, avr)
@@ -537,6 +541,15 @@ DEF_HELPER_FLAGS_5(XXBLENDVB, TCG_CALL_NO_RWG, void, vsr, vsr, vsr, vsr, i32)
 DEF_HELPER_FLAGS_5(XXBLENDVH, TCG_CALL_NO_RWG, void, vsr, vsr, vsr, vsr, i32)
 DEF_HELPER_FLAGS_5(XXBLENDVW, TCG_CALL_NO_RWG, void, vsr, vsr, vsr, vsr, i32)
 DEF_HELPER_FLAGS_5(XXBLENDVD, TCG_CALL_NO_RWG, void, vsr, vsr, vsr, vsr, i32)
+DEF_HELPER_5(XVI4GER8, void, env, vsr, vsr, acc, i32)
+DEF_HELPER_5(XVI4GER8PP, void, env, vsr, vsr, acc, i32)
+DEF_HELPER_5(XVI8GER4, void, env, vsr, vsr, acc, i32)
+DEF_HELPER_5(XVI8GER4PP, void, env, vsr, vsr, acc, i32)
+DEF_HELPER_5(XVI8GER4SPP, void, env, vsr, vsr, acc, i32)
+DEF_HELPER_5(XVI16GER2, void, env, vsr, vsr, acc, i32)
+DEF_HELPER_5(XVI16GER2S, void, env, vsr, vsr, acc, i32)
+DEF_HELPER_5(XVI16GER2PP, void, env, vsr, vsr, acc, i32)
+DEF_HELPER_5(XVI16GER2SPP, void, env, vsr, vsr, acc, i32)
 
 DEF_HELPER_2(efscfsi, i32, env, i32)
 DEF_HELPER_2(efscfui, i32, env, i32)

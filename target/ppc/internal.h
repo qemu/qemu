@@ -18,6 +18,8 @@
 #ifndef PPC_INTERNAL_H
 #define PPC_INTERNAL_H
 
+#include "hw/registerfields.h"
+
 #define FUNC_MASK(name, ret_type, size, max_val)                  \
 static inline ret_type name(uint##size##_t start,                 \
                               uint##size##_t end)                 \
@@ -290,5 +292,18 @@ G_NORETURN void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
                                             MMUAccessType access_type, int mmu_idx,
                                             uintptr_t retaddr);
 #endif
+
+FIELD(GER_MSK, XMSK, 0, 4)
+FIELD(GER_MSK, YMSK, 4, 4)
+FIELD(GER_MSK, PMSK, 8, 8)
+
+static inline int ger_pack_masks(int pmsk, int ymsk, int xmsk)
+{
+    int msk = 0;
+    msk = FIELD_DP32(msk, GER_MSK, XMSK, xmsk);
+    msk = FIELD_DP32(msk, GER_MSK, YMSK, ymsk);
+    msk = FIELD_DP32(msk, GER_MSK, PMSK, pmsk);
+    return msk;
+}
 
 #endif /* PPC_INTERNAL_H */
