@@ -247,6 +247,17 @@ bool vhost_virtqueue_pending(struct vhost_dev *hdev, int n);
  */
 void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
                           bool mask);
+
+/**
+ * vhost_get_features() - return a sanitised set of feature bits
+ * @hdev: common vhost_dev structure
+ * @feature_bits: pointer to terminated table of feature bits
+ * @features: original feature set
+ *
+ * This returns a set of features bits that is an intersection of what
+ * is supported by the vhost backend (hdev->features), the supported
+ * feature_bits and the requested feature set.
+ */
 uint64_t vhost_get_features(struct vhost_dev *hdev, const int *feature_bits,
                             uint64_t features);
 void vhost_ack_features(struct vhost_dev *hdev, const int *feature_bits,
