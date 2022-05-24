@@ -2816,6 +2816,37 @@ static bool trans_XVCVBF16SPN(DisasContext *ctx, arg_XX2 *a)
     return true;
 }
 
+    /*
+     *  The PowerISA 3.1 mentions that for the current version of the
+     *  architecture, "the hardware implementation provides the effect of
+     *  ACC[i] and VSRs 4*i to 4*i + 3 logically containing the same data"
+     *  and "The Accumulators introduce no new logical state at this time"
+     *  (page 501). For now it seems unnecessary to create new structures,
+     *  so ACC[i] is the same as VSRs 4*i to 4*i+3 and therefore
+     *  move to and from accumulators are no-ops.
+     */
+static bool trans_XXMFACC(DisasContext *ctx, arg_X_a *a)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VSX(ctx);
+    return true;
+}
+
+static bool trans_XXMTACC(DisasContext *ctx, arg_X_a *a)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VSX(ctx);
+    return true;
+}
+
+static bool trans_XXSETACCZ(DisasContext *ctx, arg_X_a *a)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VSX(ctx);
+    tcg_gen_gvec_dup_imm(MO_64, acc_full_offset(a->ra), 64, 64, 0);
+    return true;
+}
+
 #undef GEN_XX2FORM
 #undef GEN_XX3FORM
 #undef GEN_XX2IFORM

@@ -2663,6 +2663,11 @@ static inline int vsr_full_offset(int i)
     return offsetof(CPUPPCState, vsr[i].u64[0]);
 }
 
+static inline int acc_full_offset(int i)
+{
+    return vsr_full_offset(i * 4);
+}
+
 static inline int fpr_offset(int i)
 {
     return vsr64_offset(i, true);
