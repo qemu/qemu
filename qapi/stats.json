@@ -75,11 +75,14 @@
 # Indicates a set of statistics that should be returned by query-stats.
 #
 # @provider: provider for which to return statistics.
+
+# @names: statistics to be returned (all if omitted).
 #
 # Since: 7.1
 ##
 { 'struct': 'StatsRequest',
-  'data': { 'provider': 'StatsProvider' } }
+  'data': { 'provider': 'StatsProvider',
+            '*names': [ 'str' ] } }
 
 ##
 # @StatsVCPUFilter:
@@ -99,6 +102,7 @@
 # that target:
 # - which vCPUs to request statistics for
 # - which providers to request statistics from
+# - which named values to return within each provider
 #
 # Since: 7.1
 ##

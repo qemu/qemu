@@ -472,12 +472,17 @@ static bool invoke_stats_cb(StatsCallbacks *entry,
                             Error **errp)
 {
     strList *targets = NULL;
+    strList *names = NULL;
     ERRP_GUARD();
 
     if (request) {
         if (request->provider != entry->provider) {
             return true;
         }
+        if (request->has_names && !request->names) {
+            return true;
+        }
+        names = request->has_names ? request->names : NULL;
     }
 
     switch (filter->target) {
@@ -496,7 +501,7 @@ static bool invoke_stats_cb(StatsCallbacks *entry,
         abort();
     }
 
-    entry->stats_cb(stats_results, filter->target, targets, errp);
+    entry->stats_cb(stats_results, filter->target, names, targets, errp);
     if (*errp) {
         qapi_free_StatsResultList(*stats_results);
         *stats_results = NULL;

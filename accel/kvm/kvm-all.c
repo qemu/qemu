@@ -2312,7 +2312,7 @@ bool kvm_dirty_ring_enabled(void)
 }
 
 static void query_stats_cb(StatsResultList **result, StatsTarget target,
-                           strList *targets, Error **errp);
+                           strList *names, strList *targets, Error **errp);
 static void query_stats_schemas_cb(StatsSchemaList **result, Error **errp);
 
 static int kvm_init(MachineState *ms)
@@ -3713,6 +3713,7 @@ typedef struct StatsArgs {
         StatsResultList **stats;
         StatsSchemaList **schema;
     } result;
+    strList *names;
     Error **errp;
 } StatsArgs;
 
@@ -3916,7 +3917,7 @@ static StatsDescriptors *find_stats_descriptors(StatsTarget target, int stats_fd
 }
 
 static void query_stats(StatsResultList **result, StatsTarget target,
-                        int stats_fd, Error **errp)
+                        strList *names, int stats_fd, Error **errp)
 {
     struct kvm_stats_desc *kvm_stats_desc;
     struct kvm_stats_header *kvm_stats_header;
@@ -3958,6 +3959,9 @@ static void query_stats(StatsResultList **result, StatsTarget target,
 
         /* Add entry to the list */
         stats = (void *)stats_data + pdesc->offset;
+        if (!apply_str_list_filter(pdesc->name, names)) {
+            continue;
+        }
         stats_list = add_kvmstat_entry(pdesc, stats, stats_list, errp);
     }
 
@@ -4019,8 +4023,8 @@ static void query_stats_vcpu(CPUState *cpu, run_on_cpu_data data)
         error_propagate(kvm_stats_args->errp, local_err);
         return;
     }
-    query_stats(kvm_stats_args->result.stats, STATS_TARGET_VCPU, stats_fd,
-                kvm_stats_args->errp);
+    query_stats(kvm_stats_args->result.stats, STATS_TARGET_VCPU,
+                kvm_stats_args->names, stats_fd, kvm_stats_args->errp);
     close(stats_fd);
 }
 
@@ -4041,7 +4045,7 @@ static void query_stats_schema_vcpu(CPUState *cpu, run_on_cpu_data data)
 }
 
 static void query_stats_cb(StatsResultList **result, StatsTarget target,
-                           strList *targets, Error **errp)
+                           strList *names, strList *targets, Error **errp)
 {
     KVMState *s = kvm_state;
     CPUState *cpu;
@@ -4055,7 +4059,7 @@ static void query_stats_cb(StatsResultList **result, StatsTarget target,
             error_setg_errno(errp, errno, "KVM stats: ioctl failed");
             return;
         }
-        query_stats(result, target, stats_fd, errp);
+        query_stats(result, target, names, stats_fd, errp);
         close(stats_fd);
         break;
     }
@@ -4063,6 +4067,7 @@ static void query_stats_cb(StatsResultList **result, StatsTarget target,
     {
         StatsArgs stats_args;
         stats_args.result.stats = result;
+        stats_args.names = names;
         stats_args.errp = errp;
         CPU_FOREACH(cpu) {
             if (!apply_str_list_filter(cpu->parent_obj.canonical_path, targets)) {
