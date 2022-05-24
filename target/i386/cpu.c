@@ -5284,10 +5284,22 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         /* cache info: needed for Core compatibility */
         if (cpu->cache_info_passthrough) {
             x86_cpu_get_cache_cpuid(index, count, eax, ebx, ecx, edx);
-            /* QEMU gives out its own APIC IDs, never pass down bits 31..26.  */
-            *eax &= ~0xFC000000;
-            if ((*eax & 31) && cs->nr_cores > 1) {
-                *eax |= (pow2ceil(cs->nr_cores) - 1) << 26;
+            /*
+             * QEMU has its own number of cores/logical cpus,
+             * set 24..14, 31..26 bit to configured values
+             */
+            if (*eax & 31) {
+                int host_vcpus_per_cache = 1 + ((*eax & 0x3FFC000) >> 14);
+                int vcpus_per_socket = env->nr_dies * cs->nr_cores *
+                                       cs->nr_threads;
+                if (cs->nr_cores > 1) {
+                    *eax &= ~0xFC000000;
+                    *eax |= (pow2ceil(cs->nr_cores) - 1) << 26;
+                }
+                if (host_vcpus_per_cache > vcpus_per_socket) {
+                    *eax &= ~0x3FFC000;
+                    *eax |= (pow2ceil(vcpus_per_socket) - 1) << 14;
+                }
             }
         } else if (cpu->vendor_cpuid_only && IS_AMD_CPU(env)) {
             *eax = *ebx = *ecx = *edx = 0;
