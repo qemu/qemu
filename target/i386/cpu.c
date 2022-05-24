@@ -5287,7 +5287,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             /* QEMU gives out its own APIC IDs, never pass down bits 31..26.  */
             *eax &= ~0xFC000000;
             if ((*eax & 31) && cs->nr_cores > 1) {
-                *eax |= (cs->nr_cores - 1) << 26;
+                *eax |= (pow2ceil(cs->nr_cores) - 1) << 26;
             }
         } else if (cpu->vendor_cpuid_only && IS_AMD_CPU(env)) {
             *eax = *ebx = *ecx = *edx = 0;
