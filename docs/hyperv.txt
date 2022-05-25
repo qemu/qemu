@@ -249,6 +249,12 @@ Enlightened VMCS ('hv-evmcs') feature to also be enabled.
 
 Recommended: hv-evmcs (Intel)
 
+3.23. hv-xmm-input
+===================
+Hyper-V specification allows to pass parameters for certain hypercalls using XMM
+registers ("XMM Fast Hypercall Input"). When the feature is in use, it allows
+for faster hypercalls processing as KVM can avoid reading guest's memory.
+
 4. Supplementary features
 =========================
 

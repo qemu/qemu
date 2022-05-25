@@ -54,7 +54,7 @@
 #define HV_GUEST_DEBUGGING_AVAILABLE            (1u << 1)
 #define HV_PERF_MONITOR_AVAILABLE               (1u << 2)
 #define HV_CPU_DYNAMIC_PARTITIONING_AVAILABLE   (1u << 3)
-#define HV_HYPERCALL_PARAMS_XMM_AVAILABLE       (1u << 4)
+#define HV_HYPERCALL_XMM_INPUT_AVAILABLE        (1u << 4)
 #define HV_GUEST_IDLE_STATE_AVAILABLE           (1u << 5)
 #define HV_FREQUENCY_MSRS_AVAILABLE             (1u << 8)
 #define HV_GUEST_CRASH_MSR_AVAILABLE            (1u << 10)
