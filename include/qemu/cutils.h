@@ -1,6 +1,24 @@
 #ifndef QEMU_CUTILS_H
 #define QEMU_CUTILS_H
 
+/*
+ * si_prefix:
+ * @exp10: exponent of 10, a multiple of 3 between -18 and 18 inclusive.
+ *
+ * Return a SI prefix (n, u, m, K, M, etc.) corresponding
+ * to the given exponent of 10.
+ */
+const char *si_prefix(unsigned int exp10);
+
+/*
+ * iec_binary_prefix:
+ * @exp2: exponent of 2, a multiple of 10 between 0 and 60 inclusive.
+ *
+ * Return an IEC binary prefix (Ki, Mi, etc.) corresponding
+ * to the given exponent of 2.
+ */
+const char *iec_binary_prefix(unsigned int exp2);
+
 /**
  * pstrcpy:
  * @buf: buffer to copy string into
