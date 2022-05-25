@@ -15,6 +15,7 @@
 #include "qapi/visitor.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
+#include "trace.h"
 
 #define GPIOS_PER_GROUP 8
 
@@ -523,11 +524,15 @@ static uint64_t aspeed_gpio_read(void *opaque, hwaddr offset, uint32_t size)
     uint64_t idx = -1;
     const AspeedGPIOReg *reg;
     GPIOSets *set;
+    uint32_t value = 0;
+    uint64_t debounce_value;
 
     idx = offset >> 2;
     if (idx >= GPIO_DEBOUNCE_TIME_1 && idx <= GPIO_DEBOUNCE_TIME_3) {
         idx -= GPIO_DEBOUNCE_TIME_1;
-        return (uint64_t) s->debounce_regs[idx];
+        debounce_value = (uint64_t) s->debounce_regs[idx];
+        trace_aspeed_gpio_read(offset, debounce_value);
+        return debounce_value;
     }
 
     reg = &agc->reg_table[idx];
@@ -540,38 +545,55 @@ static uint64_t aspeed_gpio_read(void *opaque, hwaddr offset, uint32_t size)
     set = &s->sets[reg->set_idx];
     switch (reg->type) {
     case gpio_reg_data_value:
-        return set->data_value;
+        value = set->data_value;
+        break;
     case gpio_reg_direction:
-        return set->direction;
+        value = set->direction;
+        break;
     case gpio_reg_int_enable:
-        return set->int_enable;
+        value = set->int_enable;
+        break;
     case gpio_reg_int_sens_0:
-        return set->int_sens_0;
+        value = set->int_sens_0;
+        break;
     case gpio_reg_int_sens_1:
-        return set->int_sens_1;
+        value = set->int_sens_1;
+        break;
     case gpio_reg_int_sens_2:
-        return set->int_sens_2;
+        value = set->int_sens_2;
+        break;
     case gpio_reg_int_status:
-        return set->int_status;
+        value = set->int_status;
+        break;
     case gpio_reg_reset_tolerant:
-        return set->reset_tol;
+        value = set->reset_tol;
+        break;
     case gpio_reg_debounce_1:
-        return set->debounce_1;
+        value = set->debounce_1;
+        break;
     case gpio_reg_debounce_2:
-        return set->debounce_2;
+        value = set->debounce_2;
+        break;
     case gpio_reg_cmd_source_0:
-        return set->cmd_source_0;
+        value = set->cmd_source_0;
+        break;
     case gpio_reg_cmd_source_1:
-        return set->cmd_source_1;
+        value = set->cmd_source_1;
+        break;
     case gpio_reg_data_read:
-        return set->data_read;
+        value = set->data_read;
+        break;
     case gpio_reg_input_mask:
-        return set->input_mask;
+        value = set->input_mask;
+        break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: no getter for offset 0x%"
                       HWADDR_PRIx"\n", __func__, offset);
         return 0;
     }
+
+    trace_aspeed_gpio_read(offset, value);
+    return value;
 }
 
 static void aspeed_gpio_write(void *opaque, hwaddr offset, uint64_t data,
@@ -584,6 +606,8 @@ static void aspeed_gpio_write(void *opaque, hwaddr offset, uint64_t data,
     const AspeedGPIOReg *reg;
     GPIOSets *set;
     uint32_t cleared;
+
+    trace_aspeed_gpio_write(offset, data);
 
     idx = offset >> 2;
     if (idx >= GPIO_DEBOUNCE_TIME_1 && idx <= GPIO_DEBOUNCE_TIME_3) {
