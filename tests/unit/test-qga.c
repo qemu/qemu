@@ -52,7 +52,10 @@ fixture_setup(TestFixture *fixture, gconstpointer data, gchar **envp)
 {
     const gchar *extra_arg = data;
     GError *error = NULL;
-    gchar *cwd, *path, *cmd, **argv = NULL;
+    g_autofree char *cwd = NULL;
+    g_autofree char *path = NULL;
+    g_autofree char *cmd = NULL;
+    g_auto(GStrv) argv = NULL;
 
     fixture->loop = g_main_loop_new(NULL, FALSE);
 
@@ -78,17 +81,12 @@ fixture_setup(TestFixture *fixture, gconstpointer data, gchar **envp)
 
     fixture->fd = connect_qga(path);
     g_assert_cmpint(fixture->fd, !=, -1);
-
-    g_strfreev(argv);
-    g_free(cmd);
-    g_free(cwd);
-    g_free(path);
 }
 
 static void
 fixture_tear_down(TestFixture *fixture, gconstpointer data)
 {
-    gchar *tmp;
+    g_autofree char *tmp = NULL;
 
     kill(fixture->pid, SIGTERM);
 
@@ -107,7 +105,6 @@ fixture_tear_down(TestFixture *fixture, gconstpointer data)
 
     tmp = g_build_filename(fixture->test_dir, "sock", NULL);
     g_unlink(tmp);
-    g_free(tmp);
 
     g_rmdir(fixture->test_dir);
     g_free(fixture->test_dir);
@@ -122,7 +119,7 @@ static void qmp_assertion_message_error(const char     *domain,
                                         QDict          *dict)
 {
     const char *class, *desc;
-    char *s;
+    g_autofree char *s = NULL;
     QDict *error;
 
     error = qdict_get_qdict(dict, "error");
@@ -131,7 +128,6 @@ static void qmp_assertion_message_error(const char     *domain,
 
     s = g_strdup_printf("assertion failed %s: %s %s", expr, class, desc);
     g_assertion_message(domain, file, line, func, s);
-    g_free(s);
 }
 
 #define qmp_assert_no_error(err) do {                                   \
@@ -146,7 +142,7 @@ static void test_qga_sync_delimited(gconstpointer fix)
     const TestFixture *fixture = fix;
     guint32 v, r = g_test_rand_int();
     unsigned char c;
-    QDict *ret;
+    g_autoptr(QDict) ret = NULL;
 
     qmp_fd_send_raw(fixture->fd, "\xff");
     qmp_fd_send(fixture->fd,
@@ -180,15 +176,13 @@ static void test_qga_sync_delimited(gconstpointer fix)
 
     v = qdict_get_int(ret, "return");
     g_assert_cmpint(r, ==, v);
-
-    qobject_unref(ret);
 }
 
 static void test_qga_sync(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
     guint32 v, r = g_test_rand_int();
-    QDict *ret;
+    g_autoptr(QDict) ret = NULL;
 
     /*
      * TODO guest-sync is inherently limited: we cannot distinguish
@@ -210,33 +204,27 @@ static void test_qga_sync(gconstpointer fix)
 
     v = qdict_get_int(ret, "return");
     g_assert_cmpint(r, ==, v);
-
-    qobject_unref(ret);
 }
 
 static void test_qga_ping(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
-    QDict *ret;
+    g_autoptr(QDict) ret = NULL;
 
     ret = qmp_fd(fixture->fd, "{'execute': 'guest-ping'}");
     g_assert_nonnull(ret);
     qmp_assert_no_error(ret);
-
-    qobject_unref(ret);
 }
 
 static void test_qga_id(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
-    QDict *ret;
+    g_autoptr(QDict) ret = NULL;
 
     ret = qmp_fd(fixture->fd, "{'execute': 'guest-ping', 'id': 1}");
     g_assert_nonnull(ret);
     qmp_assert_no_error(ret);
     g_assert_cmpint(qdict_get_int(ret, "id"), ==, 1);
-
-    qobject_unref(ret);
 }
 
 static void test_qga_invalid_oob(gconstpointer fix)
@@ -253,7 +241,8 @@ static void test_qga_invalid_oob(gconstpointer fix)
 static void test_qga_invalid_args(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
-    QDict *ret, *error;
+    g_autoptr(QDict) ret = NULL;
+    QDict *error;
     const gchar *class, *desc;
 
     ret = qmp_fd(fixture->fd, "{'execute': 'guest-ping', "
@@ -266,14 +255,13 @@ static void test_qga_invalid_args(gconstpointer fix)
 
     g_assert_cmpstr(class, ==, "GenericError");
     g_assert_cmpstr(desc, ==, "Parameter 'foo' is unexpected");
-
-    qobject_unref(ret);
 }
 
 static void test_qga_invalid_cmd(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
-    QDict *ret, *error;
+    g_autoptr(QDict) ret = NULL;
+    QDict *error;
     const gchar *class, *desc;
 
     ret = qmp_fd(fixture->fd, "{'execute': 'guest-invalid-cmd'}");
@@ -285,14 +273,13 @@ static void test_qga_invalid_cmd(gconstpointer fix)
 
     g_assert_cmpstr(class, ==, "CommandNotFound");
     g_assert_cmpint(strlen(desc), >, 0);
-
-    qobject_unref(ret);
 }
 
 static void test_qga_info(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
-    QDict *ret, *val;
+    g_autoptr(QDict) ret = NULL;
+    QDict *val;
     const gchar *version;
 
     ret = qmp_fd(fixture->fd, "{'execute': 'guest-info'}");
@@ -302,14 +289,12 @@ static void test_qga_info(gconstpointer fix)
     val = qdict_get_qdict(ret, "return");
     version = qdict_get_try_str(val, "version");
     g_assert_cmpstr(version, ==, QEMU_VERSION);
-
-    qobject_unref(ret);
 }
 
 static void test_qga_get_vcpus(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
-    QDict *ret;
+    g_autoptr(QDict) ret = NULL;
     QList *list;
     const QListEntry *entry;
 
@@ -322,14 +307,12 @@ static void test_qga_get_vcpus(gconstpointer fix)
     entry = qlist_first(list);
     g_assert(qdict_haskey(qobject_to(QDict, entry->value), "online"));
     g_assert(qdict_haskey(qobject_to(QDict, entry->value), "logical-id"));
-
-    qobject_unref(ret);
 }
 
 static void test_qga_get_fsinfo(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
-    QDict *ret;
+    g_autoptr(QDict) ret = NULL;
     QList *list;
     const QListEntry *entry;
 
@@ -346,14 +329,13 @@ static void test_qga_get_fsinfo(gconstpointer fix)
         g_assert(qdict_haskey(qobject_to(QDict, entry->value), "type"));
         g_assert(qdict_haskey(qobject_to(QDict, entry->value), "disk"));
     }
-
-    qobject_unref(ret);
 }
 
 static void test_qga_get_memory_block_info(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
-    QDict *ret, *val;
+    g_autoptr(QDict) ret = NULL;
+    QDict *val;
     int64_t size;
 
     ret = qmp_fd(fixture->fd, "{'execute': 'guest-get-memory-block-info'}");
@@ -366,14 +348,12 @@ static void test_qga_get_memory_block_info(gconstpointer fix)
         size = qdict_get_int(val, "size");
         g_assert_cmpint(size, >, 0);
     }
-
-    qobject_unref(ret);
 }
 
 static void test_qga_get_memory_blocks(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
-    QDict *ret;
+    g_autoptr(QDict) ret = NULL;
     QList *list;
     const QListEntry *entry;
 
@@ -391,14 +371,12 @@ static void test_qga_get_memory_blocks(gconstpointer fix)
             g_assert(qdict_haskey(qobject_to(QDict, entry->value), "online"));
         }
     }
-
-    qobject_unref(ret);
 }
 
 static void test_qga_network_get_interfaces(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
-    QDict *ret;
+    g_autoptr(QDict) ret = NULL;
     QList *list;
     const QListEntry *entry;
 
@@ -410,8 +388,6 @@ static void test_qga_network_get_interfaces(gconstpointer fix)
     list = qdict_get_qlist(ret, "return");
     entry = qlist_first(list);
     g_assert(qdict_haskey(qobject_to(QDict, entry->value), "name"));
-
-    qobject_unref(ret);
 }
 
 static void test_qga_file_ops(gconstpointer fix)
@@ -642,7 +618,7 @@ static void test_qga_file_write_read(gconstpointer fix)
 static void test_qga_get_time(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
-    QDict *ret;
+    g_autoptr(QDict) ret = NULL;
     int64_t time;
 
     ret = qmp_fd(fixture->fd, "{'execute': 'guest-get-time'}");
@@ -651,8 +627,6 @@ static void test_qga_get_time(gconstpointer fix)
 
     time = qdict_get_int(ret, "return");
     g_assert_cmpint(time, >, 0);
-
-    qobject_unref(ret);
 }
 
 static void test_qga_blacklist(gconstpointer data)
@@ -693,18 +667,22 @@ static void test_qga_blacklist(gconstpointer data)
 static void test_qga_config(gconstpointer data)
 {
     GError *error = NULL;
-    char *cwd, *cmd, *out, *err, *str, **strv, **argv = NULL;
+    g_autofree char *out = NULL;
+    g_autofree char *err = NULL;
+    g_autofree char *cwd = NULL;
+    g_autofree char *cmd = NULL;
+    g_auto(GStrv) argv = NULL;
+    g_auto(GStrv) strv = NULL;
+    g_autoptr(GKeyFile) kf = NULL;
+    char *str;
     char *env[2];
     int status;
     gsize n;
-    GKeyFile *kf;
 
     cwd = g_get_current_dir();
     cmd = g_strdup_printf("%s%cqga%cqemu-ga -D",
                           cwd, G_DIR_SEPARATOR, G_DIR_SEPARATOR);
-    g_free(cwd);
     g_shell_parse_argv(cmd, NULL, &argv, &error);
-    g_free(cmd);
     g_assert_no_error(error);
 
     env[0] = g_strdup_printf("QGA_CONF=tests%cdata%ctest-qga-config",
@@ -712,7 +690,6 @@ static void test_qga_config(gconstpointer data)
     env[1] = NULL;
     g_spawn_sync(NULL, argv, env, 0,
                  NULL, NULL, &out, &err, &status, &error);
-    g_strfreev(argv);
 
     g_assert_no_error(error);
     g_assert_cmpstr(err, ==, "");
@@ -759,18 +736,14 @@ static void test_qga_config(gconstpointer data)
     g_assert_true(g_strv_contains((const char * const *)strv,
                                   "guest-get-time"));
     g_assert_no_error(error);
-    g_strfreev(strv);
 
-    g_free(out);
-    g_free(err);
     g_free(env[0]);
-    g_key_file_free(kf);
 }
 
 static void test_qga_fsfreeze_status(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
-    QDict *ret;
+    g_autoptr(QDict) ret = NULL;
     const gchar *status;
 
     ret = qmp_fd(fixture->fd, "{'execute': 'guest-fsfreeze-status'}");
@@ -779,16 +752,15 @@ static void test_qga_fsfreeze_status(gconstpointer fix)
 
     status = qdict_get_try_str(ret, "return");
     g_assert_cmpstr(status, ==, "thawed");
-
-    qobject_unref(ret);
 }
 
 static void test_qga_guest_exec(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
-    QDict *ret, *val;
+    g_autoptr(QDict) ret = NULL;
+    QDict *val;
     const gchar *out;
-    guchar *decoded;
+    g_autofree guchar *decoded = NULL;
     int64_t pid, now, exitcode;
     gsize len;
     bool exited;
@@ -827,14 +799,13 @@ static void test_qga_guest_exec(gconstpointer fix)
     decoded = g_base64_decode(out, &len);
     g_assert_cmpint(len, ==, 12);
     g_assert_cmpstr((char *)decoded, ==, "\" test_str \"");
-    g_free(decoded);
-    qobject_unref(ret);
 }
 
 static void test_qga_guest_exec_invalid(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
-    QDict *ret, *error;
+    g_autoptr(QDict) ret = NULL;
+    QDict *error;
     const gchar *class, *desc;
 
     /* invalid command */
@@ -859,13 +830,13 @@ static void test_qga_guest_exec_invalid(gconstpointer fix)
     desc = qdict_get_str(error, "desc");
     g_assert_cmpstr(class, ==, "GenericError");
     g_assert_cmpint(strlen(desc), >, 0);
-    qobject_unref(ret);
 }
 
 static void test_qga_guest_get_host_name(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
-    QDict *ret, *val;
+    g_autoptr(QDict) ret = NULL;
+    QDict *val;
 
     ret = qmp_fd(fixture->fd, "{'execute': 'guest-get-host-name'}");
     g_assert_nonnull(ret);
@@ -873,14 +844,13 @@ static void test_qga_guest_get_host_name(gconstpointer fix)
 
     val = qdict_get_qdict(ret, "return");
     g_assert(qdict_haskey(val, "host-name"));
-
-    qobject_unref(ret);
 }
 
 static void test_qga_guest_get_timezone(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
-    QDict *ret, *val;
+    g_autoptr(QDict) ret = NULL;
+    QDict *val;
 
     ret = qmp_fd(fixture->fd, "{'execute': 'guest-get-timezone'}");
     g_assert_nonnull(ret);
@@ -889,14 +859,12 @@ static void test_qga_guest_get_timezone(gconstpointer fix)
     /* Make sure there's at least offset */
     val = qdict_get_qdict(ret, "return");
     g_assert(qdict_haskey(val, "offset"));
-
-    qobject_unref(ret);
 }
 
 static void test_qga_guest_get_users(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
-    QDict *ret;
+    g_autoptr(QDict) ret = NULL;
     QList *val;
 
     ret = qmp_fd(fixture->fd, "{'execute': 'guest-get-users'}");
@@ -906,15 +874,13 @@ static void test_qga_guest_get_users(gconstpointer fix)
     /* There is not much to test here */
     val = qdict_get_qlist(ret, "return");
     g_assert_nonnull(val);
-
-    qobject_unref(ret);
 }
 
 static void test_qga_guest_get_osinfo(gconstpointer data)
 {
     TestFixture fixture;
     const gchar *str;
-    QDict *ret = NULL;
+    g_autoptr(QDict) ret = NULL;
     char *env[2];
     QDict *val;
 
@@ -958,7 +924,6 @@ static void test_qga_guest_get_osinfo(gconstpointer data)
     g_assert_nonnull(str);
     g_assert_cmpstr(str, ==, "unit-test");
 
-    qobject_unref(ret);
     g_free(env[0]);
     fixture_tear_down(&fixture, NULL);
 }
