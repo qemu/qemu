@@ -2018,8 +2018,7 @@ M: Halil Pasic <pasic@linux.ibm.com>
 M: Eric Farman <farman@linux.ibm.com>
 S: Supported
 F: hw/s390x/virtio-ccw*.[hc]
-F: hw/s390x/vhost-vsock-ccw.c
-F: hw/s390x/vhost-user-fs-ccw.c
+F: hw/s390x/vhost-*-ccw.c
 T: git https://gitlab.com/cohuck/qemu.git s390-next
 T: git https://github.com/borntraeger/qemu.git s390-next
 L: qemu-s390x@nongnu.org
