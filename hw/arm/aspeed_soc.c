@@ -490,6 +490,7 @@ static void aspeed_soc_ast2400_class_init(ObjectClass *oc, void *data)
     sc->ehcis_num    = 1;
     sc->wdts_num     = 2;
     sc->macs_num     = 2;
+    sc->uarts_num    = 5;
     sc->irqmap       = aspeed_soc_ast2400_irqmap;
     sc->memmap       = aspeed_soc_ast2400_memmap;
     sc->num_cpus     = 1;
@@ -516,6 +517,7 @@ static void aspeed_soc_ast2500_class_init(ObjectClass *oc, void *data)
     sc->ehcis_num    = 2;
     sc->wdts_num     = 3;
     sc->macs_num     = 2;
+    sc->uarts_num    = 5;
     sc->irqmap       = aspeed_soc_ast2500_irqmap;
     sc->memmap       = aspeed_soc_ast2500_memmap;
     sc->num_cpus     = 1;

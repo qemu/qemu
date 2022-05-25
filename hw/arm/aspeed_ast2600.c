@@ -588,6 +588,7 @@ static void aspeed_soc_ast2600_class_init(ObjectClass *oc, void *data)
     sc->ehcis_num    = 2;
     sc->wdts_num     = 4;
     sc->macs_num     = 4;
+    sc->uarts_num    = 13;
     sc->irqmap       = aspeed_soc_ast2600_irqmap;
     sc->memmap       = aspeed_soc_ast2600_memmap;
     sc->num_cpus     = 2;

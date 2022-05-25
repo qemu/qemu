@@ -301,6 +301,7 @@ static void aspeed_soc_ast1030_class_init(ObjectClass *klass, void *data)
     sc->ehcis_num = 0;
     sc->wdts_num = 4;
     sc->macs_num = 1;
+    sc->uarts_num = 13;
     sc->irqmap = aspeed_soc_ast1030_irqmap;
     sc->memmap = aspeed_soc_ast1030_memmap;
     sc->num_cpus = 1;
