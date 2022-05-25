@@ -16,6 +16,7 @@
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "hw/registerfields.h"
 
 #define GPIOS_PER_GROUP 8
 
@@ -203,6 +204,28 @@
 #define GPIO_1_8V_E_INPUT_MASK        (0x1D4 >> 2)
 #define GPIO_1_8V_MEM_SIZE            0x1D8
 #define GPIO_1_8V_REG_ARRAY_SIZE      (GPIO_1_8V_MEM_SIZE >> 2)
+
+/*
+ * GPIO index mode support
+ * It only supports write operation
+ */
+REG32(GPIO_INDEX_REG, 0x2AC)
+    FIELD(GPIO_INDEX_REG, NUMBER, 0, 8)
+    FIELD(GPIO_INDEX_REG, COMMAND, 12, 1)
+    FIELD(GPIO_INDEX_REG, TYPE, 16, 4)
+    FIELD(GPIO_INDEX_REG, DATA_VALUE, 20, 1)
+    FIELD(GPIO_INDEX_REG, DIRECTION, 20, 1)
+    FIELD(GPIO_INDEX_REG, INT_ENABLE, 20, 1)
+    FIELD(GPIO_INDEX_REG, INT_SENS_0, 21, 1)
+    FIELD(GPIO_INDEX_REG, INT_SENS_1, 22, 1)
+    FIELD(GPIO_INDEX_REG, INT_SENS_2, 23, 1)
+    FIELD(GPIO_INDEX_REG, INT_STATUS, 24, 1)
+    FIELD(GPIO_INDEX_REG, DEBOUNCE_1, 20, 1)
+    FIELD(GPIO_INDEX_REG, DEBOUNCE_2, 21, 1)
+    FIELD(GPIO_INDEX_REG, RESET_TOLERANT, 20, 1)
+    FIELD(GPIO_INDEX_REG, COMMAND_SRC_0, 20, 1)
+    FIELD(GPIO_INDEX_REG, COMMAND_SRC_1, 21, 1)
+    FIELD(GPIO_INDEX_REG, INPUT_MASK, 20, 1)
 
 static int aspeed_evaluate_irq(GPIOSets *regs, int gpio_prev_high, int gpio)
 {
@@ -596,6 +619,144 @@ static uint64_t aspeed_gpio_read(void *opaque, hwaddr offset, uint32_t size)
     return value;
 }
 
+static void aspeed_gpio_write_index_mode(void *opaque, hwaddr offset,
+                                                uint64_t data, uint32_t size)
+{
+
+    AspeedGPIOState *s = ASPEED_GPIO(opaque);
+    AspeedGPIOClass *agc = ASPEED_GPIO_GET_CLASS(s);
+    const GPIOSetProperties *props;
+    GPIOSets *set;
+    uint32_t reg_idx_number = FIELD_EX32(data, GPIO_INDEX_REG, NUMBER);
+    uint32_t reg_idx_type = FIELD_EX32(data, GPIO_INDEX_REG, TYPE);
+    uint32_t reg_idx_command = FIELD_EX32(data, GPIO_INDEX_REG, COMMAND);
+    uint32_t set_idx = reg_idx_number / ASPEED_GPIOS_PER_SET;
+    uint32_t pin_idx = reg_idx_number % ASPEED_GPIOS_PER_SET;
+    uint32_t group_idx = pin_idx / GPIOS_PER_GROUP;
+    uint32_t reg_value = 0;
+    uint32_t cleared;
+
+    set = &s->sets[set_idx];
+    props = &agc->props[set_idx];
+
+    if (reg_idx_command)
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: offset 0x%" PRIx64 "data 0x%"
+            PRIx64 "index mode wrong command 0x%x\n",
+            __func__, offset, data, reg_idx_command);
+
+    switch (reg_idx_type) {
+    case gpio_reg_idx_data:
+        reg_value = set->data_read;
+        reg_value = deposit32(reg_value, pin_idx, 1,
+                              FIELD_EX32(data, GPIO_INDEX_REG, DATA_VALUE));
+        reg_value &= props->output;
+        reg_value = update_value_control_source(set, set->data_value,
+                                                reg_value);
+        set->data_read = reg_value;
+        aspeed_gpio_update(s, set, reg_value);
+        return;
+    case gpio_reg_idx_direction:
+        reg_value = set->direction;
+        reg_value = deposit32(reg_value, pin_idx, 1,
+                              FIELD_EX32(data, GPIO_INDEX_REG, DIRECTION));
+        /*
+         *   where data is the value attempted to be written to the pin:
+         *    pin type      | input mask | output mask | expected value
+         *    ------------------------------------------------------------
+         *   bidirectional  |   1       |   1        |  data
+         *   input only     |   1       |   0        |   0
+         *   output only    |   0       |   1        |   1
+         *   no pin         |   0       |   0        |   0
+         *
+         *  which is captured by:
+         *  data = ( data | ~input) & output;
+         */
+        reg_value = (reg_value | ~props->input) & props->output;
+        set->direction = update_value_control_source(set, set->direction,
+                                                     reg_value);
+        break;
+    case gpio_reg_idx_interrupt:
+        reg_value = set->int_enable;
+        reg_value = deposit32(reg_value, pin_idx, 1,
+                              FIELD_EX32(data, GPIO_INDEX_REG, INT_ENABLE));
+        set->int_enable = update_value_control_source(set, set->int_enable,
+                                                      reg_value);
+        reg_value = set->int_sens_0;
+        reg_value = deposit32(reg_value, pin_idx, 1,
+                              FIELD_EX32(data, GPIO_INDEX_REG, INT_SENS_0));
+        set->int_sens_0 = update_value_control_source(set, set->int_sens_0,
+                                                      reg_value);
+        reg_value = set->int_sens_1;
+        reg_value = deposit32(reg_value, pin_idx, 1,
+                              FIELD_EX32(data, GPIO_INDEX_REG, INT_SENS_1));
+        set->int_sens_1 = update_value_control_source(set, set->int_sens_1,
+                                                      reg_value);
+        reg_value = set->int_sens_2;
+        reg_value = deposit32(reg_value, pin_idx, 1,
+                              FIELD_EX32(data, GPIO_INDEX_REG, INT_SENS_2));
+        set->int_sens_2 = update_value_control_source(set, set->int_sens_2,
+                                                      reg_value);
+        /* set interrupt status */
+        reg_value = set->int_status;
+        reg_value = deposit32(reg_value, pin_idx, 1,
+                              FIELD_EX32(data, GPIO_INDEX_REG, INT_STATUS));
+        cleared = ctpop32(reg_value & set->int_status);
+        if (s->pending && cleared) {
+            assert(s->pending >= cleared);
+            s->pending -= cleared;
+        }
+        set->int_status &= ~reg_value;
+        break;
+    case gpio_reg_idx_debounce:
+        reg_value = set->debounce_1;
+        reg_value = deposit32(reg_value, pin_idx, 1,
+                              FIELD_EX32(data, GPIO_INDEX_REG, DEBOUNCE_1));
+        set->debounce_1 = update_value_control_source(set, set->debounce_1,
+                                                      reg_value);
+        reg_value = set->debounce_2;
+        reg_value = deposit32(reg_value, pin_idx, 1,
+                              FIELD_EX32(data, GPIO_INDEX_REG, DEBOUNCE_2));
+        set->debounce_2 = update_value_control_source(set, set->debounce_2,
+                                                      reg_value);
+        return;
+    case gpio_reg_idx_tolerance:
+        reg_value = set->reset_tol;
+        reg_value = deposit32(reg_value, pin_idx, 1,
+                              FIELD_EX32(data, GPIO_INDEX_REG, RESET_TOLERANT));
+        set->reset_tol = update_value_control_source(set, set->reset_tol,
+                                                     reg_value);
+        return;
+    case gpio_reg_idx_cmd_src:
+        reg_value = set->cmd_source_0;
+        reg_value = deposit32(reg_value, GPIOS_PER_GROUP * group_idx, 1,
+                              FIELD_EX32(data, GPIO_INDEX_REG, COMMAND_SRC_0));
+        set->cmd_source_0 = reg_value & ASPEED_CMD_SRC_MASK;
+        reg_value = set->cmd_source_1;
+        reg_value = deposit32(reg_value, GPIOS_PER_GROUP * group_idx, 1,
+                              FIELD_EX32(data, GPIO_INDEX_REG, COMMAND_SRC_1));
+        set->cmd_source_1 = reg_value & ASPEED_CMD_SRC_MASK;
+        return;
+    case gpio_reg_idx_input_mask:
+        reg_value = set->input_mask;
+        reg_value = deposit32(reg_value, pin_idx, 1,
+                              FIELD_EX32(data, GPIO_INDEX_REG, INPUT_MASK));
+        /*
+         * feeds into interrupt generation
+         * 0: read from data value reg will be updated
+         * 1: read from data value reg will not be updated
+         */
+        set->input_mask = reg_value & props->input;
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: offset 0x%" PRIx64 "data 0x%"
+            PRIx64 "index mode wrong type 0x%x\n",
+            __func__, offset, data, reg_idx_type);
+        return;
+    }
+    aspeed_gpio_update(s, set, set->data_value);
+    return;
+}
+
 static void aspeed_gpio_write(void *opaque, hwaddr offset, uint64_t data,
                               uint32_t size)
 {
@@ -610,6 +771,13 @@ static void aspeed_gpio_write(void *opaque, hwaddr offset, uint64_t data,
     trace_aspeed_gpio_write(offset, data);
 
     idx = offset >> 2;
+
+    /* check gpio index mode */
+    if (idx == R_GPIO_INDEX_REG) {
+        aspeed_gpio_write_index_mode(opaque, offset, data, size);
+        return;
+    }
+
     if (idx >= GPIO_DEBOUNCE_TIME_1 && idx <= GPIO_DEBOUNCE_TIME_3) {
         idx -= GPIO_DEBOUNCE_TIME_1;
         s->debounce_regs[idx] = (uint32_t) data;
