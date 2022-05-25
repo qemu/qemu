@@ -6972,6 +6972,8 @@ static Property x86_cpu_properties[] = {
                       HYPERV_FEAT_MSR_BITMAP, 0),
     DEFINE_PROP_BIT64("hv-xmm-input", X86CPU, hyperv_features,
                       HYPERV_FEAT_XMM_INPUT, 0),
+    DEFINE_PROP_BIT64("hv-tlbflush-ext", X86CPU, hyperv_features,
+                      HYPERV_FEAT_TLBFLUSH_EXT, 0),
     DEFINE_PROP_ON_OFF_AUTO("hv-no-nonarch-coresharing", X86CPU,
                             hyperv_no_nonarch_cs, ON_OFF_AUTO_OFF),
     DEFINE_PROP_BIT64("hv-syndbg", X86CPU, hyperv_features,
