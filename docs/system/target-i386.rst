@@ -26,6 +26,7 @@ Architectural features
    :maxdepth: 1
 
    i386/cpu
+   i386/hyperv
    i386/kvm-pv
    i386/sgx
    i386/amd-memory-encryption

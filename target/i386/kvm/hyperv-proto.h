@@ -54,11 +54,12 @@
 #define HV_GUEST_DEBUGGING_AVAILABLE            (1u << 1)
 #define HV_PERF_MONITOR_AVAILABLE               (1u << 2)
 #define HV_CPU_DYNAMIC_PARTITIONING_AVAILABLE   (1u << 3)
-#define HV_HYPERCALL_PARAMS_XMM_AVAILABLE       (1u << 4)
+#define HV_HYPERCALL_XMM_INPUT_AVAILABLE        (1u << 4)
 #define HV_GUEST_IDLE_STATE_AVAILABLE           (1u << 5)
 #define HV_FREQUENCY_MSRS_AVAILABLE             (1u << 8)
 #define HV_GUEST_CRASH_MSR_AVAILABLE            (1u << 10)
 #define HV_FEATURE_DEBUG_MSRS_AVAILABLE         (1u << 11)
+#define HV_EXT_GVA_RANGES_FLUSH_AVAILABLE       (1u << 14)
 #define HV_STIMER_DIRECT_MODE_AVAILABLE         (1u << 19)
 
 /*
@@ -85,6 +86,12 @@
  * HV_CPUID_SYNDBG_PLATFORM_CAPABILITIES.EAX bits
  */
 #define HV_SYNDBG_CAP_ALLOW_KERNEL_DEBUGGING    (1u << 1)
+
+/*
+ * HV_CPUID_NESTED_FEATURES.EAX bits
+ */
+#define HV_NESTED_DIRECT_FLUSH              (1u << 17)
+#define HV_NESTED_MSR_BITMAP                (1u << 19)
 
 /*
  * Basic virtualized MSRs

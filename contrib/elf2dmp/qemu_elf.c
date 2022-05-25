@@ -118,6 +118,53 @@ static void exit_states(QEMU_Elf *qe)
     free(qe->state);
 }
 
+static bool check_ehdr(QEMU_Elf *qe)
+{
+    Elf64_Ehdr *ehdr = qe->map;
+
+    if (sizeof(Elf64_Ehdr) > qe->size) {
+        eprintf("Invalid input dump file size\n");
+        return false;
+    }
+
+    if (memcmp(ehdr->e_ident, ELFMAG, SELFMAG)) {
+        eprintf("Invalid ELF signature, input file is not ELF\n");
+        return false;
+    }
+
+    if (ehdr->e_ident[EI_CLASS] != ELFCLASS64 ||
+            ehdr->e_ident[EI_DATA] != ELFDATA2LSB) {
+        eprintf("Invalid ELF class or byte order, must be 64-bit LE\n");
+        return false;
+    }
+
+    if (ehdr->e_ident[EI_VERSION] != EV_CURRENT) {
+        eprintf("Invalid ELF version\n");
+        return false;
+    }
+
+    if (ehdr->e_machine != EM_X86_64) {
+        eprintf("Invalid input dump architecture, only x86_64 is supported\n");
+        return false;
+    }
+
+    if (ehdr->e_type != ET_CORE) {
+        eprintf("Invalid ELF type, must be core file\n");
+        return false;
+    }
+
+    /*
+     * ELF dump file must contain one PT_NOTE and at least one PT_LOAD to
+     * restore physical address space.
+     */
+    if (ehdr->e_phnum < 2) {
+        eprintf("Invalid number of ELF program headers\n");
+        return false;
+    }
+
+    return true;
+}
+
 int QEMU_Elf_init(QEMU_Elf *qe, const char *filename)
 {
     GError *gerr = NULL;
@@ -132,6 +179,12 @@ int QEMU_Elf_init(QEMU_Elf *qe, const char *filename)
 
     qe->map = g_mapped_file_get_contents(qe->gmf);
     qe->size = g_mapped_file_get_length(qe->gmf);
+
+    if (!check_ehdr(qe)) {
+        eprintf("Input file has the wrong format\n");
+        err = 1;
+        goto out_unmap;
+    }
 
     if (init_states(qe)) {
         eprintf("Failed to extract QEMU CPU states\n");
