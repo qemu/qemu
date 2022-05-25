@@ -121,6 +121,15 @@ static void help(void)
 "                         vhost-user-blk device over file descriptor\n"
 "\n"
 #endif /* CONFIG_VHOST_USER_BLK_SERVER */
+#ifdef CONFIG_VDUSE_BLK_EXPORT
+"  --export [type=]vduse-blk,id=<id>,node-name=<node-name>\n"
+"           [,writable=on|off][,num-queues=<num-queues>]\n"
+"           [,queue-size=<queue-size>]\n"
+"           [,logical-block-size=<logical-block-size>]\n"
+"                         export the specified block node as a vduse-blk\n"
+"                         device using the id as the VDUSE device name\n"
+"\n"
+#endif /* CONFIG_VDUSE_BLK_EXPORT */
 "  --monitor [chardev=]name[,mode=control][,pretty[=on|off]]\n"
 "                         configure a QMP monitor\n"
 "\n"
