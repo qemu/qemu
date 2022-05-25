@@ -17,7 +17,7 @@ struct viot_pci_ranges {
 };
 
 /* Build PCI range for a given PCI host bridge */
-static int build_pci_range_node(Object *obj, void *opaque)
+static int enumerate_pci_host_bridges(Object *obj, void *opaque)
 {
     struct viot_pci_ranges *pci_ranges = opaque;
     GArray *blob = pci_ranges->blob;
@@ -78,7 +78,7 @@ void build_viot(MachineState *ms, GArray *table_data, BIOSLinker *linker,
     };
 
     /* Build the list of PCI ranges that this viommu manages */
-    object_child_foreach_recursive(OBJECT(ms), build_pci_range_node,
+    object_child_foreach_recursive(OBJECT(ms), enumerate_pci_host_bridges,
                                    &pci_ranges);
 
     /* ACPI table header */
