@@ -262,6 +262,17 @@ Allow for extended GVA ranges to be passed to Hyper-V TLB flush hypercalls
 
 Requires: hv-tlbflush
 
+3.25. hv-tlbflush-direct
+=========================
+The enlightenment is nested specific, it targets Hyper-V on KVM guests. When
+enabled, it allows L0 (KVM) to directly handle TLB flush hypercalls from L2
+guest without the need to exit to L1 (Hyper-V) hypervisor. While the feature is
+supported for both VMX (Intel) and SVM (AMD), the VMX implementation requires
+Enlightened VMCS ('hv-evmcs') feature to also be enabled.
+
+Requires: hv-vapic
+Recommended: hv-evmcs (Intel)
+
 4. Supplementary features
 =========================
 

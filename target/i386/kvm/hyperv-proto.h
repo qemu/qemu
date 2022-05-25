@@ -90,6 +90,7 @@
 /*
  * HV_CPUID_NESTED_FEATURES.EAX bits
  */
+#define HV_NESTED_DIRECT_FLUSH              (1u << 17)
 #define HV_NESTED_MSR_BITMAP                (1u << 19)
 
 /*
