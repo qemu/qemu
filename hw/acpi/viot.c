@@ -64,6 +64,20 @@ static int enumerate_pci_host_bridges(Object *obj, void *opaque)
     return 0;
 }
 
+static gint pci_host_range_compare(gconstpointer a, gconstpointer b)
+{
+    struct viot_pci_host_range *range_a = (struct viot_pci_host_range *)a;
+    struct viot_pci_host_range *range_b = (struct viot_pci_host_range *)b;
+
+    if (range_a->min_bus < range_b->min_bus) {
+        return -1;
+    } else if (range_a->min_bus > range_b->min_bus) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
 /*
  * Generate a VIOT table with one PCI-based virtio-iommu that manages PCI
  * endpoints.
@@ -86,6 +100,9 @@ void build_viot(MachineState *ms, GArray *table_data, BIOSLinker *linker,
     /* Build the list of PCI ranges that this viommu manages */
     object_child_foreach_recursive(OBJECT(ms), enumerate_pci_host_bridges,
                                    pci_host_ranges);
+
+    /* Sort the pci host ranges by min_bus */
+    g_array_sort(pci_host_ranges, pci_host_range_compare);
 
     /* ACPI table header */
     acpi_table_begin(&table, table_data);
