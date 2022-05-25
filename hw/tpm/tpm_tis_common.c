@@ -50,7 +50,12 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
 
 static uint8_t tpm_tis_locality_from_addr(hwaddr addr)
 {
-    return (uint8_t)((addr >> TPM_TIS_LOCALITY_SHIFT) & 0x7);
+    uint8_t locty;
+
+    locty = (uint8_t)((addr >> TPM_TIS_LOCALITY_SHIFT) & 0x7);
+    assert(TPM_TIS_IS_VALID_LOCTY(locty));
+
+    return locty;
 }
 
 
