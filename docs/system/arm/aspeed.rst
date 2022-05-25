@@ -120,3 +120,64 @@ FMC chip and a bigger (64M) SPI chip, use :
 .. code-block:: bash
 
   -M ast2500-evb,fmc-model=mx25l25635e,spi-model=mx66u51235f
+
+
+Aspeed minibmc family boards (``ast1030-evb``)
+==================================================================
+
+The QEMU Aspeed machines model mini BMCs of various Aspeed evaluation
+boards. They are based on different releases of the
+Aspeed SoC : the AST1030 integrating an ARM Cortex M4F CPU (200MHz).
+
+The SoC comes with SRAM, SPI, I2C, etc.
+
+AST1030 SoC based machines :
+
+- ``ast1030-evb``          Aspeed AST1030 Evaluation board (Cortex-M4F)
+
+Supported devices
+-----------------
+
+ * SMP (for the AST1030 Cortex-M4F)
+ * Interrupt Controller (VIC)
+ * Timer Controller
+ * I2C Controller
+ * System Control Unit (SCU)
+ * SRAM mapping
+ * Static Memory Controller (SMC or FMC) - Only SPI Flash support
+ * SPI Memory Controller
+ * USB 2.0 Controller
+ * Watchdog Controller
+ * GPIO Controller (Master only)
+ * UART
+ * LPC Peripheral Controller (a subset of subdevices are supported)
+ * Hash/Crypto Engine (HACE) - Hash support only. TODO: HMAC and RSA
+ * ADC
+
+
+Missing devices
+---------------
+
+ * PWM and Fan Controller
+ * Slave GPIO Controller
+ * PECI Controller
+ * Mailbox Controller
+ * Virtual UART
+ * eSPI Controller
+ * I3C Controller
+
+Boot options
+------------
+
+The Aspeed machines can be started using the ``-kernel`` to load a
+Zephyr OS or from a firmware. Images can be downloaded from the
+ASPEED GitHub release repository :
+
+   https://github.com/AspeedTech-BMC/zephyr/releases
+
+To boot a kernel directly from a Zephyr build tree:
+
+.. code-block:: bash
+
+  $ qemu-system-arm -M ast1030-evb -nographic \
+        -kernel zephyr.elf
