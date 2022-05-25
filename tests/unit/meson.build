@@ -78,6 +78,7 @@ if have_block
     'test-crypto-hmac': [crypto],
     'test-crypto-cipher': [crypto],
     'test-crypto-secret': [crypto, keyutils],
+    'test-crypto-der': [crypto],
     'test-authz-simple': [authz],
     'test-authz-list': [authz],
     'test-authz-listfile': [authz],
