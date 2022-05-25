@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "qemu/bswap.h"
 #include "libqtest-single.h"
+#include "qemu/bitops.h"
 
 /*
  * ASPEED SPI Controller registers
@@ -40,6 +41,7 @@
 #define   CTRL_FREADMODE       0x1
 #define   CTRL_WRITEMODE       0x2
 #define   CTRL_USERMODE        0x3
+#define SR_WEL BIT(1)
 
 #define ASPEED_FMC_BASE    0x1E620000
 #define ASPEED_FLASH_BASE  0x20000000
@@ -49,6 +51,8 @@
  */
 enum {
     JEDEC_READ = 0x9f,
+    RDSR = 0x5,
+    WRDI = 0x4,
     BULK_ERASE = 0xc7,
     READ = 0x03,
     PP = 0x02,
@@ -348,6 +352,44 @@ static void test_write_page_mem(void)
     flash_reset();
 }
 
+static void test_read_status_reg(void)
+{
+    uint8_t r;
+
+    spi_conf(CONF_ENABLE_W0);
+
+    spi_ctrl_start_user();
+    writeb(ASPEED_FLASH_BASE, RDSR);
+    r = readb(ASPEED_FLASH_BASE);
+    spi_ctrl_stop_user();
+
+    g_assert_cmphex(r & SR_WEL, ==, 0);
+    g_assert(!qtest_qom_get_bool
+            (global_qtest, "/machine/soc/fmc/ssi.0/child[0]", "write-enable"));
+
+    spi_ctrl_start_user();
+    writeb(ASPEED_FLASH_BASE, WREN);
+    writeb(ASPEED_FLASH_BASE, RDSR);
+    r = readb(ASPEED_FLASH_BASE);
+    spi_ctrl_stop_user();
+
+    g_assert_cmphex(r & SR_WEL, ==, SR_WEL);
+    g_assert(qtest_qom_get_bool
+            (global_qtest, "/machine/soc/fmc/ssi.0/child[0]", "write-enable"));
+
+    spi_ctrl_start_user();
+    writeb(ASPEED_FLASH_BASE, WRDI);
+    writeb(ASPEED_FLASH_BASE, RDSR);
+    r = readb(ASPEED_FLASH_BASE);
+    spi_ctrl_stop_user();
+
+    g_assert_cmphex(r & SR_WEL, ==, 0);
+    g_assert(!qtest_qom_get_bool
+            (global_qtest, "/machine/soc/fmc/ssi.0/child[0]", "write-enable"));
+
+    flash_reset();
+}
+
 static char tmp_path[] = "/tmp/qtest.m25p80.XXXXXX";
 
 int main(int argc, char **argv)
@@ -373,6 +415,7 @@ int main(int argc, char **argv)
     qtest_add_func("/ast2400/smc/write_page", test_write_page);
     qtest_add_func("/ast2400/smc/read_page_mem", test_read_page_mem);
     qtest_add_func("/ast2400/smc/write_page_mem", test_write_page_mem);
+    qtest_add_func("/ast2400/smc/read_status_reg", test_read_status_reg);
 
     ret = g_test_run();
 

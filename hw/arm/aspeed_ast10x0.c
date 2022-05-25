@@ -15,7 +15,6 @@
 #include "sysemu/sysemu.h"
 #include "hw/qdev-clock.h"
 #include "hw/misc/unimp.h"
-#include "hw/char/serial.h"
 #include "hw/arm/aspeed_soc.h"
 
 #define ASPEED_SOC_IOMEM_SIZE 0x00200000
@@ -33,14 +32,38 @@ static const hwaddr aspeed_soc_ast1030_memmap[] = {
     [ASPEED_DEV_SBC]       = 0x7E6F2000,
     [ASPEED_DEV_GPIO]      = 0x7E780000,
     [ASPEED_DEV_TIMER1]    = 0x7E782000,
+    [ASPEED_DEV_UART1]     = 0x7E783000,
+    [ASPEED_DEV_UART2]     = 0x7E78D000,
+    [ASPEED_DEV_UART3]     = 0x7E78E000,
+    [ASPEED_DEV_UART4]     = 0x7E78F000,
     [ASPEED_DEV_UART5]     = 0x7E784000,
+    [ASPEED_DEV_UART6]     = 0x7E790000,
+    [ASPEED_DEV_UART7]     = 0x7E790100,
+    [ASPEED_DEV_UART8]     = 0x7E790200,
+    [ASPEED_DEV_UART9]     = 0x7E790300,
+    [ASPEED_DEV_UART10]    = 0x7E790400,
+    [ASPEED_DEV_UART11]    = 0x7E790500,
+    [ASPEED_DEV_UART12]    = 0x7E790600,
+    [ASPEED_DEV_UART13]    = 0x7E790700,
     [ASPEED_DEV_WDT]       = 0x7E785000,
     [ASPEED_DEV_LPC]       = 0x7E789000,
     [ASPEED_DEV_I2C]       = 0x7E7B0000,
 };
 
 static const int aspeed_soc_ast1030_irqmap[] = {
+    [ASPEED_DEV_UART1]     = 47,
+    [ASPEED_DEV_UART2]     = 48,
+    [ASPEED_DEV_UART3]     = 49,
+    [ASPEED_DEV_UART4]     = 50,
     [ASPEED_DEV_UART5]     = 8,
+    [ASPEED_DEV_UART6]     = 57,
+    [ASPEED_DEV_UART7]     = 58,
+    [ASPEED_DEV_UART8]     = 59,
+    [ASPEED_DEV_UART9]     = 60,
+    [ASPEED_DEV_UART10]    = 61,
+    [ASPEED_DEV_UART11]    = 62,
+    [ASPEED_DEV_UART12]    = 63,
+    [ASPEED_DEV_UART13]    = 64,
     [ASPEED_DEV_GPIO]      = 11,
     [ASPEED_DEV_TIMER1]    = 16,
     [ASPEED_DEV_TIMER2]    = 17,
@@ -61,11 +84,11 @@ static const int aspeed_soc_ast1030_irqmap[] = {
     [ASPEED_DEV_KCS]       = 138, /* 138 -> 142 */
 };
 
-static qemu_irq aspeed_soc_get_irq(AspeedSoCState *s, int ctrl)
+static qemu_irq aspeed_soc_ast1030_get_irq(AspeedSoCState *s, int dev)
 {
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
 
-    return qdev_get_gpio_in(DEVICE(&s->armv7m), sc->irqmap[ctrl]);
+    return qdev_get_gpio_in(DEVICE(&s->armv7m), sc->irqmap[dev]);
 }
 
 static void aspeed_soc_ast1030_init(Object *obj)
@@ -113,6 +136,9 @@ static void aspeed_soc_ast1030_init(Object *obj)
         snprintf(typename, sizeof(typename), "aspeed.wdt-%s", socname);
         object_initialize_child(obj, "wdt[*]", &s->wdt[i], typename);
     }
+
+    snprintf(typename, sizeof(typename), "aspeed.gpio-%s", socname);
+    object_initialize_child(obj, "gpio", &s->gpio, typename);
 }
 
 static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
@@ -191,10 +217,8 @@ static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
                        qdev_get_gpio_in(DEVICE(&s->armv7m),
                                 sc->irqmap[ASPEED_DEV_KCS] + aspeed_lpc_kcs_4));
 
-    /* UART5 - attach an 8250 to the IO space as our UART */
-    serial_mm_init(get_system_memory(), sc->memmap[ASPEED_DEV_UART5], 2,
-                   aspeed_soc_get_irq(s, ASPEED_DEV_UART5),
-                   38400, serial_hd(0), DEVICE_LITTLE_ENDIAN);
+    /* UART */
+    aspeed_soc_uart_init(s);
 
     /* Timer */
     object_property_set_link(OBJECT(&s->timerctrl), "scu", OBJECT(&s->scu),
@@ -260,6 +284,14 @@ static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->wdt[i]), 0,
                         sc->memmap[ASPEED_DEV_WDT] + i * awc->offset);
     }
+
+    /* GPIO */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio), 0, sc->memmap[ASPEED_DEV_GPIO]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->gpio), 0,
+                       aspeed_soc_get_irq(s, ASPEED_DEV_GPIO));
 }
 
 static void aspeed_soc_ast1030_class_init(ObjectClass *klass, void *data)
@@ -277,9 +309,11 @@ static void aspeed_soc_ast1030_class_init(ObjectClass *klass, void *data)
     sc->ehcis_num = 0;
     sc->wdts_num = 4;
     sc->macs_num = 1;
+    sc->uarts_num = 13;
     sc->irqmap = aspeed_soc_ast1030_irqmap;
     sc->memmap = aspeed_soc_ast1030_memmap;
     sc->num_cpus = 1;
+    sc->get_irq = aspeed_soc_ast1030_get_irq;
 }
 
 static const TypeInfo aspeed_soc_ast1030_type_info = {
