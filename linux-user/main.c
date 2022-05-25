@@ -878,9 +878,9 @@ int main(int argc, char **argv, char **envp)
             fprintf(f, "entry       0x" TARGET_ABI_FMT_lx "\n",
                     info->entry);
             fprintf(f, "argv_start  0x" TARGET_ABI_FMT_lx "\n",
-                    info->arg_start);
+                    info->argv);
             fprintf(f, "env_start   0x" TARGET_ABI_FMT_lx "\n",
-                    info->arg_end + (abi_ulong)sizeof(abi_ulong));
+                    info->envp);
             fprintf(f, "auxv_start  0x" TARGET_ABI_FMT_lx "\n",
                     info->saved_auxv);
             qemu_log_unlock(f);

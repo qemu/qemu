@@ -40,14 +40,18 @@ struct image_info {
         abi_ulong       data_offset;
         abi_ulong       saved_auxv;
         abi_ulong       auxv_len;
-        abi_ulong       arg_start;
-        abi_ulong       arg_end;
-        abi_ulong       arg_strings;
-        abi_ulong       env_strings;
+        abi_ulong       argc;
+        abi_ulong       argv;
+        abi_ulong       envc;
+        abi_ulong       envp;
         abi_ulong       file_string;
         uint32_t        elf_flags;
         int             personality;
         abi_ulong       alignment;
+
+        /* Generic semihosting knows about these pointers. */
+        abi_ulong       arg_strings;   /* strings for argv */
+        abi_ulong       env_strings;   /* strings for envp; ends arg_strings */
 
         /* The fields below are used in FDPIC mode.  */
         abi_ulong       loadmap_addr;

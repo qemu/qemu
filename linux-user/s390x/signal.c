@@ -84,6 +84,11 @@ struct target_ucontext {
 
 typedef struct {
     uint8_t callee_used_stack[__SIGNAL_FRAMESIZE];
+    /*
+     * This field is no longer initialized by the kernel, but it's still a part
+     * of the ABI.
+     */
+    uint16_t svc_insn;
     struct target_siginfo info;
     struct target_ucontext uc;
 } rt_sigframe;
