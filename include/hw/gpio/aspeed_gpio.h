@@ -67,7 +67,7 @@ enum GPIORegIndexType {
 typedef struct AspeedGPIOReg {
     uint16_t set_idx;
     enum GPIORegType type;
- } AspeedGPIOReg;
+} AspeedGPIOReg;
 
 struct AspeedGPIOClass {
     SysBusDevice parent_obj;
