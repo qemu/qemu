@@ -851,4 +851,5 @@ static inline uint64_t udiv_qrnnd(uint64_t *r, uint64_t n1,
 }
 
 Int128 divu256(Int128 *plow, Int128 *phigh, Int128 divisor);
+Int128 divs256(Int128 *plow, Int128 *phigh, Int128 divisor);
 #endif
