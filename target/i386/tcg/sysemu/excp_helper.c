@@ -359,6 +359,7 @@ static int handle_mmu_fault(CPUState *cs, vaddr addr, int size,
     CPUX86State *env = &cpu->env;
     int error_code = PG_ERROR_OK;
     int pg_mode, prot, page_size;
+    int32_t a20_mask;
     hwaddr paddr;
     hwaddr vaddr;
 
@@ -368,7 +369,8 @@ static int handle_mmu_fault(CPUState *cs, vaddr addr, int size,
 #endif
 
     if (!(env->cr[0] & CR0_PG_MASK)) {
-        paddr = addr;
+        a20_mask = x86_get_a20_mask(env);
+        paddr = addr & a20_mask;
 #ifdef TARGET_X86_64
         if (!(env->hflags & HF_LMA_MASK)) {
             /* Without long mode we can only address 32bits in real mode */
