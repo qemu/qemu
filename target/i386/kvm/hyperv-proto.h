@@ -87,6 +87,11 @@
 #define HV_SYNDBG_CAP_ALLOW_KERNEL_DEBUGGING    (1u << 1)
 
 /*
+ * HV_CPUID_NESTED_FEATURES.EAX bits
+ */
+#define HV_NESTED_MSR_BITMAP                (1u << 19)
+
+/*
  * Basic virtualized MSRs
  */
 #define HV_X64_MSR_GUEST_OS_ID                0x40000000
