@@ -27,6 +27,7 @@
 #include "qemu/cutils.h"
 #include "commands-common.h"
 #include "block/nvme.h"
+#include "cutils.h"
 
 #ifdef HAVE_UTMPX
 #include <utmpx.h>
@@ -370,10 +371,10 @@ safe_open_or_create(const char *path, const char *mode, Error **errp)
      * open() is decisive and its third argument is ignored, and the second
      * open() and the fchmod() are never called.
      */
-    fd = open(path, oflag | ((oflag & O_CREAT) ? O_EXCL : 0), 0);
+    fd = qga_open_cloexec(path, oflag | ((oflag & O_CREAT) ? O_EXCL : 0), 0);
     if (fd == -1 && errno == EEXIST) {
         oflag &= ~(unsigned)O_CREAT;
-        fd = open(path, oflag);
+        fd = qga_open_cloexec(path, oflag, 0);
     }
     if (fd == -1) {
         error_setg_errno(errp, errno,
@@ -381,8 +382,6 @@ safe_open_or_create(const char *path, const char *mode, Error **errp)
                          path, mode);
         goto end;
     }
-
-    qemu_set_cloexec(fd);
 
     if ((oflag & O_CREAT) && fchmod(fd, DEFAULT_NEW_FILE_MODE) == -1) {
         error_setg_errno(errp, errno, "failed to set permission "
