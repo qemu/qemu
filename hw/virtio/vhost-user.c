@@ -2031,18 +2031,16 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque,
         if (supports_f_config) {
             if (!virtio_has_feature(protocol_features,
                                     VHOST_USER_PROTOCOL_F_CONFIG)) {
-                error_setg(errp, "vhost-user device %s expecting "
+                error_setg(errp, "vhost-user device expecting "
                            "VHOST_USER_PROTOCOL_F_CONFIG but the vhost-user backend does "
-                           "not support it.", dev->vdev->name);
+                           "not support it.");
                 return -EPROTO;
             }
         } else {
             if (virtio_has_feature(protocol_features,
                                    VHOST_USER_PROTOCOL_F_CONFIG)) {
                 warn_reportf_err(*errp, "vhost-user backend supports "
-                                 "VHOST_USER_PROTOCOL_F_CONFIG for "
-                                 "device %s but QEMU does not.",
-                                 dev->vdev->name);
+                                 "VHOST_USER_PROTOCOL_F_CONFIG but QEMU does not.");
                 protocol_features &= ~(1ULL << VHOST_USER_PROTOCOL_F_CONFIG);
             }
         }
