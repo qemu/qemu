@@ -94,6 +94,7 @@ struct AspeedSoCClass {
     const int *irqmap;
     const hwaddr *memmap;
     uint32_t num_cpus;
+    qemu_irq (*get_irq)(AspeedSoCState *s, int dev);
 };
 
 
@@ -152,5 +153,7 @@ enum {
     ASPEED_DEV_DP,
     ASPEED_DEV_I3C,
 };
+
+qemu_irq aspeed_soc_get_irq(AspeedSoCState *s, int dev);
 
 #endif /* ASPEED_SOC_H */
