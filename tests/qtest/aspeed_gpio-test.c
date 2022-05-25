@@ -28,30 +28,6 @@
 #include "qapi/qmp/qdict.h"
 #include "libqtest-single.h"
 
-static bool qom_get_bool(QTestState *s, const char *path, const char *property)
-{
-    QDict *r;
-    bool b;
-
-    r = qtest_qmp(s, "{ 'execute': 'qom-get', 'arguments': "
-                     "{ 'path': %s, 'property': %s } }", path, property);
-    b = qdict_get_bool(r, "return");
-    qobject_unref(r);
-
-    return b;
-}
-
-static void qom_set_bool(QTestState *s, const char *path, const char *property,
-                         bool value)
-{
-    QDict *r;
-
-    r = qtest_qmp(s, "{ 'execute': 'qom-set', 'arguments': "
-                     "{ 'path': %s, 'property': %s, 'value': %i } }",
-                     path, property, value);
-    qobject_unref(r);
-}
-
 static void test_set_colocated_pins(const void *data)
 {
     QTestState *s = (QTestState *)data;
@@ -60,14 +36,14 @@ static void test_set_colocated_pins(const void *data)
      * gpioV4-7 occupy bits within a single 32-bit value, so we want to make
      * sure that modifying one doesn't affect the other.
      */
-    qom_set_bool(s, "/machine/soc/gpio", "gpioV4", true);
-    qom_set_bool(s, "/machine/soc/gpio", "gpioV5", false);
-    qom_set_bool(s, "/machine/soc/gpio", "gpioV6", true);
-    qom_set_bool(s, "/machine/soc/gpio", "gpioV7", false);
-    g_assert(qom_get_bool(s, "/machine/soc/gpio", "gpioV4"));
-    g_assert(!qom_get_bool(s, "/machine/soc/gpio", "gpioV5"));
-    g_assert(qom_get_bool(s, "/machine/soc/gpio", "gpioV6"));
-    g_assert(!qom_get_bool(s, "/machine/soc/gpio", "gpioV7"));
+    qtest_qom_set_bool(s, "/machine/soc/gpio", "gpioV4", true);
+    qtest_qom_set_bool(s, "/machine/soc/gpio", "gpioV5", false);
+    qtest_qom_set_bool(s, "/machine/soc/gpio", "gpioV6", true);
+    qtest_qom_set_bool(s, "/machine/soc/gpio", "gpioV7", false);
+    g_assert(qtest_qom_get_bool(s, "/machine/soc/gpio", "gpioV4"));
+    g_assert(!qtest_qom_get_bool(s, "/machine/soc/gpio", "gpioV5"));
+    g_assert(qtest_qom_get_bool(s, "/machine/soc/gpio", "gpioV6"));
+    g_assert(!qtest_qom_get_bool(s, "/machine/soc/gpio", "gpioV7"));
 }
 
 int main(int argc, char **argv)

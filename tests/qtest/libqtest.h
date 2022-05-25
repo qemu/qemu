@@ -783,4 +783,26 @@ QTestState *qtest_inproc_init(QTestState **s, bool log, const char* arch,
                     void (*send)(void*, const char*));
 
 void qtest_client_inproc_recv(void *opaque, const char *str);
+
+/**
+ * qtest_qom_set_bool:
+ * @s: QTestState instance to operate on.
+ * @path: Path to the property being set.
+ * @property: Property being set.
+ * @value: Value to set the property.
+ *
+ * Set the property with passed in value.
+ */
+void qtest_qom_set_bool(QTestState *s, const char *path, const char *property,
+                         bool value);
+
+/**
+ * qtest_qom_get_bool:
+ * @s: QTestState instance to operate on.
+ * @path: Path to the property being retrieved.
+ * @property: Property from where the value is being retrieved.
+ *
+ * Returns: Value retrieved from property.
+ */
+bool qtest_qom_get_bool(QTestState *s, const char *path, const char *property);
 #endif
