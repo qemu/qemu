@@ -16,6 +16,31 @@ struct viot_pci_ranges {
     uint16_t output_node;
 };
 
+static void build_pci_host_range(GArray *table_data, int min_bus, int max_bus,
+                                 uint16_t output_node)
+{
+    /* Type */
+    build_append_int_noprefix(table_data, 1 /* PCI range */, 1);
+    /* Reserved */
+    build_append_int_noprefix(table_data, 0, 1);
+    /* Length */
+    build_append_int_noprefix(table_data, 24, 2);
+    /* Endpoint start */
+    build_append_int_noprefix(table_data, PCI_BUILD_BDF(min_bus, 0), 4);
+    /* PCI Segment start */
+    build_append_int_noprefix(table_data, 0, 2);
+    /* PCI Segment end */
+    build_append_int_noprefix(table_data, 0, 2);
+    /* PCI BDF start */
+    build_append_int_noprefix(table_data, PCI_BUILD_BDF(min_bus, 0), 2);
+    /* PCI BDF end */
+    build_append_int_noprefix(table_data, PCI_BUILD_BDF(max_bus, 0xff), 2);
+    /* Output node */
+    build_append_int_noprefix(table_data, output_node, 2);
+    /* Reserved */
+    build_append_int_noprefix(table_data, 0, 6);
+}
+
 /* Build PCI range for a given PCI host bridge */
 static int enumerate_pci_host_bridges(Object *obj, void *opaque)
 {
@@ -30,27 +55,8 @@ static int enumerate_pci_host_bridges(Object *obj, void *opaque)
 
             pci_bus_range(bus, &min_bus, &max_bus);
 
-            /* Type */
-            build_append_int_noprefix(blob, 1 /* PCI range */, 1);
-            /* Reserved */
-            build_append_int_noprefix(blob, 0, 1);
-            /* Length */
-            build_append_int_noprefix(blob, 24, 2);
-            /* Endpoint start */
-            build_append_int_noprefix(blob, PCI_BUILD_BDF(min_bus, 0), 4);
-            /* PCI Segment start */
-            build_append_int_noprefix(blob, 0, 2);
-            /* PCI Segment end */
-            build_append_int_noprefix(blob, 0, 2);
-            /* PCI BDF start */
-            build_append_int_noprefix(blob, PCI_BUILD_BDF(min_bus, 0), 2);
-            /* PCI BDF end */
-            build_append_int_noprefix(blob, PCI_BUILD_BDF(max_bus, 0xff), 2);
-            /* Output node */
-            build_append_int_noprefix(blob, pci_ranges->output_node, 2);
-            /* Reserved */
-            build_append_int_noprefix(blob, 0, 6);
-
+            build_pci_host_range(blob, min_bus, max_bus,
+                                 pci_ranges->output_node);
             pci_ranges->count++;
         }
     }
