@@ -171,14 +171,14 @@ static int qcrypto_nettle_rsa_encrypt(QCryptoAkCipher *akcipher,
     int ret = -1;
 
     if (data_len > rsa->pub.size) {
-        error_setg(errp, "Plaintext length %zu is greater than key size: %zu"
+        error_setg(errp, "Plaintext length %zu is greater than key size: %zu",
                    data_len, rsa->pub.size);
         return ret;
     }
 
     if (enc_len < rsa->pub.size) {
         error_setg(errp, "Ciphertext buffer length %zu is less than "
-                         "key size: %zu", rsa->pub.size);
+                         "key size: %zu", enc_len, rsa->pub.size);
         return ret;
     }
 
@@ -218,7 +218,7 @@ static int qcrypto_nettle_rsa_decrypt(QCryptoAkCipher *akcipher,
 
     if (enc_len > rsa->priv.size) {
         error_setg(errp, "Ciphertext length %zu is greater than key size: %zu",
-                   rsa->priv.size);
+                   enc_len, rsa->priv.size);
         return ret;
     }
 
@@ -264,13 +264,13 @@ static int qcrypto_nettle_rsa_sign(QCryptoAkCipher *akcipher,
 
     if (data_len > rsa->priv.size) {
         error_setg(errp, "Data length %zu is greater than key size: %zu",
-                   rsa->priv.size);
+                   data_len, rsa->priv.size);
         return ret;
     }
 
     if (sig_len < rsa->priv.size) {
         error_setg(errp, "Signature buffer length %zu is less than "
-                         "key size: %zu", rsa->priv.size);
+                         "key size: %zu", sig_len, rsa->priv.size);
         return ret;
     }
 
@@ -330,12 +330,12 @@ static int qcrypto_nettle_rsa_verify(QCryptoAkCipher *akcipher,
     }
     if (data_len > rsa->pub.size) {
         error_setg(errp, "Data length %zu is greater than key size: %zu",
-                   rsa->pub.size);
+                   data_len, rsa->pub.size);
         return ret;
     }
     if (sig_len < rsa->pub.size) {
         error_setg(errp, "Signature length %zu is greater than key size: %zu",
-                   rsa->pub.size);
+                   sig_len, rsa->pub.size);
         return ret;
     }
 
