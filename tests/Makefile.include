@@ -104,13 +104,13 @@ else
 	AVOCADO_CMDLINE_TAGS=$(addprefix -t , $(AVOCADO_TAGS))
 endif
 
+quiet-venv-pip = $(quiet-@)$(call quiet-command-run, \
+    $(TESTS_PYTHON) -m pip -q --disable-pip-version-check $1, \
+    "VENVPIP","$1")
+
 $(TESTS_VENV_DIR): $(TESTS_VENV_REQ)
-	$(call quiet-command, \
-            $(PYTHON) -m venv $@, \
-            VENV, $@)
-	$(call quiet-command, \
-            $(TESTS_PYTHON) -m pip -q --disable-pip-version-check install \
-            -r $(TESTS_VENV_REQ), PIP, $(TESTS_VENV_REQ))
+	$(call quiet-command, $(PYTHON) -m venv $@, VENV, $@)
+	$(call quiet-venv-pip,install -r $(TESTS_VENV_REQ))
 	$(call quiet-command, touch $@)
 
 $(TESTS_RESULTS_DIR):
