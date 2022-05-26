@@ -1525,7 +1525,7 @@ static VhostUserHostNotifier *fetch_or_create_notifier(VhostUserState *u,
 {
     VhostUserHostNotifier *n = NULL;
     if (idx >= u->notifiers->len) {
-        g_ptr_array_set_size(u->notifiers, idx);
+        g_ptr_array_set_size(u->notifiers, idx + 1);
     }
 
     n = g_ptr_array_index(u->notifiers, idx);
