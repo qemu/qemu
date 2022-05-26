@@ -109,8 +109,8 @@ $(TESTS_VENV_DIR): $(TESTS_VENV_REQ)
             $(PYTHON) -m venv $@, \
             VENV, $@)
 	$(call quiet-command, \
-            $(TESTS_PYTHON) -m pip -q install -r $(TESTS_VENV_REQ), \
-            PIP, $(TESTS_VENV_REQ))
+            $(TESTS_PYTHON) -m pip -q --disable-pip-version-check install \
+            -r $(TESTS_VENV_REQ), PIP, $(TESTS_VENV_REQ))
 	$(call quiet-command, touch $@)
 
 $(TESTS_RESULTS_DIR):
