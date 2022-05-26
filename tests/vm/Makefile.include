@@ -84,10 +84,11 @@ vm-clean-all:
 
 $(IMAGES_DIR)/%.img:	$(SRC_PATH)/tests/vm/% \
 			$(SRC_PATH)/tests/vm/basevm.py \
-			$(SRC_PATH)/tests/vm/Makefile.include
+			$(SRC_PATH)/tests/vm/Makefile.include \
+			check-venv
 	@mkdir -p $(IMAGES_DIR)
 	$(call quiet-command, \
-		$(PYTHON) $< \
+		$(TESTS_PYTHON) $< \
 		$(if $(V)$(DEBUG), --debug) \
 		$(if $(GENISOIMAGE),--genisoimage $(GENISOIMAGE)) \
 		$(if $(QEMU_LOCAL),--build-path $(BUILD_DIR)) \
@@ -101,9 +102,9 @@ $(IMAGES_DIR)/%.img:	$(SRC_PATH)/tests/vm/% \
 
 
 # Build in VM $(IMAGE)
-vm-build-%: $(IMAGES_DIR)/%.img
+vm-build-%: $(IMAGES_DIR)/%.img check-venv
 	$(call quiet-command, \
-		$(PYTHON) $(SRC_PATH)/tests/vm/$* \
+		$(TESTS_PYTHON) $(SRC_PATH)/tests/vm/$* \
 		$(if $(V)$(DEBUG), --debug) \
 		$(if $(DEBUG), --interactive) \
 		$(if $(J),--jobs $(J)) \
@@ -127,9 +128,9 @@ vm-boot-serial-%: $(IMAGES_DIR)/%.img
 		-device virtio-net-pci,netdev=vnet \
 	|| true
 
-vm-boot-ssh-%: $(IMAGES_DIR)/%.img
+vm-boot-ssh-%: $(IMAGES_DIR)/%.img check-venv
 	$(call quiet-command, \
-		$(PYTHON) $(SRC_PATH)/tests/vm/$* \
+		$(TESTS_PYTHON) $(SRC_PATH)/tests/vm/$* \
 		$(if $(J),--jobs $(J)) \
 		$(if $(V)$(DEBUG), --debug) \
 		$(if $(QEMU_LOCAL),--build-path $(BUILD_DIR)) \
