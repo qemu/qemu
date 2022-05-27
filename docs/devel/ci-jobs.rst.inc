@@ -28,6 +28,32 @@ For further information about how to set these variables, please refer to::
 
   https://docs.gitlab.com/ee/user/project/push_options.html#push-options-for-gitlab-cicd
 
+Setting aliases in your git config
+----------------------------------
+
+You can use aliases to make it easier to push branches with different
+CI configurations. For example define an alias for triggering CI:
+
+.. code::
+
+   git config --local alias.push-ci "push -o ci.variable=QEMU_CI=1"
+   git config --local alias.push-ci-now "push -o ci.variable=QEMU_CI=2"
+
+Which lets you run:
+
+.. code::
+
+   git push-ci
+
+to create the pipeline, or:
+
+.. code::
+
+   git push-ci-now
+
+to create and run the pipeline
+
+
 Variable naming and grouping
 ----------------------------
 
@@ -97,6 +123,18 @@ Contributor controlled runtime variables
 
 The following variables may be set by contributors to control
 job execution
+
+QEMU_CI
+~~~~~~~
+
+By default, no pipelines will be created on contributor forks
+in order to preserve CI credits
+
+Set this variable to 1 to create the pipelines, but leave all
+the jobs to be manually started from the UI
+
+Set this variable to 2 to create the pipelines and run all
+the jobs immediately, as was historicaly behaviour
 
 QEMU_CI_AVOCADO_TESTING
 ~~~~~~~~~~~~~~~~~~~~~~~

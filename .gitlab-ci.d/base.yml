@@ -28,6 +28,10 @@
     - if: '$QEMU_JOB_ONLY_FORKS == "1" && $CI_PROJECT_NAMESPACE == "qemu-project"'
       when: never
 
+    # Forks don't get pipelines unless QEMU_CI=1 or QEMU_CI=2 is set
+    - if: '$QEMU_CI != "1" && $QEMU_CI != "2" && $CI_PROJECT_NAMESPACE != "qemu-project"'
+      when: never
+
     # Avocado jobs don't run in forks unless $QEMU_CI_AVOCADO_TESTING is set
     - if: '$QEMU_JOB_AVOCADO && $QEMU_CI_AVOCADO_TESTING != "1" && $CI_PROJECT_NAMESPACE != "qemu-project"'
       when: never
@@ -58,6 +62,11 @@
     # Stage 3: catch all logic applying to any job not matching
     # an earlier criteria
     #############################################################
+
+    # Forks pipeline jobs don't start automatically unless
+    # QEMU_CI=2 is set
+    - if: '$QEMU_CI != "2" && $CI_PROJECT_NAMESPACE != "qemu-project"'
+      when: manual
 
     # Jobs can run if any jobs they depend on were successfull
     - when: on_success
