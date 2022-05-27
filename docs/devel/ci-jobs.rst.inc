@@ -1,3 +1,5 @@
+.. _ci_var:
+
 Custom CI/CD variables
 ======================
 
