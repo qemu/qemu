@@ -3572,15 +3572,24 @@ TRANS_FEAT(FMUL_zzx, aa64_sve, gen_gvec_fpst_zzz,
 typedef void gen_helper_fp_reduce(TCGv_i64, TCGv_ptr, TCGv_ptr,
                                   TCGv_ptr, TCGv_i32);
 
-static void do_reduce(DisasContext *s, arg_rpr_esz *a,
+static bool do_reduce(DisasContext *s, arg_rpr_esz *a,
                       gen_helper_fp_reduce *fn)
 {
-    unsigned vsz = vec_full_reg_size(s);
-    unsigned p2vsz = pow2ceil(vsz);
-    TCGv_i32 t_desc = tcg_constant_i32(simd_desc(vsz, vsz, p2vsz));
+    unsigned vsz, p2vsz;
+    TCGv_i32 t_desc;
     TCGv_ptr t_zn, t_pg, status;
     TCGv_i64 temp;
 
+    if (fn == NULL) {
+        return false;
+    }
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    vsz = vec_full_reg_size(s);
+    p2vsz = pow2ceil(vsz);
+    t_desc = tcg_constant_i32(simd_desc(vsz, vsz, p2vsz));
     temp = tcg_temp_new_i64();
     t_zn = tcg_temp_new_ptr();
     t_pg = tcg_temp_new_ptr();
@@ -3596,23 +3605,18 @@ static void do_reduce(DisasContext *s, arg_rpr_esz *a,
 
     write_fp_dreg(s, a->rd, temp);
     tcg_temp_free_i64(temp);
+    return true;
 }
 
 #define DO_VPZ(NAME, name) \
 static bool trans_##NAME(DisasContext *s, arg_rpr_esz *a)                \
 {                                                                        \
-    static gen_helper_fp_reduce * const fns[3] = {                       \
-        gen_helper_sve_##name##_h,                                       \
+    static gen_helper_fp_reduce * const fns[4] = {                       \
+        NULL, gen_helper_sve_##name##_h,                                 \
         gen_helper_sve_##name##_s,                                       \
         gen_helper_sve_##name##_d,                                       \
     };                                                                   \
-    if (a->esz == 0) {                                                   \
-        return false;                                                    \
-    }                                                                    \
-    if (sve_access_check(s)) {                                           \
-        do_reduce(s, a, fns[a->esz - 1]);                                \
-    }                                                                    \
-    return true;                                                         \
+    return do_reduce(s, a, fns[a->esz]);                                 \
 }
 
 DO_VPZ(FADDV, faddv)
