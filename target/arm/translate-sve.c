@@ -6054,20 +6054,9 @@ static bool trans_PRF_rr(DisasContext *s, arg_PRF_rr *a)
  * In the meantime, just emit the moves.
  */
 
-static bool trans_MOVPRFX(DisasContext *s, arg_MOVPRFX *a)
-{
-    return do_mov_z(s, a->rd, a->rn);
-}
-
-static bool trans_MOVPRFX_m(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_sel_z(s, a->rd, a->rn, a->rd, a->pg, a->esz);
-}
-
-static bool trans_MOVPRFX_z(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_movz_zpz(s, a->rd, a->rn, a->pg, a->esz, false);
-}
+TRANS_FEAT(MOVPRFX, aa64_sve, do_mov_z, a->rd, a->rn)
+TRANS_FEAT(MOVPRFX_m, aa64_sve, do_sel_z, a->rd, a->rn, a->rd, a->pg, a->esz)
+TRANS_FEAT(MOVPRFX_z, aa64_sve, do_movz_zpz, a->rd, a->rn, a->pg, a->esz, false)
 
 /*
  * SVE2 Integer Multiply - Unpredicated
