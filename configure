@@ -363,6 +363,11 @@ for opt do
   --cross-cc-*) cc_arch=${opt#--cross-cc-}; cc_arch=${cc_arch%%=*}
                 eval "cross_cc_${cc_arch}=\$optarg"
   ;;
+  --cross-prefix-*[!a-zA-Z0-9_-]*=*) error_exit "Passed bad --cross-prefix-FOO option"
+  ;;
+  --cross-prefix-*) cc_arch=${opt#--cross-prefix-}; cc_arch=${cc_arch%%=*}
+                    eval "cross_prefix_${cc_arch}=\$optarg"
+  ;;
   esac
 done
 # OS specific
@@ -728,6 +733,8 @@ for opt do
   ;;
   --cross-cc-*)
   ;;
+  --cross-prefix-*)
+  ;;
   --enable-debug-info) meson_option_add -Ddebug=true
   ;;
   --disable-debug-info) meson_option_add -Ddebug=false
@@ -1016,6 +1023,7 @@ Advanced options (experts only):
   --extra-ldflags=LDFLAGS  append extra linker flags LDFLAGS
   --cross-cc-ARCH=CC       use compiler when building ARCH guest test cases
   --cross-cc-cflags-ARCH=  use compiler flags when building ARCH guest tests
+  --cross-prefix-ARCH=PREFIX cross compiler prefix when building ARCH guest test cases
   --make=MAKE              use specified make [$make]
   --python=PYTHON          use specified python [$python]
   --meson=MESON            use specified meson [$meson]
@@ -1818,44 +1826,54 @@ if test $use_containers = "yes"; then
 fi
 
 # cross compilers defaults, can be overridden with --cross-cc-ARCH
-: ${cross_cc_aarch64="aarch64-linux-gnu-gcc"}
+: ${cross_prefix_aarch64="aarch64-linux-gnu-"}
+: ${cross_prefix_aarch64_be="$cross_prefix_aarch64"}
+: ${cross_prefix_alpha="alpha-linux-gnu-"}
+: ${cross_prefix_arm="arm-linux-gnueabihf-"}
+: ${cross_prefix_armeb="$cross_prefix_arm"}
+: ${cross_prefix_hexagon="hexagon-unknown-linux-musl-"}
+: ${cross_prefix_hppa="hppa-linux-gnu-"}
+: ${cross_prefix_i386="i686-linux-gnu-"}
+: ${cross_prefix_m68k="m68k-linux-gnu-"}
+: ${cross_prefix_microblaze="microblaze-linux-musl-"}
+: ${cross_prefix_mips64el="mips64el-linux-gnuabi64-"}
+: ${cross_prefix_mips64="mips64-linux-gnuabi64-"}
+: ${cross_prefix_mipsel="mipsel-linux-gnu-"}
+: ${cross_prefix_mips="mips-linux-gnu-"}
+: ${cross_prefix_nios2="nios2-linux-gnu-"}
+: ${cross_prefix_ppc="powerpc-linux-gnu-"}
+: ${cross_prefix_ppc64="powerpc64-linux-gnu-"}
+: ${cross_prefix_ppc64le="$cross_prefix_ppc64"}
+: ${cross_prefix_riscv64="riscv64-linux-gnu-"}
+: ${cross_prefix_s390x="s390x-linux-gnu-"}
+: ${cross_prefix_sh4="sh4-linux-gnu-"}
+: ${cross_prefix_sparc64="sparc64-linux-gnu-"}
+: ${cross_prefix_sparc="$cross_prefix_sparc64"}
+: ${cross_prefix_x86_64="x86_64-linux-gnu-"}
+
 : ${cross_cc_aarch64_be="$cross_cc_aarch64"}
 : ${cross_cc_cflags_aarch64_be="-mbig-endian"}
-: ${cross_cc_alpha="alpha-linux-gnu-gcc"}
-: ${cross_cc_arm="arm-linux-gnueabihf-gcc"}
 : ${cross_cc_armeb="$cross_cc_arm"}
 : ${cross_cc_cflags_armeb="-mbig-endian"}
 : ${cross_cc_hexagon="hexagon-unknown-linux-musl-clang"}
 : ${cross_cc_cflags_hexagon="-mv67 -O2 -static"}
-: ${cross_cc_hppa="hppa-linux-gnu-gcc"}
-: ${cross_cc_i386="i686-linux-gnu-gcc"}
 : ${cross_cc_cflags_i386="-m32"}
-: ${cross_cc_m68k="m68k-linux-gnu-gcc"}
-: ${cross_cc_microblaze="microblaze-linux-musl-gcc"}
-: ${cross_cc_mips64el="mips64el-linux-gnuabi64-gcc"}
-: ${cross_cc_mips64="mips64-linux-gnuabi64-gcc"}
-: ${cross_cc_mipsel="mipsel-linux-gnu-gcc"}
-: ${cross_cc_mips="mips-linux-gnu-gcc"}
-: ${cross_cc_nios2="nios2-linux-gnu-gcc"}
-: ${cross_cc_ppc="powerpc-linux-gnu-gcc"}
 : ${cross_cc_cflags_ppc="-m32"}
-: ${cross_cc_ppc64="powerpc64-linux-gnu-gcc"}
 : ${cross_cc_cflags_ppc64="-m64 -mbig-endian"}
 : ${cross_cc_ppc64le="$cross_cc_ppc64"}
 : ${cross_cc_cflags_ppc64le="-m64 -mlittle-endian"}
-: ${cross_cc_riscv64="riscv64-linux-gnu-gcc"}
-: ${cross_cc_s390x="s390x-linux-gnu-gcc"}
-: ${cross_cc_sh4="sh4-linux-gnu-gcc"}
-: ${cross_cc_sparc64="sparc64-linux-gnu-gcc"}
 : ${cross_cc_cflags_sparc64="-m64 -mcpu=ultrasparc"}
 : ${cross_cc_sparc="$cross_cc_sparc64"}
 : ${cross_cc_cflags_sparc="-m32 -mcpu=supersparc"}
-: ${cross_cc_x86_64="x86_64-linux-gnu-gcc"}
 : ${cross_cc_cflags_x86_64="-m64"}
 
-# tricore is special as it doesn't have a compiler
-: ${cross_as_tricore="tricore-as"}
-: ${cross_ld_tricore="tricore-ld"}
+compute_target_variable() {
+  if eval test -n "\"\${cross_prefix_$1}\""; then
+    if eval has "\"\${cross_prefix_$1}\$3\""; then
+      eval "$2=\"\${cross_prefix_$1}\$3\""
+    fi
+  fi
+}
 
 probe_target_compiler() {
   # reset all output variables
@@ -1901,93 +1919,99 @@ probe_target_compiler() {
       aarch64)
         # We don't have any bigendian build tools so we only use this for AArch64
         container_image=debian-arm64-cross
-        container_cross_cc=aarch64-linux-gnu-gcc-10
+        container_cross_prefix=aarch64-linux-gnu-
+        container_cross_cc=${container_cross_prefix}gcc-10
         ;;
       alpha)
         container_image=debian-alpha-cross
-        container_cross_cc=alpha-linux-gnu-gcc
+        container_cross_prefix=alpha-linux-gnu-
         ;;
       arm)
         # We don't have any bigendian build tools so we only use this for ARM
         container_image=debian-armhf-cross
-        container_cross_cc=arm-linux-gnueabihf-gcc
+        container_cross_prefix=arm-linux-gnueabihf-
         ;;
       cris)
         container_image=fedora-cris-cross
-        container_cross_cc=cris-linux-gnu-gcc
+        container_cross_prefix=cris-linux-gnu-
         ;;
       hexagon)
         container_image=debian-hexagon-cross
-        container_cross_cc=hexagon-unknown-linux-musl-clang
+        container_cross_prefix=hexagon-unknown-linux-musl-
+        container_cross_cc=${container_cross_prefix}clang
         ;;
       hppa)
         container_image=debian-hppa-cross
-        container_cross_cc=hppa-linux-gnu-gcc
+        container_cross_prefix=hppa-linux-gnu-
         ;;
       i386)
         container_image=fedora-i386-cross
-        container_cross_cc=gcc
+        container_cross_prefix=
         ;;
       m68k)
         container_image=debian-m68k-cross
-        container_cross_cc=m68k-linux-gnu-gcc
+        container_cross_prefix=m68k-linux-gnu-
         ;;
       microblaze)
         container_image=debian-microblaze-cross
-        container_cross_cc=microblaze-linux-musl-gcc
+        container_cross_prefix=microblaze-linux-musl-
         ;;
       mips64el)
         container_image=debian-mips64el-cross
-        container_cross_cc=mips64el-linux-gnuabi64-gcc
+        container_cross_prefix=mips64el-linux-gnuabi64-
         ;;
       mips64)
         container_image=debian-mips64-cross
-        container_cross_cc=mips64-linux-gnuabi64-gcc
+        container_cross_prefix=mips64-linux-gnuabi64-
         ;;
       mipsel)
         container_image=debian-mipsel-cross
-        container_cross_cc=mipsel-linux-gnu-gcc
+        container_cross_prefix=mipsel-linux-gnu-
         ;;
       mips)
         container_image=debian-mips-cross
-        container_cross_cc=mips-linux-gnu-gcc
+        container_cross_prefix=mips-linux-gnu-
         ;;
       nios2)
         container_image=debian-nios2-cross
-        container_cross_cc=nios2-linux-gnu-gcc
+        container_cross_prefix=nios2-linux-gnu-
         ;;
       ppc)
         container_image=debian-powerpc-test-cross
-        container_cross_cc=powerpc-linux-gnu-gcc-10
+        container_cross_prefix=powerpc-linux-gnu-
+        container_cross_cc=${container_cross_prefix}gcc-10
         ;;
       ppc64|ppc64le)
         container_image=debian-powerpc-test-cross
-        container_cross_cc=powerpc${1#ppc}-linux-gnu-gcc-10
+        container_cross_prefix=powerpc${1#ppc}-linux-gnu-
+        container_cross_cc=${container_cross_prefix}gcc-10
         ;;
       riscv64)
         container_image=debian-riscv64-test-cross
-        container_cross_cc=riscv64-linux-gnu-gcc
+        container_cross_prefix=riscv64-linux-gnu-
         ;;
       s390x)
         container_image=debian-s390x-cross
-        container_cross_cc=s390x-linux-gnu-gcc
+        container_cross_prefix=s390x-linux-gnu-
         ;;
       sh4)
         container_image=debian-sh4-cross
-        container_cross_cc=sh4-linux-gnu-gcc
+        container_cross_prefix=sh4-linux-gnu-
         ;;
       sparc64)
         container_image=debian-sparc64-cross
-        container_cross_cc=sparc64-linux-gnu-gcc
+        container_cross_prefix=sparc64-linux-gnu-
         ;;
       tricore)
         container_image=debian-tricore-cross
+        container_cross_prefix=tricore-
         container_cross_as=tricore-as
         container_cross_ld=tricore-ld
+        break
         ;;
       x86_64)
         container_image=debian-amd64-cross
-        container_cross_cc=x86_64-linux-gnu-gcc
+        container_cross_prefix=x86_64-linux-gnu-
         ;;
       xtensa*)
         # FIXME: xtensa-linux-user?
@@ -1995,9 +2019,12 @@ probe_target_compiler() {
         container_image=debian-xtensa-cross
 
         # default to the dc232b cpu
-        container_cross_cc=/opt/2020.07/xtensa-dc232b-elf/bin/xtensa-dc232b-elf-gcc
+        container_cross_prefix=/opt/2020.07/xtensa-dc232b-elf/bin/xtensa-dc232b-elf-
         ;;
     esac
+    : ${container_cross_cc:=${container_cross_prefix}gcc}
+    : ${container_cross_as:=${container_cross_prefix}as}
+    : ${container_cross_ld:=${container_cross_prefix}ld}
   done
 
   eval "target_cflags=\${cross_cc_cflags_$1}"
@@ -2005,17 +2032,11 @@ probe_target_compiler() {
     if eval has "\"\${cross_cc_$1}\""; then
       eval "target_cc=\"\${cross_cc_$1}\""
     fi
+  else
+    compute_target_variable $1 target_cc gcc
   fi
-  if eval test -n "\"\${cross_as_$1}\""; then
-    if eval has "\"\${cross_as_$1}\""; then
-      eval "target_as=\"\${cross_as_$1}\""
-    fi
-  fi
-  if eval test -n "\"\${cross_ld_$1}\""; then
-    if eval has "\"\${cross_ld_$1}\""; then
-      eval "target_ld=\"\${cross_ld_$1}\""
-    fi
-  fi
+  compute_target_variable $1 target_as as
+  compute_target_variable $1 target_ld ld
   if test "$1" = $cpu; then
     : ${target_cc:=$cc}
     : ${target_as:=$as}
@@ -2048,12 +2069,8 @@ write_container_target_makefile() {
   if test -n "$container_cross_cc"; then
     echo "CC=\$(DOCKER_SCRIPT) cc --cc $container_cross_cc -i qemu/$container_image -s $source_path --"
   fi
-  if test -n "$container_cross_as"; then
-    echo "AS=\$(DOCKER_SCRIPT) cc --cc $container_cross_as -i qemu/$container_image -s $source_path --"
-  fi
-  if test -n "$container_cross_ld"; then
-    echo "LD=\$(DOCKER_SCRIPT) cc --cc $container_cross_ld -i qemu/$container_image -s $source_path --"
-  fi
+  echo "AS=\$(DOCKER_SCRIPT) cc --cc $container_cross_as -i qemu/$container_image -s $source_path --"
+  echo "LD=\$(DOCKER_SCRIPT) cc --cc $container_cross_ld -i qemu/$container_image -s $source_path --"
 }
 
 
