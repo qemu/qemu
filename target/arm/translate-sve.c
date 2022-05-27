@@ -259,13 +259,19 @@ static bool gen_gvec_ool_arg_zpzz(DisasContext *s, gen_helper_gvec_4 *fn,
 }
 
 /* Invoke a vector expander on three Zregs.  */
-static void gen_gvec_fn_zzz(DisasContext *s, GVecGen3Fn *gvec_fn,
+static bool gen_gvec_fn_zzz(DisasContext *s, GVecGen3Fn *gvec_fn,
                             int esz, int rd, int rn, int rm)
 {
-    unsigned vsz = vec_full_reg_size(s);
-    gvec_fn(esz, vec_full_reg_offset(s, rd),
-            vec_full_reg_offset(s, rn),
-            vec_full_reg_offset(s, rm), vsz, vsz);
+    if (gvec_fn == NULL) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        gvec_fn(esz, vec_full_reg_offset(s, rd),
+                vec_full_reg_offset(s, rn),
+                vec_full_reg_offset(s, rm), vsz, vsz);
+    }
+    return true;
 }
 
 /* Invoke a vector expander on four Zregs.  */
@@ -366,10 +372,7 @@ const uint64_t pred_esz_masks[4] = {
 
 static bool do_zzz_fn(DisasContext *s, arg_rrr_esz *a, GVecGen3Fn *gvec_fn)
 {
-    if (sve_access_check(s)) {
-        gen_gvec_fn_zzz(s, gvec_fn, a->esz, a->rd, a->rn, a->rm);
-    }
-    return true;
+    return gen_gvec_fn_zzz(s, gvec_fn, a->esz, a->rd, a->rn, a->rm);
 }
 
 static bool trans_AND_zzz(DisasContext *s, arg_rrr_esz *a)
@@ -6421,10 +6424,7 @@ static bool trans_MUL_zzz(DisasContext *s, arg_rrr_esz *a)
     if (!dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    if (sve_access_check(s)) {
-        gen_gvec_fn_zzz(s, tcg_gen_gvec_mul, a->esz, a->rd, a->rn, a->rm);
-    }
-    return true;
+    return gen_gvec_fn_zzz(s, tcg_gen_gvec_mul, a->esz, a->rd, a->rn, a->rm);
 }
 
 static gen_helper_gvec_3 * const smulh_zzz_fns[4] = {
@@ -6945,10 +6945,7 @@ static bool do_sve2_fn_zzz(DisasContext *s, arg_rrr_esz *a, GVecGen3Fn *fn)
     if (!dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    if (sve_access_check(s)) {
-        gen_gvec_fn_zzz(s, fn, a->esz, a->rd, a->rn, a->rm);
-    }
-    return true;
+    return gen_gvec_fn_zzz(s, fn, a->esz, a->rd, a->rn, a->rm);
 }
 
 static bool trans_SABA(DisasContext *s, arg_rrr_esz *a)
@@ -7880,10 +7877,7 @@ static bool trans_RAX1(DisasContext *s, arg_rrr_esz *a)
     if (!dc_isar_feature(aa64_sve2_sha3, s)) {
         return false;
     }
-    if (sve_access_check(s)) {
-        gen_gvec_fn_zzz(s, gen_gvec_rax1, MO_64, a->rd, a->rn, a->rm);
-    }
-    return true;
+    return gen_gvec_fn_zzz(s, gen_gvec_rax1, MO_64, a->rd, a->rn, a->rm);
 }
 
 static bool trans_FCVTNT_sh(DisasContext *s, arg_rpr_esz *a)
