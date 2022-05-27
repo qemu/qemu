@@ -812,101 +812,60 @@ static bool trans_SEL_zpzz(DisasContext *s, arg_rprr_esz *a)
  *** SVE Integer Arithmetic - Unary Predicated Group
  */
 
-#define DO_ZPZ(NAME, name) \
-static bool trans_##NAME(DisasContext *s, arg_rpr_esz *a)           \
-{                                                                   \
-    static gen_helper_gvec_3 * const fns[4] = {                     \
-        gen_helper_sve_##name##_b, gen_helper_sve_##name##_h,       \
-        gen_helper_sve_##name##_s, gen_helper_sve_##name##_d,       \
+#define DO_ZPZ(NAME, FEAT, name) \
+    static gen_helper_gvec_3 * const name##_fns[4] = {              \
+        gen_helper_##name##_b, gen_helper_##name##_h,               \
+        gen_helper_##name##_s, gen_helper_##name##_d,               \
     };                                                              \
-    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);              \
-}
+    TRANS_FEAT(NAME, FEAT, gen_gvec_ool_arg_zpz, name##_fns[a->esz], a, 0)
 
-DO_ZPZ(CLS, cls)
-DO_ZPZ(CLZ, clz)
-DO_ZPZ(CNT_zpz, cnt_zpz)
-DO_ZPZ(CNOT, cnot)
-DO_ZPZ(NOT_zpz, not_zpz)
-DO_ZPZ(ABS, abs)
-DO_ZPZ(NEG, neg)
+DO_ZPZ(CLS, aa64_sve, sve_cls)
+DO_ZPZ(CLZ, aa64_sve, sve_clz)
+DO_ZPZ(CNT_zpz, aa64_sve, sve_cnt_zpz)
+DO_ZPZ(CNOT, aa64_sve, sve_cnot)
+DO_ZPZ(NOT_zpz, aa64_sve, sve_not_zpz)
+DO_ZPZ(ABS, aa64_sve, sve_abs)
+DO_ZPZ(NEG, aa64_sve, sve_neg)
+DO_ZPZ(RBIT, aa64_sve, sve_rbit)
 
-static bool trans_FABS(DisasContext *s, arg_rpr_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        NULL,
-        gen_helper_sve_fabs_h,
-        gen_helper_sve_fabs_s,
-        gen_helper_sve_fabs_d
-    };
-    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
-}
+static gen_helper_gvec_3 * const fabs_fns[4] = {
+    NULL,                  gen_helper_sve_fabs_h,
+    gen_helper_sve_fabs_s, gen_helper_sve_fabs_d,
+};
+TRANS_FEAT(FABS, aa64_sve, gen_gvec_ool_arg_zpz, fabs_fns[a->esz], a, 0)
 
-static bool trans_FNEG(DisasContext *s, arg_rpr_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        NULL,
-        gen_helper_sve_fneg_h,
-        gen_helper_sve_fneg_s,
-        gen_helper_sve_fneg_d
-    };
-    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
-}
+static gen_helper_gvec_3 * const fneg_fns[4] = {
+    NULL,                  gen_helper_sve_fneg_h,
+    gen_helper_sve_fneg_s, gen_helper_sve_fneg_d,
+};
+TRANS_FEAT(FNEG, aa64_sve, gen_gvec_ool_arg_zpz, fneg_fns[a->esz], a, 0)
 
-static bool trans_SXTB(DisasContext *s, arg_rpr_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        NULL,
-        gen_helper_sve_sxtb_h,
-        gen_helper_sve_sxtb_s,
-        gen_helper_sve_sxtb_d
-    };
-    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
-}
+static gen_helper_gvec_3 * const sxtb_fns[4] = {
+    NULL,                  gen_helper_sve_sxtb_h,
+    gen_helper_sve_sxtb_s, gen_helper_sve_sxtb_d,
+};
+TRANS_FEAT(SXTB, aa64_sve, gen_gvec_ool_arg_zpz, sxtb_fns[a->esz], a, 0)
 
-static bool trans_UXTB(DisasContext *s, arg_rpr_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        NULL,
-        gen_helper_sve_uxtb_h,
-        gen_helper_sve_uxtb_s,
-        gen_helper_sve_uxtb_d
-    };
-    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
-}
+static gen_helper_gvec_3 * const uxtb_fns[4] = {
+    NULL,                  gen_helper_sve_uxtb_h,
+    gen_helper_sve_uxtb_s, gen_helper_sve_uxtb_d,
+};
+TRANS_FEAT(UXTB, aa64_sve, gen_gvec_ool_arg_zpz, uxtb_fns[a->esz], a, 0)
 
-static bool trans_SXTH(DisasContext *s, arg_rpr_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        NULL, NULL,
-        gen_helper_sve_sxth_s,
-        gen_helper_sve_sxth_d
-    };
-    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
-}
+static gen_helper_gvec_3 * const sxth_fns[4] = {
+    NULL, NULL, gen_helper_sve_sxth_s, gen_helper_sve_sxth_d
+};
+TRANS_FEAT(SXTH, aa64_sve, gen_gvec_ool_arg_zpz, sxth_fns[a->esz], a, 0)
 
-static bool trans_UXTH(DisasContext *s, arg_rpr_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        NULL, NULL,
-        gen_helper_sve_uxth_s,
-        gen_helper_sve_uxth_d
-    };
-    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
-}
+static gen_helper_gvec_3 * const uxth_fns[4] = {
+    NULL, NULL, gen_helper_sve_uxth_s, gen_helper_sve_uxth_d
+};
+TRANS_FEAT(UXTH, aa64_sve, gen_gvec_ool_arg_zpz, uxth_fns[a->esz], a, 0)
 
-static bool trans_SXTW(DisasContext *s, arg_rpr_esz *a)
-{
-    return gen_gvec_ool_arg_zpz(s, a->esz == 3 ? gen_helper_sve_sxtw_d
-                                : NULL, a, 0);
-}
-
-static bool trans_UXTW(DisasContext *s, arg_rpr_esz *a)
-{
-    return gen_gvec_ool_arg_zpz(s, a->esz == 3 ? gen_helper_sve_uxtw_d
-                                : NULL, a, 0);
-}
-
-#undef DO_ZPZ
+TRANS_FEAT(SXTW, aa64_sve, gen_gvec_ool_arg_zpz,
+           a->esz == 3 ? gen_helper_sve_sxtw_d : NULL, a, 0)
+TRANS_FEAT(UXTW, aa64_sve, gen_gvec_ool_arg_zpz,
+           a->esz == 3 ? gen_helper_sve_uxtw_d : NULL, a, 0)
 
 /*
  *** SVE Integer Reduction Group
@@ -2658,13 +2617,10 @@ TRANS_FEAT(TRN2_q, aa64_sve_f64mm, gen_gvec_ool_arg_zzz,
  *** SVE Permute Vector - Predicated Group
  */
 
-static bool trans_COMPACT(DisasContext *s, arg_rpr_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        NULL, NULL, gen_helper_sve_compact_s, gen_helper_sve_compact_d
-    };
-    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
-}
+static gen_helper_gvec_3 * const compact_fns[4] = {
+    NULL, NULL, gen_helper_sve_compact_s, gen_helper_sve_compact_d
+};
+TRANS_FEAT(COMPACT, aa64_sve, gen_gvec_ool_arg_zpz, compact_fns[a->esz], a, 0)
 
 /* Call the helper that computes the ARM LastActiveElement pseudocode
  * function, scaled by the element size.  This includes the not found
@@ -3004,44 +2960,19 @@ static bool trans_CPY_m_v(DisasContext *s, arg_rpr_esz *a)
     return true;
 }
 
-static bool trans_REVB(DisasContext *s, arg_rpr_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        NULL,
-        gen_helper_sve_revb_h,
-        gen_helper_sve_revb_s,
-        gen_helper_sve_revb_d,
-    };
-    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
-}
+static gen_helper_gvec_3 * const revb_fns[4] = {
+    NULL,                  gen_helper_sve_revb_h,
+    gen_helper_sve_revb_s, gen_helper_sve_revb_d,
+};
+TRANS_FEAT(REVB, aa64_sve, gen_gvec_ool_arg_zpz, revb_fns[a->esz], a, 0)
 
-static bool trans_REVH(DisasContext *s, arg_rpr_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        NULL,
-        NULL,
-        gen_helper_sve_revh_s,
-        gen_helper_sve_revh_d,
-    };
-    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
-}
+static gen_helper_gvec_3 * const revh_fns[4] = {
+    NULL, NULL, gen_helper_sve_revh_s, gen_helper_sve_revh_d,
+};
+TRANS_FEAT(REVH, aa64_sve, gen_gvec_ool_arg_zpz, revh_fns[a->esz], a, 0)
 
-static bool trans_REVW(DisasContext *s, arg_rpr_esz *a)
-{
-    return gen_gvec_ool_arg_zpz(s, a->esz == 3 ? gen_helper_sve_revw_d
-                                : NULL, a, 0);
-}
-
-static bool trans_RBIT(DisasContext *s, arg_rpr_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        gen_helper_sve_rbit_b,
-        gen_helper_sve_rbit_h,
-        gen_helper_sve_rbit_s,
-        gen_helper_sve_rbit_d,
-    };
-    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
-}
+TRANS_FEAT(REVW, aa64_sve, gen_gvec_ool_arg_zpz,
+           a->esz == 3 ? gen_helper_sve_revw_d : NULL, a, 0)
 
 static bool trans_SPLICE(DisasContext *s, arg_rprr_esz *a)
 {
