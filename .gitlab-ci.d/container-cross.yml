@@ -88,8 +88,7 @@ mips64-debian-cross-container:
 
 mips64el-debian-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
+  stage: containers
   variables:
     NAME: debian-mips64el-cross
 

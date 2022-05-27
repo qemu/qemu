@@ -1,33 +1,162 @@
+# THIS FILE WAS AUTO-GENERATED
 #
-# Docker mips64el cross-compiler target
+#  $ lcitool dockerfile --layers all --cross mips64el debian-11 qemu
 #
-# This docker target builds on the debian Stretch base image.
-#
+# https://gitlab.com/libvirt/libvirt-ci
 
-FROM qemu/debian10
+FROM docker.io/library/debian:11-slim
 
-MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update && \
+    apt-get install -y eatmydata && \
+    eatmydata apt-get dist-upgrade -y && \
+    eatmydata apt-get install --no-install-recommends -y \
+            bash \
+            bc \
+            bsdextrautils \
+            bzip2 \
+            ca-certificates \
+            ccache \
+            dbus \
+            debianutils \
+            diffutils \
+            exuberant-ctags \
+            findutils \
+            gcovr \
+            genisoimage \
+            gettext \
+            git \
+            hostname \
+            libpcre2-dev \
+            libspice-protocol-dev \
+            llvm \
+            locales \
+            make \
+            meson \
+            ncat \
+            ninja-build \
+            openssh-client \
+            perl-base \
+            pkgconf \
+            python3 \
+            python3-numpy \
+            python3-opencv \
+            python3-pillow \
+            python3-pip \
+            python3-sphinx \
+            python3-sphinx-rtd-theme \
+            python3-venv \
+            python3-yaml \
+            rpm2cpio \
+            sed \
+            sparse \
+            tar \
+            tesseract-ocr \
+            tesseract-ocr-eng \
+            texinfo && \
+    eatmydata apt-get autoremove -y && \
+    eatmydata apt-get autoclean -y && \
+    sed -Ei 's,^# (en_US\.UTF-8 .*)$,\1,' /etc/locale.gen && \
+    dpkg-reconfigure locales
 
-# Add the foreign architecture we want and install dependencies
-RUN dpkg --add-architecture mips64el && \
-    apt update && \
-    DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt install -y --no-install-recommends \
-        gcc-mips64el-linux-gnuabi64
+ENV LANG "en_US.UTF-8"
+ENV MAKE "/usr/bin/make"
+ENV NINJA "/usr/bin/ninja"
+ENV PYTHON "/usr/bin/python3"
+ENV CCACHE_WRAPPERSDIR "/usr/libexec/ccache-wrappers"
 
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt build-dep -yy -a mips64el --arch-only qemu
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    dpkg --add-architecture mips64el && \
+    eatmydata apt-get update && \
+    eatmydata apt-get dist-upgrade -y && \
+    eatmydata apt-get install --no-install-recommends -y dpkg-dev && \
+    eatmydata apt-get install --no-install-recommends -y \
+            g++-mips64el-linux-gnuabi64 \
+            gcc-mips64el-linux-gnuabi64 \
+            libaio-dev:mips64el \
+            libasound2-dev:mips64el \
+            libattr1-dev:mips64el \
+            libbpf-dev:mips64el \
+            libbrlapi-dev:mips64el \
+            libbz2-dev:mips64el \
+            libc6-dev:mips64el \
+            libcacard-dev:mips64el \
+            libcap-ng-dev:mips64el \
+            libcapstone-dev:mips64el \
+            libcurl4-gnutls-dev:mips64el \
+            libdaxctl-dev:mips64el \
+            libdrm-dev:mips64el \
+            libepoxy-dev:mips64el \
+            libfdt-dev:mips64el \
+            libffi-dev:mips64el \
+            libfuse3-dev:mips64el \
+            libgbm-dev:mips64el \
+            libgcrypt20-dev:mips64el \
+            libglib2.0-dev:mips64el \
+            libglusterfs-dev:mips64el \
+            libgnutls28-dev:mips64el \
+            libgtk-3-dev:mips64el \
+            libibumad-dev:mips64el \
+            libibverbs-dev:mips64el \
+            libiscsi-dev:mips64el \
+            libjemalloc-dev:mips64el \
+            libjpeg62-turbo-dev:mips64el \
+            liblttng-ust-dev:mips64el \
+            liblzo2-dev:mips64el \
+            libncursesw5-dev:mips64el \
+            libnfs-dev:mips64el \
+            libnuma-dev:mips64el \
+            libpam0g-dev:mips64el \
+            libpixman-1-dev:mips64el \
+            libpng-dev:mips64el \
+            libpulse-dev:mips64el \
+            librbd-dev:mips64el \
+            librdmacm-dev:mips64el \
+            libsasl2-dev:mips64el \
+            libsdl2-dev:mips64el \
+            libsdl2-image-dev:mips64el \
+            libseccomp-dev:mips64el \
+            libselinux1-dev:mips64el \
+            libslirp-dev:mips64el \
+            libsnappy-dev:mips64el \
+            libspice-server-dev:mips64el \
+            libssh-gcrypt-dev:mips64el \
+            libsystemd-dev:mips64el \
+            libtasn1-6-dev:mips64el \
+            libudev-dev:mips64el \
+            liburing-dev:mips64el \
+            libusb-1.0-0-dev:mips64el \
+            libusbredirhost-dev:mips64el \
+            libvdeplug-dev:mips64el \
+            libvirglrenderer-dev:mips64el \
+            libvte-2.91-dev:mips64el \
+            libzstd-dev:mips64el \
+            nettle-dev:mips64el \
+            systemtap-sdt-dev:mips64el \
+            xfslibs-dev:mips64el \
+            zlib1g-dev:mips64el && \
+    eatmydata apt-get autoremove -y && \
+    eatmydata apt-get autoclean -y && \
+    mkdir -p /usr/local/share/meson/cross && \
+    echo "[binaries]\n\
+c = '/usr/bin/mips64el-linux-gnuabi64-gcc'\n\
+ar = '/usr/bin/mips64el-linux-gnuabi64-gcc-ar'\n\
+strip = '/usr/bin/mips64el-linux-gnuabi64-strip'\n\
+pkgconfig = '/usr/bin/mips64el-linux-gnuabi64-pkg-config'\n\
+\n\
+[host_machine]\n\
+system = 'linux'\n\
+cpu_family = 'mips64'\n\
+cpu = 'mips64el'\n\
+endian = 'little'" > /usr/local/share/meson/cross/mips64el-linux-gnuabi64 && \
+    dpkg-query --showformat '${Package}_${Version}_${Architecture}\n' --show > /packages.txt && \
+    mkdir -p /usr/libexec/ccache-wrappers && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/mips64el-linux-gnuabi64-c++ && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/mips64el-linux-gnuabi64-cc && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/mips64el-linux-gnuabi64-g++ && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/mips64el-linux-gnuabi64-gcc
 
-# Specify the cross prefix for this image (see tests/docker/common.rc)
+ENV ABI "mips64el-linux-gnuabi64"
+ENV MESON_OPTS "--cross-file=mips64el-linux-gnuabi64"
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=mips64el-linux-gnuabi64-
 ENV DEF_TARGET_LIST mips64el-softmmu,mips64el-linux-user
-
-# Install extra libraries to increase code coverage
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt install -y --no-install-recommends \
-        libbz2-dev:mips64el \
-        liblzo2-dev:mips64el \
-        librdmacm-dev:mips64el \
-        libsnappy-dev:mips64el
