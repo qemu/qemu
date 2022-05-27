@@ -795,10 +795,7 @@ static gen_helper_gvec_4 * const udiv_fns[4] = {
 };
 TRANS_FEAT(UDIV_zpzz, aa64_sve, gen_gvec_ool_arg_zpzz, udiv_fns[a->esz], a, 0)
 
-static bool trans_SEL_zpzz(DisasContext *s, arg_rprr_esz *a)
-{
-    return do_sel_z(s, a->rd, a->rn, a->rm, a->pg, a->esz);
-}
+TRANS_FEAT(SEL_zpzz, aa64_sve, do_sel_z, a->rd, a->rn, a->rm, a->pg, a->esz)
 
 /*
  *** SVE Integer Arithmetic - Unary Predicated Group
