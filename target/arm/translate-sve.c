@@ -1184,18 +1184,16 @@ static bool trans_LSL_zzi(DisasContext *s, arg_rri_esz *a)
 }
 
 #define DO_ZZW(NAME, name) \
-static bool trans_##NAME##_zzw(DisasContext *s, arg_rrr_esz *a)           \
-{                                                                         \
-    static gen_helper_gvec_3 * const fns[4] = {                           \
+    static gen_helper_gvec_3 * const name##_zzw_fns[4] = {                \
         gen_helper_sve_##name##_zzw_b, gen_helper_sve_##name##_zzw_h,     \
         gen_helper_sve_##name##_zzw_s, NULL                               \
     };                                                                    \
-    return gen_gvec_ool_arg_zzz(s, fns[a->esz], a, 0);                    \
-}
+    TRANS_FEAT(NAME, aa64_sve, gen_gvec_ool_arg_zzz,                      \
+               name##_zzw_fns[a->esz], a, 0)
 
-DO_ZZW(ASR, asr)
-DO_ZZW(LSR, lsr)
-DO_ZZW(LSL, lsl)
+DO_ZZW(ASR_zzw, asr)
+DO_ZZW(LSR_zzw, lsr)
+DO_ZZW(LSL_zzw, lsl)
 
 #undef DO_ZZW
 
@@ -1380,16 +1378,11 @@ static gen_helper_gvec_2 * const fexpa_fns[4] = {
 TRANS_FEAT(FEXPA, aa64_sve, gen_gvec_ool_zz,
            fexpa_fns[a->esz], a->rd, a->rn, 0)
 
-static bool trans_FTSSEL(DisasContext *s, arg_rrr_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        NULL,
-        gen_helper_sve_ftssel_h,
-        gen_helper_sve_ftssel_s,
-        gen_helper_sve_ftssel_d,
-    };
-    return gen_gvec_ool_arg_zzz(s, fns[a->esz], a, 0);
-}
+static gen_helper_gvec_3 * const ftssel_fns[4] = {
+    NULL,                    gen_helper_sve_ftssel_h,
+    gen_helper_sve_ftssel_s, gen_helper_sve_ftssel_d,
+};
+TRANS_FEAT(FTSSEL, aa64_sve, gen_gvec_ool_arg_zzz, ftssel_fns[a->esz], a, 0)
 
 /*
  *** SVE Predicate Logical Operations Group
@@ -2412,14 +2405,11 @@ static gen_helper_gvec_2 * const rev_fns[4] = {
 };
 TRANS_FEAT(REV_v, aa64_sve, gen_gvec_ool_zz, rev_fns[a->esz], a->rd, a->rn, 0)
 
-static bool trans_TBL(DisasContext *s, arg_rrr_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        gen_helper_sve_tbl_b, gen_helper_sve_tbl_h,
-        gen_helper_sve_tbl_s, gen_helper_sve_tbl_d
-    };
-    return gen_gvec_ool_arg_zzz(s, fns[a->esz], a, 0);
-}
+static gen_helper_gvec_3 * const sve_tbl_fns[4] = {
+    gen_helper_sve_tbl_b, gen_helper_sve_tbl_h,
+    gen_helper_sve_tbl_s, gen_helper_sve_tbl_d
+};
+TRANS_FEAT(TBL, aa64_sve, gen_gvec_ool_arg_zzz, sve_tbl_fns[a->esz], a, 0)
 
 static bool trans_TBL_sve2(DisasContext *s, arg_rrr_esz *a)
 {
@@ -2438,18 +2428,11 @@ static bool trans_TBL_sve2(DisasContext *s, arg_rrr_esz *a)
     return true;
 }
 
-static bool trans_TBX(DisasContext *s, arg_rrr_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        gen_helper_sve2_tbx_b, gen_helper_sve2_tbx_h,
-        gen_helper_sve2_tbx_s, gen_helper_sve2_tbx_d
-    };
-
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zzz(s, fns[a->esz], a, 0);
-}
+static gen_helper_gvec_3 * const tbx_fns[4] = {
+    gen_helper_sve2_tbx_b, gen_helper_sve2_tbx_h,
+    gen_helper_sve2_tbx_s, gen_helper_sve2_tbx_d
+};
+TRANS_FEAT(TBX, aa64_sve2, gen_gvec_ool_arg_zzz, tbx_fns[a->esz], a, 0)
 
 static bool trans_UNPK(DisasContext *s, arg_UNPK *a)
 {
@@ -2641,62 +2624,30 @@ static gen_helper_gvec_3 * const uzp_fns[4] = {
     gen_helper_sve_uzp_s, gen_helper_sve_uzp_d,
 };
 
-static bool trans_UZP1_z(DisasContext *s, arg_rrr_esz *a)
-{
-    return gen_gvec_ool_arg_zzz(s, uzp_fns[a->esz], a, 0);
-}
+TRANS_FEAT(UZP1_z, aa64_sve, gen_gvec_ool_arg_zzz,
+           uzp_fns[a->esz], a, 0)
+TRANS_FEAT(UZP2_z, aa64_sve, gen_gvec_ool_arg_zzz,
+           uzp_fns[a->esz], a, 1 << a->esz)
 
-static bool trans_UZP2_z(DisasContext *s, arg_rrr_esz *a)
-{
-    return gen_gvec_ool_arg_zzz(s, uzp_fns[a->esz], a, 1 << a->esz);
-}
-
-static bool trans_UZP1_q(DisasContext *s, arg_rrr_esz *a)
-{
-    if (!dc_isar_feature(aa64_sve_f64mm, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zzz(s, gen_helper_sve2_uzp_q, a, 0);
-}
-
-static bool trans_UZP2_q(DisasContext *s, arg_rrr_esz *a)
-{
-    if (!dc_isar_feature(aa64_sve_f64mm, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zzz(s, gen_helper_sve2_uzp_q, a, 16);
-}
+TRANS_FEAT(UZP1_q, aa64_sve_f64mm, gen_gvec_ool_arg_zzz,
+           gen_helper_sve2_uzp_q, a, 0)
+TRANS_FEAT(UZP2_q, aa64_sve_f64mm, gen_gvec_ool_arg_zzz,
+           gen_helper_sve2_uzp_q, a, 16)
 
 static gen_helper_gvec_3 * const trn_fns[4] = {
     gen_helper_sve_trn_b, gen_helper_sve_trn_h,
     gen_helper_sve_trn_s, gen_helper_sve_trn_d,
 };
 
-static bool trans_TRN1_z(DisasContext *s, arg_rrr_esz *a)
-{
-    return gen_gvec_ool_arg_zzz(s, trn_fns[a->esz], a, 0);
-}
+TRANS_FEAT(TRN1_z, aa64_sve, gen_gvec_ool_arg_zzz,
+           trn_fns[a->esz], a, 0)
+TRANS_FEAT(TRN2_z, aa64_sve, gen_gvec_ool_arg_zzz,
+           trn_fns[a->esz], a, 1 << a->esz)
 
-static bool trans_TRN2_z(DisasContext *s, arg_rrr_esz *a)
-{
-    return gen_gvec_ool_arg_zzz(s, trn_fns[a->esz], a, 1 << a->esz);
-}
-
-static bool trans_TRN1_q(DisasContext *s, arg_rrr_esz *a)
-{
-    if (!dc_isar_feature(aa64_sve_f64mm, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zzz(s, gen_helper_sve2_trn_q, a, 0);
-}
-
-static bool trans_TRN2_q(DisasContext *s, arg_rrr_esz *a)
-{
-    if (!dc_isar_feature(aa64_sve_f64mm, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zzz(s, gen_helper_sve2_trn_q, a, 16);
-}
+TRANS_FEAT(TRN1_q, aa64_sve_f64mm, gen_gvec_ool_arg_zzz,
+           gen_helper_sve2_trn_q, a, 0)
+TRANS_FEAT(TRN2_q, aa64_sve_f64mm, gen_gvec_ool_arg_zzz,
+           gen_helper_sve2_trn_q, a, 16)
 
 /*
  *** SVE Permute Vector - Predicated Group
@@ -8345,41 +8296,15 @@ static bool trans_USDOT_zzzz(DisasContext *s, arg_USDOT_zzzz *a)
 TRANS_FEAT(AESMC, aa64_sve2_aes, gen_gvec_ool_zz,
            gen_helper_crypto_aesmc, a->rd, a->rd, a->decrypt)
 
-static bool do_aese(DisasContext *s, arg_rrr_esz *a, bool decrypt)
-{
-    if (!dc_isar_feature(aa64_sve2_aes, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zzz(s, gen_helper_crypto_aese, a, decrypt);
-}
+TRANS_FEAT(AESE, aa64_sve2_aes, gen_gvec_ool_arg_zzz,
+           gen_helper_crypto_aese, a, false)
+TRANS_FEAT(AESD, aa64_sve2_aes, gen_gvec_ool_arg_zzz,
+           gen_helper_crypto_aese, a, true)
 
-static bool trans_AESE(DisasContext *s, arg_rrr_esz *a)
-{
-    return do_aese(s, a, false);
-}
-
-static bool trans_AESD(DisasContext *s, arg_rrr_esz *a)
-{
-    return do_aese(s, a, true);
-}
-
-static bool do_sm4(DisasContext *s, arg_rrr_esz *a, gen_helper_gvec_3 *fn)
-{
-    if (!dc_isar_feature(aa64_sve2_sm4, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zzz(s, fn, a, 0);
-}
-
-static bool trans_SM4E(DisasContext *s, arg_rrr_esz *a)
-{
-    return do_sm4(s, a, gen_helper_crypto_sm4e);
-}
-
-static bool trans_SM4EKEY(DisasContext *s, arg_rrr_esz *a)
-{
-    return do_sm4(s, a, gen_helper_crypto_sm4ekey);
-}
+TRANS_FEAT(SM4E, aa64_sve2_sm4, gen_gvec_ool_arg_zzz,
+           gen_helper_crypto_sm4e, a, 0)
+TRANS_FEAT(SM4EKEY, aa64_sve2_sm4, gen_gvec_ool_arg_zzz,
+           gen_helper_crypto_sm4ekey, a, 0)
 
 static bool trans_RAX1(DisasContext *s, arg_rrr_esz *a)
 {
