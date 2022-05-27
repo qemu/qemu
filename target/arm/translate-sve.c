@@ -1071,20 +1071,17 @@ static bool do_zpzzz_ool(DisasContext *s, arg_rprrr_esz *a,
     return true;
 }
 
-#define DO_ZPZZZ(NAME, name) \
-static bool trans_##NAME(DisasContext *s, arg_rprrr_esz *a)          \
-{                                                                    \
-    static gen_helper_gvec_5 * const fns[4] = {                      \
-        gen_helper_sve_##name##_b, gen_helper_sve_##name##_h,        \
-        gen_helper_sve_##name##_s, gen_helper_sve_##name##_d,        \
-    };                                                               \
-    return do_zpzzz_ool(s, a, fns[a->esz]);                          \
-}
+static gen_helper_gvec_5 * const mla_fns[4] = {
+    gen_helper_sve_mla_b, gen_helper_sve_mla_h,
+    gen_helper_sve_mla_s, gen_helper_sve_mla_d,
+};
+TRANS_FEAT(MLA, aa64_sve, do_zpzzz_ool, a, mla_fns[a->esz])
 
-DO_ZPZZZ(MLA, mla)
-DO_ZPZZZ(MLS, mls)
-
-#undef DO_ZPZZZ
+static gen_helper_gvec_5 * const mls_fns[4] = {
+    gen_helper_sve_mls_b, gen_helper_sve_mls_h,
+    gen_helper_sve_mls_s, gen_helper_sve_mls_d,
+};
+TRANS_FEAT(MLS, aa64_sve, do_zpzzz_ool, a, mls_fns[a->esz])
 
 /*
  *** SVE Index Generation Group
