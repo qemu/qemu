@@ -40,15 +40,13 @@ armhf-debian-cross-container:
 # We never want to build hexagon in the CI system and by default we
 # always want to refer to the master registry where it lives.
 hexagon-cross-container:
+  extends: .base_job_template
   image: docker:stable
   stage: containers
-  rules:
-    - if: '$CI_PROJECT_NAMESPACE == "qemu-project"'
-      when: never
-    - when: always
   variables:
     NAME: debian-hexagon-cross
     GIT_DEPTH: 1
+    QEMU_JOB_ONLY_FORKS: 1
   services:
     - docker:dind
   before_script:

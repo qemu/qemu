@@ -73,6 +73,25 @@ The job results are only of interest to contributors prior to
 submitting code. They are not required as part of the gating
 CI pipeline.
 
+QEMU_JOB_SKIPPED
+~~~~~~~~~~~~~~~~
+
+The job is not reliably successsful in general, so is not
+currently suitable to be run by default. Ideally this should
+be a temporary marker until the problems can be addressed, or
+the job permanently removed.
+
+QEMU_JOB_PUBLISH
+~~~~~~~~~~~~~~~~
+
+The job is for publishing content after a branch has been
+merged into the upstream default branch.
+
+QEMU_JOB_AVOCADO
+~~~~~~~~~~~~~~~~
+
+The job runs the Avocado integration test suite
+
 Contributor controlled runtime variables
 ----------------------------------------
 
