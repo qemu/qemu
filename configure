@@ -1880,11 +1880,21 @@ probe_target_compiler() {
   container_image=
   container_hosts=
   container_cross_cc=
+  container_cross_ar=
   container_cross_as=
   container_cross_ld=
+  container_cross_nm=
+  container_cross_objcopy=
+  container_cross_ranlib=
+  container_cross_strip=
   target_cc=
+  target_ar=
   target_as=
   target_ld=
+  target_nm=
+  target_objcopy=
+  target_ranlib=
+  target_strip=
 
   case $1 in
     aarch64) container_hosts="x86_64 aarch64" ;;
@@ -2023,8 +2033,13 @@ probe_target_compiler() {
         ;;
     esac
     : ${container_cross_cc:=${container_cross_prefix}gcc}
+    : ${container_cross_ar:=${container_cross_prefix}ar}
     : ${container_cross_as:=${container_cross_prefix}as}
     : ${container_cross_ld:=${container_cross_prefix}ld}
+    : ${container_cross_nm:=${container_cross_prefix}nm}
+    : ${container_cross_objcopy:=${container_cross_prefix}objcopy}
+    : ${container_cross_ranlib:=${container_cross_prefix}ranlib}
+    : ${container_cross_strip:=${container_cross_prefix}strip}
   done
 
   eval "target_cflags=\${cross_cc_cflags_$1}"
@@ -2035,12 +2050,26 @@ probe_target_compiler() {
   else
     compute_target_variable $1 target_cc gcc
   fi
+  target_ccas=$target_cc
+  compute_target_variable $1 target_ar ar
   compute_target_variable $1 target_as as
   compute_target_variable $1 target_ld ld
+  compute_target_variable $1 target_nm nm
+  compute_target_variable $1 target_objcopy objcopy
+  compute_target_variable $1 target_ranlib ranlib
+  compute_target_variable $1 target_strip strip
   if test "$1" = $cpu; then
     : ${target_cc:=$cc}
+    : ${target_ccas:=$ccas}
     : ${target_as:=$as}
     : ${target_ld:=$ld}
+    : ${target_ar:=$ar}
+    : ${target_as:=$as}
+    : ${target_ld:=$ld}
+    : ${target_nm:=$nm}
+    : ${target_objcopy:=$objcopy}
+    : ${target_ranlib:=$ranlib}
+    : ${target_strip:=$strip}
   fi
   if test -n "$target_cc"; then
     case $1 in
@@ -2056,6 +2085,10 @@ probe_target_compiler() {
 write_target_makefile() {
   if test -n "$target_cc"; then
     echo "CC=$target_cc"
+    echo "CCAS=$target_ccas"
+  fi
+  if test -n "$target_ar"; then
+    echo "AR=$target_ar"
   fi
   if test -n "$target_as"; then
     echo "AS=$target_as"
@@ -2063,14 +2096,32 @@ write_target_makefile() {
   if test -n "$target_ld"; then
     echo "LD=$target_ld"
   fi
+  if test -n "$target_nm"; then
+    echo "NM=$target_nm"
+  fi
+  if test -n "$target_objcopy"; then
+    echo "OBJCOPY=$target_objcopy"
+  fi
+  if test -n "$target_ranlib"; then
+    echo "RANLIB=$target_ranlib"
+  fi
+  if test -n "$target_strip"; then
+    echo "STRIP=$target_strip"
+  fi
 }
 
 write_container_target_makefile() {
   if test -n "$container_cross_cc"; then
     echo "CC=\$(DOCKER_SCRIPT) cc --cc $container_cross_cc -i qemu/$container_image -s $source_path --"
+    echo "CCAS=\$(DOCKER_SCRIPT) cc --cc $container_cross_cc -i qemu/$container_image -s $source_path --"
   fi
+  echo "AR=\$(DOCKER_SCRIPT) cc --cc $container_cross_ar -i qemu/$container_image -s $source_path --"
   echo "AS=\$(DOCKER_SCRIPT) cc --cc $container_cross_as -i qemu/$container_image -s $source_path --"
   echo "LD=\$(DOCKER_SCRIPT) cc --cc $container_cross_ld -i qemu/$container_image -s $source_path --"
+  echo "NM=\$(DOCKER_SCRIPT) cc --cc $container_cross_nm -i qemu/$container_image -s $source_path --"
+  echo "OBJCOPY=\$(DOCKER_SCRIPT) cc --cc $container_cross_objcopy -i qemu/$container_image -s $source_path --"
+  echo "RANLIB=\$(DOCKER_SCRIPT) cc --cc $container_cross_ranlib -i qemu/$container_image -s $source_path --"
+  echo "STRIP=\$(DOCKER_SCRIPT) cc --cc $container_cross_strip -i qemu/$container_image -s $source_path --"
 }
 
 
