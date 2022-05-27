@@ -115,6 +115,11 @@ try:
                         trailer=debian_cross_build("arm-linux-gnueabihf-",
                                                    "arm-softmmu,arm-linux-user"))
 
+    generate_dockerfile("debian-mipsel-cross", "debian-11",
+                        cross="mipsel",
+                        trailer=debian_cross_build("mipsel-linux-gnu-",
+                                                   "mipsel-softmmu,mipsel-linux-user"))
+
     generate_dockerfile("debian-s390x-cross", "debian-11",
                         cross="s390x",
                         trailer=debian_cross_build("s390x-linux-gnu-",

@@ -1,31 +1,162 @@
+# THIS FILE WAS AUTO-GENERATED
 #
-# Docker mipsel cross-compiler target
+#  $ lcitool dockerfile --layers all --cross mipsel debian-11 qemu
 #
-# This docker target builds on the debian Stretch base image.
-#
-FROM qemu/debian10
+# https://gitlab.com/libvirt/libvirt-ci
 
-MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
+FROM docker.io/library/debian:11-slim
 
-# Add the foreign architecture we want and install dependencies
-RUN dpkg --add-architecture mipsel
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt install -y --no-install-recommends \
-        gcc-mipsel-linux-gnu
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update && \
+    apt-get install -y eatmydata && \
+    eatmydata apt-get dist-upgrade -y && \
+    eatmydata apt-get install --no-install-recommends -y \
+            bash \
+            bc \
+            bsdextrautils \
+            bzip2 \
+            ca-certificates \
+            ccache \
+            dbus \
+            debianutils \
+            diffutils \
+            exuberant-ctags \
+            findutils \
+            gcovr \
+            genisoimage \
+            gettext \
+            git \
+            hostname \
+            libpcre2-dev \
+            libspice-protocol-dev \
+            llvm \
+            locales \
+            make \
+            meson \
+            ncat \
+            ninja-build \
+            openssh-client \
+            perl-base \
+            pkgconf \
+            python3 \
+            python3-numpy \
+            python3-opencv \
+            python3-pillow \
+            python3-pip \
+            python3-sphinx \
+            python3-sphinx-rtd-theme \
+            python3-venv \
+            python3-yaml \
+            rpm2cpio \
+            sed \
+            sparse \
+            tar \
+            tesseract-ocr \
+            tesseract-ocr-eng \
+            texinfo && \
+    eatmydata apt-get autoremove -y && \
+    eatmydata apt-get autoclean -y && \
+    sed -Ei 's,^# (en_US\.UTF-8 .*)$,\1,' /etc/locale.gen && \
+    dpkg-reconfigure locales
 
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt build-dep -yy -a mipsel --arch-only qemu
+ENV LANG "en_US.UTF-8"
+ENV MAKE "/usr/bin/make"
+ENV NINJA "/usr/bin/ninja"
+ENV PYTHON "/usr/bin/python3"
+ENV CCACHE_WRAPPERSDIR "/usr/libexec/ccache-wrappers"
 
-# Specify the cross prefix for this image (see tests/docker/common.rc)
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    dpkg --add-architecture mipsel && \
+    eatmydata apt-get update && \
+    eatmydata apt-get dist-upgrade -y && \
+    eatmydata apt-get install --no-install-recommends -y dpkg-dev && \
+    eatmydata apt-get install --no-install-recommends -y \
+            g++-mipsel-linux-gnu \
+            gcc-mipsel-linux-gnu \
+            libaio-dev:mipsel \
+            libasound2-dev:mipsel \
+            libattr1-dev:mipsel \
+            libbpf-dev:mipsel \
+            libbrlapi-dev:mipsel \
+            libbz2-dev:mipsel \
+            libc6-dev:mipsel \
+            libcacard-dev:mipsel \
+            libcap-ng-dev:mipsel \
+            libcapstone-dev:mipsel \
+            libcurl4-gnutls-dev:mipsel \
+            libdaxctl-dev:mipsel \
+            libdrm-dev:mipsel \
+            libepoxy-dev:mipsel \
+            libfdt-dev:mipsel \
+            libffi-dev:mipsel \
+            libfuse3-dev:mipsel \
+            libgbm-dev:mipsel \
+            libgcrypt20-dev:mipsel \
+            libglib2.0-dev:mipsel \
+            libglusterfs-dev:mipsel \
+            libgnutls28-dev:mipsel \
+            libgtk-3-dev:mipsel \
+            libibumad-dev:mipsel \
+            libibverbs-dev:mipsel \
+            libiscsi-dev:mipsel \
+            libjemalloc-dev:mipsel \
+            libjpeg62-turbo-dev:mipsel \
+            liblttng-ust-dev:mipsel \
+            liblzo2-dev:mipsel \
+            libncursesw5-dev:mipsel \
+            libnfs-dev:mipsel \
+            libnuma-dev:mipsel \
+            libpam0g-dev:mipsel \
+            libpixman-1-dev:mipsel \
+            libpng-dev:mipsel \
+            libpulse-dev:mipsel \
+            librbd-dev:mipsel \
+            librdmacm-dev:mipsel \
+            libsasl2-dev:mipsel \
+            libsdl2-dev:mipsel \
+            libsdl2-image-dev:mipsel \
+            libseccomp-dev:mipsel \
+            libselinux1-dev:mipsel \
+            libslirp-dev:mipsel \
+            libsnappy-dev:mipsel \
+            libspice-server-dev:mipsel \
+            libssh-gcrypt-dev:mipsel \
+            libsystemd-dev:mipsel \
+            libtasn1-6-dev:mipsel \
+            libudev-dev:mipsel \
+            liburing-dev:mipsel \
+            libusb-1.0-0-dev:mipsel \
+            libusbredirhost-dev:mipsel \
+            libvdeplug-dev:mipsel \
+            libvirglrenderer-dev:mipsel \
+            libvte-2.91-dev:mipsel \
+            libzstd-dev:mipsel \
+            nettle-dev:mipsel \
+            systemtap-sdt-dev:mipsel \
+            xfslibs-dev:mipsel \
+            zlib1g-dev:mipsel && \
+    eatmydata apt-get autoremove -y && \
+    eatmydata apt-get autoclean -y && \
+    mkdir -p /usr/local/share/meson/cross && \
+    echo "[binaries]\n\
+c = '/usr/bin/mipsel-linux-gnu-gcc'\n\
+ar = '/usr/bin/mipsel-linux-gnu-gcc-ar'\n\
+strip = '/usr/bin/mipsel-linux-gnu-strip'\n\
+pkgconfig = '/usr/bin/mipsel-linux-gnu-pkg-config'\n\
+\n\
+[host_machine]\n\
+system = 'linux'\n\
+cpu_family = 'mips'\n\
+cpu = 'mipsel'\n\
+endian = 'little'" > /usr/local/share/meson/cross/mipsel-linux-gnu && \
+    dpkg-query --showformat '${Package}_${Version}_${Architecture}\n' --show > /packages.txt && \
+    mkdir -p /usr/libexec/ccache-wrappers && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/mipsel-linux-gnu-c++ && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/mipsel-linux-gnu-cc && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/mipsel-linux-gnu-g++ && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/mipsel-linux-gnu-gcc
+
+ENV ABI "mipsel-linux-gnu"
+ENV MESON_OPTS "--cross-file=mipsel-linux-gnu"
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=mipsel-linux-gnu-
-
-# Install extra libraries to increase code coverage
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt install -y --no-install-recommends \
-        libbz2-dev:mipsel \
-        liblzo2-dev:mipsel \
-        librdmacm-dev:mipsel \
-        libsnappy-dev:mipsel
+ENV DEF_TARGET_LIST mipsel-softmmu,mipsel-linux-user
