@@ -7319,27 +7319,15 @@ DO_SVE2_ZZZ_NARROW(SUBHNT, subhnt)
 DO_SVE2_ZZZ_NARROW(RSUBHNB, rsubhnb)
 DO_SVE2_ZZZ_NARROW(RSUBHNT, rsubhnt)
 
-static bool do_sve2_ppzz_flags(DisasContext *s, arg_rprr_esz *a,
-                               gen_helper_gvec_flags_4 *fn)
-{
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return do_ppzz_flags(s, a, fn);
-}
+static gen_helper_gvec_flags_4 * const match_fns[4] = {
+    gen_helper_sve2_match_ppzz_b, gen_helper_sve2_match_ppzz_h, NULL, NULL
+};
+TRANS_FEAT(MATCH, aa64_sve2, do_ppzz_flags, a, match_fns[a->esz])
 
-#define DO_SVE2_PPZZ_MATCH(NAME, name)                                      \
-static bool trans_##NAME(DisasContext *s, arg_rprr_esz *a)                  \
-{                                                                           \
-    static gen_helper_gvec_flags_4 * const fns[4] = {                       \
-        gen_helper_sve2_##name##_ppzz_b, gen_helper_sve2_##name##_ppzz_h,   \
-        NULL,                            NULL                               \
-    };                                                                      \
-    return do_sve2_ppzz_flags(s, a, fns[a->esz]);                           \
-}
-
-DO_SVE2_PPZZ_MATCH(MATCH, match)
-DO_SVE2_PPZZ_MATCH(NMATCH, nmatch)
+static gen_helper_gvec_flags_4 * const nmatch_fns[4] = {
+    gen_helper_sve2_nmatch_ppzz_b, gen_helper_sve2_nmatch_ppzz_h, NULL, NULL
+};
+TRANS_FEAT(NMATCH, aa64_sve2, do_ppzz_flags, a, nmatch_fns[a->esz])
 
 static gen_helper_gvec_4 * const histcnt_fns[4] = {
     NULL, NULL, gen_helper_sve2_histcnt_s, gen_helper_sve2_histcnt_d
