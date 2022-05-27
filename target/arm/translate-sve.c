@@ -318,6 +318,33 @@ static bool gen_gvec_ool_arg_zpzi(DisasContext *s, gen_helper_gvec_3 *fn,
     return gen_gvec_ool_zzp(s, fn, a->rd, a->rn, a->pg, a->imm);
 }
 
+static bool gen_gvec_fpst_zzp(DisasContext *s, gen_helper_gvec_3_ptr *fn,
+                              int rd, int rn, int pg, int data,
+                              ARMFPStatusFlavour flavour)
+{
+    if (fn == NULL) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        TCGv_ptr status = fpstatus_ptr(flavour);
+
+        tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, rd),
+                           vec_full_reg_offset(s, rn),
+                           pred_full_reg_offset(s, pg),
+                           status, vsz, vsz, data, fn);
+        tcg_temp_free_ptr(status);
+    }
+    return true;
+}
+
+static bool gen_gvec_fpst_arg_zpz(DisasContext *s, gen_helper_gvec_3_ptr *fn,
+                                  arg_rpr_esz *a, int data,
+                                  ARMFPStatusFlavour flavour)
+{
+    return gen_gvec_fpst_zzp(s, fn, a->rd, a->rn, a->pg, data, flavour);
+}
+
 /* Invoke an out-of-line helper on 3 Zregs and a predicate. */
 static bool gen_gvec_ool_zzzp(DisasContext *s, gen_helper_gvec_4 *fn,
                               int rd, int rn, int rm, int pg, int data)
@@ -4044,128 +4071,53 @@ static bool trans_FCMLA_zzxz(DisasContext *s, arg_FCMLA_zzxz *a)
  *** SVE Floating Point Unary Operations Predicated Group
  */
 
-static bool do_zpz_ptr(DisasContext *s, int rd, int rn, int pg,
-                       bool is_fp16, gen_helper_gvec_3_ptr *fn)
-{
-    if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        TCGv_ptr status = fpstatus_ptr(is_fp16 ? FPST_FPCR_F16 : FPST_FPCR);
-        tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, rd),
-                           vec_full_reg_offset(s, rn),
-                           pred_full_reg_offset(s, pg),
-                           status, vsz, vsz, 0, fn);
-        tcg_temp_free_ptr(status);
-    }
-    return true;
-}
+TRANS_FEAT(FCVT_sh, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvt_sh, a, 0, FPST_FPCR)
+TRANS_FEAT(FCVT_hs, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvt_hs, a, 0, FPST_FPCR)
 
-static bool trans_FCVT_sh(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_fcvt_sh);
-}
+TRANS_FEAT(BFCVT, aa64_sve_bf16, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_bfcvt, a, 0, FPST_FPCR)
 
-static bool trans_FCVT_hs(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_fcvt_hs);
-}
+TRANS_FEAT(FCVT_dh, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvt_dh, a, 0, FPST_FPCR)
+TRANS_FEAT(FCVT_hd, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvt_hd, a, 0, FPST_FPCR)
+TRANS_FEAT(FCVT_ds, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvt_ds, a, 0, FPST_FPCR)
+TRANS_FEAT(FCVT_sd, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvt_sd, a, 0, FPST_FPCR)
 
-static bool trans_BFCVT(DisasContext *s, arg_rpr_esz *a)
-{
-    if (!dc_isar_feature(aa64_sve_bf16, s)) {
-        return false;
-    }
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_bfcvt);
-}
+TRANS_FEAT(FCVTZS_hh, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzs_hh, a, 0, FPST_FPCR_F16)
+TRANS_FEAT(FCVTZU_hh, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzu_hh, a, 0, FPST_FPCR_F16)
+TRANS_FEAT(FCVTZS_hs, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzs_hs, a, 0, FPST_FPCR_F16)
+TRANS_FEAT(FCVTZU_hs, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzu_hs, a, 0, FPST_FPCR_F16)
+TRANS_FEAT(FCVTZS_hd, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzs_hd, a, 0, FPST_FPCR_F16)
+TRANS_FEAT(FCVTZU_hd, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzu_hd, a, 0, FPST_FPCR_F16)
 
-static bool trans_FCVT_dh(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_fcvt_dh);
-}
+TRANS_FEAT(FCVTZS_ss, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzs_ss, a, 0, FPST_FPCR)
+TRANS_FEAT(FCVTZU_ss, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzu_ss, a, 0, FPST_FPCR)
+TRANS_FEAT(FCVTZS_sd, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzs_sd, a, 0, FPST_FPCR)
+TRANS_FEAT(FCVTZU_sd, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzu_sd, a, 0, FPST_FPCR)
+TRANS_FEAT(FCVTZS_ds, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzs_ds, a, 0, FPST_FPCR)
+TRANS_FEAT(FCVTZU_ds, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzu_ds, a, 0, FPST_FPCR)
 
-static bool trans_FCVT_hd(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_fcvt_hd);
-}
-
-static bool trans_FCVT_ds(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_fcvt_ds);
-}
-
-static bool trans_FCVT_sd(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_fcvt_sd);
-}
-
-static bool trans_FCVTZS_hh(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, true, gen_helper_sve_fcvtzs_hh);
-}
-
-static bool trans_FCVTZU_hh(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, true, gen_helper_sve_fcvtzu_hh);
-}
-
-static bool trans_FCVTZS_hs(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, true, gen_helper_sve_fcvtzs_hs);
-}
-
-static bool trans_FCVTZU_hs(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, true, gen_helper_sve_fcvtzu_hs);
-}
-
-static bool trans_FCVTZS_hd(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, true, gen_helper_sve_fcvtzs_hd);
-}
-
-static bool trans_FCVTZU_hd(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, true, gen_helper_sve_fcvtzu_hd);
-}
-
-static bool trans_FCVTZS_ss(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_fcvtzs_ss);
-}
-
-static bool trans_FCVTZU_ss(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_fcvtzu_ss);
-}
-
-static bool trans_FCVTZS_sd(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_fcvtzs_sd);
-}
-
-static bool trans_FCVTZU_sd(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_fcvtzu_sd);
-}
-
-static bool trans_FCVTZS_ds(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_fcvtzs_ds);
-}
-
-static bool trans_FCVTZU_ds(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_fcvtzu_ds);
-}
-
-static bool trans_FCVTZS_dd(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_fcvtzs_dd);
-}
-
-static bool trans_FCVTZU_dd(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_fcvtzu_dd);
-}
+TRANS_FEAT(FCVTZS_dd, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzs_dd, a, 0, FPST_FPCR)
+TRANS_FEAT(FCVTZU_dd, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzu_dd, a, 0, FPST_FPCR)
 
 static gen_helper_gvec_3_ptr * const frint_fns[] = {
     NULL,
@@ -4173,28 +4125,17 @@ static gen_helper_gvec_3_ptr * const frint_fns[] = {
     gen_helper_sve_frint_s,
     gen_helper_sve_frint_d
 };
+TRANS_FEAT(FRINTI, aa64_sve, gen_gvec_fpst_arg_zpz, frint_fns[a->esz],
+           a, 0, a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR)
 
-static bool trans_FRINTI(DisasContext *s, arg_rpr_esz *a)
-{
-    if (a->esz == 0) {
-        return false;
-    }
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, a->esz == MO_16,
-                      frint_fns[a->esz]);
-}
-
-static bool trans_FRINTX(DisasContext *s, arg_rpr_esz *a)
-{
-    static gen_helper_gvec_3_ptr * const fns[3] = {
-        gen_helper_sve_frintx_h,
-        gen_helper_sve_frintx_s,
-        gen_helper_sve_frintx_d
-    };
-    if (a->esz == 0) {
-        return false;
-    }
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, a->esz == MO_16, fns[a->esz - 1]);
-}
+static gen_helper_gvec_3_ptr * const frintx_fns[] = {
+    NULL,
+    gen_helper_sve_frintx_h,
+    gen_helper_sve_frintx_s,
+    gen_helper_sve_frintx_d
+};
+TRANS_FEAT(FRINTX, aa64_sve, gen_gvec_fpst_arg_zpz, frintx_fns[a->esz],
+           a, 0, a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
 
 static bool do_frint_mode(DisasContext *s, arg_rpr_esz *a,
                           int mode, gen_helper_gvec_3_ptr *fn)
@@ -4258,101 +4199,53 @@ static bool trans_FRINTA(DisasContext *s, arg_rpr_esz *a)
     return do_frint_mode(s, a, float_round_ties_away, frint_fns[a->esz]);
 }
 
-static bool trans_FRECPX(DisasContext *s, arg_rpr_esz *a)
-{
-    static gen_helper_gvec_3_ptr * const fns[3] = {
-        gen_helper_sve_frecpx_h,
-        gen_helper_sve_frecpx_s,
-        gen_helper_sve_frecpx_d
-    };
-    if (a->esz == 0) {
-        return false;
-    }
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, a->esz == MO_16, fns[a->esz - 1]);
-}
+static gen_helper_gvec_3_ptr * const frecpx_fns[] = {
+    NULL,                    gen_helper_sve_frecpx_h,
+    gen_helper_sve_frecpx_s, gen_helper_sve_frecpx_d,
+};
+TRANS_FEAT(FRECPX, aa64_sve, gen_gvec_fpst_arg_zpz, frecpx_fns[a->esz],
+           a, 0, a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR)
 
-static bool trans_FSQRT(DisasContext *s, arg_rpr_esz *a)
-{
-    static gen_helper_gvec_3_ptr * const fns[3] = {
-        gen_helper_sve_fsqrt_h,
-        gen_helper_sve_fsqrt_s,
-        gen_helper_sve_fsqrt_d
-    };
-    if (a->esz == 0) {
-        return false;
-    }
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, a->esz == MO_16, fns[a->esz - 1]);
-}
+static gen_helper_gvec_3_ptr * const fsqrt_fns[] = {
+    NULL,                   gen_helper_sve_fsqrt_h,
+    gen_helper_sve_fsqrt_s, gen_helper_sve_fsqrt_d,
+};
+TRANS_FEAT(FSQRT, aa64_sve, gen_gvec_fpst_arg_zpz, fsqrt_fns[a->esz],
+           a, 0, a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR)
 
-static bool trans_SCVTF_hh(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, true, gen_helper_sve_scvt_hh);
-}
+TRANS_FEAT(SCVTF_hh, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_scvt_hh, a, 0, FPST_FPCR_F16)
+TRANS_FEAT(SCVTF_sh, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_scvt_sh, a, 0, FPST_FPCR_F16)
+TRANS_FEAT(SCVTF_dh, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_scvt_dh, a, 0, FPST_FPCR_F16)
 
-static bool trans_SCVTF_sh(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, true, gen_helper_sve_scvt_sh);
-}
+TRANS_FEAT(SCVTF_ss, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_scvt_ss, a, 0, FPST_FPCR)
+TRANS_FEAT(SCVTF_ds, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_scvt_ds, a, 0, FPST_FPCR)
 
-static bool trans_SCVTF_dh(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, true, gen_helper_sve_scvt_dh);
-}
+TRANS_FEAT(SCVTF_sd, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_scvt_sd, a, 0, FPST_FPCR)
+TRANS_FEAT(SCVTF_dd, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_scvt_dd, a, 0, FPST_FPCR)
 
-static bool trans_SCVTF_ss(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_scvt_ss);
-}
+TRANS_FEAT(UCVTF_hh, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_ucvt_hh, a, 0, FPST_FPCR_F16)
+TRANS_FEAT(UCVTF_sh, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_ucvt_sh, a, 0, FPST_FPCR_F16)
+TRANS_FEAT(UCVTF_dh, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_ucvt_dh, a, 0, FPST_FPCR_F16)
 
-static bool trans_SCVTF_ds(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_scvt_ds);
-}
+TRANS_FEAT(UCVTF_ss, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_ucvt_ss, a, 0, FPST_FPCR)
+TRANS_FEAT(UCVTF_ds, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_ucvt_ds, a, 0, FPST_FPCR)
+TRANS_FEAT(UCVTF_sd, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_ucvt_sd, a, 0, FPST_FPCR)
 
-static bool trans_SCVTF_sd(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_scvt_sd);
-}
-
-static bool trans_SCVTF_dd(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_scvt_dd);
-}
-
-static bool trans_UCVTF_hh(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, true, gen_helper_sve_ucvt_hh);
-}
-
-static bool trans_UCVTF_sh(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, true, gen_helper_sve_ucvt_sh);
-}
-
-static bool trans_UCVTF_dh(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, true, gen_helper_sve_ucvt_dh);
-}
-
-static bool trans_UCVTF_ss(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_ucvt_ss);
-}
-
-static bool trans_UCVTF_ds(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_ucvt_ds);
-}
-
-static bool trans_UCVTF_sd(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_ucvt_sd);
-}
-
-static bool trans_UCVTF_dd(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_ucvt_dd);
-}
+TRANS_FEAT(UCVTF_dd, aa64_sve, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_ucvt_dd, a, 0, FPST_FPCR)
 
 /*
  *** SVE Memory - 32-bit Gather and Unsized Contiguous Group
@@ -7389,45 +7282,18 @@ TRANS_FEAT(SM4EKEY, aa64_sve2_sm4, gen_gvec_ool_arg_zzz,
 
 TRANS_FEAT(RAX1, aa64_sve2_sha3, gen_gvec_fn_arg_zzz, gen_gvec_rax1, a)
 
-static bool trans_FCVTNT_sh(DisasContext *s, arg_rpr_esz *a)
-{
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve2_fcvtnt_sh);
-}
+TRANS_FEAT(FCVTNT_sh, aa64_sve2, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve2_fcvtnt_sh, a, 0, FPST_FPCR)
+TRANS_FEAT(FCVTNT_ds, aa64_sve2, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve2_fcvtnt_ds, a, 0, FPST_FPCR)
 
-static bool trans_BFCVTNT(DisasContext *s, arg_rpr_esz *a)
-{
-    if (!dc_isar_feature(aa64_sve_bf16, s)) {
-        return false;
-    }
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_bfcvtnt);
-}
+TRANS_FEAT(BFCVTNT, aa64_sve_bf16, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_bfcvtnt, a, 0, FPST_FPCR)
 
-static bool trans_FCVTNT_ds(DisasContext *s, arg_rpr_esz *a)
-{
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve2_fcvtnt_ds);
-}
-
-static bool trans_FCVTLT_hs(DisasContext *s, arg_rpr_esz *a)
-{
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve2_fcvtlt_hs);
-}
-
-static bool trans_FCVTLT_sd(DisasContext *s, arg_rpr_esz *a)
-{
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve2_fcvtlt_sd);
-}
+TRANS_FEAT(FCVTLT_hs, aa64_sve2, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve2_fcvtlt_hs, a, 0, FPST_FPCR)
+TRANS_FEAT(FCVTLT_sd, aa64_sve2, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve2_fcvtlt_sd, a, 0, FPST_FPCR)
 
 static bool trans_FCVTX_ds(DisasContext *s, arg_rpr_esz *a)
 {
