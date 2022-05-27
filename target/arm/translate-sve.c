@@ -3799,14 +3799,11 @@ static bool trans_FADDA(DisasContext *s, arg_rprr_esz *a)
  */
 
 #define DO_FP3(NAME, name) \
-static bool trans_##NAME(DisasContext *s, arg_rrr_esz *a)           \
-{                                                                   \
-    static gen_helper_gvec_3_ptr * const fns[4] = {                 \
+    static gen_helper_gvec_3_ptr * const name##_fns[4] = {          \
         NULL, gen_helper_gvec_##name##_h,                           \
         gen_helper_gvec_##name##_s, gen_helper_gvec_##name##_d      \
     };                                                              \
-    return gen_gvec_fpst_arg_zzz(s, fns[a->esz], a, 0);             \
-}
+    TRANS_FEAT(NAME, aa64_sve, gen_gvec_fpst_arg_zzz, name##_fns[a->esz], a, 0)
 
 DO_FP3(FADD_zzz, fadd)
 DO_FP3(FSUB_zzz, fsub)
