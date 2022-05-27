@@ -369,6 +369,35 @@ static bool gen_gvec_ool_arg_zpzz(DisasContext *s, gen_helper_gvec_4 *fn,
     return gen_gvec_ool_zzzp(s, fn, a->rd, a->rn, a->rm, a->pg, data);
 }
 
+/* Invoke an out-of-line helper on 3 Zregs and a predicate. */
+static bool gen_gvec_fpst_zzzp(DisasContext *s, gen_helper_gvec_4_ptr *fn,
+                               int rd, int rn, int rm, int pg, int data,
+                               ARMFPStatusFlavour flavour)
+{
+    if (fn == NULL) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        TCGv_ptr status = fpstatus_ptr(flavour);
+
+        tcg_gen_gvec_4_ptr(vec_full_reg_offset(s, rd),
+                           vec_full_reg_offset(s, rn),
+                           vec_full_reg_offset(s, rm),
+                           pred_full_reg_offset(s, pg),
+                           status, vsz, vsz, data, fn);
+        tcg_temp_free_ptr(status);
+    }
+    return true;
+}
+
+static bool gen_gvec_fpst_arg_zpzz(DisasContext *s, gen_helper_gvec_4_ptr *fn,
+                                   arg_rprr_esz *a)
+{
+    return gen_gvec_fpst_zzzp(s, fn, a->rd, a->rn, a->rm, a->pg, 0,
+                              a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
+}
+
 /* Invoke a vector expander on two Zregs and an immediate.  */
 static bool gen_gvec_fn_zzi(DisasContext *s, GVecGen2iFn *gvec_fn,
                             int esz, int rd, int rn, uint64_t imm)
@@ -3812,25 +3841,6 @@ DO_FP3(FRSQRTS, rsqrts)
  *** SVE Floating Point Arithmetic - Predicated Group
  */
 
-static bool do_zpzz_fp(DisasContext *s, arg_rprr_esz *a,
-                       gen_helper_gvec_4_ptr *fn)
-{
-    if (fn == NULL) {
-        return false;
-    }
-    if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
-        tcg_gen_gvec_4_ptr(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           pred_full_reg_offset(s, a->pg),
-                           status, vsz, vsz, 0, fn);
-        tcg_temp_free_ptr(status);
-    }
-    return true;
-}
-
 #define DO_FP3(NAME, name) \
 static bool trans_##NAME(DisasContext *s, arg_rprr_esz *a)          \
 {                                                                   \
@@ -3838,7 +3848,7 @@ static bool trans_##NAME(DisasContext *s, arg_rprr_esz *a)          \
         NULL, gen_helper_sve_##name##_h,                            \
         gen_helper_sve_##name##_s, gen_helper_sve_##name##_d        \
     };                                                              \
-    return do_zpzz_fp(s, a, fns[a->esz]);                           \
+    return gen_gvec_fpst_arg_zpzz(s, fns[a->esz], a);               \
 }
 
 DO_FP3(FADD_zpzz, fadd)
@@ -7121,7 +7131,7 @@ static bool do_sve2_zpzz_fp(DisasContext *s, arg_rprr_esz *a,
     if (!dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    return do_zpzz_fp(s, a, fn);
+    return gen_gvec_fpst_arg_zpzz(s, fn, a);
 }
 
 #define DO_SVE2_ZPZZ_FP(NAME, name)                                         \
