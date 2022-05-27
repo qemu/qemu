@@ -235,15 +235,21 @@ static bool gen_gvec_ool_arg_zpzi(DisasContext *s, gen_helper_gvec_3 *fn,
 }
 
 /* Invoke an out-of-line helper on 3 Zregs and a predicate. */
-static void gen_gvec_ool_zzzp(DisasContext *s, gen_helper_gvec_4 *fn,
+static bool gen_gvec_ool_zzzp(DisasContext *s, gen_helper_gvec_4 *fn,
                               int rd, int rn, int rm, int pg, int data)
 {
-    unsigned vsz = vec_full_reg_size(s);
-    tcg_gen_gvec_4_ool(vec_full_reg_offset(s, rd),
-                       vec_full_reg_offset(s, rn),
-                       vec_full_reg_offset(s, rm),
-                       pred_full_reg_offset(s, pg),
-                       vsz, vsz, data, fn);
+    if (fn == NULL) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        tcg_gen_gvec_4_ool(vec_full_reg_offset(s, rd),
+                           vec_full_reg_offset(s, rn),
+                           vec_full_reg_offset(s, rm),
+                           pred_full_reg_offset(s, pg),
+                           vsz, vsz, data, fn);
+    }
+    return true;
 }
 
 /* Invoke a vector expander on two Zregs.  */
@@ -733,13 +739,7 @@ static bool trans_UQSUB_zzz(DisasContext *s, arg_rrr_esz *a)
 
 static bool do_zpzz_ool(DisasContext *s, arg_rprr_esz *a, gen_helper_gvec_4 *fn)
 {
-    if (fn == NULL) {
-        return false;
-    }
-    if (sve_access_check(s)) {
-        gen_gvec_ool_zzzp(s, fn, a->rd, a->rn, a->rm, a->pg, 0);
-    }
-    return true;
+    return gen_gvec_ool_zzzp(s, fn, a->rd, a->rn, a->rm, a->pg, 0);
 }
 
 /* Select active elememnts from Zn and inactive elements from Zm,
@@ -2950,11 +2950,8 @@ TRANS_FEAT(REVW, aa64_sve, gen_gvec_ool_arg_zpz,
 
 static bool trans_SPLICE(DisasContext *s, arg_rprr_esz *a)
 {
-    if (sve_access_check(s)) {
-        gen_gvec_ool_zzzp(s, gen_helper_sve_splice,
-                          a->rd, a->rn, a->rm, a->pg, a->esz);
-    }
-    return true;
+    return gen_gvec_ool_zzzp(s, gen_helper_sve_splice,
+                             a->rd, a->rn, a->rm, a->pg, a->esz);
 }
 
 static bool trans_SPLICE_sve2(DisasContext *s, arg_rpr_esz *a)
@@ -2962,11 +2959,8 @@ static bool trans_SPLICE_sve2(DisasContext *s, arg_rpr_esz *a)
     if (!dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    if (sve_access_check(s)) {
-        gen_gvec_ool_zzzp(s, gen_helper_sve_splice,
-                          a->rd, a->rn, (a->rn + 1) % 32, a->pg, a->esz);
-    }
-    return true;
+    return gen_gvec_ool_zzzp(s, gen_helper_sve_splice,
+                             a->rd, a->rn, (a->rn + 1) % 32, a->pg, a->esz);
 }
 
 /*
