@@ -1668,15 +1668,8 @@ static bool do_pfirst_pnext(DisasContext *s, arg_rr_esz *a,
     return true;
 }
 
-static bool trans_PFIRST(DisasContext *s, arg_rr_esz *a)
-{
-    return do_pfirst_pnext(s, a, gen_helper_sve_pfirst);
-}
-
-static bool trans_PNEXT(DisasContext *s, arg_rr_esz *a)
-{
-    return do_pfirst_pnext(s, a, gen_helper_sve_pnext);
-}
+TRANS_FEAT(PFIRST, aa64_sve, do_pfirst_pnext, a, gen_helper_sve_pfirst)
+TRANS_FEAT(PNEXT, aa64_sve, do_pfirst_pnext, a, gen_helper_sve_pnext)
 
 /*
  *** SVE Element Count Group
