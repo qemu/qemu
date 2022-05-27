@@ -1126,33 +1126,14 @@ static bool do_index(DisasContext *s, int esz, int rd,
     return true;
 }
 
-static bool trans_INDEX_ii(DisasContext *s, arg_INDEX_ii *a)
-{
-    TCGv_i64 start = tcg_constant_i64(a->imm1);
-    TCGv_i64 incr = tcg_constant_i64(a->imm2);
-    return do_index(s, a->esz, a->rd, start, incr);
-}
-
-static bool trans_INDEX_ir(DisasContext *s, arg_INDEX_ir *a)
-{
-    TCGv_i64 start = tcg_constant_i64(a->imm);
-    TCGv_i64 incr = cpu_reg(s, a->rm);
-    return do_index(s, a->esz, a->rd, start, incr);
-}
-
-static bool trans_INDEX_ri(DisasContext *s, arg_INDEX_ri *a)
-{
-    TCGv_i64 start = cpu_reg(s, a->rn);
-    TCGv_i64 incr = tcg_constant_i64(a->imm);
-    return do_index(s, a->esz, a->rd, start, incr);
-}
-
-static bool trans_INDEX_rr(DisasContext *s, arg_INDEX_rr *a)
-{
-    TCGv_i64 start = cpu_reg(s, a->rn);
-    TCGv_i64 incr = cpu_reg(s, a->rm);
-    return do_index(s, a->esz, a->rd, start, incr);
-}
+TRANS_FEAT(INDEX_ii, aa64_sve, do_index, a->esz, a->rd,
+           tcg_constant_i64(a->imm1), tcg_constant_i64(a->imm2))
+TRANS_FEAT(INDEX_ir, aa64_sve, do_index, a->esz, a->rd,
+           tcg_constant_i64(a->imm), cpu_reg(s, a->rm))
+TRANS_FEAT(INDEX_ri, aa64_sve, do_index, a->esz, a->rd,
+           cpu_reg(s, a->rn), tcg_constant_i64(a->imm))
+TRANS_FEAT(INDEX_rr, aa64_sve, do_index, a->esz, a->rd,
+           cpu_reg(s, a->rn), cpu_reg(s, a->rm))
 
 /*
  *** SVE Stack Allocation Group
