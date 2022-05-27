@@ -2279,20 +2279,9 @@ TRANS_FEAT(UZP2_p, aa64_sve, do_perm_pred3, a, 1, gen_helper_sve_uzp_p)
 TRANS_FEAT(TRN1_p, aa64_sve, do_perm_pred3, a, 0, gen_helper_sve_trn_p)
 TRANS_FEAT(TRN2_p, aa64_sve, do_perm_pred3, a, 1, gen_helper_sve_trn_p)
 
-static bool trans_REV_p(DisasContext *s, arg_rr_esz *a)
-{
-    return do_perm_pred2(s, a, 0, gen_helper_sve_rev_p);
-}
-
-static bool trans_PUNPKLO(DisasContext *s, arg_PUNPKLO *a)
-{
-    return do_perm_pred2(s, a, 0, gen_helper_sve_punpk_p);
-}
-
-static bool trans_PUNPKHI(DisasContext *s, arg_PUNPKHI *a)
-{
-    return do_perm_pred2(s, a, 1, gen_helper_sve_punpk_p);
-}
+TRANS_FEAT(REV_p, aa64_sve, do_perm_pred2, a, 0, gen_helper_sve_rev_p)
+TRANS_FEAT(PUNPKLO, aa64_sve, do_perm_pred2, a, 0, gen_helper_sve_punpk_p)
+TRANS_FEAT(PUNPKHI, aa64_sve, do_perm_pred2, a, 1, gen_helper_sve_punpk_p)
 
 /*
  *** SVE Permute - Interleaving Group
