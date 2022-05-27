@@ -6425,7 +6425,7 @@ static bool trans_MUL_zzz(DisasContext *s, arg_rrr_esz *a)
     if (!dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    return gen_gvec_fn_zzz(s, tcg_gen_gvec_mul, a->esz, a->rd, a->rn, a->rm);
+    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_mul, a);
 }
 
 static gen_helper_gvec_3 * const smulh_zzz_fns[4] = {
@@ -6946,7 +6946,7 @@ static bool do_sve2_fn_zzz(DisasContext *s, arg_rrr_esz *a, GVecGen3Fn *fn)
     if (!dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    return gen_gvec_fn_zzz(s, fn, a->esz, a->rd, a->rn, a->rm);
+    return gen_gvec_fn_arg_zzz(s, fn, a);
 }
 
 static bool trans_SABA(DisasContext *s, arg_rrr_esz *a)
