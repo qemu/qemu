@@ -804,8 +804,6 @@ static bool trans_SEL_zpzz(DisasContext *s, arg_rprr_esz *a)
     return true;
 }
 
-#undef DO_ZPZZ
-
 /*
  *** SVE Integer Arithmetic - Unary Predicated Group
  */
@@ -6471,40 +6469,19 @@ TRANS_FEAT(SQRDMULH_zzz, aa64_sve2, gen_gvec_ool_arg_zzz,
  * SVE2 Integer - Predicated
  */
 
-static bool do_sve2_zpzz_ool(DisasContext *s, arg_rprr_esz *a,
-                             gen_helper_gvec_4 *fn)
-{
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zpzz(s, fn, a, 0);
-}
+static gen_helper_gvec_4 * const sadlp_fns[4] = {
+    NULL,                          gen_helper_sve2_sadalp_zpzz_h,
+    gen_helper_sve2_sadalp_zpzz_s, gen_helper_sve2_sadalp_zpzz_d,
+};
+TRANS_FEAT(SADALP_zpzz, aa64_sve2, gen_gvec_ool_arg_zpzz,
+           sadlp_fns[a->esz], a, 0)
 
-static bool trans_SADALP_zpzz(DisasContext *s, arg_rprr_esz *a)
-{
-    static gen_helper_gvec_4 * const fns[3] = {
-        gen_helper_sve2_sadalp_zpzz_h,
-        gen_helper_sve2_sadalp_zpzz_s,
-        gen_helper_sve2_sadalp_zpzz_d,
-    };
-    if (a->esz == 0) {
-        return false;
-    }
-    return do_sve2_zpzz_ool(s, a, fns[a->esz - 1]);
-}
-
-static bool trans_UADALP_zpzz(DisasContext *s, arg_rprr_esz *a)
-{
-    static gen_helper_gvec_4 * const fns[3] = {
-        gen_helper_sve2_uadalp_zpzz_h,
-        gen_helper_sve2_uadalp_zpzz_s,
-        gen_helper_sve2_uadalp_zpzz_d,
-    };
-    if (a->esz == 0) {
-        return false;
-    }
-    return do_sve2_zpzz_ool(s, a, fns[a->esz - 1]);
-}
+static gen_helper_gvec_4 * const uadlp_fns[4] = {
+    NULL,                          gen_helper_sve2_uadalp_zpzz_h,
+    gen_helper_sve2_uadalp_zpzz_s, gen_helper_sve2_uadalp_zpzz_d,
+};
+TRANS_FEAT(UADALP_zpzz, aa64_sve2, gen_gvec_ool_arg_zpzz,
+           uadlp_fns[a->esz], a, 0)
 
 /*
  * SVE2 integer unary operations (predicated)
@@ -6528,44 +6505,34 @@ static gen_helper_gvec_3 * const sqneg_fns[4] = {
 };
 TRANS_FEAT(SQNEG, aa64_sve2, gen_gvec_ool_arg_zpz, sqneg_fns[a->esz], a, 0)
 
-#define DO_SVE2_ZPZZ(NAME, name) \
-static bool trans_##NAME(DisasContext *s, arg_rprr_esz *a)                \
-{                                                                         \
-    static gen_helper_gvec_4 * const fns[4] = {                           \
-        gen_helper_sve2_##name##_zpzz_b, gen_helper_sve2_##name##_zpzz_h, \
-        gen_helper_sve2_##name##_zpzz_s, gen_helper_sve2_##name##_zpzz_d, \
-    };                                                                    \
-    return do_sve2_zpzz_ool(s, a, fns[a->esz]);                           \
-}
+DO_ZPZZ(SQSHL, aa64_sve2, sve2_sqshl)
+DO_ZPZZ(SQRSHL, aa64_sve2, sve2_sqrshl)
+DO_ZPZZ(SRSHL, aa64_sve2, sve2_srshl)
 
-DO_SVE2_ZPZZ(SQSHL, sqshl)
-DO_SVE2_ZPZZ(SQRSHL, sqrshl)
-DO_SVE2_ZPZZ(SRSHL, srshl)
+DO_ZPZZ(UQSHL, aa64_sve2, sve2_uqshl)
+DO_ZPZZ(UQRSHL, aa64_sve2, sve2_uqrshl)
+DO_ZPZZ(URSHL, aa64_sve2, sve2_urshl)
 
-DO_SVE2_ZPZZ(UQSHL, uqshl)
-DO_SVE2_ZPZZ(UQRSHL, uqrshl)
-DO_SVE2_ZPZZ(URSHL, urshl)
+DO_ZPZZ(SHADD, aa64_sve2, sve2_shadd)
+DO_ZPZZ(SRHADD, aa64_sve2, sve2_srhadd)
+DO_ZPZZ(SHSUB, aa64_sve2, sve2_shsub)
 
-DO_SVE2_ZPZZ(SHADD, shadd)
-DO_SVE2_ZPZZ(SRHADD, srhadd)
-DO_SVE2_ZPZZ(SHSUB, shsub)
+DO_ZPZZ(UHADD, aa64_sve2, sve2_uhadd)
+DO_ZPZZ(URHADD, aa64_sve2, sve2_urhadd)
+DO_ZPZZ(UHSUB, aa64_sve2, sve2_uhsub)
 
-DO_SVE2_ZPZZ(UHADD, uhadd)
-DO_SVE2_ZPZZ(URHADD, urhadd)
-DO_SVE2_ZPZZ(UHSUB, uhsub)
+DO_ZPZZ(ADDP, aa64_sve2, sve2_addp)
+DO_ZPZZ(SMAXP, aa64_sve2, sve2_smaxp)
+DO_ZPZZ(UMAXP, aa64_sve2, sve2_umaxp)
+DO_ZPZZ(SMINP, aa64_sve2, sve2_sminp)
+DO_ZPZZ(UMINP, aa64_sve2, sve2_uminp)
 
-DO_SVE2_ZPZZ(ADDP, addp)
-DO_SVE2_ZPZZ(SMAXP, smaxp)
-DO_SVE2_ZPZZ(UMAXP, umaxp)
-DO_SVE2_ZPZZ(SMINP, sminp)
-DO_SVE2_ZPZZ(UMINP, uminp)
-
-DO_SVE2_ZPZZ(SQADD_zpzz, sqadd)
-DO_SVE2_ZPZZ(UQADD_zpzz, uqadd)
-DO_SVE2_ZPZZ(SQSUB_zpzz, sqsub)
-DO_SVE2_ZPZZ(UQSUB_zpzz, uqsub)
-DO_SVE2_ZPZZ(SUQADD, suqadd)
-DO_SVE2_ZPZZ(USQADD, usqadd)
+DO_ZPZZ(SQADD_zpzz, aa64_sve2, sve2_sqadd)
+DO_ZPZZ(UQADD_zpzz, aa64_sve2, sve2_uqadd)
+DO_ZPZZ(SQSUB_zpzz, aa64_sve2, sve2_sqsub)
+DO_ZPZZ(UQSUB_zpzz, aa64_sve2, sve2_uqsub)
+DO_ZPZZ(SUQADD, aa64_sve2, sve2_suqadd)
+DO_ZPZZ(USQADD, aa64_sve2, sve2_usqadd)
 
 /*
  * SVE2 Widening Integer Arithmetic
@@ -7735,16 +7702,11 @@ static bool trans_##NAME(DisasContext *s, arg_rprr_esz *a)                  \
 DO_SVE2_PPZZ_MATCH(MATCH, match)
 DO_SVE2_PPZZ_MATCH(NMATCH, nmatch)
 
-static bool trans_HISTCNT(DisasContext *s, arg_rprr_esz *a)
-{
-    static gen_helper_gvec_4 * const fns[2] = {
-        gen_helper_sve2_histcnt_s, gen_helper_sve2_histcnt_d
-    };
-    if (a->esz < 2) {
-        return false;
-    }
-    return do_sve2_zpzz_ool(s, a, fns[a->esz - 2]);
-}
+static gen_helper_gvec_4 * const histcnt_fns[4] = {
+    NULL, NULL, gen_helper_sve2_histcnt_s, gen_helper_sve2_histcnt_d
+};
+TRANS_FEAT(HISTCNT, aa64_sve2, gen_gvec_ool_arg_zpzz,
+           histcnt_fns[a->esz], a, 0)
 
 TRANS_FEAT(HISTSEG, aa64_sve2, gen_gvec_ool_arg_zzz,
            a->esz == 0 ? gen_helper_sve2_histseg : NULL, a, 0)
