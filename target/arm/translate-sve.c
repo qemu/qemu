@@ -3998,22 +3998,14 @@ TRANS_FEAT(FCADD, aa64_sve, gen_gvec_fpst_zzzp, fcadd_fns[a->esz],
            a->rd, a->rn, a->rm, a->pg, a->rot,
            a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR)
 
-static bool do_fmla(DisasContext *s, arg_rprrr_esz *a,
-                    gen_helper_gvec_5_ptr *fn)
-{
-    return gen_gvec_fpst_zzzzp(s, fn, a->rd, a->rn, a->rm, a->ra, a->pg, 0,
-                               a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
-}
-
 #define DO_FMLA(NAME, name) \
-static bool trans_##NAME(DisasContext *s, arg_rprrr_esz *a)          \
-{                                                                    \
-    static gen_helper_gvec_5_ptr * const fns[4] = {                  \
-        NULL, gen_helper_sve_##name##_h,                             \
-        gen_helper_sve_##name##_s, gen_helper_sve_##name##_d         \
-    };                                                               \
-    return do_fmla(s, a, fns[a->esz]);                               \
-}
+    static gen_helper_gvec_5_ptr * const name##_fns[4] = {              \
+        NULL, gen_helper_sve_##name##_h,                                \
+        gen_helper_sve_##name##_s, gen_helper_sve_##name##_d            \
+    };                                                                  \
+    TRANS_FEAT(NAME, aa64_sve, gen_gvec_fpst_zzzzp, name##_fns[a->esz], \
+               a->rd, a->rn, a->rm, a->ra, a->pg, 0,                    \
+               a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR)
 
 DO_FMLA(FMLA_zpzzz, fmla_zpzzz)
 DO_FMLA(FMLS_zpzzz, fmls_zpzzz)
@@ -4022,19 +4014,13 @@ DO_FMLA(FNMLS_zpzzz, fnmls_zpzzz)
 
 #undef DO_FMLA
 
-static bool trans_FCMLA_zpzzz(DisasContext *s, arg_FCMLA_zpzzz *a)
-{
-    static gen_helper_gvec_5_ptr * const fns[4] = {
-        NULL,
-        gen_helper_sve_fcmla_zpzzz_h,
-        gen_helper_sve_fcmla_zpzzz_s,
-        gen_helper_sve_fcmla_zpzzz_d,
-    };
-
-    return gen_gvec_fpst_zzzzp(s, fns[a->esz], a->rd, a->rn, a->rm,
-                               a->ra, a->pg, a->rot,
-                               a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
-}
+static gen_helper_gvec_5_ptr * const fcmla_fns[4] = {
+    NULL,                         gen_helper_sve_fcmla_zpzzz_h,
+    gen_helper_sve_fcmla_zpzzz_s, gen_helper_sve_fcmla_zpzzz_d,
+};
+TRANS_FEAT(FCMLA_zpzzz, aa64_sve, gen_gvec_fpst_zzzzp, fcmla_fns[a->esz],
+           a->rd, a->rn, a->rm, a->ra, a->pg, a->rot,
+           a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR)
 
 static bool trans_FCMLA_zzxz(DisasContext *s, arg_FCMLA_zzxz *a)
 {
