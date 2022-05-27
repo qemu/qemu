@@ -2622,15 +2622,8 @@ static bool do_last_general(DisasContext *s, arg_rpr_esz *a, bool before)
     return true;
 }
 
-static bool trans_LASTA_r(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_last_general(s, a, false);
-}
-
-static bool trans_LASTB_r(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_last_general(s, a, true);
-}
+TRANS_FEAT(LASTA_r, aa64_sve, do_last_general, a, false)
+TRANS_FEAT(LASTB_r, aa64_sve, do_last_general, a, true)
 
 static bool trans_CPY_m_r(DisasContext *s, arg_rpr_esz *a)
 {
