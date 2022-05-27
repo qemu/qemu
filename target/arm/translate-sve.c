@@ -153,14 +153,20 @@ static bool gen_gvec_ool_zz(DisasContext *s, gen_helper_gvec_2 *fn,
 }
 
 /* Invoke an out-of-line helper on 3 Zregs. */
-static void gen_gvec_ool_zzz(DisasContext *s, gen_helper_gvec_3 *fn,
+static bool gen_gvec_ool_zzz(DisasContext *s, gen_helper_gvec_3 *fn,
                              int rd, int rn, int rm, int data)
 {
-    unsigned vsz = vec_full_reg_size(s);
-    tcg_gen_gvec_3_ool(vec_full_reg_offset(s, rd),
-                       vec_full_reg_offset(s, rn),
-                       vec_full_reg_offset(s, rm),
-                       vsz, vsz, data, fn);
+    if (fn == NULL) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        tcg_gen_gvec_3_ool(vec_full_reg_offset(s, rd),
+                           vec_full_reg_offset(s, rn),
+                           vec_full_reg_offset(s, rm),
+                           vsz, vsz, data, fn);
+    }
+    return true;
 }
 
 /* Invoke an out-of-line helper on 4 Zregs. */
@@ -1173,13 +1179,7 @@ static bool trans_LSL_zzi(DisasContext *s, arg_rri_esz *a)
 
 static bool do_zzw_ool(DisasContext *s, arg_rrr_esz *a, gen_helper_gvec_3 *fn)
 {
-    if (fn == NULL) {
-        return false;
-    }
-    if (sve_access_check(s)) {
-        gen_gvec_ool_zzz(s, fn, a->rd, a->rn, a->rm, 0);
-    }
-    return true;
+    return gen_gvec_ool_zzz(s, fn, a->rd, a->rn, a->rm, 0);
 }
 
 #define DO_ZZW(NAME, name) \
@@ -1345,10 +1345,7 @@ static bool trans_RDVL(DisasContext *s, arg_RDVL *a)
 
 static bool do_adr(DisasContext *s, arg_rrri *a, gen_helper_gvec_3 *fn)
 {
-    if (sve_access_check(s)) {
-        gen_gvec_ool_zzz(s, fn, a->rd, a->rn, a->rm, a->imm);
-    }
-    return true;
+    return gen_gvec_ool_zzz(s, fn, a->rd, a->rn, a->rm, a->imm);
 }
 
 static bool trans_ADR_p32(DisasContext *s, arg_rrri *a)
@@ -1390,13 +1387,7 @@ static bool trans_FTSSEL(DisasContext *s, arg_rrr_esz *a)
         gen_helper_sve_ftssel_s,
         gen_helper_sve_ftssel_d,
     };
-    if (a->esz == 0) {
-        return false;
-    }
-    if (sve_access_check(s)) {
-        gen_gvec_ool_zzz(s, fns[a->esz], a->rd, a->rn, a->rm, 0);
-    }
-    return true;
+    return gen_gvec_ool_zzz(s, fns[a->esz], a->rd, a->rn, a->rm, 0);
 }
 
 /*
@@ -2426,11 +2417,7 @@ static bool trans_TBL(DisasContext *s, arg_rrr_esz *a)
         gen_helper_sve_tbl_b, gen_helper_sve_tbl_h,
         gen_helper_sve_tbl_s, gen_helper_sve_tbl_d
     };
-
-    if (sve_access_check(s)) {
-        gen_gvec_ool_zzz(s, fns[a->esz], a->rd, a->rn, a->rm, 0);
-    }
-    return true;
+    return gen_gvec_ool_zzz(s, fns[a->esz], a->rd, a->rn, a->rm, 0);
 }
 
 static bool trans_TBL_sve2(DisasContext *s, arg_rrr_esz *a)
@@ -2460,10 +2447,7 @@ static bool trans_TBX(DisasContext *s, arg_rrr_esz *a)
     if (!dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    if (sve_access_check(s)) {
-        gen_gvec_ool_zzz(s, fns[a->esz], a->rd, a->rn, a->rm, 0);
-    }
-    return true;
+    return gen_gvec_ool_zzz(s, fns[a->esz], a->rd, a->rn, a->rm, 0);
 }
 
 static bool trans_UNPK(DisasContext *s, arg_UNPK *a)
@@ -2618,10 +2602,7 @@ static bool do_zip(DisasContext *s, arg_rrr_esz *a, bool high)
 static bool do_zzz_data_ool(DisasContext *s, arg_rrr_esz *a, int data,
                             gen_helper_gvec_3 *fn)
 {
-    if (sve_access_check(s)) {
-        gen_gvec_ool_zzz(s, fn, a->rd, a->rn, a->rm, data);
-    }
-    return true;
+    return gen_gvec_ool_zzz(s, fn, a->rd, a->rn, a->rm, data);
 }
 
 static bool trans_ZIP1_z(DisasContext *s, arg_rrr_esz *a)
@@ -6693,13 +6674,10 @@ static bool trans_MUL_zzz(DisasContext *s, arg_rrr_esz *a)
 static bool do_sve2_zzz_ool(DisasContext *s, arg_rrr_esz *a,
                             gen_helper_gvec_3 *fn)
 {
-    if (fn == NULL || !dc_isar_feature(aa64_sve2, s)) {
+    if (!dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    if (sve_access_check(s)) {
-        gen_gvec_ool_zzz(s, fn, a->rd, a->rn, a->rm, 0);
-    }
-    return true;
+    return gen_gvec_ool_zzz(s, fn, a->rd, a->rn, a->rm, 0);
 }
 
 static bool trans_SMULH_zzz(DisasContext *s, arg_rrr_esz *a)
@@ -8377,11 +8355,8 @@ static bool do_aese(DisasContext *s, arg_rrr_esz *a, bool decrypt)
     if (!dc_isar_feature(aa64_sve2_aes, s)) {
         return false;
     }
-    if (sve_access_check(s)) {
-        gen_gvec_ool_zzz(s, gen_helper_crypto_aese,
-                         a->rd, a->rn, a->rm, decrypt);
-    }
-    return true;
+    return gen_gvec_ool_zzz(s, gen_helper_crypto_aese,
+                            a->rd, a->rn, a->rm, decrypt);
 }
 
 static bool trans_AESE(DisasContext *s, arg_rrr_esz *a)
@@ -8399,10 +8374,7 @@ static bool do_sm4(DisasContext *s, arg_rrr_esz *a, gen_helper_gvec_3 *fn)
     if (!dc_isar_feature(aa64_sve2_sm4, s)) {
         return false;
     }
-    if (sve_access_check(s)) {
-        gen_gvec_ool_zzz(s, fn, a->rd, a->rn, a->rm, 0);
-    }
-    return true;
+    return gen_gvec_ool_zzz(s, fn, a->rd, a->rn, a->rm, 0);
 }
 
 static bool trans_SM4E(DisasContext *s, arg_rrr_esz *a)
