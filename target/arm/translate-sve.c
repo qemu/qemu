@@ -2575,15 +2575,8 @@ static bool do_clast_general(DisasContext *s, arg_rpr_esz *a, bool before)
     return true;
 }
 
-static bool trans_CLASTA_r(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_clast_general(s, a, false);
-}
-
-static bool trans_CLASTB_r(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_clast_general(s, a, true);
-}
+TRANS_FEAT(CLASTA_r, aa64_sve, do_clast_general, a, false)
+TRANS_FEAT(CLASTB_r, aa64_sve, do_clast_general, a, true)
 
 /* Compute LAST for a scalar.  */
 static TCGv_i64 do_last_scalar(DisasContext *s, int esz,
