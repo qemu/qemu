@@ -193,6 +193,12 @@ static bool gen_gvec_ool_zzzz(DisasContext *s, gen_helper_gvec_4 *fn,
     return true;
 }
 
+static bool gen_gvec_ool_arg_zzzz(DisasContext *s, gen_helper_gvec_4 *fn,
+                                  arg_rrrr_esz *a, int data)
+{
+    return gen_gvec_ool_zzzz(s, fn, a->rd, a->rn, a->rm, a->ra, data);
+}
+
 /* Invoke an out-of-line helper on 2 Zregs and a predicate. */
 static void gen_gvec_ool_zzp(DisasContext *s, gen_helper_gvec_3 *fn,
                              int rd, int rn, int pg, int data)
@@ -7109,7 +7115,7 @@ static bool do_sve2_zzzz_ool(DisasContext *s, arg_rrrr_esz *a,
     if (!dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    return gen_gvec_ool_zzzz(s, fn, a->rd, a->rn, a->rm, a->ra, data);
+    return gen_gvec_ool_arg_zzzz(s, fn, a, data);
 }
 
 static bool do_abal(DisasContext *s, arg_rrrr_esz *a, bool uns, bool sel)
@@ -8407,7 +8413,7 @@ static bool do_i8mm_zzzz_ool(DisasContext *s, arg_rrrr_esz *a,
     if (!dc_isar_feature(aa64_sve_i8mm, s)) {
         return false;
     }
-    return gen_gvec_ool_zzzz(s, fn, a->rd, a->rn, a->rm, a->ra, data);
+    return gen_gvec_ool_arg_zzzz(s, fn, a, data);
 }
 
 static bool trans_SMMLA(DisasContext *s, arg_rrrr_esz *a)
@@ -8430,8 +8436,7 @@ static bool trans_BFDOT_zzzz(DisasContext *s, arg_rrrr_esz *a)
     if (!dc_isar_feature(aa64_sve_bf16, s)) {
         return false;
     }
-    return gen_gvec_ool_zzzz(s, gen_helper_gvec_bfdot,
-                             a->rd, a->rn, a->rm, a->ra, 0);
+    return gen_gvec_ool_arg_zzzz(s, gen_helper_gvec_bfdot, a, 0);
 }
 
 static bool trans_BFDOT_zzxz(DisasContext *s, arg_rrxr_esz *a)
@@ -8448,8 +8453,7 @@ static bool trans_BFMMLA(DisasContext *s, arg_rrrr_esz *a)
     if (!dc_isar_feature(aa64_sve_bf16, s)) {
         return false;
     }
-    return gen_gvec_ool_zzzz(s, gen_helper_gvec_bfmmla,
-                             a->rd, a->rn, a->rm, a->ra, 0);
+    return gen_gvec_ool_arg_zzzz(s, gen_helper_gvec_bfmmla, a, 0);
 }
 
 static bool do_BFMLAL_zzzw(DisasContext *s, arg_rrrr_esz *a, bool sel)
