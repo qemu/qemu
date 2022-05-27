@@ -3521,15 +3521,8 @@ static bool do_FMLA_zzxz(DisasContext *s, arg_rrxr_esz *a, bool sub)
                               a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
 }
 
-static bool trans_FMLA_zzxz(DisasContext *s, arg_FMLA_zzxz *a)
-{
-    return do_FMLA_zzxz(s, a, false);
-}
-
-static bool trans_FMLS_zzxz(DisasContext *s, arg_FMLA_zzxz *a)
-{
-    return do_FMLA_zzxz(s, a, true);
-}
+TRANS_FEAT(FMLA_zzxz, aa64_sve, do_FMLA_zzxz, a, false)
+TRANS_FEAT(FMLS_zzxz, aa64_sve, do_FMLA_zzxz, a, true)
 
 /*
  *** SVE Floating Point Multiply Indexed Group
