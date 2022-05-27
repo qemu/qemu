@@ -66,6 +66,13 @@ by default due to need to conserve limited CI resources. It is
 available to be started manually by the contributor in the CI
 pipelines UI.
 
+QEMU_JOB_ONLY_FORKS
+~~~~~~~~~~~~~~~~~~~
+
+The job results are only of interest to contributors prior to
+submitting code. They are not required as part of the gating
+CI pipeline.
+
 Contributor controlled runtime variables
 ----------------------------------------
 
