@@ -28,7 +28,35 @@ For further information about how to set these variables, please refer to::
 
   https://docs.gitlab.com/ee/user/project/push_options.html#push-options-for-gitlab-cicd
 
-Here is a list of the most used variables:
+Variable naming and grouping
+----------------------------
+
+The variables used by QEMU's CI configuration are grouped together
+in a handful of namespaces
+
+ * QEMU_JOB_nnnn - variables to be defined in individual jobs
+   or templates, to influence the shared rules defined in the
+   .base_job_template.
+
+ * QEMU_CI_nnn - variables to be set by contributors in their
+   repository CI settings, or as git push variables, to influence
+   which jobs get run in a pipeline
+
+ * nnn - other misc variables not falling into the above
+   categories, or using different names for historical reasons
+   and not yet converted.
+
+Maintainer controlled job variables
+-----------------------------------
+
+The following variables may be set when defining a job in the
+CI configuration file.
+
+Contributor controlled runtime variables
+----------------------------------------
+
+The following variables may be set by contributors to control
+job execution
 
 QEMU_CI_AVOCADO_TESTING
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -37,6 +65,12 @@ the pipelines (because multiple artifacts have to be downloaded, and if
 these artifacts are not already cached, downloading them make the jobs
 reach the timeout limit). Set this variable to have the tests using the
 Avocado framework run automatically.
+
+Other misc variables
+--------------------
+
+These variables are primarily to control execution of jobs on
+private runners
 
 AARCH64_RUNNER_AVAILABLE
 ~~~~~~~~~~~~~~~~~~~~~~~~

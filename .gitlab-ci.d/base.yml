@@ -1,0 +1,28 @@
+
+# The order of rules defined here is critically important.
+# They are evaluated in order and first match wins.
+#
+# Thus we group them into a number of stages, ordered from
+# most restrictive to least restrictive
+#
+.base_job_template:
+  rules:
+    #############################################################
+    # Stage 1: exclude scenarios where we definitely don't
+    # want jobs to run
+    #############################################################
+
+
+    #############################################################
+    # Stage 2: fine tune execution of jobs in specific scenarios
+    # where the catch all logic is inapprorpaite
+    #############################################################
+
+
+    #############################################################
+    # Stage 3: catch all logic applying to any job not matching
+    # an earlier criteria
+    #############################################################
+
+    # Jobs can run if any jobs they depend on were successfull
+    - when: on_success
