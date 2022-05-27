@@ -6552,10 +6552,10 @@ static const GVecGen2 sqxtunt_ops[3] = {
 };
 TRANS_FEAT(SQXTUNT, aa64_sve2, do_narrow_extract, a, sqxtunt_ops)
 
-static bool do_sve2_shr_narrow(DisasContext *s, arg_rri_esz *a,
-                               const GVecGen2i ops[3])
+static bool do_shr_narrow(DisasContext *s, arg_rri_esz *a,
+                          const GVecGen2i ops[3])
 {
-    if (a->esz < 0 || a->esz > MO_32 || !dc_isar_feature(aa64_sve2, s)) {
+    if (a->esz < 0 || a->esz > MO_32) {
         return false;
     }
     assert(a->imm > 0 && a->imm <= (8 << a->esz));
@@ -6604,28 +6604,25 @@ static void gen_shrnb_vec(unsigned vece, TCGv_vec d, TCGv_vec n, int64_t shr)
     tcg_temp_free_vec(t);
 }
 
-static bool trans_SHRNB(DisasContext *s, arg_rri_esz *a)
-{
-    static const TCGOpcode vec_list[] = { INDEX_op_shri_vec, 0 };
-    static const GVecGen2i ops[3] = {
-        { .fni8 = gen_shrnb16_i64,
-          .fniv = gen_shrnb_vec,
-          .opt_opc = vec_list,
-          .fno = gen_helper_sve2_shrnb_h,
-          .vece = MO_16 },
-        { .fni8 = gen_shrnb32_i64,
-          .fniv = gen_shrnb_vec,
-          .opt_opc = vec_list,
-          .fno = gen_helper_sve2_shrnb_s,
-          .vece = MO_32 },
-        { .fni8 = gen_shrnb64_i64,
-          .fniv = gen_shrnb_vec,
-          .opt_opc = vec_list,
-          .fno = gen_helper_sve2_shrnb_d,
-          .vece = MO_64 },
-    };
-    return do_sve2_shr_narrow(s, a, ops);
-}
+static const TCGOpcode shrnb_vec_list[] = { INDEX_op_shri_vec, 0 };
+static const GVecGen2i shrnb_ops[3] = {
+    { .fni8 = gen_shrnb16_i64,
+      .fniv = gen_shrnb_vec,
+      .opt_opc = shrnb_vec_list,
+      .fno = gen_helper_sve2_shrnb_h,
+      .vece = MO_16 },
+    { .fni8 = gen_shrnb32_i64,
+      .fniv = gen_shrnb_vec,
+      .opt_opc = shrnb_vec_list,
+      .fno = gen_helper_sve2_shrnb_s,
+      .vece = MO_32 },
+    { .fni8 = gen_shrnb64_i64,
+      .fniv = gen_shrnb_vec,
+      .opt_opc = shrnb_vec_list,
+      .fno = gen_helper_sve2_shrnb_d,
+      .vece = MO_64 },
+};
+TRANS_FEAT(SHRNB, aa64_sve2, do_shr_narrow, a, shrnb_ops)
 
 static void gen_shrnt_i64(unsigned vece, TCGv_i64 d, TCGv_i64 n, int shr)
 {
@@ -6666,51 +6663,42 @@ static void gen_shrnt_vec(unsigned vece, TCGv_vec d, TCGv_vec n, int64_t shr)
     tcg_temp_free_vec(t);
 }
 
-static bool trans_SHRNT(DisasContext *s, arg_rri_esz *a)
-{
-    static const TCGOpcode vec_list[] = { INDEX_op_shli_vec, 0 };
-    static const GVecGen2i ops[3] = {
-        { .fni8 = gen_shrnt16_i64,
-          .fniv = gen_shrnt_vec,
-          .opt_opc = vec_list,
-          .load_dest = true,
-          .fno = gen_helper_sve2_shrnt_h,
-          .vece = MO_16 },
-        { .fni8 = gen_shrnt32_i64,
-          .fniv = gen_shrnt_vec,
-          .opt_opc = vec_list,
-          .load_dest = true,
-          .fno = gen_helper_sve2_shrnt_s,
-          .vece = MO_32 },
-        { .fni8 = gen_shrnt64_i64,
-          .fniv = gen_shrnt_vec,
-          .opt_opc = vec_list,
-          .load_dest = true,
-          .fno = gen_helper_sve2_shrnt_d,
-          .vece = MO_64 },
-    };
-    return do_sve2_shr_narrow(s, a, ops);
-}
+static const TCGOpcode shrnt_vec_list[] = { INDEX_op_shli_vec, 0 };
+static const GVecGen2i shrnt_ops[3] = {
+    { .fni8 = gen_shrnt16_i64,
+      .fniv = gen_shrnt_vec,
+      .opt_opc = shrnt_vec_list,
+      .load_dest = true,
+      .fno = gen_helper_sve2_shrnt_h,
+      .vece = MO_16 },
+    { .fni8 = gen_shrnt32_i64,
+      .fniv = gen_shrnt_vec,
+      .opt_opc = shrnt_vec_list,
+      .load_dest = true,
+      .fno = gen_helper_sve2_shrnt_s,
+      .vece = MO_32 },
+    { .fni8 = gen_shrnt64_i64,
+      .fniv = gen_shrnt_vec,
+      .opt_opc = shrnt_vec_list,
+      .load_dest = true,
+      .fno = gen_helper_sve2_shrnt_d,
+      .vece = MO_64 },
+};
+TRANS_FEAT(SHRNT, aa64_sve2, do_shr_narrow, a, shrnt_ops)
 
-static bool trans_RSHRNB(DisasContext *s, arg_rri_esz *a)
-{
-    static const GVecGen2i ops[3] = {
-        { .fno = gen_helper_sve2_rshrnb_h },
-        { .fno = gen_helper_sve2_rshrnb_s },
-        { .fno = gen_helper_sve2_rshrnb_d },
-    };
-    return do_sve2_shr_narrow(s, a, ops);
-}
+static const GVecGen2i rshrnb_ops[3] = {
+    { .fno = gen_helper_sve2_rshrnb_h },
+    { .fno = gen_helper_sve2_rshrnb_s },
+    { .fno = gen_helper_sve2_rshrnb_d },
+};
+TRANS_FEAT(RSHRNB, aa64_sve2, do_shr_narrow, a, rshrnb_ops)
 
-static bool trans_RSHRNT(DisasContext *s, arg_rri_esz *a)
-{
-    static const GVecGen2i ops[3] = {
-        { .fno = gen_helper_sve2_rshrnt_h },
-        { .fno = gen_helper_sve2_rshrnt_s },
-        { .fno = gen_helper_sve2_rshrnt_d },
-    };
-    return do_sve2_shr_narrow(s, a, ops);
-}
+static const GVecGen2i rshrnt_ops[3] = {
+    { .fno = gen_helper_sve2_rshrnt_h },
+    { .fno = gen_helper_sve2_rshrnt_s },
+    { .fno = gen_helper_sve2_rshrnt_d },
+};
+TRANS_FEAT(RSHRNT, aa64_sve2, do_shr_narrow, a, rshrnt_ops)
 
 static void gen_sqshrunb_vec(unsigned vece, TCGv_vec d,
                              TCGv_vec n, int64_t shr)
@@ -6726,27 +6714,24 @@ static void gen_sqshrunb_vec(unsigned vece, TCGv_vec d,
     tcg_temp_free_vec(t);
 }
 
-static bool trans_SQSHRUNB(DisasContext *s, arg_rri_esz *a)
-{
-    static const TCGOpcode vec_list[] = {
-        INDEX_op_sari_vec, INDEX_op_smax_vec, INDEX_op_umin_vec, 0
-    };
-    static const GVecGen2i ops[3] = {
-        { .fniv = gen_sqshrunb_vec,
-          .opt_opc = vec_list,
-          .fno = gen_helper_sve2_sqshrunb_h,
-          .vece = MO_16 },
-        { .fniv = gen_sqshrunb_vec,
-          .opt_opc = vec_list,
-          .fno = gen_helper_sve2_sqshrunb_s,
-          .vece = MO_32 },
-        { .fniv = gen_sqshrunb_vec,
-          .opt_opc = vec_list,
-          .fno = gen_helper_sve2_sqshrunb_d,
-          .vece = MO_64 },
-    };
-    return do_sve2_shr_narrow(s, a, ops);
-}
+static const TCGOpcode sqshrunb_vec_list[] = {
+    INDEX_op_sari_vec, INDEX_op_smax_vec, INDEX_op_umin_vec, 0
+};
+static const GVecGen2i sqshrunb_ops[3] = {
+    { .fniv = gen_sqshrunb_vec,
+      .opt_opc = sqshrunb_vec_list,
+      .fno = gen_helper_sve2_sqshrunb_h,
+      .vece = MO_16 },
+    { .fniv = gen_sqshrunb_vec,
+      .opt_opc = sqshrunb_vec_list,
+      .fno = gen_helper_sve2_sqshrunb_s,
+      .vece = MO_32 },
+    { .fniv = gen_sqshrunb_vec,
+      .opt_opc = sqshrunb_vec_list,
+      .fno = gen_helper_sve2_sqshrunb_d,
+      .vece = MO_64 },
+};
+TRANS_FEAT(SQSHRUNB, aa64_sve2, do_shr_narrow, a, sqshrunb_ops)
 
 static void gen_sqshrunt_vec(unsigned vece, TCGv_vec d,
                              TCGv_vec n, int64_t shr)
@@ -6764,51 +6749,42 @@ static void gen_sqshrunt_vec(unsigned vece, TCGv_vec d,
     tcg_temp_free_vec(t);
 }
 
-static bool trans_SQSHRUNT(DisasContext *s, arg_rri_esz *a)
-{
-    static const TCGOpcode vec_list[] = {
-        INDEX_op_shli_vec, INDEX_op_sari_vec,
-        INDEX_op_smax_vec, INDEX_op_umin_vec, 0
-    };
-    static const GVecGen2i ops[3] = {
-        { .fniv = gen_sqshrunt_vec,
-          .opt_opc = vec_list,
-          .load_dest = true,
-          .fno = gen_helper_sve2_sqshrunt_h,
-          .vece = MO_16 },
-        { .fniv = gen_sqshrunt_vec,
-          .opt_opc = vec_list,
-          .load_dest = true,
-          .fno = gen_helper_sve2_sqshrunt_s,
-          .vece = MO_32 },
-        { .fniv = gen_sqshrunt_vec,
-          .opt_opc = vec_list,
-          .load_dest = true,
-          .fno = gen_helper_sve2_sqshrunt_d,
-          .vece = MO_64 },
-    };
-    return do_sve2_shr_narrow(s, a, ops);
-}
+static const TCGOpcode sqshrunt_vec_list[] = {
+    INDEX_op_shli_vec, INDEX_op_sari_vec,
+    INDEX_op_smax_vec, INDEX_op_umin_vec, 0
+};
+static const GVecGen2i sqshrunt_ops[3] = {
+    { .fniv = gen_sqshrunt_vec,
+      .opt_opc = sqshrunt_vec_list,
+      .load_dest = true,
+      .fno = gen_helper_sve2_sqshrunt_h,
+      .vece = MO_16 },
+    { .fniv = gen_sqshrunt_vec,
+      .opt_opc = sqshrunt_vec_list,
+      .load_dest = true,
+      .fno = gen_helper_sve2_sqshrunt_s,
+      .vece = MO_32 },
+    { .fniv = gen_sqshrunt_vec,
+      .opt_opc = sqshrunt_vec_list,
+      .load_dest = true,
+      .fno = gen_helper_sve2_sqshrunt_d,
+      .vece = MO_64 },
+};
+TRANS_FEAT(SQSHRUNT, aa64_sve2, do_shr_narrow, a, sqshrunt_ops)
 
-static bool trans_SQRSHRUNB(DisasContext *s, arg_rri_esz *a)
-{
-    static const GVecGen2i ops[3] = {
-        { .fno = gen_helper_sve2_sqrshrunb_h },
-        { .fno = gen_helper_sve2_sqrshrunb_s },
-        { .fno = gen_helper_sve2_sqrshrunb_d },
-    };
-    return do_sve2_shr_narrow(s, a, ops);
-}
+static const GVecGen2i sqrshrunb_ops[3] = {
+    { .fno = gen_helper_sve2_sqrshrunb_h },
+    { .fno = gen_helper_sve2_sqrshrunb_s },
+    { .fno = gen_helper_sve2_sqrshrunb_d },
+};
+TRANS_FEAT(SQRSHRUNB, aa64_sve2, do_shr_narrow, a, sqrshrunb_ops)
 
-static bool trans_SQRSHRUNT(DisasContext *s, arg_rri_esz *a)
-{
-    static const GVecGen2i ops[3] = {
-        { .fno = gen_helper_sve2_sqrshrunt_h },
-        { .fno = gen_helper_sve2_sqrshrunt_s },
-        { .fno = gen_helper_sve2_sqrshrunt_d },
-    };
-    return do_sve2_shr_narrow(s, a, ops);
-}
+static const GVecGen2i sqrshrunt_ops[3] = {
+    { .fno = gen_helper_sve2_sqrshrunt_h },
+    { .fno = gen_helper_sve2_sqrshrunt_s },
+    { .fno = gen_helper_sve2_sqrshrunt_d },
+};
+TRANS_FEAT(SQRSHRUNT, aa64_sve2, do_shr_narrow, a, sqrshrunt_ops)
 
 static void gen_sqshrnb_vec(unsigned vece, TCGv_vec d,
                             TCGv_vec n, int64_t shr)
@@ -6828,27 +6804,24 @@ static void gen_sqshrnb_vec(unsigned vece, TCGv_vec d,
     tcg_temp_free_vec(t);
 }
 
-static bool trans_SQSHRNB(DisasContext *s, arg_rri_esz *a)
-{
-    static const TCGOpcode vec_list[] = {
-        INDEX_op_sari_vec, INDEX_op_smax_vec, INDEX_op_smin_vec, 0
-    };
-    static const GVecGen2i ops[3] = {
-        { .fniv = gen_sqshrnb_vec,
-          .opt_opc = vec_list,
-          .fno = gen_helper_sve2_sqshrnb_h,
-          .vece = MO_16 },
-        { .fniv = gen_sqshrnb_vec,
-          .opt_opc = vec_list,
-          .fno = gen_helper_sve2_sqshrnb_s,
-          .vece = MO_32 },
-        { .fniv = gen_sqshrnb_vec,
-          .opt_opc = vec_list,
-          .fno = gen_helper_sve2_sqshrnb_d,
-          .vece = MO_64 },
-    };
-    return do_sve2_shr_narrow(s, a, ops);
-}
+static const TCGOpcode sqshrnb_vec_list[] = {
+    INDEX_op_sari_vec, INDEX_op_smax_vec, INDEX_op_smin_vec, 0
+};
+static const GVecGen2i sqshrnb_ops[3] = {
+    { .fniv = gen_sqshrnb_vec,
+      .opt_opc = sqshrnb_vec_list,
+      .fno = gen_helper_sve2_sqshrnb_h,
+      .vece = MO_16 },
+    { .fniv = gen_sqshrnb_vec,
+      .opt_opc = sqshrnb_vec_list,
+      .fno = gen_helper_sve2_sqshrnb_s,
+      .vece = MO_32 },
+    { .fniv = gen_sqshrnb_vec,
+      .opt_opc = sqshrnb_vec_list,
+      .fno = gen_helper_sve2_sqshrnb_d,
+      .vece = MO_64 },
+};
+TRANS_FEAT(SQSHRNB, aa64_sve2, do_shr_narrow, a, sqshrnb_ops)
 
 static void gen_sqshrnt_vec(unsigned vece, TCGv_vec d,
                              TCGv_vec n, int64_t shr)
@@ -6869,51 +6842,42 @@ static void gen_sqshrnt_vec(unsigned vece, TCGv_vec d,
     tcg_temp_free_vec(t);
 }
 
-static bool trans_SQSHRNT(DisasContext *s, arg_rri_esz *a)
-{
-    static const TCGOpcode vec_list[] = {
-        INDEX_op_shli_vec, INDEX_op_sari_vec,
-        INDEX_op_smax_vec, INDEX_op_smin_vec, 0
-    };
-    static const GVecGen2i ops[3] = {
-        { .fniv = gen_sqshrnt_vec,
-          .opt_opc = vec_list,
-          .load_dest = true,
-          .fno = gen_helper_sve2_sqshrnt_h,
-          .vece = MO_16 },
-        { .fniv = gen_sqshrnt_vec,
-          .opt_opc = vec_list,
-          .load_dest = true,
-          .fno = gen_helper_sve2_sqshrnt_s,
-          .vece = MO_32 },
-        { .fniv = gen_sqshrnt_vec,
-          .opt_opc = vec_list,
-          .load_dest = true,
-          .fno = gen_helper_sve2_sqshrnt_d,
-          .vece = MO_64 },
-    };
-    return do_sve2_shr_narrow(s, a, ops);
-}
+static const TCGOpcode sqshrnt_vec_list[] = {
+    INDEX_op_shli_vec, INDEX_op_sari_vec,
+    INDEX_op_smax_vec, INDEX_op_smin_vec, 0
+};
+static const GVecGen2i sqshrnt_ops[3] = {
+    { .fniv = gen_sqshrnt_vec,
+      .opt_opc = sqshrnt_vec_list,
+      .load_dest = true,
+      .fno = gen_helper_sve2_sqshrnt_h,
+      .vece = MO_16 },
+    { .fniv = gen_sqshrnt_vec,
+      .opt_opc = sqshrnt_vec_list,
+      .load_dest = true,
+      .fno = gen_helper_sve2_sqshrnt_s,
+      .vece = MO_32 },
+    { .fniv = gen_sqshrnt_vec,
+      .opt_opc = sqshrnt_vec_list,
+      .load_dest = true,
+      .fno = gen_helper_sve2_sqshrnt_d,
+      .vece = MO_64 },
+};
+TRANS_FEAT(SQSHRNT, aa64_sve2, do_shr_narrow, a, sqshrnt_ops)
 
-static bool trans_SQRSHRNB(DisasContext *s, arg_rri_esz *a)
-{
-    static const GVecGen2i ops[3] = {
-        { .fno = gen_helper_sve2_sqrshrnb_h },
-        { .fno = gen_helper_sve2_sqrshrnb_s },
-        { .fno = gen_helper_sve2_sqrshrnb_d },
-    };
-    return do_sve2_shr_narrow(s, a, ops);
-}
+static const GVecGen2i sqrshrnb_ops[3] = {
+    { .fno = gen_helper_sve2_sqrshrnb_h },
+    { .fno = gen_helper_sve2_sqrshrnb_s },
+    { .fno = gen_helper_sve2_sqrshrnb_d },
+};
+TRANS_FEAT(SQRSHRNB, aa64_sve2, do_shr_narrow, a, sqrshrnb_ops)
 
-static bool trans_SQRSHRNT(DisasContext *s, arg_rri_esz *a)
-{
-    static const GVecGen2i ops[3] = {
-        { .fno = gen_helper_sve2_sqrshrnt_h },
-        { .fno = gen_helper_sve2_sqrshrnt_s },
-        { .fno = gen_helper_sve2_sqrshrnt_d },
-    };
-    return do_sve2_shr_narrow(s, a, ops);
-}
+static const GVecGen2i sqrshrnt_ops[3] = {
+    { .fno = gen_helper_sve2_sqrshrnt_h },
+    { .fno = gen_helper_sve2_sqrshrnt_s },
+    { .fno = gen_helper_sve2_sqrshrnt_d },
+};
+TRANS_FEAT(SQRSHRNT, aa64_sve2, do_shr_narrow, a, sqrshrnt_ops)
 
 static void gen_uqshrnb_vec(unsigned vece, TCGv_vec d,
                             TCGv_vec n, int64_t shr)
@@ -6927,27 +6891,24 @@ static void gen_uqshrnb_vec(unsigned vece, TCGv_vec d,
     tcg_temp_free_vec(t);
 }
 
-static bool trans_UQSHRNB(DisasContext *s, arg_rri_esz *a)
-{
-    static const TCGOpcode vec_list[] = {
-        INDEX_op_shri_vec, INDEX_op_umin_vec, 0
-    };
-    static const GVecGen2i ops[3] = {
-        { .fniv = gen_uqshrnb_vec,
-          .opt_opc = vec_list,
-          .fno = gen_helper_sve2_uqshrnb_h,
-          .vece = MO_16 },
-        { .fniv = gen_uqshrnb_vec,
-          .opt_opc = vec_list,
-          .fno = gen_helper_sve2_uqshrnb_s,
-          .vece = MO_32 },
-        { .fniv = gen_uqshrnb_vec,
-          .opt_opc = vec_list,
-          .fno = gen_helper_sve2_uqshrnb_d,
-          .vece = MO_64 },
-    };
-    return do_sve2_shr_narrow(s, a, ops);
-}
+static const TCGOpcode uqshrnb_vec_list[] = {
+    INDEX_op_shri_vec, INDEX_op_umin_vec, 0
+};
+static const GVecGen2i uqshrnb_ops[3] = {
+    { .fniv = gen_uqshrnb_vec,
+      .opt_opc = uqshrnb_vec_list,
+      .fno = gen_helper_sve2_uqshrnb_h,
+      .vece = MO_16 },
+    { .fniv = gen_uqshrnb_vec,
+      .opt_opc = uqshrnb_vec_list,
+      .fno = gen_helper_sve2_uqshrnb_s,
+      .vece = MO_32 },
+    { .fniv = gen_uqshrnb_vec,
+      .opt_opc = uqshrnb_vec_list,
+      .fno = gen_helper_sve2_uqshrnb_d,
+      .vece = MO_64 },
+};
+TRANS_FEAT(UQSHRNB, aa64_sve2, do_shr_narrow, a, uqshrnb_ops)
 
 static void gen_uqshrnt_vec(unsigned vece, TCGv_vec d,
                             TCGv_vec n, int64_t shr)
@@ -6963,50 +6924,41 @@ static void gen_uqshrnt_vec(unsigned vece, TCGv_vec d,
     tcg_temp_free_vec(t);
 }
 
-static bool trans_UQSHRNT(DisasContext *s, arg_rri_esz *a)
-{
-    static const TCGOpcode vec_list[] = {
-        INDEX_op_shli_vec, INDEX_op_shri_vec, INDEX_op_umin_vec, 0
-    };
-    static const GVecGen2i ops[3] = {
-        { .fniv = gen_uqshrnt_vec,
-          .opt_opc = vec_list,
-          .load_dest = true,
-          .fno = gen_helper_sve2_uqshrnt_h,
-          .vece = MO_16 },
-        { .fniv = gen_uqshrnt_vec,
-          .opt_opc = vec_list,
-          .load_dest = true,
-          .fno = gen_helper_sve2_uqshrnt_s,
-          .vece = MO_32 },
-        { .fniv = gen_uqshrnt_vec,
-          .opt_opc = vec_list,
-          .load_dest = true,
-          .fno = gen_helper_sve2_uqshrnt_d,
-          .vece = MO_64 },
-    };
-    return do_sve2_shr_narrow(s, a, ops);
-}
+static const TCGOpcode uqshrnt_vec_list[] = {
+    INDEX_op_shli_vec, INDEX_op_shri_vec, INDEX_op_umin_vec, 0
+};
+static const GVecGen2i uqshrnt_ops[3] = {
+    { .fniv = gen_uqshrnt_vec,
+      .opt_opc = uqshrnt_vec_list,
+      .load_dest = true,
+      .fno = gen_helper_sve2_uqshrnt_h,
+      .vece = MO_16 },
+    { .fniv = gen_uqshrnt_vec,
+      .opt_opc = uqshrnt_vec_list,
+      .load_dest = true,
+      .fno = gen_helper_sve2_uqshrnt_s,
+      .vece = MO_32 },
+    { .fniv = gen_uqshrnt_vec,
+      .opt_opc = uqshrnt_vec_list,
+      .load_dest = true,
+      .fno = gen_helper_sve2_uqshrnt_d,
+      .vece = MO_64 },
+};
+TRANS_FEAT(UQSHRNT, aa64_sve2, do_shr_narrow, a, uqshrnt_ops)
 
-static bool trans_UQRSHRNB(DisasContext *s, arg_rri_esz *a)
-{
-    static const GVecGen2i ops[3] = {
-        { .fno = gen_helper_sve2_uqrshrnb_h },
-        { .fno = gen_helper_sve2_uqrshrnb_s },
-        { .fno = gen_helper_sve2_uqrshrnb_d },
-    };
-    return do_sve2_shr_narrow(s, a, ops);
-}
+static const GVecGen2i uqrshrnb_ops[3] = {
+    { .fno = gen_helper_sve2_uqrshrnb_h },
+    { .fno = gen_helper_sve2_uqrshrnb_s },
+    { .fno = gen_helper_sve2_uqrshrnb_d },
+};
+TRANS_FEAT(UQRSHRNB, aa64_sve2, do_shr_narrow, a, uqrshrnb_ops)
 
-static bool trans_UQRSHRNT(DisasContext *s, arg_rri_esz *a)
-{
-    static const GVecGen2i ops[3] = {
-        { .fno = gen_helper_sve2_uqrshrnt_h },
-        { .fno = gen_helper_sve2_uqrshrnt_s },
-        { .fno = gen_helper_sve2_uqrshrnt_d },
-    };
-    return do_sve2_shr_narrow(s, a, ops);
-}
+static const GVecGen2i uqrshrnt_ops[3] = {
+    { .fno = gen_helper_sve2_uqrshrnt_h },
+    { .fno = gen_helper_sve2_uqrshrnt_s },
+    { .fno = gen_helper_sve2_uqrshrnt_d },
+};
+TRANS_FEAT(UQRSHRNT, aa64_sve2, do_shr_narrow, a, uqrshrnt_ops)
 
 #define DO_SVE2_ZZZ_NARROW(NAME, name)                                    \
     static gen_helper_gvec_3 * const name##_fns[4] = {                    \
