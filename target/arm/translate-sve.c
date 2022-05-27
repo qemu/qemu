@@ -4018,19 +4018,12 @@ TRANS_FEAT(FCMLA_zpzzz, aa64_sve, gen_gvec_fpst_zzzzp, fcmla_fns[a->esz],
            a->rd, a->rn, a->rm, a->ra, a->pg, a->rot,
            a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR)
 
-static bool trans_FCMLA_zzxz(DisasContext *s, arg_FCMLA_zzxz *a)
-{
-    static gen_helper_gvec_4_ptr * const fns[4] = {
-        NULL,
-        gen_helper_gvec_fcmlah_idx,
-        gen_helper_gvec_fcmlas_idx,
-        NULL,
-    };
-
-    return gen_gvec_fpst_zzzz(s, fns[a->esz], a->rd, a->rn, a->rm, a->ra,
-                              a->index * 4 + a->rot,
-                              a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
-}
+static gen_helper_gvec_4_ptr * const fcmla_idx_fns[4] = {
+    NULL, gen_helper_gvec_fcmlah_idx, gen_helper_gvec_fcmlas_idx, NULL
+};
+TRANS_FEAT(FCMLA_zzxz, aa64_sve, gen_gvec_fpst_zzzz, fcmla_idx_fns[a->esz],
+           a->rd, a->rn, a->rm, a->ra, a->index * 4 + a->rot,
+           a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR)
 
 /*
  *** SVE Floating Point Unary Operations Predicated Group
