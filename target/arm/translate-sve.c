@@ -2608,15 +2608,8 @@ static bool do_last_fp(DisasContext *s, arg_rpr_esz *a, bool before)
     return true;
 }
 
-static bool trans_LASTA_v(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_last_fp(s, a, false);
-}
-
-static bool trans_LASTB_v(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_last_fp(s, a, true);
-}
+TRANS_FEAT(LASTA_v, aa64_sve, do_last_fp, a, false)
+TRANS_FEAT(LASTB_v, aa64_sve, do_last_fp, a, true)
 
 /* Compute LAST for a Xreg.  */
 static bool do_last_general(DisasContext *s, arg_rpr_esz *a, bool before)
