@@ -13,6 +13,7 @@ import logging
 import time
 
 from avocado import skipUnless
+from avocado_qemu import BUILD_DIR
 from avocado.utils import cloudinit
 from avocado.utils import network
 from avocado.utils import vmimage
@@ -149,3 +150,42 @@ class ReplayLinuxX8664Virtio(ReplayLinux):
         :avocado: tags=machine:q35
         """
         self.run_rr(shift=3)
+
+@skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
+class ReplayLinuxAarch64(ReplayLinux):
+    """
+    :avocado: tags=accel:tcg
+    :avocado: tags=arch:aarch64
+    :avocado: tags=machine:virt
+    :avocado: tags=cpu:max
+    """
+
+    chksum = '1e18d9c0cf734940c4b5d5ec592facaed2af0ad0329383d5639c997fdf16fe49'
+
+    hdd = 'virtio-blk-device'
+    cd = 'virtio-blk-device'
+    bus = None
+
+    def get_common_args(self):
+        return ('-bios',
+                os.path.join(BUILD_DIR, 'pc-bios', 'edk2-aarch64-code.fd'),
+                "-cpu", "max,lpa2=off",
+                '-device', 'virtio-rng-pci,rng=rng0',
+                '-object', 'rng-builtin,id=rng0')
+
+    def test_virt_gicv2(self):
+        """
+        :avocado: tags=machine:gic-version=2
+        """
+
+        self.run_rr(shift=3,
+                    args=(*self.get_common_args(),
+                          "-machine", "virt,gic-version=2"))
+
+    def test_virt_gicv3(self):
+        """
+        :avocado: tags=machine:gic-version=3
+        """
+
+        self.run_rr(shift=3,
+                    args=(*self.get_common_args(),
