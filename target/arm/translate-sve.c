@@ -7109,45 +7109,19 @@ static bool trans_SQCADD_rot270(DisasContext *s, arg_rrr_esz *a)
     return do_cadd(s, a, true, true);
 }
 
-static bool do_sve2_zzzz_ool(DisasContext *s, arg_rrrr_esz *a,
-                             gen_helper_gvec_4 *fn, int data)
-{
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zzzz(s, fn, a, data);
-}
+static gen_helper_gvec_4 * const sabal_fns[4] = {
+    NULL,                    gen_helper_sve2_sabal_h,
+    gen_helper_sve2_sabal_s, gen_helper_sve2_sabal_d,
+};
+TRANS_FEAT(SABALB, aa64_sve2, gen_gvec_ool_arg_zzzz, sabal_fns[a->esz], a, 0)
+TRANS_FEAT(SABALT, aa64_sve2, gen_gvec_ool_arg_zzzz, sabal_fns[a->esz], a, 1)
 
-static bool do_abal(DisasContext *s, arg_rrrr_esz *a, bool uns, bool sel)
-{
-    static gen_helper_gvec_4 * const fns[2][4] = {
-        { NULL,                    gen_helper_sve2_sabal_h,
-          gen_helper_sve2_sabal_s, gen_helper_sve2_sabal_d },
-        { NULL,                    gen_helper_sve2_uabal_h,
-          gen_helper_sve2_uabal_s, gen_helper_sve2_uabal_d },
-    };
-    return do_sve2_zzzz_ool(s, a, fns[uns][a->esz], sel);
-}
-
-static bool trans_SABALB(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_abal(s, a, false, false);
-}
-
-static bool trans_SABALT(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_abal(s, a, false, true);
-}
-
-static bool trans_UABALB(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_abal(s, a, true, false);
-}
-
-static bool trans_UABALT(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_abal(s, a, true, true);
-}
+static gen_helper_gvec_4 * const uabal_fns[4] = {
+    NULL,                    gen_helper_sve2_uabal_h,
+    gen_helper_sve2_uabal_s, gen_helper_sve2_uabal_d,
+};
+TRANS_FEAT(UABALB, aa64_sve2, gen_gvec_ool_arg_zzzz, uabal_fns[a->esz], a, 0)
+TRANS_FEAT(UABALT, aa64_sve2, gen_gvec_ool_arg_zzzz, uabal_fns[a->esz], a, 1)
 
 static bool do_adcl(DisasContext *s, arg_rrrr_esz *a, bool sel)
 {
@@ -7159,18 +7133,11 @@ static bool do_adcl(DisasContext *s, arg_rrrr_esz *a, bool sel)
      * Note that in this case the ESZ field encodes both size and sign.
      * Split out 'subtract' into bit 1 of the data field for the helper.
      */
-    return do_sve2_zzzz_ool(s, a, fns[a->esz & 1], (a->esz & 2) | sel);
+    return gen_gvec_ool_arg_zzzz(s, fns[a->esz & 1], a, (a->esz & 2) | sel);
 }
 
-static bool trans_ADCLB(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_adcl(s, a, false);
-}
-
-static bool trans_ADCLT(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_adcl(s, a, true);
-}
+TRANS_FEAT(ADCLB, aa64_sve2, do_adcl, a, false)
+TRANS_FEAT(ADCLT, aa64_sve2, do_adcl, a, true)
 
 static bool do_sve2_fn2i(DisasContext *s, arg_rri_esz *a, GVecGen2iFn *fn)
 {
@@ -8048,149 +8015,77 @@ static bool trans_FMMLA(DisasContext *s, arg_rrrr_esz *a)
     return true;
 }
 
-static bool do_sqdmlal_zzzw(DisasContext *s, arg_rrrr_esz *a,
-                            bool sel1, bool sel2)
-{
-    static gen_helper_gvec_4 * const fns[] = {
-        NULL,                           gen_helper_sve2_sqdmlal_zzzw_h,
-        gen_helper_sve2_sqdmlal_zzzw_s, gen_helper_sve2_sqdmlal_zzzw_d,
-    };
-    return do_sve2_zzzz_ool(s, a, fns[a->esz], (sel2 << 1) | sel1);
-}
+static gen_helper_gvec_4 * const sqdmlal_zzzw_fns[] = {
+    NULL,                           gen_helper_sve2_sqdmlal_zzzw_h,
+    gen_helper_sve2_sqdmlal_zzzw_s, gen_helper_sve2_sqdmlal_zzzw_d,
+};
+TRANS_FEAT(SQDMLALB_zzzw, aa64_sve2, gen_gvec_ool_arg_zzzz,
+           sqdmlal_zzzw_fns[a->esz], a, 0)
+TRANS_FEAT(SQDMLALT_zzzw, aa64_sve2, gen_gvec_ool_arg_zzzz,
+           sqdmlal_zzzw_fns[a->esz], a, 3)
+TRANS_FEAT(SQDMLALBT, aa64_sve2, gen_gvec_ool_arg_zzzz,
+           sqdmlal_zzzw_fns[a->esz], a, 2)
 
-static bool do_sqdmlsl_zzzw(DisasContext *s, arg_rrrr_esz *a,
-                            bool sel1, bool sel2)
-{
-    static gen_helper_gvec_4 * const fns[] = {
-        NULL,                           gen_helper_sve2_sqdmlsl_zzzw_h,
-        gen_helper_sve2_sqdmlsl_zzzw_s, gen_helper_sve2_sqdmlsl_zzzw_d,
-    };
-    return do_sve2_zzzz_ool(s, a, fns[a->esz], (sel2 << 1) | sel1);
-}
+static gen_helper_gvec_4 * const sqdmlsl_zzzw_fns[] = {
+    NULL,                           gen_helper_sve2_sqdmlsl_zzzw_h,
+    gen_helper_sve2_sqdmlsl_zzzw_s, gen_helper_sve2_sqdmlsl_zzzw_d,
+};
+TRANS_FEAT(SQDMLSLB_zzzw, aa64_sve2, gen_gvec_ool_arg_zzzz,
+           sqdmlsl_zzzw_fns[a->esz], a, 0)
+TRANS_FEAT(SQDMLSLT_zzzw, aa64_sve2, gen_gvec_ool_arg_zzzz,
+           sqdmlsl_zzzw_fns[a->esz], a, 3)
+TRANS_FEAT(SQDMLSLBT, aa64_sve2, gen_gvec_ool_arg_zzzz,
+           sqdmlsl_zzzw_fns[a->esz], a, 2)
 
-static bool trans_SQDMLALB_zzzw(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_sqdmlal_zzzw(s, a, false, false);
-}
+static gen_helper_gvec_4 * const sqrdmlah_fns[] = {
+    gen_helper_sve2_sqrdmlah_b, gen_helper_sve2_sqrdmlah_h,
+    gen_helper_sve2_sqrdmlah_s, gen_helper_sve2_sqrdmlah_d,
+};
+TRANS_FEAT(SQRDMLAH_zzzz, aa64_sve2, gen_gvec_ool_arg_zzzz,
+           sqrdmlah_fns[a->esz], a, 0)
 
-static bool trans_SQDMLALT_zzzw(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_sqdmlal_zzzw(s, a, true, true);
-}
+static gen_helper_gvec_4 * const sqrdmlsh_fns[] = {
+    gen_helper_sve2_sqrdmlsh_b, gen_helper_sve2_sqrdmlsh_h,
+    gen_helper_sve2_sqrdmlsh_s, gen_helper_sve2_sqrdmlsh_d,
+};
+TRANS_FEAT(SQRDMLSH_zzzz, aa64_sve2, gen_gvec_ool_arg_zzzz,
+           sqrdmlsh_fns[a->esz], a, 0)
 
-static bool trans_SQDMLALBT(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_sqdmlal_zzzw(s, a, false, true);
-}
+static gen_helper_gvec_4 * const smlal_zzzw_fns[] = {
+    NULL,                         gen_helper_sve2_smlal_zzzw_h,
+    gen_helper_sve2_smlal_zzzw_s, gen_helper_sve2_smlal_zzzw_d,
+};
+TRANS_FEAT(SMLALB_zzzw, aa64_sve2, gen_gvec_ool_arg_zzzz,
+           smlal_zzzw_fns[a->esz], a, 0)
+TRANS_FEAT(SMLALT_zzzw, aa64_sve2, gen_gvec_ool_arg_zzzz,
+           smlal_zzzw_fns[a->esz], a, 1)
 
-static bool trans_SQDMLSLB_zzzw(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_sqdmlsl_zzzw(s, a, false, false);
-}
+static gen_helper_gvec_4 * const umlal_zzzw_fns[] = {
+    NULL,                         gen_helper_sve2_umlal_zzzw_h,
+    gen_helper_sve2_umlal_zzzw_s, gen_helper_sve2_umlal_zzzw_d,
+};
+TRANS_FEAT(UMLALB_zzzw, aa64_sve2, gen_gvec_ool_arg_zzzz,
+           umlal_zzzw_fns[a->esz], a, 0)
+TRANS_FEAT(UMLALT_zzzw, aa64_sve2, gen_gvec_ool_arg_zzzz,
+           umlal_zzzw_fns[a->esz], a, 1)
 
-static bool trans_SQDMLSLT_zzzw(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_sqdmlsl_zzzw(s, a, true, true);
-}
+static gen_helper_gvec_4 * const smlsl_zzzw_fns[] = {
+    NULL,                         gen_helper_sve2_smlsl_zzzw_h,
+    gen_helper_sve2_smlsl_zzzw_s, gen_helper_sve2_smlsl_zzzw_d,
+};
+TRANS_FEAT(SMLSLB_zzzw, aa64_sve2, gen_gvec_ool_arg_zzzz,
+           smlsl_zzzw_fns[a->esz], a, 0)
+TRANS_FEAT(SMLSLT_zzzw, aa64_sve2, gen_gvec_ool_arg_zzzz,
+           smlsl_zzzw_fns[a->esz], a, 1)
 
-static bool trans_SQDMLSLBT(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_sqdmlsl_zzzw(s, a, false, true);
-}
-
-static bool trans_SQRDMLAH_zzzz(DisasContext *s, arg_rrrr_esz *a)
-{
-    static gen_helper_gvec_4 * const fns[] = {
-        gen_helper_sve2_sqrdmlah_b, gen_helper_sve2_sqrdmlah_h,
-        gen_helper_sve2_sqrdmlah_s, gen_helper_sve2_sqrdmlah_d,
-    };
-    return do_sve2_zzzz_ool(s, a, fns[a->esz], 0);
-}
-
-static bool trans_SQRDMLSH_zzzz(DisasContext *s, arg_rrrr_esz *a)
-{
-    static gen_helper_gvec_4 * const fns[] = {
-        gen_helper_sve2_sqrdmlsh_b, gen_helper_sve2_sqrdmlsh_h,
-        gen_helper_sve2_sqrdmlsh_s, gen_helper_sve2_sqrdmlsh_d,
-    };
-    return do_sve2_zzzz_ool(s, a, fns[a->esz], 0);
-}
-
-static bool do_smlal_zzzw(DisasContext *s, arg_rrrr_esz *a, bool sel)
-{
-    static gen_helper_gvec_4 * const fns[] = {
-        NULL,                         gen_helper_sve2_smlal_zzzw_h,
-        gen_helper_sve2_smlal_zzzw_s, gen_helper_sve2_smlal_zzzw_d,
-    };
-    return do_sve2_zzzz_ool(s, a, fns[a->esz], sel);
-}
-
-static bool trans_SMLALB_zzzw(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_smlal_zzzw(s, a, false);
-}
-
-static bool trans_SMLALT_zzzw(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_smlal_zzzw(s, a, true);
-}
-
-static bool do_umlal_zzzw(DisasContext *s, arg_rrrr_esz *a, bool sel)
-{
-    static gen_helper_gvec_4 * const fns[] = {
-        NULL,                         gen_helper_sve2_umlal_zzzw_h,
-        gen_helper_sve2_umlal_zzzw_s, gen_helper_sve2_umlal_zzzw_d,
-    };
-    return do_sve2_zzzz_ool(s, a, fns[a->esz], sel);
-}
-
-static bool trans_UMLALB_zzzw(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_umlal_zzzw(s, a, false);
-}
-
-static bool trans_UMLALT_zzzw(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_umlal_zzzw(s, a, true);
-}
-
-static bool do_smlsl_zzzw(DisasContext *s, arg_rrrr_esz *a, bool sel)
-{
-    static gen_helper_gvec_4 * const fns[] = {
-        NULL,                         gen_helper_sve2_smlsl_zzzw_h,
-        gen_helper_sve2_smlsl_zzzw_s, gen_helper_sve2_smlsl_zzzw_d,
-    };
-    return do_sve2_zzzz_ool(s, a, fns[a->esz], sel);
-}
-
-static bool trans_SMLSLB_zzzw(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_smlsl_zzzw(s, a, false);
-}
-
-static bool trans_SMLSLT_zzzw(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_smlsl_zzzw(s, a, true);
-}
-
-static bool do_umlsl_zzzw(DisasContext *s, arg_rrrr_esz *a, bool sel)
-{
-    static gen_helper_gvec_4 * const fns[] = {
-        NULL,                         gen_helper_sve2_umlsl_zzzw_h,
-        gen_helper_sve2_umlsl_zzzw_s, gen_helper_sve2_umlsl_zzzw_d,
-    };
-    return do_sve2_zzzz_ool(s, a, fns[a->esz], sel);
-}
-
-static bool trans_UMLSLB_zzzw(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_umlsl_zzzw(s, a, false);
-}
-
-static bool trans_UMLSLT_zzzw(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_umlsl_zzzw(s, a, true);
-}
+static gen_helper_gvec_4 * const umlsl_zzzw_fns[] = {
+    NULL,                         gen_helper_sve2_umlsl_zzzw_h,
+    gen_helper_sve2_umlsl_zzzw_s, gen_helper_sve2_umlsl_zzzw_d,
+};
+TRANS_FEAT(UMLSLB_zzzw, aa64_sve2, gen_gvec_ool_arg_zzzz,
+           umlsl_zzzw_fns[a->esz], a, 0)
+TRANS_FEAT(UMLSLT_zzzw, aa64_sve2, gen_gvec_ool_arg_zzzz,
+           umlsl_zzzw_fns[a->esz], a, 1)
 
 static gen_helper_gvec_4 * const cmla_fns[] = {
     gen_helper_sve2_cmla_zzzz_b, gen_helper_sve2_cmla_zzzz_h,
