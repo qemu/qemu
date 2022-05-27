@@ -697,13 +697,13 @@ TRANS_FEAT(UQSUB_zzz, aa64_sve, gen_gvec_fn_arg_zzz, tcg_gen_gvec_ussub, a)
 /* Select active elememnts from Zn and inactive elements from Zm,
  * storing the result in Zd.
  */
-static void do_sel_z(DisasContext *s, int rd, int rn, int rm, int pg, int esz)
+static bool do_sel_z(DisasContext *s, int rd, int rn, int rm, int pg, int esz)
 {
     static gen_helper_gvec_4 * const fns[4] = {
         gen_helper_sve_sel_zpzz_b, gen_helper_sve_sel_zpzz_h,
         gen_helper_sve_sel_zpzz_s, gen_helper_sve_sel_zpzz_d
     };
-    gen_gvec_ool_zzzp(s, fns[esz], rd, rn, rm, pg, 0);
+    return gen_gvec_ool_zzzp(s, fns[esz], rd, rn, rm, pg, 0);
 }
 
 #define DO_ZPZZ(NAME, FEAT, name) \
@@ -749,10 +749,7 @@ TRANS_FEAT(UDIV_zpzz, aa64_sve, gen_gvec_ool_arg_zpzz, udiv_fns[a->esz], a, 0)
 
 static bool trans_SEL_zpzz(DisasContext *s, arg_rprr_esz *a)
 {
-    if (sve_access_check(s)) {
-        do_sel_z(s, a->rd, a->rn, a->rm, a->pg, a->esz);
-    }
-    return true;
+    return do_sel_z(s, a->rd, a->rn, a->rm, a->pg, a->esz);
 }
 
 /*
@@ -6343,10 +6340,7 @@ static bool trans_MOVPRFX(DisasContext *s, arg_MOVPRFX *a)
 
 static bool trans_MOVPRFX_m(DisasContext *s, arg_rpr_esz *a)
 {
-    if (sve_access_check(s)) {
-        do_sel_z(s, a->rd, a->rn, a->rd, a->pg, a->esz);
-    }
-    return true;
+    return do_sel_z(s, a->rd, a->rn, a->rd, a->pg, a->esz);
 }
 
 static bool trans_MOVPRFX_z(DisasContext *s, arg_rpr_esz *a)
