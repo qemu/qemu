@@ -2492,15 +2492,8 @@ static bool do_clast_vector(DisasContext *s, arg_rprr_esz *a, bool before)
     return true;
 }
 
-static bool trans_CLASTA_z(DisasContext *s, arg_rprr_esz *a)
-{
-    return do_clast_vector(s, a, false);
-}
-
-static bool trans_CLASTB_z(DisasContext *s, arg_rprr_esz *a)
-{
-    return do_clast_vector(s, a, true);
-}
+TRANS_FEAT(CLASTA_z, aa64_sve, do_clast_vector, a, false)
+TRANS_FEAT(CLASTB_z, aa64_sve, do_clast_vector, a, true)
 
 /* Compute CLAST for a scalar.  */
 static void do_clast_scalar(DisasContext *s, int esz, int pg, int rm,
