@@ -12,11 +12,20 @@
     # want jobs to run
     #############################################################
 
+    # Cirrus jobs can't run unless the creds / target repo are set
+    - if: '$QEMU_JOB_CIRRUS && ($CIRRUS_GITHUB_REPO == "" || $CIRRUS_API_TOKEN == "")'
+      when: never
+
 
     #############################################################
     # Stage 2: fine tune execution of jobs in specific scenarios
     # where the catch all logic is inapprorpaite
     #############################################################
+
+    # Optional jobs should not be run unless manually triggered
+    - if: '$QEMU_JOB_OPTIONAL'
+      when: manual
+      allow_failure: true
 
 
     #############################################################

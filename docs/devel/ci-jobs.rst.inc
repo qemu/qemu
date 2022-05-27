@@ -52,6 +52,20 @@ Maintainer controlled job variables
 The following variables may be set when defining a job in the
 CI configuration file.
 
+QEMU_JOB_CIRRUS
+~~~~~~~~~~~~~~~
+
+The job makes use of Cirrus CI infrastructure, requiring the
+configuration setup for cirrus-run to be present in the repository
+
+QEMU_JOB_OPTIONAL
+~~~~~~~~~~~~~~~~~
+
+The job is expected to be successful in general, but is not run
+by default due to need to conserve limited CI resources. It is
+available to be started manually by the contributor in the CI
+pipelines UI.
+
 Contributor controlled runtime variables
 ----------------------------------------
 
