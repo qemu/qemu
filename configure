@@ -954,10 +954,6 @@ case $git_submodules_action in
     ;;
 esac
 
-if eval test -z "\${cross_cc_$cpu}"; then
-    eval "cross_cc_${cpu}=\$cc"
-fi
-
 default_target_list=""
 mak_wilds=""
 
@@ -2008,13 +2004,6 @@ probe_target_compiler() {
   if eval test -n "\"\${cross_cc_$1}\""; then
     if eval has "\"\${cross_cc_$1}\""; then
       eval "target_cc=\"\${cross_cc_$1}\""
-      case $1 in
-        i386|x86_64)
-          if $target_cc --version | grep -qi "clang"; then
-            unset target_cc
-          fi
-          ;;
-      esac
     fi
   fi
   if eval test -n "\"\${cross_as_$1}\""; then
@@ -2026,6 +2015,20 @@ probe_target_compiler() {
     if eval has "\"\${cross_ld_$1}\""; then
       eval "target_ld=\"\${cross_ld_$1}\""
     fi
+  fi
+  if test "$1" = $cpu; then
+    : ${target_cc:=$cc}
+    : ${target_as:=$as}
+    : ${target_ld:=$ld}
+  fi
+  if test -n "$target_cc"; then
+    case $1 in
+      i386|x86_64)
+        if $target_cc --version | grep -qi "clang"; then
+          unset target_cc
+        fi
+        ;;
+    esac
   fi
 }
 
