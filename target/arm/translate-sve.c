@@ -228,6 +228,11 @@ static bool gen_gvec_ool_arg_zpz(DisasContext *s, gen_helper_gvec_3 *fn,
     return gen_gvec_ool_zzp(s, fn, a->rd, a->rn, a->pg, data);
 }
 
+static bool gen_gvec_ool_arg_zpzi(DisasContext *s, gen_helper_gvec_3 *fn,
+                                  arg_rpri_esz *a)
+{
+    return gen_gvec_ool_zzp(s, fn, a->rd, a->rn, a->pg, a->imm);
+}
 
 /* Invoke an out-of-line helper on 3 Zregs and a predicate. */
 static void gen_gvec_ool_zzzp(DisasContext *s, gen_helper_gvec_4 *fn,
@@ -952,12 +957,6 @@ static bool do_movz_zpz(DisasContext *s, int rd, int rn, int pg,
     return gen_gvec_ool_zzp(s, fns[esz], rd, rn, pg, invert);
 }
 
-static bool do_zpzi_ool(DisasContext *s, arg_rpri_esz *a,
-                        gen_helper_gvec_3 *fn)
-{
-    return gen_gvec_ool_zzp(s, fn, a->rd, a->rn, a->pg, a->imm);
-}
-
 static bool trans_ASR_zpzi(DisasContext *s, arg_rpri_esz *a)
 {
     static gen_helper_gvec_3 * const fns[4] = {
@@ -971,7 +970,7 @@ static bool trans_ASR_zpzi(DisasContext *s, arg_rpri_esz *a)
     /* Shift by element size is architecturally valid.  For
        arithmetic right-shift, it's the same as by one less. */
     a->imm = MIN(a->imm, (8 << a->esz) - 1);
-    return do_zpzi_ool(s, a, fns[a->esz]);
+    return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
 }
 
 static bool trans_LSR_zpzi(DisasContext *s, arg_rpri_esz *a)
@@ -988,7 +987,7 @@ static bool trans_LSR_zpzi(DisasContext *s, arg_rpri_esz *a)
     if (a->imm >= (8 << a->esz)) {
         return do_movz_zpz(s, a->rd, a->rd, a->pg, a->esz, true);
     } else {
-        return do_zpzi_ool(s, a, fns[a->esz]);
+        return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
     }
 }
 
@@ -1006,7 +1005,7 @@ static bool trans_LSL_zpzi(DisasContext *s, arg_rpri_esz *a)
     if (a->imm >= (8 << a->esz)) {
         return do_movz_zpz(s, a->rd, a->rd, a->pg, a->esz, true);
     } else {
-        return do_zpzi_ool(s, a, fns[a->esz]);
+        return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
     }
 }
 
@@ -1024,7 +1023,7 @@ static bool trans_ASRD(DisasContext *s, arg_rpri_esz *a)
     if (a->imm >= (8 << a->esz)) {
         return do_movz_zpz(s, a->rd, a->rd, a->pg, a->esz, true);
     } else {
-        return do_zpzi_ool(s, a, fns[a->esz]);
+        return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
     }
 }
 
@@ -1037,7 +1036,7 @@ static bool trans_SQSHL_zpzi(DisasContext *s, arg_rpri_esz *a)
     if (a->esz < 0 || !dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    return do_zpzi_ool(s, a, fns[a->esz]);
+    return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
 }
 
 static bool trans_UQSHL_zpzi(DisasContext *s, arg_rpri_esz *a)
@@ -1049,7 +1048,7 @@ static bool trans_UQSHL_zpzi(DisasContext *s, arg_rpri_esz *a)
     if (a->esz < 0 || !dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    return do_zpzi_ool(s, a, fns[a->esz]);
+    return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
 }
 
 static bool trans_SRSHR(DisasContext *s, arg_rpri_esz *a)
@@ -1061,7 +1060,7 @@ static bool trans_SRSHR(DisasContext *s, arg_rpri_esz *a)
     if (a->esz < 0 || !dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    return do_zpzi_ool(s, a, fns[a->esz]);
+    return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
 }
 
 static bool trans_URSHR(DisasContext *s, arg_rpri_esz *a)
@@ -1073,7 +1072,7 @@ static bool trans_URSHR(DisasContext *s, arg_rpri_esz *a)
     if (a->esz < 0 || !dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    return do_zpzi_ool(s, a, fns[a->esz]);
+    return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
 }
 
 static bool trans_SQSHLU(DisasContext *s, arg_rpri_esz *a)
@@ -1085,7 +1084,7 @@ static bool trans_SQSHLU(DisasContext *s, arg_rpri_esz *a)
     if (a->esz < 0 || !dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    return do_zpzi_ool(s, a, fns[a->esz]);
+    return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
 }
 
 /*
