@@ -76,6 +76,23 @@ ubuntu2004_tsanhack = [
 ]
 
 
+# Netmap still needs to be manually built as it is yet to be packaged
+# into a distro. We also add cscope and gtags which are used in the CI
+# test
+debian11_extras = [
+    "# netmap/cscope/global\n",
+    "RUN DEBIAN_FRONTEND=noninteractive eatmydata \\\n",
+    "  apt install -y --no-install-recommends \\\n",
+    "  cscope\\\n",
+    "  global\\\n",
+    "  linux-headers-amd64\n",
+    "RUN git clone https://github.com/luigirizzo/netmap.git /usr/src/netmap\n",
+    "RUN cd /usr/src/netmap && git checkout v11.3\n",
+    "RUN cd /usr/src/netmap/LINUX && ./configure --no-drivers --no-apps --kernel-dir=$(ls -d /usr/src/linux-headers-*-amd64) && make install\n",
+    "ENV QEMU_CONFIGURE_OPTS --enable-netmap\n"
+]
+
+
 def debian_cross_build(prefix, targets):
     conf = "ENV QEMU_CONFIGURE_OPTS --cross-prefix=%s\n" % (prefix)
     targets = "ENV DEF_TARGET_LIST %s\n" % (targets)
@@ -92,6 +109,8 @@ try:
     #
     generate_dockerfile("alpine", "alpine-edge")
     generate_dockerfile("centos8", "centos-stream-8")
+    generate_dockerfile("debian-amd64", "debian-11",
+                        trailer="".join(debian11_extras))
     generate_dockerfile("fedora", "fedora-35")
     generate_dockerfile("opensuse-leap", "opensuse-leap-152")
     generate_dockerfile("ubuntu2004", "ubuntu-2004",

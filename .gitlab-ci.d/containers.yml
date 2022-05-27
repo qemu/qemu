@@ -14,8 +14,7 @@ amd64-debian11-container:
 
 amd64-debian-container:
   extends: .container_job_template
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
+  stage: containers
   variables:
     NAME: debian-amd64
 
