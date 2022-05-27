@@ -6194,46 +6194,11 @@ static void gen_ushll_vec(unsigned vece, TCGv_vec d, TCGv_vec n, int64_t imm)
     }
 }
 
-static bool do_sve2_shll_tb(DisasContext *s, arg_rri_esz *a,
-                            bool sel, bool uns)
+static bool do_shll_tb(DisasContext *s, arg_rri_esz *a,
+                       const GVecGen2i ops[3], bool sel)
 {
-    static const TCGOpcode sshll_list[] = {
-        INDEX_op_shli_vec, INDEX_op_sari_vec, 0
-    };
-    static const TCGOpcode ushll_list[] = {
-        INDEX_op_shli_vec, INDEX_op_shri_vec, 0
-    };
-    static const GVecGen2i ops[2][3] = {
-        { { .fniv = gen_sshll_vec,
-            .opt_opc = sshll_list,
-            .fno = gen_helper_sve2_sshll_h,
-            .vece = MO_16 },
-          { .fniv = gen_sshll_vec,
-            .opt_opc = sshll_list,
-            .fno = gen_helper_sve2_sshll_s,
-            .vece = MO_32 },
-          { .fniv = gen_sshll_vec,
-            .opt_opc = sshll_list,
-            .fno = gen_helper_sve2_sshll_d,
-            .vece = MO_64 } },
-        { { .fni8 = gen_ushll16_i64,
-            .fniv = gen_ushll_vec,
-            .opt_opc = ushll_list,
-            .fno = gen_helper_sve2_ushll_h,
-            .vece = MO_16 },
-          { .fni8 = gen_ushll32_i64,
-            .fniv = gen_ushll_vec,
-            .opt_opc = ushll_list,
-            .fno = gen_helper_sve2_ushll_s,
-            .vece = MO_32 },
-          { .fni8 = gen_ushll64_i64,
-            .fniv = gen_ushll_vec,
-            .opt_opc = ushll_list,
-            .fno = gen_helper_sve2_ushll_d,
-            .vece = MO_64 } },
-    };
 
-    if (a->esz < 0 || a->esz > 2 || !dc_isar_feature(aa64_sve2, s)) {
+    if (a->esz < 0 || a->esz > 2) {
         return false;
     }
     if (sve_access_check(s)) {
@@ -6241,30 +6206,53 @@ static bool do_sve2_shll_tb(DisasContext *s, arg_rri_esz *a,
         tcg_gen_gvec_2i(vec_full_reg_offset(s, a->rd),
                         vec_full_reg_offset(s, a->rn),
                         vsz, vsz, (a->imm << 1) | sel,
-                        &ops[uns][a->esz]);
+                        &ops[a->esz]);
     }
     return true;
 }
 
-static bool trans_SSHLLB(DisasContext *s, arg_rri_esz *a)
-{
-    return do_sve2_shll_tb(s, a, false, false);
-}
+static const TCGOpcode sshll_list[] = {
+    INDEX_op_shli_vec, INDEX_op_sari_vec, 0
+};
+static const GVecGen2i sshll_ops[3] = {
+    { .fniv = gen_sshll_vec,
+      .opt_opc = sshll_list,
+      .fno = gen_helper_sve2_sshll_h,
+      .vece = MO_16 },
+    { .fniv = gen_sshll_vec,
+      .opt_opc = sshll_list,
+      .fno = gen_helper_sve2_sshll_s,
+      .vece = MO_32 },
+    { .fniv = gen_sshll_vec,
+      .opt_opc = sshll_list,
+      .fno = gen_helper_sve2_sshll_d,
+      .vece = MO_64 }
+};
+TRANS_FEAT(SSHLLB, aa64_sve2, do_shll_tb, a, sshll_ops, false)
+TRANS_FEAT(SSHLLT, aa64_sve2, do_shll_tb, a, sshll_ops, true)
 
-static bool trans_SSHLLT(DisasContext *s, arg_rri_esz *a)
-{
-    return do_sve2_shll_tb(s, a, true, false);
-}
-
-static bool trans_USHLLB(DisasContext *s, arg_rri_esz *a)
-{
-    return do_sve2_shll_tb(s, a, false, true);
-}
-
-static bool trans_USHLLT(DisasContext *s, arg_rri_esz *a)
-{
-    return do_sve2_shll_tb(s, a, true, true);
-}
+static const TCGOpcode ushll_list[] = {
+    INDEX_op_shli_vec, INDEX_op_shri_vec, 0
+};
+static const GVecGen2i ushll_ops[3] = {
+    { .fni8 = gen_ushll16_i64,
+      .fniv = gen_ushll_vec,
+      .opt_opc = ushll_list,
+      .fno = gen_helper_sve2_ushll_h,
+      .vece = MO_16 },
+    { .fni8 = gen_ushll32_i64,
+      .fniv = gen_ushll_vec,
+      .opt_opc = ushll_list,
+      .fno = gen_helper_sve2_ushll_s,
+      .vece = MO_32 },
+    { .fni8 = gen_ushll64_i64,
+      .fniv = gen_ushll_vec,
+      .opt_opc = ushll_list,
+      .fno = gen_helper_sve2_ushll_d,
+      .vece = MO_64 },
+};
+TRANS_FEAT(USHLLB, aa64_sve2, do_shll_tb, a, ushll_ops, false)
+TRANS_FEAT(USHLLT, aa64_sve2, do_shll_tb, a, ushll_ops, true)
 
 static gen_helper_gvec_3 * const bext_fns[4] = {
     gen_helper_sve2_bext_b, gen_helper_sve2_bext_h,
