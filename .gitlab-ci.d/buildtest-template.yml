@@ -44,6 +44,8 @@
     expire_in: 7 days
     paths:
       - build/meson-logs/testlog.txt
+    reports:
+      junit: build/meson-logs/testlog.junit.xml
 
 .avocado_test_job_template:
   extends: .common_test_job_template
