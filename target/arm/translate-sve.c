@@ -2708,14 +2708,12 @@ static bool do_ppzz_flags(DisasContext *s, arg_rprr_esz *a,
 }
 
 #define DO_PPZZ(NAME, name) \
-static bool trans_##NAME##_ppzz(DisasContext *s, arg_rprr_esz *a)         \
-{                                                                         \
-    static gen_helper_gvec_flags_4 * const fns[4] = {                     \
-        gen_helper_sve_##name##_ppzz_b, gen_helper_sve_##name##_ppzz_h,   \
-        gen_helper_sve_##name##_ppzz_s, gen_helper_sve_##name##_ppzz_d,   \
-    };                                                                    \
-    return do_ppzz_flags(s, a, fns[a->esz]);                              \
-}
+    static gen_helper_gvec_flags_4 * const name##_ppzz_fns[4] = {       \
+        gen_helper_sve_##name##_ppzz_b, gen_helper_sve_##name##_ppzz_h, \
+        gen_helper_sve_##name##_ppzz_s, gen_helper_sve_##name##_ppzz_d, \
+    };                                                                  \
+    TRANS_FEAT(NAME##_ppzz, aa64_sve, do_ppzz_flags,                    \
+               a, name##_ppzz_fns[a->esz])
 
 DO_PPZZ(CMPEQ, cmpeq)
 DO_PPZZ(CMPNE, cmpne)
@@ -2727,14 +2725,12 @@ DO_PPZZ(CMPHS, cmphs)
 #undef DO_PPZZ
 
 #define DO_PPZW(NAME, name) \
-static bool trans_##NAME##_ppzw(DisasContext *s, arg_rprr_esz *a)         \
-{                                                                         \
-    static gen_helper_gvec_flags_4 * const fns[4] = {                     \
-        gen_helper_sve_##name##_ppzw_b, gen_helper_sve_##name##_ppzw_h,   \
-        gen_helper_sve_##name##_ppzw_s, NULL                              \
-    };                                                                    \
-    return do_ppzz_flags(s, a, fns[a->esz]);                              \
-}
+    static gen_helper_gvec_flags_4 * const name##_ppzw_fns[4] = {       \
+        gen_helper_sve_##name##_ppzw_b, gen_helper_sve_##name##_ppzw_h, \
+        gen_helper_sve_##name##_ppzw_s, NULL                            \
+    };                                                                  \
+    TRANS_FEAT(NAME##_ppzw, aa64_sve, do_ppzz_flags,                    \
+               a, name##_ppzw_fns[a->esz])
 
 DO_PPZW(CMPEQ, cmpeq)
 DO_PPZW(CMPNE, cmpne)
