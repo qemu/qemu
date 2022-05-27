@@ -258,15 +258,6 @@ static bool gen_gvec_ool_arg_zpzz(DisasContext *s, gen_helper_gvec_4 *fn,
     return gen_gvec_ool_zzzp(s, fn, a->rd, a->rn, a->rm, a->pg, data);
 }
 
-/* Invoke a vector expander on two Zregs.  */
-static void gen_gvec_fn_zz(DisasContext *s, GVecGen2Fn *gvec_fn,
-                           int esz, int rd, int rn)
-{
-    unsigned vsz = vec_full_reg_size(s);
-    gvec_fn(esz, vec_full_reg_offset(s, rd),
-            vec_full_reg_offset(s, rn), vsz, vsz);
-}
-
 /* Invoke a vector expander on three Zregs.  */
 static void gen_gvec_fn_zzz(DisasContext *s, GVecGen3Fn *gvec_fn,
                             int esz, int rd, int rn, int rm)
@@ -292,7 +283,9 @@ static void gen_gvec_fn_zzzz(DisasContext *s, GVecGen4Fn *gvec_fn,
 static bool do_mov_z(DisasContext *s, int rd, int rn)
 {
     if (sve_access_check(s)) {
-        gen_gvec_fn_zz(s, tcg_gen_gvec_mov, MO_8, rd, rn);
+        unsigned vsz = vec_full_reg_size(s);
+        tcg_gen_gvec_mov(MO_8, vec_full_reg_offset(s, rd),
+                         vec_full_reg_offset(s, rn), vsz, vsz);
     }
     return true;
 }
