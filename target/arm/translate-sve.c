@@ -205,6 +205,35 @@ static bool gen_gvec_ool_arg_zzxz(DisasContext *s, gen_helper_gvec_4 *fn,
     return gen_gvec_ool_zzzz(s, fn, a->rd, a->rn, a->rm, a->ra, a->index);
 }
 
+/* Invoke an out-of-line helper on 4 Zregs, plus a pointer. */
+static bool gen_gvec_ptr_zzzz(DisasContext *s, gen_helper_gvec_4_ptr *fn,
+                              int rd, int rn, int rm, int ra,
+                              int data, TCGv_ptr ptr)
+{
+    if (fn == NULL) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        tcg_gen_gvec_4_ptr(vec_full_reg_offset(s, rd),
+                           vec_full_reg_offset(s, rn),
+                           vec_full_reg_offset(s, rm),
+                           vec_full_reg_offset(s, ra),
+                           ptr, vsz, vsz, data, fn);
+    }
+    return true;
+}
+
+static bool gen_gvec_fpst_zzzz(DisasContext *s, gen_helper_gvec_4_ptr *fn,
+                               int rd, int rn, int rm, int ra,
+                               int data, ARMFPStatusFlavour flavour)
+{
+    TCGv_ptr status = fpstatus_ptr(flavour);
+    bool ret = gen_gvec_ptr_zzzz(s, fn, rd, rn, rm, ra, data, status);
+    tcg_temp_free_ptr(status);
+    return ret;
+}
+
 /* Invoke an out-of-line helper on 2 Zregs and a predicate. */
 static bool gen_gvec_ool_zzp(DisasContext *s, gen_helper_gvec_3 *fn,
                              int rd, int rn, int pg, int data)
@@ -3485,24 +3514,15 @@ DO_SVE2_RRXR_ROT(CDOT_zzxw_d, gen_helper_sve2_cdot_idx_d)
 
 static bool do_FMLA_zzxz(DisasContext *s, arg_rrxr_esz *a, bool sub)
 {
-    static gen_helper_gvec_4_ptr * const fns[3] = {
+    static gen_helper_gvec_4_ptr * const fns[4] = {
+        NULL,
         gen_helper_gvec_fmla_idx_h,
         gen_helper_gvec_fmla_idx_s,
         gen_helper_gvec_fmla_idx_d,
     };
-
-    if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
-        tcg_gen_gvec_4_ptr(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           vec_full_reg_offset(s, a->ra),
-                           status, vsz, vsz, (a->index << 1) | sub,
-                           fns[a->esz - 1]);
-        tcg_temp_free_ptr(status);
-    }
-    return true;
+    return gen_gvec_fpst_zzzz(s, fns[a->esz], a->rd, a->rn, a->rm, a->ra,
+                              (a->index << 1) | sub,
+                              a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
 }
 
 static bool trans_FMLA_zzxz(DisasContext *s, arg_FMLA_zzxz *a)
@@ -4040,26 +4060,18 @@ static bool trans_FCMLA_zpzzz(DisasContext *s, arg_FCMLA_zpzzz *a)
 
 static bool trans_FCMLA_zzxz(DisasContext *s, arg_FCMLA_zzxz *a)
 {
-    static gen_helper_gvec_4_ptr * const fns[2] = {
+    static gen_helper_gvec_4_ptr * const fns[4] = {
+        NULL,
         gen_helper_gvec_fcmlah_idx,
         gen_helper_gvec_fcmlas_idx,
+        NULL,
     };
 
-    tcg_debug_assert(a->esz == 1 || a->esz == 2);
     tcg_debug_assert(a->rd == a->ra);
-    if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
-        tcg_gen_gvec_4_ptr(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           vec_full_reg_offset(s, a->ra),
-                           status, vsz, vsz,
-                           a->index * 4 + a->rot,
-                           fns[a->esz - 1]);
-        tcg_temp_free_ptr(status);
-    }
-    return true;
+
+    return gen_gvec_fpst_zzzz(s, fns[a->esz], a->rd, a->rn, a->rm, a->ra,
+                              a->index * 4 + a->rot,
+                              a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
 }
 
 /*
@@ -7327,17 +7339,7 @@ static bool trans_FMMLA(DisasContext *s, arg_rrrr_esz *a)
         return false;
     }
 
-    if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        TCGv_ptr status = fpstatus_ptr(FPST_FPCR);
-        tcg_gen_gvec_4_ptr(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           vec_full_reg_offset(s, a->ra),
-                           status, vsz, vsz, 0, fn);
-        tcg_temp_free_ptr(status);
-    }
-    return true;
+    return gen_gvec_fpst_zzzz(s, fn, a->rd, a->rn, a->rm, a->ra, 0, FPST_FPCR);
 }
 
 static gen_helper_gvec_4 * const sqdmlal_zzzw_fns[] = {
@@ -7535,16 +7537,9 @@ static bool do_FMLAL_zzzw(DisasContext *s, arg_rrrr_esz *a, bool sub, bool sel)
     if (!dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        tcg_gen_gvec_4_ptr(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           vec_full_reg_offset(s, a->ra),
-                           cpu_env, vsz, vsz, (sel << 1) | sub,
-                           gen_helper_sve2_fmlal_zzzw_s);
-    }
-    return true;
+    return gen_gvec_ptr_zzzz(s, gen_helper_sve2_fmlal_zzzw_s,
+                             a->rd, a->rn, a->rm, a->ra,
+                             (sel << 1) | sub, cpu_env);
 }
 
 static bool trans_FMLALB_zzzw(DisasContext *s, arg_rrrr_esz *a)
@@ -7572,17 +7567,9 @@ static bool do_FMLAL_zzxw(DisasContext *s, arg_rrxr_esz *a, bool sub, bool sel)
     if (!dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        tcg_gen_gvec_4_ptr(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           vec_full_reg_offset(s, a->ra),
-                           cpu_env, vsz, vsz,
-                           (a->index << 2) | (sel << 1) | sub,
-                           gen_helper_sve2_fmlal_zzxw_s);
-    }
-    return true;
+    return gen_gvec_ptr_zzzz(s, gen_helper_sve2_fmlal_zzxw_s,
+                             a->rd, a->rn, a->rm, a->ra,
+                             (a->index << 2) | (sel << 1) | sub, cpu_env);
 }
 
 static bool trans_FMLALB_zzxw(DisasContext *s, arg_rrxr_esz *a)
@@ -7625,19 +7612,8 @@ static bool do_BFMLAL_zzzw(DisasContext *s, arg_rrrr_esz *a, bool sel)
     if (!dc_isar_feature(aa64_sve_bf16, s)) {
         return false;
     }
-    if (sve_access_check(s)) {
-        TCGv_ptr status = fpstatus_ptr(FPST_FPCR);
-        unsigned vsz = vec_full_reg_size(s);
-
-        tcg_gen_gvec_4_ptr(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           vec_full_reg_offset(s, a->ra),
-                           status, vsz, vsz, sel,
-                           gen_helper_gvec_bfmlal);
-        tcg_temp_free_ptr(status);
-    }
-    return true;
+    return gen_gvec_fpst_zzzz(s, gen_helper_gvec_bfmlal,
+                              a->rd, a->rn, a->rm, a->ra, sel, FPST_FPCR);
 }
 
 static bool trans_BFMLALB_zzzw(DisasContext *s, arg_rrrr_esz *a)
@@ -7655,19 +7631,9 @@ static bool do_BFMLAL_zzxw(DisasContext *s, arg_rrxr_esz *a, bool sel)
     if (!dc_isar_feature(aa64_sve_bf16, s)) {
         return false;
     }
-    if (sve_access_check(s)) {
-        TCGv_ptr status = fpstatus_ptr(FPST_FPCR);
-        unsigned vsz = vec_full_reg_size(s);
-
-        tcg_gen_gvec_4_ptr(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           vec_full_reg_offset(s, a->ra),
-                           status, vsz, vsz, (a->index << 1) | sel,
-                           gen_helper_gvec_bfmlal_idx);
-        tcg_temp_free_ptr(status);
-    }
-    return true;
+    return gen_gvec_fpst_zzzz(s, gen_helper_gvec_bfmlal_idx,
+                              a->rd, a->rn, a->rm, a->ra,
+                              (a->index << 1) | sel, FPST_FPCR);
 }
 
 static bool trans_BFMLALB_zzxw(DisasContext *s, arg_rrxr_esz *a)
