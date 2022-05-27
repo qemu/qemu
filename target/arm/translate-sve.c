@@ -755,54 +755,46 @@ static void do_sel_z(DisasContext *s, int rd, int rn, int rm, int pg, int esz)
     gen_gvec_ool_zzzp(s, fns[esz], rd, rn, rm, pg, 0);
 }
 
-#define DO_ZPZZ(NAME, name) \
-static bool trans_##NAME##_zpzz(DisasContext *s, arg_rprr_esz *a)         \
-{                                                                         \
-    static gen_helper_gvec_4 * const fns[4] = {                           \
-        gen_helper_sve_##name##_zpzz_b, gen_helper_sve_##name##_zpzz_h,   \
-        gen_helper_sve_##name##_zpzz_s, gen_helper_sve_##name##_zpzz_d,   \
+#define DO_ZPZZ(NAME, FEAT, name) \
+    static gen_helper_gvec_4 * const name##_zpzz_fns[4] = {               \
+        gen_helper_##name##_zpzz_b, gen_helper_##name##_zpzz_h,           \
+        gen_helper_##name##_zpzz_s, gen_helper_##name##_zpzz_d,           \
     };                                                                    \
-    return gen_gvec_ool_arg_zpzz(s, fns[a->esz], a, 0);                   \
-}
+    TRANS_FEAT(NAME, FEAT, gen_gvec_ool_arg_zpzz,                         \
+               name##_zpzz_fns[a->esz], a, 0)
 
-DO_ZPZZ(AND, and)
-DO_ZPZZ(EOR, eor)
-DO_ZPZZ(ORR, orr)
-DO_ZPZZ(BIC, bic)
+DO_ZPZZ(AND_zpzz, aa64_sve, sve_and)
+DO_ZPZZ(EOR_zpzz, aa64_sve, sve_eor)
+DO_ZPZZ(ORR_zpzz, aa64_sve, sve_orr)
+DO_ZPZZ(BIC_zpzz, aa64_sve, sve_bic)
 
-DO_ZPZZ(ADD, add)
-DO_ZPZZ(SUB, sub)
+DO_ZPZZ(ADD_zpzz, aa64_sve, sve_add)
+DO_ZPZZ(SUB_zpzz, aa64_sve, sve_sub)
 
-DO_ZPZZ(SMAX, smax)
-DO_ZPZZ(UMAX, umax)
-DO_ZPZZ(SMIN, smin)
-DO_ZPZZ(UMIN, umin)
-DO_ZPZZ(SABD, sabd)
-DO_ZPZZ(UABD, uabd)
+DO_ZPZZ(SMAX_zpzz, aa64_sve, sve_smax)
+DO_ZPZZ(UMAX_zpzz, aa64_sve, sve_umax)
+DO_ZPZZ(SMIN_zpzz, aa64_sve, sve_smin)
+DO_ZPZZ(UMIN_zpzz, aa64_sve, sve_umin)
+DO_ZPZZ(SABD_zpzz, aa64_sve, sve_sabd)
+DO_ZPZZ(UABD_zpzz, aa64_sve, sve_uabd)
 
-DO_ZPZZ(MUL, mul)
-DO_ZPZZ(SMULH, smulh)
-DO_ZPZZ(UMULH, umulh)
+DO_ZPZZ(MUL_zpzz, aa64_sve, sve_mul)
+DO_ZPZZ(SMULH_zpzz, aa64_sve, sve_smulh)
+DO_ZPZZ(UMULH_zpzz, aa64_sve, sve_umulh)
 
-DO_ZPZZ(ASR, asr)
-DO_ZPZZ(LSR, lsr)
-DO_ZPZZ(LSL, lsl)
+DO_ZPZZ(ASR_zpzz, aa64_sve, sve_asr)
+DO_ZPZZ(LSR_zpzz, aa64_sve, sve_lsr)
+DO_ZPZZ(LSL_zpzz, aa64_sve, sve_lsl)
 
-static bool trans_SDIV_zpzz(DisasContext *s, arg_rprr_esz *a)
-{
-    static gen_helper_gvec_4 * const fns[4] = {
-        NULL, NULL, gen_helper_sve_sdiv_zpzz_s, gen_helper_sve_sdiv_zpzz_d
-    };
-    return gen_gvec_ool_arg_zpzz(s, fns[a->esz], a, 0);
-}
+static gen_helper_gvec_4 * const sdiv_fns[4] = {
+    NULL, NULL, gen_helper_sve_sdiv_zpzz_s, gen_helper_sve_sdiv_zpzz_d
+};
+TRANS_FEAT(SDIV_zpzz, aa64_sve, gen_gvec_ool_arg_zpzz, sdiv_fns[a->esz], a, 0)
 
-static bool trans_UDIV_zpzz(DisasContext *s, arg_rprr_esz *a)
-{
-    static gen_helper_gvec_4 * const fns[4] = {
-        NULL, NULL, gen_helper_sve_udiv_zpzz_s, gen_helper_sve_udiv_zpzz_d
-    };
-    return gen_gvec_ool_arg_zpzz(s, fns[a->esz], a, 0);
-}
+static gen_helper_gvec_4 * const udiv_fns[4] = {
+    NULL, NULL, gen_helper_sve_udiv_zpzz_s, gen_helper_sve_udiv_zpzz_d
+};
+TRANS_FEAT(UDIV_zpzz, aa64_sve, gen_gvec_ool_arg_zpzz, udiv_fns[a->esz], a, 0)
 
 static bool trans_SEL_zpzz(DisasContext *s, arg_rprr_esz *a)
 {
@@ -1068,17 +1060,12 @@ TRANS_FEAT(SQSHLU, aa64_sve2, gen_gvec_ool_arg_zpzi,
  */
 
 #define DO_ZPZW(NAME, name) \
-static bool trans_##NAME##_zpzw(DisasContext *s, arg_rprr_esz *a)         \
-{                                                                         \
-    static gen_helper_gvec_4 * const fns[3] = {                           \
+    static gen_helper_gvec_4 * const name##_zpzw_fns[4] = {               \
         gen_helper_sve_##name##_zpzw_b, gen_helper_sve_##name##_zpzw_h,   \
-        gen_helper_sve_##name##_zpzw_s,                                   \
+        gen_helper_sve_##name##_zpzw_s, NULL                              \
     };                                                                    \
-    if (a->esz < 0 || a->esz >= 3) {                                      \
-        return false;                                                     \
-    }                                                                     \
-    return gen_gvec_ool_arg_zpzz(s, fns[a->esz], a, 0);                   \
-}
+    TRANS_FEAT(NAME##_zpzw, aa64_sve, gen_gvec_ool_arg_zpzz,              \
+               a->esz < 0 ? NULL : name##_zpzw_fns[a->esz], a, 0)
 
 DO_ZPZW(ASR, asr)
 DO_ZPZW(LSR, lsr)
