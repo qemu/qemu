@@ -137,13 +137,19 @@ static int pred_gvec_reg_size(DisasContext *s)
 }
 
 /* Invoke an out-of-line helper on 2 Zregs. */
-static void gen_gvec_ool_zz(DisasContext *s, gen_helper_gvec_2 *fn,
+static bool gen_gvec_ool_zz(DisasContext *s, gen_helper_gvec_2 *fn,
                             int rd, int rn, int data)
 {
-    unsigned vsz = vec_full_reg_size(s);
-    tcg_gen_gvec_2_ool(vec_full_reg_offset(s, rd),
-                       vec_full_reg_offset(s, rn),
-                       vsz, vsz, data, fn);
+    if (fn == NULL) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        tcg_gen_gvec_2_ool(vec_full_reg_offset(s, rd),
+                           vec_full_reg_offset(s, rn),
+                           vsz, vsz, data, fn);
+    }
+    return true;
 }
 
 /* Invoke an out-of-line helper on 3 Zregs. */
@@ -1377,13 +1383,7 @@ static bool trans_FEXPA(DisasContext *s, arg_rr_esz *a)
         gen_helper_sve_fexpa_s,
         gen_helper_sve_fexpa_d,
     };
-    if (a->esz == 0) {
-        return false;
-    }
-    if (sve_access_check(s)) {
-        gen_gvec_ool_zz(s, fns[a->esz], a->rd, a->rn, 0);
-    }
-    return true;
+    return gen_gvec_ool_zz(s, fns[a->esz], a->rd, a->rn, 0);
 }
 
 static bool trans_FTSSEL(DisasContext *s, arg_rrr_esz *a)
@@ -2424,11 +2424,7 @@ static bool trans_REV_v(DisasContext *s, arg_rr_esz *a)
         gen_helper_sve_rev_b, gen_helper_sve_rev_h,
         gen_helper_sve_rev_s, gen_helper_sve_rev_d
     };
-
-    if (sve_access_check(s)) {
-        gen_gvec_ool_zz(s, fns[a->esz], a->rd, a->rn, 0);
-    }
-    return true;
+    return gen_gvec_ool_zz(s, fns[a->esz], a->rd, a->rn, 0);
 }
 
 static bool trans_TBL(DisasContext *s, arg_rrr_esz *a)
@@ -8385,10 +8381,8 @@ static bool trans_AESMC(DisasContext *s, arg_AESMC *a)
     if (!dc_isar_feature(aa64_sve2_aes, s)) {
         return false;
     }
-    if (sve_access_check(s)) {
-        gen_gvec_ool_zz(s, gen_helper_crypto_aesmc, a->rd, a->rd, a->decrypt);
-    }
-    return true;
+    return gen_gvec_ool_zz(s, gen_helper_crypto_aesmc,
+                           a->rd, a->rd, a->decrypt);
 }
 
 static bool do_aese(DisasContext *s, arg_rrr_esz *a, bool decrypt)
