@@ -1636,15 +1636,8 @@ static bool trans_RDFFR_p(DisasContext *s, arg_RDFFR_p *a)
     return trans_AND_pppp(s, &alt_a);
 }
 
-static bool trans_RDFFR(DisasContext *s, arg_RDFFR *a)
-{
-    return do_mov_p(s, a->rd, FFR_PRED_NUM);
-}
-
-static bool trans_WRFFR(DisasContext *s, arg_WRFFR *a)
-{
-    return do_mov_p(s, FFR_PRED_NUM, a->rn);
-}
+TRANS_FEAT(RDFFR, aa64_sve, do_mov_p, a->rd, FFR_PRED_NUM)
+TRANS_FEAT(WRFFR, aa64_sve, do_mov_p, FFR_PRED_NUM, a->rn)
 
 static bool do_pfirst_pnext(DisasContext *s, arg_rr_esz *a,
                             void (*gen_fn)(TCGv_i32, TCGv_ptr,
