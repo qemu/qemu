@@ -4167,7 +4167,8 @@ static bool trans_FCVTZU_dd(DisasContext *s, arg_rpr_esz *a)
     return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_fcvtzu_dd);
 }
 
-static gen_helper_gvec_3_ptr * const frint_fns[3] = {
+static gen_helper_gvec_3_ptr * const frint_fns[] = {
+    NULL,
     gen_helper_sve_frint_h,
     gen_helper_sve_frint_s,
     gen_helper_sve_frint_d
@@ -4179,7 +4180,7 @@ static bool trans_FRINTI(DisasContext *s, arg_rpr_esz *a)
         return false;
     }
     return do_zpz_ptr(s, a->rd, a->rn, a->pg, a->esz == MO_16,
-                      frint_fns[a->esz - 1]);
+                      frint_fns[a->esz]);
 }
 
 static bool trans_FRINTX(DisasContext *s, arg_rpr_esz *a)
@@ -4222,7 +4223,7 @@ static bool trans_FRINTN(DisasContext *s, arg_rpr_esz *a)
     if (a->esz == 0) {
         return false;
     }
-    return do_frint_mode(s, a, float_round_nearest_even, frint_fns[a->esz - 1]);
+    return do_frint_mode(s, a, float_round_nearest_even, frint_fns[a->esz]);
 }
 
 static bool trans_FRINTP(DisasContext *s, arg_rpr_esz *a)
@@ -4230,7 +4231,7 @@ static bool trans_FRINTP(DisasContext *s, arg_rpr_esz *a)
     if (a->esz == 0) {
         return false;
     }
-    return do_frint_mode(s, a, float_round_up, frint_fns[a->esz - 1]);
+    return do_frint_mode(s, a, float_round_up, frint_fns[a->esz]);
 }
 
 static bool trans_FRINTM(DisasContext *s, arg_rpr_esz *a)
@@ -4238,7 +4239,7 @@ static bool trans_FRINTM(DisasContext *s, arg_rpr_esz *a)
     if (a->esz == 0) {
         return false;
     }
-    return do_frint_mode(s, a, float_round_down, frint_fns[a->esz - 1]);
+    return do_frint_mode(s, a, float_round_down, frint_fns[a->esz]);
 }
 
 static bool trans_FRINTZ(DisasContext *s, arg_rpr_esz *a)
@@ -4246,7 +4247,7 @@ static bool trans_FRINTZ(DisasContext *s, arg_rpr_esz *a)
     if (a->esz == 0) {
         return false;
     }
-    return do_frint_mode(s, a, float_round_to_zero, frint_fns[a->esz - 1]);
+    return do_frint_mode(s, a, float_round_to_zero, frint_fns[a->esz]);
 }
 
 static bool trans_FRINTA(DisasContext *s, arg_rpr_esz *a)
@@ -4254,7 +4255,7 @@ static bool trans_FRINTA(DisasContext *s, arg_rpr_esz *a)
     if (a->esz == 0) {
         return false;
     }
-    return do_frint_mode(s, a, float_round_ties_away, frint_fns[a->esz - 1]);
+    return do_frint_mode(s, a, float_round_ties_away, frint_fns[a->esz]);
 }
 
 static bool trans_FRECPX(DisasContext *s, arg_rpr_esz *a)
