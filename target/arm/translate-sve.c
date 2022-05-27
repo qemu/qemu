@@ -2272,35 +2272,12 @@ static bool do_perm_pred2(DisasContext *s, arg_rr_esz *a, bool high_odd,
     return true;
 }
 
-static bool trans_ZIP1_p(DisasContext *s, arg_rrr_esz *a)
-{
-    return do_perm_pred3(s, a, 0, gen_helper_sve_zip_p);
-}
-
-static bool trans_ZIP2_p(DisasContext *s, arg_rrr_esz *a)
-{
-    return do_perm_pred3(s, a, 1, gen_helper_sve_zip_p);
-}
-
-static bool trans_UZP1_p(DisasContext *s, arg_rrr_esz *a)
-{
-    return do_perm_pred3(s, a, 0, gen_helper_sve_uzp_p);
-}
-
-static bool trans_UZP2_p(DisasContext *s, arg_rrr_esz *a)
-{
-    return do_perm_pred3(s, a, 1, gen_helper_sve_uzp_p);
-}
-
-static bool trans_TRN1_p(DisasContext *s, arg_rrr_esz *a)
-{
-    return do_perm_pred3(s, a, 0, gen_helper_sve_trn_p);
-}
-
-static bool trans_TRN2_p(DisasContext *s, arg_rrr_esz *a)
-{
-    return do_perm_pred3(s, a, 1, gen_helper_sve_trn_p);
-}
+TRANS_FEAT(ZIP1_p, aa64_sve, do_perm_pred3, a, 0, gen_helper_sve_zip_p)
+TRANS_FEAT(ZIP2_p, aa64_sve, do_perm_pred3, a, 1, gen_helper_sve_zip_p)
+TRANS_FEAT(UZP1_p, aa64_sve, do_perm_pred3, a, 0, gen_helper_sve_uzp_p)
+TRANS_FEAT(UZP2_p, aa64_sve, do_perm_pred3, a, 1, gen_helper_sve_uzp_p)
+TRANS_FEAT(TRN1_p, aa64_sve, do_perm_pred3, a, 0, gen_helper_sve_trn_p)
+TRANS_FEAT(TRN2_p, aa64_sve, do_perm_pred3, a, 1, gen_helper_sve_trn_p)
 
 static bool trans_REV_p(DisasContext *s, arg_rr_esz *a)
 {
