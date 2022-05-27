@@ -105,6 +105,11 @@ try:
                         trailer=debian_cross_build("aarch64-linux-gnu-",
                                                    "aarch64-softmmu,aarch64-linux-user"))
 
+    generate_dockerfile("debian-armel-cross", "debian-11",
+                        cross="armv6l",
+                        trailer=debian_cross_build("arm-linux-gnueabi-",
+                                                   "arm-softmmu,arm-linux-user,armeb-linux-user"))
+
     generate_dockerfile("debian-armhf-cross", "debian-11",
                         cross="armv7l",
                         trailer=debian_cross_build("arm-linux-gnueabihf-",
