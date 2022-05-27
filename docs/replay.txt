@@ -366,11 +366,9 @@ Here is the list of events that are written into the log:
    Argument: 4-byte number of executed instructions.
  - EVENT_INTERRUPT. Used to synchronize interrupt processing.
  - EVENT_EXCEPTION. Used to synchronize exception handling.
- - EVENT_ASYNC. This is a group of events. They are always processed
-   together with checkpoints. When such an event is generated, it is
-   stored in the queue and processed only when checkpoint occurs.
-   Every such event is followed by 1-byte checkpoint id and 1-byte
-   async event id from the following list:
+ - EVENT_ASYNC. This is a group of events. When such an event is generated,
+   it is stored in the queue and processed in icount_account_warp_timer().
+   Every such event has it's own id from the following list:
      - REPLAY_ASYNC_EVENT_BH. Bottom-half callback. This event synchronizes
        callbacks that affect virtual machine state, but normally called
        asynchronously.
@@ -405,6 +403,5 @@ Here is the list of events that are written into the log:
  - EVENT_CLOCK + clock_id. Group of events for host clock read operations.
    Argument: 8-byte clock value.
  - EVENT_CHECKPOINT + checkpoint_id. Checkpoint for synchronization of
-   CPU, internal threads, and asynchronous input events. May be followed
-   by one or more EVENT_ASYNC events.
+   CPU, internal threads, and asynchronous input events.
  - EVENT_END. Last event in the log.

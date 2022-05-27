@@ -87,8 +87,6 @@ typedef struct ReplayState {
     int32_t read_event_kind;
     /*! Asynchronous event id read from the log */
     uint64_t read_event_id;
-    /*! Asynchronous event checkpoint id read from the log */
-    int32_t read_event_checkpoint;
 } ReplayState;
 extern ReplayState replay_state;
 
@@ -152,9 +150,9 @@ void replay_finish_events(void);
 /*! Returns true if there are any unsaved events in the queue */
 bool replay_has_events(void);
 /*! Saves events from queue into the file */
-void replay_save_events(int checkpoint);
+void replay_save_events(void);
 /*! Read events from the file into the input queue */
-void replay_read_events(int checkpoint);
+void replay_read_events(void);
 /*! Adds specified async event to the queue */
 void replay_add_event(ReplayAsyncEventKind event_kind, void *opaque,
                       void *opaque2, uint64_t id);

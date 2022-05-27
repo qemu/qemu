@@ -170,12 +170,11 @@ void replay_block_event(QEMUBH *bh, uint64_t id)
     }
 }
 
-static void replay_save_event(Event *event, int checkpoint)
+static void replay_save_event(Event *event)
 {
     if (replay_mode != REPLAY_MODE_PLAY) {
         /* put the event into the file */
         replay_put_event(EVENT_ASYNC);
-        replay_put_byte(checkpoint);
         replay_put_byte(event->event_kind);
 
         /* save event-specific data */
@@ -206,32 +205,25 @@ static void replay_save_event(Event *event, int checkpoint)
 }
 
 /* Called with replay mutex locked */
-void replay_save_events(int checkpoint)
+void replay_save_events(void)
 {
     g_assert(replay_mutex_locked());
-    g_assert(checkpoint != CHECKPOINT_CLOCK_WARP_START);
-    g_assert(checkpoint != CHECKPOINT_CLOCK_VIRTUAL);
     while (!QTAILQ_EMPTY(&events_list)) {
         Event *event = QTAILQ_FIRST(&events_list);
-        replay_save_event(event, checkpoint);
+        replay_save_event(event);
         replay_run_event(event);
         QTAILQ_REMOVE(&events_list, event, events);
         g_free(event);
     }
 }
 
-static Event *replay_read_event(int checkpoint)
+static Event *replay_read_event(void)
 {
     Event *event;
     if (replay_state.read_event_kind == -1) {
-        replay_state.read_event_checkpoint = replay_get_byte();
         replay_state.read_event_kind = replay_get_byte();
         replay_state.read_event_id = -1;
         replay_check_error();
-    }
-
-    if (checkpoint != replay_state.read_event_checkpoint) {
-        return NULL;
     }
 
     /* Events that has not to be in the queue */
@@ -294,11 +286,11 @@ static Event *replay_read_event(int checkpoint)
 }
 
 /* Called with replay mutex locked */
-void replay_read_events(int checkpoint)
+void replay_read_events(void)
 {
     g_assert(replay_mutex_locked());
     while (replay_state.data_kind == EVENT_ASYNC) {
-        Event *event = replay_read_event(checkpoint);
+        Event *event = replay_read_event();
         if (!event) {
             break;
         }
