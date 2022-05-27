@@ -37,7 +37,6 @@ export SRC_PATH
 SPEED = quick
 
 -include tests/tcg/Makefile.prereqs
-config-host.mak: $(SRC_PATH)/tests/tcg/configure.sh
 tests/tcg/Makefile.prereqs: config-host.mak
 
 # Per guest TCG tests
