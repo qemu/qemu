@@ -206,14 +206,20 @@ static bool gen_gvec_ool_arg_zzxz(DisasContext *s, gen_helper_gvec_4 *fn,
 }
 
 /* Invoke an out-of-line helper on 2 Zregs and a predicate. */
-static void gen_gvec_ool_zzp(DisasContext *s, gen_helper_gvec_3 *fn,
+static bool gen_gvec_ool_zzp(DisasContext *s, gen_helper_gvec_3 *fn,
                              int rd, int rn, int pg, int data)
 {
-    unsigned vsz = vec_full_reg_size(s);
-    tcg_gen_gvec_3_ool(vec_full_reg_offset(s, rd),
-                       vec_full_reg_offset(s, rn),
-                       pred_full_reg_offset(s, pg),
-                       vsz, vsz, data, fn);
+    if (fn == NULL) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        tcg_gen_gvec_3_ool(vec_full_reg_offset(s, rd),
+                           vec_full_reg_offset(s, rn),
+                           pred_full_reg_offset(s, pg),
+                           vsz, vsz, data, fn);
+    }
+    return true;
 }
 
 /* Invoke an out-of-line helper on 3 Zregs and a predicate. */
@@ -801,13 +807,7 @@ static bool trans_SEL_zpzz(DisasContext *s, arg_rprr_esz *a)
 
 static bool do_zpz_ool(DisasContext *s, arg_rpr_esz *a, gen_helper_gvec_3 *fn)
 {
-    if (fn == NULL) {
-        return false;
-    }
-    if (sve_access_check(s)) {
-        gen_gvec_ool_zzp(s, fn, a->rd, a->rn, a->pg, 0);
-    }
-    return true;
+    return gen_gvec_ool_zzp(s, fn, a->rd, a->rn, a->pg, 0);
 }
 
 #define DO_ZPZ(NAME, name) \
@@ -986,20 +986,13 @@ static bool do_movz_zpz(DisasContext *s, int rd, int rn, int pg,
         gen_helper_sve_movz_b, gen_helper_sve_movz_h,
         gen_helper_sve_movz_s, gen_helper_sve_movz_d,
     };
-
-    if (sve_access_check(s)) {
-        gen_gvec_ool_zzp(s, fns[esz], rd, rn, pg, invert);
-    }
-    return true;
+    return gen_gvec_ool_zzp(s, fns[esz], rd, rn, pg, invert);
 }
 
 static bool do_zpzi_ool(DisasContext *s, arg_rpri_esz *a,
                         gen_helper_gvec_3 *fn)
 {
-    if (sve_access_check(s)) {
-        gen_gvec_ool_zzp(s, fn, a->rd, a->rn, a->pg, a->imm);
-    }
-    return true;
+    return gen_gvec_ool_zzp(s, fn, a->rd, a->rn, a->pg, a->imm);
 }
 
 static bool trans_ASR_zpzi(DisasContext *s, arg_rpri_esz *a)
