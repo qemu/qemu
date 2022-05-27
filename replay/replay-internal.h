@@ -12,6 +12,19 @@
  *
  */
 
+/* Asynchronous events IDs */
+
+typedef enum ReplayAsyncEventKind {
+    REPLAY_ASYNC_EVENT_BH,
+    REPLAY_ASYNC_EVENT_BH_ONESHOT,
+    REPLAY_ASYNC_EVENT_INPUT,
+    REPLAY_ASYNC_EVENT_INPUT_SYNC,
+    REPLAY_ASYNC_EVENT_CHAR_READ,
+    REPLAY_ASYNC_EVENT_BLOCK,
+    REPLAY_ASYNC_EVENT_NET,
+    REPLAY_ASYNC_COUNT
+} ReplayAsyncEventKind;
+
 /* Any changes to order/number of events will need to bump REPLAY_VERSION */
 enum ReplayEvents {
     /* for instruction event */
@@ -22,6 +35,7 @@ enum ReplayEvents {
     EVENT_EXCEPTION,
     /* for async events */
     EVENT_ASYNC,
+    EVENT_ASYNC_LAST = EVENT_ASYNC + REPLAY_ASYNC_COUNT - 1,
     /* for shutdown requests, range allows recovery of ShutdownCause */
     EVENT_SHUTDOWN,
     EVENT_SHUTDOWN_LAST = EVENT_SHUTDOWN + SHUTDOWN_CAUSE__MAX,
@@ -49,21 +63,6 @@ enum ReplayEvents {
     EVENT_COUNT
 };
 
-/* Asynchronous events IDs */
-
-enum ReplayAsyncEventKind {
-    REPLAY_ASYNC_EVENT_BH,
-    REPLAY_ASYNC_EVENT_BH_ONESHOT,
-    REPLAY_ASYNC_EVENT_INPUT,
-    REPLAY_ASYNC_EVENT_INPUT_SYNC,
-    REPLAY_ASYNC_EVENT_CHAR_READ,
-    REPLAY_ASYNC_EVENT_BLOCK,
-    REPLAY_ASYNC_EVENT_NET,
-    REPLAY_ASYNC_COUNT
-};
-
-typedef enum ReplayAsyncEventKind ReplayAsyncEventKind;
-
 typedef struct ReplayState {
     /*! Cached clock values. */
     int64_t cached_clock[REPLAY_CLOCK_COUNT];
@@ -83,8 +82,6 @@ typedef struct ReplayState {
     uint64_t block_request_id;
     /*! Prior value of the host clock */
     uint64_t host_clock_last;
-    /*! Asynchronous event type read from the log */
-    int32_t read_event_kind;
     /*! Asynchronous event id read from the log */
     uint64_t read_event_id;
 } ReplayState;

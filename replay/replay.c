@@ -22,7 +22,7 @@
 
 /* Current version of the replay mechanism.
    Increase it when file format changes. */
-#define REPLAY_VERSION              0xe0200b
+#define REPLAY_VERSION              0xe0200c
 /* Size of replay log header */
 #define HEADER_SIZE                 (sizeof(uint32_t) + sizeof(uint64_t))
 
@@ -221,7 +221,8 @@ bool replay_has_event(void)
         replay_account_executed_instructions();
         res = EVENT_CHECKPOINT <= replay_state.data_kind
               && replay_state.data_kind <= EVENT_CHECKPOINT_LAST;
-        res = res || replay_state.data_kind == EVENT_ASYNC;
+        res = res || (EVENT_ASYNC <= replay_state.data_kind
+                     && replay_state.data_kind <= EVENT_ASYNC_LAST);
     }
     return res;
 }
