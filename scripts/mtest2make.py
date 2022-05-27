@@ -81,12 +81,12 @@ def emit_prolog(suites, prefix):
 
 def emit_suite_deps(name, suite, prefix):
     deps = ' '.join(suite.deps)
-    targets = f'{prefix}-{name} {prefix}-report-{name}.junit.xml {prefix} {prefix}-report.junit.xml'
+    targets = [f'{prefix}-{name}', f'{prefix}-report-{name}.junit.xml', f'{prefix}', f'{prefix}-report.junit.xml',
+               f'{prefix}-build']
     print()
     print(f'.{prefix}-{name}.deps = {deps}')
-    print(f'ifneq ($(filter {prefix}-build {targets}, $(MAKECMDGOALS)),)')
-    print(f'.{prefix}.build-suites += {name}')
-    print(f'endif')
+    for t in targets:
+        print(f'.ninja-goals.{t} += $(.{prefix}-{name}.deps)')
 
 def emit_suite(name, suite, prefix):
     emit_suite_deps(name, suite, prefix)
