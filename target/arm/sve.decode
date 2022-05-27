@@ -528,8 +528,14 @@ DUPM            00000101 11 0000 dbm:13 rd:5
 FCPY            00000101 .. 01 .... 110 imm:8 .....             @rdn_pg4
 
 # SVE copy integer immediate (predicated)
-CPY_m_i         00000101 .. 01 .... 01 . ........ .....   @rdn_pg4 imm=%sh8_i8s
-CPY_z_i         00000101 .. 01 .... 00 . ........ .....   @rdn_pg4 imm=%sh8_i8s
+{
+  INVALID       00000101 00 01 ---- 01 1 -------- -----
+  CPY_m_i       00000101 .. 01 .... 01 . ........ .....   @rdn_pg4 imm=%sh8_i8s
+}
+{
+  INVALID       00000101 00 01 ---- 00 1 -------- -----
+  CPY_z_i       00000101 .. 01 .... 00 . ........ .....   @rdn_pg4 imm=%sh8_i8s
+}
 
 ### SVE Permute - Extract Group
 
