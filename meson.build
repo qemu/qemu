@@ -3735,12 +3735,8 @@ foreach target: target_dirs
     config_cross_tcg = keyval.load(tcg_mak)
     target = config_cross_tcg['TARGET_NAME']
     compiler = ''
-    if 'DOCKER_CROSS_CC_GUEST' in config_cross_tcg
-      summary_info += {target + ' tests': config_cross_tcg['DOCKER_CROSS_CC_GUEST'] +
-                                          ' via ' + config_cross_tcg['DOCKER_IMAGE']}
-    elif 'CROSS_CC_GUEST' in config_cross_tcg
-      summary_info += {target + ' tests'
-                                : config_cross_tcg['CROSS_CC_GUEST'] }
+    if 'CC' in config_cross_tcg
+      summary_info += {target + ' tests': config_cross_tcg['CC']}
     endif
    endif
 endforeach
