@@ -7568,39 +7568,19 @@ TRANS_FEAT(BFMMLA, aa64_sve_bf16, gen_gvec_ool_arg_zzzz,
 
 static bool do_BFMLAL_zzzw(DisasContext *s, arg_rrrr_esz *a, bool sel)
 {
-    if (!dc_isar_feature(aa64_sve_bf16, s)) {
-        return false;
-    }
     return gen_gvec_fpst_zzzz(s, gen_helper_gvec_bfmlal,
                               a->rd, a->rn, a->rm, a->ra, sel, FPST_FPCR);
 }
 
-static bool trans_BFMLALB_zzzw(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_BFMLAL_zzzw(s, a, false);
-}
-
-static bool trans_BFMLALT_zzzw(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_BFMLAL_zzzw(s, a, true);
-}
+TRANS_FEAT(BFMLALB_zzzw, aa64_sve_bf16, do_BFMLAL_zzzw, a, false)
+TRANS_FEAT(BFMLALT_zzzw, aa64_sve_bf16, do_BFMLAL_zzzw, a, true)
 
 static bool do_BFMLAL_zzxw(DisasContext *s, arg_rrxr_esz *a, bool sel)
 {
-    if (!dc_isar_feature(aa64_sve_bf16, s)) {
-        return false;
-    }
     return gen_gvec_fpst_zzzz(s, gen_helper_gvec_bfmlal_idx,
                               a->rd, a->rn, a->rm, a->ra,
                               (a->index << 1) | sel, FPST_FPCR);
 }
 
-static bool trans_BFMLALB_zzxw(DisasContext *s, arg_rrxr_esz *a)
-{
-    return do_BFMLAL_zzxw(s, a, false);
-}
-
-static bool trans_BFMLALT_zzxw(DisasContext *s, arg_rrxr_esz *a)
-{
-    return do_BFMLAL_zzxw(s, a, true);
-}
+TRANS_FEAT(BFMLALB_zzxw, aa64_sve_bf16, do_BFMLAL_zzxw, a, false)
+TRANS_FEAT(BFMLALT_zzxw, aa64_sve_bf16, do_BFMLAL_zzxw, a, true)
