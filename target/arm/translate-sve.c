@@ -4168,30 +4168,16 @@ static bool do_frint_mode(DisasContext *s, arg_rpr_esz *a,
     return true;
 }
 
-static bool trans_FRINTN(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_frint_mode(s, a, float_round_nearest_even, frint_fns[a->esz]);
-}
-
-static bool trans_FRINTP(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_frint_mode(s, a, float_round_up, frint_fns[a->esz]);
-}
-
-static bool trans_FRINTM(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_frint_mode(s, a, float_round_down, frint_fns[a->esz]);
-}
-
-static bool trans_FRINTZ(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_frint_mode(s, a, float_round_to_zero, frint_fns[a->esz]);
-}
-
-static bool trans_FRINTA(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_frint_mode(s, a, float_round_ties_away, frint_fns[a->esz]);
-}
+TRANS_FEAT(FRINTN, aa64_sve, do_frint_mode, a,
+           float_round_nearest_even, frint_fns[a->esz])
+TRANS_FEAT(FRINTP, aa64_sve, do_frint_mode, a,
+           float_round_up, frint_fns[a->esz])
+TRANS_FEAT(FRINTM, aa64_sve, do_frint_mode, a,
+           float_round_down, frint_fns[a->esz])
+TRANS_FEAT(FRINTZ, aa64_sve, do_frint_mode, a,
+           float_round_to_zero, frint_fns[a->esz])
+TRANS_FEAT(FRINTA, aa64_sve, do_frint_mode, a,
+           float_round_ties_away, frint_fns[a->esz])
 
 static gen_helper_gvec_3_ptr * const frecpx_fns[] = {
     NULL,                    gen_helper_sve_frecpx_h,
@@ -7289,21 +7275,10 @@ TRANS_FEAT(FCVTLT_hs, aa64_sve2, gen_gvec_fpst_arg_zpz,
 TRANS_FEAT(FCVTLT_sd, aa64_sve2, gen_gvec_fpst_arg_zpz,
            gen_helper_sve2_fcvtlt_sd, a, 0, FPST_FPCR)
 
-static bool trans_FCVTX_ds(DisasContext *s, arg_rpr_esz *a)
-{
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return do_frint_mode(s, a, float_round_to_odd, gen_helper_sve_fcvt_ds);
-}
-
-static bool trans_FCVTXNT_ds(DisasContext *s, arg_rpr_esz *a)
-{
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return do_frint_mode(s, a, float_round_to_odd, gen_helper_sve2_fcvtnt_ds);
-}
+TRANS_FEAT(FCVTX_ds, aa64_sve2, do_frint_mode, a,
+           float_round_to_odd, gen_helper_sve_fcvt_ds)
+TRANS_FEAT(FCVTXNT_ds, aa64_sve2, do_frint_mode, a,
+           float_round_to_odd, gen_helper_sve2_fcvtnt_ds)
 
 static bool trans_FLOGB(DisasContext *s, arg_rpr_esz *a)
 {
