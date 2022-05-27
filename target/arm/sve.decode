@@ -787,7 +787,10 @@ WHILE_ptr       00100101 esz:2 1 rm:5 001 100 rn:5 rw:1 rd:4
 FDUP            00100101 esz:2 111 00 1110 imm:8 rd:5
 
 # SVE broadcast integer immediate (unpredicated)
-DUP_i           00100101 esz:2 111 00 011 . ........ rd:5       imm=%sh8_i8s
+{
+  INVALID       00100101 00    111 00 011 1 -------- -----
+  DUP_i         00100101 esz:2 111 00 011 . ........ rd:5       imm=%sh8_i8s
+}
 
 # SVE integer add/subtract immediate (unpredicated)
 ADD_zzi         00100101 .. 100 000 11 . ........ .....         @rdn_sh_i8u

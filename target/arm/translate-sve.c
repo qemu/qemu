@@ -403,6 +403,12 @@ const uint64_t pred_esz_masks[4] = {
     0x1111111111111111ull, 0x0101010101010101ull
 };
 
+static bool trans_INVALID(DisasContext *s, arg_INVALID *a)
+{
+    unallocated_encoding(s);
+    return true;
+}
+
 /*
  *** SVE Logical - Unpredicated Group
  */
@@ -3246,13 +3252,9 @@ static bool trans_FDUP(DisasContext *s, arg_FDUP *a)
 
 static bool trans_DUP_i(DisasContext *s, arg_DUP_i *a)
 {
-    if (a->esz == 0 && extract32(s->insn, 13, 1)) {
-        return false;
-    }
     if (sve_access_check(s)) {
         unsigned vsz = vec_full_reg_size(s);
         int dofs = vec_full_reg_offset(s, a->rd);
-
         tcg_gen_gvec_dup_imm(a->esz, dofs, vsz, vsz, a->imm);
     }
     return true;
