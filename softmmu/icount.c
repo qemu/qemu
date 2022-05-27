@@ -486,3 +486,11 @@ void icount_configure(QemuOpts *opts, Error **errp)
                    qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                    NANOSECONDS_PER_SECOND / 10);
 }
+
+void icount_notify_exit(void)
+{
+    if (icount_enabled() && current_cpu) {
+        qemu_cpu_kick(current_cpu);
+        qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
+    }
+}
