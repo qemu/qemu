@@ -2658,20 +2658,11 @@ TRANS_FEAT(REVH, aa64_sve, gen_gvec_ool_arg_zpz, revh_fns[a->esz], a, 0)
 TRANS_FEAT(REVW, aa64_sve, gen_gvec_ool_arg_zpz,
            a->esz == 3 ? gen_helper_sve_revw_d : NULL, a, 0)
 
-static bool trans_SPLICE(DisasContext *s, arg_rprr_esz *a)
-{
-    return gen_gvec_ool_zzzp(s, gen_helper_sve_splice,
-                             a->rd, a->rn, a->rm, a->pg, a->esz);
-}
+TRANS_FEAT(SPLICE, aa64_sve, gen_gvec_ool_arg_zpzz,
+           gen_helper_sve_splice, a, a->esz)
 
-static bool trans_SPLICE_sve2(DisasContext *s, arg_rpr_esz *a)
-{
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_ool_zzzp(s, gen_helper_sve_splice,
-                             a->rd, a->rn, (a->rn + 1) % 32, a->pg, a->esz);
-}
+TRANS_FEAT(SPLICE_sve2, aa64_sve2, gen_gvec_ool_zzzp, gen_helper_sve_splice,
+           a->rd, a->rn, (a->rn + 1) % 32, a->pg, a->esz)
 
 /*
  *** SVE Integer Compare - Vectors Group
