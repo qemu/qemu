@@ -3254,10 +3254,7 @@ static bool trans_DUP_i(DisasContext *s, arg_DUP_i *a)
     return true;
 }
 
-static bool trans_ADD_zzi(DisasContext *s, arg_rri_esz *a)
-{
-    return gen_gvec_fn_arg_zzi(s, tcg_gen_gvec_addi, a);
-}
+TRANS_FEAT(ADD_zzi, aa64_sve, gen_gvec_fn_arg_zzi, tcg_gen_gvec_addi, a)
 
 static bool trans_SUB_zzi(DisasContext *s, arg_rri_esz *a)
 {
