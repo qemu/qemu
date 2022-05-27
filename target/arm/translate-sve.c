@@ -3315,15 +3315,7 @@ static bool trans_SUBR_zzi(DisasContext *s, arg_rri_esz *a)
     return true;
 }
 
-static bool trans_MUL_zzi(DisasContext *s, arg_rri_esz *a)
-{
-    if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        tcg_gen_gvec_muli(a->esz, vec_full_reg_offset(s, a->rd),
-                          vec_full_reg_offset(s, a->rn), a->imm, vsz, vsz);
-    }
-    return true;
-}
+TRANS_FEAT(MUL_zzi, aa64_sve, gen_gvec_fn_arg_zzi, tcg_gen_gvec_muli, a)
 
 static bool do_zzi_sat(DisasContext *s, arg_rri_esz *a, bool u, bool d)
 {
