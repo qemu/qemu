@@ -3262,9 +3262,6 @@ static bool trans_DUP_i(DisasContext *s, arg_DUP_i *a)
 
 static bool trans_ADD_zzi(DisasContext *s, arg_rri_esz *a)
 {
-    if (a->esz == 0 && extract32(s->insn, 13, 1)) {
-        return false;
-    }
     return gen_gvec_fn_arg_zzi(s, tcg_gen_gvec_addi, a);
 }
 
@@ -3305,9 +3302,6 @@ static bool trans_SUBR_zzi(DisasContext *s, arg_rri_esz *a)
           .scalar_first = true }
     };
 
-    if (a->esz == 0 && extract32(s->insn, 13, 1)) {
-        return false;
-    }
     if (sve_access_check(s)) {
         unsigned vsz = vec_full_reg_size(s);
         tcg_gen_gvec_2s(vec_full_reg_offset(s, a->rd),
@@ -3321,9 +3315,6 @@ TRANS_FEAT(MUL_zzi, aa64_sve, gen_gvec_fn_arg_zzi, tcg_gen_gvec_muli, a)
 
 static bool do_zzi_sat(DisasContext *s, arg_rri_esz *a, bool u, bool d)
 {
-    if (a->esz == 0 && extract32(s->insn, 13, 1)) {
-        return false;
-    }
     if (sve_access_check(s)) {
         do_sat_addsub_vec(s, a->esz, a->rd, a->rn,
                           tcg_constant_i64(a->imm), u, d);
