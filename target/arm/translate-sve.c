@@ -2298,9 +2298,9 @@ static bool do_zip(DisasContext *s, arg_rrr_esz *a, bool high)
         unsigned vsz = vec_full_reg_size(s);
         unsigned high_ofs = high ? vsz / 2 : 0;
         tcg_gen_gvec_3_ool(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn) + high_ofs,
-                           vec_full_reg_offset(s, a->rm) + high_ofs,
-                           vsz, vsz, 0, fns[a->esz]);
+                           vec_full_reg_offset(s, a->rn),
+                           vec_full_reg_offset(s, a->rm),
+                           vsz, vsz, high_ofs, fns[a->esz]);
     }
     return true;
 }
@@ -2324,9 +2324,9 @@ static bool do_zip_q(DisasContext *s, arg_rrr_esz *a, bool high)
         unsigned vsz = vec_full_reg_size(s);
         unsigned high_ofs = high ? QEMU_ALIGN_DOWN(vsz, 32) / 2 : 0;
         tcg_gen_gvec_3_ool(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn) + high_ofs,
-                           vec_full_reg_offset(s, a->rm) + high_ofs,
-                           vsz, vsz, 0, gen_helper_sve2_zip_q);
+                           vec_full_reg_offset(s, a->rn),
+                           vec_full_reg_offset(s, a->rm),
+                           vsz, vsz, high_ofs, gen_helper_sve2_zip_q);
     }
     return true;
 }
