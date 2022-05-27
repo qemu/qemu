@@ -199,6 +199,12 @@ static bool gen_gvec_ool_arg_zzzz(DisasContext *s, gen_helper_gvec_4 *fn,
     return gen_gvec_ool_zzzz(s, fn, a->rd, a->rn, a->rm, a->ra, data);
 }
 
+static bool gen_gvec_ool_arg_zzxz(DisasContext *s, gen_helper_gvec_4 *fn,
+                                  arg_rrxr_esz *a)
+{
+    return gen_gvec_ool_zzzz(s, fn, a->rd, a->rn, a->rm, a->ra, a->index);
+}
+
 /* Invoke an out-of-line helper on 2 Zregs and a predicate. */
 static void gen_gvec_ool_zzp(DisasContext *s, gen_helper_gvec_3 *fn,
                              int rd, int rn, int pg, int data)
@@ -3820,15 +3826,9 @@ TRANS_FEAT(DOT_zzzz, aa64_sve, gen_gvec_ool_zzzz,
  * SVE Multiply - Indexed
  */
 
-static bool do_zzxz_ool(DisasContext *s, arg_rrxr_esz *a,
-                        gen_helper_gvec_4 *fn)
-{
-    return gen_gvec_ool_zzzz(s, fn, a->rd, a->rn, a->rm, a->ra, a->index);
-}
-
 #define DO_RRXR(NAME, FUNC) \
     static bool NAME(DisasContext *s, arg_rrxr_esz *a)  \
-    { return do_zzxz_ool(s, a, FUNC); }
+    { return gen_gvec_ool_arg_zzxz(s, FUNC, a); }
 
 DO_RRXR(trans_SDOT_zzxw_s, gen_helper_gvec_sdot_idx_b)
 DO_RRXR(trans_SDOT_zzxw_d, gen_helper_gvec_sdot_idx_h)
@@ -3840,7 +3840,7 @@ static bool trans_SUDOT_zzxw_s(DisasContext *s, arg_rrxr_esz *a)
     if (!dc_isar_feature(aa64_sve_i8mm, s)) {
         return false;
     }
-    return do_zzxz_ool(s, a, gen_helper_gvec_sudot_idx_b);
+    return gen_gvec_ool_arg_zzxz(s, gen_helper_gvec_sudot_idx_b, a);
 }
 
 static bool trans_USDOT_zzxw_s(DisasContext *s, arg_rrxr_esz *a)
@@ -3848,7 +3848,7 @@ static bool trans_USDOT_zzxw_s(DisasContext *s, arg_rrxr_esz *a)
     if (!dc_isar_feature(aa64_sve_i8mm, s)) {
         return false;
     }
-    return do_zzxz_ool(s, a, gen_helper_gvec_usdot_idx_b);
+    return gen_gvec_ool_arg_zzxz(s, gen_helper_gvec_usdot_idx_b, a);
 }
 
 #undef DO_RRXR
