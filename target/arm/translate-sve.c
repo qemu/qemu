@@ -1027,65 +1027,40 @@ static bool trans_ASRD(DisasContext *s, arg_rpri_esz *a)
     }
 }
 
-static bool trans_SQSHL_zpzi(DisasContext *s, arg_rpri_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        gen_helper_sve2_sqshl_zpzi_b, gen_helper_sve2_sqshl_zpzi_h,
-        gen_helper_sve2_sqshl_zpzi_s, gen_helper_sve2_sqshl_zpzi_d,
-    };
-    if (a->esz < 0 || !dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
-}
+static gen_helper_gvec_3 * const sqshl_zpzi_fns[4] = {
+    gen_helper_sve2_sqshl_zpzi_b, gen_helper_sve2_sqshl_zpzi_h,
+    gen_helper_sve2_sqshl_zpzi_s, gen_helper_sve2_sqshl_zpzi_d,
+};
+TRANS_FEAT(SQSHL_zpzi, aa64_sve2, gen_gvec_ool_arg_zpzi,
+           a->esz < 0 ? NULL : sqshl_zpzi_fns[a->esz], a)
 
-static bool trans_UQSHL_zpzi(DisasContext *s, arg_rpri_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        gen_helper_sve2_uqshl_zpzi_b, gen_helper_sve2_uqshl_zpzi_h,
-        gen_helper_sve2_uqshl_zpzi_s, gen_helper_sve2_uqshl_zpzi_d,
-    };
-    if (a->esz < 0 || !dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
-}
+static gen_helper_gvec_3 * const uqshl_zpzi_fns[4] = {
+    gen_helper_sve2_uqshl_zpzi_b, gen_helper_sve2_uqshl_zpzi_h,
+    gen_helper_sve2_uqshl_zpzi_s, gen_helper_sve2_uqshl_zpzi_d,
+};
+TRANS_FEAT(UQSHL_zpzi, aa64_sve2, gen_gvec_ool_arg_zpzi,
+           a->esz < 0 ? NULL : uqshl_zpzi_fns[a->esz], a)
 
-static bool trans_SRSHR(DisasContext *s, arg_rpri_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        gen_helper_sve2_srshr_b, gen_helper_sve2_srshr_h,
-        gen_helper_sve2_srshr_s, gen_helper_sve2_srshr_d,
-    };
-    if (a->esz < 0 || !dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
-}
+static gen_helper_gvec_3 * const srshr_fns[4] = {
+    gen_helper_sve2_srshr_b, gen_helper_sve2_srshr_h,
+    gen_helper_sve2_srshr_s, gen_helper_sve2_srshr_d,
+};
+TRANS_FEAT(SRSHR, aa64_sve2, gen_gvec_ool_arg_zpzi,
+           a->esz < 0 ? NULL : srshr_fns[a->esz], a)
 
-static bool trans_URSHR(DisasContext *s, arg_rpri_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        gen_helper_sve2_urshr_b, gen_helper_sve2_urshr_h,
-        gen_helper_sve2_urshr_s, gen_helper_sve2_urshr_d,
-    };
-    if (a->esz < 0 || !dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
-}
+static gen_helper_gvec_3 * const urshr_fns[4] = {
+    gen_helper_sve2_urshr_b, gen_helper_sve2_urshr_h,
+    gen_helper_sve2_urshr_s, gen_helper_sve2_urshr_d,
+};
+TRANS_FEAT(URSHR, aa64_sve2, gen_gvec_ool_arg_zpzi,
+           a->esz < 0 ? NULL : urshr_fns[a->esz], a)
 
-static bool trans_SQSHLU(DisasContext *s, arg_rpri_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        gen_helper_sve2_sqshlu_b, gen_helper_sve2_sqshlu_h,
-        gen_helper_sve2_sqshlu_s, gen_helper_sve2_sqshlu_d,
-    };
-    if (a->esz < 0 || !dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
-}
+static gen_helper_gvec_3 * const sqshlu_fns[4] = {
+    gen_helper_sve2_sqshlu_b, gen_helper_sve2_sqshlu_h,
+    gen_helper_sve2_sqshlu_s, gen_helper_sve2_sqshlu_d,
+};
+TRANS_FEAT(SQSHLU, aa64_sve2, gen_gvec_ool_arg_zpzi,
+           a->esz < 0 ? NULL : sqshlu_fns[a->esz], a)
 
 /*
  *** SVE Bitwise Shift - Predicated Group
