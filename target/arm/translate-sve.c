@@ -2542,15 +2542,8 @@ static bool do_clast_fp(DisasContext *s, arg_rpr_esz *a, bool before)
     return true;
 }
 
-static bool trans_CLASTA_v(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_clast_fp(s, a, false);
-}
-
-static bool trans_CLASTB_v(DisasContext *s, arg_rpr_esz *a)
-{
-    return do_clast_fp(s, a, true);
-}
+TRANS_FEAT(CLASTA_v, aa64_sve, do_clast_fp, a, false)
+TRANS_FEAT(CLASTB_v, aa64_sve, do_clast_fp, a, true)
 
 /* Compute CLAST for a Xreg.  */
 static bool do_clast_general(DisasContext *s, arg_rpr_esz *a, bool before)
