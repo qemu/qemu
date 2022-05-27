@@ -1,3 +1,11 @@
+..
+   Copyright (c) 2022, ISP RAS
+   Written by Pavel Dovgalyuk
+
+=======================
+Execution Record/Replay
+=======================
+
 Record/replay mechanism, that could be enabled through icount mode, expects
 the virtual devices to satisfy the following requirements.
 
@@ -5,7 +13,7 @@ The main idea behind this document is that everything that affects
 the guest state during execution in icount mode should be deterministic.
 
 Timers
-======
+------
 
 All virtual devices should use virtual clock for timers that change the guest
 state. Virtual clock is deterministic, therefore such timers are deterministic
@@ -19,7 +27,7 @@ the virtual devices (e.g., slirp routing device) that lie outside the
 replayed guest.
 
 Bottom halves
-=============
+-------------
 
 Bottom half callbacks, that affect the guest state, should be invoked through
 replay_bh_schedule_event or replay_bh_schedule_oneshot_event functions.
@@ -27,7 +35,7 @@ Their invocations are saved in record mode and synchronized with the existing
 log in replay mode.
 
 Saving/restoring the VM state
-=============================
+-----------------------------
 
 All fields in the device state structure (including virtual timers)
 should be restored by loadvm to the same values they had before savevm.
@@ -38,7 +46,7 @@ is not defined. It means that you should not call functions like
 the dependencies that may make restoring the VM state non-deterministic.
 
 Stopping the VM
-===============
+---------------
 
 Stopping the guest should not interfere with its state (with the exception
 of the network connections, that could be broken by the remote timeouts).
