@@ -2287,48 +2287,20 @@ TRANS_FEAT(PUNPKHI, aa64_sve, do_perm_pred2, a, 1, gen_helper_sve_punpk_p)
  *** SVE Permute - Interleaving Group
  */
 
-static bool do_zip(DisasContext *s, arg_rrr_esz *a, bool high)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        gen_helper_sve_zip_b, gen_helper_sve_zip_h,
-        gen_helper_sve_zip_s, gen_helper_sve_zip_d,
-    };
-    unsigned vsz = vec_full_reg_size(s);
-    unsigned high_ofs = high ? vsz / 2 : 0;
+static gen_helper_gvec_3 * const zip_fns[4] = {
+    gen_helper_sve_zip_b, gen_helper_sve_zip_h,
+    gen_helper_sve_zip_s, gen_helper_sve_zip_d,
+};
+TRANS_FEAT(ZIP1_z, aa64_sve, gen_gvec_ool_arg_zzz,
+           zip_fns[a->esz], a, 0)
+TRANS_FEAT(ZIP2_z, aa64_sve, gen_gvec_ool_arg_zzz,
+           zip_fns[a->esz], a, vec_full_reg_size(s) / 2)
 
-    return gen_gvec_ool_arg_zzz(s, fns[a->esz], a, high_ofs);
-}
-
-static bool trans_ZIP1_z(DisasContext *s, arg_rrr_esz *a)
-{
-    return do_zip(s, a, false);
-}
-
-static bool trans_ZIP2_z(DisasContext *s, arg_rrr_esz *a)
-{
-    return do_zip(s, a, true);
-}
-
-static bool do_zip_q(DisasContext *s, arg_rrr_esz *a, bool high)
-{
-    unsigned vsz = vec_full_reg_size(s);
-    unsigned high_ofs = high ? QEMU_ALIGN_DOWN(vsz, 32) / 2 : 0;
-
-    if (!dc_isar_feature(aa64_sve_f64mm, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zzz(s, gen_helper_sve2_zip_q, a, high_ofs);
-}
-
-static bool trans_ZIP1_q(DisasContext *s, arg_rrr_esz *a)
-{
-    return do_zip_q(s, a, false);
-}
-
-static bool trans_ZIP2_q(DisasContext *s, arg_rrr_esz *a)
-{
-    return do_zip_q(s, a, true);
-}
+TRANS_FEAT(ZIP1_q, aa64_sve_f64mm, gen_gvec_ool_arg_zzz,
+           gen_helper_sve2_zip_q, a, 0)
+TRANS_FEAT(ZIP2_q, aa64_sve_f64mm, gen_gvec_ool_arg_zzz,
+           gen_helper_sve2_zip_q, a,
+           QEMU_ALIGN_DOWN(vec_full_reg_size(s), 32) / 2)
 
 static gen_helper_gvec_3 * const uzp_fns[4] = {
     gen_helper_sve_uzp_b, gen_helper_sve_uzp_h,
