@@ -6617,55 +6617,36 @@ static bool trans_MUL_zzz(DisasContext *s, arg_rrr_esz *a)
     return true;
 }
 
-static bool do_sve2_zzz_ool(DisasContext *s, arg_rrr_esz *a,
-                            gen_helper_gvec_3 *fn)
-{
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zzz(s, fn, a, 0);
-}
+static gen_helper_gvec_3 * const smulh_zzz_fns[4] = {
+    gen_helper_gvec_smulh_b, gen_helper_gvec_smulh_h,
+    gen_helper_gvec_smulh_s, gen_helper_gvec_smulh_d,
+};
+TRANS_FEAT(SMULH_zzz, aa64_sve2, gen_gvec_ool_arg_zzz,
+           smulh_zzz_fns[a->esz], a, 0)
 
-static bool trans_SMULH_zzz(DisasContext *s, arg_rrr_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        gen_helper_gvec_smulh_b, gen_helper_gvec_smulh_h,
-        gen_helper_gvec_smulh_s, gen_helper_gvec_smulh_d,
-    };
-    return do_sve2_zzz_ool(s, a, fns[a->esz]);
-}
+static gen_helper_gvec_3 * const umulh_zzz_fns[4] = {
+    gen_helper_gvec_umulh_b, gen_helper_gvec_umulh_h,
+    gen_helper_gvec_umulh_s, gen_helper_gvec_umulh_d,
+};
+TRANS_FEAT(UMULH_zzz, aa64_sve2, gen_gvec_ool_arg_zzz,
+           umulh_zzz_fns[a->esz], a, 0)
 
-static bool trans_UMULH_zzz(DisasContext *s, arg_rrr_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        gen_helper_gvec_umulh_b, gen_helper_gvec_umulh_h,
-        gen_helper_gvec_umulh_s, gen_helper_gvec_umulh_d,
-    };
-    return do_sve2_zzz_ool(s, a, fns[a->esz]);
-}
+TRANS_FEAT(PMUL_zzz, aa64_sve2, gen_gvec_ool_arg_zzz,
+           gen_helper_gvec_pmul_b, a, 0)
 
-static bool trans_PMUL_zzz(DisasContext *s, arg_rrr_esz *a)
-{
-    return do_sve2_zzz_ool(s, a, gen_helper_gvec_pmul_b);
-}
+static gen_helper_gvec_3 * const sqdmulh_zzz_fns[4] = {
+    gen_helper_sve2_sqdmulh_b, gen_helper_sve2_sqdmulh_h,
+    gen_helper_sve2_sqdmulh_s, gen_helper_sve2_sqdmulh_d,
+};
+TRANS_FEAT(SQDMULH_zzz, aa64_sve2, gen_gvec_ool_arg_zzz,
+           sqdmulh_zzz_fns[a->esz], a, 0)
 
-static bool trans_SQDMULH_zzz(DisasContext *s, arg_rrr_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        gen_helper_sve2_sqdmulh_b, gen_helper_sve2_sqdmulh_h,
-        gen_helper_sve2_sqdmulh_s, gen_helper_sve2_sqdmulh_d,
-    };
-    return do_sve2_zzz_ool(s, a, fns[a->esz]);
-}
-
-static bool trans_SQRDMULH_zzz(DisasContext *s, arg_rrr_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        gen_helper_sve2_sqrdmulh_b, gen_helper_sve2_sqrdmulh_h,
-        gen_helper_sve2_sqrdmulh_s, gen_helper_sve2_sqrdmulh_d,
-    };
-    return do_sve2_zzz_ool(s, a, fns[a->esz]);
-}
+static gen_helper_gvec_3 * const sqrdmulh_zzz_fns[4] = {
+    gen_helper_sve2_sqrdmulh_b, gen_helper_sve2_sqrdmulh_h,
+    gen_helper_sve2_sqrdmulh_s, gen_helper_sve2_sqrdmulh_d,
+};
+TRANS_FEAT(SQRDMULH_zzz, aa64_sve2, gen_gvec_ool_arg_zzz,
+           sqrdmulh_zzz_fns[a->esz], a, 0)
 
 /*
  * SVE2 Integer - Predicated
@@ -7964,14 +7945,12 @@ static bool trans_UQRSHRNT(DisasContext *s, arg_rri_esz *a)
 }
 
 #define DO_SVE2_ZZZ_NARROW(NAME, name)                                    \
-static bool trans_##NAME(DisasContext *s, arg_rrr_esz *a)                 \
-{                                                                         \
-    static gen_helper_gvec_3 * const fns[4] = {                           \
+    static gen_helper_gvec_3 * const name##_fns[4] = {                    \
         NULL,                       gen_helper_sve2_##name##_h,           \
         gen_helper_sve2_##name##_s, gen_helper_sve2_##name##_d,           \
     };                                                                    \
-    return do_sve2_zzz_ool(s, a, fns[a->esz]);                            \
-}
+    TRANS_FEAT(NAME, aa64_sve2, gen_gvec_ool_arg_zzz,                     \
+               name##_fns[a->esz], a, 0)
 
 DO_SVE2_ZZZ_NARROW(ADDHNB, addhnb)
 DO_SVE2_ZZZ_NARROW(ADDHNT, addhnt)
@@ -8016,13 +7995,8 @@ static bool trans_HISTCNT(DisasContext *s, arg_rprr_esz *a)
     return do_sve2_zpzz_ool(s, a, fns[a->esz - 2]);
 }
 
-static bool trans_HISTSEG(DisasContext *s, arg_rrr_esz *a)
-{
-    if (a->esz != 0) {
-        return false;
-    }
-    return do_sve2_zzz_ool(s, a, gen_helper_sve2_histseg);
-}
+TRANS_FEAT(HISTSEG, aa64_sve2, gen_gvec_ool_arg_zzz,
+           a->esz == 0 ? gen_helper_sve2_histseg : NULL, a, 0)
 
 static bool do_sve2_zpzz_fp(DisasContext *s, arg_rprr_esz *a,
                             gen_helper_gvec_4_ptr *fn)
