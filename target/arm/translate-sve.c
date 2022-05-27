@@ -3313,25 +3313,10 @@ static bool do_zzi_sat(DisasContext *s, arg_rri_esz *a, bool u, bool d)
     return true;
 }
 
-static bool trans_SQADD_zzi(DisasContext *s, arg_rri_esz *a)
-{
-    return do_zzi_sat(s, a, false, false);
-}
-
-static bool trans_UQADD_zzi(DisasContext *s, arg_rri_esz *a)
-{
-    return do_zzi_sat(s, a, true, false);
-}
-
-static bool trans_SQSUB_zzi(DisasContext *s, arg_rri_esz *a)
-{
-    return do_zzi_sat(s, a, false, true);
-}
-
-static bool trans_UQSUB_zzi(DisasContext *s, arg_rri_esz *a)
-{
-    return do_zzi_sat(s, a, true, true);
-}
+TRANS_FEAT(SQADD_zzi, aa64_sve, do_zzi_sat, a, false, false)
+TRANS_FEAT(UQADD_zzi, aa64_sve, do_zzi_sat, a, true, false)
+TRANS_FEAT(SQSUB_zzi, aa64_sve, do_zzi_sat, a, false, true)
+TRANS_FEAT(UQSUB_zzi, aa64_sve, do_zzi_sat, a, true, true)
 
 static bool do_zzi_ool(DisasContext *s, arg_rri_esz *a, gen_helper_gvec_2i *fn)
 {
