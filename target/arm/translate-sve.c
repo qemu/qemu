@@ -7280,29 +7280,12 @@ TRANS_FEAT(FCVTX_ds, aa64_sve2, do_frint_mode, a,
 TRANS_FEAT(FCVTXNT_ds, aa64_sve2, do_frint_mode, a,
            float_round_to_odd, gen_helper_sve2_fcvtnt_ds)
 
-static bool trans_FLOGB(DisasContext *s, arg_rpr_esz *a)
-{
-    static gen_helper_gvec_3_ptr * const fns[] = {
-        NULL,               gen_helper_flogb_h,
-        gen_helper_flogb_s, gen_helper_flogb_d
-    };
-
-    if (!dc_isar_feature(aa64_sve2, s) || fns[a->esz] == NULL) {
-        return false;
-    }
-    if (sve_access_check(s)) {
-        TCGv_ptr status =
-            fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
-        unsigned vsz = vec_full_reg_size(s);
-
-        tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           pred_full_reg_offset(s, a->pg),
-                           status, vsz, vsz, 0, fns[a->esz]);
-        tcg_temp_free_ptr(status);
-    }
-    return true;
-}
+static gen_helper_gvec_3_ptr * const flogb_fns[] = {
+    NULL,               gen_helper_flogb_h,
+    gen_helper_flogb_s, gen_helper_flogb_d
+};
+TRANS_FEAT(FLOGB, aa64_sve2, gen_gvec_fpst_arg_zpz, flogb_fns[a->esz],
+           a, 0, a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR)
 
 static bool do_FMLAL_zzzw(DisasContext *s, arg_rrrr_esz *a, bool sub, bool sel)
 {
