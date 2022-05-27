@@ -2046,20 +2046,9 @@ static bool do_zz_dbm(DisasContext *s, arg_rr_dbm *a, GVecGen2iFn *gvec_fn)
     return gen_gvec_fn_zzi(s, gvec_fn, MO_64, a->rd, a->rn, imm);
 }
 
-static bool trans_AND_zzi(DisasContext *s, arg_rr_dbm *a)
-{
-    return do_zz_dbm(s, a, tcg_gen_gvec_andi);
-}
-
-static bool trans_ORR_zzi(DisasContext *s, arg_rr_dbm *a)
-{
-    return do_zz_dbm(s, a, tcg_gen_gvec_ori);
-}
-
-static bool trans_EOR_zzi(DisasContext *s, arg_rr_dbm *a)
-{
-    return do_zz_dbm(s, a, tcg_gen_gvec_xori);
-}
+TRANS_FEAT(AND_zzi, aa64_sve, do_zz_dbm, a, tcg_gen_gvec_andi)
+TRANS_FEAT(ORR_zzi, aa64_sve, do_zz_dbm, a, tcg_gen_gvec_ori)
+TRANS_FEAT(EOR_zzi, aa64_sve, do_zz_dbm, a, tcg_gen_gvec_xori)
 
 static bool trans_DUPM(DisasContext *s, arg_DUPM *a)
 {
